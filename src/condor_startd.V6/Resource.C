@@ -344,6 +344,16 @@ Resource::suspendForCOD( void )
 void
 Resource::resumeForCOD( void )
 {
+	if( ! r_suspended_for_cod ) {
+			// we've already been here, so we can return right away.
+			// This could be perfectly normal.  For example, if we
+			// suspend a COD job and then deactivate or release that
+			// COD claim, we'll get here twice.  We can just ignore
+			// the second one, since we'll have already done all the
+			// things we need to do when we first got here...
+		return;
+	}
+
 	bool did_update = false;
 	r_suspended_for_cod = false;
 	r_reqexp->restore();
