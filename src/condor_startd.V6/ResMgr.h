@@ -278,4 +278,17 @@ int ownerStateCmp( const void*, const void* );
 // ties with the value of the Rank expression for Claimed resources.
 int claimedRankCmp( const void*, const void* );
 
+/*
+  Sort resource so their in the right order to give out a new COD
+  Claim.  We give out COD claims in the following order:  
+  1) the Resource with the least # of existing COD claims (to ensure
+     round-robin across resources
+  2) in case of a tie, the Resource in the best state (owner or
+     unclaimed, not claimed)
+  3) in case of a tie, the Claimed resource with the lowest value of
+     machine Rank for its claim
+*/
+int newCODClaimCmp( const void*, const void* );
+
+
 #endif /* _CONDOR_RESMGR_H */

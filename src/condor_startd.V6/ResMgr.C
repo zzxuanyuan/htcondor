@@ -1004,11 +1004,23 @@ ResMgr::findRipForNewCOD( ClassAd* ad )
 	int requirements;
 	int i;
 
- 		// sort the resources so that, all else being equal, we'll
-		// give out this COD claim on an unused (by Condor) resource.  
-	resource_sort( ownerStateCmp );
+		/*
+          We always ensure that the request's Requirements, if any,
+		  are met.  Other than that, we give out COD claims to
+		  Resources in the following order:  
 
-		// now, just find the first resource that matches the request  
+		  1) the Resource with the least # of existing COD claims (to
+  		     ensure round-robin across resources
+		  2) in case of a tie, the Resource in the best state (owner
+   		     or unclaimed, not claimed)
+		  3) in case of a tie, the Claimed resource with the lowest
+  		     value of machine Rank for its claim
+		*/
+
+		// sort resources based on the above order
+	resource_sort( newCODClaimCmp );
+
+		// find the first one that matches our requirements 
 	for( i = 0; i < nresources; i++ ) {
 		if( ad->EvalBool( ATTR_REQUIREMENTS, resources[i]->r_classad,
 						  requirements ) == 0 ) {
@@ -1673,6 +1685,65 @@ claimedRankCmp( const void* a, const void* b )
 	} 
 	return 0;
 }
+
+
+/*
+  Sort resource so their in the right order to give out a new COD
+  Claim.  We give out COD claims in the following order:  
+  1) the Resource with the least # of existing COD claims (to ensure
+     round-robin across resources
+  2) in case of a tie, the Resource in the best state (owner or
+     unclaimed, not claimed)
+  3) in case of a tie, the Claimed resource with the lowest value of
+     machine Rank for its claim
+*/
+int
+newCODClaimCmp( const void* a, const void* b )
+{
+	Resource *rip1, *rip2;
+	int val1, val2, diff;
+	int numCOD1, numCOD2;
+	float fval1, fval2;
+	State s;
+	rip1 = *((Resource**)a);
+	rip2 = *((Resource**)b);
+
+	numCOD1 = rip1->r_cod_mgr->numClaims();
+	numCOD2 = rip2->r_cod_mgr->numClaims();
+
+		// In the first case, sort based on # of COD claims
+	diff = numCOD1 - numCOD2;
+	if( diff ) {
+		return diff;
+	}
+
+		// If we're still here, we've got same # of COD claims, so
+		// sort based on State.  Since the state enum is already in
+		// the "right" order for this kind of sort, we don't need to
+		// do anything fancy, we just cast the state enum to an int
+		// and we're done.
+	s = rip1->state();
+	val1 = (int)s;
+	val2 = (int)rip2->state();
+	diff = val1 - val2;
+	if( diff ) {
+		return diff;
+	}
+
+		// We're still here, means we've got the same number of COD
+		// claims and the same state.  If that state is "Claimed" or
+		// "Preempting", we want to break ties w/ the Rank expression,
+		// else, don't worry about ties.
+	if( s == claimed_state || s == preempting_state ) {
+		fval1 = rip1->r_cur->rank();
+		fval2 = rip2->r_cur->rank();
+		diff = (int)(fval1 - fval2);
+		return diff;
+	} 
+	return 0;
+}
+
+
 
 
 
