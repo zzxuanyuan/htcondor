@@ -15,14 +15,10 @@ EXT_PVM_VERSION = pvm3.4.2
 
 MANDIR = $(EXT_INSTALL_ROOT)/$(EXT_MAN_VERSION)/v6.5
 
-GCBInclude = /p/condor/workspaces/gcb/include
-GCBLib = /p/condor/workspaces/gcb/lib
-
 OpenSSLPath = $(EXT_INSTALL_ROOT)/$(EXT_GLOBUS_VERSION)
 GlobusPath = $(EXT_INSTALL_ROOT)/$(EXT_GLOBUS_VERSION)
 
 GAHP_DIR = $(EXT_INSTALL_ROOT)/$(EXT_GAHP_VERSION)/bin
-
 
 #define NestLibPath /p/condor/workspaces/nest/lib
 #define NestIncludePath /p/condor/workspaces/nest/include
