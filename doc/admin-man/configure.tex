@@ -3402,10 +3402,12 @@ These macros affect the \Condor{negotiator}.
   other rankings, in order to optimize overall throughput.  For example,
   it is generally used to prevent preemption when possible, even if the job
   rank prefers a machine that is busy.
+  The default value is undefined, which causes this rank
+  to have no effect on the ranking of matches.
 
 \item[\Macro{NEGOTIATOR\_POST\_JOB\_RANK}]
   \label{param:NegotiatorPostJobRank} Resources that match a request
-  are first sorted by the \Macro{NEGOTIATOR\_POST\_JOB\_RANK}
+  are first sorted by the \Macro{NEGOTIATOR\_PRE\_JOB\_RANK}
   expression, then by the user-supplied rank in the job ClassAd, then
   by \Macro{NEGOTIATOR\_POST\_JOB\_RANK}, then by
   \Macro{PREEMPTION\_RANK} (if the match would cause preemption).  The
@@ -3413,6 +3415,8 @@ These macros affect the \Condor{negotiator}.
   choose between machines that the job ranks equally.  For example,
   you might want breadth-first instead of depth-first filling of a
   cluster of multi-processor machines.
+  The default value is undefined, which causes this rank
+  to have no effect on the ranking of matches.
 
 \item[\Macro{PREEMPTION\_REQUIREMENTS}]
   \label{param:PreemptionRequirements} The negotiator will not preempt
