@@ -84,6 +84,11 @@ class BaseJob
 
 	bool exitStatusKnown;
 
+	// If for some reason, a child Job doesn't want the job ad to be
+	// deleted from the schedd when it normally would be, it should
+	// set this variable to true.
+	bool dontDeleteFromSchedd;
+
 	bool deleteFromGridmanager;
 	bool deleteFromSchedd;
 
