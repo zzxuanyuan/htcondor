@@ -120,7 +120,9 @@ void BaseJob::JobSubmitted( const char *remote_host)
 
 void BaseJob::JobRunning()
 {
-	if ( condorState != RUNNING ) {
+	if ( condorState != RUNNING && condorState != HELD &&
+		 condorState != REMOVED ) {
+
 		condorState = RUNNING;
 		UpdateJobAdInt( ATTR_JOB_STATUS, condorState );
 		UpdateJobAdInt( ATTR_ENTERED_CURRENT_STATUS, time(NULL) );
@@ -138,7 +140,9 @@ void BaseJob::JobRunning()
 
 void BaseJob::JobIdle()
 {
-	if ( condorState != IDLE ) {
+	if ( condorState != IDLE && condorState != HELD &&
+		 condorState != REMOVED ) {
+
 		condorState = IDLE;
 		UpdateJobAdInt( ATTR_JOB_STATUS, condorState );
 		UpdateJobAdInt( ATTR_ENTERED_CURRENT_STATUS, time(NULL) );
@@ -164,7 +168,9 @@ void BaseJob::JobEvicted()
 
 void BaseJob::JobTerminated()
 {
-	if ( condorState != COMPLETED ) {
+	if ( condorState != COMPLETED && condorState != HELD &&
+		 condorState != REMOVED ) {
+
 		condorState = COMPLETED;
 		UpdateJobAdInt( ATTR_JOB_STATUS, condorState );
 		UpdateJobAdInt( ATTR_ENTERED_CURRENT_STATUS, time(NULL) );
