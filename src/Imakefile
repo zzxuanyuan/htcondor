@@ -65,12 +65,10 @@
 #define NetmanLibs netman
 #define Eventd eventd
 #define EventdTar eventd.tar
-#define AfsEventdTar afs_eventd.tar
 #else
 #define NetmanLibs
 #define Eventd
 #define EventdTar
-#define AfsEventdTar
 #endif
 
 #define Programs \
@@ -123,21 +121,11 @@ public:: strip.tar
 strip.tar: stripped
 	cd strip_dir; rm -f release.tar; tar -cvf release.tar --owner=root --group=root AllFiles
 
-afs_release.tar:: afs_strip.tar
-
-afs_strip.tar: strip.tar
-	cp strip_dir/release.tar $(PUBLIC_D_TARGET)
-
 #if HAS_STATIC
 public:: static.tar
 
-afs_release.tar:: afs_static.tar
-
 static.tar: static
 	cd static_dir; rm -f release.tar; tar -cvf release.tar --owner=root --group=root AllFiles
-
-afs_static.tar: static.tar
-	cp static_dir/release.tar $(PUBLIC_S_TARGET)
 
 #endif 
 
@@ -153,11 +141,9 @@ contrib_tarball(eventd.tar,EventdFiles)
 
 #if WANT_PVM
 #define PvmTar pvm.tar
-#define AfsPvmTar afs_pvm.tar
 contrib_tarball(pvm.tar,PvmFiles)
 #else
 #define PvmTar 
-#define AfsPvmTar 
 #endif 
 
 #if WANT_CONDOR_G && HAS_GLOBUS
@@ -168,20 +154,7 @@ both_tarball(condor-g.tar,CondorGFiles,CondorGContribFiles)
 #endif /* Condor-G */
 all_tarballs: ckpt_server.tar eventd.tar PvmTar dagman.tar CondorGTar
 
-afs_tarballs: afs_release.tar \
-	afs_ckpt_server.tar AfsEventdTar AfsPvmTar
-
 public:: all_tarballs
-
-PUBLIC_TARGET_PATH = /p/condor/workspaces/release
-#if defined( PublicTargetName )
-  PUBLIC_TARGET_NAME = PublicTargetName
-  PUBLIC_D_TARGET = $(PUBLIC_TARGET_PATH)/V61_releases/$(PUBLIC_TARGET_NAME)
-  PUBLIC_S_TARGET = $(PUBLIC_TARGET_PATH)/V61_static_releases/$(PUBLIC_TARGET_NAME)
-#else 
-  PUBLIC_D_TARGET = $(PUBLIC_TARGET_PATH)/V61_release
-  PUBLIC_S_TARGET = $(PUBLIC_TARGET_PATH)/V61_static_release
-#endif
 
 simple_dir_target(release_dir)
 simple_dir_target(release_dir/bin)

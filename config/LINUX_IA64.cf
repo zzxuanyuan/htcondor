@@ -14,19 +14,15 @@
 
 #if defined( IS_GLIBC22 )
 #   define Platform		IA64-LINUX-GLIBC22
-#   define PublicTargetName	ia64_linux2-glibc22
 #   define LIB_NAME		glibc22
 #elif defined( IS_GLIBC21 )
 #   define Platform		IA64-LINUX-GLIBC21
-#   define PublicTargetName	ia64_linux2-glibc21
 #   define LIB_NAME		glibc21
 #elif defined( IS_GLIBC20 )
 #   define Platform		IA64-LINUX-GLIBC20
-#   define PublicTargetName	ia64_linux2-glibc20
 #   define LIB_NAME		glibc20
 #else
 #   define Platform		IA64-LINUX-LIBC5
-#   define PublicTargetName	ia64_linux2-libc5
 #   define LIB_NAME		libc5
 #endif
 
