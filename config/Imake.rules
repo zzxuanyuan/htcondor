@@ -67,6 +67,31 @@ clean::							@@\
 	rm -f libname objlist
 #endif /* library_target */
 
+/*
+** Build a dynamic library from .o files.
+*/
+#ifndef dyn_library_target
+#define dyn_library_target( libname, objlist, libs )    @@\
+libname: objlist					@@\
+	rm -f libname					@@\
+	cc -o libname -G objlist libs    		@@\
+clean::							@@\
+	rm -f libname objlist
+#endif /* dyn_library_target */
+
+
+/*
+** Build a dynamic library from .o files, linked symbolically.
+*/
+#ifndef dynsym_library_target
+#define dynsym_library_target( libname, objlist, libs )    @@\
+libname: objlist					@@\
+	rm -f libname					@@\
+	cc -o libname -Bsymbolic -G objlist libs	@@\
+clean::							@@\
+	rm -f libname objlist
+#endif /* dynsym_library_target */
+
 
 /*
 ** Build a C program from .o files and libraries.
