@@ -43,8 +43,6 @@
 #define TIMER_UNSET -1
 
 extern char *ScheddAddr;
-extern char *X509Proxy;
-extern bool useDefaultProxy;
 extern char *ScheddJobConstraint;
 extern char *GridmanagerScratchDir;
 extern char *Owner;

@@ -94,8 +94,6 @@ int contactScheddDelay;
 time_t lastContactSchedd = 0;
 
 char *ScheddAddr = NULL;
-char *X509Proxy = NULL;
-bool useDefaultProxy = true;
 char *ScheddJobConstraint = NULL;
 char *GridmanagerScratchDir = NULL;
 
@@ -217,57 +215,12 @@ Init()
 		EXCEPT( "Can't determine username" );
 	}
 
-	if ( ScheddJobConstraint == NULL ) {
-		// CRUFT: Backwards compatibility with pre-6.5.1 schedds that don't
-		//   give us a constraint expression for querying our jobs. Build
-		//   it ourselves like the old gridmanager did.
-		MyString buf;
-		MyString expr = "";
-
-		if ( myUserName ) {
-			if ( strchr(myUserName,'@') ) {
-				// we were given a full name : owner@uid-domain
-				buf.sprintf("%s == \"%s\"", ATTR_USER, myUserName);
-			} else {
-				// we were just give an owner name without a domain
-				buf.sprintf("%s == \"%s\"", ATTR_OWNER, myUserName);
-			}
-		} else {
-			buf.sprintf("%s == \"%s\"", ATTR_OWNER, Owner);
-		}
-		expr += buf;
-
-		if(useDefaultProxy == false) {
-			buf.sprintf(" && %s =?= \"%s\" ", ATTR_X509_USER_PROXY, X509Proxy);
-		} else {
-			buf.sprintf(" && %s =?= UNDEFINED ", ATTR_X509_USER_PROXY);
-		}
-		expr += buf;
-
-		ScheddJobConstraint = strdup( expr.Value() );
-
-		if ( X509Proxy == NULL ) {
-			EXCEPT( "Old schedd didn't specify proxy with -x" );
-		}
-
-	} else {
-
-		if ( GridmanagerScratchDir == NULL ) {
-			EXCEPT( "Schedd didn't specify scratch dir with -S" );
-		}
+	if ( GridmanagerScratchDir == NULL ) {
+		EXCEPT( "Schedd didn't specify scratch dir with -S" );
 	}
 
-	if ( ScheddJobConstraint == NULL ) {
-		// CRUFT: Backwards compatibility with pre-6.5.1 schedds that don't
-		//   give us a constraint expression for querying our jobs. Build
-		//   it ourselves like the old gridmanager did.
-		if ( UseSingleProxy( X509Proxy ) == false ) {
-			EXCEPT( "Failed to initialize ProxyManager" );
-		}
-	} else {
-		if ( UseMultipleProxies( GridmanagerScratchDir ) == false ) {
-			EXCEPT( "Failed to initialize Proxymanager" );
-		}
+	if ( InitializeProxyManager( GridmanagerScratchDir ) == false ) {
+		EXCEPT( "Failed to initialize Proxymanager" );
 	}
 
 	JobType *new_type;

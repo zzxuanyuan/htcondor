@@ -46,7 +46,6 @@ static bool proxymanager_initialized = false;
 static int CheckProxies_tid = TIMER_UNSET;
 char *MasterProxyPath;
 Proxy MasterProxy;
-static bool use_single_proxy = false;
 
 int CheckProxies_interval = 600;		// default value
 int minProxy_time = 3 * 60;				// default value
@@ -56,11 +55,41 @@ static int next_proxy_id = 1;
 int CheckProxies();
 
 static bool
-InitializeProxyManager()
+SetMasterProxy( const Proxy *new_master )
 {
-	// proxy_filename will be filled in by UseSingleProxy() or
-	// UseMultipleProxies() as appropriate
-	MasterProxy.proxy_filename = NULL;
+	int rc;
+	MyString tmp_file;
+
+	tmp_file.sprintf( "%s.tmp", MasterProxy.proxy_filename );
+
+	rc = copy_file( new_master->proxy_filename, tmp_file.Value() );
+	if ( rc != 0 ) {
+		return false;
+	}
+
+	rc = rotate_file( tmp_file.Value(), MasterProxy.proxy_filename );
+	if ( rc != 0 ) {
+		unlink( tmp_file.Value() );
+		return false;
+	}
+
+	MasterProxy.expiration_time = new_master->expiration_time;
+	MasterProxy.near_expired = new_master->near_expired;
+
+	return true;
+}
+
+// Initialize the ProxyManager module. proxy_dir is the directory in
+// which the module should place the "master" proxy file.
+bool InitializeProxyManager( const char *proxy_dir )
+{
+	if ( proxymanager_initialized == true ) {
+		return false;
+	}
+
+	MyString buf;
+	buf.sprintf( "%s/master_proxy", proxy_dir );
+	MasterProxy.proxy_filename = strdup( buf.Value() );
 	MasterProxy.num_references = 0;
 	MasterProxy.expiration_time = 0;
 	MasterProxy.id = 0;
@@ -73,89 +102,7 @@ InitializeProxyManager()
 	proxymanager_initialized = true;
 
 	return true;
-}
-
-static bool
-SetMasterProxy( const Proxy *new_master )
-{
-	int rc;
-	MyString tmp_file;
-
-	if ( use_single_proxy == false ) {
-
-		tmp_file.sprintf( "%s.tmp", MasterProxy.proxy_filename );
-
-		rc = copy_file( new_master->proxy_filename, tmp_file.Value() );
-		if ( rc != 0 ) {
-			return false;
-		}
-
-		rc = rotate_file( tmp_file.Value(), MasterProxy.proxy_filename );
-		if ( rc != 0 ) {
-			unlink( tmp_file.Value() );
-			return false;
-		}
-
-	}
-
-	MasterProxy.expiration_time = new_master->expiration_time;
-	MasterProxy.near_expired = new_master->near_expired;
-
-	return true;
-}
-
-// Initialize the ProxyManager module in multi-proxy mode. This is its
-// normal mode of operation. proxy_dir is the directory in which the
-// module should place the "master" proxy file. init_gahp_func will be
-// called once a valid proxy has been given to the ProxyManager. That
-// function can then intialize the GAHP as it sees fit. The parameter
-// proxy should be used in the INITIALIZE_FROM_FILE command. Note that
-// ProxyManager will start the GAHP and cache proxies before the given
-// function is called.
-bool UseMultipleProxies( const char *proxy_dir )
-{
-	if ( proxymanager_initialized == true ) {
-		return false;
-	}
-
-	use_single_proxy = false;
-
-	if ( InitializeProxyManager() == false ) {
-		return false;
-	}
-
-	MyString buf;
-	buf.sprintf( "%s/master_proxy", proxy_dir );
-	MasterProxy.proxy_filename = strdup( buf.Value() );
-
-	return true;
 }	
-
-// Initialize the ProxyManager module in single-proxy mode. This is for
-// use with old (i.e. 6.4.x) schedds. proxy_path is the path to the single
-// proxy that is to be used. init_gahp_func will be
-// called once a valid proxy has been given to the ProxyManager. That
-// function can then intialize the GAHP as it sees fit. The parameter
-// proxy should be used in the INITIALIZE_FROM_FILE command. Note that
-// ProxyManager will start the GAHP and cache proxies before the given
-// function is called.
-bool
-UseSingleProxy( const char *proxy_path )
-{
-	if ( proxymanager_initialized == true ) {
-		return false;
-	}
-
-	use_single_proxy = true;
-
-	if ( InitializeProxyManager() == false ) {
-		return false;
-	}
-
-	MasterProxy.proxy_filename = strdup( proxy_path );
-
-	return true;
-}
 
 // An entity (e.g. GlobusJob, GlobusResource object) should call this
 // function when it wants to use a proxy managed by ProxyManager. proxy_path
@@ -178,10 +125,6 @@ AcquireProxy( const char *proxy_path, int notify_tid )
 {
 	if ( proxymanager_initialized == false ) {
 		return NULL;
-	}
-	if ( use_single_proxy && proxy_path != NULL &&
-		 strcmp( proxy_path, MasterProxy.proxy_filename ) ) {
-		EXCEPT( "Different proxies used in single-proxy mode!" );
 	}
 
 	if ( proxy_path == NULL ) {

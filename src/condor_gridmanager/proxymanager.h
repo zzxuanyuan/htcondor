@@ -43,8 +43,7 @@ struct Proxy {
 extern int CheckProxies_interval;
 extern int minProxy_time;
 
-bool UseMultipleProxies( const char *proxy_dir );
-bool UseSingleProxy( const char *proxy_path );
+bool InitializeProxyManager( const char *proxy_dir );
 
 Proxy *AcquireProxy( const char *proxy_path, int notify_tid = -1 );
 void ReleaseProxy( Proxy *proxy, int notify_tid = -1 );
