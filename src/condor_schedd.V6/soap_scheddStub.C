@@ -56,11 +56,12 @@ template class HashTable<MyString, Job *>;
 HashTable<MyString, Job *> jobs = HashTable<MyString, Job *>(1024, MyStringHash, rejectDuplicateKeys);
 
 static bool
-convert_FileInfoList_to_Array(List<FileInfo> & list,
+convert_FileInfoList_to_Array(struct soap * soap,
+                              List<FileInfo> & list,
                               struct condorSchedd__FileInfoArray & array)
 {
   array.__size = list.Number();
-  array.__ptr = (struct condorSchedd__FileInfo *) calloc(array.__size, sizeof(struct condorSchedd__FileInfo));
+  array.__ptr = (struct condorSchedd__FileInfo *) soap_malloc(soap, array.__size * sizeof(struct condorSchedd__FileInfo));
 
   FileInfo *info;
   list.Rewind();
@@ -668,7 +669,8 @@ int condorSchedd__getFile(struct soap *soap,
     return SOAP_OK;
   }
 
-  unsigned char * data = (unsigned char *) calloc(length, sizeof(unsigned char));
+  unsigned char * data =
+    (unsigned char *) soap_malloc(soap, length * sizeof(unsigned char));
   if (0 == job->get_file(MyString(name),
                          offset,
                          length,
@@ -709,7 +711,7 @@ int condorSchedd__closeSpool(struct soap *soap,
 }
 
 int
-condorSchedd__listSpool(struct soap *soap,
+condorSchedd__listSpool(struct soap * soap,
                         struct condorSchedd__Transaction transaction,
                         int clusterId,
                         int jobId,
@@ -738,7 +740,7 @@ condorSchedd__listSpool(struct soap *soap,
     return SOAP_OK;
   }
 
-  if (convert_FileInfoList_to_Array(files, result.response.info)) {
+  if (convert_FileInfoList_to_Array(soap, files, result.response.info)) {
     result.response.status.code = SUCCESS;
   } else {
     result.response.status.code = FAIL;
@@ -766,8 +768,7 @@ condorSchedd__discoverJobRequirements(struct soap *soap,
 
   result.response.requirements.__size = inputFiles.number();
   result.response.requirements.__ptr =
-    (condorSchedd__Requirement *) calloc(sizeof(condorSchedd__Requirement),
-                                         result.response.requirements.__size);
+    (condorSchedd__Requirement *) soap_malloc(soap, result.response.requirements.__size * sizeof(condorSchedd__Requirements));
   inputFiles.rewind();
   int i = 0;
   while ((buffer = inputFiles.next()) &&
