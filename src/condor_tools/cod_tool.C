@@ -769,7 +769,7 @@ parseArgv( int argc, char* argv[] )
 	}
 
 	if( needs_id ) {
-		target = getAddrFromId( claim_id );
+		target = getAddrFromClaimId( claim_id );
 		if( ! target ) {
 			fprintf( stderr, 
 					 "ERROR: Invalid ClaimId specified with -id (%s)\n",
