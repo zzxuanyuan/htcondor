@@ -217,6 +217,10 @@ int rename( const char *from, const char *to ) {
 		they are generally used by Condor daemons, not user programs.  Thus,
 		they should be built in the special "clipped" version.
 		*/
+    int get_universe( int *univ_id ) : pseudo {
+        out xdr_int( univ_id );
+        alloc( univ_id, INT_SIZE );
+    }
 	int extern_name( const char *path, char *buf, int bufsize ) : pseudo {
 		SEND_PATH( path );
 		ALLOC_PATH( path );
@@ -580,33 +584,35 @@ int rename( const char *from, const char *to ) {
 
 		/*
 		Things having to do with signals - we may support these
-		one day soon.
+		one day soon.  ...and now we do on some platforms -Todd 1/95 
 		*/
 	not_supported {
+#	if !defined(SAVE_SIGSTATE)
 		int sigprocmask( int how, const sigset_t *set, sigset_t *o_set );
 		int sigpending( sigset_t *set );
 		int sigreturn( struct sigcontext *scp );
-		int setitimer( int which, struct itimerval *value,
-											struct itimerval *oval );
-		int getitimer( int which, struct itimerval *value );
 		int sigsuspend( const sigset_t *mask );
 		int sigstack( struct sigstack *instack, struct sigstack *outstack );
 #	if defined( AIX32)
 		int kill( pid_t pid, int sig );
 #	else
-		int kill( pid_t pid, int sig ) : extract;
+        int kill( pid_t pid, int sig ) : extract;
 #	endif
+#endif  /* of !defined(SAVE_SIGSTATE) */
+		int setitimer( int which, struct itimerval *value,
+											struct itimerval *oval );
+		int getitimer( int which, struct itimerval *value );
 	}
 
 		/*
-		We don't support these, but we ignore attempts to do them remotely
+		We don't support these everywhere, but we ignore attempts to do them remotely
 		for the benefit of Fortran compilers...
 		*/
 	ignored {
-#	if defined( AIX32)
+#	if defined( AIX32) && !defined(SAVE_SIGSTATE)
 		int sigaction( int sig, const struct sigaction *act,
 						struct sigaction *o_act );
-#	else
+#	elif !defined (SAVE_SIGSTATE)
 		int sigaction( int sig, const struct sigaction *act,
 						struct sigaction *o_act ) : extract;
 #	endif
