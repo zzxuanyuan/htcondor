@@ -3,7 +3,7 @@
  *
  * See LICENSE.TXT for additional notices and disclaimers.
  *
- * Copyright (c)1990-2001 CONDOR Team, Computer Sciences Department, 
+ * Copyright (c)1990-2003 CONDOR Team, Computer Sciences Department, 
  * University of Wisconsin-Madison, Madison, WI.  All Rights Reserved.  
  * No use of the CONDOR Software Program Source Code is authorized 
  * without the express consent of the CONDOR Team.  For more information 
@@ -21,13 +21,31 @@
  * WI 53706-1685, (608) 262-0856 or miron@cs.wisc.edu.
  ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
-#ifndef PARSE_H
-#define PARSE_H
+// Author: Francesco Giacomini, INFN <Francesco.Giacomini@cnaf.infn.it>
 
-#include "dag.h"
+// $Id: helper.h,v 1.1.6.1 2003-11-11 23:15:03 wright Exp $
 
-bool parse (char * filename, Dag * dag);
-bool isKeyWord( const char *token );
-//void DFSVisit (Job * job);
+#ifndef HELPER_H
+#define HELPER_H
+
+#if defined(BUILD_HELPER)
+#include <string>
+
+class Helper
+{
+  class HelperImpl;
+
+  HelperImpl* m_impl;
+
+public:
+  Helper();
+  ~Helper();
+  std::string resolve(std::string const& input_file) const;
+};
+
+#endif //BUILD_HELPER
+
 #endif
-
+// Local Variables:
+// mode:c++
+// End:
