@@ -558,21 +558,25 @@ dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too long!\n",procID.cluster,procI
 			}
 
 			rval = schedd->vacateJobs( &job_ids, VACATE_FAST, &errstack );
-			if ( rval == NULL ||
-				 !rval->LookupInteger(ATTR_ACTION_RESULT, result) ||
-				 !result ) {
-				dprintf( D_FULLDEBUG, "(%d.%d) vacateJobs failed, CondorError: %s\n",procID.cluster,procID.proc,errstack.getFullText());
-				MyString ad_string;
-				rval->sPrint(ad_string);
-//				EXCEPT( "vacateJobs failed" );
-			}
-			if ( rval != NULL ) {
-				MyString ad_string;
-				rval->sPrint(ad_string);
-				dprintf( D_FULLDEBUG, "(%d.%d) vacateJobs result ad: %s\n",
-						 procID.cluster, procID.proc, ad_string.Value());
+			if ( rval == NULL ) {
+				dprintf( D_FULLDEBUG, "(%d.%d) vacateJobs returned NULL, CondorError: %s\n",
+						 procID.cluster, procID.proc, errstack.getFullText() );
+			} else {
+				MyString attr_name;
+				attr_name.sprintf( "job_%d_%d", procID.cluster, procID.proc );
+				if ( !rval->LookupInteger( attr_name.Value(), result ) ) {
+					dprintf( D_FULLDEBUG, "(%d.%d) vacateJobs returned malformed ad\n",
+							 procID.cluster, procID.proc );
+				} else if ( result != AR_SUCCESS && result != AR_BAD_STATUS ) {
+					dprintf( D_FULLDEBUG, "(%d.%d) vacateJobs failed, result=%d\n",
+							 procID.cluster, procID.proc, result );
+				} else {
+					dprintf( D_FULLDEBUG, "(%d.%d) vacateJobs succeeded, result=%d\n",
+							 procID.cluster, procID.proc, result );
+				}
 				delete rval;
 			}
+			delete schedd;
 
 			gmState = GM_SUBMITTED_MIRROR_ACTIVE;
 			} break;
