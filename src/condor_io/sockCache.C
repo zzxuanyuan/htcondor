@@ -61,6 +61,8 @@ SocketCache::resize( int size )
 				 "ERROR: Cannot shrink a SocketCache with resize()\n" );
 		return;
 	}
+	dprintf( D_FULLDEBUG, "Resizing SocketCache - old: %d new: %d\n",
+			 cacheSize, size ); 
 	sockEntry* new_cache = new sockEntry[size];
 	int i;
 	for( i=0; i<size; i++ ) {
