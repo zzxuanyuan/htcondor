@@ -20,6 +20,11 @@
  * Livny, 7367 Computer Sciences, 1210 W. Dayton St., Madison, 
  * WI 53706-1685, (608) 262-0856 or miron@cs.wisc.edu.
 ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
+
+REMAP_TWO( fstat, _fstat, int, int, struct stat * )
+REMAP_TWO( lstat, _lstat, int, const char *, struct stat * )
+REMAP_TWO( stat, _stat, int, const char *, struct stat * )
+
 REMAP_TWO( access, _access, int , const char *, int )
 REMAP_ONE( acct, _acct, int , const char *)
 REMAP_TWO( adjtime, _adjtime, int , struct timeval *, struct timeval *)
@@ -38,7 +43,6 @@ REMAP_THREE( fcntl, _fcntl, int , int , int , int)
 REMAP_THREE( fcntl, __fcntl, int , int , int , int)
 REMAP_ZERO( fork, _fork, pid_t )
 REMAP_ZERO( fork1, _fork1, pid_t )
-REMAP_TWO( fstat, _fstat, int, int, struct stat * )
 REMAP_FOUR( fstatfs, _fstatfs, int , int , struct statfs *, int, int )
 REMAP_ONE( fdsync, ___fdsync, int , int )
 REMAP_ONE( fdsync, __fdsync, int , int )
@@ -58,7 +62,6 @@ REMAP_THREE( lchown, _lchown, int , const char *, uid_t , gid_t )
 REMAP_TWO( link, _link, int , const char *, const char *)
 REMAP_THREE( llseek, _llseek, offset_t , int , offset_t , int )
 REMAP_THREE( lseek, _lseek, off_t , int , off_t , int )
-REMAP_TWO( lstat, _lstat, int, const char *, struct stat * )
 REMAP_THREE( lxstat, _lxstat, int , const int , const char *, struct stat *)
 REMAP_TWO( mkdir, _mkdir, int , const char *, unsigned long )
 REMAP_THREE( mknod, _mknod, int , const char *, int , dev_t )
@@ -92,7 +95,6 @@ REMAP_THREE( sigaction, _sigaction, int, int, const struct sigaction *, struct s
 REMAP_TWO( signal, _signal, void *, int, void * )
 REMAP_THREE( sigprocmask, _sigprocmask, int, int, const sigset_t *, sigset_t * )
 REMAP_ONE( sigsuspend, _sigsuspend, int, const sigset_t * )
-REMAP_TWO( stat, _stat, int, const char *, struct stat * )
 REMAP_FOUR( statfs, _statfs, int , char *, struct statfs *, int, int )
 REMAP_TWO( symlink, _symlink, int , const char *, const char *)
 REMAP_ZERO_VOID( sync, _sync, void )

@@ -23,6 +23,8 @@
 
 /* These are the ones that are new for Solaris 2.6 */
 
+
+
 REMAP_TWO( creat, creat64, int , const char *, mode_t )
 REMAP_TWO( creat, _creat64, int , const char *, mode_t )
 REMAP_TWO( fstat64, _fstat64, int, int, struct stat64 * )
