@@ -406,6 +406,23 @@ protected:
 	char* _cmd_str;
 
 		/** 
+ 		   Helper method for the client-side of the ClassAd-only
+		   protocol.  This method will try to: locate our daemon,
+		   create a ReliSock, try to connect(), send the CA_CMD int,
+		   send a ClassAd and an EOM, read back a ClassAd and EOM,
+		   lookup the ATTR_RESULT in the reply, and if it's FALSE,
+		   lookup ATTR_COMMAND_ERROR.  This deals with everything for
+		   you, so all you have to do if you want to use this protocol
+		   is define a method that sets up up the right request ad and
+		   calls this.
+		   @param req Pointer to the request ad (you fill it in)
+		   @param reply Pointer to the reply ad (from the server)
+		   @return false if there were any network errors, otherwise,
+		     return the value of ATTR_RESULT
+		*/
+	bool sendCACmd( ClassAd* req, ClassAd* reply );
+
+		/** 
 		   Helper method for commands to see if we've already got the
 		   right address for our daemon.  If not, we try to locate
 		   it.  

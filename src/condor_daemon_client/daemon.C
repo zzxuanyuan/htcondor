@@ -446,6 +446,85 @@ Daemon::sendCommand( int cmd, Stream::stream_type st, int sec )
 }
 
 
+bool
+Daemon::sendCACmd( ClassAd* req, ClassAd* reply )
+{
+	if( !req ) {
+		newError( "sendCACmd() called with no request ClassAd" ); 
+		return false;
+	}
+	if( !reply ) {
+		newError( "sendCACmd() called with no reply ClassAd" );
+		return false;
+	}
+	if( !checkAddr() ) {
+			// this already deals w/ _error for us...
+		return false;
+	}
+	
+	req->SetMyTypeName( COMMAND_ADTYPE );
+	req->SetTargetTypeName( REPLY_ADTYPE );
+
+	ReliSock cmd_sock;
+
+	if( ! cmd_sock.connect(_addr) ) {
+		MyString err_msg = "Failed to connect to ";
+		err_msg += daemonString(_type);
+		err_msg += " ";
+		err_msg += _addr;
+		newError( err_msg.Value() );
+		return false;
+	}
+
+	if( ! startCommand(CA_CMD, &cmd_sock, 20) ) {
+		newError( "Failed to send command (CA_CMD)" );
+		return false;
+	}
+	if( ! req->put(cmd_sock) ) { 
+		newError( "Failed to send request ClassAd" );
+		return false;
+	}
+	if( ! cmd_sock.end_of_message() ) {
+		newError( "Failed to send end-of-message" );
+		return false;
+	}
+
+		// Now, try to get the reply
+	cmd_sock.decode();
+	if( ! reply->initFromStream(cmd_sock) ) {
+		newError( "Failed to read reply ClassAd" );
+		return false;
+	}
+	if( !cmd_sock.end_of_message() ) {
+		newError( "Failed to read end-of-message" );
+		return false;
+	}
+
+		// Finally, interpret the results
+	int result;
+	if( ! reply->LookupBool(ATTR_RESULT, result) ) {
+		MyString err_msg = "Reply ClassAd does not have ";
+		err_msg += ATTR_RESULT;
+		err_msg += " attribute";
+		newError( err_msg.Value() );
+		return false;
+	}
+	if( ! result ) {
+		char* err = NULL;
+		if( ! reply->LookupString(ATTR_COMMAND_ERROR, &err) ) {
+			MyString err_msg = "Reply ClassAd does not have ";
+			err_msg += ATTR_COMMAND_ERROR;
+			err_msg += " attribute";
+			newError( err_msg.Value() );
+			return false;
+		}
+		newError( err );
+		free( err );
+		return false;
+	}
+	return true;
+}
+
 
 //////////////////////////////////////////////////////////////////////
 // Locate-related methods
