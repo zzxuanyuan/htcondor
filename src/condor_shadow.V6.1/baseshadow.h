@@ -121,18 +121,6 @@ class BaseShadow : public Service
 		*/
 	virtual void config();
 
-		/** This function should be called when the job is ready to 
-			shut down.  It decides wether or not to email the user, 
-			based on the reason and some parameters in the jobAd. 
-			If we should email the user, it opens a mailer file with
-			the subject line "Job Cluster.Proc" and returns the FILE*.
-			@param reason The reason for shutting down this job.
-			@return A mailer file for sending email.  Don't forget
-			to do an email_close() on it!  NULL returned if no email
-			to be sent.
-		 */
-	FILE* shutDownEmail( int reason );
-
 		/** Everyone should be able to shut down.<p>
 			@param reason The reason the job exited (JOB_BLAH_BLAH)
 		 */
