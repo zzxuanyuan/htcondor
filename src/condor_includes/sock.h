@@ -33,6 +33,7 @@
 #define CONNECT_TIMEOUT 10
 
 #if !defined(WIN32)
+#undef SOCKET;
 typedef int SOCKET;
 #define INVALID_SOCKET -1
 #endif
