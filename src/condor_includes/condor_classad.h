@@ -27,6 +27,8 @@
 #include "../condor_classad.V6/common.h"
 #include "../condor_classad.V6/exprTree.h"
 #include "../condor_classad.V6/matchClassad.h"
+#include "../condor_classad.V6/classad_collection.h"
+#include "../condor_classad.V6/cedar_io.h"
 
 #include "condor_attributes.h"
 #include "condor_adtypes.h"
