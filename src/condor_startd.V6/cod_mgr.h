@@ -49,6 +49,7 @@ public:
 	Claim* findClaimByPid( pid_t pid );
 
 	int numClaims( void );
+	bool hasClaims( void );
 	bool inUse( void );
 
 	void shutdownAllClaims( bool graceful );

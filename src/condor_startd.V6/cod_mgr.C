@@ -154,6 +154,13 @@ CODMgr::numClaims( void )
 
 
 bool
+CODMgr::hasClaims( void )
+{
+	return (claims.Number() > 0);
+}
+
+
+bool
 CODMgr::inUse( void )
 {
 	Claim* tmp;
