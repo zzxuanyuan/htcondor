@@ -53,6 +53,12 @@ public:
 					   const char* orig_cwd, bool is_gridshell,
 					   int stdin_fd, int stdout_fd, int stderr_fd );
 
+		/** The starter is finally ready to exit, so handle some
+			cleanup code we always need, then call DC_Exit() with the
+			given exit code.
+		*/
+	virtual void StarterExit( int code );
+
 		/** Params for "EXECUTE" and other useful stuff 
 		 */
 	virtual void Config();
@@ -163,6 +169,14 @@ protected:
 	List<UserProc> CleanedUpJobList;
 
 private:
+
+		// // // // // // // //
+		// Private Methods
+		// // // // // // // //
+
+		/// Remove the execute/dir_<pid> directory
+	virtual bool removeTempExecuteDir( void );
+
 
 		// // // // // // // //
 		// Private Data Members

@@ -44,6 +44,7 @@
 
 #include "perm.h"
 #include "filename_tools.h"
+#include "directory.h"
 
 
 extern "C" int get_random_int();
@@ -182,6 +183,14 @@ CStarter::Init( JobInfoCommunicator* my_jic, const char* orig_cwd,
 		// actually spawn the job.
 	jic->setupJobEnvironment();
 	return true;
+}
+
+
+void
+CStarter::StarterExit( int code )
+{
+	removeTempExecuteDir();
+	DC_Exit( code );
 }
 
 
@@ -715,7 +724,7 @@ CStarter::Reaper(int pid, int exit_status)
 
 	if ( ShuttingDown && (all_jobs - handled_jobs == 0) ) {
 		dprintf(D_ALWAYS,"Last process exited, now Starter is exiting\n");
-		DC_Exit(0);
+		StarterExit(0);
 	}
 	return 0;
 }
@@ -967,4 +976,26 @@ CStarter::classadCommand( int, Stream* s )
 		return FALSE;
 	}
 	return TRUE;
+}
+
+
+bool
+CStarter::removeTempExecuteDir( void )
+{
+	if( is_gridshell ) {
+			// we didn't make our own directory, so just bail early
+		return true;
+	}
+
+	MyString dir_name = "dir_";
+	dir_name += (int)daemonCore->getpid();
+
+	Directory execute_dir( Execute, PRIV_ROOT );
+	if ( execute_dir.Find_Named_Entry( dir_name.Value() ) ) {
+			// Remove the execute directory
+		dprintf( D_FULLDEBUG, "Removing %s%c%s\n", Execute,
+				 DIR_DELIM_CHAR, dir_name.Value() );
+		return execute_dir.Remove_Current_File();
+	}
+	return true;
 }
