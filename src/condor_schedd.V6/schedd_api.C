@@ -21,49 +21,40 @@ Job::Job(int clusterId, int jobId)
 	this->jobId = jobId;
 
 	requirements = new HashTable<MyString, JobFile>(64, MyStringHash, rejectDuplicateKeys);
-
-	if (!requirements) {
-		EXCEPT("No memory to create requirements.");
-	}
+	ASSERT(requirements);
 
 	char * Spool = param("SPOOL");
+	ASSERT(Spool);
 
-	if (Spool) {
-		spoolDirectory = new MyString(strdup(gen_ckpt_name(Spool, clusterId, jobId, 0)));
+	spoolDirectory = new MyString(strdup(gen_ckpt_name(Spool, clusterId, jobId, 0)));
+	ASSERT(spoolDirectory);
 
-		if (!spoolDirectory) {
-			EXCEPT("No memory to create spoolDirectory.");
-		}
+		//free(Spool);
 
-			//free(Spool);
-
-		struct stat stats;
-		if (-1 == stat(spoolDirectory->GetCStr(), &stats)) {
-			if (ENOENT == errno && spoolDirectory->Length() != 0) {
-				if (-1 == mkdir(spoolDirectory->GetCStr(), 0777)) {
-						// mkdir can return 17 = EEXIST (dirname exists) or 2 = ENOENT (path not found)
-					dprintf(D_FULLDEBUG,
-							"Job::Job: ERROR: mkdir(%s) failed, errno: %d\n",
-							spoolDirectory->GetCStr(),
-							errno);
-				} else {
-					dprintf(D_FULLDEBUG,
-							"Job::Job: mkdir(%s) succeeded.\n",
-							spoolDirectory->GetCStr());
-				}
-			} else {
-				dprintf(D_FULLDEBUG, "Job::Job: ERROR: stat(%s) errno: %d\n",
+	struct stat stats;
+	if (-1 == stat(spoolDirectory->GetCStr(), &stats)) {
+		if (ENOENT == errno && spoolDirectory->Length() != 0) {
+			if (-1 == mkdir(spoolDirectory->GetCStr(), 0777)) {
+					// mkdir can return 17 = EEXIST (dirname exists) or 2 = ENOENT (path not found)
+				dprintf(D_FULLDEBUG,
+						"Job::Job: ERROR: mkdir(%s) failed, errno: %d\n",
 						spoolDirectory->GetCStr(),
 						errno);
+			} else {
+				dprintf(D_FULLDEBUG,
+						"Job::Job: mkdir(%s) succeeded.\n",
+						spoolDirectory->GetCStr());
 			}
 		} else {
-			dprintf(D_FULLDEBUG, "Job::Job: ERROR: Job '%d.%d''s spool directory '%s' already exists.\n",
-					clusterId,
-					jobId,
-					spoolDirectory->GetCStr());
+			dprintf(D_FULLDEBUG, "Job::Job: ERROR: stat(%s) errno: %d\n",
+					spoolDirectory->GetCStr(),
+					errno);
 		}
 	} else {
-		EXCEPT("SPOOL is not defined.");
+		dprintf(D_FULLDEBUG, "Job::Job: ERROR: Job '%d.%d''s spool directory '%s' already exists.\n",
+				clusterId,
+				jobId,
+				spoolDirectory->GetCStr());
 	}
 }
 
@@ -134,12 +125,10 @@ Job::get_spool_list(List<FileInfo> & file_list)
 		while (NULL != (name = directory.Next())) {
 				// XXX: What if MyString(name) fails?
 			info = new FileInfo(MyString(name), directory.GetFileSize());
-			if (info) {
-				if (!file_list.Append(info)) {
-					return 2;
-				}
-			} else {
-				EXCEPT("No memory to create info.");
+			ASSERT(info);
+
+			if (!file_list.Append(info)) {
+				return 2;
 			}
 		}
 

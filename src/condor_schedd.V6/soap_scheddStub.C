@@ -68,11 +68,7 @@ convert_FileInfoList_to_Array(struct soap * soap,
 	  //XXX: What if list.Number() == 0?
   array.__ptr = (struct condor__FileInfo *) soap_malloc(soap, array.__size * sizeof(struct condor__FileInfo));
 
-  if (NULL == array.__ptr) {
-	  EXCEPT("No memory to create array.__ptr.");
-
-	  return false;
-  }
+  ASSERT(array.__ptr);
 
   FileInfo *info;
   list.Rewind();
@@ -117,8 +113,8 @@ static
 int
 insertJob(int clusterId, int jobId, Job *job)
 {
-		// XXX: Bug when key is popped off the stack? Does
-		// HashTable::Insert() make a copy of the key?
+		// Having the key on the stack is safe because MyString does a
+		// copy on assignment.
   MyString key;
   key += clusterId;
   key += ".";
@@ -399,9 +395,8 @@ condor__newJob(struct soap *s,
     } else {
       // Create a Job for this new job.
       Job *job = new Job(clusterId, result.response.integer);
-	  if (!job) {
-		  EXCEPT("No memory to create new job.");
-	  }
+	  ASSERT(job);
+
       if (insertJob(clusterId, result.response.integer, job)) {
         result.response.status.code = FAIL;
       } else {
@@ -719,9 +714,8 @@ int condor__getFile(struct soap *soap,
 			} else {
 				unsigned char * data =
 					(unsigned char *) soap_malloc(soap, length * sizeof(unsigned char));
-				if (!data) {
-					EXCEPT("Failed to allocate data.");
-				}
+				ASSERT(data);
+
 				int status;
 				if (0 == (status = job->get_file(MyString(name),
 												 offset,
@@ -786,9 +780,7 @@ condor__listSpool(struct soap * soap,
 		Job *job;
 		if (getJob(clusterId, jobId, job)) {
 			job = new Job(clusterId, jobId);
-			if (!job) {
-				EXCEPT("No memory to create new job.");
-			}
+			ASSERT(job);
 		}
 
 		List<FileInfo> files;
@@ -847,9 +839,8 @@ condor__discoverJobRequirements(struct soap *soap,
   result.response.requirements.__size = inputFiles.number();
   result.response.requirements.__ptr =
     (condor__Requirement *) soap_malloc(soap, result.response.requirements.__size * sizeof(condor__Requirement));
-  if (!result.response.requirements.__ptr) {
-	  EXCEPT("No memory to create result.response.requirements.__ptr.");
-  }
+  ASSERT(result.response.requirements.__ptr);
+
   inputFiles.rewind();
   int i = 0;
   while ((buffer = inputFiles.next()) &&
