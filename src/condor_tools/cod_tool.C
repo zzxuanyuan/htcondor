@@ -29,6 +29,7 @@
 
 #include "condor_common.h"
 #include "condor_distribution.h"
+#include "condor_attributes.h"
 #include "command_strings.h"
 #include "enum_utils.h"
 #include "condor_config.h"
@@ -113,9 +114,11 @@ main( int argc, char *argv[] )
 
 	switch( cmd ) {
 	case CA_REQUEST_CLAIM:
+		fillRequestAd( &ad );
 		rval = startd.requestClaim( CLAIM_COD, &ad, &reply );
 		break;
 	case CA_ACTIVATE_CLAIM:
+		fillActivateAd( &ad );
 		rval = startd.activateClaim( &ad, &reply );
 		break;
 	case CA_SUSPEND_CLAIM:
@@ -162,8 +165,51 @@ main( int argc, char *argv[] )
    Helper functions used by main()
 *********************************************************************/
 
-// TODO
 
+void
+fillRequirements( ClassAd* req )
+{
+	MyString line;
+	if( requirements ) {
+		line = ATTR_REQUIREMENTS;
+		line += '=';
+		line += requirements;
+		if( ! req->Insert(line.Value()) ) {
+			fprintf( stderr, "ERROR: can't parse requirements '%s'\n",
+					 requirements );
+			exit( 1 );
+		}
+	}
+}
+
+
+void
+fillRequestAd( ClassAd* req )
+{
+	fillRequirements( req );
+}
+
+
+void
+fillActivateAd( ClassAd* req )
+{
+	fillRequirements( req );
+
+	MyString line;
+	if( cluster_id >= 0 ) {
+		line = ATTR_CLUSTER_ID;
+		line += '=';
+		line += cluster_id;
+		req->Insert( line.Value() );
+	}
+	if( proc_id >= 0 ) {
+		line = ATTR_PROC_ID;
+		line += '=';
+		line += proc_id;
+		req->Insert( line.Value() );
+	}
+	
+}
 
 
 /*********************************************************************
