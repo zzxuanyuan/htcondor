@@ -295,7 +295,7 @@ CODMgr::activate( Stream* s, ClassAd* req, Claim* claim )
 		if( ! tmp ) {
 			err_msg = "Request does not contain ";
 			err_msg += ATTR_REQUIREMENTS;
-			err_msg += ", can't find a valid starter to activate";
+			err_msg += ", cannot find a valid starter to activate";
 			return sendErrorReply( s, "CA_ACTIVATE_CLAIM",
 								   CA_INVALID_REQUEST, err_msg.Value() ); 
 		}
@@ -372,10 +372,9 @@ CODMgr::deactivate( Stream* s, ClassAd* req, Claim* claim )
 
 	case CLAIM_IDLE:
 			// it is not activate, so return an error
-		err_msg = "Attempt to deactivate a claim that is not active ";
-		err_msg += "(current state: '";
+		err_msg = "Attempt to deactivate a claim that is not active (";
 		err_msg += getClaimStateString( CLAIM_IDLE );
-		err_msg += "')";
+		err_msg += ')';
 
 		claim->setRequestStream( NULL );
 		claim->setPendingCmd( -1 );
@@ -450,30 +449,26 @@ CODMgr::suspend( Stream* s, ClassAd* req, Claim* claim )
 		EXCEPT( "Trying to suspend a claim that was never claimed!" ); 
 		break;
 
-	case CLAIM_IDLE:
-			// it's not running a job, so we can't suspend it!
-		return sendErrorReply( s, "CA_SUSPEND_CLAIM",
-							   CA_INVALID_STATE, 
-							   "Can't suspend an idle claim" );
-		break;
-
 	case CLAIM_SUSPENDED:
 		return sendErrorReply( s, "CA_SUSPEND_CLAIM",
 							   CA_INVALID_STATE, 
 							   "Claim is already suspended" );
 		break;
 
-
-	case CLAIM_VACATING:
+	case CLAIM_IDLE:
+			// it's not running a job, so we can't suspend it!
 		return sendErrorReply( s, "CA_SUSPEND_CLAIM",
 							   CA_INVALID_STATE, 
-					   "Can't suspend a claim that's being vacated" );
+							   "Cannot suspend an inactive claim" );
 		break;
 
+	case CLAIM_VACATING:
 	case CLAIM_KILLING:
+		line = "Cannot suspend a claim that is being evicted (";
+		line += getClaimStateString( claim->state() );
+		line += ')';
 		return sendErrorReply( s, "CA_SUSPEND_CLAIM",
-							   CA_INVALID_STATE, 
-					   "Can't suspend a claim that's being killed" );
+							   CA_INVALID_STATE, line.Value() );
 		break;
 	}
 
@@ -511,30 +506,29 @@ CODMgr::resume( Stream* s, ClassAd* req, Claim* claim )
 		EXCEPT( "Trying to resume a claim that was never claimed!" ); 
 		break;
 
-	case CLAIM_IDLE:
-			// it's not running a job, so we can't resume it!
-		return sendErrorReply( s, "CA_RESUME_CLAIM",
-							   CA_INVALID_STATE, 
-							   "Can't resume an idle claim" );
-		break;
-
 	case CLAIM_RUNNING:
 		return sendErrorReply( s, "CA_RESUME_CLAIM",
 							   CA_INVALID_STATE, 
 							   "Claim is already running" );
 		break;
 
-	case CLAIM_VACATING:
+
+	case CLAIM_IDLE:
+			// it's not running a job, so we can't resume it!
 		return sendErrorReply( s, "CA_RESUME_CLAIM",
 							   CA_INVALID_STATE, 
-					   "Can't resume a claim that's being vacated" );
+							   "Cannot resume an inactive claim" );
 		break;
 
+	case CLAIM_VACATING:
 	case CLAIM_KILLING:
+		line = "Cannot resume a claim that is being evicted (";
+		line += getClaimStateString( claim->state() );
+		line += ')';
 		return sendErrorReply( s, "CA_RESUME_CLAIM",
-							   CA_INVALID_STATE, 
-					   "Can't resume a claim that's being killed" );
+							   CA_INVALID_STATE, line.Value() );
 		break;
+
 	}
 
 	return FALSE;
