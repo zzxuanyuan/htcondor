@@ -286,7 +286,6 @@ int condorSchedd__submit(struct soap *s,xsd__long transactionId,
 	}
 
 	int i,rval;
-	MyString buf;
 	for (i=0; i < jobAd->__size; i++ ) {
 		const char* name = jobAd->__ptr[i].name;
 		const char* value = jobAd->__ptr[i].value;
@@ -295,12 +294,11 @@ int condorSchedd__submit(struct soap *s,xsd__long transactionId,
 
 		if ( jobAd->__ptr[i].type == 's' ) {
 			// string type - put value in quotes as hint for ClassAd parser
-			buf.sprintf("%s=\"%s\"", name, value);
+			rval = SetAttributeString(clusterId,jobId,name,value);
 		} else {
 			// all other types can be deduced by the ClassAd parser
-			buf.sprintf("%s=%s",name,value);
+			rval = SetAttribute(clusterId,jobId,name,value);
 		}
-		rval = SetAttribute(clusterId,jobId,name,value);
 		if ( rval < 0 ) {
 			result = -1;
 		}
