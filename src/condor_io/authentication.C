@@ -444,6 +444,9 @@ int Authentication::exchangeKey(KeyInfo *& key)
             authenticator_->unwrap(encryptedKey,  inputLen, decryptedKey, outputLen);
             key = new KeyInfo((unsigned char *)decryptedKey, keyLength,(Protocol) protocol,duration);
         }
+        else {
+            key = NULL;
+        }
     }
     else {  // server sends the key!
 
