@@ -1,6 +1,5 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Configuring The Startd Policy}
-\label{sec:Configuring-Policy}
+\section{\label{sec:Configuring-Policy}Configuring The Startd Policy}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 This section describes how to configure the \Condor{startd} to
@@ -38,8 +37,7 @@ possible for your policy decisions.  Finally, we offer two example
 policy settings.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{Startd ClassAd Attributes}
-\label{sec:Startd-Attributes}
+\subsection{\label{sec:Startd-Attributes}Startd ClassAd Attributes}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 The \Condor{startd} represents the machine on which it is running to
@@ -53,20 +51,18 @@ what they represent are described below:
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{Job ClassAd Attributes}
-\label{sec:Job-Attributes}
+\subsection{\label{sec:Job-Attributes}Job ClassAd Attributes}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \Todo
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{\condor{startd} START expression}
-\label{sec:Start-Expr}
+\subsection{\label{sec:Start-Expr}\condor{startd} START expression}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 The most important expression in the startd (and possibly in all of
 Condor) is the startd's \Expr{START} expression.  This expression
-describes what conditions must be met for a given startd to start
+describes what conditions must be met for a given startd to
 service a resource request (in other words, start someone's job).
 This expression (like any other expression) can reference attributes
 in the startd's ClassAd (such as \Attr{KeyboardIdle}, \Attr{LoadAvg},
@@ -81,7 +77,7 @@ matching with other jobs.  The startd just always defines the
 \Expr{Requirements} expression as the \Expr{START} expression.
 However, in situations where the startd wants to make itself
 unavailable for further matches, it sets its \Expr{Requirements}
-expression to False, not it's \Expr{START} expression.  When the
+expression to False, not its \Expr{START} expression.  When the
 \Expr{START} expression \Term{locally evaluates} to true, the startd
 advertises the \Expr{Requirements} expression as ``True'' and doesn't
 even publish the \Expr{START} expression.
@@ -104,14 +100,13 @@ ClassAd expression evaluation.
   Config File Entries'' for details) so that Condor starts jobs on
   your machine with low priority.  Then, you could set
   up your machines with:
-
 \begin{verbatim}
         START : True
         SUSPEND : False
         VACATE : False
         KILL : False
 \end{verbatim}
-  
+
   This way, Condor jobs would always run and would never be kicked
   off.  However, because they would run with ``nice priority'',
   interactive response on your machines would not suffer.  You
@@ -120,8 +115,7 @@ ClassAd expression evaluation.
   swapping all the time.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{\condor{startd} RANK expression}
-\label{sec:Rank-Expression}
+\subsection{\label{sec:Rank-Expression}\condor{startd} RANK expression}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 A startd can be configured to prefer running certain jobs over other
@@ -146,7 +140,6 @@ on your machines.  To achieve this, all you have to do is set the Rank
 expression on your machines to refer to the \Attr{Owner} attribute and
 prefer requests where that attribute matches one of the people in your
 group:
-
 \begin{verbatim}
         RANK : Owner == "coltrane" || Owner == "tyner" \
                || Owner == "garrison" || Owner == "jones"
@@ -164,12 +157,10 @@ setup, where anyone from your group has priority on your machines, but
 the actual machine owner has even more priority on their own machine.
 For example, you'd put the following entry in Jimmy Garrison's local
 config file \File{bass.local}:
-
 \begin{verbatim}
         RANK : Owner == "coltrane" + Owner == "tyner" \
                + (Owner == "garrison") * 10 + Owner == "jones"
 \end{verbatim}
-
 Notice, we're using ``+'' instead of ``\Bar\Bar'', since we want to be able
 to distinguish which terms matched and which ones didn't.  Now, if
 anyone who wasn't in the John Coltrane quartet was running a job on
@@ -191,7 +182,6 @@ The \Expr{RANK} expression doesn't just have to refer to the
 memory, and others with not much at all.  You could configure your
 big-memory machine to prefer to run jobs with bigger memory
 requirements:
-
 \begin{verbatim}
         RANK : ImageSize
 \end{verbatim}
@@ -202,19 +192,16 @@ bigger and bigger jobs, even if they're not yours.  So, perhaps you
 still want to be a nice guy, all else being equal, but if you have
 jobs, you want to run them, regardless of everyone else's
 \Attr{Imagesize}:
-
 \begin{verbatim}
         RANK : (Owner == "coltrane" * 1000000000000) + Imagesize
 \end{verbatim}
-
 This scheme would break down if someone submitted a job with an image
 size of more 10\Circum12 kbytes.  However, if they did, this Rank expression
 preferring their job over yours wouldn't be the only problem Condor had
 *grin* 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{\condor{startd} States}
-\label{sec:States}
+\subsection{\label{sec:States}\condor{startd} States}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 The \Condor{startd} could be in a number of different \Term{states},
@@ -258,8 +245,7 @@ for the various states and the possible transitions between them.
 \end{figure}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{\condor{startd} Activities}
-\label{sec:Activities}
+\subsection{\label{sec:Activities}\condor{startd} Activities}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 Within some of these states, there could be a number of different
@@ -365,8 +351,8 @@ matches a startd with a schedd).  The following section describes the
 conditions that lead to the various state and activity transitions.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{\condor{startd} State and Activity Transitions}
-\label{sec:State-and-Activity-Transitions}
+\subsection{\label{sec:State-and-Activity-Transitions}\condor{startd}
+State and Activity Transitions} 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 This section will trace through all possible state and activity
@@ -379,8 +365,7 @@ activity if you've been in the Vacating activity longer than a given
 amount of time).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsubsection{Owner State}
-\label{sec:Owner-State}
+\subsubsection{\label{sec:Owner-State}Owner State}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 When the startd is first spawned, it enters the Owner state.  The
@@ -390,22 +375,18 @@ expression locally evaluates to false, there is no possible request in
 the Condor system that could match it, so the machine in unavailable
 to Condor and stays in the Owner state.  For example, if the
 \Expr{START} expression was:
-
 \begin{verbatim}
         START : KeyboardIdle > 15 * $(MINUTE) && Owner == "coltrane"
 \end{verbatim}
-
 and if \Attr{KeyboardIdle} was only 34 seconds, then the machine would
 still be in the Owner state, even though it references Owner, which is
 undefined.  \verb@False && anything@ is False, even 
 \verb@False && undefined@
 
 If, however, the \Expr{START} expression was:
-
 \begin{verbatim}
         START : KeyboardIdle > 15 * $(MINUTE) || Owner == "coltrane"
 \end{verbatim}
-
 and \Attr{KeyboardIdle} was still only 34 seconds, then the machine
 would leave the Owner state and go to Unclaimed.  This is because
 ``False || undefined'' is undefined.  So, while this machine isn't
@@ -435,8 +416,7 @@ state on its way to the Owner state, if there's a job running that
 needs preempting.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsubsection{Unclaimed State}
-\label{sec:Unclaimed-State}
+\subsubsection{\label{sec:Unclaimed-State}Unclaimed State}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 When it's in the Unclaimed state, another expression comes into
@@ -448,12 +428,10 @@ the Benchmarking activity and perform benchmarks to determine
 attribute, \Attr{LastBenchmark}, whenever it runs benchmarks, so
 commonly \Attr{LastBenchmark} is defined in terms of this attribute,
 for example:
-
 \begin{verbatim}
         BenchmarkTimer = (CurrentTime - LastBenchmark)
         RunBenchmarks : $(BenchmarkTimer) >= (4 * $(HOUR))
 \end{verbatim}
-
 Here, a macro, \Macro{BenchmarkTimer} is defined to help write the
 expression.  The idea is that this macro holds the time since the last
 benchmark, so when this time exceeds 4 hours, we run the benchmarks
@@ -485,8 +463,7 @@ Matched state, even if it's only for a brief period of time.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsubsection{Matched State}
-\label{sec:Matched-State}
+\subsubsection{\label{sec:Matched-State}Matched State}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 The Matched state is not very interesting to Condor.  The only
@@ -511,8 +488,7 @@ If the schedd that was matched with the startd claims it before the
 state.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsubsection{Claimed State}
-\label{sec:Claimed-State}
+\subsubsection{\label{sec:Claimed-State}Claimed State}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 The Claimed state is certainly the most complicated State in the
@@ -524,7 +500,6 @@ two sets of expressions that take effect, depending on if the universe
 of the request that claimed the startd is Standard or Vanilla.  The
 Standard Universe expressions are the ``normal'' expressions, for
 example:
-
 \begin{verbatim}
         WANT_SUSPEND            : True
         WANT_VACATE             : True
@@ -534,7 +509,6 @@ example:
 
 The Vanilla expressions have ``VANILLA'' appended to the end, for
 example:
-
 \begin{verbatim}
         WANT_SUSPEND_VANILLA    : True
         WANT_VACATE_VANILLA     : True
@@ -615,7 +589,7 @@ combinations.
   Preempting/Vacating is if the \Condor{negotiator} matched the startd
   with a ``better'' match.  This better match could either be from the
   startd's perspective (see section~\ref{sec:Rank-Expression} on the
-  \Expr{RANK} Expression below) or from the negotiator's perspective
+  \Expr{RANK} Expression above) or from the negotiator's perspective
   (because a user with a better user priority has jobs that should be
   running on this startd).
   
@@ -653,7 +627,7 @@ state/activity combinations that you can reach from Claimed/Suspended:
   Preempting/Killing state and start killing the job (without a
   checkpoint).
   
-\item[Claimed/Busy] If the \Expr{WANT\_VACATE} expression evaluates to
+\item[Claimed/Busy] If the \Expr{CONTINUE} expression evaluates to
   true, the startd will resume the computation and will go back to the
   Claimed/Busy state.
 
@@ -664,8 +638,7 @@ activities in the Claimed state (all of which we've already
 discussed), or the Preempting state, which is described next.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsubsection{Preempting State}
-\label{sec:Preempting-State}
+\subsubsection{\label{sec:Preempting-State}Preempting State}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 The Preempting state is much less complicated than the Claimed state.
@@ -714,8 +687,8 @@ state.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{\condor{startd} State/Activity Transition Expression Summary}
-\label{sec:State-Expression-Summary}
+\subsection{\label{sec:State-Expression-Summary}\condor{startd}
+State/Activity Transition Expression Summary}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 The following section is meant to summarize the information from the
 previous sections to serve as a quick reference.  If anything is
@@ -780,8 +753,7 @@ unclear here, please refer to the previous sections for clarification.
 \end{description}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{Example Policy Settings}
-\label{sec:Example-Policy}
+\subsection{\label{sec:Example-Policy}Example Policy Settings}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 The following section provides two examples of how you might configure
@@ -791,8 +763,7 @@ comments.  Finally the entire set of macros and expressions are listed
 in one block so you can see them in one place for easy reference.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsubsection{Default Policy Settings}
-\label{sec:Default-Policy}
+\subsubsection{\label{sec:Default-Policy}Default Policy Settings}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 These settings are the default as shipped with Condor.  They have been
@@ -869,7 +840,6 @@ CPU_Busy                = $(NonCondorLoadAvg) >= $(HighLoad)
 
 Now, we define that we always want to suspend jobs, and if that's not
 enough, we'll always try to gracefully vacate. 
-
 \begin{verbatim}
 WANT_SUSPEND            : True
 WANT_VACATE             : True
@@ -878,32 +848,27 @@ WANT_VACATE             : True
 Finally, we define the actual expressions.  Start any job if the CPU
 is idle (as defined by our macro), and the keyboard has been idle long
 enough.
-
 \begin{verbatim}
 START           : $(CPU_Idle) && KeyboardIdle > $(StartIdleTime)
 \end{verbatim}
 
 Suspend a job if either the CPU or Keyboard is busy.
-
 \begin{verbatim}
 SUSPEND         : $(CPU_Busy) || $(KeyboardBusy)
 \end{verbatim}
 
 Continue a suspended job if the CPU is idle and the Keyboard has been
 idle for long enough.
-
 \begin{verbatim}
 CONTINUE        : $(CPU_Idle) && KeyboardIdle > $(ContinueIdleTime)
 \end{verbatim}
 
 Vacate a job if we've been suspended for too long.
-
 \begin{verbatim}
 VACATE          : $(ActivityTimer) > $(MaxSuspendTime)
 \end{verbatim}
 
 Kill a job if we've been vacating for too long.
-
 \begin{verbatim}
 KILL            : $(ActivityTimer) > $(MaxVacateTime)
 \end{verbatim}
@@ -911,7 +876,6 @@ KILL            : $(ActivityTimer) > $(MaxVacateTime)
 Finally, define when we do periodic checkpointing.  For small jobs,
 checkpoint every 6 hours.  For larger jobs, only checkpoint ever 12
 hours.  
-
 \begin{verbatim}
 LastCkpt        = (CurrentTime - LastPeriodicCheckpoint)
 PERIODIC_CHECKPOINT : ((ImageSize < 60000) && ($(LastCkpt) > \
@@ -957,8 +921,8 @@ PERIODIC_CHECKPOINT : ((ImageSize < 60000) && ($(LastCkpt) > \
 \end{verbatim}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsubsection{UW-Madison CS Condor Pool Policy Settings}
-\label{sec:UW-Policy}
+\subsubsection{\label{sec:UW-Policy}UW-Madison CS Condor Pool Policy
+Settings} 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 Due to a recent increase in the number of Condor users and the size of
@@ -970,7 +934,6 @@ Basically, whether or not we suspend or vacate jobs is now a function
 of the \Attr{Imagesize} of the job that's currently running (which is
 defined in terms of kilobytes).  We have divided the \Attr{Imagesize}
 into three possible categories, which we define with macros.
-
 \begin{verbatim}
 BigJob          = (ImageSize > (30 * 1024))
 MediumJob       = (ImageSize <= (30 * 1024) && ImageSize >= (10 * 1024))
@@ -999,7 +962,6 @@ We only want to suspend jobs if they are ``small'', and we only want
 to vacate jobs that are ``small'' or ``medium''.  We still want to
 always suspend Vanilla jobs, regardless of their size.  In fact,
 Vanilla jobs still use the default settings described above.
-
 \begin{verbatim}
 WANT_SUSPEND            : $(SmallJob)
 WANT_VACATE             : $(MediumJob) || $(SmallJob)
@@ -1019,7 +981,6 @@ just like they always were.  However, notice that because
 \Expr{WANT\_SUSPEND} is now different, only small jobs will get
 suspended (and only jobs that are suspended look at the
 \Expr{CONTINUE} expression).
-
 \begin{verbatim}
 CS_START        = $(CPU_Idle) && KeyboardIdle > $(StartIdleTime)
 CS_SUSPEND      = $(CPU_Busy) || $(KeyboardBusy)
@@ -1032,7 +993,6 @@ small job, we'd be suspended, so we want to look at how long we've
 been suspened.  However, for medium jobs, we want to vacate if the
 user is back (CPU or Keyboard is busy).  There's no mention of large
 jobs here, since \Expr{WANT\_VACATE} is false for those jobs.
-
 \begin{verbatim}
 CS_VACATE   = ($(MediumJob) && ($(CPU_Busy) || $(KeyboardBusy)))  \
             || ($(SmallJob) && ($(ActivityTimer) > $(MaxSuspendTime)))
@@ -1046,7 +1006,6 @@ currently Vacating and we've exceeded our MaxVacateTime, move on to
 killing.  This last bit also covers small and medium jobs, since
 they'll be vacating already when they start looking at the \Expr{KILL}
 expression. 
-
 \begin{verbatim}
 CS_KILL     = ($(BigJob) && ($(CPU_Busy) || $(KeyboardBusy))) \
             || ((Activity == "Vacating") && \
@@ -1055,7 +1014,6 @@ CS_KILL     = ($(BigJob) && ($(CPU_Busy) || $(KeyboardBusy))) \
 
 Here's where we actually define the expressions in terms of our
 special macros:
-
 \begin{verbatim}
 START       : $(CS_START)
 SUSPEND     : $(CS_SUSPEND)
@@ -1065,7 +1023,6 @@ KILL        : $(CS_KILL)
 \end{verbatim}
 
 The Vanilla expressions are set to the old standard defaults.
-
 \begin{verbatim}
 SUSPEND_VANILLA    : $(CPU_Busy) || $(KeyboardBusy)
 CONTINUE_VANILLA   : $(CPU_Idle) && KeyboardIdle > $(ContinueIdleTime)
@@ -1081,7 +1038,6 @@ periodic checkpoints going on on so frequently, we don't want to bog
 down our network or our checkpoint server.  So, we only periodic
 checkpoint small or medium jobs except every 12 hours, since they get the
 privilege of checkpointing at eviction time.
-
 \begin{verbatim}
 #
 #  Periodic Checkpointing (uncomment to enable)
@@ -1093,7 +1049,6 @@ PERIODIC_CHECKPOINT  : (($(LastCkpt) > (3 * $(HOUR))) \
 
 For clarity and reference, the entire set of policy settings are
 included once more, without comments:
-
 \begin{verbatim}
 StateTimer      = (CurrentTime - EnteredCurrentState)
 ActivityTimer   = (CurrentTime - EnteredCurrentActivity)
@@ -1156,7 +1111,6 @@ we might know ``coltrane'' is just going to be submitting very short
 running programs to test something and he wants to see them execute
 right away.  Anyway, we could configure any machine (or our whole
 pool, for that matter) with the following 5 expressions:
-
 \begin{verbatim}
         START      : ($(CS_START)) || Owner == "coltrane"
         SUSPEND    : ($(CS_SUSPEND)) && Owner != "coltrane"
@@ -1164,7 +1118,6 @@ pool, for that matter) with the following 5 expressions:
         VACATE     : ($(CS_VACATE)) && Owner != "coltrane"
         KILL       : ($(CS_KILL)) && Owner != "coltrane"
 \end{verbatim}
-
 Notice that you don't have to do anything special with the
 \Expr{CONTINUE} expression, since if Coltrane's jobs never suspend,
 they'll never even look at that expression.
