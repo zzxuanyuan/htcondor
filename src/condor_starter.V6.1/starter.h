@@ -116,6 +116,14 @@ public:
 	bool publishPreScriptUpdateAd( ClassAd* ad );
 	bool publishPostScriptUpdateAd( ClassAd* ad );
 
+		/** Put all the environment variables we'd want a Proc to have
+			into the given Env object.  This will figure out what Proc
+			objects we've got and will call their respective
+			PublishToEnv() methods
+			@param proc_env The environment to publish to
+		*/
+	void PublishToEnv( Env* proc_env );
+	
 		/** Pointer to our JobInfoCommuniator object, which abstracts
 			away any details about our communications with whatever
 			entity is controlling our job.  This way, the starter can

@@ -648,6 +648,74 @@ CStarter::publishPostScriptUpdateAd( ClassAd* ad )
 }
 	
 
+void
+CStarter::PublishToEnv( Env* proc_env )
+{
+	if( pre_script ) {
+		pre_script->PublishToEnv( proc_env );
+	}
+		// we don't have to worry about post, since it's going to run
+		// after everything else, so there's not going to be any info
+		// about it to pass until it's already done.
+
+	UserProc* uproc;
+	JobList.Rewind();
+	while ((uproc = JobList.Next()) != NULL) {
+		uproc->PublishToEnv( proc_env );
+	}
+	CleanedUpJobList.Rewind();
+	while ((uproc = CleanedUpJobList.Next()) != NULL) {
+		uproc->PublishToEnv( proc_env );
+	}
+
+		// now, stuff the starter knows about, instead of individual
+		// procs under its control
+	MyString base;
+	base = "_";
+	base += myDistro->GetUc();
+	base += '_';
+ 
+	MyString env_name;
+
+		// path to the output ad, if any
+	const char* output_ad = jic->getOutputAdFile();
+	if( output_ad && !(output_ad[0] == '-' && output_ad[1] == '\0') ) {
+		env_name = base.GetCStr();
+		env_name += "OUTPUT_CLASSAD";
+		proc_env->Put( env_name.GetCStr(), output_ad );
+}
+	
+		// job scratch space
+	env_name = base.GetCStr();
+	env_name += "SCRATCH_DIR";
+	proc_env->Put( env_name.GetCStr(), GetWorkingDir() );
+
+		// port regulation stuff
+	char* low = param( "LOWPORT" );
+	char* high = param( "HIGHPORT" );
+	if( low && high ) {
+		env_name = base.GetCStr();
+		env_name += "HIGHPORT";
+		proc_env->Put( env_name.GetCStr(), high );
+
+		env_name = base.GetCStr();
+		env_name += "LOWPORT";
+		proc_env->Put( env_name.GetCStr(), low );
+
+		free( high );
+		free( low );
+	} else if( low ) {
+		dprintf( D_ALWAYS, "LOWPORT is defined but HIGHPORT is not, "
+				 "ignoring LOWPORT\n" );
+		free( low );
+	} else if( high ) {
+		dprintf( D_ALWAYS, "HIGHPORT is defined but LOWPORT is not, "
+				 "ignoring HIGHPORT\n" );
+		free( high );
+    }
+}
+
+
 int
 CStarter::getMyVMNumber( void )
 {
