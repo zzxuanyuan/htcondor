@@ -74,14 +74,15 @@ ref.html:
 	mv -f ref.new/*  /p/condor/public/html/manual/$(SUBDIR).new
 	mv -f ref.new/.??*  /p/condor/public/html/manual/$(SUBDIR).new
 	rmdir ref.new
+	touch ref.html
 
-release-html: 
-	make ref.html
+release-html: ref.html
 	rm -rf /p/condor/public/html/manual/$(SUBDIR).old
 	mv -f /p/condor/public/html/manual/$(SUBDIR) /p/condor/public/html/manual/$(SUBDIR).old
 	mv -f /p/condor/public/html/manual/$(SUBDIR).new /p/condor/public/html/manual/$(SUBDIR)
 	/p/condor/public/cgi-bin/manual/$(SUBDIR)-links/human_header_links.pl
-	
+	rm -f ref.html
+
 admin-man/startd-states.eps: admin-man/startd-states.fig
 	rm -f admin-man/startd-states.eps
 	fig2dev -L ps -m .6 admin-man/startd-states.fig > admin-man/startd-states.eps 
