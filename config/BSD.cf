@@ -9,6 +9,8 @@ SYSNAME = ppc_macosx
 #define Architecture			PPC
 #define OperatingSystem			Darwin
 #define PlatformLdFlags			-framework IOKit -framework Carbon
+#undef WANT_KERBEROS
+#define	WANT_KERBEROS			NO
 #endif
 
 #define HAS_ADJTIME			YES
