@@ -1160,7 +1160,8 @@ unknownCmd( Stream* s, char* cmd_str )
 	line += cmd_str;
 	line += ") in ClassAd";
 	
-	return sendErrorReply( s, cmd_str, line.Value() );
+	return sendErrorReply( s, cmd_str, CA_INVALID_REQUEST,
+						   line.Value() ); 
 }
 
 
@@ -1179,7 +1180,8 @@ caRequestCODClaim( Stream *s, char* cmd_str, ClassAd* req_ad )
 		err_msg = "User '";
 		err_msg += owner;
 		err_msg += "' is not authorized for using COD at this machine"; 
-		return sendErrorReply( s, cmd_str, err_msg.Value() );
+		return sendErrorReply( s, cmd_str, CA_NOT_AUTHORIZED,
+							   err_msg.Value() );
 	}
 	dprintf( D_COMMAND, 
 			 "Serving request for a new COD claim by user '%s'\n", 
@@ -1210,7 +1212,7 @@ caRequestCODClaim( Stream *s, char* cmd_str, ClassAd* req_ad )
 		err_msg += requirements_str;
 		err_msg += ')';
 		free( requirements_str );
-		return sendErrorReply( s, cmd_str, err_msg.Value() );
+		return sendErrorReply( s, cmd_str, CA_FAILURE, err_msg.Value() );
 	}
 
 		// done with this now, so don't leak it
@@ -1219,7 +1221,8 @@ caRequestCODClaim( Stream *s, char* cmd_str, ClassAd* req_ad )
 		// try to create the new claim
 	claim = rip->newCODClaim();
 	if( ! claim ) {
-		return sendErrorReply( s, cmd_str, "Can't create new COD claim" );
+		return sendErrorReply( s, cmd_str, CA_FAILURE, 
+							   "Can't create new COD claim" );
 	}
 
 		// Stash some info about who made this request in the Claim  
@@ -1241,7 +1244,9 @@ caRequestCODClaim( Stream *s, char* cmd_str, ClassAd* req_ad )
 	reply.Insert( line.Value() );
 	
 	line = ATTR_RESULT;
-	line += " = TRUE";
+	line += " = \"";
+	line += getCAResultString( CA_SUCCESS );
+	line += '"';
 	reply.Insert( line.Value() );
 
 	int rval = sendCAReply( s, cmd_str, &reply );
@@ -1262,7 +1267,8 @@ caRequestClaim( Stream *s, char* cmd_str, ClassAd* req_ad )
 		err_msg = "No ";
 		err_msg += ATTR_CLAIM_TYPE;
 		err_msg += " in ClassAd";
-		return sendErrorReply( s, cmd_str, err_msg.Value() );
+		return sendErrorReply( s, cmd_str, CA_INVALID_REQUEST, 
+							   err_msg.Value() );
 	}
 	claim_type = getClaimTypeNum( ct_str );
 	free( ct_str ); 
@@ -1275,7 +1281,8 @@ caRequestClaim( Stream *s, char* cmd_str, ClassAd* req_ad )
 		err_msg += " (";
 		err_msg += getClaimTypeString( claim_type );
 		err_msg += ") not supported by this startd";
-		return sendErrorReply( s, cmd_str, err_msg.Value() );
+		return sendErrorReply( s, cmd_str, CA_INVALID_REQUEST,
+							   err_msg.Value() );
 		break;
 	default:
 		err_msg = "Unrecognized ";
@@ -1283,7 +1290,8 @@ caRequestClaim( Stream *s, char* cmd_str, ClassAd* req_ad )
 		err_msg += " (";
 		err_msg += getClaimTypeString( claim_type );
 		err_msg += ") in request ClassAd";
-		return sendErrorReply( s, cmd_str, err_msg.Value() );
+		return sendErrorReply( s, cmd_str, CA_INVALID_REQUEST,
+							   err_msg.Value() );
 		break;
 	}
 	return FALSE;
@@ -1307,7 +1315,7 @@ command_classad_handler( Service*, int, Stream* s )
                 // we failed to authenticate, we should bail out now
                 // since we don't know what user is trying to perform
                 // this action.
-			sendErrorReply( s, "CA_CMD", 
+			sendErrorReply( s, "CA_CMD", CA_NOT_AUTHENTICATED,
 							"Server: client failed to authenticate" );
 			return FALSE;
         }
@@ -1370,7 +1378,7 @@ command_classad_handler( Service*, int, Stream* s )
 		MyString err_msg = "ClaimID (";
 		err_msg += claim_id;
 		err_msg += ") not found";
-		sendErrorReply( s, cmd_str, err_msg.Value() );
+		sendErrorReply( s, cmd_str, CA_FAILURE, err_msg.Value() );
 		free( claim_id );
 		free( cmd_str );
 		return FALSE;
@@ -1383,7 +1391,7 @@ command_classad_handler( Service*, int, Stream* s )
 		MyString err_msg = "User '";
 		err_msg += owner;
 		err_msg += "' does not match the owner of this claim";
-		sendErrorReply( s, cmd_str, err_msg.Value() );
+		sendErrorReply( s, cmd_str, CA_NOT_AUTHORIZED, err_msg.Value() ); 
 		free( claim_id );
 		free( cmd_str );
 		return FALSE;
