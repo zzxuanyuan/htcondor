@@ -1198,6 +1198,14 @@ caRequestCODClaim( Stream *s, char* cmd_str, ClassAd* req_ad )
 	reply.Insert( line.Value() );
 
 	int rval = sendCAReply( s, cmd_str, &reply );
+	if( ! rval ) {
+		dprintf( D_ALWAYS, 
+				 "Failed to reply to request, removing new claim\n" );
+		rip->r_cod_mgr->removeClaim( claim );
+			// removeClaim() deletes the object, so don't have a
+			// dangling pointer...
+		claim = NULL;
+	}
 	return rval;
 }
 
