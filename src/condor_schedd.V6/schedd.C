@@ -1663,7 +1663,7 @@ ResponsibleForPeriodicExprs( ClassAd *jobad )
 	jobad->LookupInteger(ATTR_JOB_UNIVERSE,univ);
 	jobad->LookupBool(ATTR_JOB_MANAGED,managed);
 
-	if(univ==CONDOR_UNIVERSE_SCHEDULER) {
+	if( univ==CONDOR_UNIVERSE_SCHEDULER || univ==CONDOR_UNIVERSE_LOCAL ) {
 		return 1;
 	} else if(univ==CONDOR_UNIVERSE_GLOBUS) {
 		if(managed) {
