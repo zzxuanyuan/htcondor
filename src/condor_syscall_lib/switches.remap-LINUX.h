@@ -63,6 +63,11 @@ REMAP_THREE( llseek, lseek64, long long int, int, long long int, int )
 
 REMAP_THREE_VARARGS( open, __open, int, const char *, int, int )
 
+#if defined(GLIBC23)
+REMAP_THREE_VARARGS( open64, __open64, int, const char *, int, int )
+REMAP_THREE_VARARGS( open64, __libc_open64, int, const char *, int, int )
+#endif
+
 REMAP_THREE( read, __read, ssize_t, int, __ptr_t, size_t )
 
 REMAP_THREE( write, __write, ssize_t, int, const __ptr_t, size_t )
