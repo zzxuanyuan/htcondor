@@ -289,6 +289,8 @@ ToolDaemonProc::JobCleanup(int pid, int status)
 		// CleanedUpJobList.
     if( JobPid == pid ) {	
 	
+		job_exit_time.getTime();
+
 		family->hardkill ();
 
 		if( snapshot_tid >= 0 ) {
@@ -363,7 +365,7 @@ ToolDaemonProc::ShutdownGraceful()
         Continue();
     }
 //    requested_exit = true;
-    daemonCore->Send_Signal(JobPid, SIGTERM);
+    daemonCore->Send_Signal( JobPid, soft_kill_sig );
     return false;	// return false says shutdown is pending	
 }
 
