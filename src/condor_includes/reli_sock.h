@@ -27,13 +27,14 @@
 #include "buffers.h"
 #include "sock.h"
 #include "condor_adtypes.h"
+#include "condor_io.h"
 
 /*
 **	R E L I A B L E    S O C K
 */
 
 class Authentication;
-
+class Condor_MD_MAC;
 /** The ReliSock class implements the Sock interface with TCP. */
 
 
@@ -159,6 +160,8 @@ public:
 //
 protected:
 
+        virtual bool init_MD(CONDOR_MD_MODE mode, KeyInfo * key);
+
 	/*
 	**	Types
 	*/
@@ -179,22 +182,28 @@ protected:
 
 	class RcvMsg {
 		
-		ReliSock *p_sock; //preserve parent pointer to use for condor_read/write
+                CONDOR_MD_MODE  mode_;
+                Condor_MD_MAC * mdChecker_;
+		ReliSock      * p_sock; //preserve parent pointer to use for condor_read/write
 		
 	public:
-		
-		RcvMsg() : ready(0) {}
+		RcvMsg();
+                ~RcvMsg();
 		int rcv_packet(SOCKET, int);
 		void init_parent(ReliSock *tmp){ p_sock = tmp; } 
-		
+
 		ChainBuf	buf;
 		int			ready;
+                bool init_MD(CONDOR_MD_MODE mode, KeyInfo * key);
 	} rcv_msg;
 
 	class SndMsg {
-		ReliSock* p_sock;
+                CONDOR_MD_MODE  mode_;
+                Condor_MD_MAC * mdChecker_;
+		ReliSock      * p_sock;
 	public:
-		
+		SndMsg();
+                ~SndMsg();
 		Buf			buf;
 		int snd_packet(int, int, int);
 
@@ -203,7 +212,10 @@ protected:
 		void init_parent(ReliSock *tmp){ 
 			p_sock = tmp; 
 			buf.init_parent(tmp);
-		} 
+		}
+
+        bool init_MD(CONDOR_MD_MODE mode, KeyInfo * key);
+
 
 	} snd_msg;
 

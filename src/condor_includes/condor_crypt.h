@@ -57,6 +57,14 @@ class Condor_Crypt_Base {
     // RETURNS: protocol
     //------------------------------------------
 
+    virtual void resetState() = 0;
+    //------------------------------------------
+    // PURPOSE: Reset encryption state. This is 
+    //          required for UPD encryption
+    // REQUIRE: None
+    // RETURNS: None
+    //------------------------------------------
+
     virtual bool encrypt(unsigned char *   input, 
                          int               input_len, 
                          unsigned char *&  output, 

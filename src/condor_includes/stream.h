@@ -32,6 +32,13 @@
 // inline function for eom.  Someday not needed ?
 #define eom end_of_message
 
+enum CONDOR_MD_MODE {
+    MD_OFF        = 0,         // off
+    MD_ALWAYS_ON,              // always on, condor will check MAC automatically
+    MD_EXPLICIT                // user needs to call checkMAC explicitly
+};
+
+
 #include "proc.h"
 
 /* now include sched.h.  cleanup namespace if user has not
@@ -487,14 +494,6 @@ public:
         // RETURNS: true -- success; false -- failure
         //------------------------------------------
 
-        //bool get_crypto_key(KeyInfo * key);
-        //------------------------------------------
-        // PURPOSE: return the current encryption protocol used,
-        //          if any
-        // REQUIRE: None
-        // RETURNS: true -- key matched; false -- otherwise
-        //------------------------------------------
-
         bool get_encryption();
         //------------------------------------------
         // PURPOSE: Return encryption mode
@@ -520,6 +519,28 @@ public:
         // RETURNS: TRUE -- success, FALSE -- failure
         //------------------------------------------
 
+        //----------------------------------------------------------------------
+        // MAC/MD related stuff
+        //----------------------------------------------------------------------
+        bool set_MD_mode(CONDOR_MD_MODE mode, KeyInfo * key = 0);    
+        //virtual bool set_MD_off() = 0;
+        //------------------------------------------
+        // PURPOSE: set mode for MAC (on or off)
+        // REQUIRE: mode -- see the enumeration defined above
+        //          key  -- an optional key for the MAC. if null (by default)
+        //                  all CEDAR does is send a Message Digest over
+        //                  When key is specified, this is essentially a MAC
+        // RETURNS: true -- success; false -- false
+        //------------------------------------------
+
+        bool MD_is_on() { return (mdMode_ == MD_ALWAYS_ON); }
+        //------------------------------------------
+        // PURPOSE: whether MD is turned on or not
+        // REQUIRE: None
+        // RETURNS: true -- MD is on; 
+        //          false -- MD is off
+        //------------------------------------------
+        
     //@}
  private:
         bool initialize_crypto(KeyInfo * key);
@@ -534,6 +555,9 @@ public:
 */
 protected:
 
+        virtual bool init_MD(CONDOR_MD_MODE mode, KeyInfo * key) = 0;
+        
+        void resetCrypto();
 
 	// serialize object (save/restore object state to an ascii string)
 	//
@@ -559,6 +583,8 @@ protected:
 	*/
 
         Condor_Crypt_Base * crypto_;         // The actual crypto
+        CONDOR_MD_MODE      mdMode_;        // MAC mode
+        KeyInfo           * mdKey_;
         bool                encrypt_;        // Encryption mode
 	stream_code	    _code;
 	stream_coding	    _coding;

@@ -44,6 +44,8 @@ class Condor_Crypt_Blowfish : public Condor_Crypt_Base {
     // RETURNS: None
     //------------------------------------------
 
+    void resetState();
+
 
     bool encrypt(unsigned char * input, 
                  int          input_len, 

@@ -83,7 +83,16 @@ class Condor_Auth_X509 : public Condor_Auth_Base {
     // PURPOSE: whether the authenticator is in
     //          valid state.
     // REQUIRE: None
-    // RETURNS: 1 -- true; 0 -- false
+    // RETURNS: true or false
+    //------------------------------------------
+
+     int endTime() const;
+    //------------------------------------------
+    // PURPOSE: Return the expiration time for
+    //          kerberos
+    // REQUIRE: None
+    // RETURNS: -1 -- invalid
+    //          >0 -- expiration time
     //------------------------------------------
  private:
 

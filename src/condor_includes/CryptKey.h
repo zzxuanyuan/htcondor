@@ -39,7 +39,7 @@ class KeyInfo {
 
     KeyInfo(unsigned char * keyData,
             int             keyDataLen,
-            Protocol        protocol,
+            Protocol        protocol = CONDOR_NO_PROTOCOL,
             int             duration = 0);
     //------------------------------------------
     // Construct a key object

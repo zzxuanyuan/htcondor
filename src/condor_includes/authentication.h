@@ -103,6 +103,15 @@ class Authentication {
     // RETURNS: TRUE or FALSE
     //------------------------------------------
     
+    int end_time();
+    //------------------------------------------
+    // PURPOSE: Return the expiration time for the
+    //          authenticator
+    // REQUIRE: None
+    // RETURNS: -1 -- invalid, for Kerberos, X.509, etc
+    //           0 -- undefined, for FS, 
+    //          >0 -- for Kerberos and X.509
+    //------------------------------------------
     int encrypt(bool);
     //------------------------------------------
     // PURPOSE: Turn encryption mode on or off

@@ -75,7 +75,7 @@ public:
 			 unsigned long &szDeleted);
 	void resetStat();
 
-   	//
+	//
 	SafeSock();
 
 	// Copy constructor
@@ -113,6 +113,9 @@ public:
 
 // next line should be uncommented after testing
 protected:
+
+        virtual bool init_MD(CONDOR_MD_MODE mode, KeyInfo * key);
+
 	static _condorMsgID _outMsgID;
 
 	enum safesock_state { safesock_none, safesock_listen };

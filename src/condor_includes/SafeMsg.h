@@ -112,7 +112,8 @@ class _condorInMsg
 };
 
 static const int SAFE_MSG_MAX_PACKET_SIZE = 60000;
-static const int SAFE_MSG_HEADER_SIZE = 25;
+static const int SAFE_MSG_HEADER_SIZE = 25;      
+
 static const char* const SAFE_MSG_MAGIC = "MaGic6.0";
 
 class _condorPacket
@@ -122,9 +123,12 @@ class _condorPacket
 
 	public:
 		_condorPacket();
+		_condorPacket(CONDOR_MD_MODE mode, KeyInfo * key);
+                ~_condorPacket();
 
 		// get the contents of header
-		bool getHeader(bool &last,
+                // returns 1 if is short message; 0 if not; -1 if checksum failed
+		int getHeader(bool &last,
 				   int &seq,
 		   		   int &len,
 				   _condorMsgID &mID,
@@ -158,6 +162,11 @@ class _condorPacket
 		// fill the header part with given arguments
 		void makeHeader(bool last, int seqNo, _condorMsgID msgID);
 
+
+                bool init_MD(CONDOR_MD_MODE mode, KeyInfo * key = 0);
+
+                void addMD();
+
 #ifdef DEBUG
 		// dump the contents of the packet
 		void dumpPacket();
@@ -173,6 +182,9 @@ class _condorPacket
 		char dataGram[SAFE_MSG_MAX_PACKET_SIZE];/* marshalled packet
 		                                * including header and data */
 		_condorPacket* next;	// next packet
+
+                Condor_MD_MAC  * mdChecker_;
+                CONDOR_MD_MODE   mode_;
 };
 
 
@@ -183,6 +195,7 @@ class _condorOutMsg
 	public:
 		// constructor
 		_condorOutMsg();
+		_condorOutMsg(CONDOR_MD_MODE mode, KeyInfo * key);
 
 		~_condorOutMsg();
 
@@ -199,6 +212,8 @@ class _condorOutMsg
 
 		void clearMsg();
 
+                bool init_MD(CONDOR_MD_MODE mode, KeyInfo * key);
+
 		unsigned long getAvgMsgSize();
 
 #ifdef DEBUG
@@ -212,4 +227,6 @@ class _condorOutMsg
 		_condorPacket* lastPacket;	// pointer to the last packet
 		unsigned long noMsgSent;
 		unsigned long avgMsgSize;
+                KeyInfo     * key_;
+                CONDOR_MD_MODE  mode_;
 };
