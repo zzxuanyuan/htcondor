@@ -1,3 +1,8 @@
+2/3/05 V6_7-condorg_gt4-merge-1
+   The state of the V6_7-condorg_gt4-branch when merged back into
+   V6_7-branch. This represents our initial support for submitting jobs to 
+   Globus web services (GT4) resources.
+
 12/21/04 V6_7_3-branch
    Release branch for 6.7.3, off of the V6_7-branch, from V6_7_3-root.
 
