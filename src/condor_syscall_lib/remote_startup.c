@@ -156,10 +156,17 @@
 #include "condor_file_info.h"
 static char *_FileName_ = __FILE__;
 
+#ifndef TRUE
+#define TRUE 1
+#endif
 
-const int TRUE = 1;
-const int FALSE = 0;
-const int MATCH = 0; /* for strcmp */
+#ifndef FALSE
+#define FALSE 0
+#endif
+
+#ifndef MATCH
+#define MATCH 0   /* for strcmp */
+#endif
 
 enum result { NOT_OK = 0, OK = 1, END };
 
@@ -233,6 +240,7 @@ MAIN( int argc, char *argv[], char **envp )
 	char	*cmd_name;
 	char	*extra;
 	int		scm;
+	char	*argv0;
 	char 	*argv1;
 	
 #undef WAIT_FOR_DEBUGGER
@@ -269,8 +277,17 @@ MAIN( int argc, char *argv[], char **envp )
 				DebugFlags = 0;		/* disable dprintf messages */
 				InitFileState();  /* to create a file_state table so no SEGV */
 				if ( strcmp("-_condor_nowarn",argv1) != MATCH ) {
-					fprintf(stderr,"WARNING: This binary has been linked for Condor.\nWARNING: Setting up to run outside of Condor...\n");
+					fprintf(stderr,	"WARNING: This binary has been linked for "
+									"Condor.\nWARNING: Setting up to run "
+									"outside of Condor...\n");
+				} else {
+					/* compensate argument vector for flag */
+					argv0 = argv[0];	
+					argv ++;
+					argc --;
+					argv[0] = argv0;
 				}
+
 				/* Now start running user code and forget about condor */
 #if defined(HPUX9)
 				exit(_start( argc, argv, envp ));
@@ -352,6 +369,21 @@ MAIN( int argc, char *argv[], char **envp )
 	cmd_name = argv[0];
 	argv += 2;
 	argc -= 2;
+
+	/*
+	The flag '-_condor_debug_wait' can be set to setup an infinite loop so
+	that we can attach to the user job.  This argument can be specified in
+	the submit file, but must be the first argument to the job.  The argv
+	is compensated so that the job gets the vector it expected.  --RR
+	*/
+	if (strcmp (argv[0], "-_condor_debug_wait") == MATCH)
+	{
+		int i = 1;
+		argv ++;
+		argc --;
+		while (i);
+	}
+
 	argv[0] = cmd_name;
 
 	unblock_signals();
