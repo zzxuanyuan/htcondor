@@ -469,16 +469,18 @@ int SafeSock::handle_incoming_packet()
     if (usingReliableUDP()) {
         memset(&sender, 0, sizeof(struct rudpaddr));
         received = rudp_recvfrom(_sock, _shortMsg.dataGram, SAFE_MSG_MAX_PACKET_SIZE,
-                                 0, (struct sockaddr *)&_who, &fromlen, &sender );
+                                 0, (struct sockaddr *)&_who, &fromlen);
     }
     else {
         received = recvfrom(_sock, _shortMsg.dataGram, SAFE_MSG_MAX_PACKET_SIZE,
-                            0, (struct sockaddr *)&_who, &fromlen );
+                            0, (struct sockaddr *)&_who, &fromlen);
     }
 
     _shortMsg.setVerified(false);  // check MD if necessary
 	if(received < 0) {
 		dprintf(D_NETWORK, "recvfrom failed: errno = %d\n", errno);
+		return FALSE;
+	} else if (received == 0) {
 		return FALSE;
 	}
 	dprintf( D_NETWORK, "RECV %s ", sock_to_string(_sock) );

@@ -37,17 +37,16 @@
 #define R_UDP_TAG 0x89ABCDEF
 #define DATA_PACKET 'd'
 #define ACK_PACKET 'a'
-#define BUCKET_SIZE 73
+#ifndef OPEN_MAX
+#define OPEN_MAX 512
+#endif
 
 int _rudp_initialized = 0;
 uint32_t _rudp_myAddr = 0;
 uint32_t _rudp_gwAddr = 0;
 struct timeval _rudp_tinit = {0, 0};
 uint32_t _rudp_seqno = 0;
-struct senderInfo *_rudp_senderBucket[BUCKET_SIZE];
-unsigned int _rudp_no_bytes = 0;
-char _rudp_rcv_buf[65536];
-struct sockaddr_in _rudp_last_sender;
+struct _RUDP_FDinfo _rudp_fdInfo[OPEN_MAX];
 
 static int
 getGWaddr(uint32_t *gwAddr)
@@ -254,15 +253,20 @@ unstripeMsg(char *buf, int bufLen,
 }
 
 
-static struct senderInfo *
-getSender(uint32_t ip, uint32_t gip, pid_t pid, unsigned long sec, unsigned long usec)
+static struct _RUDP_senderInfo * getSender(
+		struct _RUDP_senders *senders,
+		uint32_t ip,
+		uint32_t gip,
+		pid_t pid,
+		unsigned long sec,
+		unsigned long usec)
 {
 	int index;
-	struct senderInfo *sptr, *ptr;
+	struct _RUDP_senderInfo *sptr, *ptr;
 
 	// Hash into bucket
-	index = (ip + gip) % BUCKET_SIZE;
-	sptr = ptr = _rudp_senderBucket[index];
+	index = (ip + gip + pid) % _RUDP_BUCKET_SIZE;
+	sptr = ptr = senders->senderArr[index];
 
 	// Follow the chain of the bucket
 	while(ptr) {
@@ -271,7 +275,8 @@ getSender(uint32_t ip, uint32_t gip, pid_t pid, unsigned long sec, unsigned long
 				// Reuse the data structure
 				ptr->sec = sec;
 				ptr->usec = usec;
-				ptr->nSeq = 0;
+				ptr->seq = 0;
+				// We do not delete received data, if any
 			}
 			return ptr;
 		}
@@ -279,17 +284,381 @@ getSender(uint32_t ip, uint32_t gip, pid_t pid, unsigned long sec, unsigned long
 	}
 
 	// Not found, we need to allocate a data structure for this sender
-	ptr = (struct senderInfo *)malloc(sizeof(struct senderInfo));
+	ptr = (struct _RUDP_senderInfo *)malloc(sizeof(struct _RUDP_senderInfo));
 	ptr->ip = ip;
 	ptr->gip = gip;
 	ptr->pid = pid;
 	ptr->sec = sec;
 	ptr->usec = usec;
-	ptr->nSeq = 0;
+	ptr->seq = 0;
 	ptr->next = sptr;
-	_rudp_senderBucket[index] = ptr;
+	senders->senderArr[index] = ptr;
 
 	return ptr;
+}
+
+// @ret: ACK_PACKET if the expected ACK packet received
+//       DATA_PACKET if a valid data packet is received and queued
+//       0, if any of the following is true:
+//       	- nothing to read there
+//       	- delayed DATA packet arrived
+//       	- delayed ACK packet arrived
+//       -1, if error occurred
+static char procUDPmsg(int fd)
+{
+	char *dptr; 
+	char rcvBuf[1040], opcode;
+	int ackLen, result, addrLen, rst;
+	unsigned int seqNo, dLen;
+	struct sockaddr_in from;
+	uint32_t ip, gip;
+	unsigned long sec, usec;
+	pid_t pid;
+	struct _RUDP_senderInfo *sender;
+	struct _RUDP_rmsg *msg;
+
+	if (_rudp_fdInfo[fd].conn == 0) {
+		addrLen = sizeof(from);
+		result = recvfrom(fd, rcvBuf, 1040, 0, (struct sockaddr *)&from, &addrLen);
+	} else {
+		result = recv(fd, rcvBuf, 1040, 0);
+	}
+	if (result < 0) {
+		dprintf(D_ALWAYS, "procUDPmsg: recv(from) - %s\n", strerror(errno));
+		return -1;
+	}
+	
+	// Unstripe the received msg
+	if (unstripeMsg(rcvBuf, result, &opcode, &ip, &gip, &pid, &sec, &usec,
+				&seqNo, &dptr, &dLen) != 1) {
+		dprintf(D_ALWAYS, "procUDPmsg: unstripeMsg failed\n");
+		return -1;
+	}
+	
+	switch(opcode) {
+		case DATA_PACKET:
+			if (_rudp_fdInfo[fd].conn) {
+				dprintf(D_NETWORK, "\t\tDATA(%d) through fd = %s\n", fd);
+			} else {
+				dprintf(D_NETWORK, "\t\tDATA(%d) from %s\n", seqNo, sin_to_string(&from));
+			}
+			// Get the sender info
+			sender = getSender(_rudp_fdInfo[fd].senders, ip, gip, pid, sec, usec);
+
+			// if the msg is not a delayed msg, queue the msg
+			if ((sender->seq <= 2.147483e+09 &&
+						sender->seq < seqNo &&
+						seqNo < sender->seq + 2.147483e+09) ||
+				(sender->seq > 2.147483e+09 &&
+						(sender->seq < seqNo ||
+						seqNo < sender->seq - 2.147483e+09))) {
+				dprintf(D_NETWORK, "\t\t\tValid data packet - queued to rbuf\n");
+				msg = (struct _RUDP_rmsg *)malloc(sizeof(struct _RUDP_rmsg));
+				if (!msg) {
+					dprintf(D_ALWAYS, "procUDPmsg: malloc - %s\n", strerror(errno));
+					return -1;
+				}
+				msg->msg = (char *)malloc(dLen);
+				if (!(msg->msg)) {
+					dprintf(D_ALWAYS, "procUDPmsg: malloc - %s\n", strerror(errno));
+					return -1;
+				}
+				memcpy(msg->msg, dptr, dLen);
+				msg->seq = seqNo;
+				msg->bytes = dLen;
+				if (_rudp_fdInfo[fd].conn == 0) {
+					memcpy(&(msg->from), &from, sizeof(from));
+				}
+				msg->next = NULL;
+				if (_rudp_fdInfo[fd].qtail) {
+					_rudp_fdInfo[fd].qtail->next = msg;
+				} else {
+					_rudp_fdInfo[fd].qhead = msg;
+				}
+				_rudp_fdInfo[fd].qtail = msg;
+				return DATA_PACKET;
+			}
+
+			// Delayed msg -> reply ACK
+			ackLen = sizeof(rcvBuf);
+			if (stripeMsg(rcvBuf, &ackLen, ACK_PACKET, seqNo, NULL, 0) < 0) {
+				dprintf(D_ALWAYS, "procUDPmsg: stripeMsg failed\n");
+				return -1;
+			}
+			if (_rudp_fdInfo[fd].conn) {
+				rst = send(fd, rcvBuf, ackLen, 0);
+			} else {
+				rst = sendto(fd, rcvBuf, ackLen, 0, (struct sockaddr *)&from, sizeof(from));
+			}
+			if (rst != ackLen) {
+				dprintf(D_ALWAYS, "procUDPmsg: send(to) - %s\n", strerror(errno));
+				return -1;
+			}
+			if (_rudp_fdInfo[fd].conn) {
+				dprintf(D_NETWORK, "\t\tACK(%d) for delayed msg fd = %d\n", seqNo, fd);
+			} else {
+				dprintf(D_NETWORK, "\t\tACK(%d) for delayed msg to %s\n", seqNo,
+						sin_to_string((struct sockaddr_in *)&from));
+			}
+			return 0;
+		case ACK_PACKET:
+			if (_rudp_fdInfo[fd].conn) {
+				dprintf(D_NETWORK, "\t\tACK(%d) fd = %d\n", seqNo, fd); 
+			} else {
+				dprintf(D_NETWORK, "\t\tACK(%d) from %s\n", seqNo, sin_to_string(&from));
+			}
+			if (seqNo != _rudp_seqno) {
+				return 0;
+			}
+			return ACK_PACKET;
+		default:
+			dprintf(D_ALWAYS, "procUDPmsg: invalid opcode\n");
+			return -1;
+	}
+}
+
+static void cleanSenders(struct _RUDP_senders **senders)
+{
+	int i;
+	struct _RUDP_senderInfo *ptr, *pptr;
+
+	if (--((*senders)->ref) > 0) {
+		*senders = (struct _RUDP_senders *)calloc(sizeof(struct _RUDP_senders), 1);
+		if (*senders == NULL) {
+			dprintf(D_ALWAYS, "cleanSenders: calloc - %s\n", strerror(errno));
+			return;
+		}
+		(*senders)->ref = 1;
+		return;
+	}
+
+	for (i=0; i < _RUDP_BUCKET_SIZE; i++) {
+		ptr = ((*senders)->senderArr)[i];
+		while (ptr) {
+			pptr = ptr;
+			ptr = ptr->next;
+			free(pptr);
+		}
+		senders[i] = NULL;
+	}
+
+	return;
+}
+
+static void delSenders(struct _RUDP_senders *senders)
+{
+	int i;
+	struct _RUDP_senderInfo *ptr, *pptr;
+
+	if (--(senders->ref) <= 0) {
+		for (i=0; i < _RUDP_BUCKET_SIZE; i++) {
+			ptr = (senders->senderArr)[i];
+			while (ptr) {
+				pptr = ptr;
+				ptr = ptr->next;
+				free(pptr);
+			}
+		}
+		free(senders);
+	}
+	return;
+}
+
+static void delQueue(struct _RUDP_rmsg *qhead)
+{
+	struct _RUDP_rmsg *ptr, *pptr;
+
+	ptr = qhead;
+	while (ptr) {
+		pptr = ptr;
+		ptr = ptr->next;
+		free(pptr->msg);
+		free(pptr);
+	}
+
+	return;
+}
+
+int rudp_socket(void)
+{
+	int fd;
+
+	if (!_rudp_initialized) {
+		if (initialize() < 0) {
+			dprintf(D_ALWAYS, "rudp_socket: failed to initialize data structure\n");
+			return -1;
+		}
+	}
+
+	fd = socket(AF_INET, SOCK_DGRAM, 0);
+	if (fd < 0) {
+		dprintf(D_ALWAYS, "rudp_socket: socket - %s\n", strerror(errno));
+		return fd;
+	}
+
+	// If _rudp_fdInfo[fd] is taken by another socket, this means that
+	// the socket has been closed. So we have to clean the data structure
+	// taken by the socket deleted
+	if (_rudp_fdInfo[fd].senders) {
+		cleanSenders(&(_rudp_fdInfo[fd].senders));
+		delQueue(_rudp_fdInfo[fd].qhead);
+		_rudp_fdInfo[fd].qhead = _rudp_fdInfo[fd].qtail = NULL;
+	}
+
+	// If we cleaned the data structure taken by another socket, we don't
+	// need to allocate
+	if (!_rudp_fdInfo[fd].senders) {
+		_rudp_fdInfo[fd].senders = (struct _RUDP_senders *)calloc(sizeof(struct _RUDP_senders), 1);
+		if (!_rudp_fdInfo[fd].senders) {
+			dprintf(D_ALWAYS, "rudp_socket: calloc - %s\n", strerror(errno));
+			return -1;
+		}
+	}
+
+	return fd;
+}
+
+int rudp_close(int fd)
+{
+	int ret = 0;
+
+	delSenders(_rudp_fdInfo[fd].senders);
+	if (_rudp_fdInfo[fd].qhead) {
+		delQueue(_rudp_fdInfo[fd].qhead);
+		_rudp_fdInfo[fd].qhead = _rudp_fdInfo[fd].qtail = NULL;
+		ret = -1;
+	}
+	_rudp_fdInfo[fd].conn = 0;
+
+	return ret;
+}
+
+int rudp_dup2(int oldfd, int newfd)
+{
+	int ret;
+
+	ret = dup2(oldfd, newfd);
+	if (ret < 0) {
+		dprintf(D_ALWAYS, "rudp_dup2: dup2 - %s\n", strerror(errno));
+		return -1;
+	}
+
+	if (_rudp_fdInfo[ret].senders) {
+		delSenders(_rudp_fdInfo[ret].senders);
+		if (_rudp_fdInfo[ret].qhead) {
+			delQueue(_rudp_fdInfo[ret].qhead);
+		}
+	}
+
+	_rudp_fdInfo[ret].conn = _rudp_fdInfo[oldfd].conn;
+	_rudp_fdInfo[ret].qhead = _rudp_fdInfo[ret].qtail = NULL;
+	_rudp_fdInfo[ret].senders = _rudp_fdInfo[oldfd].senders;
+	_rudp_fdInfo[ret].senders->ref++;
+
+	return ret;
+}
+
+static int sendData(
+		int fd,
+		const void *msg,
+		size_t msgLen,
+		const struct sockaddr *to,
+		socklen_t tolen)
+{
+	char buf[1040];
+	int bufLen, ready, maxfd, addrLen, tries, rst, i;
+	fd_set rdfds, expfds;
+	struct timeval tv;
+	time_t current;
+	short elapsed;
+
+	_rudp_seqno++;
+	addrLen = sizeof(struct sockaddr_in);
+
+	// Stripe the message
+	bufLen = sizeof(buf);
+	if (stripeMsg(buf, &bufLen, DATA_PACKET, _rudp_seqno, msg, msgLen) < 0) {
+		dprintf(D_ALWAYS, "sendData: failed to stripe message\n");
+		return -1;
+	}
+
+	tries = 0;
+	while (tries < 6) {
+		if (to) {
+			rst = sendto(fd, buf, bufLen, 0, to, tolen);
+		} else {
+			rst = send(fd, buf, bufLen, 0);
+		}
+		if (rst < 0) {
+			if (errno == EAGAIN || errno == EINTR) {
+				continue;
+			} else {
+				dprintf(D_ALWAYS, "sendData: send(to) - %s\n", strerror(errno));
+				return -1;
+			}
+		}
+		if (to) {
+			dprintf(D_NETWORK, "\t\tDATA(%d) sent to %s\n",
+				_rudp_seqno, sin_to_string((struct sockaddr_in *)to));
+		} else {
+			dprintf(D_NETWORK, "\t\tDATA(%d) sent fd = %d\n",
+				_rudp_seqno, fd);
+		}
+
+		elapsed = 0;
+		while(1) {
+			current = time(NULL);
+			// wait 2**tries sec before resend the packet
+			tv.tv_sec = pow(2.0, tries) - elapsed;
+			if (tv.tv_sec <= 0) { // timeout
+				break;
+			}
+			tv.tv_usec = 0;
+			FD_ZERO(&rdfds);
+			FD_ZERO(&expfds);
+			FD_SET(fd, &expfds);
+			for (i = 0; i < OPEN_MAX; i++) {
+				if (_rudp_fdInfo[i].senders) {
+					FD_SET(i, &rdfds);
+					maxfd = i + 1;
+				}
+			}
+			ready = select(maxfd, &rdfds, NULL, &expfds, &tv);
+			if (ready < 0) {
+				if (errno == EINTR) {
+					elapsed = time(NULL) - current;
+					continue;
+				} else {
+					dprintf(D_ALWAYS, "sendData: select - %s\n", strerror(errno));
+					return -1;
+				}
+			}
+			if (ready == 0) {
+				break;
+			}
+
+			if (FD_ISSET(fd, &expfds)) {
+				dprintf(D_ALWAYS, "sendData: select returned with expfds set\n");
+				return -1;
+			}
+
+			for (i = 0; i < OPEN_MAX; i++) {
+				if (FD_ISSET(i, &rdfds)) {
+					rst = procUDPmsg(i);
+					if (rst == ACK_PACKET && i == fd) {
+						return msgLen;
+					} else {
+						elapsed = time(NULL) - current;
+					}
+				}
+			}
+		} // while (1)
+		tries++;
+		dprintf(D_NETWORK, "\n\t\ttries = %d\n\n", tries);
+	} // while(tries < 7)
+
+	dprintf(D_ALWAYS, "sendData: couldn't get ACK from receiver\n");
+	return -1;
 }
 
 
@@ -301,231 +670,16 @@ rudp_sendto(
 		const struct sockaddr *to,
 		socklen_t tolen)
 {
-	char *dptr; 
-	char buf[65520], rcvBuf[65520], opcode;
-	int bufLen, ackLen, result, ready, maxfd, addrLen, tries, rst;
-	unsigned int seqNo, dLen;
-	fd_set rdfds;
-	struct timeval tv;
-	struct sockaddr_in from;
-	uint32_t ip, gip;
-	unsigned long sec, usec;
-	pid_t pid;
-	struct senderInfo *sender;
 
-	if (!_rudp_initialized) {
-		if (initialize() < 0) {
-			dprintf(D_ALWAYS, "rudp_sendto: failed to initialize data structure\n");
-			return -1;
-		}
-	}
-	dprintf(D_FULLDEBUG, "\tSENDTO\n");
+	dprintf(D_NETWORK, "\tSENDTO\n");
+	_rudp_fdInfo[fd].conn = 0;
 
-	_rudp_seqno++;
-	maxfd = fd + 1;
-	addrLen = sizeof(struct sockaddr_in);
-
-	// Stripe the message
-	bufLen = sizeof(buf);
-	if (stripeMsg(buf, &bufLen, DATA_PACKET, _rudp_seqno, msg, msgLen) < 0) {
-		dprintf(D_ALWAYS, "rudp_sendto: failed to stripe message\n");
+	if (msgLen > R_UDP_MAX_LEN) {
+		dprintf(D_ALWAYS, "rudp_sendto: message is too big\n");
 		return -1;
 	}
 
-	tries = 0;
-	while (tries < 7) {
-		if (sendto(fd, buf, bufLen, 0, to, tolen) < 0) {
-			if (errno == EAGAIN || errno == EINTR) {
-				continue;
-			} else {
-				dprintf(D_ALWAYS, "rudp_sendto: sendto - %s\n", strerror(errno));
-				return -1;
-			}
-		}
-		dprintf(D_FULLDEBUG, "\t\tDATA(%d) to %s\n", _rudp_seqno, sin_to_string((struct sockaddr_in *)to));
-
-		while(1) {
-			// wait 2**tries sec before resend the packet
-			tv.tv_sec = pow(2.0, tries);
-			tv.tv_usec = 0;
-			FD_ZERO(&rdfds);
-			FD_SET(fd, &rdfds);
-			ready = select(maxfd, &rdfds, NULL, NULL, &tv);
-			if (ready < 0) {
-				if (errno == EINTR) {
-					continue;
-				} else {
-					dprintf(D_ALWAYS, "rudp_sendto: select - %s\n", strerror(errno));
-					return -1;
-				}
-			}
-			if (ready == 0) {
-				break;
-			}
-
-			// Here, something must be available to read at fd
-			result = recvfrom(fd, rcvBuf, 65520, 0, (struct sockaddr *)&from, &addrLen);
-			if (result < 0) {
-				if (errno == EINTR || errno == EAGAIN) {
-					continue;
-				} else {
-					dprintf(D_ALWAYS, "rudp_sendto: recvfrom - %s\n", strerror(errno));
-					return -1;
-				}
-			}
-	
-			// Unstripe the received msg
-			if (unstripeMsg(rcvBuf, result, &opcode, &ip, &gip, &pid, &sec, &usec,
-						&seqNo, &dptr, &dLen) != 1) {
-				dprintf(D_ALWAYS, "rudp_sendto: unstripeMsg failed\n");
-				continue;
-			}
-	
-			switch(opcode) {
-				case DATA_PACKET:
-					dprintf(D_FULLDEBUG, "\t\tDATA(%d) from %s\n", seqNo, sin_to_string(&from));
-					// Get the sender info
-					sender = getSender(ip, gip, pid, sec, usec);
-					// if the msg is not a delayed msg, ignore the data packet
-					if ((sender->nSeq <= 2.147483e+09 &&
-								sender->nSeq <= seqNo &&
-								seqNo < sender->nSeq + 2.147483e+09) ||
-						(sender->nSeq > 2.147483e+09 &&
-								(sender->nSeq <= seqNo ||
-								seqNo < sender->nSeq - 2.147483e+09))) {
-						memcpy(_rudp_rcv_buf, rcvBuf, result);
-						memcpy(&_rudp_last_sender, &from, sizeof(from));
-						_rudp_no_bytes = result;
-						dprintf(D_FULLDEBUG, "\t\t\tValid data packet - queued to rcv_buf\n");
-						continue;
-					}
-					ackLen = sizeof(rcvBuf);
-					if (stripeMsg(rcvBuf, &ackLen, ACK_PACKET, seqNo, NULL, 0) < 0) {
-						dprintf(D_ALWAYS, "rudp_sendto: stripeMsg failed\n");
-						return -1;
-					}
-					while(1) {
-						rst = sendto(fd, rcvBuf, ackLen, 0, (struct sockaddr *)&from, sizeof(from));
-						if (rst != ackLen) {
-							if (errno == EAGAIN || errno == EINTR) {
-								continue;
-							} else {   
-								dprintf(D_ALWAYS, "rudp_sendto: sendto - %s\n", strerror(errno));
-								return -1;
-							}
-						}
-						dprintf(D_FULLDEBUG, "\t\tACK(%d) for delayed msg to %s\n", seqNo,
-								sin_to_string((struct sockaddr_in *)&from));
-						break;
-					}
-					continue;
-				case ACK_PACKET:
-					dprintf(D_FULLDEBUG, "\t\tACK(%d) from %s\n", seqNo, sin_to_string(&from));
-					if (seqNo != _rudp_seqno) {
-						continue;
-					}
-					return msgLen;
-			}
-		} // while (1)
-		tries++;
-		dprintf(D_FULLDEBUG, "\n\t\ttries = %d\n\n", tries);
-	} // while(tries < 7)
-
-	dprintf(D_ALWAYS, "rudp_sendto: couldn't get ACK from receiver\n");
-	return -1;
-}
-
-
-int
-rudp_recvfrom(int fd, void *msg, size_t msgLen, int flags,
-		struct sockaddr *from, socklen_t *fromlen, struct rudpaddr *raddr)
-{
-	uint32_t ip, gip;
-	pid_t pid;
-	int bufLen, mLen, rst;
-	unsigned int seqNo;
-	char opcode, rcvBuf[65536], *buf, *msgPtr;
-	struct senderInfo *sender;
-
-	dprintf(D_FULLDEBUG, "\tRECVFROM:\n");
-
-	while(1) {
-		if (_rudp_no_bytes != 0) {
-			buf = _rudp_rcv_buf;
-			bufLen = _rudp_no_bytes;
-			memcpy(from, &_rudp_last_sender, sizeof(_rudp_last_sender));
-			*fromlen = sizeof(_rudp_last_sender);
-			_rudp_no_bytes = 0;
-		} else {
-			bufLen = recvfrom(fd, rcvBuf, sizeof(rcvBuf), flags, from, fromlen);
-			if (bufLen < 0) {
-				if (errno == EAGAIN || errno == EINTR) {
-					continue;
-				} else {
-					dprintf(D_ALWAYS, "rudp_recvfrom: recvfrom - %s\n", strerror(errno));
-					return -1;
-				}
-			}
-			buf = rcvBuf;
-		}
-		rst = unstripeMsg(buf, bufLen, &opcode, &ip, &gip, &pid, &(raddr->sec),
-							&(raddr->usec), &seqNo, &msgPtr, &mLen);
-
-		if ( rst != 1) {
-			dprintf(D_ALWAYS, "rudp_recvfrom: unstripeMsg failed\n");
-			continue;
-		}
-
-		if (opcode == ACK_PACKET) {
-			dprintf(D_FULLDEBUG, "\t\tACK(%d) from %s\n", seqNo, sin_to_string((struct sockaddr_in *)from));
-			continue;
-		}
-		dprintf(D_FULLDEBUG, "\t\tDATA(%d) from %s\n", seqNo, sin_to_string((struct sockaddr_in *)from));
-
-		// send ACK
-		bufLen = sizeof(rcvBuf);
-		if (stripeMsg(buf, &bufLen, ACK_PACKET, seqNo, NULL, 0) < 0) {
-			dprintf(D_ALWAYS, "rudp_recvfrom: stripeMsg failed\n");
-			return -1;
-		}
-		while(1) {
-			rst = sendto(fd, buf, bufLen, 0, from, sizeof(*from));
-			if (rst != bufLen) {
-				if (errno == EAGAIN || errno == EINTR) {
-					continue;
-				} else {   
-					dprintf(D_ALWAYS, "rudp_recvfrom: sendto - %s\n", strerror(errno));
-					return -1;
-				}
-			}
-			dprintf(D_FULLDEBUG, "\t\tACK(%d) to %s\n", seqNo, sin_to_string((struct sockaddr_in *)from));
-			break;
-		}
-
-		// get the pointer to sender info
-		sender = getSender(ip, gip, pid, raddr->sec, raddr->usec);
-
-		// Ignore delayed msg. I added the 2nd condition for the case of
-		// wrapping around of seqNo. 2.147483e+09 = 2 to the 31 = 1/2 of the
-		// biggest 4 bytes integer
-		if ((sender->nSeq <= 2.147483e+09 &&
-					(seqNo < sender->nSeq ||
-					 sender->nSeq + 2.147483e+09 < seqNo)) ||
-			(sender->nSeq > 2.147483e+09 &&
-					sender->nSeq - 2.147483e+09 < seqNo &&
-					seqNo < sender->nSeq)) {
-			dprintf(D_FULLDEBUG, "\t\tDelayed data(%d) ignored: data(%d) expected\n", seqNo, sender->nSeq);
-			continue;
-		}
-		sender->nSeq = seqNo + 1;
-
-		// pass the received data to application
-		if (mLen > msgLen) {
-			mLen = msgLen;
-		}
-		memcpy(msg, msgPtr, mLen);
-		return mLen;
-	}
+	return sendData(fd, msg, msgLen, to, tolen);
 }
 
 
@@ -535,224 +689,104 @@ rudp_send(
 		const void *msg,
 		size_t msgLen)
 {
-	char *dptr; 
-	char buf[65520], rcvBuf[65520], opcode;
-	int bufLen, ackLen, result, ready, maxfd, addrLen, tries, rst;
-	unsigned int seqNo, dLen;
-	fd_set rdfds;
-	struct timeval tv;
-	struct sockaddr_in from;
-	uint32_t ip, gip;
-	unsigned long sec, usec;
-	pid_t pid;
-	struct senderInfo *sender;
+	dprintf(D_NETWORK, "\tSEND\n");
+	_rudp_fdInfo[fd].conn = 1;
 
-	if (!_rudp_initialized) {
-		if (initialize() < 0) {
-			dprintf(D_ALWAYS, "rudp_send: failed to initialize data structure\n");
-			return -1;
-		}
-	}
-	dprintf(D_FULLDEBUG, "\tSEND\n");
-
-	_rudp_seqno++;
-	maxfd = fd + 1;
-	addrLen = sizeof(struct sockaddr_in);
-
-	// Stripe the message
-	bufLen = sizeof(buf);
-	if (stripeMsg(buf, &bufLen, DATA_PACKET, _rudp_seqno, msg, msgLen) < 0) {
-		dprintf(D_ALWAYS, "rudp_send: failed to stripe message\n");
+	if (msgLen > R_UDP_MAX_LEN) {
+		dprintf(D_ALWAYS, "rudp_send: message is too big\n");
 		return -1;
 	}
 
-	tries = 0;
-	while (tries < 7) {
-		if (send(fd, buf, bufLen, 0) < 0) {
-			if (errno == EAGAIN || errno == EINTR) {
-				continue;
-			} else {
-				dprintf(D_ALWAYS, "rudp_send: send - %s\n", strerror(errno));
-				return -1;
+	return sendData(fd, msg, msgLen, NULL, 0);
+}
+
+
+static int recvData(int fd, void *msg, size_t msgLen, int flags,
+		struct sockaddr *from, socklen_t *fromlen)
+{
+	struct timeval tv;
+	int val, len, maxfd, ready, i;
+	struct _RUDP_rmsg *ptr;
+	fd_set rdfds, expfds;
+
+	// Figure out the receiving mode
+	if (val = fcntl(fd, F_GETFL, 0) < 0) {
+		dprintf(D_ALWAYS, "recv: fcntl - %s\n", strerror(errno));
+		return -1;
+	}
+	while(1) {
+		// If a msg has been queued for this socket, dequeue a msg return it
+		if (_rudp_fdInfo[fd].qhead) {
+			ptr = _rudp_fdInfo[fd].qhead;
+			len = (msgLen > ptr->bytes) ? ptr->bytes : msgLen;
+			memcpy(msg, ptr->msg, len);
+			_rudp_fdInfo[fd].qhead = ptr->next;
+			if (from) {
+				memcpy(from, &(ptr->from), sizeof(ptr->from));
+				*fromlen = sizeof(ptr->from);
+			}
+			free(ptr->msg);
+			free(ptr);
+			return len;
+		}
+
+		// Set fd_set for read and error
+		FD_ZERO(&rdfds);
+		FD_ZERO(&expfds);
+		FD_SET(fd, &expfds);
+		for (i = 0; i < OPEN_MAX; i++) {
+			if (_rudp_fdInfo[i].senders) {
+				FD_SET(i, &rdfds);
+				maxfd = i + 1;
 			}
 		}
-		dprintf(D_FULLDEBUG, "\t\tDATA(%d) sent\n", _rudp_seqno);
 
-		while(1) {
-			// wait 2**tries sec before resend the packet
-			tv.tv_sec = pow(2.0, tries);
-			tv.tv_usec = 0;
-			FD_ZERO(&rdfds);
-			FD_SET(fd, &rdfds);
-			ready = select(maxfd, &rdfds, NULL, NULL, &tv);
-			if (ready < 0) {
-				if (errno == EINTR) {
-					continue;
-				} else {
-					dprintf(D_ALWAYS, "rudp_send: select - %s\n", strerror(errno));
-					return -1;
-				}
-			}
-			if (ready == 0) {
-				break;
-			}
-
-			// Here, something must be available to read at fd
-			result = recv(fd, rcvBuf, 65520, 0);
-			if (result < 0) {
-				if (errno == EINTR || errno == EAGAIN) {
-					continue;
-				} else {
-					dprintf(D_ALWAYS, "rudp_send: recv - %s\n", strerror(errno));
-					return -1;
-				}
-			}
-	
-			// Unstripe the received msg
-			if (unstripeMsg(rcvBuf, result, &opcode, &ip, &gip, &pid, &sec, &usec,
-						&seqNo, &dptr, &dLen) != 1) {
-				dprintf(D_ALWAYS, "rudp_send: unstripeMsg failed\n");
+		// Do select
+		if (val & O_NONBLOCK || flags & O_NONBLOCK) {
+			tv.tv_sec = tv.tv_usec = 0;
+			ready = select(maxfd, &rdfds, NULL, &expfds, &tv);
+		} else {
+			ready = select(maxfd, &rdfds, NULL, &expfds, NULL);
+		}
+		if (ready < 0) {
+			if (errno == EINTR) {
 				continue;
 			}
-	
-			switch(opcode) {
-				case DATA_PACKET:
-					dprintf(D_FULLDEBUG, "\t\tDATA(%d) received\n", seqNo);
-					// Get the sender info
-					sender = getSender(ip, gip, pid, sec, usec);
-					// if the msg is not a delayed msg, ignore the data packet
-					if ((sender->nSeq <= 2.147483e+09 &&
-								sender->nSeq <= seqNo &&
-								seqNo < sender->nSeq + 2.147483e+09) ||
-						(sender->nSeq > 2.147483e+09 &&
-								(sender->nSeq <= seqNo ||
-								seqNo < sender->nSeq - 2.147483e+09))) {
-						memcpy(_rudp_rcv_buf, rcvBuf, result);
-						memcpy(&_rudp_last_sender, &from, sizeof(from));
-						_rudp_no_bytes = result;
-						dprintf(D_FULLDEBUG, "\t\t\tValid data packet - queued to rcv_buf\n");
-						continue;
-					}
-					ackLen = sizeof(rcvBuf);
-					if (stripeMsg(rcvBuf, &ackLen, ACK_PACKET, seqNo, NULL, 0) < 0) {
-						dprintf(D_ALWAYS, "rudp_send: stripeMsg failed\n");
-						return -1;
-					}
-					while(1) {
-						rst = send(fd, rcvBuf, ackLen, 0);
-						if (rst != ackLen) {
-							if (errno == EAGAIN || errno == EINTR) {
-								continue;
-							} else {   
-								dprintf(D_ALWAYS, "rudp_send: send - %s\n", strerror(errno));
-								return -1;
-							}
-						}
-						dprintf(D_FULLDEBUG, "\t\tACK(%d) for delayed msg\n", seqNo);
-						break;
-					}
-					continue;
-				case ACK_PACKET:
-					dprintf(D_FULLDEBUG, "\t\tACK(%d) received\n", seqNo);
-					if (seqNo != _rudp_seqno) {
-						continue;
-					}
-					return msgLen;
-			}
-		} // while (1)
-		tries++;
-		dprintf(D_FULLDEBUG, "\n\t\ttries = %d\n\n", tries);
-	} // while(tries < 7)
+			dprintf(D_ALWAYS, "rudp_recvfrom: select - %s\n", strerror(errno));
+			return -1;
+		}
+		if (ready == 0) {
+			return 0;
+		}
 
-	dprintf(D_ALWAYS, "rudp_send: couldn't get ACK from receiver\n");
-	return -1;
+		if (FD_ISSET(fd, &expfds)) {
+			dprintf(D_ALWAYS, "rudp_recvfrom: select returned with expfds set\n");
+			return -1;
+		}
+
+		for (i = 0; i < OPEN_MAX; i++) {
+			if (FD_ISSET(i, &rdfds)) {
+				(void) procUDPmsg(i);
+			}
+		}
+
+	} // end of while(1)
+}
+
+
+int
+rudp_recvfrom(int fd, void *msg, size_t msgLen, int flags,
+		struct sockaddr *from, socklen_t *fromlen)
+{
+	dprintf(D_NETWORK, "\tRECVFROM:\n");
+	_rudp_fdInfo[fd].conn = 0;
+	return recvData(fd, msg, msgLen, flags, from, fromlen);
 }
 
 
 int
 rudp_recv(int fd, void *msg, size_t msgLen, int flags)
 {
-	uint32_t ip, gip;
-	pid_t pid;
-	int bufLen, mLen, rst;
-	unsigned int seqNo;
-	char opcode, rcvBuf[65536], *msgPtr, *buf;
-	struct senderInfo *sender;
-	unsigned long sec, usec;
-
-	dprintf(D_FULLDEBUG, "\tRECV:\n");
-
-	while(1) {
-		if (_rudp_no_bytes != 0) {
-			buf = _rudp_rcv_buf;
-			bufLen = _rudp_no_bytes;
-			_rudp_no_bytes = 0;
-		} else {
-			bufLen = recv(fd, rcvBuf, sizeof(rcvBuf), flags);
-			if (bufLen < 0) {
-				if (errno == EAGAIN || errno == EINTR) {
-					continue;
-				} else {
-					dprintf(D_ALWAYS, "rudp_recv: recv - %s\n", strerror(errno));
-					return -1;
-				}
-			}
-			buf = rcvBuf;
-		}
-
-		rst = unstripeMsg(buf, bufLen, &opcode, &ip, &gip, &pid, &sec,
-							&usec, &seqNo, &msgPtr, &mLen);
-
-		if ( rst != 1) {
-			dprintf(D_ALWAYS, "rudp_recv: unstripeMsg failed\n");
-			continue;
-		}
-
-		if (opcode == ACK_PACKET) {
-			dprintf(D_FULLDEBUG, "\t\tACK(%d) received\n", seqNo);
-			continue;
-		}
-		dprintf(D_FULLDEBUG, "\t\tDATA(%d) received\n", seqNo);
-
-		// send ACK
-		bufLen = sizeof(buf);
-		if (stripeMsg(buf, &bufLen, ACK_PACKET, seqNo, NULL, 0) < 0) {
-			dprintf(D_ALWAYS, "rudp_recv: stripeMsg failed\n");
-			return -1;
-		}
-		while(1) {
-			rst = send(fd, buf, bufLen, 0);
-			if (rst != bufLen) {
-				if (errno == EAGAIN || errno == EINTR) {
-					continue;
-				} else {   
-					dprintf(D_ALWAYS, "rudp_recv: send - %s\n", strerror(errno));
-					return -1;
-				}
-			}
-			dprintf(D_FULLDEBUG, "\t\tACK(%d) sent\n", seqNo);
-			break;
-		}
-
-		// get the pointer to sender info
-		sender = getSender(ip, gip, pid, sec, usec);
-
-		// Ignore delayed msg. I added the 2nd condition for the case of
-		// wrapping around of seqNo. 2.147483e+09 = 2 to the 31 = 1/2 of the
-		// biggest 4 bytes integer
-		if ((sender->nSeq <= 2.147483e+09 &&
-					(seqNo < sender->nSeq ||
-					 sender->nSeq + 2.147483e+09 < seqNo)) ||
-			(sender->nSeq > 2.147483e+09 &&
-					sender->nSeq - 2.147483e+09 < seqNo &&
-					seqNo < sender->nSeq)) {
-			dprintf(D_FULLDEBUG, "\t\tDelayed data(%d) ignored: data(%d) expected\n", seqNo, sender->nSeq);
-			continue;
-		}
-		sender->nSeq = seqNo + 1;
-
-		// pass the received data to application
-		memcpy(msg, msgPtr, mLen);
-		return mLen;
-	}
+	_rudp_fdInfo[fd].conn = 1;
+	return recvData(fd, msg, msgLen, flags, NULL, NULL);
 }
