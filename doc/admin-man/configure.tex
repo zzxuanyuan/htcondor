@@ -398,6 +398,16 @@ system.
   relative to the \MacroUNI{RELEASE\_DIR} macro, and has no default
   value.
 
+\item[\Macro{INCLUDE}] \label{param:Include} This directory points
+  to the Condor directory where header files reside.
+  \MacroUNI{INCLUDE} would usually be defined relative to
+  the \MacroUNI{RELEASE\_DIR} configuration macro.
+  There is no default value, but
+  if defined, it can make inclusion of necessary header files
+  for compilation of programs (such as those programs
+  that use \File{libcondorapi.a})
+  easier through the use of \Condor{config\_val}.
+
 \item[\Macro{SBIN}] \label{param:Sbin} This directory points to the
   Condor directory where Condor's system binaries (such as the
   binaries for the Condor daemons) and administrative tools are

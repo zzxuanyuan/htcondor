@@ -25,10 +25,13 @@ for the first time will not need to make any changes.
 
 \begin{itemize}
 
-\item Added an \Expr{INCLUDE} config file entry that will be the location 
-	of the header files shipped with Condor that are to be used with
-	libcondorapi.a. 
-	You may find out what this value is via \Condor{config\_val}.
+\item Added an \Macro{INCLUDE} configuration file variable
+   to define the location of header files shipped with Condor
+   that are currently needed to be included when compiling
+   Condor APIs.
+   When \MacroNI{INCLUDE} is defined,
+   \Condor{config\_val} can be used to list header files.
+
 
 \item A Condor pool can now support multiple Collectors. This should
   improve stability due to automatic failover. All daemons will now
