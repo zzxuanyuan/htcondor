@@ -53,6 +53,8 @@ class EvalState {
 		EvalCache	cache;
 		ClassAd		*rootAd;
 		ClassAd 	*curAd;
+
+		bool		flattenAndInline;	// NAC
 };
 
 /** A node of the expression tree, which may be a literal, attribute reference,
