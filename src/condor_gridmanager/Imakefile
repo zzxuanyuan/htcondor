@@ -1,8 +1,12 @@
 NAME=condor_gridmanager
 all_target($(NAME))
 
+#if ORACLE_UNIVERSE
+ORACLE_JOB_FLAGS = -DORACLE_UNIVERSE
+#endif
+
 CFLAGS = $(STD_C_FLAGS)
-C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS)
+C_PLUS_FLAGS = $(ORACLE_JOB_FLAGS) $(STD_C_PLUS_FLAGS)
 LIB = $(DAEMONCORE_LIB) $(STD_LIBS)
 
 OBJ = gridmanager_main.o gridmanager.o globusjob.o globusresource.o proxymanager.o gahp-client.o oraclejob.o basejob.o baseresource.o

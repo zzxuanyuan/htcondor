@@ -48,6 +48,7 @@
 #define WANT_BLOWFISH   YES
 #define WANT_CLASSAD_FUNCTIONS YES
 #define WANT_DAGMAN_HELPER     YES
+#define WANT_ORACLE_UNIVERSE   YES
 
 GAHP_DIR = /p/condor/workspaces/epaulson/gahp.V65/bin
 
@@ -62,7 +63,7 @@ GlobusPath = /unsup/globus-2.2.3
 /* Top should be the root of the source directory you want to use if
 you want our top-level Makefile to build the directory tree with all
 the soft links.  The links will point back to Top/src/... */
-#define Top /p/condor/workspaces/hbwang/latest
+#define Top /p/condor/workspaces/jfrey/condor.65-reorg/
 
 #define TmpDir		/tmp
 

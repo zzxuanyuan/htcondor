@@ -2,6 +2,8 @@
 #ifndef ORACLEJOB_H
 #define ORACLEJOB_H
 
+#if defined(ORACLE_UNIVERSE)
+
 #include "condor_common.h"
 #include "condor_classad.h"
 #include "MyString.h"
@@ -59,6 +61,7 @@ class OracleJob : public BaseJob
  protected:
 };
 
+#endif // if defined(ORACLE_UNIVERSE)
 
 #endif
 

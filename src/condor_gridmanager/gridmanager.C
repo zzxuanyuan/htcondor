@@ -227,7 +227,9 @@ Reconfig()
 	contactScheddDelay = param_integer("GRIDMANAGER_CONTACT_SCHEDD_DELAY", 5);
 
 	GlobusJobReconfig();
+#if defined(ORACLE_UNIVERSE)
 	OracleJobReconfig();
+#endif
 
 	// Tell all the job objects to deal with their new config values
 	BaseJob *next_job;
@@ -348,11 +350,14 @@ doContactSchedd()
 				// job had better be either managed or matched! (or both)
 				ASSERT( job_is_managed || job_is_matched );
 
+#if defined(ORACLE_UNIVERSE)
 				if ( OracleJobAdMatch( next_ad ) ) {
 
 					new_job = new OracleJob( next_ad );
 
-				} else if ( GlobusJobAdMatch( next_ad ) ) {
+				} else
+#endif // if defined(ORACLE_UNIVERSE)
+				if ( GlobusJobAdMatch( next_ad ) ) {
 
 					if ( GlobusJobAdMustExpand( next_ad ) ) {
 						// Get the expanded ClassAd from the schedd, which

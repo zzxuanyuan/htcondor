@@ -226,6 +226,10 @@ DEBUG_FLAG = DebugFlag
     #define DAGMAN_HELPER YES
 #endif 
 
+#if WANT_ORACLE_UNIVERSE
+	#define ORACLE_UNIVERSE YES
+#endif
+
 #if WANT_CONDOR_G && HAS_GLOBUS
 
   #define NEEDS_GSI YES
