@@ -25,6 +25,7 @@
 #include "local_user_log.h"
 #include "job_info_communicator.h"
 #include "condor_attributes.h"
+#include "condor_uid.h"
 #include "exit.h"
 
 
@@ -43,15 +44,25 @@ LocalUserLog::~LocalUserLog()
 
 bool
 LocalUserLog::init( const char* filename, bool is_xml, 
-					const char*	owner,   
 					int cluster, int proc, int subproc )
 {
-	u_log.initialize( owner, filename, cluster, proc, subproc );
+	if( ! jic->userPrivInitialized() ) { 
+		EXCEPT( "LocalUserLog::init() "
+				"called before user priv is initialized!" );
+	}
+	priv_state priv;
+	priv = set_user_priv();
+
+	u_log.initialize( filename, cluster, proc, subproc );
+
+	set_priv( priv );
+
 	if( is_xml ) {
 		u_log.setUseXML( true );
 	} else {
 		u_log.setUseXML( false );
 	}
+	
 	dprintf( D_FULLDEBUG, "Starter's UserLog is \"%s\"\n", filename );
 	is_initialized = true;
 	return true;
@@ -59,8 +70,7 @@ LocalUserLog::init( const char* filename, bool is_xml,
 
 
 bool
-LocalUserLog::initFromJobAd( ClassAd* ad, const char* iwd, 
-							 const char* owner )
+LocalUserLog::initFromJobAd( ClassAd* ad, const char* iwd )
 {
     char tmp[_POSIX_PATH_MAX], logfilename[_POSIX_PATH_MAX];
 	int use_xml = FALSE;
@@ -91,7 +101,7 @@ LocalUserLog::initFromJobAd( ClassAd* ad, const char* iwd,
 	ad->LookupBool( ATTR_ULOG_USE_XML, use_xml );
 
 		// TODO!! figure out a better thing to use for cluster and proc! 
-	return init( logfilename, (bool)use_xml, owner, 1, 0, 0 );
+	return init( logfilename, (bool)use_xml, 1, 0, 0 );
 }
 
 

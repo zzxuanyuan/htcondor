@@ -64,13 +64,12 @@ public:
 			proccessed and handed to use directly
 			@param filename Full path to userlog to write
 		*/
-	bool init( const char* filename, bool is_xml, const char* owner, 
+	bool init( const char* filename, bool is_xml, 
 			   int cluster, int proc, int subproc );
 
 		/** Initialize ourselves with the info in the given job ad.
 		*/
-	bool initFromJobAd( ClassAd* ad, const char* iwd, 
-						const char* owner );
+	bool initFromJobAd( ClassAd* ad, const char* iwd );
 
 
 		// // // // // // // // // // // //
