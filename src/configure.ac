@@ -44,9 +44,7 @@ AC_ARG_VAR(TMPDIR, [Directory for temp files during Condor build [/tmp]])
 if test "$ac_cv_env_TMPDIR_set" != set; then
     TMPDIR=/tmp
 fi
-if test -d $TMPDIR && test -w $TMPDIR; then
-    AC_MSG_NOTICE([Temporary files during Condor build written to $TMPDIR])
-else
+if test ! -d $TMPDIR || test ! -w $TMPDIR; then
     AC_MSG_ERROR([TMPDIR ($TMPDIR) is not a writable directory])
 fi
 
