@@ -39,7 +39,8 @@ typedef struct MapEntry {
 	int sequenceNum;
 	ClassAd *oldAd;
 } MapEntry;
-
+/* ODBC object extern */
+extern ODBC *DBObj;
 class Matchmaker : public Service
 {
 	public:

@@ -76,7 +76,9 @@ Matchmaker ()
 	Collectors = NULL;
 
 	/* Set ODBC params to NULL */
-	db_handle = new ODBC();
+/*	db_handle = new ODBC();
+ */
+
 	strcpy(RejectsTable, "Rejects_test2");
 	strcpy(MatchesTable, "Matches_test2");
 }
@@ -98,7 +100,7 @@ Matchmaker::
 	}
 	
 	/* Release ODBC params */
-	delete db_handle;
+	/*delete db_handle;*/
 
 }
 
@@ -284,8 +286,8 @@ reinitialize ()
 	Collectors = CollectorList::create();
 
 	/* Connect to ODBC here */
-	db_handle->odbc_connect(odbc_dsn,odbc_user,odbc_auth);
-	dprintf(D_FULLDEBUG,"Connected to odbc %d\n",db_handle->isConnected());
+	/*db_handle->odbc_connect(odbc_dsn,odbc_user,odbc_auth);*/
+	DBObj->odbc_connect(odbc_dsn,odbc_user,odbc_auth);
 
 	// done
 	return TRUE;
@@ -1806,7 +1808,7 @@ void Matchmaker::insert_into_rejects(char *scheddName, ClassAd& job, ClassAd& ma
 	job.LookupInteger (ATTR_PROC_ID, proc);
 	machine.LookupString(ATTR_NAME, startdname);
 	sprintf((char*) insert_stmt,"insert into %s values (\'%d/%d/%d %02d:%02d:%02d\',\'%s\', %d, %d, \'%s\', \'%s\')",RejectsTable,tm->tm_mon + 1, tm->tm_mday,tm->tm_year+1900, tm->tm_hour,tm->tm_min, tm->tm_sec,scheddName,cluster,proc,startdname,diagnosis);	
-	db_handle->odbc_sqlstmt(insert_stmt);	
+	DBObj->odbc_sqlstmt(insert_stmt);	
 }
 void Matchmaker::insert_into_matches(char * scheddName, int cluster, int proc, ClassAd& offer)
 {
@@ -1824,6 +1826,6 @@ void Matchmaker::insert_into_matches(char * scheddName, int cluster, int proc, C
 	if(offer.LookupString( ATTR_REMOTE_USER, remote_user) == 0) strcpy(remote_user,"None"); /* XXX This should be null */
 	remote_prio = (float) accountant.GetPriority(remote_user);
 	sprintf((char *)insert_stmt,"insert into %s values (\'%d/%d/%d %02d:%02d:%02d\',\'%s\', %d, %d, \'%s\', \'%s\', %f)",MatchesTable,tm->tm_mon + 1, tm->tm_mday,tm->tm_year+1900, tm->tm_hour,tm->tm_min, tm->tm_sec,scheddName,cluster,proc,startdname,remote_user,remote_prio);	
-	db_handle->odbc_sqlstmt(insert_stmt);	
+	DBObj->odbc_sqlstmt(insert_stmt);	
 
 } 
