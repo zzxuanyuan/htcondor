@@ -38,7 +38,7 @@
 class LogCollNewClassAd : public LogRecord {
 public:
     LogCollNewClassAd(const char *key, ClassAd* ad);
-    ~LogCollNewClassAd();
+    virtual ~LogCollNewClassAd();
     void Play(void *data_structure);
 
 protected:
@@ -53,7 +53,7 @@ protected:
 class LogCollUpdateClassAd : public LogCollNewClassAd {
 public:
     LogCollUpdateClassAd(const char *key, ClassAd* ad);
-    ~LogCollUpdateClassAd();
+    virtual ~LogCollUpdateClassAd();
     void Play(void* data_structure);
 };
 
@@ -62,7 +62,7 @@ public:
 class LogCollDestroyClassAd : public LogRecord {
 public:
     LogCollDestroyClassAd(const char *key);
-    ~LogCollDestroyClassAd();
+    virtual ~LogCollDestroyClassAd();
     void Play(void *data_structure);
 
 protected:
