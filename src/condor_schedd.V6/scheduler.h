@@ -235,6 +235,9 @@ class Scheduler : public Service
 	void			sendAlives();
 	void			RecomputeAliveInterval(int cluster, int proc);
 	void			StartJobHandler();
+	void			addRunnableJob( shadow_rec* );
+	void			spawnShadow( shadow_rec* );
+	void			spawnLocalStarter( shadow_rec* );
 	UserLog*		InitializeUserLog( PROC_ID job_id );
 	bool			WriteAbortToUserLog( PROC_ID job_id );
 	bool			WriteHoldToUserLog( PROC_ID job_id );

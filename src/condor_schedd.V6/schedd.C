@@ -4412,16 +4412,8 @@ Scheduler::makeReconnectRecords( PROC_ID* job, ClassAd* match_ad )
 		// the match_rec also needs to point to the srec...
 	mrec->shadowRec = srec;
 
-	if( RunnableJobQueue.enqueue(srec) ) {
-		EXCEPT("Cannot put job into run queue\n");
-	}
-	if( StartJobTimer<0 ) {
-		// Queue the next job start via the daemoncore timer.  jobThrottle()
-		// implements job bursting, and returns the proper delay for the timer.
-		StartJobTimer = daemonCore->Register_Timer(
-				jobThrottle(),
-				(Eventcpp)&Scheduler::StartJobHandler,"start_job", this);
-	}
+		// finally, enqueue this job in our RunnableJob queue.
+	addRunnableJob( srec );
 }
 
 
@@ -4724,37 +4716,68 @@ Scheduler::StartJob(match_rec* mrec, PROC_ID* job_id)
 void
 Scheduler::StartJobHandler()
 {
-
-	StartJobTimer=-1;
-	PROC_ID* job_id=NULL;
-	match_rec* mrec=NULL;
 	shadow_rec* srec;
-	bool wants_reconnect = false;
+	PROC_ID* job_id=NULL;
 
-	// get job from runnable job queue
-	while(!mrec) {	
-		 if (RunnableJobQueue.dequeue(srec)) return;
-		job_id=&srec->job_id;
-		mrec=srec->match;
-		// Check to see if job ad is still around; it may 
-		// have been removed while we were waiting in RunnableJobQueue
-		if ( GetJobAd(job_id->cluster,job_id->proc,false) == NULL ) {
-			// job ad disappeared!  set mrec to NULL so we don't start shadow
-			mrec = NULL;
-		}
-		if (!mrec) {
-			dprintf(D_ALWAYS,
-				"match or classad for job %d.%d was deleted - "
-				"not forking a shadow\n",
-				job_id->cluster,job_id->proc);
-			mark_job_stopped(job_id);
-			RemoveShadowRecFromMrec(srec);
-			delete srec;
-		}
+		// clear out our timer id since the hander just went off
+	StartJobTimer = -1;
+
+		// if we're trying to shutdown, don't start any new jobs!
+	if( ExitWhenDone ) {
+		return;
 	}
 
-	int universe = srec->universe;
+	// get job from runnable job queue
+	while( 1 ) {	
+		if( RunnableJobQueue.dequeue(srec) < 0 ) {
+				// our queue is empty, we're done.
+			return;
+		}
 
+		// Check to see if job ad is still around; it may have been
+		// removed while we were waiting in RunnableJobQueue
+		job_id=&srec->job_id;
+		if( GetJobAd(job_id->cluster,job_id->proc,false) == NULL ) {
+				// job ad disappeared, just go to the next thing in
+				// the queue
+			dprintf( D_FULLDEBUG,
+					 "Job %d.%d was deleted while waiting to start\n",
+					 job_id->cluster, job_id->proc );
+			continue;
+		}
+
+		if( srec->universe == CONDOR_UNIVERSE_LOCAL ) {
+				/*
+				  Local universe is special in that we never have to
+				  worry about the match being deleted, since there is
+				  no match.  so, in this case, we can just spawn the
+				  local universe starter and return.
+				*/
+			spawnLocalStarter( srec );
+			tryNextJob();
+			return;
+		}
+
+			// if we're still here, make sure we have a match...
+		if( srec->match ) {
+			spawnShadow( srec );
+			tryNextJob();
+			return;
+		}
+
+			// no match: complain and then try the next job...
+		dprintf( D_ALWAYS, "match for job %d.%d was deleted - not "
+				 "forking a shadow\n", job_id->cluster, job_id->proc );
+		mark_job_stopped(job_id);
+		RemoveShadowRecFromMrec(srec);
+		delete srec;
+	}
+}
+
+
+void
+Scheduler::spawnShadow( shadow_rec* srec )
+{
 	//-------------------------------
 	// Actually fork the shadow
 	//-------------------------------
@@ -4762,9 +4785,14 @@ Scheduler::StartJobHandler()
 	int		pid;
 	char	args[_POSIX_ARG_MAX];
 
+	match_rec* mrec = srec->match;
+	int universe = srec->universe;
+	PROC_ID* job_id = &srec->job_id;
+
 	Shadow*	shadow_obj = NULL;
 	int		sh_is_dc = FALSE;
 	char* 	shadow_path = NULL;
+	bool wants_reconnect = false;
 
 #ifdef WIN32
 		// nothing to choose on NT, there's only 1 shadow
@@ -4816,7 +4844,6 @@ Scheduler::StartJobHandler()
 					 "resource but you do not have a condor_shadow "
 					 "that will work, aborting.\n" );
 			noShadowForJob( srec, NO_SHADOW_WIN32 );
-			tryNextJob();
 			return;
 		}
 	}
@@ -4835,7 +4862,6 @@ Scheduler::StartJobHandler()
 						 "aborting.\n" );
 				noShadowForJob( srec, NO_SHADOW_STD );
 				srec = NULL;
-				tryNextJob();
 				return;
 			}
 			break;
@@ -4847,7 +4873,6 @@ Scheduler::StartJobHandler()
 							 "pre-6.3.3 resource, but you do not have a "
 							 "condor_shadow that will work, aborting.\n" );
 					noShadowForJob( srec, NO_SHADOW_OLD_VANILLA );
-					tryNextJob();
 					return;
 				}
 			} else {
@@ -4857,7 +4882,6 @@ Scheduler::StartJobHandler()
 							 "6.3.3 or later resource, but you do not have "
 							 "condor_shadow that will work, aborting.\n" );
 					noShadowForJob( srec, NO_SHADOW_DC_VANILLA );
-					tryNextJob();
 					return;
 				}
 			}
@@ -4869,7 +4893,6 @@ Scheduler::StartJobHandler()
 						 "do not have a condor_shadow that will work, "
 						 "aborting.\n" );
 				noShadowForJob( srec, NO_SHADOW_JAVA );
-				tryNextJob();
 				return;
 			}
 			break;
@@ -4886,7 +4909,7 @@ Scheduler::StartJobHandler()
 				 "condor_shadow that will work, aborting.\n" );
 		noShadowForJob( srec, NO_SHADOW_RECONNECT );
 		delete( shadow_obj );
-		tryNextJob();
+		return;
 	}
 	shadow_path = strdup( shadow_obj->path() );
 	delete( shadow_obj );
@@ -4927,7 +4950,6 @@ Scheduler::StartJobHandler()
 		mark_job_stopped(job_id);
 		RemoveShadowRecFromMrec(srec);
 		delete srec;
-		tryNextJob();
 		return;
 	}
 
@@ -4960,8 +4982,6 @@ Scheduler::StartJobHandler()
 		SetAttributeInt( job_id->cluster, job_id->proc, 
 						 ATTR_LAST_JOB_LEASE_RENEWAL, (int)time(0) );
 	}
-
-	tryNextJob();
 }
 
 
@@ -5198,27 +5218,14 @@ Scheduler::start_std( match_rec* mrec , PROC_ID* job_id, int univ )
 {
 
 	dprintf( D_FULLDEBUG, "Scheduler::start_std - job=%d.%d on %s\n",
-			job_id->cluster, job_id->proc, mrec->peer);
+			job_id->cluster, job_id->proc, mrec->peer );
 
 	mark_job_running(job_id);
 	SetAttributeInt(job_id->cluster, job_id->proc, ATTR_CURRENT_HOSTS, 1);
 
 	// add job to run queue
-
-	dprintf(D_FULLDEBUG,"Queueing job %d.%d in runnable job queue\n",
-			job_id->cluster,job_id->proc);
 	shadow_rec* srec=add_shadow_rec( 0, job_id, univ, mrec, -1 );
-	if (RunnableJobQueue.enqueue(srec)) {
-		EXCEPT("Cannot put job into run queue\n");
-	}
-	if (StartJobTimer<0) {
-		// Queue the next job start via the daemoncore timer.  jobThrottle()
-		// implements job bursting, and returns the proper delay for the timer.
-		StartJobTimer = daemonCore->Register_Timer(
-				jobThrottle(),
-				(Eventcpp)&Scheduler::StartJobHandler,"start_job", this);
-	 }
-
+	addRunnableJob( srec );
 	return srec;
 }
 
@@ -5344,7 +5351,54 @@ Scheduler::start_pvm(match_rec* mrec, PROC_ID *job_id)
 shadow_rec*
 Scheduler::start_local_universe_job( PROC_ID* job_id )
 {
+	shadow_rec* srec = NULL;
+
+		// set our CurrentHosts to 1 so we don't consider this job
+		// still idle.  we'll actually mark it as status RUNNING once
+		// we spawn the starter for it.  unlike other kinds of jobs,
+		// local universe jobs don't have to worry about having the
+		// status wrong while the job sits in the RunnableJob queue,
+		// since we're not negotiating for them at all... 
+	SetAttributeInt( job_id->cluster, job_id->proc, ATTR_CURRENT_HOSTS, 1 );
+
+	srec = add_shadow_rec( 0, job_id, CONDOR_UNIVERSE_LOCAL, NULL, -1 );
+	addRunnableJob( srec );
+	return srec;
+}
+
+
+void
+Scheduler::addRunnableJob( shadow_rec* srec )
+{
+	if( ! srec ) {
+		EXCEPT( "Scheduler::addRunnableJob called with NULL srec!" );
+	}
+
+	dprintf( D_FULLDEBUG, "Queueing job %d.%d in runnable job queue\n",
+			 srec->job_id.cluster, srec->job_id.proc );
+
+	if( RunnableJobQueue.enqueue(srec) ) {
+		EXCEPT( "Cannot put job into run queue\n" );
+	}
+
+	if( StartJobTimer<0 ) {
+		// Queue the next job start via the daemoncore timer.
+		// jobThrottle() implements job bursting, and returns the
+		// proper delay for the timer.
+		StartJobTimer = daemonCore->
+			Register_Timer( jobThrottle(), 
+							(Eventcpp)&Scheduler::StartJobHandler,
+							"StartJobHandler", this );
+	}
+}
+
+
+
+void
+Scheduler::spawnLocalStarter( shadow_rec* srec )
+{
 	static bool notify_admin = true;
+	PROC_ID* job_id = &srec->job_id;
 	char* starter_path;
 	MyString starter_args;
 	int pid = 0;
@@ -5352,10 +5406,9 @@ Scheduler::start_local_universe_job( PROC_ID* job_id )
 	dprintf( D_FULLDEBUG, "Starting local universe job %d.%d\n",
 			 job_id->cluster, job_id->proc );
 
-		// Someday, we'll probably want to use the whole
-		// RunnableJobQueue mess, the shadow_list, a shadow object,
-		// etc, etc.  For now, we're just going to spawn it directly
-		// to keep things a little more simple in the first pass.
+		// Someday, we'll probably want to use the shadow_list, a
+		// shadow object, etc, etc.  For now, we're just going to keep
+		// things a little more simple in the first pass.
 	starter_path = param( "STARTER_LOCAL" );
 	if( ! starter_path ) {
 		dprintf( D_ALWAYS, "Can't start local universe job %d.%d: "
@@ -5365,7 +5418,7 @@ Scheduler::start_local_universe_job( PROC_ID* job_id )
 				 "No condor_starter installed that supports local universe",
 				 false, true, notify_admin, true );
 		notify_admin = false;
-		return NULL;
+		return;
 	}
 
 	starter_args = "condor_starter -f -univ-local -job-cluster ";
@@ -5386,16 +5439,22 @@ Scheduler::start_local_universe_job( PROC_ID* job_id )
 	if( pid < 0 ) {
 		dprintf( D_ALWAYS|D_FAILURE, "Can't spawn local starter for "
 				 "job %d.%d\n", job_id->cluster, job_id->proc );
-		return NULL;
+			// set this back to 0, so we remember this job isn't
+			// running and we'll consider it idle again.
+		SetAttributeInt( job_id->cluster, job_id->proc, 
+						 ATTR_CURRENT_HOSTS, 0 );		
+		return;
 	}
 
 	dprintf( D_ALWAYS, "Spawned local starter (pid %d) for job %d.%d\n",
 			 pid, job_id->cluster, job_id->proc );
+	srec->pid=pid;
 
+	BeginTransaction();
 	mark_job_running( job_id );
-	SetAttributeInt( job_id->cluster, job_id->proc, ATTR_CURRENT_HOSTS, 1 );
-	return add_shadow_rec( pid, job_id, CONDOR_UNIVERSE_LOCAL, NULL, -1 );
+	CommitTransaction();
 
+	add_shadow_rec(srec);
 }
 
 
