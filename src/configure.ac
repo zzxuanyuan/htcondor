@@ -74,6 +74,9 @@ AC_PROG_CC
 AC_LANG(C++)
 AC_PROG_CXX
 
+AC_PROG_PERL_VERSION([5.005_3], [],
+   [AC_MSG_ERROR([perl version 5.005_3 or higher is required])])
+
 AC_PROG_LEX
 AC_CHECK_PROG(ac_lex,lex,yes,no)
 if test "$ac_lex" == no; then
