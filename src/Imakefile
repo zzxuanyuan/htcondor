@@ -350,7 +350,7 @@ ext_target(EXT_ZLIB_VERSION,)
 #if IS_LINUX
 ext_target(EXT_GLIBC_VERSION,)
 #endif
-#if HAS_KERBEROS && WANT_KERBEROS
+#if WANT_KERBEROS
 ext_target(EXT_KERBEROS_VERSION,)
 #endif
 #if HAS_GLOBUS
