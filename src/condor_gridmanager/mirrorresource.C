@@ -196,7 +196,7 @@ int MirrorResource::DoScheddPoll()
 	} else {
 
 		int num_status_ads;
-		ClassAd *status_ads = NULL;
+		ClassAd **status_ads = NULL;
 
 		gahpA->setMode( GahpClient::results_only );
 		gahpB->setMode( GahpClient::results_only );
@@ -232,10 +232,10 @@ int MirrorResource::DoScheddPoll()
 
 				// Since we don't know if the new lease time is in the
 				// job ad, add it ourselves
-				status_ads[i].Insert( update_expr.Value() );
+				status_ads[i]->Insert( update_expr.Value() );
 
-				status_ads[i].LookupInteger( ATTR_CLUSTER_ID, cluster );
-				status_ads[i].LookupInteger( ATTR_PROC_ID, proc );
+				status_ads[i]->LookupInteger( ATTR_CLUSTER_ID, cluster );
+				status_ads[i]->LookupInteger( ATTR_PROC_ID, proc );
 
 				job_id_string.sprintf( "%s/%d.%d", mirrorScheddName, cluster,
 									   proc );
@@ -243,15 +243,17 @@ int MirrorResource::DoScheddPoll()
 				rc = MirrorJobsById.lookup( HashKey( job_id_string.Value() ),
 											job );
 				if ( rc == 0 ) {
-					job->NotifyNewRemoteStatus( &status_ads[i],
+					job->NotifyNewRemoteStatus( status_ads[i],
 												scheddPollStartTime,
 												now );
+				} else {
+					delete status_ads[i];
 				}
 			}
 		}
 
 		if ( status_ads != NULL ) {
-			delete [] status_ads;
+			free( status_ads );
 		}
 
 		if ( rcA != GAHPCLIENT_COMMAND_PENDING &&

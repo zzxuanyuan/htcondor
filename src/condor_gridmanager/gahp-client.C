@@ -2743,7 +2743,7 @@ GahpClient::condor_job_update_constrained(const char *schedd_name,
 int
 GahpClient::condor_job_status_constrained(const char *schedd_name,
 										  const char *constraint,
-										  int *num_ads, ClassAd **ads)
+										  int *num_ads, ClassAd ***ads)
 {
 	static const char* command = "CONDOR_JOB_STATUS_CONSTRAINED";
 
@@ -2793,12 +2793,10 @@ GahpClient::condor_job_status_constrained(const char *schedd_name,
 			EXCEPT("Bad %s Result",command);
 		}
 		if ( num_ads > 0 ) {
-			*ads = new ClassAd[*num_ads];
+			*ads = (ClassAd **)malloc( *num_ads * sizeof(ClassAd*) );
 			for ( int i = 0; i < *num_ads; i++ ) {
 				ClassAdXMLParser xml_parser;
-				ClassAd *update_ad;
-				update_ad = xml_parser.ParseClassAd( result->argv[4 + i] );
-				(*ads)[i] = *update_ad;
+				(*ads)[i] = xml_parser.ParseClassAd( result->argv[4 + i] );
 			}
 		}
 		delete result;

@@ -413,7 +413,7 @@ class GahpClient : public Service {
 		int
 		condor_job_status_constrained(const char *schedd_name,
 									  const char *constraint,
-									  int *num_ads, ClassAd **ads);
+									  int *num_ads, ClassAd ***ads);
 
 		int
 		condor_job_remove(const char *schedd_name, PROC_ID job_id,

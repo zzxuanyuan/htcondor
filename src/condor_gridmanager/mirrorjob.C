@@ -889,7 +889,7 @@ void MirrorJob::NotifyNewRemoteStatus( ClassAd *update_ad,
 	if ( newRemoteStatusAd != NULL ) {
 		delete newRemoteStatusAd;
 	}
-	newRemoteStatusAd = new ClassAd( *update_ad );
+	newRemoteStatusAd = update_ad;
 	newRemoteStatusStartTime = query_start_time;
 	newRemoteStatusFinishTime = query_finish_time;
 	SetEvaluateState();
