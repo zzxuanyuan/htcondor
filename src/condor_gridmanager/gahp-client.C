@@ -270,47 +270,54 @@ Gahp_Args::Gahp_Args()
 {
 	argv = NULL;
 	argc = 0;
+	argv_size = 0;
 }
 
 Gahp_Args::~Gahp_Args()
 {
-	free_argv();
+	reset();
 }
 	
 void
-Gahp_Args::free_argv()
+Gahp_Args::reset()
 {
-	int i=0;
-
-	if (argv == NULL ) {
+	if ( argv == NULL ) {
 		return;
 	}
-			
-	while ( argv[i] ) {
-		free(argv[i]);
-		i++;
+
+	for ( int i = 0; i < argc; i++ ) {
+		free( argv[i] );
+		argv[i] = NULL;
 	}
-	free(argv);
+
+	free( argv );
 	argv = NULL;
+	argv_size = 0;
 	argc = 0;
-	return;
 }
-	
+
+void
+Gahp_Args::add_arg( char *new_arg )
+{
+	if ( argc >= argv_size ) {
+		argv_size += 60;
+		argv = (char **)realloc( argv, argv_size * sizeof(char *) );
+	}
+	argv[argc] = new_arg;
+	argc++;
+}
 
 void
 GahpServer::read_argv(Gahp_Args &g_args)
 {
 	static char* buf = NULL;
 	int ibuf = 0;
-	int iargv = 0;
 	int result = 0;
 	bool trash_this_line;
 	bool escape_seen = false;
 	static const int buf_size = 1024 * 500;
-	static const int argv_size = 60;
 
-	g_args.free_argv();
-	g_args.argv = (char**)calloc(argv_size, sizeof(char*));
+	g_args.reset();
 
 	if ( m_gahp_readfd == -1 ) {
 dprintf(D_FULLDEBUG,"GAHP[%d] -> (no pipe)\n",m_gahp_pid);
@@ -322,7 +329,6 @@ dprintf(D_FULLDEBUG,"GAHP[%d] -> (no pipe)\n",m_gahp_pid);
 	}
 
 	ibuf = 0;
-	iargv = 0;
 
 	for (;;) {
 
@@ -334,13 +340,8 @@ dprintf(D_FULLDEBUG,"GAHP[%d] -> (no pipe)\n",m_gahp_pid);
 			continue;
 		}
 		if ( result == 0 ) {	/* End of File */
-			int i;
 				// clear out all entries
-			for (i=0;g_args.argv[i];i++) {
-				free(g_args.argv[i]);
-				g_args.argv[i] = NULL;
-			}
-			g_args.argc = 0;
+			g_args.reset();
 dprintf(D_FULLDEBUG,"GAHP[%d] -> EOF\n",m_gahp_pid);
 			return;
 		}
@@ -370,22 +371,15 @@ dprintf(D_FULLDEBUG,"GAHP[%d] -> EOF\n",m_gahp_pid);
 		/* An unescaped space delimits a parameter to copy into argv */
 		if ( buf[ibuf] == ' ' ) {
 			buf[ibuf] = '\0';
-			g_args.argv[iargv] = (char*)malloc(ibuf + 5);
-			strcpy(g_args.argv[iargv],buf);
+			g_args.add_arg( strdup( buf ) );
 			ibuf = 0;
-			iargv++;
-			ASSERT(iargv < argv_size);
 			continue;
 		}
 
 		/* If character was a newline, copy into argv and return */
 		if ( buf[ibuf]=='\n' ) { 
-			if ( ibuf > 0 ) {
-				buf[ibuf] = '\0';
-				g_args.argv[iargv] = (char*)malloc(ibuf + 5);
-				strcpy(g_args.argv[iargv],buf);
-			}
-			g_args.argc = iargv + 1;
+			buf[ibuf] = 0;
+			g_args.add_arg( strdup( buf ) );
 
 			// We are all done and about to return.  But first,
 			// check for our prefix if using one.
@@ -421,10 +415,8 @@ dprintf(D_FULLDEBUG,"GAHP[%d] -> EOF\n",m_gahp_pid);
 
 			if ( trash_this_line ) {
 				// reset all our buffers and read the next line
-				g_args.free_argv();
-				g_args.argv = (char**)calloc(argv_size, sizeof(char*));
+				g_args.reset();
 				ibuf = 0;
-				iargv = 0;
 				continue;	// go back to the top of the for loop
 			}
 
@@ -1172,7 +1164,7 @@ GahpServer::command_commands()
 	}
 	m_commands_supported = new StringList();
 	ASSERT(m_commands_supported);
-	for ( int i = 1; result.argv[i]; i++ ) {
+	for ( int i = 1; i < result.argc; i++ ) {
 		m_commands_supported->append(result.argv[i]);
 	}
 

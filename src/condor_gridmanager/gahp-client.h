@@ -35,9 +35,11 @@
 			public:
 				Gahp_Args();
 				~Gahp_Args();
-				void free_argv();
+				void reset();
+				void add_arg( char *arg );
 				char **argv;
 				int argc;
+				int argv_size;
 		};
 
 
