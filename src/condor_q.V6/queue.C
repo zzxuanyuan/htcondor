@@ -85,7 +85,7 @@ static	ClassAdList	scheddList;
 
 static  ClassAdAnalyzer analyzer;	// NAC
 
-static char* format_owner( char*, AttrList* );
+static char* format_owner( char*, ClassAd* );
 
 // clusterProcString is the container where the output strings are
 //    stored.  We need the cluster and proc so that we can sort in an
@@ -834,7 +834,7 @@ format_remote_host (char *, ClassAd *ad)	// NAC
 	struct sockaddr_in sin;
 
 	int universe = CONDOR_UNIVERSE_STANDARD;
-	ad->LookupInteger( ATTR_JOB_UNIVERSE, universe );
+	ad->EvaluateAttrInt( ATTR_JOB_UNIVERSE, universe );
 	if (universe == CONDOR_UNIVERSE_SCHEDULER &&
 		string_to_sin(scheddAddr, &sin) == 1) {
 		if( (tmp = sin_to_hostname(&sin, NULL)) ) {
@@ -845,7 +845,7 @@ format_remote_host (char *, ClassAd *ad)	// NAC
 		}
 	} else if (universe == CONDOR_UNIVERSE_PVM) {
 		int current_hosts;
-		if (ad->LookupInteger( ATTR_CURRENT_HOSTS, current_hosts ) == 1) {
+		if (ad->EvaluateAttrInt( ATTR_CURRENT_HOSTS, current_hosts )) {
 			if (current_hosts == 1) {
 				sprintf(result, "1 host");
 			} else {
@@ -854,13 +854,15 @@ format_remote_host (char *, ClassAd *ad)	// NAC
 			return result;
 		}
 	} else if (universe == CONDOR_UNIVERSE_GLOBUS) {
-		if (ad->LookupString(ATTR_GLOBUS_RESOURCE,result) == 1 )
+        string tmp;
+		if (ad->EvaluateAttrString( ATTR_GLOBUS_RESOURCE, tmp)) {
+            strncpy(result, tmp.data(), MAXHOSTNAMELEN);
 			return result;
+        }
 		else
 			return unknownHost;
 	}
 
-	struct sockaddr_in sin;
 	if ( ad->EvaluateAttrString( ATTR_REMOTE_HOST, result, MAXHOSTNAMELEN ) ) {
 		if( is_valid_sinful(result) && 
 			(string_to_sin(result, &sin) == 1) ) {  
@@ -872,9 +874,9 @@ format_remote_host (char *, ClassAd *ad)	// NAC
 		}
 		return result;
 	} else {
-		int universe = STANDARD;
+		int universe = CONDOR_UNIVERSE_STANDARD;
 		ad->EvaluateAttrInt( ATTR_JOB_UNIVERSE, universe );	// NAC
-		if (universe == SCHED_UNIVERSE &&
+		if (universe == CONDOR_UNIVERSE_SCHEDULER &&
 			string_to_sin(scheddAddr, &sin) == 1) {
 			if( (tmp = sin_to_hostname(&sin, NULL)) ) {
 				strcpy( result, tmp );
@@ -882,7 +884,7 @@ format_remote_host (char *, ClassAd *ad)	// NAC
 			} else {
 				return unknownHost;
 			}
-		} else if (universe == PVM) {
+		} else if (universe == CONDOR_UNIVERSE_PVM) {
 			int current_hosts;
 			if ( ad->EvaluateAttrInt( ATTR_CURRENT_HOSTS, current_hosts ) ) {
 				if (current_hosts == 1) {
@@ -984,12 +986,14 @@ format_owner (char *owner, ClassAd *ad)
 	// >= v6.3 inserts "unknown..." into DAGManJobId when run under a
 	// pre-v6.3 schedd)
 
-	char dagman_job_id[ATTRLIST_MAX_EXPRESSION];
-	char dag_node_name[ATTRLIST_MAX_EXPRESSION];
-	if( dag && ad->LookupString( ATTR_DAGMAN_JOB_ID, dagman_job_id ) &&
-		strstr( dagman_job_id, "unknown" ) != dagman_job_id &&
-		ad->LookupString( ATTR_DAG_NODE_NAME, dag_node_name ) ) {
-		sprintf( result, " |-%-11.11s", dag_node_name );
+	//char dagman_job_id[ATTRLIST_MAX_EXPRESSION];
+	//char dag_node_name[ATTRLIST_MAX_EXPRESSION];
+    string dagman_job_id, dag_node_name;
+
+	if( dag && ad->EvaluateAttrString( ATTR_DAGMAN_JOB_ID, dagman_job_id ) &&
+		(dagman_job_id.find("unknown" ) != 0) &&
+		ad->EvaluateAttrString( ATTR_DAG_NODE_NAME, dag_node_name ) ) {
+		sprintf( result, " |-%-11.11s", dag_node_name.data() );
 		return result;
 	}
 
@@ -1345,7 +1349,8 @@ show_queue( char* scheddAddr, char* scheddName, char* scheddMachine )
 		malformed = 0; idle = 0; running = 0; unexpanded = 0, held = 0;
 		
 		if( verbose || use_xml ) {
-			jobs.fPrintAttrListList( stdout, use_xml ? true : false);
+			jobs.PrintClassAdList( );
+			//jobs.fPrintAttrListList( stdout, use_xml ? true : false);
 		} else if( customFormat ) {
 			summarize = false;
 			mask.display( stdout, &jobs );
@@ -1833,8 +1838,8 @@ doRunAnalysisToBuffer( ClassAd *request )
 	}
 
 	int last_match_time=0, last_rej_match_time=0;
-	request->LookupInteger(ATTR_LAST_MATCH_TIME, last_match_time);
-	request->LookupInteger(ATTR_LAST_REJ_MATCH_TIME, last_rej_match_time);
+	request->EvaluateAttrInt(ATTR_LAST_MATCH_TIME, last_match_time);
+	request->EvaluateAttrInt(ATTR_LAST_REJ_MATCH_TIME, last_rej_match_time);
 	if (last_match_time) {
 		time_t t = (time_t)last_match_time;
 		sprintf( return_buff, "%s\tLast successful match: %s",
@@ -1846,11 +1851,11 @@ doRunAnalysisToBuffer( ClassAd *request )
 		time_t t = (time_t)last_rej_match_time;
 		sprintf( return_buff, "%s\tLast failed match: %s",
 				 return_buff, ctime(&t) );
-		buffer[0] = '\0';
-		request->LookupString(ATTR_LAST_REJ_MATCH_REASON, buffer);
-		if (buffer[0]) {
+        string buf;
+		request->EvaluateAttrString( ATTR_LAST_REJ_MATCH_REASON, buf);
+		if (buf.length() > 0) {
 			sprintf( return_buff, "%s\tReason for last match failure: %s\n",
-					 return_buff, buffer );
+					 return_buff, buf.data() );
 		}
 	}
 
