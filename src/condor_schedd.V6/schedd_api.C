@@ -183,6 +183,14 @@ Job::submit(struct condorCore__ClassAdStruct jobAd)
     if (!name) continue;
     if (!value) value="UNDEFINED";
 
+		// XXX: This is a quick fix. If processing MyType or TargetType they
+		// should be ignored. Ideally we could convert the ClassAdStruct
+		// to a ClassAd and then iterate the ClassAd.
+	if (0 == strcmp(name, ATTR_MY_TYPE) ||
+		0 == strcmp(name, ATTR_TARGET_TYPE)) {
+		continue;
+	}
+
     if ( jobAd.__ptr[i].type == 's' ) {
       // string type - put value in quotes as hint for ClassAd parser
 
