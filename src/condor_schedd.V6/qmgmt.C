@@ -2212,21 +2212,21 @@ int get_job_prio(ClassAd *job)
 static bool
 disconnectedRunTimeoutIsValid( ClassAd* job, int cluster, int proc )
 {
-	int last_keepalive, timeout;
+	int last_contact, timeout;
 	time_t now;
 	if( ! job->LookupInteger(ATTR_DISCONNECTED_RUN_TIMEOUT, timeout) ) {
 		return false;
 	}
-	if( ! job->LookupInteger(ATTR_LAST_KEEP_ALIVE, last_keepalive) ) {
+	if( ! job->LookupInteger(ATTR_LAST_CONTACT, last_contact) ) {
 		return false;
 	}
 	now = time(0);
-	int diff = now - last_keepalive;
+	int diff = now - last_contact;
 	int remaining = timeout - diff;
 	dprintf( D_FULLDEBUG, "%d.%d: %s is defined: %d\n", cluster, proc, 
 			 ATTR_DISCONNECTED_RUN_TIMEOUT, timeout );
-	dprintf( D_FULLDEBUG, "%d.%d: now: %d, last_keepalive: %d, diff: %d\n", 
-			 cluster, proc, (int)now, last_keepalive, diff );
+	dprintf( D_FULLDEBUG, "%d.%d: now: %d, last_contact: %d, diff: %d\n", 
+			 cluster, proc, (int)now, last_contact, diff );
 
 	if( remaining <= 0 ) {
 		dprintf( D_ALWAYS, "%d.%d: %s remaining: EXPIRED!\n", 

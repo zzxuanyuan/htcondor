@@ -1093,30 +1093,30 @@ RemoteResource::beginExecution( void )
 void
 RemoteResource::reconnect( void )
 {
-	static int last_keepalive = -1;
+	static int last_contact = -1;
 	static int timeout = -1;
-	if( last_keepalive < 0 ) { 
+	if( last_contact < 0 ) { 
 			// if it's our first time, figure out what we've got to
 			// work with...
 		ASSERT( timeout < 0 );
-		if( ! jobAd->LookupInteger(ATTR_LAST_KEEP_ALIVE, last_keepalive) ) {
+		if( ! jobAd->LookupInteger(ATTR_LAST_CONTACT, last_contact) ) {
 			EXCEPT( "Shadow in reconnect mode but %s is not in the job ad!",
-					ATTR_LAST_KEEP_ALIVE );
+					ATTR_LAST_CONTACT );
 		}
 		if( ! jobAd->LookupInteger(ATTR_DISCONNECTED_RUN_TIMEOUT, timeout) ) {
 			EXCEPT( "Shadow in reconnect mode but %s is not in the job ad!",
 					ATTR_DISCONNECTED_RUN_TIMEOUT );
 		}
 		dprintf( D_ALWAYS, "Trying to reconnect to disconnected job\n" );
-		dprintf( D_ALWAYS, "Last known contact: %d %s", last_keepalive, 
-				 ctime((const time_t*)&last_keepalive) );
+		dprintf( D_ALWAYS, "Last known contact: %d %s", last_contact, 
+				 ctime((const time_t*)&last_contact) );
 		dprintf( D_ALWAYS, "%s: %d seconds\n",
 				 ATTR_DISCONNECTED_RUN_TIMEOUT, timeout );
 	}
 
 		// each time we get here, see how much time remains...
 	time_t now = time(0);
-	int remaining = timeout - (now - last_keepalive);
+	int remaining = timeout - (now - last_contact);
 	if( remaining <= 0 ) {
 	dprintf( D_ALWAYS, "%s remaining: EXPIRED!\n",
 			 ATTR_DISCONNECTED_RUN_TIMEOUT );

@@ -5096,14 +5096,14 @@ Scheduler::add_shadow_rec( shadow_rec* new_rec )
 			// we don't want to set any of these things if this is a
 			// reconnect shadow_rec we're adding.  All this does is
 			// re-writes stuff that's already accurate in the job ad,
-			// or, in the case of ATTR_LAST_KEEP_ALIVE, clobbers
+			// or, in the case of ATTR_LAST_CONTACT, clobbers
 			// accurate info with a now-bogus value.
 
 		SetAttributeString( new_rec->job_id.cluster, new_rec->job_id.proc,
 						    ATTR_CLAIM_ID, new_rec->match->id );
 
 		SetAttributeInt( new_rec->job_id.cluster, new_rec->job_id.proc,
-						 ATTR_LAST_KEEP_ALIVE, (int)time(0) ); 
+						 ATTR_LAST_CONTACT, (int)time(0) ); 
 
 		struct sockaddr_in sin;
 		if ( new_rec->match->peer && new_rec->match->peer[0] &&
@@ -7340,7 +7340,7 @@ Scheduler::sendAlives()
 	while (matches->iterate(mrec) == 1) {
 		if( mrec->status == M_ACTIVE ) {
 			SetAttributeInt( mrec->cluster, mrec->proc, 
-							 ATTR_LAST_KEEP_ALIVE, now ); 
+							 ATTR_LAST_CONTACT, now ); 
 		}
 	}
 	CommitTransaction();
