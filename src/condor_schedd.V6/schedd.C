@@ -1834,7 +1834,7 @@ int Scheduler::aboutToSpawnJobHandler(int cluster, int proc)
 	FreeJobAd(job_ad);
 	job_ad = 0;
 #else	/* WIN32 */
-#	error "directory chowning on Win32.  Do we need it?"
+// #    error "directory chowning on Win32.  Do we need it?"
 #endif
 	return 0;
 }
