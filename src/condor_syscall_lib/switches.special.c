@@ -46,6 +46,16 @@ int _lxstat(int, const char *, struct stat *);
 int __xstat(int, const char *, struct stat *);
 int __fxstat(int, int, struct stat *);
 int __lxstat(int, const char *, struct stat *);
+
+#if defined(GLIBC21)
+int _xstat64(int, const char *, struct stat64 *);
+int _fxstat64(int, int, struct stat64 *);
+int _lxstat64(int, const char *, struct stat64 *);
+int __xstat64(int, const char *, struct stat64 *);
+int __fxstat64(int, int, struct stat64 *);
+int __lxstat64(int, const char *, struct stat64 *);
+#endif
+
 #endif /* LINUX */
 
 #include "syscall_numbers.h"
@@ -66,6 +76,8 @@ int __lxstat(int, const char *, struct stat *);
 
 extern unsigned int _condor_numrestarts;  /* in image.C */
 
+static int fake_readv( int fd, const struct iovec *iov, int iovcnt );
+static int fake_writev( int fd, const struct iovec *iov, int iovcnt );
 char	*getwd( char * );
 void    *malloc();     
 int	_condor_open( const char *path, int flags, va_list ap );
@@ -118,6 +130,9 @@ int
 fchdir( int fd )
 {
 	int rval, real_fd;
+
+	/* set this up in case we aren't mapping file descriptors. */
+	real_fd = fd;
 
 	if( MappingFileDescriptors() ) {
 		if( (real_fd = MapFd(fd)) < 0 ) {
@@ -325,73 +340,172 @@ void _condor_force_isatty( int fd )
 }
 
 /*
-We don't handle readv directly in ANY case.  Split up the read
-and pass it through the regular read mechanism to take advantage
-of whatever magic is implemented there.
+  We don't handle readv directly in remote system calls.  Instead we
+  break the readv up into a series of individual reads.
 */
-
 #if defined(HPUX9) || defined(LINUX) 
-ssize_t readv( int fd, const struct iovec *iov, size_t iovcnt )
+ssize_t
+readv( int fd, const struct iovec *iov, size_t iovcnt )
 #elif defined(IRIX) || defined(OSF1)|| defined(HPUX10) || defined(Solaris26)
-ssize_t readv( int fd, const struct iovec *iov, int iovcnt )
+ssize_t
+readv( int fd, const struct iovec *iov, int iovcnt )
 #else
-int readv( int fd, struct iovec *iov, int iovcnt )
+int
+readv( int fd, struct iovec *iov, int iovcnt )
 #endif
 {
-	int i, rval = 0, cc;
+	int rval;
+	int user_fd;
 
-	for( i = 0; i < iovcnt; i++ ) {
-		cc = read( fd, iov->iov_base, iov->iov_len );
-		if( cc < 0 ) return cc;
-		rval += cc;
-		if( cc != iov->iov_len ) return rval;
-		iov++;
+	if( (user_fd=MapFd(fd)) < 0 ) {
+		return -1;
+	}
+
+	if( LocalSysCalls() ) {
+		rval = syscall( SYS_readv, user_fd, iov, iovcnt );
+	} else {
+		rval = fake_readv( user_fd, iov, iovcnt );
 	}
 
 	return rval;
 }
 
 /*
-We don't handle writev directly in ANY case.  Split up the write
-and pass it through the regular write mechanism to take advantage
-of whatever magic is implemented there.
+  Handle a call to readv which must be done remotely, (not NFS).  Note
+  the user file descriptor has already been mapped by the calling routine,
+  and we already know this is a remote system call.  We handle the call
+  by breaking it up into a series of remote reads.
 */
-
-#if defined(HPUX9) || defined(LINUX) 
-ssize_t writev( int fd, const struct iovec *iov, size_t iovcnt )
-#elif defined(Solaris) || defined(IRIX) || defined(OSF1) || defined(HPUX10)
-ssize_t writev( int fd, const struct iovec *iov, int iovcnt )
-#else
-int writev( int fd, struct iovec *iov, int iovcnt )
-#endif
+static int
+fake_readv( int fd, const struct iovec *iov, int iovcnt )
 {
-	int i, rval = 0, cc;
+	register int i, rval = 0, cc;
 
 	for( i = 0; i < iovcnt; i++ ) {
-		cc = write( fd, iov->iov_base, iov->iov_len );
-		if( cc < 0 ) return cc;
+		cc = REMOTE_syscall( CONDOR_read, fd, iov->iov_base, iov->iov_len );
+		if( cc < 0 ) {
+			return cc;
+		}
+
 		rval += cc;
-		if( cc != iov->iov_len ) return rval;
+		if( cc != iov->iov_len ) {
+			return rval;
+		}
+
 		iov++;
 	}
 
 	return rval;
 }
 
-/* Kernel readv and writev for AIX */
-
-#ifdef AIX32
-
-int kwritev( int fd, struct iovec *iov, int iovcnt, int ext )
+#if 0
+/*Fake local readv for Linux						*/
+static int
+linux_fake_readv( int fd, const struct iovec *iov, int iovcnt )
 {
-	return writev(fd,iov,iovcnt);
+	register int i, rval = 0, cc;
+
+	for( i = 0; i < iovcnt; i++ ) {
+		cc = syscall( SYS_read, fd, iov->iov_base, iov->iov_len );
+		if( cc < 0 ) {
+			return cc;
+		}
+
+		rval += cc;
+		if( cc != iov->iov_len ) {
+			return rval;
+		}
+
+		iov++;
+	}
+
+	return rval;
+}
+#endif
+
+
+/*
+  We don't handle writev directly in remote system calls.  Instead we
+  break the writev up into a series of individual writes.
+*/
+#if defined(HPUX9) || defined(LINUX) 
+ssize_t
+writev( int fd, const struct iovec *iov, size_t iovcnt )
+#elif defined(Solaris) || defined(IRIX) || defined(OSF1) || defined(HPUX10)
+ssize_t
+writev( int fd, const struct iovec *iov, int iovcnt )
+#else
+int
+writev( int fd, struct iovec *iov, int iovcnt )
+#endif
+{
+	int rval;
+	int user_fd;
+
+	if( (user_fd=MapFd(fd)) < 0 ) {
+		return -1;
+	}
+
+	if( LocalSysCalls() ) {
+		rval = syscall( SYS_writev, user_fd, iov, iovcnt );
+	} else {
+		rval = fake_writev( user_fd, iov, iovcnt );
+	}
+
+	return rval;
 }
 
-int kreadv( int fd, struct iovec *iov, int iovcnt, int ext )
+/*
+  Handle a call to writev which must be done remotely, (not NFS).  Note
+  the user file descriptor has already been mapped by the calling routine,
+  and we already know this is a remote system call.  We handle the call
+  by breaking it up into a series of remote writes.
+*/
+static int
+fake_writev( int fd, const struct iovec *iov, int iovcnt )
 {
-	return readv(fd,iov,iovcnt);
+	register int i, rval = 0, cc;
+
+	for( i = 0; i < iovcnt; i++ ) {
+		cc = REMOTE_syscall( CONDOR_write, fd, iov->iov_base, iov->iov_len );
+		if( cc < 0 ) {
+			return cc;
+		}
+
+		rval += cc;
+		if( cc != iov->iov_len ) {
+			return rval;
+		}
+
+		iov++;
+	}
+
+	return rval;
 }
 
+#if 0
+/*Fake local writev for Linux						*/
+static int
+linux_fake_writev( int fd, const struct iovec *iov, int iovcnt )
+{
+	register int i, rval = 0, cc;
+
+	for( i = 0; i < iovcnt; i++ ) {
+		cc = syscall( SYS_write, fd, iov->iov_base, iov->iov_len );
+		if( cc < 0 ) {
+			return cc;
+		}
+
+		rval += cc;
+		if( cc != iov->iov_len ) {
+			return rval;
+		}
+
+		iov++;
+	}
+
+	return rval;
+}
 #endif
 
 
@@ -494,6 +608,58 @@ ftruncate( int fd, off_t length )
 	return rval;
 }
 
+#if defined(AIX32)
+	int
+	kwritev( int fd, struct iovec *iov, int iovcnt, int ext )
+	{
+		int rval;
+		int user_fd;
+
+		if( ext != 0 ) {
+			errno = ENOSYS;
+			return -1;
+		}
+
+		if( (user_fd=MapFd(fd)) < 0 ) {
+			return -1;
+		}
+
+		if( LocalSysCalls() ) {
+			rval = syscall( SYS_kwritev, user_fd, iov, iovcnt );
+		} else {
+			rval = fake_writev( user_fd, iov, iovcnt );
+		}
+
+		return rval;
+	}
+#endif
+
+#if defined(AIX32)
+	int
+	kreadv( int fd, struct iovec *iov, int iovcnt, int ext )
+	{
+		int rval;
+		int user_fd;
+
+		if( ext != 0 ) {
+			errno = ENOSYS;
+			return -1;
+		}
+
+		if( (user_fd=MapFd(fd)) < 0 ) {
+			return -1;
+		}
+
+		if( LocalSysCalls() ) {
+			rval = syscall( SYS_kreadv, user_fd, iov, iovcnt );
+		} else {
+			rval = fake_readv( user_fd, iov, iovcnt );
+		}
+
+		return rval;
+	}
+#endif
+
 #if defined OSF1
 /*
   This is some kind of cleanup routine for dynamically linked programs which
@@ -553,8 +719,47 @@ __lseek( int fd, off_t offset, int whence )
 {
 	return lseek(fd,offset,whence);
 }
-
 #endif /* !defined(LINUX) */
+
+#if defined(LINUX) && defined(GLIBC21)
+
+/* Alrighty, in order to keep homogeneity between the various linux platforms,
+	I have remapped all of the 64 bit seek calls into the common 32
+	bit seek calls. This is so requests can be serviced by the shadow correctly
+	on machines with no 64 bit seek calls. -pete 8/16/99 */
+
+int __llseek( int fd, off_t offset, int whence )
+{
+	return lseek(fd,offset,whence);
+}
+
+int _llseek( int fd, off_t offset, int whence )
+{
+	return lseek(fd,offset,whence);
+}
+
+int llseek( int fd, off_t offset, int whence )
+{
+	return lseek(fd,offset,whence);
+}
+
+__off64_t __lseek64( int fd, __off64_t offset, int whence )
+{
+	return lseek(fd,offset,whence);
+}
+
+__off64_t _lseek64( int fd, __off64_t offset, int whence )
+{
+	return lseek(fd,offset,whence);
+}
+
+__off64_t lseek64( int fd, __off64_t offset, int whence )
+{
+	return lseek(fd,offset,whence);
+}
+
+#endif /* defined glibc21 and linux */
+
 #endif /* defined(SYS_lseek) */
 
 #endif /* !defined(HPUX) */
@@ -681,6 +886,37 @@ int __lxstat(int version, const char *path, struct stat *buf)
 	return _condor_lxstat( version, path, buf );
 }
 
+#if defined(GLIBC21)
+int _xstat64(int version, const char *path, struct stat64 *buf)
+{
+	return _condor_xstat64( version, path, buf );
+}
+
+int __xstat64(int version, const char *path, struct stat64 *buf)
+{
+	return _condor_xstat64( version, path, buf );
+}
+
+int _fxstat64(int version, int fd, struct stat64 *buf)
+{
+	return _condor_fxstat64( version, fd, buf );
+}
+
+int __fxstat64(int version, int fd, struct stat64 *buf)
+{
+	return _condor_fxstat64( version, fd, buf );
+}
+
+int _lxstat64(int version, const char *path, struct stat64 *buf)
+{
+	return _condor_lxstat64( version, path, buf );
+}
+
+int __lxstat64(int version, const char *path, struct stat64 *buf)
+{
+	return _condor_lxstat64( version, path, buf );
+}
+#endif
 
 /*
    _condor_k_stat_convert() takes in a version, and two pointers, one
@@ -742,6 +978,55 @@ _condor_k_stat_convert( int version, const struct kernel_stat *source,
 	}
 }
 
+#if defined(GLIBC21)
+void 
+_condor_k_stat_convert64( int version, const struct kernel_stat *source, 
+						struct stat64 *target )
+{
+		/* In all cases, we need to copy the fields we care about. */
+	target->st_dev = source->st_dev;
+	target->st_ino = source->st_ino;
+	target->st_mode = source->st_mode;
+	target->st_nlink = source->st_nlink;
+	target->st_uid = source->st_uid;
+	target->st_gid = source->st_gid;
+	target->st_rdev = source->st_rdev;
+	target->st_size = source->st_size;
+	target->st_blksize = source->st_blksize;
+	target->st_blocks = source->st_blocks;
+	target->st_atime = source->st_atime;
+	target->st_mtime = source->st_mtime;
+	target->st_ctime = source->st_ctime;
+
+		/* Now, handle the different versions we might be passed */
+	switch( version ) {
+	case _STAT_VER_LINUX_OLD:
+			/*
+			  This is the old version, which is identical to the
+			  kernel version.  We already copied all the fields we
+			  care about, so we're done.
+			*/
+		break;
+    case _STAT_VER_LINUX:
+			/* 
+			  This is the new version, that has some extra fields we
+			  need to 0-out.
+			*/
+		target->__pad1 = 0;
+		target->__pad2 = 0;
+		target->__unused1 = 0;
+		target->__unused2 = 0;
+		target->__unused3 = 0;
+		target->__unused4 = 0;
+		target->__unused5 = 0;
+		break;
+	default:
+			/* Some other version: blow-up */
+		EXCEPT( "_condor_k_stat_convert64: unknown version (%d) of struct stat!", version );
+		break;
+	}
+}
+#endif
 
 /*
   _condor_s_stat_convert() is just like _condor_k_stat_convert(),
@@ -797,6 +1082,56 @@ _condor_s_stat_convert( int version, const struct stat *source,
 	}
 }
 
+#if defined(GLIBC21)
+void 
+_condor_s_stat_convert64( int version, const struct stat *source, 
+						struct stat64 *target )
+{
+		/* In all cases, we need to copy the fields we care about. */
+		/* here we downcast the stat64 into a stat */
+	target->st_dev = source->st_dev;
+	target->st_ino = source->st_ino;
+	target->st_mode = source->st_mode;
+	target->st_nlink = source->st_nlink;
+	target->st_uid = source->st_uid;
+	target->st_gid = source->st_gid;
+	target->st_rdev = source->st_rdev;
+	target->st_size = source->st_size;
+	target->st_blksize = source->st_blksize;
+	target->st_blocks = source->st_blocks;
+	target->st_atime = source->st_atime;
+	target->st_mtime = source->st_mtime;
+	target->st_ctime = source->st_ctime;
+
+		/* Now, handle the different versions we might be passed */
+	switch( version ) {
+	case _STAT_VER_LINUX_OLD:
+			/*
+			  This is the old version, which is identical to the
+			  kernel version.  We already copied all the fields we
+			  care about, so we're done.
+			*/
+		break;
+    case _STAT_VER_LINUX:
+			/* 
+			  This is the new version, that has some extra fields we
+			  need to 0-out.
+			*/
+		target->__pad1 = 0;
+		target->__pad2 = 0;
+		target->__unused1 = 0;
+		target->__unused2 = 0;
+		target->__unused3 = 0;
+		target->__unused4 = 0;
+		target->__unused5 = 0;
+		break;
+	default:
+			/* Some other version: blow-up */
+		EXCEPT( "_condor_s_stat_convert64: unknown version (%d) of struct stat!", version );
+		break;
+	}
+}
+#endif
 
 /*
    Finally, implement the _condor_[xlf]stat() functions which do all
@@ -820,6 +1155,23 @@ int _condor_xstat(int version, const char *path, struct stat *buf)
     return rval;
 }
 
+#if defined(GLIBC21)
+int _condor_xstat64(int version, const char *path, struct stat64 *buf)
+{
+    int rval;
+	struct kernel_stat kbuf;
+	struct stat sbuf;
+
+    if( LocalSysCalls() ) {
+        rval = syscall( CONDOR_SYS_stat, path, &kbuf );
+		_condor_k_stat_convert64( version, &kbuf, buf );
+    } else {
+        rval = REMOTE_syscall( CONDOR_stat, path, &sbuf );
+		_condor_s_stat_convert64( version, &sbuf, buf );
+    }
+    return rval;
+}
+#endif
 
 int
 _condor_fxstat(int version, int fd, struct stat *buf)
@@ -847,6 +1199,33 @@ _condor_fxstat(int version, int fd, struct stat *buf)
     return rval;
 }
 
+#if defined(GLIBC21)
+int
+_condor_fxstat64(int version, int fd, struct stat64 *buf)
+{
+    int rval;
+    int user_fd;
+    int use_local_access = FALSE;
+	struct kernel_stat kbuf;
+	struct stat sbuf;
+
+    if( (user_fd=MapFd(fd)) < 0 ) {
+        return (int)-1;
+    }
+    if( LocalAccess(fd) ) {
+        use_local_access = TRUE;
+    }
+
+    if( LocalSysCalls() || use_local_access ) {
+        rval = syscall( CONDOR_SYS_fstat, fd, &kbuf );
+		_condor_k_stat_convert64( version, &kbuf, buf );
+    } else {
+        rval = REMOTE_syscall( CONDOR_fstat, user_fd, &sbuf );
+		_condor_s_stat_convert64( version, &sbuf, buf );
+    }
+    return rval;
+}
+#endif
 
 int _condor_lxstat(int version, const char *path, struct stat *buf)
 {
@@ -863,6 +1242,24 @@ int _condor_lxstat(int version, const char *path, struct stat *buf)
     }
     return rval;
 }
+
+#if defined(GLIBC21)
+int _condor_lxstat64(int version, const char *path, struct stat64 *buf)
+{
+    int rval;
+	struct kernel_stat kbuf;
+	struct stat sbuf;
+
+    if( LocalSysCalls() ) {
+        rval = syscall( CONDOR_SYS_lstat, path, &kbuf );
+		_condor_k_stat_convert64( version, &kbuf, buf );
+    } else {
+        rval = REMOTE_syscall( CONDOR_lstat, path, &sbuf );
+		_condor_s_stat_convert64( version, &sbuf, buf );
+    }
+    return rval;
+}
+#endif
 
 #endif /* LINUX stat hell */
 
@@ -1012,15 +1409,17 @@ getlogin()
 
 #if defined( LINUX  )
 /* 
-   Linux's mmap can be passed a special flag, MAP_ANONYMOUS, which
-   means that you don't want to use a file, in which case, mmap
-   behaves a lot like malloc().  So, we need to check for that flag
-   here, and if it's set, don't do anything with the fd we were passed
-   and always do the mmap locally.  The C library uses mmap with
-   MAP_ANONYMOUS to allocate I/O buffers.  -Derek Wright 3/12/98 
+	I have turned off mmap for good under linux. This means that
+	libc's buffered io(which called mmap directly to basically act
+	like malloc) stuff will suck to no end, but I branched before
+	thain checked in his bufferring code. When I remerge the branches,
+	I will turn on local bufferring in his code, and then it won't
+	matter if mmap fails from libc's point of view. I left this
+	function in so that if mmap gets called it will report as not
+	supported by the shadow if called from a user job. Otherwise it
+	will be brought in elsewhere and cause a conflict while linking.
 
-   Plus, glibc's mmap returns and takes as it's first arg a caddr_t,
-   which is really a char*
+	-pete 08/18/99
 
 */
 
@@ -1031,6 +1430,7 @@ mmap( MMAP_T a, size_t l, int p, int f, int fd, off_t o )
 	MMAP_T	rval;
 	int		user_fd;
 	int		use_local_access = FALSE;
+
 
 	if( f & MAP_ANONYMOUS ) {
 			/* If the MAP_ANONYMOUS flag is set, ignore the fd we were
@@ -1045,7 +1445,7 @@ mmap( MMAP_T a, size_t l, int p, int f, int fd, off_t o )
 		}
 	}
 	if( use_local_access || LocalSysCalls() ) {
-		rval = MMAP( a, l, p, f, user_fd, o );
+		return MAP_FAILED;
 	} else {
 		rval = (MMAP_T)REMOTE_syscall( CONDOR_mmap, a, l, p, f, user_fd, o );
 	}
@@ -1194,4 +1594,6 @@ int ___fdsync( int fd )
 {
 	fdsync(fd);
 }
+
+
 #endif
