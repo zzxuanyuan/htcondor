@@ -124,9 +124,6 @@ static char *GMStateNames[] = {
 	} \
 }
 
-//////////////////////from gridmanager.C
-#define HASH_TABLE_SIZE			500
-
 static bool WriteGT4SubmitEventToUserLog( ClassAd *job_ad );
 static bool WriteGT4SubmitFailedEventToUserLog( ClassAd *job_ad,
 												const char *failure_string );
@@ -136,8 +133,7 @@ static bool WriteGT4ResourceDownEventToUserLog( ClassAd *job_ad );
 template class HashTable<HashKey, GT4Job *>;
 template class HashBucket<HashKey, GT4Job *>;
 
-// TODO need to get rid of this
-static GahpClient GahpMain;
+#define HASH_TABLE_SIZE			500
 
 HashTable <HashKey, GT4Job *> GT4JobsByContact( HASH_TABLE_SIZE,
 												hashFunction );
