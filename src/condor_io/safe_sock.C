@@ -69,14 +69,16 @@ void SafeSock::init()
 }
 
 
-SafeSock::SafeSock() 				/* virgin safesock	*/
-	: Sock()
+SafeSock::SafeSock(bool useRUDP) 				/* virgin safesock	*/
+	: Sock(),
+      _useRUDP(useRUDP)
 {
 	init();
 }
 
 SafeSock::SafeSock(const SafeSock & orig) 
-	: Sock(orig)
+	: Sock(orig),
+      _useRUDP(orig._useRUDP)
 {
 	init();
 	// now copy all cedar state info via the serialize() method
@@ -106,6 +108,10 @@ SafeSock::~SafeSock()
 	}
 }
 
+void SafeSock :: setUseReliableUDP(bool useRUDP)
+{
+    _useRUDP = useRUDP;
+}
 
 /* End of the current message
  * This method will be called when the application program reaches
@@ -127,7 +133,7 @@ int SafeSock::end_of_message()
 
 	switch(_coding){
 		case stream_encode:
-                    sent = _outMsg.sendMsg(_sock, (struct sockaddr *)&_who, _outMsgID);
+                    sent = _outMsg.sendMsg(_sock, (struct sockaddr *)&_who, _outMsgID, _useRUDP);
                     _outMsgID.msgNo++; // It doesn't hurt to increment msgNO even if fails
                     resetCrypto();
                     if ( allow_empty_message_flag ) {

@@ -27,6 +27,9 @@
 #include "condor_debug.h"
 #include "internet.h"
 #include "condor_md.h"       // Condor_MD_MAC
+extern "C" {
+#include "reliUDP.h"
+}
 
 #define USABLE_PACKET_SIZE SAFE_MSG_MAX_PACKET_SIZE - SAFE_MSG_HEADER_SIZE
 
@@ -751,7 +754,8 @@ int _condorOutMsg::putn(const char *dta, const int size) {
  */
 int _condorOutMsg::sendMsg(const int sock,
                            const struct sockaddr* who,
-                           _condorMsgID msgID)
+                           _condorMsgID msgID,
+                           bool  useRUDP)
 {
 	_condorPacket* tempPkt;
 	int seqNo = 0, msgLen = 0, sent;
@@ -767,9 +771,18 @@ int _condorOutMsg::sendMsg(const int sock,
         tempPkt->addEID();
         tempPkt->addMD();
 		msgLen += tempPkt->length;
-		sent = sendto(sock, tempPkt->dataGram,
-		              tempPkt->length + SAFE_MSG_HEADER_SIZE,
-                      0, who, sizeof(struct sockaddr));
+
+        if (useRUDP) {
+            sent = rudp_sendto(sock, tempPkt->dataGram,
+                               tempPkt->length + SAFE_MSG_HEADER_SIZE,
+                               who, sizeof(struct sockaddr));
+        }
+        else {
+            sent = sendto(sock, tempPkt->dataGram,
+                          tempPkt->length + SAFE_MSG_HEADER_SIZE,
+                          0, who, sizeof(struct sockaddr));
+        }
+
 		if( D_FULLDEBUG & DebugFlags )
 			dprintf(D_NETWORK, "SafeMsg: Packet[%d] sent\n", sent);
 		if(sent != tempPkt->length + SAFE_MSG_HEADER_SIZE) {
@@ -791,7 +804,13 @@ int _condorOutMsg::sendMsg(const int sock,
         lastPacket->addEID();
         lastPacket->makeHeader(true, 0, msgID);
         lastPacket->addMD();
-		sent = sendto(sock, lastPacket->data - 6, msgLen, 0, who, sizeof(struct sockaddr));
+        if (useRUDP) {
+            sent = rudp_sendto(sock, lastPacket->data - 6, msgLen, who, sizeof(struct sockaddr));
+        }
+        else {
+            sent = sendto(sock, lastPacket->data - 6, msgLen, 0, who, sizeof(struct sockaddr));
+        }
+
 		if( D_FULLDEBUG & DebugFlags ) {
 			dprintf(D_NETWORK, "SafeMsg: Packet[%d] sent\n", sent);
         }
@@ -808,9 +827,16 @@ int _condorOutMsg::sendMsg(const int sock,
 		msgLen += lastPacket->length;
         lastPacket->addEID();
         lastPacket->addMD();
-		sent = sendto(sock, lastPacket->dataGram,
-		              lastPacket->length + SAFE_MSG_HEADER_SIZE,
-		              0, who, sizeof(struct sockaddr));
+        if (useRUDP) {
+            sent = rudp_sendto(sock, lastPacket->dataGram,
+                               lastPacket->length + SAFE_MSG_HEADER_SIZE,
+                               who, sizeof(struct sockaddr));
+        }
+        else {
+            sent = sendto(sock, lastPacket->dataGram,
+                          lastPacket->length + SAFE_MSG_HEADER_SIZE,
+                          0, who, sizeof(struct sockaddr));
+        }
 		if( D_FULLDEBUG & DebugFlags ) {
 			dprintf(D_NETWORK, "SafeMsg: Packet[%d] sent\n", sent);
         }
