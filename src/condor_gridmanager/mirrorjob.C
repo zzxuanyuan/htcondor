@@ -580,6 +580,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too long!\n",procID.cluster,procI
 			// The job has been submitted. Wait for completion or failure,
 			// and poll the remote schedd occassionally to let it know
 			// we're still alive.
+			writeUserLog = true;
 			if ( remoteState == COMPLETED ) {
 				gmState = GM_DONE_SAVE;
 			} else if ( condorState == REMOVED ) {
@@ -765,6 +766,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too long!\n",procID.cluster,procI
 				UpdateJobAdBool( ATTR_MIRROR_ACTIVE, 0 );
 				mirrorActive = false;
 			}
+			writeUserLog = false;
 			
 			// If there are no updates to be done when we first enter this
 			// state, requestScheddUpdate will return done immediately
