@@ -865,6 +865,13 @@ void MirrorJob::ProcessRemoteAdActive( ClassAd *remote_ad )
 	remote_ad->LookupInteger( ATTR_JOB_STATUS, tmp_int );
 	remoteState = tmp_int;
 
+	if ( remoteState == IDLE ) {
+		JobIdle();
+	}
+	if ( remoteState == RUNNING ) {
+		JobRunning();
+	}
+
 	diff_ad = ClassAdDiff( ad, remote_ad );
 
 	rc = diff_ad->LookupInteger( ATTR_MIRROR_LEASE_TIME, tmp_int );
