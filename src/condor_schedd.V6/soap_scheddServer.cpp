@@ -8,7 +8,7 @@
 
 SOAP_BEGIN_NAMESPACE(soap_schedd)
 
-SOAP_SOURCE_STAMP("@(#) soap_scheddServer.cpp ver 2.5.2 2004-03-08 18:23:33 GMT")
+SOAP_SOURCE_STAMP("@(#) soap_scheddServer.cpp ver 2.5.2 2004-03-29 14:52:18 GMT")
 
 
 SOAP_FMAC5 int SOAP_FMAC6 soap_serve(struct soap *soap)
@@ -889,7 +889,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__createJobTemplate(struct soap
 #endif
 	 || soap_end_recv(soap))
 		return soap->error;
-	soap->error = condorSchedd__createJobTemplate(soap, soap_tmp_condorSchedd__createJobTemplate.clusterId, soap_tmp_condorSchedd__createJobTemplate.jobId, soap_tmp_condorSchedd__createJobTemplate.submitDescription, soap_tmp_condorSchedd__createJobTemplate.owner, soap_tmp_condorSchedd__createJobTemplate.type, result);
+	soap->error = condorSchedd__createJobTemplate(soap, soap_tmp_condorSchedd__createJobTemplate.clusterId, soap_tmp_condorSchedd__createJobTemplate.jobId, soap_tmp_condorSchedd__createJobTemplate.owner, soap_tmp_condorSchedd__createJobTemplate.type, soap_tmp_condorSchedd__createJobTemplate.cmd, soap_tmp_condorSchedd__createJobTemplate.args, result);
 	if (soap->error)
 		return soap->error;
 	soap_serializeheader(soap);

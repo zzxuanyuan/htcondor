@@ -330,9 +330,10 @@
 <message name="createJobTemplateRequest">
  <part name="clusterId" type="xsd:int"/>
  <part name="jobId" type="xsd:int"/>
- <part name="submitDescription" type="xsd:string"/>
  <part name="owner" type="xsd:string"/>
  <part name="type" type="condorSchedd:UniverseType"/>
+ <part name="cmd" type="xsd:string"/>
+ <part name="args" type="xsd:string"/>
 </message>
 
 <portType name="condorScheddPortType">

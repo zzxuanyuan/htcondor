@@ -8,7 +8,7 @@
 
 SOAP_BEGIN_NAMESPACE(soap_schedd)
 
-SOAP_SOURCE_STAMP("@(#) soap_scheddC.cpp ver 2.5.2 2004-03-08 18:23:33 GMT")
+SOAP_SOURCE_STAMP("@(#) soap_scheddC.cpp ver 2.5.2 2004-03-29 14:52:18 GMT")
 
 
 #ifndef WITH_NOGLOBAL
@@ -2430,20 +2430,23 @@ SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__createJobTemplate(struct soap
 {
 	soap_embedded(soap, &a->clusterId, SOAP_TYPE_xsd__int);
 	soap_embedded(soap, &a->jobId, SOAP_TYPE_xsd__int);
-	soap_embedded(soap, &a->submitDescription, SOAP_TYPE_xsd__string);
-	soap_mark_xsd__string(soap, &a->submitDescription);
 	soap_embedded(soap, &a->owner, SOAP_TYPE_xsd__string);
 	soap_mark_xsd__string(soap, &a->owner);
 	soap_embedded(soap, &a->type, SOAP_TYPE_condorSchedd__UniverseType);
+	soap_embedded(soap, &a->cmd, SOAP_TYPE_xsd__string);
+	soap_mark_xsd__string(soap, &a->cmd);
+	soap_embedded(soap, &a->args, SOAP_TYPE_xsd__string);
+	soap_mark_xsd__string(soap, &a->args);
 }
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorSchedd__createJobTemplate(struct soap *soap, struct condorSchedd__createJobTemplate *a)
 {
 	soap_default_xsd__int(soap, &a->clusterId);
 	soap_default_xsd__int(soap, &a->jobId);
-	soap_default_xsd__string(soap, &a->submitDescription);
 	soap_default_xsd__string(soap, &a->owner);
 	soap_default_condorSchedd__UniverseType(soap, &a->type);
+	soap_default_xsd__string(soap, &a->cmd);
+	soap_default_xsd__string(soap, &a->args);
 }
 
 SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorSchedd__createJobTemplate(struct soap *soap, struct condorSchedd__createJobTemplate *a, const char *tag, const char *type)
@@ -2458,9 +2461,10 @@ SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorSchedd__createJobTemplate(struct soap *
 	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condorSchedd__createJobTemplate), type);
 	soap_out_xsd__int(soap, "clusterId", -1, &a->clusterId, "xsd:int");
 	soap_out_xsd__int(soap, "jobId", -1, &a->jobId, "xsd:int");
-	soap_out_xsd__string(soap, "submitDescription", -1, &a->submitDescription, "xsd:string");
 	soap_out_xsd__string(soap, "owner", -1, &a->owner, "xsd:string");
 	soap_out_condorSchedd__UniverseType(soap, "type", -1, &a->type, "condorSchedd:UniverseType");
+	soap_out_xsd__string(soap, "cmd", -1, &a->cmd, "xsd:string");
+	soap_out_xsd__string(soap, "args", -1, &a->args, "xsd:string");
 	soap_element_end_out(soap, tag);
 	return SOAP_OK;
 }
@@ -2474,7 +2478,7 @@ SOAP_FMAC3 struct condorSchedd__createJobTemplate * SOAP_FMAC4 soap_get_condorSc
 
 SOAP_FMAC3 struct condorSchedd__createJobTemplate * SOAP_FMAC4 soap_in_condorSchedd__createJobTemplate(struct soap *soap, const char *tag, struct condorSchedd__createJobTemplate *a, const char *type)
 {
-	short soap_flag_clusterId = 1, soap_flag_jobId = 1, soap_flag_submitDescription = 1, soap_flag_owner = 1, soap_flag_type = 1;
+	short soap_flag_clusterId = 1, soap_flag_jobId = 1, soap_flag_owner = 1, soap_flag_type = 1, soap_flag_cmd = 1, soap_flag_args = 1;
 	if (soap_element_begin_in(soap, tag))
 		return NULL;
 	if (*soap->type && soap_match_tag(soap, soap->type, type))
@@ -2509,11 +2513,6 @@ SOAP_FMAC3 struct condorSchedd__createJobTemplate * SOAP_FMAC4 soap_in_condorSch
 				{	soap_flag_jobId = 0;
 					continue;
 				}
-			if (soap_flag_submitDescription && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_xsd__string(soap, "submitDescription", &a->submitDescription, "xsd:string"))
-				{	soap_flag_submitDescription = 0;
-					continue;
-				}
 			if (soap_flag_owner && soap->error == SOAP_TAG_MISMATCH)
 				if (soap_in_xsd__string(soap, "owner", &a->owner, "xsd:string"))
 				{	soap_flag_owner = 0;
@@ -2522,6 +2521,16 @@ SOAP_FMAC3 struct condorSchedd__createJobTemplate * SOAP_FMAC4 soap_in_condorSch
 			if (soap_flag_type && soap->error == SOAP_TAG_MISMATCH)
 				if (soap_in_condorSchedd__UniverseType(soap, "type", &a->type, "condorSchedd:UniverseType"))
 				{	soap_flag_type = 0;
+					continue;
+				}
+			if (soap_flag_cmd && soap->error == SOAP_TAG_MISMATCH)
+				if (soap_in_xsd__string(soap, "cmd", &a->cmd, "xsd:string"))
+				{	soap_flag_cmd = 0;
+					continue;
+				}
+			if (soap_flag_args && soap->error == SOAP_TAG_MISMATCH)
+				if (soap_in_xsd__string(soap, "args", &a->args, "xsd:string"))
+				{	soap_flag_args = 0;
 					continue;
 				}
 			if (soap->error == SOAP_TAG_MISMATCH)
@@ -2535,7 +2544,7 @@ SOAP_FMAC3 struct condorSchedd__createJobTemplate * SOAP_FMAC4 soap_in_condorSch
 		if (soap_element_end_in(soap, tag))
 			return NULL;
 		}
-		if ((soap->mode & SOAP_XML_STRICT) && (soap_flag_clusterId || soap_flag_jobId || soap_flag_submitDescription || soap_flag_owner || soap_flag_type))
+		if ((soap->mode & SOAP_XML_STRICT) && (soap_flag_clusterId || soap_flag_jobId || soap_flag_owner || soap_flag_type || soap_flag_cmd || soap_flag_args))
 		{	soap->error = SOAP_OCCURS;
 			return NULL;
 		}

@@ -591,79 +591,241 @@ condorSchedd__discoverDagRequirements(struct soap *soap,
 
 int
 condorSchedd__createJobTemplate(struct soap *soap,
-                                xsd__int clusterId,
-                                xsd__int jobId,
-                                xsd__string submitDescription,
-                                xsd__string owner,
+                                int clusterId,
+                                int jobId,
+                                char * owner,
                                 condorSchedd__UniverseType universe,
+                                char * cmd,
+                                char * args,
                                 struct condorSchedd__ClassAdStructAndStatusResponse & result)
 {
   MyString attribute;
 
-  ClassAd job;
+  ClassAd *job = new ClassAd();
 
-  job.SetMyTypeName (JOB_ADTYPE);
-  job.SetTargetTypeName (STARTD_ADTYPE);
-
+  job->SetMyTypeName (JOB_ADTYPE);
+  job->SetTargetTypeName (STARTD_ADTYPE);
 
   attribute = MyString(ATTR_Q_DATE) + " = " + ((int) time((time_t *) 0));
-  job.Insert(attribute.GetCStr());
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
 
   attribute = MyString(ATTR_COMPLETION_DATE) + " = 0";
-  job.Insert(attribute.GetCStr());
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
 
   attribute = MyString(ATTR_OWNER) + " = \"" + owner + "\"";
-  job.Insert(attribute.GetCStr());
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
 
   attribute = MyString(ATTR_JOB_REMOTE_WALL_CLOCK) + " = 0.0";
-  job.Insert(attribute.GetCStr());
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
 
   attribute = MyString(ATTR_JOB_LOCAL_USER_CPU) + " = 0.0";
-  job.Insert(attribute.GetCStr());
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
 
   attribute = MyString(ATTR_JOB_LOCAL_SYS_CPU) + " = 0.0";
-  job.Insert(attribute.GetCStr());
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
 
   attribute = MyString(ATTR_JOB_REMOTE_USER_CPU) + " = 0.0";
-  job.Insert(attribute.GetCStr());
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
 
   attribute = MyString(ATTR_JOB_REMOTE_SYS_CPU) + " = 0.0";
-  job.Insert(attribute.GetCStr());
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
 
   attribute = MyString(ATTR_JOB_EXIT_STATUS) + " = 0";
-  job.Insert(attribute.GetCStr());
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
 
   attribute = MyString(ATTR_NUM_CKPTS) + " = 0";
-  job.Insert(attribute.GetCStr());
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
 
   attribute = MyString(ATTR_NUM_RESTARTS) + " = 0";
-  job.Insert(attribute.GetCStr());
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
 
   attribute = MyString(ATTR_NUM_SYSTEM_HOLDS) + " = 0";
-  job.Insert(attribute.GetCStr());
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
 
   attribute = MyString(ATTR_JOB_COMMITTED_TIME) + " = 0";
-  job.Insert(attribute.GetCStr());
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
 
   attribute = MyString(ATTR_TOTAL_SUSPENSIONS) + " = 0";
-  job.Insert(attribute.GetCStr());
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
 
   attribute = MyString(ATTR_LAST_SUSPENSION_TIME) + " = 0";
-  job.Insert(attribute.GetCStr());
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
 
   attribute = MyString(ATTR_CUMULATIVE_SUSPENSION_TIME) + " = 0";
-  job.Insert(attribute.GetCStr());
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
 
   attribute = MyString(ATTR_ON_EXIT_BY_SIGNAL) + " = FALSE";
-  job.Insert(attribute.GetCStr());
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
+
+  attribute = MyString(ATTR_JOB_ROOT_DIR) + " = \"/\"";
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
+
+  attribute = MyString(ATTR_JOB_UNIVERSE) + " = " + universe;
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
+
+  attribute = MyString(ATTR_JOB_CMD) + " = \"" + cmd + "\"";
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
+
+  attribute = MyString(ATTR_MIN_HOSTS) + " = 1";
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
+
+  attribute = MyString(ATTR_MAX_HOSTS) + " = 1";
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
+
+  attribute = MyString(ATTR_CURRENT_HOSTS) + " = 1";
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
+
+  attribute = MyString(ATTR_WANT_REMOTE_SYSCALLS) + " = FALSE";
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
+
+  attribute = MyString(ATTR_WANT_CHECKPOINT) + " = FALSE";
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
+
+  attribute = MyString(ATTR_JOB_STATUS) + " = 1";
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
+
+  attribute = MyString(ATTR_ENTERED_CURRENT_STATE) + " = " + (((int) time((time_t *) 0)) / 1000);
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
+
+  attribute = MyString(ATTR_JOB_PRIO) + " = 0";
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
+
+  attribute = MyString(ATTR_JOB_ENVIRONMENT) + " = \"\"";
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
+
+  attribute = MyString(ATTR_JOB_NOTIFICATION) + " = 2";
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
+
+  attribute = MyString(ATTR_KILL_SIG) + " = \"SIGTERM\"";
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
+
+  attribute = MyString(ATTR_IMAGE_SIZE) + " = 0";
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
+
+  attribute = MyString(ATTR_JOB_INPUT) + " = \"/dev/null\"";
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
+
+  attribute = MyString(ATTR_TRANSFER_INPUT) + " = FALSE";
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
+
+  attribute = MyString(ATTR_JOB_OUTPUT) + " = \"/dev/null\"";
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
+
+  attribute = MyString(ATTR_JOB_ERROR) + " = \"/dev/null\"";
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
+
+  attribute = MyString(ATTR_BUFFER_SIZE) + " = " + (512 * 1024);
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
+
+  attribute = MyString(ATTR_BUFFER_BLOCK_SIZE) + " = " + (32 * 1024);
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
+
+  attribute = MyString(ATTR_SHOULD_TRANSFER_FILES) + " = TRUE";
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
+
+  attribute = MyString(ATTR_TRANSFER_FILES) + " = \"ONEXIT\"";
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
+
+  attribute = MyString(ATTR_WHEN_TO_TRANSFER_OUTPUT) + " = \"ON_EXIT\"";
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
+
+  attribute = MyString(ATTR_REQUIREMENTS) + " = \"TRUE\"";
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
+
+  attribute = MyString(ATTR_PERIODIC_HOLD_CHECK) + " = FALSE";
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
+
+  attribute = MyString(ATTR_PERIODIC_RELEASE_CHECK) + " = FALSE";
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
+
+  attribute = MyString(ATTR_PERIODIC_REMOVE_CHECK) + " = FALSE";
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
+
+  attribute = MyString(ATTR_ON_EXIT_HOLD_CHECK) + " = FALSE";
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
+
+  attribute = MyString(ATTR_ON_EXIT_REMOVE_CHECK) + " = TRUE";
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
+
+  attribute = MyString(ATTR_JOB_LEAVE_IN_QUEUE) + " = FALSE";
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
+
+  attribute = MyString(ATTR_JOB_ARGUMENTS) + " = \"" + args + "\"";
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
 
   // Need more attributes! Skim submit.C more.
 
   result.response.status.code = SUCCESS;
-  convert_ad_to_adStruct(soap, &job, &result.response.classAd);
+  convert_ad_to_adStruct(soap, job, &result.response.classAd);
 
-  // This isn't really implemted yet. The stuff above is just test code.
-  return SOAP_FAULT;
+  int i;
+  MyString name, value;
+  for (i = 0; i < result.response.classAd.__size; i++) {
+    name = result.response.classAd.__ptr[i].name;
+
+    if (!result.response.classAd.__ptr[i].value)
+      value = "UNDEFINED";
+    else
+      value = result.response.classAd.__ptr[i].value;
+
+    if (STRING == result.response.classAd.__ptr[i].type)
+      attribute = name + "=\"" + value + "\"";
+    else
+      attribute = name + "=" + value;
+
+    dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  }
+
+  return SOAP_OK;
 }
 
 ///////////////////////////////////////////////////////////////////////////////

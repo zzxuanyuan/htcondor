@@ -116,7 +116,8 @@ int condorSchedd__discoverDagRequirements(xsd__string dag,
 
 int condorSchedd__createJobTemplate(xsd__int clusterId,
                                     xsd__int jobId,
-                                    xsd__string submitDescription,
                                     xsd__string owner,
                                     enum condorSchedd__UniverseType type,
+                                    xsd__string cmd,
+                                    xsd__string args,
                                     struct condorSchedd__ClassAdStructAndStatusResponse & result);
