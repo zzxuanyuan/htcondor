@@ -468,7 +468,7 @@ Image::Save()
 	RAW_ADDR	stack_start, stack_end;
 #else
 	RAW_ADDR	addr_start, addr_end;
-	int             numsegs, prot, rtn, stackseg;
+	int             numsegs, prot, rtn, stackseg=-1;
 #endif
 	RAW_ADDR	data_start, data_end;
 	ssize_t		pos;
@@ -564,6 +564,12 @@ Image::Save()
 			Suicide();
 		}
 	}	
+       
+	if(stackseg==-1) {
+		dprintf(D_ALWAYS,"Image::Save: Never found stackseg!\n");
+		Suicide();
+	}
+
 	// now add stack segment
 	rtn = segment_bounds(stackseg, addr_start, addr_end, prot);
 	AddSegment( "STACK", addr_start, addr_end, prot);
@@ -578,6 +584,7 @@ Image::Save()
 	pos = sizeof(Header) + head.N_Segs() * sizeof(SegMap);
 	for( i=0; i<head.N_Segs(); i++ ) {
 		pos = map[i].SetPos( pos );
+		dprintf( D_ALWAYS,"Pos: %d\n",pos);
 	}
 
 	if( pos < 0 ) {

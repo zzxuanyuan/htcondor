@@ -268,8 +268,8 @@ int num_segments()
 	int		scm;
 	int		num_seg=0;
 	int		major, minor, inode;
-	long	mem_start, mem_end;
-	long	offset;
+	int		mem_start, mem_end;
+	int		offset;
 	char	e, f;
 
 
@@ -283,10 +283,13 @@ int num_segments()
 	}
 
 	// Count the numer of mmapped files in use by the executable
-	while(!feof(pfs)) {
-		fscanf(pfs, "%x-%x %c%c%c%c %x %d:%d %d\n",
+	while(1) {
+		int result = fscanf(pfs, "%x-%x %c%c%c%c %x %d:%d %d\n",
 			&mem_start, &mem_end, &rperm, &wperm,
 			&xperm, &priv, &offset, &major, &minor, &inode);
+
+		if(result!=10) break;
+
 		/*fprintf(stderr, "0x%x 0x%x %c%c%c%c 0x%x %d:%d %d\n", 
 			mem_start, mem_end, rperm, wperm, xperm, priv,
 			offset, major, minor, inode);*/
