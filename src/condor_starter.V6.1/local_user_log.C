@@ -26,6 +26,7 @@
 #include "job_info_communicator.h"
 #include "condor_attributes.h"
 #include "condor_uid.h"
+#include "basename.h"
 #include "exit.h"
 
 
@@ -84,8 +85,8 @@ LocalUserLog::initFromJobAd( ClassAd* ad )
 				 ATTR_STARTER_ULOG_FILE );
 		return initNoLogging();
 	}
-	if ( tmp[0] == '/' || tmp[0]=='\\' || (tmp[1]==':' &&
-										   tmp[2]=='\\') ) {
+
+	if( fullpath(tmp) ) {
 			// we have a full pathname in the job ad.  however, if the
 			// job is using a different iwd (namely, filetransfer is
 			// being used), we want to just stick it in the local iwd

@@ -32,6 +32,7 @@
 #include "syscall_numbers.h"
 #include "my_hostname.h"
 #include "internet.h"
+#include "basename.h"
 #include "condor_string.h"  // for strnewp
 #include "condor_attributes.h"
 #include "directory.h"
@@ -740,7 +741,7 @@ JICShadow::getJobStdFile( const char* attr_name )
 			} else {
 				filename1 = tmp;
 			}
-            if ( filename1[0] != '/' ) {  // prepend full path
+            if( ! fullpath(filename1) ) {	// prepend full path
                 sprintf( filename, "%s%c", job_iwd, DIR_DELIM_CHAR );
             } else {
                 filename[0] = '\0';
