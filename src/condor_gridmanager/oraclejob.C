@@ -40,25 +40,30 @@
 // GridManager job states
 #define GM_INIT					0
 #define GM_UNSUBMITTED			1
-#define GM_SUBMIT				2
-#define GM_SUBMIT_SAVE			3
-#define GM_SUBMIT_COMMIT		4
-#define GM_SUBMITTED			5
-#define GM_DONE_SAVE			6
-#define GM_DONE_COMMIT			7
-#define GM_CANCEL				8
-#define GM_FAILED				9
-#define GM_DELETE				10
-#define GM_CLEAR_REQUEST		11
-#define GM_HOLD					12
-#define GM_PROBE_JOB			13
+#define GM_SUBMIT_1				2
+#define GM_SUBMIT_1_SAVE		3
+#define GM_SUBMIT_2				4
+#define GM_SUBMIT_2_SAVE		5
+#define GM_SUBMIT_3				6
+#define GM_SUBMITTED			7
+#define GM_DONE_SAVE			8
+#define GM_DONE_COMMIT			9
+#define GM_CANCEL				10
+#define GM_FAILED				11
+#define GM_DELETE				12
+#define GM_CLEAR_REQUEST		13
+#define GM_HOLD					14
+#define GM_PROBE_JOB			15
+#define GM_RECOVER_QUERY		16
 
 static char *GMStateNames[] = {
 	"GM_INIT",
 	"GM_UNSUBMITTED",
-	"GM_SUBMIT",
-	"GM_SUBMIT_SAVE",
-	"GM_SUBMIT_COMMIT",
+	"GM_SUBMIT_1",
+	"GM_SUBMIT_1_SAVE",
+	"GM_SUBMIT_2",
+	"GM_SUBMIT_2_SAVE",
+	"GM_SUBMIT_3",
 	"GM_SUBMITTED",
 	"GM_DONE_SAVE",
 	"GM_DONE_COMMIT",
@@ -67,7 +72,8 @@ static char *GMStateNames[] = {
 	"GM_DELETE",
 	"GM_CLEAR_REQUEST",
 	"GM_HOLD",
-	"GM_PROBE_JOB"
+	"GM_PROBE_JOB",
+	"GM_RECOVER_QUERY"
 };
 
 // TODO: Let the maximum submit attempts be set in the job ad or, better yet,
@@ -76,6 +82,8 @@ static char *GMStateNames[] = {
 
 //////////////////////from gridmanager.C
 #define HASH_TABLE_SIZE			500
+
+#define ATTR_ORACLE_JOB_RUN_PHASE "OracleJobRunPhase"
 
 template class HashTable<HashKey, OracleJob *>;
 template class HashBucket<HashKey, OracleJob *>;
@@ -106,14 +114,11 @@ void OracleJobReconfig()
 	tmp_int = param_integer( "GRIDMANAGER_JOB_PROBE_INTERVAL", 5 * 60 );
 	OracleJob::setProbeInterval( tmp_int );
 
-//	tmp_int = param_integer( "GRIDMANAGER_RESOURCE_PROBE_INTERVAL", 5 * 60 );
-//	OracleResource::setProbeInterval( tmp_int );
-
-//	// Tell all the resource objects to deal with their new config values
+	// Tell all the resource objects to deal with their new config values
 //	OracleResource *next_resource;
-//
+
 //	ResourcesByName.startIterations();
-//
+
 //	while ( ResourcesByName.iterate( next_resource ) != 0 ) {
 //		next_resource->Reconfig();
 //	}
@@ -121,14 +126,19 @@ void OracleJobReconfig()
 
 bool OracleJobAdMatch( const ClassAd *jobad )
 {
+	bool rc = false;
 	int universe;
-	if ( jobad->LookupInteger( ATTR_JOB_UNIVERSE, universe ) == 0 ||
-		 universe != CONDOR_UNIVERSE_GLOBUS ||
-		 jobad->LookupBool( "OracleJob", universe ) == 0 ) {
-		return false;
-	} else {
-		return true;
+	char *sub_universe = NULL;
+	if ( jobad->LookupInteger( ATTR_JOB_UNIVERSE, universe ) == 1 &&
+		 universe == CONDOR_UNIVERSE_GLOBUS ) {
+		if ( jobad->LookupString( "SubUniverse", &sub_universe ) == 1 ) {
+			if ( stricmp( sub_universe, "oracle" ) == 0 ) {
+				rc = true;
+			}
+			free( sub_universe );
+		}
 	}
+	return rc;
 }
 
 bool OracleJobAdMustExpand( const ClassAd *jobad )
@@ -142,15 +152,59 @@ bool OracleJobAdMustExpand( const ClassAd *jobad )
 
 BaseJob *OracleJobCreate( ClassAd *jobad )
 {
+	if ( InitGlobalOci() != OCI_SUCCESS ) {
+		EXCEPT( "Init failed!" );
+	}
 	return (BaseJob *)new OracleJob( jobad );
 }
 
 int OracleJob::probeInterval = 300;		// default value
 int OracleJob::submitInterval = 300;	// default value
 
+void print_error( sword status, OCIError *error_handle )
+{
+	switch ( status ) {
+	case OCI_SUCCESS:
+		dprintf( D_ALWAYS, "   OCI_SUCCESS\n" );
+		break;
+	case OCI_SUCCESS_WITH_INFO:
+		dprintf( D_ALWAYS, "   OCI_SUCCESS_WITH_INFO\n" );
+		break;
+	case OCI_NEED_DATA:
+		dprintf( D_ALWAYS, "   OCI_NEED_DATA\n" );
+		break;
+	case OCI_NO_DATA:
+		dprintf( D_ALWAYS, "   OCI_NO_DATA\n" );
+		break;
+	case OCI_ERROR:
+		dprintf( D_ALWAYS, "   OCI_ERROR\n" );
+		if ( error_handle == NULL ) {
+			dprintf( D_ALWAYS, "   No error handle!\n" );
+		} else {
+			text errbuf[512];
+			sb4 errcode;
+			OCIErrorGet( error_handle, 1, NULL, &errcode, errbuf,
+						 sizeof(errbuf), OCI_HTYPE_ERROR);
+			dprintf( D_ALWAYS, "   errcode = %d, error text follows\n", errcode);
+			dprintf( D_ALWAYS, "   %s\n", errbuf );
+		}
+		break;
+	case OCI_INVALID_HANDLE:
+		dprintf( D_ALWAYS, "   OCI_INVALID_HANDLE\n" );
+		break;
+	case OCI_STILL_EXECUTING:
+		dprintf( D_ALWAYS, "   OCI_STILL_EXECUTING\n" );
+		break;
+	default:
+		dprintf( D_ALWAYS, "   Invalid status code!!!\n" );
+		break;
+	}
+}
+
 OracleJob::OracleJob( ClassAd *classad )
 	: BaseJob( classad )
 {
+	int bool_val;
 	char buff[4096];
 	char *error_string = NULL;
 
@@ -162,7 +216,9 @@ OracleJob::OracleJob( ClassAd *classad )
 	lastSubmitAttempt = 0;
 	numSubmitAttempts = 0;
 	resourceManagerString = NULL;
-//	myResource = NULL;
+	dbName = NULL;
+	dbUsername = NULL;
+	dbPassword = NULL;
 
 	// In GM_HOLD, we assme HoldReason to be set only if we set it, so make
 	// sure it's unset when we start.
@@ -179,12 +235,35 @@ OracleJob::OracleJob( ClassAd *classad )
 		goto error_exit;
 	}
 
+	bool_val = FALSE;
+	ad->LookupBool( ATTR_ORACLE_JOB_RUN_PHASE, bool_val );
+	jobRunPhase = bool_val ? true : false;
+
+	{
+		StringList list( resourceManagerString );
+		list.rewind();
+		list.next();
+		list.next();
+		dbName = strdup ( list.next() );
+		dbUsername = strdup( list.next() );
+		dbPassword = strdup( list.next() );
+	}
+
+	ociSession = GetOciSession( dbName, dbUsername, dbPassword );
+	ociSession->RegisterJob( this );
+
 	buff[0] = '\0';
 	ad->LookupString( ATTR_GLOBUS_CONTACT_STRING, buff );
 	if ( buff[0] != '\0' && strcmp( buff, NULL_JOB_CONTACT ) != 0 ) {
 		rehashRemoteJobId( this, remoteJobId, buff );
 		remoteJobId = strdup( buff );
 	}
+
+	if ( OCIHandleAlloc( GlobalOciEnvHndl, (dvoid**)&ociErrorHndl,
+						 OCI_HTYPE_ERROR, 0, NULL ) != OCI_SUCCESS ) {
+		EXCEPT( "alloc of ociErrorHndl failed!" );
+	}
+
 
 	return;
 
@@ -198,9 +277,15 @@ OracleJob::OracleJob( ClassAd *classad )
 
 OracleJob::~OracleJob()
 {
+	if ( ociSession ) {
+		ociSession->UnregisterJob( this );
+	}
 	if ( remoteJobId ) {
 		rehashRemoteJobId( this, remoteJobId, NULL );
 		free( remoteJobId );
+	}
+	if ( ociErrorHndl ) {
+		OCIHandleFree( ociErrorHndl, OCI_HTYPE_ERROR );
 	}
 }
 
@@ -230,17 +315,9 @@ int OracleJob::doEvaluateState()
 
 		switch ( gmState ) {
 		case GM_INIT: {
-			// This is the state all jobs start in when the GlobusJob object
-			// is first created. If we think there's a running jobmanager
-			// out there, we try to register for callbacks (in GM_REGISTER).
-			// The one way jobs can end up back in this state is if we
-			// attempt a restart of a jobmanager only to be told that the
-			// old jobmanager process is still alive.
 			errorString = "";
 			if ( remoteJobId == NULL ) {
 				gmState = GM_CLEAR_REQUEST;
-			} else if ( wantResubmit || doResubmit ) {
-				gmState = GM_CANCEL;
 			} else {
 				submitLogged = true;
 				if ( condorState == RUNNING ||
@@ -248,32 +325,51 @@ int OracleJob::doEvaluateState()
 					executeLogged = true;
 				}
 
-				// TODO What about uncommitted jobs?
-				probeNow = true;
-				gmState = GM_SUBMITTED;
+				gmState = GM_RECOVER_QUERY;
+			}
+			} break;
+		case GM_RECOVER_QUERY: {
+			bool job_queued;
+			bool job_active;
+			bool job_broken;
+			int num_job_failures;
+			rc = doStatus( job_queued, job_active, job_broken,
+						   num_job_failures );
+			if ( rc < 0 ) {
+				// What to do about failure?
+				dprintf( D_ALWAYS, "(%d.%d) job probe failed!\n",
+						 procID.cluster, procID.proc );
+				gmState = GM_HOLD;
+			} else {
+				if ( jobRunPhase == false ) {
+					if ( job_queued && job_broken ) {
+						gmState = GM_SUBMIT_2_SAVE;
+					} else {
+						gmState = GM_CLEAR_REQUEST;
+					}
+				} else {
+					if ( job_queued && job_broken && num_job_failures == 0 ) {
+						gmState = GM_SUBMIT_3;
+					} else {
+						gmState = GM_SUBMITTED;
+					}
+				}
 			}
 			} break;
 		case GM_UNSUBMITTED: {
-			// There are no outstanding gram submissions for this job (if
-			// there is one, we've given up on it).
 			if ( condorState == REMOVED ) {
 				gmState = GM_DELETE;
 			} else if ( condorState == HELD ) {
 				gmState = GM_DELETE;
 				break;
 			} else {
-				gmState = GM_SUBMIT;
+				gmState = GM_SUBMIT_1;
 			}
 			} break;
-		case GM_SUBMIT: {
-			// Start a new gram submission for this job.
-			if ( condorState == REMOVED || condorState == HELD ) {
-				gmState = GM_UNSUBMITTED;
-				break;
-			}
+		case GM_SUBMIT_1: {
 			if ( numSubmitAttempts >= MAX_SUBMIT_ATTEMPTS ) {
 				UpdateJobAdString( ATTR_HOLD_REASON,
-									"Attempts to submit failed" );
+								   "Attempts to submit failed" );
 				gmState = GM_HOLD;
 				break;
 			}
@@ -282,21 +378,21 @@ int OracleJob::doEvaluateState()
 			// another one.
 			if ( now >= lastSubmitAttempt + submitInterval ) {
 
-				rc = do_submit();
+				char *job_id = NULL;
+
+				job_id = doSubmit1();
 
 				lastSubmitAttempt = time(NULL);
 				numSubmitAttempts++;
 
-				if ( rc >= 0 ) {
-					char job_id[16];
-					sprintf( job_id, "%d", rc );
+				if ( job_id != NULL ) {
 					rehashRemoteJobId( this, remoteJobId, job_id );
 					remoteJobId = strdup( job_id );
 					UpdateJobAdString( ATTR_GLOBUS_CONTACT_STRING,
 									   job_id );
-					gmState = GM_SUBMIT_SAVE;
+					gmState = GM_SUBMIT_1_SAVE;
 				} else {
-					dprintf(D_ALWAYS,"(%d.%d) job submit failed!\n",
+					dprintf(D_ALWAYS,"(%d.%d) job submit 1 failed!\n",
 							procID.cluster, procID.proc);
 					gmState = GM_UNSUBMITTED;
 				}
@@ -309,8 +405,7 @@ int OracleJob::doEvaluateState()
 				daemonCore->Reset_Timer( evaluateStateTid, delay );
 			}
 			} break;
-		case GM_SUBMIT_SAVE: {
-			// Save the jobmanager's contact for a new gram submission.
+		case GM_SUBMIT_1_SAVE: {
 			if ( condorState == REMOVED || condorState == HELD ) {
 				gmState = GM_CANCEL;
 			} else {
@@ -318,29 +413,53 @@ int OracleJob::doEvaluateState()
 				if ( !done ) {
 					break;
 				}
-				gmState = GM_SUBMIT_COMMIT;
+				gmState = GM_SUBMIT_2;
 			}
 			} break;
-		case GM_SUBMIT_COMMIT: {
-			// Now that we've saved the jobmanager's contact, commit the
-			// gram job submission.
+		case GM_SUBMIT_2: {
 			if ( condorState == REMOVED || condorState == HELD ) {
 				gmState = GM_CANCEL;
 			} else {
-				rc = do_commit();
+				rc = doSubmit2();
+				if ( rc >= 0 ) {
+					gmState = GM_SUBMIT_2_SAVE;
+				} else {
+					dprintf(D_ALWAYS,"(%d.%d) job submit 2 failed!\n",
+							procID.cluster, procID.proc);
+					gmState = GM_CANCEL;
+				}
+			}
+			} break;
+		case GM_SUBMIT_2_SAVE: {
+			if ( condorState == REMOVED || condorState == HELD ) {
+				gmState = GM_CANCEL;
+			} else {
+				if ( jobRunPhase == false ) {
+					jobRunPhase = true;
+					UpdateJobAdBool( ATTR_ORACLE_JOB_RUN_PHASE, TRUE );
+				}
+				done = requestScheddUpdate( this );
+				if ( !done ) {
+					break;
+				}
+				gmState = GM_SUBMIT_3;
+			}
+			} break;
+		case GM_SUBMIT_3: {
+			if ( condorState == REMOVED || condorState == HELD ) {
+				gmState = GM_CANCEL;
+			} else {
+				rc = doSubmit3();
 				if ( rc >= 0 ) {
 					gmState = GM_SUBMITTED;
 				} else {
-					dprintf(D_ALWAYS,"(%d.%d) job commit failed!\n",
+					dprintf(D_ALWAYS,"(%d.%d) job submit 3 failed!\n",
 							procID.cluster, procID.proc);
 					gmState = GM_CANCEL;
 				}
 			}
 			} break;
 		case GM_SUBMITTED: {
-			// The job has been submitted (or is about to be by the
-			// jobmanager). Wait for completion or failure, and probe the
-			// jobmanager occassionally to make it's still alive.
 			if ( condorState == COMPLETED ) {
 					gmState = GM_DONE_SAVE;
 			} else if ( condorState == REMOVED || condorState == HELD ) {
@@ -369,20 +488,23 @@ int OracleJob::doEvaluateState()
 			if ( condorState == REMOVED || condorState == HELD ) {
 				gmState = GM_CANCEL;
 			} else {
-				rc = do_status();
+				bool job_queued;
+				bool job_active;
+				bool job_broken;
+				int num_job_failures;
+				rc = doStatus( job_queued, job_active, job_broken,
+							   num_job_failures );
 				if ( rc < 0 ) {
 					// What to do about failure?
 					dprintf( D_ALWAYS, "(%d.%d) job probe failed!\n",
 							 procID.cluster, procID.proc );
 				} else if ( rc != condorState ) {
-					if ( rc == RUNNING && condorState != RUNNING ) {
-						JobRunning();
-					}
-					if ( rc == IDLE && condorState != IDLE ) {
-						JobIdle();
-					}
-					if ( rc == COMPLETED && condorState != COMPLETED ) {
+					if ( job_queued == false ) {
 						JobTerminated( true, 0 );
+					} else if ( job_active == false ) {
+						JobIdle();
+					} else {
+						JobRunning();
 					}
 					requestScheddUpdate( this );
 				}
@@ -391,7 +513,6 @@ int OracleJob::doEvaluateState()
 			}
 			} break;
 		case GM_DONE_SAVE: {
-			// Report job completion to the schedd.
 			if ( condorState != HELD && condorState != REMOVED ) {
 				JobTerminated( true, 0 );
 				if ( condorState == COMPLETED ) {
@@ -404,8 +525,6 @@ int OracleJob::doEvaluateState()
 			gmState = GM_DONE_COMMIT;
 			} break;
 		case GM_DONE_COMMIT: {
-			// Tell the jobmanager it can clean up and exit.
-
 			// For now, there's nothing to clean up
 			if ( condorState == COMPLETED || condorState == REMOVED ) {
 				gmState = GM_DELETE;
@@ -424,8 +543,7 @@ int OracleJob::doEvaluateState()
 			}
 			} break;
 		case GM_CANCEL: {
-			// We need to cancel the job submission.
-			rc = do_remove();
+			rc = doRemove();
 			if ( rc >= 0 ) {
 				gmState = GM_FAILED;
 			} else {
@@ -436,8 +554,6 @@ int OracleJob::doEvaluateState()
 			}
 			} break;
 		case GM_FAILED: {
-			// The jobmanager's job state has moved to FAILED. Send a
-			// commit if necessary and take appropriate action.
 			rehashRemoteJobId( this, remoteJobId, NULL );
 			free( remoteJobId );
 			remoteJobId = NULL;
@@ -502,6 +618,10 @@ int OracleJob::doEvaluateState()
 				remoteJobId = NULL;
 				UpdateJobAdString( ATTR_GLOBUS_CONTACT_STRING,
 								   NULL_JOB_CONTACT );
+			}
+			if ( jobRunPhase == true ) {
+				jobRunPhase = false;
+				UpdateJobAdBool( ATTR_ORACLE_JOB_RUN_PHASE, FALSE );
 			}
 			JobIdle();
 			if ( submitLogged ) {
@@ -605,269 +725,559 @@ BaseResource *OracleJob::GetResource()
 	return NULL;
 }
 
-char* OracleJob::run_c(char **args)
+char *OracleJob::doSubmit1()
 {
-	static char reply[1024];
-	MyString command;
-	char *param_value;
+	OCIError *ret_err_hndl = NULL;
+	OCISvcCtx *srvc_hndl = NULL;
+	OCIStmt *stmt_hndl = NULL;
+	OCIBind *bind1_hndl = NULL;
+	OCIBind *bind2_hndl = NULL;
 	int rc;
+	MyString buff;
+	int job_id;
+	bool trans_open = false;
+	const char *stmt = "begin DBMS_JOB.SUBMIT(:jobid,:jobtext,SYSDATE+(10/1440)); end;";
+	const char *jobtext = "begin null; end;";
 
-	*reply = '\0';
-
-	param_value = param("ORACLE_HOME");
-	if ( param_value == NULL ) {
-		EXCEPT("ORACLE_HOME undefined!");
-	}
-	command = "ORACLE_HOME=";
-	command += param_value;
-	command += ";export ORACLE_HOME;";
-	free(param_value);
-
-	param_value = param("ORACLE_INTERFACE");
-	if ( param_value == NULL ) {
-		EXCEPT("ORACLE_INTERFACE undefined!");
-	}
-	command += param_value;
-	free(param_value);
-
-	char *tmp;
-	StringList list( resourceManagerString );
-	list.rewind();
-	while ( (tmp = list.next()) ) {
-		command += " ";
-		command += tmp;
+	rc = ociSession->AcquireSession( this, srvc_hndl, ret_err_hndl );
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "AcquireSession failed\n" );
+		print_error( rc, ret_err_hndl );
+		goto doSubmit1_error_exit;
 	}
 
-	char **tmp2 = args;
-	while ( *tmp2 != NULL ) {
-		command += " '";
-		command += *tmp2;
-		command += "'";
-		tmp2++;
+dprintf(D_ALWAYS,"*OCITransStart( srvc_hndl, ociErrorHndl, 60, OCI_TRANS_NEW )\n");
+	rc = OCITransStart( srvc_hndl, ociErrorHndl, 60, OCI_TRANS_NEW );
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "OCITransStart failed\n" );
+		print_error( rc, ociErrorHndl );
+		goto doSubmit1_error_exit;
+	}
+	trans_open = true;
+
+dprintf(D_ALWAYS,"*OCIHandleAlloc( GlobalOciEnvHndl, (dvoid**)&stmt_hndl, OCI_HTYPE_STMT, 0, NULL )\n");
+	rc = OCIHandleAlloc( GlobalOciEnvHndl, (dvoid**)&stmt_hndl, OCI_HTYPE_STMT,
+						 0, NULL );
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "OCIHandleAlloc failed\n" );
+		print_error( rc, NULL );
+		goto doSubmit1_error_exit;
 	}
 
-	command += " >/tmp/temp_output";
-command+=" 2>/tmp/temp_error.";
-command+=args[0];
-
-dprintf(D_ALWAYS,"*** command=%s\n",command.Value());
-	rc = system( command.Value() );
-	if ( rc == -1 ) {
-		dprintf(D_ALWAYS,"system(%s) failed, errno=%d\n",command.Value(),
-				errno);
-		return reply;
-	}
-	dprintf(D_FULLDEBUG,"system() returned %d\n",rc);
-
-	FILE *output = fopen("/tmp/temp_output","r");
-	if (output==NULL) {
-		dprintf(D_ALWAYS,"fopen failed\n");
-		unlink("/tmp/temp_output");
-		return reply;
+dprintf(D_ALWAYS,"*OCIStmtPrepare( stmt_hndl, ociErrorHndl, (const OraText *)stmt, strlen(stmt), OCI_NTV_SYNTAX, OCI_DEFAULT )\n");
+	rc = OCIStmtPrepare( stmt_hndl, ociErrorHndl, (const OraText *)stmt,
+						 strlen(stmt), OCI_NTV_SYNTAX, OCI_DEFAULT );
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "OCIStmtPrepare failed\n" );
+		print_error( rc, ociErrorHndl );
+		goto doSubmit1_error_exit;
 	}
 
-	if ( fgets(reply,sizeof(reply),output) == NULL ) {
-		dprintf(D_ALWAYS,"fgets returned NULL\n");
-		fclose(output);
-		unlink("/tmp/temp_output");
-		return reply;
+dprintf(D_ALWAYS,"*OCIBindByName( stmt_hndl, &bind1_hndl, ociErrorHndl, (const OraText *)\":jobid\", strlen(\":jobid\"), &job_id, sizeof(job_id), SQLT_INT, NULL, NULL, NULL, 0, NULL, OCI_DEFAULT )\n");
+	rc = OCIBindByName( stmt_hndl, &bind1_hndl, ociErrorHndl,
+						(const OraText *)":jobid",
+						strlen(":jobid"), &job_id, sizeof(job_id), SQLT_INT,
+						NULL, NULL, NULL, 0, NULL, OCI_DEFAULT );
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "OCIBindByName failed\n" );
+		print_error( rc, ociErrorHndl );
+		goto doSubmit1_error_exit;
 	}
 
-	if ( *reply && reply[strlen(reply)-1] == '\n' ) {
-		reply[strlen(reply)-1] = '\0';
+dprintf(D_ALWAYS,"*OCIBindByName(...)\n");
+	rc = OCIBindByName( stmt_hndl, &bind2_hndl, ociErrorHndl,
+						(const OraText *)":jobtext",
+						strlen( ":jobtext" ), (void *)jobtext, strlen(jobtext) + 1,
+						SQLT_STR, NULL, NULL, NULL, 0, NULL, OCI_DEFAULT );
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "OCIBindByNamefailed\n" );
+		print_error( rc, ociErrorHndl );
+		goto doSubmit1_error_exit;
 	}
 
-	fclose(output);
-	unlink("/tmp/temp_output");
+dprintf(D_ALWAYS,"*OCIStmtExecute(...)\n");
+	rc = OCIStmtExecute( srvc_hndl, stmt_hndl, ociErrorHndl, 1, 0, NULL, NULL,
+						 OCI_DEFAULT );
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "OCIStmtExecute failed\n" );
+		print_error( rc, ociErrorHndl );
+		goto doSubmit1_error_exit;
+	}
 
-	dprintf(D_ALWAYS,"Got reply '%s' from OracleJobInterface\n",reply);
+dprintf(D_ALWAYS,"*OCITransCommit(...)\n");
+	rc = OCITransCommit( srvc_hndl, ociErrorHndl, 0 );
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "OCITransCommit failed\n" );
+		print_error( rc, ociErrorHndl );
+		goto doSubmit1_error_exit;
+	}
+	trans_open = false;
 
-	return reply;
+dprintf(D_ALWAYS,"*OCIHandleFree( stmt_hndl, OCI_HTYPE_STMT )\n");
+	rc = OCIHandleFree( stmt_hndl, OCI_HTYPE_STMT );
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "OCIHandleFree failed, ignoring\n" );
+		print_error( rc, NULL );
+	}
+	stmt_hndl = NULL;
+
+	ociSession->ReleaseSession( this );
+	srvc_hndl = NULL;
+
+	buff.sprintf( "%d", job_id );
+
+	return strdup( buff.Value() );
+
+ doSubmit1_error_exit:
+	if ( stmt_hndl != NULL ) {
+		OCIHandleFree( stmt_hndl, OCI_HTYPE_STMT );
+	}
+	if ( trans_open ) {
+		OCITransRollback( srvc_hndl, ociErrorHndl, OCI_DEFAULT );
+	}
+	if ( srvc_hndl != NULL ) {
+		ociSession->ReleaseSession( this );
+	}
+	return NULL;
 }
 
-char* OracleJob::run_java(char **args)
+int OracleJob::doSubmit2()
 {
-	static char reply[1024];
-	MyString command;
-	char *param_value;
+	OCIError *ret_err_hndl = NULL;
+	OCISvcCtx *srvc_hndl = NULL;
+	OCIStmt *stmt_hndl = NULL;
+	OCIBind *bind_hndl = NULL;
 	int rc;
+	bool trans_open = false;
+	MyString stmt;
+	char *jobtext = NULL;
 
-#ifndef WIN32
-	sigset_t mask;
-	sigemptyset(&mask);
-	sigaddset(&mask,SIGCHLD);
-	sigprocmask(SIG_SETMASK,&mask,0);
-#endif
-
-	*reply = '\0';
-
-	param_value = param("CLASSPATH");
-	if ( param_value == NULL ) {
-		EXCEPT("CLASSPATH undefined!");
-	}
-	command = "java -classpath ";
-	command += param_value;
-	free(param_value);
-
-	param_value = param("ORACLE_INTERFACE");
-	if ( param_value == NULL ) {
-		EXCEPT("ORACLE_INTERFACE undefined!");
-	}
-	command += " ";
-	command += param_value;
-	free(param_value);
-
-	char *tmp;
-	StringList list( resourceManagerString );
-	list.rewind();
-	while ( (tmp = list.next()) ) {
-		command += " ";
-		command += tmp;
+	rc = ociSession->AcquireSession( this, srvc_hndl, ret_err_hndl );
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "AcquireSession failed\n" );
+		print_error( rc, ret_err_hndl );
+		goto doSubmit2_error_exit;
 	}
 
-	char **tmp2 = args;
-	while ( *tmp2 != NULL ) {
-		command += " '";
-		command += *tmp2;
-		command += "'";
-		tmp2++;
+	ad->LookupString( ATTR_JOB_ARGUMENTS, &jobtext );
+	if ( jobtext == NULL || *jobtext == '\0' ) {
+		dprintf( D_ALWAYS, "No arguments\n" );
+		goto doSubmit2_error_exit;
 	}
 
-	command += " >/tmp/temp_output";
-command+=" 2>/tmp/temp_error.";
-command+=args[0];
-
-dprintf(D_ALWAYS,"*** command=%s\n",command.Value());
-	rc = system( command.Value() );
-	if ( rc == -1 ) {
-		dprintf(D_ALWAYS,"system(%s) failed, errno=%d\n",command.Value(),
-				errno);
-		return reply;
+	rc = OCITransStart( srvc_hndl, ociErrorHndl, 60, OCI_TRANS_NEW );
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "OCITransStart failed\n" );
+		print_error( rc, ociErrorHndl );
+		goto doSubmit2_error_exit;
 	}
-	dprintf(D_FULLDEBUG,"system() returned %d\n",rc);
+	trans_open = true;
 
-	FILE *output = fopen("/tmp/temp_output","r");
-	if (output==NULL) {
-		dprintf(D_ALWAYS,"fopen failed\n");
-		unlink("/tmp/temp_output");
-		return reply;
+	rc = OCIHandleAlloc( GlobalOciEnvHndl, (dvoid**)&stmt_hndl, OCI_HTYPE_STMT,
+						 0, NULL );
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "OCIHandleAlloc failed\n" );
+		print_error( rc, NULL );
+		goto doSubmit2_error_exit;
 	}
 
-	if ( fgets(reply,sizeof(reply),output) == NULL ) {
-		dprintf(D_ALWAYS,"fgets returned NULL\n");
-		fclose(output);
-		unlink("/tmp/temp_output");
-		return reply;
+	stmt.sprintf( "begin DBMS_JOB.CHANGE(%s,:jobtext,SYSDATE,NULL); DBMS_JOB.BROKEN(%s,TRUE); end;",
+				  remoteJobId, remoteJobId );
+
+	rc = OCIStmtPrepare( stmt_hndl, ociErrorHndl, (const OraText *)stmt.Value(),
+						 strlen(stmt.Value()), OCI_NTV_SYNTAX, OCI_DEFAULT );
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "OCIStmtPrepare failed\n" );
+		print_error( rc, ociErrorHndl );
+		goto doSubmit2_error_exit;
 	}
 
-	if ( *reply && reply[strlen(reply)-1] == '\n' ) {
-		reply[strlen(reply)-1] = '\0';
+	rc = OCIBindByName( stmt_hndl, &bind_hndl, ociErrorHndl, (const OraText *)":jobtext",
+						strlen( ":jobtext" ), jobtext, strlen(jobtext) + 1,
+						SQLT_STR, NULL, NULL, NULL, 0, NULL, OCI_DEFAULT );
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "OCIBindByNamefailed\n" );
+		print_error( rc, ociErrorHndl );
+		goto doSubmit2_error_exit;
 	}
 
-	fclose(output);
-	unlink("/tmp/temp_output");
+	rc = OCIStmtExecute( srvc_hndl, stmt_hndl, ociErrorHndl, 1, 0, NULL, NULL,
+						 OCI_DEFAULT );
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "OCIStmtExecute failed\n" );
+		print_error( rc, ociErrorHndl );
+		goto doSubmit2_error_exit;
+	}
 
-	dprintf(D_ALWAYS,"Got reply '%s' from OracleJobInterface\n",reply);
+	rc = OCITransCommit( srvc_hndl, ociErrorHndl, 0 );
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "OCITransCommit failed\n" );
+		print_error( rc, ociErrorHndl );
+		goto doSubmit2_error_exit;
+	}
+	trans_open = false;
 
-	return reply;
+	rc = OCIHandleFree( stmt_hndl, OCI_HTYPE_STMT );
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "OCIHandleFree failed, ignoring\n" );
+		print_error( rc, NULL );
+	}
+	stmt_hndl = NULL;
+
+	free( jobtext );
+	jobtext = NULL;
+
+	ociSession->ReleaseSession( this );
+	srvc_hndl = NULL;
+
+	return 0;
+
+ doSubmit2_error_exit:
+	if ( stmt_hndl != NULL ) {
+		OCIHandleFree( stmt_hndl, OCI_HTYPE_STMT );
+	}
+	if ( trans_open ) {
+		OCITransRollback( srvc_hndl, ociErrorHndl, OCI_DEFAULT );
+	}
+	if ( srvc_hndl != NULL ) {
+		ociSession->ReleaseSession( this );
+	}
+	if ( jobtext != NULL ) {
+		free( jobtext );
+	}
+	return -1;
 }
 
-int OracleJob::do_submit()
+int OracleJob::doSubmit3()
 {
-	char **args;
-	char *reply;
+	OCIError *ret_err_hndl = NULL;
+	OCISvcCtx *srvc_hndl = NULL;
+	OCIStmt *stmt_hndl = NULL;
+	int rc;
+	bool trans_open = false;
+	MyString stmt;
 
-	args = (char**)malloc(2*sizeof(char*));
-	args[0] = "submit";
-	args[1] = NULL;
-
-//	reply = run_java( args );
-	reply = run_c( args );
-
-	free(args);
-
-	if ( *reply == '\0' || strcmp(reply,"error")==0 ) {
-		dprintf(D_ALWAYS,"Submit failed!\n");
-		return -1;
-	} else {
-		return atoi(reply);
+	rc = ociSession->AcquireSession( this, srvc_hndl, ret_err_hndl );
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "AcquireSession failed\n" );
+		print_error( rc, ret_err_hndl );
+		goto doSubmit3_error_exit;
 	}
+
+	rc = OCITransStart( srvc_hndl, ociErrorHndl, 60, OCI_TRANS_NEW );
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "OCITransStart failed\n" );
+		print_error( rc, ociErrorHndl );
+		goto doSubmit3_error_exit;
+	}
+	trans_open = true;
+
+	rc = OCIHandleAlloc( GlobalOciEnvHndl, (dvoid**)&stmt_hndl, OCI_HTYPE_STMT,
+						 0, NULL );
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "OCIHandleAlloc failed\n" );
+		print_error( rc, NULL );
+		goto doSubmit3_error_exit;
+	}
+
+	stmt.sprintf( "begin DBMS_JOB.BROKEN(%s,FALSE); end;",
+				  remoteJobId );
+
+	rc = OCIStmtPrepare( stmt_hndl, ociErrorHndl, (const OraText *)stmt.Value(),
+						 strlen(stmt.Value()), OCI_NTV_SYNTAX, OCI_DEFAULT );
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "OCIStmtPrepare failed\n" );
+		print_error( rc, ociErrorHndl );
+		goto doSubmit3_error_exit;
+	}
+
+	rc = OCIStmtExecute( srvc_hndl, stmt_hndl, ociErrorHndl, 1, 0, NULL, NULL,
+						 OCI_DEFAULT );
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "OCIStmtExecute failed\n" );
+		print_error( rc, ociErrorHndl );
+		goto doSubmit3_error_exit;
+	}
+
+	rc = OCITransCommit( srvc_hndl, ociErrorHndl, 0 );
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "OCITransCommit failed\n" );
+		print_error( rc, ociErrorHndl );
+		goto doSubmit3_error_exit;
+	}
+	trans_open = false;
+
+	rc = OCIHandleFree( stmt_hndl, OCI_HTYPE_STMT );
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "OCIHandleFree failed, ignoring\n" );
+		print_error( rc, NULL );
+	}
+	stmt_hndl = NULL;
+
+	ociSession->ReleaseSession( this );
+	srvc_hndl = NULL;
+
+	return 0;
+
+ doSubmit3_error_exit:
+	if ( stmt_hndl != NULL ) {
+		OCIHandleFree( stmt_hndl, OCI_HTYPE_STMT );
+	}
+	if ( trans_open ) {
+		OCITransRollback( srvc_hndl, ociErrorHndl, OCI_DEFAULT );
+	}
+	if ( srvc_hndl != NULL ) {
+		ociSession->ReleaseSession( this );
+	}
+	return -1;
 }
 
-int OracleJob::do_commit()
+int OracleJob::doStatus( bool &queued, bool &active, bool &broken,
+							int &num_failures )
 {
-	char **args;
-	char *reply;
-	char buff[8192] = "";
+	OCIError *ret_err_hndl = NULL;
+	OCISvcCtx *srvc_hndl = NULL;
+	OCIStmt *stmt_hndl = NULL;
+	OCIDateTime *job_this_date = NULL;
+	sb2 this_date_indp;
+	OCIDefine *define1_hndl = NULL;
+	OCIDefine *define2_hndl = NULL;
+	OCIDefine *define3_hndl = NULL;
+	int rc;
+	bool trans_open = false;
+	MyString stmt;
+	int failures;
+	char broken_str[2];
 
-	args = (char**)malloc(4*sizeof(char*));
-	args[0] = "commit";
-	args[1] = remoteJobId;
-	ad->LookupString(ATTR_JOB_ARGUMENTS, buff);
-	args[2] = buff;
-	args[3] = NULL;
-
-//	reply = run_java( args );
-	reply = run_c( args );
-
-	free(args);
-
-	if ( *reply != '\0' ) {
-		dprintf(D_ALWAYS,"Commit failed, reply='%s'!\n",reply);
-		return -1;
-	} else {
-		return 0;
+	rc = ociSession->AcquireSession( this, srvc_hndl, ret_err_hndl );
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "AcquireSession failed\n" );
+		print_error( rc, ret_err_hndl );
+		goto doStatus_error_exit;
 	}
+
+	rc = OCITransStart( srvc_hndl, ociErrorHndl, 60, OCI_TRANS_NEW );
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "OCITransStart failed\n" );
+		print_error( rc, ociErrorHndl );
+		goto doStatus_error_exit;
+	}
+	trans_open = true;
+
+	rc = OCIHandleAlloc( GlobalOciEnvHndl, (dvoid**)&stmt_hndl, OCI_HTYPE_STMT,
+						 0, NULL );
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "OCIHandleAlloc failed\n" );
+		print_error( rc, NULL );
+		goto doStatus_error_exit;
+	}
+
+	rc = OCIDescriptorAlloc( GlobalOciEnvHndl, (dvoid **)&job_this_date,
+							 OCI_DTYPE_DATE, 0, 0 );
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "OCIDescriptorAlloc failed\n" );
+		print_error( rc, NULL );
+		goto doStatus_error_exit;
+	}
+
+	stmt.sprintf( "SELECT failures, this_date, broken FROM user_jobs WHERE job = %s",
+				  remoteJobId );
+
+	rc = OCIStmtPrepare( stmt_hndl, ociErrorHndl, (const OraText *)stmt.Value(),
+						 strlen(stmt.Value()), OCI_NTV_SYNTAX, OCI_DEFAULT );
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "OCIStmtPrepare failed\n" );
+		print_error( rc, ociErrorHndl );
+		goto doStatus_error_exit;
+	}
+
+	rc = OCIStmtExecute( srvc_hndl, stmt_hndl, ociErrorHndl, 0, 0, NULL, NULL,
+						 OCI_DEFAULT );
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "OCIStmtExecute failed\n" );
+		print_error( rc, ociErrorHndl );
+		goto doStatus_error_exit;
+	}
+
+	rc = OCIDefineByPos( stmt_hndl, &define1_hndl, ociErrorHndl, 1, &failures,
+						 sizeof(failures), SQLT_INT, NULL, NULL, NULL,
+						 OCI_DEFAULT );
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "OCIDefineByPos failed\n" );
+		print_error( rc, ociErrorHndl );
+		goto doStatus_error_exit;
+	}
+
+	rc = OCIDefineByPos( stmt_hndl, &define2_hndl, ociErrorHndl, 2,
+						 &job_this_date, sizeof(job_this_date), SQLT_DATE,
+						 &this_date_indp, NULL, NULL, OCI_DEFAULT);
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "OCIDefineByPos failed\n" );
+		print_error( rc, ociErrorHndl );
+		goto doStatus_error_exit;
+	}
+
+	rc = OCIDefineByPos( stmt_hndl, &define3_hndl, ociErrorHndl, 3,
+						 broken_str, sizeof(broken_str), SQLT_STR, NULL, NULL,
+						 NULL, OCI_DEFAULT);
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "OCIDefineByPos failed\n" );
+		print_error( rc, ociErrorHndl );
+		goto doStatus_error_exit;
+	}
+
+	rc = OCIStmtFetch( stmt_hndl, ociErrorHndl, 1, OCI_FETCH_NEXT,
+					   OCI_DEFAULT );
+	if ( rc != OCI_SUCCESS && rc != OCI_NO_DATA ) {
+		dprintf( D_ALWAYS, "OCIStmtFetch failed\n" );
+		print_error( rc, ociErrorHndl );
+		goto doStatus_error_exit;
+	}
+
+	if (rc == OCI_NO_DATA ) {
+		queued = false;
+	} else {
+		queued = true;
+		if ( this_date_indp == -1 ) {
+			active = false;
+		} else {
+			active = true;
+		}
+		if ( broken_str[0] == 'Y' ) {
+			broken = true;
+		} else {
+			broken = false;
+		}
+		num_failures = failures;
+	}
+
+	rc = OCITransCommit( srvc_hndl, ociErrorHndl, 0 );
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "OCITransCommit failed\n" );
+		print_error( rc, ociErrorHndl );
+		goto doStatus_error_exit;
+	}
+	trans_open = false;
+
+	if ( job_this_date != NULL ) {
+		rc = OCIDescriptorFree( job_this_date, OCI_DTYPE_DATE );
+		if ( rc != OCI_SUCCESS ) {
+			dprintf( D_ALWAYS, "OCIDescriptorFree failed, ignoring\n" );
+			print_error( rc, NULL );
+		}
+	}
+	job_this_date = NULL;
+
+	rc = OCIHandleFree( stmt_hndl, OCI_HTYPE_STMT );
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "OCIHandleFree failed, ignoring\n" );
+		print_error( rc, NULL );
+	}
+	stmt_hndl = NULL;
+
+	ociSession->ReleaseSession( this );
+	srvc_hndl = NULL;
+
+	return 0;
+
+ doStatus_error_exit:
+	if ( job_this_date != NULL ) {
+		OCIDescriptorFree( job_this_date, OCI_DTYPE_DATE );
+	}
+	if ( stmt_hndl != NULL ) {
+		OCIHandleFree( stmt_hndl, OCI_HTYPE_STMT );
+	}
+	if ( trans_open ) {
+		OCITransRollback( srvc_hndl, ociErrorHndl, OCI_DEFAULT );
+	}
+	if ( srvc_hndl != NULL ) {
+		ociSession->ReleaseSession( this );
+	}
+	return -1;
 }
 
-int OracleJob::do_status()
+int OracleJob::doRemove()
 {
-	char **args;
-	char *reply;
+	OCIError *ret_err_hndl = NULL;
+	OCISvcCtx *srvc_hndl = NULL;
+	OCIStmt *stmt_hndl = NULL;
+	int rc;
+	bool trans_open = false;
+	MyString stmt;
 
-	args = (char**)malloc(3*sizeof(char*));
-	args[0] = "status";
-	args[1] = remoteJobId;
-	args[2] = NULL;
-
-//	reply = run_java( args );
-	reply = run_c( args );
-
-	free(args);
-
-	if ( strcmp( reply, "IDLE" ) == 0 ) {
-		return IDLE;
-	} else if ( strcmp( reply, "RUNNING" ) == 0 ) {
-		return RUNNING;
-	} else if ( strcmp( reply, "COMPLETED" ) == 0 ) {
-		return COMPLETED;
-	} else {
-		dprintf(D_ALWAYS,"Status retuned unknown value '%s'\n",reply);
-		return -1;
+	rc = ociSession->AcquireSession( this, srvc_hndl, ret_err_hndl );
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "AcquireSession failed\n" );
+		print_error( rc, ret_err_hndl );
+		goto doRemove_error_exit;
 	}
-}
 
-int OracleJob::do_remove()
-{
-	char **args;
-	char *reply;
-
-	args = (char**)malloc(3*sizeof(char*));
-	args[0] = "remove";
-	args[1] = remoteJobId;
-	args[2] = NULL;
-
-//	reply = run_java( args );
-	reply = run_c( args );
-
-	free(args);
-
-	if ( *reply != '\0' ) {
-		dprintf(D_ALWAYS,"Remove failed, reply='%s'!\n",reply);
-		return -1;
-	} else {
-		return 0;
+	rc = OCITransStart( srvc_hndl, ociErrorHndl, 60, OCI_TRANS_NEW );
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "OCITransStart failed\n" );
+		print_error( rc, ociErrorHndl );
+		goto doRemove_error_exit;
 	}
+	trans_open = true;
+
+	rc = OCIHandleAlloc( GlobalOciEnvHndl, (dvoid**)&stmt_hndl, OCI_HTYPE_STMT,
+						 0, NULL );
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "OCIHandleAlloc failed\n" );
+		print_error( rc, NULL );
+		goto doRemove_error_exit;
+	}
+
+	stmt.sprintf( "begin DBMS_JOB.REMOVE(%s,FALSE); end;",
+				  remoteJobId );
+
+	rc = OCIStmtPrepare( stmt_hndl, ociErrorHndl, (const OraText *)stmt.Value(),
+						 strlen(stmt.Value()), OCI_NTV_SYNTAX, OCI_DEFAULT );
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "OCIStmtPrepare failed\n" );
+		print_error( rc, ociErrorHndl );
+		goto doRemove_error_exit;
+	}
+
+	rc = OCIStmtExecute( srvc_hndl, stmt_hndl, ociErrorHndl, 1, 0, NULL, NULL,
+						 OCI_DEFAULT );
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "OCIStmtExecute failed\n" );
+		print_error( rc, ociErrorHndl );
+		goto doRemove_error_exit;
+	}
+
+	rc = OCITransCommit( srvc_hndl, ociErrorHndl, 0 );
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "OCITransCommit failed\n" );
+		print_error( rc, ociErrorHndl );
+		goto doRemove_error_exit;
+	}
+	trans_open = false;
+
+	rc = OCIHandleFree( stmt_hndl, OCI_HTYPE_STMT );
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "OCIHandleFree failed, ignoring\n" );
+		print_error( rc, NULL );
+	}
+	stmt_hndl = NULL;
+
+	ociSession->ReleaseSession( this );
+	srvc_hndl = NULL;
+
+	return 0;
+
+ doRemove_error_exit:
+	if ( stmt_hndl != NULL ) {
+		OCIHandleFree( stmt_hndl, OCI_HTYPE_STMT );
+	}
+	if ( trans_open ) {
+		OCITransRollback( srvc_hndl, ociErrorHndl, OCI_DEFAULT );
+	}
+	if ( srvc_hndl != NULL ) {
+		ociSession->ReleaseSession( this );
+	}
+	return -1;
 }
 
 #endif // if defined(ORACLE_UNIVERSE)

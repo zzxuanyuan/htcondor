@@ -9,15 +9,22 @@
 #include "MyString.h"
 #include "classad_hashtable.h"
 
+#include "oci.h"
+
 #include "basejob.h"
+#include "oracleresource.h"
 
 #define JOB_COMMIT_TIMEOUT	600
+
+class OciSession;
 
 void OracleJobInit();
 void OracleJobReconfig();
 bool OracleJobAdMatch( const ClassAd *jobad );
 bool OracleJobAdMustExpand( const ClassAd *jobad );
 BaseJob *OracleJobCreate( ClassAd *jobad );
+
+void print_error( sword status, OCIError *error_handle );
 
 class OracleJob : public BaseJob
 {
@@ -41,7 +48,7 @@ class OracleJob : public BaseJob
 		{ submitInterval = new_interval; }
 
 	int gmState;
-//	OracleResource *myResource;
+	OciSession *ociSession;
 	time_t lastProbeTime;
 	bool probeNow;
 	time_t enteredCurrentGmState;
@@ -50,15 +57,22 @@ class OracleJob : public BaseJob
 
 	MyString errorString;
 	char *resourceManagerString;
+	char *dbName;
+	char *dbUsername;
+	char *dbPassword;
 
 	char *remoteJobId;
+	bool jobRunPhase;
 
-	char *run_c(char **args);
-	char *run_java(char **args);
-	int do_submit();
-	int do_commit();
-	int do_status();
-	int do_remove();
+	OCIError *ociErrorHndl;
+
+	char *doSubmit1();
+	int doSubmit2();
+	int doSubmit3();
+	int doCommit();
+	int doStatus( bool &queued, bool &active, bool &broken,
+				  int &num_failures );
+	int doRemove();
 
  protected:
 };

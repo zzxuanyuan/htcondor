@@ -2,8 +2,9 @@ NAME=condor_gridmanager
 all_target($(NAME))
 
 #if ORACLE_UNIVERSE
-ORACLE_JOB_FLAGS = -DORACLE_UNIVERSE
-ORACLE_JOB_OBJ = oraclejob.o
+ORACLE_JOB_FLAGS = -DORACLE_UNIVERSE -I/scratch.local.1/jfrey/oracle/OraHome1/rdbms/demo -I/scratch.local.1/jfrey/oracle/OraHome1/rdbms/public
+ORACLE_JOB_OBJ = oraclejob.o oracleresource.o
+ORACLE_JOB_LIB = /scratch.local.1/jfrey/oracle/OraHome1/lib/libclient9.a /scratch.local.1/jfrey/oracle/OraHome1/lib/libclntst9.a /usr/lib/libaio.so
 #endif
 
 #if NORDUGRID_UNIVERSE
@@ -14,7 +15,7 @@ NORDUGRID_JOB_LIB = /p/condor/workspaces/jfrey/ftp_lite/lib/libftp_lite.a
 
 CFLAGS = $(STD_C_FLAGS)
 C_PLUS_FLAGS = $(ORACLE_JOB_FLAGS) $(NORDUGRID_JOB_FLAGS) $(STD_C_PLUS_FLAGS)
-LIB = $(NORDUGRID_JOB_LIB) $(DAEMONCORE_LIB) $(STD_LIBS)
+LIB = $(ORACLE_JOB_LIB) $(NORDUGRID_JOB_LIB) $(DAEMONCORE_LIB) $(STD_LIBS)
 
 OBJ = gridmanager_main.o gridmanager.o globusjob.o globusresource.o proxymanager.o gahp-client.o $(ORACLE_JOB_OBJ) $(NORDUGRID_JOB_OBJ) basejob.o baseresource.o
 
