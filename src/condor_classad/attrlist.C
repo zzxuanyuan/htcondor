@@ -2345,9 +2345,16 @@ void AttrList::ChainToAd(AttrList *ad)
 }
 
 
-void
+void*
 AttrList::unchain( void )
 {
+	void* old_value = (void*) chainedAttrs;
 	chainedAttrs = NULL;
+	return old_value;
+}
+
+void AttrList::RestoreChain(void* old_value)
+{
+	chainedAttrs = (AttrListElem**) old_value;
 }
 

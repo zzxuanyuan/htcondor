@@ -116,7 +116,8 @@ class AttrList : public AttrListAbstract
 {
     public :
 	    void ChainToAd( AttrList * );
-		void unchain( void );
+		void* unchain( void );
+		void RestoreChain(void *);
 
 		// ctors/dtor
 		AttrList();							// No associated AttrList list
