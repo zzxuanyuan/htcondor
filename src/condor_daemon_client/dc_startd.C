@@ -32,14 +32,14 @@
 DCStartd::DCStartd( const char* name, const char* pool ) 
 	: Daemon( DT_STARTD, name, pool )
 {
-	capability = NULL;
+	claim_id = NULL;
 }
 
 
 DCStartd::~DCStartd( void )
 {
-	if( capability ) {
-		free( capability );
+	if( claim_id ) {
+		free( claim_id );
 	}
 }
 
@@ -50,10 +50,10 @@ DCStartd::setCapability( const char* cap_str )
 	if( ! cap_str ) {
 		return false;
 	}
-	if( capability ) {
-		free( capability );
+	if( claim_id ) {
+		free( claim_id );
 	}
-	capability = strdup( cap_str );
+	claim_id = strdup( cap_str );
 	return true;
 }
 
@@ -64,9 +64,9 @@ DCStartd::deactivateClaim( bool graceful )
 	dprintf( D_FULLDEBUG, "Entering DCStartd::deactivateClaim(%s)\n",
 			 graceful ? "graceful" : "forceful" );
 
-	if( ! capability ) {
+	if( ! claim_id ) {
 		dprintf( D_ALWAYS, "DCStartd::deactivateClaim "
-				 "called with NULL capability, failing\n" );
+				 "called with NULL claim_id, failing\n" );
 		return false;
 	}
 	if( ! _addr ) {
@@ -101,10 +101,10 @@ DCStartd::deactivateClaim( bool graceful )
 				 "DEACTIVATE_CLAIM_FORCIBLY" );
 		return false;
 	}
-		// Now, send the capability
-	if( ! reli_sock.code(capability) ) {
+		// Now, send the claim_id
+	if( ! reli_sock.code(claim_id) ) {
 		dprintf( D_ALWAYS, "DCStartd::deactivateClaim: "
-				 "Failed to send capability to the startd\n" );
+				 "Failed to send claim_id to the startd\n" );
 		return false;
 	}
 	if( ! reli_sock.eom() ) {
@@ -134,9 +134,9 @@ DCStartd::activateClaim( ClassAd* job_ad, int starter_version,
 		*claim_sock_ptr = NULL;
 	}
 
-	if( ! capability ) {
+	if( ! claim_id ) {
 		dprintf( D_ALWAYS, "DCStartd::activateClaim "
-				 "called with NULL capability, failing\n" );
+				 "called with NULL claim_id, failing\n" );
 		return NOT_OK;
 	}
 	if( ! _addr ) {
@@ -157,9 +157,9 @@ DCStartd::activateClaim( ClassAd* job_ad, int starter_version,
 				 "ACTIVATE_CLAIM" );
 		return NOT_OK;
 	}
-	if( ! tmp->code(capability) ) {
+	if( ! tmp->code(claim_id) ) {
 		dprintf( D_ALWAYS, "DCStartd::activateClaim: "
-				 "Failed to send capability to the startd\n" );
+				 "Failed to send claim_id to the startd\n" );
 		delete tmp;
 		return NOT_OK;
 	}
@@ -203,3 +203,5 @@ DCStartd::activateClaim( ClassAd* job_ad, int starter_version,
 	}
 	return reply;
 }
+
+
