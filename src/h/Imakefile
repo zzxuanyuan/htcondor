@@ -1,6 +1,12 @@
-all_target( syscall_numbers.h syscall_numbers.o )
+all_target( cpp_syms_saved.h syscall_numbers.h syscall_numbers.o )
 awk_target( syscall_numbers.h, syscall_numbers.tmpl, awk_prog.include_file )
 awk_target( syscall_numbers.c, syscall_numbers.tmpl, awk_prog.name_table )
+
+cpp_syms_saved.h: cpp_syms.h Makefile
+	@echo "#ifndef CPP_SYMS_SAVED_H" > $@
+	@echo "#define CPP_SYMS_SAVED_H" >> $@
+	$(CPlusPlus) -E cpp_syms.h | awk '/SAVE/{print "#define " $$0}' >> $@
+	@echo "#endif" >> $@
 
 html:
 
