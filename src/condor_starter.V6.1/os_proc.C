@@ -485,6 +485,8 @@ OsProc::StartJob()
 
 	dprintf(D_ALWAYS,"Create_Process succeeded, pid=%d\n",JobPid);
 
+	job_start_time.getTime();
+
 	return 1;
 }
 
@@ -526,6 +528,8 @@ OsProc::JobCleanup( int pid, int status )
 	if( JobPid != pid ) {		
 		return 0;
 	}
+
+	job_exit_time.getTime();
 
 		// save the exit status for future use.
 	exit_status = status;
@@ -667,6 +671,11 @@ OsProc::PublishUpdateAd( ClassAd* ad )
 	sprintf( buf, "%s=%d", ATTR_NUM_PIDS, num_pids );
 	ad->Insert( buf );
 
+	if( job_start_time.seconds() > 0 ) {
+		sprintf( buf, "%s=%ld", ATTR_JOB_START_DATE,
+				 job_start_time.seconds() );
+		ad->Insert( buf );
+	}
 	if( exit_status >= 0 ) {
 			/*
 			  If we have the exit status, we want to parse it and set
@@ -697,6 +706,12 @@ OsProc::PublishUpdateAd( ClassAd* ad )
 			sprintf( buf, "%s = True", ATTR_JOB_CORE_DUMPED );
 			ad->Insert( buf );
 		} // should we put in ATTR_JOB_CORE_DUMPED = false if not?
+
+		if( job_exit_time.seconds() > 0 ) {
+			sprintf( buf, "%s=%f", ATTR_JOB_DURATION, 
+					 job_exit_time.difference(&job_start_time) );
+			ad->Insert( buf );
+		}
 	}
 	return true;
 }
