@@ -964,6 +964,18 @@ clean::							@@\
 
 
 /*
+** Build rule for copying man pages into the right place
+*/
+
+#ifndef man_target
+#define man_target(name)			@@\
+release_copy_target($(MANDIR)/man1/##name##,man/man1,##name##,OBJECT_MODE) @@\
+static_copy_target($(MANDIR)/man1/##name##,man/man1,##name##,OBJECT_MODE) @@\
+strip_copy_target($(MANDIR)/man1/##name##,man/man1,##name##,OBJECT_MODE)
+#endif
+
+
+/*
 ** Externals build rule
 */
 
