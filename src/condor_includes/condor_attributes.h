@@ -333,6 +333,9 @@ const char ATTR_TOOL_DAEMON_CMD	         [] = "ToolDaemonCmd";
 const char ATTR_TOOL_DAEMON_ERROR        [] = "ToolDaemonError";
 const char ATTR_TOOL_DAEMON_INPUT        [] = "ToolDaemonInput";
 const char ATTR_TOOL_DAEMON_OUTPUT       [] = "ToolDaemonOutput";
+const char ATTR_TOOL_DAEMON_STARTER      [] = "ToolDaemonStarter";
+const char ATTR_STARTER_CMD              [] = "StarterCmd";
+const char ATTR_STARTER_ARGS             [] = "StarterArgs";
 
 const char ATTR_TOTAL_CPUS				 [] = "TotalCpus";
 const char ATTR_TOTAL_DISK				 [] = "TotalDisk";

@@ -947,6 +947,7 @@ activate_claim( Resource* rip, Stream* stream )
 		// otherwise, if we're not windoze, setup our two ports, tell
 		// the shadow about them, and wait for it to connect.
 	Stream* shadow_sock = NULL;
+	bool wrap_starter = false;
 	if( tmp_starter->is_dc() ) {
 		shadow_sock = stream;
 	} 
@@ -1024,8 +1025,30 @@ activate_claim( Resource* rip, Stream* stream )
 		// Grab the job ID, so we've got it...
 	rip->r_cur->saveJobInfo( req_classad );
 
+	// also check if we will create a two-level starter. this is
+	// used when a tool using TDP wishes to trace the starter
+	req_classad->LookupBool(ATTR_TOOL_DAEMON_STARTER, wrap_starter);
+	if (wrap_starter) {
+
+		// we need to provide an altered classad to the outer starter. the
+		// inner starter will get its ad from the shadow. the altered
+		// classad will specify the universe as CONDOR_UNIVERSE_STARTER
+		req_classad->Assign(ATTR_JOB_UNIVERSE, CONDOR_UNIVERSE_STARTER);
+		req_classad->Assign(ATTR_STARTER_CMD, tmp_starter->path());
+		char tmp[_POSIX_ARG_MAX];
+		sprintf(tmp, "-f -l /tmp %s", rip->r_cur->client()->host());
+		req_classad->Assign(ATTR_STARTER_ARGS, tmp);
+
+		// write the classad out to disk (for the starter)
+		// obviously we need to put this file somewhere better
+		// (or better yet use a pipe)
+		FILE *adfile = fopen("/tmp/adfile", "w");
+		req_classad->fPrint(adfile);
+		fclose(adfile);
+	}
+
 		// Actually spawn the starter
-	if( ! rip->r_cur->spawnStarter(now, shadow_sock) ) {
+	if( ! rip->r_cur->spawnStarter(now, shadow_sock, wrap_starter) ) {
 			// Error spawning starter!
 		delete( tmp_starter );
 		rip->r_cur->setStarter( NULL );

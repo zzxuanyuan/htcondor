@@ -183,7 +183,7 @@ public:
 	void setaliveint(int alive);
 
 		// starter-related functions
-	int	 spawnStarter( time_t, Stream* = NULL );
+	int	 spawnStarter( time_t, Stream* = NULL, bool = false );
 	void setStarter( Starter* s );
 	void starterExited( void );
 	bool starterPidMatches( pid_t starter_pid );

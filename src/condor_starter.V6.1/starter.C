@@ -32,6 +32,7 @@
 #include "vanilla_proc.h"
 #include "java_proc.h"
 #include "tool_daemon_proc.h"
+#include "starter_proc.h"
 #include "mpi_master_proc.h"
 #include "mpi_comrade_proc.h"
 #include "my_hostname.h"
@@ -506,6 +507,10 @@ CStarter::SpawnJob( void )
 			}
 			break;
 		}
+		case CONDOR_UNIVERSE_STARTER:
+			dprintf( D_FULLDEBUG, "Starting a StarterProc\n");
+			job = new StarterProc( jobAd );
+			break;
 		default:
 			dprintf( D_ALWAYS, "Starter doesn't support universe %d (%s)\n",
 					 jobUniverse, CondorUniverseName(jobUniverse) ); 

@@ -59,7 +59,7 @@ public:
 	float	percentCpuUsage( void );
 	unsigned long	imageSize( void );
 
-	int		spawn( time_t now, Stream* s );
+	int		spawn( time_t now, Stream* s, bool wrap_starter );
 
 	bool	killHard( void );
 	bool	killSoft( void );
@@ -92,7 +92,7 @@ private:
 	bool	reallykill(int, int);
 	int		execOldStarter( void );
 	int		execCODStarter( void );
-	int		execDCStarter( Stream* s );
+	int		execDCStarter( Stream* s, bool wrap_starter );
 	int		execDCStarter( const char* args, const char* env, 
 						   int std_fds[], Stream* s );
 	void	initRunData( void );

@@ -209,6 +209,11 @@ main_init(int argc, char *argv[])
 	SetConsoleCtrlHandler(NULL, FALSE);
 #endif
 
+	// TMP: dump the command line
+	dprintf(D_FULLDEBUG, "command line arguments:\n");
+	for (int i = 0; i < argc; i++)
+		dprintf(D_FULLDEBUG, "  %d) %s\n", i, argv[i]);
+
 	// register a cleanup routine to kill our kids in case we EXCEPT
 	_EXCEPT_Cleanup = exception_cleanup;
 
