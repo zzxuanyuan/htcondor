@@ -129,10 +129,8 @@ JobFile::~JobFile()
 {
 }
 
-FileInfo::FileInfo(const char *name, unsigned long size)
+FileInfo::FileInfo()
 {
-	this->name = strdup(name);
-	this->size = size;
 }
 
 FileInfo::~FileInfo()
@@ -141,6 +139,15 @@ FileInfo::~FileInfo()
 		free(this->name);
 		this->name = NULL;
 	}
+}
+
+int
+FileInfo::initialize(const char *name, unsigned long size)
+{
+	this->size = size;
+	this->name = strdup(name);
+
+	return NULL == this->name;
 }
 
 int
@@ -153,7 +160,8 @@ Job::get_spool_list(List<FileInfo> &file_list,
 		const char * name;
 		FileInfo *info;
 		while (NULL != (name = directory.Next())) {
-			info = new FileInfo(name, directory.GetFileSize());
+			info = new FileInfo();
+			info->initialize(name, directory.GetFileSize());
 			ASSERT(info);
 
 			if (!file_list.Append(info)) {
