@@ -12,7 +12,6 @@
 # include "except.h"
 # include "condor_ast.h"
 # include "condor_registration.h"
-# include "condor_expressions.h"
 # include "condor_attrlist.h"
 # include "condor_attributes.h"
 # include "condor_classad.h"
@@ -92,6 +91,7 @@ ClassAd::ClassAd(class ProcObj* procObj) : AttrList(procObj)
 }
 #endif
 
+#if 0 // dont use CONTEXTs anymore
 ClassAd::ClassAd(const CONTEXT* context) : AttrList((CONTEXT *) context)
 {
 	myType = NULL;
@@ -106,6 +106,7 @@ ClassAd::ClassAd(const CONTEXT* context) : AttrList((CONTEXT *) context)
     	SetRankExpr ("Rank = 0");
 	}
 }
+#endif
 
 ClassAd::ClassAd(FILE* f, char* d, int& i) : AttrList(f, d, i)
 {
