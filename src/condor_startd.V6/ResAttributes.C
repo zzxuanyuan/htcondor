@@ -328,6 +328,12 @@ deal_with_benchmarks( Resource* rip )
 {
 	ClassAd* cp = rip->r_classad;
 
+	if( rip->isSuspendedForCOD() ) {
+			// if there's a COD job, we definitely don't want to run
+			// benchmarks
+		return;
+	}
+
 	int run_benchmarks = 0;
 	if( cp->EvalBool( ATTR_RUN_BENCHMARKS, cp, run_benchmarks ) == 0 ) {
 		run_benchmarks = 0;
