@@ -88,6 +88,12 @@ if test $ac_yacc = no; then
     AC_MSG_ERROR( [yacc is required] )
 fi
 
+# m4 is used to build PVM
+AC_CHECK_PROG(ac_m4prog,m4,yes,no)
+if test $ac_m4prog = no; then
+    AC_MSG_ERROR( [m4 is required] )
+fi
+
 AC_CHECK_PROG(ac_purify,purify,yes,no)
 if test "$ac_purify" == yes; then
    AC_MSG_CHECKING([purify cache directory ($ac_cv_purecachedir)])
