@@ -2615,7 +2615,7 @@ GahpClient::unicore_job_create(
 	Gahp_Args* result = get_pending_result(command,buf);
 	if ( result ) {
 		// command completed.
-		if (result->argc != 3) {
+		if (result->argc != 4) {
 			EXCEPT("Bad %s Result",command);
 		}
 		int rc = 1;
@@ -2673,7 +2673,7 @@ GahpClient::unicore_job_start(const char * job_contact)
 	Gahp_Args* result = get_pending_result(command,buf);
 	if ( result ) {
 		// command completed.
-		if (result->argc != 2) {
+		if (result->argc != 3) {
 			EXCEPT("Bad %s Result",command);
 		}
 		int rc = 1;
@@ -2728,7 +2728,7 @@ GahpClient::unicore_job_destroy(const char * job_contact)
 	Gahp_Args* result = get_pending_result(command,buf);
 	if ( result ) {
 		// command completed.
-		if (result->argc != 2) {
+		if (result->argc != 3) {
 			EXCEPT("Bad %s Result",command);
 		}
 		int rc = 1;
@@ -2785,7 +2785,7 @@ GahpClient::unicore_job_status(const char * job_contact,
 	Gahp_Args* result = get_pending_result(command,buf);
 	if ( result ) {
 		// command completed.
-		if (result->argc != 3) {
+		if (result->argc != 4) {
 			EXCEPT("Bad %s Result",command);
 		}
 		int rc = 1;
