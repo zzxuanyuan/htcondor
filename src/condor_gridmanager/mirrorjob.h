@@ -94,8 +94,9 @@ class MirrorJob : public BaseJob
 	ClassAd *remoteStatusUpdateAd;
 
 	void NotifyRemoteStatusUpdate( ClassAd *update_ad );
-	bool ProcessRemoteStatusUpdate();
-	void ClearRemoteStatusUpdate();
+
+	void ProcessRemoteAdInactive( ClassAd *remote_ad );
+	void ProcessRemoteAdActive( ClassAd *remote_ad );
 
 	void SetRemoteJobId( const char *job_id );
 	ClassAd *buildSubmitAd();

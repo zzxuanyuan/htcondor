@@ -434,7 +434,14 @@ int MirrorJob::doEvaluateState()
 				gmState = GM_CANCEL;
 			} else if ( mirrorActive ) {
 				gmState = GM_MIRROR_ACTIVE_SAVE;
-			} else if ( ProcessRemoteStatusUpdate() ) {
+			} else if ( remoteStatusUpdateAd != NULL ) {
+				ProcessRemoteAdInactive( remoteStatusUpdateAd );
+				if ( mirrorActive ) {
+					gmState = GM_MIRROR_ACTIVE_SAVE;
+				} else {
+					delete remoteStatusUpdateAd;
+					remoteStatusUpdateAd = NULL;
+				}
 				reevaluate_state = true;
 			}
 			} break;
@@ -485,7 +492,10 @@ int MirrorJob::doEvaluateState()
 				gmState = GM_DONE_SAVE;
 			} else if ( condorState == REMOVED || condorState == HELD ) {
 				gmState = GM_CANCEL;
-			} else if ( ProcessRemoteStatusUpdate() ) {
+			} else if ( remoteStatusUpdateAd != NULL ) {
+				ProcessRemoteAdActive( remoteStatusUpdateAd );
+				delete remoteStatusUpdateAd;
+				remoteStatusUpdateAd = NULL;
 				reevaluate_state = true;
 			}
 			} break;
@@ -580,7 +590,10 @@ int MirrorJob::doEvaluateState()
 			errorString = "";
 			SetRemoteJobId( NULL );
 			JobIdle();
-			ClearRemoteStatusUpdate();
+			if ( remoteStatusUpdateAd != NULL ) {
+				delete remoteStatusUpdateAd;
+				remoteStatusUpdateAd = NULL;
+			}
 			if ( submitLogged ) {
 				JobEvicted();
 			}
@@ -694,28 +707,30 @@ void MirrorJob::SetRemoteJobId( const char *job_id )
 
 void MirrorJob::NotifyRemoteStatusUpdate( ClassAd *update_ad )
 {
-	ClearRemoteStatusUpdate();
-	update_ad = new ClassAd( *update_ad );
+	if ( remoteStatusUpdateAd != NULL ) {
+		delete remoteStatusUpdateAd;
+	}
+	remoteStatusUpdateAd = new ClassAd( *update_ad );
 }
 
-bool MirrorJob::ProcessRemoteStatusUpdate()
+void MirrorJob::ProcessRemoteAdInactive( ClassAd *remote_ad )
 {
 	int rc;
 	int tmp_int;
 
-	if ( remoteStatusUpdateAd == NULL ) {
-		return false;
+	if ( remote_ad == NULL ) {
+		return;
 	}
 
-	remoteStatusUpdateAd->LookupInteger( ATTR_JOB_STATUS, tmp_int );
+	remote_ad->LookupInteger( ATTR_JOB_STATUS, tmp_int );
 
 	if ( remoteState == HELD && tmp_int != HELD ) {
 		UpdateJobAdBool( ATTR_MIRROR_ACTIVE, 1 );
 	}
 	remoteState = tmp_int;
 
-	rc = remoteStatusUpdateAd->LookupInteger( ATTR_MIRROR_LEASE_TIME,
-											  tmp_int );
+	rc = remote_ad->LookupInteger( ATTR_MIRROR_LEASE_TIME,
+								   tmp_int );
 	if ( rc ) {
 		UpdateJobAdInt( ATTR_MIRROR_REMOTE_LEASE_TIME, tmp_int );
 	} else {
@@ -724,17 +739,11 @@ bool MirrorJob::ProcessRemoteStatusUpdate()
 
 	requestScheddUpdate( this );
 
-	ClearRemoteStatusUpdate();
-
-	return true;
+	return;
 }
 
-void MirrorJob::ClearRemoteStatusUpdate()
+void MirrorJob::ProcessRemoteAdActive( ClassAd *remote_ad )
 {
-	if ( remoteStatusUpdateAd != NULL ) {
-		delete remoteStatusUpdateAd;
-		remoteStatusUpdateAd = NULL;
-	}
 }
 
 BaseResource *MirrorJob::GetResource()
