@@ -63,12 +63,12 @@ TEST_SUITE_BASE = test_suite_base
 		GlobusProgs starter.V6.1 shadow.V6.1 dcskel c-gahp
 
 #define Libraries \
-		util_lib daemon_client classad c++_util condor_procapi/libprocapi.a \
-		condor_sysapi/libsysapi.a io \
-		daemon_core.V6 \
-		condor_ckpt_server/ckpt_server_api.a \
-		condor_schedd.V6/libqmgmt.a condor_accountant.V6/libacct.a \
-		StdUnvLibs NetmanLibs chirp DrmaaLibs
+		util_lib daemon_core.V6 daemon_client classad c++_util	\
+		condor_procapi/libprocapi.a condor_sysapi/libsysapi.a	\
+		io condor_ckpt_server/ckpt_server_api.a			\
+		condor_schedd.V6/libqmgmt.a				\
+		condor_accountant.V6/libacct.a StdUnvLibs NetmanLibs	\
+		chirp DrmaaLibs
 
 #if HAS_STATIC
 #define StaticDirectories \
