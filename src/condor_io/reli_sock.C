@@ -404,6 +404,8 @@ ReliSock::connect( char *host, int port, bool non_blocking_flag )
 int
 ReliSock::greetMnger()
 {
+/* epaulson - need a quick fix, so we just don't build this routine */ 
+#if 0
     struct sockaddr_in sockAddr;
     unsigned int addrLen = sizeof(sockAddr);
 
@@ -482,6 +484,7 @@ ReliSock::greetMnger()
         dprintf(D_ALWAYS, "Sock::greetMnger - Failed to reportConnection\n");
         return FALSE;
     }
+#endif /*if 0 */
 }
 
 
@@ -1218,6 +1221,8 @@ int ReliSock::handleAlloc()
  */
 int ReliSock::setLimit(const int sec, const int bytes, const float percent)
 {
+/* epaulson - need a quick fix */
+#if 0
     // check parameters
     if(sec <= 0 ||
        bytes <= CONDOR_IO_BUF_SIZE * pow(9.0/5.0, BND_CTL_LEVELS-1) ||
@@ -1267,6 +1272,7 @@ int ReliSock::setLimit(const int sec, const int bytes, const float percent)
     _bndCtl_state = normal;
 
     return TRUE;
+#endif
 }
 
 
@@ -1365,6 +1371,8 @@ void ReliSock::advanceWall()
 /* Later, this function must be called inside of timeout handler */
 void ReliSock::calculateAllowance()
 {
+/* epaulson - quick fix */
+#if 0
     int index;
     unsigned long sent = 0;
     struct timeval temp;
@@ -1485,6 +1493,7 @@ void ReliSock::calculateAllowance()
     _deltaS = 0;
 
     return;
+#endif
 }
 
 
