@@ -77,8 +77,6 @@ convert_FileInfoList_to_Array(struct soap * soap,
 			//ASSERT(array.__ptr[i].name);
 			//strcpy(array.__ptr[i].name, info->name);
 		array.__ptr[i].name = strdup(info->name);
-		printf("info name: %s\n", info->name);
-		printf("array name: %s\n", array.__ptr[i].name);
 		array.__ptr[i].size = (int) info->size;
 	}
 
