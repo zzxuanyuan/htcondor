@@ -29,6 +29,7 @@
 #include "../condor_classad.V6/matchClassad.h"
 #include "../condor_classad.V6/classad_collection.h"
 #include "../condor_classad.V6/cedar_io.h"
+using namespace classad;
 
 #include "condor_attributes.h"
 #include "condor_adtypes.h"
