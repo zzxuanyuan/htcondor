@@ -8,7 +8,7 @@
 
 SOAP_BEGIN_NAMESPACE(soap_schedd)
 
-SOAP_SOURCE_STAMP("@(#) soap_scheddC.cpp ver 2.5.2 2004-04-01 22:33:01 GMT")
+SOAP_SOURCE_STAMP("@(#) soap_scheddC.cpp ver 2.5.2 2004-04-02 05:37:34 GMT")
 
 
 #ifndef WITH_NOGLOBAL
@@ -156,8 +156,6 @@ SOAP_FMAC3 void * SOAP_FMAC4 soap_getelement(struct soap *soap, int *type)
 		return soap_in_bool(soap, NULL, NULL, "xsd:boolean");
 	case SOAP_TYPE_condorSchedd__createJobTemplate:
 		return soap_in_condorSchedd__createJobTemplate(soap, NULL, NULL, "condorSchedd:createJobTemplate");
-	case SOAP_TYPE_condorSchedd__discoverDagRequirements:
-		return soap_in_condorSchedd__discoverDagRequirements(soap, NULL, NULL, "condorSchedd:discoverDagRequirements");
 	case SOAP_TYPE_condorSchedd__discoverJobRequirements:
 		return soap_in_condorSchedd__discoverJobRequirements(soap, NULL, NULL, "condorSchedd:discoverJobRequirements");
 	case SOAP_TYPE_condorSchedd__listSpool:
@@ -360,10 +358,6 @@ SOAP_FMAC3 void * SOAP_FMAC4 soap_getelement(struct soap *soap, int *type)
 		if (!soap_match_tag(soap, t, "condorSchedd:createJobTemplate"))
 		{	*type = SOAP_TYPE_condorSchedd__createJobTemplate;
 			return soap_in_condorSchedd__createJobTemplate(soap, NULL, NULL, NULL);
-		}
-		if (!soap_match_tag(soap, t, "condorSchedd:discoverDagRequirements"))
-		{	*type = SOAP_TYPE_condorSchedd__discoverDagRequirements;
-			return soap_in_condorSchedd__discoverDagRequirements(soap, NULL, NULL, NULL);
 		}
 		if (!soap_match_tag(soap, t, "condorSchedd:discoverJobRequirements"))
 		{	*type = SOAP_TYPE_condorSchedd__discoverJobRequirements;
@@ -655,8 +649,6 @@ SOAP_FMAC3 int SOAP_FMAC4 soap_putelement(struct soap *soap, const void *ptr, co
 		return soap_out_bool(soap, tag, id, (const bool *)ptr, "xsd:boolean");
 	case SOAP_TYPE_condorSchedd__createJobTemplate:
 		return soap_out_condorSchedd__createJobTemplate(soap, tag, id, (const struct condorSchedd__createJobTemplate *)ptr, "condorSchedd:createJobTemplate");
-	case SOAP_TYPE_condorSchedd__discoverDagRequirements:
-		return soap_out_condorSchedd__discoverDagRequirements(soap, tag, id, (const struct condorSchedd__discoverDagRequirements *)ptr, "condorSchedd:discoverDagRequirements");
 	case SOAP_TYPE_condorSchedd__discoverJobRequirements:
 		return soap_out_condorSchedd__discoverJobRequirements(soap, tag, id, (const struct condorSchedd__discoverJobRequirements *)ptr, "condorSchedd:discoverJobRequirements");
 	case SOAP_TYPE_condorSchedd__listSpool:
@@ -779,9 +771,6 @@ SOAP_FMAC3 void SOAP_FMAC4 soap_markelement(struct soap *soap, const void *ptr, 
 	{
 	case SOAP_TYPE_condorSchedd__createJobTemplate:
 		soap_mark_condorSchedd__createJobTemplate(soap, (const struct condorSchedd__createJobTemplate *)ptr);
-		break;
-	case SOAP_TYPE_condorSchedd__discoverDagRequirements:
-		soap_mark_condorSchedd__discoverDagRequirements(soap, (const struct condorSchedd__discoverDagRequirements *)ptr);
 		break;
 	case SOAP_TYPE_condorSchedd__discoverJobRequirements:
 		soap_mark_condorSchedd__discoverJobRequirements(soap, (const struct condorSchedd__discoverJobRequirements *)ptr);
@@ -1794,6 +1783,7 @@ static const struct soap_code_map soap_codes_condorCore__StatusCode[] =
 	{ (long)UNKNOWNJOB, "UNKNOWNJOB" },
 	{ (long)UNKNOWNFILE, "UNKNOWNFILE" },
 	{ (long)INCOMPLETE, "INCOMPLETE" },
+	{ (long)INVALIDOFFSET, "INVALIDOFFSET" },
 	{ 0, NULL }
 };
 
@@ -2660,103 +2650,6 @@ SOAP_FMAC3 struct condorSchedd__createJobTemplate * SOAP_FMAC4 soap_in_condorSch
 	{	a = (struct condorSchedd__createJobTemplate *)soap_id_forward(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condorSchedd__createJobTemplate, sizeof(struct condorSchedd__createJobTemplate), 0), SOAP_TYPE_condorSchedd__createJobTemplate, sizeof(struct condorSchedd__createJobTemplate));
 		if (soap->alloced)
 			soap_default_condorSchedd__createJobTemplate(soap, a);
-		if (soap->body && soap_element_end_in(soap, tag))
-			return NULL;
-	}
-	return a;
-}
-
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__discoverDagRequirements(struct soap *soap, struct condorSchedd__discoverDagRequirements const*a)
-{
-	if (!soap_reference(soap, a, SOAP_TYPE_condorSchedd__discoverDagRequirements))
-		soap_mark_condorSchedd__discoverDagRequirements(soap, a);
-}
-
-SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__discoverDagRequirements(struct soap *soap, const struct condorSchedd__discoverDagRequirements *a)
-{
-	soap_embedded(soap, &a->dag, SOAP_TYPE_xsd__string);
-	soap_mark_xsd__string(soap, &a->dag);
-}
-
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorSchedd__discoverDagRequirements(struct soap *soap, struct condorSchedd__discoverDagRequirements *a)
-{
-	soap_default_xsd__string(soap, &a->dag);
-}
-
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorSchedd__discoverDagRequirements(struct soap *soap, struct condorSchedd__discoverDagRequirements *a, const char *tag, const char *type)
-{
-	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_condorSchedd__discoverDagRequirements);
-	soap_out_condorSchedd__discoverDagRequirements(soap, tag, i, a, type);
-	return soap_putindependent(soap);
-}
-
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorSchedd__discoverDagRequirements(struct soap *soap, const char *tag, int id, const struct condorSchedd__discoverDagRequirements *a, const char *type)
-{
-	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condorSchedd__discoverDagRequirements), type);
-	soap_out_xsd__string(soap, "dag", -1, &a->dag, "xsd:string");
-	soap_element_end_out(soap, tag);
-	return SOAP_OK;
-}
-
-SOAP_FMAC3 struct condorSchedd__discoverDagRequirements * SOAP_FMAC4 soap_get_condorSchedd__discoverDagRequirements(struct soap *soap, struct condorSchedd__discoverDagRequirements *p, const char *tag, const char *type)
-{
-	if ((p = soap_in_condorSchedd__discoverDagRequirements(soap, tag, p, type)))
-		soap_getindependent(soap);
-	return p;
-}
-
-SOAP_FMAC3 struct condorSchedd__discoverDagRequirements * SOAP_FMAC4 soap_in_condorSchedd__discoverDagRequirements(struct soap *soap, const char *tag, struct condorSchedd__discoverDagRequirements *a, const char *type)
-{
-	short soap_flag_dag = 1;
-	if (soap_element_begin_in(soap, tag))
-		return NULL;
-	if (*soap->type && soap_match_tag(soap, soap->type, type))
-	{	soap->error = SOAP_TYPE;
-		soap_revert(soap);
-		return NULL;
-	}
-	if (soap->null)
-	{	if (soap->mode & SOAP_XML_NIL)
-		{	soap->error = SOAP_NULL;
-			return NULL;
-		}
-		else
-			return a;
-	}
-	if (!*soap->href)
-	{	a = (struct condorSchedd__discoverDagRequirements *)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condorSchedd__discoverDagRequirements, sizeof(struct condorSchedd__discoverDagRequirements), 0);
-		if (!a)
-			return NULL;
-		if (soap->alloced)
-			soap_default_condorSchedd__discoverDagRequirements(soap, a);
-		if (soap->body)
-		{	for (;;)
-			{	soap->error = SOAP_TAG_MISMATCH;
-			if (soap_flag_dag && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_xsd__string(soap, "dag", &a->dag, "xsd:string"))
-				{	soap_flag_dag = 0;
-					continue;
-				}
-			if (soap->error == SOAP_TAG_MISMATCH)
-				soap->error = soap_ignore_element(soap);
-			if (soap->error == SOAP_NO_TAG)
-				break;
-			if (soap->error)
-			{	return NULL;
-			}
-		}
-		if (soap_element_end_in(soap, tag))
-			return NULL;
-		}
-		if ((soap->mode & SOAP_XML_STRICT) && (soap_flag_dag))
-		{	soap->error = SOAP_OCCURS;
-			return NULL;
-		}
-	}
-	else
-	{	a = (struct condorSchedd__discoverDagRequirements *)soap_id_forward(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condorSchedd__discoverDagRequirements, sizeof(struct condorSchedd__discoverDagRequirements), 0), SOAP_TYPE_condorSchedd__discoverDagRequirements, sizeof(struct condorSchedd__discoverDagRequirements));
-		if (soap->alloced)
-			soap_default_condorSchedd__discoverDagRequirements(soap, a);
 		if (soap->body && soap_element_end_in(soap, tag))
 			return NULL;
 	}

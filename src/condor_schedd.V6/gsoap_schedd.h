@@ -137,8 +137,8 @@ int condorSchedd__listSpool(struct condorSchedd__Transaction transaction,
 int condorSchedd__discoverJobRequirements(struct condorCore__ClassAdStruct * jobAd,
                                           struct condorSchedd__RequirementsAndStatusResponse & result);
 
-int condorSchedd__discoverDagRequirements(xsd__string dag,
-                                          struct condorSchedd__RequirementsAndStatusResponse & result);
+//int condorSchedd__discoverDagRequirements(xsd__string dag,
+//                                          struct condorSchedd__RequirementsAndStatusResponse & result);
 
 int condorSchedd__createJobTemplate(xsd__int clusterId,
                                     xsd__int jobId,

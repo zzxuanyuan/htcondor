@@ -33,6 +33,7 @@
     <enumeration value="UNKNOWNJOB"/>
     <enumeration value="UNKNOWNFILE"/>
     <enumeration value="INCOMPLETE"/>
+    <enumeration value="INVALIDOFFSET"/>
    </restriction>
   </simpleType>
   <simpleType name="ClassAdAttrType">
@@ -391,10 +392,6 @@
  <part name="jobAd" type="condorCore:ClassAdStruct"/>
 </message>
 
-<message name="discoverDagRequirementsRequest">
- <part name="dag" type="xsd:string"/>
-</message>
-
 <message name="createJobTemplateRequest">
  <part name="clusterId" type="xsd:int"/>
  <part name="jobId" type="xsd:int"/>
@@ -498,11 +495,6 @@
  <operation name="discoverJobRequirements">
   <documentation>Service definition of function condorSchedd__discoverJobRequirements</documentation>
   <input message="tns:discoverJobRequirementsRequest"/>
-  <output message="tns:RequirementsAndStatusResponse"/>
- </operation>
- <operation name="discoverDagRequirements">
-  <documentation>Service definition of function condorSchedd__discoverDagRequirements</documentation>
-  <input message="tns:discoverDagRequirementsRequest"/>
   <output message="tns:RequirementsAndStatusResponse"/>
  </operation>
  <operation name="createJobTemplate">
@@ -677,15 +669,6 @@
   </output>
  </operation>
  <operation name="discoverJobRequirements">
-  <SOAP:operation soapAction=""/>
-  <input>
-   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
-  </input>
-  <output>
-   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
-  </output>
- </operation>
- <operation name="discoverDagRequirements">
   <SOAP:operation soapAction=""/>
   <input>
    <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
