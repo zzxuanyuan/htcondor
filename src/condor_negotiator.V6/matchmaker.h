@@ -71,6 +71,8 @@ class Matchmaker : public Service
 			// the order of values in this enumeration is important!
 		enum PreemptState {PRIO_PREEMPTION,RANK_PREEMPTION,NO_PREEMPTION};
 
+		/// Invalidate our negotiator ad at the collector(s).
+		void invalidateNegotiatorAd( void );
 
     protected:
 		char * NegotiatorName;
@@ -80,7 +82,6 @@ class Matchmaker : public Service
 	private:
 		ClassAd * publicAd;
 		void init_public_ad();
-
 
 		int update_collector_tid;
 		void updateCollector();

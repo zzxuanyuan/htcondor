@@ -2395,3 +2395,30 @@ Matchmaker::updateCollector() {
 
 	dprintf( D_FULLDEBUG, "exit Matchmaker::UpdateCollector\n" );
 }
+
+
+void
+Matchmaker::invalidateNegotiatorAd( void )
+{
+	if( ! Collectors ) {
+		return;
+	}
+
+	ClassAd invalidate_ad;
+	MyString line;
+
+		// Set the correct types
+	invalidate_ad.SetMyTypeName( QUERY_ADTYPE );
+	invalidate_ad.SetTargetTypeName( NEGOTIATOR_ADTYPE );
+
+		// We only want to invalidate this negotiator.  using our
+		// sinful string seems like the safest bet for that, since
+		// even if the names somehow get messed up, at least the
+		// sinful string should be unique...
+	line.sprintf( "%s = %s == \"%s\"", ATTR_REQUIREMENTS,
+				  ATTR_NEGOTIATOR_IP_ADDR,
+				  daemonCore->InfoCommandSinfulString() );
+	invalidate_ad.Insert( line.Value() );
+
+	Collectors->sendUpdates( INVALIDATE_NEGOTIATOR_ADS, &invalidate_ad );
+}
