@@ -238,6 +238,8 @@ MirrorJob::MirrorJob( ClassAd *classad )
 	myResource = NULL;
 	remoteStatusUpdateAd = NULL;
 
+	dontDeleteFromSchedd = true;
+
 	// In GM_HOLD, we assume HoldReason to be set only if we set it, so make
 	// sure it's unset when we start.
 	if ( ad->LookupString( ATTR_HOLD_REASON, NULL, 0 ) != 0 ) {
@@ -283,6 +285,7 @@ MirrorJob::MirrorJob( ClassAd *classad )
 	ad->LookupBool( ATTR_MIRROR_ACTIVE, tmp1 );
 	if ( tmp1 == 1 ) {
 		mirrorActive = true;
+		dontDeleteFromSchedd = false;
 	}
 
 	return;
@@ -835,6 +838,8 @@ void MirrorJob::ProcessRemoteAdInactive( ClassAd *remote_ad )
 
 	if ( remoteState == HELD && tmp_int != HELD ) {
 		UpdateJobAdBool( ATTR_MIRROR_ACTIVE, 1 );
+		mirrorActive = true;
+		dontDeleteFromSchedd = false;
 	}
 	remoteState = tmp_int;
 
