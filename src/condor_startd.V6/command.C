@@ -1221,7 +1221,7 @@ command_classad_handler( Service*, int, Stream* s )
 			ClassAd reply;
 			reply.Insert( "Result = FALSE" );
 			MyString line = ATTR_COMMAND_ERROR;
-			line += " = \"Failed to authenticate\"";
+			line += " = \"Server: client failed to authenticate\"";
 			reply.Insert( line.Value() );
 			sendCAReply( s, "CA_CMD", &reply );
 			return FALSE;
