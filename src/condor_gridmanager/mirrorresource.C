@@ -63,7 +63,6 @@ MirrorResource::MirrorResource( const char *resource_name )
 	: BaseResource( resource_name )
 {
 	scheddPollTid = TIMER_UNSET;
-	submitter_id = NULL;
 	registeredJobs = new List<MirrorJob>;
 	mirrorScheddName = strdup( resource_name );
 	gahpA = NULL;
@@ -71,9 +70,7 @@ MirrorResource::MirrorResource( const char *resource_name )
 	scheddPollActive = false;
 	scheddPollStartTime = 0;
 	newLease = 0;
-
-	// TODO this needs to include schedd name and job owner
-	submitter_id = strdup( my_full_hostname() );
+	submitter_constraint = "";
 
 	scheddPollTid = daemonCore->Register_Timer( 0,
 							(TimerHandlercpp)&MirrorResource::DoScheddPoll,
@@ -104,9 +101,6 @@ MirrorResource::~MirrorResource()
 	if ( scheddPollTid != TIMER_UNSET ) {
 		daemonCore->Cancel_Timer( scheddPollTid );
 	}
-	if ( submitter_id != NULL ) {
-		free( submitter_id );
-	}
 	if ( registeredJobs != NULL ) {
 		delete registeredJobs;
 	}
@@ -131,9 +125,19 @@ void MirrorResource::Reconfig()
 	BaseResource::Reconfig();
 }
 
-void MirrorResource::RegisterJob( MirrorJob *job )
+void MirrorResource::RegisterJob( MirrorJob *job, const char *submitter_id )
 {
 	registeredJobs->Append( job );
+
+	if ( submitter_constraint.Length() == 0 ) {
+		submitter_constraint.sprintf( "(%s=?=\"%s\")",
+									  ATTR_MIRROR_SUBMITTER_ID,
+									  submitter_id );
+	} else {
+		submitter_constraint.sprintf_cat( "||(%s=?=\"%s\")",
+										  ATTR_MIRROR_SUBMITTER_ID,
+										  submitter_id );
+	}
 }
 
 void MirrorResource::UnregisterJob( MirrorJob *job )
@@ -163,8 +167,7 @@ int MirrorResource::DoScheddPoll()
 		gahpA->setMode( GahpClient::normal );
 		gahpB->setMode( GahpClient::normal );
 
-		constraint.sprintf( "%s =?= \"%s\"", ATTR_MIRROR_SUBMITTER_ID,
-							submitter_id );
+		constraint.sprintf( "(%s)", submitter_constraint.Value() );
 
 		newLease = time(NULL) + MirrorJob::leaseInterval;
 

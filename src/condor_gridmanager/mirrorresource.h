@@ -48,7 +48,7 @@ class MirrorResource : public BaseResource
 	bool IsEmpty();
 
 	void Reconfig();
-	void RegisterJob( MirrorJob *job );
+	void RegisterJob( MirrorJob *job, const char *submitter_id );
 	void UnregisterJob( MirrorJob *job );
 
 	int DoScheddPoll();
@@ -59,7 +59,7 @@ class MirrorResource : public BaseResource
 
 	static int scheddPollInterval;
 
-	char *submitter_id;
+	MyString submitter_constraint;
 	int scheddPollTid;
 	char *mirrorScheddName;
 	bool scheddPollActive;

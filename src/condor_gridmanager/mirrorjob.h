@@ -84,6 +84,7 @@ class MirrorJob : public BaseJob
 	PROC_ID mirrorJobId;
 	char *remoteJobIdString;
 	bool mirrorActive;
+	char *submitterId;
 
 	MirrorResource *myResource;
 	GahpClient *gahp;

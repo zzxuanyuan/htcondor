@@ -240,6 +240,7 @@ MirrorJob::MirrorJob( ClassAd *classad )
 	mirrorScheddName = NULL;
 	remoteJobIdString = NULL;
 	mirrorActive = false;
+	submitterId = NULL;
 	myResource = NULL;
 	newRemoteStatusAd = NULL;
 	newRemoteStatusStartTime = 0;
@@ -270,8 +271,21 @@ MirrorJob::MirrorJob( ClassAd *classad )
 		remoteState = JOB_STATE_UNSUBMITTED;
 	}
 
+	buff[0] = '\0';
+	ad->LookupString( ATTR_GLOBAL_JOB_ID, buff );
+	if ( buff[0] != '\0' ) {
+		char *ptr = strchr( buff, '#' );
+		if ( ptr != NULL ) {
+			*ptr = '\0';
+		}
+		submitterId = strdup( buff );
+	} else {
+		error_string = "GlobalJobId is not set in the job ad";
+		goto error_exit;
+	}
+
 	myResource = MirrorResource::FindOrCreateResource( mirrorScheddName );
-	myResource->RegisterJob( this );
+	myResource->RegisterJob( this, submitterId );
 
 	gahp_path = param("MIRROR_GAHP");
 	if ( gahp_path == NULL ) {
@@ -306,6 +320,9 @@ MirrorJob::MirrorJob( ClassAd *classad )
 
 MirrorJob::~MirrorJob()
 {
+	if ( submitterId != NULL ) {
+		free( submitterId );
+	}
 	if ( newRemoteStatusAd != NULL ) {
 		delete newRemoteStatusAd;
 	}
@@ -1121,7 +1138,7 @@ ClassAd *MirrorJob::buildSubmitAd()
 	submit_ad->Insert( expr.Value() );
 
 	expr.sprintf( "%s = \"%s\"", ATTR_MIRROR_SUBMITTER_ID,
-				  myResource->submitter_id );
+				  submitterId );
 	submit_ad->Insert( expr.Value() );
 
 		// worry about ATTR_JOB_[OUTPUT|ERROR]_ORIG
