@@ -1,3 +1,62 @@
+/***********************************************************
+**
+** Stubs for all those system calls which don't effect the
+** state of the open file table.
+**
+** Caution - the syscall_stubs.c file is generated automatically
+**		   - do not edit
+**
+***********************************************************/
+
+#if defined(OSF1)
+#	define __STDC__
+#endif
+
+#include "condor_syscall_mode.h"
+#include "file_table_interf.h"
+#include <stdio.h>
+#include "unistd.h"
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/resource.h>
+#include <sys/socket.h>
+#include <sys/utsname.h>
+
+#if defined(OSF1)
+#	include <sys/poll.h>
+#	include <rpc/types.h>
+#	include <errno.h>
+#	include <sys/param.h>
+#	include <nfs/nfs.h>
+#	include <sys/ipc.h>
+#	include <sys/shm.h>
+#	include <sys/msg.h>
+#	include <sys/mman.h>
+#	include <sys/addrconf.h>
+#	include <sys/sysinfo.h>
+#	define semctl __hide_semctl
+#	include <sys/sem.h>
+#	undef semctl
+	int semctl(int , int , int , void *);
+#endif
+
+#if defined(ULTRIX42) || defined(ULTRIX43) || defined(OSF1)
+#	include <sys/param.h>
+#	include <sys/mount.h>
+#else
+#	include <sys/mount.h>
+#endif
+
+#if defined(ULTRIX42) || defined(ULTRIX43) || defined(SUNOS41)
+	typedef int ssize_t;
+#endif
+
+#if defined(SUNOS41) || defined(HPUX9)
+#	include <sys/vfs.h>		 /* for struct statfs */
+#endif
+
+
+%%
 pid_t fork() : extract;
 pid_t wait4( pid_t pid, int *status, int options, struct rusage *ru ); 
 int link( const char *p1, const char *p2 );

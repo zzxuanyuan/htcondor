@@ -112,7 +112,6 @@ char *ValidSpoolFiles[] = {
 	"job_queue.dir",
 	"job_queue.pag",
 	"history",
-	"UserPrio",
 	0
 };
 

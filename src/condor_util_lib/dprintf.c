@@ -118,13 +118,11 @@ va_dcl
 	struct tm *tm, *localtime();
 	long *clock;
 	int scm;
-#if !defined(OSF1)
 #define POSIX_SIGS 1
 #if POSIX_SIGS
 	sigset_t	mask, omask;
 #else
 	int	omask;
-#endif
 #endif
 	int saved_errno;
 	int	saved_flags;
@@ -147,7 +145,6 @@ va_dcl
 
 	scm = SetSyscalls( SYS_LOCAL | SYS_RECORDED );
 
-#if !defined(OSF1)
 #if POSIX_SIGS
 	sigfillset( &mask );
 	sigdelset( &mask, SIGTRAP );
@@ -160,7 +157,6 @@ va_dcl
 	} else {
 		omask = sigblock( 0 );
 	}
-#endif
 #endif
 
 		/* Open and lock the log file */
@@ -192,13 +188,11 @@ va_dcl
 		/* Close and unlock the log file */
 	debug_unlock();
 
-#if !defined(OSF1)
 #if POSIX_SIGS
 	(void) sigprocmask( SIG_SETMASK, &omask, 0 );
 #else
 		/* Let them signal handlers go!! */
 	(void) sigsetmask( omask );
-#endif
 #endif
 
 	(void) SetSyscalls( scm );
