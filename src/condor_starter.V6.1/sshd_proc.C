@@ -115,12 +115,15 @@ SshdProc::Continue() {
 
 bool 
 SshdProc::PublishUpdateAd( ClassAd* ad ){
+
+  dprintf(D_FULLDEBUG,"in SshdProc::update() (!)\n");    
   char buf[200];
 
   sprintf( buf, "%s=%s", ATTR_MY_ADDRESS, shadow_contact );
   ad->InsertOrUpdate( buf );
 
   VanillaProc::PublishUpdateAd(ad);
+  dprintf(D_FULLDEBUG,"in SshdProc::update() (!)\n");    
 }
 
 
@@ -136,14 +139,14 @@ SshdProc::PublishUpdateAd( ClassAd* ad ){
 int 
 SshdProc::alterExec(){
 
-  char *rsh_dir = param( "CONDOR_PARALLEL_RSH_DIR" );
-  if (rsh_dir == NULL){
-	dprintf(D_ALWAYS,"Connot find CONDOR_PARALLEL_RSH_DIR in config");
+  char *sshd = param( "CONDOR_SSHD" );
+  if (sshd == NULL){
+	dprintf(D_ALWAYS,"Connot find CONDOR__SSH in config");
 	return FALSE;
   }
   char executable[2048];
-  sprintf( executable, "%s/condor_sshd", rsh_dir );
-  free( rsh_dir );
+  sprintf( executable, "%s", sshd );
+  free( sshd );
  
   char tmp[2048];
   sprintf ( tmp, "%s = \"%s\"",
