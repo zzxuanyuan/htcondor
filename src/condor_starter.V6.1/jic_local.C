@@ -238,6 +238,13 @@ JICLocal::initUserPriv( void )
 #ifndef WIN32
 	// Unix
 
+		// Before we go through any trouble, see if we even need
+		// ATTR_OWNER to initialize user_priv.  If not, go ahead and
+		// initialize it as appropriate.  
+	if( initUserPrivNoOwner() ) {
+		return true;
+	}
+
 	char* owner = NULL;
 	if( job_ad->LookupString( ATTR_OWNER, &owner ) != 1 ) {
 		dprintf( D_ALWAYS, "ERROR: %s not found in JobAd.  Aborting.\n", 
@@ -255,25 +262,16 @@ JICLocal::initUserPriv( void )
 	}
 		// deallocate owner string so we don't leak memory.
 	free( owner );
+	if( rval ) {
+		user_priv_is_initialized = true;
+	}
+	return rval;
 
 #else
-	// Win32
-	// taken origionally from OsProc::StartJob.  Here we create the
-	// user and initialize user_priv.
-	// we only support running jobs as user nobody for the first pass
-	
-	// just init a new nobody user; dynuser handles the rest.
+		// Windoze
+	return initUserPrivWindows();
 
-	if( ! init_user_ids("nobody") ) {
-		dprintf( D_ALWAYS, "ERROR: Could not initialize user_priv "
-				 "as \"nobody\"\n" );
-	} else {
-		rval = true;
-	}			
 #endif
-
-	user_priv_is_initialized = true;
-	return rval;
 }
 
 

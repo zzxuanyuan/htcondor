@@ -204,6 +204,17 @@ protected:
 		*/
 	virtual bool initUserPriv( void ) = 0;
 
+		/** Initialize the priv_state code on Windows.  For now, this
+			is identical code, no matter what kind of JIC we're using,
+			so put it in 1 place to avoid duplication
+		*/
+	bool initUserPrivWindows( void );
+
+		/** See if we can initialize user_priv without ATTR_OWNER.  if
+			we can, do it and return true.  If not, return false.
+		*/
+	bool initUserPrivNoOwner( void ); 
+
 		/** Publish information into the given classad for updates to
 			our job controller
 			@param ad ClassAd pointer to publish into

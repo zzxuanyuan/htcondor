@@ -143,6 +143,48 @@ JobInfoCommunicator::userPrivInitialized( void )
 }
 
 
+bool
+JobInfoCommunicator::initUserPrivNoOwner( void ) 
+{
+		// first, bale out if we really need ATTR_OWNER...
+#ifdef WIN32
+	return false;
+#else
+		// if we're root, we need ATTR_OWNER...
+	if( getuid() == 0 ) {
+		return false;
+	}
+#endif
+		// otherwise, we can't switch privs anyway, so consider
+		// ourselves done. :) 
+	dprintf( D_FULLDEBUG, 
+			 "Starter running as '%s', no uid switching possible\n",
+			 daemonCore->getRealUserName() );
+	user_priv_is_initialized = true;
+	return true;
+}
+
+
+bool
+JobInfoCommunicator::initUserPrivWindows( void )
+{
+	// Win32
+	// taken origionally from OsProc::StartJob.  Here we create the
+	// user and initialize user_priv.
+	// we only support running jobs as user nobody for the first pass
+
+	// just init a new nobody user; dynuser handles the rest.
+	if( ! init_user_ids("nobody") ) {
+		dprintf( D_ALWAYS, "ERROR: Could not initialize user_priv "
+				 "as \"nobody\"\n" );
+		return false;
+	}
+	user_priv_is_initialized = true;
+	return true;
+}
+
+
+
 void
 JobInfoCommunicator::checkForStarterDebugging( void )
 {
