@@ -5477,11 +5477,12 @@ Scheduler::spawnLocalStarter( shadow_rec* srec )
 		return;
 	}
 
-	starter_args = "condor_starter -f -univ-local -job-cluster ";
+	starter_args = "condor_starter -f -job-cluster ";
 	starter_args += job_id->cluster;
 	starter_args += " -job-proc ";
 	starter_args += job_id->proc;
-	starter_args += " -job-input-ad -";
+	starter_args += " -job-input-ad - -schedd-addr ";
+	starter_args += MyShadowSockName;
 
 	dprintf( D_FULLDEBUG, "About to spawn %s %s\n", 
 			 starter_path, starter_args.Value() );
