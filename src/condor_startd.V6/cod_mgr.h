@@ -49,6 +49,9 @@ public:
 	Claim* findClaimByPid( pid_t pid );
 
 	int numClaims( void );
+	bool inUse( void );
+
+	void shutdownAllClaims( bool graceful );
 
 		// functions for the classad-only claim management protocol
 	int release( Stream* s, ClassAd* req, Claim* claim );

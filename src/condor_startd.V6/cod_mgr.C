@@ -145,10 +145,36 @@ CODMgr::starterExited( Claim* c )
 		// TODO!!!
 }
 
+
 int
 CODMgr::numClaims( void )
 {
 	return claims.Number();
+}
+
+
+bool
+CODMgr::inUse( void )
+{
+	Claim* tmp;
+	claims.Rewind();
+	while( claims.Next(tmp) ) {
+		if( tmp->isActive() ) {
+			return true;
+		}
+	}
+	return false;
+}
+
+
+void
+CODMgr::shutdownAllClaims( bool graceful )
+{
+	Claim* tmp;
+	claims.Rewind();
+	while( claims.Next(tmp) ) {
+		tmp->deactivateClaim( graceful );
+	}
 }
 
 
