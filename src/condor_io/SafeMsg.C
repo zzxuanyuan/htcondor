@@ -87,6 +87,22 @@ void _condorPacket :: init()
     verified_         = true;
 }
 
+void _condorPacket :: resetMDKeyId()
+{
+    if (incomingMD5KeyId_) {
+        free(incomingMD5KeyId_);
+        incomingMD5KeyId_ = 0;
+    }
+}
+
+void _condorPacket :: resetEncKeyId()
+{
+    if (incomingEncKeyId_) {
+        free(incomingEncKeyId_);
+        incomingEncKeyId_ = 0;
+    }
+}
+
 const unsigned char * _condorPacket :: md()
 {
     return md_;
@@ -141,6 +157,10 @@ bool _condorPacket::init_MD(bool outPacket, KeyInfo * key, const char * keyId)
             curIndex += MAC_SIZE;
             length = curIndex;
         }
+    }
+    else {
+        // Reset all key ids if necessary
+        resetMDKeyId();
     }
 
     if (outPacket) {
@@ -376,6 +396,9 @@ void _condorPacket::reset()
         curIndex += outgoingEidLen_;
         length    = curIndex;
     }
+    
+    resetMDKeyId();
+    resetEncKeyId();
 }
 
 /* Check if every data in the packet has been read */
@@ -600,7 +623,7 @@ _condorOutMsg::~_condorOutMsg() {
         free(EncKeyId_);
         EncKeyId_ = 0;
     }
-    delete key_;
+    free(key_);
 }
 
 bool _condorOutMsg :: set_encryption_id(const char * keyId)
@@ -609,8 +632,10 @@ bool _condorOutMsg :: set_encryption_id(const char * keyId)
         return false;
     }
 
-    delete EncKeyId_;
-    EncKeyId_ = 0; // just to be safe
+    if (EncKeyId_) {
+        free(EncKeyId_);
+        EncKeyId_ = 0; 
+    }
 
     if (keyId) {
         EncKeyId_ = strdup(keyId);
@@ -627,7 +652,7 @@ bool _condorOutMsg::init_MD(KeyInfo * key, const char * keyId)
     }
     else {
         // There is one more possibilites: what if the md key is set consectively?
-        delete key_;
+        free(key_);
         key_ = 0; // just to be safe
 
         if (MDKeyId_) {
@@ -1019,6 +1044,7 @@ bool _condorInMsg :: init_MD(KeyInfo * key)
 {
     if (mdChecker_) {
         delete mdChecker_;
+        mdChecker_ = 0;
         if (key) {
             mdChecker_ = new Condor_MD_MAC(key);
         }
@@ -1192,6 +1218,22 @@ const char * _condorInMsg :: isDataMD5ed()
 const char * _condorInMsg :: isDataEncrypted()
 {
     return incomingEncKeyId_;
+}
+
+void _condorInMsg :: resetEncKeyId()
+{
+    if (incomingEncKeyId_) {
+        free(incomingEncKeyId_);
+        incomingEncKeyId_ = 0;
+    }
+}
+
+void _condorInMsg :: resetMDKeyId()
+{
+    if (incomingMD5KeyId_) {
+        free(incomingMD5KeyId_);
+        incomingMD5KeyId_ = 0;
+    }
 }
 
 #ifdef DEBUG

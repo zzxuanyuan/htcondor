@@ -657,14 +657,16 @@ const char * SafeSock :: isIncomingDataEncrypted()
 bool SafeSock :: set_encryption_id(const char * keyId)
 {
     bool inited = true;
-/*
-    inited &= _shortMsg.set_encryption_id(key);
 
-    if (_longMsg) {
-        inited &= _longMsg->set_encryption_id(key);
+    if (keyId == 0) {
+        _shortMsg.resetEncKeyId();
+
+        if (_longMsg) {
+            _longMsg->resetEncKeyId();
+        }
     }
-*/
-    inited &= _outMsg.set_encryption_id(keyId);
+
+    inited = _outMsg.set_encryption_id(keyId);
 
     return inited;
 }
@@ -673,13 +675,21 @@ bool SafeSock :: init_MD(CONDOR_MD_MODE mode, KeyInfo * key, const char * keyId)
 {
     bool inited = true;
    
-    inited &= _shortMsg.init_MD(false, key); // For incoming message, we don't need to set keyId
+    if (key == 0) {
+        _shortMsg.resetMDKeyId(); // For incoming message, we don't need to set keyId
 
-    if (_longMsg) {
-        inited &= _longMsg->init_MD(key);    // For incoming message, we don't need to set keyId
+        if (_longMsg) {
+            _longMsg->resetMDKeyId();    // For incoming message, we don't need to set keyId
+        }
+    }
+    else {
+        _shortMsg.init_MD(false, key);
+        if (_longMsg) {
+            _longMsg->init_MD(key);
+        }
     }
     
-    inited &= _outMsg.init_MD(key, keyId);
+    inited = _outMsg.init_MD(key, keyId);
 
     return inited;
 }
