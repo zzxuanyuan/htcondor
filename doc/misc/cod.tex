@@ -378,9 +378,18 @@ The job ID is made up of both the \Attr{ClusterId} and \Attr{ProcId}
 attributes (as described below).
 This job ID is similar to the job ID that is created whenever a
 regular Condor batch job is submitted.
+For regular Condor batch jobs, the job ID is assigned automatically by
+the \Condor{schedd} whenever a new job is submitted into the
+persistent job queue.
+However, since there is no persistent job queue for COD, the usual
+mechanism to identify the jobs does not exist.
+Moreover, commands that require the job ID for batch jobs such as
+\Condor{q} and \Condor{rm} do not exist for COD.
+Instead, the claim ID is the unique identifier for COD jobs and
+COD-related commands.
+
 When using COD, the job ID is only used to identify the job in various
 log messages and in the COD-specific output of \Condor{status}.
-
 The COD job ID is part of the information included in all
 events written to the \Attr{StarterUserLog}
 regarding a given job.
@@ -395,6 +404,8 @@ file (called \File{StartLog} by default).
 These COD IDs are optional.
 The job ID is useful to define where it helps a
 user with accounting or debugging of their own application.
+In this case, it is the user's responsibility to ensure uniqueness,
+if so desired.
   
 \begin{description}
  \item[\Attr{ClusterId}] This integer defines the
@@ -415,6 +426,12 @@ user with accounting or debugging of their own application.
    option.
 
 \end{description}
+
+\Note The cluster and proc identifiers can also be specified as
+command-line arguments to the \Condor{cod\_activate} tool when
+spawning a given COD application.
+See section~\ref{sec:cod-claim-activate} below for details on using
+\Condor{cod\_activate}. 
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -543,8 +560,10 @@ To issue these commands, a user or application invokes the
 \Condor{cod} tool.
 A command may be specified as the first argument to this tool, 
 as
+% note: there's no '-' in front of 'request'.  that's on purpose, not
+% a typo.  that's how it really works...
 \begin{verbatim}
-condor_cod -request -name c02.cs.wisc.edu
+condor_cod request -name c02.cs.wisc.edu
 \end{verbatim}
 or
 the \Condor{cod} tool can be installed in such a way that the same
@@ -552,6 +571,16 @@ binary is used for a set of names, as
 \begin{verbatim}
 condor_cod_request -name c02.cs.wisc.edu
 \end{verbatim}
+
+Other than the command name itself (which must be included in full)
+additional options supported by each tool can be abbreviated to the
+shortest unambiguous value.
+For example, \Opt{-name} can also be specified as \Opt{-n}.
+However, for a command like \Condor{cod\_activate} that supports both
+\Opt{-classad} and \Opt{-cluster}, the user must use at least
+\Opt{-cla} or \Opt{-clu}.
+If the user specifies an ambiguous option, the \Condor{cod} tool will
+exit with an error message.
 
 In addition, there is now a \Opt{-cod} option to \Condor{status}.
 
@@ -564,23 +593,30 @@ The following sections describe each option in greater detail.
 
 A user must be granted authorization to a create COD
 claims on a specific machine.
-In addition, when the user uses these COD claims, the
-application they wish to run must be pre-staged on the machine.
+In addition, when the user uses these COD claims, the application
+binary or script they wish to run (and any input data) must be
+pre-staged on the machine.
 % Karen says that previous stuff in this file makes this
 % statement not true, since it can be done with config or
 % command-line arguments
 %and
 %defined in the \File{condor\_config} file (or a local config file). 
+% But derek reminds karen that the application itself must be
+% pre-staged, since there's no file transfer with COD.  so, even
+% though the configuration doesn't have to be pre-staged, the actual
+% binary you wish to run *does* have to be there.
 Therefore, a user cannot simply request a COD claim at random.
 
 The user specifies the resource on which to make a COD claim.
 This is accomplished by specifying the name of the
 \Condor{startd} daemon desired by invoking
 \Condor{cod\_request} with the \Opt{-name} option and the
-host name.  For example:
+resource name (usually the host name).
+For example:
 \begin{verbatim}
 condor_cod_request -name c02.cs.wisc.edu
 \end{verbatim}
+
 If the \Condor{startd} daemon desired belongs to a different Condor
 pool than the one where executing the COD commands,
 use the \Opt{-pool} option to provide the name of the central manager
@@ -589,7 +625,7 @@ machine of the other pool.  For example:
 condor_cod_request -name c02.cs.wisc.edu -pool condor.cs.wisc.edu
 \end{verbatim}
 
-An alternative provides the IP address and port number
+An alternative is to provide the IP address and port number
 where the \Condor{startd} daemon is listening
 with the \Opt{-addr} option.
 This information can be found in the \Condor{startd} ClassAd as the
@@ -606,16 +642,21 @@ daemon running
 on the local machine (where the request command was issued).
 
 If the \Condor{startd} daemon to be used for the COD claim is an SMP
-machine and has multiple virtual machines, specify which
-resource on the machine to use for COD by providing a
-\Opt{-requirements} option.  For example:
-
+machine and has multiple virtual machines, specify which resource on
+the machine to use for COD by providing the full name of the resource,
+not just the host name.
+For example:
 \begin{verbatim}
-condor_cod_request -requirements 'VirtualMachineId==3'
+condor_cod_request -name vm2@c02.cs.wisc.edu
 \end{verbatim}
-or
+
+You can also provide a constraint on what virtual machine you wish to
+use, instead of specifying it as the name.  
+For example, if you wanted to run on machine c02.cs.wisc.edu, and you
+didn't care which virtual machine you used so long as it wasn't
+currently running a job, you could use something like this:
 \begin{verbatim}
-condor_cod_request -requirements 'State!="Claimed"'
+condor_cod_request -name c02.cs.wisc.edu -requirements 'State!="Claimed"'
 \end{verbatim}
 
 In general, be careful with shell quoting issues, so that
@@ -667,7 +708,75 @@ recognize any attempts to use the previous claims.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \index{COD!\Condor{cod\_activate} command} 
 
-\Todo
+Once a user has created a valid COD claim and has the claim ID, the
+next step is to spawn a COD job using the claim.
+The way to do this is to activate the claim, using the
+\Condor{cod\_activate} command.
+Once a COD application is active on a COD claim, the COD claim will
+move into the \verb@Running@ state, and any batch Condor job
+on the same resource will automatically become suspended.
+Whenever the COD application is inactive (either suspended, removed
+from the machine, or if it exits on its own), the state of the COD
+claim will change (the new value will depend on why the application
+became inactive, and will be described in detail below) and the batch
+Condor job will resume.
+
+The procedure to activate a COD claim is to define attributes about
+the job to be run (in either the local configuration of the COD
+resource, or in a separate file as described above in
+section~\ref{sec:cod-setup}), and then invoke the
+\Condor{cod\_activate} command to launch a specific instance of the
+job on a given COD claim ID.
+
+The options given to \Condor{cod\_activate} vary depending on if the
+job attributes are defined in the Condor configuration file or are
+passed via a file to the \Condor{cod\_activate} tool itself.
+However, the \Opt{-id} option is always required for
+\Condor{cod\_activate}, and should be followed by a COD claim ID that
+the user acquired via \Condor{cod\_request}.
+
+\Note In the examples in this section, whenever the example lists
+\verb@"<claim_id>"@, the user must substitute a valid COD claim ID,
+instead.
+
+If the application is defined in the configuration files for the COD
+resource, the user must provide the keyword (described in
+section~\ref{sec:cod-config-attrs}) that uniquely identifies the
+application's configuration attributes.
+To continue the example from that section, the user would spawn their
+job by specifying \verb@-keyword FractGen@, for example:
+\begin{verbatim}
+condor_cod_activate -id "<claim_id>" -keyword FractGen
+\end{verbatim}
+
+If the job attributes are placed into a file to be passed to the
+\Condor{cod\_activate} tool (described in
+section~\ref{sec:cod-command-line-attrs}) the user must provide the
+name of the file using the \Opt{-jobad} option.
+For example, if the job attributes were defined in a file named
+\File{cod-fractgen.txt}, the user would spawn the job using the
+following command:
+\begin{verbatim}
+condor_cod_activate -id "<claim_id>" -jobad cod-fractgen.txt
+\end{verbatim}
+Alternatively, if the filename specified with \Opt{-jobad} is
+\File{-}, the \Condor{cod\_activate} tool reads the job ClassAd from
+standard input (\File{stdin}).
+
+Regardless of how the job attributes are defined, there are a few
+other options that \Condor{cod\_activate} accepts.
+These options specify the job ID for the application to be run.
+The job ID can either be specified in the job's ClassAd (as described
+above in section~\ref{sec:cod-application-attributes}) or it can be
+specified on the command-line to \Condor{cod\_activate}.
+These options are \Opt{-cluster} and \Opt{-proc}.
+For example, to launch a COD job as 23.5, the user would invoke:
+\begin{verbatim}
+condor_cod_activate -id "<claim_id>" -key foo -cluster 23 -proc 5
+\end{verbatim}
+These arguments are optional, since the job ID is not required for
+COD.
+If not specified, the job ID defaults to \verb@1.0@.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -675,7 +784,36 @@ recognize any attempts to use the previous claims.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \index{COD!\Condor{cod\_suspend} command} 
 
-\Todo
+Once a COD application has been activated with \Condor{cod\_activate}
+and is running on a COD resource, it may be temporarily suspended
+using \Condor{cod\_suspend}.
+In this case, the claim state becomes \verb@Suspended@.
+Once a given COD job is suspended, if there are no other running COD
+jobs on the resource, a Condor batch job can use the resource.
+
+If there was a batch job on the resource when the COD claim was first
+activated, the batch job will be suspended once the COD job starts
+running.
+By suspending the COD application, the batch job is allowed to run.
+If the resource was idle when the COD application was first spawned,
+once the COD job is suspended, the batch resource becomes available
+for use in the Condor system and might be matched with an idle batch
+job.
+So, whenever a COD application has no work to perform, it should be
+suspended to prevent the batch resource from being wasted.
+
+The interface to \Condor{cod\_suspend} is simple.
+The only option it supports is \Opt{-id} to specify the COD claim ID
+the user wishes to suspend.
+For example:
+\begin{verbatim}
+condor_cod_suspend -id "<claim_id>"
+\end{verbatim}
+
+If the user attempts to suspend a COD job that is not running (either
+because it is already suspended, or because a job was never spawned on
+the given COD claim in the first place) \Condor{cod\_suspend} will
+exit with an error message.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -683,8 +821,21 @@ recognize any attempts to use the previous claims.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \index{COD!\Condor{cod\_resume} command} 
 
-\Todo
+Once a COD application has been suspended with \Condor{cod\_suspend},
+it can be resumed using \Condor{cod\_resume}.
+In this case, the claim state returns to \verb@Running@.
+If there is a regular batch job running on the same resource, it will
+automatically be suspended if a COD application is resumed.
 
+The \Condor{cod\_resume} tool only supports the \Opt{-id} option to
+specify the COD claim ID the user wishes to resume.
+For example:
+\begin{verbatim}
+condor_cod_resume -id "<claim_id>"
+\end{verbatim}
+
+If the user attempts to resume a COD job that is not suspended,
+\Condor{cod\_resume} will exit with an error message.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -692,7 +843,47 @@ recognize any attempts to use the previous claims.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \index{COD!\Condor{cod\_deactivate} command} 
 
-\Todo
+If a given COD application does not exit on its own and needs to be
+removed manually, the user can invoke the \Condor{cod\_deactivate}
+command to kill the job, but leave the COD claim ID valid for future
+COD jobs.
+The user must specify the claim ID they with to deactivate using the
+\Opt{-id} option.
+For example:
+\begin{verbatim}
+condor_cod_deactivate -id "<claim_id>"
+\end{verbatim}
+
+By default, \Condor{cod\_deactivate} attempts to gracefully cleanup
+the COD application and give it time to exit.
+In this case the COD claim goes into the \verb@Vacating@ state and the
+\Condor{starter} process controlling the job will send it the 
+\Attr{KillSig} defined for the job (SIGTERM by default).
+This allows the COD job to catch the signal and do whatever final work
+is required to cleanly exit.
+
+However, if the program is stuck or if the user does not want to give
+the application time to clean itself up, the user may use the
+\Opt{-fast} option to tell the \Condor{starter} to quickly kill the
+job and all its descendants using SIGKILL.
+In this case the COD claim goes into the \verb@Killing@ state.
+For example:
+\begin{verbatim}
+condor_cod_deactivate -id "<claim_id>" -fast
+\end{verbatim}
+
+In either case, once the COD job has finally exited, the COD claim
+will go into the \verb@Idle@ state and will be available for future
+COD applications.
+If there are no other active COD jobs on the same resource, the
+resource would become available for batch Condor jobs. 
+Whenever the user wishes to spawn another COD application, they can
+reuse this idle COD claim by using the same claim ID, without having
+to go through the process of running \Condor{cod\_request}.
+
+If the user attempts a \Condor{cod\_deactivate} request on a COD claim
+that is neither \verb@Running@ nor \verb@suspended@, the \Condor{cod}
+tool will exit with an error message.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -700,7 +891,30 @@ recognize any attempts to use the previous claims.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \index{COD!\Condor{cod\_release} command} 
 
-\Todo
+If users no longer wish to use a given COD claim,
+they can release the claim with the \Condor{cod\_release} command.
+If there is a COD job running on the claim,
+the job will first be shut down (as if \Condor{cod\_deactivate} was
+used),
+and then the claim itself is removed from the resource and the claim
+ID is destroyed. 
+Further attempts to use the claim ID for any COD commands will fail.
+
+The \Condor{cod\_release} command always prints out the state the
+COD claim was in when the request was received.
+This way, users can know what state a given COD application was in
+when the claim was destroyed.
+
+Like most COD commands, \Condor{cod\_release} requires the claim ID to
+be specified using \Opt{-id}.
+In addition, \Condor{cod\_release} supports the \Opt{-fast} option
+(described above in the section about \Condor{cod\_deactivate}).
+If there is a job running or suspended on the claim when it is
+released with \verb@condor_cod_release -fast@, the job will be
+immediately killed. 
+If \Opt{-fast} is not specified, the default behavior is to use a
+graceful shutdown, sending whatever signal is specified in the
+\Attr{KillSig} attribute for the job (SIGTERM by default).
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -715,7 +929,7 @@ releases of Condor:
 
 \begin{itemize}
 
-\item Applications must be pre-staged at a given machine. 
+\item Applications and data must be pre-staged at a given machine. 
 
 \item There is no way to define limits for how long a given COD claim
   can be active, how often it is run, and so on.
