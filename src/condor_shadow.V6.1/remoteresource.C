@@ -629,6 +629,11 @@ RemoteResource::setStarterInfo( ClassAd* ad )
 			// Whatever the starter defines in its own classad
 			// overrides whatever we might think...
 		supports_reconnect = tmp_int;
+		dprintf( D_SYSCALLS, "  %s = %s\n", ATTR_HAS_RECONNECT, 
+				 supports_reconnect ? "TRUE" : "FALSE" );
+	} else {
+		dprintf( D_SYSCALLS, "  %s = FALSE (not specified)\n",
+				 ATTR_HAS_RECONNECT );
 	}
 }
 
