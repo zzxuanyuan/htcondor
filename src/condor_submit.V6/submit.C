@@ -114,6 +114,9 @@ bool	UserLogSpecified = false;
 bool    UseXMLInLog = false;
 ShouldTransferFiles_t should_transfer = STF_NO;
 bool job_ad_saved = false;	// should we deallocate the job ad after storing it?
+bool HasTDP = false;
+char* tdp_cmd = NULL;
+char* tdp_input = NULL;
 
 char* LogNotesVal = NULL;
 char* UserNotesVal = NULL;
@@ -174,6 +177,13 @@ char	*FetchFiles = "fetch_files";
 char	*CompressFiles = "compress_files";
 char	*AppendFiles = "append_files";
 char	*LocalFiles = "local_files";
+
+char	*ToolDaemonCmd = "tool_daemon_cmd";
+char	*ToolDaemonArgs = "tool_daemon_args";
+char	*ToolDaemonInput = "tool_daemon_input";
+char	*ToolDaemonError = "tool_daemon_error";
+char	*ToolDaemonOutput = "tool_daemon_output";
+char	*SuspendJobAtExec = "suspend_job_at_exec";
 
 char	*TransferInputFiles = "transfer_input_files";
 char	*TransferOutputFiles = "transfer_output_files";
@@ -241,6 +251,7 @@ void 	SetTransferFiles();
 bool 	SetNewTransferFiles( void );
 void 	SetOldTransferFiles( bool, bool );
 void	InsertFileTransAttrs( FileTransferOutput_t when_output );
+void 	SetTDP();
 void	SetRank();
 void 	SetIWD();
 void 	ComputeIWD();
@@ -284,6 +295,7 @@ void SetUserNotes();
 void SetJarFiles();
 void SetParallelStartupScripts(); //JDB
 bool mightTransfer( int universe );
+bool isTrue( const char* attr );
 
 char *owner = NULL;
 char *ntdomain = NULL;
@@ -1280,6 +1292,15 @@ SetTransferFiles()
 	TransferInputSize = 0;
 	if( macro_value ) {
 		input_file_list.initializeFromString( macro_value );
+	}
+
+	if( HasTDP ) {
+		if( tdp_cmd && ! input_file_list.contains(tdp_cmd) ) {
+			input_file_list.append( tdp_cmd );
+		}
+		if( tdp_input && ! input_file_list.contains(tdp_input) ) {
+			input_file_list.append( tdp_input );
+		}
 	}
 
 #if defined( WIN32 )
@@ -2562,6 +2583,59 @@ SetRequirements()
 	}
 }
 
+
+void
+SetTDP( void )
+{
+		// tdp_cmd and tdp_input are global since those effect
+		// SetRequirements() an SetTransferFiles(), too. 
+	tdp_cmd = condor_param( ToolDaemonCmd, ATTR_TOOL_DAEMON_CMD );
+	tdp_input = condor_param( ToolDaemonInput, ATTR_TOOL_DAEMON_INPUT );
+	char* tdp_args = condor_param( ToolDaemonArgs, ATTR_TOOL_DAEMON_ARGS );
+	char* tdp_error = condor_param( ToolDaemonError, ATTR_TOOL_DAEMON_ERROR );
+	char* tdp_output = condor_param( ToolDaemonOutput, 
+									 ATTR_TOOL_DAEMON_OUTPUT );
+	char* suspend_at_exec = condor_param( SuspendJobAtExec,
+										  ATTR_SUSPEND_JOB_AT_EXEC );
+	MyString buf;
+
+	if( tdp_cmd ) {
+		HasTDP = true;
+		buf.sprintf( "%s = \"%s\"", ATTR_TOOL_DAEMON_CMD, tdp_cmd );
+		InsertJobExpr( buf.Value() );
+	}
+	if( tdp_input ) {
+		buf.sprintf( "%s = \"%s\"", ATTR_TOOL_DAEMON_INPUT, tdp_input );
+		InsertJobExpr( buf.Value() );
+	}
+	if( tdp_output ) {
+		buf.sprintf( "%s = \"%s\"", ATTR_TOOL_DAEMON_OUTPUT, tdp_output );
+		InsertJobExpr( buf.Value() );
+		free( tdp_output );
+		tdp_output = NULL;
+	}
+	if( tdp_error ) {
+		buf.sprintf( "%s = \"%s\"", ATTR_TOOL_DAEMON_ERROR, tdp_error );
+		InsertJobExpr( buf.Value() );
+		free( tdp_error );
+		tdp_error = NULL;
+	}
+	if( tdp_args ) {
+		buf.sprintf( "%s = \"%s\"", ATTR_TOOL_DAEMON_ARGS, tdp_args );
+		InsertJobExpr( buf.Value() );
+		free( tdp_args );
+		tdp_args = NULL;
+	}
+	if( suspend_at_exec ) {
+		buf.sprintf( "%s = %s", ATTR_SUSPEND_JOB_AT_EXEC,
+					 isTrue(suspend_at_exec) ? "TRUE" : "FALSE" );
+		InsertJobExpr( buf.Value() );
+		free( suspend_at_exec );
+		suspend_at_exec = NULL;
+	}
+}
+
+
 void
 SetRank()
 {
@@ -3503,6 +3577,7 @@ queue(int num)
 		SetCompressFiles();
 		SetAppendFiles();
 		SetLocalFiles();
+		SetTDP();			// before SetTransferFile() and SetRequirements()
 		SetTransferFiles();	 // must be called _before_ SetImageSize()
 		SetImageSize();		// must be called _after_ SetTransferFiles()
 		SetRequirements();	// must be called _after_ SetTransferFiles()
@@ -3619,6 +3694,7 @@ check_requirements( char *orig )
 	bool	checks_file_transfer = false;
 	bool	checks_pvm = false;
 	bool	checks_mpi = false;
+	bool	checks_tdp = false;
 	char	*ptr, *tmp;
 	static char	answer[4096];
 	MyString ft_clause;
@@ -3674,6 +3750,7 @@ check_requirements( char *orig )
 	checks_arch = findClause( answer, ATTR_ARCH );
 	checks_opsys = findClause( answer, ATTR_OPSYS );
 	checks_disk =  findClause( answer, ATTR_DISK );
+	checks_tdp =  findClause( answer, ATTR_HAS_TDP );
 
 	if( JobUniverse == CONDOR_UNIVERSE_STANDARD ) {
 		checks_ckpt_arch = findClause( answer, ATTR_CKPT_ARCH );
@@ -3761,6 +3838,12 @@ check_requirements( char *orig )
 
 	if ( !checks_mem ) {
 		(void)strcat( answer, " && ( (Memory * 1024) >= ImageSize )" );
+	}
+
+	if( HasTDP && !checks_tdp ) {
+		(void)strcat( answer, "&& (" );
+		(void)strcat( answer, ATTR_HAS_TDP );
+		(void)strcat( answer, ")" );
 	}
 
 	if ( JobUniverse == CONDOR_UNIVERSE_PVM ) {
@@ -4362,6 +4445,27 @@ mightTransfer( int universe )
 	}
 	return false;
 }
+
+
+bool
+isTrue( const char* attr )
+{
+	if( ! attr ) {
+		return false;
+	}
+	switch( attr[0] ) {
+	case 't':
+	case 'T':
+	case 'y':
+	case 'Y':
+		return true;
+		break;
+	default:
+		break;
+	}
+	return false;
+}
+
 
 
 
