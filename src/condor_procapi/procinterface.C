@@ -81,32 +81,19 @@ ClassAd * ProcAd::getFamilyAd ( pid_t fatherpid ) {
 
 ClassAd * ProcAd::dumpToAd( piPTR pi ) {
 
-  char line[128];
   ClassAd *ad = new ClassAd;
 
-  ad->SetMyTypeName( "PROCESS_INFORMATION" );
-  ad->SetTargetTypeName( "ENQUIRING_MINDS_WANT_TO_KNOW" );
-
-  sprintf ( line, "THIS_PID = %d", pi->pid );
-  ad->Insert(line);
-  sprintf ( line, "PARENT_PID = %d", pi->ppid );
-  ad->Insert(line);
-  sprintf ( line, "IMAGE_SIZE = %d", pi->imgsize );
-  ad->Insert(line);
-  sprintf ( line, "RESIDENT_SET_SIZE = %d", pi->rssize );
-  ad->Insert(line);
-  sprintf ( line, "MAJOR_PAGE_FAULTS = %d", pi->majfault );
-  ad->Insert(line);
-  sprintf ( line, "MINOR_PAGE_FAULTS = %d", pi->minfault );
-  ad->Insert(line);
-  sprintf ( line, "USER_TIME = %d", pi->user_time );
-  ad->Insert(line);
-  sprintf ( line, "SYSTEM_TIME = %d", pi->sys_time );
-  ad->Insert(line);
-  sprintf ( line, "PROCESS_AGE = %d", pi->age );
-  ad->Insert(line);
-  sprintf ( line, "PERCENT_CPU_USAGE = %6.2f",  pi->cpuusage );
-  ad->Insert(line);
+  ad->InsertAttr( ATTR_TYPE, "ProcessInformation" );
+  ad->InsertAttr( "THIS_PID", (int) pi->pid );
+  ad->InsertAttr( "PARENT_PID", (int) pi->ppid );
+  ad->InsertAttr( "IMAGE_SIZE", (int) pi->imgsize, K_FACTOR );
+  ad->InsertAttr( "RESIDENT_SET_SIZE", (int) pi->rssize, K_FACTOR );
+  ad->InsertAttr( "MAJOR_PAGE_FAULTS", (int) pi->majfault );
+  ad->InsertAttr( "MINOR_PAGE_FAULTS", (int) pi->minfault );
+  ad->Insert( "USER_TIME", Literal::MakeRelTime( pi->user_time ) );
+  ad->Insert( "SYSTEM_TIME", Literal::MakeRelTime( pi->sys_time ) );
+  ad->Insert( "PROCESS_AGE", Literal::MakeRelTime( pi->age ) );
+  ad->InsertAttr( "PERCENT_CPU_USAGE", pi->cpuusage );
 
   return ad;
 }
