@@ -28,28 +28,9 @@
   automatically go here...
 *******************************************************************/
 #include "condor_common.h"
-#include "syscall_sysdep.h"
-
-/* Since we've included condor_common.h, we know off64_t has been
-   defined, so we want to define this macro so the syscall_64bit.h
-   header file doesn't try to redefine off64_t.  In other places, we 
-   include syscall_64bit.h w/o condor_common.h, so it needs to define
-   off64_t in that case. -Derek W. 8/20/98 */
-#define _CONDOR_OFF64_T
-// #include "syscall_64bit.h"
-#undef _CONDOR_OFF64_T
-
 #include "syscall_numbers.h"
 #include "condor_syscall_mode.h"
 #include "file_table_interf.h"
-
-#if defined(HPUX)
-#	ifdef _PROTOTYPES   /* to remove compilation errors unistd.h */
-#	undef _PROTOTYPES
-#	endif
-#endif
-
-#include "debug.h"
 
 #if defined(DL_EXTRACT)
 #   include <dlfcn.h>   /* for dlopen and dlsym */
@@ -63,7 +44,6 @@ extern "C" int SYSCONF(...);
 extern "C" int SYSCALL(...);
 
 extern "C" {
-
 
 static int fake_readv( int fd, const struct iovec *iov, int iovcnt );
 static int fake_writev( int fd, const struct iovec *iov, int iovcnt );
@@ -465,10 +445,10 @@ mmap( MMAP_T a, size_t l, int p, int f, int fd, off_t o )
 			   passed and do the mmap locally */
 		use_local_access = TRUE;
 	} else {
-		if( (user_fd=MapFd(fd)) < 0 ) {
+		if( (user_fd=_condor_file_table_map(fd)) < 0 ) {
 			return MAP_FAILED;
 		}
-		if( LocalAccess(fd) ) {
+		if( _condor_file_is_local(fd) ) {
 			use_local_access = TRUE;
 		}
 	}
