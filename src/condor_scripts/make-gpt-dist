@@ -121,6 +121,8 @@ sub askUserQuestions {
 # Run User Specified Commands
 # ---------------------------------
 sub runSpecifiedCommands {
+	# Note: you may wanna comment out the below line if you already 
+	# have GPT somewhere
 	if ( yesNo($buildInstallGPT) or $all )		{ buildInstallGPT(); }
 	if ( yesNo($buildCondorG) or $all )	{ buildCondorGPackages(); }
 
@@ -178,7 +180,7 @@ sub buildCondorGPackages {
 
 	chdir("$GlobusDir");
 	if($native) {
-		System("gpt-pkg --rpmlicense=Condor -native -all");
+		System("gpt-pkg --rpmprefix=/opt/condor --rpmlicense=Condor -native -all");
 		System("gpt-bundle --native --bindir=./binaries/ \\
         --output=condor-g-6.4-`uname | \\
         tr \"A-Z\" \"a-z\"`-`uname -m`-`uname -r`-bundle.tar.gz  \\
@@ -186,7 +188,7 @@ sub buildCondorGPackages {
 		condor_submit condor_dagman ");
 
 	} else {
-		System("gpt-pkg --rpmlicense=Condor -all");
+		System("gpt-pkg --rpmprefix=/opt/condor --rpmlicense=Condor -all");
 		System("gpt-bundle --bindir=./binaries/ \\
         --output=condor-g-6.4-`uname | \\
         tr \"A-Z\" \"a-z\"`-`uname -m`-`uname -r`-bundle.tar.gz  \\
