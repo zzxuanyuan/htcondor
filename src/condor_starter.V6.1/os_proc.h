@@ -100,11 +100,6 @@ protected:
 	bool dumped_core;
 	char* job_iwd;
 
-	void initKillSigs( void );
-
-	int soft_kill_sig;
-	int rm_kill_sig;
-
 };
 
 #endif

@@ -51,14 +51,13 @@ OsProc::OsProc( ClassAd* ad )
 {
     dprintf ( D_FULLDEBUG, "In OsProc::OsProc()\n" );
 	JobAd = ad;
-	JobPid = -1;
-	exit_status = -1;
-	requested_exit = false;
 	job_suspended = FALSE;
 	num_pids = 0;
 	dumped_core = false;
 	job_iwd = NULL;
+	UserProc::initialize();
 }
+
 
 OsProc::~OsProc()
 {
@@ -88,8 +87,6 @@ OsProc::StartJob()
 				 ATTR_JOB_CMD );
 		return 0;
 	}
-
-	initKillSigs();
 
 		// // // // // // 
 		// Arguments
@@ -488,35 +485,6 @@ OsProc::StartJob()
 	job_start_time.getTime();
 
 	return 1;
-}
-
-
-void
-OsProc::initKillSigs( void )
-{
-	int sig;
-
-	sig = findSoftKillSig( JobAd );
-	if( sig >= 0 ) {
-		soft_kill_sig = sig;
-	} else {
-		soft_kill_sig = SIGTERM;
-	}
-
-	sig = findRmKillSig( JobAd );
-	if( sig >= 0 ) {
-		rm_kill_sig = sig;
-	} else {
-		rm_kill_sig = SIGTERM;
-	}
-
-	const char* tmp = signalName( soft_kill_sig );
-	dprintf( D_FULLDEBUG, "KillSignal: %d (%s)\n", soft_kill_sig, 
-			 tmp ? tmp : "Unknown" );
-
-	tmp = signalName( rm_kill_sig );
-	dprintf( D_FULLDEBUG, "RmKillSignal: %d (%s)\n", rm_kill_sig, 
-			 tmp ? tmp : "Unknown" );
 }
 
 
