@@ -46,7 +46,7 @@ public:
 	~ResState();
 	State	state() {return r_state;};
 	Activity activity() {return r_act;};
-	void	update( ClassAd* );
+	void	publish( ClassAd*, amask_t );
 	int		change( Activity );
 	int		change( State );
 	int		change( State, Activity );

@@ -134,10 +134,14 @@ Match::send_accountant( int cmd )
 
 
 void
-Match::update( ClassAd* ad )
+Match::publish( ClassAd* ad, amask_t how_much )
 {
 	char line[256];
 	char* tmp;
+
+	if( IS_PRIVATE(how_much) ) {
+		return;
+	}
 
 	sprintf( line, "%s = %f", ATTR_CURRENT_RANK, m_rank );
 	ad->Insert( line );

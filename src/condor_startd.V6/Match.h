@@ -101,8 +101,9 @@ public:
 		// Send the given cmd to the accountant, followed by the
 		// capability of this match. 
 	int	send_accountant( int );	
-		// Update the given classad with any needed info from this object.
-	void update( ClassAd* );
+
+	void publish( ClassAd*, amask_t );
+
 	void refuse_agent();
 
 		// Timer functions

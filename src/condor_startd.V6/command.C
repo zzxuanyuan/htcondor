@@ -779,7 +779,7 @@ activate_claim( Resource* rip, Stream* stream )
 	rip->r_cur->setlastpckpt(now);	
 
 		// Finally, update all these things into the resource classad.
-	rip->r_cur->update( rip->r_classad );
+	rip->r_cur->publish( rip->r_classad, A_PUBLIC );
 
 	rip->change_state( busy_act );
 
