@@ -171,6 +171,9 @@ ToolDaemonProc::StartJob()
 	char pid_buf[256];
 	sprintf(pid_buf, "%d", ApplicationPid);
 	job_env.Put("TDP_AP_PID", pid_buf);
+	char socket_str[512];
+	if (JobAd->LookupString(ATTR_TOOL_DAEMON_SOCKET, socket_str, 512))
+	    job_env.Put("TDP_RTFE_SOCKET", socket_str);
 
 		// Now, let the starter publish any env vars it wants to into
 		// the mainjob's env...
