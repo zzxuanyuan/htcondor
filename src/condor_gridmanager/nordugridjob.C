@@ -366,7 +366,6 @@ int NordugridJob::doEvaluateState()
 					break;
 				}
 				gmState = GM_STAGE_IN;
-EXCEPT("DIE! DIE! DIE!");
 			}
 			} break;
 		case GM_STAGE_IN: {
