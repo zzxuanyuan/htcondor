@@ -155,6 +155,15 @@ instantiateEvent (ULogEventNumber event)
 	case ULOG_REMOTE_ERROR:
 		return new RemoteErrorEvent;
 
+	case ULOG_JOB_DISCONNECTED:
+		return new JobDisconnectedEvent;
+
+	case ULOG_JOB_RECONNECTED:
+		return new JobReconnectedEvent;
+
+	case ULOG_JOB_RECONNECT_FAILED:
+		return new JobReconnectFailedEvent;
+
 	  default:
         EXCEPT( "Invalid ULogEventNumber" );
 
@@ -338,6 +347,15 @@ toClassAd()
 		break;
 	case ULOG_REMOTE_ERROR:
 		myad->SetMyTypeName("RemoteErrorEvent");
+		break;
+	case ULOG_JOB_DISCONNECTED:
+		myad->SetMyTypeName("JobDisconnectedEvent");
+		break;
+	case ULOG_JOB_RECONNECTED:
+		myad->SetMyTypeName("JobReconnectedEvent");
+		break;
+	case ULOG_JOB_RECONNECT_FAILED:
+		myad->SetMyTypeName("JobReconnectFailedEvent");
 		break;
 	  default:
 		return NULL;
@@ -3223,3 +3241,543 @@ initFromClassAd(ClassAd* ad)
 }
 
 
+// ----- JobDisconnectedEvent class
+
+JobDisconnectedEvent::JobDisconnectedEvent()
+{
+	eventNumber = ULOG_JOB_DISCONNECTED;
+	startd_addr = NULL;
+	startd_name = NULL;
+	reason = NULL;
+}
+
+
+JobDisconnectedEvent::~JobDisconnectedEvent()
+{
+	if( startd_addr ) {
+		delete [] startd_addr;
+	}
+	if( startd_name ) {
+		delete [] startd_name;
+	}
+	if( reason ) {
+		delete [] reason;
+	}
+}
+
+
+void
+JobDisconnectedEvent::setStartdAddr( const char* startd )
+{
+	if( startd_addr ) {
+		delete[] startd_addr;
+		startd_addr = NULL;
+	}
+	if( startd ) {
+		startd_addr = strnewp( startd );
+		if( !startd_addr ) {
+			EXCEPT( "ERROR: out of memory!\n" );
+		}
+	}
+}
+
+
+void
+JobDisconnectedEvent::setStartdName( const char* name )
+{
+	if( startd_name ) {
+		delete[] startd_name;
+		startd_name = NULL;
+	}
+	if( name ) {
+		startd_name = strnewp( name );
+		if( !startd_name ) {
+			EXCEPT( "ERROR: out of memory!\n" );
+		}
+	}
+}
+
+
+void
+JobDisconnectedEvent::setReason( const char* reason_str )
+{
+	if( reason ) {
+		delete [] reason;
+		reason = NULL;
+	}
+	if( reason_str ) {
+		reason = strnewp( reason_str );
+		if( !reason ) {
+			EXCEPT( "ERROR: out of memory!\n" );
+		}
+	}
+}
+
+
+int
+JobDisconnectedEvent::writeEvent( FILE *file )
+{
+	if( ! reason ) {
+		EXCEPT( "JobDisconnectedEvent::writeEvent() called without reason" );
+	}
+	if( ! startd_addr ) {
+		EXCEPT( "JobDisconnectedEvent::writeEvent() called without "
+				"startd_addr" );
+	}
+	if( ! startd_name ) {
+		EXCEPT( "JobDisconnectedEvent::writeEvent() called without "
+				"startd_name" );
+	}
+
+	if( fprintf(file, "Job disconnected, attempting to reconnect\n") < 0 ) {
+		return 0;
+	}
+	if( fprintf(file, "    %.8191s\n", reason) < 0 ) {
+		return 0;
+	}
+	if( fprintf(file, "    Trying to reconnect to %s %s\n", 
+				startd_name, startd_addr) < 0 ) {
+		return 0;
+	}
+	return( 1 );
+}
+
+
+int
+JobDisconnectedEvent::readEvent( FILE *file )
+{
+		// TODO
+	return 0;
+}
+
+
+ClassAd*
+JobDisconnectedEvent::toClassAd( void )
+{
+	if( ! reason ) {
+		EXCEPT( "JobDisconnectedEvent::toClassAd() called without reason" );
+	}
+	if( ! startd_addr ) {
+		EXCEPT( "JobDisconnectedEvent::toClassAd() called without "
+				"startd_addr" );
+	}
+	if( ! startd_name ) {
+		EXCEPT( "JobDisconnectedEvent::toClassAd() called without "
+				"startd_name" );
+	}
+
+	ClassAd* myad = ULogEvent::toClassAd();
+	if( !myad ) {
+		return NULL;
+	}
+	
+	MyString line;
+	line.sprintf( "StartdAddr = \"%s\"", startd_addr );
+	if( !myad->Insert(line.Value()) ) {
+		return NULL;
+	}
+	line.sprintf( "StartdName = \"%s\"", startd_name );
+	if( !myad->Insert(line.Value()) ) {
+		return NULL;
+	}
+	line.sprintf( "Reason = \"%s\"", reason );
+	if( !myad->Insert(line.Value()) ) {
+		return NULL;
+	}
+	line = "EventDescription = ";
+	line += "\"Job disconnected, attempting to reconnect\"";
+	if( !myad->Insert(line.Value()) ) {
+		return NULL;
+	}
+	return myad;
+}
+
+
+void
+JobDisconnectedEvent::initFromClassAd( ClassAd* ad )
+{
+	ULogEvent::initFromClassAd(ad);
+	
+	if( !ad ) {
+		return;
+	}
+
+	// this fanagling is to ensure we don't malloc a pointer then delete it
+	char* mallocstr = NULL;
+	ad->LookupString( "Reason", &mallocstr );
+	if( mallocstr ) {
+		if( reason ) {
+			delete [] reason;
+		}
+		reason = strnewp( mallocstr );
+		free( mallocstr );
+		mallocstr = NULL;
+	}
+
+	ad->LookupString( "StartdAddr", &mallocstr );
+	if( mallocstr ) {
+		if( startd_addr ) {
+			delete [] startd_addr;
+		}
+		startd_addr = strnewp( mallocstr );
+		free( mallocstr );
+		mallocstr = NULL;
+	}
+
+	ad->LookupString( "StartdName", &mallocstr );
+	if( mallocstr ) {
+		if( startd_name ) {
+			delete [] startd_name;
+		}
+		startd_name = strnewp( mallocstr );
+		free( mallocstr );
+		mallocstr = NULL;
+	}
+}
+
+
+// ----- JobReconnectedEvent class
+
+JobReconnectedEvent::JobReconnectedEvent()
+{
+	eventNumber = ULOG_JOB_RECONNECTED;
+	startd_addr = NULL;
+	startd_name = NULL;
+	starter_addr = NULL;
+}
+
+
+JobReconnectedEvent::~JobReconnectedEvent()
+{
+	if( startd_addr ) {
+		delete [] startd_addr;
+	}
+	if( startd_name ) {
+		delete [] startd_name;
+	}
+	if( starter_addr ) {
+		delete [] starter_addr;
+	}
+}
+
+
+void
+JobReconnectedEvent::setStartdAddr( const char* startd )
+{
+	if( startd_addr ) {
+		delete[] startd_addr;
+		startd_addr = NULL;
+	}
+	if( startd ) {
+		startd_addr = strnewp( startd );
+		if( !startd_addr ) {
+			EXCEPT( "ERROR: out of memory!\n" );
+		}
+	}
+}
+
+
+void
+JobReconnectedEvent::setStartdName( const char* name )
+{
+	if( startd_name ) {
+		delete[] startd_name;
+		startd_name = NULL;
+	}
+	if( name ) {
+		startd_name = strnewp( name );
+		if( !startd_name ) {
+			EXCEPT( "ERROR: out of memory!\n" );
+		}
+	}
+}
+
+
+void
+JobReconnectedEvent::setStarterAddr( const char* starter )
+{
+	if( starter_addr ) {
+		delete[] starter_addr;
+		starter_addr = NULL;
+	}
+	if( starter ) {
+		starter_addr = strnewp( starter );
+		if( !starter_addr ) {
+			EXCEPT( "ERROR: out of memory!\n" );
+		}
+	}
+}
+
+
+int
+JobReconnectedEvent::writeEvent( FILE *file )
+{
+	if( ! startd_addr ) {
+		EXCEPT( "JobReconnectedEvent::writeEvent() called without "
+				"startd_addr" );
+	}
+	if( ! startd_name ) {
+		EXCEPT( "JobReconnectedEvent::writeEvent() called without "
+				"startd_name" );
+	}
+	if( ! starter_addr ) {
+		EXCEPT( "JobReconnectedEvent::writeEvent() called without "
+				"starter_addr" );
+	}
+
+	if( fprintf(file, "Job reconnected to %s\n", startd_name) < 0 ) { 
+		return 0;
+	}
+	if( fprintf(file, "    startd address: %s\n", startd_addr) < 0 ) { 
+		return 0;
+	}
+	if( fprintf(file, "    starter address: %s\n", starter_addr) < 0 ) { 
+		return 0;
+	}
+	return( 1 );
+}
+
+
+int
+JobReconnectedEvent::readEvent( FILE *file )
+{
+		// TODO
+	return 0;
+}
+
+
+ClassAd*
+JobReconnectedEvent::toClassAd( void )
+{
+	if( ! startd_addr ) {
+		EXCEPT( "JobReconnectedEvent::toClassAd() called without "
+				"startd_addr" );
+	}
+	if( ! startd_name ) {
+		EXCEPT( "JobReconnectedEvent::toClassAd() called without "
+				"startd_name" );
+	}
+	if( ! starter_addr ) {
+		EXCEPT( "JobReconnectedEvent::toClassAd() called without "
+				"starter_addr" );
+	}
+
+	ClassAd* myad = ULogEvent::toClassAd();
+	if( !myad ) {
+		return NULL;
+	}
+
+	MyString line;
+	line.sprintf( "StartdAddr = \"%s\"", startd_addr );
+	if( !myad->Insert(line.Value()) ) {
+		return NULL;
+	}
+	line.sprintf( "StartdName = \"%s\"", startd_name );
+	if( !myad->Insert(line.Value()) ) {
+		return NULL;
+	}
+	line.sprintf( "StarterAddr = \"%s\"", starter_addr );
+	if( !myad->Insert(line.Value()) ) {
+		return NULL;
+	}
+	if( !myad->Insert("EventDescription = \"Job reconnected\"") ) {
+		return NULL;
+	}
+	return myad;
+}
+
+
+void
+JobReconnectedEvent::initFromClassAd( ClassAd* ad )
+{
+	ULogEvent::initFromClassAd(ad);
+	
+	if( !ad ) {
+		return;
+	}
+
+	// this fanagling is to ensure we don't malloc a pointer then delete it
+	char* mallocstr = NULL;
+	ad->LookupString( "StartdAddr", &mallocstr );
+	if( mallocstr ) {
+		if( startd_addr ) {
+			delete [] startd_addr;
+		}
+		startd_addr = strnewp( mallocstr );
+		free( mallocstr );
+		mallocstr = NULL;
+	}
+
+	ad->LookupString( "StartdName", &mallocstr );
+	if( mallocstr ) {
+		if( startd_name ) {
+			delete [] startd_name;
+		}
+		startd_name = strnewp( mallocstr );
+		free( mallocstr );
+		mallocstr = NULL;
+	}
+
+	ad->LookupString( "StarterAddr", &mallocstr );
+	if( mallocstr ) {
+		if( starter_addr ) {
+			delete [] starter_addr;
+		}
+		starter_addr = strnewp( mallocstr );
+		free( mallocstr );
+		mallocstr = NULL;
+	}
+}
+
+
+// ----- JobReconnectFailedEvent class
+
+JobReconnectFailedEvent::JobReconnectFailedEvent()
+{
+	eventNumber = ULOG_JOB_RECONNECT_FAILED;
+	reason = NULL;
+	startd_addr = NULL;
+}
+
+
+JobReconnectFailedEvent::~JobReconnectFailedEvent()
+{
+	if( reason ) {
+		delete [] reason;
+	}
+	if( startd_addr ) {
+		delete [] startd_addr;
+	}
+}
+
+
+void
+JobReconnectFailedEvent::setReason( const char* reason_str )
+{
+	if( reason ) {
+		delete [] reason;
+		reason = NULL;
+	}
+	if( reason_str ) {
+		reason = strnewp( reason_str );
+		if( !reason ) {
+			EXCEPT( "ERROR: out of memory!\n" );
+		}
+	}
+}
+
+
+void
+JobReconnectFailedEvent::setStartdAddr( const char* startd )
+{
+	if( startd_addr ) {
+		delete[] startd_addr;
+		startd_addr = NULL;
+	}
+	if( startd ) {
+		startd_addr = strnewp( startd );
+		if( !startd_addr ) {
+			EXCEPT( "ERROR: out of memory!\n" );
+		}
+	}
+}
+
+
+int
+JobReconnectFailedEvent::writeEvent( FILE *file )
+{
+	if( ! reason ) {
+		EXCEPT( "JobReconnectFailedEvent::writeEvent() called without "
+				"reason" );
+	}
+	if( ! startd_addr ) {
+		EXCEPT( "JobReconnectFailedEvent::writeEvent() called without "
+				"startd_addr" );
+	}
+
+	if( fprintf(file, "Job reconnect fatal error\n") < 0 ) {
+		return 0;
+	}
+	if( fprintf(file, "    %.8191s\n", reason) < 0 ) {
+		return 0;
+	}
+	if( fprintf(file, "    Reconnecting to %s impossible: "
+				"restarting job\n", startd_addr) < 0 ) {
+		return 0;
+	}
+	return( 1 );
+}
+
+
+int
+JobReconnectFailedEvent::readEvent( FILE *file )
+{
+		// TODO
+	return 0;
+}
+
+
+ClassAd*
+JobReconnectFailedEvent::toClassAd( void )
+{
+	if( ! reason ) {
+		EXCEPT( "JobReconnectFailedEvent::toClassAd() called without "
+				"reason" );
+	}
+	if( ! startd_addr ) {
+		EXCEPT( "JobReconnectFailedEvent::toClassAd() called without "
+				"startd_addr" );
+	}
+
+	ClassAd* myad = ULogEvent::toClassAd();
+	if( !myad ) {
+		return NULL;
+	}
+	
+	MyString line;
+	line.sprintf( "StartdAddr = \"%s\"", startd_addr );
+	if( !myad->Insert(line.Value()) ) {
+		return NULL;
+	}
+	line.sprintf( "Reason = \"%s\"", reason );
+	if( !myad->Insert(line.Value()) ) {
+		return NULL;
+	}
+	line = "EventDescription = \"Job reconnect impossible: restarting job\"";
+	if( !myad->Insert(line.Value()) ) {
+		return NULL;
+	}
+	return myad;
+}
+
+
+void
+JobReconnectFailedEvent::initFromClassAd( ClassAd* ad )
+{
+	ULogEvent::initFromClassAd(ad);
+	if( !ad ) {
+		return;
+	}
+
+	// this fanagling is to ensure we don't malloc a pointer then delete it
+	char* mallocstr = NULL;
+	ad->LookupString( "Reason", &mallocstr );
+	if( mallocstr ) {
+		if( reason ) {
+			delete [] reason;
+		}
+		reason = strnewp( mallocstr );
+		free( mallocstr );
+		mallocstr = NULL;
+	}
+
+	ad->LookupString( "StartdAddr", &mallocstr );
+	if( mallocstr ) {
+		if( startd_addr ) {
+			delete [] startd_addr;
+		}
+		startd_addr = strnewp( mallocstr );
+		free( mallocstr );
+		mallocstr = NULL;
+	}
+}
