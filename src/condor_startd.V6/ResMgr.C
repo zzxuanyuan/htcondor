@@ -961,17 +961,17 @@ ResMgr::in_use( void )
 }
 
 
-Resource*
-ResMgr::get_by_pid( pid_t pid )
+Match*
+ResMgr::getMatchByPid( pid_t pid )
 {
+	Match* foo = NULL;
 	if( ! resources ) {
 		return NULL;
 	}
 	int i;
 	for( i = 0; i < nresources; i++ ) {
-		if( resources[i]->r_starter &&
-			resources[i]->r_starter->pid() == pid ) {
-			return resources[i];
+		if( (foo = resources[i]->findMatchByPid(pid)) ) {
+			return foo;
 		}
 	}
 	return NULL;
