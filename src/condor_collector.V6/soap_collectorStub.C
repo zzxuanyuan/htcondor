@@ -36,7 +36,7 @@
 #include "../condor_c++_util/soap_helpers.cpp"
 
 static int receive_query_soap(int command,struct soap *s,char *constraint,
-	struct condorCore__ClassAdStructArray &ads)
+	struct ClassAdStructArray &ads)
 {
 
 	// check for authorization here
@@ -66,49 +66,49 @@ static int receive_query_soap(int command,struct soap *s,char *constraint,
 }
 
 int condorCollector__queryStartdAds(struct soap *s,char *constraint,
-	struct condorCore__ClassAdStructArray & ads)
+	struct ClassAdStructArray & ads)
 {
 	int command = QUERY_STARTD_ADS;
 	return receive_query_soap(command,s,constraint,ads);
 }
 
 int condorCollector__queryScheddAds(struct soap *s,char *constraint,
-	struct condorCore__ClassAdStructArray & ads)
+	struct ClassAdStructArray & ads)
 {
 	int command = QUERY_SCHEDD_ADS;
 	return receive_query_soap(command,s,constraint,ads);
 }
 
 int condorCollector__queryMasterAds(struct soap *s,char *constraint,
-	struct condorCore__ClassAdStructArray & ads)
+	struct ClassAdStructArray & ads)
 {
 	int command = QUERY_MASTER_ADS;
 	return receive_query_soap(command,s,constraint,ads);
 }
 
 int condorCollector__querySubmittorAds(struct soap *s,char *constraint,
-	struct condorCore__ClassAdStructArray & ads)
+	struct ClassAdStructArray & ads)
 {
 	int command = QUERY_SUBMITTOR_ADS;
 	return receive_query_soap(command,s,constraint,ads);
 }
 
 int condorCollector__queryLicenseAds(struct soap *s,char *constraint,
-	struct condorCore__ClassAdStructArray & ads)
+	struct ClassAdStructArray & ads)
 {
 	int command = QUERY_LICENSE_ADS;
 	return receive_query_soap(command,s,constraint,ads);
 }
 
 int condorCollector__queryStorageAds(struct soap *s,char *constraint,
-	struct condorCore__ClassAdStructArray & ads)
+	struct ClassAdStructArray & ads)
 {
 	int command = QUERY_STORAGE_ADS;
 	return receive_query_soap(command,s,constraint,ads);
 }
 
 int condorCollector__queryAnyAds(struct soap *s,char *constraint,
-	struct condorCore__ClassAdStructArray & ads)
+	struct ClassAdStructArray & ads)
 {
 	int command = QUERY_ANY_ADS;
 	return receive_query_soap(command,s,constraint,ads);
@@ -129,7 +129,7 @@ int condorCore__getVersionString(struct soap *soap,void *,char* &result)
 	return SOAP_OK;
 }
 
-int condorCore__getInfoAd(struct soap *soap,void *,struct condorCore__ClassAdStruct & ad)
+int condorCore__getInfoAd(struct soap *soap,void *,struct ClassAdStruct & ad)
 {
 	char* todd = "Todd A Tannenbaum";
 
