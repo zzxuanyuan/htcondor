@@ -26,7 +26,8 @@ NEW_INCLUDE_DIR =	../condor_includes
 C_PLUS_INCLUDE =	../condor_c++_util
 DAEMONCLIENT_INCLUDE =	../condor_daemon_client
 ODBC_INCLUDE = /p/condordb/public/odbc/include
-ODBC_LIB = /p/condordb/public/odbc/lib
+ODBC_LIB_DIR = /p/condordb/public/odbc/lib
+ODBC_LIB = /p/condordb/public/odbc/lib/libodbc.a
 
 #ifdef NEED_SNPRINTF
 SNPRINTF_FLAGS = -DNEED_SNPRINTF
@@ -471,7 +472,7 @@ SYSAPI_LIB = ../condor_sysapi/libsysapi.a
 ACCT_LIB    = ../condor_accountant.V6/libacct.a
 DAEMONCORE_LIB = ../condor_daemon_core.V6/daemon_core.a
 
-ALL_LDFLAGS = -lm -L$(ODBC_LIB) -lodbc $(LDFLAGS) $(PLATFORM_LDFLAGS) $(SITE_LDFLAGS)
+ALL_LDFLAGS = -lm -L$(ODBC_LIB_DIR) -ldl $(LDFLAGS) $(PLATFORM_LDFLAGS) $(SITE_LDFLAGS)
 TEST_LDFLAGS = -lm $(LDFLAGS) $(TEST_PLATFORM_LDFLAGS) $(SITE_LDFLAGS)
 PURIFY_LDFLAGS = -lm $(LDFLAGS) $(PURIFY_PLATFORM_LDFLAGS) $(SITE_LDFLAGS)
 
@@ -498,5 +499,6 @@ STD_LIBS = \
   $(IO_LIB) \
   $(CPLUS_LIB) \
   $(CUTIL_LIB) \
-  $(SECURITY_LIB)
+  $(SECURITY_LIB) \
+  $(ODBC_LIB)
 
