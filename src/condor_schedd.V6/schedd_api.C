@@ -22,10 +22,18 @@ Job::Job(int clusterId, int jobId)
 
 	requirements = new HashTable<MyString, JobFile>(64, MyStringHash, rejectDuplicateKeys);
 
+	if (!requirements) {
+		EXCEPT("No memory to create requirements.");
+	}
+
 	char * Spool = param("SPOOL");
 
 	if (Spool) {
 		spoolDirectory = new MyString(strdup(gen_ckpt_name(Spool, clusterId, jobId, 0)));
+
+		if (!spoolDirectory) {
+			EXCEPT("No memory to create spoolDirectory.");
+		}
 
 			//free(Spool);
 
@@ -66,7 +74,7 @@ Job::~Job()
 	JobFile jobFile;
 	requirements->startIterations();
 	while (requirements->iterate(currentKey, jobFile)) {
-		fclose(jobFile.file);
+		close(jobFile.file);
 		requirements->remove(currentKey);
 	}
 
@@ -81,7 +89,7 @@ Job::abort()
 	JobFile jobFile;
 	requirements->startIterations();
 	while (requirements->iterate(currentKey, jobFile)) {
-		fclose(jobFile.file);
+		close(jobFile.file);
 		requirements->remove(currentKey);
 		remove(jobFile.name.GetCStr());
 	}
@@ -124,12 +132,14 @@ Job::get_spool_list(List<FileInfo> & file_list)
 		const char * name;
 		FileInfo *info;
 		while (NULL != (name = directory.Next())) {
-				// XXX: What is MyString(name) fails?
+				// XXX: What if MyString(name) fails?
 			info = new FileInfo(MyString(name), directory.GetFileSize());
 			if (info) {
 				if (!file_list.Append(info)) {
 					return 2;
 				}
+			} else {
+				EXCEPT("No memory to create info.");
 			}
 		}
 
@@ -149,21 +159,11 @@ Job::declare_file(MyString name,
 	jobFile.size = size;
 	jobFile.currentOffset = 0;
 
-	FILE *file;
+	int file;
 
 	jobFile.name = name;
-/* It turns out that Windows opens files in a Windows spepcific "text
-   mode" by default. In text mode all LFs are converted to CRLF, which
-   causes problems for binary files. So, on Windows we need to
-   specifically open spool files in "binary mode" by adding "b" to the
-   mode. Lame...
- */
-#ifdef WIN32
-	char *mode = "wb";
-#else
-	char *mode = "w";
-#endif
-	file = fopen((*spoolDirectory + DIR_DELIM_STRING + jobFile.name).GetCStr(), mode);
+
+	file = open((*spoolDirectory + DIR_DELIM_STRING + jobFile.name).GetCStr(), O_WRONLY | O_CREAT | _O_BINARY, 0);
 	if (file) {
 		jobFile.file = file;
 		if (requirements->insert(MyString(name), jobFile)) {
@@ -268,14 +268,12 @@ Job::send_file(MyString name,
 		// failure happens?
 
 	if (jobFile.file) {
-		if (fseek(jobFile.file, offset, SEEK_SET)) {
+		if (-1 == lseek(jobFile.file, offset, SEEK_SET)) {
 			return 2;
 		}
-		if (data_length != fwrite(data, sizeof(unsigned char), data_length, jobFile.file)) {
+		if (data_length != write(jobFile.file, data, sizeof(unsigned char) * data_length)) {
+				// XXX: Hold on, should this be unwritten?
 			return 3;
-		}
-		if (EOF == fflush(jobFile.file)) {
-			return 4;
 		}
 	} else {
 			// This happens if declare_file could not open the 'name'.
@@ -291,21 +289,16 @@ Job::get_file(MyString name,
               int length,
               unsigned char * &data)
 {
-#ifdef WIN32
-	char *mode = "rb";
-#else
-	char *mode = "r";
-#endif
-	FILE * file = fopen((*spoolDirectory + DIR_DELIM_STRING + name).GetCStr(), mode);
+	int file = open((*spoolDirectory + DIR_DELIM_STRING + name).GetCStr(), O_RDONLY | _O_BINARY, 0);
 
 	if (file) {
-		if (fseek(file, offset, SEEK_SET)) {
+		if (-1 == lseek(file, offset, SEEK_SET)) {
 			return 2;
 		}
-		if (length != fread(data, sizeof(unsigned char), length, file)) {
+		if (length != read(file, data, sizeof(unsigned char) * length)) {
 			return 3;
 		}
-		if (EOF == fclose(file)) {
+		if (-1 == close(file)) {
 			return 4;
 		}
 	} else {

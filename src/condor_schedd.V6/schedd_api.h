@@ -16,7 +16,7 @@ public:
   JobFile();
   ~JobFile();
 
-  FILE * file;
+  int file;
   MyString name;
   int size;
   int currentOffset;
