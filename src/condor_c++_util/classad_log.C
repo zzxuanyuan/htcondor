@@ -285,21 +285,23 @@ ClassAdLog::LogState(int fd)
 {
 	LogRecord	*log=NULL;
 	ClassAd		*ad=NULL;
-	ExprTree	*expr=NULL;
 	HashKey		hashval;
 	char		key[_POSIX_PATH_MAX];
-	char		*attr_name = NULL;
-	char		*attr_val;
+    string      my, target;
 
 	table.startIterations();
 	while(table.iterate(ad) == 1) {
 		table.getCurrentKey(hashval);
 		hashval.sprint(key);
-		log = new LogNewClassAd(key, ad->GetMyTypeName(), ad->GetTargetTypeName());
+        ad->EvaluateAttrString(ATTR_TARGET_TYPE, target);
+        ad->EvaluateAttrString(ATTR_MY_TYPE, my);
+ 
+		log = new LogNewClassAd(key, my.data(), target.data());
 		if (log->Write(fd) < 0) {
 			EXCEPT("write to %s failed, errno = %d", log_filename, errno);
 		}
 		delete log;
+        /* Needs work Hao
 		ad->ResetName();
 		attr_name = ad->NextName();
 		while (attr_name) {
@@ -318,6 +320,7 @@ ClassAdLog::LogState(int fd)
 				attr_name = ad->NextName();
 			}
 		}
+        */
 	}
 	if (fsync(fd) < 0) {
 		EXCEPT("fsync of %s failed, errno = %d", log_filename, errno);
@@ -343,9 +346,10 @@ int
 LogNewClassAd::Play(void *data_structure)
 {
 	ClassAdHashTable *table = (ClassAdHashTable *)data_structure;
-	ClassAd	*ad = new ClassAd();
-	ad->SetMyTypeName(mytype);
-	ad->SetTargetTypeName(targettype);
+	ClassAd	*ad = new ClassAd();   
+    // Needs work Hao
+	//ad->SetMyTypeName(mytype);
+	//ad->SetTargetTypeName(targettype);
 	return table->insert(HashKey(key), ad);
 }
 
@@ -446,12 +450,13 @@ LogSetAttribute::Play(void *data_structure)
 	ClassAdHashTable *table = (ClassAdHashTable *)data_structure;
 	int rval;
 	ClassAd *ad;
+    Value v;
+
 	if (table->lookup(HashKey(key), ad) < 0)
 		return -1;
-	char *tmp_expr = new char [strlen(name) + strlen(value) + 4];
-	sprintf(tmp_expr, "%s = %s", name, value);
-	rval = ad->Insert(tmp_expr);
-	delete [] tmp_expr;
+    v.SetStringValue(value);
+	rval = ad->Insert( string(name), Literal::MakeLiteral(v));
+
 	return rval;
 }
 
