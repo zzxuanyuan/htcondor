@@ -12,15 +12,16 @@ programs to suit the Condor environment via an example program.  In the
 end, we illustrate how to submit PVM jobs to Condor by examining a
 sample Condor submit-description file which submits a PVM job.
 
-Note that Condor-PVM is an optional Condor module.  To check and see if
+\Note Condor-PVM is an optional Condor module.  To check and see if
 it has been installed at your site, enter the following command:
 \begin{verbatim}
         ls -l `condor_config_val PVMD`
 \end{verbatim}
 (notice the use of backticks in the above command).  If this shows the
-file ``condor\_pvmd'' on your system, Condor-PVM is installed.  If not,
-ask your site administrator to download Condor-PVM from
-\Url{http://www.cs.wisc.edu/condor/condor-pvm} and install it.
+file ``condor\_pvmd'' on your system, Condor-PVM is installed.  
+If not, ask your site administrator to download Condor-PVM from
+\Url{http://www.cs.wisc.edu/condor} in the ``contrib'' section of the 
+''Downloads'' page and install it.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{What does Condor-PVM do?}
