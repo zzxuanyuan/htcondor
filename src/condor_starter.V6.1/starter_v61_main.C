@@ -640,16 +640,18 @@ main_config( bool is_full )
 	return 0;
 }
 
+
 int
 main_shutdown_fast()
 {
 	if ( Starter->ShutdownFast(0) ) {
-		// ShutdownGraceful says it is already finished, because
-		// there are no jobs to shutdown.  No need to stick around.
-		DC_Exit(0);
+		// ShutdownFast says it is already finished, because there are
+		// no jobs to shutdown.  No need to stick around.
+		Starter->StarterExit(0);
 	}
 	return 0;
 }
+
 
 int
 main_shutdown_graceful()
@@ -657,7 +659,7 @@ main_shutdown_graceful()
 	if ( Starter->ShutdownGraceful(0) ) {
 		// ShutdownGraceful says it is already finished, because
 		// there are no jobs to shutdown.  No need to stick around.
-		DC_Exit(0);
+		Starter->StarterExit(0);
 	}
 	return 0;
 }

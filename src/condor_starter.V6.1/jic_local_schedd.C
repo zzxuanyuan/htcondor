@@ -28,7 +28,11 @@
 #include "condor_attributes.h"
 #include "exit.h"
 
+#include "starter.h"
+#include "jic_local.h"
 #include "jic_local_schedd.h"
+
+extern CStarter *Starter;
 
 
 JICLocalSchedd::JICLocalSchedd( const char* classad_filename, 
@@ -54,7 +58,7 @@ JICLocalSchedd::allJobsGone( void )
 		// exit ourselves.  However, we need to use the right code so
 		// the schedd knows to remove the job from the queue
 	dprintf( D_ALWAYS, "All jobs have exited... starter exiting\n" );
-	DC_Exit( exit_code );
+	Starter->StarterExit( exit_code );
 }
 
 

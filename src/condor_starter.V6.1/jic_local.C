@@ -187,7 +187,7 @@ JICLocal::allJobsGone( void )
 		// Since there's no shadow to tell us to go away, we have to
 		// exit ourselves.
 	dprintf( D_ALWAYS, "All jobs have exited... starter exiting\n" );
-	DC_Exit(0);
+	Starter->StarterExit( 0 );
 }
 
 
