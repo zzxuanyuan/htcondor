@@ -20,36 +20,45 @@
  * Livny, 7367 Computer Sciences, 1210 W. Dayton St., Madison, 
  * WI 53706-1685, (608) 262-0856 or miron@cs.wisc.edu.
 ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
+
 #include "condor_common.h"
-#include "list.h"
-#include "simplelist.h"
-#include "extArray.h"
-#include "stringSpace.h"
-#include "killfamily.h"
-#include "HashTable.h"
-#include "condor_classad.h"
-#include "classad_collection_types.h"
-#include "MyString.h"
-#include "Set.h"
+#include "KeyCache.h"
+#include "CryptKey.h"
 
+KeyCacheEntry::KeyCacheEntry( int id, struct sockaddr_in * addr, KeyInfo* key, int expiration) {
+	_id = id;
+	memcpy (&_addr, addr, sizeof(struct sockaddr_in));
+	_key = new KeyInfo(*key);
+	_expiration = expiration;
+}
 
-template class List<char>; 		template class Item<char>;
-template class List<int>; 		template class Item<int>;
-template class SimpleList<int>; 
-template class SimpleList<float>;
-template class ExtArray<char *>;
-template class ExtArray<StringSpace::SSStringEnt>;
-template class ExtArray<StringSpace*>;
-template class ExtArray<ProcFamily::a_pid>;
-template class HashTable<int, BaseCollection*>;
-template class HashBucket<int, BaseCollection*>;
-template class Set<MyString>;
-template class SetElem<MyString>;
-template class Set<int>;
-template class SetElem<int>;
-template class Set<RankedClassAd>;
-template class SetElem<RankedClassAd>;
-template class HashTable<MyString, int>;
-template class HashBucket<MyString,int>;
-template class HashTable<unsigned int, KeyCacheEntry*>;
+KeyCacheEntry::KeyCacheEntry(const KeyCacheEntry& copy) {
+	_id = copy._id;
+	memcpy (&_addr, &(copy._addr), sizeof(struct sockaddr_in));
+	_key = new KeyInfo(*(copy._key));
+	_expiration = copy._expiration;
+}
+
+KeyCacheEntry::~KeyCacheEntry() {
+	if (_key) {
+	  delete _key;
+	}
+}
+
+int KeyCacheEntry::id() {
+	return _id;
+}
+
+struct sockaddr_in *  KeyCacheEntry::addr() {
+	return &_addr;
+}
+
+KeyInfo* KeyCacheEntry::key() {
+	return _key;
+}
+
+int KeyCacheEntry::expiration() {
+	return _expiration;
+}
+
 

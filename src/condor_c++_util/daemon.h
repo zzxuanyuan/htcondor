@@ -320,8 +320,8 @@ private:
 	bool _auth_cap_known;
 	bool _is_auth_cap;
 
-	static KeyCacheByAddr   *enc_key_cache;
-	static int enc_key_daemon_ref_count;
+	static KeyCache  *enc_key_cache;
+	static int       enc_key_daemon_ref_count;
 
 		// //////////////////////////////////////////////////////////
 		/// Helper methods.

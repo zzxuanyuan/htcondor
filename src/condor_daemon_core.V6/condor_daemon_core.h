@@ -904,7 +904,7 @@ class DaemonCore : public Service
     static              TimerManager t;
     void                DumpTimerList(int, char* = NULL);
 
-	KeyCacheById		*enc_key_cache;
+	KeyCache    		*enc_key_cache;
 
 
     IpVerify            ipverify;   

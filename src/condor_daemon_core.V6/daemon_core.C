@@ -68,7 +68,7 @@ static int compute_pid_hash(const pid_t &key, int numBuckets)
 }
 
 // Hash function for key cache.
-static int compute_enc_key_hash(const int &key, int numBuckets) 
+static int compute_enc_key_hash(const unsigned int &key, int numBuckets) 
 {
 	return ( key % numBuckets );
 }
@@ -128,7 +128,7 @@ DaemonCore::DaemonCore(int PidSize, int ComSize,int SigSize,
 	if(maxSocket == 0)
 		maxSocket = DEFAULT_MAXSOCKETS;
 
-	enc_key_cache = new KeyCacheById(197, &compute_enc_key_hash);
+	enc_key_cache = new KeyCache(197, &compute_enc_key_hash);
 	sockTable = new ExtArray<SockEnt>(maxSocket);
 	if(sockTable == NULL)
 	{
@@ -1754,6 +1754,8 @@ int DaemonCore::HandleReq(int socki)
 			if (!sock->set_crypto_key(ki)) {
 				dprintf (D_ALWAYS, "DC_AUTHENTICATE: set_crypto_key() failed\n");
 				return FALSE;
+			} else {
+				dprintf (D_SECURITY, "DC_AUTHENTICATE: crypto enabled with key id %i!\n", key_id);
 			}
 
 			// shove the stupid id over

@@ -39,20 +39,17 @@
 #include "KeyCache.h"
 
 
-KeyCacheByAddr* Daemon::enc_key_cache = NULL;
+KeyCache* Daemon::enc_key_cache = NULL;
 int Daemon::enc_key_daemon_ref_count = 0;
 
 
 // Hash function for encryption key hash table
 static int
-compute_enc_hash(struct sockaddr_in * const &addr, int numBuckets)
+compute_enc_hash(const unsigned int &ip, int numBuckets)
 {
-    unsigned int h = 0;
-	char *a = sin_to_string(addr);
-	for (int n = 0; a[n]; n++) {
-		h = (h * 37 + a[n]) % (MAXINT / 37);
-	}
-	return ( h % numBuckets );
+    unsigned int h = ip % numBuckets;
+	dprintf (D_SECURITY, "ZKM: hashing %x yields %i\n", ip, h);
+	return ( h );
 }
 
 
@@ -90,11 +87,12 @@ Daemon::Daemon( char* sinful_addr, int port )
 		_port = 0;
 	}
 
-	if (enc_key_daemon_ref_count == 0) {
-		printf ("ZKM: creating enc key table!\n");
-		enc_key_cache = new KeyCacheByAddr(59, &compute_enc_hash, rejectDuplicateKeys);
+	if (enc_key_cache == NULL) {
+		dprintf (D_SECURITY, "ZKM: creating enc key table!\n");
+		enc_key_cache = new KeyCache(101, &compute_enc_hash, rejectDuplicateKeys);
 	}
 	enc_key_daemon_ref_count++;
+	dprintf (D_SECURITY, "ZKM: Daemon ref count now %i.\n", enc_key_daemon_ref_count);
 }
 
 
@@ -129,11 +127,12 @@ Daemon::Daemon( daemon_t type, const char* name, const char* pool )
 		}
 	} 
 
-	if (enc_key_daemon_ref_count == 0) {
-		printf ("ZKM: creating enc key table!\n");
-		enc_key_cache = new KeyCacheByAddr(101, &compute_enc_hash, rejectDuplicateKeys);
+	if (enc_key_cache == NULL) {
+		dprintf (D_SECURITY, "ZKM: creating enc key table!\n");
+		enc_key_cache = new KeyCache(101, &compute_enc_hash, rejectDuplicateKeys);
 	}
 	enc_key_daemon_ref_count++;
+	dprintf (D_SECURITY, "ZKM: Daemon ref count now %i.\n", enc_key_daemon_ref_count);
 }
 
 
@@ -150,9 +149,9 @@ Daemon::~Daemon()
 
 	enc_key_daemon_ref_count--;
 	if (enc_key_daemon_ref_count == 0) {
-		printf ("ZKM: deleting enc key table!\n");
+		dprintf (D_SECURITY, "ZKM: could erase KeyCache.\n");
 		// need to walk table and delete individual keys
-		delete enc_key_cache;
+		//delete enc_key_cache;
 	}
 
 }
@@ -465,9 +464,11 @@ Daemon::startCommand( int cmd, Sock* sock, int sec )
 
 	// see if we have a cached key
 	KeyCacheEntry *enc_key = NULL;
-	previously_auth = (enc_key_cache->lookup(sock->endpoint(), enc_key) == 0);
+	previously_auth = (enc_key_cache->lookup(sock->endpoint_ip_int(), enc_key) == 0);
 	if (previously_auth) {
-		dprintf (D_SECURITY, "STARTCOMMAND: found cached key id %i.\n", enc_key->id());
+		dprintf (D_SECURITY, "STARTCOMMAND: found cached key id %i under %s.\n", enc_key->id(), sin_to_string(sock->endpoint()));
+	} else {
+		dprintf (D_SECURITY, "STARTCOMMAND: no cached key under %s.\n", sin_to_string(sock->endpoint()));
 	}
 
 
@@ -727,12 +728,12 @@ choose_action:
 			// a failure here signals that the cache may be invalid.
 			// delete this entry from table and force normal auth.
 			KeyCacheEntry * ek = NULL;
-			if (enc_key_cache->lookup(sock->endpoint(), ek) == 0) {
+			if (enc_key_cache->lookup(sock->endpoint_ip_int(), ek) == 0) {
 				delete ek;
 			} else {
 				dprintf (D_SECURITY, "STARTCOMMAND: unable to delete KeyCacheEntry.\n");
 			}
-			enc_key_cache->remove(sock->endpoint());
+			enc_key_cache->remove(sock->endpoint_ip_int());
 			previously_auth = false;
 
 			// close this connection and start a new one
@@ -762,7 +763,7 @@ choose_action:
 		KeyInfo* ki = NULL;
 
 		if (!sock->authenticate(ki, 0xFFFF)) {
-			dprintf ( D_SECURITY, "STARTCOMMAND: authenticate failed!");
+			dprintf ( D_SECURITY, "STARTCOMMAND: authenticate failed!\n");
 			retval = false;
 		} else if (ki == NULL) {
 			dprintf ( D_SECURITY, "STARTCOMMAND: did not receive crypto key... "
@@ -788,7 +789,7 @@ choose_action:
 					dprintf (D_ALWAYS, "STARTCOMMAND: could not receive key id number.\n");
 					retval = false;
 				} else {
-					dprintf (D_SECURITY, "STARTCOMMAND: server sent crypto key id %i.\n",
+					dprintf (D_SECURITY, "STARTCOMMAND: crypto enabled with key id %i.\n",
 							key_id);
 				}
 
@@ -798,9 +799,11 @@ choose_action:
 											sock->endpoint(),
 											ki,
 											0);
-				enc_key_cache->insert(sock->endpoint(), nkey);
+				enc_key_cache->insert(sock->endpoint_ip_int(), nkey);
 				// ki is copied by KeyCacheEntry's constructor.
 				// nkey is "leaked" at this point, to be cleaned up later.
+
+				dprintf (D_SECURITY, "STARTCOMMAND: crypto key id %i added to cache.\n", key_id);
 
 				retval = true;
 			}
