@@ -30,7 +30,6 @@
 #include "condor_attributes.h"
 #include "sig_name.h"
 
-extern "C" {
 
 /*
   This method is static to this file and shouldn't be used directly.
@@ -96,4 +95,3 @@ findHoldKillSig( ClassAd* ad )
 }
 
 
-} // end of extern "C"

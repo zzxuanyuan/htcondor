@@ -25,9 +25,6 @@
   This file holds utility functions that rely on ClassAds.
 */
 
-#include "condor_header_features.h"
-
-BEGIN_C_DECLS
 
 /*
   lookup ATTR_KILL_SIG, but if it's a string represenation, convert it
@@ -40,6 +37,4 @@ int findRmKillSig( ClassAd* ad );
 
 // same as findSoftKillSig(), but for ATTR_HOLD_KILL_SIG
 int findHoldKillSig( ClassAd* ad );
-
-END_C_DECLS
 
