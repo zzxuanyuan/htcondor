@@ -2098,8 +2098,6 @@ DedicatedScheduler::spawnJobs( void )
 		return true;
 	}
 
-		// TODO: handle multiple procs per cluster!
-
 	if( ! shadow_obj ) {
 		dprintf( D_ALWAYS, "ERROR: Can't find a shadow with %s -- "
 				 "can't spawn MPI jobs, aborting\n", ATTR_HAS_MPI );
@@ -2976,32 +2974,35 @@ DedicatedScheduler::DelMrec( char* id )
 			// delete this match record from the matches in the
 			// allocation node, or we're going to have a dangling
 			// pointer in there.
-			// TODO: Handle multiple procs!
-		MRecArray* rec_array = (*alloc->matches)[0];
-		int i, last = rec_array->getlast();
+
 		bool found_it = false;
-		for( i=0; i<= last; i++ ) {
-				// In case you were wondering, this works just fine if
-				// the mrec we care about is in the last position.
-				// The first assignment will be a no-op, but no harm
-				// is done, and the thing that matters is that we NULL
-				// out the entry in the array and truncate it so that
-				// getlast() will return the right value.
-			if( (*rec_array)[i] == rec ) {
-				found_it = true;
-				(*rec_array)[i] = (*rec_array)[last];
-				(*rec_array)[last] = NULL;
-					// We want to decrement last so we break out of
-					// this for loop before checking the element we
-					// NULL'ed out.  Otherwise, the truncate below
-					// will just get undone when we inspect the last
-					// element. 
-				last--;
-					// Truncate our array so we realize the match is
-					// gone, and don't consider it in the future.
-				rec_array->truncate(last);
+		for( int proc_index = 0; proc_index < alloc->num_procs; proc_index++) {
+			MRecArray* rec_array = (*alloc->matches)[proc_index];
+			int i, last = rec_array->getlast();
+
+			for( i=0; i<= last; i++ ) {
+					// In case you were wondering, this works just fine if
+					// the mrec we care about is in the last position.
+					// The first assignment will be a no-op, but no harm
+					// is done, and the thing that matters is that we NULL
+					// out the entry in the array and truncate it so that
+					// getlast() will return the right value.
+				if( (*rec_array)[i] == rec ) {
+					found_it = true;
+					(*rec_array)[i] = (*rec_array)[last];
+					(*rec_array)[last] = NULL;
+						// We want to decrement last so we break out of
+						// this for loop before checking the element we
+						// NULL'ed out.  Otherwise, the truncate below
+						// will just get undone when we inspect the last
+						// element. 
+					last--;
+						// Truncate our array so we realize the match is
+						// gone, and don't consider it in the future.
+					rec_array->truncate(last);
+				}
 			}
-		}		
+		}
 		if( ! found_it ) {
 				// This sucks.  We think this match record belongs to
 				// a cluster that we have an allocation node for, but

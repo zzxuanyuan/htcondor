@@ -2832,8 +2832,10 @@ Scheduler::actOnJobs(int, Stream* s)
 			// No need to iterate through the queue, just act on the
 			// specific ids we care about...
 
-		job_ids.rewind();
-		while( (tmp=job_ids.next()) ) {
+		StringList expanded_ids;
+		expand_mpi_procs(&job_ids, &expanded_ids);
+		expanded_ids.rewind();
+		while( (tmp=expanded_ids.next()) ) {
 			tmp_id = getProcByString( tmp );
 			if( tmp_id.cluster < 0 || tmp_id.proc < 0 ) {
 				continue;
@@ -6433,6 +6435,46 @@ Scheduler::find_shadow_by_cluster( PROC_ID *id )
 	return NULL;
 }
 #endif
+
+/*
+  If we have an MPI cluster with > 1 proc, the user
+  might condor_rm/_hold/_release one of those procs.
+  If so, we need to treat it as if all of the procs
+  in the cluster are _rm'd/_held/_released.  This
+  copies all the procs from job_ids to expanded_ids,
+  adding any sibling mpi procs if needed.
+*/
+void
+Scheduler::expand_mpi_procs(StringList *job_ids, StringList *expanded_ids) {
+	job_ids->rewind();
+	char *id;
+	char buf[40];
+	while( (id = job_ids->next())) {
+		expanded_ids->append(strdup(id));
+	}
+
+	job_ids->rewind();
+	while( (id = job_ids->next()) ) {
+		PROC_ID p = getProcByString(id);
+		if( (p.cluster < 0) || (p.proc < 0) ) {
+			continue;
+		}
+
+		int universe = -1;
+		GetAttributeInt(p.cluster, p.proc, ATTR_JOB_UNIVERSE, &universe);
+		if (universe != CONDOR_UNIVERSE_MPI)
+			continue;
+		
+		int proc_index = 0;
+		while( (GetJobAd(p.cluster, proc_index, false) )) {
+			sprintf(buf, "%d.%d", p.cluster, proc_index);
+			if (! expanded_ids->contains(buf)) {
+				expanded_ids->append(strdup(buf));
+			}
+			proc_index++;
+		}
+	}
+}
 
 void
 Scheduler::mail_problem_message()
