@@ -803,7 +803,7 @@ newCODIdString()
 
 		// put the integers we need into a string so we can add them
 		// to our MyString
-	sprintf( startd_bday_str, "%d", startd_startup );
+	sprintf( startd_bday_str, "%ld", (long)startd_startup );
 	sprintf( seq_num_str, "%d", sequence_num );
 
 	id += daemonCore->InfoCommandSinfulString();
