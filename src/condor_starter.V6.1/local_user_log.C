@@ -74,11 +74,11 @@ LocalUserLog::initFromJobAd( ClassAd* ad, const char* iwd )
 {
     char tmp[_POSIX_PATH_MAX], logfilename[_POSIX_PATH_MAX];
 	int use_xml = FALSE;
+	int cluster = 1, proc = 0, subproc = 0;
 
-		// TODO we probably want to look for a different attribute
-		// than this...
-    if( ! ad->LookupString(ATTR_ULOG_FILE, tmp) ) {
-        dprintf( D_FULLDEBUG, "no %s found\n", ATTR_ULOG_FILE );
+    if( ! ad->LookupString(ATTR_STARTER_ULOG_FILE, tmp) ) {
+        dprintf( D_FULLDEBUG, "no %s found\n", 
+				 ATTR_STARTER_ULOG_FILE );
 		return false;
 	}
 	if ( tmp[0] == '/' || tmp[0]=='\\' || (tmp[1]==':' &&
@@ -98,10 +98,12 @@ LocalUserLog::initFromJobAd( ClassAd* ad, const char* iwd )
 		sprintf(logfilename, "%s/%s", iwd, tmp);
 	}
 
-	ad->LookupBool( ATTR_ULOG_USE_XML, use_xml );
+	ad->LookupBool( ATTR_STARTER_ULOG_USE_XML, use_xml );
 
-		// TODO!! figure out a better thing to use for cluster and proc! 
-	return init( logfilename, (bool)use_xml, 1, 0, 0 );
+	ad->LookupInteger( ATTR_CLUSTER_ID, cluster );
+	ad->LookupInteger( ATTR_PROC_ID, proc );
+
+	return init( logfilename, (bool)use_xml, cluster, proc, subproc );
 }
 
 
