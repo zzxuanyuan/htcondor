@@ -1,10 +1,7 @@
 NAME = condor_schedd
 all_target($(NAME) libqmgmt.a)
 
-ODBC_INCLUDE = /afs/cs.wisc.edu/u/j/h/jhuang/odbc/include
-
-C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) -I$(ODBC_INCLUDE)
-LDFLAGS = $(STD_LDFLAGS) -lrt -lpq -pg -L /afs/cs.wisc.edu/u/j/h/jhuang/odbc/lib -lodbc
+C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) 
 CFLAGS = $(STD_C_FLAGS)
 
 LIB= $(DAEMONCORE_LIB) $(STD_LIBS)

@@ -7,11 +7,9 @@ BENCHMARK_CLASS = scimark2lib.jar
 
 all_target($(NAME) $(RSH_NAME) condor_gridshell)
 
-ODBC_INCLUDE = /afs/cs.wisc.edu/u/j/h/jhuang/odbc/include
-
 CFLAGS = $(STD_C_FLAGS)
-C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) -I$(ODBC_INCLUDE)
-LDFLAGS = $(STD_LDFLAGS) -lrt -lpq -pg -L /afs/cs.wisc.edu/u/j/h/jhuang/odbc/lib -lodbc
+C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS)
+LDFLAGS = $(STD_LDFLAGS)
 
 LIB = $(DAEMONCORE_LIB) $(STD_LIBS)
 RSH_LIB = $(STD_LIBS) $(CLASSAD_LIB)

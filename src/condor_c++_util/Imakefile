@@ -1,9 +1,7 @@
 all_target(cplus_lib.a liburl.a libcondorapi.a test_libcondorapi)
 
-ODBC_INCLUDE = /afs/cs.wisc.edu/u/j/h/jhuang/odbc/include
-
-C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) -I$(ODBC_INCLUDE)
-LDFLAGS = $(STD_LDFLAGS) -lrt -L /afs/cs.wisc.edu/u/j/h/jhuang/odbc/lib -lodbc
+C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS)
+LDFLAGS = $(STD_LDFLAGS)
 CFLAGS = $(STD_C_FLAGS)
 LIB = $(STD_LIBS)
 
