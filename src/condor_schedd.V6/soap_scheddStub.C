@@ -885,7 +885,7 @@ condor__listSpool(struct soap * soap,
 				strcpy(result.response.status.message,
 					   errstack.message());
 
-				if (destroy_job && job) {
+				if (job) {
 					delete job;
 					job = NULL;
 				}
