@@ -257,6 +257,19 @@ Init()
 		}
 	}
 
+	if ( ScheddJobConstraint == NULL ) {
+		// CRUFT: Backwards compatibility with pre-6.5.1 schedds that don't
+		//   give us a constraint expression for querying our jobs. Build
+		//   it ourselves like the old gridmanager did.
+		if ( UseSingleProxy( X509Proxy ) == false ) {
+			EXCEPT( "Failed to initialize ProxyManager" );
+		}
+	} else {
+		if ( UseMultipleProxies( GridmanagerScratchDir ) == false ) {
+			EXCEPT( "Failed to initialize Proxymanager" );
+		}
+	}
+
 	JobType *new_type;
 
 #if defined(ORACLE_UNIVERSE)

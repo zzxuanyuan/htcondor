@@ -267,18 +267,6 @@ gramCallbackHandler( void *user_arg, char *job_contact, int state,
 /////////////////////////added for reorg
 void GlobusJobInit()
 {
-	if ( ScheddJobConstraint == NULL ) {
-		// CRUFT: Backwards compatibility with pre-6.5.1 schedds that don't
-		//   give us a constraint expression for querying our jobs. Build
-		//   it ourselves like the old gridmanager did.
-		if ( UseSingleProxy( X509Proxy ) == false ) {
-			EXCEPT( "Failed to initialize ProxyManager" );
-		}
-	} else {
-		if ( UseMultipleProxies( GridmanagerScratchDir ) == false ) {
-			EXCEPT( "Failed to initialize Proxymanager" );
-		}
-	}
 }
 
 void GlobusJobReconfig()
@@ -699,8 +687,11 @@ int GlobusJob::doEvaluateState()
 			int err;
 
 			if ( gahp.Initialize( myProxy->proxy_filename ) == false ) {
-					// TODO what now?
-				dprintf( D_ALWAYS, "Error initializing GAHP\n" );
+				dprintf( D_ALWAYS, "(%d.%d) Error initializing GAHP\n",
+						 procID.cluster, procID.proc );
+				UpdateJobAdString( ATTR_HOLD_REASON, "Failed to initialize GAHP" );
+				gmState = GM_HOLD;
+				break;
 			}
 
 			gahp.setDelegProxy( myProxy );
@@ -711,15 +702,21 @@ int GlobusJob::doEvaluateState()
 														  NULL,
 														  &gramCallbackContact );
 			if ( err != GLOBUS_SUCCESS ) {
-					// TODO what now?
-				dprintf( D_ALWAYS, "Error enabling GRAM callback, err=%d - %s\n", 
-						 err, gahp.globus_gram_client_error_string(err) );
+				dprintf( D_ALWAYS, "(%d.%d) Error enabling GRAM callback, err=%d - %s\n", 
+						 procID.cluster, procID.proc, err,
+						 gahp.globus_gram_client_error_string(err) );
+				UpdateJobAdString( ATTR_HOLD_REASON, "Failed to initialize GAHP" );
+				gmState = GM_HOLD;
+				break;
 			}
 
 			err = gahp.globus_gass_server_superez_init( &gassServerUrl, 0 );
 			if ( err != GLOBUS_SUCCESS ) {
-					// TODO what now?
-				dprintf( D_ALWAYS, "Error enabling GASS server, err=%d\n", err );
+				dprintf( D_ALWAYS, "(%d.%d) Error enabling GASS server, err=%d\n",
+						 procID.cluster, procID.proc, err );
+				UpdateJobAdString( ATTR_HOLD_REASON, "Failed to initialize GAHP" );
+				gmState = GM_HOLD;
+				break;
 			}
 
 			gmState = GM_START;

@@ -173,7 +173,7 @@ GahpServer::~GahpServer()
 void
 GahpServer::write_line(const char *command)
 {
-dprintf(D_FULLDEBUG,"GAHP <- '%s'\n", command );
+dprintf(D_FULLDEBUG,"GAHP[%d] <- '%s'\n", m_gahp_pid, command );
 	if ( !command || m_gahp_writefd == -1 ) {
 		return;
 	}
@@ -197,8 +197,8 @@ GahpServer::write_line(const char *command, int req, const char *args)
 	write(m_gahp_writefd,buf,strlen(buf));
 	if ( args ) {
 		write(m_gahp_writefd,args,strlen(args));
-dprintf(D_FULLDEBUG,"GAHP <- '%s%s%s'\n", command, buf, args );
-}else{dprintf(D_FULLDEBUG,"GAHP <- '%s%s'\n", command, buf );
+dprintf(D_FULLDEBUG,"GAHP[%d] <- '%s%s%s'\n", m_gahp_pid, command, buf, args );
+}else{dprintf(D_FULLDEBUG,"GAHP[%d] <- '%s%s'\n", m_gahp_pid, command, buf );
 	}
 	write(m_gahp_writefd,"\r\n",2);
 
@@ -315,7 +315,7 @@ GahpServer::read_argv(Gahp_Args &g_args)
 	g_args.argv = (char**)calloc(argv_size, sizeof(char*));
 
 	if ( m_gahp_readfd == -1 ) {
-dprintf(D_FULLDEBUG,"GAHP -> (no pipe)\n");
+dprintf(D_FULLDEBUG,"GAHP[%d] -> (no pipe)\n",m_gahp_pid);
 		return g_args.argv;
 	}
 
@@ -343,7 +343,7 @@ dprintf(D_FULLDEBUG,"GAHP -> (no pipe)\n");
 				g_args.argv[i] = NULL;
 			}
 			g_args.argc = 0;
-dprintf(D_FULLDEBUG,"GAHP -> EOF\n");
+dprintf(D_FULLDEBUG,"GAHP[%d] -> EOF\n",m_gahp_pid);
 			return g_args.argv;
 		}
 
@@ -429,7 +429,7 @@ if(g_args.argv[i])strcat(buf,g_args.argv[i]);
 }
 strcat(buf,"'");
 }
-dprintf(D_FULLDEBUG,"GAHP -> %s\n",buf);
+dprintf(D_FULLDEBUG,"GAHP[%d] -> %s\n",m_gahp_pid,buf);
 			return g_args.argv;
 		}
 

@@ -396,11 +396,6 @@ class GahpClient : public Service {
 		gt3_gram_client_ping(const char * resource_manager_contact);
 
 		///
-		int 
-		gt3_gram_client_job_contact_free(char *job_contact) 
-			{ free(job_contact); return 0; }
-
-		///
 		int
 		gt3_gram_client_job_refresh_credentials(const char *job_contact);
 

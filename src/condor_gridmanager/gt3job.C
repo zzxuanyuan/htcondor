@@ -186,18 +186,6 @@ gt3GramCallbackHandler( void *user_arg, char *job_contact, int state,
 /////////////////////////added for reorg
 void GT3JobInit()
 {
-	if ( ScheddJobConstraint == NULL ) {
-		// CRUFT: Backwards compatibility with pre-6.5.1 schedds that don't
-		//   give us a constraint expression for querying our jobs. Build
-		//   it ourselves like the old gridmanager did.
-		if ( UseSingleProxy( X509Proxy ) == false ) {
-			EXCEPT( "Failed to initialize ProxyManager" );
-		}
-	} else {
-		if ( UseMultipleProxies( GridmanagerScratchDir ) == false ) {
-			EXCEPT( "Failed to initialize Proxymanager" );
-		}
-	}
 }
 
 void GT3JobReconfig()
@@ -390,9 +378,17 @@ GT3Job::GT3Job( ClassAd *classad )
 		UpdateJobAd( ATTR_HOLD_REASON, "UNDEFINED" );
 	}
 
-	gahp.setNotificationTimerId( evaluateStateTid );
-	gahp.setMode( GahpClient::normal );
-	gahp.setTimeout( gahpCallTimeout );
+	char *gahp_path = param("GT3_GAHP");
+	if ( gahp_path == NULL ) {
+		error_string = "GT3_GAHP not defined";
+		goto error_exit;
+	}
+	gahp = new GahpClient( "GT3", gahp_path );
+	free( gahp_path );
+
+	gahp->setNotificationTimerId( evaluateStateTid );
+	gahp->setMode( GahpClient::normal );
+	gahp->setTimeout( gahpCallTimeout );
 
 	buff[0] = '\0';
 	ad->LookupString( ATTR_X509_USER_PROXY, buff );
@@ -554,12 +550,15 @@ GT3Job::~GT3Job()
 	if ( gramCallbackContact ) {
 		free( gramCallbackContact );
 	}
+	if ( gahp != NULL ) {
+		delete gahp;
+	}
 }
 
 void GT3Job::Reconfig()
 {
 	BaseJob::Reconfig();
-	gahp.setTimeout( gahpCallTimeout );
+	gahp->setTimeout( gahpCallTimeout );
 }
 
 int GT3Job::doEvaluateState()
@@ -587,9 +586,9 @@ int GT3Job::doEvaluateState()
 		// state that contacts to the jobmanager should be jumping to
 		// GM_RESTART instead.
 	if ( !resourceStateKnown || resourcePingPending || resourceDown ) {
-		gahp.setMode( GahpClient::results_only );
+		gahp->setMode( GahpClient::results_only );
 	} else {
-		gahp.setMode( GahpClient::normal );
+		gahp->setMode( GahpClient::normal );
 	}
 
 	do {
@@ -605,28 +604,38 @@ int GT3Job::doEvaluateState()
 			// constructor is called while we're connected to the schedd).
 			int err;
 
-			if ( gahp.Initialize( myProxy->proxy_filename ) == false ) {
-					// TODO what now?
-				dprintf( D_ALWAYS, "Error initializing GAHP\n" );
+			if ( gahp->Initialize( myProxy->proxy_filename ) == false ) {
+				dprintf( D_ALWAYS, "(%d.%d) Error initializing GAHP\n",
+						 procID.cluster, procID.proc );
+				
+				UpdateJobAdString( ATTR_HOLD_REASON, "Failed to initialize GAHP" );
+				gmState = GM_HOLD;
+				break;
 			}
 
-			gahp.setDelegProxy( myProxy );
+			gahp->setDelegProxy( myProxy );
 
-			gahp.setMode( GahpClient::blocking );
+			gahp->setMode( GahpClient::blocking );
 
-			err = gahp.globus_gram_client_callback_allow( gt3GramCallbackHandler,
-														  NULL,
-														  &gramCallbackContact );
+			err = gahp->gt3_gram_client_callback_allow( gt3GramCallbackHandler,
+														NULL,
+														&gramCallbackContact );
 			if ( err != GLOBUS_SUCCESS ) {
-					// TODO what now?
-				dprintf( D_ALWAYS, "Error enabling GRAM callback, err=%d - %s\n", 
-						 err, gahp.globus_gram_client_error_string(err) );
+				dprintf( D_ALWAYS,
+						 "(%d.%d) Error enabling GRAM callback, err=%d\n", 
+						 procID.cluster, procID.proc, err );
+				UpdateJobAdString( ATTR_HOLD_REASON, "Failed to initialize GAHP" );
+				gmState = GM_HOLD;
+				break;
 			}
 
-			err = gahp.globus_gass_server_superez_init( &gassServerUrl, 0 );
+			err = gahp->globus_gass_server_superez_init( &gassServerUrl, 0 );
 			if ( err != GLOBUS_SUCCESS ) {
-					// TODO what now?
-				dprintf( D_ALWAYS, "Error enabling GASS server, err=%d\n", err );
+				dprintf( D_ALWAYS, "(%d.%d) Error enabling GASS server, err=%d\n",
+						 procID.cluster, procID.proc, err );
+				UpdateJobAdString( ATTR_HOLD_REASON, "Failed to initialize GAHP" );
+				gmState = GM_HOLD;
+				break;
 			}
 
 			gmState = GM_START;
@@ -666,7 +675,7 @@ int GT3Job::doEvaluateState()
 		case GM_REGISTER: {
 			// Register for callbacks from an already-running jobmanager.
 			CHECK_PROXY;
-			rc = gahp.gt3_gram_client_job_callback_register( jobContact,
+			rc = gahp->gt3_gram_client_job_callback_register( jobContact,
 														gramCallbackContact );
 			if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
 				 rc == GAHPCLIENT_COMMAND_PENDING ) {
@@ -694,7 +703,7 @@ int GT3Job::doEvaluateState()
 			if ( RSL == NULL ) {
 				RSL = buildStdioUpdateRSL();
 			}
-			rc = gahp.globus_gram_client_job_signal( jobContact,
+			rc = gahp->globus_gram_client_job_signal( jobContact,
 								GLOBUS_GRAM_PROTOCOL_JOB_SIGNAL_STDIO_UPDATE,
 								RSL->Value(), &status, &error );
 			if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
@@ -775,7 +784,7 @@ int GT3Job::doEvaluateState()
 					gmState = GM_HOLD;
 					break;
 				}
-				rc = gahp.gt3_gram_client_job_create( 
+				rc = gahp->gt3_gram_client_job_create( 
 										resourceManagerString,
 										RSL->Value(),
 										gramCallbackContact, &job_contact );
@@ -790,10 +799,11 @@ int GT3Job::doEvaluateState()
 				if ( rc == GLOBUS_SUCCESS ) {
 					callbackRegistered = true;
 					rehashJobContact( this, jobContact, job_contact );
-					jobContact = strdup( job_contact );
+						// job_contact was strdup()ed for us. Now we take
+						// responsibility for free()ing it.
+					jobContact = job_contact;
 					UpdateJobAdString( ATTR_GLOBUS_CONTACT_STRING,
 									   job_contact );
-					gahp.gt3_gram_client_job_contact_free( job_contact );
 					gmState = GM_SUBMIT_SAVE;
 				} else {
 					// unhandled error
@@ -835,7 +845,7 @@ int GT3Job::doEvaluateState()
 				gmState = GM_CANCEL;
 			} else {
 				CHECK_PROXY;
-				rc = gahp.gt3_gram_client_job_start( jobContact );
+				rc = gahp->gt3_gram_client_job_start( jobContact );
 				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
 					 rc == GAHPCLIENT_COMMAND_PENDING ) {
 					break;
@@ -894,7 +904,7 @@ int GT3Job::doEvaluateState()
 				gmState = GM_CANCEL;
 			} else {
 				CHECK_PROXY;
-				rc = gahp.gt3_gram_client_job_refresh_credentials(
+				rc = gahp->gt3_gram_client_job_refresh_credentials(
 																jobContact );
 				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
 					 rc == GAHPCLIENT_COMMAND_PENDING ) {
@@ -916,7 +926,7 @@ int GT3Job::doEvaluateState()
 				gmState = GM_CANCEL;
 			} else {
 				CHECK_PROXY;
-				rc = gahp.gt3_gram_client_job_status( jobContact,
+				rc = gahp->gt3_gram_client_job_status( jobContact,
 													  &status );
 				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
 					 rc == GAHPCLIENT_COMMAND_PENDING ) {
@@ -949,7 +959,7 @@ int GT3Job::doEvaluateState()
 		case GM_DONE_COMMIT: {
 			// Tell the jobmanager it can clean up and exit.
 			CHECK_PROXY;
-			rc = gahp.gt3_gram_client_job_destroy( jobContact );
+			rc = gahp->gt3_gram_client_job_destroy( jobContact );
 			if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
 				 rc == GAHPCLIENT_COMMAND_PENDING ) {
 				break;
@@ -984,7 +994,7 @@ int GT3Job::doEvaluateState()
 			if ( globusState != GLOBUS_GRAM_PROTOCOL_JOB_STATE_DONE &&
 				 globusState != GLOBUS_GRAM_PROTOCOL_JOB_STATE_FAILED ) {
 				CHECK_PROXY;
-				rc = gahp.gt3_gram_client_job_destroy( jobContact );
+				rc = gahp->gt3_gram_client_job_destroy( jobContact );
 				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
 					 rc == GAHPCLIENT_COMMAND_PENDING ) {
 					break;
@@ -1012,7 +1022,7 @@ int GT3Job::doEvaluateState()
 			// isn't pending/running or the user has told us to
 			// forget lost job submissions.
 			CHECK_PROXY;
-			rc = gahp.gt3_gram_client_job_destroy( jobContact );
+			rc = gahp->gt3_gram_client_job_destroy( jobContact );
 			if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
 				 rc == GAHPCLIENT_COMMAND_PENDING ) {
 				break;
@@ -1230,7 +1240,7 @@ int GT3Job::doEvaluateState()
 			enteredCurrentGmState = time(NULL);
 			// If we were waiting for a pending globus call, we're not
 			// anymore so purge it.
-			gahp.purgePendingRequests();
+			gahp->purgePendingRequests();
 			// If we were calling a globus call that used RSL, we're done
 			// with it now, so free it.
 			if ( RSL ) {

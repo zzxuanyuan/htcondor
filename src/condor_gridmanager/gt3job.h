@@ -129,7 +129,7 @@ class GT3Job : public BaseJob
 
 
 	Proxy *myProxy;
-	GahpClient gahp;
+	GahpClient *gahp;
 
 	MyString *buildSubmitRSL();
 	void DeleteOutput();
