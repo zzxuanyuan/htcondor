@@ -54,7 +54,8 @@ class BaseJob
 	void JobRunning();
 	void JobIdle();
 	void JobEvicted();
-	void JobTerminated( bool normal_exit, int code );
+	void JobTerminated( bool exit_status_known, bool normal_exit = true,
+						int code = 0 );
 	void JobCompleted();
 	void DoneWithJob();
 	void JobHeld( const char *hold_reason );
@@ -81,6 +82,8 @@ class BaseJob
 	bool evictLogged;
 	bool holdLogged;
 
+	bool exitStatusKnown;
+
 	bool deleteFromGridmanager;
 	bool deleteFromSchedd;
 
@@ -101,6 +104,6 @@ bool WriteAbortEventToUserLog( ClassAd *job_ad );
 bool WriteTerminateEventToUserLog( ClassAd *job_ad );
 bool WriteEvictEventToUserLog( ClassAd *job_ad );
 bool WriteHoldEventToUserLog( ClassAd *job_ad );
-void EmailTerminateEvent(ClassAd * jobAd);
+void EmailTerminateEvent( ClassAd * jobAd, bool exit_status_known );
 
 #endif // define BASEJOB_H

@@ -46,6 +46,8 @@ BaseJob::BaseJob( ClassAd *classad )
 	evictLogged = false;
 	holdLogged = false;
 
+	exitStatusKnown = false;
+
 	deleteFromGridmanager = false;
 	deleteFromSchedd = false;
 
@@ -187,10 +189,12 @@ void BaseJob::JobEvicted()
 	}
 }
 
-void BaseJob::JobTerminated( bool normal_exit, int code )
+void BaseJob::JobTerminated( bool exit_status_known, bool normal_exit,
+							 int code )
 {
 	if ( condorState != HELD && condorState != COMPLETED &&
 		 condorState != REMOVED ) {
+		exitStatusKnown = exit_status_known;
 		EvalOnExitJobExpr( normal_exit, code );
 	}
 }
@@ -218,7 +222,7 @@ void BaseJob::DoneWithJob()
 	if ( condorState == COMPLETED ) {
 		if ( !terminateLogged ) {
 			WriteTerminateEventToUserLog( ad );
-			EmailTerminateEvent( ad );
+			EmailTerminateEvent( ad, exitStatusKnown );
 			terminateLogged = true;
 		}
 		deleteFromSchedd = true;
@@ -320,6 +324,8 @@ void BaseJob::JobAdUpdateFromSchedd( const ClassAd *new_ad )
 	static const char *held_removed_update_attrs[] = {
 		ATTR_JOB_STATUS,
 		ATTR_HOLD_REASON,
+		ATTR_HOLD_REASON_CODE,
+		ATTR_HOLD_REASON_SUBCODE,
 		ATTR_LAST_HOLD_REASON,
 		ATTR_RELEASE_REASON,
 		ATTR_LAST_RELEASE_REASON,
@@ -599,6 +605,13 @@ WriteAbortEventToUserLog( ClassAd *job_ad )
 bool
 WriteTerminateEventToUserLog( ClassAd *job_ad )
 {
+	if ( ! job_ad ) {
+		dprintf( D_ALWAYS,
+				 "Internal Error: WriteTerminateEventToUserLog passed null "
+				 "ClassAd.\n" );
+		return false;
+	}
+
 	int cluster, proc;
 	UserLog *ulog = InitializeUserLog( job_ad );
 	if ( ulog == NULL ) {
@@ -628,14 +641,37 @@ WriteTerminateEventToUserLog( ClassAd *job_ad )
 	event.total_sent_bytes = 0;
 	event.total_recvd_bytes = 0;
 
-	int tmp;
-	job_ad->LookupBool( ATTR_ON_EXIT_BY_SIGNAL, tmp );
-	if ( tmp == 0 ) {
-		event.normal = true;
-		job_ad->LookupInteger( ATTR_ON_EXIT_CODE, event.returnValue );
+	int int_val;
+	if( job_ad->LookupBool(ATTR_ON_EXIT_BY_SIGNAL, int_val) ) {
+		if( int_val ) {
+			if( job_ad->LookupInteger(ATTR_ON_EXIT_SIGNAL, int_val) ) {
+				event.signalNumber = int_val;
+				event.normal = false;
+			} else {
+				dprintf( D_ALWAYS, "(%d.%d) Job ad lacks %s.  "
+						 "Signal code unknown.\n", cluster, proc, 
+						 ATTR_ON_EXIT_SIGNAL);
+				event.normal = false;
+					// TODO What about event.signalNumber?
+			}
+		} else {
+			if( job_ad->LookupInteger(ATTR_ON_EXIT_CODE, int_val) ) {
+				event.normal = true;
+				event.returnValue = int_val;
+			} else {
+				dprintf( D_ALWAYS, "(%d.%d) Job ad lacks %s.  "
+						 "Return code unknown.\n", cluster, proc, 
+						 ATTR_ON_EXIT_CODE);
+				event.normal = false;
+					// TODO What about event.signalNumber?
+			}
+		}
 	} else {
+		dprintf( D_ALWAYS,
+				 "(%d.%d) Job ad lacks %s.  Final state unknown.\n",
+				 cluster, proc, ATTR_ON_EXIT_BY_SIGNAL);
 		event.normal = false;
-		job_ad->LookupInteger( ATTR_ON_EXIT_SIGNAL, event.signalNumber );
+			// TODO What about event.signalNumber?
 	}
 
 	int rc = ulog->writeEvent(&event);
@@ -698,7 +734,7 @@ bool
 WriteHoldEventToUserLog( ClassAd *job_ad )
 {
 	int cluster, proc;
-	char holdReason[256];
+
 	UserLog *ulog = InitializeUserLog( job_ad );
 	if ( ulog == NULL ) {
 		// User doesn't want a log
@@ -714,11 +750,7 @@ WriteHoldEventToUserLog( ClassAd *job_ad )
 
 	JobHeldEvent event;
 
-	holdReason[0] = '\0';
-	job_ad->LookupString( ATTR_HOLD_REASON, holdReason,
-						   sizeof(holdReason) - 1 );
-
-	event.setReason( holdReason );
+	event.initFromClassAd(job_ad);
 
 	int rc = ulog->writeEvent(&event);
 	delete ulog;
@@ -763,11 +795,11 @@ d_format_time( double dsecs )
 }
 
 void
-EmailTerminateEvent(ClassAd * jobAd)
+EmailTerminateEvent(ClassAd * jobAd, bool exit_status_known)
 {
 	if ( !jobAd ) {
 		dprintf(D_ALWAYS, 
-			"email_terminate_event called with invalid ClassAd\n");
+				"email_terminate_event called with invalid ClassAd\n");
 		return;
 	}
 
@@ -821,18 +853,16 @@ EmailTerminateEvent(ClassAd * jobAd)
 	int q_date = 0;
 	jobAd->LookupInteger(ATTR_Q_DATE,q_date);
 	
-	/*
-	// Present, but probably doesn't make sense for Globus
 	float remote_sys_cpu = 0.0;
 	jobAd->LookupFloat(ATTR_JOB_REMOTE_SYS_CPU, remote_sys_cpu);
 	
-	// Present, but probably doesn't make sense for Globus
 	float remote_user_cpu = 0.0;
 	jobAd->LookupFloat(ATTR_JOB_REMOTE_USER_CPU, remote_user_cpu);
 	
 	int image_size = 0;
 	jobAd->LookupInteger(ATTR_IMAGE_SIZE, image_size);
 	
+	/*
 	int shadow_bday = 0;
 	jobAd->LookupInteger( ATTR_SHADOW_BIRTHDATE, shadow_bday );
 	*/
@@ -853,7 +883,39 @@ EmailTerminateEvent(ClassAd * jobAd)
 	if ( JobName[0] ) {
 		fprintf(mailer,"\t%s %s\n",JobName,Args);
 	}
-	fprintf(mailer,"has exited normally.\n");
+	if(exit_status_known) {
+		fprintf(mailer, "has ");
+
+		int int_val;
+		if( jobAd->LookupBool(ATTR_ON_EXIT_BY_SIGNAL, int_val) ) {
+			if( int_val ) {
+				if( jobAd->LookupInteger(ATTR_ON_EXIT_SIGNAL, int_val) ) {
+					fprintf(mailer, "exited with the signal %d.\n", int_val);
+				} else {
+					fprintf(mailer, "exited with an unknown signal.\n");
+					dprintf( D_ALWAYS, "(%d.%d) Job ad lacks %s.  "
+						 "Signal code unknown.\n", cluster, proc, 
+						 ATTR_ON_EXIT_SIGNAL);
+				}
+			} else {
+				if( jobAd->LookupInteger(ATTR_ON_EXIT_CODE, int_val) ) {
+					fprintf(mailer, "exited normally with status %d.\n",
+						int_val);
+				} else {
+					fprintf(mailer, "exited normally with unknown status.\n");
+					dprintf( D_ALWAYS, "(%d.%d) Job ad lacks %s.  "
+						 "Return code unknown.\n", cluster, proc, 
+						 ATTR_ON_EXIT_CODE);
+				}
+			}
+		} else {
+			fprintf(mailer,"has exited.\n");
+			dprintf( D_ALWAYS, "(%d.%d) Job ad lacks %s.  ",
+				 cluster, proc, ATTR_ON_EXIT_BY_SIGNAL);
+		}
+	} else {
+		fprintf(mailer,"has exited.\n");
+	}
 
 	/*
 	if( had_core ) {
@@ -874,20 +936,29 @@ EmailTerminateEvent(ClassAd * jobAd)
 
 	fprintf( mailer, "\n" );
 	
-	/*
-	// None of this is valid for Globus jobs.
-	fprintf(mailer, "Virtual Image Size:  %d Kilobytes\n\n", image_size);
-	
+		// TODO We don't necessarily have this information even if we do
+		//   have the exit status
+	if( exit_status_known ) {
+		fprintf(mailer, "Virtual Image Size:  %d Kilobytes\n\n", image_size);
+	}
+
 	double rutime = remote_user_cpu;
 	double rstime = remote_sys_cpu;
 	double trtime = rutime + rstime;
+	/*
 	double wall_time = now - shadow_bday;
 	fprintf(mailer, "Statistics from last run:\n");
 	fprintf(mailer, "Allocation/Run time:     %s\n",d_format_time(wall_time) );
-	fprintf(mailer, "Remote User CPU Time:    %s\n", d_format_time(rutime) );
-	fprintf(mailer, "Remote System CPU Time:  %s\n", d_format_time(rstime) );
-	fprintf(mailer, "Total Remote CPU Time:   %s\n\n", d_format_time(trtime));
-	
+	*/
+		// TODO We don't necessarily have this information even if we do
+		//   have the exit status
+	if( exit_status_known ) {
+		fprintf(mailer, "Remote User CPU Time:    %s\n", d_format_time(rutime) );
+		fprintf(mailer, "Remote System CPU Time:  %s\n", d_format_time(rstime) );
+		fprintf(mailer, "Total Remote CPU Time:   %s\n\n", d_format_time(trtime));
+	}
+
+	/*
 	double total_wall_time = previous_runs + wall_time;
 	fprintf(mailer, "Statistics totaled from all runs:\n");
 	fprintf(mailer, "Allocation/Run time:     %s\n",
