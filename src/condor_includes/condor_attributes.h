@@ -273,6 +273,9 @@ const char ATTR_PERIODIC_REMOVE_CHECK	 [] = "PeriodicRemove";
 const char ATTR_AUTH_TYPES               [] = "AuthTypes";
 const char ATTR_AUTH_ACTION              [] = "AuthAction";
 const char ATTR_AUTH_COMMAND             [] = "AuthCommand";
+const char ATTR_KEY_ID                   [] = "KeyId";
+const char ATTR_SUBSYSTEM                [] = "SubSystem";
+
 
 
 #endif

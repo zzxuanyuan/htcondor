@@ -21,60 +21,38 @@
  * WI 53706-1685, (608) 262-0856 or miron@cs.wisc.edu.
 ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
+#ifndef CONDOR_KEYCACHE_H_INCLUDE
+#define CONDOR_KEYCACHE_H_INCLUDE
+
 #include "condor_common.h"
 #include "CryptKey.h"
+#include "MyString.h"
+#include "HashTable.h"
 
-KeyInfo:: KeyInfo()
-    : keyData_    (0),
-      keyDataLen_ (0),
-      protocol_   (CONDOR_NO_PROTOCOL),
-      duration_   (0)
-{
-    
-}
+class KeyCacheEntry {
+ public:
+    KeyCacheEntry(
+			char * id,
+			struct sockaddr_in * addr,
+			KeyInfo* key,
+			int expiration
+			);
+    KeyCacheEntry(const KeyCacheEntry& copy);
+    ~KeyCacheEntry();
 
-KeyInfo :: KeyInfo(const KeyInfo& copy)
-    : keyData_    (new unsigned char[copy.keyDataLen_]),
-      keyDataLen_ (copy.keyDataLen_),
-      protocol_   (copy.protocol_),
-      duration_   (copy.duration_)
-{
-    memcpy(keyData_, copy.keyData_, keyDataLen_);   
-}
+    char*                 id();
+    struct sockaddr_in *  addr();
+    KeyInfo*              key();
+    int                   expiration();
 
-KeyInfo :: KeyInfo(unsigned char * keyData,
-                   int             keyDataLen,
-                   Protocol        protocol,
-                   int             duration )
-    : protocol_   (protocol),
-      keyData_    (new unsigned char[keyDataLen]),
-      keyDataLen_ (keyDataLen),
-      duration_   (duration)
-{
-    memcpy(keyData_, keyData, keyDataLen);
-}
+ private:
+    char *               _id;
+    struct sockaddr_in * _addr;
+    KeyInfo*             _key;
+    int                  _expiration;
+};
 
-KeyInfo :: ~KeyInfo()
-{
-    delete keyData_;
-}
 
-unsigned char * KeyInfo :: getKeyData()
-{
-    return keyData_;
-}
-    
-int KeyInfo :: getKeyLength()
-{
-    return keyDataLen_;
-}
+typedef HashTable<MyString, KeyCacheEntry*> KeyCache;
 
-Protocol KeyInfo :: getProtocol()
-{
-    return protocol_;
-}
-
-int KeyInfo :: getDuration()
-{
-    return duration_;
-}
+#endif

@@ -23,6 +23,7 @@
 
 #include "condor_common.h"
 #include "condor_daemon_core.h"
+#include "KeyCache.h"
 
 extern bool operator==(const struct in_addr a, const struct in_addr b);
 
@@ -30,3 +31,4 @@ template class HashTable<pid_t, DaemonCore::PidEntry*>;
 template class HashTable<struct in_addr, int>;
 template class ExtArray<DaemonCore::SockEnt>;
 template class Queue<DaemonCore::WaitpidEntry>;
+template class HashTable<MyString, KeyCacheEntry*>;

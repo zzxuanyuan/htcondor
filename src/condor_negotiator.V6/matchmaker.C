@@ -30,6 +30,8 @@
 #include "condor_api.h"
 #include "condor_classad_lookup.h"
 #include "condor_query.h"
+#include "daemon.h"
+#include "daemon_types.h"
 
 // the comparison function must be declared before the declaration of the
 // matchmaker class in order to preserve its static-ness.  (otherwise, it
@@ -1269,7 +1271,6 @@ matchmakingProtocol (ClassAd &request, ClassAd *offer,
 	char startdName[64];
 	char remoteUser[128];
 	char *capability;
-	SafeSock startdSock;
 	bool send_failed;
 
 	// these will succeed
@@ -1296,9 +1297,10 @@ matchmakingProtocol (ClassAd &request, ClassAd *offer,
 	// 1.  contact the startd 
 	dprintf (D_FULLDEBUG, "      Connecting to startd %s at %s\n", 
 				startdName, startdAddr); 
-	startdSock.timeout (NegotiatorTimeout);
-	if (!startdSock.connect (startdAddr, 0))
-	{
+	Daemon startd (DT_STARTD, 0, 0);
+	SafeSock* startdSock = (SafeSock*)(startd.startCommand (MATCH_INFO, Stream::safe_sock, NegotiatorTimeout));
+
+	if (!startdSock) {
 		dprintf(D_ALWAYS,"      Could not connect to %s\n", startdAddr);
 		return MM_BAD_MATCH;
 	}
@@ -1306,16 +1308,17 @@ matchmakingProtocol (ClassAd &request, ClassAd *offer,
 	// 2.  pass the startd MATCH_INFO and capability string
 	dprintf (D_FULLDEBUG, "      Sending MATCH_INFO/capability\n" );
 	dprintf (D_FULLDEBUG, "      (Capability is \"%s\" )\n", capability);
-	startdSock.encode();
-	if (!startdSock.put (MATCH_INFO) || 
-		!startdSock.put (capability) || 
-		!startdSock.end_of_message())
+	startdSock->encode();
+	if ( !startdSock->put (capability) || 
+		!startdSock->end_of_message())
 	{
 		dprintf (D_ALWAYS,"      Could not send MATCH_INFO/capability to %s\n",
 					startdName );
 		dprintf (D_FULLDEBUG, "      (Capability is \"%s\")\n", capability );
+		delete startdSock;
 		return MM_BAD_MATCH;
 	}
+	delete startdSock;
 
 	// 3.  send the match and capability to the schedd
 	sock->encode();

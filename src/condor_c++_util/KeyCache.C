@@ -22,59 +22,49 @@
 ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
 #include "condor_common.h"
+#include "KeyCache.h"
 #include "CryptKey.h"
 
-KeyInfo:: KeyInfo()
-    : keyData_    (0),
-      keyDataLen_ (0),
-      protocol_   (CONDOR_NO_PROTOCOL),
-      duration_   (0)
-{
-    
+KeyCacheEntry::KeyCacheEntry( char *id, struct sockaddr_in * addr, KeyInfo* key, int expiration) {
+	_id = strdup(id);
+	_addr = new struct sockaddr_in(*addr);
+	_key = new KeyInfo(*key);
+	_expiration = expiration;
 }
 
-KeyInfo :: KeyInfo(const KeyInfo& copy)
-    : keyData_    (new unsigned char[copy.keyDataLen_]),
-      keyDataLen_ (copy.keyDataLen_),
-      protocol_   (copy.protocol_),
-      duration_   (copy.duration_)
-{
-    memcpy(keyData_, copy.keyData_, keyDataLen_);   
+KeyCacheEntry::KeyCacheEntry(const KeyCacheEntry& copy) {
+	_id = strdup(copy._id);
+	_addr = new struct sockaddr_in(*(copy._addr));
+	_key = new KeyInfo(*(copy._key));
+	_expiration = copy._expiration;
 }
 
-KeyInfo :: KeyInfo(unsigned char * keyData,
-                   int             keyDataLen,
-                   Protocol        protocol,
-                   int             duration )
-    : protocol_   (protocol),
-      keyData_    (new unsigned char[keyDataLen]),
-      keyDataLen_ (keyDataLen),
-      duration_   (duration)
-{
-    memcpy(keyData_, keyData, keyDataLen);
+KeyCacheEntry::~KeyCacheEntry() {
+	if (_id) {
+	  delete _id;
+	}
+	if (_addr) {
+	  delete _addr;
+	}
+	if (_key) {
+	  delete _key;
+	}
 }
 
-KeyInfo :: ~KeyInfo()
-{
-    delete keyData_;
+char* KeyCacheEntry::id() {
+	return _id;
 }
 
-unsigned char * KeyInfo :: getKeyData()
-{
-    return keyData_;
-}
-    
-int KeyInfo :: getKeyLength()
-{
-    return keyDataLen_;
+struct sockaddr_in *  KeyCacheEntry::addr() {
+	return _addr;
 }
 
-Protocol KeyInfo :: getProtocol()
-{
-    return protocol_;
+KeyInfo* KeyCacheEntry::key() {
+	return _key;
 }
 
-int KeyInfo :: getDuration()
-{
-    return duration_;
+int KeyCacheEntry::expiration() {
+	return _expiration;
 }
+
+

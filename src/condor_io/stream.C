@@ -51,6 +51,7 @@ static int shipcount =0;
 #define INT_SIZE		8			/* number of integer bytes sent on wire */
 
 
+#define CONDOR_3DES_ENCRYPTION
 
 /*
 **	CODE ROUTINES
@@ -1852,48 +1853,45 @@ Stream::set_crypto_key(KeyInfo * key)
 {
 
 #if defined(CONDOR_BLOWFISH_ENCRYPTION) || defined(CONDOR_3DES_ENCRYPTION)
-    int code;
-    static int PADDING_LEN = 24;
-    int length = key->getKeyLength() + PADDING_LEN; // Pad with 24 bytes of random data
-    char *data = 0;
+
+	char *data = 0;
 
     if (key != 0) {
+		int code;
+		static int PADDING_LEN = 24;
+		int length = key->getKeyLength() + PADDING_LEN; // Pad with 24 bytes of random data
+
         data = (char *)malloc(length + 1);
         ASSERT(data);
     
         if (initialize_crypto(key)) {
-	    if (_coding == stream_encode) {
+		    if (_coding == stream_encode) {
                 // generate random data
                 unsigned char * ran = Condor_Crypt_Base::randomKey(PADDING_LEN);
                 memcpy(data, ran, PADDING_LEN);
                 memcpy(data+PADDING_LEN, key->getKeyData(), key->getKeyLength());
                 free(ran);
                 code = put_bytes(data, length);
-		if (code == length) {
-		    return true;
-		}
-		else {
-		    goto error;
-		}
-	    }
-	    else {
-	        code = get_bytes(data, length);
+				if (code == length) {
+				    return true;
+				} else {
+		    		goto error;
+				}
+	    	} else {
+	        	code = get_bytes(data, length);
                 if (code > 0) {
                     // Only the first key->getKeyLength() are inspected
                     if (memcmp(data+PADDING_LEN, key->getKeyData(), key->getKeyLength()) != 0) {
-		        goto error;
-	            }
-		    else {
-			return true;
-		    }
-                }
-		else {
-		   goto error;
-		}
+		        		goto error;
+	            	} else {
+						return true;
+		    		}
+                } else {
+		   			goto error;
+				}
             } 
         }
-    }
-    else {
+    } else {
         // We are turning encryption off
         if (crypto_) {
             delete crypto_;

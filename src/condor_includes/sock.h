@@ -241,6 +241,8 @@ protected:
     ///
 	virtual int authenticate(int clientFlags = 0);
     ///
+	virtual int authenticate(KeyInfo *&ki, int clientFlags = 0);
+    ///
 	virtual int isAuthenticated();
     ///
 	virtual void unAuthenticate();

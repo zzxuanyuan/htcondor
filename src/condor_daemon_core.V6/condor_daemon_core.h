@@ -42,6 +42,7 @@
 #include "condor_commands.h"
 #include "condor_classad.h"
 #include "HashTable.h"
+#include "KeyCache.h"
 #include "list.h"
 #include "extArray.h"
 #include "Queue.h"
@@ -653,7 +654,16 @@ class DaemonCore : public Service
     void *GetDataPtr();
     //@}
     
-	/** @name Environment management.
+	/** @name Key management.
+	 */
+	//@{
+    /** Access to the KeyCache object;
+        @return Pointer to this daemon's KeyCache
+    */
+    KeyCache* getKeyCache();
+	//@}
+
+ 	/** @name Environment management.
 	 */
 	//@{
     /** Put the {key, value} pair into the environment
@@ -902,6 +912,9 @@ class DaemonCore : public Service
             
     static              TimerManager t;
     void                DumpTimerList(int, char* = NULL);
+
+	KeyCache    		*enc_key_cache;
+
 
     IpVerify            ipverify;   
 

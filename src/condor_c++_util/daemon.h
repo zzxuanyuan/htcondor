@@ -29,6 +29,8 @@
 #include "condor_classad.h"
 #include "condor_collector.h"
 #include "daemon_types.h"
+#include "KeyCache.h"
+
 
 /** 
   Class used to pass around and store information about a given
@@ -89,6 +91,11 @@ public:
 		  @param pool The name of the pool, NULL if you want local */
 	Daemon( daemon_t type, const char* name = NULL, 
 				const char* pool = NULL );
+
+		/** Constructor.  Takes only a sinful string to connect to.
+		  @param sinful_addr The sinful string to connect to
+		  @param port        If non-zero, will override the port in sinful_addr */
+	Daemon( char* sinful_addr, int port = 0 );
 
 		/// Destructor.
 	~Daemon();
@@ -232,6 +239,7 @@ public:
 		  */
 	SafeSock* safeSock( int sec = 0 );
 
+public:
 		/** Send the given command to the daemon.  The caller gives
 		  the command they want to send, the type of Sock they
 		  want to use to send it over, and an optional timeout.  
@@ -247,12 +255,14 @@ public:
 					   Stream::stream_type st = Stream::reli_sock,
 					   int sec = 0 );
 	
+private:
 		/** Send the given command to the daemon.  The caller gives
 		  the command they want to send, a pointer to the Sock they
 		  want us to use to send it over, and an optional timeout.
 		  This method will then put the desired timeout on that sock,
 		  place it in encode() mode, send the command, and finally,
-		  the eom().  The sock is otherwise left alone.
+		  the eom().  The sock is otherwise left alone (i.e. not
+		  destroyed)
 		  @param cmd The command you want to send.
 		  @param sock The Sock you want to use.
 		  @param sec The timeout you want to use on your Sock.
@@ -260,12 +270,14 @@ public:
 		  */
 	bool sendCommand( int cmd, Sock* sock, int sec = 0 );
 
+public:
 		/** Start sending the given command to the daemon.  The caller
 		  gives the command they want to send, and the type of Sock
 		  they want to use to send it over.  This method will then
 		  allocate a new Sock of the right type, send the command, and
 		  return a pointer to the Sock while it is still in encode()
-		  mode.
+		  mode.  If there is a failure, it will return NULL.
+		  THE CALLER IS RESPONSIBLE FOR DELETING THE SOCK.
 		  @param cmd The command you want to send.
 		  @param st The type of the Sock you want to use.
 		  @param sec The timeout you want to use on your Sock.
@@ -276,19 +288,19 @@ public:
 				Stream::stream_type st = Stream::reli_sock,
 				int sec = 0 );
 	
+private:
 		/** Start sending the given command to the daemon.  The caller
 		  gives the command they want to send, and a pointer to the
 		  Sock they want us to use to send it over.  This method will
 		  then place that Sock in encode() mode, send the command, and
-		  return a pointer to the Sock while it is still in encode()
-		  mode.
+		  return true on success, false on failure.
 		  @param cmd The command you want to send.
 		  @param sock The Sock you want to use.
 		  @param sec The timeout you want to use on your Sock.
 		  @return NULL on error, or the Sock object to use for the
 		  rest of the command on success.
 		*/
-	Sock* startCommand( int cmd, Sock* sock, int sec = 0 );
+	bool startCommand( int cmd, Sock* sock, int sec = 0 );
 
 private:
 	// Data members
@@ -307,6 +319,9 @@ private:
 	bool _tried_locate;
 	bool _auth_cap_known;
 	bool _is_auth_cap;
+
+	static KeyCache  *enc_key_cache;
+	static int       enc_key_daemon_ref_count;
 
 		// //////////////////////////////////////////////////////////
 		/// Helper methods.

@@ -785,6 +785,8 @@ int Sock::close()
 
 	_sock = INVALID_SOCKET;
 	_state = sock_virgin;
+	_timeout = 0;
+	connect_state.host = NULL;
 	memset(&_who, 0, sizeof( struct sockaddr_in ) );
 	memset(&_endpoint_ip_buf, 0, _ENDPOINT_BUF_SIZE );
 	
@@ -1123,6 +1125,11 @@ int Sock :: hdr_encrypt()
 
 bool Sock :: is_hdr_encrypt(){
 	return FALSE;
+}
+
+int Sock :: authenticate(KeyInfo *&, int clientFlags)
+{
+	return -1;
 }
 
 int Sock :: authenticate(int clientFlags)

@@ -496,6 +496,42 @@ handle_nop( Service*, int, Stream* )
 	return TRUE;
 }
 
+
+int
+handle_invalidate_key( Service*, int, Stream* stream)
+{
+
+	char *key_id = NULL;
+
+	stream->decode();
+	if ( ! stream->code(key_id) ) {
+		dprintf ( D_ALWAYS, "DC_INVALIDATE_KEY: unable to receive key id!.\n");
+		return FALSE;
+	}
+
+	if ( ! stream->end_of_message() ) {
+		dprintf ( D_ALWAYS, "DC_INVALIDATE_KEY: unable to receive EOM on key %s.\n", key_id);
+		return FALSE;
+	}
+
+	if (daemonCore && daemonCore->getKeyCache()) {
+		if (daemonCore->getKeyCache()->remove(key_id)) {
+			dprintf ( D_SECURITY, "DC_INVALIDATE_KEY: removed key id %s.\n");
+		} else {
+			dprintf ( D_SECURITY, "DC_INVALIDATE_KEY: ignoring request to invalidate non-existant key %s.\n");
+		}
+	} else {
+		if (daemonCore) {
+			dprintf ( D_ALWAYS, "DC_INVALIDATE_KEY: did not remove %s, no KeyCache exists!\n", key_id);
+		} else {
+			dprintf ( D_ALWAYS, "DC_INVALIDATE_KEY: did not remove %s, no daemonCore exists!?\n", key_id);
+		}
+	}
+
+	return TRUE;
+}
+
+
 int
 handle_config_val( Service*, int, Stream* stream ) 
 {
@@ -1377,6 +1413,10 @@ int main( int argc, char** argv )
 
 	daemonCore->Register_Command( DC_NOP, "DC_NOP",
 								  (CommandHandler)handle_nop,
+								  "handle_nop()", 0, READ );
+
+	daemonCore->Register_Command( DC_INVALIDATE_KEY, "DC_INVALIDATE_KEY",
+								  (CommandHandler)handle_invalidate_key,
 								  "handle_nop()", 0, READ );
 
 	// Call daemonCore's ReInit(), which clears the cached DNS info.

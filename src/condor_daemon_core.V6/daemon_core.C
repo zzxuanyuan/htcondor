@@ -38,13 +38,16 @@ static const char* DEFAULT_INDENT = "DaemonCore--> ";
 
 
 #include "authentication.h"
+#include "daemon.h"
 #include "reli_sock.h"
 #include "condor_daemon_core.h"
 #include "condor_io.h"
 #include "internet.h"
+#include "KeyCache.h"
 #include "condor_debug.h"
 #include "get_daemon_addr.h"
 #include "condor_uid.h"
+#include "my_hostname.h"
 #include "condor_commands.h"
 #include "condor_config.h"
 #include "condor_attributes.h"
@@ -52,6 +55,25 @@ static const char* DEFAULT_INDENT = "DaemonCore--> ";
 #include "exphnd.WIN32.h"
 typedef unsigned (__stdcall *CRT_THREAD_HANDLER) (void *);
 #endif
+
+
+#define SECURITY_HACK_ENABLE
+void zz2printf(KeyInfo *k) {
+	char hexout[260];  // holds (at least) a 128 byte key.
+	unsigned char* dataptr = k->getKeyData();
+	int   length  =  k->getKeyLength();
+
+	for (int i = 0; (i < length) && (i < 24); i++) {
+		sprintf (&hexout[i*2], "%02x", *dataptr++);
+	}
+
+    dprintf (D_SECURITY, "ZKM: [%i] %s\n", length, hexout);
+}
+
+static int ZZZZZ = 0;
+int always_increase() {
+	return ZZZZZ++;
+}
 
 extern void drop_addr_file( void );
 
@@ -63,6 +85,12 @@ TimerManager DaemonCore::t;
 static int compute_pid_hash(const pid_t &key, int numBuckets) 
 {
 	return ( key % numBuckets );
+}
+
+
+static int delete_enc_key(KeyCacheEntry *ke) {
+	delete ke;
+	return 0;
 }
 
 // DaemonCore constructor. 
@@ -114,6 +142,8 @@ DaemonCore::DaemonCore(int PidSize, int ComSize,int SigSize,
 
 	if(maxSocket == 0)
 		maxSocket = DEFAULT_MAXSOCKETS;
+
+	enc_key_cache = new KeyCache(197, &MyStringHash, rejectDuplicateKeys);
 
 	sockTable = new ExtArray<SockEnt>(maxSocket);
 	if(sockTable == NULL)
@@ -208,6 +238,11 @@ DaemonCore::~DaemonCore()
 			free_descrip( (*sockTable)[i].handler_descrip );		
 		}
 		delete sockTable;
+	}
+
+	if (enc_key_cache) {
+		enc_key_cache->walk(&delete_enc_key);
+		delete enc_key_cache;
 	}
 
 		// Since we created these, we need to clean them up.
@@ -1558,6 +1593,7 @@ int DaemonCore::HandleReq(int socki)
 	
 	// read in the command from the stream with a timeout value of 20 seconds
 	old_timeout = stream->timeout(20);
+
 	stream->decode();
 	result = stream->code(req);
 	// For now, lets keep the timeout, so all command handlers are called with
@@ -1579,39 +1615,49 @@ int DaemonCore::HandleReq(int socki)
 	}
 
 
+	// determine the value of config.ALWAYS_AUTHENTICATE
+	char *paramer;
+	paramer = param("ALWAYS_AUTHENTICATE");
+
+	bool always_authenticate = false;
+	if (paramer) {
+		if ((strcasecmp(paramer, "YES") == 0) ||
+		    (strcasecmp(paramer, "TRUE") == 0)) {
+			always_authenticate = true;
+		}
+		free (paramer);
+	}
+
 	if (req == DC_AUTHENTICATE) {
 
-		// For now, only TCP is authenticated.  But stay tuned,
-		// soon UDP authentication will arrive as well!
-		ASSERT( is_tcp == TRUE );
+		if (!is_tcp) {
+			dprintf (D_ALWAYS, "DC_AUTHENTICATE: bring on the UDP !\n");
+		}
 
-		ReliSock* sock = (ReliSock*)stream;
+		Sock* sock = (Sock*)stream;
+		sock->decode();
 
 		dprintf (D_SECURITY, "DC_AUTHENTICATE: received DC_AUTHENTICATE from %s\n", sin_to_string(sock->endpoint()));
 
-		// determine the value of config.ALWAYS_AUTHENTICATE
-		char *paramer;
-		paramer = param("ALWAYS_AUTHENTICATE");
 
-		bool always_authenticate = false;
-		if (paramer) {
-			if ((stricmp(paramer, "YES") == 0) ||
-			    (stricmp(paramer, "TRUE") == 0)) {
-				always_authenticate = true;
-			}
-			free (paramer);
-		}
-	
 		int saveres = result;
 		dprintf (D_SECURITY, "DC_AUTHENTICATE: entry value of result == %i\n", result);
 
 		ClassAd auth_info;
-		if( !auth_info.initFromStream(*sock) || !sock->end_of_message()) {
+		if( !auth_info.initFromStream(*sock)) {
 			dprintf (D_ALWAYS, "ERROR: DC_AUTHENTICATE unable to "
 					   "receive auth_info!\n");
-			return FALSE;	
+			result = FALSE;	
+			goto finalize;
 		}
-
+		
+		if ( is_tcp && !sock->end_of_message()) {
+			dprintf (D_ALWAYS, "ERROR: DC_AUTHENTICATE is TCP, unable to "
+					   "receive eom!\n");
+			result = FALSE;	
+			goto finalize;
+		}
+	
 		dprintf (D_SECURITY, "DC_AUTHENTICATE: received following ClassAd:\n");
 		auth_info.dPrint (D_SECURITY);
 
@@ -1621,7 +1667,8 @@ int DaemonCore::HandleReq(int socki)
 		if( ! auth_info.LookupString(ATTR_AUTH_TYPES, auth_types)) {
 			dprintf (D_ALWAYS, "ERROR: DC_AUTHENTICATE unable to "
 					   "extract auth_info.%s!\n", ATTR_AUTH_TYPES);
-			return FALSE;
+			result = FALSE;
+			goto finalize;
 		}
 
 		dprintf (D_SECURITY, "DC_AUTHENTICATE: auth_info.%s == '%s'\n",
@@ -1630,67 +1677,240 @@ int DaemonCore::HandleReq(int socki)
 		if( ! auth_info.LookupString(ATTR_AUTH_ACTION, buf)) {
 			dprintf (D_ALWAYS, "ERROR: DC_AUTHENTICATE unable to "
 					   "extract auth_info.%s!\n", ATTR_AUTH_ACTION);
-			return FALSE;	
+			result = FALSE;	
+			goto finalize;
 		}
 
-		dprintf (D_SECURITY, "DC_AUTHENTICATE: auth_info.AUTHENTICATE == '%s'\n",
-				buf);
+		dprintf (D_SECURITY, "DC_AUTHENTICATE: auth_info.%s == '%s'\n",
+				ATTR_AUTH_ACTION, buf);
 
-		if (stricmp(buf, "YES") == 0) {
-			dprintf (D_SECURITY, "DC_AUTHENTICATE: authenticating RIGHT NOW.\n");
-			if (!sock->authenticate(getAuthBitmask(auth_types))) {
-				dprintf (D_ALWAYS, "DC_AUTHENTICATE: authenticate failed\n");
-				return FALSE;
+		const int AUTH_FAIL     = 0;
+		const int AUTH_OLD      = 1;
+		const int AUTH_NO       = 2;
+		const int AUTH_ASK      = 3;
+		const int AUTH_YES      = 4;
+		const int AUTH_ENC      = 5;
+		int authentication_action = AUTH_NO;
+
+		if (strcasecmp(buf, "ENC") == 0) {
+			authentication_action = AUTH_ENC;
+		} else if (strcasecmp(buf, "YES") == 0) {
+			authentication_action = AUTH_YES;
+		} else if (strcasecmp(buf, "ASK") == 0) {
+			authentication_action = AUTH_ASK;
+		} else {
+			authentication_action = AUTH_NO;
+		}
+
+
+		if (authentication_action == AUTH_ASK) {
+			if (!is_tcp) {
+				dprintf ( D_SECURITY, "STARTCOMMAND: UDP cannot ASK!\n");
+				result = FALSE;
+				goto finalize;
 			}
-		} else if (stricmp(buf, "NO") == 0) {
+
+			ClassAd auth_response;
+			if (always_authenticate) {
+				authentication_action = AUTH_YES;
+				auth_response.Insert("AUTHENTICATE=\"YES\"");
+			} else {
+				authentication_action = AUTH_NO;
+				auth_response.Insert("AUTHENTICATE=\"NO\"");
+			}
+			// wouldn't hurt to stick the condor version in here,
+			// and add some error checking.
+
+			sock->encode();
+			dprintf (D_SECURITY, "DC_AUTHENTICATE: sending following classad to client: \n");
+			auth_response.dPrint (D_SECURITY);
+
+			if (!auth_response.put(*sock) || !sock->end_of_message()) {
+				dprintf (D_SECURITY, "DC_AUTHENTICATE: unable to send classad!\n");
+				result = FALSE;
+				goto finalize;
+			}
+
+			sock->decode();
+		}
+
+		if (authentication_action == AUTH_ENC) {
+			dprintf (D_SECURITY, "DC_AUTHENTICATE: request to use cached key.\n");
+
+			char key_id[300];
+			char* key_ptr = key_id; // need this to use cedar
+
+			if( ! auth_info.LookupString(ATTR_KEY_ID, key_id)) {
+				dprintf (D_ALWAYS, "ERROR: DC_AUTHENTICATE unable to "
+						   "extract auth_info.%s!\n", ATTR_KEY_ID);
+				result = FALSE;	
+				goto finalize;
+			}
+
+			dprintf (D_SECURITY, "DC_AUTHENTICATE: looking up cached key id %s.\n", key_id);
+
+
+			// lookup the suggested key
+			KeyCacheEntry *key = NULL;
+			if (enc_key_cache->lookup(key_id, key) != 0) {
+				dprintf (D_ALWAYS, "DC_AUTHENTICATE: attempt to "
+						   "authenticate with invalid key id %s.\n", key_id);
+
+				// if this is UDP, they have no idea the key they are
+				// using is bunk, so  it would be nice of us to tell them.
+				// blast off a udp packet, its the least we can do.
+				SafeSock s;
+				if (s.connect(sin_to_string(sock->endpoint()))) {
+					s.encode();
+					s.put(DC_INVALIDATE_KEY);
+					s.code(key_ptr);
+					s.eom();
+					s.close();
+					dprintf (D_SECURITY, "DC_AUTHENTICATE: sent a notify "
+						"packet back to %s.\n", sin_to_string(sock->endpoint()));
+				}
+
+				// close the connection.
+				dprintf (D_ALWAYS, "DC_AUTHENTICATE: Closing connection.\n");
+				result = FALSE;
+				goto finalize;
+
+			} else {
+				// the key->id() and key_id strings should be identical.
+
+				dprintf (D_SECURITY, "DC_AUTHENTICATE: found cached key id %s given to %s.\n",
+							key->id(), sin_to_string(key->addr()));
+			
+#ifdef SECURITY_HACK_ENABLE
+				zz2printf (key->key());
+#endif
+
+
+				sock->decode();
+				if (!sock->set_crypto_key(key->key()) || (is_tcp && !sock->eom())) {
+					dprintf (D_ALWAYS, "DC_AUTHENTICATE: unable to turn on encryption, failing.\n");
+					delete key;
+					enc_key_cache->remove(key_id);
+					dprintf (D_SECURITY, "DC_AUTHENTICATE: deleted key %s.\n", key_id);
+					result = FALSE;
+					goto finalize;
+
+				} else {
+					if (is_tcp) {
+						int ack = 1;
+						sock->encode();
+						if (!sock->code(ack) || !sock->eom()) {
+							dprintf(D_SECURITY, "DC_AUTHENTICATION: unable to receive ack.\n");
+							result = FALSE;
+							goto finalize;
+						}
+						sock->decode();
+					}
+
+					dprintf (D_SECURITY, "DC_AUTHENTICATE: encryption enabled with key id %s.\n",
+								key->id());
+#ifdef SECURITY_HACK_ENABLE
+					zz2printf (key->key());
+#endif
+
+				}
+			}
+		}
+
+		if (authentication_action == AUTH_YES) {
+			if (!is_tcp) {
+				dprintf ( D_SECURITY, "DC_AUTHENTICATE: UDP can't authenticate!\n");
+				result = FALSE;
+				goto finalize;
+			}
+
+			char   key_id[300];
+			char*  key_ptr = key_id;  // need this to use cedar
+
+			int    mypid = 0;
+#ifdef WIN32
+		    mypid = ::GetCurrentProcessId();
+#else
+			mypid = ::getpid();
+#endif
+
+			sprintf (key_id, "%s:%i:%i:%i", my_hostname(), mypid, time(0), always_increase());
+
+
+			
+
+			dprintf (D_SECURITY, "DC_AUTHENTICATE: generating private key id %s...\n", key_id);
+			KeyInfo *ki = new KeyInfo(Condor_Crypt_Base::randomKey(24), 24, CONDOR_3DES);
+#ifdef SECURITY_HACK_ENABLE
+					zz2printf (ki);
+#endif
+
+
+			dprintf (D_SECURITY, "DC_AUTHENTICATE: authenticating RIGHT NOW.\n");
+			if (!sock->authenticate(ki, getAuthBitmask(auth_types))) {
+				dprintf (D_ALWAYS, "DC_AUTHENTICATE: authenticate failed\n");
+				result = FALSE;
+				goto finalize;
+			}
+
+
+			// check to see if the kerb IP is the same
+			// as the socket IP.
+			if ( ((ReliSock*)sock)->authob ) {
+				const char* sockip = sin_to_string(sock->endpoint());
+				const char* kerbip = ((ReliSock*)sock)->authob->getRemoteAddress() ;
+
+				result = !strncmp (sockip + 1, kerbip, strlen(kerbip) );
+
+				dprintf (D_SECURITY, "DC_AUTHENTICATE: sock ip -> %s\n", sockip);
+				dprintf (D_SECURITY, "DC_AUTHENTICATE: kerb ip -> %s\n", kerbip);
+
+				if (!result) {
+					dprintf (D_ALWAYS, "DC_AUTHENTICATE: ERROR: IP not in agreement!!! BAILING!\n");
+					result = FALSE;
+					goto finalize;
+
+				} else {
+					dprintf (D_SECURITY, "DC_AUTHENTICATE: IP address verified.\n");
+				}
+			}
+
+
+			if (!sock->set_crypto_key(ki)) {
+				dprintf (D_ALWAYS, "DC_AUTHENTICATE: set_crypto_key() failed\n");
+				result = FALSE;
+				goto finalize;
+			}
+
+			dprintf (D_SECURITY, "DC_AUTHENTICATE: crypto enabled with key id %s!\n", key_id);
+
+			// shove the stupid id over
+			// this should be a classad!
+			sock->encode();
+			if (!sock->code(key_ptr) || !sock->eom()) {
+				dprintf (D_ALWAYS, "DC_AUTHENTICATE: unable to send key id number %s.\n", key_id);
+				result = FALSE;
+				goto finalize;
+			}
+			sock->decode();
+
+			// add the key to the cache
+			enc_key_cache->insert(key_id,
+					new KeyCacheEntry(key_id, sock->endpoint(), ki, 0));
+			dprintf (D_SECURITY, "DC_AUTHENTICATE: added key id %s to cache!\n", key_id);
+#ifdef SECURITY_HACK_ENABLE
+			zz2printf (ki);
+#endif
+		}
+
+		if (authentication_action == AUTH_NO) {
+			dprintf (D_SECURITY, "DC_AUTHENTICATE: not authenticating.\n");
 			if (always_authenticate) {
 				// client refused to authenticate
 				// when server required it
 				dprintf (D_ALWAYS, "DC_AUTHENTICATE: client refused to authenticate.\n");
-				return FALSE;
-			}
-			dprintf (D_SECURITY, "DC_AUTHENTICATE: not authenticating.\n");
-		} else if (stricmp(buf, "ASK") == 0) {
-			ClassAd auth_response;
-			if (always_authenticate) {
-				auth_response.Insert("AUTHENTICATE=\"YES\"");
-			} else {
-				auth_response.Insert("AUTHENTICATE=\"NO\"");
-			}
-			sock->encode();
-			dprintf (D_SECURITY, "DC_AUTHENTICATE: sending following classad to client: \n");
-			auth_response.dPrint (D_SECURITY);
-			auth_response.put(*sock);
-			sock->end_of_message();
-
-			if (always_authenticate) {
-				dprintf (D_SECURITY, "DC_AUTHENTICATE: authenticating RIGHT NOW.\n");
-				if (!sock->authenticate(getAuthBitmask(auth_types))) {
-					dprintf (D_ALWAYS, "DC_AUTHENTICATE: authenticate failed\n");
-					return FALSE;
-				}
-			} else {
-				dprintf (D_SECURITY, "DC_AUTHENTICATE: decided not to authenticate.\n");
-			}
-
-		}
-
-		// CHECK TO SEE IF THE KERB-IP is the same
-		// as the socket IP.
-		if ( sock->authob ) {
-			const char* sockip = sin_to_string(sock->endpoint());
-			const char* kerbip = sock->authob->getRemoteAddress() ;
-
-			result = !strncmp (sockip + 1, kerbip, strlen(kerbip) );
-
-			dprintf (D_SECURITY, "DC_AUTHENTICATE: sock ip -> %s\n", sockip);
-			dprintf (D_SECURITY, "DC_AUTHENTICATE: kerb ip -> %s\n", kerbip);
-
-			if (!result) {
-				dprintf (D_ALWAYS, "ERROR: IP not in agreement!!! BAILING!\n");
-				return FALSE;
-			} else {
-				dprintf (D_SECURITY, "DC_AUTHENTICATE: IP address verified.\n");
+				result = FALSE;
+				goto finalize;
 			}
 		}
 
@@ -1707,24 +1927,11 @@ int DaemonCore::HandleReq(int socki)
 		dprintf (D_SECURITY, "DC_AUTHENTICATE: allowing an empty message for sock.\n");
 		sock->allow_one_empty_message();
 
-		result = saveres;
+		result = TRUE;
 		dprintf (D_SECURITY, "DC_AUTHENTICATE: restored result to %i\n", result);
 
-		dprintf (D_SECURITY, "DC_AUTHENTICATE: continuing with command %i\n", req);
+		dprintf (D_SECURITY, "DC_AUTHENTICATE: Success.\n");
 	} else {
-		// determine the value of config.ALWAYS_AUTHENTICATE
-		char *paramer;
-		paramer = param("ALWAYS_AUTHENTICATE");
-
-		bool always_authenticate = false;
-		if (paramer) {
-			if ((stricmp(paramer, "YES") == 0) ||
-			    (stricmp(paramer, "TRUE") == 0)) {
-				always_authenticate = true;
-			}
-			free (paramer);
-		}
-
 		if (always_authenticate) {
 			dprintf (D_SECURITY, "DaemonCore received UNAUTHENTICATED command %i.\n", req);
 			dprintf (D_SECURITY, "\tNormally, this would not be allowed.  For now, it is.\n");
@@ -1811,6 +2018,7 @@ int DaemonCore::HandleReq(int socki)
 		curr_dataptr = NULL;
 	}
 	
+finalize:
 	// finalize; the handler is done with the command.  the handler will return
 	// with KEEP_STREAM if we should not touch the stream; otherwise, cleanup
 	// the stream.  On tcp, we just delete it since the stream is the one we got
@@ -1826,6 +2034,10 @@ int DaemonCore::HandleReq(int socki)
 				delete stream;		   //     did not do an accept, Driver() will delete the stream.
 		} else {			
 			stream->end_of_message(); 			
+
+			// we need to reset the crypto keys
+			stream->set_crypto_key(0);
+
 			result = KEEP_STREAM;	// HACK: keep all UDP sockets for now.  The only ones
 									// in Condor so far are Initial command socks, so keep it.
 		}
@@ -2114,26 +2326,23 @@ int DaemonCore::Send_Signal(pid_t pid, int sig)
 		destination = pidinfo->sinful_string;
 	}
 
+	Daemon d(destination);
 	// now destination process is local, send via UDP; if remote, send via TCP
 	if ( is_local == TRUE ) {
-		sock = (Stream *) new SafeSock();
-		sock->timeout(3);
+		sock = (Stream *)(d.startCommand(DC_RAISESIGNAL, Stream::safe_sock, 3));
 	} else {
-		sock = (Stream *) new ReliSock();
-		sock->timeout(20);
+		sock = (Stream *)(d.startCommand(DC_RAISESIGNAL, Stream::reli_sock, 20));
 	}
 
-	if (!((Sock *)sock)->connect(destination)) {
+	if (!sock) {
 		dprintf(D_ALWAYS,"Send_Signal: ERROR Connect to %s failed.",
 				destination);
-		delete sock;
 		return FALSE;
 	}
 
 	// send the signal out as a DC_RAISESIGNAL command
 	sock->encode();		
-	if ( (!sock->put(DC_RAISESIGNAL)) ||
-		 (!sock->code(sig)) ||
+	if ( (!sock->code(sig)) ||
 		 (!sock->end_of_message()) ) {
 		dprintf(D_ALWAYS,
 				"Send_Signal: ERROR sending signal %d to pid %d\n",sig,pid);
@@ -4205,21 +4414,28 @@ pidWatcherThread( void* arg )
 		// note: if it was a thread which exited, the entry's 
 		// pid contains the tid
 		exited_pid = entry->pidentries[result]->pid;	
-		SafeSock sock;
-		// Can no longer use localhost (127.0.0.1) here because we may
-		// only have our command socket bound to a specific address. -Todd
-		// sock.connect("127.0.0.1",daemonCore->InfoCommandPort());		
-		sock.connect(daemonCore->InfoCommandSinfulString());
-		sock.encode();
+
 		sent_result = FALSE;
 		while ( sent_result == FALSE ) {
-			if ( !sock.snd_int(DC_PROCESSEXIT,FALSE) ||
+			// Can no longer use localhost (127.0.0.1) here because we may
+			// only have our command socket bound to a specific address. -Todd
+			// sock.connect("127.0.0.1",daemonCore->InfoCommandPort());		
+	
+			Daemon d(daemonCore->InfoCommandSinfulString());
+			SafeSock* sock = d.startCommand(DC_PROCESSEXIT, Stream::safe_sock, 0);
+		
+			if ( !sock ||
 				 !sock.code(exited_pid) ||
 				 !sock.end_of_message() ) {
 				// failed to get the notification off to the main thread.
 				// we'll log a message, wait a bit, and try again
 				dprintf(D_ALWAYS,
 						"PidWatcher thread couldn't notify main thread\n");
+
+				if (sock) {
+					delete sock;
+				}
+
 				::Sleep(500);	// sleep for a half a second (500 ms)
 			} else {
 				sent_result = TRUE;
@@ -4631,29 +4847,29 @@ int DaemonCore::Was_Not_Responding(pid_t pid)
 
 int DaemonCore::SendAliveToParent()
 {
-	SafeSock sock;
-	char *parent_sinfull_string;
-	int alive_command = DC_CHILDALIVE;
+	char *parent_sinful_string;
 
 	dprintf(D_FULLDEBUG,"DaemonCore: in SendAliveToParent()\n");
-	parent_sinfull_string = InfoCommandSinfulString(ppid);	
-	if (!parent_sinfull_string ) {
+	parent_sinful_string = InfoCommandSinfulString(ppid);	
+	if (!parent_sinful_string ) {
 		return FALSE;
 	}
 	
-	if (!sock.connect(parent_sinfull_string)) {
+	Daemon d(parent_sinful_string);
+	SafeSock* sock = (SafeSock*)d.startCommand(DC_CHILDALIVE, Stream::safe_sock, 0);
+	if (!sock) {
 		return FALSE;
 	}
 	
 	dprintf( D_DAEMONCORE, "DaemonCore: Sending alive to %s\n",
-			 parent_sinfull_string );
+			 parent_sinful_string );
 
-	sock.encode();
-	sock.code(alive_command);
-	sock.code(mypid);
-	sock.code(max_hang_time);
-	sock.end_of_message();
+	sock->encode();
+	sock->code(mypid);
+	sock->code(max_hang_time);
+	sock->end_of_message();
 
+	delete sock;
 	return TRUE;
 }
 	
@@ -4841,7 +5057,10 @@ DaemonCore::Register_Priv_State( priv_state priv )
 }
 
 
-
+KeyCache*
+DaemonCore::getKeyCache() {
+	return enc_key_cache;
+}
 
 
 int
