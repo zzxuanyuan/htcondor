@@ -126,6 +126,9 @@ public:
 		*/
 	int getMyVMNumber( void );
 
+	bool isGridshell( void ) {return is_gridshell;};
+	const char* origCwd( void ) {return (const char*) orig_cwd;};
+
 protected:
 	List<UserProc> JobList;
 	List<UserProc> CleanedUpJobList;
