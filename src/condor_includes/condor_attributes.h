@@ -183,6 +183,7 @@ const char ATTR_LAST_AVAIL_INTERVAL		 [] = "LastAvailInterval";
 const char ATTR_LAST_BENCHMARK			 [] = "LastBenchmark";
 const char ATTR_LAST_CKPT_SERVER		 [] = "LastCkptServer";
 const char ATTR_LAST_CKPT_TIME			 [] = "LastCkptTime";
+const char ATTR_LAST_CLAIM_STATE         [] = "LastClaimState";
 const char ATTR_LAST_VACATE_TIME		 [] = "LastVacateTime";
 const char ATTR_LAST_HEARD_FROM          [] = "LastHeardFrom";
 const char ATTR_LAST_HOLD_REASON         [] = "LastHoldReason";
