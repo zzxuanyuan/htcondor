@@ -51,7 +51,7 @@ static bool use_single_proxy = false;
 int CheckProxies_interval = 600;		// default value
 int minProxy_time = 3 * 60;				// default value
 
-static int next_gahp_proxy_id = 1;
+static int next_proxy_id = 1;
 
 int CheckProxies();
 
@@ -63,7 +63,7 @@ InitializeProxyManager()
 	MasterProxy.proxy_filename = NULL;
 	MasterProxy.num_references = 0;
 	MasterProxy.expiration_time = 0;
-	MasterProxy.gahp_proxy_id = 0;
+	MasterProxy.id = 0;
 	MasterProxy.near_expired = true;
 
 	CheckProxies_tid = daemonCore->Register_Timer( 1, CheckProxies_interval,
@@ -165,8 +165,8 @@ UseSingleProxy( const char *proxy_path )
 // returned. When the Proxy is no longer needed, ReleaseProxy() should be
 // called with it. No blocking operations are performed, and the proxy will
 // not be cached in the GAHP server when AcquireProxy() returns.
-// If Proxy.gahp_proxy_id is set to a negative value, it's not ready for
-// use yet with any GAHP commands. Once it is ready, Proxy.gahp_proxy_id
+// If Proxy.id is set to a negative value, it's not ready for
+// use yet with any GAHP commands. Once it is ready, Proxy.id
 // will be set to set to the GAHP cache id (a non-negative number) and
 // notify_tid will be signalled. If no notifications are desired, give a
 // negative number for notify_tid or omit it. Note the the Proxy returned
@@ -220,7 +220,7 @@ AcquireProxy( const char *proxy_path, int notify_tid )
 	proxy->num_references = 1;
 	proxy->expiration_time = expire_time;
 	proxy->near_expired = (expire_time - time(NULL)) <= minProxy_time;
-	proxy->gahp_proxy_id = next_gahp_proxy_id++;
+	proxy->id = next_proxy_id++;
 	if ( notify_tid > 0 &&
 		 proxy->notification_tids.IsMember( notify_tid ) == false ) {
 		proxy->notification_tids.Append( notify_tid );
@@ -311,7 +311,7 @@ dprintf(D_ALWAYS,"CheckProxies called\n");
 
 		// Remove any proxies that are no longer being used by anyone
 		if ( next_proxy->num_references == 0 ) {
-dprintf(D_ALWAYS,"  removing old proxy %d\n",next_proxy->gahp_proxy_id);
+dprintf(D_ALWAYS,"  removing old proxy %d\n",next_proxy->id);
 			ProxiesByPath.remove( HashKey(next_proxy->proxy_filename) );
 			free( next_proxy->proxy_filename );
 			delete next_proxy;
@@ -340,7 +340,7 @@ dprintf(D_ALWAYS,"  removing old proxy %d\n",next_proxy->gahp_proxy_id);
 			// This proxy has expired or is about to expire. Mark it
 			// as such and notify everyone who cares.
 			if ( next_proxy->near_expired == false ) {
-dprintf(D_ALWAYS,"  marking proxy %d as about to expire\n",next_proxy->gahp_proxy_id);
+dprintf(D_ALWAYS,"  marking proxy %d as about to expire\n",next_proxy->id);
 				next_proxy->near_expired = true;
 				int tid;
 				next_proxy->notification_tids.Rewind();
@@ -370,7 +370,7 @@ dprintf(D_ALWAYS,"  marking proxy %d as about to expire\n",next_proxy->gahp_prox
 	// everyone who cares
 	if ( new_master != NULL && SetMasterProxy( new_master ) == true ) {
 
-dprintf(D_ALWAYS,"  proxy %d is now the master proxy\n",new_master->gahp_proxy_id);
+dprintf(D_ALWAYS,"  proxy %d is now the master proxy\n",new_master->id);
 		int tid;
 		MasterProxy.notification_tids.Rewind();
 		while ( MasterProxy.notification_tids.Next( tid ) ) {

@@ -54,8 +54,8 @@ struct GahpProxyInfo
 	int cached_expiration;
 };
 
-static const char *GAHPCLIENT_DEFAULT_ID = "DEFAULT";
-static const char *GAHPCLIENT_DEFAULT_PATH = "DEFAULT";
+static const char *GAHPCLIENT_DEFAULT_SERVER_ID = "DEFAULT";
+static const char *GAHPCLIENT_DEFAULT_SERVER_PATH = "DEFAULT";
 
 // Additional error values that GAHP calls can return
 ///
@@ -69,15 +69,16 @@ static const int GAHPCLIENT_COMMAND_TIMED_OUT = -103;
 
 // Special values for what proxy to use with commands
 //   Use default proxy (not any cached proxy)
-static const int GAHPCLIENT_CACHE_DEFAULT_PROXY = -1;
+//static const GahpProxyInfo *GAHPCLIENT_CACHE_DEFAULT_PROXY = ((GahpProxyInfo *)1);
+#define GAHPCLIENT_CACHE_DEFAULT_PROXY ((GahpProxyInfo *)1)
 //   Use last proxy (use whatever proxy was used for the previous command)
-static const int GAHPCLIENT_CACHE_LAST_PROXY = -2;
+//static const GahpProxyInfo *GAHPCLIENT_CACHE_LAST_PROXY = ((GahpProxyInfo *)2);
+#define GAHPCLIENT_CACHE_LAST_PROXY ((GahpProxyInfo *)2)
 
 class GahpClient;
 
 class GahpServer : public Service {
  public:
-	static GahpServer *main_gahp_server;
 	static GahpServer *FindOrCreateGahpServer(const char *id, const char *path);
 	static HashTable <HashKey, GahpServer *> GahpServersById;
 
@@ -95,7 +96,7 @@ class GahpServer : public Service {
 	int pipe_ready();
 
 	int doProxyCheck();
-	bool RegisterProxy( const char *proxy_path );
+	GahpProxyInfo *RegisterProxy( const char *proxy_path );
 
 	/** Set interval to automatically poll the Gahp Server for results.
 		If the Gahp server supports async result notification, then
@@ -130,9 +131,12 @@ class GahpServer : public Service {
 
 	void poll_real_soon();
 
-	bool cacheProxyFromFile( int id, const char *proxy_path );
-	bool uncacheProxy( int id );
-	bool useCachedProxy( int id, bool force = false );
+	bool cacheProxyFromFile( GahpProxyInfo *new_proxy );
+	bool uncacheProxy( GahpProxyInfo *gahp_proxy );
+	bool useCachedProxy( GahpProxyInfo *new_proxy, bool force = false );
+
+	bool command_cache_proxy_from_file( GahpProxyInfo *new_proxy );
+	bool command_use_cached_proxy( GahpProxyInfo *new_proxy );
 
 		// Methods for private GAHP commands
 	bool command_version(bool banner_string = false);
@@ -158,7 +162,7 @@ class GahpServer : public Service {
 	bool poll_pending;
 	int max_pending_requests;
 	int num_pending_requests;
-	int current_cache_id;
+	GahpProxyInfo *current_proxy;
 	bool skip_next_r;
 	char *binary_path;
 	char *my_id;
@@ -186,8 +190,8 @@ class GahpClient : public Service {
 		//@{
 	
 			/// Constructor
-		GahpClient(const char *id=GAHPCLIENT_DEFAULT_ID,
-				   const char *path=GAHPCLIENT_DEFAULT_PATH);
+		GahpClient(const char *id=GAHPCLIENT_DEFAULT_SERVER_ID,
+				   const char *path=GAHPCLIENT_DEFAULT_SERVER_PATH);
 			/// Destructor
 		~GahpClient();
 		
@@ -274,10 +278,10 @@ class GahpClient : public Service {
 		int getNotificationTimerId() { return user_timerid; }
 
 		//@}
-					
-		void setNormalProxy( Proxy *proxy ) { normal_proxy_cache_id = proxy->gahp_proxy_id; server->RegisterProxy(proxy->proxy_filename); }
 
-		void setDelegProxy( Proxy *proxy ) { deleg_proxy_cache_id = proxy->gahp_proxy_id; server->RegisterProxy(proxy->proxy_filename); }
+		void setNormalProxy( Proxy *proxy );
+
+		void setDelegProxy( Proxy *proxy );
 
 		//-----------------------------------------------------------
 		
@@ -378,7 +382,7 @@ class GahpClient : public Service {
 		void clear_pending();
 		bool is_pending(const char *command, const char *buf);
 		void now_pending(const char *command,const char *buf,
-						 int cache_id = GAHPCLIENT_CACHE_DEFAULT_PROXY);
+						 GahpProxyInfo *proxy = GAHPCLIENT_CACHE_DEFAULT_PROXY);
 		Gahp_Args* get_pending_result(const char *,const char *);
 		bool check_pending_timeout(const char *,const char *);
 		int reset_user_timer(int tid);
@@ -395,9 +399,9 @@ class GahpClient : public Service {
 		int pending_timeout_tid;
 		bool pending_submitted_to_gahp;
 		int user_timerid;
-		int normal_proxy_cache_id;
-		int deleg_proxy_cache_id;
-		int pending_cache_id;
+		GahpProxyInfo *normal_proxy;
+		GahpProxyInfo *deleg_proxy;
+		GahpProxyInfo *pending_proxy;
 
 			// These data members all deal with the GAHP
 			// server.  Since there is only one instance of the GAHP

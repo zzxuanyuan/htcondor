@@ -32,7 +32,7 @@ struct Proxy {
 	char *proxy_filename;
 	int expiration_time;
 	bool near_expired;
-	int gahp_proxy_id;
+	int id;
 	int num_references;
 	SimpleList<int> notification_tids;
 };
