@@ -258,16 +258,69 @@ ResMgr::send_update( ClassAd* public_ad, ClassAd* private_ad )
 void
 ResMgr::eval_and_update_all()
 {
-	m_attr->compute( A_TIMEOUT );
+	compute( A_TIMEOUT | A_UPDATE );
 	walk( Resource::eval_and_update );
+}
+
+
+void
+ResMgr::eval_all()
+{
+	compute( A_TIMEOUT );
+	walk( Resource::eval_state );
 }
 
 
 void
 ResMgr::compute( amask_t how_much )
 {
-	m_attr->compute( how_much & ~(A_SUMMED) );
-	resmgr->walk( Resource::compute, how_much );
-	m_attr->compute( how_much & A_SUMMED );
+	m_attr->compute( (how_much & ~(A_SUMMED)) | A_SHARED );
+	resmgr->walk( Resource::compute, (how_much & ~(A_SHARED)) );
+	m_attr->compute( how_much | A_SUMMED );
+	resmgr->walk( Resource::compute, (how_much | A_SHARED) );
+}
+
+
+int
+ResMgr::start_update_timer()
+{
+	up_tid = 
+		daemonCore->Register_Timer( update_interval, update_interval,
+									(TimerHandlercpp)eval_and_update_all,
+									"eval_and_update_all", this );
+	if( up_tid < 0 ) {
+		EXCEPT( "Can't register DaemonCore timer" );
+	}
+	return TRUE;
+}
+
+
+int
+ResMgr::start_poll_timer()
+{
+	if( poll_tid >= 0 ) {
+			// Timer already started.
+		return TRUE;
+	}
+	poll_tid = 
+		daemonCore->Register_Timer( polling_interval,
+									polling_interval, 
+									(TimerHandlercpp)eval_all,
+									"poll_resources", this );
+	if( poll_tid < 0 ) {
+		EXCEPT( "Can't register DaemonCore timer" );
+	}
+	return TRUE;
+}
+
+
+void
+ResMgr::cancel_poll_timer()
+{
+	if( poll_tid != -1 ) {
+		daemonCore->Cancel_Timer( poll_tid );
+		poll_tid = -1;
+		dprintf( D_FULLDEBUG, "Canceled polling timer.\n" );
+	}
 }
 
