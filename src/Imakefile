@@ -49,7 +49,7 @@
 #   define standalone
 #endif
 
-#if WANT_PVM && HAS_PVM
+#if WANT_PVM
 #define PvmProgs starter.jim shadow.jim 
 #else
 #define PvmProgs
@@ -151,7 +151,7 @@ contrib_tarball(ckpt_server.tar,CkptServerFiles)
 contrib_tarball(eventd.tar,EventdFiles)
 /* contrib_tarball(sdk.tar,SDKFiles) */
 
-#if WANT_PVM && HAS_PVM
+#if WANT_PVM
 #define PvmTar pvm.tar
 #define AfsPvmTar afs_pvm.tar
 contrib_tarball(pvm.tar,PvmFiles)
@@ -265,7 +265,7 @@ object_target(io)
 object_target(classad)
 object_target(daemon_core.V6)
 object_target(daemon_client)
-#if WANT_PVM && HAS_PVM
+#if WANT_PVM
    object_target(starter.jim)
    object_target(shadow.jim)
 #endif
@@ -359,7 +359,7 @@ ext_target(EXT_GAHP_VERSION,$(EXT_TRIGGER_DIR)/$(EXT_GLOBUS_VERSION))
 ext_target(EXT_GPT_VERSION,)
 #endif
 ext_target(EXT_MAN_VERSION,)
-#if HAS_PVM && WANT_PVM
+#if WANT_PVM
 ext_target(EXT_PVM_VERSION,)
 #endif
 
