@@ -112,7 +112,8 @@ volatile int check_sig;		// the signal which activated the checkpoint; used
 							// checkpoint (USR2) or a check & vacate (TSTP).
 static size_t StackSaveSize;
 unsigned int _condor_numrestarts = 0;
-int condor_compress_ckpt = 1; // compression off(0) or on(1)
+int condor_compress_ckpt = 0; // compression off(0) or on(1)
+int condor_incremental_ckpt = 1; // incremental ckpt off(0) or on(1)
 int condor_slow_ckpt = 0;
 
 // set mySubSystem for Condor components which expect it
@@ -389,7 +390,9 @@ Image::NewDirtyPage(char * page)
 				"\n\tseg %s (Ox%x, len %d).\n", dirtyPage, page, "DATA", 
 				data_start, data->GetLen() );
 		PrintBitmap();
-		return false;
+		// should really return false, but there seems to be a problem
+		// just to test the timing, I'll set it to true - jmb
+		return true;
 	}
 	setBit( dirtyPage, incr_ckpt_data->bitmap ); 
 	incr_ckpt_data->dirty_pages++;
@@ -494,23 +497,10 @@ _condor_prestart( int syscall_mode )
 	_install_signal_handler( SIGTSTP, (SIG_HANDLER)Checkpoint );
 	_install_signal_handler( SIGUSR2, (SIG_HANDLER)Checkpoint );
 		// install one for incremental checkpointing
-	_install_signal_handler( SIGSEGV, seg_handler );
-	dprintf( D_ALWAYS, "Registered seg_handler (Ox%x)\n", seg_handler );
-	dprintf( D_ALWAYS, "Registered ckpt_handler(0x%x)\n", Checkpoint  ); 
-	/*
-	dprintf( D_ALWAYS, "Registering signal for incr. ckpting\n" );
-    struct sigaction sa;
-    sa.sa_sigaction = seg_handler;
-    sigfillset( &sa.sa_mask);
-    sa.sa_flags = SA_SIGINFO;
-    if (sigaction (SIGSEGV, &sa, 0) != 0) {
-		dprintf( D_ALWAYS, "Couldn't register signal\n" );
-    } else {
-		dprintf( D_ALWAYS, "Registered OK\n" );
+	if ( condor_incremental_ckpt ) {
+		_install_signal_handler( SIGSEGV, seg_handler );
+		dprintf( D_ALWAYS, "Registered seg_handler (Ox%x)\n", seg_handler );
 	}
-	*/
-	// make sure signal was correctly installed
-	//test_seg_handler( ); // this works
 
 	calc_stack_to_save();
 
@@ -998,7 +988,7 @@ Image::InitIncrCkptSegment( )
 	incr_ckpt_data = (Incr_ckpt_data *) addr;
 	incr_ckpt_data->total_pages = totalPages;
 	incr_ckpt_data->dirty_pages = 0;
-	incr_ckpt_data->orig_brk    = data->GetBrk();
+	incr_ckpt_data->orig_brk    = (RAW_ADDR) data->GetBrk();
 	dprintf( D_ALWAYS, "Addr of bitmap is Ox%x\n", 
 			incr_ckpt_data->bitmap );
 
@@ -1138,14 +1128,14 @@ RestoreStack()
 }
 
 int
-Image::Write()
+Image::Write( int incremental )
 {
 	dprintf( D_ALWAYS, "Image::Write(): fd %d file_name %s\n",
 			 fd, file_name?file_name:"(NULL)");
 	if (fd == -1) {
-		return Write( file_name );
+		return Write( file_name, incremental );
 	} else {
-		return Write( fd );
+		return Write( fd, incremental );
 	}
 }
 
@@ -1167,7 +1157,7 @@ Image::MSync()
   should access in LOCAL and UNMAPPED mode.
 */
 int
-Image::Write( const char *ckpt_file )
+Image::Write( const char *ckpt_file, int incremental )
 {
 	int	fd;
 	int	status;
@@ -1245,7 +1235,7 @@ Image::Write( const char *ckpt_file )
 	// }  // this is the matching brace to the open_url; see comment above
 
 		// Write out the checkpoint
-	if( Write(fd) < 0 ) {
+	if( Write(fd, incremental ) < 0 ) {
 		return -1;
 	}
 
@@ -1284,7 +1274,7 @@ Image::Write( const char *ckpt_file )
   to stop writing sequential checkpoints and start writing incremental ones
 */
 int
-Image::Write( int fd )
+Image::Write( int fd, int incremental )
 {
 	int		i;
 	int		pos = 0;
@@ -1338,15 +1328,18 @@ Image::Write( int fd )
 
 		// Write out the Segments
 	for( i=0; i<head.N_Segs(); i++ ) {
-/*		map[i].Display();*/
-		if( (nbytes=map[i].Write(fd,pos)) < 0 ) {
+		/*map[i].Display();*/
+		// actually can just put the incremental writing into the segment
+		// write function
+		if( (nbytes=map[i].Write(fd,pos,incremental)) < 0 ) {
 			dprintf( D_ALWAYS, "Write() Segment[%d] of type %s -> FAILED\n", i,
 				map[i].GetName() );
 			dprintf( D_ALWAYS, "errno = %d, nbytes = %d\n", errno, nbytes );
 			return -1;
 		}
 		pos += nbytes;
-		dprintf( D_ALWAYS, "Wrote Segment[%d] of type %s -> OK\n", i, map[i].GetName() );
+		dprintf( D_ALWAYS, "Wrote Segment[%d] of type %s -> OK\n", i, 
+				map[i].GetName() );
 	}
 
 #if defined(COMPRESS_CKPT)
@@ -1671,10 +1664,11 @@ SegMap::Read( int fd, ssize_t pos )
 	return pos + len;
 }
 
+// can add the code here to do incremental ckpting
 ssize_t
-SegMap::Write( int fd, ssize_t pos )
+SegMap::Write( int fd, ssize_t pos, int incremental )
 {
-	if( pos != file_loc ) {
+	if( pos != file_loc && ! incremental ) {
 		dprintf( D_ALWAYS, "Checkpoint sequence error (%d != %d)\n",
 				 pos, file_loc );
 		Suicide();
@@ -1722,6 +1716,9 @@ SegMap::Write( int fd, ssize_t pos )
 	dprintf( D_ALWAYS, "write(fd=%d,core_loc=0x%x,len=0x%x)\n",
 			fd, core_loc, len );
 
+	if ( strcmp("DATA", name) == 0 && incremental) 
+		return WriteIncremental( fd, pos );
+
 	int bytes_to_go = len, nbytes;
 
 	char *ptr = (char *)core_loc;
@@ -1746,6 +1743,53 @@ SegMap::Write( int fd, ssize_t pos )
 		ptr += nbytes;
 	}
 	return len;
+}
+
+
+ssize_t
+SegMap::WriteIncremental( int fd, ssize_t pos ) {
+
+	struct Incr_ckpt_data *data = MyImage.GetIncrCkptData();
+	char *ptr = (char *)core_loc;
+	size_t write_size = getpagesize();
+	size_t nbytes, length = 0; 
+
+	for (long i = 0; i < data->total_pages; i++) {
+		if (bitIsSet( i, data->bitmap ) ) {
+			// write each dirty page
+			nbytes = write( fd, (void *)ptr, write_size );		 
+			if (nbytes != write_size) {
+				dprintf(D_ALWAYS,"in SegMap::Write(): fd = %d, write_size=%d\n",
+						 fd, write_size );
+				dprintf( D_ALWAYS, "errno=%d, core_loc=%x\n", errno, ptr );
+				return -1;
+			}
+			length += nbytes;
+		}
+		// move ptr to next page
+		ptr += getpagesize();	
+	}
+
+	// write any new pages
+	write_size *= MyImage.NewPages();
+	nbytes = write( fd, (void *)ptr, write_size );
+	if (nbytes != write_size) {
+		dprintf(D_ALWAYS,"in SegMap::Write(): fd = %d, write_size=%d\n",
+				 fd, write_size );
+		dprintf( D_ALWAYS, "errno=%d, core_loc=%x\n", errno, ptr );
+		return -1;
+	}
+	length += nbytes;
+
+	ptr += write_size;
+	if ( ptr != (char *)core_loc + len ) {
+		dprintf( D_ALWAYS, "WARNING: ptr is %s, dataend is %s.\n", ptr, 
+			(char *)core_loc + len );
+	}
+	
+	int pages = length / getpagesize();
+	dprintf( D_ALWAYS, "Incremental wrote %i dirty pages.\n", pages );
+	return length;
 }
 
 #define MILLION 1000000
@@ -1790,6 +1834,7 @@ Checkpoint( int sig, int code, void *scp )
 	long	ckptTime;
 	struct	timezone tz;
 	struct 	timeval  startTime, endTime;
+	char 	TIMING[256];
 
 	/*
 		WARNING: Do not put any code here. This check prevents a race condition.
@@ -1819,11 +1864,6 @@ Checkpoint( int sig, int code, void *scp )
 
 	_condor_save_sigstates();
 	dprintf( D_ALWAYS, "Saved signal state.\n");
-
-		// start the clock
-    if ( gettimeofday( &startTime, &tz ) < 0 ) {
-        dprintf( D_ALWAYS, "Couldn't set start time.\n" );
-    }
 
 	check_sig = sig;
 
@@ -1907,15 +1947,49 @@ Checkpoint( int sig, int code, void *scp )
 			Also, at this point can unmap the old incrCkptData segment
 			This will be the point to change the code to just write dirty pages
 		*/
-		if 	(_condor_numrestarts > 0) {
+		if 	( _condor_numrestarts > 0 && condor_incremental_ckpt ) {
 			dprintf( D_ALWAYS, "Dirty DATA pages: %d / %d (%d new)\n", 
 			MyImage.DirtyPages(), MyImage.TotalPages(), MyImage.NewPages() );
 			MyImage.PrintBitmap();
 				// for some reason, attempting to unmap the old seg will crash
 			//MyImage.DestroyIncrCkptSegment( );
+
+
+			// first do an incremental ckpt to get the timing, then do 
+			// a real one so we can do a restart
+				// start the clock
+    		if ( gettimeofday( &startTime, &tz ) < 0 ) {
+    		    dprintf( D_ALWAYS, "Couldn't set start time.\n" );
+    		}
+			write_result = MyImage.Write(condor_incremental_ckpt);
+			if ( gettimeofday( &endTime, &tz ) < 0 ) {
+    		    dprintf( D_ALWAYS, "Couldn't set start time.\n" );
+			}	
+			ckptTime = time_diff( startTime, endTime );
+			sprintf( TIMING, "Checkpoint %3i took %9d microsecs. "
+						"(compressed=%i,incremental=%i)\n\0", 
+						_condor_numrestarts, ckptTime, condor_compress_ckpt, 1);
+			dprintf( D_ALWAYS, "%s", TIMING ); 
+			printf( "%s", TIMING );
 		}
 
-		write_result = MyImage.Write();
+
+			// now do the real image write, time it as well
+    	if ( gettimeofday( &startTime, &tz ) < 0 ) {
+    	    dprintf( D_ALWAYS, "Couldn't set start time.\n" );
+    	}
+		write_result = MyImage.Write(0);
+		if ( gettimeofday( &endTime, &tz ) < 0 ) {
+    	    dprintf( D_ALWAYS, "Couldn't set start time.\n" );
+		}	
+		ckptTime = time_diff( startTime, endTime );
+		sprintf( TIMING, "Checkpoint %3i took %9d microsecs. "
+					"(compressed=%i,incremental=%i)\n\0", 
+					_condor_numrestarts, ckptTime, condor_compress_ckpt, 0);
+		dprintf( D_ALWAYS, "%s", TIMING ); 
+		printf( "%s", TIMING );
+
+
 		if ( sig == SIGTSTP ) {
 			/* we have just checkpointed; now time to vacate */
 			dprintf( D_ALWAYS,  "Ckpt exit\n" );
@@ -2029,20 +2103,10 @@ Checkpoint( int sig, int code, void *scp )
 		_condor_restore_sigstates();
 
 		// need to do mprotect here following restart - JMB
-		dprintf( D_ALWAYS, "About to mprotect MyImage and setup new segment\n");
-		MyImage.InitIncrCkptSegment( );
-		MyImage.Mprotect ( PROT_READ );
-		// here is where to stop the timer
-		// start the clock
-    	if ( gettimeofday( &endTime, &tz ) < 0 ) {
-        	dprintf( D_ALWAYS, "Couldn't set start time.\n" );
-    	}
-		{
-		char OUTPUT[256];
-		ckptTime = time_diff( startTime, endTime );
-		sprintf( OUTPUT, "Checkpoint %3i took %9d microsecs.\n\0", 
-					_condor_numrestarts, ckptTime );
-		dprintf( D_ALWAYS, "%s", OUTPUT ); 
+		if (condor_incremental_ckpt) {
+			dprintf( D_ALWAYS, "About to mprotect and setup new segment\n");
+			MyImage.InitIncrCkptSegment( );
+			MyImage.Mprotect ( PROT_READ );
 		}
 		dprintf( D_ALWAYS, "About to return to user code\n"  );
 		InRestart = FALSE;

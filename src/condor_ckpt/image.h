@@ -69,7 +69,8 @@ class SegMap {
 public:
 	void Init( const char *name, RAW_ADDR core_loc, long len, int prot );
 	ssize_t Read( int fd, ssize_t pos );
-	ssize_t Write( int fd, ssize_t pos );
+	ssize_t Write( int fd, ssize_t pos, int incremental );
+	ssize_t WriteIncremental( int fd, ssize_t pos );
 	ssize_t SetPos( ssize_t my_pos );
 	BOOL Contains( void *addr );
 	char *GetName() { return name; }
@@ -94,9 +95,9 @@ typedef enum { STANDALONE, REMOTE } ExecutionMode;
 class Image {
 public:
 	void Save();
-	int	Write();
-	int Write( int fd );
-	int Write( const char *name );
+	int	Write( int incremental );
+	int Write( int fd, int incremental );
+	int Write( const char *name, int incremental );
 	int Read();
 	int Read( int fd );
 	int Read( const char *name );
@@ -109,6 +110,7 @@ public:
 	bool NewDirtyPage(char * page);
 	void InitIncrCkptSegment( );
 	void DestroyIncrCkptSegment( );
+	struct Incr_ckpt_data *GetIncrCkptData() { return incr_ckpt_data; }
 	/* end of incremental ckpting functions */
 	void Close();
 	void Restore();

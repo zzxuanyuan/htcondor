@@ -60,13 +60,18 @@ COMPRESS_OBJ = malloc.o zimage.o
 COMPRESS_FLAGS = -DCOMPRESS_CKPT -I/s/zlib/include
 #endif
 
+#if DOES_INCREMENTAL_CKPT
+INCREMENTAL_FLAGS = -DINCREMENTAL_CKPT
+#endif
+
 #if HAS_DYNAMIC_USER_JOBS
 DYNAMIC_FLAGS = -DHAS_DYNAMIC_USER_JOBS
 #else
 DYNAMIC_FLAGS =
 #endif
 
-C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) $(SAVE_SIGSTATE) $(STATIC) \
+C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) $(SAVE_SIGSTATE) $(STATIC) \ 
+	$(INCREMENTAL_FLAGS) \
 	$(FILE_TABLE) $(PVM_CHECKPOINT) -DIN_CKPT_LIB $(DYNAMIC_FLAGS) $(DL_EXTRACT)
 
 #if IS_HPUX10
@@ -261,15 +266,11 @@ program_target(machdep_test,machdep_test.o machdep.$(OS).o tmp_stack.o $(ASSEMBL
 #endif
 
 program_target(ToUpper,ToUpper.o,$(NULL))
-firstattemt.o: firstattempt.C
-	CPlusCompiler $(C_PLUS_FLAGS) $(COMPRESS_FLAGS) -o firstattempt.o -c firstattempt.C
-/*program_target(gregxxx, firstattempt.o , libcondorc++support.a $(UTIL_LIB) )*/
-/*c_plus_target(gregxxx, firstattempt.o, $(NULL))*/
-#if DOES_COMPRESS_CKPT
 malloc.o : malloc.c
 	CCompiler -O2 -g -DMORECORE=condor_morecore -DHAVE_MMAP=0 -Dmalloc_getpagesize=8192 -c malloc.c
 zimage.o : image.C
 	CPlusCompiler $(C_PLUS_FLAGS) $(COMPRESS_FLAGS) -o zimage.o -c image.C
+#if DOES_COMPRESS_CKPT
 #if IS_SUN4X_SOLARIS
 _rem.o : $(SIMPLE_LIBC)
 	ar x $(SIMPLE_LIBC) _rem.o
