@@ -1275,7 +1275,7 @@ AC_MSG_RESULT([$_cv_ext_zlib_version])
 AC_SUBST(ext_zlib_version,$_cv_ext_zlib_version)
 
 AC_MSG_CHECKING([gcb])
-_cv_ext_gcb_version="gcb-0.1"
+_cv_ext_gcb_version="gcb-1.0"
 AC_MSG_RESULT([$_cv_ext_gcb_version])
 AC_SUBST(ext_gcb_version,$_cv_ext_gcb_version)
 
