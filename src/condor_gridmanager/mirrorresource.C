@@ -155,6 +155,13 @@ int MirrorResource::DoScheddPoll()
 		return 0;
 	}
 
+	if ( gahp->isStarted() == false ) {
+		// The gahp server isn't running yet. Let a job start it up and
+		// we're retry in a few seconds.
+		daemonCore->Reset_Timer( scheddPollTid, 5 );
+		return 0;
+	}
+
 	daemonCore->Reset_Timer( scheddPollTid, TIMER_NEVER );
 
 	if ( scheddUpdateActive == false  && scheddStatusActive == false ) {
