@@ -126,7 +126,7 @@ void OpenFileTable::init_buffer()
 	// because iostream or stdio will flush _after_ us.
 
 	if(atexit(_condor_flush_and_disable_buffer)<0) {
-		file_warning("atexit() failed.  Buffering is disabled.\n");
+		_condor_file_warning("atexit() failed.  Buffering is disabled.\n");
 		delete buffer;
 		buffer = 0;
 	}
@@ -278,7 +278,7 @@ int OpenFileTable::open( const char *path, int flags, int mode )
 	// but the rest of the file table and buffer has no problem.
 
 	if( flags & O_RDWR )
-		file_warning("Opening file '%s' for read and write is not safe in a program that may be checkpointed!  You should use separate files for reading and writing.\n",path);
+		_condor_file_warning("Opening file '%s' for read and write is not safe in a program that may be checkpointed!  You should use separate files for reading and writing.\n",path);
 
 	// Install a new fp and update the use counts 
 
@@ -462,27 +462,21 @@ off_t OpenFileTable::lseek( int fd, off_t offset, int whence )
 	}
 }
 
+/* This function does a local dup2 one way or another. */
+static int _condor_internal_dup2( int oldfd, int newfd )
+{
+	#if defined(SYS_dup2)
+		return syscall( SYS_dup2, oldfd, newfd );
+	#elif defined(SYS_fcntl) && defined(F_DUP2FD)
+		return syscall( SYS_fcntl, oldfd, F_DUP2FD, newfd );
+	#else
+		#error "Need either SYS_dup2 or SYS_fcntl and F_DUP2FD!"
+	#endif
+}
+
 int OpenFileTable::dup( int fd )
 {
 	return search_dup2( fd, 0 );
-}
-
-int OpenFileTable::dup2( int fd, int nfd )
-{
-	if( (fd<0) || (fd>=length) || (pointers[fd]==0) ||
-	    (nfd<0) || (nfd>=length) ) {
-		errno = EBADF;
-		return -1;
-	}
-
-	if( pointers[nfd]!=0 ) {
-		close(nfd);
-	}
-
-	pointers[fd]->add_user();
-	pointers[nfd] = pointers[fd];
-
-	return nfd;
 }
 
 int OpenFileTable::search_dup2( int fd, int search )
@@ -506,6 +500,39 @@ int OpenFileTable::search_dup2( int fd, int search )
 	}
 }
 
+int OpenFileTable::dup2( int fd, int nfd )
+{
+	int result;
+
+	if( (fd<0) || (fd>=length) || (pointers[fd]==0) ||
+	    (nfd<0) || (nfd>=length) ) {
+		errno = EBADF;
+		return -1;
+	}
+
+	if( fd==nfd ) return fd;
+
+	if( pointers[nfd]!=0 ) close(nfd);
+
+	pointers[fd]->add_user();
+	pointers[nfd] = pointers[fd];
+
+	/* If we are in standalone checkpointing mode,
+	   we need to perform a real dup.  Because we
+	   are constructing this file table identically
+	   to the real system table, the result of
+	   the syscall _ought_ to be the same as the
+	   result of this virtual dup, but we will
+	   check just to be sure. */
+
+	if( MyImage.GetMode()==STANDALONE ) {
+		result = _condor_internal_dup2(fd,nfd);
+		if(result!=nfd) _condor_file_warning("OpenFileTable::dup2(%d,%d): Virtual dup %d does not match real dup %d!\n",fd,nfd,nfd,result);
+	}
+	    
+	return nfd;
+}
+
 /*
 fchdir is a little sneaky.  A particular fd might
 be remapped to any old file name or access method, which
@@ -525,7 +552,7 @@ int OpenFileTable::fchdir( int fd )
 		return -1;
 	}
 
-	dprintf(D_ALWAYS,"OFT::fchdir(%d) will try chdir(%s)\n",
+	dprintf(D_ALWAYS,"OpenFileTable::fchdir(%d) will try chdir(%s)\n",
 		fd, pointers[fd]->get_file()->get_name() );
 
 	return ::chdir( pointers[fd]->get_file()->get_name() );
@@ -567,7 +594,7 @@ int OpenFileTable::ftruncate( int fd, size_t length )
 /*
 fcntl does all sorts of wild stuff.
 Some operations affect the fd table.
-Perform these here.  Others merely modify
+Perform those here.  Others merely modify
 an individual file.  Pass these along to
 the access method, which may support the operation,
 or fail with its own error.
@@ -637,6 +664,8 @@ void OpenFileTable::suspend()
 		REMOTE_syscall( CONDOR_getwd, working_dir );
 	}
 
+	dprintf(D_ALWAYS,"OpenFileTable::suspend() cwd=%s\n",working_dir);
+
 	for( int i=0; i<length; i++ )
 	     if( pointers[i] ) pointers[i]->get_file()->suspend();
 }
@@ -647,7 +676,7 @@ void OpenFileTable::resume()
 
 	resume_count++;
 
-	dprintf(D_ALWAYS,"OpenFileTable::resume %d\n",resume_count);
+	dprintf(D_ALWAYS,"OpenFileTable::resume_count=%d cwd=%s\n",resume_count,working_dir);
 
 	if( MyImage.GetMode() == STANDALONE ) {
 		result = syscall( SYS_chdir, working_dir );
@@ -655,12 +684,37 @@ void OpenFileTable::resume()
 		result = REMOTE_syscall( CONDOR_chdir, working_dir );
 	}
 
-	if( result<0 ) {
-		EXCEPT("Unable to restore working directory after checkpoint!");
-	}
+	if( result<0 ) _condor_file_warning("OpenFileTable::resume(): Unable to restore working directory after checkpoint!");
 
-	for( int i=0; i<length; i++ )
-	     if( pointers[i] ) pointers[i]->get_file()->resume(resume_count);
+	/* Resume works a little differently, depending on the image mode.
+	   In the standard condor universe, we just go through each file
+	   object and call its resume method to reopen the file. */
+
+	for( int i=0; i<length; i++ ) {
+		if( pointers[i] ) {
+
+			/* No matter what the mode, we tell the file to
+			   resume itself. */
+
+			pointers[i]->get_file()->resume(resume_count);
+
+			/* In standalone mode, we check to see if fd i shares
+			   an fp with a lower numbered fd.  If it does, then
+			   we need to dup the lower number into the upper number.
+			   Just like dup2, we need to check that the result of
+			   the syscall is what we expected. */
+
+			if( MyImage.GetMode()==STANDALONE ) {
+				for( int j=0; j<i; j++ ) {
+					if( pointers[j]==pointers[i] ) {
+						int result = _condor_internal_dup2(j,i);
+						if( result!=i ) _condor_file_warning("OpenFileTable::resume(): dup2(%d,%d) returns %d, but I needed %d.",j,i,result,i);
+						break;
+					}
+				}
+			}	
+		}
+	}
 
 	dump();
 }
