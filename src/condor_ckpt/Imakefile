@@ -36,7 +36,7 @@ OBJ =	image.o machdep.$(OS).o file_state.o tmp_stack.o syscall_mode.o \
 		local_startup.o fake_remote_syscall.o $(ASSEMBLER_OBJ) $(UTIL_OBJ)
 
 
-all_target(machdep_test libckpt.a c_plus_alloc.o)
+all_target(machdep_test libckpt.a)
 depend_target($(SRC) )
 
 program_target(machdep_test,machdep_test.o machdep.$(OS).o tmp_stack.o,,no_release)
@@ -45,6 +45,3 @@ library_target(libckpt.a,$(OBJ),release)
 
 IMPORT_LINKS = ../../config/import_links
 import(../condor_util_lib,$(UTIL_OBJ))
-
-release:: c_plus_alloc.o
-	cp c_plus_alloc.o $(RELEASE_DIR)/lib/c_plus_alloc.o

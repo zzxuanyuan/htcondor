@@ -10,14 +10,11 @@
 %token OUT
 %token BOTH
 %token ALLOC
-%token RETURN
 %token NOSUPP
-%token IGNORE
 
 %type <node> stub_spec param_list param simple_param map_param
 %type <node> stub_body action_func_list
 %type <node> action_param action_param_list action_func xfer_func alloc_func
-%type <node> return_func
 %type <tok> TYPE_NAME CONST IDENTIFIER UNKNOWN MAP EXTRACT ARRAY opt_mult
 %type <bool> opt_const opt_ptr opt_ptr_to_const opt_array
 %type <bool> opt_reference
@@ -35,7 +32,6 @@ mk_func_node( char *type, char *name, struct node * p_list,
 struct node * mk_xfer_func( char *xdr_func, struct node *param_list,
 	int in, int out );
 struct node * mk_alloc_func( struct node *param_list );
-struct node * mk_return_func( struct node *param_list );
 struct node * mk_param_node( char *type, char *name,
 	int is_const, int is_ptr, int is_const_ptr, int is_array,
 	int is_in, int is_out );
@@ -67,7 +63,6 @@ char *malloc( unsigned int );
 #define RECEIVERS 3
 
 int Supported = TRUE;
-int Ignored = FALSE;
 int	Mode = 0;
 int ErrorEncountered = 0;
 int IsExtracted = FALSE;
@@ -91,10 +86,8 @@ input
 input
 	: stub_spec
 	| non_support_list
-	| ignore_list
 	| input stub_spec
 	| input non_support_list
-	| input ignore_list
 	| error stub_body
 	;
 
@@ -116,27 +109,6 @@ nosupp_begin
 		{
 		Trace( "nosupp_begin" );
 		Supported = FALSE;
-		}
-	;
-
-ignore_list
-	: ignore_begin stub_spec
-		{
-		Trace( "ignore_list( 1 )" );
-		Ignored = FALSE;
-		}
-	| ignore_begin '{' stub_list '}'
-		{
-		Trace( "ignore_list( 2 )" );
-		Ignored = FALSE;
-		}
-	;
-
-ignore_begin
-	: IGNORE
-		{
-		Trace( "ignore_begin" );
-		Ignored = TRUE;
 		}
 	;
 
@@ -201,10 +173,6 @@ action_func
 		{
 		$$ = $1;
 		}
-	| return_func
-		{
-		$$ = $1;
-		}
 	;
 
 xfer_func
@@ -220,14 +188,6 @@ alloc_func
 		{
 		Trace( "alloc_func" );
 		$$ = mk_alloc_func( $3 );
-		}
-	;
-
-return_func
-	: RETURN '(' action_param_list ')' ';'
-		{
-		Trace( "return_func" );
-		$$ = mk_return_func( $3 );
 		}
 	;
 
@@ -585,18 +545,6 @@ mk_alloc_func( struct node *param_list )
 	return answer;
 }
 
-struct node *
-mk_return_func( struct node *param_list )
-{
-	struct node	*answer;
-
-	answer = (struct node *)malloc( sizeof(struct node) );
-	answer->node_type = RETURN_FUNC;
-	answer->param_list = param_list;
-
-	return answer;
-}
-
 /*
   Insert a new node at the beginning of a list.
 */
@@ -853,7 +801,6 @@ output_receiver( struct node *n )
 	struct node *param_list = n->param_list;
 	struct node *p, *q;
 	struct node *var, *size;
-	char   *rval;
 
 	assert( n->node_type == FUNC );
 
@@ -934,8 +881,6 @@ output_receiver( struct node *n )
 	printf( "\t\terrno = 0;\n" );
 	if( !Supported  ) {
 		printf( "\t\trval = CONDOR_NotSupported( CONDOR_%s );\n", n->id  );
-	} else if( Ignored ) {
-		printf( "\t\trval = CONDOR_Ignored( CONDOR_%s );\n", n->id  );
 	} else {
 		printf( "\t\trval = %s%s( ",
 			n->pseudo ? "pseudo_" : "",
@@ -997,19 +942,7 @@ output_receiver( struct node *n )
 	}
 
 	printf( "\t\tassert( xdrrec_endofrecord(xdr_syscall,TRUE) );;\n" );
-
-		/*
-		Check for special return value
-		*/
-	rval = "0";
-	for( p=n->action_func_list->next; p->node_type != DUMMY; p = p->next ) {
-		if( p->node_type != RETURN_FUNC ) {
-			continue;
-		}
-		var = p->param_list->next;
-		rval = var->id;
-	}
-	printf( "\t\treturn %s;\n", rval );
+	printf( "\t\treturn 0;\n" );
 
 
 	printf( "\t}\n" );

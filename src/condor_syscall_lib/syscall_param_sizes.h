@@ -18,4 +18,3 @@
 #define PROC_SIZE sizeof(PROC)
 #define SIZE_T_SIZE sizeof(size_t)
 #define U_SHORT_SIZE sizeof(u_short)
-#define NEG_ONE -1

@@ -10,27 +10,9 @@ Bugs:
     OSF1 has problems with sys/user.h and the C++ compiler, this is just a 
     dummy.
 ******************************************************************/
-#include "condor_common.h"
-#include "condor_debug.h"
-#include "condor_constants.h"
-#include "condor_jobqueue.h"
-#include <sys/file.h>
-
 
 int
 core_is_valid( char *name )
 {
-	int		fd;
-
-	dprintf( D_ALWAYS,
-		"Analyzing core file \"%s\" for existence and completeness\n", name
-	);
-
-	if( (fd=open(name,O_RDONLY)) < 0 ) {
-		dprintf( D_ALWAYS, "Can't open core file \"%s\"\n", name );
-		return FALSE;
-	}
-
-	close( fd );
-	return TRUE;
+	return 1;
 }
