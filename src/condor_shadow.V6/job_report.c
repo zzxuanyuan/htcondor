@@ -2,6 +2,10 @@
 #include "job_report.h"
 #include "syscall_numbers.h"
 
+/* A horizontal bar to be printed many times in the report. */
+
+static char *job_report_bar = "------------------------------------\n";
+
 /*
 System call numbers can be negative, so figure out how big the table must
 big enough to hold all of them.
@@ -26,6 +30,9 @@ int job_report_display_calls( FILE *f )
 {
 	int i;
 
+	fprintf(f,"\nRemote System Calls Performed\n");
+	fprintf(f,job_report_bar);
+
 	for( i=0; i<SYSCALL_COUNT_SIZE; i++ ) {
 		if(syscall_counts[i]) {
 			fprintf(f,"%-30s %5d\n",
@@ -33,6 +40,8 @@ int job_report_display_calls( FILE *f )
 				syscall_counts[i]);
 		}
 	}
+
+	fprintf(f,job_report_bar);
 }
 
 /*
@@ -58,24 +67,52 @@ static int job_report_display_text( FILE *f, struct job_report_text *node );
 static struct job_report_text *job_report_info_head=0;
 static struct job_report_text *job_report_error_head=0;
 
-int job_report_add_info( char *text )
+int job_report_add_info( char *format, ... )
 {
-	job_report_add_text( text, &job_report_info_head );
+	static char buffer[JOB_REPORT_RECORD_MAX];
+
+	va_list args;
+	va_start( args, format );
+
+	vsprintf( buffer, format, args );
+
+	va_end( args );
+
+	return job_report_add_text( buffer, &job_report_info_head );
 }
 
-int job_report_add_error( char *text )
+int job_report_add_error( char *format, ... )
 {
-	job_report_add_text( text, &job_report_error_head );
+	static char buffer[JOB_REPORT_RECORD_MAX];
+
+	va_list args;
+	va_start( args, format );
+
+	vsprintf( buffer, format, args );
+
+	va_end( args );
+
+	return job_report_add_text( buffer, &job_report_error_head );
 }
 
 int job_report_display_info( FILE *f )
 {
-	job_report_display_text( f, job_report_info_head );
+	if(job_report_info_head) {
+		fprintf(f,"\nRemote Execution Notices\n");
+		fprintf(f,job_report_bar);
+		job_report_display_text( f, job_report_info_head );
+		fprintf(f,job_report_bar);
+	}
 }
 
 int job_report_display_errors( FILE *f )
 {
-	job_report_display_text( f, job_report_error_head );
+	if(job_report_error_head) {
+		fprintf(f,"\nRemote Execution Errors\n");
+		fprintf(f,job_report_bar);
+		job_report_display_text( f, job_report_error_head );
+		fprintf(f,job_report_bar);
+	}
 }
 
 /* Private function: Add text to the end of a list */
@@ -116,7 +153,7 @@ static int job_report_display_text( FILE *f, struct job_report_text *node )
 			job_report_display_text(f,node->next);
 			free(node->next);
 		}
-		fprintf(f,node->text);
+		fprintf(f,"%s\n",node->text);
 	}
 	return 1;
 }

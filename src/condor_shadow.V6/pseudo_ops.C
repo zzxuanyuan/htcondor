@@ -39,6 +39,7 @@
 #include "condor_config.h"
 #include "filename_tools.h"
 #include "job_report.h"
+#include "metric_units.h"
 
 #ifdef CARMI_OPS
 #include <ProcList.h>
@@ -261,15 +262,31 @@ pseudo_getrusage(int who, struct rusage *use_p )
 }
 
 int
-pseudo_report_error( const char *msg )
+pseudo_report_error( char *msg )
 {
 	return job_report_add_error( msg );
 }
 
 int
-pseudo_report_info( const char *msg )
-{
-	return job_report_add_info( msg );
+pseudo_report_file_info(
+	char *name,
+	int read_count, int read_bytes,
+	int write_count, int write_bytes,
+	int seek_count, int size ) {
+
+	// If nothing went on in this file, skip it.
+
+	if( !read_count && !write_count && !seek_count ) return 1;
+
+	job_report_add_info("%s",name);
+	job_report_add_info("\treads:  %6d bytes read:    %s",
+		read_count, metric_units(read_bytes) );
+	job_report_add_info("\twrites: %6d bytes_written: %s",
+		write_count, metric_units(write_bytes) );
+	job_report_add_info("\tseeks:  %6d final size:    %s",
+		seek_count, metric_units(size) );
+
+	return 1;
 }
 
 int

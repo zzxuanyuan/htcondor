@@ -45,8 +45,8 @@ int pseudo_reallyexit( int *status, struct rusage *use_p );
 int pseudo_free_fs_blocks( const char *path );
 int pseudo_image_size( int size );
 int pseudo_send_rusage( struct rusage *use_p );
-int pseudo_report_error( const char *msg );
-int pseudo_report_info( const char *msg );
+int pseudo_report_error( char *msg );
+int pseudo_report_file_info( char *name, int read_count, int read_bytes, int write_count, int write_bytes, int seek_count, int size );
 int pseudo_getwd( char *path );
 int pseudo_send_file( const char *path, mode_t mode );
 int pseudo_get_file( const char *name );
@@ -86,7 +86,6 @@ int pseudo_lseekread(int fd, off_t offset, int whence, void *buf, size_t len);
 int pseudo_lseekwrite(int fd, off_t offset, int whence, const void *buf, size_t len);
 
 int CONDOR_NotSupported();
-int PERM_ERR(...);
 int SYSCALL(...);
 
 int external_name( const char*, char*, int);

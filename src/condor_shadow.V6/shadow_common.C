@@ -45,7 +45,6 @@
 
 extern "C" {
 	void NotifyUser( char *buf, PROC *proc, char *email_addr );
-	void display_errors( FILE *fp );
 	char *d_format_time( double dsecs );
 	int unlink_local_or_ckpt_server( char *file );
 	void rm();
@@ -196,11 +195,11 @@ NotifyUser( char *buf, PROC *proc, char *email_addr )
         fprintf(mailer, "\t%s %s\n", proc->cmd, proc->args );
 #endif
 
-        fprintf(mailer, "%s\n\n", buf );
+        fprintf(mailer, "%s\n", buf );
 
 	job_report_display_errors( mailer );
 
-        fprintf(mailer, "Submitted at:        %s", ctime( (time_t *)&proc->q_date) );
+        fprintf(mailer, "\nSubmitted at:        %s", ctime( (time_t *)&proc->q_date) );
         if( proc->completion_date ) {
                 real_time = proc->completion_date - proc->q_date;
                 fprintf(mailer, "Completed at:        %s",
@@ -236,8 +235,8 @@ NotifyUser( char *buf, PROC *proc, char *email_addr )
         }
         fprintf(mailer, "Virtual Image Size:  %d Kilobytes\n", proc->image_size);
 
-	job_report_display_calls( mailer );
 	job_report_display_info( mailer );
+	job_report_display_calls( mailer );
 
         (void)pclose( mailer );
 }

@@ -28,7 +28,7 @@
 #endif
 
 #include <sys/types.h>
-/* typedef long rlim_t; */
+typedef long rlim_t;
 #include "condor_fix_sys_stat.h"
 #include "condor_fix_unistd.h"
 

@@ -59,7 +59,7 @@ void _condor_file_table_resume();
 /** Map a virtual fd to the same real fd.  This function generally
 is only called but the startup code to get a temporary working
 stdin/stdout. */
-int _condor_file_pre_open( int fd, int readable, int writeable, int is_remote );
+int _condor_file_pre_open( int fd, char *name, int readable, int writeable, int is_remote );
 
 /** Get the real fd associated with this virtual fd. */
 int _condor_file_table_map( int fd );
@@ -67,6 +67,9 @@ int _condor_file_table_map( int fd );
 /** Return true if this virtual fd refers to a local file. */
 int _condor_file_is_local( int user_fd );
 
+/** Just before the program is about to exit, perform any necessary
+    cleanup such as buffer flushing, data reporting, etc. */
+void _condor_file_table_cleanup();
 
 #if defined(__cplusplus)
 }
