@@ -2278,9 +2278,6 @@ int DaemonCore::HandleReq(int socki)
 		// we read something off the socket, so we display who from 
 		// after we read the command below...
 
-		dprintf( D_SECURITY, "ZKM: UDP, stream->crypto_ is %x\n", stream->crypto_);
-		dprintf( D_SECURITY, "ZKM: UDP, stream->crypto_mode_ is %s\n", (stream->crypto_mode_)?"T":"F");
-
 		dprintf ( D_SECURITY, "DC_AUTHENTICATE: received UDP packet from %s.\n",
 				sin_to_string(((Sock*)stream)->endpoint()));
 
@@ -3205,8 +3202,6 @@ int DaemonCore::HandleReq(int socki)
 	}
 	
 finalize:
-	dprintf( D_SECURITY, "ZKM: finalize, stream->crypto_ is %x\n", stream->crypto_);
-	dprintf( D_SECURITY, "ZKM: finalize, stream->crypto_mode_ is %s\n", (stream->crypto_mode_)?"T":"F");
 
 	// finalize; the handler is done with the command.  the handler will return
 	// with KEEP_STREAM if we should not touch the stream; otherwise, cleanup

@@ -1838,9 +1838,6 @@ Stream::allow_one_empty_message()
 void 
 Stream::set_crypto_mode(bool enabled)
 {
-	dprintf ( D_SECURITY, "ZKM: set_crypto_mode - crypto_mode_ was %s on entry\n",
-			(crypto_mode_?"T":"F"));
-	dprintf ( D_SECURITY, "ZKM: set_crypto_mode - crypto_ is %x\n", (long)crypto_ );
 	if (crypto_ && enabled) {
 		crypto_mode_ = true;
 	} else {
@@ -1849,8 +1846,6 @@ Stream::set_crypto_mode(bool enabled)
 		}
 		crypto_mode_ = false;
 	}
-	dprintf ( D_SECURITY, "ZKM: set_crypto_mode - crypto_mode_ was %s on exit\n",
-			(crypto_mode_?"T":"F"));
 }
 
 bool 
@@ -1897,8 +1892,6 @@ void Stream::resetCrypto()
 bool 
 Stream::initialize_crypto(KeyInfo * key) 
 {
-	dprintf ( D_SECURITY, "ZKM: initialize_crypto - crypto_ is %x on entry\n", (long)crypto_);
-
     delete crypto_;
     crypto_ = 0;
 	crypto_mode_ = false;
@@ -1921,8 +1914,6 @@ Stream::initialize_crypto(KeyInfo * key)
             break;
         }
     }
-
-	dprintf ( D_SECURITY, "ZKM: initialize_crypto - crypto_ is %x on exit\n", (long)crypto_);
 
     return (crypto_ != 0);
 }
@@ -1968,19 +1959,12 @@ Stream::set_crypto_key(bool enable, KeyInfo * key, const char * keyId)
     bool inited = true;
 #if defined(CONDOR_ENCRYPTION)
 
-	dprintf ( D_SECURITY, "ZKM: set_crypto_key( %s , %x, %s)\n",
-			(enable?"T":"F"), (long)key, (keyId?keyId:"NULL") );
-
-	dprintf ( D_SECURITY, "ZKM: set_crypto_key - crypto_ is %x on entry\n", (long)crypto_);
-	dprintf ( D_SECURITY, "ZKM: set_crypto_key - crypto_mode_ is %s on entry\n", crypto_mode_?"T":"F");
-
     if (key != 0) {
         inited = initialize_crypto(key);
     }
     else {
         // We are turning encryption off
         if (crypto_) {
-			dprintf ( D_SECURITY, "ZKM: set_crypto_key - zeroing crypto_\n" );
             delete crypto_;
             crypto_ = 0;
 			crypto_mode_ = false;
@@ -1995,9 +1979,6 @@ Stream::set_crypto_key(bool enable, KeyInfo * key, const char * keyId)
         set_encryption_id(keyId);
 		set_crypto_mode(enable);
     }
-
-	dprintf ( D_SECURITY, "ZKM: set_crypto_key - crypto_ is %x on exit\n", (long)crypto_);
-	dprintf ( D_SECURITY, "ZKM: set_crypto_key - crypto_mode_ is %s on exit\n", crypto_mode_?"T":"F");
 
     /* 
     // Now, if TCP, the first packet need to contain the key for verification purposes
