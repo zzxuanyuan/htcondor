@@ -436,7 +436,8 @@ CandidateList::CandidateList() {}
 CandidateList::~CandidateList() {}
 
 void 
-CandidateList::appendResources(ResList *res) {
+CandidateList::appendResources( ResList *res )
+{
 	Rewind();
 	while (ClassAd *c = Next()) {
 		res->Append(c);
@@ -445,7 +446,8 @@ CandidateList::appendResources(ResList *res) {
 }
 
 void 
-CandidateList::markScheduled() {
+CandidateList::markScheduled()
+{
 	Rewind();
 	while (ClassAd *c = Next()) {
 		char buf[512];
@@ -2208,8 +2210,8 @@ DedicatedScheduler::spawnJobs( void )
 		if ( ad ) {
 			ad->fPrint( fp );
 
-			// Note that ONLY when GetJobAd() is called with expStartdAd==true
-			// do we want to delete the result.
+			// Note that ONLY when GetJobAd() is called with
+			// expStartdAd==true do we want to delete the result.
 			delete ad;
 		} else {
 			// This should never happen
@@ -2303,11 +2305,11 @@ DedicatedScheduler::computeSchedule( void )
 	l = idle_clusters->getlast();
 	for( i=0; i<=l; i++ ) {
 
-			// This is the main data structure for handling multiple procs
-			// It just contains one non-unique job ClassAd for each node.
-			// So, if there a two procs, with one and two nodes, respectively,
-			// jobs will have three entries, and the last two will be the same
-			// job ad.
+			// This is the main data structure for handling multiple
+			// procs It just contains one non-unique job ClassAd for
+			// each node.  So, if there a two procs, with one and two
+			// nodes, respectively, jobs will have three entries, and
+			// the last two will be the same job ad.
 		if (jobs) {
 			delete jobs;
 		}
@@ -2360,18 +2362,21 @@ DedicatedScheduler::computeSchedule( void )
 		idle_candidates_jobs = new CAList;
 		
 			// First, try to satisfy the requirements of this cluster
-			// by going after machine resources that are idle & claimed by us
-		
-		if( idle_resources->satisfyJobs(jobs, max_hosts, idle_candidates, idle_candidates_jobs) ) {
-				createAllocations(idle_candidates, idle_candidates_jobs, cluster, nprocs);
+			// by going after machine resources that are idle &
+			// claimed by us
+		if( idle_resources->satisfyJobs(jobs, max_hosts, idle_candidates,
+										idle_candidates_jobs) )
+		{
+			createAllocations( idle_candidates, idle_candidates_jobs,
+							   cluster, nprocs );
 				
  				// we're done with these, safe to delete
-				delete idle_candidates;
-				idle_candidates = NULL;
+			delete idle_candidates;
+			idle_candidates = NULL;
 
-				delete idle_candidates_jobs;
-				idle_candidates_jobs = NULL;
-				continue;				// Go onto the next job.
+			delete idle_candidates_jobs;
+			idle_candidates_jobs = NULL;
+			continue;				// Go onto the next job.
 
 		}
 
@@ -2392,16 +2397,15 @@ DedicatedScheduler::computeSchedule( void )
 			limbo_candidates = new CandidateList;
 			limbo_candidates_jobs = new CAList;
 
-				//if( limbo_resources->satisfyJob(job, still_needed, 
-				//						limbo_candidates) ) {
-				if( limbo_resources->satisfyJobs(jobs, still_needed, 
-										limbo_candidates, limbo_candidates_jobs) ) {
-
+			if( limbo_resources->
+				satisfyJobs(jobs, still_needed, limbo_candidates,
+							limbo_candidates_jobs) )
+			{
 					// Could satisfy with idle and/or limbo
 				dprintf( D_FULLDEBUG, "Satisfied job %d from idle_resources + limbo_resources\n",
 						 cluster );
-
-					// Mark any idle resources we are going to use as scheduled..
+					// Mark any idle resources we are going to use as
+					// scheduled.
 				if( idle_candidates ) {
 					idle_candidates->markScheduled();
 					delete idle_candidates;
@@ -2428,15 +2432,16 @@ DedicatedScheduler::computeSchedule( void )
 		}
 		
 
-			// if there are unclaimed resources, try to find candidates for them
+			// if there are unclaimed resources, try to find
+			// candidates for them
 		if( unclaimed_resources) {
 			unclaimed_candidates = new CandidateList;
 			unclaimed_candidates_jobs = new CAList;
 
-				//if( unclaimed_resources->satisfyJob(job, still_needed,
-				//											unclaimed_candidates) ) {
-				if( unclaimed_resources->satisfyJobs(jobs, still_needed,
-															unclaimed_candidates, unclaimed_candidates_jobs) ) {
+			if( unclaimed_resources->
+				satisfyJobs(jobs, still_needed, unclaimed_candidates,
+							unclaimed_candidates_jobs) )
+			{
 					// Could satisfy with idle and/or limbo and/or unclaimed
 
 					// Cool, we could run it if we requested more
@@ -2444,6 +2449,7 @@ DedicatedScheduler::computeSchedule( void )
 					// resources requests for each one, remove them from
 					// the unclaimed_resources list, and go onto the next
 					// job.
+
 				dprintf( D_FULLDEBUG, "Satisfied job %d with %d unclaimed "
 						 "resource(s), generating resource request(s)\n", 
 						 cluster, still_needed );
@@ -2494,7 +2500,8 @@ DedicatedScheduler::computeSchedule( void )
 		char *param2 = param("SCHEDD_PREEMPTION_RANK");
 
 			// If we've got both, build an expr tree to parse them
-			// If either are missing, the schedd will never preempt running jobs
+			// If either are missing, the schedd will never preempt
+			// running jobs
 
 		if( (param1 != NULL) && (param2 != NULL)) {
 			Parse(param1, preemption_req);
@@ -2508,8 +2515,9 @@ DedicatedScheduler::computeSchedule( void )
 			free(param2);
 		}
 
-			// If both SCHEDD_PREEMPTION_REQUIREMENTS and ..._RANK is set, then
-			// try to satisfy the job by preempting running resources
+			// If both SCHEDD_PREEMPTION_REQUIREMENTS and ..._RANK is
+			// set, then try to satisfy the job by preempting running
+			// resources
 		if( (preemption_req != NULL) && (preemption_rank != NULL) ) {
 			CAList *preempt_candidates = new CAList;
 			int nodes;
@@ -2532,9 +2540,11 @@ DedicatedScheduler::computeSchedule( void )
 				nodes = nodes_per_proc[proc];
 
 				
-					// We may not need all of this array, this is worst-case allocation
-					// we will fill and sort a num_candidates number of entries
-				struct PreemptCandidateNode preempt_candidate_array[busy_resources->Length()];
+					// We may not need all of this array, this is
+					// worst-case allocation we will fill and sort a
+					// num_candidates number of entries
+				int len = busy_resources->Length();
+				struct PreemptCandidateNode preempt_candidate_array[len];
 				int num_candidates = 0;
 
 				busy_resources->Rewind();
@@ -2542,8 +2552,10 @@ DedicatedScheduler::computeSchedule( void )
 					EvalResult result;
 					bool requirement = false;
 
-						// See if this machine has a true SCHEDD_PREEMPTION_REQUIREMENT
-					requirement = preemption_req->EvalTree(machine, job, &result);
+						// See if this machine has a true
+						// SCHEDD_PREEMPTION_REQUIREMENT
+					requirement = preemption_req->EvalTree( machine, job,
+															&result );
 					if (requirement) {
 						if (result.type == LX_INTEGER) {
 							requirement = result.i;
@@ -2554,41 +2566,47 @@ DedicatedScheduler::computeSchedule( void )
 					if (requirement) {
 						float rank = 0.0;
 
-							// Evaluate its SCHEDD_PREEMPTION_RANK in the context of this job
-						if( preemption_rank->EvalTree(machine, job, &result)) {
-							if( result.type == LX_FLOAT) {
-								rank = result.f;
-								preempt_candidate_array[num_candidates].rank = rank;
-								preempt_candidate_array[num_candidates].cluster_id = cluster;
-								preempt_candidate_array[num_candidates].machine_ad = machine;
-								num_candidates++;
-							}
-						} else {
+							// Evaluate its SCHEDD_PREEMPTION_RANK in
+							// the context of this job
+						int rval;
+						rval = preemption_rank->EvalTree( machine, job,
+														  &result );
+						if( !rval || result.type != LX_FLOAT) {
 								// The result better be a float
 							char *s = NULL;
 							char *m = NULL;
-							preemption_rank->PrintToNewStr(&s);
-							machine->LookupString(ATTR_NAME, &m);
-							dprintf(D_ALWAYS, "SCHEDD_PREEMPTION_RANK (%s) did not evaluate to float on job %d for machine %s",
-									s, cluster, m);
+							preemption_rank->PrintToNewStr( &s );
+							machine->LookupString( ATTR_NAME, &m );
+							dprintf( D_ALWAYS, "SCHEDD_PREEMPTION_RANK (%s) "
+									 "did not evaluate to float on job %d "
+									 "for machine %s\n", s, cluster, m );
 							free(s);
 							free(m);
+							continue;
 						}
+						rank = result.f;
+						preempt_candidate_array[num_candidates].rank = rank;
+						preempt_candidate_array[num_candidates].cluster_id = cluster;
+						preempt_candidate_array[num_candidates].machine_ad = machine;
+						num_candidates++;
 					}
 				}
 
-					// Now we've got an array from 0 to num_candidates of PreemptCandidateNodes
-					// sort by rank, cluster_id;
-				qsort(preempt_candidate_array, num_candidates, sizeof(struct PreemptCandidateNode), RankSorter);
+					// Now we've got an array from 0 to num_candidates
+					// of PreemptCandidateNodes sort by rank,
+					// cluster_id;
+				qsort( preempt_candidate_array, num_candidates,
+					   sizeof(struct PreemptCandidateNode), RankSorter );
 
 				int req;
-
 				int num_preemptions = 0;
 				for( int cand = 0; cand < num_candidates; cand++) {
-					if( job->EvalBool(ATTR_REQUIREMENTS, preempt_candidate_array[cand].machine_ad, req) == 0) {
+					if( job->EvalBool(ATTR_REQUIREMENTS,
+							   preempt_candidate_array[cand].machine_ad,
+							   req) == 0) 
+					{
 						req = 0;
 					}
-				
 					if( req ) {
 							// And we found a victim to preempt
 						preempt_candidates->Append(preempt_candidate_array[cand].machine_ad);
@@ -2742,13 +2760,15 @@ DedicatedScheduler::computeSchedule( void )
 
 
 void
-DedicatedScheduler::createAllocations(CAList *idle_candidates, CAList *idle_candidates_jobs, int cluster, int nprocs) {
+DedicatedScheduler::createAllocations( CAList *idle_candidates,
+									   CAList *idle_candidates_jobs,
+									   int cluster, int nprocs )
+{
 	AllocationNode *alloc;
 	MRecArray* matches;
 
 	dprintf( D_FULLDEBUG, "Satisfied job %d from idle_resources\n",
 			 cluster );
-
 
 		// Debugging hack: allow config file to specify which
 		// ip address we want the master to run on.
