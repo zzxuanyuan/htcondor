@@ -1874,7 +1874,7 @@ Checkpoint( int sig, int code, void *scp )
 
 	// turn off mprotect used by incremental checkpointing
 	// any new dirtiness is caused by checkpoint code not user
-	MyImage.Mprotect( PROT_READ | PROT_WRITE ); 
+	if (condor_incremental_ckpt) MyImage.Mprotect( PROT_READ | PROT_WRITE ); 
 
 
 	if( MyImage.GetMode() == REMOTE ) {
