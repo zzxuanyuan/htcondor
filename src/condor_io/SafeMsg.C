@@ -436,7 +436,8 @@ void _condorPacket::addEID()
 {
     if (outgoingEncKeyId_) {
         // stick outgoingEncKeyId_
-        memcpy(&dataGram[SAFE_MSG_HEADER_SIZE+MAC_SIZE+outgoingMdLen_], 
+		int where = mdChecker_? MAC_SIZE : 0;
+        memcpy(&dataGram[SAFE_MSG_HEADER_SIZE+where+outgoingMdLen_], 
                outgoingEncKeyId_, outgoingEidLen_);
     }
 }
