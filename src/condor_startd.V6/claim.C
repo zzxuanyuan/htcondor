@@ -394,10 +394,17 @@ Claim::setagentstream(Stream* stream)
 
 
 char*
+Claim::id( void )
+{
+	return capab();
+}
+
+
+char*
 Claim::capab( void )
 {
 	if( c_cap ) {
-		return c_cap->capab();
+		return c_cap->id();
 	} else {
 		return NULL;
 	}
@@ -859,22 +866,22 @@ newCODIdString()
 Capability::Capability( bool is_cod )
 {
 	if( is_cod ) { 
-		c_capab = newCODIdString();
+		c_id = newCODIdString();
 	} else {
-		c_capab = newCapabilityString();
+		c_id = newCapabilityString();
 	}
 }
 
 
 Capability::~Capability()
 {
-	free( c_capab );
+	free( c_id );
 }
 
 
 bool
 Capability::matches( const char* capab )
 {
-	return( strcmp(capab, c_capab) == 0 );
+	return( strcmp(capab, c_id) == 0 );
 }
 

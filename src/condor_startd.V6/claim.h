@@ -72,11 +72,12 @@ public:
 	Capability( bool is_cod = false );
 	~Capability();
 
-	char*	capab() {return c_capab;};
+	char*	id() {return c_id;};
+	char*	capab() {return c_id;};
 	bool	matches( const char* capab );
 
 private:
-	char*	c_capab;	// capability string
+	char*	c_id;	// capability string
 };
 
 
@@ -136,6 +137,7 @@ public:
 		// Functions that return data
 	float		rank()			{return c_rank;};
 	float		oldrank()		{return c_oldrank;};
+	char*		id();
 	char*		capab();
 	Client* 	client() 		{return c_client;};
 	Capability* cap()			{return c_cap;};
