@@ -411,15 +411,16 @@ protected:
 		   create a ReliSock, try to connect(), send the CA_CMD int,
 		   send a ClassAd and an EOM, read back a ClassAd and EOM,
 		   lookup the ATTR_RESULT in the reply, and if it's FALSE,
-		   lookup ATTR_COMMAND_ERROR.  This deals with everything for
+		   lookup ATTR_ERROR_STRING.  This deals with everything for
 		   you, so all you have to do if you want to use this protocol
 		   is define a method that sets up up the right request ad and
 		   calls this.
 		   @param req Pointer to the request ad (you fill it in)
 		   @param reply Pointer to the reply ad (from the server)
 		   @param force_auth should we force authentication for this cmd?
-		   @return false if there were any network errors, otherwise,
-		     return the value of ATTR_RESULT
+		   @return false if there were any network errors, if
+		   ATTR_ERROR_STRING is defined, and/or if ATTR_RESULT is not
+		   CA_SUCCESS.  Otherwise, true.   
 		*/
 	bool sendCACmd( ClassAd* req, ClassAd* reply, bool force_auth );
 

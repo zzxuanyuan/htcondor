@@ -507,28 +507,48 @@ Daemon::sendCACmd( ClassAd* req, ClassAd* reply, bool force_auth )
 	}
 
 		// Finally, interpret the results
-	int result;
-	if( ! reply->LookupBool(ATTR_RESULT, result) ) {
+	char* result_str = NULL;
+	if( ! reply->LookupString(ATTR_RESULT, &result_str) ) {
 		MyString err_msg = "Reply ClassAd does not have ";
 		err_msg += ATTR_RESULT;
 		err_msg += " attribute";
 		newError( err_msg.Value() );
 		return false;
 	}
-	if( ! result ) {
-		char* err = NULL;
-		if( ! reply->LookupString(ATTR_COMMAND_ERROR, &err) ) {
-			MyString err_msg = "Reply ClassAd does not have ";
-			err_msg += ATTR_COMMAND_ERROR;
-			err_msg += " attribute";
-			newError( err_msg.Value() );
-			return false;
+	CAResult result = getCAResultNum( result_str );
+	if( result == CA_SUCCESS ) { 
+			// we recognized it and it's good, just return.
+		free( result_str );
+		return true;		
+	}
+
+		// Either we don't recognize the result, or it's some known
+		// failure.  Either way, look for the error string if there is
+		// one, and set it. 
+	char* err = NULL;
+	if( ! reply->LookupString(ATTR_ERROR_STRING, &err) ) {
+		if( ! result ) {
+				// we didn't recognize the result, so don't assume
+				// it's a failure, just let the caller interpret the
+				// reply ClassAd if they know how...
+			free( result_str );
+			return true;
 		}
-		newError( err );
-		free( err );
+			// otherwise, it's a known failure, but there's no error
+			// string to help us...
+		MyString err_msg = "Reply ClassAd returned '";
+		err_msg += result_str;
+		err_msg += "' but does not have the ";
+		err_msg += ATTR_ERROR_STRING;
+		err_msg += " attribute";
+		newError( err_msg.Value() );
+		free( result_str );
 		return false;
 	}
-	return true;
+	newError( err );
+	free( err );
+	free( result_str );
+	return false;
 }
 
 
