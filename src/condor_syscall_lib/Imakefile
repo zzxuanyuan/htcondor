@@ -493,9 +493,9 @@ uppercase_target($(SIMPLE_LIBC),getpagesize.o,GETPAGESIZE.o,getpagesize,GETPAGES
 #endif
 
 #if DOES_CHECKPOINTING || DOES_REMOTE_SYSCALLS
-release_copy_target(condor_rt0.o,$(RELEASE_DIR)/lib,condor_rt0.o,OBJECT_MODE)
-strip_copy_target(condor_rt0.o,$(STRIP_DIR)/lib,condor_rt0.o,OBJECT_MODE)
-static_copy_target(condor_rt0.o,$(STATIC_DIR)/lib,condor_rt0.o,OBJECT_MODE)
+release_copy_target(condor_rt0.o,lib,condor_rt0.o,OBJECT_MODE)
+strip_copy_target(condor_rt0.o,lib,condor_rt0.o,OBJECT_MODE)
+static_copy_target(condor_rt0.o,lib,condor_rt0.o,OBJECT_MODE)
 #endif
 
 #if IS_X86_SOLARIS || IS_GLIBC_LINUX
@@ -516,21 +516,21 @@ libcondorsyscall.a: libtmp.a ToUpper
 #endif
 
 #if DOES_CHECKPOINTING || DOES_REMOTE_SYSCALLS
-release_library(libcondorsyscall.a,$(RELEASE_DIR)/lib)
-strip_library(libcondorsyscall.a,$(STRIP_DIR)/lib)
-static_library(libcondorsyscall.a,$(STATIC_DIR)/lib)
+release_library(libcondorsyscall.a,lib)
+strip_library(libcondorsyscall.a,lib)
+static_library(libcondorsyscall.a,lib)
 #endif
 
 #if DOES_CHECKPOINTING || DOES_REMOTE_SYSCALLS
-release_library(libz.a,$(RELEASE_DIR)/lib)
-strip_library(libz.a,$(STRIP_DIR)/lib)
-static_library(libz.a,$(STATIC_DIR)/lib)
+release_library(libz.a,lib)
+strip_library(libz.a,lib)
+static_library(libz.a,lib)
 #endif
 
 #if DOES_COMPRESS_CKPT
-release_library($(COMPRESS_LIB),$(RELEASE_DIR)/lib)
-strip_library($(COMPRESS_LIB),$(STRIP_DIR)/lib)
-static_library($(COMPRESS_LIB),$(STATIC_DIR)/lib)
+release_library($(COMPRESS_LIB),lib)
+strip_library($(COMPRESS_LIB),lib)
+static_library($(COMPRESS_LIB),lib)
 #endif
 
 CMNT If no remote syscalls & no checkpointing support, then no need
