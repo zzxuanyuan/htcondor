@@ -119,6 +119,7 @@ printClassAd( void )
 
 
 char *mySubSystem = NULL;
+static char* orig_cwd = NULL;
 
 void
 main_pre_dc_init( int argc, char* argv[] )
@@ -142,6 +143,15 @@ main_pre_dc_init( int argc, char* argv[] )
 	if( argc == 2 && strincmp(argv[1],"-cla",4) == MATCH ) {
 		printClassAd();
 		exit(0);
+	}
+
+		// if we're still here, stash the cwd for future reference
+	char cwd[_POSIX_PATH_MAX];
+	if( getcwd( cwd, _POSIX_PATH_MAX ) == NULL ) {
+		dprintf( D_ALWAYS, "ERROR calling getcwd(): %s (errno %d)\n", 
+				 strerror(errno), errno );
+	} else {
+		orig_cwd = strdup(cwd);
 	}
 }
 
@@ -181,7 +191,7 @@ main_init(int argc, char *argv[])
 			// we couldn't figure out what to do...
 		usage();
 	}
-	if( !Starter->Init(jic) ) {
+	if( !Starter->Init(jic, orig_cwd, is_gridshell) ) {
 		dprintf(D_ALWAYS, "Unable to start job.\n");
 		DC_Exit(1);
 	}
