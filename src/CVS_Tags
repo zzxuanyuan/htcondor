@@ -1,3 +1,9 @@
+02/02/04 V6_7-mirror-2-CORE_snapshot1
+   The state of the V6_7-mirror-2-branch for the first snapshot
+   release given to CORE for the schedd-failover features.  The
+   version string in this release looks like this:
+   $CondorVersion: 6.7.0 Feb  2 2004 MIRROR-2-BRANCH PRE-RELEASE $
+
 02/01/04 V6_7-mirror-2-post_merge-V6_7-mirror-merge-1
    The state of the V6_7-mirror-2-branch after merging in the
    V6_7-mirror-branch as tagged at V6_7-mirror-merge-1.  The
