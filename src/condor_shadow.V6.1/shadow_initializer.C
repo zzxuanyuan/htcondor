@@ -32,8 +32,6 @@
 #include "shadow.h"
 #include "mpishadow.h"
 
-#include "parallelshadow.h"
-
 ShadowInitializer::ShadowInitializer(int argc, char **argv) :
 	m_jobAd(NULL), m_argc(argc), m_argv(argv), m_accept_id(-1), m_acquire_id(-1)
 {
@@ -117,7 +115,7 @@ int ShadowInitializer::AcquireJobAdFromSchedd(void)
 
 void ShadowInitializer::ShadowInitialize(void)
 {
-	int universe; 
+
 
 	ASSERT(m_jobAd != NULL);
 
@@ -134,6 +132,7 @@ void ShadowInitializer::ShadowInitialize(void)
 		while( shadow_should_wait );
 	}
 
+	int universe; 
 	if (m_jobAd->LookupInteger(ATTR_JOB_UNIVERSE, universe) < 0) {
 		// change to the right universes when everything works.
 		universe = CONDOR_UNIVERSE_VANILLA;
@@ -148,9 +147,6 @@ void ShadowInitializer::ShadowInitialize(void)
 		Shadow = new UniShadow();
 		break;
 	case CONDOR_UNIVERSE_MPI:
-		Shadow = new MPIShadow();
-		break;
-	case CONDOR_UNIVERSE_PARALLEL:
 		Shadow = new MPIShadow();
 		break;
 	case CONDOR_UNIVERSE_PVM:
