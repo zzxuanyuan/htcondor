@@ -999,7 +999,12 @@ CStarter::SameUidDomain( void )
 	dprintf( D_FULLDEBUG, " Local UidDomain: \"%s\"\n",
 			 UIDDomain );
 
-	if( strcmp(job_uid_domain, UIDDomain) == MATCH ) {
+		// WARNING TO WHOEVER DOES THE FINAL MERGE FROM V6_5_0-BRANCH
+		// TO V6_5-BRANCH: THIS CODE MOVED FROM starter.C (in 6.5.0)
+		// TO jic_shadow.C (in 6.5), AND SO I FIXED IT IN BOTH
+		// PLACES... THIS MEANS THIS SINGLE LINE BELOW DOES NOT NEED
+		// TO BE MERGED AGAIN. --pfc
+	if( stricmp(job_uid_domain, UIDDomain) == MATCH ) {
 		same_domain = true;
 	}
 
