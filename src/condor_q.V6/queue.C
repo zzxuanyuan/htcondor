@@ -609,7 +609,6 @@ fetchSubmittorPrios()
 {
 	char	*negotiator = param("NEGOTIATOR_HOST");
 	AttrList	al;
-	int		numSub;
 	char  	attrName[32], attrPrio[32];
   	char  	name[128];
   	float 	priority;
@@ -848,7 +847,6 @@ fixSubmittorName( char *name, int niceUser )
 	static 	bool initialized = false;
 	static	char uid_domain[64];
 	static	char buffer[128];
-			char *at;
 
 	if( !initialized ) {
 		char *tmp = param( "UID_DOMAIN" );
