@@ -530,33 +530,3 @@ ToolDaemonProc::PublishUpdateAd( ClassAd* ad )
     // Nothing special for us to do.
     return true;
 }
-
-int 
-mynullFile(const char *filename)
-{
-	// On WinNT, /dev/null is NUL
-	// on UNIX, /dev/null is /dev/null
-	
-	// a UNIX->NT submit will result in the NT starter seeing /dev/null, so it
-	// needs to recognize that /dev/null is the null file
-
-	// an NT->NT submit will result in the NT starter seeing NUL as the null 
-	// file
-
-	// a UNIX->UNIX submit ill result in the UNIX starter seeing /dev/null as
-	// the null file
-	
-	// NT->UNIX submits are not worried about - we don't think that anyone can
-	// do them, and to make it clean we'll fix submit to always use /dev/null,
-	// in the job ad, even on NT. 
-
-	#ifdef WIN32
-	if(_stricmp(filename, "NUL") == 0) {
-		return 1;
-	}
-	#endif
-	if(strcmp(filename, "/dev/null") == 0 ) {
-		return 1;
-	}
-	return 0;
-}

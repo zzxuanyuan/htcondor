@@ -107,8 +107,5 @@ private:
 	int snapshot_tid;
 };
 
-// An ugly last minute hack to use here a little helper function included in os_proc
-// that will move to the util lib later
-int mynullFile(const char *filename);
 
 #endif /* _CONDOR_DAEMON_PROC_H */
