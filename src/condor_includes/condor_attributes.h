@@ -124,6 +124,7 @@ const char ATTR_X509_USER_PROXY          [] = "x509userproxy";
 const char ATTR_X509_USER_PROXY_SUBJECT	 [] = "x509userproxysubject";
 const char ATTR_HAS_CHECKPOINTING        [] = "HasCheckpointing";
 const char ATTR_HAS_FILE_TRANSFER        [] = "HasFileTransfer";
+const char ATTR_HAS_PER_FILE_ENCRYPTION  [] = "HasPerFileEncryption";
 const char ATTR_HAS_IO_PROXY             [] = "HasIOProxy";
 const char ATTR_HAS_JAVA                 [] = "HasJava";
 const char ATTR_HAS_JIC_LOCAL_CONFIG     [] = "HasJICLocalConfig";
