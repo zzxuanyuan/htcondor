@@ -30,6 +30,8 @@ ResMgr::ResMgr()
 	coll_sock = NULL;
 	view_sock = NULL;
 
+	m_attr = new MachAttributes;
+
 	this->init_socks();
 
 		// This should really handle multiple resources here.
@@ -45,6 +47,8 @@ ResMgr::ResMgr()
 void
 ResMgr::init_socks()
 {
+
+	delete m_attr;
 
 	if( coll_sock ) {
 		delete coll_sock;
@@ -91,6 +95,49 @@ ResMgr::walk( ResourceMember memberfunc )
 		(resources[i]->*(memberfunc))();
 	}
 	return TRUE;
+}
+
+
+int
+ResMgr::sum( ResourceMember memberfunc )
+{
+	int i, tot = 0;
+	for( i = 0; i < nresources; i++ ) {
+		tot += (resources[i]->*(memberfunc))();
+	}
+	return tot;
+}
+
+
+float
+ResMgr::sum( ResourceFloatMember memberfunc )
+{
+	int i;
+	float tot = 0;
+	for( i = 0; i < nresources; i++ ) {
+		tot += (resources[i]->*(memberfunc))();
+	}
+	return tot;
+}
+
+
+Resource*
+ResMgr::max( ResourceMember memberfunc, int* val )
+{
+	Resource* rip = NULL;
+	int i, tmp, max = INT_MIN;
+
+	for( i = 0; i < nresources; i++ ) {
+		tmp = (resources[i]->*(memberfunc))();
+		if( tmp > max ) {
+			max = tmp;
+			rip = resources[i];
+		}
+	}
+	if( val ) {
+		*val = max;
+	}
+	return rip;
 }
 
 
@@ -165,6 +212,12 @@ ResMgr::final_update()
 	resources[0]->final_update();
 }
 
+
+int
+ResMgr::force_benchmark()
+{
+	return resources[0]->force_benchmark();
+}
 
 
 void

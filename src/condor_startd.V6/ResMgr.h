@@ -31,6 +31,7 @@
 #define _RESMGR_H
 
 typedef int (Resource::*ResourceMember)();
+typedef float (Resource::*ResourceFloatMember)();
 
 class ResMgr
 {
@@ -50,6 +51,18 @@ public:
 	int		walk( int(*)(Resource*) );
 	int		walk( ResourceMember );
 
+	// These functions walk through the array of rip pointers, calls
+	// the specified function on each one, sums the resulting return
+	// values, and returns the total.
+	int		sum( ResourceMember );
+	float	sum( ResourceFloatMember );
+
+	// This function walks through the array of rip pointers, calls
+	// the specified function (which should return an int) on each
+	// one, finds the Resource that gave the maximum value of the
+	// function, and returns a pointer to that Resource.
+	Resource*	max( ResourceMember, int* val = NULL );
+
 	// Hack function
 	Resource*	rip() {return resources[0];};
 
@@ -57,7 +70,11 @@ public:
 	Resource*	get_by_cur_cap(char*);	// Find rip by r_cur->capab
 	Resource*	get_by_any_cap(char*);	// Find rip by r_cur or r_pre
 	State	state();					// Return the machine state
-											   
+
+	int	force_benchmark();		// Force a resource to benchmark
+	
+	MachAttributes*	m_attr;		// Machine-wide attribute object
+
 private:
 	Resource**	resources;		// Array of pointers to resource objects
 	int			nresources;		// Size of the array
