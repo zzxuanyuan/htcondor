@@ -139,7 +139,7 @@ bool CondorJobAdMustExpand( const ClassAd *jobad )
 	jobad->LookupBool(ATTR_JOB_MUST_EXPAND, must_expand);
 	if ( !must_expand ) {
 		char resource_name[800];
-		jobad->LookupString( "RemoteSchedd", resource_name );
+		jobad->LookupString( ATTR_REMOTE_SCHEDD, resource_name );
 		if ( strstr(resource_name,"$$") ) {
 			must_expand = 1;
 		}
@@ -199,8 +199,7 @@ CondorJob::CondorJob( ClassAd *classad )
 	}
 
 	buff[0] = '\0';
-//	ad->LookupString( ATTR_MIRROR_SCHEDD, buff );
-ad->LookupString( "RemoteSchedd", buff );
+	ad->LookupString( ATTR_REMOTE_SCHEDD, buff );
 	if ( buff[0] != '\0' ) {
 		remoteScheddName = strdup( buff );
 	} else {
@@ -209,7 +208,7 @@ ad->LookupString( "RemoteSchedd", buff );
 	}
 
 	buff[0] = '\0';
-	ad->LookupString( "RemotePool", buff );
+	ad->LookupString( ATTR_REMOTE_POOL, buff );
 	if ( buff[0] != '\0' ) {
 		remotePoolName = strdup( buff );
 	}
