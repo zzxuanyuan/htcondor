@@ -62,6 +62,10 @@ int		killing_timeout;	// How long you're willing to be in
 							// preempting/killing before you drop the
 							// hammer on the starter
 int		last_x_event = 0;	// Time of the last x event
+time_t	startd_startup;		// Time when the startd started up
+
+int		console_cpus = 0;	// # of nodes in an SMP that care about
+int		keyboard_cpus = 0;  //   console and keyboard activity
 
 char*	mySubSystem = "STARTD";
 
@@ -118,17 +122,24 @@ main_init( int argc, char* argv[] )
 		// Seed the random number generator for capability generation.
 	set_seed( 0 );
 
+		// Record the time we started up for use in determining
+		// keyboard idle time on SMP machines, etc.
+	startd_startup = time( 0 );
+
 		// If we EXCEPT, don't leave any starters lying around.
 	_EXCEPT_Cleanup = do_cleanup;
-
-	init_params(1);		// The 1 indicates that this is the first time
 
 		// Instantiate the Resource Manager object.
 	resmgr = new ResMgr;
 
 		// Instantiate Resource objects in the ResMgr
 	resmgr->init_resources();
-   
+
+		// Read in 
+	init_params(1);		// The 1 indicates that this is the first time
+
+	resmgr->init_socks();
+
 		// Compute all attributes
 	resmgr->compute( A_ALL );
 
@@ -394,6 +405,22 @@ init_params( int first_time)
 	if( tmp ) {
 		startd_job_exprs = new StringList();
 		startd_job_exprs->initializeFromString( tmp );
+		free( tmp );
+	}
+
+	tmp = param( "CONSOLE_CPUS" );
+	if( !tmp ) {
+		console_cpus = resmgr->m_attr->num_cpus();
+	} else {
+		console_cpus = atoi( tmp );
+		free( tmp );
+	}
+
+	tmp = param( "KEYBOARD_CPUS" );
+	if( !tmp ) {
+		keyboard_cpus = 1;
+	} else {
+		keyboard_cpus = atoi( tmp );
 		free( tmp );
 	}
 
