@@ -25,8 +25,7 @@ set EXTERNALS_NEEDED=%EXT_GSOAP_VERSION% %EXT_KERBEROS_VERSION% %EXT_GLOBUS_VERS
 
 REM Put NTConfig in the PATH, since it's got lots of stuff we need
 REM like awk, gunzip, tar, bison, yacc...
-rem set PATH=%cd%;%SystemRoot%;%SystemRoot%\system32;C:\Perl\bin;"C:\Program Files\Microsoft Visual Studio\VC98\bin";"C:\Program Files\Microsoft SDK";
-set PATH=%cd%;%SystemRoot%;%SystemRoot%\system32;C:\Perl\bin
+set PATH=%cd%;%SystemRoot%;%SystemRoot%\system32;C:\Perl\bin;"C:\Program Files\Microsoft Visual Studio\VC98\bin";"C:\Program Files\Microsoft SDK";
 call vcvars32.bat
 if not defined INCLUDE ( echo . && echo *** Failed to run VCVARS32.BAT! Is Microsoft Visual Studio 6.0 installed? && exit /B 1 )
 call setenv.bat /2000 /RETAIL

@@ -467,7 +467,7 @@ SOURCE=..\src\condor_startd.V6\command.C
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
-SOURCE=..\src\condor_startd.V6\CondorSystrayNotifier.C
+SOURCE=..\src\condor_startd.V6\CondorSystrayNotifier.cpp
 
 "$(INTDIR)\CondorSystrayNotifier.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
