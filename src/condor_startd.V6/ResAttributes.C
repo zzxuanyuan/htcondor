@@ -144,7 +144,7 @@ MachAttributes::compute( amask_t how_much )
 			tmp = 0;
 		}
 		dprintf( D_LOAD, 
-				 "SystemLoad: %.3f\tCondorLoad: %.3f\tNonCondorLoad: %.3f\n",  
+				 "SystemLoad: %.3f\tTotalCondorLoad: %.3f\tTotalOwnerLoad: %.3f\n",  
 				 m_load, m_condor_load, tmp );
 	}
 }
