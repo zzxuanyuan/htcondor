@@ -1,0 +1,282 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{\label{sec:HA-schedd} High Availability of the Job Queue} 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\index{High Availability!of job queue}
+
+For a pool where all jobs are submitted through
+a single machine in the pool,
+and there are lots of jobs,
+this machine becoming nonfunctional means that
+jobs stop running.
+The \Condor{schedd} daemon maintains the job queue.
+No job queue due to having a nonfunctional machine
+implies that no jobs can be run.
+This situation is worsened by using one machine
+as the single submission point.
+For each Condor job (taken from the queue) that is executed,
+a \Condor{shadow} process runs on the machine where submitted
+to handle input/output functionality.
+If this machine becomes nonfunctional, none of the jobs can
+continue.
+The entire pool stops running jobs.
+
+The goal of \emph{High Availability} in this special case is
+to transfer the \Condor{schedd} daemon to run on another
+designated machine.
+Jobs caused to stop without finishing can be restarted from the
+beginning, or can continue execution using the most recent checkpoint.
+New jobs can enter the job queue.
+Without \emph{High Availability},
+the job queue would remain intact, but further progress on jobs
+would wait until the machine running the \Condor{schedd} daemon
+became available (after fixing whatever caused it to become
+unavailable).
+
+Condor uses its flexible configuration mechanisms to allow
+the transfer of the \Condor{schedd} daemon from one machine
+to another.
+The configuration specifies
+which machines are chosen to run the \Condor{schedd} daemon.
+To prevent multiple \Condor{schedd} daemons from running at the same time,
+a lock (semaphore-like) is held over the job queue.
+This synchronizes  the situation in which control is
+transferred to a secondary machine,
+and the primary machine returns to functionality.
+Configuration variables also determine time intervals at which 
+the lock expires,
+and periods of time that pass between polling to check
+for expired locks.
+
+To specify a single machine that would take over, if the
+machine running the \Condor{schedd} daemon stops working,
+the following additions are made to the local configuration
+of any and all machines that are able to run the \Condor{schedd} daemon
+(becoming the single pool submission point): 
+
+\begin{verbatim}
+MASTER_HA_LIST = SCHEDD
+SPOOL = /share/spool
+HA_LOCK_URL = file:/share/spool
+\end{verbatim}
+
+Configuration macro \Macro{MASTER\_HA\_LIST} identifies the 
+\Condor{schedd} daemon as the daemon that is to be watched
+to make sure that it is running.
+Each machine with this configuration must have access to the
+lock (the job queue) which synchronizes which single machine does run the
+\Condor{schedd} daemon.
+This lock and the job queue must both be located in a shared file space,
+and is currently specified only with a file URL.
+The configuration specifies the shared space
+(\MacroNI{SPOOL}),
+and the URL of the lock.
+
+As Condor starts on machines that are configured to run
+the single \Condor{schedd} daemon, 
+the \Condor{master} daemon of the
+first machine that looks at (polls) the lock
+notices that no lock is held.
+This implies that no \Condor{schedd} daemon is running.
+This \Condor{master} daemon acquires the lock
+and runs the \Condor{schedd} daemon.
+Other machines with this same capability to run the
+\Condor{schedd} daemon look at (poll) the lock, 
+but do not run the daemon, as the lock is held.
+The machine running the \Condor{schedd} daemon renews the
+lock periodically.
+
+If the machine running the \Condor{schedd} daemon fails to renew
+the lock (because the machine is not functioning),
+the lock times out (becomes stale).
+The lock is released by the \Condor{master} daemon
+if \Condor{off} or \Prog{condor\_off -schedd} is
+executed, or when the \Condor{master} daemon knows that the
+\Condor{schedd} daemon is no longer running.
+As other machines capable of running the \Condor{schedd} daemon
+look at the lock (poll), one machine will be the first
+to notice that the lock has timed out or been released.
+This machine (correctly) interprets this situation as the
+\Condor{schedd} daemon is no longer running.
+This machine's \Condor{master} daemon then acquires the lock
+and runs the \Condor{schedd} daemon.
+
+See 
+section~\ref{sec:Master-Config-File-Entries},
+in the section on \Condor{master} Configuration File Macros
+for details relating to the configuration variables
+used to set timing and polling intervals.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{\label{sec:HA-negotiator} High Availability of the
+Central Manager} 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+The \Condor{negotiator} and \Condor{collector} daemons
+are the heart of the Condor matchmaking system.
+The availability of these daemons is critical to a Condor pool's
+functionality.
+Both daemons usually run on the same machine,
+most often known as the central manager.
+The failure of central manager prevents Condor from matching
+new jobs and allocating new resources. 
+High availability of the \Condor{negotiator} and \Condor{collector} daemons
+eliminates this problem. 
+
+Configuration allows one of 
+multiple machines within the pool to function as the central manager.
+While there are may be many active \Condor{collector} daemons,
+only a single, active \Condor{negotiator} daemon will be running.
+The machine with the \Condor{negotiator} daemon running is
+the active central manager.
+The other potential central managers each
+have a \Condor{collector} daemon running;
+these are the idle central managers.
+
+All submit and execute machines are configured to report
+to all potential central managers machines.
+
+Each potential central manager machine runs the high
+availability daemon, \Condor{had}.
+\index{Condor daemon!\Condor{had}}
+\index{daemon!\Condor{had}}
+These daemons communicate with each other,
+constantly monitoring the pool to ensure that one active central
+manager is available.
+If the active central manager machine crashes or is shut down,
+these daemons detect the failure,
+and they agree on
+which of the idle central managers is to become the active one.
+A protocol determines this.
+
+In the case of a network partition,
+idle \Condor{had} daemons within each partition
+detect (by the lack of communication) a partitioning,
+and then use the protocol to chose an active central manager.
+As long as the partition remains, 
+and there exists an idle central manager within the partition,
+there will be one active central manager within each partition.
+When the network is repaired,
+the protocol returns to having one central manager.
+
+Through configuration,
+a specific central manager machine may act as the
+primary central manager.
+While this machine is up and running, 
+it functions as the central manager.
+After a failure of this primary central manager,
+another idle central manager becomes the active one.
+When the primary recovers,
+it again becomes the central manager.
+This is a recommended configuration,
+if one of the central managers is a reliable machine,
+which is expected to have very short periods of instability.
+An alternative configuration allows the promoted 
+active central manager 
+(in the case that the central manager fails)
+to stay active after the failed central manager machine
+returns.
+
+%In order for all machines in the pool to take advantage of the high
+%availability capability, they all should run the version of Condor
+%with implemented High Availability mechanism. However, the machines
+%running older versions of Condor will still function properly after
+%upgrade, as long as the machine which served a central manager before
+%the upgrade is configured as primary central manager. Having said
+%that, the machines with the older version will not be able to take
+%advantage of the central manager fail-over, and will suffer from the
+%old problems in case of failure of the central manager
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection{\label{sec:HA-configuration} Configuration} 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%editted to this point %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+The high availability of central manager machines is
+enabled through configuration.
+It is disabled by default.
+See
+section~\ref{sec:HA-Config-File-Entries},
+for definitions of these configuration variables.
+
+The stabilization period is the time it takes for the 
+\Condor{had} daemons
+to detect a change in the pool state such as
+a active central manager failure
+or network partition, and recover from this change.
+It may be computed using the following formula:
+\footnotesize
+\begin{verbatim}
+stabilization period = 12 * (number of central managers) * HAD_CONNECTION_TIMEOUT
+\end{verbatim}
+\normalsize
+
+
+To disable the high availability of central managers mechanism,
+it is sufficient to remove
+\Expr{HAD} and \Expr{NEGOTIATOR} from the
+\MacroNI{DAEMON\_LIST} configuration variable on all machines,
+leaving only one \Condor{negotiator} in the pool. 
+
+To shut down a currently operating high availability mechanism,
+follow the given steps.
+All commands must be invoked
+from a host which has administrative permissions
+on all central managers.
+The first two commands kill all \Condor{had}
+and all running \Condor{negotiator} daemons.
+The last command is invoked on the host where the
+single \Condor{negotiator} daemon is to run.
+
+\begin{enumerate}
+\item \verb@condor_off -all -neg@
+\item \verb@condor_off -all -had@
+\item \verb@condor_on -neg@
+\end{enumerate}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection{\label{sec:HA-check-script} Checking the Sanity of the
+Configuration} 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\index{High Availability!sanity check script}
+
+A sanity check scrip is provided to check
+that all high-availability-related configuration
+variables on the running Condor pool are configured correctly. 
+The script does not check that daemons are indeed
+running on the machine;
+it only ensures the correctness of configuration variables.
+
+The script finds the addresses of all potential central managers
+by checking the value of the 
+\MacroNI{HAD\_LIST} configuration variable.
+To work properly, the pool must
+
+\begin{itemize}
+\item be running \Condor{master} daemons on each potential
+central manager machine.
+\item have \MacroUNI{SBIN} in the \Env{PATH} environment variable,
+before any other possible system binaries directory.
+\item have Perl version 5.6.0 or higher.
+\end{itemize}
+
+The items tested by the script are
+
+\begin{itemize}
+\item The \MacroNI{HAD\_LIST} is consistent on all potential central managers. 
+\item The \MacroNI{HAD\_CONNECTION\_TIMEOUT} is consistent 
+on all potential central managers.
+\item The \MacroNI{COLLECTOR\_HOST} entries on all machines
+correspond to the \MacroNI{HAD\_LIST} entries,
+and are correctly ordered.
+\item Configuration variable \MacroNI{DAEMON\_LIST} contains \Expr{HAD}, \Expr{COLLECTOR} and \Expr{NEGOTIATOR}.
+\item Configuration variables \MacroNI{HAD\_ARGS} and \MacroNI{HAD\_LIST}
+contain consistent definitions of corresponding ports numbers for 
+high availability.
+\item Configuration variables \MacroNI{HOSTALLOW\_NEGOTIATOR} and
+\MacroNI{HOSTALLOW\_ADMINISTRATOR} contain all machines
+specified in the \MacroNI{COLLECTOR\_HOST} definition
+for an appropriate machine. 
+\end{itemize}
+
