@@ -138,25 +138,23 @@ that are only found in a request ad, such as \Attr{Owner} or
 See section~\ref{classad-reference} for specifics on
 how undefined terms are handled in ClassAd expression evaluation. 
 
-\Note If you have machines with lots of real memory and swap space so
-  the only scarce resource is CPU time, you could use
-  \Macro{JOB\_RENICE\_INCREMENT} (see
-  section~\ref{sec:Starter-Config-File-Entries} on \condor{starter}
-  Configuration File Macros for details) so that Condor starts jobs on
-  your machine with low priority.
-  Then, set up your machines with:
+\Note If you have machines with lots of real memory and swap space such
+that the only scarce resource is CPU time, consider using
+defining \Macro{JOB\_RENICE\_INCREMENT} 
+so that Condor starts jobs on the machine with low priority.
+Then, further configure to set up the machines with:
 \begin{verbatim}
         START = True
         SUSPEND = False
         PREEMPT = False
         KILL = False
 \end{verbatim}
-  In this way, Condor jobs always run and never be kicked off. 
-  However, because they would run with ``nice priority'', interactive 
-  response on your machines will not suffer.
-  You probably would not notice Condor was running the jobs, 
-  assuming you had enough free memory for the Condor jobs that there
-  was little swapping.
+In this way, Condor jobs always run and can never be kicked off. 
+However, because they would run with ``nice priority'', interactive 
+response on the machines will not suffer.
+You probably would not notice Condor was running the jobs, 
+assuming you had enough free memory for the Condor jobs that there
+was little swapping.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{\label{sec:Rank-Expression}
