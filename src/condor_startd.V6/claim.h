@@ -128,6 +128,12 @@ public:
 		*/
 	void beginActivation( ClassAd* request_ad, time_t now ); 
 
+		/** We're servicing a request to activate a claim and we want
+			to grab the attributes out the ClassAd that define the job
+			id and store them in this Claim object.
+		*/
+	void getJobId( ClassAd* request_ad );
+
 		// Timer functions
 	void start_match_timer();
 	void cancel_match_timer();
@@ -148,6 +154,8 @@ public:
 	Capability* cap()			{return c_cap;};
 	ClassAd*	ad() 			{return c_ad;};
 	int			universe()		{return c_universe;};
+	int			cluster()		{return c_cluster;};
+	int			proc()			{return c_proc;};
 	Stream*		requestStream()	{return c_request_stream;};
 	int			getaliveint()	{return c_aliveint;};
 	ClaimState	state()			{return c_state;};
