@@ -22,7 +22,6 @@
 ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
 #include "condor_common.h"
-#include "condor_attrlist.h"
 #include "condor_string.h"
 
 #include "env.h"
