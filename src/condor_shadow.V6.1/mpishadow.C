@@ -102,20 +102,8 @@ MPIShadow::init( ClassAd* job_ad, const char* schedd_addr )
 #endif /* ! MPI_USES_RSH */
 
         // make first remote resource the "master".  Put it first in list.
-	char* claim_id = NULL;
-	job_ad->LookupString( ATTR_CLAIM_ID, &claim_id );
-	if( ! claim_id ) {
-		EXCEPT( "JobAd does not include %s!", ATTR_CLAIM_ID );
-	}
-	char* addr = getAddrFromClaimId( claim_id );
-	if( ! addr ) {
-		EXCEPT( "Invalid %s in JobAd (%s)", ATTR_CLAIM_ID, claim_id );
-	}
     MpiResource *rr = new MpiResource( this );
-	rr->setStartdInfo( addr, claim_id );
-		// for now, set this to the sinful string.  when the starter
-		// spawns, it'll do an RSC to register a real hostname...
-	rr->setMachineName( addr );
+
     ClassAd *temp = new ClassAd( *(getJobAd() ) );
 
     sprintf( buf, "%s = %s", ATTR_MPI_IS_MASTER, "TRUE" );
@@ -129,6 +117,8 @@ MPIShadow::init( ClassAd* job_ad, const char* schedd_addr )
 	sprintf( buf, "%s = 0", ATTR_NODE );
 	temp->InsertOrUpdate( buf );
     rr->setJobAd( temp );
+
+	rr->setStartdInfo( temp );
 
     ResourceList[ResourceList.getlast()+1] = rr;
 
