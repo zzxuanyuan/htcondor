@@ -58,14 +58,7 @@
 */
 
 //@{
-
-///
-enum condor_signal_t { __signal_t_dummy_value = INT_MAX };
-///
-enum open_flags_t { __open_flags_t_dummy_value = INT_MAX };
-///
-enum fcntl_cmd_t { __fcntl_cmd_t_dummy_value = INT_MAX };
-
+	/// look in ceader_enums.h
 //@}
 
 
