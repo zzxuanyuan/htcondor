@@ -6023,6 +6023,7 @@ DaemonCore::InitHTTPSocket( int http_port )
 #endif
 	
 		// XXX: KEEP-ALIVE should be turned OFF, not ON.
+		soap_init(&soap);
 		//soap_init2(&soap, SOAP_IO_KEEPALIVE, SOAP_IO_KEEPALIVE);
 
 		// Register a plugin to handle HTTP GET messages.
