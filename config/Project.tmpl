@@ -345,7 +345,7 @@ GPP_VERS_FLAGS = -Wno-deprecated
 #else
 GPP_VERS_FLAGS =
 #endif
-GPP_SHARED_FLAGS = -fno-implicit-templates $(GPP_VERS_FLAGS)
+GPP_SHARED_FLAGS = -frepo $(GPP_VERS_FLAGS)
 
 STD_C_FLAGS = $(VENDOR_C_FLAGS) $(DEBUG_FLAG) $(CC_PIC_FLAG) PlatformFlags PlatformGccFlags $(CCOMPILER_ID)
 STD_C_PLUS_FLAGS = $(STD_C_FLAGS) $(GPP_SHARED_FLAGS) PlatformGppFlags 
