@@ -39,10 +39,10 @@
 // Claim
 ///////////////////////////////////////////////////////////////////////////
 
-Claim::Claim( Resource* rip )
+Claim::Claim( Resource* rip, bool is_cod )
 {
 	c_client = new Client;
-	c_cap = new Capability;
+	c_cap = new Capability( is_cod );
 	c_ad = NULL;
 	c_starter = NULL;
 	c_rank = 0;
@@ -58,6 +58,7 @@ Claim::Claim( Resource* rip )
 	c_last_pckpt = -1;
 	c_rip = rip;
 	c_state = CLAIM_UNCLAIMED;
+	c_is_cod = is_cod;
 }
 
 
@@ -748,7 +749,7 @@ Client::vacate(char* cap)
 ///////////////////////////////////////////////////////////////////////////
 
 char*
-new_capability_string()
+newCapabilityString()
 {
 	char cap[128];
 	char tmp[128];
@@ -788,9 +789,39 @@ new_capability_string()
 }
 
 
-Capability::Capability()
+char*
+newCODIdString()
 {
-	c_capab = new_capability_string();
+		// COD id string (capability) is of the form:
+		// "<ip:port>#COD#startd_bday#sequence_num"
+
+	MyString id;
+	char startd_bday_str[32];
+	char seq_num_str[16];
+
+	static int sequence_num = 0;
+
+		// put the integers we need into a string so we can add them
+		// to our MyString
+	sprintf( startd_bday_str, "%d", startd_startup );
+	sprintf( seq_num_str, "%d", sequence_num );
+
+	id += daemonCore->InfoCommandSinfulString();
+	id += '#';
+	id += startd_bday_str;
+	id += '#';
+	id += seq_num_str;
+	return strdup( id.Value() );
+}
+
+
+Capability::Capability( bool is_cod )
+{
+	if( is_cod ) { 
+		c_capab = newCODIdString();
+	} else {
+		c_capab = newCapabilityString();
+	}
 }
 
 

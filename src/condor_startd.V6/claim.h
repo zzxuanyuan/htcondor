@@ -69,7 +69,7 @@ typedef enum {
 class Capability
 {
 public:
-	Capability();
+	Capability( bool is_cod = false );
 	~Capability();
 
 	char*	capab() {return c_capab;};
@@ -111,7 +111,7 @@ private:
 class Claim : public Service
 {
 public:
-	Claim( Resource* );
+	Claim( Resource*, bool is_cod = false );
 	~Claim();
 
 		// Operations you can perform on a Claim
@@ -209,6 +209,7 @@ private:
 								// schedd has died and we need to
 								// release the claim.
 	int			c_aliveint;		// Alive interval for this claim
+	bool		c_is_cod;       // are we a COD claim or not?
 
 	ClaimState	c_state;		// the state of this claim
 
