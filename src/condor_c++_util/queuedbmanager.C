@@ -46,8 +46,8 @@
 /* database connection object */
 extern ODBC *DBObj;
 
-/* schedd name */
-extern char *Name;
+/* daemon name */
+char *Name;
 
 /* remove the double quote at the end */
 #define strip_double_quote(value) \
