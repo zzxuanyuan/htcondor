@@ -90,20 +90,11 @@
 	  success.  code_bytes() itself just returns the number of
 	  bytes read or written, and -1 on failure. 
 
-
-  ** DEPRECATED **
-  map()	  Used to convert a virtual fd into a real file descriptor.
-	  The file table is now sufficiently rich that mapping one
-	  fd to another doesn't describe all transformations.
-	  Calls using map() will fail with ENOTSUP.
-	  See file_table_interf.C for more details.
-
-  map()
-	  Wrapping "map()" around an argument indicates that the
-	  argument is a file descriptor which should be mapped from
-	  the "user" file descriptor (i.e., the file descriptor which
-	  the user program sees) and the "real" file descriptor (i.e.,
-	  the actual file descriptor used in the system call).
+  ** NEW MEANING **
+  map 	  A special flag placed after a prototype to indicate that the
+	  call should be directed through file_state.C when
+	  MappingFileDescriptors() is in effect.  Both the checkpointing
+ 	  and remote syscall library use this feature.
 
   Some system calls simply must be handled specially.  Examples
   are those system calls which directly affect the open files
@@ -130,8 +121,6 @@
 	similar changes.
 */
 
-#include "syscall_sysdep.h"
-
 #define SEND_PATH(name) in code(name)
 #define GET_PATH(name) out code(name)
 #define ALLOC_PATH(name) alloc(name,_POSIX_PATH_MAX)
@@ -143,91 +132,116 @@
 #   define EXTRACT extract
 #endif
 
-#if !defined(SWITCH) && !defined(CLIP)
+/* File table switches are used by both the ckpt and syscall libraries */
 
-	/*
-	_ALL_ file systems calls use a different form of switch, implemented
-	in condor_ckpt.  They could be automatically generated, but we
-	need a new stub gen to do that.
-	*/
-
-	int open( const char *path, open_flags_t flags, int mode ) {
+#if !defined(SWITCH)
+	int open( const char *path, int flags, int mode ) : map {
 		SEND_PATH( path );
 		ALLOC_PATH( path );
 	}
+#endif
 
-	int close( int fd );
-	int dup( int old_fd );
-	int dup2( int old_fd, int new_fd );
+	int close( int fd ) : map;
+	int dup( int old_fd ) : map;
+	int dup2( int old_fd, int new_fd ) : map;
 
-	off_t lseek( int fd, off_t offset, int whence ); 
+	off_t lseek( int fd, off_t offset, int whence ) : map; 
 
-	ssize_t read( int fd, void *buf, size_t len ) {
+	ssize_t read( int fd, void *buf, size_t len ) : map {
 		out code_bytes_bool( buf, len );
 		alloc( buf, len );
 	}
 	
-        ssize_t write( int fd, const void *buf, size_t len ) {
+        ssize_t write( int fd, const void *buf, size_t len ) : map {
 		in code_bytes_bool( buf, len );
 		alloc( buf, len );
 	}
 
-	int fchown( int fd, uid_t owner, gid_t group );
-	int fchmod( int fd, mode_t mode );
-	int fchdir( int fd );
-	int lockf( int fd, int request, off_t size );
+	int fchown( int fd, uid_t owner, gid_t group ) : map ;
+	int fchmod( int fd, mode_t mode ) : map ;
+	int fchdir( int fd ) : map ;
+	not_supported int lockf( int fd, int request, off_t size );
 
+	#if 0
 	#if HAS_64BIT_SYSCALLS
 	#if defined(Solaris26)
 
-	offset_t llseek( int fd, offset_t offset, int whence );
-	off64_t	lseek64( int fd, off64_t offset, int whence ) : extract;
+	offset_t llseek( int fd, offset_t offset, int whence ) : map ;
+	off64_t	lseek64( int fd, off64_t offset, int whence ) : map, extract;
 
 	#else
 
-	off64_t	lseek64( int fd, off64_t offset, int whence );
+	off64_t	lseek64( int fd, off64_t offset, int whence ) : map ;
 
 	#endif /* Solaris 2.6 */
+
+	int fstat64( int fd, struct stat64 *buf ) : map {
+			out code( buf );
+			alloc( buf, STAT64_SIZE );
+	}
+
+	#if !defined(HPUX)	/* There is no getdents64 on HPUX 10.20 */
+	int getdents64( int fd, struct dirent64 *buf, size_t nbytes ) : map {
+			out code_bytes_bool( buf, nbytes );
+			alloc( buf, nbytes );
+	}
+	#endif /* HPUX */
+
 	#endif /* HAS_64BIT_SYSCALLS */
 
-	#if defined(LINUX) && !defined(GLIBC)
-	int fstat( int fd, struct stat *buf ) : extract {
-	#else
-	int fstat( int fd, struct stat *buf ) {
-	#endif
-			out code( buf );
-			alloc( buf, STAT_SIZE );
-		}
-	#if defined(Solaris)
-	not_supported {
-		int flock( int fd, int op );
-	}
-	#else	
-	int flock( int fd, int op );
 	#endif
 
-	#if defined(Solaris)
-	not_supported{
-		int fstatfs( int fd, struct statfs *buf ) {
-			out code( buf );
-			alloc( buf, STATFS_SIZE );
-		}
-	}
-	#else 
-		#if defined(IRIX)
-		int fstatfs( int fd, struct statfs *buf, int len, int fstyp ) {
+	#if !defined(SWITCH)
+		/* Stat and friends have special switches in linux */
+		#if defined(LINUX) && !defined(GLIBC)
+		int fstat( int fd, struct stat *buf ) : extract, map {
 		#else
-		int fstatfs( int fd, struct statfs *buf ) {
+		int fstat( int fd, struct stat *buf ) : map {
 		#endif
+				out code( buf );
+				alloc( buf, STAT_SIZE );
+			}
+	#endif
 
-	out code( buf );
-	alloc( buf, STATFS_SIZE );
+	int flock( int fd, int op ) : map;
+
+	#if defined(IRIX) || defined(Solaris)
+	int fstatfs( int fd, struct statfs *buf, int len, int fstyp ) : map {
+	#else
+	int fstatfs( int fd, struct statfs *buf ) : map {
+	#endif
+		out code( buf );
+		alloc( buf, STATFS_SIZE );
 	}
-	#endif /* defined(Solaris) */
 
-	int fsync( int fd );
+	int fsync( int fd ) : map, extract;
 
-	/* There are lots more which belong here. */
+	#if defined(Solaris) || defined(IRIX62) || defined(LINUX)
+	int getdents( int fd, struct dirent *buf, size_t nbytes ) : map {
+		out code_bytes_bool( buf, nbytes );
+		alloc( buf, nbytes );
+	}
+	#else
+	int getdirentries( int fd, char *buf, int nbytes, long *basep ) : map {
+		out code_bytes_bool( buf, rval );
+		in code_bytes_bool( basep, EIGHT );
+		out code_bytes_bool( basep, EIGHT );
+		alloc( buf, nbytes );
+		alloc( basep, LONG_SIZE );
+	}
+	#endif
+
+	#if defined( LINUX )
+	int ftruncate( int fd, size_t length ) : map;
+	#else 
+	int ftruncate( int fd, off_t length ) : map ;
+	#endif
+
+/* If we are building the ckpt library, do not build any other switches  */
+
+#if !defined(FILE_SWITCHES_ONLY)
+
+#if !defined(SWITCH) && !defined(CLIP)
 
 	/* Do not generate switches for these pseudo calls */
 
@@ -240,14 +254,6 @@
 		in code_bytes_bool( buf, len );
 		alloc( buf, len );
         }
-
-#if !defined(AIX32)
-	/*
-	This is not a syscall in AIX.  The library routine will exercise the
-	kfcntl() routine which we handle.
-	*/
-	int fcntl( int fd, fcntl_cmd_t req, int arg );
-#endif
 
 #ifdef CARMI_OPS
 
@@ -646,36 +652,36 @@ int rename( const char *from, const char *to ) : pseudo {
 
 #if !defined( CLIP )
 
-#if defined(LINUX) && !defined(GLIBC)
-    int stat( const char *path, struct stat *buf ) : extract {
-#else
-    int stat( const char *path, struct stat *buf ) {
-#endif
-			SEND_PATH( path );
-			ALLOC_PATH( path );
-			out code( buf );
-			alloc( buf, STAT_SIZE );
-		}
+#if !defined(SWITCH)
 
-#if defined(LINUX) && !defined(GLIBC)
-    int lstat( const char *path, struct stat *buf ) : extract {
-#else
-    int lstat( const char *path, struct stat *buf ) {
+	/* Stat and friends have special switches in Linux */
+
+	#if defined(LINUX) && !defined(GLIBC)
+	int stat( const char *path, struct stat *buf ) : extract {
+	#else
+	int stat( const char *path, struct stat *buf ) {
+	#endif
+		SEND_PATH( path );
+		ALLOC_PATH( path );
+		out code( buf );
+		alloc( buf, STAT_SIZE );
+	}
+
+	#if defined(LINUX) && !defined(GLIBC)
+	int lstat( const char *path, struct stat *buf ) : extract {
+	#else
+ 	int lstat( const char *path, struct stat *buf ) {
+	#endif
+		SEND_PATH( path );
+		ALLOC_PATH( path );
+		out code( buf );
+		alloc( buf, STAT_SIZE );
+	}
 #endif
-			SEND_PATH( path );
-			ALLOC_PATH( path );
-			out code( buf );
-			alloc( buf, STAT_SIZE );
-		}
 
 #if HAS_64BIT_SYSCALLS
 		/* 64-bit versions of various syscalls.  
 		   Added on 6/24/98 by Derek Wright */ 
-
-	int fstat64( map(int fd), struct stat64 *buf ) {
-			out code( buf );
-			alloc( buf, STAT64_SIZE );
-	}
 
 	int stat64( const char *path, struct stat64 *buf ) { 
 			SEND_PATH( path );
@@ -691,23 +697,27 @@ int rename( const char *from, const char *to ) : pseudo {
 			alloc( buf, STAT64_SIZE );
 	}
 
-#if !defined(HPUX)	/* There is no getdents64 on HPUX 10.20 */
-	int getdents64( map(int fd), char *buf, int nbytes ) {
-			out code_bytes_bool( buf, nbytes );
-			alloc( buf, nbytes );
-	}
-#endif /* HPUX */
-
 #endif /* HAS_64BIT_SYSCALLS */
 
-#if defined(LINUX)
+#if (defined(LINUX) && defined(GLIBC)) || defined(Solaris)
+	/* mknod is a special switch */
+	#if !defined(SWITCH)
 	int mknod( const char *path, mode_t mode, dev_t device ) {
-#else
-	int mknod( const char *path, int mode, dev_t device ) {
-#endif
 		SEND_PATH( path );
 		ALLOC_PATH( path );
 	}
+	#endif
+#else 
+	#if defined(LINUX) || defined(OSF1) || defined(HPUX)
+	int mknod( const char *path, mode_t mode, dev_t device ) {
+	#else
+	int mknod( const char *path, int mode, dev_t device ) {
+	#endif
+		SEND_PATH( path );
+		ALLOC_PATH( path );
+	}
+#endif
+
 	int chmod( const char *path, mode_t mode ) {
 		SEND_PATH( path );
 		ALLOC_PATH( path );
@@ -720,19 +730,11 @@ int rename( const char *from, const char *to ) : pseudo {
 #endif
 
 #if !defined( SWITCH )
-    /*
-	We don't want a switch, since we want a special switch that
-	always does a sync() locally, and then conditionally sends a remote
-	sync() back to the shadow.  We want it pseudo on platforms where
-	sync() returns void, since that's the only way to get the shadow to
-	build since stubgen depends on returning an int.
-	-Derek Wright 7/17/98 
-    */
-#if SYNC_RETURNS_VOID
-	void sync() : pseudo;
-#else 
-	int sync();
-#endif
+	#if defined(LINUX)
+		int sync();
+	#else
+		void sync();
+	#endif
 #endif /* ! SWITCH */
 
 	int symlink( const char *path1, const char *path2 ) {
@@ -742,9 +744,9 @@ int rename( const char *from, const char *to ) : pseudo {
 		ALLOC_PATH( path2 );
 	}
 
-#if defined(LINUX) || defined(Solaris26)
+#if defined(LINUX) || defined(Solaris26) || defined(OSF1) || defined(HPUX)
 	int readlink( const char *path, char *buf, size_t buf_size ) {
-#elif defined(IRIX62) || defined(OSF1)
+#elif defined(IRIX62)
 	int readlink( const char *path, char *buf, int buf_size ) {
 #else
 	int readlink( const char *path, void *buf, int buf_size ) {
@@ -763,20 +765,8 @@ int rename( const char *from, const char *to ) : pseudo {
 		out code_bytes_bool( grouplist, gidsetsize * GID_T_SIZE );
 		alloc( grouplist, gidsetsize * GID_T_SIZE );
 	}
-#	if defined(Solaris) || defined(IRIX62)
-		int getdents( map(int fd), char *buf, int nbytes ) {
-			out code_bytes_bool( buf, nbytes );
-			alloc( buf, nbytes );
-		}
-#	else
-		int getdirentries( map(int fd), char *buf, int nbytes, long *basep ) {
-			out code_bytes_bool( buf, rval );
-			in code_bytes_bool( basep, EIGHT );
-			out code_bytes_bool( basep, EIGHT );
-			alloc( buf, nbytes );
-			alloc( basep, LONG_SIZE );
-		}
-#	endif
+
+
 #if !defined(Solaris) && !defined(LINUX) && !defined(IRIX62) && !defined(HPUX)
 	int table( int id, int index, char *addr, int nel, unsigned int lel ) {
 		out code_bytes_bool( addr, nel * lel );
@@ -784,7 +774,7 @@ int rename( const char *from, const char *to ) : pseudo {
 	}
 #endif
 
-#if defined(LINUX)
+#if defined(LINUX) || defined(OSF1)
 	int gethostname( char *address, size_t address_len ) {
 #else 
 	int gethostname( char *address, int address_len ) {
@@ -795,13 +785,9 @@ int rename( const char *from, const char *to ) : pseudo {
 	int getdtablesize();
 
 	not_supported {
-#if defined(LINUX) || defined(OSF1) || defined(IRIX62)
 		int select(int numfds, fd_set *readfds, fd_set *writefds,
 			fd_set *exceptfds, struct timeval *timeout);
-#else
-		int select();
-#endif
-		int poll();
+		int poll(struct pollfd *p, unsigned long l , int i );
 	}
 
 #if !defined(SWITCH) /* moved into separate .c file to avoid a name conflict */
@@ -809,7 +795,7 @@ int rename( const char *from, const char *to ) : pseudo {
 #endif
 	int getpriority( int which, int who );
 
-#if defined(OSF1) || defined(LINUX)
+#if defined(LINUX)
 	int gettimeofday( struct timeval *tp, struct timezone *tzp ) {
 		out code( tp );
 #else
@@ -848,16 +834,6 @@ int rename( const char *from, const char *to ) : pseudo {
 	}
 #endif /* ! LINUX */
 
-#if !defined(SWITCH)
-	/* Not a switch, b/c it's in switches.special.c b/c Jim fixed
-	   a fortran problem there. -Derek and Jim 7/6/98 */
-
-#	if defined( LINUX )
-		int ftruncate( map(int fd), size_t length );
-#	else 
-		int ftruncate( map(int fd), off_t length );
-#	endif
-#endif /* ! SWITCH */
 
 	int mkdir( const char *path, mode_t mode ) {
 		SEND_PATH( path );
@@ -867,7 +843,11 @@ int rename( const char *from, const char *to ) : pseudo {
 		SEND_PATH( path );
 		ALLOC_PATH( path );
 	}
-	int utimes( const char *path, struct timeval times[] ) {
+	#if defined(OSF1)
+	int utimes( const char *path, const struct timeval *times ) {
+	#else
+	int utimes( const char *path, struct timeval *times ) {
+	#endif
 		SEND_PATH( path );
 		ALLOC_PATH( path );
 		in code_bytes_bool( times, TIMEVAL_ARRAY_SIZE );
@@ -903,22 +883,25 @@ int rename( const char *from, const char *to ) : pseudo {
 #endif
 
 #if defined(HPUX)
-	int statfs( char *path, struct statfs *buf ) {
-		SEND_PATH( path );
-		ALLOC_PATH( path );
-		out code( buf );
-		alloc( buf, STATFS_SIZE );
-	}
-#elif defined(LINUX)
 	int statfs( const char *path, struct statfs *buf ) {
 		SEND_PATH( path );
 		ALLOC_PATH( path );
 		out code( buf );
 		alloc( buf, STATFS_SIZE );
 	}
+#elif defined(LINUX)
+	#if !defined(SWITCH)
+	/* Special switch needed for stat and friends. */
+	int statfs( const char *path, struct statfs *buf ) {
+		SEND_PATH( path );
+		ALLOC_PATH( path );
+		out code( buf );
+		alloc( buf, STATFS_SIZE );
+	}
+	#endif
 #elif defined(Solaris)
 	not_supported {
-		int statfs( char *path, struct statfs *buf, int len );
+		int statfs( const char *path, struct statfs *buf, int len, int x ) ;
 	}
 #elif defined(IRIX)
 	int statfs( const char *path, struct statfs *buf, int len, int fstyp ) {
@@ -938,19 +921,6 @@ int rename( const char *from, const char *to ) : pseudo {
 	int getdomainname( char *name, int namelen ) {
 		out code( name, namelen );
 		alloc( name, namelen );
-	}
-
-
-		/*
-		  Not implemented because our xdr_ustname() function isn't
-		  working.  This is because the sizes of the strings are
-		  defined differently on various platforms...
-		*/
-	not_supported int uname( struct utsname *name ) {
-		/*
-		out utsname( name );
-		alloc( name, UTSNAME_SIZE );
-		*/
 	}
 
 #if defined(OSF1)
@@ -1004,7 +974,7 @@ int rename( const char *from, const char *to ) : pseudo {
 #endif  /* of !defined(SAVE_SIGSTATE) */
 
 
-#if	defined(LINUX) || defined(Solaris251) || defined(HPUX)
+#if	defined(LINUX) || defined(Solaris251) || defined(HPUX) || defined(OSF1)
 		int setitimer( int which, const struct itimerval *value,
 				struct itimerval *oval );
 #else
@@ -1018,10 +988,7 @@ int rename( const char *from, const char *to ) : pseudo {
 	for the benefit of Fortran compilers...
 	*/
 	ignored {
-#	if defined( AIX32) && !defined(SAVE_SIGSTATE)
-		int sigaction( int sig, const struct sigaction *act,
-						struct sigaction *o_act );
-#	elif !defined (SAVE_SIGSTATE)
+#	if !defined (SAVE_SIGSTATE)
 #	    if defined(LINUX)
 		int sigaction( int sig, struct sigaction *act,
 				struct sigaction *o_act ) : extract;
@@ -1044,35 +1011,28 @@ int rename( const char *from, const char *to ) : pseudo {
 	  -Derek Wright, 3/12/98 
 	*/
 not_supported {
-#	if defined(IRIX) || defined(OSF1) || defined(HPUX)
-	void * mmap( void * a, size_t l, int p, int f, map(int fd), off_t o ) : EXTRACT;
-	int mprotect( NEED_CONST void * addr, size_t len, int prot );
-	int madvise( INV_SYSCALL_PTR * addr, size_t len, int behav );
-	int msync( void * addr, size_t len, int flags );
-#	elif defined(LINUX)
-	int mprotect( GLIBC_CONST MMAP_T addr, size_t len, int prot );
-	int msync( MMAP_T addr, size_t len, int flags );
-#	else
-	char * mmap( char * a, size_t l, int p, int f, map(int fd),
-														off_t o ) : EXTRACT;
-	int mprotect( char * addr, size_t len, int prot );
-	int madvise( char * addr, size_t len, int behav );
-	int msync( char * addr, size_t len, int flags );
-#	endif
+	#if defined(OSF1) || defined(HPUX)
+		/* We have no way of coding up a void *. */
+	#elif defined(LINUX) || defined(IRIX) || defined(Solaris)
+		#if defined(LINUX) && !defined(SWITCH)
+			/* Skip mmap on linux -- it is a special switch */
+		#else
+			void * mmap (void * addr, size_t len, int prot, int flags, int fd, off_t off) : EXTRACT;
+		#endif
+		int mprotect(const void * addr, size_t len, int prot);
+		int msync (void * addr, size_t len, int flags);
+	#else
+		void * mmap( void * a, size_t l, int p, int f, int fd, off_t o ) : EXTRACT;
+		int mprotect( void * addr, size_t len, int prot );
+		int madvise( void * addr, size_t len, int behav );
+		int msync( void * addr, size_t len, int flags );
+	#endif
 }
 #if HAS_64BIT_SYSCALLS
     not_supported {
 	caddr_t mmap64( caddr_t addr, size_t len, int prot, int flags,
 					int fildes, off64_t off);
 	}
-#endif
-
-#if defined( LINUX ) && ! defined( SWITCH )
-	/* We need an mmap in switches.special.c to handle
-	   Linux-specific flags.  Derek Wright 3/12 */
-    not_supported {
-	void* mmap( void* a, size_t l, int p, int f, map(int fd), off_t o );
-    }
 #endif
 
 
@@ -1096,7 +1056,7 @@ not_supported {
 	int setuid( uid_t uid );
 	int setgid( gid_t gid );
 	int setreuid( uid_t ruid, uid_t euid );
-	int setregid( uid_t rgid, uid_t egid );
+	int setregid( gid_t rgid, gid_t egid );
 	int setlogin( char *name );
 	int revoke( char *path );
 	int chroot( const char *path );
@@ -1112,13 +1072,21 @@ not_supported {
 	int adjtime( struct timeval *delta, struct timeval *old_delta );
 #endif
 	int sethostid( int host_id );
-	int async_daemon();
-#	if !defined(IRIX)
-		int getfh( map(int fd), fhandle_t *fhp, int exp_fd );
-#	endif
-#	if !defined(SUNOS41)
-		int exportfs( int access, int *record, struct exportfsdata *exdata );
-#	endif
+
+	/* C++ thinks this is varargs */
+	/* int async_daemon(); */
+#if defined(IRIX)
+	/* nothing */
+#elif defined(HPUX)
+	int getfh( int fd, const fhandle_t *fhp );
+#else
+	int getfh( int fd, fhandle_t *fhp, int exp_fd );
+#endif
+
+#if !defined(HPUX)
+	int exportfs( int access, int *record, struct exportfsdata *exdata );
+#endif
+
 #if defined(LINUX)
 	int mount( const char *spec, const char *dir, const char *fstyp,
 		unsigned long rwflag, const void *data );
@@ -1128,7 +1096,8 @@ not_supported {
 	int sethostname( const char *address, size_t address_len );
 	int settimeofday( const struct timeval *tp, const struct timezone *tzp );
 	int setdomainname( const char *name, size_t namelen );
-	int swapon( const char *path, int swapflags );
+	/* Can't interpret varargs yet */
+	/* int swapon( const char *path, int swapflags ); */
 	int swapoff( const char *path );
 	int bdflush( int func, long data );
 	caddr_t create_module( const char* name, size_t size );
@@ -1138,22 +1107,34 @@ not_supported {
 	void idle();
 	int ioperm( unsigned long from, unsigned long num, int turn_on );
 #else
-#if defined(Solaris)
+	#if defined(Solaris)
 		int mount( const char *spec, const char *dir, int mflag, int fstyp, char *pt, int len );
 		int acct( const char *path );
-#elif defined(OSF1)
+	#elif defined(OSF1)
 		int mount( int type, char *mnt_path, int mnt_flag, char *data );
 		int acct( char *path );
-#else
+	#elif defined(HPUX)
+		/* need varargs here */
+		/* int mount( const char *spec, const char *dir, int mflag, int fstyp, char *pt, int len ); */
+		int acct( char *path );
+	#else
 		int mount( char *spec, char *dir, int mflag, int fstyp, char *pt, int len );
 		int acct( char *path );
-#endif
+	#endif
 
 	void reboot( int howto );
 	int sethostname( char *address, int address_len );
-	int settimeofday( struct timeval *tp, struct timezone *tzp );
-	int setdomainname( char *name, int namelen );
-	int swapon( char *path, int flags, int lo_water, int hi_water );
+	#if defined(HPUX)
+		int settimeofday( const struct timeval *tp, const struct timezone *tzp );
+		int setdomainname( const char *name, int namelen );
+	#else
+		int settimeofday( struct timeval *tp, struct timezone *tzp );
+		int setdomainname( char *name, int namelen );
+	#endif
+
+	/* Need varargs for this */
+	/* int swapon( char *path, int flags, int lo_water, int hi_water ); */
+
 #endif  /* of not LINUX */
 
 } /* of not_supported { (Must be after the #endif Linux - Derek) */
@@ -1161,13 +1142,8 @@ not_supported {
 
 	/* Calls having to do with multiple process jobs */
 not_supported {
-#if defined(AIX32)
-	pid_t fork();
-	int pipe( int fd[] );
-#else
 	pid_t fork() : EXTRACT;
 	int pipe( int fd[] ) : EXTRACT;
-#endif
 	/* Other fork()-like calls */
 #if defined(LINUX)
 	pid_t clone(void *sp, unsigned long flags);
@@ -1182,7 +1158,7 @@ not_supported {
 					  char * const argv[], char * const envp[] );
 	int execvp( const char *file, char *const argv[] );
 
-	pid_t wait4( pid_t pid, int *status, int options, struct rusage *ru );
+	pid_t wait4( pid_t pid, void *status, int options, struct rusage *ru );
 	pid_t wait(int *status);
 #if defined(LINUX)
 	pid_t waitpid(pid_t pid, int *status, int options);
@@ -1205,40 +1181,80 @@ not_supported {
 
 	/* Calls relating to sockets - implies multiple communicating processes */
 not_supported {
-	int socket( int addr_family, int type, int protocol );
-	int recvmsg( int socket, struct msghdr *message, int flags );
-#if defined(Solaris26)
-	int sendmsg( int socket, const struct msghdr *msg, int flags);
-#else
-	int sendmsg( int socket, struct msghdr *message, int flags );
-#endif
-	int recvfrom( int socket, SYSCALL_PTR *buffer, int length, int flags,
-				  struct sockaddr *address, int *addr_len );
-	int accept( int socket, struct sockaddr *address, int *addr_len );
-	int getpeername( int socket, struct sockaddr *address, int *addr_len );
-	int getsockname( int socket, struct sockaddr *address, int *addr_len );
-#ifdef Solaris26
-	int connect( int sock, struct sockaddr *address, int namelen);
-#else
-	int connect( int sock, NEED_CONST struct sockaddr *address, int 
-				addr_len );
-#endif
 
-#if !defined(SWITCH) /* moved into separate .c file to avoid a name conflict */
-	int send( int socket, char *msg, int length, int flags );
-#endif
-	int recv( int socket, char *msg, int length, int flags );
-	int bind( int socket, NEED_CONST struct sockaddr *address, int addr_len );
-	int listen( int socket, int backlog );
-	int sendto( int sock, NEED_CONST SYSCALL_PTR *msg, int msg_len, int flags,
-				NEED_CONST struct sockaddr *dest, int dest_len );
-	int shutdown( int socket, int how );
-	int socketpair( int domain, int type, int protocol, int sock_vector[] );
-	int getsockopt( int sock, int level, int opt_name, SYSCALL_PTR *opt_val,
-					int *opt_len );
-	int setsockopt( int sock, int level, int opt_name, 
-				   NEED_CONST SYSCALL_PTR *opt_val, int opt_len );
-	int nfssvc( int sock, int mask, int match );
+	#if defined(Solaris)
+
+		int sendmsg( int socket, const struct msghdr *msg, int flags);
+		int connect( int sock, struct sockaddr *address, int namelen);
+
+	#elif defined(HPUX)
+		/* These came straight out of sys/socket.h */
+
+ 		int accept(int s, struct sockaddr *a, size_t *l);
+ 		int bind(int s, const struct sockaddr *a, size_t l);
+ 		int connect(int s, const struct sockaddr *a, size_t l);
+ 		int getpeername(int s, struct sockaddr *a, size_t *l);
+ 		int getsockname(int s, struct sockaddr *a, size_t *l);
+ 		int getsockopt(int s, int x, int y, void *o, size_t *l);
+ 		int listen(int s, int p);
+ 		ssize_t recv(int s, void *d, size_t l, int t);
+ 		ssize_t recvfrom(int s, void *d, size_t l, int t, struct sockaddr *a, size_t *n);
+ 		ssize_t recvmsg(int s, struct msghdr *h, int l);
+ 		ssize_t send(int s, const void *d, size_t l, int x);
+ 		ssize_t sendmsg(int s, const struct msghdr *h, int x);
+ 		ssize_t sendto(int s, const void *d, size_t l, int x, const struct sockaddr *a, size_t n);
+ 		int setsockopt(int a, int b, int c, const void *d, size_t l);
+ 		int shutdown(int a, int b);
+ 		int socket(int a, int b, int c);
+ 		int socketpair(int a, int b, int c, int *d);
+
+	#elif defined(IRIX)
+		/* These came straight out of sys/socket.h */
+
+		int accept(int a, void *b, int *c);
+		int bind(int a, const void *b, int c);
+		int connect(int a, const void *b, int c);
+		int getpeername(int a, void *b, int *c);
+		int getsockname(int a, void *b, int *c);
+		int getsockopt(int a, int b, int c, void *d, int *e);
+		int setsockopt(int a, int b, int c, const void *d, int e);
+		int listen(int a, int b);
+		int recv(int a, void *b, int c, int d);
+		int recvfrom(int a, void *b, int c, int d, void *e, int *f);
+		int recvmsg(int a, struct msghdr *b, int c);
+		int send(int a, const void *b, int c, int d);
+		int sendto(int a, const void * b, int c, int d, const void *e, int f);
+		int sendmsg(int a, const struct msghdr *b, int c);
+		int shutdown(int a, int b);
+		int socket(int a, int b, int c);
+		int socketpair(int a, int b, int c, int *d);
+
+	#elif defined(LINUX) && defined(GLIBC)
+		int recvfrom( int socket, void *buffer, int length, unsigned int flags, struct sockaddr *address, int *addr_len );
+		int accept( int socket, struct sockaddr *address, unsigned int *addr_len );
+		int getpeername( int socket, struct sockaddr *address, unsigned int *addr_len );
+		int getsockname( int socket, struct sockaddr *address, unsigned int *addr_len );
+		int setsockopt( int sock, int level, int opt_name, const void *val, int length );
+
+	#else
+
+		int socket( int addr_family, int type, int protocol );
+		int sendmsg( int socket, struct msghdr *message, int flags );
+		int recvmsg( int socket, struct msghdr *message, int flags );
+		int recvfrom( int socket, char *buffer, int length, int flags, struct sockaddr *address, int *addr_len );
+		int accept( int socket, struct sockaddr *address, int *addr_len );
+		int getpeername( int socket, struct sockaddr *address, int *addr_len );
+		int getsockname( int socket, struct sockaddr *address, int *addr_len );
+		int connect( int sock, struct sockaddr *address, int addr_len );
+		int send( int socket, char *msg, int length, int flags );
+		int recv( int socket, char *msg, int length, int flags );
+		int bind( int socket, struct sockaddr *address, int addr_len );
+		int sendto( int sock, char *msg, int msg_len, int flags,struct sockaddr *dest, int dest_len );
+		int getsockopt( int sock, int level, int opt_name, char *opt_val, int *opt_len );
+		int setsockopt( int sock, int level, int opt_name, char *opt_val, int opt_len );
+		int nfssvc( int sock, int mask, int match );
+	#endif
+
 }
 
 
@@ -1247,18 +1263,18 @@ not_supported {
 	current implementation
 	*/
 not_supported {
-#if defined(LINUX)
-	int profil( char *buf, int buf_size, int offset,
-				 int scale );
-#elif defined(Solaris)
-	void profil( short *buf, unsigned int buf_size, int offset, unsigned int scale);
-#else
-	void profil( short *buf, unsigned int buf_size, unsigned int offset,
-				 unsigned int scale );
-#endif
+	#if defined(LINUX)
+		int profil( char *buf, int buf_size, int offset, int scale );
+	#elif defined(Solaris)
+		void profil( unsigned short *buf, unsigned int buf_size, int offset, unsigned int scale);
+	#elif defined(HPUX)
+		void profil( const void *buf, unsigned int buf_size, unsigned int offset, int scale );
+	#else
+		void profil( short *buf, unsigned int buf_size, unsigned int offset, unsigned int scale );
+	#endif
+
 	int quotactl( char *path, int cmd, int id, char *addr );
-	int getsysinfo( unsigned long op, char * buf, unsigned long nbytes,
-					int *start, char *arg );
+	int getsysinfo( unsigned long op, char * buf, unsigned long nbytes, int *start, char *arg );
 }
 
 
@@ -1270,7 +1286,7 @@ not_supported {
 	int msgctl( int msgid, int cmd, struct msqid_ds *buf );
 	int msgget( key_t key, int msgflg );
 	int msgrcv(int qid, void *msgp, size_t msgsz, long msgtyp, int msgflg );
-	int msgsnd( int msqid, NEED_CONST void *msgp, size_t msgsz, int msgflg );
+	int msgsnd( int msqid, void *msgp, size_t msgsz, int msgflg );
 }
 
 	/*
@@ -1286,162 +1302,12 @@ not_supported {
 	/* Stuff having to do with shared memory. */
 not_supported {
 	int shmctl( int shmid, int cmd, struct shmid_ds *buf );
-	int shmdt( NEED_CONST SYSCALL_PTR * addr );
-#if defined(AIX32)
-	int shmget( key_t key, unsigned int size, unsigned int flags );
-#else
+	int shmdt( char * addr );
 	int shmget( key_t key, size_t size, int flags );
-#endif
-	SYSCALL_PTR * shmat( int shmid, NEED_CONST SYSCALL_PTR * shmaddr, int shmflg );
+	char * shmat( int shmid, char * shmaddr, int shmflg );
 }
 
 #endif /* not CLIP */
 
-	/* System calls unique to AIX - needed even in CLIPPED version */ 
-#if defined(AIX32)
-	uid_t getuidx( int which );
-	gid_t getgidx( int which );
-#endif
-
-
-	/* System calls unique to AIX - not needed in CLIPPED version */ 
-#if !defined(CLIP) && defined(AIX32)
-	int statx( char *path, struct stat *buffer, int length, int command ) {
-		SEND_PATH( path );
-		ALLOC_PATH( path );
-		out code( buffer );
-		alloc( buffer, STAT_SIZE );
-	}
-	int fstatx( map(int fd), struct stat *buffer, int length, int command ) {
-		out code( buffer );
-		alloc( buffer, STAT_SIZE );
-	}
-	int accessx( char *path, int mode, int who ) {
-		SEND_PATH( path );
-		ALLOC_PATH( path );
-	}
-	int faccessx( map(int fd), int mode, int who );
-	int chacl( char *path, struct acl *list, int size ) {
-		SEND_PATH( path );
-		ALLOC_PATH( path );
-		out code_bytes_bool( list, size );
-		alloc( list, size );
-	}
-	int fchacl( map(int fd), struct acl *list, int size ) {
-		out code_bytes_bool( list, size );
-		alloc( list, size );
-	}
-	int fstatacl( map(int fd), int cmd, struct acl *list, int size ) {
-		out code_bytes_bool( list, size );
-		alloc( list, size );
-	}
-	int statacl( char *path, int cmd, struct acl *list, int size ) {
-		SEND_PATH( path );
-		ALLOC_PATH( path );
-		out code_bytes_bool( list, size );
-		alloc( list, size );
-	}
-	int chownx( char *path, int owner, int group, int ext ) {
-		SEND_PATH( path );
-		ALLOC_PATH( path );
-	}
-	int fchownx( map(int fd), int owner, int group, int ext );
-	long fclear( map(int fd), unsigned long nbytes );
-	int frevoke( map(int fd) );
-	int kgetpgrp( int pid );
-	int getpri( int pid );
-	int kfcntl( map(int fd), int cmd, int arg );
-#if !defined (SWITCH)
-		/*
-		This call must interact closely with the open files table,
-		therefore its switch is implemented in "condor_ckpt/file_state.C",
-		but we still need to generate senders and receivers for it here.
-		*/
-	int openx( const char *path, int flags, int mode, int ext ) {
-		SEND_PATH( path );
-		ALLOC_PATH( path );
-	}
-#endif
-	int psdanger( int sig );
-	int ulimit( int cmd, int lim );
-	int usrinfo( int cmd, char *buf, int count ) {
-		in code_bytes_bool( buf, count );
-		alloc( buf, count );
-	}
-
-
-	not_supported {
-		int audit();
-		int auditbin();
-		int auditevents();
-		int auditlog();
-		int auditobj();
-		int auditproc();
-		int chpriv();
-		int fchpriv();
-		int disclaim();
-		int fscntl();
-		int fstatpriv();
-		int getargs();
-		int getdirent();
-		int getevars();
-		int getpriv();
-		int getproc();
-		int getuser();
-		int kioctl();
-		int knlist();
-		int kwaitpid();
-		int load();
-		int loadbind();
-		int loadquery();
-		int mntctl();
-		int pause();
-		int privcheck();
-		int absinterval();
-		int getinterval();
-		int gettimer();
-		int gettimerid();
-		int incinterval();
-		int reltimerid();
-		int resabs();
-		int resinc();
-		int restimer();
-		int settimer();
-		int nsleep();
-		int seteuid();
-		int setgidx();
-		int setpri();
-		int setpriv();
-		int setuidx();
-		int msgxrcv();
-		int sigcleanup();
-		int statpriv();
-		int swapoff();
-		int swapqry();
-		int sysconfig();
-		int unameu();
-		int unamex();
-		int unload();
-		int ustat();
-		int uvmount();
-		int vmount();
-		int Trconflag();
-		int trchook();
-		int trchk();
-		int trchkt();
-		int trchkl();
-		int trchklt();
-		int trchkg();
-		int trchkgt();
-		int trcgen();
-		int trcgent();
-
-	}
-		
-#endif /* AIX and not CLIP */
-
-#if defined(Solaris)
-#undef static
-#endif
-
+#endif /* not FILE_SWITCHES_ONLY */
 

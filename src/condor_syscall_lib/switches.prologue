@@ -8,7 +8,30 @@
 **
 ***********************************************************/
 
-#include "syscall_sysdep.h"
+#include "condor_common.h"
+#include "syscall_numbers.h"
+#include "syscall_macros.h"
+
+#include "condor_syscall_mode.h"
+#include "file_table_interf.h"
+#include "../condor_ckpt/file_state.h"
+#include <signal.h>
+
+extern "C" int errno;
+extern "C" sigset_t block_condor_signals();
+extern "C" void restore_condor_sigmask(sigset_t);
+
+#if defined(DL_EXTRACT)
+	#include <dlfcn.h>	/* dlopen and dlsym */
+#endif
+
+#if defined(HPUX)
+	#include<nfs/nfs.h>	/* fhandle_t */
+#endif
+
+extern "C" {
+
+#if 0
 
 #if defined(OSF1) && !defined(__GNUC__)
 #	define __STDC__
@@ -29,17 +52,8 @@
 
 #include "syscall_numbers.h"
 #include "syscall_macros.h"
-#include "condor_syscall_mode.h"
-#include "file_table_interf.h"
 
-#if defined(HPUX)
-#	define _XPG4_EXTENDED
-#	define mknod	__hide_mknod
-#	define select	__hide_select
-#	define setitimer __hide_setitimer
-#	define settimeofday __hide_settimeofday
-#	define profil	__hide_profil
-#endif
+#include <dirent.h>
 
 #include <stdio.h>
 #include <sys/types.h>
@@ -50,38 +64,15 @@
 #define fstat __hide_fstat 
 #define stat __hide_stat 
 #define lstat __hide_lstat 
+#include <sys/poll.h>
 #endif
 
 #include <sys/stat.h>
 
 #include "condor_fix_sys_time.h"
 
-#if defined(HPUX) 
-#	undef mknod
-#	undef select
-#	undef setitimer
-#	undef settimeofday
-#	undef profil
-	int select();
-	int setitimer( int which, const struct itimerval *,struct itimerval * );	
-	int	settimeofday( struct timeval *tp, struct timezone *tzp );
-	void profil( short *buf, unsigned int size, unsigned int ,unsigned int  );
-#endif
-
 #if defined(DL_EXTRACT)
 #	include <dlfcn.h>	/* for dlopen and dlsym */
-#endif
-
-#if defined(IRIX)
-struct statfs;
-struct exportfsdata;
-#endif
-
-#if defined(HPUX)
-struct exportfsdata;
-struct msqid_ds;
-struct sembuf;
-struct shmid_ds;
 #endif
 
 #if defined(Solaris)
@@ -102,13 +93,9 @@ struct stat;
 
 #include "condor_fix_sys_resource.h"
 
-#if defined(HPUX)
-#undef _PROTOTYPES
-#endif
-
 #include "condor_mmap.h"
 
-
+/*
 #if defined(IRIX)
 #	define sendmsg __hide_sendmsg
 #	define recvfrom __hide_recvfrom
@@ -122,8 +109,11 @@ struct stat;
 #	define getsockopt __hide_getsockopt
 #	define setsockopt __hide_setsockopt
 #endif
+*/
 
 #include <sys/socket.h>
+
+/*
 
 #if defined(IRIX)
 #	undef sendmsg
@@ -153,6 +143,7 @@ struct stat;
 	int setsockopt( int sock, int level, int opt_name, char *opt_val, 
 				int opt_len );
 #endif
+*/
 
 #include <sys/utsname.h>
 
@@ -165,19 +156,19 @@ struct stat;
 #	undef _uname
 #endif
 
+/*
+
 #if defined(IRIX)
 #	undef kill
 	int kill( pid_t pid, int sig );
 #endif
+*/
 
 #if defined(HPUX)
-#	undef _PROTOTYPES
-#	include <signal.h>
-#	define async_daemon	__hide_async_daemon
-#	include <nfs/nfs.h>
-#	undef async_daemon
-	int async_daemon();	
+#include <signal.h>
+#include <nfs/nfs.h>
 #endif
+
 #if defined(OSF1)
 #	include <rpc/types.h>
 #	include <errno.h>
@@ -186,7 +177,6 @@ struct stat;
 #	include <sys/ipc.h>
 #	include <sys/shm.h>
 #	include <sys/msg.h>
-#	include <sys/mman.h>
 #	include <sys/addrconf.h>
 /* #	include <sys/sysinfo.h> */
 #endif
@@ -210,26 +200,24 @@ struct module;
 	int semctl(int , int , int , void *);
 #endif
 
+/*
 #if defined(IRIX)
 #	define mount __hide_mount
 #endif
+*/
 
 #if defined(OSF1)
 #	include <sys/param.h>
 #endif
 #include <sys/mount.h>
 
-
+/*
 #if defined(IRIX)
 #	undef mount
 	int mount( char *spec, char *dir, int mflag, int fstyp, char *pt, int len );
 #endif
 
-#if defined(HPUX) 
-#   define mknod  	__hide_mknod
-#	define readlink	__hide_readlink
-#	define setpgrp  __hide_setpgrp
-#elif defined(IRIX)
+#if defined(IRIX)
 #	define select	__hide_select
 #	define readlink __hide_readlink
 #	define gethostid __hide_gethostid
@@ -240,6 +228,7 @@ struct module;
 #	define setdomainname __hide_setdomainname
 #	define ptrace __hide_ptrace
 #endif
+*/
 
 #include "condor_fix_unistd.h"
 
@@ -248,14 +237,8 @@ struct module;
 #	undef mount
 #endif
 
-#if defined(HPUX)
-#   undef mknod
-#	undef readlink
-#	undef setpgrp
-	int mknod( const char *path, int mode, dev_t device );
-	int readlink( const char *path, void *buf, int buf_size );
-	int setpgrp(  );
-#elif defined(IRIX)
+
+#if defined(IRIX)
 #	undef select
 #	undef readlink
 #	undef gethostid
@@ -279,8 +262,7 @@ struct module;
 
 
 #if defined(HPUX) 
-#	undef _PROTOTYPES
-#	include <sys/vfs.h>		 /* for struct statfs */
+#include <sys/vfs.h>		 /* for struct statfs */
 #endif
 
 #if !defined(TRUE)
@@ -315,5 +297,11 @@ struct module;
 #	define GETEUID(x)  (__GETEUID(x))
 #endif /* LINUX */
 
+// The following needed for the mapped file table calls.
+// I'm not convinced that signal.h doesn't munge
+// many of the definitions above...
 
+#define _LARGEFILE64_SOURCE
+
+#endif 0
 
