@@ -31,6 +31,7 @@
 #include "starter.h"
 #include "vanilla_proc.h"
 #include "java_proc.h"
+#include "tool_daemon_proc.h"
 #include "mpi_master_proc.h"
 #include "mpi_comrade_proc.h"
 #include "parallel_master_proc.h"
@@ -161,6 +162,33 @@ CStarter::Config()
 	if( ! (FSDomain = param("FILESYSTEM_DOMAIN")) ) {
 		EXCEPT( "FILESYSTEM_DOMAIN not specified in config file." );
 	}
+}
+
+int
+CStarter::KillingOthers (int)
+{
+	bool jobRunning = false;
+	UserProc *job;
+
+	dprintf(D_ALWAYS, "KillingOthers  all jobs.\n");
+	JobList.Rewind();
+	while ((job = JobList.Next()) != NULL) {
+		if ( job->ShutdownGraceful() ) {
+			// job is completely shut down, so delete it
+			JobList.DeleteCurrent();
+			delete job;
+		} else {
+			// job shutdown is pending, so just set our flag
+			jobRunning = true;
+		}
+	}
+	ShuttingDown = TRUE;
+	if (!jobRunning) {
+		dprintf(D_FULLDEBUG, 
+				"Got KillingOthers when no jobs running.\n");
+		return 1;
+	}	
+	return 0;
 }
 
 int
@@ -622,6 +650,28 @@ CStarter::TransferCompleted( FileTransfer *ftrans )
 
 			// Start a timer to update the shadow
 		startUpdateTimer();
+
+
+		// Now, see if we also need to start up a ToolDaemon
+		// for this job.
+		char* tool_daemon_name = NULL;
+		jobAd->LookupString( ATTR_TOOL_DAEMON_CMD,
+							 &tool_daemon_name );
+		if( tool_daemon_name ) {
+				// we need to start one a tool daemon for this job
+			ToolDaemonProc* tool_daemon_proc;
+			tool_daemon_proc = new ToolDaemonProc( jobAd, job->GetJobPid() );
+
+			if( tool_daemon_proc->StartJob() ) {
+				JobList.Append( tool_daemon_proc );
+				dprintf( D_FULLDEBUG, "ToolDaemonProc added to JobList\n");
+			} else {
+				dprintf( D_ALWAYS, "Failed to start ToolDaemonProc!\n");
+				delete tool_daemon_proc;
+			}
+			free( tool_daemon_name );
+		}
+
 		return TRUE;
 	} else {
 		delete job;
@@ -926,10 +976,12 @@ CStarter::Reaper(int pid, int exit_status)
 	dprintf( D_FULLDEBUG, "Reaper: all=%d handled=%d ShuttingDown=%d\n",
 			 all_jobs, handled_jobs, ShuttingDown );
 
+
 	if( handled_jobs == 0 ) {
 		dprintf( D_ALWAYS, "unhandled job exit: pid=%d, status=%d\n",
 				 pid, exit_status );
 	}
+
 	if( all_jobs - handled_jobs == 0 ) {
 			// No more jobs, we can stop updating the shadow
 		if( shadowupdate_tid >= 0 ) {
@@ -949,6 +1001,7 @@ CStarter::Reaper(int pid, int exit_status)
 			bool final_transfer = (requested_exit == false);	
 			priv_state saved_priv = set_user_priv();
 				// this will block
+			dprintf ( D_FULLDEBUG, "transferring files back \n" );
 			ASSERT( filetrans->UploadFiles(true, final_transfer) );	
 
 			set_priv(saved_priv);
