@@ -163,6 +163,8 @@ char	*X509UserProxy	= "x509userproxy";
 char	*GlobusScheduler = "globusscheduler";
 char    *GridShell = "gridshell";
 char	*GlobusRSL = "globusrsl";
+char	*RemoteSchedd = "remote_schedd";
+char	*RemotePool = "remote_pool";
 char	*RendezvousDir	= "rendezvousdir";
 
 char	*FileRemaps = "file_remaps";
@@ -3054,7 +3056,41 @@ SetGlobusParams()
 		InsertJobExpr ( buff );
 	}
 
+	if ( stricmp ( grid_type, "condor" ) == MATCH ) {
 
+		char *remote_schedd;
+
+		if ( !(remote_schedd = condor_param( RemoteSchedd, ATTR_REMOTE_SCHEDD ) ) ) {
+			fprintf(stderr, "\nERROR: Condor grid jobs require a \"%s\" parameter\n",
+					RemoteSchedd );
+			DoCleanup( 0, 0, NULL );
+			exit( 1 );
+		}
+
+		sprintf( buffer, "%s = \"%s\"", ATTR_REMOTE_SCHEDD, remote_schedd );
+		InsertJobExpr (buffer);
+
+		if( (tmp = condor_param(RemotePool, ATTR_REMOTE_POOL)) ) {
+			sprintf( buff, "%s = \"%s\"", ATTR_REMOTE_POOL, tmp );
+			free( tmp );
+			InsertJobExpr ( buff );
+		}
+
+		if ( strstr(remote_schedd,"$$") ) {
+
+			// We need to perform matchmaking on the job in order to find
+			// the RemoteSchedd.
+			sprintf(buffer,"%s = FALSE", ATTR_JOB_MATCHED);
+			InsertJobExpr (buffer);
+			sprintf(buffer,"%s = 0", ATTR_CURRENT_HOSTS);
+			InsertJobExpr (buffer);
+			sprintf(buffer,"%s = 1", ATTR_MAX_HOSTS);
+			InsertJobExpr (buffer);
+		}
+
+		free( remote_schedd );
+
+	}
 
 	//ckireyev: MyProxy-related crap
 	if ((tmp = condor_param (ATTR_MYPROXY_HOST_NAME))) {
