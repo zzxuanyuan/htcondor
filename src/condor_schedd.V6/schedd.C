@@ -4171,48 +4171,70 @@ Scheduler::StartJobHandler()
 
 	shadow_path = strdup( shadow_obj->path() );
 	sh_is_dc = (int)shadow_obj->isDC();
+	bool sh_reads_file = shadow_obj->provides( ATTR_HAS_JOB_AD_FROM_FILE );
 	delete( shadow_obj );
 
 #endif /* ! WIN32 */
 
-	char ipc_dir[_POSIX_PATH_MAX];
-	ipc_dir[0] = '\0';
-	char *send_ad_via_file = param( "IPC_VIA_FILES_DIR" );
-	if ( send_ad_via_file ) {
-		strcat(ipc_dir,send_ad_via_file);
-		char our_ipc_filename[100];
-		sprintf(our_ipc_filename,"%cpid-%u-%d.%d",DIR_DELIM_CHAR,
-			(unsigned int) daemonCore->getpid(),job_id->cluster,job_id->proc);
-		strcat(ipc_dir,our_ipc_filename);
-		free(send_ad_via_file);
-
-		// now write out the job classad to the file
-		ClassAd *job_to_write = GetJobAd(job_id->cluster,job_id->proc);
-
-		priv_state priv = set_condor_priv();
-		FILE *fp_ipc = fopen(ipc_dir,"w");
-		if ( fp_ipc == NULL ) {
-			ipc_dir[0] = '\0';
-		} else {
-			if ( job_to_write->fPrint(fp_ipc) == FALSE ) {
-				ipc_dir[0] = '\0';
+	int* std_fds_p = NULL;
+	int std_fds[3];
+	int pipe_fds[2];
+	pipe_fds[0] = -1;
+	pipe_fds[1] = -1;
+	if( sh_reads_file ) {
+		if( sh_is_dc ) { 
+			if( ! daemonCore->Create_Pipe(pipe_fds) ) {
+				dprintf( D_ALWAYS, 
+						 "ERROR: Can't create DC pipe for writing job "
+						 "ClassAd to the shadow, aborting\n" );
+				tryNextJob();
+				return;
+			} 
+		}
+#ifndef WIN32
+				// non DaemonCore shadows only exist on UNIX anyway,
+				// but they also don't support DC pipes, so do it with
+				// a real pipe() instead.
+		else {
+			if( pipe(pipe_fds) < 0 ) {
+				dprintf( D_ALWAYS, 
+						 "ERROR: Can't create UNIX pipe for writing job "
+						 "ClassAd to the shadow, aborting\n" );
+				tryNextJob();
+				return;
 			}
-			fclose(fp_ipc);
-		}
-		set_priv(priv);
-		if ( ipc_dir[0] == '\0' ) {
-			dprintf(D_ALWAYS,
-				"Unable to write classad into file %s, using socket\n",
-				our_ipc_filename);
-		}
+	    }
+#endif
+			// pipe_fds[0] is the read-end of the pipe.  we want that
+			// setup as STDIN for the shadow.  we'll hold onto the
+			// write end of it so we can write the job ad there.
+		std_fds[0] = pipe_fds[0];
+		std_fds[1] = -1;
+		std_fds[2] = -1;
+		std_fds_p = std_fds;
 	}
 
-	if ( sh_is_dc ) {
-		sprintf(args, "condor_shadow -f %s %s %s %d %d", MyShadowSockName, 
-				mrec->peer, mrec->id, job_id->cluster, job_id->proc);
+	if ( sh_reads_file ) {
+		if( sh_is_dc ) { 
+			sprintf( args, "condor_shadow -f %d.%d %s -", 
+					 job_id->cluster, job_id->proc, MyShadowSockName ); 
+		} else {
+			sprintf( args, "condor_shadow %s %s %s %d %d -", 
+					 MyShadowSockName, mrec->peer, mrec->id,
+					 job_id->cluster, job_id->proc );
+		}
 	} else {
-		sprintf(args, "condor_shadow %s %s %s %d %d %s", MyShadowSockName, 
-				mrec->peer, mrec->id, job_id->cluster, job_id->proc, ipc_dir);
+			// CRUFT: pre-6.7.0 shadows...
+		if ( sh_is_dc ) {
+			sprintf( args, "condor_shadow -f %s %s %s %d %d",
+					 MyShadowSockName, mrec->peer, mrec->id, 
+					 job_id->cluster, job_id->proc );
+		} else {
+				// standard universe shadow 
+			sprintf( args, "condor_shadow %s %s %s %d %d", 
+					 MyShadowSockName, mrec->peer, mrec->id,
+					 job_id->cluster, job_id->proc );
+		}
 	}
 
         /* Get shadow's nice increment: */
@@ -4235,8 +4257,8 @@ Scheduler::StartJobHandler()
 	   it needs too.  This used to be PRIV_UNKNOWN, which was determined
 	   to be definately not what we wanted.  -Ballard 2/3/00 */
 	pid = daemonCore->Create_Process(shadow_path, args, PRIV_ROOT, 1, 
-                                     sh_is_dc, NULL, NULL, FALSE, NULL, NULL, 
-                                     niceness );
+                                     sh_is_dc, NULL, NULL, FALSE, NULL, 
+									 std_fds_p, niceness );
 
 	if (pid == FALSE) {
 		dprintf( D_FAILURE|D_ALWAYS, "CreateProcess(%s, %s) failed\n", 
@@ -4246,16 +4268,71 @@ Scheduler::StartJobHandler()
 	free( shadow_path );
 
 	if( pid < 0 ) {
+		for( int i = 0; i < 2; i++ ) {
+			if( pipe_fds[i] >= 0 ) {
+				if( sh_is_dc ) {
+					daemonCore->Close_Pipe( pipe_fds[i] );
+				} else {
+					close( pipe_fds[i] );
+				}
+			}
+		}
 		mark_job_stopped(job_id);
 		RemoveShadowRecFromMrec(srec);
 		delete srec;
-	} else {
-		dprintf( D_ALWAYS, "Started shadow for job %d.%d on \"%s\", "
-				 "(shadow pid = %d)\n", job_id->cluster, job_id->proc,
-				 mrec->peer, pid );
-		srec->pid=pid;
-		add_shadow_rec(srec);
+		tryNextJob();
+		return;
 	}
+
+	dprintf( D_ALWAYS, "Started shadow for job %d.%d on \"%s\", "
+			 "(shadow pid = %d)\n", job_id->cluster, job_id->proc,
+			 mrec->peer, pid );
+	srec->pid=pid;
+	add_shadow_rec(srec);
+
+		// now that the shadow has been spawned, we need to do
+		// some things with the pipe:
+	if( sh_reads_file ) {
+			// 1) close our copy of the read end of the pipe, so we
+			// don't leak it.  we have to use DC::Close_Pipe() for
+			// this, not just close(), so things work on windoze.
+		if( sh_is_dc ) {
+			daemonCore->Close_Pipe( pipe_fds[0] );
+		} else {
+			close( pipe_fds[0] );
+		}
+
+			// 2) dump out the job ad to the write end, since the
+			// shadow is now alive and can read from the pipe.  we
+			// want to use "true" for the last argument so that we
+			// expand $$ expressions within the job ad to pull things
+			// out of the startd ad before we give it to the shadow. 
+		ClassAd* ad = GetJobAd( job_id->cluster, job_id->proc, true );
+		FILE* fp = fdopen( pipe_fds[1], "w" );
+		ad->fPrint( fp );
+
+			// since this is probably a DC pipe that we have to close
+			// with Close_Pipe(), we can't call fclose() on it.  so,
+			// unless we call fflush(), we won't get any output. :(
+		if( fflush(fp) < 0 ) {
+			dprintf( D_ALWAYS,
+					 "writeJobAd: fflush() failed: %s (errno %d)\n",
+					 strerror(errno), errno );
+		}
+
+			// TODO: if this is an MPI job, we should really write all
+			// the machine ads to the pipe before we close it, but
+			// let's only change one thing at a time for now...
+
+			// Now that all the data is written to the pipe, we can
+			// safely close the other end, too.  
+		if( sh_is_dc ) {
+			daemonCore->Close_Pipe( pipe_fds[1] );
+		} else {
+			close( pipe_fds[1] );
+		}
+	}
+
 	tryNextJob();
 }
 
