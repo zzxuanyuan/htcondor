@@ -377,6 +377,7 @@ int Matchmaker::
 negotiationTime ()
 {
 	ClassAdList startdAds;			// 1. get from collector
+	ClassAdList licenseAds;			// 1a. get from collector
 	ClassAdList startdPvtAds;		// 2. get from collector
 	ClassAdList scheddAds;			// 3. get from collector
 	ClassAdList ClaimedStartdAds;           // 4. get from collector
@@ -401,7 +402,7 @@ negotiationTime ()
 
 	// ----- Get all required ads from the collector
 	dprintf( D_ALWAYS, "Phase 1:  Obtaining ads from collector ...\n" );
-	if( !obtainAdsFromCollector( startdAds, scheddAds, startdPvtAds, ClaimedStartdAds ) )
+	if( !obtainAdsFromCollector( startdAds, licenseAds, scheddAds, startdPvtAds, ClaimedStartdAds ) )
 	{
 		dprintf( D_ALWAYS, "Aborting negotiation cycle\n" );
 		// should send email here
@@ -464,7 +465,7 @@ negotiationTime ()
 				result = MM_RESUME;
 			} else {
 				result = negotiate( scheddName, scheddAddr, scheddPrio, scheddLimit, 
-							startdAds, startdPvtAds);
+							startdAds, licenseAds, startdPvtAds);
 			}
 
 			switch (result)
@@ -528,11 +529,13 @@ comparisonFunction (ClassAd *ad1, ClassAd *ad2, void *m)
 
 bool Matchmaker::
 obtainAdsFromCollector (ClassAdList &startdAds, 
+						ClassAdList &licenseAds, 
 						ClassAdList &scheddAds, 
 						ClassAdList &startdPvtAds,
 						ClassAdList &ClaimedStartdAds)
 {
 	CondorQuery startdQuery    (STARTD_AD);
+	CondorQuery licenseQuery   (LICENSE_AD);
 	CondorQuery scheddQuery    (SUBMITTOR_AD);
 	CondorQuery startdPvtQuery (STARTD_PVT_AD);
 	CondorQuery ClaimedStartdQuery    (STARTD_AD);
@@ -548,6 +551,16 @@ obtainAdsFromCollector (ClassAdList &startdAds,
 	{
 		dprintf (D_ALWAYS, 
 			"Error %s:  failed to fetch startd ads ... aborting\n",
+			getStrQueryResult(result));
+		return false;
+	}
+
+	// 1a.  Fetch ads of license ads
+	dprintf (D_ALWAYS, "  Getting license ads ...\n");
+	if	((result = licenseQuery.fetchAds(licenseAds))!= Q_OK)
+	{
+		dprintf (D_ALWAYS, 
+			"Error %s:  failed to fetch license ads ... aborting\n",
 			getStrQueryResult(result));
 		return false;
 	}
@@ -596,7 +609,7 @@ obtainAdsFromCollector (ClassAdList &startdAds,
 
 int Matchmaker::
 negotiate (char *scheddName, char *scheddAddr, double priority, int scheddLimit,
-			ClassAdList &startdAds, ClassAdList &startdPvtAds)
+			ClassAdList &startdAds, ClassAdList& licenseAds, ClassAdList &startdPvtAds)
 {
 	ReliSock	*sock;
 	int			i;
@@ -699,11 +712,17 @@ negotiate (char *scheddName, char *scheddAddr, double priority, int scheddLimit,
 		//		AND (2) notify the startd; so quit if we got a MM_GOOD_MATCH,
 		//		or if MM_NO_MATCH could be found
 		result = MM_BAD_MATCH;
+		ClassAdList startdOffers;
+		ClassAdList licenseOffers;
 		while (result == MM_BAD_MATCH) 
 		{
+			// clear the offer lists
+			MoveAds(&startdOffers);
+			MoveAds(&licenseOffers);
+
 			// 2e(i).  find a compatible offer
-			if (!(offer=matchmakingAlgorithm(scheddName, request, startdAds,
-											 priority)))
+			if (!(offer=CoMatchmakingAlgorithm(scheddName, request, startdAds, licenseAds,
+									 priority,startdOffers,licenseOffers)))
 			{
 				// no preemptable resource offer either ... 
 				dprintf(D_ALWAYS,
@@ -715,10 +734,11 @@ negotiate (char *scheddName, char *scheddAddr, double priority, int scheddLimit,
 						sock->end_of_message ();
 						sockCache->invalidateSock(scheddAddr);
 						
-						return MM_ERROR;
+						result = MM_ERROR;
+						break;
 					}
 				result = MM_NO_MATCH;
-				continue;
+				break;
 			}
 			else
 			{
@@ -796,40 +816,59 @@ negotiate (char *scheddName, char *scheddAddr, double priority, int scheddLimit,
 					dprintf (D_ALWAYS, "      Could not send rejection\n");
 					sock->end_of_message ();
 					sockCache->invalidateSock(scheddAddr);
-					return MM_ERROR;
+					result = MM_ERROR;
+					break;
 				}
 				result = MM_NO_MATCH;
-				continue;
+				break;
 			}
 
 			// 2e(ii).  perform the matchmaking protocol
 			result = matchmakingProtocol (request, offer, startdPvtAds, sock, 
 					scheddName);
 
+/*
 			// 2e(iii). if the matchmaking protocol failed, do not consider the
 			//			startd again for this negotiation cycle.
 			if (result == MM_BAD_MATCH)
 				startdAds.Delete (offer);
+*/
 
 			// 2e(iv).  if the matchmaking protocol failed to talk to the 
 			//			schedd, invalidate the connection and return
 			if (result == MM_ERROR)
 			{
 				sockCache->invalidateSock (scheddAddr);
-				return MM_ERROR;
+				result = MM_ERROR;
+				break;
 			}
+		}
+
+		// result can be MM_GOOD_MATCH, MM_NO_MATCH, or MM_ERROR
+		// startdOffers and licenseOffers contain the latest offer
+
+		if (result == MM_ERROR) {
+			// move the offers back to their resource lists
+			MoveAds(&startdOffers,&startdAds);
+			MoveAds(&licenseOffers,&licenseAds);
+			return MM_ERROR;
 		}
 
 		// 2f.  if MM_NO_MATCH was found for the request, get another request
 		if (result == MM_NO_MATCH) 
 		{
+			// move the offers back to their resource lists
+			MoveAds(&startdOffers,&startdAds);
+			MoveAds(&licenseOffers,&licenseAds);
 			i--;		// haven't used any resources this cycle
 			continue;
 		}
 
+/*
 		// 2g.  Delete ad from list so that it will not be considered again in 
 		//		this negotiation cycle
 		startdAds.Delete (offer);
+*/
 	}
 
 	// 3.  check if we hit our resource limit
@@ -851,9 +890,134 @@ negotiate (char *scheddName, char *scheddAddr, double priority, int scheddLimit,
 	return MM_RESUME;
 }
 
+//---------------------------------------------------------------------
+
+ClassAd* Matchmaker::
+CoMatchmakingAlgorithm(char* scheddName, ClassAd &request,ClassAdList &startdAds,
+			ClassAdList& licenseAds,double preemptPrio, 
+			ClassAdList& alloc_startdAds, ClassAdList& alloc_licenseAds)
+{
+	if (!FindCoMatch(scheddName,request,startdAds,licenseAds,preemptPrio,alloc_startdAds,alloc_licenseAds)) {
+		return NULL;
+	}
+
+	alloc_startdAds.Open();
+	return startdAds.Next();
+}
+
+//---------------------------------------------------------------------
+
+void Matchmaker::
+MoveAds(ClassAdList* from_list, ClassAdList* to_list)
+{
+	ClassAd* ad;
+	from_list->Open();
+	while ((ad=from_list->Next())) {
+		if (to_list) to_list->Insert(new ClassAd(*ad));
+		from_list->Delete(ad);
+	}
+}
+
+//---------------------------------------------------------------------
+
+static bool printAdToFile(ClassAd& ad, char* JobHistoryFileName) {
+  FILE* LogFile=fopen(JobHistoryFileName,"a");
+  if ( !LogFile ) {
+    dprintf(D_ALWAYS,"ERROR saving to history file; cannot open %s\n",JobHistoryFileName);
+    return false;
+  }
+  if (!ad.fPrint(LogFile)) {
+    dprintf(D_ALWAYS, "ERROR in Scheduler::LogMatchEnd - failed to write clas ad to log file %s\n",JobHistoryFileName);
+    fclose(LogFile);
+    return false;
+  }
+  fprintf(LogFile,"***\n");   // separator
+  fclose(LogFile);
+  return true;
+}
+
+//---------------------------------------------------------------------
+
+bool Matchmaker::
+FindCoMatch(char* scheddName, ClassAd &request,ClassAdList &startdAds,
+			ClassAdList& licenseAds,double preemptPrio, 
+			ClassAdList& alloc_startdAds, ClassAdList& alloc_licenseAds)
+{
+	char req_list[1024];
+	char rank_list[1024];
+	char target_list[1024];
+	ClassAd* ad;
+
+dprintf(D_ALWAYS,"in Matchmaker::FindCoMatch\n");
+
+	if (request.LookupString("RequirementsList",req_list)==0 ||
+		request.LookupString("RankList",rank_list)==0 ||
+		request.LookupString("TargetTypeList",target_list)==0) {
+		ad=matchmakingAlgorithm(scheddName, request, startdAds, preemptPrio);
+		if (!ad) return false;
+		alloc_startdAds.Insert(new ClassAd(*ad));
+		startdAds.Delete(ad);
+		return true;
+	}
+
+	StringList reqs(req_list);
+	reqs.rewind();
+	StringList ranks(rank_list);
+	ranks.rewind();
+	StringList targets(target_list);
+	targets.rewind();
+
+	char* req;
+	ExprTree* req_expr;
+	char* rank;
+	ExprTree* rank_expr;
+	char* target;
+	ClassAdList* in_res_list=&startdAds;
+	ClassAdList* alloc_res_list=&alloc_startdAds;
+	ClassAd new_request(request);
+
+dprintf(D_ALWAYS,"ReqsList=%s, TargetList=%s, RankList=%s\n",req_list,target_list,rank_list);
+int cnt=0;
+//	while ((req=reqs.next()) && (rank=ranks.next()) && (target=targets.next())) {
+	while (1) {
+		req=reqs.next();
+		rank=ranks.next();
+		target=targets.next();
+dprintf(D_ALWAYS,"Req=%s, Target=%s, Rank=%s\n",req,target,rank);
+		req_expr=request.Lookup(req);
+		if (!req_expr) break;
+		new_request.UpdateExpr((char*) ATTR_REQUIREMENTS,req_expr->RArg());
+		rank_expr=request.Lookup(rank);
+		if (!rank_expr) break;
+		new_request.UpdateExpr((char*) ATTR_RANK, rank_expr->RArg());
+		new_request.SetTargetTypeName(target);
+		if (stricmp(target,STARTD_ADTYPE)==0) { 
+dprintf(D_ALWAYS,"Matching against startd ads (%d)\n",startdAds.MyLength());
+			in_res_list=&startdAds;
+			alloc_res_list=&alloc_startdAds;
+		}
+		else {
+dprintf(D_ALWAYS,"Matching against license ads (%d)\n",licenseAds.MyLength());
+			in_res_list=&licenseAds;
+			alloc_res_list=&alloc_licenseAds;
+		}
+
+dprintf(D_ALWAYS,"Trying to find match no %d\n",++cnt);
+printAdToFile(new_request,"xxx");
+		ad=matchmakingAlgorithm(scheddName, new_request, *in_res_list, preemptPrio);
+		if (!ad) return false;
+		alloc_res_list->Insert(new ClassAd(*ad));
+		in_res_list->Delete(ad);
+	}
+
+	return true;
+}
+
+
+//---------------------------------------------------------------------
 
 ClassAd *Matchmaker::
-matchmakingAlgorithm(char *, ClassAd &request,ClassAdList &startdAds,
+matchmakingAlgorithm(char *, ClassAd &request,ClassAdList &resourceAds,
 			double preemptPrio)
 {
 	ClassAd 	*candidate;
@@ -874,8 +1038,8 @@ matchmakingAlgorithm(char *, ClassAd &request,ClassAdList &startdAds,
 	requestRank = request.Lookup (ATTR_RANK);
 
 	// scan the offer ads
-	startdAds.Open ();
-	while ((candidate = startdAds.Next ())) {
+	resourceAds.Open ();
+	while ((candidate = resourceAds.Next ())) {
 		// the candidate offer and request must match
 		if (*candidate == request) {
 			preempting = false;
@@ -968,7 +1132,7 @@ matchmakingAlgorithm(char *, ClassAd &request,ClassAdList &startdAds,
 			// fprintf (stderr, "Failed match\n");
 		}
 	}
-	startdAds.Close ();
+	resourceAds.Close ();
 
 
 	// this is the best match

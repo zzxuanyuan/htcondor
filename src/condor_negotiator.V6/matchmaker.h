@@ -55,9 +55,12 @@ class Matchmaker : public Service
 
 	private:
 		// auxillary functions
-		bool obtainAdsFromCollector (ClassAdList&, ClassAdList&, ClassAdList&, ClassAdList&);	
-		int  negotiate(char*, char*, double, int, ClassAdList&, ClassAdList&);
+		bool obtainAdsFromCollector (ClassAdList&, ClassAdList&, ClassAdList&, ClassAdList&, ClassAdList&);	
+		int  negotiate(char*, char*, double, int, ClassAdList&, ClassAdList&, ClassAdList&);
 		ClassAd *matchmakingAlgorithm(char*,ClassAd&,ClassAdList&,double=-1.0);
+		ClassAd* CoMatchmakingAlgorithm(char*,ClassAd&,ClassAdList&,ClassAdList&,double,ClassAdList&, ClassAdList&);
+		bool FindCoMatch(char*,ClassAd&,ClassAdList&,ClassAdList&,double,ClassAdList&, ClassAdList&);
+		void MoveAds(ClassAdList* from_list, ClassAdList* to_list=NULL);
 		int matchmakingProtocol(ClassAd &,ClassAd *,ClassAdList &,Sock *,char*);
 		void calculateNormalizationFactor (ClassAdList &, double &, double &);
 		char *getCapability (char *, char *, ClassAdList &);
