@@ -29,6 +29,7 @@
 /* Defined in condor_util_lib/condor_adtypes.c */
 
 extern const char STARTD_ADTYPE       [];  /* "Machine"        */
+extern const char STARTD_PVT_ADTYPE   [];  /* "Capability"     */
 extern const char SCHEDD_ADTYPE       [];  /* "Scheduler"      */
 extern const char MASTER_ADTYPE       [];  /* "DaemonMaster"   */
 extern const char CKPT_SRVR_ADTYPE    [];  /* "CkptServer"     */
@@ -38,6 +39,8 @@ extern const char COLLECTOR_ADTYPE    [];  /* "Collector"      */
 extern const char CKPT_FILE_ADTYPE    [];  /* "CkptFile"       */
 extern const char USERAUTH_ADTYPE     [];  /* "Authentication" */
 extern const char LICENSE_ADTYPE      [];  /* "License"        */
+extern const char SUBMITTER_ADTYPE	  [];  /* "Submitter"	   */
+extern const char NETWORK_ADTYPE      [];  /* "Network"	       */
 
 typedef const char *CondorAdType;
 
