@@ -1053,7 +1053,8 @@ Daemon::getCmInfo( const char* subsys )
 
 
 	if( ! host  || !host[0] ) {
-		getCmHostFromConfig ( subsys, host );
+			// this is just a fancy wrapper for param()...
+		host = getCmHostFromConfig( subsys );
 	}
 
 	if( ! host || !host[0]) {
@@ -1162,37 +1163,6 @@ Daemon::getCmInfo( const char* subsys )
 	return true;
 }
 
-bool
-Daemon::getCmHostFromConfig (const char * subsys, char *& host) { 
-	MyString buf;
-
-		// Try the config file for a subsys-specific hostname 
-	buf.sprintf( "%s_HOST", subsys );
-	host = param( buf.Value() );
-	if( host && host[0] ) {
-		dprintf( D_HOSTNAME, "%s is set to \"%s\"\n", buf.Value(), 
-				 host ); 
-		return true;
-	}
-
-		// Try the config file for a subsys-specific IP addr 
-	buf.sprintf ("%s_IP_ADDR", subsys );
-	host = param( buf.Value() );
-	if( host && host[0] ) {
-		dprintf( D_HOSTNAME, "%s is set to \"%s\"\n", buf.Value(), host );
-		return true;
-	}
-
-		// settings should take precedence over this). 
-	host = param( "CM_IP_ADDR" );
-	if( host && host[0] ) {
-		dprintf( D_HOSTNAME, "%s is set to \"%s\"\n", buf.Value(), 
-				 host ); 
-		return true;
-	}
-
-	return false;
-}
 
 bool
 Daemon::initHostname( void )
@@ -1574,3 +1544,50 @@ Daemon::setCmdStr( const char* cmd )
 		_cmd_str = strnewp( cmd );
 	}
 }
+
+
+char*
+getCmHostFromConfig( const char * subsys )
+{ 
+	MyString buf;
+	char* host = NULL;
+
+		// Try the config file for a subsys-specific hostname 
+	buf.sprintf( "%s_HOST", subsys );
+	host = param( buf.Value() );
+	if( host ) {
+		if( host[0] ) {
+			dprintf( D_HOSTNAME, "%s is set to \"%s\"\n", buf.Value(), 
+					 host ); 
+			return host;
+		} else {
+			free( host );
+		}
+	}
+
+		// Try the config file for a subsys-specific IP addr 
+	buf.sprintf ("%s_IP_ADDR", subsys );
+	host = param( buf.Value() );
+	if( host ) {
+		if( host[0] ) {
+			dprintf( D_HOSTNAME, "%s is set to \"%s\"\n", buf.Value(), host );
+			return host;
+		} else {
+			free( host );
+		}
+	}
+
+		// settings should take precedence over this). 
+	host = param( "CM_IP_ADDR" );
+	if( host ) {
+		if(  host[0] ) {
+			dprintf( D_HOSTNAME, "%s is set to \"%s\"\n", buf.Value(), 
+					 host ); 
+			return host;
+		} else {
+			free( host );
+		}
+	}
+	return NULL;
+}
+

@@ -322,12 +322,6 @@ public:
 	bool startCommand( int cmd, Sock* sock,
 			int sec = 0, CondorError* errstack = NULL );
 
-
-		/** Helper to get the *_HOST or *_IP_ADDR param for the appropriate
-			subsystem
-		*/
-	static bool getCmHostFromConfig (const char * subsys, char *& host);
-
 protected:
 	// Data members
 
@@ -520,5 +514,13 @@ protected:
 
 // Prototype to get sinful string.
 char *global_dc_sinful( void );
+
+/** Helper to get the *_HOST or *_IP_ADDR param for the appropriate
+	subsystem.  It just returns whatever param() would.  So, if it's
+	NULL, we failed to find anything.  If it's non-NULL, param()
+	allocated the space you you have to free() the result.
+*/
+char* getCmHostFromConfig( const char * subsys );
+
 
 #endif /* CONDOR_DAEMON_H */
