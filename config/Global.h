@@ -8,7 +8,7 @@
 
 /* SimpleConcat - concatenates two strings.  */
 #ifndef SimpleConcat
-#if (__STDC__ && !defined(UnixCpp)) || defined(AnsiCpp)
+#if (__STDC__ && !defined(UnixCpp)) || defined(AnsiCpp) || defined(__ANSI_CPP__)
 #define SimpleConcat(a,b)a##b
 #else
 #define SimpleConcat(a,b)a/**/b
@@ -22,7 +22,7 @@
 
 /* SimpleConcat3 - concatenates three strings.  */
 #ifndef Concat3
-#if (__STDC__ && !defined(UnixCpp)) || defined(AnsiCpp)
+#if (__STDC__ && !defined(UnixCpp)) || defined(AnsiCpp) || defined(__ANSI_CPP__)
 #define SimpleConcat3(a,b,c)a##b##c
 #else
 #define SimpleConcat3(a,b,c)a/**/b/**/c
@@ -36,7 +36,7 @@
 
 /* SimpleConcat4 - concatenates four strings.  */
 #ifndef SimpleConcat4
-#if (__STDC__ && !defined(UnixCpp)) || defined(AnsiCpp)
+#if (__STDC__ && !defined(UnixCpp)) || defined(AnsiCpp) || defined(__ANSI_CPP__)
 #define SimpleConcat4(a,b,c,d)a##b##c##d
 #else
 #define SimpleConcat4(a,b,c,d)a/**/b/**/c/**/d
@@ -50,7 +50,7 @@
 
 /* SimpleConcat5 - concatenates five strings.  */
 #ifndef SimpleConcat5
-#if (__STDC__ && !defined(UnixCpp)) || defined(AnsiCpp)
+#if (__STDC__ && !defined(UnixCpp)) || defined(AnsiCpp) || defined(__ANSI_CPP__)
 #define SimpleConcat5(a,b,c,d,e)a##b##c##d##e
 #else
 #define SimpleConcat5(a,b,c,d,e)a/**/b/**/c/**/d/**/e
@@ -64,7 +64,7 @@
 
 /* SimpleConcat6 - concatenates six strings.  */
 #ifndef SimpleConcat6
-#if (__STDC__ && !defined(UnixCpp)) || defined(AnsiCpp)
+#if (__STDC__ && !defined(UnixCpp)) || defined(AnsiCpp) || defined(__ANSI_CPP__)
 #define SimpleConcat6(a,b,c,d,e,f)a##b##c##d##e##f
 #else
 #define SimpleConcat6(a,b,c,d,e,f)a/**/b/**/c/**/d/**/e/**/f
