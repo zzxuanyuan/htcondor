@@ -61,6 +61,7 @@
 #define GM_RELEASE_REMOTE_JOB	19
 #define GM_CANCEL_2				20
 #define GM_POLL_ACTIVE			21
+#define GM_STAGE_OUT			22
 
 static char *GMStateNames[] = {
 	"GM_INIT",
@@ -84,7 +85,8 @@ static char *GMStateNames[] = {
 	"GM_HOLD_REMOTE_JOB",
 	"GM_RELEASE_REMOTE_JOB",
 	"GM_CANCEL_2",
-	"GM_POLL_ACTIVE"
+	"GM_POLL_ACTIVE",
+	"GM_STAGE_OUT"
 };
 
 #define JOB_STATE_UNKNOWN				-1
@@ -359,6 +361,7 @@ int CondorJob::doEvaluateState()
 			if ( remoteJobId.cluster == 0 ) {
 				gmState = GM_CLEAR_REQUEST;
 			} else {
+				// TODO: need to ensure that stage-in has been completed
 				gmState = GM_SUBMITTED;
 			}
 			} break;
@@ -448,7 +451,7 @@ int CondorJob::doEvaluateState()
 			} break;
 		case GM_STAGE_IN: {
 			// Now stage files to the remote schedd
-#if 0
+#if 1
 			if ( gahpAd == NULL ) {
 				gahpAd = buildStageInAd();
 			}
@@ -471,7 +474,12 @@ int CondorJob::doEvaluateState()
 				break;
 			}
 			if ( rc == 0 ) {
-				gmState = GM_SUBMITTED;
+				// We go to GM_POLL_ACTIVE here because if we get a status
+				// ad from our CondorResource that's from before the stage
+				// in completed, we'll get confused by the jobStatus of
+				// HELD. By doing an active probe, we'll automatically
+				// ignore any update ads from before the probe.
+				gmState = GM_POLL_ACTIVE;
 			} else {
 				// unhandled error
 				dprintf( D_ALWAYS,
@@ -488,7 +496,7 @@ int CondorJob::doEvaluateState()
 				gmState = GM_CANCEL_1;
 			} else if ( newRemoteStatusAd != NULL ) {
 				if ( newRemoteStatusServerTime <= lastRemoteStatusServerTime ) {
-dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too long!\n",procID.cluster,procID.proc);
+dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too old!\n",procID.cluster,procID.proc);
 					delete newRemoteStatusAd;
 					newRemoteStatusAd = NULL;
 				} else {
@@ -499,7 +507,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too long!\n",procID.cluster,procI
 					reevaluate_state = true;
 				}
 			} else if ( remoteState == COMPLETED ) {
-				gmState = GM_DONE_SAVE;
+				gmState = GM_STAGE_OUT;
 			} else if ( condorState == HELD ) {
 				if ( remoteState == HELD ) {
 					// The job is on hold both locally and remotely. We're
@@ -590,6 +598,23 @@ dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too long!\n",procID.cluster,procI
 			delete status_ads[0];
 			free( status_ads );
 			gmState = GM_SUBMITTED;
+			} break;
+		case GM_STAGE_OUT: {
+			// Now stage files back from the remote schedd
+			rc = gahp->condor_job_stage_out( remoteScheddName, procID );
+			if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
+				 rc == GAHPCLIENT_COMMAND_PENDING ) {
+				break;
+			}
+			if ( rc == 0 ) {
+				gmState = GM_DONE_SAVE;
+			} else {
+				// unhandled error
+				dprintf( D_ALWAYS,
+						 "(%d.%d) condor_job_stage_out() failed: %s\n",
+						 procID.cluster, procID.proc, gahp->getErrorString() );
+				gmState = GM_CANCEL_1;
+			}
 			} break;
 		case GM_DONE_SAVE: {
 			// Report job completion to the schedd.
@@ -966,6 +991,10 @@ ClassAd *CondorJob::buildSubmitAd()
 		ATTR_MIN_HOSTS,
 		ATTR_JOB_PRIO,
 		ATTR_JOB_IWD,
+		ATTR_SHOULD_TRANSFER_FILES,
+		ATTR_WHEN_TO_TRANSFER_OUTPUT,
+		ATTR_TRANSFER_INPUT_FILES,
+		ATTR_TRANSFER_OUTPUT_FILES,
 		NULL };		// list must end with a NULL
 
 	submit_ad = new ClassAd;
@@ -977,7 +1006,8 @@ ClassAd *CondorJob::buildSubmitAd()
 		}
 	}
 
-	submit_ad->Assign( ATTR_JOB_STATUS, IDLE );
+	submit_ad->Assign( ATTR_JOB_STATUS, HELD );
+	submit_ad->Assign( ATTR_JOB_HOLD_REASON, "Spooling input data files" );
 submit_ad->Assign( ATTR_JOB_UNIVERSE, CONDOR_UNIVERSE_VANILLA );
 
 	submit_ad->Assign( ATTR_Q_DATE, now );
@@ -1001,7 +1031,6 @@ submit_ad->Assign( ATTR_JOB_UNIVERSE, CONDOR_UNIVERSE_VANILLA );
 	submit_ad->Assign( ATTR_ENTERED_CURRENT_STATUS, now  );
 	submit_ad->Assign( ATTR_JOB_NOTIFICATION, NOTIFY_NEVER );
 	submit_ad->Assign( ATTR_JOB_LEAVE_IN_QUEUE, true );
-	submit_ad->Assign( ATTR_SHOULD_TRANSFER_FILES, false );
 
 	expr.sprintf( "%s = (%s >= %s) =!= True && CurrentTime > %s + %d",
 				  ATTR_PERIODIC_REMOVE_CHECK, ATTR_STAGE_IN_FINISH,
@@ -1035,7 +1064,8 @@ ClassAd *CondorJob::buildStageInAd()
 	ClassAd *stage_in_ad;
 
 		// Base the stage in ad on our own job ad
-	stage_in_ad = new ClassAd( *ad );
+//	stage_in_ad = new ClassAd( *ad );
+	stage_in_ad = buildSubmitAd();
 
 	stage_in_ad->Assign( ATTR_CLUSTER_ID, remoteJobId.cluster );
 	stage_in_ad->Assign( ATTR_PROC_ID, remoteJobId.proc );
