@@ -29,6 +29,7 @@
 #	define _LARGEFILE64_SOURCE
 #endif
 
+#include "condor_fix_sys_utsname.h"
 #include "condor_fix_sys_stat.h"
 
 #include <sys/types.h>

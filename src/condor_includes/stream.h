@@ -237,6 +237,7 @@ public:
 	int code(struct timezone &);
 	int code(struct timeval &);
 	int code(struct rlimit &);
+	int code(struct utsname &);
 #endif // !defined(WIN32)
 
 #if HAS_64BIT_STRUCTS
@@ -272,6 +273,7 @@ public:
 	int code(struct timezone *x)	{ return code(*x); }
 	int code(struct timeval *x)		{ return code(*x); }
 	int code(struct rlimit *x)		{ return code(*x); }
+	int code(struct utsname *x)		{ return code(*x); }
 #endif // !defined(WIN32)
 
 #if HAS_64BIT_STRUCTS
