@@ -57,6 +57,7 @@ char* job_keyword = NULL;
 FILE* CA_PATH = NULL;
 int cluster_id = -1;
 int proc_id = -1;
+int timeout = -1;
 bool needs_id = true;
 VacateType vacate_type = VACATE_GRACEFUL;
 
@@ -117,23 +118,23 @@ main( int argc, char *argv[] )
 	switch( cmd ) {
 	case CA_REQUEST_CLAIM:
 		fillRequestAd( &ad );
-		rval = startd.requestClaim( CLAIM_COD, &ad, &reply );
+		rval = startd.requestClaim( CLAIM_COD, &ad, &reply, timeout );
 		break;
 	case CA_ACTIVATE_CLAIM:
 		fillActivateAd( &ad );
-		rval = startd.activateClaim( &ad, &reply );
+		rval = startd.activateClaim( &ad, &reply, timeout );
 		break;
 	case CA_SUSPEND_CLAIM:
-		rval = startd.suspendClaim( &reply );
+		rval = startd.suspendClaim( &reply, timeout );
 		break;
 	case CA_RESUME_CLAIM:
-		rval = startd.resumeClaim( &reply );
+		rval = startd.resumeClaim( &reply, timeout );
 		break;
 	case CA_DEACTIVATE_CLAIM:
-		rval = startd.deactivateClaim( vacate_type, &reply );
+		rval = startd.deactivateClaim( vacate_type, &reply, timeout );
 		break;
 	case CA_RELEASE_CLAIM:
-		rval = startd.releaseClaim( vacate_type, &reply );
+		rval = startd.releaseClaim( vacate_type, &reply, timeout );
 		break;
 	}
 
@@ -633,6 +634,17 @@ parseArgv( int argc, char* argv[] )
 				// have their own methods to make it easier to
 				// understand what the hell's going on. :)
 				// // // // // // // // // // // // // // // // // //
+
+		case 't':
+			if( strncmp("-timeout", *tmp, strlen(*tmp)) ) {
+				invalid( *tmp );
+			} 
+			tmp++;
+			if( ! (tmp && *tmp) ) {
+				another( "-timeout" );
+			}
+			timeout = atoi( *tmp );
+			break;
 
 		case 'p':
 			parsePOpt( tmp[0], tmp[1] );
