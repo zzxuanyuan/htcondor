@@ -47,6 +47,7 @@
 #include "globusjob.h"
 #include "condor_config.h"
 #include "condor_parameters.h"
+#include "string_list.h"
 
 
 // GridManager job states
@@ -258,6 +259,78 @@ const char *rsl_stringify( const char *string )
 	return rsl_stringify( src );
 }
 
+static bool merge_file_into_classad(const char * filename, ClassAd * ad)
+{
+	if( ! ad ) {
+		// TODO dprintf?
+		dprintf(D_ALWAYS, "Internal error: "
+			"merge_file_into_classad called without ClassAd\n");
+		return false;
+	}
+	if( ! filename ) {
+		// TODO dprintf?
+		dprintf(D_ALWAYS, "Internal error: "
+			"merge_file_into_classad called without filename\n");
+		return false;
+	}
+	if( ! strlen(filename) ) {
+		// TODO dprintf?
+		dprintf(D_ALWAYS, "Internal error: "
+			"merge_file_into_classad called with empty filename\n");
+		return false;
+	}
+
+	/* TODO: Is this the right solution?  I'm basically reimplementing
+	   a subset of the ClassAd reading code.  Perhaps load into a ClassAd
+	   and scan that? */
+	{
+		StringList SAVE_ATTRS("RemoteSysCpu,RemoteUserCpu,ImageSize,JobState,"
+			"NumPids,ExitBySignal,ExitCode");
+
+		MyString full_filename;
+		{
+			char buff[2048];
+			// TODO: Check return code of LookupString
+			// TODO: Is there a LookupString option that will return
+			//       arbitrary length strings (that I may need to free)?
+			ad->LookupString( ATTR_JOB_IWD, buff, sizeof(buff) );
+			full_filename = buff;
+			full_filename += "/";
+			full_filename += filename;
+		}
+		
+		FILE * fp = fopen(full_filename.GetCStr(), "r");
+		if( ! fp ) {
+			// TODO dprintf?
+			dprintf(D_ALWAYS, "Unable to read output ClassAd at %s.  "
+				"Error number %d (%s).  "
+				"Results will not be integrated into history.\n",
+				filename, errno, strerror(errno));
+			return false;
+		}
+
+		MyString line;
+		while( line.readLine(fp) ) {
+			line.chomp();
+			int n = line.find(" = ");
+			if(n == -1) {
+				dprintf( D_ALWAYS,
+					"Failed to parse \"%s\", ignoring.", line.GetCStr());
+				continue;
+			}
+			MyString attr = line.Substr(0, n);
+
+			dprintf( D_ALWAYS, "FILE: %s\n", line.GetCStr() );
+			if( ! ad->Insert(line.GetCStr()) ) {
+				dprintf( D_ALWAYS, "Failed to insert \"%s\" into ClassAd, "
+						 "ignoring.\n", line.GetCStr() );
+			}
+		}
+		fclose( fp );
+	}
+
+	return true;
+}
 
 int GlobusJob::probeInterval = 300;		// default value
 int GlobusJob::submitInterval = 300;	// default value
@@ -327,6 +400,16 @@ GlobusJob::GlobusJob( ClassAd *classad, GlobusResource *resource )
 	retryStdioSize = true;
 	gahp_proxy_id_set = false;
 	communicationTimeoutTid = -1;
+	ad = classad;
+
+	useGridShell = false;
+
+	{
+		int use_gridshell;
+		if( classad->LookupBool(ATTR_USE_GRID_SHELL, use_gridshell) ) {
+			useGridShell = use_gridshell;
+		}
+	}
 
 	evaluateStateTid = daemonCore->Register_Timer( TIMER_NEVER,
 								(TimerHandlercpp)&GlobusJob::doEvaluateState,
@@ -335,8 +418,6 @@ GlobusJob::GlobusJob( ClassAd *classad, GlobusResource *resource )
 	gahp.setNotificationTimerId( evaluateStateTid );
 	gahp.setMode( GahpClient::normal );
 	gahp.setTimeout( gahpCallTimeout );
-
-	ad = classad;
 
 	myProxy = NULL;
 	buff[0] = '\0';
@@ -1139,6 +1220,11 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 					condorState = COMPLETED;
 					UpdateJobAdInt( ATTR_JOB_STATUS, condorState );
 				}
+
+				if(useGridShell) {
+					merge_file_into_classad(outputClassadFilename.GetCStr(), ad);
+				}
+
 				done = addScheddUpdateAction( this, UA_UPDATE_JOB_AD,
 											  GM_DONE_SAVE );
 				if ( !done ) {
@@ -2103,6 +2189,11 @@ MyString *GlobusJob::buildSubmitRSL()
 	char *attr_value = NULL;
 	char *rsl_suffix = NULL;
 
+	if(useGridShell) {
+		dprintf(D_FULLDEBUG, "(%d.%d) Using gridshell\n",
+			procID.cluster, procID.proc );
+	}
+
 	if ( ad->LookupString( ATTR_GLOBUS_RSL, &rsl_suffix ) &&
 						   rsl_suffix[0] == '&' ) {
 		*rsl = rsl_suffix;
@@ -2160,15 +2251,6 @@ MyString *GlobusJob::buildSubmitRSL()
 	}
 	*rsl += "(executable=";
 
-	int use_gridshell = 0;
-	if( ! ad->LookupBool(ATTR_USE_GRID_SHELL, use_gridshell) ) {
-		use_gridshell = 0;
-	}
-	if(use_gridshell) {
-		dprintf(D_ALWAYS, "(%d.%d) Using gridshell\n",
-			procID.cluster, procID.proc );
-	}
-
 	int transfer_executable = 0;
 	if( ! ad->LookupBool( ATTR_TRANSFER_EXECUTABLE, transfer ) ) {
 		transfer_executable = 1;
@@ -2181,7 +2263,7 @@ MyString *GlobusJob::buildSubmitRSL()
 	gridshell_log_filename += '.';
 	gridshell_log_filename += procID.proc;
 
-	if( use_gridshell ) {
+	if( useGridShell ) {
 		// We always transfer the gridshell executable.
 
 		/* TODO XXX adesmet: I'm probably stomping all over the GRAM 1.4
@@ -2217,6 +2299,7 @@ MyString *GlobusJob::buildSubmitRSL()
 		}
 
 		output_classad_filename.sprintf("%s.OUT", input_classad_filename.GetCStr());
+		outputClassadFilename = output_classad_filename;
 
 
 	} else if ( transfer_executable ) {
@@ -2257,7 +2340,7 @@ MyString *GlobusJob::buildSubmitRSL()
 		attr_value = NULL;
 	}
 
-	if(use_gridshell) {
+	if(useGridShell) {
 		/* for gridshell, pass the gridshell the filename of the input
 		   classad.  The real arguments will be in the classad, so we
 		   don't need to pass them. */
@@ -2276,7 +2359,7 @@ MyString *GlobusJob::buildSubmitRSL()
 		attr_value = NULL;
 	}
 
-	if ( !use_gridshell && ad->LookupString(ATTR_JOB_INPUT, &attr_value) 
+	if ( !useGridShell && ad->LookupString(ATTR_JOB_INPUT, &attr_value) 
 		 && *attr_value && strcmp(attr_value, NULL_FILE) ) {
 		*rsl += ")(stdin=";
 		if ( !ad->LookupBool( ATTR_TRANSFER_INPUT, transfer ) || transfer ) {
@@ -2295,7 +2378,7 @@ MyString *GlobusJob::buildSubmitRSL()
 		attr_value = NULL;
 	}
 
-	if( use_gridshell ) {
+	if( useGridShell ) {
 		streamOutput = false;
 		stageOutput = false;
 		if( localOutput ) {
@@ -2324,7 +2407,7 @@ MyString *GlobusJob::buildSubmitRSL()
 		}
 	}
 
-	if( use_gridshell ) {
+	if( useGridShell ) {
 		streamError = false;
 		stageError = false;
 		if( localError ) {
@@ -2355,7 +2438,7 @@ MyString *GlobusJob::buildSubmitRSL()
 
 	bool has_input_files = ad->LookupString(ATTR_TRANSFER_INPUT_FILES, &attr_value) && *attr_value;
 
-	if ( ( use_gridshell && transfer_executable ) || has_input_files) {
+	if ( ( useGridShell && transfer_executable ) || has_input_files) {
 		if ( jmVersion < GRAM_V_1_6 && jmVersion != GRAM_V_UNKNOWN ) {
 			// the jobmanager doesn't support file transfers.
 			dprintf(D_ALWAYS,
@@ -2370,7 +2453,7 @@ MyString *GlobusJob::buildSubmitRSL()
 		if( attr_value ) {
 			filelist.initializeFromString( attr_value );
 		}
-		if( use_gridshell ) {
+		if( useGridShell ) {
 			filelist.append(input_classad_filename.GetCStr());
 			if(transfer_executable) {
 				filelist.append(executable_path.GetCStr());
@@ -2410,7 +2493,7 @@ MyString *GlobusJob::buildSubmitRSL()
 	}
 
 	if ( ( ad->LookupString(ATTR_TRANSFER_OUTPUT_FILES, &attr_value) &&
-		   *attr_value ) || stageOutput || stageError || use_gridshell) {
+		   *attr_value ) || stageOutput || stageError || useGridShell) {
 		if ( jmVersion < GRAM_V_1_6 && jmVersion != GRAM_V_UNKNOWN ) {
 			// the jobmanager doesn't support file transfers.
 			dprintf(D_ALWAYS,
@@ -2425,7 +2508,7 @@ MyString *GlobusJob::buildSubmitRSL()
 		if( attr_value ) {
 			filelist.initializeFromString( attr_value );
 		}
-		if( use_gridshell ) {
+		if( useGridShell ) {
 				// If we're the grid shell, we want to append some
 				// files to  be transfered back: the final status
 				// ClassAd from the gridshell, plus the STDOUT and
@@ -2490,7 +2573,7 @@ MyString *GlobusJob::buildSubmitRSL()
 		attr_value = NULL;
 	}
 
-	if ( use_gridshell ) {
+	if ( useGridShell ) {
 		*rsl += ")(environment=";
 		*rsl += "(CONDOR_CONFIG 'only_env')";
 		*rsl += "(_CONDOR_GRIDSHELL_DEBUG 'D_FULLDEBUG')";

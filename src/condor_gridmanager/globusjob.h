@@ -160,6 +160,9 @@ class GlobusJob : public Service
 	int wantRematch;
 	int numGlobusSubmits;
 
+	MyString outputClassadFilename;
+	bool useGridShell;
+
  protected:
 	bool callbackRegistered;
 	int connect_failure_counter;
