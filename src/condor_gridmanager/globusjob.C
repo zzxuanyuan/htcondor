@@ -29,17 +29,8 @@
 - When job finishes, copy return classad file (or parts of it) into local real
   classad.
 - Log retrieval:
-	- gridshell_debug = D_FULLDEBUG D_SECONDS D_COMMAND ...
-	- gridshell_log = filename
-	- the gridmanager would just turn around and set the _condor_STARTER_DEBUG
-	  environment variable with the same list, and the starter wouldn't have to
-	  try to get it from the config file (which in general won't exist at the
-	  remote side).
-	- the only other thing the gridmanager would have to do is add
-	  "_condor_STARTER_LOG=filename" to the environment, and add "filename" to
-	  the list of output files to transfer back.
-	- if the user didn't specify these things in the submit file, we could
-	  just add reasonable defaults for ourselves.
+	- propagating things from the submit file to allow the user to
+	  specify (it's all hard coded now).
 
 */
 
@@ -180,6 +171,10 @@ static bool write_classad_input_file( ClassAd *classad,
 		out_filename_full.sprintf("%s/%s",
 			buff, out_filename.GetCStr());
 	}
+
+		// Fix the universe, too, since the starter is going to expect
+		// "VANILLA", not "GLOBUS"...
+	tmpclassad.InsertOrUpdate( "JobUniverse = 5" );
 
 	dprintf(D_FULLDEBUG,"(%d.%d) Writing ClassAd to file %s\n",
 		procID.cluster, procID.proc, out_filename.GetCStr());
@@ -2166,7 +2161,6 @@ MyString *GlobusJob::buildSubmitRSL()
 	*rsl += "(executable=";
 
 	int use_gridshell = 0;
-	ad->dPrint(D_ALWAYS);
 	if( ! ad->LookupBool(ATTR_GLOBUS_GRID_SHELL, use_gridshell) ) {
 		use_gridshell = 0;
 	}
@@ -2182,6 +2176,11 @@ MyString *GlobusJob::buildSubmitRSL()
 
 	MyString input_classad_filename;
 	MyString output_classad_filename;
+	MyString gridshell_log_filename = "condor_gridshell.log.";
+	gridshell_log_filename += procID.cluster;
+	gridshell_log_filename += '.';
+	gridshell_log_filename += procID.proc;
+
 	if( use_gridshell ) {
 		// We always transfer the gridshell executable.
 
@@ -2262,12 +2261,13 @@ MyString *GlobusJob::buildSubmitRSL()
 		/* for gridshell, pass the gridshell the filename of the input
 		   classad.  The real arguments will be in the classad, so we
 		   don't need to pass them. */
-		*rsl += ")(arguments=";
+		*rsl += ")(arguments=-gridshell -job-input-ad ";
 		*rsl += input_classad_filename;
-		*rsl += " ";
+		*rsl += " -job-output-ad ";
 		*rsl += output_classad_filename;
 
-	} else if ( ad->LookupString(ATTR_JOB_ARGUMENTS, &attr_value) && *attr_value ) {
+	} else if ( ad->LookupString(ATTR_JOB_ARGUMENTS, &attr_value)
+				&& *attr_value ) {
 		*rsl += ")(arguments=";
 		*rsl += attr_value;
 	}
@@ -2276,8 +2276,8 @@ MyString *GlobusJob::buildSubmitRSL()
 		attr_value = NULL;
 	}
 
-	if ( ad->LookupString(ATTR_JOB_INPUT, &attr_value) && *attr_value &&
-		 strcmp( attr_value, NULL_FILE ) ) {
+	if ( !use_gridshell && ad->LookupString(ATTR_JOB_INPUT, &attr_value) 
+		 && *attr_value && strcmp(attr_value, NULL_FILE) ) {
 		*rsl += ")(stdin=";
 		if ( !ad->LookupBool( ATTR_TRANSFER_INPUT, transfer ) || transfer ) {
 			buff = "$(GRIDMANAGER_GASS_URL)";
@@ -2295,42 +2295,60 @@ MyString *GlobusJob::buildSubmitRSL()
 		attr_value = NULL;
 	}
 
-	if ( streamOutput ) {
-		*rsl += ")(stdout=";
-		buff.sprintf( "$(GRIDMANAGER_GASS_URL)%s", localOutput );
-		*rsl += rsl_stringify( buff.Value() );
+	if( use_gridshell ) {
+		streamOutput = false;
+		stageOutput = false;
+		if( localOutput ) {
+			free( localOutput );
+			localOutput = NULL;
+		}
 	} else {
-		if ( stageOutput ) {
-			*rsl += ")(stdout=$(GLOBUS_CACHED_STDOUT)";
+		if ( streamOutput ) {
+			*rsl += ")(stdout=";
+			buff.sprintf( "$(GRIDMANAGER_GASS_URL)%s", localOutput );
+			*rsl += rsl_stringify( buff.Value() );
 		} else {
-			if ( ad->LookupString(ATTR_JOB_OUTPUT, &attr_value) &&
-				 *attr_value && strcmp( attr_value, NULL_FILE ) ) {
-				*rsl += ")(stdout=";
-				*rsl += rsl_stringify( attr_value );
-			}
-			if ( attr_value != NULL ) {
-				free( attr_value );
-				attr_value = NULL;
+			if ( stageOutput ) {
+				*rsl += ")(stdout=$(GLOBUS_CACHED_STDOUT)";
+			} else {
+				if ( ad->LookupString(ATTR_JOB_OUTPUT, &attr_value) &&
+					 *attr_value && strcmp( attr_value, NULL_FILE ) ) {
+					*rsl += ")(stdout=";
+					*rsl += rsl_stringify( attr_value );
+				}
+				if ( attr_value != NULL ) {
+					free( attr_value );
+					attr_value = NULL;
+				}
 			}
 		}
 	}
 
-	if ( streamError ) {
-		*rsl += ")(stderr=";
-		buff.sprintf( "$(GRIDMANAGER_GASS_URL)%s", localError );
-		*rsl += rsl_stringify( buff.Value() );
+	if( use_gridshell ) {
+		streamError = false;
+		stageError = false;
+		if( localError ) {
+			free( localError );
+			localError = NULL;
+		}
 	} else {
-		if ( stageError ) {
-			*rsl += ")(stderr=$(GLOBUS_CACHED_STDERR)";
+		if ( streamError ) {
+			*rsl += ")(stderr=";
+			buff.sprintf( "$(GRIDMANAGER_GASS_URL)%s", localError );
+			*rsl += rsl_stringify( buff.Value() );
 		} else {
-			if ( ad->LookupString(ATTR_JOB_ERROR, &attr_value) &&
-				 *attr_value && strcmp( attr_value, NULL_FILE ) ) {
-				*rsl += ")(stderr=";
-				*rsl += rsl_stringify( attr_value );
-			}
-			if ( attr_value != NULL ) {
-				free( attr_value );
-				attr_value = NULL;
+			if ( stageError ) {
+				*rsl += ")(stderr=$(GLOBUS_CACHED_STDERR)";
+			} else {
+				if ( ad->LookupString(ATTR_JOB_ERROR, &attr_value) &&
+					 *attr_value && strcmp( attr_value, NULL_FILE ) ) {
+					*rsl += ")(stderr=";
+					*rsl += rsl_stringify( attr_value );
+				}
+				if ( attr_value != NULL ) {
+					free( attr_value );
+					attr_value = NULL;
+				}
 			}
 		}
 	}
@@ -2348,17 +2366,21 @@ MyString *GlobusJob::buildSubmitRSL()
 			errorString = "Remote jobmanager doesn't support file transfer";
 			return NULL;
 		}
-		StringList filelist( attr_value, "," );
-		{
-			char * tmp = filelist.print_to_string();
-			dprintf(D_ALWAYS, "File list from %s\n", attr_value);
-			dprintf(D_ALWAYS, "               %s\n", tmp);
-			free(tmp);
+		StringList filelist( NULL, "," );
+		if( attr_value ) {
+			filelist.initializeFromString( attr_value );
 		}
-		if(use_gridshell) {
+		if( use_gridshell ) {
 			filelist.append(input_classad_filename.GetCStr());
 			if(transfer_executable) {
 				filelist.append(executable_path.GetCStr());
+			}
+			char* tmp = NULL;
+			ad->LookupString( ATTR_JOB_INPUT, &tmp );
+			if( tmp ) {
+				filelist.append( tmp );
+				free( tmp );
+				tmp = NULL;
 			}
 		}
 		if ( !filelist.isEmpty() ) {
@@ -2399,10 +2421,33 @@ MyString *GlobusJob::buildSubmitRSL()
 			errorString = "Remote jobmanager doesn't support file transfer";
 			return NULL;
 		}
-		StringList filelist( attr_value, "," );
+		StringList filelist( NULL, "," );
+		if( attr_value ) {
+			filelist.initializeFromString( attr_value );
+		}
 		if( use_gridshell ) {
+				// If we're the grid shell, we want to append some
+				// files to  be transfered back: the final status
+				// ClassAd from the gridshell, plus the STDOUT and
+				// STDERR for the job itself (if defined).
+
 			ASSERT( output_classad_filename.GetCStr() );
-			filelist.append(output_classad_filename.GetCStr());
+			filelist.append( output_classad_filename.GetCStr() );
+			filelist.append( gridshell_log_filename.GetCStr() );
+
+			char* tmp = NULL;
+			ad->LookupString( ATTR_JOB_OUTPUT, &tmp );
+			if( tmp ) {
+				filelist.append( tmp );
+				free( tmp );
+				tmp = NULL;
+			}
+			ad->LookupString( ATTR_JOB_ERROR, &tmp );
+			if( tmp ) {
+				filelist.append( tmp );
+				free( tmp );
+				tmp = NULL;
+			}
 		}
 		if ( !filelist.isEmpty() || stageOutput || stageError ) {
 			char *filename;
@@ -2445,7 +2490,15 @@ MyString *GlobusJob::buildSubmitRSL()
 		attr_value = NULL;
 	}
 
-	if ( ad->LookupString(ATTR_JOB_ENVIRONMENT, &attr_value) && *attr_value ) {
+	if ( use_gridshell ) {
+		*rsl += ")(environment=";
+		*rsl += "(CONDOR_CONFIG 'only_env')";
+		*rsl += "(_CONDOR_GRIDSHELL_DEBUG 'D_FULLDEBUG')";
+		*rsl += "(_CONDOR_GRIDSHELL_LOG '";
+		*rsl += gridshell_log_filename.GetCStr();
+		*rsl += "')";
+	} else if ( ad->LookupString(ATTR_JOB_ENVIRONMENT, &attr_value)
+				&& *attr_value ) {
 		Environ env_obj;
 		env_obj.add_string(attr_value);
 		char **env_vec = env_obj.get_vector();
@@ -2486,6 +2539,7 @@ MyString *GlobusJob::buildSubmitRSL()
 		free( rsl_suffix );
 	}
 
+	dprintf( D_ALWAYS, "Final RSL: %s\n", rsl->GetCStr() );
 	return rsl;
 }
 
