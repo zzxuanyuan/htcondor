@@ -32,6 +32,7 @@
 #include "condor_constants.h"
 #include "condor_jobqueue.h"
 #include "proto.h"
+#include <values.h>
 
 static char *_FileName_ = __FILE__;     /* Used by EXCEPT (see except.h)     */
 
@@ -39,6 +40,15 @@ static char *_FileName_ = __FILE__;     /* Used by EXCEPT (see except.h)     */
 
 void set_resource_limits()
 {
+	rlim_t lim;
+	int free_blocks = calc_free_disk_blocks();
+	unsigned long core_lim = (free_blocks - SLOP) * 1024;
+	if( core_lim > MAXINT ) {
+		lim = MAXINT;
+	} else {
+		lim = (int) core_lim;
+	}
+
 	limit( RLIMIT_CPU, RLIM_INFINITY );
 	limit( RLIMIT_FSIZE, RLIM_INFINITY );
 	limit( RLIMIT_DATA, RLIM_INFINITY );
@@ -48,7 +58,7 @@ void set_resource_limits()
 	limit( RLIMIT_STACK, RLIM_INFINITY );
 
 	limit( RLIMIT_RSS, RLIM_INFINITY );
-	limit( RLIMIT_CORE, (calc_free_disk_blocks() - SLOP) * 1024 );
+	limit( RLIMIT_CORE, lim );
 
 	dprintf( D_ALWAYS, "Done setting resource limits\n" );
 }
