@@ -93,6 +93,9 @@ class MPIShadow : public BaseShadow
 		 */
 	void reconnect( void );
 
+	bool supportsReconnect( void );
+
+
 		/** Shut down properly.  We have MPI-specific logic in this
 			version which decides if we're really ready to shutdown or
 			not.  Once it's going to really shutdown, it just calls

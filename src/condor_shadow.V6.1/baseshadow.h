@@ -108,6 +108,10 @@ class BaseShadow : public Service
 		 */
 	virtual void reconnect( void ) = 0;
 
+		/** Does the shadow support reconnect for this job? 
+		 */
+	virtual bool supportsReconnect( void ) = 0;
+
 		/**	Called by any part of the shadow that finally decides the
 			reconnect has completely failed, we should give up, try
 			one last time to release the claim, write a UserLog event

@@ -82,6 +82,8 @@ class UniShadow : public BaseShadow
 		 */
 	void reconnect( void );
 
+	bool supportsReconnect( void );
+
 		/**
 		 */
 	int handleJobRemoval(int sig);

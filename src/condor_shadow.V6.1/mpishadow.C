@@ -148,6 +148,13 @@ MPIShadow::reconnect( void )
 }
 
 
+bool 
+MPIShadow::supportsReconnect( void )
+{
+	return false;
+}
+
+
 void
 MPIShadow::spawn( void )
 {

@@ -169,6 +169,15 @@ UniShadow::reconnect( void )
 }
 
 
+bool 
+UniShadow::supportsReconnect( void )
+{
+		// For the UniShadow, the answer to this depends on our remote
+		// starter.  If that supports it, so do we.  If not, we don't. 
+	return remRes->supportsReconnect();
+}
+
+
 void
 UniShadow::logExecuteEvent( void )
 {
