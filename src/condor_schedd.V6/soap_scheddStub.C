@@ -55,6 +55,23 @@ static int trans_timer_id = -1;
 template class HashTable<MyString, Job *>;
 HashTable<MyString, Job *> jobs = HashTable<MyString, Job *>(1024, MyStringHash, rejectDuplicateKeys);
 
+static bool
+convert_FileInfoList_to_Array(List<FileInfo> & list,
+                              struct condorSchedd__FileInfoArray & array)
+{
+  array.__size = list.Number();
+  array.__ptr = (struct condorSchedd__FileInfo *) calloc(array.__size, sizeof(struct condorSchedd__FileInfo));
+
+  FileInfo *info;
+  list.Rewind();
+  for (int i = 0; list.Next(info); i++) {
+    array.__ptr[i].name = strdup(info->name.GetCStr());
+    array.__ptr[i].size = (int) info->size;
+  }
+
+  return true;
+}
+
 static bool valid_transaction_id(int id)
 {
   if (current_trans_id == id || 0 == id ) {

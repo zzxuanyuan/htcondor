@@ -203,24 +203,6 @@ convert_adlist_to_adStructArray(struct soap *s, List<ClassAd> *adList,
 }
 
 static bool
-convert_FileInfoList_to_Array(List<FileInfo> & list,
-                              struct condorSchedd__FileInfoArray & array)
-{
-  array.__size = list.Number();
-  array.__ptr = (struct condorSchedd__FileInfo *) calloc(array.__size, sizeof(struct condorSchedd__FileInfo));
-
-  FileInfo *info;
-  list.Rewind();
-  for (int i = 0; list.Next(info); i++) {
-    array.__ptr[i].name = strdup(info->name.GetCStr());
-    array.__ptr[i].size = (int) info->size;
-  }
-
-  return true;
-}
-
-
-static bool
 convert_adStruct_to_ad(struct soap *s,
                        ClassAd *curr_ad,
                        struct condorCore__ClassAdStruct *ad_struct)
