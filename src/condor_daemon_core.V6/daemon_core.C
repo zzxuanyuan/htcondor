@@ -5107,6 +5107,9 @@ DaemonCore::getAuthBitmask ( char * methods ) {
 		} else if ( !stricmp( tmp, "CLAIMTOBE" ) ) {
 			dprintf ( D_SECURITY, "GETAUTHBITMASK: added CAUTH_CLAIMTOBE\n");
 			retval |= CAUTH_CLAIMTOBE;
+		} else if ( !stricmp( tmp, "ANONYMOUS" ) ) {
+			dprintf ( D_SECURITY, "GETAUTHBITMASK: added CAUTH_ANONYMOUS\n");
+			retval |= CAUTH_ANONYMOUS;
 		}
 	}
 

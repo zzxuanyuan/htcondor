@@ -26,6 +26,7 @@
 
 #include "condor_auth.h"
 #include "condor_auth_claim.h"
+#include "condor_auth_anonymous.h"
 #include "condor_auth_fs.h"
 #include "condor_auth_sspi.h"
 #include "condor_auth_x509.h"
@@ -144,6 +145,10 @@ int Authentication::authenticate( char *hostAddr, int clientFlags )
 #endif /* !defined(WIN32) */
     case CAUTH_CLAIMTOBE:
         auth = new Condor_Auth_Claim(mySock);
+      break;
+      
+    case CAUTH_ANONYMOUS:
+        auth = new Condor_Auth_Anonymous(mySock);
       break;
       
     default:
@@ -467,6 +472,7 @@ void Authentication::setupEnv( char *hostAddr )
         //should only be called by clients. 
         
         canUseFlags |= (int) CAUTH_CLAIMTOBE;
+        canUseFlags |= (int) CAUTH_ANONYMOUS;
 #if defined(WIN32)
         canUseFlags |= (int) CAUTH_NTSSPI;
 #else
@@ -629,6 +635,12 @@ int Authentication::selectAuthenticationType( int clientCanUse )
 	    {
 	      dprintf ( D_SECURITY, "SELECTAUTHENTICATIONTYPE: picking '%s'\n", tmp);
 	      retval = CAUTH_CLAIMTOBE;
+	      break;
+	    }
+        if ( ( clientCanUse & CAUTH_ANONYMOUS ) && !stricmp( tmp, "ANONYMOUS" ) )
+	    {
+	      dprintf ( D_SECURITY, "SELECTAUTHENTICATIONTYPE: picking '%s'\n", tmp);
+	      retval = CAUTH_ANONYMOUS;
 	      break;
 	    }
     }
