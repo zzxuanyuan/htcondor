@@ -385,8 +385,7 @@ _condor_prestart( int syscall_mode )
 {
 	MyImage.SetMode( syscall_mode );
 
-		// Initialize open files table
-	InitFileState();
+	_condor_file_table_init();
 
 		// Install initial signal handlers
 	_install_signal_handler( SIGTSTP, (SIG_HANDLER)Checkpoint );
@@ -1530,10 +1529,10 @@ Checkpoint( int sig, int code, void *scp )
 #endif
 		if( sig==SIGTSTP ) {
 			// Suspend all operations and save files
-			SuspendFileState();
+			_condor_file_table_suspend();
 		} else {
 			// A periodic safety checkpoint
-			CheckpointFileState();
+			_condor_file_table_checkpoint();
 		}
 
 		MyImage.Save();
@@ -1579,7 +1578,7 @@ Checkpoint( int sig, int code, void *scp )
 			} else {
 				SetSyscalls( SYS_LOCAL | SYS_MAPPED );
 			}
-			ResumeFileState();
+			_condor_file_table_resume();
 			dprintf( D_ALWAYS, "Done restoring files state\n" );
 			int mode = get_ckpt_mode(0);
 			if (mode > 0) {
