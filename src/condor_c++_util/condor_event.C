@@ -3636,7 +3636,7 @@ JobReconnectFailedEvent::JobReconnectFailedEvent()
 {
 	eventNumber = ULOG_JOB_RECONNECT_FAILED;
 	reason = NULL;
-	startd_addr = NULL;
+	startd_name = NULL;
 }
 
 
@@ -3645,8 +3645,8 @@ JobReconnectFailedEvent::~JobReconnectFailedEvent()
 	if( reason ) {
 		delete [] reason;
 	}
-	if( startd_addr ) {
-		delete [] startd_addr;
+	if( startd_name ) {
+		delete [] startd_name;
 	}
 }
 
@@ -3668,15 +3668,15 @@ JobReconnectFailedEvent::setReason( const char* reason_str )
 
 
 void
-JobReconnectFailedEvent::setStartdAddr( const char* startd )
+JobReconnectFailedEvent::setStartdName( const char* name )
 {
-	if( startd_addr ) {
-		delete[] startd_addr;
-		startd_addr = NULL;
+	if( startd_name ) {
+		delete[] startd_name;
+		startd_name = NULL;
 	}
-	if( startd ) {
-		startd_addr = strnewp( startd );
-		if( !startd_addr ) {
+	if( name ) {
+		startd_name = strnewp( name );
+		if( !startd_name ) {
 			EXCEPT( "ERROR: out of memory!\n" );
 		}
 	}
@@ -3690,19 +3690,19 @@ JobReconnectFailedEvent::writeEvent( FILE *file )
 		EXCEPT( "JobReconnectFailedEvent::writeEvent() called without "
 				"reason" );
 	}
-	if( ! startd_addr ) {
+	if( ! startd_name ) {
 		EXCEPT( "JobReconnectFailedEvent::writeEvent() called without "
-				"startd_addr" );
+				"startd_name" );
 	}
 
-	if( fprintf(file, "Job reconnect fatal error\n") < 0 ) {
+	if( fprintf(file, "Job reconnection failed\n") < 0 ) {
 		return 0;
 	}
 	if( fprintf(file, "    %.8191s\n", reason) < 0 ) {
 		return 0;
 	}
-	if( fprintf(file, "    Reconnecting to %s impossible: "
-				"restarting job\n", startd_addr) < 0 ) {
+	if( fprintf(file, "    Can not reconnect to %s, rescheduling job\n", 
+				startd_name) < 0 ) {
 		return 0;
 	}
 	return( 1 );
@@ -3724,9 +3724,9 @@ JobReconnectFailedEvent::toClassAd( void )
 		EXCEPT( "JobReconnectFailedEvent::toClassAd() called without "
 				"reason" );
 	}
-	if( ! startd_addr ) {
+	if( ! startd_name ) {
 		EXCEPT( "JobReconnectFailedEvent::toClassAd() called without "
-				"startd_addr" );
+				"startd_name" );
 	}
 
 	ClassAd* myad = ULogEvent::toClassAd();
@@ -3735,7 +3735,7 @@ JobReconnectFailedEvent::toClassAd( void )
 	}
 	
 	MyString line;
-	line.sprintf( "StartdAddr = \"%s\"", startd_addr );
+	line.sprintf( "StartdName = \"%s\"", startd_name );
 	if( !myad->Insert(line.Value()) ) {
 		return NULL;
 	}
@@ -3743,7 +3743,7 @@ JobReconnectFailedEvent::toClassAd( void )
 	if( !myad->Insert(line.Value()) ) {
 		return NULL;
 	}
-	line = "EventDescription = \"Job reconnect impossible: restarting job\"";
+	line = "EventDescription=\"Job reconnect impossible: rescheduling job\"";
 	if( !myad->Insert(line.Value()) ) {
 		return NULL;
 	}
@@ -3771,12 +3771,12 @@ JobReconnectFailedEvent::initFromClassAd( ClassAd* ad )
 		mallocstr = NULL;
 	}
 
-	ad->LookupString( "StartdAddr", &mallocstr );
+	ad->LookupString( "StartdName", &mallocstr );
 	if( mallocstr ) {
-		if( startd_addr ) {
-			delete [] startd_addr;
+		if( startd_name ) {
+			delete [] startd_name;
 		}
-		startd_addr = strnewp( mallocstr );
+		startd_name = strnewp( mallocstr );
 		free( mallocstr );
 		mallocstr = NULL;
 	}

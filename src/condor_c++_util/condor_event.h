@@ -1463,12 +1463,12 @@ public:
 		/// @return pointer to our copy of the reason, or NULL if not set
 	const char* getReason() const {return reason;};
 
-		/// stores a copy of the string in our "startd_addr" member
-	void setStartdAddr( char const *startd );
-	const char* getStartdAddr() const {return startd_addr;}
+		/// stores a copy of the string in our "startd_name" member
+	void setStartdName( char const *name );
+	const char* getStartdName() const {return startd_name;}
 
 private:
-	char *startd_addr;
+	char *startd_name;
 	char *reason;
 };
 
