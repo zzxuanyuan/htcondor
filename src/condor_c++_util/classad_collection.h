@@ -21,7 +21,7 @@ int partitionHashFcn( const MyString &, int );
 ///--------------------------------------------------------------------------
 
 //@author Adiel Yoaz
-//@include: classad_collection_types.h
+///@include: classad_collection_types.h
 
 /** This is the repository main class. Using the methods of this class
     the user can create and delete class-ads, change their attributes,
@@ -51,8 +51,8 @@ public:
 
   /** Constructor (initialization). It reads the log file and initializes
       the class-ads (that are read from the log file) in memory.
-    @param filename the name of the log file. If a NULL value is passed, no log file
-           will be used.
+    @param filename the name of the log file. If a NULL value is passed, no 
+		log file will be used.
     @param rank The rank expression for the collection
     @return nothing
   */
@@ -60,9 +60,10 @@ public:
 
   /** Constructor (initialization). It reads the log file and initializes
       the class-ads (that are read from the log file) in memory.
-    @param filename the name of the log file. If a NULL value is passed, no log file
-           will be used.
-    @param rank a pointer to the expression tree which will be used to rank the collection
+    @param filename the name of the log file. If a NULL value is passed, no 
+		log file will be used.
+    @param rank a pointer to the expression tree which will be used to rank 
+		the collection
     @return nothing
   */
   ClassAdCollection(const char* filename=NULL, ExprTree* rank=NULL);
@@ -113,12 +114,12 @@ public:
   */
   //@{
 
-  /** Insert a new class-ad with the specified key.
-      The supplied class-ad will be inserted directly into the collection hierarchy,
-      overwriting any previous class-ad with the same key.
+  /** Insert a new class-ad with the specified key.  The supplied class-ad will 
+    	be inserted directly into the collection hierarchy, overwriting any 
+		previous class-ad with the same key.
       @param key The class-ad's key.
       @param ad The class-ad to put into the repository. The caller should not
-             access this pointer to update the class-ad after calling this method.
+        access this pointer to update the class-ad after calling this method.
       @return nothing
   */
   void NewClassAd(const char* key, ClassAd* ad);
@@ -131,9 +132,9 @@ public:
 
   /** Update a class-ad in the collection hierarchy.
       @param key The class-ad's key.
-      @param ad The ad that represents the update. All the attributes from this ad
-             will be inserted into the class-ad with the specified key. This pointer
-             should not be accessed by the user after calling this method.
+      @param ad The ad that represents the update. All the attributes from this 
+	  	ad will be inserted into the class-ad with the specified key. This 
+		pointer should not be accessed by the user after calling this method.
       @return nothing.
   */
   void UpdateClassAd(const char* key, ClassAd* ad);
@@ -169,8 +170,8 @@ public:
       A constraint collection always contains the subset of ads from the parent,
 	  which match the constraint.
       @param ParentCoID The ID of the parent collection.
-      @param Rank The rank expression in string format. Determines how the ads will be ordered 
-	  	in the collection.
+      @param Rank The rank expression in string format. Determines how the ads 
+	  	will be ordered in the collection.
       @param Constraint sets the constraint expression for this collection.
       @return the ID of the new collection, or -1 in case of failure.
   */
@@ -181,8 +182,8 @@ public:
       A constraint collection always contains the subset of ads from the parent,
 	  which match the constraint.
       @param ParentCoID The ID of the parent collection.
-      @param Rank The rank expression as an expression tree. Determines how the ads will be ordered 
-	  	in the collection.
+      @param Rank The rank expression as an expression tree. Determines how the 
+	  	ads will be ordered in the collection.
       @param Constraint sets the constraint expression for this collection.
       @return the ID of the new collection, or -1 in case of failure.
   */
@@ -192,14 +193,14 @@ public:
   /** Create a partition parent collection, as a child of another collection.
       A partiton collection defines a partition based on a set of attributes. 
 	  For each distinct set of values (corresponding to these attributes), a new
-      child partition collection will be created, which will contain all the class-ads 
-	  from the parent collection that have these values. The partition parent
-	  collection itself doesn't hold any class-ads, only its children do (the 
-	  iteration methods for getting child collections can be used to retrieve 
-	  them).
+      child partition collection will be created, which will contain all the 
+	  class-ads from the parent collection that have these values. The partition
+	  parent collection itself doesn't hold any class-ads, only its children do 
+	  (the iteration methods for getting child collections can be used to 
+	  retrieve them).
       @param ParentCoID The ID of the parent collection.
-      @param Rank The rank expression in string format. Determines how the ads will be ordered 
-	  	in the child collections.
+      @param Rank The rank expression in string format. Determines how the ads 
+	  	will be ordered in the child collections.
       @param AttrList The set of attribute names used to define the partition.
       @return the ID of the new collection, or -1 in case of failure.
   */
@@ -208,24 +209,25 @@ public:
   /** Create a partition parent collection, as a child of another collection.
       A partiton collection defines a partition based on a set of attributes. 
 	  For each distinct set of values (corresponding to these attributes), a new
-      child partition collection will be created, which will contain all the class-ads 
-	  from the parent collection that have these values. The partition parent
-	  collection itself doesn't hold any class-ads, only its children do (the 
-	  iteration methods for getting child collections can be used to retrieve 
-	  them).
+      child partition collection will be created, which will contain all the 
+	  class-ads from the parent collection that have these values. The partition
+	  parent collection itself doesn't hold any class-ads, only its children do 
+	  (the iteration methods for getting child collections can be used to 
+	  retrieve them).
       @param ParentCoID The ID of the parent collection.
-      @param Rank The rank expression as an expression tree. Determines how the ads will be ordered 
-	  	in the child collections.
+      @param Rank The rank expression as an expression tree. Determines how the 
+	  	ads will be ordered in the child collections.
       @param AttrList The set of attribute names used to define the partition.
       @return the ID of the new collection, or -1 in case of failure.
   */
   int CreatePartition(int ParentCoID, ExprTree* Rank, StringSet& AttrList);
 
-  /** Find the partition of a class-ad. The method returns the ID of the child partition
-      that would contain the specified class-ad.
+  /** Find the partition of a class-ad. The method returns the ID of the child 
+    	partition that would contain the specified class-ad.
       @param ParenCoID the ID of the partition parent collection.
       @param representative a pointer to the class-ad that will be checked.
-      @return the ID of the child partition collection that would contain the ad.
+      @return the ID of the child partition collection that would contain the 
+	  	ad.
   */
   int FindPartition(int ParentCoID, ClassAd *representative );
 
@@ -241,21 +243,24 @@ public:
   */
   int Size(int CoID=0);
 
-  /** Get the rank value of a class-ad in a specified collection. This method can also be
-      used to check if the class-ad is a member of the collection.
+  /** Get the rank value of a class-ad in a specified collection. This method 
+    	can also be used to check if the class-ad is a member of the collection.
       @param key the key of the class-ad.
       @param rank_value the numeric rank of the class-ad in the collection.
       @param CoID The ID of the collection (default is the root collection).
-      @return true if the class-ad with the specified key is in the collection, false otherwise.
+      @return true if the class-ad with the specified key is in the collection, 
+	  	false otherwise.
   */
   bool GetRankValue(char* key, float& rank_value, int CoID=0);
 
   //@}
 
   //------------------------------------------------------------------------
-  /**@name Iteration methods
-  */
+  //@name Iteration methods
   //@{
+
+  bool InitializeIterator( int CoID, CollContentIterator& i );
+  bool InitializeIterator( int CoID, CollChildIterator& i );
 
   /** Start iterations on all the class-ad keys in a collection.
       @param CoID the ID of the collection. The default is the root collection.
@@ -268,17 +273,26 @@ public:
       @param CoID the ID of the collection. The default is the root collection.
       @return true on success, false if there are no more keys.
   */
+  void StartIterateAllCollections();
+
+  /** Get the next collection ID
+      @param CoID The ID of the next collection (output parameter).
+      @return true on success, false otherwise.
+  */
+  bool IterateAllCollections(int& CoID);
   bool IterateClassAds( char* key, int CoID=0 );
 
   /** Start iterations on child collections of a specified collection.
-      @param ParentCoID The ID of the parent of the collections to be iterated on.
+      @param ParentCoID The ID of the parent of the collections to be iterated 
+	  	on.
       @return true on success, false otherwise.
   */
   bool StartIterateChildCollections(int ParentCoID=0);
 
   /** Get the next child of the specified parent collection.
       @param CoID The ID of the next collection (output parameter).
-      @param ParentCoID The ID of the parent of the collections to be iterated on.
+      @param ParentCoID The ID of the parent of the collections to be iterated 
+	  	on.
       @return true on success, false otherwise.
   */
   bool IterateChildCollections(int& CoID, int ParentCoID=0);
@@ -291,8 +305,8 @@ public:
   //@{
 
   /** Find out a collection's type (explicit, constraint, ...).
-      @return the type of the specified collection: 0=root, 1=constraint, 2=partition parent,
-              3=partition child.
+      @return the type of the specified collection: 
+	  	0=root, 1=constraint, 2=partition parent, 3=partition child.
   */
   int GetCollectionType(int CoID);
 
