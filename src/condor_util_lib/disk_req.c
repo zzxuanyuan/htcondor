@@ -32,8 +32,6 @@ static char *_FileName_ = __FILE__;     /* Used by EXCEPT (see except.h)     */
 static int ckpt_wanted( PROC *proc );
 static int ickpt_size( PROC *proc );
 
-char *gen_ckpt_name( const char * dir, int cluster, int proc, int subproc );
-
 extern char *Spool;
 
 /*
@@ -50,10 +48,6 @@ PROC	*proc;
 	int	answer;
 
 	dprintf( D_FULLDEBUG, "Entering calc_disk_needed()\n" );
-#if defined(V5)
-	dprintf( D_FULLDEBUG, "Version 5 - using ickpt_size\n" );
-	answer = ickpt_size( proc );
-#else
 	if( ckpt_wanted(proc) ) {
 		dprintf( D_FULLDEBUG, "Checkpointing wanted - using triple rule\n" );
 		answer =  3 * proc->image_size;
@@ -61,7 +55,6 @@ PROC	*proc;
 		dprintf( D_FULLDEBUG, "Checkpointing not wanted - using ickpt_size\n" );
 		answer = ickpt_size( proc );
 	}
-#endif
 	dprintf( D_FULLDEBUG, "Returning %d\n", answer );
 	return answer;
 }
@@ -99,7 +92,7 @@ ickpt_size( proc )
 PROC	*proc;
 {
 	struct stat	buf;
-	char	*file_name;
+	char	file_name[_POSIX_PATH_MAX];
 	static	last_cluster = -1;
 	static	last_size;
 
@@ -107,7 +100,7 @@ PROC	*proc;
 		return last_size;
 	}
 
-	file_name = gen_ckpt_name( Spool, proc->id.cluster, ICKPT, 0 );
+	(void)sprintf( file_name, "%s/job%06d.ickpt", Spool, proc->id.cluster );
 	if( stat(file_name,&buf) < 0 ) {
 		EXCEPT( "stat(%s,0x%x)", file_name, &buf );
 	}

@@ -1,11 +1,6 @@
-#if !defined(OSF1) || defined(__GNUC__)
+#if !defined(OSF1)
 #	define _POSIX_SOURCE
 #endif
-
-#if defined(OSF1) && defined(__GNUC__)
-	typedef struct  _quad { int val[2]; } quad;
-#endif
-
 
 #include "condor_common.h"
 #define MODE_T unsigned int	/* use 32 bits on all platforms */
@@ -19,62 +14,21 @@
 #include "condor_constants.h"
 #include "condor_sys.h"
 #include "condor_jobqueue.h"
-#if defined(OSF1) && defined(__GNUC__)
-#	include "condor_fdset.h"
-#endif
 #include "xdr_lib.h"
 
 #if defined(SUNOS41)
 #	include "condor_fdset.h"
 #endif
 
-#if defined(OSF1)
+#if defined(ULTRIX43) || defined(OSF1)
 #	include <sys/param.h>
 #	include <sys/mount.h>
-#elif defined(ULTRIX43)
-#	include <sys/param.h>
 #else
 #	include <sys/mount.h>
 #endif
 
-#if defined(HPUX9)
-#	include <time.h>
-#	include <rpc/rpc.h>
-#	include <errno.h>
-#	include <nfs/export.h>
-#	include <nfs/nfs.h> /* for definition of fhandle_t */
-#   include <sys/vfs.h>      /* for struct statfs */
-#endif
-
-#if defined(OSF1)
-#	define _AES_SOURCE
+#if defined(OSF1) || defined(SUNOS41)
 #	include <sys/poll.h>
-#endif
-
-#if defined(SUNOS41)
-#	include <sys/poll.h>
-#endif
-
-#if	defined(ULTRIX43)
-#   include <errno.h>
-#   include <nfs/nfs.h>
-#	include "_condor_fix_types.h"
-#endif
-
-#if defined(AIX32)
-	struct fsid {
-		long    val[2];
-	};
-	typedef struct fsid fsid_t;
-#	include <sys/statfs.h>		 /* for struct statfs */
-#endif
-
-#if defined(AIX32)
-#	define FHSIZE      32
-	struct fhandle {
-		char x[FHSIZE];
-	};
-	typedef struct fhandle fhandle_t;
 #endif
 
 #include "syscall_param_sizes.h"

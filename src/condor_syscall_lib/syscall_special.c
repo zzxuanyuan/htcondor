@@ -1,31 +1,3 @@
-/* 
-** Copyright 1994 by Miron Livny, and Mike Litzkow
-** 
-** Permission to use, copy, modify, and distribute this software and its
-** documentation for any purpose and without fee is hereby granted,
-** provided that the above copyright notice appear in all copies and that
-** both that copyright notice and this permission notice appear in
-** supporting documentation, and that the names of the University of
-** Wisconsin and the copyright holders not be used in advertising or
-** publicity pertaining to distribution of the software without specific,
-** written prior permission.  The University of Wisconsin and the 
-** copyright holders make no representations about the suitability of this
-** software for any purpose.  It is provided "as is" without express
-** or implied warranty.
-** 
-** THE UNIVERSITY OF WISCONSIN AND THE COPYRIGHT HOLDERS DISCLAIM ALL
-** WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES
-** OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE UNIVERSITY OF
-** WISCONSIN OR THE COPYRIGHT HOLDERS BE LIABLE FOR ANY SPECIAL, INDIRECT
-** OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS
-** OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
-** OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE
-** OR PERFORMANCE OF THIS SOFTWARE.
-** 
-** Author:  Mike Litzkow
-**
-*/ 
-
 /*******************************************************************
   System call stubs which need special treatment and cannot be generated
   automatically go here...
@@ -35,30 +7,30 @@
 	/* Temporary - need to get real PSEUDO definitions brought in... */
 #define PSEUDO_getwd	1
 
-#include "syscall_numbers.h"
 #include "condor_syscall_mode.h"
 #include "condor_constants.h"
 #include "file_table_interf.h"
 #include <stdio.h>
 #include <limits.h>
 #include <unistd.h>
-#include "_condor_fix_types.h"
-#include <sys/time.h>
+#include <sys/types.h>
 #include <sys/resource.h>
 #include <sys/uio.h>
 
-static int fake_readv( int fd, const struct iovec *iov, int iovcnt );
-static int fake_writev( int fd, const struct iovec *iov, int iovcnt );
-
 /*
-  The process should exit making the status value available to its parent
-  (the starter) - can only be a local operation.
+  In remote mode the process should send the exit status to the shadow,
+  then do a local exit() - so it really goes away.
 */
 void
 _exit( status )
 int status;
 {
-	(void) syscall( SYS_exit, status );
+	if( LocalSysCalls() ) {
+		(void) syscall( SYS_exit, status );
+	} else {
+		(void)REMOTE_syscall( SYS_exit, status );
+		(void) syscall( SYS_exit, status );
+	}
 }
 
 /*
@@ -78,7 +50,7 @@ chdir( const char *path )
 	if( LocalSysCalls() ) {
 		rval = syscall( SYS_chdir, path );
 	} else {
-		rval = REMOTE_syscall( CONDOR_chdir, path );
+		rval = REMOTE_syscall( SYS_chdir, path );
 	}
 
 		/* If it fails we can stop here */
@@ -86,62 +58,26 @@ chdir( const char *path )
 		return rval;
 	}
 
+		/* Need to keep Condor's version of the CWD up to date */
 	if( MappingFileDescriptors ) {
-		store_working_directory();
-	}
-
-	return rval;
-}
-
-int
-fchdir( int fd )
-{
-	int rval, real_fd;
-
-	if( MappingFileDescriptors() ) {
-		if( (real_fd = MapFd(fd)) < 0 ) {
-			return -1;
+			/* Get the information */
+		if( LocalSysCalls() ) {
+			status = getwd( tbuf );
+		} else {
+			status = REMOTE_syscall( PSEUDO_getwd, tbuf );
 		}
-	}
 
-		/* Try the system call */
-	if( LocalSysCalls() ) {
-		rval = syscall( SYS_fchdir, real_fd );
-	} else {
-		rval = REMOTE_syscall( CONDOR_fchdir, real_fd );
-	}
+			/* These routines return 0 on error! */
+		if( status == 0 ) {
+			fprintf( stderr, tbuf );
+			abort();
+		}
 
-		/* If it fails we can stop here */
-	if( rval < 0 ) {
-		return rval;
-	}
-
-	if( MappingFileDescriptors ) {
-		store_working_directory();
+			/* Ok - everything worked */
+		Set_CWD( tbuf );
 	}
 
 	return rval;
-}
-
-/*
-Keep Condor's version of the CWD up to date
-*/
-store_working_directory()
-{
-	char	tbuf[ _POSIX_PATH_MAX ];
-	int		status;
-
-		/* Get the information */
-	status = getwd( tbuf );
-
-		/* This routine returns 0 on error! */
-	if( status == 0 ) {
-		fprintf( stderr, tbuf );
-		abort();
-	}
-
-		/* Ok - everything worked */
-	Set_CWD( tbuf );
 }
 
 /*
@@ -176,7 +112,7 @@ getrusage( int who, struct rusage *rusage )
 		syscall( SYS_getrusage, who, rusage);
 
 			/* Get accumulated rusage from previous runs */
-		rval = REMOTE_syscall( CONDOR_getrusage, who, &accum_rusage );
+		rval = REMOTE_syscall( SYS_getrusage, who, &accum_rusage );
 
 			/* Sum the two. */
 		update_rusage(rusage, &accum_rusage);
@@ -192,8 +128,8 @@ getrusage( int who, struct rusage *rusage )
   therefore provide a "quick and dirty" substitute here.  This may
   not always be correct, but it will get you by in most cases.
 */
-int
-isatty( int filedes )
+isatty( filedes )
+int		filedes;
 {
 		/* Stdin, stdout, and stderr are redirected to normal
 		** files for all condor jobs.
@@ -217,13 +153,8 @@ isatty( int filedes )
   We don't handle readv directly in remote system calls.  Instead we
   break the readv up into a series of individual reads.
 */
-#if defined(HPUX9)
-ssize_t
-readv( int fd, const struct iovec *iov, size_t iovcnt )
-#else
 int
 readv( int fd, struct iovec *iov, int iovcnt )
-#endif
 {
 	int rval;
 	int user_fd;
@@ -248,12 +179,12 @@ readv( int fd, struct iovec *iov, int iovcnt )
   by breaking it up into a series of remote reads.
 */
 static int
-fake_readv( int fd, const struct iovec *iov, int iovcnt )
+fake_readv( int fd, struct iovec *iov, int iovcnt )
 {
 	register int i, rval = 0, cc;
 
 	for( i = 0; i < iovcnt; i++ ) {
-		cc = REMOTE_syscall( CONDOR_read, fd, iov->iov_base, iov->iov_len );
+		cc = REMOTE_syscall( SYS_read, fd, iov->iov_base, iov->iov_len );
 		if( cc < 0 ) {
 			return cc;
 		}
@@ -273,13 +204,8 @@ fake_readv( int fd, const struct iovec *iov, int iovcnt )
   We don't handle writev directly in remote system calls.  Instead we
   break the writev up into a series of individual writes.
 */
-#if defined(HPUX9)
-ssize_t
-writev( int fd, const struct iovec *iov, size_t iovcnt )
-#else
 int
 writev( int fd, struct iovec *iov, int iovcnt )
-#endif
 {
 	int rval;
 	int user_fd;
@@ -304,12 +230,12 @@ writev( int fd, struct iovec *iov, int iovcnt )
   by breaking it up into a series of remote writes.
 */
 static int
-fake_writev( int fd, const struct iovec *iov, int iovcnt )
+fake_writev( int fd, struct iovec *iov, int iovcnt )
 {
 	register int i, rval = 0, cc;
 
 	for( i = 0; i < iovcnt; i++ ) {
-		cc = REMOTE_syscall( CONDOR_write, fd, iov->iov_base, iov->iov_len );
+		cc = REMOTE_syscall( SYS_write, fd, iov->iov_base, iov->iov_len );
 		if( cc < 0 ) {
 			return cc;
 		}
@@ -323,28 +249,4 @@ fake_writev( int fd, const struct iovec *iov, int iovcnt )
 	}
 
 	return rval;
-}
-
-#if defined(SUNOS41)
-#	include <sys/termio.h>
-#	include <sys/mtio.h>
-#endif
-
-int
-ioctl( int fd, int request, caddr_t arg )
-{
-	switch( request ) {
-#if defined(SUNOS41)
-	  case MTIOCGET:
-		fprintf( stderr, "Got mag tape request - reply -1\n" );
-		return -1;
-	  case TCGETA:
-		fprintf( stderr, "Got terminal IO request - reply -1\n" );
-		return -1;
-#endif
-	  default:
-		fprintf( stderr, "Got (unknown) ioctl 0x%x on fd %d - reply -1\n",
-															request, fd );
-		return -1;
-	}
 }

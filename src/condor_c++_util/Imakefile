@@ -1,35 +1,15 @@
 SRC_DIR = $(SRC_TREE)/condor_c++_util
 
-C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) -DNEW_PROC
+C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) -DNEW_PROC -DALLOC_DEBUG
 
 CFLAGS = $(STD_C_FLAGS) -DNEW_PROC
 
-#if IS_SPARC_SUNOS41
-SYSPARAM = sysparam_sun
-#endif
-#if IS_ALPHA_OSF1
-SYSPARAM = sysparam_osf1
-#endif
-#if IS_MIPS_ULTRIX42 || IS_MIPS_ULTRIX43
-SYSPARAM = sysparam_ultrix
-#endif
-#if IS_R6000_AIX32
-SYSPARAM=sysparam_aix
-#endif
-#if IS_HPPAR_HPUX9
-SYSPARAM = sysparam_hpux
-#endif
-
-
 SRC = state_machine_driver.C event_handler.C name_tab.C NON_POSIX.select.C \
 		NON_POSIX.set_prog_env.C alarm.C string_set.C proc_obj.C alloc.C \
-		filter.C directory.C my_hostname.C file_lock.C disk.C up_down.C \
-		user_log.C environ.C sysparam_main.C $(SYSPARAM).C
-
+		filter.C directory.C my_hostname.C file_lock.C disk.C up_down.C
 OBJ = state_machine_driver.o event_handler.o name_tab.o NON_POSIX.select.o \
 		NON_POSIX.set_prog_env.o alarm.o string_set.o proc_obj.o alloc.o \
-		filter.o directory.o my_hostname.o file_lock.o disk.o up_down.o \
-		environ.o sysparam_main.o $(SYSPARAM).o
+		filter.o directory.o my_hostname.o file_lock.o disk.o up_down.o
 
 #if IS_R6000_AIX32
 TEST_LIBS = ../condor_util_lib/util_lib.a cplus_lib.a /usr/lib/libbsd.a
@@ -43,17 +23,7 @@ library_target( cplus_lib.a,$(OBJ))
 
 c_plus_target(test_locks,test_locks.o,$(TEST_LIBS))
 
-test: test.o user_log.o
-	$(CC) $(CFLAGS) -Wl,-u,_fpdata_size -o test test.o user_log.o $(TEST_LIBS)
-
-foo: foo.o user_log.o
-	$(CC) $(CFLAGS) -Wl,-u,_fpdata_size -o foo foo.o user_log.o $(TEST_LIBS)
-
 tags_target($(SRC),$(NULL))
 depend_target($(SRC))
 
 release:
-
-foo.o: user_log.h
-test.o: user_log.h
-user_log.o: user_log.h

@@ -1,12 +1,8 @@
 CFLAGS = $(STD_C_FLAGS)
 
 
-#if HAS_FORTRAN
-#	if IS_V5
-TEST_SUITE_F = test_suite_F.V5
-#	else
-TEST_SUITE_F = test_suite_F
-#	endif
+#if !HAS_FORTRAN
+#define test_suite_F
 #endif
 
 #if !HAS_X
@@ -26,14 +22,14 @@ PVM_LIBRARY = pvmd
 #	define Programs \
 		scripts tools shadow.V5 starter.V5 startd \
 		schedd kbdd  negotiator collector globalq master prio q rm \
-		submit.v3  on off test_suite_C.V5 $(TEST_SUITE_F)
+		submit.v3  on off test_suite_C.V5 test_suite_F.V5
 #		define Libraries	c++_util util_lib xdr_lib ckpt syscall_lib
 #else
 #	define Programs \
 		scripts standalone tools shadow starter startd \
 		schedd kbdd  negotiator collector globalq master prio q rm \
 		submit.v2 submit.v3  on off \
-		test_suite_C $(TEST_SUITE_F)
+		test_suite_C test_suite_F
 #		define Libraries	c++_util util_lib xdr_lib $(SYSCALL_LIB) $(PVM_LIBRARY)
 #endif
 
@@ -42,26 +38,12 @@ PVM_LIBRARY = pvmd
 all: h makefiles Directories Libraries Programs
 release:: all
 
-
 #if IS_V5
-
-#if IS_ALPHA_OSF1
-BINARY = ../ALPHA_OSF1_BIN.tar
-#elif IS_SPARC_SUNOS41
-BINARY = ../SPARC_SUNOS41_BIN.tar
-#elif IS_R6000_AIX32
-BINARY = ../R6000_AIX32_BIN.tar
+distrib: release
+	cd ../doc; make distrib
+	cd condor_test_suite_C.V5; make distrib
+	cd condor_test_suite_F.V5; make distrib
 #endif
-
-obj_distrib: release
-	cd ../doc; make obj_distrib
-	cd condor_test_suite_C.V5; make obj_distrib
-#if HAS_FORTRAN
-	cd condor_test_suite_F.V5; make obj_distrib
-#endif
-	cd release_dir; tar cvf $(BINARY) .
-
-#endif	/* IS_V5 */
 
 simple_dir_target(release_dir)
 simple_dir_target(release_dir/bin)
@@ -82,19 +64,12 @@ object_target(tools)
 	object_target(shadow.V5)
 	object_target(starter.V5)
 	object_target(test_suite_C.V5)
-#	if HAS_FORTRAN
-		object_target($(TEST_SUITE_F))
-#	endif
+	object_target(test_suite_F.V5)
 	object_target(ckpt)
 	object_target(syscall_lib)
 makefiles:: ../doc/Makefile
 ../doc/Makefile:
 	cd ../doc; imake -I../config -DTilde=/usr/home/condor -s Makefile
-makefiles:: h/Makefile
-h/Makefile:
-	cd h; imake IMAKE_FLAGS
-h: h/Makefile
-	cd h; make
 #else
 	object_target(shadow)
 	object_target(starter)
@@ -102,7 +77,7 @@ h: h/Makefile
 	object_target($(SYSCALL_LIB))
 	object_target(test_suite_C)
 #	if HAS_FORTRAN
-		object_target($(TEST_SUITE_F))
+		object_target(test_suite_F)
 #	endif
 #	if DOES_CHECKPOINTING
 		object_target(standalone)
@@ -132,8 +107,7 @@ check_platform_target
 
 clean::
 	cd h; make clean
-	rm -rf Makefile */Makefile */Makefile.*  release_dir
+	rm -rf Makefile */Makefile release_dir
 
-platform_canned_makefile(R6000_AIX32)
-platform_canned_makefile(ALPHA_OSF1)
-platform_canned_makefile(SPARC_SUNOS41)
+h: ALWAYS
+	cd h; imake -I../../config; make all

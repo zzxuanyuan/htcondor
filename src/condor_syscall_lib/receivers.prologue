@@ -1,19 +1,8 @@
-#if !defined(OSF1) || defined(__GNUC__)
+#if !defined(OSF1)
 #	define _POSIX_SOURCE
 #endif
 
-#if defined(OSF1) && defined(__GNUC__)
-	typedef struct  _quad { int val[2]; } quad;
-#endif
-
-#if defined(HPUX9)
-#	define sync		__hide_sync
-#endif
 #include "condor_common.h"
-#if	defined(HPUX9)
-#	undef sync
-#endif
-
 #include "condor_debug.h"
 #include "xdr_lib.h"
 #include "condor_rsc.h"
@@ -21,10 +10,6 @@
 #include "condor_sys.h"
 #include "condor_jobqueue.h"
 #include "condor_fix_assert.h"
-
-#if defined(OSF1) && defined(__GNUC__ )
-#	include "condor_fdset.h"
-#endif
 
 #include <sys/types.h>
 #define MODE_T unsigned int	/* use 32 bits on all platforms */
@@ -37,43 +22,15 @@
 #	include "condor_fdset.h"
 #endif
 
-#if defined(ULTRIX42) || defined(OSF1)
+#if defined(ULTRIX42) || defined(ULTRIX43) || defined(OSF1)
 #	include <sys/param.h>
 #	include <sys/mount.h>
-#elif defined(ULTRIX43)
-#   include <errno.h>
-#	include <sys/param.h>
-#	include "condor_fix_timeval.h"
-#   include <nfs/nfs.h>
-#else 
+#else
 #	include <sys/mount.h>
 #endif
 
-#if defined(HPUX9)
-#   include <time.h>
-#   include <rpc/rpc.h>
-#   include <errno.h>
-#   include <nfs/export.h>
-#   include <nfs/nfs.h> /* for definition of fhandle_t */
-#   include <sys/vfs.h>      /* for struct statfs */
-#	include <sys/signal.h>
-#endif
-
-#if defined(OSF1)
-#	define _AES_SOURCE
-#	include <sys/poll.h>
-#endif
-
-#if defined(SUNOS41)
-#	include <sys/poll.h>
-#endif
-
-#if defined(AIX32)
-	struct fsid {
-		long    val[2];
-	};
-	typedef struct fsid fsid_t;
-#	include <sys/statfs.h>		 /* for struct statfs */
+#if defined(OSF1) || defined(SUNOS41)
+#include <sys/poll.h>
 #endif
 
 #if defined(SUNOS41)
@@ -104,4 +61,5 @@ do_REMOTE_syscall()
 		"Shadow: got request for syscall %d <%s>\n",
 		condor_sysnum, _condor_syscall_name(condor_sysnum)
 	);
+
 	switch( condor_sysnum ) {

@@ -2,18 +2,13 @@
 CC = gcc
 #endif
 
-CMNT
-CMNT Set the following if you want a PVM ready checkpointing library
-CMNT compiled.  This will require that the PVM library be linked into
-CMNT the application.
-CMNT
+C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) $(STATIC)
 
-CMNT PVM_CHECKPOINT = -DPVM_CHECKPOINTING
-
-
-C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) $(STATIC) $(PVM_CHECKPOINT)
-
+#if IS_R6000_AIX32
+CFLAGS = $(STD_C_FLAGS) -qsrcmsg
+#else
 CFLAGS = $(STD_C_FLAGS)
+#endif
 
 SRC_DIR = $(SRC_TREE)/condor_ckpt
 
@@ -34,15 +29,7 @@ ASSEMBLER_OBJ = _longjmp.AIX32.o
 	m4 /usr/include/sys/asdef.s $*.s | as -o $*.o
 #endif
 
-#if IS_R6000_AIX32
-UTIL_OBJ = dprintf.o dprintf_config.o except.o condor_errlst.o flock.o
-#elif IS_HPPAR_HPUX9
-UTIL_OBJ = dprintf.o dprintf_config.o except.o condor_errlst.o flock.o \
-		   seteuid.o setegid.o
-#else
 UTIL_OBJ = dprintf.o dprintf_config.o except.o condor_errlst.o
-#endif
-
 SRC =	image.C machdep.$(OS).C file_state.C tmp_stack.C syscall_mode.c \
 		local_startup.c fake_remote_syscall.c
 
@@ -53,12 +40,8 @@ OBJ =	image.o machdep.$(OS).o file_state.o tmp_stack.o syscall_mode.o \
 OBJ =	syscall_mode.o
 #endif
 
-#if IS_R6000_AIX32
-RELEASE_OBJ = $(LIB_DIR)/libckpt.a $(LIB_DIR)/c_plus_alloc.o
-#endif
-
 #if DOES_CHECKPOINTING
-	all_target(machdep_test libckpt.a c_plus_alloc.o $(RELEASE_OBJ))
+	all_target(machdep_test libckpt.a c_plus_alloc.o)
 	library_target(libckpt.a,$(OBJ))
 	release_library(libckpt.a,$(RELEASE_DIR)/lib)
 	release_target(c_plus_alloc.o,$(RELEASE_DIR)/lib,OBJECT_MODE)
@@ -69,7 +52,7 @@ release:: all
 
 depend_target($(SRC) )
 
-program_target(machdep_test,machdep_test.o machdep.$(OS).o tmp_stack.o $(ASSEMBLER_OBJ), )
+program_target(machdep_test,machdep_test.o machdep.$(OS).o tmp_stack.o, )
 
 
 IMPORT_LINKS = ../../config/import_links

@@ -26,8 +26,6 @@
 %{
 #include <stdio.h>
 #include <assert.h>
-#include <stdlib.h>
-#include <string.h>
 #include <assert.h>
 #include "scanner.h"
 extern int yyline;
@@ -60,6 +58,7 @@ char * abbreviate( char *type_name );
 void Trace( char *msg );
 char * find_type_name( char *param_name, struct node *param_list );
 int has_out_params( struct node *action_func_list );
+char *malloc( unsigned int );
 
 #define MATCH 0 /* for strcmp() */
 

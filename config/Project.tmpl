@@ -92,14 +92,12 @@ LIBDBM = DbmLibrary
 #if HAS_CP_PRESERVE			/* cp lib w/o changing modify time - don't ranlib */
 #	define COPY_LIBRARY(src,dst) cp -p src dst
 #	define RANLIB_TOUCH(lib)	/**/
-#else
-#	if HAS_RANLIB_TOUCH		/* cp lib changes modify time - ranlib -t */
-#		define COPY_LIBRARY(src,dst) cp src dst
-#		define RANLIB_TOUCH(libname) ranlib -t libname
-#	else						/* dumb cp and ranlib - do it the hard way */
-#		define COPY_LIBRARY(src,dst) cp src dst
-#		define RANLIB_TOUCH(libname) ranlib libname
-#	endif
+#elif HAS_RANLIB_TOUCH		/* cp lib changes modify time - ranlib -t */
+#	define COPY_LIBRARY(src,dst) cp src dst
+#	define RANLIB_TOUCH(libname) ranlib -t libname
+#else						/* dumb cp and ranlib - do it the hard way */
+#	define COPY_LIBRARY(src,dst) cp src dst
+#	define RANLIB_TOUCH(libname) ranlib libname
 #endif
 
 #ifdef XIncludeFlag
@@ -108,7 +106,7 @@ LIBDBM = DbmLibrary
 #define XInclude
 #endif
 
-#if IS_R6000_AIX32 && defined(USE_BSDCC)
+#if IS_R6000_AIX32
 PLATFORM_C_FLAGS = -qsrcmsg
 #endif
 

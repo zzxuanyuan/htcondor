@@ -4,20 +4,14 @@
 %{
 #include <stdlib.h>
 #include <ctype.h>
-#include <string.h>
-#include <stdlib.h>
 #include "scanner.h"
 #include "y.tab.h"
-
-#if defined(AIX32) && !defined(OBJ_DATA)
-#	define OBJ_DATA(x) (x).obj	/* needed for gcc's toupper/tolower */
-#endif
 
 int		yyline = 1;
 extern YYSTYPE yylval;
 
 int grab(int type);
-
+char * strdup( char *orig );
 void display_token( int type );
 void reset_yyline();
 
@@ -82,7 +76,6 @@ PROC				return grab( TYPE_NAME );
 {STRUCT}utsname		return grab( TYPE_NAME );
 {STRUCT}shmid_ds	return grab( TYPE_NAME );
 {STRUCT}addressconf	return grab( TYPE_NAME );
-{STRUCT}acl			return grab( TYPE_NAME );
 "["{WHITE}"]"		return grab( ARRAY );
 map					return grab( MAP );
 in					return grab( IN );
@@ -120,8 +113,7 @@ grab( int type )
 	display_token( type );
 #endif
 
-	yylval.tok.val = malloc( strlen(yytext) + 1 );
-	strcpy( yylval.tok.val, yytext );
+	yylval.tok.val = strdup( (char *)yytext );
 	yylval.tok.tok_type = type;
 	return type;
 }
@@ -134,6 +126,16 @@ reset_yyline()
 	for( ptr=(char *)yytext; !isdigit(*ptr); ptr++ )
 		;
 	yyline = atoi( ptr ) - 1;
+}
+
+char *
+strdup( char *orig )
+{
+	char *answer;
+
+	answer = malloc( strlen(orig) + 1 );
+	strcpy( answer, orig );
+	return answer;
 }
 
 void

@@ -26,8 +26,6 @@
 **
 */ 
 
-#define _POSIX_SOURCE
-
 #include "condor_common.h"
 #include "condor_debug.h"
 #include "condor_constants.h"
@@ -149,7 +147,7 @@ get_data_size_limit()
 int
 parse_swapon_line( const char *line )
 {
-	const char	*ptr;
+	char	*ptr;
 	int		pages;
 	int		answer;
 

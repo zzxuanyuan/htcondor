@@ -37,6 +37,7 @@ typedef struct config_rec {
 	char		*pool_name;
 	char		in;
 	char		out;
+	int			flock_version;
 	struct in_addr	net_addr;
 	short		net_addr_type;
 } CONFIG_REC;
@@ -68,7 +69,7 @@ typedef struct serving {
 	struct serving	*next;
 	struct serving	*prev;
 	char		*machine_name;
-	int		    id;                 /* dhruba */
+	PROC_ID		id;
 	char		*pool_name;
 	int		time_stamp;
 } SERVING;
@@ -80,34 +81,11 @@ typedef struct serving {
 typedef struct request {
 	struct request	*next;
 	struct request	*prev;
-	int			cmd;
 	char		*pool_name;
 	char		*machine_name;
-	int			id;            /* world condor id : dhruba */
+	PROC_ID		id;
 	CONTEXT		*job_context;
-	int			result;
-	StartdRec	stRec;
-	int			child_fd;     /* pipe from world-schedd to child */
+	int		result;
+	char		*server;
 } REQUEST;
-
-/*
-**	Info transferred from the W-Schedd to the W-Shadow
-*/
-#define 	MAXHOSTLEN		1024 /* maximum length of a machine name */
-typedef struct shadow_interface
-{
-	int		result;              /* result of negotiations    */
-	char	server[MAXHOSTLEN];  /* name of executing machine */
-} ShadowRec;
-
-#define STARTER_0 (SCHED_VERS+ALT_STARTER_BASE+0)
-#define STARTER_1 (SCHED_VERS+ALT_STARTER_BASE+1)
-#define STARTER_2 (SCHED_VERS+ALT_STARTER_BASE+2)
-#define STARTER_3 (SCHED_VERS+ALT_STARTER_BASE+3)
-#define STARTER_4 (SCHED_VERS+ALT_STARTER_BASE+4)
-#define STARTER_5 (SCHED_VERS+ALT_STARTER_BASE+5)
-#define STARTER_6 (SCHED_VERS+ALT_STARTER_BASE+6)
-#define STARTER_7 (SCHED_VERS+ALT_STARTER_BASE+7)
-#define STARTER_8 (SCHED_VERS+ALT_STARTER_BASE+8)
-#define STARTER_9 (SCHED_VERS+ALT_STARTER_BASE+9)
 #endif /* CONDOR_WORLD */

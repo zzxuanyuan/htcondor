@@ -6,41 +6,24 @@ OS = OperatingSystem
 CFLAGS = $(STD_C_FLAGS) -DNEW_PROC
 C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS)
 
-#if DOES_CHECKPOINTING  /* ========= DOES CHECKPOINTING ============ */
-
+#if DOES_CHECKPOINTING
 #	if IS_SPARC_SUNOS41
 EXTRACT = FORK.o KILL.o GETEUID.o GETPPID.o GETEGID.o GETWD.o \
 		  MMAP.o PIPE.o
-#	elif IS_R6000_AIX32
-/* Don't extract anything */
-#	elif IS_HPPAR_HPUX9
-EXTRACT = FORK.o KILL.o SIGACTION.o GETEUID.o GETPPID.o GETEGID.o  \
-		  MMAP.o PIPE.o
-#	else
+#	else /* IS_SPARC_SUNOS41 */
 EXTRACT = FORK.o KILL.o SIGACTION.o GETEUID.o GETPPID.o GETEGID.o GETWD.o \
 		  MMAP.o PIPE.o
 #	endif
-
-#else	/* =============  DOES NOT DO CHECKPOINTING ============*/
-
+#else	/* DOES_CHECKPOINTING */
 #	if IS_HPPAR_HPUX9
 EXTRACT = GETEUID.o GETEGID.o
-#	elif IS_R6000_AIX32
-/* Don't extract anything */
-#	else 
+#	else /* IS_HPPAR_HPUX9 */
 EXTRACT = GETEUID.o GETEGID.o GETWD.o
 #	endif
-
-#endif	/* ===============  CHECKPOINTING CONDITIONAL ============*/
-
-#if IS_HPPAR_HPUX9
-UTIL_EXTRACT = GETWD.o
-HP_SPECIFIC_FILES = flock.o seteuid.o setegid.o
-HP_CKPT = get_reginfo.HPUX.o
 #endif
 
 STUBS = switches.o switches.special.o
-UTIL =	remote_syscall.o syscall_connect.o senders.o remote_startup.o  
+UTIL =	remote_syscall.o syscall_connect.o senders.o remote_startup.o
 NAME_TAB = syscall_numbers.o
 
 SRC = \
@@ -59,7 +42,7 @@ SRC = \
 	syscall.tmpl \
 	syscall_connect.c \
 	syscall_numbers.c \
-	xfer_file.c 
+	xfer_file.c
 
 #if IS_ALPHA_OSF1
 XDR_STATFS_OBJ = xdr_statfs.OSF1.o
@@ -80,37 +63,27 @@ XDR_OBJ = \
  	xdr_utsname.o
 #endif
 
-#if IS_R6000_AIX32
-LONGJMP = _longjmp.AIX32.o
-#endif
-
 #if DOES_CHECKPOINTING
-CKPT_OBJ =	file_state.o image.o tmp_stack.o machdep.$(OS).o \
-			syscall_mode.o $(LONGJMP) $(HP_CKPT)
+CKPT_OBJ = file_state.o image.o tmp_stack.o machdep.$(OS).o syscall_mode.o
 #else
 CKPT_OBJ = syscall_mode.o
 #endif
 
-#if IS_R6000_AIX32
-AIX_OBJ = $(LIB_DIR)/syscall.shr.o $(LIB_DIR)/syscall.exp $(LIB_DIR)/libfort.a
-#endif
-
-
 UTIL_OBJ =  dprintf.o dprintf_config.o except.o update_rusage.o \
-			condor_errlst.o $(HP_SPECIFIC_FILES)
+			condor_errlst.o
 
 LIB_OBJ = $(EXTRACT) $(STUBS) $(UTIL) $(NAME_TAB) $(XDR_OBJ) $(UTIL_OBJ) \
-		$(CKPT_OBJ) $(UTIL_EXTRACT) $(HP_UTIL)
+		$(CKPT_OBJ)
 
-SIMPLE_OBJ = $(LIB_DIR)/condor_rt0.o extern_path.o xfer_file.o
-SYSCALL_LIB = $(LIB_DIR)/condor_syscall_lib.a
+SIMPLE_OBJ = condor_rt0.o extern_path.o xfer_file.o
 
-all_target($(SYSCALL_LIB) receivers.c $(SIMPLE_OBJ) $(AIX_OBJ))
+all_target(condor_syscall_lib.a receivers.c $(SIMPLE_OBJ))
 stubs: switches.c senders.c receivers.c
 
 uppercase_target($(SIMPLE_LIBC),geteuid.o,GETEUID.o,geteuid,GETEUID)
 uppercase_target($(SIMPLE_LIBC),getppid.o,GETPPID.o,getppid,GETPPID)
 uppercase_target($(SIMPLE_LIBC),getegid.o,GETEGID.o,getegid,GETEGID)
+uppercase_target($(SIMPLE_LIBC),getwd.o,GETWD.o,getwd,GETWD)
 uppercase_target($(SIMPLE_LIBC),fork.o,FORK.o,fork,FORK)
 uppercase_target($(SIMPLE_LIBC),kill.o,KILL.o,kill,KILL)
 uppercase_target($(SIMPLE_LIBC),sigaction.o,SIGACTION.o,sigaction,SIGACTION)
@@ -124,9 +97,9 @@ CMNT with a copy of crt0.o, and change the name of "main" to "MAIN".
 CMNT
 #if IS_HPPAR_HPUX9
 condor_rt0.o: Crt0 ToUpper
-	ToUpper Crt0 tmp1 _start _START 
-	ToUpper tmp1 tmp2 _data_START _data_start
-	ToUpper tmp2 condor_rt0.o _text_START _text_start
+	ToUpper Crt0 tmp1 _start  _START
+	ToUpper tmp1 tmp2 __text_START __text_start 
+	ToUpper tmp2 condor_rt0.o __data_START __data_start
 	rm -f tmp1 tmp2
 clean::
 	rm -f condor_rt0.o
@@ -172,56 +145,6 @@ lex.yy.c: stub_gen_lex.l scanner.h y.tab.h
 
 y.tab.c: stub_gen_yacc.y scanner.h
 	yacc -d stub_gen_yacc.y
-
-
-#if IS_R6000_AIX32
-CMNT
-CMNT Provide the syscall() routine.
-CMNT Imports: all system calls from /unix
-CMNT Exports: syscall() and CondorErrno
-CMNT
-syscall.shr.o: syscall.o syscall.exp
-	ld -o syscall.shr.o \
-		-bM:SRE -T512 \
-		-bE:syscall.exp \
-		-bI:$(SYSCALLS_EXP) \
-		-H8 \
-		syscall.o
-clean::
-	rm -f syscall.shr.o syscall.o
-
-release_target( syscall.shr.o, $(LIB_DIR), OBJECT_MODE)
-release_target( syscall.exp, $(LIB_DIR), OBJECT_MODE)
-
-#
-# The aix fortran library libxlf.a defines a getenv() routine which takes 2
-# arguments, the name of the environment variable, and buffer in which to
-# put the associated value.
-#
-# The aix C library libc.a defines a getenv routine which takes 1 argument,
-# the name of the environment variable, and it returns a pointer to the
-# associated value.
-#
-# Condor programs need to be linked with the condor libraries, which will
-# end up calling getenv(), and expecting the C version.  We therefore
-# supply our own C version, so that we can get it linked in before the
-# fortran version gets linked.
-#
-# Of course this will break any fortran programs which call getenv and expect
-# the fortran version!  If some AIXpert knows how to fix this, I would be
-# very happy to learn about it. -- mike
-#
-library_target(libfort.a,C_getenv.o)
-release_library(libfort.a,$(RELEASE_DIR)/lib)
-#endif /* AIX */
-
-#if IS_HPPAR_HPUX9
-uppercase_target(../condor_util_lib/util_lib.a,getwd.o,GETWD.o,getwd,GETWD)
-#else
-uppercase_target($(SIMPLE_LIBC),getwd.o,GETWD.o,getwd,GETWD)
-#endif
-
-
 
 clean::
 	rm -f lex.yy.c y.tab.c y.tab.h switches.c senders.c receivers.c *.o
