@@ -194,26 +194,11 @@ class RemoteResource : public Service {
 		*/
 	void setStartdInfo( const char *sinful, const char* claim_id );
 
-		/** Set the address (sinful string).
-			@param The starter's sinful string 
+		/** Set all the info about the starter we can find in the
+			given ClassAd. 
 		*/
-	void setStarterAddress( const char *starterAddr );
-	
-		/** Set the Starter's Arch
-			@param arch The starter's arch string 
-		*/
-	void setStarterArch( const char *arch );
-	
-		/** Set the Starter's Opsys
-			@param arch The starter's opsys string 
-		*/
-	void setStarterOpsys( const char *opsys );
-	
-		/** Set the Starter's version string
-			@param version The starter's version string
-		*/
-	void setStarterVersion( const char *version );
-	
+	void setStarterInfo( ClassAd* ad );
+
 		/** Set the reason this host exited.  
 			@param reason Why did it exit?  Film at 11.
 		*/
@@ -227,17 +212,29 @@ class RemoteResource : public Service {
 		/** Get this resource's jobAd */
 	ClassAd* getJobAd() { return this->jobAd; };
 
-		/** Set the machine name for this host.
+		/** Set the address (sinful string).
+			@param The starter's sinful string 
+		*/
+	void setStarterAddress( const char *starterAddr );
+
+		/**
+		   CRUFT the next 3 methods for setting info are only used if
+		   we're talking to a really old version of the starter.
+		   someday they should all be ripped out in favor of using
+		   setStarterInfo(), declared above...
+		*/
+
+		/** Set the machine name for this host.  CRUFT
 			@param machineName The machine name of this host.
 		*/
 	void setMachineName( const char *machineName );
 
-		/** Set the filesystem domain for this host.
+		/** Set the filesystem domain for this host.  CRUFT
 			@param filesystemDomain The filesystem domain of this host.
 		*/
 	void setFilesystemDomain( const char *filesystemDomain );
 
-		/** Set the uid domain for this host.
+		/** Set the uid domain for this host.  CRUFT
 			@param uidDomain The uid domain of this host.
 		*/
 	void setUidDomain( const char *uidDomain );

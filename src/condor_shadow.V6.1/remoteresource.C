@@ -548,6 +548,82 @@ RemoteResource::setStartdInfo( const char *sinful,
 }
 
 void
+RemoteResource::setStarterInfo( ClassAd* ad )
+{
+
+	char* tmp = NULL;
+
+	if( ad->LookupString(ATTR_STARTER_IP_ADDR, &tmp) ) {
+		setStarterAddress( tmp );
+		dprintf( D_SYSCALLS, "  %s = %s\n", ATTR_STARTER_IP_ADDR, tmp ); 
+		free( tmp );
+		tmp = NULL;
+	}
+
+	if( ad->LookupString(ATTR_UID_DOMAIN, &tmp) ) {
+		if( uid_domain ) {
+			delete [] uid_domain;
+		}	
+		uid_domain = strnewp( tmp );
+		dprintf( D_SYSCALLS, "  %s = %s\n", ATTR_UID_DOMAIN, tmp );
+		free( tmp );
+		tmp = NULL;
+	}
+
+	if( ad->LookupString(ATTR_FILE_SYSTEM_DOMAIN, &tmp) ) {
+		if( fs_domain ) {
+			delete [] fs_domain;
+		}	
+		fs_domain = strnewp( tmp );
+		dprintf( D_SYSCALLS, "  %s = %s\n", ATTR_FILE_SYSTEM_DOMAIN,
+				 tmp );  
+		free( tmp );
+		tmp = NULL;
+	}
+
+	if( ad->LookupString(ATTR_MACHINE, &tmp) ) {
+		if( machineName ) {
+			delete [] machineName;
+		}	
+		machineName = strnewp( tmp );
+		dprintf( D_SYSCALLS, "  %s = %s\n", ATTR_MACHINE, tmp );
+		free( tmp );
+		tmp = NULL;
+	}
+
+	if( ad->LookupString(ATTR_ARCH, &tmp) ) {
+		if( starterArch ) {
+			delete [] starterArch;
+		}	
+		starterArch = strnewp( tmp );
+		dprintf( D_SYSCALLS, "  %s = %s\n", ATTR_ARCH, tmp ); 
+		free( tmp );
+		tmp = NULL;
+	}
+
+	if( ad->LookupString(ATTR_OPSYS, &tmp) ) {
+		if( starterOpsys ) {
+			delete [] starterOpsys;
+		}	
+		starterOpsys = strnewp( tmp );
+		dprintf( D_SYSCALLS, "  %s = %s\n", ATTR_OPSYS, tmp ); 
+		free( tmp );
+		tmp = NULL;
+	}
+
+	if( ad->LookupString(ATTR_VERSION, &tmp) ) {
+		if( starter_version ) {
+			delete [] starter_version;
+		}	
+		starter_version = strnewp( tmp );
+		dprintf( D_SYSCALLS, "  %s = %s\n", ATTR_VERSION, tmp ); 
+		free( tmp );
+		tmp = NULL;
+	}
+}
+
+
+void
 RemoteResource::setMachineName( const char * mName )
 {
 
@@ -586,36 +662,6 @@ RemoteResource::setStarterAddress( const char * starterAddr )
 		delete [] starterAddress;
 	}	
 	starterAddress = strnewp( starterAddr );
-}
-
-
-void
-RemoteResource::setStarterArch( const char * arch )
-{
-	if( starterArch ) {
-		delete [] starterArch;
-	}	
-	starterArch = strnewp( arch );
-}
-
-
-void
-RemoteResource::setStarterOpsys( const char * opsys )
-{
-	if( starterOpsys ) {
-		delete [] starterOpsys;
-	}	
-	starterOpsys = strnewp( opsys );
-}
-
-
-void
-RemoteResource::setStarterVersion( const char * version )
-{
-	if( starter_version ) {
-		delete [] starter_version;
-	}	
-	starter_version = strnewp( version );
 }
 
 

@@ -71,58 +71,7 @@ pseudo_register_machine_info(char *uiddomain, char *fsdomain,
 int
 pseudo_register_starter_info( ClassAd* ad )
 {
-	char* tmp = NULL;
-
-	if( ad->LookupString(ATTR_UID_DOMAIN, &tmp) ) {
-		thisRemoteResource->setUidDomain( tmp );
-		dprintf( D_SYSCALLS, "  %s = %s\n", ATTR_UID_DOMAIN, tmp );
-		free( tmp );
-		tmp = NULL;
-	}
-
-	if( ad->LookupString(ATTR_FILE_SYSTEM_DOMAIN, &tmp) ) {
-		thisRemoteResource->setFilesystemDomain( tmp );
-		dprintf( D_SYSCALLS, "  %s = %s\n", ATTR_FILE_SYSTEM_DOMAIN,
-				 tmp );  
-		free( tmp );
-		tmp = NULL;
-	}
-
-	if( ad->LookupString(ATTR_MACHINE, &tmp) ) {
-		thisRemoteResource->setMachineName( tmp );
-		dprintf( D_SYSCALLS, "  %s = %s\n", ATTR_MACHINE, tmp );
-		free( tmp );
-		tmp = NULL;
-	}
-
-	if( ad->LookupString(ATTR_STARTER_IP_ADDR, &tmp) ) {
-		thisRemoteResource->setStarterAddress( tmp );
-		dprintf( D_SYSCALLS, "  %s = %s\n", ATTR_STARTER_IP_ADDR, tmp ); 
-		free( tmp );
-		tmp = NULL;
-	}
-
-	if( ad->LookupString(ATTR_ARCH, &tmp) ) {
-		thisRemoteResource->setStarterArch( tmp );
-		dprintf( D_SYSCALLS, "  %s = %s\n", ATTR_ARCH, tmp ); 
-		free( tmp );
-		tmp = NULL;
-	}
-
-	if( ad->LookupString(ATTR_OPSYS, &tmp) ) {
-		thisRemoteResource->setStarterOpsys( tmp );
-		dprintf( D_SYSCALLS, "  %s = %s\n", ATTR_OPSYS, tmp ); 
-		free( tmp );
-		tmp = NULL;
-	}
-
-	if( ad->LookupString(ATTR_VERSION, &tmp) ) {
-		thisRemoteResource->setStarterVersion( tmp );
-		dprintf( D_SYSCALLS, "  %s = %s\n", ATTR_VERSION, tmp ); 
-		free( tmp );
-		tmp = NULL;
-	}
-
+	thisRemoteResource->setStarterInfo( ad );
 	return 0;
 }
 
