@@ -1347,7 +1347,7 @@ int CondorFileTable::is_file_name_local( const char *incomplete_name, char *loca
 	lookup_url( logical_name, url );
 
 	// Copy the local path name out
-	strcpy(local_name,strchr(url,':')+1);
+	strcpy(local_name,strrchr(url,':')+1);
 
 	// Create a URL chain and ask it if it is local.
 	CondorFile *f = create_url_chain(url);
