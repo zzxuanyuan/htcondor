@@ -58,6 +58,7 @@ strip_copy_target($(BENCHMARK_CLASS),$(STRIP_DIR)/lib,$(BENCHMARK_CLASS),EXECUTA
 static_copy_target($(BENCHMARK_CLASS),$(STATIC_DIR)/lib,$(BENCHMARK_CLASS),EXECUTABLE_MODE)
 
 clean::
+	rm -f condor_gridshell
 
 condor_gridshell: condor_starter
 	rm -f condor_gridshell
