@@ -47,6 +47,7 @@
 #endif
 
 #include "mirrorjob.h"
+#include "condorjob.h"
 #include "gt3job.h"
 
 #define QMGMT_TIMEOUT 15
@@ -337,6 +338,15 @@ Init()
 	new_type->AdMatchConst = MirrorJobAdConst;
 	new_type->AdMustExpandFunc = MirrorJobAdMustExpand;
 	new_type->CreateFunc = MirrorJobCreate;
+	jobTypes.Append( new_type );
+
+	new_type = new JobType;
+	new_type->Name = strdup( "Condor" );
+	new_type->InitFunc = CondorJobInit;
+	new_type->ReconfigFunc = CondorJobReconfig;
+	new_type->AdMatchConst = CondorJobAdConst;
+	new_type->AdMustExpandFunc = CondorJobAdMustExpand;
+	new_type->CreateFunc = CondorJobCreate;
 	jobTypes.Append( new_type );
 
 	new_type = new JobType;
