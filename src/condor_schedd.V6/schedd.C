@@ -1847,7 +1847,7 @@ int Scheduler::aboutToSpawnJobHandler(int cluster, int proc)
 
 
 int
-jobIsTerminalStatic( int cluster, int proc, void* this_scheduler )
+Scheduler::jobIsTerminalStatic( int cluster, int proc, void* this_scheduler )
 {
 	ASSERT(this_scheduler);
 	Scheduler * s = (Scheduler*)this_scheduler;
