@@ -234,9 +234,7 @@ main_init( int argc, char* argv[] )
 	command_x_event( 0, 0, 0 );
 #endif
 
-		// Walk through all resources and start an update timer for
-		// each one.  
-	resmgr->walk( Resource::start_update_timer );
+	resmgr->start_update_timer();
 
 		// Evaluate the state of all resources and update CM
 	resmgr->eval_and_update_all();
