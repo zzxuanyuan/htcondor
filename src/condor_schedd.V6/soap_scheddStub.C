@@ -1046,7 +1046,7 @@ condor__createJobTemplate(struct soap *soap,
   result.response.status.code = SUCCESS;
   convert_ad_to_adStruct(soap, job, &result.response.classAd);
 
-	  //delete job;
+  delete job;
 
   return SOAP_OK;
 }
