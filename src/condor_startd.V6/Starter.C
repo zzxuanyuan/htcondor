@@ -495,12 +495,12 @@ Starter::reallykill( int signo, int type )
 
 
 int 
-Starter::spawn( time_t now, Stream* s, bool wrap_starter )
+Starter::spawn( time_t now, Stream* s )
 {
 	if( isCOD() ) {
 		s_pid = execCODStarter();
 	} else if( is_dc() ) {
-		s_pid = execDCStarter( s, wrap_starter ); 
+		s_pid = execDCStarter( s ); 
 	} else {
 			// Use old icky non-daemoncore starter.
 		s_pid = execOldStarter();
@@ -607,28 +607,20 @@ Starter::execCODStarter( void )
 
 
 int
-Starter::execDCStarter( Stream* s, bool wrap_starter )
+Starter::execDCStarter( Stream* s )
 {
-	MyString args = "condor_starter -f ";
+	char args[_POSIX_ARG_MAX];
 
+	char* hostname = s_claim->client()->host();
 	if ( resmgr->is_smp() ) {
 		// Note: the "-a" option is a daemon core option, so it
 		// must come first on the command line.
-		args += "-a ";
-		args += s_claim->rip()->r_id_str;
+		sprintf( args, "condor_starter -f -a %s %s",  
+				 s_claim->rip()->r_id_str, hostname );
+	} else {
+		sprintf(args, "condor_starter -f %s", hostname );
 	}
-
-	if ( wrap_starter ) {
-		args += "-job-input-ad ";
-		args += "/tmp/adfile";
-	}
-	else {
-		args += s_claim->client()->host();
-	}
-
-	dprintf(D_FULLDEBUG, "args in execDCStarter: %s\n", args.GetCStr());
-	assert(args.Length() < _POSIX_ARG_MAX);
-	execDCStarter( args.GetCStr(), NULL, NULL, s );
+	execDCStarter( args, NULL, NULL, s );
 
 	return s_pid;
 }

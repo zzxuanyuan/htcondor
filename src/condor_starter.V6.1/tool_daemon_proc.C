@@ -43,17 +43,16 @@ extern CStarter *Starter;
 
 ToolDaemonProc::ToolDaemonProc( ClassAd *jobAd, int application_pid )
 {
-	dprintf( D_FULLDEBUG, "In ToolDaemonProc::ToolDaemonProc()\n" );
+    dprintf( D_FULLDEBUG, "In ToolDaemonProc::ToolDaemonProc()\n" );
 	family = NULL;
-	JobAd = jobAd;
-	JobPid = -1;
+    JobAd = jobAd;
+    JobPid = -1;
 	exit_status = -1;
 	requested_exit = false;
-	job_suspended = false;
+    job_suspended = false;
 	ApplicationPid = application_pid;
 	snapshot_tid = -1;
 
-	TDP_init(&tdp_handle);
 }
 
 
@@ -84,17 +83,17 @@ ToolDaemonProc::StartJob()
 
 	char DaemonNameTemp [_POSIX_PATH_MAX];
 	char DaemonName	[_POSIX_PATH_MAX];
-	if( JobAd->LookupString( ATTR_TOOL_DAEMON_CMD, DaemonName ) != 1 ) {
+	if( JobAd->LookupString( ATTR_TOOL_DAEMON_CMD, DaemonNameTemp ) != 1 ) {
 	    dprintf( D_ALWAYS, "%s not found in JobAd.  Aborting StartJob. \n", 
 				 ATTR_TOOL_DAEMON_CMD );
 	    return 0;
 	}
 
-	/*
 	sprintf( DaemonName, "%s%c%s", Starter->GetWorkingDir(),
 				 DIR_DELIM_CHAR, DaemonNameTemp );
-	*/
+
 	dprintf ( D_FULLDEBUG, " Daemon Name %s \n", DaemonName);
+
 		// This is something of an ugly hack.  filetransfer doesn't
 		// preserve file permissions when it moves a file.  so, our
 		// tool "binary" (or script, whatever it is), is sitting in
@@ -105,7 +104,7 @@ ToolDaemonProc::StartJob()
         // If daemon_name is an absolute path, chmod has to be applied
         // to the file copied in cwd (skipping path information referred
 	    // to the submiting host).
-	/*
+
 	priv_state old_priv = set_user_priv();
 	int retval = chmod( DaemonName, S_IRWXU | S_IRWXO | S_IRWXG );
 	set_priv( old_priv );
@@ -113,7 +112,6 @@ ToolDaemonProc::StartJob()
 		dprintf( D_ALWAYS, "Failed to chmod %s!\n", DaemonName );
 		return 0;
 	}
-	*/
 
 //	initKillSigs ();
 
@@ -121,10 +119,7 @@ ToolDaemonProc::StartJob()
 	char tmp[_POSIX_ARG_MAX];
 
 	if( JobAd->LookupString(ATTR_TOOL_DAEMON_ARGS, tmp) != 1 ) {
-	    dprintf( D_ALWAYS, "%s not found in JobAd.  Aborting "
-				 "ToolDaemonProc::StartJob()\n",
-				 ATTR_TOOL_DAEMON_ARGS );
-	    return 0;
+	    tmp[0] = '\0';
 	}
 
 		// for now, simply prepend the daemon name to the args - this
@@ -133,9 +128,9 @@ ToolDaemonProc::StartJob()
         // library is used for that. 
 
 	if ( tmp[0] != '\0' ){
-		sprintf (DaemonArgs, "%s %s %d", DaemonName, tmp, ApplicationPid);
+		sprintf (DaemonArgs, "%s %s", DaemonName, tmp);
 	} else {
-		sprintf (DaemonArgs, "%s %d", DaemonName, ApplicationPid);
+		strcpy (DaemonArgs, DaemonName);
 	}
 
 	dprintf ( D_FULLDEBUG, " Daemon Args %s \n", DaemonArgs);
@@ -165,8 +160,13 @@ ToolDaemonProc::StartJob()
 	sprintf( envName, "%s_SCRATCH_DIR", myDistro->GetUc() );
 	job_env.Put( envName, Starter->GetWorkingDir() );
 
-	// add tdp's server address to the environment
-	job_env.Put(TDP_ENV_SERVADDR, getenv(TDP_ENV_SERVADDR));
+	// for now, we pass "ENV" as the address of the LASS
+	// this tells the tool that the job PID will be placed
+	// in the environment variable, "TDP_AP_PID"
+	job_env.Put("TDP_LASS_ADDRESS", "ENV");
+	char pid_buf[256];
+	sprintf(pid_buf, "%d", ApplicationPid);
+	job_env.Put("TDP_AP_PID", pid_buf);
 
 		// Deal with port regulation stuff
 	char* low = param( "LOWPORT" );
@@ -429,12 +429,8 @@ ToolDaemonProc::JobCleanup(int pid, int status)
 
         return 1;
     } 
-		// If any other process (namely, the application) exited, kill
-		// our own tool, since there's nothing more for us to do.
 
-//	this->ShutdownGraceful();
-
-	return 0;
+    return 0;
 }
 
 

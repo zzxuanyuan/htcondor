@@ -32,7 +32,6 @@
 #include "vanilla_proc.h"
 #include "java_proc.h"
 #include "tool_daemon_proc.h"
-#include "starter_proc.h"
 #include "mpi_master_proc.h"
 #include "mpi_comrade_proc.h"
 #include "my_hostname.h"
@@ -198,33 +197,6 @@ CStarter::Config()
 	jic->config();
 }
 
-
-int
-CStarter::KillingOthers (int)
-{
-	bool jobRunning = false;
-	UserProc *job;
-
-	dprintf(D_ALWAYS, "KillingOthers  all jobs.\n");
-	JobList.Rewind();
-	while ((job = JobList.Next()) != NULL) {
-		if ( job->ShutdownGraceful() ) {
-			// job is completely shut down, so delete it
-			JobList.DeleteCurrent();
-			delete job;
-		} else {
-			// job shutdown is pending, so just set our flag
-			jobRunning = true;
-		}
-	}
-	ShuttingDown = TRUE;
-	if (!jobRunning) {
-		dprintf(D_FULLDEBUG, 
-				"Got KillingOthers when no jobs running.\n");
-		return 1;
-	}	
-	return 0;
-}
 
 int
 CStarter::ShutdownGraceful(int)
@@ -485,7 +457,6 @@ CStarter::SpawnJob( void )
 			 jic->jobProc() );
 
 	UserProc *job;
-	bool starter_is_wrapper = false;
 	switch ( jobUniverse )  
 	{
 		case CONDOR_UNIVERSE_VANILLA:
@@ -508,11 +479,6 @@ CStarter::SpawnJob( void )
 			}
 			break;
 		}
-		case CONDOR_UNIVERSE_STARTER:
-			dprintf( D_FULLDEBUG, "Starting a StarterProc\n");
-			job = new StarterProc( jobAd );
-			starter_is_wrapper = true;
-			break;
 		default:
 			dprintf( D_ALWAYS, "Starter doesn't support universe %d (%s)\n",
 					 jobUniverse, CondorUniverseName(jobUniverse) ); 
@@ -522,26 +488,19 @@ CStarter::SpawnJob( void )
 	if (job->StartJob()) {
 		JobList.Append(job);
 
-		// see if we also need to start up a ToolDaemon for this job
-		bool tracing_starter = false;
-		jobAd->LookupBool( ATTR_TOOL_DAEMON_STARTER, tracing_starter );
+		// Now, see if we also need to start up a ToolDaemon
+		// for this job.
 		char* tool_daemon_name = NULL;
-		jobAd->LookupString( ATTR_TOOL_DAEMON_CMD, &tool_daemon_name );
-		if( tool_daemon_name && ( starter_is_wrapper || !tracing_starter ) ) {
+		jobAd->LookupString( ATTR_TOOL_DAEMON_CMD,
+							 &tool_daemon_name );
+		if( tool_daemon_name ) {
 				// we need to start a tool daemon for this job
 			ToolDaemonProc* tool_daemon_proc;
 			tool_daemon_proc = new ToolDaemonProc( jobAd, job->GetJobPid() );
 
 			if( tool_daemon_proc->StartJob() ) {
-
 				JobList.Append( tool_daemon_proc );
 				dprintf( D_FULLDEBUG, "ToolDaemonProc added to JobList\n");
-
-				// place application (or starter) PID into LASS
-				char pid_str[10];
-				snprintf(pid_str, 10, "%d", job->GetJobPid());
-				tool_daemon_proc->tdp_lass_put("PID", pid_str);
-
 			} else {
 				dprintf( D_ALWAYS, "Failed to start ToolDaemonProc!\n");
 				delete tool_daemon_proc;

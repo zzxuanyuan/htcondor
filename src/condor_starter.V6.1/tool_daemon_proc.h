@@ -27,11 +27,6 @@
 #include "user_proc.h"
 #include "killfamily.h"
 
-// for now, this include depends on LINUX being #defined
-extern "C" {
-#include "tdp_lib.h"
-}
-
 /** This is a "Tool" process in the TDP or "Tool Daemon Protocol"
 	world.  This implements the Condor side of the TDP for spawning a
 	tool that runs next to an application that might want to do
@@ -98,8 +93,6 @@ public:
 		/// Send a DC_SIGKILL
 	virtual bool ShutdownFast();
 
-	int tdp_lass_put(char *att, char *val) { return TDP_put(tdp_handle, att, val); }
-
 protected:
 
 	bool job_suspended;
@@ -112,9 +105,6 @@ private:
 
 	// timer id for periodically taking a ProcFamily snapshot
 	int snapshot_tid;
-
-	// handle to TDP attribute space
-	TDP_handle tdp_handle;
 };
 
 

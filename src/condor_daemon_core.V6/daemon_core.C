@@ -29,14 +29,6 @@
 
 #include "condor_common.h"
 
-// for now, turn on TDP
-#define TDP 1
-
-#if defined( LINUX ) && defined( TDP )
-#include <sys/ptrace.h>    // mikel
-#include <sys/wait.h>      // mikel
-#endif /* LINUX && TDP */
-
 static const int DEFAULT_MAXCOMMANDS = 255;
 static const int DEFAULT_MAXSIGNALS = 99;
 static const int DEFAULT_MAXSOCKETS = 8;
@@ -105,6 +97,45 @@ CRITICAL_SECTION Big_fat_mutex; // coarse grained mutex for debugging purposes
 	extern void __cdecl _unlock_fhandle(int);
 #endif
 
+// We should only need to include the libTDP header once
+// the library is made portable. For now, the TDP process
+// control stuff is in here
+#define TDP 1
+#if defined( LINUX ) && defined( TDP )
+
+#include <sys/ptrace.h>
+#include <sys/wait.h>
+
+int
+tdp_wait_stopped_child (pid_t pid)
+{
+
+    int wait_val;
+  
+    if (waitpid(pid, &wait_val, 0) == -1) {
+	dprintf(D_ALWAYS,"Wait for Stopped Child wait failed: %d (%s) \n", errno, strerror (errno)); 
+	return -1;
+    }
+
+    if(!WIFSTOPPED(wait_val)) {    
+	return -1;  /* Something went wrong with application exec. */
+    }
+
+    if (kill(pid, SIGSTOP) < 0) {
+	dprintf(D_ALWAYS, "Wait for Stopped Child kill failed: %d (%s) \n", errno, strerror(errno));
+	return -1;
+    }
+    
+    if (ptrace(PTRACE_DETACH, pid, 0, 0) < 0) {
+	dprintf(D_ALWAYS, "Wait for Stopped Child detach failed: %d (%s) \n", errno, strerror(errno));
+	return -1;
+    }
+
+    return 0;
+}
+
+#endif /* LINUX && TDP */
+
 #define SECURITY_HACK_ENABLE
 void zz2printf(KeyInfo *k) {
 	if (k) {
@@ -138,50 +169,6 @@ static int compute_pid_hash(const pid_t &key, int numBuckets)
 {
 	return ( key % numBuckets );
 }
-
-
-#if defined(LINUX) && defined(TDP)
-int 
-trace_me( void )
-{
-	if( ptrace(PTRACE_TRACEME, 0, 0, 0) < 0 ) {
-		fprintf( stderr, "TraceMe Call failed: %d (%s) \n", 
-				 errno, strerror(errno) );
-		return( -1 );
-	}
-	return( 1 );
-}
-
-
-int
-wait_stopped_child (pid_t pid)
-{
-
-  int wait_val;
-  
-  if ( waitpid( pid, &wait_val, 0)< 0) {
-    dprintf (D_ALWAYS,"Wait for Stopped Child wait failed: %d (%s) \n", errno, strerror (errno)); 
-
-    return (-1);
-  }
-  else {
-    if( WIFEXITED(wait_val) ) {    
-      return (-WEXITSTATUS(wait_val));  /* Something went wrong with application exec. */
-    }
-
-    if ( kill(pid, SIGSTOP) < 0) {
-      dprintf(D_ALWAYS, "Wait for Stopped Child kill failed: %d (%s) \n", errno, strerror(errno));
-      return (-2);
-    }
-    
-    if (ptrace(PTRACE_DETACH, pid, 0, 0) < 0) {
-      dprintf(D_ALWAYS, "Wait for Stopped Child detach failed: %d (%s) \n", errno, strerror(errno));
-      return (-3);
-    }
-    return (1);
-  }
-}
-#endif /* LINUX && TDP */
 
 
 // DaemonCore constructor. 
@@ -4481,10 +4468,6 @@ int DaemonCore::Create_Process(
 #endif
 
 	dprintf(D_DAEMONCORE,"In DaemonCore::Create_Process(%s,...)\n",namebuf);
-	if( HAS_DCJOBOPT_SUSPEND_ON_EXEC(job_opt_mask) ) {
-		dprintf( D_FULLDEBUG, "DaemonCore::Create_Process(): "
-				 "job_opt_mask requested suspend on exec\n" );
-	}
 
 	// First do whatever error checking we can that is not platform specific
 
@@ -5237,10 +5220,6 @@ int DaemonCore::Create_Process(
 		bool found;
 		for ( int j=3 ; j < openfds ; j++ ) {
 			if ( j == errorpipe[1] ) continue; // don't close our errorpipe!
-
-			// total hack to get paradyn demo working
-			if ( HAS_DCJOBOPT_DONT_CLOSE_THREE(job_opt_mask) && j == 3)
-				continue;
 			found = FALSE;
 			for ( int k=0 ; k < numInheritSockFds ; k++ ) {
                 if ( inheritSockFds[k] == j ) {
@@ -5284,29 +5263,16 @@ int DaemonCore::Create_Process(
 			sigprocmask( SIG_SETMASK, &emptySet, NULL );
 		}
 		
-		if( HAS_DCJOBOPT_SUSPEND_ON_EXEC(job_opt_mask) ) {
 #if defined(LINUX) && defined(TDP)
-
-			// unblock all signals so parent can properly trace us
-			sigset_t emptySet;
-			sigemptyset( &emptySet );
-			sigprocmask( SIG_SETMASK, &emptySet, NULL );
-
-			if( (trace_me() < 0) ) {
-				write(errorpipe[1], &errno, sizeof(errno));
-				exit (errno);
-			} 
-#endif /* LINUX && TDP */
-		}
-
-		// HACK for testing: just spin to test paradyn's fork handling
-		if ( HAS_DCJOBOPT_SPIN_BEFORE_EXEC(job_opt_mask) ) {
-			while (true) {
-				sleep(5);
+		if( HAS_DCJOBOPT_SUSPEND_ON_EXEC(job_opt_mask) ) {
+			if(ptrace(PTRACE_TRACEME, 0, 0, 0) == -1) {
+			    write(errorpipe[1], &errno, sizeof(errno));
+			    exit (errno);
 			}
 		}
-			
-// and ( finally ) exec:
+#endif
+
+			// and ( finally ) exec:
 		if( HAS_DCJOBOPT_NO_ENV_INHERIT(job_opt_mask) ) {
 			exec_results =  execve(namebuf, unix_args, unix_env); 
 		} else {
@@ -5361,17 +5327,18 @@ int DaemonCore::Create_Process(
 				// we're going to be sending signals and such
 			priv_state prev_priv;
 			prev_priv = set_user_priv();
-			int rval = wait_stopped_child( newpid );
+			int rval = tdp_wait_stopped_child( newpid );
 			set_priv( prev_priv );
-			if( rval < 0 ) {
-				dprintf( D_ALWAYS, "Create_Process wait failed: %d (%s)\n", 
-						 errno, strerror (errno) );
-				return FALSE;
-			} else {
-				dprintf( D_ALWAYS, "Create_Process parent: "
-						 "wait_stopped_child succeeded\n" );
+			if( rval == -1 ) {
+				return_errno = errno;
+				dprintf(D_ALWAYS, "Create_Process wait failed: %d (%s)\n", 
+					errno, strerror (errno) );
+				newpid = FALSE;
+				goto wrapup;
 			}
-			dprintf( D_FULLDEBUG, "new process with pid %d created\n", newpid);
+#else
+			dprintf(D_ALWAYS, "DCJOBOPT_SUSPEND_ON_EXEC not implemented.\n");
+
 #endif /* LINUX && TDP */
 		}
 	}
@@ -5921,6 +5888,7 @@ DaemonCore::HandleDC_SIGCHLD(int sig)
 				// SIGCHLD.  So, we don't want to call the reaper for
 				// this process, since it hasn't really exited.  So,
 				// just call continue to ignore this particular pid.
+			dprintf( D_FULLDEBUG, "received SIGCHLD from stopped TDP process\n");
 			continue;
 		}
 #endif /* LINUX && TDP */

@@ -769,7 +769,7 @@ Claim::getCODMgr( void )
 }
 
 int
-Claim::spawnStarter( time_t now, Stream* s, bool wrap_starter )
+Claim::spawnStarter( time_t now, Stream* s )
 {
 	int rval;
 	if( ! c_starter ) {
@@ -779,7 +779,7 @@ Claim::spawnStarter( time_t now, Stream* s, bool wrap_starter )
 		return 0;
 	}
 
-	rval = c_starter->spawn( now, s, wrap_starter );
+	rval = c_starter->spawn( now, s );
 
 	changeState( CLAIM_RUNNING );
 

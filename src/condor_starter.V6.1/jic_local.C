@@ -455,7 +455,6 @@ JICLocal::checkUniverse( int univ )
 	switch( univ ) {
 	case CONDOR_UNIVERSE_VANILLA:
 	case CONDOR_UNIVERSE_JAVA:
-	case CONDOR_UNIVERSE_STARTER:
 			// for now, we don't support much. :)
 		return true;
 
