@@ -96,12 +96,12 @@ static char* _FileName_ = __FILE__;
 void
 config_fill_ad( ClassAd* ad )
 {
-	char		buffer[512];
-	char 		*tmp;
-	char		*expr;
-	StringList	reqdExprs;
-	Source		src;
-	ExprTree	*exprTree;
+	char			buffer[512];
+	char 			*tmp;
+	char			*expr;
+	StringList		reqdExprs;
+	ClassAdParser	parser;
+	ExprTree		*exprTree;
 	
 	if( !ad ) return;
 	sprintf (buffer, "%s_EXPRS", mySubSystem);
@@ -113,8 +113,7 @@ config_fill_ad( ClassAd* ad )
 	reqdExprs.rewind();
 	while ((tmp = reqdExprs.next())) {
 		if( ( expr = param(tmp) ) == NULL ) continue;
-		src.SetSource( expr );
-		if( !src.ParseExpression( exprTree ) ) {
+		if( !parser.ParseExpression( expr, exprTree ) ) {
 			EXCEPT( "Error parsing: %s\n", expr );
 		}
 		ad->Insert( tmp, exprTree );
