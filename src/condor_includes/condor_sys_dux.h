@@ -37,6 +37,13 @@
 #define FD_ZERO(p)     memset((char *)(p), 0, sizeof(*(p)))
 #define HAS_U_TYPES
 
+/* bzero has different types in these two files.  Let's choose one. */
+
+#define bzero __hide_bzero
+#include <strings.h>
+#undef bzero
+#include <sys/select.h>
+
 /* Include sysmisc.h for the proc library now, but it needs to _not_
  * have _XOPEN_SOURCE_EXTENDED defined, cuz we need struct sigaltstack. 
  * And we must include it
