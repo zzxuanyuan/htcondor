@@ -34,6 +34,10 @@
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
 #include "read_multiple_logs.h"
 
+#include <map>
+#include <string>
+using namespace std;
+
 // for DAGMAN_RUN_POST_ON_FAILURE config setting
 extern bool run_post_on_failure;
 
@@ -145,7 +149,7 @@ class Dag {
 
     /** @return the total number of jobs in the DAG
      */
-    inline int NumJobs() const { return _jobs.Number(); }
+    inline int NumJobs() const { return _nodes.size(); }
 
     /** @return the number of jobs completed
      */
@@ -275,9 +279,6 @@ class Dag {
     off_t         _dapLogSize;
     //<--DAP
 
-    /// List of Job objects
-    List<Job>     _jobs;
-
     // Number of Jobs that are done (completed execution)
     int _numJobsDone;
     
@@ -317,6 +318,16 @@ class Dag {
 	void DumpDotFileNodes(FILE *temp_dot_file);
 	void DumpDotFileArcs(FILE *temp_dot_file);
 	void ChooseDotFileName(MyString &dot_file_name);
+
+private:
+	// for map comparisons
+	struct strlt {
+		bool operator()(const char* s1, const char* s2) const {
+			return strcasecmp(s1, s2) < 0;
+		}
+	};
+	
+	map<const char*, Job*, strlt> _nodes;
 };
 
 #endif /* #ifndef DAG_H */

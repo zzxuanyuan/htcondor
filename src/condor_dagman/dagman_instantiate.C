@@ -38,3 +38,5 @@ template class HashTable<int, Script*>;
 template class Queue<Script*>;
 template class Queue<Job*>;
 template class SimpleList<Job*>;
+template class map<char const *, Job *, Dag::strlt, allocator<Job *> >;
+

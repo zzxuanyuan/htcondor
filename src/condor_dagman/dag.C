@@ -38,6 +38,10 @@
 #include "helper.h"
 #endif
 
+#include <map>
+#include <string>
+using namespace std;
+
 //---------------------------------------------------------------------------
 Dag::Dag( StringList &condorLogFiles, const int maxJobsSubmitted,
 		  const int maxPreScripts, const int maxPostScripts,
@@ -102,15 +106,15 @@ Dag::~Dag() {
 
 //-------------------------------------------------------------------------
 bool Dag::Bootstrap (bool recovery) {
-    Job* job;
-    ListIterator<Job> jobs (_jobs);
+    Job* node;
+    map<const char*, Job*, Dag::strlt>::const_iterator nodes = _nodes.begin();
 
     // update dependencies for pre-completed jobs (jobs marked DONE in
     // the DAG input file)
-    jobs.ToBeforeFirst();
-    while( jobs.Next( job ) ) {
-		if( job->GetStatus() == Job::STATUS_DONE ) {
-			TerminateJob( job, true );
+    while(nodes != _nodes.end()) {
+		node = (*nodes++).second;
+		if( node->GetStatus() == Job::STATUS_DONE ) {
+			TerminateJob( node, true );
 		}
     }
     debug_printf( DEBUG_VERBOSE, "Number of pre-completed jobs: %d\n",
@@ -131,10 +135,11 @@ bool Dag::Bootstrap (bool recovery) {
 		}
 
 		// all jobs stuck in STATUS_POSTRUN need their scripts run
-		jobs.ToBeforeFirst();
-		while( jobs.Next( job ) ) {
-			if( job->GetStatus() == Job::STATUS_POSTRUN ) {
-				_postScriptQ->Run( job->_scriptPost );
+		nodes = _nodes.begin();
+		while(nodes != _nodes.end()) {
+			node = (*nodes++).second;
+			if( node->GetStatus() == Job::STATUS_POSTRUN ) {
+				_postScriptQ->Run( node->_scriptPost );
 			}
 		}
     }
@@ -144,11 +149,12 @@ bool Dag::Bootstrap (bool recovery) {
 		PrintReadyQ( DEBUG_DEBUG_2 );
     }	
     
-    jobs.ToBeforeFirst();
-    while( jobs.Next( job ) ) {
-		if( job->GetStatus() == Job::STATUS_READY &&
-			job->IsEmpty( Job::Q_WAITING ) ) {
-			StartNode( job );
+	nodes = _nodes.begin();
+    while(nodes != _nodes.end()) {
+		node = (*nodes++).second;
+		if( node->GetStatus() == Job::STATUS_READY &&
+			node->IsEmpty( Job::Q_WAITING ) ) {
+			StartNode( node );
 		}
     }
     
@@ -171,11 +177,13 @@ bool Dag::AddDependency (Job * parent, Job * child) {
 
 //-------------------------------------------------------------------------
 Job * Dag::GetJob (const JobID_t jobID) const {
-    ListIterator<Job> iList (_jobs);
-    Job * job;
-    iList.ToBeforeFirst();
-    while ((job = iList.Next()) != NULL) {
-        if (job->GetJobID() == jobID) return job;
+    Job* node;
+    map<const char*, Job*, Dag::strlt>::const_iterator nodes = _nodes.begin();
+    while (nodes != _nodes.end()) {
+		node = (*nodes++).second;
+        if (node->GetJobID() == jobID) {
+			return node;
+		}
     }
     return NULL;
 }
@@ -659,38 +667,31 @@ Job * Dag::GetJob (const char * jobName) const {
 	if( !jobName ) {
 		return NULL;
 	}
-    ListIterator<Job> iList (_jobs);
-    Job * job;
-    while ((job = iList.Next())) {
-        if (strcmp(job->GetJobName(), jobName) == 0) return job;
-    }
+    map<const char*, Job*, Dag::strlt>::const_iterator node = _nodes.find(jobName);
+	if(node != _nodes.end()) {
+		return (*node).second;
+	}
     return NULL;
 }
 
 
 bool
-Dag::NodeExists( const char* nodeName ) const
-{
-  if( !nodeName ) {
-    return false;
-  }
-  ListIterator<Job> nodeList( _jobs );
-  Job *node;
-  while( (node = nodeList.Next()) ) {
-    if( strcasecmp( node->GetJobName(), nodeName ) == 0 ) {
-      return true;
-    }
-  }
-  return false;
+Dag::NodeExists( const char* nodeName ) const {
+	return GetJob(nodeName) != NULL;
 }
 
 
 //---------------------------------------------------------------------------
 Job * Dag::GetJob (const CondorID condorID) const {
-    ListIterator<Job> iList (_jobs);
-    Job * job;
-    while ((job = iList.Next())) if (job->_CondorID == condorID) return job;
-    return NULL;
+    Job* node;
+    map<const char*, Job*, Dag::strlt>::const_iterator nodes = _nodes.begin();
+    while (nodes != _nodes.end()) {
+		node = (*nodes++).second;
+		if(node->_CondorID == condorID) {
+			return node;
+		}
+	}
+	return NULL;
 }
 
 //-------------------------------------------------------------------------
@@ -927,24 +928,24 @@ Dag::PostScriptReaper( const char* nodeName, int status )
 
 //---------------------------------------------------------------------------
 void Dag::PrintJobList() const {
-    Job * job;
-    ListIterator<Job> iList (_jobs);
-    while ((job = iList.Next()) != NULL) {
-        job->Dump();
-    }
+    map<const char*, Job*, Dag::strlt>::const_iterator nodes = _nodes.begin();
+    while (nodes != _nodes.end()) {
+		(*nodes++).second->Dump();
+	}
     dprintf( D_ALWAYS, "---------------------------------------\t<END>\n" );
 }
 
 void
 Dag::PrintJobList( Job::status_t status ) const
 {
-    Job* job;
-    ListIterator<Job> iList( _jobs );
-    while( ( job = iList.Next() ) != NULL ) {
-		if( job->GetStatus() == status ) {
-			job->Dump();
+	Job* node;
+    map<const char*, Job*, Dag::strlt>::const_iterator nodes = _nodes.begin();
+    while (nodes != _nodes.end()) {
+		node = (*nodes++).second;
+		if(node->GetStatus() == status) {
+			node->Dump();
 		}
-    }
+	}
     dprintf( D_ALWAYS, "---------------------------------------\t<END>\n" );
 }
 
@@ -982,44 +983,45 @@ void Dag::RemoveRunningJobs () const {
 	util_popen( cmd );
 		// TODO: we need to check for failures here
 
-    ListIterator<Job> iList(_jobs);
-    Job * job;
-    while (iList.Next(job)) {
-		ASSERT( job != NULL );
+    Job* node;
+    map<const char*, Job*, Dag::strlt>::const_iterator nodes = _nodes.begin();
+    while (nodes != _nodes.end()) {
+		node = (*nodes++).second;
+
+		ASSERT( node != NULL );
 			// if node has a Stork job that is presently submitted,
 			// remove it individually (this is necessary because
 			// DAGMan's job ID can't currently be inserted into the
 			// Stork job ad, and thus we can't do a "dap_rm -const..." 
 			// like we do with Condor; this should be fixed)
-		if( job->JobType() == Job::TYPE_STORK &&
-			job->GetStatus() == Job::STATUS_SUBMITTED ) {
-			snprintf( cmd, ARG_MAX, "dap_rm %d", job->_CondorID._cluster );
+		if( node->JobType() == Job::TYPE_STORK &&
+			node->GetStatus() == Job::STATUS_SUBMITTED ) {
+			snprintf( cmd, ARG_MAX, "dap_rm %d", node->_CondorID._cluster );
 			debug_printf( DEBUG_VERBOSE, "Executing: %s\n", cmd );
 			util_popen( cmd );
 				// TODO: we need to check for failures here
         }
 		// if node is running a PRE script, hard kill it
-        else if( job->GetStatus() == Job::STATUS_PRERUN ) {
-			ASSERT( job->_scriptPre );
-			ASSERT( job->_scriptPre->_pid != 0 );
-			if (daemonCore->Shutdown_Fast(job->_scriptPre->_pid) == FALSE) {
+        else if( node->GetStatus() == Job::STATUS_PRERUN ) {
+			ASSERT( node->_scriptPre );
+			ASSERT( node->_scriptPre->_pid != 0 );
+			if (daemonCore->Shutdown_Fast(node->_scriptPre->_pid) == FALSE) {
 				debug_printf(DEBUG_QUIET,
 				             "WARNING: shutdown_fast() failed on pid %d: %s\n",
-				             job->_scriptPre->_pid, strerror(errno));
+				             node->_scriptPre->_pid, strerror(errno));
 			}
         }
 		// if node is running a POST script, hard kill it
-        else if( job->GetStatus() == Job::STATUS_POSTRUN ) {
-			ASSERT( job->_scriptPost );
-			ASSERT( job->_scriptPost->_pid != 0 );
-			if(daemonCore->Shutdown_Fast(job->_scriptPost->_pid) == FALSE) {
+        else if( node->GetStatus() == Job::STATUS_POSTRUN ) {
+			ASSERT( node->_scriptPost );
+			ASSERT( node->_scriptPost->_pid != 0 );
+			if(daemonCore->Shutdown_Fast(node->_scriptPost->_pid) == FALSE) {
 				debug_printf(DEBUG_QUIET,
 				             "WARNING: shutdown_fast() failed on pid %d: %s\n",
-				             job->_scriptPost->_pid, strerror( errno ));
+				             node->_scriptPost->_pid, strerror( errno ));
 			}
         }
 	}
-	return;
 }
 
 //-----------------------------------------------------------------------------
@@ -1042,11 +1044,13 @@ void Dag::Rescue (const char * rescue_file, const char * datafile) const {
     // Print the names of failed Jobs
     //
     fprintf (fp, "#   ");
-    ListIterator<Job> it (_jobs);
-    Job * job;
-    while (it.Next(job)) {
-        if (job->GetStatus() == Job::STATUS_ERROR) {
-            fprintf (fp, "%s,", job->GetJobName());
+
+	Job* node;
+    map<const char*, Job*, Dag::strlt>::const_iterator nodes = _nodes.begin();
+    while (nodes != _nodes.end()) {
+		node = (*nodes++).second;
+        if (node->GetStatus() == Job::STATUS_ERROR) {
+            fprintf (fp, "%s,", node->GetJobName());
         }
     }
     fprintf (fp, "<ENDLIST>\n\n");
@@ -1054,85 +1058,89 @@ void Dag::Rescue (const char * rescue_file, const char * datafile) const {
     //
     // Print JOBS and SCRIPTS
     //
-    it.ToBeforeFirst();
-    while (it.Next(job)) {
-		if( job->JobType() == Job::TYPE_CONDOR ) {
-	fprintf (fp, "JOB %s %s %s\n", job->GetJobName(), job->GetCmdFile(),
-                 job->_Status == Job::STATUS_DONE ? "DONE" : "");
-      }
-		else if( job->JobType() == Job::TYPE_STORK ) {
-	fprintf (fp, "DAP %s %s %s\n", job->GetJobName(), job->GetCmdFile(),
-                 job->_Status == Job::STATUS_DONE ? "DONE" : "");
-      }
-      if (job->_scriptPre != NULL) {
-	fprintf (fp, "SCRIPT PRE  %s %s\n", job->GetJobName(),
-		 job->_scriptPre->GetCmd());
-      }
-      if (job->_scriptPost != NULL) {
-	fprintf (fp, "SCRIPT POST %s %s\n", job->GetJobName(),
-		 job->_scriptPost->GetCmd());
-      }
-      if( job->retry_max > 0 ) {
-	ASSERT( job->retries <= job->retry_max );
-	// print (job->retry_max - job->retries) so that
-	// job->retries isn't reset upon recovery
-	int retries = (job->retry_max - job->retries);
-	fprintf( fp,
-		 "# %d of %d retries already performed; %d remaining\n",
-		 job->retries, job->retry_max, retries );
-	fprintf( fp, "Retry %s %d\n", job->GetJobName(), retries );
-
-      }
-      fprintf( fp, "\n" );
-
-	if(!job->varNamesFromDag->IsEmpty()) {
-		fprintf(fp, "VARS %s", job->GetJobName());
-	
-		ListIterator<MyString> names(*job->varNamesFromDag);
-		ListIterator<MyString> vals(*job->varValsFromDag);
-		names.ToBeforeFirst();
-		vals.ToBeforeFirst();
-		MyString *strName, *strVal;
-		while((strName = names.Next()) && (strVal = vals.Next())) {
-			fprintf(fp, " %s=\"", strName->Value());
-			// now we print the value, but we have to re-escape certain characters
-			for(int i = 0; i < strVal->Length(); i++) {
-				char c = (*strVal)[i];
-				if(c == '\"')
-					fprintf(fp, "\\\"");
-				else if(c == '\\')
-					fprintf(fp, "\\\\");
-				else
-					fprintf(fp, "%c", c);
-			}
-			fprintf(fp, "\"");
+	nodes = _nodes.begin();
+    while (nodes != _nodes.end()) {
+		node = (*nodes++).second;
+		if( node->JobType() == Job::TYPE_CONDOR ) {
+			fprintf (fp, "JOB %s %s %s\n", node->GetJobName(),
+				node->GetCmdFile(),
+				node->_Status == Job::STATUS_DONE ? "DONE" : "");
+		} else if( node->JobType() == Job::TYPE_STORK ) {
+			fprintf (fp, "DAP %s %s %s\n", node->GetJobName(),
+				node->GetCmdFile(),
+				node->_Status == Job::STATUS_DONE ? "DONE" : "");
 		}
-		fprintf(fp, "\n");
+		
+		if (node->_scriptPre != NULL) {
+			fprintf (fp, "SCRIPT PRE  %s %s\n", node->GetJobName(),
+				node->_scriptPre->GetCmd());
+		}
+		if (node->_scriptPost != NULL) {
+			fprintf (fp, "SCRIPT POST %s %s\n", node->GetJobName(),
+				node->_scriptPost->GetCmd());
+		}
+		if( node->retry_max > 0 ) {
+			ASSERT( node->retries <= node->retry_max );
+			// print (job->retry_max - job->retries) so that
+			// job->retries isn't reset upon recovery
+			int retries = (node->retry_max - node->retries);
+			fprintf( fp,
+				"# %d of %d retries already performed; %d remaining\n",
+				node->retries, node->retry_max, retries );
+			fprintf( fp, "Retry %s %d\n", node->GetJobName(), retries );
+		}
+		fprintf( fp, "\n" );
+
+		if(!node->varNamesFromDag->IsEmpty()) {
+			fprintf(fp, "VARS %s", node->GetJobName());
+			ListIterator<MyString> names(*node->varNamesFromDag);
+			ListIterator<MyString> vals(*node->varValsFromDag);
+			names.ToBeforeFirst();
+			vals.ToBeforeFirst();
+			MyString *strName, *strVal;
+			while((strName = names.Next()) && (strVal = vals.Next())) {
+				fprintf(fp, " %s=\"", strName->Value());
+				// now we print the value, but we have to re-escape
+				// certain characters
+				for(int i = 0; i < strVal->Length(); i++) {
+					char c = (*strVal)[i];
+					if(c == '\"')
+						fprintf(fp, "\\\"");
+					else if(c == '\\')
+						fprintf(fp, "\\\\");
+					else
+						fprintf(fp, "%c", c);
+				}
+				fprintf(fp, "\"");
+			}
+			fprintf(fp, "\n");
+		}
 	}
-    }
 
-    //
-    // Print Dependency Section
-    //
-    fprintf (fp, "\n");
-    it.ToBeforeFirst();
-    while (it.Next(job)) {
-        SimpleList<JobID_t> & _queue = job->GetQueueRef(Job::Q_CHILDREN);
-        if (!_queue.IsEmpty()) {
-            fprintf (fp, "PARENT %s CHILD", job->GetJobName());
-            
-            SimpleListIterator<JobID_t> jobit (_queue);
-            JobID_t jobID;
-            while (jobit.Next(jobID)) {
-                Job * child = GetJob(jobID);
-                ASSERT( child != NULL );
-                fprintf (fp, " %s", child->GetJobName());
-            }
-            fprintf (fp, "\n");
-        }
-    }
+	//
+	// Print Dependency Section
+	//
+	fprintf (fp, "\n");
+	nodes = _nodes.begin();
+    while (nodes != _nodes.end()) {
+		node = (*nodes++).second;
 
-    fclose(fp);
+		SimpleList<JobID_t> & _queue = node->GetQueueRef(Job::Q_CHILDREN);
+		if (!_queue.IsEmpty()) {
+			fprintf (fp, "PARENT %s CHILD", node->GetJobName());
+			
+			SimpleListIterator<JobID_t> jobit (_queue);
+			JobID_t jobID;
+			while (jobit.Next(jobID)) {
+				Job * child = GetJob(jobID);
+				ASSERT( child != NULL );
+				fprintf (fp, " %s", child->GetJobName());
+			}
+			fprintf (fp, "\n");
+		}
+	}
+
+	fclose(fp);
 }
 
 
@@ -1172,7 +1180,7 @@ Dag::TerminateJob( Job* job, bool recovery )
 	if( job->countedAsDone == false ) {
 		_numJobsDone++;
 		job->countedAsDone = true;
-		ASSERT( _numJobsDone <= _jobs.Number() );
+		ASSERT( _numJobsDone <= NumJobs() );
 	}
 }
 
@@ -1245,39 +1253,41 @@ bool
 Dag::isCycle ()
 {
 	bool cycle = false; 
-	Job * job;
 	JobID_t childID;
-	ListIterator <Job> joblist (_jobs);
 	SimpleListIterator <JobID_t> child_list;
 
 	//Start DFS numbering from zero, although not necessary
 	DFS_ORDER = 0; 
 	
 	//Visit all jobs in DAG and number them	
-	joblist.ToBeforeFirst();	
-	while (joblist.Next(job))
-	{
-  		if (!job->_visited &&
-			job->GetQueueRef(Job::Q_PARENTS).Number()==0)
-			DFSVisit (job);	
+	
+    Job* node;
+    map<const char*, Job*, Dag::strlt>::const_iterator nodes = _nodes.begin();
+    while (nodes != _nodes.end()) {
+		node = (*nodes++).second;
+
+  		if (!node->_visited &&
+			node->GetQueueRef(Job::Q_PARENTS).Number()==0)
+			DFSVisit (node);	
 	}	
 
 	//Detect cycle
-	joblist.ToBeforeFirst();	
-	while (joblist.Next(job))
-	{
-		child_list.Initialize(job->GetQueueRef(Job::Q_CHILDREN));
+	nodes = _nodes.begin();
+	while (nodes != _nodes.end()) {
+		node = (*nodes++).second;
+		
+		child_list.Initialize(node->GetQueueRef(Job::Q_CHILDREN));
 		child_list.ToBeforeFirst();
 		while (child_list.Next(childID))
 		{
 			Job * child = GetJob (childID);
 
 			//No child's DFS order should be smaller than parent's
-			if (child->_dfsOrder >= job->_dfsOrder) {
+			if (child->_dfsOrder >= node->_dfsOrder) {
 #ifdef REPORT_CYCLE	
 				debug_printf (DEBUG_QUIET, 
 							  "Cycle in the graph possibly involving jobs %s and %s\n",
-							  job->GetJobName(), child->GetJobName());
+							  node->GetJobName(), child->GetJobName());
 #endif 			
 				cycle = true;
 			}
@@ -1434,11 +1444,11 @@ Dag::IncludeExtraDotCommands(
 void 
 Dag::DumpDotFileNodes(FILE *temp_dot_file)
 {
-	Job                 *node;
-	ListIterator <Job>  joblist (_jobs);
-	
-	joblist.ToBeforeFirst();	
-	while (joblist.Next(node)) {
+    Job* node;
+    map<const char*, Job*, Dag::strlt>::const_iterator nodes = _nodes.begin();
+    while (nodes != _nodes.end()) {
+		node = (*nodes++).second;
+
 		const char *node_name;
 		
 		node_name = node->GetJobName();
@@ -1497,23 +1507,22 @@ Dag::DumpDotFileNodes(FILE *temp_dot_file)
 void 
 Dag::DumpDotFileArcs(FILE *temp_dot_file)
 {
-	Job                          *parent;
-	ListIterator <Job>           joblist (_jobs);
+    Job* node;
+    map<const char*, Job*, Dag::strlt>::const_iterator nodes = _nodes.begin();
+    while (nodes != _nodes.end()) {
+		node = (*nodes++).second;
 
-	joblist.ToBeforeFirst();	
-	while (joblist.Next(parent)) {
 		Job        *child;
 		JobID_t                      childID;
 		SimpleListIterator <JobID_t> child_list;
 		const char                   *parent_name;
 		const char                   *child_name;
 		
-		parent_name = parent->GetJobName();
+		parent_name = node->GetJobName();
 		
-		child_list.Initialize(parent->GetQueueRef(Job::Q_CHILDREN));
+		child_list.Initialize(node->GetQueueRef(Job::Q_CHILDREN));
 		child_list.ToBeforeFirst();
 		while (child_list.Next(childID)) {
-			
 			child = GetJob (childID);
 			
 			child_name  = child->GetJobName();
@@ -1523,8 +1532,6 @@ Dag::DumpDotFileArcs(FILE *temp_dot_file)
 			}
 		}
 	}
-	
-	return;
 }
 
 //-------------------------------------------------------------------------
@@ -1567,7 +1574,11 @@ Dag::ChooseDotFileName(MyString &dot_file_name)
 
 bool Dag::Add( Job& job )
 {
-	return _jobs.Append(job);
+	return
+		_nodes.insert(
+			map<const char*, Job*, Dag::strlt>::value_type(
+				job.GetJobName(), &job)
+		).second;
 }
 
 
@@ -1643,17 +1654,8 @@ Dag::RemoveNode( const char *name, MyString &whynot )
 	}
 
 		// remove node from the DAG
-	removed = false;
-	_jobs.Rewind();
-	while( _jobs.Next( candidate ) ) {
-		ASSERT( candidate );
-        if( candidate == node ) {
-			_jobs.DeleteCurrent();
-			removed = true;
-			continue;
-		}
-	}
-		// we know the node is in _jobs (since we looked it up via
+	removed = (_nodes.erase(name) > 0);
+		// we know the node is in _nodes (since we looked it up via
 		// GetJob() above), and DeleteCurrent() can't fail (!), so
 		// there should be no way for us to get through the above loop
 		// without having seen & removed the node... also, we can't
