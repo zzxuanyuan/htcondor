@@ -123,7 +123,12 @@ main_init( int argc, char* argv[] )
 
 	init_params(1);		// The 1 indicates that this is the first time
 
+		// Instantiate and initialize the Resource Manager object.
 	resmgr = new ResMgr;
+	resmgr->init_resources();
+
+		// Initialize machine-wide attribute object.
+	resmgr->m_attr->init();
 
 	if( ! skip_benchmarks ) {
 		dprintf( D_ALWAYS, "About to start initial benchmarks.\n" );
@@ -232,7 +237,7 @@ main_init( int argc, char* argv[] )
 	resmgr->walk( Resource::start_update_timer );
 
 		// Evaluate the state of all resources and update CM
-	resmgr->walk( Resource::eval_and_update );
+	resmgr->eval_and_update_all();
 
 	return TRUE;
 }
@@ -241,13 +246,15 @@ main_init( int argc, char* argv[] )
 int
 main_config()
 {
+		// Re-initialize machine-wide attributes object.
+	resmgr->m_attr->init();
 		// Re-read config file, and rebuild ads for each resource.  
 	resmgr->walk( Resource::init_classad );  
 		// Re-read config file for startd-wide stuff.
 	init_params(0);
 	resmgr->init_socks();
 		// Re-evaluate and update the CM for each resource.
-	resmgr->walk( Resource::eval_and_update );
+	resmgr->eval_and_update_all();
 	return TRUE;
 }
 
