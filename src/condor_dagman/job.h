@@ -53,6 +53,13 @@ class Job {
     /** */ inline std::string GetCmdFile () const { return m_cmdFile; }
     /** */ inline JobID_t     GetJobID   () const { return m_jobID;   }
 
+    inline operator std::string() const { return toString(); }
+
+    /** Create string representation of this job
+        @param condorID Indicates whether the condorID be included
+     */
+    std::string toString (bool condorID = false) const;
+
     Script * m_scriptPre;
     Script * m_scriptPost;
 
@@ -96,11 +103,7 @@ class Job {
         @param level Only do the dump if the current debug level is >= level
     */
     void Dump () const;
-  
-    /** Print the identification info for this Job.
-     */
-    void Print (bool condorID = false) const;
-  
+    
     /** */ CondorID m_CondorID;
     /** */ status_t m_Status;
   
@@ -131,7 +134,8 @@ class Job {
     static JobID_t m_jobID_counter;
 };
 
-void job_print (Job * job, bool condorID = false);
+ostream & operator << (ostream & out, const Job & job);
+std::string toString (const Job * const job, bool condorID = false);
 
 } // namespace dagman
 
