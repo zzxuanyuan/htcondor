@@ -61,10 +61,9 @@ typedef struct {
 #define INT		20
 #define BOOL	21
 #endif
-#if defined(ERROR) // ERROR is a WIN32 macro!
-#undef ERROR
-#endif
+#if !defined(WIN32) // ERROR is a WIN32 macro!
 #define ERROR	22
+#endif
 #define MOD		23
 #define EXPRSTRING 24
 #define ENDMARKER	-1
