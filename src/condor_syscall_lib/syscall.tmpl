@@ -92,17 +92,23 @@
 
 	** NEW OPTIONS **
 
-	: map
+	map( int fd )
+		When MappingFileDescriptors() is in effect, convert this
+		fd and check to see if the operation should be performed
+		locally.  Not all access methods will support map(). In
+		this case, the syscall will fail with EINVAL.
+
+	: file_table
 		A special flag placed after a prototype to indicate that the
 		call should be directed through file_state.C when
 		MappingFileDescriptors() is in effect.  Both the checkpointing
  		and remote syscall library use this feature.
 
-	: map_name( id )
+	: file_table_name( id )
 
-		This allows you to select a different map name
+		This allows you to select a different name
 		to use in the open file table.  Example:
-			int fdsync() : map_name(fsync)
+			int fdsync() : file_table_name(fsync)
 		This switch will call FileTab->fsync() when
 		necessary, but otherwise uses SYS_fdsync.
 
@@ -130,7 +136,10 @@
 
 		This will throw out the given parameter
 		when performing a remote system call.
-		See _xstat for an example.
+		See _xstat for an example.  This probably
+		isn't the best solution to the xstat
+		problem, but the code given is no worse
+		than the previous implementation.
 
   Some system calls simply must be handled specially.  Examples
   are readv, and getlogin. This "specialness" dosen't necessarily
@@ -158,71 +167,97 @@
 #   define EXTRACT extract
 #endif
 
-	int open( const char *path, int flags, ... ) : map
+	int open( const char *path, int flags, ... ) : file_table
 	{
 		SEND_PATH( path );
 		ALLOC_PATH( path );
 	}
 
 	int open64( const char *path, int flags, ... )
-		: map, remote_name(open), map_name(open);
+		: file_table, remote_name(open), file_table_name(open)
+	{
+		SEND_PATH( path );
+		ALLOC_PATH( path );
+	}
 
-	int close( int fd ) : map;
+	int close( int fd ) : file_table;
 
-	ssize_t read( int fd, void *buf, size_t len ) : map {
+	ssize_t read( int fd, void *buf, size_t len ) : file_table {
 		out code_bytes_bool( buf, len );
 		alloc( buf, len );
 	}
 	
-        ssize_t write( int fd, const void *buf, size_t len ) : map {
+        ssize_t write( int fd, const void *buf, size_t len ) : file_table {
 		in code_bytes_bool( buf, len );
 		alloc( buf, len );
 	}
 
-	off_t lseek( int fd, off_t offset, int whence ) : map; 
+	off_t lseek( int fd, off_t offset, int whence ) : file_table; 
 
 	offset_t llseek( int fd, offset_t offset, int whence )
-		: map, map_name(lseek), remote_name(lseek);
+		: file_table, file_table_name(lseek), remote_name(lseek);
 
 	off64_t lseek64( int fd, off64_t offset, int whence )
-		: map, map_name(lseek), remote_name(lseek);
+		: file_table, file_table_name(lseek), remote_name(lseek);
 
-	int dup( int old_fd ) : map;
-	int dup2( int old_fd, int new_fd ) : map;
+	int dup( int old_fd ) : file_table;
+	int dup2( int old_fd, int new_fd ) : file_table;
 
-	int fcntl( int fd, int cmd, ... ) : map;
+	int fcntl( int fd, int cmd, ... ) : file_table;
 
 	#if defined(LINUX) && defined(GLIBC)
-		int ioctl( int fd, unsigned long cmd, ... ) : map;
+		int ioctl( int fd, unsigned long cmd, ... ) : file_table;
 	#else
-		int ioctl( int fd, int cmd, ... ) : map;
+		int ioctl( int fd, int cmd, ... ) : file_table;
 	#endif
 
-	int fchown( int fd, uid_t owner, gid_t group ) : map ;
-	int fchmod( int fd, mode_t mode ) : map ;
-	int fchdir( int fd ) : map ;
+	/* Sync must go through the table to flush the buffer cache */
+	int fsync( int fd ) : file_table;
+	int fdsync( int fd ) : file_table, file_table_name(fsync), remote_name(fsync);
+	int fdatasync( int fd ) : file_table, file_table_name(fsync), remote_name(fsync);
+
+	/* Truncate must go through the table to update the stored file size. */
+	#if defined( LINUX )
+		int ftruncate( int fd, size_t length ) : file_table;
+	#else 
+		int ftruncate( int fd, off_t length ) : file_table ;
+	#endif
+
+	int ftruncate64( int fd, off64_t length )
+		: file_table, file_table_name(ftruncate), remote_name(ftruncate);
+
+	int fchown( map(int fd), uid_t owner, gid_t group );
+	int fchmod( map(int fd), mode_t mode );
+	int fchdir( map(int fd) ) ;
 
 	/* Linux, Irix, and Solaris need these switches to redirect
 	   these calls to fxstat, lxstat, and xstat.  */
 
 	#if defined(SWITCH)&&(defined(LINUX)||defined(IRIX)||defined(Solaris))
 		#if defined(LINUX) || defined(IRIX53)
-			int fxstat( discard(int version), int fd, struct stat *buf ) : remote_name(fstat), map_name(fstat), map;
+			int fxstat( discard(int version), map(int fd), struct stat *buf ) : remote_name(fstat);
 			int lxstat( discard(int version), char *path, struct stat *buf ) : remote_name(lstat);
 			int xstat( discard(int version), char *path, struct stat *buf ) : remote_name(stat);
 			int xmknod( discard(int version), char *path, mode_t mode, dev_t device ) : remote_name(mknod);
 		#else
-			int fxstat( discard(const int version), int fd, struct stat *buf ) : remote_name(fstat), map_name(fstat), map;
+			int fxstat( discard(const int version), map(int fd), struct stat *buf ) : remote_name(fstat);
 			int lxstat( discard(const int version), const char *path, struct stat *buf ) : remote_name(lstat);
 			int xstat( discard(const int version), const char *path, struct stat *buf ) : remote_name(stat);
 			int xmknod( discard(const int version), const char *path, mode_t mode, dev_t device ) : remote_name(mknod);
 		#endif
 	#endif
 
-	int fstat( int fd, struct stat *buf ) : map
+	int fstat( map(int fd), struct stat *buf )
 	{
 		out code( buf );
 		alloc( buf, STAT_SIZE );
+	}
+
+	int fstat64( map(int fd), struct stat64 *buf )
+		: remote_name(fstat)
+	{
+		out code( buf );
+		alloc( buf, STAT64_SIZE );
 	}
 
 	int lstat( const char *path, struct stat *buf )
@@ -233,12 +268,28 @@
 		alloc( buf, STAT_SIZE );
 	}
 
+	int lstat64( const char *path, struct stat64 *buf )
+		: remote_name(fstat)
+	{
+		out code( buf );
+		alloc( buf, STAT64_SIZE );
+	}
+
 	int stat( const char *path, struct stat *buf )
 	{
 		SEND_PATH( path );
 		ALLOC_PATH( path );
 		out code( buf );
 		alloc( buf, STAT_SIZE );
+	}
+
+	int stat64( const char *path, struct stat64 *buf )
+		: remote_name(stat)
+	{
+		SEND_PATH( path );
+		ALLOC_PATH( path );
+		out code( buf );
+		alloc( buf, STAT64_SIZE );
 	}
 
 	int mknod( const char *path, mode_t mode, dev_t device )
@@ -249,27 +300,13 @@
 
 	/* Poor relatives of the above calls */
 
-	int prev_fstat( int fd, struct stat *buf )
-		: map, map_name(fstat), remote_name(fstat);
-
-	int prev_lstat( const char *name, struct stat *buf )
-		: remote_name(lstat);
-
-	int prev_stat( const char *name, struct stat *buf )
-		: remote_name(stat);
-
-	int prev_mknod( const char *name, mode_t mode, dev_t dev )
-		: remote_name(mknod);
-
-
-	int oldfstat( int fd, struct stat *buf )
-		: map, map_name(fstat), remote_name(fstat);
-
-	int oldlstat( const char *name, struct stat *buf )
-		: remote_name(lstat);
-
-	int oldstat( const char *name, struct stat *buf )
-		: remote_name(stat);
+	int prev_fstat( map(int fd), struct stat *buf ) : remote_name(fstat);
+	int prev_lstat( const char *name, struct stat *buf ) : remote_name(lstat);
+	int prev_stat( const char *name, struct stat *buf ) : remote_name(stat);
+	int prev_mknod( const char *name, mode_t mode, dev_t dev ) : remote_name(mknod);
+	int oldfstat( map(int fd), struct stat *buf ) : remote_name(fstat);
+	int oldlstat( const char *name, struct stat *buf ) : remote_name(lstat);
+	int oldstat( const char *name, struct stat *buf ) : remote_name(stat);
 
 	#if defined(LINUX) || defined(HPUX)
 		int statfs( const char *path, struct statfs *buf )
@@ -286,22 +323,22 @@
 	}
 
 	#if defined(IRIX) || defined(Solaris)
-		int fstatfs( int fd, struct statfs *buf, int len, int fstyp ) : map
+		int fstatfs( map(int fd), struct statfs *buf, int len, int fstyp )
 	#else
-		int fstatfs( int fd, struct statfs *buf ) : map
+		int fstatfs( map(int fd), struct statfs *buf )
 	#endif
 	{
 		out code( buf );
 		alloc( buf, STATFS_SIZE );
 	}
 
-	int flock( int fd, int op ) : map;
-	int fsync( int fd ) : map;
-	int fdsync( int fd ) : map, map_name(fsync), remote_name(fsync);
-	int fdatasync( int fd ) : map, map_name(fsync), remote_name(fsync);
+	int flock( map(int fd), int op );
+	int lockf( map(int fd), int op, off_t where );
+	int lockf64( map(int fd), int op, off64_t where )
+		: remote_name(lockf);
 
 	#if defined(HPUX) || defined(OSF1)
-		int getdirentries( int fd, struct dirent *buf, size_t nbytes, off_t *basep ) : map
+		int getdirentries( map(int fd), struct dirent *buf, size_t nbytes, off_t *basep )
 		{
 			out code_bytes_bool( buf, rval );
 			in code_bytes_bool( basep, EIGHT );
@@ -310,17 +347,19 @@
 			alloc( basep, LONG_SIZE );
 		}
 	#else 
-		int getdents( int fd, struct dirent *buf, size_t nbytes ) : map
+		int getdents( map(int fd), struct dirent *buf, size_t nbytes )
 		{
 			out code_bytes_bool( buf, nbytes );
 			alloc( buf, nbytes );
 		}
-	#endif
 
-	#if defined( LINUX )
-		int ftruncate( int fd, size_t length ) : map;
-	#else 
-		int ftruncate( int fd, off_t length ) : map ;
+		int getdents64( map(int fd), struct dirent64 *buf, size_t nbytes )
+			: remote_name(getdents)
+		{
+			out code_bytes_bool( buf, nbytes );
+			alloc( buf, nbytes );
+		}
+
 	#endif
 
 #if !defined(SWITCH) && !defined(CLIP)
@@ -784,7 +823,7 @@ int rename( const char *from, const char *to ) : pseudo {
 	}
 
 
-#if !defined(Solaris) && !defined(LINUX) && !defined(IRIX62) && !defined(HPUX)
+#if defined(OSF1)
 	int table( int id, int index, char *addr, int nel, unsigned int lel ) {
 		out code_bytes_bool( addr, nel * lel );
 		alloc( addr, nel * lel );
@@ -849,6 +888,13 @@ int rename( const char *from, const char *to ) : pseudo {
 	}
 #endif /* ! LINUX */
 
+	int truncate64( const char *path, off64_t length )
+		: remote_name(truncate)
+	{
+		SEND_PATH( path );
+		ALLOC_PATH( path );
+	}
+
 	int mkdir( const char *path, mode_t mode ) {
 		SEND_PATH( path );
 		ALLOC_PATH( path );
@@ -881,9 +927,27 @@ int rename( const char *from, const char *to ) : pseudo {
 		alloc( rlp, RLIMIT_SIZE );
 	}
 
+#if defined(HPUX) || defined(LINUX) || defined(Solaris) || defined(IRIX)
+	int setrlimit64( int resource, const struct rlimit64 *rlp )
+#else
+	int setrlimit64( int resource, struct rlimit64 *rlp )
+#endif
+		: remote_name(setrlimit)
+	{
+		in code( rlp );
+		alloc( rlp, RLIMIT64_SIZE );
+	}
+
 	int getrlimit( int resource, struct rlimit *rlp ) {
 		out code( rlp );
 		alloc( rlp, RLIMIT_SIZE );
+	}
+
+	int getrlimit64( int resource, struct rlimit64 *rlp )
+		: remote_name(getrlimit)
+	{
+		out code( rlp );
+		alloc( rlp, RLIMIT64_SIZE );
 	}
 
 	int getdomainname( char *name, int namelen ) {
@@ -975,8 +1039,9 @@ not_supported {
 	#if defined(LINUX) && defined(SWITCH)
 		/* mmap is a special switch on Linux */
 	#else
-		MMAP_T mmap( MMAP_T a, size_t l, int p, int f, int fd, off_t o ) : EXTRACT;
+		MMAP_T mmap( MMAP_T a, size_t l, int p, int f, map(int fd), off_t o ) : EXTRACT;
 	#endif
+	MMAP_T mmap64( MMAP_T a, size_t l, int p, int f, map(int fd), off64_t o ) : remote_name(mmap);
 	int mprotect( MMAP_T addr, size_t len, int prot );
 	int madvise( MMAP_T addr, size_t len, int behav );
 	int msync( MMAP_T addr, size_t len, int flags );
@@ -1020,9 +1085,9 @@ not_supported {
 #if defined(IRIX)
 	/* nothing */
 #elif defined(HPUX)
-	int getfh( int fd, const fhandle_t *fhp );
+	int getfh( map(int fd), const fhandle_t *fhp );
 #else
-	int getfh( int fd, fhandle_t *fhp, int exp_fd );
+	int getfh( map(int fd), fhandle_t *fhp, int exp_fd );
 #endif
 
 #if !defined(HPUX)
