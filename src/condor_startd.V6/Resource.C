@@ -23,7 +23,7 @@
 #include "startd.h"
 static char *_FileName_ = __FILE__;
 
-Resource::Resource()
+Resource::Resource( CpuAttributes* cap, int rid )
 {
 	r_classad = NULL;
 	r_state = new ResState( this );
@@ -31,8 +31,18 @@ Resource::Resource()
 	r_cur = new Match;
 	r_pre = NULL;
 	r_reqexp = new Reqexp( &r_classad );
-	r_attr = new ResAttributes( this );
-	r_name = strdup( my_full_hostname() );
+	r_id = rid;
+	
+	if( resmgr->is_smp() ) {
+		char tmp[256];
+		sprintf( tmp, "cpu%d@%s", rid, my_full_hostname() );
+		r_name = strdup( tmp );
+	} else {
+		r_name = strdup( my_full_hostname() );
+	}
+
+	r_attr = cap;
+	r_attr->attach( this );
 
 	up_tid = -1;
 	poll_tid = -1;
@@ -323,45 +333,15 @@ Resource::init_classad()
 	sprintf( tmp, "%s = \"%s\"", ATTR_MACHINE, my_full_hostname() );
 	r_classad->Insert( tmp );
 
-		// STARTD_IP_ADDR (needs to be in all ads)
-	sprintf( tmp, "%s = \"%s\"", ATTR_STARTD_IP_ADDR, 
-			 daemonCore->InfoCommandSinfulString() );
-	r_classad->Insert( tmp );
+		// Insert all machine-wide attributes.
+	resmgr->m_attr->refresh( r_classad, ALL );
 
-		// Arch, OpSys, FileSystemDomain and UidDomain.  Note: these
-		// will always return something, since config() will insert
-		// values for these if we don't have them in the config file.
-	ptr = param( "ARCH" );
-	sprintf( tmp, "%s = \"%s\"", ATTR_ARCH, ptr );
-	r_classad->Insert( tmp );
-	free( ptr );
-
-	ptr = param( "OPSYS" );
-	sprintf( tmp, "%s = \"%s\"", ATTR_OPSYS, ptr );
-	r_classad->Insert( tmp );
-	free( ptr );
-
-	ptr = param("UID_DOMAIN");
-	sprintf( tmp, "%s = \"%s\"", ATTR_UID_DOMAIN, ptr );
-	dprintf( D_ALWAYS, "%s\n", tmp );
-	r_classad->Insert( tmp );
-	free( ptr );
-
-	ptr = param("FILESYSTEM_DOMAIN");
-	sprintf( tmp, "%s = \"%s\"", ATTR_FILE_SYSTEM_DOMAIN, ptr );
-	dprintf( D_ALWAYS, "%s\n", tmp );
-	r_classad->Insert( tmp );
-	free( ptr );
+		// Insert all cpu-specific attributes.
+	r_attr->init( r_classad );
 
 		// Insert state and activity attributes.
 	r_state->update( r_classad );
 
-		// Insert all resource attribute info.
-	r_attr->init( r_classad );
-
-		// Number of CPUs.  
-	sprintf( tmp, "%s = %d", ATTR_CPUS, calc_ncpus() );
-	r_classad->Insert( tmp );
 
 	return TRUE;
 }
@@ -376,6 +356,10 @@ Resource::update_classad()
 	r_attr->compute( UPDATE );
 	r_attr->refresh( r_classad, UPDATE );
 	
+		// Also fill in machine-wide attributes 
+	resmgr->m_attr->compute( UPDATE );
+	resmgr->m_attr->refresh( r_classad, UPDATE );
+
 		// Put in state info
 	r_state->update( r_classad );
 
@@ -402,14 +386,18 @@ Resource::timeout_classad()
 {
 		// Recompute statistics needed at every timeout and fill in classad
 	r_attr->compute( TIMEOUT );
-	r_attr->refresh( r_classad, TIMEOUT );
+	r_attr->refresh( r_classad, TIMEOUT ); 
+
+		// Also fill in machine-wide attributes (we only need to
+		// recompute them once)
+	resmgr->m_attr->refresh( r_classad, TIMEOUT );
 }
 
 int
 Resource::force_benchmark()
 {
 		// Force this resource to run benchmarking.
-	r_attr->benchmark(1);
+	resmgr->m_attr->benchmark( this, 1 );
 	return TRUE;
 }
 
@@ -417,7 +405,6 @@ Resource::force_benchmark()
 int
 Resource::update()
 {
-	int rval1 = TRUE, rval2 = TRUE;
 	ClassAd private_ad;
 	ClassAd public_ad;
 
@@ -427,7 +414,6 @@ Resource::update()
 	this->make_public_ad( &public_ad );
 	this->make_private_ad( &private_ad );
 
-
 		// Send class ads to collector(s)
 	resmgr->send_update( &public_ad, &private_ad );
 
@@ -436,8 +422,6 @@ Resource::update()
 
 		// Reset our timer so we update again after update_interval.
 	daemonCore->Reset_Timer( up_tid, update_interval, 0 );
-
-	return( rval1 && rval2 );
 }
 
 
@@ -630,24 +614,24 @@ Resource::eval_kill()
 
 
 int
-Resource::eval_vacate()
+Resource::eval_preempt()
 {
 	int tmp;
 	if( r_cur->universe() == VANILLA ) {
-		if( (r_classad->EvalBool( "VACATE_VANILLA",
+		if( (r_classad->EvalBool( "PREEMPT_VANILLA",
 								   r_cur->ad(), 
 								   tmp)) == 0 ) {
-			if( (r_classad->EvalBool( "VACATE",
+			if( (r_classad->EvalBool( "PREEMPT",
 									   r_cur->ad(), 
 									   tmp)) == 0 ) {
-				EXCEPT("Can't evaluate VACATE");
+				EXCEPT("Can't evaluate PREEMPT");
 			}
 		}
 	} else {
-		if( (r_classad->EvalBool( "VACATE",
+		if( (r_classad->EvalBool( "PREEMPT",
 								   r_cur->ad(), 
 								   tmp)) == 0 ) {
-			EXCEPT("Can't evaluate VACATE");
+			EXCEPT("Can't evaluate PREEMPT");
 		}
 	}
 	return tmp;
@@ -717,18 +701,13 @@ Resource::make_public_ad(ClassAd* pubCA)
 
 	caInsert( pubCA, r_classad, ATTR_NAME );
 	caInsert( pubCA, r_classad, ATTR_MACHINE );
-	caInsert( pubCA, r_classad, ATTR_STARTD_IP_ADDR );
-	caInsert( pubCA, r_classad, ATTR_ARCH );
-	caInsert( pubCA, r_classad, ATTR_OPSYS );
-	caInsert( pubCA, r_classad, ATTR_UID_DOMAIN );
-	caInsert( pubCA, r_classad, ATTR_FILE_SYSTEM_DOMAIN );
 
+		// Insert all state info.
 	r_state->update( pubCA );
-	r_attr->refresh( pubCA, PUBLIC );
 
-	caInsert( pubCA, r_classad, ATTR_CPUS );
-	caInsert( pubCA, r_classad, ATTR_MEMORY );
-	caInsert( pubCA, r_classad, ATTR_AFS_CELL );
+		// Insert all info from the machine and CPU we care about. 
+	resmgr->m_attr->refresh( pubCA, PUBLIC );
+	r_attr->refresh( pubCA, PUBLIC );
 
 		// Put everything in the public classad from STARTD_EXPRS. 
 	config_fill_ad( pubCA );
