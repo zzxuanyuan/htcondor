@@ -24,22 +24,45 @@ zfree(voidpf opaque, voidpf address)
 }
 
 
+// what this does is renumber things
+//so if we have a four byte thing
+// [4 3 2 1], it becomes something like [1 2 3 4]
+// watch out for negative numbers (have to think about that)
+int swap_byte_order(unsigned int  number) {
+	unsigned int fb, sb, tb, ob;
+	fb=number&0xFF;
+	sb=number>>8;
+	sb&=0xff;
+	tb=number>>16;
+	tb&=0xff;
+	ob=number>>24;
+	ob&=0xff;
+	return
+		(signed int) (fb<<24|
+					  sb<<16|
+					  tb<<8|
+					  ob);
+}
+	
+
+
 int fd1, fd2; //file descriptors for first and second file, respectively.
 CheckpointFile f1, f2; //checkpoint files for each ones.
 z_stream *pz1, *pz2; //checkpoint compression crap.
 char * paddr1, *paddr2; //locations of *UNCOMPRESSED* mmaped files.
+ArchSpecific *pArch=NULL; //pointer to the arch that you are using.
 
 
 //assumes that pages are decompressed
 int compare_pages(char * p1, char *p2, int &decile, float &matchPercent) {
 	int bytes_matching=0;
-	for (int i=0; i<getpagesize(); i++) {
+	for (int i=0; i<pArch->getpagesize(); i++) {
 		if (*p1++==*p2++) {
 			bytes_matching++;
 		}
 	}
 	
-	matchPercent = bytes_matching / (float) getpagesize();
+	matchPercent = bytes_matching / (float) pArch->getpagesize();
 	decile= (int)(10.0*matchPercent);
 	if (SUPER_VERBOSE) {
 		if (decile==10 ){
@@ -47,7 +70,7 @@ int compare_pages(char * p1, char *p2, int &decile, float &matchPercent) {
 		}
 		else {
 			cout<<"\tSUPER_VERBOSE: PAGE NOMATCH "<<
-				bytes_matching<<"/"<<getpagesize()<<" "<< matchPercent << endl;
+				bytes_matching<<"/"<<pArch->getpagesize()<<" "<< matchPercent << endl;
 		}
 	} else {
 		if (decile == 10) cout << "*";
@@ -57,7 +80,7 @@ int compare_pages(char * p1, char *p2, int &decile, float &matchPercent) {
 }
 int compare_segment(CheckpointFile &ck1, CheckpointFile &ck2, char * paddr1, 
 					char * paddr2, int segnumber, int &matches, int &pages) {
-	int pgsize=getpagesize();
+	int pgsize=pArch->getpagesize();
 	//we are going to read this a page at a time:
 	int bytes_to_read1=ck1.segmap[segnumber].len;
 	int bytes_to_read2=ck2.segmap[segnumber].len;
@@ -140,6 +163,7 @@ int compare_segment(CheckpointFile &ck1, CheckpointFile &ck2, char * paddr1,
 	return pages_matching==total_pages;
 }			
 
+
 //side effect--seeks to the beginning of the file
 int read_header(int fd, CheckpointFile &cf) {
 	int retval=lseek(fd, 0, SEEK_SET);
@@ -150,24 +174,28 @@ int read_header(int fd, CheckpointFile &cf) {
 		cerr<<"ERROR READING HEADER"<<endl;
 	}
 	// check for network to host stuff
-	cf.use_ntoh = (vals[0] != cf.COMPRESS_MAGIC && vals[0] != cf.MAGIC); 
-	if (cf.use_ntoh) {
-		if (DEBUG) cout << "DEBUG: Need to convert from network order" << endl;
-		if (sizeof(int) == sizeof(long)) {
-			cf.ints_are_longs = true;
-		} else if (sizeof(int) == sizeof(short)) {
-			cf.ints_are_longs = false;
-		} else {
-			cerr << "ERROR: CANNOT CONVERT FROM NETWORK ORDER" << endl;;
-			exit (0);
-		}
-	} else {
-		if (DEBUG) cout<< "DEBUG: No need to convert from network order"<<endl;
+	cerr<<"MAGIC: "<<cf.MAGIC<<"\tCOMPRESS_MAGIC"<<cf.COMPRESS_MAGIC<<endl;
+	cerr<<"Value of first int "<< vals[0]<< " Swapped: "<<swap_byte_order(vals[0])<<endl;
+	//unsigned int foo= (unsigned int) vals[0];
+	//cerr<<swap_byte_order(foo)<<endl;
+	//cerr<<"Value of foo"<<foo<<endl;
+	
+	if (vals[0]==cf.COMPRESS_MAGIC|| vals[0]==cf.MAGIC) {
+		cf.needs_byte_swap=false;
 	}
-
+	else if (swap_byte_order(vals[0])==cf.COMPRESS_MAGIC||
+			 swap_byte_order(vals[0])==cf.MAGIC) 
+		{
+			if (DEBUG) cerr << "DEBUG: Need to convert from network order" << endl;
+			cf.needs_byte_swap=true;
+	}
+	else {
+		cerr << "ERROR: CANNOT CONVERT FROM NETWORK ORDER" << endl;;
+			exit (0);
+	}
 	// now make sure values are OK after converting	
-	vals[0] = ntoh(vals[0], cf);
-	vals[1] = ntoh(vals[1], cf);
+	vals[0] = (cf.needs_byte_swap? swap_byte_order(vals[0]): vals[0]);
+	vals[1]= (cf.needs_byte_swap? swap_byte_order(vals[1]): vals[1]);
 	if (vals[0] == cf.COMPRESS_MAGIC) {
 		cf.compressed = true;
 	} else if (vals[0] == cf.MAGIC) {
@@ -177,8 +205,10 @@ int read_header(int fd, CheckpointFile &cf) {
 		exit (0);
 	}
 	cf.n_segs=vals[1];
-	if (DEBUG) cout <<"DEBUG: cf, compressed: "<<cf.compressed<<", num segs:  "
+	if (DEBUG) 
+		{cerr<<"DEBUG: cf, compressed: "<<cf.compressed<<", num segs:  "
 					<<cf.n_segs<<endl;
+		}
 	return 0;
 }
 
@@ -193,12 +223,13 @@ int read_segmap(int fd, CheckpointFile &cf) {
 	//this is tricky, but should work:
 	retval=read(fd, cf.segmap, cf.n_segs*sizeof(SegInfo));
 	if (DEBUG) cout<<"DEBUG: Read "<<retval<<" bytes (the segmaps)"<<endl;
-	if (cf.use_ntoh) {
-		cerr << "ERROR: Not yet prepared to convert SegInfo from network order"
-			<< endl;
+	if (cf.needs_byte_swap) {
+		//	cerr << "ERROR: Not yet prepared to convert SegInfo from network order"<< endl;
 		for (int i = 0; i < cf.n_segs; i++) {
-			cf.segmap[i].len = ntohl (cf.segmap[i].len);
-			cf.segmap[i].prot = ntoh (cf.segmap[i].prot, cf);
+			cf.segmap[i].len = swap_byte_order (cf.segmap[i].len);//sizeof long needs sizeof int...
+			cf.segmap[i].prot = swap_byte_order (cf.segmap[i].prot);
+			cf.segmap[i].file_loc=swap_byte_order(cf.segmap[i].file_loc);
+			cf.segmap[i].core_loc=swap_byte_order(cf.segmap[i].core_loc);
 		}
 	}
 }
@@ -219,25 +250,18 @@ void SegInfo::Display(){
 //note: this is a pointer.
 z_stream * initialize_zstream(z_stream *pz) {
 	pz= (z_stream *) malloc(sizeof(z_stream));
-	pz->zalloc=zalloc;
-	pz->zfree=zfree;
-	pz->opaque=NULL;
-	inflateInit(pz);
+	cout<<"PZ= "<<pz<<endl;
+	//pz->zalloc=zalloc;
+	//pz->zfree=zfree;
+	pz->zalloc=Z_NULL;
+	pz->zfree=Z_NULL;
+	pz->opaque=Z_NULL;
+	
+	int xxx=inflateInit(pz);
+	cerr<<"InflateInit: "<<xxx<<endl;
 	return pz;	
 }	
 
-// a helper function to convert from network order, a little tricky because
-// we don't know whether we need to do so (check cf.use_ntoh) and we don't
-// know whether to use ntohl or ntohs
-int ntoh (int network_int, CheckpointFile &cf) {
-	// maybe no need to convert
-	if ( ! cf.use_ntoh ) return network_int;
-
-	// we already know that ints are either longs or shorts, so just use
-	// the correct one
-	if (cf.ints_are_longs) 	return ntohl(network_int);
-	else 					return ntohs(network_int);		
-}
 
 int setup_uncompressed_addr (int fd, CheckpointFile &ck, z_stream *pz, 
 							char * &paddr) 
@@ -248,7 +272,8 @@ int setup_uncompressed_addr (int fd, CheckpointFile &ck, z_stream *pz,
 	
 	int first_segment_address=ck.segmap[0].file_loc;
 
-	if (DEBUG) cerr<<"DEBUG: Needed Length "<<needed_len<<endl;
+	if (DEBUG) cerr<<"DEBUG: Needed Length "<<needed_len
+				   <<"First address"<< first_segment_address<<endl;
 	if (ck.compressed) {
 		char * paddrtemp;
 		//hack--determine the length of this file
@@ -278,7 +303,8 @@ int setup_uncompressed_addr (int fd, CheckpointFile &ck, z_stream *pz,
 		}
 		//now lets start decompressing...
 		//I guess we'll just copy everything before the segments themselves...
-		memcpy(paddr, paddrtemp, first_segment_address);
+		int xqqq=memcpy(paddr, paddrtemp, first_segment_address);
+		if (DEBUG) { cerr<<"xqqq"<<xqqq<<endl;}
 		pz->total_out=0;
 		pz->total_in=0;
 		pz->next_in= (Bytef*) (unsigned long) (paddrtemp+first_segment_address);
@@ -288,6 +314,9 @@ int setup_uncompressed_addr (int fd, CheckpointFile &ck, z_stream *pz,
 		//pz->avail_out=getpagesize();
 		//now decompress;
 		int xxx=0;
+		if (DEBUG) cerr << "DEBUG: " <<xxx<<" Def "<<pz->total_out<<" read "
+						<<pz->total_in <<" avail in "<<pz->avail_in<<endl 
+						<<"xxx "<<xxx<<endl;
 		xxx=inflate(pz, Z_FINISH);
 		if (DEBUG) cerr << "DEBUG: " <<xxx<<" Def "<<pz->total_out<<" read "
 						<<pz->total_in <<" avail in "<<pz->avail_in<<endl 
@@ -306,21 +335,59 @@ int setup_uncompressed_addr (int fd, CheckpointFile &ck, z_stream *pz,
 	return 0;
 }
 
+//corny function to initialize an archspecific
+int initialize_checkpoint_architecture(char * arch) {
+	int retval=0;
+	if (arch==NULL||!strcmp(arch, ArchSpecific::SPARC)) {
+		cerr<<"No architecture specificed--defaulting to SUN"<<endl;
+		pArch=new Sun4Specific();
+	}
+	else if (!strcmp(arch, ArchSpecific::INTEL)) {
+		pArch=new Suni386Specific();
+	}
+	else {
+		cerr<<"Unknown Architecture "<<arch<<endl;
+		exit(2);
+	}
+	return retval;
+}
+
+
 
 //first thing is file
 int main(int argc, char ** argv ) {
-	
-	if (argc != 3 && argc != 4) {
-		cout << "Usage: " << argv[0] << " ckpt_1 ckpt_2 [debug]" << endl;
+	//test swap bute order
+	//int xa, xb, xc, xd;
+//	xa=0x000000AA;
+//	xb=0x0000BB00;
+	//xc=0x00CC0000;
+	//xd=0xDD000000;
+	//int ax, bx, cx, dx;
+	//ax=0xAA000000;
+	//bx=0xBB0000;
+	//cx=0xCC00;
+	//dx=0xDD;
+	//#define SPACE " "
+	//cerr<< "INPUT:" <<xa<<SPACE<<xb<<SPACE<<xc<<SPACE<<xd<<endl;
+	//cerr<<"CORRECT: "<<ax<<SPACE<<bx<<SPACE<<cx<<SPACE<<dx<<endl;
+	//cerr<<"Actual: "<<swap_byte_order(xa)<<SPACE<<
+	//swap_byte_order(xb)<<SPACE<<
+	//swap_byte_order(xc)<<SPACE<<
+	//swap_byte_order(xd)<<SPACE<<endl;	
+	cout<<sizeof(off_t)<<endl;
+	if (argc != 4 && argc != 5) {
+		cout << "Usage: " << argv[0] << " ckpt_1 ckpt_2 arch(SPARC|INTEL)  [debug]" << endl;
 		exit(1);
 	}	
 	fd1=open(argv[1], O_RDONLY);
 	fd2=open(argv[2], O_RDONLY);
-	DEBUG = (argc == 4);  // a third arg will turn on debugging
-
+	DEBUG = (argc == 5);  // a fourth arg will turn on debugging
+	initialize_checkpoint_architecture(argv[3]);
+	
 	//ok. lets try this:
 	read_header(fd1, f1);
 	read_header(fd2, f2);
+	cout<<"Read Headers"<<endl;
 	
 	read_segmap(fd1, f1);
 	read_segmap(fd2, f2);
@@ -338,12 +405,8 @@ int main(int argc, char ** argv ) {
 	paddr2=NULL;
 	setup_uncompressed_addr(fd1, f1, pz1, paddr1);
 	setup_uncompressed_addr(fd2, f2, pz2, paddr2);
-	if (paddr1 == NULL || paddr2 == NULL) {
-		cerr <<"ERROR: could not create paddr. (Network order problem?)"<<endl;
-		exit (0);
-	}
 	if (DEBUG) cerr<<"DEBUG: " << "paddr1 is " << paddr1
-					<< ", paddr2 is " <<paddr2 <<endl;
+					<< ", paddr2 is " <<paddr2<<endl;
 	
 	int matching_segs=0;
 	int total_matches = 0;
