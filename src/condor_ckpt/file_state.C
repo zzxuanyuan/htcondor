@@ -75,7 +75,7 @@ static char *_FileName_ = __FILE__;
 #include "image.h"
 extern Image MyImage;
 
-OpenFileTable	*FileTab;
+OpenFileTable	*FileTab = NULL;
 static char				Condor_CWD[ _POSIX_PATH_MAX ];
 static int				MaxOpenFiles;
 static int				Condor_isremote;
@@ -442,8 +442,8 @@ OpenFileTable::DoSocket(int addr_family, int type, int protocol )
 		// this interface may change in the future so that this
 		// code may need adjustment! - Greger
 		real_fd = syscall( SYS_socketcall, SYS_SOCKET, socket_args );
-		fprintf(stderr, "Socketcall returned %d, errno=%d\n",
-			real_fd, errno);
+//		fprintf(stderr, "Socketcall returned %d, errno=%d\n",
+//			real_fd, errno);
 #elif defined(Solaris)
 		real_fd = socket( addr_family, type, protocol );
 #else
@@ -468,7 +468,7 @@ OpenFileTable::DoSocket(int addr_family, int type, int protocol )
 		}
 	}
 
-	fprintf(stderr, "JCP: DoSocket returning %d\n", user_fd); fflush(stderr);
+//	fprintf(stderr, "JCP: DoSocket returning %d\n", user_fd); fflush(stderr);
 
 	file[user_fd].readable = TRUE;
 	file[user_fd].writeable = TRUE;
@@ -758,6 +758,9 @@ open( const char *path, int flags, ... )
 	int		is_remote = FALSE;
 	sigset_t omask;
 
+	if ( FileTab == NULL )
+		InitFileState();
+
 	if( flags & O_CREAT ) {
 		va_start( ap, flags );
 		creat_mode = va_arg( ap, int );
@@ -825,6 +828,9 @@ open_stream( const char *local_path, int flags, int *_FileStreamLen )
 		va_list ap;
 		int		creat_mode = 0;
 
+		if ( FileTab == NULL )
+			InitFileState();
+
 		if( flags & O_CREAT ) {
 			va_start( ap, flags );
 			creat_mode = va_arg( ap, int );
@@ -841,6 +847,9 @@ open_stream( const char *local_path, int flags, int *_FileStreamLen )
 	{
 		va_list ap;
 		int		creat_mode = 0;
+
+		if ( FileTab == NULL )
+			InitFileState();
 
 		if( flags & O_CREAT ) {
 			va_start( ap, flags );
@@ -867,6 +876,9 @@ int
 openx( const char *path, int flags, mode_t creat_mode, int ext )
 {
 
+	if ( FileTab == NULL )
+		InitFileState();
+
 	if( ext != 0 ) {
 		errno = ENOSYS;
 		return -1;
@@ -887,7 +899,10 @@ openx( const char *path, int flags, mode_t creat_mode, int ext )
 #if defined( SYS_close )
 int
 close( int fd )
-{
+{		
+	if ( FileTab == NULL )
+		InitFileState();
+
 	if( MappingFileDescriptors() ) {
 		return FileTab->DoClose( fd );
 	} else {
@@ -927,6 +942,9 @@ dup( int old )
 	sigset_t omask;
 	int rval;
 
+	if ( FileTab == NULL )
+		InitFileState();
+
 	/* we don't want to be interrupted by a checkpoint between when
 	   modify our local file table and actually make the change */
 	omask = block_condor_signals();
@@ -953,6 +971,9 @@ int
 dup2( int old, int new_fd )
 {
 	int		rval;
+
+	if ( FileTab == NULL )
+		InitFileState();
 
 	if( MappingFileDescriptors() ) {
 		rval =  FileTab->DoDup2( old, new_fd );
@@ -984,6 +1005,9 @@ socket( int addr_family, int type, int protocol )
 		(unsigned long)protocol
 	};
 #endif
+
+	if ( FileTab == NULL )
+		InitFileState();
 
 	if( MappingFileDescriptors() ) {
 		rval =  FileTab->DoSocket( addr_family, type, protocol );
@@ -1074,6 +1098,9 @@ MarkOpen( const char *path, int flags, int real_fd, int is_remote )
 
 int creat(const char *path, mode_t mode)
 {
+	if ( FileTab == NULL )
+		InitFileState();
+
 	return open(path, O_WRONLY | O_CREAT | O_TRUNC, mode);
 }
 
@@ -1085,6 +1112,9 @@ fcntl(int fd, int cmd, ...)
 	va_list ap;
         int user_fd;
         int use_local_access = FALSE;
+
+		if ( FileTab == NULL )
+			InitFileState();
 
         if ((user_fd = MapFd(fd)) < 0) {
                 return -1;
