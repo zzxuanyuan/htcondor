@@ -31,6 +31,7 @@ void DumpOpenFds();
 void SaveFileState();
 void RestoreFileState();
 int MapFd( int );
+void FileTabSetAddr(unsigned long addr);
 void Set_CWD( const char *working_dir );
 
 #if defined(__cplusplus)

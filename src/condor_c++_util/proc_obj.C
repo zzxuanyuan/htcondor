@@ -40,7 +40,7 @@ static char	*Status[] = {
  
 static char	*Universe[] = {
 	"", "STANDARD", "PIPE", "LINDA", "PVM", "VANILLA", 
-	"PVMD", "SCHED_UNIVERSE", "MPI"
+	"PVMD", "SCHED_UNIVERSE", "MPI", "RTLINK"
 };
 
 static CurIndent;				// current indent level for display functions

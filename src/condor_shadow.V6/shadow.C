@@ -1109,7 +1109,7 @@ start_job( char *cluster_id, char *proc_id )
 #endif
 	ImageSize = Proc->image_size;
 
-	if (Proc->universe != STANDARD) {
+	if (Proc->universe != STANDARD && Proc->universe != RTLINK) {
 		strcpy( CkptName, "" );
 		strcpy( TmpCkptName, "" );
 	} else {

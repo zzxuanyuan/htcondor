@@ -552,6 +552,7 @@ SetExecutable()
   switch(JobUniverse) 
 	{
 	case STANDARD:
+	case RTLINK:
 	  (void) sprintf (buffer, "%s = TRUE", ATTR_WANT_REMOTE_SYSCALLS);
 	  InsertJobExpr (buffer);
 	  (void) sprintf (buffer, "%s = TRUE", ATTR_WANT_CHECKPOINT);
@@ -672,6 +673,13 @@ SetUniverse()
 	if( univ && stricmp(univ,"scheduler") == MATCH ) {
 		JobUniverse = SCHED_UNIVERSE;
 		(void) sprintf (buffer, "%s = %d", ATTR_JOB_UNIVERSE, SCHED_UNIVERSE);
+		InsertJobExpr (buffer);
+		return;
+	}
+
+	if( univ && stricmp(univ,"rtlink") == MATCH ) {
+		JobUniverse = RTLINK;
+		(void) sprintf (buffer, "%s = %d", ATTR_JOB_UNIVERSE, RTLINK);
 		InsertJobExpr (buffer);
 		return;
 	}
@@ -1013,6 +1021,10 @@ SetRank()
 		default_rank = param("DEFAULT_RANK_VANILLA");
 		append_rank = param("APPEND_RANK_VANILLA");
 	} 
+	if ( JobUniverse == RTLINK ) {
+		default_rank = param("DEFAULT_RANK_STANDARD");
+		append_rank = param("APPEND_RANK_STANDARD");
+	}
 
 		// If any of these are defined but empty, treat them as
 		// undefined, or else, we get nasty errors.  -Derek W. 8/21/98
@@ -1260,6 +1272,7 @@ SetKillSig()
 	} else {
 		switch(JobUniverse) {
 		case STANDARD:
+		case RTLINK:
 			signo = SIGTSTP;
 			break;
 		default:
@@ -1641,6 +1654,15 @@ check_requirements( char *orig )
 	}
 
 	if ( JobUniverse == STANDARD ) {
+		ptr = param("APPEND_REQ_STANDARD");
+		if ( ptr != NULL ) {
+			(void) strcat( answer," && (" );
+			(void) strcat( answer, ptr );
+			(void) strcat( answer,")" );
+		}
+	}
+
+	if ( JobUniverse == RTLINK ) {
 		ptr = param("APPEND_REQ_STANDARD");
 		if ( ptr != NULL ) {
 			(void) strcat( answer," && (" );

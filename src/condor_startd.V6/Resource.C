@@ -496,7 +496,7 @@ Resource::wants_pckpt()
 {
 	int want_pckpt; 
 
-	if( r_cur->universe() != STANDARD ) {
+	if( r_cur->universe() != STANDARD || r_cur->universe() != RTLINK ) {
 		return FALSE;
 	}
 

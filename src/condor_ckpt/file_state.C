@@ -2383,6 +2383,12 @@ InitFileState()
 }
 
 void
+FileTabSetAddr(unsigned long ft)
+{
+	FileTab = (OpenFileTable *) ft;
+}
+
+void
 Set_CWD( const char *working_dir )
 {
 	strcpy( Condor_CWD, working_dir );

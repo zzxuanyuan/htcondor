@@ -28,6 +28,7 @@
 
 #include "condor_common.h"
 #include "machdep.h"
+#include "mm.h"
 
 
 #define NAME_LEN 64
@@ -51,11 +52,14 @@ public:
 	void Display();
 	int Magic() { return magic; }
 	void ResetMagic();
+	RAW_ADDR addrEnv;
+	RAW_ADDR addrFileTab;
+	RAW_ADDR addrSyscallSock;
 private:
 	int		magic;
 	int		n_segs;
 	RAW_ADDR	alt_heap;
-	char	pad[ 1024 - 2 * sizeof(int) - NAME_LEN - sizeof(RAW_ADDR)];
+	char	pad[ 1024 - 2 * sizeof(int) - NAME_LEN - 4 * sizeof(RAW_ADDR)];
 };
 
 class SegMap {
@@ -68,6 +72,7 @@ public:
 	char *GetName() { return name; }
 	RAW_ADDR GetLoc() { return core_loc; }
 	long GetLen() { return len; }
+	int GetProt() { return prot; }
 	void MSync();
 	void Display();
 private:
@@ -105,6 +110,35 @@ public:
 	ExecutionMode	GetMode() { return mode; }
 	size_t			GetLen()  { return len; }
 	int				GetFd()   { return fd; }
+
+	// When ckpts are restored by the runtime-loaded restart library,
+	// the environment saved at ckpt is unavailable, because it is in
+	// a different shlib.  We save a pointer to it in the ckpt
+	// header, and when the ckpt image is restored, we use it to read
+	// the environment.
+	RAW_ADDR		GetAddrEnv() 			{ return head.addrEnv; }
+	void SetAddrEnv(RAW_ADDR addr) 		   	{ head.addrEnv = addr; }
+
+	// These objects are dynamically allocated at two times: in the
+	// initialization of the job, and in the initialization of a ckpt
+	// restart.  It is a problem if allocator returns a different
+	// pointer at these times.  Before the restart code has copied the
+	// ckpt heap image back into the process, these pointers are
+	// valid.  But once the heap image is copied, these pointers are no
+	// longer valid, since they are different than what the allocator
+	// returned when the process was initialized.
+    // So, we save their addresses during a ckpt and restore them
+	// after the heap has been copied back.
+    // There may be other objects with this problem --
+	// anything that is dyn allocated by both the job initialization and
+	// the restart code.
+	RAW_ADDR 		GetAddrSyscallSock()	{ return head.addrSyscallSock; }
+	RAW_ADDR		GetAddrFileTab()		{ return head.addrFileTab; }
+	void SetAddrSyscallSock(RAW_ADDR addr) 	{ head.addrSyscallSock = addr; }
+	void SetAddrFileTab(RAW_ADDR addr)	   	{ head.addrFileTab = addr; }
+	void UnloadRestartLibrary();
+
+	void ResetBrk();
 protected:
 	RAW_ADDR	GetStackLimit();
 	void AddSegment( const char *name, RAW_ADDR start, RAW_ADDR end,
@@ -136,6 +170,9 @@ extern "C" {
 	void restart();
 	void init_image_with_file_name( char *ckpt_name );
 	void init_image_with_file_descriptor( int ckpt_fd );
+	void init_image_with_librestart(int fd, RAW_ADDR env,
+									RAW_ADDR filetab,
+									RAW_ADDR syssock);
 	void _condor_prestart( int syscall_mode );
 	void Suicide();
 }
@@ -176,4 +213,5 @@ extern "C" {
 #endif
 
 #	define JMP_BUF_SP(env) (((long *)(env))[JmpBufSP_Index()])
-#endif
+
+#endif /* _IMAGE_H */

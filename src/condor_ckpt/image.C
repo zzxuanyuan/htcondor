@@ -36,6 +36,28 @@
 #include "file_table_interf.h"
 #include "condor_debug.h"
 #include "condor_ckpt_mode.h"
+
+// For RTLINK, we need to stash the addresses of FileTab and
+// syscall_sock into the ckpt header.  These declarations will let us
+// obtain the addresses.
+#include "file_state.h"
+#include "condor_io.h" 
+extern OpenFileTable *FileTab;
+extern ReliSock *syscall_sock;
+
+// For RTLINK.  The mmap of the checkpointed process.  Equivalent to
+// the SegMap stored in the header of the checkpoint image.
+static mmap_region ckptmmap[MAX_MMAP_REGIONS];
+static int numckptmmap;
+
+// For RTLINK.  The mmap of this process.
+static mmap_region procmmap[MAX_MMAP_REGIONS];
+static int numprocmmap;
+
+// For RTLINK.  The memory to be unmapped after the ckpt is restarted.
+static mmap_region unldmmap[MAX_MMAP_REGIONS];
+static int numunldmmap;
+
 static char *_FileName_ = __FILE__;
 
 extern int _condor_in_file_stream;
@@ -105,12 +127,41 @@ static size_t StackSaveSize;
 unsigned int _condor_numrestarts = 0;
 int condor_compress_ckpt = 1; // compression off(0) or on(1)
 int condor_slow_ckpt = 0;
+// When nonzero, ckpt/syscall libraries are runtime-loaded
+int condor_rtlink = 0;
+
 
 // set mySubSystem for Condor components which expect it
 char *mySubSystem = "JOB";
 
-static int
-net_read(int fd, void *buf, int size)
+void
+segmap_to_mmap(SegMap *segmap, int len, mmap_region *mr)
+{
+	int i;
+	for (i = 0; i < len; i++) {
+		mr[i].mm_addr = segmap[i].GetLoc();
+		mr[i].mm_len = (unsigned long) segmap[i].GetLen();
+		mr[i].mm_prot = segmap[i].GetProt();
+	}
+}
+
+// For RTLINK: reset the brk.
+void
+Image::ResetBrk()
+{
+	int i;
+	for (i = 0; i < head.N_Segs(); i++)
+		if (! strcmp(map[i].GetName(), "DATA")) {
+			void *newbrk = (void *) (map[i].GetLoc() + map[i].GetLen());
+			mmap_brk(newbrk);
+			return;
+		}
+	dprintf(D_ALWAYS, "Couldn't figure out how to reset the BRK\n");
+	Suicide();
+}
+
+int
+condor_net_read(int fd, void *buf, int size)
 {
 	int		bytes_read;
 	int		this_read;
@@ -230,6 +281,9 @@ Header::Init()
 		magic = MAGIC;
 	n_segs = 0;
 	alt_heap = 0;
+	addrEnv = 0;
+	addrFileTab = 0;
+	addrSyscallSock = 0;
 }
 
 void
@@ -273,8 +327,7 @@ SegMap::MSync()
 	   requests (possibly because MS_ASYNC is rarely used, so kernel
 	   developers don't work to get it right), so instead we use MS_SYNC
 	   below to write pagesize chunks synchronously.  This may be less
-	   efficient, but it is better than hanging the machine.
-	*/
+	   efficient, but it is better than hanging the machine.  */
 	int pagesize = getpagesize();
 	for (int i = 0; i < len; i += pagesize) {
 		if (msync((char *)core_loc+i, pagesize, MS_SYNC) < 0) {
@@ -322,6 +375,26 @@ Image::SetMode( int syscall_mode )
 	}
 }
 
+void
+Image::UnloadRestartLibrary()
+{
+	int i;
+
+	numckptmmap = head.N_Segs();
+	for (i = 0; i < numckptmmap; i++) {
+		ckptmmap[i].mm_addr = map[i].GetLoc();
+		ckptmmap[i].mm_len = (unsigned long) map[i].GetLen();
+		ckptmmap[i].mm_prot = map[i].GetProt();
+	}
+	mmap_canonicalize(ckptmmap, &numckptmmap);
+	mmap_get_process_mmap(procmmap, &numprocmmap);
+	mmap_canonicalize(procmmap, &numprocmmap);
+	mmap_diff(procmmap, numprocmmap,
+			  ckptmmap, numckptmmap,
+			  unldmmap, &numunldmmap);
+	mmap_munmap(unldmmap, numunldmmap);
+}
+
 #if defined(COMPRESS_CKPT)
 /* 
 ** Return the start of the alternate heap, used internally by the
@@ -330,8 +403,7 @@ Image::SetMode( int syscall_mode )
 ** the start of the alt heap and the end of the free area.  It is
 ** essential that this heap be located in the same place after a
 ** restart, so our static pointer to the alt heap is not trashed.
-** We never save the alt heap at checkpoint time.
-*/
+** We never save the alt heap at checkpoint time.  */
 void *
 Image::FindAltHeap()
 {
@@ -537,6 +609,12 @@ Image::Save()
 
 #endif	
 
+	if (condor_rtlink) {
+		head.addrEnv = (RAW_ADDR) &Env;
+		head.addrFileTab = (RAW_ADDR) FileTab;
+		head.addrSyscallSock = (RAW_ADDR) syscall_sock;
+	}
+
 	for( i=0; i<numsegs; i++ ) {
 		rtn = segment_bounds(i, addr_start, addr_end, prot);
 		switch (rtn) {
@@ -553,7 +631,16 @@ Image::Save()
 			}
 			break;
 		case 1:
-			break;		// don't checkpoint text segment
+			if (condor_rtlink) {
+				// We must checkpoint all segments in RTLINK.
+				if (addr_start != head.AltHeap()) {	// don't ckpt alt heap
+#if defined(LINUX)
+					addr_end=find_correct_vm_addr(addr_start, addr_end, prot);
+#endif
+					AddSegment( "SHARED LIB", addr_start, addr_end, prot);
+				}
+			}
+			break;		// Otherwise don't checkpoint text segment
 		case 2:
 			stackseg = i;	// don't add STACK segment until the end
 			break;
@@ -707,18 +794,23 @@ Image::Restore()
 		}
 	}
 #endif
-
 		// Overwrite our data segment with the one saved at checkpoint
 		// time *and* restore any saved shared libraries.
+     	// If we are in RTLINK, libc is unavailable beginning with
+     	// this call until the ckpt is restored via longjmp.
 	RestoreAllSegsExceptStack();
 
 		// We have just overwritten our data segment, so the image
-		// we are working with has been overwritten too.  Fortunately,
-		// the only thing that has changed is the file descriptor.
+		// we are working with has been overwritten too.
 	fd = save_fd;
+	if (condor_rtlink) {
+		syscall_sock = (ReliSock*) GetAddrSyscallSock();
+		FileTabSetAddr((unsigned long) GetAddrFileTab());
+	}
 
 #if defined(PVM_CHECKPOINTING)
-	memcpy(global_user_data, user_data, sizeof(user_data));
+	if (!condor_rtlink)
+		memcpy(global_user_data, user_data, sizeof(user_data));
 #endif
 
 		// Now we're going to restore the stack, so we move our execution
@@ -807,7 +899,6 @@ void Image::RestoreAllSegsExceptStack()
 		}
 		fd = save_fd;
 	}
-
 }
 
 
@@ -831,7 +922,11 @@ RestoreStack()
 		nbytes = htonl( nbytes );
 		status = write( MyImage.GetFd(), &nbytes, sizeof(nbytes) );
 		dprintf( D_ALWAYS, "USER PROC: CHECKPOINT IMAGE RECEIVED OK\n" );
-
+		if (condor_rtlink) {
+			// This is our last chance to close the FD before we leave this
+			// shlib.
+			MyImage.Close();
+		}
 		SetSyscalls( SYS_REMOTE | SYS_MAPPED );
 	} else {
 		SetSyscalls( SYS_LOCAL | SYS_MAPPED );
@@ -855,6 +950,10 @@ RestoreStack()
 	}
 #endif
 
+	if (condor_rtlink) {
+		RAW_ADDR env = MyImage.GetAddrEnv();
+		Env = *((jmp_buf*)env);
+	}
 	LONGJMP( Env, 1 );
 }
 
@@ -1121,7 +1220,7 @@ Image::Write( int fd )
 #else
 	if( _condor_in_file_stream ) {
 #endif
-		status = net_read( fd, &ack, sizeof(ack) );
+		status = condor_net_read( fd, &ack, sizeof(ack) );
 		if( status < 0 ) {
 			dprintf( D_ALWAYS, "Can't read final ack from the shadow\n" );
 			return -1;
@@ -1163,7 +1262,7 @@ Image::Read()
 	}
 
 		// Read in the header
-	if( (nbytes=net_read(fd,&head,sizeof(head))) < 0 ) {
+	if( (nbytes=condor_net_read(fd,&head,sizeof(head))) < 0 ) {
 		return -1;
 	}
 	pos += nbytes;
@@ -1171,7 +1270,7 @@ Image::Read()
 
 		// Read in the segment maps
 	for( i=0; i<head.N_Segs(); i++ ) {
-		if( (nbytes=net_read(fd,&map[i],sizeof(SegMap))) < 0 ) {
+		if( (nbytes=condor_net_read(fd,&map[i],sizeof(SegMap))) < 0 ) {
 			return -1;
 		}
 		pos += nbytes;
@@ -1212,12 +1311,17 @@ SegMap::Read( int fd, ssize_t pos )
 		Suicide();
 	}
 
-	if( mystrcmp(name,"DATA") == 0 ) {
-		orig_brk = (char *)sbrk(0);
-		if( orig_brk < (char *)(core_loc + len) ) {
-			brk( (char *)(core_loc + len) );
+	// RTLINK will reset the brk after the ckpt image is fully
+	// restored.
+	if (!condor_rtlink) {
+		if( mystrcmp(name,"DATA") == 0 ) {
+			orig_brk = (char *)sbrk(0);
+			if( orig_brk < (char *)(core_loc + len) ) {
+				brk( (char *)(core_loc + len) );
+			}
+			cur_brk = (char *)sbrk(0);
+			dprintf(D_ALWAYS, "CUR_BRK = %#010x\n", cur_brk);
 		}
-		cur_brk = (char *)sbrk(0);
 	}
 
 #if defined(Solaris) || defined(IRIX53) || defined(LINUX)
@@ -1558,14 +1662,35 @@ Checkpoint( int sig, int code, void *scp )
 	} else {					// Restart
 #undef WAIT_FOR_DEBUGGER
 #if defined(WAIT_FOR_DEBUGGER)
-	int		wait_up = 1;
-	while( wait_up )
-		;
+		int		wait_up = 1;
+		while( wait_up )
+			;
 #endif
 		if ( do_full_restart ) {
+			if (condor_rtlink) {
+				dprintf(D_ALWAYS, "I have emerged from the asshole of Condor\n");
+
+				// We must re-install the sig handlers now; previously
+				// they were the handlers in librestart.
+				_install_signal_handler(SIGTSTP, (SIG_HANDLER)Checkpoint);
+				_install_signal_handler(SIGUSR2, (SIG_HANDLER)Checkpoint);
+				_install_signal_handler(SIGUSR1, (SIG_HANDLER)Suicide);
+
+				dprintf(D_ALWAYS, "About to unload the restart library\n");
+				MyImage.UnloadRestartLibrary();
+				dprintf(D_ALWAYS, "Resetting the BRK\n");
+				MyImage.ResetBrk();
+
+				// All previous twiddling of the syscall mode happened in
+				// librestart -- force it into REMOTE mode.
+				SetSyscalls(SYS_REMOTE|SYS_MAPPED);
+			}
+
 			scm = SetSyscalls( SYS_LOCAL | SYS_UNMAPPED );
 			patch_registers( scp );
-			MyImage.Close();
+			if (!condor_rtlink)
+				// In RTLINK, this is done in librestart.
+				MyImage.Close();
 
 			if( MyImage.GetMode() == REMOTE ) {
 				SetSyscalls( SYS_REMOTE | SYS_MAPPED );
@@ -1631,6 +1756,15 @@ init_image_with_file_descriptor( int fd )
 	MyImage.SetFd( fd );
 }
 
+void
+init_image_with_librestart(int fd, RAW_ADDR env,
+						   RAW_ADDR filetab, RAW_ADDR syssock)
+{
+	MyImage.SetFd(fd);
+	MyImage.SetAddrEnv(env);
+	MyImage.SetAddrFileTab(filetab);
+	MyImage.SetAddrSyscallSock(syssock);
+}
 
 /*
   Effect a restart by reading in an "image" containing checkpointing
@@ -1773,6 +1907,9 @@ terminate_with_sig( int sig )
 void
 Suicide()
 {
+	/* FIXME: Log messages can be dropped if we don't give them a
+       second to be sent. */
+	sleep(1);
 	terminate_with_sig( SIGKILL );
 }
 
@@ -1814,8 +1951,7 @@ calc_stack_to_save()
 /*
   Return true if the stack pointer points into the "data" area.  This
   will often be the case for programs which utilize threads or co-routine
-  packages.
-*/
+  packages.  */
 static int
 SP_in_data_area()
 {

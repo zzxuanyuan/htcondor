@@ -105,6 +105,7 @@ main_init(int argc, char *argv[])
 	switch ( universe ) {
 	case VANILLA:
 	case STANDARD:
+	case RTLINK:
 		Shadow = new UniShadow();
 		break;
 	case MPI:

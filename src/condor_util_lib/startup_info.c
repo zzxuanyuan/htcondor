@@ -40,6 +40,9 @@ display_startup_info( const STARTUP_INFO *s, int flags )
 		case STANDARD:
 			dprintf( flags, "\tJobClass: Standard\n" );
 			break;
+		case RTLINK:
+			dprintf( flags, "\tJobClass: Runtime Link\n" );
+			break;
 		case PIPE:
 			dprintf( flags, "\tJobClass: Pipe\n" );
 			break;

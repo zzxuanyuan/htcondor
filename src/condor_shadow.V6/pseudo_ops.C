@@ -1387,7 +1387,7 @@ has_ckpt_file()
 	priv_state	priv;
 	long	accum_usage;
 
-	if (p->universe != STANDARD) return 0;
+	if (p->universe != STANDARD && p->universe != RTLINK) return 0;
 	accum_usage = p->remote_usage[0].ru_utime.tv_sec +
 		p->remote_usage[0].ru_stime.tv_sec;
 	priv = set_condor_priv();

@@ -47,12 +47,14 @@ COMPRESS_LIB = libzckpt.a
 #endif
 
 C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) $(SAVE_SIGSTATE) $(STATIC) \
+	$(PVM_CHECKPOINT) $(PIC)
+C_PLUS_FLAGS_SANS_PIC = $(STD_C_PLUS_FLAGS) $(SAVE_SIGSTATE) $(STATIC) \
 	$(PVM_CHECKPOINT)
 
 #if IS_HPUX10
 CFLAGS = $(STD_C_FLAGS) $(STATIC)
 #else
-CFLAGS = $(STD_C_FLAGS)
+CFLAGS = $(STD_C_FLAGS) $(PIC)
 #endif
 
 #if IS_IRIX62
@@ -71,7 +73,7 @@ ASSEMBLER_OBJ = SYSCALL.MIPS.IRIX62.o MMAP.MIPS.IRIX62.o
 
 #if DOES_CHECKPOINTING
 OBJ =	image.o machdep.$(OS).o file_state.o tmp_stack.o syscall_mode.o \
-	local_startup.o fake_remote_syscall.o fake_hooks.o \
+	local_startup.o fake_remote_syscall.o fake_hooks.o mm.o \
 	$(SAVE_SIGSTATE_OBJ) fake_util_lib.o eprintf.o $(EXTRACT) \
 	$(ASSEMBLER_OBJ)
 #else
@@ -80,7 +82,7 @@ OBJ =	syscall_mode.o
 
 #if DOES_CHECKPOINTING
 
-	all_target(ToUpper libckpt.a c_plus_alloc.o condor_rt0.o $(COMPRESS_LIB) $(RELEASE_OBJ) )
+	all_target(ToUpper libckpt.a c_plus_alloc.o condor_rt0.o $(COMPRESS_LIB) $(RELEASE_OBJ) libc_plus_alloc.so )
 
 #if IS_X86_SOLARIS || IS_GLIBC_LINUX
 	library_target(libtmp.a,$(OBJ))
@@ -97,10 +99,17 @@ libckpt.a: libtmp.a ToUpper
 #else  /* Not GLIBC Linux or Intel Solaris */
 
 	library_target(libckpt.a,$(OBJ))
+	shlib_target(libc_plus_alloc.so,c_plus_alloc.o,)
+
+tmp_stack.o: tmp_stack.C
+	$(CPlusPlus) $(C_PLUS_FLAGS_SANS_PIC) -o tmp_stack.o -c $<
+clean::
+	rm -f tmp_stack.o
 
 #endif /* GLIBC Linux or Intel Solaris */
 
 	release_library(libckpt.a,$(RELEASE_DIR)/lib)
+	release_library(libc_plus_alloc.so,$(RELEASE_DIR)/lib)
 	release_target(c_plus_alloc.o,$(RELEASE_DIR)/lib,OBJECT_MODE)
 	strip_library(libckpt.a,$(STRIP_DIR)/lib)
 	strip_copy_target(c_plus_alloc.o,$(STRIP_DIR)/lib,c_plus_alloc.o,OBJECT_MODE)

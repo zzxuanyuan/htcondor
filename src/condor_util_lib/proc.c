@@ -192,6 +192,9 @@ PROC	*proc;
 		case STANDARD:
 			printf( "Universe: Standard\n" );
 			break;
+	    case RTLINK:
+			printf( "Universe: Runtime Link\n");
+			break;
 		case PIPE:
 			printf( "Universe: Pipe\n" );
 			break;

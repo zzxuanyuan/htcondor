@@ -25,10 +25,14 @@
 
 #include "condor_common.h"
 #include "image.h"
+#include "mm.h"
 #include <sys/procfs.h>		// for /proc calls
 #include <sys/mman.h>		// for mmap() test
 #include "condor_debug.h"
 #include "condor_syscalls.h"
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 /* a few notes:
  * this is a pretty rough port
@@ -263,4 +267,138 @@ display_prmap()
 	  }
 	  dprintf( D_ALWAYS, "\n");
 	}
+}
+
+#if 0
+/* Convert protection flags returned by /proc to protection flags 
+   used by mmap(). */
+static int
+proc_to_mmap_prot(int mflags)
+{
+	int prot = 0;
+	if (mflags & MA_READ)
+		prot |= PROT_READ;
+	if (mflags & MA_WRITE)
+		prot |= PROT_WRITE;
+	if (mflags & MA_EXEC)
+		prot |= PROT_EXEC;
+	return prot;
+}
+#endif
+
+/* Return the memory map of this process in MR.  LEN is the number of
+   regions in the map. */
+int
+mmap_get_process_mmap(mmap_region *mr, int *len)
+{
+	prmap_t prmap[MAX_MMAP_REGIONS];
+	int num_prmap;
+	char buf[32];
+	int i, fd;
+
+	/* Read the memory map of this process.  These ioctls are obsolete
+	   in Solaris 2.6+, but used for Solaris 2.5.1 compatibility.
+	   Only 2.5.1 documents them, in the proc(4) manpage. */
+	sprintf(buf, "/proc/%05d", getpid());
+	fd = open(buf, O_RDONLY);
+	if (0 > fd) {
+		dprintf(D_ALWAYS, "Can't open /proc on myself\n");
+		sleep(1);
+		Suicide();
+	}
+	if (0 > ioctl(fd, PIOCNMAP, &num_prmap)) {
+		dprintf(D_ALWAYS, "Can't read process memory map\n");
+		sleep(1);
+		Suicide();
+	}
+	/* PIOCMAP returns NUM_PRMAP + 1 elements; the last one is all
+       zeros. */
+	if (num_prmap > MAX_MMAP_REGIONS - 1) {
+		dprintf(D_ALWAYS, "Exhausted static memory map memory\n");
+		sleep(1);
+		Suicide();
+	}
+	if (0 > ioctl(fd, PIOCMAP, prmap)) {
+		dprintf(D_ALWAYS, "Can't read process memory map: %s\n");
+		sleep(1);
+		Suicide();
+	}
+	close(fd);
+
+	/* Convert to mmap_regions */
+	for (i = 0; i < num_prmap; i++) {
+		mr[i].mm_addr = (unsigned long) prmap[i].pr_vaddr;
+		mr[i].mm_len = (unsigned long) prmap[i].pr_size;
+		/* TODO: Convert these flags? */
+		mr[i].mm_prot = (int) prmap[i].pr_mflags;
+	}
+
+	*len = num_prmap;
+	return 0;
+}
+
+
+/* MMAP all pages in MR. */
+int
+mmap_mmap(mmap_region *mr, int len)
+{
+	mmap_region *p;
+	int fd;
+
+	/* Use syscall to avoid Condor I/O. */
+	fd = syscall(SYS_open, "/dev/zero", O_RDWR);
+
+	if (0 > fd) {
+		dprintf(D_ALWAYS, "Can't open /dev/zero\n");
+		sleep(1);
+		Suicide();
+	}
+
+	for (p = mr; p <= &mr[len-1]; p++) {
+		void *pa = (void *) syscall(SYS_mmap, (caddr_t) p->mm_addr,
+									(size_t) p->mm_len,
+									PROT_READ,
+									MAP_PRIVATE|MAP_FIXED, fd, 0);
+		if (MAP_FAILED == pa) {
+			dprintf(D_ALWAYS,
+					"Can't allocate segment %d (addr = %#010 len = %#010)\n",
+					p - mr, p->mm_addr, p->mm_len);
+			sleep(1);
+			Suicide();
+		}
+		dprintf(D_ALWAYS, "MM DID MMAP %#010x - %#010x\n",
+				p->mm_addr, p->mm_addr + p->mm_len);
+	}
+	syscall(SYS_close, fd);
+	return 0;
+}
+
+/* MUNMAP all pages in MR. */
+int
+mmap_munmap(mmap_region *mr, int len)
+{
+	mmap_region *p;
+	for (p = mr; p <= &mr[len-1]; p++) {
+		dprintf(D_ALWAYS, "UNMAPPING: %#010x - %#010x\n",
+				p->mm_addr, p->mm_addr + p->mm_len);
+		if (0 > syscall(SYS_munmap, p->mm_addr, p->mm_len)) {
+			dprintf(D_ALWAYS, "Error unmapping region %#010x - %#010x\n",
+					p->mm_addr, p->mm_addr + p->mm_len);
+			Suicide();
+		}
+	}
+	return 0;
+}
+
+
+/* Set the brk to NEWBRK.  */
+int
+mmap_brk(void *newbrk)
+{
+	if (0 > brk(newbrk)) {
+		dprintf(D_ALWAYS, "Can't set the brk to %#010x (%s)\n",
+				newbrk, strerror(errno));
+		Suicide();
+	}
+	return 0;
 }

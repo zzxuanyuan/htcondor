@@ -83,6 +83,7 @@ static NAME_VALUE	JobClassNames[] = {
 	{ PVM,			"PVM",		},
 	{ VANILLA,		"VANILLA",	},
     { PVMD,			"PVMD",		},
+	{ RTLINK,		"RTLINK",   },
 	{ -1,			"(UNKNOWN)"	}
 };
 NameTable JobClasses( JobClassNames );

@@ -314,8 +314,9 @@ UserProc::linked_for_condor()
 		return FALSE;
 	}
 
-	// Don't look for symbol "MAIN" in vanilla jobs or PVM processes
-	if( job_class != PVM && job_class != VANILLA ) {	
+	// Don't look for symbol "MAIN" in vanilla jobs, PVM processes, or
+	// RTLINK jobs.
+	if( job_class != PVM && job_class != VANILLA && job_class != RTLINK ) {	
 		if( symbol_main_check(cur_ckpt) < 0 ) {
 			state = BAD_LINK;
 			dprintf( D_ALWAYS, "symbol_main_check() failed\n" );
@@ -360,6 +361,7 @@ UserProc::fetch_ckpt()
 			return FALSE;
 		}
 
+	  case RTLINK:
 	  case VANILLA:
 	  case PVM:
 	  case PVMD:
@@ -390,7 +392,7 @@ UserProc::execute()
 	char	**envp;
 	sigset_t	sigmask;
 	long	arg_max;
-	char	*tmp;
+	char	*tmp, *libp;
 	char	a_out_name[ _POSIX_PATH_MAX ];
 	char	shortname[ _POSIX_PATH_MAX ];
 	int		user_syscall_fd;
@@ -443,6 +445,30 @@ UserProc::execute()
 		argv[1] = "-_condor_cmd_fd";
 		argv[2] = buf;
 		mkargv( &argc, &argv[3], tmp );
+		break;
+
+	  case RTLINK:
+		argv[0] = shortname;
+		mkargv(&argc, &argv[1], tmp);
+
+
+		libp = param("LIB");
+		if (!libp) {
+			dprintf(D_ALWAYS, "Can't find path for the runtime libraries\n");
+		}
+		sprintf(buf, "LD_LIBRARY_PATH=%s", libp);
+		env_obj.add_string(buf);
+		sprintf(buf, "CONDOR_RTLINK_LIBDIR=%s", libp);
+		env_obj.add_string(buf);
+		// These library names need to be converted to paramters
+		sprintf(buf,
+				"LD_PRELOAD=librtlink_startup.so libcondor_syscall_lib.so libc_plus_alloc.so");
+		env_obj.add_string(buf);
+        if (is_restart())
+			sprintf(buf, "CONDOR_RTLINK_RESTART=TRUE");
+		else
+			sprintf(buf, "CONDOR_RTLINK_RESTART=FALSE");
+		env_obj.add_string(buf);
 		break;
 
 	  case PVM:
@@ -523,6 +549,12 @@ UserProc::execute()
 				EXCEPT( "chdir(%s)", local_dir );
 			}
 			close( pipe_fds[WRITE_END] );
+			break;
+
+		  case RTLINK:
+			if( chdir(local_dir) < 0 ) {
+				EXCEPT( "chdir(%s)", local_dir );
+			}  
 			break;
 
 		  case PVM:
@@ -675,8 +707,7 @@ UserProc::handle_termination( int exit_st )
 			/*
 			  For bytestream checkpointing:  the only way the process exits
 			  with signal SIGQUIT is if has transferred a checkpoint
-			  successfully.
-			*/
+			  successfully.  */
 			ckpt_transferred = TRUE;
 			break;
 		  case SIGUSR1:
