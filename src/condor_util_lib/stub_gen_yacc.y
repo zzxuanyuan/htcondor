@@ -56,6 +56,7 @@ void output_remote_call(  struct node *n, struct node *list );
 void output_extracted_call(  struct node *n, struct node *list );
 void output_dl_extracted_call(  struct node *n, char *rtn_type, int is_ptr, struct node *list );
 void output_param_list( struct node *list );
+void output_param_list_no_discard( struct node *list );
 
 struct node *mk_list();
 void copy_file( FILE *in_fp, FILE *out_fp );
@@ -911,7 +912,7 @@ output_local_call( struct node *n, struct node *list )
 	if( !is_empty_list(list) ) {
 		printf( ", " );
 	}
-	output_param_list( list );
+	output_param_list_no_discard( list );
 	printf( " );\n" );
 }
 
@@ -983,6 +984,8 @@ void output_dl_extracted_call( struct node *n, char *rtn_type, int is_ptr, struc
 	printf( ");\n" );
 }
 
+/* Display a parameter list, discard the necessary params */
+
 void
 output_param_list( struct node *list )
 {
@@ -995,6 +998,19 @@ output_param_list( struct node *list )
 				printf( ", " );
 			}
 		}
+	}
+}
+
+/* Display a param list, but ignore the discard flag */
+
+void
+output_param_list_no_discard( struct node *list )
+{
+	struct node	*p;
+
+	for( p=list->next; p != list; p = p->next ) {
+       		printf( "%s", p->id );
+	       	if( p->next!=list ) printf( ", " );
 	}
 }
 
