@@ -53,6 +53,8 @@ extern int main_shutdown_fast();
 CStarter::CStarter()
 {
 	Execute = NULL;
+	orig_cwd = NULL;
+	is_gridshell = false;
 	ShuttingDown = FALSE;
 	jic = NULL;
 	jobUniverse = CONDOR_UNIVERSE_VANILLA;
@@ -65,6 +67,9 @@ CStarter::~CStarter()
 	if( Execute ) {
 		free(Execute);
 	}
+	if( orig_cwd ) {
+		free(orig_cwd);
+	}
 	if( jic ) {
 		delete jic;
 	}
@@ -72,7 +77,8 @@ CStarter::~CStarter()
 
 
 bool
-CStarter::Init( JobInfoCommunicator* my_jic )
+CStarter::Init( JobInfoCommunicator* my_jic, const char* orig_cwd,
+				bool is_gridshell )
 {
 	if( ! my_jic ) {
 		EXCEPT( "CStarter::Init() called with no JobInfoCommunicator!" ); 
@@ -82,15 +88,27 @@ CStarter::Init( JobInfoCommunicator* my_jic )
 	}
 	jic = my_jic;
 
+	if( orig_cwd ) {
+		this->orig_cwd = strdup( orig_cwd );
+	}
+	this->is_gridshell = is_gridshell;
+
 	Config();
 
 		// Now that we know what Execute is, we can figure out what
 		// directory the starter will be working in and save that,
 		// since we'll want this info a lot while we initialize and
 		// figure things out.
-	sprintf( WorkingDir, "%s%cdir_%ld", Execute, DIR_DELIM_CHAR, 
-			 (long)daemonCore->getpid() );
 
+	if( is_gridshell ) {
+			// For now, the gridshell doesn't need its own special
+			// scratch directory, we're just going to use whatever
+			// EXECUTE is, or our CWD if that's not defined...
+		sprintf( WorkingDir, "%s", Execute );
+	} else {
+		sprintf( WorkingDir, "%s%cdir_%ld", Execute, DIR_DELIM_CHAR, 
+				 (long)daemonCore->getpid() );
+	}
 
 	// setup daemonCore handlers
 	daemonCore->Register_Signal(DC_SIGSUSPEND, "DC_SIGSUSPEND", 
@@ -132,7 +150,11 @@ CStarter::Config()
 		free( Execute );
 	}
 	if( (Execute = param("EXECUTE")) == NULL ) {
-		EXCEPT("Execute directory not specified in config file.");
+		if( is_gridshell ) {
+			Execute = strdup( orig_cwd );
+		} else {
+			EXCEPT("Execute directory not specified in config file.");
+		}
 	}
 
 		// Tell our JobInfoCommunicator to reconfig, too.
@@ -238,6 +260,14 @@ CStarter::createTempExecuteDir( void )
 		// Once our JobInfoCommmunicator has initialized the right
 		// user for the priv_state code, we can finally make the
 		// scratch execute directory for this job.
+
+		// If we're the gridshell, for now, we're not making a temp
+		// scratch dir, we're just using whatever we got from the
+		// scheduler we're running under.
+	if( is_gridshell ) { 
+		dprintf( D_ALWAYS, "gridshell running in: \"%s\"\n", WorkingDir ); 
+		return true;
+	}
 
 		// On Unix, be sure we're in user priv for this.
 		// But on NT (at least for now), we should be in Condor priv

@@ -50,7 +50,8 @@ public:
 			reaper, makes the starter's working dir and moves there,
 			sets resource limits, then calls StartJob()
 		*/
-	virtual bool Init( JobInfoCommunicator* my_jic );
+	virtual bool Init( JobInfoCommunicator* my_jic, 
+					   const char* orig_cwd, bool is_gridshell );
 
 		/** Params for "EXECUTE" and other useful stuff 
 		 */
@@ -140,6 +141,8 @@ private:
 	char *Execute;
 	char WorkingDir[_POSIX_PATH_MAX]; // The iwd given to the job
 	char ExecuteDir[_POSIX_PATH_MAX]; // The scratch dir created for the job
+	char *orig_cwd;
+	bool is_gridshell;
 	int ShuttingDown;
 
 };
