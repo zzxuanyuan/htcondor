@@ -411,6 +411,20 @@ BaseShadow::shutDown( int reason )
 
 
 void
+BaseShadow::reconnectFailed( const char* reason )
+{
+		// try one last time to release the claim, write a UserLog event
+		// about it, and exit with a special status. 
+	dprintf( D_ALWAYS, "Reconnect FAILED: %s\n", reason );
+	
+		// TODO userlog
+
+		// does not return
+	DC_Exit( JOB_RECONNECT_FAILED );
+}
+
+
+void
 BaseShadow::holdJob( const char* reason )
 {
 	dprintf( D_ALWAYS, "Job %d.%d going into Hold state: %s\n", 

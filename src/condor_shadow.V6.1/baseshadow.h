@@ -108,6 +108,14 @@ class BaseShadow : public Service
 		 */
 	virtual void reconnect( void ) = 0;
 
+		/**	Called by any part of the shadow that finally decides the
+			reconnect has completely failed, we should give up, try
+			one last time to release the claim, write a UserLog event
+			about it, and exit with a special status. 
+			@param reason Why we gave up (for UserLog, dprintf, etc)
+		*/
+	void reconnectFailed( const char* reason ); 
+
 		/** Here, we param for lots of stuff in the config file.  Things
 			param'ed for are: SPOOL, FILESYSTEM_DOMAIN, UID_DOMAIN, 
 			USE_AFS, USE_NFS, and CKPT_SERVER_HOST.
