@@ -287,8 +287,9 @@ CStarter::jobEnvironmentReady( void )
 		// kind of job we're starting up, instantiate the appropriate
 		// userproc class, and actually start the job.
 
-	dprintf( D_ALWAYS, "Starting a %s universe job.\n",
-			 CondorUniverseName(jobUniverse) );
+	dprintf( D_ALWAYS, "Starting a %s universe job with ID: %d.%d\n",
+			 CondorUniverseName(jobUniverse), jic->jobCluster(),
+			 jic->jobProc() );
 
 	ClassAd* jobAd = jic->jobClassAd();
 
