@@ -89,10 +89,7 @@ HADStateMachine::finilize()
         daemonCore->Cancel_Timer( stateMachineTimerID );
         stateMachineTimerID = -1;
     }
-    //if ( sendMsgTimerID >= 0 ) {
-    //    daemonCore->Cancel_Timer( sendMsgTimerID );
-    //    sendMsgTimerID = -1;
-    //}
+    
     selfId = -1;
 
 #if USE_REPLICATION
