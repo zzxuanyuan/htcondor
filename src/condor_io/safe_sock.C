@@ -60,10 +60,6 @@ void SafeSock::init()
 		_outMsgID.time = (unsigned long)time(NULL);
 		_outMsgID.msgNo = (unsigned long)get_random_int();
 	}
-        // Testing, Hao
-        unsigned char key[] = "This is a secrete test key";
-        KeyInfo newKey(&(key[0]), 24, CONDOR_3DES);
-        assert(set_MD_mode(MD_ALWAYS_ON, &newKey));
 }
 
 

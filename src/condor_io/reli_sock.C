@@ -55,11 +55,6 @@ ReliSock::init()
 	hostAddr = NULL;
 	rcv_msg.init_parent(this);
 	snd_msg.init_parent(this);
-
-        // Testing, Hao
-        unsigned char key[] = "This is a secrete test key";
-        KeyInfo newKey(&(key[0]), 24, CONDOR_3DES);
-        assert(set_MD_mode(MD_ALWAYS_ON, &newKey));
 }
 
 
