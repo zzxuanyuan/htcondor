@@ -402,6 +402,11 @@ ResList::satisfyJob( ClassAd* job, int max_hosts,
 void
 ResList::display( int debug_level )
 {
+	if( Number() == 0) {
+		dprintf( debug_level, " ************ empty ************ \n");
+		return;
+	}
+
 	ClassAd* res;
 	Rewind();
 	while( (res = Next()) ) {
@@ -1856,53 +1861,17 @@ DedicatedScheduler::handleDedicatedJobs( void )
 		return FALSE;
 	}
 
-	if( pending_preemptions->Length() > 0) {
-		pending_preemptions->Rewind();
-		while( ClassAd *machine = pending_preemptions->Next()) {
-			match_rec *mrec = getMrec(machine, NULL);
-			if( mrec) {
-				if( deactivateClaim(mrec)) {
-					char *s = NULL;
-					machine->LookupString(ATTR_NAME, &s);
-					dprintf( D_FULLDEBUG, "Preempted job on %s\n", s);
-					free(s);
-				}
-			}
-			pending_preemptions->DeleteCurrent();
-		}
+		// Preempt any machines we selected in computeSchedule
+	if( ! preemptResources() ) {
+		dprintf( D_ALWAYS, "ERROR: Can't preempt resources"
+				 "aborting handleDedicatedJobs\n" );
+		return FALSE;
 	}
-	delete pending_preemptions;
-	pending_preemptions = NULL;
 
 		// See if we should release claims we're not using.
 	checkSanity();
-
-		// Now that we're done, free up the memory we allocated, so we
-		// don't use up these resources when we don't need them.  If
-		// we bail out early, we won't leak, since we delete all of
-		// these things again before we need to create them the next
-		// time around.
-   
-	if (idle_resources) {
-		delete idle_resources;
-		idle_resources = NULL;
-	}
-
-	if (limbo_resources) {
-		delete limbo_resources;
-		limbo_resources = NULL;
-	}
-
-	if (unclaimed_resources) {
-		delete unclaimed_resources;
-		unclaimed_resources = NULL;
-	}
-
-	if (busy_resources) {
-		delete busy_resources;
-		busy_resources = NULL;
-	}
-
+	
+		// Free memory allocated above
 	clearResources();
 
 	dprintf( D_FULLDEBUG, 
@@ -2043,6 +2012,32 @@ DedicatedScheduler::sortResources( void )
 void
 DedicatedScheduler::clearResources( void )
 {
+		// Now that we're done, free up the memory we allocated, so we
+		// don't use up these resources when we don't need them.  If
+		// we bail out early, we won't leak, since we delete all of
+		// these things again before we need to create them the next
+		// time around.
+   
+	if (idle_resources) {
+		delete idle_resources;
+		idle_resources = NULL;
+	}
+
+	if (limbo_resources) {
+		delete limbo_resources;
+		limbo_resources = NULL;
+	}
+
+	if (unclaimed_resources) {
+		delete unclaimed_resources;
+		unclaimed_resources = NULL;
+	}
+
+	if (busy_resources) {
+		delete busy_resources;
+		busy_resources = NULL;
+	}
+
 	if( resources ) {
 		delete resources;
 		resources = NULL;
@@ -2154,9 +2149,18 @@ DedicatedScheduler::spawnJobs( void )
 				 "Started shadow for MPI job %d.0 (shadow pid = %d)\n", 
 				 id.cluster, pid );
 
-		mark_job_running( &id );
+			// this needs to loop over all procs in the cluster
+			// someday this could all be in a single qmgmt transaction
+		for( i=0; i<allocation->num_procs; i++ ) {
+			id.proc = i;
+			mark_job_running( &id );
+		}
 		srec = scheduler.add_shadow_rec( pid, &id, mrec, -1 );
 
+			// TODO: make sure we set this right for all the procs in
+			// the cluster.  perhaps we need to supliment the data
+			// we're storing in the AllocationNode so that we can do
+			// this...
         SetAttributeInt( id.cluster, id.proc, ATTR_CURRENT_HOSTS,
 						 allocation->num_resources );
 
@@ -2219,7 +2223,7 @@ DedicatedScheduler::spawnJobs( void )
 			// Now that all the data is written to the pipe, we can
 			// safely close the other end, too.  
 		daemonCore->Close_Pipe( pipe_fds[1] );
-
+		fclose( fp );
 	}
 
 	return true;
@@ -2243,8 +2247,8 @@ DedicatedScheduler::computeSchedule( void )
 	int i, l, last;
 	MRecArray* new_matches;
 
-	ExprTree *preemption_rank = NULL;  // FIX: These are leaking one per call now
-	ExprTree *preemption_req  = NULL;  //
+	ExprTree *preemption_rank = NULL;  
+	ExprTree *preemption_req  = NULL;  
 
 	char *param1 = param("SCHEDD_PREEMPTION_REQUIREMENTS");
 	char *param2 = param("SCHEDD_PREEMPTION_RANK");
@@ -2303,6 +2307,7 @@ DedicatedScheduler::computeSchedule( void )
 	l = idle_clusters->getlast();
 	for( i=0; i<=l; i++ ) {
 
+			// TODO: need to grab all the job classads for each proc in the cluster
 		job = GetJobAd( (*idle_clusters)[i], 0 );
 		if( ! job ) {
 				// Job is no longer in queue, skip it.
@@ -2466,14 +2471,17 @@ DedicatedScheduler::computeSchedule( void )
 			if( limbo_resources->satisfyJob(job, still_needed, 
 											limbo_candidates) ) {
 					// Could satisfy with idle and/or limbo
+				dprintf( D_FULLDEBUG, "Satisfied job %d from idle_resources + limbo_resources\n",
+						 cluster );
 
-				
+					// Mark any idle resources we are going to use as scheduled..
 				if( idle_candidates ) {
 					idle_candidates->markScheduled();
 					delete idle_candidates;
 					idle_candidates = NULL;
 				}
 
+				    // and the limbo resources too
 				limbo_candidates->markScheduled();
 				delete limbo_candidates;
 				limbo_candidates = NULL;
@@ -2534,6 +2542,9 @@ DedicatedScheduler::computeSchedule( void )
 			// If both SCHEDD_PREEMPTION_REQUIREMENTS and ..._RANK is set, then
 			// try to satisfy the job by preempting running resources
 		if( (preemption_req != NULL) && (preemption_rank != NULL) ) {
+
+				// We may not need all of this array, this is worst-case allocation
+				// we will fill and sort a num_candidates number of entries
 			struct PreemptCandidateNode preempt_candidate_array[busy_resources->Length()];
 			int num_candidates = 0;
 
@@ -2541,6 +2552,8 @@ DedicatedScheduler::computeSchedule( void )
 			while (ClassAd *machine = busy_resources->Next()) {
 				EvalResult result;
 				bool requirement = false;
+
+					// See if this machine has a true SCHEDD_PREEMPTION_REQUIREMENT
 				requirement = preemption_req->EvalTree(machine, job, &result);
 				if (requirement) {
 					if (result.type == LX_INTEGER) {
@@ -2548,8 +2561,11 @@ DedicatedScheduler::computeSchedule( void )
 					}
 				}
 
+					// If it does
 				if (requirement) {
 					float rank = 0.0;
+
+						// Evaluate its SCHEDD_PREEMPTION_RANK in the context of this job
 					if( preemption_rank->EvalTree(machine, job, &result)) {
 						if( result.type == LX_FLOAT) {
 							rank = result.f;
@@ -2559,6 +2575,7 @@ DedicatedScheduler::computeSchedule( void )
 							num_candidates++;
 						}
 					} else {
+							// The result better be a float
 						char *s = NULL;
 						char *m = NULL;
 						preemption_rank->PrintToNewStr(&s);
@@ -2585,6 +2602,7 @@ DedicatedScheduler::computeSchedule( void )
 				}
 				
 				if( req ) {
+						// And we found a victim to preempt
 					preempt_candidates->Append(preempt_candidate_array[i].machine_ad);
 					num_preemptions++;
 					still_needed--;
@@ -2598,6 +2616,9 @@ DedicatedScheduler::computeSchedule( void )
 
 			if( still_needed == 0) {
 					// We got every single thing we need
+				dprintf( D_FULLDEBUG, "Satisfied job %d from busy_resources\n",
+						 cluster );
+
 				preempt_candidates->Rewind();
 				while( ClassAd *mach = preempt_candidates->Next()) {
 					busy_resources->Delete(mach);
@@ -2687,7 +2708,16 @@ DedicatedScheduler::computeSchedule( void )
 			continue;
 		}
 	}
-	return true;
+	if (preemption_rank) {
+		free( preemption_rank);
+		preemption_rank = NULL;
+	}
+	
+	if (preemption_req) {
+		free( preemption_req);
+		preemption_req = NULL;
+	}
+		return true;
 }	
 
 
@@ -3043,6 +3073,28 @@ DedicatedScheduler::requestResources( void )
 	return true;
 }
 
+
+bool
+DedicatedScheduler::preemptResources() {
+	if( pending_preemptions->Length() > 0) {
+		pending_preemptions->Rewind();
+		while( ClassAd *machine = pending_preemptions->Next()) {
+			match_rec *mrec = getMrec(machine, NULL);
+			if( mrec) {
+				if( deactivateClaim(mrec)) {
+					char *s = NULL;
+					machine->LookupString(ATTR_NAME, &s);
+					dprintf( D_FULLDEBUG, "Preempted job on %s\n", s);
+					free(s);
+				}
+			}
+			pending_preemptions->DeleteCurrent();
+		}
+	}
+	delete pending_preemptions;
+	pending_preemptions = NULL;
+	return true;
+}
 
 void
 DedicatedScheduler::displayResourceRequests( void )

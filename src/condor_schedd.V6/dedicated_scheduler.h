@@ -284,6 +284,10 @@ class DedicatedScheduler : public Service {
 		// publish a ClassAd to the CM to ask for them.
 	bool requestResources( void );
 
+		// Go through the list of pending preemption, and
+		// call deactivateClaim on each of them
+	bool preemptResources( void );
+
 		// Print out all our pending resource requests.
 	void displayResourceRequests( void );
 
