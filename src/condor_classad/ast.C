@@ -1534,7 +1534,14 @@ int Function::_EvalTree(AttrList *attrlist1, AttrList *attrlist2, EvalResult *re
 
 		i = 0;
 		while (iter.Next(arg)) {
-			arg->EvalTree(attrlist1, &evaluated_args[i++]);
+			if (attrlist2 == NULL) {
+				// This will let us refer to attributes in a ClassAd, like "MY"
+				arg->EvalTree(attrlist1, &evaluated_args[i++]);
+			} else {
+				// This will let us refer to attributes in two ClassAds: like 
+				// "My" and "Target"
+				arg->EvalTree(attrlist1, &evaluated_args[i++]);
+			}
 		}
 		
 		if (!strcasecmp(name, "script")) {
