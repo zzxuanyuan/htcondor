@@ -18,6 +18,15 @@
 #define strncasecmp _strnicmp
 #define strdup _strdup
 #define chdir _chdir
+#define fsync _commit
+#define access _access
+#define R_OK 4
+#define W_OK 2
+#define X_OK 4
+#define F_OK 0
+#define sleep(x) Sleep(x*1000)
+#define getpid _getpid
+#include <process.h>
 #include <time.h>
 #include <lmcons.h> // for UNLEN
 
