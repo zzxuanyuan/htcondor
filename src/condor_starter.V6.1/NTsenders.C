@@ -245,7 +245,6 @@ REMOTE_CONDOR_job_exit(int status, int reason, ClassAd *ad)
 {
 	condor_errno_t		terrno;
 	int		rval=-1;
-	int result = 0;
 	
 	dprintf ( D_SYSCALLS, "Doing CONDOR_job_exit\n" );
 
