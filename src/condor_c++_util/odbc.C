@@ -10,6 +10,7 @@ ODBC::ODBC()
 }
 ODBC::ODBC(char *dsn, char *user, char *auth)
 {
+	connected = false;
 	strncpy(this->dsn,dsn,80);
 	strncpy(this->user,user,30);
 	strncpy(this->auth,auth,80);
