@@ -39,8 +39,8 @@ extern char* mySubSystem;	// the subsys ID, such as SCHEDD, STARTD, etc.
   "IMMEDIATE_FAMILY").  They can *not* be used to convert DCpermission
   enums into strings, you need to use PermString() for that.
 */
-const char* IpVerify::perm_names[] = {"READ","WRITE","ADMINISTRATOR","OWNER","NEGOTIATOR","CONFIG",NULL};
-const int IpVerify::perm_ints[] = {READ,WRITE,ADMINISTRATOR,OWNER,NEGOTIATOR,CONFIG_PERM,-1};  // must end with -1
+const char* IpVerify::perm_names[] = {"READ","WRITE","DAEMON", "ADMINISTRATOR","OWNER","NEGOTIATOR","CONFIG",NULL};
+const int IpVerify::perm_ints[] = {READ,WRITE,DAEMON,ADMINISTRATOR,OWNER,NEGOTIATOR,CONFIG_PERM,-1};  // must end with -1
 const char TotallyWild[] = "*";
 
 const char*
@@ -53,6 +53,8 @@ PermString( DCpermission perm )
 		return "READ";
 	case WRITE:
 		return "WRITE";
+    case DAEMON:
+        return "DAEMON";
 	case NEGOTIATOR:
 		return "NEGOTIATOR";
 	case IMMEDIATE_FAMILY:
@@ -128,8 +130,10 @@ int
 IpVerify::Init()
 {
 	char buf[50];
-	char *pAllow, *pDeny;
+	char *pAllow, *pDeny, *pOldAllow, *pOldDeny, *pNewAllow = NULL, *pNewDeny = NULL;
+    char *pCopyAllow=NULL, *pCopyDeny=NULL ;
 	int i;
+    bool useOldPermSetup = true;
 	
 	did_init = TRUE;
 	
@@ -145,6 +149,7 @@ IpVerify::Init()
 		}
 	}
 
+    // This is the new stuff
 	for ( i=0; perm_ints[i] >= 0; i++ ) {
 			// We're broken if either: there's no name for this kind
 			// of DC permission, _or_ there _is_ an entry for it
@@ -160,30 +165,84 @@ IpVerify::Init()
 			PermTypeArray[perm_ints[i]] = pentry;
 		}
 		
-
-		sprintf(buf,"HOSTALLOW_%s_%s",perm_names[i],mySubSystem);
-		if ( (pAllow = param(buf)) == NULL ) {
-			sprintf(buf,"HOSTALLOW_%s",perm_names[i]);
-			pAllow = param(buf);
+        sprintf(buf,"ALLOW_%s_%s",perm_names[i],mySubSystem);
+		if ( (pNewAllow = param(buf)) == NULL ) {
+			sprintf(buf,"ALLOW_%s", perm_names[i]);
+			pNewAllow = param(buf);
 		}
+
+        // This is the old stuff, eventually it will be gone
+        sprintf(buf,"HOSTALLOW_%s_%s",perm_names[i],mySubSystem);
+        if ( (pOldAllow = param(buf)) == NULL ) {
+            sprintf(buf,"HOSTALLOW_%s",perm_names[i]);
+            pOldAllow = param(buf);
+        }
 
         // Treat a "*", "*/*", or "*@*/*for USERALLOW_XXX as if it's just
         // undefined. 
-		if( pAllow && (!strcmp(pAllow, "*") 
-                       || !strcmp(pAllow, "*/*")
-                       || !strcmp(pAllow, "*@*/*")) ) {
-			free( pAllow );
-			pAllow = NULL;
+		if( pNewAllow && (!strcmp(pNewAllow, "*") 
+                          || !strcmp(pNewAllow, "*/*") 
+                          || !strcmp(pNewAllow, "*@*/*")) ) {
+			free( pNewAllow );
+			pNewAllow = NULL;
+		}
+        
+        if (pOldAllow && (!strcmp(pOldAllow, "*"))) {
+            free( pOldAllow );
+            pOldAllow = NULL;
+        }
+        
+        // concat the two
+        if (perm_ints[i] != DAEMON) {
+            pAllow = merge(pNewAllow, pOldAllow);
+            if ((perm_ints[i] == WRITE) && pAllow) {
+                pCopyAllow = strdup(pAllow);
+            }
+        }
+        else {
+            if (pNewAllow) {
+                pAllow = merge(pNewAllow, 0);
+            }
+            else {
+                pAllow = merge(0, pCopyAllow);
+            }
+            if (pCopyAllow) {
+                free(pCopyAllow);
+                pCopyAllow = NULL;
+            }
+        }
+
+		sprintf(buf,"DENY_%s_%s",perm_names[i],mySubSystem);
+		if ( (pNewDeny = param(buf)) == NULL ) {
+			sprintf(buf,"DENY_%s",perm_names[i]);
+			pNewDeny = param(buf);
 		}
 
-        // For backward compability reasons, we consider, anything
-        // of the form *.cs.wisc.edu the same as */*.cs.wisc.edu
-		sprintf(buf,"HOSTDENY_%s_%s",perm_names[i],mySubSystem);
-		if ( (pDeny = param(buf)) == NULL ) {
-			sprintf(buf,"HOSTDENY_%s",perm_names[i]);
-			pDeny = param(buf);
-		}
-	
+        sprintf(buf,"HOSTDENY_%s_%s",perm_names[i],mySubSystem);
+        if ( (pOldDeny = param(buf)) == NULL ) {
+            sprintf(buf,"HOSTDENY_%s",perm_names[i]);
+            pOldDeny = param(buf);
+        }
+
+        if (perm_ints[i] != DAEMON) {
+            pDeny = merge(pNewDeny, pOldDeny);
+            if ((perm_ints[i] == WRITE) && pDeny) {
+                pCopyDeny = strdup(pDeny);
+            }
+        }
+        else {
+            if (pNewDeny) {
+                pDeny = merge(pNewDeny, 0);
+            }
+            else {
+                pDeny = merge(0, pCopyDeny);
+            }
+            if (pCopyDeny) {
+                free(pCopyDeny);
+                pCopyDeny = NULL;
+            }
+        }
+
 		if ( !pAllow && !pDeny ) {
 			if (perm_ints[i] == CONFIG_PERM) { 	  // deny all CONFIG requests 
 				pentry->behavior = USERVERIFY_DENY; // by default
@@ -191,6 +250,7 @@ IpVerify::Init()
 				pentry->behavior = USERVERIFY_ALLOW;
 			}
 		} else {
+            useOldPermSetup = false;        // new permission setup!
 			if ( pDeny && !pAllow ) {
 				pentry->behavior = USERVERIFY_ONLY_DENIES;
 			} else {
@@ -199,20 +259,67 @@ IpVerify::Init()
 			if ( pAllow ) {
                 fill_table( pentry, allow_mask(perm_ints[i]), pAllow, true );
 				free(pAllow);
+                pAllow = NULL;
 			}
 			if ( pDeny ) {
 				fill_table( pentry,	deny_mask(perm_ints[i]), pDeny, false );
 				free(pDeny);
+                pDeny = NULL;
 			}
 		}
+        if (pAllow) {
+            free(pAllow);
+            pAllow = NULL;
+        }
+        if (pDeny) {
+            free(pDeny);
+            pDeny = NULL;
+        }
+        if (pOldAllow) {
+            free(pOldAllow);
+            pOldAllow = NULL;
+        }
+        if (pOldDeny) {
+            free(pOldDeny);
+            pOldDeny = NULL;
+        }
+        if (pNewAllow) {
+            free(pNewAllow);
+            pNewAllow = NULL;
+        }
+        if (pNewDeny) {
+            free(pNewDeny);
+            pNewDeny = NULL;
+        }
+    
+    }
 
-	}	// end of for i loop
-
-		// Finally, check to see if we have an allow hosts that have
-		// been added manually, in which case, re-add those.
+    // Finally, check to see if we have an allow hosts that have
+    // been added manually, in which case, re-add those.
 	process_allow_users();
 
 	return TRUE;
+}
+
+char * IpVerify :: merge(char * pNewList, char * pOldList)
+{
+    char * pList = NULL;
+
+    if (pOldList) {
+        if (pNewList) {
+            pList = (char *)malloc(strlen(pOldList) + strlen(pNewList) + 2);
+            sprintf(pList, "%s,%s", pNewList, pOldList);
+        }
+        else {
+            pList = strdup(pOldList);
+        }
+    }
+    else {
+        if (pNewList) {
+            pList = strdup(pNewList);
+        }
+    }
+    return pList;
 }
 
 bool IpVerify :: has_user(UserPerm_t * perm, const char * user, int & mask, MyString & userid)
@@ -414,7 +521,7 @@ IpVerify::fill_table(PermTypeEntry * pentry, int mask, char * list, bool allow)
         pentry->deny_hosts = whichHostList;
         pentry->deny_users = whichUserHash;
     }
-
+    delete slist;
 }
 
 void IpVerify :: split_entry(const char * perm_entry, char ** host, char** user)

@@ -45,6 +45,7 @@ enum DCpermission {
 	/** Not_Yet_Ducumented */ ALLOW,
 	/** Not_Yet_Ducumented */ READ,
 	/** Not_Yet_Ducumented */ WRITE,
+	/** Not_Yet_Ducumented */ DAEMON,
 	/** Not_Yet_Ducumented */ NEGOTIATOR,
 	/** Not_Yet_Ducumented */ IMMEDIATE_FAMILY,
 	/** Not_Yet_Ducumented */ ADMINISTRATOR,
@@ -115,7 +116,6 @@ public:
 			@param perm Permission level to use
 			@return TRUE if successful, FALSE on error
 		*/
-
 private:
 
     typedef HashTable <MyString, int> UserPerm_t;     // <userid, perm> pair
@@ -161,7 +161,7 @@ private:
 	inline int allow_mask(int perm) { return (1 << (1+2*perm)); }
 	inline int deny_mask(int perm) { return (1 << (2+2*perm)); }
 	bool lookup_user(StringList * list, const char * user);
-	
+	char * merge(char * newPerm, char * oldPerm);
 	int did_init;
 
 	bool add_host_entry( const char* addr, int new_mask );
