@@ -3038,13 +3038,13 @@ SetGlobusParams()
 		sprintf( buffer, "%s = %d", ATTR_GLOBUS_STATUS,
 				 GLOBUS_GRAM_PROTOCOL_JOB_STATE_UNSUBMITTED );
 		InsertJobExpr (buffer);
+
+		sprintf( buffer, "%s = 0", ATTR_NUM_GLOBUS_SUBMITS );
+		InsertJobExpr (buffer, false );
 	}
 
 	sprintf( buffer, "%s = False", ATTR_WANT_CLAIMING );
 	InsertJobExpr(buffer);
-
-	sprintf( buffer, "%s = 0", ATTR_NUM_GLOBUS_SUBMITS );
-	InsertJobExpr (buffer, false );
 
 	if( (tmp = condor_param(GlobusRematch,ATTR_REMATCH_CHECK)) ) {
 		sprintf( buff, "%s = %s", ATTR_REMATCH_CHECK, tmp );
