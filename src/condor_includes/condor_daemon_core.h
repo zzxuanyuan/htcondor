@@ -6,130 +6,189 @@
 // class of the classes that daemon_core can serve. In order to use a class
 // with the DaemonCore, it has to be a derived class of Service.
 //
-// Cai, Weiru
 //
 ////////////////////////////////////////////////////////////////////////////////
 
 #ifndef _CONDOR_DAEMON_CORE_H_
 #define _CONDOR_DAEMON_CORE_H_
 
+#include "condor_common.h"
+#include "condor_timer_manager.h"
+#include "condor_io.h"
+#include "condor_uid.h"
+
+#ifndef WIN32
 #if defined(Solaris)
 #define __EXTENSIONS__
 #endif
 #include <sys/types.h>
 #include <sys/time.h>
-#if defined(USE_XDR)
-#include <rpc/types.h>
-#include <rpc/xdr.h>
-#endif
-#include "condor_io.h"
 #include "condor_fdset.h"
 #if defined(Solaris)
 #undef __EXTENSIONS__
 #endif
+#endif  /* ifndef WIN32 */
+
+#include "condor_io.h"
 #include "condor_timer_manager.h"
+#include "condor_commands.h"
 
-const	int	 MAXDC	= 5; 
+// enum for Daemon Core socket/command/signal permissions
+enum DCpermission { ALLOW, READ, WRITE };
 
-// Users pass this enum type to Register functions to identify what type of
-// functions to register.
-enum{SIGNAL, REQUEST, TIMER};
+static const int KEEP_STREAM = 100;
+static char* EMPTY_DESCRIP = "<NULL>";
 
-// need to specify which type of Tcp or Udp socket we want to use
-enum{XDR_SOCK, CONDOR_IO_SOCK};
+// typedefs for callback procedures
+typedef int		(*CommandHandler)(Service*,int,Stream*);
+typedef int		(Service::*CommandHandlercpp)(int,Stream*);
 
-// these are for internal use.
-typedef int     (*SReqHandler)(Service*, void*, struct sockaddr_in*);
-#if defined(USE_XDR)
-typedef	int	  	(*XDR_SReqHandler)(Service*, XDR*, struct sockaddr_in*); 
-typedef	int	  	(*XDR_ReqHandler)(XDR*, struct sockaddr_in*); 
-#endif
-typedef	int	  	(*IO_SReqHandler)(Service*, Stream*, struct sockaddr_in*);
-typedef int		(*ReqHandler)(void*, struct sockaddr_in*);
-typedef	int	  	(*IO_ReqHandler)(Stream*, struct sockaddr_in*);
-typedef	void	(*SSigHandler)(Service*, int, int, void*);
-typedef	void	(*SigHandler)(int, int, void*);
-typedef void	(*SFunction)(Service*);
-typedef void	(*Function)();
+typedef int		(*SignalHandler)(Service*,int);
+typedef int		(Service::*SignalHandlercpp)(int);
 
-class DaemonCore
+typedef int		(*SocketHandler)(Service*,Stream*);
+typedef int		(Service::*SocketHandlercpp)(Stream*);
+
+typedef int		(*ReaperHandler)(Service*,int pid,int exit_status);
+typedef int		(Service::*ReaperHandlercpp)(int pid,int exit_status);
+
+class DaemonCore : public Service
 {
 	public:
 		
-		DaemonCore(int, int, int);
+		DaemonCore(int ComSize = 0, int SigSize = 0, int SocSize = 0);
 		~DaemonCore();
 
-		void				Register(Service*, int, void*, int);
-		int					Register(Service*, time_t, void*, time_t, int);
-		void				Register(Service*, void*);
-		void				Delete(int);
+		void	Driver();
 		
-		int					OpenTcp(char*, u_short = 0, int = CONDOR_IO_SOCK);
-		int					OpenUdp(char*, u_short = 0, int = CONDOR_IO_SOCK);
+
 		
-		void				Dump(int, char*);
+		int		Register_Command(int command, char *com_descrip, CommandHandler handler, 
+					char *handler_descrip, Service* s = NULL, DCpermission perm = ALLOW);
+		int		Register_Command(int command, char *com_descript, CommandHandlercpp handlercpp, 
+					char *handler_descrip, Service* s, DCpermission perm = ALLOW);
+		int		Cancel_Command( int command );
+		int		InfoCommandPort();
 
-		void				Driver();
+		int		Register_Signal(int sig, char *sig_descrip, SignalHandler handler, 
+					char *handler_descrip, Service* s = NULL, DCpermission perm = ALLOW);
+		int		Register_Signal(int sig, char *sig_descript, SignalHandlercpp handlercpp, 
+					char *handler_descrip, Service* s, DCpermission perm = ALLOW);
+		int		Cancel_Signal( int sig );
+			
+		int		Register_Socket(Stream* iosock, char *iosock_descrip, SocketHandler handler,
+					char *handler_descrip, Service* s = NULL, DCpermission perm = ALLOW);
+		int		Register_Socket(Stream* iosock, char *iosock_descrip, SocketHandlercpp handlercpp,
+					char *handler_descrip, Service* s, DCpermission perm = ALLOW);
+		int		Register_Command_Socket( Stream* iosock, char *descrip = NULL ) {
+					return(Register_Socket(iosock,descrip,NULL,NULL,"DC Command Handler",NULL,ALLOW,0)); 
+				}
+		int		Cancel_Socket( Stream* );
 
+		int		Register_Timer(unsigned deltawhen, Event event, char *event_descrip, 
+					Service* s = NULL, int id = -1);
+		int		Register_Timer(unsigned deltawhen, unsigned period, Event event, 
+					char *event_descrip, Service* s = NULL, int id = -1);
+		int		Register_Timer(unsigned deltawhen, Eventcpp event, char *event_descrip, 
+					Service* s, int id = -1);
+		int		Register_Timer(unsigned deltawhen, unsigned period, Eventcpp event, 
+					char *event_descrip, Service* s, int id = -1);
+		int		Cancel_Timer( int id );
+
+		void	Dump(int, char* = NULL );
+
+		inline int getpid() { return 0; };
+
+		int		Send_Signal(int pid, int sig);
+
+#ifdef FUTURE		
+		int		Block_Signal()
+		int		Unblock_Signal()
+		int		Register_Reaper(Service* s, ReaperHandler handler);
+		int		Create_Process()
+		int		Create_Thread()
+		int		Kill_Process()
+		int		Kill_Thread()
+#endif
+
+		int		HandleSigCommand(int command, Stream* stream);
+		
 	private:
 
-		struct ReqHandlerEnt
+		void	HandleReq(int socki);
+
+		int		HandleSig(int command, int sig);
+
+		int		Register_Command(int command, char *com_descip, CommandHandler handler, 
+					CommandHandlercpp handlercpp, char *handler_descrip, Service* s, 
+					DCpermission perm, int is_cpp);
+		int		Register_Signal(int sig, char *sig_descip, SignalHandler handler, 
+					SignalHandlercpp handlercpp, char *handler_descrip, Service* s, 
+					DCpermission perm, int is_cpp);
+		int		Register_Socket(Stream* iosock, char *iosock_descrip, SocketHandler handler, 
+					SocketHandlercpp handlercpp, char *handler_descrip, Service* s, 
+					DCpermission perm, int is_cpp);
+
+		struct CommandEnt
 		{
-		    int				no;
-		    void*			handler;
+		    int				num;
+		    CommandHandler	handler;
+			CommandHandlercpp	handlercpp;
+			int				is_cpp;
+			DCpermission	perm;
 			Service*		service; 
+			char*			command_descrip;
+			char*			handler_descrip;
 		};
-		struct SigHandlerEnt 
+		void				DumpCommandTable(int, const char* = NULL);
+		int					maxCommand;		// max number of command handlers
+		int					nCommand;		// number of command handlers used
+		CommandEnt*			comTable;		// command table
+
+		struct SignalEnt 
 		{
-		    int				no;
-		    void*			handler;
+			int				num;
+		    SignalHandler	handler;
+			SignalHandlercpp	handlercpp;
+			int				is_cpp;
+			DCpermission	perm;
 			Service*		service; 
+			int				is_blocked;
+			int				is_pending;
+			char*			sig_descrip;
+			char*			handler_descrip;
 		};
-		struct FunctionEnt
+		void				DumpSigTable(int, const char* = NULL);
+		int					maxSig;		// max number of signal handlers
+		int					nSig;		// number of signal handlers used
+		SignalEnt*			sigTable;		// signal table
+		int					sent_signal;	// TRUE if a signal handler sends a signal
+
+		struct SockEnt
 		{
-		    void*			func;
+		    Stream*			iosock;
+			SOCKET			sockd;
+		    SocketHandler	handler;
+			SocketHandlercpp	handlercpp;
+			int				is_cpp;
+			DCpermission	perm;
 			Service*		service; 
+			char*			iosock_descrip;
+			char*			handler_descrip;
 		};
+		void				DumpSocketTable(int, const char* = NULL);
+		int					maxSocket;		// max number of socket handlers
+		int					nSock;		// number of socket handlers used
+		SockEnt*			sockTable;		// socket table
+		int					initial_command_sock;  
 
-		void				DumpSigHandlerTable(int, char* = "");
-		void				DumpReqHandlerTable(int, char* = "");
-		void				DumpTimerList(int, char* = "");
-		void				HandleReq(int, char, int);
-		friend	void		HandleSig(int, int, void*); 
-		int					SigHandled(int, int, void*);
-		void				Register(Service*, int, SigHandler);
-		void				Register(Service*, int, ReqHandler);
-		
-		int					maxSig;			// max number of signal handlers
-		int					nSig;			// number of signal handlers
-		SigHandlerEnt*		sigTable;		// signal handler table
+		static				TimerManager t;
 
-		int					maxReq;			// max number of request handlers
-		int					nReq;			// number of request handlers
-		ReqHandlerEnt*		reqTable;		// request handler table
+		void				DumpTimerList(int, char* = NULL);
 
-		int					maxFunc;		// to be executed between select
-		int					nFunc;			// to be executed between select
-		FunctionEnt*		funcTable;		// to be executed between select
-
-		u_short				ports[32];
-		int					nPorts; 
+		void				free_descrip(char *p) { if(p &&  p != EMPTY_DESCRIP) free(p); }
+	
 		fd_set				readfds; 
-		int					tcp_XdrOrIo[32];// is the socket xdr or condor_io
-		int					tcpSds[32];		// tcp socket descriptors
-		int					nTcp;
-		int					udp_XdrOrIo[32];// is the socket xdr or condor_io
-		int					udpSds[32];		// udp socket descriptors
-		int					nUdp;
 };
 
 #endif
-
-
-
-
-
-
-
-
-

@@ -29,10 +29,8 @@
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Defines a timer driven by alarm signals that can handle scheduled events as
+// Defines a timer driven by select timeouts that can handle scheduled events as
 // well as periodical events. 
-//
-// Cai, Weiru
 //
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -40,25 +38,31 @@
 #define _TIMERMANAGER_H_
 
 #include "condor_constants.h"
+
+#ifdef WIN32
+#include <time.h>
+#else
 #include <sys/time.h>
+#endif
 
 const	int		STAR = -1;
 
-class Service
-{
+class Service {
 };
 
 typedef	int		(*Event)(Service*);
-typedef void	(*SIG_HANDLER)();
+typedef int		(Service::*Eventcpp)();
 
 typedef struct tagTimer {
-    unsigned        	when;
+    time_t	        	when;
 	unsigned			period;
     int     			id;
-    void*				handler;
+    Event				handler;
+	Eventcpp			handlercpp;
 	class Service*	   	service; 
     struct tagTimer*	next;
-	int					current;
+	int					is_cpp;
+	char*				event_descrip;
 } Timer;
 
 class TimerManager
@@ -68,25 +72,26 @@ class TimerManager
 		TimerManager();
 		~TimerManager();
 
-		int		NewTimer(Service*, unsigned, void*, unsigned = 0, int = -1);
+		int		NewTimer(Service* s, unsigned deltawhen, Event event, char *event_descrip,
+						 unsigned period = 0, int id = -1);
+		int		NewTimer(unsigned deltawhen, Event event, char *event_descrip, 
+						 unsigned period = 0, int id = -1);
+		int		NewTimer(Service* s, unsigned deltawhen, Eventcpp event, char *event_descrip,
+						 unsigned period = 0, int id = -1);
 		int	   	CancelTimer(int);
 		void   	CancelAllTimers();
-		void   	DumpTimerList(int, char* = "");
-		friend	void	SigalrmHandler();
-		#if defined(VOID_SIGNAL_RETURN)
-		void
-		#else
-		int
-		#endif
-	  			SigalrmHandler(); 
+		void   	DumpTimerList(int, char* = NULL );
+	  	int		Timeout(); 
 		void	Start();
-
-		friend	class	DaemonCore;
 
 	private:
 
+		int		NewTimer(Service* s, unsigned deltawhen, Event event, Eventcpp eventcpp, 
+							char *event_descrip, unsigned period = 0, int id = -1, 
+							int is_cpp = 0);
 		Timer* 	timer_list;
 		int	   	timer_ids;
+		int		in_timeout;
 };
 
 #endif
