@@ -3596,7 +3596,7 @@ queue(int num)
 			}
 
 			/* Insert the proxy subject name into the ad */
-			char *proxy_subject = x509_proxy_subject_name(proxy_file);
+			char *proxy_subject = x509_proxy_identity_name(proxy_file);
 			if ( !proxy_subject ) {
 				fprintf( stderr, "\nERROR: %s\n", x509_error_string() );
 				exit( 1 );
@@ -3607,12 +3607,14 @@ queue(int num)
 			* daemoncore handles command-line args w/ an argv array, spaces
 			* will cause trouble.  
 			*/
+/*
 			char *space_tmp;
 			do {
 				if ( (space_tmp = strchr(proxy_subject,' ')) ) {
 					*space_tmp = '_';
 				}
 			} while (space_tmp);
+*/
 			(void) sprintf(buffer, "%s=\"%s\"", ATTR_X509_USER_PROXY_SUBJECT, 
 						proxy_subject);
 			InsertJobExpr(buffer);	

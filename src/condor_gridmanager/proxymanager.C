@@ -196,9 +196,9 @@ AcquireProxy( const char *proxy_path, int notify_tid )
 				 proxy_path );
 		return NULL;
 	}
-	subject_name = x509_proxy_subject_name( proxy_path );
+	subject_name = x509_proxy_identity_name( proxy_path );
 	if ( subject_name == NULL ) {
-		dprintf( D_ALWAYS, "Failed to get subject of proxy %s\n", proxy_path );
+		dprintf( D_ALWAYS, "Failed to get identity of proxy %s\n", proxy_path );
 		return NULL;
 	}
 
