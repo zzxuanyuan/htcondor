@@ -81,15 +81,16 @@ MirrorResource::MirrorResource( const char *resource_name )
 	} else {
 		// TODO remove mirrorScheddName from the gahp server key if/when
 		//   a gahp server can handle multiple schedds
-		sprintf( buff, "MIRROR/%s", mirrorScheddName );
-		gahpA = new GahpClient( buff, gahp_path );
+		MyString buff;
+		buff.sprintf( "MIRROR/%s", mirrorScheddName );
+		gahpA = new GahpClient( buff.Value(), gahp_path );
 		gahpA->setNotificationTimerId( scheddPollTid );
 		gahpA->setMode( GahpClient::normal );
-		gahpA->setTimeout( gahpCallTimeout );
-		gahpB = new GahpClient( buff, gahp_path );
+		gahpA->setTimeout( MirrorJob::gahpCallTimeout );
+		gahpB = new GahpClient( buff.Value(), gahp_path );
 		gahpB->setNotificationTimerId( scheddPollTid );
 		gahpB->setMode( GahpClient::normal );
-		gahpB->setTimeout( gahpCallTimeout );
+		gahpB->setTimeout( MirrorJob::gahpCallTimeout );
 		free( gahp_path );
 	}
 }
@@ -139,7 +140,7 @@ void MirrorResource::UnregisterJob( MirrorJob *job )
 		//   this object
 }
 
-int DoScheddPoll()
+int MirrorResource::DoScheddPoll()
 {
 	int rcA, rcB;
 
@@ -165,7 +166,7 @@ int DoScheddPoll()
 
 		ClassAd update_ad;
 		buff.sprintf( "%s = %d", ATTR_MIRROR_LEASE_TIME, newLease );
-		update_ad->Insert( buff.Value() );
+		update_ad.Insert( buff.Value() );
 
 		rcA = gahpA->condor_job_update_constrained( mirrorScheddName,
 													constraint.Value(),
@@ -218,6 +219,7 @@ int DoScheddPoll()
 			update_expr.sprintf( "%s = %d", ATTR_MIRROR_REMOTE_LEASE_TIME,
 								 newLease );
 			for ( int i = 0; i < num_status_ads; i++ ) {
+				int rc;
 				int cluster, proc;
 				MyString job_id_string;
 				MirrorJob *job;

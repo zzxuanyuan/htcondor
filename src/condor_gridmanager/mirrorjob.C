@@ -100,8 +100,8 @@ static char *GMStateNames[] = {
 template class HashTable<HashKey, MirrorJob *>;
 template class HashBucket<HashKey, MirrorJob *>;
 
-HashTable <HashKey, GT3Job *> MirrorJobsById( HASH_TABLE_SIZE,
-											  hashFunction );
+HashTable <HashKey, MirrorJob *> MirrorJobsById( HASH_TABLE_SIZE,
+												 hashFunction );
 
 
 void MirrorJobInit()
@@ -152,8 +152,11 @@ MirrorJob::MirrorJob( ClassAd *classad )
 	: BaseJob( classad )
 {
 	int bool_value;
+	int tmp1;
+	int tmp2;
 	char buff[4096];
 	char *error_string = NULL;
+	char *gahp_path;
 
 	mirrorJobId.cluster = 0;
 	gahpAd = NULL;
@@ -195,7 +198,7 @@ MirrorJob::MirrorJob( ClassAd *classad )
 	myResource = MirrorResource::FindOrCreateResource( mirrorScheddName );
 	myResource->RegisterJob( this );
 
-	char *gahp_path = param("MIRROR_GAHP");
+	gahp_path = param("MIRROR_GAHP");
 	if ( gahp_path == NULL ) {
 		error_string = "MIRROR_GAHP not defined";
 		goto error_exit;
@@ -210,10 +213,11 @@ MirrorJob::MirrorJob( ClassAd *classad )
 	gahp->setMode( GahpClient::normal );
 	gahp->setTimeout( gahpCallTimeout );
 
-	int tmp1 = 0, tmp2 = 0;
-	ad->LookupInteger( ATTR_MIRROR_OK_TO_MATCH, tmp1 );
-	ad->LookupInteger( ATTR_SCHEDD_BIRTHDATE, tmp2 );
-	if ( tmp1 != 0 && tmp1 != 0 && tmp1 => tmp2 ) {
+	tmp1 = 0;
+	tmp2 = 0;
+	ad->LookupBool( ATTR_MIRROR_ACTIVE, tmp1 );
+//	ad->LookupInteger( ATTR_SCHEDD_BIRTHDATE, tmp2 );
+	if ( tmp1 == 0 && tmp1 != 0 && tmp1 >= tmp2 ) {
 		localJobSchedulingEnabled = true;
 	}
 
@@ -413,7 +417,7 @@ int MirrorJob::doEvaluateState()
 						localJobSchedulingEnabled == false ) {
 				gmState = GM_ENABLE_LOCAL_SCHEDULING;
 			} else if ( remoteState != HELD &&
-						localJobSchedulerEnabled == true ) {
+						localJobSchedulingEnabled == true ) {
 				gmState = GM_DISABLE_LOCAL_SCHEDULING;
 			}
 			} break;
@@ -628,7 +632,7 @@ void MirrorJob::SetRemoteJobId( const char *job_id )
 		id_string.sprintf( "%s/%d.%d", mirrorScheddName, mirrorJobId.cluster,
 						   mirrorJobId.proc );
 		remoteJobIdString = strdup( id_string.Value() );
-		MirrorJobsById.insert( HashKey( remoteJobIdString ), job );
+		MirrorJobsById.insert( HashKey( remoteJobIdString ), this );
 		UpdateJobAdString( ATTR_MIRROR_JOB_ID, job_id );
 	}
 	requestScheddUpdate( this );
@@ -639,14 +643,14 @@ void MirrorJob::RemoteJobStatusUpdate( ClassAd *update_ad )
 	int rc;
 	int tmp_int;
 
-	update_ad->LookupInteger( ATTR_JOB_STATUS, &tmp_int );
+	update_ad->LookupInteger( ATTR_JOB_STATUS, tmp_int );
 
 	if ( remoteState == HELD && tmp_int != HELD ) {
 		UpdateJobAdBool( ATTR_MIRROR_ACTIVE, 1 );
 	}
 	remoteState = tmp_int;
 
-	rc = update_ad->LookupInteger( ATTR_MIRROR_LEASE_TIME, &tmp_int );
+	rc = update_ad->LookupInteger( ATTR_MIRROR_LEASE_TIME, tmp_int );
 	if ( rc ) {
 		UpdateJobAdInt( ATTR_MIRROR_REMOTE_LEASE_TIME, tmp_int );
 	} else {
@@ -701,46 +705,46 @@ ClassAd *MirrorJob::buildSubmitAd()
 	expr.sprintf( "%s = 0", ATTR_COMPLETION_DATE );
 	submit_ad->Insert( expr.Value() );
 
-	expr.sprintf (buffer, "%s = 0.0", ATTR_JOB_REMOTE_WALL_CLOCK);
+	expr.sprintf ( "%s = 0.0", ATTR_JOB_REMOTE_WALL_CLOCK);
 	submit_ad->Insert( expr.Value() );
 
-	expr.sprintf (buffer, "%s = 0.0", ATTR_JOB_LOCAL_USER_CPU);
+	expr.sprintf ( "%s = 0.0", ATTR_JOB_LOCAL_USER_CPU);
 	submit_ad->Insert( expr.Value() );
 
-	expr.sprintf (buffer, "%s = 0.0", ATTR_JOB_LOCAL_SYS_CPU);
+	expr.sprintf ( "%s = 0.0", ATTR_JOB_LOCAL_SYS_CPU);
 	submit_ad->Insert( expr.Value() );
 
-	expr.sprintf (buffer, "%s = 0.0", ATTR_JOB_REMOTE_USER_CPU);
+	expr.sprintf ( "%s = 0.0", ATTR_JOB_REMOTE_USER_CPU);
 	submit_ad->Insert( expr.Value() );
 
-	expr.sprintf (buffer, "%s = 0.0", ATTR_JOB_REMOTE_SYS_CPU);
+	expr.sprintf ( "%s = 0.0", ATTR_JOB_REMOTE_SYS_CPU);
 	submit_ad->Insert( expr.Value() );
 
-	expr.sprintf (buffer, "%s = 0", ATTR_JOB_EXIT_STATUS);
+	expr.sprintf ( "%s = 0", ATTR_JOB_EXIT_STATUS);
 	submit_ad->Insert( expr.Value() );
 
-	expr.sprintf (buffer, "%s = 0", ATTR_NUM_CKPTS);
+	expr.sprintf ( "%s = 0", ATTR_NUM_CKPTS);
 	submit_ad->Insert( expr.Value() );
 
-	expr.sprintf (buffer, "%s = 0", ATTR_NUM_RESTARTS);
+	expr.sprintf ( "%s = 0", ATTR_NUM_RESTARTS);
 	submit_ad->Insert( expr.Value() );
 
-	expr.sprintf (buffer, "%s = 0", ATTR_NUM_SYSTEM_HOLDS);
+	expr.sprintf ( "%s = 0", ATTR_NUM_SYSTEM_HOLDS);
 	submit_ad->Insert( expr.Value() );
 
-	expr.sprintf (buffer, "%s = 0", ATTR_JOB_COMMITTED_TIME);
+	expr.sprintf ( "%s = 0", ATTR_JOB_COMMITTED_TIME);
 	submit_ad->Insert( expr.Value() );
 
-	expr.sprintf (buffer, "%s = 0", ATTR_TOTAL_SUSPENSIONS);
+	expr.sprintf ( "%s = 0", ATTR_TOTAL_SUSPENSIONS);
 	submit_ad->Insert( expr.Value() );
 
-	expr.sprintf (buffer, "%s = 0", ATTR_LAST_SUSPENSION_TIME);
+	expr.sprintf ( "%s = 0", ATTR_LAST_SUSPENSION_TIME);
 	submit_ad->Insert( expr.Value() );
 
-	expr.sprintf (buffer, "%s = 0", ATTR_CUMULATIVE_SUSPENSION_TIME);
+	expr.sprintf ( "%s = 0", ATTR_CUMULATIVE_SUSPENSION_TIME);
 	submit_ad->Insert( expr.Value() );
 
-	expr.sprintf (buffer, "%s = FALSE", ATTR_ON_EXIT_BY_SIGNAL);
+	expr.sprintf ( "%s = FALSE", ATTR_ON_EXIT_BY_SIGNAL);
 	submit_ad->Insert( expr.Value() );
 
 	expr.sprintf( "%s = 0", ATTR_CURRENT_HOSTS );
@@ -756,7 +760,7 @@ ClassAd *MirrorJob::buildSubmitAd()
 	submit_ad->Insert( expr.Value() );
 
 	expr.sprintf( "%s = %s =?= Undefined && ENV.CurrentTime > %s + %d",
-				  ATTR_JOB_PERIODIC_REMOVE_CHECK, ATTR_MIRROR_LEASE_TIME,
+				  ATTR_PERIODIC_REMOVE_CHECK, ATTR_MIRROR_LEASE_TIME,
 				  ATTR_Q_DATE, 1800 );
 	submit_ad->Insert( expr.Value() );
 

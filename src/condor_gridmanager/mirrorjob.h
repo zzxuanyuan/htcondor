@@ -31,6 +31,7 @@
 #include "classad_hashtable.h"
 
 #include "basejob.h"
+#include "mirrorresource.h"
 #include "gahp-client.h"
 
 
@@ -43,6 +44,7 @@ bool MirrorJobAdMustExpand( const ClassAd *jobad );
 BaseJob *MirrorJobCreate( ClassAd *jobad );
 extern const char *MirrorJobAdConst;
 
+class MirrorResource;
 
 class MirrorJob : public BaseJob
 {
@@ -92,7 +94,7 @@ class MirrorJob : public BaseJob
 	void RemoteJobStatusUpdate( ClassAd *update_ad );
 
 	void SetRemoteJobId( const char *job_id );
-	MyString *buildSubmitAd();
+	ClassAd *buildSubmitAd();
 
 		// If we're in the middle of a condor call that requires a ClassAd,
 		// the ad is stored here (so that we don't have to reconstruct the

@@ -29,6 +29,7 @@
 
 #include "mirrorjob.h"
 #include "baseresource.h"
+#include "gahp-client.h"
 
 #define ACQUIRE_DONE		0
 #define ACQUIRE_QUEUED		1
