@@ -673,7 +673,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too old!\n",procID.cluster,procID
 			} break;
 		case GM_STAGE_OUT: {
 			// Now stage files back from the remote schedd
-			rc = gahp->condor_job_stage_out( remoteScheddName, procID );
+			rc = gahp->condor_job_stage_out( remoteScheddName, remoteJobId );
 			if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
 				 rc == GAHPCLIENT_COMMAND_PENDING ) {
 				break;

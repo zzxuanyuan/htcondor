@@ -467,7 +467,7 @@ dprintf(D_ALWAYS,"*** spooling %d job ads\n",stage_in_batch.Number());
 									current_command->cluster_id,
 									current_command->proc_id );
 		}
-		constraint += "True";
+		constraint += "False";
 
 		error = FALSE;
 
