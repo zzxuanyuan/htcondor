@@ -263,16 +263,21 @@ transparently checkpoint and migrate:
 has been asked to transparently checkpoint.  If job checkpointing is not
 desired, the limitations above do not apply.
 
-	\item[Security Implications.] Condor does a significant amount of work to prevent 
-security hazards, but loopholes are known to exist.  Condor can be instructed 
-to run user programs only as the UNIX user nobody, a user login which traditionally has very 
-restricted access.  But even with access solely as user nobody, a sufficiently 
-malicious individual could do such things as fill up /tmp (which is world writable) and/or gain 
-read access to world readable files.
-Furthermore, where the security of machines in the pool is a high concern, 
-only machines where the UNIX user root on that machine can be trusted should be admitted
-into the pool. Condor provides the administrator with IP-based security mechanisms 
-to enforce this.
+	\item[Security Implications.] Condor does a significant amount of
+	work to prevent security hazards, but loopholes are known to exist.
+	Condor can be instructed to run user programs only as the UNIX
+	user nobody, a user login which traditionally has very 
+	restricted access.
+	But even with access solely as user nobody,
+	a sufficiently malicious individual could do such things as fill up
+	\File{/tmp} (which is world writable) and/or gain read access to
+	world readable files.
+	Furthermore, where the security of machines in the pool is a
+	high concern, 
+	only machines where the UNIX user root on that machine can be
+	trusted should be admitted into the pool.
+	Condor provides the administrator with extensive security mechanisms 
+	to enforce desired policies.
 
 	\item[Jobs Need to be Re-linked to get Checkpointing and Remote System Calls] Although 
 typically no source code changes are required,
