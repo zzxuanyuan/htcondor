@@ -65,6 +65,15 @@ static const char* DEFAULT_INDENT = "DaemonCore--> ";
 typedef unsigned (__stdcall *CRT_THREAD_HANDLER) (void *);
 CRITICAL_SECTION Big_fat_mutex; // coarse grained mutex for debugging purposes
 #endif
+#include "directory.h"
+#include "../condor_io/condor_rw.h"
+#include "httpget.h"
+
+// Make this the last include to fix assert problems on Win32 -- see
+// the comments about assert at the end of condor_debug.h to understand
+// why.
+// DO NOT include any system header files after this!
+#include "condor_debug.h"
 
 #if 0
 	// Lord help us -- here we define some CRT internal data structure info.
@@ -119,10 +128,9 @@ int ZZZ_always_increase() {
 
 static int _condor_exit_with_exec = 0;
 
+extern int soap_serve(struct soap*);
 extern int LockFd;
-
 extern void drop_addr_file( void );
-
 extern char* mySubSystem;	// the subsys ID, such as SCHEDD
 
 TimerManager DaemonCore::t;
@@ -202,6 +210,7 @@ DaemonCore::DaemonCore(int PidSize, int ComSize,int SigSize,
 	sockTable->fill(blankSockEnt);
 
 	initial_command_sock = -1;
+	initial_http_sock = -1;
 
 	if(maxPipe == 0)
 		maxPipe = DEFAULT_MAXPIPES;
@@ -1785,6 +1794,11 @@ void DaemonCore::Driver()
             }
 		}
 
+		// Add HTTP port if it is setup...
+		if ( initial_http_sock != -1 ) {
+			FD_SET((SOAP_SOCKET)initial_http_sock,&readfds);
+		}
+
 		
 #if !defined(WIN32)
 		// Add the registered pipe fds into the list of descriptors to
@@ -1861,6 +1875,7 @@ void DaemonCore::Driver()
 		if (rv > 0) {	// connection requested
 
 			bool recheck_status = false;
+			//bool call_soap_handler = false;
 
 			// scan through the socket table to find which ones select() set
 			for(i = 0; i < nSock; i++) {			
@@ -1918,7 +1933,34 @@ void DaemonCore::Driver()
 				}	// end of if valid pipe entry
 			}	// end of for loop through all pipe entries
 
+			// check if someone is knocking on our soap door... 
+			//if (FD_ISSET((SOAP_SOCKET)initial_http_sock,&readfds)) {
+			//	call_soap_handler = true;
+			//}
 
+			// Now, call all the handler that are ready!
+
+			// Handle HTTP and SOAP calls
+#if 0
+			if ( call_soap_handler ) {
+				recheck_status = true;
+				int s = soap_accept(&soap); 
+				if (s < 0)  { 
+					soap_print_fault(&soap, stderr); 
+				}  else {
+					dprintf(D_ALWAYS, "Received HTTP connection from IP=%d.%d.%d.%d socket=%d\n",  
+								(soap.ip << 24)&0xFF, (soap.ip << 16)&0xFF, 
+								(soap.ip << 8)&0xFF, soap.ip&0xFF, s); 
+					soap_serve(&soap); // process RPC request 
+					dprintf(D_DAEMONCORE, "Completed servicing HTTP request\n"); 
+					soap_destroy(&soap); // clean up class instances 
+					soap_end(&soap); // clean up everything and close socket 
+					CheckPrivState();	// Make sure we didn't leak our priv state
+					curr_dataptr = NULL; // Clear curr_dataptr						
+				}
+			}
+#endif
+			
 			// Now loop through all pipe entries, calling handlers if required.
 			for(i = 0; i < nPipe; i++) {				
 				if ( (*pipeTable)[i].pipefd ) {	// if a valid entry...
@@ -2247,6 +2289,9 @@ int DaemonCore::HandleReq(int socki)
     KeyInfo *the_key        = NULL;
     char    *the_sid        = NULL;
     char    * who = NULL;   // Remote user
+	bool is_http_post = false;	// must initialize to false
+	bool is_http_get = false;   // must initialize to false
+
 	
 	insock = (*sockTable)[socki].iosock;
 
@@ -2490,10 +2535,102 @@ int DaemonCore::HandleReq(int socki)
         }
 	}
 	
-	// read in the command from the stream with a timeout value of 20 seconds
-	old_timeout = stream->timeout(20);
 
 	stream->decode();
+
+		// Determine if incoming socket is HTTP over TCP, or if it is CEDAR.
+		// For better or worse, we figure this out by seeing if the socket
+		// starts w/ a GET or POST.  Hopefully this does not correspond to
+		// a daemoncore command int!  [not ever likely, since CEDAR ints are
+		// exapanded out to 8 bytes]  Still, in a perfect world we would replace
+		// with a more foolproof method.
+	char tmpbuf[5];
+	memset(tmpbuf,0,sizeof(tmpbuf));
+	if ( is_tcp && (insock != stream) ) {
+		int nro = condor_read(((Sock*)stream)->get_file_desc(), 
+			tmpbuf, sizeof(tmpbuf) - 1, 10, MSG_PEEK);
+	}
+	if ( strstr(tmpbuf,"GET") ) {
+		if ( param_boolean("ENABLE_WEB_SERVER",false) ) {
+			// mini-web server requires READ authorization.
+			if ( Verify(READ,((Sock*)stream)->endpoint(),NULL) ) {
+				is_http_get = true;
+			} else {
+				dprintf(D_ALWAYS,"Received HTTP GET connection from %s -- "
+				             "DENIED because host not authorized for READ\n",
+							 sin_to_string(((Sock*)stream)->endpoint()));
+			}
+		} else {
+			dprintf(D_ALWAYS,"Received HTTP GET connection from %s -- "
+				             "DENIED because ENABLE_WEB_SERVER=FALSE\n",
+							 sin_to_string(((Sock*)stream)->endpoint()));
+		}
+	} else {
+		if ( strstr(tmpbuf,"POST") ) {
+			if ( param_boolean("ENABLE_SOAP",false) ) {
+				// SOAP requires SOAP authorization.
+				if ( Verify(SOAP_PERM,((Sock*)stream)->endpoint(),NULL) ) {
+					is_http_post = true;
+				} else {
+					dprintf(D_ALWAYS,"Received HTTP POST connection from %s -- "
+							"DENIED because host not authorized for SOAP\n",
+							 sin_to_string(((Sock*)stream)->endpoint()));
+				}		
+			} else {
+				dprintf(D_ALWAYS,"Received HTTP POST connection from %s -- "
+							 "DENIED because ENABLE_SOAP=FALSE\n",
+							 sin_to_string(((Sock*)stream)->endpoint()));
+			}
+		}
+	}
+	if ( is_http_post || is_http_get )
+	{
+		struct soap *cursoap;
+
+			// Socket appears to be HTTP, so deal with it.
+		dprintf(D_ALWAYS, "Received HTTP %s connection from %s\n",  
+			is_http_get ? "GET" : "POST",
+			sin_to_string(((Sock*)stream)->endpoint()) );
+
+
+		cursoap = soap_copy(&soap);
+		ASSERT(cursoap);
+
+			// Mimic a gsoap soap_accept as follows:
+			//   1. stash the socket descriptor in the soap object
+			//   2. make socket non-blocking by setting a CEDAR timeout.
+			//   3. increase size of send and receive buffers
+			//   4. set SO_KEEPALIVE [done automatically by CEDAR accept()]
+		cursoap->socket = ((Sock*)stream)->get_file_desc();
+		cursoap->recvfd = soap.socket;
+		cursoap->sendfd = soap.socket;
+		if ( cursoap->recv_timeout > 0 ) {	
+			stream->timeout(soap.recv_timeout);
+		} else {
+			stream->timeout(20);
+		}
+		((Sock*)stream)->set_os_buffers(SOAP_BUFLEN,false);	// set read buf size
+		((Sock*)stream)->set_os_buffers(SOAP_BUFLEN,true);	// set write buf size
+
+			// Now, process the Soap RPC request and dispatch it
+		dprintf(D_ALWAYS,"About to serve HTTP request...\n");
+		soap_serve(cursoap); 
+		soap_destroy(cursoap); // clean up class instances 
+		soap_end(cursoap); // clean up everything and close socket 
+		free(cursoap);
+		dprintf(D_ALWAYS, "Completed servicing HTTP request\n"); 
+
+		((Sock*)stream)->_sock = INVALID_SOCKET; // so CEDAR won't close it again
+		delete stream;	// clean up CEDAR socket
+		CheckPrivState();	// Make sure we didn't leak our priv state
+		curr_dataptr = NULL; // Clear curr_dataptr						
+			// Return KEEP_STEAM cuz we wanna keep our listen socket open
+		return KEEP_STREAM;	
+	}
+
+
+	// read in the command from the stream with a timeout value of 20 seconds
+	old_timeout = stream->timeout(20);
 	result = stream->code(req);
 	// For now, lets keep the timeout, so all command handlers are called with
 	// a timeout of 20 seconds on their socket.
@@ -5721,6 +5858,45 @@ DaemonCore::Inherit( void )
 
 }
 
+void
+DaemonCore::InitHTTPSocket( int http_port )
+{
+#if 0
+	if( http_port < 0 ) {
+			// No command port wanted, just bail.
+		dprintf( D_ALWAYS, "DaemonCore: No HTTP port requested.\n" );
+		return;
+	}
+
+	dprintf( D_ALWAYS, "Setting up HTTP socket on port %d\n",http_port );
+#endif
+	
+		// XXX: KEEP-ALIVE should be turned OFF, not ON.
+	soap_init2(&soap, SOAP_IO_KEEPALIVE, SOAP_IO_KEEPALIVE);
+
+		// Register a plugin to handle HTTP GET messages.
+		// See httpget.c.
+	soap_register_plugin_arg(&soap,http_get,(void*)http_get_handler);
+
+	// soap.accept_flags = SO_NOSIGPIPE;
+	// soap.accept_flags = MSG_NOSIGNAL;	
+
+#if 0
+	initial_http_sock = soap_bind(&soap,my_full_hostname(),http_port,100);
+
+	if ( initial_http_sock < 0 ) {
+		dprintf(D_ALWAYS,"Failed to setup HTTP socket on port %d\n");
+		soap_print_fault(&soap,stderr);	// TODD TODO - don't just puke to stderr
+	}
+	
+	soap.accept_timeout = 200;	// years of careful reasearch!
+#endif
+
+
+	soap.send_timeout = 20;
+	soap.recv_timeout = 20;
+
+}
 
 void
 DaemonCore::InitCommandSocket( int command_port )
@@ -6977,5 +7153,117 @@ bool DaemonCore :: cookie_is_valid( unsigned char* data ) {
 		}
 	}
 	return false; // to make MSVC++ happy
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+//  Web server support
+////////////////////////////////////////////////////////////////////////////////
+
+/******************************************************************************\
+ *
+ *	Copy static page
+ *
+\******************************************************************************/
+
+int http_copy_file(struct soap *soap, const char *name, const char *type)
+{ FILE *fd;
+  size_t r;
+
+  char bbb[64000];
+
+  char * web_root_dir = param("WEB_ROOT_DIR");
+  if (!web_root_dir) {
+	    return 404; /* HTTP not found */
+  }
+  char * full_name = dircat(web_root_dir,name);
+  fd = fopen(full_name, "rb"); /* open file to copy */
+  delete [] full_name;
+  free(web_root_dir);
+  if (!fd) {
+    return SOAP_EOF; /* return HTTP error? */
+  }
+  soap->http_content = type;
+  if (soap_begin_send(soap)
+   || soap_response(soap, SOAP_FILE)) /* OK HTTP response header */
+    return soap->error;
+
+#if 0
+  if (soap_end_send(soap))
+    return soap->error;
+EXCEPT("BLAH");
+#endif
+
+  for (;;)
+  //{ r = fread(soap->tmpbuf, 1, sizeof(soap->tmpbuf), fd);
+  { r = fread(bbb, 1, sizeof(bbb), fd);
+    if (!r)
+      break;
+    //if (soap_send_raw(soap, soap->tmpbuf, r))
+	if (soap_send_raw(soap, bbb, r))
+    { soap_end_send(soap);
+      fclose(fd);
+      return soap->error;
+    }
+  }
+  fclose(fd);
+  if (soap_end_send(soap))
+    return soap->error;
+  return SOAP_OK;
+}
+
+
+int check_authentication(struct soap *soap)
+{ if (!soap->userid
+   || !soap->passwd 
+   // || strcmp(soap->userid, AUTH_USERID)
+   // || strcmp(soap->passwd, AUTH_PASSWD))
+   )
+    return 401; /* HTTP not authorized error */
+  return SOAP_OK;
+}
+
+
+/******************************************************************************\
+ *
+ *	HTTP GET handler for plugin
+ *
+\******************************************************************************/
+
+int http_get_handler(struct soap *soap)
+{ /* HTTP response choices: */
+  soap_omode(soap, SOAP_IO_STORE);  /* you have to buffer entire content when returning HTML pages to determine content length */
+  //soap_set_omode(soap, SOAP_IO_CHUNK); /* ... or use chunked HTTP content (faster) */
+#if 0
+  if (soap->zlib_out == SOAP_ZLIB_GZIP) /* client accepts gzip */
+    soap_set_omode(soap, SOAP_ENC_ZLIB); /* so we can compress content (gzip) */
+  soap->z_level = 9; /* best compression */ 
+#endif
+  /* Use soap->path (from request URL) to determine request: */
+  dprintf(D_ALWAYS, "HTTP Request: %s\n", soap->endpoint);
+  /* Note: soap->path starts with '/' */
+  if (strchr(soap->path + 1, '/') || strchr(soap->path + 1, '\\'))	/* we don't like snooping in dirs */
+    return 403; /* HTTP forbidden */
+  if (!soap_tag_cmp(soap->path, "*.html"))
+    return http_copy_file(soap, soap->path + 1, "text/html");
+  if (!soap_tag_cmp(soap->path, "*.xml")
+   || !soap_tag_cmp(soap->path, "*.xsd")
+   || !soap_tag_cmp(soap->path, "*.wsdl"))
+    return http_copy_file(soap, soap->path + 1, "text/xml");
+  if (!soap_tag_cmp(soap->path, "*.jpg"))
+    return http_copy_file(soap, soap->path + 1, "image/jpeg");
+  if (!soap_tag_cmp(soap->path, "*.gif"))
+    return http_copy_file(soap, soap->path + 1, "image/gif");
+  if (!soap_tag_cmp(soap->path, "*.ico"))
+    return http_copy_file(soap, soap->path + 1, "image/ico");
+  // if (!strncmp(soap->path, "/calc?", 6))
+  //  return calc(soap);
+  /* Check requestor's authentication: */
+  if (check_authentication(soap))
+    return 401;
+  /* Return Web server status */
+  //if (!strcmp(soap->path, "/"))
+  //   return info(soap);
+  return 404; /* HTTP not found */
 }
 

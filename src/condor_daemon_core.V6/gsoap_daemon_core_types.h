@@ -1,0 +1,99 @@
+// This header file is NOT for a C/C++ compiler; it is for the 
+// gSOAP stub generator.
+
+//gsoap condorCore service namespace: urn:condor-daemoncore
+
+/*
+ Below are all the xsd schema types that are required. When gSOAP
+ parses this file it will see types of for form x__y, the x will
+ become the namespace and y will be the actual name of the type.
+
+ gSOAP also recognizes structs with values "*__ptr" and "__size" as
+ representing an array type.
+
+ The numbers after a struct's member's name is
+ MIN_OCCURRANCES:MAX_OCCURRANCES.
+ */
+
+typedef char *xsd__string;
+typedef char *xsd__anyURI;
+typedef float xsd__float;
+typedef int xsd__int;
+typedef bool xsd__boolean;
+typedef long long xsd__long;
+typedef char xsd__byte;
+struct xsd__base64Binary
+{
+  unsigned char * __ptr;
+  int __size;
+};
+
+enum condorCore__StatusCode
+{
+  SUCCESS,
+  FAIL,
+  INVALIDTRANSACTION,
+  UNKNOWNCLUSTER,
+  UNKNOWNJOB,
+  UNKNOWNFILE,
+  INCOMPLETE,
+  INVALIDOFFSET,
+  ALREADYEXISTS
+};
+
+struct condorCore__Status
+{
+  enum condorCore__StatusCode code 1:1;
+  xsd__string message 0:1;
+  struct condorCore__Status *next 0:1;
+};
+
+enum condorCore__ClassAdAttrType
+{
+  INTEGER_ATTR = 'n',
+  FLOAT_ATTR = 'f',
+  STRING_ATTR = 's',
+  EXPRESSION_ATTR = 'x',
+  BOOLEAN_ATTR = 'b',
+  UNDEFINED_ATTR = 'u',
+  ERROR_ATTR = 'e'
+};
+
+// n=int,f=float,s=string,x=expression,b=bool,u=undefined,e=error
+struct condorCore__ClassAdStructAttr
+{
+  xsd__string name 1:1;
+  //	xsd__byte type 1:1;
+  enum condorCore__ClassAdAttrType type 1:1;
+  xsd__string value 1:1;
+};
+
+struct ClassAdStruct
+{
+	struct condorCore__ClassAdStructAttr *__ptr;	
+	int __size;
+};
+
+struct ClassAdStructArray 
+{
+	struct ClassAdStruct *__ptr;
+	int __size;
+};
+
+struct condorCore__ClassAdStructAndStatus
+{
+  struct condorCore__Status status 1:1;
+  struct ClassAdStruct classAd 0:1;
+};
+
+struct condorCore__ClassAdStructArrayAndStatus
+{
+  struct condorCore__Status status 1:1;
+  struct ClassAdStructArray classAdArray 0:1;
+};
+
+struct condorCore__StringAndStatus
+{
+  struct condorCore__Status status 1:1;
+  xsd__string message 0:1;
+};

@@ -1,4 +1,4 @@
-/***************************Copyright-DO-NOT-REMOVE-THIS-LINE**
+'/***************************Copyright-DO-NOT-REMOVE-THIS-LINE**
   *
   * Condor Software Copyright Notice
   * Copyright (C) 1990-2004, Condor Team, Computer Sciences Department,
@@ -33,7 +33,7 @@
    will EXCEPT at startup time.  
 */
 
-static char* CondorVersionString = "$CondorVersion: 6.7.1 " __DATE__ " PRE-RELEASE-UWCS-INTERNAL $";
+static char* CondorVersionString = "$CondorVersion: 6.7.0 " __DATE__ " PRERELEASE SOAP-BRANCH $";
 
 /* 
    This is some wisdom from Cygnus's web page.  If you just try to use

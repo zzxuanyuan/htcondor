@@ -1,3 +1,7 @@
+5/27/04 V6_7-soap-merge-1
+    The state of the V6_7-soap-branch when it was merged into
+    V6_7-soap-2-branch and then abandoned.   
+
 05/26/04 V6_7-credd-branch
   A new branch for the new Condor daemon - condor_credd. Created from 
 V6_7-credd-root. By ckireyev.

@@ -51,6 +51,7 @@
 #ifdef WIN32
 #include "ntsysinfo.h"
 #endif
+#include "stdsoap2.h"
 
 #define DEBUG_SETTABLE_ATTR_LISTS 0
 
@@ -889,6 +890,7 @@ class DaemonCore : public Service
 
     void Inherit( void );  // called in main()
 	void InitCommandSocket( int command_port );  // called in main()
+	void InitHTTPSocket( int http_port );
 
     int HandleSigCommand(int command, Stream* stream);
     int HandleReq(int socki);
@@ -1007,6 +1009,9 @@ class DaemonCore : public Service
     int               nSock;      // number of socket handlers used
     ExtArray<SockEnt> *sockTable; // socket table; grows dynamically if needed
     int               initial_command_sock;  
+	
+	int				  initial_http_sock;
+	struct soap		  soap;
 
 	struct PidEntry;  // forward reference
     struct PipeEnt
