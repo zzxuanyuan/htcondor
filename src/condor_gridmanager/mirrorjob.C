@@ -961,6 +961,10 @@ dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too long!\n",procID.cluster,procI
 
 void MirrorJob::SetRemoteJobId( const char *job_id )
 {
+	if ( remoteJobIdString != NULL && job_id != NULL &&
+		 strcmp( remoteJobIdString, job_id ) == 0 ) {
+		return;
+	}
 	if ( remoteJobIdString != NULL ) {
 		MirrorJobsById.remove( HashKey( remoteJobIdString ) );
 		free( remoteJobIdString );
