@@ -58,14 +58,11 @@ class MirrorJob : public BaseJob
 	int doEvaluateState();
 	BaseResource *GetResource();
 
-	static int pollMirrorInterval;
 	static int submitInterval;
 	static int gahpCallTimeout;
 	static int maxConnectFailures;
 	static int leaseInterval;
 
-	static void setPollInterval( int new_interval )
-		{ pollMirrorInterval = new_interval; }
 	static void setSubmitInterval( int new_interval )
 		{ submitInterval = new_interval; }
 	static void setGahpCallTimeout( int new_timeout )

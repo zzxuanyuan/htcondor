@@ -83,8 +83,8 @@ static char *GMStateNames[] = {
 	"GM_PROXY_EXPIRED",
 	"GM_REFRESH_PROXY",
 	"GM_START",
-	"GM_ENABLE_LOCAL_SCHEDULING",
-	"GM_DISABLE_LOCAL_SCHEDULING",
+	"GM_MIRROR_ACTIVE_SAVE",
+	"GM_VACATE_SCHEDD",
 	"GM_SUBMITTED_MIRROR_ACTIVE",
 	"GM_HOLD_MIRROR_ACTIVE",
 	"GM_HOLD_REMOTE_JOB",
@@ -123,7 +123,7 @@ void MirrorJobReconfig()
 	int tmp_int;
 
 	tmp_int = param_integer( "MIRROR_JOB_POLL_INTERVAL", 5 * 60 );
-	MirrorJob::setPollInterval( tmp_int );
+	MirrorResource::setPollInterval( tmp_int );
 
 	tmp_int = param_integer( "GRIDMANAGER_GAHP_CALL_TIMEOUT", 5 * 60 );
 	MirrorJob::setGahpCallTimeout( tmp_int );
@@ -135,7 +135,7 @@ void MirrorJobReconfig()
 	MirrorJob::setLeaseInterval( tmp_int );
 }
 
-const char *MirrorJobAdConst = "JobUniverse =?= 5 && MirrorJob =?= True";
+const char *MirrorJobAdConst = "JobUniverse =?= 5 && MirrorSchedd =!= Undefined";
 
 bool MirrorJobAdMustExpand( const ClassAd *jobad )
 {
@@ -208,7 +208,6 @@ void ClassAdPatch( ClassAd *orig_ad, ClassAd *diff_ad )
 	}
 }
 
-int MirrorJob::pollMirrorInterval = 300;		// default value
 int MirrorJob::submitInterval = 300;			// default value
 int MirrorJob::gahpCallTimeout = 300;			// default value
 int MirrorJob::maxConnectFailures = 3;			// default value
@@ -427,6 +426,7 @@ int MirrorJob::doEvaluateState()
 				numSubmitAttempts++;
 				if ( rc == GLOBUS_SUCCESS ) {
 					SetRemoteJobId( job_id_string );
+					UpdateJobAdBool( ATTR_MIRROR_ACTIVE, 0 );
 					gmState = GM_SUBMIT_SAVE;
 				} else {
 					// unhandled error
@@ -520,6 +520,7 @@ int MirrorJob::doEvaluateState()
 			// The mirror has just become active. Send a vacate command to
 			// the schedd to stop any local execution of the job.
 
+/* vacateJobs isn't implemented yet
 			int result;
 			CondorError errstack;
 			ClassAd* rval;
@@ -542,6 +543,7 @@ int MirrorJob::doEvaluateState()
 				EXCEPT( "vacateJobs failed" );
 			}
 			delete rval;
+*/
 
 			gmState = GM_SUBMITTED_MIRROR_ACTIVE;
 			} break;
@@ -815,10 +817,13 @@ void MirrorJob::SetRemoteJobId( const char *job_id )
 
 void MirrorJob::NotifyRemoteStatusUpdate( ClassAd *update_ad )
 {
+	dprintf( D_FULLDEBUG, "(%d.%d) ***got classad from MirrorResource\n",
+			 procID.cluster, procID.proc );
 	if ( remoteStatusUpdateAd != NULL ) {
 		delete remoteStatusUpdateAd;
 	}
 	remoteStatusUpdateAd = new ClassAd( *update_ad );
+	SetEvaluateState();
 }
 
 void MirrorJob::ProcessRemoteAdInactive( ClassAd *remote_ad )
@@ -830,9 +835,12 @@ void MirrorJob::ProcessRemoteAdInactive( ClassAd *remote_ad )
 		return;
 	}
 
+	dprintf( D_FULLDEBUG, "(%d.%d) ***ProcessRemoteAdInactive\n",
+			 procID.cluster, procID.proc );
+
 	remote_ad->LookupInteger( ATTR_JOB_STATUS, tmp_int );
 
-	if ( remoteState == HELD && tmp_int != HELD ) {
+	if ( tmp_int != HELD ) {
 		UpdateJobAdBool( ATTR_MIRROR_ACTIVE, 1 );
 		mirrorActive = true;
 	}
@@ -861,6 +869,9 @@ void MirrorJob::ProcessRemoteAdActive( ClassAd *remote_ad )
 	if ( remote_ad == NULL ) {
 		return;
 	}
+
+	dprintf( D_FULLDEBUG, "(%d.%d) ***ProcessRemoteAdActive\n",
+			 procID.cluster, procID.proc );
 
 	remote_ad->LookupInteger( ATTR_JOB_STATUS, tmp_int );
 	remoteState = tmp_int;
@@ -895,6 +906,14 @@ void MirrorJob::ProcessRemoteAdActive( ClassAd *remote_ad )
 	diff_ad->Delete( ATTR_JOB_LEAVE_IN_QUEUE );
 	diff_ad->Delete( ATTR_JOB_STATUS_ON_RELEASE );
 	diff_ad->Delete( ATTR_JOB_STATUS );
+	diff_ad->Delete( ATTR_JOB_MANAGED );
+	diff_ad->Delete( ATTR_PERIODIC_HOLD_CHECK );
+	diff_ad->Delete( ATTR_PERIODIC_RELEASE_CHECK );
+	diff_ad->Delete( ATTR_PERIODIC_REMOVE_CHECK );
+	diff_ad->Delete( ATTR_ON_EXIT_HOLD_CHECK );
+	diff_ad->Delete( ATTR_ON_EXIT_REMOVE_CHECK );
+	diff_ad->Delete( ATTR_SUBMIT_IN_PROGRESS );
+	diff_ad->Delete( ATTR_SERVER_TIME );
 
 	ClassAdPatch( ad, diff_ad );
 
@@ -927,6 +946,7 @@ ClassAd *MirrorJob::buildSubmitAd()
 	submit_ad->Delete( ATTR_MIRROR_SCHEDD );
 	submit_ad->Delete( ATTR_MIRROR_JOB_ID );
 	submit_ad->Delete( ATTR_MIRROR_LEASE_TIME );
+	submit_ad->Delete( ATTR_WANT_MATCHING );
 	submit_ad->Delete( ATTR_PERIODIC_HOLD_CHECK );
 	submit_ad->Delete( ATTR_PERIODIC_RELEASE_CHECK );
 	submit_ad->Delete( ATTR_PERIODIC_REMOVE_CHECK );
@@ -944,6 +964,14 @@ ClassAd *MirrorJob::buildSubmitAd()
 	submit_ad->Delete( ATTR_DAG_NODE_NAME );
 	submit_ad->Delete( ATTR_DAGMAN_JOB_ID );
 	submit_ad->Delete( ATTR_ULOG_FILE );
+	submit_ad->Delete( ATTR_SERVER_TIME );
+
+	expr.sprintf( "%s = %d", ATTR_JOB_STATUS, HELD );
+	submit_ad->Insert( expr.Value() );
+
+	expr.sprintf( "%s = \"%s\"", ATTR_HOLD_REASON,
+				  "submitted on hold at user's request" );
+	submit_ad->Insert( expr.Value() );
 
 	expr.sprintf( "%s = %d", ATTR_Q_DATE, now );
 	submit_ad->Insert( expr.Value() );
@@ -999,7 +1027,7 @@ ClassAd *MirrorJob::buildSubmitAd()
 	expr.sprintf( "%s = %d", ATTR_ENTERED_CURRENT_STATUS, now );
 	submit_ad->Insert( expr.Value() );
 
-	expr.sprintf( "%s = NEVER", ATTR_JOB_NOTIFICATION );
+	expr.sprintf( "%s = \"NEVER\"", ATTR_JOB_NOTIFICATION );
 	submit_ad->Insert( expr.Value() );
 
 	expr.sprintf( "%s = True", ATTR_SUBMIT_IN_PROGRESS );
@@ -1022,6 +1050,7 @@ ClassAd *MirrorJob::buildSubmitAd()
 
 	expr.sprintf( "%s = \"%s\"", ATTR_MIRROR_SUBMITTER_ID,
 				  myResource->submitter_id );
+	submit_ad->Insert( expr.Value() );
 
 		// worry about ATTR_JOB_[OUTPUT|ERROR]_ORIG
 

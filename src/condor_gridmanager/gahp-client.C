@@ -1005,7 +1005,8 @@ escapeGahpString(const char * input)
 	unsigned int i = 0;
 	size_t input_len = strlen(input);
 	for (i=0; i < input_len; i++) {
-		if ( input[i] == ' ' || input[i] == '\\' ) {
+		if ( input[i] == ' ' || input[i] == '\\' || input[i] == '\r' ||
+			 input[i] == '\n' ) {
 			output += '\\';
 		}
 		output += input[i];
@@ -1829,8 +1830,10 @@ GahpClient::now_pending(const char *command,const char *buf,
 	}
 
 		// Make sure the command is using the proxy it wants.
-	if ( server->useCachedProxy( pending_proxy ) != true ) {
-		EXCEPT( "useCachedProxy() failed!" );
+	if ( server->is_initialized == true ) {
+		if ( server->useCachedProxy( pending_proxy ) != true ) {
+			EXCEPT( "useCachedProxy() failed!" );
+		}
 	}
 
 		// Write the command out to the gahp server.
@@ -2794,7 +2797,7 @@ GahpClient::condor_job_status_constrained(const char *schedd_name,
 			for ( int i = 0; i < *num_ads; i++ ) {
 				ClassAdXMLParser xml_parser;
 				ClassAd *update_ad;
-				update_ad = xml_parser.ParseClassAd( result->argv[5 + i] );
+				update_ad = xml_parser.ParseClassAd( result->argv[4 + i] );
 				(*ads)[i] = *update_ad;
 			}
 		}

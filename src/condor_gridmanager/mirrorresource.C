@@ -249,7 +249,10 @@ int MirrorResource::DoScheddPoll()
 			delete [] status_ads;
 		}
 
-		scheddPollActive = false;
+		if ( rcA != GAHPCLIENT_COMMAND_PENDING &&
+			 rcB != GAHPCLIENT_COMMAND_PENDING ) {
+			scheddPollActive = false;
+		}
 
 		daemonCore->Reset_Timer( scheddPollTid, scheddPollInterval );
 	}
