@@ -46,11 +46,7 @@ CMNT
 #include <Imake.rules>
 #include INCLUDE_IMAKEFILE
 
-clean::
-	rm -f *.o core
-
-CMNT Do instantiations with template_inst( src, obj ) imake rule
-CMNT instantiate.o: instantiate.C
-CMNT 	$(CPlusPlus) $(STD_C_FLAGS) -c instantiate.C
+instantiate.o: instantiate.C
+	$(CPlusPlus) $(STD_C_FLAGS) -c instantiate.C
 
 ALWAYS:

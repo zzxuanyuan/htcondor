@@ -252,6 +252,7 @@ ProcFamily::getPidFamilyByLogin(pid_t *pidFamily)
 #ifndef WIN32
 	// Not yet implemented on Unix.
 	EXCEPT("getPidFamilyByLogin not implemented");
+	return 0;
 #else
 	// Win32 version
 	ExtArray<pid_t> pids(256);
@@ -436,12 +437,19 @@ ProcFamily::takesnapshot()
 
 			// assume pid exited unless we figure out otherwise below
 			currpid_exited = true;
-
-			found_it = true;
+			found_it = false;
 
 			// see if currpid exists in our new list
-			for (j=0;pidfamily[j] != currpid;j++) {
-				if ( pidfamily[j] == 0 ) {
+			for( j=0 ;; j++ ) {
+				if( pidfamily[j] == currpid ) {
+						// Found it, so it certainly didn't exit!
+					currpid_exited = false;
+					found_it = true;
+						// Now that we've found this pid in the new
+						// list, we can break out of the for() loop,
+					break;
+				}
+				if( pidfamily[j] == 0 ) {
 					
 					// currpid does not exist in our new pidfamily list !
 					found_it = false;
@@ -579,6 +587,13 @@ ProcFamily::currentfamily( pid_t* & ptr  )
 {
 	pid_t* tmp;
 	int i;
+
+	if( family_size <= 0 ) {
+		dprintf( D_ALWAYS, 
+				 "ProcFamily::currentfamily: ERROR: family_size is 0\n" );
+		ptr = NULL;
+		return 0;
+	}
 	tmp = new pid_t[ family_size ];
 	if( !tmp ) {
 		EXCEPT( "Out of memory!" );
