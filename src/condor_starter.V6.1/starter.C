@@ -138,8 +138,13 @@ CStarter::Init( JobInfoCommunicator* my_jic, const char* orig_cwd,
 		return false;
 	}
 
-		// try to spawn our job
-	return StartJob();
+		// Now, ask our JobInfoCommunicator to setup the environment
+		// where our job is going to execute.  This might include
+		// doing file transfer stuff, who knows.  Whenever the JIC is
+		// done, it'll call our jobEnvironmentReady() method so we can
+		// actually spawn the job.
+	jic->setupJobEnvironment();
+	return true;
 }
 
 
@@ -228,29 +233,6 @@ CStarter::ShutdownFast(int)
 		return 1;
 	}	
 	return 0;
-}
-
-
-bool
-CStarter::StartJob()
-{
-    dprintf ( D_FULLDEBUG, "In CStarter::StartJob()\n" );
-
-	ClassAd* jobAd = jic->jobClassAd();
-
-	if ( jobAd->LookupInteger( ATTR_JOB_UNIVERSE, jobUniverse ) < 1 ) {
-		dprintf( D_ALWAYS, 
-				 "Job doesn't specify universe, assuming VANILLA\n" ); 
-	}
-
-		// Now, ask our JobInfoCommunicator to setup the environment
-		// where our job is going to execute.  This might include
-		// doing file transfer stuff, who knows.  Whenever the JIC is
-		// done, it'll call our jobEnvironmentReady() method so we can
-		// actually spawn the job.
-	jic->setupJobEnvironment();
-
-	return true;
 }
 
 
@@ -350,12 +332,14 @@ CStarter::jobEnvironmentReady( void )
 		// Now that we've got all our files, we can figure out what
 		// kind of job we're starting up, instantiate the appropriate
 		// userproc class, and actually start the job.
-
+	ClassAd* jobAd = jic->jobClassAd();
+	if ( jobAd->LookupInteger( ATTR_JOB_UNIVERSE, jobUniverse ) < 1 ) {
+		dprintf( D_ALWAYS, 
+				 "Job doesn't specify universe, assuming VANILLA\n" ); 
+	}
 	dprintf( D_ALWAYS, "Starting a %s universe job with ID: %d.%d\n",
 			 CondorUniverseName(jobUniverse), jic->jobCluster(),
 			 jic->jobProc() );
-
-	ClassAd* jobAd = jic->jobClassAd();
 
 	UserProc *job;
 	switch ( jobUniverse )  

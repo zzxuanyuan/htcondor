@@ -67,11 +67,6 @@ public:
 		*/
 	virtual int ShutdownFast(int);
 
-		/** For now, make a VanillaProc class instance and call
-			StartJob on it.  Append it to the JobList.
-		*/
-	virtual bool StartJob();
-
 		/** Create the execute/dir_<pid> directory and chdir() into
 			it.  This can only be called once user_priv is initialized
 			by the JobInfoCommunicator.
