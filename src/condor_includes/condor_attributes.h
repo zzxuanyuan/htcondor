@@ -262,8 +262,16 @@ const char ATTR_STATUS					 [] = "Status";
 const char ATTR_SUBMITTOR_PRIO           [] = "SubmittorPrio";
 const char ATTR_SUBNET                   [] = "Subnet";
 const char ATTR_SUSPEND                  [] = "Suspend";
+const char ATTR_SUSPEND_JOB_AT_EXEC      [] = "SuspendJobAtExec";
 const char ATTR_TARGET_TYPE				 [] = "TargetType";
 #define ATTR_TOTAL_CONDOR_LOAD_AVG			AttrGetName( ATTRE_TOTAL_LOAD )
+
+const char ATTR_TOOL_DAEMON_ARGS         [] = "ToolDaemonArgs";
+const char ATTR_TOOL_DAEMON_CMD	         [] = "ToolDaemonCmd";
+const char ATTR_TOOL_DAEMON_ERROR        [] = "ToolDaemonError";
+const char ATTR_TOOL_DAEMON_INPUT        [] = "ToolDaemonInput";
+const char ATTR_TOOL_DAEMON_OUTPUT       [] = "ToolDaemonOutput";
+
 const char ATTR_TOTAL_CPUS				 [] = "TotalCpus";
 const char ATTR_TOTAL_DISK				 [] = "TotalDisk";
 const char ATTR_TOTAL_FLOCKED_JOBS		 [] = "TotalFlockedJobs";
