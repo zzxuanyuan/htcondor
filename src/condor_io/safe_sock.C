@@ -36,7 +36,7 @@
 #include "condor_constants.h"
 #include "condor_io.h"
 #include "condor_debug.h"
-
+#include "internet.h"
 
 
 SafeSock::SafeSock(					/* listen on port		*/
@@ -119,6 +119,8 @@ int SafeSock::handle_incoming_packet()
 
 int SafeSock::end_of_message()
 {
+	int ret_val = FALSE;
+
 	switch(_coding){
 		case stream_encode:
 			if (!snd_msg.buf.empty()){
@@ -127,10 +129,11 @@ int SafeSock::end_of_message()
 			break;
 
 		case stream_decode:
-			if (rcv_msg.ready && rcv_msg.buf.consumed()){
+			if ( rcv_msg.ready ) {
+				if ( rcv_msg.buf.consumed() )
+					ret_val = TRUE;
 				rcv_msg.ready = FALSE;
 				rcv_msg.buf.reset();
-				return TRUE;
 			}
 			break;
 
@@ -138,7 +141,7 @@ int SafeSock::end_of_message()
 			assert(0);
 	}
 
-	return FALSE;
+	return ret_val;
 }
 
 
@@ -164,14 +167,15 @@ int SafeSock::connect(
 	_who.sin_family = AF_INET;
 	_who.sin_port = htons((u_short)port);
 
+	/* might be in <x.x.x.x:x> notation, i.e. sinfull string */
+	if (host[0] == '<') {
+		string_to_sin(host, &_who);
+	}
 	/* try to get a decimal notation first 			*/
-
-	inaddr = inet_addr(host);
-
-	if( inaddr != (unsigned int)(-1) ) {
+	else if( (inaddr=inet_addr(host)) != (unsigned int)(-1) ) {
 		memcpy((char *)&_who.sin_addr, &inaddr, sizeof(inaddr));
 	} else {
-			/* if dotted notation fails, try host database	*/
+		/* if dotted notation fails, try host database	*/
 		hostp = gethostbyname(host);
 		if( hostp == (struct hostent *)0 ) {
 			return FALSE;
@@ -271,13 +275,42 @@ int SafeSock::peek(
 }
 
 int SafeSock::rcv_packet(
-	int	_sock
+	SOCKET _sock
 	)
 {
 	char	tmp[65536];
 	int		len, fromlen;
 
 	fromlen = sizeof(struct sockaddr_in);
+
+	if (_timeout > 0) {
+		struct timeval	timer;
+		fd_set			readfds;
+		int				nfds=0, nfound;
+		timer.tv_sec = _timeout;
+		timer.tv_usec = 0;
+#if !defined(WIN32) // nfds is ignored on WIN32
+		nfds = _sock + 1;
+#endif
+		FD_ZERO( &readfds );
+		FD_SET( _sock, &readfds );
+
+		nfound = select( nfds, &readfds, 0, 0, &timer );
+
+		switch(nfound) {
+		case 0:
+			return -1;
+			break;
+		case 1:
+			break;
+		default:
+			dprintf( D_ALWAYS, "select returns %d, recv failed\n",
+				nfound );
+			return -1;
+			break;
+		}
+	}
+
 	if ((len = recvfrom(_sock, tmp, 65536, 0,
 						(struct sockaddr *)&_who,&fromlen)) < 0) {
 		return FALSE;
@@ -374,4 +407,33 @@ char *SafeSock::endpoint_IP()
 int SafeSock::endpoint_port()
 {
 	return (int) ntohs(_who.sin_port);
+}
+
+char * SafeSock::serialize(char *buf)
+{
+	char sinful_string[28];
+	char *ptmp;
+
+	if ( buf == NULL ) {
+		// here we want to save our state into a buffer
+
+		// first, get the state from our parent class
+		char * parent_state = Sock::do_serialize();
+		// now concatenate our state
+		char * outbuf = new char[50];
+		sprintf(outbuf,"*%d*%s",_special_state,sin_to_string(&_who));
+		strcat(parent_state,outbuf);
+		delete []outbuf;
+		return( parent_state );
+	}
+
+	// here we want to restore our state from the incoming buffer
+
+	// first, let our parent class restore its state
+	ptmp = Sock::do_serialize(buf);
+	assert( ptmp );
+	sscanf(ptmp,"%d*%s",&_special_state,sinful_string);
+	string_to_sin(sinful_string, &_who);
+
+	return NULL;
 }
