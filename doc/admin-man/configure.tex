@@ -131,6 +131,20 @@ For backward compatibility, you can still use ``:'' instead of ``=''
 in your config files, and these attributes will just be treated as
 macros.
 
+All entries in a configuration file must have an operator,
+which will be an equals sign (``='')
+or a colon character (``:'').
+Identifiers must be alphanumerics combined with the underscore character.
+As a special case,
+a line without an operator that begins with a left square bracket
+will be ignored.
+The following two-line example treats the first line as a comment,
+and correctly handles the second line.
+\begin{verbatim}
+[Condor Settings]
+my_classad = [ foo=bar ]
+\end{verbatim}
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsubsection{\label{sec:Config-File-Special}
 Special Configuration File Macros}
