@@ -244,7 +244,7 @@ void BaseJob::JobHeld( const char *hold_reason )
 
 		char *release_reason;
 		if ( ad->LookupString( ATTR_RELEASE_REASON, &release_reason ) != 0 ) {
-			UpdateJobAd( ATTR_LAST_RELEASE_REASON, release_reason );
+			UpdateJobAdString( ATTR_LAST_RELEASE_REASON, release_reason );
 			free( release_reason );
 		}
 		UpdateJobAd( ATTR_RELEASE_REASON, "UNDEFINED" );
