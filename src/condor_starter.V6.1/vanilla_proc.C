@@ -167,13 +167,15 @@ VanillaProc::JobCleanup(int pid, int status)
 {
 	dprintf(D_FULLDEBUG,"in VanillaProc::JobCleanup()\n");
 
-	// ok, the parent exited.  make certain all decendants are dead.
-	family->hardkill();
+	if( pid == JobPid ) {
+			// the parent exited.  make sure all decendants are dead. 
+		family->hardkill();
 
-	if( snapshot_tid >= 0 ) {
-		daemonCore->Cancel_Timer(snapshot_tid);
+		if( snapshot_tid >= 0 ) {
+			daemonCore->Cancel_Timer(snapshot_tid);
+		}
+		snapshot_tid = -1;
 	}
-	snapshot_tid = -1;
 
 		// This will reset num_pids for us, too.
 	return OsProc::JobCleanup( pid, status );
