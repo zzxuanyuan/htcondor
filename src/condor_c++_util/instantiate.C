@@ -28,11 +28,8 @@
 #include "stringSpace.h"
 #include "killfamily.h"
 #include "HashTable.h"
-#include "condor_classad.h"
-#include "classad_collection_types.h"
 #include "MyString.h"
 #include "Set.h"
-#include "classad_hashtable.h"
 
 template class List<FilterObj>; template class Item<FilterObj>;
 template class List<char>; 		template class Item<char>;
@@ -45,18 +42,3 @@ template class ExtArray<StringSpace*>;
 template class ExtArray<ProcFamily::a_pid>;
 template class HashTable<MyString, int>;
 template class HashBucket<MyString, int>;
-template class HashTable<int, BaseCollection*>;
-template class HashBucket<int, BaseCollection*>;
-template class HashTable<HashKey, ClassAd *>;
-template class HashBucket<HashKey, ClassAd *>;
-template class Set<MyString>;
-template class SetElem<MyString>;
-template class SetIterator<MyString>;
-template class Set<int>;
-template class SetElem<int>;
-template class SetIterator<int>;
-template class Set<RankedClassAd>;
-template class SetElem<RankedClassAd>;
-template class SetIterator<RankedClassAd>;
-template class ExtArray<CollChildIterator*>;
-template class ExtArray<CollContentIterator*>;
