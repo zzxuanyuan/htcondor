@@ -107,7 +107,15 @@ KeyCache& KeyCache::operator=(const KeyCache& k) {
 
 void KeyCache::delete_storage() {
 	if (key_table) {
+		// Delete all entries from the hash, and the table itself
+		KeyCacheEntry* key_entry;
+		key_table->startIterations();
+		while (key_table->iterate(key_entry)) {
+			if ( key_entry ) delete key_entry;
+		}
+
 		delete key_table;
+		key_table = NULL;
 	}
 }
 
@@ -116,10 +124,59 @@ bool KeyCache::insert(char *key_id, KeyCacheEntry &e) {
 }
 
 bool KeyCache::lookup(char *key_id, KeyCacheEntry *&e_ptr) {
-	return key_table->lookup(key_id, e_ptr);
+
+	bool res = key_table->lookup(key_id, e_ptr);
+
+	if (res) {
+		// automatically check the expiration of this key
+
+		// draw the line
+		time_t cutoff_time = time(0);
+
+		if (e_ptr && e_ptr->expiration() && (e_ptr->expiration() <= cutoff_time) ) {
+			expire(e_ptr);
+			res = false;
+		}
+	}
+
+	return res;
 }
 
 bool KeyCache::remove(char *key_id) {
 	return key_table->remove(key_id);
+}
+
+void KeyCache::expire(KeyCacheEntry *e) {
+	// the pointer they passed in could be pointing
+	// to the string within this object, so we need
+	// to keep the info we want before we delete it
+	char* key_id = strdup (e->id());
+	time_t key_exp = e->expiration();
+
+	dprintf (D_SECURITY, "KEYCACHE: Key %s expired at %s.\n", e->id(), ctime(&key_exp) );
+
+	// delete the object
+	delete e;
+
+	// remove its reference from the hash table
+	remove(key_id);
+	dprintf (D_SECURITY, "KEYCACHE: Removed %s from key cache.\n", key_id);
+
+	delete key_id;
+}
+
+void KeyCache::RemoveExpiredKeys() {
+
+	// draw the line
+	time_t cutoff_time = time(0);
+
+	// Delete all entries from the hash, and the table itself
+	KeyCacheEntry* key_entry;
+	key_table->startIterations();
+	while (key_table->iterate(key_entry)) {
+		if (key_entry->expiration() && key_entry->expiration() < cutoff_time) {
+			expire(key_entry);
+		}
+	}
 }
 

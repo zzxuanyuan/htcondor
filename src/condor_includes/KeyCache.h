@@ -70,6 +70,9 @@ public:
 	bool insert(char *key_id, KeyCacheEntry&);
 	bool lookup(char *key_id, KeyCacheEntry*&);
 	bool remove(char *key_id);
+	void expire(KeyCacheEntry*);
+
+	void RemoveExpiredKeys();
 
 private:
 	void delete_storage();
