@@ -54,10 +54,10 @@ FileTransfer::FileTransfer()
 
 FileTransfer::~FileTransfer()
 {
-	if (Iwd) free(Iwd);
+	if (Iwd) delete [] Iwd;
 	if (InputFiles) delete InputFiles;
 	if (OutputFiles) delete OutputFiles;
-	if (TransSock) free(TransSock);
+	if (TransSock) delete [] TransSock;
 	if (TransKey) {
 		// remove our key from the hash table
 		if ( TranskeyTable ) {
@@ -70,14 +70,15 @@ FileTransfer::~FileTransfer()
 			}
 		}		
 		// and free the key as well
-		free(TransKey);
+		delete [] TransKey;
 	}	
 }
 
 int
 FileTransfer::Init(ClassAd *Ad)
 {
-	char buf[ATTRLIST_MAX_EXPRESSION];
+	char buf[10240];
+	int	 len;
 
 	dprintf(D_FULLDEBUG,"entering FileTransfer::Init\n");
 
@@ -104,10 +105,10 @@ FileTransfer::Init(ClassAd *Ad)
 				"FileTransfer::HandleCommands()",NULL,WRITE);
 	}
 
-	if (Ad->LookupString("TRANSFER_KEY", buf) != 1) {
+	TransKey = NULL;
+	if ( !Ad->EvaluateAttrString("TRANSFER_KEY", TransKey) ) {
 		return 0;
 	}
-	TransKey = strdup(buf);
 
 	// insert this key into our hashtable if it is not already there
 	MyString key(TransKey);
@@ -122,22 +123,20 @@ FileTransfer::Init(ClassAd *Ad)
 	}
 
 
-	if (Ad->LookupString(ATTR_JOB_IWD, buf) != 1) {
+	if ( !Ad->EvaluateAttrString(ATTR_JOB_IWD, Iwd) ) {
 		return 0;
 	}
-	Iwd = strdup(buf);
 
-	if (Ad->LookupString("TRANSFER_INPUT_FILES", buf) == 1) {
+	if (Ad->EvaluateAttrString("TRANSFER_INPUT_FILES", buf, 10240, len) ) {
 		InputFiles = new StringList(buf);
 	}
 
-	if (Ad->LookupString("TRANSFER_OUTPUT_FILES", buf) == 1) {
+	if (Ad->EvaluateAttrString("TRANSFER_OUTPUT_FILES", buf, 10240, len) ) {
 		OutputFiles = new StringList(buf);
 	}
 
-	if (Ad->LookupString("TRANSFER_SOCKET", buf) == 1) {
-		TransSock = strdup(buf);
-	}
+	TransSock = NULL;
+	Ad->EvaluateAttrString("TRANSFER_SOCKET", TransSock);
 
 	return 1;
 }
