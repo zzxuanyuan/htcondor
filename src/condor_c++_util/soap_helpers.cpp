@@ -71,7 +71,9 @@ convert_ad_to_adStruct(struct soap *s,
   }
   
   // We have to add MyType and TargetType manually.
+  // Argh, and ServerTime. XXX: This is getting silly, we need a schema.
   num_attrs += 2;
+  num_attrs += 1;
   
   // allocate space for attributes
   ad_struct->__size = num_attrs;
@@ -88,6 +90,11 @@ convert_ad_to_adStruct(struct soap *s,
   ad_struct->__ptr[attr_index].name = strdup(ATTR_TARGET_TYPE);
   ad_struct->__ptr[attr_index].type = STRING;
   ad_struct->__ptr[attr_index].value = strdup(curr_ad->GetTargetTypeName());
+  attr_index++;
+  // And, ServerTime...
+  ad_struct->__ptr[attr_index].name = strdup(ATTR_SERVER_TIME);
+  ad_struct->__ptr[attr_index].type = INTEGER;
+  ad_struct->__ptr[attr_index].value = (char *) MyString((int) time(NULL)).GetCStr();
   attr_index++;
 
   curr_ad->ResetExpr();
