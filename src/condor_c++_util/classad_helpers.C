@@ -46,33 +46,21 @@ findSignal( ClassAd* ad, const char* attr_name )
 	if( ! ad ) {
 		return -1;
 	}
-	char* name = NULL;
+	string name;
+	int sigNum;
 
-	ExprTree *tree, *rhs;
-	tree = ad->Lookup( attr_name );
-	if(  tree ) {
-		rhs = tree->RArg();
-		if( ! rhs ) {
-				// invalid!
-			return -1;
-		}
-		switch( rhs->MyType() ) {
-		case LX_STRING:
-				// translate the string version to the local number
-				// we'll need to use
-			name = ((String *)rhs)->Value();
-			return signalNumber( name );
-			break;
-		case LX_INTEGER:
-			return ((Integer *)rhs)->Value();
-			break;
-		default:
-			return -1;
-			break;
-		}
+	// First, let's see if we just got it as an int.
+	if( ad->EvaluateAttrInt( attr_name, sigNum ) ) {
+		return sigNum;
 	}
+	
+	// Alright, maybe we get it as a string		
+	if( ad->EvaluateAttrString( attr_name, name ) ) {
+		return( signalNumber( name.c_str() ) );	
+	}
+	
 	return -1;
-}
+}	
 
 
 int

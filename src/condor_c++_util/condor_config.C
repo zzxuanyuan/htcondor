@@ -572,7 +572,7 @@ find_file(const char *env_name, const char *file_name)
 	if( ! config_file ) {
 		char *globus_location;      
 	
-		if( globus_location = getenv("GLOBUS_LOCATION") ) {
+		if( (globus_location = getenv("GLOBUS_LOCATION")) ) {
 	
 			config_file = (char *)malloc( ( strlen(globus_location) +
                                             strlen("/etc/") +   

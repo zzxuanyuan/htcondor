@@ -28,7 +28,7 @@
 void MergeClassAds(ClassAd *merge_into, ClassAd *merge_from, 
 				   bool merge_conflicts)
 {
-	merge_from->ResetName();
+/*	merge_from->ResetName();
 	merge_from->ResetExpr();
 
 	while (1) {
@@ -49,6 +49,6 @@ void MergeClassAds(ClassAd *merge_into, ClassAd *merge_from,
 			}
 		}
 	}
-
+*/
 	return;
 }

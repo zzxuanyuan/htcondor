@@ -1070,8 +1070,7 @@ SecMan::startCommand( int cmd, Sock* sock, bool can_negotiate, int subCmd)
 				if (DebugFlags & D_FULLDEBUG) {
 					dprintf ( D_SECURITY, "SECMAN: SEC_UDP obtained key id %s!\n", enc_key->id());
 				}
-				// HACK TODO ZKM Hao
-				// auth_info.clear();
+				auth_info.Clear();
 				MergeClassAds( &auth_info, enc_key->policy(), true );
 			} else {
 				// there still is no session.

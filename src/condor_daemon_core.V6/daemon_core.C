@@ -2461,7 +2461,7 @@ int DaemonCore::HandleReq(int socki)
         if (who.length() > 0) {
             ((SafeSock*)stream)->setFullyQualifiedUser((char *)who.data());
             ((SafeSock*)stream)->setAuthenticated(true);
-			dprintf (D_SECURITY, "DC_AUTHENTICATE: authenticated UDP message is from %s.\n", who);
+			dprintf (D_SECURITY, "DC_AUTHENTICATE: authenticated UDP message is from %s.\n", who.data());
         }
 	}
 	
@@ -2512,8 +2512,10 @@ int DaemonCore::HandleReq(int socki)
 		}
 	
 		if (DebugFlags & D_FULLDEBUG) {
-			dprintf (D_SECURITY, "DC_AUTHENTICATE: received following ClassAd:\n");
-			auth_info.dPrint (D_SECURITY);
+			PrettyPrint pp;
+			string      buf;
+			pp.Unparse ( buf, &auth_info );
+			dprintf (D_SECURITY, "DC_AUTHENTICATE: received following ClassAd:\n%s\n", buf.data());
 		}
 
 		char buf[ATTRLIST_MAX_EXPRESSION];
@@ -2612,8 +2614,10 @@ int DaemonCore::HandleReq(int socki)
 				// copy this to the HandleReq() scope
 				the_policy = new ClassAd(*session->policy());
 				if (DebugFlags & D_FULLDEBUG) {
-					dprintf (D_SECURITY, "DC_AUTHENTICATE: Cached Session:\n");
-					the_policy->dPrint (D_SECURITY);
+					PrettyPrint pp;
+					string      buf;
+					pp.Unparse (buf, the_policy);
+					dprintf (D_SECURITY, "DC_AUTHENTICATE: Cached Session:\n%s\n", buf.data());
 				}
 			}
 
@@ -2644,8 +2648,10 @@ int DaemonCore::HandleReq(int socki)
 			}
 
 			if (DebugFlags & D_FULLDEBUG) {
-				dprintf ( D_SECURITY, "DC_AUTHENTICATE: our_policy:\n" );
-				our_policy.dPrint(D_SECURITY);
+				PrettyPrint pp;
+				string      buf;
+				pp.Unparse (buf, &our_policy);
+				dprintf ( D_SECURITY, "DC_AUTHENTICATE: our_policy:\n%s\n", buf.data() );
 			}
 			
 			// reconcile.  if unable, close socket.
@@ -2658,8 +2664,10 @@ int DaemonCore::HandleReq(int socki)
 				goto finalize;
 			} else {
 				if (DebugFlags & D_FULLDEBUG) {
-					dprintf ( D_SECURITY, "DC_AUTHENTICATE: the_policy:\n" );
-					the_policy->dPrint(D_SECURITY);
+					PrettyPrint pp;
+					string      buf;
+					pp.Unparse (buf, the_policy);
+					dprintf ( D_SECURITY, "DC_AUTHENTICATE: the_policy:\n%s\n", buf.data() );
 				}
 			}
 
@@ -2703,8 +2711,6 @@ int DaemonCore::HandleReq(int socki)
 						memset (rbuf, 0, 24);
 						dprintf ( D_SECURITY, "DC_AUTHENTICATE: unable to generate key - no crypto available!\n");
 						result = FALSE;
-						free( crypto_method );
-						crypto_method = NULL;
 						goto finalize;
 					}
 
@@ -2723,9 +2729,6 @@ int DaemonCore::HandleReq(int socki)
 							break;
 					}
 
-					free( crypto_method );
-					crypto_method = NULL;
-
 					if (!the_key) {
 						result = FALSE;
 						goto finalize;
@@ -2742,8 +2745,10 @@ int DaemonCore::HandleReq(int socki)
 			// if they asked, tell them
 			if (is_tcp && (sec_man->sec_lookup_feat_act(auth_info, ATTR_SEC_ENACT) == SecMan::SEC_FEAT_ACT_NO)) {
 				if (DebugFlags & D_FULLDEBUG) {
-					dprintf (D_SECURITY, "SECMAN: Sending following response ClassAd:\n");
-					the_policy->dPrint( D_SECURITY );
+					PrettyPrint pp;
+					string      buf;
+					pp.Unparse (buf, the_policy);
+					dprintf (D_SECURITY, "SECMAN: Sending following response ClassAd:\n%s\n", buf.data());
 				}
 				sock->encode();
                 /* Need work Hao
@@ -2924,9 +2929,7 @@ int DaemonCore::HandleReq(int socki)
 				// add the key to the cache
 				KeyCacheEntry tmp_key(the_sid, sock->endpoint(), the_key, the_policy, expiration_time);
 				sec_man->session_cache->insert(tmp_key);
-				dprintf (D_SECURITY, "DC_AUTHENTICATE: added session id %s to cache for %s seconds!\n", the_sid, dur);
-				free( dur );
-				dur = NULL;
+				dprintf (D_SECURITY, "DC_AUTHENTICATE: added session id %s to cache for %s seconds!\n", the_sid, dur.data());
 			}
 		}
 
