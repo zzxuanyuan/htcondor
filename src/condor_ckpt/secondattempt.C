@@ -573,11 +573,14 @@ int main(int argc, char ** argv ) {
 	}
 	// now add up all the unmatched pages from the unmatched segments
 	int unmatched_segs = 0;
-	unmatched_segs += add_up_unmatched_segs (f1, total_pages); 
-	unmatched_segs += add_up_unmatched_segs (f2, total_pages); 
+	int unmatched_pages = 0;
+	unmatched_segs += add_up_unmatched_segs (f1, unmatched_pages); 
+	unmatched_segs += add_up_unmatched_segs (f2, unmatched_pages); 
+	total_pages += unmatched_pages;
 	cout<<"Total segment matches:  "<< matching_segs<<" / "<< more_segs <<endl;
 	if (unmatched_segs != more_segs - fewer_segs) {
-		cout << "WARNING: "<< (unmatched_segs - (more_segs - fewer_segs)) << " segments were not matched.\n";
+		cout << "WARNING: "<< (unmatched_segs - (more_segs - fewer_segs)) << " segments were not matched,"
+				<< " resulting in " << unmatched_pages << " unmatched pages.\n";
 	}
 
 	float matchPercent = (float) total_matches / total_pages * 100;
