@@ -50,13 +50,14 @@ private:
 		// Private helper methods
 
 	bool getConfigString( ClassAd* ad, const char* key, bool warn,
-						  const char* attr );
+						  const char* attr, const char* alt_name );
 	bool getConfigInt( ClassAd* ad, const char* key, bool warn,
-					   const char* attr );
+					   const char* attr, const char* alt_name );
 	bool getConfigBool( ClassAd* ad, const char* key, bool warn,
-						const char* attr );
+						const char* attr, const char* alt_name );
 	bool getConfigAttr( ClassAd* ad, const char* key, bool warn,
-						const char* attr, bool is_string );
+						bool is_string, const char* attr,
+						const char* alt_name );
 
 	bool getUniverse( ClassAd* ad, const char* key );
 

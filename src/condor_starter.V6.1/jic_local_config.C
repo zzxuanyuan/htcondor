@@ -57,25 +57,36 @@ JICLocalConfig::getLocalJobAd( void )
 	job_ad = new ClassAd();
 
 		// first, things we absolutely need
-	if( ! getUniverse(job_ad, key) ) { return false; }
-	if( ! getConfigString(job_ad, key, 1, ATTR_JOB_CMD) ) { return false; }
-	if( ! getConfigString(job_ad, key, 1, ATTR_JOB_IWD) ) { return false; }
-	if( ! getConfigString(job_ad, key, 1, ATTR_OWNER) ) { return false; }
-	if( ! getConfigInt(job_ad, key, 1, ATTR_CLUSTER_ID) ) { return false; }
-	if( ! getConfigInt(job_ad, key, 1, ATTR_PROC_ID) ) { return false; }
+	if( !getUniverse(job_ad, key) ) { return false; }
+	if( !getConfigString(job_ad, key, 1, ATTR_JOB_CMD, "executable")) {
+		return false;
+	}
+	if( !getConfigString(job_ad, key, 1, ATTR_JOB_IWD, "initialdir")) {
+		return false;
+	}
+	if( !getConfigString(job_ad, key, 1, ATTR_OWNER, NULL) ) { 
+		return false;
+	}
+	if( !getConfigInt(job_ad, key, 1, ATTR_CLUSTER_ID, "cluster")) {
+		return false;
+	}
+	if( !getConfigInt(job_ad, key, 1, ATTR_PROC_ID, "proc")) {
+		return false;
+	}
 
 		// now, optional things
-
-	getConfigString( job_ad, key, 0, ATTR_JOB_INPUT );
-	getConfigString( job_ad, key, 0, ATTR_JOB_OUTPUT );
-	getConfigString( job_ad, key, 0, ATTR_JOB_ERROR );
-	getConfigString( job_ad, key, 0, ATTR_JOB_ARGUMENTS );
-	getConfigString( job_ad, key, 0, ATTR_JOB_ENVIRONMENT );
-	getConfigString( job_ad, key, 0, ATTR_JAR_FILES );
-	getConfigInt( job_ad, key, 0, ATTR_KILL_SIG );
-	getConfigBool( job_ad, key, 0, ATTR_STARTER_WAIT_FOR_DEBUG );
-	getConfigString( job_ad, key, 0, ATTR_STARTER_ULOG_FILE );
-	getConfigBool( job_ad, key, 0, ATTR_STARTER_ULOG_USE_XML );
+	getConfigString( job_ad, key, 0, ATTR_JOB_INPUT, "input" );
+	getConfigString( job_ad, key, 0, ATTR_JOB_OUTPUT, "output" );
+	getConfigString( job_ad, key, 0, ATTR_JOB_ERROR, "error" );
+	getConfigString( job_ad, key, 0, ATTR_JOB_ARGUMENTS, "arguments" );
+	getConfigString( job_ad, key, 0, ATTR_JOB_ENVIRONMENT, "environment" );
+	getConfigString( job_ad, key, 0, ATTR_JAR_FILES, "jar_files" );
+	getConfigInt( job_ad, key, 0, ATTR_KILL_SIG, "kill_sig" );
+	getConfigBool( job_ad, key, 0, ATTR_STARTER_WAIT_FOR_DEBUG, 
+				   "starter_wait_for_debug" );
+	getConfigString( job_ad, key, 0, ATTR_STARTER_ULOG_FILE, "log" );
+	getConfigBool( job_ad, key, 0, ATTR_STARTER_ULOG_USE_XML, 
+				   "log_use_xml" );
 
 	return true;
 }
@@ -83,45 +94,54 @@ JICLocalConfig::getLocalJobAd( void )
 
 bool
 JICLocalConfig::getConfigString( ClassAd* ad, const char* key, 
-								 bool warn, const char* attr )
+								 bool warn, const char* attr,
+								 const char* alt_name )
 {
-	return getConfigAttr( ad, key, warn, attr, true );
+	return getConfigAttr( ad, key, warn, true, attr, alt_name );
 }
 
 
 bool
 JICLocalConfig::getConfigInt( ClassAd* ad, const char* key, 
-							  bool warn, const char* attr )
+							  bool warn, const char* attr,
+							  const char* alt_name )
 {
-	return getConfigAttr( ad, key, warn, attr, false );
+	return getConfigAttr( ad, key, warn, false, attr, alt_name );
 }
 
 
 bool
 JICLocalConfig::getConfigBool( ClassAd* ad, const char* key, 
-							   bool warn, const char* attr )
+							   bool warn, const char* attr,
+							   const char* alt_name )
 {
-	return getConfigAttr( ad, key, warn, attr, false );
+	return getConfigAttr( ad, key, warn, false, attr, alt_name );
 }
 
 
 bool
 JICLocalConfig::getConfigAttr( ClassAd* ad, const char* key, bool warn, 
-							   const char* attr, bool is_string )
+							   bool is_string, const char* attr, 
+							   const char* alt_name )
 {
 	char* tmp;
 	char param_name[256];
 	MyString expr;
-	sprintf( param_name, "%s_%s", key, attr );
 	bool needs_quotes = false;
-	
+
+	sprintf( param_name, "%s_%s", key, attr );
 	tmp = param( param_name );
 	if( ! tmp ) {
-		if( warn ) {
-			dprintf( D_ALWAYS, "\"%s\" not found in config file\n",
-					 param_name );
+		sprintf( param_name, "%s_%s", key, alt_name );
+		tmp = param( param_name );
+		if( ! tmp ) {
+			if( warn ) {
+				dprintf( D_ALWAYS, 
+						 "\"%s\" not found in config file\n", 
+						 param_name );
+			}
+			return false;
 		}
-		return false;
 	}
 
 	if( is_string && tmp[0] != '"' ) {
