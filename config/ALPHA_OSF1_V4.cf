@@ -8,8 +8,4 @@
 #define WANT_PVM	YES
 #define PVM_ARCH	ALPHA
 
-#define HAS_GLOBUS	YES
-#define HAS_GSI		YES
-#define HAS_OPENSSL	YES
-
 #define NEED_SNPRINTF	YES

@@ -1,8 +1,6 @@
 #define OperatingSystem	OSF1
 #define Architecture	ALPHA
 
-#define GLOBUS_FLAVOR gcc64dbg
-
 #define PlatformLdFlags -lmld
 #define VendorFTestFlags -assume recursive 
 
@@ -54,6 +52,16 @@
 #define HAS_STATIC			YES
 
 #define HAS_DYNAMIC_USER_JOBS	NO
+
+/*
+** Settings related to various externals that are shared across all
+** versions of Digital Unix.
+*/
+#define GLOBUS_FLAVOR	gcc64dbg
+#define HAS_GLOBUS	YES
+#define HAS_GSI		YES
+#define HAS_OPENSSL	YES
+
 
 #define StaticFlag -static
 #define UnixName /vmunix		/* pathname of the system executable */

@@ -9,9 +9,5 @@
 
 #define WANT_PVM	NO
 
-#define HAS_GLOBUS	YES
-#define HAS_GSI		YES
-#define HAS_OPENSSL	YES
-
 #undef NEED_SNPRINTF	NO
 
