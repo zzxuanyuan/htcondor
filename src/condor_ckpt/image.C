@@ -1999,10 +1999,12 @@ init_image_with_file_descriptor( int fd )
 	MyImage.SetFd( fd );
 }
 
+#ifdef linux
 char * 
 condor_getfaultaddr( void *context ) {
 	return (char*)(((struct ucontext *)context)->uc_mcontext.cr2);
 }
+#endif
 
 /*
   Effect a restart by reading in an "image" containing checkpointing
