@@ -112,10 +112,11 @@ LogPtrList::NextEntry(LogRecord *prev)
 }
 
 
-void
+bool
 Transaction::Commit(FILE *fp, void *data_structure)
 {
 	LogRecord		*log;
+	bool			rval=true;
 
 	for (log = op_log.FirstEntry(); log != 0; 
 		 log = op_log.NextEntry(log)) {
@@ -124,13 +125,15 @@ Transaction::Commit(FILE *fp, void *data_structure)
 				EXCEPT("Couldn't write to log!\n");
 			}
 		}
-		log->Play(data_structure);
+		rval = rval && log->Play(data_structure);
 	}
 	if (fp) {
 		fflush( fp );
 		fsync(fileno(fp));
 	}
+	return( rval );
 }
+
 
 void
 Transaction::AppendLog(LogRecord *log)
