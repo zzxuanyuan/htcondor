@@ -83,18 +83,19 @@ convert_ad_to_adStruct(struct soap *s,
   // second pass: serialize attributes
   attr_index = 0;
   // first, add myType and TargetType
-  ad_struct->__ptr[attr_index].name = strdup(ATTR_MY_TYPE);
+  // XXX: Change all strdup's to soap_malloc&strcpy
+  ad_struct->__ptr[attr_index].name = ATTR_MY_TYPE;
   ad_struct->__ptr[attr_index].type = STRING_ATTR;
-  ad_struct->__ptr[attr_index].value = strdup(curr_ad->GetMyTypeName());
+  ad_struct->__ptr[attr_index].value = curr_ad->GetMyTypeName();
   attr_index++;
-  ad_struct->__ptr[attr_index].name = strdup(ATTR_TARGET_TYPE);
+  ad_struct->__ptr[attr_index].name = ATTR_TARGET_TYPE;
   ad_struct->__ptr[attr_index].type = STRING_ATTR;
-  ad_struct->__ptr[attr_index].value = strdup(curr_ad->GetTargetTypeName());
+  ad_struct->__ptr[attr_index].value = curr_ad->GetTargetTypeName();
   attr_index++;
   // And, ServerTime...
-  ad_struct->__ptr[attr_index].name = strdup(ATTR_SERVER_TIME);
+  ad_struct->__ptr[attr_index].name = ATTR_SERVER_TIME;
   ad_struct->__ptr[attr_index].type = INTEGER_ATTR;
-  ad_struct->__ptr[attr_index].value = strdup(MyString((int) time(NULL)).GetCStr());
+  ad_struct->__ptr[attr_index].value = MyString((int) time(NULL)).GetCStr();
   attr_index++;
 
   curr_ad->ResetExpr();
