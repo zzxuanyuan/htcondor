@@ -1976,6 +1976,7 @@ Scheduler::spoolJobFilesReaper(int tid,int exit_status)
 {
 	ExtArray<PROC_ID> *jobs;
 	const char *AttrsToModify[] = { 
+		ATTR_JOB_CMD,
 		ATTR_JOB_INPUT,
 		ATTR_JOB_OUTPUT,
 		ATTR_JOB_ERROR,

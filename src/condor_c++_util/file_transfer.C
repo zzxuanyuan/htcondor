@@ -251,7 +251,9 @@ FileTransfer::SimpleInit(ClassAd *Ad, bool want_check_perms, bool is_server,
 		}
 	}
 
-	if ( IsServer() && (Ad->LookupString(ATTR_JOB_CMD, buf) == 1) ) {
+	if ( (IsServer() || (IsClient() && simple_init))&& 
+		 (Ad->LookupString(ATTR_JOB_CMD, buf) == 1) ) 
+	{
 		// stash the executable name for comparison later, so
 		// we know that this file should be called condor_exec on the
 		// client machine.  if an executable for this cluster exists
@@ -1080,7 +1082,8 @@ FileTransfer::DoDownload(ReliSock *s)
 	// is _not_ when it was really modified, but when the modifications are actually
 	// commited to disk.  thus we must fsync in order to make certain we do not think
 	// that files like condor_exec.exe have been modified, etc. -Todd <tannenba@cs>
-	bool want_fsync = ( ((IsClient() && !simple_init) || (IsServer() && simple_init)) 
+	bool want_fsync = ( ((IsClient() && !simple_init) ||  // starter receiving
+						 (IsServer() && simple_init))     // schedd receiving
 						 && upload_changed_files );
 
 	dprintf(D_FULLDEBUG,"entering FileTransfer::DoDownload sync=%d\n",
@@ -1368,7 +1371,8 @@ FileTransfer::DoUpload(filesize_t *total_bytes, ReliSock *s)
 			return_and_resetpriv( -1 );
 		}
 
-		if ( ExecFile && ( file_strcmp(ExecFile,filename)==0 ) ) {
+		if ( ExecFile && !simple_init && (file_strcmp(ExecFile,filename)==0 )) 
+		{
 			// this file is the job executable
 			is_the_executable = true;
 			basefilename = (char *)CONDOR_EXEC ;
