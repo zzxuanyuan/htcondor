@@ -463,7 +463,7 @@ GT4Job::GT4Job( ClassAd *classad )
 
 	ad->LookupInteger( ATTR_GLOBUS_STATUS, globusState );
 
-	globusError = GLOBUS_SUCCESS;
+	globusErrorString = "";
 
 	iwd[0] = '\0';
 	if ( ad->LookupString(ATTR_JOB_IWD, iwd) && *iwd ) {
@@ -695,7 +695,7 @@ int GT4Job::doEvaluateState()
 			if ( rc != GLOBUS_SUCCESS ) {
 				// unhandled error
 				LOG_GLOBUS_ERROR( "gt4_gram_client_job_callback_register()", rc );
-				globusError = rc;
+				globusErrorString = gahp->getErrorString();
 				gmState = GM_CANCEL;
 				break;
 			}
@@ -904,8 +904,7 @@ gmState=GM_SUBMIT;
 					LOG_GLOBUS_ERROR( "gt4_gram_client_job_create()", rc );
 					dprintf(D_ALWAYS,"(%d.%d)    RSL='%s'\n",
 							procID.cluster, procID.proc,RSL->Value());
-					globusError = rc;
-						// TODO should probably save error string for hold reason
+					globusErrorString = gahp->getErrorString();
 					WriteGT4SubmitFailedEventToUserLog( ad,
 														gahp->getErrorString() );
 					gmState = GM_UNSUBMITTED;
@@ -948,7 +947,7 @@ gmState=GM_SUBMIT;
 				if ( rc != GLOBUS_SUCCESS ) {
 					// unhandled error
 					LOG_GLOBUS_ERROR( "gt4_gram_client_job_start()", rc );
-					globusError = rc;
+					globusErrorString = gahp->getErrorString();
 					WriteGT4SubmitFailedEventToUserLog( ad, gahp->getErrorString() );
 					gmState = GM_CANCEL;
 				} else {
@@ -1011,7 +1010,7 @@ gmState=GM_SUBMIT;
 				if ( rc != GLOBUS_SUCCESS ) {
 					// unhandled error
 					LOG_GLOBUS_ERROR("refresh_credentials()",rc);
-					globusError = rc;
+					globusErrorString = gahp->getErrorString();
 					gmState = GM_CANCEL;
 					break;
 				}
@@ -1034,7 +1033,7 @@ gmState=GM_SUBMIT;
 				if ( rc != GLOBUS_SUCCESS ) {
 					// unhandled error
 					LOG_GLOBUS_ERROR( "gt4_gram_client_job_status()", rc );
-					globusError = rc;
+					globusErrorString = gahp->getErrorString();
 					gmState = GM_CANCEL;
 					if ( status ) {
 						free( status );
@@ -1073,7 +1072,7 @@ gmState=GM_SUBMIT;
 			if ( rc != GLOBUS_SUCCESS ) {
 				// unhandled error
 				LOG_GLOBUS_ERROR( "gt4_gram_client_job_destroy()", rc );
-				globusError = rc;
+				globusErrorString = gahp->getErrorString();
 				gmState = GM_CANCEL;
 				break;
 			}
@@ -1108,7 +1107,7 @@ gmState=GM_SUBMIT;
 				if ( rc != GLOBUS_SUCCESS ) {
 					// unhandled error
 					LOG_GLOBUS_ERROR( "gt4_gram_client_job_destroy()", rc );
-					globusError = rc;
+					globusErrorString = gahp->getErrorString();
 					gmState = GM_CLEAR_REQUEST;
 					break;
 				}
@@ -1136,7 +1135,7 @@ gmState=GM_SUBMIT;
 			if ( rc != GLOBUS_SUCCESS ) {
 					// unhandled error
 				LOG_GLOBUS_ERROR( "gt4_gram_client_job_destroy", rc );
-				globusError = rc;
+				globusErrorString = gahp->getErrorString();
 				gmState = GM_CLEAR_REQUEST;
 				break;
 			}
@@ -1205,7 +1204,7 @@ gmState=GM_SUBMIT;
 				UpdateJobAdInt( ATTR_GLOBUS_STATUS, globusState );
 			}
 			globusStateFailureString = "";
-			globusError = 0;
+			globusErrorString = "";
 			lastRestartReason = 0;
 			numRestartAttemptsThisSubmit = 0;
 			errorString = "";
@@ -1301,9 +1300,9 @@ gmState=GM_SUBMIT;
 					snprintf( holdReason, 1024, "Globus error: %s",
 							  globusStateFailureString.Value() );
 				}
-				if ( holdReason[0] == '\0' && globusError != 0 ) {
-					snprintf( holdReason, 1024, "Globus error %d: %s", globusError,
-							  "" );
+				if ( holdReason[0] == '\0' && !globusErrorString.IsEmpty() ) {
+					snprintf( holdReason, 1024, "Globus error: %s",
+							  globusErrorString.Value() );
 				}
 				if ( holdReason[0] == '\0' ) {
 					strncpy( holdReason, "Unspecified gridmanager error",

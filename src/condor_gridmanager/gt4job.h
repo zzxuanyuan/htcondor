@@ -143,7 +143,7 @@ class GT4Job : public BaseJob
 	bool streamError;
 	bool stageOutput;
 	bool stageError;
-	int globusError;
+	MyString globusErrorString;
 
 	bool restartingJM;
 	time_t restartWhen;
