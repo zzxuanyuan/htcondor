@@ -3,6 +3,7 @@
 
 #include <io.h>
 #include <fcntl.h>
+#include <direct.h>		// for _chdir , etc
 #define lseek _lseek
 #define O_RDONLY _O_RDONLY
 #define O_WRONLY _O_WRONLY
@@ -12,8 +13,11 @@
 #define stat _stat
 #define MAXPATHLEN 1024
 #define MAXHOSTNAMELEN 64
+#define	_POSIX_PATH_MAX 255
 #define strcasecmp _stricmp
 #define strncasecmp _strnicmp
+#define strdup _strdup
+#define chdir _chdir
 #include <time.h>
 #include <lmcons.h> // for UNLEN
 
