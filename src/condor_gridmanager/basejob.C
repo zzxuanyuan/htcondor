@@ -69,7 +69,7 @@ BaseJob::BaseJob( ClassAd *classad )
 
 	periodicPolicyEvalTid = daemonCore->Register_Timer( 30,
 								(TimerHandlercpp)&BaseJob::EvalPeriodicJobExpr,
-								"EvalPeriodicJobExpr", (Service*) this );;
+								"EvalPeriodicJobExpr", (Service*) this );
 }
 
 BaseJob::~BaseJob()
@@ -398,6 +398,8 @@ dprintf(D_FULLDEBUG,"(%d.%d) Evaluating periodic job policy expressions\n",procI
 		EXCEPT( "Unknown action (%d) in BaseJob::EvalPeriodicJobExpr", 
 				action );
 	}
+
+	daemonCore->Reset_Timer( periodicPolicyEvalTid, 30 );
 
 	return 0;
 }
