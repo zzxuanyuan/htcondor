@@ -87,6 +87,8 @@ int condorSchedd__beginTransaction(struct soap *s,int duration,
 	setQSock(NULL);	// Tell the qmgmt layer to allow anything -- that is, until
 					// we authenticate the client.
 
+	BeginTransaction();
+
 	dprintf(D_ALWAYS,"SOAP leaving condorSchedd__beginTransaction() id=%ld\n",transactionId);
 
 	return SOAP_OK;
