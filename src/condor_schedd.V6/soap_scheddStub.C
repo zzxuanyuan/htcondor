@@ -584,6 +584,29 @@ int condorSchedd__getFile(struct soap *soap,
   return SOAP_OK;
 }
 
+int condorSchedd__closeSpool(struct soap *soap,
+                             struct condorSchedd__Transaction transaction,
+                             xsd__int clusterId,
+                             xsd__int jobId,
+                             struct condorSchedd__StatusResponse & result)
+{
+  dprintf(D_ALWAYS,"SOAP entering condorSchedd__closeSpool() \n");
+
+  if (!valid_transaction_id(transaction.id)) {
+    // TODO error - unrecognized transactionId
+    result.response.code = INVALIDTRANSACTION;
+  }
+
+  if (SetAttribute(clusterId, jobId, "FilesRetrieved", "TRUE")) {
+    result.response.code = FAIL;
+  } else {
+    result.response.code = SUCCESS;
+  }
+
+  return SOAP_OK;
+}
+
+
 int
 condorSchedd__discoverJobRequirements(struct soap *soap,
                                       struct condorCore__ClassAdStruct * jobAd,
@@ -836,7 +859,11 @@ condorSchedd__createJobTemplate(struct soap *soap,
   dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
   job->Insert(attribute.GetCStr());
 
-  attribute = MyString(ATTR_JOB_LEAVE_IN_QUEUE) + " = TRUE";
+  attribute = MyString("FilesRetrieved") + " = FALSE";
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
+
+  attribute = MyString(ATTR_JOB_LEAVE_IN_QUEUE) + " = FilesRetrieved==FALSE";
   dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
   job->Insert(attribute.GetCStr());
 

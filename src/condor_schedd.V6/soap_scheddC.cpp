@@ -8,7 +8,7 @@
 
 SOAP_BEGIN_NAMESPACE(soap_schedd)
 
-SOAP_SOURCE_STAMP("@(#) soap_scheddC.cpp ver 2.5.2 2004-03-29 17:40:03 GMT")
+SOAP_SOURCE_STAMP("@(#) soap_scheddC.cpp ver 2.5.2 2004-03-29 19:40:45 GMT")
 
 
 #ifndef WITH_NOGLOBAL
@@ -160,6 +160,8 @@ SOAP_FMAC3 void * SOAP_FMAC4 soap_getelement(struct soap *soap, int *type)
 		return soap_in_condorSchedd__discoverDagRequirements(soap, NULL, NULL, "condorSchedd:discoverDagRequirements");
 	case SOAP_TYPE_condorSchedd__discoverJobRequirements:
 		return soap_in_condorSchedd__discoverJobRequirements(soap, NULL, NULL, "condorSchedd:discoverJobRequirements");
+	case SOAP_TYPE_condorSchedd__closeSpool:
+		return soap_in_condorSchedd__closeSpool(soap, NULL, NULL, "condorSchedd:closeSpool");
 	case SOAP_TYPE_condorSchedd__getFile:
 		return soap_in_condorSchedd__getFile(soap, NULL, NULL, "condorSchedd:getFile");
 	case SOAP_TYPE_condorSchedd__sendFile:
@@ -354,6 +356,10 @@ SOAP_FMAC3 void * SOAP_FMAC4 soap_getelement(struct soap *soap, int *type)
 		if (!soap_match_tag(soap, t, "condorSchedd:discoverJobRequirements"))
 		{	*type = SOAP_TYPE_condorSchedd__discoverJobRequirements;
 			return soap_in_condorSchedd__discoverJobRequirements(soap, NULL, NULL, NULL);
+		}
+		if (!soap_match_tag(soap, t, "condorSchedd:closeSpool"))
+		{	*type = SOAP_TYPE_condorSchedd__closeSpool;
+			return soap_in_condorSchedd__closeSpool(soap, NULL, NULL, NULL);
 		}
 		if (!soap_match_tag(soap, t, "condorSchedd:getFile"))
 		{	*type = SOAP_TYPE_condorSchedd__getFile;
@@ -621,6 +627,8 @@ SOAP_FMAC3 int SOAP_FMAC4 soap_putelement(struct soap *soap, const void *ptr, co
 		return soap_out_condorSchedd__discoverDagRequirements(soap, tag, id, (const struct condorSchedd__discoverDagRequirements *)ptr, "condorSchedd:discoverDagRequirements");
 	case SOAP_TYPE_condorSchedd__discoverJobRequirements:
 		return soap_out_condorSchedd__discoverJobRequirements(soap, tag, id, (const struct condorSchedd__discoverJobRequirements *)ptr, "condorSchedd:discoverJobRequirements");
+	case SOAP_TYPE_condorSchedd__closeSpool:
+		return soap_out_condorSchedd__closeSpool(soap, tag, id, (const struct condorSchedd__closeSpool *)ptr, "condorSchedd:closeSpool");
 	case SOAP_TYPE_condorSchedd__getFile:
 		return soap_out_condorSchedd__getFile(soap, tag, id, (const struct condorSchedd__getFile *)ptr, "condorSchedd:getFile");
 	case SOAP_TYPE_condorSchedd__sendFile:
@@ -733,6 +741,9 @@ SOAP_FMAC3 void SOAP_FMAC4 soap_markelement(struct soap *soap, const void *ptr, 
 		break;
 	case SOAP_TYPE_condorSchedd__discoverJobRequirements:
 		soap_mark_condorSchedd__discoverJobRequirements(soap, (const struct condorSchedd__discoverJobRequirements *)ptr);
+		break;
+	case SOAP_TYPE_condorSchedd__closeSpool:
+		soap_mark_condorSchedd__closeSpool(soap, (const struct condorSchedd__closeSpool *)ptr);
 		break;
 	case SOAP_TYPE_condorSchedd__getFile:
 		soap_mark_condorSchedd__getFile(soap, (const struct condorSchedd__getFile *)ptr);
@@ -2780,6 +2791,119 @@ SOAP_FMAC3 struct condorSchedd__discoverJobRequirements * SOAP_FMAC4 soap_in_con
 	{	a = (struct condorSchedd__discoverJobRequirements *)soap_id_forward(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condorSchedd__discoverJobRequirements, sizeof(struct condorSchedd__discoverJobRequirements), 0), SOAP_TYPE_condorSchedd__discoverJobRequirements, sizeof(struct condorSchedd__discoverJobRequirements));
 		if (soap->alloced)
 			soap_default_condorSchedd__discoverJobRequirements(soap, a);
+		if (soap->body && soap_element_end_in(soap, tag))
+			return NULL;
+	}
+	return a;
+}
+
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__closeSpool(struct soap *soap, struct condorSchedd__closeSpool const*a)
+{
+	if (!soap_reference(soap, a, SOAP_TYPE_condorSchedd__closeSpool))
+		soap_mark_condorSchedd__closeSpool(soap, a);
+}
+
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__closeSpool(struct soap *soap, const struct condorSchedd__closeSpool *a)
+{
+	soap_embedded(soap, &a->transaction, SOAP_TYPE_condorSchedd__Transaction);
+	soap_mark_condorSchedd__Transaction(soap, &a->transaction);
+	soap_embedded(soap, &a->clusterId, SOAP_TYPE_xsd__int);
+	soap_embedded(soap, &a->jobId, SOAP_TYPE_xsd__int);
+}
+
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorSchedd__closeSpool(struct soap *soap, struct condorSchedd__closeSpool *a)
+{
+	soap_default_condorSchedd__Transaction(soap, &a->transaction);
+	soap_default_xsd__int(soap, &a->clusterId);
+	soap_default_xsd__int(soap, &a->jobId);
+}
+
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorSchedd__closeSpool(struct soap *soap, struct condorSchedd__closeSpool *a, const char *tag, const char *type)
+{
+	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_condorSchedd__closeSpool);
+	soap_out_condorSchedd__closeSpool(soap, tag, i, a, type);
+	return soap_putindependent(soap);
+}
+
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorSchedd__closeSpool(struct soap *soap, const char *tag, int id, const struct condorSchedd__closeSpool *a, const char *type)
+{
+	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condorSchedd__closeSpool), type);
+	soap_out_condorSchedd__Transaction(soap, "transaction", -1, &a->transaction, "condorSchedd:Transaction");
+	soap_out_xsd__int(soap, "clusterId", -1, &a->clusterId, "xsd:int");
+	soap_out_xsd__int(soap, "jobId", -1, &a->jobId, "xsd:int");
+	soap_element_end_out(soap, tag);
+	return SOAP_OK;
+}
+
+SOAP_FMAC3 struct condorSchedd__closeSpool * SOAP_FMAC4 soap_get_condorSchedd__closeSpool(struct soap *soap, struct condorSchedd__closeSpool *p, const char *tag, const char *type)
+{
+	if ((p = soap_in_condorSchedd__closeSpool(soap, tag, p, type)))
+		soap_getindependent(soap);
+	return p;
+}
+
+SOAP_FMAC3 struct condorSchedd__closeSpool * SOAP_FMAC4 soap_in_condorSchedd__closeSpool(struct soap *soap, const char *tag, struct condorSchedd__closeSpool *a, const char *type)
+{
+	short soap_flag_transaction = 1, soap_flag_clusterId = 1, soap_flag_jobId = 1;
+	if (soap_element_begin_in(soap, tag))
+		return NULL;
+	if (*soap->type && soap_match_tag(soap, soap->type, type))
+	{	soap->error = SOAP_TYPE;
+		soap_revert(soap);
+		return NULL;
+	}
+	if (soap->null)
+	{	if (soap->mode & SOAP_XML_NIL)
+		{	soap->error = SOAP_NULL;
+			return NULL;
+		}
+		else
+			return a;
+	}
+	if (!*soap->href)
+	{	a = (struct condorSchedd__closeSpool *)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condorSchedd__closeSpool, sizeof(struct condorSchedd__closeSpool), 0);
+		if (!a)
+			return NULL;
+		if (soap->alloced)
+			soap_default_condorSchedd__closeSpool(soap, a);
+		if (soap->body)
+		{	for (;;)
+			{	soap->error = SOAP_TAG_MISMATCH;
+			if (soap_flag_transaction && soap->error == SOAP_TAG_MISMATCH)
+				if (soap_in_condorSchedd__Transaction(soap, "transaction", &a->transaction, "condorSchedd:Transaction"))
+				{	soap_flag_transaction = 0;
+					continue;
+				}
+			if (soap_flag_clusterId && soap->error == SOAP_TAG_MISMATCH)
+				if (soap_in_xsd__int(soap, "clusterId", &a->clusterId, "xsd:int"))
+				{	soap_flag_clusterId = 0;
+					continue;
+				}
+			if (soap_flag_jobId && soap->error == SOAP_TAG_MISMATCH)
+				if (soap_in_xsd__int(soap, "jobId", &a->jobId, "xsd:int"))
+				{	soap_flag_jobId = 0;
+					continue;
+				}
+			if (soap->error == SOAP_TAG_MISMATCH)
+				soap->error = soap_ignore_element(soap);
+			if (soap->error == SOAP_NO_TAG)
+				break;
+			if (soap->error)
+			{	return NULL;
+			}
+		}
+		if (soap_element_end_in(soap, tag))
+			return NULL;
+		}
+		if ((soap->mode & SOAP_XML_STRICT) && (soap_flag_transaction || soap_flag_clusterId || soap_flag_jobId))
+		{	soap->error = SOAP_OCCURS;
+			return NULL;
+		}
+	}
+	else
+	{	a = (struct condorSchedd__closeSpool *)soap_id_forward(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condorSchedd__closeSpool, sizeof(struct condorSchedd__closeSpool), 0), SOAP_TYPE_condorSchedd__closeSpool, sizeof(struct condorSchedd__closeSpool));
+		if (soap->alloced)
+			soap_default_condorSchedd__closeSpool(soap, a);
 		if (soap->body && soap_element_end_in(soap, tag))
 			return NULL;
 	}

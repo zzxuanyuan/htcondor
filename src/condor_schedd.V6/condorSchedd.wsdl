@@ -343,6 +343,12 @@
  <part name="response" type="condorSchedd:Base64DataAndStatus"/>
 </message>
 
+<message name="closeSpoolRequest">
+ <part name="transaction" type="condorSchedd:Transaction"/>
+ <part name="clusterId" type="xsd:int"/>
+ <part name="jobId" type="xsd:int"/>
+</message>
+
 <message name="discoverJobRequirementsRequest">
  <part name="jobAd" type="condorCore:ClassAdStruct"/>
 </message>
@@ -440,6 +446,11 @@
   <documentation>Service definition of function condorSchedd__getFile</documentation>
   <input message="tns:getFileRequest"/>
   <output message="tns:Base64DataAndStatusResponse"/>
+ </operation>
+ <operation name="closeSpool">
+  <documentation>Service definition of function condorSchedd__closeSpool</documentation>
+  <input message="tns:closeSpoolRequest"/>
+  <output message="tns:StatusResponse"/>
  </operation>
  <operation name="discoverJobRequirements">
   <documentation>Service definition of function condorSchedd__discoverJobRequirements</documentation>
@@ -596,6 +607,15 @@
   </output>
  </operation>
  <operation name="getFile">
+  <SOAP:operation soapAction=""/>
+  <input>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+  </input>
+  <output>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+  </output>
+ </operation>
+ <operation name="closeSpool">
   <SOAP:operation soapAction=""/>
   <input>
    <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>

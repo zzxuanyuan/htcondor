@@ -120,6 +120,11 @@ int condorSchedd__getFile(struct condorSchedd__Transaction transaction,
                           xsd__int length,
                           struct condorSchedd__Base64DataAndStatusResponse & result);
 
+int condorSchedd__closeSpool(struct condorSchedd__Transaction transaction,
+                             xsd__int clusterId,
+                             xsd__int jobId,
+                             struct condorSchedd__StatusResponse & result);
+
 int condorSchedd__discoverJobRequirements(struct condorCore__ClassAdStruct * jobAd,
                                           struct condorSchedd__RequirementsAndStatusResponse & result);
 
