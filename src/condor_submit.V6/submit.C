@@ -1007,6 +1007,7 @@ SetUniverse()
 				(stricmp (univ, "gt2") == MATCH) ||
 				(stricmp (univ, "gt3") == MATCH) ||
 				(stricmp (univ, "infn") == MATCH) ||
+				(stricmp (univ, "blah") == MATCH) ||
 				(stricmp (univ, "nordugrid") == MATCH) ||
 				(stricmp (univ, "oracle") == MATCH)) {
 				// We're ok	
