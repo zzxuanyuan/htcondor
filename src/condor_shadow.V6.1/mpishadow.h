@@ -87,6 +87,12 @@ class MPIShadow : public BaseShadow
 		 */
 	void spawn( void );
 
+		/** Shadow should attempt to reconnect to a disconnected
+			starter that might still be running for this job.  
+			TODO: this does not yet work for MPI universe!
+		 */
+	void reconnect( void );
+
 		/** Shut down properly.  We have MPI-specific logic in this
 			version which decides if we're really ready to shutdown or
 			not.  Once it's going to really shutdown, it just calls

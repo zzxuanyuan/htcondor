@@ -142,6 +142,13 @@ MPIShadow::init( ClassAd* job_ad, const char* schedd_addr )
 
 
 void
+MPIShadow::reconnect( void )
+{
+	EXCEPT( "reconnect is not supported for MPI universe!" );
+}
+
+
+void
 MPIShadow::spawn( void )
 {
 		/*

@@ -77,6 +77,11 @@ class UniShadow : public BaseShadow
 		 */
 	void spawn( void );
 
+		/** Shadow should attempt to reconnect to a disconnected
+			starter that might still be running for this job.  
+		 */
+	void reconnect( void );
+
 		/**
 		 */
 	int handleJobRemoval(int sig);

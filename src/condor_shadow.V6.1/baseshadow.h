@@ -102,6 +102,12 @@ class BaseShadow : public Service
 		 */
 	virtual void spawn( void ) = 0;
 
+		/** Shadow should attempt to reconnect to a disconnected
+			starter that might still be running for this job.  
+			This function is <b>pure virtual</b>.
+		 */
+	virtual void reconnect( void ) = 0;
+
 		/** Here, we param for lots of stuff in the config file.  Things
 			param'ed for are: SPOOL, FILESYSTEM_DOMAIN, UID_DOMAIN, 
 			USE_AFS, USE_NFS, and CKPT_SERVER_HOST.

@@ -163,6 +163,34 @@ UniShadow::spawn( void )
 
 
 void
+UniShadow::reconnect( void )
+{
+	dprintf( D_ALWAYS, "Attempting to reconnect to disconnected starter\n" );
+	int last_keepalive;
+	int timeout;
+	if( ! jobAd->LookupInteger(ATTR_LAST_KEEP_ALIVE, last_keepalive) ) {
+		EXCEPT( "Shadow in reconnect mode but %s is not in the job ad!",
+				ATTR_LAST_KEEP_ALIVE );
+	}
+	if( ! jobAd->LookupInteger(ATTR_DISCONNECTED_RUN_TIMEOUT, timeout) ) {
+		EXCEPT( "Shadow in reconnect mode but %s is not in the job ad!",
+				ATTR_DISCONNECTED_RUN_TIMEOUT );
+	}
+	time_t now = time(0);
+	int remaining = timeout - (now - last_keepalive);
+	if( remaining <= 0 ) {
+		dprintf( D_ALWAYS, "Max timeout expired, giving up\n" );
+			// is this safe, or do we need a unique id?
+		shutDown( JOB_SHOULD_REQUEUE );
+	}
+		
+	dprintf( D_ALWAYS, "Last contact: %d, Max timeout: %d, remaining: %d\n", 
+			 last_keepalive, timeout, remaining );
+	EXCEPT( "Don't know how to reconnect just yet!" );
+}
+
+
+void
 UniShadow::logExecuteEvent( void )
 {
 	ExecuteEvent event;
