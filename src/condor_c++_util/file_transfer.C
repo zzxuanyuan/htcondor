@@ -478,8 +478,15 @@ FileTransfer::Init( ClassAd *Ad, bool want_check_perms, priv_state priv )
 		Directory spool_space( SpoolSpace, PRIV_CONDOR );
 		while ( (current_file=spool_space.Next()) ) {
 			if ( UserLogFile && 
-				 !file_strcmp(UserLogFile,current_file) ) {
+				 !file_strcmp(UserLogFile,current_file) ) 
+			{
 					// dont send UserLog file to the starter
+				continue;
+			}				
+			if ( last_download_time > 0 &&
+				 spool_space.GetModifyTime() <= last_download_time ) 
+			{
+					// Make certain file isn't just an input file
 				continue;
 			}
 			if ( print_comma ) {
