@@ -311,7 +311,7 @@ int OracleJob::doEvaluateState()
 			if ( condorState == REMOVED || condorState == HELD ) {
 				gmState = GM_CANCEL;
 			} else {
-				done = requestScheddUpdate( this, GM_SUBMIT_SAVE );
+				done = requestScheddUpdate( this );
 				if ( !done ) {
 					break;
 				}
@@ -383,7 +383,7 @@ int OracleJob::doEvaluateState()
 					}
 					condorState = rc;
 					UpdateJobAdInt( ATTR_JOB_STATUS, condorState );
-					requestScheddUpdate( this, 0 );
+					requestScheddUpdate( this );
 					if ( rc == RUNNING || rc == COMPLETED && !executeLogged ) {
 						WriteExecuteEventToUserLog( ad );
 						executeLogged = true;
@@ -399,7 +399,7 @@ int OracleJob::doEvaluateState()
 				if ( condorState != COMPLETED ) {
 					JobTerminated();
 				}
-				done = requestScheddUpdate( this, GM_DONE_SAVE );
+				done = requestScheddUpdate( this );
 				if ( !done ) {
 					break;
 				}
@@ -421,7 +421,7 @@ int OracleJob::doEvaluateState()
 					remoteJobId = NULL;
 					UpdateJobAdString( ATTR_GLOBUS_CONTACT_STRING,
 									   NULL_JOB_CONTACT );
-					requestScheddUpdate( this, 0 );
+					requestScheddUpdate( this );
 				}
 				gmState = GM_CLEAR_REQUEST;
 			}
@@ -446,7 +446,7 @@ int OracleJob::doEvaluateState()
 			remoteJobId = NULL;
 			UpdateJobAdString( ATTR_GLOBUS_CONTACT_STRING,
 							   NULL_JOB_CONTACT );
-			requestScheddUpdate( this, 0 );
+			requestScheddUpdate( this );
 
 			if ( condorState == REMOVED ) {
 				gmState = GM_DELETE;
@@ -543,7 +543,7 @@ int OracleJob::doEvaluateState()
 			// through. However, since we registered update events the
 			// first time, requestScheddUpdate won't return done until
 			// they've been committed to the schedd.
-			done = requestScheddUpdate( this, GM_CLEAR_REQUEST );
+			done = requestScheddUpdate( this );
 			if ( !done ) {
 				break;
 			}

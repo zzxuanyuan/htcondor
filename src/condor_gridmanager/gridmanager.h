@@ -50,8 +50,8 @@ void Register();
 
 // maintainence
 void Reconfig();
-	
-bool requestScheddUpdate( BaseJob *job, int request_id = 0 );
+
+bool requestScheddUpdate( BaseJob *job );
 
 
 #endif

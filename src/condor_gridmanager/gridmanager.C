@@ -46,12 +46,6 @@
 
 extern char *myUserName;
 
-struct ScheddUpdateAction {
-	BaseJob *job;
-	int request_id;
-	bool deleted;
-};
-
 // Stole these out of the schedd code
 int procIDHash( const PROC_ID &procID, int numBuckets )
 {
@@ -66,13 +60,11 @@ bool operator==( const PROC_ID a, const PROC_ID b)
 
 template class HashTable<PROC_ID, BaseJob *>;
 template class HashBucket<PROC_ID, BaseJob *>;
-template class HashTable<PROC_ID, ScheddUpdateAction *>;
-template class HashBucket<PROC_ID, ScheddUpdateAction *>;
+template class List<BaseJob>;
+template class Item<BaseJob>;
 
-HashTable <PROC_ID, ScheddUpdateAction *> pendingScheddUpdates( HASH_TABLE_SIZE,
-																procIDHash );
-HashTable <PROC_ID, ScheddUpdateAction *> completedScheddUpdates( HASH_TABLE_SIZE,
-																  procIDHash );
+HashTable <PROC_ID, BaseJob *> pendingScheddUpdates( HASH_TABLE_SIZE,
+													 procIDHash );
 bool addJobsSignaled = false;
 bool removeJobsSignaled = false;
 int contactScheddTid = TIMER_UNSET;
@@ -106,50 +98,27 @@ int REMOVE_JOBS_signalHandler( int );
 // return value of false means requested update has been queued, but has not
 //   been committed to the schedd yet
 bool
-requestScheddUpdate( BaseJob *job, int request_id )
+requestScheddUpdate( BaseJob *job )
 {
-	ScheddUpdateAction *curr_action;
+	BaseJob *hashed_job;
 
-	if ( request_id != 0 &&
-		 completedScheddUpdates.lookup( job->procID, curr_action ) == 0 ) {
-		ASSERT( curr_action->job == job );
-
-		if ( request_id == curr_action->request_id && request_id != 0 ) {
-			completedScheddUpdates.remove( job->procID );
-			delete curr_action;
-			return true;
-		} else {
-			completedScheddUpdates.remove( job->procID );
-			delete curr_action;
-		}
+	// Check if there's anything that actually requires contacting the
+	// schedd. If not, just return true (i.e. update is complete)
+	job->ad->ResetExpr();
+	if ( job->deleteFromGridmanager == false &&
+		 job->deleteFromSchedd == false &&
+		 job->ad->NextDirtyExpr() == NULL ) {
+		return true;
 	}
 
-	if ( pendingScheddUpdates.lookup( job->procID, curr_action ) == 0 ) {
-		ASSERT( curr_action->job == job );
+	// Check if the job is already in the hash table
+	if ( pendingScheddUpdates.lookup( job->procID, hashed_job ) != 0 ) {
 
-		curr_action->request_id = request_id;
-	} else {
-
-		// Check if there's anything that actually requires contacting the
-		// schedd. If not, just return true (i.e. update is complete)
-		job->ad->ResetExpr();
-		if ( job->deleteFromGridmanager == false &&
-			 job->deleteFromSchedd == false &&
-			 job->ad->NextDirtyExpr() == NULL ) {
-			return true;
-		}
-
-		curr_action = new ScheddUpdateAction;
-		curr_action->job = job;
-		curr_action->request_id = request_id;
-		curr_action->deleted = false;
-
-		pendingScheddUpdates.insert( job->procID, curr_action );
+		pendingScheddUpdates.insert( job->procID, job );
 		RequestContactSchedd();
 	}
 
 	return false;
-
 }
 
 void
@@ -301,7 +270,6 @@ doContactSchedd()
 {
 	int rc;
 	Qmgr_connection *schedd;
-	ScheddUpdateAction *curr_action;
 	BaseJob *curr_job;
 	ClassAd *next_ad;
 	char expr_buf[12000];
@@ -309,6 +277,7 @@ doContactSchedd()
 	bool schedd_deletes_complete = false;
 	bool add_remove_jobs_complete = false;
 	bool commit_transaction = true;
+	List<BaseJob> successful_deletes;
 
 	dprintf(D_FULLDEBUG,"in doContactSchedd()\n");
 
@@ -538,9 +507,7 @@ dprintf(D_ALWAYS,"***schedd failure at %d!\n",__LINE__);
 	/////////////////////////////////////////////////////
 	pendingScheddUpdates.startIterations();
 
-	while ( pendingScheddUpdates.iterate( curr_action ) != 0 ) {
-
-		curr_job = curr_action->job;
+	while ( pendingScheddUpdates.iterate( curr_job ) != 0 ) {
 
 		if ( curr_job->deleteFromGridmanager ) {
 			curr_job->UpdateJobAdBool( ATTR_JOB_MANAGED, 0 );
@@ -584,18 +551,18 @@ dprintf(D_ALWAYS,"***schedd failure at %d!\n",__LINE__);
 	/////////////////////////////////////////////////////
 	pendingScheddUpdates.startIterations();
 
-	while ( pendingScheddUpdates.iterate( curr_action ) != 0 ) {
+	while ( pendingScheddUpdates.iterate( curr_job ) != 0 ) {
 
-		if ( curr_action->job->deleteFromSchedd ) {
-dprintf(D_FULLDEBUG,"Deleting job %d.%d from schedd\n",curr_action->job->procID.cluster, curr_action->job->procID.proc);
+		if ( curr_job->deleteFromSchedd ) {
+dprintf(D_FULLDEBUG,"Deleting job %d.%d from schedd\n",curr_job->procID.cluster, curr_job->procID.proc);
 			BeginTransaction();
 			if ( errno == ETIMEDOUT ) {
 dprintf(D_ALWAYS,"***schedd failure at %d!\n",__LINE__);
 				commit_transaction = false;
 				goto contact_schedd_disconnect;
 			}
-			rc = DestroyProc(curr_action->job->procID.cluster,
-							 curr_action->job->procID.proc);
+			rc = DestroyProc(curr_job->procID.cluster,
+							 curr_job->procID.proc);
 			if ( rc < 0 ) {
 dprintf(D_ALWAYS,"***schedd failure at %d!\n",__LINE__);
 				commit_transaction = false;
@@ -606,7 +573,7 @@ dprintf(D_ALWAYS,"***schedd failure at %d!\n",__LINE__);
 				commit_transaction = false;
 				goto contact_schedd_disconnect;
 			}
-			curr_action->deleted = true;
+			successful_deletes.Append( curr_job );
 		}
 
 	}
@@ -638,18 +605,14 @@ dprintf(D_ALWAYS,"***schedd failure at %d!\n",__LINE__);
 	// objects that wanted to be deleted
 	pendingScheddUpdates.startIterations();
 
-	while ( pendingScheddUpdates.iterate( curr_action ) != 0 ) {
+	while ( pendingScheddUpdates.iterate( curr_job ) != 0 ) {
 
-		curr_job = curr_action->job;
-
-		if ( schedd_updates_complete ) {
-			curr_job->ad->ClearAllDirtyFlags();
-		}
+		curr_job->ad->ClearAllDirtyFlags();
 
 		if ( curr_job->deleteFromGridmanager ) {
 
 			if ( (curr_job->deleteFromSchedd) ?
-				 curr_action->deleted == true :
+				 successful_deletes.Delete( curr_job ) :
 				 true ) {
 
 				JobsByProcID.remove( curr_job->procID );
@@ -662,20 +625,17 @@ dprintf(D_ALWAYS,"***schedd failure at %d!\n",__LINE__);
 					}
 					schedd_obj->reschedule();
 				}
+				pendingScheddUpdates.remove( curr_job->procID );
 				delete curr_job;
-
-				delete curr_action;
 			}
-		} else if ( curr_action->request_id != 0 ) {
-			completedScheddUpdates.insert( curr_job->procID, curr_action );
-			curr_job->SetEvaluateState();
+
 		} else {
-			delete curr_action;
+			pendingScheddUpdates.remove( curr_job->procID );
+
+			curr_job->SetEvaluateState();
 		}
 
 	}
-
-	pendingScheddUpdates.clear();
 
 	// Check if we have any jobs left to manage. If not, exit.
 	if ( JobsByProcID.getNumElements() == 0 ) {
