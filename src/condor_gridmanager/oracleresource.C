@@ -32,7 +32,8 @@
 // timer id value that indicates the timer is not registered
 #define TIMER_UNSET		-1
 
-#define XACT_COMMIT_DELAY	5
+#define MIN_PROBE_JOBS_INTERVAL		2
+#define MAX_PROBE_JOBS_INTERVAL		10
 
 template class List<OracleJob>;
 template class Item<OracleJob>;
@@ -40,6 +41,8 @@ template class List<OciSession>;
 template class Item<OciSession>;
 template class HashTable<HashKey, OciSession *>;
 template class HashBucket<HashKey, OciSession *>;
+template class HashTable<HashKey, OracleJob *>;
+template class HashBucket<HashKey, OracleJob *>;
 
 #define HASH_TABLE_SIZE			500
 
@@ -102,12 +105,18 @@ OciSession::OciSession( OciServer *oci_server, const char *db_username,
 	ociErrorHndl = NULL;
 	sessionOpen = false;
 	registeredJobs = new List<OracleJob>();
+	lastProbeJobsTime = 0;
 
 	server->RegisterSession( this, username );
+
+	probeJobsTid = daemonCore->Register_Timer( 0,
+								(TimerHandlercpp)&OciSession::doProbeJobs,
+								"doProbeJobs", (Service*) this );
 }
 
 OciSession::~OciSession()
 {
+	daemonCore->Cancel_Timer( probeJobsTid );
 	if ( registeredJobs != NULL ) {
 		delete registeredJobs;
 	}
@@ -253,6 +262,222 @@ int OciSession::ReleaseSession( OracleJob *job )
 	return OCI_SUCCESS;
 }
 
+void OciSession::RequestProbeJobs()
+{
+	if ( lastProbeJobsTime + MIN_PROBE_JOBS_INTERVAL <= time(NULL) ) {
+		daemonCore->Reset_Timer( probeJobsTid, 0 );
+	} else {
+		daemonCore->Reset_Timer( probeJobsTid,
+								 lastProbeJobsTime + MIN_PROBE_JOBS_INTERVAL );
+	}
+}
+
+int OciSession::doProbeJobs()
+{
+	OCIStmt *stmt_hndl = NULL;
+	OCIDateTime *job_this_date = NULL;
+	sb2 this_date_indp;
+	sb2 failures_indp;
+	OCIDefine *define1_hndl = NULL;
+	OCIDefine *define2_hndl = NULL;
+	OCIDefine *define3_hndl = NULL;
+	OCIDefine *define4_hndl = NULL;
+	int rc;
+	bool trans_open = false;
+	MyString stmt;
+	int failures;
+	char broken_str[2];
+	int job_id;
+	char job_id_str[16];
+	HashTable <HashKey, OracleJob *> *jobsByRemoteId = NULL;
+	OracleJob *job = NULL;
+
+	lastProbeJobsTime = time(NULL);
+	daemonCore->Reset_Timer( probeJobsTid, MAX_PROBE_JOBS_INTERVAL );
+
+	if ( !initDone || registeredJobs->IsEmpty() ) {
+		return TRUE;
+	}
+
+	jobsByRemoteId = new HashTable<HashKey,OracleJob*>( HASH_TABLE_SIZE,
+														hashFunction );
+	registeredJobs->Rewind();
+	while ( registeredJobs->Next( job ) ) {
+		if ( job->remoteJobId != NULL ) {
+			jobsByRemoteId->insert( HashKey( job->remoteJobId ), job );
+		}
+	}
+
+	rc = OpenSession( ociErrorHndl );
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "OpenSession failed!\n" );
+		print_error( rc, ociErrorHndl );
+		goto doProbeJobs_error_exit;
+	}
+
+	rc = OCITransStart( ociSvcCtxHndl, ociErrorHndl, 60, OCI_TRANS_NEW );
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "OCITransStart failed\n" );
+		print_error( rc, ociErrorHndl );
+		goto doProbeJobs_error_exit;
+	}
+	trans_open = true;
+
+	rc = OCIHandleAlloc( GlobalOciEnvHndl, (dvoid**)&stmt_hndl, OCI_HTYPE_STMT,
+						 0, NULL );
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "OCIHandleAlloc failed\n" );
+		print_error( rc, NULL );
+		goto doProbeJobs_error_exit;
+	}
+
+	rc = OCIDescriptorAlloc( GlobalOciEnvHndl, (dvoid **)&job_this_date,
+							 OCI_DTYPE_DATE, 0, 0 );
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "OCIDescriptorAlloc failed\n" );
+		print_error( rc, NULL );
+		goto doProbeJobs_error_exit;
+	}
+
+	stmt.sprintf( "SELECT job, failures, this_date, broken FROM user_jobs" );
+
+	rc = OCIStmtPrepare( stmt_hndl, ociErrorHndl, (const OraText *)stmt.Value(),
+						 strlen(stmt.Value()), OCI_NTV_SYNTAX, OCI_DEFAULT );
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "OCIStmtPrepare failed\n" );
+		print_error( rc, ociErrorHndl );
+		goto doProbeJobs_error_exit;
+	}
+
+	rc = OCIStmtExecute( ociSvcCtxHndl, stmt_hndl, ociErrorHndl, 0, 0, NULL,
+						 NULL, OCI_DEFAULT );
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "OCIStmtExecute failed\n" );
+		print_error( rc, ociErrorHndl );
+		goto doProbeJobs_error_exit;
+	}
+
+	rc = OCIDefineByPos( stmt_hndl, &define1_hndl, ociErrorHndl, 1, &job_id,
+						 sizeof(job_id), SQLT_INT, NULL, NULL, NULL,
+						 OCI_DEFAULT );
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "OCIDefineByPos failed\n" );
+		print_error( rc, ociErrorHndl );
+		goto doProbeJobs_error_exit;
+	}
+
+	rc = OCIDefineByPos( stmt_hndl, &define2_hndl, ociErrorHndl, 2, &failures,
+						 sizeof(failures), SQLT_INT, &failures_indp, NULL,
+						 NULL, OCI_DEFAULT );
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "OCIDefineByPos failed\n" );
+		print_error( rc, ociErrorHndl );
+		goto doProbeJobs_error_exit;
+	}
+
+	rc = OCIDefineByPos( stmt_hndl, &define3_hndl, ociErrorHndl, 3,
+						 &job_this_date, sizeof(job_this_date), SQLT_DATE,
+						 &this_date_indp, NULL, NULL, OCI_DEFAULT);
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "OCIDefineByPos failed\n" );
+		print_error( rc, ociErrorHndl );
+		goto doProbeJobs_error_exit;
+	}
+
+	rc = OCIDefineByPos( stmt_hndl, &define4_hndl, ociErrorHndl, 4,
+						 broken_str, sizeof(broken_str), SQLT_STR, NULL, NULL,
+						 NULL, OCI_DEFAULT);
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "OCIDefineByPos failed\n" );
+		print_error( rc, ociErrorHndl );
+		goto doProbeJobs_error_exit;
+	}
+
+	rc = OCIStmtFetch( stmt_hndl, ociErrorHndl, 1, OCI_FETCH_NEXT,
+					   OCI_DEFAULT );
+	while ( rc != OCI_NO_DATA ) {
+		if ( rc != OCI_SUCCESS ) {
+			dprintf( D_ALWAYS, "OCIStmtFetch failed\n" );
+			print_error( rc, ociErrorHndl );
+			goto doProbeJobs_error_exit;
+		}
+
+		sprintf( job_id_str, "%d", job_id );
+		rc = jobsByRemoteId->lookup( HashKey( job_id_str ), job );
+		if ( rc == 0 && job != NULL ) {
+
+			int job_state;
+			if ( broken_str[0] == 'Y' ) {
+				if ( failures_indp == -1 || failures == 0 ) {
+					job_state = ORACLE_JOB_SUBMIT;
+				} else {
+					job_state = ORACLE_JOB_BROKEN;
+				}
+			} else if ( this_date_indp >= 0 ) {
+				job_state = ORACLE_JOB_ACTIVE;
+			} else {
+				job_state = ORACLE_JOB_IDLE;
+			}
+
+			job->UpdateRemoteState( job_state );
+
+			jobsByRemoteId->remove( HashKey( job_id_str ) );
+		}
+
+		rc = OCIStmtFetch( stmt_hndl, ociErrorHndl, 1, OCI_FETCH_NEXT,
+						   OCI_DEFAULT );
+	}
+
+	rc = OCITransCommit( ociSvcCtxHndl, ociErrorHndl, 0 );
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "OCITransCommit failed\n" );
+		print_error( rc, ociErrorHndl );
+		goto doProbeJobs_error_exit;
+	}
+	trans_open = false;
+
+	if ( job_this_date != NULL ) {
+		rc = OCIDescriptorFree( job_this_date, OCI_DTYPE_DATE );
+		if ( rc != OCI_SUCCESS ) {
+			dprintf( D_ALWAYS, "OCIDescriptorFree failed, ignoring\n" );
+			print_error( rc, NULL );
+		}
+	}
+	job_this_date = NULL;
+
+	rc = OCIHandleFree( stmt_hndl, OCI_HTYPE_STMT );
+	if ( rc != OCI_SUCCESS ) {
+		dprintf( D_ALWAYS, "OCIHandleFree failed, ignoring\n" );
+		print_error( rc, NULL );
+	}
+	stmt_hndl = NULL;
+
+	jobsByRemoteId->startIterations();
+
+	while ( jobsByRemoteId->iterate( job ) != 0 ) {
+		job->UpdateRemoteState( ORACLE_JOB_UNQUEUED );
+	}
+
+	delete jobsByRemoteId;
+
+	return TRUE;
+
+ doProbeJobs_error_exit:
+	if ( job_this_date != NULL ) {
+		OCIDescriptorFree( job_this_date, OCI_DTYPE_DATE );
+	}
+	if ( stmt_hndl != NULL ) {
+		OCIHandleFree( stmt_hndl, OCI_HTYPE_STMT );
+	}
+	if ( trans_open ) {
+		OCITransRollback( ociSvcCtxHndl, ociErrorHndl, OCI_DEFAULT );
+	}
+	if ( jobsByRemoteId != NULL ) {
+		delete jobsByRemoteId;
+	}
+	return TRUE;
+}
+
 int OciSession::OpenSession( OCIError *&err_hndl )
 {
 	int rc;
@@ -267,11 +492,9 @@ int OciSession::OpenSession( OCIError *&err_hndl )
 		return rc;
 	}
 
-dprintf(D_ALWAYS,"*OCIAttrSet( ociSvcCtxHndl, OCI_HTYPE_SVCCTX, server_hndl, 0, OCI_ATTR_SERVER, ociErrorHndl )\n");
 	rc = OCIAttrSet( ociSvcCtxHndl, OCI_HTYPE_SVCCTX, server_hndl, 0,
 					 OCI_ATTR_SERVER, ociErrorHndl );
 	if ( rc != OCI_SUCCESS ) {
-dprintf(D_ALWAYS,"***OCIAttrSet failed\n");
 		if ( rc == OCI_ERROR ) {
 			err_hndl = ociErrorHndl;
 		}
@@ -279,18 +502,15 @@ dprintf(D_ALWAYS,"***OCIAttrSet failed\n");
 		return rc;
 	}
 
-dprintf(D_ALWAYS,"*OCISessionBegin( ociSvcCtxHndl, ociErrorHndl, ociSessionHndl, OCI_CRED_RDBMS, OCI_DEFAULT )...\n");
 	rc = OCISessionBegin( ociSvcCtxHndl, ociErrorHndl, ociSessionHndl,
 						  OCI_CRED_RDBMS, OCI_DEFAULT );
 	if ( rc != OCI_SUCCESS ) {
-dprintf(D_ALWAYS,"***OCISessionBegin failed\n");
 		if ( rc == OCI_ERROR ) {
 			err_hndl = ociErrorHndl;
 		}
 		server->SessionInactive( this );	
 		return rc;
 	}
-dprintf(D_ALWAYS,"***ociSvcCtxHndl=0x%x\n",ociSvcCtxHndl);
 
 	sessionOpen = true;
 
@@ -307,10 +527,8 @@ int OciSession::CloseSession()
 
 		// TODO: what about any open transactions?
 
-dprintf(D_ALWAYS,"*OCISessionEnd( ociSvcCtxHndl, ociErrorHndl, NULL, OCI_DEFAULT )...\n");
 	rc = OCISessionEnd( ociSvcCtxHndl, ociErrorHndl, NULL, OCI_DEFAULT );
 	if ( rc != OCI_SUCCESS ) {
-dprintf(D_ALWAYS,"***OCISessionEnd failed\n");
 		return rc;
 	}
 
@@ -482,11 +700,9 @@ int OciServer::ServerConnect()
 		return OCI_SUCCESS;
 	}
 
-dprintf(D_ALWAYS,"*OCIServerAttach( ociServerHndl, ociErrorHndl, (OraText *)dbName, strlen(dbName), OCI_DEFAULT)...\n");
 	rc = OCIServerAttach( ociServerHndl, ociErrorHndl, (OraText *)dbName, strlen(dbName),
 						  OCI_DEFAULT );
 	if ( rc != OCI_SUCCESS ) {
-dprintf(D_ALWAYS,"***OCIServerAttach failed\n");
 		return rc;
 	}
 
@@ -503,10 +719,8 @@ int OciServer::ServerDisconnect()
 		return OCI_SUCCESS;
 	}
 
-dprintf(D_ALWAYS,"*OCIServerDetach( ociServerHndl, ociErrorHndl, OCI_DEFAULT )...\n");
 	rc = OCIServerDetach( ociServerHndl, ociErrorHndl, OCI_DEFAULT );
 	if ( rc != OCI_SUCCESS ) {
-dprintf(D_ALWAYS,"***OCIServerDetach failed\n");
 		return rc;
 	}
 

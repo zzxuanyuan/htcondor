@@ -53,8 +53,7 @@
 #define GM_DELETE				12
 #define GM_CLEAR_REQUEST		13
 #define GM_HOLD					14
-#define GM_PROBE_JOB			15
-#define GM_RECOVER_QUERY		16
+#define GM_RECOVER_QUERY		15
 
 static char *GMStateNames[] = {
 	"GM_INIT",
@@ -72,7 +71,6 @@ static char *GMStateNames[] = {
 	"GM_DELETE",
 	"GM_CLEAR_REQUEST",
 	"GM_HOLD",
-	"GM_PROBE_JOB",
 	"GM_RECOVER_QUERY"
 };
 
@@ -260,6 +258,9 @@ OracleJob::OracleJob( ClassAd *classad )
 	dbName = NULL;
 	dbUsername = NULL;
 	dbPassword = NULL;
+	remoteJobState = 0;
+	newRemoteStateUpdate = false;
+	newRemoteState = 0;
 
 	// In GM_HOLD, we assme HoldReason to be set only if we set it, so make
 	// sure it's unset when we start.
@@ -380,31 +381,22 @@ int OracleJob::doEvaluateState()
 			}
 			} break;
 		case GM_RECOVER_QUERY: {
-			bool job_queued;
-			bool job_active;
-			bool job_broken;
-			int num_job_failures;
-			rc = doStatus( job_queued, job_active, job_broken,
-						   num_job_failures );
-			if ( rc < 0 ) {
-				// What to do about failure?
-				dprintf( D_ALWAYS, "(%d.%d) job probe failed!\n",
-						 procID.cluster, procID.proc );
-				gmState = GM_HOLD;
-			} else {
+			if ( newRemoteStateUpdate ) {
 				if ( jobRunPhase == false ) {
-					if ( job_queued && job_broken ) {
+					if ( newRemoteState == ORACLE_JOB_SUBMIT ) {
 						gmState = GM_SUBMIT_2_SAVE;
 					} else {
 						gmState = GM_CLEAR_REQUEST;
 					}
 				} else {
-					if ( job_queued && job_broken && num_job_failures == 0 ) {
+					if ( newRemoteState == ORACLE_JOB_SUBMIT ) {
 						gmState = GM_SUBMIT_3;
 					} else {
 						gmState = GM_SUBMITTED;
 					}
 				}
+			} else {
+				ociSession->RequestProbeJobs();
 			}
 			} break;
 		case GM_UNSUBMITTED: {
@@ -502,6 +494,7 @@ int OracleJob::doEvaluateState()
 			} else {
 				rc = doSubmit3();
 				if ( rc >= 0 ) {
+					newRemoteStateUpdate = false;
 					gmState = GM_SUBMITTED;
 				} else {
 					dprintf(D_ALWAYS,"(%d.%d) job submit 3 failed!\n",
@@ -516,51 +509,37 @@ int OracleJob::doEvaluateState()
 			} else if ( condorState == REMOVED || condorState == HELD ) {
 				gmState = GM_CANCEL;
 			} else {
-				now = time(NULL);
-				if ( lastProbeTime < enteredCurrentGmState ) {
-					lastProbeTime = enteredCurrentGmState;
-				}
-				if ( probeNow ) {
-					lastProbeTime = 0;
-					probeNow = false;
-				}
-				if ( now >= lastProbeTime + probeInterval ) {
-					gmState = GM_PROBE_JOB;
-					break;
-				}
-				unsigned int delay = 0;
-				if ( (lastProbeTime + probeInterval) > now ) {
-					delay = (lastProbeTime + probeInterval) - now;
-				}				
-				daemonCore->Reset_Timer( evaluateStateTid, delay );
-			}
-			} break;
-		case GM_PROBE_JOB: {
-			if ( condorState == REMOVED || condorState == HELD ) {
-				gmState = GM_CANCEL;
-			} else {
-				bool job_queued;
-				bool job_active;
-				bool job_broken;
-				int num_job_failures;
-				rc = doStatus( job_queued, job_active, job_broken,
-							   num_job_failures );
-				if ( rc < 0 ) {
-					// What to do about failure?
-					dprintf( D_ALWAYS, "(%d.%d) job probe failed!\n",
-							 procID.cluster, procID.proc );
-				} else if ( rc != condorState ) {
-					if ( job_queued == false ) {
+				if ( newRemoteStateUpdate ) {
+					switch ( newRemoteState ) {
+					case ORACLE_JOB_UNQUEUED:
+						remoteJobState = newRemoteState;
 						JobTerminated( true, 0 );
-					} else if ( job_active == false ) {
+						reevaluate_state = true;
+							// set gmState to GM_DONE_SAVE??
+						break;
+					case ORACLE_JOB_SUBMIT:
+						remoteJobState = newRemoteState;
+							// what to do??
+						break;
+					case ORACLE_JOB_BROKEN:
+						remoteJobState = newRemoteState;
+							// what to do??
+						break;
+					case ORACLE_JOB_IDLE:
+						remoteJobState = newRemoteState;
 						JobIdle();
-					} else {
+						break;
+					case ORACLE_JOB_ACTIVE:
+						remoteJobState = newRemoteState;
 						JobRunning();
+						break;
+					default:
+						dprintf( D_ALWAYS,
+								 "(%d.%d) Unknown remote job state %d!\n",
+								 procID.cluster, procID.proc, remoteJobState );
 					}
-					requestScheddUpdate( this );
+					newRemoteStateUpdate = false;
 				}
-				lastProbeTime = now;
-				gmState = GM_SUBMITTED;
 			}
 			} break;
 		case GM_DONE_SAVE: {
@@ -715,6 +694,8 @@ int OracleJob::doEvaluateState()
 			if ( !done ) {
 				break;
 			}
+			remoteJobState = ORACLE_JOB_UNQUEUED;
+			newRemoteStateUpdate = false;
 			submitLogged = false;
 			executeLogged = false;
 			submitFailedLogged = false;
@@ -774,6 +755,16 @@ BaseResource *OracleJob::GetResource()
 {
 //	return (BaseResource *)myResource;
 	return NULL;
+}
+
+void OracleJob::UpdateRemoteState( int new_state )
+{
+dprintf(D_FULLDEBUG,"(%d.%d) UpdateRemoteState: %d\n", procID.cluster, procID.proc, new_state );
+	if ( new_state != remoteJobState ) {
+		newRemoteStateUpdate = true;
+		newRemoteState = new_state;
+		SetEvaluateState();
+	}
 }
 
 char *OracleJob::doSubmit1()
@@ -1090,170 +1081,6 @@ int OracleJob::doSubmit3()
 	return 0;
 
  doSubmit3_error_exit:
-	if ( stmt_hndl != NULL ) {
-		OCIHandleFree( stmt_hndl, OCI_HTYPE_STMT );
-	}
-	if ( trans_open ) {
-		OCITransRollback( srvc_hndl, ociErrorHndl, OCI_DEFAULT );
-	}
-	if ( srvc_hndl != NULL ) {
-		ociSession->ReleaseSession( this );
-	}
-	return -1;
-}
-
-int OracleJob::doStatus( bool &queued, bool &active, bool &broken,
-							int &num_failures )
-{
-	OCIError *ret_err_hndl = NULL;
-	OCISvcCtx *srvc_hndl = NULL;
-	OCIStmt *stmt_hndl = NULL;
-	OCIDateTime *job_this_date = NULL;
-	sb2 this_date_indp;
-	OCIDefine *define1_hndl = NULL;
-	OCIDefine *define2_hndl = NULL;
-	OCIDefine *define3_hndl = NULL;
-	int rc;
-	bool trans_open = false;
-	MyString stmt;
-	int failures;
-	char broken_str[2];
-
-	rc = ociSession->AcquireSession( this, srvc_hndl, ret_err_hndl );
-	if ( rc != OCI_SUCCESS ) {
-		dprintf( D_ALWAYS, "AcquireSession failed\n" );
-		print_error( rc, ret_err_hndl );
-		goto doStatus_error_exit;
-	}
-
-	rc = OCITransStart( srvc_hndl, ociErrorHndl, 60, OCI_TRANS_NEW );
-	if ( rc != OCI_SUCCESS ) {
-		dprintf( D_ALWAYS, "OCITransStart failed\n" );
-		print_error( rc, ociErrorHndl );
-		goto doStatus_error_exit;
-	}
-	trans_open = true;
-
-	rc = OCIHandleAlloc( GlobalOciEnvHndl, (dvoid**)&stmt_hndl, OCI_HTYPE_STMT,
-						 0, NULL );
-	if ( rc != OCI_SUCCESS ) {
-		dprintf( D_ALWAYS, "OCIHandleAlloc failed\n" );
-		print_error( rc, NULL );
-		goto doStatus_error_exit;
-	}
-
-	rc = OCIDescriptorAlloc( GlobalOciEnvHndl, (dvoid **)&job_this_date,
-							 OCI_DTYPE_DATE, 0, 0 );
-	if ( rc != OCI_SUCCESS ) {
-		dprintf( D_ALWAYS, "OCIDescriptorAlloc failed\n" );
-		print_error( rc, NULL );
-		goto doStatus_error_exit;
-	}
-
-	stmt.sprintf( "SELECT failures, this_date, broken FROM user_jobs WHERE job = %s",
-				  remoteJobId );
-
-	rc = OCIStmtPrepare( stmt_hndl, ociErrorHndl, (const OraText *)stmt.Value(),
-						 strlen(stmt.Value()), OCI_NTV_SYNTAX, OCI_DEFAULT );
-	if ( rc != OCI_SUCCESS ) {
-		dprintf( D_ALWAYS, "OCIStmtPrepare failed\n" );
-		print_error( rc, ociErrorHndl );
-		goto doStatus_error_exit;
-	}
-
-	rc = OCIStmtExecute( srvc_hndl, stmt_hndl, ociErrorHndl, 0, 0, NULL, NULL,
-						 OCI_DEFAULT );
-	if ( rc != OCI_SUCCESS ) {
-		dprintf( D_ALWAYS, "OCIStmtExecute failed\n" );
-		print_error( rc, ociErrorHndl );
-		goto doStatus_error_exit;
-	}
-
-	rc = OCIDefineByPos( stmt_hndl, &define1_hndl, ociErrorHndl, 1, &failures,
-						 sizeof(failures), SQLT_INT, NULL, NULL, NULL,
-						 OCI_DEFAULT );
-	if ( rc != OCI_SUCCESS ) {
-		dprintf( D_ALWAYS, "OCIDefineByPos failed\n" );
-		print_error( rc, ociErrorHndl );
-		goto doStatus_error_exit;
-	}
-
-	rc = OCIDefineByPos( stmt_hndl, &define2_hndl, ociErrorHndl, 2,
-						 &job_this_date, sizeof(job_this_date), SQLT_DATE,
-						 &this_date_indp, NULL, NULL, OCI_DEFAULT);
-	if ( rc != OCI_SUCCESS ) {
-		dprintf( D_ALWAYS, "OCIDefineByPos failed\n" );
-		print_error( rc, ociErrorHndl );
-		goto doStatus_error_exit;
-	}
-
-	rc = OCIDefineByPos( stmt_hndl, &define3_hndl, ociErrorHndl, 3,
-						 broken_str, sizeof(broken_str), SQLT_STR, NULL, NULL,
-						 NULL, OCI_DEFAULT);
-	if ( rc != OCI_SUCCESS ) {
-		dprintf( D_ALWAYS, "OCIDefineByPos failed\n" );
-		print_error( rc, ociErrorHndl );
-		goto doStatus_error_exit;
-	}
-
-	rc = OCIStmtFetch( stmt_hndl, ociErrorHndl, 1, OCI_FETCH_NEXT,
-					   OCI_DEFAULT );
-	if ( rc != OCI_SUCCESS && rc != OCI_NO_DATA ) {
-		dprintf( D_ALWAYS, "OCIStmtFetch failed\n" );
-		print_error( rc, ociErrorHndl );
-		goto doStatus_error_exit;
-	}
-
-	if (rc == OCI_NO_DATA ) {
-		queued = false;
-	} else {
-		queued = true;
-		if ( this_date_indp == -1 ) {
-			active = false;
-		} else {
-			active = true;
-		}
-		if ( broken_str[0] == 'Y' ) {
-			broken = true;
-		} else {
-			broken = false;
-		}
-		num_failures = failures;
-	}
-
-	rc = OCITransCommit( srvc_hndl, ociErrorHndl, 0 );
-	if ( rc != OCI_SUCCESS ) {
-		dprintf( D_ALWAYS, "OCITransCommit failed\n" );
-		print_error( rc, ociErrorHndl );
-		goto doStatus_error_exit;
-	}
-	trans_open = false;
-
-	if ( job_this_date != NULL ) {
-		rc = OCIDescriptorFree( job_this_date, OCI_DTYPE_DATE );
-		if ( rc != OCI_SUCCESS ) {
-			dprintf( D_ALWAYS, "OCIDescriptorFree failed, ignoring\n" );
-			print_error( rc, NULL );
-		}
-	}
-	job_this_date = NULL;
-
-	rc = OCIHandleFree( stmt_hndl, OCI_HTYPE_STMT );
-	if ( rc != OCI_SUCCESS ) {
-		dprintf( D_ALWAYS, "OCIHandleFree failed, ignoring\n" );
-		print_error( rc, NULL );
-	}
-	stmt_hndl = NULL;
-
-	ociSession->ReleaseSession( this );
-	srvc_hndl = NULL;
-
-	return 0;
-
- doStatus_error_exit:
-	if ( job_this_date != NULL ) {
-		OCIDescriptorFree( job_this_date, OCI_DTYPE_DATE );
-	}
 	if ( stmt_hndl != NULL ) {
 		OCIHandleFree( stmt_hndl, OCI_HTYPE_STMT );
 	}

@@ -58,9 +58,13 @@ class OciSession : public Service
 						OCIError *&err_hndl );
 	int ReleaseSession( OracleJob *job );
 
+	void RequestProbeJobs();
+
  private:
 	int OpenSession( OCIError *&err_hndl );
 	int CloseSession();
+
+	int doProbeJobs();
 
 	bool initDone;
 	OciServer *server;
@@ -75,6 +79,8 @@ class OciSession : public Service
 		// but List itself doesn't have a usable operator=().
 	List<OracleJob> *registeredJobs;
 	bool sessionOpen;
+	int lastProbeJobsTime;
+	int probeJobsTid;
 };
 
 class OciServer : public Service

@@ -16,6 +16,13 @@
 
 #define JOB_COMMIT_TIMEOUT	600
 
+// Oracle queue job states
+#define ORACLE_JOB_UNQUEUED		1
+#define ORACLE_JOB_SUBMIT		2
+#define ORACLE_JOB_BROKEN		3
+#define ORACLE_JOB_IDLE			4
+#define ORACLE_JOB_ACTIVE		5
+
 class OciSession;
 
 void OracleJobInit();
@@ -66,15 +73,18 @@ class OracleJob : public BaseJob
 
 	char *remoteJobId;
 	bool jobRunPhase;
+	int remoteJobState;
 
 	OCIError *ociErrorHndl;
+
+	bool newRemoteStateUpdate;
+	int newRemoteState;
+
+	void UpdateRemoteState( int new_state );
 
 	char *doSubmit1();
 	int doSubmit2();
 	int doSubmit3();
-	int doCommit();
-	int doStatus( bool &queued, bool &active, bool &broken,
-				  int &num_failures );
 	int doRemove();
 
  protected:
