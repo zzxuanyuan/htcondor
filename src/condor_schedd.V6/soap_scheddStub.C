@@ -1026,7 +1026,7 @@ condorSchedd__createJobTemplate(struct soap *soap,
   dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
   job->Insert(attribute.GetCStr());
 
-  attribute = MyString(ATTR_JOB_LEAVE_IN_QUEUE) + " = FilesRetrieved==FALSE";
+  attribute = MyString(ATTR_JOB_LEAVE_IN_QUEUE) + " = FilesRetrieved=?=FALSE";
   char * soapLeaveInQueue = param("SOAP_LEAVE_IN_QUEUE");
   if (soapLeaveInQueue) {
     attribute = attribute + " && (" + soapLeaveInQueue + ")";

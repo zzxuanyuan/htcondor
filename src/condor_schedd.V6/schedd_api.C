@@ -23,7 +23,8 @@ Job::Job(int clusterId, int jobId)
   requirements = new HashTable<MyString, JobFile>(64, MyStringHash, rejectDuplicateKeys);
 
   char * Spool = param("SPOOL");
-  if (Spool) { // XXX: Else big error
+
+  if (Spool) {
     spoolDirectory = new MyString(strdup(gen_ckpt_name(Spool, clusterId, jobId, 0)));
 
     struct stat stats;
@@ -36,6 +37,8 @@ Job::Job(int clusterId, int jobId)
                 errno);
       }
     }
+  } else {
+    EXCEPT("SPOOL is not defined.");
   }
 }
 
@@ -99,12 +102,25 @@ int
 Job::get_spool_list(List<FileInfo> & file_list)
 {
   Directory directory(spoolDirectory->GetCStr());
-  const char * name;
-  while (NULL != (name = directory.Next())) {
-    file_list.Append(new FileInfo(MyString(name), directory.GetFileSize()));
-  }
+  if (directory.IsDirectory()) {
+    const char * name;
+    FileInfo *info;
+    while (NULL != (name = directory.Next())) {
+      // XXX: What is MyString(name) fails?
+      info = new FileInfo(MyString(name), directory.GetFileSize());
+      if (info) {
+        if (!file_list.Append(info)) {
+          return 3;
+        } else {
+          return 2;
+        }
+      }
+    }
 
-  return 0;
+    return 0;
+  } else {
+    return 1;
+  }
 }
 
 int
@@ -117,20 +133,24 @@ Job::declare_file(MyString name,
 
   FILE *file;
 
-  // XXX: Handle errors!
-  // XXX: How do I get the FS separator?
   jobFile.name = name;
-  file = fopen((*spoolDirectory + "/" + jobFile.name).GetCStr(), "w");
-  jobFile.file = file;
-  requirements->insert(MyString(name), jobFile);
+  file = fopen((*spoolDirectory + DIR_DELIM_STRING + jobFile.name).GetCStr(), "w");
+  if (file) {
+    jobFile.file = file;
+    if (requirements->insert(MyString(name), jobFile)) {
+      return 2;
+    }
 
-  return 0;
+    return 0;
+  } else {
+    return 1;
+  }
 }
 
 int
 Job::submit(struct condorCore__ClassAdStruct jobAd)
 {
-  int i,rval;
+  int i, rval;
 
   // XXX: This is ugly, and only should happen when spooling, i.e. not always with cedar.
   rval = SetAttributeString(clusterId, jobId, ATTR_JOB_IWD, spoolDirectory->GetCStr());
@@ -151,7 +171,7 @@ Job::submit(struct condorCore__ClassAdStruct jobAd)
   }
 
   int found_iwd = 0;
-  for (i=0; i < jobAd.__size; i++ ) {
+  for (i = 0; i < jobAd.__size; i++) {
     const char* name = jobAd.__ptr[i].name;
     const char* value = jobAd.__ptr[i].value;
     if (!name) continue;
@@ -160,7 +180,7 @@ Job::submit(struct condorCore__ClassAdStruct jobAd)
     if ( jobAd.__ptr[i].type == 's' ) {
       // string type - put value in quotes as hint for ClassAd parser
 
-      found_iwd = found_iwd || !strcmp(name, "Iwd");
+      found_iwd = found_iwd || !strcmp(name, ATTR_JOB_IWD);
 
       rval = SetAttributeString(clusterId, jobId, name, value);
     } else {
@@ -177,7 +197,7 @@ Job::submit(struct condorCore__ClassAdStruct jobAd)
     // We need to make sure the Iwd is rewritten so files
     // in the spool directory can be found.
     if (NULL != spoolDirectory) {
-      rval = SetAttributeString(clusterId, jobId, "Iwd", spoolDirectory->GetCStr());
+      rval = SetAttributeString(clusterId, jobId, ATTR_JOB_IWD, spoolDirectory->GetCStr());
       if (rval < 0) {
         return rval;
       }
@@ -198,10 +218,18 @@ Job::send_file(MyString name,
     return 1; // Unknown file.
   }
 
-  // XXX: Handle errors!
-  fseek(jobFile.file, offset, SEEK_SET);
-  fwrite(data, sizeof(unsigned char), data_length, jobFile.file);
-  fflush(jobFile.file);
+  // XXX: Should all data written be unwritten depending on where the failure
+  // happens?
+
+  if (fseek(jobFile.file, offset, SEEK_SET)) {
+    return 2;
+  }
+  if (data_length != fwrite(data, sizeof(unsigned char), data_length, jobFile.file)) {
+    return 3;
+  }
+  if (EOF == fflush(jobFile.file)) {
+    return 4;
+  }
 
   return 0;
 }
@@ -212,11 +240,21 @@ Job::get_file(MyString name,
               int length,
               unsigned char * &data)
 {
-  // XXX: Handle errors!
   FILE * file = fopen((*spoolDirectory + "/" + name).GetCStr(), "r");
-  fseek(file, offset, SEEK_SET);
-  fread(data, sizeof(unsigned char), length, file);
-  fclose(file);
+
+  if (file) {
+    if (fseek(file, offset, SEEK_SET)) {
+      return 2;
+    }
+    if (length != fread(data, sizeof(unsigned char), length, file)) {
+      return 3;
+    }
+    if (EOF == fclose(file)) {
+      return 4;
+    }
+  } else {
+    return 1;
+  }
 
   return 0;
 }
