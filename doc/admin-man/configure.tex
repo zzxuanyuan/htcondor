@@ -2283,6 +2283,46 @@ not in the ``Owner'' state:
   last.
 \end{description}
 
+The following configuration variables support java universe jobs.
+
+\begin{description}
+\item[\Macro{JAVA}]
+\label{param:Java}
+  The full path to the Java interpreter (the Java Virtual Machine).
+
+\item[\Macro{JAVA\_MAXHEAP\_ARGUMENT}]
+\label{param:JavaMaxheapArgument}
+  The command line argument to the Java interpreter (the Java Virtual Machine)
+  that instructs the Java virtual machine to maximize the heap size.
+  For example, the value may be \Arg{-Xmx}.
+
+\item[\Macro{JAVA\_CLASSPATH\_ARGUMENT}]
+\label{param:JavaClasspathArgument}
+  The command line argument to the Java interpreter (the Java Virtual Machine)
+  that specifies the Java Classpath.
+  Classpath is a Java-specific term that denotes the list of
+  locations (\File{.jar} files and/or directories)
+  where the Java interpreter can
+  look for the Java class files that a Java program requires.
+
+\item[\Macro{JAVA\_CLASSPATH\_SEPARATOR}]
+\label{param:JavaClasspathSeparator}
+  The single character used to delimit constructed entries in the
+  Classpath for the given operating system and Java Virtual Machine.
+  If not defined, the operating system is queried for its default
+  Classpath separator.
+
+\item[\Macro{JAVA\_CLASSPATH\_DEFAULT}]
+\label{param:JavaClasspathDefault}
+  A list of path names to \File{.jar} files to be added to the Java Classpath 
+  by default.
+  The comma and/or space character delimits list entries.
+
+\item[\Macro{JAVA\_EXTRA\_ARGUMENTS}]
+\label{param:JavaExtraArguments}
+  A list of additional arguments to be passed to the Java executable
+  (program).
+\end{description}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{\label{sec:Schedd-Config-File-Entries}
