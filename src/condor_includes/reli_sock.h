@@ -73,13 +73,13 @@ public:
 	int accept(ReliSock *);
 
 	int get_port();
+	struct sockaddr_in *endpoint();
+
+	int get_file_desc();
 
 #if 0 // interface no longer supported
-	int get_file_desc();
 	int attach_to_file_desc(int);
 #endif
-
-
 
 	/*
 	**	Stream protocol
@@ -139,6 +139,7 @@ protected:
 	} snd_msg;
 
 	relisock_state	_special_state;
+	struct sockaddr_in _who;  // updated when endpoint() called
 };
 
 
