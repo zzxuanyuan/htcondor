@@ -64,8 +64,6 @@ class UnicoreJob : public BaseJob
 		{ submitInterval = new_interval; }
 	static void setGahpCallTimeout( int new_timeout )
 		{ gahpCallTimeout = new_timeout; }
-	static void setConnectFailureRetry( int count )
-		{ maxConnectFailures = count; }
 
 	int gmState;
 	int unicoreState;
@@ -78,6 +76,9 @@ class UnicoreJob : public BaseJob
 	int submitFailureCode;
 
 	GahpClient *gahp;
+
+	void UpdateUnicoreState( const char *update_ad_string );
+	MyString *buildSubmitAd();
 
 	void DeleteOutput();
 

@@ -30,6 +30,7 @@
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
 #include "basename.h"
 #include "condor_ckpt_name.h"
+#include "condor_xml_classads.h"
 
 #include "gridmanager.h"
 #include "unicorejob.h"
@@ -115,24 +116,21 @@ BaseJob *UnicoreJobCreate( ClassAd *jobad )
 int UnicoreJob::probeInterval = 300;			// default value
 int UnicoreJob::submitInterval = 300;			// default value
 int UnicoreJob::gahpCallTimeout = 300;			// default value
-int UnicoreJob::maxConnectFailures = 3;			// default value
 
 UnicoreJob::UnicoreJob( ClassAd *classad )
 	: BaseJob( classad )
 {
-	int bool_value;
 	char buff[4096];
-	char buff2[_POSIX_PATH_MAX];
 	bool job_already_submitted = false;
 	char *error_string = NULL;
 
 	jobContact = NULL;
 	gmState = GM_INIT;
-	unicoreState = ???;
+	unicoreState = condorState;
 	lastProbeTime = 0;
 	probeNow = false;
 	enteredCurrentGmState = time(NULL);
-	enteredCurrentGlobusState = time(NULL);
+	enteredCurrentUnicoreState = time(NULL);
 	lastSubmitAttempt = 0;
 	numSubmitAttempts = 0;
 	submitFailureCode = 0;
@@ -159,12 +157,9 @@ UnicoreJob::UnicoreJob( ClassAd *classad )
 	buff[0] = '\0';
 	ad->LookupString( ATTR_GLOBUS_CONTACT_STRING, buff );
 	if ( buff[0] != '\0' && strcmp( buff, NULL_JOB_CONTACT ) != 0 ) {
-		rehashJobContact( this, jobContact, buff );
 		jobContact = strdup( buff );
 		job_already_submitted = true;
 	}
-
-	globusError = GLOBUS_SUCCESS;
 
 	return;
 
@@ -179,14 +174,7 @@ UnicoreJob::UnicoreJob( ClassAd *classad )
 UnicoreJob::~UnicoreJob()
 {
 	if ( jobContact ) {
-		rehashJobContact( this, jobContact, NULL );
 		free( jobContact );
-	}
-	if ( localOutput ) {
-		free( localOutput );
-	}
-	if ( localError ) {
-		free( localError );
 	}
 	if ( gahp != NULL ) {
 		delete gahp;
@@ -208,8 +196,6 @@ int UnicoreJob::doEvaluateState()
 
 	bool done;
 	int rc;
-	int status;
-	int error;
 
 	daemonCore->Reset_Timer( evaluateStateTid, TIMER_NEVER );
 
@@ -230,8 +216,6 @@ int UnicoreJob::doEvaluateState()
 			// is first created. Here, we do things that we didn't want to
 			// do in the constructor because they could block (the
 			// constructor is called while we're connected to the schedd).
-			int err;
-
 			if ( gahp->Startup() == false ) {
 				dprintf( D_ALWAYS, "(%d.%d) Error starting up GAHP\n",
 						 procID.cluster, procID.proc );
@@ -309,8 +293,6 @@ int UnicoreJob::doEvaluateState()
 				lastSubmitAttempt = time(NULL);
 				numSubmitAttempts++;
 				if ( rc == GLOBUS_SUCCESS ) {
-					callbackRegistered = true;
-					rehashJobContact( this, jobContact, job_contact );
 						// job_contact was strdup()ed for us. Now we take
 						// responsibility for free()ing it.
 					jobContact = job_contact;
@@ -373,10 +355,10 @@ int UnicoreJob::doEvaluateState()
 			// The job has been submitted (or is about to be by the
 			// jobmanager). Wait for completion or failure, and probe the
 			// jobmanager occassionally to make it's still alive.
-			if ( unicoreState == GLOBUS_GRAM_PROTOCOL_JOB_STATE_DONE ) {
+			if ( unicoreState == COMPLETED ) {
 				gmState = GM_DONE_SAVE;
-			} else if ( unicoreState == GLOBUS_GRAM_PROTOCOL_JOB_STATE_FAILED ) {
-				gmState = GM_CANCEL;
+//			} else if ( unicoreState == GLOBUS_GRAM_PROTOCOL_JOB_STATE_FAILED ) {
+//				gmState = GM_CANCEL;
 			} else if ( condorState == REMOVED || condorState == HELD ) {
 				gmState = GM_CANCEL;
 			} else {
@@ -417,7 +399,7 @@ int UnicoreJob::doEvaluateState()
 					gmState = GM_CANCEL;
 					break;
 				}
-				UpdateUnicoreState( status );
+				UpdateUnicoreState( status_ad );
 				lastProbeTime = now;
 				gmState = GM_SUBMITTED;
 			}
@@ -465,8 +447,9 @@ int UnicoreJob::doEvaluateState()
 			} break;
 		case GM_CANCEL: {
 			// We need to cancel the job submission.
-			if ( unicoreState != GLOBUS_GRAM_PROTOCOL_JOB_STATE_DONE &&
-				 unicoreState != GLOBUS_GRAM_PROTOCOL_JOB_STATE_FAILED ) {
+//			if ( unicoreState != COMPLETED &&
+//				 unicoreState != GLOBUS_GRAM_PROTOCOL_JOB_STATE_FAILED ) {
+if ( unicoreState != COMPLETED ) {
 				rc = gahp->unicore_job_destroy( jobContact );
 				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
 					 rc == GAHPCLIENT_COMMAND_PENDING ) {
@@ -496,10 +479,6 @@ int UnicoreJob::doEvaluateState()
 			// Remove all knowledge of any previous or present job
 			// submission, in both the gridmanager and the schedd.
 
-			if ( unicoreState != GLOBUS_GRAM_PROTOCOL_JOB_STATE_UNSUBMITTED ) {
-				unicoreState = GLOBUS_GRAM_PROTOCOL_JOB_STATE_UNSUBMITTED;
-				UpdateJobAdInt( ATTR_GLOBUS_STATUS, globusState );
-			}
 			errorString = "";
 			if ( jobContact != NULL ) {
 				free( jobContact );
@@ -531,12 +510,10 @@ int UnicoreJob::doEvaluateState()
 		case GM_HOLD: {
 			// Put the job on hold in the schedd.
 			// TODO: what happens if we learn here that the job is removed?
-			if ( jobContact &&
-				 unicoreState != GLOBUS_GRAM_PROTOCOL_JOB_STATE_UNKNOWN ) {
-				unicoreState = GLOBUS_GRAM_PROTOCOL_JOB_STATE_UNKNOWN;
-				UpdateJobAdInt( ATTR_GLOBUS_STATUS, globusState );
-				//UpdateGlobusState( GLOBUS_GRAM_PROTOCOL_JOB_STATE_UNKNOWN, 0 );
-			}
+//			if ( jobContact &&
+//				 unicoreState != GLOBUS_GRAM_PROTOCOL_JOB_STATE_UNKNOWN ) {
+//				unicoreState = GLOBUS_GRAM_PROTOCOL_JOB_STATE_UNKNOWN;
+//			}
 			// If the condor state is already HELD, then someone already
 			// HELD it, so don't update anything else.
 			if ( condorState != HELD ) {
@@ -602,14 +579,14 @@ BaseResource *UnicoreJob::GetResource()
 	return (BaseResource *)NULL;
 }
 
-void UnicoreJob::UpdateUnicoreState( const char *status_ad )
+void UnicoreJob::UpdateUnicoreState( const char *update_ad_string )
 {
 	ClassAd *update_ad;
-	ClassAdXmlParser xml_parser;
+	ClassAdXMLParser xml_parser;
 	const char *next_attr_name;
 	ExprTree *next_expr;
 
-	update_ad = xml_parser.ParseClassAd( status_ad );
+	update_ad = xml_parser.ParseClassAd( update_ad_string );
 
 	update_ad->ResetName();
 	while ( ( next_attr_name = update_ad->NextName() ) != NULL ) {
@@ -619,7 +596,7 @@ void UnicoreJob::UpdateUnicoreState( const char *status_ad )
 		}
 		if ( strcasecmp( next_attr_name, ATTR_JOB_STATUS ) == 0 ) {
 			int status = 0;
-			status_ad->LookupInteger( ATTR_JOB_STATUS, status );
+			update_ad->LookupInteger( ATTR_JOB_STATUS, status );
 			unicoreState = status;
 			if ( unicoreState == RUNNING ) {
 				JobRunning();
@@ -628,7 +605,7 @@ void UnicoreJob::UpdateUnicoreState( const char *status_ad )
 				JobIdle();
 			}
 		}
-		next_expr = status_ad->Lookup( next_attr_name );
+		next_expr = update_ad->Lookup( next_attr_name );
 		this->ad->Insert( next_expr );
 	}
 
@@ -641,11 +618,14 @@ MyString *UnicoreJob::buildSubmitAd()
 	ClassAdXMLUnparser xml_unp;
 	MyString *ad_string;
 
-	MyString iwd = "";
-	MyString buff;
-	char *attr_value = NULL;
+	ExprTree *expr;
 
 	static const char *regular_attrs[] = {
+		ATTR_JOB_IWD,
+		ATTR_JOB_CMD,
+		ATTR_JOB_INPUT,
+		ATTR_JOB_OUTPUT,
+		ATTR_JOB_ERROR,
 		ATTR_JOB_ARGUMENTS,
 		ATTR_JOB_ENVIRONMENT,
 		"UnicoreUSite",
@@ -655,50 +635,11 @@ MyString *UnicoreJob::buildSubmitAd()
 		NULL
 	};
 
-	static const char *full_path_attrs[] = {
-		ATTR_JOB_CMD,
-		ATTR_JOB_INPUT,
-		ATTR_JOB_OUTPUT,
-		ATTR_JOB_ERROR,
-		NULL
-	};
-
-	if ( ad->LookupString(ATTR_JOB_IWD, &attr_value) && *attr_value ) {
-		iwd = attr_value;
-		int len = strlen(attr_value);
-		if ( len > 1 && attr_value[len - 1] != '/' ) {
-			iwd += '/';
-		}
-	} else {
-		iwd = "/";
-	}
-	if ( attr_value != NULL ) {
-		free( attr_value );
-		attr_value = NULL;
-	}
-
 	for ( int i = 0; regular_attrs[i] != NULL; i++ ) {
 
-		if ( ad->LookupString(regular_attrs[i], &attr_value) && *attr_value ) {
-			submit_ad.Assign( regular_attrs[i], attr_value );
-		}
-		if ( attr_value != NULL ) {
-			free( attr_value );
-			attr_value = NULL;
-		}
-
-	}
-
-	for ( int i = 0; full_path_attrs[i] != NULL; i++ ) {
-
-		if ( ad->LookupString( full_path_attrs[i], &attr_value ) && *attr_value ) {
-			buff.sprintf( "%s%s", attr_value[0] != '/' ? iwd->Value() : "",
-						  attr_value );
-			submit_ad.Assign( full_path_attrs[i], buff.Value() );
-		}
-		if ( attr_value != NULL ) {
-			free( attr_value );
-			attr_value = NULL;
+		ExprTree *expr;
+		if ( ( expr = ad->Lookup( regular_attrs[i] ) ) != NULL ) {
+			submit_ad.Insert( expr );
 		}
 
 	}
@@ -707,7 +648,7 @@ MyString *UnicoreJob::buildSubmitAd()
 	xml_unp.SetOutputType( false );
 	xml_unp.SetOutputTargetType( false );
 	ad_string = new MyString;
-	xml_unp.Unparse( submit_ad, ad_string );
+	xml_unp.Unparse( &submit_ad, *ad_string );
 
 	return ad_string;
 }
