@@ -20,30 +20,38 @@
  * Livny, 7367 Computer Sciences, 1210 W. Dayton St., Madison, 
  * WI 53706-1685, (608) 262-0856 or miron@cs.wisc.edu.
 ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
-////////////////////////////////////////////////////////////////////////////////
-//
-// prio_rec.h
-//
-////////////////////////////////////////////////////////////////////////////////
+#ifndef _autocluster_H_
+#define _autocluster_H_
 
-#ifndef _PRIO_REC_H_
-#define _PRIO_REC_H_
+#include "MyString.h"
+#include "extArray.h"
+#include "condor_classad.h"
+#include "string_list.h"
 
-const 	int		INITIAL_MAX_PRIO_REC = 2048;
+class AutoCluster {
 
-/* this record contains all the parameters required for
- * assigning priorities to all jobs */
-
-class prio_rec {
 public:
-    PROC_ID     id;
-    int         job_prio;
-    int         status;
-    int         qdate;
-    char        owner[100];                         /* valid only if D_UPDOWN */
-	int			auto_cluster_id;
 
-	prio_rec() { *owner='\0'; }
+	AutoCluster();
+	~AutoCluster();
+
+	bool config();
+	void clearArray();
+
+	int getAutoClusterid( ClassAd *job );
+
+		// garbage collection methods...
+	void mark();
+	void sweep();
+
+private:
+
+    ExtArray<MyString*>   array;
+	ExtArray<bool> mark_array;
+	StringList* significant_attrs;
+	char *old_sig_attrs;
+
 };
 
 #endif
+
