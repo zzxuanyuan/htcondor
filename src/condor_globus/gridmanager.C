@@ -300,17 +300,18 @@ GridManager::ADD_JOBS_signalHandler( int signal )
 			dprintf(D_FULLDEBUG,
 				"Job %d.%d already submitted to Globus\n",
 				new_job->procID.cluster,new_job->procID.proc);
-			// No worry about inserting the same job multiple
-			// times into the JobsByContact table since all fetches from
-			// the schedd after the first one require that jobState
-			// is G_UNSUBMITTED.  So no need to do checks here.
-			//
 			// So here the job has already been submitted to Globus.
 			// We need to place the contact string into our hashtable,
 			// and setup to get async events.
 			if ( new_job->jobContact ) {
-				JobsByContact->insert(HashKey(new_job->jobContact), new_job);
-				new_job->callback_register();
+				GlobusJob *tmp_job = NULL;
+				// see if this contact string already in our hash table
+				JobsByContact->lookup(HashKey(new_job->jobContact), tmp_job);
+				if ( tmp_job == NULL ) {
+					// nope, this string is not in our hash table.  insert it.
+					JobsByContact->insert(HashKey(new_job->jobContact), new_job);
+					new_job->callback_register();
+				}
 			}
 		}
 
