@@ -489,7 +489,8 @@ GahpServer::read_argv(Gahp_Args &g_args)
 						if ( g_args.argv[i] ) {
 							debug += g_args.argv[i];
 						}
-						if ( debug.Length() > logGahpIoSize ) {
+						if ( logGahpIoSize > 0 &&
+							 debug.Length() > logGahpIoSize ) {
 							break;
 						}
 					}
