@@ -35,6 +35,9 @@ JICLocalSchedd::JICLocalSchedd( const char* classad_filename,
 								int cluster, int proc, int subproc )
 	: JICLocalFile( classad_filename, cluster, proc, subproc )
 {
+		// initialize this to something reasonable.  we'll change it
+		// if anything special happens which needs a different value.
+	exit_code = JOB_EXITED;
 }
 
 
@@ -51,7 +54,44 @@ JICLocalSchedd::allJobsGone( void )
 		// exit ourselves.  However, we need to use the right code so
 		// the schedd knows to remove the job from the queue
 	dprintf( D_ALWAYS, "All jobs have exited... starter exiting\n" );
-	DC_Exit( JOB_EXITED );
+	DC_Exit( exit_code );
+}
+
+
+void
+JICLocalSchedd::gotShutdownFast( void )
+{
+		// Set our flag so we know we were asked to vacate.
+	requested_exit = true;
+	exit_code = JOB_SHOULD_REQUEUE;
+
+}
+
+
+void
+JICLocalSchedd::gotShutdownGraceful( void )
+{
+		// Set our flag so we know we were asked to vacate.
+	requested_exit = true;
+	exit_code = JOB_SHOULD_REQUEUE;
+}
+
+
+void
+JICLocalSchedd::gotRemove( void )
+{
+		// Set our flag so we know we were asked to vacate.
+	requested_exit = true;
+	exit_code = JOB_KILLED;
+}
+
+
+void
+JICLocalSchedd::gotHold( void )
+{
+		// Set our flag so we know we were asked to vacate.
+	requested_exit = true;
+	exit_code = JOB_KILLED;
 }
 
 
@@ -75,7 +115,7 @@ JICLocalSchedd::getUniverse( void )
 	}
 	
 	return true;
-} 
+}
 
 
 bool
@@ -84,3 +124,5 @@ JICLocalSchedd::initLocalUserLog( void )
 	return u_log->initFromJobAd( job_ad, ATTR_ULOG_FILE,
 								 ATTR_ULOG_USE_XML );
 }
+
+

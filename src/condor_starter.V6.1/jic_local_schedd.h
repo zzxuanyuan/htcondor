@@ -52,6 +52,19 @@ public:
 
 	virtual void allJobsGone( void );
 
+		/// The starter has been asked to shutdown fast.
+	virtual void gotShutdownFast( void );
+
+		/// The starter has been asked to shutdown gracefully.
+	virtual void gotShutdownGraceful( void );
+
+		/// The starter has been asked to evict for condor_rm
+	virtual void gotRemove( void );
+
+		/// The starter has been asked to evict for condor_hold
+	virtual void gotHold( void );
+
+
 protected:
 
 		/// This version confirms we're handling a "local" universe job. 
@@ -59,6 +72,9 @@ protected:
 
 		/// Initialize our local UserLog-writing code.
 	virtual bool initLocalUserLog( void );
+
+		/// The value we will exit with to tell our schedd what happened
+	int exit_code;
 
 };
 
