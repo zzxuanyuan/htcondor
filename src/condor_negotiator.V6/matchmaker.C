@@ -42,6 +42,9 @@
 static int comparisonFunction (AttrList *, AttrList *, void *);
 #include "matchmaker.h"
 
+/* This extracts the machine name from the global job ID user@machine.name#timestamp#cluster.proc*/
+static int get_scheddname_from_gjid(const char * globaljobid, char * scheddname );
+
 // possible outcomes of negotiating with a schedd
 enum { MM_ERROR, MM_DONE, MM_RESUME };
 
@@ -1771,12 +1774,13 @@ int Matchmaker::HashFunc(const MyString &Key, int TableSize) {
 }
 
 /* ODBC functions */
-void Matchmaker::insert_into_rejects(char *scheddName, ClassAd& job, ClassAd& machine,const char *diagnosis)
+void Matchmaker::insert_into_rejects(char *userName, ClassAd& job, ClassAd& machine,const char *diagnosis)
 {
 	char insert_stmt[256];
 	int cluster, proc;
 	char startdname[80];
 	char globaljobid[80];
+	char scheddName[80];
 
 	struct tm *tm;
 	time_t clock;
@@ -1787,18 +1791,20 @@ void Matchmaker::insert_into_rejects(char *scheddName, ClassAd& job, ClassAd& ma
 	job.LookupInteger (ATTR_CLUSTER_ID, cluster);
 	job.LookupInteger (ATTR_PROC_ID, proc);
 	job.LookupString( ATTR_GLOBAL_JOB_ID, globaljobid); 
+	get_scheddname_from_gjid(globaljobid,scheddName);
 	machine.LookupString(ATTR_NAME, startdname);
 
-	sprintf((char*) insert_stmt,"insert into %s values (\'%d/%d/%d %02d:%02d:%02d\',\'%s\', %d, %d, \'%s\',\'%s\', \'%s\')",RejectsTable,tm->tm_mon + 1, tm->tm_mday,tm->tm_year+1900, tm->tm_hour,tm->tm_min, tm->tm_sec,scheddName,cluster,proc,globaljobid,startdname,diagnosis);	
+	sprintf((char*) insert_stmt,"insert into %s values (\'%d/%d/%d %02d:%02d:%02d\',\'%s\', \'%s\', %d, %d, \'%s\',\'%s\', \'%s\')",RejectsTable,tm->tm_mon + 1, tm->tm_mday,tm->tm_year+1900, tm->tm_hour,tm->tm_min, tm->tm_sec,userName,scheddName,cluster,proc,globaljobid,startdname,diagnosis);	
 	DBObj->odbc_sqlstmt(insert_stmt);	
 }
-void Matchmaker::insert_into_matches(char * scheddName,ClassAd& request, ClassAd& offer)
+void Matchmaker::insert_into_matches(char * userName,ClassAd& request, ClassAd& offer)
 {
 	char insert_stmt[256];
 	char startdname[80],remote_user[80];
 	char globaljobid[80];
 	float remote_prio;
 	int cluster, proc;
+	char scheddName[80];
 
 	struct tm *tm;
 	time_t clock;
@@ -1809,16 +1815,35 @@ void Matchmaker::insert_into_matches(char * scheddName,ClassAd& request, ClassAd
 	request.LookupInteger (ATTR_CLUSTER_ID, cluster);
 	request.LookupInteger (ATTR_PROC_ID, proc);
 	request.LookupString( ATTR_GLOBAL_JOB_ID, globaljobid); 
+	get_scheddname_from_gjid(globaljobid,scheddName);
 	offer.LookupString( ATTR_NAME, startdname); 
+
 	if(offer.LookupString( ATTR_REMOTE_USER, remote_user) == 0)
 	{
-		sprintf((char *)insert_stmt,"insert into %s values (\'%d/%d/%d %02d:%02d:%02d\',\'%s\', %d, %d, \'%s\',\'%s\', null, null)",MatchesTable,tm->tm_mon + 1, tm->tm_mday,tm->tm_year+1900, tm->tm_hour,tm->tm_min, tm->tm_sec,scheddName,cluster,proc,globaljobid,startdname);	
+		sprintf((char *)insert_stmt,"insert into %s values (\'%d/%d/%d %02d:%02d:%02d\',\'%s\', \'%s\',%d, %d, \'%s\',\'%s\', null, null)",MatchesTable,tm->tm_mon + 1, tm->tm_mday,tm->tm_year+1900, tm->tm_hour,tm->tm_min, tm->tm_sec,userName,scheddName,cluster,proc,globaljobid,startdname);	
 	}
 	else
 	{
 		remote_prio = (float) accountant.GetPriority(remote_user);
-		sprintf((char *)insert_stmt,"insert into %s values (\'%d/%d/%d %02d:%02d:%02d\',\'%s\', %d, %d, \'%s\',\'%s\', \'%s\', %f)",MatchesTable,tm->tm_mon + 1, tm->tm_mday,tm->tm_year+1900, tm->tm_hour,tm->tm_min, tm->tm_sec,scheddName,cluster,proc,globaljobid,startdname,remote_user,remote_prio);	
+		sprintf((char *)insert_stmt,"insert into %s values (\'%d/%d/%d %02d:%02d:%02d\',\'%s\', \'%s\', %d, %d, \'%s\',\'%s\', \'%s\', %f)",MatchesTable,tm->tm_mon + 1, tm->tm_mday,tm->tm_year+1900, tm->tm_hour,tm->tm_min, tm->tm_sec,userName,scheddName,cluster,proc,globaljobid,startdname,remote_user,remote_prio);	
 	}
+	dprintf(D_FULLDEBUG,"About to insert %s\n",(char*)insert_stmt);
 	DBObj->odbc_sqlstmt(insert_stmt);	
 
-} 
+}
+/* This extracts the machine name from the global job ID user@machine.name#timestamp#cluster.proc*/
+static int get_scheddname_from_gjid(const char * globaljobid, char * scheddname )
+{
+	int i,j;
+
+	scheddname[0] = '\0';
+	for (i=0;globaljobid[i]!='\0' && globaljobid[i]!='@';i++);
+	if(globaljobid[i] == '\0') return -1; /* Parse error, shouldn't happen */
+	else i++; /* Get past the '@' */
+	
+	for (j=0;globaljobid[i]!='\0' && globaljobid[i]!='#';i++,j++)
+		scheddname[j]=globaljobid[i];
+	scheddname[j]='\0';
+	if(globaljobid[i] == '\0') return -1; /* Parse error, shouldn't happen */
+	return 1;
+}
