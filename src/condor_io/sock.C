@@ -786,6 +786,9 @@ int Sock::close()
 	_sock = INVALID_SOCKET;
 	_state = sock_virgin;
 	_timeout = 0;
+    if (connect_state.host) {
+        free(connect_state.host);
+    }
 	connect_state.host = NULL;
 	memset(&_who, 0, sizeof( struct sockaddr_in ) );
 	memset(&_endpoint_ip_buf, 0, _ENDPOINT_BUF_SIZE );
@@ -910,7 +913,7 @@ char * Sock::serialize(char *buf)
 	}
 
 	KeyInfo k((unsigned char *)kserial, 0);
-	set_crypto_key(&k);
+	set_crypto_key(&k, 0);
     if (kserial) {
         free(kserial);
     }
