@@ -3349,8 +3349,39 @@ JobDisconnectedEvent::writeEvent( FILE *file )
 int
 JobDisconnectedEvent::readEvent( FILE *file )
 {
-		// TODO
-	return 0;
+	MyString line;
+		// the first line contains no useful information for us, but
+		// it better be there or we've got a parse error.
+	if( ! line.readLine(file) ) {
+		return 0;
+	}
+
+	if( line.readLine(file) && line[0] == ' ' && line[1] == ' ' 
+		&& line[2] == ' ' && line[3] == ' ' && line[4] )
+	{
+		line.chomp();
+		setReason( &line[4] );
+	} else {
+		return 0;
+	}
+
+	if( line.readLine(file) &&
+		line.replaceString( "    Trying to reconnect to ", "" ) )
+	{
+		line.chomp();
+		int i = line.FindChar( ' ' );
+		if( i > 0 ) {
+			line[i] = '\0';
+			setStartdName( line.Value() );
+			setStartdAddr( &line[i+1] );
+		} else {
+			return 0;
+		}
+	} else {
+		return 0;
+	}
+
+	return 1;
 }
 
 
