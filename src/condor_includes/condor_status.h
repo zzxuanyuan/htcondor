@@ -3,7 +3,6 @@
 
 
 #include "condor_constants.h"
-#include "condor_xdr.h"
 
 typedef struct {
 	char	*name;
