@@ -58,7 +58,7 @@ CFLAGS = $(STD_C_FLAGS) $(DL_EXTRACT) $(FILE_TABLE) $(REMOTE_SYSCALLS)
 
 C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) $(STUB_CLUMPS_FLAG) $(DL_EXTRACT) \
 	$(FILE_TABLE) $(REMOTE_SYSCALLS) $(SAVE_SIGSTATE) -I../condor_ckpt \
-	-fno-exceptions
+	-fno-exceptions -DHEADER_DES_LOCL_H
 
 #if DOES_CHECKPOINTING  /* ========= DOES CHECKPOINTING ============ */
 
@@ -229,11 +229,24 @@ CONDOR_TYPE_OBJ = sig_num.o proc.o open_flags.o fcntl_cmd.o
 
 IO_OBJ = stream.o sock.o safe_sock.o buffers.o $(CONDOR_TYPE_OBJ) condor_rw.o reli_sock.o SafeMsg.o ../condor_util_lib/get_random_num.o 
 
-SPECIAL_IO_OBJ = authentication.o CryptKey.o condor_crypt.o condor_crypt_3des.o
-# condor_crypt_3des.o condor_crypt_blowfish.o
+#if CONDOR_3DES_ENCRYPTION
+   CONDOR_DES_OBJ = condor_crypt_3des.o
+   CONDOR_DES_SRC = condor_crypt_3des.C
+#endif
 
-SPECIAL_IO_SRC = authentication.C CryptKey.C condor_crypt.C condor_crypt_3des.C
-# condor_crypt_3des.C condor_crypt_blowfish.C
+#if CONDOR_BLOWFISH_ENCRYPTION
+   CONDOR_DES_OBJ = condor_crypt_blowfish.o
+   CONDOR_DES_SRC = condor_crypt_blowfish.C
+#endif
+
+#if CONDOR_ENCRYPTION
+   CONDOR_CRYPT_OBJ = condor_crypt.o $(CONDOR_DES_OBJ) $(CONDOR_BLOWFISH_OBJ)
+   CONDOR_CRYPT_SRC = condor_crypt.C $(CONDOR_DES_SRC) $(CONDOR_BLOWFISH_SRC)
+#endif
+
+SPECIAL_IO_OBJ = authentication.o CryptKey.o $(CONDOR_CRYPT_OBJ)
+
+SPECIAL_IO_SRC = authentication.C CryptKey.C $(CONDOR_CRYPT_SRC)
 
 SPECIAL_OBJ = special_stubs.o
 
