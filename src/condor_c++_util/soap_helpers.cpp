@@ -83,19 +83,22 @@ convert_ad_to_adStruct(struct soap *s,
   // second pass: serialize attributes
   attr_index = 0;
   // first, add myType and TargetType
-  // XXX: Change all strdup's to soap_malloc&strcpy
   ad_struct->__ptr[attr_index].name = (char *) ATTR_MY_TYPE;
   ad_struct->__ptr[attr_index].type = STRING_ATTR;
-  ad_struct->__ptr[attr_index].value = strdup(curr_ad->GetMyTypeName());
+  ad_struct->__ptr[attr_index].value = (char *) soap_malloc(s, strlen(curr_ad->GetMyTypeName()));
+  strcpy(ad_struct->__ptr[attr_index].value, curr_ad->GetMyTypeName());
   attr_index++;
   ad_struct->__ptr[attr_index].name = (char *) ATTR_TARGET_TYPE;
   ad_struct->__ptr[attr_index].type = STRING_ATTR;
-ad_struct->__ptr[attr_index].value = strdup(curr_ad->GetTargetTypeName());
+  ad_struct->__ptr[attr_index].value = (char *) soap_malloc(s, strlen(curr_ad->GetTargetTypeName()));
+  strcpy(ad_struct->__ptr[attr_index].value, curr_ad->GetTargetTypeName());
   attr_index++;
   // And, ServerTime...
   ad_struct->__ptr[attr_index].name = (char *) ATTR_SERVER_TIME;
   ad_struct->__ptr[attr_index].type = INTEGER_ATTR;
-  ad_struct->__ptr[attr_index].value = strdup(MyString((int) time(NULL)).GetCStr());
+  MyString timeString = MyString((int) time(NULL));
+  ad_struct->__ptr[attr_index].value = (char *) soap_malloc(s, strlen(timeString.GetCStr()));
+  strcpy(ad_struct->__ptr[attr_index].value, timeString.GetCStr());
   attr_index++;
 
   curr_ad->ResetExpr();
@@ -108,6 +111,8 @@ ad_struct->__ptr[attr_index].value = strdup(curr_ad->GetTargetTypeName());
     skip_attr = false;
     switch ( rhs->MyType() ) {
     case LX_STRING:
+			//ad_struct->__ptr[attr_index].value = (char *) soap_malloc(s, strlen(((String *) rhs)->Value()));
+			//strcpy(ad_struct->__ptr[attr_index].value, ((String *) rhs)->Value());
 		ad_struct->__ptr[attr_index].value = strdup(((String*)rhs)->Value());
       //dprintf(D_ALWAYS,"STRINGSPACE|%s|%p\n",ad_struct->__ptr[attr_index].value,ad_struct->__ptr[attr_index].value);
       ad_struct->__ptr[attr_index].type = STRING_ATTR;
