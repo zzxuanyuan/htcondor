@@ -33,6 +33,8 @@
 #include "env.h"
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
 
+extern DLL_IMPORT_MAGIC char **environ;
+
 //-----------------------------------------------------------------------------
 Script::Script( bool post, char* cmd, Job* job ) :
     _post         (post),
