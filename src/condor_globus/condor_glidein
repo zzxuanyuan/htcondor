@@ -179,9 +179,12 @@ sub gather_info() {
 	$TMP = `$STATUS -master -format "%s" CondorVersion $CONDOR_HOST`;
 		#if we get a blank response because the collector isn't running
 		#a master in the same pool, try our master...
-	if ( !($TMP =~ /\S/) ) {
+	if ( $? != 0 || !($TMP =~ /\S/) ) {
 			$HOST = $ENV{'HOST'};
 			$TMP = `$STATUS -master -format "%s" CondorVersion $HOST`;
+			if ( $? != 0 ) {
+				$TMP = "";
+			}
 	}
 	( $_, $CONDOR_VERSION, $_) = split( / *[$: ]+/, $TMP );
 	if ( $CONDOR_VERSION eq "" ) {
