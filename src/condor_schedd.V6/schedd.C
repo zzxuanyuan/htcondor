@@ -5529,11 +5529,16 @@ Scheduler::initLocalStarterDir( void )
 #endif
 
 	MyString dir_name;
-	char* tmp = param( "SPOOL" );
+	char* tmp = param( "SCHEDD_EXECUTE" );
 	if( ! tmp ) {
-		EXCEPT( "SPOOL directory not defined in config file!" );
+		tmp = param( "SPOOL" );		
+		if( ! tmp ) {
+			EXCEPT( "SPOOL directory not defined in config file!" );
+		}
+		dir_name.sprintf( "%s%c%s", tmp, DIR_DELIM_CHAR, "execute" );
+	} else {
+		dir_name = tmp;
 	}
-	dir_name.sprintf( "%s%c%s", tmp, DIR_DELIM_CHAR, "execute" );
 	free( tmp );
 	tmp = NULL;
 
