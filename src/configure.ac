@@ -126,11 +126,11 @@ if test $ac_ar = no; then
 fi
 
 # strip is used in the packaging of Condor for all released binaries
-# we prefer GNU strip since it does a much better job of shrinking the
-# size of our binaries, given that they're all built with GNU CC.
+# we require GNU strip since it does a much better job of shrinking
+# the size of our binaries, given that they're all built with GNU CC.
 CHECK_PROG_IS_GNU(STRIP, strip)
 if test "$_cv_strip_is_gnu" = "no"; then
-   AC_MSG_WARN( [GNU strip is recommended] )
+   AC_MSG_ERROR( [GNU strip is required] )
 fi
 
 # m4 is used to build PVM
