@@ -65,6 +65,7 @@ struct shadow_rec
     int             conn_fd;
 	int				removed;
 	bool			isZombie;	// added for Maui by stolley
+	bool			is_reconnect;
 }; 
 
 struct OwnerData {
@@ -132,6 +133,7 @@ typedef enum {
 	NO_SHADOW_WIN32,
 	NO_SHADOW_DC_VANILLA,
 	NO_SHADOW_OLD_VANILLA,
+	NO_SHADOW_RECONNECT,
 } NoShadowFailure_t;
 
 
@@ -267,6 +269,13 @@ class Scheduler : public Service
 		*/
 	int             startdContactSockHandler( Stream *sock );
 
+		/** Used to enqueue another disconnected job that we need to
+			spawn a shadow to attempt to reconnect to.
+		*/
+	bool			enqueueReconnectJob( PROC_ID job );
+	void			checkReconnectQueue( void );
+	void			makeReconnectRecords( PROC_ID* job );
+
 		// Useful public info
 	char*			shadowSockSinful( void ) { return MyShadowSockName; };
 	char*			dcSockSinful( void ) { return MySockName; };
@@ -355,7 +364,13 @@ private:
 	Queue<ContactStartdArgs*> startdContactQueue;
 	int             MAX_STARTD_CONTACTS;
 	int				checkContactQueue_tid;	// DC Timer ID to check queue
-	
+
+		// If we we need to reconnect to disconnected starters, we
+		// stash the proc IDs in here while we read through the job
+		// queue.  Then, we can spawn all the shadows after the fact. 
+	Queue<PROC_ID>	jobsToReconnect;
+	int				checkReconnectQueue_tid;
+
 	// useful names
 	char*			CondorAdministrator;
 	char*			Mail;
