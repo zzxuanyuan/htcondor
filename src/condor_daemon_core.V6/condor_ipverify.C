@@ -229,11 +229,11 @@ bool IpVerify :: has_user(UserPerm_t * perm, const char * user, int & mask, MySt
             char buf[256];
             memset(buf, 0, 256);
             if ((tmp = strchr( user, '@')) == NULL) {
-                dprintf(D_SECURITY, "Malformed user name %s", user);
+                dprintf(D_SECURITY, "Malformed user name: %s\n", user);
             }      
             else {
                 if (strlen(tmp) > 255) {
-                    dprintf(D_SECURITY, "User name is too long %s", user);
+                    dprintf(D_SECURITY, "User name is too long: %s\n", user);
                 }  
                 else {
                     sprintf(buf, "*%s", tmp);

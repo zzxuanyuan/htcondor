@@ -1836,7 +1836,7 @@ int DaemonCore::HandleReq(int socki)
 			} else {
 				// the session->id() and the_sid strings should be identical.
 
-				dprintf (D_SECURITY, "DC_AUTHENTICATE: found cached key id %s given to %s.\n",
+				dprintf (D_SECURITY, "DC_AUTHENTICATE: found session id %s given to %s:\n",
 							session->id(), sin_to_string(session->addr()));
 			}
 
@@ -1848,6 +1848,7 @@ int DaemonCore::HandleReq(int socki)
 			if (session->policy()) {
 				// copy this to the HandleReq() scope
 				the_policy = new ClassAd(*session->policy());
+				the_policy->dPrint (D_SECURITY);
 			}
 
 			// grab the user out of the policy.
@@ -1857,7 +1858,6 @@ int DaemonCore::HandleReq(int socki)
 
 				if (the_user) {
 					// copy this to the HandleReq() scope
-					assert(user == NULL);
 					strcpy (user, the_user);
 					delete the_user;
 				}
@@ -1964,12 +1964,6 @@ int DaemonCore::HandleReq(int socki)
 					zz2printf (the_key);
 #endif
 				}
-
-				sprintf (buf, "%s=\"%s\"", ATTR_SEC_SID, the_sid);
-				the_policy->Insert(buf);
-
-				sprintf (buf, "%s=\"%s\"", ATTR_SEC_VALID_COMMANDS, GetCommandsInAuthLevel(comTable[cmd_index].perm).Value());
-				the_policy->Insert(buf);
 
 				new_session = true;
 			}
@@ -2111,18 +2105,38 @@ int DaemonCore::HandleReq(int socki)
 
 
 		if (is_tcp && new_session) {
+			// clear the buffer
 			sock->decode();
 			sock->eom();
 
+			// ready a classad to send
 			dprintf (D_SECURITY, "DC_AUTHENTICATE: sending p.a. classad.\n");
+			ClassAd pa_ad;
 
-			ClassAd a;
+			// session user
+			sprintf (buf, "%s=\"%s\"", ATTR_SEC_USER, ((ReliSock*)sock)->getFullyQualifiedUser());
+			pa_ad.Insert(buf);
+
+			// session id
+			sprintf (buf, "%s=\"%s\"", ATTR_SEC_SID, the_sid);
+			pa_ad.Insert(buf);
+
+			// other commands this session is good for
+			sprintf (buf, "%s=\"%s\"", ATTR_SEC_VALID_COMMANDS, GetCommandsInAuthLevel(comTable[cmd_index].perm).Value());
+			pa_ad.Insert(buf);
+
+			// also put these attributes in the policy classad we are caching.
+            sec_man->sec_copy_attribute( *the_policy, pa_ad, ATTR_SEC_USER );
+            sec_man->sec_copy_attribute( *the_policy, pa_ad, ATTR_SEC_SID );
+            sec_man->sec_copy_attribute( *the_policy, pa_ad, ATTR_SEC_VALID_COMMANDS );
+
+
 			sock->encode();
-			a.put(*sock);
+			pa_ad.put(*sock);
 			sock->eom();
 
 
-			// add the key to the cache
+			// add the session to the cache
 			KeyCacheEntry tmp_key(the_sid, sock->endpoint(), the_key, the_policy, 0);
 			sec_man->enc_key_cache->insert(the_sid, tmp_key);
 			dprintf (D_SECURITY, "DC_AUTHENTICATE: added session id %s to cache!\n", the_sid);

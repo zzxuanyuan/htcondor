@@ -978,7 +978,10 @@ SecMan::startCommand( int cmd, Sock* sock, bool can_negotiate, int subCmd)
 
 	if (!is_tcp) {
 
-		// there has to be a session to continue...
+		// there has to be a session to do anything.
+		// in the future, if no authenticate or crypto is required, we 
+		// could just send a sessionless UDP message with the command.
+
 		if (!enc_key) {
 			dprintf ( D_SECURITY, "SECMAN: UDP has no session, failing!\n");
 			return false;
@@ -1004,12 +1007,6 @@ SecMan::startCommand( int cmd, Sock* sock, bool can_negotiate, int subCmd)
 			auth_info->dPrint( D_SECURITY );
 			return false;
 		}
-
-		
-
-		// at this point, we know exactly what needs to happen.  if we asked
-		// the other side, their choice is in will_authenticate.  if we
-		// didn't ask, then our choice is in will_authenticate.
 
 
 		KeyInfo* ki  = NULL;
@@ -1113,9 +1110,9 @@ SecMan::startCommand( int cmd, Sock* sock, bool can_negotiate, int subCmd)
 			sec_copy_attribute( *auth_info, auth_response, ATTR_SEC_AUTHENTICATION );
 			sec_copy_attribute( *auth_info, auth_response, ATTR_SEC_ENCRYPTION );
 			sec_copy_attribute( *auth_info, auth_response, ATTR_SEC_INTEGRITY );
-			sec_copy_attribute( *auth_info, auth_response, ATTR_SEC_VALID_COMMANDS );
-			sec_copy_attribute( *auth_info, auth_response, ATTR_SEC_USER );
-			sec_copy_attribute( *auth_info, auth_response, ATTR_SEC_SID );
+			// sec_copy_attribute( *auth_info, auth_response, ATTR_SEC_VALID_COMMANDS );
+			// sec_copy_attribute( *auth_info, auth_response, ATTR_SEC_USER );
+			// sec_copy_attribute( *auth_info, auth_response, ATTR_SEC_SID );
 
 			auth_info->Delete(ATTR_SEC_NEW_SESSION);
 
@@ -1137,7 +1134,7 @@ SecMan::startCommand( int cmd, Sock* sock, bool can_negotiate, int subCmd)
 			will_enable_mac == SEC_FEAT_ACT_UNDEFINED || 
 			will_enable_mac == SEC_FEAT_ACT_INVALID ) {
 
-			// suck.
+			// missing some essential info.
 
 			dprintf ( D_SECURITY, "SECMAN: action attribute missing from classad\n");
 			auth_info->dPrint( D_SECURITY );
@@ -1163,7 +1160,7 @@ SecMan::startCommand( int cmd, Sock* sock, bool can_negotiate, int subCmd)
 			char * auth_method = NULL;
 			auth_info->LookupString( ATTR_SEC_AUTHENTICATION_METHODS, &auth_method );
 			if (!auth_method) {
-				// we suck, there's no auth method.
+				// there's no auth method.
 				dprintf ( D_SECURITY, "SECMAN: no auth method!, failing.\n");
 				return false;
 			}
@@ -1239,13 +1236,11 @@ SecMan::startCommand( int cmd, Sock* sock, bool can_negotiate, int subCmd)
 				post_auth_info.dPrint (D_SECURITY);
 			}
 
-			// fill in some attributes
-			// sprintf(buf, "%s=\"YES\"", ATTR_SEC_USE_SESSION);
-			// auth_info->Insert(buf);
-			// dprintf ( D_SECURITY, "SECMAN: inserted '%s'\n", buf);
-
-			// bring in the new attributes
+			// bring in the session ID
 			sec_copy_attribute( *auth_info, post_auth_info, ATTR_SEC_SID );
+
+			// other attributes
+			sec_copy_attribute( *auth_info, post_auth_info, ATTR_SEC_USER );
 			sec_copy_attribute( *auth_info, post_auth_info, ATTR_SEC_VALID_COMMANDS );
 
 			dprintf (D_SECURITY, "SECMAN: policy to be cached:\n");
@@ -1253,12 +1248,22 @@ SecMan::startCommand( int cmd, Sock* sock, bool can_negotiate, int subCmd)
 
 			char *sid = NULL;
 			auth_info->LookupString(ATTR_SEC_SID, &sid);
+			if (sid == NULL) {
+				// ZKM: memory leak, will fix tonight
+				return FALSE;
+			}
 
 			char *cmd_list = NULL;
 			auth_info->LookupString(ATTR_SEC_VALID_COMMANDS, &cmd_list);
+			if (cmd_list == NULL) {
+				// ZKM: memory leak, will fix tonight
+				return FALSE;
+			}
+
 
 			assert (enc_key == NULL);
 			KeyCacheEntry tmp_key( sid, sock->endpoint(), ki, auth_info, 0);
+
 
 			char *p = strrchr(cmd_list, ',');
 			while (p > cmd_list) {
