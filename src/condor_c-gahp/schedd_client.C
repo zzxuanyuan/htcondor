@@ -69,6 +69,7 @@ int checkRequestPipeTid = TIMER_UNSET;
 int contactScheddTid = TIMER_UNSET;
 
 char *ScheddAddr = NULL;
+char *ScheddPool = NULL;
 
 extern char *myUserName;
 
@@ -178,7 +179,7 @@ doContactSchedd()
 	CondorError errstack;
 
 	// Try connecting to schedd
-	DCSchedd dc_schedd ( ScheddAddr );
+	DCSchedd dc_schedd ( ScheddAddr, ScheddPool );
 	if (dc_schedd.error() || !dc_schedd.locate()) {
 		sprintf (error_msg, "Error locating schedd %s", ScheddAddr);
 
@@ -442,7 +443,7 @@ doContactSchedd()
 	// Try connecting to the queue
 	Qmgr_connection * qmgr_connection;
 	
-	if ((qmgr_connection = ConnectQ(ScheddAddr, QMGMT_TIMEOUT, false )) == NULL) {
+	if ((qmgr_connection = ConnectQ(dc_schedd.addr(), QMGMT_TIMEOUT, false )) == NULL) {
 		error = TRUE;
 		sprintf (error_msg, "Error connecting to schedd %s", ScheddAddr);
 		dprintf (D_ALWAYS, "%s\n", error_msg);
