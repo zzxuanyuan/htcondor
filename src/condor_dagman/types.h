@@ -10,6 +10,8 @@ typedef int bool;
 #define false 0
 #endif
 
+namespace dagman {
+
 ///
 typedef int JobID_t;
 
@@ -18,46 +20,46 @@ typedef int JobID_t;
     will be used to store those three numbers.  
 */
 class CondorID {
- public:
-  ///
-  CondorID () : _cluster(-1), _proc(-1), _subproc(-1) {}
+  public:
+    ///
+    CondorID () : _cluster(-1), _proc(-1), _subproc(-1) {}
 
-  ///
-  CondorID (int cluster, int proc, int subproc):
-    _cluster(cluster), _proc(proc), _subproc(subproc) {}
+    ///
+    CondorID (int cluster, int proc, int subproc):
+        _cluster(cluster), _proc(proc), _subproc(subproc) {}
 
-  ///
-  inline void Set (int cluster, int proc, int subproc) {
-    _cluster = cluster;
-    _proc    = proc;
-    _subproc = subproc;
-  }
+    ///
+    inline void Set (int cluster, int proc, int subproc) {
+        _cluster = cluster;
+        _proc    = proc;
+        _subproc = subproc;
+    }
 
-  /** Compare this condorID's with another
-      @return zero if they match
-  */
-  int Compare (const CondorID condorID) const;
+    /** Compare this condorID's with another
+        @return zero if they match
+    */
+    int Compare (const CondorID condorID) const;
 
-  ///
-  inline bool operator == (const CondorID condorID) const {
-    return Compare (condorID) == 0;
-  }
+    ///
+    inline bool operator == (const CondorID condorID) const {
+        return Compare (condorID) == 0;
+    }
 
-  ///
-  inline void Print (FILE * file = stdout) const {
-    fprintf (file, "(%d.%d.%d)", _cluster, _proc, _subproc);
-  }
+    ///
+    inline void Print (FILE * file = stdout) const {
+        fprintf (file, "(%d.%d.%d)", _cluster, _proc, _subproc);
+    }
 
-  /** */ int _cluster;
-  /** */ int _proc;
-  /** */ int _subproc;
+    /** */ int _cluster;
+    /** */ int _proc;
+    /** */ int _subproc;
 };
 
 
 //-----------------------------------------------------------------------------
 class string {
-    friend ostream & operator << (ostream & out, const string & s);
-    friend string operator + (const string & s1, const string & s2);
+  friend ostream & operator << (ostream & out, const string & s);
+  friend string operator + (const string & s1, const string & s2);
   public:
     string () : _str(NULL) {}
     string (const string & s);
@@ -78,7 +80,11 @@ class string {
     char * _str;
 };
 
+
 ostream & operator << (ostream & out, const string & s);
-string operator + (const string & s1, const string & s2);
+string operator + (const string & s1,
+                   const string & s2);
+
+} // namespace dagman
 
 #endif /* #ifndef _TYPES_H_ */

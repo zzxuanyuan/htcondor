@@ -3,6 +3,8 @@
 
 #include "condor_system.h"   /* for <stdio.h> */
 
+namespace dagman {
+
 #if 0   /* These function are never used! */
 int StringHash(char *str, int numBuckets);
 int StringCompare(char *s1, char *s2);
@@ -26,5 +28,7 @@ extern "C" int util_getline (FILE *fp, char *line, int max);
     @return The return status of the command
 */
 extern "C" int util_popen (const char * cmd);
+
+} // namespace dagman
 
 #endif /* #ifndef _UTIL_H_ */

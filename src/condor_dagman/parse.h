@@ -3,6 +3,8 @@
 
 #include "dag.h"
 
+namespace dagman {
 bool parse (char * filename, Dag * dag);
+}
 
 #endif

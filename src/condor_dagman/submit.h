@@ -19,6 +19,8 @@
     @return true on success, false on failure
 */
 
+namespace dagman {
 bool submit_submit (const char * cmdFile, CondorID & condorID);
+}
 
 #endif /* #ifndef CONDOR_SUBMIT_H */

@@ -1,19 +1,23 @@
 #include "condor_common.h"
-#include "types.h"
 #include "condor_string.h"
+
+// DAGMan Includes
+#include "types.h"
+
+namespace dagman {
 
 //---------------------------------------------------------------------------
 int compare(int a, int b) {
-  if (a == b) return 0;
-  return (a > b ? 1 : -1);
+    if (a == b) return 0;
+    return (a > b ? 1 : -1);
 }
 
 //---------------------------------------------------------------------------
 int CondorID::Compare (const CondorID condorID) const {
-  int result = compare (_cluster, condorID._cluster);
-  if (result == 0) result = compare (_proc, condorID._proc);
-  if (result == 0) result = compare (_subproc, condorID._subproc);
-  return result;
+    int result = compare (_cluster, condorID._cluster);
+    if (result == 0) result = compare (_proc, condorID._proc);
+    if (result == 0) result = compare (_subproc, condorID._subproc);
+    return result;
 }
 
 //-----------------------------------------------------------------------------
@@ -59,17 +63,6 @@ string::string (const string & s1, const string & s2) {
 }
 
 //-----------------------------------------------------------------------------
-ostream & operator << (ostream & out, const string & s) {
-    out << s._str;
-    return out;
-}
-
-//-----------------------------------------------------------------------------
-string operator + (const string & s1, const string & s2) {
-    return string (s1._str, s2._str);
-}
-
-//-----------------------------------------------------------------------------
 const string & string::operator += (const string & s) {
     return (*this = *this + s);
 }
@@ -82,3 +75,17 @@ bool string::operator == (const string & s) const {
 bool string::operator != (const string & s) const {
     return !(*this == s);
 }
+
+//-----------------------------------------------------------------------------
+ostream & operator << (ostream & out, const string & s) {
+    out << s._str;
+    return out;
+}
+
+//-----------------------------------------------------------------------------
+string operator + (const string & s1,
+                   const string & s2) {
+    return string (s1._str, s2._str);
+}
+
+} // namespace dagman

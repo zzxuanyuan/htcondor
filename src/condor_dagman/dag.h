@@ -2,10 +2,13 @@
 #define DAG_H
 
 #include "condor_common.h"
-#include "list.h"
-#include "job.h"
 #include "user_log.c++.h"          /* from condor_c++_util/ directory */
 #include "condor_constants.h"      /* from condor_includes/ directory */
+
+#include "job.h"
+#include <list>
+
+namespace dagman {
 
 /** Termination Queue Item (TQI).  EXPLANATION NEEDED HERE!
  */
@@ -16,14 +19,14 @@ class TQI {
     ///
     inline TQI (Job * p) : parent(p) {}
     ///
-    inline TQI (Job * p, const SimpleList<JobID_t> & c) :
+    inline TQI (Job * p, const std::list<JobID_t> & c) :
         parent(p), children(c) {}
 
     ///
     void Print () const;
 
     /** The job that terminated      */   Job                 * parent;
-    /** Children net yet seen in log */   SimpleList<JobID_t>   children;
+    /** Children net yet seen in log */   std::list<JobID_t>    children;
 };
 
 
@@ -54,7 +57,7 @@ class Dag {
     bool Bootstrap (bool recovery);
 
     /// Add a job to the collection of jobs managed by this Dag.
-    inline bool Add (Job & job) { return _jobs.Append(job); }
+    inline bool Add (Job & job) { _jobs.push_back(& job); return true; }
   
     /** Specify a dependency between two jobs. The child job will only
         run after the parent job has finished.
@@ -98,7 +101,7 @@ class Dag {
     void Print_TermQ () const;
 
     ///
-    inline int NumJobs() const { return _jobs.Number(); }
+    inline int NumJobs() const { return _jobs.size(); }
 
     ///
     inline int NumJobsDone() const { return _numJobsDone; }
@@ -173,10 +176,10 @@ class Dag {
     char        * _lockFileName;
 
     /// List of Job objects
-    List<Job>     _jobs;
+    std::list<Job *>    _jobs;
 
     ///
-    List<TQI>    _termQ;
+    std::list<TQI *>    _termQ;
 
     /// For debugging
     bool         _termQLock;
@@ -195,5 +198,7 @@ class Dag {
     */
     int _numJobsRunningMax;
 };
+
+} // namespace dagman
 
 #endif /* #ifndef DAG_H */

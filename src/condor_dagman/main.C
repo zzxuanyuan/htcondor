@@ -1,6 +1,8 @@
 #include "condor_common.h"
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
 #include "basename.h"
+
+// DAGMan Includes
 #include "dag.h"
 #include "debug.h"
 #include "parse.h"
@@ -10,6 +12,8 @@ char* mySubSystem = "DAGMAN";         // used by Daemon Core
 
 // Required for linking with condor libs
 extern "C" int SetSyscalls() { return 0; }
+
+namespace dagman {
 
 class Global {
   public:
@@ -52,6 +56,10 @@ void touch (const char * filename) {
     }
     close (fd);
 }
+
+} // namespace dagman
+
+using namespace dagman;
 
 //---------------------------------------------------------------------------
 

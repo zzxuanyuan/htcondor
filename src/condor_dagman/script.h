@@ -1,6 +1,8 @@
 #ifndef _SCRIPT_H_
 #define _SCRIPT_H_
 
+namespace dagman {
+
 class Job;
 
 class Script {
@@ -39,5 +41,7 @@ class Script {
     ///
     char * _cmd;
 };
+
+} // namespace dagman
 
 #endif

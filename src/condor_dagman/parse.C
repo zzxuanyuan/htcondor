@@ -1,10 +1,14 @@
 #include "condor_common.h"
 
+#include <list>
+
+// DAGMan Includes
 #include "job.h"
-#include "parse.h"
 #include "util.h"
 #include "debug.h"
-#include "list.h"
+#include "parse.h"
+
+namespace dagman {
 
 static const char   COMMENT    = '#';
 static const char * DELIMITERS = " \t";
@@ -20,7 +24,7 @@ bool isKeyWord (char *token) {
     const unsigned int numKeyWords = 6;
     const char * keywords[numKeyWords] = {
         "JOB", "PARENT", "CHILD", "PRE", "POST", "DONE"
-    };
+            };
     for (unsigned int i = 0 ; i < numKeyWords ; i++) {
         if (!strcasecmp (token, keywords[i])) return true;
     }
@@ -212,7 +216,7 @@ bool parse (char *filename, Dag *dag) {
         else if (strcasecmp(token, "PARENT") == 0) {
             const char * example = "PARENT p1 p2 p3 CHILD c1 c2 c3";
             
-            List<Job> parents;
+            std::list<Job *> parents;
 
             char *jobName;
 
@@ -225,12 +229,12 @@ bool parse (char *filename, Dag *dag) {
                     fclose(fp);
                     return false;
                 }
-                parents.Append (job);
+                parents.push_back (job);
             }
 
             // There must be one or more parent job names before
             // the CHILD token
-            if (parents.Number() < 1) {
+            if (parents.size() < 1) {
                 debug_println (DEBUG_QUIET, "%s(%d): Missing Parent Job names",
                                filename, lineNumber);
                 exampleSyntax (example);
@@ -246,7 +250,7 @@ bool parse (char *filename, Dag *dag) {
                 return false;
             }
 
-            List<Job> children;
+            std::list<Job *> children;
 
             while ((jobName = strtok (NULL, DELIMITERS)) != NULL) {
                 Job * job = dag->GetJob(jobName);
@@ -256,10 +260,10 @@ bool parse (char *filename, Dag *dag) {
                     fclose(fp);
                     return false;
                 }
-                children.Append (job);
+                children.push_back (job);
             }
 
-            if (children.Number() < 1) {
+            if (children.size() < 1) {
                 debug_println (DEBUG_QUIET, "%s(%d): Missing Child Job names",
                                filename, lineNumber);
                 exampleSyntax (example);
@@ -271,13 +275,13 @@ bool parse (char *filename, Dag *dag) {
             // Now add all the dependencies
             //
 
-            Job *parent;
-            parents.Rewind();
-            while ((parent = parents.Next()) != NULL) {
-                Job *child;
-                children.Rewind();
-                while ((child = children.Next()) != NULL) {
-                    if (!dag->AddDependency (parent, child)) {
+            std::list<Job *>::iterator pjobit;
+            for (pjobit = parents.begin() ; pjobit != parents.end() ;
+                 pjobit++) {
+                std::list<Job *>::iterator cjobit;
+                for (cjobit = children.begin() ; cjobit != children.end() ;
+                     cjobit++) {
+                    if (!dag->AddDependency (*pjobit, *cjobit)) {
                         debug_println (DEBUG_QUIET,
                                        "Failed to add dependency to dag");
                         fclose(fp);
@@ -285,9 +289,9 @@ bool parse (char *filename, Dag *dag) {
                     }
                     if (DEBUG_LEVEL(DEBUG_DEBUG_3)) {
                         printf ("%s: Added Dependency PARENT: ", __FUNCTION__);
-                        parent->Print();
+                        (*pjobit)->Print();
                         printf ("  CHILD: ");
-                        child->Print();
+                        (*cjobit)->Print();
                         putchar ('\n');
                     }
                 }
@@ -307,3 +311,5 @@ bool parse (char *filename, Dag *dag) {
     }
     return true;
 }
+
+} // namespace dagman

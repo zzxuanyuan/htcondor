@@ -1,9 +1,7 @@
 #ifndef JOB_H
 #define JOB_H
 
-#include "condor_common.h"      /* for <stdio.h> */
-#include "condor_constants.h"   /* from condor_includes/ directory */
-#include "simplelist.h"         /* from condor_c++_util/ directory */
+#include <list>
 
 //
 // Local DAGMan includes
@@ -11,6 +9,8 @@
 #include "types.h"
 #include "debug.h"
 #include "script.h"
+
+namespace dagman {
 
 /**  A Job instance will be used to pass job attributes to the
      AddJob() function.
@@ -56,7 +56,7 @@ class Job {
     Script * _scriptPost;
 
     ///
-    inline SimpleList<JobID_t> & GetQueueRef (const queue_t queue) {
+    inline std::list<JobID_t> & GetQueueRef (const queue_t queue) {
         return _queues[queue];
     }
 
@@ -67,7 +67,8 @@ class Job {
         @return true: success, false: failure (lack of memory)
     */
     inline bool Add (const queue_t queue, const JobID_t jobID) {
-        return _queues[queue].Append(jobID);
+        _queues[queue].push_back(jobID);
+        return true;
     }
 
     /** Returns true if this job is ready for submittion.
@@ -83,11 +84,11 @@ class Job {
         @param queue The queue to add the job to
         @return true: success, false: failure (jobID not found in queue)
     */
-    bool Remove (const queue_t queue, const JobID_t jobID);
+    void Remove (const queue_t queue, const JobID_t jobID);
 
     ///
     inline bool IsEmpty (const queue_t queue) const {
-        return _queues[queue].IsEmpty();
+        return _queues[queue].empty();
     }
  
     /** Dump the contents of this Job to stdout for debugging purposes.
@@ -116,7 +117,7 @@ class Job {
         outgoing -> dependencies going out of the Job
         waiting -> Jobs on which the current Job is waiting for output 
     */
-    SimpleList<JobID_t> _queues[3];
+    std::list<JobID_t> _queues[3];
   
     /** The ID of this job.  This serves as a primary key for Job's, where each
         Job's ID is unique from all the rest
@@ -131,5 +132,6 @@ class Job {
 
 void job_print (Job * job, bool condorID = false);
 
+} // namespace dagman
 
 #endif /* ifndef JOB_H */

@@ -6,6 +6,8 @@
 #include "job.h"
 #include "types.h"
 
+namespace dagman {
+
 //-----------------------------------------------------------------------------
 Script::~Script () {
     delete [] _cmd;
@@ -41,3 +43,5 @@ int Script::Run () {
     delete [] cmd;
     return _retValScript = util_popen (send.str());
 }
+
+} // namespace dagman

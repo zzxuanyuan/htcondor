@@ -3,6 +3,8 @@
 
 #include "condor_header_features.h"
 
+namespace dagman {
+
 BEGIN_C_DECLS   /* from condor_header_features.h */
 
 /** @name debug.h
@@ -137,6 +139,8 @@ void debug_perror (int error, debug_level_t level, const char *s);
 //@}
 
 END_C_DECLS /* from condor_header_features.h */
+
+} // namespace dagman
 
 #endif /* ifndef DAGMAN_DEBUG_H */
 

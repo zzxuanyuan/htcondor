@@ -2,6 +2,8 @@
 #include "debug.h"
 #include "util.h"
 
+namespace dagman {
+
 //------------------------------------------------------------------------
 int util_getline(FILE *fp, char *line, int max) {
   int c, i = 0;
@@ -131,3 +133,4 @@ int getline (FILE *fp, char *line, int max) {
 }
 #endif
 
+} // namespace dagman

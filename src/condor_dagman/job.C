@@ -1,6 +1,10 @@
 #include "condor_common.h"
-#include "job.h"
 #include "condor_string.h"
+
+// DAGMan Includes
+#include "job.h"
+
+namespace dagman {
 
 //---------------------------------------------------------------------------
 JobID_t Job::_jobID_counter = 0;  // Initialize the static data memeber
@@ -43,16 +47,8 @@ Job::Job (const char *jobName, const char *cmdFile):
 }
 
 //---------------------------------------------------------------------------
-bool Job::Remove (const queue_t queue, const JobID_t jobID) {
-    _queues[queue].Rewind();
-    JobID_t currentJobID;
-    while(_queues[queue].Next(currentJobID)) {
-        if (currentJobID == jobID) {
-            _queues[queue].DeleteCurrent();
-            return true;
-        }
-    }
-    return false;   // Element Not Found
+void Job::Remove (const queue_t queue, const JobID_t jobID) {
+    _queues[queue].remove(jobID);
 }  
 
 //---------------------------------------------------------------------------
@@ -68,9 +64,10 @@ void Job::Dump () const {
   
     for (int i = 0 ; i < 3 ; i++) {
         printf ("%15s: ", queue_t_names[i]);
-        SimpleListIterator<JobID_t> iList (_queues[i]);
-        JobID_t jobID;
-        while (iList.Next(jobID)) printf ("%d, ", jobID);
+
+        std::list<int>::const_iterator it;
+        for (it = _queues[i].begin() ; it != _queues[i].end() ; it++)
+            printf ("%d, ", *it);
         printf ("<END>\n");
     }
 }
@@ -85,7 +82,9 @@ void Job::Print (bool condorID) const {
 }
 
 //---------------------------------------------------------------------------
-void job_print (Job * job, bool condorID = false) {
+void job_print (Job * job, bool condorID) {
     if (job == NULL) printf ("(UNKNOWN)");
     else job->Print(condorID);
+}
+
 }

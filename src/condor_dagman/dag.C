@@ -1,21 +1,32 @@
+#include "condor_common.h"
+#include "condor_string.h"  /* for strnewp() */
+
 //
 // Local DAGMan includes
 //
-#include "condor_common.h"
-#include "dag.h"
 #include "debug.h"
 #include "submit.h"
 #include "util.h"
+#include "dag.h"
 
-#include "simplelist.h"     /* should be replaced by STL library */
-#include "condor_string.h"  /* for strnewp() */
+namespace dagman {
+
+ostream & operator << (ostream & out, const std::list<JobID_t> & jobs) {
+    std::list<JobID_t>::const_iterator it;
+    out << '(';
+    for (it = jobs.begin() ; it != jobs.end() ; it++) out << (*it) << ',';
+    cout << "<end>)";
+    return out;
+}
+
 
 //---------------------------------------------------------------------------
 void TQI::Print () const {
     printf ("Job: ");
     job_print(parent);
     printf (", Children: ");
-    children.Display(cout);
+    cout << children;
+    // children.Display(cout);
 }
 
 //---------------------------------------------------------------------------
@@ -57,35 +68,36 @@ bool Dag::Bootstrap (bool recovery) {
 
     {
         TQI * god = new TQI;   // Null parent and empty children list
-        ListIterator<Job> iList (_jobs);
-        Job * job;
-        while (iList.Next(job)) {
-            if (job->IsEmpty(Job::Q_INCOMING))
-                god->children.Append(job->GetJobID());
-        }
-        _termQ.Append (god);
-    }
 
-    _termQLock = false;
-    
-    //--------------------------------------------------
-    // Update dependencies for pre-terminated jobs
-    // (jobs marks DONE in the dag input file)
-    //--------------------------------------------------
-    Job * job;
-    ListIterator<Job> iList (_jobs);
-    while ((job = iList.Next()) != NULL) {
-        if (job->_Status == Job::STATUS_DONE) TerminateJob(job);
+        std::list<Job *>::iterator it;
+        for (it = _jobs.begin() ; it != _jobs.end() ; it++) {
+            if ((*it)->IsEmpty(Job::Q_INCOMING)) {
+                god->children.push_back ((*it)->GetJobID());
+            }
+        }
+
+        _termQ.push_back (god);
     }
     
-    debug_println (DEBUG_VERBOSE, "Number of Pre-completed Jobs: %d",
-                   NumJobsDone());
+     _termQLock = false;
     
-    if (recovery) {
-        debug_println (DEBUG_NORMAL, "Running in RECOVERY mode...");
-        if (!ProcessLogEvents (recovery)) return false;
-    }
-    return SubmitReadyJobs();
+     //--------------------------------------------------
+     // Update dependencies for pre-terminated jobs
+     // (jobs marks DONE in the dag input file)
+     //--------------------------------------------------
+     std::list<Job *>::iterator it;
+     for (it = _jobs.begin() ; it != _jobs.end() ; it++) {
+         if ((*it)->_Status == Job::STATUS_DONE) TerminateJob(*it);
+     }
+    
+     debug_println (DEBUG_VERBOSE, "Number of Pre-completed Jobs: %d",
+                    NumJobsDone());
+    
+     if (recovery) {
+         debug_println (DEBUG_NORMAL, "Running in RECOVERY mode...");
+         if (!ProcessLogEvents (recovery)) return false;
+     }
+     return SubmitReadyJobs();
 }
 
 //-------------------------------------------------------------------------
@@ -101,11 +113,9 @@ bool Dag::AddDependency (Job * parent, Job * child) {
 
 //-------------------------------------------------------------------------
 Job * Dag::GetJob (const JobID_t jobID) const {
-    ListIterator<Job> iList (_jobs);
-    Job * job;
-    iList.ToBeforeFirst();
-    while ((job = iList.Next()) != NULL) {
-        if (job->GetJobID() == jobID) return job;
+    std::list<Job *>::const_iterator it;
+    for (it = _jobs.begin() ; it != _jobs.end() ; it++) {
+        if ((*it)->GetJobID() == jobID) return *it;
     }
     return NULL;
 }
@@ -227,7 +237,7 @@ bool Dag::ProcessLogEvents (bool recovery) {
                       result = false;
                   }
               }
-              break;
+               break;
               
               case ULOG_CHECKPOINTED:
               case ULOG_JOB_EVICTED:
@@ -248,8 +258,8 @@ bool Dag::ProcessLogEvents (bool recovery) {
                   Job * job = GetJob (condorID);
                   
                   if (DEBUG_LEVEL(DEBUG_VERBOSE)) {
-                    job_print(job, true);
-                    putchar ('\n');
+                      job_print(job, true);
+                      putchar ('\n');
                   }
                   
                   if (job == NULL) {
@@ -267,7 +277,7 @@ bool Dag::ProcessLogEvents (bool recovery) {
                   //
                   if (job->_scriptPost != NULL) {
                       job->_scriptPost->_retValJob = termEvent->normal
-                          ? termEvent->returnValue : -1;
+                                                     ? termEvent->returnValue : -1;
                       int ret = job->_scriptPost->Run();
                       if (ret != 0) {
                           job->_Status = Job::STATUS_ERROR;
@@ -284,7 +294,7 @@ bool Dag::ProcessLogEvents (bool recovery) {
                   // If the job terminated abnormally, abort DAGMan
                   //
                   if (! (termEvent->normal &&
-                                termEvent->returnValue == 0)) {
+                         termEvent->returnValue == 0)) {
                       job->_Status = Job::STATUS_ERROR;
                       if (DEBUG_LEVEL(DEBUG_QUIET)) {
                           printf ("Job ");
@@ -312,9 +322,9 @@ bool Dag::ProcessLogEvents (bool recovery) {
                   }
                   if (job->_Status == Job::STATUS_ERROR) _numJobsFailed++;
               }
-              break;
+               break;
               
-              //--------------------------------------------------
+               //--------------------------------------------------
               case ULOG_SUBMIT:
                 
                 // search Job List for next eligible
@@ -358,19 +368,19 @@ bool Dag::ProcessLogEvents (bool recovery) {
 
 //---------------------------------------------------------------------------
 Job * Dag::GetJob (const char * jobName) const {
-    ListIterator<Job> iList (_jobs);
-    Job * job;
-    while ((job = iList.Next())) {
-        if (strcmp(job->GetJobName(), jobName) == 0) return job;
+    std::list<Job *>::const_iterator it;
+    for (it = _jobs.begin() ; it != _jobs.end() ; it++) {
+        if (strcmp((*it)->GetJobName(), jobName) == 0) return *it;
     }
     return NULL;
 }
 
 //---------------------------------------------------------------------------
 Job * Dag::GetJob (const CondorID condorID) const {
-    ListIterator<Job> iList (_jobs);
-    Job * job;
-    while ((job = iList.Next())) if (job->_CondorID == condorID) return job;
+    std::list<Job *>::const_iterator it;
+    for (it = _jobs.begin() ; it != _jobs.end() ; it++) {
+        if ((*it)->_CondorID == condorID) return *it;
+    }
     return NULL;
 }
 
@@ -419,13 +429,12 @@ bool Dag::Submit (Job * job) {
 
 //---------------------------------------------------------------------------
 void Dag::PrintJobList() const {
-    Job * job;
     printf ("Dag Job List:\n");
 
-    ListIterator<Job> iList (_jobs);
-    while ((job = iList.Next()) != NULL) {
+    std::list<Job *>::const_iterator it;
+    for (it = _jobs.begin() ; it != _jobs.end() ; it++) {
         printf ("---------------------------------------");
-        job->Dump();
+        (*it)->Dump();
         putchar ('\n');
     }
     printf ("---------------------------------------");
@@ -435,16 +444,16 @@ void Dag::PrintJobList() const {
 //---------------------------------------------------------------------------
 void Dag::Print_TermQ () const {
     printf ("Termination Queue:");
-    if (_termQ.IsEmpty()) {
+    if (_termQ.empty()) {
         printf (" <empty>\n");
         return;
     } else putchar('\n');
 
-    ListIterator<TQI> q_iter (_termQ);
-    TQI * tqi;
-    while (q_iter.Next(tqi)) {
+    std::list<TQI *>::const_iterator it;
+
+    for (it = _termQ.begin() ; it != _termQ.end() ; it++) {
         printf ("  ");
-        tqi->Print();
+        (*it)->Print();
         putchar ('\n');
     }
 }
@@ -456,18 +465,16 @@ void Dag::RemoveRunningJobs () const {
     unsigned int len  = 0;  // Number of character in cmd so far
     unsigned int jobs = 0;  // Number of jobs appended to cmd so far
 
-    ListIterator<Job> iList(_jobs);
-    Job * job;
-    while (iList.Next(job)) {
-
+    std::list<Job *>::const_iterator it;
+    for (it = _jobs.begin() ; it != _jobs.end() ; it++) {
         if (jobs == 0) {
             len = 0;
             len += sprintf (cmd, "condor_rm");
         }
 
-        if (job->_Status == Job::STATUS_SUBMITTED) {
+        if ((*it)->_Status == Job::STATUS_SUBMITTED) {
             // Should be snprintf(), but doesn't exist on all platforms
-            len += sprintf (&cmd[len], " %d", job->_CondorID._cluster);
+            len += sprintf (&cmd[len], " %d", (*it)->_CondorID._cluster);
             jobs++;
         }
 
@@ -492,7 +499,6 @@ void Dag::Rescue (const char * rescue_file, const char * datafile) const {
         return;
     }
 
-    fprintf (fp, "### DAGMan 6.1.1\n");
     fprintf (fp, "# Rescue DAG file, created after running\n");
     fprintf (fp, "#   the %s DAG file\n", datafile);
     fprintf (fp, "#\n");
@@ -504,11 +510,10 @@ void Dag::Rescue (const char * rescue_file, const char * datafile) const {
     // Print the names of failed Jobs
     //
     fprintf (fp, "#   ");
-    ListIterator<Job> it (_jobs);
-    Job * job;
-    while (it.Next(job)) {
-        if (job->_Status == Job::STATUS_ERROR) {
-            fprintf (fp, "%s,", job->GetJobName());
+    std::list<Job *>::const_iterator it;
+    for (it = _jobs.begin() ; it != _jobs.end() ; it++) {
+        if ((*it)->_Status == Job::STATUS_ERROR) {
+            fprintf (fp, "%s,", (*it)->GetJobName());
         }
     }
     fprintf (fp, "<ENDLIST>\n\n");
@@ -516,17 +521,17 @@ void Dag::Rescue (const char * rescue_file, const char * datafile) const {
     //
     // Print JOBS and SCRIPTS
     //
-    it.ToBeforeFirst();
-    while (it.Next(job)) {
-        fprintf (fp, "JOB %s %s %s\n", job->GetJobName(), job->GetCmdFile(),
-                 job->_Status == Job::STATUS_DONE ? "DONE" : "");
-        if (job->_scriptPre != NULL) {
-            fprintf (fp, "SCRIPT PRE  %s %s\n", job->GetJobName(),
-                     job->_scriptPre->GetCmd());
+    for (it = _jobs.begin() ; it != _jobs.end() ; it++) {
+        fprintf (fp, "JOB %s %s %s\n", (*it)->GetJobName(),
+                 (*it)->GetCmdFile(),
+                 (*it)->_Status == Job::STATUS_DONE ? "DONE" : "");
+        if ((*it)->_scriptPre != NULL) {
+            fprintf (fp, "SCRIPT PRE  %s %s\n", (*it)->GetJobName(),
+                     (*it)->_scriptPre->GetCmd());
         }
-        if (job->_scriptPre != NULL) {
-            fprintf (fp, "SCRIPT POST %s %s\n", job->GetJobName(),
-                     job->_scriptPost->GetCmd());
+        if ((*it)->_scriptPre != NULL) {
+            fprintf (fp, "SCRIPT POST %s %s\n", (*it)->GetJobName(),
+                     (*it)->_scriptPost->GetCmd());
         }
     }
 
@@ -534,16 +539,15 @@ void Dag::Rescue (const char * rescue_file, const char * datafile) const {
     // Print Dependency Section
     //
     fprintf (fp, "\n");
-    it.ToBeforeFirst();
-    while (it.Next(job)) {
-        SimpleList<JobID_t> & _queue = job->GetQueueRef(Job::Q_OUTGOING);
-        if (!_queue.IsEmpty()) {
-            fprintf (fp, "PARENT %s CHILD", job->GetJobName());
+    for (it = _jobs.begin() ; it != _jobs.end() ; it++) {
+        std::list<JobID_t> & queue = (*it)->GetQueueRef(Job::Q_OUTGOING);
+        if (!queue.empty()) {
+            fprintf (fp, "PARENT %s CHILD", (*it)->GetJobName());
             
-            SimpleListIterator<JobID_t> jobit (_queue);
-            JobID_t jobID;
-            while (jobit.Next(jobID)) {
-                Job * child = GetJob(jobID);
+            std::list<JobID_t>::const_iterator jobIDit;
+            for (jobIDit = queue.begin() ; jobIDit != queue.end() ;
+                 jobIDit++) {
+                Job * child = GetJob(*jobIDit);
                 assert (child != NULL);
                 fprintf (fp, " %s", child->GetJobName());
             }
@@ -568,25 +572,25 @@ void Dag::TerminateJob (Job * job) {
     // Report termination to all child jobs by removing parent's ID from
     // each child's waiting queue.
     //
-    SimpleList<JobID_t> & qp = job->GetQueueRef(Job::Q_OUTGOING);
-    SimpleListIterator<JobID_t> iList (qp);
-    JobID_t childID;
-    while (iList.Next(childID)) {
-        Job * child = GetJob(childID);
+    std::list<JobID_t> & qp = job->GetQueueRef(Job::Q_OUTGOING);
+    std::list<JobID_t>::iterator it;
+    for (it = qp.begin() ; it != qp.end() ; it++) {
+        Job * child = GetJob(*it);
         assert (child != NULL);
         child->Remove(Job::Q_WAITING, job->GetJobID());
     }
     _numJobsDone++;
     _numJobsRunning--;
     assert (_numJobsRunning >= 0);
-    assert (_numJobsDone <= _jobs.Number());
+    assert ((unsigned)_numJobsDone <= _jobs.size());
 
     //
     // Add job and its dependants to the termination queue
     //
-    TQI * tqi = new TQI (job, qp);
-    assert (!_termQLock);
-    if (!job->IsEmpty(Job::Q_OUTGOING)) _termQ.Append(tqi);
+    if (!job->IsEmpty(Job::Q_OUTGOING)) {
+        assert (!_termQLock);
+        _termQ.push_back ( new TQI(job,qp) );
+    }
 }
 
 //---------------------------------------------------------------------------
@@ -594,8 +598,6 @@ Job * Dag::GetSubmittedJob (bool recovery) {
 
     assert (!_termQLock);
     _termQLock = true;
-
-    _termQ.Rewind();
 
     Job * job_found = NULL;
 
@@ -615,16 +617,21 @@ Job * Dag::GetSubmittedJob (bool recovery) {
     // same way the original child job was removed.
 
     bool found = false;  // Flag signally the discovery of a submitted child
-    TQI * tqi;           // The current termination queue item being scanned
-    while (_termQ.Next(tqi)) {
-        assert (!tqi->children.IsEmpty());
-        tqi->children.Rewind();
+    std::list<TQI *>::iterator tqi;
+    for (tqi = _termQ.begin() ; tqi != _termQ.end() ;
+         /* tqi iterated at end of loop */) {
+        assert (!(*tqi)->children.empty());
+
         JobID_t match_ID;  // The current Job ID being examined
         JobID_t found_ID;  // The ID of the original child found
 
         bool found_on_this_line = false;  // for debugging
 
-        while (tqi->children.Next(match_ID)) {
+        std::list<JobID_t>::iterator child;
+        for (child = (*tqi)->children.begin() ;
+             child != (*tqi)->children.end() ;
+             /* child iterated at end of loop */) {
+            match_ID = *child;
             bool kill = false;  // Flag whether this child should be removed
             if (found) {
                 if (match_ID == found_ID) {
@@ -647,16 +654,35 @@ Job * Dag::GetSubmittedJob (bool recovery) {
             }
 
             if (kill) {
-                tqi->children.DeleteCurrent();
-                if (tqi->children.IsEmpty()) _termQ.DeleteCurrent();
-                //break; // There shouldn't be duplicate children for this job
-            }
+                // The C++ Library Spec (http://www.dinkumware.com/htm_cpl/)
+                // says that the erase meathod should
+                // "return an iterator that designates the first element
+                // remaining beyond any elements removed, or end() if no
+                // such element exists."
+                //   iterator erase(iterator it);
+                // But it only returns void.
+
+                // child = (*tqi)->children.erase(child);
+                std::list<JobID_t>::iterator next_child = child;  next_child++;
+                (*tqi)->children.erase(child);
+                child = next_child;
+
+                break; // There shouldn't be duplicate children for this job
+            } else child++;
         }
 
         // Note that found must become true during the first terminated job
         // for the scan of the rest of the termination queue (_termQ)
         // to continue
         if (!found) break;
+
+        // If all the children are deleted, then delete this TQI
+        if ((*tqi)->children.empty()) {
+            // tqi = _termQ.erase (tqi);
+            std::list<TQI *>::iterator next_tqi = tqi;  next_tqi++;
+            _termQ.erase (tqi);
+            tqi = next_tqi;
+        } else tqi++;
     }
     _termQLock = false;
     if (recovery && job_found != NULL) {
@@ -667,19 +693,20 @@ Job * Dag::GetSubmittedJob (bool recovery) {
 
 //-------------------------------------------------------------------------
 bool Dag::SubmitReadyJobs () {
-    if (_termQ.IsEmpty()) return true;
+    if (_termQ.empty()) return true;
     assert (!_termQLock);
     _termQLock = true;
 
-    _termQ.Rewind();
-    TQI * tqi = _termQ.Next();
-    assert (tqi != NULL);
-    assert (!tqi->children.IsEmpty());
-    tqi->children.Rewind();
-    JobID_t jobID;
-    while (tqi->children.Next(jobID) &&
-           (_numJobsRunningMax == 0 || _numJobsRunning < _numJobsRunningMax)) {
-        Job * job = GetJob(jobID);
+    std::list<TQI *>::const_iterator tqi = _termQ.begin();
+    assert (tqi != _termQ.end());
+    assert (!(*tqi)->children.empty());
+
+    std::list<JobID_t>::iterator jobit;
+    for (jobit = (*tqi)->children.begin() ;
+         jobit != (*tqi)->children.end() && (
+             _numJobsRunningMax==0 || _numJobsRunning < _numJobsRunningMax);
+         jobit++) {
+        Job * job = GetJob(*jobit);
         assert (job != NULL);
         if (job->CanSubmit()) {
             if (!Submit (job)) {
@@ -695,3 +722,5 @@ bool Dag::SubmitReadyJobs () {
     _termQLock = false;
     return true;
 }
+
+} // using namespace dagman
