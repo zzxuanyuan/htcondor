@@ -55,12 +55,14 @@ EXTRACT = FORK.o GETEUID.o GETPPID.o GETEGID.o GETCWD.o \
 #	elif IS_X86_SOLARIS251
 EXTRACT = FORK.o SIGACTION.o GETEUID.o GETPPID.o GETEGID.o \
 		  MMAP.o SYSCALL.o PIPE.o _SIGACTION.o TRUNCATE.o GETCWD.o \
-		  i386_data.o SYSCONF.o GETLOGIN.o GETRUSAGE.o setjmp.o
+		  i386_data.o SYSCONF.o GETLOGIN.o GETRUSAGE.o setjmp.o \
+		  cerror.o cerror64.o
 #	elif IS_X86_SOLARIS26
 EXTRACT = FORK.o SIGACTION.o GETEUID.o GETPPID.o GETEGID.o \
 		  MMAP.o SYSCALL.o PIPE.o _SIGACTION.o TRUNCATE.o \
 		  GETCWD.o GETRUSAGE.o \
-		  i386_data.o SYSCONF.o GETLOGIN.o LSEEK64.o setjmp.o
+		  i386_data.o SYSCONF.o GETLOGIN.o LSEEK64.o setjmp.o \
+		  cerror.o cerror64.o
 #	elif IS_SUN4X_SOLARIS251
 EXTRACT = FORK.o SIGACTION.o GETEUID.o GETPPID.o GETEGID.o \
 		  MMAP.o SYSCALL.o PIPE.o _SIGACTION.o TRUNCATE.o GETCWD.o \
@@ -126,7 +128,7 @@ SRC = \
 	receivers.epilogue \
 	receivers.prologue \
 	remote_startup_common.c \
-	remote_startup_vanilla.c \
+	remote_startup_std.c \
 	remote_startup_rtlink.C \
 	remote_syscall.C \
 	senders.epilogue \
@@ -178,7 +180,7 @@ SPECIAL_IO_SRC = authentication.C
 
 LIB_OBJ = $(EXTRACT) $(STUBS) $(UTIL) $(NAME_TAB) $(XDR_OBJ) $(UTIL_OBJ) \
 	$(CKPT_OBJ) $(UTIL_EXTRACT) $(IOS_STUBS) $(IO_OBJ) $(SPECIAL_IO_OBJ) \
-	remote_startup_vanilla.o
+	remote_startup_std.o
 
 RT_LIB_OBJ = $(EXTRACT) $(STUBS) $(UTIL) $(NAME_TAB) $(XDR_OBJ) $(UTIL_OBJ) \
 	$(CKPT_OBJ) $(UTIL_EXTRACT) $(IOS_STUBS) $(IO_OBJ) $(SPECIAL_IO_OBJ) \
@@ -299,6 +301,10 @@ SYSCONF.o :  $(SIMPLE_LIBC)  ToUpper
 
 setjmp.o:
 	ar x $(SIMPLE_LIBC) setjmp.o
+cerror.o:
+	ar x $(SIMPLE_LIBC) cerror.o
+cerror64.o:
+	ar x $(SIMPLE_LIBC) cerror64.o
 #endif
 
 #if DOES_CHECKPOINTING || DOES_REMOTE_SYSCALLS
@@ -419,9 +425,7 @@ clean::
 import(../condor_ckpt,$(STANDALONE_COMPRESS_LIB))
 #endif
 
-rtlink_init.o: rtlink_init.c
-	$(NATIVECC) $(NATIVEPIC) -c $<
-native_shlib_target(librtlink_startup.so,rtlink_init.o,)
+shlib_target(librtlink_startup.so,rtlink_init.o,)
 
 shlib_target(libcondor_syscall_lib.so,$(RT_LIB_OBJ) $(SYMS),-lnsl -lsocket)
 

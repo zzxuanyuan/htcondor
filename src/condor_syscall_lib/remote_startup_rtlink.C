@@ -35,12 +35,11 @@ static char *_FileName_ = __FILE__;
 /* Startup for runtime-linked jobs.  Both first-time job startup and
    checkpoint restart are handled here.
 
-                       HOW THIS FILE WORKS
-
-   We cannot interpose Condor code between _start and main, as Vanilla
-jobs do.  Instead we use LD_PRELOAD to load the Condor libraries
-before any other shlibs are loaded by the app.  The first library we
-load, librtlink_init.so, has a .init section that calls rtlink_init().
+   We cannot interpose Condor code between _start and main, as
+standard jobs do.  Instead we use LD_PRELOAD to load the Condor
+libraries before any other shlibs are loaded by the app.  The first
+library we load, librtlink_init.so, has a .init section that calls
+rtlink_init().
 
    A side effect of LD_PRELOAD is that Condor system calls are also
 loaded before the standard definitions in libc, and consequently the
@@ -65,63 +64,6 @@ appear to be repetition of previous work are really operations in
 distinct libraries.  For example, there are two calls to
 _condor_prestart() in the restart path here, but one happens from
 libcondor_syscall_lib, the other librtlink_restart.
-
-
-                      HOW LIBRTLINK_RESTART WORKS
-
-	librtlink_restart.so requires some special preparation.  The goal
-is to create a "self-contained" shlib with enough code to load the
-ckpt image, copy it into the process, and return to the user app.  In
-terms of image.C functions, it needs to implement Image::Restore.
-
-	"Self-contained" means that the library contains a definition for
-every symbol it references.  As a self-contained library,
-librtlink_restart can execute without relying on definitions in other
-shlibs or the executable.  It can thus scribble arbitrarily on any
-portion of the address space, other than the space it occupies,
-without fear of clobbering code or data that it may later reference.
-This is how it safely restores the ckpt image.
-
-	Making librestart self-contained requires special linker options.
-Ordinarily, if librtlink_restart references and defines a symbol FOO
-that is also defined in another shlib or the executable, the reference
-may be resolved to the latter definition.  Although librtlink_restart
-has the potential to be self-contained, since it defines FOO, the
-default behavior is to bind its references into previously loaded
-objects first, rather than into itself.  (This behavior is a feature
--- we rely upon it to interpose syscall RPCs without re-linking the
-executable.)  A linker option that both gcc and the native Solaris ld
-call "symbolic binding" changes this behavior to bind all references
-internally within librtlink_restart.
-
-    Symbolic binding is a pain in the ass.  It is invoked in the
-native Solaris ld with the "-B symbolic" option, and in gcc with
-"-symbolic".  ld coredumps when symbolic binding is invoked.  gcc is
-no help: it calls ld, passing it "-B symbolic" as well as the option
-"-z text".  This second option causes the link to fail for what look
-like data relocation errors; we expect the link would coredump anyway
-from "-B symbolic".  Even if ld were fixed, or if the (presumably
-functional) GNU ld were used instead, we cannot use gcc until we
-figure out how to make the relocation errors go away (or get gcc to
-NOT pass "-z text" to ld).
-
-    We ignore "-z text" and workaround the Solaris ld coredump.  ld is
-happy when we compile some of the .o's in librestart into PIC
-(position independent code), using the "-f pic" option to gcc.  It
-suffices to compile the objects in condor_syscall_lib/ and
-condor_ckpt/ into PIC; the objects in e.g. condor_util_lib/ and
-condor_io/ need not be PIC.  The precise concentration of PIC needed
-to link librestart without causing ld to foul the nest is unknown.
-
-    So, we have done the following: the condor_syscall_lib/ and
-condor_ckpt/ objects are compiled -fpic to keep ld happy; and the
-native ld is explicitly called in the condor_syscall_lib/ Makefile to
-keep gcc from passing "-z text" to ld.
-
-    The exception is the code that transfers the stack pointer away
-from the real stack and into the data of librestart (ExecuteOnTmpStk).
-It fails when compiled into PIC (the algorithm does not work), so it
-is compiled normally.
 
 */
    
@@ -278,7 +220,7 @@ rtlink_restart()
 	void (*entry)(int, unsigned long, unsigned long, unsigned long);
 	int i;
 	unsigned long addrEnv;
-	unsigned long newbrk;
+	void *newbrk;
 	char buf[256];
 	char *libp;
 
@@ -328,7 +270,7 @@ rtlink_restart()
 
 	   In general, beware that the OS forbids advancing the brk into
 	   pages that have mmapped. */
-	newbrk = segmap_brk(ckptsegmap, numckptmmap);
+	newbrk = (void *) segmap_brk(ckptsegmap, numckptmmap);
 	mmap_brk(newbrk);
 
 	if (0 > mmap_get_process_mmap(procmmap, &numprocmmap)) {
