@@ -1165,11 +1165,14 @@ ClassAd *MirrorJob::buildSubmitAd()
 				  ATTR_STAGE_IN_START, ATTR_Q_DATE, 1800 );
 	submit_ad->Insert( expr.Value() );
 
-	// TODO add clause for ScheddBirthDate
-	expr.sprintf( "%s = %s == %s && (%s >= %s) =?= True && (CurrentTime > %s) =?= True",
+	// TODO In the current expression below, if the remote schedd crashes
+	//   and restarts, it'll wait 15 minutes for an updated lease before
+	//   releasing the mirror job. Should this timeout be based on the
+	//   lease update interval (15 minutes is 3 times the current default).
+	expr.sprintf( "%s = %s == %s && (%s >= %s) =?= True && (CurrentTime > %s) =?= True && (CurrentTime > %s + %d) =!= False",
 				  ATTR_PERIODIC_RELEASE_CHECK, ATTR_ENTERED_CURRENT_STATUS,
 				  ATTR_Q_DATE, ATTR_STAGE_IN_FINISH, ATTR_STAGE_IN_START,
-				  ATTR_MIRROR_LEASE_TIME );
+				  ATTR_MIRROR_LEASE_TIME, ATTR_SCHEDD_BIRTHDATE, 15*60 );
 	submit_ad->Insert( expr.Value() );
 
 	expr.sprintf( "%s = \"%s\"", ATTR_MIRROR_SUBMITTER_ID,
