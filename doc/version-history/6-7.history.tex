@@ -13,7 +13,10 @@ The details of each version are described below.
 
 \begin{itemize}
 
-\item None.
+\item MPI users who are upgrading from previous versions of Condor to 6.7.2
+will need to modify the MPI\_CONDOR\_RSH\_PATH setting of their dedicated
+resource to be LIBEXEC instead of SBIN. Users who are installing 6.7.2
+for the first time will not need to make any changes.
 
 \end{itemize}
 
@@ -49,6 +52,19 @@ conjunction with existing macro \Macro{JOB\_START\_DELAY} to pace job
 starts.  Together, this macro pair provides greater flexibility
 tuning job start rate versus available \Condor{schedd} performance.
 
+\item Added a libexec directory to the install process. Support commands that
+the Condor system needs will be added to this directory in future releases. This
+directory should not be added to a user or systemwide path.  
+
+\item Added the ability to decide for each file that condor transfers whether
+it should be encrypted or not, using encrypt\_input\_files, 
+dont\_encrypt\_input\_files, encrypt output files, and
+        dont\_encrypt\_output\_files in the job's submit file.
+
+\item Added DISABLE\_AUTHENTICATION\_IP\_CHECK which will work around problems
+on dual-homed machines where the IP address is reported incorrectly to condor.
+This is particularily a problem when using Kerberos on multi-homed machines.
+
 \end{itemize}
 
 \noindent Bugs Fixed:
@@ -73,6 +89,14 @@ tuning job start rate versus available \Condor{schedd} performance.
   immediately see this state change.
 
 \item Fixed a bug where you couldn't transfer input files larger than 2 Gigs.
+
+\item Condor can now detect the size of memory on a Linux machine with the 2.6
+kernel.
+
+\item JAR files specificed in the submit file were not being transfered
+along with the job unless they were also explicitly placed in the list
+of input files to transfer. Now, the JAR files are implicitly added to the
+list of input files to transfer.
 
 \end{itemize}
 
