@@ -58,9 +58,6 @@ ToolDaemonProc::ToolDaemonProc( ClassAd *jobAd, int application_pid )
 
 ToolDaemonProc::~ToolDaemonProc()
 {
-    if( JobAd ) {
-        delete JobAd;
-    }
 	if (family) {
 		delete family;
 	}
