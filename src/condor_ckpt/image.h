@@ -44,6 +44,7 @@ const int RESERVED_HEAP = 1024*1024*1024; // 1GB
 struct Incr_ckpt_data {
 	long total_pages;
 	long dirty_pages;
+	long orig_brk;
 	char bitmap[0];	// this is a stretchy array
 };
 
@@ -75,6 +76,7 @@ public:
 	RAW_ADDR GetLoc() { return core_loc; }
 	void SetLoc(RAW_ADDR addr) { core_loc = addr; }
 	long GetLen() { return len; }
+	char *GetBrk() { return (char *) core_loc + len; }
 	long GetPageCount(); 
 	void MSync();
 	BOOL Mprotect( int prot );	// for incr. ckpting
@@ -101,6 +103,7 @@ public:
 	/* incremental ckpting functions */
 	long TotalPages() { return incr_ckpt_data->total_pages; }
 	long DirtyPages() { return incr_ckpt_data->dirty_pages; }
+	long NewPages();
 	void PrintBitmap();
 	bool BitmapOK();
 	bool NewDirtyPage(char * page);

@@ -329,6 +329,30 @@ Image::GetSeg(const char * name ) {
 	return NULL;
 }
 
+// returns how many pages have been added to the data segment
+// if negative, the data segment has shrunk
+long
+Image::NewPages() {
+	char *orig_brk;
+	char *cur_brk;
+	SegMap *data;
+
+	if ( (data = GetSeg( "DATA" )) == NULL ) {
+		dprintf( D_ALWAYS, "Couldn't find DATA segment.\n" );
+		Suicide();
+	}
+
+	cur_brk  = (char *)sbrk(0);
+	orig_brk = (char *)data->GetBrk(); 
+	orig_brk = (char *)incr_ckpt_data->orig_brk;
+
+	if (orig_brk != cur_brk) {
+		dprintf( D_ALWAYS, "New pages: orig_brk was Ox%x, cur is Ox%x.\n",
+				orig_brk, cur_brk );
+	}
+	return (cur_brk - orig_brk) / getpagesize();
+}
+
 void
 Image::PrintBitmap()
 {
@@ -974,6 +998,7 @@ Image::InitIncrCkptSegment( )
 	incr_ckpt_data = (Incr_ckpt_data *) addr;
 	incr_ckpt_data->total_pages = totalPages;
 	incr_ckpt_data->dirty_pages = 0;
+	incr_ckpt_data->orig_brk    = data->GetBrk();
 	dprintf( D_ALWAYS, "Addr of bitmap is Ox%x\n", 
 			incr_ckpt_data->bitmap );
 
@@ -1723,6 +1748,22 @@ SegMap::Write( int fd, ssize_t pos )
 	return len;
 }
 
+#define MILLION 1000000
+long
+time_diff( struct timeval start, struct timeval end ) {
+
+	dprintf( D_ALWAYS, "startTime is %d:%d\nendTime is %d:%d.\n",
+						start.tv_sec, start.tv_usec, end.tv_sec, end.tv_usec );
+
+    long simplest = end.tv_sec * MILLION + end.tv_usec;
+	dprintf( D_ALWAYS, "simplest is %d\n", simplest );
+    simplest -= (start.tv_sec * MILLION + start.tv_usec);
+	dprintf( D_ALWAYS, "simplest is %d\n", simplest );
+
+    return simplest;
+}
+
+
 extern "C" {
 
 /*
@@ -1746,6 +1787,9 @@ Checkpoint( int sig, int code, void *scp )
 	int		scm, p_scm;
 	int		do_full_restart = 1; // set to 0 for periodic checkpoint
 	int		write_result;
+	long	ckptTime;
+	struct	timezone tz;
+	struct 	timeval  startTime, endTime;
 
 	/*
 		WARNING: Do not put any code here. This check prevents a race condition.
@@ -1776,6 +1820,10 @@ Checkpoint( int sig, int code, void *scp )
 	_condor_save_sigstates();
 	dprintf( D_ALWAYS, "Saved signal state.\n");
 
+		// start the clock
+    if ( gettimeofday( &startTime, &tz ) < 0 ) {
+        dprintf( D_ALWAYS, "Couldn't set start time.\n" );
+    }
 
 	check_sig = sig;
 
@@ -1860,8 +1908,8 @@ Checkpoint( int sig, int code, void *scp )
 			This will be the point to change the code to just write dirty pages
 		*/
 		if 	(_condor_numrestarts > 0) {
-			dprintf( D_ALWAYS, "Dirty DATA pages: %d / %d \n", 
-			MyImage.DirtyPages(), MyImage.TotalPages() );
+			dprintf( D_ALWAYS, "Dirty DATA pages: %d / %d (%d new)\n", 
+			MyImage.DirtyPages(), MyImage.TotalPages(), MyImage.NewPages() );
 			MyImage.PrintBitmap();
 				// for some reason, attempting to unmap the old seg will crash
 			//MyImage.DestroyIncrCkptSegment( );
@@ -1984,7 +2032,19 @@ Checkpoint( int sig, int code, void *scp )
 		dprintf( D_ALWAYS, "About to mprotect MyImage and setup new segment\n");
 		MyImage.InitIncrCkptSegment( );
 		MyImage.Mprotect ( PROT_READ );
-		dprintf( D_ALWAYS, "About to return to user code\n" );
+		// here is where to stop the timer
+		// start the clock
+    	if ( gettimeofday( &endTime, &tz ) < 0 ) {
+        	dprintf( D_ALWAYS, "Couldn't set start time.\n" );
+    	}
+		{
+		char OUTPUT[256];
+		ckptTime = time_diff( startTime, endTime );
+		sprintf( OUTPUT, "Checkpoint %3i took %9d microsecs.\n\0", 
+					_condor_numrestarts, ckptTime );
+		dprintf( D_ALWAYS, "%s", OUTPUT ); 
+		}
+		dprintf( D_ALWAYS, "About to return to user code\n"  );
 		InRestart = FALSE;
 		return;
 	}
