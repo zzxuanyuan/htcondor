@@ -952,7 +952,6 @@ output_remote_call( struct node *n, struct node *list )
 void
 output_tabled_call( struct node *n, struct node *list )
 {
-	printf( "\t\terrno = 0;\n" );
 	printf( "\t\t_condor_file_table_init();\n");
 	printf( "\t\trval = FileTab -> %s ( ", n->table_name );
 	output_param_list( list, 1, 0 );
@@ -1452,7 +1451,8 @@ output_switch( struct node *n )
 	printf( "%s %s ", node_type(n), n->id );
 	output_switch_decl( n->param_list );
 
-	printf("{\n\tint rval,do_local=0;\n\n");
+	printf("{\n\tint rval,do_local=0;\n");
+	printf( "\terrno = 0;\n\n" );
 
 	/* Notice this: The vararg generator only does enough to
 	   generate a third arg of size int.  */
