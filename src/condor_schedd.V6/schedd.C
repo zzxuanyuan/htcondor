@@ -1528,6 +1528,7 @@ ResponsibleForPeriodicExprs( ClassAd *jobad )
 {
 	int status=-1, univ=-1;
 	bool managed=false;
+	PROC_ID jobid;
 
 	jobad->LookupInteger(ATTR_JOB_STATUS,status);
 	jobad->LookupInteger(ATTR_JOB_UNIVERSE,univ);
@@ -1546,7 +1547,22 @@ ResponsibleForPeriodicExprs( ClassAd *jobad )
 			case UNEXPANDED:
 			case HELD:
 			case IDLE:
+			case COMPLETED:
 				return 1;
+			case REMOVED:
+				jobid.cluster = -1;
+				jobid.proc = -1;
+				jobad->LookupInteger(ATTR_CLUSTER_ID,jobid.cluster);
+				jobad->LookupInteger(ATTR_PROC_ID,jobid.proc);
+				if ( jobid.cluster > 0 && jobid.proc > -1 && 
+					 scheduler.FindSrecByProcID(jobid) )
+				{
+						// job removed, but shadow still exists
+					return 0;
+				} else {
+						// job removed, and shadow is gone
+					return 1;
+				}
 			default:
 				return 0;
 		}
@@ -1574,6 +1590,20 @@ PeriodicExprEval( ClassAd *jobad )
 	PROC_ID job_id;
 	job_id.cluster = cluster;
 	job_id.proc = proc;
+
+	if ( status == COMPLETED || status == REMOVED ) {
+		// Note: should also call DestroyProc on REMOVED, but 
+		// that will screw up globus universe jobs until we fix
+		// up confusion w/ MANAGED==True.  The issue is a job may be
+		// removed; if the remove failed, it may be placed on hold
+		// with managed==false.  If it is released again, we want the 
+		// gridmanager to go at it again.....  
+		// So for now, just call if status==COMPLETED -Todd <tannenba@cs.wisc.edu>
+		if ( status == COMPLETED ) {
+			DestroyProc(cluster,proc);
+		}
+		return 1;
+	}
 
 	UserPolicy policy;
 	policy.Init(jobad);
