@@ -101,13 +101,30 @@ int pclose(FILE *stream);
 	!!!THIS IS BAAAAD. We are just hacking the _NO_XOPEN4 since we
 	know what the value is. This should be fixed to correctly hold
 	onto the value and restore it afterward.
+* #if defined(IRIX65) && defined(IN_CKPT_LIB)
+* #undef _NO_XOPEN4
+* #define _NO_XOPEN4 1
+* #include <sys/socket.h>
+* #undef _NO_XOPEN4
+* #define _NO_XOPEN4 0
+* #endif
 */
-#if defined(IRIX65) && defined(IN_CKPT_LIB)
-#undef _NO_XOPEN4
-#define _NO_XOPEN4 1
-#include <sys/socket.h>
+#if defined(IRIX65)
+#undef _save_ABIAPI
+#define _save_ABIAPI _ABIAPI
+#undef _ABIAPI
+#define _ABIAPI 1
+#undef _save_NO_XOPEN4
+#define _save_NO_XOPEN4 _NO_XOPEN4
 #undef _NO_XOPEN4
 #define _NO_XOPEN4 0
+#include <sys/socket.h>
+#undef _NO_XOPEN4
+#define _NO_XOPEN4 _save_NO_XOPEN4
+#undef _save_NO_XOPEN4
+#undef _ABIAPI
+#define _ABIAPI _save_ABIAPI
+#undef _save_ABIAPI
 #endif
 
 #include <sys/select.h>
