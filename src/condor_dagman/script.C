@@ -21,6 +21,8 @@
  * WI 53706-1685, (608) 262-0856 or miron@cs.wisc.edu.
  ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
+#include <string>
+
 #include "condor_common.h"
 #include "condor_string.h"
 
@@ -62,7 +64,7 @@ Script::BackgroundRun( int reaperId )
 	// construct command line
     const char *delimiters = " \t";
     char * token;
-    string send;
+    std::string send;
     char * cmd = strnewp(_cmd);
     for (token = strtok (cmd,  delimiters) ; token != NULL ;
          token = strtok (NULL, delimiters)) {
@@ -75,7 +77,7 @@ Script::BackgroundRun( int reaperId )
     }
 
 	// char *env = environToString( (const char**)environ );
-	_pid = daemonCore->Create_Process( cmd, (char*) send.str(),
+	_pid = daemonCore->Create_Process( cmd, (char*) send.c_str(),
 									   PRIV_UNKNOWN, reaperId, TRUE,
 									   NULL, NULL, FALSE, NULL, NULL, 0 );
 	// delete [] env;
