@@ -82,7 +82,7 @@ MirrorResource::MirrorResource( const char *resource_name )
 		//   a gahp server can handle multiple schedds
 		MyString buff;
 		MyString buff2;
-		buff.sprintf( "MIRROR/%s", mirrorScheddName );
+		buff.sprintf( "MIRRORRESOURCE/%s", mirrorScheddName );
 		buff2.sprintf( "-f -s %s", mirrorScheddName );
 		gahp = new GahpClient( buff.Value(), gahp_path, buff2.Value() );
 		gahp->setNotificationTimerId( scheddPollTid );
@@ -156,10 +156,9 @@ int MirrorResource::DoScheddPoll()
 	}
 
 	if ( gahp->isStarted() == false ) {
-		// The gahp server isn't running yet. Let a job start it up and
-		// we're retry in a few seconds.
-		daemonCore->Reset_Timer( scheddPollTid, 5 );
-		return 0;
+		if ( gahp->Startup() == false ) {
+			EXCEPT( "Failed to start gahp server" );
+		}
 	}
 
 	daemonCore->Reset_Timer( scheddPollTid, TIMER_NEVER );
