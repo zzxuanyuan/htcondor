@@ -731,6 +731,14 @@ doContactSchedd()
 						  curr_job->procID.proc,
 						  ATTR_JOB_MANAGED,
 						  "FALSE" );
+			SetAttribute( curr_job->procID.cluster,
+						  curr_job->procID.proc,
+						  ATTR_JOB_MATCHED,
+						  "FALSE" );
+			SetAttributeInteger( curr_job->procID.cluster,
+						  curr_job->procID.proc,
+						  ATTR_CURRENT_HOSTS,
+						  0 );
 		}
 
 		if ( curr_action->actions & UA_DELETE_FROM_SCHEDD ) {
@@ -764,17 +772,21 @@ doContactSchedd()
 		// when we first start up in case we're recovering from a
 		// shutdown/meltdown.
 		// Otherwise, grab all jobs that are unheld and aren't marked as
-		// currently being managed.
+		// currently being managed and aren't marked as not matched.
 		// If JobManaged is undefined, equate it with false.
+		// If Matched is undefined, equate it with true.
 		if ( firstScheddContact ) {
 //			sprintf( expr_buf, "%s && %s == %d && !(%s == %d && %s =!= TRUE)",
-			sprintf( expr_buf, "%s && %s == %d && (%s == %d && %s =!= TRUE) == FALSE",
-					 owner_buf, ATTR_JOB_UNIVERSE, CONDOR_UNIVERSE_GLOBUS,
-					 ATTR_JOB_STATUS, HELD, ATTR_JOB_MANAGED );
+			sprintf( expr_buf, 
+				"%s && %s == %d && (%s =!= FALSE || %s =?= TRUE) && (%s == %d && %s =!= TRUE) == FALSE",
+					 owner_buf, ATTR_JOB_UNIVERSE, CONDOR_UNIVERSE_GLOBUS, 
+					 ATTR_JOB_MATCHED, ATTR_JOB_MANAGED, ATTR_JOB_STATUS, HELD,
+					 ATTR_JOB_MANAGED );
 		} else {
-			sprintf( expr_buf, "%s && %s == %d && %s != %d && %s =!= TRUE",
+			sprintf( expr_buf, 
+				"%s && %s == %d && %s =!= FALSE && %s != %d && %s =!= TRUE",
 					 owner_buf, ATTR_JOB_UNIVERSE, CONDOR_UNIVERSE_GLOBUS,
-					 ATTR_JOB_STATUS, HELD, ATTR_JOB_MANAGED );
+					 ATTR_JOB_MATCHED, ATTR_JOB_STATUS, HELD, ATTR_JOB_MANAGED );
 		}
 
 		next_ad = GetNextJobByConstraint( expr_buf, 1 );
@@ -782,9 +794,13 @@ doContactSchedd()
 			PROC_ID procID;
 			GlobusJob *old_job;
 			ClassAd *old_ad;
+			int job_is_managed = 0;		// default to false if not in ClassAd
+			int job_is_matched = 1;		// default to true if not in ClassAd
 
 			next_ad->LookupInteger( ATTR_CLUSTER_ID, procID.cluster );
 			next_ad->LookupInteger( ATTR_PROC_ID, procID.proc );
+			next_ad->LookupBool(ATTR_JOB_MANAGED,job_is_managed);
+			next_ad->LookupBool(ATTR_JOB_MATCHED,job_is_matched);
 
 			if ( JobsByProcID.lookup( procID, old_job ) != 0 ) {
 
@@ -792,12 +808,33 @@ doContactSchedd()
 				char resource_name[200];
 				GlobusResource *resource;
 
+				// job had better be either managed or matched! (or both)
+				ASSERT( job_is_managed || job_is_matched );
+
 				resource_name[0] = '\0';
-				next_ad->LookupString( ATTR_GLOBUS_RESOURCE, resource_name );
+					// If job is already being managed, the Globus resource is
+					// ATTR_GLOBUS_RESOURCE_INUSE; otherwise, it is 
+					// ATTR_GLOBUS_RESOURCE.
+				if ( job_is_managed ) {
+					next_ad->LookupString( ATTR_GLOBUS_RESOURCE_INUSE, 
+															resource_name );
+				} else {
+					next_ad->LookupString(ATTR_GLOBUS_RESOURCE, resource_name);
+					if ( strstr(resource_name,"$$") == 0 ) {
+						// Get the expanded ClassAd from the schedd, which
+						// has the globus resource filled in with info from
+						// the matched ad.
+						delete next_ad;
+						next_ad = NULL;
+						next_ad = GetJobAd(procID.cluster,procID.proc);
+						ASSERT(next_ad);
+					}
+				}
 
 				if ( resource_name[0] == '\0' ) {
 
-					dprintf( D_ALWAYS, "Job %d.%d has no Globus resource name!\n",
+					dprintf( D_ALWAYS, 
+							"ERROR: Job %d.%d has no Globus resource name!\n",
 							 procID.cluster, procID.proc );
 					// TODO: What do we do about this job? (put it on hold)
 
@@ -821,25 +858,31 @@ doContactSchedd()
 					JobsByProcID.insert( new_job->procID, new_job );
 					num_ads++;
 
-					SetAttribute( new_job->procID.cluster,
+					if ( !job_is_managed ) {
+						SetAttribute( new_job->procID.cluster,
 								  new_job->procID.proc,
 								  ATTR_JOB_MANAGED,
 								  "TRUE" );
+						SetAttributeString( new_job->procID.cluster,
+								  new_job->procID.proc,
+								  ATTR_GLOBUS_RESOURCE_INUSE,
+								  resource_name );
+					}
 
-				}
-
-			}
+				}	// end of if else we have a resource name
+			}	// end of if ( JobsByProcID.lookup( procID, old_job ) != 0 ) 
 
 			delete next_ad;
 
 			next_ad = GetNextJobByConstraint( expr_buf, 0 );
-		}
+		}	// end of while next_ad
 
 		dprintf(D_FULLDEBUG,"Fetched %d new job ads from schedd\n",num_ads);
 
 		firstScheddContact = false;
 		addJobsSignaled = false;
-	}
+	}	// end of handling add jobs
+
 	/////////////////////////////////////////////////////
 
 	// RemoveJobs

@@ -45,6 +45,7 @@ extern char *Spool;
 extern char *Name;
 extern char* JobHistoryFileName;
 extern Scheduler scheduler;
+extern bool	operator==( PROC_ID, PROC_ID );
 
 extern "C" {
 	int	prio_compar(prio_rec*, prio_rec*);
@@ -52,7 +53,7 @@ extern "C" {
 
 extern	int		Parse(const char*, ExprTree*&);
 extern  void    cleanup_ckpt_files(int, int, const char*);
-extern	bool	service_this_universe(int);
+extern	bool	service_this_universe(int, ClassAd *);
 static ReliSock *Q_SOCK = NULL;
 
 int		do_Q_request(ReliSock *);
@@ -1387,8 +1388,9 @@ GetJobAd(int cluster_id, int proc_id, bool expStartdAd)
 		ClassAd *startd_ad;
 		ClassAd *expanded_ad;
 		int index;
+			// Note: ATTR_JOB_CMD must be first in AttrsToExpand...
 		const char *AttrsToExpand[] = { ATTR_JOB_CMD, ATTR_JOB_ARGUMENTS,
-			ATTR_JOB_ENVIRONMENT, NULL };	// ATTR_JOB_CMD must be first
+			ATTR_JOB_ENVIRONMENT, ATTR_GLOBUS_RESOURCE, NULL };	
 		char *left,*name,*right,*value,*tvalue;
 
 		// we must make a deep copy of the job ad; we do not
@@ -1398,18 +1400,28 @@ GetJobAd(int cluster_id, int proc_id, bool expStartdAd)
 		job_id.cluster = cluster_id;
 		job_id.proc = proc_id;
 
-		if ((srec = scheduler.FindSrecByProcID(job_id)) == NULL) {
-			// pretty weird... no shadow, nothing we can do
-			return expanded_ad;
+		// find the startd ad.  this is done differently if the job
+		// is a globus universe jobs or not.
+		int	job_universe;
+		ad->LookupInteger(ATTR_JOB_UNIVERSE,job_universe);
+		if ( job_universe == CONDOR_UNIVERSE_GLOBUS ) {
+			// Globus job... find "startd ad" via our simple
+			// hash table.
+			startd_ad = NULL;
+			scheduler.resourcesByProcID->lookup(job_id,startd_ad);
+		} else {
+			// Not a Globus job... find startd ad via the shadow rec
+			if ((srec = scheduler.FindSrecByProcID(job_id)) == NULL) {
+				// pretty weird... no shadow, nothing we can do
+				return expanded_ad;
+			}
+			if ( srec->match == NULL ) {
+				// pretty weird... no match rec, nothing we can do
+				// could be a PVM job?
+				return expanded_ad;
+			}
+			startd_ad = srec->match->my_match_ad;
 		}
-
-		if ( srec->match == NULL ) {
-			// pretty weird... no match rec, nothing we can do
-			// could be a PVM job?
-			return expanded_ad;
-		}
-
-		startd_ad = srec->match->my_match_ad;
 
 		index = 0;
 		bool no_startd_ad = false;
@@ -1425,6 +1437,13 @@ GetJobAd(int cluster_id, int proc_id, bool expStartdAd)
 			// allocate a new buffer, and we have to free() it 
 			// later. (Not delete[] it, unfortunately.)
 			ad->LookupString(AttrsToExpand[index],&attribute_value);
+
+			if ( attribute_value == NULL ) {
+					// Did not find the attribute to expand in the job ad.
+					// Just move on to the next attribute...
+				index++;
+				continue;
+			}
 
 				// Some backwards compatibility: if the
 				// user just has $$opsys.$$arch in the
@@ -1759,7 +1778,7 @@ int get_job_prio(ClassAd *job)
     // No longer judge whether or not a job can run by looking at its status.
     // Rather look at if it has all the hosts that it wanted.
     if (cur_hosts>=max_hosts || job_status==HELD || 
-		   !service_this_universe(universe)) 
+		   !service_this_universe(universe,job)) 
 	{
         return cur_hosts;
 	}
@@ -2031,7 +2050,7 @@ int Runnable(ClassAd *job)
 				ATTR_JOB_UNIVERSE);
 		return FALSE;
 	}
-	if( !service_this_universe(universe) )
+	if( !service_this_universe(universe,job) )
 	{
 		dprintf(D_FULLDEBUG | D_NOHEADER," not runnable (Universe=%s)\n",
 			CondorUniverseName(universe) );
