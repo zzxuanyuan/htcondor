@@ -44,6 +44,7 @@ conditions with a standard universe job, there would be a cycle of an
 execute event followed by a termination event in the user log when the
 job had not actually ran.
 
+
 \end{itemize}
 
 \noindent Bugs fixed that are not included in version 6.7.5:
@@ -71,6 +72,12 @@ job had not actually ran.
   \MacroNI{SUBSYS\_EXPRS}.
   For more information about this setting, see
   section~\ref{param:SubsysExprs} on page~\pageref{param:SubsysExprs}.
+
+\item Fixed a bug which would cause Condor to fail to cache user GID
+information and potentially overwhelm NIS servers.
+
+\item Fixed another bug which could cause UDP machine updates to be
+dropped by the \Condor{collector}.
 
 \end{itemize}
 
