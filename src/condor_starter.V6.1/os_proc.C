@@ -240,9 +240,18 @@ OsProc::StartJob()
 	filename = Starter->jic->jobInputFilename();
 	if( filename ) {
 		if( (fds[0]=open(filename, O_RDONLY)) < 0 ) {
-			dprintf( D_ALWAYS, "failed to open stdin file %s, errno %d\n",
-					 filename, errno );
 			failedStdin = 1;
+			char const *errno_str = strerror( errno );
+			MyString err_msg;
+			err_msg = "Failed to open standard input file '";
+			err_msg += filename;
+			err_msg += "': ";
+			err_msg += errno_str;
+			err_msg += " (errno ";
+			err_msg += errno;
+			err_msg += ')';
+			dprintf( D_ALWAYS, "%s\n", err_msg.Value() );
+			Starter->jic->notifyStarterError( err_msg.Value(), true );
 		}
 		dprintf( D_ALWAYS, "Input file: %s\n", filename );
 	} else { 
@@ -261,15 +270,23 @@ OsProc::StartJob()
 		if( (fds[1]=open(filename,O_WRONLY|O_CREAT|O_TRUNC, 0666)) < 0 ) {
 				// if failed, try again without O_TRUNC
 			if( (fds[1]=open( filename, O_WRONLY|O_CREAT, 0666)) < 0 ) {
-				dprintf( D_ALWAYS,
-						 "failed to open stdout file %s, errno %d\n",
-						 filename, errno );
 				failedStdout = 1;
+				char const *errno_str = strerror( errno );
+				MyString err_msg;
+				err_msg = "Failed to open standard output file '";
+				err_msg += filename;
+				err_msg += "': ";
+				err_msg += errno_str;
+				err_msg += " (errno ";
+				err_msg += errno;
+				err_msg += ')';
+				dprintf( D_ALWAYS, "%s\n", err_msg.Value() );
+				Starter->jic->notifyStarterError( err_msg.Value(), true );
 			}
 		}
 		dprintf( D_ALWAYS, "Output file: %s\n", filename );
 	} else {
-	#ifndef WIN32
+    #ifndef WIN32
 		if( (fds[1]=open("/dev/null",O_WRONLY|O_CREAT|O_TRUNC, 0666)) < 0 ) {
 				// if failed, try again without O_TRUNC
 			if( (fds[1]=open( "/dev/null", O_WRONLY | O_CREAT, 0666)) < 0 ) {
@@ -279,7 +296,7 @@ OsProc::StartJob()
 				failedStdout = 1;
 			}
 		}
-#endif
+    #endif
 	}
 
 	filename = Starter->jic->jobErrorFilename();
@@ -287,10 +304,18 @@ OsProc::StartJob()
 		if( (fds[2]=open(filename,O_WRONLY|O_CREAT|O_TRUNC, 0666)) < 0 ) {
 				// if failed, try again without O_TRUNC
 			if( (fds[2]=open(filename,O_WRONLY|O_CREAT, 0666)) < 0 ) {
-				dprintf( D_ALWAYS,
-						 "failed to open stderr file %s, errno %d\n",
-						 filename, errno );
 				failedStderr = 1;
+				char const *errno_str = strerror( errno );
+				MyString err_msg;
+				err_msg = "Failed to open standard error file '";
+				err_msg += filename;
+				err_msg += "': ";
+				err_msg += errno_str;
+				err_msg += " (errno ";
+				err_msg += errno;
+				err_msg += ')';
+				dprintf( D_ALWAYS, "%s\n", err_msg.Value() );
+				Starter->jic->notifyStarterError( err_msg.Value(), true );
 			}
 		}
 		dprintf ( D_ALWAYS, "Error file: %s\n", filename );
@@ -392,11 +417,13 @@ OsProc::StartJob()
 		JobPid = -1;
 
 		if(create_process_error) {
-			REMOTE_CONDOR_ulog_printf(
-			  "Failed to execute '%s %s': %s",
-			  JobName,
-			  Args,
-			  create_process_error);
+			MyString err_msg = "Failed to execute '";
+			err_msg += JobName;
+			err_msg += ' ';
+			err_msg += Args;
+			err_msg += "': ";
+			err_msg += create_process_error;
+			Starter->jic->notifyStarterError( err_msg.Value(), true );
 		}
 
 		EXCEPT("Create_Process(%s,%s, ...) failed",
