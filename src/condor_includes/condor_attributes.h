@@ -33,6 +33,9 @@
 const char ATTR_ACTIVITY				 [] = "Activity";
 const char ATTR_AFS_CELL				 [] = "AFSCell";
 const char ATTR_ARCH                     [] = "Arch";
+const char ATTR_BUFFER_SIZE		 [] = "BufferSize";
+const char ATTR_BUFFER_BLOCK_SIZE	 [] = "BufferBlockSize";
+const char ATTR_BUFFER_PREFETCH_SIZE	 [] = "BufferPrefetchSize";
 const char ATTR_BYTES_SENT				 [] = "BytesSent";
 const char ATTR_BYTES_RECVD				 [] = "BytesRecvd";
 const char ATTR_CAPABILITY				 [] = "Capability";
@@ -58,6 +61,7 @@ const char ATTR_ENTERED_CURRENT_STATE	 [] = "EnteredCurrentState";
 const char ATTR_EXECUTABLE_SIZE			 [] = "ExecutableSize";
 const char ATTR_FILE_NAME				 [] = "FileName";
 const char ATTR_FILE_SIZE				 [] = "FileSize";
+const char ATTR_FILE_REMAPS				 [] = "FileRemaps";
 const char ATTR_FILE_SYSTEM_DOMAIN       [] = "FileSystemDomain";
 const char ATTR_FLAVOR                   [] = "Flavor";
 const char ATTR_IDLE_JOBS                [] = "IdleJobs";
@@ -158,5 +162,12 @@ const char ATTR_NUM_HOSTS_CLAIMED		 [] = "HostsClaimed";
 const char ATTR_NUM_HOSTS_UNCLAIMED		 [] = "HostsUnclaimed";
 const char ATTR_NUM_HOSTS_OWNER			 [] = "HostsOwner";
 const char ATTR_VERSION					 [] = "CondorVersion";
+const char ATTR_VIRTUAL_MACHINE_ID		 [] = "VirtualMachineID";
+const char ATTR_TRANSFER_KEY			 [] = "TransferKey";
+const char ATTR_TRANSFER_INPUT_FILES	 [] = "TransferInput";
+const char ATTR_TRANSFER_OUTPUT_FILES	 [] = "TransferOutput";
+const char ATTR_TRANSFER_SOCKET			 [] = "TransferSocket";
+const char ATTR_SERVER_TIME				 [] = "ServerTime";
+const char ATTR_SHADOW_BIRTHDATE		 [] = "ShadowBday";
 
 #endif
