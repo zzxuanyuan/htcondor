@@ -392,7 +392,7 @@ Image::NewDirtyPage(char * page)
 		PrintBitmap();
 		// should really return false, but there seems to be a problem
 		// just to test the timing, I'll set it to true - jmb
-		return true;
+		return false;
 	}
 	setBit( dirtyPage, incr_ckpt_data->bitmap ); 
 	incr_ckpt_data->dirty_pages++;
@@ -946,12 +946,13 @@ Image::RestoreSeg( const char *seg_name )
 // image size
 BOOL
 Image::Mprotect( int prot ) {
-	dprintf( D_ALWAYS, "Mprotect called on image\n" );
+	dprintf( D_ALWAYS, "Mprotect called on image (%s)\n",
+		(prot == PROT_READ) ? "ro" : "rw" );
 	test_seg_handler(); 									// this works
 	for (int i = 0; i<head.N_Segs(); i++) {
 		if ( mystrcmp("DATA", map[i].GetName()) == 0 ) {
 			dprintf( D_ALWAYS, "Will mprotect data segment\n" );
-			map[i].Mprotect( PROT_READ ); 					// this crashes
+			map[i].Mprotect( prot ); 					// this crashes
 			dprintf( D_ALWAYS, "Mproctected data segment\n" );
 		}
 	} 
@@ -1745,7 +1746,6 @@ SegMap::Write( int fd, ssize_t pos, int incremental )
 	return len;
 }
 
-
 ssize_t
 SegMap::WriteIncremental( int fd, ssize_t pos ) {
 
@@ -1753,6 +1753,7 @@ SegMap::WriteIncremental( int fd, ssize_t pos ) {
 	char *ptr = (char *)core_loc;
 	size_t write_size = getpagesize();
 	size_t nbytes, length = 0; 
+	int writes = 0;
 
 	for (long i = 0; i < data->total_pages; i++) {
 		if (bitIsSet( i, data->bitmap ) ) {
@@ -1765,6 +1766,7 @@ SegMap::WriteIncremental( int fd, ssize_t pos ) {
 				return -1;
 			}
 			length += nbytes;
+			writes++;
 		}
 		// move ptr to next page
 		ptr += getpagesize();	
@@ -1772,14 +1774,17 @@ SegMap::WriteIncremental( int fd, ssize_t pos ) {
 
 	// write any new pages
 	write_size *= MyImage.NewPages();
-	nbytes = write( fd, (void *)ptr, write_size );
-	if (nbytes != write_size) {
-		dprintf(D_ALWAYS,"in SegMap::Write(): fd = %d, write_size=%d\n",
-				 fd, write_size );
-		dprintf( D_ALWAYS, "errno=%d, core_loc=%x\n", errno, ptr );
-		return -1;
+	if (write_size) {
+		nbytes = write( fd, (void *)ptr, write_size );
+		if (nbytes != write_size) {
+			dprintf(D_ALWAYS,"in SegMap::Write(): fd = %d, write_size=%d\n",
+					 fd, write_size );
+			dprintf( D_ALWAYS, "errno=%d, core_loc=%x\n", errno, ptr );
+			return -1;
+		}
+		writes++;
+		length += nbytes;
 	}
-	length += nbytes;
 
 	ptr += write_size;
 	if ( ptr != (char *)core_loc + len ) {
@@ -1788,7 +1793,7 @@ SegMap::WriteIncremental( int fd, ssize_t pos ) {
 	}
 	
 	int pages = length / getpagesize();
-	dprintf( D_ALWAYS, "Incremental wrote %i dirty pages.\n", pages );
+	dprintf( D_ALWAYS, "Incr wrote %i pages (%i writes).\n", pages, writes );
 	return length;
 }
 
@@ -1866,6 +1871,11 @@ Checkpoint( int sig, int code, void *scp )
 	dprintf( D_ALWAYS, "Saved signal state.\n");
 
 	check_sig = sig;
+
+	// turn off mprotect used by incremental checkpointing
+	// any new dirtiness is caused by checkpoint code not user
+	MyImage.Mprotect( PROT_READ | PROT_WRITE ); 
+
 
 	if( MyImage.GetMode() == REMOTE ) {
 		scm = SetSyscalls( SYS_REMOTE | SYS_UNMAPPED );
