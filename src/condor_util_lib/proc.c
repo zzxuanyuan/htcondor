@@ -71,13 +71,57 @@ float		fp_secs;
 	return answer;
 }
 
-char *Notifications[] = {
-	"Never", "Always", "Complete", "Error"
+
+static const char* JobStatusNames[] = {
+    "UNEXPANDED",
+    "IDLE",
+    "RUNNING",
+    "REMOVED",
+    "COMPLETED",
+	"HELD",
+    "SUBMISSION_ERR",
 };
 
-char	*Status[] = {
-	"Unexpanded", "Idle", "Running", "Removed", "Completed", "Submission Err"
-};
+
+const char*
+getJobStatusString( int status )
+{
+	if( status<0 || status>=JOB_STATUS_MAX ) {
+		return "UNKNOWN";
+	} else {
+		return JobStatusNames[status];
+	}
+}
+
+
+int
+getJobStatusNum( const char* name )
+{
+	if( ! name ) {
+		return -1;
+	}
+	if( stricmp(name,"UNEXPANDED") == MATCH ) {
+		return UNEXPANDED;
+	}
+	if( stricmp(name,"IDLE") == MATCH ) {
+		return IDLE;
+	}
+	if( stricmp(name,"RUNNING") == MATCH ) {
+		return RUNNING;
+	}
+	if( stricmp(name,"REMOVED") == MATCH ) {
+		return REMOVED;
+	}
+	if( stricmp(name,"COMPLETED") == MATCH ) {
+		return COMPLETED;
+	}
+	if( stricmp(name,"HELD") == MATCH ) {
+		return HELD;
+	}
+	if( stricmp(name,"SUBMISSION_ERR") == MATCH ) {
+		return SUBMISSION_ERR;
+	}
+}
 
 
 #ifdef NEW_PROC
