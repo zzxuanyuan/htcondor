@@ -170,8 +170,9 @@ JICShadow::init( void )
 		// exists, we can initialize the LocalUserLog.  if the job
 		// defines StarterUserLog, we'll write the events.  if not,
 		// all attemps to log events will just be no-ops.
-	u_log->initFromJobAd( job_ad );
-
+	if( ! u_log->initFromJobAd(job_ad) ) {
+		return false;
+	}
 	return true;
 }
 

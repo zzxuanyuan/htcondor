@@ -55,7 +55,12 @@ LocalUserLog::init( const char* filename, bool is_xml,
 	priv_state priv;
 	priv = set_user_priv();
 
-	u_log.initialize( filename, cluster, proc, subproc );
+	if( ! u_log.initialize(filename, cluster, proc, subproc) ) {
+		dprintf( D_ALWAYS, 
+				 "Failed to initialize Starter's UserLog, aborting\n" );
+		set_priv( priv );
+		return false;
+	}
 
 	set_priv( priv );
 
