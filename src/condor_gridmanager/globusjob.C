@@ -1247,10 +1247,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 		case GM_DONE_SAVE: {
 			// Report job completion to the schedd.
 			if ( condorState != HELD && condorState != REMOVED ) {
-				if ( condorState != COMPLETED ) {
-					condorState = COMPLETED;
-					UpdateJobAdInt( ATTR_JOB_STATUS, condorState );
-				}
+				JobTerminated();
 				done = addScheddUpdateAction( this, UA_UPDATE_JOB_AD,
 											  GM_DONE_SAVE );
 				if ( !done ) {
@@ -1651,7 +1648,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 //				schedd_actions |= UA_LOG_TERMINATE_EVENT;
 				if ( !terminateLogged ) {
 					WriteTerminateEventToUserLog( ad );
-					email_terminate_event(ad);
+					EmailTerminateEvent( ad );
 					terminateLogged = true;
 				}
 			}
@@ -1770,13 +1767,10 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 								   NULL_JOB_CONTACT );
 				schedd_actions |= UA_UPDATE_JOB_AD;
 			}
-			if ( condorState == RUNNING ) {
-				condorState = IDLE;
-				UpdateJobAdInt( ATTR_JOB_STATUS, condorState );
-				schedd_actions |= UA_UPDATE_JOB_AD;
-			}
+			JobIdle();
 			if ( submitLogged ) {
 //				schedd_actions |= UA_LOG_EVICT_EVENT;
+				JobEvicted();
 				if ( !evictLogged ) {
 					WriteEvictEventToUserLog( ad );
 					evictLogged = true;
@@ -1828,40 +1822,45 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 		case GM_HOLD: {
 			// Put the job on hold in the schedd.
 			// TODO: what happens if we learn here that the job is removed?
-			condorState = HELD;
-			UpdateJobAdInt( ATTR_JOB_STATUS, condorState );
-			schedd_actions = UA_HOLD_JOB | UA_FORGET_JOB | UA_UPDATE_JOB_AD;
 			if ( jobContact &&
 				 globusState != GLOBUS_GRAM_PROTOCOL_JOB_STATE_UNKNOWN ) {
 				globusState = GLOBUS_GRAM_PROTOCOL_JOB_STATE_UNKNOWN;
 				UpdateJobAdInt( ATTR_GLOBUS_STATUS, globusState );
 				//UpdateGlobusState( GLOBUS_GRAM_PROTOCOL_JOB_STATE_UNKNOWN, 0 );
 			}
-			// Set the hold reason as best we can
-			// TODO: set the hold reason in a more robust way.
-			char holdReason[1024];
-			holdReason[0] = '\0';
-			holdReason[sizeof(holdReason)-1] = '\0';
-			ad->LookupString( ATTR_HOLD_REASON, holdReason,
-							  sizeof(holdReason) - 1 );
-			if ( holdReason[0] == '\0' && errorString != "" ) {
-				strncpy( holdReason, errorString.Value(),
-						 sizeof(holdReason) - 1 );
+			schedd_actions = UA_FORGET_JOB | UA_UPDATE_JOB_AD;
+			// If the condor state is already HELD, then someone already
+			// HELD it, so don't update anything else.
+			if ( condorState != HELD ) {
+				schedd_actions |= UA_HOLD_JOB;
+
+				// Set the hold reason as best we can
+				// TODO: set the hold reason in a more robust way.
+				char holdReason[1024];
+				holdReason[0] = '\0';
+				holdReason[sizeof(holdReason)-1] = '\0';
+				ad->LookupString( ATTR_HOLD_REASON, holdReason,
+								  sizeof(holdReason) - 1 );
+				if ( holdReason[0] == '\0' && errorString != "" ) {
+					strncpy( holdReason, errorString.Value(),
+							 sizeof(holdReason) - 1 );
+				}
+				if ( holdReason[0] == '\0' && globusStateErrorCode != 0 ) {
+					snprintf( holdReason, 1024, "Globus error %d: %s",
+							  globusStateErrorCode,
+							  gahp.globus_gram_client_error_string( globusStateErrorCode ) );
+				}
+				if ( holdReason[0] == '\0' && globusError != 0 ) {
+					snprintf( holdReason, 1024, "Globus error %d: %s", globusError,
+							  gahp.globus_gram_client_error_string( globusError ) );
+				}
+				if ( holdReason[0] == '\0' ) {
+					strncpy( holdReason, "Unspecified gridmanager error",
+							 sizeof(holdReason) - 1 );
+				}
+
+				JobHeld( holdReason );
 			}
-			if ( holdReason[0] == '\0' && globusStateErrorCode != 0 ) {
-				snprintf( holdReason, 1024, "Globus error %d: %s",
-						  globusStateErrorCode,
-						  gahp.globus_gram_client_error_string( globusStateErrorCode ) );
-			}
-			if ( holdReason[0] == '\0' && globusError != 0 ) {
- 				snprintf( holdReason, 1024, "Globus error %d: %s", globusError,
-						gahp.globus_gram_client_error_string( globusError ) );
-			}
-			if ( holdReason[0] == '\0' ) {
-				strncpy( holdReason, "Unspecified gridmanager error",
-						 sizeof(holdReason) - 1 );
-			}
-			UpdateJobAdString( ATTR_HOLD_REASON, holdReason );
 			addScheddUpdateAction( this, schedd_actions, GM_HOLD );
 			// This object will be deleted when the update occurs
 			} break;
@@ -2046,14 +2045,12 @@ void GlobusJob::UpdateGlobusState( int new_state, int new_error_code )
 		if ( ( new_state == GLOBUS_GRAM_PROTOCOL_JOB_STATE_ACTIVE ||
 			   new_state == GLOBUS_GRAM_PROTOCOL_JOB_STATE_STAGE_OUT ) &&
 			 condorState == IDLE ) {
-			condorState = RUNNING;
-			UpdateJobAdInt( ATTR_JOB_STATUS, condorState );
+			JobRunning();
 		}
 
 		if ( new_state == GLOBUS_GRAM_PROTOCOL_JOB_STATE_SUSPENDED &&
 			 condorState == RUNNING ) {
-			condorState = IDLE;
-			UpdateJobAdInt( ATTR_JOB_STATUS, condorState );
+			JobIdle();
 		}
 
 		if ( globusState == GLOBUS_GRAM_PROTOCOL_JOB_STATE_UNSUBMITTED &&

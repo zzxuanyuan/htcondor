@@ -41,7 +41,6 @@ class BaseJob
 	virtual void Reconfig() {}
 	void SetEvaluateState();
 	virtual int doEvaluateState() = 0;
-	void UpdateCondorState( int new_state );
 	virtual BaseResource *GetResource() = 0;
 
 	void UpdateJobAd( const char *name, const char *value );
@@ -77,6 +76,8 @@ class BaseJob
 	int wantRematch;
 
  protected:
+	void UpdateRuntimeStats();
+
 	int evaluateStateTid;
 };
 
@@ -86,6 +87,6 @@ bool WriteAbortEventToUserLog( ClassAd *job_ad );
 bool WriteTerminateEventToUserLog( ClassAd *job_ad );
 bool WriteEvictEventToUserLog( ClassAd *job_ad );
 bool WriteHoldEventToUserLog( ClassAd *job_ad );
-void email_terminate_event(ClassAd * jobAd);
+void EmailTerminateEvent(ClassAd * jobAd);
 
 #endif // define BASEJOB_H

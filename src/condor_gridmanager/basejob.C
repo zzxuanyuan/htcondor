@@ -114,18 +114,6 @@ void BaseJob::UpdateJobAdString( const char *name, const char *value )
 	UpdateJobAd( name, buff );
 }
 
-// We're assuming that any updates that come through UpdateCondorState()
-// are coming from the schedd, so we don't need to update it.
-void BaseJob::UpdateCondorState( int new_state )
-{
-	if ( new_state != condorState ) {
-		condorState = new_state;
-		UpdateJobAdInt( ATTR_JOB_STATUS, condorState );
-		ad->SetDirtyFlag( ATTR_JOB_STATUS, false );
-		SetEvaluateState();
-	}
-}
-
 void BaseJob::JobSubmitted( const char *remote_host)
 {
 }
@@ -135,6 +123,9 @@ void BaseJob::JobRunning()
 	if ( condorState != RUNNING ) {
 		condorState = RUNNING;
 		UpdateJobAdInt( ATTR_JOB_STATUS, condorState );
+		UpdateJobAdInt( ATTR_ENTERED_CURRENT_STATUS, time(NULL) );
+
+		UpdateRuntimeStats();
 
 		if ( !executeLogged ) {
 			WriteExecuteEventToUserLog( ad );
@@ -150,6 +141,9 @@ void BaseJob::JobIdle()
 	if ( condorState != IDLE ) {
 		condorState = IDLE;
 		UpdateJobAdInt( ATTR_JOB_STATUS, condorState );
+		UpdateJobAdInt( ATTR_ENTERED_CURRENT_STATUS, time(NULL) );
+
+		UpdateRuntimeStats();
 
 		addScheddUpdateAction( this, UA_UPDATE_JOB_AD, 0 );
 	}
@@ -157,6 +151,10 @@ void BaseJob::JobIdle()
 
 void BaseJob::JobEvicted()
 {
+		// Does this imply a change to condorState IDLE?
+
+	UpdateRuntimeStats();
+
 		//  should we be updating job ad values here?
 	if ( !evictLogged ) {
 		WriteEvictEventToUserLog( ad );
@@ -166,10 +164,76 @@ void BaseJob::JobEvicted()
 
 void BaseJob::JobTerminated()
 {
+	if ( condorState != COMPLETED ) {
+		condorState = COMPLETED;
+		UpdateJobAdInt( ATTR_JOB_STATUS, condorState );
+		UpdateJobAdInt( ATTR_ENTERED_CURRENT_STATUS, time(NULL) );
+
+		UpdateRuntimeStats();
+
+		addScheddUpdateAction( this, UA_UPDATE_JOB_AD, 0 );
+	}
 }
 
 void BaseJob::JobHeld( const char *hold_reason )
 {
+	if ( condorState != HELD ) {
+		condorState = HELD;
+		UpdateJobAdInt( ATTR_JOB_STATUS, condorState );
+		UpdateJobAdInt( ATTR_ENTERED_CURRENT_STATUS, time(NULL) );
+
+		UpdateJobAdString( ATTR_HOLD_REASON, hold_reason );
+
+		char *release_reason;
+		if ( ad->LookupString( ATTR_RELEASE_REASON, &release_reason ) != 0 ) {
+			UpdateJobAd( ATTR_LAST_RELEASE_REASON, release_reason );
+			free( release_reason );
+		}
+		UpdateJobAd( ATTR_RELEASE_REASON, "UNDEFINED" );
+
+		int num_holds;
+		ad->LookupInteger( ATTR_NUM_SYSTEM_HOLDS, num_holds );
+		num_holds++;
+		UpdateJobAdInt( ATTR_NUM_SYSTEM_HOLDS, num_holds );
+
+		UpdateRuntimeStats();
+
+		if ( !holdLogged ) {
+			WriteHoldEventToUserLog( ad );
+			holdLogged = true;
+		}
+
+		addScheddUpdateAction( this, UA_UPDATE_JOB_AD, 0 );
+	}
+}
+
+void BaseJob::UpdateRuntimeStats()
+{
+	// Adjust run time for condor_q
+	int shadowBirthdate = 0;
+	ad->LookupInteger( ATTR_SHADOW_BIRTHDATE, shadowBirthdate );
+	if ( condorState == RUNNING && shadowBirthdate == 0 ) {
+
+		// The job has started a new interval of running
+		int current_time = (int)time(NULL);
+		UpdateJobAdInt( ATTR_SHADOW_BIRTHDATE, current_time );
+
+		addScheddUpdateAction( this, UA_UPDATE_JOB_AD, 0 );
+
+	} else if ( condorState != RUNNING && shadowBirthdate != 0 ) {
+
+		// The job has stopped an interval of running, add the current
+		// interval to the accumulated total run time
+		float accum_time = 0;
+		ad->LookupFloat( ATTR_JOB_REMOTE_WALL_CLOCK, accum_time );
+		accum_time += (float)( time(NULL) - shadowBirthdate );
+		UpdateJobAdFloat( ATTR_JOB_REMOTE_WALL_CLOCK, accum_time );
+		UpdateJobAd( ATTR_JOB_WALL_CLOCK_CKPT, "UNDEFINED" );
+		UpdateJobAdInt( ATTR_SHADOW_BIRTHDATE, 0 );
+
+		addScheddUpdateAction( this, UA_UPDATE_JOB_AD, 0 );
+
+	}
 }
 
 void BaseJob::JobAdUpdateFromSchedd( const ClassAd *new_ad )
@@ -193,18 +257,29 @@ void BaseJob::JobAdUpdateFromSchedd( const ClassAd *new_ad )
 	if ( new_condor_state == REMOVED || new_condor_state == HELD ) {
 
 		for ( int i = 0; held_removed_update_attrs[i] != NULL; i++ ) {
-			char *value;
-			if ( new_ad->LookupString( held_removed_update_attrs[i],
-									   &value ) != 0 ) {
-				UpdateJobAd( held_removed_update_attrs[i], value );
-				free( value );
+			char attr_value[1024];
+			ExprTree *expr;
+
+			if ( (expr = new_ad->Lookup( held_removed_update_attrs[i] )) != NULL ) {
+				attr_value[0] = '\0';
+				expr->RArg()->PrintToStr(attr_value);
+				UpdateJobAd( held_removed_update_attrs[i], attr_value );
 			} else {
 				ad->Delete( held_removed_update_attrs[i] );
 			}
 			ad->SetDirtyFlag( held_removed_update_attrs[i], false );
 		}
 
+		if ( new_condor_state == HELD && !holdLogged ) {
+			// TODO should this log event be delayed until gridmanager is
+			//   done dealing with the job?
+			WriteHoldEventToUserLog( ad );
+			holdLogged = true;
+		}
+
 		condorState = new_condor_state;
+		// TODO do we need to call UpdateRuntimeStats() here?
+		UpdateRuntimeStats();
 		SetEvaluateState();
 	}
 
@@ -463,7 +538,7 @@ d_format_time( double dsecs )
 	const int HOURS   = (60 * MINUTES);
 	const int DAYS    = (24 * HOURS);
 
-	secs = dsecs;
+	secs = (int)dsecs;
 
 	days = secs / DAYS;
 	secs %= DAYS;
@@ -480,24 +555,17 @@ d_format_time( double dsecs )
 }
 
 void
-email_terminate_event(ClassAd * jobAd)
+EmailTerminateEvent(ClassAd * jobAd)
 {
-	PROC_ID procID;
-	/*
-	TODO: Distinction?  Does condor not normally send email for
-		removed jobs?  Filter at caller?
-			if ( condorState == REMOVED ) {
-				schedd_actions |= UA_LOG_ABORT_EVENT;
-			} else if ( condorState == COMPLETED ) {
-				*/
 	if ( !jobAd ) {
 		dprintf(D_ALWAYS, 
 			"email_terminate_event called with invalid ClassAd\n");
 		return;
 	}
 
-	jobAd->LookupInteger( ATTR_CLUSTER_ID, procID.cluster );
-	jobAd->LookupInteger( ATTR_PROC_ID, procID.proc );
+	int cluster, proc;
+	jobAd->LookupInteger( ATTR_CLUSTER_ID, cluster );
+	jobAd->LookupInteger( ATTR_PROC_ID, proc );
 
 	int notification = NOTIFY_COMPLETE; // default
 	jobAd->LookupInteger(ATTR_JOB_NOTIFICATION,notification);
@@ -510,13 +578,13 @@ email_terminate_event(ClassAd * jobAd)
 		default:
 			dprintf(D_ALWAYS, 
 				"Condor Job %d.%d has unrecognized notification of %d\n",
-				procID.cluster, procID.proc, notification );
+				cluster, proc, notification );
 				// When in doubt, better send it anyway...
 			break;
 	}
 
 	char subjectline[50];
-	sprintf( subjectline, "Condor Job %d.%d", procID.cluster, procID.proc );
+	sprintf( subjectline, "Condor Job %d.%d", cluster, proc );
 	FILE * mailer =  email_user_open( jobAd, subjectline );
 
 	if( ! mailer ) {
@@ -573,7 +641,7 @@ email_terminate_event(ClassAd * jobAd)
 	
 	time_t now = time(NULL);
 
-	fprintf( mailer, "Your Condor job %d.%d \n", procID.cluster, procID.proc);
+	fprintf( mailer, "Your Condor job %d.%d \n", cluster, proc);
 	if ( JobName[0] ) {
 		fprintf(mailer,"\t%s %s\n",JobName,Args);
 	}
@@ -631,4 +699,3 @@ email_terminate_event(ClassAd * jobAd)
 
 	email_close(mailer);
 }
-

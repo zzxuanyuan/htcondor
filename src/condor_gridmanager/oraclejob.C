@@ -375,6 +375,15 @@ int OracleJob::doEvaluateState()
 					dprintf( D_ALWAYS, "(%d.%d) job probe failed!\n",
 							 procID.cluster, procID.proc );
 				} else if ( rc != condorState ) {
+					if ( rc == RUNNING && condorState != RUNNING ) {
+						JobRunning();
+					}
+					if ( rc == IDLE && condorState != IDLE ) {
+						JobIdle();
+					}
+					if ( rc == COMPLETED && condorState != COMPLETED ) {
+						JobTerminated();
+					}
 					condorState = rc;
 					UpdateJobAdInt( ATTR_JOB_STATUS, condorState );
 					addScheddUpdateAction( this, UA_UPDATE_JOB_AD, 0 );
@@ -391,8 +400,7 @@ int OracleJob::doEvaluateState()
 			// Report job completion to the schedd.
 			if ( condorState != HELD && condorState != REMOVED ) {
 				if ( condorState != COMPLETED ) {
-					condorState = COMPLETED;
-					UpdateJobAdInt( ATTR_JOB_STATUS, condorState );
+					JobTerminated();
 				}
 				done = addScheddUpdateAction( this, UA_UPDATE_JOB_AD,
 											  GM_DONE_SAVE );
@@ -464,7 +472,7 @@ int OracleJob::doEvaluateState()
 //				schedd_actions |= UA_LOG_TERMINATE_EVENT;
 				if ( !terminateLogged ) {
 					WriteTerminateEventToUserLog( ad );
-					email_terminate_event(ad);
+					EmailTerminateEvent(ad);
 					terminateLogged = true;
 				}
 			}
@@ -519,13 +527,10 @@ int OracleJob::doEvaluateState()
 								   NULL_JOB_CONTACT );
 				schedd_actions |= UA_UPDATE_JOB_AD;
 			}
-			if ( condorState == RUNNING ) {
-				condorState = IDLE;
-				UpdateJobAdInt( ATTR_JOB_STATUS, condorState );
-				schedd_actions |= UA_UPDATE_JOB_AD;
-			}
+			JobIdle();
 			if ( submitLogged ) {
 //				schedd_actions |= UA_LOG_EVICT_EVENT;
+				JobEvicted();
 				if ( !evictLogged ) {
 					WriteEvictEventToUserLog( ad );
 					evictLogged = true;
@@ -576,25 +581,30 @@ int OracleJob::doEvaluateState()
 		case GM_HOLD: {
 			// Put the job on hold in the schedd.
 			// TODO: what happens if we learn here that the job is removed?
-			condorState = HELD;
-			UpdateJobAdInt( ATTR_JOB_STATUS, condorState );
-			schedd_actions = UA_HOLD_JOB | UA_FORGET_JOB | UA_UPDATE_JOB_AD;
-			// Set the hold reason as best we can
-			// TODO: set the hold reason in a more robust way.
-			char holdReason[1024];
-			holdReason[0] = '\0';
-			holdReason[sizeof(holdReason)-1] = '\0';
-			ad->LookupString( ATTR_HOLD_REASON, holdReason,
-							  sizeof(holdReason) - 1 );
-			if ( holdReason[0] == '\0' && errorString != "" ) {
-				strncpy( holdReason, errorString.Value(),
-						 sizeof(holdReason) - 1 );
+			schedd_actions = UA_FORGET_JOB | UA_UPDATE_JOB_AD;
+			// If the condor state is already HELD, then someone already
+			// HELD it, so don't update anything else.
+			if ( condorState != HELD ) {
+				schedd_actions |= UA_HOLD_JOB;
+
+				// Set the hold reason as best we can
+				// TODO: set the hold reason in a more robust way.
+				char holdReason[1024];
+				holdReason[0] = '\0';
+				holdReason[sizeof(holdReason)-1] = '\0';
+				ad->LookupString( ATTR_HOLD_REASON, holdReason,
+								  sizeof(holdReason) - 1 );
+				if ( holdReason[0] == '\0' && errorString != "" ) {
+					strncpy( holdReason, errorString.Value(),
+							 sizeof(holdReason) - 1 );
+				}
+				if ( holdReason[0] == '\0' ) {
+					strncpy( holdReason, "Unspecified gridmanager error",
+							 sizeof(holdReason) - 1 );
+				}
+
+				JobHeld( holdReason );
 			}
-			if ( holdReason[0] == '\0' ) {
-				strncpy( holdReason, "Unspecified gridmanager error",
-						 sizeof(holdReason) - 1 );
-			}
-			UpdateJobAdString( ATTR_HOLD_REASON, holdReason );
 			addScheddUpdateAction( this, schedd_actions, GM_HOLD );
 			// This object will be deleted when the update occurs
 			} break;
@@ -787,7 +797,6 @@ int OracleJob::do_remove()
 {
 	char **args;
 	char *reply;
-	char buff[8192] = "";
 
 	args = (char**)malloc(3*sizeof(char*));
 	args[0] = "remove";

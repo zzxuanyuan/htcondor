@@ -487,32 +487,7 @@ dprintf(D_ALWAYS,"***schedd failure at %d!\n",__LINE__);
 				// Should probably skip jobs we already have marked as
 				// held or removed
 
-				// Save the remove reason in our local copy of the job ad
-				// so that we can write it in the abort log event.
-				if ( curr_status == REMOVED ) {
-					int rc;
-					char *remove_reason = NULL;
-					rc = GetAttributeStringNew( procID.cluster,
-												procID.proc,
-												ATTR_REMOVE_REASON,
-												&remove_reason );
-					if ( rc == 0 ) {
-						next_job->UpdateJobAdString( ATTR_REMOVE_REASON,
-													 remove_reason );
-					} else if ( rc < 0 && errno == ETIMEDOUT ) {
-dprintf(D_ALWAYS,"***schedd failure at %d!\n",__LINE__);
-						delete next_ad;
-						commit_transaction = false;
-						goto contact_schedd_disconnect;
-					}
-					if ( remove_reason ) {
-						free( remove_reason );
-					}
-				}
-
-				// Don't update the condor state if a communications error
-				// kept us from getting a remove reason to go with it.
-				next_job->UpdateCondorState( curr_status );
+				next_job->JobAdUpdateFromSchedd( next_ad );
 				num_ads++;
 
 			} else if ( curr_status == REMOVED ) {
@@ -579,109 +554,6 @@ dprintf(D_ALWAYS,"***schedd failure at %d!\n",__LINE__);
 	while ( pendingScheddUpdates.iterate( curr_action ) != 0 ) {
 
 		curr_job = curr_action->job;
-
-		// Check the job status on the schedd to see if the job's been
-		// held or removed. We don't want to blindly update the status.
-		int job_status_schedd;
-		rc = GetAttributeInt( curr_job->procID.cluster,
-							  curr_job->procID.proc,
-							  ATTR_JOB_STATUS, &job_status_schedd );
-		if ( rc < 0 ) {
-dprintf(D_ALWAYS,"***schedd failure at %d!\n",__LINE__);
-			commit_transaction = false;
-			goto contact_schedd_disconnect;
-		}
-
-		// If the job is marked as REMOVED or HELD on the schedd, don't
-		// change it. Instead, modify our state to match it.
-		if ( job_status_schedd == REMOVED || job_status_schedd == HELD ) {
-			curr_job->UpdateCondorState( job_status_schedd );
-			curr_job->ad->SetDirtyFlag( ATTR_JOB_STATUS, false );
-			curr_job->ad->SetDirtyFlag( ATTR_HOLD_REASON, false );
-		} else if ( curr_action->actions & UA_HOLD_JOB ) {
-			char *reason = NULL;
-			rc = GetAttributeStringNew( curr_job->procID.cluster,
-										curr_job->procID.proc,
-										ATTR_RELEASE_REASON, &reason );
-			if ( rc >= 0 ) {
-				curr_job->UpdateJobAdString( ATTR_LAST_RELEASE_REASON,
-											 reason );
-			} else if ( errno == ETIMEDOUT ) {
-dprintf(D_ALWAYS,"***schedd failure at %d!\n",__LINE__);
-				commit_transaction = false;
-				goto contact_schedd_disconnect;
-			}
-			if ( reason ) {
-				free( reason );
-			}
-			curr_job->UpdateJobAd( ATTR_RELEASE_REASON, "UNDEFINED" );
-			curr_job->UpdateJobAdInt( ATTR_ENTERED_CURRENT_STATUS,
-									  (int)time(0) );
-			int sys_holds = 0;
-			rc=GetAttributeInt(curr_job->procID.cluster, 
-							   curr_job->procID.proc, ATTR_NUM_SYSTEM_HOLDS,
-							   &sys_holds);
-			if ( rc < 0 ) {
-dprintf(D_ALWAYS,"***schedd failure at %d!\n",__LINE__);
-				commit_transaction = false;
-				goto contact_schedd_disconnect;
-			}
-			sys_holds++;
-			curr_job->UpdateJobAdInt( ATTR_NUM_SYSTEM_HOLDS, sys_holds );
-		} else {	// !UA_HOLD_JOB
-			// If we have a
-			// job marked as HELD, it's because of an earlier hold
-			// (either by us or the user). In this case, we don't want
-			// to undo a subsequent unhold done on the schedd. Instead,
-			// we keep our HELD state, kill the job, forget about it,
-			// then relearn about it later (this makes it easier to
-			// ensure that we pick up changed job attributes).
-			if ( curr_job->condorState == HELD ) {
-				curr_job->ad->SetDirtyFlag( ATTR_JOB_STATUS, false );
-				curr_job->ad->SetDirtyFlag( ATTR_HOLD_REASON, false );
-			} else {
-					// Finally, if we are just changing from one unintersting state
-					// to another, update the ATTR_ENTERED_CURRENT_STATUS time.
-				if ( curr_job->condorState != job_status_schedd ) {
-					curr_job->UpdateJobAdInt( ATTR_ENTERED_CURRENT_STATUS,
-											  (int)time(0) );
-				}
-			}
-		}
-
-		// Adjust run time for condor_q
-		int shadowBirthdate = 0;
-		curr_job->ad->LookupInteger( ATTR_SHADOW_BIRTHDATE, shadowBirthdate );
-		if ( curr_job->condorState == RUNNING &&
-			 shadowBirthdate == 0 ) {
-
-			// The job has started a new interval of running
-			int current_time = (int)time(NULL);
-			// ATTR_SHADOW_BIRTHDATE on the schedd will be updated below
-			curr_job->UpdateJobAdInt( ATTR_SHADOW_BIRTHDATE, current_time );
-
-		} else if ( curr_job->condorState != RUNNING &&
-					shadowBirthdate != 0 ) {
-
-			// The job has stopped an interval of running, add the current
-			// interval to the accumulated total run time
-			float accum_time = 0;
-			rc = GetAttributeFloat(curr_job->procID.cluster,
-								   curr_job->procID.proc,
-								   ATTR_JOB_REMOTE_WALL_CLOCK,&accum_time);
-			if ( rc < 0 ) {
-dprintf(D_ALWAYS,"***schedd failure at %d!\n",__LINE__);
-				commit_transaction = false;
-				goto contact_schedd_disconnect;
-			}
-			accum_time += (float)( time(NULL) - shadowBirthdate );
-			curr_job->UpdateJobAdFloat( ATTR_JOB_REMOTE_WALL_CLOCK,
-										accum_time );
-			curr_job->UpdateJobAd( ATTR_JOB_WALL_CLOCK_CKPT, "UNDEFINED" );
-			// ATTR_SHADOW_BIRTHDATE on the schedd will be updated below
-			curr_job->UpdateJobAdInt( ATTR_SHADOW_BIRTHDATE, 0 );
-
-		}
 
 		if ( curr_action->actions & UA_FORGET_JOB ) {
 			curr_job->UpdateJobAdBool( ATTR_JOB_MANAGED, 0 );
