@@ -1,3 +1,7 @@
+07/09/04 V6_7-infn_batch-merge-1
+   The state of the V6_7-infn_batch-branch when merged into V6_7-branch 
+   and then abandoned.
+
 05/25/04 V6_7-gcb-branch
    A new branch off V6_7 for adding support for GCB (Generic
    Connection Broker) which will enable Condor to play nicely with
