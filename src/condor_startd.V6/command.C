@@ -1165,6 +1165,9 @@ caRequestClaim( char* cmd_str, Stream *s, ClassAd* req_ad )
 int
 sendCAReply( Stream* s, char* cmd_str, ClassAd* reply )
 {
+	reply->SetMyTypeName( REPLY_ADTYPE );
+	reply->SetTargetTypeName( COMMAND_ADTYPE );
+
 	s->encode();
 	if( ! reply->put(*s) ) {
 		dprintf( D_ALWAYS,
