@@ -15,14 +15,11 @@ template class SimpleList<Credential*>;
 
 SimpleList <Credential*> credentials;
 
-
-
-
 extern int myproxyGetDelegationReaperId;
 
 StringList super_users;
-char * cred_store_dir = "/tmp";
-char * cred_index_file = "/tmp/cred-data";
+char * cred_store_dir = NULL;
+char * cred_index_file = NULL;
 
 int 
 store_cred_handler(Service * service, int i, Stream *stream) {
@@ -36,7 +33,7 @@ store_cred_handler(Service * service, int i, Stream *stream) {
       methods = p;
       free (p);
     } else {
-      methods = SecMan::getDefaultAuthenticationMethods();
+     methods = SecMan::getDefaultAuthenticationMethods();
     }
     CondorError errstack;
     if( ! socket->authenticate(methods.Value(), &errstack) ) {
@@ -76,45 +73,28 @@ store_cred_handler(Service * service, int i, Stream *stream) {
     return FALSE;
   }
 
-
   cred->SetOrigOwner (socket->getOwner()); // original remote uname
   cred->SetOwner (user);                   // mapped uname
-  
+
+
+  // Receive credential data
   if (!socket->code_bytes(data,data_size)) {
     dprintf (D_ALWAYS, "Error receiving credential data\n");
     return FALSE;
   }
 
-  // Write data to a file
   cred->SetData (data, data_size);
+
+  // Write data to a file
   char * temp_file_name = dircat (cred_store_dir, "credXXXXXX");
-
-  init_user_ids (socket->getOwner(), socket->getDomain());
-  priv_state old_state = set_root_priv();
-
-  int fd = mkstemp (temp_file_name);
-  write (fd, data, cred->GetDataSize());
-  close (fd);
-
-  set_priv (old_state);
-  
-  // Write metadata to a file
+  mkstemp (temp_file_name);
   cred->SetStorageName (temp_file_name);
   
-  const ClassAd * pclassad = cred->GetClassAd();
-  ClassAd temp_classad(*pclassad); // lame
-
-  old_state = set_root_priv();
-  ClassAdXMLUnparser unparser;
-  MyString buff;
-  unparser.Unparse (&temp_classad, buff);
-  FILE * fp = fopen (cred_index_file, "a");
-  fprintf (fp, "%s\n", buff.Value());
-  fclose (fp);
-  set_priv (old_state);
-
-
+  StoreData(temp_file_name,data,data_size);
+  
+  // Write metadata to a file
   credentials.Append (cred);
+  SaveCredentialList();
 
   // Write response to the client
   socket->encode();
@@ -124,10 +104,122 @@ store_cred_handler(Service * service, int i, Stream *stream) {
   return TRUE;
 }
 
+
+
 int 
 get_cred_handler(Service * service, int i, Stream *stream) {
   char name[_POSIX_PATH_MAX];
 
+  ReliSock * socket = (ReliSock*)stream;
+
+  // Authenticate
+  if (!socket->isAuthenticated()) {
+    char * p = SecMan::getSecSetting ("SEC_%s_AUTHENTICATION_METHODS", "READ");
+    MyString methods;
+    if (p) {
+      methods = p;
+      free (p);
+    } else {
+      methods = SecMan::getDefaultAuthenticationMethods();
+    }
+    CondorError errstack;
+    if( ! socket->authenticate(methods.Value(), &errstack) ) {
+      dprintf (D_ALWAYS, "Unable to authenticate, qutting\n");
+      return FALSE;
+    }
+  }
+
+
+
+  socket->decode();
+
+  char * pstr = (char*)name;
+  if (!socket->code(pstr)) {
+    dprintf (D_ALWAYS, "Error receiving credential name\n"); 
+    return FALSE;
+  }
+
+  const char * user = socket->getFullyQualifiedUser();
+  char * owner = NULL;
+
+  dprintf (D_ALWAYS, "Authenticated as %s\n", user);
+
+  if (strchr (name, ':')) {
+    // The name is of the form user:name
+    // This better be a super-user!
+    // TODO: Check super-user's list
+
+    // Owner is the first part
+    owner = strdup (name);
+    char * pColon = strchr (owner, ':');
+    *pColon = '\0';
+    
+    // Name is the second part
+    sprintf (name, (char*)(pColon+sizeof(char)));
+  
+    if (strcmp (owner, user) != 0) { 
+      dprintf (D_ALWAYS, "Requesting another user's (%s) credential %s\n", owner, name);
+
+      if (!isSuperUser (user)) {
+	dprintf (D_ALWAYS, "User %s is NOT super user, request DENIED\n", user);
+	return FALSE;
+      } else {
+	dprintf (D_FULLDEBUG, "User %s is super user, request GRANTED\n", user);
+      }
+    }
+
+  } else {
+    owner = strdup (user);
+  }
+
+  dprintf (D_ALWAYS, "sending cred %s for user %s\n", name, owner);
+
+  Credential * cred = NULL;
+
+  bool found_cred=false;
+  credentials.Rewind();
+  while (credentials.Next(cred)) {
+    if (cred->GetType() == X509_CREDENTIAL_TYPE) {
+      if ((strcmp(cred->GetName(), name) == 0) && 
+	  (strcmp(cred->GetOwner(), owner) == 0)) {
+	found_cred=true;
+	break; // found it
+      }
+    }
+  }
+  
+  free (owner);
+  
+  socket->encode();
+
+  if (found_cred) {
+    dprintf (D_FULLDEBUG, "Found cred %s\n", cred->GetStorageName());
+    
+    void * data=NULL;
+    int data_size;
+
+    
+    int rc = LoadData (cred->GetStorageName(), data, data_size);
+    dprintf (D_FULLDEBUG, "Credential::LoadData returned %d\n", rc);
+    return rc;
+    
+    socket->code (data_size);
+    socket->code_bytes (data, data_size);
+    free (data);
+  }
+  else {
+    dprintf (D_ALWAYS, "Cannot find cred %s\n", name);
+    int rc = -1;
+    socket->code (rc);
+  }
+
+  return TRUE;
+}
+
+
+int 
+rm_cred_handler(Service * service, int i, Stream *stream) {
+  char name[_POSIX_PATH_MAX];
 
   ReliSock * socket = (ReliSock*)stream;
 
@@ -188,8 +280,7 @@ get_cred_handler(Service * service, int i, Stream *stream) {
     owner = strdup (user);
   }
 
-  dprintf (D_ALWAYS, "sending cred %s for user %s\n", name, owner);
-
+  dprintf (D_ALWAYS, "Attempting to delete cred %s for user %s\n", name, owner);
   
   Credential * cred = NULL;
 
@@ -199,39 +290,63 @@ get_cred_handler(Service * service, int i, Stream *stream) {
     if (cred->GetType() == X509_CREDENTIAL_TYPE) {
       if ((strcmp(cred->GetName(), name) == 0) && 
 	  (strcmp(cred->GetOwner(), owner) == 0)) {
+	credentials.DeleteCurrent();
 	found_cred=true;
 	break; // found it
       }
     }
   }
+
+
+  if (found_cred) {
+    priv_state priv = set_root_priv();
+    // Remove credential data
+    unlink (cred->GetStorageName());
+    // Save the metadata list
+    SaveCredentialList();
+    set_priv(priv);
+    delete cred;
+  } else {
+    dprintf (D_ALWAYS, "Unable to remove credential %s:%s (not found)\n", owner, name); 
+  }
+	    
   
   free (owner);
   
   socket->encode();
 
-  if (found_cred) {
-    void * data=NULL;
-    int data_size;
-    dprintf (D_ALWAYS, "Found cred %s\n", cred->GetStorageName());
-    priv_state priv = set_root_priv ();
-    int rc = cred->LoadData();
+  int rc = (found_cred)?0:1;
+  socket->code(rc);
+
+  return TRUE;
+}
+
+int
+SaveCredentialList() {
+  priv_state priv = set_root_priv();
+  FILE * fp = fopen (cred_index_file, "w");
+  if (!fp) {
     set_priv (priv);
-    dprintf (D_ALWAYS, "LoadData %d\n", rc);
-    
-    rc = cred->GetData (data, data_size);
-    dprintf (D_ALWAYS, "GetData %d,%d|%c|\n", (int)data, rc,*((char*)data));
-
-    socket->code (data_size);
-    socket->code_bytes (data, data_size);
-    printf ("sent%c\n", ((char*)data)[0]);
-    free (data);
-  }
-  else {
-    dprintf (D_ALWAYS, "Cannot find cred %s\n", name);
-    int rc = -1;
-    socket->code (rc);
+    dprintf (D_ALWAYS, "Unable to open credential index file %s!\n", cred_index_file);
+    return FALSE;
   }
 
+  MyString buff;
+  ClassAdXMLUnparser unparser;
+  Credential * pCred = NULL;
+
+  // Clear the old list
+  credentials.Rewind();
+  while (credentials.Next(pCred)) {
+    const ClassAd * pclassad = pCred->GetClassAd();
+    ClassAd temp_classad(*pclassad); // lame
+    unparser.Unparse (&temp_classad, buff);
+    fprintf (fp, "%s\n", buff.Value());
+  }
+
+  fclose (fp);
+  
+  set_priv (priv);
   return TRUE;
 }
 
@@ -293,39 +408,9 @@ LoadCredentialList () {
 }
 
 int
-SaveCredentialList() {
-  priv_state priv = set_root_priv();
-
-  FILE * fp = fopen (cred_index_file, "w");
-  if (fp == NULL) {
-    dprintf (D_ALWAYS, "Unable to open file %s for writing\n", cred_index_file);
-    set_priv (priv);
-    return FALSE;
-  }
-  
-  Credential * cred;
-
-  ClassAdXMLUnparser unparser;
-
-  credentials.Rewind();
-  while (credentials.Next(cred)) {
-    ClassAd classad (*(cred->GetClassAd()));
-    MyString buff;
-    unparser.Unparse (&classad, buff);
-    fprintf (fp, "%s\n", buff.Value());
-  }
-
-  fclose(fp);
-
-  set_priv (priv);
-  return TRUE;
-}
-
-int
 CheckCredentials () {
   Credential * pCred;
-  credentials.Rewind();
-  
+  credentials.Rewind();  
   dprintf (D_FULLDEBUG, "In CheckCredentials()\n");
 
   // Get current time
@@ -644,5 +729,60 @@ Init() {
       DC_Exit (1 );
     }
   }
+
+}
+
+int
+StoreData (const char * file_name, const void * data, const int data_size) {
+
+  if (!data) {
+    return FALSE;
+  }
+
+  priv_state priv = set_root_priv();
+
+  int fd = open (file_name, O_WRONLY);
+  if (fd == -1) {
+    dprintf (D_ALWAYS, "Unable to store in %s\n", file_name);
+    set_priv(priv);
+    return FALSE;
+  }
+
+  write (fd, data, data_size);
+
+  close (fd);
+
+  set_priv(priv);
+  return TRUE;
+}
+
+int
+LoadData (const char * file_name, void *& data, int & data_size) {
+  priv_state priv = set_root_priv();
+  
+  int fd = open (file_name, O_RDONLY);
+  if (fd == -1) {
+    fprintf (stderr, "Can't open %s\n", file_name);
+    set_priv (priv);
+    return FALSE;
+  }
+  char buff [100000];
+  
+  data_size = read (fd, buff, 100000);
+  buff[data_size]='\0';
+
+  close (fd);
+
+  if (data_size <= 0) {
+    set_priv (priv);
+    return FALSE;
+  }
+
+  data = malloc (data_size);
+
+  memcpy (data, buff, data_size);
+
+  set_priv (priv);
+  return TRUE;
 
 }

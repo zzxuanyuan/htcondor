@@ -12,12 +12,19 @@
 int CheckCredentials ();
 
 int LoadCredentialList ();
+int SaveCredentialList ();
+
+int StoreData (const char *, const void *, const int);
+int LoadData (const char *, void *&, int &);
 
 int
 store_cred_handler(Service * service, int i, Stream *socket);
 
 int
 get_cred_handler(Service * service, int i, Stream *socket);
+
+int
+rm_cred_handler(Service * service, int i, Stream *socket);
 
 int 
 RefreshProxyThruMyProxy(X509CredentialWrapper * proxy);

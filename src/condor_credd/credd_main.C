@@ -104,6 +104,10 @@ Register() {
                                (CommandHandler)&get_cred_handler,
                                "get_cred_handler", NULL,WRITE);
 
+  daemonCore->Register_Command(CREDD_REMOVE_CRED, "CREDD_REMOVE_CRED",
+                               (CommandHandler)&rm_cred_handler,
+                               "rm_cred_handler", NULL,WRITE);
+
   CheckCredentials_tid = daemonCore->Register_Timer( 1, 
 						     CheckCredentials_interval,
                                                      (TimerHandler)&CheckCredentials,

@@ -8,13 +8,35 @@
 #include "condor_distribution.h"
 #include "sslutils.h"
 
+const char * MyName = "condor_store_cred";
+
 int parseMyProxyArgument(const char*, char*&, char*&, int&);
 char * prompt_password (const char *);
+/*
+void
+usage()
+{
+  fprintf( stderr, "Usage: %s [options] [cmdfile]\n", MyName );
+  fprintf( stderr, "      Valid options:\n" );
+  fprintf( stderr, "      -v\t\tverbose output\n" );
+  fprintf( stderr, "      -n schedd_name\tsubmit to the specified schedd\n" );
+  fprintf( stderr,
+	   "      -r schedd_name\tsubmit to the specified remote schedd\n" );
+  fprintf( stderr,
+                         "      -a line       \tadd line to submit file before processing\n"
+	   "                \t(overrides submit file; multiple -a lines ok)\n" );
+  fprintf( stderr, "      -d\t\tdisable file permission checks\n\n" );
+  fprintf( stderr, "      -s\t\tspool all files to the schedd\n\n" );
+  fprintf( stderr, "      -p password\tspecify password to MyProxy server\n\n" );
+  fprintf( stderr, "      If [cmdfile] is omitted, input is read from stdin\n" );
+  exit( 1 );
+}
+*/
 
 int main(int argc, char **argv)
 {
   char ** ptr;
-  const char * MyName = "condor_store_cred";
+
 
   int cred_type = 0;
   char * cred_name = NULL;
@@ -110,15 +132,30 @@ int main(int argc, char **argv)
 
 
 
-  X509Credential * cred = new X509Credential();
+
   if (( cred_file_name == NULL ) && (cred_type == 0)) {
     fprintf ( stderr, "Credential filename or type not specified\n");
     exit (1);
 
   }
 
+  X509Credential * cred = new X509Credential();
+
   cred->SetStorageName(cred_file_name);
-  cred->LoadData();
+    
+  int fd = open (cred_file_name, O_RDONLY);
+  if (fd == -1) {
+    fprintf (stderr, "Can't open %s\n", cred_file_name);
+    exit (1);
+  }
+ 
+  char buff [100000];
+  int data_size = read (fd, buff, 100000);
+  buff[data_size]='\0';
+  close (fd);
+
+  cred->SetData (buff, data_size);
+
   if (cred_name !=NULL) {
     cred->SetName(cred_name);
   } else {

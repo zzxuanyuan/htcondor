@@ -14,8 +14,6 @@ public:
 
   virtual time_t GetRealExpirationTime();
 
-  int StoreData ();
-  int LoadData ();
 
   const char * GetMyProxyServerDN();
   void SetMyProxyServerDN(const char*);

@@ -99,7 +99,7 @@ X509Credential::SetMyProxyUser(const char * name) {
   SetStringAttribute ("MyProxyUser", name);
 }
 
-
+/*
 int
 X509Credential::StoreData() {
   if (!data) {
@@ -118,9 +118,10 @@ X509Credential::StoreData() {
 
   close (fd);
 
+  printf ("Wrote data %d bytes\n", data_size);
   return TRUE;
 }
-
+*/
 
 const char *
 X509Credential::GetStorageName() {
@@ -136,7 +137,7 @@ X509Credential::SetStorageName(const char * name) {
   SetStringAttribute ("StorageName", name);
 }
 
-
+/*
 int
 X509Credential::LoadData() {
   const char * file_name = GetStorageName();
@@ -161,7 +162,7 @@ X509Credential::LoadData() {
 
   return TRUE;
 }
-
+*/
 
 time_t 
 X509Credential::GetRealExpirationTime() {

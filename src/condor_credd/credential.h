@@ -40,8 +40,6 @@ public:
 
   virtual void SetStorageName(const char *) = 0;
   virtual const char * GetStorageName() = 0;
-  virtual int StoreData () = 0;
-  virtual int LoadData () = 0;
 
  protected:
   ClassAd * attr_list;
