@@ -5,7 +5,7 @@ CONTRIB_FILES = $(FILES) condor_config.local.ckpt.server \
 
 all:
 
-clean:
+clean::
 
 release:
 
