@@ -319,7 +319,6 @@ const char ATTR_STARTER_WAIT_FOR_DEBUG   [] = "StarterWaitForDebug";
 const char ATTR_STATUS					 [] = "Status";
 const char ATTR_STREAM_OUTPUT			 [] = "StreamOut";
 const char ATTR_STREAM_ERROR			 [] = "StreamErr";
-const char ATTR_SUBMIT_IN_PROGRESS       [] = "SubmitInProgress";
 const char ATTR_SUBMITTOR_PRIO           [] = "SubmittorPrio";
 const char ATTR_SUBNET                   [] = "Subnet";
 const char ATTR_SUSPEND                  [] = "Suspend";
