@@ -339,22 +339,20 @@ Job::submit(const struct condor__ClassAdStruct &jobAd,
 	if (!found_iwd) {
 			// We need to make sure the Iwd is rewritten so files
 			// in the spool directory can be found.
-		if (NULL != spoolDirectory) {
-			rval = SetAttributeString(clusterId,
-									  jobId,
-									  ATTR_JOB_IWD,
-									  spoolDirectory.GetCStr());
-			if (rval < 0) {
-				errstack.pushf("SOAP",
-							   FAIL,
-							   "Failed to set %d.%d's %s attribute to '%s'.",
-							   clusterId,
-							   jobId,
-							   ATTR_JOB_IWD,
-							   spoolDirectory.GetCStr());
+		rval = SetAttributeString(clusterId,
+								  jobId,
+								  ATTR_JOB_IWD,
+								  spoolDirectory.GetCStr());
+		if (rval < 0) {
+			errstack.pushf("SOAP",
+						   FAIL,
+						   "Failed to set %d.%d's %s attribute to '%s'.",
+						   clusterId,
+						   jobId,
+						   ATTR_JOB_IWD,
+						   spoolDirectory.GetCStr());
 
-				return rval;
-			}
+			return rval;
 		}
 	}
 
