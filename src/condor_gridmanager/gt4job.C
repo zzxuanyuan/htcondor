@@ -1622,7 +1622,7 @@ MyString *GT4Job::buildSubmitRSL()
 		
 		create_remote_iwd = true;
 		ASSERT (submit_id);	// append submit_id for uniqueness, fool
-		remote_iwd.sprintf ("${GLOBUS_USER_HOME}/job_%s", submit_id);
+		remote_iwd.sprintf ("${GLOBUS_SCRATCH_DIR}/job_%s", submit_id);
 	}
 
 	if ( remote_iwd[remote_iwd.Length()-1] != '/' ) {
@@ -1690,8 +1690,9 @@ xsi:schemaLocation=\"http://www.globus.org/namespaces/2004/06/job \
 	
 	*rsl += printXMLParam( "directory", remote_iwd.Value() );
 
+		// TODO need to split arguments ourselves
 	if ( ad->LookupString(ATTR_JOB_ARGUMENTS, &attr_value) && *attr_value ) {
-		*rsl += printXMLParam ("arguments", attr_value);
+		*rsl += printXMLParam ("argument", attr_value);
 	}
 	if ( attr_value != NULL ) {
 		free( attr_value );
@@ -1785,7 +1786,7 @@ xsi:schemaLocation=\"http://www.globus.org/namespaces/2004/06/job \
 		// This will be the job's sandbox directory
 		if ( create_remote_iwd ) {
 			*rsl += "<transfer>";
-			buff.sprintf( "%s%s", local_url_base, getDummyJobScratchDir() );
+			buff.sprintf( "%s%s/", local_url_base, getDummyJobScratchDir() );
 			*rsl += printXMLParam( "sourceUrl", buff.Value() );
 			buff.sprintf( "file://%s", remote_iwd.Value() );
 			*rsl += printXMLParam( "destinationUrl", buff.Value());
@@ -1795,9 +1796,9 @@ xsi:schemaLocation=\"http://www.globus.org/namespaces/2004/06/job \
 		// Next, add the executable if needed
 		if ( transfer_executable ) {
 			*rsl += "<transfer>";
-			buff.sprintf( "%s%s", local_url_base, local_executable );
+			buff.sprintf( "%s%s", local_url_base, local_executable.Value() );
 			*rsl += printXMLParam( "sourceUrl", buff.Value() );
-			buff.sprintf( "file://%s", remote_executable );
+			buff.sprintf( "file://%s", remote_executable.Value() );
 			*rsl += printXMLParam( "destinationUrl", buff.Value());
 			*rsl += "</transfer>";
 		}
@@ -1814,7 +1815,7 @@ xsi:schemaLocation=\"http://www.globus.org/namespaces/2004/06/job \
 							  filename[0] == '/' ? "" : local_iwd.Value(),
 							  filename );
 				*rsl += printXMLParam ("sourceUrl", 
-									   filename);
+									   buff.Value());
 				buff.sprintf ("file://%s%s",
 							  remote_iwd.Value(),
 							  basename (filename));
@@ -1843,7 +1844,7 @@ xsi:schemaLocation=\"http://www.globus.org/namespaces/2004/06/job \
 						  remote_iwd.Value(),
 						  basename (filename));
 			*rsl += printXMLParam ("sourceUrl", 
-								   filename);
+								   buff.Value());
 			buff.sprintf( "%s%s%s", local_url_base,
 						  filename[0] == '/' ? "" : local_iwd.Value(),
 						  filename );
@@ -1854,6 +1855,13 @@ xsi:schemaLocation=\"http://www.globus.org/namespaces/2004/06/job \
 		}
 
 		*rsl += "</fileStageOut>";
+	}
+
+		// Add a cleanup directive to remove the remote iwd,
+		// if we created one
+	if ( create_remote_iwd ) {
+		*rsl += "<fileCleanUp><deletion><file>file://" + remote_iwd +
+			"</file></deletion></fileCleanUp>";
 	}
 
 	if ( ad->LookupString(ATTR_JOB_ENVIRONMENT, &attr_value) && *attr_value ) {
@@ -1904,7 +1912,7 @@ xsi:schemaLocation=\"http://www.globus.org/namespaces/2004/06/job \
 	}
 
 		// Start the job on hold
-	*rsl += printXMLParam ("holdState", "Pending" );
+	*rsl += printXMLParam ("holdState", "StageIn" );
 
 	*rsl += "</job>";
 
@@ -2153,12 +2161,27 @@ GT4Job::getDummyJobScratchDir() {
 					 geteuid());
 	
 	struct stat stat_buff;
-	if (!(stat(dirname.Value(), &stat_buff))) {
-		if ( mkdir (dirname.Value(), 0700) < 0 ) {
-			dprintf (D_ALWAYS, "Unable to create scratch directory %s\n", 
-					 dirname.Value());
+	if ( stat(dirname.Value(), &stat_buff) < 0 ) {
+		int rc;
+		if ( (rc = mkdir (dirname.Value(), 0700)) < 0 ) {
+			dprintf (D_ALWAYS, "Unable to create scratch directory %s, rc=%d\n", 
+					 dirname.Value(), rc);
 			return NULL;
 		}
+	}
+		// Work-around for globus rft bug: rft hangs when you try to
+		// transfer an empty directory. So create an innocuous file in
+		// our dummy directory
+	MyString filename;
+	filename.sprintf( "%s%c.ignoreme", dirname.Value(), DIR_DELIM_CHAR );
+	if ( stat(filename.Value(), &stat_buff) < 0 ) {
+		int rc;
+		if ( (rc = creat( filename.Value(), 0600 )) < 0 ) {
+			dprintf (D_ALWAYS, "Unable to create file in scratch directory %s, rc=%d\n", 
+					 dirname.Value(), rc);
+			return NULL;
+		}
+		close( rc );
 	}
 
 	return dirname.Value();
