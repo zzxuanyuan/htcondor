@@ -78,6 +78,10 @@ Resource::Resource( CpuAttributes* cap, int rid )
 	r_cpu_busy = 0;
 	r_cpu_busy_start_time = 0;
 	r_suspended_for_cod = false;
+	r_hack_load_for_cod = false;
+	r_cod_load_hack_tid = -1;
+	r_pre_cod_total_load = 0.0;
+	r_pre_cod_condor_load = 0.0;
 
 	if( r_attr->type() ) {
 		dprintf( D_ALWAYS, "New machine resource of type %d allocated\n",  
@@ -304,6 +308,8 @@ Resource::suspendForCOD( void )
 	r_suspended_for_cod = true;
 	r_reqexp->unavail();
 
+	beginCODLoadHack();
+	
 	switch( r_cur->state() ) { 
 
     case CLAIM_RUNNING:
@@ -342,6 +348,8 @@ Resource::resumeForCOD( void )
 	r_suspended_for_cod = false;
 	r_reqexp->restore();
 
+	startTimerToEndCODLoadHack();
+
 	switch( r_cur->state() ) { 
 
     case CLAIM_RUNNING:
@@ -372,6 +380,41 @@ Resource::resumeForCOD( void )
 	if( ! did_update ) { 
 		update();
 	}
+}
+
+
+void
+Resource::hackLoadForCOD( void )
+{
+	if( ! r_hack_load_for_cod ) { 
+		return;
+	}
+
+	char float_buf[64];
+
+	MyString load = ATTR_LOAD_AVG;
+	load += '=';
+	sprintf( float_buf, "%.2f", r_pre_cod_total_load );
+	load += float_buf;
+
+	MyString c_load = ATTR_CONDOR_LOAD_AVG;
+	c_load += '=';
+	sprintf( float_buf, "%.2f", r_pre_cod_condor_load );
+	c_load += float_buf;
+
+	if( DebugFlags & D_FULLDEBUG && DebugFlags & D_LOAD ) {
+		if( r_cod_mgr->isRunning() ) {
+			dprintf( D_LOAD, "COD job current running, using "
+					 "'%s', '%s' for internal policy evaluation\n",  
+					 load.Value(), c_load.Value() );
+		} else {
+			dprintf( D_LOAD, "COD job recently ran, using '%s', '%s' "
+					 "for internal policy evaluation\n", 
+					 load.Value(), c_load.Value() );
+		}
+	}
+	r_classad->Insert( load.Value() );
+	r_classad->Insert( c_load.Value() );
 }
 
 
@@ -1287,3 +1330,66 @@ Resource::remove_pre( void )
 		r_pre = NULL;
 	}	
 }
+
+
+void
+Resource::beginCODLoadHack( void )
+{
+		// set our bool, so we use the pre-COD load for policy
+		// evaluations
+	r_hack_load_for_cod = true;
+	
+		// if we have a value for the pre-cod-load, we want to
+		// maintain it.  the only case where this would happen is if a
+		// COD job had finished in the last minute, we were still
+		// reporting the pre-cod-load, and a new cod job started up.
+		// if that happens, we don't want to use the current load,
+		// since that'll have some residual COD in it.  instead, we
+		// just want to use the load from *before* any COD happened.
+		// only if we've been free of COD for over a minute (and
+		// therefore, we're completely out of COD-load hack), do we
+		// want to record the real system load as the "pre-COD" load. 
+	if( ! r_pre_cod_total_load ) {
+		r_pre_cod_total_load = r_attr->total_load();
+		r_pre_cod_condor_load = r_attr->condor_load();
+	} else { 
+		ASSERT( r_cod_load_hack_tid != -1 );
+	}
+
+		// if we had a timer set to turn off this hack, cancel it,
+		// since we're back in hack mode...
+	if( r_cod_load_hack_tid != -1 ) {
+		if( daemonCore->Cancel_Timer(r_cod_load_hack_tid) < 0 ) {
+			::dprintf( D_ALWAYS, "failed to cancel COD Load timer (%d): "
+					   "daemonCore error\n", r_cod_load_hack_tid );
+		}
+		r_cod_load_hack_tid = -1;
+	}
+}
+
+
+void
+Resource::startTimerToEndCODLoadHack( void )
+{
+	ASSERT( r_cod_load_hack_tid == -1 );
+	r_cod_load_hack_tid = daemonCore->Register_Timer( 60, 0, 
+					(TimerHandlercpp)&Resource::endCODLoadHack,
+					"endCODLoadHack", this );
+	if( r_cod_load_hack_tid < 0 ) {
+		EXCEPT( "Can't register DaemonCore timer" );
+	}
+}
+
+
+void
+Resource::endCODLoadHack( void )
+{
+		// our timer went off, so we can clear our tid
+	r_cod_load_hack_tid = -1;
+
+		// now, reset all the COD-load hack state
+	r_hack_load_for_cod = false;
+	r_pre_cod_total_load = 0.0;
+	r_pre_cod_condor_load = 0.0;
+}
+

@@ -76,6 +76,8 @@ public:
 	bool	hasAnyClaim( void );
 	bool	isDeactivating( void )	{return r_cur->isDeactivating();};
 	bool	isSuspendedForCOD( void ) {return r_suspended_for_cod;};
+	void	hackLoadForCOD( void );
+
 	void	suspendForCOD( void );
 	void	resumeForCOD( void );
 
@@ -177,6 +179,14 @@ private:
 	int		r_cpu_busy;
 	time_t	r_cpu_busy_start_time;
 	bool	r_suspended_for_cod;
+	bool	r_hack_load_for_cod;
+	int		r_cod_load_hack_tid;
+	void	beginCODLoadHack( void );
+	float	r_pre_cod_total_load;
+	float	r_pre_cod_condor_load;
+	void 	startTimerToEndCODLoadHack( void );
+	void	endCODLoadHack( void );
 };
+
 
 #endif /* _STARTD_RESOURCE_H */
