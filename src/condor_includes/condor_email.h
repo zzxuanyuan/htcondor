@@ -71,6 +71,14 @@ public:
 		*/
 	bool writeExit( ClassAd* ad, int exit_reason );
 
+		/** This method sucks.  As soon as we have a real solution for
+			storing all 4 of these values in the job classad, it
+			should be removed.  In the mean time, it's a way to write
+			out the network traffic stats for the job into the email.
+		*/
+	void writeBytes( float run_sent, float run_recv, float tot_sent,
+					 float tot_recv );
+
 		/// Write out the introductory identification for a job
 	bool writeJobId( ClassAd* ad );
 
@@ -80,6 +88,14 @@ public:
 		/// These methods handle open, write, and send, but offer no
 		/// flexibility in the text of the message.
 	void sendExit( ClassAd* ad, int exit_reason );
+		/** This method sucks.  As soon as we have a real solution for
+			storing all 4 of these values in the job classad, it
+			should be removed.  In the mean time, it's a way to write
+			out the network traffic stats for the job into the email.
+		*/
+	void sendExitWithBytes( ClassAd* ad, int exit_reason,
+							float run_sent, float run_recv,
+							float tot_sent, float tot_recv );
 	void sendError( ClassAd* ad, const char* err_summary, 
 					const char* err_msg );
 	void sendHold( ClassAd* ad, const char* reason );

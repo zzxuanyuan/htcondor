@@ -30,6 +30,8 @@
 #include "condor_config.h"
 #include "my_hostname.h"
 #include "exit.h"               // for possible job exit_reason values
+#include "metric_units.h"
+
 
 extern "C" char* d_format_time(double);   // this should be in a .h
 
@@ -338,23 +340,26 @@ Email::writeExit( ClassAd* ad, int exit_reason )
 	fprintf(fp, "Allocation/Run time:     %s\n",
 			d_format_time(total_wall_time) );
 
-#if 0
-		// TODO! deal w/ all network bytes... should we get this from
-		// the job ad?  should we have the values from the current run
-		// passed into this method?
-
-		// TODO: deal w/ total bytes
-	float network_bytes;
-	network_bytes = bytesSent();
-	fprintf(fp, "\nNetwork:\n" );
-	fprintf(fp, "%10s Run Bytes Received By Job\n", 
-			metric_units(network_bytes) );
-	network_bytes = bytesReceived();
-	fprintf(fp, "%10s Run Bytes Sent By Job\n",
-			metric_units(network_bytes) );
-#endif
-
+		// TODO: deal w/ bytes directly from the classad
 	return true;
+}
+
+
+// This method sucks.  As soon as we have a real solution for storing
+// all 4 of these values in the job classad, it should be removed.
+void
+Email::writeBytes( float run_sent, float run_recv, float tot_sent,
+				   float tot_recv )
+{
+	fprintf( fp, "\nNetwork:\n" );
+	fprintf( fp, "%10s Run Bytes Received By Job\n", 
+			 metric_units(run_recv) );
+	fprintf( fp, "%10s Run Bytes Sent By Job\n",
+			 metric_units(run_sent) );
+	fprintf( fp, "%10s Total Bytes Received By Job\n", 
+			 metric_units(tot_recv) );
+	fprintf( fp, "%10s Total Bytes Sent By Job\n",
+			 metric_units(tot_sent) );
 }
 
 
@@ -375,6 +380,20 @@ Email::sendExit( ClassAd* ad, int exit_reason )
 {
 	open( ad, exit_reason );
 	writeExit( ad, exit_reason );
+	send();
+}
+
+
+// This method sucks.  As soon as we have a real solution for storing
+// all 4 of these values in the job classad, it should be removed.
+void
+Email::sendExitWithBytes( ClassAd* ad, int exit_reason,
+						  float run_sent, float run_recv,
+						  float tot_sent, float tot_recv )
+{
+	open( ad, exit_reason );
+	writeExit( ad, exit_reason );
+	writeBytes( run_sent, run_recv, tot_sent, tot_recv );
 	send();
 }
 
