@@ -273,6 +273,7 @@ int main_init (int argc, char **argv) {
     return 0;
 }
 
+//---------------------------------------------------------------------------
 void main_timer () {
 
     //------------------------------------------------------------------------
@@ -286,11 +287,9 @@ void main_timer () {
     // we are ready to proceed with jobs yet unsubmitted.
     //------------------------------------------------------------------------
     
-    debug_println (DEBUG_DEBUG_2, "%s: Jobs Done: %d/%d", __FUNCTION__,
-                   G.dag->NumJobsDone(), G.dag->NumJobs());
-    
     // If the log has grown
     if (G.dag->DetectLogGrowth()) {
+
         if (G.dag->ProcessLogEvents() == false) {
             if (DEBUG_LEVEL(DEBUG_DEBUG_1)) G.dag->Print_TermQ();
             debug_println (DEBUG_QUIET, "Aborting DAG..."
@@ -300,6 +299,15 @@ void main_timer () {
             G.dag->Rescue(G.rescue_file, G.datafile);
             G.CleanUp();
             DC_Exit(0);
+        }
+
+        if (DEBUG_LEVEL(DEBUG_DEBUG_2)) {
+            const char * const F = __FUNCTION__;
+            cout << F << ": Jobs Done:    "
+                 << G.dag->NumJobsDone() << '/'
+                 << G.dag->NumJobs() << endl;
+            cout << F << ": Jobs Failed:  " << G.dag->NumJobsFailed() << endl;
+            cout << F << ": Jobs Running: " << G.dag->NumJobsRunning() << endl;
         }
     }
   
