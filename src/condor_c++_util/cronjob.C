@@ -980,8 +980,13 @@ CondorCronJob::SetTimer( unsigned first, unsigned period )
 	if ( runTimer >= 0 )
 	{
 		daemonCore->Reset_Timer( runTimer, first, period );
-		dprintf( D_FULLDEBUG, "Cron: timer ID %d reset to %u/%u\n", 
-				 runTimer, first, period );
+		if( period == TIMER_NEVER ) {
+			dprintf( D_FULLDEBUG, "Cron: timer ID %d reset to first: %u, "
+					 "period: NEVER\n", runTimer, first );
+		} else {
+			dprintf( D_FULLDEBUG, "Cron: timer ID %d reset to first: %u, "
+					 "period: %u\n", runTimer, first, period );
+		}
 	}
 
 	// Create a periodic timer
@@ -1004,8 +1009,13 @@ CondorCronJob::SetTimer( unsigned first, unsigned period )
 			dprintf( D_ALWAYS, "Cron: Failed to create timer\n" );
 			return -1;
 		}
-		dprintf( D_FULLDEBUG, "Cron: new timer ID = %d set to %u/%u\n", 
-				 runTimer, first, period );
+		if( period == TIMER_NEVER ) {
+			dprintf( D_FULLDEBUG, "Cron: new timer ID %d set to first: %u, "
+					 "period: NEVER\n", runTimer, first );
+		} else {
+			dprintf( D_FULLDEBUG, "Cron: new timer ID %d set to first: %u, "
+					 "period: %u\n", runTimer, first, period );
+		}
 	} 
 
 	return 0;
