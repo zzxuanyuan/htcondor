@@ -1142,79 +1142,99 @@ RemoteResource::reconnect( void )
 void
 RemoteResource::attemptReconnect( void )
 {
-	dprintf( D_ALWAYS, "Attempting to locate to disconnected starter\n" );
+	if( ! starterAddress ) {
+		if( ! locateReconnectStarter() ) {
+			return;
+		}
+	}
+		// if we got here, we already know the starter's address, so
+		// we can go on to directly request a reconnect... 
+	requestReconnect(); 
+}
+
+
+bool
+RemoteResource::locateReconnectStarter( void )
+{
+	dprintf( D_ALWAYS, "Attempting to locate disconnected starter\n" );
 	const char* gjid = shadow->getGlobalJobId();
 	ClassAd reply;
-	if( ! dc_startd->locateStarter(gjid, &reply) ) {
-		dprintf( D_ALWAYS, "locateStarter(): %s\n", 
-				 dc_startd->error() );
-
-		dprintf( D_FULLDEBUG, "*** reply classad ***\n" );
-		reply.dPrint( D_FULLDEBUG );
-		dprintf( D_FULLDEBUG, "--- end of classad ---\n" );
-
-		switch( dc_startd->errorCode() ) {
-
-		case CA_FAILURE:
-				// communication successful but GlobalJobId or starter
-				// not found.  either way, we know the job is gone,
-				// and can safely give up and restart.
-			shadow->reconnectFailed( "Job is already gone" );
-			break;
-
-		case CA_NOT_AUTHENTICATED:
-				// some condor daemon is listening on the port, but it
-				// doesn't believe us anymore, so it can't still be
-				// our old startd. :(  if our job was still there, the
-				// old startd would be willing to talk to us.  
-				// Just to be safe, try one last time to see if we can
-				// kill the old starter.  We don't want the schedd to
-				// try this, since it'd block, but we don't have
-				// anything better to do, and it helps ensure
-				// run-only-once semantics for the jobs.
-			shadow->cleanUp();
-			shadow->reconnectFailed( "Old startd is gone" );
-			break;
-
-		case CA_CONNECT_FAILED:
-		case CA_COMMUNICATION_ERROR:
-				// for both of these, we need to keep trying until the
-				// timeout expires, since the startd might still be
-				// alive and only the network is dead...
-			reconnect();
-			return;
-			break;
-
-				// All the errors that can only be programmer mistakes:
-				// starter should never return any of these...
-		case CA_NOT_AUTHORIZED:
-		case CA_INVALID_STATE:
-		case CA_INVALID_REQUEST:
-		case CA_INVALID_REPLY:
-			EXCEPT( "impossible: startd returned %s for locateStarter",
-					getCAResultString(dc_startd->errorCode()) );
-			break;
-		case CA_LOCATE_FAILED:
-				// remember, this means we couldn't even find the
-				// address of the startd, not the starter.  we already
-				// know the startd's addr from the ClaimId...
-			EXCEPT( "impossible: startd address already known" );
-			break;
-		case CA_SUCCESS:
-			EXCEPT( "impossible: success already handled" );
-			break;
+	if( dc_startd->locateStarter(gjid, &reply) ) {
+			// it worked, save the results and return success.
+		char* tmp = NULL;
+		if( reply.LookupString(ATTR_STARTER_IP_ADDR, &tmp) ) {
+			setStarterAddress( tmp );
+			dprintf( D_ALWAYS, "Found starter: %s\n", tmp );
+			free( tmp );
+			return true;
+		} else {
+			EXCEPT( "impossible: locateStarter() returned success "
+					"but %s not found", ATTR_STARTER_IP_ADDR );
 		}
-		return;
 	}
 	
-	char* tmp = NULL;
-	if( reply.LookupString(ATTR_STARTER_IP_ADDR, &tmp) ) {
-		setStarterAddress( tmp );
-		dprintf( D_ALWAYS, "Found starter: %s\n", tmp );
-		free( tmp );
-		tmp = NULL;
+		// if we made it here figure out what kind of error we got and
+		// act accordingly.  in all cases we want to either exit
+		// completely or return false so that attemptReconnect() just
+		// returns instead of calling requestReconnect().
+
+	dprintf( D_ALWAYS, "locateStarter(): %s\n", dc_startd->error() );
+
+	dprintf( D_FULLDEBUG, "*** reply classad ***\n" );
+	reply.dPrint( D_FULLDEBUG );
+	dprintf( D_FULLDEBUG, "--- end of classad ---\n" );
+
+	switch( dc_startd->errorCode() ) {
+
+	case CA_FAILURE:
+
+			// communication successful but GlobalJobId or starter not
+			// found.  either way, we know the job is gone, and can
+			// safely give up and restart.
+		shadow->reconnectFailed( "Job is already gone" );
+		break;
+
+	case CA_NOT_AUTHENTICATED:
+			// some condor daemon is listening on the port, but it
+			// doesn't believe us anymore, so it can't still be our
+			// old startd. :( if our job was still there, the old
+			// startd would be willing to talk to us.  Just to be
+			// safe, try one last time to see if we can kill the old
+			// starter.  We don't want the schedd to try this, since
+			// it'd block, but we don't have anything better to do,
+			// and it helps ensure run-only-once semantics for jobs.
+		shadow->cleanUp();
+		shadow->reconnectFailed( "Old startd is gone" );
+		break;
+
+	case CA_CONNECT_FAILED:
+	case CA_COMMUNICATION_ERROR:
+			// for both of these, we need to keep trying until the
+			// timeout expires, since the startd might still be alive
+			// and only the network is dead...
+		reconnect();
+		break;
+
+			// All the errors that can only be programmer mistakes:
+			// starter should never return any of these...
+	case CA_NOT_AUTHORIZED:
+	case CA_INVALID_STATE:
+	case CA_INVALID_REQUEST:
+	case CA_INVALID_REPLY:
+		EXCEPT( "impossible: startd returned %s for locateStarter",
+				getCAResultString(dc_startd->errorCode()) );
+		break;
+	case CA_LOCATE_FAILED:
+			// remember, this means we couldn't even find the address
+			// of the startd, not the starter.  we already know the
+			// startd's addr from the ClaimId...
+		EXCEPT( "impossible: startd address already known" );
+		break;
+	case CA_SUCCESS:
+		EXCEPT( "impossible: success already handled" );
+		break;
 	}
-	requestReconnect();
+	return false;
 }
 
 

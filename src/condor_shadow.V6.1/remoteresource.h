@@ -348,8 +348,10 @@ class RemoteResource : public Service {
 
 private:
 
+		/// Private helper methods for trying to reconnect
 	void attemptReconnect( void );
 	void requestReconnect( void );
+	bool locateReconnectStarter( void );
 
 		/** For debugging, print out the values of various statistics
 			related to our bookkeeping of suspend/resume activity for
