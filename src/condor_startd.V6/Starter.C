@@ -408,6 +408,6 @@ Starter::dprintf( int flags, char* fmt, ... )
 {
 	va_list args;
 	va_start( args, fmt );
-	rip->dprintf( flags, fmt, args );
+	rip->dprintf_va( flags, fmt, args );
 	va_end( args );
 }
