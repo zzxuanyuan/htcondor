@@ -23,19 +23,13 @@
 
 #define _POSIX_SOURCE
 
-/*
-#include "condor_common.h"
-#include "condor_constants.h"
-#include "condor_io.h"
-#include "condor_debug.h"
-*/
 #include "condor_common.h"
 #include "condor_debug.h"
 #include "internet.h"
 #include "my_hostname.h"
 #include "condor_config.h"
 
-/* Get a line from this socket.  Return true on success. */
+/* Get a line from this socket.  Return TRUE on success. */
 int
 getLine(const int sock, char *buf, const int max)
 {
@@ -43,7 +37,7 @@ getLine(const int sock, char *buf, const int max)
 
     while (rbytes <= max) {
         if ( read (sock, &buf[rbytes], 1) != 1 ) {
-			if (errno != EWOULDBLOCK || errno != EAGAIN || errno != EINTR) {
+			if (errno == EWOULDBLOCK || errno == EAGAIN || errno == EINTR) {
 				continue;
 			} else {
 				//error
