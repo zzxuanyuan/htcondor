@@ -359,10 +359,77 @@ JICShadow::gotShutdownFast( void )
 int
 JICShadow::reconnect( ReliSock* s, ClassAd* ad )
 {
-		// TODO
-	sendErrorReply( s, getCommandString(CA_RECONNECT_JOB), CA_FAILURE, 
-					"Starter does not yet support reconnect" );
-	return FALSE;
+		// first, make sure the entity requesting this is authorized.
+		/*
+		  TODO!!  UGH, since the results of getFullyQualifiedUser()
+		  are not serialized properly when we inherit the relisock, we
+		  have no way to figure out the original entity that
+		  authenticated to the startd to spawn this job.  :( We really
+		  should call getFullyQualifiedUser() on the socket we
+		  inherit, stash that in a variable, and compare that against
+		  the result on this socket right here.
+
+		  But, we can't do that. :( So, instead, we call getOwner()
+		  and compare that to whatever ATTR_OWNER is in our job ad
+		  (the original ad, not whatever they're requesting now).
+		*/
+	const char* new_owner = s->getOwner();
+	char* my_owner = NULL; 
+	if( ! job_ad->LookupString(ATTR_OWNER, &my_owner) ) {
+		EXCEPT( "impossible: ATTR_OWNER must be in job ad by now" );
+	}
+
+	if( strcmp(new_owner, my_owner) ) {
+		MyString err_msg = "User '";
+		err_msg += new_owner;
+		err_msg += "' does not match the owner of this job";
+		sendErrorReply( s, getCommandString(CA_RECONNECT_JOB), 
+						CA_NOT_AUTHORIZED, err_msg.Value() ); 
+		dprintf( D_COMMAND, "Denied request for %s by invalid user '%s'\n", 
+				 getCommandString(CA_RECONNECT_JOB), new_owner );
+		return FALSE;
+	}
+	dprintf( D_COMMAND, "Serving request to reconnect by user '%s'\n", 
+			 new_owner );
+
+	ClassAd reply;
+	publishStarterInfo( &reply );
+
+	MyString line;
+	line = ATTR_RESULT;
+	line += "=\"";
+	line += getCAResultString( CA_SUCCESS );
+	line += '"';
+	reply.Insert( line.Value() );
+
+	if( ! sendCAReply(s, getCommandString(CA_RECONNECT_JOB), &reply) ) {
+		dprintf( D_ALWAYS, "Failed to reply to request\n" );
+		return FALSE;
+	}
+
+		// If we managed to send the reply, finally commit to the
+		// switch.  Destroy all the info we're storing about the
+		// previous shadow and switch over to the new info.
+
+		// Destroy our old DCShadow object and make a new one with the
+		// current info.
+	delete shadow;
+	shadow = new DCShadow;
+	initShadowInfo( ad );
+	free( shadow_addr );
+	shadow_addr = strdup( shadow->addr() );
+
+		// switch over to the new syscall_sock
+	delete syscall_sock;
+	syscall_sock = s;
+	syscall_sock->timeout(300);
+
+		// TODO deal with timer if we're just waiting to send final
+		// update, etc... 
+
+		// Now that we're holding onto the ReliSock, we can't let
+		// DaemonCore close it on us!
+	return KEEP_STREAM;
 }
 
 
