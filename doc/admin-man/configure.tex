@@ -2429,7 +2429,10 @@ These macros affect the \Condor{negotiator}.
   a job running on a given machine unless the
   \Macro{PREEMPTION\_REQUIREMENTS} expression evaluates to TRUE and the
   owner of the idle job has a better priority than the owner of the
-  running job.  This expression defaults to TRUE.
+  running job.  By default, this expression allows jobs to be
+  preempted only after they have run for one hour, and only if the
+  priority of the competing user is 20\% higher, in order to prevent
+  ``churning'' of jobs in the pool.
 
 \item[\Macro{PREEMPTION\_RANK}] \label{param:PreemptionRank} This
   expression is used to rank machines that the job ranks the same.
