@@ -1264,8 +1264,9 @@ caLocateStarter( Stream *s, char* cmd_str, ClassAd* req_ad )
 		free( global_job_id );
 		return FALSE;
 	}
+	ClassAd reply;
 	if( ! claim->publishStarterAd(&reply) ) {
-		MyString err_msg = "No starter found for "
+		MyString err_msg = "No starter found for ";
 		err_msg += ATTR_GLOBAL_JOB_ID;
 		err_msg += " (";
 		err_msg += global_job_id;
