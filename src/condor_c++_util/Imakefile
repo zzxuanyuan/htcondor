@@ -1,5 +1,6 @@
-all_target(cplus_lib.a liburl.a libcondorapi.a test_libcondorapi)
-
+all_target(cplus_lib.a liburl.a libcondorapi.a)
+/* all_target(cplus_lib.a liburl.a libcondorapi.a test_libcondorapi)
+*/
 C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS)
 CFLAGS = $(STD_C_FLAGS)
 LIB = $(STD_LIBS)  
@@ -136,11 +137,12 @@ c_plus_target(test_mystring,test_mystring.o,$(LIB))
 
 /* this needs to be built more like a user would use the library, so it */
 /* can't have all of our usual cflags... */
+/*
 test_libcondorapi.o: test_libcondorapi.C
 	$(CPlusPlus) -I../h -I../condor_includes -c test_libcondorapi.C
-
-c_plus_target(test_libcondorapi,test_libcondorapi.o,libcondorapi.a)
-
+*/
+/* c_plus_target(test_libcondorapi,test_libcondorapi.o,libcondorapi.a)
+*/
 c_plus_target(test_check_events,test_check_events.o,$(LIB))
 c_plus_target(check_log_files,check_log_files.o,$(LIB))
 c_plus_target(test_multi_log,test_multi_log.o,$(LIB))
