@@ -615,45 +615,26 @@ int daemon::RealStart( )
 	sprintf( otherBuf, "%s_ARGS", name_in_config_file );
 	char* otherTmp = param( otherBuf );
 
-	StringList args_list;
-	args_list.initializeFromString(otherTmp);
-	free(otherTmp);
+    if(otherTmp){
+	    StringList args_list;
+	    args_list.initializeFromString(otherTmp);
+	    free(otherTmp);
 
-	char* cur_arg;
-	bool is_port = false;
+	    char* cur_arg;
+	    bool is_port = false;
 
-	args_list.rewind();
+	    args_list.rewind();
     	while( (cur_arg = args_list.next()) )
-	{
-		if(is_port){
-			command_port =  atoi(cur_arg);
-			is_port = false;
+	    {
+		    if(is_port){
+			    command_port =  atoi(cur_arg);
+			    is_port = false;
         	}
         	if(strcmp(cur_arg,"-p") == 0){
-			is_port = true;
+			    is_port = true;
         	}
     	}
-/*    // take command port from arguments( buf )
-    StringList args_list;
-    if(strcmp(buf,"") != 0){
-	    args_list.initializeFromString(buf);
-
-        char* cur_arg;
-	    args_list.rewind();
-
-        bool is_port = false;
-        while( (cur_arg = args_list.next()) ) {
-
-              if(is_port){
-                    command_port =  atoi(tmp);
-                    is_port = false;
-              }
-              if(strcmp(cur_arg,"-p") == 0){
-                   is_port = true;
-              }
-        }
-	    //free(cur_arg);
-    }*/
+    }
     ///////////////////////////////////////// end HAC
 
 	pid = daemonCore->Create_Process(

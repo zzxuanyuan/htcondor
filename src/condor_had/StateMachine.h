@@ -7,7 +7,8 @@
 
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
 
-// TODO : to enter the commands to daemon_types
+// TODO : to enter the commands to command types
+// file   condor_includes/condor_commands.h
 #define HAD_ALIVE_CMD           500
 #define HAD_SEND_ID_CMD         501
 #define HAD_REPL_FILE_VERSION   502
@@ -105,7 +106,7 @@ private:
 
 	void finilize();
     void init();
-    void onConfigError();
+    void onError(char*);
 
     // debug information
     bool debugMode;

@@ -56,6 +56,8 @@ void HADStateMachine::init(){
 void HADStateMachine::finilize()
 {
 
+    state = PASSIVE_STATE;
+
     if(otherHADIPs != NULL){
         delete otherHADIPs;
 		otherHADIPs = NULL;
@@ -68,12 +70,16 @@ void HADStateMachine::finilize()
         delete masterDaemon;
 		masterDaemon = NULL;
 	}
+    isPrimary = false;
+    debugMode = false;
+    firstTime = true;
 	if ( hadTimerID >= 0 ) {
 		daemonCore->Cancel_Timer(hadTimerID);
 		hadTimerID = -1;
 	}
-	clearBuffers();
+    selfId = -1;
 
+	clearBuffers();
 
 
 	// I Do not delete replicator, cause StateMachine did not allocated it.
@@ -110,10 +116,9 @@ void HADStateMachine::initialize(){
 
 }
 
-void HADStateMachine::onConfigError()
+void HADStateMachine::onError(char* error_msg)
 {
-    dprintf(D_ALWAYS,"HAD CONFIGURATION ERROR: Shutting down myself \n");
-
+    dprintf(D_ALWAYS,"%s\n",error_msg);
     main_shutdown_graceful();
 }
 
@@ -141,6 +146,7 @@ int HADStateMachine::reinitialize(){
 	// DELETE all and start everything over from the scratch
 	finilize();
 	
+
 	tmp = param("HAD_STAND_ALONE_DEBUG");	
 	if(tmp){
 		debugMode = true;
@@ -156,15 +162,13 @@ int HADStateMachine::reinitialize(){
         if (!(endp && *endp == '\0')) {
                /* Entire string wasn't valid */
                free(tmp);
-               dprintf(D_ALWAYS,"HAD CONFIGURATION ERROR: HAD_ID is not valid in config file \n");
-               onConfigError();
+               onError("HAD CONFIGURATION ERROR: HAD_ID is not valid in config file");
         }
 		free(tmp);
 	}
 	else
 	{
-        dprintf(D_ALWAYS,"HAD CONFIGURATION ERROR: no HAD_ID in config file \n");
-        onConfigError();
+        onError("HAD CONFIGURATION ERROR: no HAD_ID in config file");
         selfId = 0;
 	}
 
@@ -178,15 +182,13 @@ int HADStateMachine::reinitialize(){
         if (!(endp && *endp == '\0')) {
                /* Entire string wasn't valid */
                free(tmp);
-               dprintf(D_ALWAYS,"HAD CONFIGURATION ERROR: HAD_CYCLE_INTERVAL is not valid in config file \n");
-               onConfigError();
+               onError("HAD CONFIGURATION ERROR: HAD_CYCLE_INTERVAL is not valid in config file");
         }
 		free( tmp );
 
 	} else {
 		hadInterval = NEGOTIATION_CYCLE;
-        dprintf(D_ALWAYS,"HAD CONFIGURATION ERROR: no HAD_CYCLE_INTERVAL in config file \n");
-        onConfigError();
+        onError("HAD CONFIGURATION ERROR: no HAD_CYCLE_INTERVAL in config file ");
     }
 
     hadTimerID = daemonCore->Register_Timer (0 ,hadInterval,(TimerHandlercpp) &HADStateMachine::step,
@@ -199,8 +201,7 @@ int HADStateMachine::reinitialize(){
 		initializeHADList(tmp);
 		free(tmp);
 	} else {
-		dprintf(D_ALWAYS,"HAD CONFIGURATION ERROR: no HAD_NET_LIST in config file \n");
-        onConfigError();
+        onError("HAD CONFIGURATION ERROR: no HAD_NET_LIST in config file");
     }
 
     tmp=param("HAD_PRIMARY_ID");
@@ -212,8 +213,7 @@ int HADStateMachine::reinitialize(){
         if (!(endp && *endp == '\0')) {
                /* Entire string wasn't valid */
                free(tmp);
-               dprintf(D_ALWAYS,"HAD CONFIGURATION ERROR: HAD_PRIMARY_ID is not valid in config file \n");
-               onConfigError();
+               onError("HAD CONFIGURATION ERROR: HAD_PRIMARY_ID is not valid in config file");
         }else{
                if(primaryId == selfId)
                     isPrimary = true;
@@ -225,16 +225,15 @@ int HADStateMachine::reinitialize(){
     // check if SEND_COMMAND_TIMEOUT*NUM_of backups > HAD_INTERVAL-safetyFactor.
     // let safetyFactor be 1 sec
     int safetyFactor = 1;
-    if(SEND_COMMAND_TIMEOUT*otherHADIPs->number() > hadInterval-safetyFactor){
+    if((SEND_COMMAND_TIMEOUT*2+1)*otherHADIPs->number() > hadInterval-safetyFactor){
         // configuration error - can't succeed to send all commands
         // like "I'm alive" during one hadInterval
-        dprintf(D_ALWAYS,"HAD CONFIGURATION ERROR: SEND_COMMAND_TIMEOUT*NUM_of backups > HAD_INTERVAL-SafetyFactor \n");
-        onConfigError();
+        onError("HAD CONFIGURATION ERROR: SEND_COMMAND_TIMEOUT*NUM_of backups > HAD_INTERVAL-SafetyFactor");
     }
 
     masterDaemon = new Daemon( DT_MASTER );
-    if(masterDaemon != NULL){
-        sendNegotiatorCmdToMaster(DAEMON_OFF);
+    if(masterDaemon == NULL || sendNegotiatorCmdToMaster(DAEMON_OFF) == FALSE) {
+         onError("HAD ERROR: unable to send NEGOTIATOR_OFF command");
     }
 	return TRUE;
 }
@@ -294,11 +293,24 @@ void  HADStateMachine::step(){
                 break;
             }
 
-            // no leader in the system and this HAD has biggest id
-            if(sendNegotiatorCmdToMaster(DAEMON_ON) == TRUE || debugMode){
+            // if stand alone mode
+            if(debugMode){
                 state = LEADER_STATE;
                 printStep("ELECTION_STATE","LEADER_STATE");
                 sendCommandToOthers(HAD_ALIVE_CMD);
+                break;
+            }
+
+            // no leader in the system and this HAD has biggest id
+            if(sendNegotiatorCmdToMaster(DAEMON_ON) == TRUE){
+                state = LEADER_STATE;
+                printStep("ELECTION_STATE","LEADER_STATE");
+                sendCommandToOthers(HAD_ALIVE_CMD);
+            }else{
+                // TO DO : what with this case ? stay in election case ? return to passive ?
+                // may be call sendNegotiatorCmdToMaster(DAEMON_ON) in a loop ?
+                dprintf(D_FULLDEBUG,"id %d , cannot send NEGOTIATOR_ON cmd, stay in ELECTION state\n",daemonCore->getpid());
+                onError("");
             }
 
             break;
@@ -391,6 +403,7 @@ int HADStateMachine::sendNegotiatorCmdToMaster(int comm){
     // if timeout() return value is -1, ...
     sock.timeout(SEND_COMMAND_TIMEOUT);
 	
+
 	if(!sock.connect(masterDaemon->addr(),0,true)){
 		dprintf(D_ALWAYS,"id %d , cannot connect to master , addr %s\n",daemonCore->getpid(),masterDaemon->addr());
         sock.close();
@@ -398,7 +411,8 @@ int HADStateMachine::sendNegotiatorCmdToMaster(int comm){
 	}
 
 	int cmd = comm;
-	dprintf(D_FULLDEBUG,"id %d ,send command %d to master\n",daemonCore->getpid(),cmd);
+	dprintf(D_FULLDEBUG,"id %d ,send command %d (DAEMON_OFF = 467) to master\n",daemonCore->getpid(),cmd);
+    dprintf(D_FULLDEBUG,"id %d ,master address is %s\n",daemonCore->getpid(),masterDaemon->addr());
 
     // startCommand - max timeout is 1 sec
     if(!(masterDaemon->startCommand(cmd,&sock,SEND_COMMAND_TIMEOUT ))){
@@ -457,8 +471,9 @@ void HADStateMachine::initializeHADList(char* str){
 	while( (try_address = had_net_list.next()) ) {
 
         if(!is_valid_sinful(try_address)){
-            dprintf( D_ALWAYS, "HAD CONFIGURATION ERROR: %d , not valid sinful address %s \n",daemonCore->getpid(),try_address);
-            onConfigError();
+            char error_msg[100];
+            sprintf( error_msg, "HAD CONFIGURATION ERROR: %d , not valid sinful address %s",daemonCore->getpid(),try_address);
+            onError(error_msg);
             continue;
         }
 
@@ -470,8 +485,7 @@ void HADStateMachine::initializeHADList(char* str){
         }
 	}
     if(!iAmPresent){
-        dprintf( D_ALWAYS, "HAD CONFIGURATION ERROR : my address is not present in HAD_NET_LIST\n");
-        onConfigError();
+        onError("HAD CONFIGURATION ERROR : my address is not present in HAD_NET_LIST");
     }
 }
 
