@@ -362,6 +362,7 @@ const char ATTR_NUM_HOSTS_UNCLAIMED		 [] = "HostsUnclaimed";
 const char ATTR_NUM_HOSTS_OWNER			 [] = "HostsOwner";
 const char ATTR_MAX_RUNNING_JOBS			 [] = "MaxRunningJobs";
 #define ATTR_VERSION					AttrGetName( ATTRE_VERSION )
+const char ATTR_SCHEDD_BIRTHDATE		 [] = "ScheddBday";
 const char ATTR_SHADOW_VERSION			 [] = "ShadowVersion";
 const char ATTR_VIRTUAL_MACHINE_ID		 [] = "VirtualMachineID";
 const char ATTR_SHOULD_TRANSFER_FILES    [] = "ShouldTransferFiles";
@@ -382,6 +383,7 @@ const char ATTR_SHADOW_BIRTHDATE		 [] = "ShadowBday";
 const char ATTR_HOLD_REASON				 [] = "HoldReason";
 const char ATTR_HOLD_REASON_CODE		 [] = "HoldReasonCode";
 const char ATTR_HOLD_REASON_SUBCODE		 [] = "HoldReasonSubCode";
+const char ATTR_WANT_MATCHING			 [] = "WantMatching";
 const char ATTR_WANT_RESOURCE_AD		 [] = "WantResAd";
 const char ATTR_TOTAL_SUSPENSIONS        [] = "TotalSuspensions";
 const char ATTR_LAST_SUSPENSION_TIME     [] = "LastSuspensionTime";

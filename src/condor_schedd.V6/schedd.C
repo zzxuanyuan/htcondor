@@ -962,6 +962,33 @@ count( ClassAd *job )
 	// this function makes its own copies of the memory passed in 
 	int OwnerNum = scheduler.insert_owner( owner, x509userproxy );
 
+	// make certain gridmanager has a copy of mirrored jobs
+	char *mirror_schedd_name = NULL;
+	job->LookupString(ATTR_MIRROR_SCHEDD,&mirror_schedd_name);
+	if ( mirror_schedd_name ) {
+			// We have a mirrored job
+		int job_managed = 0;
+		job->LookupBool(ATTR_JOB_MANAGED, job_managed);
+		bool needs_management = true;
+			// if job is held or completed and not managaged, don't worry about it.
+		if ( ( status==HELD || status==COMPLETED || status==REMOVED ) &&
+			 (job_managed==0 ) ) 
+		{
+			needs_management = false;
+		}
+		if ( needs_management ) {
+				// note: get owner again cuz we don't want accounting group here.
+			char owner[_POSIX_PATH_MAX];
+			owner[0] = '\0';	
+			job->LookupString(ATTR_OWNER,owner);	
+			GridUniverseLogic::JobCountUpdate(owner,domain,mirror_schedd_name,ATTR_MIRROR_SCHEDD,
+				0, 0, 1, job_managed ? 0 : 1);
+		}
+		free(mirror_schedd_name);
+		mirror_schedd_name = NULL;
+	}
+
+
 	if ( (universe != CONDOR_UNIVERSE_GLOBUS) &&	// handle Globus below...
 		 (!service_this_universe(universe,job))  ) 
 	{
@@ -1077,6 +1104,24 @@ count( ClassAd *job )
 bool
 service_this_universe(int universe, ClassAd* job)
 {
+	/* If WantMatching attribute exists, evaluate it to discover if we want
+	   to "service" this universe or not.  BTW, "service" seems to really mean
+	   find a matching resource or not.... 
+	   Note: EvalBool returns 0 if evaluation is undefined or error, and
+	   return 1 otherwise....
+	*/
+	int want_matching;
+	if ( job->EvalBool(ATTR_WANT_MATCHING,NULL,want_matching) == 1 ) {
+		if ( want_matching ) {
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+	/* If we made it to here, the WantMatching was not defined.  So
+	   figure out what to do based on Universe and other misc logic...
+	*/
 	switch (universe) {
 		case CONDOR_UNIVERSE_GLOBUS:
 			{
@@ -1137,6 +1182,58 @@ Scheduler::insert_owner(char* owner, char *x509proxy)
 static int IsSchedulerUniverse(shadow_rec* srec);
 
 extern "C" {
+
+void
+handle_mirror_job_notification(ClassAd *job_ad, int mode, PROC_ID & job_id)
+{
+		// Handle Mirrored Job removal/completion/hold.  
+		// For a mirrored job, we want to notify the gridmanager if it is being
+		// managed or if there is a remote job id, and then do whatever
+		// else we would usually do.
+	if (!job_ad) return;
+	char *mirror_schedd_name = NULL;
+	job_ad->LookupString(ATTR_MIRROR_SCHEDD,&mirror_schedd_name);
+	if ( mirror_schedd_name ) {
+			// We have a mirrored job
+		int job_managed = 0;
+		job_ad->LookupBool(ATTR_JOB_MANAGED, job_managed);
+			// If job_managed is true, then notify the gridmanager.
+			// Special case: if job_managed is false, but the job is being removed
+			// still has a mirror job id,
+			// then consider the job still "managed" so
+			// that the gridmanager will be notified.  
+		if (!job_managed && mode==REMOVED ) {
+			char tmp_str[2];
+			tmp_str[0] = '\0';
+			job_ad->LookupString(ATTR_MIRROR_JOB_ID,tmp_str,sizeof(tmp_str));
+			if ( tmp_str[0] )
+			{
+				// looks like the mirror job id is still valid,
+				// so there is still a job submitted remotely somewhere.
+				// fire up the gridmanager to try and really clean it up!
+				job_managed = 1;
+			}
+		}
+		if ( job_managed  ) {
+			char owner[_POSIX_PATH_MAX];
+			char domain[_POSIX_PATH_MAX];
+			owner[0] = '\0';
+			domain[0] = '\0';
+			job_ad->LookupString(ATTR_OWNER,owner);
+			job_ad->LookupString(ATTR_NT_DOMAIN,domain);
+			if ( gridman_per_job ) {
+				GridUniverseLogic::JobRemoved(owner,domain,mirror_schedd_name,
+					ATTR_MIRROR_SCHEDD,job_id.cluster,job_id.proc);
+			} else {
+				GridUniverseLogic::JobRemoved(owner,domain,mirror_schedd_name,
+					ATTR_MIRROR_SCHEDD,0,0);
+			}
+		}
+		free(mirror_schedd_name);
+		mirror_schedd_name = NULL;
+	}
+}
+
 void
 abort_job_myself( PROC_ID job_id, bool log_hold, bool notify )
 {
@@ -1184,6 +1281,11 @@ abort_job_myself( PROC_ID job_id, bool log_hold, bool notify )
 	int job_universe = CONDOR_UNIVERSE_STANDARD;
 	job_ad->LookupInteger(ATTR_JOB_UNIVERSE,job_universe);
 
+
+		// Handle Mirror Job
+	handle_mirror_job_notification(job_ad, mode, job_id);
+
+		// Handle Globus Universe
 	if (job_universe == CONDOR_UNIVERSE_GLOBUS) {
 		if( ! notify ) {
 				// caller explicitly does not the gridmanager notified??
@@ -6341,6 +6443,9 @@ Scheduler::check_zombie(int pid, PROC_ID* job_id)
 			dprintf( D_ALWAYS, 
 					 "Failed to write hold event to the user log\n" ); 
 		}
+		handle_mirror_job_notification(
+					GetJobAd(job_id->cluster,job_id->proc),
+					status, *job_id);
 		break;
 	case REMOVED:
 		if( !scheduler.WriteAbortToUserLog(*job_id)) {
@@ -6349,6 +6454,9 @@ Scheduler::check_zombie(int pid, PROC_ID* job_id)
 		}
 			// No break, fall through and do the deed...
 	case COMPLETED:
+		handle_mirror_job_notification(
+					GetJobAd(job_id->cluster,job_id->proc),
+					status, *job_id);
 		DestroyProc( job_id->cluster, job_id->proc );
 		break;
 	default:
