@@ -48,38 +48,51 @@ void Job::Remove (const queue_t queue, const JobID_t jobID) {
 
 //---------------------------------------------------------------------------
 void Job::Dump () const {
-    printf ("Job -------------------------------------\n");
-    printf ("          JobID: %d\n", m_jobID);
-    printf ("       Job Name: %s\n", m_jobName.c_str());
-    printf ("     Job Status: %s\n", status_t_names[m_Status].c_str());
-    printf ("       Cmd File: %s\n", m_cmdFile.c_str());
-    printf ("      Condor ID: ");
-    m_CondorID.Print();
-    putchar('\n');
+    cout << "Job -------------------------------------"     << endl;
+    cout << "          JobID: " << toString(m_jobID)        << endl;
+    cout << "       Job Name: " << m_jobName                << endl;
+    cout << "     Job Status: " << status_t_names[m_Status] << endl;
+    cout << "       Cmd File: " << m_cmdFile                << endl;
+    cout << "      Condor ID: " << m_CondorID               << endl;
   
     for (int i = 0 ; i < 3 ; i++) {
+        fflush(stdout);
         printf ("%15s: ", queue_t_names[i].c_str());
 
         std::list<int>::const_iterator it;
         for (it = m_queues[i].begin() ; it != m_queues[i].end() ; it++)
-            printf ("%d, ", *it);
-        printf ("<END>\n");
+            cout << toString(*it) << ", ";
+        cout << "<END>" << endl;
     }
 }
 
 //---------------------------------------------------------------------------
-void Job::Print (bool condorID) const {
-    printf ("ID: %4d Name: %s", m_jobID, m_jobName.c_str());
+std::string Job::toString (bool condorID) const {
+    std::string s;
+    s += "[id=";
+    s += dagman::toString(m_jobID);  // this should be padded with 4 spaces
+    s += "; name=\"";
+    s += m_jobName;
+    s += "\"";
     if (condorID) {
-        printf ("  CondorID: ");
-        m_CondorID.Print();
+        s += "; condorID=\"";
+        s += m_CondorID;
+        s += "\"";
     }
+    s += ']';
+    return s;
 }
 
 //---------------------------------------------------------------------------
-void job_print (Job * job, bool condorID) {
-    if (job == NULL) printf ("(UNKNOWN)");
-    else job->Print(condorID);
+ostream & operator << (ostream & out, const Job & job) {
+    out << (std::string) job;
+    return out;
 }
 
+//---------------------------------------------------------------------------
+std::string toString (const Job * const job, bool condorID) {
+    if (job == NULL) return "(UNKNOWN)";
+    else return job->toString(condorID);
 }
+
+} // namespace dagman
