@@ -338,6 +338,7 @@ BaseShadow::initJobQueueAttrLists( void )
 	common_job_queue_attrs->insert( ATTR_LAST_SUSPENSION_TIME );
 	common_job_queue_attrs->insert( ATTR_BYTES_SENT );
 	common_job_queue_attrs->insert( ATTR_BYTES_RECVD );
+	common_job_queue_attrs->insert( ATTR_LAST_CONTACT );
 
 	hold_job_queue_attrs = new StringList();
 	hold_job_queue_attrs->insert( ATTR_HOLD_REASON );
