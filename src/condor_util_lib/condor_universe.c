@@ -43,6 +43,7 @@ static char *names[] = {
 	"GLOBUS",
 	"JAVA",
 	"PARALLEL",
+	"LOCAL",
 };
 
 const char*
@@ -96,6 +97,9 @@ CondorUniverseNumber( const char* univ )
 	if( stricmp(univ,"parallel") == MATCH ) {
 		return CONDOR_UNIVERSE_MPI;
 	}
+	if( stricmp(univ,"local") == MATCH ) {
+		return CONDOR_UNIVERSE_LOCAL;
+	}
 	return 0;
 }
 
@@ -107,6 +111,7 @@ universeCanReconnect( int universe )
 	case CONDOR_UNIVERSE_STANDARD:
 	case CONDOR_UNIVERSE_PVM:
 	case CONDOR_UNIVERSE_SCHEDULER:
+	case CONDOR_UNIVERSE_LOCAL:
 	case CONDOR_UNIVERSE_MPI:
 	case CONDOR_UNIVERSE_GLOBUS:
 	case CONDOR_UNIVERSE_PARALLEL:
