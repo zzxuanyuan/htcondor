@@ -177,6 +177,13 @@ protected:
 			@return true on success, false on failure */
 	bool initJobInfo( void );
 
+		/** 
+			Figure out the cluster and proc.  If they were given on
+			the command-line, use those values.  If not there, check
+			the classad.  If not there, use "1.0"
+		*/
+	void initJobId( void );
+
 		/** Since the logic for getting the std filenames out of the
 			job ad and munging them are identical for all 3, just use
 			a helper to avoid duplicating code.  The only magic we do

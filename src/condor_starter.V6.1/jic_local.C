@@ -302,6 +302,9 @@ JICLocal::initJobInfo( void )
 		return false;
 	}
 
+		// Figure out the cluster and proc 
+	initJobId();
+
 	if( ! fullpath(orig_job_name) ) {
 			// add the job's iwd to the job_cmd, so exec will work. 
 		dprintf( D_FULLDEBUG, "warning: %s not specified as full path, "
@@ -323,6 +326,34 @@ JICLocal::initJobInfo( void )
 	job_error_name = getJobStdFile( ATTR_JOB_ERROR );
 
 	return true;
+}
+
+
+void
+JICLocal::initJobId( void ) 
+{
+	if( job_cluster < 0 ) {
+			// not on command-line, try classad
+		if( !job_ad->LookupInteger(ATTR_CLUSTER_ID, job_cluster) ) { 
+			dprintf( D_FULLDEBUG, "Job's cluster ID not specified "
+					 "in ClassAd or on command-line, using '1'\n" );
+			job_cluster = 1;
+		}
+	}
+	if( job_proc < 0 ) {
+			// not on command-line, try classad
+		if( !job_ad->LookupInteger(ATTR_PROC_ID, job_proc) ) { 
+			dprintf( D_FULLDEBUG, "Job's proc ID not specified "
+					 "in ClassAd or on command-line, using '0'\n" );
+			job_proc = 0;
+		}
+	}
+	if( job_subproc < 0 ) {
+			// not on command-line, try classad
+		if( !job_ad->LookupInteger(ATTR_NODE, job_subproc) ) { 
+			job_subproc = 0;
+		}
+	}
 }
 
 
