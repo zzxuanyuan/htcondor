@@ -55,7 +55,11 @@ public:
 
 	ssize_t write( File *f, off_t offset, char *data, ssize_t length );
 
-	/** Force the buffer to preload data from a particular range */
+	/** Force the buffer to preload data from a particular range.
+	    We would like to do all prefetching as one gigantic read
+	    which fills the buffer -- this method may cause some
+	    writebacks in order to create one unbroken region
+	    in the buffer.  */
 
 	void prefetch( File *f, off_t offset, size_t length );
 
