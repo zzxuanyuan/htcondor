@@ -379,7 +379,7 @@ main( int argc, char *argv[] )
 #if !defined(WIN32)	
 		// Make sure root isn't trying to submit.
 	if( getuid() == 0 || getgid() == 0 ) {
-		fprintf( stderr, "ERROR: Submitting jobs as user/group 0 (root) is not "
+		fprintf( stderr, "\nERROR: Submitting jobs as user/group 0 (root) is not "
 				 "allowed for security reasons.\n" );
 		exit( 1 );
 	}
@@ -465,9 +465,9 @@ main( int argc, char *argv[] )
 
 	if( !(ScheddAddr = get_schedd_addr(ScheddName)) ) {
 		if( ScheddName ) {
-			fprintf( stderr, "ERROR: Can't find address of schedd %s\n", ScheddName );
+			fprintf( stderr, "\nERROR: Can't find address of schedd %s\n", ScheddName );
 		} else {
-			fprintf( stderr, "ERROR: Can't find address of local schedd\n" );
+			fprintf( stderr, "\nERROR: Can't find address of local schedd\n" );
 		}
 		exit(1);
 	}
@@ -483,7 +483,7 @@ main( int argc, char *argv[] )
 		fp = stdin;
 	} else {
 		if( (fp=fopen(cmd_file,"r")) == NULL ) {
-			fprintf( stderr, "ERROR: Failed to open command file\n");
+			fprintf( stderr, "\nERROR: Failed to open command file\n");
 			exit(1);
 		}
 	}
@@ -2048,11 +2048,11 @@ connect_to_the_schedd()
 	if (ConnectQ(ScheddAddr) == 0) {
 		if( ScheddName ) {
 			fprintf( stderr, 
-					"ERROR: Failed to connect to queue manager %s\n",
+					"\nERROR: Failed to connect to queue manager %s\n",
 					 ScheddName );
 		} else {
 			fprintf( stderr, 
-				"ERROR: Failed to connect to local queue manager\n" );
+				"\nERROR: Failed to connect to local queue manager\n" );
 		}
 		exit(1);
 	}
@@ -2128,7 +2128,7 @@ queue(int num)
 			}
 /*
 			if ( rm_contact && (check_globus_rm_contacts(rm_contact) != 0) ) {
-				fprintf( stderr, "ERROR: Can't find scheduler in MDS\n" );
+				fprintf( stderr, "\nERROR: Can't find scheduler in MDS\n" );
 				exit( 1 );
 			}
 */
