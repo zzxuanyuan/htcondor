@@ -293,6 +293,9 @@ pure_target(condor_dagman,condor_dagman.pure)
 
 
 ext_target(EXT_ZLIB_VERSION,$(NULL))
+#if WANT_GCB
+ext_target(EXT_GCB_VERSION,$(NULL))
+#endif
 #if WANT_EXT_GLIBC
 ext_target(EXT_GLIBC_VERSION,$(NULL))
 #endif
