@@ -1,3 +1,10 @@
+02/13/04 V6_6_2-pre-bbs-snapshot2
+   The state of the V6_6-infn-branch that was given to INFN as a 6.6.2
+   pre-release snapshot.  The version string for this release was:
+   $CondorVersion: 6.6.2 Feb 13 2004 BBS-PRE-RELEASE Snapshot-2 $
+   This tag lives on the V6_6-infn-branch of the V6_6_ALL module and
+   on the trunk of the V6_6_1_EXT module of externals.
+
 02/01/04 V6_6-merge-4
    The state of the V6_6-branch for another merge into V6_7-branch.
    Some final 6.6.1 bug fixes and other things we need before we make
