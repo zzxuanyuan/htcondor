@@ -42,7 +42,7 @@ RSC=rc.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /Gm /GX /Zi /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /YX /FD /c
-# ADD CPP /nologo /MTd /W3 /Gm /Gi /GX /ZI /Od $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /Fp"..\Debug\condor_common.pch" /Yu"condor_common.h" /FD /TP /c
+# ADD CPP /nologo /MTd /W3 /Gm /Gi /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /Fp"..\Debug\condor_common.pch" /Yu"condor_common.h" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) /c
 # ADD BASE RSC /l 0x409 /d "_DEBUG"
 # ADD RSC /l 0x409 /d "_DEBUG"
 BSC32=bscmake.exe
@@ -69,7 +69,7 @@ LINK32=link.exe
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /MDd /W3 /GX /Z7 /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /Fp"..\src\condor_c++_util/condor_common.pch" /Yu"condor_common.h" /FD /TP /c
 # SUBTRACT BASE CPP /Fr
-# ADD CPP /nologo /MT /W3 /GX /Z7 /O1 $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /Fp"..\Release\condor_common.pch" /Yu"condor_common.h" /FD /TP /c
+# ADD CPP /nologo /MT /W3 /GX /Z7 /O1 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /Fp"..\Release\condor_common.pch" /Yu"condor_common.h" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) /c
 # ADD BASE RSC /l 0x409 /d "_DEBUG"
 # ADD RSC /l 0x409 /d "NDEBUG"
 BSC32=bscmake.exe
@@ -149,6 +149,35 @@ SOURCE=..\src\condor_schedd.V6\schedd.C
 # Begin Source File
 
 SOURCE=..\src\condor_schedd.V6\schedd_api.C
+
+!IF  "$(CFG)" == "condor_schedd - Win32 Debug"
+
+# PROP Ignore_Default_Tool 1
+# Begin Custom Build
+InputDir=\condor\workspaces\v67-ext\src\condor_schedd.V6
+InputPath=..\src\condor_schedd.V6\schedd_api.C
+
+"$(InputDir)\soap_scheddC.C" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+	cd $(InputDir) 
+	soap_gen schedd 
+	
+# End Custom Build
+
+!ELSEIF  "$(CFG)" == "condor_schedd - Win32 Release"
+
+# PROP Ignore_Default_Tool 1
+# Begin Custom Build
+InputDir=\condor\workspaces\v67-ext\src\condor_schedd.V6
+InputPath=..\src\condor_schedd.V6\schedd_api.C
+
+"$(InputDir)\soap_scheddC.C" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+	cd $(InputDir) 
+	soap_gen schedd 
+	
+# End Custom Build
+
+!ENDIF 
+
 # End Source File
 # Begin Source File
 
@@ -187,44 +216,11 @@ SOURCE=..\src\condor_schedd.V6\soap_scheddServer.C
 # Begin Source File
 
 SOURCE=..\src\condor_schedd.V6\soap_scheddStub.C
-
-!IF  "$(CFG)" == "condor_schedd - Win32 Debug"
-
-!ELSEIF  "$(CFG)" == "condor_schedd - Win32 Release"
-
-!ENDIF 
-
+# PROP Ignore_Default_Tool 1
 # End Source File
 # Begin Source File
 
 SOURCE=..\src\condor_schedd.V6\soap_scheddStub.h
-
-!IF  "$(CFG)" == "condor_schedd - Win32 Debug"
-
-# Begin Custom Build
-InputDir=\condor\workspaces\v67-externals\src\condor_schedd.V6
-InputPath=..\src\condor_schedd.V6\soap_scheddStub.h
-
-"$(InputDir)\soap_scheddC.C" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	cd $(InputDir) 
-	soap_gen schedd 
-	
-# End Custom Build
-
-!ELSEIF  "$(CFG)" == "condor_schedd - Win32 Release"
-
-# Begin Custom Build
-InputDir=\condor\workspaces\v67-externals\src\condor_schedd.V6
-InputPath=..\src\condor_schedd.V6\soap_scheddStub.h
-
-"$(InputDir)\soap_scheddC.C" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	cd $(InputDir) 
-	soap_gen schedd 
-	
-# End Custom Build
-
-!ENDIF 
-
 # End Source File
 # End Target
 # End Project

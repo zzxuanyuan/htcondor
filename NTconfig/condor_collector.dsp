@@ -93,6 +93,33 @@ SOURCE=..\src\condor_collector.V6\collector.C
 # Begin Source File
 
 SOURCE=..\src\condor_collector.V6\collector.h
+
+!IF  "$(CFG)" == "condor_collector - Win32 Debug"
+
+# Begin Custom Build
+InputDir=\condor\workspaces\v67-ext\src\condor_collector.V6
+InputPath=..\src\condor_collector.V6\collector.h
+
+"$(InputDir)\soap_collectorC.C" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+	cd $(InputDir) 
+	soap_gen collector 
+	
+# End Custom Build
+
+!ELSEIF  "$(CFG)" == "condor_collector - Win32 Release"
+
+# Begin Custom Build
+InputDir=\condor\workspaces\v67-ext\src\condor_collector.V6
+InputPath=..\src\condor_collector.V6\collector.h
+
+"$(InputDir)\soap_collectorC.C" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+	cd $(InputDir) 
+	soap_gen collector 
+	
+# End Custom Build
+
+!ENDIF 
+
 # End Source File
 # Begin Source File
 
@@ -160,33 +187,6 @@ SOURCE=..\src\condor_collector.V6\soap_collectorStub.C
 # Begin Source File
 
 SOURCE=..\src\condor_collector.V6\soap_collectorStub.h
-
-!IF  "$(CFG)" == "condor_collector - Win32 Debug"
-
-# Begin Custom Build
-InputDir=\condor\workspaces\v67-externals\src\condor_collector.V6
-InputPath=..\src\condor_collector.V6\soap_collectorStub.h
-
-"$(InputDir)\soap_collectorC.C" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	cd $(InputDir) 
-	soap_gen collector 
-	
-# End Custom Build
-
-!ELSEIF  "$(CFG)" == "condor_collector - Win32 Release"
-
-# Begin Custom Build
-InputDir=\condor\workspaces\v67-externals\src\condor_collector.V6
-InputPath=..\src\condor_collector.V6\soap_collectorStub.h
-
-"$(InputDir)\soap_collectorC.C" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	cd $(InputDir) 
-	soap_gen collector 
-	
-# End Custom Build
-
-!ENDIF 
-
 # End Source File
 # Begin Source File
 
