@@ -650,9 +650,14 @@ CStarter::allJobsDone( void )
 	UserProc *job;
 	CleanedUpJobList.Rewind();
 	while( (job = CleanedUpJobList.Next()) != NULL) {
-		job->JobExit();
-		CleanedUpJobList.DeleteCurrent();
-		delete job;
+		if( job->JobExit() ) {
+			CleanedUpJobList.DeleteCurrent();
+			delete job;
+		} else {
+			dprintf( D_ALWAYS, "JobExit() failed, waiting for job "
+					 "lease to expire or for a reconnect attempt\n" );
+			return;
+		}
 	}
 		// No more jobs, all cleanup done, notify our JIC
 	jic->allJobsGone();
