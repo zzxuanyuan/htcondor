@@ -85,25 +85,24 @@ command_handler( Service*, int cmd, Stream* stream )
 int
 command_activate_claim( Service*, int cmd, Stream* stream )
 {
-	char* cap = NULL;
+	char* id = NULL;
 	Resource* rip;
 
-	if( ! stream->code(cap) ) {
-		dprintf( D_ALWAYS, "Can't read capability\n" );
-		free( cap );
+	if( ! stream->code(id) ) {
+		dprintf( D_ALWAYS, "Can't read ClaimId\n" );
+		free( id );
 		return FALSE;
 	}
-	rip = resmgr->get_by_cur_cap( cap );
+	rip = resmgr->get_by_cur_id( id );
 	if( !rip ) {
 		dprintf( D_ALWAYS, 
-				 "Error: can't find resource with capability (%s)\n",
-				 cap );
-		free( cap );
+				 "Error: can't find resource with ClaimId (%s)\n", id );
+		free( id );
 		stream->end_of_message();
 		reply( stream, NOT_OK );
 		return FALSE;
 	}
-	free( cap );
+	free( id );
 
 	if ( resmgr->isShuttingDown() ) {
 		rip->log_shutdown_ignore( cmd );
@@ -229,32 +228,31 @@ command_give_totals_classad( Service*, int, Stream* stream )
 int
 command_request_claim( Service*, int cmd, Stream* stream ) 
 {
-	char* cap = NULL;
+	char* id = NULL;
 	Resource* rip;
 	int rval;
 
-	if( ! stream->code(cap) ) {
-		dprintf( D_ALWAYS, "Can't read capability\n" );
-		if( cap ) { 
-			free( cap );
+	if( ! stream->code(id) ) {
+		dprintf( D_ALWAYS, "Can't read ClaimId\n" );
+		if( id ) { 
+			free( id );
 		}
 		refuse( stream );
 		return FALSE;
 	}
 
-	rip = resmgr->get_by_any_cap( cap );
+	rip = resmgr->get_by_any_id( id );
 	if( !rip ) {
 		dprintf( D_ALWAYS, 
-				 "Error: can't find resource with capability (%s)\n",
-				 cap );
-		free( cap );
+				 "Error: can't find resource with ClaimId (%s)\n", id );
+		free( id );
 		refuse( stream );
 		return FALSE;
 	}
 
 	if( resmgr->isShuttingDown() ) {
 		rip->log_shutdown_ignore( cmd );
-		free( cap );
+		free( id );
 		refuse( stream );
 		return FALSE;
 	}
@@ -265,9 +263,9 @@ command_request_claim( Service*, int cmd, Stream* stream )
 		refuse( stream );
 		rval = FALSE;
 	} else {
-		rval = request_claim( rip, cap, stream );
+		rval = request_claim( rip, id, stream );
 	}
-	free( cap );
+	free( id );
 	return rval;
 }
 
@@ -343,29 +341,28 @@ command_name_handler( Service*, int cmd, Stream* stream )
 int
 command_match_info( Service*, int cmd, Stream* stream ) 
 {
-	char* cap = NULL;
+	char* id = NULL;
 	Resource* rip;
 	int rval;
 
-	if( ! stream->code(cap) ) {
-		dprintf( D_ALWAYS, "Can't read capability\n" );
-		free( cap );
+	if( ! stream->code(id) ) {
+		dprintf( D_ALWAYS, "Can't read ClaimId\n" );
+		free( id );
 		return FALSE;
 	}
 
-		// Find Resource object for this capability
-	rip = resmgr->get_by_any_cap( cap );
+		// Find Resource object for this ClaimId
+	rip = resmgr->get_by_any_id( id );
 	if( !rip ) {
 		dprintf( D_ALWAYS, 
-				 "Error: can't find resource with capability (%s)\n",
-				 cap );
-		free( cap );
+				 "Error: can't find resource with ClaimId (%s)\n", id );
+		free( id );
 		return FALSE;
 	}
 
 	if( resmgr->isShuttingDown() ) {
 		rip->log_shutdown_ignore( cmd );
-		free( cap );
+		free( id );
 		return FALSE;
 	}
 
@@ -376,9 +373,9 @@ command_match_info( Service*, int cmd, Stream* stream )
 		rip->log_ignore( MATCH_INFO, s );
 		rval = FALSE;
 	} else {
-		rval = match_info( rip, cap );
+		rval = match_info( rip, id );
 	}
-	free( cap );
+	free( id );
 	return rval;
 }
 
@@ -491,7 +488,7 @@ if( s == claimed_state ) {				\
 return FALSE
 
 int
-request_claim( Resource* rip, char* cap, Stream* stream )
+request_claim( Resource* rip, char* id, Stream* stream )
 {
 		// Formerly known as "reqservice"
 
@@ -573,7 +570,7 @@ request_claim( Resource* rip, char* cap, Stream* stream )
 	}
 		
 	rip->dprintf( D_FULLDEBUG,
-				  "Received capability from schedd (%s)\n", cap );
+				  "Received ClaimId from schedd (%s)\n", id );
 
 		// Make sure we're willing to run this job at all.  Verify that 
 		// the machine and job meet each other's requirements.
@@ -632,9 +629,9 @@ request_claim( Resource* rip, char* cap, Stream* stream )
 			refuse( stream );
 			ABORT;
 		}
-		if( rip->r_pre->cap()->matches(cap) ) {
+		if( rip->r_pre->idMatches(id) ) {
 			rip->dprintf( D_ALWAYS, 
-						  "Preempting claim has correct capability.\n" );
+						  "Preempting claim has correct ClaimId.\n" );
 			
 				// Check rank, decided to preempt, if needed, do so.
 			if( rank < rip->r_cur->rank() ) {
@@ -668,19 +665,19 @@ request_claim( Resource* rip, char* cap, Stream* stream )
 			}					
 		} else {
 			rip->dprintf( D_ALWAYS,
-					 "Capability from schedd (%s) doesn't match (%s)\n",
-					 cap, rip->r_pre->capab() );
+					 "ClaimId from schedd (%s) doesn't match (%s)\n",
+					 id, rip->r_pre->id() );
 			cmd = NOT_OK;
 		}
 	} else {
 			// We're not claimed
-		if( rip->r_cur->cap()->matches(cap) ) {
+		if( rip->r_cur->idMatches(id) ) {
 			rip->dprintf( D_ALWAYS, "Request accepted.\n" );
 			cmd = OK;
 		} else {
 			rip->dprintf( D_ALWAYS,
-					"Capability from schedd (%s) doesn't match (%s)\n",
-					cap, rip->r_cur->capab() );
+					"ClaimId from schedd (%s) doesn't match (%s)\n",
+					id, rip->r_cur->id() );
 			cmd = NOT_OK;
 		}		
 	}	
@@ -1043,21 +1040,21 @@ activate_claim( Resource* rip, Stream* stream )
 #undef ABORT
 
 int
-match_info( Resource* rip, char* cap )
+match_info( Resource* rip, char* id )
 {
 	int rval = FALSE;
 	rip->dprintf(D_ALWAYS, "match_info called\n");
 
 	switch( rip->state() ) {
 	case claimed_state:
-		if( rip->r_cur->cap()->matches(cap) ) {
-				// The capability we got matches the one for the
+		if( rip->r_cur->idMatches(id) ) {
+				// The ClaimId we got matches the one for the
 				// current claim, and we're already claimed.  There's
 				// nothing to do here.
 			rval = TRUE;
-		} else if( rip->r_pre && rip->r_pre->cap()->matches(cap) ) {
-				// The capability we got matches the preempting
-				// capability we've been advertising.  Advertise
+		} else if( rip->r_pre && rip->r_pre->idMatches(id) ) {
+				// The ClaimId we got matches the preempting
+				// ClaimId we've been advertising.  Advertise
 				// ourself as unavailable for future claims, update
 				// the CM, and set the timer for this match.
 			rip->r_reqexp->unavail();
@@ -1065,17 +1062,16 @@ match_info( Resource* rip, char* cap )
 			rip->r_pre->start_match_timer();
 			rval = TRUE;
 		} else {
-				// The capability doesn't match any of our
-				// capabilities.  
+				// The ClaimId doesn't match any of our ClaimIds.
 				// Should never get here, since we found the rip by
-				// some cap in the first place.
+				// some id in the first place.
 			EXCEPT( "Should never get here" );
 		}
 		break;
 	case unclaimed_state:
 	case owner_state:
-		if( rip->r_cur->cap()->matches(cap) ) {
-			rip->dprintf( D_ALWAYS, "Received match %s\n", cap );
+		if( rip->r_cur->idMatches(id) ) {
+			rip->dprintf( D_ALWAYS, "Received match %s\n", id );
 
 				// Start a timer to prevent staying in matched state
 				// too long. 
@@ -1089,8 +1085,7 @@ match_info( Resource* rip, char* cap )
 			rval = TRUE;
 		} else {
 			rip->dprintf( D_ALWAYS, 
-						  "Invalid capability from negotiator (%s)\n",  
-						  cap );			
+						  "Invalid ClaimId from negotiator (%s)\n", id );
 			rval = FALSE;
 		}
 		break;

@@ -42,7 +42,7 @@
 Claim::Claim( Resource* rip, bool is_cod )
 {
 	c_client = new Client;
-	c_cap = new Capability( is_cod );
+	c_id = new ClaimId( is_cod );
 	c_ad = NULL;
 	c_starter = NULL;
 	c_rank = 0;
@@ -75,7 +75,7 @@ Claim::~Claim()
 {	
 	if( c_is_cod ) {
 		dprintf( D_FULLDEBUG, "Deleted claim %s (owner '%s')\n", 
-				 c_cap->id(), 
+				 c_id->id(), 
 				 c_client->owner() ? c_client->owner() : "unknown" );  
 	}
 
@@ -87,7 +87,7 @@ Claim::~Claim()
 	if( c_ad ) {
 		delete( c_ad );
 	}
-	delete( c_cap );
+	delete( c_id );
 	if( c_client ) {
 		delete( c_client );
 	}
@@ -106,10 +106,10 @@ Claim::~Claim()
 void
 Claim::vacate() 
 {
-	assert( c_cap );
+	assert( c_id );
 		// warn the client of this claim that it's being vacated
 	if( c_client && c_client->addr() ) {
-		c_client->vacate( c_cap->capab() );
+		c_client->vacate( c_id->id() );
 	}
 }
 
@@ -278,7 +278,7 @@ Claim::start_match_timer()
 {
 	if( c_match_tid != -1 ) {
 			/*
-			  We got matched twice for the same capability.  This
+			  We got matched twice for the same ClaimId.  This
 			  must be because we got matched, we sent an update that
 			  said we're unavailable, but the collector dropped that
 			  update, and we got matched again.  This shouldn't be a
@@ -287,7 +287,7 @@ Claim::start_match_timer()
 			  continue. 
 			*/
 		
-	   dprintf( D_FAILURE|D_ALWAYS, "Warning: got matched twice for same capability."
+	   dprintf( D_FAILURE|D_ALWAYS, "Warning: got matched twice for same ClaimId."
 				" Canceling old match timer (%d)\n", c_match_tid );
 	   if( daemonCore->Cancel_Timer(c_match_tid) < 0 ) {
 		   dprintf( D_ALWAYS, "Failed to cancel old match timer (%d): "
@@ -333,25 +333,25 @@ Claim::cancel_match_timer()
 int
 Claim::match_timed_out()
 {
-	char* my_cap = capab();
-	if( !my_cap ) {
+	char* my_id = id();
+	if( !my_id ) {
 			// We're all confused.
 			// Don't use our dprintf(), use the "real" version, since
 			// if we're this confused, our rip pointer might be messed
 			// up, too, and we don't want to seg fault.
 		::dprintf( D_FAILURE|D_ALWAYS,
-				   "ERROR: Match timed out but there's no capability\n" );
+				   "ERROR: Match timed out but there's no ClaimId\n" );
 		return FALSE;
 	}
 		
-	Resource* rip = resmgr->get_by_any_cap( my_cap );
+	Resource* rip = resmgr->get_by_any_id( my_id );
 	if( !rip ) {
 		::dprintf( D_FAILURE|D_ALWAYS,
 				   "ERROR: Can't find resource of expired match\n" );
 		return FALSE;
 	}
 
-	if( rip->r_cur->cap()->matches( capab() ) ) {
+	if( rip->r_cur->idMatches( id() ) ) {
 		if( rip->state() != matched_state ) {
 				/* 
 				   This used to be an EXCEPT(), since it really
@@ -380,7 +380,7 @@ Claim::match_timed_out()
 		rip->change_state( owner_state );
 	} else {
 			// The match that timed out was the preempting claim.
-		assert( rip->r_pre->cap()->matches( capab() ) );
+		assert( rip->r_pre->idMatches( id() ) );
 			// We need to generate a new preempting claim object,
 			// restore our reqexp, and update the CM. 
 		delete rip->r_pre;
@@ -535,7 +535,7 @@ Claim::cancel_claim_timer()
 int
 Claim::claim_timed_out()
 {
-	Resource* rip = resmgr->get_by_cur_cap( capab() );
+	Resource* rip = resmgr->get_by_cur_id( id() );
 	if( !rip ) {
 		EXCEPT( "Can't find resource of expired claim." );
 	}
@@ -586,18 +586,21 @@ Claim::setRequestStream(Stream* stream)
 char*
 Claim::id( void )
 {
-	return capab();
-}
-
-
-char*
-Claim::capab( void )
-{
-	if( c_cap ) {
-		return c_cap->id();
+	if( c_id ) {
+		return c_id->id();
 	} else {
 		return NULL;
 	}
+}
+
+
+bool
+Claim::idMatches( const char* id )
+{
+	if( c_id ) {
+		return c_id->matches( id );
+	}
+	return false;
 }
 
 
@@ -1216,7 +1219,7 @@ Client::sethost( const char* host )
 
 
 void
-Client::vacate(char* cap)
+Client::vacate(char* id)
 {
 	ReliSock* sock;
 
@@ -1234,8 +1237,8 @@ Client::vacate(char* cap)
 		dprintf(D_FAILURE|D_ALWAYS, "Can't connect to schedd (%s)\n", c_addr);
 		return;
 	}
-	if( !sock->put( cap ) ) {
-		dprintf(D_ALWAYS, "Can't send capability to client\n");
+	if( !sock->put( id ) ) {
+		dprintf(D_ALWAYS, "Can't send ClaimId to client\n");
 	} else if( !sock->eom() ) {
 		dprintf(D_ALWAYS, "Can't send EOM to client\n");
 	}
@@ -1246,56 +1249,15 @@ Client::vacate(char* cap)
 
 
 ///////////////////////////////////////////////////////////////////////////
-// Capability
+// ClaimId
 ///////////////////////////////////////////////////////////////////////////
 
-char*
-newCapabilityString()
-{
-	char cap[128];
-	char tmp[128];
-	char randbuf[12];
-	randbuf[0] = '\0';
-	int i, len;
-
-		// Create a really mangled 10 digit random number: The first 6
-		// digits are generated as follows: for the ith digit, pull
-		// the ith digit off a new random int.  So our 1st slot comes
-		// from the 1st digit of 1 random int, the 2nd from the 2nd
-		// digit of a 2nd random it, etc...  If we're trying to get a
-		// digit from a number that's too small to have that many, we
-		// just use the last digit.  The last 4 digits of our number
-		// come from the first 4 digits of the current time multiplied
-		// by a final random int.  That should keep 'em guessing. :)
-		// -Derek Wright 1/8/98
-	for( i=0; i<6; i++ ) {
-		sprintf( tmp, "%d", get_random_int() );
-		len = strlen(tmp);
-		if( i < len ) {
-			tmp[i+1] = '\0';
-			strcat( randbuf, tmp+i );
-		} else {
-			strcat( randbuf, tmp+(len-1) );
-		}
-	}
-	sprintf( tmp, "%f", (double)((float)time(NULL) * (float)get_random_int()) );
-	tmp[4]='\0';
-	strcat( randbuf, tmp );
-
-		// Capability string is "<ip:port>#random_number"
-	strcpy( cap, daemonCore->InfoCommandSinfulString() );
-	strcat( cap, "#" );
-	strcat( cap, randbuf );
-	return strdup( cap );
-}
-
-
-
+static 
 int
-newCODIdString( char** id_str_ptr )
+newIdString( char** id_str_ptr )
 {
-		// COD id string (capability) is of the form:
-		// "<ip:port>#COD#startd_bday#sequence_num"
+		// ClaimId string is of the form:
+		// "<ip:port>#startd_bday#sequence_num"
 
 	static int sequence_num = 0;
 	sequence_num++;
@@ -1311,22 +1273,20 @@ newCODIdString( char** id_str_ptr )
 }
 
 
-Capability::Capability( bool is_cod )
+ClaimId::ClaimId( bool is_cod )
 {
-
+	int num = newIdString( &c_id );
 	if( is_cod ) { 
-		int num = newCODIdString( &c_id );
 		char buf[64];
 		sprintf( buf, "COD%d", num );
 		c_cod_id = strdup( buf );
 	} else {
-		c_id = newCapabilityString();
 		c_cod_id = NULL;
 	}
 }
 
 
-Capability::~Capability()
+ClaimId::~ClaimId()
 {
 	free( c_id );
 	if( c_cod_id ) {
@@ -1336,8 +1296,8 @@ Capability::~Capability()
 
 
 bool
-Capability::matches( const char* capab )
+ClaimId::matches( const char* id )
 {
-	return( strcmp(capab, c_id) == 0 );
+	return( strcmp(id, c_id) == 0 );
 }
 

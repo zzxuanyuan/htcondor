@@ -23,20 +23,20 @@
 /*  
 	This file defines the following classes:
 
-	Claim, Capability, and Client
+	Claim, ClaimId, and Client
 
 	A Claim object contains all of the information a startd needs
-    about a given claim, such as the capability, the client of this
-    claim, etc.  The capability in the claim is just a pointer to a
-    Capability object.  The client is also just a pointer to a Client
+    about a given claim, such as the ClaimId, the client of this
+    claim, etc.  The ClaimId in the Claim is just a pointer to a
+    ClaimId object.  The client is also just a pointer to a Client
     object.  The startd maintains two Claim objects in the "rip", the
     per-resource information structure.  One for the current claim,
     and one for the possibly preempting claim that is pending.
  
-	A Capability object contains the capability string, and some
+	A ClaimId object contains the ClaimId string, and some
 	functions to manipulate and compare against this string.  The
-	constructor generates a new capability with the following form:
-	<ip:port>#random_integer
+	constructor generates a new ClaimId with the following form:
+	<ip:port>#startd-birthdate#sequence-number
 
 	A Client object contains all the info about a given client of a
 	startd.  In particular, the client name (a.k.a. "user"), the
@@ -58,20 +58,19 @@
 class CODMgr;
 
 
-class Capability
+class ClaimId
 {
 public:
-	Capability( bool is_cod = false );
-	~Capability();
+	ClaimId( bool is_cod = false );
+	~ClaimId();
 
 	char*	id() {return c_id;};
-	char*	capab() {return c_id;};
 	char*	codId() {return c_cod_id;};
-	bool	matches( const char* capab );
+	bool	matches( const char* id );
 
 private:
-	char*	c_id;	// capability string
-	char*	c_cod_id;
+    char*   c_id;       // ClaimId string
+    char*   c_cod_id;   // COD Id for this Claim (NULL if not COD)
 };
 
 
@@ -94,7 +93,7 @@ public:
 
 		// send a message to the client and accountant that the claim
 		// is a being vacated
-	void	vacate(char* cap);
+	void	vacate( char* claim_id );
 private:
 	char	*c_owner;	// name of the owner
 	char	*c_user;	// name of the user
@@ -152,12 +151,11 @@ public:
 	float		rank()			{return c_rank;};
 	float		oldrank()		{return c_oldrank;};
 	bool		isCOD()			{return c_is_cod;};
-	char*		id();
-	char*		capab();
-	char*		codId()			{return c_cap->codId();};
+	char*		codId()			{return c_id->codId();};
+    char*       id();
+    bool        idMatches( const char* id );
 	Client* 	client() 		{return c_client;};
 	Resource* 	rip()			{return c_rip;};
-	Capability* cap()			{return c_cap;};
 	ClassAd*	ad() 			{return c_ad;};
 	int			universe()		{return c_universe;};
 	int			cluster()		{return c_cluster;};
@@ -225,7 +223,7 @@ public:
 private:
 	Resource	*c_rip;
 	Client 		*c_client;
-	Capability 	*c_cap;
+	ClaimId 	*c_id;
 	ClassAd*	c_ad;
 	Starter*	c_starter;
 	float		c_rank;
