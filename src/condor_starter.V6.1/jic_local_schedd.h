@@ -25,6 +25,7 @@
 #define _CONDOR_JIC_LOCAL_SCHEDD_H
 
 #include "jic_local_file.h"
+#include "qmgr_job_updater.h"
 
 /** 
 	This is the child class of JICLocalFile (and therefore JICLocal
@@ -66,6 +67,23 @@ public:
 		/// The starter has been asked to evict for condor_hold
 	virtual void gotHold( void );
 
+		/** Get the local job ad.  We need a JICLocalSchedd specific
+			version of this so that after we grab the ad (using the
+			JICLocal version), we need to initialize our
+			QmgrJobUpdater object with a pointer to the ad.
+		*/
+	virtual bool getLocalJobAd( void );
+
+		/** Notify the schedd that the job exited.  Actually, all we
+			do here is update the job queue with final stats about the
+			run, our exit code will actually notify the schedd about
+			the job leaving the queue, etc.
+			@param exit_status The exit status from wait()
+			@param reason The Condor-defined exit reason
+			@param user_proc The UserProc that was running the job
+		*/
+	virtual bool notifyJobExit( int exit_status, int reason, 
+								UserProc* user_proc );  
 
 protected:
 
@@ -80,6 +98,10 @@ protected:
 
 		/// The sinful string of the schedd's qmgmt command port
 	char* schedd_addr;
+
+		/// object for managing updates to the schedd's job queue for
+		/// dynamic attributes in this job.
+	QmgrJobUpdater* job_updater;
 
 };
 

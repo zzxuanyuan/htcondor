@@ -7,8 +7,8 @@ BENCHMARK_CLASS = scimark2lib.jar
 
 all_target($(NAME) $(RSH_NAME) condor_gridshell)
 
-CFLAGS = $(STD_C_FLAGS)
-C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS)
+CFLAGS = $(STD_C_FLAGS) -I../condor_schedd.V6
+C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) -I../condor_schedd.V6
 
 LIB = $(DAEMONCORE_LIB) $(STD_LIBS)
 RSH_LIB = $(STD_LIBS) $(CLASSAD_LIB)

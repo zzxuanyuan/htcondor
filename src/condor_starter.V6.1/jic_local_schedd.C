@@ -51,6 +51,8 @@ JICLocalSchedd::JICLocalSchedd( const char* classad_filename,
 	dprintf( D_ALWAYS,
 			 "Starter running a job under a schedd listening at %s\n",
 			 schedd_addr );
+
+	job_updater = NULL;
 }
 
 
@@ -59,6 +61,9 @@ JICLocalSchedd::~JICLocalSchedd()
 {
 	if( schedd_addr ) {
 		free( schedd_addr );
+	}
+	if( job_updater ) {
+		delete job_updater;
 	}
 }
 
@@ -108,6 +113,55 @@ JICLocalSchedd::gotHold( void )
 		// Set our flag so we know we were asked to vacate.
 	requested_exit = true;
 	exit_code = JOB_KILLED;
+}
+
+
+bool
+JICLocalSchedd::getLocalJobAd( void )
+{ 
+	if( ! JICLocalFile::getLocalJobAd() ) {
+		return false;
+	}
+	job_updater = new QmgrJobUpdater( job_ad, schedd_addr );
+	return true;
+}
+
+
+bool
+JICLocalSchedd::notifyJobExit( int exit_status, int reason, 
+							   UserProc* user_proc )
+{
+		// Call our parent's version of this method to handle all the
+		// common-case stuff, like writing to the local userlog,
+		// writing an output classad (if desired, etc).  
+	JICLocal::notifyJobExit( exit_status, reason, user_proc );
+
+		// Now, we've got to update the job queue.  In this case, we
+		// want to publish all the same attribute we'd otherwise send
+		// to the shadow, but instead, just stick them directly into
+		// our copy of the job classad.
+	Starter->publishPreScriptUpdateAd( job_ad );
+	user_proc->PublishUpdateAd( job_ad );
+	Starter->publishPostScriptUpdateAd( job_ad );
+
+		// Once all the attributes have been published into our copy
+		// of the job classad, we can just tell our updater object to
+		// do the rest...
+	update_t up_type;
+	switch( reason ) {
+	case JOB_NOT_CKPTED:
+		up_type = U_EVICT;
+		break;
+	case JOB_COREDUMPED:
+	case JOB_EXITED:
+		up_type = U_TERMINATE;
+		break;
+	default:
+		EXCEPT( "Programmer error: unknown reason (%d) in "
+				"JICLocalSchedd::notifyJobExit", reason );
+		break;
+	}
+	return job_updater->updateJob( up_type );
 }
 
 
