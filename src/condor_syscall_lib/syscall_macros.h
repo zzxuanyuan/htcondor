@@ -37,6 +37,19 @@ type_return newfunc( type_1 arg_1, type_2 arg_2, type_3 arg_3 ) \
 return oldfunc( arg_1, arg_2, arg_3 ); \
 }
 
+#define REMAP_THREE_VARARGS(oldfunc,newfunc,type_return,type_1,type_2,type_3) \
+type_return newfunc( type_1 a1, type_2 a2, ... )\
+{\
+	type_return rval;\
+	type_3 a3;\
+	va_list args;\
+	va_start(args,a2);\
+	a3 = va_arg(args,type_3);\
+	rval = oldfunc(a1,a2,a3);\
+	va_end(args);\
+	return rval;\
+}
+
 #define REMAP_FOUR(oldfunc,newfunc,type_return,type_1,type_2,type_3,type_4) \
 type_return newfunc( type_1 arg_1, type_2 arg_2, type_3 arg_3, type_4 arg_4 ) \
 { \
