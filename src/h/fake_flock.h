@@ -20,13 +20,22 @@
  * Livny, 7367 Computer Sciences, 1210 W. Dayton St., Madison, 
  * WI 53706-1685, (608) 262-0856 or miron@cs.wisc.edu.
 ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
+
+#include "condor_header_features.h"
+
 #define   LOCK_SH   1<<0
 #define   LOCK_EX   1<<1
 #define   LOCK_NB   1<<2
 #define   LOCK_UN   1<<3
 
-/* Solaris specific -- found at in sys/file.h in
-OSF1 ..dhaval 6/23 */
+/* Solaris specific -- found at in sys/file.h in OSF1 ..dhaval 6/23 */
 
-#define L_XTND          2       /* relative to end
-of file */
+#define L_XTND          2       /* relative to end of file */
+
+/* Also need a prototype, otherwise C++ gets confused by
+   the definition of a struct flock, and thinks flock() is
+   a constructor for a class by the same name.  */
+
+BEGIN_C_DECLS
+extern int flock(int fd, int op);
+END_C_DECLS
