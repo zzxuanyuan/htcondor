@@ -1929,8 +1929,17 @@ Scheduler::spawnJobHandler( int cluster, int proc, shadow_rec* srec )
 	} else {
 		GetAttributeInt( cluster, proc, ATTR_JOB_UNIVERSE, &universe );
 	}
+	PROC_ID job_id;
+	job_id.cluster = cluster;
+	job_id.proc = proc;
 
 	switch( universe ) {
+
+	case CONDOR_UNIVERSE_SCHEDULER:
+			// there's no handler in this case, we just spawn directly
+		ASSERT( srec == NULL );
+		return( start_sched_universe_job(&job_id) != NULL );
+		break;
 
 	case CONDOR_UNIVERSE_LOCAL:
 		scheduler.spawnLocalStarter( srec );
@@ -5161,7 +5170,16 @@ find_idle_local_jobs( ClassAd *job )
 			dprintf( D_FULLDEBUG,
 					 "Found idle scheduler universe job %d.%d\n",
 					 id.cluster, id.proc );
-			scheduler.start_sched_universe_job( &id );
+				/*
+				  we've decided to spawn a scheduler universe job.
+				  instead of doing that directly, we'll go through our
+				  aboutToSpawnJobHandler() hook isntead.  inside
+				  aboutToSpawnJobHandlerDone(), if the job is a
+				  scheduler universe job, we'll spawn it then.  this
+				  wrapper handles all the logic for if we want to
+				  invoke the hook in its own thread or not, etc.
+				*/
+			callAboutToSpawnJobHandler( id.cluster, id.proc, NULL );
 		}
 	}
 	return 0;
