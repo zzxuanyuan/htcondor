@@ -136,7 +136,8 @@ net_read(int fd, void *buf, int size)
 	return bytes_read;
 }
 
-#if defined(COMPRESS_CKPT)
+// this used to be in the #if defined(COMPRESS_CKPT) but I moved it
+// out so I could use it for incr. ckpting  - jmb
 void *condor_map_seg(void *base, size_t size)
 {
 	int zfd;
@@ -162,6 +163,7 @@ void *condor_map_seg(void *base, size_t size)
 	return base;
 }
 
+#if defined(COMPRESS_CKPT)
 // TODO: deallocate segments on negative incr
 void *condor_morecore(int incr)
 {
@@ -304,12 +306,69 @@ SegMap::Display()
 }
 
 
-//returns the number of pages used in this segment.
-long 
-SegMap::TotalPages()
+/* don't assume we have libc.so in a good state right now... - Jim B. */
+static int mystrcmp(const char *str1, const char *str2)
 {
-	return ((GetLen()/getpagesize())+ ( GetLen()%getpagesize() ==0? 0:1) );
+	while (*str1 != '\0' && *str2 != '\0' && *str1 == *str2) {
+		str1++;
+		str2++;
+	}
+	return (int) *str1 - *str2;
 }
+
+
+// find and return a pointer to a segment, NULL if not found
+SegMap *
+Image::GetSeg(const char * name ) {
+	int i;
+	for (i = 0; i < head.N_Segs(); i++) {
+		if ( mystrcmp(name, map[i].GetName()) == 0 ) {
+			return &map[i];	
+		}
+	}
+	return NULL;
+}
+
+void
+Image::PrintBitmap()
+{
+	dprintf( D_ALWAYS, "Per page analysis: " );
+	for (int i = 0; i < incr_ckpt_data->total_pages; i++) {
+		dprintf( D_ALWAYS, "%i", bitIsSet( i, incr_ckpt_data->bitmap ) );
+	}
+	dprintf( D_ALWAYS, "\n" );
+}
+
+// set a bit in the bitmap
+// returns true if bit is set
+// returns false if bit was already set
+bool
+Image::NewDirtyPage(char * page)
+{
+	int i;
+	char * data_start;
+
+	incr_ckpt_data->dirty_pages++;
+
+	SegMap *data = GetSeg( "DATA" );
+	if (data == NULL) {
+		dprintf( D_ALWAYS, "Couldn't find DATA segment.\n" );
+		Suicide();
+	}
+
+	data_start = (char *) data->GetLoc();
+
+	// now we have start address of segment in data_start and page address
+	// compute which page number of the segment this is
+	int dirtyPage = ( (int)(page - data_start) ) / getpagesize();
+	if (bitIsSet( dirtyPage, incr_ckpt_data->bitmap ) ) {
+		// should not seg-fault on same page twice
+		return false;
+	}
+	setBit( dirtyPage, incr_ckpt_data->bitmap ); 
+	return true;
+}
+
 
 void
 Image::SetFd( int f )
@@ -455,8 +514,13 @@ _condor_prestart( int syscall_mode )
 
 void
 test_seg_handler( ) {
-	char * test = malloc( 2 * getpagesize( ) );
+	char * test = (char *) malloc( 2 * getpagesize( ) );
 	char * page = condor_getpagestart( test ) + getpagesize();
+
+	// turn this off for a second, it works and now we're assuming that
+	// all segfaults must occur within data segment
+	if (true) return;
+
 	dprintf( D_ALWAYS, "TESTING SEG_HANDLER\n" );
 	//dprintf( D_ALWAYS, "Mprotecting page: Start 0x%x, len %d\n", 
 	//		page, getpagesize() );
@@ -483,6 +547,7 @@ _install_signal_handler( int sig,  void *handler )
 #else
 	// do increment chpting differently
 	if (sig == SIGSEGV) {
+			// there is an annoying conversion warning here
 		action.sa_sigaction = handler;
 	} else {
 		action.sa_handler = (SIG_HANDLER)handler;
@@ -837,47 +902,35 @@ void *_memcpy(void *s1, const void *s2, size_t n)
 }
 #endif
 
-/* don't assume we have libc.so in a good state right now... - Jim B. */
-static int mystrcmp(const char *str1, const char *str2)
-{
-	while (*str1 != '\0' && *str2 != '\0' && *str1 == *str2) {
-		str1++;
-		str2++;
-	}
-	return (int) *str1 - *str2;
-}
-
 void
 Image::RestoreSeg( const char *seg_name )
 {
-	int		i;
-
-	for( i=0; i<head.N_Segs(); i++ ) {
-		if( mystrcmp(seg_name,map[i].GetName()) == 0 ) {
-			if( (pos = map[i].Read(fd,pos)) < 0 ) {
-				dprintf(D_ALWAYS, "SegMap::Read() failed!\n");
-				Suicide();
-			} else {
-				return;
-			}
-		}
-	}
-	dprintf( D_ALWAYS, "Can't find segment \"%s\"\n", seg_name );
-	fprintf( stderr, "CONDOR ERROR: can't find segment \"%s\" on restart\n",
+	SegMap *seg = GetSeg( seg_name );
+	if (seg == NULL) {
+		dprintf( D_ALWAYS, "Can't find segment \"%s\"\n", seg_name );
+		fprintf( stderr, "CONDOR ERROR: can't find segment \"%s\" on restart\n",
 			 seg_name );
-	exit( 1 );
+		exit( 1 );
+	}
+	
+	if( (pos = seg->Read(fd,pos)) < 0 ) {
+		dprintf(D_ALWAYS, "SegMap::Read() failed!\n");
+		Suicide();
+	} else {
+		return;
+	}
 }
 
 
-int mprotects = 0;
-
-// TODO: this is where stuff breaks down
+// call to mprotect MyImage, currently only doing incremental ckpting on data
+// segment, should be trivial to extend logic to work on all segments
+// we're initially doing it only on data segment mostly as a proof of concept
+// and since all other segments are such an insignificant proportion of the
+// image size
 BOOL
 Image::Mprotect( int prot ) {
 	dprintf( D_ALWAYS, "Mprotect called on image\n" );
 	test_seg_handler(); 									// this works
-	dprintf( D_ALWAYS, "seg faults caught so far: %i\n", mprotects );
-	dprintf( D_ALWAYS, "addr of mprotects: Ox%x\n", &mprotects );
 	for (int i = 0; i<head.N_Segs(); i++) {
 		if ( mystrcmp("DATA", map[i].GetName()) == 0 ) {
 			dprintf( D_ALWAYS, "Will mprotect data segment\n" );
@@ -885,6 +938,85 @@ Image::Mprotect( int prot ) {
 			dprintf( D_ALWAYS, "Mproctected data segment\n" );
 		}
 	} 
+}
+
+// for the time being, only do increment ckpting on the data segment
+// later if we protect all segments, we will need to rethink how we
+// keep the dirty page information for each segment
+void
+Image::InitIncrCkptSegment( ) 
+{
+	long totalPages, bitmap_size, size;
+	void * addr;
+	SegMap * data;
+
+	if ( (data = GetSeg( "DATA" )) == NULL ) {
+		dprintf( D_ALWAYS, "Couldn't find DATA segment.\n" );
+		Suicide();
+	}
+
+	totalPages  = data->GetPageCount();
+	bitmap_size = totalPages / 8 + 1;	// 8 bits in byte, one bit for each page
+	size = bitmap_size + sizeof( Incr_ckpt_data );
+	addr = condor_map_seg( NULL, size );
+
+	dprintf( D_ALWAYS, "InitIncrCkptSegment: totalPages is %d, bitmap_size is "
+			"%d, size is %d, addr is Ox%x.\n", totalPages, bitmap_size,
+			size, addr );
+
+	// set up incremental checkpoint structure on top of the new segment
+	incr_ckpt_map.Init( 
+		"Incr_CKPT_map", (RAW_ADDR) addr, size, PROT_READ | PROT_WRITE );
+	dprintf( D_ALWAYS, "Mapped segment at Ox%x\n", addr );
+	incr_ckpt_data = (Incr_ckpt_data *) addr;
+	incr_ckpt_data->total_pages = totalPages;
+	incr_ckpt_data->dirty_pages = 0;
+	dprintf( D_ALWAYS, "Addr of bitmap is Ox%x\n", 
+			incr_ckpt_data->bitmap );
+
+	// do a little check of our bit set and get and clear methods
+	if ( BitmapOK() ) {
+		dprintf( D_ALWAYS, "Bitmap passed tests.\n" );
+	} else {
+		dprintf( D_ALWAYS, "Bitmap error.\n" );
+		Suicide();
+	}
+
+	dprintf( D_ALWAYS, "Inited incr ckpt segment\n" );
+}
+
+bool 
+Image::BitmapOK() {
+	for (int i = 0; i < incr_ckpt_data->total_pages; i++) {
+		if (bitIsSet( i, incr_ckpt_data->bitmap ) ) {
+			dprintf( D_ALWAYS, "Bitmap problem (1), bit %d\n" );
+			return false;
+		}
+		setBit( i, MyImage.incr_ckpt_data->bitmap );
+		if ( ! bitIsSet( i, MyImage.incr_ckpt_data->bitmap ) ) {
+			dprintf( D_ALWAYS, "Bitmap problem (2), bit %d\n" );
+			return false;
+		}
+		clearBit( i, MyImage.incr_ckpt_data->bitmap );	
+		if (bitIsSet( i, MyImage.incr_ckpt_data->bitmap ) ) {
+			dprintf( D_ALWAYS, "Bitmap problem (3), bit %d\n" );
+			return false;
+		}
+	}
+	return true;
+}
+
+void
+Image::DestroyIncrCkptSegment( ) 
+{
+	dprintf( D_ALWAYS, "Unmapping incr_ckpt_map segment, addr Ox%x, len %d\n",
+		(void *)MyImage.incr_ckpt_map.GetLoc(), MyImage.incr_ckpt_map.GetLen());
+	Display();
+	if (munmap( (void *) MyImage.incr_ckpt_map.GetLoc(), 
+				MyImage.incr_ckpt_map.GetLen() ) < 0) 
+	{
+		dprintf( D_ALWAYS, "Couldn't unmap incr_ckpt_map segment\n" );
+	}
 }
 
 void Image::RestoreAllSegsExceptStack()
@@ -918,8 +1050,10 @@ void Image::RestoreAllSegsExceptStack()
 		fd = save_fd;
 	}
 	// mprotect necessary here ????
+	/* this screws things up, maybe MyImage isn't inited yet 
 	dprintf( D_ALWAYS, "About to Mprotect MyImage (2).\n" );
 	MyImage.Mprotect( PROT_READ );	
+	*/
 }
 
 
@@ -1118,6 +1252,8 @@ Image::Write( const char *ckpt_file )
   Write our checkpoint "image" to a given file descriptor.  At this level
   it makes no difference whether the file descriptor points to a local
   file, a remote file, or another process (for direct migration).
+  TODO: This is where we put the code to use our bitmap of dirty pages
+  to stop writing sequential checkpoints and start writing incremental ones
 */
 int
 Image::Write( int fd )
@@ -1312,6 +1448,31 @@ Image::Close()
 	fd = -1;
 }
 
+// get the number of pages used to contain this segment in memory
+// basically just len / getpagesize, but have to check for partial pages
+// on the front and back.  Probably not necessary to check for partial front
+// page bec. most systems will start segments on page boundaries . . . 
+long
+SegMap::GetPageCount() {
+
+	char * firstpage, * endaddress, *lastpage;
+	bool partialFrontPage, partialBackPage;
+
+	firstpage = condor_getpagestart((char *)core_loc);
+	endaddress = (char *)(core_loc + len);
+	lastpage =  condor_getpagestart((char *)endaddress);
+	partialFrontPage = (firstpage != (char *)core_loc);
+	partialBackPage  = (lastpage  != endaddress);
+
+	/*
+	dprintf( D_ALWAYS, "core_loc is Ox%x, firstpage is 0x%x, endaddress is "
+	"Ox%x\n\tlastpage is Ox%x, partialFrontPage is %i, partialBackPage is %i\n",
+	core_loc,firstpage,endaddress,lastpage,partialFrontPage,partialBackPage );
+	*/
+
+	return
+	len / getpagesize() + (int) partialFrontPage + (int) partialBackPage;
+}
 
 /* a function for incremental ckpting.  Mprotect the segment in memory */
 BOOL
@@ -1320,8 +1481,8 @@ SegMap::Mprotect( int prot )
 	char * start = condor_getpagestart((char *)GetLoc());
 	dprintf( D_ALWAYS, "Mprotecting segment %s. Start 0x%x, len %d\n", 
 			GetName(), start, GetLen());
-	/* don't protect the boundary pages */
-	condor_mprotect (start + getpagesize(), len - getpagesize(), prot);
+	/* should we protect the boundary pages?? */
+	condor_mprotect (start, len, prot);
 	return true;
 }
 
@@ -1612,6 +1773,7 @@ Checkpoint( int sig, int code, void *scp )
 	_condor_save_sigstates();
 	dprintf( D_ALWAYS, "Saved signal state.\n");
 
+
 	check_sig = sig;
 
 	if( MyImage.GetMode() == REMOTE ) {
@@ -1690,6 +1852,18 @@ Checkpoint( int sig, int code, void *scp )
 
 		dprintf( D_ALWAYS, "About to save MyImage\n" );
 		MyImage.Save();
+		/* 	Here is the code to print out dirty page count from last checkpoint.
+			Also, at this point can unmap the old incrCkptData segment
+			This will be the point to change the code to just write dirty pages
+		*/
+		if 	(_condor_numrestarts > 0) {
+			dprintf( D_ALWAYS, "Dirty DATA pages: %d / %d \n", 
+			MyImage.DirtyPages(), MyImage.TotalPages() );
+			MyImage.PrintBitmap();
+				// for some reason, attempting to unmap the old seg will crash
+			//MyImage.DestroyIncrCkptSegment( );
+		}
+
 		write_result = MyImage.Write();
 		if ( sig == SIGTSTP ) {
 			/* we have just checkpointed; now time to vacate */
@@ -1805,6 +1979,7 @@ Checkpoint( int sig, int code, void *scp )
 
 		// need to do mprotect here following restart - JMB
 		dprintf( D_ALWAYS, "About to mprotect MyImage\n" );
+		MyImage.InitIncrCkptSegment( );
 		MyImage.Mprotect ( PROT_READ );
 		dprintf( D_ALWAYS, "About to return to user code\n" );
 		InRestart = FALSE;
@@ -1999,6 +2174,34 @@ terminate_with_sig( int sig )
 
 }
 
+// check whether bit is set in our bitmap
+bool
+bitIsSet( long n, char * bitmap ) {
+	long whichByte = n / 8;
+	int  whichBit  = n % 8;
+    return ((bitmap[whichByte] << whichBit) & 0x80) != 0;
+}
+
+// set a bit in a bitmap
+void
+setBit( long n, char * bitmap ) {
+	long whichByte = n / 8;
+	int  whichBit  = n % 8;
+
+    char temp = bitmap[whichByte];
+    bitmap[whichByte] = (char)(temp | (0x80 >> whichBit));
+}
+
+// clear a bit in a bitmap
+void
+clearBit( long n, char * bitmap ) {
+	long whichByte = n / 8;
+	int  whichBit  = n % 8;
+
+    char temp = bitmap[whichByte];
+    bitmap[whichByte] = (char)(temp & ~(0x80 >> whichBit));
+}
+
 /*
   We have been requested to exit.  We do it by sending ourselves a
   SIGKILL, i.e. "kill -9".
@@ -2107,7 +2310,8 @@ condor_mprotect (char * startaddr, long size, int prot) {
 	if ( syscall( SYS_mprotect, p, size , prot ) < 0) {
 	//if ( mprotect(p, size, prot) < 0) {
 		dprintf( D_ALWAYS, "Couldn't mprotect: %i\n", errno );
-		exit( -1 );
+		perror("Couldn't mprotect");
+		Suicide();	
 	}
 	/*
 	dprintf( D_ALWAYS, "Protected Ox%x, length %i, with prot of %i\n", 
@@ -2127,33 +2331,37 @@ seg_handler(int signal, siginfo_t *info, void *context) {
 	char * pagestart;
 
 	assert (signal == SIGSEGV);
-	//mprotects++;
 
     #ifdef linux
            info->si_addr = condor_getfaultaddr(context);
     #endif
 
-	/* dprintf uses a buffer in the heap, so don't use it or we'll get
-	*  segfaults in our segfault handler */
-	/*
-	dprintf(D_ALWAYS, "**caught a seg fault at Ox%x, will reset prots.\n", 
-		info->si_addr);
+	/* 	if the fault is not within a region we are protecting, then it is 
+		a real fault and we should suicide.  Similarly, the NewDirtyPage call
+		will return false if that page is already dirty, this indicates
+		that we've already fixed the protections on that page and that this
+		fault is a real one
 	*/
-	// this is maybe also problematic
-	/*
-	int nbytes =  syscall( SYS_write, STDOUT_FILENO, seg_message ); 
-	if (nbytes < 0) {
-		perror( "Can't write to stdout: ");
+
+	SegMap * data = MyImage.GetSeg("DATA");
+	if (data == NULL) {
+		dprintf( D_ALWAYS, "Couldn't find DATA segment\n" );
+		Suicide();
 	}
-	if ( write( STDOUT_FILENO, seg_message, 34 ) < 0 ) {
-		perror( "Can't write to stdout: ");
-		exit( -1 );
-	}	
-	*/
 
+	if ( ! data->Contains( info->si_addr ) ) {
+		dprintf( D_ALWAYS, "Death by seg fault.  External.\n" );
+		Suicide();
+	}
+
+	// get the page boundary of the offending address, fix permissions and
+	// set the corresponding bit
 	pagestart = condor_getpagestart((char *)info->si_addr);
-
 	condor_mprotect( pagestart, getpagesize(), PROT_READ | PROT_WRITE );
+	if ( ! MyImage.NewDirtyPage( pagestart ) ) {
+		dprintf( D_ALWAYS, "Death by seg fault.  Internal.\n" );
+		Suicide();
+	}
 	errno = saved_errno;
 } 
 

@@ -41,6 +41,12 @@ const int  MAX_SEGS = 200;
 const int ALT_HEAP_SIZE = 10*1024*1024;	// 10MB
 const int RESERVED_HEAP = 1024*1024*1024; // 1GB
 
+struct Incr_ckpt_data {
+	long total_pages;
+	long dirty_pages;
+	char bitmap[0];	// this is a stretchy array
+};
+
 class Header {
 public:
 	void Init();
@@ -67,9 +73,11 @@ public:
 	BOOL Contains( void *addr );
 	char *GetName() { return name; }
 	RAW_ADDR GetLoc() { return core_loc; }
+	void SetLoc(RAW_ADDR addr) { core_loc = addr; }
 	long GetLen() { return len; }
+	long GetPageCount(); 
 	void MSync();
-	BOOL Mprotect( int prot );
+	BOOL Mprotect( int prot );	// for incr. ckpting
 	void Display();
 private:
 	char		name[14];
@@ -90,6 +98,15 @@ public:
 	int Read();
 	int Read( int fd );
 	int Read( const char *name );
+	/* incremental ckpting functions */
+	long TotalPages() { return incr_ckpt_data->total_pages; }
+	long DirtyPages() { return incr_ckpt_data->dirty_pages; }
+	void PrintBitmap();
+	bool BitmapOK();
+	bool NewDirtyPage(char * page);
+	void InitIncrCkptSegment( );
+	void DestroyIncrCkptSegment( );
+	/* end of incremental ckpting functions */
 	void Close();
 	void Restore();
 	char *FindSeg( void *addr );
@@ -101,6 +118,7 @@ public:
 	void SetMode( int syscall_mode );
 	void MSync();
 	BOOL Mprotect( int prot );
+	SegMap *GetSeg( const char * name );
 
 #if defined(COMPRESS_CKPT)
 	void *FindAltHeap();
@@ -121,6 +139,8 @@ protected:
 	int		fd;		// descriptor pointing to ckpt file
 	ssize_t	pos;	// position in ckpt file of seg currently reading/writing
 	size_t	len;	// size of our ckpt file
+	SegMap  incr_ckpt_map;
+	struct Incr_ckpt_data * incr_ckpt_data;
 };
 
 /* We would like to access the global image from elsewhere. */
@@ -141,6 +161,10 @@ extern "C" {
 	void init_image_with_file_descriptor( int ckpt_fd );
 	void _condor_prestart( int syscall_mode );
 	void Suicide();
+	/* bit functions are for working with incr. ckpting bitmap */
+	bool bitIsSet( long n, char * bitmap );
+	void clearBit( long n, char * bitmap );
+	void setBit  ( long n, char * bitmap );
 }
 
 #define DUMP( leader, name, fmt ) \
