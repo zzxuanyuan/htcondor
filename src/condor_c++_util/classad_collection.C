@@ -368,7 +368,8 @@ LogRecord* ClassAdCollection::InstantiateLogEntry(FILE* fp, int type)
             break;
     }
     if (!log_rec->ReadBody(fp)) {
-        EXCEPT("Can't read log!");
+		delete log_rec;
+		return NULL;
     }
     return log_rec;
 }
