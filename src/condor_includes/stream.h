@@ -555,7 +555,7 @@ public:
         //------------------------------------------
     //@}
  private:
-        bool initialize_crypto(KeyInfo * key, const char * keyId);
+        bool initialize_crypto(KeyInfo * key);
         //------------------------------------------
         // PURPOSE: initialize crypto
         // REQUIRE: KeyInfo

@@ -1811,7 +1811,7 @@ void Stream::resetCrypto()
 }
 
 bool 
-Stream::initialize_crypto(KeyInfo * key, const char * keyId) 
+Stream::initialize_crypto(KeyInfo * key) 
 {
     delete crypto_;
     crypto_ = 0;
@@ -1835,8 +1835,6 @@ Stream::initialize_crypto(KeyInfo * key, const char * keyId)
         }
     }
 
-    set_encryption_id(keyId);
-
     return (crypto_ != 0);
 }
 
@@ -1855,11 +1853,11 @@ bool Stream::set_MD_mode(CONDOR_MD_MODE mode, KeyInfo * key, const char * keyId)
 bool 
 Stream::set_crypto_key(KeyInfo * key, const char * keyId)
 {
-
+    bool inited = true;
 #if defined(CONDOR_BLOWFISH_ENCRYPTION) || defined(CONDOR_3DES_ENCRYPTION)
 
     if (key != 0) {
-        return initialize_crypto(key, keyId);
+        inited = initialize_crypto(key);
     }
     else {
         // We are turning encryption off
@@ -1867,16 +1865,59 @@ Stream::set_crypto_key(KeyInfo * key, const char * keyId)
             delete crypto_;
             crypto_ = 0;
         }
-        return true;
+        assert(keyId == 0);
+        inited = true;
     }
- error:
-    if (crypto_) {
-        delete crypto_;
-        crypto_ = 0;
+
+    // More check should be done here. what if keyId is NULL?
+    if (inited) {
+        set_encryption_id(keyId);
     }
+    /* 
+    // Now, if TCP, the first packet need to contain the key for verification purposes
+    // This key is encrypted with itself (along with rest of the packet).
+    if (type() == reli_sock) {
+        char * data = NULL;
+        int length;
+        static int PADDING_LEN = 24;
+        length = key->getKeyLength() + PADDING_LEN; // Pad with 24 bytes of random data
+        data = (char *)malloc(length + 1);
+        if (data == NULL) {
+            dprintf(D_NETWORK, "Out of memory!\n");
+            return false;
+        }
+    
+        if (_coding == stream_encode) {
+            // generate random data
+            unsigned char * ran = Condor_Crypt_Base::randomKey(PADDING_LEN);
+            memcpy(data, ran, PADDING_LEN);
+            memcpy(data+PADDING_LEN, key->getKeyData(), key->getKeyLength());
+            free(ran);
+            if (put_bytes(data, length) != length) {
+                // the crypto module is initialized, but send failed.
+                // For now, we also flag this as an error
+                inited = false;
+            }
+        }
+        else {
+            if (get_bytes(data, length) == length) {
+                // Only the first key->getKeyLength() are inspected
+                if (memcmp(data+PADDING_LEN, key->getKeyData(), key->getKeyLength()) != 0) {
+                    // this is definitely an error!
+                    inited = false;
+                }
+                else {
+                    inited = true;
+                }
+            }
+            else {
+                inited = false; 
+            }
+        } 
+    }
+    */
 #endif /* CONDOR_3DES_ENCRYPTION or CONDOR_BLOWFISH_ENCRYPTION */
 
-    return false;
-
+    return inited;
 }
 
