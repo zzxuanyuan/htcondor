@@ -4320,13 +4320,7 @@ Scheduler::startdContactConnectHandler( Stream *sock )
 		return FALSE;
 	}
 
-#ifndef WIN32
 	if(!claimStartdConnected( dynamic_cast<Sock *>(sock), mrec, jobAd, false )) {
-#else 
-		/* dynamic_cast on Windows was causing segfaults, so
-		 * we do a regular cast instead */
-	if(!claimStartdConnected( (Sock*)sock, mrec, jobAd, false )) {
-#endif
 		DelMrec( mrec );
 		return FALSE;
 	}
