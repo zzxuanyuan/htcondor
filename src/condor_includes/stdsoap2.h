@@ -47,6 +47,8 @@ engelen@genivia.com / engelen@acm.org
 --------------------------------------------------------------------------------
 */
 
+#include "condor_common.h"
+
 #ifdef WITH_SOAPDEFS_H
 # include "soapdefs.h"		/* include user-defined stuff */
 #endif
