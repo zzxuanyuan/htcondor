@@ -95,7 +95,7 @@ Condor_Auth_X509 :: Condor_Auth_X509(ReliSock * sock)
         }
     }
     
-    pbuf =  param("CONDOR_GATEKEEPER") ; 
+    pbuf = param("CONDOR_GATEKEEPER") ; 
     
     if (pbuf){
         sprintf(buffer ,"CONDOR_GATEKEEPER=%s",pbuf);
@@ -337,8 +337,7 @@ int Condor_Auth_X509::nameGssToLocal(char * GSSClientname)
     char *pos,*pos1, *pos_temp;
     FILE *index;
     
-    sprintf( filename, "%.*s/index.txt", MAXPATHLEN-11, 
-             getenv( STR_X509_CERT_DIR ) );
+    sprintf( filename, "%.*s/index.txt", MAXPATHLEN-11, getenv( STR_X509_CERT_DIR ) );
     
     if ( !(index = fopen(  filename, "r" ) ) ) {
         dprintf( D_ALWAYS, "unable to open index file %s, errno %d\n", 
@@ -391,50 +390,6 @@ int Condor_Auth_X509::nameGssToLocal(char * GSSClientname)
         dprintf(D_SECURITY, "X509 certificate name lookup failure\n");
         return 0;
     }
-}
-
-int Condor_Auth_X509::lookup_user_gss( char *client_name ) 
-{
-    char filename[MAXPATHLEN];
-    
-    sprintf( filename, "%.*s/index.txt", MAXPATHLEN-11, 
-             getenv( "X509_CERT_DIR" ) );
-    
-    FILE *index;
-    if ( !(index = fopen(  filename, "r" ) ) ) {
-        dprintf( D_ALWAYS, "unable to open index file %s, errno %d\n", 
-                 filename, errno );
-        return -1;
-    }
-    
-    //find entry
-    int found = 0,i=0;
-    char line[256],ch_temp,ch = 9,temp[2],*pos;
-    sprintf(temp,"%c",ch);
-    while ( !found){ 
-        for (i=0;(line[i] = fgetc(index)) != '\n' && (ch_temp=line[i]) != EOF;i++);
-        line[i] = '\0';
-        
-        //Valid user entries have 'V' as first byte in their cert db entry
-     	if ( line[0] == 'V'){
-            pos = line;
-            while (*pos != '/') pos++;
-            pos = strtok(pos,temp);
-            if (!strcmp(pos,client_name)){
-                found = 1;
-                dprintf(D_ALWAYS, "found the entry for client\n");
-		    }
-    	}
-        if (ch_temp == EOF) break;
-    }
-    fclose( index );
-    if ( !found ) {
-        dprintf( D_ALWAYS, "unable to find V entry for %s in %s\n", 
-                 filename, client_name );
-        return( -1 );
-    }
-    
-    return 0;
 }
 
 //cannot make this an AuthSock method, since gss_assist method expects
@@ -566,8 +521,6 @@ int Condor_Auth_X509::authenticate_client_gss()
     
     priv_state priv;
     
-    //fprintf(stderr, "GSS\n");
-    
     char *gateKeeper = param( "CONDOR_GATEKEEPER" );
     
     if ( !gateKeeper ) {
@@ -575,6 +528,7 @@ int Condor_Auth_X509::authenticate_client_gss()
         return FALSE;
     }
     
+    nameGssToLocal(gateKeeper);
     
     if (isDaemon()) {
         priv = set_root_priv();
