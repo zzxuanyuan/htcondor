@@ -33,6 +33,8 @@
 typedef int (Resource::*ResourceMember)();
 typedef float (Resource::*ResourceFloatMember)();
 typedef void (Resource::*ResourceMaskMember)(amask_t);
+typedef void (Resource::*VoidResourceMember)();
+
 
 class ResMgr : public Service
 {
@@ -45,6 +47,8 @@ public:
 
 	void	compute( amask_t );
 	void	publish( ClassAd*, amask_t );
+
+	void	assign_load();
 
 	bool 	in_use();
 	bool	is_smp() { return( m_attr->num_cpus() > 1 ); };
@@ -64,6 +68,7 @@ public:
 	// member function that takes an amask_t as its only arg.
 	void	walk( int(*)(Resource*) );
 	void	walk( ResourceMember );
+	void	walk( VoidResourceMember );
 	void	walk( ResourceMaskMember, amask_t );
 
 	// These functions walk through the array of rip pointers, calls

@@ -105,6 +105,16 @@ ResMgr::walk( ResourceMember memberfunc )
 
 
 void
+ResMgr::walk( VoidResourceMember memberfunc )
+{
+	int i;
+	for( i = 0; i < nresources; i++ ) {
+		(resources[i]->*(memberfunc))();
+	}
+}
+
+
+void
 ResMgr::walk( ResourceMaskMember memberfunc, amask_t mask ) 
 {
 	int i;
@@ -224,8 +234,7 @@ ResMgr::state()
 void
 ResMgr::final_update()
 {
-		// This needs serious help when we get to multiple resources
-	resources[0]->final_update();
+	walk( Resource::final_update );
 }
 
 
@@ -300,6 +309,48 @@ ResMgr::compute( amask_t how_much )
 	resmgr->walk( Resource::compute, (how_much & ~(A_SHARED)) );
 	m_attr->compute( how_much | A_SUMMED );
 	walk( Resource::compute, (how_much | A_SHARED) );
+	assign_load();
+}
+
+
+void
+ResMgr::assign_load()
+{
+	int i;
+	Resource *rip, *next;
+	float total_owner_load = m_attr->load() - m_attr->condor_load();
+	if( total_owner_load < 0 ) {
+		total_owner_load = 0;
+	}
+	if( is_smp() ) {
+		dprintf( D_LOAD, 
+				 "%s %.3f\t%s %.3f\t%s %.3f\n",  
+				 "SystemLoad:", m_attr->load(),
+				 "TotalCondorLoad:", m_attr->condor_load(),
+				 "TotalOwnerLoad:", total_owner_load );
+	}
+
+		// Initialize everything to 0.
+	for( i = 0; i < nresources; i++ ) {
+		resources[i]->set_owner_load( 0 );
+	}
+
+		// So long as there's at least two more resources and the
+		// total owner load is greater than 1.0, assign an owner load
+		// of 1.0 to each CPU.  Once we get below 1.0, we assign all
+		// the rest to the next CPU.  So, for non-SMP machines, we
+		// never hit this code, and always assign all owner load to
+		// cpu1 (since i will be initialized to 0 but we'll never
+		// enter the for loop).  
+	for( i = 0; i < (nresources - 1) && total_owner_load > 1; i++ ) {
+		resources[i]->set_owner_load( 1.0 );
+		total_owner_load -= 1.0;
+	}
+	resources[i]->set_owner_load( total_owner_load );
+
+		// Now that we're done assigning, display all values for
+		// people that have D_LOAD turned on.
+	walk( Resource::display_load );
 }
 
 
