@@ -614,7 +614,7 @@ Daemon::locate( void )
 	  rval = getDaemonInfo( "CREDD", ANY_AD, false );
 	  break;
 	case DT_STORK:
-	  rval = true;
+	  rval = getDaemonInfo( "STORK", ANY_AD, false );
 	  break;
 	case DT_COLLECTOR:
 		rval = getCmInfo( "COLLECTOR" );
