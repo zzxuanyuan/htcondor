@@ -54,7 +54,6 @@ class Dag {
   
     /** Create a DAG
         @param condorLog the condor log where job events are being written to
-        @param lockFileName the name of the lock file
         @param maxJobsSubmitted the maximum number of jobs to submit to Condor
                at one time
         @param maxPreScripts the maximum number of PRE scripts to spawn at
@@ -62,9 +61,8 @@ class Dag {
         @param maxPostScripts the maximum number of POST scripts to spawn at
 		       one time
     */
-    Dag (const char *condorLog, const char *lockFileName,
-         const int maxJobsSubmitted, const int maxPreScripts,
-		 const int maxPostScripts );
+    Dag( const char* condorLog, const int maxJobsSubmitted,
+		 const int maxPreScripts, const int maxPostScripts );
 
     ///
     ~Dag();
@@ -211,6 +209,8 @@ class Dag {
     */
     int SubmitReadyJobs();
   
+	void PrintEvent( debug_level_t level, Job* job );
+
     // name of consolidated condor log
     char        * _condorLogName;
 
@@ -222,11 +222,6 @@ class Dag {
 
     //  Last known size of condor log, used by DetectLogGrowth()
     off_t         _condorLogSize;
-
-    /*  used for recovery purposes presence of file indicates
-        abnormal termination
-    */
-    char        * _lockFileName;
 
     /// List of Job objects
     List<Job>     _jobs;
