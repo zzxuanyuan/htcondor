@@ -1721,6 +1721,7 @@ SegMap::Write( int fd, ssize_t pos, int incremental )
 		return WriteIncremental( fd, pos );
 
 	int bytes_to_go = len, nbytes;
+	int writes = 0;
 
 	char *ptr = (char *)core_loc;
 	while (bytes_to_go) {
@@ -1739,9 +1740,14 @@ SegMap::Write( int fd, ssize_t pos, int incremental )
 			dprintf( D_ALWAYS, "errno=%d, core_loc=%x\n", errno, ptr );
 			return -1;
 		}
+		writes++;
 		if (condor_slow_ckpt) sleep(1);
 		bytes_to_go -= nbytes;
 		ptr += nbytes;
+	}
+	if ( strcmp("DATA", name) == 0) {
+		int pages = len / getpagesize();
+		printf( "Sequ wrote %i pages (%i writes).\n", pages, writes );
 	}
 	return len;
 }
@@ -1788,12 +1794,17 @@ SegMap::WriteIncremental( int fd, ssize_t pos ) {
 
 	ptr += write_size;
 	if ( ptr != (char *)core_loc + len ) {
-		dprintf( D_ALWAYS, "WARNING: ptr is %s, dataend is %s.\n", ptr, 
+		printf( D_ALWAYS, "WARNING: ptr is %s, dataend is %s.\n", ptr, 
 			(char *)core_loc + len );
 	}
 	
 	int pages = length / getpagesize();
 	dprintf( D_ALWAYS, "Incr wrote %i pages (%i writes).\n", pages, writes );
+	printf( "Incr wrote %i pages (%i writes).\n", pages, writes );
+	if (pages != MyImage.DirtyPages() + MyImage.NewPages() ) {
+		printf( "WARNING: counts are bad (%i, %i)\n", MyImage.DirtyPages(),
+		MyImage.NewPages());
+	}
 	return length;
 }
 
