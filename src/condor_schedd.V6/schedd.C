@@ -21,6 +21,7 @@
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
+#define INCLUDE_STATUS_NAME_ARRAY
 #include "condor_common.h"
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
 #include "dedicated_scheduler.h"
@@ -4718,6 +4719,8 @@ Scheduler::StartJobHandler()
 {
 	shadow_rec* srec;
 	PROC_ID* job_id=NULL;
+	ClassAd* job = NULL;
+	int status;
 
 		// clear out our timer id since the hander just went off
 	StartJobTimer = -1;
@@ -4737,13 +4740,60 @@ Scheduler::StartJobHandler()
 		// Check to see if job ad is still around; it may have been
 		// removed while we were waiting in RunnableJobQueue
 		job_id=&srec->job_id;
-		if( GetJobAd(job_id->cluster,job_id->proc,false) == NULL ) {
+		job = GetJobAd(job_id->cluster,job_id->proc,false);
+		if( ! job ) {
 				// job ad disappeared, just go to the next thing in
 				// the queue
 			dprintf( D_FULLDEBUG,
 					 "Job %d.%d was deleted while waiting to start\n",
 					 job_id->cluster, job_id->proc );
+			RemoveShadowRecFromMrec(srec);
+			delete srec;
 			continue;
+		}
+
+		if( job->LookupInteger(ATTR_JOB_STATUS, status) == 0 ) {
+			EXCEPT( "Job %d.%d has no %s while waiting to start!",
+					job_id->cluster, job_id->proc, ATTR_JOB_STATUS );
+		}
+		switch( status ) {
+		case UNEXPANDED:
+		case IDLE:
+		case RUNNING:
+				// these are the cases we expect.  if it's local
+				// universe, it'll still be IDLE.  if it's not local,
+				// it'll already be marked as RUNNING...  just break
+				// out of the switch and carry on.
+			break;
+
+		case REMOVED:
+		case HELD:
+			dprintf( D_FULLDEBUG,
+					 "Job %d.%d was %s while waiting to start\n",
+					 job_id->cluster, job_id->proc,
+					 JobStatusNames[status] );
+				// NOTE: it's ok to call mark_job_stopped(), since we
+				// want to clear out ATTR_CURRENT_HOSTS, etc. luckily,
+				// mark_job_stopped() won't touch ATTR_JOB_STATUS
+				// unless it's currently "RUNNING", so we won't
+				// clobber it...
+			mark_job_stopped( job_id );
+			RemoveShadowRecFromMrec( srec );
+			delete srec;
+			continue;
+			break;
+
+		case COMPLETED:
+		case SUBMISSION_ERR:
+			EXCEPT( "IMPOSSIBLE: status for job %d.%d is %s "
+					"but we're trying to start a shadow for it!", 
+					job_id->cluster, job_id->proc, JobStatusNames[status] );
+			break;
+
+		default:
+			EXCEPT( "StartJobHandler: Unknown status (%d) for job %d.%d\n",
+					status, job_id->cluster, job_id->proc ); 
+			break;
 		}
 
 		if( srec->universe == CONDOR_UNIVERSE_LOCAL ) {
