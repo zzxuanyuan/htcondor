@@ -84,6 +84,8 @@ typedef struct {
 	int		umbilical;
 } SHADOW_REC;
 
+#if !defined(WIN32)	// no time_t in WIN32
+
 typedef struct {
 	int		clusterId;
 	int		procId;
@@ -105,6 +107,8 @@ typedef struct {
 	time_t	startTime;
 	char*	host;
 } RUNNING_JOB_INFO;
+
+#endif // if !defined(WIN32)
 
 typedef struct {        /* record sent by startd to shadow */
 	int		version_num;/* always negative */
