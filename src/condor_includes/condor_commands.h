@@ -160,6 +160,14 @@ const int QUERY_HIST_SUBMITTORGROUPS_LIST = 29;
 const int QUERY_HIST_CKPTSRVR = 30;
 const int QUERY_HIST_CKPTSRVR_LIST = 31;
 
+// The following should replace 0--21
+const int UPDATE_PUBLIC_ADS  	= 32;
+const int UPDATE_PRIVATE_ADS 	= 33;
+const int QUERY_PUBLIC_ADS		= 34;
+const int QUERY_PRIVATE_ADS		= 35;
+const int INVALIDATE_PUBLIC_ADS	= 36;
+const int INVALIDATE_PRIVATE_ADS= 37;
+
 /*
 *** Daemon Core Signals
 */

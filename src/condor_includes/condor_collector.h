@@ -25,18 +25,10 @@
 
 #include "sched.h"
 
-enum AdTypes
+enum AdDomain
 {
-    STARTD_AD,
-    SCHEDD_AD,
-    MASTER_AD,
-    GATEWAY_AD,
-    CKPT_SRVR_AD,
-	STARTD_PVT_AD,
-	SUBMITTOR_AD,
-	COLLECTOR_AD,
-
-    NUM_AD_TYPES
+	PUBLIC_AD	 = 0,
+	PRIVATE_AD 	 = 1
 };
 
 #include "condor_commands.h"   // collector commands
