@@ -1336,6 +1336,61 @@ document its use.
 If your submit file refers to \verb@transfer_files@,
 consider switching it to use the settings described here.
 
+%%%%%%%%%%%% 
+\subsection{Environment Variables}
+%%%%%%%%%%%% 
+
+\index{environment variables}
+\index{execution environment}
+The environment under which a job executes often contains
+information that is potentially useful to the job.
+Condor allows a user to both set and reference environment
+variables for a job or job cluster.
+
+Within a submit description file, the user may define environment
+variables for the job's environment by using the 
+\Opt{environment} command.
+See the \Condor{submit} manual page at
+section~\ref{man-condor-submit} for more details about this command.
+
+The submitter's entire environment can be copied into the job
+ClassAd for the job at job submission.
+The \Opt{getenv} command within the submit description file
+does this.
+See the \Condor{submit} manual page at
+section~\ref{man-condor-submit} for more details about this command.
+
+Commands within the submit description file may reference the
+environment variables of the submitter as a job is submitted.
+Submit description file commands use \verb@$ENV(EnvironmentVariableName)@
+to reference the value of an environment variable.
+Again,
+see the \Condor{submit} manual page at
+section~\ref{man-condor-submit} for more details about this usage.
+
+Condor sets two additional environment variables for each executing
+job that may be useful for the job to reference.
+
+\begin{itemize}
+\item \Env{CONDOR\_SCRATCH\_DIR}
+\index{CONDOR\_SCRATCH\_DIR}
+\index{environment variables!CONDOR\_SCRATCH\_DIR}
+ gives the directory
+where the job may place temporary data files. 
+This directory is unique for
+every job that is run, and it's contents are deleted by Condor
+when the job stops running on a machine, no matter how the job completes.
+\item \Env{CONDOR\_VM}
+\index{CONDOR\_VM}
+\index{environment variables!CONDOR\_VM}
+gives the name of the virtual machine (for SMP machines),
+on which the job is run.
+See 
+section~\ref{sec:Configuring-SMP} for more details about SMP
+machines and their configuration.
+\end{itemize}
+
+
 
 %%%%%%%%%%%% 
 \subsection{Heterogeneous Submit: Execution on Differing Architectures} 
@@ -1661,23 +1716,6 @@ In a similar fashion, a Condor administrator could set
 the user priority of any specific Condor user very high.
 If done, for example, with a guest account,
 the guest could only use cycles not wanted by other users of the system.
-
-\subsection{Environment Variables}
-
-\index{environment variables}
-\index{execution environment}
-Condor provides several tidbits of information to your job that
-allow it to make sensible decisions when running in a batch mode.
-These are provided in the form of environment variables that your
-job may read in the manner provided by your language.
-
-\begin{itemize}
-\item \Env{CONDOR\_SCRATCH\_DIR} \index{CONDOR\_SCRATCH\_DIR} - This variable gives the name of a directory
-where your job may place temporary data files.  This directory is unique for
-every job that is run, and is always deleted, no matter how your job completes.
-\item \Env{CONDOR\_VM} \index{CONDOR\_VM} - This variable gives the name of the virtual machine,
-if any, on which your job is run.
-\end{itemize}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

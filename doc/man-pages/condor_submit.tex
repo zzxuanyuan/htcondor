@@ -591,6 +591,7 @@ will skip this step.  Defaults to \Expr{True}.
 
 \item[getenv = $<$True \Bar\ False$>$] If \Opt{getenv} is set to
 \index{submit commands!getenv}
+\index{environment variables!copying current environment}
 \Expr{True}, then \Condor{submit} will copy all of the user's current
 shell environment variables at the time of job submission into the job
 ClassAd. The job will therefore execute with the same set of environment
@@ -617,6 +618,7 @@ Defaults to false.
 
 \item[environment = $<$parameter\_list$>$] List of environment variables
 \index{submit commands!environment}
+\index{environment variables!setting, for a job}
 of the form :
 \begin{verbatim}
         <parameter>=<value>
