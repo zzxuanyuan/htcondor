@@ -1145,7 +1145,7 @@ DaemonCore::ReInit()
 
 
 int
-DaemonCore::Verify(DCpermission perm, const struct sockaddr_in *sin )
+DaemonCore::Verify(DCpermission perm, const struct sockaddr_in *sin, const char * fqu )
 {
 	/*
 	 * Be Warned:  careful about parameter "sin" being NULL.  It could be, in
@@ -1165,7 +1165,7 @@ DaemonCore::Verify(DCpermission perm, const struct sockaddr_in *sin )
 
 	default:
 		if ( sin ) {
-			return ipverify.Verify(perm,sin);
+			return ipverify.Verify(perm, sin, fqu);
 		} else {
 			return FALSE;
 		}
@@ -1541,7 +1541,7 @@ int DaemonCore::HandleReq(int socki)
 	int					reqFound = FALSE;
 	int					result;
 	int					old_timeout;
-
+    const char *        user = NULL;
 	
 	insock = (*sockTable)[socki].iosock;
 
@@ -1972,34 +1972,41 @@ int DaemonCore::HandleReq(int socki)
 			}
 	}
 
+    //At this point, the stream should be a TCP/ReliSock stream
 	if ( reqFound == TRUE ) {
 		// Check the daemon core permission for this command handler
-		if ( Verify(comTable[index].perm,((Sock*)stream)->endpoint()) == FALSE )
+        if (is_tcp) {
+            user = ((ReliSock*)stream)->getFullyQualifiedUser();
+        }
+        else {
+            user = 0;
+        }
+		if ( Verify(comTable[index].perm, ((Sock*)stream)->endpoint(), user) == FALSE )
 		{
 			// Permission check FAILED
 			reqFound = FALSE;	// so we do not call the handler function below
 			// make result != to KEEP_STREAM, so we blow away this socket below
 			result = 0;
 			dprintf( D_ALWAYS,
-			   "DaemonCore: PERMISSION DENIED to host %s for command %d (%s)\n",
-			   sin_to_string(((Sock*)stream)->endpoint()), req,
-			   comTable[index].command_descrip );
+                     "DaemonCore: PERMISSION DENIED to user %s from host %s for command %d (%s)\n",
+                     user, sin_to_string(((Sock*)stream)->endpoint()), req,
+                     comTable[index].command_descrip );
 			// if UDP, consume the rest of this message to try to stay "in-sync"
 			if ( !is_tcp)
 				stream->end_of_message();
 		} else {
 			dprintf(comTable[index].dprintf_flag,
-					"DaemonCore: Command received via %s from %s\n",
-					(is_tcp) ? "TCP" : "UDP",
+					"DaemonCore: Command received via %s from %s from host %s\n",
+					user, (is_tcp) ? "TCP" : "UDP",
 					sin_to_string(((Sock*)stream)->endpoint()) );
 			dprintf(comTable[index].dprintf_flag, 
-				"DaemonCore: received command %d (%s), calling handler (%s)\n",
-				req, comTable[index].command_descrip, 
-				comTable[index].handler_descrip);
+                    "DaemonCore: received command %d (%s), calling handler (%s)\n",
+                    req, comTable[index].command_descrip, 
+                    comTable[index].handler_descrip);
 		}
 	} else {
-		dprintf(D_ALWAYS, "DaemonCore: Command received via %s from %s\n",
-				(is_tcp) ? "TCP" : "UDP",
+		dprintf(D_ALWAYS, "DaemonCore: Command received via %s from %s from host %s\n",
+				user, (is_tcp) ? "TCP" : "UDP",
 				sin_to_string(((Sock*)stream)->endpoint()) );
 		dprintf(D_ALWAYS,
 			"DaemonCore: received unregistered command request %d !\n",req);

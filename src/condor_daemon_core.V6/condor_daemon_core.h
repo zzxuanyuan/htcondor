@@ -166,7 +166,7 @@ class DaemonCore : public Service
         @param sin  Not_Yet_Documented
         @return Not_Yet_Documented
     */
-    int Verify (DCpermission perm, const struct sockaddr_in *sin);
+    int Verify (DCpermission perm, const struct sockaddr_in *sin, const char * fqu);
     int AddAllowHost( const char* host, DCpermission perm );
 
     
