@@ -96,6 +96,11 @@ public:
 		*/
 	virtual int Reaper(int pid, int exit_status);
 
+		/** Kills all jobs when a job has exited. Used to kill
+            a tool daemon when the application exists.
+		*/
+	virtual int KillingOthers (int);
+
 		/** Return the Working dir */
 	const char *GetWorkingDir() const { return WorkingDir; }
 
