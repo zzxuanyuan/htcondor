@@ -2631,7 +2631,7 @@ int DaemonCore::HandleReq(int socki)
 					dprintf (D_ALWAYS, "DC_AUTHENTICATE: attempt to open "
 							   "invalid session %s, failing.\n", the_sid.c_str());
 
-					string return_addr = NULL;
+					string return_addr;
 					if( auth_info.EvaluateAttrString(ATTR_SEC_SERVER_COMMAND_SOCK, return_addr)) {
 						sec_man->send_invalidate_packet( (char*)return_addr.c_str(), (char*)the_sid.c_str() );
 					}
