@@ -80,6 +80,12 @@ public:
 		*/
 	virtual int jobEnvironmentReady( void );
 
+		/** Does final cleanup once all the jobs (and post script, if
+			any) have completed.  This deals with everything on the
+			CleanedUpJobList, notifies the JIC, etc.
+		*/
+	virtual void allJobsDone( void );
+
 		/** Call Suspend() on all elements in JobList */
 	virtual int Suspend(int);
 

@@ -515,10 +515,9 @@ CStarter::Reaper(int pid, int exit_status)
 	}
 
 	if( pre_script && pre_script->JobCleanup(pid, exit_status) ) {		
-		handled_jobs++;
 			// TODO: deal with shutdown case?!?
 		
-			// when the pre_script exits, we know the JobList is going
+			// when the pre script exits, we know the JobList is going
 			// to be empty, so don't bother with any of the rest of
 			// this.  instead, the starter is now able to call
 			// SpawnJob() to launch the main job.
@@ -529,6 +528,16 @@ CStarter::Reaper(int pid, int exit_status)
 		}
 		return TRUE;
 	}
+
+	if( post_script && post_script->JobCleanup(pid, exit_status) ) {		
+			// when the post script exits, we know the JobList is going
+			// to be empty, so don't bother with any of the rest of
+			// this.  instead, the starter is now able to call
+			// allJobsdone() to do the final clean up stages.
+		allJobsDone();
+		return TRUE;
+	}
+
 
 	JobList.Rewind();
 	while ((job = JobList.Next()) != NULL) {
@@ -548,22 +557,19 @@ CStarter::Reaper(int pid, int exit_status)
 				 pid, exit_status );
 	}
 	if( all_jobs - handled_jobs == 0 ) {
-
-			// No more jobs, notify our JobInfoCommunicator
-		jic->allJobsDone();
-
-			// Now that we're done transfering files and/or doing all
-			// our cleanup, we can finally go through the
-			// CleanedUpJobList and call JobExit() on all the procs in
-			// there.
-		CleanedUpJobList.Rewind();
-		while( (job = CleanedUpJobList.Next()) != NULL) {
-			job->JobExit();
-			CleanedUpJobList.DeleteCurrent();
-			delete job;
+		if( post_script ) {
+				// if there's a post script, we have to call it now,
+				// and wait for it to exit before we do anything else
+				// of interest.
+			post_script->StartJob();
+			return TRUE;
+		} else {
+				// if there's no post script, we're basically done.
+				// so, we can directly call allJobsDone() to do final
+				// cleanup.
+			allJobsDone();
+			return TRUE;
 		}
-			// No more jobs, all cleanup done, notify our JIC
-		jic->allJobsGone();
 	}
 
 	if ( ShuttingDown && (all_jobs - handled_jobs == 0) ) {
@@ -571,6 +577,28 @@ CStarter::Reaper(int pid, int exit_status)
 		DC_Exit(0);
 	}
 	return 0;
+}
+
+
+void
+CStarter::allJobsDone( void )
+{
+		// No more jobs, notify our JobInfoCommunicator
+	jic->allJobsDone();
+
+		// Now that we're done transfering files and/or doing all
+		// our cleanup, we can finally go through the
+		// CleanedUpJobList and call JobExit() on all the procs in
+		// there.
+	UserProc *job;
+	CleanedUpJobList.Rewind();
+	while( (job = CleanedUpJobList.Next()) != NULL) {
+		job->JobExit();
+		CleanedUpJobList.DeleteCurrent();
+		delete job;
+	}
+		// No more jobs, all cleanup done, notify our JIC
+	jic->allJobsGone();
 }
 
 
