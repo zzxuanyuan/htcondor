@@ -34,6 +34,14 @@ extern CStarter *Starter;
 
 /* UserProc class implementation */
 
+UserProc::~UserProc()
+{
+	if( name ) {
+		free( name );
+	}
+}
+
+
 void
 UserProc::initialize( void )
 {
@@ -66,10 +74,71 @@ UserProc::initKillSigs( void )
 	}
 
 	const char* tmp = signalName( soft_kill_sig );
-	dprintf( D_FULLDEBUG, "KillSignal: %d (%s)\n", soft_kill_sig, 
+	dprintf( D_FULLDEBUG, "%s KillSignal: %d (%s)\n", 
+			 name ? name : "Main job", soft_kill_sig, 
 			 tmp ? tmp : "Unknown" );
 
 	tmp = signalName( rm_kill_sig );
-	dprintf( D_FULLDEBUG, "RmKillSignal: %d (%s)\n", rm_kill_sig, 
+	dprintf( D_FULLDEBUG, "%s RmKillSignal: %d (%s)\n", 
+			 name ? name : "Main job", rm_kill_sig, 
 			 tmp ? tmp : "Unknown" );
 }
+
+
+bool
+UserProc::PublishUpdateAd( ClassAd* ad )
+{
+	char buf[256];
+
+	if( JobPid >= 0 ) { 
+		sprintf( buf, "%s%s=%d", name ? name : "", ATTR_JOB_PID,
+				 JobPid );
+		ad->Insert( buf );
+	}
+
+	if( job_start_time.seconds() > 0 ) {
+		sprintf( buf, "%s%s=%ld", name ? name : "", ATTR_JOB_START_DATE,
+				 job_start_time.seconds() );
+		ad->Insert( buf );
+	}
+
+	if( exit_status >= 0 ) {
+
+		if( job_exit_time.seconds() > 0 ) {
+			sprintf( buf, "%s%s=%f", name ? name : "", ATTR_JOB_DURATION, 
+					 job_exit_time.difference(&job_start_time) );
+			ad->Insert( buf );
+		}
+
+			/*
+			  If we have the exit status, we want to parse it and set
+			  some attributes which describe the status in a platform
+			  independent way.  This way, we're sure we're analyzing
+			  the status integer with the platform-specific macros
+			  where it came from, instead of assuming that WIFEXITED()
+			  and friends will work correctly on a status integer we
+			  got back from a different platform.
+			*/
+		if( WIFSIGNALED(exit_status) ) {
+			sprintf( buf, "%s%s = TRUE", name ? name : "",
+					 ATTR_ON_EXIT_BY_SIGNAL );
+			ad->Insert( buf );
+			sprintf( buf, "%s%s = %d", name ? name : "",
+					 ATTR_ON_EXIT_SIGNAL, WTERMSIG(exit_status) );
+			ad->Insert( buf );
+			sprintf( buf, "%s%s = \"died on %s\"",
+					 name ? name : "", ATTR_EXIT_REASON,
+					 daemonCore->GetExceptionString(WTERMSIG(exit_status)) );
+			ad->Insert( buf );
+		} else {
+			sprintf( buf, "%s%s = FALSE", name ? name : "",
+					 ATTR_ON_EXIT_BY_SIGNAL );
+			ad->Insert( buf );
+			sprintf( buf, "%s%s = %d", name ? name : "",
+					 ATTR_ON_EXIT_CODE, WEXITSTATUS(exit_status) );
+			ad->Insert( buf );
+		}
+	}
+	return true;
+}
+

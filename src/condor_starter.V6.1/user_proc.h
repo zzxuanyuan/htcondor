@@ -37,10 +37,10 @@ class UserProc : public Service
 {
 public:
 		/// Constructor
-	UserProc() : JobAd(NULL) { initialize(); }; 
+	UserProc() : JobAd(NULL), name(NULL) { initialize(); }; 
 
 		/// Destructor
-	virtual ~UserProc() {};
+	virtual ~UserProc();
 
 		/** Pure virtual functions: */
 			//@{
@@ -72,7 +72,7 @@ public:
 			@param ad pointer to the classad to publish into
 			@return true if success, false if failure
 		*/
-	virtual bool PublishUpdateAd( ClassAd* ad ) = 0;
+	virtual bool PublishUpdateAd( ClassAd* ad );
 
 		/** Suspend. */
 	virtual void Suspend() = 0;
@@ -115,6 +115,14 @@ protected:
 	int JobPid;
 	int exit_status;
 	bool requested_exit;
+
+		/** This is the identifier for this UserProc.  It's used for
+			dprintf messages() and in some cases as a prefix for
+			ClassAd attribute names.  For regular job procs, it's left
+			as NULL, but for PRE/POST ScriptProc objects, it's got a
+			real value...
+		*/
+	char* name;
 
 	int soft_kill_sig;
 	int rm_kill_sig;
