@@ -45,7 +45,18 @@ int GlobusResource::probeDelay = 15;		// default value
 int GlobusResource::gahpCallTimeout = 300;	// default value
 bool GlobusResource::enableGridMonitor = false;
 
+//////////////from gridmanager.C
+#define HASH_TABLE_SIZE			500
+
+template class HashTable<HashKey, GlobusResource *>;
+template class HashBucket<HashKey, GlobusResource *>;
+
+HashTable <HashKey, GlobusResource *> ResourcesByName( HASH_TABLE_SIZE,
+													   hashFunction );
+////////////////////////////////
+
 GlobusResource::GlobusResource( const char *resource_name )
+	: BaseResource( resource_name )
 {
 	resourceDown = false;
 	firstPingDone = false;
@@ -86,9 +97,6 @@ GlobusResource::~GlobusResource()
 	if ( checkMonitorTid != TIMER_UNSET ) {
 		daemonCore->Cancel_Timer( checkMonitorTid );
 	}
-	if ( resourceName != NULL ) {
-		free( resourceName );
-	}
 	if ( monitorJobStatusFile != NULL ) {
 		unlink( monitorJobStatusFile );
 		free( monitorJobStatusFile );
@@ -102,6 +110,8 @@ GlobusResource::~GlobusResource()
 void GlobusResource::Reconfig()
 {
 	char *param_value;
+
+	BaseResource::Reconfig();
 
 	gahp.setTimeout( gahpCallTimeout );
 
@@ -344,11 +354,6 @@ bool GlobusResource::IsEmpty()
 bool GlobusResource::IsDown()
 {
 	return resourceDown;
-}
-
-char *GlobusResource::ResourceName()
-{
-	return resourceName;
 }
 
 int GlobusResource::DoPing()

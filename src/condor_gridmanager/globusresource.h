@@ -29,12 +29,17 @@
 
 #include "proxymanager.h"
 #include "globusjob.h"
+#include "baseresource.h"
 #include "gahp-client.h"
 
 
 class GlobusJob;
 
-class GlobusResource : public Service
+////////////from gridmanager.C
+extern HashTable <HashKey, GlobusResource *> ResourcesByName;
+//////////////////////////////
+
+class GlobusResource : public BaseResource
 {
  public:
 
@@ -53,7 +58,6 @@ class GlobusResource : public Service
 
 	bool IsEmpty();
 	bool IsDown();
-	char *ResourceName();
 
 	time_t getLastStatusChangeTime() { return lastStatusChange; }
 
@@ -79,7 +83,6 @@ class GlobusResource : public Service
 	bool ReadMonitorJobStatusFile();
 	int ReadMonitorLogFile();
 
-	char *resourceName;
 	bool resourceDown;
 	bool firstPingDone;
 	int pingTimerId;

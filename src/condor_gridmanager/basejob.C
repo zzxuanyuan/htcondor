@@ -1,0 +1,634 @@
+/***************************Copyright-DO-NOT-REMOVE-THIS-LINE**
+ * CONDOR Copyright Notice
+ *
+ * See LICENSE.TXT for additional notices and disclaimers.
+ *
+ * Copyright (c)1990-1998 CONDOR Team, Computer Sciences Department, 
+ * University of Wisconsin-Madison, Madison, WI.  All Rights Reserved.  
+ * No use of the CONDOR Software Program Source Code is authorized 
+ * without the express consent of the CONDOR Team.  For more information 
+ * contact: CONDOR Team, Attention: Professor Miron Livny, 
+ * 7367 Computer Sciences, 1210 W. Dayton St., Madison, WI 53706-1685, 
+ * (608) 262-0856 or miron@cs.wisc.edu.
+ *
+ * U.S. Government Rights Restrictions: Use, duplication, or disclosure 
+ * by the U.S. Government is subject to restrictions as set forth in 
+ * subparagraph (c)(1)(ii) of The Rights in Technical Data and Computer 
+ * Software clause at DFARS 252.227-7013 or subparagraphs (c)(1) and 
+ * (2) of Commercial Computer Software-Restricted Rights at 48 CFR 
+ * 52.227-19, as applicable, CONDOR Team, Attention: Professor Miron 
+ * Livny, 7367 Computer Sciences, 1210 W. Dayton St., Madison, 
+ * WI 53706-1685, (608) 262-0856 or miron@cs.wisc.edu.
+****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
+
+
+#include "condor_common.h"
+#include "condor_attributes.h"
+#include "condor_debug.h"
+#include "environ.h"  // for Environ object
+#include "../condor_daemon_core.V6/condor_daemon_core.h"
+#include "basename.h"
+#include "condor_ckpt_name.h"
+
+#include "gridmanager.h"
+#include "basejob.h"
+#include "condor_config.h"
+#include "condor_email.h"
+
+
+BaseJob::BaseJob( ClassAd *classad )
+{
+	submitLogged = false;
+	executeLogged = false;
+	submitFailedLogged = false;
+	terminateLogged = false;
+	abortLogged = false;
+	evictLogged = false;
+	holdLogged = false;
+
+	ad = classad;
+
+	ad->LookupInteger( ATTR_CLUSTER_ID, procID.cluster );
+	ad->LookupInteger( ATTR_PROC_ID, procID.proc );
+
+	ad->LookupInteger( ATTR_JOB_STATUS, condorState );
+
+	evaluateStateTid = daemonCore->Register_Timer( TIMER_NEVER,
+								(TimerHandlercpp)&BaseJob::doEvaluateState,
+								"doEvaluateState", (Service*) this );;
+
+	wantRematch = 0;
+	doResubmit = 0;		// set if gridmanager wants to resubmit job
+	wantResubmit = 0;	// set if user wants to resubmit job via RESUBMIT_CHECK
+	ad->EvalBool(ATTR_GLOBUS_RESUBMIT_CHECK,NULL,wantResubmit);
+
+	ad->ClearAllDirtyFlags();
+}
+
+BaseJob::~BaseJob()
+{
+	if ( ad ) {
+		delete ad;
+	}
+}
+
+void BaseJob::SetEvaluateState()
+{
+	daemonCore->Reset_Timer( evaluateStateTid, 0 );
+}
+
+void BaseJob::UpdateJobAd( const char *name, const char *value )
+{
+	char buff[1024];
+	sprintf( buff, "%s = %s", name, value );
+	ad->InsertOrUpdate( buff );
+}
+
+void BaseJob::UpdateJobAdInt( const char *name, int value )
+{
+	char buff[16];
+	sprintf( buff, "%d", value );
+	UpdateJobAd( name, buff );
+}
+
+void BaseJob::UpdateJobAdFloat( const char *name, float value )
+{
+	char buff[16];
+	sprintf( buff, "%f", value );
+	UpdateJobAd( name, buff );
+}
+
+void BaseJob::UpdateJobAdBool( const char *name, int value )
+{
+	if ( value ) {
+		UpdateJobAd( name, "TRUE" );
+	} else {
+		UpdateJobAd( name, "FALSE" );
+	}
+}
+
+void BaseJob::UpdateJobAdString( const char *name, const char *value )
+{
+	char buff[1024];
+	sprintf( buff, "\"%s\"", value );
+	UpdateJobAd( name, buff );
+}
+
+// We're assuming that any updates that come through UpdateCondorState()
+// are coming from the schedd, so we don't need to update it.
+void BaseJob::UpdateCondorState( int new_state )
+{
+	if ( new_state != condorState ) {
+		condorState = new_state;
+		UpdateJobAdInt( ATTR_JOB_STATUS, condorState );
+		ad->SetDirtyFlag( ATTR_JOB_STATUS, false );
+		SetEvaluateState();
+	}
+}
+
+void BaseJob::JobSubmitted( const char *remote_host)
+{
+}
+
+void BaseJob::JobRunning()
+{
+	if ( condorState != RUNNING ) {
+		condorState = RUNNING;
+		UpdateJobAdInt( ATTR_JOB_STATUS, condorState );
+
+		if ( !executeLogged ) {
+			WriteExecuteEventToUserLog( ad );
+			executeLogged = true;
+		}
+
+		addScheddUpdateAction( this, UA_UPDATE_JOB_AD, 0 );
+	}
+}
+
+void BaseJob::JobIdle()
+{
+	if ( condorState != IDLE ) {
+		condorState = IDLE;
+		UpdateJobAdInt( ATTR_JOB_STATUS, condorState );
+
+		addScheddUpdateAction( this, UA_UPDATE_JOB_AD, 0 );
+	}
+}
+
+void BaseJob::JobEvicted()
+{
+		//  should we be updating job ad values here?
+	if ( !evictLogged ) {
+		WriteEvictEventToUserLog( ad );
+		evictLogged = true;
+	}
+}
+
+void BaseJob::JobTerminated()
+{
+}
+
+void BaseJob::JobHeld( const char *hold_reason )
+{
+}
+
+void BaseJob::JobAdUpdateFromSchedd( const ClassAd *new_ad )
+{
+	static const char *held_removed_update_attrs[] = {
+		ATTR_JOB_STATUS,
+		ATTR_HOLD_REASON,
+		ATTR_LAST_HOLD_REASON,
+		ATTR_RELEASE_REASON,
+		ATTR_LAST_RELEASE_REASON,
+		ATTR_ENTERED_CURRENT_STATUS,
+		ATTR_NUM_SYSTEM_HOLDS,
+		ATTR_REMOVE_REASON,
+		NULL
+	};
+
+	int new_condor_state;
+
+	new_ad->LookupInteger( ATTR_JOB_STATUS, new_condor_state );
+
+	if ( new_condor_state == REMOVED || new_condor_state == HELD ) {
+
+		for ( int i = 0; held_removed_update_attrs[i] != NULL; i++ ) {
+			char *value;
+			if ( new_ad->LookupString( held_removed_update_attrs[i],
+									   &value ) != 0 ) {
+				UpdateJobAd( held_removed_update_attrs[i], value );
+				free( value );
+			} else {
+				ad->Delete( held_removed_update_attrs[i] );
+			}
+			ad->SetDirtyFlag( held_removed_update_attrs[i], false );
+		}
+
+		condorState = new_condor_state;
+		SetEvaluateState();
+	}
+
+}
+
+// Initialize a UserLog object for a given job and return a pointer to
+// the UserLog object created.  This object can then be used to write
+// events and must be deleted when you're done.  This returns NULL if
+// the user didn't want a UserLog, so you must check for NULL before
+// using the pointer you get back.
+UserLog*
+InitializeUserLog( ClassAd *job_ad )
+{
+	int cluster, proc;
+	char userLogFile[_POSIX_PATH_MAX];
+	char domain[_POSIX_PATH_MAX];
+
+
+	userLogFile[0] = '\0';
+	job_ad->LookupString( ATTR_ULOG_FILE, userLogFile );
+	if ( userLogFile[0] == '\0' ) {
+		// User doesn't want a log
+		return NULL;
+	}
+
+	job_ad->LookupInteger( ATTR_CLUSTER_ID, cluster );
+	job_ad->LookupInteger( ATTR_PROC_ID, proc );
+	job_ad->LookupString( ATTR_NT_DOMAIN, domain );
+
+	UserLog *ULog = new UserLog();
+	ULog->initialize(Owner, domain, userLogFile, cluster, proc, 0);
+	return ULog;
+}
+
+bool
+WriteExecuteEventToUserLog( ClassAd *job_ad )
+{
+	int cluster, proc;
+	char hostname[128];
+
+	UserLog *ulog = InitializeUserLog( job_ad );
+	if ( ulog == NULL ) {
+		// User doesn't want a log
+		return true;
+	}
+
+	job_ad->LookupInteger( ATTR_CLUSTER_ID, cluster );
+	job_ad->LookupInteger( ATTR_PROC_ID, proc );
+
+	dprintf( D_FULLDEBUG, 
+			 "(%d.%d) Writing execute record to user logfile\n",
+			 cluster, proc );
+
+	hostname[0] = '\0';
+	job_ad->LookupString( ATTR_GLOBUS_RESOURCE, hostname,
+						  sizeof(hostname) - 1 );
+	int hostname_len = strcspn( hostname, ":/" );
+
+	ExecuteEvent event;
+	strncpy( event.executeHost, hostname, hostname_len );
+	event.executeHost[hostname_len] = '\0';
+	int rc = ulog->writeEvent(&event);
+	delete ulog;
+
+	if (!rc) {
+		dprintf( D_ALWAYS,
+				 "(%d.%d) Unable to log ULOG_EXECUTE event\n",
+				 cluster, proc );
+		return false;
+	}
+
+	return true;
+}
+
+bool
+WriteAbortEventToUserLog( ClassAd *job_ad )
+{
+	int cluster, proc;
+	char removeReason[256];
+	UserLog *ulog = InitializeUserLog( job_ad );
+	if ( ulog == NULL ) {
+		// User doesn't want a log
+		return true;
+	}
+
+	job_ad->LookupInteger( ATTR_CLUSTER_ID, cluster );
+	job_ad->LookupInteger( ATTR_PROC_ID, proc );
+
+	dprintf( D_FULLDEBUG, 
+			 "(%d.%d) Writing abort record to user logfile\n",
+			 cluster, proc );
+
+	JobAbortedEvent event;
+
+	removeReason[0] = '\0';
+	job_ad->LookupString( ATTR_REMOVE_REASON, removeReason,
+						   sizeof(removeReason) - 1 );
+
+	event.setReason( removeReason );
+
+	int rc = ulog->writeEvent(&event);
+	delete ulog;
+
+	if (!rc) {
+		dprintf( D_ALWAYS,
+				 "(%d.%d) Unable to log ULOG_ABORT event\n",
+				 cluster, proc );
+		return false;
+	}
+
+	return true;
+}
+
+bool
+WriteTerminateEventToUserLog( ClassAd *job_ad )
+{
+	int cluster, proc;
+	UserLog *ulog = InitializeUserLog( job_ad );
+	if ( ulog == NULL ) {
+		// User doesn't want a log
+		return true;
+	}
+
+	job_ad->LookupInteger( ATTR_CLUSTER_ID, cluster );
+	job_ad->LookupInteger( ATTR_PROC_ID, proc );
+
+	dprintf( D_FULLDEBUG, 
+			 "(%d.%d) Writing terminate record to user logfile\n",
+			 cluster, proc );
+
+	JobTerminatedEvent event;
+	struct rusage r;
+	memset( &r, 0, sizeof( struct rusage ) );
+
+#if !defined(WIN32)
+	event.run_local_rusage = r;
+	event.run_remote_rusage = r;
+	event.total_local_rusage = r;
+	event.total_remote_rusage = r;
+#endif /* WIN32 */
+	event.sent_bytes = 0;
+	event.recvd_bytes = 0;
+	event.total_sent_bytes = 0;
+	event.total_recvd_bytes = 0;
+
+	// Globus doesn't tell us how the job exited, so we'll just assume it
+	// exited normally.
+	event.normal = true;
+	event.returnValue = 0;
+
+	int rc = ulog->writeEvent(&event);
+	delete ulog;
+
+	if (!rc) {
+		dprintf( D_ALWAYS,
+				 "(%d.%d) Unable to log ULOG_JOB_TERMINATED event\n",
+				 cluster, proc );
+		return false;
+	}
+
+	return true;
+}
+
+bool
+WriteEvictEventToUserLog( ClassAd *job_ad )
+{
+	int cluster, proc;
+	UserLog *ulog = InitializeUserLog( job_ad );
+	if ( ulog == NULL ) {
+		// User doesn't want a log
+		return true;
+	}
+
+	job_ad->LookupInteger( ATTR_CLUSTER_ID, cluster );
+	job_ad->LookupInteger( ATTR_PROC_ID, proc );
+
+	dprintf( D_FULLDEBUG, 
+			 "(%d.%d) Writing evict record to user logfile\n",
+			 cluster, proc );
+
+	JobEvictedEvent event;
+	struct rusage r;
+	memset( &r, 0, sizeof( struct rusage ) );
+
+#if !defined(WIN32)
+	event.run_local_rusage = r;
+	event.run_remote_rusage = r;
+#endif /* WIN32 */
+	event.sent_bytes = 0;
+	event.recvd_bytes = 0;
+
+	event.checkpointed = false;
+
+	int rc = ulog->writeEvent(&event);
+	delete ulog;
+
+	if (!rc) {
+		dprintf( D_ALWAYS,
+				 "(%d.%d) Unable to log ULOG_JOB_EVICTED event\n",
+				 cluster, proc );
+		return false;
+	}
+
+	return true;
+}
+
+bool
+WriteHoldEventToUserLog( ClassAd *job_ad )
+{
+	int cluster, proc;
+	char holdReason[256];
+	UserLog *ulog = InitializeUserLog( job_ad );
+	if ( ulog == NULL ) {
+		// User doesn't want a log
+		return true;
+	}
+
+	job_ad->LookupInteger( ATTR_CLUSTER_ID, cluster );
+	job_ad->LookupInteger( ATTR_PROC_ID, proc );
+
+	dprintf( D_FULLDEBUG, 
+			 "(%d.%d) Writing hold record to user logfile\n",
+			 cluster, proc );
+
+	JobHeldEvent event;
+
+	holdReason[0] = '\0';
+	job_ad->LookupString( ATTR_HOLD_REASON, holdReason,
+						   sizeof(holdReason) - 1 );
+
+	event.setReason( holdReason );
+
+	int rc = ulog->writeEvent(&event);
+	delete ulog;
+
+	if (!rc) {
+		dprintf( D_ALWAYS,
+				 "(%d.%d) Unable to log ULOG_JOB_HELD event\n",
+				 cluster, proc );
+		return false;
+	}
+
+	return true;
+}
+
+// TODO: This appears three times in the Condor source.  Unify?
+//   (It only is made visible in condor_shadow.jim's prototypes.h.)
+static char *
+d_format_time( double dsecs )
+{
+	int days, hours, minutes, secs;
+	static char answer[25];
+
+	const int SECONDS = 1;
+	const int MINUTES = (60 * SECONDS);
+	const int HOURS   = (60 * MINUTES);
+	const int DAYS    = (24 * HOURS);
+
+	secs = dsecs;
+
+	days = secs / DAYS;
+	secs %= DAYS;
+
+	hours = secs / HOURS;
+	secs %= HOURS;
+
+	minutes = secs / MINUTES;
+	secs %= MINUTES;
+
+	(void)sprintf(answer, "%3d %02d:%02d:%02d", days, hours, minutes, secs);
+
+	return( answer );
+}
+
+void
+email_terminate_event(ClassAd * jobAd)
+{
+	PROC_ID procID;
+	/*
+	TODO: Distinction?  Does condor not normally send email for
+		removed jobs?  Filter at caller?
+			if ( condorState == REMOVED ) {
+				schedd_actions |= UA_LOG_ABORT_EVENT;
+			} else if ( condorState == COMPLETED ) {
+				*/
+	if ( !jobAd ) {
+		dprintf(D_ALWAYS, 
+			"email_terminate_event called with invalid ClassAd\n");
+		return;
+	}
+
+	jobAd->LookupInteger( ATTR_CLUSTER_ID, procID.cluster );
+	jobAd->LookupInteger( ATTR_PROC_ID, procID.proc );
+
+	int notification = NOTIFY_COMPLETE; // default
+	jobAd->LookupInteger(ATTR_JOB_NOTIFICATION,notification);
+
+	switch( notification ) {
+		case NOTIFY_NEVER:    return;
+		case NOTIFY_ALWAYS:   break;
+		case NOTIFY_COMPLETE: break;
+		case NOTIFY_ERROR:    return;
+		default:
+			dprintf(D_ALWAYS, 
+				"Condor Job %d.%d has unrecognized notification of %d\n",
+				procID.cluster, procID.proc, notification );
+				// When in doubt, better send it anyway...
+			break;
+	}
+
+	char subjectline[50];
+	sprintf( subjectline, "Condor Job %d.%d", procID.cluster, procID.proc );
+	FILE * mailer =  email_user_open( jobAd, subjectline );
+
+	if( ! mailer ) {
+		// Is message redundant?  Check email_user_open and euo's children.
+		dprintf(D_ALWAYS, 
+			"email_terminate_event failed to open a pipe to a mail program.\n");
+		return;
+	}
+
+		// gather all the info out of the job ad which we want to 
+		// put into the email message.
+	char JobName[_POSIX_PATH_MAX];
+	JobName[0] = '\0';
+	jobAd->LookupString( ATTR_JOB_CMD, JobName );
+
+	char Args[_POSIX_ARG_MAX];
+	Args[0] = '\0';
+	jobAd->LookupString(ATTR_JOB_ARGUMENTS, Args);
+	
+	/*
+	// Not present.  Probably doesn't make sense for Globus
+	int had_core = FALSE;
+	jobAd->LookupBool( ATTR_JOB_CORE_DUMPED, had_core );
+	*/
+
+	int q_date = 0;
+	jobAd->LookupInteger(ATTR_Q_DATE,q_date);
+	
+	/*
+	// Present, but probably doesn't make sense for Globus
+	float remote_sys_cpu = 0.0;
+	jobAd->LookupFloat(ATTR_JOB_REMOTE_SYS_CPU, remote_sys_cpu);
+	
+	// Present, but probably doesn't make sense for Globus
+	float remote_user_cpu = 0.0;
+	jobAd->LookupFloat(ATTR_JOB_REMOTE_USER_CPU, remote_user_cpu);
+	
+	int image_size = 0;
+	jobAd->LookupInteger(ATTR_IMAGE_SIZE, image_size);
+	
+	int shadow_bday = 0;
+	jobAd->LookupInteger( ATTR_SHADOW_BIRTHDATE, shadow_bday );
+	*/
+	
+	float previous_runs = 0;
+	jobAd->LookupFloat( ATTR_JOB_REMOTE_WALL_CLOCK, previous_runs );
+	
+	time_t arch_time=0;	/* time_t is 8 bytes some archs and 4 bytes on other
+						   archs, and this means that doing a (time_t*)
+						   cast on & of a 4 byte int makes my life hell.
+						   So we fix it by assigning the time we want to
+						   a real time_t variable, then using ctime()
+						   to convert it to a string */
+	
+	time_t now = time(NULL);
+
+	fprintf( mailer, "Your Condor job %d.%d \n", procID.cluster, procID.proc);
+	if ( JobName[0] ) {
+		fprintf(mailer,"\t%s %s\n",JobName,Args);
+	}
+	fprintf(mailer,"has exited normally.\n");
+
+	/*
+	if( had_core ) {
+		fprintf( mailer, "Core file is: %s\n", getCoreName() );
+	}
+	*/
+
+	arch_time = q_date;
+	fprintf(mailer, "\n\nSubmitted at:        %s", ctime(&arch_time));
+	
+	double real_time = now - q_date;
+	arch_time = now;
+	fprintf(mailer, "Completed at:        %s", ctime(&arch_time));
+	
+	fprintf(mailer, "Real Time:           %s\n", 
+			d_format_time(real_time));
+
+
+	fprintf( mailer, "\n" );
+	
+	/*
+	// None of this is valid for Globus jobs.
+	fprintf(mailer, "Virtual Image Size:  %d Kilobytes\n\n", image_size);
+	
+	double rutime = remote_user_cpu;
+	double rstime = remote_sys_cpu;
+	double trtime = rutime + rstime;
+	double wall_time = now - shadow_bday;
+	fprintf(mailer, "Statistics from last run:\n");
+	fprintf(mailer, "Allocation/Run time:     %s\n",d_format_time(wall_time) );
+	fprintf(mailer, "Remote User CPU Time:    %s\n", d_format_time(rutime) );
+	fprintf(mailer, "Remote System CPU Time:  %s\n", d_format_time(rstime) );
+	fprintf(mailer, "Total Remote CPU Time:   %s\n\n", d_format_time(trtime));
+	
+	double total_wall_time = previous_runs + wall_time;
+	fprintf(mailer, "Statistics totaled from all runs:\n");
+	fprintf(mailer, "Allocation/Run time:     %s\n",
+			d_format_time(total_wall_time) );
+
+	// TODO: Can we/should we get this for Globus jobs.
+		// TODO: deal w/ total bytes <- obsolete? in original code)
+	float network_bytes;
+	network_bytes = bytesSent();
+	fprintf(mailer, "\nNetwork:\n" );
+	fprintf(mailer, "%10s Run Bytes Received By Job\n", 
+			metric_units(network_bytes) );
+	network_bytes = bytesReceived();
+	fprintf(mailer, "%10s Run Bytes Sent By Job\n",
+			metric_units(network_bytes) );
+	*/
+
+	email_close(mailer);
+}
+

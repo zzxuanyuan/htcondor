@@ -28,8 +28,10 @@
 #include "condor_classad.h"
 #include "MyString.h"
 #include "globus_utils.h"
+#include "classad_hashtable.h"
 
 #include "proxymanager.h"
+#include "basejob.h"
 #include "globusresource.h"
 #include "gahp-client.h"
 
@@ -37,26 +39,46 @@
 
 class GlobusResource;
 
-class GlobusJob : public Service
+/////////////////////from gridmanager.h
+class GlobusJob;
+extern HashTable <HashKey, GlobusJob *> JobsByContact;
+
+extern char *gassServerUrl;
+extern char *gramCallbackContact;
+
+// This is needed for WriteGlobusSubmitFailedEventToUserLog() in gridmanager.C
+extern GahpClient GahpMain;
+
+void rehashJobContact( GlobusJob *job, const char *old_contact,
+					   const char *new_contact );
+char *globusJobId( const char *contact );
+void gramCallbackHandler( void *user_arg, char *job_contact, int state,
+						  int errorcode );
+bool InitializeGahp( const char *proxy_filename );
+
+void GlobusJobInit();
+void GlobusJobReconfig();
+bool GlobusJobAdMatch( const ClassAd *jobad );
+bool GlobusJobAdMustExpand( const ClassAd *jobad );
+///////////////////////////////////////
+
+class GlobusJob : public BaseJob
 {
  public:
 
-	GlobusJob( GlobusJob& copy );
-	GlobusJob( ClassAd *classad, GlobusResource *resource );
+	GlobusJob( ClassAd *classad );
 
 	~GlobusJob();
 
 	void Reconfig();
-	void SetEvaluateState();
 	int doEvaluateState();
 	void NotifyResourceDown();
 	void NotifyResourceUp();
-	void UpdateCondorState( int new_state );
 	void UpdateGlobusState( int new_state, int new_error_code );
 	void GramCallback( int new_state, int new_error_code );
 	bool GetCallbacks();
 	void ClearCallbacks();
-	GlobusResource *GetResource();
+	BaseResource *GetResource();
 
 	static int probeInterval;
 	static int submitInterval;
@@ -79,7 +101,6 @@ class GlobusJob : public Service
 	// New variables
 	bool resourceDown;
 	bool resourceStateKnown;
-	int condorState;
 	int gmState;
 	int globusState;
 	int globusStateErrorCode;
@@ -88,7 +109,6 @@ class GlobusJob : public Service
 	int callbackGlobusStateErrorCode;
 	bool jmUnreachable;
 	GlobusResource *myResource;
-	int evaluateStateTid;
 	time_t lastProbeTime;
 	bool probeNow;
 	time_t enteredCurrentGmState;
@@ -119,13 +139,6 @@ class GlobusJob : public Service
 	bool GetOutputSize( int& output, int& error );
 	void DeleteOutput();
 
-	void UpdateJobAd( const char *name, const char *value );
-	void UpdateJobAdInt( const char *name, int value );
-	void UpdateJobAdFloat( const char *name, float value );
-	void UpdateJobAdBool( const char *name, int value );
-	void UpdateJobAdString( const char *name, const char *value );
-
-	PROC_ID procID;
 	char *jobContact;
 		// If we're in the middle of a globus call that requires an RSL,
 		// the RSL is stored here (so that we don't have to reconstruct the
@@ -140,24 +153,11 @@ class GlobusJob : public Service
 	bool stageOutput;
 	bool stageError;
 	int globusError;
-	bool submitLogged;
-	bool executeLogged;
-	bool submitFailedLogged;
-	bool terminateLogged;
-	bool abortLogged;
-	bool evictLogged;
-	bool holdLogged;
 
-	bool stateChanged;
 	int jmVersion;
 	bool restartingJM;
 	time_t restartWhen;
 
-	ClassAd *ad;
-
-	int wantResubmit;
-	int doResubmit;
-	int wantRematch;
 	int numGlobusSubmits;
 
  protected:
@@ -169,6 +169,12 @@ class GlobusJob : public Service
 	bool FailureNeedsCommit( int error_code );
 	bool JmShouldSleep();
 };
+
+bool WriteGlobusSubmitEventToUserLog( ClassAd *job_ad );
+bool WriteGlobusSubmitFailedEventToUserLog( ClassAd *job_ad,
+											int failure_code );
+bool WriteGlobusResourceUpEventToUserLog( ClassAd *job_ad );
+bool WriteGlobusResourceDownEventToUserLog( ClassAd *job_ad );
 
 #endif
 
