@@ -395,9 +395,27 @@ int MirrorJob::doEvaluateState()
 			} break;
 		case GM_SUBMIT_COMMIT: {
 			// Now that we've saved the job id, ???
-
-			// TODO tell the schedd that it's ok to schedule the job now?
-			gmState = GM_SUBMITTED;
+			if ( gahpAd == NULL ) {
+				MyStrint expr;
+				gahpAd = new ClassAd;
+				expr.sprintf( "%s = False", ATTR_SUBMIT_IN_PROGRESS );
+				gahpAd->Insert( expr.Value() );
+			}
+			rc = gahp->condor_job_update( mirrorScheddName, mirrorJobId,
+										  gahpAd );
+			if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
+				 rc == GAHPCLIENT_COMMAND_PENDING ) {
+				break;
+			}
+			if ( rc == 0 ) {
+				gmState = GM_SUBMITTED;
+			} else {
+				// unhandled error
+				dprintf( D_ALWAYS,
+						 "(%d.%d) condor_job_update() failed\n",
+						 procID.cluster, procID.proc );
+				gmState = GM_CANCEL;
+			}
 			} break;
 		case GM_SUBMITTED: {
 			// The job has been submitted. Wait for completion or failure,
@@ -750,11 +768,14 @@ ClassAd *MirrorJob::buildSubmitAd()
 	expr.sprintf( "%s = NEVER", ATTR_JOB_NOTIFICATION );
 	submit_ad->Insert( expr.Value() );
 
+	expr.sprintf( "%s = True", ATTR_SUBMIT_IN_PROGRESS );
+	submit_ad->Insert( expr.Value() );
+
 	expr.sprintf( "%s = True", ATTR_JOB_LEAVE_IN_QUEUE );
 	submit_ad->Insert( expr.Value() );
 
-	expr.sprintf( "%s = %s =?= Undefined && ENV.CurrentTime > %s + %d",
-				  ATTR_PERIODIC_REMOVE_CHECK, ATTR_MIRROR_LEASE_TIME,
+	expr.sprintf( "%s = %s =?= True && ENV.CurrentTime > %s + %d",
+				  ATTR_PERIODIC_REMOVE_CHECK, ATTR_SUBMIT_IN_PROGRESS,
 				  ATTR_Q_DATE, 1800 );
 	submit_ad->Insert( expr.Value() );
 
