@@ -36,6 +36,11 @@
 //#include "globusresource.h"
 //#include "gahp-client.h"
 
+/** Destroy per-cluster files (directory, executable) for the cluster "cluster".
+
+This is a thin wrapper around JobSpoolDir.
+*/
+void DestroyClusterDirectory(int cluster);
 
 /**
 Manages a per-job spool directory under SPOOL
@@ -78,6 +83,12 @@ public:
 	*/
 	bool Initialize(int icluster, int iproc, int isubproc, bool allow_create);
 	bool Initialize(ClassAd * JobAd, bool allow_create);
+
+	/** As Initialize, but specialized to handle clusters.
+
+	Only DestroyClusterDirectory is valid after this call.
+	*/
+	bool Initialize(int icluster, bool allow_create);
 
 
 	/** Specific the Cmd for the job.

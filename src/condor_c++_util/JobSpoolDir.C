@@ -131,6 +131,19 @@ bool recursive_chown_nonroot(const char * path,
 /*****************************************************************************/
 
 
+void DestroyClusterDirectory(int cluster)
+{
+	JobSpoolDir dirobj;
+	
+	if( ! dirobj.Initialize(cluster, false) ) {
+		dprintf(D_ALWAYS, "Unable to destroy cluster directory for cluster %d; unable to initialize.\n", cluster);
+		return;
+	}
+
+	dirobj.DestroyClusterDirectory();
+}
+
+
 /// Returns strerror for errno "e" as a MyString
 MyString StringError(int e)
 {
@@ -171,9 +184,9 @@ char *gen_ckpt_name_2 ( const char *dir, int cluster, int proc, int subproc )
 #define AssertIsInitializedDestroyedOK() AssertIsInitializedImpl(__FILE__, __LINE__, true)
 
 JobSpoolDir::JobSpoolDir()  :
-	cluster(0),
-	proc(0),
-	subproc(0),
+	cluster(-1),
+	proc(-1),
+	subproc(-1),
 	prevuid(0),
 	is_initialized(false),
 	is_destroyed(false)
@@ -187,7 +200,10 @@ bool JobSpoolDir::IsInitialized() const
 
 MyString JobSpoolDir::DirBaseCluster() const
 {
-	AssertIsInitializedDestroyedOK();
+	// We can't use AssertIsInitialized because this is used during construction
+	if(cluster == -1) {
+		EXCEPT("Internal Error: Attempting to use uninitialized JobSpoolDir::DirBaseCluster");
+	}
 	MyString s;
 	s.sprintf("cluster%d", cluster);
 	return s;
@@ -201,7 +217,10 @@ MyString JobSpoolDir::DirFullCluster() const
 
 MyString JobSpoolDir::DirBaseProcess() const
 {
-	AssertIsInitialized();
+	// We can't use AssertIsInitialized because this is used during construction
+	if(cluster == -1 || proc == -1 || subproc == -1) {
+		EXCEPT("Internal Error: Attempting to use uninitialized JobSpoolDir::DirBaseProcess");
+	}
 	MyString s;
 	s.sprintf("proc%d.%d", proc, subproc);
 	return s;
@@ -209,7 +228,7 @@ MyString JobSpoolDir::DirBaseProcess() const
 
 MyString JobSpoolDir::DirFullProcess() const
 {
-	AssertIsInitialized();
+	//  Don't AssertIsInitialized, let DirBaseProcess handle it.
 	return ConcatDir(DirFullCluster(), DirBaseProcess());
 }
 
@@ -254,13 +273,13 @@ void JobSpoolDir::AssertIsInitializedImpl(const char * filename, int linenum, bo
 	}
 }
 
-bool JobSpoolDir::Initialize(int incluster, int inproc, int insubproc, bool allow_create)
+bool JobSpoolDir::Initialize(int incluster, bool allow_create)
 {
 	ASSERT( ! IsInitialized() ); // Don't multiply initialize
 
 	cluster = incluster;
-	proc = inproc;
-	subproc = insubproc;
+	proc = -1;
+	subproc = -1;
 
 	mainspooldir = param_mystring("SPOOL");
 	if(mainspooldir.Length() < 1) {
@@ -268,18 +287,34 @@ bool JobSpoolDir::Initialize(int incluster, int inproc, int insubproc, bool allo
 		return false;
 	}
 
-	// Must be set for other functions to work.
-	is_initialized = true;
-
 	if( ! EnsureUsableDir(DirFullCluster(), allow_create) ) {
-		is_initialized = false;
 		return false;
 	}
-	if( ! EnsureUsableDir(DirFullProcess(), allow_create) ) {
-		is_initialized = false;
+	is_initialized = true;
+	return true;
+}
+
+bool JobSpoolDir::Initialize(int incluster, int inproc, int insubproc, bool allow_create)
+{
+	ASSERT( ! IsInitialized() ); // Don't multiply initialize
+
+	if( ! Initialize(incluster, allow_create) ) {
 		return false;
 	}
 
+		// The above call to Initialize set this to true, but
+		// we're actually still mid-initialization...
+	is_initialized = false;
+
+	proc = inproc;
+	subproc = insubproc;
+
+	if( ! EnsureUsableDir(DirFullProcess(), allow_create) ) {
+		// TODO: DestroyClusterDirectory() ???
+		return false;
+	}
+
+	is_initialized = true;
 	return true;
 }
 
