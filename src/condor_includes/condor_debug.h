@@ -132,12 +132,12 @@ extern void _EXCEPT_(char*, ...);
 #ifndef ASSERT
 #define ASSERT(cond) \
 	if( !(cond) ) { EXCEPT("Assertion ERROR on (%s)",#cond); }
-#endif ASSERT
+#endif /* ASSERT */
 
 #ifndef TRACE
 #define TRACE \
 	fprintf( stderr, "TRACE at line %d in file \"%s\"\n",  __LINE__, __FILE__ );
-#endif TRACE
+#endif /* TRACE */
 
 #ifdef MALLOC_DEBUG
 #define MALLOC(size) mymalloc(__FILE__,__LINE__,size)
@@ -150,7 +150,7 @@ char    *mymalloc(), *myrealloc(), *mycalloc();
 #define CALLOC(nelem,size) calloc(nelem,size)
 #define REALLOC(ptr,size) realloc(ptr,size)
 #define FREE(ptr) free(ptr)
-#endif MALLOC_DEBUG
+#endif /* MALLOC_DEBUG */
 
 #define D_RUSAGE( flags, ptr ) { \
         dprintf( flags, "(ptr)->ru_utime = %d.%06d\n", (ptr)->ru_utime.tv_sec,\
@@ -159,5 +159,5 @@ char    *mymalloc(), *myrealloc(), *mycalloc();
         (ptr)->ru_stime.tv_usec ); \
 }
 
-#endif DEBUG_H
+#endif /* CONDOR_DEBUG_H */
 
