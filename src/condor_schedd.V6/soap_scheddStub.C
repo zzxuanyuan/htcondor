@@ -99,6 +99,7 @@ static
 int
 insertJob(int clusterId, int jobId, Job *job)
 {
+		// XXX: Bug when key is popped off the stack?
   MyString key;
   key += clusterId;
   key += ".";
@@ -230,7 +231,7 @@ condorSchedd__commitTransaction(struct soap *s,
     result.response.code = SUCCESS;
   }
 
-  //jobs.clear(); // XXX: Do the destructors get called?
+  jobs.clear(); // XXX: Do the destructors get called?
 
   dprintf(D_ALWAYS,"SOAP leaving condorSchedd__commitTransaction() res=%d\n",result.response.code);
   return SOAP_OK;
@@ -987,9 +988,11 @@ condorSchedd__createJobTemplate(struct soap *soap,
   job->Insert(attribute.GetCStr());
 
   attribute = MyString(ATTR_JOB_LEAVE_IN_QUEUE) + " = FilesRetrieved=?=FALSE";
-  char * soapLeaveInQueue = param("SOAP_LEAVE_IN_QUEUE");
+  char *soapLeaveInQueue = param("SOAP_LEAVE_IN_QUEUE");
   if (soapLeaveInQueue) {
     attribute = attribute + " && (" + soapLeaveInQueue + ")";
+
+	free(soapLeaveInQueue);
   }
   // XXX: This is recoverable!
   assert(job->Insert(attribute.GetCStr()));
@@ -1001,6 +1004,8 @@ condorSchedd__createJobTemplate(struct soap *soap,
 
   result.response.status.code = SUCCESS;
   convert_ad_to_adStruct(soap, job, &result.response.classAd);
+
+  delete job;
 
   return SOAP_OK;
 }
