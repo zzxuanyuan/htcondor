@@ -250,7 +250,6 @@ Init()
 	jobTypes.Append( new_type );
 #endif
 
-/*
 	new_type = new JobType;
 	new_type->Name = strdup( "Mirror" );
 	new_type->InitFunc = MirrorJobInit;
@@ -259,7 +258,6 @@ Init()
 	new_type->AdMustExpandFunc = MirrorJobAdMustExpand;
 	new_type->CreateFunc = MirrorJobCreate;
 	jobTypes.Append( new_type );
-*/
 
 	new_type = new JobType;
 	new_type->Name = strdup( "GT3" );
