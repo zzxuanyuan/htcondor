@@ -110,14 +110,14 @@ UniShadow::updateFromStarter(int command, Stream *s)
 
 
 void UniShadow::init( ClassAd *jobAd, char schedd_addr[], char host[], 
-					  char capability[], char cluster[], char proc[])
+					  char claim_id[], char cluster[], char proc[])
 {
 	if ( !jobAd ) {
 		EXCEPT("No jobAd defined!");
 	}
 
 		// we're only dealing with one host, so this is trivial:
-	remRes->setStartdInfo( host, capability );
+	remRes->setStartdInfo( host, claim_id );
 		// for now, set this to the sinful string.  when the starter
 		// spawns, it'll do an RSC to register a real hostname...
 	remRes->setMachineName( host );

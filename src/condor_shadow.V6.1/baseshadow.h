@@ -96,7 +96,7 @@ class BaseShadow : public Service
 			This function is <b>pure virtual</b>.
 		 */
 	virtual void init( ClassAd *jobAd, char schedd_addr[], char host[], 
-			   char capability[], char cluster[], char proc[] ) = 0;
+			   char claim_id[], char cluster[], char proc[] ) = 0;
 
 		/** Here, we param for lots of stuff in the config file.  Things
 			param'ed for are: SPOOL, FILESYSTEM_DOMAIN, UID_DOMAIN, 

@@ -71,7 +71,7 @@ class MPIShadow : public BaseShadow
 		/**	Does the following:
 			<ul>
 			 <li>Checks some parameters
-			 <li>Talks to the schedd to get all the hosts and capabilities
+			 <li>Talks to the schedd to get all the hosts and ClaimIds
 			       we'll need for this mpi job
 			 <li>Calls BaseShadow::init()
 			 <li>Requests all the remote resources
@@ -82,7 +82,7 @@ class MPIShadow : public BaseShadow
 			command line and should be easy to figure out.
 		 */
 	void init( ClassAd *jobAd, char schedd_addr[], char host[], 
-			   char capability[], char cluster[], char proc[]);
+			   char claim_id[], char cluster[], char proc[]);
 
 		/** Shut down properly.  We have MPI-specific logic in this
 			version which decides if we're really ready to shutdown or

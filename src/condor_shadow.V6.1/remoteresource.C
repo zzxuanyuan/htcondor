@@ -220,11 +220,11 @@ RemoteResource::dprintfSelf( int debugLevel )
 					  "host info:\n");
 	if( dc_startd ) {
 		char* addr = dc_startd->addr();
-		char* cap = dc_startd->getCapability();
+		char* id = dc_startd->getClaimId();
 		shadow->dprintf( debugLevel, "\tstartdAddr: %s\n", 
 						 addr ? addr : "Unknown" );
-		shadow->dprintf( debugLevel, "\tcapability: %s\n", 
-						 cap ? cap : "Unknown" );
+		shadow->dprintf( debugLevel, "\tClaimId: %s\n", 
+						 id ? id : "Unknown" );
 	}
 	if( machineName ) {
 		shadow->dprintf( debugLevel, "\tmachineName: %s\n",
@@ -379,22 +379,22 @@ RemoteResource::getStartdAddress( char *& sinful )
 
 
 void
-RemoteResource::getCapability( char *& cap )
+RemoteResource::getClaimId( char *& id )
 {
-	if( cap ) {
-		cap[0] = '\0';
+	if( id ) {
+		id[0] = '\0';
 	}
 	if( ! dc_startd ) {
 		return;
 	}
-	char* capab = dc_startd->getCapability();
-	if( ! capab ) {
+	char* my_id = dc_startd->getClaimId();
+	if( ! my_id ) {
 		return;
 	}
-	if( ! cap ) {
-		cap = strnewp( capab );
+	if( ! id ) {
+		id = strnewp( my_id );
 	} else {
-		strcpy( cap, capab );
+		strcpy( id, my_id );
 	}
 }
 
@@ -513,13 +513,13 @@ RemoteResource::exitCode( void )
 
 void
 RemoteResource::setStartdInfo( const char *sinful, 
-							   const char* capability ) 
+							   const char* claim_id ) 
 {
 	if( dc_startd ) {
 		delete dc_startd;
 	}
 	dc_startd = new DCStartd( sinful, NULL );
-	dc_startd->setCapability( capability );
+	dc_startd->setClaimId( claim_id );
 
 		/*
 		  Tell daemonCore that we're willing to

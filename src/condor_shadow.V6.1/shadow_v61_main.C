@@ -40,7 +40,7 @@ ShadowInitializer *shad_init = NULL;
 static void
 usage()
 {
-	printf( "Usage: condor_shadow schedd_addr host capability cluster proc\n" );
+	printf( "Usage: condor_shadow schedd_addr host claim_id cluster proc\n" );
 	exit( JOB_SHADOW_USAGE );
 }
 

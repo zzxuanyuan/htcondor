@@ -42,7 +42,7 @@ class ParallelShadow : public BaseShadow
 		/**	Does the following:
 			<ul>
 			 <li>Checks some parameters
-			 <li>Talks to the schedd to get all the hosts and capabilities
+			 <li>Talks to the schedd to get all the hosts and ClaimIds
 			       we'll need for this parallel job
 			 <li>Calls BaseShadow::init()
 			 <li>Requests all the remote resources
@@ -53,7 +53,7 @@ class ParallelShadow : public BaseShadow
 			command line and should be easy to figure out.
 		 */
 	void init( ClassAd *jobAd, char schedd_addr[], char host[], 
-			   char capability[], char cluster[], char proc[]);
+			   char claim_id[], char cluster[], char proc[]);
 
 		/** Shut down properly.  We have parallel-specific logic in this
 			version which decides if we're really ready to shutdown or

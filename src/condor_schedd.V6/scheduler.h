@@ -141,13 +141,13 @@ typedef enum {
 class ContactStartdArgs
 {
 public:
-	ContactStartdArgs( char* the_capab, char* the_owner, char*
+	ContactStartdArgs( char* the_claim_id, char* the_owner, char*
 					   the_sinful, PROC_ID the_id, ClassAd* match,
 					   char* the_pool, bool is_dedicated );
 	~ContactStartdArgs();
 
 	char*		sinful( void )		{ return csa_sinful; };
-	char*		capability( void )	{ return csa_capability; };
+	char*		claimId( void )		{ return csa_claim_id; };
 	char*		owner( void )		{ return csa_owner; };
 	char*		pool( void )		{ return csa_pool; };
 	ClassAd*	matchAd( void )		{ return csa_match_ad; };
@@ -156,7 +156,7 @@ public:
 	int			proc( void )		{ return csa_id.proc; };
 
 private:
-	char *csa_capability;
+	char *csa_claim_id;
 	char *csa_owner;
 	char *csa_sinful;
 	PROC_ID csa_id;
@@ -170,7 +170,7 @@ private:
 // a pointer to this state so we can restore it after a non-blocking connect.
 struct contactStartdState {
     match_rec* mrec;
-    char* capability;
+    char* claim_id;
     char* server;
     ClassAd *jobAd;
 };
@@ -388,7 +388,7 @@ private:
 
 
 		/** We add a match record (AddMrec), then open a ReliSock to the
-			startd.  We push the capability and the jobAd, then register
+			startd.  We push the ClaimId and the jobAd, then register
 			the Socket with startdContactSockHandler and put the new mrec
 			into the daemonCore data pointer.  
 			@param args An object that holds all the info we care about 

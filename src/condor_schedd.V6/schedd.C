@@ -143,13 +143,13 @@ dc_reconfig()
 }
 
 
-match_rec::match_rec(char* i, char* p, PROC_ID* id, ClassAd *match, 
-					 char *the_user, char *my_pool)
+match_rec::match_rec( char* claim_id, char* p, PROC_ID* job_id, 
+					  ClassAd *match, char *the_user, char *my_pool )
 {
-	strcpy(this->id, i);
+	strcpy(this->id, claim_id);
 	strcpy(peer, p);
-	origcluster = cluster = id->cluster;
-	proc = id->proc;
+	origcluster = cluster = job_id->cluster;
+	proc = job_id->proc;
 	status = M_UNCLAIMED;
 	entered_current_status = (int)time(0);
 	shadowRec = NULL;
@@ -199,12 +199,12 @@ match_rec::setStatus( int stat )
 }
 
 
-ContactStartdArgs::ContactStartdArgs( char* the_capab, char* the_owner,  
+ContactStartdArgs::ContactStartdArgs( char* the_claim_id, char* the_owner,  
 									  char* the_sinful, PROC_ID the_id, 
 									  ClassAd* match, char* the_pool, 
 									  bool is_dedicated ) 
 {
-	csa_capability = strdup( the_capab );
+	csa_claim_id = strdup( the_claim_id );
 	csa_owner = strdup( the_owner );
 	csa_sinful = strdup( the_sinful );
 	csa_id.cluster = the_id.cluster;
@@ -225,7 +225,7 @@ ContactStartdArgs::ContactStartdArgs( char* the_capab, char* the_owner,
 
 ContactStartdArgs::~ContactStartdArgs()
 {
-	free( csa_capability );
+	free( csa_claim_id );
 	free( csa_owner );
 	free( csa_sinful );
 	if( csa_pool ) {
@@ -340,8 +340,8 @@ Scheduler::~Scheduler()
 	if (matches) {
 		matches->startIterations();
 		match_rec *rec;
-		HashKey cap;
-		while (matches->iterate(cap, rec) == 1) {
+		HashKey id;
+		while (matches->iterate(id, rec) == 1) {
 			delete rec;
 		}
 		delete matches;
@@ -1013,12 +1013,14 @@ count( ClassAd *job )
 		}
 
 		// Don't count HELD jobs that have ATTR_JOB_MANAGED set to false.
-		if ( status != HELD || job_managed != 0 ) 
+		if ( (status != HELD && status != COMPLETED && status != REMOVED) 
+					|| job_managed != 0 ) 
 		{
 			needs_management = 1;
 			scheduler.Owners[OwnerNum].GlobusJobs++;
 		}
-		if ( status != HELD && job_managed == 0 ) 
+		if ( status != HELD && status != COMPLETED && status != REMOVED
+					&& job_managed == 0 ) 
 		{
 			scheduler.Owners[OwnerNum].GlobusUnmanagedJobs++;
 		}
@@ -2661,7 +2663,7 @@ Scheduler::canSpawnShadow( int started_jobs, int total_jobs )
 
 		// First, check if we have reached our maximum # of shadows 
 	if( CurNumActiveShadows >= MaxJobsRunning ) {
-		dprintf( D_ALWAYS, "Reached MAX_JOBS_RUNNING: no more can run, %d jobs matched, "
+		dprintf( D_ALWAYS, "Reached MAX_JOBS_RUNNING, %d jobs matched, "
 				 "%d jobs idle\n", started_jobs, idle_jobs ); 
 		return false;
 	}
@@ -2673,17 +2675,15 @@ Scheduler::canSpawnShadow( int started_jobs, int total_jobs )
 	}
 
 		// Now, see if we ran out of swap space already.
-	if( SwapSpaceExhausted) {
-		dprintf( D_ALWAYS, "Swap space exhausted! No more jobs can be run!\n" );
-        dprintf( D_ALWAYS, "    Solution: get more swap space, or set RESERVED_SWAP = 0\n" );
-        dprintf( D_ALWAYS, "    %d jobs matched, %d jobs idle\n", started_jobs, idle_jobs ); 
+	if( SwapSpaceExhausted ) {
+		dprintf( D_ALWAYS, "Swap Space Exhausted, %d jobs matched, "
+				 "%d jobs idle\n", started_jobs, idle_jobs ); 
 		return false;
 	}
 
 	if( ShadowSizeEstimate && started_jobs >= MaxShadowsForSwap ) {
-		dprintf( D_ALWAYS, "Swap space estimate reached! No more jobs can be run!\n" );
-        dprintf( D_ALWAYS, "    Solution: get more swap space, or set RESERVED_SWAP = 0\n" );
-        dprintf( D_ALWAYS, "    %d jobs matched, %d jobs idle\n", started_jobs, idle_jobs ); 
+		dprintf( D_ALWAYS, "Swap Space Estimate Reached, %d jobs "
+				 "matched, %d jobs idle\n", started_jobs, idle_jobs ); 
 		return false;
 	}
 	
@@ -2719,7 +2719,7 @@ Scheduler::negotiate(int, Stream* s)
 	int		i;
 	int		op;
 	PROC_ID	id;
-	char*	capability = NULL;			// capability for each match made
+	char*	claim_id = NULL;			// claim_id for each match made
 	char*	host = NULL;
 	char*	sinful = NULL;
 	char*	tmp;
@@ -3110,7 +3110,7 @@ Scheduler::negotiate(int, Stream* s)
 				case PERMISSION_AND_AD:
 					/*
 					 * If things are cool, contact the startd.
-					 * But... of the capability is the string "null", that means
+					 * But... of the claim_id is the string "null", that means
 					 * the resource does not support the claiming protocol.
 					 */
 					dprintf ( D_FULLDEBUG, "In case PERMISSION\n" );
@@ -3119,9 +3119,9 @@ Scheduler::negotiate(int, Stream* s)
 									ATTR_LAST_MATCH_TIME,(int)time(0));
 					ad->Insert(buffer);
 
-					if( !s->get(capability) ) {
+					if( !s->get(claim_id) ) {
 						dprintf( D_ALWAYS,
-								"Can't receive capability from mgr\n" );
+								"Can't receive ClaimId from mgr\n" );
 						return (!(KEEP_STREAM));
 					}
 					my_match_ad = NULL;
@@ -3132,7 +3132,7 @@ Scheduler::negotiate(int, Stream* s)
 							dprintf( D_ALWAYS,
 								"Can't get my match ad from mgr\n" );
 							delete my_match_ad;
-							FREE( capability );
+							FREE( claim_id );
 							return (!(KEEP_STREAM));
 						}
 					}
@@ -3141,16 +3141,16 @@ Scheduler::negotiate(int, Stream* s)
 								"Can't receive eom from mgr\n" );
 						if (my_match_ad)
 							delete my_match_ad;
-						FREE( capability );
+						FREE( claim_id );
 						return (!(KEEP_STREAM));
 					}
-						// capability is in the form
+						// claim_id is in the form
 						// "<xxx.xxx.xxx.xxx:xxxx>#xxxxxxx" 
 						// where everything upto the # is the sinful
 						// string of the startd
 
 					dprintf( D_PROTOCOL, 
-							 "## 4. Received capability %s\n", capability );
+							 "## 4. Received ClaimId %s\n", claim_id );
 
 					if ( my_match_ad ) {
 						dprintf(D_PROTOCOL,"Received match ad\n");
@@ -3213,8 +3213,8 @@ Scheduler::negotiate(int, Stream* s)
 						}
 					}
 
-					if ( stricmp(capability,"null") == 0 ) {
-						// No capability given by the matchmaker.  This means
+					if ( stricmp(claim_id,"null") == 0 ) {
+						// No ClaimId given by the matchmaker.  This means
 						// the resource we were matched with does not support
 						// the claiming protocol.
 						//
@@ -3229,7 +3229,7 @@ Scheduler::negotiate(int, Stream* s)
 								// in our hashtable -- i.e. dont deallocate!!
 							my_match_ad = NULL;	
 						} else {
-							EXCEPT("Negotiator messed up - gave null capability & no match ad");
+							EXCEPT("Negotiator messed up - gave null ClaimId & no match ad");
 						}
 						// Update matched attribute in job ad
 						sprintf (buffer, "%s = True", ATTR_JOB_MATCHED);
@@ -3237,8 +3237,8 @@ Scheduler::negotiate(int, Stream* s)
 						sprintf (buffer, "%s = 1", ATTR_CURRENT_HOSTS);
 						ad->Insert(buffer);
 						// Break before we fall into the Claiming Logic section below...
-						FREE( capability );
-						capability = NULL;
+						FREE( claim_id );
+						claim_id = NULL;
 						JobsStarted += 1;
 						host_cnt++;
 						break;
@@ -3248,19 +3248,19 @@ Scheduler::negotiate(int, Stream* s)
 					////// CLAIMING LOGIC  
 					/////////////////////////////////////////////
 
-						// First pull out the sinful string from capability,
+						// First pull out the sinful string from ClaimId,
 						// so we know whom to contact to claim.
-					sinful = strdup( capability );
+					sinful = strdup( claim_id );
 					tmp = strchr( sinful, '#');
 					if( tmp ) {
 						*tmp = '\0';
 					} else {
-						dprintf( D_ALWAYS, "Can't find '#' in capability!\n" );
+						dprintf( D_ALWAYS, "Can't find '#' in ClaimId!\n" );
 							// What else should we do here?
 						FREE( sinful );
-						FREE( capability );
+						FREE( claim_id );
 						sinful = NULL;
-						capability = NULL;
+						claim_id = NULL;
 						if( my_match_ad ) {
 							delete my_match_ad;
 							my_match_ad = NULL;
@@ -3278,7 +3278,7 @@ Scheduler::negotiate(int, Stream* s)
 					   the claim protocol.  So...we enqueue the
 					   args for a later call.  (The later call will be
 					   made from the startdContactSockHandler) */
-					args = new ContactStartdArgs( capability, owner,
+					args = new ContactStartdArgs( claim_id, owner,
 												  sinful, id,
 												  my_match_ad,
 												  negotiator_name, 
@@ -3289,8 +3289,8 @@ Scheduler::negotiate(int, Stream* s)
 						// strings and other memory.
 					free( sinful );
 					sinful = NULL;
-					free( capability );
-					capability = NULL;
+					free( claim_id );
+					claim_id = NULL;
 					if( my_match_ad ) {
 						delete my_match_ad;
 						my_match_ad = NULL;
@@ -3411,21 +3411,21 @@ Scheduler::negotiate(int, Stream* s)
 void
 Scheduler::vacate_service(int, Stream *sock)
 {
-	char	*capability = NULL;
+	char	*claim_id = NULL;
 
 	dprintf( D_ALWAYS, "Got VACATE_SERVICE from %s\n", 
 			 sin_to_string(((Sock*)sock)->endpoint()) );
 
-	if (!sock->code(capability)) {
-		dprintf (D_ALWAYS, "Failed to get capability\n");
+	if (!sock->code(claim_id)) {
+		dprintf (D_ALWAYS, "Failed to get ClaimId\n");
 		return;
 	}
-	if( DelMrec(capability) < 0 ) {
+	if( DelMrec(claim_id) < 0 ) {
 			// We couldn't find this match in our table, perhaps it's
 			// from a dedicated resource.
-		dedicated_scheduler.DelMrec( capability );
+		dedicated_scheduler.DelMrec( claim_id );
 	}
-	FREE (capability);
+	FREE (claim_id);
 	dprintf (D_PROTOCOL, "## 7(*)  Completed vacate_service\n");
 	return;
 }
@@ -3443,7 +3443,7 @@ Scheduler::contactStartd( ContactStartdArgs* args )
 
 	dprintf( D_FULLDEBUG, "In Scheduler::contactStartd()\n" );
 
-    dprintf( D_FULLDEBUG, "%s %s %s %d.%d\n", args->capability(), 
+    dprintf( D_FULLDEBUG, "%s %s %s %d.%d\n", args->claimId(), 
 			 args->owner(), args->sinful(), args->cluster(),
 			 args->proc() ); 
 
@@ -3453,7 +3453,7 @@ Scheduler::contactStartd( ContactStartdArgs* args )
 	id.cluster = args->cluster();
 	id.proc = args->proc();
 
-	mrec = AddMrec( args->capability(), args->sinful(), &id,
+	mrec = AddMrec( args->claimId(), args->sinful(), &id,
 					args->matchAd(), args->owner(), args->pool() ); 
 	if( ! mrec ) {
         return false;
@@ -3501,7 +3501,7 @@ claimStartd( match_rec* mrec, ClassAd* job_ad, bool is_dedicated )
 	sock->encode();
 
 	if( !sock->put( mrec->id ) ) {
-		dprintf( D_ALWAYS, "Couldn't send capability to startd.\n" );	
+		dprintf( D_ALWAYS, "Couldn't send ClaimId to startd.\n" );	
 		BAILOUT;
 	}
 
@@ -3592,15 +3592,16 @@ Scheduler::startdContactSockHandler( Stream *sock )
 		// cancelled, we begin by decrementing the # of contacts.
 	delRegContact();
 
-		// fetch the match record.  the daemon core DataPtr specifies the
-		// id of the match (which is really the startd capability).  use
-		// this id to pull out the actual mrec from our hashtable.
+		// fetch the match record.  the daemon core DataPtr specifies
+		// the id of the match (a.k.a. the ClaimId).  use this id to
+		// pull out the actual mrec from our hashtable.
 	char *id = (char *) daemonCore->GetDataPtr();
 	match_rec *mrec = NULL;
 	if ( id ) {
 		HashKey key(id);
 		matches->lookup(key, mrec);
-		free(id);	// it was allocated with strdup() when Register_DataPtr was called
+		free(id); 	// it was allocated with strdup() when
+					// Register_DataPtr was called   
 	}
 
 	if ( !mrec ) {
@@ -6805,7 +6806,7 @@ Scheduler::DelMrec(char* id)
 
 	dprintf( D_ALWAYS, "Match record (%s, %d, %d) deleted\n",
 			 rec->peer, rec->cluster, rec->proc ); 
-	dprintf( D_FULLDEBUG, "Capability of deleted match: %s\n", rec->id );
+	dprintf( D_FULLDEBUG, "ClaimId of deleted match: %s\n", rec->id );
 	
 	matches->remove(key);
 		// Remove this match from the associated shadowRec.
@@ -6918,7 +6919,7 @@ Scheduler::Relinquish(match_rec* mrec)
 		}
 		else if(!sock->put(mrec->peer) || !sock->eom())
 		// This is not necessary to send except for being an extra checking
-		// because capability uniquely identifies a match.
+		// because ClaimId uniquely identifies a match.
 		{
 			dprintf(D_ALWAYS,"Can't relinquish accountant. Match record is:\n");
 			dprintf(D_ALWAYS, "%s\t%s\n", mrec->id,	mrec->peer);

@@ -72,7 +72,7 @@ class UniShadow : public BaseShadow
 			command line and should be easy to figure out.
 		*/
 	void init( ClassAd *jobAd, char schedd_addr[], char host[], 
-			   char capability[], char cluster[], char proc[]);
+			   char claim_id[], char cluster[], char proc[]);
 	
 		/**
 		 */

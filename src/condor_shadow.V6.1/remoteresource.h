@@ -98,7 +98,7 @@ class RemoteResource : public Service {
 	virtual ~RemoteResource();
 
 		/** This function connects to the executing host and does
-			an ACTIVATE_CLAIM command on it.  The capability, starternum
+			an ACTIVATE_CLAIM command on it.  The ClaimId, starternum
 			and Job ClassAd are pushed, and the executing host's 
 			full machine name and (hopefully) an OK are returned.
 			@param starterVersion The version number of the starter
@@ -160,12 +160,12 @@ class RemoteResource : public Service {
        */ 
    void getStartdAddress( char *& sinful );
 
-		/** Return the capability string of the remote startd.
-			@param cap Will contain the capability string.  If NULL,
-			this will be a string allocated with new().  If cap
+		/** Return the ClaimId string of the remote startd.
+			@param id Will contain the ClaimId string.  If NULL,
+			this will be a string allocated with new().  If id
 			already exists, we assume it's a buffer and print into it.
        */
-   void getCapability( char *& cap );
+   void getClaimId( char *& id );
 
 		/** Return the arch string of the starter.
 			@param arch Will contain the starter's arch string.
@@ -187,12 +187,12 @@ class RemoteResource : public Service {
 		*/ 
 	int  getExitReason();
 
-		/** Set the sinful string and capability for the startd
+		/** Set the sinful string and ClaimId for the startd
 			associated with this remote resource.
 			@param sinful The sinful string for the startd
-			@param capability The capability string for the startd
+			@param claim_id The ClaimId string for the startd
 		*/
-	void setStartdInfo( const char *sinful, const char* capability );
+	void setStartdInfo( const char *sinful, const char* claim_id );
 
 		/** Set the address (sinful string).
 			@param The starter's sinful string 

@@ -54,7 +54,7 @@ ParallelShadow::~ParallelShadow() {
 
 void 
 ParallelShadow::init( ClassAd *jobAd, char schedd_addr[], char host[], 
-                 char capability[], char cluster[], char proc[])
+                 char claim_id[], char cluster[], char proc[])
 {
 	char buf[256];
 
@@ -81,7 +81,7 @@ ParallelShadow::init( ClassAd *jobAd, char schedd_addr[], char host[],
 
         // make first remote resource the "master".  Put it first in list.
     ParallelResource *rr = new ParallelResource(this);
-	rr->setStartdInfo(host, capability);
+	rr->setStartdInfo(host, claim_id);
 		// for now, set this to the sinful string.  when the starter
 		// spawns, it'll do an RSC to register a real hostname...
 	rr->setMachineName( host );
@@ -108,7 +108,7 @@ ParallelShadow::init( ClassAd *jobAd, char schedd_addr[], char host[],
 		/*
 		  Finally, register a timer to call getResources(), which
 		  sends a command to the schedd to get all the job classads,
-		  startd sinful strings, and capabilities for all the matches
+		  startd sinful strings, and ClaimIds for all the matches
 		  for our computation.  
 		  In the future this will just be a backup way to get the
 		  info, since the schedd will start to push all this info to
@@ -135,7 +135,7 @@ ParallelShadow::getResources( void )
     dprintf(D_FULLDEBUG, "Getting machines from schedd now...\n");
 
     char *host = NULL;
-    char *capability = NULL;
+    char *claim_id = NULL;
     ParallelResource *rr;
 	int cluster;
 	char buf[128];
@@ -149,10 +149,10 @@ ParallelShadow::getResources( void )
 
 	cluster = getCluster();
     rr = ResourceList[0];
-	rr->getCapability(capability);
+	rr->getClaimId(claim_id);
 
 		// First, contact the schedd and send the command, the
-		// cluster, and the capability
+		// cluster, and the ClaimId
 	Daemon my_schedd(DT_SCHEDD, NULL, NULL);
 
 	if(!(sock = (ReliSock*)my_schedd.startCommand(GIVE_MATCHES))) {
@@ -163,14 +163,14 @@ ParallelShadow::getResources( void )
 	if( ! sock->code(cluster) ) {
 		EXCEPT("Can't send cluster (%d) to schedd\n", cluster);
 	}
-	if( ! sock->code(capability) ) {
-		EXCEPT("Can't send capability to schedd\n");
+	if( ! sock->code(claim_id) ) {
+		EXCEPT("Can't send ClaimId to schedd\n");
 	}
 
 		// Now that we sent this, free the memory that was allocated
-		// with getCapability() above
-	delete [] capability;
-	capability = NULL;
+		// with getClaimId() above
+	delete [] claim_id;
+	claim_id = NULL;
 
 	if( ! sock->end_of_message() ) {
 		EXCEPT("Can't send EOM to schedd\n");
@@ -199,10 +199,10 @@ ParallelShadow::getResources( void )
 
         for ( int j=0 ; j<numInProc ; j++ ) {
             if( !sock->code( host ) ||
-                 !sock->code( capability ) ) {
+                 !sock->code( claim_id ) ) {
                 EXCEPT( "Problem getting resource %d, %d", i, j );
             }
-            dprintf ( D_FULLDEBUG, "Got host: %s   cap: %s\n",host,capability);
+            dprintf( D_FULLDEBUG, "Got host: %s id: %s\n", host, claim_id );
             
             if ( i==0 && j==0 ) {
 					/* 
@@ -215,14 +215,14 @@ ParallelShadow::getResources( void )
                        have it!  We ignore it here.... */
 
                 free( host );
-                free( capability );
+                free( claim_id );
                 host = NULL;
-                capability = NULL;
+                claim_id = NULL;
                 continue;
             }
 
             rr = new ParallelResource( this );
-            rr->setStartdInfo( host, capability );
+            rr->setStartdInfo( host, claim_id );
  				// for now, set this to the sinful string.  when the
  				// starter spawns, it'll do an RSC to register a real
 				// hostname... 
@@ -243,9 +243,9 @@ ParallelShadow::getResources( void )
 
                 /* free stuff so next code() works correctly */
             free( host );
-            free( capability );
+            free( claim_id );
             host = NULL;
-            capability = NULL;
+            claim_id = NULL;
 
         } // end of for loop for this proc
         
