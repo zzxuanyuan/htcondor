@@ -56,11 +56,11 @@ public:
 
 	// Init() method params information out of the condor_config file and
 	// sets up the initial permission hash table
-	Init();
+	int Init();
 
 	// Verify() method returns TRUE if connection should be allowed, and
 	// FALSE if this connection should be refused.
-	Verify( DCpermission perm, const struct sockaddr_in *sin );
+	int Verify( DCpermission perm, const struct sockaddr_in *sin );
 
 	// CacheDnsResults(TRUE) means cache resolver lookups in our
 	// hashtable cache; CacheDnsResults(FALSE) means do a 

@@ -108,7 +108,7 @@ class DaemonCore : public Service
 	friend DWORD pidWatcherThread(void*);
 	friend BOOL CALLBACK DCFindWindow(HWND, LPARAM);
 #else
-	friend main(int, char**);
+	friend int main(int, char**);
 #endif
 
 	public:

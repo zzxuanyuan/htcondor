@@ -24,6 +24,12 @@
 #define CONDOR_COMMON_H
 
 /**********************************************************************
+** A generated header file containing the values of CPP symbols we
+** will later undefine and want to redefine again.
+*********************************************************************/
+#include "../condor_c++_util/cpp_syms_saved.h"
+
+/**********************************************************************
 ** Special macros and things we always want our header files to have
 *********************************************************************/
 #include "condor_header_features.h"

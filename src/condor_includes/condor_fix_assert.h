@@ -30,20 +30,21 @@ installed!
 #if !defined(LINUX)
 
 #if defined(__GNUC__)
-#	define CONDOR_HAD_GNUC __GNUC__
+#	define __GNUC___IS_SAVED
 #	undef __GNUC__
 #endif
 
 #endif /* LINUX */
 
 #ifndef WIN32	/* on Win32, we do EXCEPT instead of assert */
-#include <assert.h>
+#	include <assert.h>
 #else
-#include "condor_debug.h"
+#	include "condor_debug.h"
 #endif	// of else ifndef WIN32
 
-#if defined(CONDOR_HAD_GNUC)
-#	define __GNUC__ CONDOR_HAD_GNUC
+#if defined(__GNUC___IS_SAVED)
+#	define __GNUC__ SAVED___GNUC__
+#	undef __GNUC___IS_SAVED
 #endif
 
 

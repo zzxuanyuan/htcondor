@@ -26,18 +26,19 @@
 #ifndef __CONDOR_ADTYPES__
 #define __CONDOR_ADTYPES__
 
-/* these should really be const, but that causes problems with 
-   ClassAd::SetMyTypeName and ClassAd::SetTargetTypeName.  -Jim B. */
+/* Defined in condor_util_lib/condor_adtypes.c */
 
-static char STARTD_ADTYPE		[] = "Machine";
-static char SCHEDD_ADTYPE		[] = "Scheduler";
-static char MASTER_ADTYPE		[] = "DaemonMaster";
-static char CKPT_SRVR_ADTYPE	[] = "CkptServer";
-static char JOB_ADTYPE	 		[] = "Job";
-static char QUERY_ADTYPE		[] = "Query";
-static char COLLECTOR_ADTYPE	[] = "Collector";
-static char CKPT_FILE_ADTYPE	[] = "CkptFile";
-static char USERAUTH_ADTYPE   [] = "Authentication"; //mikeu added 
-static char LICENSE_ADTYPE		[] = "License";
+extern const char STARTD_ADTYPE       [];  /* "Machine"        */
+extern const char SCHEDD_ADTYPE       [];  /* "Scheduler"      */
+extern const char MASTER_ADTYPE       [];  /* "DaemonMaster"   */
+extern const char CKPT_SRVR_ADTYPE    [];  /* "CkptServer"     */
+extern const char JOB_ADTYPE          [];  /* "Job"            */
+extern const char QUERY_ADTYPE        [];  /* "Query"          */
+extern const char COLLECTOR_ADTYPE    [];  /* "Collector"      */
+extern const char CKPT_FILE_ADTYPE    [];  /* "CkptFile"       */
+extern const char USERAUTH_ADTYPE     [];  /* "Authentication" */
+extern const char LICENSE_ADTYPE      [];  /* "License"        */
+
+typedef const char *CondorAdType;
 
 #endif

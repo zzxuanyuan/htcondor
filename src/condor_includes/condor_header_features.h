@@ -20,8 +20,8 @@
  * Livny, 7367 Computer Sciences, 1210 W. Dayton St., Madison, 
  * WI 53706-1685, (608) 262-0856 or miron@cs.wisc.edu.
 ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
-#ifndef CONDOR_SYS_FEATURES_H
-#define CONDOR_SYS_FEATURES_H
+#ifndef CONDOR_HEADER_FEATURES_H
+#define CONDOR_HEADER_FEATURES_H
 
 #ifdef  __cplusplus
 #define BEGIN_C_DECLS   extern "C" {
@@ -31,4 +31,4 @@
 #define END_C_DECLS
 #endif
 
-#endif /* CONDOR_SYS_FEATURES_H */
+#endif /* CONDOR_HEADER_FEATURES_H */

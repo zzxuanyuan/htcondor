@@ -945,7 +945,7 @@ DaemonCore::ReInit()
 	struct sockaddr_in sin;
 	char *tmp;
 	char buf[50];
-	static tid = -1;
+	static int tid = -1;
 
 	// Fetch the negotiator address for the Verify method to use
 	addr = get_negotiator_addr(NULL);	// get sinful string of negotiator
