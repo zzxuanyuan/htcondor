@@ -839,11 +839,9 @@ activate_claim( Resource* rip, Stream* stream )
 	struct sockaddr_in frm;
 	int len = sizeof frm;
 	StartdRec stRec;
-	start_info_t ji;	/* XXXX */
-	int universe, job_cluster, job_proc, starter;
+	int starter;
 	Sock* sock = (Sock*)stream;
 	char* shadow_addr = strdup( sin_to_string( sock->endpoint() ));
-	bool found_attr_user = false;	// did we find ATTR_USER in the ad?
 
 	if( rip->state() != claimed_state ) {
 		rip->dprintf( D_ALWAYS, "Not in claimed state, aborting.\n" );
@@ -936,13 +934,8 @@ activate_claim( Resource* rip, Stream* stream )
 		ABORT;
 	}
 
-	if( tmp_starter->is_dc() ) {
-		ji.shadowCommandSock = stream;
-	} 
 #ifndef WIN32
 	else {
-
-		ji.shadowCommandSock = NULL;
 
 			// Set up the two starter ports and send them to the shadow
 		stRec.version_num = VERSION_FOR_FLOCK;
@@ -1003,14 +996,9 @@ activate_claim( Resource* rip, Stream* stream )
 				}
 			}
 		}
-		ji.ji_sock1 = fd_1;
-		ji.ji_sock2 = fd_2;
+		tmp_starter->setPorts( fd_1, fd_2 );
 	}
 #endif	// of ifdef WIN32
-
-
-
-	ji.ji_hname = rip->r_cur->client()->host();
 
 	time_t now = time( NULL );
 
@@ -1019,7 +1007,11 @@ activate_claim( Resource* rip, Stream* stream )
 	rip->r_cur->setStarter( tmp_starter );
 
 		// Actually spawn the starter
-	if( ! rip->r_cur->spawnStarter(&ji, now) ) {
+	Stream* shadow_sock = NULL;
+	if( tmp_starter->is_dc() ) {
+		shadow_sock = stream;
+	} 
+	if( ! rip->r_cur->spawnStarter(now, shadow_sock) ) {
 			// Error spawning starter!
 		delete( tmp_starter );
 		rip->r_cur->setStarter( NULL );
