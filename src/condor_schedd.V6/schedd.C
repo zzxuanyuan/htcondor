@@ -131,6 +131,7 @@ shadow_rec * add_shadow_rec( int, PROC_ID*, int, match_rec*, int );
 bool service_this_universe(int, ClassAd*);
 bool jobIsSandboxed( ClassAd* ad );
 bool getSandbox( int cluster, int proc, MyString & path );
+bool jobPrepNeedsThread( int cluster, int proc );
 
 int	WallClockCkptInterval = 0;
 static bool gridman_per_job = false;
@@ -1769,6 +1770,26 @@ static bool get_user_uid_gid(const char * owner, const char * domain,
 	uninit_user_ids();
 	return true;
 }
+
+
+bool
+jobPrepNeedsThread( int cluster, int proc )
+{
+		// for now, all we care about is if the job has a sandbox
+	bool rval = false;
+	ClassAd * job_ad = GetJobAd( cluster, proc );
+	if( ! job_ad ) {
+			// job is already gone, guess we don't need a thread. ;)
+		return false;
+	}
+	if( jobIsSandboxed(job_ad) ) {
+		rval = true;
+	}
+	FreeJobAd(job_ad);
+	job_ad = NULL;
+	return rval;
+}
+
 
 bool
 jobIsSandboxed( ClassAd * ad )
@@ -9789,11 +9810,28 @@ Scheduler::jobIsTerminalHandler( ServiceData* data )
 	if( ! job_id ) {
 		return FALSE;
 	}
-
-	Create_Thread_With_Data( Scheduler::jobIsTerminalStatic,
-							 Scheduler::jobIsTerminalReaper,
-							 job_id->_cluster, job_id->_proc, this );
+	int cluster = job_id->_cluster;
+	int proc = job_id->_proc;
 	delete job_id;
+	job_id = NULL; 
+
+	if( jobPrepNeedsThread(cluster, proc) ) {
+		dprintf( D_FULLDEBUG, "Job prep for %d.%d will block, "
+				 "calling jobIsTerminal() in a thread\n", cluster, proc );
+		Create_Thread_With_Data( Scheduler::jobIsTerminalStatic,
+								 Scheduler::jobIsTerminalReaper,
+								 cluster, proc, this );
+	} else {
+			// don't need a thread, just call the blocking version
+			// (which will return right away), and the reaper (which
+			// will call DestroyProc()) 
+		dprintf( D_FULLDEBUG, "Job prep for %d.%d will not block, "
+				 "calling jobIsTerminal() directly\n", cluster, proc );
+
+		jobIsTerminal( cluster, proc );
+		jobIsTerminalReaper( cluster, proc, NULL, 0 );
+	}
+
 	return TRUE;
 }
 
