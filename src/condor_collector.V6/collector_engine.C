@@ -69,7 +69,7 @@ scheduleHousekeeper (int timeout)
 	// cancel outstanding housekeeping requests
 	if (housekeeperTimerID != -1)
 	{
-		(void) daemonCore.Cancel_Timer(housekeeperTimerID);
+		(void) daemonCore->Cancel_Timer(housekeeperTimerID);
 	}
 
 	// reset for new timer
@@ -83,7 +83,7 @@ scheduleHousekeeper (int timeout)
 	if (timeout > 0)
 	{
 		// schedule housekeeper
-		housekeeperTimerID = daemonCore.Register_Timer(machineUpdateInterval,
+		housekeeperTimerID = daemonCore->Register_Timer(machineUpdateInterval,
 						machineUpdateInterval,(TimerHandlercpp)housekeeper,
 						"CollectorEngine::housekeeper",this);
 		if (housekeeperTimerID == -1)

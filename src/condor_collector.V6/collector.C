@@ -68,7 +68,7 @@ void usage(char* name)
 }
 
 // main initialization code... the real main() is in DaemonCore
-main_init(int argc, char **argv)
+main_init(int argc, char *argv[])
 {
 	char** ptr;
 	
@@ -96,31 +96,31 @@ main_init(int argc, char **argv)
 
  
     // install signal handlers
-	daemonCore.Register_Signal(DC_SIGINT,"SIGINT",(SignalHandler)sigint_handler,"sigint_handler()");
-	daemonCore.Register_Signal(DC_SIGHUP,"SIGHUP",(SignalHandler)sighup_handler,"sighup_handler()");
+	daemonCore->Register_Signal(DC_SIGINT,"SIGINT",(SignalHandler)sigint_handler,"sigint_handler()");
+	daemonCore->Register_Signal(DC_SIGHUP,"SIGHUP",(SignalHandler)sighup_handler,"sighup_handler()");
 #ifndef WIN32
 	install_sig_handler (SIGPIPE, sigpipe_handler);
 #endif	// of ifndef WIN32
 
 
 	// install command handlers for queries
-	daemonCore.Register_Command(QUERY_STARTD_ADS,"QUERY_STARTD_ADS",
+	daemonCore->Register_Command(QUERY_STARTD_ADS,"QUERY_STARTD_ADS",
 		(CommandHandler)receive_query,"receive_query",NULL,READ);
-	daemonCore.Register_Command(QUERY_SCHEDD_ADS,"QUERY_SCHEDD_ADS",
+	daemonCore->Register_Command(QUERY_SCHEDD_ADS,"QUERY_SCHEDD_ADS",
 		(CommandHandler)receive_query,"receive_query",NULL,READ);
-	daemonCore.Register_Command(QUERY_MASTER_ADS,"QUERY_MASTER_ADS",
+	daemonCore->Register_Command(QUERY_MASTER_ADS,"QUERY_MASTER_ADS",
 		(CommandHandler)receive_query,"receive_query",NULL,READ);
-	daemonCore.Register_Command(QUERY_CKPT_SRVR_ADS,"QUERY_CKPT_SRVR_ADS",
+	daemonCore->Register_Command(QUERY_CKPT_SRVR_ADS,"QUERY_CKPT_SRVR_ADS",
 		(CommandHandler)receive_query,"receive_query",NULL,READ);
 	
 	// install command handlers for updates
-	daemonCore.Register_Command(UPDATE_STARTD_AD,"UPDATE_STARTD_AD",
+	daemonCore->Register_Command(UPDATE_STARTD_AD,"UPDATE_STARTD_AD",
 		(CommandHandler)receive_update,"receive_update",NULL,WRITE);
-	daemonCore.Register_Command(UPDATE_SCHEDD_AD,"UPDATE_SCHEDD_AD",
+	daemonCore->Register_Command(UPDATE_SCHEDD_AD,"UPDATE_SCHEDD_AD",
 		(CommandHandler)receive_update,"receive_update",NULL,WRITE);
-	daemonCore.Register_Command(UPDATE_MASTER_AD,"UPDATE_MASTER_AD",
+	daemonCore->Register_Command(UPDATE_MASTER_AD,"UPDATE_MASTER_AD",
 		(CommandHandler)receive_update,"receive_update",NULL,WRITE);
-	daemonCore.Register_Command(UPDATE_CKPT_SRVR_AD,"UPDATE_CKPT_SRVR_AD",
+	daemonCore->Register_Command(UPDATE_CKPT_SRVR_AD,"UPDATE_CKPT_SRVR_AD",
 		(CommandHandler)receive_update,"receive_update",NULL,WRITE);
 
 	// set up housekeeper
