@@ -69,7 +69,10 @@ public:
 
 		/** Initialize ourselves with the info in the given job ad.
 		*/
-	bool initFromJobAd( ClassAd* ad, const char* iwd );
+	bool initFromJobAd( ClassAd* ad );
+
+		/// Initialize ourselves such that we won't write a user log 
+	bool initNoLogging( void );
 
 
 		// // // // // // // // // // // //
@@ -127,6 +130,9 @@ private:
 
 		/// Have we been initialized yet?
 	bool is_initialized;
+
+		/// Should we do logging?
+	bool should_log;
 
 		/// The actual UserLog object we're using to write events. 
 	UserLog u_log;

@@ -33,6 +33,7 @@ LocalUserLog::LocalUserLog( JobInfoCommunicator* my_jic )
 {
 	jic = my_jic;
 	is_initialized = false;
+	should_log = false;
 }
 
 
@@ -65,21 +66,23 @@ LocalUserLog::init( const char* filename, bool is_xml,
 	
 	dprintf( D_FULLDEBUG, "Starter's UserLog is \"%s\"\n", filename );
 	is_initialized = true;
+	should_log = true;
 	return true;
 }
 
 
 bool
-LocalUserLog::initFromJobAd( ClassAd* ad, const char* iwd )
+LocalUserLog::initFromJobAd( ClassAd* ad )
 {
     char tmp[_POSIX_PATH_MAX], logfilename[_POSIX_PATH_MAX];
 	int use_xml = FALSE;
 	int cluster = 1, proc = 0, subproc = 0;
+	const char* iwd = jic->jobIWD();
 
     if( ! ad->LookupString(ATTR_STARTER_ULOG_FILE, tmp) ) {
-        dprintf( D_FULLDEBUG, "no %s found\n", 
+        dprintf( D_FULLDEBUG, "No %s found in job ClassAd\n",
 				 ATTR_STARTER_ULOG_FILE );
-		return false;
+		return initNoLogging();
 	}
 	if ( tmp[0] == '/' || tmp[0]=='\\' || (tmp[1]==':' &&
 										   tmp[2]=='\\') ) {
@@ -108,10 +111,24 @@ LocalUserLog::initFromJobAd( ClassAd* ad, const char* iwd )
 
 
 bool
+LocalUserLog::initNoLogging( void )
+{
+	dprintf( D_FULLDEBUG, "Starter will not write a local UserLog\n" );
+	is_initialized = true;
+	should_log = false;
+	return true;
+}
+
+
+
+bool
 LocalUserLog::logExecute( ClassAd* ad )
 {
 	if( ! is_initialized ) {
 		EXCEPT( "LocalUserLog::logExecute() called before init()" );
+	}
+	if( ! should_log ) {
+		return true;
 	}
 
 	ExecuteEvent event;
@@ -132,6 +149,9 @@ LocalUserLog::logSuspend( ClassAd* ad )
 {
 	if( ! is_initialized ) {
 		EXCEPT( "LocalUserLog::logSuspend() called before init()" );
+	}
+	if( ! should_log ) {
+		return true;
 	}
 
 	JobSuspendedEvent event;
@@ -159,6 +179,9 @@ LocalUserLog::logContinue( ClassAd* ad )
 	if( ! is_initialized ) {
 		EXCEPT( "LocalUserLog::logContinue() called before init()" );
 	}
+	if( ! should_log ) {
+		return true;
+	}
 
 	JobUnsuspendedEvent event;
 
@@ -176,6 +199,10 @@ LocalUserLog::logTerminate( ClassAd* ad, int exit_reason )
 	if( ! is_initialized ) {
 		EXCEPT( "LocalUserLog::logTerminate() called before init()" );
 	}
+	if( ! should_log ) {
+		return true;
+	}
+
 	switch( exit_reason ) {
     case JOB_EXITED:
     case JOB_COREDUMPED:
@@ -243,6 +270,9 @@ LocalUserLog::logEvict( ClassAd* ad, int exit_reason )
 {
 	if( ! is_initialized ) {
 		EXCEPT( "LocalUserLog::logEvict() called before init()" );
+	}
+	if( ! should_log ) {
+		return true;
 	}
 
     switch( exit_reason ) {
