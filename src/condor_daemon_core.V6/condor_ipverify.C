@@ -175,7 +175,9 @@ IpVerify::Init()
 			free( pAllow );
 			pAllow = NULL;
 		}
-	
+
+        // For backward compability reasons, we consider, anything
+        // of the form *.cs.wisc.edu the same as */*.cs.wisc.edu
 		sprintf(buf,"HOSTDENY_%s_%s",perm_names[i],mySubSystem);
 		if ( (pDeny = param(buf)) == NULL ) {
 			sprintf(buf,"HOSTDENY_%s",perm_names[i]);
@@ -213,15 +215,15 @@ IpVerify::Init()
 	return TRUE;
 }
 
-int IpVerify :: has_user(UserPerm_t * perm, const char * user, int & mask, MyString & userid)
+bool IpVerify :: has_user(UserPerm_t * perm, const char * user, int & mask, MyString & userid)
 {
     // Now, let's see if the user is there
-    int             found = 1;
+    int             found = -1;
     assert(perm);
 
     if (user && (strcmp("*", user) != 0)) {
         userid = MyString(user);
-        if (perm->lookup(userid, mask) == -1) {
+        if ( (found = perm->lookup(userid, mask)) == -1 ) {
             // try *@..../...
             char *tmp;
             char buf[256];
@@ -236,23 +238,30 @@ int IpVerify :: has_user(UserPerm_t * perm, const char * user, int & mask, MyStr
                 else {
                     sprintf(buf, "*%s", tmp);
                     userid = MyString(buf);
-                    found = (perm->lookup(user, mask) != -1);
+                    found = perm->lookup(user, mask);
                 }
             }
         }
     }
-    else {
+
+    if (found == -1) {
+        int m; 
+        MyString tmp;
         // see if the user is total wild
         userid = TotallyWild;
-        found  = (perm->lookup(userid, mask) != -1);
+        found  = perm->lookup(userid, mask);
+        perm->startIterations();
+        while( perm->iterate( tmp, m ) ) {
+            dprintf(D_ALWAYS, "********************* User is %s ***************\n", tmp.GetCStr());
+        }    
     }
-    return found;
+    return (found != -1);
 }   
 
 int
 IpVerify::add_hash_entry(const struct in_addr & sin_addr, const char * user, int new_mask)
 {
-    UserPerm_t * perm;
+    UserPerm_t * perm = NULL;
     int old_mask = 0;  // must init old_mask to zero!!!
     MyString userid;
 
@@ -260,7 +269,7 @@ IpVerify::add_hash_entry(const struct in_addr & sin_addr, const char * user, int
 	if ( PermHashTable->lookup(sin_addr, perm) != -1 ) {
 		// found an existing entry.  
 
-		if (has_user(perm, user, old_mask, userid) != -1) {
+		if (has_user(perm, user, old_mask, userid)) {
             // hueristic: if the mask already contains what we
             // want, we are done.
             if ( (old_mask & new_mask) == new_mask ) {
@@ -269,20 +278,21 @@ IpVerify::add_hash_entry(const struct in_addr & sin_addr, const char * user, int
 
             // remove it because we are going to edit the mask below
             // and re-insert it.
-            PermHashTable->remove(sin_addr);
+            perm->remove(MyString(user));
         }
 	}
+    else {
+        perm = new UserPerm_t(42, compute_host_hash);
+        if (PermHashTable->insert(sin_addr, perm) != 0) {
+            delete perm;
+            return FALSE;
+        }
+    }
 
-    UserPerm_t * newP = new UserPerm_t(42, compute_host_hash);
-    newP->insert(userid, old_mask | new_mask);
-	// insert entry with new mask
-	if ( PermHashTable->insert(sin_addr, newP) == 0 ) {
-		return TRUE;	// successfully inserted 
-    }
-	else {
-        delete newP;
-		return FALSE;	// error inserting into hash table
-    }
+    userid = MyString(user);
+    perm->insert(userid, old_mask | new_mask);
+
+    return TRUE;
 }
 
 
@@ -409,7 +419,7 @@ void IpVerify :: split_entry(const char * perm_entry, char ** host, char** user)
     // Split it into two parts, user/hsot
     slash = strchr(perm_entry, '/');
     if (slash == NULL) {
-        // Assuming */host
+        // Assuming */host, e.g. */*.cs.wisc.edu
         *user = (char *) malloc(2);
         *host = (char *) malloc(totLen + 1);
         memset(*user, 0, 2);
@@ -436,7 +446,7 @@ IpVerify::Verify( DCpermission perm, const struct sockaddr_in *sin, const char *
 	struct in_addr sin_addr;
 	char *thehost;
 	char **aliases;
-    UserPerm_t * ptable;
+    UserPerm_t * ptable = NULL;
     MyString     userid;
 
 	memcpy(&sin_addr,&sin->sin_addr,sizeof(sin_addr));
@@ -464,13 +474,17 @@ IpVerify::Verify( DCpermission perm, const struct sockaddr_in *sin, const char *
 			return USER_AUTH_FAILURE;
 		}
 		
-		PermHashTable->lookup(sin_addr, ptable);
+		if (PermHashTable->lookup(sin_addr, ptable) != -1) {
 
-        if (has_user(ptable, user, mask, userid)) {
-            if ( ( (mask & allow_mask(perm)) == 0 ) && ( (mask & deny_mask(perm)) == 0 ) ) {
+            if (has_user(ptable, user, mask, userid)) {
+                if ( ( (mask & allow_mask(perm)) == 0 ) && ( (mask & deny_mask(perm)) == 0 ) ) {
+                    found_match = FALSE;
+                } else {
+                    found_match = TRUE;
+                }
+            }
+            else {
                 found_match = FALSE;
-            } else {
-                found_match = TRUE;
             }
         }
         else {

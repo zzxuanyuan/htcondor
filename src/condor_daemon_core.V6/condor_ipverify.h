@@ -153,7 +153,7 @@ private:
 	// permission enums (ints) with their human-readable string name.
 	static const char* perm_names[];
 	static const int perm_ints[];
-    int has_user(UserPerm_t * , const char *, int & , MyString &);
+    bool has_user(UserPerm_t * , const char *, int & , MyString &);
 	int add_hash_entry(const struct in_addr & sin_addr, const char * user, int new_mask);
 	void fill_table( PermTypeEntry * pentry, int mask, char * list, bool allow);
 	int cache_DNS_results;
