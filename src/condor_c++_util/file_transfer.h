@@ -31,6 +31,7 @@
 #include "perm.h"
 #endif
 #include "condor_uid.h"
+#include "condor_classad.h"
 
 class FileTransfer;	// forward declatation
 
@@ -156,7 +157,6 @@ class FileTransfer {
 			@return Previous timeout value
 		*/
 	int	setClientSocketTimeout(int timeout);
-
   protected:
 
 	int Download(ReliSock *s, bool blocking);
@@ -219,6 +219,7 @@ class FileTransfer {
 	bool did_init;
 	bool simple_init;
 	ReliSock *simple_sock;
+	ClassAd *jobAd;
 };
 
 #endif

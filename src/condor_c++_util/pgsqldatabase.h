@@ -20,17 +20,14 @@
   * RIGHT.
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
-#ifdef _POSTGRESQL_DBMS_
-
 #ifndef _PGSQLDATABASE_H_
 #define  _PGSQLDATABASE_H_
 
-#include "jobqueuedatabase.h"
-#include <libpq-fe.h>
+#include "libpq-fe.h"
 
-//! PGSQLDataabse: JobQueueDatabase for PostgreSQL
+//! PGSQLDataabse: Database for PostgreSQL
 //
-class PGSQLDatabase : public JobQueueDatabase
+class PGSQLDatabase
 {
 public:
 	
@@ -56,8 +53,8 @@ public:
 
 	char*		getDBError();
 
-	int			sendBulkyData(char* data);
-	int			sendBulkyDataEnd();
+//	int			sendBulkyData(char* data);
+//	int			sendBulkyDataEnd();
 
 		// Job Queue DB processing methods
 	int			getJobQueueDB(int&, int&, int&, int&);
@@ -68,6 +65,9 @@ public:
 	int			releaseJobQueueDB();		
 
 private:
+	bool		connected;
+	char		*con_str;
+
 	PGconn		*connection;		//!< connection object
 	PGresult	*queryResult; 	//!< result for general query
 
@@ -79,5 +79,3 @@ private:
 };
 
 #endif /* _PGSQLDATABSE_H_ */
-
-#endif /* _POSTGRESQL_DBMS_ */

@@ -21,12 +21,10 @@
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
-#ifdef _POSTGRESQL_DBMS_
-
 #include "condor_common.h"
 #include "condor_io.h"
 
-#include </scratch/akini/pgsql/include/libpq-fe.h>
+#include "libpq-fe.h"
 #include "pgsqldatabase.h"
 
 //! constructor
@@ -44,6 +42,7 @@ PGSQLDatabase::PGSQLDatabase(const char* connect)
 	if (connect != NULL) {
 		con_str = (char*)malloc(strlen(connect) + 1);
 		strcpy(con_str, connect);
+		con_str[strlen(connect)] = '\0';
 	}
 	else
 		con_str = NULL;
@@ -359,49 +358,3 @@ PGSQLDatabase::releaseJobQueueDB()
 	return 1;
 }	
 
-//! put a bulky data into DBMS
-int
-PGSQLDatabase::sendBulkyData(char* data)
-{
-  //printf( "right before calling PQputCopyData\n\n");
-  
-  if (PQputCopyData(connection, data, strlen(data)) <= 0)
-    {
-      printf( 
-	      "[Bulky Data Sending ERROR] %s\n", PQerrorMessage(connection));
-      printf( 
-	      "[Data: %s]\n", data);
-      return -1;
-    }
-  
-  return 1;
-}
-
-//! put an end flag for bulky loading
-int
-PGSQLDatabase::sendBulkyDataEnd()
-{
-	PGresult* result;
-
-	if (PQputCopyEnd(connection, NULL) < 0)
-	{
-		printf( 
-			"[Bulky Data End Sending ERROR] %s\n", PQerrorMessage(connection));
-		return -1;
-	}
-
-	
-	if ((result = PQgetResult(connection)) != NULL) {
-		if (PQresultStatus(result) != PGRES_COMMAND_OK) {
-			printf( 
-				"[Bulky Last Data Sending ERROR] %s\n", PQerrorMessage(connection));
-			PQclear(result);
-			return -1;
-		}
-	}
-
-	return 1;
-}
-
-
-#endif // _POSTGRESQL_DBMS_

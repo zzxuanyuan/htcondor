@@ -65,6 +65,7 @@
 #include "user_job_policy.h"
 #include "condor_holdcodes.h"
 #include "sig_name.h"
+#include "schedd_files.h"
 
 #define DEFAULT_SHADOW_SIZE 125
 #define DEFAULT_JOB_START_COUNT 1
@@ -6459,10 +6460,16 @@ Scheduler::child_exit(int pid, int status)
 	int				StartJobsFlag=TRUE;
 	int				q_status;  // status of this job in the queue 
 	PROC_ID			job_id;
+	ClassAd        *jobad;
 
 	srec = FindSrecByPid(pid);
 	job_id.cluster = srec->job_id.cluster;
 	job_id.proc = srec->job_id.proc;
+	
+	if(srec) {
+		jobad = GetJobAd( job_id.cluster, job_id.proc );
+		schedd_files_DbIns(jobad, FALSE);
+	}
 
 	if (IsSchedulerUniverse(srec)) {
 		// scheduler universe process

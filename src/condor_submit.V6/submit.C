@@ -67,6 +67,8 @@
 
 #include "list.h"
 
+#include "odbc.h"
+
 static int hashFunction( const MyString&, int );
 HashTable<MyString,MyString> forcedAttributes( 64, hashFunction ); 
 HashTable<MyString,int> CheckFilesRead( 577, hashFunction ); 
@@ -74,6 +76,8 @@ HashTable<MyString,int> CheckFilesWrite( 577, hashFunction );
 HashTable<MyString,int> ClusterAdAttrs( 31, hashFunction );
 
 char* mySubSystem = "SUBMIT";	/* Used for SUBMIT_EXPRS */
+//PGSQLDatabase* DBObj = 0;
+ODBC *DBObj = 0;
 
 ClassAd  *job = NULL;
 char	 buffer[_POSIX_ARG_MAX + 64];
@@ -474,6 +478,12 @@ main( int argc, char *argv[] )
 	int dag_pause = 0;
 	int i;
 
+		// init db connection
+		//DBObj = new PGSQLDatabase("host=127.0.0.1 port=5430 dbname=test user=scidb");
+		//DBObj -> connectDB();
+	DBObj = new ODBC("condor", "scidb", "");
+	DBObj -> odbc_connect();
+
 	setbuf( stdout, NULL );
 
 #if !defined(WIN32)
@@ -724,6 +734,8 @@ main( int argc, char *argv[] )
 	for (i=0;i<JobAdsArrayLen;i++) {
 		delete JobAdsArray[i];
 	}
+
+	delete DBObj;
 
 	return 0;
 }

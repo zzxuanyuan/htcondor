@@ -35,8 +35,8 @@
 #include "condor_distribution.h"
 #include "condor_environ.h"
 
-#define _POSTGRESQL_DBMS_
 #include "pgsqldatabase.h"
+#include "odbc.h"
 
 #define _NO_EXTERN_DAEMON_CORE 1	
 #include "condor_daemon_core.h"
@@ -48,7 +48,7 @@
 // Externs to Globals
 extern char* mySubSystem;	// the subsys ID, such as SCHEDD, STARTD, etc. 
 extern DLL_IMPORT_MAGIC char **environ;
-extern PGSQLDatabase* DBObj;
+
 
 // External protos
 extern int main_init(int argc, char *argv[]);	// old main()
@@ -71,6 +71,9 @@ char*	logDir = NULL;
 char*	pidFile = NULL;
 char*	addrFile = NULL;
 static	char*	logAppend = NULL;
+//PGSQLDatabase* DBObj = 0;
+ODBC *DBObj = 0;
+
 #ifdef WIN32
 int line_where_service_stopped = 0;
 #endif
@@ -1072,6 +1075,12 @@ handle_dc_sigterm( Service*, int )
 
 	dprintf(D_ALWAYS, "Got SIGTERM. Performing graceful shutdown.\n");
 
+	if(DBObj) {
+			//DBObj->disconnectDB();
+		delete DBObj;
+			//DBObj = 0;
+	}
+
 #if defined(WIN32) && 0
 	if ( line_where_service_stopped != 0 ) {
 		dprintf(D_ALWAYS,"Line where service stopped = %d\n",
@@ -1112,6 +1121,14 @@ handle_dc_sigquit( Service*, int )
 		return TRUE;
 	}
 	been_here = TRUE;
+
+	if(DBObj) {
+			//DBObj->disconnectDB();
+			//DBObj->odbc_disconnect();
+			//DBObj = 0;
+		delete DBObj;
+	}
+
 	dprintf(D_ALWAYS, "Got SIGQUIT.  Performing fast shutdown.\n");
 	main_shutdown_fast();
 	return TRUE;
@@ -1702,8 +1719,13 @@ int main( int argc, char** argv )
 	daemonCore->InitSettableAttrsLists();
 
 		// init db connection
-	DBObj = new PGSQLDatabase("host=127.0.0.1 port=5430 dbname=test user=scidb");
-	DBObj -> connectDB();
+		//DBObj = new PGSQLDatabase("host=127.0.0.1 port=5430 dbname=test user=scidb");
+		//DBObj = new PGSQLDatabase("host=tycho.cs.wisc.edu port=5430 dbname=test user=scidb");
+		//DBObj = new PGSQLDatabase("hostaddr=198.133.224.12 port=5432 dbname=test");
+		//DBObj = new PGSQLDatabase("host=dewitt-gw.cs.wisc.edu port=5432 dbname=test");
+	DBObj = new ODBC("condor", "scidb", "");
+		//DBObj -> connectDB();
+	DBObj->odbc_connect();
 
 	// call the daemon's main_init()
 	main_init( argc, argv );

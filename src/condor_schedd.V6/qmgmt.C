@@ -43,6 +43,7 @@
 #include "condor_universe.h"
 #include "globus_utils.h"
 #include "env.h"
+#include "schedd_files.h"
 
 extern char *Spool;
 extern char *Name;
@@ -1486,6 +1487,7 @@ CloseConnection()
 				for ( i = 0; i < *numOfProcs; i++ ) {
 					if (JobQueue->LookupClassAd(IdToStr(cluster_id,i),procad)) {
 						procad->ChainToAd(clusterad);
+						schedd_files_DbIns(procad, TRUE); // insert files into database
 					}
 				}	// end of loop thru all proc in cluster cluster_id
 			}	

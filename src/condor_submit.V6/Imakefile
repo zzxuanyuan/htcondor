@@ -5,9 +5,12 @@ all_target($(NAME))
 CLIPPED = -DCLIPPED
 #endif
 
+ODBC_INCLUDE = /afs/cs.wisc.edu/u/j/h/jhuang/odbc/include
+
 CFLAGS = $(STD_C_FLAGS) $(CLIPPED)
-C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) $(CLIPPED)
+C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) $(CLIPPED) -I$(ODBC_INCLUDE)
 LIB = $(STD_LIBS)
+LDFLAGS = $(STD_LDFLAGS) -lrt -lpq -pg -L /afs/cs.wisc.edu/u/j/h/jhuang/odbc/lib -lodbc
 
 OBJ = submit.o
 

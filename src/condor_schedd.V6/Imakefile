@@ -1,12 +1,15 @@
 NAME = condor_schedd
 all_target($(NAME) libqmgmt.a)
 
-C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS)
+ODBC_INCLUDE = /afs/cs.wisc.edu/u/j/h/jhuang/odbc/include
+
+C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) -I$(ODBC_INCLUDE)
+LDFLAGS = $(STD_LDFLAGS) -lrt -lpq -pg -L /afs/cs.wisc.edu/u/j/h/jhuang/odbc/lib -lodbc
 CFLAGS = $(STD_C_FLAGS)
 
 LIB= $(DAEMONCORE_LIB) $(STD_LIBS)
 
-QMGMT_OBJ = qmgmt.o qmgmt_receivers.o qmgmt_common.o
+QMGMT_OBJ = qmgmt.o qmgmt_receivers.o qmgmt_common.o schedd_files.o
 QMGMT_LIB_OBJ = qmgmt_send_stubs.o qmgr_lib_support.o qmgmt_common.o
 OBJ = schedd.o schedd_main.o $(QMGMT_OBJ) schedd_instantiate.o \
 	dedicated_scheduler.o grid_universe.o shadow_mgr.o autocluster.o

@@ -3,6 +3,8 @@
 #include <sqlext.h>
 #include <sqltypes.h>
 
+#ifndef ODBC_H
+#define ODBC_H
 
 class ODBC
 {
@@ -33,3 +35,5 @@ public:
 	long odbc_fetch();
 
 };
+
+#endif
