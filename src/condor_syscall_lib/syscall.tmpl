@@ -714,13 +714,18 @@ int rename( const char *from, const char *to ) : pseudo {
 		out code( use_p );
 		alloc( use_p, RUSAGE_SIZE );
 	}
-	int report_error( const char *msg ) : pseudo {
+	int report_error( char *msg ) : pseudo {
 		in code( msg );
 		alloc( msg, MAX_STRING );
 	}
-	int report_info( const char *msg ) : pseudo {
-		in code( msg );
-		alloc( msg, MAX_STRING );
+	int report_file_info(
+		char *name,
+		int read_count, int read_bytes,
+		int write_count, int write_bytes,
+		int seek_count, int size ) : pseudo {
+
+		in code( name );
+		alloc( name, MAX_STRING );
 	}
 #ifndef RECEIVER  /* We need a special receiver so that we don't leak memory */
 	int startup_info_request( STARTUP_INFO *s ): pseudo {
