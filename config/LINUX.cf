@@ -105,6 +105,7 @@
 #define HAS_DLOPEN			YES
 #define HAS_RPM				YES
 
+#define WANT_SOAP			YES
 
 /**************************************************************************
 ** Include Arch-specific config files

@@ -12,5 +12,5 @@
 #define HAS_GETWD			YES
 #define HAS_INSQUE			YES
 #define NEEDS_FAKE_GETMNT		YES
-
+#define WANT_SOAP			YES
 

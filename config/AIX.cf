@@ -52,6 +52,8 @@ PRELINK_CPP_FLAGS = -Ur -u main
 #undef WANT_DRMAA
 #define WANT_DRMAA	NO
 
+#define WANT_SOAP			YES
+
 #define ShadowSizeEstimate 200
 
 /**************************************************************************

@@ -6,6 +6,8 @@
 
 #define HAS_DYNAMIC_USER_JOBS	YES
 
+#define WANT_SOAP		YES
+
 #define VersionPlatformFlags	-DIRIX65=IRIX65
 
 #define IS_N32			YES

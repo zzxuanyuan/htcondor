@@ -40,3 +40,5 @@
 
 #define VendorCTestFlags 
 #define VendorCPPTestFlags 
+
+#define WANT_SOAP			YES

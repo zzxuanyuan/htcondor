@@ -9,6 +9,7 @@
 #define HAS_GLOBUS              YES
 #define HAS_GSI                 YES
 #define	WANT_KERBEROS           NO
+#define WANT_SOAP	YES
 
 /* Otherwise, this can use all the shared BSD-specific settings... */
 #include <BSD.cf>
