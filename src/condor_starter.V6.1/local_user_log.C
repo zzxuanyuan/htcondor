@@ -70,7 +70,7 @@ LocalUserLog::init( const char* filename, bool is_xml,
 		u_log.setUseXML( false );
 	}
 	
-	dprintf( D_FULLDEBUG, "Starter's UserLog is \"%s\"\n", filename );
+	dprintf( D_FULLDEBUG, "Starter's UserLog: %s\n", filename );
 	is_initialized = true;
 	should_log = true;
 	return true;
