@@ -28,129 +28,144 @@
 *****/
 
 static bool
-convert_ad_to_adStruct( struct soap *s, ClassAd *curr_ad, struct condorCore__ClassAdStruct *ad_struct)
+convert_ad_to_adStruct(struct soap *s,
+                       ClassAd *curr_ad,
+                       struct condorCore__ClassAdStruct *ad_struct)
 {
-	int attr_index = 0;
-	int num_attrs = 0;
-	bool skip_attr = false;
-	int tmpint;
-	float tmpfloat;
-	bool tmpbool;
-	char *tmpstr;
-	ExprTree *tree, *rhs, *lhs;
+  int attr_index = 0;
+  int num_attrs = 0;
+  bool skip_attr = false;
+  int tmpint;
+  float tmpfloat;
+  bool tmpbool;
+  char *tmpstr;
+  ExprTree *tree, *rhs, *lhs;
+  
+  if ( !ad_struct ) {
+    return false;
+  }
+  
+  if ( !curr_ad ) {
+    // send back an empty array
+    ad_struct->__size = 0;
+    ad_struct->__ptr = NULL;
+    return true;
+  }
+  
+  // first pass: count attrs
+  num_attrs = 0;
+  curr_ad->ResetExpr();
+  while( (tree = curr_ad->NextExpr()) ) {
+    lhs = tree->LArg();
+    rhs = tree->RArg();
+    if( lhs && rhs ) {
+      num_attrs++;
+    }
+  }
+  
+  if ( num_attrs == 0 ) {
+    // send back an empty array
+    ad_struct->__size = 0;
+    ad_struct->__ptr = NULL;
+    return true;
+  }
+  
+  // We have to add MyType and TargetType manually.
+  num_attrs += 2;
+  
+  // allocate space for attributes
+  ad_struct->__size = num_attrs;
+  ad_struct->__ptr = (struct condorCore__ClassAdStructAttr *)
+    soap_malloc(s,num_attrs * sizeof(struct condorCore__ClassAdStructAttr));
+  
+  // second pass: serialize attributes
+  attr_index = 0;
+  // first, add myType and TargetType
+  ad_struct->__ptr[attr_index].name = strdup(ATTR_MY_TYPE);
+  ad_struct->__ptr[attr_index].type = STRING;
+  ad_struct->__ptr[attr_index].value = strdup(curr_ad->GetMyTypeName());
+  attr_index++;
+  ad_struct->__ptr[attr_index].name = strdup(ATTR_TARGET_TYPE);
+  ad_struct->__ptr[attr_index].type = STRING;
+  ad_struct->__ptr[attr_index].value = strdup(curr_ad->GetTargetTypeName());
+  attr_index++;
 
-	if ( !ad_struct ) {
-		return false;
-	}
-
-	if ( !curr_ad ) {
-		// send back an empty array
-		ad_struct->__size = 0;
-		ad_struct->__ptr = NULL;
-		return true;
-	}
-
-		// first pass: count attrs
-	num_attrs = 0;
-	curr_ad->ResetExpr();
-	while( (tree = curr_ad->NextExpr()) ) {
-		lhs = tree->LArg();
-		rhs = tree->RArg();
-		if( lhs && rhs ) {
-			num_attrs++;
-		}
-	}
-
-	if ( num_attrs == 0 ) {
-		// send back an empty array
-		ad_struct->__size = 0;
-		ad_struct->__ptr = NULL;
-		return true;
-	}
-
-		// allocate space for attributes
-	ad_struct->__size = num_attrs;
-	ad_struct->__ptr = (struct condorCore__ClassAdStructAttr *)
-			soap_malloc(s,num_attrs * sizeof(struct condorCore__ClassAdStructAttr));
-
-		// second pass: serialize attributes
-	attr_index = 0;
-	curr_ad->ResetExpr();
-	while( (tree = curr_ad->NextExpr()) ) {
-		rhs = tree->RArg();
-		// ad_struct->__ptr[attr_index].valueInt = NULL;
-		// ad_struct->__ptr[attr_index].valueFloat = NULL;
-		// ad_struct->__ptr[attr_index].valueBool = NULL;
-		// ad_struct->__ptr[attr_index].valueExpr = NULL;
-		skip_attr = false;
-		switch ( rhs->MyType() ) {
-		case LX_STRING:
-			ad_struct->__ptr[attr_index].value = ((String*)rhs)->Value();
-//dprintf(D_ALWAYS,"STRINGSPACE|%s|%p\n",ad_struct->__ptr[attr_index].value,ad_struct->__ptr[attr_index].value);
-			ad_struct->__ptr[attr_index].type = STRING;
-			break;
-		case LX_INTEGER:
-			tmpint = ((Integer*)rhs)->Value();
-			ad_struct->__ptr[attr_index].value = (char*)soap_malloc(s,20);
-			snprintf(ad_struct->__ptr[attr_index].value,20,"%d",tmpint);
-			// ad_struct->__ptr[attr_index].valueInt = (int*)soap_malloc(s,sizeof(int));
-			// *(ad_struct->__ptr[attr_index].valueInt) = tmpint;
-			ad_struct->__ptr[attr_index].type = INTEGER;
-			break;
-		case LX_FLOAT:
-			tmpfloat = ((Float*)rhs)->Value();
-			ad_struct->__ptr[attr_index].value = (char*)soap_malloc(s,20);
-			snprintf(ad_struct->__ptr[attr_index].value,20,"%f",tmpfloat);
-			// ad_struct->__ptr[attr_index].valueFloat = (float*)soap_malloc(s,sizeof(float));
-			// *(ad_struct->__ptr[attr_index].valueFloat) = tmpfloat;
-			ad_struct->__ptr[attr_index].type = FLOAT;
-			break;
-		case LX_BOOL:
-			tmpbool = ((ClassadBoolean*)rhs)->Value() ? true : false;
-			if ( tmpbool ) {
-				ad_struct->__ptr[attr_index].value = "TRUE";
-			} else {
-				ad_struct->__ptr[attr_index].value = "FALSE";
-			}
-			// ad_struct->__ptr[attr_index].valueBool = (bool*)soap_malloc(s,sizeof(bool));
-			// *(ad_struct->__ptr[attr_index].valueBool) = tmpbool;
-			ad_struct->__ptr[attr_index].type = BOOL;
-			break;
-		case LX_NULL:
-		case LX_UNDEFINED:
-		case LX_ERROR:
-				// if we cannot deal with this type, skip this attribute
-			skip_attr = true;
-			break;
-		default:
-				// assume everything else is some sort of expression
-			tmpstr = NULL;
-			int buflen = rhs->CalcPrintToStr();
-			tmpstr = (char*)soap_malloc(s,buflen + 1); // +1 for termination
-			ASSERT(tmpstr);
-			tmpstr[0] = '\0'; // necceary because PrintToStr begins at end of string
-			rhs->PrintToStr( tmpstr );
-			if ( !(tmpstr[0]) ) {
-				skip_attr = true;
-			} else {
-				ad_struct->__ptr[attr_index].value = tmpstr;
-				// ad_struct->__ptr[attr_index].valueExpr = tmpstr;
-				// soap_link(s,(void*)tmpstr,0,1,NULL);
-				ad_struct->__ptr[attr_index].type = EXPRESSION;
-			}
-			break;
-		}
-
-			// skip this attr is requested to do so...
-		if ( skip_attr ) continue;
-
-			// serialize the attribute name, and finally increment our counter.
-		ad_struct->__ptr[attr_index].name = ((Variable*)tree->LArg())->Name();
-		attr_index++;
-		ad_struct->__size = attr_index;
-	}
-
-	return true;
+  curr_ad->ResetExpr();
+  while( (tree = curr_ad->NextExpr()) ) {
+    rhs = tree->RArg();
+    // ad_struct->__ptr[attr_index].valueInt = NULL;
+    // ad_struct->__ptr[attr_index].valueFloat = NULL;
+    // ad_struct->__ptr[attr_index].valueBool = NULL;
+    // ad_struct->__ptr[attr_index].valueExpr = NULL;
+    skip_attr = false;
+    switch ( rhs->MyType() ) {
+    case LX_STRING:
+      ad_struct->__ptr[attr_index].value = ((String*)rhs)->Value();
+      //dprintf(D_ALWAYS,"STRINGSPACE|%s|%p\n",ad_struct->__ptr[attr_index].value,ad_struct->__ptr[attr_index].value);
+      ad_struct->__ptr[attr_index].type = STRING;
+      break;
+    case LX_INTEGER:
+      tmpint = ((Integer*)rhs)->Value();
+      ad_struct->__ptr[attr_index].value = (char*)soap_malloc(s,20);
+      snprintf(ad_struct->__ptr[attr_index].value,20,"%d",tmpint);
+      // ad_struct->__ptr[attr_index].valueInt = (int*)soap_malloc(s,sizeof(int));
+      // *(ad_struct->__ptr[attr_index].valueInt) = tmpint;
+      ad_struct->__ptr[attr_index].type = INTEGER;
+      break;
+    case LX_FLOAT:
+      tmpfloat = ((Float*)rhs)->Value();
+      ad_struct->__ptr[attr_index].value = (char*)soap_malloc(s,20);
+      snprintf(ad_struct->__ptr[attr_index].value,20,"%f",tmpfloat);
+      // ad_struct->__ptr[attr_index].valueFloat = (float*)soap_malloc(s,sizeof(float));
+      // *(ad_struct->__ptr[attr_index].valueFloat) = tmpfloat;
+      ad_struct->__ptr[attr_index].type = FLOAT;
+      break;
+    case LX_BOOL:
+      tmpbool = ((ClassadBoolean*)rhs)->Value() ? true : false;
+      if ( tmpbool ) {
+        ad_struct->__ptr[attr_index].value = "TRUE";
+      } else {
+        ad_struct->__ptr[attr_index].value = "FALSE";
+      }
+      // ad_struct->__ptr[attr_index].valueBool = (bool*)soap_malloc(s,sizeof(bool));
+      // *(ad_struct->__ptr[attr_index].valueBool) = tmpbool;
+      ad_struct->__ptr[attr_index].type = BOOL;
+      break;
+    case LX_NULL:
+    case LX_UNDEFINED:
+    case LX_ERROR:
+      // if we cannot deal with this type, skip this attribute
+      skip_attr = true;
+      break;
+    default:
+      // assume everything else is some sort of expression
+      tmpstr = NULL;
+      int buflen = rhs->CalcPrintToStr();
+      tmpstr = (char*)soap_malloc(s,buflen + 1); // +1 for termination
+      ASSERT(tmpstr);
+      tmpstr[0] = '\0'; // necceary because PrintToStr begins at end of string
+      rhs->PrintToStr( tmpstr );
+      if ( !(tmpstr[0]) ) {
+        skip_attr = true;
+      } else {
+        ad_struct->__ptr[attr_index].value = tmpstr;
+        // ad_struct->__ptr[attr_index].valueExpr = tmpstr;
+        // soap_link(s,(void*)tmpstr,0,1,NULL);
+        ad_struct->__ptr[attr_index].type = EXPRESSION;
+      }
+      break;
+    }
+    
+    // skip this attr is requested to do so...
+    if ( skip_attr ) continue;
+    
+    // serialize the attribute name, and finally increment our counter.
+    ad_struct->__ptr[attr_index].name = ((Variable*)tree->LArg())->Name();
+    attr_index++;
+    ad_struct->__size = attr_index;
+  }
+  
+  return true;
 }
 
 static bool
