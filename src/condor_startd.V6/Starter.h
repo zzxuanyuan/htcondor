@@ -82,6 +82,7 @@ public:
 	void	setClaim( Claim* c );
 	void	setPorts( int, int );
 	void	setCODArgs( const char* keyword );
+	char*	getCODKeyword( void ) { return s_cod_keyword; };
 
 	void	printInfo( int debug_level );
 
