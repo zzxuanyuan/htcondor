@@ -1,3 +1,7 @@
+11/09/04 V6_7-mirror-2-merge-3
+   The state of the V6_7-mirror-2-branch for another (probably final)
+   merge into the V6_7-branch.
+
 05/14/04 V6_7-mirror-2-CORE_snapshot4
    The state of the V6_7-mirror-2-branch for another snapshot release
    given to CORE. This includes a memory leak fix to the schedd.
