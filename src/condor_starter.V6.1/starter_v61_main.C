@@ -467,9 +467,9 @@ parseArgs( int argc, char* argv [] )
 					 "shadow host\n", _jobkeyword );
 			usage();
 		}
-		if( job_ad_path ) {
+		if( job_input_ad ) {
 			dprintf( D_ALWAYS, "You cannot use '%s' and specify a "
-					 "shadow host\n", _jobadpath );
+					 "shadow host\n", _jobinputad );
 			usage();
 		}
 		jic = new JICShadow( shadow_host );
