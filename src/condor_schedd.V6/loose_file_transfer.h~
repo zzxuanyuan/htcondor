@@ -1,0 +1,8 @@
+#include "string_list.h"
+#include "file_transfer.h"
+
+class LooseFileTransfer : public FileTransfer
+{
+public:
+  StringList *getInputFiles();
+}

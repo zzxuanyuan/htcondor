@@ -156,11 +156,11 @@ class FileTransfer {
 	void CommitFiles();
 	void ComputeFilesToSend();
 	float bytesSent, bytesRcvd;
+	StringList* InputFiles;
 
   private:
 
 	char* Iwd;
-	StringList* InputFiles;
 	StringList* OutputFiles;
 	StringList* IntermediateFiles;
 	StringList* FilesToSend;

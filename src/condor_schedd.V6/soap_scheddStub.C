@@ -32,6 +32,8 @@
 #include "MyString.h"
 #include "internet.h"
 
+#include "loose_file_transfer.h"
+
 #include "condorSchedd.nsmap"
 #include "soap_scheddC.cpp"
 #include "soap_scheddServer.cpp"
@@ -439,55 +441,28 @@ condorSchedd__discoverJobRequirements(struct soap *soap,
    * file_transfer.C's SimpleInit not duplicate it!
    */
 
+  LooseFileTransfer fileTransfer;
+
   ClassAd ad;
-  StringList *inputFiles;
-  char buffer[ATTRLIST_MAX_EXPRESSION]; // Scary, large buffer?
+  StringList inputFiles;
+  char *buffer;//[ATTRLIST_MAX_EXPRESSION]; // Scary, large buffer?
 
   convert_adStruct_to_ad(soap, &ad, jobAd);
 
-  // Set inputFiles to be ATTR_TRANSFER_INPUT_FILES plus
-  // ATTR_JOB_INPUT, ATTR_JOB_CMD, and ATTR_ULOG_FILE if simple_init.
-  if (ad.LookupString(ATTR_TRANSFER_INPUT_FILES, buffer) == 1) {
-    inputFiles = new StringList(buffer,",");
-  } else {
-    inputFiles = new StringList(NULL,",");
-  }
-  if (ad.LookupString(ATTR_JOB_INPUT, buffer) == 1) {
-    // only add to list if not NULL_FILE (i.e. /dev/null)
-    if ( !inputFiles->contains(buffer) )
-      inputFiles->append(buffer);
-  }
-  if ( ad.LookupString(ATTR_ULOG_FILE, buffer) == 1 ) {
-    // add to input files if sending from submit to the schedd
-    if ( !inputFiles->contains(buffer) )
-      inputFiles->append(buffer);
-  }
-  if ( ad.LookupString(ATTR_X509_USER_PROXY, buffer) == 1 ) {
-    // add to input files
-    if ( !inputFiles->contains(buffer) )
-      inputFiles->append(buffer);
-  }
-  if (ad.LookupString(ATTR_JOB_CMD, buffer) == 1) {
-    // add to input files
-    if ( !inputFiles->contains(buffer) )
-      inputFiles->append(buffer);
-  }
+  fileTransfer.SimpleInit(&ad, false, false);
 
-  //result =
-  //  (condorSchedd__RequirementsAndStatus *)
-  //  soap_malloc(soap, sizeof(condorSchedd__RequirementsAndStatus));
+  fileTransfer.getInputFiles(inputFiles);
 
-  result.requirements.__size = inputFiles->number();
+  result.requirements.__size = inputFiles.number();
   result.requirements.__ptr =
     (condorSchedd__Requirement *) calloc(sizeof(condorSchedd__Requirement),
                                          result.requirements.__size);
-  inputFiles->rewind();
-  int i;
-  for (i = 0;
-       i < result.requirements.__size &&
-         NULL != strcpy(buffer, inputFiles->next());
-       i++) {
+  inputFiles.rewind();
+  int i = 0;
+  while ((buffer = inputFiles.next()) &&
+         (i < result.requirements.__size)) {
     result.requirements.__ptr[i] = strdup(buffer);
+    i++;
   }
 
   result.status.code = 0;
