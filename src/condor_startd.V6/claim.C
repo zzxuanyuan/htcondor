@@ -507,7 +507,7 @@ Claim::getCODMgr( void )
 }
 
 int
-Claim::spawnStarter( start_info_t* info, time_t now )
+Claim::spawnStarter( time_t now, Stream* s )
 {
 	int rval;
 	if( ! c_starter ) {
@@ -517,7 +517,7 @@ Claim::spawnStarter( start_info_t* info, time_t now )
 		return 0;
 	}
 
-	rval = c_starter->spawn( info, now );
+	rval = c_starter->spawn( now, s );
 
 	c_state = CLAIM_RUNNING; 
 
@@ -542,7 +542,7 @@ Claim::setStarter( Starter* s )
 	}
 	c_starter = s;
 	if( s ) {
-		s->setResource( this->c_rip );
+		s->setClaim( this );
 	}
 }
 

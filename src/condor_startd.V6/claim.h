@@ -140,9 +140,11 @@ public:
 		// Functions that return data
 	float		rank()			{return c_rank;};
 	float		oldrank()		{return c_oldrank;};
+	bool		isCOD()			{return c_is_cod;};
 	char*		id();
 	char*		capab();
 	Client* 	client() 		{return c_client;};
+	Resource* 	rip()			{return c_rip;};
 	Capability* cap()			{return c_cap;};
 	ClassAd*	ad() 			{return c_ad;};
 	int			universe()		{return c_universe;};
@@ -161,7 +163,7 @@ public:
 	void setaliveint(int alive)		{c_aliveint=alive;};
 
 		// starter-related functions
-	int	 spawnStarter( start_info_t*, time_t );
+	int	 spawnStarter( time_t, Stream* = NULL );
 	void setStarter( Starter* s );
 	void starterExited( void );
 	bool starterPidMatches( pid_t starter_pid );
