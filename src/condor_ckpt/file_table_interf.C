@@ -106,7 +106,7 @@ void _condor_file_table_cleanup()
 	_condor_file_table_init();
 	FileTab->flush();
 	FileTab->disable_buffer();
-	FileTab->report_file_info();
+	FileTab->close_all();
 }
 
 int creat(const char *path, mode_t mode)

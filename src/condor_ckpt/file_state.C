@@ -38,6 +38,7 @@ static char *_FileName_ = __FILE__;
 #include "condor_file_local.h"
 #include "condor_file_remote.h"
 #include "condor_file_special.h"
+#include "condor_file_agent.h"
 #include "condor_file_warning.h"
 
 #include <stdarg.h>
@@ -131,21 +132,19 @@ void CondorFileTable::dump()
 	for( int i=0; i<length; i++ ) {
 		if( pointers[i] ) {
 			dprintf(D_ALWAYS,"fd: %d offset: %d dups: %d ",
-				i,pointers[i]->get_offset(),
-				pointers[i]->get_use_count());
-			pointers[i]->get_file()->dump();
+				i,
+				pointers[i]->offset,
+				count_pointer_uses(pointers[i]));
+			pointers[i]->file->dump();
 		}
 		dprintf(D_ALWAYS,"\n");
 	}
 }
 
-void CondorFileTable::report_file_info()
+void CondorFileTable::close_all()
 {
-	for( int i=0; i<length; i++ ) {
-		if( pointers[i] ) {
-			pointers[i]->get_file()->report_file_info();
-		}
-	}
+	for( int i=0; i<length; i++ )
+		close(i);
 }
 
 int CondorFileTable::pre_open( int fd, char *name, int readable, int writeable, int is_remote )
@@ -161,10 +160,7 @@ int CondorFileTable::pre_open( int fd, char *name, int readable, int writeable, 
 	else f = new CondorFileLocal;
 
 	f->force_open(fd,name,readable,writeable);
-	f->add_user();
-
 	pointers[fd] = new CondorFilePointer(f);
-	pointers[fd]->add_user();
 
 	return fd;	
 }
@@ -172,7 +168,7 @@ int CondorFileTable::pre_open( int fd, char *name, int readable, int writeable, 
 int CondorFileTable::find_name( const char *name )
 {
 	for( int fd=0; fd<length; fd++ ) {
-		if( pointers[fd] && !strcmp(pointers[fd]->get_file()->get_name(),name) ) {
+		if( pointers[fd] && !strcmp(pointers[fd]->file->get_name(),name) ) {
 			return fd;
 		}
 	}
@@ -181,10 +177,40 @@ int CondorFileTable::find_name( const char *name )
 
 int CondorFileTable::find_empty()
 {
-	for( int fd=0; fd<length; fd++ ) {
-		if( !pointers[fd] ) return fd;
-	}
+	for( int fd=0; fd<length; fd++ )
+		if( !pointers[fd] )
+			return fd;
+
 	return -1;
+}
+
+void CondorFileTable::replace_file( CondorFile *oldfile, CondorFile *newfile )
+{
+	for( int fd=0; fd<length; fd++ )
+		if(pointers[fd] && (pointers[fd]->file==oldfile))
+			pointers[fd]->file==newfile;
+}
+
+int CondorFileTable::count_pointer_uses( CondorFilePointer *p )
+{
+	int count=0;
+
+	for( int fd=0; fd<length; fd++ )
+		if(pointers[fd]==p)
+			count++;	
+
+	return count;
+}
+
+int CondorFileTable::count_file_uses( CondorFile *f )
+{
+	int count=0;
+
+	for( int fd=0; fd<length; fd++ )
+		if(pointers[fd] && (pointers[fd]->file==f))
+			count++;	
+
+	return count;
 }
 
 int CondorFileTable::open( const char *path, int flags, int mode )
@@ -235,7 +261,7 @@ int CondorFileTable::open( const char *path, int flags, int mode )
 
 			// If so, share the file object
 
-			f = pointers[match]->get_file();
+			f = pointers[match]->file;
 
 		} else {
 
@@ -270,6 +296,15 @@ int CondorFileTable::open( const char *path, int flags, int mode )
 				delete f;
 				return -1;
 			}
+			
+			// If we want the whole file to be downloaded
+			// and then accessed locally, then wrap an
+			// agent around the file.  The agent is responsible
+			// for uploading and downloading when necessary.
+
+			// if( kind==IS_RSC ) {
+			// 	f = new CondorFileAgent(f);
+			//}
 		}
 	}
 
@@ -281,11 +316,7 @@ int CondorFileTable::open( const char *path, int flags, int mode )
 	if( flags & O_RDWR )
 		_condor_file_warning("Opening file '%s' for read and write is not safe in a program that may be checkpointed!  You should use separate files for reading and writing.",path);
 
-	// Install a new fp and update the use counts 
-
 	pointers[fd] = new CondorFilePointer(f);
-	pointers[fd]->add_user();
-	pointers[fd]->get_file()->add_user();
 
 	// Prefetch as allowed
 
@@ -363,13 +394,7 @@ int CondorFileTable::pipe(int fds[])
 	pointers[fds[1]] = pb;
 
 	fa->force_open(real_fds[0],"unnamed",1,1);
-	fa->add_user();
-
 	fb->force_open(real_fds[1],"unnamed",1,1);
-	fb->add_user();
-
-	pa->add_user();
-	pb->add_user();
 
 	return 0;
 }
@@ -411,24 +436,18 @@ int CondorFileTable::socket( int domain, int type, int protocol )
 	}
 
 	f->force_open( real_fd, "socket", 1, 1 );
-	f->add_user();
-	fp->add_user();
 	pointers[fd] = fp;
 
 	return fd;
 }
 
-	
-/* 
+/*
 Close is a little tricky.
-Find the fp corresponding to the fd.
-If I am the last user of this fp:
-	Find the file corresponding to this fp.
-	If I am the last user of this file:
-		Flush the buffer
-		Delete the file
-	Delete the fp
-In any case, zero the appropriate entry of the table.
+The file pointer might be in use by several dups,
+or the file itself might be in use by several opens.
+
+So, count all uses of the file.  If there is only one,
+close and delete.  Same goes for the file pointer.
 */
 
 int CondorFileTable::close( int fd )
@@ -437,28 +456,32 @@ int CondorFileTable::close( int fd )
 		errno = EBADF;
 		return -1;
 	}
-	
-	pointers[fd]->remove_user();
-	if( pointers[fd]->get_use_count()<=0 ) {
-		pointers[fd]->get_file()->remove_user();
-		if( pointers[fd]->get_file()->get_use_count()<=0 ) {
-			if(buffer) buffer->flush(pointers[fd]->get_file());
-			pointers[fd]->get_file()->close();
-			delete pointers[fd]->get_file();
-			}
-		delete pointers[fd];
+
+	CondorFilePointer *pointer = pointers[fd];
+	CondorFile *file = pointers[fd]->file;
+
+	// If this is the last use of the file, flush, close, and delete
+	if(count_file_uses(file)==1) {
+		if(buffer) buffer->flush(file);
+		file->close();
+		delete file;
 	}
 
-	pointers[fd] = 0;
+	// If this is the last use of the pointer, delete it
+	if(count_pointer_uses(pointer)==1) {
+		delete pointer;
+	}
+
+	// In any case, mark the fd as unused.
+	pointers[fd]=0;
 
 	return 0;
 }
 
-
 ssize_t CondorFileTable::read( int fd, void *data, size_t nbyte )
 {
 	if( (fd>=length) || (fd<0) || (pointers[fd]==0) ||
-	    (!pointers[fd]->get_file()->is_readable()) ) {
+	    (!pointers[fd]->file->is_readable()) ) {
 		errno = EBADF;
 		return -1;
 	}
@@ -469,11 +492,11 @@ ssize_t CondorFileTable::read( int fd, void *data, size_t nbyte )
 	}
 
 	CondorFilePointer *fp = pointers[fd];
-	CondorFile *f = fp->get_file();
+	CondorFile *f = fp->file;
 
 	// First, figure out the appropriate place to read from.
 
-	int offset = fp->get_offset();
+	int offset = fp->offset;
 	int size = f->get_size();
 	int actual;
 
@@ -502,7 +525,7 @@ ssize_t CondorFileTable::read( int fd, void *data, size_t nbyte )
 	if(actual<0) return -1;
 
 	// Update the offset
-	fp->set_offset(offset+actual);
+	fp->offset = offset+actual;
 
 	// Return the number of bytes read
 	return actual;
@@ -511,7 +534,7 @@ ssize_t CondorFileTable::read( int fd, void *data, size_t nbyte )
 ssize_t CondorFileTable::write( int fd, const void *data, size_t nbyte )
 {
 	if( (fd>=length) || (fd<0) || (pointers[fd]==0) ||
-	    (!pointers[fd]->get_file()->is_writeable()) ) {
+	    (!pointers[fd]->file->is_writeable()) ) {
 		errno = EBADF;
 		return -1;
 	}
@@ -524,11 +547,11 @@ ssize_t CondorFileTable::write( int fd, const void *data, size_t nbyte )
 	if( nbyte==0 ) return 0;
 
 	CondorFilePointer *fp = pointers[fd];
-	CondorFile *f = fp->get_file();
+	CondorFile *f = fp->file;
 
 	// First, figure out the appropriate place to write to.
 
-	int offset = fp->get_offset();
+	int offset = fp->offset;
 	int actual;
 
 	// If buffering is allowed, write to the buffer,
@@ -547,7 +570,7 @@ ssize_t CondorFileTable::write( int fd, const void *data, size_t nbyte )
 	if( (offset+actual)>f->get_size() )
 		f->set_size(offset+actual);
 
-	fp->set_offset(offset+actual);
+	fp->offset = offset+actual;
 
 	// Return the number of bytes written
 	return actual;
@@ -561,7 +584,7 @@ off_t CondorFileTable::lseek( int fd, off_t offset, int whence )
 	}
 
 	CondorFilePointer *fp = pointers[fd];
-	CondorFile *f = fp->get_file();
+	CondorFile *f = fp->file;
 	int temp;
 
 	// Compute the new offset first.
@@ -570,7 +593,7 @@ off_t CondorFileTable::lseek( int fd, off_t offset, int whence )
 	if( whence == SEEK_SET ) {
 		temp = offset;
 	} else if( whence == SEEK_CUR ) {
-	        temp = fp->get_offset()+offset;
+	        temp = fp->offset+offset;
 	} else if( whence == SEEK_END ) {
 		temp = f->get_size()+offset;
 	} else {
@@ -582,7 +605,7 @@ off_t CondorFileTable::lseek( int fd, off_t offset, int whence )
 		errno = EINVAL;
 		return -1;
 	} else {
-		fp->set_offset(temp);
+		fp->offset = temp;
 		return temp;
 	}
 }
@@ -642,7 +665,6 @@ int CondorFileTable::dup2( int fd, int nfd )
 
 	if( pointers[nfd]!=0 ) close(nfd);
 
-	pointers[fd]->add_user();
 	pointers[nfd] = pointers[fd];
 
 	/* If we are in standalone checkpointing mode,
@@ -681,9 +703,9 @@ int CondorFileTable::fchdir( int fd )
 	}
 
 	dprintf(D_ALWAYS,"CondorFileTable::fchdir(%d) will try chdir(%s)\n",
-		fd, pointers[fd]->get_file()->get_name() );
+		fd, pointers[fd]->file->get_name() );
 
-	return ::chdir( pointers[fd]->get_file()->get_name() );
+	return ::chdir( pointers[fd]->file->get_name() );
 }
 
 /*
@@ -699,7 +721,7 @@ int CondorFileTable::ioctl( int fd, int cmd, int arg )
 		return -1;
 	}
 
-	return pointers[fd]->get_file()->ioctl(cmd,arg);
+	return pointers[fd]->file->ioctl(cmd,arg);
 }
 
 int CondorFileTable::ftruncate( int fd, size_t length )
@@ -714,9 +736,9 @@ int CondorFileTable::ftruncate( int fd, size_t length )
 
 	if( length<0 ) return 0;
 
-	buffer->flush(pointers[fd]->get_file());
+	buffer->flush(pointers[fd]->file);
 
-	return pointers[fd]->get_file()->ftruncate(length);
+	return pointers[fd]->file->ftruncate(length);
 }
 
 /*
@@ -747,7 +769,7 @@ int CondorFileTable::fcntl( int fd, int cmd, int arg )
 			return dup2(fd,arg);
 
 		default:
-			return pointers[fd]->get_file()->fcntl(cmd,arg);
+			return pointers[fd]->file->fcntl(cmd,arg);
 			break;
 	}
 }
@@ -759,9 +781,9 @@ int CondorFileTable::fsync( int fd )
 		return -1;
 	}
 
-	if(buffer) buffer->flush(pointers[fd]->get_file());
+	if(buffer) buffer->flush(pointers[fd]->file);
 
-	pointers[fd]->get_file()->fsync();
+	pointers[fd]->file->fsync();
 }
 
 void CondorFileTable::checkpoint()
@@ -779,7 +801,7 @@ void CondorFileTable::checkpoint()
 	dprintf(D_ALWAYS,"working dir = %s\n",working_dir);
 
 	for( int i=0; i<length; i++ )
-	     if( pointers[i] ) pointers[i]->get_file()->checkpoint();
+	     if( pointers[i] ) pointers[i]->file->checkpoint();
 }
 
 void CondorFileTable::suspend()
@@ -797,7 +819,7 @@ void CondorFileTable::suspend()
 	dprintf(D_ALWAYS,"working dir = %s\n",working_dir);
 
 	for( int i=0; i<length; i++ )
-	     if( pointers[i] ) pointers[i]->get_file()->suspend();
+	     if( pointers[i] ) pointers[i]->file->suspend();
 }
 
 void CondorFileTable::resume()
@@ -827,7 +849,7 @@ void CondorFileTable::resume()
 			/* No matter what the mode, we tell the file to
 			   resume itself. */
 
-			pointers[i]->get_file()->resume(resume_count);
+			pointers[i]->file->resume(resume_count);
 
 			/* In standalone mode, we check to see if fd i shares
 			   an fp with a lower numbered fd.  If it does, then
@@ -857,7 +879,7 @@ int CondorFileTable::map_fd_hack( int fd )
 		return -1;
 	}
 
-	return pointers[fd]->get_file()->map_fd_hack();
+	return pointers[fd]->file->map_fd_hack();
 }
 
 int CondorFileTable::local_access_hack( int fd )
@@ -867,7 +889,8 @@ int CondorFileTable::local_access_hack( int fd )
 		return -1;
 	}
 
-	return pointers[fd]->get_file()->local_access_hack();
+	return pointers[fd]->file->local_access_hack();
 }
+
 
 

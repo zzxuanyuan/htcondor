@@ -32,6 +32,7 @@ class CondorFile {
 public:
 	virtual void dump();
 	virtual void init();
+	virtual void abort( char *why );
 
 	virtual int open(const char *path, int flags, int mode);
 	virtual int close();
@@ -57,10 +58,6 @@ public:
 	char	*get_kind()		{ return kind; }
 	char	*get_name()		{ return name; }
 
-	void	add_user()		{ use_count++; }
-	void	remove_user()		{ use_count--; }
-	int	get_use_count()		{ return use_count; }
-
 	void	enable_buffer()		{ bufferable=1; }
 	void	disable_buffer()	{ bufferable=0; }
 	int	ok_to_buffer()		{ return bufferable; }
@@ -78,7 +75,7 @@ public:
 	regarding this file to the shadow.
 	*/
 
-	void	report_file_info();
+	virtual void report_file_info();
 
 	/**
 	Return the real fd associated with this file.
@@ -108,9 +105,7 @@ protected:
 
 	int	size;		// number of bytes in the file
 	int	forced;		// was this created with force_open?
-
-	int	use_count;	// how many people are using this object?
-	int	resume_count;	// how many times has this object been resumed?
+	int	resume_count;	// how many times have I been resumed?
 
 	// How much data has passed through this object?
 

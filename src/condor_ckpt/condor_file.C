@@ -1,6 +1,7 @@
 
 #include "condor_common.h"
 #include "condor_file.h"
+#include "condor_file_warning.h"
 #include "condor_debug.h"
 #include "condor_syscall_mode.h"
 #include "syscall_numbers.h"
@@ -15,7 +16,6 @@ void CondorFile::init() {
 	name[0] = 0;
 	size = 0;
 	forced = 0;
-	use_count = resume_count = 0;
 	seek_count = read_count = write_count = read_bytes = write_bytes = 0;
 }
 
@@ -23,8 +23,14 @@ void CondorFile::init() {
 
 void CondorFile::dump() {
 	dprintf(D_ALWAYS,
-		"rfd: %d r: %d w: %d size: %d users: %d kind: '%s' name: '%s'",
-		fd,readable,writeable,size,use_count,kind,name);
+		"rfd: %d r: %d w: %d size: %d kind: '%s' name: '%s'",
+		fd,readable,writeable,size,kind,name);
+}
+
+void CondorFile::abort( char *op ) {
+	_condor_file_warning("Unable to %s %s %s (%s)\n",
+		op, kind, name, strerror(errno));
+	exit(-1);
 }
 
 // Nearly every kind of file needs to perform this initialization.

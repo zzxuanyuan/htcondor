@@ -43,21 +43,10 @@ public:
 	CondorFilePointer( CondorFile *f ) {
 		file = f;
 		offset = 0;
-		use_count = 0;
 	}
 
-	void       add_user()             { use_count++; }
-	void       remove_user()          { use_count--; }
-	int        get_use_count()        { return use_count; }
-	off_t      get_offset()           { return offset; }
-	void       set_offset( size_t s ) { offset=s; file->bump_seek_count(); }
-	CondorFile *get_file()	          { return file; }
-
-
-private:
-	CondorFile *file;      // What file do I refer to?
-	off_t      offset;     // The current seek pointer for this fd
-	int        use_count;  // How many fds share this fp?
+	CondorFile *file;
+	off_t      offset;
 };
 
 /**
@@ -165,8 +154,8 @@ public:
 	/** Turn off buffering */
 	void	disable_buffer();
 
-	/** Report access info about all currently open files. */
-	void	report_file_info();
+	/** Close all outstanding files */
+	void	close_all();
 
 	/** Map a virtual fd to the same real fd.  This is generally only
 	    used by the startup code to bootstrap a usable stdin/stdout until
@@ -252,7 +241,10 @@ private:
 
 	int	find_name(const char *name);
 	int	find_empty();
-
+	void	replace_file( CondorFile *oldfile, CondorFile *newfile );
+	int	count_file_uses( CondorFile *f );
+	int	count_pointer_uses( CondorFilePointer *f );
+	
 	CondorFilePointer	**pointers;
 	CondorBufferCache	*buffer;
 
