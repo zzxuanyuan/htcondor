@@ -35,40 +35,43 @@
 #include "condor_network.h"
 #include "internet.h"
 #include "condor_debug.h"
+#include <stdio.h>
 
+#if defined(WIN32)
+class SockInitializer
+{
+public:
+	SockInitializer() {
+		WORD wVersionRequested = MAKEWORD( 1, 1 );
+		WSADATA wsaData;
+		int err;
+
+		err = WSAStartup( wVersionRequested, &wsaData );
+		if ( err < 0 ) {
+			fprintf( stderr, "Can't find usable WinSock DLL!\n" );	
+			exit(1);
+		}
+
+		if ( LOBYTE( wsaData.wVersion ) != 1 || HIBYTE( wsaData.wVersion ) != 1 ) {
+			fprintf( stderr, "Warning: using WinSock version %d.%d, requested 1.1\n",
+				LOBYTE( wsaData.wVersion ), HIBYTE( wsaData.wVersion ) );
+		}
+	}
+
+	~SockInitializer() {
+		if (WSACleanup() < 0)
+			fprintf(stderr, "WSACleanup() failed, errno = %d\n", 
+					WSAGetLastError());
+		}
+};
+
+static SockInitializer _SockInitializer;
+#endif
 
 /*
 **	Methods shared by all Socks
 */
 
-
-Sock::Sock() : Stream(),  _sock(INVALID_SOCKET), _state(sock_virgin), _timeout(0)
-{
-#if defined(WIN32)
-	WORD wVersionRequested = MAKEWORD( 1, 1 );
-	WSADATA wsaData;
-	int err;
-
-	err = WSAStartup( wVersionRequested, &wsaData );
-	if ( err < 0 ) {
-		dprintf( D_ALWAYS, "Can't find usable WinSock DLL!\n" );
-	}
-
-	if ( LOBYTE( wsaData.wVersion ) != 1 || HIBYTE( wsaData.wVersion ) != 1 ) {
-		dprintf( D_ALWAYS, "Warning: using WinSock version %d.%d, requested 1.1\n",
-			LOBYTE( wsaData.wVersion ), HIBYTE( wsaData.wVersion ) );
-	}
-#endif
-}
-
-Sock::~Sock()
-{
-#if defined(WIN32)
-	if (WSACleanup() < 0)
-		dprintf(D_ALWAYS, "WSACleanup() failed, errno = %d\n", 
-				WSAGetLastError());
-#endif
-}
 
 int Sock::getportbyserv(
 	char	*s
