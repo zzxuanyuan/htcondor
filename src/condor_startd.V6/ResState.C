@@ -327,7 +327,7 @@ ResState::leave_action( State s, Activity a,
 			}
 		}
 		if( statechange ) {
-			rip->r_cur->cancel_claim_timer();	
+			rip->r_cur->cancelLeaseTimer();	
 		}
 		break;
 	default:
