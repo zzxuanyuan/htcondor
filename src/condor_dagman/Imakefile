@@ -1,4 +1,3 @@
-CLASSADS_ROOT=/scratch/giaco/classads_ns
 NAME = condor_dagman
 all_target($(NAME))
 
