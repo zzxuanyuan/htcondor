@@ -24,7 +24,7 @@
 #include "collection.h"
 #include "collectionBase.h"
 #include "transaction.h"
-#include <iostream>
+
 #include "sink.h"
 
 BEGIN_NAMESPACE( classad )
@@ -544,7 +544,7 @@ PlayViewOp( int opType, ClassAd *logRec )
             }
 
             parentView->DeleteChildView( this, viewName );
-			delete logRec;
+			//delete logRec;
 			return( true );
         }
 
