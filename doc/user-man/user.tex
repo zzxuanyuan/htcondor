@@ -1132,8 +1132,26 @@ The commands takes on one of two possible values:
 machine only when the job exits on its own.
 
 \item \verb@ON_EXIT_OR_EVICT@: Condor will always do the transfer,
-whether the job completes on its own, is preempted by another job, or
-is killed.
+whether the job completes on its own, is preempted by another job, 
+vacates the machine, or is killed.
+As the job completes on its own, files are transferred back
+to the directory where the job was submitted.
+For the other cases, files are transferred back to 
+the directory defined by the configuration
+variable \MacroNI{SPOOL}. 
+These files are named using the \Attr{ClusterId} and \Attr{ProcId}
+job ClassAd attributes. 
+The file name takes the form:
+\begin{verbatim}
+   cluster<X>.proc<Y>.subproc0
+\end{verbatim}
+where \verb@<X>@ is the value of \Attr{ClusterId}, and 
+\verb@<Y>@ is the value of \Attr{ProcId}. 
+As an example, job 735.0 may produce the file
+\begin{verbatim}
+   $(SPOOL)/cluster735.proc0.subproc0
+\end{verbatim}
+
 This is only useful if partial runs of the job are valuable for some
 reason. An example of valuable partial runs is when the application
 produces its own checkpoints.
