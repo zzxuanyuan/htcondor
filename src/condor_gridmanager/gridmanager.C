@@ -229,7 +229,6 @@ rehashJobContact( GlobusJob *job, const char *old_contact,
 void
 Init()
 {
-	int rc;
 	pid_t schedd_pid;
 
 	// schedd address may be overridden by a commandline option
@@ -552,10 +551,6 @@ REMOVE_JOBS_signalHandler( int signal )
 int
 doContactSchedd()
 {
-	int rc;
-	int cluster_id;
-	int proc_id;
-	char buf[1024];
 	Qmgr_connection *schedd;
 	ScheddUpdateAction *curr_action;
 	GlobusJob *curr_job;
@@ -575,37 +570,38 @@ doContactSchedd()
 
 		if ( curr_action->actions & UA_LOG_SUBMIT_EVENT &&
 			 !curr_job->submitLogged ) {
-			WriteGlobusSubmitEventToUserLog( curr_job );
+			WriteGlobusSubmitEventToUserLog( curr_job->ad );
 			curr_job->submitLogged = true;
 		}
 		if ( curr_action->actions & UA_LOG_EXECUTE_EVENT &&
 			 !curr_job->executeLogged ) {
-			WriteExecuteEventToUserLog( curr_job );
+			WriteExecuteEventToUserLog( curr_job->ad );
 			curr_job->executeLogged = true;
 		}
 		if ( curr_action->actions & UA_LOG_SUBMIT_FAILED_EVENT &&
 			 !curr_job->submitFailedLogged ) {
-			WriteGlobusSubmitFailedEventToUserLog( curr_job );
+			WriteGlobusSubmitFailedEventToUserLog( curr_job->ad,
+												   curr_job->submitFailureCode );
 			curr_job->submitFailedLogged = true;
 		}
 		if ( curr_action->actions & UA_LOG_TERMINATE_EVENT &&
 			 !curr_job->terminateLogged ) {
-			WriteTerminateEventToUserLog( curr_job );
+			WriteTerminateEventToUserLog( curr_job->ad );
 			curr_job->terminateLogged = true;
 		}
 		if ( curr_action->actions & UA_LOG_ABORT_EVENT &&
 			 !curr_job->abortLogged ) {
-			WriteAbortEventToUserLog( curr_job );
+			WriteAbortEventToUserLog( curr_job->ad );
 			curr_job->abortLogged = true;
 		}
 		if ( curr_action->actions & UA_LOG_EVICT_EVENT &&
 			 !curr_job->evictLogged ) {
-			WriteEvictEventToUserLog( curr_job );
+			WriteEvictEventToUserLog( curr_job->ad );
 			curr_job->evictLogged = true;
 		}
 		if ( curr_action->actions & UA_HOLD_JOB &&
 			 !curr_job->holdLogged ) {
-			WriteHoldEventToUserLog( curr_job );
+			WriteHoldEventToUserLog( curr_job->ad );
 			curr_job->holdLogged = true;
 		}
 
@@ -626,105 +622,85 @@ doContactSchedd()
 
 		curr_job = curr_action->job;
 
-		if ( (curr_action->actions & UA_UPDATE_CONDOR_STATE) ||
-			 (curr_action->actions & UA_HOLD_JOB) ) {
-			int curr_status;
-			GetAttributeInt( curr_job->procID.cluster,
-							 curr_job->procID.proc,
-							 ATTR_JOB_STATUS, &curr_status );
+		// Check the job status on the schedd to see if the job's been
+		// held or removed. We don't want to blindly update the status.
+		int job_status_schedd;
+		GetAttributeInt( curr_job->procID.cluster,
+						 curr_job->procID.proc,
+						 ATTR_JOB_STATUS, &job_status_schedd );
 
-			// If the job is marked as REMOVED or HELD on the schedd, don't
-			// change it. Instead, modify our state to match it.
-			if ( curr_status == REMOVED || curr_status == HELD ) {
-				curr_job->UpdateCondorState( curr_status );
-			} else if ( curr_action->actions & UA_HOLD_JOB ) {
-				SetAttributeInt( curr_job->procID.cluster,
-								 curr_job->procID.proc,
-								 ATTR_JOB_STATUS, curr_job->condorState );
-				SetAttributeString( curr_job->procID.cluster,
-									curr_job->procID.proc,
-									ATTR_HOLD_REASON, curr_job->holdReason );
-			} else {	// UA_UPDATE_CONDOR_STATE && !UA_HOLD_JOB
-				// If we have a
-				// job marked as HELD, it's because of an earlier hold
-				// (either by us or the user). In this case, we don't want
-				// to undo a subsequent unhold done on the schedd. Instead,
-				// we keep our HELD state, kill the job, forget about it,
-				// then relearn about it later (this makes it easier to
-				// ensure that we pick up changed job attributes).
-				if ( curr_job->condorState != HELD ) {
-					SetAttributeInt( curr_job->procID.cluster,
-									 curr_job->procID.proc,
-									 ATTR_JOB_STATUS, curr_job->condorState );
-				}
+		// If the job is marked as REMOVED or HELD on the schedd, don't
+		// change it. Instead, modify our state to match it.
+		if ( job_status_schedd == REMOVED || job_status_schedd == HELD ) {
+			curr_job->UpdateCondorState( job_status_schedd );
+			curr_job->ad->SetDirtyFlag( ATTR_JOB_STATUS, false );
+			curr_job->ad->SetDirtyFlag( ATTR_HOLD_REASON, false );
+		} else if ( curr_action->actions & UA_HOLD_JOB ) {
+			DeleteAttribute(curr_job->procID.cluster,
+							curr_job->procID.proc,
+							ATTR_RELEASE_REASON );
+		} else {	// !UA_HOLD_JOB
+			// If we have a
+			// job marked as HELD, it's because of an earlier hold
+			// (either by us or the user). In this case, we don't want
+			// to undo a subsequent unhold done on the schedd. Instead,
+			// we keep our HELD state, kill the job, forget about it,
+			// then relearn about it later (this makes it easier to
+			// ensure that we pick up changed job attributes).
+			if ( curr_job->condorState == HELD ) {
+				curr_job->ad->SetDirtyFlag( ATTR_JOB_STATUS, false );
+				curr_job->ad->SetDirtyFlag( ATTR_HOLD_REASON, false );
 			}
 		}
 
 		// Adjust run time for condor_q
+		int shadowBirthdate = 0;
+		curr_job->ad->LookupInteger( ATTR_SHADOW_BIRTHDATE, shadowBirthdate );
 		if ( curr_job->condorState == RUNNING &&
-			 curr_job->shadowBirthday == 0 ) {
+			 shadowBirthdate == 0 ) {
 
 			// The job has started a new interval of running
 			int current_time = (int)time(NULL);
-			SetAttributeInt( curr_job->procID.cluster,
-							 curr_job->procID.proc,
-							 ATTR_SHADOW_BIRTHDATE, current_time );
-			curr_job->shadowBirthday = current_time;
+			// ATTR_SHADOW_BIRTHDATE on the schedd will be updated below
+			curr_job->UpdateJobAdInt( ATTR_SHADOW_BIRTHDATE, current_time );
 
 		} else if ( curr_job->condorState != RUNNING &&
-					curr_job->shadowBirthday != 0 ) {
+					shadowBirthdate != 0 ) {
 
 			// The job has stopped an interval of running, add the current
 			// interval to the accumulated total run time
 			float accum_time = 0;
 			GetAttributeFloat(curr_job->procID.cluster, curr_job->procID.proc,
 							  ATTR_JOB_REMOTE_WALL_CLOCK,&accum_time);
-			accum_time += (float)( time(NULL) - curr_job->shadowBirthday );
+			accum_time += (float)( time(NULL) - shadowBirthdate );
 			SetAttributeFloat(curr_job->procID.cluster, curr_job->procID.proc,
 							  ATTR_JOB_REMOTE_WALL_CLOCK,accum_time);
 			DeleteAttribute(curr_job->procID.cluster, curr_job->procID.proc,
 							ATTR_JOB_WALL_CLOCK_CKPT);
-			SetAttributeInt(curr_job->procID.cluster, curr_job->procID.proc,
-							ATTR_SHADOW_BIRTHDATE, 0);
-			curr_job->shadowBirthday = 0;
+			// ATTR_SHADOW_BIRTHDATE on the schedd will be updated below
+			curr_job->UpdateJobAdInt( ATTR_SHADOW_BIRTHDATE, 0 );
 
 		}
 
-		if ( curr_action->actions & UA_UPDATE_GLOBUS_STATE ) {
-			if ( curr_job->globusState == GLOBUS_GRAM_PROTOCOL_JOB_STATE_FAILED ) {
-				SetAttributeInt( curr_job->procID.cluster,
-								 curr_job->procID.proc,
-								 ATTR_GLOBUS_STATUS,
-								 curr_job->globusStateBeforeFailure );
-			} else {
-				SetAttributeInt( curr_job->procID.cluster,
-								 curr_job->procID.proc,
-								 ATTR_GLOBUS_STATUS,
-								 curr_job->globusState );
-			}
+dprintf(D_FULLDEBUG,"Updating classad values:\n");
+		char attr_name[1024];
+		char attr_value[1024];
+		ExprTree *expr;
+		curr_job->ad->ResetExpr();
+		while ( (expr = curr_job->ad->NextDirtyExpr()) != NULL ) {
+			attr_name[0] = '\0';
+			attr_value[0] = '\0';
+			expr->LArg()->PrintToStr(attr_name);
+			expr->RArg()->PrintToStr(attr_value);
+
+dprintf(D_FULLDEBUG,"   %s = %s\n",attr_name,attr_value);
+			SetAttribute( curr_job->procID.cluster,
+						  curr_job->procID.proc,
+						  attr_name,
+						  attr_value);
 		}
 
-		if ( curr_action->actions & UA_UPDATE_CONTACT_STRING ) {
-			SetAttributeString( curr_job->procID.cluster,
-								curr_job->procID.proc,
-								ATTR_GLOBUS_CONTACT_STRING,
-								curr_job->jobContact ? curr_job->jobContact :
-								    NULL_JOB_CONTACT );
-		}
-
-		if ( curr_action->actions & UA_UPDATE_STDOUT_SIZE ) {
-			SetAttributeInt( curr_job->procID.cluster,
-							 curr_job->procID.proc,
-							 ATTR_JOB_OUTPUT_SIZE,
-							 curr_job->syncedOutputSize );
-		}
-
-		if ( curr_action->actions & UA_UPDATE_STDERR_SIZE ) {
-			SetAttributeInt( curr_job->procID.cluster,
-							 curr_job->procID.proc,
-							 ATTR_JOB_ERROR_SIZE,
-							 curr_job->syncedErrorSize );
-		}
+		curr_job->ad->ClearAllDirtyFlags();
 
 		if ( curr_action->actions & UA_FORGET_JOB ) {
 			SetAttribute( curr_job->procID.cluster,
@@ -739,7 +715,6 @@ doContactSchedd()
 			DestroyProc(curr_job->procID.cluster,
 						curr_job->procID.proc);
 		}
-
 	}
 
 
@@ -781,7 +756,6 @@ doContactSchedd()
 		while ( next_ad != NULL ) {
 			PROC_ID procID;
 			GlobusJob *old_job;
-			ClassAd *old_ad;
 
 			next_ad->LookupInteger( ATTR_CLUSTER_ID, procID.cluster );
 			next_ad->LookupInteger( ATTR_PROC_ID, procID.proc );
@@ -800,6 +774,8 @@ doContactSchedd()
 					dprintf( D_ALWAYS, "Job %d.%d has no Globus resource name!\n",
 							 procID.cluster, procID.proc );
 					// TODO: What do we do about this job? (put it on hold)
+
+					delete next_ad;
 
 				} else {
 
@@ -828,9 +804,11 @@ doContactSchedd()
 
 				}
 
-			}
+			} else {
 
-			delete next_ad;
+				delete next_ad;
+
+			}
 
 			next_ad = GetNextJobByConstraint( expr_buf, 0 );
 		}
@@ -883,8 +861,8 @@ doContactSchedd()
 						 "Don't know about removed job %d.%d. "
 						 "Deleting it immediately\n", procID.cluster,
 						 procID.proc );
-				// TODO: log abort event here. This will be easy once
-				// start keeping job classads in the gridmanager.
+				// Log the removal of the job from the queue
+				WriteAbortEventToUserLog( next_ad );
 				DestroyProc( procID.cluster, procID.proc );
 
 			} else {
@@ -956,8 +934,6 @@ int
 orphanCallbackHandler()
 {
 	int rc;
-	int cluster_id;
-	int proc_id;
 	GlobusJob *this_job;
 	OrphanCallback_t *orphan;
 
@@ -998,8 +974,6 @@ gramCallbackHandler( void *user_arg, char *job_contact, int state,
 					 int errorcode )
 {
 	int rc;
-	int cluster_id;
-	int proc_id;
 	GlobusJob *this_job;
 
 	// Find the right job object
@@ -1031,37 +1005,52 @@ gramCallbackHandler( void *user_arg, char *job_contact, int state,
 // the user didn't want a UserLog, so you must check for NULL before
 // using the pointer you get back.
 UserLog*
-InitializeUserLog( GlobusJob *job )
+InitializeUserLog( ClassAd *job_ad )
 {
-	if( job->userLogFile == NULL ) {
+	int cluster, proc;
+	char userLogFile[_POSIX_PATH_MAX];
+
+	userLogFile[0] = '\0';
+	job_ad->LookupString( ATTR_ULOG_FILE, userLogFile );
+	if ( userLogFile[0] == '\0' ) {
 		// User doesn't want a log
 		return NULL;
 	}
 
+	job_ad->LookupInteger( ATTR_CLUSTER_ID, cluster );
+	job_ad->LookupInteger( ATTR_PROC_ID, proc );
+
 	UserLog *ULog = new UserLog();
-	ULog->initialize(Owner, job->userLogFile, job->procID.cluster,
-					 job->procID.proc, 0);
+	ULog->initialize(Owner, userLogFile, cluster, proc, 0);
 	return ULog;
 }
 
 bool
-WriteExecuteEventToUserLog( GlobusJob *job )
+WriteExecuteEventToUserLog( ClassAd *job_ad )
 {
-	UserLog *ulog = InitializeUserLog( job );
+	int cluster, proc;
+	char hostname[128];
+
+	UserLog *ulog = InitializeUserLog( job_ad );
 	if ( ulog == NULL ) {
 		// User doesn't want a log
 		return true;
 	}
 
-	dprintf( D_FULLDEBUG, 
-			 "(%d.%d) Writing execute record to user logfile=%s\n",
-			 job->procID.cluster, job->procID.proc, job->userLogFile );
+	job_ad->LookupInteger( ATTR_CLUSTER_ID, cluster );
+	job_ad->LookupInteger( ATTR_PROC_ID, proc );
 
-	int hostname_len = strcspn( job->myResource->ResourceName(), ":/" );
+	dprintf( D_FULLDEBUG, 
+			 "(%d.%d) Writing execute record to user logfile\n",
+			 cluster, proc );
+
+	hostname[0] = '\0';
+	job_ad->LookupString( ATTR_GLOBUS_RESOURCE, hostname,
+						  sizeof(hostname) - 1 );
+	int hostname_len = strcspn( hostname, ":/" );
 
 	ExecuteEvent event;
-	strncpy( event.executeHost, job->myResource->ResourceName(),
-			 hostname_len );
+	strncpy( event.executeHost, hostname, hostname_len );
 	event.executeHost[hostname_len] = '\0';
 	int rc = ulog->writeEvent(&event);
 	delete ulog;
@@ -1069,7 +1058,7 @@ WriteExecuteEventToUserLog( GlobusJob *job )
 	if (!rc) {
 		dprintf( D_ALWAYS,
 				 "(%d.%d) Unable to log ULOG_EXECUTE event\n",
-				 job->procID.cluster, job->procID.proc );
+				 cluster, proc );
 		return false;
 	}
 
@@ -1077,17 +1066,21 @@ WriteExecuteEventToUserLog( GlobusJob *job )
 }
 
 bool
-WriteAbortEventToUserLog( GlobusJob *job )
+WriteAbortEventToUserLog( ClassAd *job_ad )
 {
-	UserLog *ulog = InitializeUserLog( job );
+	int cluster, proc;
+	UserLog *ulog = InitializeUserLog( job_ad );
 	if ( ulog == NULL ) {
 		// User doesn't want a log
 		return true;
 	}
 
+	job_ad->LookupInteger( ATTR_CLUSTER_ID, cluster );
+	job_ad->LookupInteger( ATTR_PROC_ID, proc );
+
 	dprintf( D_FULLDEBUG, 
-			 "(%d.%d) Writing abort record to user logfile=%s\n",
-			 job->procID.cluster, job->procID.proc, job->userLogFile );
+			 "(%d.%d) Writing abort record to user logfile\n",
+			 cluster, proc );
 
 	JobAbortedEvent event;
 	int rc = ulog->writeEvent(&event);
@@ -1096,7 +1089,7 @@ WriteAbortEventToUserLog( GlobusJob *job )
 	if (!rc) {
 		dprintf( D_ALWAYS,
 				 "(%d.%d) Unable to log ULOG_ABORT event\n",
-				 job->procID.cluster, job->procID.proc );
+				 cluster, proc );
 		return false;
 	}
 
@@ -1104,17 +1097,21 @@ WriteAbortEventToUserLog( GlobusJob *job )
 }
 
 bool
-WriteTerminateEventToUserLog( GlobusJob *job )
+WriteTerminateEventToUserLog( ClassAd *job_ad )
 {
-	UserLog *ulog = InitializeUserLog( job );
+	int cluster, proc;
+	UserLog *ulog = InitializeUserLog( job_ad );
 	if ( ulog == NULL ) {
 		// User doesn't want a log
 		return true;
 	}
 
+	job_ad->LookupInteger( ATTR_CLUSTER_ID, cluster );
+	job_ad->LookupInteger( ATTR_PROC_ID, proc );
+
 	dprintf( D_FULLDEBUG, 
-			 "(%d.%d) Writing terminate record to user logfile=%s\n",
-			 job->procID.cluster, job->procID.proc, job->userLogFile );
+			 "(%d.%d) Writing terminate record to user logfile\n",
+			 cluster, proc );
 
 	JobTerminatedEvent event;
 	struct rusage r;
@@ -1134,7 +1131,7 @@ WriteTerminateEventToUserLog( GlobusJob *job )
 	// Globus doesn't tell us how the job exited, so we'll just assume it
 	// exited normally.
 	event.normal = true;
-	event.returnValue = job->exitValue;
+	event.returnValue = 0;
 
 	int rc = ulog->writeEvent(&event);
 	delete ulog;
@@ -1142,7 +1139,7 @@ WriteTerminateEventToUserLog( GlobusJob *job )
 	if (!rc) {
 		dprintf( D_ALWAYS,
 				 "(%d.%d) Unable to log ULOG_JOB_TERMINATED event\n",
-				 job->procID.cluster, job->procID.proc );
+				 cluster, proc );
 		return false;
 	}
 
@@ -1150,17 +1147,21 @@ WriteTerminateEventToUserLog( GlobusJob *job )
 }
 
 bool
-WriteEvictEventToUserLog( GlobusJob *job )
+WriteEvictEventToUserLog( ClassAd *job_ad )
 {
-	UserLog *ulog = InitializeUserLog( job );
+	int cluster, proc;
+	UserLog *ulog = InitializeUserLog( job_ad );
 	if ( ulog == NULL ) {
 		// User doesn't want a log
 		return true;
 	}
 
+	job_ad->LookupInteger( ATTR_CLUSTER_ID, cluster );
+	job_ad->LookupInteger( ATTR_PROC_ID, proc );
+
 	dprintf( D_FULLDEBUG, 
-			 "(%d.%d) Writing evict record to user logfile=%s\n",
-			 job->procID.cluster, job->procID.proc, job->userLogFile );
+			 "(%d.%d) Writing evict record to user logfile\n",
+			 cluster, proc );
 
 	JobEvictedEvent event;
 	struct rusage r;
@@ -1181,7 +1182,7 @@ WriteEvictEventToUserLog( GlobusJob *job )
 	if (!rc) {
 		dprintf( D_ALWAYS,
 				 "(%d.%d) Unable to log ULOG_JOB_EVICTED event\n",
-				 job->procID.cluster, job->procID.proc );
+				 cluster, proc );
 		return false;
 	}
 
@@ -1189,21 +1190,30 @@ WriteEvictEventToUserLog( GlobusJob *job )
 }
 
 bool
-WriteHoldEventToUserLog( GlobusJob *job )
+WriteHoldEventToUserLog( ClassAd *job_ad )
 {
-	UserLog *ulog = InitializeUserLog( job );
+	int cluster, proc;
+	char holdReason[256];
+	UserLog *ulog = InitializeUserLog( job_ad );
 	if ( ulog == NULL ) {
 		// User doesn't want a log
 		return true;
 	}
 
+	job_ad->LookupInteger( ATTR_CLUSTER_ID, cluster );
+	job_ad->LookupInteger( ATTR_PROC_ID, proc );
+
 	dprintf( D_FULLDEBUG, 
-			 "(%d.%d) Writing hold record to user logfile=%s\n",
-			 job->procID.cluster, job->procID.proc, job->userLogFile );
+			 "(%d.%d) Writing hold record to user logfile\n",
+			 cluster, proc );
 
 	JobHeldEvent event;
 
-	event.setReason( job->holdReason );
+	holdReason[0] = '\0';
+	job_ad->LookupString( ATTR_HOLD_REASON, holdReason,
+						   sizeof(holdReason) - 1 );
+
+	event.setReason( holdReason );
 
 	int rc = ulog->writeEvent(&event);
 	delete ulog;
@@ -1211,7 +1221,7 @@ WriteHoldEventToUserLog( GlobusJob *job )
 	if (!rc) {
 		dprintf( D_ALWAYS,
 				 "(%d.%d) Unable to log ULOG_JOB_HELD event\n",
-				 job->procID.cluster, job->procID.proc );
+				 cluster, proc );
 		return false;
 	}
 
@@ -1219,23 +1229,39 @@ WriteHoldEventToUserLog( GlobusJob *job )
 }
 
 bool
-WriteGlobusSubmitEventToUserLog( GlobusJob *job )
+WriteGlobusSubmitEventToUserLog( ClassAd *job_ad )
 {
-	UserLog *ulog = InitializeUserLog( job );
+	int cluster, proc;
+	int version;
+	char contact[256];
+	UserLog *ulog = InitializeUserLog( job_ad );
 	if ( ulog == NULL ) {
 		// User doesn't want a log
 		return true;
 	}
 
+	job_ad->LookupInteger( ATTR_CLUSTER_ID, cluster );
+	job_ad->LookupInteger( ATTR_PROC_ID, proc );
+
 	dprintf( D_FULLDEBUG, 
-			 "(%d.%d) Writing globus submit record to user logfile=%s\n",
-			 job->procID.cluster, job->procID.proc, job->userLogFile );
+			 "(%d.%d) Writing globus submit record to user logfile\n",
+			 cluster, proc );
 
 	GlobusSubmitEvent event;
 
-	event.rmContact =  strnewp(job->myResource->ResourceName());
-	event.jmContact = strnewp(job->jobContact);
-	event.restartableJM = job->newJM;
+	contact[0] = '\0';
+	job_ad->LookupString( ATTR_GLOBUS_RESOURCE, contact,
+						   sizeof(contact) - 1 );
+	event.rmContact = strnewp(contact);
+
+	contact[0] = '\0';
+	job_ad->LookupString( ATTR_GLOBUS_CONTACT_STRING, contact,
+						   sizeof(contact) - 1 );
+	event.jmContact = strnewp(contact);
+
+	version = 0;
+	job_ad->LookupInteger( ATTR_GLOBUS_GRAM_VERSION, version );
+	event.restartableJM = version >= GRAM_V_1_5;
 
 	int rc = ulog->writeEvent(&event);
 	delete ulog;
@@ -1243,7 +1269,7 @@ WriteGlobusSubmitEventToUserLog( GlobusJob *job )
 	if (!rc) {
 		dprintf( D_ALWAYS,
 				 "(%d.%d) Unable to log ULOG_GLOBUS_SUBMIT event\n",
-				 job->procID.cluster, job->procID.proc );
+				 cluster, proc );
 		return false;
 	}
 
@@ -1251,24 +1277,28 @@ WriteGlobusSubmitEventToUserLog( GlobusJob *job )
 }
 
 bool
-WriteGlobusSubmitFailedEventToUserLog( GlobusJob *job )
+WriteGlobusSubmitFailedEventToUserLog( ClassAd *job_ad, int failure_code )
 {
+	int cluster, proc;
 	char buf[1024];
 
-	UserLog *ulog = InitializeUserLog( job );
+	UserLog *ulog = InitializeUserLog( job_ad );
 	if ( ulog == NULL ) {
 		// User doesn't want a log
 		return true;
 	}
 
+	job_ad->LookupInteger( ATTR_CLUSTER_ID, cluster );
+	job_ad->LookupInteger( ATTR_PROC_ID, proc );
+
 	dprintf( D_FULLDEBUG, 
-			 "(%d.%d) Writing submit-failed record to user logfile=%s\n",
-			 job->procID.cluster, job->procID.proc, job->userLogFile );
+			 "(%d.%d) Writing submit-failed record to user logfile\n",
+			 cluster, proc );
 
 	GlobusSubmitFailedEvent event;
 
-	snprintf( buf, 1024, "%d %s", job->submitFailureCode,
-			GahpMain.globus_gram_client_error_string(job->submitFailureCode) );
+	snprintf( buf, 1024, "%d %s", failure_code,
+			GahpMain.globus_gram_client_error_string(failure_code) );
 	event.reason =  strnewp(buf);
 
 	int rc = ulog->writeEvent(&event);
@@ -1277,7 +1307,7 @@ WriteGlobusSubmitFailedEventToUserLog( GlobusJob *job )
 	if (!rc) {
 		dprintf( D_ALWAYS,
 				 "(%d.%d) Unable to log ULOG_GLOBUS_SUBMIT_FAILED event\n",
-				 job->procID.cluster, job->procID.proc);
+				 cluster, proc);
 		return false;
 	}
 
@@ -1285,21 +1315,29 @@ WriteGlobusSubmitFailedEventToUserLog( GlobusJob *job )
 }
 
 bool
-WriteGlobusResourceUpEventToUserLog( GlobusJob *job )
+WriteGlobusResourceUpEventToUserLog( ClassAd *job_ad )
 {
-	UserLog *ulog = InitializeUserLog( job );
+	int cluster, proc;
+	char contact[256];
+	UserLog *ulog = InitializeUserLog( job_ad );
 	if ( ulog == NULL ) {
 		// User doesn't want a log
 		return true;
 	}
 
+	job_ad->LookupInteger( ATTR_CLUSTER_ID, cluster );
+	job_ad->LookupInteger( ATTR_PROC_ID, proc );
+
 	dprintf( D_FULLDEBUG, 
-			 "(%d.%d) Writing globus up record to user logfile=%s\n",
-			 job->procID.cluster, job->procID.proc, job->userLogFile );
+			 "(%d.%d) Writing globus up record to user logfile\n",
+			 cluster, proc );
 
 	GlobusResourceUpEvent event;
 
-	event.rmContact =  strnewp(job->myResource->ResourceName());
+	contact[0] = '\0';
+	job_ad->LookupString( ATTR_GLOBUS_RESOURCE, contact,
+						   sizeof(contact) - 1 );
+	event.rmContact =  strnewp(contact);
 
 	int rc = ulog->writeEvent(&event);
 	delete ulog;
@@ -1307,7 +1345,7 @@ WriteGlobusResourceUpEventToUserLog( GlobusJob *job )
 	if (!rc) {
 		dprintf( D_ALWAYS,
 				 "(%d.%d) Unable to log ULOG_GLOBUS_RESOURCE_UP event\n",
-				 job->procID.cluster, job->procID.proc );
+				 cluster, proc );
 		return false;
 	}
 
@@ -1315,21 +1353,29 @@ WriteGlobusResourceUpEventToUserLog( GlobusJob *job )
 }
 
 bool
-WriteGlobusResourceDownEventToUserLog( GlobusJob *job )
+WriteGlobusResourceDownEventToUserLog( ClassAd *job_ad )
 {
-	UserLog *ulog = InitializeUserLog( job );
+	int cluster, proc;
+	char contact[256];
+	UserLog *ulog = InitializeUserLog( job_ad );
 	if ( ulog == NULL ) {
 		// User doesn't want a log
 		return true;
 	}
 
+	job_ad->LookupInteger( ATTR_CLUSTER_ID, cluster );
+	job_ad->LookupInteger( ATTR_PROC_ID, proc );
+
 	dprintf( D_FULLDEBUG, 
-			 "(%d.%d) Writing globus down record to user logfile=%s\n",
-			 job->procID.cluster, job->procID.proc, job->userLogFile );
+			 "(%d.%d) Writing globus down record to user logfile\n",
+			 cluster, proc );
 
 	GlobusResourceDownEvent event;
 
-	event.rmContact =  strnewp(job->myResource->ResourceName());
+	contact[0] = '\0';
+	job_ad->LookupString( ATTR_GLOBUS_RESOURCE, contact,
+						   sizeof(contact) - 1 );
+	event.rmContact =  strnewp(contact);
 
 	int rc = ulog->writeEvent(&event);
 	delete ulog;
@@ -1337,7 +1383,7 @@ WriteGlobusResourceDownEventToUserLog( GlobusJob *job )
 	if (!rc) {
 		dprintf( D_ALWAYS,
 				 "(%d.%d) Unable to log ULOG_GLOBUS_RESOURCE_DOWN event\n",
-				 job->procID.cluster, job->procID.proc );
+				 cluster, proc );
 		return false;
 	}
 

@@ -13,20 +13,16 @@
 #include "globusjob.h"
 
 
-#define UA_UPDATE_CONDOR_STATE		0x0001
-#define UA_UPDATE_GLOBUS_STATE		0x0002
-#define UA_UPDATE_CONTACT_STRING	0x0004
-#define UA_DELETE_FROM_SCHEDD		0x0008
-#define UA_LOG_SUBMIT_EVENT			0x0010
-#define UA_LOG_EXECUTE_EVENT		0x0020
-#define UA_LOG_SUBMIT_FAILED_EVENT	0x0040
-#define UA_LOG_TERMINATE_EVENT		0x0080
-#define UA_LOG_ABORT_EVENT			0x0100
-#define UA_LOG_EVICT_EVENT			0x0200
-#define UA_UPDATE_STDOUT_SIZE		0x0400
-#define UA_UPDATE_STDERR_SIZE		0x0800
-#define UA_HOLD_JOB					0x1000
-#define UA_FORGET_JOB				0x2000
+#define UA_UPDATE_JOB_AD			0x0001
+#define UA_DELETE_FROM_SCHEDD		0x0002
+#define UA_LOG_SUBMIT_EVENT			0x0004
+#define UA_LOG_EXECUTE_EVENT		0x0008
+#define UA_LOG_SUBMIT_FAILED_EVENT	0x0010
+#define UA_LOG_TERMINATE_EVENT		0x0020
+#define UA_LOG_ABORT_EVENT			0x0040
+#define UA_LOG_EVICT_EVENT			0x0080
+#define UA_HOLD_JOB					0x0100
+#define UA_FORGET_JOB				0x0200
 
 extern char *gramCallbackContact;
 extern char *ScheddAddr;
@@ -54,16 +50,17 @@ void rehashJobContact( GlobusJob *job, const char *old_contact,
 void gramCallbackHandler( void *user_arg, char *job_contact, int state,
 						  int errorcode );
 
-UserLog *InitializeUserLog( GlobusJob * );
-bool WriteExecuteEventToUserLog( GlobusJob * );
-bool WriteAbortEventToUserLog( GlobusJob * );
-bool WriteTerminateEventToUserLog( GlobusJob * );
-bool WriteEvictEventToUserLog( GlobusJob * );
-bool WriteHoldEventToUserLog( GlobusJob * );
-bool WriteGlobusSubmitEventToUserLog( GlobusJob * );
-bool WriteGlobusSubmitFailedEventToUserLog( GlobusJob * );
-bool WriteGlobusResourceUpEventToUserLog( GlobusJob * );
-bool WriteGlobusResourceDownEventToUserLog( GlobusJob * );
+UserLog *InitializeUserLog( ClassAd *job_ad );
+bool WriteExecuteEventToUserLog( ClassAd *job_ad );
+bool WriteAbortEventToUserLog( ClassAd *job_ad );
+bool WriteTerminateEventToUserLog( ClassAd *job_ad );
+bool WriteEvictEventToUserLog( ClassAd *job_ad );
+bool WriteHoldEventToUserLog( ClassAd *job_ad );
+bool WriteGlobusSubmitEventToUserLog( ClassAd *job_ad );
+bool WriteGlobusSubmitFailedEventToUserLog( ClassAd *job_ad,
+											int failure_code );
+bool WriteGlobusResourceUpEventToUserLog( ClassAd *job_ad );
+bool WriteGlobusResourceDownEventToUserLog( ClassAd *job_ad );
 
 
 #endif
