@@ -40,8 +40,5 @@
 
 #define IS_CLIPPED	YES
 
-#define UnixName /unix		/* pathname of the system executable */
-
-
 #define VendorCTestFlags 
 #define VendorCPPTestFlags 

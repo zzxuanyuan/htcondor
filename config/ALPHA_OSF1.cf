@@ -64,7 +64,6 @@
 
 
 #define StaticFlag -static
-#define UnixName /vmunix		/* pathname of the system executable */
 
 #ifndef Ctags
 #define Ctags ctags -t

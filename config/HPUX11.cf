@@ -37,8 +37,6 @@
 
 #define WANT_PVM			NO
 
-#define UnixName /stand/vmunix		/* pathname of the system executable */
-
 #define TypicalMemory 64
 
 #define IS_CLIPPED YES

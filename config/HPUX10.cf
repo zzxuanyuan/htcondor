@@ -26,8 +26,6 @@
 #define WANT_PVM			YES
 #define PVM_ARCH			HPPA
 
-#define UnixName /stand/vmunix		/* pathname of the system executable */
-
 #define TypicalMemory 64
 
 #define VendorCTestFlags -Aa -Ae

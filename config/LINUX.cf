@@ -105,7 +105,6 @@ statically linked to avoid problems */
 #define HAS_DLOPEN			YES
 
 #define StaticFlag	-static
-#define UnixName /vmlinuz		/* pathname of the system executable */
 
 #ifndef Ctags
 #define Ctags ctags -t

@@ -65,7 +65,6 @@
 #define HAS_UTMPX			YES
 
 #define StaticFlag /**/
-#define UnixName /unix			/* pathname of the system executable */
 
 #ifndef Ctags
 #define Ctags ctags -t
