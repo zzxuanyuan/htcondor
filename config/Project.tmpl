@@ -189,6 +189,10 @@ DEBUG_FLAG = DebugFlag
 #define VendorFTestFlags
 #endif
 
+#ifndef WANT_SOAP
+    #define WANT_SOAP NO
+#endif
+
 #if WANT_SOAP
     SOAP_FLAGS = -DWANT_SOAP
 #endif

@@ -18,3 +18,4 @@
 
 #define HAS_GSI		YES
 #define HAS_OPENSSL	YES
+#define WANT_SOAP	YES
