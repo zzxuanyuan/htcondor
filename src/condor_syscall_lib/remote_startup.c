@@ -206,7 +206,6 @@ MAIN( int argc, char *argv[], char **envp )
 	int		scm;
 	char	*argv0;
 	char 	*argv1;
-	int		do_wait = 1;
 	
 		/* 
 		   Since we're the user job, we want to just disable any
@@ -219,11 +218,6 @@ MAIN( int argc, char *argv[], char **envp )
 		   -Derek Wright 7/21/98
 		*/
 	_condor_disable_uid_switching();
-
-	#undef WAIT_FOR_DEBUGGER
-	#if defined(WAIT_FOR_DEBUGGER)
-	while( do_wait ) {}
-	#endif
 
 	/* Some platforms have very picky strcmp()'s which like
 	 * to coredump (IRIX) so make certain argv[1] points to something 
@@ -338,19 +332,19 @@ MAIN( int argc, char *argv[], char **envp )
 	argv += 2;
 	argc -= 2;
 
-   /*
-   The flag '-_condor_debug_wait' can be set to setup an infinite loop so
-   that we can attach to the user job.  This argument can be specified in
-   the submit file, but must be the first argument to the job.  The argv
-   is compensated so that the job gets the vector it expected.  --RR
-   */
-   if ( (argc > 1) && (strcmp(argv[1], "-_condor_debug_wait") == MATCH) )
-   {
-       int i = 1;
-       argv ++;
-       argc --;
-       while (i);
-   }
+	/*
+	The flag '-_condor_debug_wait' can be set to setup an infinite loop so
+	that we can attach to the user job.  This argument can be specified in
+	the submit file, but must be the first argument to the job.  The argv
+	is compensated so that the job gets the vector it expected.  --RR
+	*/
+	if ( (argc > 1) && (strcmp(argv[1], "-_condor_debug_wait") == MATCH) )
+	{
+		volatile int i = 1;
+		argv ++;
+		argc --;
+		while (i);
+	}
 
 	argv[0] = cmd_name;
 
