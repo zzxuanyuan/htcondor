@@ -603,7 +603,8 @@ dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too long!\n",procID.cluster,procI
 			}
 			} break;
 		case GM_HOLD_REMOTE_JOB: {
-			rc = gahp->condor_job_hold( mirrorScheddName, mirrorJobId );
+			rc = gahp->condor_job_hold( mirrorScheddName, mirrorJobId,
+										"by gridmanager" );
 			if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
 				 rc == GAHPCLIENT_COMMAND_PENDING ) {
 				break;
@@ -621,7 +622,8 @@ dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too long!\n",procID.cluster,procI
 			gmState = GM_DELETE;
 			} break;
 		case GM_RELEASE_REMOTE_JOB: {
-			rc = gahp->condor_job_release( mirrorScheddName, mirrorJobId );
+			rc = gahp->condor_job_release( mirrorScheddName, mirrorJobId,
+										   "by gridmanager" );
 			if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
 				 rc == GAHPCLIENT_COMMAND_PENDING ) {
 				break;
@@ -705,7 +707,8 @@ dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too long!\n",procID.cluster,procI
 			// we may still want to remove it (say if we have trouble
 			// fetching the output files).
 			if ( remoteState != COMPLETED ) {
-				rc = gahp->condor_job_remove( mirrorScheddName, mirrorJobId );
+				rc = gahp->condor_job_remove( mirrorScheddName, mirrorJobId,
+											  "by gridmanager" );
 				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
 					 rc == GAHPCLIENT_COMMAND_PENDING ) {
 					break;

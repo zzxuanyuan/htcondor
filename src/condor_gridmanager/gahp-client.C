@@ -2816,7 +2816,8 @@ GahpClient::condor_job_status_constrained(const char *schedd_name,
 }
 
 int
-GahpClient::condor_job_remove(const char *schedd_name, PROC_ID job_id)
+GahpClient::condor_job_remove(const char *schedd_name, PROC_ID job_id,
+							  const char *reason)
 {
 	static const char* command = "CONDOR_JOB_REMOVE";
 
@@ -2827,9 +2828,14 @@ GahpClient::condor_job_remove(const char *schedd_name, PROC_ID job_id)
 
 		// Generate request line
 	if (!schedd_name) schedd_name=NULLSTRING;
+	if (!reason) reason=NULLSTRING;
 	MyString reqline;
-	bool x = reqline.sprintf("%s %d.%d", escapeGahpString(schedd_name),
-							 job_id.cluster, job_id.proc);
+	char *esc1 = strdup( escapeGahpString(schedd_name) );
+	char *esc2 = strdup( escapeGahpString(reason) );
+	bool x = reqline.sprintf("%s %d.%d %s", esc1, job_id.cluster, job_id.proc,
+							 esc2);
+	free(esc1);
+	free(esc2);
 	ASSERT( x == true );
 	const char *buf = reqline.Value();
 
@@ -2944,7 +2950,8 @@ GahpClient::condor_job_update(const char *schedd_name, PROC_ID job_id,
 }
 
 int
-GahpClient::condor_job_hold(const char *schedd_name, PROC_ID job_id )
+GahpClient::condor_job_hold(const char *schedd_name, PROC_ID job_id,
+							const char *reason)
 {
 	static const char* command = "CONDOR_JOB_HOLD";
 
@@ -2955,9 +2962,14 @@ GahpClient::condor_job_hold(const char *schedd_name, PROC_ID job_id )
 
 		// Generate request line
 	if (!schedd_name) schedd_name=NULLSTRING;
+	if (!reason) reason=NULLSTRING;
 	MyString reqline;
-	bool x = reqline.sprintf("%s %d.%d", escapeGahpString(schedd_name),
-							 job_id.cluster, job_id.proc);
+	char *esc1 = strdup( escapeGahpString(schedd_name) );
+	char *esc2 = strdup( escapeGahpString(reason) );
+	bool x = reqline.sprintf("%s %d.%d %s", esc1, job_id.cluster, job_id.proc,
+							 esc2);
+	free(esc1);
+	free(esc2);
 	ASSERT( x == true );
 	const char *buf = reqline.Value();
 
@@ -3000,7 +3012,8 @@ GahpClient::condor_job_hold(const char *schedd_name, PROC_ID job_id )
 }
 
 int
-GahpClient::condor_job_release(const char *schedd_name, PROC_ID job_id )
+GahpClient::condor_job_release(const char *schedd_name, PROC_ID job_id,
+							   const char *reason)
 {
 	static const char* command = "CONDOR_JOB_RELEASE";
 
@@ -3011,9 +3024,14 @@ GahpClient::condor_job_release(const char *schedd_name, PROC_ID job_id )
 
 		// Generate request line
 	if (!schedd_name) schedd_name=NULLSTRING;
+	if (!reason) reason=NULLSTRING;
 	MyString reqline;
-	bool x = reqline.sprintf("%s %d.%d", escapeGahpString(schedd_name),
-							 job_id.cluster, job_id.proc);
+	char *esc1 = strdup( escapeGahpString(schedd_name) );
+	char *esc2 = strdup( escapeGahpString(reason) );
+	bool x = reqline.sprintf("%s %d.%d %s", esc1, job_id.cluster, job_id.proc,
+							 esc2);
+	free(esc1);
+	free(esc2);
 	ASSERT( x == true );
 	const char *buf = reqline.Value();
 
