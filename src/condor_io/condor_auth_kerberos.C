@@ -163,8 +163,8 @@ int Condor_Auth_Kerberos :: wrap(char*  input,
     krb5_data       in_data, test;
     krb5_enc_data   out_data;
     krb5_pointer    ivec;
-    int             index;
-  
+    int             index, tmp;
+
     // Make the input buffer
     in_data.length = input_len;
     in_data.data = (char *) malloc(input_len);
@@ -182,12 +182,18 @@ int Condor_Auth_Kerberos :: wrap(char*  input,
     
     output = (char *) malloc(output_len);
     index = 0;
-    memcpy(output + index, &(out_data.enctype), sizeof(out_data.enctype));
+    tmp = htonl(out_data.enctype);
+    memcpy(output + index, &tmp, sizeof(out_data.enctype));
     index += sizeof(out_data.enctype);
-    memcpy(output + index, &(out_data.kvno), sizeof(out_data.kvno));
+
+    tmp = htonl(out_data.kvno);
+    memcpy(output + index, &tmp, sizeof(out_data.kvno));
     index += sizeof(out_data.kvno);
-    memcpy(output + index, &(out_data.ciphertext.length), sizeof(out_data.ciphertext.length));
+
+    tmp = htonl(out_data.ciphertext.length);
+    memcpy(output + index, &tmp, sizeof(out_data.ciphertext.length));
     index += sizeof(out_data.ciphertext.length);
+
     memcpy(output + index, out_data.ciphertext.data, out_data.ciphertext.length);
     
     if (in_data.data) {
@@ -209,12 +215,18 @@ int Condor_Auth_Kerberos :: unwrap(char*  input,
     krb5_data     out_data;
     krb5_enc_data enc_data;
     
-    int index = 0;
-    memcpy(&(enc_data.enctype), input, sizeof(enc_data.enctype));
+    int index = 0, tmp;
+
+    memcpy(&tmp, input, sizeof(enc_data.enctype));
+    enc_data.enctype = ntohl(tmp);
     index += sizeof(enc_data.enctype);
-    memcpy(&(enc_data.kvno), input + index, sizeof(enc_data.kvno));
+
+    memcpy(&tmp, input + index, sizeof(enc_data.kvno));
+    enc_data.kvno = ntohl(tmp);
     index += sizeof(enc_data.kvno);
-    memcpy(&(enc_data.ciphertext.length), input + index, sizeof(enc_data.ciphertext.length));
+
+    memcpy(&tmp, input + index, sizeof(enc_data.ciphertext.length));
+    enc_data.ciphertext.length = ntohl(tmp);
     index += sizeof(enc_data.ciphertext.length);
     
     enc_data.ciphertext.data = (char *) malloc(enc_data.ciphertext.length);
@@ -1159,6 +1171,16 @@ void Condor_Auth_Kerberos :: setRemoteAddress()
 
  error:
     dprintf(D_ALWAYS, "Unable to obtain remote address: ", error_message(code));
+}
+
+int Condor_Auth_Kerberos :: endTime() const
+{
+    if (creds_) {
+        return creds_->times.endtime;
+    }
+    else {
+        return -1;
+    }
 }
 
 int Condor_Auth_Kerberos :: isValid() const
