@@ -118,13 +118,9 @@ public:
 	Reqexp*			r_reqexp;   // Object for the requirements expression
 	CpuAttributes*	r_attr;		// Attributes of this resource
 	char*			r_name;		// Name of this resource
-	int				r_id;		// CPU id number of this resource
+	char*			r_id;		// CPU id of this resource
 
 private:
-		// Make public and private ads out of our classad
-	void make_public_ad( ClassAd* );
-	void make_private_ad( ClassAd* );
-
 	int		kill_tid;	// DaemonCore timer id for kiling timer.
 
 	int		did_update;		// Flag set when we do an update.

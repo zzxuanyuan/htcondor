@@ -25,17 +25,18 @@ static char *_FileName_ = __FILE__;
 
 Resource::Resource( CpuAttributes* cap, int rid )
 {
+	char tmp[256];
 	r_classad = NULL;
 	r_state = new ResState( this );
 	r_starter = new Starter( this );
 	r_cur = new Match( this );
 	r_pre = NULL;
 	r_reqexp = new Reqexp( this );
-	r_id = rid;
+	sprintf( tmp, "cpu%d", rid );
+	r_id = strdup( tmp );
 	
 	if( resmgr->is_smp() ) {
-		char tmp[256];
-		sprintf( tmp, "cpu%d@%s", rid, my_full_hostname() );
+		sprintf( tmp, "%s@%s", r_id, my_full_hostname() );
 		r_name = strdup( tmp );
 	} else {
 		r_name = strdup( my_full_hostname() );
@@ -60,6 +61,7 @@ Resource::~Resource()
 	delete r_reqexp;   
 	delete r_attr;		
 	free( r_name );
+	free( r_id );
 }
 
 
@@ -314,46 +316,28 @@ Resource::init_classad()
 	if( r_classad )	delete(r_classad);
 	r_classad 		= new ClassAd();
 
-		// Initialize classad types.
-	r_classad->SetMyTypeName( STARTD_ADTYPE );
-	r_classad->SetTargetTypeName( JOB_ADTYPE );
+		// Publish everything we know about.
+	this->publish( r_classad, A_PUBLIC | A_ALL );
 
-		// Read in config files and fill up local ad with all attributes 
+		// Read in config files and fill up local ad with all
+		// expressions.
 	config( r_classad );
-
-		// Name of this resource
-	sprintf( tmp, "%s = \"%s\"", ATTR_NAME, r_name );
-	r_classad->Insert( tmp );
-
-		// Grab the hostname of this machine
-	sprintf( tmp, "%s = \"%s\"", ATTR_MACHINE, my_full_hostname() );
-	r_classad->Insert( tmp );
-
-		// Insert all machine-wide attributes.
-	resmgr->m_attr->publish( r_classad, A_ALL );
-
-		// Insert all cpu-specific attributes.
-	r_attr->publish( r_classad, A_ALL );
-
-		// Insert state and activity attributes.
-	r_state->publish( r_classad, A_ALL );
-
 
 	return TRUE;
 }
 
 
 void
-Resource::update_classad()
+Resource::timeout_classad()
 {
-	this->publish( r_classad, A_UPDATE );
+	publish( r_classad, A_PUBLIC | A_TIMEOUT );
 }
 
 
 void
-Resource::timeout_classad()
+Resource::update_classad()
 {
-	this->publish( r_classad, A_TIMEOUT );
+	publish( r_classad, A_PUBLIC | A_UPDATE );
 }
 
 
@@ -373,18 +357,15 @@ Resource::update()
 	ClassAd private_ad;
 	ClassAd public_ad;
 
-		// Recompute stats needed for updates and refresh classad. 
-	this->update_classad();
-
-	this->make_public_ad( &public_ad );
-	this->make_private_ad( &private_ad );
+	this->publish( &public_ad, A_PUBLIC | A_ALL );
+	this->publish( &private_ad, A_PRIVATE | A_ALL );
 
 		// Send class ads to collector(s)
 	rval = resmgr->send_update( &public_ad, &private_ad );
 	if( rval ) {
-		dprintf( D_ALWAYS, "Sent update to %d collector(s).\n", rval );
+		dprintf( D_ALWAYS, "Sent update to %d collector(s)\n", rval );
 	} else {
-		dprintf( D_ALWAYS, "Error sending update to collector(s).\n" );
+		dprintf( D_ALWAYS, "Error sending update to collector(s)\n" );
 	}
 
 		// Set a flag to indicate that we've done an update.
@@ -396,10 +377,8 @@ void
 Resource::final_update() 
 {
 	ClassAd public_ad;
-	this->make_public_ad( &public_ad );
 	r_reqexp->unavail();
-	r_state->publish( &public_ad, A_PUBLIC );
-	r_reqexp->publish( &public_ad, A_PUBLIC );
+	this->publish( &public_ad, A_PUBLIC | A_ALL ); 
 	resmgr->send_update( &public_ad, NULL );
 }
 
@@ -612,86 +591,58 @@ Resource::eval_continue()
 
 
 void
-Resource::make_public_ad(ClassAd* pubCA)
-{
-	char*	expr;
-	char*	ptr;
-	char	tmp[1024];
-	State	s;
-
-	pubCA->SetMyTypeName( STARTD_ADTYPE );
-	pubCA->SetTargetTypeName( JOB_ADTYPE );
-
-	caInsert( pubCA, r_classad, ATTR_NAME );
-	caInsert( pubCA, r_classad, ATTR_MACHINE );
-
-		// Insert all state info.
-	r_state->publish( pubCA, A_PUBLIC );
-
-		// Insert all info from the machine and CPU we care about. 
-	resmgr->m_attr->publish( pubCA, A_PUBLIC );
-	r_attr->publish( pubCA, A_PUBLIC );
-
-		// Put everything in the public classad from STARTD_EXPRS. 
-	config_fill_ad( pubCA );
-
-		// Insert the currently active requirements expression, and
-		// any other expressions it depends on (like START).
-	r_reqexp->publish( pubCA, A_PUBLIC );
-
-	caInsert( pubCA, r_classad, ATTR_RANK );
-	caInsert( pubCA, r_classad, ATTR_CURRENT_RANK );
-
-	s = this->state();
-	if( s == claimed_state || s == preempting_state ) {
-		caInsert( pubCA, r_classad, ATTR_CLIENT_MACHINE );
-		caInsert( pubCA, r_classad, ATTR_REMOTE_USER );
-		caInsert( pubCA, r_classad, ATTR_JOB_ID );
-		caInsert( pubCA, r_classad, ATTR_JOB_START );
-		caInsert( pubCA, r_classad, ATTR_LAST_PERIODIC_CHECKPOINT );
-		if( startd_job_exprs ) {
-			startd_job_exprs->rewind();
-			while( (ptr = startd_job_exprs->next()) ) {
-				caInsert( pubCA, r_cur->ad(), ptr );
-			}
-		}
-	}		
-}
-
-
-void
-Resource::make_private_ad(ClassAd* privCA)
-{
-	privCA->SetMyTypeName( STARTD_ADTYPE );
-	privCA->SetTargetTypeName( JOB_ADTYPE );
-
-	caInsert( privCA, r_classad, ATTR_NAME );
-	caInsert( privCA, r_classad, ATTR_STARTD_IP_ADDR );
-	caInsert( privCA, r_classad, ATTR_CAPABILITY );
-}
-
-
-void
 Resource::publish( ClassAd* cap, amask_t mask ) 
 {
-	char line[128];
+	char line[256];
+	State s;
+	char* ptr;
 
-		// Put in cpu-specific attributes
-	r_attr->publish( cap, mask );
-	
-		// Put in machine-wide attributes 
-	resmgr->m_attr->publish( r_classad, A_UPDATE );
+		// Set the correct types on the ClassAd
+	cap->SetMyTypeName( STARTD_ADTYPE );
+	cap->SetTargetTypeName( JOB_ADTYPE );
 
-		// Put in state info
-	r_state->publish( r_classad, mask );
+		// Insert attributes directly in the Resource object, or not
+		// handled by other objects.
 
-		// Put in requirement expression info
-	r_reqexp->publish( r_classad, mask );
+	if( IS_STATIC(mask) ) {
+			// We need these for both public and private ads
+		sprintf( line, "%s = \"%s\"", ATTR_STARTD_IP_ADDR, 
+				 daemonCore->InfoCommandSinfulString() );
+		cap->Insert( line );
 
-		// Update info from the current Match object 
-	r_cur->publish( r_classad, mask );
+		sprintf( line, "%s = \"%s\"", ATTR_NAME, r_name );
+		cap->Insert( line );
+	}
 
-	if( IS_PUBLIC(mask) ) {
+	if( IS_PUBLIC(mask) && IS_STATIC(mask) ) {
+		sprintf( line, "%s = \"%s\"", ATTR_MACHINE, my_full_hostname() );
+		cap->Insert( line );
+
+			// Since the Rank expression itself only lives in the
+			// config file and the r_classad (not any obejects), we
+			// have to insert it here from r_classad.
+		caInsert( cap, r_classad, ATTR_RANK );
+
+			// Include everything from STARTD_EXPRS.
+		config_fill_ad( cap );
+	}		
+
+	if( IS_PUBLIC(mask) && IS_UPDATE(mask) ) {
+			// If we're claimed or preempting, handle anything listed 
+			// in STARTD_JOB_EXPRS.
+		s = this->state();
+		if( s == claimed_state || s == preempting_state ) {
+			if( startd_job_exprs ) {
+				startd_job_exprs->rewind();
+				while( (ptr = startd_job_exprs->next()) ) {
+					caInsert( cap, r_cur->ad(), ptr );
+				}
+			}
+		}
+	}
+
+		// Things you only need in private ads
+	if( IS_PRIVATE(mask) && IS_UPDATE(mask) ) {
 			// Add currently useful capability.  If r_pre exists, we  
 			// need to advertise it's capability.  Otherwise, we
 			// should  get the capability from r_cur.
@@ -700,14 +651,31 @@ Resource::publish( ClassAd* cap, amask_t mask )
 		} else {
 			sprintf( line, "%s = \"%s\"", ATTR_CAPABILITY, r_cur->capab() );
 		}		
-		r_classad->Insert( line );
+		cap->Insert( line );
 	}
+
+		// Put in cpu-specific attributes
+	r_attr->publish( cap, mask );
+	
+		// Put in machine-wide attributes 
+	resmgr->m_attr->publish( cap, mask );
+
+		// Put in state info
+	r_state->publish( cap, mask );
+
+		// Put in requirement expression info
+	r_reqexp->publish( cap, mask );
+
+		// Update info from the current Match object 
+	r_cur->publish( cap, mask );
 }
 
 
 void
 Resource::compute( amask_t mask ) 
 {
+		// Only resource-specific things that need to be computed are
+		// in the CpuAttributes object.
 	r_attr->compute( mask );
 }
 
@@ -716,7 +684,7 @@ void
 Resource::dprintf( int flags, char* fmt, va_list args )
 {
 	if( resmgr->is_smp() ) {
-		::dprintf( flags, "cpu%d: ", r_id );
+		::dprintf( flags, "%s: ", r_id );
 		::_condor_dprintf_va( flags | D_NOHEADER, fmt, args );
 	} else {
 		::_condor_dprintf_va( flags, fmt, args );
