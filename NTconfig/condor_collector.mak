@@ -85,11 +85,11 @@ LINK32_OBJS= \
 	"$(INTDIR)\collector_stats.obj" \
 	"$(INTDIR)\forkwork.obj" \
 	"$(INTDIR)\hashkey.obj" \
-	"$(INTDIR)\soap_collectorC.obj" \
-	"$(INTDIR)\soap_collectorServer.obj" \
 	"$(INTDIR)\soap_collectorStub.obj" \
 	"$(INTDIR)\totals.obj" \
 	"$(INTDIR)\view_server.obj" \
+	"$(INTDIR)\soap_collectorServer.obj" \
+	"$(INTDIR)\soap_collectorC.obj" \
 	"..\src\condor_util_lib\condor_util.lib" \
 	"$(OUTDIR)\condor_cpp_util.lib" \
 	"$(OUTDIR)\condor_classad.lib" \
@@ -157,11 +157,11 @@ LINK32_OBJS= \
 	"$(INTDIR)\collector_stats.obj" \
 	"$(INTDIR)\forkwork.obj" \
 	"$(INTDIR)\hashkey.obj" \
-	"$(INTDIR)\soap_collectorC.obj" \
-	"$(INTDIR)\soap_collectorServer.obj" \
 	"$(INTDIR)\soap_collectorStub.obj" \
 	"$(INTDIR)\totals.obj" \
 	"$(INTDIR)\view_server.obj" \
+	"$(INTDIR)\soap_collectorServer.obj" \
+	"$(INTDIR)\soap_collectorC.obj" \
 	"..\src\condor_util_lib\condor_util.lib" \
 	"$(OUTDIR)\condor_cpp_util.lib" \
 	"$(OUTDIR)\condor_classad.lib" \
@@ -380,36 +380,6 @@ SOURCE=..\src\condor_collector.V6\collector.C
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
-SOURCE=..\src\condor_collector.V6\collector.h
-
-!IF  "$(CFG)" == "condor_collector - Win32 Debug"
-
-InputDir=..\src\condor_collector.V6
-InputPath=..\src\condor_collector.V6\collector.h
-
-"..\src\condor_collector.V6\soap_collectorC.C" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	<<tempfile.bat 
-	@echo off 
-	cd $(InputDir) 
-	soap_gen collector 
-<< 
-	
-
-!ELSEIF  "$(CFG)" == "condor_collector - Win32 Release"
-
-InputDir=..\src\condor_collector.V6
-InputPath=..\src\condor_collector.V6\collector.h
-
-"..\src\condor_collector.V6\soap_collectorC.C" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	<<tempfile.bat 
-	@echo off 
-	cd $(InputDir) 
-	soap_gen collector 
-<< 
-	
-
-!ENDIF 
-
 SOURCE=..\src\condor_collector.V6\collector_engine.C
 
 "$(INTDIR)\collector_engine.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
@@ -504,7 +474,7 @@ CPP_SWITCHES=/nologo /MTd /W3 /Gm /Gi /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_CO
 
 CPP_SWITCHES=/nologo /MT /W3 /GX /Z7 /O1 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /Fp"$(INTDIR)\condor_common.pch" /Yu"condor_common.h" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) /c 
 
-"$(INTDIR)\soap_collectorStub.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch" "..\src\condor_collector.V6\collector.h"
+"$(INTDIR)\soap_collectorStub.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
 	$(CPP) @<<
   $(CPP_SWITCHES) $(SOURCE)
 <<

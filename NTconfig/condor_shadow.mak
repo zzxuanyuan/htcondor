@@ -432,7 +432,7 @@ SOURCE=..\src\condor_shadow.V6.1\NTreceivers.C
 
 SOURCE=..\src\condor_shadow.V6.1\pseudo_ops.C
 
-"$(INTDIR)\pseudo_ops.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch" "..\src\condor_shadow.V6.1\shadow.h"
+"$(INTDIR)\pseudo_ops.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
@@ -444,39 +444,9 @@ SOURCE=..\src\condor_shadow.V6.1\remoteresource.C
 
 SOURCE=..\src\condor_shadow.V6.1\shadow.C
 
-"$(INTDIR)\shadow.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch" "..\src\condor_shadow.V6.1\shadow.h"
+"$(INTDIR)\shadow.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
-
-SOURCE=..\src\condor_shadow.V6.1\shadow.h
-
-!IF  "$(CFG)" == "condor_shadow - Win32 Debug"
-
-InputDir=..\src\condor_shadow.V6.1
-InputPath=..\src\condor_shadow.V6.1\shadow.h
-
-"..\src\condor_shadow.V6.1\soap_shadowC.C" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	<<tempfile.bat 
-	@echo off 
-	cd $(InputDir) 
-	soap_gen shadow 
-<< 
-	
-
-!ELSEIF  "$(CFG)" == "condor_shadow - Win32 Release"
-
-InputDir=..\src\condor_shadow.V6.1
-InputPath=..\src\condor_shadow.V6.1\shadow.h
-
-"..\src\condor_shadow.V6.1\soap_shadowC.C" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	<<tempfile.bat 
-	@echo off 
-	cd $(InputDir) 
-	soap_gen shadow 
-<< 
-	
-
-!ENDIF 
 
 SOURCE=..\src\condor_shadow.V6.1\shadow_user_policy.C
 
@@ -486,7 +456,7 @@ SOURCE=..\src\condor_shadow.V6.1\shadow_user_policy.C
 
 SOURCE=..\src\condor_shadow.V6.1\shadow_v61_main.C
 
-"$(INTDIR)\shadow_v61_main.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch" "..\src\condor_shadow.V6.1\shadow.h"
+"$(INTDIR)\shadow_v61_main.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
@@ -494,9 +464,9 @@ SOURCE=..\src\condor_shadow.V6.1\soap_shadowC.C
 
 !IF  "$(CFG)" == "condor_shadow - Win32 Debug"
 
-CPP_SWITCHES=/nologo /MTd /W3 /Gm /Gi /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /Fp"$(INTDIR)\condor_common.pch" /Yu"condor_common.h" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) /c 
+CPP_SWITCHES=/nologo /MTd /W3 /Gm /Gi /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) /c 
 
-"$(INTDIR)\soap_shadowC.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+"$(INTDIR)\soap_shadowC.obj" : $(SOURCE) "$(INTDIR)"
 	$(CPP) @<<
   $(CPP_SWITCHES) $(SOURCE)
 <<
@@ -518,9 +488,9 @@ SOURCE=..\src\condor_shadow.V6.1\soap_shadowServer.C
 
 !IF  "$(CFG)" == "condor_shadow - Win32 Debug"
 
-CPP_SWITCHES=/nologo /MTd /W3 /Gm /Gi /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /Fp"$(INTDIR)\condor_common.pch" /Yu"condor_common.h" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) /c 
+CPP_SWITCHES=/nologo /MTd /W3 /Gm /Gi /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) /c 
 
-"$(INTDIR)\soap_shadowServer.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+"$(INTDIR)\soap_shadowServer.obj" : $(SOURCE) "$(INTDIR)"
 	$(CPP) @<<
   $(CPP_SWITCHES) $(SOURCE)
 <<
@@ -542,9 +512,9 @@ SOURCE=..\src\condor_shadow.V6.1\soap_shadowStub.C
 
 !IF  "$(CFG)" == "condor_shadow - Win32 Debug"
 
-CPP_SWITCHES=/nologo /MTd /W3 /Gm /Gi /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /Fp"$(INTDIR)\condor_common.pch" /Yu"condor_common.h" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) /c 
+CPP_SWITCHES=/nologo /MTd /W3 /Gm /Gi /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) /c 
 
-"$(INTDIR)\soap_shadowStub.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+"$(INTDIR)\soap_shadowStub.obj" : $(SOURCE) "$(INTDIR)"
 	$(CPP) @<<
   $(CPP_SWITCHES) $(SOURCE)
 <<

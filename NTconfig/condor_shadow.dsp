@@ -137,33 +137,6 @@ SOURCE=..\src\condor_shadow.V6.1\shadow.C
 # Begin Source File
 
 SOURCE=..\src\condor_shadow.V6.1\shadow.h
-
-!IF  "$(CFG)" == "condor_shadow - Win32 Debug"
-
-# Begin Custom Build
-InputDir=\condor\workspaces\v67-ext\src\condor_shadow.V6.1
-InputPath=..\src\condor_shadow.V6.1\shadow.h
-
-"$(InputDir)\soap_shadowC.C" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	cd $(InputDir) 
-	soap_gen shadow 
-	
-# End Custom Build
-
-!ELSEIF  "$(CFG)" == "condor_shadow - Win32 Release"
-
-# Begin Custom Build
-InputDir=\condor\workspaces\v67-ext\src\condor_shadow.V6.1
-InputPath=..\src\condor_shadow.V6.1\shadow.h
-
-"$(InputDir)\soap_shadowC.C" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	cd $(InputDir) 
-	soap_gen shadow 
-	
-# End Custom Build
-
-!ENDIF 
-
 # End Source File
 # Begin Source File
 

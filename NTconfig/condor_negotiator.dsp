@@ -97,33 +97,6 @@ SOURCE=..\src\condor_negotiator.V6\matchmaker.C
 # Begin Source File
 
 SOURCE=..\src\condor_negotiator.V6\matchmaker.h
-
-!IF  "$(CFG)" == "condor_negotiator - Win32 Debug"
-
-# Begin Custom Build
-InputDir=\condor\workspaces\v67-ext\src\condor_negotiator.V6
-InputPath=..\src\condor_negotiator.V6\matchmaker.h
-
-"$(InputDir)\soap_negotiatorC.C" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	cd $(InputDir) 
-	soap_gen negotiator 
-	
-# End Custom Build
-
-!ELSEIF  "$(CFG)" == "condor_negotiator - Win32 Release"
-
-# Begin Custom Build
-InputDir=\condor\workspaces\v67-ext\src\condor_negotiator.V6
-InputPath=..\src\condor_negotiator.V6\matchmaker.h
-
-"$(InputDir)\soap_negotiatorC.C" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	cd $(InputDir) 
-	soap_gen negotiator 
-	
-# End Custom Build
-
-!ENDIF 
-
 # End Source File
 # Begin Source File
 

@@ -94,6 +94,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\claim.obj" \
 	"$(INTDIR)\cod_mgr.obj" \
 	"$(INTDIR)\command.obj" \
+	"$(INTDIR)\CondorSystrayNotifier.obj" \
 	"$(INTDIR)\LoadQueue.obj" \
 	"$(INTDIR)\mds.obj" \
 	"$(INTDIR)\Reqexp.obj" \
@@ -110,7 +111,6 @@ LINK32_OBJS= \
 	"$(INTDIR)\Starter.obj" \
 	"$(INTDIR)\starter_mgr.obj" \
 	"$(INTDIR)\util.obj" \
-	"$(INTDIR)\CondorSystrayNotifier.obj" \
 	"..\src\condor_util_lib\condor_util.lib" \
 	"$(OUTDIR)\condor_cpp_util.lib" \
 	"$(OUTDIR)\condor_classad.lib" \
@@ -187,6 +187,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\claim.obj" \
 	"$(INTDIR)\cod_mgr.obj" \
 	"$(INTDIR)\command.obj" \
+	"$(INTDIR)\CondorSystrayNotifier.obj" \
 	"$(INTDIR)\LoadQueue.obj" \
 	"$(INTDIR)\mds.obj" \
 	"$(INTDIR)\Reqexp.obj" \
@@ -203,7 +204,6 @@ LINK32_OBJS= \
 	"$(INTDIR)\Starter.obj" \
 	"$(INTDIR)\starter_mgr.obj" \
 	"$(INTDIR)\util.obj" \
-	"$(INTDIR)\CondorSystrayNotifier.obj" \
 	"..\src\condor_util_lib\condor_util.lib" \
 	"$(OUTDIR)\condor_cpp_util.lib" \
 	"$(OUTDIR)\condor_classad.lib" \
@@ -584,36 +584,6 @@ CPP_SWITCHES=/nologo /MT /W3 /GX /Z7 /O1 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D
   $(CPP_SWITCHES) $(SOURCE)
 <<
 
-
-!ENDIF 
-
-SOURCE=..\src\condor_startd.V6\startd.h
-
-!IF  "$(CFG)" == "condor_startd - Win32 Debug"
-
-InputDir=..\src\condor_startd.V6
-InputPath=..\src\condor_startd.V6\startd.h
-
-"..\src\condor_startd.V6\soap_startdC.C" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	<<tempfile.bat 
-	@echo off 
-	cd $(InputDir) 
-	soap_gen startd 
-<< 
-	
-
-!ELSEIF  "$(CFG)" == "condor_startd - Win32 Release"
-
-InputDir=..\src\condor_startd.V6
-InputPath=..\src\condor_startd.V6\startd.h
-
-"..\src\condor_startd.V6\soap_startdC.C" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	<<tempfile.bat 
-	@echo off 
-	cd $(InputDir) 
-	soap_gen startd 
-<< 
-	
 
 !ENDIF 
 

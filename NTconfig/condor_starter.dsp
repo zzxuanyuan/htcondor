@@ -228,33 +228,6 @@ SOURCE=..\src\condor_starter.V6.1\soap_starterStub.h
 # Begin Source File
 
 SOURCE=..\src\condor_starter.V6.1\starter.h
-
-!IF  "$(CFG)" == "condor_starter - Win32 Debug"
-
-# Begin Custom Build
-InputDir=\condor\workspaces\v67-soap\src\condor_starter.V6.1
-InputPath=..\src\condor_starter.V6.1\starter.h
-
-"$(InputDir)\soap_starterC.C" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	cd $(InputDir) 
-	soap_gen starter 
-	
-# End Custom Build
-
-!ELSEIF  "$(CFG)" == "condor_starter - Win32 Release"
-
-# Begin Custom Build
-InputDir=\condor\workspaces\v67-soap\src\condor_starter.V6.1
-InputPath=..\src\condor_starter.V6.1\starter.h
-
-"$(InputDir)\soap_starterC.C" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	cd $(InputDir) 
-	soap_gen starter 
-	
-# End Custom Build
-
-!ENDIF 
-
 # End Source File
 # Begin Source File
 

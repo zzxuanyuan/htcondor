@@ -93,33 +93,6 @@ SOURCE=..\src\condor_collector.V6\collector.C
 # Begin Source File
 
 SOURCE=..\src\condor_collector.V6\collector.h
-
-!IF  "$(CFG)" == "condor_collector - Win32 Debug"
-
-# Begin Custom Build
-InputDir=\condor\workspaces\v67-ext\src\condor_collector.V6
-InputPath=..\src\condor_collector.V6\collector.h
-
-"$(InputDir)\soap_collectorC.C" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	cd $(InputDir) 
-	soap_gen collector 
-	
-# End Custom Build
-
-!ELSEIF  "$(CFG)" == "condor_collector - Win32 Release"
-
-# Begin Custom Build
-InputDir=\condor\workspaces\v67-ext\src\condor_collector.V6
-InputPath=..\src\condor_collector.V6\collector.h
-
-"$(InputDir)\soap_collectorC.C" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	cd $(InputDir) 
-	soap_gen collector 
-	
-# End Custom Build
-
-!ENDIF 
-
 # End Source File
 # Begin Source File
 
@@ -168,7 +141,6 @@ SOURCE="..\src\condor_c++_util\HashTable.h"
 # Begin Source File
 
 SOURCE=..\src\condor_collector.V6\soap_collectorC.C
-# SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
 
@@ -177,7 +149,6 @@ SOURCE=..\src\condor_collector.V6\soap_collectorH.h
 # Begin Source File
 
 SOURCE=..\src\condor_collector.V6\soap_collectorServer.C
-# SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
 

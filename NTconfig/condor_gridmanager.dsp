@@ -133,33 +133,6 @@ SOURCE=..\src\condor_gridmanager\gridmanager.C
 # Begin Source File
 
 SOURCE=..\src\condor_gridmanager\gridmanager.h
-
-!IF  "$(CFG)" == "condor_gridmanager - Win32 Debug"
-
-# Begin Custom Build
-InputDir=\condor\workspaces\v67-soap\src\condor_gridmanager
-InputPath=..\src\condor_gridmanager\gridmanager.h
-
-"$(InputDir)\soap_gridmanagerC.C" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	cd $(InputDir) 
-	soap_gen gridmanager 
-	
-# End Custom Build
-
-!ELSEIF  "$(CFG)" == "condor_gridmanager - Win32 Release"
-
-# Begin Custom Build
-InputDir=\condor\workspaces\v67-soap\src\condor_gridmanager
-InputPath=..\src\condor_gridmanager\gridmanager.h
-
-"$(InputDir)\soap_gridmanagerC.C" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	cd $(InputDir) 
-	soap_gen gridmanager 
-	
-# End Custom Build
-
-!ENDIF 
-
 # End Source File
 # Begin Source File
 

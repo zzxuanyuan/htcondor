@@ -93,33 +93,6 @@ SOURCE=..\src\condor_dagman\dag.C
 # Begin Source File
 
 SOURCE=..\src\condor_dagman\dag.h
-
-!IF  "$(CFG)" == "condor_dagman - Win32 Debug"
-
-# Begin Custom Build
-InputDir=\condor\workspaces\v67-ext\src\condor_dagman
-InputPath=..\src\condor_dagman\dag.h
-
-"$(InputDir)\soap_dagmanC.C" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	cd $(InputDir) 
-	soap_gen dagman 
-	
-# End Custom Build
-
-!ELSEIF  "$(CFG)" == "condor_dagman - Win32 Release"
-
-# Begin Custom Build
-InputDir=\condor\workspaces\v67-ext\src\condor_dagman
-InputPath=..\src\condor_dagman\dag.h
-
-"$(InputDir)\soap_dagmanC.C" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	cd $(InputDir) 
-	soap_gen dagman 
-	
-# End Custom Build
-
-!ENDIF 
-
 # End Source File
 # Begin Source File
 

@@ -428,36 +428,6 @@ SOURCE=..\src\condor_dagman\dag.C
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
-SOURCE=..\src\condor_dagman\dag.h
-
-!IF  "$(CFG)" == "condor_dagman - Win32 Debug"
-
-InputDir=..\src\condor_dagman
-InputPath=..\src\condor_dagman\dag.h
-
-"..\src\condor_dagman\soap_dagmanC.C" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	<<tempfile.bat 
-	@echo off 
-	cd $(InputDir) 
-	soap_gen dagman 
-<< 
-	
-
-!ELSEIF  "$(CFG)" == "condor_dagman - Win32 Release"
-
-InputDir=..\src\condor_dagman
-InputPath=..\src\condor_dagman\dag.h
-
-"..\src\condor_dagman\soap_dagmanC.C" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	<<tempfile.bat 
-	@echo off 
-	cd $(InputDir) 
-	soap_gen dagman 
-<< 
-	
-
-!ENDIF 
-
 SOURCE=..\src\condor_dagman\dagman_commands.C
 
 "$(INTDIR)\dagman_commands.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
@@ -540,7 +510,7 @@ CPP_SWITCHES=/nologo /MTd /W3 /Gm /Gi /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_CO
 
 CPP_SWITCHES=/nologo /MT /W3 /GX /Z7 /O1 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) /c 
 
-"$(INTDIR)\soap_dagmanC.obj" : $(SOURCE) "$(INTDIR)" "..\src\condor_dagman\soap_dagmanStub.h"
+"$(INTDIR)\soap_dagmanC.obj" : $(SOURCE) "$(INTDIR)"
 	$(CPP) @<<
   $(CPP_SWITCHES) $(SOURCE)
 <<
@@ -564,7 +534,7 @@ CPP_SWITCHES=/nologo /MTd /W3 /Gm /Gi /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_CO
 
 CPP_SWITCHES=/nologo /MT /W3 /GX /Z7 /O1 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) /c 
 
-"$(INTDIR)\soap_dagmanServer.obj" : $(SOURCE) "$(INTDIR)" "..\src\condor_dagman\soap_dagmanStub.h"
+"$(INTDIR)\soap_dagmanServer.obj" : $(SOURCE) "$(INTDIR)"
 	$(CPP) @<<
   $(CPP_SWITCHES) $(SOURCE)
 <<
@@ -588,7 +558,7 @@ CPP_SWITCHES=/nologo /MTd /W3 /Gm /Gi /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_CO
 
 CPP_SWITCHES=/nologo /MT /W3 /GX /Z7 /O1 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) /c 
 
-"$(INTDIR)\soap_dagmanStub.obj" : $(SOURCE) "$(INTDIR)" "..\src\condor_dagman\soap_dagmanStub.h"
+"$(INTDIR)\soap_dagmanStub.obj" : $(SOURCE) "$(INTDIR)"
 	$(CPP) @<<
   $(CPP_SWITCHES) $(SOURCE)
 <<

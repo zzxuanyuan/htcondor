@@ -71,19 +71,16 @@
 	"..\src\condor_includes\SafeMsg.h"\
 	"..\src\condor_includes\sock.h"\
 	"..\src\condor_includes\sockCache.h"\
-	"..\src\condor_includes\stdsoap2.h"\
 	"..\src\condor_includes\stream.h"\
 	"..\src\condor_netman\netcapacity.h"\
 	"..\src\condor_netman\netres.h"\
 	"..\src\condor_netman\netusage.h"\
 	"..\src\condor_netman\router.h"\
 	"..\src\condor_sysapi\sysapi.h"\
-	"..\src\h\config.h"\
 	"..\src\h\fake_flock.h"\
 	"..\src\h\file_lock.h"\
 	"..\src\h\proc.h"\
 	"..\src\h\startup.h"\
-	{$(INCLUDE)}"wspiapi.h"\
 	
 
 ..\src\condor_eventd\eventd_instantiate.C : \
@@ -155,19 +152,16 @@
 	"..\src\condor_includes\SafeMsg.h"\
 	"..\src\condor_includes\sock.h"\
 	"..\src\condor_includes\sockCache.h"\
-	"..\src\condor_includes\stdsoap2.h"\
 	"..\src\condor_includes\stream.h"\
 	"..\src\condor_netman\netcapacity.h"\
 	"..\src\condor_netman\netres.h"\
 	"..\src\condor_netman\netusage.h"\
 	"..\src\condor_netman\router.h"\
 	"..\src\condor_sysapi\sysapi.h"\
-	"..\src\h\config.h"\
 	"..\src\h\fake_flock.h"\
 	"..\src\h\file_lock.h"\
 	"..\src\h\proc.h"\
 	"..\src\h\startup.h"\
-	{$(INCLUDE)}"wspiapi.h"\
 	
 
 ..\src\condor_eventd\eventd_main.C : \
@@ -240,19 +234,16 @@
 	"..\src\condor_includes\SafeMsg.h"\
 	"..\src\condor_includes\sock.h"\
 	"..\src\condor_includes\sockCache.h"\
-	"..\src\condor_includes\stdsoap2.h"\
 	"..\src\condor_includes\stream.h"\
 	"..\src\condor_netman\netcapacity.h"\
 	"..\src\condor_netman\netres.h"\
 	"..\src\condor_netman\netusage.h"\
 	"..\src\condor_netman\router.h"\
 	"..\src\condor_sysapi\sysapi.h"\
-	"..\src\h\config.h"\
 	"..\src\h\fake_flock.h"\
 	"..\src\h\file_lock.h"\
 	"..\src\h\proc.h"\
 	"..\src\h\startup.h"\
-	{$(INCLUDE)}"wspiapi.h"\
 	
 
 ..\src\condor_netman\instantiate.C : \
@@ -716,7 +707,9 @@
 	"..\src\condor_c++_util\stringSpace.h"\
 	"..\src\condor_c++_util\translation_utils.h"\
 	"..\src\condor_daemon_client\daemon.h"\
+	"..\src\condor_daemon_client\daemon_list.h"\
 	"..\src\condor_daemon_client\daemon_types.h"\
+	"..\src\condor_daemon_client\dc_collector.h"\
 	"..\src\condor_daemon_core.V6\condor_daemon_core.h"\
 	"..\src\condor_daemon_core.V6\condor_ipverify.h"\
 	"..\src\condor_daemon_core.V6\condor_timer_manager.h"\
@@ -776,17 +769,14 @@
 	"..\src\condor_includes\SafeMsg.h"\
 	"..\src\condor_includes\sock.h"\
 	"..\src\condor_includes\sockCache.h"\
-	"..\src\condor_includes\stdsoap2.h"\
 	"..\src\condor_includes\stream.h"\
 	"..\src\condor_netman\netcapacity.h"\
 	"..\src\condor_netman\netres.h"\
 	"..\src\condor_netman\netusage.h"\
 	"..\src\condor_netman\router.h"\
 	"..\src\condor_sysapi\sysapi.h"\
-	"..\src\h\config.h"\
 	"..\src\h\fake_flock.h"\
 	"..\src\h\file_lock.h"\
 	"..\src\h\proc.h"\
 	"..\src\h\startup.h"\
-	{$(INCLUDE)}"wspiapi.h"\
 	

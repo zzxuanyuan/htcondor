@@ -93,33 +93,6 @@ SOURCE=..\src\condor_schedd.V6\autocluster.C
 # Begin Source File
 
 SOURCE=..\src\condor_schedd.V6\autocluster.h
-
-!IF  "$(CFG)" == "condor_schedd - Win32 Debug"
-
-# Begin Custom Build
-InputDir=\condor\workspaces\v67-ext\src\condor_schedd.V6
-InputPath=..\src\condor_schedd.V6\autocluster.h
-
-"$(InputDir)\soap_scheddC.C" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	cd $(InputDir) 
-	soap_gen schedd 
-	
-# End Custom Build
-
-!ELSEIF  "$(CFG)" == "condor_schedd - Win32 Release"
-
-# Begin Custom Build
-InputDir=\condor\workspaces\v67-ext\src\condor_schedd.V6
-InputPath=..\src\condor_schedd.V6\autocluster.h
-
-"$(InputDir)\soap_scheddC.C" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	cd $(InputDir) 
-	soap_gen schedd 
-	
-# End Custom Build
-
-!ENDIF 
-
 # End Source File
 # Begin Source File
 

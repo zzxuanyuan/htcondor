@@ -90,12 +90,12 @@ LINK32_OBJS= \
 	"$(INTDIR)\qmgmt_common.obj" \
 	"$(INTDIR)\qmgmt_receivers.obj" \
 	"$(INTDIR)\schedd.obj" \
+	"$(INTDIR)\schedd_api.obj" \
 	"$(INTDIR)\schedd_main.obj" \
 	"$(INTDIR)\shadow_mgr.obj" \
 	"$(INTDIR)\soap_scheddC.obj" \
 	"$(INTDIR)\soap_scheddServer.obj" \
 	"$(INTDIR)\soap_scheddStub.obj" \
-	"$(INTDIR)\schedd_api.obj" \
 	"..\src\condor_util_lib\condor_util.lib" \
 	"$(OUTDIR)\condor_cpp_util.lib" \
 	"$(OUTDIR)\condor_classad.lib" \
@@ -168,12 +168,12 @@ LINK32_OBJS= \
 	"$(INTDIR)\qmgmt_common.obj" \
 	"$(INTDIR)\qmgmt_receivers.obj" \
 	"$(INTDIR)\schedd.obj" \
+	"$(INTDIR)\schedd_api.obj" \
 	"$(INTDIR)\schedd_main.obj" \
 	"$(INTDIR)\shadow_mgr.obj" \
 	"$(INTDIR)\soap_scheddC.obj" \
 	"$(INTDIR)\soap_scheddServer.obj" \
 	"$(INTDIR)\soap_scheddStub.obj" \
-	"$(INTDIR)\schedd_api.obj" \
 	"..\src\condor_util_lib\condor_util.lib" \
 	"$(OUTDIR)\condor_cpp_util.lib" \
 	"$(OUTDIR)\condor_classad.lib" \
@@ -388,43 +388,13 @@ LINK32_OBJS= \
 
 SOURCE=..\src\condor_schedd.V6\autocluster.C
 
-"$(INTDIR)\autocluster.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch" "..\src\condor_schedd.V6\autocluster.h"
+"$(INTDIR)\autocluster.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
-SOURCE=..\src\condor_schedd.V6\autocluster.h
-
-!IF  "$(CFG)" == "condor_schedd - Win32 Debug"
-
-InputDir=..\src\condor_schedd.V6
-InputPath=..\src\condor_schedd.V6\autocluster.h
-
-"..\src\condor_schedd.V6\soap_scheddC.C" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	<<tempfile.bat 
-	@echo off 
-	cd $(InputDir) 
-	soap_gen schedd 
-<< 
-	
-
-!ELSEIF  "$(CFG)" == "condor_schedd - Win32 Release"
-
-InputDir=..\src\condor_schedd.V6
-InputPath=..\src\condor_schedd.V6\autocluster.h
-
-"..\src\condor_schedd.V6\soap_scheddC.C" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	<<tempfile.bat 
-	@echo off 
-	cd $(InputDir) 
-	soap_gen schedd 
-<< 
-	
-
-!ENDIF 
-
 SOURCE=..\src\condor_schedd.V6\dedicated_scheduler.C
 
-"$(INTDIR)\dedicated_scheduler.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch" "..\src\condor_schedd.V6\autocluster.h"
+"$(INTDIR)\dedicated_scheduler.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
@@ -442,13 +412,13 @@ SOURCE=..\src\condor_schedd.V6\loose_file_transfer.C
 
 SOURCE=..\src\condor_schedd.V6\qmgmt.C
 
-"$(INTDIR)\qmgmt.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch" "..\src\condor_schedd.V6\autocluster.h"
+"$(INTDIR)\qmgmt.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
 SOURCE=..\src\condor_schedd.V6\qmgmt_common.C
 
-"$(INTDIR)\qmgmt_common.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch" "..\src\condor_schedd.V6\autocluster.h"
+"$(INTDIR)\qmgmt_common.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
@@ -460,19 +430,19 @@ SOURCE=..\src\condor_schedd.V6\qmgmt_receivers.C
 
 SOURCE=..\src\condor_schedd.V6\schedd.C
 
-"$(INTDIR)\schedd.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch" "..\src\condor_schedd.V6\autocluster.h"
+"$(INTDIR)\schedd.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
 SOURCE=..\src\condor_schedd.V6\schedd_api.C
 
-"$(INTDIR)\schedd_api.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch" "..\src\condor_schedd.V6\autocluster.h"
+"$(INTDIR)\schedd_api.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
 SOURCE=..\src\condor_schedd.V6\schedd_main.C
 
-"$(INTDIR)\schedd_main.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch" "..\src\condor_schedd.V6\autocluster.h"
+"$(INTDIR)\schedd_main.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
@@ -532,7 +502,7 @@ CPP_SWITCHES=/nologo /MT /W3 /GX /Z7 /O1 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D
 
 SOURCE=..\src\condor_schedd.V6\soap_scheddStub.C
 
-"$(INTDIR)\soap_scheddStub.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch" "..\src\condor_schedd.V6\autocluster.h"
+"$(INTDIR)\soap_scheddStub.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 

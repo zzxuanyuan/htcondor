@@ -113,9 +113,9 @@ LINK32_OBJS= \
 	"$(INTDIR)\starter_class.obj" \
 	"$(INTDIR)\starter_v61_main.obj" \
 	"$(INTDIR)\stream_handler.obj" \
+	"$(INTDIR)\tool_daemon_proc.obj" \
 	"$(INTDIR)\user_proc.obj" \
 	"$(INTDIR)\vanilla_proc.obj" \
-	"$(INTDIR)\tool_daemon_proc.obj" \
 	"$(OUTDIR)\condor_classad.lib" \
 	"$(OUTDIR)\condor_cpp_util.lib" \
 	"$(OUTDIR)\condor_daemon_core.lib" \
@@ -212,9 +212,9 @@ LINK32_OBJS= \
 	"$(INTDIR)\starter_class.obj" \
 	"$(INTDIR)\starter_v61_main.obj" \
 	"$(INTDIR)\stream_handler.obj" \
+	"$(INTDIR)\tool_daemon_proc.obj" \
 	"$(INTDIR)\user_proc.obj" \
 	"$(INTDIR)\vanilla_proc.obj" \
-	"$(INTDIR)\tool_daemon_proc.obj" \
 	"$(OUTDIR)\condor_classad.lib" \
 	"$(OUTDIR)\condor_cpp_util.lib" \
 	"$(OUTDIR)\condor_daemon_core.lib" \
@@ -613,36 +613,6 @@ CPP_SWITCHES=/nologo /MT /W3 /GX /Z7 /O1 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D
   $(CPP_SWITCHES) $(SOURCE)
 <<
 
-
-!ENDIF 
-
-SOURCE=..\src\condor_starter.V6.1\starter.h
-
-!IF  "$(CFG)" == "condor_starter - Win32 Debug"
-
-InputDir=..\src\condor_starter.V6.1
-InputPath=..\src\condor_starter.V6.1\starter.h
-
-"..\src\condor_starter.V6.1\soap_starterC.C" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	<<tempfile.bat 
-	@echo off 
-	cd $(InputDir) 
-	soap_gen starter 
-<< 
-	
-
-!ELSEIF  "$(CFG)" == "condor_starter - Win32 Release"
-
-InputDir=..\src\condor_starter.V6.1
-InputPath=..\src\condor_starter.V6.1\starter.h
-
-"..\src\condor_starter.V6.1\soap_starterC.C" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	<<tempfile.bat 
-	@echo off 
-	cd $(InputDir) 
-	soap_gen starter 
-<< 
-	
 
 !ENDIF 
 

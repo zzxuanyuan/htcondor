@@ -95,13 +95,13 @@ LINK32_OBJS= \
 	"$(INTDIR)\gridutil.obj" \
 	"$(INTDIR)\gt3job.obj" \
 	"$(INTDIR)\gt3resource.obj" \
+	"$(INTDIR)\infnbatchjob.obj" \
 	"$(INTDIR)\mirrorjob.obj" \
 	"$(INTDIR)\mirrorresource.obj" \
 	"$(INTDIR)\proxymanager.obj" \
 	"$(INTDIR)\soap_gridmanagerC.obj" \
 	"$(INTDIR)\soap_gridmanagerServer.obj" \
 	"$(INTDIR)\soap_gridmanagerStub.obj" \
-	"$(INTDIR)\infnbatchjob.obj" \
 	"$(OUTDIR)\condor_classad.lib" \
 	"$(OUTDIR)\condor_cpp_util.lib" \
 	"$(OUTDIR)\condor_daemon_core.lib" \
@@ -180,13 +180,13 @@ LINK32_OBJS= \
 	"$(INTDIR)\gridutil.obj" \
 	"$(INTDIR)\gt3job.obj" \
 	"$(INTDIR)\gt3resource.obj" \
+	"$(INTDIR)\infnbatchjob.obj" \
 	"$(INTDIR)\mirrorjob.obj" \
 	"$(INTDIR)\mirrorresource.obj" \
 	"$(INTDIR)\proxymanager.obj" \
 	"$(INTDIR)\soap_gridmanagerC.obj" \
 	"$(INTDIR)\soap_gridmanagerServer.obj" \
 	"$(INTDIR)\soap_gridmanagerStub.obj" \
-	"$(INTDIR)\infnbatchjob.obj" \
 	"$(OUTDIR)\condor_classad.lib" \
 	"$(OUTDIR)\condor_cpp_util.lib" \
 	"$(OUTDIR)\condor_daemon_core.lib" \
@@ -461,36 +461,6 @@ SOURCE=..\src\condor_gridmanager\gridmanager.C
 "$(INTDIR)\gridmanager.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
-
-SOURCE=..\src\condor_gridmanager\gridmanager.h
-
-!IF  "$(CFG)" == "condor_gridmanager - Win32 Debug"
-
-InputDir=..\src\condor_gridmanager
-InputPath=..\src\condor_gridmanager\gridmanager.h
-
-"..\src\condor_gridmanager\soap_gridmanagerC.C" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	<<tempfile.bat 
-	@echo off 
-	cd $(InputDir) 
-	soap_gen gridmanager 
-<< 
-	
-
-!ELSEIF  "$(CFG)" == "condor_gridmanager - Win32 Release"
-
-InputDir=..\src\condor_gridmanager
-InputPath=..\src\condor_gridmanager\gridmanager.h
-
-"..\src\condor_gridmanager\soap_gridmanagerC.C" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	<<tempfile.bat 
-	@echo off 
-	cd $(InputDir) 
-	soap_gen gridmanager 
-<< 
-	
-
-!ENDIF 
 
 SOURCE=..\src\condor_gridmanager\gridmanager_main.C
 

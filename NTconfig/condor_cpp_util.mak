@@ -148,6 +148,8 @@ LIB32_FLAGS=/nologo /out:"$(OUTDIR)\condor_cpp_util.lib"
 LIB32_OBJS= \
 	"$(INTDIR)\access.obj" \
 	"$(INTDIR)\ad_printmask.obj" \
+	"$(INTDIR)\check_events.obj" \
+	"$(INTDIR)\check_log_files.obj" \
 	"$(INTDIR)\classad_collection.obj" \
 	"$(INTDIR)\classad_command_util.obj" \
 	"$(INTDIR)\classad_hashtable.obj" \
@@ -233,9 +235,7 @@ LIB32_OBJS= \
 	"$(INTDIR)\user_log.obj" \
 	"$(INTDIR)\utc_time.obj" \
 	"$(INTDIR)\which.obj" \
-	"$(INTDIR)\windows_firewall.obj" \
-	"$(INTDIR)\check_log_files.obj" \
-	"$(INTDIR)\check_events.obj"
+	"$(INTDIR)\windows_firewall.obj"
 
 "$(OUTDIR)\condor_cpp_util.lib" : "$(OUTDIR)" $(DEF_FILE) $(LIB32_OBJS)
     $(LIB32) @<<
@@ -361,6 +361,8 @@ LIB32_FLAGS=/nologo /out:"$(OUTDIR)\condor_cpp_util.lib"
 LIB32_OBJS= \
 	"$(INTDIR)\access.obj" \
 	"$(INTDIR)\ad_printmask.obj" \
+	"$(INTDIR)\check_events.obj" \
+	"$(INTDIR)\check_log_files.obj" \
 	"$(INTDIR)\classad_collection.obj" \
 	"$(INTDIR)\classad_command_util.obj" \
 	"$(INTDIR)\classad_hashtable.obj" \
@@ -446,9 +448,7 @@ LIB32_OBJS= \
 	"$(INTDIR)\user_log.obj" \
 	"$(INTDIR)\utc_time.obj" \
 	"$(INTDIR)\which.obj" \
-	"$(INTDIR)\windows_firewall.obj" \
-	"$(INTDIR)\check_log_files.obj" \
-	"$(INTDIR)\check_events.obj"
+	"$(INTDIR)\windows_firewall.obj"
 
 "$(OUTDIR)\condor_cpp_util.lib" : "$(OUTDIR)" $(DEF_FILE) $(LIB32_OBJS)
     $(LIB32) @<<

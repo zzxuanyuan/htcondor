@@ -96,33 +96,6 @@ SOURCE=..\src\condor_master.V6\master.C
 # Begin Source File
 
 SOURCE=..\src\condor_master.V6\master.h
-
-!IF  "$(CFG)" == "condor_master - Win32 Debug"
-
-# Begin Custom Build
-InputDir=\condor\workspaces\v67-soap\src\condor_master.V6
-InputPath=..\src\condor_master.V6\master.h
-
-"$(InputDir)\soap_masterC.C" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	cd $(InputDir) 
-	soap_gen master 
-	
-# End Custom Build
-
-!ELSEIF  "$(CFG)" == "condor_master - Win32 Release"
-
-# Begin Custom Build
-InputDir=\condor\workspaces\v67-soap\src\condor_master.V6
-InputPath=..\src\condor_master.V6\master.h
-
-"$(InputDir)\soap_masterC.C" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	cd $(InputDir) 
-	soap_gen master 
-	
-# End Custom Build
-
-!ENDIF 
-
 # End Source File
 # Begin Source File
 
