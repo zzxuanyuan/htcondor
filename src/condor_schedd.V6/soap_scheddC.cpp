@@ -7,7 +7,7 @@
 
 SOAP_BEGIN_NAMESPACE(soap_schedd)
 
-SOAP_SOURCE_STAMP("@(#) soap_scheddC.cpp ver 2.3 rev 7 2003-10-14 20:09:19 GMT")
+SOAP_SOURCE_STAMP("@(#) soap_scheddC.cpp ver 2.3 rev 7 2003-12-05 17:05:16 GMT")
 
 
 #ifndef WITH_NOGLOBAL
@@ -108,12 +108,14 @@ SOAP_FMAC3 void * SOAP_FMAC4 soap_getelement(struct soap *soap, int *type)
 		*type = soap_lookup_type(soap, soap->href);
 	switch (*type)
 	{
+	case SOAP_TYPE_xsd__byte:
+		return soap_in_xsd__byte(soap, NULL, NULL, "xsd:byte");
 	case SOAP_TYPE_byte:
 		return soap_in_byte(soap, NULL, NULL, "xsd:byte");
-	case SOAP_TYPE_int:
-		return soap_in_int(soap, NULL, NULL, "xsd:int");
 	case SOAP_TYPE_xsd__int:
 		return soap_in_xsd__int(soap, NULL, NULL, "xsd:int");
+	case SOAP_TYPE_int:
+		return soap_in_int(soap, NULL, NULL, "xsd:int");
 	case SOAP_TYPE_long:
 		return soap_in_long(soap, NULL, NULL, "xsd:long");
 	case SOAP_TYPE_xsd__long:
@@ -213,12 +215,6 @@ SOAP_FMAC3 void * SOAP_FMAC4 soap_getelement(struct soap *soap, int *type)
 		return soap_in_PointerToClassAdStruct(soap, NULL, NULL, "condorCore:ClassAdStructAttr");
 	case SOAP_TYPE_PointerTocondorCore__ClassAdStructAttr:
 		return soap_in_PointerTocondorCore__ClassAdStructAttr(soap, NULL, NULL, "condorCore:ClassAdStructAttr");
-	case SOAP_TYPE_PointerTobool:
-		return soap_in_PointerTobool(soap, NULL, NULL, "xsd:boolean");
-	case SOAP_TYPE_PointerTofloat:
-		return soap_in_PointerTofloat(soap, NULL, NULL, "xsd:float");
-	case SOAP_TYPE_PointerToint:
-		return soap_in_PointerToint(soap, NULL, NULL, "xsd:int");
 	case SOAP_TYPE_xsd__anyURI:
 	{	char **s;
 		s = soap_in_xsd__anyURI(soap, NULL, NULL, "xsd:anyURI");
@@ -238,16 +234,20 @@ SOAP_FMAC3 void * SOAP_FMAC4 soap_getelement(struct soap *soap, int *type)
 		if (!*soap->type)
 			return NULL;
 		if (!soap_match_tag(soap, soap->type, "xsd:byte"))
+		{	*type = SOAP_TYPE_xsd__byte;
+			return soap_in_xsd__byte(soap, NULL, NULL, NULL);
+		}
+		if (!soap_match_tag(soap, soap->type, "xsd:byte"))
 		{	*type = SOAP_TYPE_byte;
 			return soap_in_byte(soap, NULL, NULL, NULL);
 		}
 		if (!soap_match_tag(soap, soap->type, "xsd:int"))
-		{	*type = SOAP_TYPE_int;
-			return soap_in_int(soap, NULL, NULL, NULL);
-		}
-		if (!soap_match_tag(soap, soap->type, "xsd:int"))
 		{	*type = SOAP_TYPE_xsd__int;
 			return soap_in_xsd__int(soap, NULL, NULL, NULL);
+		}
+		if (!soap_match_tag(soap, soap->type, "xsd:int"))
+		{	*type = SOAP_TYPE_int;
+			return soap_in_int(soap, NULL, NULL, NULL);
 		}
 		if (!soap_match_tag(soap, soap->type, "xsd:long"))
 		{	*type = SOAP_TYPE_long;
@@ -500,12 +500,14 @@ SOAP_FMAC3 int SOAP_FMAC4 soap_putelement(struct soap *soap, const void *ptr, co
 {
 	switch (type)
 	{
+	case SOAP_TYPE_xsd__byte:
+		return soap_out_xsd__byte(soap, tag, id, (const char *)ptr, "xsd:byte");
 	case SOAP_TYPE_byte:
 		return soap_out_byte(soap, tag, id, (const char *)ptr, "xsd:byte");
+	case SOAP_TYPE_xsd__int:
+		return soap_out_xsd__int(soap, tag, id, (const int *)ptr, "xsd:int");
 	case SOAP_TYPE_int:
 		return soap_out_int(soap, tag, id, (const int *)ptr, "xsd:int");
-	case SOAP_TYPE_xsd__int:
-		return soap_out_xsd__int(soap, tag, id, (const long *)ptr, "xsd:int");
 	case SOAP_TYPE_long:
 		return soap_out_long(soap, tag, id, (const long *)ptr, "xsd:long");
 	case SOAP_TYPE_xsd__long:
@@ -602,12 +604,6 @@ SOAP_FMAC3 int SOAP_FMAC4 soap_putelement(struct soap *soap, const void *ptr, co
 		return soap_out_PointerToClassAdStruct(soap, tag, id, (struct ClassAdStruct *const*)ptr, "condorCore:ClassAdStructAttr");
 	case SOAP_TYPE_PointerTocondorCore__ClassAdStructAttr:
 		return soap_out_PointerTocondorCore__ClassAdStructAttr(soap, tag, id, (struct condorCore__ClassAdStructAttr *const*)ptr, "condorCore:ClassAdStructAttr");
-	case SOAP_TYPE_PointerTobool:
-		return soap_out_PointerTobool(soap, tag, id, (bool *const*)ptr, "xsd:boolean");
-	case SOAP_TYPE_PointerTofloat:
-		return soap_out_PointerTofloat(soap, tag, id, (float *const*)ptr, "xsd:float");
-	case SOAP_TYPE_PointerToint:
-		return soap_out_PointerToint(soap, tag, id, (int *const*)ptr, "xsd:int");
 	case SOAP_TYPE_xsd__anyURI:
 		return soap_out_string(soap, tag, id, (char**)&ptr, "xsd:anyURI");
 	case SOAP_TYPE_xsd__string:
@@ -692,6 +688,44 @@ SOAP_FMAC3 int SOAP_FMAC4 soap_putattachments(struct soap *soap)
 }
 #endif
 
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_xsd__byte(struct soap *soap, char *a)
+{
+#ifdef SOAP_DEFAULT_xsd__byte
+	*a = SOAP_DEFAULT_xsd__byte;
+#else
+	*a = (char)0;
+#endif
+}
+
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_xsd__byte(struct soap *soap, char const*a)
+{
+	soap_reference(soap, a, SOAP_TYPE_xsd__byte);
+}
+
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_xsd__byte(struct soap *soap, char *a, const char *tag, const char *type)
+{
+	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_xsd__byte);
+	soap_out_xsd__byte(soap, tag, i, a, type);
+	return soap_putindependent(soap);
+}
+
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_xsd__byte(struct soap *soap, const char *tag, int id, const char *a, const char *type)
+{
+	return soap_outbyte(soap, tag, id, a, type, SOAP_TYPE_xsd__byte);
+}
+
+SOAP_FMAC3 char * SOAP_FMAC4 soap_get_xsd__byte(struct soap *soap, char *p, const char *tag, const char *type)
+{
+	if ((p = soap_in_xsd__byte(soap, tag, p, type)))
+		soap_getindependent(soap);
+	return p;
+}
+
+SOAP_FMAC3 char * SOAP_FMAC4 soap_in_xsd__byte(struct soap *soap, const char *tag, char *a, const char *type)
+{
+	return soap_inbyte(soap, tag, a, type, SOAP_TYPE_xsd__byte);
+}
+
 SOAP_FMAC3 void SOAP_FMAC4 soap_default_byte(struct soap *soap, char *a)
 {
 #ifdef SOAP_DEFAULT_byte
@@ -730,6 +764,44 @@ SOAP_FMAC3 char * SOAP_FMAC4 soap_in_byte(struct soap *soap, const char *tag, ch
 	return soap_inbyte(soap, tag, a, type, SOAP_TYPE_byte);
 }
 
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_xsd__int(struct soap *soap, int *a)
+{
+#ifdef SOAP_DEFAULT_xsd__int
+	*a = SOAP_DEFAULT_xsd__int;
+#else
+	*a = (int)0;
+#endif
+}
+
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_xsd__int(struct soap *soap, int const*a)
+{
+	soap_reference(soap, a, SOAP_TYPE_xsd__int);
+}
+
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_xsd__int(struct soap *soap, int *a, const char *tag, const char *type)
+{
+	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_xsd__int);
+	soap_out_xsd__int(soap, tag, i, a, type);
+	return soap_putindependent(soap);
+}
+
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_xsd__int(struct soap *soap, const char *tag, int id, const int *a, const char *type)
+{
+	return soap_outint(soap, tag, id, a, type, SOAP_TYPE_xsd__int);
+}
+
+SOAP_FMAC3 int * SOAP_FMAC4 soap_get_xsd__int(struct soap *soap, int *p, const char *tag, const char *type)
+{
+	if ((p = soap_in_xsd__int(soap, tag, p, type)))
+		soap_getindependent(soap);
+	return p;
+}
+
+SOAP_FMAC3 int * SOAP_FMAC4 soap_in_xsd__int(struct soap *soap, const char *tag, int *a, const char *type)
+{
+	return soap_inint(soap, tag, a, type, SOAP_TYPE_xsd__int);
+}
+
 SOAP_FMAC3 void SOAP_FMAC4 soap_default_int(struct soap *soap, int *a)
 {
 #ifdef SOAP_DEFAULT_int
@@ -766,44 +838,6 @@ SOAP_FMAC3 int * SOAP_FMAC4 soap_get_int(struct soap *soap, int *p, const char *
 SOAP_FMAC3 int * SOAP_FMAC4 soap_in_int(struct soap *soap, const char *tag, int *a, const char *type)
 {
 	return soap_inint(soap, tag, a, type, SOAP_TYPE_int);
-}
-
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_xsd__int(struct soap *soap, long *a)
-{
-#ifdef SOAP_DEFAULT_xsd__int
-	*a = SOAP_DEFAULT_xsd__int;
-#else
-	*a = (long)0;
-#endif
-}
-
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_xsd__int(struct soap *soap, long const*a)
-{
-	soap_reference(soap, a, SOAP_TYPE_xsd__int);
-}
-
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_xsd__int(struct soap *soap, long *a, const char *tag, const char *type)
-{
-	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_xsd__int);
-	soap_out_xsd__int(soap, tag, i, a, type);
-	return soap_putindependent(soap);
-}
-
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_xsd__int(struct soap *soap, const char *tag, int id, const long *a, const char *type)
-{
-	return soap_outlong(soap, tag, id, a, type, SOAP_TYPE_xsd__int);
-}
-
-SOAP_FMAC3 long * SOAP_FMAC4 soap_get_xsd__int(struct soap *soap, long *p, const char *tag, const char *type)
-{
-	if ((p = soap_in_xsd__int(soap, tag, p, type)))
-		soap_getindependent(soap);
-	return p;
-}
-
-SOAP_FMAC3 long * SOAP_FMAC4 soap_in_xsd__int(struct soap *soap, const char *tag, long *a, const char *type)
-{
-	return soap_inlong(soap, tag, a, type, SOAP_TYPE_xsd__int);
 }
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_default_long(struct soap *soap, long *a)
@@ -1667,16 +1701,16 @@ SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__getJobAd(struct soap *so
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__getJobAd(struct soap *soap, const struct condorSchedd__getJobAd *a)
 {
-	soap_embedded(soap, &a->transactionId, SOAP_TYPE_xsd__long);
-	soap_embedded(soap, &a->clusterId, SOAP_TYPE_int);
-	soap_embedded(soap, &a->jobId, SOAP_TYPE_int);
+	soap_embedded(soap, &a->transactionId, SOAP_TYPE_xsd__int);
+	soap_embedded(soap, &a->clusterId, SOAP_TYPE_xsd__int);
+	soap_embedded(soap, &a->jobId, SOAP_TYPE_xsd__int);
 }
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorSchedd__getJobAd(struct soap *soap, struct condorSchedd__getJobAd *a)
 {
-	soap_default_xsd__long(soap, &a->transactionId);
-	soap_default_int(soap, &a->clusterId);
-	soap_default_int(soap, &a->jobId);
+	soap_default_xsd__int(soap, &a->transactionId);
+	soap_default_xsd__int(soap, &a->clusterId);
+	soap_default_xsd__int(soap, &a->jobId);
 }
 
 SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorSchedd__getJobAd(struct soap *soap, struct condorSchedd__getJobAd *a, const char *tag, const char *type)
@@ -1689,9 +1723,9 @@ SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorSchedd__getJobAd(struct soap *soap, str
 SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorSchedd__getJobAd(struct soap *soap, const char *tag, int id, const struct condorSchedd__getJobAd *a, const char *type)
 {
 	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condorSchedd__getJobAd), type);
-	soap_out_xsd__long(soap, "transactionId", -1, &a->transactionId, "xsd:long");
-	soap_out_int(soap, "clusterId", -1, &a->clusterId, "");
-	soap_out_int(soap, "jobId", -1, &a->jobId, "");
+	soap_out_xsd__int(soap, "transactionId", -1, &a->transactionId, "xsd:int");
+	soap_out_xsd__int(soap, "clusterId", -1, &a->clusterId, "xsd:int");
+	soap_out_xsd__int(soap, "jobId", -1, &a->jobId, "xsd:int");
 	soap_element_end_out(soap, tag);
 	return SOAP_OK;
 }
@@ -1731,17 +1765,17 @@ SOAP_FMAC3 struct condorSchedd__getJobAd * SOAP_FMAC4 soap_in_condorSchedd__getJ
 		{	for (;;)
 			{	soap->error = SOAP_TAG_MISMATCH;
 			if (soap_flag_transactionId && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_xsd__long(soap, "transactionId", &a->transactionId, "xsd:long"))
+				if (soap_in_xsd__int(soap, "transactionId", &a->transactionId, "xsd:int"))
 				{	soap_flag_transactionId = 0;
 					continue;
 				}
 			if (soap_flag_clusterId && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_int(soap, "clusterId", &a->clusterId, ""))
+				if (soap_in_xsd__int(soap, "clusterId", &a->clusterId, "xsd:int"))
 				{	soap_flag_clusterId = 0;
 					continue;
 				}
 			if (soap_flag_jobId && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_int(soap, "jobId", &a->jobId, ""))
+				if (soap_in_xsd__int(soap, "jobId", &a->jobId, "xsd:int"))
 				{	soap_flag_jobId = 0;
 					continue;
 				}
@@ -1869,15 +1903,15 @@ SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__getJobAds(struct soap *s
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__getJobAds(struct soap *soap, const struct condorSchedd__getJobAds *a)
 {
-	soap_embedded(soap, &a->transactionId, SOAP_TYPE_xsd__long);
-	soap_embedded(soap, &a->constraint, SOAP_TYPE_string);
-	soap_mark_string(soap, &a->constraint);
+	soap_embedded(soap, &a->transactionId, SOAP_TYPE_xsd__int);
+	soap_embedded(soap, &a->constraint, SOAP_TYPE_xsd__string);
+	soap_mark_xsd__string(soap, &a->constraint);
 }
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorSchedd__getJobAds(struct soap *soap, struct condorSchedd__getJobAds *a)
 {
-	soap_default_xsd__long(soap, &a->transactionId);
-	soap_default_string(soap, &a->constraint);
+	soap_default_xsd__int(soap, &a->transactionId);
+	soap_default_xsd__string(soap, &a->constraint);
 }
 
 SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorSchedd__getJobAds(struct soap *soap, struct condorSchedd__getJobAds *a, const char *tag, const char *type)
@@ -1890,8 +1924,8 @@ SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorSchedd__getJobAds(struct soap *soap, st
 SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorSchedd__getJobAds(struct soap *soap, const char *tag, int id, const struct condorSchedd__getJobAds *a, const char *type)
 {
 	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condorSchedd__getJobAds), type);
-	soap_out_xsd__long(soap, "transactionId", -1, &a->transactionId, "xsd:long");
-	soap_out_string(soap, "constraint", -1, &a->constraint, "");
+	soap_out_xsd__int(soap, "transactionId", -1, &a->transactionId, "xsd:int");
+	soap_out_xsd__string(soap, "constraint", -1, &a->constraint, "xsd:string");
 	soap_element_end_out(soap, tag);
 	return SOAP_OK;
 }
@@ -1931,12 +1965,12 @@ SOAP_FMAC3 struct condorSchedd__getJobAds * SOAP_FMAC4 soap_in_condorSchedd__get
 		{	for (;;)
 			{	soap->error = SOAP_TAG_MISMATCH;
 			if (soap_flag_transactionId && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_xsd__long(soap, "transactionId", &a->transactionId, "xsd:long"))
+				if (soap_in_xsd__int(soap, "transactionId", &a->transactionId, "xsd:int"))
 				{	soap_flag_transactionId = 0;
 					continue;
 				}
 			if (soap_flag_constraint && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_string(soap, "constraint", &a->constraint, ""))
+				if (soap_in_xsd__string(soap, "constraint", &a->constraint, "xsd:string"))
 				{	soap_flag_constraint = 0;
 					continue;
 				}
@@ -2064,18 +2098,18 @@ SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__submit(struct soap *soap
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__submit(struct soap *soap, const struct condorSchedd__submit *a)
 {
-	soap_embedded(soap, &a->transactionId, SOAP_TYPE_xsd__long);
-	soap_embedded(soap, &a->clusterId, SOAP_TYPE_int);
-	soap_embedded(soap, &a->jobId, SOAP_TYPE_int);
+	soap_embedded(soap, &a->transactionId, SOAP_TYPE_xsd__int);
+	soap_embedded(soap, &a->clusterId, SOAP_TYPE_xsd__int);
+	soap_embedded(soap, &a->jobId, SOAP_TYPE_xsd__int);
 	soap_embedded(soap, &a->jobAd, SOAP_TYPE_PointerToClassAdStruct);
 	soap_mark_PointerToClassAdStruct(soap, &a->jobAd);
 }
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorSchedd__submit(struct soap *soap, struct condorSchedd__submit *a)
 {
-	soap_default_xsd__long(soap, &a->transactionId);
-	soap_default_int(soap, &a->clusterId);
-	soap_default_int(soap, &a->jobId);
+	soap_default_xsd__int(soap, &a->transactionId);
+	soap_default_xsd__int(soap, &a->clusterId);
+	soap_default_xsd__int(soap, &a->jobId);
 	soap_default_PointerToClassAdStruct(soap, &a->jobAd);
 }
 
@@ -2089,9 +2123,9 @@ SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorSchedd__submit(struct soap *soap, struc
 SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorSchedd__submit(struct soap *soap, const char *tag, int id, const struct condorSchedd__submit *a, const char *type)
 {
 	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condorSchedd__submit), type);
-	soap_out_xsd__long(soap, "transactionId", -1, &a->transactionId, "xsd:long");
-	soap_out_int(soap, "clusterId", -1, &a->clusterId, "");
-	soap_out_int(soap, "jobId", -1, &a->jobId, "");
+	soap_out_xsd__int(soap, "transactionId", -1, &a->transactionId, "xsd:int");
+	soap_out_xsd__int(soap, "clusterId", -1, &a->clusterId, "xsd:int");
+	soap_out_xsd__int(soap, "jobId", -1, &a->jobId, "xsd:int");
 	soap_out_PointerToClassAdStruct(soap, "jobAd", -1, &a->jobAd, "condorCore:ClassAdStructAttr");
 	soap_element_end_out(soap, tag);
 	return SOAP_OK;
@@ -2132,17 +2166,17 @@ SOAP_FMAC3 struct condorSchedd__submit * SOAP_FMAC4 soap_in_condorSchedd__submit
 		{	for (;;)
 			{	soap->error = SOAP_TAG_MISMATCH;
 			if (soap_flag_transactionId && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_xsd__long(soap, "transactionId", &a->transactionId, "xsd:long"))
+				if (soap_in_xsd__int(soap, "transactionId", &a->transactionId, "xsd:int"))
 				{	soap_flag_transactionId = 0;
 					continue;
 				}
 			if (soap_flag_clusterId && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_int(soap, "clusterId", &a->clusterId, ""))
+				if (soap_in_xsd__int(soap, "clusterId", &a->clusterId, "xsd:int"))
 				{	soap_flag_clusterId = 0;
 					continue;
 				}
 			if (soap_flag_jobId && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_int(soap, "jobId", &a->jobId, ""))
+				if (soap_in_xsd__int(soap, "jobId", &a->jobId, "xsd:int"))
 				{	soap_flag_jobId = 0;
 					continue;
 				}
@@ -2181,12 +2215,12 @@ SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__submitResponse(struct so
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__submitResponse(struct soap *soap, const struct condorSchedd__submitResponse *a)
 {
-	soap_embedded(soap, &a->result, SOAP_TYPE_int);
+	soap_embedded(soap, &a->result, SOAP_TYPE_xsd__int);
 }
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorSchedd__submitResponse(struct soap *soap, struct condorSchedd__submitResponse *a)
 {
-	soap_default_int(soap, &a->result);
+	soap_default_xsd__int(soap, &a->result);
 }
 
 SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorSchedd__submitResponse(struct soap *soap, struct condorSchedd__submitResponse *a, const char *tag, const char *type)
@@ -2200,7 +2234,7 @@ SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorSchedd__submitResponse(struct soap *soa
 {
 	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condorSchedd__submitResponse), type);
 	soap_element_result(soap, "result");
-	soap_out_int(soap, "result", -1, &a->result, "");
+	soap_out_xsd__int(soap, "result", -1, &a->result, "xsd:int");
 	soap_element_end_out(soap, tag);
 	return SOAP_OK;
 }
@@ -2240,7 +2274,7 @@ SOAP_FMAC3 struct condorSchedd__submitResponse * SOAP_FMAC4 soap_in_condorSchedd
 		{	for (;;)
 			{	soap->error = SOAP_TAG_MISMATCH;
 			if (soap_flag_result && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_int(soap, "result", &a->result, ""))
+				if (soap_in_xsd__int(soap, "result", &a->result, "xsd:int"))
 				{	soap_flag_result = 0;
 					continue;
 				}
@@ -2274,23 +2308,23 @@ SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__releaseJob(struct soap *
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__releaseJob(struct soap *soap, const struct condorSchedd__releaseJob *a)
 {
-	soap_embedded(soap, &a->transactionId, SOAP_TYPE_xsd__long);
-	soap_embedded(soap, &a->clusterId, SOAP_TYPE_int);
-	soap_embedded(soap, &a->jobId, SOAP_TYPE_int);
-	soap_embedded(soap, &a->reason, SOAP_TYPE_string);
-	soap_mark_string(soap, &a->reason);
-	soap_embedded(soap, &a->email_user, SOAP_TYPE_bool);
-	soap_embedded(soap, &a->email_admin, SOAP_TYPE_bool);
+	soap_embedded(soap, &a->transactionId, SOAP_TYPE_xsd__int);
+	soap_embedded(soap, &a->clusterId, SOAP_TYPE_xsd__int);
+	soap_embedded(soap, &a->jobId, SOAP_TYPE_xsd__int);
+	soap_embedded(soap, &a->reason, SOAP_TYPE_xsd__string);
+	soap_mark_xsd__string(soap, &a->reason);
+	soap_embedded(soap, &a->email_user, SOAP_TYPE_xsd__boolean);
+	soap_embedded(soap, &a->email_admin, SOAP_TYPE_xsd__boolean);
 }
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorSchedd__releaseJob(struct soap *soap, struct condorSchedd__releaseJob *a)
 {
-	soap_default_xsd__long(soap, &a->transactionId);
-	soap_default_int(soap, &a->clusterId);
-	soap_default_int(soap, &a->jobId);
-	soap_default_string(soap, &a->reason);
-	soap_default_bool(soap, &a->email_user);
-	soap_default_bool(soap, &a->email_admin);
+	soap_default_xsd__int(soap, &a->transactionId);
+	soap_default_xsd__int(soap, &a->clusterId);
+	soap_default_xsd__int(soap, &a->jobId);
+	soap_default_xsd__string(soap, &a->reason);
+	soap_default_xsd__boolean(soap, &a->email_user);
+	soap_default_xsd__boolean(soap, &a->email_admin);
 }
 
 SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorSchedd__releaseJob(struct soap *soap, struct condorSchedd__releaseJob *a, const char *tag, const char *type)
@@ -2303,12 +2337,12 @@ SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorSchedd__releaseJob(struct soap *soap, s
 SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorSchedd__releaseJob(struct soap *soap, const char *tag, int id, const struct condorSchedd__releaseJob *a, const char *type)
 {
 	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condorSchedd__releaseJob), type);
-	soap_out_xsd__long(soap, "transactionId", -1, &a->transactionId, "xsd:long");
-	soap_out_int(soap, "clusterId", -1, &a->clusterId, "");
-	soap_out_int(soap, "jobId", -1, &a->jobId, "");
-	soap_out_string(soap, "reason", -1, &a->reason, "");
-	soap_out_bool(soap, "email-user", -1, &a->email_user, "");
-	soap_out_bool(soap, "email-admin", -1, &a->email_admin, "");
+	soap_out_xsd__int(soap, "transactionId", -1, &a->transactionId, "xsd:int");
+	soap_out_xsd__int(soap, "clusterId", -1, &a->clusterId, "xsd:int");
+	soap_out_xsd__int(soap, "jobId", -1, &a->jobId, "xsd:int");
+	soap_out_xsd__string(soap, "reason", -1, &a->reason, "xsd:string");
+	soap_out_xsd__boolean(soap, "email-user", -1, &a->email_user, "xsd:boolean");
+	soap_out_xsd__boolean(soap, "email-admin", -1, &a->email_admin, "xsd:boolean");
 	soap_element_end_out(soap, tag);
 	return SOAP_OK;
 }
@@ -2348,32 +2382,32 @@ SOAP_FMAC3 struct condorSchedd__releaseJob * SOAP_FMAC4 soap_in_condorSchedd__re
 		{	for (;;)
 			{	soap->error = SOAP_TAG_MISMATCH;
 			if (soap_flag_transactionId && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_xsd__long(soap, "transactionId", &a->transactionId, "xsd:long"))
+				if (soap_in_xsd__int(soap, "transactionId", &a->transactionId, "xsd:int"))
 				{	soap_flag_transactionId = 0;
 					continue;
 				}
 			if (soap_flag_clusterId && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_int(soap, "clusterId", &a->clusterId, ""))
+				if (soap_in_xsd__int(soap, "clusterId", &a->clusterId, "xsd:int"))
 				{	soap_flag_clusterId = 0;
 					continue;
 				}
 			if (soap_flag_jobId && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_int(soap, "jobId", &a->jobId, ""))
+				if (soap_in_xsd__int(soap, "jobId", &a->jobId, "xsd:int"))
 				{	soap_flag_jobId = 0;
 					continue;
 				}
 			if (soap_flag_reason && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_string(soap, "reason", &a->reason, ""))
+				if (soap_in_xsd__string(soap, "reason", &a->reason, "xsd:string"))
 				{	soap_flag_reason = 0;
 					continue;
 				}
 			if (soap_flag_email_user && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_bool(soap, "email-user", &a->email_user, ""))
+				if (soap_in_xsd__boolean(soap, "email-user", &a->email_user, "xsd:boolean"))
 				{	soap_flag_email_user = 0;
 					continue;
 				}
 			if (soap_flag_email_admin && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_bool(soap, "email-admin", &a->email_admin, ""))
+				if (soap_in_xsd__boolean(soap, "email-admin", &a->email_admin, "xsd:boolean"))
 				{	soap_flag_email_admin = 0;
 					continue;
 				}
@@ -2407,12 +2441,12 @@ SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__releaseJobResponse(struc
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__releaseJobResponse(struct soap *soap, const struct condorSchedd__releaseJobResponse *a)
 {
-	soap_embedded(soap, &a->result, SOAP_TYPE_int);
+	soap_embedded(soap, &a->result, SOAP_TYPE_xsd__int);
 }
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorSchedd__releaseJobResponse(struct soap *soap, struct condorSchedd__releaseJobResponse *a)
 {
-	soap_default_int(soap, &a->result);
+	soap_default_xsd__int(soap, &a->result);
 }
 
 SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorSchedd__releaseJobResponse(struct soap *soap, struct condorSchedd__releaseJobResponse *a, const char *tag, const char *type)
@@ -2426,7 +2460,7 @@ SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorSchedd__releaseJobResponse(struct soap 
 {
 	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condorSchedd__releaseJobResponse), type);
 	soap_element_result(soap, "result");
-	soap_out_int(soap, "result", -1, &a->result, "");
+	soap_out_xsd__int(soap, "result", -1, &a->result, "xsd:int");
 	soap_element_end_out(soap, tag);
 	return SOAP_OK;
 }
@@ -2466,7 +2500,7 @@ SOAP_FMAC3 struct condorSchedd__releaseJobResponse * SOAP_FMAC4 soap_in_condorSc
 		{	for (;;)
 			{	soap->error = SOAP_TAG_MISMATCH;
 			if (soap_flag_result && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_int(soap, "result", &a->result, ""))
+				if (soap_in_xsd__int(soap, "result", &a->result, "xsd:int"))
 				{	soap_flag_result = 0;
 					continue;
 				}
@@ -2500,25 +2534,25 @@ SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__holdJob(struct soap *soa
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__holdJob(struct soap *soap, const struct condorSchedd__holdJob *a)
 {
-	soap_embedded(soap, &a->transactionId, SOAP_TYPE_xsd__long);
-	soap_embedded(soap, &a->clusterId, SOAP_TYPE_int);
-	soap_embedded(soap, &a->jobId, SOAP_TYPE_int);
-	soap_embedded(soap, &a->reason, SOAP_TYPE_string);
-	soap_mark_string(soap, &a->reason);
-	soap_embedded(soap, &a->email_user, SOAP_TYPE_bool);
-	soap_embedded(soap, &a->email_admin, SOAP_TYPE_bool);
-	soap_embedded(soap, &a->system_hold, SOAP_TYPE_bool);
+	soap_embedded(soap, &a->transactionId, SOAP_TYPE_xsd__int);
+	soap_embedded(soap, &a->clusterId, SOAP_TYPE_xsd__int);
+	soap_embedded(soap, &a->jobId, SOAP_TYPE_xsd__int);
+	soap_embedded(soap, &a->reason, SOAP_TYPE_xsd__string);
+	soap_mark_xsd__string(soap, &a->reason);
+	soap_embedded(soap, &a->email_user, SOAP_TYPE_xsd__boolean);
+	soap_embedded(soap, &a->email_admin, SOAP_TYPE_xsd__boolean);
+	soap_embedded(soap, &a->system_hold, SOAP_TYPE_xsd__boolean);
 }
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorSchedd__holdJob(struct soap *soap, struct condorSchedd__holdJob *a)
 {
-	soap_default_xsd__long(soap, &a->transactionId);
-	soap_default_int(soap, &a->clusterId);
-	soap_default_int(soap, &a->jobId);
-	soap_default_string(soap, &a->reason);
-	soap_default_bool(soap, &a->email_user);
-	soap_default_bool(soap, &a->email_admin);
-	soap_default_bool(soap, &a->system_hold);
+	soap_default_xsd__int(soap, &a->transactionId);
+	soap_default_xsd__int(soap, &a->clusterId);
+	soap_default_xsd__int(soap, &a->jobId);
+	soap_default_xsd__string(soap, &a->reason);
+	soap_default_xsd__boolean(soap, &a->email_user);
+	soap_default_xsd__boolean(soap, &a->email_admin);
+	soap_default_xsd__boolean(soap, &a->system_hold);
 }
 
 SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorSchedd__holdJob(struct soap *soap, struct condorSchedd__holdJob *a, const char *tag, const char *type)
@@ -2531,13 +2565,13 @@ SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorSchedd__holdJob(struct soap *soap, stru
 SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorSchedd__holdJob(struct soap *soap, const char *tag, int id, const struct condorSchedd__holdJob *a, const char *type)
 {
 	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condorSchedd__holdJob), type);
-	soap_out_xsd__long(soap, "transactionId", -1, &a->transactionId, "xsd:long");
-	soap_out_int(soap, "clusterId", -1, &a->clusterId, "");
-	soap_out_int(soap, "jobId", -1, &a->jobId, "");
-	soap_out_string(soap, "reason", -1, &a->reason, "");
-	soap_out_bool(soap, "email-user", -1, &a->email_user, "");
-	soap_out_bool(soap, "email-admin", -1, &a->email_admin, "");
-	soap_out_bool(soap, "system-hold", -1, &a->system_hold, "");
+	soap_out_xsd__int(soap, "transactionId", -1, &a->transactionId, "xsd:int");
+	soap_out_xsd__int(soap, "clusterId", -1, &a->clusterId, "xsd:int");
+	soap_out_xsd__int(soap, "jobId", -1, &a->jobId, "xsd:int");
+	soap_out_xsd__string(soap, "reason", -1, &a->reason, "xsd:string");
+	soap_out_xsd__boolean(soap, "email-user", -1, &a->email_user, "xsd:boolean");
+	soap_out_xsd__boolean(soap, "email-admin", -1, &a->email_admin, "xsd:boolean");
+	soap_out_xsd__boolean(soap, "system-hold", -1, &a->system_hold, "xsd:boolean");
 	soap_element_end_out(soap, tag);
 	return SOAP_OK;
 }
@@ -2577,37 +2611,37 @@ SOAP_FMAC3 struct condorSchedd__holdJob * SOAP_FMAC4 soap_in_condorSchedd__holdJ
 		{	for (;;)
 			{	soap->error = SOAP_TAG_MISMATCH;
 			if (soap_flag_transactionId && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_xsd__long(soap, "transactionId", &a->transactionId, "xsd:long"))
+				if (soap_in_xsd__int(soap, "transactionId", &a->transactionId, "xsd:int"))
 				{	soap_flag_transactionId = 0;
 					continue;
 				}
 			if (soap_flag_clusterId && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_int(soap, "clusterId", &a->clusterId, ""))
+				if (soap_in_xsd__int(soap, "clusterId", &a->clusterId, "xsd:int"))
 				{	soap_flag_clusterId = 0;
 					continue;
 				}
 			if (soap_flag_jobId && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_int(soap, "jobId", &a->jobId, ""))
+				if (soap_in_xsd__int(soap, "jobId", &a->jobId, "xsd:int"))
 				{	soap_flag_jobId = 0;
 					continue;
 				}
 			if (soap_flag_reason && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_string(soap, "reason", &a->reason, ""))
+				if (soap_in_xsd__string(soap, "reason", &a->reason, "xsd:string"))
 				{	soap_flag_reason = 0;
 					continue;
 				}
 			if (soap_flag_email_user && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_bool(soap, "email-user", &a->email_user, ""))
+				if (soap_in_xsd__boolean(soap, "email-user", &a->email_user, "xsd:boolean"))
 				{	soap_flag_email_user = 0;
 					continue;
 				}
 			if (soap_flag_email_admin && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_bool(soap, "email-admin", &a->email_admin, ""))
+				if (soap_in_xsd__boolean(soap, "email-admin", &a->email_admin, "xsd:boolean"))
 				{	soap_flag_email_admin = 0;
 					continue;
 				}
 			if (soap_flag_system_hold && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_bool(soap, "system-hold", &a->system_hold, ""))
+				if (soap_in_xsd__boolean(soap, "system-hold", &a->system_hold, "xsd:boolean"))
 				{	soap_flag_system_hold = 0;
 					continue;
 				}
@@ -2641,12 +2675,12 @@ SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__holdJobResponse(struct s
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__holdJobResponse(struct soap *soap, const struct condorSchedd__holdJobResponse *a)
 {
-	soap_embedded(soap, &a->result, SOAP_TYPE_int);
+	soap_embedded(soap, &a->result, SOAP_TYPE_xsd__int);
 }
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorSchedd__holdJobResponse(struct soap *soap, struct condorSchedd__holdJobResponse *a)
 {
-	soap_default_int(soap, &a->result);
+	soap_default_xsd__int(soap, &a->result);
 }
 
 SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorSchedd__holdJobResponse(struct soap *soap, struct condorSchedd__holdJobResponse *a, const char *tag, const char *type)
@@ -2660,7 +2694,7 @@ SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorSchedd__holdJobResponse(struct soap *so
 {
 	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condorSchedd__holdJobResponse), type);
 	soap_element_result(soap, "result");
-	soap_out_int(soap, "result", -1, &a->result, "");
+	soap_out_xsd__int(soap, "result", -1, &a->result, "xsd:int");
 	soap_element_end_out(soap, tag);
 	return SOAP_OK;
 }
@@ -2700,7 +2734,7 @@ SOAP_FMAC3 struct condorSchedd__holdJobResponse * SOAP_FMAC4 soap_in_condorSched
 		{	for (;;)
 			{	soap->error = SOAP_TAG_MISMATCH;
 			if (soap_flag_result && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_int(soap, "result", &a->result, ""))
+				if (soap_in_xsd__int(soap, "result", &a->result, "xsd:int"))
 				{	soap_flag_result = 0;
 					continue;
 				}
@@ -2734,21 +2768,21 @@ SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__removeJob(struct soap *s
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__removeJob(struct soap *soap, const struct condorSchedd__removeJob *a)
 {
-	soap_embedded(soap, &a->transactionId, SOAP_TYPE_xsd__long);
-	soap_embedded(soap, &a->clusterId, SOAP_TYPE_int);
-	soap_embedded(soap, &a->jobId, SOAP_TYPE_int);
-	soap_embedded(soap, &a->reason, SOAP_TYPE_string);
-	soap_mark_string(soap, &a->reason);
-	soap_embedded(soap, &a->force_removal, SOAP_TYPE_bool);
+	soap_embedded(soap, &a->transactionId, SOAP_TYPE_xsd__int);
+	soap_embedded(soap, &a->clusterId, SOAP_TYPE_xsd__int);
+	soap_embedded(soap, &a->jobId, SOAP_TYPE_xsd__int);
+	soap_embedded(soap, &a->reason, SOAP_TYPE_xsd__string);
+	soap_mark_xsd__string(soap, &a->reason);
+	soap_embedded(soap, &a->force_removal, SOAP_TYPE_xsd__boolean);
 }
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorSchedd__removeJob(struct soap *soap, struct condorSchedd__removeJob *a)
 {
-	soap_default_xsd__long(soap, &a->transactionId);
-	soap_default_int(soap, &a->clusterId);
-	soap_default_int(soap, &a->jobId);
-	soap_default_string(soap, &a->reason);
-	soap_default_bool(soap, &a->force_removal);
+	soap_default_xsd__int(soap, &a->transactionId);
+	soap_default_xsd__int(soap, &a->clusterId);
+	soap_default_xsd__int(soap, &a->jobId);
+	soap_default_xsd__string(soap, &a->reason);
+	soap_default_xsd__boolean(soap, &a->force_removal);
 }
 
 SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorSchedd__removeJob(struct soap *soap, struct condorSchedd__removeJob *a, const char *tag, const char *type)
@@ -2761,11 +2795,11 @@ SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorSchedd__removeJob(struct soap *soap, st
 SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorSchedd__removeJob(struct soap *soap, const char *tag, int id, const struct condorSchedd__removeJob *a, const char *type)
 {
 	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condorSchedd__removeJob), type);
-	soap_out_xsd__long(soap, "transactionId", -1, &a->transactionId, "xsd:long");
-	soap_out_int(soap, "clusterId", -1, &a->clusterId, "");
-	soap_out_int(soap, "jobId", -1, &a->jobId, "");
-	soap_out_string(soap, "reason", -1, &a->reason, "");
-	soap_out_bool(soap, "force-removal", -1, &a->force_removal, "");
+	soap_out_xsd__int(soap, "transactionId", -1, &a->transactionId, "xsd:int");
+	soap_out_xsd__int(soap, "clusterId", -1, &a->clusterId, "xsd:int");
+	soap_out_xsd__int(soap, "jobId", -1, &a->jobId, "xsd:int");
+	soap_out_xsd__string(soap, "reason", -1, &a->reason, "xsd:string");
+	soap_out_xsd__boolean(soap, "force-removal", -1, &a->force_removal, "xsd:boolean");
 	soap_element_end_out(soap, tag);
 	return SOAP_OK;
 }
@@ -2805,27 +2839,27 @@ SOAP_FMAC3 struct condorSchedd__removeJob * SOAP_FMAC4 soap_in_condorSchedd__rem
 		{	for (;;)
 			{	soap->error = SOAP_TAG_MISMATCH;
 			if (soap_flag_transactionId && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_xsd__long(soap, "transactionId", &a->transactionId, "xsd:long"))
+				if (soap_in_xsd__int(soap, "transactionId", &a->transactionId, "xsd:int"))
 				{	soap_flag_transactionId = 0;
 					continue;
 				}
 			if (soap_flag_clusterId && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_int(soap, "clusterId", &a->clusterId, ""))
+				if (soap_in_xsd__int(soap, "clusterId", &a->clusterId, "xsd:int"))
 				{	soap_flag_clusterId = 0;
 					continue;
 				}
 			if (soap_flag_jobId && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_int(soap, "jobId", &a->jobId, ""))
+				if (soap_in_xsd__int(soap, "jobId", &a->jobId, "xsd:int"))
 				{	soap_flag_jobId = 0;
 					continue;
 				}
 			if (soap_flag_reason && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_string(soap, "reason", &a->reason, ""))
+				if (soap_in_xsd__string(soap, "reason", &a->reason, "xsd:string"))
 				{	soap_flag_reason = 0;
 					continue;
 				}
 			if (soap_flag_force_removal && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_bool(soap, "force-removal", &a->force_removal, ""))
+				if (soap_in_xsd__boolean(soap, "force-removal", &a->force_removal, "xsd:boolean"))
 				{	soap_flag_force_removal = 0;
 					continue;
 				}
@@ -2859,12 +2893,12 @@ SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__removeJobResponse(struct
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__removeJobResponse(struct soap *soap, const struct condorSchedd__removeJobResponse *a)
 {
-	soap_embedded(soap, &a->result, SOAP_TYPE_int);
+	soap_embedded(soap, &a->result, SOAP_TYPE_xsd__int);
 }
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorSchedd__removeJobResponse(struct soap *soap, struct condorSchedd__removeJobResponse *a)
 {
-	soap_default_int(soap, &a->result);
+	soap_default_xsd__int(soap, &a->result);
 }
 
 SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorSchedd__removeJobResponse(struct soap *soap, struct condorSchedd__removeJobResponse *a, const char *tag, const char *type)
@@ -2878,7 +2912,7 @@ SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorSchedd__removeJobResponse(struct soap *
 {
 	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condorSchedd__removeJobResponse), type);
 	soap_element_result(soap, "result");
-	soap_out_int(soap, "result", -1, &a->result, "");
+	soap_out_xsd__int(soap, "result", -1, &a->result, "xsd:int");
 	soap_element_end_out(soap, tag);
 	return SOAP_OK;
 }
@@ -2918,7 +2952,7 @@ SOAP_FMAC3 struct condorSchedd__removeJobResponse * SOAP_FMAC4 soap_in_condorSch
 		{	for (;;)
 			{	soap->error = SOAP_TAG_MISMATCH;
 			if (soap_flag_result && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_int(soap, "result", &a->result, ""))
+				if (soap_in_xsd__int(soap, "result", &a->result, "xsd:int"))
 				{	soap_flag_result = 0;
 					continue;
 				}
@@ -2952,14 +2986,14 @@ SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__newJob(struct soap *soap
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__newJob(struct soap *soap, const struct condorSchedd__newJob *a)
 {
-	soap_embedded(soap, &a->transactionId, SOAP_TYPE_xsd__long);
-	soap_embedded(soap, &a->clusterId, SOAP_TYPE_int);
+	soap_embedded(soap, &a->transactionId, SOAP_TYPE_xsd__int);
+	soap_embedded(soap, &a->clusterId, SOAP_TYPE_xsd__int);
 }
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorSchedd__newJob(struct soap *soap, struct condorSchedd__newJob *a)
 {
-	soap_default_xsd__long(soap, &a->transactionId);
-	soap_default_int(soap, &a->clusterId);
+	soap_default_xsd__int(soap, &a->transactionId);
+	soap_default_xsd__int(soap, &a->clusterId);
 }
 
 SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorSchedd__newJob(struct soap *soap, struct condorSchedd__newJob *a, const char *tag, const char *type)
@@ -2972,8 +3006,8 @@ SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorSchedd__newJob(struct soap *soap, struc
 SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorSchedd__newJob(struct soap *soap, const char *tag, int id, const struct condorSchedd__newJob *a, const char *type)
 {
 	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condorSchedd__newJob), type);
-	soap_out_xsd__long(soap, "transactionId", -1, &a->transactionId, "xsd:long");
-	soap_out_int(soap, "clusterId", -1, &a->clusterId, "");
+	soap_out_xsd__int(soap, "transactionId", -1, &a->transactionId, "xsd:int");
+	soap_out_xsd__int(soap, "clusterId", -1, &a->clusterId, "xsd:int");
 	soap_element_end_out(soap, tag);
 	return SOAP_OK;
 }
@@ -3013,12 +3047,12 @@ SOAP_FMAC3 struct condorSchedd__newJob * SOAP_FMAC4 soap_in_condorSchedd__newJob
 		{	for (;;)
 			{	soap->error = SOAP_TAG_MISMATCH;
 			if (soap_flag_transactionId && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_xsd__long(soap, "transactionId", &a->transactionId, "xsd:long"))
+				if (soap_in_xsd__int(soap, "transactionId", &a->transactionId, "xsd:int"))
 				{	soap_flag_transactionId = 0;
 					continue;
 				}
 			if (soap_flag_clusterId && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_int(soap, "clusterId", &a->clusterId, ""))
+				if (soap_in_xsd__int(soap, "clusterId", &a->clusterId, "xsd:int"))
 				{	soap_flag_clusterId = 0;
 					continue;
 				}
@@ -3052,12 +3086,12 @@ SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__newJobResponse(struct so
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__newJobResponse(struct soap *soap, const struct condorSchedd__newJobResponse *a)
 {
-	soap_embedded(soap, &a->result, SOAP_TYPE_int);
+	soap_embedded(soap, &a->result, SOAP_TYPE_xsd__int);
 }
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorSchedd__newJobResponse(struct soap *soap, struct condorSchedd__newJobResponse *a)
 {
-	soap_default_int(soap, &a->result);
+	soap_default_xsd__int(soap, &a->result);
 }
 
 SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorSchedd__newJobResponse(struct soap *soap, struct condorSchedd__newJobResponse *a, const char *tag, const char *type)
@@ -3071,7 +3105,7 @@ SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorSchedd__newJobResponse(struct soap *soa
 {
 	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condorSchedd__newJobResponse), type);
 	soap_element_result(soap, "result");
-	soap_out_int(soap, "result", -1, &a->result, "");
+	soap_out_xsd__int(soap, "result", -1, &a->result, "xsd:int");
 	soap_element_end_out(soap, tag);
 	return SOAP_OK;
 }
@@ -3111,7 +3145,7 @@ SOAP_FMAC3 struct condorSchedd__newJobResponse * SOAP_FMAC4 soap_in_condorSchedd
 		{	for (;;)
 			{	soap->error = SOAP_TAG_MISMATCH;
 			if (soap_flag_result && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_int(soap, "result", &a->result, ""))
+				if (soap_in_xsd__int(soap, "result", &a->result, "xsd:int"))
 				{	soap_flag_result = 0;
 					continue;
 				}
@@ -3145,17 +3179,17 @@ SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__removeCluster(struct soa
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__removeCluster(struct soap *soap, const struct condorSchedd__removeCluster *a)
 {
-	soap_embedded(soap, &a->transactionId, SOAP_TYPE_xsd__long);
-	soap_embedded(soap, &a->clusterId, SOAP_TYPE_int);
-	soap_embedded(soap, &a->reason, SOAP_TYPE_string);
-	soap_mark_string(soap, &a->reason);
+	soap_embedded(soap, &a->transactionId, SOAP_TYPE_xsd__int);
+	soap_embedded(soap, &a->clusterId, SOAP_TYPE_xsd__int);
+	soap_embedded(soap, &a->reason, SOAP_TYPE_xsd__string);
+	soap_mark_xsd__string(soap, &a->reason);
 }
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorSchedd__removeCluster(struct soap *soap, struct condorSchedd__removeCluster *a)
 {
-	soap_default_xsd__long(soap, &a->transactionId);
-	soap_default_int(soap, &a->clusterId);
-	soap_default_string(soap, &a->reason);
+	soap_default_xsd__int(soap, &a->transactionId);
+	soap_default_xsd__int(soap, &a->clusterId);
+	soap_default_xsd__string(soap, &a->reason);
 }
 
 SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorSchedd__removeCluster(struct soap *soap, struct condorSchedd__removeCluster *a, const char *tag, const char *type)
@@ -3168,9 +3202,9 @@ SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorSchedd__removeCluster(struct soap *soap
 SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorSchedd__removeCluster(struct soap *soap, const char *tag, int id, const struct condorSchedd__removeCluster *a, const char *type)
 {
 	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condorSchedd__removeCluster), type);
-	soap_out_xsd__long(soap, "transactionId", -1, &a->transactionId, "xsd:long");
-	soap_out_int(soap, "clusterId", -1, &a->clusterId, "");
-	soap_out_string(soap, "reason", -1, &a->reason, "");
+	soap_out_xsd__int(soap, "transactionId", -1, &a->transactionId, "xsd:int");
+	soap_out_xsd__int(soap, "clusterId", -1, &a->clusterId, "xsd:int");
+	soap_out_xsd__string(soap, "reason", -1, &a->reason, "xsd:string");
 	soap_element_end_out(soap, tag);
 	return SOAP_OK;
 }
@@ -3210,17 +3244,17 @@ SOAP_FMAC3 struct condorSchedd__removeCluster * SOAP_FMAC4 soap_in_condorSchedd_
 		{	for (;;)
 			{	soap->error = SOAP_TAG_MISMATCH;
 			if (soap_flag_transactionId && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_xsd__long(soap, "transactionId", &a->transactionId, "xsd:long"))
+				if (soap_in_xsd__int(soap, "transactionId", &a->transactionId, "xsd:int"))
 				{	soap_flag_transactionId = 0;
 					continue;
 				}
 			if (soap_flag_clusterId && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_int(soap, "clusterId", &a->clusterId, ""))
+				if (soap_in_xsd__int(soap, "clusterId", &a->clusterId, "xsd:int"))
 				{	soap_flag_clusterId = 0;
 					continue;
 				}
 			if (soap_flag_reason && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_string(soap, "reason", &a->reason, ""))
+				if (soap_in_xsd__string(soap, "reason", &a->reason, "xsd:string"))
 				{	soap_flag_reason = 0;
 					continue;
 				}
@@ -3254,12 +3288,12 @@ SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__removeClusterResponse(st
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__removeClusterResponse(struct soap *soap, const struct condorSchedd__removeClusterResponse *a)
 {
-	soap_embedded(soap, &a->result, SOAP_TYPE_int);
+	soap_embedded(soap, &a->result, SOAP_TYPE_xsd__int);
 }
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorSchedd__removeClusterResponse(struct soap *soap, struct condorSchedd__removeClusterResponse *a)
 {
-	soap_default_int(soap, &a->result);
+	soap_default_xsd__int(soap, &a->result);
 }
 
 SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorSchedd__removeClusterResponse(struct soap *soap, struct condorSchedd__removeClusterResponse *a, const char *tag, const char *type)
@@ -3273,7 +3307,7 @@ SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorSchedd__removeClusterResponse(struct so
 {
 	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condorSchedd__removeClusterResponse), type);
 	soap_element_result(soap, "result");
-	soap_out_int(soap, "result", -1, &a->result, "");
+	soap_out_xsd__int(soap, "result", -1, &a->result, "xsd:int");
 	soap_element_end_out(soap, tag);
 	return SOAP_OK;
 }
@@ -3313,7 +3347,7 @@ SOAP_FMAC3 struct condorSchedd__removeClusterResponse * SOAP_FMAC4 soap_in_condo
 		{	for (;;)
 			{	soap->error = SOAP_TAG_MISMATCH;
 			if (soap_flag_result && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_int(soap, "result", &a->result, ""))
+				if (soap_in_xsd__int(soap, "result", &a->result, "xsd:int"))
 				{	soap_flag_result = 0;
 					continue;
 				}
@@ -3347,12 +3381,12 @@ SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__newCluster(struct soap *
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__newCluster(struct soap *soap, const struct condorSchedd__newCluster *a)
 {
-	soap_embedded(soap, &a->transactionId, SOAP_TYPE_xsd__long);
+	soap_embedded(soap, &a->transactionId, SOAP_TYPE_xsd__int);
 }
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorSchedd__newCluster(struct soap *soap, struct condorSchedd__newCluster *a)
 {
-	soap_default_xsd__long(soap, &a->transactionId);
+	soap_default_xsd__int(soap, &a->transactionId);
 }
 
 SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorSchedd__newCluster(struct soap *soap, struct condorSchedd__newCluster *a, const char *tag, const char *type)
@@ -3365,7 +3399,7 @@ SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorSchedd__newCluster(struct soap *soap, s
 SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorSchedd__newCluster(struct soap *soap, const char *tag, int id, const struct condorSchedd__newCluster *a, const char *type)
 {
 	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condorSchedd__newCluster), type);
-	soap_out_xsd__long(soap, "transactionId", -1, &a->transactionId, "xsd:long");
+	soap_out_xsd__int(soap, "transactionId", -1, &a->transactionId, "xsd:int");
 	soap_element_end_out(soap, tag);
 	return SOAP_OK;
 }
@@ -3405,7 +3439,7 @@ SOAP_FMAC3 struct condorSchedd__newCluster * SOAP_FMAC4 soap_in_condorSchedd__ne
 		{	for (;;)
 			{	soap->error = SOAP_TAG_MISMATCH;
 			if (soap_flag_transactionId && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_xsd__long(soap, "transactionId", &a->transactionId, "xsd:long"))
+				if (soap_in_xsd__int(soap, "transactionId", &a->transactionId, "xsd:int"))
 				{	soap_flag_transactionId = 0;
 					continue;
 				}
@@ -3439,12 +3473,12 @@ SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__newClusterResponse(struc
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__newClusterResponse(struct soap *soap, const struct condorSchedd__newClusterResponse *a)
 {
-	soap_embedded(soap, &a->result, SOAP_TYPE_int);
+	soap_embedded(soap, &a->result, SOAP_TYPE_xsd__int);
 }
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorSchedd__newClusterResponse(struct soap *soap, struct condorSchedd__newClusterResponse *a)
 {
-	soap_default_int(soap, &a->result);
+	soap_default_xsd__int(soap, &a->result);
 }
 
 SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorSchedd__newClusterResponse(struct soap *soap, struct condorSchedd__newClusterResponse *a, const char *tag, const char *type)
@@ -3458,7 +3492,7 @@ SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorSchedd__newClusterResponse(struct soap 
 {
 	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condorSchedd__newClusterResponse), type);
 	soap_element_result(soap, "result");
-	soap_out_int(soap, "result", -1, &a->result, "");
+	soap_out_xsd__int(soap, "result", -1, &a->result, "xsd:int");
 	soap_element_end_out(soap, tag);
 	return SOAP_OK;
 }
@@ -3498,7 +3532,7 @@ SOAP_FMAC3 struct condorSchedd__newClusterResponse * SOAP_FMAC4 soap_in_condorSc
 		{	for (;;)
 			{	soap->error = SOAP_TAG_MISMATCH;
 			if (soap_flag_result && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_int(soap, "result", &a->result, ""))
+				if (soap_in_xsd__int(soap, "result", &a->result, "xsd:int"))
 				{	soap_flag_result = 0;
 					continue;
 				}
@@ -3532,14 +3566,14 @@ SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__extendTransaction(struct
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__extendTransaction(struct soap *soap, const struct condorSchedd__extendTransaction *a)
 {
-	soap_embedded(soap, &a->transactionId, SOAP_TYPE_xsd__long);
-	soap_embedded(soap, &a->duration, SOAP_TYPE_int);
+	soap_embedded(soap, &a->transactionId, SOAP_TYPE_xsd__int);
+	soap_embedded(soap, &a->duration, SOAP_TYPE_xsd__int);
 }
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorSchedd__extendTransaction(struct soap *soap, struct condorSchedd__extendTransaction *a)
 {
-	soap_default_xsd__long(soap, &a->transactionId);
-	soap_default_int(soap, &a->duration);
+	soap_default_xsd__int(soap, &a->transactionId);
+	soap_default_xsd__int(soap, &a->duration);
 }
 
 SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorSchedd__extendTransaction(struct soap *soap, struct condorSchedd__extendTransaction *a, const char *tag, const char *type)
@@ -3552,8 +3586,8 @@ SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorSchedd__extendTransaction(struct soap *
 SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorSchedd__extendTransaction(struct soap *soap, const char *tag, int id, const struct condorSchedd__extendTransaction *a, const char *type)
 {
 	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condorSchedd__extendTransaction), type);
-	soap_out_xsd__long(soap, "transactionId", -1, &a->transactionId, "xsd:long");
-	soap_out_int(soap, "duration", -1, &a->duration, "");
+	soap_out_xsd__int(soap, "transactionId", -1, &a->transactionId, "xsd:int");
+	soap_out_xsd__int(soap, "duration", -1, &a->duration, "xsd:int");
 	soap_element_end_out(soap, tag);
 	return SOAP_OK;
 }
@@ -3593,12 +3627,12 @@ SOAP_FMAC3 struct condorSchedd__extendTransaction * SOAP_FMAC4 soap_in_condorSch
 		{	for (;;)
 			{	soap->error = SOAP_TAG_MISMATCH;
 			if (soap_flag_transactionId && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_xsd__long(soap, "transactionId", &a->transactionId, "xsd:long"))
+				if (soap_in_xsd__int(soap, "transactionId", &a->transactionId, "xsd:int"))
 				{	soap_flag_transactionId = 0;
 					continue;
 				}
 			if (soap_flag_duration && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_int(soap, "duration", &a->duration, ""))
+				if (soap_in_xsd__int(soap, "duration", &a->duration, "xsd:int"))
 				{	soap_flag_duration = 0;
 					continue;
 				}
@@ -3632,12 +3666,12 @@ SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__extendTransactionRespons
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__extendTransactionResponse(struct soap *soap, const struct condorSchedd__extendTransactionResponse *a)
 {
-	soap_embedded(soap, &a->result, SOAP_TYPE_int);
+	soap_embedded(soap, &a->result, SOAP_TYPE_xsd__int);
 }
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorSchedd__extendTransactionResponse(struct soap *soap, struct condorSchedd__extendTransactionResponse *a)
 {
-	soap_default_int(soap, &a->result);
+	soap_default_xsd__int(soap, &a->result);
 }
 
 SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorSchedd__extendTransactionResponse(struct soap *soap, struct condorSchedd__extendTransactionResponse *a, const char *tag, const char *type)
@@ -3651,7 +3685,7 @@ SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorSchedd__extendTransactionResponse(struc
 {
 	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condorSchedd__extendTransactionResponse), type);
 	soap_element_result(soap, "result");
-	soap_out_int(soap, "result", -1, &a->result, "");
+	soap_out_xsd__int(soap, "result", -1, &a->result, "xsd:int");
 	soap_element_end_out(soap, tag);
 	return SOAP_OK;
 }
@@ -3691,7 +3725,7 @@ SOAP_FMAC3 struct condorSchedd__extendTransactionResponse * SOAP_FMAC4 soap_in_c
 		{	for (;;)
 			{	soap->error = SOAP_TAG_MISMATCH;
 			if (soap_flag_result && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_int(soap, "result", &a->result, ""))
+				if (soap_in_xsd__int(soap, "result", &a->result, "xsd:int"))
 				{	soap_flag_result = 0;
 					continue;
 				}
@@ -3725,12 +3759,12 @@ SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__abortTransaction(struct 
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__abortTransaction(struct soap *soap, const struct condorSchedd__abortTransaction *a)
 {
-	soap_embedded(soap, &a->transactionId, SOAP_TYPE_xsd__long);
+	soap_embedded(soap, &a->transactionId, SOAP_TYPE_xsd__int);
 }
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorSchedd__abortTransaction(struct soap *soap, struct condorSchedd__abortTransaction *a)
 {
-	soap_default_xsd__long(soap, &a->transactionId);
+	soap_default_xsd__int(soap, &a->transactionId);
 }
 
 SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorSchedd__abortTransaction(struct soap *soap, struct condorSchedd__abortTransaction *a, const char *tag, const char *type)
@@ -3743,7 +3777,7 @@ SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorSchedd__abortTransaction(struct soap *s
 SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorSchedd__abortTransaction(struct soap *soap, const char *tag, int id, const struct condorSchedd__abortTransaction *a, const char *type)
 {
 	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condorSchedd__abortTransaction), type);
-	soap_out_xsd__long(soap, "transactionId", -1, &a->transactionId, "xsd:long");
+	soap_out_xsd__int(soap, "transactionId", -1, &a->transactionId, "xsd:int");
 	soap_element_end_out(soap, tag);
 	return SOAP_OK;
 }
@@ -3783,7 +3817,7 @@ SOAP_FMAC3 struct condorSchedd__abortTransaction * SOAP_FMAC4 soap_in_condorSche
 		{	for (;;)
 			{	soap->error = SOAP_TAG_MISMATCH;
 			if (soap_flag_transactionId && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_xsd__long(soap, "transactionId", &a->transactionId, "xsd:long"))
+				if (soap_in_xsd__int(soap, "transactionId", &a->transactionId, "xsd:int"))
 				{	soap_flag_transactionId = 0;
 					continue;
 				}
@@ -3817,12 +3851,12 @@ SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__abortTransactionResponse
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__abortTransactionResponse(struct soap *soap, const struct condorSchedd__abortTransactionResponse *a)
 {
-	soap_embedded(soap, &a->result, SOAP_TYPE_int);
+	soap_embedded(soap, &a->result, SOAP_TYPE_xsd__int);
 }
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorSchedd__abortTransactionResponse(struct soap *soap, struct condorSchedd__abortTransactionResponse *a)
 {
-	soap_default_int(soap, &a->result);
+	soap_default_xsd__int(soap, &a->result);
 }
 
 SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorSchedd__abortTransactionResponse(struct soap *soap, struct condorSchedd__abortTransactionResponse *a, const char *tag, const char *type)
@@ -3836,7 +3870,7 @@ SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorSchedd__abortTransactionResponse(struct
 {
 	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condorSchedd__abortTransactionResponse), type);
 	soap_element_result(soap, "result");
-	soap_out_int(soap, "result", -1, &a->result, "");
+	soap_out_xsd__int(soap, "result", -1, &a->result, "xsd:int");
 	soap_element_end_out(soap, tag);
 	return SOAP_OK;
 }
@@ -3876,7 +3910,7 @@ SOAP_FMAC3 struct condorSchedd__abortTransactionResponse * SOAP_FMAC4 soap_in_co
 		{	for (;;)
 			{	soap->error = SOAP_TAG_MISMATCH;
 			if (soap_flag_result && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_int(soap, "result", &a->result, ""))
+				if (soap_in_xsd__int(soap, "result", &a->result, "xsd:int"))
 				{	soap_flag_result = 0;
 					continue;
 				}
@@ -3910,12 +3944,12 @@ SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__commitTransaction(struct
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__commitTransaction(struct soap *soap, const struct condorSchedd__commitTransaction *a)
 {
-	soap_embedded(soap, &a->transactionId, SOAP_TYPE_xsd__long);
+	soap_embedded(soap, &a->transactionId, SOAP_TYPE_xsd__int);
 }
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorSchedd__commitTransaction(struct soap *soap, struct condorSchedd__commitTransaction *a)
 {
-	soap_default_xsd__long(soap, &a->transactionId);
+	soap_default_xsd__int(soap, &a->transactionId);
 }
 
 SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorSchedd__commitTransaction(struct soap *soap, struct condorSchedd__commitTransaction *a, const char *tag, const char *type)
@@ -3928,7 +3962,7 @@ SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorSchedd__commitTransaction(struct soap *
 SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorSchedd__commitTransaction(struct soap *soap, const char *tag, int id, const struct condorSchedd__commitTransaction *a, const char *type)
 {
 	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condorSchedd__commitTransaction), type);
-	soap_out_xsd__long(soap, "transactionId", -1, &a->transactionId, "xsd:long");
+	soap_out_xsd__int(soap, "transactionId", -1, &a->transactionId, "xsd:int");
 	soap_element_end_out(soap, tag);
 	return SOAP_OK;
 }
@@ -3968,7 +4002,7 @@ SOAP_FMAC3 struct condorSchedd__commitTransaction * SOAP_FMAC4 soap_in_condorSch
 		{	for (;;)
 			{	soap->error = SOAP_TAG_MISMATCH;
 			if (soap_flag_transactionId && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_xsd__long(soap, "transactionId", &a->transactionId, "xsd:long"))
+				if (soap_in_xsd__int(soap, "transactionId", &a->transactionId, "xsd:int"))
 				{	soap_flag_transactionId = 0;
 					continue;
 				}
@@ -4002,12 +4036,12 @@ SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__commitTransactionRespons
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__commitTransactionResponse(struct soap *soap, const struct condorSchedd__commitTransactionResponse *a)
 {
-	soap_embedded(soap, &a->result, SOAP_TYPE_int);
+	soap_embedded(soap, &a->result, SOAP_TYPE_xsd__int);
 }
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorSchedd__commitTransactionResponse(struct soap *soap, struct condorSchedd__commitTransactionResponse *a)
 {
-	soap_default_int(soap, &a->result);
+	soap_default_xsd__int(soap, &a->result);
 }
 
 SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorSchedd__commitTransactionResponse(struct soap *soap, struct condorSchedd__commitTransactionResponse *a, const char *tag, const char *type)
@@ -4021,7 +4055,7 @@ SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorSchedd__commitTransactionResponse(struc
 {
 	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condorSchedd__commitTransactionResponse), type);
 	soap_element_result(soap, "result");
-	soap_out_int(soap, "result", -1, &a->result, "");
+	soap_out_xsd__int(soap, "result", -1, &a->result, "xsd:int");
 	soap_element_end_out(soap, tag);
 	return SOAP_OK;
 }
@@ -4061,7 +4095,7 @@ SOAP_FMAC3 struct condorSchedd__commitTransactionResponse * SOAP_FMAC4 soap_in_c
 		{	for (;;)
 			{	soap->error = SOAP_TAG_MISMATCH;
 			if (soap_flag_result && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_int(soap, "result", &a->result, ""))
+				if (soap_in_xsd__int(soap, "result", &a->result, "xsd:int"))
 				{	soap_flag_result = 0;
 					continue;
 				}
@@ -4095,12 +4129,12 @@ SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__beginTransaction(struct 
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__beginTransaction(struct soap *soap, const struct condorSchedd__beginTransaction *a)
 {
-	soap_embedded(soap, &a->duration, SOAP_TYPE_int);
+	soap_embedded(soap, &a->duration, SOAP_TYPE_xsd__int);
 }
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorSchedd__beginTransaction(struct soap *soap, struct condorSchedd__beginTransaction *a)
 {
-	soap_default_int(soap, &a->duration);
+	soap_default_xsd__int(soap, &a->duration);
 }
 
 SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorSchedd__beginTransaction(struct soap *soap, struct condorSchedd__beginTransaction *a, const char *tag, const char *type)
@@ -4113,7 +4147,7 @@ SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorSchedd__beginTransaction(struct soap *s
 SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorSchedd__beginTransaction(struct soap *soap, const char *tag, int id, const struct condorSchedd__beginTransaction *a, const char *type)
 {
 	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condorSchedd__beginTransaction), type);
-	soap_out_int(soap, "duration", -1, &a->duration, "");
+	soap_out_xsd__int(soap, "duration", -1, &a->duration, "xsd:int");
 	soap_element_end_out(soap, tag);
 	return SOAP_OK;
 }
@@ -4153,7 +4187,7 @@ SOAP_FMAC3 struct condorSchedd__beginTransaction * SOAP_FMAC4 soap_in_condorSche
 		{	for (;;)
 			{	soap->error = SOAP_TAG_MISMATCH;
 			if (soap_flag_duration && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_int(soap, "duration", &a->duration, ""))
+				if (soap_in_xsd__int(soap, "duration", &a->duration, "xsd:int"))
 				{	soap_flag_duration = 0;
 					continue;
 				}
@@ -4187,12 +4221,12 @@ SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__beginTransactionResponse
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__beginTransactionResponse(struct soap *soap, const struct condorSchedd__beginTransactionResponse *a)
 {
-	soap_embedded(soap, &a->transactionId, SOAP_TYPE_xsd__long);
+	soap_embedded(soap, &a->transactionId, SOAP_TYPE_xsd__int);
 }
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorSchedd__beginTransactionResponse(struct soap *soap, struct condorSchedd__beginTransactionResponse *a)
 {
-	soap_default_xsd__long(soap, &a->transactionId);
+	soap_default_xsd__int(soap, &a->transactionId);
 }
 
 SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorSchedd__beginTransactionResponse(struct soap *soap, struct condorSchedd__beginTransactionResponse *a, const char *tag, const char *type)
@@ -4206,7 +4240,7 @@ SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorSchedd__beginTransactionResponse(struct
 {
 	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condorSchedd__beginTransactionResponse), type);
 	soap_element_result(soap, "transactionId");
-	soap_out_xsd__long(soap, "transactionId", -1, &a->transactionId, "xsd:long");
+	soap_out_xsd__int(soap, "transactionId", -1, &a->transactionId, "xsd:int");
 	soap_element_end_out(soap, tag);
 	return SOAP_OK;
 }
@@ -4246,7 +4280,7 @@ SOAP_FMAC3 struct condorSchedd__beginTransactionResponse * SOAP_FMAC4 soap_in_co
 		{	for (;;)
 			{	soap->error = SOAP_TAG_MISMATCH;
 			if (soap_flag_transactionId && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_xsd__long(soap, "transactionId", &a->transactionId, "xsd:long"))
+				if (soap_in_xsd__int(soap, "transactionId", &a->transactionId, "xsd:int"))
 				{	soap_flag_transactionId = 0;
 					continue;
 				}
@@ -5127,30 +5161,18 @@ SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCore__ClassAdStructAttr(struct s
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorCore__ClassAdStructAttr(struct soap *soap, const struct condorCore__ClassAdStructAttr *a)
 {
-	soap_embedded(soap, &a->name, SOAP_TYPE_string);
-	soap_mark_string(soap, &a->name);
-	soap_embedded(soap, &a->type, SOAP_TYPE_byte);
-	soap_embedded(soap, &a->value, SOAP_TYPE_string);
-	soap_mark_string(soap, &a->value);
-	soap_embedded(soap, &a->valueInt, SOAP_TYPE_PointerToint);
-	soap_mark_PointerToint(soap, &a->valueInt);
-	soap_embedded(soap, &a->valueFloat, SOAP_TYPE_PointerTofloat);
-	soap_mark_PointerTofloat(soap, &a->valueFloat);
-	soap_embedded(soap, &a->valueBool, SOAP_TYPE_PointerTobool);
-	soap_mark_PointerTobool(soap, &a->valueBool);
-	soap_embedded(soap, &a->valueExpr, SOAP_TYPE_string);
-	soap_mark_string(soap, &a->valueExpr);
+	soap_embedded(soap, &a->name, SOAP_TYPE_xsd__string);
+	soap_mark_xsd__string(soap, &a->name);
+	soap_embedded(soap, &a->type, SOAP_TYPE_xsd__byte);
+	soap_embedded(soap, &a->value, SOAP_TYPE_xsd__string);
+	soap_mark_xsd__string(soap, &a->value);
 }
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorCore__ClassAdStructAttr(struct soap *soap, struct condorCore__ClassAdStructAttr *a)
 {
-	soap_default_string(soap, &a->name);
-	soap_default_byte(soap, &a->type);
-	soap_default_string(soap, &a->value);
-	soap_default_PointerToint(soap, &a->valueInt);
-	soap_default_PointerTofloat(soap, &a->valueFloat);
-	soap_default_PointerTobool(soap, &a->valueBool);
-	soap_default_string(soap, &a->valueExpr);
+	soap_default_xsd__string(soap, &a->name);
+	soap_default_xsd__byte(soap, &a->type);
+	soap_default_xsd__string(soap, &a->value);
 }
 
 SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorCore__ClassAdStructAttr(struct soap *soap, struct condorCore__ClassAdStructAttr *a, const char *tag, const char *type)
@@ -5163,13 +5185,9 @@ SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorCore__ClassAdStructAttr(struct soap *so
 SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorCore__ClassAdStructAttr(struct soap *soap, const char *tag, int id, const struct condorCore__ClassAdStructAttr *a, const char *type)
 {
 	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condorCore__ClassAdStructAttr), type);
-	soap_out_string(soap, "name", -1, &a->name, "");
-	soap_out_byte(soap, "type", -1, &a->type, "");
-	soap_out_string(soap, "value", -1, &a->value, "");
-	soap_out_PointerToint(soap, "valueInt", -1, &a->valueInt, "");
-	soap_out_PointerTofloat(soap, "valueFloat", -1, &a->valueFloat, "");
-	soap_out_PointerTobool(soap, "valueBool", -1, &a->valueBool, "");
-	soap_out_string(soap, "valueExpr", -1, &a->valueExpr, "");
+	soap_out_xsd__string(soap, "name", -1, &a->name, "xsd:string");
+	soap_out_xsd__byte(soap, "type", -1, &a->type, "xsd:byte");
+	soap_out_xsd__string(soap, "value", -1, &a->value, "xsd:string");
 	soap_element_end_out(soap, tag);
 	return SOAP_OK;
 }
@@ -5183,7 +5201,7 @@ SOAP_FMAC3 struct condorCore__ClassAdStructAttr * SOAP_FMAC4 soap_get_condorCore
 
 SOAP_FMAC3 struct condorCore__ClassAdStructAttr * SOAP_FMAC4 soap_in_condorCore__ClassAdStructAttr(struct soap *soap, const char *tag, struct condorCore__ClassAdStructAttr *a, const char *type)
 {
-	short soap_flag_name = 1, soap_flag_type = 1, soap_flag_value = 1, soap_flag_valueInt = 1, soap_flag_valueFloat = 1, soap_flag_valueBool = 1, soap_flag_valueExpr = 1;
+	short soap_flag_name = 1, soap_flag_type = 1, soap_flag_value = 1;
 	if (soap_element_begin_in(soap, tag))
 		return NULL;
 	if (*soap->type && soap_match_tag(soap, soap->type, type))
@@ -5209,38 +5227,18 @@ SOAP_FMAC3 struct condorCore__ClassAdStructAttr * SOAP_FMAC4 soap_in_condorCore_
 		{	for (;;)
 			{	soap->error = SOAP_TAG_MISMATCH;
 			if (soap_flag_name && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_string(soap, "name", &a->name, ""))
+				if (soap_in_xsd__string(soap, "name", &a->name, "xsd:string"))
 				{	soap_flag_name = 0;
 					continue;
 				}
 			if (soap_flag_type && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_byte(soap, "type", &a->type, ""))
+				if (soap_in_xsd__byte(soap, "type", &a->type, "xsd:byte"))
 				{	soap_flag_type = 0;
 					continue;
 				}
 			if (soap_flag_value && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_string(soap, "value", &a->value, ""))
+				if (soap_in_xsd__string(soap, "value", &a->value, "xsd:string"))
 				{	soap_flag_value = 0;
-					continue;
-				}
-			if (soap_flag_valueInt && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_PointerToint(soap, "valueInt", &a->valueInt, ""))
-				{	soap_flag_valueInt = 0;
-					continue;
-				}
-			if (soap_flag_valueFloat && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_PointerTofloat(soap, "valueFloat", &a->valueFloat, ""))
-				{	soap_flag_valueFloat = 0;
-					continue;
-				}
-			if (soap_flag_valueBool && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_PointerTobool(soap, "valueBool", &a->valueBool, ""))
-				{	soap_flag_valueBool = 0;
-					continue;
-				}
-			if (soap_flag_valueExpr && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_string(soap, "valueExpr", &a->valueExpr, ""))
-				{	soap_flag_valueExpr = 0;
 					continue;
 				}
 			if (soap->error == SOAP_TAG_MISMATCH)
@@ -5558,255 +5556,6 @@ SOAP_FMAC3 struct condorCore__ClassAdStructAttr ** SOAP_FMAC4 soap_in_PointerToc
 	}
 	else
 	{	a = (struct condorCore__ClassAdStructAttr **)soap_id_lookup(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_PointerTocondorCore__ClassAdStructAttr, sizeof(struct condorCore__ClassAdStructAttr *), 1), SOAP_TYPE_condorCore__ClassAdStructAttr, sizeof(struct condorCore__ClassAdStructAttr), 0);
-		if (soap->body && soap_element_end_in(soap, tag))
-			return NULL;
-	}
-	return a;
-}
-
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_PointerTobool(struct soap *soap, bool *const*a)
-{
-	if (!soap_reference(soap, a, SOAP_TYPE_PointerTobool))
-		soap_mark_PointerTobool(soap, a);
-}
-
-SOAP_FMAC3 void SOAP_FMAC4 soap_mark_PointerTobool(struct soap *soap, bool *const*a)
-{
-	soap_reference(soap, *a, SOAP_TYPE_bool);
-}
-
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_PointerTobool(struct soap *soap, bool **a)
-{
-	*a = NULL;
-}
-
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_PointerTobool(struct soap *soap, bool **a, const char *tag, const char *type)
-{
-	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_PointerTobool);
-	soap_out_PointerTobool(soap, tag, i, a, type);
-	return soap_putindependent(soap);
-}
-
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_PointerTobool(struct soap *soap, const char *tag, int id, bool *const*a, const char *type)
-{
-	struct soap_plist *pp;
-	register int i;
-	id = soap_embedded_id(soap, id, a, SOAP_TYPE_PointerTobool);
-	if (!*a)
-		return soap_element_null(soap, tag, id, type);
-	i = soap_pointer_lookup(soap, *a, SOAP_TYPE_bool, &pp);
-	if (i)
-	{	if (soap_is_embedded(soap, pp))
-			return soap_element_ref(soap, tag, id, i);
-		if (soap_is_single(soap, pp))
-			return soap_out_bool(soap, tag, 0, *a, type);
-		soap_set_embedded(soap, pp);
-		return soap_out_bool(soap, tag, i, *a, type);
-	}
-	return soap_out_bool(soap, tag, soap_pointer_enter(soap, *a, SOAP_TYPE_bool, &pp), *a, type);
-}
-
-SOAP_FMAC3 bool ** SOAP_FMAC4 soap_get_PointerTobool(struct soap *soap, bool **p, const char *tag, const char *type)
-{
-	if ((p = soap_in_PointerTobool(soap, tag, p, type)))
-		soap_getindependent(soap);
-	return p;
-}
-
-SOAP_FMAC3 bool ** SOAP_FMAC4 soap_in_PointerTobool(struct soap *soap, const char *tag, bool **a, const char *type)
-{
-	bool *p;
-	if (soap_element_begin_in(soap, tag))
-		return NULL;
-	if (soap->null)
-	{	a = (bool **)soap_id_enter(soap, soap->id, a, SOAP_TYPE_PointerTobool, sizeof(bool *), 1);
-		if (a)
-			*a = NULL;
-		if (soap->body && soap_element_end_in(soap, tag))
-			return NULL;
-	}
-	else if (!*soap->href)
-	{	soap_revert(soap);
-		if (a)
-		{	if ((p = soap_in_bool(soap, tag, *a, type)))
-				*a = p;
-			else
-				a = NULL;
-		}
-		else if ((p = soap_in_bool(soap, tag, NULL, type)))
-		{	a = (bool **)soap_id_enter(soap, "", NULL, SOAP_TYPE_PointerTobool, sizeof(bool *), 0);
-			if (a)
-				*a = p;
-		}
-	}
-	else
-	{	a = (bool **)soap_id_lookup(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_PointerTobool, sizeof(bool *), 1), SOAP_TYPE_bool, sizeof(bool), 0);
-		if (soap->body && soap_element_end_in(soap, tag))
-			return NULL;
-	}
-	return a;
-}
-
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_PointerTofloat(struct soap *soap, float *const*a)
-{
-	if (!soap_reference(soap, a, SOAP_TYPE_PointerTofloat))
-		soap_mark_PointerTofloat(soap, a);
-}
-
-SOAP_FMAC3 void SOAP_FMAC4 soap_mark_PointerTofloat(struct soap *soap, float *const*a)
-{
-	soap_reference(soap, *a, SOAP_TYPE_float);
-}
-
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_PointerTofloat(struct soap *soap, float **a)
-{
-	*a = NULL;
-}
-
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_PointerTofloat(struct soap *soap, float **a, const char *tag, const char *type)
-{
-	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_PointerTofloat);
-	soap_out_PointerTofloat(soap, tag, i, a, type);
-	return soap_putindependent(soap);
-}
-
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_PointerTofloat(struct soap *soap, const char *tag, int id, float *const*a, const char *type)
-{
-	struct soap_plist *pp;
-	register int i;
-	id = soap_embedded_id(soap, id, a, SOAP_TYPE_PointerTofloat);
-	if (!*a)
-		return soap_element_null(soap, tag, id, type);
-	i = soap_pointer_lookup(soap, *a, SOAP_TYPE_float, &pp);
-	if (i)
-	{	if (soap_is_embedded(soap, pp))
-			return soap_element_ref(soap, tag, id, i);
-		if (soap_is_single(soap, pp))
-			return soap_out_float(soap, tag, 0, *a, type);
-		soap_set_embedded(soap, pp);
-		return soap_out_float(soap, tag, i, *a, type);
-	}
-	return soap_out_float(soap, tag, soap_pointer_enter(soap, *a, SOAP_TYPE_float, &pp), *a, type);
-}
-
-SOAP_FMAC3 float ** SOAP_FMAC4 soap_get_PointerTofloat(struct soap *soap, float **p, const char *tag, const char *type)
-{
-	if ((p = soap_in_PointerTofloat(soap, tag, p, type)))
-		soap_getindependent(soap);
-	return p;
-}
-
-SOAP_FMAC3 float ** SOAP_FMAC4 soap_in_PointerTofloat(struct soap *soap, const char *tag, float **a, const char *type)
-{
-	float *p;
-	if (soap_element_begin_in(soap, tag))
-		return NULL;
-	if (soap->null)
-	{	a = (float **)soap_id_enter(soap, soap->id, a, SOAP_TYPE_PointerTofloat, sizeof(float *), 1);
-		if (a)
-			*a = NULL;
-		if (soap->body && soap_element_end_in(soap, tag))
-			return NULL;
-	}
-	else if (!*soap->href)
-	{	soap_revert(soap);
-		if (a)
-		{	if ((p = soap_in_float(soap, tag, *a, type)))
-				*a = p;
-			else
-				a = NULL;
-		}
-		else if ((p = soap_in_float(soap, tag, NULL, type)))
-		{	a = (float **)soap_id_enter(soap, "", NULL, SOAP_TYPE_PointerTofloat, sizeof(float *), 0);
-			if (a)
-				*a = p;
-		}
-	}
-	else
-	{	a = (float **)soap_id_lookup(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_PointerTofloat, sizeof(float *), 1), SOAP_TYPE_float, sizeof(float), 0);
-		if (soap->body && soap_element_end_in(soap, tag))
-			return NULL;
-	}
-	return a;
-}
-
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_PointerToint(struct soap *soap, int *const*a)
-{
-	if (!soap_reference(soap, a, SOAP_TYPE_PointerToint))
-		soap_mark_PointerToint(soap, a);
-}
-
-SOAP_FMAC3 void SOAP_FMAC4 soap_mark_PointerToint(struct soap *soap, int *const*a)
-{
-	soap_reference(soap, *a, SOAP_TYPE_int);
-}
-
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_PointerToint(struct soap *soap, int **a)
-{
-	*a = NULL;
-}
-
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_PointerToint(struct soap *soap, int **a, const char *tag, const char *type)
-{
-	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_PointerToint);
-	soap_out_PointerToint(soap, tag, i, a, type);
-	return soap_putindependent(soap);
-}
-
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_PointerToint(struct soap *soap, const char *tag, int id, int *const*a, const char *type)
-{
-	struct soap_plist *pp;
-	register int i;
-	id = soap_embedded_id(soap, id, a, SOAP_TYPE_PointerToint);
-	if (!*a)
-		return soap_element_null(soap, tag, id, type);
-	i = soap_pointer_lookup(soap, *a, SOAP_TYPE_int, &pp);
-	if (i)
-	{	if (soap_is_embedded(soap, pp))
-			return soap_element_ref(soap, tag, id, i);
-		if (soap_is_single(soap, pp))
-			return soap_out_int(soap, tag, 0, *a, type);
-		soap_set_embedded(soap, pp);
-		return soap_out_int(soap, tag, i, *a, type);
-	}
-	return soap_out_int(soap, tag, soap_pointer_enter(soap, *a, SOAP_TYPE_int, &pp), *a, type);
-}
-
-SOAP_FMAC3 int ** SOAP_FMAC4 soap_get_PointerToint(struct soap *soap, int **p, const char *tag, const char *type)
-{
-	if ((p = soap_in_PointerToint(soap, tag, p, type)))
-		soap_getindependent(soap);
-	return p;
-}
-
-SOAP_FMAC3 int ** SOAP_FMAC4 soap_in_PointerToint(struct soap *soap, const char *tag, int **a, const char *type)
-{
-	int *p;
-	if (soap_element_begin_in(soap, tag))
-		return NULL;
-	if (soap->null)
-	{	a = (int **)soap_id_enter(soap, soap->id, a, SOAP_TYPE_PointerToint, sizeof(int *), 1);
-		if (a)
-			*a = NULL;
-		if (soap->body && soap_element_end_in(soap, tag))
-			return NULL;
-	}
-	else if (!*soap->href)
-	{	soap_revert(soap);
-		if (a)
-		{	if ((p = soap_in_int(soap, tag, *a, type)))
-				*a = p;
-			else
-				a = NULL;
-		}
-		else if ((p = soap_in_int(soap, tag, NULL, type)))
-		{	a = (int **)soap_id_enter(soap, "", NULL, SOAP_TYPE_PointerToint, sizeof(int *), 0);
-			if (a)
-				*a = p;
-		}
-	}
-	else
-	{	a = (int **)soap_id_lookup(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_PointerToint, sizeof(int *), 1), SOAP_TYPE_int, sizeof(int), 0);
 		if (soap->body && soap_element_end_in(soap, tag))
 			return NULL;
 	}

@@ -37,10 +37,10 @@
 
 #include "../condor_c++_util/soap_helpers.cpp"
 
-static xsd__long current_trans_id = 0;
+static int current_trans_id = 0;
 static int trans_timer_id = -1;
 
-static bool valid_transaction_id(xsd__long id)
+static bool valid_transaction_id(int id)
 {
 	if (current_trans_id == id || 0 == id ) {
 		return true;
@@ -65,7 +65,7 @@ condorSchedd__transtimeout()
 }
 
 int condorSchedd__beginTransaction(struct soap *s,int duration, 
-			xsd__long & transactionId)
+			int & transactionId)
 {
 	if ( current_trans_id ) {
 		// if there is an existing transaction, abort it.
@@ -94,7 +94,7 @@ int condorSchedd__beginTransaction(struct soap *s,int duration,
 	return SOAP_OK;
 }
 
-int condorSchedd__commitTransaction(struct soap *s,xsd__long transactionId, 
+int condorSchedd__commitTransaction(struct soap *s,int transactionId, 
 			int & result )
 {
 	result = 0;
@@ -117,7 +117,7 @@ int condorSchedd__commitTransaction(struct soap *s,xsd__long transactionId,
 }
 
 
-int condorSchedd__abortTransaction(struct soap *,xsd__long transactionId,
+int condorSchedd__abortTransaction(struct soap *,int transactionId,
 			int & result )
 {
 	result = 0;
@@ -140,7 +140,7 @@ int condorSchedd__abortTransaction(struct soap *,xsd__long transactionId,
 }
 
 
-int condorSchedd__extendTransaction(struct soap *s,xsd__long transactionId,
+int condorSchedd__extendTransaction(struct soap *s,int transactionId,
 			int duration,
 			int & result )
 {
@@ -161,7 +161,7 @@ int condorSchedd__extendTransaction(struct soap *s,xsd__long transactionId,
 }
 
 
-int condorSchedd__newCluster(struct soap *s,xsd__long transactionId,
+int condorSchedd__newCluster(struct soap *s,int transactionId,
 			int & result)
 {
 	if ( (transactionId == 0) || (!valid_transaction_id(transactionId)) ) {
@@ -177,7 +177,7 @@ int condorSchedd__newCluster(struct soap *s,xsd__long transactionId,
 }
 
 
-int condorSchedd__removeCluster(struct soap *s,xsd__long transactionId,
+int condorSchedd__removeCluster(struct soap *s,int transactionId,
 			int clusterId, char* reason,
 			int & result)
 {
@@ -195,7 +195,7 @@ int condorSchedd__removeCluster(struct soap *s,xsd__long transactionId,
 }
 
 
-int condorSchedd__newJob(struct soap *s,xsd__long transactionId,
+int condorSchedd__newJob(struct soap *s,int transactionId,
 			int clusterId, int & result)
 {
 	result = 0;
@@ -212,7 +212,7 @@ int condorSchedd__newJob(struct soap *s,xsd__long transactionId,
 }
 
 
-int condorSchedd__removeJob(struct soap *s,xsd__long transactionId,
+int condorSchedd__removeJob(struct soap *s,int transactionId,
 			int clusterId, int jobId, char* reason, bool force_removal,
 			int & result)
 {
@@ -232,7 +232,7 @@ int condorSchedd__removeJob(struct soap *s,xsd__long transactionId,
 }
 
 
-int condorSchedd__holdJob(struct soap *s,xsd__long transactionId,
+int condorSchedd__holdJob(struct soap *s,int transactionId,
 			int clusterId, int jobId, char* reason,
 			bool email_user, bool email_admin, bool system_hold,
 			int & result)
@@ -253,7 +253,7 @@ int condorSchedd__holdJob(struct soap *s,xsd__long transactionId,
 }
 
 
-int condorSchedd__releaseJob(struct soap *s,xsd__long transactionId,
+int condorSchedd__releaseJob(struct soap *s,int transactionId,
 			int clusterId, int jobId, char* reason,
 			bool email_user, bool email_admin,
 			int & result)
@@ -274,7 +274,7 @@ int condorSchedd__releaseJob(struct soap *s,xsd__long transactionId,
 }
 
 
-int condorSchedd__submit(struct soap *s,xsd__long transactionId,
+int condorSchedd__submit(struct soap *s,int transactionId,
 				int clusterId, int jobId,
 				struct ClassAdStruct * jobAd,
 				int & result)
@@ -309,7 +309,7 @@ int condorSchedd__submit(struct soap *s,xsd__long transactionId,
 }
 
 
-int condorSchedd__getJobAds(struct soap *s,xsd__long transactionId,
+int condorSchedd__getJobAds(struct soap *s,int transactionId,
 				char *constraint,
 				struct ClassAdStructArray & result )
 {
@@ -335,7 +335,7 @@ int condorSchedd__getJobAds(struct soap *s,xsd__long transactionId,
 }
 
 
-int condorSchedd__getJobAd(struct soap *s,xsd__long transactionId,
+int condorSchedd__getJobAd(struct soap *s,int transactionId,
 				int clusterId, int jobId,
 				struct ClassAdStruct & result )
 {
@@ -383,28 +383,28 @@ int condorCore__getInfoAd(struct soap *soap,void *,ClassAdStruct & ad)
 	ad.__ptr[0].name = "Name";
 	ad.__ptr[0].type = 's';
 	ad.__ptr[0].value = todd;
-	ad.__ptr[0].valueInt = NULL;
-	ad.__ptr[0].valueFloat = NULL;
-	ad.__ptr[0].valueBool = NULL;
-	ad.__ptr[0].valueExpr = NULL;
+	//ad.__ptr[0].valueInt = NULL;
+	//ad.__ptr[0].valueFloat = NULL;
+	//ad.__ptr[0].valueBool = NULL;
+	//ad.__ptr[0].valueExpr = NULL;
 
 	ad.__ptr[1].name = "Age";
 	ad.__ptr[1].type = 'n';
 	ad.__ptr[1].value = "35";
 	int* age = (int*)soap_malloc(soap,sizeof(int));
 	*age = 35;
-	ad.__ptr[1].valueInt = age;
-	ad.__ptr[1].valueFloat = NULL;
-	ad.__ptr[1].valueBool = NULL;
-	ad.__ptr[1].valueExpr = NULL;
+	//ad.__ptr[1].valueInt = age;
+	//ad.__ptr[1].valueFloat = NULL;
+	//ad.__ptr[1].valueBool = NULL;
+	//ad.__ptr[1].valueExpr = NULL;
 
 	ad.__ptr[2].name = "Friend";
 	ad.__ptr[2].type = 's';
 	ad.__ptr[2].value = todd;
-	ad.__ptr[2].valueInt = NULL;
-	ad.__ptr[2].valueFloat = NULL;
-	ad.__ptr[2].valueBool = NULL;
-	ad.__ptr[2].valueExpr = NULL;
+	//ad.__ptr[2].valueInt = NULL;
+	//ad.__ptr[2].valueFloat = NULL;
+	//ad.__ptr[2].valueBool = NULL;
+	//ad.__ptr[2].valueExpr = NULL;
 
 	return SOAP_OK;
 

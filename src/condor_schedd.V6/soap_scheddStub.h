@@ -19,10 +19,6 @@ struct condorCore__ClassAdStructAttr
 	char *name;
 	char type;
 	char *value;
-	int *valueInt;
-	float *valueFloat;
-	bool *valueBool;
-	char *valueExpr;
 };
 
 /* Array of condorCore:ClassAdStructAttr schema type: */
@@ -78,7 +74,7 @@ struct condorCore__getPlatformString
 /* condorSchedd:beginTransactionResponse: */
 struct condorSchedd__beginTransactionResponse
 {
-	LONG64 transactionId;	/* return */
+	int transactionId;	/* return */
 };
 
 /* condorSchedd:beginTransaction: */
@@ -96,7 +92,7 @@ struct condorSchedd__commitTransactionResponse
 /* condorSchedd:commitTransaction: */
 struct condorSchedd__commitTransaction
 {
-	LONG64 transactionId;
+	int transactionId;
 };
 
 /* condorSchedd:abortTransactionResponse: */
@@ -108,7 +104,7 @@ struct condorSchedd__abortTransactionResponse
 /* condorSchedd:abortTransaction: */
 struct condorSchedd__abortTransaction
 {
-	LONG64 transactionId;
+	int transactionId;
 };
 
 /* condorSchedd:extendTransactionResponse: */
@@ -120,7 +116,7 @@ struct condorSchedd__extendTransactionResponse
 /* condorSchedd:extendTransaction: */
 struct condorSchedd__extendTransaction
 {
-	LONG64 transactionId;
+	int transactionId;
 	int duration;
 };
 
@@ -133,7 +129,7 @@ struct condorSchedd__newClusterResponse
 /* condorSchedd:newCluster: */
 struct condorSchedd__newCluster
 {
-	LONG64 transactionId;
+	int transactionId;
 };
 
 /* condorSchedd:removeClusterResponse: */
@@ -145,7 +141,7 @@ struct condorSchedd__removeClusterResponse
 /* condorSchedd:removeCluster: */
 struct condorSchedd__removeCluster
 {
-	LONG64 transactionId;
+	int transactionId;
 	int clusterId;
 	char *reason;
 };
@@ -159,7 +155,7 @@ struct condorSchedd__newJobResponse
 /* condorSchedd:newJob: */
 struct condorSchedd__newJob
 {
-	LONG64 transactionId;
+	int transactionId;
 	int clusterId;
 };
 
@@ -172,7 +168,7 @@ struct condorSchedd__removeJobResponse
 /* condorSchedd:removeJob: */
 struct condorSchedd__removeJob
 {
-	LONG64 transactionId;
+	int transactionId;
 	int clusterId;
 	int jobId;
 	char *reason;
@@ -188,7 +184,7 @@ struct condorSchedd__holdJobResponse
 /* condorSchedd:holdJob: */
 struct condorSchedd__holdJob
 {
-	LONG64 transactionId;
+	int transactionId;
 	int clusterId;
 	int jobId;
 	char *reason;
@@ -206,7 +202,7 @@ struct condorSchedd__releaseJobResponse
 /* condorSchedd:releaseJob: */
 struct condorSchedd__releaseJob
 {
-	LONG64 transactionId;
+	int transactionId;
 	int clusterId;
 	int jobId;
 	char *reason;
@@ -223,7 +219,7 @@ struct condorSchedd__submitResponse
 /* condorSchedd:submit: */
 struct condorSchedd__submit
 {
-	LONG64 transactionId;
+	int transactionId;
 	int clusterId;
 	int jobId;
 	struct ClassAdStruct *jobAd;
@@ -238,7 +234,7 @@ struct condorSchedd__getJobAdsResponse
 /* condorSchedd:getJobAds: */
 struct condorSchedd__getJobAds
 {
-	LONG64 transactionId;
+	int transactionId;
 	char *constraint;
 };
 
@@ -251,7 +247,7 @@ struct condorSchedd__getJobAdResponse
 /* condorSchedd:getJobAd: */
 struct condorSchedd__getJobAd
 {
-	LONG64 transactionId;
+	int transactionId;
 	int clusterId;
 	int jobId;
 };
@@ -288,10 +284,11 @@ struct SOAP_ENV__Fault
 typedef char *xsd__string;
 typedef char *xsd__anyURI;
 typedef float xsd__float;
-typedef long xsd__int;
+typedef int xsd__int;
 typedef bool xsd__boolean;
 typedef ULONG64 xsd__positiveInteger;
 typedef LONG64 xsd__long;
+typedef char xsd__byte;
 typedef char *_QName;
 
 /* Extern */
@@ -304,31 +301,31 @@ SOAP_FMAC5 int SOAP_FMAC6 condorCore__getVersionString(struct soap*, void *, cha
 
 SOAP_FMAC5 int SOAP_FMAC6 condorCore__getPlatformString(struct soap*, void *, char *&);
 
-SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__beginTransaction(struct soap*, int, LONG64 &);
+SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__beginTransaction(struct soap*, int, int &);
 
-SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__commitTransaction(struct soap*, LONG64, int &);
+SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__commitTransaction(struct soap*, int, int &);
 
-SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__abortTransaction(struct soap*, LONG64, int &);
+SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__abortTransaction(struct soap*, int, int &);
 
-SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__extendTransaction(struct soap*, LONG64, int, int &);
+SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__extendTransaction(struct soap*, int, int, int &);
 
-SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__newCluster(struct soap*, LONG64, int &);
+SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__newCluster(struct soap*, int, int &);
 
-SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__removeCluster(struct soap*, LONG64, int, char *, int &);
+SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__removeCluster(struct soap*, int, int, char *, int &);
 
-SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__newJob(struct soap*, LONG64, int, int &);
+SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__newJob(struct soap*, int, int, int &);
 
-SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__removeJob(struct soap*, LONG64, int, int, char *, bool, int &);
+SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__removeJob(struct soap*, int, int, int, char *, bool, int &);
 
-SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__holdJob(struct soap*, LONG64, int, int, char *, bool, bool, bool, int &);
+SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__holdJob(struct soap*, int, int, int, char *, bool, bool, bool, int &);
 
-SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__releaseJob(struct soap*, LONG64, int, int, char *, bool, bool, int &);
+SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__releaseJob(struct soap*, int, int, int, char *, bool, bool, int &);
 
-SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__submit(struct soap*, LONG64, int, int, struct ClassAdStruct *, int &);
+SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__submit(struct soap*, int, int, int, struct ClassAdStruct *, int &);
 
-SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__getJobAds(struct soap*, LONG64, char *, struct ClassAdStructArray &);
+SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__getJobAds(struct soap*, int, char *, struct ClassAdStructArray &);
 
-SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__getJobAd(struct soap*, LONG64, int, int, struct ClassAdStruct &);
+SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__getJobAd(struct soap*, int, int, int, struct ClassAdStruct &);
 
 /* Stubs */
 
@@ -338,31 +335,31 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorCore__getVersionString(struct soap*, c
 
 SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorCore__getPlatformString(struct soap*, const char*, const char*, void *, char *&);
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__beginTransaction(struct soap*, const char*, const char*, int, LONG64 &);
+SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__beginTransaction(struct soap*, const char*, const char*, int, int &);
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__commitTransaction(struct soap*, const char*, const char*, LONG64, int &);
+SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__commitTransaction(struct soap*, const char*, const char*, int, int &);
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__abortTransaction(struct soap*, const char*, const char*, LONG64, int &);
+SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__abortTransaction(struct soap*, const char*, const char*, int, int &);
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__extendTransaction(struct soap*, const char*, const char*, LONG64, int, int &);
+SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__extendTransaction(struct soap*, const char*, const char*, int, int, int &);
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__newCluster(struct soap*, const char*, const char*, LONG64, int &);
+SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__newCluster(struct soap*, const char*, const char*, int, int &);
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__removeCluster(struct soap*, const char*, const char*, LONG64, int, char *, int &);
+SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__removeCluster(struct soap*, const char*, const char*, int, int, char *, int &);
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__newJob(struct soap*, const char*, const char*, LONG64, int, int &);
+SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__newJob(struct soap*, const char*, const char*, int, int, int &);
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__removeJob(struct soap*, const char*, const char*, LONG64, int, int, char *, bool, int &);
+SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__removeJob(struct soap*, const char*, const char*, int, int, int, char *, bool, int &);
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__holdJob(struct soap*, const char*, const char*, LONG64, int, int, char *, bool, bool, bool, int &);
+SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__holdJob(struct soap*, const char*, const char*, int, int, int, char *, bool, bool, bool, int &);
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__releaseJob(struct soap*, const char*, const char*, LONG64, int, int, char *, bool, bool, int &);
+SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__releaseJob(struct soap*, const char*, const char*, int, int, int, char *, bool, bool, int &);
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__submit(struct soap*, const char*, const char*, LONG64, int, int, struct ClassAdStruct *, int &);
+SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__submit(struct soap*, const char*, const char*, int, int, int, struct ClassAdStruct *, int &);
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__getJobAds(struct soap*, const char*, const char*, LONG64, char *, struct ClassAdStructArray &);
+SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__getJobAds(struct soap*, const char*, const char*, int, char *, struct ClassAdStructArray &);
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__getJobAd(struct soap*, const char*, const char*, LONG64, int, int, struct ClassAdStruct &);
+SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__getJobAd(struct soap*, const char*, const char*, int, int, int, struct ClassAdStruct &);
 
 /* Skeletons */
 

@@ -29,10 +29,6 @@
     <element name="name" type="xsd:string" minOccurs="1" maxOccurs="1" nillable="true"/>
     <element name="type" type="xsd:byte" minOccurs="1" maxOccurs="1"/>
     <element name="value" type="xsd:string" minOccurs="1" maxOccurs="1" nillable="true"/>
-    <element name="valueInt" type="xsd:int" minOccurs="0" maxOccurs="1" nillable="true"/>
-    <element name="valueFloat" type="xsd:float" minOccurs="0" maxOccurs="1" nillable="true"/>
-    <element name="valueBool" type="xsd:boolean" minOccurs="0" maxOccurs="1" nillable="true"/>
-    <element name="valueExpr" type="xsd:string" minOccurs="0" maxOccurs="1" nillable="true"/>
    </sequence>
   </complexType>
 
@@ -78,11 +74,11 @@
 </message>
 
 <message name="beginTransactionResponse">
- <part name="transactionId" type="xsd:long"/>
+ <part name="transactionId" type="xsd:int"/>
 </message>
 
 <message name="commitTransactionRequest">
- <part name="transactionId" type="xsd:long"/>
+ <part name="transactionId" type="xsd:int"/>
 </message>
 
 <message name="commitTransactionResponse">
@@ -90,7 +86,7 @@
 </message>
 
 <message name="abortTransactionRequest">
- <part name="transactionId" type="xsd:long"/>
+ <part name="transactionId" type="xsd:int"/>
 </message>
 
 <message name="abortTransactionResponse">
@@ -98,7 +94,7 @@
 </message>
 
 <message name="extendTransactionRequest">
- <part name="transactionId" type="xsd:long"/>
+ <part name="transactionId" type="xsd:int"/>
  <part name="duration" type="xsd:int"/>
 </message>
 
@@ -107,7 +103,7 @@
 </message>
 
 <message name="newClusterRequest">
- <part name="transactionId" type="xsd:long"/>
+ <part name="transactionId" type="xsd:int"/>
 </message>
 
 <message name="newClusterResponse">
@@ -115,7 +111,7 @@
 </message>
 
 <message name="removeClusterRequest">
- <part name="transactionId" type="xsd:long"/>
+ <part name="transactionId" type="xsd:int"/>
  <part name="clusterId" type="xsd:int"/>
  <part name="reason" type="xsd:string"/>
 </message>
@@ -125,7 +121,7 @@
 </message>
 
 <message name="newJobRequest">
- <part name="transactionId" type="xsd:long"/>
+ <part name="transactionId" type="xsd:int"/>
  <part name="clusterId" type="xsd:int"/>
 </message>
 
@@ -134,7 +130,7 @@
 </message>
 
 <message name="removeJobRequest">
- <part name="transactionId" type="xsd:long"/>
+ <part name="transactionId" type="xsd:int"/>
  <part name="clusterId" type="xsd:int"/>
  <part name="jobId" type="xsd:int"/>
  <part name="reason" type="xsd:string"/>
@@ -146,7 +142,7 @@
 </message>
 
 <message name="holdJobRequest">
- <part name="transactionId" type="xsd:long"/>
+ <part name="transactionId" type="xsd:int"/>
  <part name="clusterId" type="xsd:int"/>
  <part name="jobId" type="xsd:int"/>
  <part name="reason" type="xsd:string"/>
@@ -160,7 +156,7 @@
 </message>
 
 <message name="releaseJobRequest">
- <part name="transactionId" type="xsd:long"/>
+ <part name="transactionId" type="xsd:int"/>
  <part name="clusterId" type="xsd:int"/>
  <part name="jobId" type="xsd:int"/>
  <part name="reason" type="xsd:string"/>
@@ -173,7 +169,7 @@
 </message>
 
 <message name="submitRequest">
- <part name="transactionId" type="xsd:long"/>
+ <part name="transactionId" type="xsd:int"/>
  <part name="clusterId" type="xsd:int"/>
  <part name="jobId" type="xsd:int"/>
  <part name="jobAd" type="condorSchedd:ArrayOfClassAdStructAttr"/>
@@ -184,7 +180,7 @@
 </message>
 
 <message name="getJobAdsRequest">
- <part name="transactionId" type="xsd:long"/>
+ <part name="transactionId" type="xsd:int"/>
  <part name="constraint" type="xsd:string"/>
 </message>
 
@@ -193,7 +189,7 @@
 </message>
 
 <message name="getJobAdRequest">
- <part name="transactionId" type="xsd:long"/>
+ <part name="transactionId" type="xsd:int"/>
  <part name="clusterId" type="xsd:int"/>
  <part name="jobId" type="xsd:int"/>
 </message>
