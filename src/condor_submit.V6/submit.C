@@ -110,6 +110,7 @@ char	*Notification	= "notification";
 char	*Executable		= "executable";
 char	*Arguments		= "arguments";
 char	*GetEnv			= "getenv";
+char	*EnableJobId	= "enablejobid";
 char	*Environment	= "environment";
 char	*Input			= "input";
 char	*Output			= "output";
@@ -340,6 +341,8 @@ main( int argc, char *argv[] )
 		usage();
 	}
 
+	if (!ScheddName) ScheddName = strdup( my_full_hostname() );
+
 	if( !(ScheddAddr = get_schedd_addr(ScheddName)) ) {
 		if( ScheddName ) {
 			fprintf( stderr, "ERROR: Can't find address of schedd %s\n", ScheddName );
@@ -353,7 +356,6 @@ main( int argc, char *argv[] )
 	// get_schedd_addr which uses a (gasp!) _static_ buffer.
 	ScheddAddr = strdup(ScheddAddr);
 
-	
 	// open submit file
 	if( (fp=fopen(cmd_file,"r")) == NULL ) {
 		fprintf( stderr, "ERROR: Failed to open command file\n");
@@ -897,8 +899,11 @@ SetArguments()
 void
 SetEnvironment()
 {
+//printf("\nScheddName=%s, ClusterId=%d, ProcId=%d\n",ScheddName,ClusterId,ProcId);
+
 	char *env = condor_param(Environment);
 	char *shouldgetenv = condor_param(GetEnv);
+	char *enablejobid = condor_param(EnableJobId);
 	Environ envobject;
 	char newenv[ATTRLIST_MAX_EXPRESSION];
 	char varname[MAXVARNAME];
@@ -912,6 +917,21 @@ SetEnvironment()
 		strcat(newenv, env);
 		envobject.add_string(env);
 		first = false;
+	}
+
+	if (enablejobid && (enablejobid[0] == 'T' || enablejobid[0] == 't')) {
+		char job_id[ATTRLIST_MAX_EXPRESSION];
+		sprintf(job_id,"JobId=%s.%d.%d",ScheddName,ClusterId,ProcId);
+//printf("%s\n",job_id);
+		if (first) {
+			first = false;
+		} else {
+			strcat(newenv, ";");
+		}
+		strcat(newenv, job_id);
+		sprintf(job_id,"%s=\"%s.%d.%d\"",ATTR_JOB_ID,ScheddName,ClusterId,ProcId);
+//printf("%s\n",job_id);
+		InsertJobExpr(job_id);
 	}
 
 	envlen = strlen(newenv);
