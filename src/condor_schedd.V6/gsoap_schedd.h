@@ -1,6 +1,6 @@
 //gsoap condor service name: condorSchedd
-//gsoap condor service style: rpc
-//gsoap condor service encoding: encoded
+//gsoap condor service style: document
+//gsoap condor service encoding: literal
 //gsoap condor service namespace: urn:condor
 
 #import "gsoap_schedd_types.h"
@@ -79,7 +79,7 @@ int condor__releaseJob(struct condor__Transaction transaction,
 int condor__submit(struct condor__Transaction transaction,
 				   xsd__int clusterId,
 				   xsd__int jobId,
-				   struct ClassAdStruct * jobAd,
+				   struct condor__ClassAdStruct * jobAd,
 				   struct condor__submitResponse {
 				       struct condor__RequirementsAndStatus response;
                    } & result);
@@ -147,7 +147,7 @@ int condor__requestReschedule(void *,
 								  struct condor__Status response;
 							  } & result);
 
-int condor__discoverJobRequirements(struct ClassAdStruct * jobAd,
+int condor__discoverJobRequirements(struct condor__ClassAdStruct * jobAd,
 									struct condor__discoverJobRequirementsResponse {
 									    struct condor__RequirementsAndStatus response;
 									} & result);

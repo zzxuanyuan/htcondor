@@ -41,7 +41,7 @@ class Job
 
 	int initialize(CondorError &errstack);
 
-	int submit(const struct ClassAdStruct &jobAd,
+	int submit(const struct condor__ClassAdStruct &jobAd,
 			   CondorError &errstack);
 	int declare_file(const MyString &name,
 					 int size,

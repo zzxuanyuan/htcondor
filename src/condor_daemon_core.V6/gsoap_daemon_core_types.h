@@ -68,28 +68,28 @@ struct condor__ClassAdStructAttr
   xsd__string value 1:1;
 };
 
-struct ClassAdStruct
+struct condor__ClassAdStruct
 {
 	struct condor__ClassAdStructAttr *__ptr;	
 	int __size;
 };
 
-struct ClassAdStructArray 
+struct condor__ClassAdStructArray 
 {
-	struct ClassAdStruct *__ptr;
+	struct condor__ClassAdStruct *__ptr;
 	int __size;
 };
 
 struct condor__ClassAdStructAndStatus
 {
   struct condor__Status status 1:1;
-  struct ClassAdStruct classAd 0:1;
+  struct condor__ClassAdStruct classAd 0:1;
 };
 
 struct condor__ClassAdStructArrayAndStatus
 {
   struct condor__Status status 1:1;
-  struct ClassAdStructArray classAdArray 0:1;
+  struct condor__ClassAdStructArray classAdArray 0:1;
 };
 
 struct condor__StringAndStatus

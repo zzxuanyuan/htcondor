@@ -1,7 +1,7 @@
 #import "gsoap_daemon_core_types.h"
 
-//gsoap condor service style: rpc
-//gsoap condor service encoding: encoded
+//gsoap condor service style: document
+//gsoap condor service encoding: literal
 
 int condor__getInfoAd(void *_,
 					  struct condor__getInfoAdResponse {

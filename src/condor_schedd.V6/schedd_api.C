@@ -228,7 +228,7 @@ Job::declare_file(const MyString &name,
 }
 
 int
-Job::submit(const struct ClassAdStruct &jobAd,
+Job::submit(const struct condor__ClassAdStruct &jobAd,
 			CondorError &errstack)
 {
 	int i, rval;

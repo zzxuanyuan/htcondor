@@ -34,7 +34,7 @@
 #include "../condor_c++_util/soap_helpers.cpp"
 
 static int receive_query_soap(int command,struct soap *s,char *constraint,
-	struct ClassAdStructArray &ads)
+	struct condor__ClassAdStructArray &ads)
 {
 
 	// check for authorization here
@@ -64,49 +64,49 @@ static int receive_query_soap(int command,struct soap *s,char *constraint,
 }
 
 int condor__queryStartdAds(struct soap *s,char *constraint,
-	struct ClassAdStructArray & ads)
+	struct condor__ClassAdStructArray & ads)
 {
 	int command = QUERY_STARTD_ADS;
 	return receive_query_soap(command,s,constraint,ads);
 }
 
 int condor__queryScheddAds(struct soap *s,char *constraint,
-	struct ClassAdStructArray & ads)
+	struct condor__ClassAdStructArray & ads)
 {
 	int command = QUERY_SCHEDD_ADS;
 	return receive_query_soap(command,s,constraint,ads);
 }
 
 int condor__queryMasterAds(struct soap *s,char *constraint,
-	struct ClassAdStructArray & ads)
+	struct condor__ClassAdStructArray & ads)
 {
 	int command = QUERY_MASTER_ADS;
 	return receive_query_soap(command,s,constraint,ads);
 }
 
 int condor__querySubmittorAds(struct soap *s,char *constraint,
-	struct ClassAdStructArray & ads)
+	struct condor__ClassAdStructArray & ads)
 {
 	int command = QUERY_SUBMITTOR_ADS;
 	return receive_query_soap(command,s,constraint,ads);
 }
 
 int condor__queryLicenseAds(struct soap *s,char *constraint,
-	struct ClassAdStructArray & ads)
+	struct condor__ClassAdStructArray & ads)
 {
 	int command = QUERY_LICENSE_ADS;
 	return receive_query_soap(command,s,constraint,ads);
 }
 
 int condor__queryStorageAds(struct soap *s,char *constraint,
-	struct ClassAdStructArray & ads)
+	struct condor__ClassAdStructArray & ads)
 {
 	int command = QUERY_STORAGE_ADS;
 	return receive_query_soap(command,s,constraint,ads);
 }
 
 int condor__queryAnyAds(struct soap *s,char *constraint,
-	struct ClassAdStructArray & ads)
+	struct condor__ClassAdStructArray & ads)
 {
 	int command = QUERY_ANY_ADS;
 	return receive_query_soap(command,s,constraint,ads);
@@ -127,7 +127,7 @@ int condor__getVersionString(struct soap *soap,void *,char* &result)
 	return SOAP_OK;
 }
 
-int condor__getInfoAd(struct soap *soap,void *,struct ClassAdStruct & ad)
+int condor__getInfoAd(struct soap *soap,void *,struct condor__ClassAdStruct & ad)
 {
 	char* todd = "Todd A Tannenbaum";
 

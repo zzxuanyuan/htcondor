@@ -64,7 +64,7 @@ HashTable<MyString, Job *> jobs =
 static bool
 convert_FileInfoList_to_Array(struct soap * soap,
                               List<FileInfo> & list,
-                              struct FileInfoArray & array)
+                              struct condor__FileInfoArray & array)
 {
 	array.__size = list.Number();
 	if (0 == array.__size) {
@@ -569,7 +569,7 @@ condor__submit(struct soap *soap,
 			   struct condor__Transaction transaction,
 			   int clusterId,
 			   int jobId,
-			   struct ClassAdStruct * jobAd,
+			   struct condor__ClassAdStruct * jobAd,
 			   struct condor__submitResponse & result)
 {
 	if (!valid_transaction(transaction) ||
@@ -961,7 +961,7 @@ condor__requestReschedule(struct soap *soap,
 
 int
 condor__discoverJobRequirements(struct soap *soap,
-								struct ClassAdStruct * jobAd,
+								struct condor__ClassAdStruct * jobAd,
 								struct condor__discoverJobRequirementsResponse & result)
 {
 	LooseFileTransfer fileTransfer;
