@@ -191,7 +191,6 @@ gt4GramCallbackHandler( void *user_arg, char *job_contact, int state,
 	this_job->GramCallback( state, errorcode );
 }
 
-/////////////////////////added for reorg
 void GT4JobInit()
 {
 }
@@ -245,75 +244,27 @@ BaseJob *GT4JobCreate( ClassAd *jobad )
 {
 	return (BaseJob *)new GT4Job( jobad );
 }
-////////////////////////////////////////
-/*
+
+
 static
-const char *rsl_stringify( const MyString& src )
+const char *xml_stringify( const char *string )
 {
-	int src_len = src.Length();
-	int src_pos = 0;
-	int var_pos1;
-	int var_pos2;
-	int quote_pos;
 	static MyString dst;
 
-	if ( src_len == 0 ) {
-		dst = "''";
-	} else {
-		dst = "";
-	}
-
-	while ( src_pos < src_len ) {
-		var_pos1 = src.find( "$(", src_pos );
-		var_pos2 = var_pos1 == -1 ? -1 : src.find( ")", var_pos1 );
-		quote_pos = src.find( "'", src_pos );
-		if ( var_pos2 == -1 && quote_pos == -1 ) {
-			dst += "'";
-			dst += src.Substr( src_pos, src.Length() - 1 );
-			dst += "'";
-			src_pos = src.Length();
-		} else if ( var_pos2 == -1 ||
-					(quote_pos != -1 && quote_pos < var_pos1 ) ) {
-			if ( src_pos < quote_pos ) {
-				dst += "'";
-				dst += src.Substr( src_pos, quote_pos - 1 );
-				dst += "'#";
-			}
-			dst += '"';
-			while ( src[quote_pos] == '\'' ) {
-				dst += "'";
-				quote_pos++;
-			}
-			dst += '"';
-			if ( quote_pos < src_len ) {
-				dst += '#';
-			}
-			src_pos = quote_pos;
-		} else {
-			if ( src_pos < var_pos1 ) {
-				dst += "'";
-				dst += src.Substr( src_pos, var_pos1 - 1 );
-				dst += "'#";
-			}
-			dst += src.Substr( var_pos1, var_pos2 );
-			if ( var_pos2 + 1 < src_len ) {
-				dst += '#';
-			}
-			src_pos = var_pos2 + 1;
-		}
-	}
+	dst = string;
+	dst.replaceString( "&", "&amp;" );
+	dst.replaceString( "<", "&lt;" );
+	dst.replaceString( ">", "&gt;" );
 
 	return dst.Value();
 }
 
 static
-const char *rsl_stringify( const char *string )
+const char *xml_stringify( const MyString& src )
 {
-	static MyString src;
-	src = string;
-	return rsl_stringify( src );
+	return xml_stringify( src.Value() );
 }
-*/
+
 int GT4Job::probeInterval = 300;			// default value
 int GT4Job::submitInterval = 300;			// default value
 int GT4Job::restartInterval = 60;			// default value
@@ -1672,7 +1623,7 @@ xsi:schemaLocation=\"http://www.globus.org/namespaces/2004/06/job \
 
 		arg_list.rewind();
 		while ( (arg = arg_list.next()) != NULL ) {
-			*rsl += printXMLParam ("argument", arg);
+			*rsl += printXMLParam ("argument", xml_stringify(arg));
 		}
 	}
 	if ( attr_value != NULL ) {
