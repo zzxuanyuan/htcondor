@@ -49,7 +49,7 @@ public:
 	virtual bool ReadBody(FILE *) { return true; }
 	bool ReadTail(FILE *fp);
 
-	virtual void Play(void*) { return; };
+	virtual bool Play(void*) { return( true ); };
 
 protected:
 
