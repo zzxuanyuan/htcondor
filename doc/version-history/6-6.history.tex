@@ -133,6 +133,14 @@ page~\pageref{param:PasswdCacheRefresh} for more details.
   config files.
   This bug has been fixed in Condor version 6.6.1.
 
+\item Normally, if a user's job crashes and creates a core file on a
+  remote execution machine, the \Condor{starter} will automatically
+  transfer the core file back to the submit machine.
+  However, beginning in Condor version 6.5.2, if a vanilla, Java, or
+  MPI universe job creates a core file, the \Condor{starter} will fail
+  to transfer it back.
+  This bug will be fixed in version 6.6.1.
+  
 \item There are a few bugs related to Condor tools failing to
   correctly locate the \Condor{negotiator} daemon.
   These bugs usually show up if a site is using non-standard ports for
