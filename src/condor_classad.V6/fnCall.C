@@ -578,7 +578,7 @@ sumAvg(const char *name, const ArgumentList &argList,
 	} else if (listVal.IsUndefinedValue()) {
 		val.SetUndefinedValue();
 		return true;
-	} else if (!listVal.IsListValue(listToSum)) {
+	} else if (!listVal.IsListValue((const ExprList *)listToSum)) {
 		val.SetErrorValue();
 		return( true );
 	}
@@ -661,7 +661,7 @@ minMax(const char *fn, const ArgumentList &argList,
 	} else if (listVal.IsUndefinedValue()) {
 		val.SetUndefinedValue();
 		return true;
-	} else if (!listVal.IsListValue(listToBound)) {
+	} else if (!listVal.IsListValue((const ExprList *)listToBound)) {
 		val.SetErrorValue();
 		return true;
 	}
@@ -778,7 +778,7 @@ listCompare(
 	} else if (listVal.IsUndefinedValue()) {
 		val.SetUndefinedValue();
 		return true;
-	} else if (!listVal.IsListValue(listToCompare)) {
+	} else if (!listVal.IsListValue((const ExprList *)listToCompare)) {
 		val.SetErrorValue();
 		return true;
 	}
