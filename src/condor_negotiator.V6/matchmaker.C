@@ -443,7 +443,6 @@ negotiationTime ()
 							ATTR_NAME, ATTR_SCHEDD_IP_ADDR);
 				return FALSE;
 			}	
-if (strcmp(scheddName,"adiel@cs.wisc.edu")!=0) continue;
 			dprintf(D_ALWAYS,"  Negotiating with %s at %s\n",scheddName,scheddAddr);
 	
 			// calculate the percentage of machines that this schedd can use
@@ -825,15 +824,16 @@ negotiate (char *scheddName, char *scheddAddr, double priority, int scheddLimit,
 			}
 
 			// 2e(ii).  perform the matchmaking protocol
-			result = matchmakingProtocol (request, offer, startdPvtAds, sock, 
+			result = matchmakingProtocol (request, offer, startdOffers, licenseOffers, startdPvtAds, sock, 
 					scheddName);
 
-/*
 			// 2e(iii). if the matchmaking protocol failed, do not consider the
 			//			startd again for this negotiation cycle.
-			if (result == MM_BAD_MATCH)
-				startdAds.Delete (offer);
-*/
+			if (result == MM_BAD_MATCH) {
+				// move the good offers back to their resource lists
+				MoveAds(&startdOffers,&startdAds);
+				MoveAds(&licenseOffers,&licenseAds);
+			}
 
 			// 2e(iv).  if the matchmaking protocol failed to talk to the 
 			//			schedd, invalidate the connection and return
@@ -1160,13 +1160,14 @@ dprintf(D_ALWAYS,"in Matchmaker::matchmakingAlgorithm\n");
 
 int Matchmaker::
 matchmakingProtocol (ClassAd &request, ClassAd *offer, 
+						ClassAdList& startdOffers, ClassAdList& licenseOffers,
 						ClassAdList &startdPvtAds, Sock *sock, char* scheddName)
 {
 	int  cluster, proc;
 	char startdAddr[32];
 	char startdName[64];
 	char *capability;
-	ReliSock startdSock;
+//	ReliSock startdSock;
 
 	// these will succeed
 	request.LookupInteger (ATTR_CLUSTER_ID, cluster);
@@ -1178,6 +1179,7 @@ matchmakingProtocol (ClassAd &request, ClassAd *offer,
 	{
 		dprintf (D_ALWAYS, "      Could not lookup %s and %s\n", 
 					ATTR_NAME, ATTR_STARTD_IP_ADDR);
+		startdOffers.Delete(offer);
 		return MM_BAD_MATCH;
 	}
 
@@ -1185,35 +1187,21 @@ matchmakingProtocol (ClassAd &request, ClassAd *offer,
 	if (!(capability = getCapability (startdName, startdAddr, startdPvtAds)))
 	{
 		dprintf(D_ALWAYS,"      %s has no capability\n", startdName);
+		startdOffers.Delete(offer);
 		return MM_BAD_MATCH;
 	}
 	
 	// ---- real matchmaking protocol begins ----
-	// 1.  contact the startd 
-	dprintf (D_FULLDEBUG, "      Connecting to startd %s at %s\n", 
-				startdName, startdAddr); 
-	startdSock.timeout (NegotiatorTimeout);
-	if (!startdSock.connect (startdAddr, 0))
-	{
-		dprintf(D_ALWAYS,"      Could not connect to %s\n", startdAddr);
-		return MM_BAD_MATCH;
-	}
 
-	// 2.  pass the startd MATCH_INFO and capability string
-	dprintf (D_FULLDEBUG, "      Sending MATCH_INFO/capability\n" );
-	dprintf (D_FULLDEBUG, "      (Capability is \"%s\" )\n", capability);
-	startdSock.encode();
-	if (!startdSock.put (MATCH_INFO) || 
-		!startdSock.put (capability) || 
-		!startdSock.end_of_message())
-	{
-		dprintf (D_ALWAYS,"      Could not send MATCH_INFO/capability to %s\n",
-					startdName );
-		dprintf (D_FULLDEBUG, "      (Capability is \"%s\")\n", capability );
-		return MM_BAD_MATCH;
-	}
+	if (!NotifyResources(startdOffers,capability)) return MM_BAD_MATCH;
+	if (!NotifyResources(licenseOffers,capability)) return MM_BAD_MATCH;
 
 	// 3.  send the match and capability to the schedd
+	// This needs to be extended for co-allocation:
+	// the schedd should be notified of ALL allocated resources! Right now
+	// it still gets only the first resource of type machine
+	// P.S: This also goes for registering matches with the accountant
+
 	dprintf(D_FULLDEBUG,"      Sending PERMISSION with capability to schedd\n");
 	sock->encode();
 	if (!sock->put(PERMISSION) 	|| 
@@ -1234,6 +1222,58 @@ matchmakingProtocol (ClassAd &request, ClassAd *offer,
 	return MM_GOOD_MATCH;
 }
 
+//-----------------------------------------------------------------------------
+
+bool Matchmaker::NotifyResources(ClassAdList& reslist, char* capability)
+{
+	char startdAddr[32];
+	char startdName[64];
+	ReliSock startdSock;
+	ClassAd* ad;
+	reslist.Open();
+	while ((ad=reslist.Next())) {
+
+    	if (!ad->LookupString (ATTR_STARTD_IP_ADDR, startdAddr)      ||
+        	!ad->LookupString (ATTR_NAME, startdName))
+    	{
+        	dprintf (D_ALWAYS, "      Could not lookup %s and %s\n",
+                    	ATTR_NAME, ATTR_STARTD_IP_ADDR);
+			reslist.Delete(ad);
+        	return false;
+    	}
+
+    	dprintf (D_FULLDEBUG, "      Connecting to startd %s at %s\n",
+       	         startdName, startdAddr);
+
+    	startdSock.timeout (NegotiatorTimeout);
+    	if (!startdSock.connect (startdAddr, 0))
+    	{
+        	dprintf(D_ALWAYS,"      Could not connect to %s\n", startdAddr);
+			reslist.Delete(ad);
+        	return false;
+    	}
+	
+    	// 2.  pass the startd MATCH_INFO and capability string
+    	dprintf (D_FULLDEBUG, "      Sending MATCH_INFO/capability\n" );
+    	dprintf (D_FULLDEBUG, "      (Capability is \"%s\" )\n", capability);
+    	startdSock.encode();
+    	if (!startdSock.put (MATCH_INFO) ||
+        	!startdSock.put (capability) ||
+        	!startdSock.end_of_message())
+    	{
+        	dprintf (D_ALWAYS,"      Could not send MATCH_INFO/capability to %s\n",
+                    	startdName );
+        	dprintf (D_FULLDEBUG, "      (Capability is \"%s\")\n", capability );
+			reslist.Delete(ad);
+        	return false;
+    	}
+
+	}
+	reslist.Close();
+	return true;
+}
+
+//-----------------------------------------------------------------------------
 
 void Matchmaker::
 calculateNormalizationFactor (ClassAdList &scheddAds, double &max, 

@@ -61,7 +61,8 @@ class Matchmaker : public Service
 		ClassAd* CoMatchmakingAlgorithm(char*,ClassAd&,ClassAdList&,ClassAdList&,double,ClassAdList&, ClassAdList&);
 		bool FindCoMatch(char*,ClassAd&,ClassAdList&,ClassAdList&,double,ClassAdList&, ClassAdList&);
 		void MoveAds(ClassAdList* from_list, ClassAdList* to_list=NULL);
-		int matchmakingProtocol(ClassAd &,ClassAd *,ClassAdList &,Sock *,char*);
+		int matchmakingProtocol(ClassAd &,ClassAd *,ClassAdList&,ClassAdList&,ClassAdList &,Sock *,char*);
+		bool NotifyResources(ClassAdList& reslist, char* capability);
 		void calculateNormalizationFactor (ClassAdList &, double &, double &);
 		char *getCapability (char *, char *, ClassAdList &);
 		void addRemoteUserPrios( ClassAdList& );
