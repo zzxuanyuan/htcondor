@@ -43,9 +43,6 @@ class GlobusResource;
 class GlobusJob;
 extern HashTable <HashKey, GlobusJob *> JobsByContact;
 
-extern char *gassServerUrl;
-extern char *gramCallbackContact;
-
 // This is needed for WriteGlobusSubmitFailedEventToUserLog() in gridmanager.C
 extern GahpClient GahpMain;
 
@@ -54,7 +51,6 @@ void rehashJobContact( GlobusJob *job, const char *old_contact,
 char *globusJobId( const char *contact );
 void gramCallbackHandler( void *user_arg, char *job_contact, int state,
 						  int errorcode );
-bool InitializeGahp( const char *proxy_filename );
 
 void GlobusJobInit();
 void GlobusJobReconfig();
@@ -132,7 +128,11 @@ class GlobusJob : public BaseJob
 	char *resourceManagerString;
 	bool useGridJobMonitor;
 
-	bool gahp_proxy_id_set;
+		// TODO should query these from GahpClient when needed
+	char *gassServerUrl;
+	char *gramCallbackContact;
+
+
 	Proxy *myProxy;
 	GahpClient gahp;
 

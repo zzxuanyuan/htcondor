@@ -621,6 +621,7 @@ GlobusResource::SubmitMonitorJob()
 		return false;
 	}
 
+	const char *gassServerUrl = tmp_gahp.getGlobusGassServerUrl();
 	RSL.sprintf( "&(executable=%s%s)(stdout=%s%s)(arguments='--dest-url=%s%s')",
 				 gassServerUrl, monitor_executable, gassServerUrl,
 				 monitorLogFile, gassServerUrl, monitorJobStatusFile );

@@ -28,30 +28,12 @@
 #include "globus_utils.h"
 #include "get_port_range.h"
 #include "MyString.h"
+#include "util_lib_proto.h"
 #include "gahp-client.h"
+#include "gridmanager.h"
 
 	// Initialize static data members
-int GahpClient::m_gahp_pid = -1;
-int GahpClient::m_reaperid = -1;
-int GahpClient::m_gahp_readfd = -1;
-int GahpClient::m_gahp_writefd = -1;
-unsigned int GahpClient::m_reference_count = 0;
-char GahpClient::m_gahp_version[150];
-StringList* GahpClient::m_commands_supported = NULL;
-unsigned int GahpClient::m_pollInterval = 5;
-int GahpClient::poll_tid = -1;
-int GahpClient::max_pending_requests = 50;
-int GahpClient::num_pending_requests = 0;
-char* GahpClient::m_callback_contact = NULL;
-void* GahpClient::m_user_callback_arg = NULL;
-globus_gram_client_callback_func_t GahpClient::m_callback_func = NULL;
-int GahpClient::m_callback_reqid = 0;
-bool GahpClient::poll_pending = false;
-bool GahpClient::use_prefix = false;
-bool Gahp_Args::skip_next_r = false;
-HashTable<int,GahpClient*> * GahpClient::requestTable = NULL;
-Queue<int> GahpClient::waitingToSubmit;
-int GahpClient::current_cache_id = GAHPCLIENT_CACHE_DEFAULT_PROXY;
+GahpServer *GahpServer::main_gahp_server = NULL;
 
 
 #ifndef WIN32
@@ -59,51 +41,116 @@ int GahpClient::current_cache_id = GAHPCLIENT_CACHE_DEFAULT_PROXY;
 	template class HashTable<int,GahpClient*>;
 	template class ExtArray<Gahp_Args*>;
 	template class Queue<int>;
+template class HashTable<HashKey, GahpServer *>;
+template class HashBucket<HashKey, GahpServer *>;
+template class HashTable<HashKey, GahpProxyInfo *>;
+template class HashBucket<HashKey, GahpProxyInfo *>;
 #endif	
 
 #define NULLSTRING "NULL"
 #define GAHP_PREFIX "GAHP:"
 #define GAHP_PREFIX_LEN 5
 
-GahpClient::GahpClient()
+#define HASH_TABLE_SIZE			50
+
+HashTable <HashKey, GahpServer *>
+    GahpServer::GahpServersById( HASH_TABLE_SIZE,
+								 hashFunction );
+
+const char *escapeGahpString(const char * input);
+
+GahpServer *GahpServer::FindOrCreateGahpServer(const char *id, const char *path)
 {
-	m_timeout = 0;
-	m_mode = normal;
-	m_reference_count++;
-	pending_command[0] = '\0';
-	pending_args = NULL;
-	pending_reqid = 0;
-	pending_result = NULL;
-	pending_timeout = 0;
-	pending_timeout_tid = -1;
-	pending_submitted_to_gahp = false;
-	pending_cache_id = GAHPCLIENT_CACHE_DEFAULT_PROXY;
-	user_timerid = -1;
-	normal_proxy_cache_id = GAHPCLIENT_CACHE_LAST_PROXY;
-	deleg_proxy_cache_id = GAHPCLIENT_CACHE_DEFAULT_PROXY;
-	if ( requestTable == NULL ) {
-		requestTable = new HashTable<int,GahpClient*>( 300, &hashFuncInt );
-		ASSERT(requestTable);
+	int rc;
+	GahpServer *server = NULL;
+
+	if ( path == NULL ) {
+		path = "DEFAULT";
 	}
+
+	rc = GahpServersById.lookup( HashKey( id ), server );
+	if ( rc != 0 ) {
+		server = new GahpServer( id, path );
+		ASSERT(server);
+		GahpServersById.insert( HashKey( id ), server );
+	} else {
+		ASSERT(server);
+	}
+
+	return server;
 }
 
-GahpClient::~GahpClient()
+GahpServer::GahpServer(const char *id, const char *path)
 {
-		// call clear_pending to remove this object from hash table,
-		// and deallocate any memory associated w/ a pending command.
-	clear_pending();
-	m_reference_count--;
-	if ( m_reference_count == 0 ) {
-		// all objects are gone - remove request table
-		if (requestTable) delete requestTable;
-		requestTable = NULL;
-		// TODO someday --- perhaps send a QUIT to the Gahp Server?
-	}
+	m_gahp_pid = -1;
+	m_reaperid = -1;
+	m_gahp_readfd = -1;
+	m_gahp_writefd = -1;
+	m_reference_count = 0;
+	m_commands_supported = NULL;
+	m_pollInterval = 5;
+	poll_tid = -1;
+	max_pending_requests = 50;
+	num_pending_requests = 0;
+	globus_gt2_gram_user_callback_arg = NULL;
+	globus_gt2_gram_callback_func = NULL;
+	globus_gt2_gram_callback_reqid = 0;
+	poll_pending = false;
+	use_prefix = false;
+	requestTable = NULL;
+	current_cache_id = GAHPCLIENT_CACHE_DEFAULT_PROXY;
+	skip_next_r = false;
+
+	requestTable = new HashTable<int,GahpClient*>( 300, &hashFuncInt );
+	ASSERT(requestTable);
+
+	globus_gass_server_url = NULL;
+	globus_gt2_gram_callback_contact = NULL;
+
+	my_id = strdup(id);
+	binary_path = strdup(path);
+	proxy_check_tid = TIMER_UNSET;
+	master_proxy = NULL;
+	is_initialized = false;
+	ProxiesByFilename = NULL;
 }
 
+GahpServer::~GahpServer()
+{
+	if ( globus_gass_server_url != NULL ) {
+		free( globus_gass_server_url );
+	}
+	if ( globus_gt2_gram_callback_contact != NULL ) {
+		free( globus_gt2_gram_callback_contact );
+	}
+	if ( my_id != NULL ) {
+		free(my_id);
+	}
+	if ( binary_path != NULL ) {
+		free(binary_path);
+	}
+	if ( master_proxy != NULL ) {
+		ReleaseProxy( master_proxy->proxy );
+		delete master_proxy;
+	}
+	if ( proxy_check_tid != TIMER_UNSET ) {
+		daemonCore->Cancel_Timer( proxy_check_tid );
+	}
+	if ( ProxiesByFilename != NULL ) {
+		GahpProxyInfo *gahp_proxy;
+
+		ProxiesByFilename->startIterations();
+		while ( ProxiesByFilename->iterate( gahp_proxy ) != 0 ) {
+			ReleaseProxy( gahp_proxy->proxy );
+			delete gahp_proxy;
+		}
+
+		delete ProxiesByFilename;
+	}
+}
 
 void
-GahpClient::write_line(const char *command)
+GahpServer::write_line(const char *command)
 {
 dprintf(D_FULLDEBUG,"GAHP <- '%s'\n", command );
 	if ( !command || m_gahp_writefd == -1 ) {
@@ -117,7 +164,7 @@ dprintf(D_FULLDEBUG,"GAHP <- '%s'\n", command );
 }
 
 void
-GahpClient::write_line(const char *command, int req, const char *args)
+GahpServer::write_line(const char *command, int req, const char *args)
 {
 	if ( !command || m_gahp_writefd == -1 ) {
 		return;
@@ -135,6 +182,58 @@ dprintf(D_FULLDEBUG,"GAHP <- '%s%s%s'\n", command, buf, args );
 	write(m_gahp_writefd,"\r\n",2);
 
 	return;
+}
+
+void
+GahpServer::Reaper(Service*,int pid,int status)
+{
+	/* This should be much better.... for now, if our Gahp Server
+	   goes away for any reason, we EXCEPT. */
+
+	char buf2[800];
+
+	if( WIFSIGNALED(status) ) {
+		sprintf( buf2, "died due to %s", 
+			daemonCore->GetExceptionString(status) );
+	} else {
+		sprintf( buf2, "exited with status %d", WEXITSTATUS(status) );
+	}
+
+	EXCEPT("Gahp Server (pid=%d) %s\n",pid,buf2);
+}
+
+
+GahpClient::GahpClient(const char *id, const char *path)
+{
+	server = GahpServer::FindOrCreateGahpServer(id,path);
+	m_timeout = 0;
+	m_mode = normal;
+	server->m_reference_count++;
+	pending_command[0] = '\0';
+	pending_args = NULL;
+	pending_reqid = 0;
+	pending_result = NULL;
+	pending_timeout = 0;
+	pending_timeout_tid = -1;
+	pending_submitted_to_gahp = false;
+	pending_cache_id = GAHPCLIENT_CACHE_DEFAULT_PROXY;
+	user_timerid = -1;
+	normal_proxy_cache_id = GAHPCLIENT_CACHE_LAST_PROXY;
+	deleg_proxy_cache_id = GAHPCLIENT_CACHE_DEFAULT_PROXY;
+}
+
+GahpClient::~GahpClient()
+{
+		// call clear_pending to remove this object from hash table,
+		// and deallocate any memory associated w/ a pending command.
+	clear_pending();
+	server->m_reference_count--;
+	if ( server->m_reference_count == 0 ) {
+		// all objects are gone - remove request table
+		if (server->requestTable) delete server->requestTable;
+		server->requestTable = NULL;
+		// TODO someday --- perhaps send a QUIT to the Gahp Server?
+	}
 }
 
 
@@ -181,7 +280,7 @@ Gahp_Args::free_argv()
 	
 
 char **
-Gahp_Args::read_argv(int readfd)
+GahpServer::read_argv(Gahp_Args &g_args)
 {
 	static char* buf = NULL;
 	int ibuf = 0;
@@ -191,12 +290,12 @@ Gahp_Args::read_argv(int readfd)
 	static const int buf_size = 1024 * 500;
 	static const int argv_size = 60;
 
-	free_argv();
-	argv = (char**)calloc(argv_size, sizeof(char*));
+	g_args.free_argv();
+	g_args.argv = (char**)calloc(argv_size, sizeof(char*));
 
-	if ( readfd == -1 ) {
+	if ( m_gahp_readfd == -1 ) {
 dprintf(D_FULLDEBUG,"GAHP -> (no pipe)\n");
-		return argv;
+		return g_args.argv;
 	}
 
 	if ( buf == NULL ) {
@@ -209,7 +308,7 @@ dprintf(D_FULLDEBUG,"GAHP -> (no pipe)\n");
 	for (;;) {
 
 		ASSERT(ibuf < buf_size);
-		result = read(readfd, &(buf[ibuf]), 1 );
+		result = read(m_gahp_readfd, &(buf[ibuf]), 1 );
 
 		/* Check return value from read() */
 		if ( result < 0 ) {		/* Error - try reading again */
@@ -218,13 +317,13 @@ dprintf(D_FULLDEBUG,"GAHP -> (no pipe)\n");
 		if ( result == 0 ) {	/* End of File */
 			int i;
 				// clear out all entries
-			for (i=0;argv[i];i++) {
-				free(argv[i]);
-				argv[i] = NULL;
+			for (i=0;g_args.argv[i];i++) {
+				free(g_args.argv[i]);
+				g_args.argv[i] = NULL;
 			}
-			argc = 0;
+			g_args.argc = 0;
 dprintf(D_FULLDEBUG,"GAHP -> EOF\n");
-			return argv;
+			return g_args.argv;
 		}
 
 		/* Check if character read was whitespace */
@@ -242,8 +341,8 @@ dprintf(D_FULLDEBUG,"GAHP -> EOF\n");
 			}
 			/* Trailing whitespace delimits a parameter to copy into argv */
 			buf[ibuf] = '\0';
-			argv[iargv] = (char*)malloc(ibuf + 5);
-			strcpy(argv[iargv],buf);
+			g_args.argv[iargv] = (char*)malloc(ibuf + 5);
+			strcpy(g_args.argv[iargv],buf);
 			ibuf = 0;
 			iargv++;
 			ASSERT(iargv < argv_size);
@@ -254,22 +353,22 @@ dprintf(D_FULLDEBUG,"GAHP -> EOF\n");
 		if ( buf[ibuf]=='\n' ) { 
 			if ( ibuf > 0 ) {
 				buf[ibuf] = '\0';
-				argv[iargv] = (char*)malloc(ibuf + 5);
-				strcpy(argv[iargv],buf);
+				g_args.argv[iargv] = (char*)malloc(ibuf + 5);
+				strcpy(g_args.argv[iargv],buf);
 			}
-			argc = iargv + 1;
+			g_args.argc = iargv + 1;
 
 			// We are all done and about to return.  But first,
 			// check for our prefix if using one.
 			trash_this_line = false;
-			if ( GahpClient::getUsePrefix() ) {
-				if ( argv[0] && 
-					 strncmp(GAHP_PREFIX,argv[0],GAHP_PREFIX_LEN)==0)
+			if ( use_prefix ) {
+				if ( g_args.argv[0] && 
+					 strncmp(GAHP_PREFIX,g_args.argv[0],GAHP_PREFIX_LEN)==0)
 				{
 					// Prefix is good.
 					// Fixup argv[0] so prefix is transparent.
-					memmove(argv[0],&(argv[0][GAHP_PREFIX_LEN]),
-									1 + strlen(&(argv[0][GAHP_PREFIX_LEN])));
+					memmove(g_args.argv[0],&(g_args.argv[0][GAHP_PREFIX_LEN]),
+							1 + strlen(&(g_args.argv[0][GAHP_PREFIX_LEN])));
 				} else {
 					// Prefix is bad.
 					trash_this_line = true;
@@ -278,13 +377,14 @@ dprintf(D_FULLDEBUG,"GAHP -> EOF\n");
 
 			// check for a single "R".  This means we should check
 			// for results in gahp async mode.  
-			if ( trash_this_line==false && argv[0] && argv[0][0] == 'R' ) {
+			if ( trash_this_line==false && g_args.argv[0] &&
+				 g_args.argv[0][0] == 'R' ) {
 				if ( skip_next_r ) {
 					// we should not poll this time --- apparently we saw
 					// this R come through via our pipe handler.
 					skip_next_r = false;
 				} else {
-					GahpClient::poll_real_soon();
+					poll_real_soon();
 				}
 					// ignore anything else on this line & read again
 				trash_this_line = true;
@@ -292,24 +392,24 @@ dprintf(D_FULLDEBUG,"GAHP -> EOF\n");
 
 			if ( trash_this_line ) {
 				// reset all our buffers and read the next line
-				free_argv();
-				argv = (char**)calloc(argv_size, sizeof(char*));
+				g_args.free_argv();
+				g_args.argv = (char**)calloc(argv_size, sizeof(char*));
 				ibuf = 0;
 				iargv = 0;
 				continue;	// go back to the top of the for loop
 			}
 
 buf[0]='\0';
-if(argc>0){
+if(g_args.argc>0){
 strcat(buf,"'");
-for(int i=0;i<argc;i++){
+for(int i=0;i<g_args.argc;i++){
 if(i!=0)strcat(buf,"' '");
-if(argv[i])strcat(buf,argv[i]);
+if(g_args.argv[i])strcat(buf,g_args.argv[i]);
 }
 strcat(buf,"'");
 }
 dprintf(D_FULLDEBUG,"GAHP -> %s\n",buf);
-			return argv;
+			return g_args.argv;
 		}
 
 		/* Character read was just a regular one.. increment index
@@ -339,7 +439,7 @@ GahpClient::new_reqid()
 			// Optimization: only need to do the lookup if we have
 			// rotated request ids...
 		if ( (!had_to_rotate) || 
-			 (requestTable->lookup(next_reqid,unused) == -1) ) {
+			 (server->requestTable->lookup(next_reqid,unused) == -1) ) {
 				// not in use, we are done
 			return next_reqid;
 		}
@@ -352,26 +452,14 @@ GahpClient::new_reqid()
 	return -1;  // just to make C++ not give a warning...
 }
 
-void
-GahpClient::Reaper(Service*,int pid,int status)
+bool
+GahpClient::Startup()
 {
-	/* This should be much better.... for now, if our Gahp Server
-	   goes away for any reason, we EXCEPT. */
-
-	char buf2[800];
-
-	if( WIFSIGNALED(status) ) {
-		sprintf( buf2, "died due to %s", 
-			daemonCore->GetExceptionString(status) );
-	} else {
-		sprintf( buf2, "exited with status %d", WEXITSTATUS(status) );
-	}
-
-	EXCEPT("Gahp Server (pid=%d) %s\n",pid,buf2);
+	return server->Startup();
 }
 
 bool
-GahpClient::Startup(const char *input_path)
+GahpServer::Startup()
 {
 	char *gahp_path = NULL;
 	char *gahp_args = NULL;
@@ -389,8 +477,8 @@ GahpClient::Startup(const char *input_path)
 
 		// No GAHP server is running yet, so we need to start one up.
 		// First, get path to the GAHP server.
-	if ( input_path ) {
-		gahp_path = strdup(input_path);
+	if ( binary_path && strcmp( binary_path, GAHPCLIENT_DEFAULT_PATH ) != 0 ) {
+		gahp_path = strdup(binary_path);
 	} else {
 		gahp_path = param("GAHP");
 		gahp_args = param("GAHP_ARGS");
@@ -411,8 +499,9 @@ GahpClient::Startup(const char *input_path)
 	if ( m_reaperid == -1 ) {
 		m_reaperid = daemonCore->Register_Reaper(
 				"GAHP Server",					
-				(ReaperHandler)&GahpClient::Reaper,	// handler
-				"GahpClient::Reaper"
+				(ReaperHandlercpp)&GahpServer::Reaper,	// handler
+				"GahpServer::Reaper",
+				this
 				);
 	}
 
@@ -506,7 +595,7 @@ GahpClient::Startup(const char *input_path)
 		// errors which could arise if the Globus libraries
 		// linked with the GAHP server spit out crap to stdout.
 	use_prefix = command_response_prefix( GAHP_PREFIX );
-	
+
 		// try to turn on gahp async notification mode
 	if  ( !command_async_mode_on() ) {
 		// not supported, set a poll interval
@@ -514,8 +603,8 @@ GahpClient::Startup(const char *input_path)
 	} else {
 		// command worked... register the pipe and stop polling
 		int result = daemonCore->Register_Pipe(m_gahp_readfd,
-			"m_gahp_readfd",(PipeHandler)&Gahp_Args::pipe_ready,
-			"&Gahp_Args::pipe_ready");
+			"m_gahp_readfd",(PipeHandlercpp)&GahpServer::pipe_ready,
+			"&GahpServer::pipe_ready",this);
 		if ( result == -1 ) {
 			// failed to register the pipe for some reason; fall 
 			// back on polling (yuck).
@@ -532,26 +621,68 @@ GahpClient::Startup(const char *input_path)
 }
 
 bool
-GahpClient::Initialize(const char *proxy_path, const char *input_path)
+GahpClient::Initialize(const char *proxy_path)
 {
+	return server->Initialize(proxy_path);
+}
+
+bool
+GahpServer::Initialize(const char *proxy_path)
+{
+	int rc;
+
+		// Check if Initialize() has already been successfully called
+	if ( is_initialized == true ) {
+		return true;
+	}
+
 		// Check if we already have spawned a GAHP server.  
 	if ( m_gahp_pid == -1 ) {
 			// GAHP not running, start it up
-		if ( Startup( input_path ) == false ) {
+		if ( Startup() == false ) {
 			return false;
 		}
 	}
 
-		// Give the server our x509 proxy.
-	if ( command_initialize_from_file(proxy_path) == false ) {
-		return false;
+	ProxiesByFilename = new HashTable<HashKey,GahpProxyInfo*>( 500,
+															   &hashFunction );
+	ASSERT(ProxiesByFilename);
+
+	MyString filename;
+	filename.sprintf( "%s/master_proxy.%p", GridmanagerScratchDir, this );
+
+	rc = copy_file( proxy_path, filename.Value() );
+	if ( rc != 0 ) {
+			// bad stuff!
+		EXCEPT( "copy_file() failed!\n" );
 	}
-		
+
+	proxy_check_tid = daemonCore->Register_Timer( TIMER_NEVER,
+								(TimerHandlercpp)&GahpServer::doProxyCheck,
+								"GahpServer::doProxyCheck", (Service*) this );
+	master_proxy = new GahpProxyInfo;
+	master_proxy->proxy = AcquireProxy( filename.Value(), proxy_check_tid );
+	master_proxy->cached_expiration = 0;
+
+		// Give the server our x509 proxy.
+	if ( command_initialize_from_file(filename.Value()) == false ) {
+		EXCEPT( "Failed to initialize from file" );
+	}
+
+	if ( cacheProxyFromFile( master_proxy->proxy->gahp_proxy_id,
+							 master_proxy->proxy->proxy_filename ) == false ) {
+		EXCEPT( "Failed to cache proxy from file!" );
+	}
+
+	master_proxy->cached_expiration = master_proxy->proxy->expiration_time;
+
+	is_initialized = true;
+
 	return true;
 }
 
 bool
-GahpClient::cacheProxyFromFile( int id, const char *proxy_path )
+GahpServer::cacheProxyFromFile( int id, const char *proxy_path )
 {
 	static const char *command = "CACHE_PROXY_FROM_FILE";
 
@@ -564,11 +695,11 @@ GahpClient::cacheProxyFromFile( int id, const char *proxy_path )
 
 	char buf[_POSIX_PATH_MAX];
 	int x = snprintf(buf,sizeof(buf),"%s %d %s",command,id,
-					 escape(proxy_path));
+					 escapeGahpString(proxy_path));
 	ASSERT( x > 0 && x < (int)sizeof(buf) );
 	write_line(buf);
 	Gahp_Args result;
-	char **argv = result.read_argv(m_gahp_readfd);
+	char **argv = read_argv(result);
 	if ( argv[0] == NULL || argv[0][0] != 'S' ) {
 		char *reason;
 		if ( argv[1] ) {
@@ -588,7 +719,7 @@ GahpClient::cacheProxyFromFile( int id, const char *proxy_path )
 }
 
 bool
-GahpClient::uncacheProxy( int id )
+GahpServer::uncacheProxy( int id )
 {
 	static const char *command = "UNCACHE_PROXY";
 
@@ -602,7 +733,7 @@ GahpClient::uncacheProxy( int id )
 	ASSERT( x > 0 && x < (int)sizeof(buf) );
 	write_line(buf);
 	Gahp_Args result;
-	char **argv = result.read_argv(m_gahp_readfd);
+	char **argv = read_argv(result);
 	if ( argv[0] == NULL || argv[0][0] != 'S' ) {
 		char *reason;
 		if ( argv[1] ) {
@@ -624,7 +755,7 @@ GahpClient::uncacheProxy( int id )
 }
 
 bool
-GahpClient::useCachedProxy( int id, bool force )
+GahpServer::useCachedProxy( int id, bool force )
 {
 	static const char *command = "USE_CACHED_PROXY";
 
@@ -653,7 +784,7 @@ GahpClient::useCachedProxy( int id, bool force )
 	}
 	write_line(buf);
 	Gahp_Args result;
-	char **argv = result.read_argv(m_gahp_readfd);
+	char **argv = read_argv(result);
 	if ( argv[0] == NULL || argv[0][0] != 'S' ) {
 		char *reason;
 		if ( argv[1] ) {
@@ -670,8 +801,85 @@ GahpClient::useCachedProxy( int id, bool force )
 	return true;
 }
 
+int
+GahpServer::doProxyCheck()
+{
+	daemonCore->Reset_Timer( proxy_check_tid, TIMER_NEVER );
+
+	if ( m_gahp_pid == -1 ) {
+		return 0;
+	}
+
+	if ( master_proxy->proxy->expiration_time !=
+		 master_proxy->cached_expiration ) {
+
+		static const char *command = "REFRESH_PROXY_FROM_FILE";
+		if ( command_initialize_from_file( master_proxy->proxy->proxy_filename,
+										   command) == false ) {
+			EXCEPT( "Failed to refresh proxy!" );
+		}
+
+		if ( cacheProxyFromFile( master_proxy->proxy->gahp_proxy_id,
+								 master_proxy->proxy->proxy_filename ) == false ) {
+			EXCEPT( "Failed to refresh proxy!" );
+		}
+
+		master_proxy->cached_expiration = master_proxy->proxy->expiration_time;
+	}
+
+	GahpProxyInfo *next_proxy;
+
+	ProxiesByFilename->startIterations();
+	while ( ProxiesByFilename->iterate( next_proxy ) != 0 ) {
+
+		if ( next_proxy->proxy->expiration_time != next_proxy->cached_expiration ) {
+			if ( cacheProxyFromFile( next_proxy->proxy->gahp_proxy_id,
+									 next_proxy->proxy->proxy_filename ) == false ) {
+				EXCEPT( "Failed to refresh proxy!" );
+			}
+
+			next_proxy->cached_expiration = next_proxy->proxy->expiration_time;
+		}
+
+	}
+
+	return 0;
+}
+
+bool
+GahpServer::RegisterProxy( const char *proxy_path )
+{
+	int rc;
+	GahpProxyInfo *gahp_proxy = NULL;
+
+	if ( ProxiesByFilename == NULL ) {
+		return false;
+	}
+
+	rc = ProxiesByFilename->lookup( HashKey( proxy_path ), gahp_proxy );
+
+	if ( rc != 0 ) {
+		gahp_proxy = new GahpProxyInfo;
+		ASSERT(gahp_proxy);
+		gahp_proxy->proxy = AcquireProxy( proxy_path, proxy_check_tid );
+		gahp_proxy->cached_expiration = 0;
+//		daemonCore->Reset_Timer( proxy_check_tid, 0 );
+		if ( cacheProxyFromFile( gahp_proxy->proxy->gahp_proxy_id,
+								 gahp_proxy->proxy->proxy_filename ) == false ) {
+			EXCEPT( "Failed to cache proxy!" );
+		}
+		gahp_proxy->cached_expiration = gahp_proxy->proxy->expiration_time;
+
+		ProxiesByFilename->insert( HashKey( proxy_path ), gahp_proxy );
+	} else {
+			// do nothing
+	}
+
+	return true;
+}
+
 void
-GahpClient::setPollInterval(unsigned int interval)
+GahpServer::setPollInterval(unsigned int interval)
 {
 	if (poll_tid != -1) {
 		daemonCore->Cancel_Timer(poll_tid);
@@ -680,13 +888,20 @@ GahpClient::setPollInterval(unsigned int interval)
 	m_pollInterval = interval;
 	if ( m_pollInterval > 0 ) {
 		poll_tid = daemonCore->Register_Timer(m_pollInterval,
-			m_pollInterval,(TimerHandler)&GahpClient::poll,
-				"GahpClient:poll");
+											m_pollInterval,
+											(TimerHandlercpp)&GahpServer::poll,
+											"GahpServer::poll",this);
 	}
 }
 
+unsigned int
+GahpServer::getPollInterval()
+{
+	return m_pollInterval;
+}
+
 const char *
-GahpClient::escape(const char * input) 
+escapeGahpString(const char * input) 
 {
 	static MyString output;
 
@@ -714,7 +929,7 @@ GahpClient::globus_gram_client_set_credentials(const char *proxy_path)
 	static const char *command = "REFRESH_PROXY_FROM_FILE";
 
 		// Check if this command is supported
-	if  (m_commands_supported->contains_anycase(command)==FALSE) {
+	if  (server->m_commands_supported->contains_anycase(command)==FALSE) {
 		return 1;
 	}
 
@@ -724,7 +939,7 @@ GahpClient::globus_gram_client_set_credentials(const char *proxy_path)
 		return 1;
 	}
 
-	if ( command_initialize_from_file(proxy_path,command) == true ) {
+	if ( server->command_initialize_from_file(proxy_path,command) == true ) {
 		return 0;
 	} else {
 		return 1;
@@ -732,14 +947,14 @@ GahpClient::globus_gram_client_set_credentials(const char *proxy_path)
 }
 
 void
-GahpClient::poll_real_soon()
-{	
+GahpServer::poll_real_soon()
+{
 	// Poll for results asap via a timer, unless a request
 	// to poll for resuts is already pending.
 	if (!poll_pending) {
 		int tid = daemonCore->Register_Timer(0,
-			(TimerHandler)&GahpClient::poll,
-			"GahpClient:poll from poll_real_soon");
+			(TimerHandlercpp)&GahpServer::poll,
+			"GahpServer::poll from poll_real_soon",this);
 		if ( tid != -1 ) {
 			poll_pending = true;
 		}
@@ -748,16 +963,16 @@ GahpClient::poll_real_soon()
 
 
 int
-Gahp_Args::pipe_ready()
+GahpServer::pipe_ready()
 {
 	skip_next_r = true;
-	GahpClient::poll_real_soon();
+	poll_real_soon();
 	return TRUE;
 }
 
 
 bool
-GahpClient::command_initialize_from_file(const char *proxy_path,
+GahpServer::command_initialize_from_file(const char *proxy_path,
 										 const char *command)
 {
 
@@ -767,11 +982,12 @@ GahpClient::command_initialize_from_file(const char *proxy_path,
 	if ( command == NULL ) {
 		command = "INITIALIZE_FROM_FILE";
 	}
-	int x = snprintf(buf,sizeof(buf),"%s %s",command,escape(proxy_path));
+	int x = snprintf(buf,sizeof(buf),"%s %s",command,
+					 escapeGahpString(proxy_path));
 	ASSERT( x > 0 && x < (int)sizeof(buf) );
 	write_line(buf);
 	Gahp_Args result;
-	char **argv = result.read_argv(m_gahp_readfd);
+	char **argv = read_argv(result);
 	if ( argv[0] == NULL || argv[0][0] != 'S' ) {
 		char *reason;
 		if ( argv[1] ) {
@@ -788,7 +1004,7 @@ GahpClient::command_initialize_from_file(const char *proxy_path,
 
 
 bool
-GahpClient::command_response_prefix(const char *prefix)
+GahpServer::command_response_prefix(const char *prefix)
 {
 	static const char* command = "RESPONSE_PREFIX";
 
@@ -797,11 +1013,11 @@ GahpClient::command_response_prefix(const char *prefix)
 	}
 
 	char buf[_POSIX_PATH_MAX];
-	int x = snprintf(buf,sizeof(buf),"%s %s",command,escape(prefix));
+	int x = snprintf(buf,sizeof(buf),"%s %s",command,escapeGahpString(prefix));
 	ASSERT( x > 0 && x < (int)sizeof(buf) );
 	write_line(buf);
 	Gahp_Args result;
-	char **argv = result.read_argv(m_gahp_readfd);
+	char **argv = read_argv(result);
 	if ( argv[0] == NULL || argv[0][0] != 'S' ) {
 		dprintf(D_ALWAYS,"GAHP command '%s' failed\n",command);
 		return false;
@@ -811,7 +1027,7 @@ GahpClient::command_response_prefix(const char *prefix)
 }
 
 bool
-GahpClient::command_async_mode_on()
+GahpServer::command_async_mode_on()
 {
 	static const char* command = "ASYNC_MODE_ON";
 
@@ -821,7 +1037,7 @@ GahpClient::command_async_mode_on()
 
 	write_line(command);
 	Gahp_Args result;
-	char **argv = result.read_argv(m_gahp_readfd);
+	char **argv = read_argv(result);
 	if ( argv[0] == NULL || argv[0][0] != 'S' ) {
 		dprintf(D_ALWAYS,"GAHP command '%s' failed\n",command);
 		return false;
@@ -832,11 +1048,11 @@ GahpClient::command_async_mode_on()
 
 
 bool
-GahpClient::command_commands()
+GahpServer::command_commands()
 {
 	write_line("COMMANDS");
 	Gahp_Args result;
-	char **argv = result.read_argv(m_gahp_readfd);
+	char **argv = read_argv(result);
 	if ( argv[0] == NULL || argv[0][0] != 'S' ) {
 		dprintf(D_ALWAYS,"GAHP command 'COMMANDS' failed\n");
 		return false;
@@ -856,7 +1072,7 @@ GahpClient::command_commands()
 }
 	
 bool
-GahpClient::command_version(bool banner_string)
+GahpServer::command_version(bool banner_string)
 {
 	int i,j,result;
 	bool ret_val = false;
@@ -897,16 +1113,16 @@ GahpClient::globus_gram_client_error_string(int error_code)
 	static const char* command = "GRAM_ERROR_STRING";
 
 		// Return "Unknown error" if GAHP doesn't support this command
-	if  (m_commands_supported->contains_anycase(command)==FALSE) {
+	if  (server->m_commands_supported->contains_anycase(command)==FALSE) {
 		strcpy(buf,"Unknown error");
 		return buf;
 	}
 
 	int x = snprintf(buf,sizeof(buf),"%s %d",command,error_code);
 	ASSERT( x > 0 && x < (int)sizeof(buf) );
-	write_line(buf);
+	server->write_line(buf);
 	Gahp_Args result;
-	char **argv = result.read_argv(m_gahp_readfd);
+	char **argv = server->read_argv(result);
 	if ( argv[0] == NULL || argv[0][0] != 'S' || argv[1] == NULL ) {
 		dprintf(D_ALWAYS,"GAHP command '%s' failed: error_code=%d\n",
 						command,error_code);
@@ -924,8 +1140,13 @@ GahpClient::globus_gass_server_superez_init( char **gass_url, int port )
 
 	static const char* command = "GASS_SERVER_INIT";
 
+	if ( server->globus_gass_server_url != NULL ) {
+		*gass_url = strdup( server->globus_gass_server_url );
+		return 0;
+	}
+
 		// Check if this command is supported
-	if  (m_commands_supported->contains_anycase(command)==FALSE) {
+	if  (server->m_commands_supported->contains_anycase(command)==FALSE) {
 		return GAHPCLIENT_COMMAND_NOT_SUPPORTED;
 	}
 
@@ -959,6 +1180,7 @@ GahpClient::globus_gass_server_superez_init( char **gass_url, int port )
 		int rc = atoi(result->argv[1]);
 		if ( result->argv[2] && strcasecmp(result->argv[2], NULLSTRING) ) {
 			*gass_url = strdup(result->argv[2]);
+			server->globus_gass_server_url = strdup(result->argv[2]);
 		}
 		delete result;
 		return rc;
@@ -986,7 +1208,7 @@ GahpClient::globus_gram_client_job_request(
 	static const char* command = "GRAM_JOB_REQUEST";
 
 		// Check if this command is supported
-	if  (m_commands_supported->contains_anycase(command)==FALSE) {
+	if  (server->m_commands_supported->contains_anycase(command)==FALSE) {
 		return GAHPCLIENT_COMMAND_NOT_SUPPORTED;
 	}
 
@@ -998,9 +1220,9 @@ GahpClient::globus_gram_client_job_request(
 			strlen(callback_contact) + 150;
 	Gahp_Buf reqline(size);
 	char *buf = reqline.buffer;
-	char *esc1 = strdup( escape(resource_manager_contact) );
-	char *esc2 = strdup( escape(callback_contact) );
-	char *esc3 = strdup( escape(description) );
+	char *esc1 = strdup( escapeGahpString(resource_manager_contact) );
+	char *esc2 = strdup( escapeGahpString(callback_contact) );
+	char *esc3 = strdup( escapeGahpString(description) );
 	int x = snprintf(buf,size,"%s %s 1 %s", esc1, esc2, esc3 );
 	free( esc1 );
 	free( esc2 );
@@ -1052,7 +1274,7 @@ GahpClient::globus_gram_client_job_cancel(const char * job_contact)
 	static const char* command = "GRAM_JOB_CANCEL";
 
 		// Check if this command is supported
-	if  (m_commands_supported->contains_anycase(command)==FALSE) {
+	if  (server->m_commands_supported->contains_anycase(command)==FALSE) {
 		return GAHPCLIENT_COMMAND_NOT_SUPPORTED;
 	}
 
@@ -1061,7 +1283,7 @@ GahpClient::globus_gram_client_job_cancel(const char * job_contact)
 	int size = strlen(job_contact) + 150;
 	Gahp_Buf reqline(size);
 	char *buf = reqline.buffer;
-	int x = snprintf(buf,size,"%s",escape(job_contact));
+	int x = snprintf(buf,size,"%s",escapeGahpString(job_contact));
 	ASSERT( x > 0 && x < size );
 
 		// Check if this request is currently pending.  If not, make
@@ -1107,7 +1329,7 @@ GahpClient::globus_gram_client_job_status(const char * job_contact,
 	static const char* command = "GRAM_JOB_STATUS";
 
 		// Check if this command is supported
-	if  (m_commands_supported->contains_anycase(command)==FALSE) {
+	if  (server->m_commands_supported->contains_anycase(command)==FALSE) {
 		return GAHPCLIENT_COMMAND_NOT_SUPPORTED;
 	}
 
@@ -1116,7 +1338,7 @@ GahpClient::globus_gram_client_job_status(const char * job_contact,
 	int size = strlen(job_contact) + 150;
 	Gahp_Buf reqline(size);
 	char *buf = reqline.buffer;
-	int x = snprintf(buf,size,"%s",escape(job_contact));
+	int x = snprintf(buf,size,"%s",escapeGahpString(job_contact));
 	ASSERT( x > 0 && x < size );
 
 		// Check if this request is currently pending.  If not, make
@@ -1169,7 +1391,7 @@ GahpClient::globus_gram_client_job_signal(const char * job_contact,
 	static const char* command = "GRAM_JOB_SIGNAL";
 
 		// Check if this command is supported
-	if  (m_commands_supported->contains_anycase(command)==FALSE) {
+	if  (server->m_commands_supported->contains_anycase(command)==FALSE) {
 		return GAHPCLIENT_COMMAND_NOT_SUPPORTED;
 	}
 
@@ -1179,8 +1401,8 @@ GahpClient::globus_gram_client_job_signal(const char * job_contact,
 	int size = strlen(job_contact) + strlen(signal_arg) + 150;
 	Gahp_Buf reqline(size);
 	char *buf = reqline.buffer;
-	char *esc1 = strdup( escape(job_contact) );
-	char *esc2 = strdup( escape(signal_arg) );
+	char *esc1 = strdup( escapeGahpString(job_contact) );
+	char *esc2 = strdup( escapeGahpString(signal_arg) );
 	int x = snprintf(buf,size,"%s %d %s",esc1,signal,esc2);
 	free( esc1 );
 	free( esc2 );
@@ -1236,7 +1458,7 @@ GahpClient::globus_gram_client_job_callback_register(const char * job_contact,
 	static const char* command = "GRAM_JOB_CALLBACK_REGISTER";
 
 		// Check if this command is supported
-	if  (m_commands_supported->contains_anycase(command)==FALSE) {
+	if  (server->m_commands_supported->contains_anycase(command)==FALSE) {
 		return GAHPCLIENT_COMMAND_NOT_SUPPORTED;
 	}
 
@@ -1246,8 +1468,8 @@ GahpClient::globus_gram_client_job_callback_register(const char * job_contact,
 	int size = strlen(job_contact) + strlen(callback_contact) + 150;
 	Gahp_Buf reqline(size);
 	char *buf = reqline.buffer;
-	char *esc1 = strdup( escape(job_contact) );
-	char *esc2 = strdup( escape(callback_contact) );
+	char *esc1 = strdup( escapeGahpString(job_contact) );
+	char *esc2 = strdup( escapeGahpString(callback_contact) );
 	int x = snprintf(buf,size,"%s %s",esc1,esc2);
 	free( esc1 );
 	free( esc2 );
@@ -1299,7 +1521,7 @@ GahpClient::globus_gram_client_ping(const char * resource_contact)
 	static const char* command = "GRAM_PING";
 
 		// Check if this command is supported
-	if  (m_commands_supported->contains_anycase(command)==FALSE) {
+	if  (server->m_commands_supported->contains_anycase(command)==FALSE) {
 		return GAHPCLIENT_COMMAND_NOT_SUPPORTED;
 	}
 
@@ -1308,7 +1530,7 @@ GahpClient::globus_gram_client_ping(const char * resource_contact)
 	int size = strlen(resource_contact) + 150;
 	Gahp_Buf reqline(size);
 	char *buf = reqline.buffer;
-	int x = snprintf(buf,size,"%s",escape(resource_contact));
+	int x = snprintf(buf,size,"%s",escapeGahpString(resource_contact));
 	ASSERT( x > 0 && x < size );
 
 		// Check if this request is currently pending.  If not, make
@@ -1352,7 +1574,7 @@ GahpClient::globus_gram_client_job_refresh_credentials(const char *job_contact)
 	static const char* command = "GRAM_JOB_REFRESH_PROXY";
 
 		// Check if this command is supported
-	if  (m_commands_supported->contains_anycase(command)==FALSE) {
+	if  (server->m_commands_supported->contains_anycase(command)==FALSE) {
 		return GAHPCLIENT_COMMAND_NOT_SUPPORTED;
 	}
 
@@ -1361,7 +1583,7 @@ GahpClient::globus_gram_client_job_refresh_credentials(const char *job_contact)
 	int size = strlen(job_contact) + 150;
 	Gahp_Buf reqline(size);
 	char *buf = reqline.buffer;
-	int x = snprintf(buf,size,"%s",escape(job_contact));
+	int x = snprintf(buf,size,"%s",escapeGahpString(job_contact));
 	ASSERT( x > 0 && x < size );
 
 		// Check if this request is currently pending.  If not, make
@@ -1418,13 +1640,13 @@ GahpClient::clear_pending()
 {
 	if ( pending_reqid ) {
 			// remove from hashtable
-		if (requestTable->remove(pending_reqid) == 0) {
+		if (server->requestTable->remove(pending_reqid) == 0) {
 				// entry was still in the hashtable, which means
 				// that this reqid is still with the gahp server or
 				// still in our waitingToSubmit queue.
 				// so re-insert an entry with this pending_reqid
 				// with a NULL data field so we do not reuse this reqid.
-			requestTable->insert(pending_reqid,NULL);
+			server->requestTable->insert(pending_reqid,NULL);
 		}
 	}
 	pending_reqid = 0;
@@ -1435,7 +1657,7 @@ GahpClient::clear_pending()
 	pending_args = NULL;
 	pending_timeout = 0;
 	if (pending_submitted_to_gahp) {
-		num_pending_requests--;
+		server->num_pending_requests--;
 	}
 	pending_submitted_to_gahp = false;
 	if ( pending_timeout_tid != -1 ) {
@@ -1495,32 +1717,32 @@ GahpClient::now_pending(const char *command,const char *buf,int cache_id)
 		}
 		pending_cache_id = cache_id;
 			// add new reqid to hashtable
-		requestTable->insert(pending_reqid,this);
+		server->requestTable->insert(pending_reqid,this);
 	}
 
-	if ( num_pending_requests >= max_pending_requests ) {
+	if ( server->num_pending_requests >= server->max_pending_requests ) {
 			// We have too many requests outstanding.  Queue up
 			// this request for later.
-		waitingToSubmit.enqueue(pending_reqid);
+		server->waitingToSubmit.enqueue(pending_reqid);
 		return;
 	}
 
 		// Make sure the command is using the proxy it wants.
-	if ( useCachedProxy( pending_cache_id ) != true ) {
+	if ( server->useCachedProxy( pending_cache_id ) != true ) {
 		EXCEPT( "useCachedProxy() failed!" );
 	}
 
 		// Write the command out to the gahp server.
-	write_line(pending_command,pending_reqid,pending_args);
+	server->write_line(pending_command,pending_reqid,pending_args);
 	Gahp_Args return_line;
-	char **argv = return_line.read_argv(m_gahp_readfd);
+	char **argv = server->read_argv(return_line);
 	if ( argv[0] == NULL || argv[0][0] != 'S' ) {
 		// Badness !
 		EXCEPT("Bad %s Request",command);
 	}
 
 	pending_submitted_to_gahp = true;
-	num_pending_requests++;
+	server->num_pending_requests++;
 
 	if (pending_timeout) {
 		pending_timeout_tid = daemonCore->Register_Timer(pending_timeout + 1,
@@ -1538,7 +1760,7 @@ GahpClient::get_pending_result(const char *,const char *)
 		// Handle blocking mode if enabled
 	if ( (m_mode == blocking) && (!pending_result) ) {
 		for (;;) {
-			poll();
+			server->poll();
 			if ( pending_result ) {
 					// We got the result, stop blocking
 				break;
@@ -1564,7 +1786,7 @@ GahpClient::get_pending_result(const char *,const char *)
 }
 
 int
-GahpClient::poll()
+GahpServer::poll()
 {
 	Gahp_Args* result = NULL;
 	char **argv;
@@ -1580,12 +1802,12 @@ GahpClient::poll()
 		// result lines should be read.
 	result = new Gahp_Args;
 	ASSERT(result);
-	argv = result->read_argv(m_gahp_readfd);
+	argv = read_argv(result);
 	if ( argv[0] == NULL || argv[0][0] != 'S' || argv[1] == NULL ) {
 			// Badness !
 		dprintf(D_ALWAYS,"GAHP command 'RESULTS' failed\n");
 		return 0;
-	} 
+	}
 	poll_pending = false;
 	num_results = atoi(argv[1]);
 
@@ -1596,7 +1818,7 @@ GahpClient::poll()
 			result = new Gahp_Args;
 			ASSERT(result);
 		}
-		result->read_argv(m_gahp_readfd);
+		read_argv(result);
 		result_lines[i] = result;
 		result = NULL;
 	}
@@ -1627,9 +1849,9 @@ GahpClient::poll()
 
 			// Check and see if this is a gram_client_callback.  If so,
 			// deal with it here and now.
-		if ( result_reqid == m_callback_reqid ) {
+		if ( result_reqid == globus_gt2_gram_callback_reqid ) {
 			if ( argv[1] && argv[2] && argv[3] ) {
-				(*m_callback_func)( m_user_callback_arg, argv[1], 
+				(*globus_gt2_gram_callback_func)( globus_gt2_gram_user_callback_arg, argv[1], 
 								atoi(argv[2]), atoi(argv[3]) );
 			} else {
 				dprintf(D_FULLDEBUG,
@@ -1734,22 +1956,22 @@ GahpClient::globus_gram_client_callback_allow(
 	}
 		// First check if we already enabled callbacks; if so,
 		// just return our stashed contact.
-	if ( m_callback_contact ) {
+	if ( server->globus_gt2_gram_callback_contact ) {
 			// previously called... make certain nothing changed
-		if ( callback_func != m_callback_func || 
-						user_callback_arg != m_user_callback_arg )
+		if ( callback_func != server->globus_gt2_gram_callback_func || 
+						user_callback_arg != server->globus_gt2_gram_user_callback_arg )
 		{
 			EXCEPT("globus_gram_client_callback_allow called twice");
 		}
 		if (callback_contact) {
-			*callback_contact = strdup(m_callback_contact);
+			*callback_contact = strdup(server->globus_gt2_gram_callback_contact);
 			ASSERT(*callback_contact);
 		}
 		return 0;
 	}
 
 		// Check if this command is supported
-	if  (m_commands_supported->contains_anycase(command)==FALSE) {
+	if  (server->m_commands_supported->contains_anycase(command)==FALSE) {
 		return GAHPCLIENT_COMMAND_NOT_SUPPORTED;
 	}
 
@@ -1762,9 +1984,9 @@ GahpClient::globus_gram_client_callback_allow(
 	int reqid = new_reqid();
 	int x = snprintf(buf,sizeof(buf),"%s %d 0",command,reqid);
 	ASSERT( x > 0 && x < (int)sizeof(buf) );
-	write_line(buf);
+	server->write_line(buf);
 	Gahp_Args result;
-	char **argv = result.read_argv(m_gahp_readfd);
+	char **argv = server->read_argv(result);
 	if ( argv[0] == NULL || argv[0][0] != 'S' || argv[1] == NULL ) {
 			// Badness !
 		int ec = argv[1] ? atoi(argv[1]) : GAHPCLIENT_COMMAND_NOT_SUPPORTED;
@@ -1775,13 +1997,14 @@ GahpClient::globus_gram_client_callback_allow(
 	} 
 
 		// Goodness !
-	m_callback_reqid = reqid;
- 	m_callback_func = callback_func;
-	m_user_callback_arg = user_callback_arg;
-	m_callback_contact = strdup(argv[1]);
-	ASSERT(m_callback_contact);
-	*callback_contact = strdup(m_callback_contact);
+	server->globus_gt2_gram_callback_reqid = reqid;
+ 	server->globus_gt2_gram_callback_func = callback_func;
+	server->globus_gt2_gram_user_callback_arg = user_callback_arg;
+	server->globus_gt2_gram_callback_contact = strdup(argv[1]);
+	ASSERT(server->globus_gt2_gram_callback_contact);
+	*callback_contact = strdup(server->globus_gt2_gram_callback_contact);
 	ASSERT(*callback_contact);
 
 	return 0;
 }
+

@@ -33,7 +33,6 @@
 
 #include "proxymanager.h"
 #include "gridmanager.h"
-#include "gahp-client.h"
 
 #define HASH_TABLE_SIZE			500
 
@@ -44,17 +43,14 @@ HashTable <HashKey, Proxy *> ProxiesByPath( HASH_TABLE_SIZE,
 											hashFunction );
 
 static bool proxymanager_initialized = false;
-static bool gahp_initialized = false;
 static int CheckProxies_tid = TIMER_UNSET;
 char *MasterProxyPath;
 Proxy MasterProxy;
 static bool use_single_proxy = false;
-static bool(*InitGahpFunc)(const char *) = NULL;
 
 int CheckProxies_interval = 600;		// default value
 int minProxy_time = 3 * 60;				// default value
 
-static GahpClient my_gahp;
 static int next_gahp_proxy_id = 1;
 
 int CheckProxies();
@@ -73,11 +69,6 @@ InitializeProxyManager()
 	CheckProxies_tid = daemonCore->Register_Timer( 1, CheckProxies_interval,
 												   (TimerHandler)&CheckProxies,
 												   "CheckProxies", NULL );
-
-	if ( my_gahp.Startup() == false ) {
-		dprintf( D_ALWAYS, "Error starting GAHP\n" );
-		EXCEPT( "GAHP startup command failed!" );
-	}
 
 	proxymanager_initialized = true;
 
@@ -121,15 +112,13 @@ SetMasterProxy( const Proxy *new_master )
 // proxy should be used in the INITIALIZE_FROM_FILE command. Note that
 // ProxyManager will start the GAHP and cache proxies before the given
 // function is called.
-bool UseMultipleProxies( const char *proxy_dir,
-						 bool(*init_gahp_func)(const char *proxy) )
+bool UseMultipleProxies( const char *proxy_dir )
 {
 	if ( proxymanager_initialized == true ) {
 		return false;
 	}
 
 	use_single_proxy = false;
-	InitGahpFunc = init_gahp_func;
 
 	if ( InitializeProxyManager() == false ) {
 		return false;
@@ -151,15 +140,13 @@ bool UseMultipleProxies( const char *proxy_dir,
 // ProxyManager will start the GAHP and cache proxies before the given
 // function is called.
 bool
-UseSingleProxy( const char *proxy_path,
-				bool(*init_gahp_func)(const char *proxy) )
+UseSingleProxy( const char *proxy_path )
 {
 	if ( proxymanager_initialized == true ) {
 		return false;
 	}
 
 	use_single_proxy = true;
-	InitGahpFunc = init_gahp_func;
 
 	if ( InitializeProxyManager() == false ) {
 		return false;
@@ -233,7 +220,7 @@ AcquireProxy( const char *proxy_path, int notify_tid )
 	proxy->num_references = 1;
 	proxy->expiration_time = expire_time;
 	proxy->near_expired = (expire_time - time(NULL)) <= minProxy_time;
-	proxy->gahp_proxy_id = -1;
+	proxy->gahp_proxy_id = next_gahp_proxy_id++;
 	if ( notify_tid > 0 &&
 		 proxy->notification_tids.IsMember( notify_tid ) == false ) {
 		proxy->notification_tids.Append( notify_tid );
@@ -241,6 +228,7 @@ AcquireProxy( const char *proxy_path, int notify_tid )
 
 	ProxiesByPath.insert(HashKey(proxy_path), proxy);
 
+		// is this necessary anymore?
 	daemonCore->Reset_Timer( CheckProxies_tid, 0 );
 
 	return proxy;
@@ -301,7 +289,6 @@ int CheckProxies()
 	int new_max_expire;
 	int now = time(NULL);
 	int next_check = CheckProxies_interval + now;
-	int rc;
 dprintf(D_ALWAYS,"CheckProxies called\n");
 
 	if ( proxymanager_initialized == false ) {
@@ -326,9 +313,6 @@ dprintf(D_ALWAYS,"CheckProxies called\n");
 		if ( next_proxy->num_references == 0 ) {
 dprintf(D_ALWAYS,"  removing old proxy %d\n",next_proxy->gahp_proxy_id);
 			ProxiesByPath.remove( HashKey(next_proxy->proxy_filename) );
-			if ( my_gahp.uncacheProxy( next_proxy->gahp_proxy_id ) == false ) {
-				EXCEPT( "GAHP uncache command failed!" );
-			}
 			free( next_proxy->proxy_filename );
 			delete next_proxy;
 			continue;
@@ -338,23 +322,11 @@ dprintf(D_ALWAYS,"  removing old proxy %d\n",next_proxy->gahp_proxy_id);
 		// If the proxy hasn't been cached in the gahp_server yet or it's
 		// been updated (and the update isn't near expiration), (re)cache
 		// it in the gahp_server and notify everyone who cares.
-		if ( next_proxy->gahp_proxy_id == -1 ||
-			 ( new_expiration > next_proxy->expiration_time &&
-			   new_expiration > now + minProxy_time ) ) {
-
-			if ( next_proxy->gahp_proxy_id == -1 ) {
-				next_proxy->gahp_proxy_id = next_gahp_proxy_id++;
-			}
+		if ( new_expiration > next_proxy->expiration_time &&
+			 new_expiration > now + minProxy_time ) {
 
 			next_proxy->expiration_time = new_expiration;
 			next_proxy->near_expired = false;
-
-dprintf(D_ALWAYS,"  (re)caching proxy %d\n",next_proxy->gahp_proxy_id);
-			if ( my_gahp.cacheProxyFromFile( next_proxy->gahp_proxy_id,
-											 next_proxy->proxy_filename ) == false ) {
-				// TODO is there a better way to react?
-				EXCEPT( "GAHP cache command failed!" );
-			}
 
 			int tid;
 			next_proxy->notification_tids.Rewind();
@@ -375,7 +347,6 @@ dprintf(D_ALWAYS,"  marking proxy %d as about to expire\n",next_proxy->gahp_prox
 				while ( next_proxy->notification_tids.Next( tid ) ) {
 					daemonCore->Reset_Timer( tid, 0 );
 				}
-				my_gahp.useCachedProxy( -1 );
 			}
 		}
 
@@ -400,36 +371,6 @@ dprintf(D_ALWAYS,"  marking proxy %d as about to expire\n",next_proxy->gahp_prox
 	if ( new_master != NULL && SetMasterProxy( new_master ) == true ) {
 
 dprintf(D_ALWAYS,"  proxy %d is now the master proxy\n",new_master->gahp_proxy_id);
-		if ( gahp_initialized == false ) {
-			// This is our first master proxy, perform the callback so that
-			// the GAHP can be intialized with it
-dprintf(D_ALWAYS,"  first master found, calling gahp init function\n");
-			if ( (*InitGahpFunc)( MasterProxy.proxy_filename ) == false ) {
-				EXCEPT( "GAHP initalization failed!" );
-			}
-
-			if ( my_gahp.cacheProxyFromFile( MasterProxy.gahp_proxy_id,
-											 MasterProxy.proxy_filename ) == false ) {
-				EXCEPT( "GAHP cache command failed!" );
-			}
-
-			my_gahp.setMode( GahpClient::blocking );
-
-			gahp_initialized = true;
-		} else {
-			// Refresh the master proxy credentials in the GAHP
-dprintf(D_ALWAYS,"  refreshing master proxy in gahp\n");
-			rc = my_gahp.globus_gram_client_set_credentials( MasterProxy.proxy_filename );
-			// TODO if set-credentials fails, what to do?
-			if ( rc != 0 ) {
-				dprintf( D_ALWAYS, "GAHP set credentails failed! rc=%d\n", rc);
-			}
-			if ( my_gahp.cacheProxyFromFile( MasterProxy.gahp_proxy_id,
-											 MasterProxy.proxy_filename ) == false ) {
-				EXCEPT( "GAHP cache command failed!" );
-			}
-		}
-
 		int tid;
 		MasterProxy.notification_tids.Rewind();
 		while ( MasterProxy.notification_tids.Next( tid ) ) {

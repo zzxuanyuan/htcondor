@@ -65,6 +65,7 @@
 #define GM_OUTPUT_WAIT			25
 #define GM_PUT_TO_SLEEP			26
 #define GM_JOBMANAGER_ASLEEP	27
+#define GM_START				28
 
 static char *GMStateNames[] = {
 	"GM_INIT",
@@ -94,7 +95,8 @@ static char *GMStateNames[] = {
 	"GM_PROBE_JOBMANAGER",
 	"GM_OUTPUT_WAIT",
 	"GM_PUT_TO_SLEEP",
-	"GM_JOBMANAGER_ASLEEP"
+	"GM_JOBMANAGER_ASLEEP",
+	"GM_START"
 };
 
 // TODO: once we can set the jobmanager's proxy timeout, we should either
@@ -125,11 +127,6 @@ static char *GMStateNames[] = {
 
 #define CHECK_PROXY \
 { \
-	if ( gahp_proxy_id_set == false ) { \
-		dprintf( D_ALWAYS, "(%d.%d) proxy not cached yet, waiting...\n", \
-				 procID.cluster, procID.proc ); \
-		break; \
-	} \
 	if ( PROXY_NEAR_EXPIRED( myProxy ) && gmState != GM_PROXY_EXPIRED ) { \
 		dprintf( D_ALWAYS, "(%d.%d) proxy is about to expire\n", \
 				 procID.cluster, procID.proc ); \
@@ -154,6 +151,7 @@ template class Item<OrphanCallback_t>;
 
 GahpClient GahpMain;
 
+// TODO These can't be global!!
 char *gassServerUrl = NULL;
 char *gramCallbackContact = NULL;
 
@@ -161,37 +159,6 @@ HashTable <HashKey, GlobusJob *> JobsByContact( HASH_TABLE_SIZE,
 												hashFunction );
 
 List<OrphanCallback_t> OrphanCallbackList;
-
-bool
-InitializeGahp( const char *proxy_filename )
-{
-	int err;
-
-	if ( GahpMain.Initialize( proxy_filename ) == false ) {
-		dprintf( D_ALWAYS, "Error initializing GAHP\n" );
-		return false;
-	}
-
-	GahpMain.setMode( GahpClient::blocking );
-
-	err = GahpMain.globus_gram_client_callback_allow( gramCallbackHandler,
-													  NULL,
-													  &gramCallbackContact );
-	if ( err != GLOBUS_SUCCESS ) {
-		dprintf( D_ALWAYS, "Error enabling GRAM callback, err=%d - %s\n", 
-				 err, GahpMain.globus_gram_client_error_string(err) );
-		return false;
-	}
-
-	err = GahpMain.globus_gass_server_superez_init( &gassServerUrl, 0 );
-	if ( err != GLOBUS_SUCCESS ) {
-		dprintf( D_ALWAYS, "Error enabling GASS server, err=%d\n", err );
-		return false;
-	}
-	dprintf( D_FULLDEBUG, "GASS server URL: %s\n", gassServerUrl );
-
-	return true;
-}
 
 char *
 globusJobId( const char *contact )
@@ -303,11 +270,11 @@ void GlobusJobInit()
 		// CRUFT: Backwards compatibility with pre-6.5.1 schedds that don't
 		//   give us a constraint expression for querying our jobs. Build
 		//   it ourselves like the old gridmanager did.
-		if ( UseSingleProxy( X509Proxy, InitializeGahp ) == false ) {
+		if ( UseSingleProxy( X509Proxy ) == false ) {
 			EXCEPT( "Failed to initialize ProxyManager" );
 		}
 	} else {
-		if ( UseMultipleProxies( GridmanagerScratchDir, InitializeGahp ) == false ) {
+		if ( UseMultipleProxies( GridmanagerScratchDir ) == false ) {
 			EXCEPT( "Failed to initialize Proxymanager" );
 		}
 	}
@@ -497,10 +464,11 @@ GlobusJob::GlobusJob( ClassAd *classad )
 	outputWaitLastGrowth = 0;
 	// HACK!
 	retryStdioSize = true;
-	gahp_proxy_id_set = false;
 	resourceManagerString = NULL;
 	myResource = NULL;
 	myProxy = NULL;
+	gassServerUrl = NULL;
+	gramCallbackContact = NULL;
 
 	// In GM_HOLD, we assme HoldReason to be set only if we set it, so make
 	// sure it's unset when we start.
@@ -673,6 +641,12 @@ GlobusJob::~GlobusJob()
 	if ( myProxy ) {
 		ReleaseProxy( myProxy, evaluateStateTid );
 	}
+	if ( gassServerUrl ) {
+		free( gassServerUrl );
+	}
+	if ( gramCallbackContact ) {
+		free( gramCallbackContact );
+	}
 }
 
 void GlobusJob::Reconfig()
@@ -701,11 +675,6 @@ int GlobusJob::doEvaluateState()
 			"(%d.%d) doEvaluateState called: gmState %s, globusState %d\n",
 			procID.cluster,procID.proc,GMStateNames[gmState],globusState);
 
-	if ( gahp_proxy_id_set == false && myProxy->gahp_proxy_id != -1 ) {
-		gahp.setDelegProxyCacheId( myProxy->gahp_proxy_id );
-		gahp_proxy_id_set = true;
-	}
-
 		// We don't include jmDown here because we don't want it to block
 		// connections to the gatekeeper (particularly restarts) and any
 		// state that contacts to the jobmanager should be jumping to
@@ -724,7 +693,41 @@ int GlobusJob::doEvaluateState()
 		switch ( gmState ) {
 		case GM_INIT: {
 			// This is the state all jobs start in when the GlobusJob object
-			// is first created. If we think there's a running jobmanager
+			// is first created. Here, we do things that we didn't want to
+			// do in the constructor because they could block (the
+			// constructor is called while we're connected to the schedd).
+			int err;
+
+			if ( gahp.Initialize( myProxy->proxy_filename ) == false ) {
+					// TODO what now?
+				dprintf( D_ALWAYS, "Error initializing GAHP\n" );
+			}
+
+			gahp.setDelegProxy( myProxy );
+
+			gahp.setMode( GahpClient::blocking );
+
+			err = gahp.globus_gram_client_callback_allow( gramCallbackHandler,
+														  NULL,
+														  &gramCallbackContact );
+			if ( err != GLOBUS_SUCCESS ) {
+					// TODO what now?
+				dprintf( D_ALWAYS, "Error enabling GRAM callback, err=%d - %s\n", 
+						 err, gahp.globus_gram_client_error_string(err) );
+			}
+
+			err = gahp.globus_gass_server_superez_init( &gassServerUrl, 0 );
+			if ( err != GLOBUS_SUCCESS ) {
+					// TODO what now?
+				dprintf( D_ALWAYS, "Error enabling GASS server, err=%d\n", err );
+			}
+
+			gmState = GM_START;
+			} break;
+		case GM_START: {
+			// This state is the real start of the state machine, after
+			// one-time initialization has been taken care of.
+			// If we think there's a running jobmanager
 			// out there, we try to register for callbacks (in GM_REGISTER).
 			// The one way jobs can end up back in this state is if we
 			// attempt a restart of a jobmanager only to be told that the
@@ -758,7 +761,7 @@ int GlobusJob::doEvaluateState()
 						// Condor-G to v6.5.x Condor-G, you had better
 						// remove all jobs from the queue first!
 					dprintf(D_ALWAYS,
-							"(%d.%d) Bad GRAM version %d in GM_INIT!\n",
+							"(%d.%d) Bad GRAM version %d in GM_START!\n",
 							procID.cluster, procID.proc,jmVersion);
 					gmState = GM_HOLD;
 				}
@@ -1430,7 +1433,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 					// running, try to contact old jm again. How likely is
 					// this to happen?
 					jmDown = false;
-					gmState = GM_INIT;
+					gmState = GM_START;
 					break;
 				}
 				if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_UNDEFINED_EXE ) {
@@ -1879,7 +1882,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 			// proxy to be refreshed, then resume handling the job.
 			now = time(NULL);
 			if ( myProxy->expiration_time > JM_MIN_PROXY_TIME + now ) {
-				gmState = GM_INIT;
+				gmState = GM_START;
 			} else {
 				// Do nothing. Our proxy is about to expire.
 			}
