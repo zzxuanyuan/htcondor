@@ -351,7 +351,7 @@ ResState::enter_action( State s, Activity a,
 	case claimed_state:
 		rip->r_reqexp->restore();			
 		if( statechange ) {
-			rip->r_cur->start_claim_timer();	
+			rip->r_cur->beginClaim();	
 				// Update important attributes into the classad.
 			rip->r_cur->publish( rip->r_classad, A_PUBLIC );
 				// Generate a preempting claim object

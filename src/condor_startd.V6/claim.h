@@ -116,6 +116,9 @@ public:
 	void dprintf( int, char* ... );
 
 	void refuseClaimRequest();
+	void beginClaim( void );	// we finally accepted a claim, so
+								// change our state, and if we're
+								// opportunistic, start a timer
 
 		// Timer functions
 	void start_match_timer();

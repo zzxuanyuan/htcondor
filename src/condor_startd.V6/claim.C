@@ -286,16 +286,22 @@ Claim::match_timed_out()
 
 
 void
-Claim::start_claim_timer()
+Claim::beginClaim( void ) 
 {
-		// for now, we should change our claim state in here, since
-		// this is called once the Claim is finally claimed by
-		// someone.  this will all probably be changed soon, since
-		// having the ResState code starting and stopping timers on
-		// the Claim object isn't really a good idea. :)
 	ASSERT( c_state == CLAIM_UNCLAIMED );
 	c_state = CLAIM_IDLE;
 
+	if( ! c_is_cod ) {
+			// if we're an opportunistic claim, we want to start our
+			// claim timer, too.  
+		start_claim_timer();
+	}
+}
+
+
+void
+Claim::start_claim_timer()
+{
 	if( c_aliveint < 0 ) {
 		dprintf( D_ALWAYS, 
 				 "Warning: starting claim timer before alive interval set.\n" );
