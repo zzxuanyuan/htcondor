@@ -28,14 +28,16 @@ class GlobusJob
 
 	PROC_ID procID;
 	char *jobContact;
-	int jobState;
+	int jobState;	// this is the Globus status, not Condor job status
 	char *RSL;
 	char *rmContact;
 	int errorCode;
 	char *userLogFile;
+	bool abortedByUser;
 
  protected:
 	bool callback_already_registered;
+	//Classad *ad;
 };
 
 #endif

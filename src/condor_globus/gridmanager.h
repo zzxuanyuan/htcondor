@@ -39,6 +39,7 @@ class GridManager : public Service
 
 	UserLog *InitializeUserLog( GlobusJob * );
 	bool WriteExecuteToUserLog( GlobusJob * );
+	bool WriteAbortToUserLog( GlobusJob * );
 	bool WriteTerminateToUserLog( GlobusJob * );
 
 

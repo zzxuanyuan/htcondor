@@ -36,6 +36,7 @@
 
 GlobusJob::GlobusJob( GlobusJob& copy )
 {
+	abortedByUser = copy.abortedByUser;
 	callback_already_registered = copy.callback_already_registered;
 	procID = copy.procID;
 	jobContact = (copy.jobContact == NULL) ? NULL : strdup( copy.jobContact );
@@ -50,37 +51,56 @@ GlobusJob::GlobusJob( ClassAd *classad )
 {
 	char buf[4096];
 
+	abortedByUser = false;
 	callback_already_registered = false;
 	classad->LookupInteger( ATTR_CLUSTER_ID, procID.cluster );
 	classad->LookupInteger( ATTR_PROC_ID, procID.proc );
+	jobContact = NULL;
+	RSL = NULL;
+	rmContact = NULL;
+	userLogFile = NULL;
+	jobState = 0;
+	errorCode = 0;
+	// ad = NULL;
+
 	buf[0] = '\0';
 	classad->LookupString( ATTR_GLOBUS_CONTACT_STRING, buf );
-	if ( buf[0] != '\0' )
+	if ( strlen(buf) > 5 ) {
 		jobContact = strdup( buf );
+	}
 	classad->LookupInteger( ATTR_GLOBUS_STATUS, jobState );
 	buf[0] = '\0';
 	classad->LookupString( ATTR_GLOBUS_RESOURCE, buf );
-	if ( buf[0] != '\0' )
+	if ( buf[0] != '\0' ) {
 		rmContact = strdup( buf );
+	}
 	errorCode = GLOBUS_SUCCESS;
 	buf[0] = '\0';
 	userLogFile = NULL;
 	classad->LookupString( ATTR_ULOG_FILE, buf );
-	if ( buf[0] != '\0' )
+	if ( buf[0] != '\0' ) {
 		userLogFile = strdup( buf );
+	}
 	RSL = buildRSL( classad );
 }
 
 GlobusJob::~GlobusJob()
 {
-	if ( jobContact )
+	if ( jobContact ) {
 		free( jobContact );
-	if ( RSL )
+	}
+	if ( RSL ) {
 		free( RSL );
-	if ( rmContact )
+	}
+	if ( rmContact ) {
 		free( rmContact );
-	if ( userLogFile )
+	}
+	if ( userLogFile ) {
 		free( userLogFile );
+	}
+	//if ( ad ) {
+		//delete ad;
+	//}
 }
 
 bool GlobusJob::start()
@@ -151,6 +171,7 @@ bool GlobusJob::callback( int state = 0, int error = 0 )
 	} else if ( state == GLOBUS_GRAM_CLIENT_JOB_STATE_FAILED ) {
 		// Not sure what the right thing to do on a FAILED message from
 		// globus. For now, we treat it like a completed job.
+		// Note: we also get this message after the job was cancelled.
 
 		// JobsByContact with a state of FAILED shouldn't be in the hash table,
 		// but we'll check anyway.
@@ -159,6 +180,17 @@ bool GlobusJob::callback( int state = 0, int error = 0 )
 
 			addJobUpdateEvent( this, JOB_UE_UPDATE_STATE );
 			addJobUpdateEvent( this, JOB_UE_REMOVE_JOB );
+	
+			//dprintf(D_ALWAYS,"TODD DEBUGCHECK %s:%d\n",__FILE__,__LINE__);
+			if ( abortedByUser ) {
+				// we got here cuz user aborted the job with condor_rm
+				// log this fact into the user log.
+			//dprintf(D_ALWAYS,"TODD DEBUGCHECK %s:%d\n",__FILE__,__LINE__);
+				addJobUpdateEvent( this, JOB_UE_ULOG_ABORT );
+			}
+
+			// TODO
+
 			// put on hold instead? (for certain errors)
 
 			// userlog entry (what type of event is this?)
@@ -204,6 +236,7 @@ bool GlobusJob::cancel()
 	rc = globus_gram_client_job_cancel( jobContact );
 
 	if ( rc == GLOBUS_SUCCESS ) {
+		abortedByUser = true;
 		return true;
 	} else {
 		errorCode = rc;

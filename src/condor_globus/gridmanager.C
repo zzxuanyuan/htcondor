@@ -308,8 +308,10 @@ GridManager::ADD_JOBS_signalHandler( int signal )
 			// So here the job has already been submitted to Globus.
 			// We need to place the contact string into our hashtable,
 			// and setup to get async events.
-			JobsByContact->insert(HashKey(new_job->jobContact), new_job);
-			new_job->callback_register();
+			if ( new_job->jobContact ) {
+				JobsByContact->insert(HashKey(new_job->jobContact), new_job);
+				new_job->callback_register();
+			}
 		}
 
 		new_ads.Delete( next_ad );
@@ -353,17 +355,16 @@ GridManager::REMOVE_JOBS_signalHandler( int signal )
 	// Try to cancel the jobs
 	new_ads.Open();
 
+	PROC_ID curr_procid;
+	GlobusJob *curr_job;
 	while ( ( next_ad = new_ads.Next() ) != NULL ) {
-
-		int rc;
-		PROC_ID curr_procid;
-		GlobusJob *curr_job;
 
 		next_ad->LookupInteger( ATTR_CLUSTER_ID, curr_procid.cluster );
 		next_ad->LookupInteger( ATTR_PROC_ID, curr_procid.proc );
 
+		curr_job = NULL;
 		JobsByProcID->lookup( curr_procid, curr_job );
-		if ( rc != 0 || curr_job == NULL ) {
+		if ( curr_job == NULL ) {
 			new_ads.Delete( next_ad );
 			continue;
 		}
@@ -374,11 +375,16 @@ GridManager::REMOVE_JOBS_signalHandler( int signal )
 				curr_job->procID.cluster,curr_job->procID.proc);
 			
 			if ( curr_job->cancel() == false ) {
-
 				// Error
 				dprintf(D_ALWAYS,"ERROR: Job cancel failed because %s\n",
 					globus_gram_client_error_string(curr_job->errorCode));
 
+				// TODO what now?  try later ?
+			} else {
+				// Success.  We don't actually remove it until
+				// we receive the status update from the job manager.
+				dprintf(D_ALWAYS,"Removed job %d.%d\n",
+					curr_job->procID.cluster,curr_job->procID.proc);
 			}
 			/*
 			if ( curr_job->jobContact != NULL )
@@ -425,6 +431,10 @@ GridManager::updateSchedd()
 			break;
 		case JOB_UE_ULOG_TERMINATE:
 			WriteTerminateToUserLog( curr_job );
+			handled = true;
+			break;
+		case JOB_UE_ULOG_ABORT:
+			WriteAbortToUserLog( curr_job );
 			handled = true;
 			break;
 		case JOB_UE_EMAIL:
@@ -484,10 +494,22 @@ GridManager::updateSchedd()
 								 ATTR_JOB_STATUS, RUNNING );
 				break;
 			case G_FAILED:
+//dprintf(D_ALWAYS,"TODD DEBUGCHECK %s:%d\n",__FILE__,__LINE__);
+
 				// Send new job state command
-				SetAttributeInt( curr_job->procID.cluster,
+				if ( curr_job->abortedByUser ) {
+//dprintf(D_ALWAYS,"TODD DEBUGCHECK %s:%d\n",__FILE__,__LINE__);
+
+					SetAttributeInt( curr_job->procID.cluster,
+								 curr_job->procID.proc,
+								 ATTR_JOB_STATUS, REMOVED );
+				} else {
+//dprintf(D_ALWAYS,"TODD DEBUGCHECK %s:%d\n",__FILE__,__LINE__);
+
+					SetAttributeInt( curr_job->procID.cluster,
 								 curr_job->procID.proc,
 								 ATTR_JOB_STATUS, COMPLETED );
+				}
 				break;
 			case G_DONE:
 				// Send new job state command
@@ -622,7 +644,11 @@ GridManager::gramCallbackHandler( void *user_arg, char *job_contact,
 	this_job->callback( state, errorcode );
 
 	if ( this_job->jobContact == NULL ) {
+		//dprintf(D_ALWAYS,"TODD DEUBG AAA 1 size=%d job_contact=%s\n",
+				//this_->JobsByContact->getNumElements(), job_contact);
 		this_->JobsByContact->remove( HashKey( job_contact ) );
+		//dprintf(D_ALWAYS,"TODD DEUBG AAA 2 size=%d job_contact=%s\n",
+				//this_->JobsByContact->getNumElements(), job_contact);
 	} else if ( strcmp( this_job->jobContact, job_contact ) != 0 ) {
 		this_->JobsByContact->remove( HashKey( job_contact ) );
 		this_->JobsByContact->insert( HashKey( this_job->jobContact ),
@@ -673,6 +699,27 @@ GridManager::WriteExecuteToUserLog( GlobusJob *job )
 
 	if (!rc) {
 		dprintf( D_ALWAYS, "Unable to log ULOG_EXECUTE event\n" );
+		return false;
+	}
+
+	return true;
+}
+
+bool
+GridManager::WriteAbortToUserLog( GlobusJob *job )
+{
+	UserLog *ulog = InitializeUserLog( job );
+	if ( ulog == NULL ) {
+		// User doesn't want a log
+		return true;
+	}
+
+	JobAbortedEvent event;
+	int rc = ulog->writeEvent(&event);
+	delete ulog;
+
+	if (!rc) {
+		dprintf( D_ALWAYS, "Unable to log ULOG_ABORT event\n" );
 		return false;
 	}
 
