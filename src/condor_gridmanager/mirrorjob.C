@@ -927,6 +927,7 @@ void MirrorJob::ProcessRemoteAdActive( ClassAd *remote_ad )
 	int tmp_int;
 	ClassAd *diff_ad;
 	MyString buff;
+	const char *next_name;
 
 	if ( remote_ad == NULL ) {
 		return;
@@ -978,6 +979,18 @@ void MirrorJob::ProcessRemoteAdActive( ClassAd *remote_ad )
 	diff_ad->Delete( ATTR_SERVER_TIME );
 	diff_ad->Delete( ATTR_WANT_MATCHING );
 	diff_ad->Delete( ATTR_GLOBAL_JOB_ID );
+
+	// Remove attributes that were renamed by the remote schedd because
+	// of moving the job's sandbox. These can be identified by looking
+	// for pairs of attributes named <attr name> and SUBMIT_<attr name>.
+	diff_ad->ResetName();
+	while ( (next_name = diff_ad->NextNameOriginal()) != NULL ) {
+		if ( strncmp( next_name, "SUBMIT_", 7 ) == 0 &&
+			 remote_ad->Lookup( &next_name[7] ) != NULL ) {
+			diff_ad->Delete( next_name );
+			diff_ad->Delete( &next_name[7] );
+		}
+	}
 
 	ClassAdPatch( ad, diff_ad );
 
