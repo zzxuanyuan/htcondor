@@ -27,6 +27,7 @@ struct _condorDEntry {
 	int             dLen;
 	char*           dGram;
     unsigned char * md_;         // not very efficient at this time
+    unsigned char * header_;
 };
 
 struct _condorMsgID {
@@ -69,6 +70,7 @@ class _condorInMsg
 			const void* data,	// data of the packet
             const char * MD5KeyId, 
             const unsigned char * md, 
+            int   headerLen, // length of the header
             const char * EncKeyId, 
 			_condorInMsg* prev);	// pointer to the previous InMsg in the chain
 
@@ -79,7 +81,8 @@ class _condorInMsg
                        const int seq,		// seq. # of the packet
                        const int len,		// length of the packet
                        const void* data,
-                       const unsigned char* MD);	// data of the packet
+                       const unsigned char* MD,
+                       int   headerLen);	// data of the packet
 
 		// get the next n bytes from the message
 		int getn(char *dta,	// output buffer
@@ -93,8 +96,8 @@ class _condorInMsg
         const char * isDataMD5ed();
         const char * isDataEncrypted();
 
-        void resetEncKeyId();
-        void resetMDKeyId();
+        void resetEnc();
+        void resetMD();
 
         bool init_MD(KeyInfo * key = 0);
 		// Check if every data of the message has been read
@@ -153,6 +156,9 @@ class _condorPacket
 				   _condorMsgID &mID,
 				   void *&dta);
 
+        int headerLen();
+        // Get the part of the header that is also check summed
+
 		// get the next n bytes from 'data' portion
 		int getn(char *dta,	// output buffer
 			   const int n);	// # of required bytes
@@ -203,8 +209,8 @@ class _condorPacket
         void setVerified(bool);
         void addEID();       // Add encryption key id to the header
         int checkHeader(int & len, void *& dta);
-        void resetMDKeyId();
-        void resetEncKeyId();
+        void resetMD();
+        void resetEnc();
         //------------------------------------------
         //  Private data
         //------------------------------------------
