@@ -188,13 +188,6 @@ ToolDaemonProc::StartJob()
 		free( high );
     }
 
-	char* cwd = NULL;
-	if (JobAd->LookupString(ATTR_JOB_IWD, &cwd) != 1) {
-		dprintf( D_ALWAYS, "%s not found in JobAd.  "
-				 "Aborting ToolDaemonProc::StartJob()\n", ATTR_JOB_IWD );
-		return 0;
-	}
-
 	dprintf (D_FULLDEBUG, "Before File management \n");
 
 		// handle stdin, stdout, and stderr redirection for Daemon
@@ -323,6 +316,14 @@ ToolDaemonProc::StartJob()
 
 	dprintf( D_ALWAYS, "About to exec %s %s\n", DaemonName,
 			 DaemonArgs ); 
+
+	// get the iwd
+	char* cwd = NULL;
+	if (JobAd->LookupString(ATTR_JOB_IWD, &cwd) != 1) {
+		dprintf( D_ALWAYS, "%s not found in JobAd.  "
+				 "Aborting ToolDaemonProc::StartJob()\n", ATTR_JOB_IWD );
+		return 0;
+	}
 	
 	// Grap the full environment back out of the Env object 
 	env_str = job_env.getDelimitedString();
@@ -333,6 +334,10 @@ ToolDaemonProc::StartJob()
 		Create_Process( DaemonName, DaemonArgs,
 						PRIV_USER_FINAL, 1, FALSE, env_str, cwd, TRUE,
 						NULL, daemon_fds, nice_inc, DCJOBOPT_NO_ENV_INHERIT );
+
+	// free memory so we don't leak
+	free(cwd);
+	delete[] env_str;
 
 		// now close the descriptors in daemon_fds array.  our child has inherited
 		// them already, so we should close them so we do not leak descriptors.
@@ -372,8 +377,6 @@ ToolDaemonProc::StartJob()
 			"ProcFamily::takesnapshot", family);
 		return TRUE;
 	}
-
-	return FALSE;
 }
 
 /*
