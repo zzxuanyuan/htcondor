@@ -16,7 +16,9 @@
 
 #include "schedd_api.h"
 
-Job::Job(int clusterId, int jobId)
+
+Job::Job(int clusterId, int jobId):
+	declaredFiles(64, MyStringHash, rejectDuplicateKeys)
 {
 	this->clusterId = clusterId;
 	this->jobId = jobId;
@@ -27,25 +29,16 @@ Job::~Job()
 		// XXX: Duplicate code with abort(), almost.
 	MyString currentKey;
 	JobFile jobFile;
-	declaredFiles->startIterations();
-	while (declaredFiles->iterate(currentKey, jobFile)) {
+	declaredFiles.startIterations();
+	while (declaredFiles.iterate(currentKey, jobFile)) {
 		close(jobFile.file);
-		declaredFiles->remove(currentKey);
-	}
-
-	if (declaredFiles) {
-		delete declaredFiles;
-		declaredFiles = NULL;
+		declaredFiles.remove(currentKey);
 	}
 }
 
 int
 Job::initialize(CondorError &errstack)
 {
-	declaredFiles =
-		new HashTable<MyString, JobFile>(64, MyStringHash, rejectDuplicateKeys);
-	ASSERT(declaredFiles);
-
 	char * Spool = param("SPOOL");
 	ASSERT(Spool);
 
@@ -110,10 +103,10 @@ Job::abort(CondorError &errstack)
 {
 	MyString currentKey;
 	JobFile jobFile;
-	declaredFiles->startIterations();
-	while (declaredFiles->iterate(currentKey, jobFile)) {
+	declaredFiles.startIterations();
+	while (declaredFiles.iterate(currentKey, jobFile)) {
 		close(jobFile.file);
-		declaredFiles->remove(currentKey);
+		declaredFiles.remove(currentKey);
 		remove(jobFile.name.GetCStr());
 	}
 
@@ -203,7 +196,7 @@ Job::declare_file(const MyString &name,
 			 O_WRONLY | O_CREAT | _O_BINARY,
 			 0600);
 	if (-1 != jobFile.file) {
-		if (declaredFiles->insert(name, jobFile)) {
+		if (declaredFiles.insert(name, jobFile)) {
 			errstack.pushf("SOAP",
 						   FAIL,
 						   "Failed to record file '%s'.",
@@ -261,8 +254,8 @@ Job::submit(const struct ClassAdStruct &jobAd,
 	StringList transferFiles;
 	MyString currentKey;
 	JobFile jobFile;
-	declaredFiles->startIterations();
-	while (declaredFiles->iterate(currentKey, jobFile)) {
+	declaredFiles.startIterations();
+	while (declaredFiles.iterate(currentKey, jobFile)) {
 		transferFiles.append(jobFile.name.GetCStr());
 	}
 
@@ -311,7 +304,7 @@ Job::submit(const struct ClassAdStruct &jobAd,
 			continue;
 		}
 
-		if ( jobAd.__ptr[i].type == 's' ) {
+		if ( jobAd.__ptr[i].type == STRING_ATTR ) {
 				// string type - put value in quotes as hint for ClassAd parser
 
 			found_iwd = found_iwd || !strcmp(name, ATTR_JOB_IWD);
@@ -367,7 +360,7 @@ Job::put_file(const MyString &name,
 			  CondorError &errstack)
 {
 	JobFile jobFile;
-	if (-1 == declaredFiles->lookup(name, jobFile)) {
+	if (-1 == declaredFiles.lookup(name, jobFile)) {
 		errstack.pushf("SOAP",
 					   FAIL,
 					   "File '%s' has not been declared.",

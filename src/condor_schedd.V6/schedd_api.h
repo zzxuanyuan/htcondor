@@ -67,7 +67,7 @@ class Job
  protected:
 	int clusterId;
 	int jobId;
-	HashTable<MyString, JobFile> *declaredFiles;
+	HashTable<MyString, JobFile> declaredFiles;
 	MyString spoolDirectory;
 };
 
