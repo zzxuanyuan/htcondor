@@ -619,7 +619,7 @@ dprintf(D_FULLDEBUG,"***Trying job type %s\n",job_type->Name);
 					}
 					new_job = job_type->CreateFunc( next_ad );
 				} else {
-					dprintf( D_ALWAYS, "No handlers for job %d.%d",
+					dprintf( D_ALWAYS, "No handlers for job %d.%d\n",
 							 procID.cluster, procID.proc );
 					new_job = new BaseJob( next_ad );
 				}
