@@ -1,6 +1,5 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{DaemonCore}
-\label{sec:DaemonCore}
+\section{\label{sec:DaemonCore}DaemonCore}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 This section is a brief description of \Term{DaemonCore}.  DaemonCore
@@ -23,8 +22,7 @@ to various UNIX signals, and provides a common set of command-line
 options that can be used to start up each daemon.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{DaemonCore and UNIX signals}
-\label{sec:DaemonCore-Signals}
+\subsection{\label{sec:DaemonCore-Signals}DaemonCore and UNIX signals}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 One of the most visible features DaemonCore provides for
@@ -57,17 +55,17 @@ is serving, while fast shutdown results in a hard kill of every shadow
 with no chance of checkpointing.  
 
 For all daemons, ``reconfigure'' just means that the daemon re-reads
-its config file(s) and any settings that have change take effect.  For
-example, changing the level of debugging output, the value of timers
-that determine how often daemons perform certain actions, the paths to
-the binaries you want the \Condor{master} to spawn, etc.  See
-section~\ref{sec:Configuring-Condor} on ``Configuring Condor'' for
-full details on what settings are in the config files and what they
-do.
+its config file(s) and any settings that have changed take effect.
+For example, changing the level of debugging output, the value of
+timers that determine how often daemons perform certain actions, the
+paths to the binaries you want the \Condor{master} to spawn, etc.
+See section~\ref{sec:Configuring-Condor} on
+page~\pageref{sec:Configuring-Condor}, ``Configuring Condor'' for full
+details on what settings are in the config files and what they do.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{DaemonCore and Command-line Arguments}
-\label{sec:DaemonCore-Arguments}
+\subsection{\label{sec:DaemonCore-Arguments}DaemonCore and
+Command-line Arguments} 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 The other visible feature that DaemonCore provides to administrators
@@ -99,8 +97,7 @@ The arguments and what they do are described below:
 \item[-p port] Causes the daemon to bind to the specified port for its
   \Term{command socket}.  The master uses this option to make sure the
   \Condor{collector} and \Condor{negotiator} start up on the
-  well-known ports that the rest of Condor depends on them using.  In
-  addition, you could
+  well-known ports that the rest of Condor depends on them using.
 
 \item[-t] Causes the daemon to print out its error message to
   \File{stderr} instead of its specified log file.  This option forces
