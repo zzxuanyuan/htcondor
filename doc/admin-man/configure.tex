@@ -2931,6 +2931,18 @@ gridmanager to continue operation. If seconds until expiration is
 less than this number, the gridmanager will shutdown and wait for
 a refreshed proxy credential. The default is 3 minutes (180 seconds).
 
+\item[\Macro{HOLD\_JOB\_IF\_CREDENTIAL\_EXPIRES}]
+\label{param:HoldJobIfCredentialExpires} True or False.
+Defaults to True.
+If True, and for globus universe jobs only,
+Condor-G will place a job on hold
+\MacroNI{GRIDMANAGER\_MINIMUM\_PROXY\_TIME} seconds
+before the proxy expires.
+If False,
+the job will stay in the last known state,
+and Condor-G will periodically check to see if the job's proxy has been
+refreshed, at which point management of the job will resume.
+
 \item[\Macro{GRIDMANAGER\_CONTACT\_SCHEDD\_DELAY}]
 \label{param:GridmanagerContactScheddDelay} The minimum number of
 seconds between connections to the schedd. The default is 5 seconds.
@@ -3043,6 +3055,13 @@ periodic syncs of streamed output to disk. The default is 5 minutes
 %this configuration variable defines how long (in seconds) one or
 %more machines need to be down (or just appear to be) to trigger a restart
 %of the GAHP server.
+
+\item[\Macro{GLOBUS\_GATEKEEPER\_TIMEOUT}]
+\label{param:GlobusGatekeeperTimeout} The number of seconds after
+which if a globus
+universe job fails to ping the gatekeeper,
+the job will be put on hold.
+Defaults to 5 days (in seconds).
 
 \end{description}
 
