@@ -191,22 +191,21 @@ OsProc::StartJob()
 		// // // // // // 
 
 	char* env_str = NULL;
-	if( JobAd->LookupString(ATTR_JOB_ENVIRONMENT, &env_str) != 1 ) {
-		dprintf( D_ALWAYS, "%s not found in JobAd.  "
-				 "Aborting OsProc::StartJob.\n", ATTR_JOB_ENVIRONMENT );  
-		return 0;
-	}
+	JobAd->LookupString( ATTR_JOB_ENVIRONMENT, &env_str );
+
 		// Now, instantiate an Env object so we can manipulate the
 		// environment as needed.
 	Env job_env;
-	if( ! job_env.Merge(env_str) ) {
-		dprintf( D_ALWAYS, "Invalid %s found in JobAd.  "
-				 "Aborting OsProc::StartJob.\n", ATTR_JOB_ENVIRONMENT );  
-		return 0;
+	if( env_str ) { 
+		if( ! job_env.Merge(env_str) ) {
+			dprintf( D_ALWAYS, "Invalid %s found in JobAd.  "
+					 "Aborting OsProc::StartJob.\n", ATTR_JOB_ENVIRONMENT );  
+			return 0;
+		}
+			// Next, we can free the string we got back from
+			// LookupString() so we don't leak any memory.
+		free( env_str );
 	}
-		// Next, we can free the string we got back from
-		// LookupString() so we don't leak any memory.
-	free( env_str );
 
 	// Now, add some env vars the user job might want to see:
 	char	envName[256];
