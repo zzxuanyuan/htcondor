@@ -5,12 +5,14 @@
 \index{Globus}
 \index{matchmaking!Grid}
 
-In it simplest usage, Condor-G allows users to specify exactly which
-grid site they wish to submit their job to. Often this is
-sufficient: perhaps a user knows exactly which grid site they wish to
-use, or a higher-level resource broker (such as the European Data
-Grid's resource broker) has decided which grid site should be
-used. But when users have a variety of sites to choose from and there
+In it simplest usage, Condor-G allows users to specify the single
+grid site they wish to submit their job to.
+Often this is sufficient: perhaps a user knows exactly which
+grid site they wish to use,
+or a higher-level resource broker
+(such as the European Data Grid's resource broker)
+has decided which grid site should be used.
+But when users have a variety of sites to choose from and there
 is no other resource broker to make the decision, Condor-G can use
 matchmaking to decide which grid site a job should run on. 
 
@@ -19,14 +21,22 @@ new. Work is being done to improve it and make it easier to use. For
 now, please expect some rough edges. 
 
 Condor-G uses the same matchmaking mechanism that Condor uses: the
-Condor collector and negotiator, which are described in
+\Condor{collector} and \Condor{negotiator} daemons, which are described in
 Section~\ref{sec:Condor-Daemons}. 
 
-To use Condor-G's matchmaking, you need to make two changes. First,
-you need to advertise grid sites that are available so that they are
-known during the matchmaking process. Second, the submit file that
-describes the job needs to specify requirements that describe what
-type of grid site can be instead of specifying a specific grid site.
+Two changes are required to use Condor-G's matchmaking.
+First,
+advertise grid sites that are available so that they are
+known and considered during the matchmaking process.
+This is accomplished by writing ClassAd attributes and
+using \Condor{advertise} to place the attributes into the
+ClassAd used in matchmaking.
+The second change is to the
+submit description file.
+This file needs to specify requirements that describe what
+type of grid site can be used, instead of identifying a specific grid site.
+
+% Karen had editted to this point.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsubsection{Advertising grid sites to Condor-G}
