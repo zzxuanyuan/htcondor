@@ -52,7 +52,9 @@ public:
 	void	assign_keyboard();
 
 	bool 	in_use();
-	bool	is_smp() { return( m_attr->num_cpus() > 1 ); };
+	bool	is_smp() { return( num_cpus() > 1 ); };
+	int		num_cpus() { return m_attr->num_cpus(); };
+
 	int		send_update( ClassAd*, ClassAd* );
 	void	final_update();
 	
@@ -113,6 +115,8 @@ public:
 	void report_updates();		// Log updates w/ dprintf()
 
 	MachAttributes*	m_attr;		// Machine-wide attribute object
+	
+	ProcAPI*		m_proc;		// Info from /proc about this machine 
 
 private:
 	Resource**	resources;		// Array of pointers to resource objects
