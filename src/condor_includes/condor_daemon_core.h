@@ -34,7 +34,7 @@
 #include "condor_commands.h"
 
 // enum for Daemon Core socket/command/signal permissions
-enum DCpermission { ALLOW, READ, WRITE };
+enum DCpermission { ALLOW, READ, WRITE, NEGOTIATOR };
 
 static const int KEEP_STREAM = 100;
 static char* EMPTY_DESCRIP = "<NULL>";
@@ -96,8 +96,9 @@ typedef int		(Service::*ReaperHandlercpp)(int pid,int exit_status);
 
 class DaemonCore : public Service
 {
+	friend class TimerManager;
+	
 	public:
-		
 		DaemonCore(int ComSize = 0, int SigSize = 0, int SocSize = 0);
 		~DaemonCore();
 
@@ -143,6 +144,9 @@ class DaemonCore : public Service
 
 		int		Send_Signal(int pid, int sig);
 
+		int SetDataPtr( void * );
+		void *GetDataPtr();
+		
 #ifdef FUTURE		
 		int		Block_Signal()
 		int		Unblock_Signal()
@@ -181,6 +185,7 @@ class DaemonCore : public Service
 			Service*		service; 
 			char*			command_descrip;
 			char*			handler_descrip;
+			void*			data_ptr;
 		};
 		void				DumpCommandTable(int, const char* = NULL);
 		int					maxCommand;		// max number of command handlers
@@ -199,6 +204,7 @@ class DaemonCore : public Service
 			int				is_pending;
 			char*			sig_descrip;
 			char*			handler_descrip;
+			void*			data_ptr;
 		};
 		void				DumpSigTable(int, const char* = NULL);
 		int					maxSig;		// max number of signal handlers
@@ -217,6 +223,7 @@ class DaemonCore : public Service
 			Service*		service; 
 			char*			iosock_descrip;
 			char*			handler_descrip;
+			void*			data_ptr;
 		};
 		void				DumpSocketTable(int, const char* = NULL);
 		int					maxSocket;		// max number of socket handlers
@@ -225,16 +232,19 @@ class DaemonCore : public Service
 		int					initial_command_sock;  
 
 		static				TimerManager t;
-
 		void				DumpTimerList(int, char* = NULL);
 
 		void				free_descrip(char *p) { if(p &&  p != EMPTY_DESCRIP) free(p); }
 	
 		fd_set				readfds; 
+
+		// these need to be in thread local storage someday
+		void **curr_dataptr;
+		// end of thread local storage
 };
 
 #ifndef _NO_EXTERN_DAEMON_CORE
-extern DaemonCore daemonCore;
+extern DaemonCore* daemonCore;
 #endif
 
 
