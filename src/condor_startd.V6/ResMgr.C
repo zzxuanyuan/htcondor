@@ -276,6 +276,15 @@ ResMgr::send_update( ClassAd* public_ad, ClassAd* private_ad )
 
 
 void
+ResMgr::first_eval_and_update_all()
+{
+	num_updates = 0;
+	walk( Resource::eval_and_update );
+	report_updates();
+}
+
+
+void
 ResMgr::eval_and_update_all()
 {
 	num_updates = 0;
@@ -315,8 +324,8 @@ void
 ResMgr::compute( amask_t how_much )
 {
 	m_attr->compute( (how_much & ~(A_SUMMED)) | A_SHARED );
-	resmgr->walk( Resource::compute, (how_much & ~(A_SHARED)) );
-	m_attr->compute( how_much | A_SUMMED );
+	walk( Resource::compute, (how_much & ~(A_SHARED)) );
+	m_attr->compute( (how_much & ~(A_SHARED)) | A_SUMMED );
 	walk( Resource::compute, (how_much | A_SHARED) );
 	assign_load();
 }
