@@ -1,12 +1,14 @@
 
 #include "condor_common.h"
 
+#include "image.h"
+
 #include "file_types.h"
 #include "condor_syscall_mode.h"
 #include "condor_debug.h"
 #include "condor_sys.h"
 
-extern "C" void file_warning( char *format, ... )
+extern "C" void _condor_file_warning( char *format, ... )
 {
 	va_list	args;
 	va_start(args,format);
@@ -14,10 +16,13 @@ extern "C" void file_warning( char *format, ... )
 	static char text[1024];
 	vsprintf(text,format,args);
 
-	dprintf(D_ALWAYS,text);
-	fprintf(stderr,text);
-
-	if(RemoteSysCalls()) REMOTE_syscall( CONDOR_perm_error, text );
+	if(MyImage.GetMode()==STANDALONE) {
+		fprintf(stderr,"Condor Warning: %s\n",text);
+	} else if(LocalSysCalls()) {
+		dprintf(D_ALWAYS,"Condor Warning: %s\n",text);
+	} else {
+		REMOTE_syscall( CONDOR_perm_error, text );
+	}
 
 	va_end(args);
 }
@@ -159,7 +164,7 @@ void LocalFile::resume( int count )
 
 	IN_LOCAL_MODE( fd = ::open(name,flags); )
 	if( fd==-1 ) {
-		file_warning("Unable to reopen local file %s after a checkpoint!\n",name);
+		_condor_file_warning("Unable to reopen local file %s after a checkpoint!\n",name);
 	}
 }
 
@@ -260,7 +265,7 @@ void RemoteFile::resume( int count )
 
 	fd=REMOTE_syscall( CONDOR_open, name, flags, 0 );
 	if(fd<0) {
-		file_warning("Unable to re-open remote file %s after checkpoint!\n",name);
+		_condor_file_warning("Unable to re-open remote file %s after checkpoint!\n",name);
 	}
 }
 
@@ -313,7 +318,7 @@ int RemoteFile::fcntl( int cmd, int arg )
 
 		default:
 
-			file_warning("fcntl(%d,%d,...) is unsupported for remote files.\n",fd,cmd);
+			_condor_file_warning("fcntl(%d,%d,...) is not supported for remote files.",fd,cmd);
 			errno = EINVAL;
 			return -1;
 	}
@@ -321,7 +326,7 @@ int RemoteFile::fcntl( int cmd, int arg )
 
 int RemoteFile::ioctl( int cmd, int arg )
 {
-	file_warning("ioctl(%d,%d,...) is not supported for remote files.\n",fd,cmd);
+	_condor_file_warning("ioctl(%d,%d,...) is not supported for remote files.",fd,cmd);
 	errno = EINVAL;
 	return -1;
 }
