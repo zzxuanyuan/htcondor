@@ -43,7 +43,7 @@ GlobusPath = /unsup/globus-2.0-latest
 /* Top should be the root of the source directory you want to use if
 you want our top-level Makefile to build the directory tree with all
 the soft links.  The links will point back to Top/src/... */
-#define Top /p/condor/workspaces/hbwang/latest
+#define Top /u/p/f/pfc/workspace/condor/V6_5-edg-branch
 
 #define TmpDir		/tmp
 
@@ -110,4 +110,6 @@ KERBEROS_INCLUDE =
 GAHP_DIR = /p/condor/workspaces/epaulson/gahp/bin
 #endif  /* AfterVendorCF */
 
-
+/* where to find the new classads libs/headers ... used by dagman planner
+helper */
+CLASSADS_ROOT = /unsup/classads
