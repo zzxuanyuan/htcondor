@@ -575,7 +575,7 @@ doContactSchedd()
 		if ( curr_action->actions & UA_LOG_TERMINATE_EVENT &&
 			 !curr_job->terminateLogged ) {
 			EmailTerminateEvent(curr_job->ad);
-			WriteTerminateEventToUserLog( curr_job->ad );
+			WriteTerminateEventToUserLog( curr_job );
 			curr_job->terminateLogged = true;
 		}
 		if ( curr_action->actions & UA_LOG_ABORT_EVENT &&
@@ -1599,9 +1599,25 @@ WriteAbortEventToUserLog( ClassAd *job_ad )
 	return true;
 }
 
+// TODO: We could do this with the jobad (as it was called before)
+// and just probe for the ATTR_USE_GRID_SHELL...?
 bool
-WriteTerminateEventToUserLog( ClassAd *job_ad )
+WriteTerminateEventToUserLog( GlobusJob *curr_job ) 
 {
+	if( ! curr_job) {
+		dprintf( D_ALWAYS, 
+			"Internal Error: WriteTerminateEventToUserLog passed invalid "
+			"GlobusJob (null curr_job).\n");
+		return false;
+	}
+	ClassAd *job_ad = curr_job->ad;
+	if( ! job_ad) {
+		dprintf( D_ALWAYS, 
+			"Internal Error: WriteTerminateEventToUserLog passed invalid "
+			"GlobusJob (null ad).\n");
+		return false;
+	}
+
 	int cluster, proc;
 	UserLog *ulog = InitializeUserLog( job_ad );
 	if ( ulog == NULL ) {
@@ -1635,6 +1651,36 @@ WriteTerminateEventToUserLog( ClassAd *job_ad )
 	// exited normally.
 	event.normal = true;
 	event.returnValue = 0;
+
+	if( curr_job->useGridShell ) {
+		int int_val;
+		if( job_ad->LookupBool(ATTR_ON_EXIT_BY_SIGNAL, int_val) ) {
+			if( int_val ) {
+				event.normal = false;
+				if( job_ad->LookupInteger(ATTR_ON_EXIT_SIGNAL, int_val) ) {
+					event.signalNumber = int_val;
+				} else {
+					dprintf( D_ALWAYS, "(%d.%d) Job ad lacks %s.  "
+						 "Signal code unknown.\n", cluster, proc, 
+						 ATTR_ON_EXIT_SIGNAL);
+				}
+			} else {
+				event.normal = true;
+				if( job_ad->LookupInteger(ATTR_ON_EXIT_CODE, int_val) ) {
+					event.returnValue = int_val;
+				} else {
+					dprintf( D_ALWAYS, "(%d.%d) Job ad lacks %s.  "
+						 "Return code unknown.\n", cluster, proc, 
+						 ATTR_ON_EXIT_CODE);
+				}
+			}
+		} else {
+			dprintf( D_ALWAYS,
+				 "(%d.%d) Job ad lacks %s.  Final state unknown.\n",
+				 cluster, proc, ATTR_ON_EXIT_BY_SIGNAL);
+		}
+
+	}
 
 	int rc = ulog->writeEvent(&event);
 	delete ulog;
