@@ -60,6 +60,10 @@ void SafeSock::init()
 		_outMsgID.time = (unsigned long)time(NULL);
 		_outMsgID.msgNo = (unsigned long)get_random_int();
 	}
+        // Testing, Hao
+        unsigned char key[] = "This is a secrete test key";
+        KeyInfo newKey(&(key[0]), 24, CONDOR_3DES);
+        assert(set_MD_mode(MD_ALWAYS_ON, &newKey));
 }
 
 
@@ -118,18 +122,18 @@ int SafeSock::end_of_message()
 
 	switch(_coding){
 		case stream_encode:
-			sent = _outMsg.sendMsg(_sock, (struct sockaddr *)&_who, _outMsgID);
-			_outMsgID.msgNo++; // It doesn't hurt to increment msgNO even if fails
-			if ( allow_empty_message_flag ) {
-				allow_empty_message_flag = FALSE;
-				return TRUE;
-			}
-			if (sent < 0) {
-				return FALSE;
-			} else {
-				return TRUE;
-			}
-
+                    sent = _outMsg.sendMsg(_sock, (struct sockaddr *)&_who, _outMsgID);
+                    _outMsgID.msgNo++; // It doesn't hurt to increment msgNO even if fails
+                    resetCrypto();
+                    if ( allow_empty_message_flag ) {
+                        allow_empty_message_flag = FALSE;
+                        return TRUE;
+                    }
+                    if (sent < 0) {
+                        return FALSE;
+                    } else {
+                        return TRUE;
+                    }
 		case stream_decode:
 			if(_msgReady) {
 				if(_longMsg) { // long message is ready
@@ -159,9 +163,11 @@ int SafeSock::end_of_message()
 				// message is not ready
 				ret_val = TRUE;
 			}
+                        resetCrypto();
 			break;
 
 		default:
+                        resetCrypto();
 			break;
 	}
 			
@@ -233,6 +239,7 @@ int SafeSock::put_bytes(const void *data, int sz)
     unsigned char * dta = 0;
 
         // Check to see if we need to encrypt
+        // This works only because putn will actually put all 
         if (get_encryption()) {
             if (wrap((unsigned char *)data, sz, dta , l_out)) { 
                 dprintf(D_SECURITY, "Encrypted size is %d\n", l_out);
@@ -455,7 +462,10 @@ int SafeSock::handle_incoming_packet()
 	dprintf( D_NETWORK, "RECV %s ", sock_to_string(_sock) );
 	dprintf( D_NETWORK|D_NOHEADER, "%s\n", sin_to_string(&_who) );
 	length = received;
-	if(_shortMsg.getHeader(last, seqNo, length, mID, data)) { // short message
+
+	int code = _shortMsg.getHeader(last, seqNo, length, mID, data);
+        if (code == 1) {
+                // short message, checksum maybe okay
 		_shortMsg.curIndex = 0;
 		_msgReady = true;
 		_whole++;
@@ -467,7 +477,15 @@ int SafeSock::handle_incoming_packet()
 		_noMsgs++;
 		return TRUE;
 	}
-
+        else if (code == -1) {
+            dprintf(D_ALWAYS, "SafeSock: incorrect Message Digest\n");
+            _shortMsg.reset();
+            return false;
+        }
+        else {
+            // code == 0, not a short message, continue
+        }
+        
 	/* long message */
 	curTime = (unsigned long)time(NULL);
 	index = labs(mID.ip_addr + mID.time + mID.msgNo) % SAFE_SOCK_HASH_BUCKET_SIZE;
@@ -598,6 +616,11 @@ char * SafeSock::serialize(char *buf)
 	string_to_sin(sinful_string, &_who);
 
 	return NULL;
+}
+
+bool SafeSock :: init_MD(CONDOR_MD_MODE mode, KeyInfo * key)
+{
+    return (_shortMsg.init_MD(mode, key) && _outMsg.init_MD(mode, key));
 }
 
 #ifdef DEBUG

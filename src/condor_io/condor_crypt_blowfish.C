@@ -21,18 +21,16 @@
  * WI 53706-1685, (608) 262-0856 or miron@cs.wisc.edu.
 ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
-#include "condor_common.h"
 #include "condor_crypt_blowfish.h"
 #include <string.h>
 #include <malloc.h>
 
 Condor_Crypt_Blowfish :: Condor_Crypt_Blowfish(const KeyInfo& key)
 #if !defined(SKIP_AUTHENTICATION)
-    : Condor_Crypt_Base(CONDOR_BLOWFISH, key),
-      num_             (0)
+    : Condor_Crypt_Base(CONDOR_BLOWFISH, key)
 {
     // initialize 
-    memset(ivec_, 0, 8);
+    resetState();
 
     // Generate the key
     KeyInfo k(key);
@@ -46,6 +44,17 @@ Condor_Crypt_Blowfish :: Condor_Crypt_Blowfish(const KeyInfo& key)
 Condor_Crypt_Blowfish :: ~Condor_Crypt_Blowfish()
 {
 }
+
+void Condor_Crypt_Blowfish:: resetState()
+#if !defined(SKIP_AUTHENTICATION)
+{
+     memset(ivec_, 0, 8);
+     num_=0;
+}
+#else
+{
+}
+#endif
 
 bool Condor_Crypt_Blowfish :: encrypt(unsigned char *  input, 
                                       int              input_len, 

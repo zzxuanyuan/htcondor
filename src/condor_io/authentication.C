@@ -277,26 +277,32 @@ const char * Authentication::getOwner() const
 #endif  
 }               
 
+int Authentication :: end_time()
+{
+    int endtime = 0;
+#if !defined(SKIP_AUTHENTICATION)
+    if (authenticator_) {
+        endtime = authenticator_->endTime();
+    }
+#endif
+    return endtime;
+}
+
 bool Authentication :: is_valid()
 {
     bool valid = FALSE;
-#if defined(SKIP_AUTHENTICATION)
-    return valid;
-#else
+#if !defined(SKIP_AUTHENTICATION)
     if (authenticator_) {
         valid = authenticator_->isValid();
     }
-
-    return valid;
 #endif
+    return valid;
 }
 
 int Authentication :: encrypt(bool flag)
 {
     int code = 0;
-#if defined(SKIP_AUTHENTICATION)
-    return code;
-#else
+#if !defined(SKIP_AUTHENTICATION)
     if (flag == TRUE) {
         if (is_valid()){//check for flags to support shd be added 
             t_mode = ENCRYPT;
@@ -311,9 +317,8 @@ int Authentication :: encrypt(bool flag)
         t_mode = NORMAL;
         code = 0;
     }
-
-    return code;
 #endif
+    return code;
 }
 
 bool Authentication :: is_encrypt()

@@ -217,21 +217,26 @@ int Condor_Auth_X509 :: unwrap(char*  data_in,
     return major_status;
 }
 
-int Condor_Auth_X509 :: isValid() const
+int Condor_Auth_X509 :: endTime() const
 {
-	OM_uint32 major_status;
+    OM_uint32 major_status;
 	OM_uint32 minor_status;
 	OM_uint32 time_rec;
 	
 	major_status = gss_context_time(&minor_status ,
-                                        context_handle ,
-                                        &time_rec);
-	if (major_status == GSS_S_COMPLETE) {
-            return TRUE;
+                                    context_handle ,
+                                    &time_rec);
+
+	if (!(major_status == GSS_S_COMPLETE)) {
+        return -1;
 	}
-	else {
-            return FALSE;
-	}
+
+    return time_rec;
+}
+
+int Condor_Auth_X509 :: isValid() const
+{
+    return (endTime() != -1);
 }	
 
 void Condor_Auth_X509 :: print_log(OM_uint32 major_status,
@@ -254,14 +259,18 @@ void Condor_Auth_X509 :: print_log(OM_uint32 major_status,
 int Condor_Auth_X509::get_user_x509name(char *proxy_file, char* name)
 {
 
-	proxy_cred_desc *     pcd = NULL;
+    proxy_cred_desc *     pcd = NULL;
     struct stat           stx; 
 	/* initialize SSLeay and the error strings */
     ERR_load_prxyerr_strings(0);
     SSLeay_add_ssl_algorithms();
+    
     /* Load proxy */
-    if (!proxy_file)
+    if (!proxy_file) {
    	 proxy_get_filenames(1, NULL, NULL, &proxy_file, NULL, NULL);
+    }
+
+    // potential memory leak below. Should change the code! Hao
     if (!proxy_file)
     {
         dprintf(D_ALWAYS,"ERROR: unable to determine proxy file name\n");
@@ -272,20 +281,16 @@ int Condor_Auth_X509::get_user_x509name(char *proxy_file, char* name)
     	return 1;
     }
 
-    pcd = proxy_cred_desc_new();
-    if (!pcd)
-    {
-       dprintf(D_ALWAYS,"ERROR: problem during internal initialization\n");
-       return 1;
-    }
-
     if (proxy_load_user_cert(pcd, proxy_file, NULL, NULL))
     {
     	dprintf(D_ALWAYS,"ERROR: unable to load proxy");
 	    return 1;
-	}
-	name=X509_NAME_oneline(X509_get_subject_name(pcd->ucert),NULL,0);
-	return 0;
+    }
+    name=X509_NAME_oneline(X509_get_subject_name(pcd->ucert),NULL,0);
+
+    proxy_cred_desc_free(pcd);  
+
+    return 0;
 }
 
 void  Condor_Auth_X509 :: erase_env()
