@@ -90,7 +90,7 @@ initialize ()
     // register commands
     daemonCore->Register_Command (RESCHEDULE, "Reschedule", 
             (CommandHandlercpp) &Matchmaker::RESCHEDULE_commandHandler, 
-			"RESCHEDULE_commandHandler", (Service*) this, WRITE);
+			"RESCHEDULE_commandHandler", (Service*) this, DAEMON);
     daemonCore->Register_Command (RESET_ALL_USAGE, "ResetAllUsage",
             (CommandHandlercpp) &Matchmaker::RESET_ALL_USAGE_commandHandler, 
 			"RESET_ALL_USAGE_commandHandler", this, ADMINISTRATOR);
@@ -1297,7 +1297,7 @@ matchmakingProtocol (ClassAd &request, ClassAd *offer,
 	// 1.  contact the startd 
 	dprintf (D_FULLDEBUG, "      Connecting to startd %s at %s\n", 
 				startdName, startdAddr); 
-	Daemon startd (DT_STARTD, 0, 0);
+	Daemon startd (startdAddr, 0);
 	SafeSock* startdSock = (SafeSock*)(startd.startCommand (MATCH_INFO, Stream::safe_sock, NegotiatorTimeout));
 
 	if (!startdSock) {
