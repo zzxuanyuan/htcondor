@@ -77,10 +77,9 @@ getJob(int clusterId, int jobId, Job *&job)
 
 static
 int
-insertJob(int transaction, int clusterId, int jobId, Job *job)
+insertJob(int clusterId, int jobId, Job *job)
 {
   MyString key;
-  key += transaction;
   key += clusterId;
   key += jobId;
 
@@ -290,7 +289,7 @@ condorSchedd__newJob(struct soap *s,
 
   // Create a Job for this new job.
   Job *job = new Job(clusterId, result.response.integer);
-  if (insertJob(transaction.id, clusterId, result.response.integer, job)) {
+  if (insertJob(clusterId, result.response.integer, job)) {
     result.response.status.code = FAIL;
     
     return SOAP_OK;
