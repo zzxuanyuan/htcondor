@@ -854,26 +854,43 @@ char * Sock::serialize() const
 	//KeyInfo * k = this_sockets_key();
 	//char * kserial = k->serialize();
 	char kserial[] = "SERIALIZED_KEY";
+    int len = strlen(kserial);
 
 	// here we want to save our state into a buffer
-	char * outbuf = new char[100];
-	sprintf(outbuf,"%u*%d*%d*%s",_sock,_state,_timeout,kserial);
+	char * outbuf = new char[500];
+	sprintf(outbuf,"%u*%d*%d*%d*%s",_sock,_state,_timeout,len,kserial);
 	return( outbuf );
 }
 
 char * Sock::serialize(char *buf)
 {
 	char *ptmp;
-	int i;
+	int i, len =0;
 	SOCKET passed_sock;
 
 	assert(buf);
 
-	char kserial[300];
+	char * kserial = NULL;
 
 	// here we want to restore our state from the incoming buffer
-	sscanf(buf,"%u*%d*%d*%s",&passed_sock,&_state,&_timeout,&kserial);
+	sscanf(buf,"%u*%d*%d*%d",&passed_sock,&_state,&_timeout,&len);
+    // kserial may be a problem since reli_sock also has stuff after
+    // it. As a result, kserial may contains not just the key, but
+    // other crap from reli_sock as well. Hence the code below. Hao
+    ptmp = buf;
+	for (i=0;i<4;i++) {
+		if ( ptmp ) {
+			ptmp = strchr(ptmp,'*');
+			ptmp++;
+		}
+	}
 
+    if (len && ptmp) {
+        char format[100] = "%";
+        sprintf(&format[1], "%d%s", len,"s");
+        kserial = (char *) malloc(len);
+        sscanf(ptmp, format, kserial);
+    }
 	// replace _sock with the one from the buffer _only_ if _sock
 	// is currently invalid.  if it is not invalid, it has already
 	// been initialized (probably via the Sock copy constructor) and
@@ -887,17 +904,16 @@ char * Sock::serialize(char *buf)
 	timeout(_timeout);
 
 	// set our return value to a pointer beyond the 3 state values...
-	ptmp = buf;
-	for (i=0;i<3;i++) {
-		if ( ptmp ) {
-			ptmp = strchr(ptmp,'*');
-			ptmp++;
-		}
+    if ( ptmp ) {
+        ptmp = strchr(ptmp,'*');
+        ptmp++;
 	}
 
 	KeyInfo k((unsigned char *)kserial, 0);
 	set_crypto_key(&k);
-
+    if (kserial) {
+        free(kserial);
+    }
 	return ptmp;
 }
 
