@@ -209,6 +209,24 @@ sin_to_string(struct sockaddr_in *sin)
 	return buf;
 }
 
+char *
+sock_to_string(SOCKET sockd)
+{
+	struct sockaddr_in	addr;
+	int			addr_len;
+	static char *mynull = "\0";
+
+	addr_len = sizeof(addr);
+
+	if (getsockname(sockd, (struct sockaddr *)&addr, &addr_len) < 0) 
+		return mynull;
+
+	if ( get_inet_address( &addr.sin_addr ) == -1 )
+		return mynull;
+
+	return ( sin_to_string( &addr ) );
+}
+
 void
 display_from( from )
 struct sockaddr_in  *from;
