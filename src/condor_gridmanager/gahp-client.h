@@ -284,6 +284,8 @@ class GahpClient : public Service {
 
 		void setDelegProxy( Proxy *proxy );
 
+		bool isInitialized() { return server->is_initialized; }
+
 		//-----------------------------------------------------------
 		
 		/**@name Globus Methods

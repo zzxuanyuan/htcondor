@@ -350,6 +350,11 @@ int GT3Resource::DoPing()
 
 	daemonCore->Reset_Timer( pingTimerId, TIMER_NEVER );
 
+	if ( gahp->isInitialized() == false ) {
+		dprintf( D_ALWAYS,"gahp server not up yet, delaying ping\n" );
+		daemonCore->Reset_Timer( pingTimerId, 5 );
+		return TRUE;
+	}
 	if ( PROXY_NEAR_EXPIRED( myProxy ) ) {
 		dprintf( D_ALWAYS,"proxy near expiration or invalid, delaying ping\n" );
 		return TRUE;

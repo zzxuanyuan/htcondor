@@ -223,7 +223,7 @@ void GT3JobReconfig()
 	}
 }
 
-const char *GT3JobAdConst = "JobUniverse =?= 9 && ((SubUniverse == \"gt3\") =?= True || SubUniverse =?= Undefined)";
+const char *GT3JobAdConst = "JobUniverse =?= 9 && (SubUniverse == \"gt3\") =?= True";
 
 bool GT3JobAdMustExpand( const ClassAd *jobad )
 {
