@@ -3575,8 +3575,36 @@ JobReconnectedEvent::writeEvent( FILE *file )
 int
 JobReconnectedEvent::readEvent( FILE *file )
 {
-		// TODO
-	return 0;
+	MyString line;
+
+	if( line.readLine(file) && 
+		line.replaceString("Job reconnected to ", "") )
+	{
+		line.chomp();
+		setStartdName( line.Value() );
+	} else {
+		return 0;
+	}
+
+	if( line.readLine(file) && 
+		line.replaceString( "    startd address: ", "" ) )
+	{
+		line.chomp();
+		setStartdAddr( line.Value() );
+	} else {
+		return 0;
+	}
+
+	if( line.readLine(file) && 
+		line.replaceString( "    starter address: ", "" ) )
+	{
+		line.chomp();
+		setStarterAddr( line.Value() );
+	} else {
+		return 0;
+	}
+
+	return 1;
 }
 
 
