@@ -41,6 +41,7 @@
 #include "condor_ipverify.h"
 #include "condor_commands.h"
 #include "condor_classad.h"
+#include "condor_secman.h"
 #include "HashTable.h"
 #include "KeyCache.h"
 #include "list.h"
@@ -657,9 +658,10 @@ class DaemonCore : public Service
 	/** @name Key management.
 	 */
 	//@{
-    /** Access to the KeyCache object;
-        @return Pointer to this daemon's KeyCache
+    /** Access to the SecMan object;
+        @return Pointer to this daemon's SecMan
     */
+    SecMan* getSecMan();
     KeyCache* getKeyCache();
 	//@}
 
@@ -793,6 +795,8 @@ class DaemonCore : public Service
                         Service* s, 
                         int is_cpp);
 
+	MyString DaemonCore::GetCommandsInAuthLevel(DCpermission perm);
+
     struct CommandEnt
     {
         int             num;
@@ -913,7 +917,7 @@ class DaemonCore : public Service
     static              TimerManager t;
     void                DumpTimerList(int, char* = NULL);
 
-	KeyCache    		*enc_key_cache;
+	SecMan	    		*sec_man;
 
 
     IpVerify            ipverify;   

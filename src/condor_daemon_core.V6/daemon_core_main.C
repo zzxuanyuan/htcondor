@@ -522,8 +522,8 @@ handle_invalidate_key( Service*, int, Stream* stream)
 		return FALSE;
 	}
 
-	if (Daemon::enc_key_cache) {
-		if (Daemon::enc_key_cache->remove(key_id)) {
+	if (daemonCore->getSecMan()->enc_key_cache) {
+		if (daemonCore->getSecMan()->enc_key_cache->remove(key_id)) {
 			dprintf ( D_SECURITY, "DC_INVALIDATE_KEY: removed key id %s.\n", key_id);
 		} else {
 			dprintf ( D_SECURITY, "DC_INVALIDATE_KEY: ignoring request to invalidate non-existant key %s.\n", key_id);

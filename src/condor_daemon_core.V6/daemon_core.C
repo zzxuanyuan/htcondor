@@ -51,6 +51,7 @@ static const char* DEFAULT_INDENT = "DaemonCore--> ";
 #include "condor_commands.h"
 #include "condor_config.h"
 #include "condor_attributes.h"
+#include "condor_secman.h"
 #ifdef WIN32
 #include "exphnd.WIN32.h"
 typedef unsigned (__stdcall *CRT_THREAD_HANDLER) (void *);
@@ -143,7 +144,7 @@ DaemonCore::DaemonCore(int PidSize, int ComSize,int SigSize,
 	if(maxSocket == 0)
 		maxSocket = DEFAULT_MAXSOCKETS;
 
-	enc_key_cache = new KeyCache(197);
+	sec_man = new SecMan();
 
 	sockTable = new ExtArray<SockEnt>(maxSocket);
 	if(sockTable == NULL)
@@ -240,8 +241,8 @@ DaemonCore::~DaemonCore()
 		delete sockTable;
 	}
 
-	if (enc_key_cache) {
-		delete enc_key_cache;
+	if (sec_man) {
+		delete sec_man;
 	}
 
 		// Since we created these, we need to clean them up.
@@ -970,6 +971,30 @@ void DaemonCore::DumpCommandTable(int flag, const char* indent)
 	dprintf(flag, "\n");
 }
 
+MyString DaemonCore::GetCommandsInAuthLevel(DCpermission perm) {
+	int		i;
+
+	MyString res;
+	char tbuf[16];
+
+	for (i = 0; i < maxCommand; i++) {
+		if ((comTable[i].handler != NULL) || 
+						(comTable[i].handlercpp != NULL)) 
+		{
+
+			sprintf (tbuf, "%i", comTable[i].num);
+			if (res.Length()) {
+				res += ",";
+			}
+			res += tbuf;
+		}
+	}
+
+	return res;
+
+}
+
+
 void DaemonCore::DumpReapTable(int flag, const char* indent)
 {
 	int		i;
@@ -1611,27 +1636,21 @@ int DaemonCore::HandleReq(int socki)
 		} else {
 			stream->end_of_message();
 		}
-		return KEEP_STREAM;
-	}
 
-
-	// determine the value of config.ALWAYS_AUTHENTICATE
-	char *paramer;
-	paramer = param("ALWAYS_AUTHENTICATE");
-
-	bool always_authenticate = false;
-	if (paramer) {
-		if ((strcasecmp(paramer, "YES") == 0) ||
-		    (strcasecmp(paramer, "TRUE") == 0)) {
-			always_authenticate = true;
+		// HACK ing going on here...
+		if (is_tcp) {
+			return KEEP_STREAM;
+		} else {
+			// always keep UDP... there is only 1 socket.
+			return KEEP_STREAM;
 		}
-		free (paramer);
 	}
+
 
 	if (req == DC_AUTHENTICATE) {
 
 		if (!is_tcp) {
-			dprintf (D_ALWAYS, "DC_AUTHENTICATE: bring on the UDP !\n");
+			dprintf (D_SECURITY, "DC_AUTHENTICATE: bring on the UDP !\n");
 		}
 
 		Sock* sock = (Sock*)stream;
@@ -1662,99 +1681,86 @@ int DaemonCore::HandleReq(int socki)
 		auth_info.dPrint (D_SECURITY);
 
 		char buf[ATTRLIST_MAX_EXPRESSION];
-		char auth_types[ATTRLIST_MAX_EXPRESSION];
 
-		if( ! auth_info.LookupString(ATTR_AUTH_TYPES, auth_types)) {
-			dprintf (D_ALWAYS, "ERROR: DC_AUTHENTICATE unable to "
-					   "extract auth_info.%s!\n", ATTR_AUTH_TYPES);
+		// look at the ad.  get the command number.
+		int real_cmd = 0;
+		int tmp_cmd = 0;
+		auth_info.LookupInteger(ATTR_SEC_COMMAND, real_cmd);
+
+		if (real_cmd == DC_AUTHENTICATE) {
+			// we'll set tmp_cmd temporarily to 
+			auth_info.LookupInteger(ATTR_SEC_AUTH_COMMAND, tmp_cmd);
+		} else {
+			tmp_cmd = real_cmd;
+		}
+
+		// get the auth level of this command
+		// locate the hash table entry
+		int cmd_index = 0;
+
+		// first compute the hash
+		if ( tmp_cmd < 0 )
+			cmd_index = -tmp_cmd % maxCommand;
+		else
+			cmd_index = tmp_cmd % maxCommand;
+
+		int cmdFound = FALSE;
+		if (comTable[cmd_index].num == tmp_cmd) {
+			// hash found it first try... cool
+			cmdFound = TRUE;
+		} else {
+			// hash did not find it, search for it
+			for (j = (cmd_index + 1) % maxCommand; j != cmd_index; j = (j + 1) % maxCommand) {
+				if(comTable[j].num == tmp_cmd) {
+					cmdFound = TRUE; 
+					cmd_index = j;
+					break;
+				}
+			}
+		}
+
+		if (!cmdFound) {
+			// we have no idea what command they want to send.
+			// too bad, bye bye
 			result = FALSE;
 			goto finalize;
 		}
 
-		dprintf (D_SECURITY, "DC_AUTHENTICATE: auth_info.%s == '%s'\n",
-				ATTR_AUTH_TYPES, auth_types);
-
-		if( ! auth_info.LookupString(ATTR_AUTH_ACTION, buf)) {
-			dprintf (D_ALWAYS, "ERROR: DC_AUTHENTICATE unable to "
-					   "extract auth_info.%s!\n", ATTR_AUTH_ACTION);
-			result = FALSE;	
-			goto finalize;
-		}
-
-		dprintf (D_SECURITY, "DC_AUTHENTICATE: auth_info.%s == '%s'\n",
-				ATTR_AUTH_ACTION, buf);
-
-		const int AUTH_FAIL     = 0;
-		const int AUTH_OLD      = 1;
-		const int AUTH_NO       = 2;
-		const int AUTH_ASK      = 3;
-		const int AUTH_YES      = 4;
-		const int AUTH_ENC      = 5;
-		int authentication_action = AUTH_NO;
-
-		if (strcasecmp(buf, "ENC") == 0) {
-			authentication_action = AUTH_ENC;
-		} else if (strcasecmp(buf, "YES") == 0) {
-			authentication_action = AUTH_YES;
-		} else if (strcasecmp(buf, "ASK") == 0) {
-			authentication_action = AUTH_ASK;
-		} else {
-			authentication_action = AUTH_NO;
-		}
 
 
-		if (authentication_action == AUTH_ASK) {
-			if (!is_tcp) {
-				dprintf ( D_SECURITY, "STARTCOMMAND: UDP cannot ASK!\n");
-				result = FALSE;
-				goto finalize;
-			}
 
-			ClassAd auth_response;
-			if (always_authenticate) {
-				authentication_action = AUTH_YES;
-				auth_response.Insert("AUTHENTICATE=\"YES\"");
-			} else {
-				authentication_action = AUTH_NO;
-				auth_response.Insert("AUTHENTICATE=\"NO\"");
-			}
-			// wouldn't hurt to stick the condor version in here,
-			// and add some error checking.
+		char    *the_sid        = NULL;
+		ClassAd *the_policy     = NULL;
+		KeyInfo *the_key        = NULL;
+		bool new_session        = false;
 
-			sock->encode();
-			dprintf (D_SECURITY, "DC_AUTHENTICATE: sending following classad to client: \n");
-			auth_response.dPrint (D_SECURITY);
 
-			if (!auth_response.put(*sock) || !sock->end_of_message()) {
-				dprintf (D_SECURITY, "DC_AUTHENTICATE: unable to send classad!\n");
-				result = FALSE;
-				goto finalize;
-			}
+		// check if we are restarting a cached session
+		
+		if ( sec_man->sec_lookup_feat_act(auth_info, ATTR_SEC_USE_SESSION) == SecMan::SEC_FEAT_ACT_YES) {
 
-			sock->decode();
-		}
+			KeyCacheEntry *session = NULL;
 
-		if (authentication_action == AUTH_ENC) {
-			dprintf (D_SECURITY, "DC_AUTHENTICATE: request to use cached key.\n");
+			dprintf (D_SECURITY, "DC_AUTHENTICATE: request to use cached session.\n");
 
-			char key_id[300];
-			char* key_ptr = key_id; // need this to use cedar
-
-			if( ! auth_info.LookupString(ATTR_KEY_ID, key_id)) {
+			if( ! auth_info.LookupString(ATTR_SEC_SID, &the_sid)) {
 				dprintf (D_ALWAYS, "ERROR: DC_AUTHENTICATE unable to "
-						   "extract auth_info.%s!\n", ATTR_KEY_ID);
+						   "extract auth_info.%s!\n", ATTR_SEC_SID);
 				result = FALSE;	
 				goto finalize;
 			}
 
-			dprintf (D_SECURITY, "DC_AUTHENTICATE: looking up cached key id %s.\n", key_id);
+			dprintf (D_SECURITY, "DC_AUTHENTICATE: looking up cached key id %s.\n", the_sid);
 
 
 			// lookup the suggested key
-			KeyCacheEntry *key = NULL;
-			if (enc_key_cache->lookup(key_id, key) != 0) {
+			if (sec_man->enc_key_cache->lookup(the_sid, session) != 0) {
+
+				// the key id they sent was not in our cache.  this is a
+				// problem.
+
 				dprintf (D_ALWAYS, "DC_AUTHENTICATE: attempt to "
-						   "authenticate with invalid key id %s.\n", key_id);
+						   "authenticate with invalid key id %s.\n", the_sid);
 
 				// if this is UDP, they have no idea the key they are
 				// using is bunk, so  it would be nice of us to tell them.
@@ -1763,19 +1769,19 @@ int DaemonCore::HandleReq(int socki)
 				
 				// get their sinful string
 				char client_sinful_string[256];
-				if( auth_info.LookupString(ATTR_MY_ADDRESS, client_sinful_string)) {
+				if( auth_info.LookupString(ATTR_SEC_SERVER_COMMAND_SOCK, client_sinful_string)) {
 					SafeSock s;
 					if (s.connect(client_sinful_string)) {
 						s.encode();
 						s.put(DC_INVALIDATE_KEY);
-						s.code(key_ptr);
+						s.code(the_sid);
 						s.eom();
 						s.close();
-						dprintf (D_SECURITY, "DC_AUTHENTICATE: sent a notify "
-							"packet back to %s.\n", client_sinful_string);
+						dprintf (D_SECURITY, "DC_AUTHENTICATE: sent DC_INVALIDATE %s to %s.\n",
+							the_sid, client_sinful_string);
 					} else {
-						dprintf ( D_SECURITY, "DC_AUTHENTICATE: couldn't send notify "
-							"packet back to %s.\n", client_sinful_string);
+						dprintf (D_SECURITY, "DC_AUTHENTICATE: couldn't send DC_INVALIDATE %s to %s.\n",
+							the_sid, client_sinful_string);
 					}
 				} else {
 					dprintf ( D_SECURITY, "DC_AUTHENTICATE: no return address for invalid UDP.\n");
@@ -1787,88 +1793,195 @@ int DaemonCore::HandleReq(int socki)
 				goto finalize;
 
 			} else {
-				// the key->id() and key_id strings should be identical.
+				// the session->id() and the_sid strings should be identical.
 
 				dprintf (D_SECURITY, "DC_AUTHENTICATE: found cached key id %s given to %s.\n",
-							key->id(), sin_to_string(key->addr()));
+							session->id(), sin_to_string(session->addr()));
+			}
+
+			if (session->key()) {
+				the_key = new KeyInfo(*session->key());
+			}
+
+			if (session->policy()) {
+				the_policy = new ClassAd(*session->policy());
+			}
+
+			new_session = false;
+
+		} else {
+
+			// they did not request a cached session.  see if they want to start one.
+
+
+			// look at our security policy.
+			ClassAd *our_policy = sec_man->CreateSecurityPolicyAd(PermString(comTable[cmd_index].perm));
+			if (!our_policy) {
+				// our policy is invalid even without the other side getting involved.
+				dprintf(D_ALWAYS, "DC_AUTHENTICATE: Security policy is invalid!\n");
+				result = FALSE;
+				goto finalize;
+			}
+
+			dprintf ( D_SECURITY, "DC_AUTHENTICATE: our_policy:\n" );
+			our_policy->dPrint(D_SECURITY);
 			
-#ifdef SECURITY_HACK_ENABLE
-				zz2printf (key->key());
+			// reconcile.  if unable, close socket.
+			the_policy = sec_man->ReconcileSecurityPolicyAds(auth_info, *our_policy);
+
+			// done with this now
+			delete our_policy;
+
+			if (!the_policy) {
+				dprintf(D_ALWAYS, "DC_AUTHENTICATE: Unable to reconcile!\n");
+				result = FALSE;
+				goto finalize;
+			} else {
+				dprintf ( D_SECURITY, "DC_AUTHENTICATE: the_policy:\n" );
+				the_policy->dPrint(D_SECURITY);
+			}
+
+			// handy policy vars
+			SecMan::sec_feat_act will_enable_encryption = sec_man->sec_lookup_feat_act(*the_policy, ATTR_SEC_ENCRYPTION);
+			SecMan::sec_feat_act will_enable_integrity  = sec_man->sec_lookup_feat_act(*the_policy, ATTR_SEC_INTEGRITY);
+
+			if (sec_man->sec_lookup_feat_act(auth_info, ATTR_SEC_NEW_SESSION) == SecMan::SEC_FEAT_ACT_YES) {
+
+				if (the_sid) {
+					dprintf ( D_SECURITY, "DC_AUTHENTICATE: session %s already open.\n", the_sid);
+				}
+
+				int    mypid = 0;
+#ifdef WIN32
+				mypid = ::GetCurrentProcessId();
+#else
+				mypid = ::getpid();
 #endif
 
+				sprintf (buf, "%s:%i:%i:%i", my_hostname(), mypid, time(0), ZZZ_always_increase());
+				the_sid = strdup(buf);
 
-				sock->decode();
-				if (!sock->set_crypto_key(key->key()) || (is_tcp && !sock->eom())) {
-					dprintf (D_ALWAYS, "DC_AUTHENTICATE: unable to turn on encryption, failing.\n");
-					delete key;
-					enc_key_cache->remove(key_id);
-					dprintf (D_SECURITY, "DC_AUTHENTICATE: deleted key %s.\n", key_id);
-					result = FALSE;
-					goto finalize;
+				if ((will_enable_encryption == SecMan::SEC_FEAT_ACT_YES) || (will_enable_integrity == SecMan::SEC_FEAT_ACT_YES)) {
 
-				} else {
-					if (is_tcp) {
-						int ack = 1;
-						sock->encode();
-						if (!sock->code(ack) || !sock->eom()) {
-							dprintf(D_SECURITY, "DC_AUTHENTICATION: unable to receive ack.\n");
-							result = FALSE;
-							goto finalize;
-						}
-						sock->decode();
+					char *crypto_method = NULL;
+					if (!the_policy->LookupString(ATTR_SEC_CRYPTO_METHODS, &crypto_method)) {
+						dprintf ( D_ALWAYS, "DC_AUTHENTICATE: tried to enable encryption but we have none!\n" );
+						result = FALSE;
+						goto finalize;
 					}
 
-					dprintf (D_SECURITY, "DC_AUTHENTICATE: encryption enabled with key id %s.\n",
-								key->id());
-#ifdef SECURITY_HACK_ENABLE
-					zz2printf (key->key());
-#endif
+					dprintf (D_SECURITY, "DC_AUTHENTICATE: generating private key id %s...\n", the_sid);
+					unsigned char* rkey = Condor_Crypt_Base::randomKey(24);
+					unsigned char  rbuf[24];
+					if (rkey) {
+						memcpy (rbuf, rkey, 24);
+						// this was malloced in randomKey
+						free (rkey);
+					} else {
+						memset (rbuf, 0, 24);
+						dprintf ( D_SECURITY, "DC_AUTHENTICATE: unable to generate key - no crypto available!\n");
+						// result = FALSE;
+						// goto finalize;
+					}
 
-                    // Now, set the user associated with the key
-                    user = key->user();
+					switch (toupper(crypto_method[0])) {
+						case 'B': // blowfish
+							dprintf ( D_SECURITY, "DC_AUTHENTICATE: created blowfish key.\n" );
+							the_key = new KeyInfo(rbuf, 24, CONDOR_BLOWFISH);
+							break;
+						case '3': // 3des
+						case 'T': // Tripledes
+							dprintf ( D_SECURITY, "DC_AUTHENTICATE: created 3des key.\n" );
+							the_key = new KeyInfo(rbuf, 24, CONDOR_3DES);
+							break;
+						default:
+							dprintf ( D_SECURITY, "DC_AUTHENTICATE: this version doesn't support %s crypto.\n", crypto_method );
+							break;
+					}
+
+					if (!the_key) {
+						result = FALSE;
+						goto finalize;
+					}
+
+#ifdef SECURITY_HACK_ENABLE
+					zz2printf (the_key);
+#endif
 				}
+
+				sprintf (buf, "%s=\"%s\"", ATTR_SEC_SID, the_sid);
+				the_policy->Insert(buf);
+
+				sprintf (buf, "%s=\"%s\"", ATTR_SEC_VALID_COMMANDS, GetCommandsInAuthLevel(comTable[cmd_index].perm).Value());
+				the_policy->Insert(buf);
+
+				new_session = true;
 			}
+
+			// if they asked, tell them
+			if (is_tcp && (sec_man->sec_lookup_feat_act(auth_info, ATTR_SEC_ENACT) == SecMan::SEC_FEAT_ACT_NO)) {
+				dprintf (D_SECURITY, "SECMAN: Sending following response ClassAd:\n");
+				the_policy->dPrint( D_SECURITY );
+				sock->encode();
+				if (!the_policy->put(*sock) ||
+					!sock->eom()) {
+					dprintf (D_ALWAYS, "SECMAN: Error sending response classad!\n");
+					result = FALSE;
+					goto finalize;
+				}
+				sock->decode();
+			} else {
+				dprintf( D_SECURITY, "SECMAN: Enact was '%s', not sending response.\n",
+					SecMan::sec_feat_act_rev[sec_man->sec_lookup_feat_act(auth_info, ATTR_SEC_ENACT)] );
+			}
+
 		}
 
-		if (authentication_action == AUTH_YES) {
+		
+
+
+
+		// do what we decided
+
+		// handy policy vars
+		SecMan::sec_feat_act will_authenticate      = sec_man->sec_lookup_feat_act(*the_policy, ATTR_SEC_AUTHENTICATION);
+		SecMan::sec_feat_act will_enable_encryption = sec_man->sec_lookup_feat_act(*the_policy, ATTR_SEC_ENCRYPTION);
+		SecMan::sec_feat_act will_enable_integrity  = sec_man->sec_lookup_feat_act(*the_policy, ATTR_SEC_INTEGRITY);
+
+
+
+		if (is_tcp && (will_authenticate == SecMan::SEC_FEAT_ACT_YES)) {
+
+			// we are going to authenticate.  this could one of two ways.
+			// the "real" way or the "quick" way which is by presenting a
+			// session ID.  the fact that the private key matches on both
+			// sides proves the authenticity.  if the key does not match,
+			// it will be detected as long as some crypto is used.
+
+
+			// this means we are authenticating for real
+
 			if (!is_tcp) {
 				dprintf ( D_SECURITY, "DC_AUTHENTICATE: UDP can't authenticate!\n");
 				result = FALSE;
 				goto finalize;
 			}
-
-			char   key_id[300];
-			char*  key_ptr = key_id;  // need this to use cedar
-
-			int    mypid = 0;
-#ifdef WIN32
-		    mypid = ::GetCurrentProcessId();
-#else
-			mypid = ::getpid();
-#endif
-
-			sprintf (key_id, "%s:%i:%i:%i", my_hostname(), mypid, time(0), ZZZ_always_increase());
-
-
-			
-
-			dprintf (D_SECURITY, "DC_AUTHENTICATE: generating private key id %s...\n", key_id);
-			KeyInfo *ki = new KeyInfo(Condor_Crypt_Base::randomKey(24), 24, CONDOR_3DES);
-#ifdef SECURITY_HACK_ENABLE
-					zz2printf (ki);
-#endif
-
+			char * auth_method = NULL;
+			the_policy->LookupString(ATTR_SEC_AUTHENTICATION_METHODS, &auth_method);
 
 			dprintf (D_SECURITY, "DC_AUTHENTICATE: authenticating RIGHT NOW.\n");
-			if (!sock->authenticate(ki, getAuthBitmask(auth_types))) {
+			if (!sock->authenticate(the_key, sec_man->getAuthBitmask(auth_method))) {
 				dprintf (D_ALWAYS, "DC_AUTHENTICATE: authenticate failed\n");
 				result = FALSE;
 				goto finalize;
 			}
 
+			delete auth_method;
+
 
 			// check to see if the kerb IP is the same
-			// as the socket IP.
+			// as the socket IP.  this cast is safe because
+			// we return above is sock is not a ReliSock.
 			if ( ((ReliSock*)sock)->authob ) {
 				const char* sockip = sin_to_string(sock->endpoint());
 				const char* kerbip = ((ReliSock*)sock)->authob->getRemoteAddress() ;
@@ -1884,65 +1997,90 @@ int DaemonCore::HandleReq(int socki)
 					goto finalize;
 
 				} else {
-					dprintf (D_SECURITY, "DC_AUTHENTICATE: IP address verified.\n");
+					dprintf (D_SECURITY, "DC_AUTHENTICATE: host %s address verified.\n", kerbip);
 				}
 			}
 
+		} else {
+			// an FYI
+			dprintf (D_SECURITY, "DC_AUTHENTICATE: not authenticating.\n");
+		}
 
-			if (!sock->set_crypto_key(ki)) {
-				dprintf (D_ALWAYS, "DC_AUTHENTICATE: set_crypto_key() failed\n");
+
+		if (will_enable_integrity == SecMan::SEC_FEAT_ACT_YES) {
+
+			if (!the_key) {
+				// uhm, there should be a key here!
 				result = FALSE;
 				goto finalize;
 			}
 
-			dprintf (D_SECURITY, "DC_AUTHENTICATE: crypto enabled with key id %s!\n", key_id);
-
-			// shove the stupid id over
-			// this should be a classad!
-			sock->encode();
-			if (!sock->code(key_ptr) || !sock->eom()) {
-				dprintf (D_ALWAYS, "DC_AUTHENTICATE: unable to send key id number %s.\n", key_id);
-				result = FALSE;
-				goto finalize;
-			}
 			sock->decode();
+			if (!sock->set_MD_mode(MD_ALWAYS_ON, the_key)) {
+				dprintf (D_ALWAYS, "DC_AUTHENTICATE: unable to turn on message authenticator, failing.\n");
+				result = FALSE;
+				goto finalize;
+			} else {
+				dprintf (D_SECURITY, "DC_AUTHENTICATE: message authenticator enabled with key id %s.\n", the_sid);
+#ifdef SECURITY_HACK_ENABLE
+				zz2printf (the_key);
+#endif
+			}
+		}
+
+
+		if (will_enable_encryption == SecMan::SEC_FEAT_ACT_YES) {
+
+			if (!the_key) {
+				// uhm, there should be a key here!
+				result = FALSE;
+				goto finalize;
+			}
+
+			dprintf (D_SECURITY, "about to enable encryption.\n");
+#ifdef SECURITY_HACK_ENABLE
+			zz2printf (the_key);
+#endif
+
+			sock->decode();
+			if (!sock->set_crypto_key(the_key) ) {
+				dprintf (D_ALWAYS, "DC_AUTHENTICATE: unable to turn on encryption, failing.\n");
+				result = FALSE;
+				goto finalize;
+			} else {
+				dprintf (D_SECURITY, "DC_AUTHENTICATE: encryption enabled for session %s\n", the_sid);
+			}
+		}
+
+
+
+		if (is_tcp && new_session) {
+			sock->decode();
+			sock->eom();
+
+			dprintf (D_SECURITY, "DC_AUTHENTICATE: sending p.a. classad.\n");
+
+			ClassAd a;
+			sock->encode();
+			a.put(*sock);
+			sock->eom();
+
 
 			// add the key to the cache
-            // Right now, the sock is a relisock. However, we should change the sock 
-            // class so that safe sock can be associated with a user as well.
-			KeyCacheEntry tmp_key(key_id, sock->endpoint(), ((ReliSock*)sock)->getFullyQualifiedUser(), ki, 0);
-			enc_key_cache->insert(key_id, tmp_key);
-			dprintf (D_SECURITY, "DC_AUTHENTICATE: added key id %s to cache!\n", key_id);
-#ifdef SECURITY_HACK_ENABLE
-			zz2printf (ki);
-#endif
-		}
-
-		if (authentication_action == AUTH_NO) {
-			dprintf (D_SECURITY, "DC_AUTHENTICATE: not authenticating.\n");
-			if (always_authenticate) {
-				// client refused to authenticate
-				// when server required it
-				dprintf (D_ALWAYS, "DC_AUTHENTICATE: client refused to authenticate.\n");
-				result = FALSE;
-                // Reject authorization as well!
-                if (is_tcp) {
-                    stream->encode();
-                    int authcode = USER_AUTH_FAILURE;
-                    if (!stream->code(authcode) || !stream->end_of_message()) {
-                        dprintf(D_ALWAYS, "DaemonCore: Rejecting access request\n");
-                    }
-                }
-				goto finalize;
-			}
+			KeyCacheEntry tmp_key(the_sid, sock->endpoint(), the_key, the_policy, 0);
+			sec_man->enc_key_cache->insert(the_sid, tmp_key);
+			dprintf (D_SECURITY, "DC_AUTHENTICATE: added session id %s to cache!\n", the_sid);
 		}
 
 
-		result = auth_info.LookupInteger(ATTR_AUTH_COMMAND, req);
-		if (! result) {
-			EXCEPT ("AUTH: no %s in ClassAd!", ATTR_AUTH_COMMAND);
+
+		if (real_cmd == DC_AUTHENTICATE) {
+			result = TRUE;
+			goto finalize;
 		}
 
+		req = real_cmd;
+		result = TRUE;
 
 		dprintf (D_SECURITY, "DC_AUTHENTICATE: setting sock->decode()\n");
 		sock->decode();
@@ -1950,43 +2088,45 @@ int DaemonCore::HandleReq(int socki)
 		dprintf (D_SECURITY, "DC_AUTHENTICATE: allowing an empty message for sock.\n");
 		sock->allow_one_empty_message();
 
-		result = TRUE;
-		dprintf (D_SECURITY, "DC_AUTHENTICATE: restored result to %i\n", result);
+		// fill in the command info
+		reqFound = TRUE;
+		index = cmd_index;
 
 		dprintf (D_SECURITY, "DC_AUTHENTICATE: Success.\n");
 	} else {
-		if (always_authenticate) {
-			dprintf (D_SECURITY, "DaemonCore received UNAUTHENTICATED command %i.\n", req);
-			dprintf (D_SECURITY, "\tNormally, this would not be allowed.  For now, it is.\n");
-			// ZKM
-			// return error.
+		// need to check our security policy to see if this is allowed.
+
+		dprintf (D_SECURITY, "DaemonCore received UNAUTHENTICATED command %i.\n", req);
+		dprintf (D_SECURITY, "\tNormally, this may not be allowed.  For now, it is.\n");
+
+		// get the handler function
+		
+		// first compute the hash
+		if ( req < 0 ) {
+			index = -req % maxCommand;
+		} else { 
+			index = req % maxCommand;
+		}
+			
+		reqFound = FALSE;
+		if (comTable[index].num == req) {
+			// hash found it first try... cool
+			reqFound = TRUE;
+		} else {
+			// hash did not find it, search for it
+			for (j = (index + 1) % maxCommand; j != index; j = (j + 1) % maxCommand) {
+				if(comTable[j].num == req) {
+					reqFound = TRUE; 
+					index = j;
+					break;
+				}
+			}
 		}
 	}
 	
-	// get the handler function
+				
+	// At this point, the stream should be a TCP/ReliSock stream
 
-	// first compute the hash
-	if ( req < 0 )
-		index = -req % maxCommand;
-	else
-		index = req % maxCommand;
-
-	reqFound = FALSE;
-	if (comTable[index].num == req) {
-		// hash found it first try... cool
-		reqFound = TRUE;
-	} else {
-		// hash did not find it, search for it
-		for (j = (index + 1) % maxCommand; j != index; j = (j + 1) % maxCommand)
-			if(comTable[j].num == req) {
-				reqFound = TRUE; 
-				index = j;
-				break;
-			}
-	}
-
-    //At this point, the stream should be a TCP/ReliSock stream 
-    // Really? I am not sure about this. Hao 1/2002
 	if ( reqFound == TRUE ) {
 
 		// Check the daemon core permission for this command handler
@@ -4067,6 +4207,7 @@ DaemonCore::Inherit( void )
 							   _INHERITBUF_MAXSIZE) > _INHERITBUF_MAXSIZE-1) {
 		EXCEPT("CONDOR_INHERIT too large");
 	}
+	SetEnvironmentVariable("CONDOR_INHERIT", "");
 #else
 	ptmp = getenv("CONDOR_INHERIT");
 	if ( ptmp ) {
@@ -4075,6 +4216,7 @@ DaemonCore::Inherit( void )
 		}
 		dprintf ( D_DAEMONCORE, "CONDOR_INHERIT: \"%s\"\n", ptmp );
 		strncpy(inheritbuf,ptmp,_INHERITBUF_MAXSIZE);
+		unsetenv("CONDOR_INHERIT");
 	} else {
 		dprintf ( D_DAEMONCORE, "CONDOR_INHERIT: is NULL\n", ptmp );
 	}		
@@ -5099,49 +5241,6 @@ DaemonCore::Register_Priv_State( priv_state priv )
 
 KeyCache*
 DaemonCore::getKeyCache() {
-	return enc_key_cache;
+	return sec_man->enc_key_cache;
 }
 
-
-int
-DaemonCore::getAuthBitmask ( char * methods ) {
-
-	if (methods) {
-		dprintf ( D_SECURITY, "GETAUTHBITMASK: in getAuthBitmask('%s')\n", methods);
-	} else {
-		dprintf ( D_SECURITY, "GETAUTHBITMASK: getAuthBitmask( NULL ) called!\n");
-		return 0;
-	}
-
-	StringList server( methods );
-	char *tmp = NULL;
-	int retval = 0;
-
-	server.rewind();
-	while ( tmp = server.next() ) {
-		if ( !stricmp( tmp, "GSS_AUTHENTICATION" ) ) {
-			dprintf ( D_SECURITY, "GETAUTHBITMASK: added CAUTH_GSS\n");
-			retval |= CAUTH_GSS;
-		} else if ( !stricmp( tmp, "NTSSPI" ) ) {
-			dprintf ( D_SECURITY, "GETAUTHBITMASK: added CAUTH_NTSSPI\n");
-			retval |= CAUTH_NTSSPI;
-		} else if ( !stricmp( tmp, "FS" ) ) {
-			dprintf ( D_SECURITY, "GETAUTHBITMASK: added CAUTH_FILESYSTEM\n");
-			retval |= CAUTH_FILESYSTEM;
-		} else if ( !stricmp( tmp, "FS_REMOTE" ) ) {
-			dprintf ( D_SECURITY, "GETAUTHBITMASK: added CAUTH_FILESYSTEM_REMOTE\n");
-			retval |= CAUTH_FILESYSTEM_REMOTE;
-		} else if ( !stricmp( tmp, "KERBEROS" ) ) {
-			dprintf ( D_SECURITY, "GETAUTHBITMASK: added CAUTH_KERBEROS\n");
-			retval |= CAUTH_KERBEROS;
-		} else if ( !stricmp( tmp, "CLAIMTOBE" ) ) {
-			dprintf ( D_SECURITY, "GETAUTHBITMASK: added CAUTH_CLAIMTOBE\n");
-			retval |= CAUTH_CLAIMTOBE;
-		} else if ( !stricmp( tmp, "ANONYMOUS" ) ) {
-			dprintf ( D_SECURITY, "GETAUTHBITMASK: added CAUTH_ANONYMOUS\n");
-			retval |= CAUTH_ANONYMOUS;
-		}
-	}
-
-	return retval;
-}
