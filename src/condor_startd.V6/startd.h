@@ -69,6 +69,7 @@ class Resource;
 #include "command.h"
 #include "util.h"
 #include "starter_mgr.h"
+#include "cod_mgr.h"
 
 static const int MAX_STARTERS = 10;
 
