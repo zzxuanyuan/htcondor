@@ -146,6 +146,9 @@ JICShadow::init( void )
 		return false;
 	}
 
+		// If the user wants it, initialize our io proxy
+	initIOProxy();
+
 		// Now that the user priv is setup and the temp execute dir
 		// exists, we can initialize the LocalUserLog.  if the job
 		// defines StarterUserLog, we'll write the events.  if not,
@@ -1020,3 +1023,33 @@ JICShadow::initShadowInfo( void )
 	}
 }
 
+
+
+bool
+JICShadow::initIOProxy( void )
+{
+	int want_io_proxy = 0;
+	char io_proxy_config_file[_POSIX_PATH_MAX];
+
+	if( job_ad->LookupBool( ATTR_WANT_IO_PROXY, want_io_proxy ) < 1 ) {
+		dprintf( D_FULLDEBUG, "JICShadow::initIOProxy(): "
+				 "Job does not define %s\n", ATTR_WANT_IO_PROXY );
+		want_io_proxy = 0;
+	} else {
+		dprintf( D_ALWAYS, "Job has %s=%s\n", ATTR_WANT_IO_PROXY,
+				 want_io_proxy ? "true" : "false" );
+	}
+
+	if( want_io_proxy || job_universe==CONDOR_UNIVERSE_JAVA ) {
+		sprintf( io_proxy_config_file, "%s%cchirp.config",
+				 Starter->GetWorkingDir(), DIR_DELIM_CHAR );
+		if( !io_proxy.init(io_proxy_config_file) ) {
+			dprintf( D_FAILURE|D_ALWAYS, 
+					 "Couldn't initialize IO Proxy.\n" );
+			return false;
+		}
+		dprintf( D_ALWAYS, "Initialized IO Proxy.\n" );
+		return true;
+	}
+	return false;
+}

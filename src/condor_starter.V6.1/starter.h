@@ -28,7 +28,6 @@
 #include "list.h"
 #include "os_proc.h"
 #include "user_proc.h"
-#include "io_proxy.h"
 #include "job_info_communicator.h"
 
 
@@ -138,7 +137,6 @@ private:
 	char WorkingDir[_POSIX_PATH_MAX]; // The iwd given to the job
 	char ExecuteDir[_POSIX_PATH_MAX]; // The scratch dir created for the job
 	int ShuttingDown;
-	IOProxy io_proxy;
 
 };
 

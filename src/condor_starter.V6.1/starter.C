@@ -41,7 +41,6 @@
 #include "condor_string.h"  // for strnewp
 #include "condor_attributes.h"
 #include "condor_random_num.h"
-#include "io_proxy.h"
 #include "../condor_sysapi/sysapi.h"
 
 
@@ -215,28 +214,6 @@ CStarter::StartJob()
 	if ( jobAd->LookupInteger( ATTR_JOB_UNIVERSE, jobUniverse ) < 1 ) {
 		dprintf( D_ALWAYS, 
 				 "Job doesn't specify universe, assuming VANILLA\n" ); 
-	}
-
-	int want_io_proxy = 0;
-	char io_proxy_config_file[_POSIX_PATH_MAX];
-
-	if( jobAd->LookupBool( ATTR_WANT_IO_PROXY, want_io_proxy ) < 1 ) {
-		dprintf( D_FULLDEBUG, "StartJob: Job does not define %s\n", 
-				 ATTR_WANT_IO_PROXY );
-		want_io_proxy = 0;
-	} else {
-		dprintf( D_ALWAYS, "StartJob: Job has %s=%s\n", ATTR_WANT_IO_PROXY, 
-				 want_io_proxy ? "true" : "false" );
-	}
-
-	if( want_io_proxy || jobUniverse==CONDOR_UNIVERSE_JAVA ) {
-		sprintf(io_proxy_config_file,"%s%cchirp.config",WorkingDir,DIR_DELIM_CHAR);
-		if(!io_proxy.init(io_proxy_config_file)) {
-			dprintf(D_FAILURE|D_ALWAYS,"StartJob: Couldn't initialize proxy.\n");
-			return false;
-		} else {
-			dprintf(D_ALWAYS,"StartJob: Initialized IO Proxy.\n");
-		}
 	}
 
 		// Now, ask our JobInfoCommunicator to setup the environment

@@ -27,6 +27,8 @@
 #include "job_info_communicator.h"
 #include "condor_ver_info.h"
 #include "file_transfer.h"
+#include "io_proxy.h"
+
 #include "condor_daemon_client.h"
 
 /** The base class of JobInfoCommunicator that knows how to talk to a
@@ -238,6 +240,10 @@ private:
 		*/
 	char* getJobStdFile( const char* attr_name );
 
+		/// If the job ad says so, initialize our IO proxy
+	bool initIOProxy( void );
+
+
 		// // // // // // // //
 		// Private Data Members
 		// // // // // // // //
@@ -249,6 +255,8 @@ private:
 
 		/// "sinful string" of our shadow 
 	char* shadow_addr;
+
+	IOProxy io_proxy;
 
 	FileTransfer *filetrans;
 
