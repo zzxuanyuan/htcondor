@@ -805,6 +805,15 @@ accept_request_claim( Resource* rip )
 		rip->dprintf( D_ALWAYS, "Remote owner is NULL\n" );
 			// TODO: What else should we do here???
 	}		
+		// Also look for ATTR_ACCOUNTING_GROUP and stash that
+	char* acct_grp = NULL;
+	rip->r_cur->ad()->LookupString( ATTR_ACCOUNTING_GROUP, &acct_grp );
+	if( acct_grp ) {
+		rip->r_cur->client()->setAccountingGroup( acct_grp );
+		free( acct_grp );
+		acct_grp = NULL;
+	}
+
 		// Since we're done talking to this schedd, delete the stream.
 	rip->r_cur->setRequestStream( NULL );
 

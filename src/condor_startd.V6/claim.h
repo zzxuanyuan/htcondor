@@ -83,11 +83,13 @@ public:
 	char*	name()	{return c_user;};	// For compatibility only
 	char*	user()	{return c_user;};
 	char*	owner()	{return c_owner;};
+	char*	accountingGroup() {return c_acctgrp;};
 	char*	host()	{return c_host;};
 	char*	addr() 	{return c_addr;};
 
 	void	setuser(const char* user);
 	void	setowner(const char* owner);
+	void	setAccountingGroup(const char* grp);
 	void	setaddr(const char* addr);
 	void	sethost(const char* host);
 
@@ -97,6 +99,7 @@ public:
 private:
 	char	*c_owner;	// name of the owner
 	char	*c_user;	// name of the user
+	char	*c_acctgrp; // name of the accounting group, if any
 	char	*c_host;	// hostname of the clientmachine
 	char	*c_addr;	// <ip:port> of the client
 };

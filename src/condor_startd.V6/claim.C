@@ -142,6 +142,11 @@ Claim::publish( ClassAd* ad, amask_t how_much )
 			sprintf( line, "%s=\"%s\"", ATTR_REMOTE_OWNER, tmp );
 			ad->Insert( line );
 		}
+		tmp = c_client->accountingGroup();
+		if( tmp ) {
+			sprintf( line, "%s=\"%s\"", ATTR_ACCOUNTING_GROUP, tmp );
+			ad->Insert( line );
+		}
 		tmp = c_client->host();
 		if( tmp ) {
 			sprintf( line, "%s=\"%s\"", ATTR_CLIENT_MACHINE, tmp );
@@ -206,6 +211,16 @@ Claim::publishCOD( ClassAd* ad )
 			line = codId();
 			line += '_';
 			line += ATTR_REMOTE_USER;
+			line += "=\"";
+			line += tmp;
+			line += '"';
+			ad->Insert( line.Value() );
+		}
+		tmp = c_client->accountingGroup();
+		if( tmp ) {
+			line = codId();
+			line += '_';
+			line += ATTR_ACCOUNTING_GROUP;
 			line += "=\"";
 			line += tmp;
 			line += '"';
@@ -425,8 +440,8 @@ Claim::beginActivation( time_t now )
 		// See if the classad we got includes an ATTR_USER field,
 		// so we know who to charge for our services.  If not, we use
 		// the same user that claimed us.
-	char* remote_user = NULL;
-	if( ! c_ad->LookupString(ATTR_USER, &remote_user) ) {
+	char* tmp = NULL;
+	if( ! c_ad->LookupString(ATTR_USER, &tmp) ) {
 		if( ! c_is_cod ) { 
 			c_rip->dprintf( D_FULLDEBUG, "WARNING: %s not defined in "
 						  "request classad!  Using old value (%s)\n", 
@@ -434,9 +449,18 @@ Claim::beginActivation( time_t now )
 		}
 	} else {
 		c_rip->dprintf( D_FULLDEBUG, 
-					  "Got RemoteUser (%s) from request classad\n",	
-					  remote_user );
-		c_client->setuser( remote_user );
+						"Got RemoteUser (%s) from request classad\n", tmp ); 
+		c_client->setuser( tmp );
+		free( tmp );
+		tmp = NULL;
+	}
+
+		// Only stash this if it's in the ad, but don't print anything
+		// if it's not.
+	if( c_ad->LookupString(ATTR_ACCOUNTING_GROUP, &tmp) ) {
+		c_client->setAccountingGroup( tmp );
+		free( tmp );
+		tmp = NULL;
 	}
 
 	c_job_start = (int)now;
@@ -445,9 +469,6 @@ Claim::beginActivation( time_t now )
 		// COD job.  So, if we *are* cod, just return now, since we've
 		// got everything we need...
 	if( c_is_cod ) {
-		if (remote_user != NULL) {
-			free(remote_user);
-		}
 		return;
 	}
 
@@ -470,10 +491,6 @@ Claim::beginActivation( time_t now )
 
 	if( universe == CONDOR_UNIVERSE_STANDARD ) {
 		c_last_pckpt = (int)now;
-	}
-
-	if (remote_user != NULL) {
-		free(remote_user);
 	}
 }
 
@@ -1256,6 +1273,20 @@ Client::setowner( const char* owner )
 		c_owner = strdup( owner );
 	} else {
 		c_owner = NULL;
+	}
+}
+
+
+void
+Client::setAccountingGroup( const char* grp ) 
+{
+	if( c_acctgrp ) {
+		free( c_acctgrp);
+	}
+	if( grp ) {
+		c_acctgrp = strdup( grp );
+	} else {
+		c_acctgrp = NULL;
 	}
 }
 
