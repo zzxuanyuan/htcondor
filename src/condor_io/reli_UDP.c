@@ -308,7 +308,7 @@ static char procUDPmsg(int fd)
 {
 	char *dptr; 
 	char rcvBuf[1040], opcode;
-	int ackLen, result, addrLen, rst;
+	int ackLen, result, addrLen, rst, retval;
 	unsigned int seqNo, dLen;
 	struct sockaddr_in from;
 	uint32_t ip, gip;
@@ -338,7 +338,7 @@ static char procUDPmsg(int fd)
 	switch(opcode) {
 		case DATA_PACKET:
 			if (_rudp_fdInfo[fd].conn) {
-				dprintf(D_NETWORK, "\t\tDATA(%d) through fd = %s\n", fd);
+				dprintf(D_NETWORK, "\t\tDATA(%d) through fd = %d\n", seqNo, fd);
 			} else {
 				dprintf(D_NETWORK, "\t\tDATA(%d) from %s\n", seqNo, sin_to_string(&from));
 			}
@@ -346,6 +346,7 @@ static char procUDPmsg(int fd)
 			sender = getSender(_rudp_fdInfo[fd].senders, ip, gip, pid, sec, usec);
 
 			// if the msg is not a delayed msg, queue the msg
+			retval = 0;
 			if ((sender->seq <= 2.147483e+09 &&
 						sender->seq < seqNo &&
 						seqNo < sender->seq + 2.147483e+09) ||
@@ -376,10 +377,10 @@ static char procUDPmsg(int fd)
 					_rudp_fdInfo[fd].qhead = msg;
 				}
 				_rudp_fdInfo[fd].qtail = msg;
-				return DATA_PACKET;
+				retval = DATA_PACKET;
 			}
 
-			// Delayed msg -> reply ACK
+			// reply ACK
 			ackLen = sizeof(rcvBuf);
 			if (stripeMsg(rcvBuf, &ackLen, ACK_PACKET, seqNo, NULL, 0) < 0) {
 				dprintf(D_ALWAYS, "procUDPmsg: stripeMsg failed\n");
@@ -395,12 +396,12 @@ static char procUDPmsg(int fd)
 				return -1;
 			}
 			if (_rudp_fdInfo[fd].conn) {
-				dprintf(D_NETWORK, "\t\tACK(%d) for delayed msg fd = %d\n", seqNo, fd);
+				dprintf(D_NETWORK, "\t\tACK(%d) fd = %d\n", seqNo, fd);
 			} else {
-				dprintf(D_NETWORK, "\t\tACK(%d) for delayed msg to %s\n", seqNo,
+				dprintf(D_NETWORK, "\t\tACK(%d) to %s\n", seqNo,
 						sin_to_string((struct sockaddr_in *)&from));
 			}
-			return 0;
+			return retval;
 		case ACK_PACKET:
 			if (_rudp_fdInfo[fd].conn) {
 				dprintf(D_NETWORK, "\t\tACK(%d) fd = %d\n", seqNo, fd); 
@@ -408,8 +409,10 @@ static char procUDPmsg(int fd)
 				dprintf(D_NETWORK, "\t\tACK(%d) from %s\n", seqNo, sin_to_string(&from));
 			}
 			if (seqNo != _rudp_seqno) {
+				dprintf(D_NETWORK, "\t\tdelayed ACK\n"); 
 				return 0;
 			}
+			dprintf(D_NETWORK, "\t\texpected ACK\n"); 
 			return ACK_PACKET;
 		default:
 			dprintf(D_ALWAYS, "procUDPmsg: invalid opcode\n");
@@ -495,11 +498,18 @@ int rudp_socket(void)
 		dprintf(D_ALWAYS, "rudp_socket: socket - %s\n", strerror(errno));
 		return fd;
 	}
-	dprintf(D_NETWORK, "rudp[%d] created\n", fd);
 
-	// If _rudp_fdInfo[fd] is taken by another socket, this means that
-	// the socket has been closed. So we have to clean the data structure
-	// taken by the socket deleted
+	if (rudp_register(fd) < 0) {
+		dprintf(D_ALWAYS, "rudp_socket: register failed\n");
+		return -1;
+	}
+
+	return fd;
+}
+
+int rudp_register(int fd)
+{
+
 	if (_rudp_fdInfo[fd].senders) {
 		dprintf(D_ALWAYS, "rudp_socket: the slot[%d] is taken by another socket\n", fd);
 		return -1;
@@ -510,8 +520,9 @@ int rudp_socket(void)
 		dprintf(D_ALWAYS, "rudp_socket: calloc - %s\n", strerror(errno));
 		return -1;
 	}
+	dprintf(D_NETWORK, "rudp[%d] created\n", fd);
 
-	return fd;
+	return 0;
 }
 
 int rudp_close(int fd)
@@ -638,10 +649,14 @@ static int sendData(
 			FD_ZERO(&rdfds);
 			FD_ZERO(&expfds);
 			FD_SET(fd, &expfds);
+			maxfd = fd + 1;
 			for (i = 0; i < OPEN_MAX; i++) {
 				if (_rudp_fdInfo[i].senders) {
 					FD_SET(i, &rdfds);
-					maxfd = i + 1;
+					dprintf(D_NETWORK, "\t\tfd = %d added for readiness to read\n", i);
+					if (maxfd <= i) {
+						maxfd = i + 1;
+					}
 				}
 			}
 			ready = select(maxfd, &rdfds, NULL, &expfds, &tv);
@@ -665,8 +680,9 @@ static int sendData(
 
 			for (i = 0; i < OPEN_MAX; i++) {
 				if (FD_ISSET(i, &rdfds)) {
+					dprintf(D_NETWORK, "\t\tfd = %d is ready to read\n", i);
 					rst = procUDPmsg(i);
-					if (rst == ACK_PACKET && i == fd) {
+					if (rst == ACK_PACKET) {
 						return msgLen;
 					} else {
 						elapsed = time(NULL) - current;
@@ -726,13 +742,13 @@ static int recvData(int fd, void *msg, size_t msgLen, int flags,
 		struct sockaddr *from, socklen_t *fromlen)
 {
 	struct timeval tv;
-	int val, len, maxfd, ready, i;
 	struct _RUDP_rmsg *ptr;
 	fd_set rdfds, expfds;
+	int val, len, ready, i, maxfd = 0;
 
 	// Figure out the receiving mode
 	if (val = fcntl(fd, F_GETFL, 0) < 0) {
-		dprintf(D_ALWAYS, "recv: fcntl - %s\n", strerror(errno));
+		dprintf(D_ALWAYS, "recvData: fcntl - %s\n", strerror(errno));
 		return -1;
 	}
 	while(1) {
@@ -742,6 +758,10 @@ static int recvData(int fd, void *msg, size_t msgLen, int flags,
 			len = (msgLen > ptr->bytes) ? ptr->bytes : msgLen;
 			memcpy(msg, ptr->msg, len);
 			_rudp_fdInfo[fd].qhead = ptr->next;
+			if (_rudp_fdInfo[fd].qhead == NULL) {
+				_rudp_fdInfo[fd].qtail = NULL;
+				dprintf(D_NETWORK, "Zero msg remained at the queue[fd = %d]\n", fd);
+			}
 			if (from) {
 				memcpy(from, &(ptr->from), sizeof(ptr->from));
 				*fromlen = sizeof(ptr->from);
@@ -774,7 +794,7 @@ static int recvData(int fd, void *msg, size_t msgLen, int flags,
 			if (errno == EINTR) {
 				continue;
 			}
-			dprintf(D_ALWAYS, "rudp_recvfrom: select - %s\n", strerror(errno));
+			dprintf(D_ALWAYS, "recvData: select - %s\n", strerror(errno));
 			return -1;
 		}
 		if (ready == 0) {
@@ -782,7 +802,7 @@ static int recvData(int fd, void *msg, size_t msgLen, int flags,
 		}
 
 		if (FD_ISSET(fd, &expfds)) {
-			dprintf(D_ALWAYS, "rudp_recvfrom: select returned with expfds set\n");
+			dprintf(D_ALWAYS, "recvData: select returned with expfds set\n");
 			return -1;
 		}
 
@@ -792,7 +812,6 @@ static int recvData(int fd, void *msg, size_t msgLen, int flags,
 				(void) procUDPmsg(i);
 			}
 		}
-
 	} // end of while(1)
 }
 
@@ -810,6 +829,7 @@ rudp_recvfrom(int fd, void *msg, size_t msgLen, int flags,
 int
 rudp_recv(int fd, void *msg, size_t msgLen, int flags)
 {
+	dprintf(D_NETWORK, "\tRECV:\n");
 	_rudp_fdInfo[fd].conn = 1;
 	return recvData(fd, msg, msgLen, flags, NULL, NULL);
 }

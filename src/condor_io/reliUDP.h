@@ -48,6 +48,9 @@ struct _RUDP_FDinfo {
 // @return: fd of the UDP socket
 int rudp_socket(void);
 
+/* Register rudp socket data structure */
+int rudp_register(int fd);
+
 /* Close an rudp socket */
 // @args: fd - file descriptor of the udp socket
 // @return: 0, if succeed
