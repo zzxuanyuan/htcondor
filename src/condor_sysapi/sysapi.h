@@ -85,10 +85,6 @@ void sysapi_test_dump_all(void);
 void sysapi_test_dump_internal_vars(void);
 void sysapi_test_dump_functions(void);
 
-/* tranlate between uname-type or LDAP entry values and Condor values */
-char * sysapi_translate_arch( char *machine, char *sysname );
-char *sysapi_translate_opsys( char *sysname, char *release );
-
 END_C_DECLS
 
 #endif

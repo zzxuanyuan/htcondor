@@ -142,15 +142,14 @@ char	*UserLogFile	= "log";
 char	*CoreSize		= "coresize";
 char	*NiceUser		= "nice_user";
 
-char	*X509UserProxy	= "x509userproxy";
 char	*X509Directory	= "x509directory";
-char	*GlobusScheduler = "globusscheduler";
-char	*RendezvousDir	= "rendezvousdir";
-char	*SsleayConf	= "ssleayconf";
+char	*X509UserProxy	= "x509userproxy";
 
+char	*RendezvousDir	= "rendezvousdir";
 char	*FileRemaps = "file_remaps";
 char	*BufferSize = "buffer_size";
 char	*BufferBlockSize = "buffer_block_size";
+char	*GlobusScheduler    = "globusscheduler";
 
 #if !defined(WIN32)
 char	*KillSig			= "kill_sig";
@@ -185,7 +184,7 @@ void	SetKillSig();
 #endif
 void	SetForcedAttributes();
 void 	check_iwd( char *iwd );
-int	read_condor_file( FILE *fp );
+int	read_condor_file( FILE *fp, int stopBeforeQueuing=0 );
 char * 	condor_param( char *name );
 void 	set_condor_param( char *name, char *value );
 void 	queue(int num);
@@ -300,7 +299,7 @@ main( int argc, char *argv[] )
 	install_sig_handler(SIGPIPE, (SIG_HANDLER)SIG_IGN );
 #endif
 
-	for( ptr=argv+1,argc--; argc > 0; argc--,ptr++ ) {
+	for( ptr=argv+1; *ptr; ptr++ ) {
 		if( ptr[0][0] == '-' ) {
 			switch( ptr[0][1] ) {
 			case 'v': 
@@ -315,7 +314,8 @@ main( int argc, char *argv[] )
 				break;
 			case 'r':
 				Remote++;
-				if( !(--argc) || !(*(++ptr)) ) {
+				ptr++;
+				if( ! *ptr ) {
 					fprintf( stderr, "%s: -r requires another argument\n", 
 							 MyName );
 					exit(1);
@@ -330,7 +330,8 @@ main( int argc, char *argv[] )
 				}
 				break;
 			case 'n':
-				if( !(--argc) || !(*(++ptr)) ) {
+				ptr++;
+				if( ! *ptr ) {
 					fprintf( stderr, "%s: -n requires another argument\n", 
 							 MyName );
 					exit(1);
@@ -359,6 +360,10 @@ main( int argc, char *argv[] )
 		job->SetTargetTypeName (STARTD_ADTYPE);
 	}
 
+	if( cmd_file == NULL ) {
+		usage();
+	}
+
 	if( !(ScheddAddr = get_schedd_addr(ScheddName)) ) {
 		if( ScheddName ) {
 			fprintf( stderr, "ERROR: Can't find address of schedd %s\n", ScheddName );
@@ -374,15 +379,32 @@ main( int argc, char *argv[] )
 
 	
 	// open submit file
-	if ( !cmd_file ) {
-		// no file specified, read from stdin
-		fp = stdin;
-	} else {
-		if( (fp=fopen(cmd_file,"r")) == NULL ) {
-			fprintf( stderr, "ERROR: Failed to open command file\n");
-			exit(1);
-		}
+	if( (fp=fopen(cmd_file,"r")) == NULL ) {
+		fprintf( stderr, "ERROR: Failed to open command file\n");
+		exit(1);
 	}
+
+	// Need X509_* values set before connectQ if in submit file
+
+	//  Parse the file, stopping at "queue" command
+	if( read_condor_file( fp, 1 ) < 0 ) {
+		fprintf(stderr, "ERROR: Failed to parse command file.\n");
+		exit(1);
+	}
+
+	setupAuthentication();
+
+	if (ConnectQ(ScheddAddr) == 0) {
+		if( ScheddName ) {
+			fprintf( stderr, "ERROR: Failed to connect to queue manager %s\n",
+					 ScheddName );
+		} else {
+			fprintf( stderr, "ERROR: Failed to connect to local queue manager\n" );
+		}
+		exit(1);
+	}
+
+	ActiveQueueConnection = TRUE;
 
 	// in case things go awry ...
 	_EXCEPT_Cleanup = DoCleanup;
@@ -432,6 +454,8 @@ main( int argc, char *argv[] )
 		fprintf(stdout, "Submitting job(s)");
 	}
 
+		//NOTE: this is actually the SECOND time file gets (at least partially)
+		//read. setupAuthentication needs to read it before call to ConnectQ
 	//  Parse the file and queue the jobs 
 	if( read_condor_file(fp) < 0 ) {
 		fprintf(stderr, "\nERROR: Failed to parse command file.\n");
@@ -763,11 +787,10 @@ SetUniverse()
 		// clipped, that can't possibly work, so warn the user at
 		// submit time.  -Derek Wright 6/11/99
 	fprintf( stderr, 
-			 "\n\nERROR: You are trying to submit a \"standard\" job to "
-			 "Condor.  This\nversion of Condor only supports \"vanilla\" "
-			 "or \"scheduler\" jobs, which\n"
-			 "perform no checkpointing or remote system calls.  "
-			 "See the Condor\nmanual for details "
+			 "\nERROR: You are trying to submit a \"standard\" job to Condor.\n"
+			 "This version of Condor only supports \"vanilla\" jobs, which\n"
+			 "perform no checkpointing or remote system calls.  See the\n"
+			 "Condor manual for details "
 			 "(http://www.cs.wisc.edu/condor/manual).\n\n" );
 	DoCleanup();
 	exit( 1 );
@@ -1077,8 +1100,10 @@ SetArguments()
 	if ( JobUniverse == GLOBUS_UNIVERSE ) {
 			//put specified args into RSL, then insert GlobusArgs into Ad
 		if ( strcmp( args, "" ) ) {
-				//To simplify things, just strip out all double quotes and 
-				//add each arg with double quotes.
+				//unfortunately, Globus args are a pain in the as*. Each 
+				//argument has to be surrounded by double quotes and (probably)
+				//separated by a space. To simplify things, just strip out all
+				//double quotes and add each arg with double quotes.
 			StringList newargs( args, ",\"" );
 			char buf[1024];
 			newargs.rewind();
@@ -1099,12 +1124,9 @@ SetArguments()
 			DoCleanup();
 			exit( 1 );
       }
-			//Globus v1.1 no longer allows these -w -r <host> to be last
-			//on the string, so put them first instead.
-		char *GlobusTmp = new char[strlen(GlobusArgs) + 10 + strlen(globushost)];
-		sprintf( GlobusTmp, "-w -r %s %s", globushost, GlobusArgs );
-		sprintf( buffer, "%s = \"%s\"", ATTR_JOB_ARGUMENTS, GlobusTmp );
-		delete [] GlobusTmp;
+		strcat( GlobusArgs, " -w -r " );
+		strcat( GlobusArgs, globushost );
+		sprintf( buffer, "%s = \"%s\"", ATTR_JOB_ARGUMENTS, GlobusArgs );
 	}
 	else 
 #endif
@@ -1564,7 +1586,7 @@ SetKillSig()
 
 
 int
-read_condor_file( FILE *fp )
+read_condor_file( FILE *fp, int stopBeforeQueuing )
 {
 	char	*name, *value;
 	char	*ptr;
@@ -1598,12 +1620,12 @@ read_condor_file( FILE *fp )
 		}
 
 		if( strincmp(name, "queue", strlen("queue")) == 0 ) {
-			name = expand_macro( name, ProcVars, PROCVARSIZE );
-			if( name == NULL ) {
-				(void)fclose( fp );
-				fprintf(stderr, 
-					"\nERROR: Failed to expand macros in: %s\n", name);
-				return( -1 );
+			//sleazy hack to deal with fact that queue must happen AFTER
+			//connection is authenticated, but cert_dir must be read
+			//before user or connection authentication -- mju
+			if ( stopBeforeQueuing ) {
+				rewind( fp );
+				return 0;
 			}
 			if (sscanf(name+strlen("queue"), "%d", &queue_modifier) == EOF) {
 				queue_modifier = 1;
@@ -1729,42 +1751,10 @@ strcmpnull(const char *str1, const char *str2)
 }
 
 void
-connect_to_the_schedd()
-{	
-	if ( ActiveQueueConnection == TRUE ) {
-		// we are already connected; do not connect again
-		return;
-	}
-
-	setupAuthentication();
-
-	if (ConnectQ(ScheddAddr) == 0) {
-		if( ScheddName ) {
-			fprintf( stderr, 
-					"ERROR: Failed to connect to queue manager %s\n",
-					 ScheddName );
-		} else {
-			fprintf( stderr, 
-				"ERROR: Failed to connect to local queue manager\n" );
-		}
-		exit(1);
-	}
-
-	ActiveQueueConnection = TRUE;
-}
-
-void
 queue(int num)
 {
 	char tmp[ BUFSIZ ], *logfile;
 	int		rval;
-
-	// First, connect to the schedd if we have not already done so
-
-	if (ActiveQueueConnection != TRUE) 
-	{
-		connect_to_the_schedd();
-	}
 
 	/* queue num jobs */
 	for (int i=0; i < num; i++) {
@@ -1784,8 +1774,7 @@ queue(int num)
 		}
 
 		if ( ClusterId == -1 ) {
-			fprintf(stderr,
-			"\nERROR: Used queue command without specifying an executable\n");
+			fprintf(stderr,"\nERROR: Used queue command without specifying an executable\n");
 			exit(1);
 		}
 
@@ -2346,109 +2335,115 @@ check_umask()
 void 
 setupAuthentication()
 {
-		//RendezvousDir for remote FS auth can be specified in submit file.
+	char *pbuf;
+
+		//RendezvousDir can be specified in submit-description file.
 	char *Rendezvous = NULL;
-	if ( Rendezvous = condor_param( RendezvousDir ) )
+	if ( (Rendezvous = condor_param( RendezvousDir ) ) )
 	{
-		dprintf( D_FULLDEBUG,"setting RENDEZVOUS_DIRECTORY=%s\n", Rendezvous );
+		dprintf( D_FULLDEBUG,"setting RENDEZVOUS_DIRECTORY=%s\n",
+				Rendezvous );
 		sprintf( buffer, "RENDEZVOUS_DIRECTORY=%s", Rendezvous );
 			//putenv because Authentication::authenticate() expects them there.
 		putenv( strdup( buffer ) );
-		free( Rendezvous );
+		if ( Rendezvous )
+			free( Rendezvous );
 	}
 
-		//X509_USER_PROXY needed for Globus universe and glideins under condor
-	char *UserFile = NULL;
-	if ( UserFile = condor_param( X509UserProxy ) ) {
-		dprintf( D_FULLDEBUG, "setting X509_USER_PROXY=%s\n", UserFile );
-		sprintf( buffer, "X509_USER_PROXY=%s", UserFile );
-		if ( JobUniverse == GLOBUS_UNIVERSE ) {
-			strcat( GlobusEnv, buffer );
-			strcat( GlobusEnv, env_delimiter );
-				//Put it in the ClassAd as well (per directive from 7th floor...)
-			sprintf( buffer, "X509_USER_PROXY = \"%s\"", UserFile );
-			InsertJobExpr( buffer );
-		}
-		else { 
-			putenv( strdup( buffer ) );
-		}
-		
-		free( UserFile );
-		UserFile = NULL;
+		//the order of X509_* definitions is: X509Directory in submit file,
+		//then try the ENV, then try the default $HOME/.condorcerts directory.
+	char *CertDir = NULL;
+	int override = 0;
+	if ( CertDir = condor_param( X509Directory ) ) {
+		override = 1;
 	}
-
-	char *ssleay = condor_param( SsleayConf );
-
-	if ( UserFile = condor_param( X509Directory ) ) {
-		dprintf( D_FULLDEBUG, "X509_DIRECTORY=%s\n", UserFile );
-
-			//if it's Globus universe, set all defaults, else just put in ENV
-		if ( JobUniverse != GLOBUS_UNIVERSE ) {
-				//put x509_directory in ENV for authentication code to use.
-			sprintf( buffer, "X509_DIRECTORY=%s", UserFile );
-			putenv( strdup( buffer ) );
+	else {
+		char *home;
+		if ( home = getenv( "HOME" ) ) {
+			sprintf( buffer, "%s/.condorcerts", home );
+			CertDir = strdup( buffer );
 		}
 		else {
-			//set all the X509_* stuff to default names under this directory
-
-			sprintf( buffer, "X09_CERT_DIR=%s/certdir", UserFile );
-			strcat( GlobusEnv, buffer );
-			strcat( GlobusEnv, env_delimiter );
-				//Put it in the ClassAd as well (per directive from 7th floor...)
-			sprintf( buffer, "X509_CERT_DIR = \"%s/certdir\"", UserFile );
-			InsertJobExpr( buffer );
-
-			sprintf( buffer, "X09_USER_CERT=%s/usercert.pem", UserFile );
-			strcat( GlobusEnv, buffer );
-			strcat( GlobusEnv, env_delimiter );
-				//Put it in the ClassAd as well (per directive from 7th floor...)
-			sprintf( buffer, "X509_USER_CERT = \"%s/usercert.pem\"", UserFile );
-			InsertJobExpr( buffer );
-
-			sprintf( buffer, "X09_USER_KEY=%s/userkey.pem", UserFile );
-			strcat( GlobusEnv, buffer );
-			strcat( GlobusEnv, env_delimiter );
-				//Put it in the ClassAd as well (per directive from 7th floor...)
-			sprintf( buffer, "X509_USER_KEY = \"%s/userkey.pem\"", UserFile );
-			InsertJobExpr( buffer );
-
-			char sslFile[_POSIX_PATH_MAX];
-			if ( ssleay ) {
-					//if specified, override condor default
-				strcpy( sslFile, ssleay );
-			}
-			else {
-					//use condor default
-				sprintf( sslFile, "%s/condor_ssl.cnf", UserFile );
-			}
-			sprintf( buffer, "SSLEAY_CONF=%s", sslFile );
-			strcat( GlobusEnv, buffer );
-			strcat( GlobusEnv, env_delimiter );
-				//Put it in the ClassAd as well (per directive from 7th floor...)
-			sprintf( buffer, "SSLEAY_CONF = \"%s\"", sslFile );
-			InsertJobExpr( buffer );
+			EXCEPT( "Cannot get environment variable $HOME\n" );
 		}
-			
-		free( UserFile );
-		UserFile = NULL;
 	}
-	else if ( ssleay ) {
-		sprintf( buffer, "SSLEAY_CONF=%s", ssleay );
-		if ( JobUniverse == GLOBUS_UNIVERSE ) {
-			strcat( GlobusEnv, buffer );
-			strcat( GlobusEnv, env_delimiter );
-				//Put it in the ClassAd as well (per directive from 7th floor...)
-			sprintf( buffer, "SSLEAY_CONF = \"%s\"", ssleay );
-			InsertJobExpr( buffer );
+	dprintf( D_FULLDEBUG, "using X509_DIRECTORY=%s\n", CertDir );
+
+		//Make sure these vars are in the environment, the ClassAd, and
+		//the environment list if a Globus Universe Job
+	if ( override || !( pbuf = getenv( "X509_CERT_DIR" ) ) ) {
+		sprintf( buffer, "X509_CERT_DIR=%s/certdir", CertDir );
+		putenv( strdup( buffer ) );
+		strcat( GlobusEnv, buffer );
+		sprintf( buffer, "X509_CERT_DIR = \"%s/certdir\"", CertDir );
+	}
+	else {
+		sprintf( buffer, "X509_CERT_DIR=%s", pbuf );
+		strcat( GlobusEnv, buffer );
+		sprintf( buffer, "X509_CERT_DIR = \"%s\"", pbuf );
+	}
+	strcat( GlobusEnv, env_delimiter );
+	InsertJobExpr( buffer );
+
+
+	if ( override || !( pbuf = getenv( "X509_USER_CERT" ) ) ) {
+		sprintf( buffer, "X509_USER_CERT=%s/usercert.pem", CertDir );
+		putenv( strdup( buffer ) );
+		strcat( GlobusEnv, buffer );
+		sprintf( buffer, "X509_USER_CERT = \"%s/usercert.pem\"", CertDir );
+	}
+	else {
+		sprintf( buffer, "X509_USER_CERT=%s", pbuf );
+		strcat( GlobusEnv, buffer );
+		sprintf( buffer, "X509_USER_CERT = \"%s\"", pbuf );
+	}
+	strcat( GlobusEnv, env_delimiter );
+	InsertJobExpr( buffer );
+
+
+	if ( override || !( pbuf = getenv( "X509_USER_KEY" ) ) ) {
+		sprintf( buffer, "X509_USER_KEY=%s/userkey.pem", CertDir );
+		putenv( strdup( buffer ) );
+		strcat( GlobusEnv, buffer );
+		sprintf( buffer, "X509_USER_KEY = \"%s/userkey.pem\"", CertDir );
+	}
+	else {
+		sprintf( buffer, "X509_USER_KEY=%s", pbuf );
+		strcat( GlobusEnv, buffer );
+		sprintf( buffer, "X509_USER_KEY = \"%s\"", pbuf );
+	}
+	strcat( GlobusEnv, env_delimiter );
+	InsertJobExpr( buffer );
+
+
+	free( CertDir );
+	CertDir = NULL;
+
+		//User proxy should be separate, because it usually lives in a 
+		//different directory, /tmp, which is often in a different filesystem 
+		//than the other X509 files, and is often not specified even when
+		//the other X509 values are.
+	if ( CertDir = condor_param( X509UserProxy ) ) {
+		override = 1;
+	}
+	else {
+		char *tmpDir;
+		if ( tmpDir  = getenv( "X509_USER_PROXY" ) ) {
+			CertDir = strdup( tmpDir );
 		}
-		else {
+		override = 0;
+	}
+
+	if ( CertDir ) {
+		sprintf( buffer, "X509_USER_PROXY=%s", CertDir );
+		strcat( GlobusEnv, buffer );
+		strcat( GlobusEnv, env_delimiter );
+		sprintf( buffer, "X509_USER_PROXY = \"%s\"", CertDir );
+		InsertJobExpr( buffer );
+
+		if ( override ) {
 			putenv( strdup( buffer ) );
 		}
+		free( CertDir );
 	}
-
-		//For condor_glidein to run under condor, either GLOBUS_INSTALL_PATH 
-		//or GLOBUS_DEPLOY_PATH, as well as HOME and the path to globus, condor 
-		//and /bin user programs must be in the users environment. I check
-		//that stuff in condor_glidein, but mention it here because it is
-		//apropososos.
 }

@@ -120,6 +120,7 @@ void
 init_arch() 
 {
 	struct utsname buf;	
+	char tmp[64];
 
 	if( uname(&buf) < 0 ) {
 		return;
@@ -130,20 +131,6 @@ init_arch()
 		EXCEPT( "Out of memory!" );
 	}
 
-	arch = sysapi_translate_arch( buf.machine, buf.sysname );
-	opsys = sysapi_translate_opsys( buf.sysname, buf.release );
-
-	if ( arch && opsys ) {
-		arch_inited = TRUE;
-	}
-}
-
-char *
-sysapi_translate_arch( char *machine, char *sysname )
-{
-	char tmp[64];
-	char *tmparch;
-
 #ifdef HPUX
 	/*
 	  On HPUX, to figure out if we're HPPA1 or HPPA2, we have to
@@ -152,142 +139,83 @@ sysapi_translate_arch( char *machine, char *sysname )
 	  this in a seperate function to keep this function somewhat
 	  readable.   -Derek Wright 7/20/98
 	*/
-	struct utsname buf;	
 
-	if( uname(&buf) < 0 ) {
-		return NULL;
-	}
-
-	return( get_hpux_arch( &buf ) );
-#else
-
+	arch = get_hpux_arch( &buf );
+#else 
 		// Get ARCH
-		//mikeu: I modified this to also accept values from Globus' LDAP server
-	if( !strcmp(machine, "alpha") ) {
+	if( !strcmp(buf.machine, "alpha") ) {
 		sprintf( tmp, "ALPHA" );
-	} 
-	else if( !strcmp(machine, "i86pc") ) {
+	} else if( !strcmp(buf.machine, "i86pc") ) {
 		sprintf( tmp, "INTEL" );
-	} 
-	else if( !strcmp(machine, "i686") ) {
+	} else if( !strcmp(buf.machine, "i686") ) {
 		sprintf( tmp, "INTEL" );
-	} 
-	else if( !strcmp(machine, "i586") ) {
+	} else if( !strcmp(buf.machine, "i586") ) {
 		sprintf( tmp, "INTEL" );
-	} 
-	else if( !strcmp(machine, "i486") ) {
+	} else if( !strcmp(buf.machine, "i486") ) {
 		sprintf( tmp, "INTEL" );
-	} 
-	else if( !strcmp(machine, "i386") ) { //LDAP entry
-		sprintf( tmp, "INTEL" );
-	} 
-	else if( !strncmp( sysname, "IRIX", 4 ) ) {
+	} else if( match_prefix(buf.sysname, "IRIX") ) {
 		sprintf( tmp, "SGI" );
-	} 
-	else if( !strcmp(machine, "mips") ) { //LDAP entry
-		sprintf( tmp, "SGI" );
-	} 
-	else if( !strcmp(machine, "sun4u") ) {
+	} else if( !strcmp(buf.machine, "sun4u") ) {
 		sprintf( tmp, "SUN4u" );
-	} 
-	else if( !strcmp(machine, "sun4m") ) {
+	} else if( !strcmp(buf.machine, "sun4m") ) {
 		sprintf( tmp, "SUN4x" );
-	} 
-	else if( !strcmp(machine, "sun4c") ) {
+	} else if( !strcmp(buf.machine, "sun4c") ) {
 		sprintf( tmp, "SUN4x" );
-	} 
-	else if( !strcmp(machine, "sparc") ) { //LDAP entry
-		sprintf( tmp, "SUN4x" );
-	} 
-	else {
+	} else {
 			// Unknown, just use what uname gave:
-		sprintf( tmp, machine );
+		sprintf( tmp, buf.machine );
 	}
-
-	tmparch = strdup( tmp );
-	if( !tmparch ) {
+	arch = strdup( tmp );
+	if( !arch ) {
 		EXCEPT( "Out of memory!" );
 	}
-	return( tmparch );
-#endif /* if HPUX else */
-}
 
-char *
-sysapi_translate_opsys( char *sysname, char *release )
-{
-	char tmp[64];
-	char *tmpopsys;
+#endif /* HPUX */
 
 		// Get OPSYS
-	if( !strcmp(sysname, "Linux") ) {
-		sprintf( tmp, "LINUX" );
-	} 
-	else if( !strcmp(sysname, "linux") ) { //LDAP entry
-		sprintf( tmp, "LINUX" );
-	} 
-
-	else if( !strcmp(sysname, "SunOS") 
-		|| !strcmp(sysname, "solaris" ) ) //LDAP entry
-	{
-		if ( !strcmp(release, "2.7") //LDAP entry
-//			|| !strcmp(release, "5.7")
-		)
-		{
-			sprintf( tmp, "SOLARIS27" );
-		} 
-		else if( !strcmp(release, "5.6") 
-			||  !strcmp(release, "2.6") ) //LDAP entry
-		{
+	if( !strcmp(buf.sysname, "Linux") ) {
+		if( access("/lib/libc.so.6", R_OK) != 0 ) {
+			sprintf( tmp, "LINUX" );
+		} else { 
+			sprintf( tmp, "LINUX-GLIBC" );
+		}
+	} else if( !strcmp(buf.sysname, "SunOS") ) {
+		if( !strcmp(buf.release, "5.6") ) {
 			sprintf( tmp, "SOLARIS26" );
-		} 
-		else if ( !strcmp(release, "5.5.1") 
-			|| !strcmp(release, "2.5.1") ) //LDAP entry
-		{
+		} else if ( !strcmp(buf.release, "5.5.1") ) {
 			sprintf( tmp, "SOLARIS251" );
-		} 
-		else if ( !strcmp(release, "5.5") 
-			|| !strcmp(release, "2.5") ) //LDAP entry
-		{
+		} else if ( !strcmp(buf.release, "5.5") ) {
 			sprintf( tmp, "SOLARIS25" );
-		} 
-		else {
-			sprintf( tmp, "SOLARIS%s", release );
+		} else {
+			sprintf( tmp, "SOLARIS%s", buf.release );
 		}
-	} 
-
-	else if( !strcmp(sysname, "OSF1") ) {
+	} else if( !strcmp(buf.sysname, "OSF1") ) {
 		sprintf( tmp, "OSF1" );
-	} 
-	else if( !strcmp(sysname, "HP-UX") ) {
-		if( !strcmp(release, "B.10.20") ) {
+	} else if( !strcmp(buf.sysname, "HP-UX") ) {
+		if( !strcmp(buf.release, "B.10.20") ) {
 			sprintf( tmp, "HPUX10" );
-		} 
-		else {
-			sprintf( tmp, "HPUX%s", release );
+		} else {
+			sprintf( tmp, "HPUX%s", buf.release );
 		}
-	} 
-	else if( !strncmp(sysname, "IRIX", 4 ) 
-		|| !strcmp( sysname, "irix" ))  //LDAP entry
-	{
-		if( !strcmp( release, "6.5" ) ) {
+	} else if( match_prefix(buf.sysname, "IRIX") ) {
+		if( !strcmp( buf.release, "6.5" ) ) {
 			sprintf( tmp, "IRIX65" );
 		}
-		else if( !strcmp( release, "6.2" ) ) {
+		else if( !strcmp( buf.release, "6.2" ) ) {
 			sprintf( tmp, "IRIX62" );
 		} 
 		else {
-			sprintf( tmp, "IRIX%s", release );
+			sprintf( tmp, "IRIX%s", buf.release );
 		}
-	} 
-	else {
+	} else {
 			// Unknown, just use what uname gave:
-		sprintf( tmp, "%s%s", sysname, release );
+		sprintf( tmp, "%s%s", buf.sysname, buf.release );
 	}
-	tmpopsys = strdup( tmp );
-	if( !tmpopsys ) {
+	opsys = strdup( tmp );
+	if( !opsys ) {
 		EXCEPT( "Out of memory!" );
 	}
-	return( tmpopsys );
+	arch_inited = TRUE;
 }
 
 
@@ -331,7 +259,6 @@ get_hpux_arch( struct utsname *buf )
 	char *model;
 	char cputype[128], cpumodel[128];
 	int len, found_it = FALSE;
-	char *tmparch;
 
 	model = strchr( buf->machine, '/' );
 	model++;
@@ -352,16 +279,17 @@ get_hpux_arch( struct utsname *buf )
 	if( found_it ) {
   	    sscanf( line, "%s\t%s", cpumodel, cputype );
 		if( !strcmp(cputype, "2.0") ) {
-		    tmparch = strdup( "HPPA2" );
+		    arch = strdup( "HPPA2" );
 		} else {
-		    tmparch = strdup( "HPPA1" );
+		    arch = strdup( "HPPA1" );
 		}
-		if( !tmparch ) {
+		if( !arch ) {
 			EXCEPT( "Out of memory!" );
 		}
 	}
-	return tmparch;
+	return arch;
 }
 #endif /* HPUX */
 
 #endif /* ! WIN32 */
+
