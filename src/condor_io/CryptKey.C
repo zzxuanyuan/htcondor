@@ -34,12 +34,15 @@ KeyInfo:: KeyInfo()
 }
 
 KeyInfo :: KeyInfo(const KeyInfo& copy)
-    : keyData_    (new unsigned char[copy.keyDataLen_]),
+    : keyData_    ( 0 ),
       keyDataLen_ (copy.keyDataLen_),
       protocol_   (copy.protocol_),
       duration_   (copy.duration_)
 {
-    memcpy(keyData_, copy.keyData_, keyDataLen_);   
+    if (copy.keyDataLen_) {
+        keyData_ = new unsigned char[copy.keyDataLen_];
+        memcpy(keyData_, copy.keyData_, keyDataLen_);   
+    }
 }
 
 KeyInfo :: KeyInfo(unsigned char * keyData,
