@@ -3,4 +3,3 @@
 #define WANT_PVM	YES
 #define PVM_ARCH	ALPHA
 #define NEED_SNPRINTF	YES
-#define WANT_SOAP	YES

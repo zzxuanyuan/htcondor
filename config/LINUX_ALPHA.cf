@@ -9,5 +9,3 @@
 
 #undef WANT_KERBEROS
 #define WANT_KERBEROS NO
-
-#define WANT_SOAP			YES

@@ -23,7 +23,5 @@
 #define WANT_PVM			YES
 #define PVM_ARCH			HPPA
 
-#define WANT_SOAP			YES
-
 #define VendorCTestFlags -Aa -Ae
 #define VendorCPPTestFlags -Aa -ext

@@ -45,7 +45,6 @@
 #define HAS_INSQUE			YES
 #define HAS_SETLINEBUF			YES
 #define USE_GCC				YES
-#define WANT_SOAP			YES
 
 #define HAS_DYNAMIC_USER_JOBS	NO
 

@@ -10,4 +10,4 @@
 
 #define WANT_PVM	NO
 
-#define WANT_SOAP	YES
+

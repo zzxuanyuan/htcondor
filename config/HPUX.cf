@@ -36,7 +36,6 @@
 #define HAS_SETEGID			NO
 #define HAS_SETEUID			NO
 #define DO_BENCHMARKING			YES
-#define WANT_SOAP			YES
 
 #define ShadowSizeEstimate 200
 

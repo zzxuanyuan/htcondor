@@ -31,8 +31,6 @@
 
 #define WANT_PVM			NO
 
-#define WANT_SOAP			YES
-
 #define IS_CLIPPED YES
 
 #define VendorCTestFlags -Aa -Ae

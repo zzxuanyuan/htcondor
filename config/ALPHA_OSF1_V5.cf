@@ -3,4 +3,4 @@
 #define IS_CLIPPED	YES
 #define WANT_PVM	NO
 #undef NEED_SNPRINTF	NO
-#define WANT_SOAP	YES
+
