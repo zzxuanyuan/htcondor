@@ -26,6 +26,7 @@
 #include "condor_debug.h"
 #include "condor_string.h"
 #include "condor_attributes.h"
+#include "condor_email.h"
 #include "exit.h"
 #include "internet.h"
 
@@ -131,6 +132,8 @@ bool
 JICLocalSchedd::notifyJobExit( int exit_status, int reason, 
 							   UserProc* user_proc )
 {
+	bool rval;
+
 		// Call our parent's version of this method to handle all the
 		// common-case stuff, like writing to the local userlog,
 		// writing an output classad (if desired, etc).  
@@ -161,7 +164,15 @@ JICLocalSchedd::notifyJobExit( int exit_status, int reason,
 				"JICLocalSchedd::notifyJobExit", reason );
 		break;
 	}
-	return job_updater->updateJob( up_type );
+	rval = job_updater->updateJob( up_type );
+
+		// once the job's been updated in the queue, we can also try
+		// sending email notification, if desired.
+	Email msg;
+	msg.sendExit( job_ad, reason );
+
+		// return the value we got from updateJob()...
+	return rval;
 }
 
 
