@@ -2182,10 +2182,13 @@ Scheduler::spoolJobFilesReaper(int tid,int exit_status)
 		int spool_completion_time = 0;
 		ad->LookupInteger(ATTR_STAGE_IN_FINISH,spool_completion_time);
 		if ( !spool_completion_time ) {
-			// Set completion time to be one second backwards, in case
-			// the job runs and completes in one second or less --- this
-			// way we don't miss any output files for short running jobs.
-			SetAttributeInt(cluster,proc,ATTR_STAGE_IN_FINISH,now-1);
+			// Note: we used to subtract one from the time here, because
+			// we were worried about making certain we'd transfer back 
+			// output files that changed even of the job ran for less than
+			// one second.  The problem is we were also transferring back
+			// input files.  Doo!! So now instead, we sleep for one second in
+			// the forked child to solve these issues.
+			SetAttributeInt(cluster,proc,ATTR_STAGE_IN_FINISH,now);
 		}
 
 			// And now release the job.
@@ -2210,7 +2213,13 @@ Scheduler::transferJobFilesWorkerThread(void *arg, Stream* s)
 int
 Scheduler::spoolJobFilesWorkerThread(void *arg, Stream* s)
 {
-	return generalJobFilesWorkerThread(arg,s,SPOOL_JOB_FILES);
+	int ret_val;
+	ret_val = generalJobFilesWorkerThread(arg,s,SPOOL_JOB_FILES);
+		// Now we sleep here for one second.  Why?  So we are certain
+		// to transfer back output files even if the job ran for less 
+		// than one second.
+	sleep(1);
+	return ret_val;
 }
 
 int
