@@ -43,6 +43,8 @@
 
 #include "../condor_c++_util/soap_helpers.cpp"
 
+#include "schedd_api.h"
+
 // XXX: There should be checks to see if the cluster/job Ids are valid
 // in the transaction they are being used...
 
@@ -50,19 +52,8 @@
 static int current_trans_id = 0;
 static int trans_timer_id = -1;
 
-class JobFile
-{
-public:
-  FILE * file;
-  MyString name;
-  int size;
-  int currentOffset;
-};
-
-template class HashTable<MyString, JobFile>;
-HashTable<MyString, JobFile> jobFiles = HashTable<MyString, JobFile>(64, MyStringHash, rejectDuplicateKeys);
-
-MyString *spoolDirectory = NULL;
+template class HashTable<MyString, Job *>;
+HashTable<MyString, Job *> jobs = HashTable<MyString, Job *>(64, MyStringHash, rejectDuplicateKeys);
 
 static bool valid_transaction_id(int id)
 {
@@ -71,6 +62,32 @@ static bool valid_transaction_id(int id)
   } else {
     return false;
   }
+}
+
+static
+int
+getJob(int transaction, int clusterId, int jobId, Job *&job)
+{
+  MyString key;
+  key += transaction;
+  key += clusterId;
+  key += jobId;
+
+  printf("hash: %d\n", MyStringHash(key, 64));
+
+  return jobs.lookup(key, job);
+}
+
+static
+int
+insertJob(int transaction, int clusterId, int jobId, Job *job)
+{
+  MyString key;
+  key += transaction;
+  key += clusterId;
+  key += jobId;
+
+  return jobs.insert(key, job);  
 }
 
 // TODO : Todd needs to redo all the transaction stuff and get it
@@ -149,12 +166,7 @@ condorSchedd__commitTransaction(struct soap *s,
     result.response.code = INVALIDTRANSACTION;
   }
 
-  // Let's just forget everything about the job. This will result in
-  // the spool directory sitting around until we find it later, which
-  // we can always do with the cluter&proc IDs.
-  delete spoolDirectory;
-  spoolDirectory = NULL;
-  jobFiles.clear();
+  //jobs.clear(); // XXX: Do the destructors get called?
 
   dprintf(D_ALWAYS,"SOAP leaving condorSchedd__commitTransaction() res=%d\n",result.response.code);
   return SOAP_OK;
@@ -171,23 +183,10 @@ condorSchedd__abortTransaction(struct soap *s,
     AbortTransactionAndRecomputeClusters();
     dprintf(D_ALWAYS, "SOAP cleared file hashtable for transaction: %d\n", transaction.id);
 
-    // Make sure we delete all the files that were sent over.
-    JobFile jobFile;
-    jobFiles.startIterations();
-    while (jobFiles.iterate(jobFile)) {
-      fclose(jobFile.file);
-      remove(jobFile.name.GetCStr());
-    }
-
-    if (NULL != spoolDirectory) {
-      // Now let's delete the spoolDirectory itself.
-      remove(spoolDirectory->GetCStr());
-      delete spoolDirectory;
-      spoolDirectory = NULL; // Actually do a rmdir too!
-    }
+    // XXX: Call schedd.abort() for all schedd's
 
     // Let's forget about all the file associated with the transaction.
-    jobFiles.clear(); /* Memory leak? */
+    //jobs.clear(); /* Memory leak? */
 
     current_trans_id = 0;
     transaction.id = 0;
@@ -391,39 +390,24 @@ condorSchedd__submit(struct soap *s,
     // TODO error - unrecognized transactionId
   }
 
-  int i,rval;
+  Job *job = new Job(clusterId, jobId);
+  if (getJob(transaction.id, clusterId, jobId, job)) {
+    result.response.status.code = FAIL; // Unknown transaction/cluster/job
 
-  // XXX: This is ugly.
-  rval = SetAttributeString(clusterId, jobId, "Iwd", spoolDirectory->GetCStr());
-  if (rval < 0) {
-    result.response.status.code = FAIL;
     return SOAP_OK;
   }
 
-  for (i=0; i < jobAd->__size; i++ ) {
-    const char* name = jobAd->__ptr[i].name;
-    const char* value = jobAd->__ptr[i].value;
-    if (!name) continue;
-    if (!value) value="UNDEFINED";
+  ClassAd realJobAd;
+  if (!convert_adStruct_to_ad(s, &realJobAd, jobAd)) {
+    result.response.status.code = FAIL;
 
-    if ( jobAd->__ptr[i].type == 's' ) {
-      // string type - put value in quotes as hint for ClassAd parser
+    return SOAP_OK;
+  }
 
-      // We need to make sure the Iwd is rewritten so files
-      // in the spool directory can be found.
-      if ((NULL != spoolDirectory) &&
-          (0 == strcmp(name, "Iwd"))) {
-        value = spoolDirectory->GetCStr();
-      }
+  if (job->submit(*jobAd)) {
+    result.response.status.code = FAIL;
 
-      rval = SetAttributeString(clusterId, jobId, name, value);
-    } else {
-      // all other types can be deduced by the ClassAd parser
-      rval = SetAttribute(clusterId,jobId,name,value);
-    }
-    if ( rval < 0 ) {
-      result.response.status.code = FAIL;
-    }
+    return SOAP_OK;
   }
 
   dprintf(D_ALWAYS,"SOAP leaving condorSchedd__submit() res=%d\n",result.response.status.code);
@@ -503,37 +487,26 @@ condorSchedd__declareFile(struct soap *soap,
   if (!valid_transaction_id(transaction.id)) {
     // TODO error - unrecognized transactionId
     result.response.code = INVALIDTRANSACTION;
+
+    return SOAP_OK;
   }
 
-  JobFile jobFile;
-  jobFile.size = size;
-  jobFile.currentOffset = 0;
+  Job *job;
+  if (getJob(transaction.id, clusterId, jobId, job)) {
+    // Assume the Job wasn't created yet.
+    job = new Job(clusterId, jobId);
+    if (insertJob(transaction.id, clusterId, jobId, job)) {
+      result.response.code = FAIL;
 
-  FILE *file;
-
-  if (NULL == spoolDirectory) {
-    // XXX: Share code with file_transfer.C
-    char * Spool = param("SPOOL");
-    if (Spool) {
-      spoolDirectory = new MyString(strdup(gen_ckpt_name(Spool, clusterId, jobId, 0)));
-      if ((mkdir(spoolDirectory->GetCStr(), 0777) < 0)) {
-        // mkdir can return 17 = EEXIST (dirname exists) or 2 = ENOENT (path not found)
-        dprintf(D_FULLDEBUG,
-                "condorSchedd__declareFile: mkdir(%s) failed, errno: %d\n",
-                spoolDirectory->GetCStr(),
-                errno);
-      }
+      return SOAP_OK;
     }
   }
 
-  // XXX: Handle errors!
-  // XXX: How do I get the FS separator?
-  jobFile.name = *spoolDirectory + "/" + name;
-  file = fopen(jobFile.name.GetCStr(), "w");
-  jobFile.file = file;
-  jobFiles.insert(MyString(name), jobFile);
+  result.response.code = SUCCESS;
 
-  result.response.code = SUCCESS; // OK, send it. 1 means don't?
+  if (job->declare_file(MyString(name), size)) {
+    result.response.code = FAIL;
+  }
 
   return SOAP_OK;
 }
@@ -555,19 +528,21 @@ condorSchedd__sendFile(struct soap *soap,
     result.response.code = INVALIDTRANSACTION;
   }
 
-  JobFile jobFile;
-  if (-1 == jobFiles.lookup(MyString(filename), jobFile)) {
-    result.response.code = UNKNOWNFILE; // File unknown.
+  Job *job;
+  if (getJob(transaction.id, clusterId, jobId, job)) {
+    result.response.code = INVALIDTRANSACTION;
 
     return SOAP_OK;
   }
 
-  // XXX: Handle errors!
-  fseek(jobFile.file, offset, SEEK_SET);
-  fwrite(data->__ptr, sizeof(unsigned char), data->__size, jobFile.file);
-  fflush(jobFile.file);
-
-  result.response.code = SUCCESS; // OK, send it. 1 means don't?
+  if (0 == job->send_file(MyString(filename),
+                          offset,
+                          (char *) data->__ptr,
+                          data->__size)) {
+    result.response.code = SUCCESS;
+  } else {
+    result.response.code = FAIL;
+  }
 
   return SOAP_OK;
 }

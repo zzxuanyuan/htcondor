@@ -1,0 +1,89 @@
+#include "schedd_api.h"
+
+Schedd::Schedd(int clusterId, int jobId)
+{
+  jobFiles = new HashTable<MyString, JobFile>(64, MyStringHash, rejectDuplicateKeys);
+  spoolDirectory = NULL;
+}
+
+Schedd::~Schedd()
+{
+  JobFile jobFile;
+  jobFiles.startIterations();
+  while (jobFiles.iterate(jobFile)) {
+    fclose(jobFile.file);
+    remove(jobFile.name.GetCStr());
+  }
+
+  jobFiles = new HashTable<MyString, JobFile>(64, MyStringHash, rejectDuplicateKeys);
+  spoolDirectory = NULL;
+}
+
+int 
+Schedd::declare_file(int clusterId,
+                     int procId,
+                     MyString name,
+                     int size,
+                     enum HashType hashType,
+                     char * hash)
+{
+  JobFile jobFile;
+  jobFile.size = size;
+  jobFile.currentOffset = 0;
+  
+  FILE *file;
+  
+  if (NULL == spoolDirectory) {
+    // XXX: Share code with file_transfer.C
+    char * Spool = param("SPOOL");
+    if (Spool) {
+      spoolDirectory = new MyString(strdup(gen_ckpt_name(Spool, clusterId, jobId, 0)));
+      if ((mkdir(spoolDirectory->GetCStr(), 0777) < 0)) {
+        // mkdir can return 17 = EEXIST (dirname exists) or 2 = ENOENT (path not found)
+        dprintf(D_FULLDEBUG,
+                "Schedd::declareFile: mkdir(%s) failed, errno: %d\n",
+                spoolDirectory->GetCStr(),
+                errno);
+      }
+    }
+  }
+
+  // XXX: Handle errors!
+  // XXX: How do I get the FS separator?
+  jobFile.name = *spoolDirectory + "/" + name;
+  file = fopen(jobFile.name.GetCStr(), "w");
+  jobFile.file = file;
+  jobFiles.insert(MyString(name), jobFile);
+
+  return 0;
+}
+
+int
+Schedd::submit(int clusterId,
+               int procId,
+               struct ClassAd jobAd)
+{
+  return 0;
+}
+
+int
+Schedd::send_file(int clusterId,
+                  int procId,
+                  MyString name,
+                  int offset,
+                  char * data,
+                  int data_length)
+{
+  JobFile jobFile;
+  if (-1 == jobFiles.lookup(MyString(filename), jobFile)) {
+    return 1; // Unknown file.
+  }
+
+  // XXX: Handle errors!
+  fseek(jobFile.file, offset, SEEK_SET);
+  fwrite(data->__ptr, sizeof(unsigned char), data->__size, jobFile.file);
+  fflush(jobFile.file);
+
+  return 0;
+}
+

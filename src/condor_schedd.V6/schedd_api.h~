@@ -1,0 +1,47 @@
+#include "condor_common.h"
+#include "condor_classad.h"
+#include "MyString.h"
+#include "HashTable.h"
+
+enum HashType {
+  ASDF,
+  FDSA
+};
+
+class JobFile
+{
+public:
+  FILE * file;
+  MyString name;
+  int size;
+  int currentOffset;
+};
+
+template class HashTable<MyString, JobFile>;
+
+class Schedd
+{
+public:
+  Schedd(int clusterId, int jobId);
+  ~Schedd();
+
+  int submit(int clusterId,
+             int procId,
+             struct ClassAd jobAd);
+  int declare_file(int clusterId,
+                   int procId,
+                   MyString name,
+                   int size,
+                   enum HashType hashType,
+                   char * hash);
+  int send_file(int clusterId,
+                int procId,
+                MyString name,
+                int offset,
+                char * data,
+                int data_length);
+
+protected:
+  HashTable<MyString, JobFile> *jobFiles;
+  MyString *spoolDirectory;
+};
