@@ -126,6 +126,14 @@ _condor_save_sigstates()
 	/* Save handler information for each signal */
 	for ( sig=1; sig < signal_states.nsigs; sig++ ) {
 		sigaction(sig,NULL,&(signal_states.actions[sig]));
+		if (sig == SIGSEGV) {
+			dprintf( D_ALWAYS, "Saving sig handler for SIGSEGV (Ox%x)\n",
+				signal_states.actions[sig].sa_sigaction);
+		}
+		if (sig == SIGUSR2) {
+			dprintf( D_ALWAYS, "Saving sig handler for SIGUSR2 (Ox%x)\n",
+				signal_states.actions[sig].sa_handler);
+		}
 	}
 
 	/* Save pointer to signal stack (not POSIX, but widely supported) */	
@@ -175,8 +183,36 @@ _condor_restore_sigstates()
 				continue;
 		}
 		sigaction(sig, &(signal_states.actions[sig]), NULL);
+		if (sig == SIGSEGV) {
+			dprintf( D_ALWAYS, "Restoring sig handler for SIGSEGV (Ox%x)\n",
+				signal_states.actions[sig].sa_sigaction);
+		}
+		if (sig == SIGUSR2) {
+			dprintf( D_ALWAYS, "Restoring sig handler for SIGUSR2 (Ox%x)\n",
+				signal_states.actions[sig].sa_handler);
+		}
 	}
 
+	/* test the seg_handler here */
+	/*
+	{
+    char * test = malloc( 3 * getpagesize( ) );
+    char * page = (char *)(((int) test + getpagesize()-1) & ~(getpagesize()-1));
+	page += getpagesize();
+	dprintf( D_ALWAYS, "TESTING SEG_HANDLER\n" );
+    dprintf( D_ALWAYS, "Mprotecting page: Start 0x%x, len %d\n",
+            page, getpagesize() );
+    mprotect (page, getpagesize(), 1);
+    dprintf( D_ALWAYS, "Trying to initiate a segfault at Ox%x.\n",
+            &page[2]);
+    page[2]++;
+    dprintf( D_ALWAYS, "Successfully able to fix segv at Ox%x.\n",
+            &page[2]);
+    free( test );
+	dprintf( D_ALWAYS, "TESTING SUCCESSFULL\n" );
+	}
+	*/
+	/* this works */
 
 	/* Restore signal stack pointer */
 #if defined(Solaris) || defined(IRIX)

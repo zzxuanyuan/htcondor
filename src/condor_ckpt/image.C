@@ -30,6 +30,7 @@
 #include <netconfig.h>		// for setnetconfig()
 #endif
 
+#include "condor_config.h"
 #include "condor_syscalls.h"
 #include "condor_sys.h"
 #include "image.h"
@@ -95,7 +96,9 @@ void terminate_with_sig( int sig );
 static void find_stack_location( RAW_ADDR &start, RAW_ADDR &end );
 static int SP_in_data_area();
 static void calc_stack_to_save();
-extern "C" void _install_signal_handler( int sig, SIG_HANDLER handler );
+void seg_handler( int signal, siginfo_t *info, void *context ); 
+void test_seg_handler( );
+extern "C" void _install_signal_handler( int sig, void * handler );
 extern "C" int open_ckpt_file( const char *name, int flags, size_t n_bytes );
 extern "C" int get_ckpt_mode( int sig );
 extern "C" int get_ckpt_speed( );
@@ -105,7 +108,7 @@ static jmp_buf Env;
 static RAW_ADDR SavedStackLoc;
 volatile int InRestart = TRUE;
 volatile int check_sig;		// the signal which activated the checkpoint; used
-							// by some routines to determine if this is a periodic
+							// by some routines to determine if this is periodic
 							// checkpoint (USR2) or a check & vacate (TSTP).
 static size_t StackSaveSize;
 unsigned int _condor_numrestarts = 0;
@@ -542,6 +545,24 @@ _condor_prestart( int syscall_mode )
 		// Install initial signal handlers
 	_install_signal_handler( SIGTSTP, (SIG_HANDLER)Checkpoint );
 	_install_signal_handler( SIGUSR2, (SIG_HANDLER)Checkpoint );
+		// install one for incremental checkpointing
+	_install_signal_handler( SIGSEGV, seg_handler );
+	dprintf( D_ALWAYS, "Registered seg_handler (Ox%x)\n", seg_handler );
+	dprintf( D_ALWAYS, "Registered ckpt_handler(0x%x)\n", Checkpoint  ); 
+	/*
+	dprintf( D_ALWAYS, "Registering signal for incr. ckpting\n" );
+    struct sigaction sa;
+    sa.sa_sigaction = seg_handler;
+    sigfillset( &sa.sa_mask);
+    sa.sa_flags = SA_SIGINFO;
+    if (sigaction (SIGSEGV, &sa, 0) != 0) {
+		dprintf( D_ALWAYS, "Couldn't register signal\n" );
+    } else {
+		dprintf( D_ALWAYS, "Registered OK\n" );
+	}
+	*/
+	// make sure signal was correctly installed
+	//test_seg_handler( ); // this works
 
 	calc_stack_to_save();
 
@@ -570,18 +591,40 @@ _condor_prestart( int syscall_mode )
 
 }
 
+void
+test_seg_handler( ) {
+	char * test = malloc( 2 * getpagesize( ) );
+	char * page = condor_getpagestart( test ) + getpagesize();
+	dprintf( D_ALWAYS, "TESTING SEG_HANDLER\n" );
+	//dprintf( D_ALWAYS, "Mprotecting page: Start 0x%x, len %d\n", 
+	//		page, getpagesize() );
+	condor_mprotect( page, getpagesize(), PROT_READ );
+	//dprintf( D_ALWAYS, "Trying to initiate a segfault at Ox%x.\n",
+	//		&page[2]);
+	page[2]++;
+	//dprintf( D_ALWAYS, "Successfully able to fix segv at Ox%x.\n",
+	//		&page[2]);
+	free( test );
+	dprintf( D_ALWAYS, "TESTING SUCCESSFULL\n" );
+}
+
 extern "C" void
-_install_signal_handler( int sig, SIG_HANDLER handler )
+_install_signal_handler( int sig,  void *handler )
 {
 	int		scm;
 	struct sigaction action;
 
 	scm = SetSyscalls( SYS_LOCAL | SYS_UNMAPPED );
 
-#if defined(HPUX10)
+#if defined(HPUX10) 
 	action.sa_sigaction = handler;
 #else
-	action.sa_handler = handler;
+	// do increment chpting differently
+	if (sig == SIGSEGV) {
+		action.sa_sigaction = handler;
+	} else {
+		action.sa_handler = (SIG_HANDLER)handler;
+	}
 #endif
 	sigemptyset( &action.sa_mask );
 	/* We do not want "recursive" checkpointing going on.  So block SIGUSR2
@@ -591,10 +634,14 @@ _install_signal_handler( int sig, SIG_HANDLER handler )
 	if ( sig == SIGUSR2 )
 		sigaddset(&action.sa_mask,SIGTSTP);
 	
-#if defined(HPUX10)
+#if defined(HPUX10) 
 	action.sa_flags = SA_SIGINFO;	/* so our handler is passed the context */
 #else
-	action.sa_flags = 0;
+	if (sig == SIGSEGV) {
+		action.sa_flags = SA_SIGINFO; /* so our handler is passed the context */
+	} else {
+		action.sa_flags = 0;
+	}
 #endif
 
 	if( sigaction(sig,&action,NULL) < 0 ) {
@@ -959,6 +1006,25 @@ Image::RestoreSeg( const char *seg_name )
 	exit( 1 );
 }
 
+
+int mprotects = 0;
+
+// TODO: this is where stuff breaks down
+BOOL
+Image::Mprotect( int prot ) {
+	dprintf( D_ALWAYS, "Mprotect called on image\n" );
+	test_seg_handler(); 									// this works
+	dprintf( D_ALWAYS, "seg faults caught so far: %i\n", mprotects );
+	dprintf( D_ALWAYS, "addr of mprotects: Ox%x\n", &mprotects );
+	for (int i = 0; i<head.N_Segs(); i++) {
+		if ( mystrcmp("DATA", map[i].GetName()) == 0 ) {
+			dprintf( D_ALWAYS, "Will mprotect data segment\n" );
+			map[i].Mprotect( PROT_READ ); 					// this crashes
+			dprintf( D_ALWAYS, "Mproctected data segment\n" );
+		}
+	} 
+}
+
 void Image::RestoreAllSegsExceptStack()
 {
 	int		i;
@@ -974,6 +1040,11 @@ void Image::RestoreAllSegsExceptStack()
 				dprintf(D_ALWAYS, "SegMap::Read() failed!\n" );
 				Suicide();
 			}
+			/*
+			if( mystrcmp("DATA", map[i].GetName()) == 0 ) {
+				map[i].Mprotect(PROT_READ);
+			}
+			*/	
 		}
 		else if (i<head.N_Segs()-1) {
 			dprintf( D_ALWAYS, "Checkpoint file error: STACK is not the "
@@ -984,6 +1055,9 @@ void Image::RestoreAllSegsExceptStack()
 		}
 		fd = save_fd;
 	}
+	// mprotect necessary here ????
+	dprintf( D_ALWAYS, "About to Mprotect MyImage (2).\n" );
+	MyImage.Mprotect( PROT_READ );	
 }
 
 
@@ -1407,6 +1481,19 @@ Image::Close()
 	fd = -1;
 }
 
+
+/* a function for incremental ckpting.  Mprotect the segment in memory */
+BOOL
+SegMap::Mprotect( int prot ) 
+{
+	char * start = condor_getpagestart((char *)GetLoc());
+	dprintf( D_ALWAYS, "Mprotecting segment %s. Start 0x%x, len %d\n", 
+			GetName(), start, GetLen());
+	/* don't protect the boundary pages */
+	condor_mprotect (start + getpagesize(), len - getpagesize(), prot);
+	return true;
+}
+
 ssize_t
 SegMap::Read( int fd, ssize_t pos )
 {
@@ -1666,7 +1753,7 @@ Checkpoint( int sig, int code, void *scp )
 	int		write_result;
 
 	/*
-		WARNING: Do not put any code here.  This check prevents a race condition.
+		WARNING: Do not put any code here. This check prevents a race condition.
 		The Checkpoint signal could arrive before we block the signal, thus
 		causing a checkpoint within a checkpoint.  We _could_ prevent this race
 		condition by using sigaction to automatically set the signal mask, but
@@ -1885,6 +1972,9 @@ Checkpoint( int sig, int code, void *scp )
 		dprintf( D_ALWAYS, "About to restore signal state\n" );
 		_condor_restore_sigstates();
 
+		// need to do mprotect here following restart - JMB
+		dprintf( D_ALWAYS, "About to mprotect MyImage\n" );
+		MyImage.Mprotect ( PROT_READ );
 		dprintf( D_ALWAYS, "About to return to user code\n" );
 		InRestart = FALSE;
 		return;
@@ -1903,6 +1993,10 @@ init_image_with_file_descriptor( int fd )
 	MyImage.SetFd( fd );
 }
 
+char * 
+condor_getfaultaddr( void *context ) {
+	return (char*)(((struct ucontext *)context)->uc_mcontext.cr2);
+}
 
 /*
   Effect a restart by reading in an "image" containing checkpointing
@@ -2141,6 +2235,96 @@ SP_in_data_area()
 
 	return data_start <= SP && SP <= data_end;
 }
+
+/* Incremental ckpting stuff - jmb */
+/* takes an address and returns the start boundary of the containing page */
+char *
+condor_getpagestart (char * addr) {
+	char * p;
+	// align to a multiple of getpagesize(), p will be >= to addr
+	p = (char *)(((int) addr + getpagesize()-1) & ~(getpagesize()-1));
+	if (p != addr) {
+		assert (p > addr);
+		p -= getpagesize();
+	}	
+	return p;
+}
+
+/* given a start addr and a size and a protection value, this
+* will set those permissions for that memory
+* NOTE: if the parameters are not page sized, this will extend the 
+* protection to the page boundaries
+*/
+void
+condor_mprotect (char * startaddr, long size, int prot) {
+	char * end = startaddr + size;
+	char * p = condor_getpagestart (startaddr);
+	
+	int diff = startaddr - p;
+	int pagesize = getpagesize();
+	size += diff; 
+	if (size % pagesize) {
+		size += (pagesize - (size % pagesize));
+		assert (size % pagesize == 0);
+	} 
+	/* silence dprintf's cause they're maybe problematic in the signal handler*/
+	/*
+	dprintf( D_ALWAYS, "Gonna protect Ox%x, length %i, with prot of %i\n", 
+		p, size, prot );
+	*/
+	// don't use mprotect, bec. it is overwritten in syscall_lib/switches.C
+	if ( syscall( SYS_mprotect, p, size , prot ) < 0) {
+	//if ( mprotect(p, size, prot) < 0) {
+		dprintf( D_ALWAYS, "Couldn't mprotect: %i\n", errno );
+		exit( -1 );
+	}
+	/*
+	dprintf( D_ALWAYS, "Protected Ox%x, length %i, with prot of %i\n", 
+		p, size, prot );
+	*/
+}
+
+char seg_message[] = "**caught segv, will reset prots\n\0"; 
+
+/** 
+DON"T do malloc or free in the signal handler !!!
+This is the signal catcher for the incremental ckpting.
+*/
+void
+seg_handler(int signal, siginfo_t *info, void *context) {
+	int saved_errno = errno;
+	char * pagestart;
+
+	assert (signal == SIGSEGV);
+	//mprotects++;
+
+    #ifdef linux
+           info->si_addr = condor_getfaultaddr(context);
+    #endif
+
+	/* dprintf uses a buffer in the heap, so don't use it or we'll get
+	*  segfaults in our segfault handler */
+	/*
+	dprintf(D_ALWAYS, "**caught a seg fault at Ox%x, will reset prots.\n", 
+		info->si_addr);
+	*/
+	// this is maybe also problematic
+	/*
+	int nbytes =  syscall( SYS_write, STDOUT_FILENO, seg_message ); 
+	if (nbytes < 0) {
+		perror( "Can't write to stdout: ");
+	}
+	if ( write( STDOUT_FILENO, seg_message, 34 ) < 0 ) {
+		perror( "Can't write to stdout: ");
+		exit( -1 );
+	}	
+	*/
+
+	pagestart = condor_getpagestart((char *)info->si_addr);
+
+	condor_mprotect( pagestart, getpagesize(), PROT_READ | PROT_WRITE );
+	errno = saved_errno;
+} 
 
 extern "C" {
 void

@@ -70,6 +70,7 @@ public:
 	RAW_ADDR GetLoc() { return core_loc; }
 	long GetLen() { return len; }
 	void MSync();
+	BOOL Mprotect( int prot );
 	void Display();
 	long TotalPages();
 	int Compare(SegMap &other, int fd, int otherfd);
@@ -103,6 +104,7 @@ public:
 	void SetFileName( char *ckpt_name );
 	void SetMode( int syscall_mode );
 	void MSync();
+	BOOL Mprotect( int prot );
 	int Compare(Image &other);
 
 #if defined(COMPRESS_CKPT)
@@ -178,8 +180,18 @@ extern "C" {
 	int &prot );
      void display_prmap();
      unsigned long find_correct_vm_addr(unsigned long, unsigned long, int);
+/* Incremental checkpointing stuff - jmb */
+#include <asm/sigcontext.h>
+#include <asm/ucontext.h>
+	char * condor_getfaultaddr( void *context ); 
 };
 #endif
+
+/* Incremental checkpointing stuff - jmb */
+char * condor_getpagestart( char * addr ); 
+void condor_mprotect( char * startaddr, long size, int prot );
+void incr_ckpt_handler( int signal, siginfo_t *info, void *context );  
+/* end incremental ckpting stuff */
 
 #if defined(IRIX)
 #	define JMP_BUF_SP(env) ((env)[JmpBufSP_Index()])

@@ -134,12 +134,13 @@ getEvent (FILE *file)
 }
 
 
+/* change log writing and reading to use new class ads */
 int ULogEvent::
 putEvent (FILE *file)
 {
 	if (!file) return 0;
 
-	return (writeHeader (file) && writeEvent (file));
+	return (writeHeader (file) && writeEvent (file) && writeTail (file));
 }
 
 // This function reads in the header of an event from the UserLog and fills
@@ -171,6 +172,25 @@ readHeader (FILE *file)
 	return 1;
 }
 
+// Write the tail for the event to the file
+// this is only needed for classad events to close the bracket
+int ULogEvent::
+writeTail (FILE *file)
+{
+	int retval = 1;
+
+#if defined(CLASSAD_LOGFILE)
+	retval = fprintf (file, "]\n");
+#endif
+
+	// check that tail was written correctly
+	if (retval < 0)
+	{
+		return 0;
+	}
+
+	return 1; 
+}	
 
 // Write the header for the event to the file
 int ULogEvent::
@@ -179,11 +199,32 @@ writeHeader (FILE *file)
 	int       retval;
 
 	// write header
+#if defined(CLASSAD_LOGFILE)
+	// while we're at it, lets add the year
+	// don't close the classad here in the header, writeTail does that
+	retval = fprintf (file, 
+					"["
+						"MyType = \"UserLogEvent\"; "
+						"EventType = %03d;"
+						"Cluster = %03d;"
+						"Proc = %03d;"
+						"Subproc = %03d;"
+						"Year = %02d;"
+						"Month = %02d;"
+						"Day = %02d;"
+						"Hour = %02d;"
+						"Min  = %02d;"
+						"Sec  = %02d;",
+					eventNumber, cluster, proc, subproc, 
+					eventTime.tm_year, eventTime.tm_mon+1, eventTime.tm_mday, 
+					eventTime.tm_hour, eventTime.tm_min, eventTime.tm_sec);
+#else
 	retval = fprintf (file, "%03d (%03d.%03d.%03d) %02d/%02d %02d:%02d:%02d ",
 					  eventNumber, 
 					  cluster, proc, subproc,
 					  eventTime.tm_mon+1, eventTime.tm_mday, 
 					  eventTime.tm_hour, eventTime.tm_min, eventTime.tm_sec);
+#endif
 
 	// check if all fields were sucessfully written
 	if (retval < 0) 
@@ -211,7 +252,15 @@ SubmitEvent::
 int SubmitEvent::
 writeEvent (FILE *file)
 {	
+
+#if defined(CLASSAD_LOGFILE)
+	int retval = fprintf (file, 
+			"%s = \"Job submitted\"; "
+			"%s = \"%s\";",
+			EventDesc, EventHost, submitHost);
+#else
 	int retval = fprintf (file, "Job submitted from host: %s\n", submitHost);
+#endif
 	if (retval < 0)
 	{
 		return 0;
@@ -249,7 +298,13 @@ GenericEvent::
 int GenericEvent::
 writeEvent(FILE *file)
 {
+#if defined(CLASSAD_LOGFILE)
+	int retval = fprintf(file, 
+			"%s = \"Generic event\"; "
+			"%s = \"%s\";", EventDesc, EventInfo, info);
+#else
     int retval = fprintf(file, "%s\n", info);
+#endif
     if (retval < 0)
     {
 	return 0;
@@ -288,7 +343,14 @@ ExecuteEvent::
 int ExecuteEvent::
 writeEvent (FILE *file)
 {	
+#if defined(CLASSAD_LOGFILE)
+	int retval = fprintf (file,
+			"%s = \"Job began execution\"; "
+			"%s = \"%s\"; ",
+			EventDesc, EventHost, executeHost);
+#else
 	int retval = fprintf (file, "Job executing on host: %s\n", executeHost);
+#endif
 	if (retval < 0)
 	{
 		return 0;
@@ -327,18 +389,35 @@ writeEvent (FILE *file)
 {
 	int retval;
 
+#if defined(CLASSAD_LOGFILE)
+	retval = fprintf (file, "%s = \"Executable error\"; ", EventDesc);
+	retval = fprintf (file, "%s = %d;", EventError, errType);
+#endif
 	switch (errType)
 	{
 	  case CONDOR_EVENT_NOT_EXECUTABLE:
+#if defined(CLASSAD_LOGFILE)
+		retval = fprintf (file, "%s = \"Job file not executable.\";",EventInfo);
+#else
 		retval = fprintf (file, "(%d) Job file not executable.\n", errType);
+#endif
 		break;
 
 	  case CONDOR_EVENT_BAD_LINK:
-		retval=fprintf(file,"(%d) Job not properly linked for Condor.\n", errType);
+#if defined(CLASSAD_LOGFILE)
+		retval = fprintf (file, "%s = \"Job not properly linked for Condor.\",",			EventInfo);
+#else
+		retval=fprintf(file,"(%d) Job not properly linked for Condor.\n", 
+			errType);
+#endif
 		break;
 
 	  default:
+#if defined(CLASSAD_LOGFILE)
+		retval = fprintf (file, "%s = \"[Bad error number.]\"; ", EventInfo);
+#else
 		retval = fprintf (file, "(%d) [Bad error number.]\n", errType);
+#endif
 	}
 	if (retval < 0) return 0;
 
@@ -387,15 +466,21 @@ CheckpointedEvent::
 int CheckpointedEvent::
 writeEvent (FILE *file)
 {
-	if (fprintf (file, "Job was checkpointed.\n") < 0  		||
-		(!writeRusage (file, run_remote_rusage)) 			||
-		(fprintf (file, "  -  Run Remote Usage\n\t") < 0) 	||
-		(!writeRusage (file, run_local_rusage)) 			||
-		(fprintf (file, "  -  Run Local Usage\n") < 0))
-		return 0;
+	int retval;
+#if defined(CLASSAD_LOGFILE)
+	retval = fprintf (file, "%s = \"Job was checkpointed\"; ", EventDesc);
+#else
+	retval = fprintf (file, "Job was checkpointed.\n");
+#endif
 
-	return 1;
-}
+	if (retval != 0) {
+		return 0;
+	}
+
+	retval = writeUsage (file, run_remote_rusage, run_local_rusage);
+	return (retval > 0);	
+}	
+
 
 int CheckpointedEvent::
 readEvent (FILE *file)
@@ -461,28 +546,42 @@ writeEvent (FILE *file)
 {
 	int retval;
 
+#if defined(CLASSAD_LOGFILE)
+	if (fprintf (file, "%s = \"Job was evicted\"; ", EventDesc) < 0)
+		return 0;
+#else
 	if (fprintf (file, "Job was evicted.\n\t(%d) ", (int) checkpointed) < 0)
 		return 0;
+#endif
 
 	if (checkpointed)
+#if defined(CLASSAD_LOGFILE)
+		retval = fprintf (file, "EvictCheckpoint = true;");
+#else
 		retval = fprintf (file, "Job was checkpointed.\n\t");
+#endif
 	else
+#if defined(CLASSAD_LOGFILE)
+		retval = fprintf (file, "EvictCheckpoint = false;");
+#else
 		retval = fprintf (file, "Job was not checkpointed.\n\t");
+#endif
 
-
-	if ((retval < 0)										||
-		(!writeRusage (file, run_remote_rusage)) 			||
-		(fprintf (file, "  -  Run Remote Usage\n\t") < 0) 	||
-		(!writeRusage (file, run_local_rusage)) 			||
-		(fprintf (file, "  -  Run Local Usage\n") < 0))
+	if ((retval < 0) || !writeUsage(file, run_remote_rusage, run_local_rusage))
 		return 0;
 
 
-	if (fprintf (file, "\t%.0f  -  Run Bytes Sent By Job\n", sent_bytes) < 0 ||
-		fprintf (file, "\t%.0f  -  Run Bytes Received By Job\n",
-				 recvd_bytes) < 0)
+#if defined(CLASSAD_LOGFILE)
+	retval = fprintf (file, "Run_Bytes_Sent = %.0f; Run_Bytes_Received = %.0f;",
+						sent_bytes, recvd_bytes);
+#else
+	retval = fprintf(file, "\t%.0f  -  Run Bytes Sent By Job\n\t%.0f  "
+						"-  Run Bytes Received By Job\n", recvd_bytes);
+#endif
+	if (retval < 0) {
 		return 1;				// backwards compatibility
-	
+	}	
+
 	return 1;
 }
 
@@ -503,7 +602,11 @@ int JobAbortedEvent::
 writeEvent (FILE *file)
 {
 
+#if defined(CLASSAD_LOGFILE)
+	if (fprintf (file, "%s = \"Job was aborted by the user\"; ") < 0) return 0;
+#else
 	if (fprintf (file, "Job was aborted by the user.\n") < 0) return 0;
+#endif
 
 	return 1;
 }
@@ -543,46 +646,68 @@ writeEvent (FILE *file)
 {
 	int retval=0;
 
+#if defined(CLASSAD_LOGFILE)
+	if (fprintf (file, "%s = \"Job completed\"; ") < 0) return 0;
+#else
 	if (fprintf (file, "Job terminated.\n") < 0) return 0;
+#endif
 	if (normal)
 	{
+#if defined(CLASSAD_LOGFILE)
+		if (fprintf (file, "Normal_termination = true; ") < 0) return 0;
+#else
 		if (fprintf (file,"\t(1) Normal termination (return value %d)\n\t", 
 						  returnValue) < 0)
 			return 0;
+#endif
 	}
 	else
 	{
+#if defined(CLASSAD_LOGFILE)
+		if (fprintf (file, "Normal_termination = false; ") < 0) return 0;
+#else
 		if (fprintf (file,"\t(0) Abnormal termination (signal %d)\n",
 						  signalNumber) < 0)
 			return 0;
+#endif
 
 		if (coreFile [0])
+#if defined(CLASSAD_LOGFILE)
+			retval = fprintf (file, "Corefile = \"%s\"; ", coreFile);
+#else
 			retval = fprintf (file, "\t(1) Corefile in: %s\n\t", coreFile);
+#endif
 		else
+#if defined(CLASSAD_LOGFILE)
+			retval = fprintf (file, "Corefile = \"NULL\"; ", coreFile);
+#else
 			retval = fprintf (file, "\t(0) No core file\n\t");
+#endif
 	}
 
 
-	if ((retval < 0)										||
-		(!writeRusage (file, run_remote_rusage))			||
-		(fprintf (file, "  -  Run Remote Usage\n\t") < 0) 	||
-		(!writeRusage (file, run_local_rusage)) 			||
-		(fprintf (file, "  -  Run Local Usage\n\t") < 0)   	||
-		(!writeRusage (file, total_remote_rusage))			||
-		(fprintf (file, "  -  Total Remote Usage\n\t") < 0)	||
-		(!writeRusage (file,  total_local_rusage))			||
-		(fprintf (file, "  -  Total Local Usage\n") < 0))
+	if ((retval < 0) || !writeUsage (file, run_remote_rusage, run_local_rusage))
 		return 0;
 
+#if defined(CLASSAD_LOGFILE)
+	retval = fprintf (file, "Run_Bytes_Sent = %.0f; "
+							"Run_Bytes_Received = %.0f;"
+							"Total_Bytes_Sent = %.0f; "
+							"Total_Bytes_Received = %.0f; ",
+							sent_bytes, recvd_bytes, 
+							total_sent_bytes, total_recvd_bytes);
+#else
+	retval = fprintf(file, "\t%.0f  -  Run Bytes Sent By Job\n"
+							"\t%.0f -  Run Bytes Received By Job\n"
+							"\t%.0f -  Total Bytes Sent By Job\n"
+							"\t%.0f -  Total Bytes Received By Job\n",
+							sent_bytes, recvd_bytes,
+							total_sent_bytes, total_recvd_bytes);
+#endif
 
-	if (fprintf (file, "\t%.0f  -  Run Bytes Sent By Job\n", sent_bytes) < 0 ||
-		fprintf (file, "\t%.0f  -  Run Bytes Received By Job\n",
-				 recvd_bytes) < 0 ||
-		fprintf (file, "\t%.0f  -  Total Bytes Sent By Job\n",
-				 total_sent_bytes) < 0 ||
-		fprintf (file, "\t%.0f  -  Total Bytes Received By Job\n",
-				 total_recvd_bytes) < 0)
+	if (retval < 0) {
 		return 1;				// backwards compatibility
+	}
 
 	return 1;
 }
@@ -662,8 +787,16 @@ JobImageSizeEvent::
 int JobImageSizeEvent::
 writeEvent (FILE *file)
 {
+#if defined(CLASSAD_LOGFILE)
+	if (fprintf (file, "%s = \"Image size updated\"; Image_Size = %d; ", 
+						EventDesc, size) < 0) 
+	{
+		return 0;
+	}
+#else
 	if (fprintf (file, "Image size of job updated: %d\n", size) < 0)
 		return 0;
+#endif
 
 	return 1;
 }
@@ -716,15 +849,30 @@ readEvent (FILE *file)
 int ShadowExceptionEvent::
 writeEvent (FILE *file)
 {
+#if defined(CLASSAD_LOGFILE)
+	if (fprintf (file, "%s = \"Shadow execption\"; ", EventDesc) < 0)
+		return 0;
+	if (fprintf (file, "%s = \"%s\"; ", EventInfo, message) < 0)
+		return 0;
+#else
 	if (fprintf (file, "Shadow exception!\n\t") < 0)
 		return 0;
 	if (fprintf (file, "%s\n", message) < 0)
 		return 0;
+#endif
 
-	if (fprintf (file, "\t%.0f  -  Run Bytes Sent By Job\n", sent_bytes) < 0 ||
-		fprintf (file, "\t%.0f  -  Run Bytes Received By Job\n",
-				 recvd_bytes) < 0)
-		return 1;				// backwards compatibility
+	int retval;
+#if defined(CLASSAD_LOGFILE)
+	retval = fprintf (file, "Run_Bytes_Sent = %.0f; Run_Bytes_Received = %.0f;",
+						sent_bytes, recvd_bytes);
+#else
+	retval = fprintf(file, "\t%.0f  -  Run Bytes Sent By Job\n\t%.0f  "
+						"-  Run Bytes Received By Job\n", recvd_bytes);
+#endif
+
+	if (retval < 0) {
+		return 1;		// backwards compatibility
+	}
 	
 	return 1;
 }
@@ -733,6 +881,27 @@ static const int seconds = 1;
 static const int minutes = 60 * seconds;
 static const int hours = 60 * minutes;
 static const int days = 24 * hours;
+
+/* note that this function writes the usage info into a nested classad */
+int ULogEvent::
+writeUsage (FILE *file, rusage &remote, rusage &local) {
+#if defined(CLASSAD_LOGFILE)
+		if ((fprintf (file, "Run_Remote_Usage = [") < 0)	||
+		(!writeRusage (file, remote)) 			||
+		(fprintf (file, "];") < 0)							||
+		(fprintf (file, "Run Local Usage = [") < 0)			||
+		(!writeRusage (file, local)) 			||
+		(fprintf (file, "];") < 0))
+		return 0;
+#else
+		if ((!writeRusage (file, remote)) 		||
+		(fprintf (file, "  -  Run Remote Usage\n\t") < 0) 	||
+		(!writeRusage (file, local)) 			||
+		(fprintf (file, "  -  Run Local Usage\n") < 0))
+		return 0;
+#endif
+	return 1;
+}
 
 int ULogEvent::
 writeRusage (FILE *file, rusage &usage)
@@ -752,9 +921,23 @@ writeRusage (FILE *file, rusage &usage)
 	sys_minutes = sys_secs/minutes;		sys_secs %= minutes;
  	
 	int retval;
+#if defined(CLASSAD_LOGFILE)
+	retval = fprintf (file,
+		"Usr_days = %d;"
+		"Usr_hours = %02d;"
+		"Usr_minutes = %02d;"
+		"Usr_secs = %02d;"
+		"Sys_days = %d;"
+		"Sys_hours = %02d;"
+		"Sys_minutes = %02d;"
+		"Sys_secs = %02d;",
+		usr_days, usr_hours, usr_minutes, usr_secs, 
+		sys_days, sys_hours, sys_minutes, sys_secs);
+#else
 	retval = fprintf (file, "\tUsr %d %02d:%02d:%02d, Sys %d %02d:%02d:%02d",
 					  usr_days, usr_hours, usr_minutes, usr_secs,
 					  sys_days, sys_hours, sys_minutes, sys_secs);
+#endif
 
 	return (retval > 0);
 }

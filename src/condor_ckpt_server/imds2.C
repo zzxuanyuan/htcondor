@@ -22,6 +22,8 @@
 ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
 #include "condor_common.h"
+#include "condor_config.h"
+#include "condor_debug.h"
 #include "imds2.h"
 #include "fileinfo2.h"
 #include "fileindex2.h"
@@ -104,6 +106,23 @@ int IMDS::RenameFile(struct in_addr machine_IP,
 			old_file_ptr->data.last_modified_time)
 			return CANNOT_RENAME_OVER_NEWER_FILE;
 		/* create hard links for John Bent's diff. ckpting analysis */
+		char * diff_ckpt_dir;
+		if ( (diff_ckpt_dir = param("DIFF_CKPT_DIR")) != NULL) {
+			dprintf( D_ALWAYS, "diff dir is %s\n", diff_ckpt_dir );
+			sprintf(new_link, "%s%s%s%s", diff_ckpt_dir, 
+				old_file_ptr->data.machine_IP_name, owner_name, 
+				file_name);
+			sprintf(old_link, "%s%s%s%s.tmp", diff_ckpt_dir, 
+				old_file_ptr->data.machine_IP_name, owner_name, 
+				file_name); 
+			dprintf(D_ALWAYS,"making links to %s and %s\n", new_link, old_link);
+			if (0 == LinkFile(old_pathname, old_link))	/* ignore failure */ 
+				LinkFile(new_pathname, new_link);
+			free( file_name );	
+		} else {
+			dprintf( D_ALWAYS, "imds2.C: diff dir param not found\n");
+		} 
+		/* create hard links for John Bent's diff. ckpting analysis */
 		sprintf(new_link, "%s%s", ANALYZER_CKPT_DIR, file_name);
 		sprintf(old_link, "%s%s.tmp", ANALYZER_CKPT_DIR, file_name); 
 		if (0 == LinkFile(old_pathname, old_link)) 
@@ -118,6 +137,46 @@ int IMDS::RenameFile(struct in_addr machine_IP,
 	(void) Index.DeleteFile(machine_IP, owner_name, file_name);
 /*	return RENAMED; */
 	return CKPT_OK;
+}
+
+
+// this is used to create hard links for the diff. ckpting analysis (John B)
+// it also sets world writeable permissions to allow the manager to remove
+// the links when done
+int IMDS::LinkFile (char * old_path, char * new_path) { 
+    int status = link (old_path, new_path);
+    if (status == 0) { // link ok, now set permissions
+		status = access(new_path, R_OK | W_OK );
+		if (status == 0) return status;
+		dprintf( D_ALWAYS, "IMDS:LinkFile: access error" );
+	}
+
+	else { // unable to create link, check errno
+    	char * error_file;
+		FILE * error_fp;
+		
+		if ( (error_file = param("DIFF_CKPT_ERR")) != NULL) {
+    		sprintf(error_file, "%s", error_file);
+    		error_fp = fopen(error_file, "a");
+    		if (error_fp == NULL) {
+        		printf("Could not open %s.\n", error_file);
+				free( error_file );
+        		return status;
+    		}
+    		if (errno == EEXIST) { // analyzer is running slow, print an err msg
+        		fprintf(error_fp, "Already exists: %s\n", new_path);
+    		} else {
+        		fprintf(error_fp, "Link error: %s\n", strerror(errno));
+    		}
+    		if (0 != fclose(error_fp)) {
+				dprintf( D_ALWAYS, "Could not close error file: \n" );
+			}
+			free( error_file );
+		} else {
+			dprintf( D_ALWAYS, "No DIFF_CKPT_ERR param\n" );
+		}
+	}
+    return status;
 }
 
 
@@ -146,6 +205,7 @@ int IMDS::LinkFile (char * old_path, char * new_path) {
 }
 
 
+>>>>>>> 1.9.28.1
 u_short IMDS::RemoveFile(struct in_addr machine_IP,
 						 const char*    owner_name,
 						 const char*    file_name)

@@ -40,6 +40,12 @@
 /* Since this is a Condor API header file, we want to minimize our
    reliance on other Condor files to ease distribution.  -Jim B. */
 
+/* I'm changing this to read and write logfiles as class ads, first I'm
+ * just doing the writing, later I need to return and do the reading as
+ * well.  jmb
+*/
+#define CLASSAD_LOGFILE 1
+
 #include <stdio.h>              /* for FILE type */
 #if !defined(WIN32)
 #include <sys/resource.h>       /* for struct rusage */
@@ -67,6 +73,12 @@ enum ULogEventNumber {
 
 /// For printing the enum value.  cout << ULogEventNumberNames[eventNumber];
 extern const char * ULogEventNumberNames[];
+
+// For printing consistent class ad attributes
+const char EventDesc[] = "EventDesc";
+const char EventInfo[] = "EventInfo";
+const char EventHost[] = "EventHost";
+const char EventError[] = "EventError";
 
 //----------------------------------------------------------------------------
 /** Enumeration of possible outcomes after attempting to read an event.
@@ -177,6 +189,14 @@ class ULogEvent {
     */
     int writeRusage (FILE *, rusage &);
 
+    /** Write both remote and local resource usage to the log file.
+        @param file the non-NULL writable log file.
+        @param remote the remote rusage buffer to write with (not modified)
+        @param local the local rusage buffer to write with (not modified)
+        @return 0 for failure, 1 for success
+    */
+    int writeUsage (FILE *, rusage &, rusage &);
+
     /** Read the body of the next event.  This virtual function will
         be implemented differently for each specific type of event.
         @param file the non-NULL readable log file
@@ -202,6 +222,12 @@ class ULogEvent {
         @return 0 for failure, 1 for success
     */
     int writeHeader (FILE *file);
+
+    /** Write the tail to the log file
+        @param file the non-NULL writable log file
+        @return 0 for failure, 1 for success
+    */
+    int writeTail (FILE *file);
 };
 
 //----------------------------------------------------------------------------
