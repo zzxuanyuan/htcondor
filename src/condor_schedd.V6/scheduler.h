@@ -524,6 +524,14 @@ int aboutToSpawnJobHandlerDone( int cluster, int proc, void* srec=NULL,
 								int exit_status = 0 );
 
 
+/** A helper function that wraps the call to jobPrepNeedsThread() and
+	invokes aboutToSpawnJobHandler() as appropriate, either in its own
+	thread using Create_Thread_Qith_Wata(), or calling it and then
+	aboutToSpawnJobHandlerDone() directly.
+*/
+void callAboutToSpawnJobHandler( int cluster, int proc, shadow_rec* srec );
+
+
 /** Hook to call whenever a job enters a "terminal" state, something
 	it can never get out of (namely, COMPLETED or REMOVED).  Like the
 	aboutToSpawnJobHandler() hook above, this might be expensive, so

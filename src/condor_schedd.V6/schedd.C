@@ -1908,6 +1908,26 @@ aboutToSpawnJobHandlerDone( int cluster, int proc,
 }
 
 
+void
+callAboutToSpawnJobHandler( int cluster, int proc, shadow_rec* srec )
+{
+	if( jobPrepNeedsThread(cluster, proc) ) {
+		dprintf( D_FULLDEBUG, "Job prep for %d.%d will block, "
+				 "calling aboutToSpawnJobHandler() in a thread\n",
+				 cluster, proc );
+		Create_Thread_With_Data( aboutToSpawnJobHandler,
+								 aboutToSpawnJobHandlerDone,
+								 cluster, proc, srec );
+	} else {
+		dprintf( D_FULLDEBUG, "Job prep for %d.%d will not block, "
+				 "calling aboutToSpawnJobHandler() directly\n",
+				 cluster, proc );
+		aboutToSpawnJobHandler( cluster, proc, srec );
+		aboutToSpawnJobHandlerDone( cluster, proc, srec, 0 );
+	}
+}
+
+
 bool
 Scheduler::spawnJobHandler( shadow_rec* srec )
 {
@@ -5452,23 +5472,10 @@ Scheduler::StartJobHandler()
 
 			// if we got this far, we're definitely starting the job,
 			// so deal with the aboutToSpawnJobHandler hook...
-		if( jobPrepNeedsThread(cluster, proc) ) {
-			dprintf( D_FULLDEBUG, "Job prep for %d.%d will block, "
-					 "calling aboutToSpawnJobHandler() in a thread\n",
-					 cluster, proc );
-			Create_Thread_With_Data( aboutToSpawnJobHandler,
-									 aboutToSpawnJobHandlerDone,
-									 cluster, proc, srec );
-		} else {
-			dprintf( D_FULLDEBUG, "Job prep for %d.%d will not block, "
-					 "calling aboutToSpawnJobHandler() directly\n",
-					 cluster, proc );
-			aboutToSpawnJobHandler( cluster, proc, srec );
-			aboutToSpawnJobHandlerDone( cluster, proc, srec, 0 );
-		}
+		callAboutToSpawnJobHandler( cluster, proc, srec );
 
-			// if we got this far, we're done at this time.  just
-			// return and let our timer logic handle the rest.
+			// we're done trying to spawn a job at this time.  call
+			// tryNextJob() to let our timer logic handle the rest.
 		tryNextJob();
 		return;
 	}
