@@ -28,6 +28,7 @@
    to take ints (according to the man page, POSIX, whatever) that
    really take enums.  -Derek Wright 4/17/98 */
 #define getpriority __hide_getpriority
+#define setpriority __hide_setpriority
 #define getrlimit __hide_getrlimit
 #define __getrlimit __hide__getrlimit
 #define setrlimit __hide_setrlimit
@@ -43,6 +44,7 @@ extern "C" {
 
 #if defined(LINUX) && defined(GLIBC)
 #undef getpriority
+#undef setpriority
 #undef getrlimit
 #undef __getrlimit
 #undef setrlimit
@@ -51,6 +53,7 @@ int getrlimit(int, struct rlimit *);
 int __getrlimit(int, struct rlimit *);
 int setrlimit(int, const struct rlimit *);
 int getpriority(int, int);
+int setpriority(int, int, int);
 
 #endif /* LINUX && GLIBC */
 
