@@ -37,6 +37,7 @@
 
 
 extern "C" int exception_cleanup(int,int,char*);	/* Our function called by EXCEPT */
+JobInfoCommunicator* parseJICArgs( int argc, char* argv [] );
 
 static CStarter StarterObj;
 CStarter *Starter = &StarterObj;
@@ -52,7 +53,10 @@ usage()
 		dprintf( D_ALWAYS, "argv[%d] = %s\n", i, my_argv[i] );
 	}
 	dprintf(D_ALWAYS, "usage: condor_starter initiating_host\n");
-	dprintf(D_ALWAYS, "   or: condor_starter -slcf keyword\n");
+	dprintf(D_ALWAYS, "   or: condor_starter -job_keyword keyword\n");
+	dprintf(D_ALWAYS, "                      -job_cluster number\n");
+	dprintf(D_ALWAYS, "                      -job_proc    number\n");
+	dprintf(D_ALWAYS, "                      -job_subproc number\n");
 //	dprintf(D_ALWAYS, "   or: condor_starter -localfile filename\n");
 	DC_Exit(1);
 }
@@ -108,7 +112,7 @@ printClassAd( void )
 void
 main_pre_dc_init( int argc, char* argv[] )
 {	
-	if( argc == 2 && strincmp(argv[1],"-cl",3) == MATCH ) {
+	if( argc == 2 && strincmp(argv[1],"-cla",4) == MATCH ) {
 		printClassAd();
 		exit(0);
 	}
@@ -142,33 +146,19 @@ main_init(int argc, char *argv[])
 
 		// now, based on the command line args, figure out what kind
 		// of JIC we need...
-
-	switch( argc ) { 
+	if( argc < 2 ) {
+		usage();
+	}
+	if( argc == 2 ) { 
 			// probably talking to a shadow, but check to make sure
-	case 2:
 		if( argv[1][0] == '-' ) {
 				// someone handed us some kind of command line option
 				// w/o anything else, give 'em an error.
 			usage();
 		}
 		jic = new JICShadow( argv[1] );
-		break;
-
-	case 3:
-		if( argv[1][0] != '-' ) {
-				// 2nd arg isn't an option, error
-			usage();
-		}
-		if( strincmp(argv[1],"-slcf",7) == MATCH ) {
-				// starter local config file
-			jic = new JICLocalConfig( argv[2] );
-		} else {
-			usage();
-		}
-		break;
-
-	default:
-		usage();
+	} else {
+		jic = parseJICArgs( argc, argv );
 	}
 
 	if( ! jic ) {
@@ -182,6 +172,194 @@ main_init(int argc, char *argv[])
 
 	return 0;
 }
+
+
+void
+invalid( char* opt )
+{
+	dprintf( D_ALWAYS, "Command-line option '%s' is invalid\n", opt ); 
+	usage();
+}
+
+
+void
+ambiguous( char* opt )
+{
+	dprintf( D_ALWAYS, "Command-line option '%s' is ambiguous\n", opt ); 
+	usage();
+}
+
+
+void
+another( char* opt )
+{
+	dprintf( D_ALWAYS, 
+			 "Command-line option '%s' requires another argument\n", opt ); 
+	usage();
+}
+
+
+JobInfoCommunicator*
+parseJICArgs( int argc, char* argv [] )
+{
+	JobInfoCommunicator* jic = NULL;
+	char* job_keyword = NULL; 
+	int job_cluster = -1;
+	int job_proc = -1;
+	int job_subproc = -1;
+
+	bool warn_multi_keyword = false;
+	bool warn_multi_cluster = false;
+	bool warn_multi_proc = false;
+	bool warn_multi_subproc = false;
+
+	char *opt, *arg;
+	int opt_len;
+
+	char _jobkeyword[] = "-job_keyword";
+	char _jobcluster[] = "-job_cluster";
+	char _jobproc[] = "-job_proc";
+	char _jobsubproc[] = "-job_subproc";
+	char* target = NULL;
+
+	ASSERT( argc > 2 );
+	
+	char** tmp = argv;
+	for( tmp++; *tmp; tmp++ ) {
+		target = NULL;
+		opt = tmp[0];
+		arg = tmp[1];
+		opt_len = strlen( opt );
+		if( strncmp( "-job_", opt, MIN(opt_len,5)) ) {
+			invalid( opt );
+		}
+		if( opt_len < 6 ) {
+			ambiguous( opt );
+		}
+		switch( opt[5] ) {
+
+		case 'c':
+			if( strncmp(_jobcluster, opt, opt_len) ) {
+				invalid( opt );
+			} 
+			target = _jobcluster;
+			break;
+
+		case 'k':
+			if( strncmp(_jobkeyword, opt, opt_len) ) {
+				invalid( opt );
+			} 
+			target = _jobkeyword;
+			break;
+
+		case 'p':
+			if( strncmp(_jobproc, opt, opt_len) ) {
+				invalid( opt );
+			} 
+			target = _jobproc;
+			break;
+
+		case 's':
+			if( strncmp(_jobsubproc, opt, opt_len) ) {
+				invalid( opt );
+			} 
+			target = _jobsubproc;
+			break;
+
+		default:
+			invalid( opt );
+			break;
+
+		}
+			// now, make sure we got the arg
+		if( ! arg ) {
+			another( target );
+		} else {
+				// consume it for the purposes of the for() loop
+			tmp++;
+		}
+		if( target == _jobkeyword ) {
+				// we can check like that, since we're setting target to
+				// point to it, so we don't have to do a strcmp().
+			if( job_keyword ) {
+				warn_multi_keyword = true;
+				free( job_keyword );
+			}
+			job_keyword = strdup( arg );
+		} else if( target == _jobcluster ) {
+			if( job_cluster >= 0 ) {
+				warn_multi_cluster = true;
+			}
+			job_cluster = atoi( arg );
+			if( job_cluster < 0 ) {
+				dprintf( D_ALWAYS, 
+						 "ERROR: Invalid value for '%s': \"%s\"\n",
+						 _jobcluster, arg );
+				usage();
+			}
+		} else if( target == _jobproc ) {
+			if( job_proc >= 0 ) {
+				warn_multi_proc = true;
+			}
+			job_proc = atoi( arg );
+			if( job_proc < 0 ) {
+				dprintf( D_ALWAYS, 
+						 "ERROR: Invalid value for '%s': \"%s\"\n",
+						 _jobproc, arg );
+				usage();
+			}
+		} else if( target == _jobsubproc ) {
+			if( job_subproc >= 0 ) {
+				warn_multi_subproc = true;
+			}
+			job_subproc = atoi( arg );
+			if( job_subproc < 0 ) {
+				dprintf( D_ALWAYS, 
+						 "ERROR: Invalid value for '%s': \"%s\"\n",
+						 _jobsubproc, arg );
+				usage();
+			}
+		} else {
+				// Should never get here, since we'll hit usage above
+				// if we don't know what target option we're doing...
+			EXCEPT( "Programmer error in parsing arguments" );
+		}
+	}
+
+	if( warn_multi_keyword ) {
+		dprintf( D_ALWAYS, "WARNING: "
+				 "multiple '-job_keyword' options given, using \"%s\"\n",
+				 job_keyword );
+	}
+	if( warn_multi_cluster ) {
+		dprintf( D_ALWAYS, "WARNING: "
+				 "multiple '-job_cluster' options given, using \"%d\"\n",
+				 job_cluster );
+	}
+	if( warn_multi_proc ) {
+		dprintf( D_ALWAYS, "WARNING: "
+				 "multiple '-job_proc' options given, using \"%d\"\n",
+				 job_proc );
+	}
+	if( warn_multi_subproc ) {
+		dprintf( D_ALWAYS, "WARNING: "
+				 "multiple '-job_subproc' options given, using \"%d\"\n",
+				 job_subproc );
+	}
+
+	if( ! job_keyword ) {
+		dprintf( D_ALWAYS, "ERROR: You must specify '-job_keyword'\n" );
+		usage();
+	}
+
+		// If the user didn't specify it, use -1 for cluster and/or
+		// proc, and the JIC subclasses will know they weren't on
+		// the command-line.
+	jic = new JICLocalConfig( job_keyword, job_cluster, job_proc, 
+							  job_subproc );
+	return jic;
+}
+
 
 int
 main_config( bool is_full )
