@@ -4,7 +4,7 @@ all_target($(NAME))
 #if ORACLE_UNIVERSE
 ORACLE_JOB_FLAGS = -DORACLE_UNIVERSE -I/scratch.local.1/jfrey/oracle/OraHome1/rdbms/demo -I/scratch.local.1/jfrey/oracle/OraHome1/rdbms/public
 ORACLE_JOB_OBJ = oraclejob.o oracleresource.o
-ORACLE_JOB_LIB = /scratch.local.1/jfrey/oracle/OraHome1/lib/libclient9.a /scratch.local.1/jfrey/oracle/OraHome1/lib/libclntst9.a /usr/lib/libaio.so
+ORACLE_JOB_LIB = /scratch.local.1/jfrey/oracle/OraHome1/lib/libclient9.a /scratch.local.1/jfrey/oracle/OraHome1/lib/libclntst9.a /usr/lib/libaio.so /usr/lib/librt.so
 #endif
 
 #if NORDUGRID_UNIVERSE
