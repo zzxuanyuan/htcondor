@@ -66,7 +66,7 @@ require 5.002;
 ######################################################################
 
 # These are the modules you actually want to build.
-@modules = ( "condor", "smp_startd", "view_server", "ckpt_server", "pvm", "sdk","eventd", "mpi" );
+@modules = ( "condor", "smp_startd", "view_server", "ckpt_server", "pvm", "sdk","eventd", "dagman" );
 #@modules = ( "smp_startd", "view_server", "ckpt_server", "pvm", "sdk" );
 #@modules = ( "condor" );
 
