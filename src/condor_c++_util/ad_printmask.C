@@ -250,8 +250,8 @@ display (FILE *file, ClassAdList *list)
 	ClassAd *ad;
 
 	list->Open();
-    while( (al = (AttrList *) list->Next()) ) {
-		if( !display (file, al) ) {
+    while( (ad = (ClassAd *) list->Next()) ) {
+		if( !display (file, ad) ) {
 			retval = 0;
 		}
     }
