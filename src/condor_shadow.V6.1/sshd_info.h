@@ -21,19 +21,29 @@
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
+#ifndef SSHDINFO_H
+#define SSHDINFO_H
+
 #include "condor_common.h"
-#include "list.h"
-#include "mpiresource.h"
-#include "file_transfer.h"
-#include "HashTable.h"
-#include "sshd_info.h"
+#include "stream.h"
 
-// for the MPIShadow, a list of remote resource classes....
-template class ExtArray<MpiResource *>;
+class SshdInfo{
+public:
+  SshdInfo();
+  ~SshdInfo();	
 
-// for the SshdManager
-template class ExtArray<SshdInfo *>;
+  char * hostname;
+  char * rshDir;
+  char * userShell;
+  char * workDir;
+  char * opensshDir;
+  char * userName;
+  int    port;
+    
+  int    code(Stream &s);
+  inline int put(Stream &s) { s.encode(); return code(s); }
+  inline int get(Stream &s) { s.decode(); return code(s); }
 
-// for the file transfer object.
-template class HashBucket<MyString, FileTransfer *>;
+};
 
+#endif

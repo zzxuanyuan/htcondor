@@ -65,6 +65,8 @@ BaseShadow::BaseShadow() {
 	requeue_job_queue_attrs = NULL;
 	terminate_job_queue_attrs = NULL;
 	exception_already_logged = false;
+
+	sshdManager = NULL;
 }
 
 BaseShadow::~BaseShadow() {
@@ -80,6 +82,8 @@ BaseShadow::~BaseShadow() {
 	if( remove_job_queue_attrs ) { delete remove_job_queue_attrs; }
 	if( requeue_job_queue_attrs ) { delete requeue_job_queue_attrs; }
 	if( terminate_job_queue_attrs ) { delete terminate_job_queue_attrs; }
+
+	if (sshdManager) { delete sshdManager; }
 }
 
 void
@@ -190,6 +194,34 @@ BaseShadow::baseInit( ClassAd *job_ad, const char* schedd_addr )
 		// change anything, we consider that change dirty so it'll get
 		// updated the next time we connect to the job queue...
 	checkFileTransferCruft();
+
+	sshdManager = new SshdManager(this);
+
+
+        /* Register Command for Comrades to register its info */
+	daemonCore->Register_Command( SSHD_PUTINFO, "SSHD_PUTINFO", 
+		 (CommandHandlercpp)&SshdManager::putInfo, "sshdPutInfo", 
+		 sshdManager, WRITE );
+
+        /* Register Command for sneaky rsh to get info: */
+	daemonCore->Register_Command( SSHD_GETINFO, "SSHD_GETINFO", 
+		 (CommandHandlercpp)&SshdManager::getInfo, "sshdGetInfo", 
+		 sshdManager, WRITE );
+
+        /* Register Command for sshd_proc to get sshd keys: */
+	daemonCore->Register_Command( SSHD_GETKEYS, "SSHD_GETKEYS", 
+		 (CommandHandlercpp)&SshdManager::getKeys, "sshdGetKeys", 
+		 sshdManager, WRITE );
+
+        /* Register Command for script to get  */
+	daemonCore->Register_Command( SSHD_GETNUM, "SSHD_GETNUMBER", 
+		 (CommandHandlercpp)&SshdManager::getNumber, "sshdGetNumber", 
+		 sshdManager, WRITE );
+        /* Register Command for sneaky rsh to get info: */
+
+	daemonCore->Register_Command( SSHD_GETINFO_ANY, "SSHD_GETINFO_ANY", 
+		 (CommandHandlercpp)&SshdManager::getInfoAny, "sshdGetInfoAny", 
+		 sshdManager, WRITE );
 }
 
 
@@ -1419,3 +1451,8 @@ display_dprintf_header(FILE *fp)
 	return TRUE;
 }
 
+
+void 
+BaseShadow::cleanUp( void ){
+  if (sshdManager) sshdManager->cleanUp();
+}

@@ -1,0 +1,22 @@
+#!/bin/sh
+
+if [ $# -lt 1 ]; then
+	echo 'usage condor_ssh CLUSTER.PROC [commands]'
+	exit -1
+fi
+
+condor_ssh_binary=`dirname $0`/rsh
+# arg[1] should be cluster.proc
+jobid=$1
+shift
+filename=contactFile.$jobid
+args=$*
+
+if [ ! -f $filename ]; then
+	echo " file $filename does not exists.  "
+	exit -1
+fi
+
+source $filename
+$condor_ssh_biinary -no_wrapper -choose_any DUMMY_HOST $args
+

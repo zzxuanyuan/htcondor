@@ -21,19 +21,55 @@
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
-#include "condor_common.h"
-#include "list.h"
-#include "mpiresource.h"
-#include "file_transfer.h"
-#include "HashTable.h"
 #include "sshd_info.h"
+#include "condor_debug.h"
 
-// for the MPIShadow, a list of remote resource classes....
-template class ExtArray<MpiResource *>;
+SshdInfo::SshdInfo(){
+  hostname = NULL;
+  rshDir   = NULL;
+  userShell= NULL;
+  workDir  = NULL;
+  opensshDir= NULL;
+  userName  = NULL;
+}
 
-// for the SshdManager
-template class ExtArray<SshdInfo *>;
+SshdInfo::~SshdInfo(){
+  if ( hostname )
+	delete hostname;
+  if ( rshDir )
+	delete rshDir;
+  if ( userShell )
+	delete userShell;
+  if ( workDir )
+	delete workDir;
+  if ( opensshDir )
+	delete opensshDir;
+  if ( userName )
+	delete userName;
+}
 
-// for the file transfer object.
-template class HashBucket<MyString, FileTransfer *>;
+  
+int
+SshdInfo::code(Stream & s){
+  if ( !s.code( hostname ) ) {
+	EXCEPT( "Failed to get/send hostname" );
+  }
+  if ( !s.code( rshDir ) ) {
+	EXCEPT( "Failed to get/send rshDir" );
+  }
+  if ( !s.code( userShell ) ) {
+	EXCEPT( "Failed to get/send userShell" );
+  }
+  if ( !s.code( workDir ) ) {
+	EXCEPT( "Failed to get/send workDir" );
+  }
+  if ( !s.code( userName ) ) {
+	EXCEPT( "Failed to get/send userName" );
+  }
+  if ( !s.code( port ) ) {
+	EXCEPT( "Failed to get/send port" );
+  }
+  return true;
+}
+
 

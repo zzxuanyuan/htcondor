@@ -1,5 +1,8 @@
 NAME = condor_shadow
-all_target($(NAME))
+SSH_NAME = rsh
+SSHD_NAME = condor_sshd
+SSH_SCRIPT_NAME = condor_ssh
+all_target($(NAME) $(SSH_NAME) $(SSHD_NAME))
 
 CFLAGS = $(STD_C_FLAGS)
 C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS)
@@ -8,12 +11,31 @@ LIB = $(DAEMONCORE_LIB) $(STD_LIBS)
 
 OBJ = shadow_v61_main.o baseshadow.o shadow.o mpishadow.o \
 	remoteresource.o mpiresource.o pseudo_ops.o NTreceivers.o \
-	shadow_v61_instantiate.o shadow_user_policy.o
+	shadow_v61_instantiate.o shadow_user_policy.o  \
+	sshd_info.o sshd_manager.o
+
+SSH_OBJ = condor_ssh.o  sshd_info.o
+SSHD_OBJ = condor_sshd.o sshd_info.o
 
 c_plus_target($(NAME),$(OBJ),$(LIB))
+c_plus_target($(SSH_NAME),$(SSH_OBJ),$(STD_LIBS))
+c_plus_target($(SSHD_NAME),$(SSHD_OBJ),$(STD_LIBS))
+
 release_target($(NAME),sbin,EXECUTABLE_MODE)
+release_target($(SSH_NAME),bin,EXECUTABLE_MODE)
+release_target($(SSHD_NAME),sbin,EXECUTABLE_MODE)
+release_copy_target($(SSH_SCRIPT_NAME),bin,$(SSH_SCRIPT_NAME),EXECUTABLE_MODE)
+
 strip_target($(NAME),sbin,EXECUTABLE_MODE)
+strip_target($(SSH_NAME),bin,EXECUTABLE_MODE)
+strip_target($(SSHD_NAME),sbin,EXECUTABLE_MODE)
+strip_copy_target($(SSH_SCRIPT_NAME),bin,$(SSH_SCRIPT_NAME),EXECUTABLE_MODE)
+
 static_target($(NAME),$(OBJ),$(LIB),$(STATIC_DIR)/sbin)
+static_target($(SSH_NAME),$(OBJ),$(LIB),$(STATIC_DIR)/sbin)
+static_target($(SSHD_NAME),$(OBJ),$(LIB),$(STATIC_DIR)/sbin)
+static_copy_target($(SSH_SCRIPT_NAME),bin,$(SSH_SCRIPT_NAME),EXECUTABLE_MODE)
+
 pure_c_plus_target($(NAME).pure,$(OBJ),$(LIB))
 purecov_c_plus_target($(NAME).pc,$(OBJ),$(LIB))
 html_target( baseshadow.h shadow.h mpishadow.h remoteresource.h )

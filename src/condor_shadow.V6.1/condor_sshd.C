@@ -4,7 +4,7 @@
 #include "condor_commands.h"
 #include "condor_distribution.h"
 #include "condor_environ.h"
-#include "lamcomradeinfo.h"
+#include "sshd_info.h"
 #include "time.h"
 
 #ifndef _POSIX_PATH_MAX
@@ -215,7 +215,7 @@ int invoke_sshd(){
 }
 
 int inform_shadow(){
-  class LamComradeInfo info;
+  class SshdInfo info;
 
   info.hostname   = strdup(hostname);
   info.rshDir     = strdup(rsh_dir);
@@ -235,7 +235,7 @@ int inform_shadow(){
   
   s->encode();
   
-  int cmd = PARALLEL_SSHD_INFORM;
+  int cmd = SSHD_PUTINFO;
   if ( !s->code ( cmd ) ) {
 	delete s;
 	return 0;
