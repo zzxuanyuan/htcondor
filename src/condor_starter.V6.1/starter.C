@@ -993,6 +993,11 @@ CStarter::removeTempExecuteDir( void )
 	Directory execute_dir( Execute, PRIV_ROOT );
 	if ( execute_dir.Find_Named_Entry( dir_name.Value() ) ) {
 			// Remove the execute directory
+#ifdef WIN32
+		// since we chdir()'d to the execute directory, we can't delete it
+		// until we get out. So lets just chdir() to EXECUTE.
+		chdir(Execute);
+#endif
 		dprintf( D_FULLDEBUG, "Removing %s%c%s\n", Execute,
 				 DIR_DELIM_CHAR, dir_name.Value() );
 		return execute_dir.Remove_Current_File();
