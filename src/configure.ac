@@ -87,6 +87,11 @@ if test $_cv_make_is_gnu = no; then
    AC_MSG_ERROR( [GNU make is required] )
 fi
 
+CHECK_PROG_IS_GNU(PATCH, patch)
+if test $_cv_patch_is_gnu = no; then
+   AC_MSG_ERROR( [GNU patch is required] )
+fi
+
 AC_LANG(C)
 AC_PROG_CC
 if test $ac_cv_c_compiler_gnu != yes; then
