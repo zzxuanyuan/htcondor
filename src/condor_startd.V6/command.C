@@ -1151,3 +1151,193 @@ match_info( Resource* rip, char* cap )
 	}
 	return rval;
 }
+
+
+
+int
+caRequestClaim( char* cmd_str, Stream *s, ClassAd* req_ad )
+{
+		// TODO!!!
+	return TRUE;
+}
+
+
+int
+sendCAReply( Stream* s, char* cmd_str, ClassAd* reply )
+{
+	s->encode();
+	if( ! reply->put(*s) ) {
+		dprintf( D_ALWAYS,
+				 "ERROR: Can't send reply classad for %s, aborting\n",
+				 cmd_str );
+		return FALSE;
+	}
+	if( ! s->eom() ) {
+		dprintf( D_ALWAYS, "ERROR: Can't send eom for %s, aborting\n", 
+				 cmd_str );
+		return FALSE;
+	}
+	return TRUE;
+}
+
+
+int
+unknownCmd( Stream* s, char* cmd_str )
+{
+	dprintf( D_ALWAYS, "Recognized command (%s) in ClassAd, "
+			 "aborting\n", cmd_str );
+	ClassAd reply;
+	reply.Insert( "Result = FALSE" );
+	
+	MyString line = ATTR_COMMAND_ERROR;
+	line += " = \"Unknown command (";
+	line += cmd_str;
+	line += ") in ClassAd\"";
+	reply.Insert( line.Value() );
+	
+	return sendCAReply( s, cmd_str, &reply );
+}
+
+
+int
+command_classad_handler( Service*, int, Stream* s )
+{
+	bool rval;
+	ClassAd ad;
+	ReliSock* rsock = (ReliSock*)s;
+
+        // make sure this connection is authenticated, and we know who
+        // the user is.  also, set a timeout, since we don't want to
+        // block long trying to read from our client.   
+    rsock->timeout( 10 );  
+    rsock->decode();
+    if( ! rsock->isAuthenticated() ) {
+        if( ! rsock->authenticate() ) {
+                // we failed to authenticate, we should bail out now
+                // since we don't know what user is trying to perform
+                // this action.
+            dprintf( D_ALWAYS, "command_classad_handler(): "
+                     "failed to authenticate, aborting\n" );
+			ClassAd reply;
+			reply.Insert( "Result = FALSE" );
+			MyString line = ATTR_COMMAND_ERROR;
+			line += " = \"Failed to authenticate\"";
+			reply.Insert( line.Value() );
+			sendCAReply( s, "CA_CMD", &reply );
+			return FALSE;
+        }
+    }
+	
+	if( ! ad.initFromStream(*s) ) { 
+		dprintf( D_ALWAYS, 
+				 "Failed to read ClassAd from network, aborting\n" ); 
+		return FALSE;
+	}
+	if( ! s->eom() ) { 
+		dprintf( D_ALWAYS, 
+				 "Error, more data on stream after ClassAd, aborting\n" ); 
+		return FALSE;
+	}
+
+	if( DebugFlags & D_FULLDEBUG && DebugFlags & D_COMMAND ) {
+		dprintf( D_COMMAND, "Command ClassAd:\n" );
+		ad.dPrint( D_COMMAND );
+		dprintf( D_COMMAND, "*** End of Command ClassAd***\n" );
+	}
+
+	char* cmd_str = NULL;
+	int cmd;
+	if( ! ad.LookupString(ATTR_COMMAND, &cmd_str) ) {
+		dprintf( D_ALWAYS, "Failed to read %s from ClassAd, aborting\n", 
+				 ATTR_COMMAND );
+		return FALSE;
+	}		
+	cmd = getCommandNum( cmd_str );
+	if( cmd < 0 ) {
+		unknownCmd( s, cmd_str );
+		free( cmd_str );
+		return FALSE;
+	}
+
+	if( cmd == CA_REQUEST_CLAIM ) { 
+			// this one's a special case, since we're creating a new
+			// claim... 
+		rval = caRequestClaim( cmd_str, s, &ad );
+		free( cmd_str );
+		return rval;
+	}
+
+		// for all the rest, we need to read the ClaimId out of the
+		// ad, find the right claim, and call the appropriate method
+		// on it.  
+
+	char* claim_id = NULL;
+	Claim* claim = NULL;
+
+	if( ! ad.LookupString(ATTR_CLAIM_ID, &claim_id) ) {
+		dprintf( D_ALWAYS, "Failed to read %s from ClassAd "
+				 "for cmd %s, aborting\n", ATTR_CLAIM_ID, cmd_str );
+		free( cmd_str );
+		return FALSE;
+	}
+	claim = resmgr->getClaimById( claim_id );
+	if( ! claim ) {
+		dprintf( D_ALWAYS, "ERROR in command %s: "
+				 "Can't find claim with id %s, aborting\n", cmd_str,
+				 claim_id ); 
+		ClassAd reply;
+		reply.Insert( "Result = FALSE" );
+
+		MyString line = ATTR_COMMAND_ERROR;
+		line += " = \"ClaimId (";
+		line += claim_id;
+		line += ") not found\"";
+		reply.Insert( line.Value() );
+
+		sendCAReply( s, cmd_str, &reply );
+
+		free( claim_id );
+		free( cmd_str );
+		return FALSE;
+	}
+
+		// now that we've found the right Claim object, we can free
+		// this so we don't leak memory.  if we need to print it for
+		// an error message, we've still got the right id in the Claim
+		// object itself. 
+	free( claim_id );
+
+	ClassAd reply;
+
+	switch( cmd ) {
+	case CA_RELEASE_CLAIM:
+		rval = claim->release( &ad, &reply );
+		break;
+	case CA_ACTIVATE_CLAIM:
+		rval = claim->activate( &ad, &reply );
+		break;
+	case CA_DEACTIVATE_CLAIM:
+		rval = claim->deactivate( &ad, &reply );
+		break;
+	case CA_SUSPEND_CLAIM:
+		rval = claim->suspend( &ad, &reply );
+		break;
+	case CA_RESUME_CLAIM:
+		rval = claim->resume( &ad, &reply );
+		break;
+	case CA_REQUEST_CLAIM:
+		EXCEPT( "Already handled CA_REQUEST_CLAIM, shouldn't be here\n" );
+		break;
+	default:
+		unknownCmd( s, cmd_str );
+		free( cmd_str );
+		return FALSE;
+	}
+
+		// finally, send the reply back over the wire, and we're done.
+	int result = sendCAReply( s, cmd_str, &reply );
+	free( cmd_str );
+	return (rval && result);
+}
+
+
