@@ -14,3 +14,6 @@
 #define HAS_GLOBUS	NO
 #define HAS_GSI		NO
 #define HAS_OPENSSL	NO
+
+#undef WANT_MAN_PAGES
+#define WANT_MAN_PAGES NO
