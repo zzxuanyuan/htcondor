@@ -50,6 +50,7 @@ with the strings in condor_universe.c
 
 /* To get the name of a universe, call this function */
 const char *CondorUniverseName( int universe );
+const char *CondorUniverseNameUcFirst( int universe );
 
 /* To get the number of a universe from a string, call this.  Returns
    0 if the given string doesn't correspond to a known universe */
