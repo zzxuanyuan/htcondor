@@ -2161,7 +2161,7 @@ MyString *GlobusJob::buildSubmitRSL()
 	*rsl += "(executable=";
 
 	int use_gridshell = 0;
-	if( ! ad->LookupBool(ATTR_GLOBUS_GRID_SHELL, use_gridshell) ) {
+	if( ! ad->LookupBool(ATTR_USE_GRID_SHELL, use_gridshell) ) {
 		use_gridshell = 0;
 	}
 	if(use_gridshell) {
