@@ -23,7 +23,9 @@
 #ifndef CONDOR_SYS_LINUX_H
 #define CONDOR_SYS_LINUX_H
 
+#ifndef _BSD_SOURCE
 #define _BSD_SOURCE
+#endif
 
 #include <sys/types.h>
 typedef long rlim_t;
@@ -73,7 +75,7 @@ END_C_DECLS
 
 /* There is no <sys/select.h> on Linux, select() and friends are 
    defined in <sys/time.h> */
-#include <sys/time.h>
+#include "condor_fix_sys_time.h"
 
 /* Need these to get statfs and friends defined */
 #include <sys/stat.h>
@@ -85,73 +87,9 @@ END_C_DECLS
 #	define WCOREFLG 0200
 #endif 
 
-#if defined(GLIBC)
-/* glibc defines the 3rd arg of readv and writev to be int, even
-   though the man page (and our code) says it should be size_t. 
-   -Derek Wright 4/17/98 */
-#define readv __hide_readv
-#define writev __hide_writev
-#endif /* GLIBC */
+#include "condor_fix_sys_resource.h"
+
 #include <sys/uio.h>
-#if defined(GLIBC)
-#undef readv
-#undef writev
-BEGIN_C_DECLS
-int readv(int, const struct iovec *, size_t);
-int writev(int, const struct iovec *, size_t);
-END_C_DECLS
-#endif /* GLIBC */
-
-#if defined(GLIBC) 
-/* With the new glibc, there are a bunch of changes in
-   prototypes... things that the man pages say are ints that the
-   headers say are unsigned, things that are supposed to be const are
-   not, etc, etc.  So, we hide the broken prototypes and define our
-   own. -Derek 4/17/98 */
-#define accept hide_accept
-#define getpeername hide_getpeername
-#define getsockname hide_getsockname
-#define setsockopt hide_setsockopt
-#define recvfrom hide_recvfrom
-#endif /* GLIBC */
-#include <sys/socket.h>
-#if defined(GLIBC) 
-#undef accept
-#undef getpeername
-#undef getsockname
-#undef setsockopt
-#undef recvfrom
-BEGIN_C_DECLS
-int accept(int, struct sockaddr *, int *);
-int getpeername(int, struct sockaddr *, int *);
-int getsockname(int, struct sockaddr *, int *);
-int setsockopt(int, int, int, const void *, int);
-int recvfrom(int, void *, int, unsigned int, struct sockaddr *, int *);
-END_C_DECLS
-#endif /* GLIBC */
-
-#if defined(GLIBC)
-/* glibc defines prototypes for a bunch of functions that are supposed
-   to take ints (according to the man page, POSIX, whatever) that
-   really take enums.  -Derek Wright 4/17/98 */
-#define getpriority __hide_getpriority
-#define getrlimit __hide_getrlimit
-#define __getrlimit __hide__getrlimit
-#define setrlimit __hide_setrlimit
-#endif /* GLIBC */
-#include <sys/resource.h>
-#if defined(GLIBC)
-#undef getpriority
-#undef getrlimit
-#undef __getrlimit
-#undef setrlimit
-BEGIN_C_DECLS
-int getrlimit(int, struct rlimit *);
-int __getrlimit(int, struct rlimit *);
-int setrlimit(int, const struct rlimit *);
-int getpriority(int, int);
-END_C_DECLS
-#endif /* GLIBC */
 
 #endif /* CONDOR_SYS_LINUX_H */
 
