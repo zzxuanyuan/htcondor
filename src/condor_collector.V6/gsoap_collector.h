@@ -1,30 +1,26 @@
-
 #import "../condor_daemon_core.V6/gsoap_daemon_core_types.h"
 
-//gsoap condorCollector service namespace: urn:condor-collector
-//gsoap condorCollector service name: condorCollector
-//gsoap condorCollector service style: rpc
-//gsoap condorCollector service encoding: encoded
+//gsoap condor service name: condorCollector
 
-int condorCollector__queryStartdAds(char *constraint,
+int condor__queryStartdAds(char *constraint,
 	struct ClassAdStructArray & result);
 
-int condorCollector__queryScheddAds(char *constraint,
+int condor__queryScheddAds(char *constraint,
 	struct ClassAdStructArray & result);
 
-int condorCollector__queryMasterAds(char *constraint,
+int condor__queryMasterAds(char *constraint,
 	struct ClassAdStructArray & result);
 
-int condorCollector__querySubmittorAds(char *constraint,
+int condor__querySubmittorAds(char *constraint,
 	struct ClassAdStructArray & result);
 
-int condorCollector__queryLicenseAds(char *constraint,
+int condor__queryLicenseAds(char *constraint,
 	struct ClassAdStructArray & result);
 
-int condorCollector__queryStorageAds(char *constraint,
+int condor__queryStorageAds(char *constraint,
 	struct ClassAdStructArray & result);
 
-int condorCollector__queryAnyAds(char *constraint,
+int condor__queryAnyAds(char *constraint,
 	struct ClassAdStructArray & result);
 
 

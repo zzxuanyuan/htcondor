@@ -128,33 +128,33 @@ SOAP_FMAC3 int SOAP_FMAC4 soap_out_unsignedInt(struct soap*, const char*, int, c
 SOAP_FMAC3 unsigned int * SOAP_FMAC4 soap_get_unsignedInt(struct soap*, unsigned int *, const char*, const char*);
 SOAP_FMAC3 unsigned int * SOAP_FMAC4 soap_in_unsignedInt(struct soap*, const char*, unsigned int *, const char*);
 
-#ifndef SOAP_TYPE_condorCore__ClassAdAttrType
-#define SOAP_TYPE_condorCore__ClassAdAttrType (24)
+#ifndef SOAP_TYPE_condor__ClassAdAttrType
+#define SOAP_TYPE_condor__ClassAdAttrType (24)
 #endif
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorCore__ClassAdAttrType(struct soap*, enum condorCore__ClassAdAttrType *);
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCore__ClassAdAttrType(struct soap*, enum condorCore__ClassAdAttrType const*);
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorCore__ClassAdAttrType(struct soap*, const enum condorCore__ClassAdAttrType *, const char*, const char*);
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorCore__ClassAdAttrType(struct soap*, const char*, int, const enum condorCore__ClassAdAttrType *, const char*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condor__ClassAdAttrType(struct soap*, enum condor__ClassAdAttrType *);
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condor__ClassAdAttrType(struct soap*, enum condor__ClassAdAttrType const*);
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condor__ClassAdAttrType(struct soap*, const enum condor__ClassAdAttrType *, const char*, const char*);
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condor__ClassAdAttrType(struct soap*, const char*, int, const enum condor__ClassAdAttrType *, const char*);
 
-SOAP_FMAC3 const char* SOAP_FMAC4 soap_condorCore__ClassAdAttrType2s(struct soap*, enum condorCore__ClassAdAttrType);
-SOAP_FMAC3 enum condorCore__ClassAdAttrType * SOAP_FMAC4 soap_get_condorCore__ClassAdAttrType(struct soap*, enum condorCore__ClassAdAttrType *, const char*, const char*);
-SOAP_FMAC3 enum condorCore__ClassAdAttrType * SOAP_FMAC4 soap_in_condorCore__ClassAdAttrType(struct soap*, const char*, enum condorCore__ClassAdAttrType *, const char*);
+SOAP_FMAC3 const char* SOAP_FMAC4 soap_condor__ClassAdAttrType2s(struct soap*, enum condor__ClassAdAttrType);
+SOAP_FMAC3 enum condor__ClassAdAttrType * SOAP_FMAC4 soap_get_condor__ClassAdAttrType(struct soap*, enum condor__ClassAdAttrType *, const char*, const char*);
+SOAP_FMAC3 enum condor__ClassAdAttrType * SOAP_FMAC4 soap_in_condor__ClassAdAttrType(struct soap*, const char*, enum condor__ClassAdAttrType *, const char*);
 
-SOAP_FMAC3 int SOAP_FMAC4 soap_s2condorCore__ClassAdAttrType(struct soap*, const char*, enum condorCore__ClassAdAttrType *);
+SOAP_FMAC3 int SOAP_FMAC4 soap_s2condor__ClassAdAttrType(struct soap*, const char*, enum condor__ClassAdAttrType *);
 
-#ifndef SOAP_TYPE_condorCore__StatusCode
-#define SOAP_TYPE_condorCore__StatusCode (21)
+#ifndef SOAP_TYPE_condor__StatusCode
+#define SOAP_TYPE_condor__StatusCode (21)
 #endif
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorCore__StatusCode(struct soap*, enum condorCore__StatusCode *);
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCore__StatusCode(struct soap*, enum condorCore__StatusCode const*);
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorCore__StatusCode(struct soap*, const enum condorCore__StatusCode *, const char*, const char*);
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorCore__StatusCode(struct soap*, const char*, int, const enum condorCore__StatusCode *, const char*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condor__StatusCode(struct soap*, enum condor__StatusCode *);
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condor__StatusCode(struct soap*, enum condor__StatusCode const*);
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condor__StatusCode(struct soap*, const enum condor__StatusCode *, const char*, const char*);
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condor__StatusCode(struct soap*, const char*, int, const enum condor__StatusCode *, const char*);
 
-SOAP_FMAC3 const char* SOAP_FMAC4 soap_condorCore__StatusCode2s(struct soap*, enum condorCore__StatusCode);
-SOAP_FMAC3 enum condorCore__StatusCode * SOAP_FMAC4 soap_get_condorCore__StatusCode(struct soap*, enum condorCore__StatusCode *, const char*, const char*);
-SOAP_FMAC3 enum condorCore__StatusCode * SOAP_FMAC4 soap_in_condorCore__StatusCode(struct soap*, const char*, enum condorCore__StatusCode *, const char*);
+SOAP_FMAC3 const char* SOAP_FMAC4 soap_condor__StatusCode2s(struct soap*, enum condor__StatusCode);
+SOAP_FMAC3 enum condor__StatusCode * SOAP_FMAC4 soap_get_condor__StatusCode(struct soap*, enum condor__StatusCode *, const char*, const char*);
+SOAP_FMAC3 enum condor__StatusCode * SOAP_FMAC4 soap_in_condor__StatusCode(struct soap*, const char*, enum condor__StatusCode *, const char*);
 
-SOAP_FMAC3 int SOAP_FMAC4 soap_s2condorCore__StatusCode(struct soap*, const char*, enum condorCore__StatusCode *);
+SOAP_FMAC3 int SOAP_FMAC4 soap_s2condor__StatusCode(struct soap*, const char*, enum condor__StatusCode *);
 
 #ifndef SOAP_TYPE_xsd__boolean
 #define SOAP_TYPE_xsd__boolean (12)
@@ -244,192 +244,192 @@ SOAP_FMAC3 struct SOAP_ENV__Header * SOAP_FMAC4 soap_in_SOAP_ENV__Header(struct 
 
 #endif
 
-#ifndef SOAP_TYPE_condorCollector__queryAnyAds
-#define SOAP_TYPE_condorCollector__queryAnyAds (54)
+#ifndef SOAP_TYPE_condor__queryAnyAds
+#define SOAP_TYPE_condor__queryAnyAds (54)
 #endif
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCollector__queryAnyAds(struct soap*, struct condorCollector__queryAnyAds const*);
-SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorCollector__queryAnyAds(struct soap*, const struct condorCollector__queryAnyAds *);
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorCollector__queryAnyAds(struct soap*, struct condorCollector__queryAnyAds *);
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorCollector__queryAnyAds(struct soap*, const struct condorCollector__queryAnyAds *, const char*, const char*);
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorCollector__queryAnyAds(struct soap*, const char*, int, const struct condorCollector__queryAnyAds *, const char*);
-SOAP_FMAC3 struct condorCollector__queryAnyAds * SOAP_FMAC4 soap_get_condorCollector__queryAnyAds(struct soap*, struct condorCollector__queryAnyAds *, const char*, const char*);
-SOAP_FMAC3 struct condorCollector__queryAnyAds * SOAP_FMAC4 soap_in_condorCollector__queryAnyAds(struct soap*, const char*, struct condorCollector__queryAnyAds *, const char*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condor__queryAnyAds(struct soap*, struct condor__queryAnyAds const*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condor__queryAnyAds(struct soap*, const struct condor__queryAnyAds *);
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condor__queryAnyAds(struct soap*, struct condor__queryAnyAds *);
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condor__queryAnyAds(struct soap*, const struct condor__queryAnyAds *, const char*, const char*);
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condor__queryAnyAds(struct soap*, const char*, int, const struct condor__queryAnyAds *, const char*);
+SOAP_FMAC3 struct condor__queryAnyAds * SOAP_FMAC4 soap_get_condor__queryAnyAds(struct soap*, struct condor__queryAnyAds *, const char*, const char*);
+SOAP_FMAC3 struct condor__queryAnyAds * SOAP_FMAC4 soap_in_condor__queryAnyAds(struct soap*, const char*, struct condor__queryAnyAds *, const char*);
 
-#ifndef SOAP_TYPE_condorCollector__queryAnyAdsResponse
-#define SOAP_TYPE_condorCollector__queryAnyAdsResponse (53)
+#ifndef SOAP_TYPE_condor__queryAnyAdsResponse
+#define SOAP_TYPE_condor__queryAnyAdsResponse (53)
 #endif
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCollector__queryAnyAdsResponse(struct soap*, struct condorCollector__queryAnyAdsResponse const*);
-SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorCollector__queryAnyAdsResponse(struct soap*, const struct condorCollector__queryAnyAdsResponse *);
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorCollector__queryAnyAdsResponse(struct soap*, struct condorCollector__queryAnyAdsResponse *);
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorCollector__queryAnyAdsResponse(struct soap*, const struct condorCollector__queryAnyAdsResponse *, const char*, const char*);
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorCollector__queryAnyAdsResponse(struct soap*, const char*, int, const struct condorCollector__queryAnyAdsResponse *, const char*);
-SOAP_FMAC3 struct condorCollector__queryAnyAdsResponse * SOAP_FMAC4 soap_get_condorCollector__queryAnyAdsResponse(struct soap*, struct condorCollector__queryAnyAdsResponse *, const char*, const char*);
-SOAP_FMAC3 struct condorCollector__queryAnyAdsResponse * SOAP_FMAC4 soap_in_condorCollector__queryAnyAdsResponse(struct soap*, const char*, struct condorCollector__queryAnyAdsResponse *, const char*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condor__queryAnyAdsResponse(struct soap*, struct condor__queryAnyAdsResponse const*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condor__queryAnyAdsResponse(struct soap*, const struct condor__queryAnyAdsResponse *);
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condor__queryAnyAdsResponse(struct soap*, struct condor__queryAnyAdsResponse *);
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condor__queryAnyAdsResponse(struct soap*, const struct condor__queryAnyAdsResponse *, const char*, const char*);
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condor__queryAnyAdsResponse(struct soap*, const char*, int, const struct condor__queryAnyAdsResponse *, const char*);
+SOAP_FMAC3 struct condor__queryAnyAdsResponse * SOAP_FMAC4 soap_get_condor__queryAnyAdsResponse(struct soap*, struct condor__queryAnyAdsResponse *, const char*, const char*);
+SOAP_FMAC3 struct condor__queryAnyAdsResponse * SOAP_FMAC4 soap_in_condor__queryAnyAdsResponse(struct soap*, const char*, struct condor__queryAnyAdsResponse *, const char*);
 
-#ifndef SOAP_TYPE_condorCollector__queryStorageAds
-#define SOAP_TYPE_condorCollector__queryStorageAds (51)
+#ifndef SOAP_TYPE_condor__queryStorageAds
+#define SOAP_TYPE_condor__queryStorageAds (51)
 #endif
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCollector__queryStorageAds(struct soap*, struct condorCollector__queryStorageAds const*);
-SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorCollector__queryStorageAds(struct soap*, const struct condorCollector__queryStorageAds *);
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorCollector__queryStorageAds(struct soap*, struct condorCollector__queryStorageAds *);
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorCollector__queryStorageAds(struct soap*, const struct condorCollector__queryStorageAds *, const char*, const char*);
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorCollector__queryStorageAds(struct soap*, const char*, int, const struct condorCollector__queryStorageAds *, const char*);
-SOAP_FMAC3 struct condorCollector__queryStorageAds * SOAP_FMAC4 soap_get_condorCollector__queryStorageAds(struct soap*, struct condorCollector__queryStorageAds *, const char*, const char*);
-SOAP_FMAC3 struct condorCollector__queryStorageAds * SOAP_FMAC4 soap_in_condorCollector__queryStorageAds(struct soap*, const char*, struct condorCollector__queryStorageAds *, const char*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condor__queryStorageAds(struct soap*, struct condor__queryStorageAds const*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condor__queryStorageAds(struct soap*, const struct condor__queryStorageAds *);
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condor__queryStorageAds(struct soap*, struct condor__queryStorageAds *);
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condor__queryStorageAds(struct soap*, const struct condor__queryStorageAds *, const char*, const char*);
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condor__queryStorageAds(struct soap*, const char*, int, const struct condor__queryStorageAds *, const char*);
+SOAP_FMAC3 struct condor__queryStorageAds * SOAP_FMAC4 soap_get_condor__queryStorageAds(struct soap*, struct condor__queryStorageAds *, const char*, const char*);
+SOAP_FMAC3 struct condor__queryStorageAds * SOAP_FMAC4 soap_in_condor__queryStorageAds(struct soap*, const char*, struct condor__queryStorageAds *, const char*);
 
-#ifndef SOAP_TYPE_condorCollector__queryStorageAdsResponse
-#define SOAP_TYPE_condorCollector__queryStorageAdsResponse (50)
+#ifndef SOAP_TYPE_condor__queryStorageAdsResponse
+#define SOAP_TYPE_condor__queryStorageAdsResponse (50)
 #endif
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCollector__queryStorageAdsResponse(struct soap*, struct condorCollector__queryStorageAdsResponse const*);
-SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorCollector__queryStorageAdsResponse(struct soap*, const struct condorCollector__queryStorageAdsResponse *);
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorCollector__queryStorageAdsResponse(struct soap*, struct condorCollector__queryStorageAdsResponse *);
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorCollector__queryStorageAdsResponse(struct soap*, const struct condorCollector__queryStorageAdsResponse *, const char*, const char*);
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorCollector__queryStorageAdsResponse(struct soap*, const char*, int, const struct condorCollector__queryStorageAdsResponse *, const char*);
-SOAP_FMAC3 struct condorCollector__queryStorageAdsResponse * SOAP_FMAC4 soap_get_condorCollector__queryStorageAdsResponse(struct soap*, struct condorCollector__queryStorageAdsResponse *, const char*, const char*);
-SOAP_FMAC3 struct condorCollector__queryStorageAdsResponse * SOAP_FMAC4 soap_in_condorCollector__queryStorageAdsResponse(struct soap*, const char*, struct condorCollector__queryStorageAdsResponse *, const char*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condor__queryStorageAdsResponse(struct soap*, struct condor__queryStorageAdsResponse const*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condor__queryStorageAdsResponse(struct soap*, const struct condor__queryStorageAdsResponse *);
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condor__queryStorageAdsResponse(struct soap*, struct condor__queryStorageAdsResponse *);
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condor__queryStorageAdsResponse(struct soap*, const struct condor__queryStorageAdsResponse *, const char*, const char*);
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condor__queryStorageAdsResponse(struct soap*, const char*, int, const struct condor__queryStorageAdsResponse *, const char*);
+SOAP_FMAC3 struct condor__queryStorageAdsResponse * SOAP_FMAC4 soap_get_condor__queryStorageAdsResponse(struct soap*, struct condor__queryStorageAdsResponse *, const char*, const char*);
+SOAP_FMAC3 struct condor__queryStorageAdsResponse * SOAP_FMAC4 soap_in_condor__queryStorageAdsResponse(struct soap*, const char*, struct condor__queryStorageAdsResponse *, const char*);
 
-#ifndef SOAP_TYPE_condorCollector__queryLicenseAds
-#define SOAP_TYPE_condorCollector__queryLicenseAds (48)
+#ifndef SOAP_TYPE_condor__queryLicenseAds
+#define SOAP_TYPE_condor__queryLicenseAds (48)
 #endif
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCollector__queryLicenseAds(struct soap*, struct condorCollector__queryLicenseAds const*);
-SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorCollector__queryLicenseAds(struct soap*, const struct condorCollector__queryLicenseAds *);
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorCollector__queryLicenseAds(struct soap*, struct condorCollector__queryLicenseAds *);
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorCollector__queryLicenseAds(struct soap*, const struct condorCollector__queryLicenseAds *, const char*, const char*);
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorCollector__queryLicenseAds(struct soap*, const char*, int, const struct condorCollector__queryLicenseAds *, const char*);
-SOAP_FMAC3 struct condorCollector__queryLicenseAds * SOAP_FMAC4 soap_get_condorCollector__queryLicenseAds(struct soap*, struct condorCollector__queryLicenseAds *, const char*, const char*);
-SOAP_FMAC3 struct condorCollector__queryLicenseAds * SOAP_FMAC4 soap_in_condorCollector__queryLicenseAds(struct soap*, const char*, struct condorCollector__queryLicenseAds *, const char*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condor__queryLicenseAds(struct soap*, struct condor__queryLicenseAds const*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condor__queryLicenseAds(struct soap*, const struct condor__queryLicenseAds *);
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condor__queryLicenseAds(struct soap*, struct condor__queryLicenseAds *);
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condor__queryLicenseAds(struct soap*, const struct condor__queryLicenseAds *, const char*, const char*);
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condor__queryLicenseAds(struct soap*, const char*, int, const struct condor__queryLicenseAds *, const char*);
+SOAP_FMAC3 struct condor__queryLicenseAds * SOAP_FMAC4 soap_get_condor__queryLicenseAds(struct soap*, struct condor__queryLicenseAds *, const char*, const char*);
+SOAP_FMAC3 struct condor__queryLicenseAds * SOAP_FMAC4 soap_in_condor__queryLicenseAds(struct soap*, const char*, struct condor__queryLicenseAds *, const char*);
 
-#ifndef SOAP_TYPE_condorCollector__queryLicenseAdsResponse
-#define SOAP_TYPE_condorCollector__queryLicenseAdsResponse (47)
+#ifndef SOAP_TYPE_condor__queryLicenseAdsResponse
+#define SOAP_TYPE_condor__queryLicenseAdsResponse (47)
 #endif
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCollector__queryLicenseAdsResponse(struct soap*, struct condorCollector__queryLicenseAdsResponse const*);
-SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorCollector__queryLicenseAdsResponse(struct soap*, const struct condorCollector__queryLicenseAdsResponse *);
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorCollector__queryLicenseAdsResponse(struct soap*, struct condorCollector__queryLicenseAdsResponse *);
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorCollector__queryLicenseAdsResponse(struct soap*, const struct condorCollector__queryLicenseAdsResponse *, const char*, const char*);
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorCollector__queryLicenseAdsResponse(struct soap*, const char*, int, const struct condorCollector__queryLicenseAdsResponse *, const char*);
-SOAP_FMAC3 struct condorCollector__queryLicenseAdsResponse * SOAP_FMAC4 soap_get_condorCollector__queryLicenseAdsResponse(struct soap*, struct condorCollector__queryLicenseAdsResponse *, const char*, const char*);
-SOAP_FMAC3 struct condorCollector__queryLicenseAdsResponse * SOAP_FMAC4 soap_in_condorCollector__queryLicenseAdsResponse(struct soap*, const char*, struct condorCollector__queryLicenseAdsResponse *, const char*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condor__queryLicenseAdsResponse(struct soap*, struct condor__queryLicenseAdsResponse const*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condor__queryLicenseAdsResponse(struct soap*, const struct condor__queryLicenseAdsResponse *);
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condor__queryLicenseAdsResponse(struct soap*, struct condor__queryLicenseAdsResponse *);
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condor__queryLicenseAdsResponse(struct soap*, const struct condor__queryLicenseAdsResponse *, const char*, const char*);
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condor__queryLicenseAdsResponse(struct soap*, const char*, int, const struct condor__queryLicenseAdsResponse *, const char*);
+SOAP_FMAC3 struct condor__queryLicenseAdsResponse * SOAP_FMAC4 soap_get_condor__queryLicenseAdsResponse(struct soap*, struct condor__queryLicenseAdsResponse *, const char*, const char*);
+SOAP_FMAC3 struct condor__queryLicenseAdsResponse * SOAP_FMAC4 soap_in_condor__queryLicenseAdsResponse(struct soap*, const char*, struct condor__queryLicenseAdsResponse *, const char*);
 
-#ifndef SOAP_TYPE_condorCollector__querySubmittorAds
-#define SOAP_TYPE_condorCollector__querySubmittorAds (45)
+#ifndef SOAP_TYPE_condor__querySubmittorAds
+#define SOAP_TYPE_condor__querySubmittorAds (45)
 #endif
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCollector__querySubmittorAds(struct soap*, struct condorCollector__querySubmittorAds const*);
-SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorCollector__querySubmittorAds(struct soap*, const struct condorCollector__querySubmittorAds *);
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorCollector__querySubmittorAds(struct soap*, struct condorCollector__querySubmittorAds *);
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorCollector__querySubmittorAds(struct soap*, const struct condorCollector__querySubmittorAds *, const char*, const char*);
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorCollector__querySubmittorAds(struct soap*, const char*, int, const struct condorCollector__querySubmittorAds *, const char*);
-SOAP_FMAC3 struct condorCollector__querySubmittorAds * SOAP_FMAC4 soap_get_condorCollector__querySubmittorAds(struct soap*, struct condorCollector__querySubmittorAds *, const char*, const char*);
-SOAP_FMAC3 struct condorCollector__querySubmittorAds * SOAP_FMAC4 soap_in_condorCollector__querySubmittorAds(struct soap*, const char*, struct condorCollector__querySubmittorAds *, const char*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condor__querySubmittorAds(struct soap*, struct condor__querySubmittorAds const*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condor__querySubmittorAds(struct soap*, const struct condor__querySubmittorAds *);
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condor__querySubmittorAds(struct soap*, struct condor__querySubmittorAds *);
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condor__querySubmittorAds(struct soap*, const struct condor__querySubmittorAds *, const char*, const char*);
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condor__querySubmittorAds(struct soap*, const char*, int, const struct condor__querySubmittorAds *, const char*);
+SOAP_FMAC3 struct condor__querySubmittorAds * SOAP_FMAC4 soap_get_condor__querySubmittorAds(struct soap*, struct condor__querySubmittorAds *, const char*, const char*);
+SOAP_FMAC3 struct condor__querySubmittorAds * SOAP_FMAC4 soap_in_condor__querySubmittorAds(struct soap*, const char*, struct condor__querySubmittorAds *, const char*);
 
-#ifndef SOAP_TYPE_condorCollector__querySubmittorAdsResponse
-#define SOAP_TYPE_condorCollector__querySubmittorAdsResponse (44)
+#ifndef SOAP_TYPE_condor__querySubmittorAdsResponse
+#define SOAP_TYPE_condor__querySubmittorAdsResponse (44)
 #endif
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCollector__querySubmittorAdsResponse(struct soap*, struct condorCollector__querySubmittorAdsResponse const*);
-SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorCollector__querySubmittorAdsResponse(struct soap*, const struct condorCollector__querySubmittorAdsResponse *);
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorCollector__querySubmittorAdsResponse(struct soap*, struct condorCollector__querySubmittorAdsResponse *);
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorCollector__querySubmittorAdsResponse(struct soap*, const struct condorCollector__querySubmittorAdsResponse *, const char*, const char*);
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorCollector__querySubmittorAdsResponse(struct soap*, const char*, int, const struct condorCollector__querySubmittorAdsResponse *, const char*);
-SOAP_FMAC3 struct condorCollector__querySubmittorAdsResponse * SOAP_FMAC4 soap_get_condorCollector__querySubmittorAdsResponse(struct soap*, struct condorCollector__querySubmittorAdsResponse *, const char*, const char*);
-SOAP_FMAC3 struct condorCollector__querySubmittorAdsResponse * SOAP_FMAC4 soap_in_condorCollector__querySubmittorAdsResponse(struct soap*, const char*, struct condorCollector__querySubmittorAdsResponse *, const char*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condor__querySubmittorAdsResponse(struct soap*, struct condor__querySubmittorAdsResponse const*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condor__querySubmittorAdsResponse(struct soap*, const struct condor__querySubmittorAdsResponse *);
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condor__querySubmittorAdsResponse(struct soap*, struct condor__querySubmittorAdsResponse *);
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condor__querySubmittorAdsResponse(struct soap*, const struct condor__querySubmittorAdsResponse *, const char*, const char*);
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condor__querySubmittorAdsResponse(struct soap*, const char*, int, const struct condor__querySubmittorAdsResponse *, const char*);
+SOAP_FMAC3 struct condor__querySubmittorAdsResponse * SOAP_FMAC4 soap_get_condor__querySubmittorAdsResponse(struct soap*, struct condor__querySubmittorAdsResponse *, const char*, const char*);
+SOAP_FMAC3 struct condor__querySubmittorAdsResponse * SOAP_FMAC4 soap_in_condor__querySubmittorAdsResponse(struct soap*, const char*, struct condor__querySubmittorAdsResponse *, const char*);
 
-#ifndef SOAP_TYPE_condorCollector__queryMasterAds
-#define SOAP_TYPE_condorCollector__queryMasterAds (42)
+#ifndef SOAP_TYPE_condor__queryMasterAds
+#define SOAP_TYPE_condor__queryMasterAds (42)
 #endif
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCollector__queryMasterAds(struct soap*, struct condorCollector__queryMasterAds const*);
-SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorCollector__queryMasterAds(struct soap*, const struct condorCollector__queryMasterAds *);
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorCollector__queryMasterAds(struct soap*, struct condorCollector__queryMasterAds *);
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorCollector__queryMasterAds(struct soap*, const struct condorCollector__queryMasterAds *, const char*, const char*);
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorCollector__queryMasterAds(struct soap*, const char*, int, const struct condorCollector__queryMasterAds *, const char*);
-SOAP_FMAC3 struct condorCollector__queryMasterAds * SOAP_FMAC4 soap_get_condorCollector__queryMasterAds(struct soap*, struct condorCollector__queryMasterAds *, const char*, const char*);
-SOAP_FMAC3 struct condorCollector__queryMasterAds * SOAP_FMAC4 soap_in_condorCollector__queryMasterAds(struct soap*, const char*, struct condorCollector__queryMasterAds *, const char*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condor__queryMasterAds(struct soap*, struct condor__queryMasterAds const*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condor__queryMasterAds(struct soap*, const struct condor__queryMasterAds *);
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condor__queryMasterAds(struct soap*, struct condor__queryMasterAds *);
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condor__queryMasterAds(struct soap*, const struct condor__queryMasterAds *, const char*, const char*);
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condor__queryMasterAds(struct soap*, const char*, int, const struct condor__queryMasterAds *, const char*);
+SOAP_FMAC3 struct condor__queryMasterAds * SOAP_FMAC4 soap_get_condor__queryMasterAds(struct soap*, struct condor__queryMasterAds *, const char*, const char*);
+SOAP_FMAC3 struct condor__queryMasterAds * SOAP_FMAC4 soap_in_condor__queryMasterAds(struct soap*, const char*, struct condor__queryMasterAds *, const char*);
 
-#ifndef SOAP_TYPE_condorCollector__queryMasterAdsResponse
-#define SOAP_TYPE_condorCollector__queryMasterAdsResponse (41)
+#ifndef SOAP_TYPE_condor__queryMasterAdsResponse
+#define SOAP_TYPE_condor__queryMasterAdsResponse (41)
 #endif
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCollector__queryMasterAdsResponse(struct soap*, struct condorCollector__queryMasterAdsResponse const*);
-SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorCollector__queryMasterAdsResponse(struct soap*, const struct condorCollector__queryMasterAdsResponse *);
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorCollector__queryMasterAdsResponse(struct soap*, struct condorCollector__queryMasterAdsResponse *);
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorCollector__queryMasterAdsResponse(struct soap*, const struct condorCollector__queryMasterAdsResponse *, const char*, const char*);
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorCollector__queryMasterAdsResponse(struct soap*, const char*, int, const struct condorCollector__queryMasterAdsResponse *, const char*);
-SOAP_FMAC3 struct condorCollector__queryMasterAdsResponse * SOAP_FMAC4 soap_get_condorCollector__queryMasterAdsResponse(struct soap*, struct condorCollector__queryMasterAdsResponse *, const char*, const char*);
-SOAP_FMAC3 struct condorCollector__queryMasterAdsResponse * SOAP_FMAC4 soap_in_condorCollector__queryMasterAdsResponse(struct soap*, const char*, struct condorCollector__queryMasterAdsResponse *, const char*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condor__queryMasterAdsResponse(struct soap*, struct condor__queryMasterAdsResponse const*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condor__queryMasterAdsResponse(struct soap*, const struct condor__queryMasterAdsResponse *);
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condor__queryMasterAdsResponse(struct soap*, struct condor__queryMasterAdsResponse *);
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condor__queryMasterAdsResponse(struct soap*, const struct condor__queryMasterAdsResponse *, const char*, const char*);
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condor__queryMasterAdsResponse(struct soap*, const char*, int, const struct condor__queryMasterAdsResponse *, const char*);
+SOAP_FMAC3 struct condor__queryMasterAdsResponse * SOAP_FMAC4 soap_get_condor__queryMasterAdsResponse(struct soap*, struct condor__queryMasterAdsResponse *, const char*, const char*);
+SOAP_FMAC3 struct condor__queryMasterAdsResponse * SOAP_FMAC4 soap_in_condor__queryMasterAdsResponse(struct soap*, const char*, struct condor__queryMasterAdsResponse *, const char*);
 
-#ifndef SOAP_TYPE_condorCollector__queryScheddAds
-#define SOAP_TYPE_condorCollector__queryScheddAds (39)
+#ifndef SOAP_TYPE_condor__queryScheddAds
+#define SOAP_TYPE_condor__queryScheddAds (39)
 #endif
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCollector__queryScheddAds(struct soap*, struct condorCollector__queryScheddAds const*);
-SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorCollector__queryScheddAds(struct soap*, const struct condorCollector__queryScheddAds *);
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorCollector__queryScheddAds(struct soap*, struct condorCollector__queryScheddAds *);
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorCollector__queryScheddAds(struct soap*, const struct condorCollector__queryScheddAds *, const char*, const char*);
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorCollector__queryScheddAds(struct soap*, const char*, int, const struct condorCollector__queryScheddAds *, const char*);
-SOAP_FMAC3 struct condorCollector__queryScheddAds * SOAP_FMAC4 soap_get_condorCollector__queryScheddAds(struct soap*, struct condorCollector__queryScheddAds *, const char*, const char*);
-SOAP_FMAC3 struct condorCollector__queryScheddAds * SOAP_FMAC4 soap_in_condorCollector__queryScheddAds(struct soap*, const char*, struct condorCollector__queryScheddAds *, const char*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condor__queryScheddAds(struct soap*, struct condor__queryScheddAds const*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condor__queryScheddAds(struct soap*, const struct condor__queryScheddAds *);
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condor__queryScheddAds(struct soap*, struct condor__queryScheddAds *);
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condor__queryScheddAds(struct soap*, const struct condor__queryScheddAds *, const char*, const char*);
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condor__queryScheddAds(struct soap*, const char*, int, const struct condor__queryScheddAds *, const char*);
+SOAP_FMAC3 struct condor__queryScheddAds * SOAP_FMAC4 soap_get_condor__queryScheddAds(struct soap*, struct condor__queryScheddAds *, const char*, const char*);
+SOAP_FMAC3 struct condor__queryScheddAds * SOAP_FMAC4 soap_in_condor__queryScheddAds(struct soap*, const char*, struct condor__queryScheddAds *, const char*);
 
-#ifndef SOAP_TYPE_condorCollector__queryScheddAdsResponse
-#define SOAP_TYPE_condorCollector__queryScheddAdsResponse (38)
+#ifndef SOAP_TYPE_condor__queryScheddAdsResponse
+#define SOAP_TYPE_condor__queryScheddAdsResponse (38)
 #endif
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCollector__queryScheddAdsResponse(struct soap*, struct condorCollector__queryScheddAdsResponse const*);
-SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorCollector__queryScheddAdsResponse(struct soap*, const struct condorCollector__queryScheddAdsResponse *);
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorCollector__queryScheddAdsResponse(struct soap*, struct condorCollector__queryScheddAdsResponse *);
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorCollector__queryScheddAdsResponse(struct soap*, const struct condorCollector__queryScheddAdsResponse *, const char*, const char*);
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorCollector__queryScheddAdsResponse(struct soap*, const char*, int, const struct condorCollector__queryScheddAdsResponse *, const char*);
-SOAP_FMAC3 struct condorCollector__queryScheddAdsResponse * SOAP_FMAC4 soap_get_condorCollector__queryScheddAdsResponse(struct soap*, struct condorCollector__queryScheddAdsResponse *, const char*, const char*);
-SOAP_FMAC3 struct condorCollector__queryScheddAdsResponse * SOAP_FMAC4 soap_in_condorCollector__queryScheddAdsResponse(struct soap*, const char*, struct condorCollector__queryScheddAdsResponse *, const char*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condor__queryScheddAdsResponse(struct soap*, struct condor__queryScheddAdsResponse const*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condor__queryScheddAdsResponse(struct soap*, const struct condor__queryScheddAdsResponse *);
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condor__queryScheddAdsResponse(struct soap*, struct condor__queryScheddAdsResponse *);
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condor__queryScheddAdsResponse(struct soap*, const struct condor__queryScheddAdsResponse *, const char*, const char*);
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condor__queryScheddAdsResponse(struct soap*, const char*, int, const struct condor__queryScheddAdsResponse *, const char*);
+SOAP_FMAC3 struct condor__queryScheddAdsResponse * SOAP_FMAC4 soap_get_condor__queryScheddAdsResponse(struct soap*, struct condor__queryScheddAdsResponse *, const char*, const char*);
+SOAP_FMAC3 struct condor__queryScheddAdsResponse * SOAP_FMAC4 soap_in_condor__queryScheddAdsResponse(struct soap*, const char*, struct condor__queryScheddAdsResponse *, const char*);
 
-#ifndef SOAP_TYPE_condorCollector__queryStartdAds
-#define SOAP_TYPE_condorCollector__queryStartdAds (36)
+#ifndef SOAP_TYPE_condor__queryStartdAds
+#define SOAP_TYPE_condor__queryStartdAds (36)
 #endif
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCollector__queryStartdAds(struct soap*, struct condorCollector__queryStartdAds const*);
-SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorCollector__queryStartdAds(struct soap*, const struct condorCollector__queryStartdAds *);
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorCollector__queryStartdAds(struct soap*, struct condorCollector__queryStartdAds *);
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorCollector__queryStartdAds(struct soap*, const struct condorCollector__queryStartdAds *, const char*, const char*);
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorCollector__queryStartdAds(struct soap*, const char*, int, const struct condorCollector__queryStartdAds *, const char*);
-SOAP_FMAC3 struct condorCollector__queryStartdAds * SOAP_FMAC4 soap_get_condorCollector__queryStartdAds(struct soap*, struct condorCollector__queryStartdAds *, const char*, const char*);
-SOAP_FMAC3 struct condorCollector__queryStartdAds * SOAP_FMAC4 soap_in_condorCollector__queryStartdAds(struct soap*, const char*, struct condorCollector__queryStartdAds *, const char*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condor__queryStartdAds(struct soap*, struct condor__queryStartdAds const*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condor__queryStartdAds(struct soap*, const struct condor__queryStartdAds *);
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condor__queryStartdAds(struct soap*, struct condor__queryStartdAds *);
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condor__queryStartdAds(struct soap*, const struct condor__queryStartdAds *, const char*, const char*);
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condor__queryStartdAds(struct soap*, const char*, int, const struct condor__queryStartdAds *, const char*);
+SOAP_FMAC3 struct condor__queryStartdAds * SOAP_FMAC4 soap_get_condor__queryStartdAds(struct soap*, struct condor__queryStartdAds *, const char*, const char*);
+SOAP_FMAC3 struct condor__queryStartdAds * SOAP_FMAC4 soap_in_condor__queryStartdAds(struct soap*, const char*, struct condor__queryStartdAds *, const char*);
 
-#ifndef SOAP_TYPE_condorCollector__queryStartdAdsResponse
-#define SOAP_TYPE_condorCollector__queryStartdAdsResponse (35)
+#ifndef SOAP_TYPE_condor__queryStartdAdsResponse
+#define SOAP_TYPE_condor__queryStartdAdsResponse (35)
 #endif
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCollector__queryStartdAdsResponse(struct soap*, struct condorCollector__queryStartdAdsResponse const*);
-SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorCollector__queryStartdAdsResponse(struct soap*, const struct condorCollector__queryStartdAdsResponse *);
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorCollector__queryStartdAdsResponse(struct soap*, struct condorCollector__queryStartdAdsResponse *);
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorCollector__queryStartdAdsResponse(struct soap*, const struct condorCollector__queryStartdAdsResponse *, const char*, const char*);
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorCollector__queryStartdAdsResponse(struct soap*, const char*, int, const struct condorCollector__queryStartdAdsResponse *, const char*);
-SOAP_FMAC3 struct condorCollector__queryStartdAdsResponse * SOAP_FMAC4 soap_get_condorCollector__queryStartdAdsResponse(struct soap*, struct condorCollector__queryStartdAdsResponse *, const char*, const char*);
-SOAP_FMAC3 struct condorCollector__queryStartdAdsResponse * SOAP_FMAC4 soap_in_condorCollector__queryStartdAdsResponse(struct soap*, const char*, struct condorCollector__queryStartdAdsResponse *, const char*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condor__queryStartdAdsResponse(struct soap*, struct condor__queryStartdAdsResponse const*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condor__queryStartdAdsResponse(struct soap*, const struct condor__queryStartdAdsResponse *);
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condor__queryStartdAdsResponse(struct soap*, struct condor__queryStartdAdsResponse *);
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condor__queryStartdAdsResponse(struct soap*, const struct condor__queryStartdAdsResponse *, const char*, const char*);
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condor__queryStartdAdsResponse(struct soap*, const char*, int, const struct condor__queryStartdAdsResponse *, const char*);
+SOAP_FMAC3 struct condor__queryStartdAdsResponse * SOAP_FMAC4 soap_get_condor__queryStartdAdsResponse(struct soap*, struct condor__queryStartdAdsResponse *, const char*, const char*);
+SOAP_FMAC3 struct condor__queryStartdAdsResponse * SOAP_FMAC4 soap_in_condor__queryStartdAdsResponse(struct soap*, const char*, struct condor__queryStartdAdsResponse *, const char*);
 
-#ifndef SOAP_TYPE_condorCore__StringAndStatus
-#define SOAP_TYPE_condorCore__StringAndStatus (32)
+#ifndef SOAP_TYPE_condor__StringAndStatus
+#define SOAP_TYPE_condor__StringAndStatus (32)
 #endif
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCore__StringAndStatus(struct soap*, struct condorCore__StringAndStatus const*);
-SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorCore__StringAndStatus(struct soap*, const struct condorCore__StringAndStatus *);
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorCore__StringAndStatus(struct soap*, struct condorCore__StringAndStatus *);
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorCore__StringAndStatus(struct soap*, const struct condorCore__StringAndStatus *, const char*, const char*);
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorCore__StringAndStatus(struct soap*, const char*, int, const struct condorCore__StringAndStatus *, const char*);
-SOAP_FMAC3 struct condorCore__StringAndStatus * SOAP_FMAC4 soap_get_condorCore__StringAndStatus(struct soap*, struct condorCore__StringAndStatus *, const char*, const char*);
-SOAP_FMAC3 struct condorCore__StringAndStatus * SOAP_FMAC4 soap_in_condorCore__StringAndStatus(struct soap*, const char*, struct condorCore__StringAndStatus *, const char*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condor__StringAndStatus(struct soap*, struct condor__StringAndStatus const*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condor__StringAndStatus(struct soap*, const struct condor__StringAndStatus *);
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condor__StringAndStatus(struct soap*, struct condor__StringAndStatus *);
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condor__StringAndStatus(struct soap*, const struct condor__StringAndStatus *, const char*, const char*);
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condor__StringAndStatus(struct soap*, const char*, int, const struct condor__StringAndStatus *, const char*);
+SOAP_FMAC3 struct condor__StringAndStatus * SOAP_FMAC4 soap_get_condor__StringAndStatus(struct soap*, struct condor__StringAndStatus *, const char*, const char*);
+SOAP_FMAC3 struct condor__StringAndStatus * SOAP_FMAC4 soap_in_condor__StringAndStatus(struct soap*, const char*, struct condor__StringAndStatus *, const char*);
 
-#ifndef SOAP_TYPE_condorCore__ClassAdStructArrayAndStatus
-#define SOAP_TYPE_condorCore__ClassAdStructArrayAndStatus (31)
+#ifndef SOAP_TYPE_condor__ClassAdStructArrayAndStatus
+#define SOAP_TYPE_condor__ClassAdStructArrayAndStatus (31)
 #endif
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCore__ClassAdStructArrayAndStatus(struct soap*, struct condorCore__ClassAdStructArrayAndStatus const*);
-SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorCore__ClassAdStructArrayAndStatus(struct soap*, const struct condorCore__ClassAdStructArrayAndStatus *);
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorCore__ClassAdStructArrayAndStatus(struct soap*, struct condorCore__ClassAdStructArrayAndStatus *);
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorCore__ClassAdStructArrayAndStatus(struct soap*, const struct condorCore__ClassAdStructArrayAndStatus *, const char*, const char*);
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorCore__ClassAdStructArrayAndStatus(struct soap*, const char*, int, const struct condorCore__ClassAdStructArrayAndStatus *, const char*);
-SOAP_FMAC3 struct condorCore__ClassAdStructArrayAndStatus * SOAP_FMAC4 soap_get_condorCore__ClassAdStructArrayAndStatus(struct soap*, struct condorCore__ClassAdStructArrayAndStatus *, const char*, const char*);
-SOAP_FMAC3 struct condorCore__ClassAdStructArrayAndStatus * SOAP_FMAC4 soap_in_condorCore__ClassAdStructArrayAndStatus(struct soap*, const char*, struct condorCore__ClassAdStructArrayAndStatus *, const char*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condor__ClassAdStructArrayAndStatus(struct soap*, struct condor__ClassAdStructArrayAndStatus const*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condor__ClassAdStructArrayAndStatus(struct soap*, const struct condor__ClassAdStructArrayAndStatus *);
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condor__ClassAdStructArrayAndStatus(struct soap*, struct condor__ClassAdStructArrayAndStatus *);
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condor__ClassAdStructArrayAndStatus(struct soap*, const struct condor__ClassAdStructArrayAndStatus *, const char*, const char*);
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condor__ClassAdStructArrayAndStatus(struct soap*, const char*, int, const struct condor__ClassAdStructArrayAndStatus *, const char*);
+SOAP_FMAC3 struct condor__ClassAdStructArrayAndStatus * SOAP_FMAC4 soap_get_condor__ClassAdStructArrayAndStatus(struct soap*, struct condor__ClassAdStructArrayAndStatus *, const char*, const char*);
+SOAP_FMAC3 struct condor__ClassAdStructArrayAndStatus * SOAP_FMAC4 soap_in_condor__ClassAdStructArrayAndStatus(struct soap*, const char*, struct condor__ClassAdStructArrayAndStatus *, const char*);
 
-#ifndef SOAP_TYPE_condorCore__ClassAdStructAndStatus
-#define SOAP_TYPE_condorCore__ClassAdStructAndStatus (30)
+#ifndef SOAP_TYPE_condor__ClassAdStructAndStatus
+#define SOAP_TYPE_condor__ClassAdStructAndStatus (30)
 #endif
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCore__ClassAdStructAndStatus(struct soap*, struct condorCore__ClassAdStructAndStatus const*);
-SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorCore__ClassAdStructAndStatus(struct soap*, const struct condorCore__ClassAdStructAndStatus *);
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorCore__ClassAdStructAndStatus(struct soap*, struct condorCore__ClassAdStructAndStatus *);
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorCore__ClassAdStructAndStatus(struct soap*, const struct condorCore__ClassAdStructAndStatus *, const char*, const char*);
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorCore__ClassAdStructAndStatus(struct soap*, const char*, int, const struct condorCore__ClassAdStructAndStatus *, const char*);
-SOAP_FMAC3 struct condorCore__ClassAdStructAndStatus * SOAP_FMAC4 soap_get_condorCore__ClassAdStructAndStatus(struct soap*, struct condorCore__ClassAdStructAndStatus *, const char*, const char*);
-SOAP_FMAC3 struct condorCore__ClassAdStructAndStatus * SOAP_FMAC4 soap_in_condorCore__ClassAdStructAndStatus(struct soap*, const char*, struct condorCore__ClassAdStructAndStatus *, const char*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condor__ClassAdStructAndStatus(struct soap*, struct condor__ClassAdStructAndStatus const*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condor__ClassAdStructAndStatus(struct soap*, const struct condor__ClassAdStructAndStatus *);
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condor__ClassAdStructAndStatus(struct soap*, struct condor__ClassAdStructAndStatus *);
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condor__ClassAdStructAndStatus(struct soap*, const struct condor__ClassAdStructAndStatus *, const char*, const char*);
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condor__ClassAdStructAndStatus(struct soap*, const char*, int, const struct condor__ClassAdStructAndStatus *, const char*);
+SOAP_FMAC3 struct condor__ClassAdStructAndStatus * SOAP_FMAC4 soap_get_condor__ClassAdStructAndStatus(struct soap*, struct condor__ClassAdStructAndStatus *, const char*, const char*);
+SOAP_FMAC3 struct condor__ClassAdStructAndStatus * SOAP_FMAC4 soap_in_condor__ClassAdStructAndStatus(struct soap*, const char*, struct condor__ClassAdStructAndStatus *, const char*);
 
 #ifndef SOAP_TYPE_ClassAdStructArray
 #define SOAP_TYPE_ClassAdStructArray (28)
@@ -453,27 +453,27 @@ SOAP_FMAC3 int SOAP_FMAC4 soap_out_ClassAdStruct(struct soap*, const char*, int,
 SOAP_FMAC3 struct ClassAdStruct * SOAP_FMAC4 soap_get_ClassAdStruct(struct soap*, struct ClassAdStruct *, const char*, const char*);
 SOAP_FMAC3 struct ClassAdStruct * SOAP_FMAC4 soap_in_ClassAdStruct(struct soap*, const char*, struct ClassAdStruct *, const char*);
 
-#ifndef SOAP_TYPE_condorCore__ClassAdStructAttr
-#define SOAP_TYPE_condorCore__ClassAdStructAttr (25)
+#ifndef SOAP_TYPE_condor__ClassAdStructAttr
+#define SOAP_TYPE_condor__ClassAdStructAttr (25)
 #endif
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCore__ClassAdStructAttr(struct soap*, struct condorCore__ClassAdStructAttr const*);
-SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorCore__ClassAdStructAttr(struct soap*, const struct condorCore__ClassAdStructAttr *);
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorCore__ClassAdStructAttr(struct soap*, struct condorCore__ClassAdStructAttr *);
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorCore__ClassAdStructAttr(struct soap*, const struct condorCore__ClassAdStructAttr *, const char*, const char*);
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorCore__ClassAdStructAttr(struct soap*, const char*, int, const struct condorCore__ClassAdStructAttr *, const char*);
-SOAP_FMAC3 struct condorCore__ClassAdStructAttr * SOAP_FMAC4 soap_get_condorCore__ClassAdStructAttr(struct soap*, struct condorCore__ClassAdStructAttr *, const char*, const char*);
-SOAP_FMAC3 struct condorCore__ClassAdStructAttr * SOAP_FMAC4 soap_in_condorCore__ClassAdStructAttr(struct soap*, const char*, struct condorCore__ClassAdStructAttr *, const char*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condor__ClassAdStructAttr(struct soap*, struct condor__ClassAdStructAttr const*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condor__ClassAdStructAttr(struct soap*, const struct condor__ClassAdStructAttr *);
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condor__ClassAdStructAttr(struct soap*, struct condor__ClassAdStructAttr *);
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condor__ClassAdStructAttr(struct soap*, const struct condor__ClassAdStructAttr *, const char*, const char*);
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condor__ClassAdStructAttr(struct soap*, const char*, int, const struct condor__ClassAdStructAttr *, const char*);
+SOAP_FMAC3 struct condor__ClassAdStructAttr * SOAP_FMAC4 soap_get_condor__ClassAdStructAttr(struct soap*, struct condor__ClassAdStructAttr *, const char*, const char*);
+SOAP_FMAC3 struct condor__ClassAdStructAttr * SOAP_FMAC4 soap_in_condor__ClassAdStructAttr(struct soap*, const char*, struct condor__ClassAdStructAttr *, const char*);
 
-#ifndef SOAP_TYPE_condorCore__Status
-#define SOAP_TYPE_condorCore__Status (22)
+#ifndef SOAP_TYPE_condor__Status
+#define SOAP_TYPE_condor__Status (22)
 #endif
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCore__Status(struct soap*, struct condorCore__Status const*);
-SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorCore__Status(struct soap*, const struct condorCore__Status *);
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorCore__Status(struct soap*, struct condorCore__Status *);
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorCore__Status(struct soap*, const struct condorCore__Status *, const char*, const char*);
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorCore__Status(struct soap*, const char*, int, const struct condorCore__Status *, const char*);
-SOAP_FMAC3 struct condorCore__Status * SOAP_FMAC4 soap_get_condorCore__Status(struct soap*, struct condorCore__Status *, const char*, const char*);
-SOAP_FMAC3 struct condorCore__Status * SOAP_FMAC4 soap_in_condorCore__Status(struct soap*, const char*, struct condorCore__Status *, const char*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condor__Status(struct soap*, struct condor__Status const*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condor__Status(struct soap*, const struct condor__Status *);
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condor__Status(struct soap*, struct condor__Status *);
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condor__Status(struct soap*, const struct condor__Status *, const char*, const char*);
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condor__Status(struct soap*, const char*, int, const struct condor__Status *, const char*);
+SOAP_FMAC3 struct condor__Status * SOAP_FMAC4 soap_get_condor__Status(struct soap*, struct condor__Status *, const char*, const char*);
+SOAP_FMAC3 struct condor__Status * SOAP_FMAC4 soap_in_condor__Status(struct soap*, const char*, struct condor__Status *, const char*);
 
 #ifndef SOAP_TYPE_xsd__base64Binary
 #define SOAP_TYPE_xsd__base64Binary (17)
@@ -527,27 +527,27 @@ SOAP_FMAC3 int SOAP_FMAC4 soap_out_PointerToClassAdStruct(struct soap*, const ch
 SOAP_FMAC3 struct ClassAdStruct ** SOAP_FMAC4 soap_get_PointerToClassAdStruct(struct soap*, struct ClassAdStruct **, const char*, const char*);
 SOAP_FMAC3 struct ClassAdStruct ** SOAP_FMAC4 soap_in_PointerToClassAdStruct(struct soap*, const char*, struct ClassAdStruct **, const char*);
 
-#ifndef SOAP_TYPE_PointerTocondorCore__ClassAdStructAttr
-#define SOAP_TYPE_PointerTocondorCore__ClassAdStructAttr (27)
+#ifndef SOAP_TYPE_PointerTocondor__ClassAdStructAttr
+#define SOAP_TYPE_PointerTocondor__ClassAdStructAttr (27)
 #endif
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_PointerTocondorCore__ClassAdStructAttr(struct soap*, struct condorCore__ClassAdStructAttr *const*);
-SOAP_FMAC3 void SOAP_FMAC4 soap_mark_PointerTocondorCore__ClassAdStructAttr(struct soap*, struct condorCore__ClassAdStructAttr *const*);
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_PointerTocondorCore__ClassAdStructAttr(struct soap*, struct condorCore__ClassAdStructAttr **);
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_PointerTocondorCore__ClassAdStructAttr(struct soap*, struct condorCore__ClassAdStructAttr *const*, const char*, const char*);
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_PointerTocondorCore__ClassAdStructAttr(struct soap*, const char *, int, struct condorCore__ClassAdStructAttr *const*, const char *);
-SOAP_FMAC3 struct condorCore__ClassAdStructAttr ** SOAP_FMAC4 soap_get_PointerTocondorCore__ClassAdStructAttr(struct soap*, struct condorCore__ClassAdStructAttr **, const char*, const char*);
-SOAP_FMAC3 struct condorCore__ClassAdStructAttr ** SOAP_FMAC4 soap_in_PointerTocondorCore__ClassAdStructAttr(struct soap*, const char*, struct condorCore__ClassAdStructAttr **, const char*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_PointerTocondor__ClassAdStructAttr(struct soap*, struct condor__ClassAdStructAttr *const*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_PointerTocondor__ClassAdStructAttr(struct soap*, struct condor__ClassAdStructAttr *const*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_PointerTocondor__ClassAdStructAttr(struct soap*, struct condor__ClassAdStructAttr **);
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_PointerTocondor__ClassAdStructAttr(struct soap*, struct condor__ClassAdStructAttr *const*, const char*, const char*);
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_PointerTocondor__ClassAdStructAttr(struct soap*, const char *, int, struct condor__ClassAdStructAttr *const*, const char *);
+SOAP_FMAC3 struct condor__ClassAdStructAttr ** SOAP_FMAC4 soap_get_PointerTocondor__ClassAdStructAttr(struct soap*, struct condor__ClassAdStructAttr **, const char*, const char*);
+SOAP_FMAC3 struct condor__ClassAdStructAttr ** SOAP_FMAC4 soap_in_PointerTocondor__ClassAdStructAttr(struct soap*, const char*, struct condor__ClassAdStructAttr **, const char*);
 
-#ifndef SOAP_TYPE_PointerTocondorCore__Status
-#define SOAP_TYPE_PointerTocondorCore__Status (23)
+#ifndef SOAP_TYPE_PointerTocondor__Status
+#define SOAP_TYPE_PointerTocondor__Status (23)
 #endif
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_PointerTocondorCore__Status(struct soap*, struct condorCore__Status *const*);
-SOAP_FMAC3 void SOAP_FMAC4 soap_mark_PointerTocondorCore__Status(struct soap*, struct condorCore__Status *const*);
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_PointerTocondorCore__Status(struct soap*, struct condorCore__Status **);
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_PointerTocondorCore__Status(struct soap*, struct condorCore__Status *const*, const char*, const char*);
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_PointerTocondorCore__Status(struct soap*, const char *, int, struct condorCore__Status *const*, const char *);
-SOAP_FMAC3 struct condorCore__Status ** SOAP_FMAC4 soap_get_PointerTocondorCore__Status(struct soap*, struct condorCore__Status **, const char*, const char*);
-SOAP_FMAC3 struct condorCore__Status ** SOAP_FMAC4 soap_in_PointerTocondorCore__Status(struct soap*, const char*, struct condorCore__Status **, const char*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_PointerTocondor__Status(struct soap*, struct condor__Status *const*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_PointerTocondor__Status(struct soap*, struct condor__Status *const*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_PointerTocondor__Status(struct soap*, struct condor__Status **);
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_PointerTocondor__Status(struct soap*, struct condor__Status *const*, const char*, const char*);
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_PointerTocondor__Status(struct soap*, const char *, int, struct condor__Status *const*, const char *);
+SOAP_FMAC3 struct condor__Status ** SOAP_FMAC4 soap_get_PointerTocondor__Status(struct soap*, struct condor__Status **, const char*, const char*);
+SOAP_FMAC3 struct condor__Status ** SOAP_FMAC4 soap_in_PointerTocondor__Status(struct soap*, const char*, struct condor__Status **, const char*);
 
 #ifndef SOAP_TYPE_PointerTounsignedByte
 #define SOAP_TYPE_PointerTounsignedByte (20)

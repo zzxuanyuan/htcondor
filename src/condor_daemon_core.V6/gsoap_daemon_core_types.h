@@ -1,8 +1,6 @@
 // This header file is NOT for a C/C++ compiler; it is for the 
 // gSOAP stub generator.
 
-//gsoap condorCore service namespace: urn:condor-daemoncore
-
 /*
  Below are all the xsd schema types that are required. When gSOAP
  parses this file it will see types of for form x__y, the x will
@@ -14,6 +12,10 @@
  The numbers after a struct's member's name is
  MIN_OCCURRANCES:MAX_OCCURRANCES.
  */
+
+//gsoap condor service namespace: urn:condor
+//gsoap condor service style: rpc
+//gsoap condor service encoding: encoded
 
 typedef char *xsd__string;
 typedef char *xsd__anyURI;
@@ -28,7 +30,7 @@ struct xsd__base64Binary
   int __size;
 };
 
-enum condorCore__StatusCode
+enum condor__StatusCode
 {
   SUCCESS,
   FAIL,
@@ -41,14 +43,14 @@ enum condorCore__StatusCode
   ALREADYEXISTS
 };
 
-struct condorCore__Status
+struct condor__Status
 {
-  enum condorCore__StatusCode code 1:1;
+  enum condor__StatusCode code 1:1;
   xsd__string message 0:1;
-  struct condorCore__Status *next 0:1;
+  struct condor__Status *next 0:1;
 };
 
-enum condorCore__ClassAdAttrType
+enum condor__ClassAdAttrType
 {
   INTEGER_ATTR = 'n',
   FLOAT_ATTR = 'f',
@@ -60,17 +62,17 @@ enum condorCore__ClassAdAttrType
 };
 
 // n=int,f=float,s=string,x=expression,b=bool,u=undefined,e=error
-struct condorCore__ClassAdStructAttr
+struct condor__ClassAdStructAttr
 {
   xsd__string name 1:1;
   //	xsd__byte type 1:1;
-  enum condorCore__ClassAdAttrType type 1:1;
+  enum condor__ClassAdAttrType type 1:1;
   xsd__string value 1:1;
 };
 
 struct ClassAdStruct
 {
-	struct condorCore__ClassAdStructAttr *__ptr;	
+	struct condor__ClassAdStructAttr *__ptr;	
 	int __size;
 };
 
@@ -80,20 +82,20 @@ struct ClassAdStructArray
 	int __size;
 };
 
-struct condorCore__ClassAdStructAndStatus
+struct condor__ClassAdStructAndStatus
 {
-  struct condorCore__Status status 1:1;
+  struct condor__Status status 1:1;
   struct ClassAdStruct classAd 0:1;
 };
 
-struct condorCore__ClassAdStructArrayAndStatus
+struct condor__ClassAdStructArrayAndStatus
 {
-  struct condorCore__Status status 1:1;
+  struct condor__Status status 1:1;
   struct ClassAdStructArray classAdArray 0:1;
 };
 
-struct condorCore__StringAndStatus
+struct condor__StringAndStatus
 {
-  struct condorCore__Status status 1:1;
+  struct condor__Status status 1:1;
   xsd__string message 0:1;
 };

@@ -1,26 +1,24 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <definitions name="condorCollector"
- targetNamespace="urn:condor-collector"
- xmlns:tns="urn:condor-collector"
+ targetNamespace="urn:condor"
+ xmlns:tns="urn:condor"
  xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/"
  xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/"
  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
  xmlns:xsd="http://www.w3.org/2001/XMLSchema"
- xmlns:condorCore="urn:condor-daemoncore"
- xmlns:condorCollector="urn:condor-collector"
+ xmlns:condor="urn:condor"
  xmlns:SOAP="http://schemas.xmlsoap.org/wsdl/soap/"
  xmlns:WSDL="http://schemas.xmlsoap.org/wsdl/"
  xmlns="http://schemas.xmlsoap.org/wsdl/">
 
 <types>
 
- <schema targetNamespace="urn:condor-daemoncore"
+ <schema targetNamespace="urn:condor"
   xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/"
   xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xmlns:xsd="http://www.w3.org/2001/XMLSchema"
-  xmlns:condorCore="urn:condor-daemoncore"
-  xmlns:condorCollector="urn:condor-collector"
+  xmlns:condor="urn:condor"
   xmlns="http://www.w3.org/2001/XMLSchema"
   elementFormDefault="unqualified"
   attributeFormDefault="unqualified">
@@ -51,56 +49,25 @@
   </simpleType>
   <complexType name="Status">
    <sequence>
-    <element name="code" type="condorCore:StatusCode" minOccurs="1" maxOccurs="1"/>
+    <element name="code" type="condor:StatusCode" minOccurs="1" maxOccurs="1"/>
     <element name="message" type="xsd:string" minOccurs="0" maxOccurs="1" nillable="true"/>
-    <element name="next" type="condorCore:Status" minOccurs="0" maxOccurs="1" nillable="true"/>
+    <element name="next" type="condor:Status" minOccurs="0" maxOccurs="1" nillable="true"/>
    </sequence>
   </complexType>
   <complexType name="ClassAdStructAttr">
    <sequence>
     <element name="name" type="xsd:string" minOccurs="1" maxOccurs="1" nillable="true"/>
-    <element name="type" type="condorCore:ClassAdAttrType" minOccurs="1" maxOccurs="1"/>
+    <element name="type" type="condor:ClassAdAttrType" minOccurs="1" maxOccurs="1"/>
     <element name="value" type="xsd:string" minOccurs="1" maxOccurs="1" nillable="true"/>
    </sequence>
   </complexType>
-  <complexType name="ClassAdStructAndStatus">
-   <sequence>
-    <element name="status" type="condorCore:Status" minOccurs="1" maxOccurs="1"/>
-    <element name="classAd" type="condorCollector:ArrayOfClassAdStructAttr" minOccurs="0" maxOccurs="1" nillable="true"/>
-   </sequence>
-  </complexType>
-  <complexType name="ClassAdStructArrayAndStatus">
-   <sequence>
-    <element name="status" type="condorCore:Status" minOccurs="1" maxOccurs="1"/>
-    <element name="classAdArray" type="condorCollector:ArrayOfArrayOfClassAdStructAttr" minOccurs="0" maxOccurs="1" nillable="true"/>
-   </sequence>
-  </complexType>
-  <complexType name="StringAndStatus">
-   <sequence>
-    <element name="status" type="condorCore:Status" minOccurs="1" maxOccurs="1"/>
-    <element name="message" type="xsd:string" minOccurs="0" maxOccurs="1" nillable="true"/>
-   </sequence>
-  </complexType>
- </schema>
-
- <schema targetNamespace="urn:condor-collector"
-  xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/"
-  xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/"
-  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xmlns:xsd="http://www.w3.org/2001/XMLSchema"
-  xmlns:condorCore="urn:condor-daemoncore"
-  xmlns:condorCollector="urn:condor-collector"
-  xmlns="http://www.w3.org/2001/XMLSchema"
-  elementFormDefault="unqualified"
-  attributeFormDefault="unqualified">
-  <import namespace="http://schemas.xmlsoap.org/soap/encoding/"/>
   <complexType name="ArrayOfClassAdStructAttr">
    <complexContent>
     <restriction base="SOAP-ENC:Array">
      <sequence>
-      <element name="item" type="condorCore:ClassAdStructAttr" minOccurs="0" maxOccurs="unbounded"/>
+      <element name="item" type="condor:ClassAdStructAttr" minOccurs="0" maxOccurs="unbounded"/>
      </sequence>
-     <attribute ref="SOAP-ENC:arrayType" WSDL:arrayType="condorCore:ClassAdStructAttr[]"/>
+     <attribute ref="SOAP-ENC:arrayType" WSDL:arrayType="condor:ClassAdStructAttr[]"/>
     </restriction>
    </complexContent>
   </complexType>
@@ -108,11 +75,29 @@
    <complexContent>
     <restriction base="SOAP-ENC:Array">
      <sequence>
-      <element name="item" type="condorCollector:ArrayOfClassAdStructAttr" minOccurs="0" maxOccurs="unbounded"/>
+      <element name="item" type="condor:ArrayOfClassAdStructAttr" minOccurs="0" maxOccurs="unbounded"/>
      </sequence>
-     <attribute ref="SOAP-ENC:arrayType" WSDL:arrayType="condorCollector:ArrayOfClassAdStructAttr[]"/>
+     <attribute ref="SOAP-ENC:arrayType" WSDL:arrayType="condor:ArrayOfClassAdStructAttr[]"/>
     </restriction>
    </complexContent>
+  </complexType>
+  <complexType name="ClassAdStructAndStatus">
+   <sequence>
+    <element name="status" type="condor:Status" minOccurs="1" maxOccurs="1"/>
+    <element name="classAd" type="condor:ArrayOfClassAdStructAttr" minOccurs="0" maxOccurs="1" nillable="true"/>
+   </sequence>
+  </complexType>
+  <complexType name="ClassAdStructArrayAndStatus">
+   <sequence>
+    <element name="status" type="condor:Status" minOccurs="1" maxOccurs="1"/>
+    <element name="classAdArray" type="condor:ArrayOfArrayOfClassAdStructAttr" minOccurs="0" maxOccurs="1" nillable="true"/>
+   </sequence>
+  </complexType>
+  <complexType name="StringAndStatus">
+   <sequence>
+    <element name="status" type="condor:Status" minOccurs="1" maxOccurs="1"/>
+    <element name="message" type="xsd:string" minOccurs="0" maxOccurs="1" nillable="true"/>
+   </sequence>
   </complexType>
  </schema>
 
@@ -123,7 +108,7 @@
 </message>
 
 <message name="queryStartdAdsResponse">
- <part name="result" type="condorCollector:ArrayOfArrayOfClassAdStructAttr"/>
+ <part name="result" type="condor:ArrayOfArrayOfClassAdStructAttr"/>
 </message>
 
 <message name="queryScheddAdsRequest">
@@ -131,7 +116,7 @@
 </message>
 
 <message name="queryScheddAdsResponse">
- <part name="result" type="condorCollector:ArrayOfArrayOfClassAdStructAttr"/>
+ <part name="result" type="condor:ArrayOfArrayOfClassAdStructAttr"/>
 </message>
 
 <message name="queryMasterAdsRequest">
@@ -139,7 +124,7 @@
 </message>
 
 <message name="queryMasterAdsResponse">
- <part name="result" type="condorCollector:ArrayOfArrayOfClassAdStructAttr"/>
+ <part name="result" type="condor:ArrayOfArrayOfClassAdStructAttr"/>
 </message>
 
 <message name="querySubmittorAdsRequest">
@@ -147,7 +132,7 @@
 </message>
 
 <message name="querySubmittorAdsResponse">
- <part name="result" type="condorCollector:ArrayOfArrayOfClassAdStructAttr"/>
+ <part name="result" type="condor:ArrayOfArrayOfClassAdStructAttr"/>
 </message>
 
 <message name="queryLicenseAdsRequest">
@@ -155,7 +140,7 @@
 </message>
 
 <message name="queryLicenseAdsResponse">
- <part name="result" type="condorCollector:ArrayOfArrayOfClassAdStructAttr"/>
+ <part name="result" type="condor:ArrayOfArrayOfClassAdStructAttr"/>
 </message>
 
 <message name="queryStorageAdsRequest">
@@ -163,7 +148,7 @@
 </message>
 
 <message name="queryStorageAdsResponse">
- <part name="result" type="condorCollector:ArrayOfArrayOfClassAdStructAttr"/>
+ <part name="result" type="condor:ArrayOfArrayOfClassAdStructAttr"/>
 </message>
 
 <message name="queryAnyAdsRequest">
@@ -171,42 +156,42 @@
 </message>
 
 <message name="queryAnyAdsResponse">
- <part name="result" type="condorCollector:ArrayOfArrayOfClassAdStructAttr"/>
+ <part name="result" type="condor:ArrayOfArrayOfClassAdStructAttr"/>
 </message>
 
 <portType name="condorCollectorPortType">
  <operation name="queryStartdAds">
-  <documentation>Service definition of function condorCollector__queryStartdAds</documentation>
+  <documentation>Service definition of function condor__queryStartdAds</documentation>
   <input message="tns:queryStartdAdsRequest"/>
   <output message="tns:queryStartdAdsResponse"/>
  </operation>
  <operation name="queryScheddAds">
-  <documentation>Service definition of function condorCollector__queryScheddAds</documentation>
+  <documentation>Service definition of function condor__queryScheddAds</documentation>
   <input message="tns:queryScheddAdsRequest"/>
   <output message="tns:queryScheddAdsResponse"/>
  </operation>
  <operation name="queryMasterAds">
-  <documentation>Service definition of function condorCollector__queryMasterAds</documentation>
+  <documentation>Service definition of function condor__queryMasterAds</documentation>
   <input message="tns:queryMasterAdsRequest"/>
   <output message="tns:queryMasterAdsResponse"/>
  </operation>
  <operation name="querySubmittorAds">
-  <documentation>Service definition of function condorCollector__querySubmittorAds</documentation>
+  <documentation>Service definition of function condor__querySubmittorAds</documentation>
   <input message="tns:querySubmittorAdsRequest"/>
   <output message="tns:querySubmittorAdsResponse"/>
  </operation>
  <operation name="queryLicenseAds">
-  <documentation>Service definition of function condorCollector__queryLicenseAds</documentation>
+  <documentation>Service definition of function condor__queryLicenseAds</documentation>
   <input message="tns:queryLicenseAdsRequest"/>
   <output message="tns:queryLicenseAdsResponse"/>
  </operation>
  <operation name="queryStorageAds">
-  <documentation>Service definition of function condorCollector__queryStorageAds</documentation>
+  <documentation>Service definition of function condor__queryStorageAds</documentation>
   <input message="tns:queryStorageAdsRequest"/>
   <output message="tns:queryStorageAdsResponse"/>
  </operation>
  <operation name="queryAnyAds">
-  <documentation>Service definition of function condorCollector__queryAnyAds</documentation>
+  <documentation>Service definition of function condor__queryAnyAds</documentation>
   <input message="tns:queryAnyAdsRequest"/>
   <output message="tns:queryAnyAdsResponse"/>
  </operation>
@@ -217,64 +202,64 @@
  <operation name="queryStartdAds">
   <SOAP:operation style="rpc" soapAction=""/>
   <input>
-   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+   <SOAP:body use="encoded" namespace="urn:condor" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
   <output>
-   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+   <SOAP:body use="encoded" namespace="urn:condor" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </output>
  </operation>
  <operation name="queryScheddAds">
   <SOAP:operation style="rpc" soapAction=""/>
   <input>
-   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+   <SOAP:body use="encoded" namespace="urn:condor" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
   <output>
-   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+   <SOAP:body use="encoded" namespace="urn:condor" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </output>
  </operation>
  <operation name="queryMasterAds">
   <SOAP:operation style="rpc" soapAction=""/>
   <input>
-   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+   <SOAP:body use="encoded" namespace="urn:condor" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
   <output>
-   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+   <SOAP:body use="encoded" namespace="urn:condor" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </output>
  </operation>
  <operation name="querySubmittorAds">
   <SOAP:operation style="rpc" soapAction=""/>
   <input>
-   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+   <SOAP:body use="encoded" namespace="urn:condor" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
   <output>
-   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+   <SOAP:body use="encoded" namespace="urn:condor" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </output>
  </operation>
  <operation name="queryLicenseAds">
   <SOAP:operation style="rpc" soapAction=""/>
   <input>
-   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+   <SOAP:body use="encoded" namespace="urn:condor" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
   <output>
-   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+   <SOAP:body use="encoded" namespace="urn:condor" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </output>
  </operation>
  <operation name="queryStorageAds">
   <SOAP:operation style="rpc" soapAction=""/>
   <input>
-   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+   <SOAP:body use="encoded" namespace="urn:condor" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
   <output>
-   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+   <SOAP:body use="encoded" namespace="urn:condor" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </output>
  </operation>
  <operation name="queryAnyAds">
   <SOAP:operation style="rpc" soapAction=""/>
   <input>
-   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+   <SOAP:body use="encoded" namespace="urn:condor" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
   <output>
-   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+   <SOAP:body use="encoded" namespace="urn:condor" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </output>
  </operation>
 </binding>

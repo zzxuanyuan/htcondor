@@ -65,49 +65,49 @@ static int receive_query_soap(int command,struct soap *s,char *constraint,
 	return SOAP_OK;
 }
 
-int condorCollector__queryStartdAds(struct soap *s,char *constraint,
+int condor__queryStartdAds(struct soap *s,char *constraint,
 	struct ClassAdStructArray & ads)
 {
 	int command = QUERY_STARTD_ADS;
 	return receive_query_soap(command,s,constraint,ads);
 }
 
-int condorCollector__queryScheddAds(struct soap *s,char *constraint,
+int condor__queryScheddAds(struct soap *s,char *constraint,
 	struct ClassAdStructArray & ads)
 {
 	int command = QUERY_SCHEDD_ADS;
 	return receive_query_soap(command,s,constraint,ads);
 }
 
-int condorCollector__queryMasterAds(struct soap *s,char *constraint,
+int condor__queryMasterAds(struct soap *s,char *constraint,
 	struct ClassAdStructArray & ads)
 {
 	int command = QUERY_MASTER_ADS;
 	return receive_query_soap(command,s,constraint,ads);
 }
 
-int condorCollector__querySubmittorAds(struct soap *s,char *constraint,
+int condor__querySubmittorAds(struct soap *s,char *constraint,
 	struct ClassAdStructArray & ads)
 {
 	int command = QUERY_SUBMITTOR_ADS;
 	return receive_query_soap(command,s,constraint,ads);
 }
 
-int condorCollector__queryLicenseAds(struct soap *s,char *constraint,
+int condor__queryLicenseAds(struct soap *s,char *constraint,
 	struct ClassAdStructArray & ads)
 {
 	int command = QUERY_LICENSE_ADS;
 	return receive_query_soap(command,s,constraint,ads);
 }
 
-int condorCollector__queryStorageAds(struct soap *s,char *constraint,
+int condor__queryStorageAds(struct soap *s,char *constraint,
 	struct ClassAdStructArray & ads)
 {
 	int command = QUERY_STORAGE_ADS;
 	return receive_query_soap(command,s,constraint,ads);
 }
 
-int condorCollector__queryAnyAds(struct soap *s,char *constraint,
+int condor__queryAnyAds(struct soap *s,char *constraint,
 	struct ClassAdStructArray & ads)
 {
 	int command = QUERY_ANY_ADS;
@@ -117,24 +117,24 @@ int condorCollector__queryAnyAds(struct soap *s,char *constraint,
 
 // TODO : This should move into daemonCore once we figure out how we wanna link
 
-int condorCore__getPlatformString(struct soap *soap,void *,char* &result)
+int condor__getPlatformString(struct soap *soap,void *,char* &result)
 {
 	result = CondorPlatform();
 	return SOAP_OK;
 }
 
-int condorCore__getVersionString(struct soap *soap,void *,char* &result)
+int condor__getVersionString(struct soap *soap,void *,char* &result)
 {
 	result = CondorVersion();
 	return SOAP_OK;
 }
 
-int condorCore__getInfoAd(struct soap *soap,void *,struct ClassAdStruct & ad)
+int condor__getInfoAd(struct soap *soap,void *,struct ClassAdStruct & ad)
 {
 	char* todd = "Todd A Tannenbaum";
 
 	ad.__size = 3;
-	ad.__ptr = (struct condorCore__ClassAdStructAttr *)soap_malloc(soap,3 * sizeof(struct condorCore__ClassAdStructAttr));
+	ad.__ptr = (struct condor__ClassAdStructAttr *)soap_malloc(soap,3 * sizeof(struct condor__ClassAdStructAttr));
 
 	ad.__ptr[0].name = "Name";
 	ad.__ptr[0].type = STRING_ATTR;

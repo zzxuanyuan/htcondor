@@ -61,7 +61,7 @@ convert_FileInfoList_to_Array(struct soap * soap,
                               struct FileInfoArray & array)
 {
   array.__size = list.Number();
-  array.__ptr = (struct condorSchedd__FileInfo *) soap_malloc(soap, array.__size * sizeof(struct condorSchedd__FileInfo));
+  array.__ptr = (struct condor__FileInfo *) soap_malloc(soap, array.__size * sizeof(struct condor__FileInfo));
 
   FileInfo *info;
   list.Rewind();
@@ -73,12 +73,12 @@ convert_FileInfoList_to_Array(struct soap * soap,
   return true;
 }
 
-static bool null_transaction(const struct condorSchedd__Transaction & transaction)
+static bool null_transaction(const struct condor__Transaction & transaction)
 {
   return !transaction.id;
 }
 
-static bool valid_transaction(const struct condorSchedd__Transaction & transaction)
+static bool valid_transaction(const struct condor__Transaction & transaction)
 {
   return current_trans_id == transaction.id;
 }
@@ -139,7 +139,7 @@ removeCluster(int clusterId)
 
 static
 int
-extendTransaction(const struct condorSchedd__Transaction & transaction)
+extendTransaction(const struct condor__Transaction & transaction)
 {
   if (!null_transaction(transaction) &&
       transaction.id == current_trans_id && // must be the current transaction
@@ -162,39 +162,39 @@ extendTransaction(const struct condorSchedd__Transaction & transaction)
 // schedd proper... since it should all work the same from the cedar
 // side as well.
 int
-condorSchedd__transtimeout()
+condor__transtimeout()
 {
-  struct condorSchedd__StatusResponse result;
+  struct condor__StatusResponse result;
 
-  dprintf(D_ALWAYS,"SOAP in condorSchedd__transtimeout()\n");
+  dprintf(D_ALWAYS,"SOAP in condor__transtimeout()\n");
 
-  condorSchedd__Transaction transaction;
+  condor__Transaction transaction;
   transaction.id = current_trans_id;
-  condorSchedd__abortTransaction(NULL, transaction, result);
+  condor__abortTransaction(NULL, transaction, result);
   return TRUE;
 }
 
 int
-condorSchedd__beginTransaction(struct soap *s,
+condor__beginTransaction(struct soap *s,
                                int duration,
-                               struct condorSchedd__TransactionAndStatusResponse & result)
+                               struct condor__TransactionAndStatusResponse & result)
 {
   if ( current_trans_id ) {
     // if there is an existing transaction, abort it.
     // TODO - support more than one active transaction!!!
-    struct condorSchedd__StatusResponse result;
-    struct condorSchedd__Transaction transaction;
+    struct condor__StatusResponse result;
+    struct condor__Transaction transaction;
     transaction.id = current_trans_id;
     // XXX: handle errors
-    condorSchedd__abortTransaction(s, transaction, result);
+    condor__abortTransaction(s, transaction, result);
   }
   if ( duration < 1 ) {
     duration = 1;
   }
 
   trans_timer_id = daemonCore->Register_Timer(duration,
-                                              (TimerHandler)&condorSchedd__transtimeout,
-                                              "condorSchedd_transtimeout");
+                                              (TimerHandler)&condor__transtimeout,
+                                              "condor_transtimeout");
 
   current_trans_id = time(NULL);   // TODO : choose unique id - use time for now
   result.response.transaction.id = current_trans_id;
@@ -206,15 +206,15 @@ condorSchedd__beginTransaction(struct soap *s,
 
   BeginTransaction();
 
-  dprintf(D_ALWAYS,"SOAP leaving condorSchedd__beginTransaction() id=%ld\n",result.response.transaction.id);
+  dprintf(D_ALWAYS,"SOAP leaving condor__beginTransaction() id=%ld\n",result.response.transaction.id);
 
   return SOAP_OK;
 }
 
 int
-condorSchedd__commitTransaction(struct soap *s,
-                                struct condorSchedd__Transaction transaction,
-                                struct condorSchedd__StatusResponse & result )
+condor__commitTransaction(struct soap *s,
+                                struct condor__Transaction transaction,
+                                struct condor__StatusResponse & result )
 {
   if (!valid_transaction(transaction) ||
       null_transaction(transaction)) {
@@ -233,15 +233,15 @@ condorSchedd__commitTransaction(struct soap *s,
 
 	  //jobs.clear(); // XXX: Do the destructors get called?
 
-  dprintf(D_ALWAYS,"SOAP leaving condorSchedd__commitTransaction() res=%d\n",result.response.code);
+  dprintf(D_ALWAYS,"SOAP leaving condor__commitTransaction() res=%d\n",result.response.code);
   return SOAP_OK;
 }
 
 
 int
-condorSchedd__abortTransaction(struct soap *s,
-                               struct condorSchedd__Transaction transaction,
-                               struct condorSchedd__StatusResponse & result )
+condor__abortTransaction(struct soap *s,
+                               struct condor__Transaction transaction,
+                               struct condor__StatusResponse & result )
 {
   if (transaction.id && transaction.id == current_trans_id) {
     AbortTransactionAndRecomputeClusters();
@@ -268,16 +268,16 @@ condorSchedd__abortTransaction(struct soap *s,
     result.response.code = SUCCESS;
   }
 
-  dprintf(D_ALWAYS,"SOAP leaving condorSchedd__abortTransaction() res=%d\n",result.response.code);
+  dprintf(D_ALWAYS,"SOAP leaving condor__abortTransaction() res=%d\n",result.response.code);
   return SOAP_OK;
 }
 
 
 int
-condorSchedd__extendTransaction(struct soap *s,
-                                struct condorSchedd__Transaction transaction,
+condor__extendTransaction(struct soap *s,
+                                struct condor__Transaction transaction,
                                 int duration,
-                                struct condorSchedd__TransactionAndStatusResponse & result )
+                                struct condor__TransactionAndStatusResponse & result )
 {
   if (!valid_transaction(transaction) ||
       null_transaction(transaction)) {
@@ -294,15 +294,15 @@ condorSchedd__extendTransaction(struct soap *s,
     }
   }
 
-  dprintf(D_ALWAYS,"SOAP leaving condorSchedd__extendTransaction() res=%d\n",result.response.status.code);
+  dprintf(D_ALWAYS,"SOAP leaving condor__extendTransaction() res=%d\n",result.response.status.code);
   return SOAP_OK;
 }
 
 
 int
-condorSchedd__newCluster(struct soap *s,
-                         struct condorSchedd__Transaction transaction,
-                         struct condorSchedd__IntAndStatusResponse & result)
+condor__newCluster(struct soap *s,
+                         struct condor__Transaction transaction,
+                         struct condor__IntAndStatusResponse & result)
 {
   if (!valid_transaction(transaction) ||
       null_transaction(transaction)) {
@@ -320,17 +320,17 @@ condorSchedd__newCluster(struct soap *s,
     }
   }
 
-  dprintf(D_ALWAYS,"SOAP leaving condorSchedd__newCluster() res=%d\n",result.response.status.code);
+  dprintf(D_ALWAYS,"SOAP leaving condor__newCluster() res=%d\n",result.response.status.code);
   return SOAP_OK;
 }
 
 
 int
-condorSchedd__removeCluster(struct soap *s,
-                            struct condorSchedd__Transaction transaction,
+condor__removeCluster(struct soap *s,
+                            struct condor__Transaction transaction,
                             int clusterId,
                             char* reason,
-                            struct condorSchedd__StatusResponse & result)
+                            struct condor__StatusResponse & result)
 {
     if ( !valid_transaction(transaction) &&
          !null_transaction(transaction) ) {
@@ -352,16 +352,16 @@ condorSchedd__removeCluster(struct soap *s,
         }
     }
 
-    dprintf(D_ALWAYS,"SOAP leaving condorSchedd__removeCluster() res=%d\n",result.response.code);
+    dprintf(D_ALWAYS,"SOAP leaving condor__removeCluster() res=%d\n",result.response.code);
     return SOAP_OK;
 }
 
 
 int
-condorSchedd__newJob(struct soap *s,
-                     struct condorSchedd__Transaction transaction,
+condor__newJob(struct soap *s,
+                     struct condor__Transaction transaction,
                      int clusterId,
-                     struct condorSchedd__IntAndStatusResponse & result)
+                     struct condor__IntAndStatusResponse & result)
 {
   if (!valid_transaction(transaction) ||
       null_transaction(transaction)) {
@@ -385,19 +385,19 @@ condorSchedd__newJob(struct soap *s,
     }
   }
 
-  dprintf(D_ALWAYS,"SOAP leaving condorSchedd__newJob() res=%d\n",result.response.status.code);
+  dprintf(D_ALWAYS,"SOAP leaving condor__newJob() res=%d\n",result.response.status.code);
   return SOAP_OK;
 }
 
 
 int
-condorSchedd__removeJob(struct soap *s,
-                        struct condorSchedd__Transaction transaction,
+condor__removeJob(struct soap *s,
+                        struct condor__Transaction transaction,
                         int clusterId,
                         int jobId,
                         char* reason,
                         bool force_removal,
-                        struct condorSchedd__StatusResponse & result)
+                        struct condor__StatusResponse & result)
 {
   // TODO --- do something w/ force_removal flag; it is ignored for now.
 
@@ -419,21 +419,21 @@ condorSchedd__removeJob(struct soap *s,
     }
   }
 
-  dprintf(D_ALWAYS,"SOAP leaving condorSchedd__removeJob() res=%d\n",result.response.code);
+  dprintf(D_ALWAYS,"SOAP leaving condor__removeJob() res=%d\n",result.response.code);
   return SOAP_OK;
 }
 
 
 int
-condorSchedd__holdJob(struct soap *s,
-                      struct condorSchedd__Transaction transaction,
+condor__holdJob(struct soap *s,
+                      struct condor__Transaction transaction,
                       int clusterId,
                       int jobId,
                       char* reason,
                       bool email_user,
                       bool email_admin,
                       bool system_hold,
-                      struct condorSchedd__StatusResponse & result)
+                      struct condor__StatusResponse & result)
 {
   result.response.code = SUCCESS;
   if (!valid_transaction(transaction) &&
@@ -452,20 +452,20 @@ condorSchedd__holdJob(struct soap *s,
     }
   }
 
-  dprintf(D_ALWAYS,"SOAP leaving condorSchedd__holdJob() res=%d\n",result.response.code);
+  dprintf(D_ALWAYS,"SOAP leaving condor__holdJob() res=%d\n",result.response.code);
   return SOAP_OK;
 }
 
 
 int
-condorSchedd__releaseJob(struct soap *s,
-                         struct condorSchedd__Transaction transaction,
+condor__releaseJob(struct soap *s,
+                         struct condor__Transaction transaction,
                          int clusterId,
                          int jobId,
                          char* reason,
                          bool email_user,
                          bool email_admin,
-                         struct condorSchedd__StatusResponse & result)
+                         struct condor__StatusResponse & result)
 {
   if (!valid_transaction(transaction) &&
       !null_transaction(transaction)) {
@@ -483,18 +483,18 @@ condorSchedd__releaseJob(struct soap *s,
     }
   }
 
-  dprintf(D_ALWAYS,"SOAP leaving condorSchedd__releaseJob() res=%d\n",result.response.code);
+  dprintf(D_ALWAYS,"SOAP leaving condor__releaseJob() res=%d\n",result.response.code);
   return SOAP_OK;
 }
 
 
 int
-condorSchedd__submit(struct soap *s,
-                     struct condorSchedd__Transaction transaction,
+condor__submit(struct soap *s,
+                     struct condor__Transaction transaction,
                      int clusterId,
                      int jobId,
                      struct ClassAdStruct * jobAd,
-                     struct condorSchedd__RequirementsAndStatusResponse & result)
+                     struct condor__RequirementsAndStatusResponse & result)
 {
   if (!valid_transaction(transaction) ||
       null_transaction(transaction)) {
@@ -520,18 +520,18 @@ condorSchedd__submit(struct soap *s,
     }
   }
 
-  dprintf(D_ALWAYS,"SOAP leaving condorSchedd__submit() res=%d\n",result.response.status.code);
+  dprintf(D_ALWAYS,"SOAP leaving condor__submit() res=%d\n",result.response.status.code);
   return SOAP_OK;
 }
 
 
 int
-condorSchedd__getJobAds(struct soap *s,
-                        struct condorSchedd__Transaction transaction,
+condor__getJobAds(struct soap *s,
+                        struct condor__Transaction transaction,
                         char *constraint,
-                        struct condorSchedd__ClassAdStructArrayAndStatusResponse & result )
+                        struct condor__ClassAdStructArrayAndStatusResponse & result )
 {
-  dprintf(D_ALWAYS,"SOAP entering condorSchedd__getJobAds() \n");
+  dprintf(D_ALWAYS,"SOAP entering condor__getJobAds() \n");
 
   if (!valid_transaction(transaction) &&
       !null_transaction(transaction)) {
@@ -549,7 +549,7 @@ condorSchedd__getJobAds(struct soap *s,
 
     // fill in our soap struct response
     if (!convert_adlist_to_adStructArray(s,&adList,&result.response.classAdArray) ) {
-      dprintf(D_ALWAYS,"condorSchedd__getJobAds: convert_adlist_to_adStructArray failed!\n");
+      dprintf(D_ALWAYS,"condor__getJobAds: convert_adlist_to_adStructArray failed!\n");
 
       result.response.status.code = FAIL;
     } else {
@@ -562,16 +562,16 @@ condorSchedd__getJobAds(struct soap *s,
 
 
 int
-condorSchedd__getJobAd(struct soap *s,
-                       struct condorSchedd__Transaction transaction,
+condor__getJobAd(struct soap *s,
+                       struct condor__Transaction transaction,
                        int clusterId,
                        int jobId,
-                       struct condorSchedd__ClassAdStructAndStatusResponse & result )
+                       struct condor__ClassAdStructAndStatusResponse & result )
 {
   // TODO : deal with transaction consistency; currently, job ad is
   // invisible until a commit.  not very ACID compliant, is it? :(
 
-  dprintf(D_ALWAYS,"SOAP entering condorSchedd__getJobAd() \n");
+  dprintf(D_ALWAYS,"SOAP entering condor__getJobAd() \n");
 
   if (!valid_transaction(transaction) &&
       !null_transaction(transaction)) {
@@ -582,7 +582,7 @@ condorSchedd__getJobAd(struct soap *s,
 
     ClassAd *ad = GetJobAd(clusterId,jobId);
     if (!convert_ad_to_adStruct(s,ad,&result.response.classAd)) {
-      dprintf(D_ALWAYS,"condorSchedd__getJobAds: convert_adlist_to_adStructArray failed!\n");
+      dprintf(D_ALWAYS,"condor__getJobAds: convert_adlist_to_adStructArray failed!\n");
 
       result.response.status.code = FAIL;
     } else {
@@ -594,17 +594,17 @@ condorSchedd__getJobAd(struct soap *s,
 }
 
 int
-condorSchedd__declareFile(struct soap *soap,
-                          struct condorSchedd__Transaction transaction,
+condor__declareFile(struct soap *soap,
+                          struct condor__Transaction transaction,
                           int clusterId,
                           int jobId,
                           char * name,
                           int size,
-                          enum condorSchedd__HashType hashType,
+                          enum condor__HashType hashType,
                           char * hash,
-                          struct condorSchedd__StatusResponse & result)
+                          struct condor__StatusResponse & result)
 {
-  dprintf(D_ALWAYS,"SOAP entering condorSchedd__declareFile() \n");
+  dprintf(D_ALWAYS,"SOAP entering condor__declareFile() \n");
 
   if (!valid_transaction(transaction) ||
       null_transaction(transaction)) {
@@ -629,16 +629,16 @@ condorSchedd__declareFile(struct soap *soap,
 }
 
 int
-condorSchedd__sendFile(struct soap *soap,
-                       struct condorSchedd__Transaction transaction,
+condor__sendFile(struct soap *soap,
+                       struct condor__Transaction transaction,
                        int clusterId,
                        int jobId,
                        char * filename,
                        int offset,
                        struct xsd__base64Binary *data,
-                       struct condorSchedd__StatusResponse & result)
+                       struct condor__StatusResponse & result)
 {
-  dprintf(D_ALWAYS,"SOAP entering condorSchedd__sendFile() \n");
+  dprintf(D_ALWAYS,"SOAP entering condor__sendFile() \n");
 
   if (!valid_transaction(transaction) ||
       null_transaction(transaction)) {
@@ -665,16 +665,16 @@ condorSchedd__sendFile(struct soap *soap,
   return SOAP_OK;
 }
 
-int condorSchedd__getFile(struct soap *soap,
-                          struct condorSchedd__Transaction transaction,
+int condor__getFile(struct soap *soap,
+                          struct condor__Transaction transaction,
                           int clusterId,
                           int jobId,
                           char * name,
                           int offset,
                           int length,
-                          struct condorSchedd__Base64DataAndStatusResponse & result)
+                          struct condor__Base64DataAndStatusResponse & result)
 {
-  dprintf(D_ALWAYS,"SOAP entering condorSchedd__getFile() \n");
+  dprintf(D_ALWAYS,"SOAP entering condor__getFile() \n");
 
   if (!valid_transaction(transaction) &&
       !null_transaction(transaction)) {
@@ -706,13 +706,13 @@ int condorSchedd__getFile(struct soap *soap,
   return SOAP_OK;
 }
 
-int condorSchedd__closeSpool(struct soap *soap,
-                             struct condorSchedd__Transaction transaction,
+int condor__closeSpool(struct soap *soap,
+                             struct condor__Transaction transaction,
                              xsd__int clusterId,
                              xsd__int jobId,
-                             struct condorSchedd__StatusResponse & result)
+                             struct condor__StatusResponse & result)
 {
-  dprintf(D_ALWAYS,"SOAP entering condorSchedd__closeSpool() \n");
+  dprintf(D_ALWAYS,"SOAP entering condor__closeSpool() \n");
 
   if (!valid_transaction(transaction) &&
       !null_transaction(transaction)) {
@@ -732,13 +732,13 @@ int condorSchedd__closeSpool(struct soap *soap,
 }
 
 int
-condorSchedd__listSpool(struct soap * soap,
-                        struct condorSchedd__Transaction transaction,
+condor__listSpool(struct soap * soap,
+                        struct condor__Transaction transaction,
                         int clusterId,
                         int jobId,
-                        struct condorSchedd__FileInfoArrayAndStatusResponse & result)
+                        struct condor__FileInfoArrayAndStatusResponse & result)
 {
-	dprintf(D_ALWAYS,"SOAP entering condorSchedd__listSpool() \n");
+	dprintf(D_ALWAYS,"SOAP entering condor__listSpool() \n");
 
 	if (!valid_transaction(transaction) &&
 		!null_transaction(transaction)) {
@@ -773,9 +773,9 @@ condorSchedd__listSpool(struct soap * soap,
 }
 
 int
-condorSchedd__discoverJobRequirements(struct soap *soap,
+condor__discoverJobRequirements(struct soap *soap,
                                       struct ClassAdStruct * jobAd,
-                                      struct condorSchedd__RequirementsAndStatusResponse & result)
+                                      struct condor__RequirementsAndStatusResponse & result)
 {
   LooseFileTransfer fileTransfer;
 
@@ -791,7 +791,7 @@ condorSchedd__discoverJobRequirements(struct soap *soap,
 
   result.response.requirements.__size = inputFiles.number();
   result.response.requirements.__ptr =
-    (condorSchedd__Requirement *) soap_malloc(soap, result.response.requirements.__size * sizeof(condorSchedd__Requirement));
+    (condor__Requirement *) soap_malloc(soap, result.response.requirements.__size * sizeof(condor__Requirement));
   inputFiles.rewind();
   int i = 0;
   while ((buffer = inputFiles.next()) &&
@@ -806,23 +806,23 @@ condorSchedd__discoverJobRequirements(struct soap *soap,
 }
 
 int
-condorSchedd__discoverDagRequirements(struct soap *soap,
+condor__discoverDagRequirements(struct soap *soap,
                                       char *dag,
-                                      struct condorSchedd__RequirementsAndStatusResponse & result)
+                                      struct condor__RequirementsAndStatusResponse & result)
 {
   return SOAP_FAULT;
 }
 
 int
-condorSchedd__createJobTemplate(struct soap *soap,
+condor__createJobTemplate(struct soap *soap,
                                 int clusterId,
                                 int jobId,
                                 char * owner,
-                                condorSchedd__UniverseType universe,
+                                condor__UniverseType universe,
                                 char * cmd,
                                 char * args,
                                 char * requirements,
-                                struct condorSchedd__ClassAdStructAndStatusResponse & result)
+                                struct condor__ClassAdStructAndStatusResponse & result)
 {
   MyString attribute;
 
@@ -1016,9 +1016,9 @@ condorSchedd__createJobTemplate(struct soap *soap,
 
 /*
 int
-condorCore__getPlatformString(struct soap *soap,
+condor__getPlatformString(struct soap *soap,
                               void *,
-                              struct condorCore__StringAndStatus &result)
+                              struct condor__StringAndStatus &result)
 {
   result.response.message = CondorPlatform();
   result.response.status.code = 0;
@@ -1026,9 +1026,9 @@ condorCore__getPlatformString(struct soap *soap,
 }
 
 int
-condorCore__getVersionString(struct soap *soap,
+condor__getVersionString(struct soap *soap,
                              void *,
-                             struct condorCore__StringAndStatus &result)
+                             struct condor__StringAndStatus &result)
 {
   result.response.message = CondorVersion();
   result.response.status.code = 0;
@@ -1036,14 +1036,14 @@ condorCore__getVersionString(struct soap *soap,
 }
 
 int
-condorCore__getInfoAd(struct soap *soap,
+condor__getInfoAd(struct soap *soap,
                       void *,
-                      struct condorCore__ClassAdStructAndStatusResponse & result)
+                      struct condor__ClassAdStructAndStatusResponse & result)
 {
   char* todd = "Todd A Tannenbaum";
 
   result.response.classAd.__size = 3;
-  result.response.classAd.__ptr = (struct condorCore__ClassAdStructAttr *)soap_malloc(soap,3 * sizeof(struct condorCore__ClassAdStructAttr));
+  result.response.classAd.__ptr = (struct condor__ClassAdStructAttr *)soap_malloc(soap,3 * sizeof(struct condor__ClassAdStructAttr));
 
   result.response.classAd.__ptr[0].name = "Name";
   result.response.classAd.__ptr[0].type = STRING_ATTR;

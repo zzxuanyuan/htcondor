@@ -8,7 +8,7 @@
 
 SOAP_BEGIN_NAMESPACE(soap_collector)
 
-SOAP_SOURCE_STAMP("@(#) soap_collectorC.cpp ver 2.6.0 2004-05-21 15:34:37 GMT")
+SOAP_SOURCE_STAMP("@(#) soap_collectorC.cpp ver 2.6.0 2004-06-01 14:50:24 GMT")
 
 
 #ifndef WITH_NOGLOBAL
@@ -142,64 +142,64 @@ SOAP_FMAC3 void * SOAP_FMAC4 soap_getelement(struct soap *soap, int *type)
 		return soap_in_unsignedByte(soap, NULL, NULL, "xsd:unsignedByte");
 	case SOAP_TYPE_unsignedInt:
 		return soap_in_unsignedInt(soap, NULL, NULL, "xsd:unsignedInt");
-	case SOAP_TYPE_condorCore__ClassAdAttrType:
-		return soap_in_condorCore__ClassAdAttrType(soap, NULL, NULL, "condorCore:ClassAdAttrType");
-	case SOAP_TYPE_condorCore__StatusCode:
-		return soap_in_condorCore__StatusCode(soap, NULL, NULL, "condorCore:StatusCode");
+	case SOAP_TYPE_condor__ClassAdAttrType:
+		return soap_in_condor__ClassAdAttrType(soap, NULL, NULL, "condor:ClassAdAttrType");
+	case SOAP_TYPE_condor__StatusCode:
+		return soap_in_condor__StatusCode(soap, NULL, NULL, "condor:StatusCode");
 	case SOAP_TYPE_xsd__boolean:
 		return soap_in_xsd__boolean(soap, NULL, NULL, "xsd:boolean");
 	case SOAP_TYPE_bool:
 		return soap_in_bool(soap, NULL, NULL, "xsd:boolean");
-	case SOAP_TYPE_condorCollector__queryAnyAds:
-		return soap_in_condorCollector__queryAnyAds(soap, NULL, NULL, "condorCollector:queryAnyAds");
-	case SOAP_TYPE_condorCollector__queryAnyAdsResponse:
-		return soap_in_condorCollector__queryAnyAdsResponse(soap, NULL, NULL, "condorCollector:queryAnyAdsResponse");
-	case SOAP_TYPE_condorCollector__queryStorageAds:
-		return soap_in_condorCollector__queryStorageAds(soap, NULL, NULL, "condorCollector:queryStorageAds");
-	case SOAP_TYPE_condorCollector__queryStorageAdsResponse:
-		return soap_in_condorCollector__queryStorageAdsResponse(soap, NULL, NULL, "condorCollector:queryStorageAdsResponse");
-	case SOAP_TYPE_condorCollector__queryLicenseAds:
-		return soap_in_condorCollector__queryLicenseAds(soap, NULL, NULL, "condorCollector:queryLicenseAds");
-	case SOAP_TYPE_condorCollector__queryLicenseAdsResponse:
-		return soap_in_condorCollector__queryLicenseAdsResponse(soap, NULL, NULL, "condorCollector:queryLicenseAdsResponse");
-	case SOAP_TYPE_condorCollector__querySubmittorAds:
-		return soap_in_condorCollector__querySubmittorAds(soap, NULL, NULL, "condorCollector:querySubmittorAds");
-	case SOAP_TYPE_condorCollector__querySubmittorAdsResponse:
-		return soap_in_condorCollector__querySubmittorAdsResponse(soap, NULL, NULL, "condorCollector:querySubmittorAdsResponse");
-	case SOAP_TYPE_condorCollector__queryMasterAds:
-		return soap_in_condorCollector__queryMasterAds(soap, NULL, NULL, "condorCollector:queryMasterAds");
-	case SOAP_TYPE_condorCollector__queryMasterAdsResponse:
-		return soap_in_condorCollector__queryMasterAdsResponse(soap, NULL, NULL, "condorCollector:queryMasterAdsResponse");
-	case SOAP_TYPE_condorCollector__queryScheddAds:
-		return soap_in_condorCollector__queryScheddAds(soap, NULL, NULL, "condorCollector:queryScheddAds");
-	case SOAP_TYPE_condorCollector__queryScheddAdsResponse:
-		return soap_in_condorCollector__queryScheddAdsResponse(soap, NULL, NULL, "condorCollector:queryScheddAdsResponse");
-	case SOAP_TYPE_condorCollector__queryStartdAds:
-		return soap_in_condorCollector__queryStartdAds(soap, NULL, NULL, "condorCollector:queryStartdAds");
-	case SOAP_TYPE_condorCollector__queryStartdAdsResponse:
-		return soap_in_condorCollector__queryStartdAdsResponse(soap, NULL, NULL, "condorCollector:queryStartdAdsResponse");
-	case SOAP_TYPE_condorCore__StringAndStatus:
-		return soap_in_condorCore__StringAndStatus(soap, NULL, NULL, "condorCore:StringAndStatus");
-	case SOAP_TYPE_condorCore__ClassAdStructArrayAndStatus:
-		return soap_in_condorCore__ClassAdStructArrayAndStatus(soap, NULL, NULL, "condorCore:ClassAdStructArrayAndStatus");
-	case SOAP_TYPE_condorCore__ClassAdStructAndStatus:
-		return soap_in_condorCore__ClassAdStructAndStatus(soap, NULL, NULL, "condorCore:ClassAdStructAndStatus");
+	case SOAP_TYPE_condor__queryAnyAds:
+		return soap_in_condor__queryAnyAds(soap, NULL, NULL, "condor:queryAnyAds");
+	case SOAP_TYPE_condor__queryAnyAdsResponse:
+		return soap_in_condor__queryAnyAdsResponse(soap, NULL, NULL, "condor:queryAnyAdsResponse");
+	case SOAP_TYPE_condor__queryStorageAds:
+		return soap_in_condor__queryStorageAds(soap, NULL, NULL, "condor:queryStorageAds");
+	case SOAP_TYPE_condor__queryStorageAdsResponse:
+		return soap_in_condor__queryStorageAdsResponse(soap, NULL, NULL, "condor:queryStorageAdsResponse");
+	case SOAP_TYPE_condor__queryLicenseAds:
+		return soap_in_condor__queryLicenseAds(soap, NULL, NULL, "condor:queryLicenseAds");
+	case SOAP_TYPE_condor__queryLicenseAdsResponse:
+		return soap_in_condor__queryLicenseAdsResponse(soap, NULL, NULL, "condor:queryLicenseAdsResponse");
+	case SOAP_TYPE_condor__querySubmittorAds:
+		return soap_in_condor__querySubmittorAds(soap, NULL, NULL, "condor:querySubmittorAds");
+	case SOAP_TYPE_condor__querySubmittorAdsResponse:
+		return soap_in_condor__querySubmittorAdsResponse(soap, NULL, NULL, "condor:querySubmittorAdsResponse");
+	case SOAP_TYPE_condor__queryMasterAds:
+		return soap_in_condor__queryMasterAds(soap, NULL, NULL, "condor:queryMasterAds");
+	case SOAP_TYPE_condor__queryMasterAdsResponse:
+		return soap_in_condor__queryMasterAdsResponse(soap, NULL, NULL, "condor:queryMasterAdsResponse");
+	case SOAP_TYPE_condor__queryScheddAds:
+		return soap_in_condor__queryScheddAds(soap, NULL, NULL, "condor:queryScheddAds");
+	case SOAP_TYPE_condor__queryScheddAdsResponse:
+		return soap_in_condor__queryScheddAdsResponse(soap, NULL, NULL, "condor:queryScheddAdsResponse");
+	case SOAP_TYPE_condor__queryStartdAds:
+		return soap_in_condor__queryStartdAds(soap, NULL, NULL, "condor:queryStartdAds");
+	case SOAP_TYPE_condor__queryStartdAdsResponse:
+		return soap_in_condor__queryStartdAdsResponse(soap, NULL, NULL, "condor:queryStartdAdsResponse");
+	case SOAP_TYPE_condor__StringAndStatus:
+		return soap_in_condor__StringAndStatus(soap, NULL, NULL, "condor:StringAndStatus");
+	case SOAP_TYPE_condor__ClassAdStructArrayAndStatus:
+		return soap_in_condor__ClassAdStructArrayAndStatus(soap, NULL, NULL, "condor:ClassAdStructArrayAndStatus");
+	case SOAP_TYPE_condor__ClassAdStructAndStatus:
+		return soap_in_condor__ClassAdStructAndStatus(soap, NULL, NULL, "condor:ClassAdStructAndStatus");
 	case SOAP_TYPE_ClassAdStructArray:
-		return soap_in_ClassAdStructArray(soap, NULL, NULL, "condorCore:ClassAdStructAttr[]");
+		return soap_in_ClassAdStructArray(soap, NULL, NULL, "condor:ClassAdStructAttr[]");
 	case SOAP_TYPE_ClassAdStruct:
-		return soap_in_ClassAdStruct(soap, NULL, NULL, "condorCore:ClassAdStructAttr");
-	case SOAP_TYPE_condorCore__ClassAdStructAttr:
-		return soap_in_condorCore__ClassAdStructAttr(soap, NULL, NULL, "condorCore:ClassAdStructAttr");
-	case SOAP_TYPE_condorCore__Status:
-		return soap_in_condorCore__Status(soap, NULL, NULL, "condorCore:Status");
+		return soap_in_ClassAdStruct(soap, NULL, NULL, "condor:ClassAdStructAttr");
+	case SOAP_TYPE_condor__ClassAdStructAttr:
+		return soap_in_condor__ClassAdStructAttr(soap, NULL, NULL, "condor:ClassAdStructAttr");
+	case SOAP_TYPE_condor__Status:
+		return soap_in_condor__Status(soap, NULL, NULL, "condor:Status");
 	case SOAP_TYPE_xsd__base64Binary:
 		return soap_in_xsd__base64Binary(soap, NULL, NULL, "xsd:base64Binary");
 	case SOAP_TYPE_PointerToClassAdStruct:
-		return soap_in_PointerToClassAdStruct(soap, NULL, NULL, "condorCore:ClassAdStructAttr");
-	case SOAP_TYPE_PointerTocondorCore__ClassAdStructAttr:
-		return soap_in_PointerTocondorCore__ClassAdStructAttr(soap, NULL, NULL, "condorCore:ClassAdStructAttr");
-	case SOAP_TYPE_PointerTocondorCore__Status:
-		return soap_in_PointerTocondorCore__Status(soap, NULL, NULL, "condorCore:Status");
+		return soap_in_PointerToClassAdStruct(soap, NULL, NULL, "condor:ClassAdStructAttr");
+	case SOAP_TYPE_PointerTocondor__ClassAdStructAttr:
+		return soap_in_PointerTocondor__ClassAdStructAttr(soap, NULL, NULL, "condor:ClassAdStructAttr");
+	case SOAP_TYPE_PointerTocondor__Status:
+		return soap_in_PointerTocondor__Status(soap, NULL, NULL, "condor:Status");
 	case SOAP_TYPE_PointerTounsignedByte:
 		return soap_in_PointerTounsignedByte(soap, NULL, NULL, "xsd:unsignedByte");
 	case SOAP_TYPE_xsd__anyURI:
@@ -270,13 +270,13 @@ SOAP_FMAC3 void * SOAP_FMAC4 soap_getelement(struct soap *soap, int *type)
 		{	*type = SOAP_TYPE_unsignedInt;
 			return soap_in_unsignedInt(soap, NULL, NULL, NULL);
 		}
-		if (!soap_match_tag(soap, t, "condorCore:ClassAdAttrType"))
-		{	*type = SOAP_TYPE_condorCore__ClassAdAttrType;
-			return soap_in_condorCore__ClassAdAttrType(soap, NULL, NULL, NULL);
+		if (!soap_match_tag(soap, t, "condor:ClassAdAttrType"))
+		{	*type = SOAP_TYPE_condor__ClassAdAttrType;
+			return soap_in_condor__ClassAdAttrType(soap, NULL, NULL, NULL);
 		}
-		if (!soap_match_tag(soap, t, "condorCore:StatusCode"))
-		{	*type = SOAP_TYPE_condorCore__StatusCode;
-			return soap_in_condorCore__StatusCode(soap, NULL, NULL, NULL);
+		if (!soap_match_tag(soap, t, "condor:StatusCode"))
+		{	*type = SOAP_TYPE_condor__StatusCode;
+			return soap_in_condor__StatusCode(soap, NULL, NULL, NULL);
 		}
 		if (!soap_match_tag(soap, t, "xsd:boolean"))
 		{	*type = SOAP_TYPE_xsd__boolean;
@@ -286,89 +286,89 @@ SOAP_FMAC3 void * SOAP_FMAC4 soap_getelement(struct soap *soap, int *type)
 		{	*type = SOAP_TYPE_bool;
 			return soap_in_bool(soap, NULL, NULL, NULL);
 		}
-		if (!soap_match_tag(soap, t, "condorCollector:queryAnyAds"))
-		{	*type = SOAP_TYPE_condorCollector__queryAnyAds;
-			return soap_in_condorCollector__queryAnyAds(soap, NULL, NULL, NULL);
+		if (!soap_match_tag(soap, t, "condor:queryAnyAds"))
+		{	*type = SOAP_TYPE_condor__queryAnyAds;
+			return soap_in_condor__queryAnyAds(soap, NULL, NULL, NULL);
 		}
-		if (!soap_match_tag(soap, t, "condorCollector:queryAnyAdsResponse"))
-		{	*type = SOAP_TYPE_condorCollector__queryAnyAdsResponse;
-			return soap_in_condorCollector__queryAnyAdsResponse(soap, NULL, NULL, NULL);
+		if (!soap_match_tag(soap, t, "condor:queryAnyAdsResponse"))
+		{	*type = SOAP_TYPE_condor__queryAnyAdsResponse;
+			return soap_in_condor__queryAnyAdsResponse(soap, NULL, NULL, NULL);
 		}
-		if (!soap_match_tag(soap, t, "condorCollector:queryStorageAds"))
-		{	*type = SOAP_TYPE_condorCollector__queryStorageAds;
-			return soap_in_condorCollector__queryStorageAds(soap, NULL, NULL, NULL);
+		if (!soap_match_tag(soap, t, "condor:queryStorageAds"))
+		{	*type = SOAP_TYPE_condor__queryStorageAds;
+			return soap_in_condor__queryStorageAds(soap, NULL, NULL, NULL);
 		}
-		if (!soap_match_tag(soap, t, "condorCollector:queryStorageAdsResponse"))
-		{	*type = SOAP_TYPE_condorCollector__queryStorageAdsResponse;
-			return soap_in_condorCollector__queryStorageAdsResponse(soap, NULL, NULL, NULL);
+		if (!soap_match_tag(soap, t, "condor:queryStorageAdsResponse"))
+		{	*type = SOAP_TYPE_condor__queryStorageAdsResponse;
+			return soap_in_condor__queryStorageAdsResponse(soap, NULL, NULL, NULL);
 		}
-		if (!soap_match_tag(soap, t, "condorCollector:queryLicenseAds"))
-		{	*type = SOAP_TYPE_condorCollector__queryLicenseAds;
-			return soap_in_condorCollector__queryLicenseAds(soap, NULL, NULL, NULL);
+		if (!soap_match_tag(soap, t, "condor:queryLicenseAds"))
+		{	*type = SOAP_TYPE_condor__queryLicenseAds;
+			return soap_in_condor__queryLicenseAds(soap, NULL, NULL, NULL);
 		}
-		if (!soap_match_tag(soap, t, "condorCollector:queryLicenseAdsResponse"))
-		{	*type = SOAP_TYPE_condorCollector__queryLicenseAdsResponse;
-			return soap_in_condorCollector__queryLicenseAdsResponse(soap, NULL, NULL, NULL);
+		if (!soap_match_tag(soap, t, "condor:queryLicenseAdsResponse"))
+		{	*type = SOAP_TYPE_condor__queryLicenseAdsResponse;
+			return soap_in_condor__queryLicenseAdsResponse(soap, NULL, NULL, NULL);
 		}
-		if (!soap_match_tag(soap, t, "condorCollector:querySubmittorAds"))
-		{	*type = SOAP_TYPE_condorCollector__querySubmittorAds;
-			return soap_in_condorCollector__querySubmittorAds(soap, NULL, NULL, NULL);
+		if (!soap_match_tag(soap, t, "condor:querySubmittorAds"))
+		{	*type = SOAP_TYPE_condor__querySubmittorAds;
+			return soap_in_condor__querySubmittorAds(soap, NULL, NULL, NULL);
 		}
-		if (!soap_match_tag(soap, t, "condorCollector:querySubmittorAdsResponse"))
-		{	*type = SOAP_TYPE_condorCollector__querySubmittorAdsResponse;
-			return soap_in_condorCollector__querySubmittorAdsResponse(soap, NULL, NULL, NULL);
+		if (!soap_match_tag(soap, t, "condor:querySubmittorAdsResponse"))
+		{	*type = SOAP_TYPE_condor__querySubmittorAdsResponse;
+			return soap_in_condor__querySubmittorAdsResponse(soap, NULL, NULL, NULL);
 		}
-		if (!soap_match_tag(soap, t, "condorCollector:queryMasterAds"))
-		{	*type = SOAP_TYPE_condorCollector__queryMasterAds;
-			return soap_in_condorCollector__queryMasterAds(soap, NULL, NULL, NULL);
+		if (!soap_match_tag(soap, t, "condor:queryMasterAds"))
+		{	*type = SOAP_TYPE_condor__queryMasterAds;
+			return soap_in_condor__queryMasterAds(soap, NULL, NULL, NULL);
 		}
-		if (!soap_match_tag(soap, t, "condorCollector:queryMasterAdsResponse"))
-		{	*type = SOAP_TYPE_condorCollector__queryMasterAdsResponse;
-			return soap_in_condorCollector__queryMasterAdsResponse(soap, NULL, NULL, NULL);
+		if (!soap_match_tag(soap, t, "condor:queryMasterAdsResponse"))
+		{	*type = SOAP_TYPE_condor__queryMasterAdsResponse;
+			return soap_in_condor__queryMasterAdsResponse(soap, NULL, NULL, NULL);
 		}
-		if (!soap_match_tag(soap, t, "condorCollector:queryScheddAds"))
-		{	*type = SOAP_TYPE_condorCollector__queryScheddAds;
-			return soap_in_condorCollector__queryScheddAds(soap, NULL, NULL, NULL);
+		if (!soap_match_tag(soap, t, "condor:queryScheddAds"))
+		{	*type = SOAP_TYPE_condor__queryScheddAds;
+			return soap_in_condor__queryScheddAds(soap, NULL, NULL, NULL);
 		}
-		if (!soap_match_tag(soap, t, "condorCollector:queryScheddAdsResponse"))
-		{	*type = SOAP_TYPE_condorCollector__queryScheddAdsResponse;
-			return soap_in_condorCollector__queryScheddAdsResponse(soap, NULL, NULL, NULL);
+		if (!soap_match_tag(soap, t, "condor:queryScheddAdsResponse"))
+		{	*type = SOAP_TYPE_condor__queryScheddAdsResponse;
+			return soap_in_condor__queryScheddAdsResponse(soap, NULL, NULL, NULL);
 		}
-		if (!soap_match_tag(soap, t, "condorCollector:queryStartdAds"))
-		{	*type = SOAP_TYPE_condorCollector__queryStartdAds;
-			return soap_in_condorCollector__queryStartdAds(soap, NULL, NULL, NULL);
+		if (!soap_match_tag(soap, t, "condor:queryStartdAds"))
+		{	*type = SOAP_TYPE_condor__queryStartdAds;
+			return soap_in_condor__queryStartdAds(soap, NULL, NULL, NULL);
 		}
-		if (!soap_match_tag(soap, t, "condorCollector:queryStartdAdsResponse"))
-		{	*type = SOAP_TYPE_condorCollector__queryStartdAdsResponse;
-			return soap_in_condorCollector__queryStartdAdsResponse(soap, NULL, NULL, NULL);
+		if (!soap_match_tag(soap, t, "condor:queryStartdAdsResponse"))
+		{	*type = SOAP_TYPE_condor__queryStartdAdsResponse;
+			return soap_in_condor__queryStartdAdsResponse(soap, NULL, NULL, NULL);
 		}
-		if (!soap_match_tag(soap, t, "condorCore:StringAndStatus"))
-		{	*type = SOAP_TYPE_condorCore__StringAndStatus;
-			return soap_in_condorCore__StringAndStatus(soap, NULL, NULL, NULL);
+		if (!soap_match_tag(soap, t, "condor:StringAndStatus"))
+		{	*type = SOAP_TYPE_condor__StringAndStatus;
+			return soap_in_condor__StringAndStatus(soap, NULL, NULL, NULL);
 		}
-		if (!soap_match_tag(soap, t, "condorCore:ClassAdStructArrayAndStatus"))
-		{	*type = SOAP_TYPE_condorCore__ClassAdStructArrayAndStatus;
-			return soap_in_condorCore__ClassAdStructArrayAndStatus(soap, NULL, NULL, NULL);
+		if (!soap_match_tag(soap, t, "condor:ClassAdStructArrayAndStatus"))
+		{	*type = SOAP_TYPE_condor__ClassAdStructArrayAndStatus;
+			return soap_in_condor__ClassAdStructArrayAndStatus(soap, NULL, NULL, NULL);
 		}
-		if (!soap_match_tag(soap, t, "condorCore:ClassAdStructAndStatus"))
-		{	*type = SOAP_TYPE_condorCore__ClassAdStructAndStatus;
-			return soap_in_condorCore__ClassAdStructAndStatus(soap, NULL, NULL, NULL);
+		if (!soap_match_tag(soap, t, "condor:ClassAdStructAndStatus"))
+		{	*type = SOAP_TYPE_condor__ClassAdStructAndStatus;
+			return soap_in_condor__ClassAdStructAndStatus(soap, NULL, NULL, NULL);
 		}
-		if (*soap->arrayType && !soap_match_array(soap, "condorCore:ClassAdStructAttr[]"))
+		if (*soap->arrayType && !soap_match_array(soap, "condor:ClassAdStructAttr[]"))
 		{	*type = SOAP_TYPE_ClassAdStructArray;
 			return soap_in_ClassAdStructArray(soap, NULL, NULL, NULL);
 		}
-		if (*soap->arrayType && !soap_match_array(soap, "condorCore:ClassAdStructAttr"))
+		if (*soap->arrayType && !soap_match_array(soap, "condor:ClassAdStructAttr"))
 		{	*type = SOAP_TYPE_ClassAdStruct;
 			return soap_in_ClassAdStruct(soap, NULL, NULL, NULL);
 		}
-		if (!soap_match_tag(soap, t, "condorCore:ClassAdStructAttr"))
-		{	*type = SOAP_TYPE_condorCore__ClassAdStructAttr;
-			return soap_in_condorCore__ClassAdStructAttr(soap, NULL, NULL, NULL);
+		if (!soap_match_tag(soap, t, "condor:ClassAdStructAttr"))
+		{	*type = SOAP_TYPE_condor__ClassAdStructAttr;
+			return soap_in_condor__ClassAdStructAttr(soap, NULL, NULL, NULL);
 		}
-		if (!soap_match_tag(soap, t, "condorCore:Status"))
-		{	*type = SOAP_TYPE_condorCore__Status;
-			return soap_in_condorCore__Status(soap, NULL, NULL, NULL);
+		if (!soap_match_tag(soap, t, "condor:Status"))
+		{	*type = SOAP_TYPE_condor__Status;
+			return soap_in_condor__Status(soap, NULL, NULL, NULL);
 		}
 		if (!soap_match_tag(soap, t, "xsd:base64Binary"))
 		{	*type = SOAP_TYPE_xsd__base64Binary;
@@ -469,64 +469,64 @@ SOAP_FMAC3 int SOAP_FMAC4 soap_putelement(struct soap *soap, const void *ptr, co
 		return soap_out_unsignedByte(soap, tag, id, (const unsigned char *)ptr, "xsd:unsignedByte");
 	case SOAP_TYPE_unsignedInt:
 		return soap_out_unsignedInt(soap, tag, id, (const unsigned int *)ptr, "xsd:unsignedInt");
-	case SOAP_TYPE_condorCore__ClassAdAttrType:
-		return soap_out_condorCore__ClassAdAttrType(soap, tag, id, (const enum condorCore__ClassAdAttrType *)ptr, "condorCore:ClassAdAttrType");
-	case SOAP_TYPE_condorCore__StatusCode:
-		return soap_out_condorCore__StatusCode(soap, tag, id, (const enum condorCore__StatusCode *)ptr, "condorCore:StatusCode");
+	case SOAP_TYPE_condor__ClassAdAttrType:
+		return soap_out_condor__ClassAdAttrType(soap, tag, id, (const enum condor__ClassAdAttrType *)ptr, "condor:ClassAdAttrType");
+	case SOAP_TYPE_condor__StatusCode:
+		return soap_out_condor__StatusCode(soap, tag, id, (const enum condor__StatusCode *)ptr, "condor:StatusCode");
 	case SOAP_TYPE_xsd__boolean:
 		return soap_out_xsd__boolean(soap, tag, id, (const bool *)ptr, "xsd:boolean");
 	case SOAP_TYPE_bool:
 		return soap_out_bool(soap, tag, id, (const bool *)ptr, "xsd:boolean");
-	case SOAP_TYPE_condorCollector__queryAnyAds:
-		return soap_out_condorCollector__queryAnyAds(soap, tag, id, (const struct condorCollector__queryAnyAds *)ptr, "condorCollector:queryAnyAds");
-	case SOAP_TYPE_condorCollector__queryAnyAdsResponse:
-		return soap_out_condorCollector__queryAnyAdsResponse(soap, tag, id, (const struct condorCollector__queryAnyAdsResponse *)ptr, "condorCollector:queryAnyAdsResponse");
-	case SOAP_TYPE_condorCollector__queryStorageAds:
-		return soap_out_condorCollector__queryStorageAds(soap, tag, id, (const struct condorCollector__queryStorageAds *)ptr, "condorCollector:queryStorageAds");
-	case SOAP_TYPE_condorCollector__queryStorageAdsResponse:
-		return soap_out_condorCollector__queryStorageAdsResponse(soap, tag, id, (const struct condorCollector__queryStorageAdsResponse *)ptr, "condorCollector:queryStorageAdsResponse");
-	case SOAP_TYPE_condorCollector__queryLicenseAds:
-		return soap_out_condorCollector__queryLicenseAds(soap, tag, id, (const struct condorCollector__queryLicenseAds *)ptr, "condorCollector:queryLicenseAds");
-	case SOAP_TYPE_condorCollector__queryLicenseAdsResponse:
-		return soap_out_condorCollector__queryLicenseAdsResponse(soap, tag, id, (const struct condorCollector__queryLicenseAdsResponse *)ptr, "condorCollector:queryLicenseAdsResponse");
-	case SOAP_TYPE_condorCollector__querySubmittorAds:
-		return soap_out_condorCollector__querySubmittorAds(soap, tag, id, (const struct condorCollector__querySubmittorAds *)ptr, "condorCollector:querySubmittorAds");
-	case SOAP_TYPE_condorCollector__querySubmittorAdsResponse:
-		return soap_out_condorCollector__querySubmittorAdsResponse(soap, tag, id, (const struct condorCollector__querySubmittorAdsResponse *)ptr, "condorCollector:querySubmittorAdsResponse");
-	case SOAP_TYPE_condorCollector__queryMasterAds:
-		return soap_out_condorCollector__queryMasterAds(soap, tag, id, (const struct condorCollector__queryMasterAds *)ptr, "condorCollector:queryMasterAds");
-	case SOAP_TYPE_condorCollector__queryMasterAdsResponse:
-		return soap_out_condorCollector__queryMasterAdsResponse(soap, tag, id, (const struct condorCollector__queryMasterAdsResponse *)ptr, "condorCollector:queryMasterAdsResponse");
-	case SOAP_TYPE_condorCollector__queryScheddAds:
-		return soap_out_condorCollector__queryScheddAds(soap, tag, id, (const struct condorCollector__queryScheddAds *)ptr, "condorCollector:queryScheddAds");
-	case SOAP_TYPE_condorCollector__queryScheddAdsResponse:
-		return soap_out_condorCollector__queryScheddAdsResponse(soap, tag, id, (const struct condorCollector__queryScheddAdsResponse *)ptr, "condorCollector:queryScheddAdsResponse");
-	case SOAP_TYPE_condorCollector__queryStartdAds:
-		return soap_out_condorCollector__queryStartdAds(soap, tag, id, (const struct condorCollector__queryStartdAds *)ptr, "condorCollector:queryStartdAds");
-	case SOAP_TYPE_condorCollector__queryStartdAdsResponse:
-		return soap_out_condorCollector__queryStartdAdsResponse(soap, tag, id, (const struct condorCollector__queryStartdAdsResponse *)ptr, "condorCollector:queryStartdAdsResponse");
-	case SOAP_TYPE_condorCore__StringAndStatus:
-		return soap_out_condorCore__StringAndStatus(soap, tag, id, (const struct condorCore__StringAndStatus *)ptr, "condorCore:StringAndStatus");
-	case SOAP_TYPE_condorCore__ClassAdStructArrayAndStatus:
-		return soap_out_condorCore__ClassAdStructArrayAndStatus(soap, tag, id, (const struct condorCore__ClassAdStructArrayAndStatus *)ptr, "condorCore:ClassAdStructArrayAndStatus");
-	case SOAP_TYPE_condorCore__ClassAdStructAndStatus:
-		return soap_out_condorCore__ClassAdStructAndStatus(soap, tag, id, (const struct condorCore__ClassAdStructAndStatus *)ptr, "condorCore:ClassAdStructAndStatus");
+	case SOAP_TYPE_condor__queryAnyAds:
+		return soap_out_condor__queryAnyAds(soap, tag, id, (const struct condor__queryAnyAds *)ptr, "condor:queryAnyAds");
+	case SOAP_TYPE_condor__queryAnyAdsResponse:
+		return soap_out_condor__queryAnyAdsResponse(soap, tag, id, (const struct condor__queryAnyAdsResponse *)ptr, "condor:queryAnyAdsResponse");
+	case SOAP_TYPE_condor__queryStorageAds:
+		return soap_out_condor__queryStorageAds(soap, tag, id, (const struct condor__queryStorageAds *)ptr, "condor:queryStorageAds");
+	case SOAP_TYPE_condor__queryStorageAdsResponse:
+		return soap_out_condor__queryStorageAdsResponse(soap, tag, id, (const struct condor__queryStorageAdsResponse *)ptr, "condor:queryStorageAdsResponse");
+	case SOAP_TYPE_condor__queryLicenseAds:
+		return soap_out_condor__queryLicenseAds(soap, tag, id, (const struct condor__queryLicenseAds *)ptr, "condor:queryLicenseAds");
+	case SOAP_TYPE_condor__queryLicenseAdsResponse:
+		return soap_out_condor__queryLicenseAdsResponse(soap, tag, id, (const struct condor__queryLicenseAdsResponse *)ptr, "condor:queryLicenseAdsResponse");
+	case SOAP_TYPE_condor__querySubmittorAds:
+		return soap_out_condor__querySubmittorAds(soap, tag, id, (const struct condor__querySubmittorAds *)ptr, "condor:querySubmittorAds");
+	case SOAP_TYPE_condor__querySubmittorAdsResponse:
+		return soap_out_condor__querySubmittorAdsResponse(soap, tag, id, (const struct condor__querySubmittorAdsResponse *)ptr, "condor:querySubmittorAdsResponse");
+	case SOAP_TYPE_condor__queryMasterAds:
+		return soap_out_condor__queryMasterAds(soap, tag, id, (const struct condor__queryMasterAds *)ptr, "condor:queryMasterAds");
+	case SOAP_TYPE_condor__queryMasterAdsResponse:
+		return soap_out_condor__queryMasterAdsResponse(soap, tag, id, (const struct condor__queryMasterAdsResponse *)ptr, "condor:queryMasterAdsResponse");
+	case SOAP_TYPE_condor__queryScheddAds:
+		return soap_out_condor__queryScheddAds(soap, tag, id, (const struct condor__queryScheddAds *)ptr, "condor:queryScheddAds");
+	case SOAP_TYPE_condor__queryScheddAdsResponse:
+		return soap_out_condor__queryScheddAdsResponse(soap, tag, id, (const struct condor__queryScheddAdsResponse *)ptr, "condor:queryScheddAdsResponse");
+	case SOAP_TYPE_condor__queryStartdAds:
+		return soap_out_condor__queryStartdAds(soap, tag, id, (const struct condor__queryStartdAds *)ptr, "condor:queryStartdAds");
+	case SOAP_TYPE_condor__queryStartdAdsResponse:
+		return soap_out_condor__queryStartdAdsResponse(soap, tag, id, (const struct condor__queryStartdAdsResponse *)ptr, "condor:queryStartdAdsResponse");
+	case SOAP_TYPE_condor__StringAndStatus:
+		return soap_out_condor__StringAndStatus(soap, tag, id, (const struct condor__StringAndStatus *)ptr, "condor:StringAndStatus");
+	case SOAP_TYPE_condor__ClassAdStructArrayAndStatus:
+		return soap_out_condor__ClassAdStructArrayAndStatus(soap, tag, id, (const struct condor__ClassAdStructArrayAndStatus *)ptr, "condor:ClassAdStructArrayAndStatus");
+	case SOAP_TYPE_condor__ClassAdStructAndStatus:
+		return soap_out_condor__ClassAdStructAndStatus(soap, tag, id, (const struct condor__ClassAdStructAndStatus *)ptr, "condor:ClassAdStructAndStatus");
 	case SOAP_TYPE_ClassAdStructArray:
-		return soap_out_ClassAdStructArray(soap, tag, id, (const struct ClassAdStructArray *)ptr, "condorCore:ClassAdStructAttr[]");
+		return soap_out_ClassAdStructArray(soap, tag, id, (const struct ClassAdStructArray *)ptr, "condor:ClassAdStructAttr[]");
 	case SOAP_TYPE_ClassAdStruct:
-		return soap_out_ClassAdStruct(soap, tag, id, (const struct ClassAdStruct *)ptr, "condorCore:ClassAdStructAttr");
-	case SOAP_TYPE_condorCore__ClassAdStructAttr:
-		return soap_out_condorCore__ClassAdStructAttr(soap, tag, id, (const struct condorCore__ClassAdStructAttr *)ptr, "condorCore:ClassAdStructAttr");
-	case SOAP_TYPE_condorCore__Status:
-		return soap_out_condorCore__Status(soap, tag, id, (const struct condorCore__Status *)ptr, "condorCore:Status");
+		return soap_out_ClassAdStruct(soap, tag, id, (const struct ClassAdStruct *)ptr, "condor:ClassAdStructAttr");
+	case SOAP_TYPE_condor__ClassAdStructAttr:
+		return soap_out_condor__ClassAdStructAttr(soap, tag, id, (const struct condor__ClassAdStructAttr *)ptr, "condor:ClassAdStructAttr");
+	case SOAP_TYPE_condor__Status:
+		return soap_out_condor__Status(soap, tag, id, (const struct condor__Status *)ptr, "condor:Status");
 	case SOAP_TYPE_xsd__base64Binary:
 		return soap_out_xsd__base64Binary(soap, tag, id, (const struct xsd__base64Binary *)ptr, "xsd:base64Binary");
 	case SOAP_TYPE_PointerToClassAdStruct:
-		return soap_out_PointerToClassAdStruct(soap, tag, id, (struct ClassAdStruct *const*)ptr, "condorCore:ClassAdStructAttr");
-	case SOAP_TYPE_PointerTocondorCore__ClassAdStructAttr:
-		return soap_out_PointerTocondorCore__ClassAdStructAttr(soap, tag, id, (struct condorCore__ClassAdStructAttr *const*)ptr, "condorCore:ClassAdStructAttr");
-	case SOAP_TYPE_PointerTocondorCore__Status:
-		return soap_out_PointerTocondorCore__Status(soap, tag, id, (struct condorCore__Status *const*)ptr, "condorCore:Status");
+		return soap_out_PointerToClassAdStruct(soap, tag, id, (struct ClassAdStruct *const*)ptr, "condor:ClassAdStructAttr");
+	case SOAP_TYPE_PointerTocondor__ClassAdStructAttr:
+		return soap_out_PointerTocondor__ClassAdStructAttr(soap, tag, id, (struct condor__ClassAdStructAttr *const*)ptr, "condor:ClassAdStructAttr");
+	case SOAP_TYPE_PointerTocondor__Status:
+		return soap_out_PointerTocondor__Status(soap, tag, id, (struct condor__Status *const*)ptr, "condor:Status");
 	case SOAP_TYPE_PointerTounsignedByte:
 		return soap_out_PointerTounsignedByte(soap, tag, id, (unsigned char *const*)ptr, "xsd:unsignedByte");
 	case SOAP_TYPE_xsd__anyURI:
@@ -545,56 +545,56 @@ SOAP_FMAC3 void SOAP_FMAC4 soap_markelement(struct soap *soap, const void *ptr, 
 {
 	switch (type)
 	{
-	case SOAP_TYPE_condorCollector__queryAnyAds:
-		soap_mark_condorCollector__queryAnyAds(soap, (const struct condorCollector__queryAnyAds *)ptr);
+	case SOAP_TYPE_condor__queryAnyAds:
+		soap_mark_condor__queryAnyAds(soap, (const struct condor__queryAnyAds *)ptr);
 		break;
-	case SOAP_TYPE_condorCollector__queryAnyAdsResponse:
-		soap_mark_condorCollector__queryAnyAdsResponse(soap, (const struct condorCollector__queryAnyAdsResponse *)ptr);
+	case SOAP_TYPE_condor__queryAnyAdsResponse:
+		soap_mark_condor__queryAnyAdsResponse(soap, (const struct condor__queryAnyAdsResponse *)ptr);
 		break;
-	case SOAP_TYPE_condorCollector__queryStorageAds:
-		soap_mark_condorCollector__queryStorageAds(soap, (const struct condorCollector__queryStorageAds *)ptr);
+	case SOAP_TYPE_condor__queryStorageAds:
+		soap_mark_condor__queryStorageAds(soap, (const struct condor__queryStorageAds *)ptr);
 		break;
-	case SOAP_TYPE_condorCollector__queryStorageAdsResponse:
-		soap_mark_condorCollector__queryStorageAdsResponse(soap, (const struct condorCollector__queryStorageAdsResponse *)ptr);
+	case SOAP_TYPE_condor__queryStorageAdsResponse:
+		soap_mark_condor__queryStorageAdsResponse(soap, (const struct condor__queryStorageAdsResponse *)ptr);
 		break;
-	case SOAP_TYPE_condorCollector__queryLicenseAds:
-		soap_mark_condorCollector__queryLicenseAds(soap, (const struct condorCollector__queryLicenseAds *)ptr);
+	case SOAP_TYPE_condor__queryLicenseAds:
+		soap_mark_condor__queryLicenseAds(soap, (const struct condor__queryLicenseAds *)ptr);
 		break;
-	case SOAP_TYPE_condorCollector__queryLicenseAdsResponse:
-		soap_mark_condorCollector__queryLicenseAdsResponse(soap, (const struct condorCollector__queryLicenseAdsResponse *)ptr);
+	case SOAP_TYPE_condor__queryLicenseAdsResponse:
+		soap_mark_condor__queryLicenseAdsResponse(soap, (const struct condor__queryLicenseAdsResponse *)ptr);
 		break;
-	case SOAP_TYPE_condorCollector__querySubmittorAds:
-		soap_mark_condorCollector__querySubmittorAds(soap, (const struct condorCollector__querySubmittorAds *)ptr);
+	case SOAP_TYPE_condor__querySubmittorAds:
+		soap_mark_condor__querySubmittorAds(soap, (const struct condor__querySubmittorAds *)ptr);
 		break;
-	case SOAP_TYPE_condorCollector__querySubmittorAdsResponse:
-		soap_mark_condorCollector__querySubmittorAdsResponse(soap, (const struct condorCollector__querySubmittorAdsResponse *)ptr);
+	case SOAP_TYPE_condor__querySubmittorAdsResponse:
+		soap_mark_condor__querySubmittorAdsResponse(soap, (const struct condor__querySubmittorAdsResponse *)ptr);
 		break;
-	case SOAP_TYPE_condorCollector__queryMasterAds:
-		soap_mark_condorCollector__queryMasterAds(soap, (const struct condorCollector__queryMasterAds *)ptr);
+	case SOAP_TYPE_condor__queryMasterAds:
+		soap_mark_condor__queryMasterAds(soap, (const struct condor__queryMasterAds *)ptr);
 		break;
-	case SOAP_TYPE_condorCollector__queryMasterAdsResponse:
-		soap_mark_condorCollector__queryMasterAdsResponse(soap, (const struct condorCollector__queryMasterAdsResponse *)ptr);
+	case SOAP_TYPE_condor__queryMasterAdsResponse:
+		soap_mark_condor__queryMasterAdsResponse(soap, (const struct condor__queryMasterAdsResponse *)ptr);
 		break;
-	case SOAP_TYPE_condorCollector__queryScheddAds:
-		soap_mark_condorCollector__queryScheddAds(soap, (const struct condorCollector__queryScheddAds *)ptr);
+	case SOAP_TYPE_condor__queryScheddAds:
+		soap_mark_condor__queryScheddAds(soap, (const struct condor__queryScheddAds *)ptr);
 		break;
-	case SOAP_TYPE_condorCollector__queryScheddAdsResponse:
-		soap_mark_condorCollector__queryScheddAdsResponse(soap, (const struct condorCollector__queryScheddAdsResponse *)ptr);
+	case SOAP_TYPE_condor__queryScheddAdsResponse:
+		soap_mark_condor__queryScheddAdsResponse(soap, (const struct condor__queryScheddAdsResponse *)ptr);
 		break;
-	case SOAP_TYPE_condorCollector__queryStartdAds:
-		soap_mark_condorCollector__queryStartdAds(soap, (const struct condorCollector__queryStartdAds *)ptr);
+	case SOAP_TYPE_condor__queryStartdAds:
+		soap_mark_condor__queryStartdAds(soap, (const struct condor__queryStartdAds *)ptr);
 		break;
-	case SOAP_TYPE_condorCollector__queryStartdAdsResponse:
-		soap_mark_condorCollector__queryStartdAdsResponse(soap, (const struct condorCollector__queryStartdAdsResponse *)ptr);
+	case SOAP_TYPE_condor__queryStartdAdsResponse:
+		soap_mark_condor__queryStartdAdsResponse(soap, (const struct condor__queryStartdAdsResponse *)ptr);
 		break;
-	case SOAP_TYPE_condorCore__StringAndStatus:
-		soap_mark_condorCore__StringAndStatus(soap, (const struct condorCore__StringAndStatus *)ptr);
+	case SOAP_TYPE_condor__StringAndStatus:
+		soap_mark_condor__StringAndStatus(soap, (const struct condor__StringAndStatus *)ptr);
 		break;
-	case SOAP_TYPE_condorCore__ClassAdStructArrayAndStatus:
-		soap_mark_condorCore__ClassAdStructArrayAndStatus(soap, (const struct condorCore__ClassAdStructArrayAndStatus *)ptr);
+	case SOAP_TYPE_condor__ClassAdStructArrayAndStatus:
+		soap_mark_condor__ClassAdStructArrayAndStatus(soap, (const struct condor__ClassAdStructArrayAndStatus *)ptr);
 		break;
-	case SOAP_TYPE_condorCore__ClassAdStructAndStatus:
-		soap_mark_condorCore__ClassAdStructAndStatus(soap, (const struct condorCore__ClassAdStructAndStatus *)ptr);
+	case SOAP_TYPE_condor__ClassAdStructAndStatus:
+		soap_mark_condor__ClassAdStructAndStatus(soap, (const struct condor__ClassAdStructAndStatus *)ptr);
 		break;
 	case SOAP_TYPE_ClassAdStructArray:
 		soap_mark_ClassAdStructArray(soap, (const struct ClassAdStructArray *)ptr);
@@ -602,11 +602,11 @@ SOAP_FMAC3 void SOAP_FMAC4 soap_markelement(struct soap *soap, const void *ptr, 
 	case SOAP_TYPE_ClassAdStruct:
 		soap_mark_ClassAdStruct(soap, (const struct ClassAdStruct *)ptr);
 		break;
-	case SOAP_TYPE_condorCore__ClassAdStructAttr:
-		soap_mark_condorCore__ClassAdStructAttr(soap, (const struct condorCore__ClassAdStructAttr *)ptr);
+	case SOAP_TYPE_condor__ClassAdStructAttr:
+		soap_mark_condor__ClassAdStructAttr(soap, (const struct condor__ClassAdStructAttr *)ptr);
 		break;
-	case SOAP_TYPE_condorCore__Status:
-		soap_mark_condorCore__Status(soap, (const struct condorCore__Status *)ptr);
+	case SOAP_TYPE_condor__Status:
+		soap_mark_condor__Status(soap, (const struct condor__Status *)ptr);
 		break;
 	case SOAP_TYPE_xsd__base64Binary:
 		soap_mark_xsd__base64Binary(soap, (const struct xsd__base64Binary *)ptr);
@@ -614,11 +614,11 @@ SOAP_FMAC3 void SOAP_FMAC4 soap_markelement(struct soap *soap, const void *ptr, 
 	case SOAP_TYPE_PointerToClassAdStruct:
 		soap_mark_PointerToClassAdStruct(soap, (struct ClassAdStruct *const*)ptr);
 		break;
-	case SOAP_TYPE_PointerTocondorCore__ClassAdStructAttr:
-		soap_mark_PointerTocondorCore__ClassAdStructAttr(soap, (struct condorCore__ClassAdStructAttr *const*)ptr);
+	case SOAP_TYPE_PointerTocondor__ClassAdStructAttr:
+		soap_mark_PointerTocondor__ClassAdStructAttr(soap, (struct condor__ClassAdStructAttr *const*)ptr);
 		break;
-	case SOAP_TYPE_PointerTocondorCore__Status:
-		soap_mark_PointerTocondorCore__Status(soap, (struct condorCore__Status *const*)ptr);
+	case SOAP_TYPE_PointerTocondor__Status:
+		soap_mark_PointerTocondor__Status(soap, (struct condor__Status *const*)ptr);
 		break;
 	case SOAP_TYPE_PointerTounsignedByte:
 		soap_mark_PointerTounsignedByte(soap, (unsigned char *const*)ptr);
@@ -1139,28 +1139,28 @@ SOAP_FMAC3 unsigned int * SOAP_FMAC4 soap_in_unsignedInt(struct soap *soap, cons
 	return soap_inunsignedInt(soap, tag, a, type, SOAP_TYPE_unsignedInt);
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorCore__ClassAdAttrType(struct soap *soap, enum condorCore__ClassAdAttrType *a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condor__ClassAdAttrType(struct soap *soap, enum condor__ClassAdAttrType *a)
 {
-#ifdef SOAP_DEFAULT_condorCore__ClassAdAttrType
-	*a = SOAP_DEFAULT_condorCore__ClassAdAttrType;
+#ifdef SOAP_DEFAULT_condor__ClassAdAttrType
+	*a = SOAP_DEFAULT_condor__ClassAdAttrType;
 #else
-	*a = (enum condorCore__ClassAdAttrType)0;
+	*a = (enum condor__ClassAdAttrType)0;
 #endif
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCore__ClassAdAttrType(struct soap *soap, enum condorCore__ClassAdAttrType const*a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condor__ClassAdAttrType(struct soap *soap, enum condor__ClassAdAttrType const*a)
 {
-	soap_reference(soap, a, SOAP_TYPE_condorCore__ClassAdAttrType);
+	soap_reference(soap, a, SOAP_TYPE_condor__ClassAdAttrType);
 }
 
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorCore__ClassAdAttrType(struct soap *soap, const enum condorCore__ClassAdAttrType *a, const char *tag, const char *type)
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condor__ClassAdAttrType(struct soap *soap, const enum condor__ClassAdAttrType *a, const char *tag, const char *type)
 {
-	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_condorCore__ClassAdAttrType);
-	soap_out_condorCore__ClassAdAttrType(soap, tag, i, a, type);
+	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_condor__ClassAdAttrType);
+	soap_out_condor__ClassAdAttrType(soap, tag, i, a, type);
 	return soap_putindependent(soap);
 }
 
-static const struct soap_code_map soap_codes_condorCore__ClassAdAttrType[] =
+static const struct soap_code_map soap_codes_condor__ClassAdAttrType[] =
 {	{ (long)INTEGER_ATTR, "INTEGER-ATTR" },
 	{ (long)FLOAT_ATTR, "FLOAT-ATTR" },
 	{ (long)STRING_ATTR, "STRING-ATTR" },
@@ -1171,44 +1171,44 @@ static const struct soap_code_map soap_codes_condorCore__ClassAdAttrType[] =
 	{ 0, NULL }
 };
 
-SOAP_FMAC3 const char* SOAP_FMAC4 soap_condorCore__ClassAdAttrType2s(struct soap *soap, enum condorCore__ClassAdAttrType n)
-{	const char *s = soap_str_code(soap_codes_condorCore__ClassAdAttrType, (long)n);
+SOAP_FMAC3 const char* SOAP_FMAC4 soap_condor__ClassAdAttrType2s(struct soap *soap, enum condor__ClassAdAttrType n)
+{	const char *s = soap_str_code(soap_codes_condor__ClassAdAttrType, (long)n);
 	if (s)
 		return s;
 	return soap_long2s(soap, (long)n);
 }
 
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorCore__ClassAdAttrType(struct soap *soap, const char *tag, int id, const enum condorCore__ClassAdAttrType *a, const char *type)
-{	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condorCore__ClassAdAttrType), type);
-	soap_send(soap, soap_condorCore__ClassAdAttrType2s(soap, *a));
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condor__ClassAdAttrType(struct soap *soap, const char *tag, int id, const enum condor__ClassAdAttrType *a, const char *type)
+{	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condor__ClassAdAttrType), type);
+	soap_send(soap, soap_condor__ClassAdAttrType2s(soap, *a));
 	return soap_element_end_out(soap, tag);
 }
 
-SOAP_FMAC3 enum condorCore__ClassAdAttrType * SOAP_FMAC4 soap_get_condorCore__ClassAdAttrType(struct soap *soap, enum condorCore__ClassAdAttrType *p, const char *tag, const char *type)
+SOAP_FMAC3 enum condor__ClassAdAttrType * SOAP_FMAC4 soap_get_condor__ClassAdAttrType(struct soap *soap, enum condor__ClassAdAttrType *p, const char *tag, const char *type)
 {
-	if ((p = soap_in_condorCore__ClassAdAttrType(soap, tag, p, type)))
+	if ((p = soap_in_condor__ClassAdAttrType(soap, tag, p, type)))
 		soap_getindependent(soap);
 	return p;
 }
 
-SOAP_FMAC3 int SOAP_FMAC4 soap_s2condorCore__ClassAdAttrType(struct soap *soap, const char *s, enum condorCore__ClassAdAttrType *a)
+SOAP_FMAC3 int SOAP_FMAC4 soap_s2condor__ClassAdAttrType(struct soap *soap, const char *s, enum condor__ClassAdAttrType *a)
 {
 	const struct soap_code_map *map;
 	if (!s)
 		return SOAP_OK;
-	map = soap_code(soap_codes_condorCore__ClassAdAttrType, s);
+	map = soap_code(soap_codes_condor__ClassAdAttrType, s);
 	if (map)
-		*a = (enum condorCore__ClassAdAttrType)map->code;
+		*a = (enum condor__ClassAdAttrType)map->code;
 	else
 	{	long n;
 		if (soap_s2long(soap, s, &n))
 				return soap->error;
-			*a = (enum condorCore__ClassAdAttrType)n;
+			*a = (enum condor__ClassAdAttrType)n;
 	}
 	return SOAP_OK;
 }
 
-SOAP_FMAC3 enum condorCore__ClassAdAttrType * SOAP_FMAC4 soap_in_condorCore__ClassAdAttrType(struct soap *soap, const char *tag, enum condorCore__ClassAdAttrType *a, const char *type)
+SOAP_FMAC3 enum condor__ClassAdAttrType * SOAP_FMAC4 soap_in_condor__ClassAdAttrType(struct soap *soap, const char *tag, enum condor__ClassAdAttrType *a, const char *type)
 {
 	if (soap_element_begin_in(soap, tag))
 		return NULL;
@@ -1226,44 +1226,44 @@ SOAP_FMAC3 enum condorCore__ClassAdAttrType * SOAP_FMAC4 soap_in_condorCore__Cla
 			return a;
 	}
 	if (soap->body && !*soap->href)
-	{	a = (enum condorCore__ClassAdAttrType *)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condorCore__ClassAdAttrType, sizeof(enum condorCore__ClassAdAttrType), 0);
-		if (!a || soap_s2condorCore__ClassAdAttrType(soap, soap_value(soap), a))
+	{	a = (enum condor__ClassAdAttrType *)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condor__ClassAdAttrType, sizeof(enum condor__ClassAdAttrType), 0);
+		if (!a || soap_s2condor__ClassAdAttrType(soap, soap_value(soap), a))
 			return NULL;
 		if (soap_element_end_in(soap, tag))
 			return NULL;
 	}
 	else
-	{	a = (enum condorCore__ClassAdAttrType *)soap_id_forward(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condorCore__ClassAdAttrType, sizeof(enum condorCore__ClassAdAttrType), 0), SOAP_TYPE_condorCore__ClassAdAttrType, sizeof(enum condorCore__ClassAdAttrType));
+	{	a = (enum condor__ClassAdAttrType *)soap_id_forward(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condor__ClassAdAttrType, sizeof(enum condor__ClassAdAttrType), 0), SOAP_TYPE_condor__ClassAdAttrType, sizeof(enum condor__ClassAdAttrType));
 		if (soap->alloced)
-			soap_default_condorCore__ClassAdAttrType(soap, a);
+			soap_default_condor__ClassAdAttrType(soap, a);
 		if (soap->body && soap_element_end_in(soap, tag))
 			return NULL;
 	}
 	return a;
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorCore__StatusCode(struct soap *soap, enum condorCore__StatusCode *a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condor__StatusCode(struct soap *soap, enum condor__StatusCode *a)
 {
-#ifdef SOAP_DEFAULT_condorCore__StatusCode
-	*a = SOAP_DEFAULT_condorCore__StatusCode;
+#ifdef SOAP_DEFAULT_condor__StatusCode
+	*a = SOAP_DEFAULT_condor__StatusCode;
 #else
-	*a = (enum condorCore__StatusCode)0;
+	*a = (enum condor__StatusCode)0;
 #endif
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCore__StatusCode(struct soap *soap, enum condorCore__StatusCode const*a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condor__StatusCode(struct soap *soap, enum condor__StatusCode const*a)
 {
-	soap_reference(soap, a, SOAP_TYPE_condorCore__StatusCode);
+	soap_reference(soap, a, SOAP_TYPE_condor__StatusCode);
 }
 
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorCore__StatusCode(struct soap *soap, const enum condorCore__StatusCode *a, const char *tag, const char *type)
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condor__StatusCode(struct soap *soap, const enum condor__StatusCode *a, const char *tag, const char *type)
 {
-	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_condorCore__StatusCode);
-	soap_out_condorCore__StatusCode(soap, tag, i, a, type);
+	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_condor__StatusCode);
+	soap_out_condor__StatusCode(soap, tag, i, a, type);
 	return soap_putindependent(soap);
 }
 
-static const struct soap_code_map soap_codes_condorCore__StatusCode[] =
+static const struct soap_code_map soap_codes_condor__StatusCode[] =
 {	{ (long)SUCCESS, "SUCCESS" },
 	{ (long)FAIL, "FAIL" },
 	{ (long)INVALIDTRANSACTION, "INVALIDTRANSACTION" },
@@ -1276,44 +1276,44 @@ static const struct soap_code_map soap_codes_condorCore__StatusCode[] =
 	{ 0, NULL }
 };
 
-SOAP_FMAC3 const char* SOAP_FMAC4 soap_condorCore__StatusCode2s(struct soap *soap, enum condorCore__StatusCode n)
-{	const char *s = soap_str_code(soap_codes_condorCore__StatusCode, (long)n);
+SOAP_FMAC3 const char* SOAP_FMAC4 soap_condor__StatusCode2s(struct soap *soap, enum condor__StatusCode n)
+{	const char *s = soap_str_code(soap_codes_condor__StatusCode, (long)n);
 	if (s)
 		return s;
 	return soap_long2s(soap, (long)n);
 }
 
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorCore__StatusCode(struct soap *soap, const char *tag, int id, const enum condorCore__StatusCode *a, const char *type)
-{	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condorCore__StatusCode), type);
-	soap_send(soap, soap_condorCore__StatusCode2s(soap, *a));
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condor__StatusCode(struct soap *soap, const char *tag, int id, const enum condor__StatusCode *a, const char *type)
+{	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condor__StatusCode), type);
+	soap_send(soap, soap_condor__StatusCode2s(soap, *a));
 	return soap_element_end_out(soap, tag);
 }
 
-SOAP_FMAC3 enum condorCore__StatusCode * SOAP_FMAC4 soap_get_condorCore__StatusCode(struct soap *soap, enum condorCore__StatusCode *p, const char *tag, const char *type)
+SOAP_FMAC3 enum condor__StatusCode * SOAP_FMAC4 soap_get_condor__StatusCode(struct soap *soap, enum condor__StatusCode *p, const char *tag, const char *type)
 {
-	if ((p = soap_in_condorCore__StatusCode(soap, tag, p, type)))
+	if ((p = soap_in_condor__StatusCode(soap, tag, p, type)))
 		soap_getindependent(soap);
 	return p;
 }
 
-SOAP_FMAC3 int SOAP_FMAC4 soap_s2condorCore__StatusCode(struct soap *soap, const char *s, enum condorCore__StatusCode *a)
+SOAP_FMAC3 int SOAP_FMAC4 soap_s2condor__StatusCode(struct soap *soap, const char *s, enum condor__StatusCode *a)
 {
 	const struct soap_code_map *map;
 	if (!s)
 		return SOAP_OK;
-	map = soap_code(soap_codes_condorCore__StatusCode, s);
+	map = soap_code(soap_codes_condor__StatusCode, s);
 	if (map)
-		*a = (enum condorCore__StatusCode)map->code;
+		*a = (enum condor__StatusCode)map->code;
 	else
 	{	long n;
 		if (soap_s2long(soap, s, &n))
 				return soap->error;
-			*a = (enum condorCore__StatusCode)n;
+			*a = (enum condor__StatusCode)n;
 	}
 	return SOAP_OK;
 }
 
-SOAP_FMAC3 enum condorCore__StatusCode * SOAP_FMAC4 soap_in_condorCore__StatusCode(struct soap *soap, const char *tag, enum condorCore__StatusCode *a, const char *type)
+SOAP_FMAC3 enum condor__StatusCode * SOAP_FMAC4 soap_in_condor__StatusCode(struct soap *soap, const char *tag, enum condor__StatusCode *a, const char *type)
 {
 	if (soap_element_begin_in(soap, tag))
 		return NULL;
@@ -1331,16 +1331,16 @@ SOAP_FMAC3 enum condorCore__StatusCode * SOAP_FMAC4 soap_in_condorCore__StatusCo
 			return a;
 	}
 	if (soap->body && !*soap->href)
-	{	a = (enum condorCore__StatusCode *)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condorCore__StatusCode, sizeof(enum condorCore__StatusCode), 0);
-		if (!a || soap_s2condorCore__StatusCode(soap, soap_value(soap), a))
+	{	a = (enum condor__StatusCode *)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condor__StatusCode, sizeof(enum condor__StatusCode), 0);
+		if (!a || soap_s2condor__StatusCode(soap, soap_value(soap), a))
 			return NULL;
 		if (soap_element_end_in(soap, tag))
 			return NULL;
 	}
 	else
-	{	a = (enum condorCore__StatusCode *)soap_id_forward(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condorCore__StatusCode, sizeof(enum condorCore__StatusCode), 0), SOAP_TYPE_condorCore__StatusCode, sizeof(enum condorCore__StatusCode));
+	{	a = (enum condor__StatusCode *)soap_id_forward(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condor__StatusCode, sizeof(enum condor__StatusCode), 0), SOAP_TYPE_condor__StatusCode, sizeof(enum condor__StatusCode));
 		if (soap->alloced)
-			soap_default_condorCore__StatusCode(soap, a);
+			soap_default_condor__StatusCode(soap, a);
 		if (soap->body && soap_element_end_in(soap, tag))
 			return NULL;
 	}
@@ -2006,46 +2006,46 @@ SOAP_FMAC3 struct SOAP_ENV__Header * SOAP_FMAC4 soap_in_SOAP_ENV__Header(struct 
 
 #endif
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCollector__queryAnyAds(struct soap *soap, struct condorCollector__queryAnyAds const*a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condor__queryAnyAds(struct soap *soap, struct condor__queryAnyAds const*a)
 {
-	if (!soap_reference(soap, a, SOAP_TYPE_condorCollector__queryAnyAds))
-		soap_mark_condorCollector__queryAnyAds(soap, a);
+	if (!soap_reference(soap, a, SOAP_TYPE_condor__queryAnyAds))
+		soap_mark_condor__queryAnyAds(soap, a);
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorCollector__queryAnyAds(struct soap *soap, const struct condorCollector__queryAnyAds *a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condor__queryAnyAds(struct soap *soap, const struct condor__queryAnyAds *a)
 {
 	soap_embedded(soap, &a->constraint, SOAP_TYPE_string);
 	soap_mark_string(soap, &a->constraint);
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorCollector__queryAnyAds(struct soap *soap, struct condorCollector__queryAnyAds *a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condor__queryAnyAds(struct soap *soap, struct condor__queryAnyAds *a)
 {
 	soap_default_string(soap, &a->constraint);
 }
 
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorCollector__queryAnyAds(struct soap *soap, const struct condorCollector__queryAnyAds *a, const char *tag, const char *type)
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condor__queryAnyAds(struct soap *soap, const struct condor__queryAnyAds *a, const char *tag, const char *type)
 {
-	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_condorCollector__queryAnyAds);
-	soap_out_condorCollector__queryAnyAds(soap, tag, i, a, type);
+	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_condor__queryAnyAds);
+	soap_out_condor__queryAnyAds(soap, tag, i, a, type);
 	return soap_putindependent(soap);
 }
 
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorCollector__queryAnyAds(struct soap *soap, const char *tag, int id, const struct condorCollector__queryAnyAds *a, const char *type)
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condor__queryAnyAds(struct soap *soap, const char *tag, int id, const struct condor__queryAnyAds *a, const char *type)
 {
-	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condorCollector__queryAnyAds), type);
+	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condor__queryAnyAds), type);
 	soap_out_string(soap, "constraint", -1, &a->constraint, "");
 	soap_element_end_out(soap, tag);
 	return SOAP_OK;
 }
 
-SOAP_FMAC3 struct condorCollector__queryAnyAds * SOAP_FMAC4 soap_get_condorCollector__queryAnyAds(struct soap *soap, struct condorCollector__queryAnyAds *p, const char *tag, const char *type)
+SOAP_FMAC3 struct condor__queryAnyAds * SOAP_FMAC4 soap_get_condor__queryAnyAds(struct soap *soap, struct condor__queryAnyAds *p, const char *tag, const char *type)
 {
-	if ((p = soap_in_condorCollector__queryAnyAds(soap, tag, p, type)))
+	if ((p = soap_in_condor__queryAnyAds(soap, tag, p, type)))
 		soap_getindependent(soap);
 	return p;
 }
 
-SOAP_FMAC3 struct condorCollector__queryAnyAds * SOAP_FMAC4 soap_in_condorCollector__queryAnyAds(struct soap *soap, const char *tag, struct condorCollector__queryAnyAds *a, const char *type)
+SOAP_FMAC3 struct condor__queryAnyAds * SOAP_FMAC4 soap_in_condor__queryAnyAds(struct soap *soap, const char *tag, struct condor__queryAnyAds *a, const char *type)
 {
 	short soap_flag_constraint = 1;
 	if (soap_element_begin_in(soap, tag))
@@ -2064,11 +2064,11 @@ SOAP_FMAC3 struct condorCollector__queryAnyAds * SOAP_FMAC4 soap_in_condorCollec
 			return a;
 	}
 	if (!*soap->href)
-	{	a = (struct condorCollector__queryAnyAds *)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condorCollector__queryAnyAds, sizeof(struct condorCollector__queryAnyAds), 0);
+	{	a = (struct condor__queryAnyAds *)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condor__queryAnyAds, sizeof(struct condor__queryAnyAds), 0);
 		if (!a)
 			return NULL;
 		if (soap->alloced)
-			soap_default_condorCollector__queryAnyAds(soap, a);
+			soap_default_condor__queryAnyAds(soap, a);
 		if (soap->body)
 		{	for (;;)
 			{	soap->error = SOAP_TAG_MISMATCH;
@@ -2094,56 +2094,56 @@ SOAP_FMAC3 struct condorCollector__queryAnyAds * SOAP_FMAC4 soap_in_condorCollec
 		}
 	}
 	else
-	{	a = (struct condorCollector__queryAnyAds *)soap_id_forward(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condorCollector__queryAnyAds, sizeof(struct condorCollector__queryAnyAds), 0), SOAP_TYPE_condorCollector__queryAnyAds, sizeof(struct condorCollector__queryAnyAds));
+	{	a = (struct condor__queryAnyAds *)soap_id_forward(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condor__queryAnyAds, sizeof(struct condor__queryAnyAds), 0), SOAP_TYPE_condor__queryAnyAds, sizeof(struct condor__queryAnyAds));
 		if (soap->alloced)
-			soap_default_condorCollector__queryAnyAds(soap, a);
+			soap_default_condor__queryAnyAds(soap, a);
 		if (soap->body && soap_element_end_in(soap, tag))
 			return NULL;
 	}
 	return a;
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCollector__queryAnyAdsResponse(struct soap *soap, struct condorCollector__queryAnyAdsResponse const*a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condor__queryAnyAdsResponse(struct soap *soap, struct condor__queryAnyAdsResponse const*a)
 {
-	if (!soap_reference(soap, a, SOAP_TYPE_condorCollector__queryAnyAdsResponse))
-		soap_mark_condorCollector__queryAnyAdsResponse(soap, a);
+	if (!soap_reference(soap, a, SOAP_TYPE_condor__queryAnyAdsResponse))
+		soap_mark_condor__queryAnyAdsResponse(soap, a);
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorCollector__queryAnyAdsResponse(struct soap *soap, const struct condorCollector__queryAnyAdsResponse *a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condor__queryAnyAdsResponse(struct soap *soap, const struct condor__queryAnyAdsResponse *a)
 {
 	soap_embedded(soap, &a->result, SOAP_TYPE_ClassAdStructArray);
 	soap_mark_ClassAdStructArray(soap, &a->result);
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorCollector__queryAnyAdsResponse(struct soap *soap, struct condorCollector__queryAnyAdsResponse *a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condor__queryAnyAdsResponse(struct soap *soap, struct condor__queryAnyAdsResponse *a)
 {
 	soap_default_ClassAdStructArray(soap, &a->result);
 }
 
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorCollector__queryAnyAdsResponse(struct soap *soap, const struct condorCollector__queryAnyAdsResponse *a, const char *tag, const char *type)
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condor__queryAnyAdsResponse(struct soap *soap, const struct condor__queryAnyAdsResponse *a, const char *tag, const char *type)
 {
-	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_condorCollector__queryAnyAdsResponse);
-	soap_out_condorCollector__queryAnyAdsResponse(soap, tag, i, a, type);
+	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_condor__queryAnyAdsResponse);
+	soap_out_condor__queryAnyAdsResponse(soap, tag, i, a, type);
 	return soap_putindependent(soap);
 }
 
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorCollector__queryAnyAdsResponse(struct soap *soap, const char *tag, int id, const struct condorCollector__queryAnyAdsResponse *a, const char *type)
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condor__queryAnyAdsResponse(struct soap *soap, const char *tag, int id, const struct condor__queryAnyAdsResponse *a, const char *type)
 {
-	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condorCollector__queryAnyAdsResponse), type);
+	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condor__queryAnyAdsResponse), type);
 	soap_element_result(soap, "result");
-	soap_out_ClassAdStructArray(soap, "result", -1, &a->result, "condorCore:ClassAdStructAttr[]");
+	soap_out_ClassAdStructArray(soap, "result", -1, &a->result, "condor:ClassAdStructAttr[]");
 	soap_element_end_out(soap, tag);
 	return SOAP_OK;
 }
 
-SOAP_FMAC3 struct condorCollector__queryAnyAdsResponse * SOAP_FMAC4 soap_get_condorCollector__queryAnyAdsResponse(struct soap *soap, struct condorCollector__queryAnyAdsResponse *p, const char *tag, const char *type)
+SOAP_FMAC3 struct condor__queryAnyAdsResponse * SOAP_FMAC4 soap_get_condor__queryAnyAdsResponse(struct soap *soap, struct condor__queryAnyAdsResponse *p, const char *tag, const char *type)
 {
-	if ((p = soap_in_condorCollector__queryAnyAdsResponse(soap, tag, p, type)))
+	if ((p = soap_in_condor__queryAnyAdsResponse(soap, tag, p, type)))
 		soap_getindependent(soap);
 	return p;
 }
 
-SOAP_FMAC3 struct condorCollector__queryAnyAdsResponse * SOAP_FMAC4 soap_in_condorCollector__queryAnyAdsResponse(struct soap *soap, const char *tag, struct condorCollector__queryAnyAdsResponse *a, const char *type)
+SOAP_FMAC3 struct condor__queryAnyAdsResponse * SOAP_FMAC4 soap_in_condor__queryAnyAdsResponse(struct soap *soap, const char *tag, struct condor__queryAnyAdsResponse *a, const char *type)
 {
 	short soap_flag_result = 1;
 	if (soap_element_begin_in(soap, tag))
@@ -2162,16 +2162,16 @@ SOAP_FMAC3 struct condorCollector__queryAnyAdsResponse * SOAP_FMAC4 soap_in_cond
 			return a;
 	}
 	if (!*soap->href)
-	{	a = (struct condorCollector__queryAnyAdsResponse *)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condorCollector__queryAnyAdsResponse, sizeof(struct condorCollector__queryAnyAdsResponse), 0);
+	{	a = (struct condor__queryAnyAdsResponse *)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condor__queryAnyAdsResponse, sizeof(struct condor__queryAnyAdsResponse), 0);
 		if (!a)
 			return NULL;
 		if (soap->alloced)
-			soap_default_condorCollector__queryAnyAdsResponse(soap, a);
+			soap_default_condor__queryAnyAdsResponse(soap, a);
 		if (soap->body)
 		{	for (;;)
 			{	soap->error = SOAP_TAG_MISMATCH;
 			if (soap_flag_result && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_ClassAdStructArray(soap, "result", &a->result, "condorCore:ClassAdStructAttr[]"))
+				if (soap_in_ClassAdStructArray(soap, "result", &a->result, "condor:ClassAdStructAttr[]"))
 				{	soap_flag_result = 0;
 					continue;
 				}
@@ -2192,55 +2192,55 @@ SOAP_FMAC3 struct condorCollector__queryAnyAdsResponse * SOAP_FMAC4 soap_in_cond
 		}
 	}
 	else
-	{	a = (struct condorCollector__queryAnyAdsResponse *)soap_id_forward(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condorCollector__queryAnyAdsResponse, sizeof(struct condorCollector__queryAnyAdsResponse), 0), SOAP_TYPE_condorCollector__queryAnyAdsResponse, sizeof(struct condorCollector__queryAnyAdsResponse));
+	{	a = (struct condor__queryAnyAdsResponse *)soap_id_forward(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condor__queryAnyAdsResponse, sizeof(struct condor__queryAnyAdsResponse), 0), SOAP_TYPE_condor__queryAnyAdsResponse, sizeof(struct condor__queryAnyAdsResponse));
 		if (soap->alloced)
-			soap_default_condorCollector__queryAnyAdsResponse(soap, a);
+			soap_default_condor__queryAnyAdsResponse(soap, a);
 		if (soap->body && soap_element_end_in(soap, tag))
 			return NULL;
 	}
 	return a;
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCollector__queryStorageAds(struct soap *soap, struct condorCollector__queryStorageAds const*a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condor__queryStorageAds(struct soap *soap, struct condor__queryStorageAds const*a)
 {
-	if (!soap_reference(soap, a, SOAP_TYPE_condorCollector__queryStorageAds))
-		soap_mark_condorCollector__queryStorageAds(soap, a);
+	if (!soap_reference(soap, a, SOAP_TYPE_condor__queryStorageAds))
+		soap_mark_condor__queryStorageAds(soap, a);
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorCollector__queryStorageAds(struct soap *soap, const struct condorCollector__queryStorageAds *a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condor__queryStorageAds(struct soap *soap, const struct condor__queryStorageAds *a)
 {
 	soap_embedded(soap, &a->constraint, SOAP_TYPE_string);
 	soap_mark_string(soap, &a->constraint);
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorCollector__queryStorageAds(struct soap *soap, struct condorCollector__queryStorageAds *a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condor__queryStorageAds(struct soap *soap, struct condor__queryStorageAds *a)
 {
 	soap_default_string(soap, &a->constraint);
 }
 
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorCollector__queryStorageAds(struct soap *soap, const struct condorCollector__queryStorageAds *a, const char *tag, const char *type)
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condor__queryStorageAds(struct soap *soap, const struct condor__queryStorageAds *a, const char *tag, const char *type)
 {
-	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_condorCollector__queryStorageAds);
-	soap_out_condorCollector__queryStorageAds(soap, tag, i, a, type);
+	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_condor__queryStorageAds);
+	soap_out_condor__queryStorageAds(soap, tag, i, a, type);
 	return soap_putindependent(soap);
 }
 
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorCollector__queryStorageAds(struct soap *soap, const char *tag, int id, const struct condorCollector__queryStorageAds *a, const char *type)
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condor__queryStorageAds(struct soap *soap, const char *tag, int id, const struct condor__queryStorageAds *a, const char *type)
 {
-	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condorCollector__queryStorageAds), type);
+	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condor__queryStorageAds), type);
 	soap_out_string(soap, "constraint", -1, &a->constraint, "");
 	soap_element_end_out(soap, tag);
 	return SOAP_OK;
 }
 
-SOAP_FMAC3 struct condorCollector__queryStorageAds * SOAP_FMAC4 soap_get_condorCollector__queryStorageAds(struct soap *soap, struct condorCollector__queryStorageAds *p, const char *tag, const char *type)
+SOAP_FMAC3 struct condor__queryStorageAds * SOAP_FMAC4 soap_get_condor__queryStorageAds(struct soap *soap, struct condor__queryStorageAds *p, const char *tag, const char *type)
 {
-	if ((p = soap_in_condorCollector__queryStorageAds(soap, tag, p, type)))
+	if ((p = soap_in_condor__queryStorageAds(soap, tag, p, type)))
 		soap_getindependent(soap);
 	return p;
 }
 
-SOAP_FMAC3 struct condorCollector__queryStorageAds * SOAP_FMAC4 soap_in_condorCollector__queryStorageAds(struct soap *soap, const char *tag, struct condorCollector__queryStorageAds *a, const char *type)
+SOAP_FMAC3 struct condor__queryStorageAds * SOAP_FMAC4 soap_in_condor__queryStorageAds(struct soap *soap, const char *tag, struct condor__queryStorageAds *a, const char *type)
 {
 	short soap_flag_constraint = 1;
 	if (soap_element_begin_in(soap, tag))
@@ -2259,11 +2259,11 @@ SOAP_FMAC3 struct condorCollector__queryStorageAds * SOAP_FMAC4 soap_in_condorCo
 			return a;
 	}
 	if (!*soap->href)
-	{	a = (struct condorCollector__queryStorageAds *)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condorCollector__queryStorageAds, sizeof(struct condorCollector__queryStorageAds), 0);
+	{	a = (struct condor__queryStorageAds *)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condor__queryStorageAds, sizeof(struct condor__queryStorageAds), 0);
 		if (!a)
 			return NULL;
 		if (soap->alloced)
-			soap_default_condorCollector__queryStorageAds(soap, a);
+			soap_default_condor__queryStorageAds(soap, a);
 		if (soap->body)
 		{	for (;;)
 			{	soap->error = SOAP_TAG_MISMATCH;
@@ -2289,56 +2289,56 @@ SOAP_FMAC3 struct condorCollector__queryStorageAds * SOAP_FMAC4 soap_in_condorCo
 		}
 	}
 	else
-	{	a = (struct condorCollector__queryStorageAds *)soap_id_forward(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condorCollector__queryStorageAds, sizeof(struct condorCollector__queryStorageAds), 0), SOAP_TYPE_condorCollector__queryStorageAds, sizeof(struct condorCollector__queryStorageAds));
+	{	a = (struct condor__queryStorageAds *)soap_id_forward(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condor__queryStorageAds, sizeof(struct condor__queryStorageAds), 0), SOAP_TYPE_condor__queryStorageAds, sizeof(struct condor__queryStorageAds));
 		if (soap->alloced)
-			soap_default_condorCollector__queryStorageAds(soap, a);
+			soap_default_condor__queryStorageAds(soap, a);
 		if (soap->body && soap_element_end_in(soap, tag))
 			return NULL;
 	}
 	return a;
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCollector__queryStorageAdsResponse(struct soap *soap, struct condorCollector__queryStorageAdsResponse const*a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condor__queryStorageAdsResponse(struct soap *soap, struct condor__queryStorageAdsResponse const*a)
 {
-	if (!soap_reference(soap, a, SOAP_TYPE_condorCollector__queryStorageAdsResponse))
-		soap_mark_condorCollector__queryStorageAdsResponse(soap, a);
+	if (!soap_reference(soap, a, SOAP_TYPE_condor__queryStorageAdsResponse))
+		soap_mark_condor__queryStorageAdsResponse(soap, a);
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorCollector__queryStorageAdsResponse(struct soap *soap, const struct condorCollector__queryStorageAdsResponse *a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condor__queryStorageAdsResponse(struct soap *soap, const struct condor__queryStorageAdsResponse *a)
 {
 	soap_embedded(soap, &a->result, SOAP_TYPE_ClassAdStructArray);
 	soap_mark_ClassAdStructArray(soap, &a->result);
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorCollector__queryStorageAdsResponse(struct soap *soap, struct condorCollector__queryStorageAdsResponse *a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condor__queryStorageAdsResponse(struct soap *soap, struct condor__queryStorageAdsResponse *a)
 {
 	soap_default_ClassAdStructArray(soap, &a->result);
 }
 
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorCollector__queryStorageAdsResponse(struct soap *soap, const struct condorCollector__queryStorageAdsResponse *a, const char *tag, const char *type)
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condor__queryStorageAdsResponse(struct soap *soap, const struct condor__queryStorageAdsResponse *a, const char *tag, const char *type)
 {
-	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_condorCollector__queryStorageAdsResponse);
-	soap_out_condorCollector__queryStorageAdsResponse(soap, tag, i, a, type);
+	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_condor__queryStorageAdsResponse);
+	soap_out_condor__queryStorageAdsResponse(soap, tag, i, a, type);
 	return soap_putindependent(soap);
 }
 
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorCollector__queryStorageAdsResponse(struct soap *soap, const char *tag, int id, const struct condorCollector__queryStorageAdsResponse *a, const char *type)
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condor__queryStorageAdsResponse(struct soap *soap, const char *tag, int id, const struct condor__queryStorageAdsResponse *a, const char *type)
 {
-	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condorCollector__queryStorageAdsResponse), type);
+	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condor__queryStorageAdsResponse), type);
 	soap_element_result(soap, "result");
-	soap_out_ClassAdStructArray(soap, "result", -1, &a->result, "condorCore:ClassAdStructAttr[]");
+	soap_out_ClassAdStructArray(soap, "result", -1, &a->result, "condor:ClassAdStructAttr[]");
 	soap_element_end_out(soap, tag);
 	return SOAP_OK;
 }
 
-SOAP_FMAC3 struct condorCollector__queryStorageAdsResponse * SOAP_FMAC4 soap_get_condorCollector__queryStorageAdsResponse(struct soap *soap, struct condorCollector__queryStorageAdsResponse *p, const char *tag, const char *type)
+SOAP_FMAC3 struct condor__queryStorageAdsResponse * SOAP_FMAC4 soap_get_condor__queryStorageAdsResponse(struct soap *soap, struct condor__queryStorageAdsResponse *p, const char *tag, const char *type)
 {
-	if ((p = soap_in_condorCollector__queryStorageAdsResponse(soap, tag, p, type)))
+	if ((p = soap_in_condor__queryStorageAdsResponse(soap, tag, p, type)))
 		soap_getindependent(soap);
 	return p;
 }
 
-SOAP_FMAC3 struct condorCollector__queryStorageAdsResponse * SOAP_FMAC4 soap_in_condorCollector__queryStorageAdsResponse(struct soap *soap, const char *tag, struct condorCollector__queryStorageAdsResponse *a, const char *type)
+SOAP_FMAC3 struct condor__queryStorageAdsResponse * SOAP_FMAC4 soap_in_condor__queryStorageAdsResponse(struct soap *soap, const char *tag, struct condor__queryStorageAdsResponse *a, const char *type)
 {
 	short soap_flag_result = 1;
 	if (soap_element_begin_in(soap, tag))
@@ -2357,16 +2357,16 @@ SOAP_FMAC3 struct condorCollector__queryStorageAdsResponse * SOAP_FMAC4 soap_in_
 			return a;
 	}
 	if (!*soap->href)
-	{	a = (struct condorCollector__queryStorageAdsResponse *)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condorCollector__queryStorageAdsResponse, sizeof(struct condorCollector__queryStorageAdsResponse), 0);
+	{	a = (struct condor__queryStorageAdsResponse *)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condor__queryStorageAdsResponse, sizeof(struct condor__queryStorageAdsResponse), 0);
 		if (!a)
 			return NULL;
 		if (soap->alloced)
-			soap_default_condorCollector__queryStorageAdsResponse(soap, a);
+			soap_default_condor__queryStorageAdsResponse(soap, a);
 		if (soap->body)
 		{	for (;;)
 			{	soap->error = SOAP_TAG_MISMATCH;
 			if (soap_flag_result && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_ClassAdStructArray(soap, "result", &a->result, "condorCore:ClassAdStructAttr[]"))
+				if (soap_in_ClassAdStructArray(soap, "result", &a->result, "condor:ClassAdStructAttr[]"))
 				{	soap_flag_result = 0;
 					continue;
 				}
@@ -2387,55 +2387,55 @@ SOAP_FMAC3 struct condorCollector__queryStorageAdsResponse * SOAP_FMAC4 soap_in_
 		}
 	}
 	else
-	{	a = (struct condorCollector__queryStorageAdsResponse *)soap_id_forward(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condorCollector__queryStorageAdsResponse, sizeof(struct condorCollector__queryStorageAdsResponse), 0), SOAP_TYPE_condorCollector__queryStorageAdsResponse, sizeof(struct condorCollector__queryStorageAdsResponse));
+	{	a = (struct condor__queryStorageAdsResponse *)soap_id_forward(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condor__queryStorageAdsResponse, sizeof(struct condor__queryStorageAdsResponse), 0), SOAP_TYPE_condor__queryStorageAdsResponse, sizeof(struct condor__queryStorageAdsResponse));
 		if (soap->alloced)
-			soap_default_condorCollector__queryStorageAdsResponse(soap, a);
+			soap_default_condor__queryStorageAdsResponse(soap, a);
 		if (soap->body && soap_element_end_in(soap, tag))
 			return NULL;
 	}
 	return a;
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCollector__queryLicenseAds(struct soap *soap, struct condorCollector__queryLicenseAds const*a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condor__queryLicenseAds(struct soap *soap, struct condor__queryLicenseAds const*a)
 {
-	if (!soap_reference(soap, a, SOAP_TYPE_condorCollector__queryLicenseAds))
-		soap_mark_condorCollector__queryLicenseAds(soap, a);
+	if (!soap_reference(soap, a, SOAP_TYPE_condor__queryLicenseAds))
+		soap_mark_condor__queryLicenseAds(soap, a);
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorCollector__queryLicenseAds(struct soap *soap, const struct condorCollector__queryLicenseAds *a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condor__queryLicenseAds(struct soap *soap, const struct condor__queryLicenseAds *a)
 {
 	soap_embedded(soap, &a->constraint, SOAP_TYPE_string);
 	soap_mark_string(soap, &a->constraint);
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorCollector__queryLicenseAds(struct soap *soap, struct condorCollector__queryLicenseAds *a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condor__queryLicenseAds(struct soap *soap, struct condor__queryLicenseAds *a)
 {
 	soap_default_string(soap, &a->constraint);
 }
 
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorCollector__queryLicenseAds(struct soap *soap, const struct condorCollector__queryLicenseAds *a, const char *tag, const char *type)
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condor__queryLicenseAds(struct soap *soap, const struct condor__queryLicenseAds *a, const char *tag, const char *type)
 {
-	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_condorCollector__queryLicenseAds);
-	soap_out_condorCollector__queryLicenseAds(soap, tag, i, a, type);
+	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_condor__queryLicenseAds);
+	soap_out_condor__queryLicenseAds(soap, tag, i, a, type);
 	return soap_putindependent(soap);
 }
 
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorCollector__queryLicenseAds(struct soap *soap, const char *tag, int id, const struct condorCollector__queryLicenseAds *a, const char *type)
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condor__queryLicenseAds(struct soap *soap, const char *tag, int id, const struct condor__queryLicenseAds *a, const char *type)
 {
-	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condorCollector__queryLicenseAds), type);
+	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condor__queryLicenseAds), type);
 	soap_out_string(soap, "constraint", -1, &a->constraint, "");
 	soap_element_end_out(soap, tag);
 	return SOAP_OK;
 }
 
-SOAP_FMAC3 struct condorCollector__queryLicenseAds * SOAP_FMAC4 soap_get_condorCollector__queryLicenseAds(struct soap *soap, struct condorCollector__queryLicenseAds *p, const char *tag, const char *type)
+SOAP_FMAC3 struct condor__queryLicenseAds * SOAP_FMAC4 soap_get_condor__queryLicenseAds(struct soap *soap, struct condor__queryLicenseAds *p, const char *tag, const char *type)
 {
-	if ((p = soap_in_condorCollector__queryLicenseAds(soap, tag, p, type)))
+	if ((p = soap_in_condor__queryLicenseAds(soap, tag, p, type)))
 		soap_getindependent(soap);
 	return p;
 }
 
-SOAP_FMAC3 struct condorCollector__queryLicenseAds * SOAP_FMAC4 soap_in_condorCollector__queryLicenseAds(struct soap *soap, const char *tag, struct condorCollector__queryLicenseAds *a, const char *type)
+SOAP_FMAC3 struct condor__queryLicenseAds * SOAP_FMAC4 soap_in_condor__queryLicenseAds(struct soap *soap, const char *tag, struct condor__queryLicenseAds *a, const char *type)
 {
 	short soap_flag_constraint = 1;
 	if (soap_element_begin_in(soap, tag))
@@ -2454,11 +2454,11 @@ SOAP_FMAC3 struct condorCollector__queryLicenseAds * SOAP_FMAC4 soap_in_condorCo
 			return a;
 	}
 	if (!*soap->href)
-	{	a = (struct condorCollector__queryLicenseAds *)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condorCollector__queryLicenseAds, sizeof(struct condorCollector__queryLicenseAds), 0);
+	{	a = (struct condor__queryLicenseAds *)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condor__queryLicenseAds, sizeof(struct condor__queryLicenseAds), 0);
 		if (!a)
 			return NULL;
 		if (soap->alloced)
-			soap_default_condorCollector__queryLicenseAds(soap, a);
+			soap_default_condor__queryLicenseAds(soap, a);
 		if (soap->body)
 		{	for (;;)
 			{	soap->error = SOAP_TAG_MISMATCH;
@@ -2484,56 +2484,56 @@ SOAP_FMAC3 struct condorCollector__queryLicenseAds * SOAP_FMAC4 soap_in_condorCo
 		}
 	}
 	else
-	{	a = (struct condorCollector__queryLicenseAds *)soap_id_forward(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condorCollector__queryLicenseAds, sizeof(struct condorCollector__queryLicenseAds), 0), SOAP_TYPE_condorCollector__queryLicenseAds, sizeof(struct condorCollector__queryLicenseAds));
+	{	a = (struct condor__queryLicenseAds *)soap_id_forward(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condor__queryLicenseAds, sizeof(struct condor__queryLicenseAds), 0), SOAP_TYPE_condor__queryLicenseAds, sizeof(struct condor__queryLicenseAds));
 		if (soap->alloced)
-			soap_default_condorCollector__queryLicenseAds(soap, a);
+			soap_default_condor__queryLicenseAds(soap, a);
 		if (soap->body && soap_element_end_in(soap, tag))
 			return NULL;
 	}
 	return a;
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCollector__queryLicenseAdsResponse(struct soap *soap, struct condorCollector__queryLicenseAdsResponse const*a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condor__queryLicenseAdsResponse(struct soap *soap, struct condor__queryLicenseAdsResponse const*a)
 {
-	if (!soap_reference(soap, a, SOAP_TYPE_condorCollector__queryLicenseAdsResponse))
-		soap_mark_condorCollector__queryLicenseAdsResponse(soap, a);
+	if (!soap_reference(soap, a, SOAP_TYPE_condor__queryLicenseAdsResponse))
+		soap_mark_condor__queryLicenseAdsResponse(soap, a);
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorCollector__queryLicenseAdsResponse(struct soap *soap, const struct condorCollector__queryLicenseAdsResponse *a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condor__queryLicenseAdsResponse(struct soap *soap, const struct condor__queryLicenseAdsResponse *a)
 {
 	soap_embedded(soap, &a->result, SOAP_TYPE_ClassAdStructArray);
 	soap_mark_ClassAdStructArray(soap, &a->result);
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorCollector__queryLicenseAdsResponse(struct soap *soap, struct condorCollector__queryLicenseAdsResponse *a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condor__queryLicenseAdsResponse(struct soap *soap, struct condor__queryLicenseAdsResponse *a)
 {
 	soap_default_ClassAdStructArray(soap, &a->result);
 }
 
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorCollector__queryLicenseAdsResponse(struct soap *soap, const struct condorCollector__queryLicenseAdsResponse *a, const char *tag, const char *type)
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condor__queryLicenseAdsResponse(struct soap *soap, const struct condor__queryLicenseAdsResponse *a, const char *tag, const char *type)
 {
-	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_condorCollector__queryLicenseAdsResponse);
-	soap_out_condorCollector__queryLicenseAdsResponse(soap, tag, i, a, type);
+	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_condor__queryLicenseAdsResponse);
+	soap_out_condor__queryLicenseAdsResponse(soap, tag, i, a, type);
 	return soap_putindependent(soap);
 }
 
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorCollector__queryLicenseAdsResponse(struct soap *soap, const char *tag, int id, const struct condorCollector__queryLicenseAdsResponse *a, const char *type)
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condor__queryLicenseAdsResponse(struct soap *soap, const char *tag, int id, const struct condor__queryLicenseAdsResponse *a, const char *type)
 {
-	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condorCollector__queryLicenseAdsResponse), type);
+	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condor__queryLicenseAdsResponse), type);
 	soap_element_result(soap, "result");
-	soap_out_ClassAdStructArray(soap, "result", -1, &a->result, "condorCore:ClassAdStructAttr[]");
+	soap_out_ClassAdStructArray(soap, "result", -1, &a->result, "condor:ClassAdStructAttr[]");
 	soap_element_end_out(soap, tag);
 	return SOAP_OK;
 }
 
-SOAP_FMAC3 struct condorCollector__queryLicenseAdsResponse * SOAP_FMAC4 soap_get_condorCollector__queryLicenseAdsResponse(struct soap *soap, struct condorCollector__queryLicenseAdsResponse *p, const char *tag, const char *type)
+SOAP_FMAC3 struct condor__queryLicenseAdsResponse * SOAP_FMAC4 soap_get_condor__queryLicenseAdsResponse(struct soap *soap, struct condor__queryLicenseAdsResponse *p, const char *tag, const char *type)
 {
-	if ((p = soap_in_condorCollector__queryLicenseAdsResponse(soap, tag, p, type)))
+	if ((p = soap_in_condor__queryLicenseAdsResponse(soap, tag, p, type)))
 		soap_getindependent(soap);
 	return p;
 }
 
-SOAP_FMAC3 struct condorCollector__queryLicenseAdsResponse * SOAP_FMAC4 soap_in_condorCollector__queryLicenseAdsResponse(struct soap *soap, const char *tag, struct condorCollector__queryLicenseAdsResponse *a, const char *type)
+SOAP_FMAC3 struct condor__queryLicenseAdsResponse * SOAP_FMAC4 soap_in_condor__queryLicenseAdsResponse(struct soap *soap, const char *tag, struct condor__queryLicenseAdsResponse *a, const char *type)
 {
 	short soap_flag_result = 1;
 	if (soap_element_begin_in(soap, tag))
@@ -2552,16 +2552,16 @@ SOAP_FMAC3 struct condorCollector__queryLicenseAdsResponse * SOAP_FMAC4 soap_in_
 			return a;
 	}
 	if (!*soap->href)
-	{	a = (struct condorCollector__queryLicenseAdsResponse *)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condorCollector__queryLicenseAdsResponse, sizeof(struct condorCollector__queryLicenseAdsResponse), 0);
+	{	a = (struct condor__queryLicenseAdsResponse *)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condor__queryLicenseAdsResponse, sizeof(struct condor__queryLicenseAdsResponse), 0);
 		if (!a)
 			return NULL;
 		if (soap->alloced)
-			soap_default_condorCollector__queryLicenseAdsResponse(soap, a);
+			soap_default_condor__queryLicenseAdsResponse(soap, a);
 		if (soap->body)
 		{	for (;;)
 			{	soap->error = SOAP_TAG_MISMATCH;
 			if (soap_flag_result && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_ClassAdStructArray(soap, "result", &a->result, "condorCore:ClassAdStructAttr[]"))
+				if (soap_in_ClassAdStructArray(soap, "result", &a->result, "condor:ClassAdStructAttr[]"))
 				{	soap_flag_result = 0;
 					continue;
 				}
@@ -2582,55 +2582,55 @@ SOAP_FMAC3 struct condorCollector__queryLicenseAdsResponse * SOAP_FMAC4 soap_in_
 		}
 	}
 	else
-	{	a = (struct condorCollector__queryLicenseAdsResponse *)soap_id_forward(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condorCollector__queryLicenseAdsResponse, sizeof(struct condorCollector__queryLicenseAdsResponse), 0), SOAP_TYPE_condorCollector__queryLicenseAdsResponse, sizeof(struct condorCollector__queryLicenseAdsResponse));
+	{	a = (struct condor__queryLicenseAdsResponse *)soap_id_forward(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condor__queryLicenseAdsResponse, sizeof(struct condor__queryLicenseAdsResponse), 0), SOAP_TYPE_condor__queryLicenseAdsResponse, sizeof(struct condor__queryLicenseAdsResponse));
 		if (soap->alloced)
-			soap_default_condorCollector__queryLicenseAdsResponse(soap, a);
+			soap_default_condor__queryLicenseAdsResponse(soap, a);
 		if (soap->body && soap_element_end_in(soap, tag))
 			return NULL;
 	}
 	return a;
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCollector__querySubmittorAds(struct soap *soap, struct condorCollector__querySubmittorAds const*a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condor__querySubmittorAds(struct soap *soap, struct condor__querySubmittorAds const*a)
 {
-	if (!soap_reference(soap, a, SOAP_TYPE_condorCollector__querySubmittorAds))
-		soap_mark_condorCollector__querySubmittorAds(soap, a);
+	if (!soap_reference(soap, a, SOAP_TYPE_condor__querySubmittorAds))
+		soap_mark_condor__querySubmittorAds(soap, a);
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorCollector__querySubmittorAds(struct soap *soap, const struct condorCollector__querySubmittorAds *a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condor__querySubmittorAds(struct soap *soap, const struct condor__querySubmittorAds *a)
 {
 	soap_embedded(soap, &a->constraint, SOAP_TYPE_string);
 	soap_mark_string(soap, &a->constraint);
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorCollector__querySubmittorAds(struct soap *soap, struct condorCollector__querySubmittorAds *a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condor__querySubmittorAds(struct soap *soap, struct condor__querySubmittorAds *a)
 {
 	soap_default_string(soap, &a->constraint);
 }
 
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorCollector__querySubmittorAds(struct soap *soap, const struct condorCollector__querySubmittorAds *a, const char *tag, const char *type)
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condor__querySubmittorAds(struct soap *soap, const struct condor__querySubmittorAds *a, const char *tag, const char *type)
 {
-	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_condorCollector__querySubmittorAds);
-	soap_out_condorCollector__querySubmittorAds(soap, tag, i, a, type);
+	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_condor__querySubmittorAds);
+	soap_out_condor__querySubmittorAds(soap, tag, i, a, type);
 	return soap_putindependent(soap);
 }
 
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorCollector__querySubmittorAds(struct soap *soap, const char *tag, int id, const struct condorCollector__querySubmittorAds *a, const char *type)
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condor__querySubmittorAds(struct soap *soap, const char *tag, int id, const struct condor__querySubmittorAds *a, const char *type)
 {
-	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condorCollector__querySubmittorAds), type);
+	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condor__querySubmittorAds), type);
 	soap_out_string(soap, "constraint", -1, &a->constraint, "");
 	soap_element_end_out(soap, tag);
 	return SOAP_OK;
 }
 
-SOAP_FMAC3 struct condorCollector__querySubmittorAds * SOAP_FMAC4 soap_get_condorCollector__querySubmittorAds(struct soap *soap, struct condorCollector__querySubmittorAds *p, const char *tag, const char *type)
+SOAP_FMAC3 struct condor__querySubmittorAds * SOAP_FMAC4 soap_get_condor__querySubmittorAds(struct soap *soap, struct condor__querySubmittorAds *p, const char *tag, const char *type)
 {
-	if ((p = soap_in_condorCollector__querySubmittorAds(soap, tag, p, type)))
+	if ((p = soap_in_condor__querySubmittorAds(soap, tag, p, type)))
 		soap_getindependent(soap);
 	return p;
 }
 
-SOAP_FMAC3 struct condorCollector__querySubmittorAds * SOAP_FMAC4 soap_in_condorCollector__querySubmittorAds(struct soap *soap, const char *tag, struct condorCollector__querySubmittorAds *a, const char *type)
+SOAP_FMAC3 struct condor__querySubmittorAds * SOAP_FMAC4 soap_in_condor__querySubmittorAds(struct soap *soap, const char *tag, struct condor__querySubmittorAds *a, const char *type)
 {
 	short soap_flag_constraint = 1;
 	if (soap_element_begin_in(soap, tag))
@@ -2649,11 +2649,11 @@ SOAP_FMAC3 struct condorCollector__querySubmittorAds * SOAP_FMAC4 soap_in_condor
 			return a;
 	}
 	if (!*soap->href)
-	{	a = (struct condorCollector__querySubmittorAds *)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condorCollector__querySubmittorAds, sizeof(struct condorCollector__querySubmittorAds), 0);
+	{	a = (struct condor__querySubmittorAds *)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condor__querySubmittorAds, sizeof(struct condor__querySubmittorAds), 0);
 		if (!a)
 			return NULL;
 		if (soap->alloced)
-			soap_default_condorCollector__querySubmittorAds(soap, a);
+			soap_default_condor__querySubmittorAds(soap, a);
 		if (soap->body)
 		{	for (;;)
 			{	soap->error = SOAP_TAG_MISMATCH;
@@ -2679,56 +2679,56 @@ SOAP_FMAC3 struct condorCollector__querySubmittorAds * SOAP_FMAC4 soap_in_condor
 		}
 	}
 	else
-	{	a = (struct condorCollector__querySubmittorAds *)soap_id_forward(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condorCollector__querySubmittorAds, sizeof(struct condorCollector__querySubmittorAds), 0), SOAP_TYPE_condorCollector__querySubmittorAds, sizeof(struct condorCollector__querySubmittorAds));
+	{	a = (struct condor__querySubmittorAds *)soap_id_forward(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condor__querySubmittorAds, sizeof(struct condor__querySubmittorAds), 0), SOAP_TYPE_condor__querySubmittorAds, sizeof(struct condor__querySubmittorAds));
 		if (soap->alloced)
-			soap_default_condorCollector__querySubmittorAds(soap, a);
+			soap_default_condor__querySubmittorAds(soap, a);
 		if (soap->body && soap_element_end_in(soap, tag))
 			return NULL;
 	}
 	return a;
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCollector__querySubmittorAdsResponse(struct soap *soap, struct condorCollector__querySubmittorAdsResponse const*a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condor__querySubmittorAdsResponse(struct soap *soap, struct condor__querySubmittorAdsResponse const*a)
 {
-	if (!soap_reference(soap, a, SOAP_TYPE_condorCollector__querySubmittorAdsResponse))
-		soap_mark_condorCollector__querySubmittorAdsResponse(soap, a);
+	if (!soap_reference(soap, a, SOAP_TYPE_condor__querySubmittorAdsResponse))
+		soap_mark_condor__querySubmittorAdsResponse(soap, a);
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorCollector__querySubmittorAdsResponse(struct soap *soap, const struct condorCollector__querySubmittorAdsResponse *a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condor__querySubmittorAdsResponse(struct soap *soap, const struct condor__querySubmittorAdsResponse *a)
 {
 	soap_embedded(soap, &a->result, SOAP_TYPE_ClassAdStructArray);
 	soap_mark_ClassAdStructArray(soap, &a->result);
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorCollector__querySubmittorAdsResponse(struct soap *soap, struct condorCollector__querySubmittorAdsResponse *a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condor__querySubmittorAdsResponse(struct soap *soap, struct condor__querySubmittorAdsResponse *a)
 {
 	soap_default_ClassAdStructArray(soap, &a->result);
 }
 
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorCollector__querySubmittorAdsResponse(struct soap *soap, const struct condorCollector__querySubmittorAdsResponse *a, const char *tag, const char *type)
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condor__querySubmittorAdsResponse(struct soap *soap, const struct condor__querySubmittorAdsResponse *a, const char *tag, const char *type)
 {
-	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_condorCollector__querySubmittorAdsResponse);
-	soap_out_condorCollector__querySubmittorAdsResponse(soap, tag, i, a, type);
+	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_condor__querySubmittorAdsResponse);
+	soap_out_condor__querySubmittorAdsResponse(soap, tag, i, a, type);
 	return soap_putindependent(soap);
 }
 
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorCollector__querySubmittorAdsResponse(struct soap *soap, const char *tag, int id, const struct condorCollector__querySubmittorAdsResponse *a, const char *type)
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condor__querySubmittorAdsResponse(struct soap *soap, const char *tag, int id, const struct condor__querySubmittorAdsResponse *a, const char *type)
 {
-	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condorCollector__querySubmittorAdsResponse), type);
+	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condor__querySubmittorAdsResponse), type);
 	soap_element_result(soap, "result");
-	soap_out_ClassAdStructArray(soap, "result", -1, &a->result, "condorCore:ClassAdStructAttr[]");
+	soap_out_ClassAdStructArray(soap, "result", -1, &a->result, "condor:ClassAdStructAttr[]");
 	soap_element_end_out(soap, tag);
 	return SOAP_OK;
 }
 
-SOAP_FMAC3 struct condorCollector__querySubmittorAdsResponse * SOAP_FMAC4 soap_get_condorCollector__querySubmittorAdsResponse(struct soap *soap, struct condorCollector__querySubmittorAdsResponse *p, const char *tag, const char *type)
+SOAP_FMAC3 struct condor__querySubmittorAdsResponse * SOAP_FMAC4 soap_get_condor__querySubmittorAdsResponse(struct soap *soap, struct condor__querySubmittorAdsResponse *p, const char *tag, const char *type)
 {
-	if ((p = soap_in_condorCollector__querySubmittorAdsResponse(soap, tag, p, type)))
+	if ((p = soap_in_condor__querySubmittorAdsResponse(soap, tag, p, type)))
 		soap_getindependent(soap);
 	return p;
 }
 
-SOAP_FMAC3 struct condorCollector__querySubmittorAdsResponse * SOAP_FMAC4 soap_in_condorCollector__querySubmittorAdsResponse(struct soap *soap, const char *tag, struct condorCollector__querySubmittorAdsResponse *a, const char *type)
+SOAP_FMAC3 struct condor__querySubmittorAdsResponse * SOAP_FMAC4 soap_in_condor__querySubmittorAdsResponse(struct soap *soap, const char *tag, struct condor__querySubmittorAdsResponse *a, const char *type)
 {
 	short soap_flag_result = 1;
 	if (soap_element_begin_in(soap, tag))
@@ -2747,16 +2747,16 @@ SOAP_FMAC3 struct condorCollector__querySubmittorAdsResponse * SOAP_FMAC4 soap_i
 			return a;
 	}
 	if (!*soap->href)
-	{	a = (struct condorCollector__querySubmittorAdsResponse *)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condorCollector__querySubmittorAdsResponse, sizeof(struct condorCollector__querySubmittorAdsResponse), 0);
+	{	a = (struct condor__querySubmittorAdsResponse *)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condor__querySubmittorAdsResponse, sizeof(struct condor__querySubmittorAdsResponse), 0);
 		if (!a)
 			return NULL;
 		if (soap->alloced)
-			soap_default_condorCollector__querySubmittorAdsResponse(soap, a);
+			soap_default_condor__querySubmittorAdsResponse(soap, a);
 		if (soap->body)
 		{	for (;;)
 			{	soap->error = SOAP_TAG_MISMATCH;
 			if (soap_flag_result && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_ClassAdStructArray(soap, "result", &a->result, "condorCore:ClassAdStructAttr[]"))
+				if (soap_in_ClassAdStructArray(soap, "result", &a->result, "condor:ClassAdStructAttr[]"))
 				{	soap_flag_result = 0;
 					continue;
 				}
@@ -2777,55 +2777,55 @@ SOAP_FMAC3 struct condorCollector__querySubmittorAdsResponse * SOAP_FMAC4 soap_i
 		}
 	}
 	else
-	{	a = (struct condorCollector__querySubmittorAdsResponse *)soap_id_forward(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condorCollector__querySubmittorAdsResponse, sizeof(struct condorCollector__querySubmittorAdsResponse), 0), SOAP_TYPE_condorCollector__querySubmittorAdsResponse, sizeof(struct condorCollector__querySubmittorAdsResponse));
+	{	a = (struct condor__querySubmittorAdsResponse *)soap_id_forward(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condor__querySubmittorAdsResponse, sizeof(struct condor__querySubmittorAdsResponse), 0), SOAP_TYPE_condor__querySubmittorAdsResponse, sizeof(struct condor__querySubmittorAdsResponse));
 		if (soap->alloced)
-			soap_default_condorCollector__querySubmittorAdsResponse(soap, a);
+			soap_default_condor__querySubmittorAdsResponse(soap, a);
 		if (soap->body && soap_element_end_in(soap, tag))
 			return NULL;
 	}
 	return a;
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCollector__queryMasterAds(struct soap *soap, struct condorCollector__queryMasterAds const*a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condor__queryMasterAds(struct soap *soap, struct condor__queryMasterAds const*a)
 {
-	if (!soap_reference(soap, a, SOAP_TYPE_condorCollector__queryMasterAds))
-		soap_mark_condorCollector__queryMasterAds(soap, a);
+	if (!soap_reference(soap, a, SOAP_TYPE_condor__queryMasterAds))
+		soap_mark_condor__queryMasterAds(soap, a);
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorCollector__queryMasterAds(struct soap *soap, const struct condorCollector__queryMasterAds *a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condor__queryMasterAds(struct soap *soap, const struct condor__queryMasterAds *a)
 {
 	soap_embedded(soap, &a->constraint, SOAP_TYPE_string);
 	soap_mark_string(soap, &a->constraint);
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorCollector__queryMasterAds(struct soap *soap, struct condorCollector__queryMasterAds *a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condor__queryMasterAds(struct soap *soap, struct condor__queryMasterAds *a)
 {
 	soap_default_string(soap, &a->constraint);
 }
 
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorCollector__queryMasterAds(struct soap *soap, const struct condorCollector__queryMasterAds *a, const char *tag, const char *type)
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condor__queryMasterAds(struct soap *soap, const struct condor__queryMasterAds *a, const char *tag, const char *type)
 {
-	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_condorCollector__queryMasterAds);
-	soap_out_condorCollector__queryMasterAds(soap, tag, i, a, type);
+	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_condor__queryMasterAds);
+	soap_out_condor__queryMasterAds(soap, tag, i, a, type);
 	return soap_putindependent(soap);
 }
 
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorCollector__queryMasterAds(struct soap *soap, const char *tag, int id, const struct condorCollector__queryMasterAds *a, const char *type)
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condor__queryMasterAds(struct soap *soap, const char *tag, int id, const struct condor__queryMasterAds *a, const char *type)
 {
-	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condorCollector__queryMasterAds), type);
+	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condor__queryMasterAds), type);
 	soap_out_string(soap, "constraint", -1, &a->constraint, "");
 	soap_element_end_out(soap, tag);
 	return SOAP_OK;
 }
 
-SOAP_FMAC3 struct condorCollector__queryMasterAds * SOAP_FMAC4 soap_get_condorCollector__queryMasterAds(struct soap *soap, struct condorCollector__queryMasterAds *p, const char *tag, const char *type)
+SOAP_FMAC3 struct condor__queryMasterAds * SOAP_FMAC4 soap_get_condor__queryMasterAds(struct soap *soap, struct condor__queryMasterAds *p, const char *tag, const char *type)
 {
-	if ((p = soap_in_condorCollector__queryMasterAds(soap, tag, p, type)))
+	if ((p = soap_in_condor__queryMasterAds(soap, tag, p, type)))
 		soap_getindependent(soap);
 	return p;
 }
 
-SOAP_FMAC3 struct condorCollector__queryMasterAds * SOAP_FMAC4 soap_in_condorCollector__queryMasterAds(struct soap *soap, const char *tag, struct condorCollector__queryMasterAds *a, const char *type)
+SOAP_FMAC3 struct condor__queryMasterAds * SOAP_FMAC4 soap_in_condor__queryMasterAds(struct soap *soap, const char *tag, struct condor__queryMasterAds *a, const char *type)
 {
 	short soap_flag_constraint = 1;
 	if (soap_element_begin_in(soap, tag))
@@ -2844,11 +2844,11 @@ SOAP_FMAC3 struct condorCollector__queryMasterAds * SOAP_FMAC4 soap_in_condorCol
 			return a;
 	}
 	if (!*soap->href)
-	{	a = (struct condorCollector__queryMasterAds *)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condorCollector__queryMasterAds, sizeof(struct condorCollector__queryMasterAds), 0);
+	{	a = (struct condor__queryMasterAds *)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condor__queryMasterAds, sizeof(struct condor__queryMasterAds), 0);
 		if (!a)
 			return NULL;
 		if (soap->alloced)
-			soap_default_condorCollector__queryMasterAds(soap, a);
+			soap_default_condor__queryMasterAds(soap, a);
 		if (soap->body)
 		{	for (;;)
 			{	soap->error = SOAP_TAG_MISMATCH;
@@ -2874,56 +2874,56 @@ SOAP_FMAC3 struct condorCollector__queryMasterAds * SOAP_FMAC4 soap_in_condorCol
 		}
 	}
 	else
-	{	a = (struct condorCollector__queryMasterAds *)soap_id_forward(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condorCollector__queryMasterAds, sizeof(struct condorCollector__queryMasterAds), 0), SOAP_TYPE_condorCollector__queryMasterAds, sizeof(struct condorCollector__queryMasterAds));
+	{	a = (struct condor__queryMasterAds *)soap_id_forward(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condor__queryMasterAds, sizeof(struct condor__queryMasterAds), 0), SOAP_TYPE_condor__queryMasterAds, sizeof(struct condor__queryMasterAds));
 		if (soap->alloced)
-			soap_default_condorCollector__queryMasterAds(soap, a);
+			soap_default_condor__queryMasterAds(soap, a);
 		if (soap->body && soap_element_end_in(soap, tag))
 			return NULL;
 	}
 	return a;
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCollector__queryMasterAdsResponse(struct soap *soap, struct condorCollector__queryMasterAdsResponse const*a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condor__queryMasterAdsResponse(struct soap *soap, struct condor__queryMasterAdsResponse const*a)
 {
-	if (!soap_reference(soap, a, SOAP_TYPE_condorCollector__queryMasterAdsResponse))
-		soap_mark_condorCollector__queryMasterAdsResponse(soap, a);
+	if (!soap_reference(soap, a, SOAP_TYPE_condor__queryMasterAdsResponse))
+		soap_mark_condor__queryMasterAdsResponse(soap, a);
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorCollector__queryMasterAdsResponse(struct soap *soap, const struct condorCollector__queryMasterAdsResponse *a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condor__queryMasterAdsResponse(struct soap *soap, const struct condor__queryMasterAdsResponse *a)
 {
 	soap_embedded(soap, &a->result, SOAP_TYPE_ClassAdStructArray);
 	soap_mark_ClassAdStructArray(soap, &a->result);
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorCollector__queryMasterAdsResponse(struct soap *soap, struct condorCollector__queryMasterAdsResponse *a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condor__queryMasterAdsResponse(struct soap *soap, struct condor__queryMasterAdsResponse *a)
 {
 	soap_default_ClassAdStructArray(soap, &a->result);
 }
 
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorCollector__queryMasterAdsResponse(struct soap *soap, const struct condorCollector__queryMasterAdsResponse *a, const char *tag, const char *type)
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condor__queryMasterAdsResponse(struct soap *soap, const struct condor__queryMasterAdsResponse *a, const char *tag, const char *type)
 {
-	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_condorCollector__queryMasterAdsResponse);
-	soap_out_condorCollector__queryMasterAdsResponse(soap, tag, i, a, type);
+	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_condor__queryMasterAdsResponse);
+	soap_out_condor__queryMasterAdsResponse(soap, tag, i, a, type);
 	return soap_putindependent(soap);
 }
 
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorCollector__queryMasterAdsResponse(struct soap *soap, const char *tag, int id, const struct condorCollector__queryMasterAdsResponse *a, const char *type)
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condor__queryMasterAdsResponse(struct soap *soap, const char *tag, int id, const struct condor__queryMasterAdsResponse *a, const char *type)
 {
-	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condorCollector__queryMasterAdsResponse), type);
+	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condor__queryMasterAdsResponse), type);
 	soap_element_result(soap, "result");
-	soap_out_ClassAdStructArray(soap, "result", -1, &a->result, "condorCore:ClassAdStructAttr[]");
+	soap_out_ClassAdStructArray(soap, "result", -1, &a->result, "condor:ClassAdStructAttr[]");
 	soap_element_end_out(soap, tag);
 	return SOAP_OK;
 }
 
-SOAP_FMAC3 struct condorCollector__queryMasterAdsResponse * SOAP_FMAC4 soap_get_condorCollector__queryMasterAdsResponse(struct soap *soap, struct condorCollector__queryMasterAdsResponse *p, const char *tag, const char *type)
+SOAP_FMAC3 struct condor__queryMasterAdsResponse * SOAP_FMAC4 soap_get_condor__queryMasterAdsResponse(struct soap *soap, struct condor__queryMasterAdsResponse *p, const char *tag, const char *type)
 {
-	if ((p = soap_in_condorCollector__queryMasterAdsResponse(soap, tag, p, type)))
+	if ((p = soap_in_condor__queryMasterAdsResponse(soap, tag, p, type)))
 		soap_getindependent(soap);
 	return p;
 }
 
-SOAP_FMAC3 struct condorCollector__queryMasterAdsResponse * SOAP_FMAC4 soap_in_condorCollector__queryMasterAdsResponse(struct soap *soap, const char *tag, struct condorCollector__queryMasterAdsResponse *a, const char *type)
+SOAP_FMAC3 struct condor__queryMasterAdsResponse * SOAP_FMAC4 soap_in_condor__queryMasterAdsResponse(struct soap *soap, const char *tag, struct condor__queryMasterAdsResponse *a, const char *type)
 {
 	short soap_flag_result = 1;
 	if (soap_element_begin_in(soap, tag))
@@ -2942,16 +2942,16 @@ SOAP_FMAC3 struct condorCollector__queryMasterAdsResponse * SOAP_FMAC4 soap_in_c
 			return a;
 	}
 	if (!*soap->href)
-	{	a = (struct condorCollector__queryMasterAdsResponse *)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condorCollector__queryMasterAdsResponse, sizeof(struct condorCollector__queryMasterAdsResponse), 0);
+	{	a = (struct condor__queryMasterAdsResponse *)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condor__queryMasterAdsResponse, sizeof(struct condor__queryMasterAdsResponse), 0);
 		if (!a)
 			return NULL;
 		if (soap->alloced)
-			soap_default_condorCollector__queryMasterAdsResponse(soap, a);
+			soap_default_condor__queryMasterAdsResponse(soap, a);
 		if (soap->body)
 		{	for (;;)
 			{	soap->error = SOAP_TAG_MISMATCH;
 			if (soap_flag_result && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_ClassAdStructArray(soap, "result", &a->result, "condorCore:ClassAdStructAttr[]"))
+				if (soap_in_ClassAdStructArray(soap, "result", &a->result, "condor:ClassAdStructAttr[]"))
 				{	soap_flag_result = 0;
 					continue;
 				}
@@ -2972,55 +2972,55 @@ SOAP_FMAC3 struct condorCollector__queryMasterAdsResponse * SOAP_FMAC4 soap_in_c
 		}
 	}
 	else
-	{	a = (struct condorCollector__queryMasterAdsResponse *)soap_id_forward(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condorCollector__queryMasterAdsResponse, sizeof(struct condorCollector__queryMasterAdsResponse), 0), SOAP_TYPE_condorCollector__queryMasterAdsResponse, sizeof(struct condorCollector__queryMasterAdsResponse));
+	{	a = (struct condor__queryMasterAdsResponse *)soap_id_forward(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condor__queryMasterAdsResponse, sizeof(struct condor__queryMasterAdsResponse), 0), SOAP_TYPE_condor__queryMasterAdsResponse, sizeof(struct condor__queryMasterAdsResponse));
 		if (soap->alloced)
-			soap_default_condorCollector__queryMasterAdsResponse(soap, a);
+			soap_default_condor__queryMasterAdsResponse(soap, a);
 		if (soap->body && soap_element_end_in(soap, tag))
 			return NULL;
 	}
 	return a;
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCollector__queryScheddAds(struct soap *soap, struct condorCollector__queryScheddAds const*a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condor__queryScheddAds(struct soap *soap, struct condor__queryScheddAds const*a)
 {
-	if (!soap_reference(soap, a, SOAP_TYPE_condorCollector__queryScheddAds))
-		soap_mark_condorCollector__queryScheddAds(soap, a);
+	if (!soap_reference(soap, a, SOAP_TYPE_condor__queryScheddAds))
+		soap_mark_condor__queryScheddAds(soap, a);
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorCollector__queryScheddAds(struct soap *soap, const struct condorCollector__queryScheddAds *a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condor__queryScheddAds(struct soap *soap, const struct condor__queryScheddAds *a)
 {
 	soap_embedded(soap, &a->constraint, SOAP_TYPE_string);
 	soap_mark_string(soap, &a->constraint);
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorCollector__queryScheddAds(struct soap *soap, struct condorCollector__queryScheddAds *a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condor__queryScheddAds(struct soap *soap, struct condor__queryScheddAds *a)
 {
 	soap_default_string(soap, &a->constraint);
 }
 
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorCollector__queryScheddAds(struct soap *soap, const struct condorCollector__queryScheddAds *a, const char *tag, const char *type)
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condor__queryScheddAds(struct soap *soap, const struct condor__queryScheddAds *a, const char *tag, const char *type)
 {
-	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_condorCollector__queryScheddAds);
-	soap_out_condorCollector__queryScheddAds(soap, tag, i, a, type);
+	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_condor__queryScheddAds);
+	soap_out_condor__queryScheddAds(soap, tag, i, a, type);
 	return soap_putindependent(soap);
 }
 
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorCollector__queryScheddAds(struct soap *soap, const char *tag, int id, const struct condorCollector__queryScheddAds *a, const char *type)
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condor__queryScheddAds(struct soap *soap, const char *tag, int id, const struct condor__queryScheddAds *a, const char *type)
 {
-	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condorCollector__queryScheddAds), type);
+	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condor__queryScheddAds), type);
 	soap_out_string(soap, "constraint", -1, &a->constraint, "");
 	soap_element_end_out(soap, tag);
 	return SOAP_OK;
 }
 
-SOAP_FMAC3 struct condorCollector__queryScheddAds * SOAP_FMAC4 soap_get_condorCollector__queryScheddAds(struct soap *soap, struct condorCollector__queryScheddAds *p, const char *tag, const char *type)
+SOAP_FMAC3 struct condor__queryScheddAds * SOAP_FMAC4 soap_get_condor__queryScheddAds(struct soap *soap, struct condor__queryScheddAds *p, const char *tag, const char *type)
 {
-	if ((p = soap_in_condorCollector__queryScheddAds(soap, tag, p, type)))
+	if ((p = soap_in_condor__queryScheddAds(soap, tag, p, type)))
 		soap_getindependent(soap);
 	return p;
 }
 
-SOAP_FMAC3 struct condorCollector__queryScheddAds * SOAP_FMAC4 soap_in_condorCollector__queryScheddAds(struct soap *soap, const char *tag, struct condorCollector__queryScheddAds *a, const char *type)
+SOAP_FMAC3 struct condor__queryScheddAds * SOAP_FMAC4 soap_in_condor__queryScheddAds(struct soap *soap, const char *tag, struct condor__queryScheddAds *a, const char *type)
 {
 	short soap_flag_constraint = 1;
 	if (soap_element_begin_in(soap, tag))
@@ -3039,11 +3039,11 @@ SOAP_FMAC3 struct condorCollector__queryScheddAds * SOAP_FMAC4 soap_in_condorCol
 			return a;
 	}
 	if (!*soap->href)
-	{	a = (struct condorCollector__queryScheddAds *)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condorCollector__queryScheddAds, sizeof(struct condorCollector__queryScheddAds), 0);
+	{	a = (struct condor__queryScheddAds *)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condor__queryScheddAds, sizeof(struct condor__queryScheddAds), 0);
 		if (!a)
 			return NULL;
 		if (soap->alloced)
-			soap_default_condorCollector__queryScheddAds(soap, a);
+			soap_default_condor__queryScheddAds(soap, a);
 		if (soap->body)
 		{	for (;;)
 			{	soap->error = SOAP_TAG_MISMATCH;
@@ -3069,56 +3069,56 @@ SOAP_FMAC3 struct condorCollector__queryScheddAds * SOAP_FMAC4 soap_in_condorCol
 		}
 	}
 	else
-	{	a = (struct condorCollector__queryScheddAds *)soap_id_forward(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condorCollector__queryScheddAds, sizeof(struct condorCollector__queryScheddAds), 0), SOAP_TYPE_condorCollector__queryScheddAds, sizeof(struct condorCollector__queryScheddAds));
+	{	a = (struct condor__queryScheddAds *)soap_id_forward(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condor__queryScheddAds, sizeof(struct condor__queryScheddAds), 0), SOAP_TYPE_condor__queryScheddAds, sizeof(struct condor__queryScheddAds));
 		if (soap->alloced)
-			soap_default_condorCollector__queryScheddAds(soap, a);
+			soap_default_condor__queryScheddAds(soap, a);
 		if (soap->body && soap_element_end_in(soap, tag))
 			return NULL;
 	}
 	return a;
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCollector__queryScheddAdsResponse(struct soap *soap, struct condorCollector__queryScheddAdsResponse const*a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condor__queryScheddAdsResponse(struct soap *soap, struct condor__queryScheddAdsResponse const*a)
 {
-	if (!soap_reference(soap, a, SOAP_TYPE_condorCollector__queryScheddAdsResponse))
-		soap_mark_condorCollector__queryScheddAdsResponse(soap, a);
+	if (!soap_reference(soap, a, SOAP_TYPE_condor__queryScheddAdsResponse))
+		soap_mark_condor__queryScheddAdsResponse(soap, a);
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorCollector__queryScheddAdsResponse(struct soap *soap, const struct condorCollector__queryScheddAdsResponse *a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condor__queryScheddAdsResponse(struct soap *soap, const struct condor__queryScheddAdsResponse *a)
 {
 	soap_embedded(soap, &a->result, SOAP_TYPE_ClassAdStructArray);
 	soap_mark_ClassAdStructArray(soap, &a->result);
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorCollector__queryScheddAdsResponse(struct soap *soap, struct condorCollector__queryScheddAdsResponse *a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condor__queryScheddAdsResponse(struct soap *soap, struct condor__queryScheddAdsResponse *a)
 {
 	soap_default_ClassAdStructArray(soap, &a->result);
 }
 
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorCollector__queryScheddAdsResponse(struct soap *soap, const struct condorCollector__queryScheddAdsResponse *a, const char *tag, const char *type)
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condor__queryScheddAdsResponse(struct soap *soap, const struct condor__queryScheddAdsResponse *a, const char *tag, const char *type)
 {
-	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_condorCollector__queryScheddAdsResponse);
-	soap_out_condorCollector__queryScheddAdsResponse(soap, tag, i, a, type);
+	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_condor__queryScheddAdsResponse);
+	soap_out_condor__queryScheddAdsResponse(soap, tag, i, a, type);
 	return soap_putindependent(soap);
 }
 
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorCollector__queryScheddAdsResponse(struct soap *soap, const char *tag, int id, const struct condorCollector__queryScheddAdsResponse *a, const char *type)
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condor__queryScheddAdsResponse(struct soap *soap, const char *tag, int id, const struct condor__queryScheddAdsResponse *a, const char *type)
 {
-	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condorCollector__queryScheddAdsResponse), type);
+	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condor__queryScheddAdsResponse), type);
 	soap_element_result(soap, "result");
-	soap_out_ClassAdStructArray(soap, "result", -1, &a->result, "condorCore:ClassAdStructAttr[]");
+	soap_out_ClassAdStructArray(soap, "result", -1, &a->result, "condor:ClassAdStructAttr[]");
 	soap_element_end_out(soap, tag);
 	return SOAP_OK;
 }
 
-SOAP_FMAC3 struct condorCollector__queryScheddAdsResponse * SOAP_FMAC4 soap_get_condorCollector__queryScheddAdsResponse(struct soap *soap, struct condorCollector__queryScheddAdsResponse *p, const char *tag, const char *type)
+SOAP_FMAC3 struct condor__queryScheddAdsResponse * SOAP_FMAC4 soap_get_condor__queryScheddAdsResponse(struct soap *soap, struct condor__queryScheddAdsResponse *p, const char *tag, const char *type)
 {
-	if ((p = soap_in_condorCollector__queryScheddAdsResponse(soap, tag, p, type)))
+	if ((p = soap_in_condor__queryScheddAdsResponse(soap, tag, p, type)))
 		soap_getindependent(soap);
 	return p;
 }
 
-SOAP_FMAC3 struct condorCollector__queryScheddAdsResponse * SOAP_FMAC4 soap_in_condorCollector__queryScheddAdsResponse(struct soap *soap, const char *tag, struct condorCollector__queryScheddAdsResponse *a, const char *type)
+SOAP_FMAC3 struct condor__queryScheddAdsResponse * SOAP_FMAC4 soap_in_condor__queryScheddAdsResponse(struct soap *soap, const char *tag, struct condor__queryScheddAdsResponse *a, const char *type)
 {
 	short soap_flag_result = 1;
 	if (soap_element_begin_in(soap, tag))
@@ -3137,16 +3137,16 @@ SOAP_FMAC3 struct condorCollector__queryScheddAdsResponse * SOAP_FMAC4 soap_in_c
 			return a;
 	}
 	if (!*soap->href)
-	{	a = (struct condorCollector__queryScheddAdsResponse *)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condorCollector__queryScheddAdsResponse, sizeof(struct condorCollector__queryScheddAdsResponse), 0);
+	{	a = (struct condor__queryScheddAdsResponse *)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condor__queryScheddAdsResponse, sizeof(struct condor__queryScheddAdsResponse), 0);
 		if (!a)
 			return NULL;
 		if (soap->alloced)
-			soap_default_condorCollector__queryScheddAdsResponse(soap, a);
+			soap_default_condor__queryScheddAdsResponse(soap, a);
 		if (soap->body)
 		{	for (;;)
 			{	soap->error = SOAP_TAG_MISMATCH;
 			if (soap_flag_result && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_ClassAdStructArray(soap, "result", &a->result, "condorCore:ClassAdStructAttr[]"))
+				if (soap_in_ClassAdStructArray(soap, "result", &a->result, "condor:ClassAdStructAttr[]"))
 				{	soap_flag_result = 0;
 					continue;
 				}
@@ -3167,55 +3167,55 @@ SOAP_FMAC3 struct condorCollector__queryScheddAdsResponse * SOAP_FMAC4 soap_in_c
 		}
 	}
 	else
-	{	a = (struct condorCollector__queryScheddAdsResponse *)soap_id_forward(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condorCollector__queryScheddAdsResponse, sizeof(struct condorCollector__queryScheddAdsResponse), 0), SOAP_TYPE_condorCollector__queryScheddAdsResponse, sizeof(struct condorCollector__queryScheddAdsResponse));
+	{	a = (struct condor__queryScheddAdsResponse *)soap_id_forward(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condor__queryScheddAdsResponse, sizeof(struct condor__queryScheddAdsResponse), 0), SOAP_TYPE_condor__queryScheddAdsResponse, sizeof(struct condor__queryScheddAdsResponse));
 		if (soap->alloced)
-			soap_default_condorCollector__queryScheddAdsResponse(soap, a);
+			soap_default_condor__queryScheddAdsResponse(soap, a);
 		if (soap->body && soap_element_end_in(soap, tag))
 			return NULL;
 	}
 	return a;
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCollector__queryStartdAds(struct soap *soap, struct condorCollector__queryStartdAds const*a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condor__queryStartdAds(struct soap *soap, struct condor__queryStartdAds const*a)
 {
-	if (!soap_reference(soap, a, SOAP_TYPE_condorCollector__queryStartdAds))
-		soap_mark_condorCollector__queryStartdAds(soap, a);
+	if (!soap_reference(soap, a, SOAP_TYPE_condor__queryStartdAds))
+		soap_mark_condor__queryStartdAds(soap, a);
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorCollector__queryStartdAds(struct soap *soap, const struct condorCollector__queryStartdAds *a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condor__queryStartdAds(struct soap *soap, const struct condor__queryStartdAds *a)
 {
 	soap_embedded(soap, &a->constraint, SOAP_TYPE_string);
 	soap_mark_string(soap, &a->constraint);
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorCollector__queryStartdAds(struct soap *soap, struct condorCollector__queryStartdAds *a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condor__queryStartdAds(struct soap *soap, struct condor__queryStartdAds *a)
 {
 	soap_default_string(soap, &a->constraint);
 }
 
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorCollector__queryStartdAds(struct soap *soap, const struct condorCollector__queryStartdAds *a, const char *tag, const char *type)
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condor__queryStartdAds(struct soap *soap, const struct condor__queryStartdAds *a, const char *tag, const char *type)
 {
-	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_condorCollector__queryStartdAds);
-	soap_out_condorCollector__queryStartdAds(soap, tag, i, a, type);
+	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_condor__queryStartdAds);
+	soap_out_condor__queryStartdAds(soap, tag, i, a, type);
 	return soap_putindependent(soap);
 }
 
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorCollector__queryStartdAds(struct soap *soap, const char *tag, int id, const struct condorCollector__queryStartdAds *a, const char *type)
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condor__queryStartdAds(struct soap *soap, const char *tag, int id, const struct condor__queryStartdAds *a, const char *type)
 {
-	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condorCollector__queryStartdAds), type);
+	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condor__queryStartdAds), type);
 	soap_out_string(soap, "constraint", -1, &a->constraint, "");
 	soap_element_end_out(soap, tag);
 	return SOAP_OK;
 }
 
-SOAP_FMAC3 struct condorCollector__queryStartdAds * SOAP_FMAC4 soap_get_condorCollector__queryStartdAds(struct soap *soap, struct condorCollector__queryStartdAds *p, const char *tag, const char *type)
+SOAP_FMAC3 struct condor__queryStartdAds * SOAP_FMAC4 soap_get_condor__queryStartdAds(struct soap *soap, struct condor__queryStartdAds *p, const char *tag, const char *type)
 {
-	if ((p = soap_in_condorCollector__queryStartdAds(soap, tag, p, type)))
+	if ((p = soap_in_condor__queryStartdAds(soap, tag, p, type)))
 		soap_getindependent(soap);
 	return p;
 }
 
-SOAP_FMAC3 struct condorCollector__queryStartdAds * SOAP_FMAC4 soap_in_condorCollector__queryStartdAds(struct soap *soap, const char *tag, struct condorCollector__queryStartdAds *a, const char *type)
+SOAP_FMAC3 struct condor__queryStartdAds * SOAP_FMAC4 soap_in_condor__queryStartdAds(struct soap *soap, const char *tag, struct condor__queryStartdAds *a, const char *type)
 {
 	short soap_flag_constraint = 1;
 	if (soap_element_begin_in(soap, tag))
@@ -3234,11 +3234,11 @@ SOAP_FMAC3 struct condorCollector__queryStartdAds * SOAP_FMAC4 soap_in_condorCol
 			return a;
 	}
 	if (!*soap->href)
-	{	a = (struct condorCollector__queryStartdAds *)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condorCollector__queryStartdAds, sizeof(struct condorCollector__queryStartdAds), 0);
+	{	a = (struct condor__queryStartdAds *)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condor__queryStartdAds, sizeof(struct condor__queryStartdAds), 0);
 		if (!a)
 			return NULL;
 		if (soap->alloced)
-			soap_default_condorCollector__queryStartdAds(soap, a);
+			soap_default_condor__queryStartdAds(soap, a);
 		if (soap->body)
 		{	for (;;)
 			{	soap->error = SOAP_TAG_MISMATCH;
@@ -3264,56 +3264,56 @@ SOAP_FMAC3 struct condorCollector__queryStartdAds * SOAP_FMAC4 soap_in_condorCol
 		}
 	}
 	else
-	{	a = (struct condorCollector__queryStartdAds *)soap_id_forward(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condorCollector__queryStartdAds, sizeof(struct condorCollector__queryStartdAds), 0), SOAP_TYPE_condorCollector__queryStartdAds, sizeof(struct condorCollector__queryStartdAds));
+	{	a = (struct condor__queryStartdAds *)soap_id_forward(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condor__queryStartdAds, sizeof(struct condor__queryStartdAds), 0), SOAP_TYPE_condor__queryStartdAds, sizeof(struct condor__queryStartdAds));
 		if (soap->alloced)
-			soap_default_condorCollector__queryStartdAds(soap, a);
+			soap_default_condor__queryStartdAds(soap, a);
 		if (soap->body && soap_element_end_in(soap, tag))
 			return NULL;
 	}
 	return a;
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCollector__queryStartdAdsResponse(struct soap *soap, struct condorCollector__queryStartdAdsResponse const*a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condor__queryStartdAdsResponse(struct soap *soap, struct condor__queryStartdAdsResponse const*a)
 {
-	if (!soap_reference(soap, a, SOAP_TYPE_condorCollector__queryStartdAdsResponse))
-		soap_mark_condorCollector__queryStartdAdsResponse(soap, a);
+	if (!soap_reference(soap, a, SOAP_TYPE_condor__queryStartdAdsResponse))
+		soap_mark_condor__queryStartdAdsResponse(soap, a);
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorCollector__queryStartdAdsResponse(struct soap *soap, const struct condorCollector__queryStartdAdsResponse *a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condor__queryStartdAdsResponse(struct soap *soap, const struct condor__queryStartdAdsResponse *a)
 {
 	soap_embedded(soap, &a->result, SOAP_TYPE_ClassAdStructArray);
 	soap_mark_ClassAdStructArray(soap, &a->result);
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorCollector__queryStartdAdsResponse(struct soap *soap, struct condorCollector__queryStartdAdsResponse *a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condor__queryStartdAdsResponse(struct soap *soap, struct condor__queryStartdAdsResponse *a)
 {
 	soap_default_ClassAdStructArray(soap, &a->result);
 }
 
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorCollector__queryStartdAdsResponse(struct soap *soap, const struct condorCollector__queryStartdAdsResponse *a, const char *tag, const char *type)
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condor__queryStartdAdsResponse(struct soap *soap, const struct condor__queryStartdAdsResponse *a, const char *tag, const char *type)
 {
-	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_condorCollector__queryStartdAdsResponse);
-	soap_out_condorCollector__queryStartdAdsResponse(soap, tag, i, a, type);
+	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_condor__queryStartdAdsResponse);
+	soap_out_condor__queryStartdAdsResponse(soap, tag, i, a, type);
 	return soap_putindependent(soap);
 }
 
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorCollector__queryStartdAdsResponse(struct soap *soap, const char *tag, int id, const struct condorCollector__queryStartdAdsResponse *a, const char *type)
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condor__queryStartdAdsResponse(struct soap *soap, const char *tag, int id, const struct condor__queryStartdAdsResponse *a, const char *type)
 {
-	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condorCollector__queryStartdAdsResponse), type);
+	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condor__queryStartdAdsResponse), type);
 	soap_element_result(soap, "result");
-	soap_out_ClassAdStructArray(soap, "result", -1, &a->result, "condorCore:ClassAdStructAttr[]");
+	soap_out_ClassAdStructArray(soap, "result", -1, &a->result, "condor:ClassAdStructAttr[]");
 	soap_element_end_out(soap, tag);
 	return SOAP_OK;
 }
 
-SOAP_FMAC3 struct condorCollector__queryStartdAdsResponse * SOAP_FMAC4 soap_get_condorCollector__queryStartdAdsResponse(struct soap *soap, struct condorCollector__queryStartdAdsResponse *p, const char *tag, const char *type)
+SOAP_FMAC3 struct condor__queryStartdAdsResponse * SOAP_FMAC4 soap_get_condor__queryStartdAdsResponse(struct soap *soap, struct condor__queryStartdAdsResponse *p, const char *tag, const char *type)
 {
-	if ((p = soap_in_condorCollector__queryStartdAdsResponse(soap, tag, p, type)))
+	if ((p = soap_in_condor__queryStartdAdsResponse(soap, tag, p, type)))
 		soap_getindependent(soap);
 	return p;
 }
 
-SOAP_FMAC3 struct condorCollector__queryStartdAdsResponse * SOAP_FMAC4 soap_in_condorCollector__queryStartdAdsResponse(struct soap *soap, const char *tag, struct condorCollector__queryStartdAdsResponse *a, const char *type)
+SOAP_FMAC3 struct condor__queryStartdAdsResponse * SOAP_FMAC4 soap_in_condor__queryStartdAdsResponse(struct soap *soap, const char *tag, struct condor__queryStartdAdsResponse *a, const char *type)
 {
 	short soap_flag_result = 1;
 	if (soap_element_begin_in(soap, tag))
@@ -3332,16 +3332,16 @@ SOAP_FMAC3 struct condorCollector__queryStartdAdsResponse * SOAP_FMAC4 soap_in_c
 			return a;
 	}
 	if (!*soap->href)
-	{	a = (struct condorCollector__queryStartdAdsResponse *)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condorCollector__queryStartdAdsResponse, sizeof(struct condorCollector__queryStartdAdsResponse), 0);
+	{	a = (struct condor__queryStartdAdsResponse *)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condor__queryStartdAdsResponse, sizeof(struct condor__queryStartdAdsResponse), 0);
 		if (!a)
 			return NULL;
 		if (soap->alloced)
-			soap_default_condorCollector__queryStartdAdsResponse(soap, a);
+			soap_default_condor__queryStartdAdsResponse(soap, a);
 		if (soap->body)
 		{	for (;;)
 			{	soap->error = SOAP_TAG_MISMATCH;
 			if (soap_flag_result && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_ClassAdStructArray(soap, "result", &a->result, "condorCore:ClassAdStructAttr[]"))
+				if (soap_in_ClassAdStructArray(soap, "result", &a->result, "condor:ClassAdStructAttr[]"))
 				{	soap_flag_result = 0;
 					continue;
 				}
@@ -3362,59 +3362,59 @@ SOAP_FMAC3 struct condorCollector__queryStartdAdsResponse * SOAP_FMAC4 soap_in_c
 		}
 	}
 	else
-	{	a = (struct condorCollector__queryStartdAdsResponse *)soap_id_forward(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condorCollector__queryStartdAdsResponse, sizeof(struct condorCollector__queryStartdAdsResponse), 0), SOAP_TYPE_condorCollector__queryStartdAdsResponse, sizeof(struct condorCollector__queryStartdAdsResponse));
+	{	a = (struct condor__queryStartdAdsResponse *)soap_id_forward(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condor__queryStartdAdsResponse, sizeof(struct condor__queryStartdAdsResponse), 0), SOAP_TYPE_condor__queryStartdAdsResponse, sizeof(struct condor__queryStartdAdsResponse));
 		if (soap->alloced)
-			soap_default_condorCollector__queryStartdAdsResponse(soap, a);
+			soap_default_condor__queryStartdAdsResponse(soap, a);
 		if (soap->body && soap_element_end_in(soap, tag))
 			return NULL;
 	}
 	return a;
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCore__StringAndStatus(struct soap *soap, struct condorCore__StringAndStatus const*a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condor__StringAndStatus(struct soap *soap, struct condor__StringAndStatus const*a)
 {
-	if (!soap_reference(soap, a, SOAP_TYPE_condorCore__StringAndStatus))
-		soap_mark_condorCore__StringAndStatus(soap, a);
+	if (!soap_reference(soap, a, SOAP_TYPE_condor__StringAndStatus))
+		soap_mark_condor__StringAndStatus(soap, a);
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorCore__StringAndStatus(struct soap *soap, const struct condorCore__StringAndStatus *a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condor__StringAndStatus(struct soap *soap, const struct condor__StringAndStatus *a)
 {
-	soap_embedded(soap, &a->status, SOAP_TYPE_condorCore__Status);
-	soap_mark_condorCore__Status(soap, &a->status);
+	soap_embedded(soap, &a->status, SOAP_TYPE_condor__Status);
+	soap_mark_condor__Status(soap, &a->status);
 	soap_embedded(soap, &a->message, SOAP_TYPE_xsd__string);
 	soap_mark_xsd__string(soap, &a->message);
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorCore__StringAndStatus(struct soap *soap, struct condorCore__StringAndStatus *a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condor__StringAndStatus(struct soap *soap, struct condor__StringAndStatus *a)
 {
-	soap_default_condorCore__Status(soap, &a->status);
+	soap_default_condor__Status(soap, &a->status);
 	soap_default_xsd__string(soap, &a->message);
 }
 
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorCore__StringAndStatus(struct soap *soap, const struct condorCore__StringAndStatus *a, const char *tag, const char *type)
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condor__StringAndStatus(struct soap *soap, const struct condor__StringAndStatus *a, const char *tag, const char *type)
 {
-	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_condorCore__StringAndStatus);
-	soap_out_condorCore__StringAndStatus(soap, tag, i, a, type);
+	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_condor__StringAndStatus);
+	soap_out_condor__StringAndStatus(soap, tag, i, a, type);
 	return soap_putindependent(soap);
 }
 
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorCore__StringAndStatus(struct soap *soap, const char *tag, int id, const struct condorCore__StringAndStatus *a, const char *type)
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condor__StringAndStatus(struct soap *soap, const char *tag, int id, const struct condor__StringAndStatus *a, const char *type)
 {
-	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condorCore__StringAndStatus), type);
-	soap_out_condorCore__Status(soap, "status", -1, &a->status, "condorCore:Status");
+	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condor__StringAndStatus), type);
+	soap_out_condor__Status(soap, "status", -1, &a->status, "condor:Status");
 	soap_out_xsd__string(soap, "message", -1, &a->message, "xsd:string");
 	soap_element_end_out(soap, tag);
 	return SOAP_OK;
 }
 
-SOAP_FMAC3 struct condorCore__StringAndStatus * SOAP_FMAC4 soap_get_condorCore__StringAndStatus(struct soap *soap, struct condorCore__StringAndStatus *p, const char *tag, const char *type)
+SOAP_FMAC3 struct condor__StringAndStatus * SOAP_FMAC4 soap_get_condor__StringAndStatus(struct soap *soap, struct condor__StringAndStatus *p, const char *tag, const char *type)
 {
-	if ((p = soap_in_condorCore__StringAndStatus(soap, tag, p, type)))
+	if ((p = soap_in_condor__StringAndStatus(soap, tag, p, type)))
 		soap_getindependent(soap);
 	return p;
 }
 
-SOAP_FMAC3 struct condorCore__StringAndStatus * SOAP_FMAC4 soap_in_condorCore__StringAndStatus(struct soap *soap, const char *tag, struct condorCore__StringAndStatus *a, const char *type)
+SOAP_FMAC3 struct condor__StringAndStatus * SOAP_FMAC4 soap_in_condor__StringAndStatus(struct soap *soap, const char *tag, struct condor__StringAndStatus *a, const char *type)
 {
 	short soap_flag_status = 1, soap_flag_message = 1;
 	if (soap_element_begin_in(soap, tag))
@@ -3433,16 +3433,16 @@ SOAP_FMAC3 struct condorCore__StringAndStatus * SOAP_FMAC4 soap_in_condorCore__S
 			return a;
 	}
 	if (!*soap->href)
-	{	a = (struct condorCore__StringAndStatus *)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condorCore__StringAndStatus, sizeof(struct condorCore__StringAndStatus), 0);
+	{	a = (struct condor__StringAndStatus *)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condor__StringAndStatus, sizeof(struct condor__StringAndStatus), 0);
 		if (!a)
 			return NULL;
 		if (soap->alloced)
-			soap_default_condorCore__StringAndStatus(soap, a);
+			soap_default_condor__StringAndStatus(soap, a);
 		if (soap->body)
 		{	for (;;)
 			{	soap->error = SOAP_TAG_MISMATCH;
 			if (soap_flag_status && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_condorCore__Status(soap, "status", &a->status, "condorCore:Status"))
+				if (soap_in_condor__Status(soap, "status", &a->status, "condor:Status"))
 				{	soap_flag_status = 0;
 					continue;
 				}
@@ -3468,59 +3468,59 @@ SOAP_FMAC3 struct condorCore__StringAndStatus * SOAP_FMAC4 soap_in_condorCore__S
 		}
 	}
 	else
-	{	a = (struct condorCore__StringAndStatus *)soap_id_forward(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condorCore__StringAndStatus, sizeof(struct condorCore__StringAndStatus), 0), SOAP_TYPE_condorCore__StringAndStatus, sizeof(struct condorCore__StringAndStatus));
+	{	a = (struct condor__StringAndStatus *)soap_id_forward(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condor__StringAndStatus, sizeof(struct condor__StringAndStatus), 0), SOAP_TYPE_condor__StringAndStatus, sizeof(struct condor__StringAndStatus));
 		if (soap->alloced)
-			soap_default_condorCore__StringAndStatus(soap, a);
+			soap_default_condor__StringAndStatus(soap, a);
 		if (soap->body && soap_element_end_in(soap, tag))
 			return NULL;
 	}
 	return a;
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCore__ClassAdStructArrayAndStatus(struct soap *soap, struct condorCore__ClassAdStructArrayAndStatus const*a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condor__ClassAdStructArrayAndStatus(struct soap *soap, struct condor__ClassAdStructArrayAndStatus const*a)
 {
-	if (!soap_reference(soap, a, SOAP_TYPE_condorCore__ClassAdStructArrayAndStatus))
-		soap_mark_condorCore__ClassAdStructArrayAndStatus(soap, a);
+	if (!soap_reference(soap, a, SOAP_TYPE_condor__ClassAdStructArrayAndStatus))
+		soap_mark_condor__ClassAdStructArrayAndStatus(soap, a);
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorCore__ClassAdStructArrayAndStatus(struct soap *soap, const struct condorCore__ClassAdStructArrayAndStatus *a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condor__ClassAdStructArrayAndStatus(struct soap *soap, const struct condor__ClassAdStructArrayAndStatus *a)
 {
-	soap_embedded(soap, &a->status, SOAP_TYPE_condorCore__Status);
-	soap_mark_condorCore__Status(soap, &a->status);
+	soap_embedded(soap, &a->status, SOAP_TYPE_condor__Status);
+	soap_mark_condor__Status(soap, &a->status);
 	soap_embedded(soap, &a->classAdArray, SOAP_TYPE_ClassAdStructArray);
 	soap_mark_ClassAdStructArray(soap, &a->classAdArray);
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorCore__ClassAdStructArrayAndStatus(struct soap *soap, struct condorCore__ClassAdStructArrayAndStatus *a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condor__ClassAdStructArrayAndStatus(struct soap *soap, struct condor__ClassAdStructArrayAndStatus *a)
 {
-	soap_default_condorCore__Status(soap, &a->status);
+	soap_default_condor__Status(soap, &a->status);
 	soap_default_ClassAdStructArray(soap, &a->classAdArray);
 }
 
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorCore__ClassAdStructArrayAndStatus(struct soap *soap, const struct condorCore__ClassAdStructArrayAndStatus *a, const char *tag, const char *type)
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condor__ClassAdStructArrayAndStatus(struct soap *soap, const struct condor__ClassAdStructArrayAndStatus *a, const char *tag, const char *type)
 {
-	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_condorCore__ClassAdStructArrayAndStatus);
-	soap_out_condorCore__ClassAdStructArrayAndStatus(soap, tag, i, a, type);
+	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_condor__ClassAdStructArrayAndStatus);
+	soap_out_condor__ClassAdStructArrayAndStatus(soap, tag, i, a, type);
 	return soap_putindependent(soap);
 }
 
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorCore__ClassAdStructArrayAndStatus(struct soap *soap, const char *tag, int id, const struct condorCore__ClassAdStructArrayAndStatus *a, const char *type)
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condor__ClassAdStructArrayAndStatus(struct soap *soap, const char *tag, int id, const struct condor__ClassAdStructArrayAndStatus *a, const char *type)
 {
-	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condorCore__ClassAdStructArrayAndStatus), type);
-	soap_out_condorCore__Status(soap, "status", -1, &a->status, "condorCore:Status");
-	soap_out_ClassAdStructArray(soap, "classAdArray", -1, &a->classAdArray, "condorCore:ClassAdStructAttr[]");
+	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condor__ClassAdStructArrayAndStatus), type);
+	soap_out_condor__Status(soap, "status", -1, &a->status, "condor:Status");
+	soap_out_ClassAdStructArray(soap, "classAdArray", -1, &a->classAdArray, "condor:ClassAdStructAttr[]");
 	soap_element_end_out(soap, tag);
 	return SOAP_OK;
 }
 
-SOAP_FMAC3 struct condorCore__ClassAdStructArrayAndStatus * SOAP_FMAC4 soap_get_condorCore__ClassAdStructArrayAndStatus(struct soap *soap, struct condorCore__ClassAdStructArrayAndStatus *p, const char *tag, const char *type)
+SOAP_FMAC3 struct condor__ClassAdStructArrayAndStatus * SOAP_FMAC4 soap_get_condor__ClassAdStructArrayAndStatus(struct soap *soap, struct condor__ClassAdStructArrayAndStatus *p, const char *tag, const char *type)
 {
-	if ((p = soap_in_condorCore__ClassAdStructArrayAndStatus(soap, tag, p, type)))
+	if ((p = soap_in_condor__ClassAdStructArrayAndStatus(soap, tag, p, type)))
 		soap_getindependent(soap);
 	return p;
 }
 
-SOAP_FMAC3 struct condorCore__ClassAdStructArrayAndStatus * SOAP_FMAC4 soap_in_condorCore__ClassAdStructArrayAndStatus(struct soap *soap, const char *tag, struct condorCore__ClassAdStructArrayAndStatus *a, const char *type)
+SOAP_FMAC3 struct condor__ClassAdStructArrayAndStatus * SOAP_FMAC4 soap_in_condor__ClassAdStructArrayAndStatus(struct soap *soap, const char *tag, struct condor__ClassAdStructArrayAndStatus *a, const char *type)
 {
 	short soap_flag_status = 1, soap_flag_classAdArray = 1;
 	if (soap_element_begin_in(soap, tag))
@@ -3539,21 +3539,21 @@ SOAP_FMAC3 struct condorCore__ClassAdStructArrayAndStatus * SOAP_FMAC4 soap_in_c
 			return a;
 	}
 	if (!*soap->href)
-	{	a = (struct condorCore__ClassAdStructArrayAndStatus *)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condorCore__ClassAdStructArrayAndStatus, sizeof(struct condorCore__ClassAdStructArrayAndStatus), 0);
+	{	a = (struct condor__ClassAdStructArrayAndStatus *)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condor__ClassAdStructArrayAndStatus, sizeof(struct condor__ClassAdStructArrayAndStatus), 0);
 		if (!a)
 			return NULL;
 		if (soap->alloced)
-			soap_default_condorCore__ClassAdStructArrayAndStatus(soap, a);
+			soap_default_condor__ClassAdStructArrayAndStatus(soap, a);
 		if (soap->body)
 		{	for (;;)
 			{	soap->error = SOAP_TAG_MISMATCH;
 			if (soap_flag_status && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_condorCore__Status(soap, "status", &a->status, "condorCore:Status"))
+				if (soap_in_condor__Status(soap, "status", &a->status, "condor:Status"))
 				{	soap_flag_status = 0;
 					continue;
 				}
 			if (soap_flag_classAdArray && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_ClassAdStructArray(soap, "classAdArray", &a->classAdArray, "condorCore:ClassAdStructAttr[]"))
+				if (soap_in_ClassAdStructArray(soap, "classAdArray", &a->classAdArray, "condor:ClassAdStructAttr[]"))
 				{	soap_flag_classAdArray = 0;
 					continue;
 				}
@@ -3574,59 +3574,59 @@ SOAP_FMAC3 struct condorCore__ClassAdStructArrayAndStatus * SOAP_FMAC4 soap_in_c
 		}
 	}
 	else
-	{	a = (struct condorCore__ClassAdStructArrayAndStatus *)soap_id_forward(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condorCore__ClassAdStructArrayAndStatus, sizeof(struct condorCore__ClassAdStructArrayAndStatus), 0), SOAP_TYPE_condorCore__ClassAdStructArrayAndStatus, sizeof(struct condorCore__ClassAdStructArrayAndStatus));
+	{	a = (struct condor__ClassAdStructArrayAndStatus *)soap_id_forward(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condor__ClassAdStructArrayAndStatus, sizeof(struct condor__ClassAdStructArrayAndStatus), 0), SOAP_TYPE_condor__ClassAdStructArrayAndStatus, sizeof(struct condor__ClassAdStructArrayAndStatus));
 		if (soap->alloced)
-			soap_default_condorCore__ClassAdStructArrayAndStatus(soap, a);
+			soap_default_condor__ClassAdStructArrayAndStatus(soap, a);
 		if (soap->body && soap_element_end_in(soap, tag))
 			return NULL;
 	}
 	return a;
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCore__ClassAdStructAndStatus(struct soap *soap, struct condorCore__ClassAdStructAndStatus const*a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condor__ClassAdStructAndStatus(struct soap *soap, struct condor__ClassAdStructAndStatus const*a)
 {
-	if (!soap_reference(soap, a, SOAP_TYPE_condorCore__ClassAdStructAndStatus))
-		soap_mark_condorCore__ClassAdStructAndStatus(soap, a);
+	if (!soap_reference(soap, a, SOAP_TYPE_condor__ClassAdStructAndStatus))
+		soap_mark_condor__ClassAdStructAndStatus(soap, a);
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorCore__ClassAdStructAndStatus(struct soap *soap, const struct condorCore__ClassAdStructAndStatus *a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condor__ClassAdStructAndStatus(struct soap *soap, const struct condor__ClassAdStructAndStatus *a)
 {
-	soap_embedded(soap, &a->status, SOAP_TYPE_condorCore__Status);
-	soap_mark_condorCore__Status(soap, &a->status);
+	soap_embedded(soap, &a->status, SOAP_TYPE_condor__Status);
+	soap_mark_condor__Status(soap, &a->status);
 	soap_embedded(soap, &a->classAd, SOAP_TYPE_ClassAdStruct);
 	soap_mark_ClassAdStruct(soap, &a->classAd);
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorCore__ClassAdStructAndStatus(struct soap *soap, struct condorCore__ClassAdStructAndStatus *a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condor__ClassAdStructAndStatus(struct soap *soap, struct condor__ClassAdStructAndStatus *a)
 {
-	soap_default_condorCore__Status(soap, &a->status);
+	soap_default_condor__Status(soap, &a->status);
 	soap_default_ClassAdStruct(soap, &a->classAd);
 }
 
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorCore__ClassAdStructAndStatus(struct soap *soap, const struct condorCore__ClassAdStructAndStatus *a, const char *tag, const char *type)
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condor__ClassAdStructAndStatus(struct soap *soap, const struct condor__ClassAdStructAndStatus *a, const char *tag, const char *type)
 {
-	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_condorCore__ClassAdStructAndStatus);
-	soap_out_condorCore__ClassAdStructAndStatus(soap, tag, i, a, type);
+	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_condor__ClassAdStructAndStatus);
+	soap_out_condor__ClassAdStructAndStatus(soap, tag, i, a, type);
 	return soap_putindependent(soap);
 }
 
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorCore__ClassAdStructAndStatus(struct soap *soap, const char *tag, int id, const struct condorCore__ClassAdStructAndStatus *a, const char *type)
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condor__ClassAdStructAndStatus(struct soap *soap, const char *tag, int id, const struct condor__ClassAdStructAndStatus *a, const char *type)
 {
-	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condorCore__ClassAdStructAndStatus), type);
-	soap_out_condorCore__Status(soap, "status", -1, &a->status, "condorCore:Status");
-	soap_out_ClassAdStruct(soap, "classAd", -1, &a->classAd, "condorCore:ClassAdStructAttr");
+	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condor__ClassAdStructAndStatus), type);
+	soap_out_condor__Status(soap, "status", -1, &a->status, "condor:Status");
+	soap_out_ClassAdStruct(soap, "classAd", -1, &a->classAd, "condor:ClassAdStructAttr");
 	soap_element_end_out(soap, tag);
 	return SOAP_OK;
 }
 
-SOAP_FMAC3 struct condorCore__ClassAdStructAndStatus * SOAP_FMAC4 soap_get_condorCore__ClassAdStructAndStatus(struct soap *soap, struct condorCore__ClassAdStructAndStatus *p, const char *tag, const char *type)
+SOAP_FMAC3 struct condor__ClassAdStructAndStatus * SOAP_FMAC4 soap_get_condor__ClassAdStructAndStatus(struct soap *soap, struct condor__ClassAdStructAndStatus *p, const char *tag, const char *type)
 {
-	if ((p = soap_in_condorCore__ClassAdStructAndStatus(soap, tag, p, type)))
+	if ((p = soap_in_condor__ClassAdStructAndStatus(soap, tag, p, type)))
 		soap_getindependent(soap);
 	return p;
 }
 
-SOAP_FMAC3 struct condorCore__ClassAdStructAndStatus * SOAP_FMAC4 soap_in_condorCore__ClassAdStructAndStatus(struct soap *soap, const char *tag, struct condorCore__ClassAdStructAndStatus *a, const char *type)
+SOAP_FMAC3 struct condor__ClassAdStructAndStatus * SOAP_FMAC4 soap_in_condor__ClassAdStructAndStatus(struct soap *soap, const char *tag, struct condor__ClassAdStructAndStatus *a, const char *type)
 {
 	short soap_flag_status = 1, soap_flag_classAd = 1;
 	if (soap_element_begin_in(soap, tag))
@@ -3645,21 +3645,21 @@ SOAP_FMAC3 struct condorCore__ClassAdStructAndStatus * SOAP_FMAC4 soap_in_condor
 			return a;
 	}
 	if (!*soap->href)
-	{	a = (struct condorCore__ClassAdStructAndStatus *)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condorCore__ClassAdStructAndStatus, sizeof(struct condorCore__ClassAdStructAndStatus), 0);
+	{	a = (struct condor__ClassAdStructAndStatus *)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condor__ClassAdStructAndStatus, sizeof(struct condor__ClassAdStructAndStatus), 0);
 		if (!a)
 			return NULL;
 		if (soap->alloced)
-			soap_default_condorCore__ClassAdStructAndStatus(soap, a);
+			soap_default_condor__ClassAdStructAndStatus(soap, a);
 		if (soap->body)
 		{	for (;;)
 			{	soap->error = SOAP_TAG_MISMATCH;
 			if (soap_flag_status && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_condorCore__Status(soap, "status", &a->status, "condorCore:Status"))
+				if (soap_in_condor__Status(soap, "status", &a->status, "condor:Status"))
 				{	soap_flag_status = 0;
 					continue;
 				}
 			if (soap_flag_classAd && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_ClassAdStruct(soap, "classAd", &a->classAd, "condorCore:ClassAdStructAttr"))
+				if (soap_in_ClassAdStruct(soap, "classAd", &a->classAd, "condor:ClassAdStructAttr"))
 				{	soap_flag_classAd = 0;
 					continue;
 				}
@@ -3680,9 +3680,9 @@ SOAP_FMAC3 struct condorCore__ClassAdStructAndStatus * SOAP_FMAC4 soap_in_condor
 		}
 	}
 	else
-	{	a = (struct condorCore__ClassAdStructAndStatus *)soap_id_forward(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condorCore__ClassAdStructAndStatus, sizeof(struct condorCore__ClassAdStructAndStatus), 0), SOAP_TYPE_condorCore__ClassAdStructAndStatus, sizeof(struct condorCore__ClassAdStructAndStatus));
+	{	a = (struct condor__ClassAdStructAndStatus *)soap_id_forward(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condor__ClassAdStructAndStatus, sizeof(struct condor__ClassAdStructAndStatus), 0), SOAP_TYPE_condor__ClassAdStructAndStatus, sizeof(struct condor__ClassAdStructAndStatus));
 		if (soap->alloced)
-			soap_default_condorCore__ClassAdStructAndStatus(soap, a);
+			soap_default_condor__ClassAdStructAndStatus(soap, a);
 		if (soap->body && soap_element_end_in(soap, tag))
 			return NULL;
 	}
@@ -3745,7 +3745,7 @@ SOAP_FMAC3 int SOAP_FMAC4 soap_out_ClassAdStructArray(struct soap *soap, const c
 	{
 		soap->position = 1;
 		soap->positions[0] = i;
-		soap_out_ClassAdStruct(soap, "item", 0, &a->__ptr[i], "condorCore:ClassAdStructAttr");
+		soap_out_ClassAdStruct(soap, "item", 0, &a->__ptr[i], "condor:ClassAdStructAttr");
 	}
 	soap->position = 0;
 	soap_element_end_out(soap, tag);
@@ -3796,7 +3796,7 @@ SOAP_FMAC3 struct ClassAdStructArray * SOAP_FMAC4 soap_in_ClassAdStructArray(str
 					return NULL;
 					}
 				}
-				if (!soap_in_ClassAdStruct(soap, NULL, a->__ptr + i, "condorCore:ClassAdStructAttr"))
+				if (!soap_in_ClassAdStruct(soap, NULL, a->__ptr + i, "condor:ClassAdStructAttr"))
 				{	if (soap->error == SOAP_NO_TAG)
 					{	soap->error = SOAP_OK;
 						break;
@@ -3813,7 +3813,7 @@ SOAP_FMAC3 struct ClassAdStructArray * SOAP_FMAC4 soap_in_ClassAdStructArray(str
 				if (!p)
 					return NULL;
 				soap_default_ClassAdStruct(soap, p);
-				if (!soap_in_ClassAdStruct(soap, NULL, p, "condorCore:ClassAdStructAttr"))
+				if (!soap_in_ClassAdStruct(soap, NULL, p, "condor:ClassAdStructAttr"))
 				{	if (soap->error == SOAP_NO_TAG)
 					{	soap->error = SOAP_OK;
 						break;
@@ -3850,8 +3850,8 @@ SOAP_FMAC3 void SOAP_FMAC4 soap_mark_ClassAdStruct(struct soap *soap, struct Cla
 	int i;
 	if (a->__ptr && !soap_array_reference(soap, a, (struct soap_array*)&a->__ptr, a->__size, SOAP_TYPE_ClassAdStruct))
 		for (i = 0; i < a->__size; i++)
-		{	soap_embedded(soap, a->__ptr + i, SOAP_TYPE_condorCore__ClassAdStructAttr);
-			soap_mark_condorCore__ClassAdStructAttr(soap, a->__ptr + i);
+		{	soap_embedded(soap, a->__ptr + i, SOAP_TYPE_condor__ClassAdStructAttr);
+			soap_mark_condor__ClassAdStructAttr(soap, a->__ptr + i);
 		}
 }
 
@@ -3896,7 +3896,7 @@ SOAP_FMAC3 int SOAP_FMAC4 soap_out_ClassAdStruct(struct soap *soap, const char *
 	{
 		soap->position = 1;
 		soap->positions[0] = i;
-		soap_out_condorCore__ClassAdStructAttr(soap, "item", 0, &a->__ptr[i], "condorCore:ClassAdStructAttr");
+		soap_out_condor__ClassAdStructAttr(soap, "item", 0, &a->__ptr[i], "condor:ClassAdStructAttr");
 	}
 	soap->position = 0;
 	soap_element_end_out(soap, tag);
@@ -3912,7 +3912,7 @@ SOAP_FMAC3 struct ClassAdStruct * SOAP_FMAC4 soap_get_ClassAdStruct(struct soap 
 
 SOAP_FMAC3 struct ClassAdStruct * SOAP_FMAC4 soap_in_ClassAdStruct(struct soap *soap, const char *tag, struct ClassAdStruct *a, const char *type)
 {	int i, j;
-	struct condorCore__ClassAdStructAttr *p;
+	struct condor__ClassAdStructAttr *p;
 	if (soap_element_begin_in(soap, tag))
 		return NULL;
 	if (soap_match_array(soap, type))
@@ -3935,9 +3935,9 @@ SOAP_FMAC3 struct ClassAdStruct * SOAP_FMAC4 soap_in_ClassAdStruct(struct soap *
 		{
 		a->__size = soap_getsize(soap->arraySize, soap->arrayOffset, &j);
 		if (a->__size >= 0)
-		{	a->__ptr = (struct condorCore__ClassAdStructAttr *)soap_malloc(soap, sizeof(struct condorCore__ClassAdStructAttr) * a->__size);
+		{	a->__ptr = (struct condor__ClassAdStructAttr *)soap_malloc(soap, sizeof(struct condor__ClassAdStructAttr) * a->__size);
 			for (i = 0; i < a->__size; i++)
-				soap_default_condorCore__ClassAdStructAttr(soap, a->__ptr+i);
+				soap_default_condor__ClassAdStructAttr(soap, a->__ptr+i);
 			for (i = 0; i < a->__size; i++)
 			{	soap_peek_element(soap);
 				if (soap->position)
@@ -3947,7 +3947,7 @@ SOAP_FMAC3 struct ClassAdStruct * SOAP_FMAC4 soap_in_ClassAdStruct(struct soap *
 					return NULL;
 					}
 				}
-				if (!soap_in_condorCore__ClassAdStructAttr(soap, NULL, a->__ptr + i, "condorCore:ClassAdStructAttr"))
+				if (!soap_in_condor__ClassAdStructAttr(soap, NULL, a->__ptr + i, "condor:ClassAdStructAttr"))
 				{	if (soap->error == SOAP_NO_TAG)
 					{	soap->error = SOAP_OK;
 						break;
@@ -3960,11 +3960,11 @@ SOAP_FMAC3 struct ClassAdStruct * SOAP_FMAC4 soap_in_ClassAdStruct(struct soap *
 		else
 		{	soap_new_block(soap);
 			for (a->__size = 0; ; a->__size++)
-			{	p = (struct condorCore__ClassAdStructAttr *)soap_push_block(soap, sizeof(struct condorCore__ClassAdStructAttr));
+			{	p = (struct condor__ClassAdStructAttr *)soap_push_block(soap, sizeof(struct condor__ClassAdStructAttr));
 				if (!p)
 					return NULL;
-				soap_default_condorCore__ClassAdStructAttr(soap, p);
-				if (!soap_in_condorCore__ClassAdStructAttr(soap, NULL, p, "condorCore:ClassAdStructAttr"))
+				soap_default_condor__ClassAdStructAttr(soap, p);
+				if (!soap_in_condor__ClassAdStructAttr(soap, NULL, p, "condor:ClassAdStructAttr"))
 				{	if (soap->error == SOAP_NO_TAG)
 					{	soap->error = SOAP_OK;
 						break;
@@ -3974,7 +3974,7 @@ SOAP_FMAC3 struct ClassAdStruct * SOAP_FMAC4 soap_in_ClassAdStruct(struct soap *
 				}
 			}
 			soap_pop_block(soap);
-			a->__ptr = (struct condorCore__ClassAdStructAttr *)soap_malloc(soap, soap->blist->size);
+			a->__ptr = (struct condor__ClassAdStructAttr *)soap_malloc(soap, soap->blist->size);
 			soap_store_block(soap, (char*)a->__ptr);
 		}
 		if (soap_element_end_in(soap, tag))
@@ -3991,53 +3991,53 @@ SOAP_FMAC3 struct ClassAdStruct * SOAP_FMAC4 soap_in_ClassAdStruct(struct soap *
 	return a;
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCore__ClassAdStructAttr(struct soap *soap, struct condorCore__ClassAdStructAttr const*a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condor__ClassAdStructAttr(struct soap *soap, struct condor__ClassAdStructAttr const*a)
 {
-	if (!soap_reference(soap, a, SOAP_TYPE_condorCore__ClassAdStructAttr))
-		soap_mark_condorCore__ClassAdStructAttr(soap, a);
+	if (!soap_reference(soap, a, SOAP_TYPE_condor__ClassAdStructAttr))
+		soap_mark_condor__ClassAdStructAttr(soap, a);
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorCore__ClassAdStructAttr(struct soap *soap, const struct condorCore__ClassAdStructAttr *a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condor__ClassAdStructAttr(struct soap *soap, const struct condor__ClassAdStructAttr *a)
 {
 	soap_embedded(soap, &a->name, SOAP_TYPE_xsd__string);
 	soap_mark_xsd__string(soap, &a->name);
-	soap_embedded(soap, &a->type, SOAP_TYPE_condorCore__ClassAdAttrType);
+	soap_embedded(soap, &a->type, SOAP_TYPE_condor__ClassAdAttrType);
 	soap_embedded(soap, &a->value, SOAP_TYPE_xsd__string);
 	soap_mark_xsd__string(soap, &a->value);
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorCore__ClassAdStructAttr(struct soap *soap, struct condorCore__ClassAdStructAttr *a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condor__ClassAdStructAttr(struct soap *soap, struct condor__ClassAdStructAttr *a)
 {
 	soap_default_xsd__string(soap, &a->name);
-	soap_default_condorCore__ClassAdAttrType(soap, &a->type);
+	soap_default_condor__ClassAdAttrType(soap, &a->type);
 	soap_default_xsd__string(soap, &a->value);
 }
 
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorCore__ClassAdStructAttr(struct soap *soap, const struct condorCore__ClassAdStructAttr *a, const char *tag, const char *type)
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condor__ClassAdStructAttr(struct soap *soap, const struct condor__ClassAdStructAttr *a, const char *tag, const char *type)
 {
-	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_condorCore__ClassAdStructAttr);
-	soap_out_condorCore__ClassAdStructAttr(soap, tag, i, a, type);
+	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_condor__ClassAdStructAttr);
+	soap_out_condor__ClassAdStructAttr(soap, tag, i, a, type);
 	return soap_putindependent(soap);
 }
 
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorCore__ClassAdStructAttr(struct soap *soap, const char *tag, int id, const struct condorCore__ClassAdStructAttr *a, const char *type)
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condor__ClassAdStructAttr(struct soap *soap, const char *tag, int id, const struct condor__ClassAdStructAttr *a, const char *type)
 {
-	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condorCore__ClassAdStructAttr), type);
+	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condor__ClassAdStructAttr), type);
 	soap_out_xsd__string(soap, "name", -1, &a->name, "xsd:string");
-	soap_out_condorCore__ClassAdAttrType(soap, "type", -1, &a->type, "condorCore:ClassAdAttrType");
+	soap_out_condor__ClassAdAttrType(soap, "type", -1, &a->type, "condor:ClassAdAttrType");
 	soap_out_xsd__string(soap, "value", -1, &a->value, "xsd:string");
 	soap_element_end_out(soap, tag);
 	return SOAP_OK;
 }
 
-SOAP_FMAC3 struct condorCore__ClassAdStructAttr * SOAP_FMAC4 soap_get_condorCore__ClassAdStructAttr(struct soap *soap, struct condorCore__ClassAdStructAttr *p, const char *tag, const char *type)
+SOAP_FMAC3 struct condor__ClassAdStructAttr * SOAP_FMAC4 soap_get_condor__ClassAdStructAttr(struct soap *soap, struct condor__ClassAdStructAttr *p, const char *tag, const char *type)
 {
-	if ((p = soap_in_condorCore__ClassAdStructAttr(soap, tag, p, type)))
+	if ((p = soap_in_condor__ClassAdStructAttr(soap, tag, p, type)))
 		soap_getindependent(soap);
 	return p;
 }
 
-SOAP_FMAC3 struct condorCore__ClassAdStructAttr * SOAP_FMAC4 soap_in_condorCore__ClassAdStructAttr(struct soap *soap, const char *tag, struct condorCore__ClassAdStructAttr *a, const char *type)
+SOAP_FMAC3 struct condor__ClassAdStructAttr * SOAP_FMAC4 soap_in_condor__ClassAdStructAttr(struct soap *soap, const char *tag, struct condor__ClassAdStructAttr *a, const char *type)
 {
 	short soap_flag_name = 1, soap_flag_type = 1, soap_flag_value = 1;
 	if (soap_element_begin_in(soap, tag))
@@ -4056,11 +4056,11 @@ SOAP_FMAC3 struct condorCore__ClassAdStructAttr * SOAP_FMAC4 soap_in_condorCore_
 			return a;
 	}
 	if (!*soap->href)
-	{	a = (struct condorCore__ClassAdStructAttr *)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condorCore__ClassAdStructAttr, sizeof(struct condorCore__ClassAdStructAttr), 0);
+	{	a = (struct condor__ClassAdStructAttr *)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condor__ClassAdStructAttr, sizeof(struct condor__ClassAdStructAttr), 0);
 		if (!a)
 			return NULL;
 		if (soap->alloced)
-			soap_default_condorCore__ClassAdStructAttr(soap, a);
+			soap_default_condor__ClassAdStructAttr(soap, a);
 		if (soap->body)
 		{	for (;;)
 			{	soap->error = SOAP_TAG_MISMATCH;
@@ -4070,7 +4070,7 @@ SOAP_FMAC3 struct condorCore__ClassAdStructAttr * SOAP_FMAC4 soap_in_condorCore_
 					continue;
 				}
 			if (soap_flag_type && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_condorCore__ClassAdAttrType(soap, "type", &a->type, "condorCore:ClassAdAttrType"))
+				if (soap_in_condor__ClassAdAttrType(soap, "type", &a->type, "condor:ClassAdAttrType"))
 				{	soap_flag_type = 0;
 					continue;
 				}
@@ -4096,62 +4096,62 @@ SOAP_FMAC3 struct condorCore__ClassAdStructAttr * SOAP_FMAC4 soap_in_condorCore_
 		}
 	}
 	else
-	{	a = (struct condorCore__ClassAdStructAttr *)soap_id_forward(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condorCore__ClassAdStructAttr, sizeof(struct condorCore__ClassAdStructAttr), 0), SOAP_TYPE_condorCore__ClassAdStructAttr, sizeof(struct condorCore__ClassAdStructAttr));
+	{	a = (struct condor__ClassAdStructAttr *)soap_id_forward(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condor__ClassAdStructAttr, sizeof(struct condor__ClassAdStructAttr), 0), SOAP_TYPE_condor__ClassAdStructAttr, sizeof(struct condor__ClassAdStructAttr));
 		if (soap->alloced)
-			soap_default_condorCore__ClassAdStructAttr(soap, a);
+			soap_default_condor__ClassAdStructAttr(soap, a);
 		if (soap->body && soap_element_end_in(soap, tag))
 			return NULL;
 	}
 	return a;
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCore__Status(struct soap *soap, struct condorCore__Status const*a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condor__Status(struct soap *soap, struct condor__Status const*a)
 {
-	if (!soap_reference(soap, a, SOAP_TYPE_condorCore__Status))
-		soap_mark_condorCore__Status(soap, a);
+	if (!soap_reference(soap, a, SOAP_TYPE_condor__Status))
+		soap_mark_condor__Status(soap, a);
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorCore__Status(struct soap *soap, const struct condorCore__Status *a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condor__Status(struct soap *soap, const struct condor__Status *a)
 {
-	soap_embedded(soap, &a->code, SOAP_TYPE_condorCore__StatusCode);
+	soap_embedded(soap, &a->code, SOAP_TYPE_condor__StatusCode);
 	soap_embedded(soap, &a->message, SOAP_TYPE_xsd__string);
 	soap_mark_xsd__string(soap, &a->message);
-	soap_embedded(soap, &a->next, SOAP_TYPE_PointerTocondorCore__Status);
-	soap_mark_PointerTocondorCore__Status(soap, &a->next);
+	soap_embedded(soap, &a->next, SOAP_TYPE_PointerTocondor__Status);
+	soap_mark_PointerTocondor__Status(soap, &a->next);
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorCore__Status(struct soap *soap, struct condorCore__Status *a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condor__Status(struct soap *soap, struct condor__Status *a)
 {
-	soap_default_condorCore__StatusCode(soap, &a->code);
+	soap_default_condor__StatusCode(soap, &a->code);
 	soap_default_xsd__string(soap, &a->message);
-	soap_default_PointerTocondorCore__Status(soap, &a->next);
+	soap_default_PointerTocondor__Status(soap, &a->next);
 }
 
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorCore__Status(struct soap *soap, const struct condorCore__Status *a, const char *tag, const char *type)
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condor__Status(struct soap *soap, const struct condor__Status *a, const char *tag, const char *type)
 {
-	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_condorCore__Status);
-	soap_out_condorCore__Status(soap, tag, i, a, type);
+	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_condor__Status);
+	soap_out_condor__Status(soap, tag, i, a, type);
 	return soap_putindependent(soap);
 }
 
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorCore__Status(struct soap *soap, const char *tag, int id, const struct condorCore__Status *a, const char *type)
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condor__Status(struct soap *soap, const char *tag, int id, const struct condor__Status *a, const char *type)
 {
-	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condorCore__Status), type);
-	soap_out_condorCore__StatusCode(soap, "code", -1, &a->code, "condorCore:StatusCode");
+	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condor__Status), type);
+	soap_out_condor__StatusCode(soap, "code", -1, &a->code, "condor:StatusCode");
 	soap_out_xsd__string(soap, "message", -1, &a->message, "xsd:string");
-	soap_out_PointerTocondorCore__Status(soap, "next", -1, &a->next, "condorCore:Status");
+	soap_out_PointerTocondor__Status(soap, "next", -1, &a->next, "condor:Status");
 	soap_element_end_out(soap, tag);
 	return SOAP_OK;
 }
 
-SOAP_FMAC3 struct condorCore__Status * SOAP_FMAC4 soap_get_condorCore__Status(struct soap *soap, struct condorCore__Status *p, const char *tag, const char *type)
+SOAP_FMAC3 struct condor__Status * SOAP_FMAC4 soap_get_condor__Status(struct soap *soap, struct condor__Status *p, const char *tag, const char *type)
 {
-	if ((p = soap_in_condorCore__Status(soap, tag, p, type)))
+	if ((p = soap_in_condor__Status(soap, tag, p, type)))
 		soap_getindependent(soap);
 	return p;
 }
 
-SOAP_FMAC3 struct condorCore__Status * SOAP_FMAC4 soap_in_condorCore__Status(struct soap *soap, const char *tag, struct condorCore__Status *a, const char *type)
+SOAP_FMAC3 struct condor__Status * SOAP_FMAC4 soap_in_condor__Status(struct soap *soap, const char *tag, struct condor__Status *a, const char *type)
 {
 	short soap_flag_code = 1, soap_flag_message = 1, soap_flag_next = 1;
 	if (soap_element_begin_in(soap, tag))
@@ -4170,16 +4170,16 @@ SOAP_FMAC3 struct condorCore__Status * SOAP_FMAC4 soap_in_condorCore__Status(str
 			return a;
 	}
 	if (!*soap->href)
-	{	a = (struct condorCore__Status *)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condorCore__Status, sizeof(struct condorCore__Status), 0);
+	{	a = (struct condor__Status *)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condor__Status, sizeof(struct condor__Status), 0);
 		if (!a)
 			return NULL;
 		if (soap->alloced)
-			soap_default_condorCore__Status(soap, a);
+			soap_default_condor__Status(soap, a);
 		if (soap->body)
 		{	for (;;)
 			{	soap->error = SOAP_TAG_MISMATCH;
 			if (soap_flag_code && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_condorCore__StatusCode(soap, "code", &a->code, "condorCore:StatusCode"))
+				if (soap_in_condor__StatusCode(soap, "code", &a->code, "condor:StatusCode"))
 				{	soap_flag_code = 0;
 					continue;
 				}
@@ -4189,7 +4189,7 @@ SOAP_FMAC3 struct condorCore__Status * SOAP_FMAC4 soap_in_condorCore__Status(str
 					continue;
 				}
 			if (soap_flag_next && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_PointerTocondorCore__Status(soap, "next", &a->next, "condorCore:Status"))
+				if (soap_in_PointerTocondor__Status(soap, "next", &a->next, "condor:Status"))
 				{	soap_flag_next = 0;
 					continue;
 				}
@@ -4210,9 +4210,9 @@ SOAP_FMAC3 struct condorCore__Status * SOAP_FMAC4 soap_in_condorCore__Status(str
 		}
 	}
 	else
-	{	a = (struct condorCore__Status *)soap_id_forward(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condorCore__Status, sizeof(struct condorCore__Status), 0), SOAP_TYPE_condorCore__Status, sizeof(struct condorCore__Status));
+	{	a = (struct condor__Status *)soap_id_forward(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_condor__Status, sizeof(struct condor__Status), 0), SOAP_TYPE_condor__Status, sizeof(struct condor__Status));
 		if (soap->alloced)
-			soap_default_condorCore__Status(soap, a);
+			soap_default_condor__Status(soap, a);
 		if (soap->body && soap_element_end_in(soap, tag))
 			return NULL;
 	}
@@ -4575,63 +4575,63 @@ SOAP_FMAC3 struct ClassAdStruct ** SOAP_FMAC4 soap_in_PointerToClassAdStruct(str
 	return a;
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_PointerTocondorCore__ClassAdStructAttr(struct soap *soap, struct condorCore__ClassAdStructAttr *const*a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_PointerTocondor__ClassAdStructAttr(struct soap *soap, struct condor__ClassAdStructAttr *const*a)
 {
-	if (!soap_reference(soap, a, SOAP_TYPE_PointerTocondorCore__ClassAdStructAttr))
-		soap_mark_PointerTocondorCore__ClassAdStructAttr(soap, a);
+	if (!soap_reference(soap, a, SOAP_TYPE_PointerTocondor__ClassAdStructAttr))
+		soap_mark_PointerTocondor__ClassAdStructAttr(soap, a);
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_mark_PointerTocondorCore__ClassAdStructAttr(struct soap *soap, struct condorCore__ClassAdStructAttr *const*a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_PointerTocondor__ClassAdStructAttr(struct soap *soap, struct condor__ClassAdStructAttr *const*a)
 {
-	if (!soap_reference(soap, *a, SOAP_TYPE_condorCore__ClassAdStructAttr))
-		soap_mark_condorCore__ClassAdStructAttr(soap, *a);
+	if (!soap_reference(soap, *a, SOAP_TYPE_condor__ClassAdStructAttr))
+		soap_mark_condor__ClassAdStructAttr(soap, *a);
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_PointerTocondorCore__ClassAdStructAttr(struct soap *soap, struct condorCore__ClassAdStructAttr **a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_PointerTocondor__ClassAdStructAttr(struct soap *soap, struct condor__ClassAdStructAttr **a)
 {
 	*a = NULL;
 }
 
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_PointerTocondorCore__ClassAdStructAttr(struct soap *soap, struct condorCore__ClassAdStructAttr *const*a, const char *tag, const char *type)
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_PointerTocondor__ClassAdStructAttr(struct soap *soap, struct condor__ClassAdStructAttr *const*a, const char *tag, const char *type)
 {
-	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_PointerTocondorCore__ClassAdStructAttr);
-	soap_out_PointerTocondorCore__ClassAdStructAttr(soap, tag, i, a, type);
+	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_PointerTocondor__ClassAdStructAttr);
+	soap_out_PointerTocondor__ClassAdStructAttr(soap, tag, i, a, type);
 	return soap_putindependent(soap);
 }
 
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_PointerTocondorCore__ClassAdStructAttr(struct soap *soap, const char *tag, int id, struct condorCore__ClassAdStructAttr *const*a, const char *type)
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_PointerTocondor__ClassAdStructAttr(struct soap *soap, const char *tag, int id, struct condor__ClassAdStructAttr *const*a, const char *type)
 {
 	struct soap_plist *pp;
 	register int i;
-	id = soap_embedded_id(soap, id, a, SOAP_TYPE_PointerTocondorCore__ClassAdStructAttr);
+	id = soap_embedded_id(soap, id, a, SOAP_TYPE_PointerTocondor__ClassAdStructAttr);
 	if (!*a)
 		return soap_element_null(soap, tag, id, type);
-	i = soap_pointer_lookup(soap, *a, SOAP_TYPE_condorCore__ClassAdStructAttr, &pp);
+	i = soap_pointer_lookup(soap, *a, SOAP_TYPE_condor__ClassAdStructAttr, &pp);
 	if (i)
 	{	if (soap_is_embedded(soap, pp))
 			return soap_element_ref(soap, tag, id, i);
 		if (soap_is_single(soap, pp))
-			return soap_out_condorCore__ClassAdStructAttr(soap, tag, 0, *a, type);
+			return soap_out_condor__ClassAdStructAttr(soap, tag, 0, *a, type);
 		soap_set_embedded(soap, pp);
-		return soap_out_condorCore__ClassAdStructAttr(soap, tag, i, *a, type);
+		return soap_out_condor__ClassAdStructAttr(soap, tag, i, *a, type);
 	}
-	return soap_out_condorCore__ClassAdStructAttr(soap, tag, soap_pointer_enter(soap, *a, SOAP_TYPE_condorCore__ClassAdStructAttr, &pp), *a, type);
+	return soap_out_condor__ClassAdStructAttr(soap, tag, soap_pointer_enter(soap, *a, SOAP_TYPE_condor__ClassAdStructAttr, &pp), *a, type);
 }
 
-SOAP_FMAC3 struct condorCore__ClassAdStructAttr ** SOAP_FMAC4 soap_get_PointerTocondorCore__ClassAdStructAttr(struct soap *soap, struct condorCore__ClassAdStructAttr **p, const char *tag, const char *type)
+SOAP_FMAC3 struct condor__ClassAdStructAttr ** SOAP_FMAC4 soap_get_PointerTocondor__ClassAdStructAttr(struct soap *soap, struct condor__ClassAdStructAttr **p, const char *tag, const char *type)
 {
-	if ((p = soap_in_PointerTocondorCore__ClassAdStructAttr(soap, tag, p, type)))
+	if ((p = soap_in_PointerTocondor__ClassAdStructAttr(soap, tag, p, type)))
 		soap_getindependent(soap);
 	return p;
 }
 
-SOAP_FMAC3 struct condorCore__ClassAdStructAttr ** SOAP_FMAC4 soap_in_PointerTocondorCore__ClassAdStructAttr(struct soap *soap, const char *tag, struct condorCore__ClassAdStructAttr **a, const char *type)
+SOAP_FMAC3 struct condor__ClassAdStructAttr ** SOAP_FMAC4 soap_in_PointerTocondor__ClassAdStructAttr(struct soap *soap, const char *tag, struct condor__ClassAdStructAttr **a, const char *type)
 {
-	struct condorCore__ClassAdStructAttr *p;
+	struct condor__ClassAdStructAttr *p;
 	if (soap_element_begin_in(soap, tag))
 		return NULL;
 	if (soap->null)
-	{	a = (struct condorCore__ClassAdStructAttr **)soap_id_enter(soap, soap->id, a, SOAP_TYPE_PointerTocondorCore__ClassAdStructAttr, sizeof(struct condorCore__ClassAdStructAttr *), 1);
+	{	a = (struct condor__ClassAdStructAttr **)soap_id_enter(soap, soap->id, a, SOAP_TYPE_PointerTocondor__ClassAdStructAttr, sizeof(struct condor__ClassAdStructAttr *), 1);
 		if (a)
 			*a = NULL;
 		if (soap->body && soap_element_end_in(soap, tag))
@@ -4640,82 +4640,82 @@ SOAP_FMAC3 struct condorCore__ClassAdStructAttr ** SOAP_FMAC4 soap_in_PointerToc
 	else if (!*soap->href)
 	{	soap_revert(soap);
 		if (a)
-		{	if ((p = soap_in_condorCore__ClassAdStructAttr(soap, tag, *a, type)))
+		{	if ((p = soap_in_condor__ClassAdStructAttr(soap, tag, *a, type)))
 				*a = p;
 			else
 				a = NULL;
 		}
-		else if ((p = soap_in_condorCore__ClassAdStructAttr(soap, tag, NULL, type)))
-		{	a = (struct condorCore__ClassAdStructAttr **)soap_id_enter(soap, "", NULL, SOAP_TYPE_PointerTocondorCore__ClassAdStructAttr, sizeof(struct condorCore__ClassAdStructAttr *), 0);
+		else if ((p = soap_in_condor__ClassAdStructAttr(soap, tag, NULL, type)))
+		{	a = (struct condor__ClassAdStructAttr **)soap_id_enter(soap, "", NULL, SOAP_TYPE_PointerTocondor__ClassAdStructAttr, sizeof(struct condor__ClassAdStructAttr *), 0);
 			if (a)
 				*a = p;
 		}
 	}
 	else
-	{	a = (struct condorCore__ClassAdStructAttr **)soap_id_lookup(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_PointerTocondorCore__ClassAdStructAttr, sizeof(struct condorCore__ClassAdStructAttr *), 1), SOAP_TYPE_condorCore__ClassAdStructAttr, sizeof(struct condorCore__ClassAdStructAttr), 0);
+	{	a = (struct condor__ClassAdStructAttr **)soap_id_lookup(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_PointerTocondor__ClassAdStructAttr, sizeof(struct condor__ClassAdStructAttr *), 1), SOAP_TYPE_condor__ClassAdStructAttr, sizeof(struct condor__ClassAdStructAttr), 0);
 		if (soap->body && soap_element_end_in(soap, tag))
 			return NULL;
 	}
 	return a;
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_PointerTocondorCore__Status(struct soap *soap, struct condorCore__Status *const*a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_PointerTocondor__Status(struct soap *soap, struct condor__Status *const*a)
 {
-	if (!soap_reference(soap, a, SOAP_TYPE_PointerTocondorCore__Status))
-		soap_mark_PointerTocondorCore__Status(soap, a);
+	if (!soap_reference(soap, a, SOAP_TYPE_PointerTocondor__Status))
+		soap_mark_PointerTocondor__Status(soap, a);
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_mark_PointerTocondorCore__Status(struct soap *soap, struct condorCore__Status *const*a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_PointerTocondor__Status(struct soap *soap, struct condor__Status *const*a)
 {
-	if (!soap_reference(soap, *a, SOAP_TYPE_condorCore__Status))
-		soap_mark_condorCore__Status(soap, *a);
+	if (!soap_reference(soap, *a, SOAP_TYPE_condor__Status))
+		soap_mark_condor__Status(soap, *a);
 }
 
-SOAP_FMAC3 void SOAP_FMAC4 soap_default_PointerTocondorCore__Status(struct soap *soap, struct condorCore__Status **a)
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_PointerTocondor__Status(struct soap *soap, struct condor__Status **a)
 {
 	*a = NULL;
 }
 
-SOAP_FMAC3 int SOAP_FMAC4 soap_put_PointerTocondorCore__Status(struct soap *soap, struct condorCore__Status *const*a, const char *tag, const char *type)
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_PointerTocondor__Status(struct soap *soap, struct condor__Status *const*a, const char *tag, const char *type)
 {
-	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_PointerTocondorCore__Status);
-	soap_out_PointerTocondorCore__Status(soap, tag, i, a, type);
+	int i = soap_embed_element(soap, (void*)a, tag, SOAP_TYPE_PointerTocondor__Status);
+	soap_out_PointerTocondor__Status(soap, tag, i, a, type);
 	return soap_putindependent(soap);
 }
 
-SOAP_FMAC3 int SOAP_FMAC4 soap_out_PointerTocondorCore__Status(struct soap *soap, const char *tag, int id, struct condorCore__Status *const*a, const char *type)
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_PointerTocondor__Status(struct soap *soap, const char *tag, int id, struct condor__Status *const*a, const char *type)
 {
 	struct soap_plist *pp;
 	register int i;
-	id = soap_embedded_id(soap, id, a, SOAP_TYPE_PointerTocondorCore__Status);
+	id = soap_embedded_id(soap, id, a, SOAP_TYPE_PointerTocondor__Status);
 	if (!*a)
 		return soap_element_null(soap, tag, id, type);
-	i = soap_pointer_lookup(soap, *a, SOAP_TYPE_condorCore__Status, &pp);
+	i = soap_pointer_lookup(soap, *a, SOAP_TYPE_condor__Status, &pp);
 	if (i)
 	{	if (soap_is_embedded(soap, pp))
 			return soap_element_ref(soap, tag, id, i);
 		if (soap_is_single(soap, pp))
-			return soap_out_condorCore__Status(soap, tag, 0, *a, type);
+			return soap_out_condor__Status(soap, tag, 0, *a, type);
 		soap_set_embedded(soap, pp);
-		return soap_out_condorCore__Status(soap, tag, i, *a, type);
+		return soap_out_condor__Status(soap, tag, i, *a, type);
 	}
-	return soap_out_condorCore__Status(soap, tag, soap_pointer_enter(soap, *a, SOAP_TYPE_condorCore__Status, &pp), *a, type);
+	return soap_out_condor__Status(soap, tag, soap_pointer_enter(soap, *a, SOAP_TYPE_condor__Status, &pp), *a, type);
 }
 
-SOAP_FMAC3 struct condorCore__Status ** SOAP_FMAC4 soap_get_PointerTocondorCore__Status(struct soap *soap, struct condorCore__Status **p, const char *tag, const char *type)
+SOAP_FMAC3 struct condor__Status ** SOAP_FMAC4 soap_get_PointerTocondor__Status(struct soap *soap, struct condor__Status **p, const char *tag, const char *type)
 {
-	if ((p = soap_in_PointerTocondorCore__Status(soap, tag, p, type)))
+	if ((p = soap_in_PointerTocondor__Status(soap, tag, p, type)))
 		soap_getindependent(soap);
 	return p;
 }
 
-SOAP_FMAC3 struct condorCore__Status ** SOAP_FMAC4 soap_in_PointerTocondorCore__Status(struct soap *soap, const char *tag, struct condorCore__Status **a, const char *type)
+SOAP_FMAC3 struct condor__Status ** SOAP_FMAC4 soap_in_PointerTocondor__Status(struct soap *soap, const char *tag, struct condor__Status **a, const char *type)
 {
-	struct condorCore__Status *p;
+	struct condor__Status *p;
 	if (soap_element_begin_in(soap, tag))
 		return NULL;
 	if (soap->null)
-	{	a = (struct condorCore__Status **)soap_id_enter(soap, soap->id, a, SOAP_TYPE_PointerTocondorCore__Status, sizeof(struct condorCore__Status *), 1);
+	{	a = (struct condor__Status **)soap_id_enter(soap, soap->id, a, SOAP_TYPE_PointerTocondor__Status, sizeof(struct condor__Status *), 1);
 		if (a)
 			*a = NULL;
 		if (soap->body && soap_element_end_in(soap, tag))
@@ -4724,19 +4724,19 @@ SOAP_FMAC3 struct condorCore__Status ** SOAP_FMAC4 soap_in_PointerTocondorCore__
 	else if (!*soap->href)
 	{	soap_revert(soap);
 		if (a)
-		{	if ((p = soap_in_condorCore__Status(soap, tag, *a, type)))
+		{	if ((p = soap_in_condor__Status(soap, tag, *a, type)))
 				*a = p;
 			else
 				a = NULL;
 		}
-		else if ((p = soap_in_condorCore__Status(soap, tag, NULL, type)))
-		{	a = (struct condorCore__Status **)soap_id_enter(soap, "", NULL, SOAP_TYPE_PointerTocondorCore__Status, sizeof(struct condorCore__Status *), 0);
+		else if ((p = soap_in_condor__Status(soap, tag, NULL, type)))
+		{	a = (struct condor__Status **)soap_id_enter(soap, "", NULL, SOAP_TYPE_PointerTocondor__Status, sizeof(struct condor__Status *), 0);
 			if (a)
 				*a = p;
 		}
 	}
 	else
-	{	a = (struct condorCore__Status **)soap_id_lookup(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_PointerTocondorCore__Status, sizeof(struct condorCore__Status *), 1), SOAP_TYPE_condorCore__Status, sizeof(struct condorCore__Status), 0);
+	{	a = (struct condor__Status **)soap_id_lookup(soap, soap->href, (void**)soap_id_enter(soap, soap->id, a, SOAP_TYPE_PointerTocondor__Status, sizeof(struct condor__Status *), 1), SOAP_TYPE_condor__Status, sizeof(struct condor__Status), 0);
 		if (soap->body && soap_element_end_in(soap, tag))
 			return NULL;
 	}

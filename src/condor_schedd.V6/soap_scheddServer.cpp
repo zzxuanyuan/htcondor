@@ -8,7 +8,7 @@
 
 SOAP_BEGIN_NAMESPACE(soap_schedd)
 
-SOAP_SOURCE_STAMP("@(#) soap_scheddServer.cpp ver 2.6.0 2004-05-21 15:34:27 GMT")
+SOAP_SOURCE_STAMP("@(#) soap_scheddServer.cpp ver 2.6.0 2004-06-01 14:49:31 GMT")
 
 
 SOAP_FMAC5 int SOAP_FMAC6 soap_serve(struct soap *soap)
@@ -37,56 +37,56 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve(struct soap *soap)
 SOAP_FMAC5 int SOAP_FMAC6 soap_serve_request(struct soap *soap)
 {
 	soap_peek_element(soap);
-	if (!soap_match_tag(soap, soap->tag, "condorSchedd:beginTransaction"))
-		return soap_serve_condorSchedd__beginTransaction(soap);
-	if (!soap_match_tag(soap, soap->tag, "condorSchedd:commitTransaction"))
-		return soap_serve_condorSchedd__commitTransaction(soap);
-	if (!soap_match_tag(soap, soap->tag, "condorSchedd:abortTransaction"))
-		return soap_serve_condorSchedd__abortTransaction(soap);
-	if (!soap_match_tag(soap, soap->tag, "condorSchedd:extendTransaction"))
-		return soap_serve_condorSchedd__extendTransaction(soap);
-	if (!soap_match_tag(soap, soap->tag, "condorSchedd:newCluster"))
-		return soap_serve_condorSchedd__newCluster(soap);
-	if (!soap_match_tag(soap, soap->tag, "condorSchedd:removeCluster"))
-		return soap_serve_condorSchedd__removeCluster(soap);
-	if (!soap_match_tag(soap, soap->tag, "condorSchedd:newJob"))
-		return soap_serve_condorSchedd__newJob(soap);
-	if (!soap_match_tag(soap, soap->tag, "condorSchedd:removeJob"))
-		return soap_serve_condorSchedd__removeJob(soap);
-	if (!soap_match_tag(soap, soap->tag, "condorSchedd:holdJob"))
-		return soap_serve_condorSchedd__holdJob(soap);
-	if (!soap_match_tag(soap, soap->tag, "condorSchedd:releaseJob"))
-		return soap_serve_condorSchedd__releaseJob(soap);
-	if (!soap_match_tag(soap, soap->tag, "condorSchedd:submit"))
-		return soap_serve_condorSchedd__submit(soap);
-	if (!soap_match_tag(soap, soap->tag, "condorSchedd:getJobAds"))
-		return soap_serve_condorSchedd__getJobAds(soap);
-	if (!soap_match_tag(soap, soap->tag, "condorSchedd:getJobAd"))
-		return soap_serve_condorSchedd__getJobAd(soap);
-	if (!soap_match_tag(soap, soap->tag, "condorSchedd:declareFile"))
-		return soap_serve_condorSchedd__declareFile(soap);
-	if (!soap_match_tag(soap, soap->tag, "condorSchedd:sendFile"))
-		return soap_serve_condorSchedd__sendFile(soap);
-	if (!soap_match_tag(soap, soap->tag, "condorSchedd:getFile"))
-		return soap_serve_condorSchedd__getFile(soap);
-	if (!soap_match_tag(soap, soap->tag, "condorSchedd:closeSpool"))
-		return soap_serve_condorSchedd__closeSpool(soap);
-	if (!soap_match_tag(soap, soap->tag, "condorSchedd:listSpool"))
-		return soap_serve_condorSchedd__listSpool(soap);
-	if (!soap_match_tag(soap, soap->tag, "condorSchedd:discoverJobRequirements"))
-		return soap_serve_condorSchedd__discoverJobRequirements(soap);
-	if (!soap_match_tag(soap, soap->tag, "condorSchedd:createJobTemplate"))
-		return soap_serve_condorSchedd__createJobTemplate(soap);
+	if (!soap_match_tag(soap, soap->tag, "condor:beginTransaction"))
+		return soap_serve_condor__beginTransaction(soap);
+	if (!soap_match_tag(soap, soap->tag, "condor:commitTransaction"))
+		return soap_serve_condor__commitTransaction(soap);
+	if (!soap_match_tag(soap, soap->tag, "condor:abortTransaction"))
+		return soap_serve_condor__abortTransaction(soap);
+	if (!soap_match_tag(soap, soap->tag, "condor:extendTransaction"))
+		return soap_serve_condor__extendTransaction(soap);
+	if (!soap_match_tag(soap, soap->tag, "condor:newCluster"))
+		return soap_serve_condor__newCluster(soap);
+	if (!soap_match_tag(soap, soap->tag, "condor:removeCluster"))
+		return soap_serve_condor__removeCluster(soap);
+	if (!soap_match_tag(soap, soap->tag, "condor:newJob"))
+		return soap_serve_condor__newJob(soap);
+	if (!soap_match_tag(soap, soap->tag, "condor:removeJob"))
+		return soap_serve_condor__removeJob(soap);
+	if (!soap_match_tag(soap, soap->tag, "condor:holdJob"))
+		return soap_serve_condor__holdJob(soap);
+	if (!soap_match_tag(soap, soap->tag, "condor:releaseJob"))
+		return soap_serve_condor__releaseJob(soap);
+	if (!soap_match_tag(soap, soap->tag, "condor:submit"))
+		return soap_serve_condor__submit(soap);
+	if (!soap_match_tag(soap, soap->tag, "condor:getJobAds"))
+		return soap_serve_condor__getJobAds(soap);
+	if (!soap_match_tag(soap, soap->tag, "condor:getJobAd"))
+		return soap_serve_condor__getJobAd(soap);
+	if (!soap_match_tag(soap, soap->tag, "condor:declareFile"))
+		return soap_serve_condor__declareFile(soap);
+	if (!soap_match_tag(soap, soap->tag, "condor:sendFile"))
+		return soap_serve_condor__sendFile(soap);
+	if (!soap_match_tag(soap, soap->tag, "condor:getFile"))
+		return soap_serve_condor__getFile(soap);
+	if (!soap_match_tag(soap, soap->tag, "condor:closeSpool"))
+		return soap_serve_condor__closeSpool(soap);
+	if (!soap_match_tag(soap, soap->tag, "condor:listSpool"))
+		return soap_serve_condor__listSpool(soap);
+	if (!soap_match_tag(soap, soap->tag, "condor:discoverJobRequirements"))
+		return soap_serve_condor__discoverJobRequirements(soap);
+	if (!soap_match_tag(soap, soap->tag, "condor:createJobTemplate"))
+		return soap_serve_condor__createJobTemplate(soap);
 	return soap->error = SOAP_NO_METHOD;
 }
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__beginTransaction(struct soap *soap)
-{	struct condorSchedd__beginTransaction soap_tmp_condorSchedd__beginTransaction;
-	struct condorSchedd__TransactionAndStatusResponse result;
-	soap_default_condorSchedd__TransactionAndStatusResponse(soap, &result);
-	soap_default_condorSchedd__beginTransaction(soap, &soap_tmp_condorSchedd__beginTransaction);
+SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condor__beginTransaction(struct soap *soap)
+{	struct condor__beginTransaction soap_tmp_condor__beginTransaction;
+	struct condor__TransactionAndStatusResponse result;
+	soap_default_condor__TransactionAndStatusResponse(soap, &result);
+	soap_default_condor__beginTransaction(soap, &soap_tmp_condor__beginTransaction);
 	soap->encodingStyle = "";
-	soap_get_condorSchedd__beginTransaction(soap, &soap_tmp_condorSchedd__beginTransaction, "condorSchedd:beginTransaction", NULL);
+	soap_get_condor__beginTransaction(soap, &soap_tmp_condor__beginTransaction, "condor:beginTransaction", NULL);
 	if (soap->error)
 		return soap->error;
 	
@@ -97,17 +97,17 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__beginTransaction(struct soap 
 #endif
 	 || soap_end_recv(soap))
 		return soap->error;
-	soap->error = condorSchedd__beginTransaction(soap, soap_tmp_condorSchedd__beginTransaction.duration, result);
+	soap->error = condor__beginTransaction(soap, soap_tmp_condor__beginTransaction.duration, result);
 	if (soap->error)
 		return soap->error;
 	soap_serializeheader(soap);
-	soap_serialize_condorSchedd__TransactionAndStatusResponse(soap, &result);
+	soap_serialize_condor__TransactionAndStatusResponse(soap, &result);
 	soap_begin_count(soap);
 	if (soap->mode & SOAP_IO_LENGTH)
 	{	soap_envelope_begin_out(soap);
 		soap_putheader(soap);
 		soap_body_begin_out(soap);
-		soap_put_condorSchedd__TransactionAndStatusResponse(soap, &result, "condorSchedd:TransactionAndStatusResponse", "");
+		soap_put_condor__TransactionAndStatusResponse(soap, &result, "condor:TransactionAndStatusResponse", "");
 		soap_body_end_out(soap);
 		soap_envelope_end_out(soap);
 	};
@@ -115,7 +115,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__beginTransaction(struct soap 
 	 || soap_envelope_begin_out(soap)
 	 || soap_putheader(soap)
 	 || soap_body_begin_out(soap)
-	 || soap_put_condorSchedd__TransactionAndStatusResponse(soap, &result, "condorSchedd:TransactionAndStatusResponse", "")
+	 || soap_put_condor__TransactionAndStatusResponse(soap, &result, "condor:TransactionAndStatusResponse", "")
 	 || soap_body_end_out(soap)
 	 || soap_envelope_end_out(soap)
 #ifndef WITH_LEANER
@@ -127,13 +127,13 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__beginTransaction(struct soap 
 	return SOAP_OK;
 }
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__commitTransaction(struct soap *soap)
-{	struct condorSchedd__commitTransaction soap_tmp_condorSchedd__commitTransaction;
-	struct condorSchedd__StatusResponse result;
-	soap_default_condorSchedd__StatusResponse(soap, &result);
-	soap_default_condorSchedd__commitTransaction(soap, &soap_tmp_condorSchedd__commitTransaction);
+SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condor__commitTransaction(struct soap *soap)
+{	struct condor__commitTransaction soap_tmp_condor__commitTransaction;
+	struct condor__StatusResponse result;
+	soap_default_condor__StatusResponse(soap, &result);
+	soap_default_condor__commitTransaction(soap, &soap_tmp_condor__commitTransaction);
 	soap->encodingStyle = "";
-	soap_get_condorSchedd__commitTransaction(soap, &soap_tmp_condorSchedd__commitTransaction, "condorSchedd:commitTransaction", NULL);
+	soap_get_condor__commitTransaction(soap, &soap_tmp_condor__commitTransaction, "condor:commitTransaction", NULL);
 	if (soap->error)
 		return soap->error;
 	
@@ -144,17 +144,17 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__commitTransaction(struct soap
 #endif
 	 || soap_end_recv(soap))
 		return soap->error;
-	soap->error = condorSchedd__commitTransaction(soap, soap_tmp_condorSchedd__commitTransaction.transaction, result);
+	soap->error = condor__commitTransaction(soap, soap_tmp_condor__commitTransaction.transaction, result);
 	if (soap->error)
 		return soap->error;
 	soap_serializeheader(soap);
-	soap_serialize_condorSchedd__StatusResponse(soap, &result);
+	soap_serialize_condor__StatusResponse(soap, &result);
 	soap_begin_count(soap);
 	if (soap->mode & SOAP_IO_LENGTH)
 	{	soap_envelope_begin_out(soap);
 		soap_putheader(soap);
 		soap_body_begin_out(soap);
-		soap_put_condorSchedd__StatusResponse(soap, &result, "condorSchedd:StatusResponse", "");
+		soap_put_condor__StatusResponse(soap, &result, "condor:StatusResponse", "");
 		soap_body_end_out(soap);
 		soap_envelope_end_out(soap);
 	};
@@ -162,7 +162,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__commitTransaction(struct soap
 	 || soap_envelope_begin_out(soap)
 	 || soap_putheader(soap)
 	 || soap_body_begin_out(soap)
-	 || soap_put_condorSchedd__StatusResponse(soap, &result, "condorSchedd:StatusResponse", "")
+	 || soap_put_condor__StatusResponse(soap, &result, "condor:StatusResponse", "")
 	 || soap_body_end_out(soap)
 	 || soap_envelope_end_out(soap)
 #ifndef WITH_LEANER
@@ -174,13 +174,13 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__commitTransaction(struct soap
 	return SOAP_OK;
 }
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__abortTransaction(struct soap *soap)
-{	struct condorSchedd__abortTransaction soap_tmp_condorSchedd__abortTransaction;
-	struct condorSchedd__StatusResponse result;
-	soap_default_condorSchedd__StatusResponse(soap, &result);
-	soap_default_condorSchedd__abortTransaction(soap, &soap_tmp_condorSchedd__abortTransaction);
+SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condor__abortTransaction(struct soap *soap)
+{	struct condor__abortTransaction soap_tmp_condor__abortTransaction;
+	struct condor__StatusResponse result;
+	soap_default_condor__StatusResponse(soap, &result);
+	soap_default_condor__abortTransaction(soap, &soap_tmp_condor__abortTransaction);
 	soap->encodingStyle = "";
-	soap_get_condorSchedd__abortTransaction(soap, &soap_tmp_condorSchedd__abortTransaction, "condorSchedd:abortTransaction", NULL);
+	soap_get_condor__abortTransaction(soap, &soap_tmp_condor__abortTransaction, "condor:abortTransaction", NULL);
 	if (soap->error)
 		return soap->error;
 	
@@ -191,17 +191,17 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__abortTransaction(struct soap 
 #endif
 	 || soap_end_recv(soap))
 		return soap->error;
-	soap->error = condorSchedd__abortTransaction(soap, soap_tmp_condorSchedd__abortTransaction.transaction, result);
+	soap->error = condor__abortTransaction(soap, soap_tmp_condor__abortTransaction.transaction, result);
 	if (soap->error)
 		return soap->error;
 	soap_serializeheader(soap);
-	soap_serialize_condorSchedd__StatusResponse(soap, &result);
+	soap_serialize_condor__StatusResponse(soap, &result);
 	soap_begin_count(soap);
 	if (soap->mode & SOAP_IO_LENGTH)
 	{	soap_envelope_begin_out(soap);
 		soap_putheader(soap);
 		soap_body_begin_out(soap);
-		soap_put_condorSchedd__StatusResponse(soap, &result, "condorSchedd:StatusResponse", "");
+		soap_put_condor__StatusResponse(soap, &result, "condor:StatusResponse", "");
 		soap_body_end_out(soap);
 		soap_envelope_end_out(soap);
 	};
@@ -209,7 +209,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__abortTransaction(struct soap 
 	 || soap_envelope_begin_out(soap)
 	 || soap_putheader(soap)
 	 || soap_body_begin_out(soap)
-	 || soap_put_condorSchedd__StatusResponse(soap, &result, "condorSchedd:StatusResponse", "")
+	 || soap_put_condor__StatusResponse(soap, &result, "condor:StatusResponse", "")
 	 || soap_body_end_out(soap)
 	 || soap_envelope_end_out(soap)
 #ifndef WITH_LEANER
@@ -221,13 +221,13 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__abortTransaction(struct soap 
 	return SOAP_OK;
 }
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__extendTransaction(struct soap *soap)
-{	struct condorSchedd__extendTransaction soap_tmp_condorSchedd__extendTransaction;
-	struct condorSchedd__TransactionAndStatusResponse result;
-	soap_default_condorSchedd__TransactionAndStatusResponse(soap, &result);
-	soap_default_condorSchedd__extendTransaction(soap, &soap_tmp_condorSchedd__extendTransaction);
+SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condor__extendTransaction(struct soap *soap)
+{	struct condor__extendTransaction soap_tmp_condor__extendTransaction;
+	struct condor__TransactionAndStatusResponse result;
+	soap_default_condor__TransactionAndStatusResponse(soap, &result);
+	soap_default_condor__extendTransaction(soap, &soap_tmp_condor__extendTransaction);
 	soap->encodingStyle = "";
-	soap_get_condorSchedd__extendTransaction(soap, &soap_tmp_condorSchedd__extendTransaction, "condorSchedd:extendTransaction", NULL);
+	soap_get_condor__extendTransaction(soap, &soap_tmp_condor__extendTransaction, "condor:extendTransaction", NULL);
 	if (soap->error)
 		return soap->error;
 	
@@ -238,17 +238,17 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__extendTransaction(struct soap
 #endif
 	 || soap_end_recv(soap))
 		return soap->error;
-	soap->error = condorSchedd__extendTransaction(soap, soap_tmp_condorSchedd__extendTransaction.transaction, soap_tmp_condorSchedd__extendTransaction.duration, result);
+	soap->error = condor__extendTransaction(soap, soap_tmp_condor__extendTransaction.transaction, soap_tmp_condor__extendTransaction.duration, result);
 	if (soap->error)
 		return soap->error;
 	soap_serializeheader(soap);
-	soap_serialize_condorSchedd__TransactionAndStatusResponse(soap, &result);
+	soap_serialize_condor__TransactionAndStatusResponse(soap, &result);
 	soap_begin_count(soap);
 	if (soap->mode & SOAP_IO_LENGTH)
 	{	soap_envelope_begin_out(soap);
 		soap_putheader(soap);
 		soap_body_begin_out(soap);
-		soap_put_condorSchedd__TransactionAndStatusResponse(soap, &result, "condorSchedd:TransactionAndStatusResponse", "");
+		soap_put_condor__TransactionAndStatusResponse(soap, &result, "condor:TransactionAndStatusResponse", "");
 		soap_body_end_out(soap);
 		soap_envelope_end_out(soap);
 	};
@@ -256,7 +256,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__extendTransaction(struct soap
 	 || soap_envelope_begin_out(soap)
 	 || soap_putheader(soap)
 	 || soap_body_begin_out(soap)
-	 || soap_put_condorSchedd__TransactionAndStatusResponse(soap, &result, "condorSchedd:TransactionAndStatusResponse", "")
+	 || soap_put_condor__TransactionAndStatusResponse(soap, &result, "condor:TransactionAndStatusResponse", "")
 	 || soap_body_end_out(soap)
 	 || soap_envelope_end_out(soap)
 #ifndef WITH_LEANER
@@ -268,13 +268,13 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__extendTransaction(struct soap
 	return SOAP_OK;
 }
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__newCluster(struct soap *soap)
-{	struct condorSchedd__newCluster soap_tmp_condorSchedd__newCluster;
-	struct condorSchedd__IntAndStatusResponse result;
-	soap_default_condorSchedd__IntAndStatusResponse(soap, &result);
-	soap_default_condorSchedd__newCluster(soap, &soap_tmp_condorSchedd__newCluster);
+SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condor__newCluster(struct soap *soap)
+{	struct condor__newCluster soap_tmp_condor__newCluster;
+	struct condor__IntAndStatusResponse result;
+	soap_default_condor__IntAndStatusResponse(soap, &result);
+	soap_default_condor__newCluster(soap, &soap_tmp_condor__newCluster);
 	soap->encodingStyle = "";
-	soap_get_condorSchedd__newCluster(soap, &soap_tmp_condorSchedd__newCluster, "condorSchedd:newCluster", NULL);
+	soap_get_condor__newCluster(soap, &soap_tmp_condor__newCluster, "condor:newCluster", NULL);
 	if (soap->error)
 		return soap->error;
 	
@@ -285,17 +285,17 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__newCluster(struct soap *soap)
 #endif
 	 || soap_end_recv(soap))
 		return soap->error;
-	soap->error = condorSchedd__newCluster(soap, soap_tmp_condorSchedd__newCluster.transaction, result);
+	soap->error = condor__newCluster(soap, soap_tmp_condor__newCluster.transaction, result);
 	if (soap->error)
 		return soap->error;
 	soap_serializeheader(soap);
-	soap_serialize_condorSchedd__IntAndStatusResponse(soap, &result);
+	soap_serialize_condor__IntAndStatusResponse(soap, &result);
 	soap_begin_count(soap);
 	if (soap->mode & SOAP_IO_LENGTH)
 	{	soap_envelope_begin_out(soap);
 		soap_putheader(soap);
 		soap_body_begin_out(soap);
-		soap_put_condorSchedd__IntAndStatusResponse(soap, &result, "condorSchedd:IntAndStatusResponse", "");
+		soap_put_condor__IntAndStatusResponse(soap, &result, "condor:IntAndStatusResponse", "");
 		soap_body_end_out(soap);
 		soap_envelope_end_out(soap);
 	};
@@ -303,7 +303,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__newCluster(struct soap *soap)
 	 || soap_envelope_begin_out(soap)
 	 || soap_putheader(soap)
 	 || soap_body_begin_out(soap)
-	 || soap_put_condorSchedd__IntAndStatusResponse(soap, &result, "condorSchedd:IntAndStatusResponse", "")
+	 || soap_put_condor__IntAndStatusResponse(soap, &result, "condor:IntAndStatusResponse", "")
 	 || soap_body_end_out(soap)
 	 || soap_envelope_end_out(soap)
 #ifndef WITH_LEANER
@@ -315,13 +315,13 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__newCluster(struct soap *soap)
 	return SOAP_OK;
 }
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__removeCluster(struct soap *soap)
-{	struct condorSchedd__removeCluster soap_tmp_condorSchedd__removeCluster;
-	struct condorSchedd__StatusResponse result;
-	soap_default_condorSchedd__StatusResponse(soap, &result);
-	soap_default_condorSchedd__removeCluster(soap, &soap_tmp_condorSchedd__removeCluster);
+SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condor__removeCluster(struct soap *soap)
+{	struct condor__removeCluster soap_tmp_condor__removeCluster;
+	struct condor__StatusResponse result;
+	soap_default_condor__StatusResponse(soap, &result);
+	soap_default_condor__removeCluster(soap, &soap_tmp_condor__removeCluster);
 	soap->encodingStyle = "";
-	soap_get_condorSchedd__removeCluster(soap, &soap_tmp_condorSchedd__removeCluster, "condorSchedd:removeCluster", NULL);
+	soap_get_condor__removeCluster(soap, &soap_tmp_condor__removeCluster, "condor:removeCluster", NULL);
 	if (soap->error)
 		return soap->error;
 	
@@ -332,17 +332,17 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__removeCluster(struct soap *so
 #endif
 	 || soap_end_recv(soap))
 		return soap->error;
-	soap->error = condorSchedd__removeCluster(soap, soap_tmp_condorSchedd__removeCluster.transaction, soap_tmp_condorSchedd__removeCluster.clusterId, soap_tmp_condorSchedd__removeCluster.reason, result);
+	soap->error = condor__removeCluster(soap, soap_tmp_condor__removeCluster.transaction, soap_tmp_condor__removeCluster.clusterId, soap_tmp_condor__removeCluster.reason, result);
 	if (soap->error)
 		return soap->error;
 	soap_serializeheader(soap);
-	soap_serialize_condorSchedd__StatusResponse(soap, &result);
+	soap_serialize_condor__StatusResponse(soap, &result);
 	soap_begin_count(soap);
 	if (soap->mode & SOAP_IO_LENGTH)
 	{	soap_envelope_begin_out(soap);
 		soap_putheader(soap);
 		soap_body_begin_out(soap);
-		soap_put_condorSchedd__StatusResponse(soap, &result, "condorSchedd:StatusResponse", "");
+		soap_put_condor__StatusResponse(soap, &result, "condor:StatusResponse", "");
 		soap_body_end_out(soap);
 		soap_envelope_end_out(soap);
 	};
@@ -350,7 +350,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__removeCluster(struct soap *so
 	 || soap_envelope_begin_out(soap)
 	 || soap_putheader(soap)
 	 || soap_body_begin_out(soap)
-	 || soap_put_condorSchedd__StatusResponse(soap, &result, "condorSchedd:StatusResponse", "")
+	 || soap_put_condor__StatusResponse(soap, &result, "condor:StatusResponse", "")
 	 || soap_body_end_out(soap)
 	 || soap_envelope_end_out(soap)
 #ifndef WITH_LEANER
@@ -362,13 +362,13 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__removeCluster(struct soap *so
 	return SOAP_OK;
 }
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__newJob(struct soap *soap)
-{	struct condorSchedd__newJob soap_tmp_condorSchedd__newJob;
-	struct condorSchedd__IntAndStatusResponse result;
-	soap_default_condorSchedd__IntAndStatusResponse(soap, &result);
-	soap_default_condorSchedd__newJob(soap, &soap_tmp_condorSchedd__newJob);
+SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condor__newJob(struct soap *soap)
+{	struct condor__newJob soap_tmp_condor__newJob;
+	struct condor__IntAndStatusResponse result;
+	soap_default_condor__IntAndStatusResponse(soap, &result);
+	soap_default_condor__newJob(soap, &soap_tmp_condor__newJob);
 	soap->encodingStyle = "";
-	soap_get_condorSchedd__newJob(soap, &soap_tmp_condorSchedd__newJob, "condorSchedd:newJob", NULL);
+	soap_get_condor__newJob(soap, &soap_tmp_condor__newJob, "condor:newJob", NULL);
 	if (soap->error)
 		return soap->error;
 	
@@ -379,17 +379,17 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__newJob(struct soap *soap)
 #endif
 	 || soap_end_recv(soap))
 		return soap->error;
-	soap->error = condorSchedd__newJob(soap, soap_tmp_condorSchedd__newJob.transaction, soap_tmp_condorSchedd__newJob.clusterId, result);
+	soap->error = condor__newJob(soap, soap_tmp_condor__newJob.transaction, soap_tmp_condor__newJob.clusterId, result);
 	if (soap->error)
 		return soap->error;
 	soap_serializeheader(soap);
-	soap_serialize_condorSchedd__IntAndStatusResponse(soap, &result);
+	soap_serialize_condor__IntAndStatusResponse(soap, &result);
 	soap_begin_count(soap);
 	if (soap->mode & SOAP_IO_LENGTH)
 	{	soap_envelope_begin_out(soap);
 		soap_putheader(soap);
 		soap_body_begin_out(soap);
-		soap_put_condorSchedd__IntAndStatusResponse(soap, &result, "condorSchedd:IntAndStatusResponse", "");
+		soap_put_condor__IntAndStatusResponse(soap, &result, "condor:IntAndStatusResponse", "");
 		soap_body_end_out(soap);
 		soap_envelope_end_out(soap);
 	};
@@ -397,7 +397,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__newJob(struct soap *soap)
 	 || soap_envelope_begin_out(soap)
 	 || soap_putheader(soap)
 	 || soap_body_begin_out(soap)
-	 || soap_put_condorSchedd__IntAndStatusResponse(soap, &result, "condorSchedd:IntAndStatusResponse", "")
+	 || soap_put_condor__IntAndStatusResponse(soap, &result, "condor:IntAndStatusResponse", "")
 	 || soap_body_end_out(soap)
 	 || soap_envelope_end_out(soap)
 #ifndef WITH_LEANER
@@ -409,13 +409,13 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__newJob(struct soap *soap)
 	return SOAP_OK;
 }
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__removeJob(struct soap *soap)
-{	struct condorSchedd__removeJob soap_tmp_condorSchedd__removeJob;
-	struct condorSchedd__StatusResponse result;
-	soap_default_condorSchedd__StatusResponse(soap, &result);
-	soap_default_condorSchedd__removeJob(soap, &soap_tmp_condorSchedd__removeJob);
+SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condor__removeJob(struct soap *soap)
+{	struct condor__removeJob soap_tmp_condor__removeJob;
+	struct condor__StatusResponse result;
+	soap_default_condor__StatusResponse(soap, &result);
+	soap_default_condor__removeJob(soap, &soap_tmp_condor__removeJob);
 	soap->encodingStyle = "";
-	soap_get_condorSchedd__removeJob(soap, &soap_tmp_condorSchedd__removeJob, "condorSchedd:removeJob", NULL);
+	soap_get_condor__removeJob(soap, &soap_tmp_condor__removeJob, "condor:removeJob", NULL);
 	if (soap->error)
 		return soap->error;
 	
@@ -426,17 +426,17 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__removeJob(struct soap *soap)
 #endif
 	 || soap_end_recv(soap))
 		return soap->error;
-	soap->error = condorSchedd__removeJob(soap, soap_tmp_condorSchedd__removeJob.transaction, soap_tmp_condorSchedd__removeJob.clusterId, soap_tmp_condorSchedd__removeJob.jobId, soap_tmp_condorSchedd__removeJob.reason, soap_tmp_condorSchedd__removeJob.force_removal, result);
+	soap->error = condor__removeJob(soap, soap_tmp_condor__removeJob.transaction, soap_tmp_condor__removeJob.clusterId, soap_tmp_condor__removeJob.jobId, soap_tmp_condor__removeJob.reason, soap_tmp_condor__removeJob.force_removal, result);
 	if (soap->error)
 		return soap->error;
 	soap_serializeheader(soap);
-	soap_serialize_condorSchedd__StatusResponse(soap, &result);
+	soap_serialize_condor__StatusResponse(soap, &result);
 	soap_begin_count(soap);
 	if (soap->mode & SOAP_IO_LENGTH)
 	{	soap_envelope_begin_out(soap);
 		soap_putheader(soap);
 		soap_body_begin_out(soap);
-		soap_put_condorSchedd__StatusResponse(soap, &result, "condorSchedd:StatusResponse", "");
+		soap_put_condor__StatusResponse(soap, &result, "condor:StatusResponse", "");
 		soap_body_end_out(soap);
 		soap_envelope_end_out(soap);
 	};
@@ -444,7 +444,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__removeJob(struct soap *soap)
 	 || soap_envelope_begin_out(soap)
 	 || soap_putheader(soap)
 	 || soap_body_begin_out(soap)
-	 || soap_put_condorSchedd__StatusResponse(soap, &result, "condorSchedd:StatusResponse", "")
+	 || soap_put_condor__StatusResponse(soap, &result, "condor:StatusResponse", "")
 	 || soap_body_end_out(soap)
 	 || soap_envelope_end_out(soap)
 #ifndef WITH_LEANER
@@ -456,13 +456,13 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__removeJob(struct soap *soap)
 	return SOAP_OK;
 }
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__holdJob(struct soap *soap)
-{	struct condorSchedd__holdJob soap_tmp_condorSchedd__holdJob;
-	struct condorSchedd__StatusResponse result;
-	soap_default_condorSchedd__StatusResponse(soap, &result);
-	soap_default_condorSchedd__holdJob(soap, &soap_tmp_condorSchedd__holdJob);
+SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condor__holdJob(struct soap *soap)
+{	struct condor__holdJob soap_tmp_condor__holdJob;
+	struct condor__StatusResponse result;
+	soap_default_condor__StatusResponse(soap, &result);
+	soap_default_condor__holdJob(soap, &soap_tmp_condor__holdJob);
 	soap->encodingStyle = "";
-	soap_get_condorSchedd__holdJob(soap, &soap_tmp_condorSchedd__holdJob, "condorSchedd:holdJob", NULL);
+	soap_get_condor__holdJob(soap, &soap_tmp_condor__holdJob, "condor:holdJob", NULL);
 	if (soap->error)
 		return soap->error;
 	
@@ -473,17 +473,17 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__holdJob(struct soap *soap)
 #endif
 	 || soap_end_recv(soap))
 		return soap->error;
-	soap->error = condorSchedd__holdJob(soap, soap_tmp_condorSchedd__holdJob.transaction, soap_tmp_condorSchedd__holdJob.clusterId, soap_tmp_condorSchedd__holdJob.jobId, soap_tmp_condorSchedd__holdJob.reason, soap_tmp_condorSchedd__holdJob.email_user, soap_tmp_condorSchedd__holdJob.email_admin, soap_tmp_condorSchedd__holdJob.system_hold, result);
+	soap->error = condor__holdJob(soap, soap_tmp_condor__holdJob.transaction, soap_tmp_condor__holdJob.clusterId, soap_tmp_condor__holdJob.jobId, soap_tmp_condor__holdJob.reason, soap_tmp_condor__holdJob.email_user, soap_tmp_condor__holdJob.email_admin, soap_tmp_condor__holdJob.system_hold, result);
 	if (soap->error)
 		return soap->error;
 	soap_serializeheader(soap);
-	soap_serialize_condorSchedd__StatusResponse(soap, &result);
+	soap_serialize_condor__StatusResponse(soap, &result);
 	soap_begin_count(soap);
 	if (soap->mode & SOAP_IO_LENGTH)
 	{	soap_envelope_begin_out(soap);
 		soap_putheader(soap);
 		soap_body_begin_out(soap);
-		soap_put_condorSchedd__StatusResponse(soap, &result, "condorSchedd:StatusResponse", "");
+		soap_put_condor__StatusResponse(soap, &result, "condor:StatusResponse", "");
 		soap_body_end_out(soap);
 		soap_envelope_end_out(soap);
 	};
@@ -491,7 +491,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__holdJob(struct soap *soap)
 	 || soap_envelope_begin_out(soap)
 	 || soap_putheader(soap)
 	 || soap_body_begin_out(soap)
-	 || soap_put_condorSchedd__StatusResponse(soap, &result, "condorSchedd:StatusResponse", "")
+	 || soap_put_condor__StatusResponse(soap, &result, "condor:StatusResponse", "")
 	 || soap_body_end_out(soap)
 	 || soap_envelope_end_out(soap)
 #ifndef WITH_LEANER
@@ -503,13 +503,13 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__holdJob(struct soap *soap)
 	return SOAP_OK;
 }
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__releaseJob(struct soap *soap)
-{	struct condorSchedd__releaseJob soap_tmp_condorSchedd__releaseJob;
-	struct condorSchedd__StatusResponse result;
-	soap_default_condorSchedd__StatusResponse(soap, &result);
-	soap_default_condorSchedd__releaseJob(soap, &soap_tmp_condorSchedd__releaseJob);
+SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condor__releaseJob(struct soap *soap)
+{	struct condor__releaseJob soap_tmp_condor__releaseJob;
+	struct condor__StatusResponse result;
+	soap_default_condor__StatusResponse(soap, &result);
+	soap_default_condor__releaseJob(soap, &soap_tmp_condor__releaseJob);
 	soap->encodingStyle = "";
-	soap_get_condorSchedd__releaseJob(soap, &soap_tmp_condorSchedd__releaseJob, "condorSchedd:releaseJob", NULL);
+	soap_get_condor__releaseJob(soap, &soap_tmp_condor__releaseJob, "condor:releaseJob", NULL);
 	if (soap->error)
 		return soap->error;
 	
@@ -520,17 +520,17 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__releaseJob(struct soap *soap)
 #endif
 	 || soap_end_recv(soap))
 		return soap->error;
-	soap->error = condorSchedd__releaseJob(soap, soap_tmp_condorSchedd__releaseJob.transaction, soap_tmp_condorSchedd__releaseJob.clusterId, soap_tmp_condorSchedd__releaseJob.jobId, soap_tmp_condorSchedd__releaseJob.reason, soap_tmp_condorSchedd__releaseJob.email_user, soap_tmp_condorSchedd__releaseJob.email_admin, result);
+	soap->error = condor__releaseJob(soap, soap_tmp_condor__releaseJob.transaction, soap_tmp_condor__releaseJob.clusterId, soap_tmp_condor__releaseJob.jobId, soap_tmp_condor__releaseJob.reason, soap_tmp_condor__releaseJob.email_user, soap_tmp_condor__releaseJob.email_admin, result);
 	if (soap->error)
 		return soap->error;
 	soap_serializeheader(soap);
-	soap_serialize_condorSchedd__StatusResponse(soap, &result);
+	soap_serialize_condor__StatusResponse(soap, &result);
 	soap_begin_count(soap);
 	if (soap->mode & SOAP_IO_LENGTH)
 	{	soap_envelope_begin_out(soap);
 		soap_putheader(soap);
 		soap_body_begin_out(soap);
-		soap_put_condorSchedd__StatusResponse(soap, &result, "condorSchedd:StatusResponse", "");
+		soap_put_condor__StatusResponse(soap, &result, "condor:StatusResponse", "");
 		soap_body_end_out(soap);
 		soap_envelope_end_out(soap);
 	};
@@ -538,7 +538,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__releaseJob(struct soap *soap)
 	 || soap_envelope_begin_out(soap)
 	 || soap_putheader(soap)
 	 || soap_body_begin_out(soap)
-	 || soap_put_condorSchedd__StatusResponse(soap, &result, "condorSchedd:StatusResponse", "")
+	 || soap_put_condor__StatusResponse(soap, &result, "condor:StatusResponse", "")
 	 || soap_body_end_out(soap)
 	 || soap_envelope_end_out(soap)
 #ifndef WITH_LEANER
@@ -550,13 +550,13 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__releaseJob(struct soap *soap)
 	return SOAP_OK;
 }
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__submit(struct soap *soap)
-{	struct condorSchedd__submit soap_tmp_condorSchedd__submit;
-	struct condorSchedd__RequirementsAndStatusResponse result;
-	soap_default_condorSchedd__RequirementsAndStatusResponse(soap, &result);
-	soap_default_condorSchedd__submit(soap, &soap_tmp_condorSchedd__submit);
+SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condor__submit(struct soap *soap)
+{	struct condor__submit soap_tmp_condor__submit;
+	struct condor__RequirementsAndStatusResponse result;
+	soap_default_condor__RequirementsAndStatusResponse(soap, &result);
+	soap_default_condor__submit(soap, &soap_tmp_condor__submit);
 	soap->encodingStyle = "";
-	soap_get_condorSchedd__submit(soap, &soap_tmp_condorSchedd__submit, "condorSchedd:submit", NULL);
+	soap_get_condor__submit(soap, &soap_tmp_condor__submit, "condor:submit", NULL);
 	if (soap->error)
 		return soap->error;
 	
@@ -567,17 +567,17 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__submit(struct soap *soap)
 #endif
 	 || soap_end_recv(soap))
 		return soap->error;
-	soap->error = condorSchedd__submit(soap, soap_tmp_condorSchedd__submit.transaction, soap_tmp_condorSchedd__submit.clusterId, soap_tmp_condorSchedd__submit.jobId, soap_tmp_condorSchedd__submit.jobAd, result);
+	soap->error = condor__submit(soap, soap_tmp_condor__submit.transaction, soap_tmp_condor__submit.clusterId, soap_tmp_condor__submit.jobId, soap_tmp_condor__submit.jobAd, result);
 	if (soap->error)
 		return soap->error;
 	soap_serializeheader(soap);
-	soap_serialize_condorSchedd__RequirementsAndStatusResponse(soap, &result);
+	soap_serialize_condor__RequirementsAndStatusResponse(soap, &result);
 	soap_begin_count(soap);
 	if (soap->mode & SOAP_IO_LENGTH)
 	{	soap_envelope_begin_out(soap);
 		soap_putheader(soap);
 		soap_body_begin_out(soap);
-		soap_put_condorSchedd__RequirementsAndStatusResponse(soap, &result, "condorSchedd:RequirementsAndStatusResponse", "");
+		soap_put_condor__RequirementsAndStatusResponse(soap, &result, "condor:RequirementsAndStatusResponse", "");
 		soap_body_end_out(soap);
 		soap_envelope_end_out(soap);
 	};
@@ -585,7 +585,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__submit(struct soap *soap)
 	 || soap_envelope_begin_out(soap)
 	 || soap_putheader(soap)
 	 || soap_body_begin_out(soap)
-	 || soap_put_condorSchedd__RequirementsAndStatusResponse(soap, &result, "condorSchedd:RequirementsAndStatusResponse", "")
+	 || soap_put_condor__RequirementsAndStatusResponse(soap, &result, "condor:RequirementsAndStatusResponse", "")
 	 || soap_body_end_out(soap)
 	 || soap_envelope_end_out(soap)
 #ifndef WITH_LEANER
@@ -597,13 +597,13 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__submit(struct soap *soap)
 	return SOAP_OK;
 }
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__getJobAds(struct soap *soap)
-{	struct condorSchedd__getJobAds soap_tmp_condorSchedd__getJobAds;
-	struct condorSchedd__ClassAdStructArrayAndStatusResponse result;
-	soap_default_condorSchedd__ClassAdStructArrayAndStatusResponse(soap, &result);
-	soap_default_condorSchedd__getJobAds(soap, &soap_tmp_condorSchedd__getJobAds);
+SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condor__getJobAds(struct soap *soap)
+{	struct condor__getJobAds soap_tmp_condor__getJobAds;
+	struct condor__ClassAdStructArrayAndStatusResponse result;
+	soap_default_condor__ClassAdStructArrayAndStatusResponse(soap, &result);
+	soap_default_condor__getJobAds(soap, &soap_tmp_condor__getJobAds);
 	soap->encodingStyle = "";
-	soap_get_condorSchedd__getJobAds(soap, &soap_tmp_condorSchedd__getJobAds, "condorSchedd:getJobAds", NULL);
+	soap_get_condor__getJobAds(soap, &soap_tmp_condor__getJobAds, "condor:getJobAds", NULL);
 	if (soap->error)
 		return soap->error;
 	
@@ -614,17 +614,17 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__getJobAds(struct soap *soap)
 #endif
 	 || soap_end_recv(soap))
 		return soap->error;
-	soap->error = condorSchedd__getJobAds(soap, soap_tmp_condorSchedd__getJobAds.transaction, soap_tmp_condorSchedd__getJobAds.constraint, result);
+	soap->error = condor__getJobAds(soap, soap_tmp_condor__getJobAds.transaction, soap_tmp_condor__getJobAds.constraint, result);
 	if (soap->error)
 		return soap->error;
 	soap_serializeheader(soap);
-	soap_serialize_condorSchedd__ClassAdStructArrayAndStatusResponse(soap, &result);
+	soap_serialize_condor__ClassAdStructArrayAndStatusResponse(soap, &result);
 	soap_begin_count(soap);
 	if (soap->mode & SOAP_IO_LENGTH)
 	{	soap_envelope_begin_out(soap);
 		soap_putheader(soap);
 		soap_body_begin_out(soap);
-		soap_put_condorSchedd__ClassAdStructArrayAndStatusResponse(soap, &result, "condorSchedd:ClassAdStructArrayAndStatusResponse", "");
+		soap_put_condor__ClassAdStructArrayAndStatusResponse(soap, &result, "condor:ClassAdStructArrayAndStatusResponse", "");
 		soap_body_end_out(soap);
 		soap_envelope_end_out(soap);
 	};
@@ -632,7 +632,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__getJobAds(struct soap *soap)
 	 || soap_envelope_begin_out(soap)
 	 || soap_putheader(soap)
 	 || soap_body_begin_out(soap)
-	 || soap_put_condorSchedd__ClassAdStructArrayAndStatusResponse(soap, &result, "condorSchedd:ClassAdStructArrayAndStatusResponse", "")
+	 || soap_put_condor__ClassAdStructArrayAndStatusResponse(soap, &result, "condor:ClassAdStructArrayAndStatusResponse", "")
 	 || soap_body_end_out(soap)
 	 || soap_envelope_end_out(soap)
 #ifndef WITH_LEANER
@@ -644,13 +644,13 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__getJobAds(struct soap *soap)
 	return SOAP_OK;
 }
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__getJobAd(struct soap *soap)
-{	struct condorSchedd__getJobAd soap_tmp_condorSchedd__getJobAd;
-	struct condorSchedd__ClassAdStructAndStatusResponse result;
-	soap_default_condorSchedd__ClassAdStructAndStatusResponse(soap, &result);
-	soap_default_condorSchedd__getJobAd(soap, &soap_tmp_condorSchedd__getJobAd);
+SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condor__getJobAd(struct soap *soap)
+{	struct condor__getJobAd soap_tmp_condor__getJobAd;
+	struct condor__ClassAdStructAndStatusResponse result;
+	soap_default_condor__ClassAdStructAndStatusResponse(soap, &result);
+	soap_default_condor__getJobAd(soap, &soap_tmp_condor__getJobAd);
 	soap->encodingStyle = "";
-	soap_get_condorSchedd__getJobAd(soap, &soap_tmp_condorSchedd__getJobAd, "condorSchedd:getJobAd", NULL);
+	soap_get_condor__getJobAd(soap, &soap_tmp_condor__getJobAd, "condor:getJobAd", NULL);
 	if (soap->error)
 		return soap->error;
 	
@@ -661,17 +661,17 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__getJobAd(struct soap *soap)
 #endif
 	 || soap_end_recv(soap))
 		return soap->error;
-	soap->error = condorSchedd__getJobAd(soap, soap_tmp_condorSchedd__getJobAd.transaction, soap_tmp_condorSchedd__getJobAd.clusterId, soap_tmp_condorSchedd__getJobAd.jobId, result);
+	soap->error = condor__getJobAd(soap, soap_tmp_condor__getJobAd.transaction, soap_tmp_condor__getJobAd.clusterId, soap_tmp_condor__getJobAd.jobId, result);
 	if (soap->error)
 		return soap->error;
 	soap_serializeheader(soap);
-	soap_serialize_condorSchedd__ClassAdStructAndStatusResponse(soap, &result);
+	soap_serialize_condor__ClassAdStructAndStatusResponse(soap, &result);
 	soap_begin_count(soap);
 	if (soap->mode & SOAP_IO_LENGTH)
 	{	soap_envelope_begin_out(soap);
 		soap_putheader(soap);
 		soap_body_begin_out(soap);
-		soap_put_condorSchedd__ClassAdStructAndStatusResponse(soap, &result, "condorSchedd:ClassAdStructAndStatusResponse", "");
+		soap_put_condor__ClassAdStructAndStatusResponse(soap, &result, "condor:ClassAdStructAndStatusResponse", "");
 		soap_body_end_out(soap);
 		soap_envelope_end_out(soap);
 	};
@@ -679,7 +679,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__getJobAd(struct soap *soap)
 	 || soap_envelope_begin_out(soap)
 	 || soap_putheader(soap)
 	 || soap_body_begin_out(soap)
-	 || soap_put_condorSchedd__ClassAdStructAndStatusResponse(soap, &result, "condorSchedd:ClassAdStructAndStatusResponse", "")
+	 || soap_put_condor__ClassAdStructAndStatusResponse(soap, &result, "condor:ClassAdStructAndStatusResponse", "")
 	 || soap_body_end_out(soap)
 	 || soap_envelope_end_out(soap)
 #ifndef WITH_LEANER
@@ -691,13 +691,13 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__getJobAd(struct soap *soap)
 	return SOAP_OK;
 }
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__declareFile(struct soap *soap)
-{	struct condorSchedd__declareFile soap_tmp_condorSchedd__declareFile;
-	struct condorSchedd__StatusResponse result;
-	soap_default_condorSchedd__StatusResponse(soap, &result);
-	soap_default_condorSchedd__declareFile(soap, &soap_tmp_condorSchedd__declareFile);
+SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condor__declareFile(struct soap *soap)
+{	struct condor__declareFile soap_tmp_condor__declareFile;
+	struct condor__StatusResponse result;
+	soap_default_condor__StatusResponse(soap, &result);
+	soap_default_condor__declareFile(soap, &soap_tmp_condor__declareFile);
 	soap->encodingStyle = "";
-	soap_get_condorSchedd__declareFile(soap, &soap_tmp_condorSchedd__declareFile, "condorSchedd:declareFile", NULL);
+	soap_get_condor__declareFile(soap, &soap_tmp_condor__declareFile, "condor:declareFile", NULL);
 	if (soap->error)
 		return soap->error;
 	
@@ -708,17 +708,17 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__declareFile(struct soap *soap
 #endif
 	 || soap_end_recv(soap))
 		return soap->error;
-	soap->error = condorSchedd__declareFile(soap, soap_tmp_condorSchedd__declareFile.transaction, soap_tmp_condorSchedd__declareFile.clusterId, soap_tmp_condorSchedd__declareFile.jobId, soap_tmp_condorSchedd__declareFile.name, soap_tmp_condorSchedd__declareFile.size, soap_tmp_condorSchedd__declareFile.hashType, soap_tmp_condorSchedd__declareFile.hash, result);
+	soap->error = condor__declareFile(soap, soap_tmp_condor__declareFile.transaction, soap_tmp_condor__declareFile.clusterId, soap_tmp_condor__declareFile.jobId, soap_tmp_condor__declareFile.name, soap_tmp_condor__declareFile.size, soap_tmp_condor__declareFile.hashType, soap_tmp_condor__declareFile.hash, result);
 	if (soap->error)
 		return soap->error;
 	soap_serializeheader(soap);
-	soap_serialize_condorSchedd__StatusResponse(soap, &result);
+	soap_serialize_condor__StatusResponse(soap, &result);
 	soap_begin_count(soap);
 	if (soap->mode & SOAP_IO_LENGTH)
 	{	soap_envelope_begin_out(soap);
 		soap_putheader(soap);
 		soap_body_begin_out(soap);
-		soap_put_condorSchedd__StatusResponse(soap, &result, "condorSchedd:StatusResponse", "");
+		soap_put_condor__StatusResponse(soap, &result, "condor:StatusResponse", "");
 		soap_body_end_out(soap);
 		soap_envelope_end_out(soap);
 	};
@@ -726,7 +726,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__declareFile(struct soap *soap
 	 || soap_envelope_begin_out(soap)
 	 || soap_putheader(soap)
 	 || soap_body_begin_out(soap)
-	 || soap_put_condorSchedd__StatusResponse(soap, &result, "condorSchedd:StatusResponse", "")
+	 || soap_put_condor__StatusResponse(soap, &result, "condor:StatusResponse", "")
 	 || soap_body_end_out(soap)
 	 || soap_envelope_end_out(soap)
 #ifndef WITH_LEANER
@@ -738,13 +738,13 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__declareFile(struct soap *soap
 	return SOAP_OK;
 }
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__sendFile(struct soap *soap)
-{	struct condorSchedd__sendFile soap_tmp_condorSchedd__sendFile;
-	struct condorSchedd__StatusResponse result;
-	soap_default_condorSchedd__StatusResponse(soap, &result);
-	soap_default_condorSchedd__sendFile(soap, &soap_tmp_condorSchedd__sendFile);
+SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condor__sendFile(struct soap *soap)
+{	struct condor__sendFile soap_tmp_condor__sendFile;
+	struct condor__StatusResponse result;
+	soap_default_condor__StatusResponse(soap, &result);
+	soap_default_condor__sendFile(soap, &soap_tmp_condor__sendFile);
 	soap->encodingStyle = "";
-	soap_get_condorSchedd__sendFile(soap, &soap_tmp_condorSchedd__sendFile, "condorSchedd:sendFile", NULL);
+	soap_get_condor__sendFile(soap, &soap_tmp_condor__sendFile, "condor:sendFile", NULL);
 	if (soap->error)
 		return soap->error;
 	
@@ -755,17 +755,17 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__sendFile(struct soap *soap)
 #endif
 	 || soap_end_recv(soap))
 		return soap->error;
-	soap->error = condorSchedd__sendFile(soap, soap_tmp_condorSchedd__sendFile.transaction, soap_tmp_condorSchedd__sendFile.clusterId, soap_tmp_condorSchedd__sendFile.jobId, soap_tmp_condorSchedd__sendFile.name, soap_tmp_condorSchedd__sendFile.offset, soap_tmp_condorSchedd__sendFile.data, result);
+	soap->error = condor__sendFile(soap, soap_tmp_condor__sendFile.transaction, soap_tmp_condor__sendFile.clusterId, soap_tmp_condor__sendFile.jobId, soap_tmp_condor__sendFile.name, soap_tmp_condor__sendFile.offset, soap_tmp_condor__sendFile.data, result);
 	if (soap->error)
 		return soap->error;
 	soap_serializeheader(soap);
-	soap_serialize_condorSchedd__StatusResponse(soap, &result);
+	soap_serialize_condor__StatusResponse(soap, &result);
 	soap_begin_count(soap);
 	if (soap->mode & SOAP_IO_LENGTH)
 	{	soap_envelope_begin_out(soap);
 		soap_putheader(soap);
 		soap_body_begin_out(soap);
-		soap_put_condorSchedd__StatusResponse(soap, &result, "condorSchedd:StatusResponse", "");
+		soap_put_condor__StatusResponse(soap, &result, "condor:StatusResponse", "");
 		soap_body_end_out(soap);
 		soap_envelope_end_out(soap);
 	};
@@ -773,7 +773,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__sendFile(struct soap *soap)
 	 || soap_envelope_begin_out(soap)
 	 || soap_putheader(soap)
 	 || soap_body_begin_out(soap)
-	 || soap_put_condorSchedd__StatusResponse(soap, &result, "condorSchedd:StatusResponse", "")
+	 || soap_put_condor__StatusResponse(soap, &result, "condor:StatusResponse", "")
 	 || soap_body_end_out(soap)
 	 || soap_envelope_end_out(soap)
 #ifndef WITH_LEANER
@@ -785,13 +785,13 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__sendFile(struct soap *soap)
 	return SOAP_OK;
 }
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__getFile(struct soap *soap)
-{	struct condorSchedd__getFile soap_tmp_condorSchedd__getFile;
-	struct condorSchedd__Base64DataAndStatusResponse result;
-	soap_default_condorSchedd__Base64DataAndStatusResponse(soap, &result);
-	soap_default_condorSchedd__getFile(soap, &soap_tmp_condorSchedd__getFile);
+SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condor__getFile(struct soap *soap)
+{	struct condor__getFile soap_tmp_condor__getFile;
+	struct condor__Base64DataAndStatusResponse result;
+	soap_default_condor__Base64DataAndStatusResponse(soap, &result);
+	soap_default_condor__getFile(soap, &soap_tmp_condor__getFile);
 	soap->encodingStyle = "";
-	soap_get_condorSchedd__getFile(soap, &soap_tmp_condorSchedd__getFile, "condorSchedd:getFile", NULL);
+	soap_get_condor__getFile(soap, &soap_tmp_condor__getFile, "condor:getFile", NULL);
 	if (soap->error)
 		return soap->error;
 	
@@ -802,17 +802,17 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__getFile(struct soap *soap)
 #endif
 	 || soap_end_recv(soap))
 		return soap->error;
-	soap->error = condorSchedd__getFile(soap, soap_tmp_condorSchedd__getFile.transaction, soap_tmp_condorSchedd__getFile.clusterId, soap_tmp_condorSchedd__getFile.jobId, soap_tmp_condorSchedd__getFile.name, soap_tmp_condorSchedd__getFile.offset, soap_tmp_condorSchedd__getFile.length, result);
+	soap->error = condor__getFile(soap, soap_tmp_condor__getFile.transaction, soap_tmp_condor__getFile.clusterId, soap_tmp_condor__getFile.jobId, soap_tmp_condor__getFile.name, soap_tmp_condor__getFile.offset, soap_tmp_condor__getFile.length, result);
 	if (soap->error)
 		return soap->error;
 	soap_serializeheader(soap);
-	soap_serialize_condorSchedd__Base64DataAndStatusResponse(soap, &result);
+	soap_serialize_condor__Base64DataAndStatusResponse(soap, &result);
 	soap_begin_count(soap);
 	if (soap->mode & SOAP_IO_LENGTH)
 	{	soap_envelope_begin_out(soap);
 		soap_putheader(soap);
 		soap_body_begin_out(soap);
-		soap_put_condorSchedd__Base64DataAndStatusResponse(soap, &result, "condorSchedd:Base64DataAndStatusResponse", "");
+		soap_put_condor__Base64DataAndStatusResponse(soap, &result, "condor:Base64DataAndStatusResponse", "");
 		soap_body_end_out(soap);
 		soap_envelope_end_out(soap);
 	};
@@ -820,7 +820,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__getFile(struct soap *soap)
 	 || soap_envelope_begin_out(soap)
 	 || soap_putheader(soap)
 	 || soap_body_begin_out(soap)
-	 || soap_put_condorSchedd__Base64DataAndStatusResponse(soap, &result, "condorSchedd:Base64DataAndStatusResponse", "")
+	 || soap_put_condor__Base64DataAndStatusResponse(soap, &result, "condor:Base64DataAndStatusResponse", "")
 	 || soap_body_end_out(soap)
 	 || soap_envelope_end_out(soap)
 #ifndef WITH_LEANER
@@ -832,13 +832,13 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__getFile(struct soap *soap)
 	return SOAP_OK;
 }
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__closeSpool(struct soap *soap)
-{	struct condorSchedd__closeSpool soap_tmp_condorSchedd__closeSpool;
-	struct condorSchedd__StatusResponse result;
-	soap_default_condorSchedd__StatusResponse(soap, &result);
-	soap_default_condorSchedd__closeSpool(soap, &soap_tmp_condorSchedd__closeSpool);
+SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condor__closeSpool(struct soap *soap)
+{	struct condor__closeSpool soap_tmp_condor__closeSpool;
+	struct condor__StatusResponse result;
+	soap_default_condor__StatusResponse(soap, &result);
+	soap_default_condor__closeSpool(soap, &soap_tmp_condor__closeSpool);
 	soap->encodingStyle = "";
-	soap_get_condorSchedd__closeSpool(soap, &soap_tmp_condorSchedd__closeSpool, "condorSchedd:closeSpool", NULL);
+	soap_get_condor__closeSpool(soap, &soap_tmp_condor__closeSpool, "condor:closeSpool", NULL);
 	if (soap->error)
 		return soap->error;
 	
@@ -849,17 +849,17 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__closeSpool(struct soap *soap)
 #endif
 	 || soap_end_recv(soap))
 		return soap->error;
-	soap->error = condorSchedd__closeSpool(soap, soap_tmp_condorSchedd__closeSpool.transaction, soap_tmp_condorSchedd__closeSpool.clusterId, soap_tmp_condorSchedd__closeSpool.jobId, result);
+	soap->error = condor__closeSpool(soap, soap_tmp_condor__closeSpool.transaction, soap_tmp_condor__closeSpool.clusterId, soap_tmp_condor__closeSpool.jobId, result);
 	if (soap->error)
 		return soap->error;
 	soap_serializeheader(soap);
-	soap_serialize_condorSchedd__StatusResponse(soap, &result);
+	soap_serialize_condor__StatusResponse(soap, &result);
 	soap_begin_count(soap);
 	if (soap->mode & SOAP_IO_LENGTH)
 	{	soap_envelope_begin_out(soap);
 		soap_putheader(soap);
 		soap_body_begin_out(soap);
-		soap_put_condorSchedd__StatusResponse(soap, &result, "condorSchedd:StatusResponse", "");
+		soap_put_condor__StatusResponse(soap, &result, "condor:StatusResponse", "");
 		soap_body_end_out(soap);
 		soap_envelope_end_out(soap);
 	};
@@ -867,7 +867,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__closeSpool(struct soap *soap)
 	 || soap_envelope_begin_out(soap)
 	 || soap_putheader(soap)
 	 || soap_body_begin_out(soap)
-	 || soap_put_condorSchedd__StatusResponse(soap, &result, "condorSchedd:StatusResponse", "")
+	 || soap_put_condor__StatusResponse(soap, &result, "condor:StatusResponse", "")
 	 || soap_body_end_out(soap)
 	 || soap_envelope_end_out(soap)
 #ifndef WITH_LEANER
@@ -879,13 +879,13 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__closeSpool(struct soap *soap)
 	return SOAP_OK;
 }
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__listSpool(struct soap *soap)
-{	struct condorSchedd__listSpool soap_tmp_condorSchedd__listSpool;
-	struct condorSchedd__FileInfoArrayAndStatusResponse result;
-	soap_default_condorSchedd__FileInfoArrayAndStatusResponse(soap, &result);
-	soap_default_condorSchedd__listSpool(soap, &soap_tmp_condorSchedd__listSpool);
+SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condor__listSpool(struct soap *soap)
+{	struct condor__listSpool soap_tmp_condor__listSpool;
+	struct condor__FileInfoArrayAndStatusResponse result;
+	soap_default_condor__FileInfoArrayAndStatusResponse(soap, &result);
+	soap_default_condor__listSpool(soap, &soap_tmp_condor__listSpool);
 	soap->encodingStyle = "";
-	soap_get_condorSchedd__listSpool(soap, &soap_tmp_condorSchedd__listSpool, "condorSchedd:listSpool", NULL);
+	soap_get_condor__listSpool(soap, &soap_tmp_condor__listSpool, "condor:listSpool", NULL);
 	if (soap->error)
 		return soap->error;
 	
@@ -896,17 +896,17 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__listSpool(struct soap *soap)
 #endif
 	 || soap_end_recv(soap))
 		return soap->error;
-	soap->error = condorSchedd__listSpool(soap, soap_tmp_condorSchedd__listSpool.transaction, soap_tmp_condorSchedd__listSpool.clusterId, soap_tmp_condorSchedd__listSpool.jobId, result);
+	soap->error = condor__listSpool(soap, soap_tmp_condor__listSpool.transaction, soap_tmp_condor__listSpool.clusterId, soap_tmp_condor__listSpool.jobId, result);
 	if (soap->error)
 		return soap->error;
 	soap_serializeheader(soap);
-	soap_serialize_condorSchedd__FileInfoArrayAndStatusResponse(soap, &result);
+	soap_serialize_condor__FileInfoArrayAndStatusResponse(soap, &result);
 	soap_begin_count(soap);
 	if (soap->mode & SOAP_IO_LENGTH)
 	{	soap_envelope_begin_out(soap);
 		soap_putheader(soap);
 		soap_body_begin_out(soap);
-		soap_put_condorSchedd__FileInfoArrayAndStatusResponse(soap, &result, "condorSchedd:FileInfoArrayAndStatusResponse", "");
+		soap_put_condor__FileInfoArrayAndStatusResponse(soap, &result, "condor:FileInfoArrayAndStatusResponse", "");
 		soap_body_end_out(soap);
 		soap_envelope_end_out(soap);
 	};
@@ -914,7 +914,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__listSpool(struct soap *soap)
 	 || soap_envelope_begin_out(soap)
 	 || soap_putheader(soap)
 	 || soap_body_begin_out(soap)
-	 || soap_put_condorSchedd__FileInfoArrayAndStatusResponse(soap, &result, "condorSchedd:FileInfoArrayAndStatusResponse", "")
+	 || soap_put_condor__FileInfoArrayAndStatusResponse(soap, &result, "condor:FileInfoArrayAndStatusResponse", "")
 	 || soap_body_end_out(soap)
 	 || soap_envelope_end_out(soap)
 #ifndef WITH_LEANER
@@ -926,13 +926,13 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__listSpool(struct soap *soap)
 	return SOAP_OK;
 }
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__discoverJobRequirements(struct soap *soap)
-{	struct condorSchedd__discoverJobRequirements soap_tmp_condorSchedd__discoverJobRequirements;
-	struct condorSchedd__RequirementsAndStatusResponse result;
-	soap_default_condorSchedd__RequirementsAndStatusResponse(soap, &result);
-	soap_default_condorSchedd__discoverJobRequirements(soap, &soap_tmp_condorSchedd__discoverJobRequirements);
+SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condor__discoverJobRequirements(struct soap *soap)
+{	struct condor__discoverJobRequirements soap_tmp_condor__discoverJobRequirements;
+	struct condor__RequirementsAndStatusResponse result;
+	soap_default_condor__RequirementsAndStatusResponse(soap, &result);
+	soap_default_condor__discoverJobRequirements(soap, &soap_tmp_condor__discoverJobRequirements);
 	soap->encodingStyle = "";
-	soap_get_condorSchedd__discoverJobRequirements(soap, &soap_tmp_condorSchedd__discoverJobRequirements, "condorSchedd:discoverJobRequirements", NULL);
+	soap_get_condor__discoverJobRequirements(soap, &soap_tmp_condor__discoverJobRequirements, "condor:discoverJobRequirements", NULL);
 	if (soap->error)
 		return soap->error;
 	
@@ -943,17 +943,17 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__discoverJobRequirements(struc
 #endif
 	 || soap_end_recv(soap))
 		return soap->error;
-	soap->error = condorSchedd__discoverJobRequirements(soap, soap_tmp_condorSchedd__discoverJobRequirements.jobAd, result);
+	soap->error = condor__discoverJobRequirements(soap, soap_tmp_condor__discoverJobRequirements.jobAd, result);
 	if (soap->error)
 		return soap->error;
 	soap_serializeheader(soap);
-	soap_serialize_condorSchedd__RequirementsAndStatusResponse(soap, &result);
+	soap_serialize_condor__RequirementsAndStatusResponse(soap, &result);
 	soap_begin_count(soap);
 	if (soap->mode & SOAP_IO_LENGTH)
 	{	soap_envelope_begin_out(soap);
 		soap_putheader(soap);
 		soap_body_begin_out(soap);
-		soap_put_condorSchedd__RequirementsAndStatusResponse(soap, &result, "condorSchedd:RequirementsAndStatusResponse", "");
+		soap_put_condor__RequirementsAndStatusResponse(soap, &result, "condor:RequirementsAndStatusResponse", "");
 		soap_body_end_out(soap);
 		soap_envelope_end_out(soap);
 	};
@@ -961,7 +961,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__discoverJobRequirements(struc
 	 || soap_envelope_begin_out(soap)
 	 || soap_putheader(soap)
 	 || soap_body_begin_out(soap)
-	 || soap_put_condorSchedd__RequirementsAndStatusResponse(soap, &result, "condorSchedd:RequirementsAndStatusResponse", "")
+	 || soap_put_condor__RequirementsAndStatusResponse(soap, &result, "condor:RequirementsAndStatusResponse", "")
 	 || soap_body_end_out(soap)
 	 || soap_envelope_end_out(soap)
 #ifndef WITH_LEANER
@@ -973,13 +973,13 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__discoverJobRequirements(struc
 	return SOAP_OK;
 }
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__createJobTemplate(struct soap *soap)
-{	struct condorSchedd__createJobTemplate soap_tmp_condorSchedd__createJobTemplate;
-	struct condorSchedd__ClassAdStructAndStatusResponse result;
-	soap_default_condorSchedd__ClassAdStructAndStatusResponse(soap, &result);
-	soap_default_condorSchedd__createJobTemplate(soap, &soap_tmp_condorSchedd__createJobTemplate);
+SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condor__createJobTemplate(struct soap *soap)
+{	struct condor__createJobTemplate soap_tmp_condor__createJobTemplate;
+	struct condor__ClassAdStructAndStatusResponse result;
+	soap_default_condor__ClassAdStructAndStatusResponse(soap, &result);
+	soap_default_condor__createJobTemplate(soap, &soap_tmp_condor__createJobTemplate);
 	soap->encodingStyle = "";
-	soap_get_condorSchedd__createJobTemplate(soap, &soap_tmp_condorSchedd__createJobTemplate, "condorSchedd:createJobTemplate", NULL);
+	soap_get_condor__createJobTemplate(soap, &soap_tmp_condor__createJobTemplate, "condor:createJobTemplate", NULL);
 	if (soap->error)
 		return soap->error;
 	
@@ -990,17 +990,17 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__createJobTemplate(struct soap
 #endif
 	 || soap_end_recv(soap))
 		return soap->error;
-	soap->error = condorSchedd__createJobTemplate(soap, soap_tmp_condorSchedd__createJobTemplate.clusterId, soap_tmp_condorSchedd__createJobTemplate.jobId, soap_tmp_condorSchedd__createJobTemplate.owner, soap_tmp_condorSchedd__createJobTemplate.type, soap_tmp_condorSchedd__createJobTemplate.cmd, soap_tmp_condorSchedd__createJobTemplate.args, soap_tmp_condorSchedd__createJobTemplate.requirements, result);
+	soap->error = condor__createJobTemplate(soap, soap_tmp_condor__createJobTemplate.clusterId, soap_tmp_condor__createJobTemplate.jobId, soap_tmp_condor__createJobTemplate.owner, soap_tmp_condor__createJobTemplate.type, soap_tmp_condor__createJobTemplate.cmd, soap_tmp_condor__createJobTemplate.args, soap_tmp_condor__createJobTemplate.requirements, result);
 	if (soap->error)
 		return soap->error;
 	soap_serializeheader(soap);
-	soap_serialize_condorSchedd__ClassAdStructAndStatusResponse(soap, &result);
+	soap_serialize_condor__ClassAdStructAndStatusResponse(soap, &result);
 	soap_begin_count(soap);
 	if (soap->mode & SOAP_IO_LENGTH)
 	{	soap_envelope_begin_out(soap);
 		soap_putheader(soap);
 		soap_body_begin_out(soap);
-		soap_put_condorSchedd__ClassAdStructAndStatusResponse(soap, &result, "condorSchedd:ClassAdStructAndStatusResponse", "");
+		soap_put_condor__ClassAdStructAndStatusResponse(soap, &result, "condor:ClassAdStructAndStatusResponse", "");
 		soap_body_end_out(soap);
 		soap_envelope_end_out(soap);
 	};
@@ -1008,7 +1008,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__createJobTemplate(struct soap
 	 || soap_envelope_begin_out(soap)
 	 || soap_putheader(soap)
 	 || soap_body_begin_out(soap)
-	 || soap_put_condorSchedd__ClassAdStructAndStatusResponse(soap, &result, "condorSchedd:ClassAdStructAndStatusResponse", "")
+	 || soap_put_condor__ClassAdStructAndStatusResponse(soap, &result, "condor:ClassAdStructAndStatusResponse", "")
 	 || soap_body_end_out(soap)
 	 || soap_envelope_end_out(soap)
 #ifndef WITH_LEANER

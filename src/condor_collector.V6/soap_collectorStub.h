@@ -12,14 +12,14 @@ SOAP_BEGIN_NAMESPACE(soap_collector)
 
 /* Enumerations */
 
-#ifndef _SOAP_condorCore__StatusCode
-#define _SOAP_condorCore__StatusCode
-enum condorCore__StatusCode {SUCCESS = 0, FAIL = 1, INVALIDTRANSACTION = 2, UNKNOWNCLUSTER = 3, UNKNOWNJOB = 4, UNKNOWNFILE = 5, INCOMPLETE = 6, INVALIDOFFSET = 7, ALREADYEXISTS = 8};
+#ifndef _SOAP_condor__StatusCode
+#define _SOAP_condor__StatusCode
+enum condor__StatusCode {SUCCESS = 0, FAIL = 1, INVALIDTRANSACTION = 2, UNKNOWNCLUSTER = 3, UNKNOWNJOB = 4, UNKNOWNFILE = 5, INCOMPLETE = 6, INVALIDOFFSET = 7, ALREADYEXISTS = 8};
 #endif
 
-#ifndef _SOAP_condorCore__ClassAdAttrType
-#define _SOAP_condorCore__ClassAdAttrType
-enum condorCore__ClassAdAttrType {INTEGER_ATTR = 110, FLOAT_ATTR = 102, STRING_ATTR = 115, EXPRESSION_ATTR = 120, BOOLEAN_ATTR = 98, UNDEFINED_ATTR = 117, ERROR_ATTR = 101};
+#ifndef _SOAP_condor__ClassAdAttrType
+#define _SOAP_condor__ClassAdAttrType
+enum condor__ClassAdAttrType {INTEGER_ATTR = 110, FLOAT_ATTR = 102, STRING_ATTR = 115, EXPRESSION_ATTR = 120, BOOLEAN_ATTR = 98, UNDEFINED_ATTR = 117, ERROR_ATTR = 101};
 #endif
 
 /* Classes and Structs */
@@ -31,137 +31,137 @@ struct xsd__base64Binary
 	int __size;
 };
 
-/* condorCore:Status: */
-struct condorCore__Status
+/* condor:Status: */
+struct condor__Status
 {
-	enum condorCore__StatusCode code;
+	enum condor__StatusCode code;
 	char *message;
-	struct condorCore__Status *next;
+	struct condor__Status *next;
 };
 
-/* condorCore:ClassAdStructAttr: */
-struct condorCore__ClassAdStructAttr
+/* condor:ClassAdStructAttr: */
+struct condor__ClassAdStructAttr
 {
 	char *name;
-	enum condorCore__ClassAdAttrType type;
+	enum condor__ClassAdAttrType type;
 	char *value;
 };
 
-/* SOAP encoded array of condorCore:ClassAdStructAttr schema type: */
+/* SOAP encoded array of condor:ClassAdStructAttr schema type: */
 struct ClassAdStruct
 {
-	struct condorCore__ClassAdStructAttr *__ptr;
+	struct condor__ClassAdStructAttr *__ptr;
 	int __size;
 };
 
-/* SOAP encoded array of condorCore:ClassAdStructAttr[] schema type: */
+/* SOAP encoded array of condor:ClassAdStructAttr[] schema type: */
 struct ClassAdStructArray
 {
 	struct ClassAdStruct *__ptr;
 	int __size;
 };
 
-/* condorCore:ClassAdStructAndStatus: */
-struct condorCore__ClassAdStructAndStatus
+/* condor:ClassAdStructAndStatus: */
+struct condor__ClassAdStructAndStatus
 {
-	struct condorCore__Status status;
+	struct condor__Status status;
 	struct ClassAdStruct classAd;
 };
 
-/* condorCore:ClassAdStructArrayAndStatus: */
-struct condorCore__ClassAdStructArrayAndStatus
+/* condor:ClassAdStructArrayAndStatus: */
+struct condor__ClassAdStructArrayAndStatus
 {
-	struct condorCore__Status status;
+	struct condor__Status status;
 	struct ClassAdStructArray classAdArray;
 };
 
-/* condorCore:StringAndStatus: */
-struct condorCore__StringAndStatus
+/* condor:StringAndStatus: */
+struct condor__StringAndStatus
 {
-	struct condorCore__Status status;
+	struct condor__Status status;
 	char *message;
 };
 
-/* condorCollector:queryStartdAdsResponse: */
-struct condorCollector__queryStartdAdsResponse
+/* condor:queryStartdAdsResponse: */
+struct condor__queryStartdAdsResponse
 {
 	struct ClassAdStructArray result;	/* return */
 };
 
-/* condorCollector:queryStartdAds: */
-struct condorCollector__queryStartdAds
+/* condor:queryStartdAds: */
+struct condor__queryStartdAds
 {
 	char *constraint;
 };
 
-/* condorCollector:queryScheddAdsResponse: */
-struct condorCollector__queryScheddAdsResponse
+/* condor:queryScheddAdsResponse: */
+struct condor__queryScheddAdsResponse
 {
 	struct ClassAdStructArray result;	/* return */
 };
 
-/* condorCollector:queryScheddAds: */
-struct condorCollector__queryScheddAds
+/* condor:queryScheddAds: */
+struct condor__queryScheddAds
 {
 	char *constraint;
 };
 
-/* condorCollector:queryMasterAdsResponse: */
-struct condorCollector__queryMasterAdsResponse
+/* condor:queryMasterAdsResponse: */
+struct condor__queryMasterAdsResponse
 {
 	struct ClassAdStructArray result;	/* return */
 };
 
-/* condorCollector:queryMasterAds: */
-struct condorCollector__queryMasterAds
+/* condor:queryMasterAds: */
+struct condor__queryMasterAds
 {
 	char *constraint;
 };
 
-/* condorCollector:querySubmittorAdsResponse: */
-struct condorCollector__querySubmittorAdsResponse
+/* condor:querySubmittorAdsResponse: */
+struct condor__querySubmittorAdsResponse
 {
 	struct ClassAdStructArray result;	/* return */
 };
 
-/* condorCollector:querySubmittorAds: */
-struct condorCollector__querySubmittorAds
+/* condor:querySubmittorAds: */
+struct condor__querySubmittorAds
 {
 	char *constraint;
 };
 
-/* condorCollector:queryLicenseAdsResponse: */
-struct condorCollector__queryLicenseAdsResponse
+/* condor:queryLicenseAdsResponse: */
+struct condor__queryLicenseAdsResponse
 {
 	struct ClassAdStructArray result;	/* return */
 };
 
-/* condorCollector:queryLicenseAds: */
-struct condorCollector__queryLicenseAds
+/* condor:queryLicenseAds: */
+struct condor__queryLicenseAds
 {
 	char *constraint;
 };
 
-/* condorCollector:queryStorageAdsResponse: */
-struct condorCollector__queryStorageAdsResponse
+/* condor:queryStorageAdsResponse: */
+struct condor__queryStorageAdsResponse
 {
 	struct ClassAdStructArray result;	/* return */
 };
 
-/* condorCollector:queryStorageAds: */
-struct condorCollector__queryStorageAds
+/* condor:queryStorageAds: */
+struct condor__queryStorageAds
 {
 	char *constraint;
 };
 
-/* condorCollector:queryAnyAdsResponse: */
-struct condorCollector__queryAnyAdsResponse
+/* condor:queryAnyAdsResponse: */
+struct condor__queryAnyAdsResponse
 {
 	struct ClassAdStructArray result;	/* return */
 };
 
-/* condorCollector:queryAnyAds: */
-struct condorCollector__queryAnyAds
+/* condor:queryAnyAds: */
+struct condor__queryAnyAds
 {
 	char *constraint;
 };
@@ -217,35 +217,35 @@ typedef char xsd__byte;
 
 /* Remote Methods */
 
-SOAP_FMAC5 int SOAP_FMAC6 condorCollector__queryStartdAds(struct soap*, char *, struct ClassAdStructArray &);
+SOAP_FMAC5 int SOAP_FMAC6 condor__queryStartdAds(struct soap*, char *, struct ClassAdStructArray &);
 
-SOAP_FMAC5 int SOAP_FMAC6 condorCollector__queryScheddAds(struct soap*, char *, struct ClassAdStructArray &);
+SOAP_FMAC5 int SOAP_FMAC6 condor__queryScheddAds(struct soap*, char *, struct ClassAdStructArray &);
 
-SOAP_FMAC5 int SOAP_FMAC6 condorCollector__queryMasterAds(struct soap*, char *, struct ClassAdStructArray &);
+SOAP_FMAC5 int SOAP_FMAC6 condor__queryMasterAds(struct soap*, char *, struct ClassAdStructArray &);
 
-SOAP_FMAC5 int SOAP_FMAC6 condorCollector__querySubmittorAds(struct soap*, char *, struct ClassAdStructArray &);
+SOAP_FMAC5 int SOAP_FMAC6 condor__querySubmittorAds(struct soap*, char *, struct ClassAdStructArray &);
 
-SOAP_FMAC5 int SOAP_FMAC6 condorCollector__queryLicenseAds(struct soap*, char *, struct ClassAdStructArray &);
+SOAP_FMAC5 int SOAP_FMAC6 condor__queryLicenseAds(struct soap*, char *, struct ClassAdStructArray &);
 
-SOAP_FMAC5 int SOAP_FMAC6 condorCollector__queryStorageAds(struct soap*, char *, struct ClassAdStructArray &);
+SOAP_FMAC5 int SOAP_FMAC6 condor__queryStorageAds(struct soap*, char *, struct ClassAdStructArray &);
 
-SOAP_FMAC5 int SOAP_FMAC6 condorCollector__queryAnyAds(struct soap*, char *, struct ClassAdStructArray &);
+SOAP_FMAC5 int SOAP_FMAC6 condor__queryAnyAds(struct soap*, char *, struct ClassAdStructArray &);
 
 /* Stubs */
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorCollector__queryStartdAds(struct soap*, const char*, const char*, char *, struct ClassAdStructArray &);
+SOAP_FMAC5 int SOAP_FMAC6 soap_call_condor__queryStartdAds(struct soap*, const char*, const char*, char *, struct ClassAdStructArray &);
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorCollector__queryScheddAds(struct soap*, const char*, const char*, char *, struct ClassAdStructArray &);
+SOAP_FMAC5 int SOAP_FMAC6 soap_call_condor__queryScheddAds(struct soap*, const char*, const char*, char *, struct ClassAdStructArray &);
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorCollector__queryMasterAds(struct soap*, const char*, const char*, char *, struct ClassAdStructArray &);
+SOAP_FMAC5 int SOAP_FMAC6 soap_call_condor__queryMasterAds(struct soap*, const char*, const char*, char *, struct ClassAdStructArray &);
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorCollector__querySubmittorAds(struct soap*, const char*, const char*, char *, struct ClassAdStructArray &);
+SOAP_FMAC5 int SOAP_FMAC6 soap_call_condor__querySubmittorAds(struct soap*, const char*, const char*, char *, struct ClassAdStructArray &);
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorCollector__queryLicenseAds(struct soap*, const char*, const char*, char *, struct ClassAdStructArray &);
+SOAP_FMAC5 int SOAP_FMAC6 soap_call_condor__queryLicenseAds(struct soap*, const char*, const char*, char *, struct ClassAdStructArray &);
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorCollector__queryStorageAds(struct soap*, const char*, const char*, char *, struct ClassAdStructArray &);
+SOAP_FMAC5 int SOAP_FMAC6 soap_call_condor__queryStorageAds(struct soap*, const char*, const char*, char *, struct ClassAdStructArray &);
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorCollector__queryAnyAds(struct soap*, const char*, const char*, char *, struct ClassAdStructArray &);
+SOAP_FMAC5 int SOAP_FMAC6 soap_call_condor__queryAnyAds(struct soap*, const char*, const char*, char *, struct ClassAdStructArray &);
 
 /* Skeletons */
 
@@ -253,19 +253,19 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve(struct soap*);
 
 SOAP_FMAC5 int SOAP_FMAC6 soap_serve_request(struct soap*);
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorCollector__queryStartdAds(struct soap*);
+SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condor__queryStartdAds(struct soap*);
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorCollector__queryScheddAds(struct soap*);
+SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condor__queryScheddAds(struct soap*);
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorCollector__queryMasterAds(struct soap*);
+SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condor__queryMasterAds(struct soap*);
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorCollector__querySubmittorAds(struct soap*);
+SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condor__querySubmittorAds(struct soap*);
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorCollector__queryLicenseAds(struct soap*);
+SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condor__queryLicenseAds(struct soap*);
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorCollector__queryStorageAds(struct soap*);
+SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condor__queryStorageAds(struct soap*);
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorCollector__queryAnyAds(struct soap*);
+SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condor__queryAnyAds(struct soap*);
 
 SOAP_END_NAMESPACE(soap_collector)
 

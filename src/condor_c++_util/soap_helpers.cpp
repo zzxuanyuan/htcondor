@@ -77,8 +77,8 @@ convert_ad_to_adStruct(struct soap *s,
 
   // allocate space for attributes
   ad_struct->__size = num_attrs;
-  ad_struct->__ptr = (struct condorCore__ClassAdStructAttr *)
-    soap_malloc(s,num_attrs * sizeof(struct condorCore__ClassAdStructAttr));
+  ad_struct->__ptr = (struct condor__ClassAdStructAttr *)
+    soap_malloc(s,num_attrs * sizeof(struct condor__ClassAdStructAttr));
 
   // second pass: serialize attributes
   attr_index = 0;

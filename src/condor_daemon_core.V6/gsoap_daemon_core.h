@@ -1,8 +1,8 @@
 #import "gsoap_daemon_core_types.h"
 
-//gsoap condorCore service name: condorCore
-//gsoap condorCore service encoding: encoding-style
+//gsoap condor service name: condor
+//gsoap condor service encoding: encoding-style
 
-int condorCore__getInfoAd(void *_, struct condorCore__ClassAdStructAndStatus & ad);
-int condorCore__getVersionString(void *_, struct condorCore__StringAndStatus & verstring);
-int condorCore__getPlatformString(void *_, struct condorCore__StringAndStatus & verstring);
+int condor__getInfoAd(void *_, struct condor__ClassAdStructAndStatus & ad);
+int condor__getVersionString(void *_, struct condor__StringAndStatus & verstring);
+int condor__getPlatformString(void *_, struct condor__StringAndStatus & verstring);
