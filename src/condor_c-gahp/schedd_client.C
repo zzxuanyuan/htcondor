@@ -387,7 +387,7 @@ doContactSchedd()
 	
 
 	// JOB_STAGE_IN
-	SimpleList <SchedDRequest*> this_batch;
+	SimpleList <SchedDRequest*> stage_in_batch;
 
 	command_queue.Rewind();
 	while (command_queue.Next(current_command)) {
@@ -399,45 +399,104 @@ doContactSchedd()
 			continue;
 
 
-		this_batch.Append (current_command);
+		stage_in_batch.Append (current_command);
 	}
 
-	if (this_batch.Number() > 0) {
-	ClassAd ** array = new ClassAd*[this_batch.Number()];
-	i=0;
-	this_batch.Rewind();
-	while (this_batch.Next(current_command)) {
-		array[i++] = current_command->classad;
-	}
+	if (stage_in_batch.Number() > 0) {
+		ClassAd ** array = new ClassAd*[stage_in_batch.Number()];
+		i=0;
+		stage_in_batch.Rewind();
+		while (stage_in_batch.Next(current_command)) {
+			array[i++] = current_command->classad;
+		}
+dprintf(D_ALWAYS,"*** spooling %d job ads\n",stage_in_batch.Number());
 
-  	error = FALSE;
+		error = FALSE;
 
-  	if (!dc_schedd.spoolJobFiles( 1,
-  								  array,
-  								  &errstack )) {
-  		error = TRUE;
-  		sprintf (error_msg, "Error connecting to schedd %s", ScheddAddr);
-  		dprintf (D_ALWAYS, "%s\n", error_msg);
-  	}
+		if (!dc_schedd.spoolJobFiles( stage_in_batch.Number(),
+									  array,
+									  &errstack )) {
+			error = TRUE;
+			sprintf (error_msg, "Error connecting to schedd %s: %s", ScheddAddr, errstack.getFullText());
+			dprintf (D_ALWAYS, "%s\n", error_msg);
+		}
   
-	this_batch.Rewind();
-	while (this_batch.Next(current_command)) {
-		current_command->status = SchedDRequest::SDCS_COMPLETED;
+		stage_in_batch.Rewind();
+		while (stage_in_batch.Next(current_command)) {
+			current_command->status = SchedDRequest::SDCS_COMPLETED;
 
-		if (error) {
-			const char * result[] = {
+			if (error) {
+				const char * result[] = {
 								GAHP_RESULT_FAILURE,
 								error_msg };
-			enqueue_result (current_command->request_id, result, 2);
+				enqueue_result (current_command->request_id, result, 2);
 
-		} else {
-			const char * result[] = {
+			} else {
+				const char * result[] = {
 										GAHP_RESULT_SUCCESS,
 										NULL };
-			enqueue_result (current_command->request_id, result, 2);
-		}
-	} // elihw (command_queue)
+				enqueue_result (current_command->request_id, result, 2);
+			}
+		} // elihw (command_queue)
 	} // fi has STAGE_IN requests
+
+
+	dprintf (D_FULLDEBUG, "Processing JOB_STAGE_OUT requests\n");
+	
+
+	// JOB_STAGE_OUT
+	SimpleList <SchedDRequest*> stage_out_batch;
+
+	command_queue.Rewind();
+	while (command_queue.Next(current_command)) {
+
+		if (current_command->status != SchedDRequest::SDCS_NEW)
+			continue;
+
+		if (current_command->command != SchedDRequest::SDC_JOB_STAGE_OUT)
+			continue;
+
+
+		stage_out_batch.Append (current_command);
+	}
+
+	if (stage_out_batch.Number() > 0) {
+		MyString constraint = "";
+		stage_out_batch.Rewind();
+		while (stage_out_batch.Next(current_command)) {
+			constraint.sprintf_cat( "(ClusterId==%d&&ProcId==%d)||",
+									current_command->cluster_id,
+									current_command->proc_id );
+		}
+		constraint += "True";
+
+		error = FALSE;
+
+		if (!dc_schedd.receiveJobSandbox( constraint.Value(),
+										  &errstack )) {
+			error = TRUE;
+			sprintf (error_msg, "Error connecting to schedd %s", ScheddAddr);
+			dprintf (D_ALWAYS, "%s\n", error_msg);
+		}
+  
+		stage_out_batch.Rewind();
+		while (stage_out_batch.Next(current_command)) {
+			current_command->status = SchedDRequest::SDCS_COMPLETED;
+
+			if (error) {
+				const char * result[] = {
+								GAHP_RESULT_FAILURE,
+								error_msg };
+				enqueue_result (current_command->request_id, result, 2);
+
+			} else {
+				const char * result[] = {
+										GAHP_RESULT_SUCCESS,
+										NULL };
+				enqueue_result (current_command->request_id, result, 2);
+			}
+		} // elihw (command_queue)
+	} // fi has STAGE_OUT requests
 
 
 	// Now do all the QMGMT transactions
@@ -902,6 +961,25 @@ handle_gahp_command(char ** argv, int argc) {
 				classad));
 
 		delete classad;
+		return TRUE;
+	} else if (strcasecmp (argv[0], GAHP_COMMAND_JOB_STAGE_OUT) ==0) {
+		int req_id;
+		int cluster_id, proc_id;
+
+		if (!(argc == 4 &&
+			  get_int (argv[1], &req_id) &&
+			  get_job_id (argv[3], &cluster_id, &proc_id))) {
+
+			dprintf (D_ALWAYS, "Invalid args to %s\n", argv[0]);
+			return FALSE;
+		}
+
+		enqueue_command (
+			SchedDRequest::createJobStageOutRequest(
+				req_id,
+				cluster_id,
+				proc_id));
+
 		return TRUE;
 	}
 
