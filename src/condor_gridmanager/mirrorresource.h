@@ -59,6 +59,7 @@ class MirrorResource : public BaseResource
 
 	static int scheddPollInterval;
 
+	StringList submitter_ids;
 	MyString submitter_constraint;
 	int scheddPollTid;
 	char *mirrorScheddName;

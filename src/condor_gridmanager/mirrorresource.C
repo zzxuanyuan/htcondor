@@ -122,14 +122,17 @@ void MirrorResource::RegisterJob( MirrorJob *job, const char *submitter_id )
 {
 	registeredJobs->Append( job );
 
-	if ( submitter_constraint.Length() == 0 ) {
-		submitter_constraint.sprintf( "(%s=?=\"%s\")",
-									  ATTR_MIRROR_SUBMITTER_ID,
-									  submitter_id );
-	} else {
-		submitter_constraint.sprintf_cat( "||(%s=?=\"%s\")",
+	if ( submitter_ids.contains( submitter_id ) == false ) {
+		submitter_ids.append( submitter_id );
+		if ( submitter_constraint.Length() == 0 ) {
+			submitter_constraint.sprintf( "(%s=?=\"%s\")",
 										  ATTR_MIRROR_SUBMITTER_ID,
 										  submitter_id );
+		} else {
+			submitter_constraint.sprintf_cat( "||(%s=?=\"%s\")",
+											  ATTR_MIRROR_SUBMITTER_ID,
+											  submitter_id );
+		}
 	}
 }
 
