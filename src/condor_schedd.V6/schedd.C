@@ -1797,6 +1797,9 @@ int Scheduler::aboutToSpawnJobHandler(int cluster, int proc)
 	ASSERT(proc >= 0);
 
 	// claim dynamic accounts here
+	// NOTE: we only want to claim a dynamic account once, however,
+	// this function is called *every* time we're about to spawn a job
+	// handler.  so, this is the spot to be careful about this issue.
 
 #ifndef WIN32
 	ClassAd * job_ad = GetJobAd( cluster, proc );
