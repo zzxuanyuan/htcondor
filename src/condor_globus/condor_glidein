@@ -365,6 +365,8 @@ sub silently {
 		#child
 		close STDOUT;
 		close STDERR;
+		open( STDOUT, ">/dev/null" );
+		open( STDERR, ">/dev/null" );
 		exec( @_ );
 	}
 	return $?;
