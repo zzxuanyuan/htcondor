@@ -2615,10 +2615,13 @@ GahpClient::unicore_job_create(
 	Gahp_Args* result = get_pending_result(command,buf);
 	if ( result ) {
 		// command completed.
-		if (result->argc != 4) {
+		if (result->argc != 3) {
 			EXCEPT("Bad %s Result",command);
 		}
-		int rc = atoi(result->argv[1]);
+		int rc = 1;
+		if ( result->argv[1][0] == 'S' ) {
+			rc = 0;
+		}
 		if ( result->argv[2] && strcasecmp(result->argv[2], NULLSTRING) ) {
 			*job_contact = strdup(result->argv[2]);
 		}
@@ -2670,10 +2673,13 @@ GahpClient::unicore_job_start(const char * job_contact)
 	Gahp_Args* result = get_pending_result(command,buf);
 	if ( result ) {
 		// command completed.
-		if (result->argc != 3) {
+		if (result->argc != 2) {
 			EXCEPT("Bad %s Result",command);
 		}
-		int rc = atoi(result->argv[1]);
+		int rc = 1;
+		if ( result->argv[1][0] == 'S' ) {
+			rc = 0;
+		}
 		delete result;
 		return rc;
 	}
@@ -2722,10 +2728,13 @@ GahpClient::unicore_job_destroy(const char * job_contact)
 	Gahp_Args* result = get_pending_result(command,buf);
 	if ( result ) {
 		// command completed.
-		if (result->argc != 3) {
+		if (result->argc != 2) {
 			EXCEPT("Bad %s Result",command);
 		}
-		int rc = atoi(result->argv[1]);
+		int rc = 1;
+		if ( result->argv[1][0] == 'S' ) {
+			rc = 0;
+		}
 		delete result;
 		return rc;
 	}
@@ -2776,12 +2785,15 @@ GahpClient::unicore_job_status(const char * job_contact,
 	Gahp_Args* result = get_pending_result(command,buf);
 	if ( result ) {
 		// command completed.
-		if (result->argc != 4) {
+		if (result->argc != 3) {
 			EXCEPT("Bad %s Result",command);
 		}
-		int rc = atoi(result->argv[1]);
-		if ( rc == 0 ) {
-			*job_status = atoi(result->argv[2]);
+		int rc = 1;
+		if ( result->argv[1][0] == 'S' ) {
+			rc = 0;
+		}
+		if ( result->argv[2] && strcasecmp(result->argv[2], NULLSTRING) ) {
+			*job_status = strdup(result->argv[2]);
 		}
 		delete result;
 		return rc;
