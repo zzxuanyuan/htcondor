@@ -1191,6 +1191,20 @@ RemoteResource::hadContact( void )
 bool
 RemoteResource::supportsReconnect( void )
 {
+		// even if the starter we're talking to supports reconnect, we
+		// only want to return true if the job we're running supports
+		// it too (i.e. has a GlobalJobId and a JobLeaseDuration).
+	const char* gjid = shadow->getGlobalJobId();
+	if( ! gjid ) {
+		return false;
+	}
+	int tmp;
+	if( ! jobAd->LookupInteger(ATTR_JOB_LEASE_DURATION, tmp) ) {
+		return false;
+	}
+
+		// if we got this far, the job supports it, so we can just
+		// return whether the remote resource does or not.
 	return supports_reconnect;
 }
 
