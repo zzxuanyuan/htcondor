@@ -67,8 +67,6 @@ bool operator==( const PROC_ID a, const PROC_ID b)
 
 template class HashTable<PROC_ID, BaseJob *>;
 template class HashBucket<PROC_ID, BaseJob *>;
-template class HashTable<HashKey, char *>;
-template class HashBucket<HashKey, char *>;
 template class HashTable<PROC_ID, ScheddUpdateAction *>;
 template class HashBucket<PROC_ID, ScheddUpdateAction *>;
 
