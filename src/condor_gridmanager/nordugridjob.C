@@ -343,8 +343,8 @@ int NordugridJob::doEvaluateState()
 									   job_id );
 					gmState = GM_SUBMIT_SAVE;
 				} else {
-					dprintf(D_ALWAYS,"(%d.%d) job submit failed!\n",
-							procID.cluster, procID.proc);
+					dprintf(D_ALWAYS,"(%d.%d) job submit failed: %s\n",
+							procID.cluster, procID.proc, errorString.Value());
 					myResource->ReleaseConnection( this );
 					gmState = GM_UNSUBMITTED;
 				}
@@ -416,8 +416,9 @@ int NordugridJob::doEvaluateState()
 					break;
 				} else if ( rc == TASK_FAILED ) {
 					// What to do about failure?
-					dprintf( D_ALWAYS, "(%d.%d) job probe failed!\n",
-							 procID.cluster, procID.proc );
+					dprintf( D_ALWAYS, "(%d.%d) job probe failed: %s\n",
+							 procID.cluster, procID.proc,
+							 errorString.Value() );
 				} else {
 					remoteJobState = new_remote_state;
 					//requestScheddUpdate( this );
@@ -467,8 +468,8 @@ int NordugridJob::doEvaluateState()
 			if ( rc == TASK_QUEUED ) {
 				break;
 			} else if ( rc == TASK_FAILED ) {
-				dprintf( D_ALWAYS, "(%d.%d) job cleanup failed!\n",
-						 procID.cluster, procID.proc );
+				dprintf( D_ALWAYS, "(%d.%d) job cleanup failed: %s\n",
+						 procID.cluster, procID.proc, errorString.Value() );
 				gmState = GM_HOLD;
 				break;
 			}
@@ -496,8 +497,8 @@ int NordugridJob::doEvaluateState()
 				gmState = GM_FAILED;
 			} else {
 				// What to do about a failed cancel?
-				dprintf( D_ALWAYS, "(%d.%d) job cancel failed!\n",
-						 procID.cluster, procID.proc );
+				dprintf( D_ALWAYS, "(%d.%d) job cancel failed: %s\n",
+						 procID.cluster, procID.proc, errorString.Value() );
 				gmState = GM_FAILED;
 			}
 			} break;
@@ -687,12 +688,13 @@ int NordugridJob::doSubmit( char *&job_id )
 	rsl_len = strlen( rsl->Value() );
 
 	if ( ftp_lite_change_dir( ftp_srvr, "/jobs/new" ) == 0 ) {
-		errorString = "ftp_lite_change_dir(/jobs/new) failed";
+		errorString.sprintf( "ftp_lite_change_dir(/jobs/new) failed, errno=%d",
+							 errno );
 		goto doSubmit_error_exit;
 	}
 
 	if ( ftp_lite_print_dir( ftp_srvr, &job_dir ) == 0 ) {
-		errorString = "ftp_lite_print_dir() failed";
+		errorString.sprintf( "ftp_lite_print_dir() failed, errno=%d", errno );
 		goto doSubmit_error_exit;
 	}
 
@@ -706,7 +708,7 @@ int NordugridJob::doSubmit( char *&job_id )
 	ftp_put_fp = ftp_lite_put( ftp_srvr, "/jobs/new/job", 0,
 							   FTP_LITE_WHOLE_FILE );
 	if ( ftp_put_fp == NULL ) {
-		errorString = "ftp_lite_put() failed";
+		errorString.sprintf( "ftp_lite_put() failed, errno=%d", errno );
 		goto doSubmit_error_exit;
 	}
 
@@ -719,16 +721,16 @@ int NordugridJob::doSubmit( char *&job_id )
 	ftp_put_fp = NULL;
 
 	if ( ftp_lite_done( ftp_srvr ) == 0 ) {
-		errorString = "ftp_lite_done() failed";
+		errorString.sprintf( "ftp_lite_done() failed, errno=%d", errno );
 		goto doSubmit_error_exit;
 	}
 
 	if ( ftp_lite_change_dir( ftp_srvr, "/jobs" ) == 0 ) {
-		errorString = "ftp_lite_change_dir(/jobs) failed";
+		errorString.sprintf( "ftp_lite_change_dir(/jobs) failed, errno=%d",
+							 errno );
 		goto doSubmit_error_exit;
 	}
 
-	dprintf(D_FULLDEBUG,"*** job_dir='%s' job_id='%s'\n",job_dir,tmp_job_id);
 	job_id = strdup( tmp_job_id );
 	free( job_dir );
 	delete rsl;
@@ -747,7 +749,6 @@ int NordugridJob::doSubmit( char *&job_id )
 	}
 	myResource->ReleaseConnection( this );
 
-dprintf(D_FULLDEBUG,"*** failure: %s\n",errorString.Value());
 	return TASK_FAILED;
 }
 
@@ -768,13 +769,14 @@ int NordugridJob::doStatus( int &new_remote_state )
 
 	status_fp = ftp_lite_get( ftp_srvr, filename.Value(), 0 );
 	if ( status_fp == NULL ) {
-		errorString = "ftp_lite_get() failed";
+		errorString.sprintf( "ftp_lite_get() failed, errno=%d", errno );
 		goto doStatus_error_exit;
 	}
 
 	status_len = ftp_lite_stream_to_buffer( status_fp, &status_buff );
 	if ( status_len == -1 ) {
-		errorString = "ftp_lite_stream_to_buffer() failed";
+		errorString.sprintf( "ftp_lite_stream_to_buffer() failed, errno=%d",
+							 errno );
 		goto doStatus_error_exit;
 	}
 
@@ -782,7 +784,7 @@ int NordugridJob::doStatus( int &new_remote_state )
 	status_fp = NULL;
 
 	if ( ftp_lite_done( ftp_srvr ) == 0 ) {
-		errorString = "ftp_lite_done() failed";
+		errorString.sprintf( "ftp_lite_done() failed, errno=%d", errno );
 		goto doStatus_error_exit;
 	}
 
@@ -791,8 +793,7 @@ int NordugridJob::doStatus( int &new_remote_state )
 	status_buff[status_len-1] = '\0';
 	new_remote_state = remoteStateNameConvert( status_buff );
 	if ( new_remote_state == REMOTE_STATE_UNKNOWN ) {
-		errorString = "invalid job status";
-dprintf(D_FULLDEBUG,"*** invalid job status of '%s'\n",status_buff);
+		errorString.sprintf( "invalid job status of '%s'", status_buff );
 		goto doStatus_error_exit;
 	}
 
@@ -807,7 +808,6 @@ dprintf(D_FULLDEBUG,"*** invalid job status of '%s'\n",status_buff);
 	}
 	myResource->ReleaseConnection( this );
 
-dprintf(D_FULLDEBUG,"*** failure: %s\n",errorString.Value());
 	return TASK_FAILED;
 }
 
@@ -823,7 +823,7 @@ int NordugridJob::doRemove()
 
 	dir.sprintf( "/jobs/%s", remoteJobId );
 	if ( ftp_lite_delete_dir( ftp_srvr, dir.Value() ) == 0 ) {
-		errorString = "ftp_lite_delete_dir() failed";
+		errorString.sprintf( "ftp_lite_delete_dir() failed, errno=%d", errno );
 		goto doRemove_error_exit;
 	}
 
@@ -834,7 +834,6 @@ int NordugridJob::doRemove()
  doRemove_error_exit:
 	myResource->ReleaseConnection( this );
 
-dprintf(D_FULLDEBUG,"*** failure: %s\n",errorString.Value());
 	return TASK_FAILED;
 }
 
@@ -912,12 +911,13 @@ int NordugridJob::doStageIn()
 		curr_ftp_fp = ftp_lite_put( ftp_srvr, full_filename.Value(), 0,
 									FTP_LITE_WHOLE_FILE );
 		if ( curr_ftp_fp == NULL ) {
-			errorString = "ftp_lite_put() failed";
+			errorString.sprintf( "ftp_lite_put() failed, errno=%d", errno );
 			goto doStageIn_error_exit;
 		}
 
 		if ( ftp_lite_stream_to_stream( curr_file_fp, curr_ftp_fp ) == -1 ) {
-			errorString = "ftp_lite_stream_to_stream failed";
+			errorString.sprintf( "ftp_lite_stream_to_stream failed, errno=%d",
+								 errno );
 			goto doStageIn_error_exit;
 		}
 
@@ -928,7 +928,7 @@ int NordugridJob::doStageIn()
 		curr_ftp_fp = NULL;
 
 		if ( ftp_lite_done( ftp_srvr ) == 0 ) {
-			errorString = "ftp_lite_done() failed";
+			errorString.sprintf( "ftp_lite_done() failed, errno=%d", errno );
 			goto doStageIn_error_exit;
 		}
 
@@ -1024,12 +1024,13 @@ int NordugridJob::doStageOut()
 							   basename(curr_filename) );
 		curr_ftp_fp = ftp_lite_get( ftp_srvr, full_filename.Value(), 0 );
 		if ( curr_ftp_fp == NULL ) {
-			errorString = "ftp_lite_get() failed";
+			errorString.sprintf( "ftp_lite_get() failed, errno=%d", errno );
 			goto doStageOut_error_exit;
 		}
 
 		if ( ftp_lite_stream_to_stream( curr_ftp_fp, curr_file_fp ) == -1 ) {
-			errorString = "ftp_lite_stream_to_stream failed";
+			errorString.sprintf( "ftp_lite_stream_to_stream failed, errno=%d",
+								 errno );
 			goto doStageOut_error_exit;
 		}
 
@@ -1040,7 +1041,7 @@ int NordugridJob::doStageOut()
 		curr_ftp_fp = NULL;
 
 		if ( ftp_lite_done( ftp_srvr ) == 0 ) {
-			errorString = "ftp_lite_done() failed";
+			errorString.sprintf( "ftp_lite_done() failed, errno=%d", errno );
 			goto doStageOut_error_exit;
 		}
 
@@ -1082,13 +1083,13 @@ int NordugridJob::doExitInfo()
 
 	dir.sprintf( "/jobs/%s/job.log", remoteJobId );
 	if ( ftp_lite_change_dir( ftp_srvr, dir.Value() ) == 0 ) {
-		errorString = "ftp_lite_change_dir() failed";
+		errorString.sprintf( "ftp_lite_change_dir() failed, errno=%d", errno );
 		goto doExitInfo_error_exit;
 	}
 
 	diag_fp = ftp_lite_get( ftp_srvr, "diag", 0 );
 	if ( diag_fp == NULL ) {
-		errorString = "ftp_lite_get() failed";
+		errorString.sprintf( "ftp_lite_get() failed, errno=%d", errno );
 		goto doExitInfo_error_exit;
 	}
 
@@ -1134,7 +1135,7 @@ int NordugridJob::doExitInfo()
 	diag_fp = NULL;
 
 	if ( ftp_lite_done( ftp_srvr ) == 0 ) {
-		errorString = "ftp_lite_done() failed";
+		errorString.sprintf( "ftp_lite_done() failed, errno=%d", errno );
 		goto doExitInfo_error_exit;
 	}
 
@@ -1188,7 +1189,7 @@ int NordugridJob::doList( const char *dir_name, StringList *&dir_list )
 
 	list_fp = ftp_lite_list( ftp_srvr, dir_name );
 	if ( list_fp == NULL ) {
-		errorString = "ftp_lite_get() failed";
+		errorString.sprintf( "ftp_lite_get() failed, errno=%d", errno );
 		goto doList_error_exit;
 	}
 
@@ -1208,7 +1209,7 @@ int NordugridJob::doList( const char *dir_name, StringList *&dir_list )
 	list_fp = NULL;
 
 	if ( ftp_lite_done( ftp_srvr ) == 0 ) {
-		errorString = "ftp_lite_done() failed";
+		errorString.sprintf( "ftp_lite_done() failed, errno=%d", errno );
 		goto doList_error_exit;
 	}
 
