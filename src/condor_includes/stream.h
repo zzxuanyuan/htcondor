@@ -38,6 +38,9 @@ enum CONDOR_MD_MODE {
     MD_EXPLICIT                // user needs to call checkMAC explicitly
 };
 
+const int CLEAR_HEADER     = 0;
+const int MD_IS_ON         = 1;
+const int ENCRYPTION_IS_ON = 2;
 
 #include "proc.h"
 
@@ -486,7 +489,7 @@ public:
         //------------------------------------------
         // Encryption support below
         //------------------------------------------
-        bool set_crypto_key(KeyInfo * key);
+        bool set_crypto_key(KeyInfo * key, const char * keyId=0);
         //------------------------------------------
         // PURPOSE: set sock to use a particular encryptio
         // REQUIRE: KeyInfo -- a wrapper for keyData, if key == NULL
@@ -552,7 +555,7 @@ public:
         //------------------------------------------
     //@}
  private:
-        bool initialize_crypto(KeyInfo * key);
+        bool initialize_crypto(KeyInfo * key, const char * keyId);
         //------------------------------------------
         // PURPOSE: initialize crypto
         // REQUIRE: KeyInfo
@@ -565,6 +568,7 @@ public:
 protected:
 
         virtual bool init_MD(CONDOR_MD_MODE mode, KeyInfo * key, const char * keyId) = 0;
+        virtual bool set_encryption_id(const char * keyId) = 0;
         
         void resetCrypto();
 
