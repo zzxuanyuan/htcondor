@@ -26,21 +26,34 @@
 #include "condor_io.h"
 #include "condor_attributes.h"
 #include "condor_version.h"
-#include "starter.h"
-#include "jic_shadow.h"
 #include "condor_debug.h"
 #include "condor_config.h"
+
+#include "starter.h"
 #include "java_detect.h"
+
+#include "jic_shadow.h"
+#include "jic_local_config.h"
+
 
 extern "C" int exception_cleanup(int,int,char*);	/* Our function called by EXCEPT */
 
 static CStarter StarterObj;
 CStarter *Starter = &StarterObj;
 
+int my_argc;
+char** my_argv;
+
 static void
 usage()
 {
+	dprintf(D_ALWAYS, "argc = %d\n", my_argc);
+	for( int i=0; i < my_argc; i++ ) {
+		dprintf( D_ALWAYS, "argv[%d] = %s\n", i, my_argv[i] );
+	}
 	dprintf(D_ALWAYS, "usage: condor_starter initiating_host\n");
+	dprintf(D_ALWAYS, "   or: condor_starter -slcf keyword\n");
+//	dprintf(D_ALWAYS, "   or: condor_starter -localfile filename\n");
 	DC_Exit(1);
 }
 
@@ -82,7 +95,7 @@ printClassAd( void )
 
 void
 main_pre_dc_init( int argc, char* argv[] )
-{
+{	
 	if( argc == 2 && strincmp(argv[1],"-cl",3) == MATCH ) {
 		printClassAd();
 		exit(0);
@@ -95,13 +108,8 @@ char *mySubSystem = "STARTER";
 int
 main_init(int argc, char *argv[])
 {
-	if (argc != 2) {
-		dprintf(D_ALWAYS, "argc = %d\n", argc);
-		for (int i=0; i < argc; i++) {
-			dprintf(D_ALWAYS, "argv[%d] = %s\n", i, argv[i]);
-		}
-		usage();
-	}
+	my_argc = argc;
+	my_argv = argv;
 
 #ifdef WIN32
 	// On NT, we need to make certain we have a console.
@@ -118,12 +126,43 @@ main_init(int argc, char *argv[])
 	// register a cleanup routine to kill our kids in case we EXCEPT
 	_EXCEPT_Cleanup = exception_cleanup;
 
-	JobInfoCommunicator* jic;
+	JobInfoCommunicator* jic = NULL;
 
-		// for now, assume we're dealing with a shadow.  we can easily
-		// change this once we add support for a JICLocal...
-	jic = new JICShadow( argv[1] );
+		// now, based on the command line args, figure out what kind
+		// of JIC we need...
 
+	switch( argc ) { 
+			// probably talking to a shadow, but check to make sure
+	case 2:
+		if( argv[1][0] == '-' ) {
+				// someone handed us some kind of command line option
+				// w/o anything else, give 'em an error.
+			usage();
+		}
+		jic = new JICShadow( argv[1] );
+		break;
+
+	case 3:
+		if( argv[1][0] != '-' ) {
+				// 2nd arg isn't an option, error
+			usage();
+		}
+		if( strincmp(argv[1],"-slcf",7) == MATCH ) {
+				// starter local config file
+			jic = new JICLocalConfig( argv[2] );
+		} else {
+			usage();
+		}
+		break;
+
+	default:
+		usage();
+	}
+
+	if( ! jic ) {
+			// we couldn't figure out what to do...
+		usage();
+	}
 	if( !Starter->Init(jic) ) {
 		dprintf(D_ALWAYS, "Unable to start job.\n");
 		DC_Exit(1);
