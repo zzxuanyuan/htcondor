@@ -18,8 +18,6 @@
 DEMANGLE = 2>&1 | Demangler
 #endif
 
-SOAPCPP2 = soapcpp2
-
 #define junkdir(daemon)concat3(junk,_,daemon)
 #define soapname(daemon)concat(soap_,daemon)
 #define gsoapname(daemon)concat(gsoap_,daemon)
@@ -100,8 +98,10 @@ program: soapfiles objlist						@@\
 	$(PRELINK_C) $(PRELINK_C_FLAGS) -o __prelink__.o objlist libs @@\
 	$(C_LINK) $(CFLAGS) -o program __prelink__.o $(ALL_LDFLAGS)	@@\
 	rm -f __prelink__.o @@\
+	touch soapfiles @@\
 clean::								@@\
-	rm -f program objlist
+	rm -f program objlist @@\
+soapfiles::
 #endif /* program_target */
 
 #else
@@ -111,8 +111,10 @@ clean::								@@\
 #define	program_target( program, objlist, libs )		@@\
 program: soapfiles objlist						@@\
 	$(C_LINK) $(CFLAGS) -o program objlist libs $(ALL_LDFLAGS)	@@\
+	touch soapfiles @@\
 clean::								@@\
-	rm -f program objlist
+	rm -f program objlist @@\
+soapfiles::
 #endif /* program_target */
 
 #endif
@@ -130,8 +132,10 @@ program: soapfiles objlist						@@\
 		objlist libs @@\
 	$(C_LINK) comflags -o program __prelink__.o linkflags	@@\
 	rm -f __prelink__.o @@\
+	touch soapfiles @@\
 clean::								@@\
-	rm -f program objlist
+	rm -f program objlist @@\
+soapfiles::
 #endif  /* program_target_complex */
 
 #else
@@ -140,8 +144,10 @@ clean::								@@\
 #define	program_target_complex( program, objlist, comflags, linkflags, libs )		@@\
 program: soapfiles objlist						@@\
 	$(C_LINK) comflags -o program objlist libs linkflags	@@\
+	touch soapfiles @@\
 clean::								@@\
-	rm -f program objlist
+	rm -f program objlist @@\
+soapfiles::
 #endif  /* program_target_complex */
 
 #endif
@@ -159,8 +165,10 @@ program: soapfiles objlist						@@\
 	$(CC_LINK) $(C_PLUS_FLAGS) -o program __prelink__.o \
 		$(ALL_LDFLAGS) $(DEMANGLE)			@@\
 	rm -f __prelink__.o @@\
+	touch soapfiles @@\
 clean::								@@\
-	rm -f program objlist
+	rm -f program objlist @@\
+soapfiles::
 #endif  /* c_plus_target */
 
 #else
@@ -170,8 +178,10 @@ clean::								@@\
 program: soapfiles objlist						@@\
 	$(CC_LINK) $(C_PLUS_FLAGS) -o program objlist libs \
 		$(ALL_LDFLAGS) $(DEMANGLE)			@@\
+	touch soapfiles @@\
 clean::								@@\
-	rm -f program objlist
+	rm -f program objlist @@\
+soapfiles::
 #endif  /* c_plus_target */
 
 #endif
@@ -189,8 +199,10 @@ program: soapfiles objlist						@@\
 		objlist libs @@\
 	$(CC_LINK) comflags -o program __prelink__.o linkflags $(DEMANGLE)	@@\
 	rm -f __prelink__.o @@\
+	touch soapfiles @@\
 clean::								@@\
-	rm -f program objlist
+	rm -f program objlist @@\
+soapfiles::
 #endif  /* c_plus_target_complex */
 
 #else
@@ -199,8 +211,10 @@ clean::								@@\
 #define	c_plus_target_complex( program, objlist, comflags, linkflags, libs )	@@\
 program: soapfiles objlist						@@\
 	$(CC_LINK) comflags -o program objlist libs linkflags $(DEMANGLE)	@@\
+	touch soapfiles @@\
 clean::								@@\
-	rm -f program objlist
+	rm -f program objlist @@\
+soapfiles::
 #endif  /* c_plus_target_complex */
 
 #endif
@@ -270,9 +284,13 @@ soapfiles:: gsoapname(daemon).h @@\
 	cp junkdir(daemon)/concat(soapname(daemon),H).h . @@\
 	cp junkdir(daemon)/concat(soapname(daemon),Stub).h . @@\
 	cp junkdir(daemon)/service.wsdl . @@\
-	touch concat(soapname(daemon),Stub).C @@\
-	touch soapfiles @@\
-	/bin/rm -rf junkdir(daemon)
+	/bin/rm -rf junkdir(daemon) @@\
+clean:: @@\
+	/bin/rm -f service.nsmap concat(soapname(daemon),H).h concat(soapname(daemon),Stub).h service.wsdl concat(soapname(daemon),C).C concat(soapname(daemon),Server).C soapfiles @@\
+XCOMM Specifically add a dependancy from the generated .C files to the @@\
+XCOMM .o files. Otherwise, the suffix rules do not get the dependencies @@\
+XCOMM right. @@\ 
+$(SOAP_OBJS): concat(soapname(daemon),C).C concat(soapname(daemon),Server).C 
 
 /***********************************************************************
 ** release targets
@@ -490,9 +508,11 @@ program##.static: objlist					@@\
 	$(PRELINK_CPP) $(PRELINK_CPP_FLAGS) -o __prelink__.o objlist libs @@\
 	$(CC_LINK) $(STATIC)  $(C_PLUS_FLAGS) -o program##.static __prelink__.o $(ALL_LDFLAGS) $(DEMANGLE) @@\
 	rm -f __prelink__.o @@\
+	touch soapfiles @@\
 clean:: 							@@\
 	rm -f program##.static objlist				@@\
-static:: dir##/##program
+static:: dir##/##program @@\
+soapfiles::
 #endif  /* static_target */
 
 #else
@@ -506,9 +526,11 @@ dir##/##program: program##.static				@@\
 	$(STRIP) dir##/##program				@@\
 program##.static: objlist					@@\
 	$(CC_LINK) $(STATIC)  $(C_PLUS_FLAGS) -o program##.static objlist libs $(ALL_LDFLAGS) $(DEMANGLE) @@\
+	touch soapfiles @@\
 clean:: 							@@\
 	rm -f program##.static objlist				@@\
-static:: dir##/##program
+static:: dir##/##program					@@\
+soapfiles::
 #endif  /* static_target */
 
 #endif
@@ -718,27 +740,34 @@ static_dir/##name##: static					@@\
 #define	pure_c_plus_target( program, objlist, libs )	@@\
 ##program: objlist					@@\
 	purify -g++=yes -chain-length=50 -cache-dir=$(PURE_CACHE_DIR) purecov -g++=yes $(CC_LINK) $(C_PLUS_FLAGS) -o program objlist libs $(PURIFY_LDFLAGS)	@@\
+	touch soapfiles @@\
 clean::							@@\
-	rm -f program objlist
+	rm -f program objlist @@\
+soapfiles::
 
 #define	purify_c_plus_target( program, objlist, libs )	@@\
 ##program: objlist					@@\
 	purify -g++=yes -chain-length=50 PureCollector $(CC_LINK) $(C_PLUS_FLAGS) -o program objlist libs $(PURIFY_LDFLAGS)	@@\
+	touch soapfiles @@\
 clean::							@@\
-	rm -f program objlist
+	rm -f program objlist @@\
+soapfiles::
 
 #define	purecov_c_plus_target( program, objlist, libs )	@@\
 ##program: objlist					@@\
 	purecov -g++=yes -cache-dir=$(PURE_CACHE_DIR) $(CC_LINK) $(C_PLUS_FLAGS) -o program objlist libs $(PURIFY_LDFLAGS)	@@\
-clean:: 						@@\
-	rm -f program objlist
-
+	touch soapfiles @@\
+clean::							@@\
+	rm -f program objlist @@\
+soapfiles::
 
 #define	quantify_c_plus_target( program, objlist, libs )	@@\
 ##program: objlist						@@\
 	quantify -g++=yes -cache-dir=$(PURE_CACHE_DIR) $(CC_LINK) $(C_PLUS_FLAGS) -o program objlist libs $(PURIFY_LDFLAGS)     @@\
-clean::		 						@@\
-	rm -f program objlist
+	touch soapfiles @@\
+clean::							@@\
+	rm -f program objlist @@\
+soapfiles::
 
 
 #define	pure_target( dir, program )				@@\
