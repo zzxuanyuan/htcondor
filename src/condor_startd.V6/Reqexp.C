@@ -38,7 +38,6 @@ Reqexp::Reqexp( Resource* rip )
 	char* start;
 	sprintf( tmp, "%s = %s", ATTR_REQUIREMENTS, "START" );
 	origreqexp = strdup( tmp );
-	this->compute( A_ALL );
 	rstate = UNAVAIL;
 }
 
@@ -53,7 +52,7 @@ Reqexp::compute( amask_t how_much )
 		}
 		origstart = (char*)malloc( (strlen(start) + strlen(ATTR_START)
 									+ 4) * sizeof(char) );
-		sprintf( origstart, "%s = %s", ATTR_START, origstart );
+		sprintf( origstart, "%s = %s", ATTR_START, start );
 		free( start );
 	}
 }
