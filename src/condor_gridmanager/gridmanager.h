@@ -22,11 +22,15 @@
 #define UA_LOG_TERMINATE_EVENT		0x0080
 #define UA_LOG_ABORT_EVENT			0x0100
 #define UA_LOG_EVICT_EVENT			0x0200
+#define UA_UPDATE_STDOUT_SIZE		0x0400
+#define UA_UPDATE_STDERR_SIZE		0x0800
 
 extern char *gramCallbackContact;
 extern char *ScheddAddr;
 extern char *X509Proxy;
 extern bool useDefaultProxy;
+
+extern GahpClient GahpMain;
 
 // initialization
 void Init();
@@ -35,7 +39,7 @@ void Register();
 // maintainence
 void Reconfig();
 	
-int addScheddUpdateAction( GlobusJob *job, int actions, int request_id = 0 );
+bool addScheddUpdateAction( GlobusJob *job, int actions, int request_id = 0 );
 void removeScheddUpdateAction( GlobusJob *job );
 void rehashJobContact( GlobusJob *job, const char *old_contact,
 					   const char *new_contact );

@@ -39,8 +39,6 @@
 
 #include "sslutils.h"	// for proxy_get_filenames
 
-extern gss_cred_id_t globus_i_gram_http_credential;
-
 #define QMGMT_TIMEOUT 5
 
 #define UPDATE_SCHEDD_DELAY		5
@@ -63,6 +61,7 @@ HashTable <PROC_ID, ScheddUpdateAction *> completedScheddUpdates( HASH_TABLE_SIZ
 bool addJobsSignaled = false;
 bool removeJobsSignaled = false;
 int contactScheddTid = TIMER_UNSET;
+int contactScheddDelay;
 
 List<Service *> ObjectDeleteList;
 
@@ -87,7 +86,11 @@ int checkProxy_interval;
 int minProxy_time;
 
 time_t Proxy_Expiration_Time = 0;
-time_t Initial_Proxy_Expiration_Time = 0;
+
+int syncJobIO_tid = TIMER_UNSET;
+int syncJobIO_interval;
+
+GahpClient GahpMain;
 
 int RequestContactSchedd();
 int doContactSchedd();
@@ -96,6 +99,7 @@ int doContactSchedd();
 int ADD_JOBS_signalHandler( int );
 int REMOVE_JOBS_signalHandler( int );
 int checkProxy();
+int syncJobIO();
 
 // Stole these out of the schedd code
 int procIDHash( const PROC_ID &procID, int numBuckets )
@@ -126,18 +130,22 @@ template class List<Service *>;
 template class Item<Service *>;
 
 
-int 
+// return value of true means requested update has been committed to schedd.
+// return value of false means requested update has been queued, but has not
+//   been committed to the schedd yet
+bool
 addScheddUpdateAction( GlobusJob *job, int actions, int request_id )
 {
 	ScheddUpdateAction *curr_action;
 
-	if ( completedScheddUpdates.lookup( job->procID, curr_action ) == 0 ) {
+	if ( request_id != 0 &&
+		 completedScheddUpdates.lookup( job->procID, curr_action ) == 0 ) {
 		ASSERT( curr_action->job == job );
 
 		if ( request_id == curr_action->request_id && request_id != 0 ) {
 			completedScheddUpdates.remove( job->procID );
 			delete curr_action;
-			// return done;
+			return true;
 		} else {
 			completedScheddUpdates.remove( job->procID );
 			delete curr_action;
@@ -148,7 +156,8 @@ addScheddUpdateAction( GlobusJob *job, int actions, int request_id )
 		ASSERT( curr_action->job == job );
 
 		curr_action->actions |= actions;
-	} else {
+		curr_action->request_id = request_id;
+	} else if ( actions ) {
 		curr_action = new ScheddUpdateAction;
 		curr_action->job = job;
 		curr_action->actions = actions;
@@ -156,9 +165,14 @@ addScheddUpdateAction( GlobusJob *job, int actions, int request_id )
 
 		pendingScheddUpdates.insert( job->procID, curr_action );
 		RequestContactSchedd();
+	} else {
+		// If a new request comes in with no actions and there are no
+		// pending actions, just return true (since there's nothing to be
+		// committed to the schedd)
+		return true;
 	}
 
-	// return pending;
+	return false;
 
 }
 
@@ -181,7 +195,7 @@ void
 RequestContactSchedd()
 {
 	if ( contactScheddTid == TIMER_UNSET ) {
-		contactScheddTid = daemonCore->Register_Timer( CONTACT_SCHEDD_DELAY,
+		contactScheddTid = daemonCore->Register_Timer( contactScheddDelay,
 												(TimerHandler)&doContactSchedd,
 												"doContactSchedd", NULL );
 	}
@@ -264,12 +278,6 @@ Init()
 	if ( Owner == NULL ) {
 		EXCEPT( "Can't determine username" );
 	}
-
-	// Find the location of our proxy file, if we don't already
-	// know (from the command line)
-	if (X509Proxy == NULL) {
-		proxy_get_filenames(1, NULL, NULL, &X509Proxy, NULL, NULL);
-	}
 }
 
 void
@@ -293,10 +301,43 @@ Register()
 void
 Reconfig()
 {
+	int tmp_int;
 	char *tmp = NULL;
 
 	// This method is called both at startup [from method Init()], and
 	// when we are asked to reconfig.
+
+	contactScheddDelay = -1;
+	tmp = param("GRIDMANAGER_CONTACT_SCHEDD_DELAY");
+	if ( tmp ) {
+		contactScheddDelay = atoi(tmp);
+		free(tmp);
+	} 
+	if ( contactScheddDelay < 0 ) {
+		contactScheddDelay = 5; // default delay = 5 seconds
+	}
+
+	tmp_int = -1;
+	tmp = param("GRIDMANAGER_JOB_PROBE_INTERVAL");
+	if ( tmp ) {
+		tmp_int = aoti(tmp);
+		free(tmp);
+	}
+	if ( tmp_int < 0 ) {
+		tmp_int = 5 * 60; // default interval is 5 minutes
+	}
+	GlobusJob::setProbeInterval( tmp_int );
+
+	tmp_int = -1;
+	tmp = param("GRIDMANAGER_RESOURCE_PROBE_INTERVAL");
+	if ( tmp ) {
+		tmp_int = aoti(tmp);
+		free(tmp);
+	}
+	if ( tmp_int < 0 ) {
+		tmp_int = 5 * 60; // default interval is 5 minutes
+	}
+	GlobusResource::setProbeInterval( tmp_int );
 
 	checkProxy_interval = -1;
 	tmp = param("GRIDMANAGER_CHECKPROXY_INTERVAL");
@@ -318,9 +359,21 @@ Reconfig()
 		minProxy_time = 3 * 60 ; // default = 3 minutes
 	}
 
+	syncJobIO_interval = -1;
+	tmp = param("GRIDMANAGER_SYNC_JOB_IO_INTERVAL");
+	if ( tmp ) {
+		syncJobIO_interval = atoi(tmp);
+		free(tmp);
+	}
+	if ( syncJobIO_interval < 0 ) {
+		syncJobIO_interval = 5 * 60; // default interval = 5 minutes
+	}
+
 	// Always check the proxy on a reconfig.
 	checkProxy();
 
+	// Always sync IO on a reconfig
+	syncJobIO();
 }
 
 int
@@ -332,18 +385,16 @@ checkProxy()
 	time_t current_expiration_time = now + seconds_left;
 
 	if ( seconds_left < 0 ) {
-		// Proxy file is gone.  Set things so the below logic
-		// will still do the right thing when our current proxy
-		// goes away, but will never try to refresh with the
-		// non-existant proxy.
+		// Proxy file is gone. Since the GASS needs the proxy file for
+		// new connections, we should treat this as an expired proxy.
 		seconds_left = 0;
 		current_expiration_time = now;
+		Proxy_Expiration_Time = current_expiration_time;
 	}
 
 	if ( Proxy_Expiration_Time == 0 ) {
 		// First time through....
 		Proxy_Expiration_Time = current_expiration_time;
-		Initial_Proxy_Expiration_Time = current_expiration_time;
 		dprintf(D_ALWAYS,
 			"Condor-G proxy cert valid for %s\n",format_time(seconds_left));
 	}
@@ -353,82 +404,19 @@ checkProxy()
 	if ( now > Proxy_Expiration_Time ) {
 		Proxy_Expiration_Time = now;
 	}
-	if ( now > Initial_Proxy_Expiration_Time ) {
-		Initial_Proxy_Expiration_Time = now;
-	}
 
 	// Check if we have a refreshed proxy
 	if ( current_expiration_time > Proxy_Expiration_Time ) {
 		// We have a refreshed proxy!
+		Proxy_Expiration_Time = current_expiration_time;
 
-		/* Update our credential context for GRAM.  This will allow new
-		 * jobmanagers which we subsequently startup to have the refreshed
-		 * proxy.  Aren't we cool?  
-		 */
-    	OM_uint32	major_status;
-    	OM_uint32 	minor_status;
-		gss_cred_id_t old_gram_credential = globus_i_gram_http_credential;
-		static bool first_cred_refresh = true;
-		/* -- Now, acquire our new context.  We care about errors
-		 * here, but we have no good way of handling them.  Dooohh! */
-    	major_status = globus_gss_assist_acquire_cred(&minor_status,
-                        GSS_C_BOTH,
-                        &globus_i_gram_http_credential);
-    	if (major_status != GSS_S_COMPLETE)
-    	{
-			// If we failed, perhaps the proxy file was being changed
-			// right when we were reading it.  Bad luck!  So try
-			// to sleep for one second and try again.
-			sleep(1);
-    		major_status = globus_gss_assist_acquire_cred(&minor_status,
-                        GSS_C_BOTH,
-                        &globus_i_gram_http_credential);
-    		if (major_status != GSS_S_COMPLETE)
-			{
-				// We cannot read in the new proxy... revert to the old.
-				globus_i_gram_http_credential = old_gram_credential;
-			}
-		}
+		MainGahp.globus_gram_client_set_credentials( X509Proxy );
+	}
 
-		if ( major_status == GSS_S_COMPLETE ) {
-			// Success!  We have read in the new context.
-
-			/* -- First, release our old context.  Don't care about errors. 
-			 * Do not release the first time through, because the 
-			 * initial context is in use by all our listening sockets. */
-			if ((old_gram_credential != GSS_C_NO_CREDENTIAL) &&
-				(!first_cred_refresh))
-			{
-				OM_uint32 minor_status; 
-				gss_release_cred(&minor_status,&old_gram_credential); 
-				old_gram_credential = GSS_C_NO_CREDENTIAL;
-			}
-
-			// Print out a message
-			int time_left = Proxy_Expiration_Time - now;
-			if ( time_left < 0 ) {
-				time_left = 0;
-			}
-			char *oldtime = strdup(format_time(time_left));
-			char *newtime = strdup(format_time(seconds_left));
-			dprintf(D_ALWAYS,
-			   "Using refreshed cert - old valid for %s (%d), "
-			   "new valid for %s (%d)\n", 
-			   oldtime,time_left,newtime,seconds_left);
-			free(oldtime);
-			free(newtime);
-
-			// Update some variables
-			Proxy_Expiration_Time = current_expiration_time;
-			first_cred_refresh = false;
-		}
-	
-	}  // done handling a refreshed proxy
-
-	// Verify our Initial Proxy is longer than the minimum allowed
-	if ((Initial_Proxy_Expiration_Time - now) <= minProxy_time) 
+	// Verify our proxy is longer than the minimum allowed
+	if ((Proxy_Expiration_Time - now) <= minProxy_time) 
 	{
-		// Initial Proxy is either already expired, or will expire in
+		// Proxy is either already expired, or will expire in
 		// a very short period of time.
 		// Write something out to the log and send a signal to shutdown.
 		// The schedd will try to restart us every few minutes.
@@ -446,14 +434,12 @@ checkProxy()
 		return FALSE;
 	}
 
-
 	// Setup timer to automatically check it next time.  We want the
 	// timer to go off either at the next user-specified interval,
 	// or right before our credentials expire, whichever is less.
-	int interval1 = MIN(checkProxy_interval, 
+	int interval = MIN(checkProxy_interval, 
 						Proxy_Expiration_Time - now - minProxy_time);
- 	int interval = MIN(interval1, 
-						Initial_Proxy_Expiration_Time - now - minProxy_time);	
+
 	if ( interval ) {
 		if ( checkProxy_tid != TIMER_UNSET ) {
 			daemonCore->Reset_Timer(checkProxy_tid,interval);
@@ -473,6 +459,36 @@ checkProxy()
 	return TRUE;
 }
 
+int
+syncJobIO()
+{
+	GlobusJob *next_job;
+
+	JobsByProcID->startIterations();
+
+	while ( JobsByProcID->iterate( next_job ) != 0 ) {
+		daemonCore->Register_Timer( 0, (TimerHandlercpp)&GlobusJob::syncIO,
+									"syncIO", (Service *)next_job );
+	}
+
+	if ( syncJobIO_interval ) {
+		if ( syncJobIO_tid != TIMER_UNSET ) {
+			daemonCore->Reset_Timer( syncJobIO_tid, syncJobIO_interval);
+		} else {
+			syncJobIO_tid = daemonCore->Register_Timer( syncJobIO_interval,
+												(TimerHandler)&syncJobIO,
+												"syncJobIO", NULL );
+		}
+	} else {
+		// syncJobIO_interval is 0, cancel any timer if we have one
+		if (syncJobIO_tid != TIMER_UNSET ) {
+			daemonCore->Cancel_Timer(syncJobIO_tid);
+			syncJobIO_tid = TIMER_UNSET;
+		}
+	}
+
+	return TRUE;
+}
 
 int
 ADD_JOBS_signalHandler( int signal )
@@ -530,11 +546,15 @@ doContactSchedd()
 			 curr_actions->actions & UA_DELETE_FROM_SCHEDD ) {
 			contact_schedd = true;
 		}
-		if ( curr_actions->actions & UA_LOG_SUBMIT_EVENT ) {
+		if ( curr_actions->actions & UA_LOG_SUBMIT_EVENT &&
+			 !curr_job->submitLogged ) {
 			WriteGlobusSubmitEventToUserLog( curr_job );
+			curr_job->submitLogged = true;
 		}
-		if ( curr_actions->actions & UA_LOG_EXECUTE_EVENT ) {
+		if ( curr_actions->actions & UA_LOG_EXECUTE_EVENT &&
+			 !curr_job->executeLogged ) {
 			WriteGlobusExecuteEventToUserLog( curr_job );
+			curr_job->executeLogged = true;
 		}
 		if ( curr_actions->actions & UA_LOG_SUBMIT_FAILED_EVENT ) {
 			WriteGlobusSubmitFailedToUserLog( curr_job );
@@ -571,14 +591,53 @@ doContactSchedd()
 							 curr_job->procID.proc,
 							 ATTR_JOB_STATUS, &curr_status );
 
-			if ( curr_status != REMOVED ) {
-				// TODO: What about HELD jobs?
-				SetAttributeInt( curr_job->procID.cluster,
-								 curr_job->procID.proc,
-								 ATTR_JOB_STATUS, curr_job->condorState );
+			// If the job is marked as REMOVED or HELD on the schedd, don't
+			// change it. Instead, modify our state to match it.
+			if ( curr_status != REMOVED && curr_status != HELD ) {
+				// Right now, if we have a job marked as HELD, it's because
+				// the schedd told us it was. In this case, we don't want
+				// to undo a subsequent unhold done on the schedd. Instead,
+				// we keep our HELD state, kill the job, forget about it,
+				// then relearn about it later (this makes it easier to
+				// ensure that we pick up changed job attributes).
+				// Eventually, we'll be able to initiate holds. In that
+				// situation, we'll want to update the schedd state.
+				if ( curr_job->condorState != HELD ) {
+					SetAttributeInt( curr_job->procID.cluster,
+									 curr_job->procID.proc,
+									 ATTR_JOB_STATUS, curr_job->condorState );
+				}
 			} else {
 				curr_job->UpdateCondorState( curr_status );
 			}
+		}
+
+		// Adjust run time for condor_q
+		if ( curr_job->condorState == RUNNING &&
+			 curr_job->shadow_birthday == 0 ) {
+
+			// The job has started a new interval of running
+			int current_time = (int)time(NULL);
+			SetAttributeInt( curr_job->procID.cluster,
+							 curr_job->procID.proc,
+							 ATTR_SHADOW_BIRTHDATE, current_time );
+			curr_job->shadow_birthday = current_time;
+
+		} else if ( curr_job->condorState != RUNNING &&
+					curr_job->shadow_birthday != 0 ) {
+
+			// The job has stopped an interval of running, add the current
+			// interval to the accumulated total run time
+			float accum_time = 0;
+			GetAttributeFloat(cluster, proc,
+							  ATTR_JOB_REMOTE_WALL_CLOCK,&accum_time);
+			accum_time += (float)( time(NULL) - curr_job->shadow_birthday );
+			SetAttributeFloat(cluster, proc,
+							  ATTR_JOB_REMOTE_WALL_CLOCK,accum_time);
+			DeleteAttribute(cluster, proc, ATTR_JOB_WALL_CLOCK_CKPT);
+			SetAttributeInt(cluster, proc, ATTR_SHADOW_BIRTHDATE, 0);
+			curr_job->shadow_birthday = 0;
+
 		}
 
 		if ( curr_actions->actions & UA_UPDATE_GLOBUS_STATE ) {
@@ -592,6 +651,20 @@ doContactSchedd()
 								curr_job->procID.proc,
 								ATTR_GLOBUS_CONTACT_STRING,
 								curr_job->jobContact );
+		}
+
+		if ( curr_actions->actions & UA_UPDATE_STDOUT_SIZE ) {
+			SetAttributeString( curr_job->procID.cluster,
+								curr_job->procID.proc,
+								ATTR_JOB_OUTPUT_SIZE,
+								curr_job->syncedOutputSize );
+		}
+
+		if ( curr_actions->actions & UA_UPDATE_STDERR_SIZE ) {
+			SetAttributeString( curr_job->procID.cluster,
+								curr_job->procID.proc,
+								ATTR_JOB_ERROR_SIZE,
+								curr_job->syncedErrorSize );
 		}
 
 		if ( curr_actions->actions & UA_DELETE_FROM_SCHEDD ) {
@@ -626,7 +699,8 @@ doContactSchedd()
 		} else {
 			sprintf( expr_buf, "%s  && %s == %d && %s == %d",
 					 owner_buf, ATTR_JOB_UNIVERSE, GLOBUS_UNIVERSE,
-					 ATTR_GLOBUS_STATUS, G_UNSUBMITTED );
+					 ATTR_GLOBUS_STATUS,
+					 GLOBUS_GRAM_PROCOTOL_JOB_STATE_UNSUBMITTED );
 		}
 
 		next_ad = GetNextJobByConstraint( expr_buf, 1 );
@@ -706,9 +780,12 @@ doContactSchedd()
 			next_ad->LookupInteger( ATTR_PROC_ID, procID.proc );
 
 			if ( JobsByProcID->lookup( procID, next_job ) == 0 ) {
-				// Should probably skip jobs we already have marked for removal
+				// Should probably skip jobs we already have marked as
+				// held or removed
 
-				next_job->UpdateCondorState( REMOVED );
+				int curr_status;
+				next_ad->LookupInteger( ATTR_JOB_STATUS, curr_status );
+				next_job->UpdateCondorState( curr_status );
 				num_ads++;
 
 			} else {

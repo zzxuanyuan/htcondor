@@ -33,26 +33,34 @@ main_activate_globus()
 	int err;
 	static int first_time = true;
 
-	if(gridmanager.X509Proxy && first_time) {
-		setenv("X509_USER_PROXY", gridmanager.X509Proxy, 1);
+	// Find the location of our proxy file, if we don't already
+	// know (from the command line)
+	if (X509Proxy == NULL) {
+		proxy_get_filenames(1, NULL, NULL, &X509Proxy, NULL, NULL);
+	}
+
+	if(first_time) {
+		setenv("X509_USER_PROXY", X509Proxy, 1);
 		first_time = false;
 	}		
 
-	err = globus_module_activate( GLOBUS_GRAM_CLIENT_MODULE );
-	if ( err != GLOBUS_SUCCESS ) {
-		dprintf( D_ALWAYS, "Error initializing GRAM, err=%d - %s\n", 
-			err, globus_gram_client_error_string(err) );
+	if ( GahpMain.Initialize( X509Proxy )  == false ) {
+		dprintf( D_ALWAYS, "Error initializing GAHP\n" );
 		return false;
 	}
 
+/*
 	if ( gramCallbackContact ) {
-		globus_libc_free(gramCallbackContact);
+		free(gramCallbackContact);
 		gramCallbackContact = NULL;
 	}
+*/
 
-	err = globus_gram_client_callback_allow( gramCallbackHandler,
-											 &gridmanager,
-											 &gramCallbackContact );
+	GahpMain.setMode( blocking );
+
+	err = GahpMain.globus_gram_client_callback_allow( gramCallbackHandler,
+													  &gridmanager,
+													  &gramCallbackContact );
 	if ( err != GLOBUS_SUCCESS ) {
 		dprintf( D_ALWAYS, "Error enabling GRAM callback, err=%d - %s\n", 
 			err, globus_gram_client_error_string(err) );
@@ -60,31 +68,31 @@ main_activate_globus()
 		return false;
 	}
 
-	err = globus_module_activate( GLOBUS_GASS_SERVER_EZ_MODULE );
-	if ( err != GLOBUS_SUCCESS ) {
-		dprintf( D_ALWAYS, "Error initializing GASS server, err=%d\n", err );
-		globus_gram_client_callback_disallow( gramCallbackContact );
-		globus_module_deactivate( GLOBUS_GRAM_CLIENT_MODULE );
-		return false;
-	}
-
-	err = globus_gass_server_ez_init( &gassServerListener, NULL, NULL, NULL,
-									  GLOBUS_GASS_SERVER_EZ_READ_ENABLE |
-									  GLOBUS_GASS_SERVER_EZ_LINE_BUFFER |
-									  GLOBUS_GASS_SERVER_EZ_WRITE_ENABLE,
-									  NULL );
+/*
+	err = GahpMain.globus_gass_server_ez_init( &gassServerListener,
+										NULL, NULL, NULL,
+										GLOBUS_GASS_SERVER_EZ_READ_ENABLE |
+										GLOBUS_GASS_SERVER_EZ_LINE_BUFFER |
+										GLOBUS_GASS_SERVER_EZ_WRITE_ENABLE,
+										NULL );
+*/
+	err = GahpMain.globus_gass_server_super_ez_init( &gassServerUrl, 0 );
 	if ( err != GLOBUS_SUCCESS ) {
 		dprintf( D_ALWAYS, "Error enabling GASS server, err=%d\n", err );
-		globus_gram_client_callback_disallow( gramCallbackContact );
+/*
+		GahpMain.globus_gram_client_callback_disallow( gramCallbackContact );
 		globus_module_deactivate_all();
+*/
 		return false;
 	}
 
+/*
 	if ( gassServerUrl ) {
-		globus_libc_free(gassServerUrl);
+		free(gassServerUrl);
 		gassServerUrl = NULL;
 	}
-	gassServerUrl = globus_gass_transfer_listener_get_base_url(gassServerListener);
+	gassServerUrl = GahpMain.globus_gass_transfer_listener_get_base_url(gassServerListener);
+*/
 	return true;
 }
 
@@ -92,9 +100,10 @@ main_activate_globus()
 bool
 main_deactivate_globus()
 {
-	globus_gram_client_callback_disallow( gramCallbackContact );
-	globus_gass_server_ez_shutdown( gassServerListener );
-	globus_module_deactivate_all();
+/*
+	GahpMain.globus_gram_client_callback_disallow( gramCallbackContact );
+	GahpMain.globus_gass_server_ez_shutdown( gassServerListener );
+*/
 	return true;
 }
 
