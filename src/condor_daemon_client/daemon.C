@@ -797,6 +797,8 @@ Daemon::getDaemonInfo( const char* subsys, AdTypes adtype, bool query_collector)
 {
 	char				buf[512], tmpname[512];
 	char				*tmp, *my_name;
+	char				*host = NULL;
+	bool				nameHasPort = false;
 
 	if( _subsys ) {
 		delete [] _subsys;
@@ -825,18 +827,25 @@ Daemon::getDaemonInfo( const char* subsys, AdTypes adtype, bool query_collector)
 	} else {
 		// See if daemon name containts a port specification
 		_port = getPortFromAddr( _name );
+		if ( _port >= 0 ) {
+			host = getHostFromAddr( _name );
+			if ( host ) {
+				nameHasPort = true;
+			} else {
+				dprintf( D_ALWAYS, "warning: unable to parse hostname from '%s'"
+						" but will attempt to use this daemon name anyhow\n",
+						_name);
+			}
+		}
 	}
 
 		// _name was explicitly specified as host:port, so this information can
 		// be used directly.  Further name resolution is not necessary.
-	if( _port >= 0 ) {
+	if( nameHasPort ) {
 		struct in_addr sin_addr;
 		char buf[128];
-		char *host = getHostFromAddr( _name );
 		
 		dprintf( D_HOSTNAME, "Port %d specified in name\n", _port );
-		host = getHostFromAddr( _name );
-		ASSERT(host);	// :port was specified, but can't parse host
 
 		if( is_ipaddr(host, &sin_addr) ) {
 			sprintf( buf, "<%s:%d>", host, _port );
