@@ -42,3 +42,7 @@ template class ExtArray<StringSpace*>;
 template class ExtArray<ProcFamily::a_pid>;
 template class HashTable<MyString, int>;
 template class HashBucket<MyString, int>;
+
+// for condor_errno.h
+int 	CondorErrno  = ERR_OK;
+string 	CondorErrMsg = "";
