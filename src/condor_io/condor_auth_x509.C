@@ -109,10 +109,10 @@ Condor_Auth_X509 ::  ~Condor_Auth_X509()
     // Delete context handle if exist
     if (context_handle) {
         OM_uint32 minor_status = 0;
-	gss_delete_sec_context(&minor_status,&context_handle,GSS_C_NO_BUFFER);
+        gss_delete_sec_context(&minor_status,&context_handle,GSS_C_NO_BUFFER);
     }
 
-    if (credential_handle) {
+    if (credential_handle != GSS_C_NO_CREDENTIAL) {
         OM_uint32 major_status = 0; 
         gss_release_cred(&major_status, &credential_handle);
     }
@@ -278,7 +278,7 @@ int Condor_Auth_X509::get_user_x509name(char *proxy_file, char* name)
 
     /* Load proxy */
     if (!proxy_file) {
-   	 proxy_get_filenames(pcd, 1, NULL, NULL, &proxy_file, NULL, NULL);
+        proxy_get_filenames(pcd, 1, NULL, NULL, &proxy_file, NULL, NULL);
     }
 
     // potential memory leak below. Should change the code! Hao
@@ -488,7 +488,12 @@ int Condor_Auth_X509::authenticate_self_gss()
     major_status = globus_gss_assist_acquire_cred(&minor_status,
                                                   GSS_C_BOTH, 
                                                   &credential_handle);
-    
+    if (major_status != GSS_S_COMPLETE) {
+        major_status = globus_gss_assist_acquire_cred(&minor_status,
+                                                      GSS_C_BOTH,
+                                                      &credential_handle);
+    }
+
     if (!mySock_->isClient() || isDaemon()) {
         set_priv(priv);
     }
@@ -497,11 +502,11 @@ int Condor_Auth_X509::authenticate_self_gss()
     
     if (major_status != GSS_S_COMPLETE)
 	{
-            sprintf(comment,"authenticate_self_gss: acquiring self 
+        sprintf(comment,"authenticate_self_gss: acquiring self 
 				credentials failed \n");
-            print_log( major_status,minor_status,0,comment); 
-            credential_handle = GSS_C_NO_CREDENTIAL; 
-            return FALSE;
+        print_log( major_status,minor_status,0,comment); 
+        credential_handle = GSS_C_NO_CREDENTIAL; 
+        return FALSE;
 	}
     
     dprintf( D_FULLDEBUG, "This process has a valid certificate & key\n" );
@@ -528,7 +533,7 @@ int Condor_Auth_X509::authenticate_client_gss()
         return FALSE;
     }
     
-    nameGssToLocal(gateKeeper);
+    //nameGssToLocal(gateKeeper);
     
     if (isDaemon()) {
         priv = set_root_priv();
@@ -538,7 +543,7 @@ int Condor_Auth_X509::authenticate_client_gss()
                                                       credential_handle,
                                                       &context_handle,
                                                       gateKeeper,
-                                                      GSS_C_DELEG_FLAG|GSS_C_MUTUAL_FLAG,
+                                                      GSS_C_MUTUAL_FLAG,
                                                       &ret_flags, 
                                                       &token_status,
                                                       authsock_get, 
