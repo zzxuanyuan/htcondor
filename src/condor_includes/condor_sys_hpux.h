@@ -61,10 +61,12 @@
 /****************************************
 ** Condor-specific system definitions
 ****************************************/
-#define HAS_U_TYPES				1
-#define SIGISMEMBER_IS_BROKEN	1
+#define HAS_U_TYPES			1
+#define SIGISMEMBER_IS_BROKEN		1
 #define HAS_64BIT_STRUCTS		1
 #define HAS_64BIT_SYSCALLS		1
+
+typedef void* MMAP_T;
 
 #endif /* CONDOR_SYS_HPUX_H */
 

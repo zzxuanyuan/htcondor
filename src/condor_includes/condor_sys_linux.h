@@ -29,28 +29,8 @@
 
 #include <sys/types.h>
 typedef long rlim_t;
-#define HAS_U_TYPES
-
-#define idle _hide_idle
-#if defined(GLIBC)
-#	define truncate _hide_truncate
-#	define ftruncate _hide_ftruncate
-#	define profil _hide_profil
-#	define daemon _hide_daemon
-#endif /* GLIBC */
-#include <unistd.h>
-#undef idle
-#if defined(GLIBC)
-#	undef truncate
-#	undef ftruncate
-#	undef profil
-#	undef daemon
-BEGIN_C_DECLS
-    int truncate( const char *, size_t );
-    int ftruncate( int, size_t );
-    int profil( char*, int, int, int );
-END_C_DECLS
-#endif /* GLIBC */
+#include "condor_fix_sys_stat.h"
+#include "condor_fix_unistd.h"
 
 /* Want stdarg.h before stdio.h so we get GNU's va_list defined */
 #include <stdarg.h>
@@ -90,6 +70,14 @@ END_C_DECLS
 #include "condor_fix_sys_resource.h"
 
 #include <sys/uio.h>
+
+/***************************/
+/* Special Condor flags    */
+/***************************/
+
+#define HAS_U_TYPES
+
+typedef void* MMAP_T;
 
 #endif /* CONDOR_SYS_LINUX_H */
 

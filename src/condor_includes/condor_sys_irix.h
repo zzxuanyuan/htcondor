@@ -96,12 +96,12 @@ int pclose(FILE *stream);
 /* Needed to get TIOCNOTTY defined */
 #include <sys/ttold.h>
 
-
 /****************************************
 ** Condor-specific system definitions
 ****************************************/
-#define HAS_U_TYPES				1
+#define HAS_U_TYPES		1
 #define NO_VOID_SIGNAL_RETURN	1
 
+typedef void * MMAP_T;
 
 #endif /* CONDOR_SYS_IRIX_H */

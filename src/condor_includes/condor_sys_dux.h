@@ -99,4 +99,13 @@ END_C_DECLS
 #include <netdb.h>
 #undef gethostid
 
+/****************************/
+/* Condor specific flags    */
+/****************************/
+
+#define SYNC_RETURNS_VOID 1
+
+typedef caddr_t MMAP_T
+
+
 #endif /* CONDOR_SYS_DUX_H */
