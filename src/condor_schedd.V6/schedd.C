@@ -2107,7 +2107,7 @@ Scheduler::spoolJobFilesReaper(int tid,int exit_status)
 		}
 
 			// And now release the job.
-		releaseJob(cluster,proc,"Data files spooled",false,false,false,false);
+//		releaseJob(cluster,proc,"Data files spooled",false,false,false,false);
 		SetAttributeInt(cluster,proc,ATTR_STAGE_IN_FINISH,time(NULL));
 		CommitTransaction();
 	}
