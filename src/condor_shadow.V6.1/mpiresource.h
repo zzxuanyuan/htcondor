@@ -63,6 +63,8 @@ class MpiResource : public RemoteResource {
 
 	virtual void reconnect( void );
 
+	virtual bool supportsReconnect( void );
+
  private:
 
 		// Making these private PREVENTS copying.
