@@ -49,6 +49,7 @@ public:
 	void	publish( ClassAd*, amask_t );
 
 	void	assign_load();
+	void	assign_keyboard();
 
 	bool 	in_use();
 	bool	is_smp() { return( m_attr->num_cpus() > 1 ); };
