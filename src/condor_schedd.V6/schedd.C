@@ -2605,7 +2605,7 @@ Scheduler::updateGSICred(int, Stream* s)
 
 		// read the job id from the client
 	rsock->decode();
-	if ( !rsock->code(jobid) || rsock->eom() ) {
+	if ( !rsock->code(jobid) || !rsock->eom() ) {
 			dprintf( D_ALWAYS, "updateGSICred(): "
 					 "failed to read job id\n" );
 			refuse(s);
