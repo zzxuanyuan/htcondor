@@ -37,10 +37,14 @@
 
 
 extern "C" int exception_cleanup(int,int,char*);	/* Our function called by EXCEPT */
-JobInfoCommunicator* parseJICArgs( int argc, char* argv [] );
+JobInfoCommunicator* parseArgs( int argc, char* argv [] );
 
 static CStarter StarterObj;
 CStarter *Starter = &StarterObj;
+
+// this appears at the bottom of this file:
+extern "C" int display_dprintf_header(FILE *fp);
+static char* dprintf_header = NULL;
 
 int my_argc;
 char** my_argv;
@@ -149,17 +153,8 @@ main_init(int argc, char *argv[])
 	if( argc < 2 ) {
 		usage();
 	}
-	if( argc == 2 ) { 
-			// probably talking to a shadow, but check to make sure
-		if( argv[1][0] == '-' ) {
-				// someone handed us some kind of command line option
-				// w/o anything else, give 'em an error.
-			usage();
-		}
-		jic = new JICShadow( argv[1] );
-	} else {
-		jic = parseJICArgs( argc, argv );
-	}
+
+	jic = parseArgs( argc, argv );
 
 	if( ! jic ) {
 			// we couldn't figure out what to do...
@@ -200,13 +195,14 @@ another( char* opt )
 
 
 JobInfoCommunicator*
-parseJICArgs( int argc, char* argv [] )
+parseArgs( int argc, char* argv [] )
 {
 	JobInfoCommunicator* jic = NULL;
 	char* job_keyword = NULL; 
 	int job_cluster = -1;
 	int job_proc = -1;
 	int job_subproc = -1;
+	char* shadow_host = NULL;
 
 	bool warn_multi_keyword = false;
 	bool warn_multi_cluster = false;
@@ -220,9 +216,10 @@ parseJICArgs( int argc, char* argv [] )
 	char _jobcluster[] = "-job_cluster";
 	char _jobproc[] = "-job_proc";
 	char _jobsubproc[] = "-job_subproc";
+	char _header[] = "-header";
 	char* target = NULL;
 
-	ASSERT( argc > 2 );
+	ASSERT( argc >= 2 );
 	
 	char** tmp = argv;
 	for( tmp++; *tmp; tmp++ ) {
@@ -230,6 +227,23 @@ parseJICArgs( int argc, char* argv [] )
 		opt = tmp[0];
 		arg = tmp[1];
 		opt_len = strlen( opt );
+
+		if( opt[0] != '-' ) {
+				// this must be a hostname...
+			shadow_host = strdup( opt );
+			continue;
+		}
+
+		if( ! strncmp(opt, _header, opt_len) ) { 
+			if( ! arg ) {
+				another( _header );
+			}
+			dprintf_header = strdup( arg );
+			DebugId = display_dprintf_header;
+			tmp++;	// consume the arg so we don't get confused 
+			continue;
+		}
+
 		if( strncmp( "-job_", opt, MIN(opt_len,5)) ) {
 			invalid( opt );
 		}
@@ -328,27 +342,40 @@ parseJICArgs( int argc, char* argv [] )
 
 	if( warn_multi_keyword ) {
 		dprintf( D_ALWAYS, "WARNING: "
-				 "multiple '-job_keyword' options given, using \"%s\"\n",
-				 job_keyword );
+				 "multiple '%s' options given, using \"%s\"\n",
+				 _jobkeyword, job_keyword );
 	}
 	if( warn_multi_cluster ) {
 		dprintf( D_ALWAYS, "WARNING: "
-				 "multiple '-job_cluster' options given, using \"%d\"\n",
-				 job_cluster );
+				 "multiple '%s' options given, using \"%d\"\n",
+				 _jobcluster, job_cluster );
 	}
 	if( warn_multi_proc ) {
 		dprintf( D_ALWAYS, "WARNING: "
-				 "multiple '-job_proc' options given, using \"%d\"\n",
-				 job_proc );
+				 "multiple '%s' options given, using \"%d\"\n",
+				 _jobproc, job_proc );
 	}
 	if( warn_multi_subproc ) {
 		dprintf( D_ALWAYS, "WARNING: "
-				 "multiple '-job_subproc' options given, using \"%d\"\n",
-				 job_subproc );
+				 "multiple '%s' options given, using \"%d\"\n",
+				 _jobsubproc, job_subproc );
+	}
+
+	if( shadow_host ) {
+		if( job_keyword ) {
+			dprintf( D_ALWAYS, "You cannot use '%s' and specify a "
+					 "shadow host\n" );
+			usage();
+		}
+		jic = new JICShadow( shadow_host );
+		free( shadow_host );
+		shadow_host = NULL;
+		return jic;
 	}
 
 	if( ! job_keyword ) {
-		dprintf( D_ALWAYS, "ERROR: You must specify '-job_keyword'\n" );
+		dprintf( D_ALWAYS, "ERROR: You must specify '%s'\n",
+				 _jobkeyword ); 
 		usage();
 	}
 
@@ -357,6 +384,7 @@ parseJICArgs( int argc, char* argv [] )
 		// the command-line.
 	jic = new JICLocalConfig( job_keyword, job_cluster, job_proc, 
 							  job_subproc );
+	free( job_keyword );
 	return jic;
 }
 
@@ -404,3 +432,12 @@ main_pre_command_sock_init( )
 }
 
 
+extern "C" 
+int
+display_dprintf_header(FILE *fp)
+{
+	if( dprintf_header ) {
+		fprintf( fp, "%s ", dprintf_header );
+	}
+	return TRUE;
+}
