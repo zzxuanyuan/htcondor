@@ -32,7 +32,6 @@ void	cleanup_execute_dir(int pid);
 void	check_perms(void);
 float	compute_rank( ClassAd*, ClassAd* );
 int 	create_port( ReliSock* );
-char*	command_to_string( int );
 bool	reply( Stream*, int );
 bool	refuse( Stream* );
 bool	caInsert( ClassAd* target, ClassAd* source, const char* attr,

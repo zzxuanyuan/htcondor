@@ -245,49 +245,6 @@ create_port( ReliSock* rsock )
 }
 
 
-char*
-command_to_string( int cmd )
-{
-	switch( cmd ) {
-	case CONTINUE_CLAIM:
-		return "continue_claim";
-	case SUSPEND_CLAIM:
-		return "suspend_claim";
-	case DEACTIVATE_CLAIM:
-		return "deactivate_claim";
-	case DEACTIVATE_CLAIM_FORCIBLY:
-		return "deactivate_claim_forcibly";
-	case MATCH_INFO:
-		return "match_info";
-	case ALIVE:
-		return "alive";
-	case REQUEST_CLAIM:
-		return "request_claim";
-	case RELEASE_CLAIM:
-		return "release_claim";
-	case ACTIVATE_CLAIM:
-		return "activate_claim";
-	case GIVE_STATE:
-		return "give_state";
-	case PCKPT_JOB:
-		return "pckpt_job";
-	case PCKPT_ALL_JOBS:
-		return "pckpt_all_jobs";
-	case VACATE_CLAIM:
-		return "vacate_claim";
-	case VACATE_CLAIM_FAST:
-		return "vacate_claim_fast";
-	case VACATE_ALL_CLAIMS:
-		return "vacate_all_claims";
-	case VACATE_ALL_FAST:
-		return "vacate_all_fast";
-	default:
-		return "unknown";
-	}
-	return "error";
-}
-
-
 bool
 reply( Stream* s, int cmd )
 {
