@@ -137,6 +137,7 @@ bool isHorizontalClusterAttribute(const char *attr) {
 bool isHorizontalProcAttribute(const char *attr) {
   if((strcasecmp(attr, "jobstatus") == 0) ||
      (strcasecmp(attr, "imagesize") == 0) ||
+     (strcasecmp(attr, "globaljobid") == 0) ||
      (strcasecmp(attr, "remoteusercpu") == 0)) {
     return true;
   }     
@@ -146,6 +147,7 @@ bool isHorizontalProcAttribute(const char *attr) {
 bool isHorizontalHistoryAttribute(const char *attr) {
   if((strcasecmp(attr, "qdate") == 0) || 
      (strcasecmp(attr, "owner") == 0) ||
+     (strcasecmp(attr, "globaljobid") == 0) ||
      (strcasecmp(attr, "numckpts") == 0) ||
      (strcasecmp(attr, "numrestarts") == 0) ||
      (strcasecmp(attr, "numsystemholds") == 0) ||
