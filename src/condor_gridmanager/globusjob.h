@@ -108,7 +108,9 @@ class GlobusJob : public BaseJob
 	int globusStateBeforeFailure;
 	int callbackGlobusState;
 	int callbackGlobusStateErrorCode;
+	bool resourcePingPending;
 	bool jmUnreachable;
+	bool jmDown;
 	GlobusResource *myResource;
 	time_t lastProbeTime;
 	bool probeNow;

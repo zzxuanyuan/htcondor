@@ -114,6 +114,15 @@ static char *GMStateNames[] = {
         procID.cluster,procID.proc,GMStateNames[gmState],globusState, \
         func,error)
 
+#define GOTO_RESTART_IF_JM_DOWN \
+{ \
+    if ( jmDown == true ) { \
+        gmState = GM_RESTART; \
+        globusError =  GLOBUS_GRAM_PROTOCOL_ERROR_CONTACTING_JOB_MANAGER; \
+		break; \
+    } \
+}
+
 #define CHECK_PROXY \
 { \
 	if ( gahp_proxy_id_set == false ) { \
@@ -475,7 +484,9 @@ GlobusJob::GlobusJob( ClassAd *classad )
 	restartWhen = 0;
 	gmState = GM_INIT;
 	globusState = GLOBUS_GRAM_PROTOCOL_JOB_STATE_UNSUBMITTED;
+	resourcePingPending = false;
 	jmUnreachable = false;
+	jmDown = false;
 	lastProbeTime = 0;
 	probeNow = false;
 	enteredCurrentGmState = time(NULL);
@@ -687,7 +698,8 @@ void GlobusJob::Reconfig()
 
 int GlobusJob::doEvaluateState()
 {
-	bool connect_failure = false;
+	bool connect_failure_jobmanager = false;
+	bool connect_failure_gatekeeper = false;
 	int old_gm_state;
 	int old_globus_state;
 	bool reevaluate_state = true;
@@ -709,7 +721,11 @@ int GlobusJob::doEvaluateState()
 		gahp_proxy_id_set = true;
 	}
 
-	if ( !resourceStateKnown || jmUnreachable || resourceDown ) {
+		// We don't include jmDown here because we don't want it to block
+		// connections to the gatekeeper (particularly restarts) and any
+		// state that contacts to the jobmanager should be jumping to
+		// GM_RESTART instead.
+	if ( !resourceStateKnown || resourcePingPending || resourceDown ) {
 		gahp.setMode( GahpClient::results_only );
 	} else {
 		gahp.setMode( GahpClient::normal );
@@ -765,6 +781,7 @@ int GlobusJob::doEvaluateState()
 			} break;
 		case GM_REGISTER: {
 			// Register for callbacks from an already-running jobmanager.
+			GOTO_RESTART_IF_JM_DOWN;
 			CHECK_PROXY;
 			rc = gahp.globus_gram_client_job_callback_register( jobContact,
 										GLOBUS_GRAM_PROTOCOL_JOB_STATE_ALL,
@@ -818,6 +835,7 @@ int GlobusJob::doEvaluateState()
 		case GM_STDIO_UPDATE: {
 			// Update an already-running jobmanager to send its I/O to us
 			// instead a previous incarnation.
+			GOTO_RESTART_IF_JM_DOWN;
 			CHECK_PROXY;
 			if ( RSL == NULL ) {
 				RSL = buildStdioUpdateRSL();
@@ -832,7 +850,7 @@ int GlobusJob::doEvaluateState()
 			if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_CONTACTING_JOB_MANAGER ||
 				 rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
 				 rc == GAHPCLIENT_COMMAND_TIMED_OUT ) {
-				connect_failure = true;
+				connect_failure_jobmanager = true;
 				break;
 			}
 			if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_JOB_QUERY_DENIAL ) {
@@ -915,7 +933,7 @@ int GlobusJob::doEvaluateState()
 				if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_CONNECTION_FAILED ||
 					 rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
 					 rc == GAHPCLIENT_COMMAND_TIMED_OUT ) {
-					connect_failure = true;
+					connect_failure_gatekeeper = true;
 					break;
 				}
 				if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_USER_PROXY_EXPIRED ) {
@@ -1012,6 +1030,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) jobmanager timed out on commit, clearing request\n"
 						break;
 					}
 				}
+				GOTO_RESTART_IF_JM_DOWN;
 				CHECK_PROXY;
 				rc = gahp.globus_gram_client_job_signal( jobContact,
 								GLOBUS_GRAM_PROTOCOL_JOB_SIGNAL_COMMIT_REQUEST,
@@ -1023,7 +1042,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) jobmanager timed out on commit, clearing request\n"
 				if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_CONTACTING_JOB_MANAGER ||
 					 rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
 					 rc == GAHPCLIENT_COMMAND_TIMED_OUT ) {
-					connect_failure = true;
+					connect_failure_jobmanager = true;
 					break;
 				}
 				if ( rc != GLOBUS_SUCCESS ) {
@@ -1087,6 +1106,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) jobmanager timed out on commit, clearing request\n"
 			if ( condorState == REMOVED || condorState == HELD ) {
 				gmState = GM_CANCEL;
 			} else {
+				GOTO_RESTART_IF_JM_DOWN;
 				CHECK_PROXY;
 				rc = gahp.globus_gram_client_job_refresh_credentials(
 																jobContact );
@@ -1097,7 +1117,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) jobmanager timed out on commit, clearing request\n"
 				if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_CONTACTING_JOB_MANAGER ||
 					 rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
 					 rc == GAHPCLIENT_COMMAND_TIMED_OUT ) {
-					connect_failure = true;
+					connect_failure_jobmanager = true;
 					break;
 				}
 				if ( rc != GLOBUS_SUCCESS ) {
@@ -1115,6 +1135,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) jobmanager timed out on commit, clearing request\n"
 			if ( condorState == REMOVED || condorState == HELD ) {
 				gmState = GM_CANCEL;
 			} else {
+				GOTO_RESTART_IF_JM_DOWN;
 				CHECK_PROXY;
 				rc = gahp.globus_gram_client_job_status( jobContact,
 														 &status, &error );
@@ -1125,7 +1146,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) jobmanager timed out on commit, clearing request\n"
 				if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_CONTACTING_JOB_MANAGER ||
 					 rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
 					 rc == GAHPCLIENT_COMMAND_TIMED_OUT ) {
-					connect_failure = true;
+					connect_failure_jobmanager = true;
 					break;
 				}
 				if ( rc != GLOBUS_SUCCESS ) {
@@ -1154,6 +1175,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) jobmanager timed out on commit, clearing request\n"
 					gmState = GM_DONE_SAVE;
 					break;
 				}
+				GOTO_RESTART_IF_JM_DOWN;
 				CHECK_PROXY;
 				int output_size = -1;
 				int error_size = -1;
@@ -1169,7 +1191,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) jobmanager timed out on commit, clearing request\n"
 				if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_CONTACTING_JOB_MANAGER ||
 					 rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
 					 rc == GAHPCLIENT_COMMAND_TIMED_OUT ) {
-					connect_failure = true;
+					connect_failure_jobmanager = true;
 					break;
 				}
 				if ( rc == GLOBUS_SUCCESS ) {
@@ -1266,6 +1288,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 		case GM_DONE_COMMIT: {
 			// Tell the jobmanager it can clean up and exit.
 			if ( jmVersion >= GRAM_V_1_5 ) {
+				GOTO_RESTART_IF_JM_DOWN;
 				CHECK_PROXY;
 				rc = gahp.globus_gram_client_job_signal( jobContact,
 									GLOBUS_GRAM_PROTOCOL_JOB_SIGNAL_COMMIT_END,
@@ -1277,7 +1300,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 				if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_CONTACTING_JOB_MANAGER ||
 					 rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
 					 rc == GAHPCLIENT_COMMAND_TIMED_OUT ) {
-					connect_failure = true;
+					connect_failure_jobmanager = true;
 					break;
 				}
 				if ( rc != GLOBUS_SUCCESS ) {
@@ -1301,6 +1324,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 					UpdateJobAdString( ATTR_GLOBUS_CONTACT_STRING,
 									   NULL_JOB_CONTACT );
 					requestScheddUpdate( this );
+					jmDown = false;
 				}
 				gmState = GM_CLEAR_REQUEST;
 			}
@@ -1308,6 +1332,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 		case GM_STOP_AND_RESTART: {
 			// Something has wrong with the jobmanager and we want to stop
 			// it and restart it to clear up the problem.
+			GOTO_RESTART_IF_JM_DOWN;
 			CHECK_PROXY;
 			rc = gahp.globus_gram_client_job_signal( jobContact,
 								GLOBUS_GRAM_PROTOCOL_JOB_SIGNAL_STOP_MANAGER,
@@ -1319,7 +1344,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 			if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_CONTACTING_JOB_MANAGER ||
 				 rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
 				 rc == GAHPCLIENT_COMMAND_TIMED_OUT ) {
-				connect_failure = true;
+				connect_failure_jobmanager = true;
 				break;
 			}
 			if ( rc != GLOBUS_SUCCESS ) {
@@ -1373,7 +1398,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 				if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_CONNECTION_FAILED ||
 					 rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
 					 rc == GAHPCLIENT_COMMAND_TIMED_OUT ) {
-					connect_failure = true;
+					connect_failure_gatekeeper = true;
 					break;
 				}
 				if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_USER_PROXY_EXPIRED ) {
@@ -1419,6 +1444,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 					// responding, start new jm, new jm says old one still
 					// running, try to contact old jm again. How likely is
 					// this to happen?
+					jmDown = false;
 					gmState = GM_INIT;
 					break;
 				}
@@ -1426,6 +1452,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 					gmState = GM_CLEAR_REQUEST;
 				} else if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_WAITING_FOR_COMMIT ) {
 					jmProxyExpireTime = myProxy->expiration_time;
+					jmDown = false;
 					rehashJobContact( this, jobContact, job_contact );
 					jobContact = strdup( job_contact );
 					UpdateJobAdString( ATTR_GLOBUS_CONTACT_STRING,
@@ -1456,6 +1483,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 			} break;
 		case GM_RESTART_COMMIT: {
 			// Tell the jobmanager it can proceed with the restart.
+			GOTO_RESTART_IF_JM_DOWN;
 			CHECK_PROXY;
 			rc = gahp.globus_gram_client_job_signal( jobContact,
 								GLOBUS_GRAM_PROTOCOL_JOB_SIGNAL_COMMIT_REQUEST,
@@ -1467,7 +1495,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 			if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_CONTACTING_JOB_MANAGER ||
 				 rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
 				 rc == GAHPCLIENT_COMMAND_TIMED_OUT ) {
-				connect_failure = true;
+				connect_failure_jobmanager = true;
 				break;
 			}
 			if ( rc != GLOBUS_SUCCESS ) {
@@ -1495,6 +1523,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 			// We need to cancel the job submission.
 			if ( globusState != GLOBUS_GRAM_PROTOCOL_JOB_STATE_DONE &&
 				 globusState != GLOBUS_GRAM_PROTOCOL_JOB_STATE_FAILED ) {
+				GOTO_RESTART_IF_JM_DOWN;
 				CHECK_PROXY;
 				rc = gahp.globus_gram_client_job_cancel( jobContact );
 				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
@@ -1504,7 +1533,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 				if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_CONTACTING_JOB_MANAGER ||
 					 rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
 					 rc == GAHPCLIENT_COMMAND_TIMED_OUT ) {
-					connect_failure = true;
+					connect_failure_jobmanager = true;
 					break;
 				}
 				if ( rc != GLOBUS_SUCCESS ) {
@@ -1545,6 +1574,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 					probeNow = false;
 				}
 				if ( now >= lastProbeTime + probeInterval ) {
+					GOTO_RESTART_IF_JM_DOWN;
 					CHECK_PROXY;
 					rc = gahp.globus_gram_client_job_status( jobContact,
 														&status, &error );
@@ -1555,7 +1585,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 					if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_CONTACTING_JOB_MANAGER ||
 						 rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
 						 rc == GAHPCLIENT_COMMAND_TIMED_OUT ) {
-						connect_failure = true;
+						connect_failure_jobmanager = true;
 						break;
 					}
 					if ( rc != GLOBUS_SUCCESS ) {
@@ -1604,6 +1634,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 					// about this job submission. Either we know the job
 					// isn't pending/running or the user has told us to
 					// forget lost job submissions.
+					GOTO_RESTART_IF_JM_DOWN;
 					CHECK_PROXY;
 					rc = gahp.globus_gram_client_job_signal( jobContact,
 									GLOBUS_GRAM_PROTOCOL_JOB_SIGNAL_COMMIT_END,
@@ -1615,7 +1646,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 					if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_CONTACTING_JOB_MANAGER ||
 						 rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
 						 rc == GAHPCLIENT_COMMAND_TIMED_OUT ) {
-						connect_failure = true;
+						connect_failure_jobmanager = true;
 						break;
 					}
 					if ( rc != GLOBUS_SUCCESS ) {
@@ -1632,6 +1663,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 				free( jobContact );
 				myResource->CancelSubmit( this );
 				jobContact = NULL;
+				jmDown = false;
 				UpdateJobAdString( ATTR_GLOBUS_CONTACT_STRING,
 								   NULL_JOB_CONTACT );
 				jmVersion = GRAM_V_UNKNOWN;
@@ -1679,7 +1711,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 			if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_CONNECTION_FAILED ||
 				 rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
 				 rc == GAHPCLIENT_COMMAND_TIMED_OUT ) {
-				connect_failure = true;
+				connect_failure_gatekeeper = true;
 				break;
 			}
 			if ( rc == GLOBUS_SUCCESS ||
@@ -1760,6 +1792,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 				free( jobContact );
 				myResource->CancelSubmit( this );
 				jobContact = NULL;
+				jmDown = false;
 				UpdateJobAdString( ATTR_GLOBUS_CONTACT_STRING,
 								   NULL_JOB_CONTACT );
 			}
@@ -1867,6 +1900,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 			}
 			} break;
 		case GM_PUT_TO_SLEEP: {
+			GOTO_RESTART_IF_JM_DOWN;
 			CHECK_PROXY;
 			rc = gahp.globus_gram_client_job_signal( jobContact,
 								GLOBUS_GRAM_PROTOCOL_JOB_SIGNAL_STOP_MANAGER,
@@ -1878,7 +1912,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 			if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_CONTACTING_JOB_MANAGER ||
 				 rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
 				 rc == GAHPCLIENT_COMMAND_TIMED_OUT ) {
-				connect_failure = true;
+				connect_failure_jobmanager = true;
 				break;
 			}
 			if ( rc != GLOBUS_SUCCESS ) {
@@ -1938,7 +1972,9 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 
 	} while ( reevaluate_state );
 
-	if ( connect_failure && !jmUnreachable && !resourceDown ) {
+//	if ( connect_failure && !jmUnreachable && !resourceDown ) {
+	if ( ( connect_failure_jobmanager || connect_failure_gatekeeper ) && 
+		 !resourceDown ) {
 		if ( connect_failure_counter < maxConnectFailures ) {
 				// We are seeing a lot of failures to connect
 				// with Globus 2.2 libraries, often due to GSI not able 
@@ -1954,7 +1990,10 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 			dprintf(D_FULLDEBUG,
 				"(%d.%d) Connection failure, requesting a ping of the resource\n",
 				procID.cluster,procID.proc);
-			jmUnreachable = true;
+			if ( connect_failure_jobmanager ) {
+				jmUnreachable = true;
+			}
+			resourcePingPending = true;
 			myResource->RequestPing( this );
 		}
 	}
@@ -1970,6 +2009,7 @@ void GlobusJob::NotifyResourceDown()
 	}
 	resourceDown = true;
 	jmUnreachable = false;
+	resourcePingPending = false;
 	// set downtime timestamp?
 	SetEvaluateState();
 }
@@ -1982,15 +2022,10 @@ void GlobusJob::NotifyResourceUp()
 	}
 	resourceDown = false;
 	if ( jmUnreachable ) {
-		globusError = GLOBUS_GRAM_PROTOCOL_ERROR_CONTACTING_JOB_MANAGER;
-		gmState = GM_RESTART;
-		enteredCurrentGmState = time(NULL);
-		if ( RSL ) {
-			delete RSL;
-			RSL = NULL;
-		}
+		jmDown = true;
 	}
 	jmUnreachable = false;
+	resourcePingPending = false;
 	SetEvaluateState();
 }
 
