@@ -126,6 +126,29 @@ sin_to_string(const struct sockaddr_in *sin)
 	return buf;
 }
 
+char * ipport_to_string(const unsigned int ip, const unsigned short port)
+{
+	int             i;
+	static  char    buf[24];
+	char    tmp_buf[10];
+	char    *cur_byte;
+	unsigned char   this_byte;
+
+	buf[0] = '<';
+	buf[1] = '\0';
+	cur_byte = (char *) &ip;
+	for (i = 0; i < sizeof(ip); i++) {
+		this_byte = (unsigned char) *cur_byte;
+		sprintf(tmp_buf, "%u.", this_byte);
+		cur_byte++;
+		strcat(buf, tmp_buf);
+	}
+	buf[strlen(buf) - 1] = ':';
+	sprintf(tmp_buf, "%d>", ntohs(port));
+	strcat(buf, tmp_buf);
+	return buf;
+}
+
 char *
 sock_to_string(SOCKET sockd)
 {
@@ -139,6 +162,18 @@ sock_to_string(SOCKET sockd)
 		return mynull;
 
 	return ( sin_to_string( &addr ) );
+}
+
+unsigned short
+sock_to_port (int sock)
+{
+	struct sockaddr_in name;
+	int namelen = sizeof (name);
+	if ( getsockname(sock , (struct sockaddr *) &name , &namelen ) ) {
+		return 0;
+	}
+
+	return name.sin_port;
 }
 
 char *
@@ -478,18 +513,65 @@ _condor_local_bind( int fd )
 	return TRUE;
 }
 
-
-int bindWithin(const int fd, const int low_port, const int high_port)
+// This is a network layer function between Cedar and TCP/UDP and
+// is a wrapper function of TCP/UDP bind method.
+// Also this is an NT compatible version of _condor_local_bind
+//
+// 07/27/2000 - sschang
+int
+_condor_bind(int fd, unsigned short port)
 {
-	int start_trial, this_trial;
+	struct sockaddr_in sin;
+	// If 'port' equals 0 and if we have 'LOWPORT' and 'HIGHPORT' defined
+	// in the config file for security, we will bind this Sock to one of
+	// the port within the range defined by these variables rather than
+	// an arbitrary free port.
+	unsigned short lowPort, highPort;
+	if ( port == 0 && get_port_range(&lowPort, &highPort) == TRUE ) {
+		if ( bindWithin(fd, lowPort, highPort) == TRUE ) {
+			return TRUE;
+		} else return FALSE;
+	}
+
+	memset(&sin, 0, sizeof(sin));
+	sin.sin_family = AF_INET;
+	sin.sin_addr.s_addr = htonl(my_ip_addr());
+	sin.sin_port = htons((u_short)port);
+
+	if ( bind(fd, (struct sockaddr *)&sin, sizeof(sin)) < 0 ) {
+#ifdef WIN32
+		int error = WSAGetLastError();
+		dprintf( D_ALWAYS, "bind failed: WSAError = %d\n", error );
+#else
+		dprintf(D_NETWORK, "bind failed errno = %d\n", errno);
+#endif
+		return FALSE;
+	}
+	return TRUE;
+}
+
+char *
+ip_to_name (unsigned int ip)
+{
+	 struct hostent *ent;
+	 ent = gethostbyaddr((char *) &ip, sizeof(int), AF_INET);
+	 if (!ent) {
+		 return NULL;
+	 }
+	 return ent->h_name;
+}
+
+int bindWithin(const int fd, const unsigned short low_port, const unsigned short high_port)
+{
+	unsigned short start_trial, this_trial;
 	int pid, range;
-	int nextBindPort;
+	unsigned short nextBindPort;
 
 	// Use hash function with pid to get the starting point
     pid = (int) getpid();
     range = high_port - low_port + 1;
     // this line must be changed to use the hash function of condor
-    start_trial = low_port + (pid * 173/*some prime number*/ % range);
+    start_trial = low_port + (pid * 173 % range);
 
     this_trial = start_trial;
 	do {
@@ -501,16 +583,16 @@ int bindWithin(const int fd, const int low_port, const int high_port)
 		sin.sin_port = htons((u_short)this_trial++);
 
 		if (bind(fd, (struct sockaddr *)&sin, sizeof(sin)) == 0) { // success
-			dprintf(D_NETWORK, "_condor_local_bind - bound to %d...\n", this_trial-1);
+			dprintf(D_NETWORK, "bindWithin - bound to %d...\n", this_trial-1);
 			return TRUE;
 		} else {
-            dprintf(D_NETWORK, "_condor_local_bind - failed to bind: %s\n", strerror(errno));
+            dprintf(D_NETWORK, "bindWithin - failed to bind: %s\n", strerror(errno));
         }
 		if ( this_trial > high_port )
 			this_trial = low_port;
     } while(this_trial != start_trial);
 
-	dprintf(D_ALWAYS, "_condor_local_bind::bindWithin - failed to bind any port within (%d ~ %d)\n",
+	dprintf(D_ALWAYS, "bindWithin::bindWithin - failed to bind any port within (%d ~ %d)\n",
 	        low_port, high_port);
 
 	return FALSE;

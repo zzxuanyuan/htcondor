@@ -1183,7 +1183,46 @@ UserProc::UserProc( STARTUP_INFO &s ) :
 		}
 	}
 	/* end - Port regulation for user job */
+	/* bandwidth regulation for user job */
+	char *mngerIP = NULL, *mngerPort = NULL;
+	int mng_port;
 
+	if ( (mngerIP = param("NETMNGER_IP")) != NULL ) {
+		if ( (mngerPort = param("NETMNGER_PORT")) != NULL ) {
+			mng_port = atoi(mngerPort);
+			sprintf(buf, "_condor_NETMNGER_IP=%s", mngerIP);
+			env_obj.add_string(buf);
+			sprintf(buf, "_condor_NETMNGER_PORT=%d", mng_port);
+			env_obj.add_string(buf);
+			free(mngerIP);
+			free(mngerPort);
+		} else {
+			dprintf(D_NETWORK, "NETMNGER_IP is defined but NETMNGER_PORT is not!\n");
+			dprintf(D_NETWORK, "NETMNGER_PORT will be ignored!\n");
+			free(mngerIP);
+		}
+	}
+	/* end - bandwidth regulation for user job */
+	/* masquerading for user job */
+	char *masqIP = NULL, *masqPort = NULL;
+	int masq_port;
+
+	if ( (masqIP = param("MASQ_SERVER_IP")) != NULL ) {
+		if ( (masqPort = param("MASQ_SERVER_PORT")) != NULL ) {
+			masq_port = atoi(masqPort);
+			sprintf(buf, "_condor_MASQ_SERVER_IP=%s", masqIP);
+			env_obj.add_string(buf);
+			sprintf(buf, "_condor_MASQ_SERVER_PORT=%d", masq_port);
+			env_obj.add_string(buf);
+			free(masqIP);
+			free(masqPort);
+		} else {
+			dprintf(D_NETWORK, "MASQ_SERVER_IP is defined but MASQ_SERVER_PORT is not!\n");
+			dprintf(D_NETWORK, "MASQ_SERVER_PORT will be ignored!\n");
+			free(masqIP);
+		}
+	}
+	/* end - masquerading for user job */
 
 		// Generate a directory where process can run and do its checkpointing
 	omask = umask(0);
