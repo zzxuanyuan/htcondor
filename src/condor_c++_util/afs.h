@@ -26,52 +26,56 @@
 **
 */ 
 
-#ifndef _MACRO_H
-#define _MACRO_H
+/*
+  Use AFS user level commands to get information about things like the
+  AFS cell of the current workstation, or the AFS cell, volume, etc.
+  of given files.
+*/
 
+#ifndef _AFS_H
+#define AFS_H
+
+#include <limits.h>
 #include <stdio.h>
 
-const int TRUE = 1;
-const int FALSE = 0;
+#if defined(__cplusplus)
 
-int confirm( const char *prompt );
-
-
-/*
-  Construct a macro by dialoging with the user.  The function gen() will
-  then generate the string which defines the macro.
-*/
-class Macro {
+class AFS_Info {
 public:
-	Macro( const char *name, const char *prompt, const char *dflt );
-	void init( int (*f)(const char *) = 0 );
-	void init( int truth );
-	char *get_val() { return value; }
-	char *gen( int shell_cmd = 0 );
+	AFS_Info();
+	~AFS_Info();
+	void display();
+	char *my_cell();
+	char *which_cell( const char *path );
+	char *which_vol( const char *path );
+	char *which_srvr( const char *path );
 private:
-	char	*name;
-	char	*prompt;
-	char	*dflt;
-	char	*value;
+	char *find_my_cell();
+	char *parse_cmd_output(
+			FILE *fp, const char *pat, const char *left, const char *right );
+
+	int has_afs;
+	char fs_pathname[ _POSIX_PATH_MAX ];
+	char vos_pathname[ _POSIX_PATH_MAX ];
+	char *my_cell_name;
 };
 
-/*
-  Construct a customized file from a generic one.  The new file has macros
-  added by the add_macro() function, but is otherwise an identical copy
-  of the generic version.
-*/
-class ConfigFile {
-public:
-	ConfigFile( const char *directory );
-		// these routines exit upon error
-	void	begin( const char *name );
-	void	add_macro( const char *def );
-	void	end();
-private:
-	char	*dir;
-	FILE	*src;
-	FILE	*dst;
-};
+#endif /* __cplusplus */
 
+/*
+  Simple C interface.
+*/
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
+char *get_host_cell();
+char *get_file_cell( const char *path );
+char *get_file_vol( const char *path );
+char *get_file_srvr( const char *path );
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif
