@@ -767,25 +767,28 @@ condor__listSpool(struct soap * soap,
 
 		Job *job;
 		if (getJob(clusterId, jobId, job)) {
-			result.response.status.code = UNKNOWNJOB;
-			dprintf(D_ALWAYS, "listSpool: UNKNOWNJOB\n");
+			job = new Job(clusterId, jobId);
+		}
+
+		List<FileInfo> files;
+		int code;
+		if (code = job->get_spool_list(files)) {
+			result.response.status.code = FAIL;
+			dprintf(D_ALWAYS, "listSpool: get_spool_list FAILED -- %d\n", code);
 		} else {
-			List<FileInfo> files;
-			int code;
-			if (code = job->get_spool_list(files)) {
-				result.response.status.code = FAIL;
-				dprintf(D_ALWAYS, "listSpool: get_spool_list FAILED -- %d\n", code);
+			if (convert_FileInfoList_to_Array(soap, files, result.response.info)) {
+				result.response.status.code = SUCCESS;
+				dprintf(D_ALWAYS, "listSpool: SUCCESS\n");
 			} else {
-				if (convert_FileInfoList_to_Array(soap, files, result.response.info)) {
-					result.response.status.code = SUCCESS;
-					dprintf(D_ALWAYS, "listSpool: SUCCESS\n");
-				} else {
-					result.response.status.code = FAIL;
-					dprintf(D_ALWAYS, "listSpool: convert_FileInfoList_to_Array FAILED\n");
-				}
+				result.response.status.code = FAIL;
+				dprintf(D_ALWAYS, "listSpool: convert_FileInfoList_to_Array FAILED\n");
 			}
 		}
+
+		delete job;
 	}
+
+		// XXX: Leaking the "files"?
 
 	return SOAP_OK;
 }
