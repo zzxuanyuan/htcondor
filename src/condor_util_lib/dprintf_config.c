@@ -49,6 +49,8 @@ extern void		_condor_dprintf_saved_lines( void );
 
 FILE *open_debug_file( int debug_level, char flags[] );
 
+void _ss_set_log_va(void(*app_log_va)(int level, char *fmt, va_list args));
+
 void
 dprintf_config( subsys, logfd )
 char *subsys;
@@ -59,6 +61,7 @@ int logfd;		/* logfd is the descriptor to use if the log output goes to a tty */
 	static int first_time = 1;
 	int want_truncate;
 	int debug_level;
+    char *useGCB = NULL;
 
 	/*  
 	**  We want to initialize this here so if we reconfig and the
@@ -178,6 +181,11 @@ int logfd;		/* logfd is the descriptor to use if the log output goes to a tty */
 
 	first_time = 0;
 	_condor_dprintf_works = 1;
+
+    if ( (useGCB = param("GCB_ENABLE")) && !strcmp(useGCB, "TRUE")) {
+		_ss_set_log_va(_condor_dprintf_va);
+    }
+    if (useGCB) { free(useGCB); }
 	_condor_dprintf_saved_lines();
 }
 

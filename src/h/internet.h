@@ -104,6 +104,13 @@ char* getAddrFromClaimId( const char* id );
    this machine.   Returns 1 if successful, 0 on error. */
 int _condor_local_bind( int fd );
 
+char *ip_to_name (unsigned int ip);
+int is_priv_net(uint32_t ip);
+int in_same_net(uint32_t ipA, uint32_t ipB);
+char *ipport_to_string(const unsigned int ip, const unsigned short port);
+char *prt_fds(int maxfd, fd_set *fds);
+int _getIPaddr(uint32_t *ipaddr);
+
 #if defined(__cplusplus)
 }
 #endif

@@ -127,7 +127,10 @@ class _condorInMsg
         bool   verified_;
 };
 
-static const int SAFE_MSG_MAX_PACKET_SIZE = 60000;
+// IP fragmentation is always bad. It generally hurts performance. NATs that are not
+// state-of-art cannot handle fragmented IP packets, and so on. So we reduce the max
+// size of UDP packet
+static const int SAFE_MSG_MAX_PACKET_SIZE = 1000;
 static const int SAFE_MSG_HEADER_SIZE = 25;      
 
 static const char* const SAFE_MSG_MAGIC = "MaGic6.0";

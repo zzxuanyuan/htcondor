@@ -27,6 +27,7 @@
 #include "condor_syscalls.h"
 #include "condor_sys.h"
 #include "condor_syscall_mode.h"
+#include "generic_socket.h"
 
 #include "condor_debug.h"
 
@@ -692,7 +693,7 @@ checkpointing in the meantime.
 int CondorFileTable::socket( int domain, int type, int protocol )
 {
 	int scm = SetSyscalls( SYS_LOCAL|SYS_UNMAPPED ); 
-	int real_fd = ::socket(domain,type,protocol);
+	int real_fd = ::Generic_socket(domain,type,protocol);
 	SetSyscalls(scm);
 
 	if(real_fd<0) return -1;
@@ -1258,7 +1259,7 @@ int CondorFileTable::select( int n, fd_set *r, fd_set *w, fd_set *e, struct time
 	/* Do a local select */
 
 	scm = SetSyscalls( SYS_LOCAL|SYS_UNMAPPED );
-	result = ::select( n_real, &r_real, &w_real, &e_real, timeout );
+	result = ::Generic_select( n_real, &r_real, &w_real, &e_real, timeout );
 	SetSyscalls(scm);
 
 	if( r ) FD_ZERO( r );

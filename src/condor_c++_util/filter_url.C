@@ -26,6 +26,7 @@
 #include "condor_common.h"
 #include "url_condor.h"
 #include "util_lib_proto.h"		// for mkargv() proto
+#include "generic_socket.h"
 
 #define READ_END 0
 #define WRITE_END 1
@@ -107,7 +108,7 @@ int condor_open_filter( const char *name, int flags, size_t n_bytes )
 
 			// cast discards const
 			mkargv(&argc, argv, (char *) name);
-			execv(argv[0], argv);
+			Generic_execv(argv[0], argv);
 			fprintf(stderr, "execv(%s) failed!!!!\n", argv[0]);
 			exit(-1);
 		}

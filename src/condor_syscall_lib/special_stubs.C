@@ -38,7 +38,6 @@
 extern	ReliSock* syscall_sock;
 
 extern "C" {
-
 extern	int		DebugFlags;
 int		_condor_DebugFD = 0;
 
@@ -113,13 +112,11 @@ _condor_dprintf_va( int flags, char* fmt, va_list args )
 	}
 }
 
-
 int get_port_range(int *low_port, int *high_port)
 {
 	char *low = NULL, *high = NULL;
 
 	if ( (low = getenv("_condor_LOWPORT")) == NULL ) {
-        dprintf(D_NETWORK, "_condor_LOWPORT undefined\n");
 		return FALSE;
     }
 	if ( (high = getenv("_condor_HIGHPORT")) == NULL ) {
@@ -139,7 +136,6 @@ int get_port_range(int *low_port, int *high_port)
 
 	return TRUE;
 }
-
 
 #if !defined(WIN32)
 /*
@@ -161,4 +157,3 @@ _condor_fd_panic( int line, char* file )
 #endif /* ! LOOSE32 */
 
 } /* extern "C" */
-

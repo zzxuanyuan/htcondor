@@ -2348,8 +2348,9 @@ AttrList::initFromStream(Stream& s)
 	// Now, read our new set of attributes off the given stream 
     s.decode();
 
-    if(!s.code(numExprs)) 
+    if(!s.code(numExprs)) {
         return 0;
+	}
     
     for(int i = 0; i < numExprs; i++) {
 

@@ -42,6 +42,7 @@
 #include "../condor_c++_util/directory.h"
 #include "condor_distribution.h"
 #include "condor_environ.h"
+#include "generic_socket.h"
 
 #include "user_job_policy.h"
 
@@ -645,9 +646,9 @@ HandleSyscalls()
 		unblock_signal(SIGCHLD);
 		unblock_signal(SIGUSR1);
 #if defined(LINUX) || defined(IRIX) || defined(Solaris)
-		cnt = select(nfds, &readfds, (fd_set *)0, (fd_set *)0, ptimer);
+		cnt = Generic_select(nfds, &readfds, (fd_set *)0, (fd_set *)0, ptimer);
 #else
-		cnt = select(nfds, &readfds, 0, 0, ptimer);
+		cnt = Generic_select(nfds, &readfds, 0, 0, ptimer);
 #endif
 		block_signal(SIGCHLD);
 		block_signal(SIGUSR1);
@@ -1160,14 +1161,14 @@ send_job( V2_PROC *proc, char *host, char *cap)
 		exit( reason );
 	}
 	if( sd1 != RSC_SOCK ) {
-		ASSERT(dup2(sd1, RSC_SOCK) >= 0);
-		(void)close(sd1);
+		ASSERT(Generic_dup2(sd1, RSC_SOCK) >= 0);
+		(void)Generic_close(sd1);
 	}
 	dprintf( D_ALWAYS, "Shadow: RSC_SOCK connected, fd = %d\n", RSC_SOCK );
 
 	if( sd2 != CLIENT_LOG ) {
-		ASSERT(dup2(sd2, CLIENT_LOG) >= 0);
-		(void)close(sd2);
+		ASSERT(Generic_dup2(sd2, CLIENT_LOG) >= 0);
+		(void)Generic_close(sd2);
 	}
 	dprintf( D_ALWAYS, "Shadow: CLIENT_LOG connected, fd = %d\n", CLIENT_LOG );
 
@@ -1270,9 +1271,9 @@ open_std_files( V2_PROC *proc )
 
 	dprintf( D_FULLDEBUG, "Entered open_std_files()\n" );
 
-	(void)close( 0 );
-	(void)close( 1 );
-	(void)close( 2 );
+	(void)Generic_close( 0 );
+	(void)Generic_close( 1 );
+	(void)Generic_close( 2 );
 
 	if( (fd=open(proc->in,O_RDONLY,0)) < 0 ) {
 		sprintf( ErrBuf, "Can't open \"%s\"", proc->in );

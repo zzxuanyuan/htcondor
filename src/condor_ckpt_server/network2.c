@@ -55,6 +55,7 @@
 
 #include "condor_common.h"
 #include "condor_debug.h"
+#include "generic_socket.h"
 
 #if !defined(WIN32)
 #include <sys/types.h>
@@ -132,7 +133,7 @@ int I_bind(int                 socket_desc,
   setsockopt(socket_desc, SOL_SOCKET, SO_REUSEADDR, (char*)&on, sizeof(on));
   setsockopt(socket_desc, SOL_SOCKET, SO_LINGER,
 			 (char*)&linger, sizeof(linger));
-  if (bind(socket_desc, (struct sockaddr*)addr, temp) < 0)
+  if (Generic_bind(socket_desc, (struct sockaddr*)addr, temp) < 0)
     {
       fprintf(stderr, "\nERROR:\n");
       fprintf(stderr, "ERROR:\n");
@@ -143,7 +144,7 @@ int I_bind(int                 socket_desc,
       fprintf(stderr, "ERROR:\n\n");
       return BIND_ERROR;
     }
-  if (getsockname(socket_desc, (struct sockaddr*)addr, &temp) < 0)
+  if (Generic_getsockname(socket_desc, (struct sockaddr*)addr, &temp) < 0)
     {
       fprintf(stderr, "\nERROR:\n");
       fprintf(stderr, "ERROR:\n");
@@ -245,7 +246,7 @@ int I_socket()
 #if !defined(WIN32) /* NEED TO PORT TO WIN32 */
 	int sd;
 	
-	sd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	sd = Generic_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (sd < 0) {
 		if ((errno == EMFILE) || (errno == ENOBUFS)) {
 			return INSUFFICIENT_RESOURCES;
@@ -302,7 +303,7 @@ int I_listen(int socket_desc,
 #if !defined(WIN32) /* NEED TO PORT TO WIN32 */
   if ((queue_len > 5) || (queue_len < 0))
     queue_len = 5;
-  if (listen(socket_desc, queue_len) < 0)
+  if (Generic_listen(socket_desc, queue_len) < 0)
     {
       fprintf(stderr, "\nERROR:\n");
       fprintf(stderr, "ERROR:\n");
@@ -368,7 +369,7 @@ int I_accept(int                 socket_desc,
 	int temp;
 	int on = 1;
 	
-	while ((temp=accept(socket_desc, (struct sockaddr*) addr, addr_len)) < 0) {
+	while ((temp=Generic_accept(socket_desc, (struct sockaddr*) addr, addr_len)) < 0) {
 		if (errno != EINTR) {
 			fprintf(stderr, "\nERROR:\n");
 			fprintf(stderr, "ERROR:\n");
@@ -432,7 +433,7 @@ int net_write(int   socket_desc,
 	
 	bytes_remaining = size;
 	while (bytes_remaining > 0) {
-		bytes_written = write(socket_desc, buffer, bytes_remaining);
+		bytes_written = Generic_write(socket_desc, buffer, bytes_remaining);
 		if (((bytes_written == 0) && (errno != EINTR)) || (bytes_written < 0))
 			return(bytes_written);
 		bytes_remaining -= bytes_written;

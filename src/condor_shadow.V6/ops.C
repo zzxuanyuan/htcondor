@@ -26,6 +26,7 @@
 #include "fileno.h"
 #include "condor_io.h"
 #include "shadow.h"
+#include "generic_socket.h"
 
 FILE	*fdopen();
 
@@ -142,7 +143,7 @@ HandleLog()
 
 	for(;;) {
 		errno = 0;
-		len=read(LogSock,buf,sizeof(buf)-1);
+		len=Generic_read(LogSock,buf,sizeof(buf)-1);
 		if ( len < 0 ) {
 			if ( errno == EINTR )
 				continue;	// interrupted by signal; just continue

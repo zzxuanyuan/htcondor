@@ -33,6 +33,7 @@
 #include "condor_version.h"
 #include "basename.h"
 #include "internet.h"
+#include "generic_socket.h"
 
 
 extern int		EventSigs[];
@@ -185,7 +186,7 @@ init_logging()
 	} else {
 			// Set up to do logging through the shadow
 		close( fileno(stderr) );
-		dup2( CLIENT_LOG, fileno(stderr) );
+		Generic_dup2( CLIENT_LOG, fileno(stderr) );
 		setvbuf( stderr, NULL, _IOLBF, 0 ); // line buffering
 
 		pval = param( "STARTER_DEBUG" );

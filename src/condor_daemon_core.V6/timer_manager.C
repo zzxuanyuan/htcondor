@@ -26,6 +26,7 @@
 #include "condor_common.h"
 #include "condor_debug.h"
 #include "condor_daemon_core.h"
+#include "generic_socket.h"
 
 static char* DEFAULT_INDENT = "DaemonCore--> ";
 
@@ -477,11 +478,11 @@ void TimerManager::Start()
 			// no timer events registered...  only a signal
 			// can save us now!!
 			dprintf(D_DAEMONCORE,"TimerManager::Start() about to block with no events!\n");
-			rv = select(0,0,0,0,NULL);
+			rv = Generic_select(0,0,0,0,NULL);
 		} else {
 			dprintf(D_DAEMONCORE,"TimerManager::Start() about to block, timeout=%d\n",
 				timer.tv_sec);
-			rv = select(0,0,0,0, &timer);
+			rv = Generic_select(0,0,0,0, &timer);
 		}		
 	}
 }

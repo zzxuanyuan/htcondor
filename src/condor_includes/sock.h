@@ -184,6 +184,9 @@ public:
 	/// local ip address integer
 	unsigned int get_ip_int();
 
+	/// sinful address in the form of "<a.b.c.d:pppp>"
+	char * Sock::get_sinful();
+
 	/// local file descriptor (fd) of this socket
 	int get_file_desc();
 

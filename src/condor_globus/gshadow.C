@@ -28,6 +28,7 @@
 #include "condor_attributes.h"
 #include "condor_adtypes.h"
 #include "condor_qmgr.h"
+#include "generic_socket.h"
 
 
 /* gshadow is a wrapper around globusrun, meant to be a scheduler universe 
@@ -77,7 +78,7 @@ remove_job( int signal ) {
 			//calling globusrun -kill <contact string> is like condor_rm
 			//I used exec here rather than popen because pclose blocks
 			//until completion, and I figured we wanted a fast shutdown.
-		execl( globusrun, globusrun, "-kill", contactString, NULL );
+		Generic_execl( globusrun, globusrun, "-kill", contactString, NULL );
 
 			//if we get here, execl failed...
 		fprintf(stderr, "ERROR on execl %s %s -kill %s\n", globusrun, 

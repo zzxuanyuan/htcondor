@@ -40,6 +40,7 @@
 #include "condor_email.h"
 #include "condor_commands.h"
 #include "../condor_ckpt_server/server_interface.h"
+#include "generic_socket.h"
 
 #include "daemon.h"
 #include "stream.h"
@@ -777,7 +778,7 @@ part_send_job(
   sprintf(sinfulstring, "<%s:%d>", sock->endpoint_ip_str(), ports.port2);
   if( (sd2 = do_connect(sinfulstring, (char *)0, (u_short)ports.port2)) < 0 ) {
     dprintf( D_ALWAYS, "failed to connect to scheduler on %s\n", sinfulstring );
-	close(sd1);
+	Generic_close(sd1);
 	goto returnfailure;
   }
 

@@ -29,6 +29,7 @@
 #include "condor_rw.h"
 #include "condor_socket_types.h"
 #include "condor_md.h"
+#include "generic_socket.h"
 
 #ifdef WIN32
 #include <mswsock.h>	// For TransmitFile()
@@ -108,11 +109,11 @@ ReliSock::listen()
 	// you may ask, why not just use SOMAXCONN ?  unfortunately,
 	// it is not correct on several platforms such as Solaris, which
 	// accepts an unlimited number of socks but sets SOMAXCONN to 5.
-	if( ::listen( _sock, 500 ) < 0 ) {
-		if( ::listen( _sock, 300 ) < 0 ) 
-		if( ::listen( _sock, 200 ) < 0 ) 
-		if( ::listen( _sock, 100 ) < 0 ) 
-		if( ::listen( _sock, 5 ) < 0 ) {
+	if( ::Generic_listen( _sock, 500 ) < 0 ) {
+		if( ::Generic_listen( _sock, 300 ) < 0 ) 
+		if( ::Generic_listen( _sock, 200 ) < 0 ) 
+		if( ::Generic_listen( _sock, 100 ) < 0 ) 
+		if( ::Generic_listen( _sock, 5 ) < 0 ) {
 			return FALSE;
 		}
 	}
@@ -151,7 +152,7 @@ ReliSock::accept( ReliSock	&c )
 		FD_ZERO( &readfds );
 		FD_SET( _sock, &readfds );
 
-		nfound = select( nfds, &readfds, 0, 0, &timer );
+		nfound = Generic_select( nfds, &readfds, 0, 0, &timer );
 
 		switch(nfound) {
 		case 0:
@@ -171,7 +172,7 @@ ReliSock::accept( ReliSock	&c )
 #ifndef WIN32 /* Unix */
 	errno = 0;
 #endif
-	if ((c_sock = ::accept(_sock, (sockaddr *)&c._who, &addr_sz)) < 0) {
+	if ((c_sock = ::Generic_accept(_sock, (sockaddr *)&c._who, &addr_sz)) < 0) {
 #ifndef WIN32 /* Unix */
 		if ( errno == EMFILE ) {
 			_condor_fd_panic ( __LINE__, __FILE__ ); /* This calls dprintf_exit! */

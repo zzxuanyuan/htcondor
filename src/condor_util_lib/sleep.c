@@ -28,6 +28,7 @@
 */
 
 #include "condor_common.h"
+#include "generic_socket.h"
 
 unsigned int
 sleep( unsigned int seconds ) 
@@ -36,7 +37,7 @@ sleep( unsigned int seconds )
 	timer.tv_sec = seconds;
 	timer.tv_usec = 0;
 
-	select( 0, NULL, NULL, NULL, &timer );
+	Generic_select( 0, NULL, NULL, NULL, &timer );
 	return 0;
 }
 
@@ -48,7 +49,7 @@ Sleep( unsigned int milliseconds )
 	timer.tv_sec = 0;
 	timer.tv_usec = milliseconds;
 
-	select( 0, NULL, NULL, NULL, &timer );
+	Generic_select( 0, NULL, NULL, NULL, &timer );
 	return 0;
 }
 

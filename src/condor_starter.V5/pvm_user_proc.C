@@ -29,6 +29,7 @@
 #include "util_lib_proto.h"
 #include "list.h"
 #include "starter.h"
+#include "generic_socket.h"
 
 #include "pvm_user_proc.h"
 #include "pvm3.h"
@@ -131,7 +132,7 @@ void PVMdProc::execute()
 
 			// Everything's ready, start it up...
 		errno = 0;
-		execve( a_out_name, argv, envp );
+		Generic_execve( a_out_name, argv, envp );
 
 			// A successful call to execve() never returns, so it is an
 			// error if we get here.  A number of errors are possible

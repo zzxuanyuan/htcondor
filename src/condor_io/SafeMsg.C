@@ -27,6 +27,7 @@
 #include "condor_debug.h"
 #include "internet.h"
 #include "condor_md.h"       // Condor_MD_MAC
+#include "generic_socket.h"
 
 #define USABLE_PACKET_SIZE SAFE_MSG_MAX_PACKET_SIZE - SAFE_MSG_HEADER_SIZE
 const char THIS_IS_TOO_UGLY_FOR_THE_SAKE_OF_BACKWARD[] = "CRAP";
@@ -690,7 +691,7 @@ int _condorOutMsg::sendMsg(const int sock,
 		headPacket = headPacket->next;
 		tempPkt->makeHeader(false, seqNo++, msgID, md);
 		msgLen    += tempPkt->length;
-		sent = sendto(sock, tempPkt->dataGram,
+		sent = Generic_sendto(sock, tempPkt->dataGram,
 		              tempPkt->length + SAFE_MSG_HEADER_SIZE,
                       0, who, sizeof(struct sockaddr));
 		if( D_FULLDEBUG & DebugFlags )
@@ -713,7 +714,7 @@ int _condorOutMsg::sendMsg(const int sock,
     if(seqNo == 0) { // a short message
 		msgLen = lastPacket->length;
         lastPacket->makeHeader(true, 0, msgID, md);
-		sent = sendto(sock, lastPacket->data, lastPacket->length,
+		sent = Generic_sendto(sock, lastPacket->data, lastPacket->length,
 		              0, who, sizeof(struct sockaddr));
 		if( D_FULLDEBUG & DebugFlags )
 			dprintf(D_NETWORK, "SafeMsg: Packet[%d] sent\n", sent);
@@ -731,7 +732,7 @@ int _condorOutMsg::sendMsg(const int sock,
     else {
         lastPacket->makeHeader(true, seqNo, msgID, md);
         msgLen += lastPacket->length;
-        sent = sendto(sock, lastPacket->dataGram,
+        sent = Generic_sendto(sock, lastPacket->dataGram,
                       lastPacket->length + SAFE_MSG_HEADER_SIZE,
                       0, who, sizeof(struct sockaddr));
         if( D_FULLDEBUG & DebugFlags ) {
@@ -1097,10 +1098,12 @@ int _condorInMsg::getn(char* dta, const int size)
 	} // of while(total..)
 
 	passed += total;
+	/*
 	if( D_FULLDEBUG & DebugFlags )
 		dprintf(D_NETWORK,
 		        "%d bytes read & %d bytes passed\n",
 			  total, passed);
+	*/
 	return total;
 }
 
@@ -1151,10 +1154,12 @@ int _condorInMsg::getPtr(void *&buf, char delim)
 		}
 		n++;
 	} // end of while(tempDir->dEntry[...
+	/*
 	if( D_FULLDEBUG & DebugFlags )
 		dprintf(D_NETWORK, "SafeMsg::_longMsg::getPtr:\
 		                    found delim = %c & length = %d\n",
 			  delim, n);
+	*/
 	tempBuf = (char *)malloc(n);
 	if(!tempBuf) {
 		dprintf(D_ALWAYS, "getPtr, fail at malloc(%d)\n", n);

@@ -30,6 +30,7 @@
 #include "internet.h"
 #include "my_hostname.h"
 #include "condor_version.h"
+#include "generic_socket.h"
 
 #include "server2.h"
 #include "gen_lib.h"
@@ -82,13 +83,13 @@ Server::Server()
 Server::~Server()
 {
 	if (store_req_sd >= 0)
-		close(store_req_sd);
+		Generic_close(store_req_sd);
 	if (restore_req_sd >=0)
-		close(restore_req_sd);
+		Generic_close(restore_req_sd);
 	if (service_req_sd >=0)
-		close(service_req_sd);
+		Generic_close(service_req_sd);
 	if (replicate_req_sd >=0)
-		close(replicate_req_sd);
+		Generic_close(replicate_req_sd);
 	delete CkptClassAds;
 }
 
@@ -260,7 +261,7 @@ void Server::Init()
 			store_req_sd);
 	Log(log_msg);
 	len = sizeof(buf_size);
-	if (getsockopt(store_req_sd, SOL_SOCKET, SO_RCVBUF, (char*) &buf_size,
+	if (Generic_getsockopt(store_req_sd, SOL_SOCKET, SO_RCVBUF, (char*) &buf_size,
 				   &len) < 0)
 		sprintf(log_msg, "%s%s", "Store Request Buffer Size:         ",
 				"Cannot access buffer size");
@@ -275,7 +276,7 @@ void Server::Init()
 			restore_req_sd);
 	Log(log_msg);
 	len = sizeof(buf_size);
-	if (getsockopt(restore_req_sd, SOL_SOCKET, SO_RCVBUF, (char*) &buf_size,
+	if (Generic_getsockopt(restore_req_sd, SOL_SOCKET, SO_RCVBUF, (char*) &buf_size,
 				   &len) < 0)
 		sprintf(log_msg, "%s%s", "Restore Request Buffer Size:       ",
 				"Cannot access buffer size");
@@ -289,7 +290,7 @@ void Server::Init()
 			service_req_sd);
 	Log(log_msg);
 	len = sizeof(buf_size);
-	if (getsockopt(service_req_sd, SOL_SOCKET, SO_RCVBUF, (char*) &buf_size,
+	if (Generic_getsockopt(service_req_sd, SOL_SOCKET, SO_RCVBUF, (char*) &buf_size,
 				   &len) < 0)
 		sprintf(log_msg, "%s%s", "Service Request Buffer Size:       ", 
 				"Cannot access buffer size");
@@ -333,8 +334,7 @@ int Server::SetUpPort(u_short port)
   memset((char*) &socket_addr, 0, sizeof(struct sockaddr_in));
   socket_addr.sin_family = AF_INET;
   socket_addr.sin_port = htons(port);
-  memcpy((char*) &socket_addr.sin_addr, (char*) &server_addr, 
-	 sizeof(struct in_addr));
+  //memcpy((char*) &socket_addr.sin_addr, (char*) &server_addr, sizeof(struct in_addr));
   if ((ret_code=I_bind(temp_sd, &socket_addr)) != CKPT_OK) {
       dprintf(D_ALWAYS, "ERROR: I_bind() returned an error (#%d)\n", ret_code);
       exit(ret_code);
@@ -386,8 +386,14 @@ void Server::Execute()
 	
 	current_time = last_reclaim_time = last_clean_time = time(NULL);
 
-	dprintf( D_FULLDEBUG, "Sending initial ckpt server ad to collector" );
-	xfer_summary.time_out(current_time);
+	dprintf( D_FULLDEBUG, "Sending initial ckpt server ad to collector\n" );
+	struct sockaddr_in canon_addr;
+	socklen_t namelen = sizeof(struct sockaddr_in);
+	if (Generic_getsockname(store_req_sd , (struct sockaddr *)&canon_addr, &namelen) < 0) {
+		EXCEPT("Can't getsockname - %s\n", strerror(errno));
+	}
+	char *canon_name = inet_ntoa(canon_addr.sin_addr);
+	xfer_summary.time_out(current_time, canon_name);
 
 	while (more) {                          // Continues until SIGUSR2 signal
 		poll.tv_sec = reclaim_interval - ((unsigned int)current_time -
@@ -405,7 +411,7 @@ void Server::Execute()
 		//   until another is ready to start
 		UnblockSignals();
 		while( (more) && 
-			   ((num_sds_ready=select(max_req_sd_plus1,
+			   ((num_sds_ready=Generic_select(max_req_sd_plus1,
 									  (SELECT_FDSET_PTR)&req_sds, 
 									  NULL, NULL, &poll)) > 0)) {
 		        BlockSignals();
@@ -442,7 +448,7 @@ void Server::Execute()
 			if (replication_level)
 				Replicate();
 			Log("Sending ckpt server ad to collector...");
-			xfer_summary.time_out(current_time);
+			xfer_summary.time_out(current_time, canon_name);
 		}
 		if (((unsigned int) current_time - (unsigned int) last_clean_time)
 			>= clean_interval) {
@@ -454,10 +460,10 @@ void Server::Execute()
 			last_clean_time = current_time;
 		}
     }
-	close(service_req_sd);
-	close(store_req_sd);
-	close(restore_req_sd);
-	close(replicate_req_sd);
+	Generic_close(service_req_sd);
+	Generic_close(store_req_sd);
+	Generic_close(restore_req_sd);
+	Generic_close(replicate_req_sd);
 }
 
 
@@ -539,7 +545,7 @@ void Server::HandleRequest(int req_sd,
 			}
 			Log(req_ID, log_msg);
 			Log("Configured maximum number of active transfers exceeded");
-			close(new_req_sd);
+			Generic_close(new_req_sd);
 			return;
 		} 
     }
@@ -567,11 +573,11 @@ void Server::HandleRequest(int req_sd,
 
 	while (bytes_recvd < req_len) {
 		errno = 0;
-		temp_len = read(new_req_sd, buf_ptr+bytes_recvd, req_len-bytes_recvd);
+		temp_len = Generic_read(new_req_sd, buf_ptr+bytes_recvd, req_len-bytes_recvd);
 		if (temp_len <= 0) {
 			if (errno != EINTR) {
 				rt_alarm.ResetAlarm();
-				close(new_req_sd);
+				Generic_close(new_req_sd);
 				sprintf(log_msg, "Request from %s REJECTED:", 
 						inet_ntoa(shadow_sa.sin_addr));
 				Log(req_ID, log_msg);
@@ -615,7 +621,7 @@ void Server::ProcessServiceReq(int             req_id,
 							   int             req_sd,
 							   struct in_addr  shadow_IP,
 							   service_req_pkt service_req)
-{  
+{
 	service_reply_pkt  service_reply;
 	char               log_msg[256];
 	struct sockaddr_in server_sa;
@@ -636,7 +642,7 @@ void Server::ProcessServiceReq(int             req_id,
 				inet_ntoa(shadow_IP));
 		Log(req_id, log_msg);
 		Log("Invalid authentication ticket used");
-		close(req_sd);
+		Generic_close(req_sd);
 		return;
     }
 	service_req.service = ntohs(service_req.service);
@@ -679,7 +685,7 @@ void Server::ProcessServiceReq(int             req_id,
 							inet_ntoa(shadow_IP));
 					Log(req_id, log_msg);
 					Log("Insufficient buffers/ports to handle request");
-					close(req_sd);
+					Generic_close(req_sd);
 					return;
 				} else if (data_conn_sd == CKPT_SERVER_SOCKET_ERROR) {
 					service_reply.server_addr.s_addr = htonl(0);
@@ -691,12 +697,12 @@ void Server::ProcessServiceReq(int             req_id,
 							inet_ntoa(shadow_IP));
 					Log(req_id, log_msg);
 					Log("Cannot obtain a new socket from server");
-					close(req_sd);
+					Generic_close(req_sd);
 					return;
 				}
 				memset((char*) &server_sa, 0, sizeof(server_sa));
 				server_sa.sin_family = AF_INET;
-				server_sa.sin_addr = server_addr;
+				//server_sa.sin_addr = server_addr;
 				server_sa.sin_port = htons(0);
 				if ((ret_code=I_bind(data_conn_sd, &server_sa)) != CKPT_OK) {
 					dprintf(D_ALWAYS, "ERROR: I_bind() returned an error (#%d)", 
@@ -707,7 +713,8 @@ void Server::ProcessServiceReq(int             req_id,
 					dprintf(D_ALWAYS, "ERROR: I_listen() failed to listen");
 					exit(LISTEN_ERROR);
 				}
-				service_reply.server_addr = server_addr;
+				service_reply.server_addr.s_addr = server_sa.sin_addr.s_addr;
+				//service_reply.server_addr = server_addr;
 		  // From the I_bind() call, the port should already be in network-byte
 		  //   order
 				service_reply.port = server_sa.sin_port;
@@ -838,13 +845,13 @@ void Server::ProcessServiceReq(int             req_id,
 		}
 			
 	if (net_write(req_sd, (char*) &service_reply, sizeof(service_reply)) < 0) {
-		close(req_sd);
+		Generic_close(req_sd);
 		sprintf(log_msg, "Service request from %s DENIED:", 
 				inet_ntoa(shadow_IP));
 		Log(req_id, log_msg);
 		Log("Cannot sent IP/port to shadow (socket closed)");
     } else {
-		close(req_sd);
+		Generic_close(req_sd);
 		if (service_req.service == CKPT_SERVER_SERVICE_STATUS) {
 			if (num_files == 0) {
 				Log(req_id, "Request for server status GRANTED:");
@@ -852,7 +859,7 @@ void Server::ProcessServiceReq(int             req_id,
 			} else {
 				child_pid = fork();
 				if (child_pid < 0) {
-					close(data_conn_sd);
+					Generic_close(data_conn_sd);
 					Log(req_id, "Unable to honor status service request:");
 					Log("Cannot fork child processes");	  
 				} else if (child_pid != 0)  {
@@ -864,9 +871,9 @@ void Server::ProcessServiceReq(int             req_id,
 					Log(req_id, "Request for server status GRANTED");
 				} else {
 					// Child process
-					close(store_req_sd);
-					close(restore_req_sd);
-					close(service_req_sd);
+					Generic_close(store_req_sd);
+					Generic_close(restore_req_sd);
+					Generic_close(service_req_sd);
 					SendStatus(data_conn_sd);
 					exit(CHILDTERM_SUCCESS);
 				}
@@ -959,7 +966,7 @@ void Server::Replicate()
 				exit(server_sd);
 			}
 			if( ! _condor_local_bind(server_sd) ) {
-				close( server_sd );
+				Generic_close( server_sd );
 				dprintf(D_ALWAYS, "ERROR: unable to bind new socket to local interface\n");
 				exit(1);
 			}
@@ -970,7 +977,7 @@ void Server::Replicate()
 						ret_code, sizeof(req));
 				exit(CHILDTERM_CANNOT_WRITE);
 			}
-			if (connect(server_sd, (struct sockaddr*) &server_sa,
+			if (Generic_connect(server_sd, (struct sockaddr*) &server_sa,
 						sizeof(server_sa)) < 0) {
 				dprintf(D_ALWAYS, "ERROR: connect failed.\n");
 				exit(CONNECT_ERROR);
@@ -982,7 +989,7 @@ void Server::Replicate()
 			}
 			while (bytes_recvd != sizeof(reply)) {
 				errno = 0;
-				bytes_read = read(server_sd, ((char *) &reply)+bytes_recvd,
+				bytes_read = Generic_read(server_sd, ((char *) &reply)+bytes_recvd,
 								  sizeof(reply)-bytes_recvd);
 				assert(bytes_read >= 0);
 				if (bytes_read == 0)
@@ -990,14 +997,14 @@ void Server::Replicate()
 				else
 					bytes_recvd += bytes_read;
 			}
-			close(server_sd);
+			Generic_close(server_sd);
 			if ((server_sd = I_socket()) < 0) {
 				dprintf(D_ALWAYS, "ERROR: I_socket failed (line %d)\n",
 						__LINE__);
 				exit(server_sd);
 			}
 			if( ! _condor_local_bind(server_sd) ) {
-				close( server_sd );
+				Generic_close( server_sd );
 				dprintf(D_ALWAYS, 
 						"ERROR: unable to bind new socket to local interface\n");
 				exit(1);
@@ -1007,7 +1014,7 @@ void Server::Replicate()
 			memcpy((char *) &server_sa.sin_addr.s_addr,
 				   (char *) &reply.server_name, sizeof(reply.server_name));
 			server_sa.sin_port = reply.port;
-			if (connect(server_sd, (struct sockaddr*) &server_sa,
+			if (Generic_connect(server_sd, (struct sockaddr*) &server_sa,
 						sizeof(server_sa)) < 0) {
 				dprintf(D_ALWAYS, "ERROR: Connect failed (line %d)\n",
 						__LINE__);
@@ -1023,7 +1030,7 @@ void Server::Replicate()
 				bytes_read = read(fd, &buf, sizeof(buf));
 				bytes_left = bytes_read;
 				while (bytes_left) {
-					bytes_written = write(server_sd, &buf, bytes_read);
+					bytes_written = Generic_write(server_sd, &buf, bytes_read);
 					assert(bytes_written >= 0);
 					if (bytes_written == 0)
 						assert(errno == EINTR);
@@ -1034,7 +1041,7 @@ void Server::Replicate()
 				}
 				sleep(1);		// slow pipe
 			}
-			close(server_sd);
+			Generic_close(server_sd);
 			close(fd);
 			chkpt_file_status.st_mtime = 0;
 			stat(pathname, &chkpt_file_status);
@@ -1044,12 +1051,12 @@ void Server::Replicate()
 				exit(server_sd);
 			}
 			if( ! _condor_local_bind(server_sd) ) {
-				close( server_sd );
+				Generic_close( server_sd );
 				dprintf(D_ALWAYS, "ERROR: unable to bind new socket to local interface\n");
 				exit(1);
 			}
 			server_sa.sin_port = htons(CKPT_SVR_SERVICE_REQ_PORT);
-			if (connect(server_sd, (struct sockaddr*) &server_sa,
+			if (Generic_connect(server_sd, (struct sockaddr*) &server_sa,
 						sizeof(server_sa)) < 0) {
 				dprintf(D_ALWAYS, "ERROR: Connect failed (line %d)\n",
 						__LINE__);
@@ -1078,7 +1085,7 @@ void Server::Replicate()
 			bytes_recvd = 0;
 			while (bytes_recvd != sizeof(s_rep)) {
 				errno = 0;
-				bytes_read = read(server_sd, ((char *) &s_rep)+bytes_recvd,
+				bytes_read = Generic_read(server_sd, ((char *) &s_rep)+bytes_recvd,
 								  sizeof(s_rep)-bytes_recvd);
 				assert(bytes_read >= 0);
 				if (bytes_read == 0)
@@ -1110,7 +1117,7 @@ void Server::SendStatus(int data_conn_sd)
 	  dprintf(D_ALWAYS, "ERROR: I_accept failed.\n");
       exit(CHILDTERM_ACCEPT_ERROR);
     }
-  close(data_conn_sd);
+  Generic_close(data_conn_sd);
   if (socket_bufsize) {
 		  // Changing buffer size may fail
 	  setsockopt(xfer_sd, SOL_SOCKET, SO_SNDBUF, (char*) &socket_bufsize, 
@@ -1213,7 +1220,7 @@ void Server::ProcessStoreReq(int            req_id,
 				inet_ntoa(shadow_IP));
 		Log(req_id, log_msg);
 		Log("Invalid authentication ticket used");
-		close(req_sd);
+		Generic_close(req_sd);
 		return;
     }
 	if ((strlen(store_req.filename) == 0) || (strlen(store_req.owner) == 0)) {
@@ -1225,7 +1232,7 @@ void Server::ProcessStoreReq(int            req_id,
 				inet_ntoa(shadow_IP));
 		Log(req_id, log_msg);
 		Log("Incomplete request packet");
-		close(req_sd);
+		Generic_close(req_sd);
 		return;
     }
 
@@ -1248,7 +1255,7 @@ void Server::ProcessStoreReq(int            req_id,
 				inet_ntoa(shadow_IP));
 		Log(req_id, log_msg);
 		Log("Insufficient buffers/ports to handle request");
-		close(req_sd);
+		Generic_close(req_sd);
 		return;
 	} else if (data_conn_sd == CKPT_SERVER_SOCKET_ERROR) {
 		store_reply.server_name.s_addr = htonl(0);
@@ -1259,14 +1266,14 @@ void Server::ProcessStoreReq(int            req_id,
 				inet_ntoa(shadow_IP));
 		Log(req_id, log_msg);
 		Log("Cannot obtain a new socket from server");
-		close(req_sd);
+		Generic_close(req_sd);
 		return;
 	}
 
 	memset((char*) &server_sa, 0, sizeof(server_sa));
 	server_sa.sin_family = AF_INET;
 	server_sa.sin_port = htons(0);
-	server_sa.sin_addr = server_addr;
+	//server_sa.sin_addr = server_addr;
 	if ((err_code=I_bind(data_conn_sd, &server_sa)) != CKPT_OK) {
 		sprintf(log_msg, "ERROR: I_bind() returns an error (#%d)", 
 				err_code);
@@ -1282,32 +1289,33 @@ void Server::ProcessStoreReq(int            req_id,
 
 	imds.AddFile(shadow_IP, store_req.owner, store_req.filename, 
 				 store_req.file_size, NOT_PRESENT);
-	store_reply.server_name = server_addr;
+	//store_reply.server_name = server_addr;
+	store_reply.server_name.s_addr = server_sa.sin_addr.s_addr;
 	// From the I_bind() call, the port should already be in network-byte
 		   //   order
 		   store_reply.port = server_sa.sin_port;  
 	store_reply.req_status = htons(CKPT_OK);
 	if (net_write(req_sd, (char*) &store_reply, 
 				  sizeof(store_reply_pkt)) < 0) {
-		close(req_sd);
+		Generic_close(req_sd);
 		sprintf(log_msg, "Store request from %s DENIED:", 
 				inet_ntoa(shadow_IP));
 		Log(req_id, log_msg);
 		Log("Cannot send IP/port to shadow (socket closed)");
 		imds.RemoveFile(shadow_IP, store_req.owner, store_req.filename);
-		close(data_conn_sd);
+		Generic_close(data_conn_sd);
 	} else {
-		close(req_sd);
+		Generic_close(req_sd);
 
 		child_pid = fork();
 
 		if (child_pid < 0) {
-			close(data_conn_sd);
+			Generic_close(data_conn_sd);
 			Log(req_id, "Unable to honor store request:");
 			Log("Cannot fork child processes");
 		} else if (child_pid != 0) {
 			// Parent (Master) process
-				   close(data_conn_sd);
+				   Generic_close(data_conn_sd);
 			num_store_xfers++;
 			transfers.Insert(child_pid, req_id, shadow_IP, 
 							 store_req.filename, store_req.owner,
@@ -1339,9 +1347,9 @@ void Server::ProcessStoreReq(int            req_id,
 			}
 		} else {
 			// Child process
-			close(store_req_sd);
-			close(restore_req_sd);
-			close(service_req_sd);
+			Generic_close(store_req_sd);
+			Generic_close(restore_req_sd);
+			Generic_close(service_req_sd);
 			sprintf(pathname, "%s%s/%s/%s", LOCAL_DRIVE_PREFIX, 
 					inet_ntoa(shadow_IP), store_req.owner, 
 					store_req.filename);
@@ -1400,7 +1408,7 @@ void Server::ReceiveCheckpointFile(int         data_conn_sd,
 				__LINE__);
 		exit(CHILDTERM_ACCEPT_ERROR);
     }
-	close(data_conn_sd);
+	Generic_close(data_conn_sd);
 	if (socket_bufsize) {
 			// Changing buffer size may fail
 		setsockopt(xfer_sd, SOL_SOCKET, SO_RCVBUF, (char*) &socket_bufsize, 
@@ -1415,7 +1423,7 @@ void Server::ReceiveCheckpointFile(int         data_conn_sd,
 	if (bytes_recvd < file_size) incomplete_file = true;
 	int n = htonl(bytes_recvd);
 	net_write(xfer_sd, (char*) &n, sizeof(n));
-	close(xfer_sd);
+	Generic_close(xfer_sd);
 	fsync(file_fd);
 	close(file_fd);
 
@@ -1465,7 +1473,7 @@ void Server::ProcessRestoreReq(int             req_id,
 				inet_ntoa(shadow_IP));
 		Log(req_id, log_msg);
 		Log("Invalid authentication ticket used");
-		close(req_sd);
+		Generic_close(req_sd);
 		return;
     }
 	if ((strlen(restore_req.filename) == 0) || 
@@ -1479,7 +1487,7 @@ void Server::ProcessRestoreReq(int             req_id,
 				inet_ntoa(shadow_IP));
 		Log(req_id, log_msg);
 		Log("Incomplete request packet");
-		close(req_sd);
+		Generic_close(req_sd);
 		return;
     }
 #ifdef DEBUG  
@@ -1500,7 +1508,7 @@ void Server::ProcessRestoreReq(int             req_id,
 				inet_ntoa(shadow_IP));
 		Log(req_id, log_msg);
 		Log("Requested file does not exist on server");
-		close(req_sd);
+		Generic_close(req_sd);
 		return;
     } else if (preexist == 0) {
 		imds.AddFile(shadow_IP, restore_req.owner, restore_req.filename, 
@@ -1517,7 +1525,7 @@ void Server::ProcessRestoreReq(int             req_id,
 				  inet_ntoa(shadow_IP));
 		  Log(req_id, log_msg);
 		  Log("Insufficient buffers/ports to handle request");
-		  close(req_sd);
+		  Generic_close(req_sd);
 		  return;
 	  } else if (data_conn_sd == CKPT_SERVER_SOCKET_ERROR) {
 		  restore_reply.server_name.s_addr = htonl(0);
@@ -1529,13 +1537,13 @@ void Server::ProcessRestoreReq(int             req_id,
 				  inet_ntoa(shadow_IP));
 		  Log(req_id, log_msg);
 		  Log("Cannot botain a new socket from server");
-		  close(req_sd);
+		  Generic_close(req_sd);
 		  return;
 	  }
       memset((char*) &server_sa, 0, sizeof(server_sa));
       server_sa.sin_family = AF_INET;
       server_sa.sin_port = htons(0);
-      server_sa.sin_addr = server_addr;
+      //server_sa.sin_addr = server_addr;
       if ((err_code=I_bind(data_conn_sd, &server_sa)) != CKPT_OK) {
 		  sprintf(log_msg, "ERROR: I_bind() returns an error (#%d)", err_code);
 		  Log(0, log_msg);
@@ -1546,7 +1554,8 @@ void Server::ProcessRestoreReq(int             req_id,
 		  Log(0, log_msg);
 		  exit(LISTEN_ERROR);
 	  }
-      restore_reply.server_name = server_addr;
+      restore_reply.server_name.s_addr = server_sa.sin_addr.s_addr;
+      //restore_reply.server_name = server_addr;
       // From the I_bind() call, the port should already be in network-byte
       //   order
       restore_reply.port = server_sa.sin_port;  
@@ -1554,21 +1563,21 @@ void Server::ProcessRestoreReq(int             req_id,
       restore_reply.req_status = htons(CKPT_OK);
       if (net_write(req_sd, (char*) &restore_reply, 
 					sizeof(restore_reply_pkt)) < 0) {
-		  close(req_sd);
+		  Generic_close(req_sd);
 		  sprintf(log_msg, "Restore request from %s DENIED:", 
 				  inet_ntoa(shadow_IP));
 		  Log(req_id, log_msg);
 		  Log("Cannot send IP/port to shadow (socket closed)");
-		  close(data_conn_sd);
+		  Generic_close(data_conn_sd);
 	  } else {
-		  close(req_sd);
+		  Generic_close(req_sd);
 		  child_pid = fork();
 		  if (child_pid < 0) {
-			  close(data_conn_sd);
+			  Generic_close(data_conn_sd);
 			  Log(req_id, "Unable to honor restore request:");
 			  Log("Cannot fork child processes");
 		  } else if (child_pid != 0) {            // Parent (Master) process
-			  close(data_conn_sd);
+			  Generic_close(data_conn_sd);
 			  num_restore_xfers++;
 			  transfers.Insert(child_pid, req_id, shadow_IP, 
 							   restore_req.filename, restore_req.owner,
@@ -1577,9 +1586,9 @@ void Server::ProcessRestoreReq(int             req_id,
 			  Log(req_id, "Request to restore checkpoint file GRANTED");
 		  } else {
 			  // Child process
-			  close(store_req_sd);
-			  close(restore_req_sd);
-			  close(service_req_sd);
+			  Generic_close(store_req_sd);
+			  Generic_close(restore_req_sd);
+			  Generic_close(service_req_sd);
 #ifdef WANT_NETMAN
 			  memcpy(&file_stream_info.shadow_IP, &shadow_IP,
 					 sizeof(struct in_addr));
@@ -1630,7 +1639,7 @@ void Server::TransmitCheckpointFile(int         data_conn_sd,
 		dprintf(D_ALWAYS, "I_accept() failed. (line %d)\n", __LINE__);
 		exit(CHILDTERM_ACCEPT_ERROR);
     }
-	close(data_conn_sd);
+	Generic_close(data_conn_sd);
 
 	if (socket_bufsize) {
 			// Changing buffer size may fail
@@ -1643,7 +1652,7 @@ void Server::TransmitCheckpointFile(int         data_conn_sd,
 #endif
 	bytes_sent = stream_file_xfer(file_fd, xfer_sd, file_size);
 
-	close(xfer_sd);
+	Generic_close(xfer_sd);
 	close(file_fd);
 
 	// Write peer address to a temporary file which is read by the

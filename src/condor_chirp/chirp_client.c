@@ -43,6 +43,8 @@ for details.
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 
+#include "generic_socket.h"
+
 static int tcp_connect( const char *host, int port );
 static void chirp_fatal_request( const char *name );
 static void chirp_fatal_response();
@@ -219,7 +221,7 @@ chirp_client_connect( const char *host, int port )
 	c->stream = fdopen(fd,"w+");
 	if(!c->stream) {
 		save_errno = errno;
-		close(fd);
+		Generic_close(fd);
 		free(c);
 		errno = save_errno;
 		return 0;
@@ -479,9 +481,9 @@ tcp_connect( const char *host, int port )
 	fd = socket( AF_INET, SOCK_STREAM, 0 );
 	if(fd<0) return -1;
 
-	success = connect( fd, (struct sockaddr *) &address, sizeof(address) );
+	success = Generic_connect( fd, (struct sockaddr *) &address, sizeof(address) );
 	if(success<0) {
-		close(fd);
+		Generic_close(fd);
 		return -1;
 	}
 

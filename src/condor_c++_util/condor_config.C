@@ -180,6 +180,28 @@ config_host( char* host )
 
 
 void
+condor_GCB_config()
+{
+	char *str = NULL;
+
+	// Env: useGCB
+	setenv("useGCB", "yes", 1);
+
+	// Env: Broker
+	if (str = param("GCB_BROKER")) {
+		setenv("Broker", str, 1);
+        free(str);
+        str = NULL;
+	}
+
+	// Env: GCB routing table
+	if (str = param("GCB_ROUTE")) {
+		setenv("GCBroute", str, 1);
+        free(str);
+	}
+}
+
+void
 real_config(char* host, int wantsQuiet)
 {
 	char		*config_file, *tmp;
@@ -301,6 +323,13 @@ real_config(char* host, int wantsQuiet)
 		// all the files in the order they are listed.
 	process_locals( "LOCAL_CONFIG_FILE", host );
 			
+		// The following lines should be placed very carefully. Must be after
+		// global and local config files being processed but before any call to
+		// Generic_*
+    if ( param_boolean("GCB_ENABLE", false) ) {
+        condor_GCB_config();
+    }
+
 		// Re-insert the special macros.  We don't want the user to 
 		// override them, since it's not going to work.
 	reinsert_specials( host );
@@ -419,6 +448,7 @@ real_config(char* host, int wantsQuiet)
 	check_params();
 
 	(void)SetSyscalls( scm );
+
 }
 
 

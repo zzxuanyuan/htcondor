@@ -32,7 +32,6 @@ int get_port_range(int *low_port, int *high_port)
 	char *low = NULL, *high = NULL;
 
 	if ( (low = param("LOWPORT")) == NULL ) {
-        dprintf(D_NETWORK, "LOWPORT undefined\n");
 		return FALSE;
     }
 	if ( (high = param("HIGHPORT")) == NULL ) {

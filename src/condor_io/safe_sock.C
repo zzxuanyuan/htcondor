@@ -32,6 +32,7 @@
 #include "internet.h"
 #include "condor_socket_types.h"
 #include "condor_string.h"
+#include "generic_socket.h"
 
 _condorMsgID SafeSock::_outMsgID = {0, 0, 0, 0};
 unsigned long SafeSock::_noMsgs = 0;
@@ -306,7 +307,7 @@ int SafeSock::get_bytes(void *dta, int size)
 			FD_ZERO(&readfds);
 			FD_SET(_sock, &readfds);
 				
-			nfound = select( nfds, &readfds, 0, 0, &timer );
+			nfound = Generic_select( nfds, &readfds, 0, 0, &timer );
 			switch(nfound) {
 				case 0:
 					return 0;
@@ -383,7 +384,7 @@ int SafeSock::get_ptr(void *&ptr, char delim)
 			FD_ZERO(&readfds);
 			FD_SET(_sock, &readfds);
 				
-			nfound = select( nfds, &readfds, 0, 0, &timer );
+			nfound = Generic_select( nfds, &readfds, 0, 0, &timer );
 			switch(nfound) {
 				case 0:
 					return 0;
@@ -427,7 +428,7 @@ int SafeSock::peek(char &c)
 			FD_ZERO(&readfds);
 			FD_SET(_sock, &readfds);
 				
-			nfound = select( nfds, &readfds, 0, 0, &timer );
+			nfound = Generic_select( nfds, &readfds, 0, 0, &timer );
 			switch(nfound) {
 				case 0:
 					return 0;
@@ -471,7 +472,7 @@ int SafeSock::handle_incoming_packet()
 	_condorInMsg *tempMsg, *delMsg, *prev = NULL;
 	time_t curTime;
 
-	received = recvfrom(_sock, _shortMsg.dataGram, SAFE_MSG_MAX_PACKET_SIZE,
+	received = Generic_recvfrom(_sock, _shortMsg.dataGram, SAFE_MSG_MAX_PACKET_SIZE,
 	                    0, (struct sockaddr *)&_who, &fromlen );
 	if(received < 0) {
 		dprintf(D_NETWORK, "recvfrom failed: errno = %d\n", errno);
@@ -756,7 +757,7 @@ int SafeSock::getMsgSize()
 			FD_ZERO(&readfds);
 			FD_SET(_sock, &readfds);
 				
-			nfound = select( nfds, &readfds, 0, 0, &timer );
+			nfound = Generic_select( nfds, &readfds, 0, 0, &timer );
 			switch(nfound) {
 				case 0:
 					return 0;

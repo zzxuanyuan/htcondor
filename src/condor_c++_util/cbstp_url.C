@@ -25,6 +25,7 @@
 #include "url_condor.h"
 #include "internet.h"
 #include "condor_debug.h"
+#include "generic_socket.h"
 
 int condor_bytes_stream_open_ckpt_file( const char *name, int flags, 
 									   size_t n_bytes )
@@ -35,7 +36,7 @@ int condor_bytes_stream_open_ckpt_file( const char *name, int flags,
 
 	// cast discards const	
 	string_to_sin((char *) name, &sin);
-	sock_fd = socket(AF_INET, SOCK_STREAM, 0);
+	sock_fd = Generic_socket(AF_INET, SOCK_STREAM, 0);
 	if (sock_fd < 0) {
 		fprintf(stderr, "socket() failed, errno = %d\n", errno);
 		fflush(stderr);
@@ -43,16 +44,16 @@ int condor_bytes_stream_open_ckpt_file( const char *name, int flags,
 	}
 
 	if( ! _condor_local_bind(sock_fd) ) {
-		close( sock_fd );
+		Generic_close( sock_fd );
 		return -1;
 	}
 
 	sin.sin_family = AF_INET;
-	status = connect(sock_fd, (struct sockaddr *) &sin, sizeof(sin));
+	status = Generic_connect(sock_fd, (struct sockaddr *) &sin, sizeof(sin));
 	if (status < 0) {
 		fprintf(stderr, "cbstp connect() FAILED, errno = %d\n", errno);
 		fflush(stderr);
-		close( sock_fd );
+		Generic_close( sock_fd );
 		return status;
 	}
 	return sock_fd;

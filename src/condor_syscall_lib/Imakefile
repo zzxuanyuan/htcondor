@@ -242,8 +242,15 @@ LIB_OBJ = $(EXTRACT) $(STUBS) $(UTIL) $(NAME_TAB) $(XDR_OBJ) $(UTIL_OBJ) \
 SIMPLE_OBJ = condor_rt0.o extern_path.o xfer_file.o libcondorc++support.a
 SYSCALL_LIB = libcondorsyscall.a
 
+#if WANT_GCB
+GCB_LIB_TARGET = libGCB.a
+#else
+GCB_LIB_TARGET =
+#endif
+
+
 #if DOES_REMOTE_SYSCALLS
-all_target($(SYSCALL_LIB) $(COMPRESS_LIB) receivers.o $(SIMPLE_OBJ) syscall-list libz.a)
+all_target($(SYSCALL_LIB) $(COMPRESS_LIB) receivers.o $(SIMPLE_OBJ) syscall-list libz.a $(GCB_LIB_TARGET))
 #else 
 all_target($(SYSCALL_SUPPORT_OBJ) extern_path.o file_stream.o)
 #endif
@@ -445,6 +452,13 @@ strip_library(libz.a,lib)
 static_library(libz.a,lib)
 #endif
 
+#if WANT_GCB
+import($(GCB_DIR)/lib,libGCB.a)
+release_library(libGCB.a,$(RELEASE_DIR)/lib)
+strip_library(libGCB.a,$(STRIP_DIR)/lib)
+static_library(libGCB.a,$(STATIC_DIR)/lib)
+#endif /* WANT_GCB */
+
 #if DOES_COMPRESS_CKPT
 release_library($(COMPRESS_LIB),lib)
 strip_library($(COMPRESS_LIB),lib)
@@ -524,6 +538,7 @@ import(../condor_util_lib,stub_gen)
 import(../condor_shadow.V6,pseudo_ops.h)
 import(../condor_ckpt,libcondorc++support.a)
 import($(ZLIB_LIB),libz.a)
+
 
 authentication.o: ../condor_io/authentication.C
 	$(CPlusPlus) $(C_PLUS_FLAGS) -I../condor_io \

@@ -23,6 +23,7 @@
 #include "condor_common.h"
 #include "alarm2.h"
 #include "signal2.h"
+#include "generic_socket.h"
 
 
 void Alarm::SetAlarm(int socket_desc,
@@ -47,6 +48,6 @@ void Alarm::Expired()
 {
   BlockSignal(SIGALRM);
   if (alarm_sd != 0)
-    close(alarm_sd);
+    Generic_close(alarm_sd);
   UnblockSignal(SIGALRM);
 }

@@ -35,6 +35,7 @@
 #include "fileno.h"
 #include "renice_self.h"
 #include "condor_environ.h"
+#include "generic_socket.h"
 
 
 #if defined(AIX32)
@@ -586,7 +587,7 @@ UserProc::execute()
 				EXCEPT( "chdir(%s)", local_dir );
 			}
 			close( pipe_fds[WRITE_END] );
-			dup2( user_syscall_fd, RSC_SOCK );
+			Generic_dup2( user_syscall_fd, RSC_SOCK );
 			break;
 
 		  case CONDOR_UNIVERSE_VANILLA:
@@ -595,8 +596,8 @@ UserProc::execute()
 			open_std_file( 1 );
 			open_std_file( 2 );
 
-			(void)close( RSC_SOCK );
-			(void)close( CLIENT_LOG );
+			(void)Generic_close( RSC_SOCK );
+			(void)Generic_close( CLIENT_LOG );
 
 			break;
 		}
@@ -611,7 +612,7 @@ UserProc::execute()
 
 			// Everything's ready, start it up...
 		errno = 0;
-		execve( a_out_name, argv, envp );
+		Generic_execve( a_out_name, argv, envp );
 
 			// A successful call to execve() never returns, so it is an
 			// error if we get here.  A number of errors are possible
@@ -1217,7 +1218,6 @@ UserProc::UserProc( STARTUP_INFO &s ) :
 	/* Port regulation for user job */
 	char *low = NULL, *high = NULL;
 	int low_port, high_port;
-
 	if ( (low = param("LOWPORT")) != NULL ) {
 		if ( (high = param("HIGHPORT")) != NULL ) {
 			low_port = atoi(low);
@@ -1235,6 +1235,24 @@ UserProc::UserProc( STARTUP_INFO &s ) :
 		}
 	}
 	/* end - Port regulation for user job */
+
+	/* GCB for user job */
+	char *GCBroute, *BrokerIP;
+    if ( param_boolean("GCB_ENABLE", false) ) {
+		sprintf(buf, "useGCB=yes");
+		env_obj.add_string(buf);
+	}
+	if ((GCBroute = param("GCB_ROUTE")) != NULL) {
+		sprintf(buf, "GCBroute=%s", GCBroute);
+		env_obj.add_string(buf);
+        free(GCBroute);
+	}
+	if ((BrokerIP = param("GCB_BROKER")) != NULL ) {
+		sprintf(buf, "Broker=%s", BrokerIP);
+		env_obj.add_string(buf);
+        free(BrokerIP);
+	}
+	/* end - GCB for user job */
 
 
 		// Generate a directory where process can run and do its checkpointing

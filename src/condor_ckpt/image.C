@@ -24,6 +24,7 @@
 #include "condor_common.h"
 #include "condor_version.h"
 #include "condor_mmap.h"
+#include "generic_socket.h"
 
 #if defined(Solaris)
 #include <netconfig.h>		// for setnetconfig()
@@ -100,6 +101,9 @@ extern "C" int open_ckpt_file( const char *name, int flags, size_t n_bytes );
 extern "C" int get_ckpt_mode( int sig );
 extern "C" int get_ckpt_speed( );
 
+extern "C" void _CB_cleanup(void);
+extern "C" int useGCB();
+
 Image MyImage;
 static jmp_buf Env;
 static RAW_ADDR SavedStackLoc;
@@ -126,6 +130,7 @@ net_read(int fd, void *buf, int size)
 
 	bytes_read = 0;
 	do {
+		//this_read = Generic_read(fd, buf, size - bytes_read);
 		this_read = read(fd, buf, size - bytes_read);
 		if (this_read <= 0) {
 			return -1;
@@ -873,7 +878,6 @@ void Image::RestoreAllSegsExceptStack()
 void
 RestoreStack()
 {
-
 #if defined(ALPHA)			
 	unsigned int nbytes;		// 32 bit unsigned
 #else
@@ -888,6 +892,7 @@ RestoreStack()
 	if( MyImage.GetMode() == REMOTE ) {
 		nbytes = MyImage.GetLen();
 		nbytes = htonl( nbytes );
+		//status = Generic_write( MyImage.GetFd(), &nbytes, sizeof(nbytes) );
 		status = write( MyImage.GetFd(), &nbytes, sizeof(nbytes) );
 		dprintf( D_ALWAYS, "USER PROC: CHECKPOINT IMAGE RECEIVED OK\n" );
 
@@ -952,7 +957,7 @@ Image::MSync()
 int
 Image::Write( const char *ckpt_file )
 {
-	int	fd;
+	int	fd, newfd;
 	int	status;
 	int	scm;
 	int bytes_read;
@@ -998,6 +1003,42 @@ Image::Write( const char *ckpt_file )
 			return -1;
 		}
 	// }  // this is the matching brace to the open_url; see comment above
+
+		// 'open_ckpt_file' above may have created a GCB socket and possibly several
+		// management sockets to make connection to the checkpoint station. The problem is
+		// that information of those GCB sockets is recoded in Data segment and
+		// that information is not a part of userproc image and should not be checkpointed.
+		// Luckily, no sockets are checkpointed at the moment. Hence we can safely close
+		// all GCB and RUDP sockets and free memories assigned to them
+		if (useGCB()) {
+			// First we need to dup fd to newfd so that Image::Write can write process image
+			// using newfd
+			newfd = dup(fd);
+			if (newfd < 0) {
+				dprintf( D_ALWAYS, "ERROR:dup failed, aborting ckpt\n");
+				SetSyscalls(scm);
+				return -1;
+			}
+			// close all GCB sockets
+			_CB_cleanup();
+			// restore fd
+			dup2(newfd, fd);
+			close(newfd);
+		}
+
+		// For debugging
+		RAW_ADDR    data_start, data_end;
+		data_start = data_start_addr();
+		data_end = data_end_addr();
+		dprintf(D_CKPT,
+                "just before Write(fd): DATA segment: start[0x%x], end [0x%x]\n",
+                data_start, data_end);
+		RAW_ADDR    stack_start, stack_end;
+		find_stack_location( stack_start, stack_end );
+		dprintf(D_CKPT,
+                "just before Write(fd): STACK segment: start[0x%x], end [0x%x]\n",
+                stack_start, stack_end);
+		// end of debugging
 
 		// Write out the checkpoint
 	if( Write(fd) < 0 ) {
@@ -1054,6 +1095,7 @@ Image::Write( int fd )
 #endif
 
 		// Write out the header
+	//if( (nbytes=Generic_write(fd,&head,sizeof(head))) < 0 ) {
 	if( (nbytes=write(fd,&head,sizeof(head))) < 0 ) {
 		return -1;
 	}
@@ -1061,6 +1103,7 @@ Image::Write( int fd )
 	dprintf( D_ALWAYS, "Wrote headers OK\n" );
 
 		// Write out the SegMaps
+	//if( (nbytes=Generic_write(fd,map,sizeof(SegMap)*head.N_Segs()))
 	if( (nbytes=write(fd,map,sizeof(SegMap)*head.N_Segs()))
 		!= sizeof(SegMap)*head.N_Segs() ) {
 		return -1;
@@ -1118,6 +1161,7 @@ Image::Write( int fd )
 		for (bytes_to_go = (zbufsize-zstr->avail_out), ptr = zbuf;
 			 bytes_to_go > 0;
 			 bytes_to_go -= rval, ptr += rval, zstr->avail_out += rval) {
+			//rval = Generic_write(fd,ptr,bytes_to_go);
 			rval = write(fd,ptr,bytes_to_go);
 			if (rval < 0) {
 				dprintf(D_ALWAYS, "write failed with errno %d in "
@@ -1226,6 +1270,9 @@ Image::Close()
 	if( fd < 0 ) {
 		dprintf( D_ALWAYS, "Image::Close - file not open!\n" );
 	}
+	// Here we call close no matter whether fd is GCB socket or not because
+	// 1. GCB close calls 'free' and we can't do that here
+	// 2. Data segment will anyway be overwritten by the data segment of checkpointed image
 	close( fd );
 	/* The next checkpoint is going to assume the fd is -1, so set it here */
 	fd = -1;
@@ -1451,6 +1498,7 @@ SegMap::Write( int fd, ssize_t pos )
 				 bytes_to_go > 0;
 				 bytes_to_go -= rval, ptr += rval, zstr->avail_out += rval) {
 				// note: bytes_to_go <= 65536 (bufsize)
+				// rval = Generic_write(fd,ptr,bytes_to_go);
 				rval = write(fd,ptr,bytes_to_go);
 				if (rval < 0) {
 					dprintf(D_ALWAYS, "write failed with errno %d in "
@@ -1486,6 +1534,7 @@ SegMap::Write( int fd, ssize_t pos )
 		} else {
 			write_size = bytes_to_go;
 		}
+		//nbytes = Generic_write(fd,(void *)ptr,write_size);
 		nbytes = write(fd,(void *)ptr,write_size);
 		dprintf(D_CKPT, "I wrote %d bytes with write...\n", nbytes);
 		if ( nbytes < 0 ) {
@@ -1621,6 +1670,17 @@ Checkpoint( int sig, int code, void *scp )
 		dprintf( D_ALWAYS, "Done saving file state\n");
 
 	if( SETJMP(Env) == 0 ) {	// Checkpoint
+			// I really don't like this type of heck, but I was in such a bad luck:
+			// GCB and Cedar need to malloc to make connection to checkpoint station
+			// and to communicate with Shadow. This malloc make process image grow
+			// and end up partial image being checkpointed sometime. Unfortunately
+			// the current checkpoint protocol needs to know process image right ahead of
+			// the real image being transferred and the size is used by all participants
+			// So here I malloc and free right away to just increase the process image
+			// so that further malloc will not increase process size
+		char *dummy = (char *)malloc(60000); // 60K is more than enough
+		free(dummy);
+
 			// First, take a snapshot of our memory image to prepare
 			// for the checkpoint and accurately report our image size.
 

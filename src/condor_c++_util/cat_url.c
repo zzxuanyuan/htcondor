@@ -22,6 +22,7 @@
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 #include <sys/fcntl.h>
 #include <stdio.h>
+#include "generic_socket.h"
 
 main(argc, argv)
 int		argc;
@@ -46,17 +47,17 @@ char	*argv[];
 		}
 		if (read_fd >= 0) {
 			do {
-				count = read(read_fd, buf, sizeof(buf));
+				count = Generic_read(read_fd, buf, sizeof(buf));
 				if (count > 0) {
-					write(write_fd, buf, count);
+					Generic_write(write_fd, buf, count);
 				}
 			} while (count > 0);
 		} else {
 			fprintf(stderr, "Failed to open URL %s\n", argv[i]);
 		}
-		close(read_fd);
+		Generic_close(read_fd);
 		if (write_fd != 1) {
-			close(write_fd);
+			Generic_close(write_fd);
 			write_fd = 1;
 		}
 	}

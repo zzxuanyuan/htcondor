@@ -25,6 +25,7 @@
 #include "condor_sys.h"
 #include "ckpt_file.h"
 #include "debug.h"
+#include "generic_socket.h"
 
 #include "condor_macros.h"
 
@@ -85,21 +86,21 @@ send_a_file( const char *local, const char *remote, int perm )
 			dprintf( D_ALWAYS, "Can't read fd %d, errno = %d\n",
 														local_fd, errno );
 			(void)close( local_fd );
-			(void)close( remote_fd );
+			(void)Generic_close( remote_fd );
 			return -1;
 		}
-		if( write(remote_fd,buf,nbytes) != nbytes ) {
+		if( Generic_write(remote_fd,buf,nbytes) != nbytes ) {
 			dprintf( D_ALWAYS, "Can't write fd %d, errno = %d\n",
 														remote_fd, errno );
 			(void)close( local_fd );
-			(void)close( remote_fd );
+			(void)Generic_close( remote_fd );
 			return -1;
 		}
 	}
 
 		/* Clean up */
 	(void)close( local_fd );
-	(void)close( remote_fd );
+	(void)Generic_close( remote_fd );
 
 		/* report */
 	finish = get_time();
@@ -143,26 +144,26 @@ get_file( const char *remote, const char *local, int mode )
 		/* transfer the data */
 	for(bytes_to_go = len; bytes_to_go; bytes_to_go -= nbytes ) {
 		nbytes = MIN( CHUNK_SIZE, bytes_to_go );
-		nbytes = read( remote_fd, buf, nbytes );
+		nbytes = Generic_read( remote_fd, buf, nbytes );
 		if( nbytes <= 0 ) {
 			dprintf( D_ALWAYS, "Can't read fd %d, errno = %d\n",
 														remote_fd, errno );
 			(void)close( local_fd );
-			(void)close( remote_fd );
+			(void)Generic_close( remote_fd );
 			return -1;
 		}
 		if( write(local_fd,buf,nbytes) != nbytes ) {
 			dprintf( D_ALWAYS, "Can't write fd %d, errno = %d\n",
 														local_fd, errno );
 			(void)close( local_fd );
-			(void)close( remote_fd );
+			(void)Generic_close( remote_fd );
 			return -1;
 		}
 	}
 
 		/* clean up */
 	(void)close( local_fd );
-	(void)close( remote_fd );
+	(void)Generic_close( remote_fd );
 
 	finish = get_time();
 

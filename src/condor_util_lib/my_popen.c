@@ -26,6 +26,7 @@
 #define _POSIX_SOURCE
 #include "condor_common.h"
 #include "condor_debug.h"
+#include "generic_socket.h"
 #include <signal.h>
 #include <sys/wait.h>
 
@@ -115,7 +116,7 @@ char *mode;
 				close( pipe_d[READ_END] );
 			}
 		}
-		execl( "/bin/sh", "sh", "-c", cmd, 0 );
+		Generic_execl( "/bin/sh", "sh", "-c", cmd, 0 );
 		_exit( ENOEXEC );		/* This isn't safe ... */
 	}
 

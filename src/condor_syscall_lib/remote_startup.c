@@ -132,6 +132,7 @@
 #include "condor_debug.h"
 #include "condor_error.h"
 #include "condor_version.h"
+#include "generic_socket.h"
 
 enum result { NOT_OK = 0, OK = 1, END };
 
@@ -786,13 +787,13 @@ open_std_files()
 		result = REMOTE_CONDOR_get_std_file_info(fd,logical_name[fd]);
 		if(result!=0) _condor_error_fatal("Couldn't get info on standard file %d",fd );
 
-		close(fd);
+		Generic_close(fd);
 
 		/* Special case: */
 		/* If stderr has the same name as stdout, then dup it. */
 
 		if( (fd==2) && !strcmp( logical_name[1], logical_name[2] ) ) {
-			dup2(1,2);
+			Generic_dup2(1,2);
 		} else {
 			if(fd==0) {
 				flags = O_RDONLY;
@@ -804,7 +805,7 @@ open_std_files()
 				_condor_error_retry("Couldn't open standard file '%s'", logical_name );
 			}
 			if(new_fd!=fd) {
-				dup2(fd,new_fd);
+				Generic_dup2(fd,new_fd);
 			}
 		}
 	}

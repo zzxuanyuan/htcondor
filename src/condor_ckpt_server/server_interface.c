@@ -24,6 +24,7 @@
 #include "condor_config.h"
 #include "condor_debug.h"
 #include "server_interface.h"
+#include "generic_socket.h"
 #include "constants2.h"
 #include "network2.h"
 #include "internet.h"
@@ -69,7 +70,7 @@ int ConnectToServer(request_type type)
     }
 
 	if( ! _condor_local_bind(conn_req_sd) ) {
-		close( conn_req_sd );
+		Generic_close( conn_req_sd );
 		dprintf( D_ALWAYS, "ERROR: unable to bind new socket to local interface\n");
 		return CKPT_SERVER_SOCKET_ERROR;
 	}
@@ -88,9 +89,9 @@ int ConnectToServer(request_type type)
 		case RESTORE_REQ:
 			server_sa.sin_port = htons(CKPT_SVR_RESTORE_REQ_PORT);
 		}
-	if (connect(conn_req_sd, (struct sockaddr*) &server_sa, 
+	if (Generic_connect(conn_req_sd, (struct sockaddr*) &server_sa, 
 				sizeof(server_sa)) < 0) {
-		close(conn_req_sd);
+		Generic_close(conn_req_sd);
 		return CONNECT_ERROR;
 	}
 	setsockopt(conn_req_sd,SOL_SOCKET,SO_KEEPALIVE,(char*)&on,sizeof(on));
@@ -166,31 +167,31 @@ int RequestStore(const char*     owner,
 	StripPrefix(filename, req.filename);
 	ret_code = net_write(server_sd, (char*) &req, sizeof(req));
 	if (ret_code != sizeof(req)) {
-		close(server_sd);
+		Generic_close(server_sd);
 		return CHILDTERM_CANNOT_WRITE;
 	}
 	while (bytes_recvd != sizeof(reply)) {
 		errno = 0;
-		bytes_read = read(server_sd, ((char*) &reply)+bytes_recvd, 
+		bytes_read = Generic_read(server_sd, ((char*) &reply)+bytes_recvd, 
 						  sizeof(reply)-bytes_recvd);
 
 		/* assert(bytes_read >= 0); */
 		if ( !(bytes_read >= 0) ) {
-			close(server_sd);
+			Generic_close(server_sd);
 			return -1;
 		}
 			
 		if (bytes_read == 0) {
 			/* assert(errno == EINTR); */
 			if ( !(errno == EINTR) ) {
-				close(server_sd);
+				Generic_close(server_sd);
 				return -1;
 			}
 		} else {
 			bytes_recvd += bytes_read;
 		}
     }
-	close(server_sd);
+	Generic_close(server_sd);
 	server_IP->s_addr = reply.server_name.s_addr;
 	*port = reply.port;
 	return ntohs(reply.req_status);
@@ -231,30 +232,30 @@ int RequestRestore(const char*     owner,
 	StripPrefix(filename, req.filename);
 	/* assert(net_write(server_sd, (char*) &req, sizeof(req)) == sizeof(req)); */
 	if ( !(net_write(server_sd, (char*) &req, sizeof(req)) == sizeof(req)) ) {
-		close(server_sd);
+		Generic_close(server_sd);
 		return -1;
 	}
 	while (bytes_recvd != sizeof(reply))
     {
 		errno = 0;
-		bytes_read = read(server_sd, ((char*) &reply)+bytes_recvd, 
+		bytes_read = Generic_read(server_sd, ((char*) &reply)+bytes_recvd, 
 						  sizeof(reply)-bytes_recvd);
 		/* assert(bytes_read >= 0); */
 		if ( !( bytes_read >= 0 ) ) {
-			close(server_sd);
+			Generic_close(server_sd);
 			return -1;
 		}
 		if (bytes_read == 0) {
 			/* assert(errno == EINTR); */
 			if ( !( errno == EINTR ) ) {
-				close(server_sd);
+				Generic_close(server_sd);
 				return -1;
 			}
 		} else {
 			bytes_recvd += bytes_read;
 		}
     }
-	close(server_sd);
+	Generic_close(server_sd);
 	server_IP->s_addr = reply.server_name.s_addr;
 	*port = reply.port;
 	*len = ntohl(reply.file_size);
@@ -304,29 +305,29 @@ int RequestService(const char*     owner,
 		StripPrefix(new_filename, req.new_file_name);
 	/* assert(net_write(server_sd, (char*) &req, sizeof(req)) == sizeof(req)); */
 	if ( !( net_write(server_sd, (char*) &req, sizeof(req)) == sizeof(req) )) {
-		close(server_sd);
+		Generic_close(server_sd);
 		return -1;
 	}
 	while (bytes_recvd != sizeof(reply)) {
 		errno = 0;
-		bytes_read = read(server_sd, ((char*) &reply)+bytes_recvd, 
+		bytes_read = Generic_read(server_sd, ((char*) &reply)+bytes_recvd, 
 						  sizeof(reply)-bytes_recvd);
 		/* assert(bytes_read >= 0); */
 		if ( !( bytes_read >= 0 ) ) {
-			close(server_sd);
+			Generic_close(server_sd);
 			return -1;
 		}
 		if (bytes_read == 0) {
 			/* assert(errno == EINTR); */
 			if ( !( errno == EINTR ) ) {
-				close(server_sd);
+				Generic_close(server_sd);
 				return -1;
 			}
 		} else {
 			bytes_recvd += bytes_read;
 		}
     }
-	close(server_sd);
+	Generic_close(server_sd);
 	if (server_IP != NULL)
 		server_IP->s_addr = reply.server_addr.s_addr;
 	if (port != NULL)

@@ -31,10 +31,7 @@
 #include "condor_debug.h"
 #include "condor_socket_types.h"
 #include "get_port_range.h"
-
-#if !defined(WIN32)
-#define closesocket close
-#endif
+#include "generic_socket.h"
 
 // initialize static data members
 int Sock::timeout_multiplier = 0;
@@ -83,7 +80,7 @@ Sock::Sock(const Sock & orig) : Stream() {
 		orig._sock,_sock,_state);
 #else
 	// Unix
-	_sock = dup(orig._sock);
+	_sock = Generic_dup(orig._sock);
 	if ( _sock < 0 ) {
 		// dup failed, we're screwed
 		EXCEPT("ERROR: dup() failed in Sock copy ctor");
@@ -289,7 +286,7 @@ int Sock::assign(SOCKET sockd)
 #ifndef WIN32 /* Unix */
 	errno = 0;
 #endif
-	if ((_sock = socket(AF_INET, my_type, 0)) < 0) {
+	if ((_sock = Generic_socket(AF_INET, my_type, 0)) < 0) {
 #ifndef WIN32 /* Unix... */
 		if ( errno == EMFILE ) {
 			_condor_fd_panic( __LINE__, __FILE__ ); /* Calls dprintf_exit! */
@@ -340,10 +337,10 @@ int Sock::bindWithin(const int low_port, const int high_port)
 
 		memset(&sin, 0, sizeof(sockaddr_in));
 		sin.sin_family = AF_INET;
-		sin.sin_addr.s_addr = htonl(my_ip_addr());
+		//sin.sin_addr.s_addr = htonl(my_ip_addr());
 		sin.sin_port = htons((u_short)this_trial++);
 
-		if ( ::bind(_sock, (sockaddr *)&sin, sizeof(sockaddr_in)) == 0 ) { // success
+		if ( ::Generic_bind(_sock, (sockaddr *)&sin, sizeof(sockaddr_in)) == 0 ) { // success
 			dprintf(D_NETWORK, "Sock::bindWithin - bound to %d...\n", this_trial-1);
 			return TRUE;
 		} else {
@@ -393,10 +390,10 @@ int Sock::bind(int port)
 
 	memset(&sin, 0, sizeof(sockaddr_in));
 	sin.sin_family = AF_INET;
-	sin.sin_addr.s_addr = htonl(my_ip_addr());
+	//sin.sin_addr.s_addr = htonl(my_ip_addr());
 	sin.sin_port = htons((u_short)port);
 
-	if (::bind(_sock, (sockaddr *)&sin, sizeof(sockaddr_in)) < 0) {
+	if (::Generic_bind(_sock, (sockaddr *)&sin, sizeof(sockaddr_in)) < 0) {
 #ifdef WIN32
 		int error = WSAGetLastError();
 		dprintf( D_ALWAYS, "bind failed: WSAError = %d\n", error );
@@ -441,7 +438,7 @@ int Sock::set_os_buffers(int desired_size, bool set_write_buf)
 
 	// Log the current size since Todd is curious.  :^)
 	temp = sizeof(int);
-	::getsockopt(_sock,SOL_SOCKET,command,
+	::Generic_getsockopt(_sock,SOL_SOCKET,command,
 			(char*)&current_size,&temp);
 	dprintf(D_FULLDEBUG,"Current Socket bufsize=%dk\n",
 		current_size / 1024);
@@ -468,7 +465,7 @@ int Sock::set_os_buffers(int desired_size, bool set_write_buf)
 			continue;
 		previous_size = current_size;
 		temp = sizeof(int);
-		::getsockopt(_sock,SOL_SOCKET,command,
+		::Generic_getsockopt(_sock,SOL_SOCKET,command,
 			(char*)&current_size,&temp);
 	} while ( ((ret_val < 0) || (previous_size < current_size))
 				&& (attempt_size < desired_size) );
@@ -578,7 +575,7 @@ int Sock::do_connect(
 			FD_ZERO( &writefds );
 			FD_SET( _sock, &writefds );
 
-			nfound = ::select( nfds, 0, &writefds, &writefds, &timer );
+			nfound = Generic_select( nfds, 0, &writefds, &writefds, &timer );
 
 				// select() might return 1 or 2, depending on the
 				// platform and if select() is implemented in such a
@@ -660,7 +657,7 @@ bool Sock::do_connect_finish()
 
 bool Sock::do_connect_tryit()
 {
-	if (::connect(_sock, (sockaddr *)&_who, sizeof(sockaddr_in)) == 0) {
+	if (::Generic_connect(_sock, (sockaddr *)&_who, sizeof(sockaddr_in)) == 0) {
 		_state = sock_connect;
 		if( DebugFlags & D_NETWORK ) {
 			char* src = strdup(	sock_to_string(_sock) );
@@ -718,7 +715,11 @@ bool Sock::do_connect_tryit()
 		// now close the underlying socket.  do not call Sock::close()
 		// here, because we do not want all the CEDAR socket state
 		// (like the _who data member) cleared.
+#ifdef WIN32
 		::closesocket(_sock);
+#else
+		::Generic_close(_sock);
+#endif
 		_sock = INVALID_SOCKET;
 		_state = sock_virgin;
 		
@@ -734,13 +735,17 @@ bool Sock::do_connect_tryit()
 		// socket descriptor into data structures.  So if it has
 		// changed, use dup2() to set it the same as before.
 		if ( _sock != old_sock ) {
-			if ( dup2(_sock,old_sock) < 0 ) {
+			if ( Generic_dup2(_sock,old_sock) < 0 ) {
 				dprintf(D_ALWAYS,
 					"dup2 failed after a failed connect! errno=%d\n", 
 					errno);
 				return false;
 			}
+#ifdef WIN32
 			::closesocket(_sock);
+#else
+			::Generic_close(_sock);
+#endif
 			_sock = old_sock;
 		}
 
@@ -754,26 +759,19 @@ bool Sock::do_connect_tryit()
 
 bool Sock::test_connection()
 {
-	// test the connection -- on OSF1, select returns 1 even if
-	// the connect fails!
-
-	struct sockaddr_in test_addr;
-	memset((char *) &test_addr, 0, sizeof(test_addr));
-	test_addr.sin_family = AF_INET;
-
-	SOCKET_LENGTH_TYPE nbytes;
-	
-	nbytes = sizeof(test_addr);
-	if (getpeername(_sock, (struct sockaddr *) &test_addr, &nbytes) < 0) {
-		sleep(1);	// try once more -- sometimes it fails the first time
-		if (getpeername(_sock, (struct sockaddr *) &test_addr, &nbytes) < 0) {
-			sleep(1);	// try once more -- sometimes it fails the second time
-			if (getpeername(_sock, (struct sockaddr *) &test_addr, &nbytes)<0) {
-				return false;
-			}
-		}
+	// Since a better way to check if a nonblocking connection has succeed or not is
+	// to use getsockopt, I changed this routine that way. Sonny 7/16/2003
+	int error;
+	socklen_t len = sizeof(error);
+	if (Generic_getsockopt(_sock, SOL_SOCKET, SO_ERROR, &error, &len) < 0) {
+		EXCEPT("Sock::test_connection - GCB_getsockopt failed !!!\n");
 	}
-	return true;
+	// return result
+	if (error) {
+		return false;
+	} else {
+		return true;
+	}
 }
 
 
@@ -786,7 +784,7 @@ int Sock::close()
 						sock_to_string(_sock), _sock );
 	}
 
-	if (::closesocket(_sock) < 0) return FALSE;
+	if (::Generic_close(_sock) < 0) return FALSE;
 
 	_sock = INVALID_SOCKET;
 	_state = sock_virgin;
@@ -1126,7 +1124,7 @@ Sock::get_port()
 	
 	addr_len = sizeof(sockaddr_in);
 
-	if (getsockname(_sock, (sockaddr *)&addr, &addr_len) < 0) return -1;
+	if (Generic_getsockname(_sock, (sockaddr *)&addr, &addr_len) < 0) return -1;
 	return (int) ntohs(addr.sin_port);
 }
 
@@ -1139,8 +1137,18 @@ Sock::get_ip_int()
 
 	addr_len = sizeof(sockaddr_in);
 
-	if (getsockname(_sock, (sockaddr *)&addr, &addr_len) < 0) return 0;
+	if (Generic_getsockname(_sock, (sockaddr *)&addr, &addr_len) < 0) return 0;
 	return (unsigned int) ntohl(addr.sin_addr.s_addr);
+}
+
+char *
+Sock::get_sinful()
+{
+	sockaddr_in addr;
+	SOCKET_LENGTH_TYPE addr_len = sizeof(sockaddr_in);
+
+	if (Generic_getsockname(_sock, (sockaddr *)&addr, &addr_len) < 0) return 0;
+	return ipport_to_string(addr.sin_addr.s_addr, addr.sin_port);
 }
 
 #if !defined(WIN32)
@@ -1175,7 +1183,7 @@ static void async_handler( int s )
 		}
 	}
 
-	success = select( table_size, &set, 0, 0, &zero );
+	success = Generic_select( table_size, &set, 0, 0, &zero );
 
 	if( success>0 ) {
 		for( i=0; i<table_size; i++ ) {

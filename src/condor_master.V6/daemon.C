@@ -36,6 +36,7 @@
 #include "daemon_list.h"
 #include "sig_name.h"
 #include "env.h"
+#include "generic_socket.h"
 
 
 // these are defined in master.C
@@ -1441,7 +1442,7 @@ Daemons::FinalRestartMaster()
 		// Note: Not needed (or wanted) on Win32, as CEDAR creates 
 		//		Winsock sockets as non-inheritable by default.
 	for (i=0; i < max_fds; i++) {
-		close(i);
+		Generic_close(i);
 	}
 #endif
 
@@ -1473,15 +1474,15 @@ Daemons::FinalRestartMaster()
 
 			::GetSystemDirectory(systemshell,MAX_PATH);
 			strcat(systemshell,"\\cmd.exe");
-			(void)execl(systemshell, "/Q", "/C",
+			(void)Generic_execl(systemshell, "/Q", "/C",
 				"net stop Condor & net start Condor", 0);
 #endif
 		} else {
 			if( MasterName ) {
-				(void)execl(daemon_ptr[master]->process_name, 
+				(void)Generic_execl(daemon_ptr[master]->process_name, 
 							"condor_master", "-f", "-n", MasterName, 0);
 			} else {
-				(void)execl(daemon_ptr[master]->process_name, 
+				(void)Generic_execl(daemon_ptr[master]->process_name, 
 							"condor_master", "-f", 0);
 			}
 		}

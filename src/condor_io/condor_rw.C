@@ -27,6 +27,7 @@
 #include "condor_constants.h"
 #include "condor_io.h"
 #include "condor_debug.h"
+#include "generic_socket.h"
 
 /*
  * Returns true if the given error number indicates
@@ -98,7 +99,7 @@ condor_read( SOCKET fd, char *buf, int sz, int timeout )
 			FD_ZERO( &readfds );
 			FD_SET( fd, &readfds );
 
-			nfound = select( nfds, &readfds, 0, 0, &timer );
+			nfound = Generic_select( nfds, &readfds, 0, 0, &timer );
 
 			switch(nfound) {
 			case 0:
@@ -116,7 +117,7 @@ condor_read( SOCKET fd, char *buf, int sz, int timeout )
 			}
 		}
 
-		nro = recv(fd, &buf[nr], sz - nr, 0);
+		nro = Generic_recv(fd, &buf[nr], sz - nr, 0);
 		if( nro <= 0 ) {
 
 				// If timeout > 0, and we made it here, then
@@ -226,7 +227,7 @@ condor_write( SOCKET fd, char *buf, int sz, int timeout )
 						// up if the socket is closed
 					FD_SET( fd, &readfds );
 				}
-				nfound = select( nfds, &readfds, &writefds, &exceptfds, 
+				nfound = Generic_select( nfds, &readfds, &writefds, &exceptfds, 
 								 &timer ); 
 
 					// unless we decide we need to select() again, we
@@ -245,7 +246,7 @@ condor_write( SOCKET fd, char *buf, int sz, int timeout )
 				case 3:
 					if( FD_ISSET(fd, &readfds) ) {
 							// see if the socket was closed
-						nro = recv(fd, tmpbuf, 1, MSG_PEEK);
+						nro = Generic_recv(fd, tmpbuf, 1, MSG_PEEK);
 						if( ! nro ) {
 							dprintf( D_ALWAYS, "condor_write(): "
 									 "Socket closed when trying "
@@ -272,7 +273,7 @@ condor_write( SOCKET fd, char *buf, int sz, int timeout )
 			}
 		}
 		
-		nwo = send(fd, &buf[nw], sz - nw, 0);
+		nwo = Generic_send(fd, &buf[nw], sz - nw, 0);
 
 		if( nwo <= 0 ) {
 			int the_error;

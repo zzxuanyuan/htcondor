@@ -1423,7 +1423,6 @@ int main( int argc, char** argv )
 #endif	// of else of ifdef WIN32
 	}	// if if !Foreground
 
-
 		// Now that we've potentially forked, we have our real pid, so
 		// we can instantiate a daemon core and it'll have the right
 		// pid.  Have lots of pid table hash buckets if we're the

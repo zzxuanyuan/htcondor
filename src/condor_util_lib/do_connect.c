@@ -27,6 +27,7 @@
 #include "debug.h"
 #include "dgram_io_handle.h"
 #include "condor_socket_types.h"
+#include "generic_socket.h"
 
 
 unsigned short find_port_num( const char *service_name, 
@@ -57,12 +58,12 @@ do_connect_with_timeout( const char* host, const char* service,
 	int					fd;
 	int					true = 1;
 
-	if( (fd=socket(AF_INET,SOCK_STREAM,0)) < 0 ) {
+	if( (fd=Generic_socket(AF_INET,SOCK_STREAM,0)) < 0 ) {
 		EXCEPT( "socket" );
 	}
 
 	if( setsockopt(fd,SOL_SOCKET,SO_KEEPALIVE,(const char *)&true,sizeof(true)) < 0 ) {
-		close(fd);
+		Generic_close(fd);
 		EXCEPT( "setsockopt( SO_KEEPALIVE )" );
 	}
 
@@ -79,7 +80,7 @@ do_connect_with_timeout( const char* host, const char* service,
 		#endif
 			dprintf( D_ALWAYS, "Can't find host \"%s\" (Nameserver down?)\n",
 								host );
-			close(fd);
+			Generic_close(fd);
 			return( -1 );
 		}
 		port = find_port_num( service, port );
@@ -90,7 +91,7 @@ do_connect_with_timeout( const char* host, const char* service,
 	}
 
 	if (timeout == 0) {
-		status = connect(fd,(struct sockaddr *)&sin,sizeof(sin));
+		status = Generic_connect(fd,(struct sockaddr *)&sin,sizeof(sin));
 	} else {
 		status = tcp_connect_timeout(fd, (struct sockaddr*)&sin, 
 									 sizeof(sin), timeout);
@@ -103,7 +104,7 @@ do_connect_with_timeout( const char* host, const char* service,
 		return fd;
 	} else {
 		dprintf( D_ALWAYS, "connect returns %d, errno = %d\n", status, errno );
-		(void)close( fd );
+		(void)Generic_close( fd );
 		return -1;
 	}
 }
@@ -126,7 +127,7 @@ udp_connect( char* host, u_short port )
 		return( -1 );
 	}
 
-	if( (sock=socket(AF_INET,SOCK_DGRAM,0)) < 0 ) {
+	if( (sock=Generic_socket(AF_INET,SOCK_DGRAM,0)) < 0 ) {
 		perror( "socket" );
 		exit( 1 );
 	}
@@ -139,7 +140,7 @@ udp_connect( char* host, u_short port )
 	sin.sin_family = hostentp->h_addrtype;
 	sin.sin_port = htons( (u_short)port );
 
-	if( connect(sock,(struct sockaddr *)&sin,sizeof(sin)) < 0 ) {
+	if( Generic_connect(sock,(struct sockaddr *)&sin,sizeof(sin)) < 0 ) {
 		perror( "connect" );
 		exit( 1 );
 	}
@@ -253,7 +254,7 @@ int tcp_connect_timeout( int sockfd, struct sockaddr *sin, int len,
 	}
 #endif
 
-	if( connect(sockfd, sin,len) < 0 ) {
+	if( Generic_connect(sockfd, sin,len) < 0 ) {
 		tmp_errno = errno;
 		switch( errno ) {
 		    case EINPROGRESS:
@@ -262,7 +263,7 @@ int tcp_connect_timeout( int sockfd, struct sockaddr *sin, int len,
 				dprintf( D_ALWAYS,
 						"Can't connect to host , errno =%d\n",
 						tmp_errno );
-				(void)close( sockfd );
+				(void)Generic_close( sockfd );
 				return -1;
 			}
 	}
@@ -280,7 +281,7 @@ int tcp_connect_timeout( int sockfd, struct sockaddr *sin, int len,
 	FD_ZERO( &writefds );
 	FD_SET( sockfd, &writefds );
 
-	nfound = select( nfds, 
+	nfound = Generic_select( nfds, 
 					(SELECT_FDSET_PTR) 0, 
 					(SELECT_FDSET_PTR) &writefds, 
 					(SELECT_FDSET_PTR )0,
@@ -288,7 +289,7 @@ int tcp_connect_timeout( int sockfd, struct sockaddr *sin, int len,
 
 	switch( nfound ) {
 	    case 0:
-		    (void)close( sockfd );
+		    (void)Generic_close( sockfd );
 			return -2;
         case 1:
 			if( ioctl(sockfd,FIONBIO,(char *)&off) < 0 ) {
@@ -333,11 +334,13 @@ int tcp_accept_timeout(int ConnectionSock, struct sockaddr *sin, int *len,
 #if defined(AIX31) || defined(AIX32)
 	errno = EINTR;  /* Shouldn't have to do this... */
 #endif
-    count = select(FD_SETSIZE, 
+	dprintf(D_FULLDEBUG, "******tcp_accept_timeout is calling select...\n");
+    count = Generic_select(FD_SETSIZE, 
 				   (SELECT_FDSET_PTR) &readfds, 
 				   (SELECT_FDSET_PTR) 0, 
 				   (SELECT_FDSET_PTR) 0,
                    (struct timeval *)&timer );
+	dprintf(D_FULLDEBUG, "******select returned %d\n", count);
     if( count < 0 ) {
 		if( errno == EINTR ) {
 			dprintf( D_ALWAYS, "select() interrupted, restarting...\n");
@@ -353,7 +356,7 @@ int tcp_accept_timeout(int ConnectionSock, struct sockaddr *sin, int *len,
     if( count == 0 ) {
 		return -2;
     } else if( FD_ISSET(ConnectionSock,&readfds) ) {
-		newsock =  accept( ConnectionSock, (struct sockaddr *)sin, &slt_len);
+		newsock =  Generic_accept( ConnectionSock, (struct sockaddr *)sin, &slt_len);
 		if ( newsock > -1 ) {
 			int on = 1;
 			setsockopt( newsock, SOL_SOCKET, SO_KEEPALIVE, (char*)&on,

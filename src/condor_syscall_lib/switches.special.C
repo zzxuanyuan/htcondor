@@ -39,6 +39,7 @@ This file can be processed with several purposes in mind.
 #include "debug.h"
 #include "../condor_ckpt/signals_control.h"
 #include "../condor_ckpt/file_state.h"
+#include "generic_socket.h"
 
 #if defined(DL_EXTRACT)
 #   include <dlfcn.h>   /* for dlopen and dlsym */
@@ -295,22 +296,22 @@ sendto and recvfrom.
 
 int send( int fd, const void *data, int length, int flags )
 {
-	return sendto(fd,data,length,flags,0,0);
+	return Generic_sendto(fd,data,length,flags,0,0);
 }
 
 int __send( int fd, const void *data, int length, int flags )
 {
-	return send(fd,data,length,flags);
+	return Generic_send(fd,data,length,flags);
 }
 
 int recv( int fd, void *data, int length, int flags )
 {
-	return recvfrom(fd,data,length,flags,0,0);
+	return Generic_recvfrom(fd,data,length,flags,0,0);
 }
 
 int __recv( int fd, void *data, int length, int flags )
 {
-	return recv(fd,data,length,flags);
+	return Generic_recv(fd,data,length,flags);
 }
 
 #endif
@@ -1500,7 +1501,7 @@ int readv( int fd, struct iovec *iov, int iovcnt )
 	int i, rval = 0, cc;
 
 	for( i = 0; i < iovcnt; i++ ) {
-		cc = read( fd, iov->iov_base, iov->iov_len );
+		cc = Generic_read( fd, iov->iov_base, iov->iov_len );
 		if( cc < 0 ) return cc;
 		rval += cc;
 		if( cc != iov->iov_len ) return rval;
@@ -1528,7 +1529,7 @@ int writev( int fd, struct iovec *iov, int iovcnt )
 	int i, rval = 0, cc;
 
 	for( i = 0; i < iovcnt; i++ ) {
-		cc = write( fd, iov->iov_base, iov->iov_len );
+		cc = Generic_write( fd, iov->iov_base, iov->iov_len );
 		if( cc < 0 ) return cc;
 		rval += cc;
 		if( cc != iov->iov_len ) return rval;

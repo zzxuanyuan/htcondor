@@ -27,6 +27,7 @@
 #include "condor_uid.h"
 #include "condor_email.h"
 #include "my_hostname.h"
+#include "generic_socket.h"
 
 #define EMAIL_SUBJECT_PROLOG "[Condor] "
 
@@ -329,7 +330,7 @@ email_open_implementation(char *Mailer, char *final_command)
 		}
 
 		/* invoke the mailer */
-		execl("/bin/sh", "sh", "-c", final_command, NULL);
+		Generic_execl("/bin/sh", "sh", "-c", final_command, NULL);
 
 		/* I hope this EXCEPT gets recorded somewhere */
 		EXCEPT("EMAIL PROCESS: Could not exec mailer using '%s' with command "

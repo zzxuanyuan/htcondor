@@ -35,6 +35,7 @@
 #include "condor_config.h"
 #include "get_port_range.h"
 #include "condor_socket_types.h"
+#include "generic_socket.h"
 
 int bindWithin(const int fd, const int low_port, const int high_port);
 
@@ -139,7 +140,7 @@ sock_to_string(SOCKET sockd)
 
 	addr_len = sizeof(addr);
 
-	if (getsockname(sockd, (struct sockaddr *)&addr, &addr_len) < 0) 
+	if (Generic_getsockname(sockd, (struct sockaddr *)&addr, &addr_len) < 0) 
 		return mynull;
 
 	return ( sin_to_string( &addr ) );
@@ -568,7 +569,7 @@ _condor_local_bind( int fd )
 		sin.sin_family = AF_INET;
 		sin.sin_port = 0;
 		sin.sin_addr.s_addr = htonl(INADDR_ANY);
-		if( bind(fd, (struct sockaddr*)&sin, sizeof(sin)) < 0 ) {
+		if( Generic_bind(fd, (struct sockaddr*)&sin, sizeof(sin)) < 0 ) {
 			dprintf( D_ALWAYS, "ERROR: bind(%s:%d) failed, errno: %d\n",
 					 inet_ntoa(sin.sin_addr), sin.sin_port, errno );
 			return FALSE;
@@ -599,7 +600,7 @@ int bindWithin(const int fd, const int low_port, const int high_port)
 		sin.sin_addr.s_addr = htonl(INADDR_ANY);
 		sin.sin_port = htons((u_short)this_trial++);
 
-		if (bind(fd, (struct sockaddr *)&sin, sizeof(sin)) == 0) { // success
+		if (Generic_bind(fd, (struct sockaddr *)&sin, sizeof(sin)) == 0) { // success
 			dprintf(D_NETWORK, "_condor_local_bind - bound to %d...\n", this_trial-1);
 			return TRUE;
 		} else {
@@ -615,6 +616,89 @@ int bindWithin(const int fd, const int low_port, const int high_port)
 	return FALSE;
 }
 
+/* Check if the ip is in private ip address space */
+/* ip: in host byte order */
+int
+is_priv_net(uint32_t ip)
+{
+	return ((ip & 0xFF000000) == 0x0A000000 ||      // 10/8
+			(ip & 0xFFF00000) == 0xAC100000 ||      // 172.16/12
+			(ip & 0xFFFF0000) == 0xC0A80000);       // 192.168/16
+}
+
+/* Check if two ip addresses, given in network byte, are in the same network */
+int
+in_same_net(uint32_t ipA, uint32_t ipB)
+{
+	unsigned char *byteA, *fA, *byteB;
+	int i, index;
+
+	fA = byteA = (char *)&ipA;
+	byteB = (char *)&ipB;
+
+	if (*fA < 128) { // A class
+		index = 1;
+	} else if(*fA < 192) { // B class
+		index = 2;
+	} else {	// C class
+		index = 3;
+	}
+
+	for (i = 0; i < index; i++) {
+		if (*byteA != *byteB) {
+			return 0;
+		}
+		byteA++;
+		byteB++;
+	}
+
+	return 1;
+}
+
+// ip: network-byte order
+// port: network-byte order
+char * ipport_to_string(const unsigned int ip, const unsigned short port)
+{
+	int             i;
+	static  char    buf[24];
+	char    tmp_buf[10];
+	char    *cur_byte;
+	unsigned char   this_byte;
+
+	buf[0] = '<';
+	buf[1] = '\0';
+	cur_byte = (char *) &ip;
+	for (i = 0; i < sizeof(ip); i++) {
+		this_byte = (unsigned char) *cur_byte;
+		sprintf(tmp_buf, "%u.", this_byte);
+		cur_byte++;
+		strcat(buf, tmp_buf);
+	}
+	buf[strlen(buf) - 1] = ':';
+	sprintf(tmp_buf, "%d>", ntohs(port));
+	strcat(buf, tmp_buf);
+	return buf;
+}
+
+char *
+prt_fds(int maxfd, fd_set *fds)
+{
+	static char buf[50];
+	int i, size;
+
+	sprintf(buf, "<");
+	for(i=0; i<maxfd; i++) {
+		if (fds && FD_ISSET(i, fds)) {
+			if ((size = strlen(buf)) > 40) {
+				strcat(buf, "...>");
+				return buf;
+			}
+		sprintf(&buf[strlen(buf)], "%d ", i);
+		}
+	}
+	strcat(buf, ">");
+	return buf;
+}
 
 int
 getPortFromAddr( const char* addr )
@@ -639,7 +723,6 @@ getPortFromAddr( const char* addr )
 	free( copy );
 	return port;
 }
-
 
 char*
 getHostFromAddr( const char* addr )

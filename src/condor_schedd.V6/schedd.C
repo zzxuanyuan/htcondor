@@ -6329,22 +6329,22 @@ Scheduler::NotifyUser(shadow_rec* srec, char* msg, int status, int JobStatus)
 	}
 
 //	sprintf(subject, "From: Condor\n");
-//	write(fd, subject, strlen(subject));
+//	Generic_write(fd, subject, strlen(subject));
 //	sprintf(subject, "To: %s\n", owner);
-//	write(fd, subject, strlen(subject));
+//	Generic_write(fd, subject, strlen(subject));
 	sprintf(subject, "Subject: Condor Job %d.%d\n\n", srec->job_id.cluster,
 			srec->job_id.proc);
-	write(fd, subject, strlen(subject));
+	Generic_write(fd, subject, strlen(subject));
 	sprintf(subject, "Your condor job\n\t");
-	write(fd, subject, strlen(subject));
-	write(fd, cmd, strlen(cmd));
-	write(fd, " ", 1);
-	write(fd, args, strlen(args));
-	write(fd, "\n", 1);
-	write(fd, msg, strlen(msg));
+	Generic_write(fd, subject, strlen(subject));
+	Generic_write(fd, cmd, strlen(cmd));
+	Generic_write(fd, " ", 1);
+	Generic_write(fd, args, strlen(args));
+	Generic_write(fd, "\n", 1);
+	Generic_write(fd, msg, strlen(msg));
 	sprintf(subject, "%d.\n", status);
-	write(fd, subject, strlen(subject));
-	close(fd);
+	Generic_write(fd, subject, strlen(subject));
+	Generic_close(fd);
 */
 
 #endif
@@ -7159,8 +7159,9 @@ Scheduler::Init()
 		daemonCore->Register_Command_Socket( (Stream*)shadowCommandssock );
 
 		char nameBuf[50];
-		sprintf( nameBuf, "<%s:%d>", inet_ntoa(*(my_sin_addr())),
-				 shadowCommandrsock->get_port());
+		//sprintf( nameBuf, "<%s:%d>", inet_ntoa(*(my_sin_addr())),
+		//		 shadowCommandrsock->get_port());
+		sprintf( nameBuf, "%s", shadowCommandrsock->get_sinful());
 		MyShadowSockName = strdup( nameBuf );
 
 		sent_shadow_failure_email = FALSE;

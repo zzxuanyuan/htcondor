@@ -41,6 +41,7 @@
 #include "user_proc.h"
 #include "sig_install.h"
 #include "../condor_sysapi/sysapi.h"
+#include "generic_socket.h"
 
 
 #if !defined(X86)
@@ -237,8 +238,8 @@ init_shadow_connections()
 	int		scm;
 
 
-	(void) dup2( 1, RSC_SOCK );
-	(void) dup2( 2, CLIENT_LOG );
+	(void) Generic_dup2( 1, RSC_SOCK );
+	(void) Generic_dup2( 2, CLIENT_LOG );
 	SyscallStream = init_syscall_connection( FALSE);
 		/* Set a timeout on remote system calls.  This is needed in case
 		   the user job exits in the middle of a remote system call, leaving
@@ -286,7 +287,7 @@ close_unused_file_descriptors()
 		/* now close everything except the ones we use */
 	for( i=0; i<open_max; i++ ) {
 		if( !needed_fd(i) ) {
-			(void) close( i );
+			(void) Generic_close( i );
 		}
 	}
 	dprintf( D_FULLDEBUG, "Done closing file descriptors\n" );
@@ -676,7 +677,7 @@ susp_all()
 
 	sprintf(msg, "%s%d\n", susp_msg, sum);
 	/* Hmm... maybe I should write a loop that checks to see if this is ok */
-	write(CLIENT_LOG, msg, strlen(msg));
+	Generic_write(CLIENT_LOG, msg, strlen(msg));
 
 	susp_self();
 
@@ -686,7 +687,7 @@ susp_all()
 		-psilord 2/1/2001 */
 	sprintf(msg, "%s\n", unsusp_msg);
 	/* Hmm... maybe I should write a loop that checks to see if this is ok */
-	write(CLIENT_LOG, msg, strlen(msg));
+	Generic_write(CLIENT_LOG, msg, strlen(msg));
 
 	resume_all();
 
@@ -814,7 +815,7 @@ test_connection()
 {
 	char    *pval;
 
-	if ( write(CLIENT_LOG,"\0\n",2) == -1 ) {
+	if ( Generic_write(CLIENT_LOG,"\0\n",2) == -1 ) {
 		
         pval = param( "STARTER_LOCAL_LOGGING" );
         if( pval && (pval[0] == 't' || pval[0] == 'T') ) {

@@ -37,6 +37,7 @@
 #include "internet.h"
 #include "my_hostname.h"
 #include "condor_socket_types.h"
+#include "generic_socket.h"
 
 
 #ifdef WANT_NETMAN
@@ -75,7 +76,7 @@ stream_file_xfer( int src_fd, int dst_fd, size_t n_bytes )
 		} else {
 			read_size = bytes_to_go;
 		}
-		bytes_read = read( src_fd, buf, read_size );
+		bytes_read = Generic_read( src_fd, buf, read_size );
 		if( bytes_read <= 0 ) {
 			if (dont_know_file_size) {
 				return bytes_moved;
@@ -88,7 +89,7 @@ stream_file_xfer( int src_fd, int dst_fd, size_t n_bytes )
 		for( bytes_written = 0;
 			 bytes_written < bytes_read;
 			 bytes_written += rval) {
-			rval = write( dst_fd, buf+bytes_written, bytes_read-bytes_written );
+			rval = Generic_write( dst_fd, buf+bytes_written, bytes_read-bytes_written );
 			if( rval < 0 ) {
 				dprintf( D_ALWAYS, "stream_file_xfer: %d bytes written, "
 						 "%d bytes to go\n", bytes_moved, bytes_to_go );
@@ -145,7 +146,7 @@ multi_stream_file_xfer( int src_fd, int dst_fd_cnt, int *dst_fd_list,
 		} else {
 			read_size = bytes_to_go;
 		}
-		bytes_read = read( src_fd, buf, read_size );
+		bytes_read = Generic_read( src_fd, buf, read_size );
 		if( bytes_read <= 0 ) {
 			if (dont_know_file_size) {
 				return bytes_moved;
@@ -156,7 +157,7 @@ multi_stream_file_xfer( int src_fd, int dst_fd_cnt, int *dst_fd_list,
 
 			/* Send it */
 		for (i = 0; i < dst_fd_cnt; i++) {
-			bytes_written = write( dst_fd_list[i], buf, bytes_read );
+			bytes_written = Generic_write( dst_fd_list[i], buf, bytes_read );
 			if( bytes_written != bytes_read ) {
 				dprintf(D_ALWAYS, "Chocked sending to one fd in my list(%d)\n",
 						dst_fd_list[i]);
@@ -190,23 +191,23 @@ int             listen_count;
 	int             socket_fd;
 	SOCKET_LENGTH_TYPE len;
 	
-	socket_fd = socket(AF_INET, SOCK_STREAM, 0);
+	socket_fd = Generic_socket(AF_INET, SOCK_STREAM, 0);
 	if (socket_fd < 0) {
 		fprintf(stderr, "condor_exec: unable to create socket\n");
 		return -1;
 	}
 	
 	if( ! _condor_local_bind(socket_fd) ) {
-		close( socket_fd );
+		Generic_close( socket_fd );
 		fprintf(stderr, "condor_exec: bind failed\n");
 		return -1;
 	}
 	
-	listen(socket_fd, listen_count);
+	Generic_listen(socket_fd, listen_count);
 	
 	len = sizeof(*sin);
-	getsockname(socket_fd, (struct sockaddr *) sin, &len);
-	sin->sin_addr.s_addr = htonl( my_ip_addr() );
+	Generic_getsockname(socket_fd, (struct sockaddr *) sin, &len);
+	//sin->sin_addr.s_addr = htonl( my_ip_addr() );
 
 	return socket_fd;
 }

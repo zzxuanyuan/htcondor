@@ -26,6 +26,7 @@
 #include "condor_common.h"
 #include "condor_debug.h"
 #include "selector.h"
+#include "generic_socket.h"
 
 #if defined(IRIX)
 #	include<bstring.h>
@@ -130,7 +131,7 @@ Selector::execute()
 		tp = NULL;
 	}
 
-	nfds = select( max_fd + 1, 
+	nfds = Generic_select( max_fd + 1, 
 				  (SELECT_FDSET_PTR) &read_fds, 
 				  (SELECT_FDSET_PTR) &write_fds, 
 				  (SELECT_FDSET_PTR) &except_fds, 

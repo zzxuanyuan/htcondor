@@ -28,6 +28,10 @@
 // //////////////////////////////////////////////////////////////////////
 
 #include "condor_common.h"
+#include "generic_socket.h"
+extern "C" {
+void _ss_stop_logging();
+}
 
 static const int DEFAULT_MAXCOMMANDS = 255;
 static const int DEFAULT_MAXSIGNALS = 99;
@@ -1826,7 +1830,7 @@ void DaemonCore::Driver()
 #endif
 
 		errno = 0;
-		rv = select( FD_SETSIZE, (SELECT_FDSET_PTR) &readfds, 
+		rv = Generic_select( FD_SETSIZE, (SELECT_FDSET_PTR) &readfds, 
 					 (SELECT_FDSET_PTR) &writefds, 
 					 (SELECT_FDSET_PTR) &exceptfds, ptimer );
 		tmpErrno = errno;
@@ -1969,7 +1973,7 @@ void DaemonCore::Driver()
 							struct timeval stimeout;
 							stimeout.tv_sec = 0;	// set timeout for a poll
 							stimeout.tv_usec = 0;
-							int sresult = select( (*pipeTable)[i].pipefd + 1, 
+							int sresult = Generic_select( (*pipeTable)[i].pipefd + 1, 
 								(SELECT_FDSET_PTR) &readfds, 
 								(SELECT_FDSET_PTR) 0,(SELECT_FDSET_PTR) 0, 
 								&stimeout );
@@ -2058,7 +2062,7 @@ void DaemonCore::Driver()
 							struct timeval stimeout;
 							stimeout.tv_sec = 0;	// set timeout for a poll
 							stimeout.tv_usec = 0;
-							int sresult = select( FD_SETSIZE, 
+							int sresult = Generic_select( FD_SETSIZE, 
 								(SELECT_FDSET_PTR) &readfds, 
 								(SELECT_FDSET_PTR) 0,(SELECT_FDSET_PTR) 0, 
 								&stimeout );
@@ -2201,7 +2205,7 @@ int DaemonCore::ServiceCommandSocket()
 		FD_ZERO(&fds);
 		FD_SET( (*sockTable)[initial_command_sock].sockd,&fds);
 		errno = 0;
-		rv = select(FD_SETSIZE,(SELECT_FDSET_PTR) &fds, NULL, NULL, &timer);
+		rv = Generic_select(FD_SETSIZE,(SELECT_FDSET_PTR) &fds, NULL, NULL, &timer);
 #ifndef WIN32
 		// Unix
 		if(rv < 0) {
@@ -5117,33 +5121,33 @@ int DaemonCore::Create_Process(
 			dprintf ( D_DAEMONCORE, "Re-mapping std(in|out|err) in child.\n");
 
 			if ( std[0] > -1 ) {
-				if ( ( dup2 ( std[0], 0 ) ) == -1 ) {
+				if ( ( Generic_dup2 ( std[0], 0 ) ) == -1 ) {
 					dprintf( D_ALWAYS, "dup2 of std[0] failed, errno %d\n", 
 							 errno );
 				}
-				close( std[0] );  // We don't need this in the child...
+				Generic_close( std[0] );  // We don't need this in the child...
 			} else { 
 					// if we don't want to inherit it, we better close
 					// what's there
-				close( 0 );
+				Generic_close( 0 );
 			}
 			if ( std[1] > -1 ) {
-				if ( ( dup2 ( std[1], 1 ) ) == -1 ) {
+				if ( ( Generic_dup2 ( std[1], 1 ) ) == -1 ) {
 					dprintf( D_ALWAYS, "dup2 of std[1] failed, errno %d\n", 
 							 errno );
 				}
-				close( std[1] );  // We don't need this in the child...
+				Generic_close( std[1] );  // We don't need this in the child...
 			} else { 
-				close( 1 );
+				Generic_close( 1 );
 			}
 			if ( std[2] > -1 ) {
-				if ( ( dup2 ( std[2], 2 ) ) == -1 ) {
+				if ( ( Generic_dup2 ( std[2], 2 ) ) == -1 ) {
 					dprintf( D_ALWAYS, "dup2 of std[2] failed, errno %d\n", 
 							 errno );
 				}
-				close( std[2] );  // We don't need this in the child...
+				Generic_close( std[2] );  // We don't need this in the child...
 			} else { 
-				close( 2 );
+				Generic_close( 2 );
 			}
 		} else {
 			MyString msg = "Just closed standard file fd(s): ";
@@ -5161,7 +5165,7 @@ int DaemonCore::Create_Process(
 					}
 				}
 				// Now, if we didn't find it in the inherit list, close it
-                if ( ( ! found ) && ( close ( q ) != -1 ) ) {
+                if ( ( ! found ) && ( Generic_close ( q ) != -1 ) ) {
 					closed_fds[num_closed++] = q;
 					msg += q;
 					msg += ' ';
@@ -5279,6 +5283,9 @@ int DaemonCore::Create_Process(
 			// once again, make sure that if the dprintf code opened a
 			// lock file and has an fd, that we close it before we
 			// exec() so we don't leak it.
+
+        _ss_stop_logging();
+
 		if( LockFd >= 0 ) {
 			close( LockFd );
 			LockFd = -1;
@@ -5295,7 +5302,7 @@ int DaemonCore::Create_Process(
 				}
 			}
 			if( !found ) {
-				close( j );
+				Generic_close( j );
             }
 		}
 
@@ -5332,9 +5339,9 @@ int DaemonCore::Create_Process(
 	
 			// and ( finally ) exec:
 		if( HAS_DCJOBOPT_NO_ENV_INHERIT(job_opt_mask) ) {
-			exec_results =  execve(namebuf, unix_args, unix_env); 
+			exec_results =  Generic_execve(namebuf, unix_args, unix_env); 
 		} else {
-			exec_results =  execv(namebuf, unix_args);
+			exec_results =  Generic_execv(namebuf, unix_args);
 		}
 		if( exec_results == -1 )
 		{
@@ -6396,7 +6403,6 @@ int DaemonCore::HandleChildAliveCommand(int, Stream* stream)
 		"received childalive, pid=%d, secs=%d\n",child_pid,timeout_secs);
 
 	return TRUE;
-
 }
 
 int DaemonCore::HungChildTimeout()

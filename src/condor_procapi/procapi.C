@@ -24,6 +24,7 @@
 #include "condor_common.h"
 #include "procapi.h"
 #include "condor_debug.h"
+#include "generic_socket.h"
 
 HashTable <pid_t, procHashNode *> * ProcAPI::procHash = 
     new HashTable <pid_t, procHashNode *> ( PHBUCKETS, hashFunc );  
@@ -3049,7 +3050,7 @@ void ProcAPI::test_monitor ( char * jobname ) {
   child = fork();
   
   if ( !child ) { // in child
-    rval = execl( jobname, jobname, (char*)0 );
+    rval = Generic_execl( jobname, jobname, (char*)0 );
     if ( rval < 0 ) {
       perror ( "Exec problem:" );
       exit(0);

@@ -25,6 +25,7 @@
 #include "url_condor.h"
 #include "internet.h"
 #include "condor_debug.h"
+#include "generic_socket.h"
 
 /*
 *	A full fledged ftp url looks like:
@@ -55,7 +56,7 @@ char *get_ftpd_response(int sock_fd, int resp_val)
 
 	do {
 		if ((read_count = readline(sock_fd, resp)) < 0) {
-			close(sock_fd);
+			Generic_close(sock_fd);
 			return 0;
 		}
 		resp[read_count] = '\0';
@@ -88,7 +89,7 @@ int open_ftp( const char *name, int flags, size_t n_bytes )
 		return -1;
 	} */
 
-	sock_fd = socket(AF_INET, SOCK_STREAM, 0);
+	sock_fd = Generic_socket(AF_INET, SOCK_STREAM, 0);
 	if (sock_fd < 0) {
 		fprintf(stderr, "socket() failed, errno = %d\n", errno);
 		fflush(stderr);
@@ -96,7 +97,7 @@ int open_ftp( const char *name, int flags, size_t n_bytes )
 	}
 
 	if( ! _condor_local_bind(sock_fd) ) {
-		close( sock_fd );
+		Generic_close( sock_fd );
 		return -1;
 	}
 
@@ -126,11 +127,11 @@ int open_ftp( const char *name, int flags, size_t n_bytes )
 
 	*end_of_addr = '/';
 
-	status = connect(sock_fd, (struct sockaddr *) &sin, sizeof(sin));
+	status = Generic_connect(sock_fd, (struct sockaddr *) &sin, sizeof(sin));
 	if (status < 0) {
 		fprintf(stderr, "http connect() FAILED, errno = %d\n", errno);
 		fflush(stderr);
-		close( sock_fd );
+		Generic_close( sock_fd );
 		return status;
 	}
 
@@ -141,16 +142,16 @@ int open_ftp( const char *name, int flags, size_t n_bytes )
 	}
 	
 	sprintf(ftp_cmd, "USER %s\n", username);
-	write(sock_fd, ftp_cmd, strlen(ftp_cmd));
+	Generic_write(sock_fd, ftp_cmd, strlen(ftp_cmd));
 	if (get_ftpd_response(sock_fd, FTP_PASSWD_RESP) == 0) {
 		return -1;
 	}
 
 	sprintf(ftp_cmd, "PASS %s\n", passwd);
-	write(sock_fd, ftp_cmd, strlen(ftp_cmd));
+	Generic_write(sock_fd, ftp_cmd, strlen(ftp_cmd));
 
 	sprintf(ftp_cmd, "PASV\n");
-	write(sock_fd, ftp_cmd, strlen(ftp_cmd));
+	Generic_write(sock_fd, ftp_cmd, strlen(ftp_cmd));
 
 	ftp_resp = get_ftpd_response(sock_fd, FTP_PASV_RESP);
 	if (ftp_resp == 0) {
@@ -158,7 +159,7 @@ int open_ftp( const char *name, int flags, size_t n_bytes )
 	}
 
 	sprintf(ftp_cmd, "TYPE I\n");
-	write(sock_fd, ftp_cmd, strlen(ftp_cmd));
+	Generic_write(sock_fd, ftp_cmd, strlen(ftp_cmd));
 	if (get_ftpd_response(sock_fd, FTP_TYPE_RESP) == 0) {
 		return -1;
 	}
@@ -168,10 +169,10 @@ int open_ftp( const char *name, int flags, size_t n_bytes )
 	} else if (flags == O_WRONLY) {
 		sprintf(ftp_cmd, "STOR %s\n", name);
 	} else {
-		close(sock_fd);
+		Generic_close(sock_fd);
 		return -1;
 	}
-	write(sock_fd, ftp_cmd, strlen(ftp_cmd));
+	Generic_write(sock_fd, ftp_cmd, strlen(ftp_cmd));
 
 	for ( ; *ftp_resp != '(' ; ftp_resp++) 
 		;
@@ -186,7 +187,7 @@ int open_ftp( const char *name, int flags, size_t n_bytes )
 	if (flags == O_WRONLY) {
 		get_ftpd_response(sock_fd, FTP_CONNECTED_RESP);
 	}
-	close(sock_fd);
+	Generic_close(sock_fd);
 	return rval;
 }
 

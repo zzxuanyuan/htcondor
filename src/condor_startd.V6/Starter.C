@@ -32,6 +32,7 @@
 #include "startd.h"
 #include "classad_merge.h"
 #include "dynuser.h"
+#include "generic_socket.h"
 
 #ifdef WIN32
 extern dynuser *myDynuser;
@@ -688,8 +689,8 @@ Starter::execOldStarter( void )
 #else
 		(void)sigsetmask(omask);
 #endif
-		(void)close(main_sock);
-		(void)close(err_sock);
+		(void)Generic_close(main_sock);
+		(void)Generic_close(err_sock);
 
 		dprintf(D_ALWAYS,
 				"exec_starter( %s, %d, %d ) : pid %d\n",
@@ -735,17 +736,17 @@ Starter::execOldStarter( void )
 		}
 
 			// Now, dup the special socks to their well-known fds.
-		if( dup2(main_sock,0) < 0 ) {
+		if( Generic_dup2(main_sock,0) < 0 ) {
 			dprintf( D_ALWAYS, "dup2(%d,0) failed in child, errno: %d\n",
 					 main_sock, errno ); 
 			exit( 4 );
 		}
-		if( dup2(main_sock,1) < 0 ) {
+		if( Generic_dup2(main_sock,1) < 0 ) {
 			dprintf( D_ALWAYS, "dup2(%d,1) failed in child, errno: %d\n",
 					 main_sock, errno );
 			exit( 4 );
 		}
-		if( dup2(err_sock,2) < 0 ) {
+		if( Generic_dup2(err_sock,2) < 0 ) {
 			dprintf( D_ALWAYS, "dup2(%d,2) failed in child, errno: %d\n",
 					 err_sock, errno );
 			exit( 4 );
@@ -754,7 +755,7 @@ Starter::execOldStarter( void )
 			// Close everything else to prevent fd leaks and other
 			// problems. 
 		for(i = 3; i<n_fds; i++) {
-			(void) close(i);
+			(void) Generic_close(i);
 		}
 
 		/*
@@ -763,11 +764,11 @@ Starter::execOldStarter( void )
 		 */
 		set_root_priv();
 		if( resmgr->is_smp() ) {
-			(void)execl( s_path, "condor_starter", hostname, 
+			(void)Generic_execl(s_path, "condor_starter", hostname, 
 						 daemonCore->InfoCommandSinfulString(), 
 						 "-a", s_claim->rip()->r_id_str, 0 );
 		} else {			
-			(void)execl( s_path, "condor_starter", hostname, 
+			(void)Generic_execl(s_path, "condor_starter", hostname, 
 						 daemonCore->InfoCommandSinfulString(), 0 );
 
 		}

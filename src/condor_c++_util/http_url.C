@@ -25,6 +25,7 @@
 #include "url_condor.h"
 #include "internet.h"
 #include "condor_debug.h"
+#include "generic_socket.h"
 
 #define HTTP_PORT	80
 
@@ -40,7 +41,7 @@ readline(int fd, char *buf)
 	int		rval;
 
 	for(;;) {
-		if ((rval = read(fd, buf, 1)) < 0) {
+		if ((rval = Generic_read(fd, buf, 1)) < 0) {
 			return rval;
 		}
 		if (*buf != '\n') {
@@ -71,7 +72,7 @@ int open_http( const char *name, int flags, size_t n_bytes )
 		return -1;
 	}
 
-	sock_fd = socket(AF_INET, SOCK_STREAM, 0);
+	sock_fd = Generic_socket(AF_INET, SOCK_STREAM, 0);
 	if (sock_fd < 0) {
 		fprintf(stderr, "socket() failed, errno = %d\n", errno);
 		fflush(stderr);
@@ -79,7 +80,7 @@ int open_http( const char *name, int flags, size_t n_bytes )
 	}
 
 	if( ! _condor_local_bind(sock_fd) ) {
-		close( sock_fd );
+		Generic_close( sock_fd );
 		return -1;
 	}
 
@@ -115,11 +116,11 @@ int open_http( const char *name, int flags, size_t n_bytes )
 
 	*end_of_addr = '/';
 
-	status = connect(sock_fd, (struct sockaddr *) &sin, sizeof(sin));
+	status = Generic_connect(sock_fd, (struct sockaddr *) &sin, sizeof(sin));
 	if (status < 0) {
 		fprintf(stderr, "http connect() FAILED, errno = %d\n", errno);
 		fflush(stderr);
-		close( sock_fd );
+		Generic_close( sock_fd );
 		return status;
 	}
 

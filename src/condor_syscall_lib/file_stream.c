@@ -28,6 +28,7 @@
 #include "syscall_numbers.h"
 #include "condor_debug.h"
 #include "condor_file_info.h"
+#include "generic_socket.h"
 
 int open_tcp_stream( unsigned int ip_addr, unsigned short port );
 int open_file_stream( const char *file, int flags, size_t *len );
@@ -120,6 +121,7 @@ open_file_stream( const char *file, int flags, size_t *len )
 			dprintf( D_ALWAYS, "File stream access \"%s\" failed\n",local_path);
 			return -1;
 		}
+		dprintf(D_NETWORK, "Opening TCP stream to %s\n", ipport_to_string(htonl(addr), htons(port)));
 
 			/* Connect to the specified party */
 		fd = open_tcp_stream( addr, port );
@@ -152,14 +154,14 @@ open_tcp_stream( unsigned int ip_addr, unsigned short port )
 	scm = SetSyscalls( SYS_LOCAL | SYS_UNMAPPED );
 
 		/* generate a socket */
-	fd = socket( AF_INET, SOCK_STREAM, 0 );
+	fd = Generic_socket( AF_INET, SOCK_STREAM, 0 );
 	assert( fd >= 0 );
 	dprintf( D_FULLDEBUG, "Generated a data socket - fd = %d\n", fd );
 		
 		/* Now we need to bind to the right interface. */
 	if( ! _condor_local_bind(fd) ) {
 			/* error in bind() */
-		close(fd);
+		Generic_close(fd);
 		SetSyscalls( scm );
 		return -1;
 	}
@@ -171,7 +173,7 @@ open_tcp_stream( unsigned int ip_addr, unsigned short port )
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons( port );
 	dprintf( D_FULLDEBUG, "Internet address structure set up\n" );
-	status = connect( fd, (struct sockaddr *)&sin, sizeof(sin) );
+	status = Generic_connect( fd, (struct sockaddr *)&sin, sizeof(sin) );
 	if( status < 0 ) {
 		dprintf( D_ALWAYS, "connect() failed - errno = %d\n", errno );
 		SetSyscalls( scm );

@@ -2,6 +2,8 @@ NAME=Chirp.jar
 LIBNAME = libchirp_client.a
 LIBOBJ = chirp_client.o
 
+CFLAGS = $(STD_C_FLAGS)
+
 all:: $(LIBNAME)
 
 clean::
