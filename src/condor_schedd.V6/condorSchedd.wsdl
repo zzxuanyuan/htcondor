@@ -517,190 +517,190 @@
  <operation name="beginTransaction">
   <SOAP:operation soapAction=""/>
   <input>
-   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
   <output>
-   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </output>
  </operation>
  <operation name="commitTransaction">
   <SOAP:operation soapAction=""/>
   <input>
-   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
   <output>
-   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </output>
  </operation>
  <operation name="abortTransaction">
   <SOAP:operation soapAction=""/>
   <input>
-   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
   <output>
-   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </output>
  </operation>
  <operation name="extendTransaction">
   <SOAP:operation soapAction=""/>
   <input>
-   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
   <output>
-   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </output>
  </operation>
  <operation name="newCluster">
   <SOAP:operation soapAction=""/>
   <input>
-   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
   <output>
-   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </output>
  </operation>
  <operation name="removeCluster">
   <SOAP:operation soapAction=""/>
   <input>
-   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
   <output>
-   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </output>
  </operation>
  <operation name="newJob">
   <SOAP:operation soapAction=""/>
   <input>
-   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
   <output>
-   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </output>
  </operation>
  <operation name="removeJob">
   <SOAP:operation soapAction=""/>
   <input>
-   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
   <output>
-   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </output>
  </operation>
  <operation name="holdJob">
   <SOAP:operation soapAction=""/>
   <input>
-   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
   <output>
-   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </output>
  </operation>
  <operation name="releaseJob">
   <SOAP:operation soapAction=""/>
   <input>
-   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
   <output>
-   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </output>
  </operation>
  <operation name="submit">
   <SOAP:operation soapAction=""/>
   <input>
-   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
   <output>
-   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </output>
  </operation>
  <operation name="getJobAds">
   <SOAP:operation soapAction=""/>
   <input>
-   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
   <output>
-   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </output>
  </operation>
  <operation name="getJobAd">
   <SOAP:operation soapAction=""/>
   <input>
-   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
   <output>
-   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </output>
  </operation>
  <operation name="declareFile">
   <SOAP:operation soapAction=""/>
   <input>
-   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
   <output>
-   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </output>
  </operation>
  <operation name="sendFile">
   <SOAP:operation soapAction=""/>
   <input>
-   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
   <output>
-   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </output>
  </operation>
  <operation name="getFile">
   <SOAP:operation soapAction=""/>
   <input>
-   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
   <output>
-   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </output>
  </operation>
  <operation name="closeSpool">
   <SOAP:operation soapAction=""/>
   <input>
-   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
   <output>
-   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </output>
  </operation>
  <operation name="listSpool">
   <SOAP:operation soapAction=""/>
   <input>
-   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
   <output>
-   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </output>
  </operation>
  <operation name="discoverJobRequirements">
   <SOAP:operation soapAction=""/>
   <input>
-   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
   <output>
-   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </output>
  </operation>
  <operation name="discoverDagRequirements">
   <SOAP:operation soapAction=""/>
   <input>
-   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
   <output>
-   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </output>
  </operation>
  <operation name="createJobTemplate">
   <SOAP:operation soapAction=""/>
   <input>
-   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
   <output>
-   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </output>
  </operation>
 </binding>

@@ -8,7 +8,7 @@
 
 SOAP_BEGIN_NAMESPACE(soap_collector)
 
-SOAP_SOURCE_STAMP("@(#) soap_collectorC.cpp ver 2.5.2 2004-04-01 21:57:35 GMT")
+SOAP_SOURCE_STAMP("@(#) soap_collectorC.cpp ver 2.5.2 2004-04-01 22:31:33 GMT")
 
 
 #ifndef WITH_NOGLOBAL

@@ -214,64 +214,64 @@
  <operation name="queryStartdAds">
   <SOAP:operation soapAction=""/>
   <input>
-   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
   <output>
-   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </output>
  </operation>
  <operation name="queryScheddAds">
   <SOAP:operation soapAction=""/>
   <input>
-   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
   <output>
-   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </output>
  </operation>
  <operation name="queryMasterAds">
   <SOAP:operation soapAction=""/>
   <input>
-   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
   <output>
-   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </output>
  </operation>
  <operation name="querySubmittorAds">
   <SOAP:operation soapAction=""/>
   <input>
-   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
   <output>
-   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </output>
  </operation>
  <operation name="queryLicenseAds">
   <SOAP:operation soapAction=""/>
   <input>
-   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
   <output>
-   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </output>
  </operation>
  <operation name="queryStorageAds">
   <SOAP:operation soapAction=""/>
   <input>
-   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
   <output>
-   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </output>
  </operation>
  <operation name="queryAnyAds">
   <SOAP:operation soapAction=""/>
   <input>
-   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
   <output>
-   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="encoding-style"/>
+   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </output>
  </operation>
 </binding>

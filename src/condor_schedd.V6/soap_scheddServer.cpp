@@ -8,7 +8,7 @@
 
 SOAP_BEGIN_NAMESPACE(soap_schedd)
 
-SOAP_SOURCE_STAMP("@(#) soap_scheddServer.cpp ver 2.5.2 2004-03-30 02:44:56 GMT")
+SOAP_SOURCE_STAMP("@(#) soap_scheddServer.cpp ver 2.5.2 2004-04-01 22:33:01 GMT")
 
 
 SOAP_FMAC5 int SOAP_FMAC6 soap_serve(struct soap *soap)
@@ -84,7 +84,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__beginTransaction(struct soap 
 	struct condorSchedd__TransactionAndStatusResponse result;
 	soap_default_condorSchedd__TransactionAndStatusResponse(soap, &result);
 	soap_default_condorSchedd__beginTransaction(soap, &soap_tmp_condorSchedd__beginTransaction);
-	soap->encodingStyle = "encoding-style";
+	soap->encodingStyle = "";
 	soap_get_condorSchedd__beginTransaction(soap, &soap_tmp_condorSchedd__beginTransaction, "condorSchedd:beginTransaction", NULL);
 	if (soap->error)
 		return soap->error;
@@ -131,7 +131,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__commitTransaction(struct soap
 	struct condorSchedd__StatusResponse result;
 	soap_default_condorSchedd__StatusResponse(soap, &result);
 	soap_default_condorSchedd__commitTransaction(soap, &soap_tmp_condorSchedd__commitTransaction);
-	soap->encodingStyle = "encoding-style";
+	soap->encodingStyle = "";
 	soap_get_condorSchedd__commitTransaction(soap, &soap_tmp_condorSchedd__commitTransaction, "condorSchedd:commitTransaction", NULL);
 	if (soap->error)
 		return soap->error;
@@ -178,7 +178,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__abortTransaction(struct soap 
 	struct condorSchedd__StatusResponse result;
 	soap_default_condorSchedd__StatusResponse(soap, &result);
 	soap_default_condorSchedd__abortTransaction(soap, &soap_tmp_condorSchedd__abortTransaction);
-	soap->encodingStyle = "encoding-style";
+	soap->encodingStyle = "";
 	soap_get_condorSchedd__abortTransaction(soap, &soap_tmp_condorSchedd__abortTransaction, "condorSchedd:abortTransaction", NULL);
 	if (soap->error)
 		return soap->error;
@@ -225,7 +225,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__extendTransaction(struct soap
 	struct condorSchedd__TransactionAndStatusResponse result;
 	soap_default_condorSchedd__TransactionAndStatusResponse(soap, &result);
 	soap_default_condorSchedd__extendTransaction(soap, &soap_tmp_condorSchedd__extendTransaction);
-	soap->encodingStyle = "encoding-style";
+	soap->encodingStyle = "";
 	soap_get_condorSchedd__extendTransaction(soap, &soap_tmp_condorSchedd__extendTransaction, "condorSchedd:extendTransaction", NULL);
 	if (soap->error)
 		return soap->error;
@@ -272,7 +272,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__newCluster(struct soap *soap)
 	struct condorSchedd__IntAndStatusResponse result;
 	soap_default_condorSchedd__IntAndStatusResponse(soap, &result);
 	soap_default_condorSchedd__newCluster(soap, &soap_tmp_condorSchedd__newCluster);
-	soap->encodingStyle = "encoding-style";
+	soap->encodingStyle = "";
 	soap_get_condorSchedd__newCluster(soap, &soap_tmp_condorSchedd__newCluster, "condorSchedd:newCluster", NULL);
 	if (soap->error)
 		return soap->error;
@@ -319,7 +319,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__removeCluster(struct soap *so
 	struct condorSchedd__StatusResponse result;
 	soap_default_condorSchedd__StatusResponse(soap, &result);
 	soap_default_condorSchedd__removeCluster(soap, &soap_tmp_condorSchedd__removeCluster);
-	soap->encodingStyle = "encoding-style";
+	soap->encodingStyle = "";
 	soap_get_condorSchedd__removeCluster(soap, &soap_tmp_condorSchedd__removeCluster, "condorSchedd:removeCluster", NULL);
 	if (soap->error)
 		return soap->error;
@@ -366,7 +366,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__newJob(struct soap *soap)
 	struct condorSchedd__IntAndStatusResponse result;
 	soap_default_condorSchedd__IntAndStatusResponse(soap, &result);
 	soap_default_condorSchedd__newJob(soap, &soap_tmp_condorSchedd__newJob);
-	soap->encodingStyle = "encoding-style";
+	soap->encodingStyle = "";
 	soap_get_condorSchedd__newJob(soap, &soap_tmp_condorSchedd__newJob, "condorSchedd:newJob", NULL);
 	if (soap->error)
 		return soap->error;
@@ -413,7 +413,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__removeJob(struct soap *soap)
 	struct condorSchedd__StatusResponse result;
 	soap_default_condorSchedd__StatusResponse(soap, &result);
 	soap_default_condorSchedd__removeJob(soap, &soap_tmp_condorSchedd__removeJob);
-	soap->encodingStyle = "encoding-style";
+	soap->encodingStyle = "";
 	soap_get_condorSchedd__removeJob(soap, &soap_tmp_condorSchedd__removeJob, "condorSchedd:removeJob", NULL);
 	if (soap->error)
 		return soap->error;
@@ -460,7 +460,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__holdJob(struct soap *soap)
 	struct condorSchedd__StatusResponse result;
 	soap_default_condorSchedd__StatusResponse(soap, &result);
 	soap_default_condorSchedd__holdJob(soap, &soap_tmp_condorSchedd__holdJob);
-	soap->encodingStyle = "encoding-style";
+	soap->encodingStyle = "";
 	soap_get_condorSchedd__holdJob(soap, &soap_tmp_condorSchedd__holdJob, "condorSchedd:holdJob", NULL);
 	if (soap->error)
 		return soap->error;
@@ -507,7 +507,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__releaseJob(struct soap *soap)
 	struct condorSchedd__StatusResponse result;
 	soap_default_condorSchedd__StatusResponse(soap, &result);
 	soap_default_condorSchedd__releaseJob(soap, &soap_tmp_condorSchedd__releaseJob);
-	soap->encodingStyle = "encoding-style";
+	soap->encodingStyle = "";
 	soap_get_condorSchedd__releaseJob(soap, &soap_tmp_condorSchedd__releaseJob, "condorSchedd:releaseJob", NULL);
 	if (soap->error)
 		return soap->error;
@@ -554,7 +554,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__submit(struct soap *soap)
 	struct condorSchedd__RequirementsAndStatusResponse result;
 	soap_default_condorSchedd__RequirementsAndStatusResponse(soap, &result);
 	soap_default_condorSchedd__submit(soap, &soap_tmp_condorSchedd__submit);
-	soap->encodingStyle = "encoding-style";
+	soap->encodingStyle = "";
 	soap_get_condorSchedd__submit(soap, &soap_tmp_condorSchedd__submit, "condorSchedd:submit", NULL);
 	if (soap->error)
 		return soap->error;
@@ -601,7 +601,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__getJobAds(struct soap *soap)
 	struct condorSchedd__ClassAdStructArrayAndStatusResponse result;
 	soap_default_condorSchedd__ClassAdStructArrayAndStatusResponse(soap, &result);
 	soap_default_condorSchedd__getJobAds(soap, &soap_tmp_condorSchedd__getJobAds);
-	soap->encodingStyle = "encoding-style";
+	soap->encodingStyle = "";
 	soap_get_condorSchedd__getJobAds(soap, &soap_tmp_condorSchedd__getJobAds, "condorSchedd:getJobAds", NULL);
 	if (soap->error)
 		return soap->error;
@@ -648,7 +648,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__getJobAd(struct soap *soap)
 	struct condorSchedd__ClassAdStructAndStatusResponse result;
 	soap_default_condorSchedd__ClassAdStructAndStatusResponse(soap, &result);
 	soap_default_condorSchedd__getJobAd(soap, &soap_tmp_condorSchedd__getJobAd);
-	soap->encodingStyle = "encoding-style";
+	soap->encodingStyle = "";
 	soap_get_condorSchedd__getJobAd(soap, &soap_tmp_condorSchedd__getJobAd, "condorSchedd:getJobAd", NULL);
 	if (soap->error)
 		return soap->error;
@@ -695,7 +695,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__declareFile(struct soap *soap
 	struct condorSchedd__StatusResponse result;
 	soap_default_condorSchedd__StatusResponse(soap, &result);
 	soap_default_condorSchedd__declareFile(soap, &soap_tmp_condorSchedd__declareFile);
-	soap->encodingStyle = "encoding-style";
+	soap->encodingStyle = "";
 	soap_get_condorSchedd__declareFile(soap, &soap_tmp_condorSchedd__declareFile, "condorSchedd:declareFile", NULL);
 	if (soap->error)
 		return soap->error;
@@ -742,7 +742,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__sendFile(struct soap *soap)
 	struct condorSchedd__StatusResponse result;
 	soap_default_condorSchedd__StatusResponse(soap, &result);
 	soap_default_condorSchedd__sendFile(soap, &soap_tmp_condorSchedd__sendFile);
-	soap->encodingStyle = "encoding-style";
+	soap->encodingStyle = "";
 	soap_get_condorSchedd__sendFile(soap, &soap_tmp_condorSchedd__sendFile, "condorSchedd:sendFile", NULL);
 	if (soap->error)
 		return soap->error;
@@ -789,7 +789,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__getFile(struct soap *soap)
 	struct condorSchedd__Base64DataAndStatusResponse result;
 	soap_default_condorSchedd__Base64DataAndStatusResponse(soap, &result);
 	soap_default_condorSchedd__getFile(soap, &soap_tmp_condorSchedd__getFile);
-	soap->encodingStyle = "encoding-style";
+	soap->encodingStyle = "";
 	soap_get_condorSchedd__getFile(soap, &soap_tmp_condorSchedd__getFile, "condorSchedd:getFile", NULL);
 	if (soap->error)
 		return soap->error;
@@ -836,7 +836,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__closeSpool(struct soap *soap)
 	struct condorSchedd__StatusResponse result;
 	soap_default_condorSchedd__StatusResponse(soap, &result);
 	soap_default_condorSchedd__closeSpool(soap, &soap_tmp_condorSchedd__closeSpool);
-	soap->encodingStyle = "encoding-style";
+	soap->encodingStyle = "";
 	soap_get_condorSchedd__closeSpool(soap, &soap_tmp_condorSchedd__closeSpool, "condorSchedd:closeSpool", NULL);
 	if (soap->error)
 		return soap->error;
@@ -883,7 +883,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__listSpool(struct soap *soap)
 	struct condorSchedd__FileInfoArrayAndStatusResponse result;
 	soap_default_condorSchedd__FileInfoArrayAndStatusResponse(soap, &result);
 	soap_default_condorSchedd__listSpool(soap, &soap_tmp_condorSchedd__listSpool);
-	soap->encodingStyle = "encoding-style";
+	soap->encodingStyle = "";
 	soap_get_condorSchedd__listSpool(soap, &soap_tmp_condorSchedd__listSpool, "condorSchedd:listSpool", NULL);
 	if (soap->error)
 		return soap->error;
@@ -930,7 +930,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__discoverJobRequirements(struc
 	struct condorSchedd__RequirementsAndStatusResponse result;
 	soap_default_condorSchedd__RequirementsAndStatusResponse(soap, &result);
 	soap_default_condorSchedd__discoverJobRequirements(soap, &soap_tmp_condorSchedd__discoverJobRequirements);
-	soap->encodingStyle = "encoding-style";
+	soap->encodingStyle = "";
 	soap_get_condorSchedd__discoverJobRequirements(soap, &soap_tmp_condorSchedd__discoverJobRequirements, "condorSchedd:discoverJobRequirements", NULL);
 	if (soap->error)
 		return soap->error;
@@ -977,7 +977,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__discoverDagRequirements(struc
 	struct condorSchedd__RequirementsAndStatusResponse result;
 	soap_default_condorSchedd__RequirementsAndStatusResponse(soap, &result);
 	soap_default_condorSchedd__discoverDagRequirements(soap, &soap_tmp_condorSchedd__discoverDagRequirements);
-	soap->encodingStyle = "encoding-style";
+	soap->encodingStyle = "";
 	soap_get_condorSchedd__discoverDagRequirements(soap, &soap_tmp_condorSchedd__discoverDagRequirements, "condorSchedd:discoverDagRequirements", NULL);
 	if (soap->error)
 		return soap->error;
@@ -1024,7 +1024,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__createJobTemplate(struct soap
 	struct condorSchedd__ClassAdStructAndStatusResponse result;
 	soap_default_condorSchedd__ClassAdStructAndStatusResponse(soap, &result);
 	soap_default_condorSchedd__createJobTemplate(soap, &soap_tmp_condorSchedd__createJobTemplate);
-	soap->encodingStyle = "encoding-style";
+	soap->encodingStyle = "";
 	soap_get_condorSchedd__createJobTemplate(soap, &soap_tmp_condorSchedd__createJobTemplate, "condorSchedd:createJobTemplate", NULL);
 	if (soap->error)
 		return soap->error;

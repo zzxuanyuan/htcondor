@@ -8,7 +8,7 @@
 
 SOAP_BEGIN_NAMESPACE(soap_collector)
 
-SOAP_SOURCE_STAMP("@(#) soap_collectorServer.cpp ver 2.5.2 2004-04-01 21:57:35 GMT")
+SOAP_SOURCE_STAMP("@(#) soap_collectorServer.cpp ver 2.5.2 2004-04-01 22:31:33 GMT")
 
 
 SOAP_FMAC5 int SOAP_FMAC6 soap_serve(struct soap *soap)
@@ -56,7 +56,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorCollector__queryStartdAds(struct soap
 	struct condorCollector__queryStartdAdsResponse soap_tmp_condorCollector__queryStartdAdsResponse;
 	soap_default_condorCollector__queryStartdAdsResponse(soap, &soap_tmp_condorCollector__queryStartdAdsResponse);
 	soap_default_condorCollector__queryStartdAds(soap, &soap_tmp_condorCollector__queryStartdAds);
-	soap->encodingStyle = "encoding-style";
+	soap->encodingStyle = "";
 	soap_get_condorCollector__queryStartdAds(soap, &soap_tmp_condorCollector__queryStartdAds, "condorCollector:queryStartdAds", NULL);
 	if (soap->error)
 		return soap->error;
@@ -103,7 +103,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorCollector__queryScheddAds(struct soap
 	struct condorCollector__queryScheddAdsResponse soap_tmp_condorCollector__queryScheddAdsResponse;
 	soap_default_condorCollector__queryScheddAdsResponse(soap, &soap_tmp_condorCollector__queryScheddAdsResponse);
 	soap_default_condorCollector__queryScheddAds(soap, &soap_tmp_condorCollector__queryScheddAds);
-	soap->encodingStyle = "encoding-style";
+	soap->encodingStyle = "";
 	soap_get_condorCollector__queryScheddAds(soap, &soap_tmp_condorCollector__queryScheddAds, "condorCollector:queryScheddAds", NULL);
 	if (soap->error)
 		return soap->error;
@@ -150,7 +150,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorCollector__queryMasterAds(struct soap
 	struct condorCollector__queryMasterAdsResponse soap_tmp_condorCollector__queryMasterAdsResponse;
 	soap_default_condorCollector__queryMasterAdsResponse(soap, &soap_tmp_condorCollector__queryMasterAdsResponse);
 	soap_default_condorCollector__queryMasterAds(soap, &soap_tmp_condorCollector__queryMasterAds);
-	soap->encodingStyle = "encoding-style";
+	soap->encodingStyle = "";
 	soap_get_condorCollector__queryMasterAds(soap, &soap_tmp_condorCollector__queryMasterAds, "condorCollector:queryMasterAds", NULL);
 	if (soap->error)
 		return soap->error;
@@ -197,7 +197,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorCollector__querySubmittorAds(struct s
 	struct condorCollector__querySubmittorAdsResponse soap_tmp_condorCollector__querySubmittorAdsResponse;
 	soap_default_condorCollector__querySubmittorAdsResponse(soap, &soap_tmp_condorCollector__querySubmittorAdsResponse);
 	soap_default_condorCollector__querySubmittorAds(soap, &soap_tmp_condorCollector__querySubmittorAds);
-	soap->encodingStyle = "encoding-style";
+	soap->encodingStyle = "";
 	soap_get_condorCollector__querySubmittorAds(soap, &soap_tmp_condorCollector__querySubmittorAds, "condorCollector:querySubmittorAds", NULL);
 	if (soap->error)
 		return soap->error;
@@ -244,7 +244,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorCollector__queryLicenseAds(struct soa
 	struct condorCollector__queryLicenseAdsResponse soap_tmp_condorCollector__queryLicenseAdsResponse;
 	soap_default_condorCollector__queryLicenseAdsResponse(soap, &soap_tmp_condorCollector__queryLicenseAdsResponse);
 	soap_default_condorCollector__queryLicenseAds(soap, &soap_tmp_condorCollector__queryLicenseAds);
-	soap->encodingStyle = "encoding-style";
+	soap->encodingStyle = "";
 	soap_get_condorCollector__queryLicenseAds(soap, &soap_tmp_condorCollector__queryLicenseAds, "condorCollector:queryLicenseAds", NULL);
 	if (soap->error)
 		return soap->error;
@@ -291,7 +291,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorCollector__queryStorageAds(struct soa
 	struct condorCollector__queryStorageAdsResponse soap_tmp_condorCollector__queryStorageAdsResponse;
 	soap_default_condorCollector__queryStorageAdsResponse(soap, &soap_tmp_condorCollector__queryStorageAdsResponse);
 	soap_default_condorCollector__queryStorageAds(soap, &soap_tmp_condorCollector__queryStorageAds);
-	soap->encodingStyle = "encoding-style";
+	soap->encodingStyle = "";
 	soap_get_condorCollector__queryStorageAds(soap, &soap_tmp_condorCollector__queryStorageAds, "condorCollector:queryStorageAds", NULL);
 	if (soap->error)
 		return soap->error;
@@ -338,7 +338,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorCollector__queryAnyAds(struct soap *s
 	struct condorCollector__queryAnyAdsResponse soap_tmp_condorCollector__queryAnyAdsResponse;
 	soap_default_condorCollector__queryAnyAdsResponse(soap, &soap_tmp_condorCollector__queryAnyAdsResponse);
 	soap_default_condorCollector__queryAnyAds(soap, &soap_tmp_condorCollector__queryAnyAds);
-	soap->encodingStyle = "encoding-style";
+	soap->encodingStyle = "";
 	soap_get_condorCollector__queryAnyAds(soap, &soap_tmp_condorCollector__queryAnyAds, "condorCollector:queryAnyAds", NULL);
 	if (soap->error)
 		return soap->error;

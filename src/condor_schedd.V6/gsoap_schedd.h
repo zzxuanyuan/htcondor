@@ -1,7 +1,7 @@
 #import "gsoap_schedd_types.h"
 
 //gsoap condorSchedd service name: condorSchedd
-//gsoap condorSchedd service encoding: encoding-style
+//gsoap condorSchedd service encoding: encoded
 
 struct condorSchedd__StatusResponse {
   struct condorCore__Status response;
