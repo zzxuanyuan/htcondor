@@ -33,42 +33,60 @@
 static char *_FileName_ = __FILE__;
 
 
-OpenFileTable	*FileTab;
+static OpenFileTable	FileTab;
 static char				Condor_CWD[ _POSIX_PATH_MAX ];
 static int				MaxOpenFiles;
 
+#define DEBUGGING
 
+#if defined(DEBUGGING)
+#	if defined( OSF1 )
+		extern "C" void srandom( int );
+		extern "C" int random();
+#	else
+		extern "C" void srandom( int );
+		extern "C" long random();
+#	endif
+#endif
 
 char * shorten( char *path );
 extern "C" void Set_CWD( const char *working_dir );
 
 extern int errno;
 
-void
-File::Init()
+File::File()
 {
 	open = FALSE;
 	pathname = 0;
 }
 
-void
-OpenFileTable::Init()
+File::~File()
 {
-	int		i;
+	delete [] pathname;
+	pathname = NULL;
+}
 
+OpenFileTable::OpenFileTable()
+{
 	SetSyscalls( SYS_UNMAPPED | SYS_LOCAL );
 
 	MaxOpenFiles = sysconf(_SC_OPEN_MAX);
 	file = new File[ MaxOpenFiles ];
-	for( i=0; i<MaxOpenFiles; i++ ) {
-		file[i].Init();
-	}
 
-	// getcwd( Condor_CWD, sizeof(Condor_CWD) );
-	PreOpen( 0, TRUE, FALSE, FALSE );
-	PreOpen( 1, FALSE, TRUE, FALSE );
-	PreOpen( 2, FALSE, TRUE, FALSE );
+	getcwd( Condor_CWD, sizeof(Condor_CWD) );
+	PreOpen( 0, TRUE, FALSE );
+	PreOpen( 1, FALSE, TRUE );
+	PreOpen( 2, FALSE, TRUE );
+#if 0
+	PreOpen( RSC_SOCK, TRUE, TRUE );
+	PreOpen( CLIENT_LOG, FALSE, TRUE );
+#endif
 
+	SetSyscalls( SYS_MAPPED | SYS_LOCAL );
+
+#if defined(DEBUGGING)
+	srandom( 0 );
+#endif
 }
 
 
@@ -185,11 +203,10 @@ OpenFileTable::DoClose( int fd )
 	int		i;
 	int		rval;
 
-	if( !file[fd].isOpen() || file[fd].isShadowSock() ) {
+	if( !file[fd].isOpen() ) {
 		errno = EBADF;
 		return -1;
 	}
-
 
 		// See if this file is a dup of another
 	if( file[fd].isDup() ) {
@@ -241,8 +258,7 @@ OpenFileTable::DoClose( int fd )
 
 
 int
-OpenFileTable::PreOpen(
-	int fd, BOOL readable, BOOL writeable, BOOL shadow_connection )
+OpenFileTable::PreOpen( int fd, BOOL readable, BOOL writeable )
 {
 		// Make sure fd not already open
 	if( file[fd].isOpen() ) {
@@ -258,7 +274,7 @@ OpenFileTable::PreOpen(
 	file[fd].duplicate = FALSE;
 	file[fd].pre_opened = TRUE;
 	file[fd].remote_access = RemoteSysCalls();
-	file[fd].shadow_sock = shadow_connection;
+	file[fd].shadow_sock = FALSE;
 	file[fd].offset = 0;
 	file[fd].real_fd = fd;
 	file[fd].dup_of = 0;
@@ -401,14 +417,29 @@ OpenFileTable::Restore()
 	off_t	pos;
 	File	*f;
 	mode_t	mode;
-	int		scm;
 
 	if( RemoteSysCalls() ) {
-		scm = SetSyscalls( SYS_REMOTE | SYS_UNMAPPED );
+		SetSyscalls( SYS_REMOTE | SYS_UNMAPPED );
 	} else {
-		scm = SetSyscalls( SYS_LOCAL | SYS_UNMAPPED );
+		SetSyscalls( SYS_LOCAL | SYS_UNMAPPED );
 	}
 
+#if defined(DEBUGGING)
+	 /*
+	When we are operating in remote mode, we could potentially get
+	different sets of real file descriptor numbers to correspond
+	with the user's fd numbers after each migration.  Here we
+	simulate that even in local mode so that we can more thoroughly
+	test the file descriptor mapping stuff.
+	 */
+	int		n_files;
+	n_files = random() % 5;
+
+	for( i=0; i<n_files; i++ ) {
+		(void)open("/dev/null",O_RDONLY);
+	}
+#endif
+		
 
 	for( i=0; i<MaxOpenFiles; i++ ) {
 		f = &file[i];
@@ -431,30 +462,23 @@ OpenFileTable::Restore()
 				abort();
 			}
 
-				// No need to seek if offset is 0, but more importantly, this
-				// fd could be a tty if offset is 0.
-			if( f->offset != 0 ) {
-				if( RemoteSysCalls() ) {
-					pos = REMOTE_syscall( CONDOR_lseek,
-						  f->real_fd, f->offset, SEEK_SET );
-				} else {
-					pos = syscall( SYS_lseek, f->real_fd, f->offset, SEEK_SET );
-				}
-
-				if( pos != f->offset ) {
-					perror( "lseek" );
-					abort();
-				}
+				// No need to seek if pos is 0, but more importantly, this
+				// fd could be a tty if pos is 0.
+			if( pos != 0 ) {
+				pos = lseek( f->real_fd, f->offset, SEEK_SET );
 			}
 
+			if( pos != f->offset ) {
+				perror( "lseek" );
+				abort();
+			}
 			fix_dups( i );
 		}
 	}
 	if( RemoteSysCalls() ) {
 		SetSyscalls( SYS_REMOTE | SYS_MAPPED );
 	} else {
-		// SetSyscalls( SYS_LOCAL | SYS_MAPPED );
-		SetSyscalls( scm);
+		SetSyscalls( SYS_LOCAL | SYS_MAPPED );
 	}
 }
 
@@ -506,8 +530,6 @@ extern "C" {
 
 #if defined( SYS_open )
 
-int AvoidNFS;
-
 int
 open( const char *path, int flags, ... )
 {
@@ -520,7 +542,7 @@ open( const char *path, int flags, ... )
 	}
 
 	if( MappingFileDescriptors() ) {
-		return FileTab->DoOpen( path, flags, creat_mode );
+		return FileTab.DoOpen( path, flags, creat_mode );
 	} else {
 		if( LocalSysCalls() ) {
 			return syscall( SYS_open, path, flags, creat_mode );
@@ -563,7 +585,7 @@ int
 close( int fd )
 {
 	if( MappingFileDescriptors() ) {
-		return FileTab->DoClose( fd );
+		return FileTab.DoClose( fd );
 	} else {
 		if( LocalSysCalls() ) {
 			return syscall( SYS_close, fd );
@@ -579,7 +601,7 @@ int
 dup( int old )
 {
 	if( MappingFileDescriptors() ) {
-		return FileTab->DoDup( old );
+		return FileTab.DoDup( old );
 	}
 
 	if( LocalSysCalls() ) {
@@ -597,7 +619,7 @@ dup2( int old, int new_fd )
 	int		rval;
 
 	if( MappingFileDescriptors() ) {
-		rval =  FileTab->DoDup2( old, new_fd );
+		rval =  FileTab.DoDup2( old, new_fd );
 		return rval;
 	}
 
@@ -617,7 +639,7 @@ void
 DumpOpenFds()
 {
 
-	FileTab->Display();
+	FileTab.Display();
 	DisplaySyscallMode();
 }
 
@@ -625,26 +647,19 @@ DumpOpenFds()
 int
 MapFd( int user_fd )
 {
-	return FileTab->Map( user_fd );
+	return FileTab.Map( user_fd );
 }
 
 void
 SaveFileState()
 {
-	FileTab->Save();
+	FileTab.Save();
 }
 
 void
 RestoreFileState()
 {
-	FileTab->Restore();
-}
-
-void
-InitFileState()
-{
-	FileTab = new OpenFileTable();
-	FileTab->Init();
+	FileTab.Restore();
 }
 
 void
@@ -656,13 +671,14 @@ Set_CWD( const char *working_dir )
 int
 LocalAccess( int user_fd )
 {
-	return FileTab->IsLocalAccess( user_fd );
+	return FileTab.IsLocalAccess( user_fd );
 }
 
 int
-pre_open( int fd, BOOL readable, BOOL writeable, BOOL shadow_connection )
+pre_open( int fd, BOOL readable, BOOL writeable )
 {
-	return FileTab->PreOpen( fd, readable, writeable, shadow_connection );
+	return FileTab.PreOpen( fd, readable, writeable );
 }
+
 
 } // end of extern "C"

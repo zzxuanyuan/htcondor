@@ -133,7 +133,6 @@ int calc_virt_memory ( void );
 int free_fs_blocks(char *filename);
 int calc_disk_needed( PROC * proc );
 char *GetEnvParam( char * param, char * env_string );
-PROC *ConstructProc( int, PROC *);
 
 #else /* HAS_PROTO */
 
@@ -221,21 +220,7 @@ int display_proc_long ();
 int display_v2_proc_long ();
 int setegid ();
 int seteuid ();
-<<<<<<< util_lib_proto.h
-
-#if 0
-||||||| 1.2
-=======
-#if 0
->>>>>>> /usr/tmp/T4026760
 int setlinebuf ();
-<<<<<<< util_lib_proto.h
-#endif
-
-||||||| 1.2
-=======
-#endif
->>>>>>> /usr/tmp/T4026760
 int setregid ();
 int setreuid ();
 int setrgid ();
@@ -257,7 +242,6 @@ int calc_virt_memory ();
 int free_fs_blocks();
 int calc_disk_needed();
 char *GetEnvParam();
-PROC *ConstructProc();
 
 #endif /* HAS_PROTO */
 #endif /* __CEXTRACT__ */

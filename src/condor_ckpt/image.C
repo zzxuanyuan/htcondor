@@ -11,36 +11,32 @@
 #include "image.h"
 #include "file_table_interf.h"
 
-#include "condor_debug.h"
-static char *_FileName_ = __FILE__;
-
 #ifndef SIG_DFL
 #include <signal.h>
 #endif
 
-const int KILO = 1024;
 
-extern "C" int open_write_stream( const char * ckpt_file, size_t n_bytes );
-extern "C" void report_image_size( int );
-
-#if defined(OSF1)
-extern "C" unsigned int htonl( unsigned int );
-extern "C" unsigned int ntohl( unsigned int );
-#endif
-
-void terminate_with_sig( int sig );
-void Suicide();
-
-Image MyImage;
+static Image MyImage;
 static jmp_buf Env;
-static RAW_ADDR SavedStackLoc;
 
+Header::Header()
+{
+	Init( -1, -1, "" );
+}
+
+Header::Header( int c, int p, const char *o )
+{
+	Init( c, p, o );
+}
 
 void
-Header::Init()
+Header::Init( int c, int p, const char *o )
 {
 	magic = MAGIC;
 	n_segs = 0;
+	cluster = c;
+	proc = p;
+	strcpy( owner, o );
 }
 
 void
@@ -48,6 +44,19 @@ Header::Display()
 {
 	DUMP( " ", magic, 0x%X );
 	DUMP( " ", n_segs, %d );
+	DUMP( " ", cluster, %d );
+	DUMP( " ", proc, %d );
+	DUMP( " ", owner, "%s" );
+}
+
+SegMap::SegMap()
+{
+	Init( "", 0, 0L );
+}
+
+SegMap::SegMap( const char *n, RAW_ADDR c, long l )
+{
+	Init( n, c, l );
 }
 
 void
@@ -68,52 +77,15 @@ SegMap::Display()
 	printf( " len = %d (0x%X)\n", len, len );
 }
 
-
-void
-Image::SetFd( int f )
-{
-	fd = f;
-	pos = 0;
-}
-
-void
-Image::SetFileName( char *ckpt_name )
-{
-		// Save the checkpoint file name
-	file_name = new char [ strlen(ckpt_name) + 1 ];
-	strcpy( file_name, ckpt_name );
-
-	fd = -1;
-	pos = 0;
-}
-
-void
-Image::SetMode( int syscall_mode )
-{
-	if( syscall_mode & SYS_LOCAL ) {
-		mode = STANDALONE;
-	} else {
-		mode = REMOTE;
-	}
-}
-
-
-/*
-  These actions must be done on every startup, regardless whether it is
-  local or remote, and regardless whether it is an original invocation
-  or a restart.
-*/
-extern "C"
-void
-_condor_prestart( int syscall_mode )
+Image::Image()
 {
 	struct sigaction action;
-	sigset_t		 sig_mask;
 
-	MyImage.SetMode( syscall_mode );
-
-		// Initialize open files table
-	InitFileState();
+		// Initialize saved image data structures
+	head.Init( -1, -1, "" );
+	max_segs = SEG_INCR;
+	map = new SegMap[max_segs];
+	valid = FALSE;
 
 		// set up to catch SIGTSTP and do a checkpoint
 	action.sa_handler = (SIG_HANDLER)Checkpoint;
@@ -122,36 +94,36 @@ _condor_prestart( int syscall_mode )
 
 		// install the SIGTSTP handler
 	if( sigaction(SIGTSTP,&action,NULL) < 0 ) {
-		perror( "sigaction - TSTP handler" );
+		perror( "sigaction" );
 		exit( 1 );
 	}
 
-		// install the SIGUSR1 handler
-	action.sa_handler = (SIG_HANDLER)Suicide;
-	if( sigaction(SIGUSR1,&action,NULL) < 0 ) {
-		perror( "sigaction - USR1 handler" );
-		exit( 1 );
-	}
-
-
+	fd = -1;
+	pos = 0;
 }
 
+int Cluster = 13;
+int Proc = 13;
+char Owner[] = "mike";
 
-/*
-  Save checkpoint information about our process in the "image" object.  Note:
-  this only saves the information in the object.  You must then call the
-  Write() method to get the image transferred to a checkpoint file (or
-  possibly moved to another process.
-*/
 void
 Image::Save()
+{
+	Save( Cluster, Proc, Owner );
+}
+
+extern char *etext;
+extern char *edata;
+void
+Image::Save( int c, int p, const char *o )
 {
 	RAW_ADDR	data_start, data_end;
 	RAW_ADDR	stack_start, stack_end;
 	ssize_t		pos;
 	int			i;
 
-	head.Init();
+		// Set up header
+	head.Init( c, p, o );
 
 		// Set up data segment
 	data_start = data_start_addr();
@@ -159,11 +131,7 @@ Image::Save()
 	AddSegment( "DATA", data_start, data_end );
 
 		// Set up stack segment
-	if( SavedStackLoc ) {
-		stack_start = SavedStackLoc;
-	} else {
-		stack_start = stack_start_addr();
-	}
+	stack_start = stack_start_addr();
 	stack_end = stack_end_addr();
 	AddSegment( "STACK", stack_start, stack_end );
 
@@ -172,9 +140,6 @@ Image::Save()
 	for( i=0; i<head.N_Segs(); i++ ) {
 		pos = map[i].SetPos( pos );
 	}
-
-	dprintf( D_ALWAYS, "Size of ckpt image = %d bytes\n", pos );
-	len = pos;
 
 	valid = TRUE;
 }
@@ -192,6 +157,7 @@ Image::Display()
 	int		i;
 
 	printf( "===========\n" );
+	DUMP( "", max_segs, %d );
 	printf( "Ckpt File Header:\n" );
 	head.Display();
 	for( i=0; i<head.N_Segs(); i++ ) {
@@ -207,7 +173,7 @@ Image::AddSegment( const char *name, RAW_ADDR start, RAW_ADDR end )
 	long	len = end - start;
 	int idx = head.N_Segs();
 
-	if( idx >= MAX_SEGS ) {
+	if( idx >= max_segs ) {
 		fprintf( stderr, "Don't know how to grow segment map yet!\n" );
 		exit( 1 );
 	}
@@ -238,10 +204,6 @@ SegMap::Contains( void *addr )
 
 
 
-/*
-  Given an "image" object containing checkpoint information which we have
-  just read in, this method actually effects the restart.
-*/
 void
 Image::Restore()
 {
@@ -256,9 +218,6 @@ Image::Restore()
 		// the only thing that has changed is the file descriptor.
 	fd = save_fd;
 
-		// Now we're going to restore the stack, so we move our execution
-		// stack to a temporary area (in the data segment), then call
-		// the RestoreStack() routine.
 	ExecuteOnTmpStk( RestoreStack );
 
 		// RestoreStack() also does the jump back to user code
@@ -291,99 +250,26 @@ Image::RestoreSeg( const char *seg_name )
 void
 RestoreStack()
 {
-
-#if defined(ALPHA)			
-	unsigned int nbytes;		// 32 bit unsigned
-#else
-	unsigned long nbytes;		// 32 bit unsigned
-#endif
-	int		status;
-
 	MyImage.RestoreSeg( "STACK" );
-
-		// In remote mode, we have to send back size of ckpt informaton
-	if( MyImage.GetMode() == REMOTE ) {
-		nbytes = MyImage.GetLen();
-		nbytes = htonl( nbytes );
-		status = write( MyImage.GetFd(), &nbytes, sizeof(nbytes) );
-		dprintf( D_ALWAYS, "USER PROC: CHECKPOINT IMAGE RECEIVED OK\n" );
-
-		SetSyscalls( SYS_REMOTE | SYS_MAPPED );
-	} else {
-		SetSyscalls( SYS_LOCAL | SYS_MAPPED );
-	}
-
 	LONGJMP( Env, 1 );
 }
 
 int
-Image::Write()
-{
-	return Write( file_name );
-}
-
-
-/*
-  Set up a stream to write our checkpoint information onto, then write
-  it.  Note: there are two versions of "open_write_stream", one in
-  "local_startup.c" to be linked with programs for "standalone"
-  checkpointing, and one in "remote_startup.c" to be linked with
-  programs for "remote" checkpointing.  Of course, they do very different
-  things, but in either case a file descriptor is returned which we
-  should access in LOCAL and UNMAPPED mode.
-*/
-int
-Image::Write( const char *ckpt_file )
+Image::Write( const char *file_name )
 {
 	int	fd;
 	int	status;
-	int	scm;
-	int bytes_read;
-#if defined(ALPHA)
-	unsigned int  nbytes;		// 32 bit unsigned
-#else
-	unsigned long  nbytes;		// 32 bit unsigned
-#endif
 
-	if( ckpt_file == 0 ) {
-		ckpt_file = file_name;
-	}
-
-	if( (fd=open_write_stream(ckpt_file,len)) < 0 ) {
-		perror( "open_write_stream" );
+	if( (fd=open(file_name,O_CREAT|O_TRUNC|O_WRONLY,0664)) < 0 ) {
+		perror( "open" );
 		exit( 1 );
 	}
-
-	scm = SetSyscalls( SYS_LOCAL | SYS_UNMAPPED );
 	status = Write( fd );
-
-		// In remote mode, our peer will send back the actual
-		// number of bytes transferred as a check
-	if( MyImage.GetMode() == REMOTE ) {
-		bytes_read = read( fd, &nbytes, sizeof(nbytes) );
-		nbytes = ntohl( nbytes );
-		dprintf( D_ALWAYS, "USER PROC: CHECKPOINT IMAGE SENT OK\n" );
-	}
-
 	(void)close( fd );
-	SetSyscalls( scm );
-
-
-		// In remote mode we update the shadow on our image size
-	if( MyImage.GetMode() == REMOTE ) {
-		report_image_size( (MyImage.GetLen() + KILO - 1) / KILO );
-	}
-
-
 
 	return status;
 }
 
-/*
-  Write our checkpoint "image" to a given file descriptor.  At this level
-  it makes no difference whether the file descriptor points to a local
-  file, a remote file, or another process (for direct migration).
-*/
 int
 Image::Write( int fd )
 {
@@ -415,27 +301,25 @@ Image::Write( int fd )
 	return 0;
 }
 
-
-/*
-  Read in our checkpoint "image" from a given file descriptor.  The
-  descriptor could point to a local file, a remote file, or another
-  process (in the case of direct migration).  Here we only read in
-  the image "header" and the maps describing the segments we need to
-  restore.  The Restore() function will do the rest.
-*/
 int
-Image::Read()
+Image::Read( const char *file_name )
+{
+	int	status;
+
+	if( (fd=open(file_name,O_RDONLY,0)) < 0 ) {
+		perror( "open" );
+		exit( 1 );
+	}
+	status = Read( fd );
+
+	return status;
+}
+
+int
+Image::Read( int fd )
 {
 	int		i;
 	ssize_t	nbytes;
-
-		// Make sure we have a valid file descriptor to read from
-	if( fd < 0 && file_name && file_name[0] ) {
-		if( (fd=open(file_name,O_RDONLY,0)) < 0 ) {
-			perror( "open" );
-			exit( 1 );
-		}
-	}
 
 		// Read in the header
 	if( (nbytes=read(fd,&head,sizeof(head))) < 0 ) {
@@ -468,44 +352,19 @@ ssize_t
 SegMap::Read( int fd, ssize_t pos )
 {
 	ssize_t nbytes;
-	char *orig_brk;
-	char *cur_brk;
-	char	*ptr;
-	size_t	bytes_to_go;
-	size_t	read_size;
-
 
 	if( pos != file_loc ) {
 		fprintf( stderr, "Checkpoint sequence error\n" );
 		exit( 1 );
 	}
 	if( strcmp(name,"DATA") == 0 ) {
-		orig_brk = (char *)sbrk(0);
-		if( orig_brk < (char *)(core_loc + len) ) {
-			brk( (char *)(core_loc + len) );
-		}
-		cur_brk = (char *)sbrk(0);
+		brk( (char *)(core_loc + len) );
 	}
-
-		// This overwrites an entire segment of our address space
-		// (data or stack).  Assume we have been handed an fd which
-		// can be read by purely local syscalls, and we don't need
-		// to need to mess with the system call mode, fd mapping tables,
-		// etc. as none of that would work considering we are overwriting
-		// them.
-	bytes_to_go = len;
-	ptr = (char *)core_loc;
-	while( bytes_to_go ) {
-		read_size = bytes_to_go > 4096 ? 4096 : bytes_to_go;
-		nbytes =  syscall( SYS_read, fd, (void *)ptr, read_size );
-		if( nbytes < 0 ) {
-			return -1;
-		}
-		bytes_to_go -= nbytes;
-		ptr += nbytes;
+	nbytes =  read(fd,(void *)core_loc,(size_t)len);
+	if( nbytes < 0 ) {
+		return -1;
 	}
-
-	return pos + len;
+	return pos + nbytes;
 }
 
 ssize_t
@@ -519,165 +378,41 @@ SegMap::Write( int fd, ssize_t pos )
 
 extern "C" {
 
-/*
-  This is the signal handler which actually effects a checkpoint.  This
-  must be implemented as a signal handler, since we assume the signal
-  handling code provided by the system will save and restore important
-  elements of our context (register values, etc.).  A process wishing
-  to checkpoint itself should generate the correct signal, not call this
-  routine directory, (the ckpt()) function does this.
-*/
 void
 Checkpoint( int sig, int code, void *scp )
 {
-	int		scm;
 
-
-	if( MyImage.GetMode() == REMOTE ) {
-		SetSyscalls( SYS_REMOTE | SYS_UNMAPPED );
-	} else {
-		SetSyscalls( SYS_LOCAL | SYS_UNMAPPED );
-	}
-
-
-	dprintf( D_ALWAYS, "Got SIGTSTP\n" );
+	printf( "Got SIGTSTP\n" );
 	if( SETJMP(Env) == 0 ) {
-		dprintf( D_ALWAYS, "About to save MyImage\n" );
+		printf( "About to save MyImage\n" );
+		SetSyscalls( SYS_LOCAL | SYS_UNMAPPED );
 		SaveFileState();
 		MyImage.Save();
-		MyImage.Write();
-		dprintf( D_ALWAYS,  "Ckpt exit\n" );
-		SetSyscalls( SYS_LOCAL | SYS_UNMAPPED );
-		terminate_with_sig( SIGUSR2 );
+		MyImage.Write( "Ckpt.13.13" );
+		printf( "Ckpt exit\n" );
+		exit( 0 );
 	} else {
-		scm = SetSyscalls( SYS_LOCAL | SYS_UNMAPPED );
 		patch_registers( scp );
 		MyImage.Close();
-
-#if 1
-		if( MyImage.GetMode() == REMOTE ) {
-			SetSyscalls( SYS_REMOTE | SYS_MAPPED );
-		} else {
-			SetSyscalls( SYS_LOCAL | SYS_MAPPED );
-		}
-#else
-		SetSyscalls( scm );
-#endif
-		syscall( SYS_write, 1, "About to restore files state\n", 29 );
 		RestoreFileState();
-		syscall( SYS_write, 1, "Done restoring files state\n", 27 );
-		SetSyscalls( scm );
+		SetSyscalls( SYS_LOCAL | SYS_MAPPED );
 		syscall( SYS_write, 1, "About to return to user code\n", 29 );
 		return;
 	}
 }
 
-void
-init_image_with_file_name( char *ckpt_name )
-{
-	MyImage.SetFileName( ckpt_name );
-}
+}	// end of extern "C"
 
 void
-init_image_with_file_descriptor( int fd )
+restart()
 {
-	MyImage.SetFd( fd );
-}
-
-
-/*
-  Effect a restart by reading in an "image" containing checkpointing
-  information and then overwriting our process with that image.
-*/
-void
-restart( )
-{
-	// SetSyscalls( SYS_LOCAL | SYS_UNMAPPED );
-	MyImage.Read();
+	SetSyscalls( SYS_LOCAL | SYS_UNMAPPED );
+	MyImage.Read( "Ckpt.13.13" );
 	MyImage.Restore();
 }
 
-}	// end of extern "C"
-
-
-
-/*
-  Checkpointing must by implemented as a signal handler.  This routine
-  generates the required signal to invoke the handler.
-*/
 void
 ckpt()
 {
-	int		scm;
-
-	dprintf( D_ALWAYS, "About to send CHECKPOINT signal to SELF\n" );
-	SetSyscalls( SYS_LOCAL | SYS_UNMAPPED );
 	kill( getpid(), SIGTSTP );
-}
-
-/*
-** Some FORTRAN compilers expect "_" after the symbol name.
-*/
-extern "C" {
-void
-ckpt_() {
-    ckpt();
-}
-}
-
-/*
-  Arrange to terminate abnormally with the given signal.  Note: the
-  expectation is that the signal is one whose default action terminates
-  the process - could be with a core dump or not, depending on the sig.
-*/
-void
-terminate_with_sig( int sig )
-{
-	sigset_t	mask;
-	struct sigaction	act;
-	pid_t		my_pid;
-
-		// Make sure all system calls handled "straight through"
-	SetSyscalls( SYS_LOCAL | SYS_UNMAPPED );
-
-		// Make sure we have the default action in place for the sig
-	act.sa_handler = SIG_DFL;
-	sigemptyset( &act.sa_mask );
-	act.sa_flags = 0;
-	if( sigaction(sig,&act,0) < 0 ) {
-		EXCEPT( "sigaction" );
-	}
-
-		// Send ourself the signal
-	my_pid = getpid();
-	dprintf( D_ALWAYS, "About to send signal %d to process %d\n", sig, my_pid );
-	if( kill(my_pid,sig) < 0 ) {
-		EXCEPT( "kill" );
-	}
-
-		// Wait to die...
-	sigemptyset( &mask );
-	sigsuspend( &mask );
-
-		// Should never get here
-	EXCEPT( "Should never get here" );
-
-}
-
-/*
-  We have been requested to exit.  We do it by sending ourselves a
-  SIGKILL, i.e. "kill -9".
-*/
-void
-Suicide()
-{
-	terminate_with_sig( SIGKILL );
-}
-
-extern "C" {
-void
-_condor_save_stack_location()
-{
-	SavedStackLoc = stack_start_addr();
-}
 }

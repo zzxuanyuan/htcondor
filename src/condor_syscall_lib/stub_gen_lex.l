@@ -35,7 +35,6 @@ long				return grab( TYPE_NAME );
 {UNSIGNED}int		return grab( TYPE_NAME );
 {UNSIGNED}long		return grab( TYPE_NAME );
 long{WHITE}int		return grab( TYPE_NAME );
-u_short				return grab( TYPE_NAME );
 ulong_t				return grab( TYPE_NAME );
 size_t				return grab( TYPE_NAME );
 ssize_t				return grab( TYPE_NAME );
@@ -78,11 +77,9 @@ map					return grab( MAP );
 in					return grab( IN );
 out					return grab( OUT );
 alloc				return grab( ALLOC );
-return				return grab( RETURN );
 extract				return grab( EXTRACT );
 pseudo				return grab( PSEUDO );
 not_supported		return grab( NOSUPP );
-ignored				return grab( IGNORE );
 {STR}				return grab( IDENTIFIER );
 "{"					return grab( '{' );
 "}"					return grab( '}' );
@@ -166,10 +163,6 @@ display_token( int type )
 		break;
 	  case NOSUPP:
 		fprintf( stderr, "NOSUPP" );
-		break;
-	  case IGNORE:
-		fprintf( stderr, "IGNORE" );
-		break;
 	  case '(':
 		fprintf( stderr, "(" );
 		break;

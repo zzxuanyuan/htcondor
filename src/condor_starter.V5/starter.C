@@ -26,6 +26,12 @@
 **
 */ 
 
+	// Define this to use well known named sockets to connect to the
+	// shadow.  This is intended for debugging, and lets us run this
+	// process directly under a debugger without needing to attach at
+	// run time.
+#define USE_PIPES
+
 
 #define _POSIX_SOURCE
 
@@ -109,8 +115,6 @@ CkptTimer	*MyTimer;			// Timer for periodic checkpointing
 char	*InitiatingHost;		// Machine where shadow is running
 char	*ThisHost;				// Machine where we are running
 
-int		UsePipes = FALSE;		// Connect to shadow via pipes for debugging
-
 extern State StateTab[];
 extern Transition TransTab[];
 extern int EventSigs[];
@@ -125,7 +129,6 @@ int update_one( UserProc *proc );
 void send_final_status( UserProc *proc );
 void resume_all();
 void req_exit_all();
-void req_ckpt_exit_all();
 int needed_fd( int fd );
 
 extern "C" {
@@ -162,14 +165,15 @@ void
 initial_bookeeping( int argc, char *argv[] )
 {
 	struct utsname uts;
+	int		want_debugging;
 	char	my_host[ _POSIX_PATH_MAX ];
 
 		/* These items must be completed before we can print anything */
 	if( argc > 1 ) {
-		if( argv[1][0] == '-' && argv[1][1] == 'p' ) {
-			UsePipes = TRUE;
+		if( argv[1][0] == '-' && argv[1][1] == 'd' ) {
+			want_debugging = TRUE;
 		} else {
-			UsePipes = FALSE;
+			want_debugging = FALSE;
 		}
 	}
 
@@ -179,6 +183,13 @@ initial_bookeeping( int argc, char *argv[] )
 	(void)umask( 0 );
 
 	init_shadow_connections();
+	if( want_debugging ) {
+		SyscallStream = init_syscall_connection( SYS_LOCAL | SYS_MAPPED, TRUE );
+	} else {
+		(void) dup2( 1, RSC_SOCK );
+		(void) dup2( 2, CLIENT_LOG );
+		SyscallStream = init_syscall_connection( SYS_LOCAL | SYS_MAPPED, FALSE);
+	}
 
 	read_config_files( argv[0] );
 	init_logging();
@@ -195,12 +206,11 @@ initial_bookeeping( int argc, char *argv[] )
 	}
 	ThisHost = uts.nodename;
 
-	if( UsePipes ) {
+	if( want_debugging ) {
 		InitiatingHost = ThisHost;
 	} else {
 		InitiatingHost = argv[1];
 	}
-
 
 	dprintf( D_ALWAYS, "********** STARTER starting up ***********\n" );
 	dprintf( D_ALWAYS, "Submitting machine is \"%s\"\n", InitiatingHost );
@@ -294,7 +304,7 @@ susp_self()
 void
 usage( char *my_name )
 {
-	dprintf( D_ALWAYS, "Usage: %s ( -pipe | initiating_host)\n", my_name );
+	dprintf( D_ALWAYS, "Usage: %s ( -debug | initiating_host)\n", my_name );
 	exit( 0 );
 }
 
@@ -336,13 +346,13 @@ init_shadow_connections()
 	int		scm;
 
 
-	if( UsePipes ) {
-		SyscallStream = init_syscall_connection( TRUE );
-	} else {
-		(void) dup2( 1, RSC_SOCK );
-		(void) dup2( 2, CLIENT_LOG );
-		SyscallStream = init_syscall_connection( FALSE);
-	}
+#if defined( USE_PIPES )
+	SyscallStream = init_syscall_connection( SYS_LOCAL | SYS_MAPPED, TRUE );
+#else
+	(void) dup2( 1, RSC_SOCK );
+	(void) dup2( 2, CLIENT_LOG );
+	SyscallStream = init_syscall_connection( SYS_LOCAL | SYS_MAPPED, FALSE );
+#endif
 
 }
 
@@ -542,11 +552,7 @@ handle_vacate_req()
 void
 req_vacate()
 {
-#if defined(OSF1)	/* Ckpt so fast here, we can do it */
-	req_ckpt_exit_all();
-#else
 	req_exit_all();
-#endif
 	MyAlarm.set( VacateTimer );
 }
 
@@ -564,39 +570,6 @@ req_die()
 }
 
 
-
-/*
-  Request every user process to checkpoint, then exit now.
-*/
-void
-req_ckpt_exit_all()
-{
-	UserProc	*proc;
-
-		// Request all the processes to ckpt and then exit
-	UProcList.Rewind();
-	while( proc = UProcList.Next() ) {
-		if ( proc->get_class() != PVMD ) {
-			dprintf( D_ALWAYS, "req_exit_all: Proc %d in state %s\n", 
-					proc->get_id(),	ProcStates.get_name(proc->get_state())
-					);
-			if( proc->is_running() || proc->is_suspended() ) {
-				dprintf( D_ALWAYS, "Requesting Exit on proc #%d\n",
-						proc->get_id());
-				proc->request_ckpt();
-			}
-		}
-	}
-
-	UProcList.Rewind();
-	while( proc = UProcList.Next() ) {
-		if ( proc->get_class() == PVMD ) {
-			if( proc->is_running() || proc->is_suspended() ) {
-				proc->request_exit();
-			}
-		}
-	}
-}
 
 /*
   Request every user process to exit now.
@@ -921,15 +894,11 @@ supervise_all()
 	}
 
 	if( periodic_checkpointing ) {
-#if defined(OSF1)
-		dprintf( D_FULLDEBUG, "Periodic checkpointing NOT implemented yet\n" );
-#else
 		if( MyTimer->is_active() ) {
 			MyTimer->resume();
 		} else {
 			MyTimer->start();
 		}
-#endif
 	}
 
 #if defined(LINK_PVM)
@@ -972,7 +941,6 @@ proc_exit()
 
 	  case CHECKPOINTING:
 		return CKPT_EXIT; // Started own checkpoint, go to UPDATE_CKPT state
-
 	  case ABNORMAL_EXIT:
 		return HAS_CORE;
 
@@ -1005,23 +973,6 @@ dispose_one()
 		// Delete proc from our list
 	proc->delete_files();
 	UProcList.DeleteCurrent();
-}
-
-/*
-  Dispose of one user process from our list.
-*/
-void
-make_runnable()
-{
-	UserProc	*proc;
-
-		// Grab a pointer to proc which just exited
-	proc = UProcList.Current();
-
-		// Send proc's status to shadow
-	proc->make_runnable();
-	proc->execute();
-
 }
 
 /*
@@ -1181,7 +1132,6 @@ get_job_info()
 	V2_PROC			&v2_proc = (V2_PROC &)proc_struct;
 	V3_PROC			&v3_proc = (V3_PROC &)proc_struct;
 
-	char	a_out [ _POSIX_PATH_MAX ];
 	char	orig_file[ _POSIX_PATH_MAX ];
 	char	target_file[ _POSIX_PATH_MAX ];
 	uid_t	uid, gid;
@@ -1195,7 +1145,7 @@ get_job_info()
 
 	memset( &proc_struct, 0, sizeof(proc_struct) );
 	id = REMOTE_syscall( CONDOR_work_request,
-					&proc_struct, a_out, target_file, orig_file, &soft_kill
+					&proc_struct, target_file, orig_file, &soft_kill
 	);
 
 	uid = REMOTE_syscall( CONDOR_geteuid );
@@ -1207,22 +1157,22 @@ get_job_info()
 
 	switch( v2_proc.version_num ) {
 	  case 2:
-		u_proc = new UserProc( v2_proc, a_out, orig_file, target_file, uid, gid, soft_kill );
+		u_proc = new UserProc( v2_proc, orig_file, target_file, uid, gid, soft_kill );
 		break;
 	  case 3:
 		switch(v3_proc.universe) {
 #if defined(LINK_PVM)
 		    case PVMD:
-			    u_proc = new PVMdProc( v3_proc, a_out, orig_file, target_file, uid, 
+			    u_proc = new PVMdProc( v3_proc, orig_file, target_file, uid, 
 									  gid, id, soft_kill);
 				break;
 		    case PVM:
-			    u_proc = new PVMUserProc( v3_proc, a_out, orig_file, target_file, 
+			    u_proc = new PVMUserProc( v3_proc, orig_file, target_file, 
 										 uid, gid, id, soft_kill);
 				break;
 #endif
 		    default:
-			    u_proc = new UserProc( v3_proc, a_out, orig_file, target_file, uid, 
+			    u_proc = new UserProc( v3_proc, orig_file, target_file, uid, 
 									  gid, id, soft_kill);
 				break;
 		}
@@ -1371,21 +1321,15 @@ int
 needed_fd( int fd )
 {
 	switch( fd ) {
-
 	  case 2:
 	  case CLIENT_LOG:
+#if defined(USE_PIPES)	/* Using named pipes to communicate with shadow */
+	  case REQ_SOCK:
+	  case RPL_SOCK:
+#else					/* Using TCP socket to communicate with shadow */
+	  case RSC_SOCK:
+#endif
 		return TRUE;
-
-	  case REQ_SOCK:		// used for remote system calls via named pipes
-		if( UsePipes) {
-			return TRUE;
-		} else {
-			return FALSE;
-		}
-
-	  case RSC_SOCK:		// for remote system calls TCP sock OR pipes
-		return TRUE;
-
 	  default:
 		return FALSE;
 	}

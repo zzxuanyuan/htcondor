@@ -20,12 +20,6 @@ SetSyscalls( int mode )
 	return answer;
 }
 
-int
-GetSyscallMode()
-{
-	return SyscallMode;
-}
-
 BOOL
 LocalSysCalls()
 {
