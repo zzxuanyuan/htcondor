@@ -48,6 +48,7 @@
 #include "condor_ckpt_name.h"
 #include "../condor_ckpt_server/server_interface.h"
 #include "generic_query.h"
+#include "condor_query.h"
 #include "directory.h"
 #include "condor_ver_info.h"
 #include "grid_universe.h"
@@ -3762,22 +3763,103 @@ void
 Scheduler::checkReconnectQueue( void ) 
 {
 	PROC_ID job;
+	ClassAd *ad = NULL, *scan = NULL;
+	CondorQuery query(STARTD_AD);
+	ClassAdList ads;
+	MyString constraint;
+	char* remote_host = NULL;
+	char* remote_pool = NULL;
 
 		// clear out the timer tid, since we made it here.
 	checkReconnectQueue_tid = -1;
 
+		// First, sweep through the job id's we care about, and
+		// construct a single query that will grab all the ads 
 	jobsToReconnect.Rewind();
 	while( jobsToReconnect.Next(job) ) {
 			// there's a pending registration in the queue:
 		dprintf( D_FULLDEBUG, "In checkReconnectQueue(), job: %d.%d\n", 
 				 job.cluster, job.proc );
-		makeReconnectRecords( &job );
+
+			// First, see if this job was flocked to a remote pool,
+			// and if so, blow up since we don't really handle this
+			// level of complexity just yet... 
+		if( GetAttributeStringNew(job.cluster, job.proc, ATTR_REMOTE_POOL,
+								  &remote_pool) >= 0 ) {
+				// TODO: we can do better than this...
+			EXCEPT( "Can't reconnect to a flocked pool yet!" );
+		}
+		
+			// Now, grab the name of the startd ad we need to query
+			// for from the job ad.  it's living in ATTR_REMOTE_HOST
+		GetAttributeStringNew( job.cluster, job.proc, ATTR_REMOTE_HOST,
+							   &remote_host );
+		constraint = ATTR_NAME;	
+		constraint += "==\"";
+		constraint += remote_host;
+		constraint += '"';
+		free( remote_host );
+		remote_host = NULL;
+		dprintf( D_FULLDEBUG, "Adding contraint: %s\n", constraint.Value() );
+		query.addORConstraint( constraint.Value() );
+	}
+
+	CondorError errstack;
+	if( query.fetchAds(ads, NULL, &errstack) != Q_OK ) {
+		dprintf( D_ALWAYS, "ERROR: failed to query collector (%s)\n",
+				 errstack.get_full_text() );
+			// TODO! deal violently with this failure. ;)
+	}
+
+	char* job_id = NULL;
+	PROC_ID tmp_job;
+	ads.Open();
+	while( (scan = ads.Next()) ) {
+			// make sure this ad is a startd that's running one of our
+			// jobs. 
+		scan->LookupString( ATTR_JOB_ID, &job_id );
+		if( ! job_id ) {
+			dprintf( D_ALWAYS, "ClassAd from query has no %s, ignoring\n", 
+					 ATTR_JOB_ID );
+			continue;
+		}
+		tmp_job = getProcByString( job_id );
+		free( job_id );
+		job_id = NULL;
+		
+			// Now, find it from our list, remove it, and create the
+			// necessary records...
+		jobsToReconnect.Rewind();
+		while( jobsToReconnect.Next(job) ) {
+			if( job.cluster == tmp_job.cluster && job.proc == tmp_job.proc ) {
+				jobsToReconnect.DeleteCurrent();
+					// We have to make a copy, since the ClassAdList
+					// object on our stack will destroy everything
+				ad = new ClassAd( *scan );
+				makeReconnectRecords( &job, ad );
+				break;
+			}
+		}
+	}
+
+		// now, make sure all our jobs are gone from the list.  if
+		// not, "We have a problem, Houston..."
+	if( ! jobsToReconnect.IsEmpty() ) {
+		dprintf( D_ALWAYS, "ERROR: couldn't find ClassAds for some "
+				 "disconnected jobs!\n" );
+		jobsToReconnect.Rewind();
+		while( jobsToReconnect.Next(job) ) {
+			dprintf( D_ALWAYS, "Missing match ClassAd for job %d.%d\n",
+					 job.cluster, job.proc );
+				// TODO handle this error better!
+			mark_job_stopped(&job);
+		}
 	}
 }
 
 
 void
-Scheduler::makeReconnectRecords( PROC_ID* job ) 
+Scheduler::makeReconnectRecords( PROC_ID* job, ClassAd* match_ad ) 
 {
 	int cluster = job->cluster;
 	int proc = job->proc;
@@ -3794,9 +3876,6 @@ Scheduler::makeReconnectRecords( PROC_ID* job )
 		free( pool );
 		pool = NULL;
 	}
-
-		// TODO!
-	ClassAd* match_ad = NULL;
 
 	dprintf( D_FULLDEBUG, "Adding match record for disconnected job %d.%d "
 			 "(owner: %s)\n", cluster, proc, owner );

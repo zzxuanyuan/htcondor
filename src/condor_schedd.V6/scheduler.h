@@ -274,7 +274,7 @@ class Scheduler : public Service
 		*/
 	bool			enqueueReconnectJob( PROC_ID job );
 	void			checkReconnectQueue( void );
-	void			makeReconnectRecords( PROC_ID* job );
+	void			makeReconnectRecords( PROC_ID* job, ClassAd* match_ad );
 
 		// Useful public info
 	char*			shadowSockSinful( void ) { return MyShadowSockName; };
