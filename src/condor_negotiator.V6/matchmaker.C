@@ -51,8 +51,8 @@ enum { _MM_ERROR, MM_NO_MATCH, MM_GOOD_MATCH, MM_BAD_MATCH };
 typedef int (*lessThanFunc)(AttrList*, AttrList*, void*);
 
 //added by ameet - dirty hack - needs to be removed soon!!!
-#include "../condor_c++_util/queuedbmanager.h"
-QueueDBManager queueDBManager;
+//#include "../condor_c++_util/queuedbmanager.h"
+//QueueDBManager queueDBManager;
 
 Matchmaker::
 Matchmaker ()
