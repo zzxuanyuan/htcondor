@@ -49,3 +49,9 @@ struct condorSchedd__IntAndStatus
   struct condorCore__Status status 1:1;
   xsd__int integer 0:1;
 };
+
+struct condorSchedd__Base64DataAndStatus
+{
+  struct condorCore__Status status 1:1;
+  struct xsd__base64Binary data 0:1;
+};

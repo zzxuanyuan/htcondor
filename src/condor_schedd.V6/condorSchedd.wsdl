@@ -165,6 +165,12 @@
     <element name="integer" type="xsd:int" minOccurs="0" maxOccurs="1"/>
    </sequence>
   </complexType>
+  <complexType name="Base64DataAndStatus">
+   <sequence>
+    <element name="status" type="condorCore:Status" minOccurs="1" maxOccurs="1"/>
+    <element name="data" type="xsd:base64Binary" minOccurs="0" maxOccurs="1" nillable="true"/>
+   </sequence>
+  </complexType>
   <complexType name="StatusResponse">
    <sequence>
     <element name="response" type="condorCore:Status" minOccurs="1" maxOccurs="1"/>
@@ -193,6 +199,11 @@
   <complexType name="ClassAdStructAndStatusResponse">
    <sequence>
     <element name="response" type="condorCore:ClassAdStructAndStatus" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="Base64DataAndStatusResponse">
+   <sequence>
+    <element name="response" type="condorSchedd:Base64DataAndStatus" minOccurs="1" maxOccurs="1"/>
    </sequence>
   </complexType>
  </schema>
@@ -319,6 +330,19 @@
  <part name="data" type="xsd:base64Binary"/>
 </message>
 
+<message name="getFileRequest">
+ <part name="transaction" type="condorSchedd:Transaction"/>
+ <part name="clusterId" type="xsd:int"/>
+ <part name="jobId" type="xsd:int"/>
+ <part name="name" type="xsd:string"/>
+ <part name="offset" type="xsd:int"/>
+ <part name="length" type="xsd:int"/>
+</message>
+
+<message name="Base64DataAndStatusResponse">
+ <part name="response" type="condorSchedd:Base64DataAndStatus"/>
+</message>
+
 <message name="discoverJobRequirementsRequest">
  <part name="jobAd" type="condorCore:ClassAdStruct"/>
 </message>
@@ -411,6 +435,11 @@
   <documentation>Service definition of function condorSchedd__sendFile</documentation>
   <input message="tns:sendFileRequest"/>
   <output message="tns:StatusResponse"/>
+ </operation>
+ <operation name="getFile">
+  <documentation>Service definition of function condorSchedd__getFile</documentation>
+  <input message="tns:getFileRequest"/>
+  <output message="tns:Base64DataAndStatusResponse"/>
  </operation>
  <operation name="discoverJobRequirements">
   <documentation>Service definition of function condorSchedd__discoverJobRequirements</documentation>
@@ -558,6 +587,15 @@
   </output>
  </operation>
  <operation name="sendFile">
+  <SOAP:operation soapAction=""/>
+  <input>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+  </input>
+  <output>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+  </output>
+ </operation>
+ <operation name="getFile">
   <SOAP:operation soapAction=""/>
   <input>
    <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>

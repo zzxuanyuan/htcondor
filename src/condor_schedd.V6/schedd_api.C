@@ -162,3 +162,17 @@ Job::send_file(MyString name,
   return 0;
 }
 
+int
+Job::get_file(MyString name,
+              int offset,
+              int length,
+              unsigned char * &data)
+{
+  // XXX: Handle errors!
+  FILE * file = fopen((*spoolDirectory + "/" + name).GetCStr(), "r");
+  fseek(file, offset, SEEK_SET);
+  fread(data, sizeof(unsigned char), length, file);
+  fclose(file);
+
+  return 0;
+}

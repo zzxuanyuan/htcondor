@@ -29,6 +29,10 @@ public:
                 int offset,
                 char * data,
                 int data_length);
+  int get_file(MyString name,
+               int offset,
+               int length,
+               unsigned char * &data);
 
   int abort();
 
