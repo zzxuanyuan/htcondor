@@ -304,6 +304,8 @@ class RemoteResource : public Service {
 		*/
 	virtual void beginExecution( void );
 
+	virtual bool reconnect( void );
+
  protected:
 
 		/** The jobAd for this resource.  Why is this here and not

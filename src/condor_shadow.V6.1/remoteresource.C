@@ -1036,3 +1036,55 @@ RemoteResource::beginExecution( void )
 	shadow->resourceBeganExecution( this );
 }
 
+
+bool
+RemoteResource::reconnect( void )
+{
+	dprintf( D_ALWAYS, "Attempting to reconnect to disconnected starter\n" );
+	int last_keepalive;
+	int timeout;
+	if( ! jobAd->LookupInteger(ATTR_LAST_KEEP_ALIVE, last_keepalive) ) {
+		EXCEPT( "Shadow in reconnect mode but %s is not in the job ad!",
+				ATTR_LAST_KEEP_ALIVE );
+	}
+	if( ! jobAd->LookupInteger(ATTR_DISCONNECTED_RUN_TIMEOUT, timeout) ) {
+		EXCEPT( "Shadow in reconnect mode but %s is not in the job ad!",
+				ATTR_DISCONNECTED_RUN_TIMEOUT );
+	}
+	time_t now = time(0);
+	int remaining = timeout - (now - last_keepalive);
+	if( remaining <= 0 ) {
+		dprintf( D_ALWAYS, "Max timeout expired, giving up\n" );
+		return false;
+	}
+		
+	dprintf( D_ALWAYS, "Last contact: %d, Max timeout: %d, remaining: %d\n", 
+			 last_keepalive, timeout, remaining );
+
+		// try to query the startd to find the starter's info
+	char* gjid = NULL;
+	if( ! jobAd->LookupString(ATTR_GLOBAL_JOB_ID, &gjid) ) {
+		EXCEPT( "Shadow in reconnect mode but %s is not in the job ad!",
+				ATTR_GLOBAL_JOB_ID );
+	}
+
+	ClassAd reply;
+	if( ! dc_startd->locateStarter(gjid, &reply) ) {
+			// failure
+		dprintf( D_ALWAYS, "locateStarter() failed: %s\n", 
+				 dc_startd->error() );
+			// TODO: should see why and keep trying!
+		return false;
+	}
+	
+	char* tmp = NULL;
+	if( reply.LookupString(ATTR_STARTER_IP_ADDR, &tmp) ) {
+		setStarterAddress( tmp );
+		dprintf( D_ALWAYS, "Located starter for my job: %s\n", tmp );
+		free( tmp );
+		tmp = NULL;
+	}
+
+	EXCEPT( "Don't know how to reconnect yet!\n" );
+	return false;
+}
