@@ -21,7 +21,7 @@ bool util_popen (const char * cmd, std::string * error) {
     if ( WIFSIGNALED(status) ) {
         if (error) {
             *error = "was terminated by signal ";
-            *error += to_string( WTERMSIG(status) );
+            *error += toString( WTERMSIG(status) );
         }
         return false;
     }
@@ -31,7 +31,7 @@ bool util_popen (const char * cmd, std::string * error) {
         if (val != 0) {
             if (error) {
                 *error = "exited with value ";
-                *error += to_string( WEXITSTATUS(status) );
+                *error += toString( WEXITSTATUS(status) );
             }
             return false;
         }
@@ -40,7 +40,7 @@ bool util_popen (const char * cmd, std::string * error) {
     if ( WIFSTOPPED(status) ) {
         if (error) {
             *error = "was stopped by signal ";
-            *error += to_string( WSTOPSIG(status) );
+            *error += toString( WSTOPSIG(status) );
         }
         return false;
     }
