@@ -6581,7 +6581,7 @@ Scheduler::child_exit(int pid, int status)
 					// pass true to make sure $$ variables are replaced
 				jobad = GetJobAd( job_id.cluster, job_id.proc, true);
 					//	oldad = GetJobAd( job_id.cluster, job_id.proc);
-				schedd_files_DbIns(jobad, FALSE, NULL);
+				schedd_files(jobad, FALSE, NULL);
 				delete jobad;				
 
 			case JOB_COREDUMPED:

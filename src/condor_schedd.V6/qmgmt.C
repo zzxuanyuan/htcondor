@@ -2821,7 +2821,7 @@ updateFilesInDB()
 			{
 				for ( i = 0; i < *numOfProcs; i++ ) {
 					if (JobQueue->LookupClassAd(IdToStr(cluster_id,i),procad)) {
-						schedd_files_DbIns(procad, TRUE); // insert files into database
+						schedd_files(procad, TRUE); // insert files into database
 					}
 				}	// end of loop thru all proc in cluster cluster_id
 			}	
