@@ -170,6 +170,7 @@ public:
 protected:
 
         virtual bool init_MD(CONDOR_MD_MODE mode, KeyInfo * key, const char * keyId);
+        virtual bool set_encryption_id(const char * keyId);
 
 	/*
 	**	Types
