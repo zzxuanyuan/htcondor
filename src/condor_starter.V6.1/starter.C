@@ -531,8 +531,15 @@ CStarter::SpawnJob( void )
 			tool_daemon_proc = new ToolDaemonProc( jobAd, job->GetJobPid() );
 
 			if( tool_daemon_proc->StartJob() ) {
+
 				JobList.Append( tool_daemon_proc );
 				dprintf( D_FULLDEBUG, "ToolDaemonProc added to JobList\n");
+
+				// place application PID into LASS
+				char pid_str[10];
+				snprintf(pid_str, 10, "%d", job->GetJobPid());
+				tool_daemon_proc->tdp_lass_put("PID", pid_str);
+
 			} else {
 				dprintf( D_ALWAYS, "Failed to start ToolDaemonProc!\n");
 				delete tool_daemon_proc;

@@ -43,16 +43,17 @@ extern CStarter *Starter;
 
 ToolDaemonProc::ToolDaemonProc( ClassAd *jobAd, int application_pid )
 {
-    dprintf( D_FULLDEBUG, "In ToolDaemonProc::ToolDaemonProc()\n" );
+	dprintf( D_FULLDEBUG, "In ToolDaemonProc::ToolDaemonProc()\n" );
 	family = NULL;
-    JobAd = jobAd;
-    JobPid = -1;
+	JobAd = jobAd;
+	JobPid = -1;
 	exit_status = -1;
 	requested_exit = false;
-    job_suspended = false;
+	job_suspended = false;
 	ApplicationPid = application_pid;
 	snapshot_tid = -1;
 
+	TDP_init(&tdp_handle);
 }
 
 
@@ -162,6 +163,9 @@ ToolDaemonProc::StartJob()
 	char	envName[256];
 	sprintf( envName, "%s_SCRATCH_DIR", myDistro->GetUc() );
 	job_env.Put( envName, Starter->GetWorkingDir() );
+
+	// add tdp's server address to the environment
+	job_env.Put(TDP_ENV_SERVADDR, getenv(TDP_ENV_SERVADDR));
 
 		// Deal with port regulation stuff
 	char* low = param( "LOWPORT" );
