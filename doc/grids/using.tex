@@ -193,41 +193,39 @@ The default setting is 3 minutes (180 seconds).
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{\label{sec:Grid-using}Using the Grid Universe}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\index{grid universe}
+\index{universe!grid}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsubsection{\label{sec:Globus-Protocols}Globus Protocols}
+\subsubsection{\label{sec:Globus-Protocols}Globus and Its Protocols}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 The Globus software provides a well-defined set of protocols
 that allow authentication, data transfer, and remote job submission.
-
 Authentication is a mechanism by which an identity is verified.
 Given proper authentication, authorization to use a resource
 is required.
 Authorization is a policy that determines who is allowed to do what. 
 
+Starting with Condor Version 6.7.0, the \AdAttr{grid} universe
+replaces the \AdAttr{globus} universe.
+Further specification of a \AdAttr{grid} universe job is done
+within the \AdAttr{grid\_type} command in a submit description file.
+Older submit description files specifying the \AdAttr{globus} 
+universe will become \AdAttr{grid} universe jobs using the
+Globus \AdAttr{gt2} protocol.
+
 It may appear that Condor-G is a simple replacement
 for the Globus toolkit's \Prog{globusrun} command.
 However, Condor-G does much more.
-It allows you to submit many jobs at once
-and then to monitor those jobs with a convenient interface,
-receive notification when jobs complete or fail,
-and maintain your Globus credentials
-which may expire while a job is running.
+It allows the submission of many jobs at once
+along with the monitoring of those jobs with a convenient interface.
+There is notification when jobs complete or fail
+and maintenance Globus credentials
+that may expire while a job is running.
 On top of this, Condor-G is a fault-tolerant system;
 if your machine crashes,
 you can still perform all of these functions when your machine returns to life.
 
-
-Condor uses the
-Globus (http://www.globus.org) toolkit
-to provide underlying software needed to utilize
-grid resources, such as authentication, remote program
-execution and data transfer.
-Condor's capabilities when executing jobs on Globus resources have
-significantly increased.
-The same Condor tools that access local resources
-are now able to use the Globus protocols to access resources at multiple
-sites.
 
 Condor uses the following Globus protocols.
 These protocols allow Condor to utilize grid machines for
@@ -273,7 +271,7 @@ RSL is the language GRAM accepts to specify job information.
 \begin{figure}[hbt]
 \centering
 \includegraphics{grids/gfig1.eps}
-\caption{\label{fig:condorg}Remote Execution by Condor-G on Globus managed resources}
+\caption{\label{fig:condorg}Remote Execution by Condor-G on Globus-managed resources}
 \end{figure}
 
 Figure~\ref{fig:condorg} shows how Condor-G interacts with Globus protocols.
@@ -287,18 +285,21 @@ Condor-G detects and intelligently handles cases
 such as if the remote Globus resource crashes.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsubsection{\label{sec:Using-Condor-G}Managing Globus Universe Jobs}
+\subsubsection{\label{sec:Using-gt2}Grid Universe Jobs with grid\_type gt2}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\index{universe!Globus}
+\index{universe!globus}
+\index{universe!grid, grid\_type gt2}
 This section contains what users need to know to 
-run and manage jobs under the globus universe.
+run and manage jobs under the \AdAttr{grid} universe, using the Globus \AdAttr{gt2} protocol.
+Older submit description files specifying a \AdAttr{globus} universe job
+will default to this.
 
 \index{Condor-G!job submission}
 \index{Condor-G!proxy}
 \index{proxy}
-Under Condor, successful job submission to the Globus universe requires
-credentials.
+Under Condor, successful job submission to the \AdAttr{grid} universe with \AdAttr{gt2}
+requires credentials.
 \index{Condor-G!X.509 certificate}
 An X.509 certificate is used to create a proxy,
 and an account, authorization, or allocation to use a grid resource
@@ -308,7 +309,7 @@ please consult the Alliance PKI pages at
 
 \URL{http://archive.ncsa.uiuc.edu/SCD/Alliance/GridSecurity/}
 
-Before submitting a job to Condor under the Globus universe,
+Before submitting a job to Condor under the \AdAttr{grid} universe,
 make sure you have your Grid 
 credentials and have used \Prog{grid-proxy-init} to create a proxy.
 
@@ -317,14 +318,15 @@ A job is submitted for execution to Condor using the
 \index{Condor commands!condor\_submit}
 \Condor{submit} takes as an argument
 the name of a file called a submit description file.
-\index{submit description file!globus universe}
+\index{submit description file!grid universe}
 The following sample submit description file runs a job on
 the Origin2000 at NCSA.
 
 \begin{verbatim}
 executable = test
 globusscheduler = modi4.ncsa.uiuc.edu/jobmanager
-universe = globus
+universe = grid
+grid_type = gt2
 output = test.out
 log = test.log
 queue
@@ -349,10 +351,10 @@ batch system there.
 There is a specific jobmanager for each type of
 batch system supported by Globus (examples are Condor, LSF, and PBS).
 
-All Condor-G jobs (intended for execution on Globus-controlled
-resources) are submitted to the globus universe.
-The \verb@universe = globus@ command is required
-in the submit description file.
+All Condor-G jobs 
+submitted to the \AdAttr{globus} universe
+are identical to those submitted to the \AdAttr{grid} universe,
+with \AdAttr{grid\_type} set to \AdAttr{gt2}.
 
 No input file is specified for this example job.
 Any output (file specified by the \AdAttr{output})
@@ -371,7 +373,7 @@ stream_error  = False
 As a result, standard output and standard error will be transferred
 only after the job completes.
 
-The job log file is maintained on the local machine.
+The job log file is maintained on the submit machine.
 
 To submit this job to Condor-G for execution on the
 remote machine, use
@@ -396,7 +398,7 @@ Example output from
 \end{verbatim}
 \normalsize
 
-After a short time, Globus accepts the job.
+After a short time, the Globus resource accepts the job.
 Again running \Condor{q} will now result in
 
 \footnotesize
@@ -438,7 +440,8 @@ program on a different Globus resource.
 executable = /bin/ls
 Transfer_Executable = false
 globusscheduler = vulture.cs.wisc.edu/jobmanager
-universe = globus
+universe = grid
+grid_type = gt2
 output = ls-test.out
 log = ls-test.log
 queue
@@ -453,7 +456,7 @@ Note that the required
 commands are present.
 The command
 \begin{verbatim}
-Transfer_Executable = FALSE
+Transfer_Executable = false
 \end{verbatim}
 within the submit description file identifies the executable
 as being pre-staged.
@@ -493,7 +496,8 @@ you are authorized to use.):
 \begin{verbatim}
 executable = env-test.pl
 globusscheduler = biron.cs.wisc.edu/jobmanager
-universe = globus
+universe = grid
+grid_type = gt2
 environment = foo=bar; zot=qux
 output = env-test.out
 log = env-test.log
@@ -575,7 +579,8 @@ a Condor job appears as:
 \begin{verbatim}
 executable = gass-example.pl
 globusscheduler = biron.cs.wisc.edu/jobmanager
-universe = globus
+universe = grid
+grid_type = gt2
 output = gass.out
 log = gass.log
 queue
@@ -612,10 +617,65 @@ Here is an example of this command from a submit description file:
 globusrsl = (project=Test_Project)
 \end{verbatim}
 This example's attribute name for the additional RSL is
-\verb@project@, and the value assigned is \verb@Test_Project@.
+\AdAttr{project}, and the value assigned is \AdAttr{Test\_Project}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsubsection{\label{sec:CondorG-Submit-Args}Arguments to a Globus Universe Job}
+\subsubsection{\label{sec:Using-gt3}Grid Universe Jobs with grid\_type gt3}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\index{universe!grid, grid\_type gt3}
+
+Condor-G version 6.7.0 allows the user to submit jobs
+to Globus Toolkit 3.0 (gt3) gatekeepers,
+in a manner similar to the submission of
+jobs to Globus 2.x gatekeepers.
+Condor-G version 6.7.0 supports submission of jobs to gatekeepers
+running web services from GT 3.0.
+Please note that this is \emph{not} compatible with GT 3.2.
+
+See
+\URL{http://www-unix.globus.org/toolkit/docs/3.0/index.html}
+for more information about Globus Toolkit 3.0.
+
+In order to submit \AdAttr{grid\_type} \AdAttr{GT3} jobs,
+the following items must be defined in the user's
+submit description file:
+\footnotesize
+\begin{verbatim}
+universe = grid
+grid_type = gt3
+Executable = /bin/foo
+Globusscheduler = http://198.51.254.40:8080/ogsa/services/base/gram/ForkMa
+nagedJobFactoryService
+\end{verbatim}
+\normalsize
+
+as well as other useful parameters such as
+\AdAttr{log} and \AdAttr{transfer\_executable}.
+The value for \AdAttr{globusscheduler} is placed on two lines for
+formatting purposes, but will all be on a single line within
+a submit description file.
+Its value is the URL of the appropriate GT3 job factory service.
+It is the same, for example,
+as the URL provided to the \Prog{managed-job-globusrun} tool in GT3.
+
+The user is not required to have any GT3 components installed on the
+submitting machine.
+Condor installs all the necessary GT3 client framework under 
+\File{\MacroUNI{LIB}/lib/gt3}.
+The user is, however, required to
+have Java 1.4 or higher installed on the submitting machine,
+and it must be referenced by the 
+\Macro{JAVA} configuration macro.
+
+In order to debug submission of GT3 jobs,
+the user may utilize the optional configuration variable
+\Macro{GT3\_GAHP\_LOG} to point at a
+file where the debug information from GT3 GAHP (the component that
+interfaces between Condor and GT3) will be sent.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection{\label{sec:CondorG-Submit-Args}Arguments to a Grid Universe Job}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \index{Condor-G!job arguments}
 
