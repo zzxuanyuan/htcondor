@@ -148,6 +148,14 @@ class FileTransfer {
 		*/
 	bool changeServer( const char* transkey, const char* transsock );
 
+		/** Specify the socket timeout to use on the client (starter)
+			side of the FileTransfer.  Defaults to 30 seconds if
+			unspecified.
+			@param timeout Specified in seconds, a value of 0 means disable
+			@return Previous timeout value
+		*/
+	int	setClientSocketTimeout(int timeout);
+
   protected:
 
 	int Download(ReliSock *s, bool blocking);
@@ -200,6 +208,7 @@ class FileTransfer {
 	static int CommandsRegistered;
 	static int SequenceNum;
 	static int ReaperId;
+	int clientSockTimeout;
 	bool did_init;
 	bool simple_init;
 	ReliSock *simple_sock;

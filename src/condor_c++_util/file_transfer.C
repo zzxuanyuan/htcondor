@@ -113,6 +113,7 @@ FileTransfer::FileTransfer()
 	desired_priv_state = PRIV_UNKNOWN;
 	want_priv_change = false;
 	did_init = false;
+	clientSockTimeout = 30;
 	simple_init = true;
 	simple_sock = NULL;
 }
@@ -552,6 +553,8 @@ FileTransfer::DownloadFiles(bool blocking)
 			EXCEPT("FileTransfer: DownloadFiles called on server side");
 		}
 
+		sock.timeout(clientSockTimeout);
+
 		Daemon d( DT_ANY, TransSock );
 
 		if ( !sock.connect(TransSock,0) ) {
@@ -786,6 +789,8 @@ FileTransfer::UploadFiles(bool blocking, bool final_transfer)
 		if ( FilesToSend == NULL ) {
 			return 1;
 		}
+
+		sock.timeout(clientSockTimeout);
 
 		Daemon d( DT_ANY, TransSock );
 
@@ -1450,5 +1455,14 @@ FileTransfer::changeServer(const char* transkey, const char* transsock)
 
 	return true;
 }
+
+int	
+FileTransfer::setClientSocketTimeout(int timeout)
+{
+	int old_val = clientSockTimeout;
+	clientSockTimeout = timeout;
+	return old_val;
+}
+
 
 
