@@ -102,6 +102,7 @@ class MirrorJob : public BaseJob
 
 	void SetRemoteJobId( const char *job_id );
 	ClassAd *buildSubmitAd();
+	ClassAd *buildStageInAd();
 
 		// If we're in the middle of a condor call that requires a ClassAd,
 		// the ad is stored here (so that we don't have to reconstruct the

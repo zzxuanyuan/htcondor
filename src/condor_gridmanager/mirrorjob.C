@@ -45,7 +45,7 @@
 #define GM_UNSUBMITTED			3
 #define GM_SUBMIT				4
 #define GM_SUBMIT_SAVE			5
-#define GM_SUBMIT_COMMIT		6
+#define GM_STAGE_IN				6
 #define GM_SUBMITTED_MIRROR_INACTIVE	7
 #define GM_DONE_SAVE			8
 #define GM_DONE_COMMIT			9
@@ -72,7 +72,7 @@ static char *GMStateNames[] = {
 	"GM_UNSUBMITTED",
 	"GM_SUBMIT",
 	"GM_SUBMIT_SAVE",
-	"GM_SUBMIT_COMMIT",
+	"GM_STAGE_IN",
 	"GM_SUBMITTED_MIRROR_INACTIVE",
 	"GM_DONE_SAVE",
 	"GM_DONE_COMMIT",
@@ -489,19 +489,19 @@ int MirrorJob::doEvaluateState()
 				if ( !done ) {
 					break;
 				}
-				gmState = GM_SUBMIT_COMMIT;
+				gmState = GM_STAGE_IN;
 			}
 			} break;
-		case GM_SUBMIT_COMMIT: {
-			// Now that we've saved the job id, ???
+		case GM_STAGE_IN: {
+			// Now stage files to the remote schedd
 			if ( gahpAd == NULL ) {
-				MyString expr;
-				gahpAd = new ClassAd;
-				expr.sprintf( "%s = False", ATTR_SUBMIT_IN_PROGRESS );
-				gahpAd->Insert( expr.Value() );
+				gahpAd = buildStageInAd();
 			}
-			rc = gahp->condor_job_update( mirrorScheddName, mirrorJobId,
-										  gahpAd );
+			if ( gahpAd == NULL ) {
+				gmState = GM_HOLD;
+				break;
+			}
+			rc = gahp->condor_job_stage_in( mirrorScheddName, gahpAd );
 			if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
 				 rc == GAHPCLIENT_COMMAND_PENDING ) {
 				break;
@@ -511,7 +511,7 @@ int MirrorJob::doEvaluateState()
 			} else {
 				// unhandled error
 				dprintf( D_ALWAYS,
-						 "(%d.%d) condor_job_update() failed\n",
+						 "(%d.%d) condor_job_stage_in() failed\n",
 						 procID.cluster, procID.proc );
 				gmState = GM_CANCEL_1;
 			}
@@ -986,11 +986,11 @@ void MirrorJob::ProcessRemoteAdActive( ClassAd *remote_ad )
 	diff_ad->Delete( ATTR_PERIODIC_REMOVE_CHECK );
 	diff_ad->Delete( ATTR_ON_EXIT_HOLD_CHECK );
 	diff_ad->Delete( ATTR_ON_EXIT_REMOVE_CHECK );
-	diff_ad->Delete( ATTR_SUBMIT_IN_PROGRESS );
 	diff_ad->Delete( ATTR_SERVER_TIME );
 	diff_ad->Delete( ATTR_WANT_MATCHING );
 	diff_ad->Delete( ATTR_GLOBAL_JOB_ID );
 	diff_ad->Delete( ATTR_JOB_NOTIFICATION );
+	diff_ad->Delete( ATTR_MIRROR_SUBMITTER_ID );
 
 	// Remove attributes that were renamed by the remote schedd because
 	// of moving the job's sandbox. These can be identified by looking
@@ -1121,21 +1121,18 @@ ClassAd *MirrorJob::buildSubmitAd()
 	expr.sprintf( "%s = %d", ATTR_JOB_NOTIFICATION, NOTIFY_NEVER );
 	submit_ad->Insert( expr.Value() );
 
-	expr.sprintf( "%s = True", ATTR_SUBMIT_IN_PROGRESS );
-	submit_ad->Insert( expr.Value() );
-
 	expr.sprintf( "%s = True", ATTR_JOB_LEAVE_IN_QUEUE );
 	submit_ad->Insert( expr.Value() );
 
-	expr.sprintf( "%s = %s =?= True && CurrentTime > %s + %d",
-				  ATTR_PERIODIC_REMOVE_CHECK, ATTR_SUBMIT_IN_PROGRESS,
-				  ATTR_Q_DATE, 1800 );
+	expr.sprintf( "%s = (%s >= %s) =!= True && CurrentTime > %s + %d",
+				  ATTR_PERIODIC_REMOVE_CHECK, ATTR_STAGE_IN_FINISH,
+				  ATTR_STAGE_IN_START, ATTR_Q_DATE, 1800 );
 	submit_ad->Insert( expr.Value() );
 
 	// TODO add clause for ScheddBirthDate
-	expr.sprintf( "%s = %s == %s && %s =!= True && (CurrentTime > %s) =?= True",
+	expr.sprintf( "%s = %s == %s && (%s >= %s) =?= True && (CurrentTime > %s) =?= True",
 				  ATTR_PERIODIC_RELEASE_CHECK, ATTR_ENTERED_CURRENT_STATUS,
-				  ATTR_Q_DATE, ATTR_SUBMIT_IN_PROGRESS,
+				  ATTR_Q_DATE, ATTR_STAGE_IN_FINISH, ATTR_STAGE_IN_START,
 				  ATTR_MIRROR_LEASE_TIME );
 	submit_ad->Insert( expr.Value() );
 
@@ -1146,4 +1143,20 @@ ClassAd *MirrorJob::buildSubmitAd()
 		// worry about ATTR_JOB_[OUTPUT|ERROR]_ORIG
 
 	return submit_ad;
+}
+
+ClassAd *MirrorJob::buildStageInAd()
+{
+	MyString expr;
+	ClassAd *stage_in_ad;
+
+		// Base the stage in ad on our own job ad
+	stage_in_ad = new ClassAd( *ad );
+
+	stage_in_ad->Assign( ATTR_CLUSTER_ID, mirrorJobId.cluster );
+	stage_in_ad->Assign( ATTR_PROC_ID, mirrorJobId.proc );
+
+	stage_in_ad->Delete( ATTR_ULOG_FILE );
+
+	return stage_in_ad;
 }
