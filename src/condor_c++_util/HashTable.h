@@ -283,7 +283,7 @@ template <class Index, class Value>
 HashTable<Index,Value>::~HashTable()
 {
   clear();
-  delete ht;
+  delete [] ht;
 }
 
 #ifdef DEBUGHASH
