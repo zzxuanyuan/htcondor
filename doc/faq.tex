@@ -477,6 +477,7 @@ page~\pageref{sec:Policy-Examples}.
 \subsection*{How do I configure Condor such that all machines do not produce checkpoints at the same time?}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \label{sec:randomchoiceusage}
+\index{checkpoint!periodic}
 \index{\$RANDOM\_CHOICE()}
 \index{RANDOM\_CHOICE() macro!use in configuration}
 If machines are configured to produce checkpoints at fixed intervals,
@@ -488,7 +489,7 @@ It is likely to cause rather poor performance during this burst of
 writing.
 
 The \MacroU{RANDOM\_CHOICE()} macro can help in this instance.
-Instead of defining \MacroNI{PERIODIC\_CHECKPOINT} to be a fixed
+Instead of defining \Macro{PERIODIC\_CHECKPOINT} to be a fixed
 interval, each machine is configured to randomly choose 
 one of a set of intervals.
 For example, to set a machine's interval for producing checkpoints
