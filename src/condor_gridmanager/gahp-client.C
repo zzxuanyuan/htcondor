@@ -300,7 +300,7 @@ Gahp_Args::free_argv()
 }
 	
 
-char **
+void
 GahpServer::read_argv(Gahp_Args &g_args)
 {
 	static char* buf = NULL;
@@ -316,7 +316,7 @@ GahpServer::read_argv(Gahp_Args &g_args)
 
 	if ( m_gahp_readfd == -1 ) {
 dprintf(D_FULLDEBUG,"GAHP[%d] -> (no pipe)\n",m_gahp_pid);
-		return g_args.argv;
+		return;
 	}
 
 	if ( buf == NULL ) {
@@ -344,7 +344,7 @@ dprintf(D_FULLDEBUG,"GAHP[%d] -> (no pipe)\n",m_gahp_pid);
 			}
 			g_args.argc = 0;
 dprintf(D_FULLDEBUG,"GAHP[%d] -> EOF\n",m_gahp_pid);
-			return g_args.argv;
+			return;
 		}
 
 		/* Check if character read was whitespace */
@@ -430,7 +430,7 @@ if(g_args.argv[i])strcat(buf,g_args.argv[i]);
 strcat(buf,"'");
 }
 dprintf(D_FULLDEBUG,"GAHP[%d] -> %s\n",m_gahp_pid,buf);
-			return g_args.argv;
+			return;
 		}
 
 		/* Character read was just a regular one.. increment index
@@ -735,11 +735,11 @@ GahpServer::command_cache_proxy_from_file( GahpProxyInfo *new_proxy )
 	ASSERT( x > 0 && x < (int)sizeof(buf) );
 	write_line(buf);
 	Gahp_Args result;
-	char **argv = read_argv(result);
-	if ( argv[0] == NULL || argv[0][0] != 'S' ) {
+	read_argv(result);
+	if ( result.argv[0] == NULL || result.argv[0][0] != 'S' ) {
 		char *reason;
-		if ( argv[1] ) {
-			reason = argv[1];
+		if ( result.argv[1] ) {
+			reason = result.argv[1];
 		} else {
 			reason = "Unspecified error";
 		}
@@ -765,11 +765,11 @@ GahpServer::uncacheProxy( GahpProxyInfo *gahp_proxy )
 	ASSERT( x > 0 && x < (int)sizeof(buf) );
 	write_line(buf);
 	Gahp_Args result;
-	char **argv = read_argv(result);
-	if ( argv[0] == NULL || argv[0][0] != 'S' ) {
+	read_argv(result);
+	if ( result.argv[0] == NULL || result.argv[0][0] != 'S' ) {
 		char *reason;
-		if ( argv[1] ) {
-			reason = argv[1];
+		if ( result.argv[1] ) {
+			reason = result.argv[1];
 		} else {
 			reason = "Unspecified error";
 		}
@@ -851,11 +851,11 @@ GahpServer::command_use_cached_proxy( GahpProxyInfo *new_proxy )
 	}
 	write_line(buf);
 	Gahp_Args result;
-	char **argv = read_argv(result);
-	if ( argv[0] == NULL || argv[0][0] != 'S' ) {
+	read_argv(result);
+	if ( result.argv[0] == NULL || result.argv[0][0] != 'S' ) {
 		char *reason;
-		if ( argv[1] ) {
-			reason = argv[1];
+		if ( result.argv[1] ) {
+			reason = result.argv[1];
 		} else {
 			reason = "Unspecified error";
 		}
@@ -1055,11 +1055,11 @@ GahpServer::command_initialize_from_file(const char *proxy_path,
 	ASSERT( x > 0 && x < (int)sizeof(buf) );
 	write_line(buf);
 	Gahp_Args result;
-	char **argv = read_argv(result);
-	if ( argv[0] == NULL || argv[0][0] != 'S' ) {
+	read_argv(result);
+	if ( result.argv[0] == NULL || result.argv[0][0] != 'S' ) {
 		char *reason;
-		if ( argv[1] ) {
-			reason = argv[1];
+		if ( result.argv[1] ) {
+			reason = result.argv[1];
 		} else {
 			reason = "Unspecified error";
 		}
@@ -1085,8 +1085,8 @@ GahpServer::command_response_prefix(const char *prefix)
 	ASSERT( x > 0 && x < (int)sizeof(buf) );
 	write_line(buf);
 	Gahp_Args result;
-	char **argv = read_argv(result);
-	if ( argv[0] == NULL || argv[0][0] != 'S' ) {
+	read_argv(result);
+	if ( result.argv[0] == NULL || result.argv[0][0] != 'S' ) {
 		dprintf(D_ALWAYS,"GAHP command '%s' failed\n",command);
 		return false;
 	}
@@ -1105,8 +1105,8 @@ GahpServer::command_async_mode_on()
 
 	write_line(command);
 	Gahp_Args result;
-	char **argv = read_argv(result);
-	if ( argv[0] == NULL || argv[0][0] != 'S' ) {
+	read_argv(result);
+	if ( result.argv[0] == NULL || result.argv[0][0] != 'S' ) {
 		dprintf(D_ALWAYS,"GAHP command '%s' failed\n",command);
 		return false;
 	}
@@ -1120,8 +1120,8 @@ GahpServer::command_commands()
 {
 	write_line("COMMANDS");
 	Gahp_Args result;
-	char **argv = read_argv(result);
-	if ( argv[0] == NULL || argv[0][0] != 'S' ) {
+	read_argv(result);
+	if ( result.argv[0] == NULL || result.argv[0][0] != 'S' ) {
 		dprintf(D_ALWAYS,"GAHP command 'COMMANDS' failed\n");
 		return false;
 	}
@@ -1132,8 +1132,8 @@ GahpServer::command_commands()
 	}
 	m_commands_supported = new StringList();
 	ASSERT(m_commands_supported);
-	for ( int i = 1; argv[i]; i++ ) {
-		m_commands_supported->append(argv[i]);
+	for ( int i = 1; result.argv[i]; i++ ) {
+		m_commands_supported->append(result.argv[i]);
 	}
 
 	return true;
@@ -1190,15 +1190,16 @@ GahpClient::globus_gram_client_error_string(int error_code)
 	ASSERT( x > 0 && x < (int)sizeof(buf) );
 	server->write_line(buf);
 	Gahp_Args result;
-	char **argv = server->read_argv(result);
-	if ( argv[0] == NULL || argv[0][0] != 'S' || argv[1] == NULL ) {
+	server->read_argv(result);
+	if ( result.argv[0] == NULL || result.argv[0][0] != 'S' ||
+		 result.argv[1] == NULL ) {
 		dprintf(D_ALWAYS,"GAHP command '%s' failed: error_code=%d\n",
 						command,error_code);
 		return NULL;
 	}
 		// Copy error string into our static buffer.
-	strncpy(buf,argv[1],sizeof(buf));
-	
+	strncpy(buf,result.argv[1],sizeof(buf));
+
 	return buf;
 }
 
@@ -1804,8 +1805,8 @@ GahpClient::now_pending(const char *command,const char *buf,
 		// Write the command out to the gahp server.
 	server->write_line(pending_command,pending_reqid,pending_args);
 	Gahp_Args return_line;
-	char **argv = server->read_argv(return_line);
-	if ( argv[0] == NULL || argv[0][0] != 'S' ) {
+	server->read_argv(return_line);
+	if ( return_line.argv[0] == NULL || return_line.argv[0][0] != 'S' ) {
 		// Badness !
 		EXCEPT("Bad %s Request",command);
 	}
@@ -1871,14 +1872,15 @@ GahpServer::poll()
 		// result lines should be read.
 	result = new Gahp_Args;
 	ASSERT(result);
-	argv = read_argv(result);
-	if ( argv[0] == NULL || argv[0][0] != 'S' || argv[1] == NULL ) {
+	read_argv(result);
+	if ( result->argv[0] == NULL || result->argv[0][0] != 'S' ||
+		 result->argv[1] == NULL ) {
 			// Badness !
 		dprintf(D_ALWAYS,"GAHP command 'RESULTS' failed\n");
 		return 0;
 	}
 	poll_pending = false;
-	num_results = atoi(argv[1]);
+	num_results = atoi(result->argv[1]);
 
 		// Now store each result line in an array.
 	for (i=0; i < num_results; i++) {
@@ -2068,11 +2070,12 @@ GahpClient::globus_gram_client_callback_allow(
 	ASSERT( x > 0 && x < (int)sizeof(buf) );
 	server->write_line(buf);
 	Gahp_Args result;
-	char **argv = server->read_argv(result);
-	if ( argv[0] == NULL || argv[0][0] != 'S' || argv[1] == NULL ) {
+	server->read_argv(result);
+	if ( result.argv[0] == NULL || result.argv[0][0] != 'S' ||
+		 result.argv[1] == NULL ) {
 			// Badness !
-		int ec = argv[1] ? atoi(argv[1]) : GAHPCLIENT_COMMAND_NOT_SUPPORTED;
-		const char *es = argv[2] ? argv[2] : "???";
+		int ec = result.argv[1] ? atoi(result.argv[1]) : GAHPCLIENT_COMMAND_NOT_SUPPORTED;
+		const char *es = result.argv[2] ? result.argv[2] : "???";
 		dprintf(D_ALWAYS,"GAHP command '%s' failed: %s error_code=%d\n",
 						es,ec);
 		return ec;
@@ -2082,7 +2085,7 @@ GahpClient::globus_gram_client_callback_allow(
 	server->globus_gt2_gram_callback_reqid = reqid;
  	server->globus_gt2_gram_callback_func = callback_func;
 	server->globus_gt2_gram_user_callback_arg = user_callback_arg;
-	server->globus_gt2_gram_callback_contact = strdup(argv[1]);
+	server->globus_gt2_gram_callback_contact = strdup(result.argv[1]);
 	ASSERT(server->globus_gt2_gram_callback_contact);
 	*callback_contact = strdup(server->globus_gt2_gram_callback_contact);
 	ASSERT(*callback_contact);
@@ -2136,11 +2139,12 @@ GahpClient::gt3_gram_client_callback_allow(
 	ASSERT( x > 0 && x < (int)sizeof(buf) );
 	server->write_line(buf);
 	Gahp_Args result;
-	char **argv = server->read_argv(result);
-	if ( argv[0] == NULL || argv[0][0] != 'S' || argv[1] == NULL ) {
+	server->read_argv(result);
+	if ( result.argv[0] == NULL || result.argv[0][0] != 'S' ||
+		 result.argv[1] == NULL ) {
 			// Badness !
-//		int ec = argv[1] ? atoi(argv[1]) : GAHPCLIENT_COMMAND_NOT_SUPPORTED;
-//		const char *es = argv[2] ? argv[2] : "???";
+//		int ec = result.argv[1] ? atoi(result.argv[1]) : GAHPCLIENT_COMMAND_NOT_SUPPORTED;
+//		const char *es = result.argv[2] ? result.argv[2] : "???";
 int ec=1;
 const char *es="";
 		dprintf(D_ALWAYS,"GAHP command '%s' failed: %s error_code=%d\n",
@@ -2152,7 +2156,7 @@ const char *es="";
 	server->globus_gt3_gram_callback_reqid = reqid;
  	server->globus_gt3_gram_callback_func = callback_func;
 	server->globus_gt3_gram_user_callback_arg = user_callback_arg;
-	server->globus_gt3_gram_callback_contact = strdup(argv[1]);
+	server->globus_gt3_gram_callback_contact = strdup(result.argv[1]);
 	ASSERT(server->globus_gt3_gram_callback_contact);
 	*callback_contact = strdup(server->globus_gt3_gram_callback_contact);
 	ASSERT(*callback_contact);

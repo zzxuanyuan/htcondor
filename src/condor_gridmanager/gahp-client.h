@@ -90,8 +90,8 @@ class GahpServer : public Service {
 	bool Startup();
 	bool Initialize(const char * proxy_path);
 
-	char **read_argv(Gahp_Args &g_args);
-	char **read_argv(Gahp_Args *g_args) { return read_argv(*g_args); }
+	void read_argv(Gahp_Args &g_args);
+	void read_argv(Gahp_Args *g_args) { read_argv(*g_args); }
 	void write_line(const char *command);
 	void write_line(const char *command,int req,const char *args);
 	void Reaper(Service*,int pid,int status);
