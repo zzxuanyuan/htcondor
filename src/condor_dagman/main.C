@@ -187,6 +187,8 @@ int main_init (int argc, char **argv) {
         Usage();
     }
  
+    debug_println (DEBUG_SILENT, "Debug printing level is %d (%s)",
+                   debug_level, debug_level_names[debug_level]);
     debug_println (DEBUG_VERBOSE,"Condor log will be written to %s",
                    condorLogName);
     debug_println (DEBUG_VERBOSE,"DAG Lockfile will be written to %s",
