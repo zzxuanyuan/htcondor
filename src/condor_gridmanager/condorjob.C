@@ -503,7 +503,10 @@ int CondorJob::doEvaluateState()
 							 gahp->getErrorString() );
 					int jcluster = -1;
 					int jproc = -1;
-					sscanf( job_id_string, "%d.%d", &jcluster, &jproc );
+					if(job_id_string) {
+							// job_id_string is null in many failure cases.
+						sscanf( job_id_string, "%d.%d", &jcluster, &jproc );
+					}
 					// if the job failed to submit, the cluster number
 					// will hold the error code for the call to 
 					// NewCluster(), and the proc number will hold
