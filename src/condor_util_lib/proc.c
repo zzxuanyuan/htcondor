@@ -32,7 +32,9 @@
 #	define _BSD
 #endif
 
+#ifndef WIN32
 #include <sys/wait.h>
+#endif
 #include "proc.h"
 #include "condor_debug.h"
 
@@ -124,7 +126,7 @@ getJobStatusNum( const char* name )
 }
 
 
-#ifdef NEW_PROC
+#if defined(NEW_PROC) && !defined(WIN32)
 /*
   Functions for building and deleteing a version 3 proc structure.
   ConstructProc returns a proc with all fields except cmd, args, in, out,
