@@ -520,7 +520,7 @@ Claim::starterPidMatches( pid_t starter_pid )
 bool
 Claim::isDeactivating( void )
 {
-	if( c_state == CLAIM_PREEMPTING || c_state == CLAIM_KILLING ) {
+	if( c_state == CLAIM_VACATING || c_state == CLAIM_KILLING ) {
 		return true;
 	}
 	return false;
@@ -549,7 +549,7 @@ Claim::deactivateClaim( bool graceful )
 	if( isActive() ) {
 			// Singal the starter
 		if( graceful ) {
-			c_state = CLAIM_PREEMPTING;
+			c_state = CLAIM_VACATING;
 			return starterKillSoft();
 		} else {
 			c_state = CLAIM_KILLING;
@@ -620,7 +620,7 @@ bool
 Claim::starterKillSoft( void )
 {
 	if( c_starter ) {
-		c_state = CLAIM_PREEMPTING;
+		c_state = CLAIM_VACATING;
 		return c_starter->killSoft();
 	}
 		// if there's no starter, we don't need to kill anything, so
