@@ -53,46 +53,46 @@ QueueDBManager::QueueDBManager()
 	// Ultimately this two string must be gotten from configuration file
 	//
   initialized = FALSE;
-	jobQueueDBConn = NULL;
+  jobQueueDBConn = NULL;
 
-		//
-		// This is just for test setting
-		//
+  //
+  // This is just for test setting
+  //
 #ifdef _REMOTE_DB_CONNECTION_
-	//	jobQueueLogFile = strdup("/scratch/condor/spool/job_queue.log");
-	printf( "storing remote database\n");
-	//db_handle = new ODBC();
-	//jobQueueDBConn = strdup("host=ad16.cs.wisc.edu port=5432 dbname=jqmon");
-	//	jobQueueDBConn = strdup("host=nighthawk.cs.wisc.edu dbname=jqmon");
+  //	jobQueueLogFile = strdup("/scratch/condor/spool/job_queue.log");
+  printf( "storing remote database\n");
+  //db_handle = new ODBC();
+  //jobQueueDBConn = strdup("host=ad16.cs.wisc.edu port=5432 dbname=jqmon");
+  //	jobQueueDBConn = strdup("host=nighthawk.cs.wisc.edu dbname=jqmon");
 #else
-	jobQueueDBConn = strdup("dbname=jqmon");
+  jobQueueDBConn = strdup("dbname=jqmon");
 #endif
-
+  
 #ifdef _POSTGRESQL_DBMS_
-	//jqDatabase = new PGSQLDatabase(jobQueueDBConn);
+  //jqDatabase = new PGSQLDatabase(jobQueueDBConn);
 #endif
-
-	xactState = NOT_IN_XACT;
-
-	addingCount = 0; 
-
-	multi_sql_str = NULL;
+  
+  xactState = NOT_IN_XACT;
+  
+  addingCount = 0; 
+  
+  multi_sql_str = NULL;
 }
 
 //! destructor
 QueueDBManager::~QueueDBManager()
 {
-		// release Objects
+  // release Objects
   //if (jqDatabase != NULL)
   //	delete jqDatabase;
-
+  
   initialized = FALSE;
-		// release strings
-	if (jobQueueDBConn != NULL)
-		free(jobQueueDBConn);
-	if (multi_sql_str != NULL)
-		free(multi_sql_str);
-	//delete db_handle;
+  // release strings
+  if (jobQueueDBConn != NULL)
+    free(jobQueueDBConn);
+  if (multi_sql_str != NULL)
+    free(multi_sql_str);
+  //delete db_handle;
 }
 
 //**************************************************************************
@@ -339,6 +339,7 @@ QueueDBManager::processHistoryAd(ClassAd *ad) {
   ExprTree *R_expr;
   char *value = NULL;
   char name[1000];
+  bool flag1=false, flag2=false,flag3=false;
 
   sprintf(sql_str1, 
 	  "INSERT INTO History_Horizontal(cid, pid) VALUES(%d, %d);", cid, pid);
@@ -372,6 +373,19 @@ QueueDBManager::processHistoryAd(ClassAd *ad) {
       //val = valExpr->Value();                                     // Value
       if (value == NULL) break;
   
+      if(strcasecmp(name, "remotewallclocktime") == 0) {
+        if(flag1) continue;
+	flag1 = true;
+      }
+      else if(strcasecmp(name, "completiondate") == 0) {
+	if(flag2) continue;
+	flag2 = true;
+      }
+      else if(strcasecmp(name, "committedtime") == 0) {
+        if(flag3) continue;
+	flag3 = true;
+      }
+
       if(isHorizontalHistoryAttribute(name)) {
 	if(strcasecmp(name, "in") == 0 ||
 	   strcasecmp(name, "user") == 0) {
