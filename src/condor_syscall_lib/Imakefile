@@ -106,6 +106,7 @@ FLOCK_OBJ = flock.o
 STUBS = switches.o switches.special.o getcwd.o
 
 UTIL = \
+	extern_path.o \
 	remote_syscall.o \
 	syscall_connect.o \
 	senders.o \
@@ -115,6 +116,7 @@ UTIL = \
 NAME_TAB = syscall_numbers.o
 
 SRC = \
+	extern_path.c \
 	receivers.epilogue \
 	receivers.prologue \
 	remote_startup.c \
@@ -345,7 +347,7 @@ switches.C: syscall.tmpl switches.prologue stub_gen switches.epilogue
 senders.C: syscall.tmpl stub_gen senders.prologue senders.epilogue
 	$(CPP) -DSENDER $(STUB_GEN_FLAGS) syscall.tmpl | \
 	./stub_gen -mode senders -p senders.prologue -e senders.epilogue \
-	-n syscheck $(STUB_CLUMP_SIZE) > senders.C
+	$(STUB_CLUMP_SIZE) > senders.C
 
 receivers.C: syscall.tmpl stub_gen receivers.prologue receivers.epilogue pseudo_ops.h
 	$(CPP) -DRECEIVER $(STUB_GEN_FLAGS) syscall.tmpl | \
