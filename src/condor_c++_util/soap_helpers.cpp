@@ -87,7 +87,7 @@ convert_ad_to_adStruct( struct soap *s, ClassAd *curr_ad, struct condorCore__Cla
 		case LX_STRING:
 			ad_struct->__ptr[attr_index].value = ((String*)rhs)->Value();
 //dprintf(D_ALWAYS,"STRINGSPACE|%s|%p\n",ad_struct->__ptr[attr_index].value,ad_struct->__ptr[attr_index].value);
-			ad_struct->__ptr[attr_index].type = 's';
+			ad_struct->__ptr[attr_index].type = STRING;
 			break;
 		case LX_INTEGER:
 			tmpint = ((Integer*)rhs)->Value();
@@ -95,7 +95,7 @@ convert_ad_to_adStruct( struct soap *s, ClassAd *curr_ad, struct condorCore__Cla
 			snprintf(ad_struct->__ptr[attr_index].value,20,"%d",tmpint);
 			// ad_struct->__ptr[attr_index].valueInt = (int*)soap_malloc(s,sizeof(int));
 			// *(ad_struct->__ptr[attr_index].valueInt) = tmpint;
-			ad_struct->__ptr[attr_index].type = 'n';
+			ad_struct->__ptr[attr_index].type = INTEGER;
 			break;
 		case LX_FLOAT:
 			tmpfloat = ((Float*)rhs)->Value();
@@ -103,7 +103,7 @@ convert_ad_to_adStruct( struct soap *s, ClassAd *curr_ad, struct condorCore__Cla
 			snprintf(ad_struct->__ptr[attr_index].value,20,"%f",tmpfloat);
 			// ad_struct->__ptr[attr_index].valueFloat = (float*)soap_malloc(s,sizeof(float));
 			// *(ad_struct->__ptr[attr_index].valueFloat) = tmpfloat;
-			ad_struct->__ptr[attr_index].type = 'f';
+			ad_struct->__ptr[attr_index].type = FLOAT;
 			break;
 		case LX_BOOL:
 			tmpbool = ((ClassadBoolean*)rhs)->Value() ? true : false;
@@ -114,7 +114,7 @@ convert_ad_to_adStruct( struct soap *s, ClassAd *curr_ad, struct condorCore__Cla
 			}
 			// ad_struct->__ptr[attr_index].valueBool = (bool*)soap_malloc(s,sizeof(bool));
 			// *(ad_struct->__ptr[attr_index].valueBool) = tmpbool;
-			ad_struct->__ptr[attr_index].type = 'b';
+			ad_struct->__ptr[attr_index].type = BOOL;
 			break;
 		case LX_NULL:
 		case LX_UNDEFINED:
@@ -136,7 +136,7 @@ convert_ad_to_adStruct( struct soap *s, ClassAd *curr_ad, struct condorCore__Cla
 				ad_struct->__ptr[attr_index].value = tmpstr;
 				// ad_struct->__ptr[attr_index].valueExpr = tmpstr;
 				// soap_link(s,(void*)tmpstr,0,1,NULL);
-				ad_struct->__ptr[attr_index].type = 'x';
+				ad_struct->__ptr[attr_index].type = EXPRESSION;
 			}
 			break;
 		}

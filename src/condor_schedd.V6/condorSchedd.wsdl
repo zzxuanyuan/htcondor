@@ -25,12 +25,15 @@
   elementFormDefault="unqualified"
   attributeFormDefault="unqualified">
   <import namespace="http://schemas.xmlsoap.org/soap/encoding/"/>
-  <simpleType name="Requirement">
+  <simpleType name="ClassAdAttrType">
    <restriction base="xsd:string">
-   </restriction>
-  </simpleType>
-  <simpleType name="Transaction">
-   <restriction base="xsd:int">
+    <enumeration value="INTEGER"/>
+    <enumeration value="FLOAT"/>
+    <enumeration value="STRING"/>
+    <enumeration value="EXPRESSION"/>
+    <enumeration value="BOOL"/>
+    <enumeration value="UNDEFINED"/>
+    <enumeration value="ERROR"/>
    </restriction>
   </simpleType>
   <complexType name="Status">
@@ -40,15 +43,10 @@
     <element name="next" type="condorCore:Status" minOccurs="0" maxOccurs="1" nillable="true"/>
    </sequence>
   </complexType>
-  <complexType name="Requirements">
-   <sequence>
-    <element name="item" type="condorCore:Requirement" minOccurs="0" maxOccurs="unbounded" nillable="true"/>
-   </sequence>
-  </complexType>
   <complexType name="ClassAdStructAttr">
    <sequence>
     <element name="name" type="xsd:string" minOccurs="1" maxOccurs="1" nillable="true"/>
-    <element name="type" type="xsd:byte" minOccurs="1" maxOccurs="1"/>
+    <element name="type" type="condorCore:ClassAdAttrType" minOccurs="1" maxOccurs="1"/>
     <element name="value" type="xsd:string" minOccurs="1" maxOccurs="1" nillable="true"/>
    </sequence>
   </complexType>
@@ -60,12 +58,6 @@
   <complexType name="ClassAdStructArray">
    <sequence>
     <element name="item" type="condorCore:ClassAdStruct" minOccurs="0" maxOccurs="unbounded" nillable="true"/>
-   </sequence>
-  </complexType>
-  <complexType name="RequirementsAndStatus">
-   <sequence>
-    <element name="status" type="condorCore:Status" minOccurs="1" maxOccurs="1" nillable="true"/>
-    <element name="requirements" type="condorCore:Requirements" minOccurs="0" maxOccurs="1" nillable="true"/>
    </sequence>
   </complexType>
   <complexType name="ClassAdStructAndStatus">
@@ -80,22 +72,15 @@
     <element name="classAdArray" type="condorCore:ClassAdStructArray" minOccurs="0" maxOccurs="1" nillable="true"/>
    </sequence>
   </complexType>
-  <complexType name="TransactionAndStatus">
-   <sequence>
-    <element name="status" type="condorCore:Status" minOccurs="1" maxOccurs="1" nillable="true"/>
-    <element name="transactionId" type="condorCore:Transaction" minOccurs="0" maxOccurs="1"/>
-   </sequence>
-  </complexType>
-  <complexType name="IntAndStatus">
-   <sequence>
-    <element name="status" type="condorCore:Status" minOccurs="1" maxOccurs="1" nillable="true"/>
-    <element name="id" type="xsd:int" minOccurs="0" maxOccurs="1"/>
-   </sequence>
-  </complexType>
   <complexType name="StringAndStatus">
    <sequence>
     <element name="status" type="condorCore:Status" minOccurs="1" maxOccurs="1" nillable="true"/>
     <element name="message" type="xsd:string" minOccurs="0" maxOccurs="1" nillable="true"/>
+   </sequence>
+  </complexType>
+  <complexType name="Requirements">
+   <sequence>
+    <element name="item" type="condorSchedd:Requirement" minOccurs="0" maxOccurs="unbounded" nillable="true"/>
    </sequence>
   </complexType>
  </schema>
@@ -111,11 +96,10 @@
   elementFormDefault="unqualified"
   attributeFormDefault="unqualified">
   <import namespace="http://schemas.xmlsoap.org/soap/encoding/"/>
-  <complexType name="Requirements">
-   <sequence>
-    <element name="item" type="condorCore:Requirement" minOccurs="0" maxOccurs="unbounded" nillable="true"/>
-   </sequence>
-  </complexType>
+  <simpleType name="Requirement">
+   <restriction base="xsd:string">
+   </restriction>
+  </simpleType>
   <complexType name="ClassAdStruct">
    <sequence>
     <element name="item" type="condorCore:ClassAdStructAttr" minOccurs="0" maxOccurs="unbounded" nillable="true"/>
@@ -126,144 +110,145 @@
     <element name="item" type="condorCore:ClassAdStruct" minOccurs="0" maxOccurs="unbounded" nillable="true"/>
    </sequence>
   </complexType>
-  <element name="duration" type="xsd:int"/>
-  <element name="status" type="condorCore:Status"/>
-  <element name="transactionId" type="condorCore:Transaction"/>
-  <element name="code" type="xsd:int"/>
-  <element name="message" type="xsd:string"/>
-  <element name="next" type="condorCore:Status"/>
-  <element name="id" type="xsd:int"/>
-  <element name="clusterId" type="xsd:int"/>
-  <element name="reason" type="xsd:string"/>
-  <element name="jobId" type="xsd:int"/>
-  <element name="force-removal" type="xsd:boolean"/>
-  <element name="email-user" type="xsd:boolean"/>
-  <element name="email-admin" type="xsd:boolean"/>
-  <element name="system-hold" type="xsd:boolean"/>
-  <element name="jobAd" type="condorCore:ClassAdStruct"/>
-  <element name="requirements" type="condorCore:Requirements"/>
-  <element name="constraint" type="xsd:string"/>
-  <element name="classAdArray" type="condorCore:ClassAdStructArray"/>
-  <element name="classAd" type="condorCore:ClassAdStruct"/>
-  <element name="name" type="xsd:string"/>
-  <element name="offset" type="xsd:int"/>
-  <element name="data" type="xsd:base64Binary"/>
+  <complexType name="Transaction">
+   <sequence>
+    <element name="id" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+    <element name="duration" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="Requirements">
+   <sequence>
+    <element name="item" type="condorSchedd:Requirement" minOccurs="0" maxOccurs="unbounded" nillable="true"/>
+   </sequence>
+  </complexType>
+  <complexType name="RequirementsAndStatus">
+   <sequence>
+    <element name="status" type="condorCore:Status" minOccurs="1" maxOccurs="1" nillable="true"/>
+    <element name="requirements" type="condorSchedd:Requirements" minOccurs="0" maxOccurs="1" nillable="true"/>
+   </sequence>
+  </complexType>
+  <complexType name="TransactionAndStatus">
+   <sequence>
+    <element name="status" type="condorCore:Status" minOccurs="1" maxOccurs="1" nillable="true"/>
+    <element name="transaction" type="condorSchedd:Transaction" minOccurs="0" maxOccurs="1" nillable="true"/>
+   </sequence>
+  </complexType>
+  <complexType name="IntAndStatus">
+   <sequence>
+    <element name="status" type="condorCore:Status" minOccurs="1" maxOccurs="1" nillable="true"/>
+    <element name="id" type="xsd:int" minOccurs="0" maxOccurs="1"/>
+   </sequence>
+  </complexType>
  </schema>
 
 </types>
 
 <message name="beginTransactionRequest">
- <part name="duration" element="condorSchedd:duration"/>
+ <part name="duration" type="xsd:int"/>
 </message>
 
 <message name="TransactionAndStatus">
- <part name="status" element="condorSchedd:status"/>
- <part name="transactionId" element="condorSchedd:transactionId"/>
+ <part name="status" type="condorCore:Status"/>
+ <part name="transaction" type="condorSchedd:Transaction"/>
 </message>
 
 <message name="commitTransactionRequest">
- <part name="transactionId" element="condorSchedd:transactionId"/>
+ <part name="transaction" type="condorSchedd:Transaction"/>
 </message>
 
 <message name="Status">
- <part name="code" element="condorSchedd:code"/>
- <part name="message" element="condorSchedd:message"/>
- <part name="next" element="condorSchedd:next"/>
+ <part name="code" type="xsd:int"/>
+ <part name="message" type="xsd:string"/>
+ <part name="next" type="condorCore:Status"/>
 </message>
 
 <message name="abortTransactionRequest">
- <part name="transactionId" element="condorSchedd:transactionId"/>
+ <part name="transaction" type="condorSchedd:Transaction"/>
 </message>
 
 <message name="extendTransactionRequest">
- <part name="transactionId" element="condorSchedd:transactionId"/>
- <part name="duration" element="condorSchedd:duration"/>
+ <part name="transaction" type="condorSchedd:Transaction"/>
+ <part name="duration" type="xsd:int"/>
 </message>
 
 <message name="newClusterRequest">
- <part name="transactionId" element="condorSchedd:transactionId"/>
+ <part name="transaction" type="condorSchedd:Transaction"/>
 </message>
 
 <message name="IntAndStatus">
- <part name="status" element="condorSchedd:status"/>
- <part name="id" element="condorSchedd:id"/>
+ <part name="status" type="condorCore:Status"/>
+ <part name="id" type="xsd:int"/>
 </message>
 
 <message name="removeClusterRequest">
- <part name="transactionId" element="condorSchedd:transactionId"/>
- <part name="clusterId" element="condorSchedd:clusterId"/>
- <part name="reason" element="condorSchedd:reason"/>
+ <part name="transaction" type="condorSchedd:Transaction"/>
+ <part name="clusterId" type="xsd:int"/>
+ <part name="reason" type="xsd:string"/>
 </message>
 
 <message name="newJobRequest">
- <part name="transactionId" element="condorSchedd:transactionId"/>
- <part name="clusterId" element="condorSchedd:clusterId"/>
+ <part name="transaction" type="condorSchedd:Transaction"/>
+ <part name="clusterId" type="xsd:int"/>
 </message>
 
 <message name="removeJobRequest">
- <part name="transactionId" element="condorSchedd:transactionId"/>
- <part name="clusterId" element="condorSchedd:clusterId"/>
- <part name="jobId" element="condorSchedd:jobId"/>
- <part name="reason" element="condorSchedd:reason"/>
- <part name="force-removal" element="condorSchedd:force-removal"/>
+ <part name="transaction" type="condorSchedd:Transaction"/>
+ <part name="clusterId" type="xsd:int"/>
+ <part name="jobId" type="xsd:int"/>
+ <part name="reason" type="xsd:string"/>
+ <part name="force-removal" type="xsd:boolean"/>
 </message>
 
 <message name="holdJobRequest">
- <part name="transactionId" element="condorSchedd:transactionId"/>
- <part name="clusterId" element="condorSchedd:clusterId"/>
- <part name="jobId" element="condorSchedd:jobId"/>
- <part name="reason" element="condorSchedd:reason"/>
- <part name="email-user" element="condorSchedd:email-user"/>
- <part name="email-admin" element="condorSchedd:email-admin"/>
- <part name="system-hold" element="condorSchedd:system-hold"/>
+ <part name="transaction" type="condorSchedd:Transaction"/>
+ <part name="clusterId" type="xsd:int"/>
+ <part name="jobId" type="xsd:int"/>
+ <part name="reason" type="xsd:string"/>
+ <part name="email-user" type="xsd:boolean"/>
+ <part name="email-admin" type="xsd:boolean"/>
+ <part name="system-hold" type="xsd:boolean"/>
 </message>
 
 <message name="releaseJobRequest">
- <part name="transactionId" element="condorSchedd:transactionId"/>
- <part name="clusterId" element="condorSchedd:clusterId"/>
- <part name="jobId" element="condorSchedd:jobId"/>
- <part name="reason" element="condorSchedd:reason"/>
- <part name="email-user" element="condorSchedd:email-user"/>
- <part name="email-admin" element="condorSchedd:email-admin"/>
+ <part name="transaction" type="condorSchedd:Transaction"/>
+ <part name="clusterId" type="xsd:int"/>
+ <part name="jobId" type="xsd:int"/>
+ <part name="reason" type="xsd:string"/>
+ <part name="email-user" type="xsd:boolean"/>
+ <part name="email-admin" type="xsd:boolean"/>
 </message>
 
 <message name="submitRequest">
- <part name="transactionId" element="condorSchedd:transactionId"/>
- <part name="clusterId" element="condorSchedd:clusterId"/>
- <part name="jobId" element="condorSchedd:jobId"/>
- <part name="jobAd" element="condorSchedd:jobAd"/>
+ <part name="transaction" type="condorSchedd:Transaction"/>
+ <part name="clusterId" type="xsd:int"/>
+ <part name="jobId" type="xsd:int"/>
+ <part name="jobAd" type="condorCore:ClassAdStruct"/>
 </message>
 
 <message name="RequirementsAndStatus">
- <part name="status" element="condorSchedd:status"/>
- <part name="requirements" element="condorSchedd:requirements"/>
+ <part name="status" type="condorCore:Status"/>
+ <part name="requirements" type="condorSchedd:Requirements"/>
 </message>
 
 <message name="getJobAdsRequest">
- <part name="transactionId" element="condorSchedd:transactionId"/>
- <part name="constraint" element="condorSchedd:constraint"/>
+ <part name="transaction" type="condorSchedd:Transaction"/>
+ <part name="constraint" type="xsd:string"/>
 </message>
 
 <message name="ClassAdStructArrayAndStatus">
- <part name="status" element="condorSchedd:status"/>
- <part name="classAdArray" element="condorSchedd:classAdArray"/>
+ <part name="status" type="condorCore:Status"/>
+ <part name="classAdArray" type="condorCore:ClassAdStructArray"/>
 </message>
 
 <message name="getJobAdRequest">
- <part name="transactionId" element="condorSchedd:transactionId"/>
- <part name="clusterId" element="condorSchedd:clusterId"/>
- <part name="jobId" element="condorSchedd:jobId"/>
+ <part name="transaction" type="condorSchedd:Transaction"/>
+ <part name="clusterId" type="xsd:int"/>
+ <part name="jobId" type="xsd:int"/>
 </message>
 
-<message name="sendFileRequest">
- <part name="transactionId" element="condorSchedd:transactionId"/>
- <part name="name" element="condorSchedd:name"/>
- <part name="offset" element="condorSchedd:offset"/>
- <part name="data" element="condorSchedd:data"/>
-</message>
-
-<message name="discoverRequirementsRequest">
- <part name="jobAd" element="condorSchedd:jobAd"/>
+<message name="ClassAdStructAndStatus">
+ <part name="status" type="condorCore:Status"/>
+ <part name="classAd" type="condorCore:ClassAdStruct"/>
 </message>
 
 <portType name="condorScheddPortType">
@@ -332,16 +317,6 @@
   <input message="tns:getJobAdRequest"/>
   <output message="tns:ClassAdStructAndStatus"/>
  </operation>
- <operation name="sendFile">
-  <documentation>Service definition of function condorSchedd__sendFile</documentation>
-  <input message="tns:sendFileRequest"/>
-  <output message="tns:Status"/>
- </operation>
- <operation name="discoverRequirements">
-  <documentation>Service definition of function condorSchedd__discoverRequirements</documentation>
-  <input message="tns:discoverRequirementsRequest"/>
-  <output message="tns:RequirementsAndStatus"/>
- </operation>
 </portType>
 
 <binding name="condorSchedd" type="tns:condorScheddPortType">
@@ -349,142 +324,124 @@
  <operation name="beginTransaction">
   <SOAP:operation soapAction=""/>
   <input>
-   <SOAP:body use="literal" namespace="urn:condor-schedd"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
   </input>
   <output>
-   <SOAP:body use="literal" namespace="urn:condor-schedd"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
   </output>
  </operation>
  <operation name="commitTransaction">
   <SOAP:operation soapAction=""/>
   <input>
-   <SOAP:body use="literal" namespace="urn:condor-schedd"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
   </input>
   <output>
-   <SOAP:body use="literal" namespace="urn:condor-schedd"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
   </output>
  </operation>
  <operation name="abortTransaction">
   <SOAP:operation soapAction=""/>
   <input>
-   <SOAP:body use="literal" namespace="urn:condor-schedd"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
   </input>
   <output>
-   <SOAP:body use="literal" namespace="urn:condor-schedd"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
   </output>
  </operation>
  <operation name="extendTransaction">
   <SOAP:operation soapAction=""/>
   <input>
-   <SOAP:body use="literal" namespace="urn:condor-schedd"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
   </input>
   <output>
-   <SOAP:body use="literal" namespace="urn:condor-schedd"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
   </output>
  </operation>
  <operation name="newCluster">
   <SOAP:operation soapAction=""/>
   <input>
-   <SOAP:body use="literal" namespace="urn:condor-schedd"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
   </input>
   <output>
-   <SOAP:body use="literal" namespace="urn:condor-schedd"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
   </output>
  </operation>
  <operation name="removeCluster">
   <SOAP:operation soapAction=""/>
   <input>
-   <SOAP:body use="literal" namespace="urn:condor-schedd"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
   </input>
   <output>
-   <SOAP:body use="literal" namespace="urn:condor-schedd"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
   </output>
  </operation>
  <operation name="newJob">
   <SOAP:operation soapAction=""/>
   <input>
-   <SOAP:body use="literal" namespace="urn:condor-schedd"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
   </input>
   <output>
-   <SOAP:body use="literal" namespace="urn:condor-schedd"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
   </output>
  </operation>
  <operation name="removeJob">
   <SOAP:operation soapAction=""/>
   <input>
-   <SOAP:body use="literal" namespace="urn:condor-schedd"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
   </input>
   <output>
-   <SOAP:body use="literal" namespace="urn:condor-schedd"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
   </output>
  </operation>
  <operation name="holdJob">
   <SOAP:operation soapAction=""/>
   <input>
-   <SOAP:body use="literal" namespace="urn:condor-schedd"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
   </input>
   <output>
-   <SOAP:body use="literal" namespace="urn:condor-schedd"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
   </output>
  </operation>
  <operation name="releaseJob">
   <SOAP:operation soapAction=""/>
   <input>
-   <SOAP:body use="literal" namespace="urn:condor-schedd"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
   </input>
   <output>
-   <SOAP:body use="literal" namespace="urn:condor-schedd"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
   </output>
  </operation>
  <operation name="submit">
   <SOAP:operation soapAction=""/>
   <input>
-   <SOAP:body use="literal" namespace="urn:condor-schedd"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
   </input>
   <output>
-   <SOAP:body use="literal" namespace="urn:condor-schedd"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
   </output>
  </operation>
  <operation name="getJobAds">
   <SOAP:operation soapAction=""/>
   <input>
-   <SOAP:body use="literal" namespace="urn:condor-schedd"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
   </input>
   <output>
-   <SOAP:body use="literal" namespace="urn:condor-schedd"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
   </output>
  </operation>
  <operation name="getJobAd">
   <SOAP:operation soapAction=""/>
   <input>
-   <SOAP:body use="literal" namespace="urn:condor-schedd"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
   </input>
   <output>
-   <SOAP:body use="literal" namespace="urn:condor-schedd"/>
-  </output>
- </operation>
- <operation name="sendFile">
-  <SOAP:operation soapAction=""/>
-  <input>
-   <SOAP:body use="literal" namespace="urn:condor-schedd"/>
-  </input>
-  <output>
-   <SOAP:body use="literal" namespace="urn:condor-schedd"/>
-  </output>
- </operation>
- <operation name="discoverRequirements">
-  <SOAP:operation soapAction=""/>
-  <input>
-   <SOAP:body use="literal" namespace="urn:condor-schedd"/>
-  </input>
-  <output>
-   <SOAP:body use="literal" namespace="urn:condor-schedd"/>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
   </output>
  </operation>
 </binding>
 
 <service name="condorSchedd">
- <documentation>gSOAP 2.5.1 generated service definition</documentation>
+ <documentation>gSOAP 2.5.2 generated service definition</documentation>
  <port name="condorSchedd" binding="tns:condorSchedd">
   <SOAP:address location="http://localhost"/>
  </port>

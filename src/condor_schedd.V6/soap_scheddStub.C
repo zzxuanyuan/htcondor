@@ -63,20 +63,24 @@ condorSchedd__transtimeout()
   
   dprintf(D_ALWAYS,"SOAP in condorSchedd__transtimeout()\n");
   
-  condorSchedd__abortTransaction(NULL,current_trans_id,result);
+  condorSchedd__Transaction transaction;
+  transaction.id = current_trans_id;
+  condorSchedd__abortTransaction(NULL, transaction, result);
   return TRUE;
 }
 
 int 
 condorSchedd__beginTransaction(struct soap *s,
                                int duration, 
-                               struct condorCore__TransactionAndStatus & result)
+                               struct condorSchedd__TransactionAndStatus & result)
 {
   if ( current_trans_id ) {
     // if there is an existing transaction, abort it.
     // TODO - support more than one active transaction!!!
     condorCore__Status result;
-    condorSchedd__abortTransaction(s,current_trans_id,result);
+    condorSchedd__Transaction transaction;
+    transaction.id = current_trans_id;
+    condorSchedd__abortTransaction(s, transaction, result);
   }
   if ( duration < 1 ) {
     duration = 1;
@@ -87,7 +91,7 @@ condorSchedd__beginTransaction(struct soap *s,
                                               "condorSchedd_transtimeout");
   
   current_trans_id = time(NULL);   // TODO : choose unique id - use time for now
-  result.transactionId = current_trans_id;
+  result.transaction->id = current_trans_id;
   result.status->code = 0; // Success! XXX: Define this somewhere!
   
   setQSock(NULL);	// Tell the qmgmt layer to allow anything -- that is, until
@@ -95,27 +99,27 @@ condorSchedd__beginTransaction(struct soap *s,
   
   BeginTransaction();
   
-  dprintf(D_ALWAYS,"SOAP leaving condorSchedd__beginTransaction() id=%ld\n",result.transactionId);
+  dprintf(D_ALWAYS,"SOAP leaving condorSchedd__beginTransaction() id=%ld\n",result.transaction->id);
   
   return SOAP_OK;
 }
 
 int
 condorSchedd__commitTransaction(struct soap *s,
-                                int transactionId, 
+                                struct condorSchedd__Transaction transaction, 
                                 struct condorCore__Status & result )
 {
   result.code = 0;
-  if ( transactionId == current_trans_id ) {
+  if ( transaction.id == current_trans_id ) {
     CommitTransaction();
     current_trans_id = 0;
-    transactionId = 0;
+    transaction.id = 0;
     if ( trans_timer_id != -1 ) {
       daemonCore->Cancel_Timer(trans_timer_id);
       trans_timer_id = -1;
     }
   }
-  if ( !valid_transaction_id(transactionId) ) {
+  if ( !valid_transaction_id(transaction.id) ) {
     // TODO error - unrecognized transactionId
     result.code = -1;
   }
@@ -127,20 +131,20 @@ condorSchedd__commitTransaction(struct soap *s,
 
 int
 condorSchedd__abortTransaction(struct soap *s,
-                               int transactionId,
+                               struct condorSchedd__Transaction transaction,
                                struct condorCore__Status & result )
 {
   result.code = 0;
-  if ( transactionId && transactionId == current_trans_id ) {
+  if ( transaction.id && transaction.id == current_trans_id ) {
     AbortTransactionAndRecomputeClusters();
     current_trans_id = 0;
-    transactionId = 0;
+    transaction.id = 0;
     if ( trans_timer_id != -1 ) {
       daemonCore->Cancel_Timer(trans_timer_id);
       trans_timer_id = -1;
     }
   }
-  if ( !valid_transaction_id(transactionId) ) {
+  if ( !valid_transaction_id(transaction.id) ) {
     // TODO error - unrecognized transactionId
     result.code = -1;
   }
@@ -152,13 +156,13 @@ condorSchedd__abortTransaction(struct soap *s,
 
 int
 condorSchedd__extendTransaction(struct soap *s,
-                                int transactionId,
+                                struct condorSchedd__Transaction transaction,
                                 int duration,
                                 struct condorCore__Status & result )
 {
   result.code = -1;
-  if ( transactionId &&	// must not be 0
-       transactionId == current_trans_id &&	// must be the current transaction
+  if ( transaction.id &&	// must not be 0
+       transaction.id == current_trans_id &&	// must be the current transaction
        trans_timer_id != -1 ) 
     {
       result.code = 0;
@@ -175,10 +179,10 @@ condorSchedd__extendTransaction(struct soap *s,
 
 int
 condorSchedd__newCluster(struct soap *s,
-                         int transactionId,
-                         struct condorCore__IntAndStatus & result)
+                         struct condorSchedd__Transaction transaction,
+                         struct condorSchedd__IntAndStatus & result)
 {
-  if ( (transactionId == 0) || (!valid_transaction_id(transactionId)) ) {
+  if ( (transaction.id == 0) || (!valid_transaction_id(transaction.id)) ) {
     // TODO error - unrecognized transactionId
   }
   result.id = NewCluster();
@@ -195,14 +199,14 @@ condorSchedd__newCluster(struct soap *s,
 
 int
 condorSchedd__removeCluster(struct soap *s,
-                            int transactionId,
+                            struct condorSchedd__Transaction transaction,
                             int clusterId,
                             char* reason,
                             struct condorCore__Status & result)
 {
   // TODO!!!
   result.code = 0;
-  if ( !valid_transaction_id(transactionId) ) {
+  if ( !valid_transaction_id(transaction.id) ) {
     // TODO error - unrecognized transactionId
     result.code = -1;
   } else {
@@ -216,12 +220,12 @@ condorSchedd__removeCluster(struct soap *s,
 
 int
 condorSchedd__newJob(struct soap *s,
-                     int transactionId,
+                     struct condorSchedd__Transaction transaction,
                      int clusterId,
-                     struct condorCore__IntAndStatus & result)
+                     struct condorSchedd__IntAndStatus & result)
 {
   result.id = 0;
-  if ( (transactionId == 0) || (!valid_transaction_id(transactionId)) ) {
+  if ( (transaction.id == 0) || (!valid_transaction_id(transaction.id)) ) {
     // TODO error - unrecognized transactionId
   }
   result.id = NewProc(clusterId);
@@ -238,7 +242,7 @@ condorSchedd__newJob(struct soap *s,
 
 int
 condorSchedd__removeJob(struct soap *s,
-                        int transactionId,
+                        struct condorSchedd__Transaction transaction,
                         int clusterId,
                         int jobId,
                         char* reason,
@@ -247,10 +251,10 @@ condorSchedd__removeJob(struct soap *s,
 {
   // TODO --- do something w/ force_removal flag; it is ignored for now.
   result.code = 0;
-  if ( !valid_transaction_id(transactionId) ) {
+  if ( !valid_transaction_id(transaction.id) ) {
     // TODO error - unrecognized transactionId
   }
-  if ( !abortJob(clusterId,jobId,reason,transactionId ? false : true) ) 
+  if ( !abortJob(clusterId,jobId,reason,transaction.id ? false : true) ) 
     {
       // TODO error - remove failed
       result.code = -1;
@@ -263,7 +267,7 @@ condorSchedd__removeJob(struct soap *s,
 
 int 
 condorSchedd__holdJob(struct soap *s,
-                      int transactionId,
+                      struct condorSchedd__Transaction transaction,
                       int clusterId,
                       int jobId,
                       char* reason,
@@ -273,10 +277,10 @@ condorSchedd__holdJob(struct soap *s,
                       struct condorCore__Status & result)
 {
   result.code = 0;
-  if ( !valid_transaction_id(transactionId) ) {
+  if ( !valid_transaction_id(transaction.id) ) {
     // TODO error - unrecognized transactionId
   }
-  if ( !holdJob(clusterId,jobId,reason,transactionId ? false : true,
+  if ( !holdJob(clusterId,jobId,reason,transaction.id ? false : true,
                 email_user, email_admin, system_hold) ) 
     {
       // TODO error - remove failed
@@ -290,7 +294,7 @@ condorSchedd__holdJob(struct soap *s,
 
 int
 condorSchedd__releaseJob(struct soap *s,
-                         int transactionId,
+                         struct condorSchedd__Transaction transaction,
                          int clusterId,
                          int jobId,
                          char* reason,
@@ -299,10 +303,10 @@ condorSchedd__releaseJob(struct soap *s,
                          struct condorCore__Status & result)
 {
   result.code = 0;
-  if ( !valid_transaction_id(transactionId) ) {
+  if ( !valid_transaction_id(transaction.id) ) {
     // TODO error - unrecognized transactionId
   }
-  if ( !releaseJob(clusterId,jobId,reason,transactionId ? false : true,
+  if ( !releaseJob(clusterId,jobId,reason,transaction.id ? false : true,
                    email_user, email_admin) ) 
     {
       // TODO error - release failed
@@ -316,15 +320,15 @@ condorSchedd__releaseJob(struct soap *s,
 
 int
 condorSchedd__submit(struct soap *s,
-                     int transactionId,
+                     struct condorSchedd__Transaction transaction,
                      int clusterId,
                      int jobId,
                      struct condorCore__ClassAdStruct * jobAd,
-                     struct condorCore__RequirementsAndStatus & result)
+                     struct condorSchedd__RequirementsAndStatus & result)
 {
   result.status->code = 0;
 
-  if ( (transactionId == 0) || (!valid_transaction_id(transactionId)) ) {
+  if ( (transaction.id == 0) || (!valid_transaction_id(transaction.id)) ) {
     // TODO error - unrecognized transactionId
   }
 
@@ -354,13 +358,13 @@ condorSchedd__submit(struct soap *s,
 
 int
 condorSchedd__getJobAds(struct soap *s,
-                        int transactionId,
+                        struct condorSchedd__Transaction transaction,
                         char *constraint,
                         struct condorCore__ClassAdStructArrayAndStatus & result )
 {
   dprintf(D_ALWAYS,"SOAP entering condorSchedd__getJobAds() \n");
   
-  if ( !valid_transaction_id(transactionId) ) {
+  if ( !valid_transaction_id(transaction.id) ) {
     // TODO error - unrecognized transactionId
   }
   
@@ -384,7 +388,7 @@ condorSchedd__getJobAds(struct soap *s,
 
 int
 condorSchedd__getJobAd(struct soap *s,
-                       int transactionId,
+                       struct condorSchedd__Transaction transaction,
                        int clusterId,
                        int jobId,
                        struct condorCore__ClassAdStructAndStatus & result )
@@ -394,7 +398,7 @@ condorSchedd__getJobAd(struct soap *s,
   
   dprintf(D_ALWAYS,"SOAP entering condorSchedd__getJobAd() \n");
   
-  if ( !valid_transaction_id(transactionId) ) {
+  if ( !valid_transaction_id(transaction.id) ) {
     // TODO error - unrecognized transactionId
   }
   
@@ -444,17 +448,17 @@ condorCore__getInfoAd(struct soap *soap,
   result.classAd->__ptr = (struct condorCore__ClassAdStructAttr *)soap_malloc(soap,3 * sizeof(struct condorCore__ClassAdStructAttr));
   
   result.classAd->__ptr[0].name = "Name";
-  result.classAd->__ptr[0].type = 's';
+  result.classAd->__ptr[0].type = STRING;
   result.classAd->__ptr[0].value = todd;
   
   result.classAd->__ptr[1].name = "Age";
-  result.classAd->__ptr[1].type = 'n';
+  result.classAd->__ptr[1].type = INTEGER;
   result.classAd->__ptr[1].value = "35";
   int* age = (int*)soap_malloc(soap,sizeof(int));
   *age = 35;
   
   result.classAd->__ptr[2].name = "Friend";
-  result.classAd->__ptr[2].type = 's';
+  result.classAd->__ptr[2].type = STRING;
   result.classAd->__ptr[2].value = todd;
 
   result.status->code = 0;
@@ -464,7 +468,7 @@ condorCore__getInfoAd(struct soap *soap,
 
 int
 condorSchedd__sendFile(struct soap *soap,
-                       int transaction_id,
+                       struct condorSchedd__Transaction transaction,
                        char * filename,
                        int offset,
                        struct xsd__base64Binary *data,
@@ -476,7 +480,7 @@ condorSchedd__sendFile(struct soap *soap,
 int
 condorSchedd__discoverRequirements(struct soap *soap,
                                    struct condorCore__ClassAdStruct * jobAd,
-                                   struct condorCore__RequirementsAndStatus & result)
+                                   struct condorSchedd__RequirementsAndStatus & result)
 {
   return SOAP_FAULT;
 }
