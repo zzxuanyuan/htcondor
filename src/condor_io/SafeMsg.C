@@ -100,8 +100,9 @@ bool _condorPacket::init_MD(bool outPacket, KeyInfo * key, const char * keyId)
         mdChecker_ = new Condor_MD_MAC();
     }
 
-    assert(empty());
-
+    if (outPacket) {
+    	assert(empty());
+    }
     if (mdChecker_) {
         curIndex += MAC_SIZE;
         length = curIndex;
