@@ -105,6 +105,6 @@ int File::operator >> (UpDown & upDown)
 	}
 	upDown.activeUsers 	= header.activeUsers;
 	fin.close();	
-	delete data;
+	delete [] data;
 	return Success;
 }
