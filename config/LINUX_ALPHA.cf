@@ -6,7 +6,10 @@
 
 #define	ArchOptimizeFlag
 
-#if defined( IS_GLIBC21 )
+#if defined( IS_GLIBC22 )
+#   define Platform		ALPHA-LINUX-GLIBC22
+SYSNAME = alpha_rh72
+#elif defined( IS_GLIBC21 )
 #   define Platform		ALPHA-LINUX-GLIBC21
 SYSNAME = alpha_linux22
 #elif defined( IS_GLIBC20 )
