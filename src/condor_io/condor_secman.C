@@ -1506,6 +1506,15 @@ SecMan::sec_copy_attribute( ClassAd &dest, ClassAd &source, const char* attr ) {
 
 
 
+void
+SecMan::ClearCache() {
+	delete session_cache;
+	session_cache = new KeyCache(209);
+
+	delete command_map;
+	command_map = new HashTable<MyString,MyString>(209, MyStringHash, rejectDuplicateKeys);
+}
+
 /*
 
    was used to remove invalid keys...

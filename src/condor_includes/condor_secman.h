@@ -60,12 +60,6 @@ public:
 		SEC_FEAT_ACT_YES = 3, SEC_FEAT_ACT_NO = 4
 	};
 
-	/*
-	enum sec_act {
-		SEC_ACT_FAIL, SEC_ACT_OLD, SEC_ACT_NO, SEC_ACT_ASK,
-		SEC_ACT_YES, SEC_ACT_ENC, SEC_ACT_UDP
-	};
-	*/
 
 	static char* sec_feat_act_rev[];
 	static char* sec_req_rev[];
@@ -74,12 +68,25 @@ public:
 	static HashTable<MyString, MyString> * command_map;
 	static int sec_man_ref_count;
 
+
 	SecMan(int numbuckets = 209);
 	SecMan(const SecMan &);
 	~SecMan();
 	const SecMan & operator=(const SecMan &);
 
-	bool SecMan::startCommand( int cmd, Sock* sock, bool can_neg = true, int subcmd = 0);
+
+	bool 					startCommand( int cmd, Sock* sock, bool can_neg = true, int subcmd = 0);
+
+	void 					ClearCache();
+
+	ClassAd *				CreateSecurityPolicyAd(const char *auth_level, bool otherside_can_neg = true);
+	ClassAd * 				ReconcileSecurityPolicyAds(ClassAd &cli_ad, ClassAd &srv_ad);
+	bool 					ReconcileSecurityDependency (sec_req &a, sec_req &b);
+	SecMan::sec_feat_act	ReconcileSecurityAttribute(const char* attr, ClassAd &cli_ad, ClassAd &srv_ad);
+	char* 					ReconcileMethodLists( char * cli_methods, char * srv_methods );
+
+	int 					getAuthBitmask ( char * methods );
+
 
 	SecMan::sec_req 		sec_alpha_to_sec_req(char *b);
 	SecMan::sec_feat_act 	sec_alpha_to_sec_feat_act(char *b);
@@ -91,18 +98,10 @@ public:
 	bool 					sec_is_negotiable (sec_req r);
 	SecMan::sec_feat_act 	sec_req_to_feat_act (sec_req r);
 
-	ClassAd *				CreateSecurityPolicyAd(const char *auth_level, bool otherside_can_neg = true);
-	ClassAd * 				ReconcileSecurityPolicyAds(ClassAd &cli_ad, ClassAd &srv_ad);
+	int 					sec_char_to_auth_method( char* method );
 
-	bool 					ReconcileSecurityDependency (sec_req &a, sec_req &b);
-	SecMan::sec_feat_act	ReconcileSecurityAttribute(const char* attr, ClassAd &cli_ad, ClassAd &srv_ad);
+	bool 					sec_copy_attribute( ClassAd &dest, ClassAd &source, const char* attr );
 
-	int SecMan::sec_char_to_auth_method( char* method );
-	int SecMan::getAuthBitmask ( char * methods );
-
-	char* SecMan::ReconcileMethodLists( char * cli_methods, char * srv_methods );
-
-	bool SecMan::sec_copy_attribute( ClassAd &dest, ClassAd &source, const char* attr );
 };
 
 

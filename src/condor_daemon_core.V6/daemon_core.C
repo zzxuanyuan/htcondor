@@ -1126,6 +1126,9 @@ DaemonCore::ReInit()
 		// Reset our IpVerify object
 	ipverify.Init();
 
+		// Reset our SecMan object (clears the cached info)
+	sec_man->ClearCache();
+
 		// Handle our timer.  If this is the first time, we need to
 		// register it.  Otherwise, we just reset its value to go off
 		// 8 hours from now.  The reason we don't do this as a simple
@@ -1615,6 +1618,9 @@ int DaemonCore::HandleReq(int socki)
 		// in UDP we cannot display who the command is from until 
 		// we read something off the socket, so we display who from 
 		// after we read the command below...
+
+		dprintf ( D_SECURITY, "DC_AUTHENTICATE: received UDP packet from %s.\n",
+				sin_to_string(((Sock*)stream)->endpoint()));
 
 		dprintf ( D_SECURITY, "DC_AUTHENTICATE: checking UDP for md5...\n");
 		const char * sess_id = ((SafeSock*)stream)->isIncomingDataMD5ed();
