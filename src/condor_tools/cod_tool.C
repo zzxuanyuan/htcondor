@@ -53,7 +53,7 @@ char* my_name = NULL;
 char* claim_id = NULL;
 char* classad_path = NULL;
 char* requirements = NULL;
-char* job_name = NULL;
+char* job_keyword = NULL;
 FILE* CA_PATH = NULL;
 int cluster_id = -1;
 int proc_id = -1;
@@ -268,10 +268,10 @@ fillActivateAd( ClassAd* req )
 		line += proc_id;
 		req->Insert( line.Value() );
 	}
-	if( job_name ) {
-		line = ATTR_JOB_AD_CONFIG_KEYWORD;
+	if( job_keyword ) {
+		line = ATTR_JOB_KEYWORD;
 		line += "=\"";
-		line += job_name;
+		line += job_keyword;
 		line += '"';
 		req->Insert( line.Value() );
 	}
@@ -613,18 +613,18 @@ parseArgv( int argc, char* argv[] )
 			claim_id = strdup( *tmp );
 			break;
 
-		case 'j':
+		case 'k':
 			if( cmd != CA_ACTIVATE_CLAIM ) {
 				invalid( *tmp );
 			}
-			if( strncmp("-job_config_name", *tmp, strlen(*tmp)) ) {
+			if( strncmp("-keyword", *tmp, strlen(*tmp)) ) {
 				invalid( *tmp );
 			} 
 			tmp++;
 			if( ! (tmp && *tmp) ) {
-				another( "-job_config_name" );
+				another( "-keyword" );
 			}
-			job_name = strdup( *tmp );
+			job_keyword = strdup( *tmp );
 			break;
 
 				// // // // // // // // // // // // // // // // // // 
@@ -673,9 +673,9 @@ parseArgv( int argc, char* argv[] )
 		target = NULL;
 	}
 
-	if( cmd == CA_ACTIVATE_CLAIM && ! job_name ) { 
+	if( cmd == CA_ACTIVATE_CLAIM && ! job_keyword ) { 
 		fprintf( stderr,
-				 "ERROR: You must specify -job_config_name for %s\n",
+				 "ERROR: You must specify -keyword for %s\n",
 				 my_name );
 		usage( my_name );
 		
