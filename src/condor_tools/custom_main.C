@@ -129,6 +129,8 @@ Macro mailer_path(
 	"/usr/sbin/Mail"
 #elif defined(HPUX)
 	"/bin/mailx"
+#elif defined(LINUX)
+	"/usr/bin/mailx"
 #else
 	"/bin/mail"
 #endif
