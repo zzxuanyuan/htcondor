@@ -31,7 +31,11 @@
 #include "condor_common.h"
 #include "startd.h"
 #include "classad_merge.h"
+#include "dynuser.h"
 
+#ifdef WIN32
+extern dynuser *myDynuser;
+#endif
 
 Starter::Starter()
 {
@@ -168,7 +172,10 @@ Starter::publish( ClassAd* ad, amask_t mask, StringList* list )
 		return;
 	}
 
-		// only publish attributes that start with "Has"
+		// Attributes that begin with "Has" go in the ClassAd and
+		// also in the StringList.  Attributes that begin with Java
+		// only go into the ClassAd.
+
 	ExprTree *tree, *lhs;
 	char *expr_str = NULL, *lhstr = NULL;
 	s_ad->ResetExpr();
@@ -186,6 +193,8 @@ Starter::publish( ClassAd* ad, amask_t mask, StringList* list )
 			if( list ) {
 				list->append( lhstr );
 			}
+		} else if( strincmp(lhstr, "Java", 4) == MATCH ) {
+			ad->Insert( expr_str );
 		}
 		free( expr_str );
 		expr_str = NULL;
@@ -487,9 +496,11 @@ Starter::spawn( start_info_t* info, time_t now )
 		s_procfam = new ProcFamily( s_pid, PRIV_ROOT );
 #if WIN32
 		// we only support running jobs as user nobody for the first pass
-		char nobody_login[60];
-		//sprintf(nobody_login,"condor-run-dir_%d",s_pid);
-		sprintf(nobody_login,"condor-run-%d",s_pid);
+		char nobody_login[100];
+
+		// just use the prefix (we don't know the nobody_login yet since we're in the startd)
+		strcpy(nobody_login, myDynuser->account_prefix());
+		
 		// set ProcFamily to find decendants via a common login name
 		s_procfam->setFamilyLogin(nobody_login);
 #endif
