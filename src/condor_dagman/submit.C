@@ -6,16 +6,17 @@
 #include "util.h"
 #include "debug.h"
 #include "submit.h"
+#include "parser.h"
 
 namespace dagman {
 
-static bool submit_try (const char *exe,
-                        const char * command,
+static bool submit_try (const std::string & exe,
+                        const std::string & command,
                         CondorID & condorID) {
   
-    FILE * fp = popen(command, "r");
+    FILE * fp = popen(command.c_str(), "r");
     if (fp == NULL) {
-        debug_println (DEBUG_QUIET, "%s: popen() failed!", command);
+        debug_println (DEBUG_QUIET, "%s: popen() failed!", command.c_str());
         return false;
     }
   
@@ -30,60 +31,42 @@ static bool submit_try (const char *exe,
     //   1 job(s) submitted to cluster 2267.
     //----------------------------------------------------------------------
 
-    char buffer[UTIL_MAX_LINE_LENGTH];
-    buffer[0] = '\0';
-  
-    // Look for the line containing the word "cluster".
-    // If we get an EOF, then something went wrong with condor_submit, so
-    // we return false.  The caller of this function can retry the submit
-    // by repeatedly calling this function.
-
-    do {
-        if (util_getline(fp, buffer, UTIL_MAX_LINE_LENGTH) == EOF) {
-            pclose(fp);
-            return false;
-        }
-    } while (strstr(buffer, "cluster") == NULL);
-  
-    {
-        int status = pclose(fp);
-        if (status == -1) {
-            perror (command);
-            return false;
+    Parser parser(fp);
+    Parser::Result result = Parser::Result_OK;
+    std::string token;
+    
+    while ( (result = parser.GetToken(token)) != Parser::Result_EOF ) {
+        if (token == "cluster") {
+            result = parser.GetToken(token);
+            if (result == Parser::Result_OK) {
+                // token should be of the form "2267."
+                // strip off the '.'
+                condorID._cluster =
+                    atoi(std::string(token, 0, token.size()-1).c_str());
+                if (DEBUG_LEVEL(DEBUG_DEBUG_2)) {
+                    printf ("%s assigned condorID ", exe.c_str());
+                    condorID.Print();
+                    putchar('\n');
+                }
+            }
+            break;
         }
     }
-
-     if (1 == sscanf(buffer, "1 job(s) submitted to cluster %d",
-                     & condorID._cluster)) {
-         if (DEBUG_LEVEL(DEBUG_DEBUG_2)) {
-             printf ("%s assigned condorID ", exe);
-             condorID.Print();
-             putchar('\n');
-         }
-     }
-  
-     return true;
+    if (pclose(fp) == -1) perror (command.c_str());
+    return result != Parser::Result_EOF;
 }
 
 //-------------------------------------------------------------------------
-bool submit_submit (const char * cmdFile, CondorID & condorID) {
+bool submit_submit (const std::string & cmdFile, CondorID & condorID) {
     // the '-p' parameter to condor_submit will now cause condor_submit
     // to pause ~4 seconds after a successfull submit.  this prevents
     // the race condition of condor_submit finishing before dagman
     // does a pclose, which at least on SGI IRIX causes a nasty 'Broken Pipe'
     // [joev] - took this out on Todd's advice ....
   
-    // char * exe = "condor_submit -p";
-    const char * exe = "condor_submit";
-  
-    // 'subproc' is not used in newer versions of condor Version 6 doesn't
-    // use 'proc' either.  We set this to zero for now
-  
-    char * command = new char[strlen(exe) + strlen(cmdFile) + 10];
-    if (command == NULL) {
-        debug_error (1, DEBUG_QUIET, "%s %s: Out of memory", exe, cmdFile);
-    }
-    sprintf(command, "%s %s 2>&1", exe, cmdFile);
+    // const std::string exe = "condor_submit -p";
+    const std::string exe = "condor_submit";
+    std::string command = exe + ' ' + cmdFile + " 2>&1";
   
     bool success = false;
     const int tries = 6;
@@ -99,9 +82,8 @@ bool submit_submit (const char * cmdFile, CondorID & condorID) {
     }
     if (!success && DEBUG_LEVEL(DEBUG_QUIET)) {
         printf ("condor_submit failed after %d tries.\n", tries);
-        printf ("Submit command was: %s\n", command);
+        printf ("Submit command was: %s\n", command.c_str());
     }
-    delete [] command;
     return success;
 }
 

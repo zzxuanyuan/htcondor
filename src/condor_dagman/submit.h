@@ -1,6 +1,7 @@
 #ifndef CONDOR_SUBMIT_H
 #define CONDOR_SUBMIT_H
 
+#include <string>
 #include "types.h"
 
 /** Submits a job to condor using popen().  This is a very primitive method
@@ -20,7 +21,7 @@
 */
 
 namespace dagman {
-bool submit_submit (const char * cmdFile, CondorID & condorID);
+bool submit_submit (const std::string & cmdFile, CondorID & condorID);
 }
 
 #endif /* #ifndef CONDOR_SUBMIT_H */
