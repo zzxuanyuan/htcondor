@@ -3,7 +3,7 @@
  *
  * See LICENSE.TXT for additional notices and disclaimers.
  *
- * Copyright (c)1990-1998 CONDOR Team, Computer Sciences Department, 
+ * Copyright (c)1990-2003 CONDOR Team, Computer Sciences Department, 
  * University of Wisconsin-Madison, Madison, WI.  All Rights Reserved.  
  * No use of the CONDOR Software Program Source Code is authorized 
  * without the express consent of the CONDOR Team.  For more information 
@@ -20,21 +20,25 @@
  * Livny, 7367 Computer Sciences, 1210 W. Dayton St., Madison, 
  * WI 53706-1685, (608) 262-0856 or miron@cs.wisc.edu.
 ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
-#ifndef CONDOR_SYS_FEATURES_H
-#define CONDOR_SYS_FEATURES_H
 
-#ifdef  __cplusplus
-#define BEGIN_C_DECLS   extern "C" {
-#define END_C_DECLS     }
-#else
-#define BEGIN_C_DECLS
-#define END_C_DECLS
+ 
+#ifndef _OLD_SHADOW_TYPES_H_
+#define _OLD_SHADOW_TYPES_H_
+
+typedef struct {
+	int		port1;
+	int		port2;
+} PORTS;
+
+
+typedef struct {        /* record sent by startd to shadow */
+	int		version_num;/* always negative */
+	PORTS	ports;
+	int     ip_addr;    /* internet addressof executing machine */
+	char*   server_name;/* name of executing machine */
+} StartdRec;
+	/* Startd version numbers : always negative  */
+
+#define VERSION_FOR_FLOCK   -1
+
 #endif
-
-#if (defined(WIN32) && defined(_DLL)) 
-#define DLL_IMPORT_MAGIC __declspec(dllimport)
-#else
-#define DLL_IMPORT_MAGIC  /* a no-op on Unix */
-#endif
-
-#endif /* CONDOR_SYS_FEATURES_H */

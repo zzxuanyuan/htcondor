@@ -20,21 +20,25 @@
  * Livny, 7367 Computer Sciences, 1210 W. Dayton St., Madison, 
  * WI 53706-1685, (608) 262-0856 or miron@cs.wisc.edu.
 ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
-#ifndef CONDOR_SYS_FEATURES_H
-#define CONDOR_SYS_FEATURES_H
 
-#ifdef  __cplusplus
-#define BEGIN_C_DECLS   extern "C" {
-#define END_C_DECLS     }
-#else
-#define BEGIN_C_DECLS
-#define END_C_DECLS
+#ifndef __TRUNCATE_H
+#define __TRUNCATE_H
+
+#ifdef WIN32
+
+#include "condor_common.h"
+
+/* gives us the truncate() and ftruncate() functions on Win32 */
+#if defined(__cplusplus)
+extern "C" {
 #endif
 
-#if (defined(WIN32) && defined(_DLL)) 
-#define DLL_IMPORT_MAGIC __declspec(dllimport)
-#else
-#define DLL_IMPORT_MAGIC  /* a no-op on Unix */
+int ftruncate( int file_handle, long size );
+int truncate( const char *path, long size );
+
+#if defined(__cplusplus)
+}
 #endif
 
-#endif /* CONDOR_SYS_FEATURES_H */
+#endif // WIN32
+#endif // __TRUNCATE_H

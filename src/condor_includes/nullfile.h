@@ -20,21 +20,14 @@
  * Livny, 7367 Computer Sciences, 1210 W. Dayton St., Madison, 
  * WI 53706-1685, (608) 262-0856 or miron@cs.wisc.edu.
 ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
-#ifndef CONDOR_SYS_FEATURES_H
-#define CONDOR_SYS_FEATURES_H
 
-#ifdef  __cplusplus
-#define BEGIN_C_DECLS   extern "C" {
-#define END_C_DECLS     }
-#else
-#define BEGIN_C_DECLS
-#define END_C_DECLS
+#ifndef NULLFILE_H
+#define NULLFILE_H
+
+BEGIN_C_DECLS
+
+int nullFile(const char*);
+
+END_C_DECLS
+
 #endif
-
-#if (defined(WIN32) && defined(_DLL)) 
-#define DLL_IMPORT_MAGIC __declspec(dllimport)
-#else
-#define DLL_IMPORT_MAGIC  /* a no-op on Unix */
-#endif
-
-#endif /* CONDOR_SYS_FEATURES_H */

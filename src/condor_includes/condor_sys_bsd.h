@@ -20,12 +20,16 @@
  * Livny, 7367 Computer Sciences, 1210 W. Dayton St., Madison, 
  * WI 53706-1685, (608) 262-0856 or miron@cs.wisc.edu.
 ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
-#ifndef CONDOR_SYS_HPUX_H
-#define CONDOR_SYS_HPUX_H
+#ifndef CONDOR_SYS_BSD_H
+#define CONDOR_SYS_BSD_H
 
-#define _XPG4_EXTENDED
+/*#define _XPG4_EXTENDED
 #define _XOPEN_SOURCE_EXTENDED
-#define _PROTOTYPES
+#define _PROTOTYPES */
+
+#if defined(_POSIX_SOURCE)
+#    undef  _POSIX_SOURCE
+#endif
 
 #include <sys/types.h>
 
@@ -40,15 +44,11 @@
 
 /* Need these to get statfs and friends defined */
 #include <sys/stat.h>
-#include <sys/vfs.h>
-#include <sys/ustat.h>
 
 /* Since both <sys/param.h> and <values.h> define MAXINT without
    checking, and we want to include both, we include them, but undef
    MAXINT inbetween. */
 #include <sys/param.h>
-#undef MAXINT
-#include <values.h>
 
 #if !defined(WCOREFLG)
 #	define WCOREFLG 0x0200
@@ -56,32 +56,32 @@
 
 #include <sys/fcntl.h>
 
-#include "condor_hpux_64bit_types.h"
 
-/* HPUX11 seems to have moved the exportfs() prototype elsewhere.... */
-#if defined(HPUX10)
 /* nfs/nfs.h is needed for fhandle_t.
    struct export is required to pacify prototypes
    of type export * before struct export is defined. */
 
-struct export;
-#endif
-#include <nfs/nfs.h>
 
 /* mount prototype */
 #include <sys/mount.h>
 
+/* for DBL_MAX */
+#include <float.h>
+/* Darwin does not define a SYS_NMLN, but rather calls it __SYS_NAMELEN */
+
+#define SYS_NMLN  _SYS_NAMELEN
 /****************************************
 ** Condor-specific system definitions
 ****************************************/
 
-#define HAS_64BIT_STRUCTS		1
+#define HAS_64BIT_STRUCTS		0
 #define SIGSET_CONST			const
-#define HAS_U_TYPES			1
 #define SYNC_RETURNS_VOID		1
+#define HAS_U_TYPES			1
 #define SIGISMEMBER_IS_BROKEN		1
 
+#define MAXINT				INT_MAX
 typedef void* MMAP_T;
 
-#endif /* CONDOR_SYS_HPUX_H */
+#endif /* CONDOR_SYS_BSD_H */
 

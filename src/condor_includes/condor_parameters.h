@@ -3,7 +3,7 @@
  *
  * See LICENSE.TXT for additional notices and disclaimers.
  *
- * Copyright (c)1990-1998 CONDOR Team, Computer Sciences Department, 
+ * Copyright (c)1990-2003 CONDOR Team, Computer Sciences Department, 
  * University of Wisconsin-Madison, Madison, WI.  All Rights Reserved.  
  * No use of the CONDOR Software Program Source Code is authorized 
  * without the express consent of the CONDOR Team.  For more information 
@@ -19,22 +19,30 @@
  * 52.227-19, as applicable, CONDOR Team, Attention: Professor Miron 
  * Livny, 7367 Computer Sciences, 1210 W. Dayton St., Madison, 
  * WI 53706-1685, (608) 262-0856 or miron@cs.wisc.edu.
-****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
-#ifndef CONDOR_SYS_FEATURES_H
-#define CONDOR_SYS_FEATURES_H
+ ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
-#ifdef  __cplusplus
-#define BEGIN_C_DECLS   extern "C" {
-#define END_C_DECLS     }
-#else
-#define BEGIN_C_DECLS
-#define END_C_DECLS
-#endif
+#ifndef CONDOR_PARAMETERS_H
+#define CONDOR_PARAMETERS_H
 
-#if (defined(WIN32) && defined(_DLL)) 
-#define DLL_IMPORT_MAGIC __declspec(dllimport)
-#else
-#define DLL_IMPORT_MAGIC  /* a no-op on Unix */
-#endif
+/* This file contains string constants for parameters that may
+ * exist in the Condor configuration file. */
 
-#endif /* CONDOR_SYS_FEATURES_H */
+// Collector parameters
+extern const char *PARAM_COLLECTOR_PORT;
+extern const char *PARAM_CONDOR_VIEW_PORT;
+extern const char *PARAM_CONDOR_DEVELOPERS_COLLECTOR_PORT;
+
+// Negotiator parameters
+extern const char *PARAM_NEGOTIATOR_PORT;
+
+// Gridmanager parameters
+extern const char *PARAM_HOLD_IF_CRED_EXPIRED;
+extern const char *PARAM_GLOBUS_GATEKEEPER_TIMEOUT;
+
+// Utility functions
+int param_get_collector_port(void);
+int param_get_condor_view_port(void);
+int param_get_condor_developers_collector_port();
+int param_get_negotiator_port(void);
+
+#endif /* CONDOR_PARAMETERS_H */
