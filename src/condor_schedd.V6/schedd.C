@@ -1945,14 +1945,11 @@ Scheduler::jobIsTerminal(int cluster, int proc)
 
 
 int
-Scheduler::jobIsTerminalReaper( int cluster, int proc, void*,
-								int exit_status )
+Scheduler::jobIsTerminalReaper( int cluster, int proc, void*, int )
 {
-	MyString status_str;
-	statusString( exit_status, status_str );
 	dprintf( D_FULLDEBUG,
-			 "jobIsTerminal() thread %s, calling DestroyProc(%d.%d)\n",
-			 status_str.Value(), cluster, proc );
+			 "jobIsTerminal() completed, calling DestroyProc(%d.%d)\n",
+			 cluster, proc );
 	return DestroyProc( cluster, proc );
 }
 
