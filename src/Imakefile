@@ -111,7 +111,7 @@
 	strip_contrib/sbin strip_contrib/etc \
 	strip_contrib/etc/examples strip_contrib/include StaticDirectories
 
-all: h h_all condor_includes makefiles Directories Libraries \
+all: h h_all externals condor_includes makefiles Directories Libraries \
 	Programs examples 
 release:: all
 stripped:: all
@@ -343,6 +343,9 @@ pure_target(condor_starter.V6.1,condor_starter.pure)
 pure_target(condor_collector.V6,condor_collector.pure)
 pure_target(condor_negotiator.V6,condor_negotiator.pure)
 pure_target(condor_dagman,condor_dagman.pure)
+
+externals::
+	cd ../externals; make
 
 clean::
 	rm -rf $(PURE_DIR)
