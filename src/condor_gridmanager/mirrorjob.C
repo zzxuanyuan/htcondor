@@ -512,6 +512,7 @@ int MirrorJob::doEvaluateState()
 			} break;
 		case GM_STAGE_IN: {
 			// Now stage files to the remote schedd
+#if 0
 			if ( gahpAd == NULL ) {
 				gahpAd = buildStageInAd();
 			}
@@ -520,6 +521,15 @@ int MirrorJob::doEvaluateState()
 				break;
 			}
 			rc = gahp->condor_job_stage_in( mirrorScheddName, gahpAd );
+#else
+			if ( gahpAd == NULL ) {
+				gahpAd = new ClassAd;
+				gahpAd->Assign( ATTR_STAGE_IN_START, (int)time(NULL) );
+				gahpAd->Assign( ATTR_STAGE_IN_FINISH, (int)time(NULL) );
+			}
+			rc = gahp->condor_job_update( mirrorScheddName, mirrorJobId,
+										  gahpAd );
+#endif
 			if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
 				 rc == GAHPCLIENT_COMMAND_PENDING ) {
 				break;
