@@ -13,6 +13,7 @@ EXT_ZLIB_VERSION = @ext_zlib_version@
 EXT_PVM_VERSION = @ext_pvm_version@
 EXT_MAN_VERSION = man-current
 EXT_GT3GAHP_VERSION = @ext_gt3gahp_version@
+EXT_CLASSADS_VERSION = @ext_classads_version@
 
 #define WANT_EXT_GLIBC @want_ext_glibc@
 #if WANT_EXT_GLIBC && HAS_EXTERNALS
@@ -74,6 +75,16 @@ ZLIB_INC = $(ZLIB_DIR)/include
 ZLIB_DIR =
 ZLIB_LIB =
 ZLIB_INC =
+#endif
+
+#if HAS_EXTERNALS
+NEW_CLASSADS_DIR = $(EXT_INSTALL)/$(EXT_CLASSADS_VERSION)
+NEW_CLASSADS_LIB = $(NEW_CLASSADS_DIR)/lib
+NEW_CLASSADS_INC = $(NEW_CLASSADS_DIR)/include
+#else
+NEW_CLASSADS_DIR = 
+NEW_CLASSADS_LIB = 
+NEW_CLASSADS_INC = 
 #endif
 
 
