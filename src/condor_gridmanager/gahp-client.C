@@ -464,6 +464,9 @@ GahpServer::read_argv(Gahp_Args &g_args)
 			// for results in gahp async mode.  
 			if ( trash_this_line==false && g_args.argc == 1 &&
 				 g_args.argv[0][0] == 'R' ) {
+				if ( logGahpIo ) {
+					dprintf( D_FULLDEBUG, "GAHP[%d] -> R\n", m_gahp_pid );
+				}
 				if ( skip_next_r ) {
 					// we should not poll this time --- apparently we saw
 					// this R come through via our pipe handler.
