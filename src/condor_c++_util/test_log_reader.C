@@ -179,7 +179,8 @@ ReadEvents(Arguments &args)
 		ULogEventOutcome	outcome = log.readEvent(event);
 		if ( outcome == ULOG_OK ) {
 			if ( args.verbosity >= VERB_ALL ) {
-				printf("Read an event");
+				printf("Read an event from %d.%d.%d", event->cluster,
+						event->proc, event->subproc);
 			}
 
 			switch ( event->eventNumber ) {
