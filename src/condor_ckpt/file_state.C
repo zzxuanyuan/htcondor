@@ -33,8 +33,12 @@
 static char *_FileName_ = __FILE__;
 
 #include "file_state.h"
-#include "file_types.h"
 #include "file_table_interf.h"
+#include "condor_file.h"
+#include "condor_file_local.h"
+#include "condor_file_remote.h"
+#include "condor_file_special.h"
+#include "condor_file_warning.h"
 
 #include <stdarg.h>
 #include <sys/errno.h>
@@ -71,16 +75,13 @@ void CondorFileTable::init()
 
 	/* Until we know better, identity map std files */
 
-	pre_open( 0, 1, 0, 0 );
-	pre_open( 1, 0, 1, 0 );
-	pre_open( 2, 0, 1, 0 );
-}
+	pre_open( 0, "standard input", 1, 0, 0 );
+	pre_open( 1, "standard output", 0, 1, 0 );
+	pre_open( 2, "standard error", 0, 1, 0 );
 
-static void _condor_flush_and_disable_buffer()
-{
-	_condor_file_table_init();
-	FileTab->flush();
-	FileTab->disable_buffer();
+	if(atexit(_condor_file_table_cleanup)<0) {
+		_condor_file_warning("atexit() failed.  Files will not be cleaned up correctly at exit.\n");
+	}
 }
 
 void CondorFileTable::init_buffer()
@@ -107,16 +108,6 @@ void CondorFileTable::init_buffer()
 		dprintf(D_ALWAYS,"Buffer is disabled\n.");
 		buffer = 0;
 		return;
-	}
-
-	// If the program ends via exit() or return from main,
-	// then flush the buffers.  Furthermore, disable any further buffering,
-	// because iostream or stdio will flush _after_ us.
-
-	if(atexit(_condor_flush_and_disable_buffer)<0) {
-		_condor_file_warning("atexit() failed.  Buffering is disabled.\n");
-		delete buffer;
-		buffer = 0;
 	}
 }
 
@@ -148,7 +139,16 @@ void CondorFileTable::dump()
 	}
 }
 
-int CondorFileTable::pre_open( int fd, int readable, int writeable, int is_remote )
+void CondorFileTable::report_file_info()
+{
+	for( int i=0; i<length; i++ ) {
+		if( pointers[i] ) {
+			pointers[i]->get_file()->report_file_info();
+		}
+	}
+}
+
+int CondorFileTable::pre_open( int fd, char *name, int readable, int writeable, int is_remote )
 {
 	if( (fd<0) || (fd>=length) || (pointers[fd]) ) {
 		errno = EBADF;
@@ -160,7 +160,7 @@ int CondorFileTable::pre_open( int fd, int readable, int writeable, int is_remot
 	if( is_remote ) f = new CondorFileRemote;
 	else f = new CondorFileLocal;
 
-	f->force_open(fd,readable,writeable);
+	f->force_open(fd,name,readable,writeable);
 	f->add_user();
 
 	pointers[fd] = new CondorFilePointer(f);
@@ -169,10 +169,10 @@ int CondorFileTable::pre_open( int fd, int readable, int writeable, int is_remot
 	return fd;	
 }
 
-int CondorFileTable::find_name( const char *path )
+int CondorFileTable::find_name( const char *name )
 {
 	for( int fd=0; fd<length; fd++ ) {
-		if( pointers[fd] && !strcmp(pointers[fd]->get_file()->get_name(),path) ) {
+		if( pointers[fd] && !strcmp(pointers[fd]->get_file()->get_name(),name) ) {
 			return fd;
 		}
 	}
@@ -212,9 +212,9 @@ int CondorFileTable::open( const char *path, int flags, int mode )
 
 	} else {
 
-		char full_path[_POSIX_PATH_MAX];
-
 		init_buffer();
+
+		char full_path[_POSIX_PATH_MAX];
 
 		if(path[0]=='/') {
 			strcpy(full_path,path);
@@ -224,25 +224,27 @@ int CondorFileTable::open( const char *path, int flags, int mode )
 			strcat(full_path,path);
 		}
 
-		dprintf(D_ALWAYS,"full_path = %s\n", full_path );
-					 
-		kind = REMOTE_syscall( CONDOR_file_info, full_path, &new_fd, new_path );
-		int match = find_name(new_path);
-		if( match>=0 ) {
+		// Always ask the shadow what to do with this file.
 
-			// A file with this remapped name is already open,
-			// so share the file object with the existing pointer.
+		kind = REMOTE_syscall( CONDOR_file_info, full_path, &new_fd, new_path );
+
+		// Check to see if this file is already open
+
+		int match = find_name(full_path);
+		if(match>=0) {
+
+			// If so, share the file object
 
 			f = pointers[match]->get_file();
 
 		} else {
 
-			// The file is not already open, so create a new file object
+			// Otherwise, create a new file object 
 
 			switch( kind ) {
 				case IS_PRE_OPEN:
 				f = new CondorFileLocal;
-				f->force_open( new_fd, 1, 1 );
+				f->force_open( new_fd, "inherited stream", 1, 1 );
 				break;
 
 				case IS_NFS:
@@ -277,7 +279,7 @@ int CondorFileTable::open( const char *path, int flags, int mode )
 	// but the rest of the file table and buffer has no problem.
 
 	if( flags & O_RDWR )
-		_condor_file_warning("Opening file '%s' for read and write is not safe in a program that may be checkpointed!  You should use separate files for reading and writing.\n",path);
+		_condor_file_warning("Opening file '%s' for read and write is not safe in a program that may be checkpointed!  You should use separate files for reading and writing.",path);
 
 	// Install a new fp and update the use counts 
 
@@ -360,10 +362,10 @@ int CondorFileTable::pipe(int fds[])
 	pointers[fds[0]] = pa;
 	pointers[fds[1]] = pb;
 
-	fa->force_open(real_fds[0],1,1);
+	fa->force_open(real_fds[0],"unnamed",1,1);
 	fa->add_user();
 
-	fb->force_open(real_fds[1],1,1);
+	fb->force_open(real_fds[1],"unnamed",1,1);
 	fb->add_user();
 
 	pa->add_user();
@@ -398,7 +400,7 @@ int CondorFileTable::close( int fd )
 			if(buffer) buffer->flush(pointers[fd]->get_file());
 			pointers[fd]->get_file()->close();
 			delete pointers[fd]->get_file();
-		}
+			}
 		delete pointers[fd];
 	}
 
@@ -723,16 +725,13 @@ void CondorFileTable::checkpoint()
 
 	dump();
 
-	int scm = GetSyscallMode();
-	getcwd( local_working_dir, _POSIX_PATH_MAX );
-	SetSyscalls(scm);
+	if( MyImage.GetMode() != STANDALONE ) {
+		REMOTE_syscall( CONDOR_getwd, working_dir );
+	} else {
+		getcwd( working_dir, _POSIX_PATH_MAX );
+	}
 
-	if( MyImage.GetMode() != STANDALONE )
-		REMOTE_syscall( CONDOR_getwd, remote_working_dir );
-	else
-		remote_working_dir[0]=0;
-
-	dprintf(D_ALWAYS,"local wd=%s\nremote wd=%s\n",local_working_dir,remote_working_dir);
+	dprintf(D_ALWAYS,"working dir = %s\n",working_dir);
 
 	for( int i=0; i<length; i++ )
 	     if( pointers[i] ) pointers[i]->get_file()->checkpoint();
@@ -744,16 +743,13 @@ void CondorFileTable::suspend()
 
 	dump();
 
-	int scm = GetSyscallMode();
-	getcwd( local_working_dir, _POSIX_PATH_MAX );
-	SetSyscalls(scm);
+	if( MyImage.GetMode() != STANDALONE ) {
+		REMOTE_syscall( CONDOR_getwd, working_dir );
+	} else {
+		::getcwd( working_dir, _POSIX_PATH_MAX );
+	}
 
-	if( MyImage.GetMode() != STANDALONE )
-		REMOTE_syscall( CONDOR_getwd, remote_working_dir );
-	else
-		remote_working_dir[0]=0;
-
-	dprintf(D_ALWAYS,"local wd=%s\nremote wd=%s\n",local_working_dir,remote_working_dir);
+	dprintf(D_ALWAYS,"working dir = %s\n",working_dir);
 
 	for( int i=0; i<length; i++ )
 	     if( pointers[i] ) pointers[i]->get_file()->suspend();
@@ -766,16 +762,15 @@ void CondorFileTable::resume()
 	resume_count++;
 
 	dprintf(D_ALWAYS,"CondorFileTable::resume_count=%d\n");
-	dprintf(D_ALWAYS,"local wd=%s\nremote wd=%s\n",local_working_dir,remote_working_dir);
-	result = syscall( SYS_chdir, local_working_dir );
-
-	if(result<0) _condor_file_warning("After checkpointing, I couldn't find %s again!",local_working_dir);
+	dprintf(D_ALWAYS,"working dir = %s\n",working_dir);
 
 	if(MyImage.GetMode()!=STANDALONE) {
-		result = REMOTE_syscall(CONDOR_chdir,remote_working_dir);
+		result = REMOTE_syscall(CONDOR_chdir,working_dir);
+	} else {
+		result = ::chdir( working_dir );
 	}
 
-	if(result<0) _condor_file_warning("After checkpointing, I couldn't find %s again!",remote_working_dir);
+	if(result<0) _condor_file_warning("After checkpointing, I couldn't find %s again!",working_dir);
 
 	/* Resume works a little differently, depending on the image mode.
 	   In the standard condor universe, we just go through each file

@@ -92,13 +92,21 @@ void _condor_file_table_init()
 	}
 }
 
-int _condor_file_pre_open( int fd, int readable, int writable, int is_remote )
+int _condor_file_pre_open( int fd, char *name, int readable, int writable, int is_remote )
 {
 	_condor_file_table_init();
 	sigset_t sigs = _condor_signals_disable();
-	int result = FileTab->pre_open(fd,readable,writable,is_remote);
+	int result = FileTab->pre_open(fd,name,readable,writable,is_remote);
 	_condor_signals_enable(sigs);
 	return result;
+}
+
+void _condor_file_table_cleanup()
+{
+	_condor_file_table_init();
+	FileTab->flush();
+	FileTab->disable_buffer();
+	FileTab->report_file_info();
 }
 
 int creat(const char *path, mode_t mode)

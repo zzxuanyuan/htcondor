@@ -27,7 +27,7 @@
 #define _FILE_STATE_H
 
 #include "condor_common.h"
-#include "file_types.h"
+#include "condor_file.h"
 #include "buffer_cache.h"
 
 /**
@@ -50,15 +50,14 @@ public:
 	void       remove_user()          { use_count--; }
 	int        get_use_count()        { return use_count; }
 	off_t      get_offset()           { return offset; }
-	void       set_offset( size_t s ) { offset=s; seek_count++; }
+	void       set_offset( size_t s ) { offset=s; file->bump_seek_count(); }
 	CondorFile *get_file()	          { return file; }
-	int        get_seek_count()       { return seek_count; }
+
 
 private:
 	CondorFile *file;      // What file do I refer to?
 	off_t      offset;     // The current seek pointer for this fd
 	int        use_count;  // How many fds share this fp?
-	int        seek_count; // How many times has the pointer changed?
 };
 
 /**
@@ -85,9 +84,9 @@ This class does _not_:
 	<li> Decide whether mapping is in effect.
 	     The system call stubs do that.
 	<li> Implement read, write, ioctl, etc. for _any_ file.
-	     Subclasses of CondorFile do that (file_types.C)
+	     Subclasses of CondorFile do that (condor_file_*.h)
 	<li> Implement buffering.
-	     A CondorBufferCache does that (buffer_cache.C)
+	     A CondorBufferCache does that (buffer_cache.h)
 	<li> Perform operations on names (i.e. stat()).
 	     Those are handled transparently by the syscall switches.
 </dir>
@@ -123,7 +122,7 @@ fp      fp
 fo
 </pre>
 <p>
-Various implementations of CondorFile can be found in file_types.[hC].
+Various implementations of CondorFile can be found in condor_file_*.[hC].
 <p>
 When in standalone checkpointing mode, the structure above is
 maintained so that we can use the same object and caching sceme.
@@ -166,11 +165,14 @@ public:
 	/** Turn off buffering */
 	void	disable_buffer();
 
+	/** Report access info about all currently open files. */
+	void	report_file_info();
+
 	/** Map a virtual fd to the same real fd.  This is generally only
 	    used by the startup code to bootstrap a usable stdin/stdout until
 	    things get rolling.  You don't want to use this function unless
 	    you want an fd visible by _both_ Condor and the user.  */
-	int	pre_open( int fd, int readable, int writable, int is_remote );
+	int	pre_open( int fd, char *name, int readable, int writable, int is_remote );
 
 	/** If in LocalSyscalls, just perform a UNIX open.  If in
 	    RemoteSyscalls, ask the shadow for the appropriate 
@@ -180,7 +182,7 @@ public:
 	/** Create two pipe endpoints.  This pipe may be used between
 	    checkpoints, but it must be closed before the job
 	    is checkpointed. */
-	int    pipe(int fds[]);
+	int	pipe(int fds[]);
 
 	/** Close this file with UNIX semantics */
 	int	close( int fd );
@@ -243,15 +245,14 @@ public:
 
 private:
 
-	int	find_name(const char *path);
+	int	find_name(const char *name);
 	int	find_empty();
 
 	CondorFilePointer	**pointers;
 	CondorBufferCache	*buffer;
 
 	int	length;
-	char	local_working_dir[_POSIX_PATH_MAX];
-	char	remote_working_dir[_POSIX_PATH_MAX];
+	char	working_dir[_POSIX_PATH_MAX];
 	int	prefetch_size;
 	int	resume_count;
 	int	got_buffer_info;

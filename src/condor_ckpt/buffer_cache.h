@@ -25,7 +25,7 @@
 #define BUFFER_CACHE_H
 
 #include "condor_common.h"
-#include "file_types.h"
+#include "condor_file.h"
 
 class CondorBlockInfo;
 

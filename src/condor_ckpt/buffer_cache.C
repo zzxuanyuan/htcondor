@@ -25,6 +25,7 @@
 #include "buffer_cache.h"
 #include "condor_debug.h"
 #include "condor_macros.h"
+#include "condor_file_warning.h"
 
 /*
 Policy:
