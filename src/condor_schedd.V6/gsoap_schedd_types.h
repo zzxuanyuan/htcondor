@@ -9,7 +9,7 @@ enum condor__HashType {
 
 enum condor__UniverseType {
   STANDARD = 1,
-  PVM = 4,
+  PVMUNIVERSE = 4,
   VANILLA = 5,
   SCHEDULER = 7,
   MPI = 8,
