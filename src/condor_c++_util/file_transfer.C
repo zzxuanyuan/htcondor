@@ -558,7 +558,9 @@ FileTransfer::DownloadFiles(bool blocking)
 		Daemon d( DT_ANY, TransSock );
 
 		if ( !sock.connect(TransSock,0) ) {
-			EXCEPT("Unable to connect to server %s\n", TransSock);
+			dprintf( D_ALWAYS, "FileTransfer: Unable to connect to server "
+					 "%s\n", TransSock );
+			return FALSE;
 		}
 
 		d.startCommand(FILETRANS_UPLOAD, &sock, 0);
@@ -795,7 +797,9 @@ FileTransfer::UploadFiles(bool blocking, bool final_transfer)
 		Daemon d( DT_ANY, TransSock );
 
 		if ( !sock.connect(TransSock,0) ) {
-			EXCEPT("Unable to connect to server %s\n", TransSock);
+			dprintf( D_ALWAYS, "FileTransfer: Unable to connect to server "
+					 "%s\n", TransSock );
+			return FALSE;
 		}
 
 		d.startCommand(FILETRANS_DOWNLOAD, &sock);
