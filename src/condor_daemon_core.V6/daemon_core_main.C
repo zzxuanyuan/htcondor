@@ -1719,11 +1719,38 @@ int main( int argc, char** argv )
 	daemonCore->InitSettableAttrsLists();
 
 		// init db connection
-		//DBObj = new PGSQLDatabase("host=127.0.0.1 port=5430 dbname=test user=scidb");
-		//DBObj = new PGSQLDatabase("host=tycho.cs.wisc.edu port=5430 dbname=test user=scidb");
-		//DBObj = new PGSQLDatabase("hostaddr=198.133.224.12 port=5432 dbname=test");
-		//DBObj = new PGSQLDatabase("host=dewitt-gw.cs.wisc.edu port=5432 dbname=test");
-	DBObj = new ODBC("condor", "scidb", "");
+	char *tmp, *odbc_dsn, *odbc_user, *odbc_auth;
+	
+	/* Parse ODBC Connection Params */
+	tmp = param("NEGOTIATOR_ODBC_DSN");
+	if( tmp ) {
+		odbc_dsn = strdup(tmp);
+		free(tmp);
+	}
+	else {
+
+		odbc_dsn = strdup("condor");
+	}
+
+	tmp = param("NEGOTIATOR_ODBC_USER");
+	if( tmp ) {
+		odbc_user = strdup(tmp);
+		free(tmp);
+	}
+	else {
+		odbc_user = strdup("scidb");
+	}
+
+	tmp = param("NEGOTIATOR_ODBC_AUTH");
+	if( tmp ) {
+		odbc_auth = strdup(tmp);
+		free(tmp);
+	}
+	else {
+		odbc_auth = strdup("");
+	}
+
+	DBObj = new ODBC(odbc_dsn, odbc_user, odbc_auth);
 		//DBObj -> connectDB();
 	DBObj->odbc_connect();
 
