@@ -54,10 +54,7 @@ void Suicide();
 void config ();
 char * param ();
 void _EXCEPT_ ();
-#endif
-
-#if defined(__cplusplus)
-}
+void dprintf ();
 #endif
 
 /*
@@ -78,6 +75,10 @@ extern int	_EXCEPT_Line;			/* Line number of the exception    */
 extern char	*_EXCEPT_File;			/* File name of the exception      */
 extern int	_EXCEPT_Errno;			/* errno from most recent system call */
 extern int (*_EXCEPT_Cleanup)();	/* Function to call to clean up (or NULL) */
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif
 
