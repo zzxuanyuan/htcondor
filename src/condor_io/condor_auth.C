@@ -163,14 +163,16 @@ const char * Condor_Auth_Base :: getRemoteDomain() const
 const char * Condor_Auth_Base :: getRemoteFQU()
 {
     if (fqu_ == NULL) {
-        int userlen = strlen(remoteUser_);
-        int domlen  = strlen(remoteDomain_);
-        int len = userlen + domlen;
-        fqu_ = (char *) malloc(len + 2);
-        memcpy(fqu_, remoteUser_, userlen);
-        fqu_[userlen] = '@';
-        memcpy(fqu_+userlen+1, remoteDomain_, domlen);
-        fqu_[len+1] = 0;
+        if (remoteUser_ && remoteDomain_) {
+            int userlen = strlen(remoteUser_);
+            int domlen  = strlen(remoteDomain_);
+            int len = userlen + domlen;
+            fqu_ = (char *) malloc(len + 2);
+            memcpy(fqu_, remoteUser_, userlen);
+            fqu_[userlen] = '@';
+            memcpy(fqu_+userlen+1, remoteDomain_, domlen);
+            fqu_[len+1] = 0;
+        }
     }
 
     return fqu_;
@@ -189,7 +191,14 @@ Condor_Auth_Base& Condor_Auth_Base :: setRemoteDomain(const char * domain)
     }
 
     if (domain) {
+        // need to do some conversion here to use lower case domain
+        // name only. This is because later on we hash on the user@domain
         remoteDomain_ = strdup(domain);
+        char * at = remoteDomain_;
+        while (*at != '\0') {
+            *at = tolower((int) *at);
+            at++;
+        }
     }
 
     return *this;
