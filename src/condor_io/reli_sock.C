@@ -212,6 +212,11 @@ ReliSock::accept( ReliSock	*c)
 	return accept(*c);
 }
 
+bool ReliSock :: set_encryption_id(const char * keyId)
+{
+    return false; // TCP does not need this yet
+}
+
 bool ReliSock::init_MD(CONDOR_MD_MODE mode, KeyInfo * key, const char * keyId)
 {
     return (snd_msg.init_MD(mode, key) && rcv_msg.init_MD(mode, key));
@@ -962,6 +967,7 @@ ReliSock::serialize(char *buf)
 	// first, let our parent class restore its state
     ptmp = Sock::serialize(buf);
     assert( ptmp );
+    memset(fqu, 0, 256);
     sscanf(ptmp,"%d*%s*%s",&_special_state,sinful_string, fqu);
     string_to_sin(sinful_string, &_who);
     if ((fqu[0] != ' ') && (fqu[0] != '\0')) {
