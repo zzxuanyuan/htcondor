@@ -611,12 +611,28 @@ GridManager::jobProbe()
 
 			if ( next_job->probe() == false ) {
 				dprintf( D_ALWAYS, 
-						"Globus jobmanager unreachable for job %d.%d\n",
+						"Globus JobManager unreachable for job %d.%d\n",
 						 next_job->procID.cluster, next_job->procID.proc );
 				// job manager is unreachable
 				// resubmit or fail?
 				// bad stuff
 				// TODO: INSERT JAMIE'S RE-ATTACH TO JOBMANAGER CODE HERE
+
+				// For now, check if we can contact the gatekeeper.
+				// If we can contact the gatekeeper, and not the jobmanager,
+				// we know the jobmanager is gone.  So either 
+				// resubmit the job or place it on hold.
+				int err=globus_gram_client_ping(next_job->rmContact);
+				if ( err == GLOBUS_SUCCESS ) {
+					// jobmanager definitely gone.
+					// make it appear like it exited with status 1
+					dprintf( D_ALWAYS, 
+						"Job %d.%d exiting with status 1 because JobManager gone\n",
+						 next_job->procID.cluster, next_job->procID.proc );
+					next_job->exit_value = 1;
+					next_job->callback(GLOBUS_GRAM_CLIENT_JOB_STATE_DONE);
+				} 
+
 			}
 
 		}
@@ -762,7 +778,7 @@ GridManager::WriteTerminateToUserLog( GlobusJob *job )
 	// Globus doesn't tell us how the job exited, so we'll just assume it
 	// exited normally.
 	event.normal = true;
-	event.returnValue = 0;
+	event.returnValue = job->exit_value;
 
 	int rc = ulog->writeEvent(&event);
 	delete ulog;

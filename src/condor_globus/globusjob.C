@@ -39,6 +39,7 @@ GlobusJob::GlobusJob( GlobusJob& copy )
 	abortedByUser = copy.abortedByUser;
 	callback_already_registered = copy.callback_already_registered;
 	procID = copy.procID;
+	exit_value = copy.exit_value;
 	jobContact = (copy.jobContact == NULL) ? NULL : strdup( copy.jobContact );
 	jobState = copy.jobState;
 	RSL = (copy.RSL == NULL) ? NULL : strdup( copy.RSL );
@@ -61,6 +62,7 @@ GlobusJob::GlobusJob( ClassAd *classad )
 	userLogFile = NULL;
 	jobState = 0;
 	errorCode = 0;
+	exit_value = 0;
 	// ad = NULL;
 
 	buf[0] = '\0';

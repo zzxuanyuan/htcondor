@@ -34,6 +34,7 @@ class GlobusJob
 	int errorCode;
 	char *userLogFile;
 	bool abortedByUser;
+	int exit_value;
 
  protected:
 	bool callback_already_registered;
