@@ -628,7 +628,8 @@ void
 CStarter::allJobsDone( void )
 {
 		// No more jobs, notify our JobInfoCommunicator
-	if( ! jic->allJobsDone() ) {
+	static bool needs_jic_allJobsDone = true;
+	if( needs_jic_allJobsDone && ! jic->allJobsDone() ) {
 			/*
 			  there was an error with the JIC in this step.  at this
 			  point, the only possible reason is if we're talking to a
@@ -642,6 +643,7 @@ CStarter::allJobsDone( void )
 				 "lease to expire or for a reconnect attempt\n" );
 		return;
 	}
+	needs_jic_allJobsDone = false;
 
 		// Now that we're done transfering files and/or doing all
 		// our cleanup, we can finally go through the
