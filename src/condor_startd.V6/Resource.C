@@ -681,7 +681,7 @@ Resource::compute( amask_t mask )
 
 
 void
-Resource::dprintf( int flags, char* fmt, va_list args )
+Resource::dprintf_va( int flags, char* fmt, va_list args )
 {
 	if( resmgr->is_smp() ) {
 		::dprintf( flags, "%s: ", r_id );
@@ -697,7 +697,7 @@ Resource::dprintf( int flags, char* fmt, ... )
 {
 	va_list args;
 	va_start( args, fmt );
-	this->dprintf( flags, fmt, args );
+	this->dprintf_va( flags, fmt, args );
 	va_end( args );
 }
 

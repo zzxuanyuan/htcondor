@@ -72,7 +72,7 @@ public:
 		// message for SMP startds (single CPU machines get no special
 		// header and it works just like regular dprintf())
 	void	dprintf( int, char*, ... );
-	void	dprintf( int, char*, va_list );
+	void	dprintf_va( int, char*, va_list );
 
 		// Called from the reaper to handle things for this rip
 	void	starter_exited();	
