@@ -191,21 +191,3 @@ condor_get_executable_name()
 	return executable_name;
 }
 
-sigset_t
-block_condor_signals()
-{
-	sigset_t mask, omask;
-
-	sigemptyset(&mask);
-	if( sigprocmask(SIG_BLOCK,&mask,&omask) < 0 ) {
-		EXCEPT( "sigprocmask" );
-	}
-	return omask;
-}
-
-void restore_condor_sigmask(sigset_t omask)
-{
-	if( sigprocmask(SIG_SETMASK,&omask,0) < 0 ) {
-		EXCEPT( "sigprocmask" );
-	}
-}	
