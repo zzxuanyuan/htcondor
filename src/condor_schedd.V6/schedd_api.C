@@ -128,24 +128,29 @@ int
 Job::declare_file(MyString name,
                   int size)
 {
-  JobFile jobFile;
-  jobFile.size = size;
-  jobFile.currentOffset = 0;
+	JobFile jobFile;
+	jobFile.size = size;
+	jobFile.currentOffset = 0;
 
-  FILE *file;
+	FILE *file;
 
-  jobFile.name = name;
-  file = fopen((*spoolDirectory + DIR_DELIM_STRING + jobFile.name).GetCStr(), "w");
-  if (file) {
-    jobFile.file = file;
-    if (requirements->insert(MyString(name), jobFile)) {
-      return 2;
-    }
+	jobFile.name = name;
+	file = fopen((*spoolDirectory + DIR_DELIM_STRING + jobFile.name).GetCStr(), "w");
+	if (file) {
+		jobFile.file = file;
+		if (requirements->insert(MyString(name), jobFile)) {
+			return 2;
+		}
 
-    return 0;
-  } else {
-    return 1;
-  }
+		return 0;
+	} else {
+			// XXX: Is this OK? If we cannot open the file we assume it has
+			// some sort of path separators in it and we will just leave
+			// it alone. If someone tries to do send_file they will fail
+			// though. A BETTER way would be to actually test 'name' for
+			// path separators!
+		return 0;
+	}
 }
 
 int
@@ -214,23 +219,28 @@ Job::send_file(MyString name,
                char * data,
                int data_length)
 {
-  JobFile jobFile;
-  if (-1 == requirements->lookup(MyString(name), jobFile)) {
-    return 1; // Unknown file.
-  }
+	JobFile jobFile;
+	if (-1 == requirements->lookup(MyString(name), jobFile)) {
+		return 1; // Unknown file.
+	}
 
-  // XXX: Should all data written be unwritten depending on where the failure
-  // happens?
+		// XXX: Should all data written be unwritten depending on where the
+		// failure happens?
 
-  if (fseek(jobFile.file, offset, SEEK_SET)) {
-    return 2;
-  }
-  if (data_length != fwrite(data, sizeof(unsigned char), data_length, jobFile.file)) {
-    return 3;
-  }
-  if (EOF == fflush(jobFile.file)) {
-    return 4;
-  }
+	if (jobFile.file) {
+		if (fseek(jobFile.file, offset, SEEK_SET)) {
+			return 2;
+		}
+		if (data_length != fwrite(data, sizeof(unsigned char), data_length, jobFile.file)) {
+			return 3;
+		}
+		if (EOF == fflush(jobFile.file)) {
+			return 4;
+		}
+	} else {
+			// This happens if declare_file could not open the 'name'.
+		return 5;
+	}
 
   return 0;
 }
