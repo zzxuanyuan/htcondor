@@ -651,7 +651,8 @@ JICShadow::initUserPriv( void )
 		}
 	} else {
 		dprintf( D_FULLDEBUG, "Submit host is in different UidDomain\n" ); 
-		if( ! init_user_ids("nobody") ) { 
+		// passing NULL for the domain is ok here since this is UNIX code
+		if( ! init_user_ids("nobody", NULL) ) { 
 			dprintf( D_ALWAYS, "ERROR: Could not initialize user_priv "
 					 "as \"nobody\"\n" );
 			free( owner );

@@ -197,7 +197,8 @@ JobInfoCommunicator::initUserPrivWindows( void )
 	// we only support running jobs as user nobody for the first pass
 
 	// just init a new nobody user; dynuser handles the rest.
-	if( ! init_user_ids("nobody") ) {
+	// the "." means Local Machine to LogonUser
+	if( ! init_user_ids("nobody", ".") ) {
 		dprintf( D_ALWAYS, "ERROR: Could not initialize user_priv "
 				 "as \"nobody\"\n" );
 		return false;
