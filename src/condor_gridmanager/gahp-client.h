@@ -532,6 +532,10 @@ class GahpClient : public Service {
 		condor_job_stage_out(const char *schedd_name, PROC_ID job_id);
 
 		int
+		condor_job_refresh_proxy(const char *schedd_name, PROC_ID job_id,
+								 const char *proxy_file);
+
+		int
 		blah_job_submit(ClassAd *job_ad, char **job_id);
 
 		int
