@@ -104,7 +104,7 @@ parseArgs( int argc, char *argv[] )
 				usage(argc, argv);
 			}
 		}
-		if( ! strcmp(opt, "--reconnect") ) { 
+		if( !strcmp(opt, "--reconnect") || !strcmp(opt, "-reconnect") ) {
 			is_reconnect = true;
 			args_handled++;
 			continue;
