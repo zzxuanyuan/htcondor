@@ -30,6 +30,8 @@
 
 #define _POSIX_SOURCE
 
+#include <stdio.h>	// for sprintf
+
 #include "condor_common.h"
 #include "condor_constants.h"
 #include "condor_io.h"
@@ -96,19 +98,6 @@ int SafeSock::listen()
 
 	return TRUE;
 }
-
-
-
-int SafeSock::close()
-{
-	if (_state == sock_virgin) return FALSE;
-
-	if (::close(_sock) < 0) return FALSE;
-
-	_state = sock_virgin;
-	return TRUE;
-}
-
 
 
 int SafeSock::handle_incoming_packet()
@@ -373,6 +362,7 @@ int SafeSock::get_port()
 }
 
 
+#if 0 // interface no longer supported
 int SafeSock::get_file_desc()
 {
 	return _sock;
@@ -389,6 +379,7 @@ int SafeSock::attach_to_file_desc(
 	_state = sock_connect;
 	return TRUE;
 }
+#endif
 
 struct sockaddr_in *SafeSock::endpoint()
 {

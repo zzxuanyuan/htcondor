@@ -34,13 +34,41 @@
 #include "condor_io.h"
 #include "condor_network.h"
 #include "internet.h"
-
+#include "condor_debug.h"
 
 
 /*
 **	Methods shared by all Socks
 */
 
+
+Sock::Sock() : Stream(),  _sock(INVALID_SOCKET), _state(sock_virgin), _timeout(0)
+{
+#if defined(WIN32)
+	WORD wVersionRequested = MAKEWORD( 1, 1 );
+	WSADATA wsaData;
+	int err;
+
+	err = WSAStartup( wVersionRequested, &wsaData );
+	if ( err < 0 ) {
+		dprintf( D_ALWAYS, "Can't find usable WinSock DLL!\n" );
+	}
+
+	if ( LOBYTE( wsaData.wVersion ) != 1 || HIBYTE( wsaData.wVersion ) != 1 ) {
+		dprintf( D_ALWAYS, "Warning: using WinSock version %d.%d, requested 1.1\n",
+			LOBYTE( wsaData.wVersion ), HIBYTE( wsaData.wVersion ) );
+	}
+#endif
+}
+
+Sock::~Sock()
+{
+#if defined(WIN32)
+	if (WSACleanup() < 0)
+		dprintf(D_ALWAYS, "WSACleanup() failed, errno = %d\n", 
+				WSAGetLastError());
+#endif
+}
 
 int Sock::getportbyserv(
 	char	*s
@@ -70,7 +98,7 @@ int Sock::getportbyserv(
 
 
 int Sock::assign(
-	int		fd
+	SOCKET		sockd
 	)
 {
 	int		my_type;
@@ -78,8 +106,8 @@ int Sock::assign(
 	if (!valid()) return FALSE;
 	if (_state != sock_virgin) return FALSE;
 
-	if (fd >= 0){
-		_sock = fd;		/* Could we check for correct protocol ? */
+	if (sockd != INVALID_SOCKET){
+		_sock = sockd;		/* Could we check for correct protocol ? */
 		_state = sock_assigned;
 		return TRUE;
 	}
@@ -121,15 +149,18 @@ int Sock::bind(
 	sin.sin_addr.s_addr = htonl(INADDR_ANY);
 	sin.sin_port = htons((u_short)port);
 
-	if (::bind(_sock, (sockaddr *)&sin, sizeof(sockaddr_in)) < 0)
+	if (::bind(_sock, (sockaddr *)&sin, sizeof(sockaddr_in)) < 0) {
+		int error = WSAGetLastError();
+		dprintf( D_ALWAYS, "bind failed: WSAError = %d\n", error );
 		return FALSE;
+	}
 
 	_state = sock_bound;
 	return TRUE;
 }
 
 
-int Sock::setsockopt(int level, int optname, const char* optval, int optlen)
+int Sock::setsockopt(SOCKET level, int optname, const char* optval, int optlen)
 {
 	if(::setsockopt(_sock, level, optname, optval, optlen) < 0)
 	{
@@ -177,9 +208,88 @@ int Sock::do_connect(
 		memcpy(&sin.sin_addr, hostp->h_addr, hostp->h_length);
 	}
 
-	if (::connect(_sock, (sockaddr *)&sin, sizeof(sockaddr_in)) < 0)
-		return FALSE;
+	if (::connect(_sock, (sockaddr *)&sin, sizeof(sockaddr_in)) < 0) {
+#if defined(WIN32)
+		if (WSAGetLastError() != WSAEALREADY) {
+			dprintf( D_ALWAYS, "Can't connect to %s:%d, errno = %d\n",
+				host, port, WSAGetLastError() );
+			return FALSE;
+		}
+#else
+		if (errno != EINPROGRESS) {
+			dprintf( D_ALWAYS, "Can't connect to %s:%d, errno = %d\n",
+				host, port, errno );
+		}
+#endif
+	}
+
+	if (_timeout > 0) {
+		struct timeval	timer;
+		fd_set			writefds;
+		int				nfds, nfound;
+		timer.tv_sec = _timeout;
+		timer.tv_usec = 0;
+#if !defined(WIN32) // nfds is ignored on WIN32
+		nfds = _sock + 1;
+#endif
+		FD_ZERO( &writefds );
+		FD_SET( _sock, &writefds );
+
+		nfound = select( nfds, 0, &writefds, 0, &timer );
+
+		switch(nfound) {
+		case 0:
+			return FALSE;
+			break;
+		case 1:
+			break;
+		default:
+			dprintf( D_ALWAYS, "select returns %d, connect failed\n",
+				nfound );
+			return FALSE;
+			break;
+		}
+	}
 
 	_state = sock_connect;
 	return TRUE;
+}
+
+
+#if !defined(WIN32)
+#define closesocket close
+#endif
+
+int Sock::close()
+{
+	if (_state == sock_virgin) return FALSE;
+
+	if (::closesocket(_sock) < 0) return FALSE;
+
+	_state = sock_virgin;
+	return TRUE;
+}
+
+
+#if !defined(WIN32)
+#define ioctlsocket ioctl
+#endif
+
+int Sock::timeout(int sec)
+{
+	int t = _timeout;
+
+	_timeout = sec;
+
+	if (_timeout == 0) {
+		unsigned long mode = 0;	// reset blocking mode
+		if (ioctlsocket(_sock, FIONBIO, &mode) < 0)
+			return FALSE;
+	} else {
+		unsigned long mode = 1;	// nonblocking mode
+		if (ioctlsocket(_sock, FIONBIO, &mode) < 0)
+			return FALSE;
+	}
+
+	return t;
 }
