@@ -49,7 +49,10 @@
 #include "error_utils.h"
 #include "print_wrapped_text.h"
 #include "condor_distribution.h"
+
+#ifdef WANT_ANALYSIS
 #include "../owl/analysis.h"
+#endif
 
 extern 	"C" int SetSyscalls(int val){return val;}
 extern  void short_print(int,int,const char*,int,int,int,int,int,const char *);
@@ -78,7 +81,9 @@ static	CondorQuery	scheddQuery(SCHEDD_AD);
 static	CondorQuery submittorQuery(SUBMITTOR_AD);
 static	ClassAdList	scheddList;
 
+#ifdef WANT_ANALYSIS
 static  ClassAdAnalyzer analyzer;
+#endif
 
 static char* format_owner( char*, AttrList* );
 
@@ -1837,50 +1842,49 @@ doRunAnalysisToBuffer( ClassAd *request )
 			
 
 	if( fReqConstraint == totalMachines ) {
-		cout << "fReqConstraint == totalMachines" << endl;
-//		char reqs[2048];
-//		ExprTree *reqExp;
 		strcat( return_buff, "\nWARNING:  Be advised:\n");
 		strcat( return_buff, "   No resources matched request's constraints\n");
-// 		sprintf( return_buff, "%s   Check the %s expression below:\n\n" , 
-// 			return_buff, ATTR_REQUIREMENTS );
-// 		if( !(reqExp = request->Lookup( ATTR_REQUIREMENTS) ) ) {
-// 			sprintf( return_buff, "%s   ERROR:  No %s expression found" ,
-// 				return_buff, ATTR_REQUIREMENTS );
-// 		} else {
-// 			reqs[0] = '\0';
-// 			reqExp->PrintToStr( reqs );
-// 			sprintf( return_buff, "%s%s\n\n", return_buff, reqs );
-// 		}
+#if !defined( WANT_ANALYSIS )
+		char reqs[2048];
+		ExprTree *reqExp;
+		sprintf( return_buff, "%s   Check the %s expression below:\n\n" , 
+			return_buff, ATTR_REQUIREMENTS );
+		if( !(reqExp = request->Lookup( ATTR_REQUIREMENTS) ) ) {
+			sprintf( return_buff, "%s   ERROR:  No %s expression found" ,
+				return_buff, ATTR_REQUIREMENTS );
+		} else {
+			reqs[0] = '\0';
+			reqExp->PrintToStr( reqs );
+			sprintf( return_buff, "%s%s\n\n", return_buff, reqs );
+		}
+#endif
 	}
 
+#if defined( WANT_ANALYSIS )
 	std::string buffer_string = "";
 	char ana_buffer[SHORT_BUFFER_SIZE];
 
 	if( fReqConstraint > 0 ) {
-		cout << "fReqConstraint > 0" << endl;
 		analyzer.AnalyzeJobReqToBuffer( request, startdAds, buffer_string );
-		cout << "buffer_string = " << buffer_string << endl;
 		strncpy( ana_buffer, buffer_string.c_str( ), SHORT_BUFFER_SIZE );
 		strcat( return_buff, ana_buffer );
 	}
-
+#endif
 
 	if( fOffConstraint == totalMachines ) {
-		cout << "fOffConstraint == totalMachines" << endl;
 		sprintf( return_buff, "%s\nWARNING:  Be advised:", return_buff );
 		sprintf( return_buff, "%s   Request %d.%d did not match any "
 			"resource's constraints\n\n", return_buff, cluster, proc);
 	}
 
+#if defined( WANT_ANALYSIS )
 	if( fOffConstraint > 0 ) {
-		cout << "fOffConstraint > 0" << endl;
 		buffer_string = "";
 		analyzer.AnalyzeJobAttrsToBuffer( request, startdAds, buffer_string );
-		cout << "buffer_string = " << buffer_string << endl;
 		strncpy( ana_buffer, buffer_string.c_str( ), SHORT_BUFFER_SIZE);
 		strcat( return_buff, ana_buffer );
 	}
+#endif
 
 	request->LookupInteger( ATTR_JOB_UNIVERSE, universe );
 	switch(universe) {
