@@ -785,6 +785,34 @@ Starter::killSoft( void )
 }
 
 
+bool
+Starter::suspend( void )
+{
+	if( ! active() ) {
+		return true;
+	}
+	if( kill( DC_SIGSUSPEND ) < 0 ) {
+		killpg( SIGKILL );
+		return false;
+	}
+	return true;
+}
+
+
+bool
+Starter::resume( void )
+{
+	if( ! active() ) {
+		return true;
+	}
+	if( kill( DC_SIGCONTINUE ) < 0 ) {
+		killpg( SIGKILL );
+		return false;
+	}
+	return true;
+}
+
+
 int
 Starter::startKillTimer( void )
 {

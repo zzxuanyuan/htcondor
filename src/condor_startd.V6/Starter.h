@@ -67,7 +67,9 @@ public:
 
 	bool	killHard( void );
 	bool	killSoft( void );
-
+	bool	suspend( void );
+	bool	resume( void );
+	
 		// Send SIGKILL to starter + process group (called by our kill
 		// timer if we've been hardkilling too long).
 	int		sigkillStarter( void );
