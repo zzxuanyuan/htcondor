@@ -80,6 +80,18 @@ void BaseJob::SetEvaluateState()
 	daemonCore->Reset_Timer( evaluateStateTid, 0 );
 }
 
+int BaseJob::doEvaluateState()
+{
+	JobHeld( "the gridmanager can't handle this job type" );
+	DoneWithJob();
+	return TRUE;
+}
+
+BaseResource *BaseJob::GetResource()
+{
+	return NULL;
+}
+
 void BaseJob::UpdateJobAd( const char *name, const char *value )
 {
 	char buff[1024];

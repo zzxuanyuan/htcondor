@@ -368,8 +368,9 @@ dprintf(D_ALWAYS,"***schedd failure at %d!\n",__LINE__);
 
 				} else {
 					// TODO: should put job on hold
-					EXCEPT("No handlers for job %d.%d",procID.cluster,
-						   procID.proc);
+					dprintf( D_ALWAYS, "No handlers for job %d.%d",
+							 procID.cluster, procID.proc );
+					new_job = new BaseJob( next_ad );
 				}
 
 				ASSERT(new_job);

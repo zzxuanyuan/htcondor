@@ -40,8 +40,8 @@ class BaseJob
 
 	virtual void Reconfig() {}
 	void SetEvaluateState();
-	virtual int doEvaluateState() = 0;
-	virtual BaseResource *GetResource() = 0;
+	virtual int doEvaluateState();
+	virtual BaseResource *GetResource();
 
 	void UpdateJobAd( const char *name, const char *value );
 	void UpdateJobAdInt( const char *name, int value );
