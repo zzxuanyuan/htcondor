@@ -94,7 +94,7 @@ public:
 		/** true if the starter is using a different iwd than the one
 			in the job ad, false if not.
 		*/
-	virtual bool iwdIsChanged( void ) { return changed_iwd; };
+	virtual bool iwdIsChanged( void ) { return change_iwd; };
 
 		/// Return a pointer to the original name for the job.
 	virtual const char* origJobName( void );
@@ -249,7 +249,7 @@ protected:
 		/** true if we're using a different iwd for the job than what
 			the job ad says.
 		*/
-	bool changed_iwd;
+	bool change_iwd;
 };
 
 
