@@ -60,7 +60,7 @@ enum condorCore__ClassAdAttrType
 };
 
 // n=int,f=float,s=string,x=expression,b=bool,u=undefined,e=error
-struct condorCore__ClassAdStructAttr 
+struct condorCore__ClassAdStructAttr
 {
   xsd__string name 1:1;
   //	xsd__byte type 1:1;
@@ -68,28 +68,28 @@ struct condorCore__ClassAdStructAttr
   xsd__string value 1:1;
 };
 
-struct condorCore__ClassAdStruct 
+struct ClassAdStruct
 {
 	struct condorCore__ClassAdStructAttr *__ptr;	
-	int __size;	// number of elements pointed to
+	int __size;
 };
 
-struct condorCore__ClassAdStructArray 
+struct ClassAdStructArray 
 {
-	struct condorCore__ClassAdStruct *__ptr;
+	struct ClassAdStruct *__ptr;
 	int __size;
 };
 
 struct condorCore__ClassAdStructAndStatus
 {
   struct condorCore__Status status 1:1;
-  struct condorCore__ClassAdStruct classAd 0:1;
+  struct ClassAdStruct classAd 0:1;
 };
 
 struct condorCore__ClassAdStructArrayAndStatus
 {
   struct condorCore__Status status 1:1;
-  struct condorCore__ClassAdStructArray classAdArray 0:1;
+  struct ClassAdStructArray classAdArray 0:1;
 };
 
 struct condorCore__StringAndStatus

@@ -40,7 +40,7 @@ public:
   Job(int clusterId, int jobId);
   ~Job();
 
-  int submit(struct condorCore__ClassAdStruct jobAd);
+  int submit(struct ClassAdStruct jobAd);
   int declare_file(MyString name,
                    int size);
   int send_file(MyString name,

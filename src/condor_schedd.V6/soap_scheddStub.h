@@ -57,17 +57,17 @@ struct condorCore__ClassAdStructAttr
 	char *value;
 };
 
-/* Array of condorCore:ClassAdStruct schema type: */
-struct condorCore__ClassAdStruct
+/* SOAP encoded array of condorCore:ClassAdStructAttr schema type: */
+struct ClassAdStruct
 {
 	struct condorCore__ClassAdStructAttr *__ptr;
 	int __size;
 };
 
-/* Array of condorCore:ClassAdStructArray schema type: */
-struct condorCore__ClassAdStructArray
+/* SOAP encoded array of condorCore:ClassAdStructAttr[] schema type: */
+struct ClassAdStructArray
 {
-	struct condorCore__ClassAdStruct *__ptr;
+	struct ClassAdStruct *__ptr;
 	int __size;
 };
 
@@ -75,14 +75,14 @@ struct condorCore__ClassAdStructArray
 struct condorCore__ClassAdStructAndStatus
 {
 	struct condorCore__Status status;
-	struct condorCore__ClassAdStruct classAd;
+	struct ClassAdStruct classAd;
 };
 
 /* condorCore:ClassAdStructArrayAndStatus: */
 struct condorCore__ClassAdStructArrayAndStatus
 {
 	struct condorCore__Status status;
-	struct condorCore__ClassAdStructArray classAdArray;
+	struct ClassAdStructArray classAdArray;
 };
 
 /* condorCore:StringAndStatus: */
@@ -288,7 +288,7 @@ struct condorSchedd__submit
 	struct condorSchedd__Transaction transaction;
 	int clusterId;
 	int jobId;
-	struct condorCore__ClassAdStruct *jobAd;
+	struct ClassAdStruct *jobAd;
 };
 
 /* condorSchedd:getJobAds: */
@@ -359,7 +359,7 @@ struct condorSchedd__listSpool
 /* condorSchedd:discoverJobRequirements: */
 struct condorSchedd__discoverJobRequirements
 {
-	struct condorCore__ClassAdStruct *jobAd;
+	struct ClassAdStruct *jobAd;
 };
 
 /* condorSchedd:createJobTemplate: */
@@ -446,7 +446,7 @@ SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__holdJob(struct soap*, struct condorSched
 
 SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__releaseJob(struct soap*, struct condorSchedd__Transaction, int, int, char *, bool, bool, struct condorSchedd__StatusResponse &);
 
-SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__submit(struct soap*, struct condorSchedd__Transaction, int, int, struct condorCore__ClassAdStruct *, struct condorSchedd__RequirementsAndStatusResponse &);
+SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__submit(struct soap*, struct condorSchedd__Transaction, int, int, struct ClassAdStruct *, struct condorSchedd__RequirementsAndStatusResponse &);
 
 SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__getJobAds(struct soap*, struct condorSchedd__Transaction, char *, struct condorSchedd__ClassAdStructArrayAndStatusResponse &);
 
@@ -462,7 +462,7 @@ SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__closeSpool(struct soap*, struct condorSc
 
 SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__listSpool(struct soap*, struct condorSchedd__Transaction, int, int, struct condorSchedd__FileInfoArrayAndStatusResponse &);
 
-SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__discoverJobRequirements(struct soap*, struct condorCore__ClassAdStruct *, struct condorSchedd__RequirementsAndStatusResponse &);
+SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__discoverJobRequirements(struct soap*, struct ClassAdStruct *, struct condorSchedd__RequirementsAndStatusResponse &);
 
 SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__createJobTemplate(struct soap*, int, int, char *, enum condorSchedd__UniverseType, char *, char *, char *, struct condorSchedd__ClassAdStructAndStatusResponse &);
 
@@ -488,7 +488,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__holdJob(struct soap*, const ch
 
 SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__releaseJob(struct soap*, const char*, const char*, struct condorSchedd__Transaction, int, int, char *, bool, bool, struct condorSchedd__StatusResponse &);
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__submit(struct soap*, const char*, const char*, struct condorSchedd__Transaction, int, int, struct condorCore__ClassAdStruct *, struct condorSchedd__RequirementsAndStatusResponse &);
+SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__submit(struct soap*, const char*, const char*, struct condorSchedd__Transaction, int, int, struct ClassAdStruct *, struct condorSchedd__RequirementsAndStatusResponse &);
 
 SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__getJobAds(struct soap*, const char*, const char*, struct condorSchedd__Transaction, char *, struct condorSchedd__ClassAdStructArrayAndStatusResponse &);
 
@@ -504,7 +504,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__closeSpool(struct soap*, const
 
 SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__listSpool(struct soap*, const char*, const char*, struct condorSchedd__Transaction, int, int, struct condorSchedd__FileInfoArrayAndStatusResponse &);
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__discoverJobRequirements(struct soap*, const char*, const char*, struct condorCore__ClassAdStruct *, struct condorSchedd__RequirementsAndStatusResponse &);
+SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__discoverJobRequirements(struct soap*, const char*, const char*, struct ClassAdStruct *, struct condorSchedd__RequirementsAndStatusResponse &);
 
 SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__createJobTemplate(struct soap*, const char*, const char*, int, int, char *, enum condorSchedd__UniverseType, char *, char *, char *, struct condorSchedd__ClassAdStructAndStatusResponse &);
 

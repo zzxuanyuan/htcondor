@@ -27,7 +27,7 @@ Job::Job(int clusterId, int jobId)
   if (Spool) {
     spoolDirectory = new MyString(strdup(gen_ckpt_name(Spool, clusterId, jobId, 0)));
 
-	free(Spool);
+		//free(Spool);
 
     struct stat stats;
     if (stat(spoolDirectory->GetCStr(), &stats)) {
@@ -156,7 +156,7 @@ Job::declare_file(MyString name,
 }
 
 int
-Job::submit(struct condorCore__ClassAdStruct jobAd)
+Job::submit(struct ClassAdStruct jobAd)
 {
   int i, rval;
 

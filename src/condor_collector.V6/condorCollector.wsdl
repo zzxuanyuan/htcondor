@@ -63,26 +63,16 @@
     <element name="value" type="xsd:string" minOccurs="1" maxOccurs="1" nillable="true"/>
    </sequence>
   </complexType>
-  <complexType name="ClassAdStruct">
-   <sequence>
-    <element name="item" type="condorCore:ClassAdStructAttr" minOccurs="0" maxOccurs="unbounded" nillable="true"/>
-   </sequence>
-  </complexType>
-  <complexType name="ClassAdStructArray">
-   <sequence>
-    <element name="item" type="condorCore:ClassAdStruct" minOccurs="0" maxOccurs="unbounded" nillable="true"/>
-   </sequence>
-  </complexType>
   <complexType name="ClassAdStructAndStatus">
    <sequence>
     <element name="status" type="condorCore:Status" minOccurs="1" maxOccurs="1"/>
-    <element name="classAd" type="condorCore:ClassAdStruct" minOccurs="0" maxOccurs="1" nillable="true"/>
+    <element name="classAd" type="condorCollector:ArrayOfClassAdStructAttr" minOccurs="0" maxOccurs="1" nillable="true"/>
    </sequence>
   </complexType>
   <complexType name="ClassAdStructArrayAndStatus">
    <sequence>
     <element name="status" type="condorCore:Status" minOccurs="1" maxOccurs="1"/>
-    <element name="classAdArray" type="condorCore:ClassAdStructArray" minOccurs="0" maxOccurs="1" nillable="true"/>
+    <element name="classAdArray" type="condorCollector:ArrayOfArrayOfClassAdStructAttr" minOccurs="0" maxOccurs="1" nillable="true"/>
    </sequence>
   </complexType>
   <complexType name="StringAndStatus">
@@ -104,15 +94,25 @@
   elementFormDefault="unqualified"
   attributeFormDefault="unqualified">
   <import namespace="http://schemas.xmlsoap.org/soap/encoding/"/>
-  <complexType name="ClassAdStruct">
-   <sequence>
-    <element name="item" type="condorCore:ClassAdStructAttr" minOccurs="0" maxOccurs="unbounded" nillable="true"/>
-   </sequence>
+  <complexType name="ArrayOfClassAdStructAttr">
+   <complexContent>
+    <restriction base="SOAP-ENC:Array">
+     <sequence>
+      <element name="item" type="condorCore:ClassAdStructAttr" minOccurs="0" maxOccurs="unbounded"/>
+     </sequence>
+     <attribute ref="SOAP-ENC:arrayType" WSDL:arrayType="condorCore:ClassAdStructAttr[]"/>
+    </restriction>
+   </complexContent>
   </complexType>
-  <complexType name="ClassAdStructArray">
-   <sequence>
-    <element name="item" type="condorCore:ClassAdStruct" minOccurs="0" maxOccurs="unbounded" nillable="true"/>
-   </sequence>
+  <complexType name="ArrayOfArrayOfClassAdStructAttr">
+   <complexContent>
+    <restriction base="SOAP-ENC:Array">
+     <sequence>
+      <element name="item" type="condorCollector:ArrayOfClassAdStructAttr" minOccurs="0" maxOccurs="unbounded"/>
+     </sequence>
+     <attribute ref="SOAP-ENC:arrayType" WSDL:arrayType="condorCollector:ArrayOfClassAdStructAttr[]"/>
+    </restriction>
+   </complexContent>
   </complexType>
  </schema>
 
@@ -123,7 +123,7 @@
 </message>
 
 <message name="queryStartdAdsResponse">
- <part name="result" type="condorCore:ClassAdStructArray"/>
+ <part name="result" type="condorCollector:ArrayOfArrayOfClassAdStructAttr"/>
 </message>
 
 <message name="queryScheddAdsRequest">
@@ -131,7 +131,7 @@
 </message>
 
 <message name="queryScheddAdsResponse">
- <part name="result" type="condorCore:ClassAdStructArray"/>
+ <part name="result" type="condorCollector:ArrayOfArrayOfClassAdStructAttr"/>
 </message>
 
 <message name="queryMasterAdsRequest">
@@ -139,7 +139,7 @@
 </message>
 
 <message name="queryMasterAdsResponse">
- <part name="result" type="condorCore:ClassAdStructArray"/>
+ <part name="result" type="condorCollector:ArrayOfArrayOfClassAdStructAttr"/>
 </message>
 
 <message name="querySubmittorAdsRequest">
@@ -147,7 +147,7 @@
 </message>
 
 <message name="querySubmittorAdsResponse">
- <part name="result" type="condorCore:ClassAdStructArray"/>
+ <part name="result" type="condorCollector:ArrayOfArrayOfClassAdStructAttr"/>
 </message>
 
 <message name="queryLicenseAdsRequest">
@@ -155,7 +155,7 @@
 </message>
 
 <message name="queryLicenseAdsResponse">
- <part name="result" type="condorCore:ClassAdStructArray"/>
+ <part name="result" type="condorCollector:ArrayOfArrayOfClassAdStructAttr"/>
 </message>
 
 <message name="queryStorageAdsRequest">
@@ -163,7 +163,7 @@
 </message>
 
 <message name="queryStorageAdsResponse">
- <part name="result" type="condorCore:ClassAdStructArray"/>
+ <part name="result" type="condorCollector:ArrayOfArrayOfClassAdStructAttr"/>
 </message>
 
 <message name="queryAnyAdsRequest">
@@ -171,7 +171,7 @@
 </message>
 
 <message name="queryAnyAdsResponse">
- <part name="result" type="condorCore:ClassAdStructArray"/>
+ <part name="result" type="condorCollector:ArrayOfArrayOfClassAdStructAttr"/>
 </message>
 
 <portType name="condorCollectorPortType">

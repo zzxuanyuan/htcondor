@@ -3,27 +3,28 @@
 
 //gsoap condorCollector service namespace: urn:condor-collector
 //gsoap condorCollector service name: condorCollector
+//gsoap condorCollector service style: rpc
 //gsoap condorCollector service encoding: encoded
 
 int condorCollector__queryStartdAds(char *constraint,
-	struct condorCore__ClassAdStructArray & result);
+	struct ClassAdStructArray & result);
 
 int condorCollector__queryScheddAds(char *constraint,
-	struct condorCore__ClassAdStructArray & result);
+	struct ClassAdStructArray & result);
 
 int condorCollector__queryMasterAds(char *constraint,
-	struct condorCore__ClassAdStructArray & result);
+	struct ClassAdStructArray & result);
 
 int condorCollector__querySubmittorAds(char *constraint,
-	struct condorCore__ClassAdStructArray & result);
+	struct ClassAdStructArray & result);
 
 int condorCollector__queryLicenseAds(char *constraint,
-	struct condorCore__ClassAdStructArray & result);
+	struct ClassAdStructArray & result);
 
 int condorCollector__queryStorageAds(char *constraint,
-	struct condorCore__ClassAdStructArray & result);
+	struct ClassAdStructArray & result);
 
 int condorCollector__queryAnyAds(char *constraint,
-	struct condorCore__ClassAdStructArray & result);
+	struct ClassAdStructArray & result);
 
 

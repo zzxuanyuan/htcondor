@@ -231,7 +231,7 @@ condorSchedd__commitTransaction(struct soap *s,
     result.response.code = SUCCESS;
   }
 
-  jobs.clear(); // XXX: Do the destructors get called?
+	  //jobs.clear(); // XXX: Do the destructors get called?
 
   dprintf(D_ALWAYS,"SOAP leaving condorSchedd__commitTransaction() res=%d\n",result.response.code);
   return SOAP_OK;
@@ -493,7 +493,7 @@ condorSchedd__submit(struct soap *s,
                      struct condorSchedd__Transaction transaction,
                      int clusterId,
                      int jobId,
-                     struct condorCore__ClassAdStruct * jobAd,
+                     struct ClassAdStruct * jobAd,
                      struct condorSchedd__RequirementsAndStatusResponse & result)
 {
   if (!valid_transaction(transaction) ||
@@ -774,7 +774,7 @@ condorSchedd__listSpool(struct soap * soap,
 
 int
 condorSchedd__discoverJobRequirements(struct soap *soap,
-                                      struct condorCore__ClassAdStruct * jobAd,
+                                      struct ClassAdStruct * jobAd,
                                       struct condorSchedd__RequirementsAndStatusResponse & result)
 {
   LooseFileTransfer fileTransfer;
@@ -992,7 +992,7 @@ condorSchedd__createJobTemplate(struct soap *soap,
   if (soapLeaveInQueue) {
     attribute = attribute + " && (" + soapLeaveInQueue + ")";
 
-	free(soapLeaveInQueue);
+		//free(soapLeaveInQueue);
   }
   // XXX: This is recoverable!
   assert(job->Insert(attribute.GetCStr()));
@@ -1005,7 +1005,7 @@ condorSchedd__createJobTemplate(struct soap *soap,
   result.response.status.code = SUCCESS;
   convert_ad_to_adStruct(soap, job, &result.response.classAd);
 
-  delete job;
+	  //delete job;
 
   return SOAP_OK;
 }

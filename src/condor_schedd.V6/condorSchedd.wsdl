@@ -63,26 +63,16 @@
     <element name="value" type="xsd:string" minOccurs="1" maxOccurs="1" nillable="true"/>
    </sequence>
   </complexType>
-  <complexType name="ClassAdStruct">
-   <sequence>
-    <element name="item" type="condorCore:ClassAdStructAttr" minOccurs="0" maxOccurs="unbounded" nillable="true"/>
-   </sequence>
-  </complexType>
-  <complexType name="ClassAdStructArray">
-   <sequence>
-    <element name="item" type="condorCore:ClassAdStruct" minOccurs="0" maxOccurs="unbounded" nillable="true"/>
-   </sequence>
-  </complexType>
   <complexType name="ClassAdStructAndStatus">
    <sequence>
     <element name="status" type="condorCore:Status" minOccurs="1" maxOccurs="1"/>
-    <element name="classAd" type="condorCore:ClassAdStruct" minOccurs="0" maxOccurs="1" nillable="true"/>
+    <element name="classAd" type="condorSchedd:ArrayOfClassAdStructAttr" minOccurs="0" maxOccurs="1" nillable="true"/>
    </sequence>
   </complexType>
   <complexType name="ClassAdStructArrayAndStatus">
    <sequence>
     <element name="status" type="condorCore:Status" minOccurs="1" maxOccurs="1"/>
-    <element name="classAdArray" type="condorCore:ClassAdStructArray" minOccurs="0" maxOccurs="1" nillable="true"/>
+    <element name="classAdArray" type="condorSchedd:ArrayOfArrayOfClassAdStructAttr" minOccurs="0" maxOccurs="1" nillable="true"/>
    </sequence>
   </complexType>
   <complexType name="StringAndStatus">
@@ -135,15 +125,25 @@
     <enumeration value="JAVA"/>
    </restriction>
   </simpleType>
-  <complexType name="ClassAdStruct">
-   <sequence>
-    <element name="item" type="condorCore:ClassAdStructAttr" minOccurs="0" maxOccurs="unbounded" nillable="true"/>
-   </sequence>
+  <complexType name="ArrayOfClassAdStructAttr">
+   <complexContent>
+    <restriction base="SOAP-ENC:Array">
+     <sequence>
+      <element name="item" type="condorCore:ClassAdStructAttr" minOccurs="0" maxOccurs="unbounded"/>
+     </sequence>
+     <attribute ref="SOAP-ENC:arrayType" WSDL:arrayType="condorCore:ClassAdStructAttr[]"/>
+    </restriction>
+   </complexContent>
   </complexType>
-  <complexType name="ClassAdStructArray">
-   <sequence>
-    <element name="item" type="condorCore:ClassAdStruct" minOccurs="0" maxOccurs="unbounded" nillable="true"/>
-   </sequence>
+  <complexType name="ArrayOfArrayOfClassAdStructAttr">
+   <complexContent>
+    <restriction base="SOAP-ENC:Array">
+     <sequence>
+      <element name="item" type="condorSchedd:ArrayOfClassAdStructAttr" minOccurs="0" maxOccurs="unbounded"/>
+     </sequence>
+     <attribute ref="SOAP-ENC:arrayType" WSDL:arrayType="condorSchedd:ArrayOfClassAdStructAttr[]"/>
+    </restriction>
+   </complexContent>
   </complexType>
   <complexType name="Transaction">
    <sequence>
@@ -316,7 +316,7 @@
  <part name="transaction" type="condorSchedd:Transaction"/>
  <part name="clusterId" type="xsd:int"/>
  <part name="jobId" type="xsd:int"/>
- <part name="jobAd" type="condorCore:ClassAdStruct"/>
+ <part name="jobAd" type="condorSchedd:ArrayOfClassAdStructAttr"/>
 </message>
 
 <message name="RequirementsAndStatusResponse">
@@ -391,7 +391,7 @@
 </message>
 
 <message name="discoverJobRequirementsRequest">
- <part name="jobAd" type="condorCore:ClassAdStruct"/>
+ <part name="jobAd" type="condorSchedd:ArrayOfClassAdStructAttr"/>
 </message>
 
 <message name="createJobTemplateRequest">

@@ -1,6 +1,7 @@
 #import "gsoap_schedd_types.h"
 
 //gsoap condorSchedd service name: condorSchedd
+//gsoap condorSchedd service style: rpc
 //gsoap condorSchedd service encoding: encoded
 
 struct condorSchedd__StatusResponse {
@@ -87,7 +88,7 @@ int condorSchedd__releaseJob(struct condorSchedd__Transaction transaction,
 int condorSchedd__submit(struct condorSchedd__Transaction transaction,
                          xsd__int clusterId,
                          xsd__int jobId,
-                         struct condorCore__ClassAdStruct * jobAd,
+                         struct ClassAdStruct * jobAd,
                          struct condorSchedd__RequirementsAndStatusResponse & result);
 
 int condorSchedd__getJobAds(struct condorSchedd__Transaction transaction,
@@ -134,7 +135,7 @@ int condorSchedd__listSpool(struct condorSchedd__Transaction transaction,
                             xsd__int jobId,
                             struct condorSchedd__FileInfoArrayAndStatusResponse & result);
 
-int condorSchedd__discoverJobRequirements(struct condorCore__ClassAdStruct * jobAd,
+int condorSchedd__discoverJobRequirements(struct ClassAdStruct * jobAd,
                                           struct condorSchedd__RequirementsAndStatusResponse & result);
 
 //int condorSchedd__discoverDagRequirements(xsd__string dag,

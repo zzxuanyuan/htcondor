@@ -30,7 +30,7 @@
 static bool
 convert_ad_to_adStruct(struct soap *s,
                        ClassAd *curr_ad,
-                       struct condorCore__ClassAdStruct *ad_struct)
+                       struct ClassAdStruct *ad_struct)
 {
   int attr_index = 0;
   int num_attrs = 0;
@@ -177,7 +177,7 @@ convert_ad_to_adStruct(struct soap *s,
 
 static bool
 convert_adlist_to_adStructArray(struct soap *s, List<ClassAd> *adList,
-                                struct condorCore__ClassAdStructArray *ads)
+                                struct ClassAdStructArray *ads)
 {
 
   if ( !adList || !ads ) {
@@ -186,8 +186,8 @@ convert_adlist_to_adStructArray(struct soap *s, List<ClassAd> *adList,
 
   ClassAd *curr_ad = NULL;
   ads->__size = adList->Number();
-  ads->__ptr = (struct condorCore__ClassAdStruct *) soap_malloc(s,
-                                                                ads->__size * sizeof(struct condorCore__ClassAdStruct));
+  ads->__ptr = (struct ClassAdStruct *) soap_malloc(s,
+                                                                ads->__size * sizeof(struct ClassAdStruct));
   adList->Rewind();
   int ad_index = 0;
 
@@ -205,7 +205,7 @@ convert_adlist_to_adStructArray(struct soap *s, List<ClassAd> *adList,
 static bool
 convert_adStruct_to_ad(struct soap *s,
                        ClassAd *curr_ad,
-                       struct condorCore__ClassAdStruct *ad_struct)
+                       struct ClassAdStruct *ad_struct)
 {
   MyString attribute;
   MyString name;
