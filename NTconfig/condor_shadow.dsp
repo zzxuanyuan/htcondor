@@ -180,15 +180,7 @@ SOURCE=..\src\condor_shadow.V6.1\shadow_v61_main.C
 # Begin Source File
 
 SOURCE=..\src\condor_shadow.V6.1\soap_shadowC.C
-
-!IF  "$(CFG)" == "condor_shadow - Win32 Debug"
-
-!ELSEIF  "$(CFG)" == "condor_shadow - Win32 Release"
-
 # SUBTRACT CPP /YX /Yc /Yu
-
-!ENDIF 
-
 # End Source File
 # Begin Source File
 
@@ -197,28 +189,12 @@ SOURCE=..\src\condor_shadow.V6.1\soap_shadowH.h
 # Begin Source File
 
 SOURCE=..\src\condor_shadow.V6.1\soap_shadowServer.C
-
-!IF  "$(CFG)" == "condor_shadow - Win32 Debug"
-
-!ELSEIF  "$(CFG)" == "condor_shadow - Win32 Release"
-
 # SUBTRACT CPP /YX /Yc /Yu
-
-!ENDIF 
-
 # End Source File
 # Begin Source File
 
 SOURCE=..\src\condor_shadow.V6.1\soap_shadowStub.C
-
-!IF  "$(CFG)" == "condor_shadow - Win32 Debug"
-
-!ELSEIF  "$(CFG)" == "condor_shadow - Win32 Release"
-
 # SUBTRACT CPP /YX /Yc /Yu
-
-!ENDIF 
-
 # End Source File
 # Begin Source File
 

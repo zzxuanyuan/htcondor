@@ -19,6 +19,10 @@ if exist condor_util_lib.mak.tmp (
 		   	exit /b 1
 		)
 
+REM Build the externals
+call make_win32_externals.bat
+if not errorlevel 0 goto failure
+
 if defined INCLUDE goto :check_sdk
 call VCVARS32.BAT
 if defined INCLUDE goto :check_sdk

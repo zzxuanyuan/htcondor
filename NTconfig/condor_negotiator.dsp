@@ -128,15 +128,7 @@ InputPath=..\src\condor_negotiator.V6\matchmaker.h
 # Begin Source File
 
 SOURCE=..\src\condor_negotiator.V6\soap_negotiatorC.C
-
-!IF  "$(CFG)" == "condor_negotiator - Win32 Debug"
-
-!ELSEIF  "$(CFG)" == "condor_negotiator - Win32 Release"
-
 # SUBTRACT CPP /YX /Yc /Yu
-
-!ENDIF 
-
 # End Source File
 # Begin Source File
 
@@ -145,28 +137,12 @@ SOURCE=..\src\condor_negotiator.V6\soap_negotiatorH.h
 # Begin Source File
 
 SOURCE=..\src\condor_negotiator.V6\soap_negotiatorServer.C
-
-!IF  "$(CFG)" == "condor_negotiator - Win32 Debug"
-
-!ELSEIF  "$(CFG)" == "condor_negotiator - Win32 Release"
-
 # SUBTRACT CPP /YX /Yc /Yu
-
-!ENDIF 
-
 # End Source File
 # Begin Source File
 
 SOURCE=..\src\condor_negotiator.V6\soap_negotiatorStub.C
-
-!IF  "$(CFG)" == "condor_negotiator - Win32 Debug"
-
-!ELSEIF  "$(CFG)" == "condor_negotiator - Win32 Release"
-
 # SUBTRACT CPP /YX /Yc /Yu
-
-!ENDIF 
-
 # End Source File
 # Begin Source File
 

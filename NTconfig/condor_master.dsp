@@ -145,15 +145,7 @@ SOURCE=..\src\condor_master.V6\soap_masterServer.C
 # Begin Source File
 
 SOURCE=..\src\condor_master.V6\soap_masterStub.C
-
-!IF  "$(CFG)" == "condor_master - Win32 Debug"
-
-!ELSEIF  "$(CFG)" == "condor_master - Win32 Release"
-
 # SUBTRACT CPP /YX /Yc /Yu
-
-!ENDIF 
-
 # End Source File
 # Begin Source File
 
