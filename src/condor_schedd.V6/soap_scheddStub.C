@@ -53,7 +53,7 @@ static int current_trans_id = 0;
 static int trans_timer_id = -1;
 
 template class HashTable<MyString, Job *>;
-HashTable<MyString, Job *> jobs = HashTable<MyString, Job *>(64, MyStringHash, rejectDuplicateKeys);
+HashTable<MyString, Job *> jobs = HashTable<MyString, Job *>(1024, MyStringHash, rejectDuplicateKeys);
 
 static bool valid_transaction_id(int id)
 {
