@@ -159,7 +159,6 @@ reinitialize ()
 {
 	char *tmp;
 	/* Temporary ODBC variables */
-	char *odbc_dsn, *odbc_user, *odbc_auth;
 
     // Initialize accountant params
     accountant.Initialize();
@@ -249,35 +248,6 @@ reinitialize ()
 
 	dprintf (D_ALWAYS,"NEGOTIATOR_POST_JOB_RANK = %s\n", (tmp?tmp:"None"));
 	
-	/* Parse ODBC Connection Params */
-	tmp = param("NEGOTIATOR_ODBC_DSN");
-	if( tmp ) {
-		odbc_dsn = strdup(tmp);
-		free(tmp);
-	}
-	else {
-
-		odbc_dsn = strdup("condor");
-	}
-
-	tmp = param("NEGOTIATOR_ODBC_USER");
-	if( tmp ) {
-		odbc_user = strdup(tmp);
-		free(tmp);
-	}
-	else {
-		odbc_user = strdup("scidb");
-	}
-
-	tmp = param("NEGOTIATOR_ODBC_AUTH");
-	if( tmp ) {
-		odbc_auth = strdup(tmp);
-		free(tmp);
-	}
-	else {
-		odbc_auth = strdup("");
-	}
-
 	if( tmp ) free( tmp );
 
 #ifdef WANT_NETMAN
@@ -291,7 +261,6 @@ reinitialize ()
 
 	/* Connect to ODBC here */
 	/*db_handle->odbc_connect(odbc_dsn,odbc_user,odbc_auth);*/
-	DBObj->odbc_connect(odbc_dsn,odbc_user,odbc_auth);
 
 	// done
 	return TRUE;
@@ -1811,6 +1780,7 @@ void Matchmaker::insert_into_rejects(char *scheddName, ClassAd& job, ClassAd& ma
 	job.LookupInteger (ATTR_CLUSTER_ID, cluster);
 	job.LookupInteger (ATTR_PROC_ID, proc);
 	machine.LookupString(ATTR_NAME, startdname);
+
 	sprintf((char*) insert_stmt,"insert into %s values (\'%d/%d/%d %02d:%02d:%02d\',\'%s\', %d, %d, \'%s\', \'%s\')",RejectsTable,tm->tm_mon + 1, tm->tm_mday,tm->tm_year+1900, tm->tm_hour,tm->tm_min, tm->tm_sec,scheddName,cluster,proc,startdname,diagnosis);	
 	DBObj->odbc_sqlstmt(insert_stmt);	
 }
