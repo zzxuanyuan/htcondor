@@ -1,5 +1,0 @@
-/* Things that are specific to Solaris 2.9 */
-
-#define WANT_PVM	NO
-
-#define PlatformFlags	-DSolaris29=Solaris29
