@@ -60,6 +60,9 @@
 #define GM_MIRROR_ACTIVE_SAVE	18
 #define GM_VACATE_SCHEDD		19
 #define GM_SUBMITTED_MIRROR_ACTIVE	20
+#define GM_HOLD_MIRROR_ACTIVE	21
+#define GM_HOLD_REMOTE_JOB		22
+#define GM_RELEASE_REMOTE_JOB	23
 
 static char *GMStateNames[] = {
 	"GM_INIT",
@@ -82,7 +85,10 @@ static char *GMStateNames[] = {
 	"GM_START",
 	"GM_ENABLE_LOCAL_SCHEDULING",
 	"GM_DISABLE_LOCAL_SCHEDULING",
-	"GM_SUBMITTED_MIRROR_ACTIVE"
+	"GM_SUBMITTED_MIRROR_ACTIVE",
+	"GM_HOLD_MIRROR_ACTIVE",
+	"GM_HOLD_REMOTE_JOB",
+	"GM_RELEASE_REMOTE_JOB"
 };
 
 #define JOB_STATE_UNKNOWN				-1
@@ -546,14 +552,61 @@ int MirrorJob::doEvaluateState()
 			// we're still alive.
 			if ( remoteState == COMPLETED ) {
 				gmState = GM_DONE_SAVE;
-			} else if ( condorState == REMOVED || condorState == HELD ) {
+			} else if ( condorState == REMOVED ) {
 				gmState = GM_CANCEL;
+			} else if ( condorState == HELD ) {
+				gmState = GM_HOLD_REMOTE_JOB;
 			} else if ( remoteStatusUpdateAd != NULL ) {
 				ProcessRemoteAdActive( remoteStatusUpdateAd );
 				delete remoteStatusUpdateAd;
 				remoteStatusUpdateAd = NULL;
 				reevaluate_state = true;
 			}
+			} break;
+		case GM_HOLD_REMOTE_JOB: {
+			rc = gahp->condor_job_hold( mirrorScheddName, mirrorJobId );
+			if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
+				 rc == GAHPCLIENT_COMMAND_PENDING ) {
+				break;
+			}
+			if ( rc != GLOBUS_SUCCESS ) {
+				// unhandled error
+				dprintf( D_ALWAYS,
+						 "(%d.%d) condor_job_hold() failed\n",
+						 procID.cluster, procID.proc );
+				gmState = GM_CANCEL;
+				break;
+			}
+			gmState = GM_HOLD_MIRROR_ACTIVE;
+			} break;
+		case GM_HOLD_MIRROR_ACTIVE: {
+			if ( condorState == REMOVED ) {
+				gmState = GM_CANCEL;
+			} else if ( condorState != HELD ) {
+				gmState = GM_RELEASE_REMOTE_JOB;
+			} else if ( remoteStatusUpdateAd != NULL ) {
+				ProcessRemoteAdActive( remoteStatusUpdateAd );
+				delete remoteStatusUpdateAd;
+				remoteStatusUpdateAd = NULL;
+				reevaluate_state = true;
+
+			} break;
+		case GM_RELEASE_REMOTE_JOB: {
+			rc = gahp->condor_job_release( mirrorScheddName, mirrorJobId );
+			if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
+				 rc == GAHPCLIENT_COMMAND_PENDING ) {
+				break;
+			}
+			if ( rc != GLOBUS_SUCCESS ) {
+				// unhandled error
+				dprintf( D_ALWAYS,
+						 "(%d.%d) condor_job_release() failed\n",
+						 procID.cluster, procID.proc );
+				gmState = GM_CANCEL;
+				break;
+			}
+			gmState = GM_HOLD_MIRROR_ACTIVE;
+			} break;
 			} break;
 		case GM_DONE_SAVE: {
 			// Report job completion to the schedd.
