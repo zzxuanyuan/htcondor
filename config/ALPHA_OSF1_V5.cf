@@ -1,6 +1,4 @@
 #define Platform	ALPHA-DUX5
-#define GccArch		alpha-dec-osf5.0
-
 #define PlatformFlags	-DDUX=DUX -DDUX5=DUX5 -Wno-deprecated
 
 #define IS_ALPHA_OSF1	YES

@@ -3,7 +3,6 @@
 #ifdef IS_DARWIN
 /* DARWIN Specific stuff */
 #define Platform			PPC-DARWIN
-#define GccArch				ppc-apple-darwin1.2
 #define ImakeOpsysFlag			-DIS_BSD -DIS_DARWIN
 #define PlatformFlags			-DCONDOR_DARWIN=CONDOR_DARWIN 
 #define Architecture			PPC

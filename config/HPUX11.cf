@@ -3,7 +3,6 @@
 #define IS_HPUX11			YES
 #define IS_HPPAR_HPUX11			YES
 #define Platform			HPPA-HPUX11
-#define GccArch				hppa64-hp-hpux11.00
 #define PlatformFlags		-DHPUX11=HPUX11 -Wno-deprecated -L/usr/lib/pa20_64
 /* -lxnet is to allow use of the XOpen/Unix98 functions with a 64bit compiler */
 #define PlatformLdFlags		-lxnet

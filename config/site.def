@@ -5,9 +5,6 @@ GCC_LIBC = LIB_GCC
 #define Crt0 CRT_BEGIN
 /* END Things passed in from condor_imake */
 
-#define HasGcc		YES
-#define HasGPlusPlus	YES
-
 #define CCompiler	gcc
 #define CPlusCompiler	g++
 #define PreProcessCmd	CCompiler -E -x c-header
@@ -55,21 +52,6 @@ the soft links.  The links will point back to Top/src/... */
 #define Top /full/path/to/your/source/workspace
 
 #define TmpDir		/tmp
-
-/*
- * GccVersion should be the only one that needs to be changed from time to time
- */
-#define GccVersion 2.7.2.3
-
-#if defined( GccPath )
-#undef GccPath
-#endif
-#define GccPath concat(/s/gcc-,GccVersion)
-
-#if defined( CrtLibPath )
-#undef CrtLibPath
-#endif
-#define CrtLibPath concat5(GccPath,/lib/gcc-lib/,GccArch,/,GccVersion)
 
 #if MALLOC_DEBUG
 #define CFlags -DMALLOC_DEBUG
