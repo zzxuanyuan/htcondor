@@ -123,7 +123,6 @@ public:
 		// Load average methods
 	float condor_load() { return c_condor_load; };
 	float owner_load() { return c_owner_load; };
-	float compute_condor_load();
 	void set_owner_load( float v ) { c_owner_load = v; };
 
 		// Keyboad activity methods
