@@ -28,6 +28,7 @@
 void sanity_check();
 
 #if !defined(WIN32)
+#undef SOCKET // Ugly, but we can't find the #define SOCKET  - Colby
 typedef int SOCKET;
 #endif
 
