@@ -40,7 +40,7 @@ installed!
 #include <assert.h>
 #else
 #include "condor_debug.h"
-#endif	// of else ifndef WIN32
+#endif	/* of else ifndef WIN32 */
 
 #if defined(CONDOR_HAD_GNUC)
 #	define __GNUC__ CONDOR_HAD_GNUC
