@@ -57,7 +57,7 @@ UtcTime::difference( UtcTime* other_time )
 	double other = other_time->seconds() + 
 		((double)other_time->microseconds() / 1000000);
 
-	double me = sec + (double)(usec/1000000);
+	double me = sec + ((double)usec/1000000);
 
 	return me - other;
 }
