@@ -26,20 +26,29 @@ static char *_FileName_ = __FILE__;
 
 ResMgr::ResMgr()
 {
-	int i;
 	coll_sock = NULL;
 	view_sock = NULL;
-
-	m_attr = new MachAttributes;
-
 	this->init_socks();
 
-		// This should really handle multiple resources here.
-	nresources = 1;
+	m_attr = new MachAttributes;
+}
+
+
+void
+ResMgr::init_resources()
+{
+	int i;
+	CpuAttributes* cap;
+	float share;
+
+	nresources = m_attr->num_cpus();
+	share = (float)1 / nresources;
+
 	resources = new Resource*[nresources];
 
 	for( i = 0; i < nresources; i++ ) {
-		resources[i] = new Resource();
+		cap = new CpuAttributes( m_attr, share, share, share );
+		resources[i] = new Resource( cap, i );
 	}
 }
 
@@ -47,9 +56,6 @@ ResMgr::ResMgr()
 void
 ResMgr::init_socks()
 {
-
-	delete m_attr;
-
 	if( coll_sock ) {
 		delete coll_sock;
 	}
@@ -68,6 +74,8 @@ ResMgr::init_socks()
 
 ResMgr::~ResMgr()
 {
+	delete m_attr;
+
 	delete coll_sock;
 	if( view_sock ) {
 		delete view_sock;
@@ -236,4 +244,12 @@ ResMgr::send_update( ClassAd* public_ad, ClassAd* private_ad )
 				 "Sent update to the condor_view host (%s)\n",
 				 condor_view_host );
 	}
+}
+
+
+void
+ResMgr::eval_and_update_all()
+{
+	m_attr->compute( TIMEOUT );
+	walk( Resource::eval_and_update );
 }

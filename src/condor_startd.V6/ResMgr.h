@@ -40,10 +40,16 @@ public:
 	~ResMgr();
 
 	void	init_socks();
+	void	init_resources();
+
 	bool 	in_use();
+	bool	is_smp() { return( m_attr->num_cpus() > 1 ); };
 	void	send_update( ClassAd*, ClassAd* );
 	void	final_update();
 	
+		// Evaluate and send updates for all resources.
+	void	eval_and_update_all();
+
 	// These two functions walk through the array of rip pointers and
 	// call the specified function on each resource.  The first takes
 	// functions that take a rip as an arg.  The second takes Resource
