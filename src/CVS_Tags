@@ -1,3 +1,9 @@
+03/02/04 V6_7-mirror-2-CORE_snapshot2
+   The state of the V6_7-mirror-2-branch for another snapshot release
+   given to CORE.  Mostly, this includes bug fixes to hawkeye
+   features.  The version string in this release looks like this:
+   $CondorVersion: 6.7.0 Mar 1 2004 MIRROR-2-BRANCH CORE_snapshot2 $
+
 02/19/04 V6_7-mirror-2-merge-1
    The state of the V6_7-mirror-2-branch before merging into the 
    V6_7-branch
