@@ -95,6 +95,10 @@ public:
 		*/
 	bool logContinue( ClassAd* ad );
 
+		/** Log an event about a fatal starter error
+		 */
+	bool logStarterError( const char* err_msg, bool critical );
+
 		/** Since whenever a job exits, we want to do the same checks
 			on the exit reason to decide what kind of event (terminate
 			or evict) to log, everyone can just call this method,

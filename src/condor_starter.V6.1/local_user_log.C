@@ -199,6 +199,30 @@ LocalUserLog::logContinue( ClassAd* ad )
 
 
 bool
+LocalUserLog::logStarterError( const char* err_msg, bool critical )
+{
+	if( ! is_initialized ) {
+		EXCEPT( "LocalUserLog::logStarterError() called before init()" );
+	}
+	if( ! should_log ) {
+		return true;
+	}
+
+	RemoteErrorEvent event;
+	event.setErrorText( err_msg );
+	event.setDaemonName( "starter" );
+	event.setExecuteHost( daemonCore->InfoCommandSinfulString() );
+	event.setCriticalError( critical );
+
+	if( !u_log.writeEvent(&event) ) {
+        dprintf( D_ALWAYS, "Unable to log ULOG_REMOTE_ERROR event\n" );
+		return false;
+    }
+	return true;
+}
+
+
+bool
 LocalUserLog::logJobExit( ClassAd* ad, int exit_reason ) 
 {
 	if( ! should_log ) {
