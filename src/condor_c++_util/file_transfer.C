@@ -328,10 +328,20 @@ FileTransfer::Init( ClassAd *Ad, bool want_check_perms, priv_state priv )
 				return 0;
 			}
 #endif
+
 			ExecFile = strdup(buf);
 		}
-		if ( !InputFiles->contains(ExecFile) )
+	
+		// If we don't already have this on our list of things to transfer, 
+		// and we haven't set TRANSFER_EXECTUABLE to false, send it along.
+		// If we didn't set TRANSFER_EXECUTABLE, default to true 
+
+		int transfer = 1;
+		if ( !InputFiles->contains(ExecFile) && 
+			(!Ad->LookupBool( ATTR_TRANSFER_EXECUTABLE, transfer ) || 
+				transfer)  ) {
 			InputFiles->append(ExecFile);	
+		}	
 	}
 
 	// Set OutputFiles to be ATTR_TRANSFER_OUTPUT_FILES if specified.

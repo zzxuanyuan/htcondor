@@ -204,9 +204,13 @@ VanillaProc::StartJob()
 		JobAd->InsertOrUpdate(tmp);		
 	
 			// rename executable to 'condor_exec'
-		sprintf(tmp,"%s=\"%s\"",ATTR_JOB_CMD,CONDOR_EXEC);
-		JobAd->InsertOrUpdate(tmp);		
-
+		int transfer = 1 ;
+		if( !JobAd->LookupBool( ATTR_TRANSFER_EXECUTABLE, transfer ) ||
+                transfer  ) { 
+			sprintf(tmp,"%s=\"%s\"",ATTR_JOB_CMD,CONDOR_EXEC);
+			dprintf(D_FULLDEBUG, "Changing the executable\n");
+			JobAd->InsertOrUpdate(tmp);		
+		}
 		filetrans = new FileTransfer();
 		ASSERT( filetrans->Init(JobAd, false, PRIV_USER) );
 		filetrans->RegisterCallback(
