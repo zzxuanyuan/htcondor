@@ -46,7 +46,7 @@ However, for system calls that are not routed through the open
 file table, we'll provide this for now...
 */
 
-int MapFd( int user_fd )
+int _condor_file_table_map( int user_fd )
 {
 	if( MappingFileDescriptors() ) {
 		return FileTab->map_fd_hack(user_fd);
@@ -55,7 +55,7 @@ int MapFd( int user_fd )
 	}
 }
 
-int LocalAccess( int user_fd )
+int _condor_file_is_local( int user_fd )
 {
 	if( MappingFileDescriptors() ) {
 		return FileTab->local_access_hack(user_fd);
@@ -64,31 +64,31 @@ int LocalAccess( int user_fd )
 	}
 }
 
-void DumpOpenFds()
+void _condor_file_table_dump()
 {
-	InitFileState();
+	_condor_file_table_init();
 	FileTab->dump();
 }
 
-void CheckpointFileState()
+void _condor_file_table_checkpoint()
 {
-	InitFileState();
+	_condor_file_table_init();
 	FileTab->checkpoint();
 }
 
-void SuspendFileState()
+void _condor_file_table_suspend()
 {
-	InitFileState();
+	_condor_file_table_init();
 	FileTab->suspend();
 }
 
-void ResumeFileState()
+void _condor_file_table_resume()
 {
-	InitFileState();
+	_condor_file_table_init();
 	FileTab->resume();
 }
 
-void InitFileState()
+void _condor_file_table_init()
 {
 	if(!FileTab) {
 		FileTab = new OpenFileTable();
@@ -96,9 +96,9 @@ void InitFileState()
 	}
 }
 
-int pre_open( int fd, int readable, int writable, int is_remote )
+int _condor_file_pre_open( int fd, int readable, int writable, int is_remote )
 {
-	InitFileState();
+	_condor_file_table_init();
 	sigset_t sigs = block_condor_signals();
 	int result = FileTab->pre_open(fd,readable,writable,is_remote);
 	restore_condor_sigmask(sigs);

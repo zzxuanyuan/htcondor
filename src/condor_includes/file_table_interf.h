@@ -26,10 +26,13 @@
 #ifndef _FILE_TABLE_INTERF_H
 #define _FILE_TABLE_INTERF_H
 
-/*
+/**
 This file describes the simple C interface to file table
 operations that the startup and checkpoint code needs
 access to.
+<p>
+All these functiosn are prefixed with _condor because
+they will be linked with user jobs.
 */
 
 #if defined(__cplusplus)
@@ -37,35 +40,32 @@ extern "C" {
 #endif
 
 /** Display known info about the file table */
-void DumpOpenFds();
+void _condor_file_table_dump();
 
 /** Set up the file table if necessary.  Calling this function
 multiple times is harmless.  All system calls that access FileTab
 should call this function first. */
-void InitFileState();
+void _condor_file_table_init();
 
 /** Perform a periodic checkpoint of the file state. */
-void CheckpointFileState();
+void _condor_file_table_checkpoint();
 
 /** Checkpoint the file state in preparation for a vacation. */
-void SuspendFileState();
+void _condor_file_table_suspend();
 
 /** Restore the file state after a checkpoint. */
-void ResumeFileState();
+void _condor_file_table_resume();
 
 /** Map a virtual fd to the same real fd.  This function generally
 is only called but the startup code to get a temporary working
 stdin/stdout. */
-int pre_open( int fd, int readable, int writeable, int is_remote );
+int _condor_file_pre_open( int fd, int readable, int writeable, int is_remote );
 
-/** This function still works, but it will eventually go away.
-(It's not up to the switches to decide where to map a file to.
-When mapping is in effect, talk to the open file table.) */
-int MapFd( int user_fd );
+/** Get the real fd associated with this virtual fd. */
+int _condor_file_table_map( int fd );
 
-/** This function still works, but it will eventually go away.
-See MapFd above. */
-int LocalAccess( int user_fd );
+/** Return true if this virtual fd refers to a local file. */
+int _condor_file_is_local( int user_fd );
 
 
 #if defined(__cplusplus)
