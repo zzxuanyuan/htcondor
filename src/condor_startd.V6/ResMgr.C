@@ -31,7 +31,20 @@ ResMgr::ResMgr()
 	up_tid = -1;
 	poll_tid = -1;
 
+	m_proc = new ProcAPI;
 	m_attr = new MachAttributes;
+}
+
+
+ResMgr::~ResMgr()
+{
+	delete m_attr;
+	delete m_proc;
+	delete coll_sock;
+	if( view_sock ) {
+		delete view_sock;
+	}
+	delete [] resources;
 }
 
 
@@ -70,18 +83,6 @@ ResMgr::init_socks()
 		view_sock = new SafeSock( condor_view_host, 
 								  CONDOR_VIEW_PORT );
 	}
-}
-
-
-ResMgr::~ResMgr()
-{
-	delete m_attr;
-
-	delete coll_sock;
-	if( view_sock ) {
-		delete view_sock;
-	}
-	delete [] resources;
 }
 
 
@@ -236,8 +237,27 @@ ResMgr::get_by_any_cap( char* cap )
 State
 ResMgr::state()
 {
-		// This needs serious help when we get to multiple resources
-	return resources[0]->state();
+	State s;
+	int i, is_owner = 0;
+	for( i = 0; i < nresources; i++ ) {
+		switch( (s = resources[i]->state()) ) {
+		case claimed_state:
+		case preempting_state:
+			return s;
+			break;
+		case owner_state:
+			is_owner = 1;
+			break;
+		case matched_state:
+		case unclaimed_state: 
+			break;
+		}
+	}
+	if( is_owner ) {
+		return owner_state;
+	} else {
+		return s;
+	}
 }
 
 
@@ -398,7 +418,7 @@ ResMgr::assign_keyboard()
 			// First, initialize all CPUs to the max idle time we've
 			// got, which would be 15 minutes longer than the time
 			// since we started up. 
-		max = (time(0) - startd_startup) + (15 * 60);
+		max = (time(0) - startd_startup) + (16 * 60);
 		for( i = 0; i < nresources; i++ ) {
 			resources[i]->r_attr->set_console( max );
 			resources[i]->r_attr->set_keyboard( max );
@@ -417,12 +437,10 @@ ResMgr::assign_keyboard()
 }
 
 
-
-
 void
 ResMgr::check_polling()
 {
-	if( in_use() ) {
+	if( in_use() || m_attr->condor_load() > 0 ) {
 		start_poll_timer();
 	} else {
 		cancel_poll_timer();
