@@ -233,7 +233,7 @@ DCStartd::requestClaim( ClaimType type, const ClassAd* req_ad,
 			 getCommandString(CA_REQUEST_CLAIM) );
 	req.Insert( buf );
 
-	sprintf( buf, "%s = \"%s\"", ATTR_CLAIM_TYPE, claimTypeString(type) );
+	sprintf( buf, "%s = \"%s\"", ATTR_CLAIM_TYPE, getClaimTypeString(type) );
 	req.Insert( buf );
 
 	return sendCACmd( &req, reply, true );
@@ -327,7 +327,8 @@ DCStartd::deactivateClaim( VacateType type, ClassAd* reply )
 	sprintf( buf, "%s = \"%s\"", ATTR_CLAIM_ID, claim_id );
 	req.Insert( buf );
 
-	sprintf( buf, "%s = \"%s\"", ATTR_VACATE_TYPE, vacateTypeString(type) );
+	sprintf( buf, "%s = \"%s\"", ATTR_VACATE_TYPE,
+			 getVacateTypeString(type) ); 
 	req.Insert( buf );
 
 	return sendCACmd( &req, reply, true );
@@ -353,7 +354,8 @@ DCStartd::releaseClaim( VacateType type, ClassAd* reply )
 	sprintf( buf, "%s = \"%s\"", ATTR_CLAIM_ID, claim_id );
 	req.Insert( buf );
 
-	sprintf( buf, "%s = \"%s\"", ATTR_VACATE_TYPE, vacateTypeString(type) );
+	sprintf( buf, "%s = \"%s\"", ATTR_VACATE_TYPE,
+			 getVacateTypeString(type) );
 	req.Insert( buf );
 
 	return sendCACmd( &req, reply, true );
