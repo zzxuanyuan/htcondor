@@ -4621,15 +4621,16 @@ Scheduler::StartJobHandler()
 	}
 		/*
 		  If we just spawned a reconnect shadow, we want to update
-		  ATTR_LAST_CONTACT in the job ad.  This normally gets done
-		  inside add_shadow_rec(), but we don't want that behavior for
-		  reconnect shadows or we clobber the valuable info that was
-		  left in the job queue.  So, we do it here, now that we
-		  already wrote out the job ClassAd to the shadow's pipe.
+		  ATTR_LAST_JOB_LEASE_RENEWAL in the job ad.  This normally
+		  gets done inside add_shadow_rec(), but we don't want that
+		  behavior for reconnect shadows or we clobber the valuable
+		  info that was left in the job queue.  So, we do it here, now
+		  that we already wrote out the job ClassAd to the shadow's
+		  pipe.
 		*/
 	if( srec->is_reconnect ) {
-		SetAttributeInt( job_id->cluster, job_id->proc, ATTR_LAST_CONTACT,
-						 (int)time(0) );
+		SetAttributeInt( job_id->cluster, job_id->proc, 
+						 ATTR_LAST_JOB_LEASE_RENEWAL, (int)time(0) );
 	}
 
 	tryNextJob();
@@ -5253,11 +5254,12 @@ Scheduler::add_shadow_rec( shadow_rec* new_rec )
 			// we don't want to set any of these things if this is a
 			// reconnect shadow_rec we're adding.  All this does is
 			// re-writes stuff that's already accurate in the job ad,
-			// or, in the case of ATTR_LAST_CONTACT, clobbers
-			// accurate info with a now-bogus value.
+			// or, in the case of ATTR_LAST_JOB_LEASE_RENEWAL,
+			// clobbers accurate info with a now-bogus value.
 
 		SetAttributeString( cluster, proc, ATTR_CLAIM_ID, mrec->id );
-		SetAttributeInt( cluster, proc, ATTR_LAST_CONTACT, (int)time(0) ); 
+		SetAttributeInt( cluster, proc, ATTR_LAST_JOB_LEASE_RENEWAL,
+						 (int)time(0) ); 
 
 		bool have_remote_host = false;
 		if( mrec->my_match_ad ) {
@@ -7510,7 +7512,7 @@ Scheduler::sendAlives()
 	while (matches->iterate(mrec) == 1) {
 		if( mrec->status == M_ACTIVE ) {
 			SetAttributeInt( mrec->cluster, mrec->proc, 
-							 ATTR_LAST_CONTACT, now ); 
+							 ATTR_LAST_JOB_LEASE_RENEWAL, now ); 
 		}
 	}
 	CommitTransaction();

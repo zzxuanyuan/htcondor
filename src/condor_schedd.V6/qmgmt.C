@@ -2214,31 +2214,31 @@ int get_job_prio(ClassAd *job)
 }
 
 static bool
-disconnectedRunTimeoutIsValid( ClassAd* job, int cluster, int proc )
+jobLeaseIsValid( ClassAd* job, int cluster, int proc )
 {
-	int last_contact, timeout;
+	int last_renewal, duration;
 	time_t now;
-	if( ! job->LookupInteger(ATTR_DISCONNECTED_RUN_TIMEOUT, timeout) ) {
+	if( ! job->LookupInteger(ATTR_JOB_LEASE_DURATION, duration) ) {
 		return false;
 	}
-	if( ! job->LookupInteger(ATTR_LAST_CONTACT, last_contact) ) {
+	if( ! job->LookupInteger(ATTR_LAST_JOB_LEASE_RENEWAL, last_renewal) ) {
 		return false;
 	}
 	now = time(0);
-	int diff = now - last_contact;
-	int remaining = timeout - diff;
+	int diff = now - last_renewal;
+	int remaining = duration - diff;
 	dprintf( D_FULLDEBUG, "%d.%d: %s is defined: %d\n", cluster, proc, 
-			 ATTR_DISCONNECTED_RUN_TIMEOUT, timeout );
-	dprintf( D_FULLDEBUG, "%d.%d: now: %d, last_contact: %d, diff: %d\n", 
-			 cluster, proc, (int)now, last_contact, diff );
+			 ATTR_JOB_LEASE_DURATION, duration );
+	dprintf( D_FULLDEBUG, "%d.%d: now: %d, last_renewal: %d, diff: %d\n", 
+			 cluster, proc, (int)now, last_renewal, diff );
 
 	if( remaining <= 0 ) {
 		dprintf( D_ALWAYS, "%d.%d: %s remaining: EXPIRED!\n", 
-				 cluster, proc, ATTR_DISCONNECTED_RUN_TIMEOUT );
+				 cluster, proc, ATTR_JOB_LEASE_DURATION );
 		return false;
 	} 
 	dprintf( D_ALWAYS, "%d.%d: %s remaining: %d\n", cluster, proc,
-			 ATTR_DISCONNECTED_RUN_TIMEOUT, remaining );
+			 ATTR_JOB_LEASE_DURATION, remaining );
 	return true;
 }
 
@@ -2300,7 +2300,7 @@ int mark_idle(ClassAd *job)
 						 (int)time(0) );
 	}
 	else if ( status == RUNNING || hosts > 0 ) {
-		if( disconnectedRunTimeoutIsValid(job, cluster, proc) ) {
+		if( jobLeaseIsValid(job, cluster, proc) ) {
 			dprintf( D_FULLDEBUG, "Job %d.%d might still be alive, "
 					 "spawning shadow to reconnect\n", cluster, proc );
 			scheduler.enqueueReconnectJob( job_id );

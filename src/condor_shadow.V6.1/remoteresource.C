@@ -67,7 +67,7 @@ RemoteResource::RemoteResource( BaseShadow *shad )
 	fs_domain = NULL;
 	uid_domain = NULL;
 	claim_sock = NULL;
-	last_contact = 0;
+	last_job_lease_renewal = 0;
 	exit_reason = -1;
 	exited_by_signal = false;
 	exit_value = -1;
@@ -783,8 +783,8 @@ RemoteResource::setJobAd( ClassAd *jA )
 		disk_usage = int_value;
 	}
 
-	if( jA->LookupInteger(ATTR_LAST_CONTACT, int_value) ) {
-		last_contact = (time_t)int_value;
+	if( jA->LookupInteger(ATTR_LAST_JOB_LEASE_RENEWAL, int_value) ) {
+		last_job_lease_renewal = (time_t)int_value;
 	}
 }
 
@@ -1123,16 +1123,15 @@ RemoteResource::beginExecution( void )
 	shadow->resourceBeganExecution( this );
 }
 
-
 void
 RemoteResource::hadContact( void )
 {
-		// Length: ATTR_LAST_CONTACT is 11, '=' is 1, MAX_INT is 10,
-		// and another 10 to spare should be more than enough...
-	char contact_buf[32];
-	last_contact = time(0);
-	snprintf( contact_buf, 32, "%s=%d", ATTR_LAST_CONTACT,
-			  (int)last_contact );
+		// Length: ATTR_LAST_JOB_LEASE_RENEWAL is 19, '=' is 1,
+		// MAX_INT is 10, and another 10 to spare should plenty... 
+	char contact_buf[40];
+	last_job_lease_renewal = time(0);
+	snprintf( contact_buf, 32, "%s=%d", ATTR_LAST_JOB_LEASE_RENEWAL,
+			  (int)last_job_lease_renewal );
 	jobAd->Insert( contact_buf );
 }
 
@@ -1147,33 +1146,36 @@ RemoteResource::supportsReconnect( void )
 void
 RemoteResource::reconnect( void )
 {
-	static int timeout = -1;
+	static int lease_duration = -1;
 	const char* gjid = shadow->getGlobalJobId();
 	if( ! gjid ) {
 		EXCEPT( "Shadow in reconnect mode but %s is not in the job ad!",
 				ATTR_GLOBAL_JOB_ID );
 	}
-	if( timeout < 0 ) { 
+	if( lease_duration < 0 ) { 
 			// if it's our first time, figure out what we've got to
 			// work with...
 		dprintf( D_FULLDEBUG, "Trying to reconnect job %s\n", gjid );
-		if( ! jobAd->LookupInteger(ATTR_DISCONNECTED_RUN_TIMEOUT, timeout) ) {
+		if( ! jobAd->LookupInteger(ATTR_JOB_LEASE_DURATION,
+								   lease_duration) ) {
 			EXCEPT( "Shadow in reconnect mode but %s is not in the job ad!",
-					ATTR_DISCONNECTED_RUN_TIMEOUT );
+					ATTR_JOB_LEASE_DURATION );
 		}
-		if( ! last_contact ) {
+		if( ! last_job_lease_renewal ) {
 				// if we were spawned in reconnect mode, this should
 				// be set.  if we're just trying a reconnect because
 				// the syscall socket went away, we'll already have
-				// initialized last_contact when we started the job
+				// initialized last_job_lease_renewal when we started
+				// the job
 			EXCEPT( "Shadow in reconnect mode but %s is not in the job ad!",
-					ATTR_LAST_CONTACT );
+					ATTR_LAST_JOB_LEASE_RENEWAL );
 		}
 		dprintf( D_ALWAYS, "Trying to reconnect to disconnected job\n" );
-		dprintf( D_ALWAYS, "Last known contact: %d %s", (int)last_contact, 
-				 ctime(&last_contact) );
+		dprintf( D_ALWAYS, "%s: %d %s", ATTR_LAST_JOB_LEASE_RENEWAL,
+				 (int)last_job_lease_renewal, 
+				 ctime(&last_job_lease_renewal) );
 		dprintf( D_ALWAYS, "%s: %d seconds\n",
-				 ATTR_DISCONNECTED_RUN_TIMEOUT, timeout );
+				 ATTR_JOB_LEASE_DURATION, lease_duration );
 	}
 
 		// If we got here, we're trying to reconnect.  keep track of
@@ -1184,15 +1186,15 @@ RemoteResource::reconnect( void )
 
 		// each time we get here, see how much time remains...
 	time_t now = time(0);
-	int remaining = timeout - (now - last_contact);
+	int remaining = lease_duration - (now - last_job_lease_renewal);
 	if( remaining <= 0 ) {
 	dprintf( D_ALWAYS, "%s remaining: EXPIRED!\n",
-			 ATTR_DISCONNECTED_RUN_TIMEOUT );
-		MyString reason = ATTR_DISCONNECTED_RUN_TIMEOUT;
+			 ATTR_JOB_LEASE_DURATION );
+		MyString reason = ATTR_JOB_LEASE_DURATION;
 		reason += " expired";
 		shadow->reconnectFailed( reason.Value() );
 	}
-	dprintf( D_ALWAYS, "%s remaining: %d\n", ATTR_DISCONNECTED_RUN_TIMEOUT,
+	dprintf( D_ALWAYS, "%s remaining: %d\n", ATTR_JOB_LEASE_DURATION,
 			 remaining );
 
 	if( next_reconnect_tid >= 0 ) {
@@ -1297,7 +1299,7 @@ RemoteResource::locateReconnectStarter( void )
 	case CA_CONNECT_FAILED:
 	case CA_COMMUNICATION_ERROR:
 			// for both of these, we need to keep trying until the
-			// timeout expires, since the startd might still be alive
+			// lease_duration expires, since the startd might still be alive
 			// and only the network is dead...
 		reconnect();
 		break;
@@ -1386,7 +1388,7 @@ RemoteResource::requestReconnect( void )
 		case CA_CONNECT_FAILED:
 		case CA_COMMUNICATION_ERROR:
 			// for both of these, we need to keep trying until the
-			// timeout expires, since the starter might still be alive
+			// lease_duration expires, since the starter might still be alive
 			// and only the network is dead...
 			reconnect();
 			return;  // reconnect will return right away, and we want

@@ -343,7 +343,7 @@ class RemoteResource : public Service {
 
 		/// Updates both the last_contact data member and the job ad
 	void hadContact( void );
-	time_t last_contact;
+	time_t last_job_lease_renewal;
 	bool supports_reconnect;
 
 		/// This is the timeout period to hear from a startd.  (90 seconds).
