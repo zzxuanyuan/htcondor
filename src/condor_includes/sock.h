@@ -82,7 +82,7 @@ public:
 	**	Stream protocol
 	*/
 
-	virtual ~Sock();
+	virtual ~Sock() {}
 
 
 //	PRIVATE INTERFACE TO ALL SOCKS
@@ -101,7 +101,7 @@ protected:
 	**	Methods
 	*/
 
-	Sock();
+	Sock() : Stream(),  _sock(INVALID_SOCKET), _state(sock_virgin), _timeout(0) {}
 
 	int getportbyserv(char *);
 	int do_connect(char *, int);
