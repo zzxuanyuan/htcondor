@@ -252,10 +252,22 @@ OsProc::StartJob()
 				 &(Args[skip]) );
 	}
 
+	// Check to see if we need to start this process paused, and if
+	// so, pass the right flag to DC::Create_Process().
+	int job_opt_mask = 0;
+	int suspend_job_at_exec = 0;
+	JobAd->LookupBool( ATTR_SUSPEND_JOB_AT_EXEC, suspend_job_at_exec);
+	if( suspend_job_at_exec ) {
+		dprintf( D_FULLDEBUG, "OsProc::StartJob(): "
+				 "Job wants to be suspended at exec\n" );
+		job_opt_mask |= DCJOBOPT_SUSPEND_ON_EXEC;
+	}
+
 	set_priv ( priv );
 
-	JobPid = daemonCore->Create_Process(JobName, Args, PRIV_USER_FINAL, 1,
-				   FALSE, Env, Cwd, TRUE, NULL, fds, nice_inc );
+	JobPid = daemonCore->
+		Create_Process( JobName, Args, PRIV_USER_FINAL, 1, FALSE, Env,
+						Cwd, TRUE, NULL, fds, nice_inc, job_opt_mask );
 
 	// now close the descriptors in fds array.  our child has inherited
 	// them already, so we should close them so we do not leak descriptors.
