@@ -1,0 +1,40 @@
+#!/bin/sh
+
+# pick an appropriate vendor supplied cpp and invoke it, possibly with 
+# arguments in addition to the ones supplied to this program.
+
+os=`uname -s | sed 's/IRIX.*/IRIX/'`
+
+case "x$os" in
+	xAIX)
+		# good 
+		exec /lib/cpp $*
+		;;
+	xOSF1)
+		# good
+		exec /lib/cpp $*
+		;;
+	xHP-UX)
+		# good
+		# This could also potentially be /usr/ccs/lbin/cpp...
+		exec /lib/cpp.ansi $*
+		;;
+	xIRIX)
+		exec cc -E -cckr $*
+		;;
+	xLinux)
+		exec /lib/cpp $*
+		;;
+	xDarwin)
+		exec /usr/bin/cpp $*
+		;;
+	xSolaris)
+		exec /lib/cpp $*
+		;;
+	*)
+		echo "$0 can't figure out the right cpp to use on $os!"
+		exit 1;
+		;;
+esac
+	
+	
