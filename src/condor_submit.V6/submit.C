@@ -899,11 +899,11 @@ SetExecutable()
 		copySpool = (char *)malloc(16);
 		if ( Remote ) {
 			strcpy(copySpool,"FALSE");
-		} else
-		if ( JobUniverse == CONDOR_UNIVERSE_GLOBUS ) {
+		} else if ( JobUniverse == CONDOR_UNIVERSE_GLOBUS ) {
 			strcpy(copySpool, "FALSE");
-		} else 
+		} else {
 			strcpy(copySpool, "TRUE");
+		}
 	}
 
 	// generate initial checkpoint file
