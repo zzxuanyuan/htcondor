@@ -426,7 +426,10 @@ drop_core_in_log( void )
 			EXCEPT("cannot chdir to dir <%s>",ptmp);
 		}
 	} else {
-		EXCEPT("No LOG directory specified in config file(s)");
+		dprintf( D_FULLDEBUG, 
+				 "No LOG directory specified in config file(s), "
+				 "not calling chdir()\n" );
+		return;
 	}
 #ifdef WIN32
 	{
