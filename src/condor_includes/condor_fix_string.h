@@ -32,7 +32,9 @@
 */
 
 #if defined(LINUX)
+#ifndef __USE_GNU
 #define __USE_GNU
+#endif
 #endif
 
 #define strdup _hide_strdup
