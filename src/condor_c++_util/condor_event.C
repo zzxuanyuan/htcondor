@@ -1299,7 +1299,20 @@ writeEvent (FILE *file)
   else 
     dprintf(D_FULLDEBUG, "scheddname is null\n");
   
-  addr = inet_addr(executeHost);
+  char *start = index(executeHost, '<');
+  char *end = index(executeHost, ':');
+
+  if(start && end) {
+    char *tmpaddr;
+    tmpaddr = (char *) malloc(32 * sizeof(char));
+    tmpaddr = strncpy(tmpaddr, start+1, end-start-1);
+    tmpaddr[end-start-1] = '\0';
+    addr = inet_addr(tmpaddr);
+    free(tmpaddr);
+  }
+  else
+    addr = inet_addr(executeHost);
+
   executehostname = (char *) malloc(32 * sizeof(char));
   hp = gethostbyaddr((char *) &addr, sizeof(addr), AF_INET);
   if(hp) {    
@@ -1308,6 +1321,7 @@ writeEvent (FILE *file)
     free(hp);
   }
   else {
+    dprintf(D_FULLDEBUG, "Executehost name = %s\n", executeHost);
     strcpy(executehostname, executeHost);
   }
   sprintf(sqlstmt, 
