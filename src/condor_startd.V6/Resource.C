@@ -221,8 +221,38 @@ Resource::deactivate_claim_forcibly( void )
 }
 
 
+int
+Resource::releaseAllClaims( void )
+{
+	return shutdownAllClaims( true );
+}
+
+
+int
+Resource::killAllClaims( void )
+{
+	return shutdownAllClaims( false );
+}
+
+
+int
+Resource::shutdownAllClaims( bool graceful )
+{
+		// shutdown the COD claims
+	r_cod_mgr->shutdownAllClaims( graceful );
+
+	if( graceful ) {
+		release_claim();
+	} else {
+		kill_claim();
+	}
+	return TRUE;
+}
+
+
+// This one *only* looks at opportunistic claims
 bool
-Resource::in_use( void )
+Resource::hasOppClaim( void )
 {
 	State s = state();
 	if( s == owner_state || s == unclaimed_state ) {
@@ -230,6 +260,24 @@ Resource::in_use( void )
 	}
 	return true;
 }
+
+
+// This one checks if the Resource has *any* claims 
+bool
+Resource::hasAnyClaim( void )
+{
+	if( r_cod_mgr->inUse() ) {
+		return true;
+	}
+	State s = state();
+	if( s == owner_state || s == unclaimed_state ) {
+		return false;
+	}
+	return true;
+}
+
+
+
 
 
 void
