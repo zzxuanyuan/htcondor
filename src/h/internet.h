@@ -12,7 +12,10 @@
 #include "proc.h"
 #include "_condor_fix_types.h"
 #include "expr.h"
+
+#if !defined(WIN32)
 #include <netinet/in.h>
+#endif
 
 /* maximum length of a machine name */
 #define  MAXHOSTLEN     1024	
