@@ -25,12 +25,12 @@
 
 #include "condor_common.h"
 #include "condor_debug.h"
+#include "condor_classad.h"
 #include <stdarg.h>
 #include "user_log.c++.h"
 #include <time.h>
 #include "condor_uid.h"
 #include "MyString.h"
-
 
 static const char SynchDelimiter[] = "...\n";
 
@@ -233,15 +233,14 @@ writeEvent (ULogEvent *event)
 		dprintf( D_ALWAYS, "Asked to write event of number %d.\n",
 				 event->eventNumber);
 		ClassAd* eventAd = event->toClassAd();
-		MyString adXML;
+		string adXML;
 		if (!eventAd) {
 			success = FALSE;
 		} else {
-			ClassAdXMLUnparser xmlunp;
-			xmlunp.SetUseCompactSpacing(FALSE);
-			xmlunp.SetOutputTargetType(FALSE);
-			xmlunp.Unparse(eventAd, adXML);
-			if (fprintf (fp, adXML.GetCStr()) < 0) {
+            ClassAdXMLUnParser xmlunp;
+			xmlunp.SetCompactSpacing(false);
+			xmlunp.Unparse(adXML, eventAd);
+			if (fprintf (fp, adXML.c_str()) < 0) {
 				success = FALSE;
 			} else {
 				success = TRUE;
