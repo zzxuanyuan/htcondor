@@ -1,5 +1,6 @@
 #include "odbc.h"
 #include "condor_api.h"
+#include "condor_config.h"
 
 // define the pointer to database connection object here since the odbc.o is put into 
 // the cplus_lib.a library. And that is because modules such as file_transfer.o and
@@ -138,4 +139,40 @@ long ODBC::odbc_fetch()
 
 }
 
+ODBC *createConnection() {
+	ODBC *ptr;
 
+	char *tmp, *odbc_dsn, *odbc_user, *odbc_auth;
+	
+	/* Parse ODBC Connection Params */
+	tmp = param("ODBC_DSN");
+	if( tmp ) {
+		odbc_dsn = strdup(tmp);
+		free(tmp);
+	}
+	else {
+		odbc_dsn = strdup("condor");
+	}
+
+	tmp = param("ODBC_USER");
+	if( tmp ) {
+		odbc_user = strdup(tmp);
+		free(tmp);
+	}
+	else {
+		odbc_user = strdup("scidb");
+	}
+
+	tmp = param("ODBC_AUTH");
+	if( tmp ) {
+		odbc_auth = strdup(tmp);
+		free(tmp);
+	}
+	else {
+		odbc_auth = strdup("");
+	}
+
+	ptr = new ODBC(odbc_dsn, odbc_user, odbc_auth);
+	ptr->odbc_connect();
+	return ptr;
+}
