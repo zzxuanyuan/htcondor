@@ -134,6 +134,27 @@ struct condorSchedd__Base64DataAndStatus
 	struct xsd__base64Binary data;
 };
 
+/* condorSchedd:FileInfo: */
+struct condorSchedd__FileInfo
+{
+	char *name;
+	LONG64 size;
+};
+
+/* Array of condorSchedd:FileInfoArray schema type: */
+struct condorSchedd__FileInfoArray
+{
+	struct condorSchedd__FileInfo *__ptr;
+	int __size;
+};
+
+/* condorSchedd:FileInfoArrayAndStatus: */
+struct condorSchedd__FileInfoArrayAndStatus
+{
+	struct condorCore__Status status;
+	struct condorSchedd__FileInfoArray info;
+};
+
 /* condorSchedd:StatusResponse: */
 struct condorSchedd__StatusResponse
 {
@@ -174,6 +195,12 @@ struct condorSchedd__ClassAdStructAndStatusResponse
 struct condorSchedd__Base64DataAndStatusResponse
 {
 	struct condorSchedd__Base64DataAndStatus response;	/* return */
+};
+
+/* condorSchedd:FileInfoArrayAndStatusResponse: */
+struct condorSchedd__FileInfoArrayAndStatusResponse
+{
+	struct condorSchedd__FileInfoArrayAndStatus response;	/* return */
 };
 
 /* condorSchedd:beginTransaction: */
@@ -321,6 +348,14 @@ struct condorSchedd__closeSpool
 	int jobId;
 };
 
+/* condorSchedd:listSpool: */
+struct condorSchedd__listSpool
+{
+	struct condorSchedd__Transaction transaction;
+	int clusterId;
+	int jobId;
+};
+
 /* condorSchedd:discoverJobRequirements: */
 struct condorSchedd__discoverJobRequirements
 {
@@ -430,6 +465,8 @@ SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__getFile(struct soap*, struct condorSched
 
 SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__closeSpool(struct soap*, struct condorSchedd__Transaction, int, int, struct condorSchedd__StatusResponse &);
 
+SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__listSpool(struct soap*, struct condorSchedd__Transaction, int, int, struct condorSchedd__FileInfoArrayAndStatusResponse &);
+
 SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__discoverJobRequirements(struct soap*, struct condorCore__ClassAdStruct *, struct condorSchedd__RequirementsAndStatusResponse &);
 
 SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__discoverDagRequirements(struct soap*, char *, struct condorSchedd__RequirementsAndStatusResponse &);
@@ -471,6 +508,8 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__sendFile(struct soap*, const c
 SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__getFile(struct soap*, const char*, const char*, struct condorSchedd__Transaction, int, int, char *, int, int, struct condorSchedd__Base64DataAndStatusResponse &);
 
 SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__closeSpool(struct soap*, const char*, const char*, struct condorSchedd__Transaction, int, int, struct condorSchedd__StatusResponse &);
+
+SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__listSpool(struct soap*, const char*, const char*, struct condorSchedd__Transaction, int, int, struct condorSchedd__FileInfoArrayAndStatusResponse &);
 
 SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__discoverJobRequirements(struct soap*, const char*, const char*, struct condorCore__ClassAdStruct *, struct condorSchedd__RequirementsAndStatusResponse &);
 
@@ -515,6 +554,8 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__sendFile(struct soap*);
 SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__getFile(struct soap*);
 
 SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__closeSpool(struct soap*);
+
+SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__listSpool(struct soap*);
 
 SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__discoverJobRequirements(struct soap*);
 

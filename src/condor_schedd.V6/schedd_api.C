@@ -77,6 +77,36 @@ Job::getClusterID()
   return clusterId;
 }
 
+JobFile::JobFile()
+{
+}
+
+JobFile::~JobFile()
+{
+}
+
+FileInfo::FileInfo(MyString name, unsigned long size)
+{
+  this->name = name;
+  this->size = size;
+}
+
+FileInfo::~FileInfo()
+{
+}
+
+int
+Job::get_spool_list(List<FileInfo> & file_list)
+{
+  Directory directory(spoolDirectory->GetCStr());
+  const char * name;
+  while (NULL != (name = directory.Next())) {
+    file_list.Append(new FileInfo(MyString(name), directory.GetFileSize()));
+  }
+
+  return 0;
+}
+
 int
 Job::declare_file(MyString name,
                   int size)

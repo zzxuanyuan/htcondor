@@ -31,6 +31,10 @@ struct condorSchedd__Base64DataAndStatusResponse {
   struct condorSchedd__Base64DataAndStatus response;
 };
 
+struct condorSchedd__FileInfoArrayAndStatusResponse {
+  struct condorSchedd__FileInfoArrayAndStatus response;
+};
+
 int condorSchedd__beginTransaction(xsd__int duration,
                                    struct condorSchedd__TransactionAndStatusResponse & result);
 
@@ -124,6 +128,11 @@ int condorSchedd__closeSpool(struct condorSchedd__Transaction transaction,
                              xsd__int clusterId,
                              xsd__int jobId,
                              struct condorSchedd__StatusResponse & result);
+
+int condorSchedd__listSpool(struct condorSchedd__Transaction transaction,
+                            xsd__int clusterId,
+                            xsd__int jobId,
+                            struct condorSchedd__FileInfoArrayAndStatusResponse & result);
 
 int condorSchedd__discoverJobRequirements(struct condorCore__ClassAdStruct * jobAd,
                                           struct condorSchedd__RequirementsAndStatusResponse & result);

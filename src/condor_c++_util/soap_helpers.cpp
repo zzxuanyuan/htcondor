@@ -94,7 +94,7 @@ convert_ad_to_adStruct(struct soap *s,
   // And, ServerTime...
   ad_struct->__ptr[attr_index].name = strdup(ATTR_SERVER_TIME);
   ad_struct->__ptr[attr_index].type = INTEGER;
-  ad_struct->__ptr[attr_index].value = (char *) MyString((int) time(NULL)).GetCStr();
+  ad_struct->__ptr[attr_index].value = strdup(MyString((int) time(NULL)).GetCStr());
   attr_index++;
 
   curr_ad->ResetExpr();
@@ -177,29 +177,46 @@ convert_ad_to_adStruct(struct soap *s,
 
 static bool
 convert_adlist_to_adStructArray(struct soap *s, List<ClassAd> *adList,
-									struct condorCore__ClassAdStructArray *ads)
+                                struct condorCore__ClassAdStructArray *ads)
 {
-
-	if ( !adList || !ads ) {
-		return false;
-	}
-
-	ClassAd *curr_ad = NULL;
-	ads->__size = adList->Number();
-	ads->__ptr = (struct condorCore__ClassAdStruct *) soap_malloc(s,
-							ads->__size * sizeof(struct condorCore__ClassAdStruct));
-	adList->Rewind();
-	int ad_index = 0;
-
-	while ( (curr_ad=adList->Next()) )
+  
+  if ( !adList || !ads ) {
+    return false;
+  }
+  
+  ClassAd *curr_ad = NULL;
+  ads->__size = adList->Number();
+  ads->__ptr = (struct condorCore__ClassAdStruct *) soap_malloc(s,
+                                                                ads->__size * sizeof(struct condorCore__ClassAdStruct));
+  adList->Rewind();
+  int ad_index = 0;
+  
+  while ( (curr_ad=adList->Next()) )
     {
-		if ( convert_ad_to_adStruct(s,curr_ad,&(ads->__ptr[ad_index])) ) {
-			ad_index++;
-		}
-	}
+      if ( convert_ad_to_adStruct(s,curr_ad,&(ads->__ptr[ad_index])) ) {
+        ad_index++;
+      }
+    }
+  
+  ads->__size = ad_index;
+  return true;
+}
 
-	ads->__size = ad_index;
-	return true;
+static bool
+convert_FileInfoList_to_Array(List<FileInfo> & list,
+                              struct condorSchedd__FileInfoArray & array)
+{
+  array.__size = list.Number();
+  array.__ptr = (struct condorSchedd__FileInfo *) calloc(array.__size, sizeof(struct condorSchedd__FileInfo));
+
+  FileInfo *info;
+  list.Rewind();
+  for (int i = 0; list.Next(info); i++) {
+    array.__ptr[i].name = strdup(info->name.GetCStr());
+    array.__ptr[i].size = (int) info->size;
+  }
+
+  return true;
 }
 
 

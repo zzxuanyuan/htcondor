@@ -2,19 +2,37 @@
 #include "condor_classad.h"
 #include "MyString.h"
 #include "HashTable.h"
+#include "directory.h"
+#include "list.h"
 
 #include "soap_scheddH.h"
 
 class JobFile
 {
 public:
+  JobFile();
+  ~JobFile();
+
   FILE * file;
   MyString name;
   int size;
   int currentOffset;
 };
 
+class FileInfo
+{
+public:
+  FileInfo(MyString name, unsigned long size);
+  ~FileInfo();
+
+  MyString name;
+  unsigned long size;
+};
+
 template class HashTable<MyString, JobFile>;
+
+template class List<FileInfo>;
+template class Item<FileInfo>;
 
 class Job
 {
@@ -33,6 +51,8 @@ public:
                int offset,
                int length,
                unsigned char * &data);
+
+  int get_spool_list(List<FileInfo> & file_list);
 
   int abort();
 

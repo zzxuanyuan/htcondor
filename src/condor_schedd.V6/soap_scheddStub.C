@@ -41,9 +41,9 @@
 #include "soap_scheddC.cpp"
 #include "soap_scheddServer.cpp"
 
-#include "../condor_c++_util/soap_helpers.cpp"
-
 #include "schedd_api.h"
+
+#include "../condor_c++_util/soap_helpers.cpp"
 
 // XXX: There should be checks to see if the cluster/job Ids are valid
 // in the transaction they are being used...
@@ -647,6 +647,42 @@ int condorSchedd__closeSpool(struct soap *soap,
   return SOAP_OK;
 }
 
+int
+condorSchedd__listSpool(struct soap *soap,
+                        struct condorSchedd__Transaction transaction,
+                        int clusterId,
+                        int jobId,
+                        struct condorSchedd__FileInfoArrayAndStatusResponse & result)
+{
+  dprintf(D_ALWAYS,"SOAP entering condorSchedd__listSpool() \n");
+
+  if (!valid_transaction_id(transaction.id)) {
+    // TODO error - unrecognized transactionId
+    result.response.status.code = INVALIDTRANSACTION;
+  }
+
+  Job *job;
+  if (getJob(clusterId, jobId, job)) {
+    result.response.status.code = UNKNOWNJOB;
+
+    return SOAP_OK;
+  }
+  
+  List<FileInfo> files;
+  if (job->get_spool_list(files)) {
+    result.response.status.code = FAIL;
+
+    return SOAP_OK;
+  }
+
+  if (convert_FileInfoList_to_Array(files, result.response.info)) {
+    result.response.status.code = SUCCESS;
+  } else {
+    result.response.status.code = FAIL;
+  }
+
+  return SOAP_OK;
+}
 
 int
 condorSchedd__discoverJobRequirements(struct soap *soap,

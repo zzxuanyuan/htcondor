@@ -93,6 +93,11 @@
     <element name="item" type="condorSchedd:Requirement" minOccurs="0" maxOccurs="unbounded" nillable="true"/>
    </sequence>
   </complexType>
+  <complexType name="FileInfoArray">
+   <sequence>
+    <element name="item" type="condorSchedd:FileInfo" minOccurs="0" maxOccurs="unbounded" nillable="true"/>
+   </sequence>
+  </complexType>
  </schema>
 
  <schema targetNamespace="urn:condor-schedd"
@@ -172,6 +177,23 @@
     <element name="data" type="xsd:base64Binary" minOccurs="0" maxOccurs="1" nillable="true"/>
    </sequence>
   </complexType>
+  <complexType name="FileInfo">
+   <sequence>
+    <element name="name" type="xsd:string" minOccurs="1" maxOccurs="1" nillable="true"/>
+    <element name="size" type="xsd:long" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="FileInfoArray">
+   <sequence>
+    <element name="item" type="condorSchedd:FileInfo" minOccurs="0" maxOccurs="unbounded" nillable="true"/>
+   </sequence>
+  </complexType>
+  <complexType name="FileInfoArrayAndStatus">
+   <sequence>
+    <element name="status" type="condorCore:Status" minOccurs="1" maxOccurs="1"/>
+    <element name="info" type="condorSchedd:FileInfoArray" minOccurs="0" maxOccurs="1" nillable="true"/>
+   </sequence>
+  </complexType>
   <complexType name="StatusResponse">
    <sequence>
     <element name="response" type="condorCore:Status" minOccurs="1" maxOccurs="1"/>
@@ -205,6 +227,11 @@
   <complexType name="Base64DataAndStatusResponse">
    <sequence>
     <element name="response" type="condorSchedd:Base64DataAndStatus" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="FileInfoArrayAndStatusResponse">
+   <sequence>
+    <element name="response" type="condorSchedd:FileInfoArrayAndStatus" minOccurs="1" maxOccurs="1"/>
    </sequence>
   </complexType>
  </schema>
@@ -350,6 +377,16 @@
  <part name="jobId" type="xsd:int"/>
 </message>
 
+<message name="listSpoolRequest">
+ <part name="transaction" type="condorSchedd:Transaction"/>
+ <part name="clusterId" type="xsd:int"/>
+ <part name="jobId" type="xsd:int"/>
+</message>
+
+<message name="FileInfoArrayAndStatusResponse">
+ <part name="response" type="condorSchedd:FileInfoArrayAndStatus"/>
+</message>
+
 <message name="discoverJobRequirementsRequest">
  <part name="jobAd" type="condorCore:ClassAdStruct"/>
 </message>
@@ -452,6 +489,11 @@
   <documentation>Service definition of function condorSchedd__closeSpool</documentation>
   <input message="tns:closeSpoolRequest"/>
   <output message="tns:StatusResponse"/>
+ </operation>
+ <operation name="listSpool">
+  <documentation>Service definition of function condorSchedd__listSpool</documentation>
+  <input message="tns:listSpoolRequest"/>
+  <output message="tns:FileInfoArrayAndStatusResponse"/>
  </operation>
  <operation name="discoverJobRequirements">
   <documentation>Service definition of function condorSchedd__discoverJobRequirements</documentation>
@@ -617,6 +659,15 @@
   </output>
  </operation>
  <operation name="closeSpool">
+  <SOAP:operation soapAction=""/>
+  <input>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+  </input>
+  <output>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+  </output>
+ </operation>
+ <operation name="listSpool">
   <SOAP:operation soapAction=""/>
   <input>
    <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>

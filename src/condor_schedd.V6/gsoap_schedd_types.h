@@ -55,3 +55,21 @@ struct condorSchedd__Base64DataAndStatus
   struct condorCore__Status status 1:1;
   struct xsd__base64Binary data 0:1;
 };
+
+struct condorSchedd__FileInfo
+{
+  xsd__string name 1:1;
+  xsd__long size 1:1;
+};
+
+struct condorSchedd__FileInfoArray
+{
+  struct condorSchedd__FileInfo *__ptr;
+  int __size;
+};
+
+struct condorSchedd__FileInfoArrayAndStatus
+{
+  struct condorCore__Status status 1:1;
+  struct condorSchedd__FileInfoArray info 0:1;
+};
