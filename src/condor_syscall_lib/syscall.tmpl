@@ -1296,95 +1296,141 @@ not_supported {
 #endif
 }
 
+/*
+The socket-related calls have lots of tiny per-platform differences.
+This is an attempt to do autoconf-style configuration of the little
+details.  Ideally, we would collect all these little details about
+_all_ the calls and put them in one standard place.  For the moment,
+this will stay here next to the socket prototypes.
+*/
+
+#if defined(Solaris)
+	#define SOCKET_DATA_TYPE char*
+	#define SOCKET_DATA_LENGTH int
+	#define SOCKET_DATA_CONST const
+	#define SOCKET_MSG_CONST const
+	#define SOCKET_ADDR_TYPE struct sockaddr*
+	#define SOCKET_ADDR_LENGTH int
+	#define SOCKET_ADDR_CONST_CONNECT
+	#define SOCKET_ADDR_CONST_BIND const
+	#define SOCKET_SENDRECV_TYPE int
+	#define SOCKET_FLAGS_TYPE int
+#elif defined(OSF1)
+	#define SOCKET_DATA_TYPE void*
+	#define SOCKET_DATA_LENGTH int
+	#define SOCKET_DATA_CONST const
+	#define SOCKET_MSG_CONST
+	#define SOCKET_ADDR_TYPE struct sockaddr*
+	#define SOCKET_ADDR_LENGTH int
+	#define SOCKET_ADDR_CONST_CONNECT const
+	#define SOCKET_ADDR_CONST_BIND const
+	#define SOCKET_SENDRECV_TYPE int
+	#define SOCKET_FLAGS_TYPE int
+#elif defined(HPUX)
+	#define SOCKET_DATA_TYPE void*
+	#define SOCKET_DATA_LENGTH size_t
+	#define SOCKET_DATA_CONST const
+	#define SOCKET_MSG_CONST const
+	#define SOCKET_ADDR_TYPE struct sockaddr*
+	#define SOCKET_ADDR_LENGTH size_t
+	#define SOCKET_ADDR_CONST_CONNECT const
+	#define SOCKET_ADDR_CONST_BIND const
+	#define SOCKET_SENDRECV_TYPE ssize_t
+	#define SOCKET_FLAGS_TYPE int
+#else
+	#define SOCKET_DATA_TYPE void*
+	#define SOCKET_DATA_LENGTH int
+	#define SOCKET_DATA_CONST const
+	#define SOCKET_MSG_CONST const
+	#define SOCKET_ADDR_TYPE void*
+	#define SOCKET_ADDR_LENGTH int
+	#define SOCKET_ADDR_CONST_CONNECT
+	#define SOCKET_ADDR_CONST_BIND
+	#define SOCKET_SENDRECV_TYPE int
+	#define SOCKET_FLAGS_TYPE unsigned int
+#endif
+
+int accept(
+		map(int fd),
+		SOCKET_ADDR_TYPE addr,
+		SOCKET_ADDR_LENGTH * length);
+int bind(
+		map(int fd),
+		SOCKET_ADDR_CONST_BIND SOCKET_ADDR_TYPE addr,
+		SOCKET_ADDR_LENGTH length );
+int connect(
+		map(int fd),
+		SOCKET_ADDR_CONST_CONNECT SOCKET_ADDR_TYPE addr,
+		SOCKET_ADDR_LENGTH length);
+int getpeername(
+		map(int fd),
+		SOCKET_ADDR_TYPE addr,
+		SOCKET_ADDR_LENGTH * length);
+int getsockname(
+		map(int fd),
+		SOCKET_ADDR_TYPE addr,
+		SOCKET_ADDR_LENGTH * length);
+int getsockopt(
+		map(int fd),
+		int level,
+		int option,
+		SOCKET_DATA_TYPE value,
+		SOCKET_DATA_LENGTH * length);
+int listen(
+		map(int fd),
+		int count);
+SOCKET_SENDRECV_TYPE recv(
+		map(int fd),
+		SOCKET_DATA_TYPE data,
+		SOCKET_DATA_LENGTH length,
+		SOCKET_FLAGS_TYPE flags);
+SOCKET_SENDRECV_TYPE recvfrom(
+		map(int fd),
+		SOCKET_DATA_TYPE data,
+		SOCKET_DATA_LENGTH length,
+		SOCKET_FLAGS_TYPE flags,
+		SOCKET_ADDR_TYPE addr,
+		SOCKET_ADDR_LENGTH *addrlength);
+SOCKET_SENDRECV_TYPE recvmsg(
+		map(int fd),
+		struct msghdr *msg,
+		SOCKET_FLAGS_TYPE flags);
+SOCKET_SENDRECV_TYPE send(
+		map(int fd),
+		SOCKET_DATA_CONST SOCKET_DATA_TYPE data,
+		SOCKET_DATA_LENGTH length,
+		SOCKET_FLAGS_TYPE flags );
+SOCKET_SENDRECV_TYPE sendmsg(
+		map(int fd),
+		SOCKET_MSG_CONST struct msghdr * msg,
+		SOCKET_FLAGS_TYPE flags);
+SOCKET_SENDRECV_TYPE sendto(
+		map(int fd),
+		SOCKET_DATA_CONST SOCKET_DATA_TYPE data,
+		SOCKET_DATA_LENGTH length,
+		SOCKET_FLAGS_TYPE flags,
+		const SOCKET_ADDR_TYPE addr,
+		SOCKET_ADDR_LENGTH addrlength );
+int setsockopt(
+		map(int fd),
+		int level,
+		int option,
+		SOCKET_DATA_CONST SOCKET_DATA_TYPE value,
+		SOCKET_DATA_LENGTH length);
+int shutdown (
+		map(int fd),
+		int how);
+int socket(
+		int domain,
+		int type,
+		int protocol) : file_table;
+
 not_supported {
-
-	/* After struggling to get all the details right on these calls:
-	   void * vs sockaddr*, const vs non const, signed vs unsigned,
-	   I just gave up and copied all the headers from /usr/include/sys/socket.h
-	   on the appropriate platform.  It may be a little bigger, but this was
-	   very easy to generate and get right. */
-
-
-	#if defined(OSF1)
-
-		int      accept          (int a, struct sockaddr * b, int *c);
-		int      bind            (int a, const struct sockaddr * b, int c);
-		int      connect         (int a, const struct sockaddr * b, int c);
-		int      getpeername     (int a, struct sockaddr * b, int * c);
-		int      getsockname     (int a, struct sockaddr * b, int * c);
-		int      getsockopt      (int a, int b, int c, void * d, int * e);
-		int      listen          (int a, int b);
-		int      recv            (int a, void * b, int c, int d);
-		int      recvfrom        (int a, void * b, int c, int d, struct sockaddr *e, int *f);
-		int      recvmsg         (int a, struct msghdr *b, int c);
-		int      send            (int a, const void * b, int c, int d);
-		int      sendmsg         (int a, struct msghdr * b, int c);
-		int      sendto          (int a, const void * b, int c, int d, const struct sockaddr * e, int f);
-		int      setsockopt      (int a, int b, int c, const void *d, int e);
-		int      shutdown        (int a, int b);
-		int      socket          (int a, int b, int c);
-		int      socketpair      (int a, int b, int c, int *d);
-
-	#elif defined(Solaris)
-		int	accept		(int a, struct sockaddr *b, int *c);
-		int	bind		(int a, const struct sockaddr *b, int c);
-		int	connect		(int a, struct sockaddr *b, int c);
-		int	getpeername	(int a, struct sockaddr *b, int *c);
-		int	getsockname	(int a, struct sockaddr *b, int *c);
-		int	getsockopt	(int a, int b, int c, char *d, int *e);
-		int	listen		(int a, int b);
-		int	recv		(int a, char *b, int c, int d);
-		int	recvfrom	(int a, char *b, int c, int d, struct sockaddr * e, int *f);
-		int	recvmsg		(int a, struct msghdr *b, int c);
-		int	send		(int a, const char *b, int c, int d);
-		int	sendmsg		(int a, const struct msghdr *b, int c);
-		int	sendto		(int a, const char *b, int c, int d, const struct sockaddr *e, int f);
-		int	setsockopt	(int a, int b, int c, const char * d, int e);
-		int	shutdown	(int a, int b);
-		int	socket		(int a, int b, int c);
-		int	socketpair	(int a, int b, int c, int *d);
-
-	#elif defined(HPUX)
-
- 		int accept(int s, struct sockaddr *a, size_t *l);
- 		int bind(int s, const struct sockaddr *a, size_t l);
- 		int connect(int s, const struct sockaddr *a, size_t l);
- 		int getpeername(int s, struct sockaddr *a, size_t *l);
- 		int getsockname(int s, struct sockaddr *a, size_t *l);
- 		int getsockopt(int s, int x, int y, void *o, size_t *l);
- 		int listen(int s, int p);
- 		ssize_t recv(int s, void *d, size_t l, int t);
- 		ssize_t recvfrom(int s, void *d, size_t l, int t, struct sockaddr *a, size_t *n);
- 		ssize_t recvmsg(int s, struct msghdr *h, int l);
- 		ssize_t send(int s, const void *d, size_t l, int x);
- 		ssize_t sendmsg(int s, const struct msghdr *h, int x);
- 		ssize_t sendto(int s, const void *d, size_t l, int x, const struct sockaddr *a, size_t n);
- 		int setsockopt(int a, int b, int c, const void *d, size_t l);
- 		int shutdown(int a, int b);
- 		int socket(int a, int b, int c);
- 		int socketpair(int a, int b, int c, int *d);
-
-	#elif defined(IRIX) || defined(LINUX)
-
-		int accept(int a, void *b, int *c);
-		int bind(int a, const void *b, int c);
-		int connect(int a, const void *b, int c);
-		int getpeername(int a, void *b, int *c);
-		int getsockname(int a, void *b, int *c);
-		int getsockopt(int a, int b, int c, void *d, int *e);
-		int setsockopt(int a, int b, int c, const void *d, int e);
-		int listen(int a, int b);
-		int recv(int a, void *b, int c, int d);
-		int recvfrom(int a, void *b, int c, int d, void *e, int *f);
-		int recvmsg(int a, struct msghdr *b, int c);
-		int send(int a, const void *b, int c, int d);
-		int sendto(int a, const void * b, int c, int d, const void *e, int f);
-		int sendmsg(int a, const struct msghdr *b, int c);
-		int shutdown(int a, int b);
-		int socket(int a, int b, int c);
-		int socketpair(int a, int b, int c, int *d);
-
-	#endif
+	int socketpair (
+			int domain,
+			int type,
+			int protocol,
+			int *pair);
 }
 
 
