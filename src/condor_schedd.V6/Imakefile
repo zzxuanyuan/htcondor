@@ -13,9 +13,11 @@ soapobjs(schedd)
 
 OBJ = schedd.o schedd_main.o $(QMGMT_OBJ) schedd_instantiate.o \
 	dedicated_scheduler.o grid_universe.o shadow_mgr.o autocluster.o \
-	loose_file_transfer.o schedd_api.o instantiate.o $(SOAP_OBJS)
+	loose_file_transfer.o schedd_api.o $(SOAP_OBJS)
 
-schedd_api.C: soap_scheddH.h
+schedd_api.C: soap_scheddH.h ../condor_c++_util/soap_helpers.cpp
+
+soap_scheddStub.C: ../condor_c++_util/soap_helpers.cpp
 
 $(QMGMT_LIB) : libqmgmt.a
 
