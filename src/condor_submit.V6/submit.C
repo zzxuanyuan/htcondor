@@ -737,7 +737,7 @@ reschedule()
  * paths.
  */
 int
-check_and_universalize_path(MyString &path, char *lhs)
+check_and_universalize_path( MyString &path, const char *lhs )
 {
 
 	int retval = 0;
@@ -2598,29 +2598,45 @@ SetTDP( void )
 	char* suspend_at_exec = condor_param( SuspendJobAtExec,
 										  ATTR_SUSPEND_JOB_AT_EXEC );
 	MyString buf;
+	MyString path;
 
 	if( tdp_cmd ) {
 		HasTDP = true;
-		buf.sprintf( "%s = \"%s\"", ATTR_TOOL_DAEMON_CMD, tdp_cmd );
+		path = tdp_cmd;
+		check_and_universalize_path( path, ATTR_TOOL_DAEMON_CMD );
+		buf.sprintf( "%s = \"%s\"", ATTR_TOOL_DAEMON_CMD, path.Value() );
 		InsertJobExpr( buf.Value() );
 	}
 	if( tdp_input ) {
-		buf.sprintf( "%s = \"%s\"", ATTR_TOOL_DAEMON_INPUT, tdp_input );
+		path = tdp_input;
+		check_and_universalize_path( path, ATTR_TOOL_DAEMON_INPUT );
+		buf.sprintf( "%s = \"%s\"", ATTR_TOOL_DAEMON_INPUT, path.Value() );
 		InsertJobExpr( buf.Value() );
 	}
 	if( tdp_output ) {
-		buf.sprintf( "%s = \"%s\"", ATTR_TOOL_DAEMON_OUTPUT, tdp_output );
+		path = tdp_output;
+		check_and_universalize_path( path, ATTR_TOOL_DAEMON_OUTPUT );
+		buf.sprintf( "%s = \"%s\"", ATTR_TOOL_DAEMON_OUTPUT, path.Value() );
 		InsertJobExpr( buf.Value() );
 		free( tdp_output );
 		tdp_output = NULL;
 	}
 	if( tdp_error ) {
-		buf.sprintf( "%s = \"%s\"", ATTR_TOOL_DAEMON_ERROR, tdp_error );
+		path = tdp_error;
+		check_and_universalize_path( path, ATTR_TOOL_DAEMON_ERROR );
+		buf.sprintf( "%s = \"%s\"", ATTR_TOOL_DAEMON_ERROR, path.Value() );
 		InsertJobExpr( buf.Value() );
 		free( tdp_error );
 		tdp_error = NULL;
 	}
 	if( tdp_args ) {
+		if( strlen(tdp_args) > _POSIX_ARG_MAX ) {
+			fprintf( stderr, "\nERROR: %s are too long:\n"
+					 "\tPosix limits argument lists to %d bytes\n",
+					 ATTR_TOOL_DAEMON_ARGS, _POSIX_ARG_MAX );
+			DoCleanup( 0, 0, NULL );
+			exit( 1 );
+		}
 		buf.sprintf( "%s = \"%s\"", ATTR_TOOL_DAEMON_ARGS, tdp_args );
 		InsertJobExpr( buf.Value() );
 		free( tdp_args );
