@@ -25,6 +25,14 @@ The details of each version are described below.
 \item The starter would crash if the execute directory contained
 symlinks from child to parent directories.
 
+\item condor_submit_dag allowed you to submit a DAG which contained
+jobs with no log file (as long as ALL jobs had no logfile)
+
+\item Dagman would RETRY your jobs as specified, but did properly
+note that the failed job was no longer in the queue.  The result is
+that Dagman thought there were more jobs yet to finish when in fact
+all had actually finished, which caused it exit with failure.
+
 \end{itemize}
 
 \noindent Known Bugs:
