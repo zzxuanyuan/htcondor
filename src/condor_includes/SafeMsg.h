@@ -93,7 +93,8 @@ class _condorInMsg
         const char * isDataMD5ed();
         const char * isDataEncrypted();
 
-        //bool set_encryption_id(const char * keyId);
+        void resetEncKeyId();
+        void resetMDKeyId();
 
         bool init_MD(KeyInfo * key = 0);
 		// Check if every data of the message has been read
@@ -202,7 +203,8 @@ class _condorPacket
         void setVerified(bool);
         void addEID();       // Add encryption key id to the header
         int checkHeader(int & len, void *& dta);
-
+        void resetMDKeyId();
+        void resetEncKeyId();
         //------------------------------------------
         //  Private data
         //------------------------------------------
