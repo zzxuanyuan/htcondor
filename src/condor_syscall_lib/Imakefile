@@ -22,8 +22,8 @@ DL_EXTRACT = -DDL_EXTRACT
 #endif
 
 OS = OperatingSystem
-CFLAGS = $(STD_C_FLAGS) -DNEW_PROC $(DL_EXTRACT)
-C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) $(STUB_CLUMPS_FLAG) $(DL_EXTRACT)
+CFLAGS = $(STD_C_FLAGS) -DNEW_PROC $(DL_EXTRACT) -fpic
+C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) $(STUB_CLUMPS_FLAG) $(DL_EXTRACT) -fpic
 
 #if DOES_SAVE_SIGSTATE
 SAVE_SIGSTATE = -DSAVE_SIGSTATE
@@ -114,7 +114,6 @@ UTIL = \
 	remote_syscall.o \
 	syscall_connect.o \
 	senders.o \
-	remote_startup.o \
 	file_stream.o
 
 NAME_TAB = syscall_numbers.o
@@ -124,12 +123,14 @@ SRC = \
 	receivers.epilogue \
 	receivers.prologue \
 	remote_startup.c \
+	remote_startup2.c \
 	remote_syscall.C \
 	senders.epilogue \
 	senders.prologue \
 	switches.prologue \
 	switches.epilogue \
 	switches.special.c \
+	syms.c \
 	syscall.tmpl \
 	syscall_connect.C \
 	syscall_numbers.c \
@@ -161,11 +162,18 @@ IO_OBJ = stream.o sock.o reli_sock.o safe_sock.o buffers.o $(CONDOR_TYPE_OBJ) co
 LIB_OBJ = $(EXTRACT) $(STUBS) $(UTIL) $(NAME_TAB) $(XDR_OBJ) $(UTIL_OBJ) \
 	$(CKPT_OBJ) $(UTIL_EXTRACT) $(IOS_STUBS) $(IO_OBJ)
 
+SETJMP_OBJ = SETJMP.SUN.SOLARIS255.o
+
+DYN_LIB1_OBJ = $(LIB_OBJ) $(SETJMP_OBJ) remote_startup.o syms.o
+DYN_LIB2_OBJ = $(LIB_OBJ) $(SETJMP_OBJ) remote_startup2.o syms.o
+DYN_LIBS = -lnsl -lsocket -R/common/tmp/zandy -L../condor_ckpt -lc_plus_alloc -ldl -lc
+
 SIMPLE_OBJ = condor_rt0.o extern_path.o xfer_file.o 
 SYSCALL_LIB = condor_syscall_lib.a
+DYN_SYSCALL_LIB = condor_syscall_lib.so.1 condor_syscall_lib2.so.1
 
 #if DOES_REMOTE_SYSCALLS
-all_target($(SYSCALL_LIB) receivers.o $(SIMPLE_OBJ) $(AIX_OBJ) syscall-list)
+all_target($(SYSCALL_LIB) $(DYN_SYSCALL_LIB) receivers.o $(SIMPLE_OBJ) $(AIX_OBJ) syscall-list)
 #else 
 all_target($(SYSCALL_SUPPORT_OBJ))
 #endif
@@ -177,6 +185,10 @@ ToUpper:
 
 clean::
 	rm -f ToUpper
+
+SETJMP.SUN.SOLARIS255.o:
+	ar -x /lib/libc.a setjmp.o
+	mv setjmp.o SETJMP.SUN.SOLARIS255.o
 
 uppercase_target($(SIMPLE_LIBC),geteuid.o,GETEUID.o,geteuid,GETEUID)
 uppercase_target($(SIMPLE_LIBC),getppid.o,GETPPID.o,getppid,GETPPID)
@@ -289,7 +301,18 @@ condor_syscall_lib.a: libtmp.a ToUpper
 	./ToUpper libtmp.a condor_syscall_lib.a __syscall_error __SYSCALL_ERROR
 #   endif /* Solaris */
 #else /* Not GLIBC Linux or Intel Solaris */
+
+CMNT Compile these with cc because their .init section does not link
+CMNT correctly when compiled with gcc.
+CMNT Use all CFLAGS except -fpic (which is gcc), and add -KPIC.
+remote_startup.o: remote_startup.c
+	cc $(STD_C_FLAGS) -DNEW_PROC $(DL_EXTRACT) -KPIC -c $<
+remote_startup2.o: remote_startup2.c
+	cc $(STD_C_FLAGS) -DNEW_PROC $(DL_EXTRACT) -KPIC -c $<
+
 	library_target(condor_syscall_lib.a,$(LIB_OBJ))
+	dyn_library_target(condor_syscall_lib.so.1,$(DYN_LIB1_OBJ),$(DYN_LIBS))
+	dynsym_library_target(condor_syscall_lib2.so.1,$(DYN_LIB2_OBJ),$(DYN_LIBS))
 #endif
 
 #if DOES_CHECKPOINTING || DOES_REMOTE_SYSCALLS

@@ -194,65 +194,6 @@ extern volatile int InRestart;
 extern void InitFileState();
 void _condor_disable_uid_switching();
 
-#pragma init (zandy_start)
-/* void zandy_start () __attribute__ ((section ("init"))); */
-
-int
-elcheapo_condor_fd_arg ()
-{
-     char *sp;
-     char *str = "-_condor_cmd_f";
-     const unsigned long stack_begin = 0xf0000000;
-     int len = strlen (str);
-     int found_it;
-     int fd;
-     
-     /* Search the first 4k of the stack for arguments from condor */
-     found_it = 0;		/* Haven't seen any */
-     for (sp = (char *) stack_begin - 4096;
-	  sp < (char *) (stack_begin - len);
-	  sp++)
-	  if (! strncmp (str, sp, len)) {
-	       found_it = 1;	/* Oh, here we are. */
-	       break;
-	  }
-     if (! found_it) {
-	  fprintf (stderr, "I've found nothing!\n");
-	  return -1;
-     }
-     
-     sp += len;
-     if (! strncmp (sp, "d", 1)) {
-	  /* -_condor_cmd_fd passed */
-	  char *extra;
-
-	  sp += strlen (sp);
-	  sp++;
-	  fd = strtol (sp, &extra, 0);
-	  if (*extra) {
-	       fprintf (stderr, "I don't recognize the fd argument\n");
-	       return -1;
-	  }
-	  pre_open( fd, TRUE, FALSE );
-	  fprintf (stderr, "The arguments are -_condor_cmd_fd %ld\n", fd);
-	  return fd;
-     } else if (! strncmp (sp, "ile", 3)) {
-	  /* -_condor_cmd_file passed */
-	  sp += strlen (sp);
-	  sp++;
-	  fprintf (stderr, "The arguments are -_condor_cmd_file %s\n", sp);
-	  fd = open (sp, O_RDONLY);
-	  if (fd < 0)
-	       perror ("open");
-	  return fd;
-     } else {
-	  /* Nothing we understand */
-	  fprintf (stderr, "I don't recognize the condor argument\n");
-	  return -1;
-     }
-}
-
-
 int improved_condor_fd_arg ()
 {
     int fd;
@@ -271,21 +212,22 @@ typedef unsigned long RAW_ADDR;
 
 /* We don't know how to read the ckpt file from here, so we'll just
    look for the easter egg that vic left for us in /common/tmp. */
-static void
-get_ckptinfo (RAW_ADDR *lss)
+static RAW_ADDR
+get_ckpt_low_shlib_start ()
 {
      int fd;
+     RAW_ADDR lss;
 
      fd = open ("/common/tmp/zandy/ckptinfo", O_RDONLY);
      if (fd < 0) {
-	  dprintf (D_ALWAYS, "ZANDY: Can't open /common/tmp/zandy/ckptinfo\n");
-	  Suicide ();
+	  fprintf (stderr, "Can't open ckptinfo file.  Bye\n");
+	  exit (1);
      }
-     if (sizeof (RAW_ADDR) != read (fd, lss, sizeof (RAW_ADDR))) {
-	  dprintf (D_ALWAYS, "ZANDY: Can't read /common/tmp/zandy/ckptinfo\n");
-	  Suicide ();
+     if (sizeof (RAW_ADDR) != read (fd, &lss, sizeof (RAW_ADDR))) {
+	  fprintf (stderr, "Can't read ckptinfo file.  Bye\n");
+	  exit (1);
      }
-     close (fd);
+     return lss;
 }
 
 
@@ -370,115 +312,16 @@ start_of_lowest_shlib ()
 	  return NULL;
 }
 
-typedef void (*SIG_HANDLER)();
-void
-zandy_start ()
-{
-     char *restartp;
-     RAW_ADDR ckpt_low_shlib_start;
-     RAW_ADDR proc_low_shlib_start;
-     void *handle;
-     void (*cont) ();
-     int mfd;
-     char *buf;
-     FILE *fp;
 
-     dprintf (D_ALWAYS, "ZANDY: Entering zandy_start\n");
-     restartp = getenv ("CONDOR_RESTART");
-     if (! restartp) {
-	  dprintf (D_ALWAYS, "ZANDY: I can't tell if I'm restarting...\n");
-	  dprintf (D_ALWAYS, "       ...assuming not\n");
-	  zandy_continue ();
-	  return;
-     } else if (strcmp (restartp, "TRUE")) {
-	  dprintf (D_ALWAYS, "ZANDY: Not restarting a ckpt\n");
-	  zandy_continue ();
-	  return;
-     }
-     
-     fp = fopen ("/common/tmp/zandy/mylog", "w");
-     if (! fp)
-	  Suicide ();
-     fprintf (fp, "Opened\n");
-     fflush (fp);
-     
-     /* We're restarting a ckpt. */
-     dprintf (D_ALWAYS, "ZANDY: Restarting a ckpt\n");
-     fprintf (fp, "Restarting\n");
-     fflush (fp);
-
-     /* Find out where to load the library. */
-     get_ckptinfo (&ckpt_low_shlib_start);
-     proc_low_shlib_start = (RAW_ADDR) start_of_lowest_shlib ();
-     if (proc_low_shlib_start < ckpt_low_shlib_start) {
-	  dprintf (D_ALWAYS, "ZANDY: Something's askew here\n");
-	  exit (1);
-     }
-     fprintf (fp, "ckpt: %#010x  proc: %#010x\n", ckpt_low_shlib_start, proc_low_shlib_start);
-     fflush (fp);
-
-     if (proc_low_shlib_start > ckpt_low_shlib_start) {
-	  /* mmap the space the ckpt will be written to */
-
-	  int zfd;
-	  zfd = open ("/dev/zero", O_RDWR);
-	  if (zfd < 0) {
-	       dprintf (D_ALWAYS, "ZANDY: Can't open /dev/zero, of all things\n");
-	       exit (1);
-	  }
-	  if (MAP_FAILED == mmap ((caddr_t) ckpt_low_shlib_start,
-				  (size_t) (proc_low_shlib_start
-					    - ckpt_low_shlib_start),
-				  PROT_READ | PROT_WRITE,
-				  MAP_PRIVATE | MAP_FIXED, zfd, 0)) {
-	       fprintf (fp, "mmap errno: %d\n", errno);
-	       fflush (fp);
-	       fclose (fp);
-	       dprintf (D_ALWAYS, "ZANDY: Can't do the most important mmap\n");
-	       exit (1);
-	  }
-	  close (zfd);
-	  fprintf (fp, "mmap succeeded\n");
-	  fflush (fp);
-     }
-
-     /* Get the continue function from the new library */
-     handle = dlopen ("/common/tmp/zandy/condor_syscall_lib2.so", RTLD_LAZY);
-     if (! handle) {
-	  dprintf (D_ALWAYS, "ZANDY: Can't open the syscall_lib\n");
-	  exit (1);
-     }
-     fprintf (fp, "dlopen\n");
-     fflush (fp);
-
-     cont = (void (*) ()) dlsym (handle, "zandy_continue");
-     if (! cont) {
-	  dprintf (D_ALWAYS, "ZANDY: Can't get the continue function\n");
-	  exit (1);
-     }
-     fprintf (fp, "dlsym: zandy_continue is %#010x\n", cont);
-     fflush (fp);
-     fclose (fp);
-
-     /* Restart the ckpt using the restart code in the newly loaded
-	library, a library that is safe from being clobbered by the
-	ckpt */
-     cont ();
-
-     /* continue started a ckpt; it has no business returning */
-     dprintf (D_ALWAYS, "ZANDY: Shit.  Something went wrong\n");
-}
-
-extern void zeek ();
-extern void Checkpoint (int sig, int code, void *scp);
 void
 zandy_continue ()
 {
      int cmd_fd = -1;
      char *cmd_name;
      int scm;
-     int x;
-     dprintf (D_ALWAYS, "ZANDY: Entering zandy_continue (%#010x)\n",
+     int x = 1;
+
+     dprintf (D_ALWAYS, "ZANDY: Entering zandy_continue2 (%#010x)\n",
 	      zandy_continue);
 
 #if 0
@@ -486,7 +329,6 @@ zandy_continue ()
      zeek ();
      dprintf (D_ALWAYS, "ZANDY: Zeeked it\n");
 #endif
-
 
 #if 0
      /* Standalone */
@@ -496,12 +338,7 @@ zandy_continue ()
      return;
 #endif
 
-     dprintf (D_ALWAYS, "ZANDY: About to call prestart\n");
      _condor_prestart (SYS_REMOTE);
-     /* Install initial signal handlers */
-     _install_signal_handler( SIGTSTP, (SIG_HANDLER)Checkpoint );
-     _install_signal_handler( SIGUSR2, (SIG_HANDLER)Checkpoint );
-     _install_signal_handler( SIGUSR1, (SIG_HANDLER)Suicide );
      dprintf (D_ALWAYS, "ZANDY: Did prestart\n");     
 #define USE_PIPES 0
 
@@ -511,10 +348,9 @@ zandy_continue ()
      init_syscall_connection( FALSE );
 #endif
      dprintf (D_ALWAYS, "ZANDY: Did syscall_connection\n");     
-     /* cmd_fd = elcheapo_condor_fd_arg (); */
      cmd_fd = improved_condor_fd_arg ();
      if (cmd_fd < 0) {
-	  fprintf (stderr, "Can't get a cmd fd\n");
+	  fprintf (stderr, "Can't get a cmd fd!\n");
 	  Suicide ();
      }
      dprintf (D_ALWAYS, "ZANDY: Did elcheapo\n");     
@@ -534,6 +370,7 @@ zandy_continue ()
      InRestart = FALSE;
      dprintf (D_ALWAYS, "ZANDY: Finished zandy_continue\n");
 }
+
 
 int
 #if defined(HPUX)
@@ -559,7 +396,7 @@ MAIN( int argc, char *argv[], char **envp )
 		   how we want them so we don't do switching, period.
 		   -Derek Wright 7/21/98
 		*/
- 	_condor_disable_uid_switching();
+	_condor_disable_uid_switching();
 
 #undef WAIT_FOR_DEBUGGER
 #if defined(WAIT_FOR_DEBUGGER)
