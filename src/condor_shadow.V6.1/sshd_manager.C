@@ -63,9 +63,17 @@ SshdManager::~SshdManager(){
   
 void 
 SshdManager::cleanUp(){
+  char knownHostFileName[_POSIX_PATH_MAX];
+
+  if (keyFileName)
+	sprintf(knownHostFileName, "%s.ssh_known_hosts", keyFileName);
+  else
+	knownHostFileName[0] = '\0';
+
   deleteFile(pubkeyFileName);
   deleteFile(keyFileName);
   deleteFile(contactFileName);
+  deleteFile(knownHostFileName);
   hasKey = false;
 }
 

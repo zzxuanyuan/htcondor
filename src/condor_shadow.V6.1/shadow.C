@@ -187,6 +187,7 @@ UniShadow::cleanUp( void )
 	if ( remRes ) {
 		remRes->killStarter();
 	}
+	BaseShadow::cleanUp();
 }
 
 

@@ -14,7 +14,7 @@ OBJ = shadow_v61_main.o baseshadow.o shadow.o mpishadow.o \
 	shadow_v61_instantiate.o shadow_user_policy.o  \
 	sshd_info.o sshd_manager.o
 
-SSH_OBJ = condor_ssh.o  sshd_info.o
+SSH_OBJ = condor_rsh.o  sshd_info.o
 SSHD_OBJ = condor_sshd.o sshd_info.o
 
 c_plus_target($(NAME),$(OBJ),$(LIB))
@@ -22,17 +22,17 @@ c_plus_target($(SSH_NAME),$(SSH_OBJ),$(STD_LIBS))
 c_plus_target($(SSHD_NAME),$(SSHD_OBJ),$(STD_LIBS))
 
 release_target($(NAME),sbin,EXECUTABLE_MODE)
-release_target($(SSH_NAME),bin,EXECUTABLE_MODE)
+release_target($(SSH_NAME),lib,EXECUTABLE_MODE)
 release_target($(SSHD_NAME),sbin,EXECUTABLE_MODE)
 release_copy_target($(SSH_SCRIPT_NAME),bin,$(SSH_SCRIPT_NAME),EXECUTABLE_MODE)
 
 strip_target($(NAME),sbin,EXECUTABLE_MODE)
-strip_target($(SSH_NAME),bin,EXECUTABLE_MODE)
+strip_target($(SSH_NAME),lib,EXECUTABLE_MODE)
 strip_target($(SSHD_NAME),sbin,EXECUTABLE_MODE)
 strip_copy_target($(SSH_SCRIPT_NAME),bin,$(SSH_SCRIPT_NAME),EXECUTABLE_MODE)
 
 static_target($(NAME),$(OBJ),$(LIB),$(STATIC_DIR)/sbin)
-static_target($(SSH_NAME),$(OBJ),$(LIB),$(STATIC_DIR)/sbin)
+static_target($(SSH_NAME),$(OBJ),$(LIB),$(STATIC_DIR)/lib)
 static_target($(SSHD_NAME),$(OBJ),$(LIB),$(STATIC_DIR)/sbin)
 static_copy_target($(SSH_SCRIPT_NAME),bin,$(SSH_SCRIPT_NAME),EXECUTABLE_MODE)
 

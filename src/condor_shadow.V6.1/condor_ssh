@@ -5,7 +5,7 @@ if [ $# -lt 1 ]; then
 	exit -1
 fi
 
-condor_ssh_binary=`dirname $0`/rsh
+condor_ssh_binary=`dirname $0`/../lib/rsh
 # arg[1] should be cluster.proc
 jobid=$1
 shift
@@ -18,5 +18,9 @@ if [ ! -f $filename ]; then
 fi
 
 source $filename
+export CONDOR_PARALLEL_OPENSSH_DIR
+export CONDOR_PARALLEL_SHADOW_CONTACT
+export CONDOR_PARALLEL_WORK_DIR
+export CONDOR_PARALLEL_USER_KEY
 $condor_ssh_binary -no_wrapper -choose_any DUMMY_HOST $args
 

@@ -104,7 +104,7 @@ int get_envs(){
   }
 
   sprintf(openssh, "%s/ssh", openssh_dir);
-  sprintf(known_hosts_file, "%s/.ssh_known_hosts", work_dir);
+  sprintf(known_hosts_file, "%s/%s.ssh_known_hosts", work_dir, userkey_filename);
 
   return 1;
 }
