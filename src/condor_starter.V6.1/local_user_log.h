@@ -93,25 +93,32 @@ public:
 		*/
 	bool logContinue( ClassAd* ad );
 
-		/** Log a terminate event for this job.
-			@param ad ClassAd containing the info we need for the
-			event (which is what the JIC would be sending to the
-			controller in some way)
+		/** Since whenever a job exits, we want to do the same checks
+			on the exit reason to decide what kind of event (terminate
+			or evict) to log, everyone can just call this method,
+			which will check the exit_reason and try to log the
+			appropriate event for you.
 		*/
-	bool logTerminate( ClassAd* ad, int exit_reason );
+	bool logJobExit( ClassAd* ad, int exit_reason );
 
-		/** Log an evict event for this job.
-			@param ad ClassAd containing the info we need for the
-			event (which is what the JIC would be sending to the
-			controller in some way)
-		*/
-	bool logEvict( ClassAd* ad, int exit_reason );
 
 private:
 
 		// // // // // // // // // // // //
 		// Private helper methods
 		// // // // // // // // // // // //
+
+		/** Log a terminate event for this job.
+		*/
+	bool logTerminate( ClassAd* ad );
+
+		/** Log an evict event for this job.
+			@param ad ClassAd containing the info we need for the
+			event (which is what the JIC would be sending to the
+			controller in some way)
+			@param checkpointed did this job checkpoint or not?
+		*/
+	bool logEvict( ClassAd* ad, bool checkpointed );
 
 		/** Since both logTerminate() and logEvict() want to include
 			rusage information, we have a shared helper function to

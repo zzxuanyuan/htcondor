@@ -194,7 +194,32 @@ LocalUserLog::logContinue( ClassAd* ad )
 
 
 bool
-LocalUserLog::logTerminate( ClassAd* ad, int exit_reason )
+LocalUserLog::logJobExit( ClassAd* ad, int exit_reason ) 
+{
+	if( ! should_log ) {
+		return true;
+	}
+	switch( exit_reason ) {
+    case JOB_EXITED:
+    case JOB_COREDUMPED:
+		return logTerminate( ad );
+		break;
+    case JOB_CKPTED:
+		return logEvict( ad, true );
+		break;
+    case JOB_NOT_CKPTED:
+    case JOB_KILLED:
+		return logEvict( ad, false );
+        break;
+    default:
+		dprintf( D_ALWAYS, "Job exited with unknown reason (%d)!\n" ); 
+    }
+	return false;
+}
+
+
+bool
+LocalUserLog::logTerminate( ClassAd* ad )
 {
 	if( ! is_initialized ) {
 		EXCEPT( "LocalUserLog::logTerminate() called before init()" );
@@ -202,16 +227,6 @@ LocalUserLog::logTerminate( ClassAd* ad, int exit_reason )
 	if( ! should_log ) {
 		return true;
 	}
-
-	switch( exit_reason ) {
-    case JOB_EXITED:
-    case JOB_COREDUMPED:
-        break;
-    default:
-        dprintf( D_ALWAYS, "LocalUserLog::logTerminate() "
-				 "called with unknown reason (%d), aborting", exit_reason ); 
-        return false;
-    }
 
 	JobTerminatedEvent event;
 
@@ -266,7 +281,7 @@ LocalUserLog::logTerminate( ClassAd* ad, int exit_reason )
 
 
 bool
-LocalUserLog::logEvict( ClassAd* ad, int exit_reason )
+LocalUserLog::logEvict( ClassAd* ad, bool checkpointed )
 {
 	if( ! is_initialized ) {
 		EXCEPT( "LocalUserLog::logEvict() called before init()" );
@@ -275,17 +290,6 @@ LocalUserLog::logEvict( ClassAd* ad, int exit_reason )
 		return true;
 	}
 
-    switch( exit_reason ) {
-    case JOB_CKPTED:
-    case JOB_NOT_CKPTED:
-    case JOB_KILLED:
-        break;
-    default:
-        dprintf( D_ALWAYS, "LocalUserLog::logEvict() "
-				 "called with unknown reason (%d), aborting", exit_reason ); 
-        return false;
-    }
-
     JobEvictedEvent event;
 
     struct rusage run_local_rusage;
@@ -293,7 +297,7 @@ LocalUserLog::logEvict( ClassAd* ad, int exit_reason )
 	event.run_local_rusage = run_local_rusage;
         // remote rusage should be blank
 
-    event.checkpointed = (exit_reason == JOB_CKPTED);
+    event.checkpointed = checkpointed;
     
 	event.recvd_bytes = jic->bytesReceived();
     event.sent_bytes = jic->bytesSent();
@@ -304,6 +308,8 @@ LocalUserLog::logEvict( ClassAd* ad, int exit_reason )
     }
 	return true;
 }
+
+
 
 
 struct rusage
