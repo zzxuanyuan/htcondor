@@ -1,9 +1,11 @@
 CONDOR_LIB_DIR=/local.sleepy.1/gbronner/build/src/release_dir/lib
 CONDOR_COMPILE= condor_compile
-CC=gcc
-CCFLAGS=-g
+CC=g++
+CCFLAGS=-g -Bstatic
 MAKE= make
-
+LIBDIRS=-L/s/zlib/lib 
+LDFLAGS=-Xlinker -dn
+INCLUDEDIRS=-I/s/zlib/include
 all: grbxxx
 
 # The point of this is
@@ -20,3 +22,9 @@ grbxxx:
 	cd ../condor_syscall_lib; $(MAKE) ; $(MAKE) release
 	$(CONDOR_COMPILE) -condor_lib $(CONDOR_LIB_DIR) $(CC) $(CCFLAGS) firstattempt.o -o gregxxx
 
+secondattempt: secondattempt.o
+	$(CC) $(CCFLAGS) $(LIBDIRS) $(LDFLAGS) secondattempt.o -lz -o secondattempt 
+secondattempt.o: secondattempt.C secondattempt.h
+	$(CC) $(CCFLAGS) $(INCLUDEDIRS) -c secondattempt.C 
+clean:
+	rm secondattempt.o secondattempt
