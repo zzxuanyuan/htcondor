@@ -113,6 +113,19 @@ OsProc::StartJob()
 		}
 	}
 
+	if( Starter->isGridshell() ) {
+			// if we're a gridshell, just try to chmod our job, since
+			// globus probably transfered it for us and left it with
+			// bad permissions...
+		priv_state old_priv = set_user_priv();
+		int retval = chmod( JobName, S_IRWXU | S_IRWXO | S_IRWXG );
+		set_priv( old_priv );
+		if( retval < 0 ) {
+			dprintf ( D_ALWAYS, "Failed to chmod %s!\n", JobName );
+			return 0;
+		}
+	} 
+
 	char Args[_POSIX_ARG_MAX];
 	char tmp[_POSIX_ARG_MAX];
 
