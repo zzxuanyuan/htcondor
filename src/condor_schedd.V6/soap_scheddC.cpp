@@ -8,7 +8,7 @@
 
 SOAP_BEGIN_NAMESPACE(soap_schedd)
 
-SOAP_SOURCE_STAMP("@(#) soap_scheddC.cpp ver 2.5.2 2004-02-27 03:15:17 GMT")
+SOAP_SOURCE_STAMP("@(#) soap_scheddC.cpp ver 2.5.2 2004-02-27 19:30:25 GMT")
 
 
 #ifndef WITH_NOGLOBAL
@@ -3815,13 +3815,13 @@ SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__IntAndStatus(struct soap *soa
 {
 	soap_embedded(soap, &a->status, SOAP_TYPE_condorCore__Status);
 	soap_mark_condorCore__Status(soap, &a->status);
-	soap_embedded(soap, &a->id, SOAP_TYPE_xsd__int);
+	soap_embedded(soap, &a->integer, SOAP_TYPE_xsd__int);
 }
 
 SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorSchedd__IntAndStatus(struct soap *soap, struct condorSchedd__IntAndStatus *a)
 {
 	soap_default_condorCore__Status(soap, &a->status);
-	soap_default_xsd__int(soap, &a->id);
+	soap_default_xsd__int(soap, &a->integer);
 }
 
 SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorSchedd__IntAndStatus(struct soap *soap, struct condorSchedd__IntAndStatus *a, const char *tag, const char *type)
@@ -3836,7 +3836,7 @@ SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorSchedd__IntAndStatus(struct soap *soap,
 	soap_element_begin_out(soap, tag, soap_embedded_id(soap, id, a, SOAP_TYPE_condorSchedd__IntAndStatus), type);
 	soap_element_result(soap, "status");
 	soap_out_condorCore__Status(soap, "status", -1, &a->status, "condorCore:Status");
-	soap_out_xsd__int(soap, "id", -1, &a->id, "xsd:int");
+	soap_out_xsd__int(soap, "integer", -1, &a->integer, "xsd:int");
 	soap_element_end_out(soap, tag);
 	return SOAP_OK;
 }
@@ -3850,7 +3850,7 @@ SOAP_FMAC3 struct condorSchedd__IntAndStatus * SOAP_FMAC4 soap_get_condorSchedd_
 
 SOAP_FMAC3 struct condorSchedd__IntAndStatus * SOAP_FMAC4 soap_in_condorSchedd__IntAndStatus(struct soap *soap, const char *tag, struct condorSchedd__IntAndStatus *a, const char *type)
 {
-	short soap_flag_status = 1, soap_flag_id = 1;
+	short soap_flag_status = 1, soap_flag_integer = 1;
 	if (soap_element_begin_in(soap, tag))
 		return NULL;
 	if (*soap->type && soap_match_tag(soap, soap->type, type))
@@ -3880,9 +3880,9 @@ SOAP_FMAC3 struct condorSchedd__IntAndStatus * SOAP_FMAC4 soap_in_condorSchedd__
 				{	soap_flag_status = 0;
 					continue;
 				}
-			if (soap_flag_id && soap->error == SOAP_TAG_MISMATCH)
-				if (soap_in_xsd__int(soap, "id", &a->id, "xsd:int"))
-				{	soap_flag_id = 0;
+			if (soap_flag_integer && soap->error == SOAP_TAG_MISMATCH)
+				if (soap_in_xsd__int(soap, "integer", &a->integer, "xsd:int"))
+				{	soap_flag_integer = 0;
 					continue;
 				}
 			if (soap->error == SOAP_TAG_MISMATCH)

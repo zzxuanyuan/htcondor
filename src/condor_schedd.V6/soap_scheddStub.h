@@ -109,7 +109,7 @@ struct condorSchedd__TransactionAndStatus
 struct condorSchedd__IntAndStatus
 {
 	struct condorCore__Status status;	/* return */
-	int id;
+	int integer;
 };
 
 /* condorSchedd:beginTransaction: */
@@ -296,7 +296,7 @@ SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__commitTransaction(struct soap*, struct c
 
 SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__abortTransaction(struct soap*, struct condorSchedd__Transaction, struct condorCore__Status &);
 
-SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__extendTransaction(struct soap*, struct condorSchedd__Transaction, int, struct condorCore__Status &);
+SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__extendTransaction(struct soap*, struct condorSchedd__Transaction, int, struct condorSchedd__TransactionAndStatus &);
 
 SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__newCluster(struct soap*, struct condorSchedd__Transaction, struct condorSchedd__IntAndStatus &);
 
@@ -330,7 +330,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__commitTransaction(struct soap*
 
 SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__abortTransaction(struct soap*, const char*, const char*, struct condorSchedd__Transaction, struct condorCore__Status &);
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__extendTransaction(struct soap*, const char*, const char*, struct condorSchedd__Transaction, int, struct condorCore__Status &);
+SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__extendTransaction(struct soap*, const char*, const char*, struct condorSchedd__Transaction, int, struct condorSchedd__TransactionAndStatus &);
 
 SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__newCluster(struct soap*, const char*, const char*, struct condorSchedd__Transaction, struct condorSchedd__IntAndStatus &);
 

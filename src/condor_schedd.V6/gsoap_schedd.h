@@ -14,7 +14,7 @@ int condorSchedd__abortTransaction(struct condorSchedd__Transaction transaction,
 
 int condorSchedd__extendTransaction(struct condorSchedd__Transaction transaction,
                                     xsd__int duration,
-                                    struct condorCore__Status & result);
+                                    struct condorSchedd__TransactionAndStatus & result);
 
 int condorSchedd__newCluster(struct condorSchedd__Transaction transaction,
                              struct condorSchedd__IntAndStatus & result);

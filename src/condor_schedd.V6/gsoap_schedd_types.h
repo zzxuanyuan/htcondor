@@ -32,5 +32,5 @@ struct condorSchedd__TransactionAndStatus
 struct condorSchedd__IntAndStatus
 {
   struct condorCore__Status status 1:1;
-  xsd__int id 0:1;
+  xsd__int integer 0:1;
 };

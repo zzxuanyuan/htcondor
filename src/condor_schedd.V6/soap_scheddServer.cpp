@@ -8,7 +8,7 @@
 
 SOAP_BEGIN_NAMESPACE(soap_schedd)
 
-SOAP_SOURCE_STAMP("@(#) soap_scheddServer.cpp ver 2.5.2 2004-02-27 03:15:17 GMT")
+SOAP_SOURCE_STAMP("@(#) soap_scheddServer.cpp ver 2.5.2 2004-02-27 19:30:25 GMT")
 
 
 SOAP_FMAC5 int SOAP_FMAC6 soap_serve(struct soap *soap)
@@ -212,8 +212,8 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__abortTransaction(struct soap 
 
 SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__extendTransaction(struct soap *soap)
 {	struct condorSchedd__extendTransaction soap_tmp_condorSchedd__extendTransaction;
-	struct condorCore__Status result;
-	soap_default_condorCore__Status(soap, &result);
+	struct condorSchedd__TransactionAndStatus result;
+	soap_default_condorSchedd__TransactionAndStatus(soap, &result);
 	soap_default_condorSchedd__extendTransaction(soap, &soap_tmp_condorSchedd__extendTransaction);
 	soap->encodingStyle = "encoding-style";
 	soap_get_condorSchedd__extendTransaction(soap, &soap_tmp_condorSchedd__extendTransaction, "condorSchedd:extendTransaction", NULL);
@@ -231,13 +231,13 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__extendTransaction(struct soap
 	if (soap->error)
 		return soap->error;
 	soap_serializeheader(soap);
-	soap_serialize_condorCore__Status(soap, &result);
+	soap_serialize_condorSchedd__TransactionAndStatus(soap, &result);
 	soap_begin_count(soap);
 	if (soap->mode & SOAP_IO_LENGTH)
 	{	soap_envelope_begin_out(soap);
 		soap_putheader(soap);
 		soap_body_begin_out(soap);
-		soap_put_condorCore__Status(soap, &result, "condorCore:Status", "");
+		soap_put_condorSchedd__TransactionAndStatus(soap, &result, "condorSchedd:TransactionAndStatus", "");
 		soap_body_end_out(soap);
 		soap_envelope_end_out(soap);
 	};
@@ -245,7 +245,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__extendTransaction(struct soap
 	 || soap_envelope_begin_out(soap)
 	 || soap_putheader(soap)
 	 || soap_body_begin_out(soap)
-	 || soap_put_condorCore__Status(soap, &result, "condorCore:Status", "")
+	 || soap_put_condorSchedd__TransactionAndStatus(soap, &result, "condorSchedd:TransactionAndStatus", "")
 	 || soap_body_end_out(soap)
 	 || soap_envelope_end_out(soap)
 #ifndef WITH_LEANER

@@ -92,6 +92,7 @@ condorSchedd__beginTransaction(struct soap *s,
 
   current_trans_id = time(NULL);   // TODO : choose unique id - use time for now
   result.transaction.id = current_trans_id;
+  result.transaction.duration = duration;
   result.status.code = 0; // Success! XXX: Define this somewhere!
 
   setQSock(NULL);	// Tell the qmgmt layer to allow anything -- that is, until
@@ -158,21 +159,24 @@ int
 condorSchedd__extendTransaction(struct soap *s,
                                 struct condorSchedd__Transaction transaction,
                                 int duration,
-                                struct condorCore__Status & result )
+                                struct condorSchedd__TransactionAndStatus & result )
 {
-  result.code = -1;
+  result.status.code = -1;
   if ( transaction.id &&	// must not be 0
        transaction.id == current_trans_id &&	// must be the current transaction
        trans_timer_id != -1 )
     {
-      result.code = 0;
+      result.status.code = 0;
       if ( duration < 1 ) {
         duration = 1;
       }
       daemonCore->Reset_Timer(trans_timer_id,duration);
+
+      result.transaction.id = transaction.id;
+      result.transaction.duration = duration;
     }
 
-  dprintf(D_ALWAYS,"SOAP leaving condorSchedd__extendTransaction() res=%d\n",result.code);
+  dprintf(D_ALWAYS,"SOAP leaving condorSchedd__extendTransaction() res=%d\n",result.status.code);
   return SOAP_OK;
 }
 
@@ -185,8 +189,8 @@ condorSchedd__newCluster(struct soap *s,
   if ( (transaction.id == 0) || (!valid_transaction_id(transaction.id)) ) {
     // TODO error - unrecognized transactionId
   }
-  result.id = NewCluster();
-  if ( result.id == -1 ) {
+  result.integer = NewCluster();
+  if ( result.integer == -1 ) {
     // TODO error case
   }
 
@@ -224,12 +228,12 @@ condorSchedd__newJob(struct soap *s,
                      int clusterId,
                      struct condorSchedd__IntAndStatus & result)
 {
-  result.id = 0;
+  result.integer = 0;
   if ( (transaction.id == 0) || (!valid_transaction_id(transaction.id)) ) {
     // TODO error - unrecognized transactionId
   }
-  result.id = NewProc(clusterId);
-  if ( result.id == -1 ) {
+  result.integer = NewProc(clusterId);
+  if ( result.integer == -1 ) {
     // TODO error case
   }
 

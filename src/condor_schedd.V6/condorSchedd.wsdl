@@ -136,7 +136,7 @@
   <complexType name="IntAndStatus">
    <sequence>
     <element name="status" type="condorCore:Status" minOccurs="1" maxOccurs="1"/>
-    <element name="id" type="xsd:int" minOccurs="0" maxOccurs="1"/>
+    <element name="integer" type="xsd:int" minOccurs="0" maxOccurs="1"/>
    </sequence>
   </complexType>
  </schema>
@@ -177,7 +177,7 @@
 
 <message name="IntAndStatus">
  <part name="status" type="condorCore:Status"/>
- <part name="id" type="xsd:int"/>
+ <part name="integer" type="xsd:int"/>
 </message>
 
 <message name="removeClusterRequest">
@@ -287,7 +287,7 @@
  <operation name="extendTransaction">
   <documentation>Service definition of function condorSchedd__extendTransaction</documentation>
   <input message="tns:extendTransactionRequest"/>
-  <output message="tns:Status"/>
+  <output message="tns:TransactionAndStatus"/>
  </operation>
  <operation name="newCluster">
   <documentation>Service definition of function condorSchedd__newCluster</documentation>
