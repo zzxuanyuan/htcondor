@@ -29,7 +29,6 @@
 #include "condor_io.h"
 #include "condor_file_info.h"
 #include "condor_uid.h"
-#include "afs.h"
 #include "../condor_syscall_lib/syscall_param_sizes.h"
 #include "my_hostname.h"
 #include "pseudo_ops.h"
@@ -38,6 +37,7 @@
 #include "../condor_ckpt_server/server_interface.h"
 #include "internet.h"
 #include "condor_config.h"
+#include "filename_tools.h"
 
 #ifdef CARMI_OPS
 #include <ProcList.h>
@@ -81,12 +81,10 @@ void display_ip_addr( unsigned int addr );
 int has_ckpt_file();
 void update_job_status( struct rusage *localp, struct rusage *remotep );
 
-static char Executing_AFS_Cell[ MAX_STRING ];
 static char Executing_Filesystem_Domain[ MAX_STRING ];
 static char Executing_UID_Domain[ MAX_STRING ];
 char *Executing_Arch=NULL, *Executing_OpSys=NULL;
 
-extern char My_AFS_Cell[];
 extern char My_Filesystem_Domain[];
 extern char My_UID_Domain[];
 extern int	UseAFS;
@@ -104,6 +102,7 @@ extern ClassAd *JobAd;
 extern float BytesSent, BytesRecvd;
 
 const int MaxRetryWait = 3600;
+static bool CkptWanted = true;	// WantCheckpoint from Job ClassAd
 
 /*
 **	getppid normally returns the parents id, right?  Well in
@@ -189,7 +188,7 @@ pseudo_reallyexit( int *status, struct rusage *use_p )
 int
 pseudo_free_fs_blocks( const char *path )
 {
-	return free_fs_blocks( path );
+	return sysapi_disk_space( path );
 }
 
 int
@@ -587,7 +586,7 @@ pseudo_get_file_stream(
 				sleep(retry_wait);
 				retry_wait *= 2;
 				if (retry_wait > MaxRetryWait) {
-					retry_wait = MaxRetryWait;
+					EXCEPT("ckpt server restore failed");
 				}
 			}
 		} while (rval);
@@ -619,7 +618,7 @@ pseudo_get_file_stream(
 				sleep(retry_wait);
 				retry_wait *= 2;
 				if (retry_wait > MaxRetryWait) {
-					retry_wait = MaxRetryWait;
+					EXCEPT("ckpt server restore failed");
 				}
 			}
 		} 
@@ -744,7 +743,7 @@ pseudo_put_file_stream(
 				sleep(retry_wait);
 				retry_wait *= 2;
 				if (retry_wait > MaxRetryWait) {
-					retry_wait = MaxRetryWait;
+					EXCEPT("ckpt server store failed");
 				}
 			}
 		} while (rval);
@@ -893,12 +892,8 @@ create_tcp_port( u_short *port, int *fd )
 	}
 	dprintf( D_FULLDEBUG, "\tconnect_sock = %d\n", *fd );
 
-
 		/* bind it to an address */
-	memset( &sin, '\0', sizeof sin );
-	sin.sin_family = AF_INET;
-	sin.sin_port = 0;
-	if( bind(*fd,(struct sockaddr *)&sin, sizeof sin) < 0 ) {
+	if( ! _condor_local_bind(*fd) ) {
 		EXCEPT( "bind" );
 	}
 
@@ -1010,6 +1005,8 @@ pseudo_startup_info_request( STARTUP_INFO *s )
 		s->ckpt_wanted = TRUE;
 	}
 
+	CkptWanted = s->ckpt_wanted;
+
 	if (JobAd->LookupInteger(ATTR_CORE_SIZE, s->coredump_limit) == 1) {
 		s->coredump_limit_exists = TRUE;
 	} else {
@@ -1080,12 +1077,47 @@ pseudo_std_file_info( int which, char *name, int *pipe_fd )
 int
 pseudo_file_info( const char *name, int *pipe_fd, char *extern_path )
 {
-	int		answer, len;
+	int	answer, len;
 	char	full_path[ _POSIX_PATH_MAX ];
+
+	*pipe_fd = -1;
 
 	dprintf( D_SYSCALLS, "\tname = \"%s\"\n", name );
 
-	*pipe_fd = -1;
+	/* First check to see if the logical name matches a
+	   filename that is remapped by the job ad. */
+
+	char	remap_list[ATTRLIST_MAX_EXPRESSION];
+	char	full_url[_POSIX_PATH_MAX*3];
+	char	url_method[_POSIX_PATH_MAX];
+	char	url_server[_POSIX_PATH_MAX];
+	int	url_port;
+	
+	JobAd->LookupString(ATTR_FILE_REMAPS,remap_list);
+        if(filename_remap_find(remap_list,(char*)name,full_url)) {
+
+                dprintf(D_SYSCALLS,"\tthis file is remapped by the user.\n");
+
+                filename_url_parse(full_url,url_method,url_server,&url_port,extern_path);
+
+                dprintf(D_SYSCALLS,"\tremap method: %s\n",url_method);
+                dprintf(D_SYSCALLS,"\tremap server: %s\n",url_server);
+                dprintf(D_SYSCALLS,"\tremap port: %d\n",url_port);
+                dprintf(D_SYSCALLS,"\tremap path: %s\n",extern_path);
+
+                if(!strcmp(url_method,"local")) {
+                        answer = IS_LOCAL;
+                } else if(!strcmp(url_method,"remote")) {
+                        answer = IS_RSC;
+                } else {
+                        dprintf(D_SYSCALLS,"\tunknown method (%s) -- defaulting to remote\n",url_method);
+                        answer = IS_RSC;
+                }
+
+		return answer;
+        }
+
+	dprintf( D_SYSCALLS, "\tnot remapped.\n");
 
 	if( name[0] == '/' ) {
 		strcpy( full_path, name );
@@ -1132,27 +1164,42 @@ pseudo_file_info( const char *name, int *pipe_fd, char *extern_path )
 	return answer;
 }
 
-int pseudo_get_buffer_info( int *blocks, int *block_size, int *prefetch_bytes )
+int pseudo_get_buffer_info( int *blocks_out, int *block_size_out, int *prefetch_out )
 {
-	char *btext = param("BUFFER_BLOCK_COUNT");
-	char *bstext = param("BUFFER_BLOCK_SIZE");
-	char *ptext = param("BUFFER_PREFETCH_BYTES");
+	int buffer_size=0,block_size=0,blocks=0,prefetch=0;
 
-	// If the param can't be found or contains funny data,
-	// then we return zeroes, which disables buffering
-	// or prefetching, as the case may be.
+	JobAd->LookupInteger(ATTR_BUFFER_SIZE,buffer_size);
+	JobAd->LookupInteger(ATTR_BUFFER_PREFETCH_SIZE,prefetch);
+	JobAd->LookupInteger(ATTR_BUFFER_BLOCK_SIZE,block_size);
 
-	if(btext)	*blocks = atoi(btext);
-	else		*blocks = 0;
+	/* If the buffer size is greater than zero, than round it up
+	   to match any block size setting. */
 
-	if(bstext)	*block_size = atoi(bstext);
-	else		*block_size = 0;
+	if(buffer_size>0) {
 
-	if(ptext)	*prefetch_bytes = atoi(ptext);
-	else		*prefetch_bytes = 0;
+		if(block_size<=0) block_size=16384;
 
-	dprintf(D_SYSCALLS,"\tblocks=%d block_size=%d prefetch_bytes=%d\n",
-		*blocks, *block_size, *prefetch_bytes );
+		blocks = (buffer_size/block_size);
+		if( (blocks*block_size) < buffer_size ) {
+			blocks++;
+			buffer_size = blocks*block_size;
+		}
+
+		if(prefetch<0) {
+			prefetch = 0;
+		} else if(prefetch<block_size) {
+			prefetch = block_size;
+		} else if(prefetch>buffer_size) {
+			prefetch = buffer_size;
+		}
+	}
+
+	*blocks_out = blocks;
+	*block_size_out = block_size;
+	*prefetch_out = prefetch;
+
+	dprintf(D_SYSCALLS,"\tblocks=%d block_size=%d prefetch=%d\n",
+		blocks, block_size, prefetch );
 
 	return 0;
 }
@@ -1191,7 +1238,9 @@ int
 pseudo_get_ckpt_mode( int sig )
 {
 	int mode = 0;
-	if (sig == SIGTSTP) {		// vacate checkpoint
+	if (!CkptWanted) {
+		mode = CKPT_MODE_ABORT;
+	} else if (sig == SIGTSTP) { // vacate checkpoint
 		if (CompressVacateCkpt) mode |= CKPT_MODE_USE_COMPRESSION;
 		if (SlowCkptSpeed) mode |= CKPT_MODE_SLOW;
 	} else if (sig == SIGUSR2) { // periodic checkpoint 
@@ -1259,15 +1308,6 @@ pseudo_chdir( const char *path )
 }
 
 /*
-  Take note of the executing machine's AFS cell.
-*/
-pseudo_register_afs_cell( const char *cell )
-{
-	strcpy( Executing_AFS_Cell, cell );
-	dprintf( D_SYSCALLS, "\tCell = \"%s\"\n", cell );
-}
-
-/*
   Take note of the executing machine's filesystem domain
 */
 pseudo_register_fs_domain( const char *fs_domain )
@@ -1294,8 +1334,6 @@ use_local_access( const char *file )
 
 access_via_afs( const char *file )
 {
-	char *file_cell;
-
 	dprintf( D_SYSCALLS, "\tentering access_via_afs()\n" );
 
 	if( !UseAFS ) {
@@ -1304,34 +1342,26 @@ access_via_afs( const char *file )
 		return FALSE;
 	}
 
-	if( !Executing_AFS_Cell[0] ) {
-		dprintf( D_SYSCALLS, "\tdon't know cell of executing machine" );
-		dprintf( D_SYSCALLS, "\taccess_via_afs() returning FALSE\n" );
-		return FALSE;
-	}
-
-	file_cell = get_file_cell( file );
-
-	if( !file_cell ) {
-		dprintf( D_SYSCALLS, "\t- not an AFS file\n" );
+	if( !Executing_Filesystem_Domain[0] ) {
+		dprintf( D_SYSCALLS, "\tdon't know FS domain of executing machine\n" );
 		dprintf( D_SYSCALLS, "\taccess_via_afs() returning FALSE\n" );
 		return FALSE;
 	}
 
 	dprintf( D_SYSCALLS,
-		"\tfile_cell = \"%s\", executing_cell = \"%s\"\n",
-		file_cell,
-		Executing_AFS_Cell
+		"\tMy_FS_Domain = \"%s\", Executing_FS_Domain = \"%s\"\n",
+		My_Filesystem_Domain,
+		Executing_Filesystem_Domain
 	);
-	if( strcmp(file_cell,Executing_AFS_Cell) == MATCH ) {
-		dprintf( D_SYSCALLS, "\tAFS cells do match\n" );
-		dprintf( D_SYSCALLS, "\taccess_via_afs() returning TRUE\n" );
-		return TRUE;
-	} else {
-		dprintf( D_SYSCALLS, "\tAFS cells don't match\n" );
+
+	if( strcmp(My_Filesystem_Domain,Executing_Filesystem_Domain) != MATCH ) {
+		dprintf( D_SYSCALLS, "\tFilesystem domains don't match\n" );
 		dprintf( D_SYSCALLS, "\taccess_via_afs() returning FALSE\n" );
 		return FALSE;
 	}
+
+	dprintf( D_SYSCALLS, "\taccess_via_afs() returning TRUE\n" );
+	return TRUE;
 }
 
 access_via_nfs( const char *file )
@@ -1405,7 +1435,7 @@ has_ckpt_file()
 			sleep(retry_wait);
 			retry_wait *= 2;
 			if (retry_wait > MaxRetryWait) {
-				retry_wait = MaxRetryWait;
+				EXCEPT("failed to contact ckpt server");
 			}
 		}
 	} while (rval == -1 && UseCkptServer && accum_usage > MaxDiscardedRunTime);
@@ -1638,7 +1668,7 @@ pseudo_sync()
    Specify checkpoint server host.
 */
 int
-pseudo_choose_ckpt_server(const char *host)
+pseudo_register_ckpt_server(const char *host)
 {
 	if (StarterChoosesCkptServer) {
 		if (CkptServerHost) free(CkptServerHost);
