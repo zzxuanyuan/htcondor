@@ -62,6 +62,9 @@ const char * ULogEventNumberNames[] = {
 	"ULOG_GLOBUS_RESOURCE_UP",		// Globus Machine UP 
 	"ULOG_GLOBUS_RESOURCE_DOWN",	// Globus Machine Down
 	"ULOG_REMOTE_ERROR",            // Remote Error
+	"ULOG_JOB_DISCONNECTED",        // RSC socket lost
+	"ULOG_JOB_RECONNECTED",         // RSC socket re-established
+	"ULOG_JOB_RECONNECT_FAILED",    // RSC reconnect failure
 };
 
 const char * ULogEventOutcomeNames[] = {
