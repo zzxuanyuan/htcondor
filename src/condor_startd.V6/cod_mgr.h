@@ -50,7 +50,7 @@ public:
 
 	int numClaims( void );
 	bool hasClaims( void );
-	bool inUse( void );
+	bool isRunning( void );
 
 	void shutdownAllClaims( bool graceful );
 

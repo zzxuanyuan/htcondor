@@ -131,12 +131,26 @@ CODMgr::removeClaim( Claim* c )
 void
 CODMgr::starterExited( Claim* c ) 
 {
+	bool claim_removed = false;
 	if( c->hasPendingCmd() ) {
+			// if our pending command is to release the claim, as soon
+			// as we finish that command, the claim will be deleted,
+			// so we won't want to access it anymore.
+		if( c->pendingCmd() == CA_RELEASE_CLAIM ) {
+			claim_removed = true;
+		}
+
 			// if we're in the middle of a pending command, we can
 			// finally complete it and reply now that the starter is
 			// gone and we're done cleaning up everything.
 		c->finishPendingCmd();
-		return;
+	}
+
+	if( ! claim_removed ) {
+		if( c->wantsRemove() ) {
+			removeClaim( c );
+			claim_removed = true;
+		}
 	}
 
 		// otherwise, the claim is back to idle again, so we should
@@ -161,12 +175,12 @@ CODMgr::hasClaims( void )
 
 
 bool
-CODMgr::inUse( void )
+CODMgr::isRunning( void )
 {
 	Claim* tmp;
 	claims.Rewind();
 	while( claims.Next(tmp) ) {
-		if( tmp->isActive() ) {
+		if( tmp->isRunning() ) {
 			return true;
 		}
 	}
@@ -180,7 +194,12 @@ CODMgr::shutdownAllClaims( bool graceful )
 	Claim* tmp;
 	claims.Rewind();
 	while( claims.Next(tmp) ) {
-		tmp->deactivateClaim( graceful );
+		if( tmp->removeClaim(graceful) ) {
+			claims.DeleteCurrent();
+			delete( tmp );
+		}
+			// else, there was a starter which we sent a signal to,
+			// so, we'll delete it and clean up in the reaper...
 	}
 }
 
