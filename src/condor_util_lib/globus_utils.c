@@ -26,9 +26,11 @@
 #include "condor_debug.h"
 
 
+#if 0
 #if defined(GLOBUS_SUPPORT)
 #	include "globus_common.h"
 #	include "globus_rsl_assist.h"
+#endif
 #endif
 
 #if defined(GSS_AUTHENTICATION)
