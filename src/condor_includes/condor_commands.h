@@ -137,6 +137,7 @@
 #define SPOOL_JOB_FILES		(SCHED_VERS+80)	// spool all job files via filetransfer object
 #define GET_MYPROXY_PASSWORD (SCHED_VERS+81) // gmanager->schedd: Give me MyProxy password
 #define DELETE_USER			(SCHED_VERS+82)		// negotiator  (actually, accountant)
+#define TRANSFER_DATA		(SCHED_VERS+83) // send all job files back via filetransfer object
 
 /*
   The ClassAd-only protocol.  CA_CMD is the base command that's sent

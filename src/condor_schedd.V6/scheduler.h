@@ -217,9 +217,13 @@ class Scheduler : public Service
 	void			display_shadow_recs();
 	int				actOnJobs(int, Stream *);
 	int				spoolJobFiles(int, Stream *);
-	static int		spoolJobFilesWorkerThread(void *, Stream*);
-	int				spoolJobFilesReaper(int,int);
-	void				PeriodicExprHandler( void );
+	static int		spoolJobFilesWorkerThread(void *, Stream *);
+	static int		transferJobFilesWorkerThread(void *, Stream *);
+	static int		generalJobFilesWorkerThread(void *, Stream *, int);
+	int				spoolJobFilesReaper(int,int);	
+	int				transferJobFilesReaper(int,int);
+	void			PeriodicExprHandler( void );
+
 
 	// match managing
     match_rec*      AddMrec(char*, char*, PROC_ID*, ClassAd*, char*, char*);

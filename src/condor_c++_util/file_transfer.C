@@ -352,6 +352,10 @@ FileTransfer::SimpleInit(ClassAd *Ad, bool want_check_perms, bool is_server,
 		}
 	}
 
+	int spool_completion_time = 0;
+	Ad->LookupInteger(ATTR_JOB_SPOOL_COMPLETIONTIME,spool_completion_time);
+	last_download_time = spool_completion_time;
+
 	did_init = true;
 	return 1;
 }
@@ -586,13 +590,13 @@ FileTransfer::DownloadFiles(bool blocking)
 	// time in last_download_time so in UploadFiles we have a timestamp
 	// to compare.  If it is a non-blocking download, we do all this
 	// in the thread reaper.
-	if ( blocking && ret_value == 1 && upload_changed_files ) {
+	if ( !simple_init && blocking && ret_value == 1 && upload_changed_files ) {
 		time(&last_download_time);
 		// Now sleep for 1 second.  If we did not do this, then jobs
 		// which run real quickly (i.e. less than a second) would not
 		// have their output files uploaded.  The real reason we must
 		// sleep here is time_t is only at the resolution on 1 second.
-		if ( !simple_init ) sleep(1);
+		sleep(1);
 	}
 
 	return ret_value;
@@ -776,8 +780,13 @@ FileTransfer::UploadFiles(bool blocking, bool final_transfer)
 	// direction we are going.
 	if ( FilesToSend == NULL ) {
 		if ( simple_init ) {
-			// condor_submit going to the schedd
-			FilesToSend = InputFiles;
+			if ( IsClient() ) {
+				// condor_submit sending to the schedd
+				FilesToSend = InputFiles;
+			} else {
+				// schedd sending to condor_transfer_data
+				FilesToSend = OutputFiles;
+			}
 		} else {
 			// starter sending back to the shadow
 			FilesToSend = OutputFiles;

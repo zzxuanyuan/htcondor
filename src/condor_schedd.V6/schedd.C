@@ -2015,6 +2015,38 @@ Scheduler::abort_job(int, Stream* s)
 }
 
 int
+Scheduler::transferJobFilesReaper(int tid,int exit_status)
+{
+	ExtArray<PROC_ID> *jobs;
+
+	dprintf(D_FULLDEBUG,"transferJobFilesReaper tid=%d status=%d\n",
+			tid,exit_status);
+
+		// find the list of jobs which we just finished receiving the files
+	spoolJobFileWorkers->lookup(tid,jobs);
+
+	if (!jobs) {
+		dprintf(D_ALWAYS,
+			"ERROR - transferJobFilesReaper no entry for tid %d\n",tid);
+		return FALSE;
+	}
+
+	if (exit_status == FALSE) {
+		dprintf(D_ALWAYS,"ERROR - Staging of job files failed!\n");
+		spoolJobFileWorkers->remove(tid);
+		delete jobs;
+		return FALSE;
+	}
+
+		// For each job, modify its ClassAd
+
+		// Now, deallocate memory
+	spoolJobFileWorkers->remove(tid);
+	delete jobs;
+	return TRUE;
+}
+
+int
 Scheduler::spoolJobFilesReaper(int tid,int exit_status)
 {
 	ExtArray<PROC_ID> *jobs;
@@ -2029,7 +2061,10 @@ Scheduler::spoolJobFilesReaper(int tid,int exit_status)
 		NULL };		// list must end with a NULL
 
 
-	dprintf(D_FULLDEBUG,"JobFilesReaper tid=%d status=%d\n",tid,exit_status);
+	dprintf(D_FULLDEBUG,"spoolJobFilesReaper tid=%d status=%d\n",
+			tid,exit_status);
+
+	time_t now = time(NULL);
 
 		// find the list of jobs which we just finished receiving the files
 	spoolJobFileWorkers->lookup(tid,jobs);
@@ -2136,6 +2171,16 @@ Scheduler::spoolJobFilesReaper(int tid,int exit_status)
 			}
 		}
 
+			// Set ATTR_JOB_SPOOL_COMPLETIONTIME if not already set.
+		int spool_completion_time = 0;
+		ad->LookupInteger(ATTR_JOB_SPOOL_COMPLETIONTIME,spool_completion_time);
+		if ( !spool_completion_time ) {
+			// Set completion time to be one second backwards, in case
+			// the job runs and completes in one second or less --- this
+			// way we don't miss any output files for short running jobs.
+			SetAttributeInt(cluster,proc,ATTR_JOB_SPOOL_COMPLETIONTIME,now-1);
+		}
+
 			// And now release the job.
 		releaseJob(cluster,proc,"Data files spooled",false,false,false,false);
 		CommitTransaction();
@@ -2150,15 +2195,27 @@ Scheduler::spoolJobFilesReaper(int tid,int exit_status)
 }
 
 int
+Scheduler::transferJobFilesWorkerThread(void *arg, Stream* s)
+{
+	return generalJobFilesWorkerThread(arg,s,TRANSFER_DATA);
+}
+
+int
 Scheduler::spoolJobFilesWorkerThread(void *arg, Stream* s)
+{
+	return generalJobFilesWorkerThread(arg,s,SPOOL_JOB_FILES);
+}
+
+int
+Scheduler::generalJobFilesWorkerThread(void *arg, Stream* s, int mode)
 {
 	ReliSock* rsock = (ReliSock*)s;
 	int JobAdsArrayLen = 0;
 	int i;
 	ExtArray<PROC_ID> **tjobs = ( ExtArray<PROC_ID> **) arg;
 	ExtArray<PROC_ID> *jobs = *tjobs;
+	int result;
 	int old_timeout;
-
 	int cluster, proc;
 	
 	/* Setup a large timeout; when lots of jobs are being submitted w/ 
@@ -2168,31 +2225,73 @@ Scheduler::spoolJobFilesWorkerThread(void *arg, Stream* s)
 
 	JobAdsArrayLen = jobs->getlast() + 1;
 //	dprintf(D_FULLDEBUG,"TODD spoolJobFilesWorkerThread: JobAdsArrayLen=%d\n",JobAdsArrayLen);
+	if ( mode == TRANSFER_DATA ) {
+		// if sending sandboxes, first tell the client how many
+		// we are about to send.
+		rsock->encode();
+		if ( !rsock->code(JobAdsArrayLen) || !rsock->eom() ) {
+			dprintf( D_ALWAYS, "generalJobFilesWorkerThread(): "
+					 "failed to send JobAdsArrayLen (%d) \n",
+					 JobAdsArrayLen );
+			refuse(s);
+			return FALSE;
+		}
+	}
 	for (i=0; i<JobAdsArrayLen; i++) {
 		FileTransfer ftrans;
 		cluster = (*jobs)[i].cluster;
 		proc = (*jobs)[i].proc;
 		ClassAd * ad = GetJobAd( cluster, proc );
 		if ( !ad ) {
-			dprintf( D_ALWAYS, "spoolJobFiles(): "
+			dprintf( D_ALWAYS, "generalJobFilesWorkerThread(): "
 					 "job ad %d.%d not found\n",cluster,proc );
 			refuse(s);
 			s->timeout(old_timeout);
 			return FALSE;
 		} else {
-			dprintf(D_FULLDEBUG,"spoolJobFiles(): "
+			dprintf(D_FULLDEBUG,"generalJobFilesWorkerThread(): "
 					"transfer files for job %d.%d\n",cluster,proc);
 		}
-		if ( !ftrans.SimpleInit(ad, true, true, rsock) ) {
-			dprintf( D_ALWAYS, "spoolJobFiles(): "
+
+			// Create a file transfer object
+		if ( mode == SPOOL_JOB_FILES ) {
+			// receive sandbox into the schedd
+			result = ftrans.SimpleInit(ad, true, true, rsock);
+		} else {
+			// send sandbox out of the schedd
+			result = ftrans.SimpleInit(ad,true,false,rsock);
+		}
+		if ( !result ) {
+			dprintf( D_ALWAYS, "generalJobFilesWorkerThread(): "
 					 "failed to init filetransfer for job %d.%d \n",
 					 cluster,proc );
 			refuse(s);
 			s->timeout(old_timeout);
 			return FALSE;
 		}
-		if ( !ftrans.DownloadFiles() ) {
-			dprintf( D_ALWAYS, "spoolJobFiles(): "
+
+			// Send or receive files as needed
+		if ( mode == SPOOL_JOB_FILES ) {
+			// receive sandbox into the schedd
+			result = ftrans.DownloadFiles();
+		} else {
+			// send sandbox out of the schedd
+			rsock->encode();
+			// first send the classad for the job
+			result = ad->put(*rsock);
+			if (!result) {
+				dprintf(D_ALWAYS, "generalJobFilesWorkerThread(): "
+					"failed to send job ad for job %d.%d \n",
+					cluster,proc );
+			} else {
+				rsock->eom();
+				// and then upload the files
+				result = ftrans.UploadFiles();
+			}
+		}
+
+		if ( !result ) {
+			dprintf( D_ALWAYS, "generalJobFilesWorkerThread(): "
 					 "failed to transfer files for job %d.%d \n",
 					 cluster,proc );
 			refuse(s);
@@ -2204,25 +2303,38 @@ Scheduler::spoolJobFilesWorkerThread(void *arg, Stream* s)
 		
 	rsock->eom();
 
-	rsock->encode();
-	int answer = OK;
+	int answer;
+	if ( mode == SPOOL_JOB_FILES ) {
+		rsock->encode();
+		answer = OK;
+	} else {
+		rsock->decode();
+		answer = -1;
+	}
 	rsock->code(answer);
 	rsock->eom();
 	s->timeout(old_timeout);
 
-	return TRUE;
+	if (answer == OK ) {
+		return TRUE;
+	} else {
+		return FALSE;
+	}
 }
 
 
 int
-Scheduler::spoolJobFiles(int, Stream* s)
+Scheduler::spoolJobFiles(int mode, Stream* s)
 {
 	ReliSock* rsock = (ReliSock*)s;
 	int JobAdsArrayLen = 0;
 	ExtArray<PROC_ID> *jobs = NULL;
+	char *constraint_string = NULL;
 	int i;
-	static int reaper_id = -1;
+	static int spool_reaper_id = -1;
+	static int transfer_reaper_id = -1;
 	PROC_ID a_job;
+	int tid;
 
 		// make sure this connection is authenticated, and we know who
 		// the user is.  also, set a timeout, since we don't want to
@@ -2255,40 +2367,70 @@ Scheduler::spoolJobFiles(int, Stream* s)
 		}
 	}	
 
-		// read the number of jobs involved
-	rsock->decode();
-	if ( !rsock->code(JobAdsArrayLen) || JobAdsArrayLen <= 0 ) {
-			dprintf( D_ALWAYS, "spoolJobFiles(): "
-					 "failed to read JobAdsArrayLen (%d)\n",JobAdsArrayLen );
+
+	if ( mode == SPOOL_JOB_FILES ) {
+			// read the number of jobs involved
+		if ( !rsock->code(JobAdsArrayLen) || JobAdsArrayLen <= 0 ) {
+				dprintf( D_ALWAYS, "spoolJobFiles(): "
+						 "failed to read JobAdsArrayLen (%d)\n",JobAdsArrayLen );
+				refuse(s);
+				return FALSE;
+		}
+		rsock->eom();
+		dprintf(D_FULLDEBUG,"spoolJobFiles(): read JobAdsArrayLen - %d\n",JobAdsArrayLen);
+
+		if (JobAdsArrayLen <= 0) {
 			refuse(s);
 			return FALSE;
+		}
 	}
-	rsock->eom();
-	dprintf(D_FULLDEBUG,"spoolJobFiles(): read JobAdsArrayLen - %d\n",JobAdsArrayLen);
 
-	if (JobAdsArrayLen <= 0) {
-		refuse(s);
-		return FALSE;
+	if ( mode == TRANSFER_DATA ) {
+			// read constraint string
+		if ( !rsock->code(constraint_string) || constraint_string == NULL ) {
+				dprintf( D_ALWAYS, "spoolJobFiles(): "
+						 "failed to read constraint string\n" );
+				refuse(s);
+				return FALSE;
+		}
 	}
 
 	jobs = new ExtArray<PROC_ID>;
 	ASSERT(jobs);
 
-	for (i=0; i<JobAdsArrayLen; i++) {
-		rsock->code(a_job);
-		(*jobs)[i] = a_job;
+	setQSock(rsock);	// so OwnerCheck() will work
+
+	if ( mode == SPOOL_JOB_FILES ) {
+		for (i=0; i<JobAdsArrayLen; i++) {
+			rsock->code(a_job);
+				// Only add jobs to our list if the caller has permission to do so;
+				// cuz only the owner of a job (or queue super user) is allowed
+				// to transfer data to/from a job.
+			if (OwnerCheck(a_job.cluster,a_job.proc)) {
+				(*jobs)[i] = a_job;
+			}
+		}
 	}
+
+	if ( mode == TRANSFER_DATA ) {
+		JobAdsArrayLen = 0;
+		ClassAd * tmp_ad = GetNextJobByConstraint(constraint_string,1);
+		while (tmp_ad) {
+			if ( tmp_ad->LookupInteger(ATTR_CLUSTER_ID,a_job.cluster) &&
+				 tmp_ad->LookupInteger(ATTR_PROC_ID,a_job.proc) &&
+				 OwnerCheck(a_job.cluster, a_job.proc) )
+			{
+				(*jobs)[JobAdsArrayLen++] = a_job;
+			}
+			tmp_ad = GetNextJobByConstraint(constraint_string,0);
+		}
+		if (constraint_string) free(constraint_string);
+	}
+
+
+	unsetQSock();
 
 	rsock->eom();
-
-	if ( reaper_id == -1 ) {
-		reaper_id = daemonCore->Register_Reaper(
-				"spoolJobFilesReaper",
-				(ReaperHandlercpp) &Scheduler::spoolJobFilesReaper,
-				"spoolJobFilesReaper",
-				this
-			);
-	}
 
 		// We want to pass out thread a pointer to the jobs ExtArray.
 		// But daemonCore frees the thread argument when the thread exits.
@@ -2298,13 +2440,43 @@ Scheduler::spoolJobFiles(int, Stream* s)
 	void ** thread_arg = (void **)malloc( sizeof(jobs) );
 	*thread_arg = (void *)jobs;
 
-		// Start a new thread (process on Unix) to do the work
-	int tid = daemonCore->Create_Thread(
-			(ThreadStartFunc) &Scheduler::spoolJobFilesWorkerThread,
-			(void *)thread_arg,
-			s,
-			reaper_id
-			);
+	if ( mode == SPOOL_JOB_FILES ) {
+		if ( spool_reaper_id == -1 ) {
+			spool_reaper_id = daemonCore->Register_Reaper(
+					"spoolJobFilesReaper",
+					(ReaperHandlercpp) &Scheduler::spoolJobFilesReaper,
+					"spoolJobFilesReaper",
+					this
+				);
+		}
+
+			// Start a new thread (process on Unix) to do the work
+		tid = daemonCore->Create_Thread(
+				(ThreadStartFunc) &Scheduler::spoolJobFilesWorkerThread,
+				(void *)thread_arg,
+				s,
+				spool_reaper_id
+				);
+	}
+
+	if ( mode == TRANSFER_DATA ) {
+		if ( transfer_reaper_id == -1 ) {
+			transfer_reaper_id = daemonCore->Register_Reaper(
+					"transferJobFilesReaper",
+					(ReaperHandlercpp) &Scheduler::transferJobFilesReaper,
+					"transferJobFilesReaper",
+					this
+				);
+		}
+
+			// Start a new thread (process on Unix) to do the work
+		tid = daemonCore->Create_Thread(
+				(ThreadStartFunc) &Scheduler::transferJobFilesWorkerThread,
+				(void *)thread_arg,
+				s,
+				transfer_reaper_id
+				);
+	}
 
 	if ( tid == FALSE ) {
 		free(thread_arg);
@@ -7194,6 +7366,9 @@ Scheduler::Register()
 			(CommandHandlercpp)&Scheduler::actOnJobs, 
 			"actOnJobs", this, WRITE);
 	 daemonCore->Register_Command(SPOOL_JOB_FILES, "SPOOL_JOB_FILES", 
+			(CommandHandlercpp)&Scheduler::spoolJobFiles, 
+			"spoolJobFiles", this, WRITE);
+	 daemonCore->Register_Command(TRANSFER_DATA, "TRANSFER_DATA", 
 			(CommandHandlercpp)&Scheduler::spoolJobFiles, 
 			"spoolJobFiles", this, WRITE);
 

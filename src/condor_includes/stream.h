@@ -241,7 +241,7 @@ public:
 	int code(double &);
     ///
 	int code(char *&);
-    ///
+	///
 	int code(char *&, int &);
     ///
 	int code_bytes(void *, int);

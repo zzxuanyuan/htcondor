@@ -501,6 +501,23 @@ isQueueSuperUser( const char* user )
 	return false;
 }
 
+bool
+OwnerCheck(int cluster_id,int proc_id)
+{
+	char				key[_POSIX_PATH_MAX];
+	ClassAd				*ad = NULL;
+
+	if (!Q_SOCK) {
+		return 0;
+	}
+
+	strcpy(key, IdToStr(cluster_id,proc_id) );
+	if (!JobQueue->LookupClassAd(key, ad)) {
+		return 0;
+	}
+
+	return OwnerCheck(ad, Q_SOCK->getOwner());
+}
 
 // Test if this owner matches my owner, so they're allowed to update me.
 bool

@@ -170,6 +170,7 @@ const char ATTR_JOB_ERROR_SIZE			 [] = "ErrSize";
 const char ATTR_JOB_KEYWORD              [] = "JobKeyword";
 const char ATTR_JOB_LEASE_DURATION       [] = "JobLeaseDuration";
 const char ATTR_JOB_SPOOL_EXECUTABLE	 [] = "SpoolExecutable";
+const char ATTR_JOB_SPOOL_COMPLETIONTIME [] = "SpoolCompletionTime";
 const char ATTR_JOB_EXIT_STATUS			 [] = "ExitStatus";
 const char ATTR_JOB_EXIT_REQUIREMENTS	 [] = "ExitRequirements";
 const char ATTR_JOB_ID					 [] = "JobId";
