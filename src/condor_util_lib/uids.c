@@ -35,6 +35,8 @@
 #include "condor_uid.h"
 
 priv_state _set_priv(priv_state s, char file[], int line, int dologging) { return s; }
+void init_user_ids(const char username[]) {}
+void init_condor_ids() {}
 
 #else
 
