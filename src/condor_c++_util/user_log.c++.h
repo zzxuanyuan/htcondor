@@ -294,8 +294,6 @@ class ReadUserLog
 
     /** The log's file descriptor */  int    _fd;
     /** The log's file pointer    */  FILE * _fp;
-    /** The log file lock         */  FileLock* lock;
-	/** Is the file locked?       */  bool is_locked;
 
 	/** Type of this log		  */  LogType log_type;
 };
