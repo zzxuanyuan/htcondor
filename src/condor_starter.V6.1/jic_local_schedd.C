@@ -83,8 +83,7 @@ JICLocalSchedd::allJobsGone( void )
 void
 JICLocalSchedd::gotShutdownFast( void )
 {
-		// Set our flag so we know we were asked to vacate.
-	requested_exit = true;
+	JobInfoCommunicator::gotShutdownFast();
 	exit_code = JOB_SHOULD_REQUEUE;
 
 }
@@ -93,8 +92,7 @@ JICLocalSchedd::gotShutdownFast( void )
 void
 JICLocalSchedd::gotShutdownGraceful( void )
 {
-		// Set our flag so we know we were asked to vacate.
-	requested_exit = true;
+	JobInfoCommunicator::gotShutdownGraceful();
 	exit_code = JOB_SHOULD_REQUEUE;
 }
 
@@ -102,8 +100,7 @@ JICLocalSchedd::gotShutdownGraceful( void )
 void
 JICLocalSchedd::gotRemove( void )
 {
-		// Set our flag so we know we were asked to vacate.
-	requested_exit = true;
+	JobInfoCommunicator::gotRemove();
 	exit_code = JOB_KILLED;
 }
 
@@ -111,8 +108,7 @@ JICLocalSchedd::gotRemove( void )
 void
 JICLocalSchedd::gotHold( void )
 {
-		// Set our flag so we know we were asked to vacate.
-	requested_exit = true;
+	JobInfoCommunicator::gotHold();
 	exit_code = JOB_KILLED;
 }
 
@@ -158,6 +154,16 @@ JICLocalSchedd::notifyJobExit( int exit_status, int reason,
 	case JOB_COREDUMPED:
 	case JOB_EXITED:
 		up_type = U_TERMINATE;
+		break;
+	case JOB_KILLED:
+		if( had_remove ) {
+			up_type = U_REMOVE;
+		} else if ( had_hold ) {
+			up_type = U_HOLD;
+		} else {
+			EXCEPT( "Impossible: exit reason is JOB_KILLED, but neither "
+					"had_hold or had_remove are TRUE!" );
+		}
 		break;
 	default:
 		EXCEPT( "Programmer error: unknown reason (%d) in "

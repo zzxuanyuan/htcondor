@@ -185,6 +185,9 @@ public:
 		 */
 	virtual void gotHold( void );
 
+	bool hadRemove( void ) { return had_remove; };
+	bool hadHold( void ) { return had_hold; };
+
 		/** Someone is attempting to reconnect to this job.
 		 */
 	virtual int reconnect( ReliSock* s, ClassAd* ad ) = 0;
@@ -321,6 +324,8 @@ protected:
 
 		/// if true, we were asked to shutdown
 	bool requested_exit;
+	bool had_remove;
+	bool had_hold;
 
 		/** true if we're using a different iwd for the job than what
 			the job ad says.

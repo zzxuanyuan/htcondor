@@ -445,8 +445,12 @@ OsProc::JobExit( void )
 
 	dprintf( D_FULLDEBUG, "Inside OsProc::JobExit()\n" );
 
-	if ( requested_exit == true ) {
-		reason = JOB_NOT_CKPTED;
+	if( requested_exit == true ) {
+		if( Starter->jic->hadHold() || Starter->jic->hadRemove() ) {
+			reason = JOB_KILLED;
+		} else {
+			reason = JOB_NOT_CKPTED;
+		}
 	} else if( dumped_core ) {
 		reason = JOB_COREDUMPED;
 	} else {
