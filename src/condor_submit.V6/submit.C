@@ -3058,7 +3058,7 @@ SetGlobusParams()
 		InsertJobExpr ( buff );
 	}
 
-	if ( stricmp ( grid_type, "condor" ) == MATCH ) {
+	if ( grid_type != NULL && stricmp ( grid_type, "condor" ) == MATCH ) {
 
 		char *remote_schedd;
 
