@@ -59,7 +59,7 @@ static int check_free(int before, int after, int write_size, double tolerance,
 	return 0;
 }
 
-int free_fs_blocks_test(int trials, double tolerance, double perc_warn_ok) {
+int free_fs_blocks_test(int trials, double tolerance, double warn_ok_ratio) {
 	int		dfree1_raw = 0;			/* "Raw" free disk space *before* write */
 	int		dfree1 = 0;				/* Free disk space *before* write */
 	int		dfree2_raw = 0;			/* "Raw" free disk space *after* write */
@@ -80,10 +80,10 @@ int free_fs_blocks_test(int trials, double tolerance, double perc_warn_ok) {
 	int		rval;
 
 	sprintf(filename, "/tmp/sysapi_test_free_fs_blocks");
+	unlink( filename );
 
 	dprintf(D_ALWAYS, "SysAPI: Doing %d trials by filling up /tmp by "
-						"half(or up to 2 gigs, whichever is smaller), "
-						"testing, and then unlinking.\n", trials);
+						"half (max 2G), testing & unlinking.\n", trials);
 
     dfree1_raw = sysapi_disk_space_raw("/tmp");
     dprintf(D_ALWAYS, "SysAPI: Initial sysapi_disk_space_raw() -> %d\n", dfree1_raw);
@@ -91,9 +91,9 @@ int free_fs_blocks_test(int trials, double tolerance, double perc_warn_ok) {
     dprintf(D_ALWAYS, "SysAPI: Initial sysapi_disk_space() -> %d\n", dfree1_raw);
 
 	if (dfree1_raw < 0 || dfree1 < 0) {
-			dprintf(D_ALWAYS, "SysAPI: ERROR! Disk space should never be "
-								"negative.\n");
-			return_val = return_val | 1;
+		dprintf(D_ALWAYS, "SysAPI: ERROR! Disk space should never be "
+				"negative.\n");
+		return_val = return_val | 1;
 	}
 
 	for (i=0; i<trials; i++) {
@@ -116,6 +116,7 @@ int free_fs_blocks_test(int trials, double tolerance, double perc_warn_ok) {
 		
 		if ( (stream = fopen(filename, "w")) == NULL) {
 			dprintf(D_ALWAYS, "Can't open %s\n", filename);
+			unlink( filename );
 			exit(EXIT_FAILURE);
 		}
 		else {
@@ -128,6 +129,7 @@ int free_fs_blocks_test(int trials, double tolerance, double perc_warn_ok) {
 				if (empty_megs == NULL)
 				{
 					dprintf(D_ALWAYS, "Out of memory!\n");
+					unlink( filename );
 					exit(EXIT_FAILURE);
 				}
 			}
@@ -137,6 +139,7 @@ int free_fs_blocks_test(int trials, double tolerance, double perc_warn_ok) {
 				if (empty_kilo == NULL)
 				{
 					dprintf(D_ALWAYS, "Out of memory!\n");
+					unlink( filename );
 					exit(EXIT_FAILURE);
 				}
 			}
@@ -152,6 +155,7 @@ int free_fs_blocks_test(int trials, double tolerance, double perc_warn_ok) {
 					{
 						dprintf(D_ALWAYS, 
 							"An error happened writing the gigs\n");
+						unlink( filename );
 						exit(EXIT_FAILURE);
 					}
 				}
@@ -168,6 +172,7 @@ int free_fs_blocks_test(int trials, double tolerance, double perc_warn_ok) {
 					{
 						dprintf(D_ALWAYS, 
 							"An error happened writing the megs\n");
+						unlink( filename );
 						exit(EXIT_FAILURE);
 					}
 				}
@@ -181,6 +186,7 @@ int free_fs_blocks_test(int trials, double tolerance, double perc_warn_ok) {
 				if (rval == 0)
 				{
 					dprintf(D_ALWAYS, "An error happened writing the kilos\n");
+					unlink( filename );
 					exit(EXIT_FAILURE);
 				}
 			}
@@ -267,11 +273,11 @@ int free_fs_blocks_test(int trials, double tolerance, double perc_warn_ok) {
 		}
 	}
 
-	if (((double)num_warnings/(double)num_tests) >= perc_warn_ok) {
-			dprintf(D_ALWAYS, "SysAPI: ERROR! Warning perc_warn_ok exceeded "
+	if (((double)num_warnings/(double)num_tests) >= warn_ok_ratio) {
+			dprintf(D_ALWAYS, "SysAPI: ERROR! Warning warn_ok exceeded "
 								"(%2f\% warnings > %2f\% perc_warn_ok) .\n",
 								((double)num_warnings/(double)num_tests)*100, 
-								perc_warn_ok*100);
+								warn_ok_ratio*100);
 			return_val = return_val | 1;
 	}
 
