@@ -30,8 +30,8 @@ gridmanager : $(SRCDIR)\condor_$@\soap_$@Stub.C \
 	-2mkdir $(TEMPDIR)
 	cd $(SRCDIR)\condor_$@
 	$(SOAPCPP) $(SOAPCPPFLAGS) -p soap_$@ -d $(TEMPDIR) gsoap_$@.h
-	copy /Y $(TEMPDIR)\soap_$@C.cpp      .
-	copy /Y $(TEMPDIR)\soap_$@Server.cpp .
+	copy /Y $(TEMPDIR)\soap_$@C.cpp      .\*.C
+	copy /Y $(TEMPDIR)\soap_$@Server.cpp .\*.C
 	copy /Y $(TEMPDIR)\condor$@.nsmap    .
 	copy /Y $(TEMPDIR)\soap_$@H.h        .
 	copy /Y $(TEMPDIR)\soap_$@Stub.h     .
@@ -43,8 +43,8 @@ dagman : $(SRCDIR)\condor_$@\soap_$@Stub.C \
 	-2mkdir $(TEMPDIR)
 	cd $(SRCDIR)\condor_$@
 	$(SOAPCPP) $(SOAPCPPFLAGS) -p soap_$@ -d $(TEMPDIR) gsoap_$@.h
-	copy /Y $(TEMPDIR)\soap_$@C.cpp      .
-	copy /Y $(TEMPDIR)\soap_$@Server.cpp .
+	copy /Y $(TEMPDIR)\soap_$@C.cpp      .\*.C
+	copy /Y $(TEMPDIR)\soap_$@Server.cpp .\*.C
 	copy /Y $(TEMPDIR)\condor$@.nsmap    .
 	copy /Y $(TEMPDIR)\soap_$@H.h        .
 	copy /Y $(TEMPDIR)\soap_$@Stub.h     .
@@ -56,8 +56,8 @@ starter : $(SRCDIR)\condor_$@.V6.1\soap_$@Stub.C \
 	-2mkdir $(TEMPDIR)
 	cd $(SRCDIR)\condor_$@.V6.1
 	$(SOAPCPP) $(SOAPCPPFLAGS) -p soap_$@ -d $(TEMPDIR) gsoap_$@.h
-	copy /Y $(TEMPDIR)\soap_$@C.cpp      .
-	copy /Y $(TEMPDIR)\soap_$@Server.cpp .
+	copy /Y $(TEMPDIR)\soap_$@C.cpp      .\*.C
+	copy /Y $(TEMPDIR)\soap_$@Server.cpp .\*.C
 	copy /Y $(TEMPDIR)\condor$@.nsmap    .
 	copy /Y $(TEMPDIR)\soap_$@H.h        .
 	copy /Y $(TEMPDIR)\soap_$@Stub.h     .
@@ -69,8 +69,8 @@ shadow : $(SRCDIR)\condor_$@.V6.1\soap_$@Stub.C \
 	-2mkdir $(TEMPDIR)
 	cd $(SRCDIR)\condor_$@.V6.1
 	$(SOAPCPP) $(SOAPCPPFLAGS) -p soap_$@ -d $(TEMPDIR) gsoap_$@.h
-	copy /Y $(TEMPDIR)\soap_$@C.cpp      .
-	copy /Y $(TEMPDIR)\soap_$@Server.cpp .
+	copy /Y $(TEMPDIR)\soap_$@C.cpp      .\*.C
+	copy /Y $(TEMPDIR)\soap_$@Server.cpp .\*.C
 	copy /Y $(TEMPDIR)\condor$@.nsmap    .
 	copy /Y $(TEMPDIR)\soap_$@H.h        .
 	copy /Y $(TEMPDIR)\soap_$@Stub.h     .
@@ -82,8 +82,8 @@ startd : $(SRCDIR)\condor_$@.V6\soap_$@Stub.C \
 	-2mkdir $(TEMPDIR)
 	cd $(SRCDIR)\condor_$@.V6
 	$(SOAPCPP) $(SOAPCPPFLAGS) -p soap_$@ -d $(TEMPDIR) gsoap_$@.h
-	copy /Y $(TEMPDIR)\soap_$@C.cpp      .
-	copy /Y $(TEMPDIR)\soap_$@Server.cpp .
+	copy /Y $(TEMPDIR)\soap_$@C.cpp      .\*.C
+	copy /Y $(TEMPDIR)\soap_$@Server.cpp .\*.C
 	copy /Y $(TEMPDIR)\condor$@.nsmap    .
 	copy /Y $(TEMPDIR)\soap_$@H.h        .
 	copy /Y $(TEMPDIR)\soap_$@Stub.h     .
@@ -95,8 +95,8 @@ collector : $(SRCDIR)\condor_$@.V6\soap_$@Stub.C \
 	-2mkdir $(TEMPDIR)
 	cd $(SRCDIR)\condor_$@.V6
 	$(SOAPCPP) $(SOAPCPPFLAGS) -p soap_$@ -d $(TEMPDIR) gsoap_$@.h
-	copy /Y $(TEMPDIR)\soap_$@C.cpp      .
-	copy /Y $(TEMPDIR)\soap_$@Server.cpp .
+	copy /Y $(TEMPDIR)\soap_$@C.cpp      .\*.C
+	copy /Y $(TEMPDIR)\soap_$@Server.cpp .\*.C
 	copy /Y $(TEMPDIR)\condor$@.nsmap    .
 	copy /Y $(TEMPDIR)\soap_$@H.h        .
 	copy /Y $(TEMPDIR)\soap_$@Stub.h     .
@@ -108,8 +108,8 @@ schedd : $(SRCDIR)\condor_$@.V6\soap_$@Stub.C \
 	-2mkdir $(TEMPDIR)
 	cd $(SRCDIR)\condor_$@.V6
 	$(SOAPCPP) $(SOAPCPPFLAGS) -p soap_$@ -d $(TEMPDIR) gsoap_$@.h
-	copy /Y $(TEMPDIR)\soap_$@C.cpp      .
-	copy /Y $(TEMPDIR)\soap_$@Server.cpp .
+	copy /Y $(TEMPDIR)\soap_$@C.cpp      .\*.C
+	copy /Y $(TEMPDIR)\soap_$@Server.cpp .\*.C
 	copy /Y $(TEMPDIR)\condor$@.nsmap    .
 	copy /Y $(TEMPDIR)\soap_$@H.h        .
 	copy /Y $(TEMPDIR)\soap_$@Stub.h     .
@@ -121,8 +121,8 @@ negotiator : $(SRCDIR)\condor_$@.V6\soap_$@Stub.C \
 	-2mkdir $(TEMPDIR)
 	cd $(SRCDIR)\condor_$@.V6
 	$(SOAPCPP) $(SOAPCPPFLAGS) -p soap_$@ -d $(TEMPDIR) gsoap_$@.h
-	copy /Y $(TEMPDIR)\soap_$@C.cpp      .
-	copy /Y $(TEMPDIR)\soap_$@Server.cpp .
+	copy /Y $(TEMPDIR)\soap_$@C.cpp      .\*.C
+	copy /Y $(TEMPDIR)\soap_$@Server.cpp .\*.C
 	copy /Y $(TEMPDIR)\condor$@.nsmap    .
 	copy /Y $(TEMPDIR)\soap_$@H.h        .
 	copy /Y $(TEMPDIR)\soap_$@Stub.h     .
@@ -134,8 +134,8 @@ master : $(SRCDIR)\condor_$@.V6\soap_$@Stub.C \
 	-2mkdir $(TEMPDIR)
 	cd $(SRCDIR)\condor_$@.V6
 	$(SOAPCPP) $(SOAPCPPFLAGS) -p soap_$@ -d $(TEMPDIR) gsoap_$@.h
-	copy /Y $(TEMPDIR)\soap_$@C.cpp      .
-	copy /Y $(TEMPDIR)\soap_$@Server.cpp .
+	copy /Y $(TEMPDIR)\soap_$@C.cpp      .\*.C
+	copy /Y $(TEMPDIR)\soap_$@Server.cpp .\*.C
 	copy /Y $(TEMPDIR)\condor$@.nsmap    .
 	copy /Y $(TEMPDIR)\soap_$@H.h        .
 	copy /Y $(TEMPDIR)\soap_$@Stub.h     .
