@@ -66,7 +66,7 @@ int __xstat(int, const char *, struct stat *);
 int __fxstat(int, int, struct stat *);
 int __lxstat(int, const char *, struct stat *);
 
-#if defined(GLIBC21) || defined(IRIX)
+#if defined(GLIBC21) || defined(IRIX) || defined(GLIBC22)
 int _condor_xstat64(int version, const char *path, struct stat64 *buf);
 int _condor_lxstat64(int version, const char *path, struct stat64 *buf);
 int _condor_fxstat64(int versino, int fd, struct stat64 *buf);
@@ -505,7 +505,7 @@ mmap( MMAP_T a, size_t l, int p, int f, int fd, off_t o )
         MMAP_T rval;
         static int recursive=0;
 
-        if( (f==(MAP_ANONYMOUS|MAP_PRIVATE)) ) {
+        if( (f & MAP_ANONYMOUS) && (f & MAP_PRIVATE) ) {
                 if(recursive) {
                         rval = (MMAP_T) MAP_FAILED;
                 } else {
@@ -671,7 +671,7 @@ int __lxstat(int version, const char *path, struct stat *buf)
 	return _condor_lxstat( version, path, buf );
 }
 
-#if defined(GLIBC21)
+#if defined(GLIBC21) || defined(GLIBC22)
 int _xstat64(int version, const char *path, struct stat64 *buf)
 {
 	return _condor_xstat64( version, path, buf );
@@ -758,8 +758,10 @@ _condor_k_stat_convert( int version, const struct kernel_stat *source,
 		target->__unused1 = 0;
 		target->__unused2 = 0;
 		target->__unused3 = 0;
+		#if defined (GLIBC21)
 		target->__unused4 = 0;
 		target->__unused5 = 0;
+		#endif
 		break;
 #elif defined(IRIX)
 	case _STAT_VER:
@@ -783,7 +785,7 @@ _condor_k_stat_convert( int version, const struct kernel_stat *source,
 	}
 }
 
-#if defined(GLIBC21) || defined(IRIX)
+#if defined(GLIBC21) || defined(IRIX) || defined(GLIBC22)
 void 
 _condor_k_stat_convert64( int version, const struct kernel_stat *source, 
 						struct stat64 *target )
@@ -823,8 +825,10 @@ _condor_k_stat_convert64( int version, const struct kernel_stat *source,
 		target->__unused1 = 0;
 		target->__unused2 = 0;
 		target->__unused3 = 0;
+		#if defined(GLIBC21)
 		target->__unused4 = 0;
 		target->__unused5 = 0;
+		#endif
 		break;
 #elif defined(IRIX)
 	case _STAT64_VER:
@@ -921,7 +925,7 @@ _condor_s_stat_convert( int version, const struct stat *source,
 	}
 }
 
-#if defined(GLIBC21)
+#if defined(GLIBC21) || defined(GLIBC22)
 void 
 _condor_s_stat_convert64( int version, const struct stat *source, 
 						struct stat64 *target )
@@ -961,8 +965,10 @@ _condor_s_stat_convert64( int version, const struct stat *source,
 		target->__unused1 = 0;
 		target->__unused2 = 0;
 		target->__unused3 = 0;
+		#if defined(GLIBC21)
 		target->__unused4 = 0;
 		target->__unused5 = 0;
+		#endif
 		break;
 	default:
 			/* Some other version: blow-up */
@@ -1024,7 +1030,7 @@ int _condor_xstat(int version, const char *path, struct stat *buf)
 	return rval;
 }
 
-#if defined(GLIBC21)
+#if defined(GLIBC21) || defined(GLIBC22)
 extern "C" int REMOTE_CONDOR_stat( const char *, struct stat * );
 int _condor_xstat64(int version, const char *path, struct stat64 *buf)
 {
@@ -1095,7 +1101,7 @@ _condor_fxstat(int version, int fd, struct stat *buf)
 	return rval;
 }
 
-#if defined(GLIBC21)
+#if defined(GLIBC21) || defined(GLIBC22)
 extern "C" int REMOTE_CONDOR_fstat( int, struct stat * );
 int
 _condor_fxstat64(int version, int fd, struct stat64 *buf)
@@ -1165,7 +1171,7 @@ int _condor_lxstat(int version, const char *path, struct stat *buf)
 	return rval;
 }
 
-#if defined(GLIBC21)
+#if defined(GLIBC21) || defined(GLIBC22)
 extern "C" int REMOTE_CONDOR_lstat( const char *, struct stat *);
 int _condor_lxstat64(int version, const char *path, struct stat64 *buf)
 {
@@ -1284,7 +1290,7 @@ int _fxstat(const int ver, int fd, struct stat *buf)
 }
 #endif /* Solaris */
 
-#endif FILE_TABLE
+#endif /* FILE_TABLE */
 
 
 /*************************************************************
