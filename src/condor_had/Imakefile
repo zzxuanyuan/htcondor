@@ -5,10 +5,8 @@ CFLAGS = $(STD_C_FLAGS)
 C_PLUS_FLAGS =  $(STD_C_PLUS_FLAGS)
 LIB = $(DAEMONCORE_LIB) $(STD_LIBS)
 
-#OBJ = Client.o CommandDistributer.o execOut.o FMD.o
-#OBJ =  SvCommDistribute.o FMD.o
 #OBJ =  ReplicaVersion.o Replication.o StateMachine.o Listener.o HAD.o
-OBJ =  StateMachine.o Listener.o HAD.o
+OBJ =  StateMachine.o HAD.o
 
 c_plus_target($(NAME),$(OBJ),$(LIB))
 release_target($(NAME),sbin,EXECUTABLE_MODE)

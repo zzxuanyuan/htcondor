@@ -1,6 +1,6 @@
-// StateMachine.h: interface for the HADStateMachine class.
-//
-//////////////////////////////////////////////////////////////////////
+/*
+  StateMachine.h: interface for the HADStateMachine class.
+*/
 
 #if !defined(HAD_StateMachine_H__)
 #define HAD_StateMachine_H__
@@ -24,66 +24,70 @@
 
 class HADReplication;
 
-
 typedef enum {
-           PRE_STATE = 1,
-	       PASSIVE_STATE = 2,
-	       ELECTION_STATE = 3,
-	       LEADER_STATE = 4
+    PRE_STATE = 1,
+    PASSIVE_STATE = 2,
+    ELECTION_STATE = 3,
+    LEADER_STATE = 4
 }STATES;
 
-/**
-*   class HADStateMachine
+/*
+  class HADStateMachine
 */
 class HADStateMachine  :public Service
 {
 public:
 
-    /**
-    *   Const'r
+    /*
+      Const'rs
     */
 #if USE_REPLICATION
-	HADStateMachine(HADReplication* replicator);
+    HADStateMachine( HADReplication* replicator );
 #endif
 
     HADStateMachine();
 
-    /**
-    *   Destructor
+    /*
+      Destructor
     */
-	~HADStateMachine();
+    ~HADStateMachine();
 
-	void initialize();
+    void initialize();
 
-	int reinitialize();
+    int reinitialize();
 
-    /** step() - called each hadInterval, implements one state of the
-        state machine.
+    /*
+      step() - called each hadInterval, implements one state of the
+      state machine.
     */
-	void  step();
+    void  step();
 
-    /** sendCommandToOthers(int command) - send "ALIVE command" or "SEND ID command"
-        to all HADs from HAD list.
+    /*
+      sendCommandToOthers(int command) - send "ALIVE command" or
+      "SEND ID command" to all HADs from HAD list.
     */
-	int sendCommandToOthers(int);
+    int sendCommandToOthers( int );
 
-    /** sendNegotiatorCmdToMaster(int) - snd "NEGOTIATOR ON" or "NEGOTIATOR OFF"
-        to master.
-        @return TRUE in case of success or FALSE otherwise
+    /*
+      sendNegotiatorCmdToMaster(int) - snd "NEGOTIATOR ON" or "NEGOTIATOR OFF"
+      to master.
+      return TRUE in case of success or FALSE otherwise
     */
-      int sendNegotiatorCmdToMaster(int);
+    int sendNegotiatorCmdToMaster( int );
 
-   //   int RESCHEDULE_commandHandler(int, Stream *strm);
-
-    /** pushReceivedAlive(int id) - push to buffer id of HAD that sent "ALIVE command".
+    /*
+      pushReceivedAlive(int id) - push to buffer id of HAD that
+      sent "ALIVE command".
     */
-      int pushReceivedAlive(int);
+    int pushReceivedAlive( int );
 
-    /** pushReceivedId(int id) -  push to buffer id of HAD that sent "SEND ID command".
+    /*
+      pushReceivedId(int id) -  push to buffer id of HAD that sent
+      "SEND ID command".
     */
-      int pushReceivedId(int);
+    int pushReceivedId( int );
 
-
+    void commandHandler(int cmd,Stream *strm) ;
 private:
     int state;
     int hadTimerID;
@@ -104,16 +108,18 @@ private:
     void clearBuffers();
     void printStep(char *curState,char *nextState);
 
-	void finilize();
+    void finilize();
     void init();
     void onError(char*);
 
+    char* convertToSinfull(char* addr);
+    
     // debug information
     bool debugMode;
     void my_debug_print_list(StringList* str);
     void my_debug_print_buffers();
 
-    char* convertToSinfull(char* addr);
+
 };
 
 #endif // !HAD_StateMachine_H__
