@@ -7,6 +7,11 @@
 ** of that here.  (New tags should be added at the top of the file,
 ** just after this header).  Thanks!  Derek Wright, 3/17/03
 **********************************************************************
+
+06/09/03 V6_4-doc-merge-2 
+    the state of the V6_4-branch before merging into V6_5-branch. 
+    This is to pick up the new chapter on platform-specific info. 
+
 03/18/03 V6_4-doc-merge-1
     the state of the V6_4-branch before merging into V6_5_0-branch
     (again).  This is first time we're doing this for the docs
