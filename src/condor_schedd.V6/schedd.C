@@ -403,10 +403,6 @@ Scheduler::~Scheduler()
 			free( Owners[i].Name );
 			Owners[i].Name = NULL;
 		}
-		if( Owners[i].X509 ) { 
-			free( Owners[i].X509 );
-			Owners[i].X509 = NULL;
-		}
 	}
 
 	if (_gridlogic)
@@ -463,8 +459,6 @@ Scheduler::count_jobs()
 	int		prio_compar();
 	char	tmp[512];
 
-	ExtArray<OwnerData> SubmittingOwners;
-
 	 // copy owner data to old-owners table
 	ExtArray<OwnerData> OldOwners(Owners);
 	int Old_N_Owners=N_Owners;
@@ -484,7 +478,6 @@ Scheduler::count_jobs()
 	for ( i = 0; i < Owners.getsize(); i++) {
 		Owners[i].Name = NULL;
 		Owners[i].Domain = NULL;
-		Owners[i].X509 = NULL;
 		Owners[i].JobsRunning = 0;
 		Owners[i].JobsIdle = 0;
 		Owners[i].JobsHeld = 0;
@@ -515,7 +508,7 @@ Scheduler::count_jobs()
 	while(matches->iterate(rec) == 1) {
 		char *at_sign = strchr(rec->user, '@');
 		if (at_sign) *at_sign = '\0';
-		int OwnerNum = insert_owner( rec->user, NULL );
+		int OwnerNum = insert_owner( rec->user );
 		if (at_sign) *at_sign = '@';
 		if (rec->shadowRec && !rec->pool) {
 			Owners[OwnerNum].JobsRunning++;
@@ -651,56 +644,31 @@ Scheduler::count_jobs()
 	ad->InsertOrUpdate(tmp);
 
 
-		// Make another owners array that is independent of X509 proxy stuff.
-	int numSubmittingOwners = 0;
-	for (i=0;i<N_Owners;i++) {
-		bool already_done = false;
-		int j;
-		for (j=0;j<numSubmittingOwners;j++) {
-			if (strcmp(SubmittingOwners[j].Name,Owners[i].Name)==0) {
-				already_done = true;
-				SubmittingOwners[j].JobsRunning += Owners[i].JobsRunning;
-				SubmittingOwners[j].JobsIdle += Owners[i].JobsIdle;
-				SubmittingOwners[j].JobsHeld += Owners[i].JobsHeld;
-				SubmittingOwners[j].JobsFlocked += Owners[i].JobsFlocked;
-				break;
-			}
-		}
-		if ( already_done ) continue;
-		j = numSubmittingOwners;
-		SubmittingOwners[j].JobsRunning = Owners[i].JobsRunning;
-		SubmittingOwners[j].JobsIdle = Owners[i].JobsIdle;
-		SubmittingOwners[j].JobsHeld = Owners[i].JobsHeld;
-		SubmittingOwners[j].JobsFlocked = Owners[i].JobsFlocked;
-		SubmittingOwners[j].Name = Owners[i].Name;
-		numSubmittingOwners++;
-	}
-
-	for ( i=0; i<numSubmittingOwners; i++) {
-	  sprintf(tmp, "%s = %d", ATTR_RUNNING_JOBS, SubmittingOwners[i].JobsRunning);
+	for ( i=0; i<N_Owners; i++) {
+	  sprintf(tmp, "%s = %d", ATTR_RUNNING_JOBS, Owners[i].JobsRunning);
 	  dprintf (D_FULLDEBUG, "Changed attribute: %s\n", tmp);
 	  ad->InsertOrUpdate(tmp);
 
-	  sprintf(tmp, "%s = %d", ATTR_IDLE_JOBS, SubmittingOwners[i].JobsIdle);
+	  sprintf(tmp, "%s = %d", ATTR_IDLE_JOBS, Owners[i].JobsIdle);
 	  dprintf (D_FULLDEBUG, "Changed attribute: %s\n", tmp);
 	  ad->InsertOrUpdate(tmp);
 
-	  sprintf(tmp, "%s = %d", ATTR_HELD_JOBS, SubmittingOwners[i].JobsHeld);
+	  sprintf(tmp, "%s = %d", ATTR_HELD_JOBS, Owners[i].JobsHeld);
 	  dprintf (D_FULLDEBUG, "Changed attribute: %s\n", tmp);
 	  ad->InsertOrUpdate(tmp);
 
-	  sprintf(tmp, "%s = %d", ATTR_FLOCKED_JOBS, SubmittingOwners[i].JobsFlocked);
+	  sprintf(tmp, "%s = %d", ATTR_FLOCKED_JOBS, Owners[i].JobsFlocked);
 	  dprintf (D_FULLDEBUG, "Changed attribute: %s\n", tmp);
 	  ad->InsertOrUpdate(tmp);
 
-	  sprintf(tmp, "%s = \"%s@%s\"", ATTR_NAME, SubmittingOwners[i].Name, UidDomain);
+	  sprintf(tmp, "%s = \"%s@%s\"", ATTR_NAME, Owners[i].Name, UidDomain);
 	  dprintf (D_FULLDEBUG, "Changed attribute: %s\n", tmp);
 	  ad->InsertOrUpdate(tmp);
 
 	  Collector->sendUpdate( UPDATE_SUBMITTOR_AD, ad ); 
 
 	  dprintf( D_ALWAYS, "Sent ad to central manager for %s@%s\n", 
-				SubmittingOwners[i].Name, UidDomain );
+			   Owners[i].Name, UidDomain );
 
 	}
 
@@ -729,7 +697,7 @@ Scheduler::count_jobs()
 			while(matches->iterate(rec) == 1) {
 				char *at_sign = strchr(rec->user, '@');
 				if (at_sign) *at_sign = '\0';
-				int OwnerNum = insert_owner( rec->user, NULL );
+				int OwnerNum = insert_owner( rec->user );
 				if (at_sign) *at_sign = '@';
 				if (rec->shadowRec && rec->pool &&
 					!strcmp(rec->pool, flock_neg->pool())) {
@@ -784,7 +752,7 @@ Scheduler::count_jobs()
 		for (i=0; i < N_Owners; i++) {
 			if ( Owners[i].GlobusJobs > 0 ) {
 				GridUniverseLogic::JobCountUpdate(Owners[i].Name, 
-						Owners[i].Domain,Owners[i].X509, NULL, 0, 0, 
+						Owners[i].Domain,NULL, NULL, 0, 0, 
 						Owners[i].GlobusJobs,Owners[i].GlobusUnmanagedJobs);
 			}
 		}
@@ -815,10 +783,6 @@ Scheduler::count_jobs()
 		if ( OldOwners[i].Name ) {
 			free(OldOwners[i].Name);
 			OldOwners[i].Name = NULL;
-		}
-		if ( OldOwners[i].X509 ) {
-			free(OldOwners[i].X509);
-			OldOwners[i].X509 = NULL;
 		}
 
 		  // If k < N_Owners, we found this OldOwner in the current
@@ -885,7 +849,6 @@ count( ClassAd *job )
 	int		niceUser;
 	char 	buf[_POSIX_PATH_MAX];
 	char 	buf2[_POSIX_PATH_MAX];
-	char*	x509userproxy;
 	char*	owner;
 	char 	domain[_POSIX_PATH_MAX];
 	int		cur_hosts;
@@ -908,24 +871,6 @@ count( ClassAd *job )
 		universe = CONDOR_UNIVERSE_STANDARD;
 	}
 
-	x509userproxy = NULL;
-	if ( GridUniverseLogic::group_per_subject() ) {
-		job->LookupString(ATTR_X509_USER_PROXY_SUBJECT, &x509userproxy);
-		if ( (!x509userproxy) && (universe==CONDOR_UNIVERSE_GLOBUS) ) {
-			int cluster = 0;
-			int proc = 0;
-			job->LookupInteger(ATTR_CLUSTER_ID, cluster);
-			job->LookupInteger(ATTR_PROC_ID, proc);
-			dprintf(D_ALWAYS, 
-				"ERROR %d.%d has no %s attribute.  Ignoring. "
-				"Update your condor_submit!\n",
-				cluster, proc, ATTR_X509_USER_PROXY_SUBJECT);
-			return 0;
-		}
-	} else {
-		job->LookupString(ATTR_X509_USER_PROXY, &x509userproxy);
-	}
-
 	// calculate owner for per submittor information.
 	buf[0] = '\0';
 	job->LookupString(ATTR_ACCOUNTING_GROUP,buf,sizeof(buf));	// TODDCORE
@@ -934,9 +879,6 @@ count( ClassAd *job )
 		if ( buf[0] == '\0' ) {	
 			dprintf(D_ALWAYS, "Job has no %s attribute.  Ignoring...\n",
 					ATTR_OWNER);
-			if (x509userproxy != NULL) {
-				free(x509userproxy);
-			}
 			return 0;
 		}
 	}
@@ -962,7 +904,7 @@ count( ClassAd *job )
 
 	// insert owner even if REMOVED or HELD for condor_q -{global|sub}
 	// this function makes its own copies of the memory passed in 
-	int OwnerNum = scheduler.insert_owner( owner, x509userproxy );
+	int OwnerNum = scheduler.insert_owner( owner );
 
 	// make certain gridmanager has a copy of mirrored jobs
 	char *mirror_schedd_name = NULL;
@@ -1014,9 +956,6 @@ count( ClassAd *job )
 
 		// bailout now, since all the crud below is only for jobs
 		// which the schedd needs to service
-		if (x509userproxy != NULL) {
-			free(x509userproxy);
-		}
 		return 0;
 	} 
 
@@ -1070,15 +1009,12 @@ count( ClassAd *job )
 			int proc = 0;
 			job->LookupInteger(ATTR_CLUSTER_ID, cluster);
 			job->LookupInteger(ATTR_PROC_ID, proc);
-			GridUniverseLogic::JobCountUpdate(owner,domain,x509userproxy,NULL,
-				cluster, proc, needs_management, job_managed ? 0 : 1);
+			GridUniverseLogic::JobCountUpdate(owner,domain,NULL,NULL,
+					cluster, proc, needs_management, job_managed ? 0 : 1);
 		}
 			// If we do not need to do matchmaking on this job (i.e.
 			// service this globus universe job), than we can bailout now.
 		if (!want_service) {
-			if (x509userproxy != NULL) {
-				free(x509userproxy);
-			}
 			return 0;
 		}
 		status = real_status;	// set status back for below logic...
@@ -1097,9 +1033,6 @@ count( ClassAd *job )
 		scheduler.JobsRemoved++;
 	}
 
-	if (x509userproxy != NULL) {
-		free(x509userproxy);
-	}
 	return 0;
 }
 
@@ -1157,24 +1090,16 @@ service_this_universe(int universe, ClassAd* job)
 }
 
 int
-Scheduler::insert_owner(char* owner, char *x509proxy)
+Scheduler::insert_owner(char* owner)
 {
 	int		i;
 	for ( i=0; i<N_Owners; i++ ) {
 		if( strcmp(Owners[i].Name,owner) == 0 ) {
-			if(x509proxy == NULL && Owners[i].X509 == NULL)
-				return i; //neither of us want an X509
-			if(x509proxy != NULL && Owners[i].X509 != NULL 
-				 && strcmp(Owners[i].X509,x509proxy) == 0)
-				return i; //We both have an X509
+			return i;
 		}
 	}
 
 	Owners[i].Name = strdup( owner );
-	if(x509proxy) 
-		Owners[i].X509 = strdup( x509proxy); 
-	else
-		Owners[i].X509 = NULL;
 
 	N_Owners +=1;
 	return i;
@@ -1327,21 +1252,14 @@ abort_job_myself( PROC_ID job_id, JobAction action, bool log_hold,
 		if ( job_managed  ) {
 			char owner[_POSIX_PATH_MAX];
 			char domain[_POSIX_PATH_MAX];
-			char proxy[_POSIX_PATH_MAX];
 			owner[0] = '\0';
-			proxy[0] = '\0';
 			domain[0] = '\0';
 			job_ad->LookupString(ATTR_OWNER,owner);
 			job_ad->LookupString(ATTR_NT_DOMAIN,domain);
-			if ( GridUniverseLogic::group_per_subject() ) {
-				job_ad->LookupString(ATTR_X509_USER_PROXY_SUBJECT,proxy);
-			} else {
-				job_ad->LookupString(ATTR_X509_USER_PROXY,proxy);
-			}
 			if ( gridman_per_job ) {
-				GridUniverseLogic::JobRemoved(owner,domain,proxy,NULL,job_id.cluster,job_id.proc);
+				GridUniverseLogic::JobRemoved(owner,domain,NULL,NULL,job_id.cluster,job_id.proc);
 			} else {
-				GridUniverseLogic::JobRemoved(owner,domain,proxy,NULL,0,0);
+				GridUniverseLogic::JobRemoved(owner,domain,NULL,NULL,0,0);
 			}
 			return;
 		}

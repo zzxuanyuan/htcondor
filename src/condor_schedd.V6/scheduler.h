@@ -72,7 +72,6 @@ struct shadow_rec
 struct OwnerData {
   char* Name;
   char* Domain;
-  char* X509;
   int JobsRunning;
   int JobsIdle;
   int JobsHeld;
@@ -82,7 +81,7 @@ struct OwnerData {
   int GlobusJobs;
   int GlobusUnmanagedJobs;
   time_t NegotiationTimestamp;
-  OwnerData() { Name=NULL; Domain=NULL; X509=NULL;
+  OwnerData() { Name=NULL; Domain=NULL;
   JobsRunning=JobsIdle=JobsHeld=JobsFlocked=FlockLevel=OldFlockLevel=GlobusJobs=GlobusUnmanagedJobs=0; }
 };
 
@@ -396,7 +395,7 @@ private:
 	int				cluster_rejected(int);
 	void   			mark_cluster_rejected(int); 
 	int				count_jobs();
-	int				insert_owner(char*, char*);
+	int				insert_owner(char*);
 	void			child_exit(int, int);
 	void			clean_shadow_recs();
 	void			preempt(int);
