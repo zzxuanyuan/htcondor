@@ -33,6 +33,7 @@
 #include "condor_attributes.h"
 #include "condor_uid.h"
 #include "condor_distribution.h"
+#include "basename.h"
 #ifdef WIN32
 #include "perm.h"
 #endif
@@ -78,17 +79,31 @@ ToolDaemonProc::StartJob()
 		return 0;
     }
 
-	char DaemonNameTemp [_POSIX_PATH_MAX];
-	char DaemonName	[_POSIX_PATH_MAX];
-	if( JobAd->LookupString( ATTR_TOOL_DAEMON_CMD, DaemonNameTemp ) != 1 ) {
-	    dprintf( D_ALWAYS, "%s not found in JobAd.  Aborting StartJob. \n", 
-				 ATTR_TOOL_DAEMON_CMD );
+	MyString DaemonNameStr;
+	char* tmp = NULL;
+	if( JobAd->LookupString( ATTR_TOOL_DAEMON_CMD, &tmp ) != 1 ) {
+	    dprintf( D_ALWAYS, "%s not found in JobAd.  Aborting "
+				 "ToolDaemonProc::StartJob()\n", ATTR_TOOL_DAEMON_CMD );
 	    return 0;
 	}
 
-	sprintf( DaemonName, "%s%c%s", Starter->GetWorkingDir(),
-				 DIR_DELIM_CHAR, DaemonNameTemp );
+	const char* job_iwd = Starter->jic->jobIWD();
+	dprintf( D_ALWAYS, "IWD: %s\n", job_iwd );
 
+	char* base = NULL;
+	base = basename( tmp );
+	if( Starter->jic->iwdIsChanged() ) {
+		DaemonNameStr.sprintf( "%s%c%s", Starter->GetWorkingDir(),
+							   DIR_DELIM_CHAR, base );
+	} else if( ! fullpath(tmp) ) {
+		DaemonNameStr.sprintf( "%s%c%s", job_iwd, DIR_DELIM_CHAR, tmp );
+	} else {
+		DaemonNameStr = tmp;
+	}
+	const char* DaemonName = DaemonNameStr.Value();
+	free( tmp );
+	tmp = NULL;
+			
 	dprintf( D_FULLDEBUG, "Daemon Name: %s \n", DaemonName );
 
 		// This is something of an ugly hack.  filetransfer doesn't
@@ -96,18 +111,14 @@ ToolDaemonProc::StartJob()
 		// tool "binary" (or script, whatever it is), is sitting in
 		// the starter's directory without an execute bit set.  So,
 		// we've got to call chmod() so that exec() doesn't fail.
-
-		// TODO:	
-        // If daemon_name is an absolute path, chmod has to be applied
-        // to the file copied in cwd (skipping path information referred
-	    // to the submiting host).
-
-	priv_state old_priv = set_user_priv();
-	int retval = chmod( DaemonName, S_IRWXU | S_IRWXO | S_IRWXG );
-	set_priv( old_priv );
-	if( retval < 0 ) {
-		dprintf( D_ALWAYS, "Failed to chmod %s!\n", DaemonName );
-		return 0;
+	if( Starter->jic->iwdIsChanged() ) {
+		priv_state old_priv = set_user_priv();
+		int retval = chmod( DaemonName, S_IRWXU | S_IRWXO | S_IRWXG );
+		set_priv( old_priv );
+		if( retval < 0 ) {
+			dprintf( D_ALWAYS, "Failed to chmod %s!\n", DaemonName );
+			return 0;
+		}
 	}
 
 
@@ -116,7 +127,7 @@ ToolDaemonProc::StartJob()
 		// // // // // // 
 
 	char DaemonArgs[_POSIX_ARG_MAX];
-	char *tmp = NULL;
+	ASSERT( tmp == NULL );
 
 	JobAd->LookupString( ATTR_TOOL_DAEMON_ARGS, &tmp );
 	if( tmp ) {
@@ -169,9 +180,6 @@ ToolDaemonProc::StartJob()
 		// // // // // // 
 		// Standard Files
 		// // // // // // 
-
-	const char* job_iwd = Starter->jic->jobIWD();
-	dprintf( D_ALWAYS, "IWD: %s\n", job_iwd );
 
 	// handle stdin, stdout, and stderr redirection
 	int fds[3];
