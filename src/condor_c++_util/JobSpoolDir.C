@@ -7,112 +7,20 @@
 #include "my_username.h"
 #include "condor_uid.h"
 
-/*****************************************************************************/
-
-/** General interface to stat (2)
-
-Results are a snapshot from when StatObj was created.
-*/
-// TODO: Use existing stat interface?
-class StatObj
-{
-public:
-	StatObj(const MyString & path) : name (path) { init(); }
-
-	StatObj(const char * path) : name(path) { init(); }
-
-	void refresh() {
-		init();
-	}
-
-	// Was I unable to stat the file?
-	// Possible reasons: ErrorDoesNotExist(), ErrorNoAccess() or "other"
-	bool HasError() const {
-		return myerrno;
-	}
-
-	// Something in the path doesn't exist
-	bool ErrorDoesNotExist() const { 
-		return myerrno == ENOENT;
-	}
-
-	bool ErrorNoAccess() const { 
-		return myerrno == EACCES;
-	}
-
-	// Is this a directory?  Returns false on an error.
-	bool IsDir() const {
-		if(myerrno) { return false; }
-		return S_ISDIR(mystat.st_mode);
-	}
-
-	// Can the owner read this? Returns false on an error.
-	bool OwnerCanRead() const {
-		if(myerrno) { return false; }
-		return mystat.st_mode & S_IRUSR;
-	}
-
-	// Can the owner write this? Returns false on an error.
-	bool OwnerCanWrite() const {
-		if(myerrno) { return false; }
-		return mystat.st_mode & S_IWUSR;
-	}
-
-	// Is the directory searchable (will opendir work?)
-	// Is execute bit on unix.
-	// Returns false on an error.
-	bool OwnerCanSearch() const {
-		if(myerrno) { return false; }
-		if( ! IsDir() ) { return false; }
-		return mystat.st_mode & S_IXUSR;
-	}
-
-	// What is the file size in bytes? Returns 0 on an error.
-	off_t Size() const {
-		if(myerrno) { return 0; }
-		return mystat.st_size;
-	}
-
-	// Return the mode.  It's recommended to use more
-	// specific functions.  Returns 0 on an error.
-	mode_t Mode() const {
-		if(myerrno) { return 0; }
-		return mystat.st_mode;
-	}
-
-	// Time of last modification, kept as second since the epoch.
-	// Returns 0 on error.
-	time_t ModificationTime() const {
-		if(myerrno) { return 0; }
-		return mystat.st_mtime;
-	}
-
-
-private:
-	void init()
-	{
-		myerrno = 0;
-		if( stat(name.GetCStr(), &mystat) != 0)
-		{
-			myerrno = errno;
-		}
-	}
-
-
-	struct stat mystat;
-	int myerrno;
-	MyString name;
-};
 
 /*****************************************************************************/
 
 // Chowning implementation
 
-
-bool is_directory(const char * path) 
+bool file_exists(const char * path)
 {
-	StatObj obj(path);
-	return obj.IsDir();
+	StatInfo obj(path);
+	return obj.Error() != SINoFile;
+}
+
+bool file_exists(const MyString & path)
+{
+	return file_exists(path.GetCStr());
 }
 
 bool recursive_chown_impl(const char * path, 
@@ -132,7 +40,7 @@ bool recursive_chown_impl_fast(const char * path,
 	if( chown(path, dst_uid, dst_gid) != 0 ) {
 		return false;
 	}
-	if( is_directory(path) ) {
+	if( IsDirectory(path) ) {
 		// TODO: use Directory object to spin directory.
 		DIR * d = opendir(path);
 		if( ! d ) {
@@ -514,7 +422,9 @@ void JobSpoolDir::DestroyClusterDirectory()
 
 	MyString exefile = FileFullExecutable();
 	if(unlink(exefile.GetCStr())) {
-		joberrordprintf("Failed to remove %s.  Error: %s.  May be unable to destroy cluster directory %s.\n", exefile.GetCStr(), StringError(errno).GetCStr(), clusterdir.GetCStr());
+		if( file_exists(exefile) ) {
+			joberrordprintf("Failed to remove %s.  Error: %s.  May be unable to destroy cluster directory %s.\n", exefile.GetCStr(), StringError(errno).GetCStr(), clusterdir.GetCStr());
+		}
 	}
 
 	// Note: assuming that rmdir fails if there are files in the directory.
@@ -534,8 +444,7 @@ MyString JobSpoolDir::ExecutablePathForReading() const
 	// Check in the JobSpoolDir
 	{
 		MyString exe = ExecutablePathForWriting();
-		StatObj statobj(exe);
-		if( ! statobj.ErrorDoesNotExist() ) {
+		if( file_exists(exe) ) {
 			return exe;
 		}
 	}
@@ -548,8 +457,7 @@ MyString JobSpoolDir::ExecutablePathForReading() const
 		ASSERT(spool.Length() > 0); // No SPOOL?  We're in deep trouble.
 
 		MyString exe = gen_ckpt_name_2(spool.GetCStr(), cluster, ICKPT, 0);
-		StatObj statobj(exe);
-		if( ! statobj.ErrorDoesNotExist() ) {
+		if( file_exists(exe) ) {
 			return exe;
 		}
 	}
@@ -577,8 +485,7 @@ MyString JobSpoolDir::ExecutablePathForWriting() const
 
 bool JobSpoolDir::EnsureUsableDir(const MyString & path, bool allow_create)
 {
-	StatObj statobj(path);
-	if( statobj.ErrorDoesNotExist() ) {
+	if( ! file_exists(path) ) {
 
 		if( ! allow_create ) {
 			joberrordprintf("Job spool directory %s does not exist.",
@@ -595,30 +502,30 @@ bool JobSpoolDir::EnsureUsableDir(const MyString & path, bool allow_create)
 
 	}
 
-	statobj.refresh();
+	StatInfo statobj(path.GetCStr());
 
 	// It already exists, (or was just created) quick usability check
-	if(statobj.ErrorNoAccess()) {
+	if(statobj.Error()) {
 		joberrordprintf("Unable to access job spool directory %s.",
 			path.GetCStr());
 		return false;
 	}
-	if( ! statobj.IsDir()) {
+	if( ! statobj.IsDirectory()) {
 		joberrordprintf("Job spool %s is not a directory.",
 			path.GetCStr());
 		return false;
 	}
-	if( ! statobj.OwnerCanRead()) {
+	if( ! statobj.IsOwnerReadable()) {
 		joberrordprintf("Job spool directory %s lacks owner read permission.",
 			path.GetCStr());
 		return false;
 	}
-	if( ! statobj.OwnerCanWrite()) {
+	if( ! statobj.IsOwnerWritable()) {
 		joberrordprintf("Job spool directory %s lacks owner write permission.",
 			path.GetCStr());
 		return false;
 	}
-	if( ! statobj.OwnerCanSearch()) {
+	if( ! statobj.IsOwnerSearchable()) {
 		joberrordprintf("Job spool directory %s lacks owner search permission.",
 			path.GetCStr());
 		return false;
