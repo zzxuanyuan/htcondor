@@ -338,8 +338,12 @@ int main(int argc, char ** argv ) {
 	paddr2=NULL;
 	setup_uncompressed_addr(fd1, f1, pz1, paddr1);
 	setup_uncompressed_addr(fd2, f2, pz2, paddr2);
+	if (paddr1 == NULL || paddr2 == NULL) {
+		cerr <<"ERROR: could not create paddr. (Network order problem?)"<<endl;
+		exit (0);
+	}
 	if (DEBUG) cerr<<"DEBUG: " << "paddr1 is " << paddr1
-					<< ", paddr2 is " <<paddr2<<endl;
+					<< ", paddr2 is " <<paddr2 <<endl;
 	
 	int matching_segs=0;
 	int total_matches = 0;
