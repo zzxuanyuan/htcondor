@@ -1,4 +1,4 @@
-NAME = condor_had
+NAME = condor_had condor_replica_up condor_replica_down
 all_target($(NAME))
 
 CFLAGS = $(STD_C_FLAGS) 
@@ -6,12 +6,24 @@ C_PLUS_FLAGS =  $(STD_C_PLUS_FLAGS)
 LIB = $(DAEMONCORE_LIB) $(STD_LIBS)
 
 #OBJ =  ReplicaVersion.o Replication.o StateMachine.o Listener.o HAD.o
-OBJ =  StateMachine.o HAD.o
+#OBJ =  StateMachine.o Listener.o HAD.o
+OBJ =  ReplicaVersion.o Replication.o StateMachine.o HAD.o
 
-c_plus_target($(NAME),$(OBJ),$(LIB))
-release_target($(NAME),sbin,EXECUTABLE_MODE)
-strip_target($(NAME),sbin,EXECUTABLE_MODE)
-static_target($(NAME),$(OBJ),$(LIB),$(STATIC_DIR)/sbin)
-pure_c_plus_target($(NAME).pure,$(OBJ),$(LIB))
-purecov_c_plus_target($(NAME).pc,$(OBJ),$(LIB))
+TOBJ =  Transfer.o
 
+c_plus_target(condor_had,$(OBJ),$(LIB))
+release_target(condor_had,sbin,EXECUTABLE_MODE)
+strip_target(condor_had,sbin,EXECUTABLE_MODE)
+static_target(condor_had,$(OBJ),$(LIB),$(STATIC_DIR)/sbin)
+pure_c_plus_target(condor_had.pure,$(OBJ),$(LIB))
+purecov_c_plus_target(condor_had.pc,$(OBJ),$(LIB))
+
+c_plus_target(condor_replica_up,$(TOBJ),$(LIB))
+release_target(condor_replica_up,bin,EXECUTABLE_MODE)
+strip_target(condor_replica_up,bin,EXECUTABLE_MODE)
+static_target(condor_replica_up,$(TOBJ),$(LIB),$(STATIC_DIR)/bin)
+
+#c_plus_target(condor_replica_down,$(TOBJ),$(LIB))
+#release_target(condor_replica_down,bin,EXECUTABLE_MODE)
+#strip_target(condor_replica_down,bin,EXECUTABLE_MODE)
+#static_target(condor_replica_down,$(TOBJ),$(LIB),$(STATIC_DIR)/bin)

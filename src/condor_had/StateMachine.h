@@ -18,7 +18,8 @@
 
 #define NEGOTIATION_CYCLE 	    	(5) //5 seconds
 #define SEND_COMMAND_TIMEOUT 		(1) // 1 second
-
+#define REPLICATION_CYCLE 300 //5 min (5*60)
+#define MESSAGES_PER_INTERVAL_FACTOR (2)
 
 #define  USE_REPLICATION    (0)
 
@@ -41,9 +42,6 @@ public:
     /*
       Const'rs
     */
-#if USE_REPLICATION
-    HADStateMachine( HADReplication* replicator );
-#endif
 
     HADStateMachine();
 
@@ -61,6 +59,12 @@ public:
       state machine.
     */
     void  step();
+    
+    /*
+      cycle() - called MESSAGES_PER_INTERVAL_FACTOR times per hadInterval
+    */
+    void  cycle();
+
 
     /*
       sendCommandToOthers(int command) - send "ALIVE command" or
@@ -68,6 +72,12 @@ public:
     */
     int sendCommandToOthers( int );
 
+    /*
+      send "ALIVE command" or "SEND ID command" to all HADs from HAD list
+      acconding to state
+    */
+    int sendMessages();
+    
     /*
       sendNegotiatorCmdToMaster(int) - snd "NEGOTIATOR ON" or "NEGOTIATOR OFF"
       to master.
@@ -90,8 +100,18 @@ public:
     void commandHandler(int cmd,Stream *strm) ;
 private:
     int state;
-    int hadTimerID;
-    int  hadInterval;
+    
+    int stateMachineTimerID;
+    int replicaTimerID;
+    int waitingVersionsTimerID;
+        
+    int hadInterval;
+    int replicationInterval;
+
+    // if callsCounter equals to 0 ,
+    // enter state machine , otherwise send messages
+    char callsCounter;
+    
     int selfId;
     bool isPrimary;
     StringList* otherHADIPs;
@@ -113,12 +133,11 @@ private:
     void onError(char*);
 
     char* convertToSinfull(char* addr);
-    
+    void print_params_information();
     // debug information
     bool debugMode;
     void my_debug_print_list(StringList* str);
     void my_debug_print_buffers();
-
 
 };
 
