@@ -74,6 +74,11 @@ Matchmaker ()
 	stashedAds = new AdHash(1000, HashFunc);
 
 	Collectors = NULL;
+
+	/* Set ODBC params to NULL */
+	db_handle = new ODBC();
+	strcpy(RejectsTable, "Rejects_test2");
+	strcpy(MatchesTable, "Matches_test2");
 }
 
 
@@ -91,6 +96,10 @@ Matchmaker::
 	if (Collectors) {
 		delete Collectors;
 	}
+	
+	/* Release ODBC params */
+	delete db_handle;
+
 }
 
 
@@ -143,6 +152,8 @@ int Matchmaker::
 reinitialize ()
 {
 	char *tmp;
+	/* Temporary ODBC variables */
+	char *odbc_dsn, *odbc_user, *odbc_auth;
 
     // Initialize accountant params
     accountant.Initialize();
@@ -231,6 +242,35 @@ reinitialize ()
 	}
 
 	dprintf (D_ALWAYS,"NEGOTIATOR_POST_JOB_RANK = %s\n", (tmp?tmp:"None"));
+	
+	/* Parse ODBC Connection Params */
+	tmp = param("NEGOTIATOR_ODBC_DSN");
+	if( tmp ) {
+		odbc_dsn = strdup(tmp);
+		free(tmp);
+	}
+	else {
+
+		odbc_dsn = strdup("PostgreSQL");
+	}
+
+	tmp = param("NEGOTIATOR_ODBC_USER");
+	if( tmp ) {
+		odbc_user = strdup(tmp);
+		free(tmp);
+	}
+	else {
+		odbc_user = strdup("scidb");
+	}
+
+	tmp = param("NEGOTIATOR_ODBC_AUTH");
+	if( tmp ) {
+		odbc_auth = strdup(tmp);
+		free(tmp);
+	}
+	else {
+		odbc_auth = strdup("");
+	}
 
 	if( tmp ) free( tmp );
 
@@ -242,6 +282,10 @@ reinitialize ()
 		delete Collectors;
 	}
 	Collectors = CollectorList::create();
+
+	/* Connect to ODBC here */
+	db_handle->odbc_connect(odbc_dsn,odbc_user,odbc_auth);
+	dprintf(D_FULLDEBUG,"Connected to odbc %d\n",db_handle->isConnected());
 
 	// done
 	return TRUE;
@@ -1356,6 +1400,8 @@ matchmakingAlgorithm(char *scheddName, char *scheddAddr, ClassAd &request,
 						!(PreemptionReq->EvalTree(candidate,&request,&result) &&
 						result.type == LX_INTEGER && result.i == TRUE) ) {
 					rejPreemptForPolicy = true;
+					/* ODBC Insert into rejects table */
+					insert_into_rejects(scheddName,request,*candidate,"POLICY");
 					continue;
 				}
 					// (2) we need to make sure that the machine ranks the job
@@ -1365,6 +1411,8 @@ matchmakingAlgorithm(char *scheddName, char *scheddAddr, ClassAd &request,
 						result.type == LX_INTEGER && result.i == TRUE ) ) {
 						// machine doesn't like this job as much -- find another
 					rejPreemptForRank = true;
+					/* ODBC Insert into rejects table */
+					insert_into_rejects(scheddName,request,*candidate,"RANK");
 					continue;
 				}
 			} else {
@@ -1375,6 +1423,8 @@ matchmakingAlgorithm(char *scheddName, char *scheddAddr, ClassAd &request,
 						// preempt one of our own jobs!
 					rejPreemptForPrio = true;
 				}
+				/* ODBC Insert into rejects table */
+				insert_into_rejects(scheddName,request,*candidate,"PRIORITY");
 				continue;
 			}
 		}
@@ -1387,9 +1437,13 @@ matchmakingAlgorithm(char *scheddName, char *scheddAddr, ClassAd &request,
 										   ckptSize, request, *candidate);
 		if (rval == 1) {
 			rejForNetworkShare = true;
+			/* ODBC Insert into rejects table */
+			insert_into_rejects(scheddName,request,*candidate,"NETWORKSHARE");
 			continue;
 		} else if (rval == 0) {
 			rejForNetwork = true;
+			/* ODBC Insert into rejects table */
+			insert_into_rejects(scheddName,request,*candidate,"NETWORK");
 			continue;
 		}
 #endif
@@ -1496,6 +1550,7 @@ matchmakingProtocol (ClassAd &request, ClassAd *offer,
 
 	// see if offer supports claiming or not
 	offer->LookupBool(ATTR_WANT_CLAIMING,want_claiming);
+
 	// if offer says nothing, see if request says something
 	if ( want_claiming == -1 ) {
 		request.LookupBool(ATTR_WANT_CLAIMING,want_claiming);
@@ -1593,6 +1648,9 @@ matchmakingProtocol (ClassAd &request, ClassAd *offer,
 	dprintf(D_MATCH, "      Matched %d.%d %s %s preempting %s %s\n",
 			cluster, proc, scheddName, scheddAddr, remoteUser,
 			startdAddr);
+
+	/* ODBC Insert into matches table */
+	insert_into_matches(scheddName,cluster,proc,*offer);
 
 #if WANT_NETMAN
 	// match was successful; commit our network bandwidth allocation
@@ -1731,3 +1789,41 @@ int Matchmaker::HashFunc(const MyString &Key, int TableSize) {
 	return Key.Hash() % TableSize;
 }
 
+/* ODBC functions */
+void Matchmaker::insert_into_rejects(char *scheddName, ClassAd& job, ClassAd& machine,const char *diagnosis)
+{
+	char insert_stmt[256];
+	int cluster, proc;
+	char startdname[80];
+
+	struct tm *tm;
+	time_t clock;
+
+	(void)time(  (time_t *)&clock );
+	tm = localtime( (time_t *)&clock );
+
+	job.LookupInteger (ATTR_CLUSTER_ID, cluster);
+	job.LookupInteger (ATTR_PROC_ID, proc);
+	machine.LookupString(ATTR_NAME, startdname);
+	sprintf((char*) insert_stmt,"insert into %s values (\'%d/%d/%d %02d:%02d:%02d\',\'%s\', %d, %d, \'%s\', \'%s\')",RejectsTable,tm->tm_mon + 1, tm->tm_mday,tm->tm_year+1900, tm->tm_hour,tm->tm_min, tm->tm_sec,scheddName,cluster,proc,startdname,diagnosis);	
+	db_handle->odbc_sqlstmt(insert_stmt);	
+}
+void Matchmaker::insert_into_matches(char * scheddName, int cluster, int proc, ClassAd& offer)
+{
+	char insert_stmt[256];
+	char startdname[80],remote_user[80];
+	float remote_prio;
+
+	struct tm *tm;
+	time_t clock;
+
+	(void)time(  (time_t *)&clock );
+	tm = localtime( (time_t *)&clock );
+
+	offer.LookupString( ATTR_NAME, startdname); 
+	if(offer.LookupString( ATTR_REMOTE_USER, remote_user) == 0) strcpy(remote_user,"None"); /* XXX This should be null */
+	remote_prio = (float) accountant.GetPriority(remote_user);
+	sprintf((char *)insert_stmt,"insert into %s values (\'%d/%d/%d %02d:%02d:%02d\',\'%s\', %d, %d, \'%s\', \'%s\', %f)",MatchesTable,tm->tm_mon + 1, tm->tm_mday,tm->tm_year+1900, tm->tm_hour,tm->tm_min, tm->tm_sec,scheddName,cluster,proc,startdname,remote_user,remote_prio);	
+	db_handle->odbc_sqlstmt(insert_stmt);	
+
+} 
