@@ -842,9 +842,8 @@ int Condor_Auth_Kerberos :: map_domain_name(const char * domain)
     int code;
     const char * localDomain;
     if (RealmMap == 0) {
-        if (!init_realm_mapping()) {
-            return FALSE;
-        }
+        init_realm_mapping();
+        // it's okay if it returns false
     }
 
     // two cases, if domain is the same as the current uid domain,
