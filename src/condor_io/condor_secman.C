@@ -400,7 +400,7 @@ SecMan::FillInSecurityPolicyAd( const char *auth_level, ClassAd* ad,
 	}
 
 	if (paramer) {
-		sprintf(buf, "%s", ATTR_SEC_CRYPTO_METHODS, paramer);
+		sprintf(buf, "%s", paramer);
 		free(paramer);
         v.Clear();
         v.SetStringValue(buf);
@@ -687,7 +687,7 @@ SecMan::ReconcileSecurityPolicyAds(ClassAd &cli_ad, ClassAd &srv_ad) {
 		if (first) {
 			v.Clear();
         	v.SetStringValue(first);
-        	action_ad->InsertAttr(ATTR_SEC_AUTHENTICATION_METHODS_LIST, buf);
+        	action_ad->InsertAttr(ATTR_SEC_AUTHENTICATION_METHODS, buf);
 		}
 	}
 
