@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions name="Service"
+ xmlns="http://schemas.xmlsoap.org/wsdl/"
+ xmlns:SOAP="http://schemas.xmlsoap.org/wsdl/soap/"
+ xmlns:WSDL="http://schemas.xmlsoap.org/wsdl/"
+ targetNamespace="urn:condor-daemoncore"
+ xmlns:tns="urn:condor-daemoncore"
+ xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/"
+ xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/"
+ xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+ xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+ xmlns:condorCore="urn:condor-daemoncore"
+ xmlns:condorCollector="urn:condor-collector">
+
+<types>
+ <schema targetNamespace="urn:condor-daemoncore"
+  xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/"
+  xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+  xmlns:condorCore="urn:condor-daemoncore"
+  xmlns:condorCollector="urn:condor-collector"
+  xmlns="http://www.w3.org/2001/XMLSchema"
+  elementFormDefault="unqualified"
+  attributeFormDefault="unqualified">
+
+  <complexType name="ClassAdStructAttr">
+   <sequence>
+    <element name="name" type="xsd:string" minOccurs="1" maxOccurs="1" nillable="true"/>
+    <element name="type" type="xsd:byte" minOccurs="1" maxOccurs="1"/>
+    <element name="value" type="xsd:string" minOccurs="1" maxOccurs="1" nillable="true"/>
+    <element name="valueInt" type="xsd:int" minOccurs="0" maxOccurs="1" nillable="true"/>
+    <element name="valueFloat" type="xsd:float" minOccurs="0" maxOccurs="1" nillable="true"/>
+    <element name="valueBool" type="xsd:boolean" minOccurs="0" maxOccurs="1" nillable="true"/>
+    <element name="valueExpr" type="xsd:string" minOccurs="0" maxOccurs="1" nillable="true"/>
+   </sequence>
+  </complexType>
+
+  <complexType name="ArrayOfClassAdStructAttr">
+   <complexContent>
+    <restriction base="SOAP-ENC:Array">
+     <sequence>
+      <element name="item" type="condorCore:ClassAdStructAttr" minOccurs="0" maxOccurs="unbounded"/>
+     </sequence>
+     <attribute ref="SOAP-ENC:arrayType" WSDL:arrayType="condorCore:ClassAdStructAttr[]"/>
+    </restriction>
+   </complexContent>
+  </complexType>
+
+  <complexType name="ArrayOfArrayOfClassAdStructAttr">
+   <complexContent>
+    <restriction base="SOAP-ENC:Array">
+     <sequence>
+      <element name="item" type="condorCore:ArrayOfClassAdStructAttr" minOccurs="0" maxOccurs="unbounded"/>
+     </sequence>
+     <attribute ref="SOAP-ENC:arrayType" WSDL:arrayType="condorCore:ArrayOfClassAdStructAttr[]"/>
+    </restriction>
+   </complexContent>
+  </complexType>
+
+ </schema>
+ <schema targetNamespace="urn:condor-collector"
+  xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/"
+  xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+  xmlns:condorCore="urn:condor-daemoncore"
+  xmlns:condorCollector="urn:condor-collector"
+  xmlns="http://www.w3.org/2001/XMLSchema"
+  elementFormDefault="unqualified"
+  attributeFormDefault="unqualified">
+
+ </schema>
+</types>
+
+<message name="getInfoAdRequest">
+</message>
+
+<message name="getInfoAdResponse">
+ <part name="ad" type="condorCore:ArrayOfClassAdStructAttr"/>
+</message>
+
+<message name="getVersionStringRequest">
+</message>
+
+<message name="getVersionStringResponse">
+ <part name="verstring" type="xsd:string"/>
+</message>
+
+<message name="getPlatformStringRequest">
+</message>
+
+<message name="getPlatformStringResponse">
+ <part name="verstring" type="xsd:string"/>
+</message>
+
+<portType name="ServicePortType">
+ <operation name="getInfoAd">
+  <documentation>Service definition of function condorCore__getInfoAd</documentation>
+  <input message="tns:getInfoAdRequest"/>
+  <output message="tns:getInfoAdResponse"/>
+ </operation>
+ <operation name="getVersionString">
+  <documentation>Service definition of function condorCore__getVersionString</documentation>
+  <input message="tns:getVersionStringRequest"/>
+  <output message="tns:getVersionStringResponse"/>
+ </operation>
+ <operation name="getPlatformString">
+  <documentation>Service definition of function condorCore__getPlatformString</documentation>
+  <input message="tns:getPlatformStringRequest"/>
+  <output message="tns:getPlatformStringResponse"/>
+ </operation>
+</portType>
+
+<binding name="ServiceBinding" type="tns:ServicePortType">
+ <SOAP:binding style="rpc" transport="http://schemas.xmlsoap.org/soap/http"/>
+ <operation name="getInfoAd">
+  <SOAP:operation soapAction=""/>
+  <input>
+   <SOAP:body use="encoded" namespace="urn:condor-daemoncore" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </input>
+  <output>
+   <SOAP:body use="encoded" namespace="urn:condor-daemoncore" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </output>
+ </operation>
+ <operation name="getVersionString">
+  <SOAP:operation soapAction=""/>
+  <input>
+   <SOAP:body use="encoded" namespace="urn:condor-daemoncore" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </input>
+  <output>
+   <SOAP:body use="encoded" namespace="urn:condor-daemoncore" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </output>
+ </operation>
+ <operation name="getPlatformString">
+  <SOAP:operation soapAction=""/>
+  <input>
+   <SOAP:body use="encoded" namespace="urn:condor-daemoncore" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </input>
+  <output>
+   <SOAP:body use="encoded" namespace="urn:condor-daemoncore" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </output>
+ </operation>
+</binding>
+
+<service name="Service">
+ <documentation>gSOAP 2.3 rev 7 generated service definition</documentation>
+ <port name="Service" binding="tns:ServiceBinding">
+ </port>
+</service>
+
+</definitions>

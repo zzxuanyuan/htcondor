@@ -1,0 +1,243 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions name="condorCollector"
+ xmlns="http://schemas.xmlsoap.org/wsdl/"
+ xmlns:SOAP="http://schemas.xmlsoap.org/wsdl/soap/"
+ xmlns:WSDL="http://schemas.xmlsoap.org/wsdl/"
+ targetNamespace="urn:condor-collector"
+ xmlns:tns="urn:condor-collector"
+ xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/"
+ xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/"
+ xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+ xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+ xmlns:condorCore="urn:condor-daemoncore"
+ xmlns:condorCollector="urn:condor-collector">
+
+<types>
+ <schema targetNamespace="urn:condor-daemoncore"
+  xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/"
+  xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+  xmlns:condorCore="urn:condor-daemoncore"
+  xmlns:condorCollector="urn:condor-collector"
+  xmlns="http://www.w3.org/2001/XMLSchema"
+  elementFormDefault="unqualified"
+  attributeFormDefault="unqualified">
+
+  <complexType name="ClassAdStructAttr">
+   <sequence>
+    <element name="name" type="xsd:string" minOccurs="1" maxOccurs="1" nillable="true"/>
+    <element name="type" type="xsd:byte" minOccurs="1" maxOccurs="1"/>
+    <element name="value" type="xsd:string" minOccurs="1" maxOccurs="1" nillable="true"/>
+    <element name="valueInt" type="xsd:int" minOccurs="0" maxOccurs="1" nillable="true"/>
+    <element name="valueFloat" type="xsd:float" minOccurs="0" maxOccurs="1" nillable="true"/>
+    <element name="valueBool" type="xsd:boolean" minOccurs="0" maxOccurs="1" nillable="true"/>
+    <element name="valueExpr" type="xsd:string" minOccurs="0" maxOccurs="1" nillable="true"/>
+   </sequence>
+  </complexType>
+
+ </schema>
+ <schema targetNamespace="urn:condor-collector"
+  xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/"
+  xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+  xmlns:condorCore="urn:condor-daemoncore"
+  xmlns:condorCollector="urn:condor-collector"
+  xmlns="http://www.w3.org/2001/XMLSchema"
+  elementFormDefault="unqualified"
+  attributeFormDefault="unqualified">
+
+  <complexType name="ArrayOfClassAdStructAttr">
+   <complexContent>
+    <restriction base="SOAP-ENC:Array">
+     <sequence>
+      <element name="item" type="condorCore:ClassAdStructAttr" minOccurs="0" maxOccurs="unbounded"/>
+     </sequence>
+     <attribute ref="SOAP-ENC:arrayType" WSDL:arrayType="condorCore:ClassAdStructAttr[]"/>
+    </restriction>
+   </complexContent>
+  </complexType>
+
+  <complexType name="ArrayOfArrayOfClassAdStructAttr">
+   <complexContent>
+    <restriction base="SOAP-ENC:Array">
+     <sequence>
+      <element name="item" type="condorCollector:ArrayOfClassAdStructAttr" minOccurs="0" maxOccurs="unbounded"/>
+     </sequence>
+     <attribute ref="SOAP-ENC:arrayType" WSDL:arrayType="condorCollector:ArrayOfClassAdStructAttr[]"/>
+    </restriction>
+   </complexContent>
+  </complexType>
+
+ </schema>
+</types>
+
+<message name="queryStartdAdsRequest">
+ <part name="constraint" type="xsd:string"/>
+</message>
+
+<message name="queryStartdAdsResponse">
+ <part name="result" type="condorCollector:ArrayOfArrayOfClassAdStructAttr"/>
+</message>
+
+<message name="queryScheddAdsRequest">
+ <part name="constraint" type="xsd:string"/>
+</message>
+
+<message name="queryScheddAdsResponse">
+ <part name="result" type="condorCollector:ArrayOfArrayOfClassAdStructAttr"/>
+</message>
+
+<message name="queryMasterAdsRequest">
+ <part name="constraint" type="xsd:string"/>
+</message>
+
+<message name="queryMasterAdsResponse">
+ <part name="result" type="condorCollector:ArrayOfArrayOfClassAdStructAttr"/>
+</message>
+
+<message name="querySubmittorAdsRequest">
+ <part name="constraint" type="xsd:string"/>
+</message>
+
+<message name="querySubmittorAdsResponse">
+ <part name="result" type="condorCollector:ArrayOfArrayOfClassAdStructAttr"/>
+</message>
+
+<message name="queryLicenseAdsRequest">
+ <part name="constraint" type="xsd:string"/>
+</message>
+
+<message name="queryLicenseAdsResponse">
+ <part name="result" type="condorCollector:ArrayOfArrayOfClassAdStructAttr"/>
+</message>
+
+<message name="queryStorageAdsRequest">
+ <part name="constraint" type="xsd:string"/>
+</message>
+
+<message name="queryStorageAdsResponse">
+ <part name="result" type="condorCollector:ArrayOfArrayOfClassAdStructAttr"/>
+</message>
+
+<message name="queryAnyAdsRequest">
+ <part name="constraint" type="xsd:string"/>
+</message>
+
+<message name="queryAnyAdsResponse">
+ <part name="result" type="condorCollector:ArrayOfArrayOfClassAdStructAttr"/>
+</message>
+
+<portType name="condorCollectorPortType">
+ <operation name="queryStartdAds">
+  <documentation>Service definition of function condorCollector__queryStartdAds</documentation>
+  <input message="tns:queryStartdAdsRequest"/>
+  <output message="tns:queryStartdAdsResponse"/>
+ </operation>
+ <operation name="queryScheddAds">
+  <documentation>Service definition of function condorCollector__queryScheddAds</documentation>
+  <input message="tns:queryScheddAdsRequest"/>
+  <output message="tns:queryScheddAdsResponse"/>
+ </operation>
+ <operation name="queryMasterAds">
+  <documentation>Service definition of function condorCollector__queryMasterAds</documentation>
+  <input message="tns:queryMasterAdsRequest"/>
+  <output message="tns:queryMasterAdsResponse"/>
+ </operation>
+ <operation name="querySubmittorAds">
+  <documentation>Service definition of function condorCollector__querySubmittorAds</documentation>
+  <input message="tns:querySubmittorAdsRequest"/>
+  <output message="tns:querySubmittorAdsResponse"/>
+ </operation>
+ <operation name="queryLicenseAds">
+  <documentation>Service definition of function condorCollector__queryLicenseAds</documentation>
+  <input message="tns:queryLicenseAdsRequest"/>
+  <output message="tns:queryLicenseAdsResponse"/>
+ </operation>
+ <operation name="queryStorageAds">
+  <documentation>Service definition of function condorCollector__queryStorageAds</documentation>
+  <input message="tns:queryStorageAdsRequest"/>
+  <output message="tns:queryStorageAdsResponse"/>
+ </operation>
+ <operation name="queryAnyAds">
+  <documentation>Service definition of function condorCollector__queryAnyAds</documentation>
+  <input message="tns:queryAnyAdsRequest"/>
+  <output message="tns:queryAnyAdsResponse"/>
+ </operation>
+</portType>
+
+<binding name="condorCollectorBinding" type="tns:condorCollectorPortType">
+ <SOAP:binding style="rpc" transport="http://schemas.xmlsoap.org/soap/http"/>
+ <operation name="queryStartdAds">
+  <SOAP:operation soapAction=""/>
+  <input>
+   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </input>
+  <output>
+   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </output>
+ </operation>
+ <operation name="queryScheddAds">
+  <SOAP:operation soapAction=""/>
+  <input>
+   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </input>
+  <output>
+   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </output>
+ </operation>
+ <operation name="queryMasterAds">
+  <SOAP:operation soapAction=""/>
+  <input>
+   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </input>
+  <output>
+   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </output>
+ </operation>
+ <operation name="querySubmittorAds">
+  <SOAP:operation soapAction=""/>
+  <input>
+   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </input>
+  <output>
+   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </output>
+ </operation>
+ <operation name="queryLicenseAds">
+  <SOAP:operation soapAction=""/>
+  <input>
+   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </input>
+  <output>
+   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </output>
+ </operation>
+ <operation name="queryStorageAds">
+  <SOAP:operation soapAction=""/>
+  <input>
+   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </input>
+  <output>
+   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </output>
+ </operation>
+ <operation name="queryAnyAds">
+  <SOAP:operation soapAction=""/>
+  <input>
+   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </input>
+  <output>
+   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </output>
+ </operation>
+</binding>
+
+<service name="condorCollector">
+ <documentation>gSOAP 2.3 rev 7 generated service definition</documentation>
+ <port name="condorCollector" binding="tns:condorCollectorBinding">
+ </port>
+</service>
+
+</definitions>

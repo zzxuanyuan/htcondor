@@ -1,0 +1,28 @@
+
+#import "../condor_daemon_core.V6/gsoap_daemon_core.h"
+
+//gsoap condorCollector service namespace: urn:condor-collector
+//gsoap condorCollector service name: condorCollector
+
+int condorCollector__queryStartdAds(char *constraint,
+	struct ClassAdStructArray & result);
+
+int condorCollector__queryScheddAds(char *constraint,
+	struct ClassAdStructArray & result);
+
+int condorCollector__queryMasterAds(char *constraint,
+	struct ClassAdStructArray & result);
+
+int condorCollector__querySubmittorAds(char *constraint,
+	struct ClassAdStructArray & result);
+
+int condorCollector__queryLicenseAds(char *constraint,
+	struct ClassAdStructArray & result);
+
+int condorCollector__queryStorageAds(char *constraint,
+	struct ClassAdStructArray & result);
+
+int condorCollector__queryAnyAds(char *constraint,
+	struct ClassAdStructArray & result);
+
+
