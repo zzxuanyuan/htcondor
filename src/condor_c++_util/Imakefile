@@ -7,18 +7,18 @@ LIB = $(STD_LIBS)
 URL_OBJ = url_condor.o cbstp_url.o file_url.o http_url.o filter_url.o \
 	mailto_url.o cfilter_url.o ftp_url.o include_urls.o mkargv.o
 
-API_SRC = generic_query.C /* condor_query.C condor_q.C ad_printmask.C \
+API_SRC = /* generic_query.C condor_query.C condor_q.C ad_printmask.C \
 			condor_event.C user_log.C */
 
-API_OBJ = generic_query.o /* condor_query.o condor_q.o ad_printmask.o \
+API_OBJ = /* generic_query.o  condor_query.o condor_q.o ad_printmask.o \
 			condor_event.o user_log.o */
 SRC = state_machine_driver.C event_handler.C name_tab.C NON_POSIX.select.C \
 	alarm.C \
 	directory.C my_hostname.C file_lock.C disk.C up_down.C \
 	environ.C afs.C subproc.C \
-	instantiate.C string_list.C condor_event.C $(URL_SRC) get_daemon_addr.C \
+	instantiate.C string_list.C condor_event.C $(URL_SRC) /*get_daemon_addr.C*/\
 	user_log.C config.C condor_config.C stringSpace.C condor_state.C $(API_SRC)\
-	log_transaction.C log.C usagemon.C \
+	usagemon.C \
 	get_full_hostname.C format_time.C renice_self.C condor_version.C \
 	limit.C my_arch.C my_subsystem.C daemon_types.C killfamily.C strnewp.C \
 	access.C access.t.C killfamily.t.C
@@ -27,12 +27,12 @@ OBJ = state_machine_driver.o event_handler.o name_tab.o NON_POSIX.select.o \
 	alarm.o \
 	directory.o my_hostname.o file_lock.o disk.o up_down.o \
 	environ.o afs.o subproc.o \
-	instantiate.o string_list.o condor_event.o $(URL_OBJ) get_daemon_addr.o \
+	instantiate.o string_list.o condor_event.o $(URL_OBJ) /*get_daemon_addr.o*/\
 	user_log.o config.o condor_config.o stringSpace.o condor_state.o $(API_OBJ)\
-	log_transaction.o log.o usagemon.o \
+	usagemon.o \
 	get_full_hostname.o format_time.o renice_self.o condor_version.o \
 	limit.o my_arch.o my_subsystem.o daemon_types.o killfamily.o access.o \
-	strnewp.o memory_file.o my_username.o misc_utils.o file_transfer.o
+	strnewp.o memory_file.o my_username.o misc_utils.o /*file_transfer.o */
 
 #if !HAS_FLOCK
 FLOCK_OBJ = ../condor_util_lib/flock.o
@@ -47,6 +47,7 @@ libapi.tar: libapi.a
 	tar cvf libapi.tar user_log.README file_lock.h condor_event.h user_log.c++.h libapi.a
 	rm file_lock.h
 
+template_inst( instantiate.C, instantiate.o )
 c_plus_target(test_locks,test_locks.o,$(LIB))
 
 c_plus_target(cat_url, cat_url.o, liburl.a SocketLib)
