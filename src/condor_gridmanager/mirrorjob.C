@@ -30,6 +30,8 @@
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
 #include "basename.h"
 #include "condor_ckpt_name.h"
+#include "daemon.h"
+#include "dc_schedd.h"
 
 #include "gridmanager.h"
 #include "mirrorjob.h"
@@ -433,15 +435,40 @@ int MirrorJob::doEvaluateState()
 		case GM_MIRROR_ACTIVE_SAVE: {
 			// The mirror has just become active. Make sure that state has
 			// been saved in the schedd before we send the vacate command.
+			done = requestScheddUpdate( this );
+			if ( !done ) {
+				break;
+			}
 
-			// TODO fill in
 			gmState = GM_VACATE_SCHEDD;
 			} break;
 		case GM_VACATE_SCHEDD: {
 			// The mirror has just become active. Send a vacate command to
 			// the schedd to stop any local execution of the job.
 
-			// TODO fill in
+			int result;
+			CondorError errstack;
+			ClassAd* rval;
+			MyString buff;
+			DCSchedd* schedd = NULL;
+			StringList job_ids;
+
+			buff.sprintf( "%d.%d", procID.cluster, procID.proc );
+			job_ids.append( buff.Value() );
+
+			schedd = new DCSchedd( ScheddAddr );
+			if( ! schedd->locate() ) {
+				EXCEPT( "DCSchedd::locate failed for our own schedd!" );
+			}
+
+// vacateJobs isn't defined yet
+//			rval = schedd->vacateJobs( job_ids, &errstack );
+			if ( rval == NULL ||
+				 !rval->LookupInteger(ATTR_ACTION_RESULT, result) ||
+				 !result ) {
+				EXCEPT( "vacateJobs failed" );
+			}
+
 			gmState = GM_SUBMITTED_MIRROR_ACTIVE;
 			} break;
 		case GM_SUBMITTED_MIRROR_ACTIVE: {
