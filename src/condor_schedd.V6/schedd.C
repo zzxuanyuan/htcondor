@@ -1556,7 +1556,17 @@ abort_job_myself( PROC_ID job_id, JobAction action, bool log_hold,
 		if( !scheduler.WriteAbortToUserLog(job_id) ) {
 			dprintf( D_ALWAYS,"Failed to write abort event to the user log\n" );
 		}
-		DestroyProc( job_id.cluster, job_id.proc );
+			/*
+			  we used to call DestroyProc() right here, but we no
+			  longer want to do that.  we'll have just called
+			  SetAttribute() on ATTR_JOB_STATUS to put it into a
+			  "terminal" job state (REMOVED), and therefore, we've got
+			  to wait for our jobIsTerminal() thread to run and
+			  complete before we can call DestroyProc().  so, we'll
+			  just allow that code to work its magic, and once the
+			  jobIsTerminal() thread completes, it'll call
+			  DestroyProc() for us.  -- derek 2005-03-28
+			*/
 	}
 	if( mode == HELD ) {
 		if( log_hold && !scheduler.WriteHoldToUserLog(job_id) ) {
