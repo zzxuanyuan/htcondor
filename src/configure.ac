@@ -96,7 +96,6 @@ AC_CACHE_CHECK([if patch supports unified diffs],_cv_unified_patch,
  [_cv_unified_patch="no" ;
   ( patch --unified < /dev/null > /dev/null 2>&1 )
   _patch_status=$?
-  echo "patch status: $_patch_status"
   if test $_patch_status -ne 0 ; then
     _cv_unified_patch="no";
   else 
