@@ -812,25 +812,26 @@ SecMan::startCommand( int cmd, Sock* sock, bool can_negotiate, int subCmd)
 	// find out if we have a session id to use for this command
 	KeyCacheEntry *enc_key = NULL;
 
-	MyString *sid_ptr = NULL;
+	MyString sid;
 	sprintf (keybuf, "{%s,<%i>}", sin_to_string(sock->endpoint()), cmd);
-	bool found_map_ent = (command_map->lookup(keybuf, sid_ptr) == 0);
+	bool found_map_ent = (command_map->lookup(keybuf, sid) == 0);
 	if (found_map_ent) {
-		dprintf (D_SECURITY, "SECMAN: %s uses session id %s.\n", keybuf, sid_ptr->Value());
+		dprintf (D_SECURITY, "SECMAN: %s uses session id %s.\n", keybuf, sid.Value());
 		// we have the session id, now get the session from the cache
-		have_session = session_cache->lookup(sid_ptr->Value(), enc_key);
+		have_session = session_cache->lookup(sid.Value(), enc_key);
 		if (!have_session) {
 			// the session is no longer in the cache... might as well
 			// delete this mapping to it.  (we could delete them all, but
 			// it requires iterating through the hash table)
 			if (command_map->remove(keybuf) == 0) {
-				dprintf (D_SECURITY, "SECMAN: session id %s not found, removed %s from map.\n", sid_ptr->Value(), keybuf);
+				dprintf (D_SECURITY, "SECMAN: session id %s not found, removed %s from map.\n", sid.Value(), keybuf);
 			} else {
-				dprintf (D_SECURITY, "SECMAN: session id %s not found and failed to removed %s from map!\n", sid_ptr->Value(), keybuf);
+				dprintf (D_SECURITY, "SECMAN: session id %s not found and failed to removed %s from map!\n", sid.Value(), keybuf);
 			}
 		}
 	} else {
 		have_session = false;
+		enc_key = NULL;
 	}
 
 
@@ -930,7 +931,7 @@ SecMan::startCommand( int cmd, Sock* sock, bool can_negotiate, int subCmd)
 	// so, we send a DC_AUTHENTICATE via TCP.  this will get us authenticated
 	// and get us a key, which is what needs to happen.
 
-	if (!have_session && !is_tcp) {
+	if ((!have_session) && (!is_tcp)) {
 
 		dprintf ( D_SECURITY, "SECMAN: need to start a session via TCP\n");
 
@@ -969,23 +970,23 @@ SecMan::startCommand( int cmd, Sock* sock, bool can_negotiate, int subCmd)
 
 			// need to use the command map to get the sid!!!
 
-			// these are declared above
-			assert(sid_ptr == NULL);
-			// sprintf (keybuf, "{%s,<%i>}", sin_to_string(sock->endpoint()), cmd);
+			// sid, and keybuf are declared above
+			sid = "";
+			sprintf (keybuf, "{%s,<%i>}", sin_to_string(sock->endpoint()), cmd);
 
-			bool found_map_ent = (command_map->lookup(keybuf, sid_ptr) == 0);
+			bool found_map_ent = (command_map->lookup(keybuf, sid) == 0);
 			if (found_map_ent) {
-				dprintf (D_SECURITY, "SECMAN: %s uses session id %s.\n", keybuf, sid_ptr->Value());
+				dprintf (D_SECURITY, "SECMAN: %s uses session id %s.\n", keybuf, sid.Value());
 				// we have the session id, now get the session from the cache
-				have_session = session_cache->lookup(sid_ptr->Value(), enc_key);
+				have_session = session_cache->lookup(sid.Value(), enc_key);
 				if (!have_session) {
 					// the session is no longer in the cache... might as well
 					// delete this mapping to it.  (we could delete them all, but
 					// it requires iterating through the hash table)
 					if (command_map->remove(keybuf) == 0) {
-						dprintf (D_SECURITY, "SECMAN: session id %s not found, removed %s from map.\n", sid_ptr->Value(), keybuf);
+						dprintf (D_SECURITY, "SECMAN: session id %s not found, removed %s from map.\n", sid.Value(), keybuf);
 					} else {
-						dprintf (D_SECURITY, "SECMAN: session id %s not found and failed to removed %s from map!\n", sid_ptr->Value(), keybuf);
+						dprintf (D_SECURITY, "SECMAN: session id %s not found and failed to removed %s from map!\n", sid.Value(), keybuf);
 					}
 				}
 			} else {
@@ -1401,8 +1402,26 @@ SecMan::startCommand( int cmd, Sock* sock, bool can_negotiate, int subCmd)
 				}
 			}
 			sprintf (keybuf, "{%s,<%s>}", sin_to_string(sock->endpoint()), cmd_list);
-			dprintf (D_SECURITY, "SECMAN: command %s mapped to session %s.\n", keybuf, sid);
-			command_map->insert(keybuf, sid);
+			// NOTE: HashTable returns ZERO on SUCCESS!!!
+			if (command_map->insert(keybuf, sid) == 0) {
+				// success
+				dprintf (D_SECURITY, "SECMAN: command %s mapped to session %s.\n", keybuf, sid);
+			} else {
+				// perhaps there is an old entry under the same name.  we should
+				// delete the old one and insert the new one.
+
+				// NOTE: HashTable's remove returns ZERO on SUCCESS!!!
+				if (command_map->remove(keybuf) == 0) {
+					// now let's try to insert again (zero on success)
+					if (command_map->insert(keybuf, sid) == 0) {
+						dprintf (D_SECURITY, "SECMAN: command %s remapped to session %s!\n", keybuf, sid);
+					} else {
+						dprintf (D_SECURITY, "SECMAN: command %s NOT mapped (insert failed!)\n", keybuf, sid);
+					}
+				} else {
+					dprintf (D_SECURITY, "SECMAN: command %s NOT mapped (remove failed!)\n", keybuf, sid);
+				}
+			}
 			
 			delete sid;
 			delete cmd_list;
