@@ -7,6 +7,7 @@
 #include <windows.h>
 #include "_condor_fix_nt.h"
 #include <stdlib.h>
+#include <stdio.h>
 
 #else
 
@@ -19,8 +20,14 @@
 #include <ctype.h>
 #include <fcntl.h>
 #include <errno.h>
-#if !defined(SUNOS41)
-#include <signal.h>
+#include "condor_fix_signal.h"
+
+#if defined(Solaris)
+#	define BSD_COMP
+#endif
+#include <sys/ioctl.h>
+#if defined(Solaris)
+#	undef BSD_COMP
 #endif
 
 #endif // defined(WIN32)

@@ -14,6 +14,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <signal.h>
+#include "condor_debug.h"
 
 #define MAX_NUM_PIDS 2000
 
@@ -135,11 +136,15 @@ killkids(pid_t inpid, int sig)
 		temp = mypstree[temp].child;
 		while ( mypstree[temp].pid > 0 ) {
 
-    		if( sig != SIGCONT ) 
-		         kill(mypstree[temp].pid,SIGCONT);
- 
-   		    kill(mypstree[temp].pid,sig);
-		
+    		if( sig != SIGCONT ) {
+				dprintf( D_ALWAYS, "About to kill pid %d with signal %d\n", 
+						 mypstree[temp].pid, SIGCONT );
+		         kill( mypstree[temp].pid, SIGCONT );
+			} 
+			dprintf( D_ALWAYS, "About to kill pid %d with signal %d\n", 
+					 mypstree[temp].pid, sig );
+   		    kill( mypstree[temp].pid, sig );
+
             temp = mypstree[temp].child;
 		}
 	}

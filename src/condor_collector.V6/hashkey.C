@@ -1,19 +1,14 @@
 #include <stdlib.h>
 
-#include "condor_common.h"
 #include "condor_debug.h"
 #include "condor_classad.h"
-#ifdef __GNUG__
 #pragma implementation "HashTable.h"
-#endif
 #include "HashTable.h"
 #include "hashkey.h"
 #include "sched.h"
 #include "condor_attributes.h"
 
-#ifndef WIN32
-#include <netinet/in.h>
-#endif
+#include "netinet/in.h"
 
 extern "C" char * sin_to_string(struct sockaddr_in *);
 

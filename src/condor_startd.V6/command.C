@@ -28,6 +28,7 @@ extern "C" resource_info_t *resmgr_getbyrid(resource_id_t rid);
 extern "C" int create_port(int *sock);
 extern "C" int reply(Sock *sock, int answer);
 extern ClassAd *resource_classad(resource_info_t* rip);
+extern char* state_to_string(int);
 
 
 extern char *AlternateStarter[10];
@@ -194,10 +195,10 @@ command_startjob(Sock *sock,struct sockaddr_in* from, resource_id_t rid,
 		}
 
 		if(CondorPendingJobs::AreTherePendingJobs(rid)) {
-			if(rip->r_state==JOB_RUNNING)
+			if(rip->r_state==JOB_RUNNING) {
 				dprintf(D_ALWAYS,
 						"start_job request when a job is already running\n");
-			else {
+			} else {
 				dprintf(D_ALWAYS, "Pending job when there is no job running:"
 						" current state is %d\n", rip->r_state);
 				CondorPendingJobs::DequeueJob();
@@ -234,7 +235,7 @@ command_startjob(Sock *sock,struct sockaddr_in* from, resource_id_t rid,
 		job_classad = CondorPendingJobs::JobAd(rid);
 		CondorPendingJobs::DequeueJob();
 		if(rip->r_state==JOB_RUNNING) {
-			dprintf(D_ALWAYS,"State==JOB_RUNNING when JOb is already recd\n");
+			dprintf(D_ALWAYS,"State==JOB_RUNNING when Job is already recd\n");
 			reply(sock,NOT_OK);
 			return -1;
 		}
@@ -256,8 +257,10 @@ command_startjob(Sock *sock,struct sockaddr_in* from, resource_id_t rid,
 	}
 	dprintf(D_MACHINE, "\n");
 	
-	if ((rip->r_state != NO_JOB)&&(rip->r_state!=JOB_RUNNING)) {
-		dprintf(D_ALWAYS, "State != NO_JOB && State!=JOB_RUNNING\n");
+	if( (rip->r_state != NO_JOB) && 
+		(rip->r_state != JOB_RUNNING) &&
+		(rip->r_state != CLAIMED) ) {
+		dprintf(D_ALWAYS, "Unexpected state: %s\n", state_to_string(rip->r_state) );
 		if(CondorPendingJobs::AreTherePendingJobs(rid))
 			CondorPendingJobs::DequeueJob();
 		(void)reply(sock, NOT_OK);
@@ -295,29 +298,30 @@ command_startjob(Sock *sock,struct sockaddr_in* from, resource_id_t rid,
 	dprintf(D_ALWAYS,"Job satisfies Pref Tier %d\n",JobTier);
 	  
 	if(CondorPendingJobs::AreTherePendingJobs(rid)) {
-		if((!CondorPendingJobs::CapabString(rid)) ||
-		   (strcmp(CondorPendingJobs::CapabString(rid),check_string))) {
+		if( (!CondorPendingJobs::CapabString(rid)) ||
+			(strcmp(CondorPendingJobs::CapabString(rid),check_string)) ) {
 			capability_verify = 0;
 		}
-	}
-	else  
+	} else {
 		/* fvdl XXX sometimes bad timeouts for capabilities */
 	    if (rip->r_capab == NULL || strcmp(rip->r_capab, check_string)) {
 			if(rip->r_capab) {
 				dprintf(D_ALWAYS, "Capability check failed: "
 						"r_capab=%s != check_string=%s\n",
 						rip->r_capab,check_string);
-			}
-			else
+			} else {
 				dprintf(D_ALWAYS,"r_capab is NULL!!!\n");
+			}
 			capability_verify = 0;
 	    }
+	}
 	free(check_string);
-	if (!start || !job_reqs || !capability_verify) {
+	if( !start || !job_reqs || !capability_verify ) {
 	    dprintf(D_ALWAYS,"start = %d, job_reqs = %d, capability_verify = %d\n",
-				 start, job_reqs, capability_verify);
-	    if(CondorPendingJobs::AreTherePendingJobs(rid))
+				start, job_reqs, capability_verify);
+	    if( CondorPendingJobs::AreTherePendingJobs(rid) ) {
 			CondorPendingJobs::DequeueJob();
+		}
 	    (void)reply(sock, NOT_OK);
 	    ABORT;
 	}
@@ -351,7 +355,7 @@ command_startjob(Sock *sock,struct sockaddr_in* from, resource_id_t rid,
 
 			event_vacate(rid, NO_JID, NO_TID);	    
 
-			// dont reply to shadow
+			// don't reply to shadow
 			return 0;
 		} else {
 			dprintf(D_ALWAYS,"Current job is of higher or equal priority!\n");
@@ -426,7 +430,10 @@ command_startjob(Sock *sock,struct sockaddr_in* from, resource_id_t rid,
 		(void)close(sock_2);
 		return -1;
 	}
-	
+
+	/* now that we sent stRec, free stRec.server_name which we strduped */
+	free( stRec.server_name );
+
 	/* Wait for connection to port1 */
 	len = sizeof frm;
 	memset((char *)&frm,0, sizeof frm);
@@ -638,8 +645,16 @@ MatchInfo(resource_info_t* rip, char* str)
   
 	rip->r_capab = str;
 	rip->r_claimed = TRUE;
+	resmgr_changestate(rip->r_rid, CLAIMED);
+
 	dprintf(D_ALWAYS, "Received match %s\n", rip->r_capab);
 	rip->r_captime = time(NULL);
+		// r_receivetime holds the time that we last heard from the
+		// schedd in determining whether or not a capability has timed
+		// out.  We need to initialize it here because if we
+		// check_claims() before a keep alive comes in, the capability
+		// will timeout.
+	rip->r_receivetime = rip->r_captime;
 	return 0;
 }
 
@@ -734,10 +749,9 @@ command_reqservice(Sock *sock, struct sockaddr_in* from, resource_id_t rid)
 			rip->r_claimed = TRUE;
 			cmd = OK;
 			dprintf(D_ALWAYS, "Request accepted.\n");
-		} 
-		else if(CondorPendingJobs::AreTherePendingJobs(rid)) {
+		} else if(CondorPendingJobs::AreTherePendingJobs(rid)) {	
 			char* PendingJobCapab = CondorPendingJobs::CapabString(rid);
-
+			
 			dprintf(D_PROTOCOL, "## 5. Request service on a job that has "
 					"been stashed away\n");
 			if(PendingJobCapab && !strcmp(PendingJobCapab,check_string)) {
@@ -754,8 +768,7 @@ command_reqservice(Sock *sock, struct sockaddr_in* from, resource_id_t rid)
 					CondorPendingJobs::DequeueJob();
 				}
 			}
-		}
-		else {
+		} else {
 			cmd = NOT_OK;
 			if (rip->r_capab != NULL) {
 				dprintf(D_ALWAYS, "Request rejected, cap is (%s)\n",
@@ -831,13 +844,7 @@ command_relservice(Sock *sock, struct sockaddr_in* from, resource_id_t rid)
 			if (rip->r_capab && !strcmp(rip->r_capab, recv_string)){
 				dprintf(D_ALWAYS, "Match %s terminated.\n",
 						rip->r_capab);
-				free(rip->r_capab);
-				free(rip->r_client);
-				free(rip->r_user);
-				rip->r_capab = NULL;
-				rip->r_client = NULL;
-				rip->r_user = NULL;
-				rip->r_claimed = FALSE;
+				resource_free( rid );
 			}
 		} else
 			dprintf(D_ALWAYS, "Couldn't receive cap for relserv\n");

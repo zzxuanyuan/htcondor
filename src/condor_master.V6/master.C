@@ -48,6 +48,7 @@ extern "C" {
 #if defined(Solaris)
 #define __EXTENSIONS__
 #endif
+
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <sys/file.h>
@@ -57,7 +58,6 @@ extern "C" {
 #include "condor_constants.h"
 #include "condor_debug.h"
 #include "condor_expressions.h"
-#include "condor_mach_status.h"
 #include "condor_config.h"
 #include "condor_uid.h"
 #include "master.h"
@@ -123,9 +123,8 @@ extern "C"
 #endif  /* IRIX62 */
 	int 	dprintf_config( char*, int);
 	int 	detach();
-	int	param_in_pattern(char*, char*);
+	int	boolean(char*, char*);
 	char*	strdup(const char*);
-	void	set_machine_status(int);
 	int	SetSyscalls( int );
 
 #if defined(LINUX) || defined(HPUX9)
@@ -273,6 +272,10 @@ main( int argc, char* argv[] )
 		}
 	}
 
+		// Put this before we fork so that if something goes wrong, we
+		// see it.
+	config_master(&ad);
+
 	if( !Foreground ) {
 		if( fork() ) {
 			exit( 0 );
@@ -290,8 +293,6 @@ main( int argc, char* argv[] )
 	install_sig_handler( SIGTERM, sigterm_handler );
 	install_sig_handler( SIGSEGV, (void(*)())siggeneric_handler );
 	install_sig_handler( SIGBUS, (void(*)())siggeneric_handler );
-
-	config_master(&ad);
 
 	init_params();
 
@@ -499,7 +500,7 @@ init_params()
 	ad.SetTargetTypeName("");
 
 	if( param("MASTER_DEBUG") ) {
-		if( param_in_pattern("MASTER_DEBUG","Foreground") ) {
+		if( boolean("MASTER_DEBUG","Foreground") ) {
 			Foreground = 1;
 		}
 	}
@@ -558,14 +559,16 @@ obituary( int pid, int status )
     if ( restart > 3 ) return;
 
     // always return for KBDD
-    if ( strcmp( daemons.SymbolicName(pid), "KBDD") == 0 )
+    if ( strcmp( daemons.SymbolicName(pid), "KBDD") == 0 ) {
         return;
+	}
 
-	// just return if process was killed with signal 9.  this
-	// means the admin did it, and thus no need to send email informing
-	// the admin about something they did...
-	if ( (WIFSIGNALED(status)) && ( (WTERMSIG(status)) == 9 ) )
+	// Just return if process was killed with SIGKILL.  This means the
+	// admin did it, and thus no need to send email informing the
+	// admin about something they did...
+	if ( (WIFSIGNALED(status)) && (WTERMSIG(status) == SIGKILL) ) {
 		return;
+	}
 
     name = daemons.DaemonName( pid );
     log = daemons.DaemonLog( pid );
@@ -579,7 +582,9 @@ obituary( int pid, int status )
 
     mail_prog = param("MAIL");
     if (mail_prog) {
-        (void)sprintf( cmd, "%s %s", mail_prog, CondorAdministrator );
+        (void)sprintf( cmd, "%s %s -s \"%s\"", mail_prog,
+					   CondorAdministrator, 
+					   "CONDOR Problem" );
     } else {
         EXCEPT("\"MAIL\" not specified in the config file! ");
     }
@@ -588,10 +593,7 @@ obituary( int pid, int status )
         EXCEPT( "popen(\"%s\",\"w\")", cmd );
     }
 
-//    fprintf( mailer, "To: %s\n", CondorAdministrator );
-    fprintf( mailer, "Subject: CONDOR Problem\n" );
     fprintf( mailer, "\n" );
-
 
     if( WIFSIGNALED(status) ) {
         fprintf( mailer, "\"%s\" on \"%s\" died due to signal %d\n",
@@ -793,7 +795,6 @@ sigquit_handler()
 	daemons.SignalAll(SIGQUIT);
 	wait_all_children();
 	dprintf( D_ALWAYS, "All daemons have exited.\n" );
-	set_machine_status( CONDOR_DOWN );
 	exit( 0 );
 }
 
@@ -811,7 +812,6 @@ sigterm_handler()
 	daemons.SignalAll(SIGTERM);
 	wait_all_children();
 	dprintf( D_ALWAYS, "All daemons have exited.\n" );
-	set_machine_status( CONDOR_DOWN );
 	exit( 0 );
 }
 
@@ -990,7 +990,7 @@ install_sig_handler( int sig, SIGNAL_HANDLER handler )
 	sigemptyset( &act.sa_mask );
 	act.sa_flags = 0;
 
-	if( sigaction(sig,&act,0) < 0 ) {
+	if( sigaction(sig,&act,NULL) < 0 ) {
 		EXCEPT( "Can't install handler for signal %d\n", sig );
 	}
 }

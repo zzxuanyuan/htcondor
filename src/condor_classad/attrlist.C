@@ -8,21 +8,22 @@
 # include <ctype.h>
 # include <assert.h>
 # include <string.h>
-# if !defined(WIN32)
 # include <sys/time.h>
-#endif
 # include <iomanip.h>
 
 # include "except.h"
 # include "debug.h"
 # include "condor_ast.h"
+# include "condor_expressions.h"
 # include "condor_attrlist.h"
 
 static 	char *_FileName_ = __FILE__;         // Used by EXCEPT (see except.h)
+extern 	"C" int _EXCEPT_(char*, ...);
 extern	"C"	void dprintf(int, char* fmt, ...);
 #if defined(USE_XDR)
 extern  "C" int  xdr_mywrapstring (XDR *, char **);
 #endif
+extern  "C" int store_stmt (EXPR *, CONTEXT *);
 extern void evalFromEnvironment (const char *, EvalResult *);
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -463,7 +464,6 @@ ExprTree* AttrList::ProcToTree(char* var, LexemeType t, int i, float f, char* s)
 	return new AssignOp(tmpVarTree, tmpTree);
 }
 
-#if 0 // don't use CONTEXTs anymore
 ////////////////////////////////////////////////////////////////////////////////
 // Create a AttrList from a CONTEXT.
 ////////////////////////////////////////////////////////////////////////////////
@@ -650,7 +650,6 @@ AttrList::AttrList(CONTEXT* context) : AttrListAbstract(ATTRLISTENTITY)
 		}
 	}
 }
-#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 // AttrList class copy constructor.
@@ -998,13 +997,17 @@ int AttrList::LookupFloat (const char *name, float &value)
     ExprTree *tree, *rhs;   
 
     tree = Lookup (name);   
-    if (tree && (rhs=tree->RArg()) && (rhs->MyType() == LX_FLOAT))
-    {
-        value = ((Float *) rhs)->Value();
-        return 1;   
-    }   
-
-    return 0;   
+    if( tree && (rhs=tree->RArg()) ) {
+		if( rhs->MyType() == LX_FLOAT ) {
+			value = ((Float *) rhs)->Value();
+			return 1;   
+		} 
+		if( rhs->MyType() == LX_INTEGER ) {
+			value = (float)(((Integer *) rhs)->Value());
+			return 1;   
+		} 
+	}		
+	return 0;   
 }
 
 int AttrList::LookupBool (const char *name, int &value)  
@@ -1092,21 +1095,28 @@ int AttrList::EvalFloat (const char *name, AttrList *target, float &value)
             tree = target->Lookup(name);
         } else {
 			evalFromEnvironment (name, &val);
-			if (val.type == LX_FLOAT)
-			{
+			if( val.type == LX_FLOAT ) {
 				value = val.f;
+				return 1;
+			}
+			if( val.type == LX_INTEGER ) {
+				value = (float)val.i;
 				return 1;
 			}
             return 0;
         }
     }
 
-    if (tree && tree->EvalTree (this, target, &val) && val.type == LX_FLOAT)
-    {
-        value = val.f;
-        return 1;
+    if( tree && tree->EvalTree (this, target, &val) ) {
+		if( val.type == LX_FLOAT ) {
+			value = val.f;
+			return 1;
+		}
+		if( val.type == LX_INTEGER ) {
+			value = (float)val.i;
+			return 1;
+		}
     }
-
     return 0;
 }
 
@@ -1288,7 +1298,6 @@ int AttrList::UpdateAgg(ExprTree* expr, int operation)
 }
 
 
-#if 0 // don't use CONTEXTs anymore
 //////////////////////////////////////////////////////////////////////////////
 // Create a CONTEXT from an AttrList
 //////////////////////////////////////////////////////////////////////////////
@@ -1312,7 +1321,6 @@ AttrList::MakeContext (CONTEXT *c)
 	delete [] line;
 	return TRUE;
 }
-#endif
 
 
 AttrListList::AttrListList()

@@ -29,12 +29,12 @@ class HashTable {
 
   int insert(Index &index, Value &value);
   int lookup(Index &index, Value &value);
-  int getNext(Index &index, void *current, Value &value,
-	      void *&next);
+  int getNext(Index &index, void *current, Value &value, void *&next);
   int remove(Index &index);  
   int clear();
 
   void startIterations (void);
+  int  getCurrentKey   (Index &);
   int  iterate (Value &);
     
  private:
@@ -239,6 +239,16 @@ startIterations (void)
 
 template <class Index, class Value>
 int HashTable<Index,Value>::
+getCurrentKey (Index &index)
+{
+	if (!currentItem) return -1;
+	index = currentItem->index;
+	return 0;
+}
+
+
+template <class Index, class Value>
+int HashTable<Index,Value>::
 iterate (Value &v)
 {
     // try to get next item in chain ...
@@ -283,7 +293,7 @@ template <class Index, class Value>
 HashTable<Index,Value>::~HashTable()
 {
   clear();
-  delete [] ht;
+  delete ht;
 }
 
 #ifdef DEBUGHASH

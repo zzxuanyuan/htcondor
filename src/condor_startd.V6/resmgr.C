@@ -81,6 +81,7 @@ int resmgr_init()
 		resources[index].r_interval = 0;
 		resources[index].r_receivetime = 0;
 		resources[index].r_universe = STANDARD;
+		resources[index].r_timed_out = 0;
 		dprintf(D_FULLDEBUG, "create_classad returned %x\n",
 			resources[index].r_classad);
 		resources[index].r_port = create_port(&resources[index].r_sock);
@@ -161,8 +162,9 @@ resmgr_getbyname(resource_name_t rname)
 	int i;
 
 	for (i = 0; i < nresources; i++) {
-		if (!resource_rnamecmp(resources[i].r_name, rname))
+		if( !resource_rnamecmp(resources[i].r_name, rname) ) {
 			return &resources[i];
+		}
 	}
 	return (resource_info_t *)0;
 }
@@ -173,8 +175,9 @@ resmgr_getbypid(int pid)
 	int i;
 
 	for (i = 0; i < nresources; i++) {
-		if (resources[i].r_pid == pid)
+		if (resources[i].r_pid == pid) {
 			return &resources[i];
+		}
 	}
 	return (resource_info_t *)0;
 }
@@ -184,8 +187,9 @@ resmgr_walk(int (*func)(resource_info_t*))
 {
 	int i;
 
-	for (i = 0; i < nresources; i++)
+	for (i = 0; i < nresources; i++) {
 		func(&resources[i]);
+	}
 	return 0;
 }
 
@@ -199,9 +203,11 @@ bool
 resmgr_resourceinuse(void)
 {
 	int i;
-
-	for (i = 0; i < nresources; i++)
-		if (resources[i].r_state != NO_JOB) return true;
+	for (i = 0; i < nresources; i++) {
+		if (resources[i].r_state != NO_JOB) {
+			return true;
+		}
+	}
 	return false;
 }	
 
@@ -260,6 +266,8 @@ state_to_string(int state)
 		return "Blocked";
 	case SYSTEM:
 		return "System";
+	case CLAIMED:
+		return "Claimed";
 	}
 	return "Unknown";
 }
@@ -279,43 +287,42 @@ void resmgr_changestate(resource_id_t rid, int new_state)
   cp = rip->r_classad;
   claimed = rip->r_claimed;
   
-  switch (new_state) 
-  {
-   case NO_JOB:
-    cp->EvalBool(ATTR_REQUIREMENTS, template_ClassAd, start);
-    if(start && claimed == FALSE ) 
-    {
-      set_machine_status(M_IDLE);
-    } 
-    else 
-    {
-      set_machine_status(USER_BUSY);
-    }
-    cp->Delete("ClientMachine");
-    cp->Delete("RemoteUser");
-    cp->Delete("JobId");
-    cp->Delete("JobStart");
+  switch (new_state) {
+  case NO_JOB:
+	  cp->EvalBool(ATTR_REQUIREMENTS, template_ClassAd, start);
+	  if(start && claimed == FALSE ) {
+		  set_machine_status(M_IDLE);
+	  } else {
+		  set_machine_status(USER_BUSY);
+	  }
+	  cp->Delete("ClientMachine");
+	  cp->Delete("RemoteUser");
+	  cp->Delete("JobId");
+	  cp->Delete("JobStart");
   case JOB_RUNNING:
-    set_machine_status(JOB_RUNNING);
-    break;
+	  set_machine_status(JOB_RUNNING);
+	  break;
   case KILLED:
-    set_machine_status(KILLED);
-    break;
+	  set_machine_status(KILLED);
+	  break;
   case CHECKPOINTING:
-    set_machine_status(CHECKPOINTING);
-    break;
+	  set_machine_status(CHECKPOINTING);
+	  break;
   case SUSPENDED:
-    set_machine_status(SUSPENDED);
-    break;
+	  set_machine_status(SUSPENDED);
+	  break;
   case BLOCKED:
-    set_machine_status(BLOCKED);
-    break;
+	  set_machine_status(BLOCKED);
+	  break;
   case SYSTEM:
-    set_machine_status(SYSTEM);
-    break;
+	  set_machine_status(SYSTEM);
+	  break;
+  case CLAIMED:
+	  set_machine_status(CLAIMED);
+	  break;
   default:
-    EXCEPT("Change states, unknown state (%d)", new_state);
- }
+	  EXCEPT("Change states, unknown state (%d)", new_state);
+  }
   
   name = state_to_string(new_state);
   rip->r_state = new_state;

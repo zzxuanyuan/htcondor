@@ -303,18 +303,50 @@ resource_free(resource_id_t rid)
 
 	if (!(rip = resmgr_getbyrid(rid)))
 		return -1;
-	if (rip->r_pid == NO_PID)
-		return -1;
+
+	if( rip->r_client ) {
+		if( ! rip->r_timed_out ) {
+				// If the schedd/startd connection didn't time out,
+				// tell the schedd and accountant we're terminating
+				// the match
+			vacate_client( rid );
+		}
+		free(rip->r_client);
+		rip->r_client = NULL;
+	}
+
+	if( rip->r_capab ) {
+		free(rip->r_capab);
+		rip->r_capab = NULL;
+	}
+
+	if( rip->r_clientmachine ) {
+		free(rip->r_clientmachine);
+		rip->r_clientmachine = NULL;
+	}
+
+	if( rip->r_user ) {
+		free(rip->r_user);
+		rip->r_user = NULL;
+	}
+
 	if (rip->r_jobclassad) {
 		delete rip->r_jobclassad;
 		rip->r_jobclassad = NULL;
 	}
-	/* XXX boundary crossing */
-	free(rip->r_clientmachine);
-	rip->r_clientmachine = NULL;
-	rip->r_pid = NO_PID;
+
+	if (rip->r_pid != NO_PID && rip->r_pid != getpid()) {
+		kill_starter( rip->r_pid, SIGTSTP );
+		resmgr_changestate(rip->r_rid, CHECKPOINTING);
+	} else {
+		resmgr_changestate(rip->r_rid, NO_JOB);
+	}
+	
+	rip->r_claimed = FALSE;
+
 	return 0;
 }
+
 
 int
 resource_event(resource_id_t rid, job_id_t jid, task_id_t tid, event_t ev)
@@ -351,7 +383,8 @@ resource_initAd(resource_info_t* rip)
 	init_static_info(rip);
 
 		// Save the orig. requirement expression for later use.
-	rip->r_origreqexp = malloc( sizeof(char) * 512 );
+	rip->r_origreqexp = new char[512];
+	rip->r_origreqexp[0] = '\0';	// need a NULL cuz PrintToStr does strcat
 	((rip->r_classad)->Lookup(ATTR_REQUIREMENTS))->PrintToStr(rip->r_origreqexp);
 
 	return (rip->r_classad)->Insert("State=\"NoJob\"");
@@ -433,7 +466,7 @@ resource_update_classad(resource_info_t* rip)
 		// RESOURCE_STATE=Owner.  It it evalutes to True, stick True
 		// into classad and set RESOURCE_STATE=Condor.  Only if it
 		// evaluates to Undefined do we actually ship out the
-		// expression.  Undefined means we should be in  
+		// expression.  Undefined means we should be in Condor state. 
 	ClassAd ad;
 	int tmp;
 	cp->Insert(rip->r_origreqexp);
@@ -564,6 +597,18 @@ exec_starter(char* starter, char* hostname, int main_sock, int err_sock)
 		 *		EXCEPT( "setpgrp(0, %d)", getpid() );
 		 *	}
 		 */
+			/*
+			 * We _DO_ want to create the starter with it's own
+			 * process group, since when KILL evaluates to True, we
+			 * don't want to kill the startd as well.  The master no
+			 * longer kills via a process group to do a quick clean
+			 * up, it just sends signals to the startd and schedd and
+			 * they, in turn, do whatever quick cleaning needs to be 
+			 * done. 
+			 */
+		if( setsid() < 0 ) {
+			EXCEPT( "setsid()" );
+		}
 
 		if (dup2(main_sock,0) < 0) {
 			EXCEPT("dup2(%d,%d)", main_sock, 0);
@@ -610,18 +655,11 @@ event_vacate(resource_id_t rid, job_id_t jid,task_id_t tid)
 		dprintf(D_ALWAYS, "vacate: could not find resource.\n");
 		return -1;
 	}
-
-	if (rip->r_claimed)
-		vacate_client(rip->r_rid);
-
-	if (rip->r_pid == NO_PID || rip->r_pid == getpid()) {
-		dprintf(D_FULLDEBUG, "vacate: resource not allocated.\n");
-		return -1;
-	}
-
-	resmgr_changestate(rid, CHECKPOINTING);
-
-	return kill_starter(rip->r_pid, SIGTSTP);
+		// Relinquish the match, checkpoint the job, set claimed to
+		// false, if the resource is claimed, tell the schedd and
+		// accountant the match is going away, etc.
+	resource_free( rip->r_rid );
+	return 0;
 }
 
 int
@@ -661,6 +699,7 @@ int
 event_suspend(resource_id_t rid, job_id_t jid, task_id_t tid)
 {
 	resource_info_t *rip;
+	int rval;
 
 	dprintf(D_ALWAYS, "Called event_suspend()\n");
 	if (!(rip = resmgr_getbyrid(rid))) {
@@ -673,15 +712,18 @@ event_suspend(resource_id_t rid, job_id_t jid, task_id_t tid)
 		return -1;
 	}
 
-	resmgr_changestate(rip->r_rid, SUSPENDED);
-
-	return kill_starter(rip->r_pid, SIGUSR1);
+	rval = kill_starter(rip->r_pid, SIGUSR1);
+	if( rval == 0 ) {
+		resmgr_changestate(rip->r_rid, SUSPENDED);
+	}
+	return rval;
 }
 
 int
 event_continue(resource_id_t rid, job_id_t jid, task_id_t tid)
 {
 	resource_info_t *rip;
+	int rval;
 
 	dprintf(D_ALWAYS, "Called event_continue()\n");
 	if (!(rip = resmgr_getbyrid(rid))) {
@@ -694,9 +736,12 @@ event_continue(resource_id_t rid, job_id_t jid, task_id_t tid)
 		return -1;
 	}
 
-	resmgr_changestate(rip->r_rid, JOB_RUNNING);
+	rval = kill_starter(rip->r_pid, SIGCONT);
+	if( rval == 0 ) {
+		resmgr_changestate(rip->r_rid, JOB_RUNNING);
+	}
+	return rval;
 
-	return kill_starter(rip->r_pid, SIGCONT);
 }
 
 int
@@ -715,7 +760,9 @@ event_killjob(resource_id_t rid, job_id_t jid, task_id_t tid)
 		return -1;
 	}
 
-	resmgr_changestate(rip->r_rid, NO_JOB);
+		// Don't tranisition to state NO_JOB here.  We're still
+		// claimed by the schedd.  We only go to NO_JOB when we
+		// relinquish a match.  -Derek 9/10/97
 
 	return kill_starter(rip->r_pid, SIGINT);
 }
@@ -736,8 +783,6 @@ event_new_proc_order(resource_id_t rid, job_id_t jid, task_id_t tid)
 		return -1;
 	}
 
-	// resmgr_changestate(rip->r_rid, NO_JOB);
-
 	return kill_starter(rip->r_pid, SIGHUP);
 }
 
@@ -754,37 +799,58 @@ event_pcheckpoint(resource_id_t rid, job_id_t jid, task_id_t tid)
 	return kill_starter(rip->r_pid, SIGUSR2);
 }
 
-/*
- * XXX this kill function is way too harsh (why kill myself? such a shame)
- */
 int
 event_killall(resource_id_t rid, job_id_t jid, task_id_t tid)
 {
 	resource_info_t *rip;
+	priv_state priv;
 
 	if (!(rip = resmgr_getbyrid(rid))) {
-		dprintf(D_ALWAYS, "kill: could not find resource.\n");
+		dprintf(D_ALWAYS, "killall: could not find resource.\n");
 		return -1;
 	}
 
-	set_root_priv();
-
-#if defined(HPUX9) || defined(LINUX) || defined(Solaris) || defined(OSF1)
-	if( kill(-getpgrp(),SIGKILL) < 0 ) {
-#else
-	if( kill(-getpgrp(0),SIGKILL) < 0 ) {
-#endif
-		EXCEPT("kill( my_process_group ) euid = %d\n", geteuid());
+	if ( rip->r_pid == NO_PID ) {
+		dprintf(D_ALWAYS, "killall: could not find starter pid/pgrp.\n");
+		return -1;
 	}
-	sigpause(0);	/* huh? */
+
+	dprintf(D_FULLDEBUG, "***** About to kill( -%d, SIGKILL ) *****\n", 
+			rip->r_pid );
+
+	priv = set_root_priv();
+
+	if( kill( -(rip->r_pid), SIGKILL ) < 0 ) {
+		EXCEPT("kill( starter_process_group ) euid = %d\n", geteuid());
+	}
+
+	set_priv( priv );
 }
 
+/* The starter has exited.  Careful, you're inside a signal handler! */
 int
 event_exited(resource_id_t rid, job_id_t jid, task_id_t tid)
 {
-	resource_free(rid);
+	resource_info_t *rip;
+
+	if( !(rip = resmgr_getbyrid(rid)) ) {
+		dprintf(D_ALWAYS, "event_exited: could not find resource.\n");
+		return -1;
+	}
+
+		// We know the starter exited, so we can finally get rid of r_pid
+	rip->r_pid = NO_PID;
+
+	if( rip->r_claimed == FALSE ) {
+		resmgr_changestate(rip->r_rid, NO_JOB);
+	} else {
+		resmgr_changestate(rip->r_rid, CLAIMED);
+	}
+
 	cleanup_execute_dir();
-	event_timeout();
+
+	// We're in a signal handler, this is not safe!!! -Derek 9/11/97 
+    // event_timeout();
 }
 
 static int
@@ -794,7 +860,13 @@ kill_starter(int pid, int signo)
 	int 		ret = 0;
 	priv_state	priv;
 
-	dprintf(D_ALWAYS,"In kill_starter() with signo %d\n",signo);
+	if ( pid <= 0 ) {
+		dprintf(D_ALWAYS,"Invalid pid (%d) in kill_starter, returning.\n", 
+				pid );
+		return -1;
+	}
+
+	dprintf(D_ALWAYS,"In kill_starter() with pid %d, signo %d\n", pid, signo);
 
 	for (errno = 0; (ret = stat(Starter, &st)) < 0; errno = 0) {
 		if (errno == ETIMEDOUT)
@@ -858,14 +930,11 @@ calc_idle_time(resource_info_t* rip, int & user_idle, int & console_idle)
 	console_idle = -1;  // initialize
 
 	user_idle = tty_pty_idle_time();
-	dprintf( D_FULLDEBUG, "ttys/ptys idle %d seconds\n",  user_idle );
 
 	if (kbd_dev) {
 		tty_idle = tty_idle_time(kbd_dev);
 		user_idle = MIN(tty_idle, user_idle);
 		console_idle = tty_idle;
-		dprintf(D_FULLDEBUG, "/dev/%s idle %d seconds\n",
-				kbd_dev, tty_idle);
 	}
 
 	if (mouse_dev) {
@@ -873,8 +942,6 @@ calc_idle_time(resource_info_t* rip, int & user_idle, int & console_idle)
 		user_idle = MIN(tty_idle, user_idle);
 		if (console_idle != -1)
 			console_idle = MIN(tty_idle, console_idle);
-		dprintf(D_FULLDEBUG, "/dev/%s idle %d seconds\n", mouse_dev,
-				tty_idle);
 	}
 /*
 ** On HP's "/dev/hil1" - "/dev/hil7" are mapped to input devices such as
@@ -891,8 +958,6 @@ calc_idle_time(resource_info_t* rip, int & user_idle, int & console_idle)
 			console_idle = tty_idle;
 		else
 			console_idle = MIN(tty_idle, console_idle);
-
-		dprintf(D_FULLDEBUG, "%s idle %d seconds\n", devname, tty_idle);
 	}
 	tty_idle = tty_idle_time("ps2kbd");
 	console_idle = MIN(tty_idle, console_idle);
@@ -911,7 +976,6 @@ calc_idle_time(resource_info_t* rip, int & user_idle, int & console_idle)
 	sprintf(devname, "mouse");
 	tty_idle = tty_idle_time(devname);
 	user_idle = MIN( tty_idle, user_idle );
-	dprintf( D_FULLDEBUG, "/dev/mouse idle for %d seconds\n", tty_idle);
 #endif
 
 	now = (int)time((time_t *)0);
@@ -925,6 +989,7 @@ calc_idle_time(resource_info_t* rip, int & user_idle, int & console_idle)
 
 	dprintf(D_FULLDEBUG, "Idle Time: user= %d , console= %d seconds\n",
 			user_idle,console_idle);
+	
 	return;
 }
 
@@ -1094,13 +1159,13 @@ static void init_static_info(resource_info_t* rip)
 		config_classad->Insert(tmp);
 	}
   
-	addrname = (char *)malloc(32);
 	getsockname(rip->r_sock, (struct sockaddr *)&sin, &len);
 	get_inet_address(&sin.sin_addr);
-	strcpy(addrname, sin_to_string(&sin));
-  
+	
+	addrname = strdup( sin_to_string(&sin) );
 	sprintf(tmp,"%s=\"%s\"",(char *)ATTR_STARTD_IP_ADDR,addrname);
 	config_classad->Insert(tmp);
+	free(addrname);
 
 	// Quick hack to refer to the START expression as the machine
 	// classad requirements.  Eventually we should do some more
@@ -1152,10 +1217,6 @@ calc_ncpus()
 	return (int)sysconf(_SC_NPROCESSORS_ONLN);
 #elif defined(IRIX53)
 	return sysmp(MP_NPROCS);
-#elif defined(WIN32)
-	SYSTEM_INFO info;
-	GetSystemInfo(&info);
-	return (int)info.dwNumberOfProcessors;
 #else sequent
 	return 1;
 #endif sequent
@@ -1168,3 +1229,5 @@ get_load_avg()
 	dprintf(D_ALWAYS, "calc_load_avg -> %f\n", val);
 	return val;
 }
+
+

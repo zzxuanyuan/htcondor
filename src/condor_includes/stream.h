@@ -102,9 +102,6 @@
 		- on encode, flush stream and send record delimiter.  on decode, discard
 		data up until the next record delimiter.
 
-	11) char * serialize()
-		- save/restore object state
-
 	* CODE/PUT/GET:
 
 	- Put (and Get) routines write to (and read from) streams,
@@ -131,6 +128,8 @@
 #include <assert.h>
 
 #include "condor_common.h"
+
+#define eom end_of_message
 
 #include "proc.h"
 
@@ -171,8 +170,6 @@ class Stream {
 **		PUBLIC INTERFACE TO ALL STREAMS
 */
 public:
-
-	friend class DaemonCore;
 
 	/*
 	**	Type definitions
@@ -218,11 +215,12 @@ public:
 	int code(char *&);
 	int code(char *&, int &);
 	int code_bytes(void *, int);
+	int code_bytes_bool(void *, int);
 
 	//	Condor types
 
 	int code(PROC_ID &);
-//	int code(PROC &);
+	int code(PROC &);
 	int code(STARTUP_INFO &);
 	int code(PORTS &);
 	int code(StartdRec &);
@@ -319,7 +317,7 @@ public:
 	virtual int get_ptr(void *&, char) { assert(0); return 0; }
 	virtual int peek(char &) { assert(0); return 0; }
 	virtual int end_of_message() { assert(0); return 0; }
-	inline int eom() { return end_of_message(); }
+//	int eom() { return end_of_message(); }
 
 	// peer information operations (virtually defined by each stream)
 	//
@@ -337,7 +335,6 @@ public:
 	//
 	virtual stream_type type() { assert(0); return (stream_type)0; }
 
-
 	// Condor Compatibility Ops
 	int snd_int(int val, int end_of_record);
 	int rcv_int(int &val, int end_of_record);
@@ -347,12 +344,6 @@ public:
 **		PRIVATE INTERFACE TO ALL STREAMS
 */
 protected:
-
-	// serialize object (save/restore object state to an ascii string)
-	//
-	virtual char * serialize(char *) { assert(0); return (char *)0; }
-	// virtual char * serialize(char *) = 0;
-	inline char * serialize() { return(serialize(NULL)); }
 
 	/*
 	**	Type definitions

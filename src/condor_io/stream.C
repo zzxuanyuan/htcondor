@@ -266,6 +266,17 @@ int Stream::code(
 	return FALSE;	/* will never get here	*/
 }
 
+
+int Stream::code_bytes_bool(void *p, int l)
+{
+	if( code_bytes( p, l ) < 0 ) {
+		return FALSE;
+	} else {
+		return TRUE;
+	}
+}
+
+
 int Stream::code_bytes(void *p, int l)
 {
 	switch(_coding) {
@@ -292,7 +303,6 @@ int Stream::code(PROC_ID &id)
 	return TRUE;
 }
 
-#if 0	// hopefully we won't neet to port the PROC structure
 
 /* extern int stream_proc_vers2( Stream *s, V2_PROC *proc ); */
 extern int stream_proc_vers3( Stream *s, PROC *proc );
@@ -315,8 +325,6 @@ int Stream::code(PROC &proc)
 	}
 	return TRUE;
 }
-
-#endif
 
 int Stream::code(STARTUP_INFO &start)
 {

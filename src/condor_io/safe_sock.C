@@ -30,8 +30,6 @@
 
 #define _POSIX_SOURCE
 
-#include <stdio.h>	// for sprintf
-
 #include "condor_common.h"
 #include "condor_constants.h"
 #include "condor_io.h"
@@ -167,15 +165,14 @@ int SafeSock::connect(
 	_who.sin_family = AF_INET;
 	_who.sin_port = htons((u_short)port);
 
-	/* might be in <x.x.x.x:x> notation, i.e. sinfull string */
-	if (host[0] == '<') {
-		string_to_sin(host, &_who);
-	}
 	/* try to get a decimal notation first 			*/
-	else if( (inaddr=inet_addr(host)) != (unsigned int)(-1) ) {
+
+	inaddr = inet_addr(host);
+
+	if( inaddr != (unsigned int)(-1) ) {
 		memcpy((char *)&_who.sin_addr, &inaddr, sizeof(inaddr));
 	} else {
-		/* if dotted notation fails, try host database	*/
+			/* if dotted notation fails, try host database	*/
 		hostp = gethostbyname(host);
 		if( hostp == (struct hostent *)0 ) {
 			return FALSE;
@@ -366,7 +363,8 @@ int SafeSock::get_file_desc()
 	return _sock;
 }
 
-#if 0 // interface no longer supported
+#ifndef WIN32
+	// interface no longer supported
 int SafeSock::attach_to_file_desc(
 	int		fd
 	)

@@ -8,19 +8,15 @@
 
 #include "condor_common.h"
 
-#include <stdio.h>
-
-#if !defined(WIN32)
 #include <sys/time.h>
 #include <netdb.h>
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#endif
 
-#include "condor_debug.h"
 #include "except.h"
+#include "debug.h"
 #include "proc.h"
 #include "internet.h"
 #include "expr.h"
@@ -35,6 +31,7 @@ struct in_addr*	buffer;
 {
 	char			host[MAXHOSTLEN];
 	struct hostent	*hostptr;
+	struct in_addr	*ptr;
 
 	if ( gethostname(host, MAXHOSTLEN) == -1 )
 	{
@@ -131,6 +128,7 @@ int				proc;
 int
 string_to_sin(char *addr, struct sockaddr_in *sin)
 {
+	int             i;
 	char    *cur_byte;
 	char    *end_string;
 	int 	temp=0;
@@ -172,7 +170,7 @@ string_to_sin(char *addr, struct sockaddr_in *sin)
 	}
 	
 	string[strlen(string) - 1] = '\0'; /* Chop off the trailing '>' */
-	sin->sin_port = htons((short)atoi(string));
+	sin->sin_port = htons(atoi(string));
 	sin->sin_family = AF_INET;
 	string[temp-1] = '>';
 	string[temp] = '\0';
@@ -209,29 +207,16 @@ sin_to_string(struct sockaddr_in *sin)
 	return buf;
 }
 
-char *
-sock_to_string(SOCKET sockd)
-{
-	struct sockaddr_in	addr;
-	int			addr_len;
-	static char *mynull = "\0";
-
-	addr_len = sizeof(addr);
-
-	if (getsockname(sockd, (struct sockaddr *)&addr, &addr_len) < 0) 
-		return mynull;
-
-	if ( get_inet_address( &addr.sin_addr ) == -1 )
-		return mynull;
-
-	return ( sin_to_string( &addr ) );
-}
-
 void
 display_from( from )
 struct sockaddr_in  *from;
 {
-    struct hostent  *hp;
+    struct hostent  *hp, *gethostbyaddr();
+
+	if( !from ) {
+		dprintf( D_ALWAYS, "from NULL source\n" );
+		return;
+	}
 
     if( (hp=gethostbyaddr((char *)&from->sin_addr,
                 sizeof(struct in_addr), from->sin_family)) == NULL ) {

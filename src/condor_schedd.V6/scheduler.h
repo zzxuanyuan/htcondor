@@ -11,6 +11,7 @@
 #define _CONDOR_SCHED_H_
 
 #include "_condor_fix_types.h"
+#include "dgram_io_handle.h"
 #include "condor_classad.h"
 #include "condor_io.h"
 #include "proc.h"
@@ -33,6 +34,13 @@ struct shadow_rec
     struct Mrec*    match;
     int             preempted;
     int             conn_fd;
+};
+
+struct OwnerData {
+  char* Name;
+  int JobsRunning;
+  int JobsIdle;
+  OwnerData() { Name=NULL; JobsRunning=JobsIdle=0; }
 };
 
 struct Mrec
@@ -79,15 +87,15 @@ class Scheduler : public Service
 	void			sigquit_handler();
 	void			sigint_handler();
 	void			SetClassAd(ClassAd*);
-	void			SetCommandPort(int);
+	void			SetSockName(int);
 	
 	// negotiation
-	void			negotiate(int, Stream *);
-	void			reschedule_negotiator(int, Stream *);
-	void			vacate_service(int, Stream *);
+	void			negotiate(ReliSock*, struct sockaddr_in*);
+	void			reschedule_negotiator(ReliSock*, struct sockaddr_in*);
+	void			vacate_service(ReliSock *, struct sockaddr_in*);
 
 	// job managing
-	void			abort_job(int, Stream *);
+	void			abort_job(ReliSock*, struct sockaddr_in*);
 	void			send_all_jobs(ReliSock*, struct sockaddr_in*);
 	void			send_all_jobs_prioritized(ReliSock*, struct sockaddr_in*);
 	friend	int		count(int, int);
@@ -103,7 +111,7 @@ class Scheduler : public Service
 	shadow_rec*		FindSrecByPid(int);
 	void			RemoveShadowRecFromMrec(shadow_rec*);
 	int				AlreadyMatched(PROC_ID*);
-	void			Agent(char*, char*, char*, int);
+	void			Agent(char*, char*, char*, int, PROC_ID*);
 	void			StartJobs();
 	void			StartSchedUniverseJobs();
 	void			send_alive();
@@ -113,6 +121,7 @@ class Scheduler : public Service
 	// information about this scheduler
 	ClassAd*		ad;
 	char*			MySockName;		// dhaval
+	int				UdpSock;					// for talking to collector
 	Scheduler*		myself;
 	u_short			port;
 	
@@ -133,7 +142,7 @@ class Scheduler : public Service
 	int				BadProc;
 	int				RejectedClusters[MAX_REJECTED_CLUSTERS];
 	int				N_RejectedClusters;
-	char*			Owners[MAX_NUM_OWNERS];
+        OwnerData			Owners[MAX_NUM_OWNERS];
 	int				N_Owners;
 	time_t			LastTimeout;
 	int				ExitWhenDone;  // Flag set for graceful shutdown
@@ -152,6 +161,7 @@ class Scheduler : public Service
 	char*			Mail;
 	char*			filename;					// save UpDown object
 	char*			AccountantName;
+        char*                   UidDomain;
 
 	// connection variables
 	struct sockaddr_in	From;
@@ -164,7 +174,7 @@ class Scheduler : public Service
 	void   			mark_cluster_rejected(int); 
 	int				count_jobs();
 	void			update_central_mgr();
-	void			insert_owner(char*);
+	int			insert_owner(char*);
 	void			reaper(int, int, struct sigcontext*);
 	void			clean_shadow_recs();
 	void			preempt(int);

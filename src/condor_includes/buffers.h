@@ -6,7 +6,7 @@
 void sanity_check();
 
 #if !defined(WIN32)
-typedef int SOCKET
+typedef int SOCKET;
 #endif
 
 class Buf {
