@@ -43,6 +43,8 @@
 #include "nordugridjob.h"
 #endif
 
+#include "gt3job.h"
+
 #define QMGMT_TIMEOUT 15
 
 #define UPDATE_SCHEDD_DELAY		5
@@ -277,6 +279,15 @@ Init()
 	new_type->CreateFunc = NordugridJobCreate;
 	jobTypes.Append( new_type );
 #endif
+
+	new_type = new JobType;
+	new_type->Name = strdup( "GT3" );
+	new_type->InitFunc = GT3JobInit;
+	new_type->ReconfigFunc = GT3JobReconfig;
+	new_type->AdMatchConst = GT3JobAdConst;
+	new_type->AdMustExpandFunc = GT3JobAdMustExpand;
+	new_type->CreateFunc = GT3JobCreate;
+	jobTypes.Append( new_type );
 
 	new_type = new JobType;
 	new_type->Name = strdup( "Globus" );

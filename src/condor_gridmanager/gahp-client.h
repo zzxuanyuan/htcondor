@@ -173,6 +173,11 @@ class GahpServer : public Service {
 	globus_gram_client_callback_func_t globus_gt2_gram_callback_func;
 	int globus_gt2_gram_callback_reqid;
 
+	char *globus_gt3_gram_callback_contact;
+	void *globus_gt3_gram_user_callback_arg;
+	globus_gram_client_callback_func_t globus_gt3_gram_callback_func;
+	int globus_gt3_gram_callback_reqid;
+
 	GahpProxyInfo *master_proxy;
 	int proxy_check_tid;
 	bool is_initialized;
@@ -361,6 +366,51 @@ class GahpClient : public Service {
 		int
 		globus_gass_server_superez_init( char **gass_url, int port );
 
+
+		///
+		int
+		gt3_gram_client_callback_allow(
+			globus_gram_client_callback_func_t callback_func,
+			void * user_callback_arg,
+			char ** callback_contact);
+
+		///
+		int 
+		gt3_gram_client_job_create(const char * resource_manager_contact,
+			const char * description,
+			const char * callback_contact,
+			char ** job_contact);
+
+		///
+		int
+		gt3_gram_client_job_start(const char *job_contact);
+
+		///
+		int 
+		gt3_gram_client_job_destroy(const char * job_contact);
+
+		///
+		int
+		gt3_gram_client_job_status(const char * job_contact,
+			int * job_status);
+
+		///
+		int
+		gt3_gram_client_job_callback_register(const char * job_contact,
+			const char * callback_contact);
+
+		///
+		int 
+		gt3_gram_client_ping(const char * resource_manager_contact);
+
+		///
+		int 
+		gt3_gram_client_job_contact_free(char *job_contact) 
+			{ free(job_contact); return 0; }
+
+		///
+		int
+		gt3_gram_client_job_refresh_credentials(const char *job_contact);
 
 #ifdef CONDOR_GLOBUS_HELPER_WANT_DUROC
 	// Not yet ready for prime time...

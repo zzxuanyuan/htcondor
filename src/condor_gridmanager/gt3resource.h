@@ -21,41 +21,39 @@
  * WI 53706-1685, (608) 262-0856 or miron@cs.wisc.edu.
 ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
-#ifndef GLOBUSRESOURCE_H
-#define GLOBUSRESOURCE_H
+#ifndef GT3RESOURCE_H
+#define GT3RESOURCE_H
 
 #include "condor_common.h"
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
 
 #include "proxymanager.h"
-#include "globusjob.h"
+#include "gt3job.h"
 #include "baseresource.h"
 #include "gahp-client.h"
 
 
-class GlobusJob;
-class GlobusResource;
+class GT3Job;
+class GT3Resource;
 
 ////////////from gridmanager.C
-extern HashTable <HashKey, GlobusResource *> ResourcesByName;
+extern HashTable <HashKey, GT3Resource *> GT3ResourcesByName;
 //////////////////////////////
 
-class GlobusResource : public BaseResource
+class GT3Resource : public BaseResource
 {
  public:
 
-	GlobusResource( const char *resource_name );
-	~GlobusResource();
+	GT3Resource( const char *resource_name );
+	~GT3Resource();
 
 	void Reconfig();
-	void RegisterJob( GlobusJob *job, bool already_submitted );
-	void UnregisterJob( GlobusJob *job );
-	void RequestPing( GlobusJob *job );
-	bool RequestSubmit( GlobusJob *job );
-	void SubmitComplete( GlobusJob *job );
-	void CancelSubmit( GlobusJob *job );
-
-	bool GridJobMonitorActive() { return monitorActive; }
+	void RegisterJob( GT3Job *job, bool already_submitted );
+	void UnregisterJob( GT3Job *job );
+	void RequestPing( GT3Job *job );
+	bool RequestSubmit( GT3Job *job );
+	void SubmitComplete( GT3Job *job );
+	void CancelSubmit( GT3Job *job );
 
 	bool IsEmpty();
 	bool IsDown();
@@ -73,16 +71,8 @@ class GlobusResource : public BaseResource
 	static void setGahpCallTimeout( int new_timeout )
 		{ gahpCallTimeout = new_timeout; }
 
-	static void setEnableGridMonitor( bool enable )
-		{ enableGridMonitor = enable; }
-
  private:
 	int DoPing();
-	int CheckMonitor();
-	void StopMonitor();
-	bool SubmitMonitorJob();
-	bool ReadMonitorJobStatusFile();
-	int ReadMonitorLogFile();
 
 	bool resourceDown;
 	bool firstPingDone;
@@ -90,29 +80,21 @@ class GlobusResource : public BaseResource
 	time_t lastPing;
 	time_t lastStatusChange;
 	Proxy *myProxy;
-	List<GlobusJob> registeredJobs;
-	List<GlobusJob> pingRequesters;
+	List<GT3Job> registeredJobs;
+	List<GT3Job> pingRequesters;
 	// jobs that are currently executing a submit
-	List<GlobusJob> submitsInProgress;
+	List<GT3Job> submitsInProgress;
 	// jobs that want to submit but can't due to submitLimit
-	List<GlobusJob> submitsQueued;
+	List<GT3Job> submitsQueued;
 	// jobs allowed to submit under jobLimit
-	List<GlobusJob> submitsAllowed;
+	List<GT3Job> submitsAllowed;
 	// jobs that want to submit but can't due to jobLimit
-	List<GlobusJob> submitsWanted;
+	List<GT3Job> submitsWanted;
 	static int probeInterval;
 	static int probeDelay;
 	int submitLimit;		// max number of submit actions
 	int jobLimit;			// max number of submitted jobs
 	static int gahpCallTimeout;
-
-	static bool enableGridMonitor;
-	int checkMonitorTid;
-	bool monitorActive;
-	char *monitorJobStatusFile;
-	char *monitorLogFile;
-	int jobStatusFileLastReadTime;
-	int logFileLastReadTime;
 
 	GahpClient gahp;
 };

@@ -21,8 +21,8 @@
  * WI 53706-1685, (608) 262-0856 or miron@cs.wisc.edu.
 ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
-#ifndef GLOBUSJOB_H
-#define GLOBUSJOB_H
+#ifndef GT3JOB_H
+#define GT3JOB_H
 
 #include "condor_common.h"
 #include "condor_classad.h"
@@ -32,35 +32,35 @@
 
 #include "proxymanager.h"
 #include "basejob.h"
-#include "globusresource.h"
+#include "gt3resource.h"
 #include "gahp-client.h"
 
 #define JM_COMMIT_TIMEOUT	600
 
-class GlobusResource;
+class GT3Resource;
 
 /////////////////////from gridmanager.h
-class GlobusJob;
-extern HashTable <HashKey, GlobusJob *> JobsByContact;
+class GT3Job;
+extern HashTable <HashKey, GT3Job *> GT3JobsByContact;
 
-char *globusJobId( const char *contact );
+const char *gt3JobId( const char *contact );
 void gramCallbackHandler( void *user_arg, char *job_contact, int state,
 						  int errorcode );
 
-void GlobusJobInit();
-void GlobusJobReconfig();
-bool GlobusJobAdMustExpand( const ClassAd *jobad );
-BaseJob *GlobusJobCreate( ClassAd *jobad );
-extern const char *GlobusJobAdConst;
+void GT3JobInit();
+void GT3JobReconfig();
+bool GT3JobAdMustExpand( const ClassAd *jobad );
+BaseJob *GT3JobCreate( ClassAd *jobad );
+extern const char *GT3JobAdConst;
 ///////////////////////////////////////
 
-class GlobusJob : public BaseJob
+class GT3Job : public BaseJob
 {
  public:
 
-	GlobusJob( ClassAd *classad );
+	GT3Job( ClassAd *classad );
 
-	~GlobusJob();
+	~GT3Job();
 
 	void Reconfig();
 	int doEvaluateState();
@@ -102,7 +102,7 @@ class GlobusJob : public BaseJob
 	bool resourcePingPending;
 	bool jmUnreachable;
 	bool jmDown;
-	GlobusResource *myResource;
+	GT3Resource *myResource;
 	time_t lastProbeTime;
 	bool probeNow;
 	time_t enteredCurrentGmState;
@@ -132,9 +132,6 @@ class GlobusJob : public BaseJob
 	GahpClient gahp;
 
 	MyString *buildSubmitRSL();
-	MyString *buildRestartRSL();
-	MyString *buildStdioUpdateRSL();
-	bool GetOutputSize( int& output, int& error );
 	void DeleteOutput();
 
 	char *jobContact;
@@ -152,7 +149,6 @@ class GlobusJob : public BaseJob
 	bool stageError;
 	int globusError;
 
-	int jmVersion;
 	bool restartingJM;
 	time_t restartWhen;
 
@@ -162,17 +158,7 @@ class GlobusJob : public BaseJob
 	bool callbackRegistered;
 	int connect_failure_counter;
 	bool AllowTransition( int new_state, int old_state );
-
-	bool FailureIsRestartable( int error_code );
-	bool FailureNeedsCommit( int error_code );
-	bool JmShouldSleep();
 };
-
-bool WriteGlobusSubmitEventToUserLog( ClassAd *job_ad );
-bool WriteGlobusSubmitFailedEventToUserLog( ClassAd *job_ad,
-											int failure_code );
-bool WriteGlobusResourceUpEventToUserLog( ClassAd *job_ad );
-bool WriteGlobusResourceDownEventToUserLog( ClassAd *job_ad );
 
 #endif
 
