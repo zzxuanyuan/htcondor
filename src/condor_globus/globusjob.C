@@ -1,7 +1,31 @@
+/***************************Copyright-DO-NOT-REMOVE-THIS-LINE**
+ * CONDOR Copyright Notice
+ *
+ * See LICENSE.TXT for additional notices and disclaimers.
+ *
+ * Copyright (c)1990-1998 CONDOR Team, Computer Sciences Department, 
+ * University of Wisconsin-Madison, Madison, WI.  All Rights Reserved.  
+ * No use of the CONDOR Software Program Source Code is authorized 
+ * without the express consent of the CONDOR Team.  For more information 
+ * contact: CONDOR Team, Attention: Professor Miron Livny, 
+ * 7367 Computer Sciences, 1210 W. Dayton St., Madison, WI 53706-1685, 
+ * (608) 262-0856 or miron@cs.wisc.edu.
+ *
+ * U.S. Government Rights Restrictions: Use, duplication, or disclosure 
+ * by the U.S. Government is subject to restrictions as set forth in 
+ * subparagraph (c)(1)(ii) of The Rights in Technical Data and Computer 
+ * Software clause at DFARS 252.227-7013 or subparagraphs (c)(1) and 
+ * (2) of Commercial Computer Software-Restricted Rights at 48 CFR 
+ * 52.227-19, as applicable, CONDOR Team, Attention: Professor Miron 
+ * Livny, 7367 Computer Sciences, 1210 W. Dayton St., Madison, 
+ * WI 53706-1685, (608) 262-0856 or miron@cs.wisc.edu.
+****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
+
 
 #include "condor_common.h"
 #include "condor_attributes.h"
 #include "condor_debug.h"
+#include "environ.h"  // for Environ object
 
 #include "globus_gram_client.h"
 #include "globus_gram_error.h"
@@ -40,6 +64,7 @@ GlobusJob::GlobusJob( ClassAd *classad )
 		rmContact = strdup( buf );
 	errorCode = GLOBUS_SUCCESS;
 	buf[0] = '\0';
+	userLogFile = NULL;
 	classad->LookupString( ATTR_ULOG_FILE, buf );
 	if ( buf[0] != '\0' )
 		userLogFile = strdup( buf );
@@ -210,12 +235,16 @@ const char *GlobusJob::errorString()
 
 char *GlobusJob::buildRSL( ClassAd *classad )
 {
-	char rsl[8092];
-	char buff[2048];
+	char rsl[15000];
+	char buff[11000];
 	char *iwd;
 
+	buff[0] = '\0';
 	if ( classad->LookupString(ATTR_JOB_IWD, buff) && *buff ) {
-		strcat( buff, "/" );
+		int len = strlen(buff);
+		if ( len > 1 && buff[len - 1] != '/' ) {
+			strcat( buff, "/" );
+		}
 		iwd = strdup( buff );
 	} else {
 		iwd = strdup( "/" );
@@ -229,11 +258,13 @@ char *GlobusJob::buildRSL( ClassAd *classad )
 		strcat( rsl, iwd );
 	strcat( rsl, buff );
 
+	buff[0] = '\0';
 	if ( classad->LookupString(ATTR_JOB_ARGUMENTS, buff) && *buff ) {
 		strcat( rsl, ")(arguments=" );
 		strcat( rsl, buff );
 	}
 
+	buff[0] = '\0';
 	if ( classad->LookupString(ATTR_JOB_INPUT, buff) && *buff ) {
 		strcat( rsl, ")(stdin=" );
 		strcat( rsl, gassServerUrl );
@@ -242,6 +273,7 @@ char *GlobusJob::buildRSL( ClassAd *classad )
 		strcat( rsl, buff );
 	}
 
+	buff[0] = '\0';
 	if ( classad->LookupString(ATTR_JOB_OUTPUT, buff) && *buff ) {
 		strcat( rsl, ")(stdout=" );
 		strcat( rsl, gassServerUrl );
@@ -250,6 +282,7 @@ char *GlobusJob::buildRSL( ClassAd *classad )
 		strcat( rsl, buff );
 	}
 
+	buff[0] = '\0';
 	if ( classad->LookupString(ATTR_JOB_ERROR, buff) && *buff ) {
 		strcat( rsl, ")(stderr=" );
 		strcat( rsl, gassServerUrl );
@@ -258,10 +291,39 @@ char *GlobusJob::buildRSL( ClassAd *classad )
 		strcat( rsl, buff );
 	}
 
+	buff[0] = '\0';
+	if ( classad->LookupString(ATTR_JOB_ENVIRONMENT, buff) && *buff ) {
+		bool print_header = true;
+		Environ env_obj;
+		env_obj.add_string(buff);
+		char **env_vec = env_obj.get_vector();
+		char var[5000];
+		int i = 0;
+		while (env_vec[i]) {
+			char *equals = strchr(env_vec[i],'=');
+			if ( !equals ) {
+				// this environment entry has no equals sign!?!?
+				continue;
+			}
+			*equals = '\0';
+			if ( print_header ) {
+				strcat( rsl, ")(environment=" );
+				print_header = false;
+			}
+			sprintf(var,"(%s '%s')",env_vec[i],equals+1);
+			strcat(rsl,var);
+			i++;
+		}
+	}
+
 	strcat( rsl, ")" );
 
 	if ( classad->LookupString(ATTR_GLOBUS_RSL, buff) && *buff ) {
 		strcat( rsl, buff );
+	}
+
+	if (iwd) {
+		free(iwd);
 	}
 
 	return strdup( rsl );
