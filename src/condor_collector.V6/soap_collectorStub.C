@@ -36,7 +36,7 @@
 #include "../condor_c++_util/soap_helpers.cpp"
 
 static int receive_query_soap(int command,struct soap *s,char *constraint,
-	struct ClassAdStructArray &ads)
+	struct condorCore__ClassAdStructArray &ads)
 {
 
 	// check for authorization here
@@ -66,49 +66,49 @@ static int receive_query_soap(int command,struct soap *s,char *constraint,
 }
 
 int condorCollector__queryStartdAds(struct soap *s,char *constraint,
-	struct ClassAdStructArray & ads)
+	struct condorCore__ClassAdStructArray & ads)
 {
 	int command = QUERY_STARTD_ADS;
 	return receive_query_soap(command,s,constraint,ads);
 }
 
 int condorCollector__queryScheddAds(struct soap *s,char *constraint,
-	struct ClassAdStructArray & ads)
+	struct condorCore__ClassAdStructArray & ads)
 {
 	int command = QUERY_SCHEDD_ADS;
 	return receive_query_soap(command,s,constraint,ads);
 }
 
 int condorCollector__queryMasterAds(struct soap *s,char *constraint,
-	struct ClassAdStructArray & ads)
+	struct condorCore__ClassAdStructArray & ads)
 {
 	int command = QUERY_MASTER_ADS;
 	return receive_query_soap(command,s,constraint,ads);
 }
 
 int condorCollector__querySubmittorAds(struct soap *s,char *constraint,
-	struct ClassAdStructArray & ads)
+	struct condorCore__ClassAdStructArray & ads)
 {
 	int command = QUERY_SUBMITTOR_ADS;
 	return receive_query_soap(command,s,constraint,ads);
 }
 
 int condorCollector__queryLicenseAds(struct soap *s,char *constraint,
-	struct ClassAdStructArray & ads)
+	struct condorCore__ClassAdStructArray & ads)
 {
 	int command = QUERY_LICENSE_ADS;
 	return receive_query_soap(command,s,constraint,ads);
 }
 
 int condorCollector__queryStorageAds(struct soap *s,char *constraint,
-	struct ClassAdStructArray & ads)
+	struct condorCore__ClassAdStructArray & ads)
 {
 	int command = QUERY_STORAGE_ADS;
 	return receive_query_soap(command,s,constraint,ads);
 }
 
 int condorCollector__queryAnyAds(struct soap *s,char *constraint,
-	struct ClassAdStructArray & ads)
+	struct condorCore__ClassAdStructArray & ads)
 {
 	int command = QUERY_ANY_ADS;
 	return receive_query_soap(command,s,constraint,ads);
@@ -129,38 +129,26 @@ int condorCore__getVersionString(struct soap *soap,void *,char* &result)
 	return SOAP_OK;
 }
 
-int condorCore__getInfoAd(struct soap *soap,void *,ClassAdStruct & ad)
+int condorCore__getInfoAd(struct soap *soap,void *,struct condorCore__ClassAdStruct & ad)
 {
 	char* todd = "Todd A Tannenbaum";
 
 	ad.__size = 3;
-	ad.__ptr = (condorCore__ClassAdStructAttr *)soap_malloc(soap,3 * sizeof(condorCore__ClassAdStructAttr));
+	ad.__ptr = (struct condorCore__ClassAdStructAttr *)soap_malloc(soap,3 * sizeof(struct condorCore__ClassAdStructAttr));
 
 	ad.__ptr[0].name = "Name";
 	ad.__ptr[0].type = 's';
 	ad.__ptr[0].value = todd;
-	ad.__ptr[0].valueInt = NULL;
-	ad.__ptr[0].valueFloat = NULL;
-	ad.__ptr[0].valueBool = NULL;
-	ad.__ptr[0].valueExpr = NULL;
 
 	ad.__ptr[1].name = "Age";
 	ad.__ptr[1].type = 'n';
 	ad.__ptr[1].value = "35";
 	int* age = (int*)soap_malloc(soap,sizeof(int));
 	*age = 35;
-	ad.__ptr[1].valueInt = age;
-	ad.__ptr[1].valueFloat = NULL;
-	ad.__ptr[1].valueBool = NULL;
-	ad.__ptr[1].valueExpr = NULL;
 
 	ad.__ptr[2].name = "Friend";
 	ad.__ptr[2].type = 's';
 	ad.__ptr[2].value = todd;
-	ad.__ptr[2].valueInt = NULL;
-	ad.__ptr[2].valueFloat = NULL;
-	ad.__ptr[2].valueBool = NULL;
-	ad.__ptr[2].valueExpr = NULL;
 
 	return SOAP_OK;
 

@@ -5,24 +5,24 @@
 //gsoap condorCollector service name: condorCollector
 
 int condorCollector__queryStartdAds(char *constraint,
-	struct ClassAdStructArray & result);
+	struct condorCore__ClassAdStructArray & result);
 
 int condorCollector__queryScheddAds(char *constraint,
-	struct ClassAdStructArray & result);
+	struct condorCore__ClassAdStructArray & result);
 
 int condorCollector__queryMasterAds(char *constraint,
-	struct ClassAdStructArray & result);
+	struct condorCore__ClassAdStructArray & result);
 
 int condorCollector__querySubmittorAds(char *constraint,
-	struct ClassAdStructArray & result);
+	struct condorCore__ClassAdStructArray & result);
 
 int condorCollector__queryLicenseAds(char *constraint,
-	struct ClassAdStructArray & result);
+	struct condorCore__ClassAdStructArray & result);
 
 int condorCollector__queryStorageAds(char *constraint,
-	struct ClassAdStructArray & result);
+	struct condorCore__ClassAdStructArray & result);
 
 int condorCollector__queryAnyAds(char *constraint,
-	struct ClassAdStructArray & result);
+	struct condorCore__ClassAdStructArray & result);
 
 

@@ -28,7 +28,7 @@
 *****/
 
 static bool 
-convert_ad_to_adStruct( struct soap *s, ClassAd *curr_ad, struct ClassAdStruct *ad_struct)
+convert_ad_to_adStruct( struct soap *s, ClassAd *curr_ad, struct condorCore__ClassAdStruct *ad_struct)
 {
 	int attr_index = 0;
 	int num_attrs = 0;
@@ -70,8 +70,8 @@ convert_ad_to_adStruct( struct soap *s, ClassAd *curr_ad, struct ClassAdStruct *
 
 		// allocate space for attributes
 	ad_struct->__size = num_attrs;
-	ad_struct->__ptr = (condorCore__ClassAdStructAttr *)
-			soap_malloc(s,num_attrs * sizeof(condorCore__ClassAdStructAttr));
+	ad_struct->__ptr = (struct condorCore__ClassAdStructAttr *)
+			soap_malloc(s,num_attrs * sizeof(struct condorCore__ClassAdStructAttr));
 	
 		// second pass: serialize attributes
 	attr_index = 0;		
@@ -155,7 +155,7 @@ convert_ad_to_adStruct( struct soap *s, ClassAd *curr_ad, struct ClassAdStruct *
 
 static bool
 convert_adlist_to_adStructArray(struct soap *s, List<ClassAd> *adList, 
-									struct ClassAdStructArray *ads)
+									struct condorCore__ClassAdStructArray *ads)
 {
 
 	if ( !adList || !ads ) {
@@ -164,8 +164,8 @@ convert_adlist_to_adStructArray(struct soap *s, List<ClassAd> *adList,
 
 	ClassAd *curr_ad = NULL;
 	ads->__size = adList->Number();
-	ads->__ptr = (struct ClassAdStruct *) soap_malloc(s, 
-							ads->__size * sizeof(struct ClassAdStruct));
+	ads->__ptr = (struct condorCore__ClassAdStruct *) soap_malloc(s, 
+							ads->__size * sizeof(struct condorCore__ClassAdStruct));
 	adList->Rewind();
 	int ad_index = 0;
 
