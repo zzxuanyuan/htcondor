@@ -56,7 +56,7 @@ void Daemon::common_init() {
 	_version = NULL;
 	_platform = NULL;
 	_error = NULL;
-	_error_num = CA_SUCCESS;
+	_error_code = CA_SUCCESS;
 	_id_str = NULL;
 	_subsys = NULL;
 	_hostname = NULL;

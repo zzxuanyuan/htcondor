@@ -333,7 +333,7 @@ protected:
 	char* _platform;
 	char* _pool;
 	char* _error;
-	CAResult _result_code;
+	CAResult _error_code;
 	char* _id_str;
 	char* _subsys;
 	int _port;
