@@ -1534,7 +1534,7 @@ int Function::_EvalTree(AttrList *attrlist1, AttrList *attrlist2, EvalResult *re
 
 		i = 0;
 		while (iter.Next(arg)) {
-			arg->EvalTree(NULL, &evaluated_args[i++]);
+			arg->EvalTree(attrlist1, &evaluated_args[i++]);
 		}
 		
 		if (!strcasecmp(name, "script")) {
