@@ -11,25 +11,26 @@
 
 namespace dagman {
 
-/** Termination Queue Item (TQI).  EXPLANATION NEEDED HERE!
- */
+//----------------------------------------------------------------------------
 class TQI {
   public:
-    ///
+
     inline TQI () : parent(NULL) {}
-    ///
+
     inline TQI (Job * p) : parent(p) {}
-    ///
+
     inline TQI (Job * p, const std::list<JobID_t> & c) :
         parent(p), children(c) {}
 
-    ///
-    void Print () const;
+    std::string toString () const;
 
-    /** The job that terminated      */   Job                 * parent;
-    /** Children net yet seen in log */   std::list<JobID_t>    children;
+    inline operator std::string() const { return toString(); }
+    
+    /* The job that terminated      */   Job                 * parent;
+    /* Children net yet seen in log */   std::list<JobID_t>    children;
 };
 
+ostream & operator << (ostream & out, const TQI & tqi);
 
 //------------------------------------------------------------------------
 /** A Dag instance stores information about a job dependency graph,
@@ -69,7 +70,7 @@ class Dag {
         @param checkInterval Number of seconds between checks
         @return true: log file grew, false: timeout or shrinkage
     */
-    bool DetectLogGrowth (int checkInterval = 2);
+    bool DetectLogGrowth ();
 
     /** Force the Dag to process all new events in the condor log file.
         This may cause the state of some jobs to change.
@@ -142,7 +143,7 @@ class Dag {
     // bool Submit (JobID_t jobID);
 
     /// Update the state of a job to "Done", and run child jobs if possible.
-    void TerminateJob (Job * job);
+    void TerminateJob (Job * job, bool bootstrap);
   
     /** Get the first appearing job in the termination queue marked SUBMITTED.
         This function is called by ProcessLogEvents when a SUBMIT log
