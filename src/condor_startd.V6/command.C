@@ -315,7 +315,7 @@ stream->put(NOT_OK);		\
 stream->end_of_message();			
 
 #define ABORT \
-delete requestAd;						\
+delete req_classad;						\
 if( s == claimed_state ) {				\
 	delete rip->r_pre;					\
 	rip->r_pre = new Match( rip );		\
@@ -329,8 +329,8 @@ request_claim( Resource* rip, char* cap, Stream* stream )
 {
 		// Formerly known as "reqservice"
 
-	ClassAd *requestAd = new ClassAd;
-	int cmd;
+	ClassAd	*req_classad = new ClassAd, *mach_classad = rip->r_classad;
+	int cmd, mach_requirements = 1, req_requirements = 1;
 	float rank = -1;
 	float oldrank = -1;
 	State s = rip->state();
@@ -340,7 +340,7 @@ request_claim( Resource* rip, char* cap, Stream* stream )
 	}
 
 		// Get the classad of the request.
-	if( !requestAd->get(*stream) ) {
+	if( !req_classad->get(*stream) ) {
 		rip->dprintf( D_ALWAYS, "Can't receive classad from schedd-agent\n" );
 		ABORT;
 	}
@@ -350,10 +350,35 @@ request_claim( Resource* rip, char* cap, Stream* stream )
 		ABORT;
 	}
 
-	rip->dprintf( D_ALWAYS,
+	rip->dprintf( D_FULLDEBUG,
 				  "Received capability from schedd agent (%s)\n", cap );
 
-	rank = compute_rank( rip->r_classad, requestAd );
+		// Make sure we're willing to run this job at all.  Verify that 
+		// the machine and job meet each other's requirements.
+	rip->r_reqexp->restore();
+	if( mach_classad->EvalBool( ATTR_REQUIREMENTS, 
+								req_classad, mach_requirements ) == 0 ) {
+		mach_requirements = 0;
+	}
+	if( req_classad->EvalBool( ATTR_REQUIREMENTS, 
+							   mach_classad, req_requirements ) == 0 ) {
+		req_requirements = 0;
+	}
+	if( !mach_requirements || !req_requirements ) {
+	    rip->dprintf( D_ALWAYS, "Preemption request refused.\n" );
+		if( !mach_requirements ) {
+			rip->dprintf( D_ALWAYS, "Machine requirements not satisfied.\n" );
+		}
+		if( !req_requirements ) {
+			rip->dprintf( D_ALWAYS, "Job requirements not satisfied.\n" );
+		}
+		REFUSE;
+		ABORT;
+	}
+
+
+		// Now, make sure it's got a high enough rank to preempt us.
+	rank = compute_rank( mach_classad, req_classad );
 
 	rip->dprintf( D_FULLDEBUG, "Rank of this match is: %f\n", rank );
 
@@ -387,7 +412,7 @@ request_claim( Resource* rip, char* cap, Stream* stream )
 					// We're going to preempt.  Save everything we
 					// need to know into r_pre.
 				rip->r_pre->setagentstream( stream );
-				rip->r_pre->setad( requestAd );
+				rip->r_pre->setad( req_classad );
 				rip->r_pre->setrank( rank );
 				rip->r_pre->setoldrank( rip->r_cur->rank() );
 
@@ -425,7 +450,7 @@ request_claim( Resource* rip, char* cap, Stream* stream )
 			// We decided to accept the request, save the agent's
 			// stream, the rank and the classad of this request.
 		rip->r_cur->setagentstream( stream );
-		rip->r_cur->setad( requestAd );
+		rip->r_cur->setad( req_classad );
 		rip->r_cur->setrank( rank );
 		rip->r_cur->setoldrank( oldrank );
 
