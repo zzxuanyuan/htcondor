@@ -170,7 +170,7 @@ MirrorJob::MirrorJob( ClassAd *classad )
 	submitFailureCode = 0;
 	mirrorScheddName = NULL;
 	remoteJobIdString = NULL;
-	localJobSchedulingEnabled = false;
+	mirrorActive = false;
 	myResource = NULL;
 
 	// In GM_HOLD, we assume HoldReason to be set only if we set it, so make
@@ -215,11 +215,9 @@ MirrorJob::MirrorJob( ClassAd *classad )
 	gahp->setTimeout( gahpCallTimeout );
 
 	tmp1 = 0;
-	tmp2 = 0;
 	ad->LookupBool( ATTR_MIRROR_ACTIVE, tmp1 );
-//	ad->LookupInteger( ATTR_SCHEDD_BIRTHDATE, tmp2 );
-	if ( tmp1 == 0 && tmp1 != 0 && tmp1 >= tmp2 ) {
-		localJobSchedulingEnabled = true;
+	if ( tmp1 == 1 ) {
+		mirrorActive = true;
 	}
 
 	return;
@@ -309,9 +307,10 @@ int MirrorJob::doEvaluateState()
 			errorString = "";
 			if ( mirrorJobId.cluster == 0 ) {
 				gmState = GM_CLEAR_REQUEST;
+			} else if ( mirrorActive == false ) {
+				gmState = GM_SUBMITTED_MIRROR_INACTIVE;
 			} else {
-
-				gmState = GM_SUBMITTED;
+				gmState = GM_SUBMITTED_MIRROR_ACTIVE;
 			}
 			} break;
 		case GM_UNSUBMITTED: {
@@ -398,7 +397,7 @@ int MirrorJob::doEvaluateState()
 		case GM_SUBMIT_COMMIT: {
 			// Now that we've saved the job id, ???
 			if ( gahpAd == NULL ) {
-				MyStrint expr;
+				MyString expr;
 				gahpAd = new ClassAd;
 				expr.sprintf( "%s = False", ATTR_SUBMIT_IN_PROGRESS );
 				gahpAd->Insert( expr.Value() );
@@ -410,7 +409,7 @@ int MirrorJob::doEvaluateState()
 				break;
 			}
 			if ( rc == 0 ) {
-				gmState = GM_SUBMITTED;
+				gmState = GM_SUBMITTED_MIRROR_INACTIVE;
 			} else {
 				// unhandled error
 				dprintf( D_ALWAYS,
@@ -440,7 +439,7 @@ int MirrorJob::doEvaluateState()
 			} break;
 		case GM_VACATE_SCHEDD: {
 			// The mirror has just become active. Send a vacate command to
-			// the schedd the job from being executing locally.
+			// the schedd to stop any local execution of the job.
 
 			// TODO fill in
 			gmState = GM_SUBMITTED_MIRROR_ACTIVE;

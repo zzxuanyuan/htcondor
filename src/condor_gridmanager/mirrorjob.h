@@ -86,7 +86,7 @@ class MirrorJob : public BaseJob
 	char *mirrorScheddName;
 	PROC_ID mirrorJobId;
 	char *remoteJobIdString;
-	bool localJobSchedulingEnabled;
+	bool mirrorActive;
 
 	MirrorResource *myResource;
 	GahpClient *gahp;
