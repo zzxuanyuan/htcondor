@@ -36,6 +36,7 @@ int ctok(int clicks);
 
 int close_kmem(){};
 
+
 /*
  *  DEFAULT_SWAPSPACE
  *
@@ -48,7 +49,7 @@ int close_kmem(){};
 
 /* EVIL!!  This shouldn't have to be here! -Derek 7/30/97 */
 int HasSigchldHandler = 0;
-
+int executing_as_nonroot = 1;
 
 /*
 ** Try to determine the swap space available on our own machine.  The answer
