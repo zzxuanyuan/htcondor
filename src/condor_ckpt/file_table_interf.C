@@ -28,11 +28,7 @@
 
 #include "file_table_interf.h"
 #include "file_state.h"
-
-// XXX What are the header files for these?
-
-extern "C" sigset_t block_condor_signals(void);
-extern "C" void restore_condor_sigmask(sigset_t omask);
+#include "signals_control.h"
 
 extern "C" {
 
@@ -91,7 +87,7 @@ void _condor_file_table_resume()
 void _condor_file_table_init()
 {
 	if(!FileTab) {
-		FileTab = new OpenFileTable();
+		FileTab = new CondorFileTable();
 		FileTab->init();
 	}
 }
@@ -99,9 +95,9 @@ void _condor_file_table_init()
 int _condor_file_pre_open( int fd, int readable, int writable, int is_remote )
 {
 	_condor_file_table_init();
-	sigset_t sigs = block_condor_signals();
+	sigset_t sigs = _condor_signals_disable();
 	int result = FileTab->pre_open(fd,readable,writable,is_remote);
-	restore_condor_sigmask(sigs);
+	_condor_signals_enable(sigs);
 	return result;
 }
 

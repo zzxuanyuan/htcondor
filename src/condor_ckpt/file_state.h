@@ -30,7 +30,36 @@
 #include "file_types.h"
 #include "buffer_cache.h"
 
-class FilePointer;
+/**
+This class maintains a seek pointer which sits between
+a file descriptor and a file implementation.  Several file
+descriptors may share one file pointer.
+
+This class is used as a helper for the CondorFileTable.
+*/
+
+class CondorFilePointer {
+public:
+	CondorFilePointer( CondorFile *f ) {
+		file = f;
+		offset = 0;
+		use_count = 0;
+	}
+
+	void       add_user()             { use_count++; }
+	void       remove_user()          { use_count--; }
+	int        get_use_count()        { return use_count; }
+	off_t      get_offset()           { return offset; }
+	void       set_offset( size_t s ) { offset=s; seek_count++; }
+	CondorFile *get_file()	          { return file; }
+	int        get_seek_count()       { return seek_count; }
+
+private:
+	CondorFile *file;      // What file do I refer to?
+	off_t      offset;     // The current seek pointer for this fd
+	int        use_count;  // How many fds share this fp?
+	int        seek_count; // How many times has the pointer changed?
+};
 
 /**
 This class multiplexes number of UNIX file system calls.
@@ -56,14 +85,14 @@ This class does _not_:
 	<li> Decide whether mapping is in effect.
 	     The system call stubs do that.
 	<li> Implement read, write, ioctl, etc. for _any_ file.
-	     Subclasses of File do that (file_types.C)
+	     Subclasses of CondorFile do that (file_types.C)
 	<li> Implement buffering.
-	     A BufferCache does that (buffer_cache.C)
+	     A CondorBufferCache does that (buffer_cache.C)
 	<li> Perform operations on names (i.e. stat()).
 	     Those are handled transparently by the syscall switches.
 </dir>
 
-The file table has two sub-structures, File and FilePointer.
+The file table has two sub-structures, CondorFile and CondorFilePointer.
 <p>
 Each integer file descriptor (fd) indexes a file pointer (fp) in
 the open file table.  Each fp stores a current seek pointer
@@ -94,7 +123,7 @@ fp      fp
 fo
 </pre>
 <p>
-Various implementations of File can be found in file_types.[hC].
+Various implementations of CondorFile can be found in file_types.[hC].
 <p>
 When in standalone checkpointing mode, the structure above is
 maintained so that we can use the same object and caching sceme.
@@ -119,7 +148,7 @@ fd  fd  fd                 fd  fd fd
 </pre>
 */
 
-class OpenFileTable {
+class CondorFileTable {
 public:
 
 	/** Prepare the table for use */
@@ -147,6 +176,11 @@ public:
 	    RemoteSyscalls, ask the shadow for the appropriate 
 	    access method, and then use that method for the open. */
 	int	open( const char *path, int flags, int mode );
+
+	/** Create two pipe endpoints.  This pipe may be used between
+	    checkpoints, but it must be closed before the job
+	    is checkpointed. */
+	int    pipe(int fds[]);
 
 	/** Close this file with UNIX semantics */
 	int	close( int fd );
@@ -212,21 +246,22 @@ private:
 	int	find_name(const char *path);
 	int	find_empty();
 
-	FilePointer	**pointers;
-	int		length;
-	BufferCache	*buffer;
-	char		local_working_dir[_POSIX_PATH_MAX];
-	char		remote_working_dir[_POSIX_PATH_MAX];
-	int		prefetch_size;
-	int		resume_count;
-	int		got_buffer_info;
+	CondorFilePointer	**pointers;
+	CondorBufferCache	*buffer;
+
+	int	length;
+	char	local_working_dir[_POSIX_PATH_MAX];
+	char	remote_working_dir[_POSIX_PATH_MAX];
+	int	prefetch_size;
+	int	resume_count;
+	int	got_buffer_info;
 };
 
 /** This is a pointer to the single global instance of the file
     table.  The only user of this pointer should be the system call
     switches, who need to send some syscalls to the open file table. */
 
-extern OpenFileTable *FileTab;
+extern CondorFileTable *FileTab;
 
 #endif
 

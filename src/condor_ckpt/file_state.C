@@ -42,28 +42,7 @@ static char *_FileName_ = __FILE__;
 // XXX Where is the header for this?
 extern int errno;
 
-OpenFileTable *FileTab=0;
-
-class FilePointer {
-public:
-	FilePointer( File *f ) {
-		file = f;
-		offset = 0;
-		use_count = 0;
-	}
-
-	void	add_user()		{ use_count++; }
-	void	remove_user()		{ use_count--; }
-	int	get_use_count()		{ return use_count; }
-	off_t	get_offset()		{ return offset; }
-	void	set_offset( size_t s )	{ offset=s; }
-	File	*get_file()		{ return file; }
-
-private:
-	File	*file;		// What file do I refer to?
-	off_t	offset;		// The current seek pointer for this fd
-	int	use_count;	// How many fds share this fp?
-};
+CondorFileTable *FileTab=0;
 
 /*
 This init function could be called from just about anywhere, perhaps
@@ -71,7 +50,7 @@ even when there is no shadow to talk to.  We will delay initializing
 a buffer until we do the first remote open.
 */
 
-void OpenFileTable::init()
+void CondorFileTable::init()
 {
 	buffer = 0;
 	prefetch_size = 0;
@@ -82,9 +61,9 @@ void OpenFileTable::init()
 	length = sysconf(_SC_OPEN_MAX);
 	SetSyscalls(scm);
 
-	pointers = new (FilePointer *)[length];
+	pointers = new (CondorFilePointer *)[length];
 	if(!pointers) {
-		EXCEPT("Condor Error: OpenFileTable: Out of memory!\n");
+		EXCEPT("Condor Error: CondorFileTable: Out of memory!\n");
 		Suicide();
 	}
 
@@ -104,7 +83,7 @@ static void _condor_flush_and_disable_buffer()
 	FileTab->disable_buffer();
 }
 
-void OpenFileTable::init_buffer()
+void CondorFileTable::init_buffer()
 {
 	int blocks=0, blocksize=0;
 
@@ -119,7 +98,7 @@ void OpenFileTable::init_buffer()
 		return;
 	}
 
-	buffer = new BufferCache( blocks, blocksize );
+	buffer = new CondorBufferCache( blocks, blocksize );
 
 	dprintf(D_ALWAYS,"Buffer cache is %d blocks of %d bytes.\n",blocks,blocksize);
 	dprintf(D_ALWAYS,"Prefetch size is %d\n",prefetch_size);
@@ -141,7 +120,7 @@ void OpenFileTable::init_buffer()
 	}
 }
 
-void OpenFileTable::disable_buffer()
+void CondorFileTable::disable_buffer()
 {
 	if(buffer) {
 		delete buffer;
@@ -149,12 +128,12 @@ void OpenFileTable::disable_buffer()
 	}
 }
 
-void OpenFileTable::flush()
+void CondorFileTable::flush()
 {
 	if(buffer) buffer->flush();
 }
 
-void OpenFileTable::dump()
+void CondorFileTable::dump()
 {
 	dprintf(D_ALWAYS,"\nOPEN FILE TABLE:\n");
 
@@ -169,28 +148,28 @@ void OpenFileTable::dump()
 	}
 }
 
-int OpenFileTable::pre_open( int fd, int readable, int writeable, int is_remote )
+int CondorFileTable::pre_open( int fd, int readable, int writeable, int is_remote )
 {
 	if( (fd<0) || (fd>=length) || (pointers[fd]) ) {
 		errno = EBADF;
 		return -1;
 	}
 
-	File *f;
+	CondorFile *f;
 
-	if( is_remote ) f = new RemoteFile;
-	else f = new LocalFile;
+	if( is_remote ) f = new CondorFileRemote;
+	else f = new CondorFileLocal;
 
 	f->force_open(fd,readable,writeable);
 	f->add_user();
 
-	pointers[fd] = new FilePointer(f);
+	pointers[fd] = new CondorFilePointer(f);
 	pointers[fd]->add_user();
 
 	return fd;	
 }
 
-int OpenFileTable::find_name( const char *path )
+int CondorFileTable::find_name( const char *path )
 {
 	for( int fd=0; fd<length; fd++ ) {
 		if( pointers[fd] && !strcmp(pointers[fd]->get_file()->get_name(),path) ) {
@@ -200,7 +179,7 @@ int OpenFileTable::find_name( const char *path )
 	return -1;
 }
 
-int OpenFileTable::find_empty()
+int CondorFileTable::find_empty()
 {
 	for( int fd=0; fd<length; fd++ ) {
 		if( !pointers[fd] ) return fd;
@@ -208,13 +187,12 @@ int OpenFileTable::find_empty()
 	return -1;
 }
 
-int OpenFileTable::open( const char *path, int flags, int mode )
+int CondorFileTable::open( const char *path, int flags, int mode )
 {
 	int	x,kind,success;
 	int	fd, new_fd;
 	char	new_path[_POSIX_PATH_MAX];
-	struct	stat info;
-	File	*f;
+	CondorFile	*f;
 
 	// Find an open slot in the table
 
@@ -226,7 +204,7 @@ int OpenFileTable::open( const char *path, int flags, int mode )
 
 	if( LocalSysCalls() ) {
 
-		f = new LocalFile;
+		f = new CondorFileLocal;
 		if( f->open(path,flags,mode)<0 ) {
 			delete f;
 			return -1;
@@ -263,19 +241,19 @@ int OpenFileTable::open( const char *path, int flags, int mode )
 
 			switch( kind ) {
 				case IS_PRE_OPEN:
-				f = new LocalFile;
+				f = new CondorFileLocal;
 				f->force_open( new_fd, 1, 1 );
 				break;
 
 				case IS_NFS:
 				case IS_AFS:
 				case IS_LOCAL:
-				f = new LocalFile;
+				f = new CondorFileLocal;
 				break;
 
 				case IS_RSC:
 				default:
-				f = new RemoteFile;
+				f = new CondorFileRemote;
 				f->enable_buffer();
 				break;
 			}
@@ -303,7 +281,7 @@ int OpenFileTable::open( const char *path, int flags, int mode )
 
 	// Install a new fp and update the use counts 
 
-	pointers[fd] = new FilePointer(f);
+	pointers[fd] = new CondorFilePointer(f);
 	pointers[fd]->add_user();
 	pointers[fd]->get_file()->add_user();
 
@@ -315,6 +293,85 @@ int OpenFileTable::open( const char *path, int flags, int mode )
 	return fd;
 }
 
+/*
+There is a limited support for pipes as special endpoints.
+We will create the pipe locally, install placeholders, and get out of
+the way.  A CondorFileSpecial object is just like a CondorFileLocal, but it
+cannot be checkpointed.
+*/
+
+int CondorFileTable::pipe(int fds[])
+{
+	int real_fds[2];
+	CondorFileSpecial *a, *b;
+
+	if(RemoteSysCalls()) {
+		_condor_file_warning("pipe() is unsupported.\n");
+		errno = EINVAL;
+		return -1;
+	}
+
+	fds[0] = find_empty();
+	fds[1] = find_empty();
+
+	if( (fds[0]<0) || (fds[1]<0) ) {
+		errno = EMFILE;
+		return -1;
+	}
+
+	CondorFileSpecial *fa = new CondorFileSpecial("pipe endpoint");
+	if(!fa) {
+		errno = ENOMEM;
+		return -1;
+	}
+
+	CondorFileSpecial *fb = new CondorFileSpecial("pipe endpoint");
+	if(!fb) {
+		delete fa;
+		errno = ENOMEM;
+		return -1;
+	}
+
+	CondorFilePointer *pa = new CondorFilePointer(fa);
+	if(!pa) {
+		delete fa;
+		delete fb;
+		errno = ENOMEM;
+		return -1;
+	}
+
+	CondorFilePointer *pb = new CondorFilePointer(fb);
+	if(!pb) {
+		delete fa;
+		delete fb;
+		delete pa;
+		errno = ENOMEM;
+		return -1;
+	}
+
+	if(pipe(real_fds)<0) {
+		delete fa;
+		delete fb;
+		delete pa;
+		delete pb;
+		return -1;
+	}
+
+	pointers[fds[0]] = pa;
+	pointers[fds[1]] = pb;
+
+	fa->force_open(real_fds[0],1,1);
+	fa->add_user();
+
+	fb->force_open(real_fds[1],1,1);
+	fb->add_user();
+
+	pa->add_user();
+	pb->add_user();
+
+	return 0;
+}
+	
 /* 
 Close is a little tricky.
 Find the fp corresponding to the fd.
@@ -327,7 +384,7 @@ If I am the last user of this fp:
 In any case, zero the appropriate entry of the table.
 */
 
-int OpenFileTable::close( int fd )
+int CondorFileTable::close( int fd )
 {
 	if( (fd<0) || (fd>=length) || (pointers[fd]==0) ) {
 		errno = EBADF;
@@ -351,7 +408,7 @@ int OpenFileTable::close( int fd )
 }
 
 
-ssize_t OpenFileTable::read( int fd, void *data, size_t nbyte )
+ssize_t CondorFileTable::read( int fd, void *data, size_t nbyte )
 {
 	if( (fd>=length) || (fd<0) || (pointers[fd]==0) ||
 	    (!pointers[fd]->get_file()->is_readable()) ) {
@@ -364,8 +421,8 @@ ssize_t OpenFileTable::read( int fd, void *data, size_t nbyte )
 		return -1;
 	}
 
-	FilePointer *fp = pointers[fd];
-	File *f = fp->get_file();
+	CondorFilePointer *fp = pointers[fd];
+	CondorFile *f = fp->get_file();
 
 	// First, figure out the appropriate place to read from.
 
@@ -404,7 +461,7 @@ ssize_t OpenFileTable::read( int fd, void *data, size_t nbyte )
 	return actual;
 }
 
-ssize_t OpenFileTable::write( int fd, const void *data, size_t nbyte )
+ssize_t CondorFileTable::write( int fd, const void *data, size_t nbyte )
 {
 	if( (fd>=length) || (fd<0) || (pointers[fd]==0) ||
 	    (!pointers[fd]->get_file()->is_writeable()) ) {
@@ -419,8 +476,8 @@ ssize_t OpenFileTable::write( int fd, const void *data, size_t nbyte )
 
 	if( nbyte==0 ) return 0;
 
-	FilePointer *fp = pointers[fd];
-	File *f = fp->get_file();
+	CondorFilePointer *fp = pointers[fd];
+	CondorFile *f = fp->get_file();
 
 	// First, figure out the appropriate place to write to.
 
@@ -449,15 +506,15 @@ ssize_t OpenFileTable::write( int fd, const void *data, size_t nbyte )
 	return actual;
 }
 
-off_t OpenFileTable::lseek( int fd, off_t offset, int whence )
+off_t CondorFileTable::lseek( int fd, off_t offset, int whence )
 {
 	if( (fd<0) || (fd>=length) || (pointers[fd]==0) ) {
 		errno = EBADF;
 		return -1;
 	}
 
-	FilePointer *fp = pointers[fd];
-	File *f = fp->get_file();
+	CondorFilePointer *fp = pointers[fd];
+	CondorFile *f = fp->get_file();
 	int temp;
 
 	// Compute the new offset first.
@@ -498,12 +555,12 @@ static int _condor_internal_dup2( int oldfd, int newfd )
 	#endif
 }
 
-int OpenFileTable::dup( int fd )
+int CondorFileTable::dup( int fd )
 {
 	return search_dup2( fd, 0 );
 }
 
-int OpenFileTable::search_dup2( int fd, int search )
+int CondorFileTable::search_dup2( int fd, int search )
 {
 	if( (fd<0) || (fd>=length) || (pointers[fd]==0) ||
 	    (search<0) || (search>=length) ) {
@@ -524,7 +581,7 @@ int OpenFileTable::search_dup2( int fd, int search )
 	}
 }
 
-int OpenFileTable::dup2( int fd, int nfd )
+int CondorFileTable::dup2( int fd, int nfd )
 {
 	int result;
 
@@ -569,14 +626,14 @@ So, we will just avoid the problem by extracting the name
 of the file, and calling chdir.
 */
 
-int OpenFileTable::fchdir( int fd )
+int CondorFileTable::fchdir( int fd )
 {
 	if( (fd<0) || (fd>=length) || (pointers[fd]==0) ) {
 		errno = EBADF;
 		return -1;
 	}
 
-	dprintf(D_ALWAYS,"OpenFileTable::fchdir(%d) will try chdir(%s)\n",
+	dprintf(D_ALWAYS,"CondorFileTable::fchdir(%d) will try chdir(%s)\n",
 		fd, pointers[fd]->get_file()->get_name() );
 
 	return ::chdir( pointers[fd]->get_file()->get_name() );
@@ -588,7 +645,7 @@ along to the individual access method, which will decide
 if it can be supported.
 */
 
-int OpenFileTable::ioctl( int fd, int cmd, int arg )
+int CondorFileTable::ioctl( int fd, int cmd, int arg )
 {
 	if( (fd<0) || (fd>=length) || (pointers[fd]==0) ) {
 		errno = EBADF;
@@ -598,7 +655,7 @@ int OpenFileTable::ioctl( int fd, int cmd, int arg )
 	return pointers[fd]->get_file()->ioctl(cmd,arg);
 }
 
-int OpenFileTable::ftruncate( int fd, size_t length )
+int CondorFileTable::ftruncate( int fd, size_t length )
 {
 	if( (fd<0) || (fd>=length) || (pointers[fd]==0) ) {
 		errno = EBADF;
@@ -624,7 +681,7 @@ the access method, which may support the operation,
 or fail with its own error.
 */
 
-int OpenFileTable::fcntl( int fd, int cmd, int arg )
+int CondorFileTable::fcntl( int fd, int cmd, int arg )
 {
 	if( (fd<0) || (fd>=length) || (pointers[fd]==0) ) {
 		errno = EBADF;
@@ -648,7 +705,7 @@ int OpenFileTable::fcntl( int fd, int cmd, int arg )
 	}
 }
 
-int OpenFileTable::fsync( int fd )
+int CondorFileTable::fsync( int fd )
 {
 	if( (fd<0) || (fd>=length) || (pointers[fd]==0) ) {
 		errno = EBADF;
@@ -660,9 +717,9 @@ int OpenFileTable::fsync( int fd )
 	pointers[fd]->get_file()->fsync();
 }
 
-void OpenFileTable::checkpoint()
+void CondorFileTable::checkpoint()
 {
-	dprintf(D_ALWAYS,"OpenFileTable::checkpoint\n");
+	dprintf(D_ALWAYS,"CondorFileTable::checkpoint\n");
 
 	dump();
 
@@ -681,9 +738,9 @@ void OpenFileTable::checkpoint()
 	     if( pointers[i] ) pointers[i]->get_file()->checkpoint();
 }
 
-void OpenFileTable::suspend()
+void CondorFileTable::suspend()
 {
-	dprintf(D_ALWAYS,"OpenFileTable::suspend\n");
+	dprintf(D_ALWAYS,"CondorFileTable::suspend\n");
 
 	dump();
 
@@ -702,13 +759,13 @@ void OpenFileTable::suspend()
 	     if( pointers[i] ) pointers[i]->get_file()->suspend();
 }
 
-void OpenFileTable::resume()
+void CondorFileTable::resume()
 {
 	int result;
 
 	resume_count++;
 
-	dprintf(D_ALWAYS,"OpenFileTable::resume_count=%d\n");
+	dprintf(D_ALWAYS,"CondorFileTable::resume_count=%d\n");
 	dprintf(D_ALWAYS,"local wd=%s\nremote wd=%s\n",local_working_dir,remote_working_dir);
 	result = syscall( SYS_chdir, local_working_dir );
 
@@ -753,7 +810,7 @@ void OpenFileTable::resume()
 	dump();
 }
 
-int OpenFileTable::map_fd_hack( int fd )
+int CondorFileTable::map_fd_hack( int fd )
 {
 	if( (fd<0) || (fd>=length) || (pointers[fd]==0) ) {
 		errno = EBADF;
@@ -763,7 +820,7 @@ int OpenFileTable::map_fd_hack( int fd )
 	return pointers[fd]->get_file()->map_fd_hack();
 }
 
-int OpenFileTable::local_access_hack( int fd )
+int CondorFileTable::local_access_hack( int fd )
 {
 	if( (fd<0) || (fd>=length) || (pointers[fd]==0) ) {
 		errno = EBADF;

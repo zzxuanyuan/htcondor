@@ -21,7 +21,22 @@ extern "C" void _condor_file_warning( char *format, ... )
 	} else if(LocalSysCalls()) {
 		dprintf(D_ALWAYS,"Condor Warning: %s\n",text);
 	} else {
-		REMOTE_syscall( CONDOR_perm_error, text );
+		REMOTE_syscall( CONDOR_report_error, text );
+	}
+
+	va_end(args);
+}
+
+extern "C" void _condor_file_info( char *format, ... )
+{
+	va_list	args;
+	va_start(args,format);
+
+	static char text[1024];
+	vsprintf(text,format,args);
+
+	if(MyImage.GetMode()!=STANDALONE) {
+		REMOTE_syscall( CONDOR_report_error, text );
 	}
 
 	va_end(args);
@@ -31,30 +46,21 @@ extern "C" void __pure_virtual()
 {
 }
 
-void File::dump() {
+void CondorFile::dump() {
 	dprintf(D_ALWAYS,
 		"rfd: %d r: %d w: %d size: %d users: %d kind: '%s' name: '%s'",
 		fd,readable,writeable,size,use_count,kind,name);
 }
 
-LocalFile::LocalFile()
-{
-	fd = -1;
-	readable = writeable = 0;
-	kind = "local file";
-	name[0] = 0;
-	size = 0;
-	use_count = 0;
-	forced = 0;
-	bufferable = 0;
-	resume_count=0;
-}
+// Nearly every kind of file needs to perform this initialization.
+// This method is provided so that implementors of this class can use
+// these tools
 
-int LocalFile::open(const char *path, int flags, int mode ) {
+int CondorFile::open(const char *path, int flags, int mode) {
 
 	strncpy(name,path,_POSIX_PATH_MAX);
 
-	IN_LOCAL_MODE( fd = ::open(path,flags,mode); )
+	fd = ::open(path,flags,mode);
 
 	switch( flags & O_ACCMODE ) {
 		case O_RDONLY:
@@ -73,36 +79,87 @@ int LocalFile::open(const char *path, int flags, int mode ) {
 			return -1;
 	}
 
-	IN_LOCAL_MODE( size = ::lseek( fd, 0 , SEEK_END ); )
-	if(size==-1) size=0;
-	IN_LOCAL_MODE( lseek( fd, 0, SEEK_SET ); )
+	// Find the size of the file and store it.
+
+	size = lseek(fd,0,SEEK_END);
+	if(size==-1) {
+		seekable=0;
+		size=0;
+	} else {
+		seekable=1;
+	}
+	lseek(fd,0,SEEK_SET);
 
 	return fd;
 }
 
-int LocalFile::close() {
-	int result;
-	IN_LOCAL_MODE( result = ::close(fd); )
+int CondorFile::force_open( int f, int r, int w )
+{
+	fd = f;
+	readable = r;
+	writeable = w;
+	forced = 1;
+}
+
+void CondorFile::print_info()
+{
+	_condor_file_info("%s '%s':\n%d reads, %d bytes read, %d writes, %d bytes written\n",kind,name,read_count,read_bytes,write_count,write_bytes);
+}
+
+
+CondorFileLocal::CondorFileLocal()
+{
+	fd = -1;
+	readable = writeable = seekable = bufferable = 0;
+	kind = "local file";
+	name[0] = 0;
+	size = 0;
+	forced = 0;
+	use_count = 0;
+	resume_count=0;
+}
+
+int CondorFileLocal::open(const char *path, int flags, int mode ) {
+
+	int result, scm;
+
+	scm = SetSyscalls(SYS_LOCAL|SYS_UNMAPPED);
+	result = CondorFile::open(path,flags,mode);
+	SetSyscalls(scm);
+
 	return result;
 }
 
-int LocalFile::read(int pos, char *data, int length) {
-	// XXX Optimize this where possible
-	int result;
-	IN_LOCAL_MODE(
-		::lseek(fd,pos,SEEK_SET);
-		result = ::read(fd,data,length);
-		)
+int CondorFileLocal::close() {
+	int result, scm;
+
+	scm = SetSyscalls(SYS_LOCAL|SYS_UNMAPPED);
+	result = ::close(fd);
+	fd = -1;
+	SetSyscalls(scm);
+
 	return result;
 }
 
-int LocalFile::write(int pos, char *data, int length) {
-	// XXX Optimize this where possible
-	int result;
-	IN_LOCAL_MODE(
-		::lseek(fd,pos,SEEK_SET);
-		result = ::write(fd,data,length);
-		)
+int CondorFileLocal::read(int pos, char *data, int length) {
+	int result, scm;
+
+	scm = SetSyscalls(SYS_LOCAL|SYS_UNMAPPED);
+	::lseek(fd,pos,SEEK_SET);
+	result = ::read(fd,data,length);
+	SetSyscalls(scm);
+
+	return result;
+}
+
+int CondorFileLocal::write(int pos, char *data, int length) {
+	int result, scm;
+
+	scm = SetSyscalls(SYS_LOCAL|SYS_UNMAPPED);
+	::lseek(fd,pos,SEEK_SET);
+	result = ::write(fd,data,length);
+	SetSyscalls(scm);
+
 	return result;
 }
 
@@ -111,47 +168,64 @@ We can happily support any fcntl or ioctl command in local mode.
 Remote mode is a different story, see below.
 */
 
-int LocalFile::fcntl( int cmd, int arg )
+int CondorFileLocal::fcntl( int cmd, int arg )
 {
-	int result;
-	IN_LOCAL_MODE( result = ::fcntl(fd,cmd,arg); )
+	int result, scm;
+
+	scm = SetSyscalls(SYS_LOCAL|SYS_UNMAPPED);
+	result = ::fcntl(fd,cmd,arg);
+	SetSyscalls(scm);
+
 	return result;
 }
 
-int LocalFile::ioctl( int cmd, int arg )
+int CondorFileLocal::ioctl( int cmd, int arg )
 {
-	int result;
-	IN_LOCAL_MODE( result = ::ioctl(fd,cmd,arg); )
+	int result, scm;
+
+	scm = SetSyscalls(SYS_LOCAL|SYS_UNMAPPED);
+	result = ::ioctl(fd,cmd,arg);
+	SetSyscalls(scm);
+
 	return result;
 }
 
-int LocalFile::ftruncate( size_t length )
+int CondorFileLocal::ftruncate( size_t length )
 {
-	set_size(length);
-	int result;
-	IN_LOCAL_MODE( result = ::ftruncate(fd,length) );
+	int result, scm;
+
+	scm = SetSyscalls(SYS_LOCAL|SYS_UNMAPPED);
+	result = ::ftruncate(fd,length);
+	SetSyscalls(scm);
+
 	return result;
 }
 
-int LocalFile::fsync()
+int CondorFileLocal::fsync()
 {
-	int result;
-	IN_LOCAL_MODE( result = ::fsync(fd) );
+	int result, scm;
+
+	scm = SetSyscalls(SYS_LOCAL|SYS_UNMAPPED);
+	result = ::fsync(fd);
+	SetSyscalls(scm);
+
 	return result;
 }
 
-void LocalFile::checkpoint()
+void CondorFileLocal::checkpoint()
 {
 }
 
-void LocalFile::suspend()
+void CondorFileLocal::suspend()
 {
 	if( (fd==-1) || forced ) return;
-	IN_LOCAL_MODE( ::close(fd); )
+	int scm = SetSyscalls(SYS_LOCAL|SYS_UNMAPPED);
+	::close(fd);
+	SetSyscalls(scm);
 	fd=-1;
 }
 
-void LocalFile::resume( int count )
+void CondorFileLocal::resume( int count )
 {
 	if( (count==resume_count) || forced ) return;
 	resume_count = count;
@@ -162,93 +236,81 @@ void LocalFile::resume( int count )
 	else if( writeable )		flags = O_WRONLY;
 	else				flags = O_RDONLY;
 
-	IN_LOCAL_MODE( fd = ::open(name,flags); )
+	int scm = SetSyscalls(SYS_LOCAL|SYS_UNMAPPED);
+	fd = ::open(name,flags);
 	if( fd==-1 ) {
 		_condor_file_warning("Unable to reopen local file %s after a checkpoint!\n",name);
 	}
+	SetSyscalls(scm);
 }
 
-int LocalFile::local_access_hack()
+int CondorFileLocal::local_access_hack()
 {
 	return 1;
 }
 
-int LocalFile::map_fd_hack()
+int CondorFileLocal::map_fd_hack()
 {
 	return fd;
 }
 
-RemoteFile::RemoteFile()
+CondorFileRemote::CondorFileRemote()
 {
 	fd = -1;
-	readable = writeable = 0;
+	readable = writeable = seekable = bufferable = 0;
 	kind = "remote file";
 	name[0] = 0;
 	size = 0;
-	use_count = 0;
 	forced = 0;
-	bufferable = 0;
-	resume_count = 0;
+	use_count = 0;
+	resume_count=0;
 }
 
-int RemoteFile::open(const char *path, int flags, int mode )
+int CondorFileRemote::open(const char *path, int flags, int mode )
 {
-	strncpy(name,path,_POSIX_PATH_MAX);
+	int scm, result;
 
-	fd = REMOTE_syscall( CONDOR_open, path, flags, mode );
+	scm = SetSyscalls(SYS_REMOTE|SYS_UNMAPPED);
+	result = CondorFile::open(path,flags,mode);
+	SetSyscalls(scm);
 
-	if( fd<0 ) return fd;
-
-	switch( flags & O_ACCMODE ) {
-		case O_RDONLY:
-			readable = 1;
-			writeable = 0;
-			break;
-		case O_WRONLY:
-			readable = 0;
-			writeable = 1;
-			break;
-		case O_RDWR:
-			readable = 1;
-			writeable = 1;
-			break;
-		default:
-			return -1;
-	}
-
-	size = REMOTE_syscall( CONDOR_lseek, fd, 0, SEEK_END );
-	if(size<0) size=0;
-	REMOTE_syscall( CONDOR_lseek, fd, 0, SEEK_SET );
-
-	return fd;
+	return result;
 }
 
-int RemoteFile::close() {
-	return REMOTE_syscall( CONDOR_close, fd );
+int CondorFileRemote::close() {
+	int scm,result;
+
+	scm = SetSyscalls(SYS_REMOTE|SYS_UNMAPPED);
+	result = ::close(fd);
+	SetSyscalls(scm);
+
+	return result;
 }
 
-int RemoteFile::read(int pos, char *data, int length) {
-	// XXX optimize this to to read when possible
+int CondorFileRemote::read(int pos, char *data, int length) {
+	// Change this to a switch call when it exists.
        	return REMOTE_syscall( CONDOR_lseekread, fd, pos, SEEK_SET, data, length );
 }
 
-int RemoteFile::write(int pos, char *data, int length) {
-	// XXX optimize this to do write when possible
+int CondorFileRemote::write(int pos, char *data, int length) {
+	// Change this to switch call when it exists
 	return REMOTE_syscall( CONDOR_lseekwrite, fd, pos, SEEK_SET, data, length );
 }
 
-void RemoteFile::checkpoint()
+void CondorFileRemote::checkpoint()
 {
 }
 
-void RemoteFile::suspend()
+void CondorFileRemote::suspend()
 {
 	if( (fd==-1) || forced ) return;
-	REMOTE_syscall( CONDOR_close, fd );
+	int scm = SetSyscalls(SYS_REMOTE|SYS_UNMAPPED);
+	::close(fd);
+	SetSyscalls(scm);
 	fd = -1;
 }
 
-void RemoteFile::resume( int count )
+void CondorFileRemote::resume( int count )
 {
 	if( (count==resume_count) || forced ) return;
 	resume_count = count;
@@ -263,7 +325,9 @@ void RemoteFile::resume( int count )
 		flags = O_RDONLY;
 	}
 
-	fd=REMOTE_syscall( CONDOR_open, name, flags, 0 );
+	int scm = SetSyscalls(SYS_REMOTE|SYS_UNMAPPED);
+	fd = ::open(name,flags,0);
+	SetSyscalls(scm);
 	if(fd<0) {
 		_condor_file_warning("Unable to re-open remote file %s after checkpoint!\n",name);
 	}
@@ -275,8 +339,10 @@ commands that have a single integer argument.  Others
 are a lost cause...
 */
 
-int RemoteFile::fcntl( int cmd, int arg )
+int CondorFileRemote::fcntl( int cmd, int arg )
 {
+	int result, scm;
+
 	struct flock *f;
 
 	switch(cmd) {
@@ -295,7 +361,10 @@ int RemoteFile::fcntl( int cmd, int arg )
 		#ifdef F_SETFL
 		case F_SETFL:
 		#endif
-			return REMOTE_syscall( CONDOR_fcntl, fd, cmd, arg );
+			scm = SetSyscalls(SYS_REMOTE|SYS_UNMAPPED);
+			result = ::fcntl(fd,cmd,arg);
+			SetSyscalls(scm);
+			return result;
 
 		#ifdef F_FREESP
 		case F_FREESP:
@@ -324,33 +393,68 @@ int RemoteFile::fcntl( int cmd, int arg )
 	}
 }
 
-int RemoteFile::ioctl( int cmd, int arg )
+int CondorFileRemote::ioctl( int cmd, int arg )
 {
-	/* ioctl seems to get used quite often in libc. */
-	/* Let's just fail silently... */
+	_condor_file_warning("ioctl(%d,%d,...) is not supported for remote files.",fd,cmd);
 	errno = EINVAL;
 	return -1;
 }
 
-int RemoteFile::ftruncate( size_t length )
+int CondorFileRemote::ftruncate( size_t length )
 {
+	int scm,result;
+
 	set_size(length);
-	return REMOTE_syscall( CONDOR_ftruncate, fd, length );
+	scm = SetSyscalls(SYS_REMOTE|SYS_UNMAPPED);
+	result = ::ftruncate(fd,length);
+	SetSyscalls(scm);
+
+	return result;
 }
 
-int RemoteFile::fsync()
+int CondorFileRemote::fsync()
 {
-	return REMOTE_syscall( CONDOR_fsync, fd );
+	int scm,result;
+
+	scm = SetSyscalls(SYS_REMOTE|SYS_UNMAPPED);
+	result = ::fsync(fd);
+	SetSyscalls(scm);
+
+	return result;
 }
 
-int RemoteFile::local_access_hack()
+int CondorFileRemote::local_access_hack()
 {
 	return 0;
 }
 
-int RemoteFile::map_fd_hack()
+int CondorFileRemote::map_fd_hack()
 {
 	return fd;
+}
+
+CondorFileSpecial::CondorFileSpecial(char *k)
+{
+	fd = -1;
+	readable = writeable = 0;
+	kind = k;
+	name[0] = 0;
+	size = 0;
+	use_count = 0;
+	forced = 0;
+	bufferable = 0;
+	resume_count=0;
+}
+
+void CondorFileSpecial::checkpoint()
+{
+	suspend();
+}
+
+void CondorFileSpecial::suspend()
+{
+	_condor_file_warning("A %s cannot be used across checkpoints.\n",kind);
+	Suicide();
 }
 
 

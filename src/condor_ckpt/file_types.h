@@ -18,6 +18,13 @@ is in effect, this will just put a message to stderr.
 extern "C" void _condor_file_warning( char *format, ... );
 
 /**
+A printf-like function to display performance statistics.
+These are of low priority and do not indicate any error condition.
+*/
+
+extern "C" void _condor_file_info( char *format, ... );
+
+/**
 Pure virtual functions here cause a reference to a g++
 symbol, __pure_virtual.  When the c++ library is not present,
 i.e. linking with a fortran program, we need to provide 
@@ -30,12 +37,12 @@ general purpose location...
 extern "C" void __pure_virtual();
 
 /**
-File is a virtual class which defines some of the operations that
+CondorFile is a virtual class which defines some of the operations that
 can be performed on an fd.  Methods of accessing an fd (local,
-remote, ioserver, etc.) are built be extending File.
+remote, ioserver, etc.) are built be extending CondorFile.
 <p>
 Open, close, read, write, checkpoint, suspend, and resume must be
-implemented by subclasses of File.  Esoteric operations
+implemented by subclasses of CondorFile.  Esoteric operations
 (fcntl, fstat, etc.) are not generally supported, but they
 could be added in the same format if we find that users
 want to perform them on exotic storage methods.
@@ -46,7 +53,7 @@ to the shadow or local system, as appropriate.
 <p>
 Caveats:
 <dir>
-<li> Each file stores a unique integer when a resume() is
+<li> Each CondorFile stores a unique integer when a resume() is
 performed, so that no file is accidentally resumed twice after
 a checkpoint.  (See file_state.h for a instance where this
 might happen.)  The open file table must provide a unique
@@ -54,11 +61,11 @@ integer every time a resume() is performed.
 </dir>
 */
 
-class File {
+class CondorFile {
 public:
 	virtual void dump();
 
-	virtual int open(const char *path, int flags, int mode)=0;
+	virtual int open(const char *path, int flags, int mode);
 	virtual int close()=0;
 	virtual int read(int offset, char *data, int length)=0;
 	virtual int write(int offset, char *data, int length)=0;
@@ -90,50 +97,66 @@ public:
 	int	ok_to_buffer()		{ return bufferable; }
 
 	/**
+	Create an appropriate I/O report using _condor_file_info().
+	*/
+
+	void	print_info();
+
+	/**
 	Without performing an actual open, associate this
 	object with an existing fd, and mark it readable or writable
 	as indicated.
 	*/
 
-	int	force_open( int f, int r, int w ) {
-		fd = f;
-		readable = r;
-		writeable = w;
-		forced = 1;
-	}
+	int	force_open( int f, int r, int w );
 
-	/** Return the real fd associated with this file.
-	    Returns -1 if the mapping is not trivial.  */
+	/**
+	Return the real fd associated with this file.
+	Returns -1 if the mapping is not trivial.
+	*/
 
 	virtual int map_fd_hack()=0;
 
-	/** Returns true if this file can be accessed by
-	    referring to the fd locally.  Returns false
-	    otherwise. */
+	/**
+	Returns true if this file can be accessed by
+	referring to the fd locally.  Returns false
+	otherwise.
+	*/
 
 	virtual int local_access_hack()=0;
 
 protected:
 
 	int	fd;		// the real fd used by this file
-	int	readable;	// can this file be read?
-	int	writeable;	// can this file be written?
 	char	*kind;		// text describing file type
 	char	name[_POSIX_PATH_MAX]; // file name used at open
-	int	size;		// number of bytes in the file
-	int	use_count;	// how many people are using this object?
-	int	forced;		// was this created with force_open?
+
+	int	readable;	// can this file be read?
+	int	writeable;	// can this file be written?
+	int	seekable;	// can this file be seekd?
 	int	bufferable;	// should this file be buffered?
+
+	int	size;		// number of bytes in the file
+	int	forced;		// was this created with force_open?
+
+	int	use_count;	// how many people are using this object?
 	int	resume_count;	// how many times has this object been resumed?
+
+	// How much data has passed through this object?
+
+	int	read_count;
+	int	read_bytes;
+	int	write_count;
+	int	write_bytes;
 };
 
 /**
 This class sends all operations to a locally opened file.
 */
 
-class LocalFile : public File {
+class CondorFileLocal : public CondorFile {
 public:
-	LocalFile();
+	CondorFileLocal();
 
 	virtual int open(const char *path, int flags, int mode);
 	virtual int close();
@@ -157,9 +180,9 @@ public:
 This class sends all I/O operations to a remotely opened file.
 */
 
-class RemoteFile : public File {
+class CondorFileRemote : public CondorFile {
 public:
-	RemoteFile();
+	CondorFileRemote();
 
 	virtual int open(const char *path, int flags, int mode);
 	virtual int close();
@@ -180,11 +203,23 @@ public:
 };
 
 /**
-This class sends all I/O operations to an I/O server.
-(Not implemented yet.)
+There are lots of items which go into the file table that Condor
+doesn't really understand.  In limited situations, we want to support
+the use of pipes and sockets and record their use, but they certainly
+can't be checkpointed.
+
+This class allows access just like a local file, but checkpoint
+and suspend will cause errors.
 */
 
-class IOServerFile : public File { };
+class CondorFileSpecial : public CondorFileLocal {
+public:
+	CondorFileSpecial( char *kind );
+
+	/* These methods will cause the program to die. */
+	virtual void checkpoint();
+	virtual void suspend();
+};
 
 #endif
 

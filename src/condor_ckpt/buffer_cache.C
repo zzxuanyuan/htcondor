@@ -38,9 +38,9 @@ Nomenclature:
 	position The number of a block, as it is positioned in the cache
 */
 
-class BlockInfo {
+class CondorBlockInfo {
 public:
-	File	*owner;		// The virtual file this belongs to
+	CondorFile	*owner;		// The virtual file this belongs to
 	int	order;		// The order of this block in the file
 	int	dirty;		// Has this been changed?
 	int	last_used;	// Time of last use
@@ -51,7 +51,7 @@ If we can't allocate a buffer this big, leave the pointer at zero,
 and divert all reads and writes directly to access methods.
 */
 
-BufferCache::BufferCache(int b, int bs)
+CondorBufferCache::CondorBufferCache(int b, int bs)
 {
 	blocks = b;
 	block_size = bs;
@@ -64,7 +64,7 @@ BufferCache::BufferCache(int b, int bs)
 	}
 
 	buffer = new char[blocks*block_size];
-	info = new BlockInfo[blocks];
+	info = new CondorBlockInfo[blocks];
 
 	if( !buffer || !info ) {
 		_condor_file_warning("Condor Warning: Unable to allocate the requested buffer of %d blocks of %d bytes.  Buffering is disabled.\n",blocks,block_size);
@@ -83,7 +83,7 @@ BufferCache::BufferCache(int b, int bs)
 	time = 0;
 }
 
-BufferCache::~BufferCache()
+CondorBufferCache::~CondorBufferCache()
 {
 	if(info) delete [] info;
 	if(buffer) delete [] buffer;
@@ -100,7 +100,7 @@ Consider common examples -- what is the best thing to do?
 	 Lost connection on socket
 */
 
-int BufferCache::write_block( int position )
+int CondorBufferCache::write_block( int position )
 {
 	int result,fragment;
 
@@ -137,7 +137,7 @@ An error committed in a read isn't so bad.
 We can return the error to the user.
 */
 
-int BufferCache::read_block( File *owner, int position, int order )
+int CondorBufferCache::read_block( CondorFile *owner, int position, int order )
 {
 	int result;
 
@@ -168,7 +168,7 @@ Return an unused, or otherwise the least recently used block
 position in the cache.  Never fails.
 */
 
-int BufferCache::find_lru_position()
+int CondorBufferCache::find_lru_position()
 {
 	int	best_time=info[0].last_used;
 	int	best_block=0;
@@ -192,7 +192,7 @@ If it is not in the cache, return -1.  Otherwise, return
 the position of the block.
 */
 
-int BufferCache::find_block(File *owner, int order)
+int CondorBufferCache::find_block(CondorFile *owner, int order)
 {
 	for( int i=0; i<blocks; i++ ) {
 		if( (info[i].owner==owner) && (info[i].order==order) ) {
@@ -208,7 +208,7 @@ Find an empty place in the cache for a new block.
 Return the position of the new block.
 */
 
-int BufferCache::make_room()
+int CondorBufferCache::make_room()
 {
 	int position;
 
@@ -232,7 +232,7 @@ int BufferCache::make_room()
 Attempt to bring a block into the cache, reading if necessary.
 */
 
-int BufferCache::find_or_load_block(File *owner, int order)
+int CondorBufferCache::find_or_load_block(CondorFile *owner, int order)
 {
 	int position = find_block(owner,order);
 
@@ -258,7 +258,7 @@ Read from the buffer cache.
 Returns an error or the number of bytes read.
 */
 
-ssize_t BufferCache::read( File *owner, off_t offset, char *data, ssize_t length )
+ssize_t CondorBufferCache::read( CondorFile *owner, off_t offset, char *data, ssize_t length )
 {
 	int order,position,chunksize;
 	int bytes_read=0;
@@ -307,7 +307,7 @@ Write to the buffer cache.
 Return the number of bytes written, or an error.
 */
 
-ssize_t BufferCache::write( File *owner, off_t offset, char *data, ssize_t length )
+ssize_t CondorBufferCache::write( CondorFile *owner, off_t offset, char *data, ssize_t length )
 {
 	int order,position,chunksize,readmode;
 	int bytes_written=0;
@@ -379,7 +379,7 @@ ssize_t BufferCache::write( File *owner, off_t offset, char *data, ssize_t lengt
 	}
 }
 
-void BufferCache::prefetch( File *f, off_t offset, size_t length )
+void CondorBufferCache::prefetch( CondorFile *f, off_t offset, size_t length )
 {
 	if( (!f) || (offset<0) || (length<=0) ) return;
 
@@ -392,7 +392,7 @@ void BufferCache::prefetch( File *f, off_t offset, size_t length )
 	}
 }
 
-void BufferCache::invalidate( File *owner, off_t offset, size_t length )
+void CondorBufferCache::invalidate( CondorFile *owner, off_t offset, size_t length )
 {
 	int start_block = offset/block_size;
 	int end_block = (offset+length)/block_size;
@@ -410,7 +410,7 @@ void BufferCache::invalidate( File *owner, off_t offset, size_t length )
 		 
 }
 
-void BufferCache::flush()
+void CondorBufferCache::flush()
 {
 	if(!buffer) return;
 
@@ -421,7 +421,7 @@ void BufferCache::flush()
 			write_block(i);
 }
 
-void BufferCache::flush( File *owner )
+void CondorBufferCache::flush( CondorFile *owner )
 {
 	if(!buffer) return;
 
