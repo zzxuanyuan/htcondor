@@ -8,8 +8,8 @@ GCC_LIBC = LIB_GCC
 #define HasGcc		YES
 #define HasGPlusPlus	YES
 
-#define CCompiler	gcc
-#define CPlusCompiler	g++
+#define CCompiler	gcc296
+#define CPlusCompiler	g++296
 #define PreProcessCmd	CCompiler -E -x c-header
 #define Demangler	c++filt
 
@@ -37,6 +37,7 @@ GCC_LIBC = LIB_GCC
 
 /* Put all of your #defines up here do you can turn them off/redefine
 	them selectively for an architecture if you desire. */
+/*#define WANT_SOAP        YES*/
 #define WANT_MAN_PAGES	YES
 #define WANT_CONDOR_ANALZYE YES
 #define IS_V6			YES
@@ -69,14 +70,14 @@ GlobusPath = /unsup/globus-2.2.4
 /* Top should be the root of the source directory you want to use if
 you want our top-level Makefile to build the directory tree with all
 the soft links.  The links will point back to Top/src/... */
-#define Top /p/condor/workspaces/psilord/v65/v65-dirty
+#define Top /p/condor/workspaces/matt/SOAP/V6_7-soap-branch
 
 #define TmpDir		/tmp
 
 /*
  * GccVersion should be the only one that needs to be changed from time to time
  */
-#define GccVersion 2.7.2.3
+#define GccVersion 2.96
 
 #if defined( GccPath )
 #undef GccPath
