@@ -2,9 +2,6 @@
 {metascheduler of the jobs submitted as the nodes of a DAG}
 \Synopsis \SynProg{\Condor{dagman}}
 \oOptArg{-debug}{level}
-%\oOptArg{-storklog}{name-prefix}
-\oOptArg{-lockfile}{filename}
-\oOptArg{-dag}{filename}
 \oOptArg{-rescue}{filename}
 \oOptArg{-maxjobs}{numberofjobs}
 \oOptArg{-maxpre}{NumberOfPREscripts}
@@ -12,6 +9,9 @@
 \oOpt{-nopostfail}
 \oOpt{-noeventchecks}
 \oOpt{-allowlogerror}
+(\OptArg{-condorlog}{filename} \Bar \OptArg{-storklog}{filename})
+\OptArg{-lockfile}{filename}
+\OptArg{-dag}{filename}
 
 \index{Condor commands!condor\_dagman}
 \index{condor\_dagman command}
@@ -47,18 +47,6 @@ given in their description below.
        This command-line option to \Condor{submit\_dag}
        is passed to \Condor{dagman} or
        defaults to the value 3, as set by \Condor{submit\_dag}.  }
-%    \OptItem{\OptArg{-storklog}{name-prefix}}{Sets the file name of
-%    ???.
-%    }
-    \OptItem{\OptArg{-lockfile}{filename}}{Names the file
-       created and used as a lock file.
-       The lock file prevents execution of two of the 
-       same DAG, as defined by a DAG input file.
-       A default lock file ending with the suffix \File{.dag.lock}
-       is passed to \Condor{dagman} by \Condor{submit\_dag}.  }
-    \OptItem{\OptArg{-dag}{filename}}{\Arg{filename} is the name of the
-       DAG input file that is set as an argument to \Condor{submit\_dag},
-       and passed to \Condor{dagman}.}
     \OptItem{\OptArg{-rescue}{filename}}{Sets the file name of
        the rescue DAG to write in the case of a failure.
        As passed by \Condor{submit\_dag}, the name of the file
@@ -97,6 +85,20 @@ given in their description below.
     \OptItem{\Opt{-allowlogerror}}{This optional argument has 
        \Condor{dagman} try to run the specified DAG, even in the case
        of detected errors in the user log specification. }
+    \OptItem{\OptArg{-storklog}{filename}}{Sets the file name of
+       the Stork log for DaP jobs.  }
+    \OptItem{\OptArg{-condorlog}{filename}}{Sets the file name of
+       the file used in conjunction with the \OptArg{-lockfile}{filename}
+       in determining whether to run in recovery mode.  }
+    \OptItem{\OptArg{-lockfile}{filename}}{Names the file
+       created and used as a lock file.
+       The lock file prevents execution of two of the 
+       same DAG, as defined by a DAG input file.
+       A default lock file ending with the suffix \File{.dag.lock}
+       is passed to \Condor{dagman} by \Condor{submit\_dag}.  }
+    \OptItem{\OptArg{-dag}{filename}}{\Arg{filename} is the name of the
+       DAG input file that is set as an argument to \Condor{submit\_dag},
+       and passed to \Condor{dagman}.}
 \end{Options}
 
 

@@ -9,7 +9,7 @@
 \oOptArg{-maxpre}{NumberOfPREscripts}
 \oOptArg{-maxpost}{NumberOfPOSTscripts}
 \oOpt{-nopostfail}
-%\oOptArg{-storklog}{LogFileName}
+\oOptArg{-storklog}{LogFileName}
 \oOptArg{-notification}{value}
 \oOptArg{-debug}{level}
 \Arg{DAGInputFile}
@@ -56,7 +56,8 @@ description.
      from running in the case that the job within the node fails.
      Without this option, POST scripts always run when jobs fail.}
   \OptItem{\OptArg{-log}{LogFileName}}{Deprecated option; do not use.}
-% \OptItem{\OptArg{-storklog}{LogFileName}}{DESCRIPTION HERE.}
+  \OptItem{\OptArg{-storklog}{LogFileName}}{Sets the file name for the
+     Stork log of DaP jobs.}
   \OptItem{\OptArg{-notification}{value}}{Sets the e-mail notification
      for DAGMan itself. This information will be used within the Condor
      submit description file for DAGMan. This file is produced by
