@@ -3,7 +3,7 @@
 
 #include "proc.h"
 
-#define QMGMT_CMD	1111
+
 
 typedef struct {
 	int		count;
