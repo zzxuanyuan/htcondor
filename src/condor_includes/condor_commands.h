@@ -169,6 +169,13 @@ const int UPDATE_LICENSE_AD			= 42;
 const int QUERY_LICENSE_ADS			= 43;
 const int INVALIDATE_LICENSE_ADS	= 44;
 
+/************
+*** Command ids used by the license server
+************/
+
+const int RELEASE_LICENSE = 0;
+
+
 /*
 *** Daemon Core Signals
 */
