@@ -843,22 +843,15 @@ newCODIdString()
 		// COD id string (capability) is of the form:
 		// "<ip:port>#COD#startd_bday#sequence_num"
 
-	MyString id;
-	char startd_bday_str[32];
-	char seq_num_str[16];
-
 	static int sequence_num = 0;
+	sequence_num++;
 
-		// put the integers we need into a string so we can add them
-		// to our MyString
-	sprintf( startd_bday_str, "%ld", (long)startd_startup );
-	sprintf( seq_num_str, "%d", sequence_num );
-
+	MyString id;
 	id += daemonCore->InfoCommandSinfulString();
 	id += '#';
-	id += startd_bday_str;
+	id += (int)startd_startup;
 	id += '#';
-	id += seq_num_str;
+	id += sequence_num;
 	return strdup( id.Value() );
 }
 
