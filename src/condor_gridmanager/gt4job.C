@@ -1676,9 +1676,15 @@ xsi:schemaLocation=\"http://www.globus.org/namespaces/2004/06/job \
 	
 	*rsl += printXMLParam( "directory", remote_iwd.Value() );
 
-		// TODO need to split arguments ourselves
+		// parse arguments
 	if ( ad->LookupString(ATTR_JOB_ARGUMENTS, &attr_value) && *attr_value ) {
-		*rsl += printXMLParam ("argument", attr_value);
+		StringList arg_list( attr_value, " " );
+		char *arg;
+
+		arg_list.rewind();
+		while ( (arg = arg_list.next()) != NULL ) {
+			*rsl += printXMLParam ("argument", arg);
+		}
 	}
 	if ( attr_value != NULL ) {
 		free( attr_value );
