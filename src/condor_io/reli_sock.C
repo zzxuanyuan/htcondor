@@ -210,7 +210,7 @@ ReliSock::accept( ReliSock	*c)
 	return accept(*c);
 }
 
-bool ReliSock::init_MD(CONDOR_MD_MODE mode, KeyInfo * key)
+bool ReliSock::init_MD(CONDOR_MD_MODE mode, KeyInfo * key, const char * keyId)
 {
     return (snd_msg.init_MD(mode, key) && rcv_msg.init_MD(mode, key));
 }
@@ -612,12 +612,15 @@ ReliSock::end_of_message()
 	return ret_val;
 }
 
-
+const char * ReliSock :: isIncomingDataMD5ed()
+{
+    return NULL;    // For now
+}
 
 int 
 ReliSock::put_bytes(const void *data, int sz)
 {
-	int		tw, header_size = MD_is_on() ? MAX_HEADER_SIZE:NORMAL_HEADER_SIZE;
+	int		tw, header_size = isOutgoing_MD5_on() ? MAX_HEADER_SIZE:NORMAL_HEADER_SIZE;
 	int		nw, l_out;
         unsigned char * dta = NULL;
 
@@ -922,13 +925,16 @@ ReliSock::serialize() const
 
 	// first, get the state from our parent class
 	char * parent_state = Sock::serialize();
-	// now concatenate our state
+    // now concatenate our state
 	char * outbuf = new char[50];
 	sprintf(outbuf,"*%d*%s*",_special_state,sin_to_string(&_who));
 	strcat(parent_state,outbuf);
     const char * tmp = getFullyQualifiedUser();
     if (tmp) {
         strcat(parent_state, tmp);
+    }
+    else {
+        strcat(parent_state, " ");
     }
 	delete []outbuf;
 	return( parent_state );
@@ -940,26 +946,29 @@ ReliSock::serialize(char *buf)
 	char sinful_string[28], fqu[256];
 	char *ptmp;
 	
-	assert(buf);
+    assert(buf);
 
 	// here we want to restore our state from the incoming buffer
 
 	// first, let our parent class restore its state
-	ptmp = Sock::serialize(buf);
-	assert( ptmp );
-	sscanf(ptmp,"%d*%s*%s",&_special_state,sinful_string, fqu);
-	string_to_sin(sinful_string, &_who);
-    if (fqu[0] != '\0') {
-        if (authob && (authob->getFullyQualifiedUser() != NULL)) {
-            // odd situation!
-            dprintf(D_SECURITY, "WARNING!!!! Trying to serialize a socket for user %s but the socket already has another user: %s", fqu, authob->getFullyQualifiedUser());
-        }
-        else {
-            // We are cozy
-            fqu_ = strdup(fqu);
-        }
+    ptmp = Sock::serialize(buf);
+    assert( ptmp );
+    sscanf(ptmp,"%d*%s*%s",&_special_state,sinful_string, fqu);
+    string_to_sin(sinful_string, &_who);
+    if ((fqu[0] != ' ') && (fqu[0] != '\0')) {
+      if (authob && (authob->getFullyQualifiedUser() != NULL)) {
+          // odd situation!
+          dprintf(D_SECURITY, "WARNING!!!! Trying to serialize a socket for user %s but the socket is identified with another user: %s", fqu, authob->getFullyQualifiedUser());
+      }
+      else {
+          // We are cozy
+          fqu_ = strdup(fqu);
+      }
     }
-	return NULL;
+    else {
+      fqu_ = NULL;
+    }
+    return NULL;
 }
 
 int 

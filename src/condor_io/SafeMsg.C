@@ -32,49 +32,118 @@
 
 _condorPacket::_condorPacket()
 {
-	length = 0;
-	data = &dataGram[SAFE_MSG_HEADER_SIZE];
-	curIndex = 0;
-	next = NULL;
-        mdChecker_ = 0;
-        mode_ = MD_OFF;
+    init();
 }
 
-_condorPacket::_condorPacket(CONDOR_MD_MODE mode, KeyInfo * key)
+_condorPacket::_condorPacket(bool outPacket, KeyInfo * key, const char * keyID)
 {
-	data = &dataGram[SAFE_MSG_HEADER_SIZE];
-	next = NULL;
-        init_MD(mode, key);
+    init();
+    init_MD(outPacket, key, keyID);
 }
 
 _condorPacket::~_condorPacket()
 {
     delete mdChecker_;
+    if (incomingMD5KeyId_) {
+        free(incomingMD5KeyId_);
+        incomingMD5KeyId_ = 0;
+    }
+
+    if (outgoingMD5KeyId_) {
+        free(outgoingMD5KeyId_);
+        outgoingMD5KeyId_ = 0;
+    }
+    if (md_) {
+        free(md_);
+        md_ = 0;
+    }
 }
 
-bool _condorPacket::init_MD(CONDOR_MD_MODE mode, KeyInfo * key)
+void _condorPacket :: init()
 {
-    mode_ = mode;
+	length     = 0;
+	data       = &dataGram[SAFE_MSG_HEADER_SIZE];
+	curIndex   = 0;
+	next       = NULL;
+    mdChecker_        = 0;
+    incomingMD5KeyId_ = 0;
+    outgoingMD5KeyId_ = 0;
+    outgoingIdLen_    = 0;
+    md_               = 0;
+    verified_         = true;
+}
+
+const unsigned char * _condorPacket :: md()
+{
+    return md_;
+}
+
+bool _condorPacket::init_MD(bool outPacket, KeyInfo * key, const char * keyId)
+{
+    bool inited = true;
 
     delete mdChecker_;
 
-    if (mode_ == MD_ALWAYS_ON) {
-      assert(empty());
-      curIndex = MAC_SIZE; 
-      length = MAC_SIZE;
-      if (key) {
-        mdChecker_ = new Condor_MD_MAC(key);
-      }
-      else {
-        mdChecker_ = new Condor_MD_MAC();
-      }
+    if (outgoingMD5KeyId_) {
+        free(outgoingMD5KeyId_);
+        outgoingMD5KeyId_ = 0;
     }
-    else {
-      curIndex = 0;
-      length   = 0;
+    if (keyId) {
+        outgoingMD5KeyId_ = strdup(keyId);
+        outgoingIdLen_    = strlen(outgoingMD5KeyId_);
     }
 
-    return true;
+    if (key) {
+        mdChecker_ = new Condor_MD_MAC(key);
+    }     
+    else {    
+        mdChecker_ = new Condor_MD_MAC();
+    }
+
+    if (mdChecker_ && outPacket) {
+        // you can not change in the middle of a packet!
+        assert(empty());
+        curIndex += outgoingIdLen_; 
+        length    = curIndex;
+    }
+    else {
+        inited = false;
+    }
+
+    return inited;
+}
+
+void _condorPacket::setVerified(bool verified)
+{
+    verified_ = false;
+}
+
+bool _condorPacket :: verified()
+{
+    return verified_;
+}
+
+bool _condorPacket::verifyMD()
+{
+    if (mdChecker_ && !verified_) {
+        dprintf(D_SECURITY, "Verifying message digest %s\n", data, length);
+        mdChecker_->addMD((unsigned char *)&data, length);
+        
+        if (mdChecker_->verifyMD((unsigned char *)&md_[0])) {
+            dprintf(D_SECURITY, "MD verified!\n");
+            verified_ = true;
+        }
+        else {
+            verified_ = false;
+        }
+    }
+    else if (mdChecker_ == 0){
+        verified_ = true;
+    }
+    else {
+        // nothing here
+    }
+    return verified_;
 }
 /* Demarshall - Get the values of the header:
  * Set the values of data structure to the values of header field
@@ -88,36 +157,46 @@ bool _condorPacket::init_MD(CONDOR_MD_MODE mode, KeyInfo * key)
  *         false, otherwise
  */
 int _condorPacket::getHeader(bool &last,
-                              int &seq,
-					int &len,
-					_condorMsgID &mID,
-					void *&dta)
+                             int &seq,
+                             int &len,
+                             _condorMsgID &mID,
+                             void *&dta)
 {
-	if(memcmp(&dataGram[0], SAFE_MSG_MAGIC, 8)) {
-            if(len >= 0) {
-                length = len;
+    short flags, keylen;
+
+    if(memcmp(&dataGram[0], SAFE_MSG_MAGIC, 8)) {
+        if(len >= 0) {
+            length = len - 4;
+        }
+
+        dta = data = &dataGram[4];
+        
+        // First four bytes are MD5/encryption related
+        memcpy(&flags, &dataGram[0], 2);
+        flags = ntohs(flags);
+        memcpy(&keylen, &dataGram[2], 2);
+        keylen = ntohs(keylen);
+        if (flags == 1) {
+            dprintf(D_ALWAYS, "copying Message Digest\n");
+            // first 16 bytes are MD
+            length = length - MAC_SIZE - keylen;
+            len = length;
+            memcpy((void*)&md_[0], &dataGram[4], MAC_SIZE);
+            
+            if (keylen) {
+                incomingMD5KeyId_ = (char *) malloc(keylen+1);
+                memset(incomingMD5KeyId_, 0, keylen+1);
+                memcpy(incomingMD5KeyId_, &dataGram[4+MAC_SIZE], keylen);
             }
-
-            dta = data = &dataGram[0];
-
-            if (mdChecker_) {
-                // first 16 bytes are MD
-              dprintf(D_ALWAYS, "Verifying short Message Digest\n");
-                length -= MAC_SIZE;
-                len = length;
-                dprintf(D_ALWAYS, "Data is %s for %d bytes\n", &dataGram[MAC_SIZE], length);
-                mdChecker_->addMD((unsigned char *)&dataGram[MAC_SIZE], length);
-                if (mdChecker_->verifyMD((unsigned char *)&dataGram[0])) {
-                  dprintf(D_ALWAYS, "MD verified!\n");
-                    dta = data = &dataGram[MAC_SIZE];
-                }
-                else {
-                    return -1;
-                }
-            }
-
-            return 1;  // is short message & checksum is okay
-	}
+            
+            dta = data = &dataGram[MAC_SIZE+4+keylen];
+        }
+        
+        if (!verifyMD()) {
+            return -1;
+        }
+        return 1;  // is short message & checksum is okay
+	}   
 
 	last = (bool)dataGram[8];
 
@@ -139,25 +218,33 @@ int _condorPacket::getHeader(bool &last,
 	memcpy(&mID.msgNo, &dataGram[23], 2);
 	mID.msgNo = ntohs(mID.msgNo);
 
-        dta = data = &dataGram[25];
+    // First four bytes are MD5/encryption related
+    memcpy(&flags, &dataGram[25], 2);
+    flags = ntohs(flags);
+    memcpy(&keylen, &dataGram[27], 2);
+    keylen = ntohs(keylen);
 
-        if (mdChecker_) {
-            // first 16 bytes are MD
-          dprintf(D_ALWAYS, "Verifying Message Digest\n");
-          dprintf(D_ALWAYS, "Data is %s for %d bytes\n", &dataGram[MAC_SIZE], length);
+    dta = data = &dataGram[29];
 
-            length -= MAC_SIZE;
-            len = length;
-            mdChecker_->addMD((unsigned char *)&(dataGram[25+MAC_SIZE]), length);
-            if (mdChecker_->verifyMD((unsigned char *)&dataGram[25])) {
-                dta = data = &dataGram[25+MAC_SIZE];
-                dprintf(D_ALWAYS, "MD verified!\n");
-            }
-            else {
-                return -1;
-            }
+    if (flags == 1) {
+        // first 16 bytes are MD
+        length = length - MAC_SIZE - keylen;
+        len = length;
+        memcpy((void*)&md_[0], &dataGram[29], MAC_SIZE);
+        
+        if (keylen) {
+            incomingMD5KeyId_ = (char *) malloc(keylen+1);
+            memset(incomingMD5KeyId_, 0, keylen+1);
+            memcpy(incomingMD5KeyId_, &dataGram[29+MAC_SIZE], keylen);
         }
+        
+        dta = data = &dataGram[29+MAC_SIZE+keylen];
+    }
 
+    if (!verifyMD()) {
+        return -1;
+    }
+    
 	return 0;      // not a short message, checksum was probably okay
 }
 
@@ -238,7 +325,7 @@ void _condorPacket::reset()
     }
     else {
         curIndex = 0;
-	length   = 0;
+        length   = 0;
     }
 }
 
@@ -274,13 +361,24 @@ int _condorPacket::putMax(const void* dta, const int size)
 	return len;
 }
 
+const char * _condorPacket :: isDataMD5ed()
+{
+    return incomingMD5KeyId_;
+}
+
 void _condorPacket::addMD() 
 {
     if (mdChecker_) {
-      mdChecker_->addMD((unsigned char *)&dataGram[SAFE_MSG_HEADER_SIZE+MAC_SIZE], 
-                        length - MAC_SIZE);
+        // First, add the key id if possible
+        if (outgoingMD5KeyId_) {
+            // stick outgoingMD5KeyId_
+            memcpy(&dataGram[SAFE_MSG_HEADER_SIZE+MAC_SIZE], outgoingMD5KeyId_, outgoingIdLen_);
+        }
+
+        mdChecker_->addMD((unsigned char *)&dataGram[SAFE_MSG_HEADER_SIZE+MAC_SIZE], 
+                          length - MAC_SIZE);
         unsigned char * md = mdChecker_->computeMD();
-      dprintf(D_ALWAYS, "Adding md %s for %d bytes of data\n", md, length - MAC_SIZE);
+        dprintf(D_ALWAYS, "Adding md %s for %d bytes of data\n", md, length - MAC_SIZE);
         memcpy(&dataGram[SAFE_MSG_HEADER_SIZE], md, MAC_SIZE);
         free(md);
     }
@@ -295,7 +393,7 @@ bool _condorPacket::empty()
 {
   // This is too ugly. Hao
     if (mdChecker_) {
-        return (length == MAC_SIZE);
+        return (length == (MAC_SIZE + outgoingIdLen_));
     }
     return(length == 0);
 }
@@ -332,6 +430,17 @@ void _condorPacket::makeHeader(bool last, int seqNo, _condorMsgID msgID)
 
 	stemp = htons((u_short)msgID.msgNo);
 	memcpy(&dataGram[23], &stemp, 2);
+
+    short flags = 0;
+    if (mdChecker_) {
+        flags = 1;
+    }
+    stemp = htons((u_short)flags);
+    memcpy(&dataGram[25], &stemp, 2);
+    // how long is the outgoing key?
+    stemp = htons((u_short) outgoingIdLen_);
+    memcpy(&dataGram[27], &stemp, 2);
+    // Maybe one for encryption as well
 }
 
 #ifdef DEBUG
@@ -386,13 +495,13 @@ _condorOutMsg::_condorOutMsg()
 	}
 	noMsgSent = 0;
 	avgMsgSize = 0;
-        mode_ = MD_OFF;
-        key_ = 0;
+    key_ = 0;
+    keyId_ = 0;
 }
 
-_condorOutMsg::_condorOutMsg(CONDOR_MD_MODE mode, KeyInfo * key)
+_condorOutMsg::_condorOutMsg(KeyInfo * key, const char * keyId)
 {
-	headPacket = lastPacket = new _condorPacket(mode_, key_);
+	headPacket = lastPacket = new _condorPacket(true, key_, keyId);
 	if(!headPacket) {
 		dprintf(D_ALWAYS, "new Packet failed. out of memory\n");
 		EXCEPT("new Packet failed. out of memory");
@@ -400,7 +509,7 @@ _condorOutMsg::_condorOutMsg(CONDOR_MD_MODE mode, KeyInfo * key)
 	noMsgSent = 0;
 	avgMsgSize = 0;
 
-        init_MD(mode, key);
+    init_MD(key, keyId);
 }
 
 
@@ -413,26 +522,35 @@ _condorOutMsg::~_condorOutMsg() {
 		delete tempPacket;
 	}
 
-        delete key_;
+    if (keyId_) {
+        free(keyId_);
+        keyId_ = 0;
+    }
+    delete key_;
 }
 
-bool _condorOutMsg::init_MD(CONDOR_MD_MODE mode, KeyInfo * key)
+bool _condorOutMsg::init_MD(KeyInfo * key, const char * keyId)
 {
     if ((headPacket == lastPacket) && (!headPacket->empty())) {
         return false;
     }
 
-    mode_ = mode;
-    delete key;
+    delete key_;
+    key_ = 0; // just to be safe
 
-    if (mode == MD_ALWAYS_ON){
-      if (key) {
-        key_ = new KeyInfo(*key);
-      }
-      headPacket->init_MD(mode, key_);
+    if (keyId_) {
+        free(keyId_);
+        keyId_ = 0;
     }
 
-    return true;
+    if (keyId) {
+        keyId_ = strdup(keyId);
+    }
+
+    if (key) {
+        key_ = new KeyInfo(*key);
+    }
+    return headPacket->init_MD(true, key_, keyId);
 }
 /* Put n bytes of data
  * This method puts n bytes into the message, while adding packets as needed
@@ -443,7 +561,7 @@ int _condorOutMsg::putn(const char *dta, const int size) {
 
 	while(total != size) {
 		if(lastPacket->full()) {
-			lastPacket->next = new _condorPacket(mode_, key_);
+			lastPacket->next = new _condorPacket(true, key_, keyId_);
 			if(!lastPacket->next) {
 				dprintf(D_ALWAYS, "Error: OutMsg::putn: out of memory\n");
 				return -1;
@@ -476,12 +594,12 @@ int _condorOutMsg::sendMsg(const int sock,
 		tempPkt = headPacket;
 		headPacket = headPacket->next;
 		tempPkt->makeHeader(false, seqNo++, msgID);
-                tempPkt->addMD();
+        tempPkt->addMD();
 		msgLen += tempPkt->length;
 		sent = sendto(sock, tempPkt->dataGram,
 		              tempPkt->length + SAFE_MSG_HEADER_SIZE,
-				  0, who, sizeof(struct sockaddr));
-                dprintf(D_ALWAYS, "sending %s for %d bytes\n", tempPkt->dataGram, tempPkt->length + SAFE_MSG_HEADER_SIZE);
+                      0, who, sizeof(struct sockaddr));
+        dprintf(D_ALWAYS, "sending %s for %d bytes\n", tempPkt->dataGram, tempPkt->length + SAFE_MSG_HEADER_SIZE);
 		if( D_FULLDEBUG & DebugFlags )
 			dprintf(D_NETWORK, "SafeMsg: Packet[%d] sent\n", sent);
 		if(sent != tempPkt->length + SAFE_MSG_HEADER_SIZE) {
@@ -499,17 +617,15 @@ int _condorOutMsg::sendMsg(const int sock,
 
 	// headPacket = lastPacket
 	if(seqNo == 0) { // a short message
-		msgLen = lastPacket->length;
-                lastPacket->addMD();
-		sent = sendto(sock, lastPacket->data, lastPacket->length,
-		              0, who, sizeof(struct sockaddr));
-                dprintf(D_ALWAYS, "sending short message %s for %d bytes\n", lastPacket->data, lastPacket->length);
-		if( D_FULLDEBUG & DebugFlags )
+		msgLen = lastPacket->length + 4; // for 4 bytes header
+        lastPacket->addMD();
+		sent = sendto(sock, lastPacket->data - 4, msgLen, 0, who, sizeof(struct sockaddr));
+        dprintf(D_ALWAYS, "sending short message %s for %d bytes\n", lastPacket->data, msgLen);
+		if( D_FULLDEBUG & DebugFlags ) {
 			dprintf(D_NETWORK, "SafeMsg: Packet[%d] sent\n", sent);
-		if(sent != lastPacket->length) {
-			dprintf( D_NETWORK, 
-				 "SafeMsg: sending small msg failed. errno: %d\n",
-				 errno );
+        }
+		if(sent != msgLen) {
+			dprintf( D_NETWORK, "SafeMsg: sending small msg failed. errno: %d\n",  errno );
 			headPacket->reset();
 			return -1;
 		}
@@ -519,17 +635,16 @@ int _condorOutMsg::sendMsg(const int sock,
 	} else { // the last packet of a long message
 		lastPacket->makeHeader(true, seqNo, msgID);
 		msgLen += lastPacket->length;
-                lastPacket->addMD();
+        lastPacket->addMD();
 		sent = sendto(sock, lastPacket->dataGram,
 		              lastPacket->length + SAFE_MSG_HEADER_SIZE,
 		              0, who, sizeof(struct sockaddr));
-                dprintf(D_ALWAYS, "sending %s for %d bytes\n", lastPacket->dataGram, lastPacket->length + SAFE_MSG_HEADER_SIZE);
-		if( D_FULLDEBUG & DebugFlags )
+        dprintf(D_ALWAYS, "sending %s for %d bytes\n", lastPacket->dataGram, lastPacket->length + SAFE_MSG_HEADER_SIZE);
+		if( D_FULLDEBUG & DebugFlags ) {
 			dprintf(D_NETWORK, "SafeMsg: Packet[%d] sent\n", sent);
+        }
 		if(sent != lastPacket->length + SAFE_MSG_HEADER_SIZE) {
-			dprintf( D_NETWORK, 
-			         "SafeMsg: sending last packet failed. errno: %d\n",
-			         errno );
+			dprintf( D_NETWORK, "SafeMsg: sending last packet failed. errno: %d\n", errno );
 			headPacket->reset();
 			return -1;
 		}
@@ -612,18 +727,23 @@ _condorDirPage::_condorDirPage(_condorDirPage* prev, const int num)
 	prevDir = prev;
 	dirNo = num;
 	for(int i=0; i< SAFE_MSG_NO_OF_DIR_ENTRY; i++) {
-		dEntry[i].dLen = 0;
+		dEntry[i].dLen  = 0;
 		dEntry[i].dGram = NULL;
+        dEntry[i].md_   = 0;
 	}
 	nextDir = NULL;
 }
 
 
 _condorDirPage::~_condorDirPage() {
-	for(int i=0; i< SAFE_MSG_NO_OF_DIR_ENTRY; i++)
+	for(int i=0; i< SAFE_MSG_NO_OF_DIR_ENTRY; i++) {
 		if(dEntry[i].dGram) {
 			free(dEntry[i].dGram);
 		}
+        if (dEntry[i].md_) {
+            free(dEntry[i].dGram);
+        }
+    }
 }
 
 
@@ -639,12 +759,15 @@ _condorInMsg::_condorInMsg(const _condorMsgID mID,// the id of this message
 				const int seq,		// seq. # of the packet
 				const int len,		// length of the packet
 				const void* data,		// data of the packet
+                const char * MD5Keyid,  // MD5 key id
+                const unsigned char * md,  // MD5 key id
 				_condorInMsg* prev)	// pointer to previous message
 								// in the bucket chain
 {
 	int destDirNo;
 	int index;
 
+    mdChecker_ = 0;
 	// initialize message id
 	msgID.ip_addr = mID.ip_addr;
 	msgID.pid = mID.pid;
@@ -681,11 +804,27 @@ _condorInMsg::_condorInMsg(const _condorMsgID mID,// the id of this message
 	}
 	memcpy(curDir->dEntry[index].dGram, data, len);
 
+    if(md) {
+        int mdLen = strlen((char*)md);
+        curDir->dEntry[index].md_ = (unsigned char *) malloc(mdLen + 1);
+        memset(curDir->dEntry[index].md_, 0, mdLen+1);
+        memcpy(curDir->dEntry[index].md_, md, mdLen);
+    }
+    else {
+        curDir->dEntry[index].md_ = 0;
+    }
 	// initialize temporary buffer to NULL
 	tempBuf = NULL;
 
 	prevMsg = prev;
 	nextMsg = NULL;
+
+    if (MD5Keyid) {
+        incomingMD5KeyId_ = strdup(MD5Keyid);
+    }
+    else {
+        incomingMD5KeyId_ = 0;
+    }
 }
 
 
@@ -699,6 +838,10 @@ _condorInMsg::~_condorInMsg() {
 		headDir = headDir->nextDir;
 		delete tempDir;
 	}
+    if (incomingMD5KeyId_) {
+        free(incomingMD5KeyId_);
+    }
+    delete mdChecker_;
 }
 
 
@@ -707,8 +850,9 @@ _condorInMsg::~_condorInMsg() {
  */
 bool _condorInMsg::addPacket(const bool last,
                              const int seq,
-				     const int len, 
-				     const void* data)
+                             const int len, 
+                             const void* data,
+                             const unsigned char * md)
 {
 	int destDirNo, index;
 
@@ -743,6 +887,16 @@ bool _condorInMsg::addPacket(const bool last,
 		}
 		memcpy(curDir->dEntry[index].dGram, data, len);
 		msgLen += len;
+        if(md) {
+            int mdLen = strlen((char *)md);
+            curDir->dEntry[index].md_ = (unsigned char *) malloc(mdLen + 1);
+            memset(curDir->dEntry[index].md_, 0, mdLen+1);
+            memcpy(curDir->dEntry[index].md_, md, mdLen);
+        }
+        else {
+            curDir->dEntry[index].md_ = 0;
+        }
+
 		if(last)
 			lastNo = seq;
 		received++;
@@ -759,6 +913,38 @@ bool _condorInMsg::addPacket(const bool last,
 		return false;
 }
 
+bool _condorInMsg :: init_MD(KeyInfo * key = 0)
+{
+    if (mdChecker_) {
+        delete mdChecker_;
+        if (key) {
+            mdChecker_ = new Condor_MD_MAC(key);
+        }
+    }
+    return true;
+}
+
+bool _condorInMsg :: verifyMD(int packet)
+{
+    bool verified = true;
+    if (curDir->dEntry[packet].md_ && mdChecker_) {
+        mdChecker_->addMD((unsigned char *)curDir->dEntry[packet].dGram, curDir->dEntry[packet].dLen);
+        
+        if (mdChecker_->verifyMD(curDir->dEntry[packet].md_)) {
+            dprintf(D_SECURITY, "MD verified!\n");
+            verified = true;
+        }
+        else {
+            verified = false;
+        }
+    }
+    if (curDir->dEntry[packet].md_) {
+        free(curDir->dEntry[packet].md_);
+        curDir->dEntry[packet].md_ = 0;
+    }
+
+    return verified;
+}
 
 /* Get the next n bytes from the message:
  * Copy the next 'size' bytes of the message to 'dta'
@@ -777,6 +963,11 @@ int _condorInMsg::getn(char* dta, const int size)
 		return -1;
 
 	while(total != size) {
+        if (!verifyMD(curPacket)) {
+            // should we also delete the data?
+            dprintf(D_ALWAYS, "Message digest verification failed!\n");
+            return -1;
+        }
 		len = size - total;
 		if(len > curDir->dEntry[curPacket].dLen - curData)
 			len = curDir->dEntry[curPacket].dLen - curData;
@@ -840,6 +1031,10 @@ int _condorInMsg::getPtr(void *&buf, char delim)
 	tempPkt = curPacket;
 	tempData = curData;
 	while(tempDir->dEntry[tempPkt].dGram[tempData] != delim) {
+        if (!verifyMD(tempPkt)) {
+            return -1;
+        }
+
 		if(++tempData == tempDir->dEntry[tempPkt].dLen) {
 			tempPkt++;
 			tempData = 0;
@@ -885,6 +1080,11 @@ int _condorInMsg::peek(char &c)
 bool _condorInMsg::consumed()
 {
 	return(msgLen != 0 && msgLen == passed);
+}
+
+const char * _condorInMsg :: isDataMD5ed()
+{
+    return incomingMD5KeyId_;
 }
 
 #ifdef DEBUG

@@ -1838,7 +1838,7 @@ Stream::initialize_crypto(KeyInfo * key)
     return (crypto_ != 0);
 }
 
-bool Stream::set_MD_mode(CONDOR_MD_MODE mode, KeyInfo * key)
+bool Stream::set_MD_mode(CONDOR_MD_MODE mode, KeyInfo * key, const char * keyId)
 {
     mdMode_ = mode;
     delete mdKey_;
@@ -1847,7 +1847,7 @@ bool Stream::set_MD_mode(CONDOR_MD_MODE mode, KeyInfo * key)
       mdKey_  = new KeyInfo(*key);
     }
 
-    return init_MD(mode, mdKey_);
+    return init_MD(mode, mdKey_, keyId);
 }
 
 bool 
