@@ -5346,8 +5346,8 @@ Scheduler::RecomputeAliveInterval(int cluster, int proc)
 	int interval = 0;
 	GetAttributeInt( cluster, proc, ATTR_JOB_LEASE_DURATION, &interval );
 	if ( interval > 0 ) {
-			// Divide by three, since the startd will kill the claim
-			// if three keepalives in a row are missed...
+			// Divide by three, so that even if we miss two keep
+			// alives in a row, the startd won't kill the claim.
 		interval /= 3;
 			// Floor value: no way are we willing to send alives more often
 			// than every 10 seconds
