@@ -348,8 +348,6 @@ Image::NewDirtyPage(char * page)
 	int i;
 	char * data_start;
 
-	incr_ckpt_data->dirty_pages++;
-
 	SegMap *data = GetSeg( "DATA" );
 	if (data == NULL) {
 		dprintf( D_ALWAYS, "Couldn't find DATA segment.\n" );
@@ -363,9 +361,14 @@ Image::NewDirtyPage(char * page)
 	int dirtyPage = ( (int)(page - data_start) ) / getpagesize();
 	if (bitIsSet( dirtyPage, incr_ckpt_data->bitmap ) ) {
 		// should not seg-fault on same page twice
+		dprintf( D_ALWAYS, "Caught an internal segfault on page %i (Ox%x) in "
+				"\n\tseg %s (Ox%x, len %d).\n", dirtyPage, page, "DATA", 
+				data_start, data->GetLen() );
+		PrintBitmap();
 		return false;
 	}
 	setBit( dirtyPage, incr_ckpt_data->bitmap ); 
+	incr_ckpt_data->dirty_pages++;
 	return true;
 }
 
@@ -1978,7 +1981,7 @@ Checkpoint( int sig, int code, void *scp )
 		_condor_restore_sigstates();
 
 		// need to do mprotect here following restart - JMB
-		dprintf( D_ALWAYS, "About to mprotect MyImage\n" );
+		dprintf( D_ALWAYS, "About to mprotect MyImage and setup new segment\n");
 		MyImage.InitIncrCkptSegment( );
 		MyImage.Mprotect ( PROT_READ );
 		dprintf( D_ALWAYS, "About to return to user code\n" );
