@@ -129,6 +129,8 @@ int fixAttrUser( ClassAd *job );
 shadow_rec * find_shadow_rec(PROC_ID*);
 shadow_rec * add_shadow_rec( int, PROC_ID*, int, match_rec*, int );
 bool service_this_universe(int, ClassAd*);
+bool jobIsSandboxed( ClassAd* ad );
+bool getSandbox( int cluster, int proc, MyString & path );
 
 int	WallClockCkptInterval = 0;
 static bool gridman_per_job = false;
@@ -1768,13 +1770,18 @@ static bool get_user_uid_gid(const char * owner, const char * domain,
 	return true;
 }
 
-static bool JobIsSandboxed(ClassAd * ad) {
+bool
+jobIsSandboxed( ClassAd * ad )
+{
 	ASSERT(ad);
 	int dummy;
 	return ad->LookupInteger(ATTR_STAGE_IN_START, dummy);
 }
 
-bool GetSandbox(int cluster, int proc, MyString & path) {
+
+bool
+getSandbox( int cluster, int proc, MyString & path )
+{
 	char *Spool = param("SPOOL");
 	if( ! Spool ) {
 		return false;
@@ -1787,6 +1794,7 @@ bool GetSandbox(int cluster, int proc, MyString & path) {
 	path = sandbox;
 	return true;
 }
+
 
 /** Last chance to prep a job before it (potentially) starts
 
@@ -1813,9 +1821,9 @@ int Scheduler::aboutToSpawnJobHandler(int cluster, int proc)
 #ifndef WIN32
 	ClassAd * job_ad = GetJobAd( cluster, proc );
 	ASSERT(job_ad); // No job ad?
-	if( JobIsSandboxed(job_ad) ) {
+	if( jobIsSandboxed(job_ad) ) {
 		MyString sandbox;
-		if(GetSandbox(cluster, proc, sandbox)) {
+		if( getSandbox(cluster, proc, sandbox) ) {
 			MyString owner, domain;
 			job_ad->LookupString(ATTR_OWNER, owner);
 			job_ad->LookupString(ATTR_NT_DOMAIN, domain);
@@ -1892,9 +1900,9 @@ Scheduler::jobIsTerminal(int cluster, int proc)
 
 #ifndef WIN32
 
-	if( JobIsSandboxed(job_ad) ) {
+	if( jobIsSandboxed(job_ad) ) {
 		MyString sandbox;
-		if( GetSandbox(cluster, proc, sandbox) ) {
+		if( getSandbox(cluster, proc, sandbox) ) {
 			uid_t src_uid = 0;
 			uid_t dst_uid = get_condor_uid();
 			gid_t dst_gid = get_condor_gid();
