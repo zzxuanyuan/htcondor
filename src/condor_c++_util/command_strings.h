@@ -52,5 +52,18 @@ const char* getCollectorCommandString( int );
 /** Given a collector command/signal name, return the number. */
 int getCollectorCommandNum( const char* );
 
+/** All the possible results of a ClassAd command */  
+
+typedef enum { 
+	CA_SUCCESS = 1,
+	CA_FAILURE,
+	CA_NOT_AUTHENTICATED,
+	CA_NOT_AUTHORIZED,
+	CA_INVALID_REQUEST,
+	CA_INVALID_STATE
+} CAResult;
+
+const char* getCAResultString( CAResult r );
+CAResult getCAResultNum( const char* str );
 
 #endif

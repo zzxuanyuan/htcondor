@@ -167,6 +167,17 @@ struct Translation CollectorTranslation[] = {
 };
 
 
+struct Translation CAResultTranslation[] = {
+	{ "Success", CA_SUCCESS },
+	{ "Failure", CA_FAILURE },
+	{ "NotAuthenticated", CA_NOT_AUTHENTICATED },
+	{ "NotAuthorized", CA_NOT_AUTHORIZED },
+	{ "InvalidRequest", CA_INVALID_REQUEST },
+	{ "InvalidState", CA_INVALID_STATE },
+	{ NULL, 0 }
+};
+
+
 const char*
 getCommandString( int num )
 {
@@ -192,7 +203,17 @@ getCollectorCommandNum( const char* command )
 	return getNumFromName( command, CollectorTranslation );
 }
 
+const char*
+getCAResultString( CAResult r )
+{
+	return getNameFromNum( (int)r, CAResultTranslation );
+}
 
+CAResult
+getCAResultNum( const char* str )
+{
+	return (CAResult)getNumFromName( str, CAResultTranslation );
+}
 
 
 
