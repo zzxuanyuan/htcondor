@@ -69,6 +69,10 @@ public:
 	static SchedDRequest * createSubmitRequest (const int request_id,
 													const ClassAd * classad);
 
+	static SchedDRequest * createJobStageInRequest (const int request_id,
+													const ClassAd * classad);
+
+													
 	~SchedDRequest() {
 		if (classad)
 			delete classad;
@@ -107,6 +111,7 @@ public:
 		SDC_STATUS_CONSTRAINED,
 		SDC_UPDATE_CONSTRAINED,
 		SDC_UPDATE_JOB,
+		SDC_JOB_STAGE_IN,
 	} command;
 
 protected:

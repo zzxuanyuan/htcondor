@@ -69,6 +69,8 @@ char *ScheddAddr = NULL;
 
 extern char *myUserName;
 
+extern int main_shutdown_graceful();
+
 int
 schedd_thread (void * arg, Stream * sock) {
 
@@ -114,7 +116,7 @@ checkRequestPipe () {
 	do {
 		if (request_buffer.IsError()) {
 			dprintf (D_ALWAYS, "Request pipe, closed. Exiting...\n");
-			DC_Exit(0);
+			main_shutdown_graceful();
 		}
 		
 		select_result =
@@ -532,7 +534,10 @@ doContactSchedd()
 
 
 				// Now transfer the sandbox
-				CondorError errstack;
+				// This has been moved to a separate command, JOB_STAGE_IN,
+				// by Jaime's request, despite Carey's disgruntlement....
+				
+				/*CondorError errstack;
 				ClassAd* array [1];
 				array[0] = current_command->classad;
 				if (!dc_schedd.spoolJobFiles( 1,
@@ -541,7 +546,7 @@ doContactSchedd()
 					error = TRUE;
 					sprintf (error_msg, "Error transferring sandbox for job %d.%d", ClusterId, ProcId);
 					dprintf (D_ALWAYS, "%s\n", error_msg);
-				}
+				}*/
 
 				current_command->status = SchedDRequest::SDCS_COMPLETED;
 
@@ -565,6 +570,33 @@ doContactSchedd()
 										job_id_buff,
 										NULL };
 				enqueue_result (current_command->request_id, result, 3);
+			}
+		} else if (current_command->command == SchedDRequest::SDC_JOB_STAGE_IN ) {
+			int error = FALSE;
+			CondorError errstack;
+			ClassAd* array[] = { current_command->classad };
+
+			if (!dc_schedd.spoolJobFiles( 1,
+										  array,
+										  &errstack )) {
+				error = TRUE;
+				sprintf (error_msg, "Error transferring sandbox for request %d", current_command->request_id);
+				dprintf (D_ALWAYS, "%s\n", error_msg);
+			}
+
+			current_command->status = SchedDRequest::SDCS_COMPLETED;
+			
+			if (error) {
+				const char * result[] = {
+									GAHP_RESULT_FAILURE,
+									error_msg };
+				enqueue_result (current_command->request_id, result, 2);
+
+			} else {
+				const char * result[] = {
+										GAHP_RESULT_SUCCESS,
+										NULL };
+				enqueue_result (current_command->request_id, result, 2);
 			}
 		} else {
 			// Unknown command (should never happen because of prior verifications)
@@ -798,6 +830,25 @@ handle_gahp_command(char ** argv, int argc) {
 
 		enqueue_command (
 			SchedDRequest::createSubmitRequest(
+				req_id,
+				classad));
+
+		delete classad;
+		return TRUE;
+	}  else if (strcasecmp (argv[0], GAHP_COMMAND_JOB_STAGE_IN) ==0) {
+		int req_id;
+		ClassAd * classad;
+
+		if (!(argc == 4 &&
+			get_int (argv[1], &req_id) &&
+			get_class_ad (argv[3], &classad))) {
+
+			dprintf (D_ALWAYS, "Invalid args to %s\n", argv[0]);
+			return FALSE;
+		}
+
+		enqueue_command (
+			SchedDRequest::createJobStageInRequest(
 				req_id,
 				classad));
 

@@ -152,13 +152,14 @@ io_loop(void * arg, Stream * sock) {
 							GAHP_COMMAND_JOB_UPDATE,
 							GAHP_COMMAND_JOB_HOLD,
 							GAHP_COMMAND_JOB_RELEASE,
+							GAHP_COMMAND_JOB_STAGE_IN,
 							GAHP_COMMAND_ASYNC_MODE_ON,
 							GAHP_COMMAND_ASYNC_MODE_OFF,
 							GAHP_COMMAND_RESULTS,
 							GAHP_COMMAND_QUIT,
 							GAHP_COMMAND_VERSION,
 							GAHP_COMMAND_COMMANDS};
-						gahp_output_return (commands, 14);
+						gahp_output_return (commands, 15);
 					} else {
 						// Pass it on to the worker thread
 						// Actually buffer it, until the worker says it's ready
@@ -244,7 +245,8 @@ verify_gahp_command(char ** argv, int argc) {
 				verify_class_ad (argv[4]);
 
 		return TRUE;
-	} else if (strcasecmp (argv[0], GAHP_COMMAND_JOB_SUBMIT) == 0) {
+	} else if ((strcasecmp (argv[0], GAHP_COMMAND_JOB_SUBMIT) == 0) ||
+				(strcasecmp (argv[0], GAHP_COMMAND_JOB_STAGE_IN) == 0)) {
 		// Expected: CONDOR_JOB_SUBMIT <req id> <schedd name> <job ad>
 		return verify_number_args (argc, 4) &&
 				verify_request_id (argv[1]) &&

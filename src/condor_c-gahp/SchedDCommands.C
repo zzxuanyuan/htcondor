@@ -61,7 +61,6 @@ SchedDRequest * SchedDRequest::createUpdateConstrainedRequest (const int request
 	SchedDRequest  * req = new SchedDRequest;
 	req->cluster_id = -1;
 	req->proc_id = -1;
-	req->classad = NULL;
 	req->constraint = (constraint != NULL) ? strdup (constraint) : NULL;
 	req->classad = new ClassAd (*classad);
 
@@ -135,4 +134,22 @@ SchedDRequest * SchedDRequest::createReleaseRequest (const int request_id, int c
 	req->request_id = request_id;
 
 	return req;
+}
+
+SchedDRequest * SchedDRequest::createJobStageInRequest (const int request_id,
+														const ClassAd * classad) {
+
+	SchedDRequest * req = new SchedDRequest;
+	req->cluster_id = -1;
+	req->proc_id = -1;
+	req->classad = new ClassAd (*classad);
+	req->constraint = NULL;
+	req->reason = NULL;
+
+	req->command = SDC_JOB_STAGE_IN;
+	req->status = SDCS_NEW;
+	req->request_id = request_id;
+
+	return req;
+
 }
