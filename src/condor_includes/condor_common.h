@@ -1,7 +1,12 @@
 #if defined(WIN32)
 
+#define NOGDI
+#define NOUSER
+#define NOSOUND
+#include <winsock2.h>
 #include <windows.h>
 #include "_condor_fix_nt.h"
+#include <stdlib.h>
 
 #else
 
