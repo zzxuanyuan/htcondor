@@ -15,42 +15,7 @@
 //extern PGSQLDatabase *DBObj;
 extern ODBC *DBObj;
 
-bool schedd_files_find_checksum(
-								char *fileName, 
-								char *host, 
-								char *path,
-								char *asciitime, 
-								char *hexSum)
-{
-	char sqltext[MAXSQLLEN];
-	int retcode;
-
-	sprintf(sqltext,
-			"select checksum from files where name='%s' and path='%s' and host='%s' and timestamp='%s'", fileName, path, host, asciitime);
-	
-	retcode = DBObj->odbc_sqlstmt(sqltext);
-
-	if ((retcode != SQL_SUCCESS) && (retcode != SQL_SUCCESS_WITH_INFO)) {
-		return FALSE;
-	}
-	
-	DBObj->odbc_bindcol(1, (void *)hexSum, MAC_SIZE*2+1, SQL_C_CHAR);
-	retcode = DBObj->odbc_fetch();
-	
-	dprintf(D_FULLDEBUG, "schedd_file_find_checksum: sqltext is %s\n", sqltext);
-
-	DBObj->odbc_closestmt();
-
-	if (retcode == SQL_NO_DATA) {
-		return FALSE;
-	}
-	else {		
-		dprintf(D_FULLDEBUG, "schedd_file_find_checksum: checksum found %s\n", hexSum);
-		return TRUE;
-	}
-}
-
-void schedd_file_checksum(
+bool schedd_file_checksum(
 						  char *filePathName, 
 						  int fileSize, 
 						  char *sum)
@@ -63,7 +28,7 @@ void schedd_file_checksum(
 	fd = open(filePathName, O_RDONLY, 0);
 	if (fd < 0) {
 		dprintf(D_FULLDEBUG, "schedd_file_checksum: can't open %s\n", filePathName);
-		return;
+		return FALSE;
 	}
 
 	data = (char *)mmap(0, fileSize, PROT_READ, MAP_PRIVATE, fd, 0);
@@ -82,9 +47,12 @@ void schedd_file_checksum(
         memcpy(sum, checksum, MAC_SIZE);
         free(checksum);
 	}
-	else
+	else {
 		dprintf(D_FULLDEBUG, "schedd_file_checksum: computeMD failed\n");
+		return FALSE;
+	}
 
+	return TRUE;
 }
 
 bool schedd_files_check_file(
@@ -133,14 +101,18 @@ int schedd_files_new_id() {
 	
 	retcode = DBObj->odbc_sqlstmt(sqltext);
 
-	ASSERT((retcode == SQL_SUCCESS) || (retcode != SQL_SUCCESS_WITH_INFO));
+	if((retcode != SQL_SUCCESS) && (retcode != SQL_SUCCESS_WITH_INFO)) {
+		return -1;
+	}
 
 	DBObj->odbc_bindcol(1, (void *)&fileid, sizeof(int), SQL_C_LONG);
 	retcode = DBObj->odbc_fetch();	
 	
 	DBObj->odbc_closestmt();
 	
-	ASSERT(retcode != SQL_NO_DATA);
+	if((retcode != SQL_SUCCESS) && (retcode != SQL_SUCCESS_WITH_INFO)) {
+		return -1;
+	}
 
 	return fileid;
 }
@@ -161,8 +133,7 @@ int schedd_files_ins_file(
 
 	sprintf(pathname, "%s/%s", path, fileName);
 
-	if (fsize > 0) {
-		schedd_file_checksum(pathname, fsize, sum);
+	if ((fsize > 0) && schedd_file_checksum(pathname, fsize, sum)) {
 		for (int i = 0; i < MAC_SIZE; i++)
 			sprintf(&hexSum[2*i], "%2x", sum[i]);		
 		hexSum[2*MAC_SIZE] = '\0';
@@ -269,14 +240,23 @@ void schedd_files_ins(
 			// this file is not in the files table yet
 			// generate a new file id
 		fileid = schedd_files_new_id();
+
+		if (fileid < 0) {
+				// smth wrong with db that we get a negative sequence number
+			goto schedd_files_ins_end;
+		}
 	
 			// insert the file entry into the files table
 		retcode = schedd_files_ins_file(fileid, fileName, fs_domain, path, ascTime, 
 										file_status.st_size);
 		
 		if ((retcode != SQL_SUCCESS)  &&  (retcode != SQL_SUCCESS_WITH_INFO)) {
-				// assert this is unique key violation
-			ASSERT(schedd_files_check_file(fileName, fs_domain, path, ascTime, &fileid));
+				// the file may have just been inserted by someone else 
+			if(!schedd_files_check_file(fileName, fs_domain, path, ascTime, &fileid)) {
+					// we still can't find file after failing to insert it
+					// smth is wrong with db
+				goto schedd_files_ins_end;
+			}
 		}
 	}
 
@@ -284,102 +264,19 @@ void schedd_files_ins(
 	schedd_files_ins_usage(globalJobId, fileid, type);
 
 schedd_files_ins_end:
-	free(path);
-	free(pathname);
-	free(globalJobId);
-	free(tmpFile);
-
-	if (freeFsDomain)
-		free(fs_domain);
+	if (path) free(path);
+	if (pathname) free(pathname);
+	if (globalJobId) free(globalJobId);
+	if (tmpFile) free(tmpFile);
+	if (freeFsDomain) free(fs_domain);
 }
 
-void schedd_files_upd(
-					  ClassAd *procad, 
-					  const char *type, 
-					  ClassAd *oldad)
+void schedd_files(ClassAd *procad)
+
 {
-	char *tmpFile1 = NULL, *tmpFile2 = NULL,
-		*globalJobId = NULL, 
-		*newName, 
-		*oldName;
-	
-	char sqltext[MAXSQLLEN];
-
-	procad->LookupString(type, &tmpFile1);
-
-	procad->LookupString(ATTR_GLOBAL_JOB_ID, &globalJobId);
-
-	if (fullpath(tmpFile1)) {
-
-		if (strcmp(tmpFile1, "/dev/null") == 0)
-			return; /* job doesn't care about this type of file */
-		
-		newName = basename(tmpFile1); 
-
-	}
-	else {
-		newName = tmpFile1;
-	}
-
-	oldad->LookupString(type, &tmpFile2);
-
-	if (fullpath(tmpFile2)) {
-
-		if (strcmp(tmpFile2, "/dev/null") == 0)
-			return; /* job doesn't care about this type of file */
-		
-		oldName = basename(tmpFile2); 
-
-	}
-	else {
-		oldName = tmpFile2;
-	}
-	
-	sprintf(sqltext, 
-			"update files set name='%s' where globaljobid='%s' and name='%s'", 
-			newName, globalJobId, oldName);
-
-	free(globalJobId);
-	free(tmpFile1);
-	free(tmpFile2);
-
-	dprintf (D_FULLDEBUG, "In schedd_files_DbIns. sqltext is: %s\n", sqltext);
-
-
-		//DBObj->execCommand(sqltext);
-	DBObj->odbc_sqlstmt(sqltext);
-}
-
-void schedd_files(
-				  ClassAd *procad, 
-				  bool preExec, 
-				  ClassAd *oldAd)
-{
-		//DBObj->beginTransaction();
-
-	if (preExec) {
-			//schedd_files_ins(procad, ATTR_JOB_CMD);
-			//schedd_files_ins(procad, ATTR_JOB_INPUT);
-
-		// to avoid duplicate records for files, use StringList
-		// to manage the list and use file_contains to check if 
-		// the list already contains a file.
-
-		// user log file needs to be inserted again after job finished
-		//schedd_files_ins(procad, ATTR_ULOG_FILE);
-	} else {
-			// post execution
-		schedd_files_ins(procad, ATTR_JOB_CMD);	
-		schedd_files_ins(procad, ATTR_JOB_INPUT);
-		schedd_files_ins(procad, ATTR_JOB_OUTPUT);
-		schedd_files_ins(procad, ATTR_JOB_ERROR);
-		schedd_files_ins(procad, ATTR_ULOG_FILE);
-
-			// some files may had macros in it, e.g $$(OPSYS),update them now
-/*
-		if (oldAd)
-			schedd_files_upd(procad, ATTR_JOB_CMD, oldAd);
-*/
-	}
-		//DBObj->commitTransaction();
+	schedd_files_ins(procad, ATTR_JOB_CMD);	
+	schedd_files_ins(procad, ATTR_JOB_INPUT);
+	schedd_files_ins(procad, ATTR_JOB_OUTPUT);
+	schedd_files_ins(procad, ATTR_JOB_ERROR);
+	schedd_files_ins(procad, ATTR_ULOG_FILE);
 }

@@ -6580,7 +6580,7 @@ Scheduler::child_exit(int pid, int status)
 					// get job outputs into files table only if it's completed successfully	
 					// pass true to make sure $$ variables are replaced
 				jobad = GetJobAd( job_id.cluster, job_id.proc, true);
-				schedd_files(jobad, FALSE, NULL);
+				schedd_files(jobad);
 				delete jobad;				
 
 			case JOB_COREDUMPED:
