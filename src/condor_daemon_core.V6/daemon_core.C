@@ -1882,8 +1882,6 @@ int DaemonCore::HandleReq(int socki)
 
 		ClassAd auth_info;
 
-        ClassadParser parse;
-
         /* Need work Hao
 		if( !auth_info.initFromStream(*sock)) {
 			dprintf (D_ALWAYS, "ERROR: DC_AUTHENTICATE unable to "
