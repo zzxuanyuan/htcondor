@@ -41,6 +41,7 @@ GlobusJob::GlobusJob( GlobusJob& copy )
 	procID = copy.procID;
 	exit_value = copy.exit_value;
 	jobContact = (copy.jobContact == NULL) ? NULL : strdup( copy.jobContact );
+	old_jobContact = (copy.old_jobContact == NULL) ? NULL : strdup( copy.old_jobContact );
 	jobState = copy.jobState;
 	RSL = (copy.RSL == NULL) ? NULL : strdup( copy.RSL );
 	rmContact = (copy.rmContact == NULL) ? NULL : strdup( copy.rmContact );
@@ -57,6 +58,7 @@ GlobusJob::GlobusJob( ClassAd *classad )
 	classad->LookupInteger( ATTR_CLUSTER_ID, procID.cluster );
 	classad->LookupInteger( ATTR_PROC_ID, procID.proc );
 	jobContact = NULL;
+	old_jobContact = NULL;
 	RSL = NULL;
 	rmContact = NULL;
 	userLogFile = NULL;
@@ -90,6 +92,9 @@ GlobusJob::~GlobusJob()
 {
 	if ( jobContact ) {
 		free( jobContact );
+	}
+	if ( old_jobContact ) {
+		free( old_jobContact );
 	}
 	if ( RSL ) {
 		free( RSL );
@@ -199,8 +204,10 @@ bool GlobusJob::callback( int state = 0, int error = 0 )
 
 			// email saying that the job failed?
 
-			free( jobContact );
-			jobContact = NULL;
+			if ( jobContact ) {
+				old_jobContact = jobContact;
+				jobContact = NULL;
+			}
 		}
 	} else if ( state == GLOBUS_GRAM_CLIENT_JOB_STATE_DONE ) {
 		// JobsByContact with a state of DONE shouldn't be in the hash table,
@@ -214,8 +221,10 @@ bool GlobusJob::callback( int state = 0, int error = 0 )
 
 			// email saying the job is done?
 
-			free( jobContact );
-			jobContact = NULL;
+			if ( jobContact ) {
+				old_jobContact = jobContact;
+				jobContact = NULL;
+			}
 		}
 	} else if ( state == GLOBUS_GRAM_CLIENT_JOB_STATE_SUSPENDED ) {
 		if ( jobState != G_SUSPENDED ) {

@@ -566,6 +566,10 @@ GridManager::updateSchedd()
 			// Remove all knowledge we may have about this job
 			if ( curr_job->jobContact ) {
 				JobsByContact->remove(HashKey(curr_job->jobContact));
+			} else {
+				if ( curr_job->old_jobContact ) {
+					JobsByContact->remove(HashKey(curr_job->old_jobContact));
+				} 
 			}
 			JobsByProcID->remove( curr_job->procID );
 			delete curr_job;
@@ -599,6 +603,8 @@ int
 GridManager::jobProbe()
 {
 	GlobusJob *next_job;
+
+	//dprintf(D_FULLDEBUG,"in jobProbe elements=%d\n",JobsByContact->getNumElements() );
 
 	JobsByContact->startIterations();
 

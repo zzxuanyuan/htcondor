@@ -28,6 +28,7 @@ class GlobusJob
 
 	PROC_ID procID;
 	char *jobContact;
+	char *old_jobContact;
 	int jobState;	// this is the Globus status, not Condor job status
 	char *RSL;
 	char *rmContact;
