@@ -82,7 +82,6 @@ return				return grab( RETURN );
 extract				return grab( EXTRACT );
 pseudo				return grab( PSEUDO );
 not_supported		return grab( NOSUPP );
-ignored				return grab( IGNORE );
 {STR}				return grab( IDENTIFIER );
 "{"					return grab( '{' );
 "}"					return grab( '}' );
@@ -166,10 +165,6 @@ display_token( int type )
 		break;
 	  case NOSUPP:
 		fprintf( stderr, "NOSUPP" );
-		break;
-	  case IGNORE:
-		fprintf( stderr, "IGNORE" );
-		break;
 	  case '(':
 		fprintf( stderr, "(" );
 		break;
