@@ -154,10 +154,13 @@ static bool write_classad_input_file( ClassAd *classad,
 	ClassAd tmpclassad(*classad);
 
 	MyString CmdExpr;
-	CmdExpr.sprintf("Cmd = %s", basename(executable_path.GetCStr()));
+	CmdExpr = ATTR_JOB_CMD;
+	CmdExpr += "=\"";
+	CmdExpr += basename( executable_path.GetCStr() );
+	CmdExpr += '"';
 	// TODO: Store old Cmd as OrigCmd?
 	tmpclassad.InsertOrUpdate(CmdExpr.GetCStr());
-		
+
 	PROC_ID procID;
 	// TODO: Does LookupInteger return something on failure/missing?
 	tmpclassad.LookupInteger( ATTR_CLUSTER_ID, procID.cluster );
