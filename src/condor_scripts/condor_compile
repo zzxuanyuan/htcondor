@@ -159,6 +159,7 @@ if [ $# = 0 ]; then
 	fi
 	echo "  where <command> is one of the following:"
 	echo "  gcc, g++, g77, cc, acc, c89, CC, f77, fort77, ld "
+	echo "  (on some platforms, f90 is also allowed)"
 	exit 1
 fi
 
@@ -213,7 +214,11 @@ case $os in
 		if [ $1 = "f77" ]; then
 			exec $* -tul -h$CONDOR_LD_DIR -B
 		fi 
-		
+	
+		if [ $1 = "f90" -a $os = "OSF1" ]; then	
+			exec $* -tul -h$CONDOR_LD_DIR -B
+		fi 
+	
 		;;
 
 	HP-UX )
@@ -287,4 +292,5 @@ esac
 	fi
 	echo "  where <command> is one of the following:"
 	echo "  gcc, g++, g77, cc, acc, c89, CC, f77, fort77, ld "
+	echo "  (on some platforms, f90 is also allowed)"
 	exit 1
