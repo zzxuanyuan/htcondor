@@ -36,6 +36,7 @@ BaseShadow *Shadow = NULL;
 // settings we're given on the command-line
 static const char* schedd_addr = NULL;
 static const char* job_ad_file = NULL;
+static bool is_reconnect = false;
 static int cluster = -1;
 static int proc = -1;
 
@@ -102,6 +103,11 @@ parseArgs( int argc, char *argv[] )
 						"ERROR: invalid schedd_addr specified: %s\n", opt);
 				usage(argc, argv);
 			}
+		}
+		if( ! strcmp(opt, "--reconnect") ) { 
+			is_reconnect = true;
+			args_handled++;
+			continue;
 		}
 			// the only other argument we understand is the
 			// filename we should read our ClassAd from, "-" for
@@ -252,10 +258,13 @@ main_init(int argc, char *argv[])
 	if( ! ad ) {
 		EXCEPT( "Failed to read job ad!" );
 	}
-
 	initShadow( ad );
 
-	Shadow->spawn();
+	if( is_reconnect ) {
+		Shadow->reconnect();
+	} else {
+		Shadow->spawn();
+	}		
 
 	return 0;
 }
@@ -311,6 +320,7 @@ printClassAd( void )
 	printf( "%s = True\n", ATTR_HAS_FILE_TRANSFER );
 	printf( "%s = True\n", ATTR_HAS_MPI );
 	printf( "%s = True\n", ATTR_HAS_JAVA );
+	printf( "%s = True\n", ATTR_HAS_RECONNECT );
 	printf( "%s = True\n", ATTR_HAS_JOB_AD_FROM_FILE );
 	printf( "%s = \"%s\"\n", ATTR_VERSION, CondorVersion() );
 }
