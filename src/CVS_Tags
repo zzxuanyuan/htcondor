@@ -1,3 +1,9 @@
+03/07/03 V6_4-merge-7
+    the state of the V6_4-branch before merging into V6_5_0-branch
+    (again).  this includes a few minor but important bug fixes that
+    have gone into V6_4-branch that need to be present before we ship
+    6.5.0. 
+
 02/07/03 V6_4-merge-6
     the state of the V6_4-branch before merging into V6_5_0-branch. 
     this is slightly past the V6_4-merge-5 tag, with some doc changes 
