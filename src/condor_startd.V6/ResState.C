@@ -23,20 +23,14 @@
 #include "startd.h"
 static char *_FileName_ = __FILE__;
 
+
 ResState::ResState( Resource* rip )
 {
-	r_load_q = new LoadQueue(60);
 	r_state = owner_state;
 	r_act = idle_act;
 	atime = (int)time(NULL);
 	stime = atime;
 	this->rip = rip;
-}
-
-
-ResState::~ResState()
-{
-	delete r_load_q;
 }
 
 
@@ -109,7 +103,6 @@ ResState::change( State new_state, Activity new_act )
 		r_state = new_state;
 	}
 	if( actchange ) {
-		load_activity_change();
 		r_act = new_act;
 		atime = now;
 	}
@@ -262,127 +255,6 @@ act_to_load( Activity act )
 }
 
 
-// This function is called on every activity change.  It's purpose is
-// to keep the load_q array up to date by pushing a 0 or 1 onto the
-// queue for every second we've been in the previous activity.  
-void
-ResState::load_activity_change() 
-{
-	int now		=	(int) time(NULL);
-	int delta	= 	now - atime;
-	int load	=	act_to_load( r_act );
-
-	if( delta < 1 ) {
-		delta = 1;
-	}
-	if( delta >= 60 ) {
-		r_load_q->setval( (char)load );
-	} else {
-		r_load_q->push( delta, (char)load );
-	}
-}
-
-
-float
-ResState::condor_load()
-{
-	int now		=	(int) time(NULL);
-	int delta	= 	now - atime;
-	int load	=	act_to_load( r_act );
-	int val;
-
-	if( delta >= 60 ) {
-			// Easy: Condor load is just 1 or 0 depending on previous
-			// activity.
-		return (float)load;
-	} 
-
-	if( delta < 1 ) {
-		delta = 1;
-	}
-		// Hard: Need to use the load queue to determine average
-		// over last minute.
-	val = r_load_q->val( 60 - delta );
-	val += ( load * delta );
-	return ( (float)val / 60 );
-}
-
-
-LoadQueue::LoadQueue( int q_size )
-{
-	size = q_size;
-	head = 0;
-	buf = new char[size];
-	this->setval( (char)0 );
-}
-
-
-LoadQueue::~LoadQueue()
-{
-	delete [] buf;
-}
-
-
-// Return the average value of the queue
-float
-LoadQueue::avg()
-{
-	int i, val = 0;
-	for( i=0; i<size; i++ ) {
-		val += buf[i];
-	}
-	return( (float)val/size );
-}
-
-
-// Return the sum of the values of the first num elements.
-int
-LoadQueue::val( int num )
-{
-	int i, j, val = 0, delta = size - num, foo;
-		// delta is how many elements we need to skip over to get to
-		// the values we care about.  If we were asked for more
-		// elements than the size of our array, we need to return the
-		// sum of all values, i.e., don't skip anything.
-	if( delta < 0 ) {
-		delta = 0;
-		num = size;	
-	}
-	foo = head + delta;
-	for( i=0; i<num; i++ ) {
-		j = (foo + i) % size;
-		val += buf[j];
-	}
-	return val;
-}
-
-
-// Push num elements onto the array with the given value.
-void
-LoadQueue::push( int num, char val ) 
-{
-	int i, j;
-	if( num > size ) {
-		num = size;
-	}
-	for( i=0; i<num; i++ ) {
-		j = (head + i) % size;
-		buf[j] = val;
-	}
-	head = (head + num) % size;
-}
-
-
-// Set all elements of the array to have the given value.
-void
-LoadQueue::setval( char val ) 
-{
-	memset( (void*)buf, (int)val, (size*sizeof(char)) );
-		// Reset the head, too.
-	head = 0;
-}
-
-
 int
 ResState::leave_action( State s, Activity a, 
 						int statechange, int ) 
@@ -468,6 +340,9 @@ ResState::enter_action( State s, Activity a,
 				rip->r_starter->killpg( DC_SIGKILL );
 				return change( owner_state );
 			}
+		}
+		if( a == busy_act ) {
+			resmgr->start_poll_timer();
 		}
 		break;
 
