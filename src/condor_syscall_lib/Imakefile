@@ -147,7 +147,6 @@ URL_OBJ = url_condor.o include_urls.o cbstp_url.o file_url.o http_url.o \
 
 #if DOES_CHECKPOINTING
 CKPT_OBJ =	file_state.o image.o tmp_stack.o machdep.$(DEP_OS).o \
-	buffer_cache.o buffer_glue.o \
 	syscall_mode.o fake_hooks.o $(LONGJMP) $(HP_CKPT) \
 	$(SGI_CKPT) $(SIG_CKPT_OBJS) eprintf.o
 #else
@@ -263,15 +262,22 @@ ____SIG.o : ToUpper $(SIMPLE_LIBC)
 uppercase_target($(SIMPLE_LIBC),__prev_stat.o,__PREV_STAT.o,stat,STAT)
 uppercase_target($(SIMPLE_LIBC),__prev_lstat.o,__PREV_LSTAT.o,lstat,LSTAT)
 uppercase_target($(SIMPLE_LIBC),__prev_fstat.o,__PREV_FSTAT.o,fstat,FSTAT)
+
 #endif
 
 
 #if IS_GLIBC_LINUX
 uppercase_target($(SIMPLE_LIBC),syscall.o,SYSCALL_TMP.o,syscall,SYSCALL)
-uppercase_target($(SIMPLE_LIBC),sysdep.o,SYSDEP.o,__syscall_error,__SYSCALL_ERROR)
+uppercase_target($(SIMPLE_LIBC),sysdep.o,SYSDEP_TMP.o,__syscall_error,__SYSCALL_ERROR)
 
 SYSCALL.o: SYSCALL_TMP.o ToUpper
 	./ToUpper SYSCALL_TMP.o SYSCALL.o __SYSCALL_error __syscall_error
+
+SYSDEP_TMP2.o: SYSDEP_TMP.o ToUpper
+	./ToUpper SYSDEP_TMP.o SYSDEP_TMP2.o errno ERRNO
+
+SYSDEP.o: SYSDEP_TMP2.o ToUpper
+	./ToUpper SYSDEP_TMP2.o SYSDEP.o __ERRNO_location __errno_location
 
 clean::
 	rm -f SYSCALL_TMP.o
