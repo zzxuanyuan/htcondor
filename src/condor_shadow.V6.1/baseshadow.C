@@ -29,6 +29,7 @@
 #include "condor_attributes.h"   // for ATTR_ ClassAd stuff
 #include "condor_config.h"       // for param()
 #include "condor_email.h"        // for (you guessed it) email stuff
+#include "condor_version.h"
 #include "condor_ver_info.h"
 #include "enum_utils.h"
 
@@ -1295,6 +1296,34 @@ BaseShadow::startQueueUpdateTimer( void )
     if( q_update_tid < 0 ) {
         EXCEPT( "Can't register DC timer!" );
     }
+}
+
+
+void
+BaseShadow::publishShadowAttrs( ClassAd* ad )
+{
+	MyString tmp;
+	tmp = ATTR_SHADOW_IP_ADDR;
+	tmp += "=\"";
+	tmp += daemonCore->InfoCommandSinfulString();
+    tmp += '"';
+	ad->Insert( tmp.Value() );
+
+	tmp = ATTR_SHADOW_VERSION;
+	tmp += "=\"";
+	tmp += CondorVersion();
+    tmp += '"';
+	ad->Insert( tmp.Value() );
+
+	char* my_uid_domain = param( "UID_DOMAIN" );
+	if( my_uid_domain ) {
+		tmp = ATTR_UID_DOMAIN;
+		tmp += "=\"";
+		tmp += my_uid_domain;
+		tmp += '"';
+		ad->Insert( tmp.Value() );
+		free( my_uid_domain );
+	}
 }
 
 

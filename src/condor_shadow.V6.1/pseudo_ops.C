@@ -31,7 +31,6 @@
 #include "pseudo_ops.h"
 #include "condor_config.h"
 #include "exit.h"
-#include "condor_version.h"
 #include "filename_tools.h"
 
 extern ReliSock *syscall_sock;
@@ -147,27 +146,7 @@ pseudo_get_job_info(ClassAd *&ad)
 		// FileTransfer now makes sure we only do Init() once
 	thisRemoteResource->filetrans.Init( the_ad, true, PRIV_USER );
 
-	// let the starter know the version of the shadow
-	int size = 10 + strlen(CondorVersion()) + strlen(ATTR_SHADOW_VERSION);
-	char *shadow_ver = (char *) malloc(size);
-	ASSERT(shadow_ver);
-	sprintf(shadow_ver,"%s=\"%s\"",ATTR_SHADOW_VERSION,CondorVersion());
-	the_ad->Insert(shadow_ver);
-	free(shadow_ver);
-
-		// Also, try to include our value for UidDomain, so that the
-		// starter can properly compare them...
-	char* uid_domain = param( "UID_DOMAIN" );
-	if( uid_domain ) {
-		size = 10 + strlen(uid_domain) + strlen(ATTR_UID_DOMAIN);
-		char* uid_domain_expr = (char*) malloc( size );
-		ASSERT(uid_domain_expr);
-		sprintf( uid_domain_expr, "%s=\"%s\"", ATTR_UID_DOMAIN,
-				 uid_domain );
-		the_ad->Insert( uid_domain_expr );
-		free( uid_domain_expr );
-		free( uid_domain );
-	}
+	Shadow->publishShadowAttrs( the_ad );
 
 	ad = the_ad;
 	return 0;

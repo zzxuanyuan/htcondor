@@ -334,6 +334,8 @@ class BaseShadow : public Service
 		*/
 	void startQueueUpdateTimer( void );
 
+	void publishShadowAttrs( ClassAd* ad );
+
  protected:
 	
 		/** Note that this is the base, "unexpanded" ClassAd for the job.
