@@ -53,11 +53,6 @@ extern int contactScheddTid;
 
 #define GAHP_NULL_PARAM "NULL"
 
-struct inter_thread_io_t {
-  int request_pipe[2];
-  int result_pipe[2];
-  short terminate_requested;
-};
 
 
 // initialization

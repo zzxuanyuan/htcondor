@@ -47,6 +47,11 @@
 #define GAHP_RESULT_ERROR "E"
 #define GAHP_RESULT_FAILURE "F"
 
+struct inter_thread_io_t {
+  int request_pipe[2];
+  int result_pipe[2];
+  int request_ack_pipe[2];
+};
 
 int io_loop( void * arg, Stream * sock);
 
@@ -64,5 +69,10 @@ int verify_job_id (const char *);
 int verify_class_ad (const char *);
 int verify_constraint (const char * s);
 int verify_number_args (const int, const int);
+
+void queue_request (const char * request);
+int flush_next_request(int fd);
+
+
 
 #endif

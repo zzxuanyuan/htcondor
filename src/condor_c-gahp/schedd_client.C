@@ -60,6 +60,7 @@ FdBuffer request_buffer;
 
 int RESULT_OUTBOX = -1;
 int REQUEST_INBOX = -1;
+int REQUEST_ACK_OUTBOX = -1;
 
 int checkRequestPipeTid = TIMER_UNSET;
 int contactScheddTid = TIMER_UNSET;
@@ -74,6 +75,7 @@ schedd_thread (void * arg, Stream * sock) {
    	inter_thread_io_t * inter_thread_io = (inter_thread_io_t*)arg;
 	RESULT_OUTBOX = inter_thread_io->result_pipe[1];
 	REQUEST_INBOX = inter_thread_io->request_pipe[0];
+	REQUEST_ACK_OUTBOX = inter_thread_io->request_ack_pipe[1];
 
 	request_buffer.setFd( REQUEST_INBOX );
 
@@ -99,34 +101,50 @@ checkRequestPipe () {
 
 	dprintf (D_FULLDEBUG, "In checkRequestPipe\n");
 
-	char ** argv;
-	int argc;
-
-	// We need to wait on this piiiiipe
+	time_t time1 = time (NULL);
 
 	MyString * next_line = NULL;
-	while ((next_line = request_buffer.GetNextLine())) {
-		dprintf (D_FULLDEBUG, "got work request: %s\n", next_line->Value());
 
-		// TODO: Will these ever fail??
+	FdBuffer * wait_on [] = { &request_buffer };
+	int is_ready = FALSE;
 
-		// Parse the command...
-		int rc = parse_gahp_command (next_line->Value(), &argv, &argc);
-		dprintf (D_ALWAYS, "parsed: rc=%d\n", rc );
+	do {
+		write (REQUEST_ACK_OUTBOX, "R", 1);
+		
+		int select_result =
+			FdBuffer::Select (wait_on, 1, 3, &is_ready);
 
-		// Add this command to the command queue...
-		rc = handle_gahp_command (argv, argc);
-		dprintf (D_ALWAYS, "handled rc=%d\n", rc);
+		next_line = request_buffer.GetNextLine();
+		if ( (select_result > 0) && (is_ready) && (next_line != NULL)) {
+			dprintf (D_FULLDEBUG, "got work request: %s\n", next_line->Value());
+			// TODO: Will these ever fail??	
 
-		// Clean up...
-		delete  next_line;
-		while ((--argc) >= 0)
-			free (argv[argc]);
-		delete [] argv;
-	}
+			char ** argv;
+			int argc;
 
+			// Parse the command...
+			int rc = parse_gahp_command (next_line->Value(), &argv, &argc);
+			dprintf (D_FULLDEBUG, "parsed: rc=%d\n", rc );
+
+			// Add this command to the command queue...
+			rc = handle_gahp_command (argv, argc);
+			dprintf (D_FULLDEBUG, "handled rc=%d\n", rc);
+
+			// Clean up...
+			delete  next_line;
+			while ((--argc) >= 0)
+				free (argv[argc]);
+			delete [] argv;
+		}
+	} while (next_line);
+
+	time_t time2 = time (NULL);
+	
 	// Come back soon....
-	daemonCore->Reset_Timer ( checkRequestPipeTid, CHECK_REQUEST_PIPE_INTERVAL);
+	int next_contact_interval = CHECK_REQUEST_PIPE_INTERVAL - (time2 - time1);
+	if (next_contact_interval < 0)
+		next_contact_interval = 1;
+	daemonCore->Reset_Timer ( checkRequestPipeTid, next_contact_interval);
 
 	return TRUE;
 }
@@ -136,6 +154,7 @@ template class SimpleList <MyString*>;
 int
 doContactSchedd()
 {
+		dprintf(D_FULLDEBUG,"in pre-doContactSchedd\n");
 	if (command_queue.IsEmpty()) {
 		daemonCore->Reset_Timer( contactScheddTid, CONTACT_SCHEDD_INTERVAL ); // Come back in a min
 		return TRUE;

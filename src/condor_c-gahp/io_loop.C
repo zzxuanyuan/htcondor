@@ -29,6 +29,11 @@
 #include "FdBuffer.h"
 
 
+// Queue for pending commands to schedd
+template class SimpleList<char *>;
+SimpleList <char *> request_out_buffer;
+
+
 int
 io_loop(void * arg, Stream * sock) {
 
@@ -49,6 +54,7 @@ io_loop(void * arg, Stream * sock) {
 	// So these puppies will hold on to it, until we get the rest
 	FdBuffer stdin_buffer(STDIN_FILENO);
     FdBuffer result_buffer(inter_thread_io->result_pipe[0]);
+    FdBuffer request_ack_buffer (inter_thread_io->request_ack_pipe[0]);
 
 
 	const char * version = "$GahpVersion 2.0.0 Jan 21 2004 Condor\\ GAHP $";
@@ -61,12 +67,13 @@ io_loop(void * arg, Stream * sock) {
 
 		FdBuffer * wait_on [] = {
 			&stdin_buffer,
-			&result_buffer };
+			&result_buffer,
+			&request_ack_buffer };
 
-		int is_ready[2];
+		int is_ready[3];
 
 		int select_result =
-			FdBuffer::Select (wait_on, 2, 5, is_ready);
+			FdBuffer::Select (wait_on, 3, 5, is_ready);
 
 		if (select_result == 0) {
 			continue; // what else are you gonna do?
@@ -75,6 +82,14 @@ io_loop(void * arg, Stream * sock) {
 			// Either parent exited or we're in early stages of a thermonuclear meltdown
 			// So exit
 			return 1;
+		}
+
+		if (is_ready[3]) {
+			// Worker is ready for more requests, flush one
+			char dummy;
+			read (request_ack_buffer.getFd(), &dummy, 1);	// Read the signal
+			
+			flush_next_request(inter_thread_io->request_pipe[1]);
 		}
 
 		if (is_ready[0]) {
@@ -146,9 +161,8 @@ io_loop(void * arg, Stream * sock) {
 						gahp_output_return (commands, 14);
 					} else {
 						// Pass it on to the worker thread
-						write (  inter_thread_io->request_pipe[1], command, strlen (command));
-						write (  inter_thread_io->request_pipe[1], "\n", 1);
-
+						// Actually buffer it, until the worker says it's ready
+						queue_request (command);
 						gahp_output_return_success();
 					}
 				} else {
@@ -369,6 +383,28 @@ parse_gahp_command (const char* raw, char *** _argv, int * _argc) {
 	return TRUE;
 
 
+}
+
+void
+queue_request (const char * request) {
+	request_out_buffer.Append (strdup(request));
+}
+
+int
+flush_next_request(int fd) {
+	request_out_buffer.Rewind();
+	char * command;
+	if (request_out_buffer.Next(command)) {
+		dprintf (D_ALWAYS, "Sending %s to worker\n", command);
+		write (  fd, command, strlen (command));
+		write (  fd, "\n", 1);
+
+		request_out_buffer.DeleteCurrent();
+		free (command);
+		return TRUE;
+	}
+
+	return FALSE;
 }
 
 void

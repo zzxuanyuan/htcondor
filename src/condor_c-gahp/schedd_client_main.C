@@ -30,6 +30,9 @@
 #include "schedd_client.h"
 #include "io_loop.h"
 
+
+
+
 char *mySubSystem = "SCHEDD_CLIENT";	// used by Daemon Core
 
 char * myUserName = NULL;
@@ -114,7 +117,8 @@ my_fork () {
 	// Create two pipes that threads will talk via
 	inter_thread_io_t * inter_thread_io = (inter_thread_io_t*)malloc (sizeof (inter_thread_io_t));
 	if (daemonCore->Create_Pipe (inter_thread_io->request_pipe, true) == FALSE ||
-		daemonCore->Create_Pipe (inter_thread_io->result_pipe, true) == FALSE) {
+		daemonCore->Create_Pipe (inter_thread_io->result_pipe, true) == FALSE ||
+		daemonCore->Create_Pipe (inter_thread_io->request_ack_pipe, true) == FALSE) {
 		return FALSE;
 	}
 
@@ -136,6 +140,7 @@ my_fork () {
 									reaper_id);
 
 	// Close unneeded pipes
+	close (inter_thread_io->request_ack_pipe[0]);
 	close (inter_thread_io->request_pipe[1]);
 	close (inter_thread_io->result_pipe[0]);
 	close (STDIN_FILENO);
