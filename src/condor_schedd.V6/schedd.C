@@ -4485,29 +4485,13 @@ Scheduler::StartJobHandler()
 	pipe_fds[0] = -1;
 	pipe_fds[1] = -1;
 	if( sh_reads_file ) {
-		if( sh_is_dc ) { 
-			if( ! daemonCore->Create_Pipe(pipe_fds) ) {
-				dprintf( D_ALWAYS, 
-						 "ERROR: Can't create DC pipe for writing job "
-						 "ClassAd to the shadow, aborting\n" );
-				tryNextJob();
-				return;
-			} 
-		}
-#ifndef WIN32
-				// non DaemonCore shadows only exist on UNIX anyway,
-				// but they also don't support DC pipes, so do it with
-				// a real pipe() instead.
-		else {
-			if( pipe(pipe_fds) < 0 ) {
-				dprintf( D_ALWAYS, 
-						 "ERROR: Can't create UNIX pipe for writing job "
-						 "ClassAd to the shadow, aborting\n" );
-				tryNextJob();
-				return;
-			}
-	    }
-#endif
+		if( ! daemonCore->Create_Pipe(pipe_fds) ) {
+			dprintf( D_ALWAYS, 
+					 "ERROR: Can't create DC pipe for writing job "
+					 "ClassAd to the shadow, aborting\n" );
+			tryNextJob();
+			return;
+		} 
 			// pipe_fds[0] is the read-end of the pipe.  we want that
 			// setup as STDIN for the shadow.  we'll hold onto the
 			// write end of it so we can write the job ad there.
@@ -4575,11 +4559,7 @@ Scheduler::StartJobHandler()
 	if( pid < 0 ) {
 		for( int i = 0; i < 2; i++ ) {
 			if( pipe_fds[i] >= 0 ) {
-				if( sh_is_dc ) {
-					daemonCore->Close_Pipe( pipe_fds[i] );
-				} else {
-					close( pipe_fds[i] );
-				}
+				daemonCore->Close_Pipe( pipe_fds[i] );
 			}
 		}
 		mark_job_stopped(job_id);
@@ -4613,11 +4593,8 @@ Scheduler::StartJobHandler()
 			// 1) close our copy of the read end of the pipe, so we
 			// don't leak it.  we have to use DC::Close_Pipe() for
 			// this, not just close(), so things work on windoze.
-		if( sh_is_dc ) {
-			daemonCore->Close_Pipe( pipe_fds[0] );
-		} else {
-			close( pipe_fds[0] );
-		}
+		daemonCore->Close_Pipe( pipe_fds[0] );
+
 			// 2) dump out the job ad to the write end, since the
 			// shadow is now alive and can read from the pipe.  we
 			// want to use "true" for the last argument so that we
@@ -4642,11 +4619,7 @@ Scheduler::StartJobHandler()
 
 			// Now that all the data is written to the pipe, we can
 			// safely close the other end, too.  
-		if( sh_is_dc ) {
-			daemonCore->Close_Pipe( pipe_fds[1] );
-		} else {
-			close( pipe_fds[1] );
-		}
+		daemonCore->Close_Pipe( pipe_fds[1] );
 	}
 		/*
 		  If we just spawned a reconnect shadow, we want to update
