@@ -260,8 +260,8 @@ FileTransfer::SimpleInit(ClassAd *Ad, bool want_check_perms, bool is_server,
 		// in the spool dir, use it instead.
 
 		// Only check the spool directory if we're the server.
-		// Note: This will break Condor-C jobs if they ever spool the
-		//   executable the old-fashioned way (which they don't currently).
+		// Note: This will break Condor-C jobs if the executable is ever
+		//   spooled the old-fashioned way (which doesn't happen currently).
 		if ( IsServer() ) {
 			char *source;
 			char *Spool;
