@@ -372,7 +372,7 @@ ResList::~ResList()
 // to the "candidates" list, and the job that match to
 // the parallel canidates_jobs list
 bool
-ResList::satisfyJobs( CAList *jobs, int max_hosts, 
+ResList::satisfyJobs( CAList *jobs, 
 					  CAList* candidates,
 					  CAList* candidates_jobs) 
 {
@@ -380,7 +380,6 @@ ResList::satisfyJobs( CAList *jobs, int max_hosts,
 	int req;
 	
 	jobs->Rewind();
-	num_matches = 0;   	
 
 		// Foreach job in the given list
 	while (ClassAd *job = jobs->Next()) {
@@ -401,9 +400,12 @@ ResList::satisfyJobs( CAList *jobs, int max_hosts,
 					// responsibility to put it back if they don't want to 
 					// use it.
 				this->DeleteCurrent();
-				num_matches++;
-				if( num_matches == max_hosts ) {
-						// We've found all we need for this job
+
+					// This job is matched, don't use it again.
+				jobs->DeleteCurrent();
+
+				if( jobs->Number() == 0) {
+						// No more jobs to match, our work is done.
 					return true;
 				}
 				break; // try to match the next job
@@ -2364,7 +2366,7 @@ DedicatedScheduler::computeSchedule( void )
 			// First, try to satisfy the requirements of this cluster
 			// by going after machine resources that are idle &
 			// claimed by us
-		if( idle_resources->satisfyJobs(jobs, max_hosts, idle_candidates,
+		if( idle_resources->satisfyJobs(jobs, idle_candidates,
 										idle_candidates_jobs) )
 		{
 			printSatisfaction( cluster, idle_candidates->Length(), 0, 0, 0 );
@@ -2390,8 +2392,6 @@ DedicatedScheduler::computeSchedule( void )
 			// and already-claimed resources.  If that's the case,
 			// we'll need to hold onto the old
 
-		int still_needed = max_hosts - idle_candidates->Length();
-
 			// Now, see if we could satisfy it with resources we
 			// don't yet have claimed.
 		if( limbo_resources ) {
@@ -2399,7 +2399,7 @@ DedicatedScheduler::computeSchedule( void )
 			limbo_candidates_jobs = new CAList;
 
 			if( limbo_resources->
-				satisfyJobs(jobs, still_needed, limbo_candidates,
+				satisfyJobs(jobs, limbo_candidates,
 							limbo_candidates_jobs) )
 			{
 					// Could satisfy with idle and/or limbo
@@ -2432,7 +2432,6 @@ DedicatedScheduler::computeSchedule( void )
 					// come back.
 				continue;
 			}
-			still_needed -= limbo_candidates->Length();
 		}
 		
 
@@ -2443,7 +2442,7 @@ DedicatedScheduler::computeSchedule( void )
 			unclaimed_candidates_jobs = new CAList;
 
 			if( unclaimed_resources->
-				satisfyJobs(jobs, still_needed, unclaimed_candidates,
+				satisfyJobs(jobs, unclaimed_candidates,
 							unclaimed_candidates_jobs) )
 			{
 					// Could satisfy with idle and/or limbo and/or unclaimed
@@ -2490,7 +2489,6 @@ DedicatedScheduler::computeSchedule( void )
 				unclaimed_candidates_jobs = NULL;
 				continue;
 			}	
-			still_needed -= unclaimed_candidates->Length();
 		}	
 
 			// preempt case
@@ -2617,7 +2615,7 @@ DedicatedScheduler::computeSchedule( void )
 							// And we found a victim to preempt
 						preempt_candidates->Append(preempt_candidate_array[cand].machine_ad);
 						num_preemptions++;
-						still_needed--;
+						jobs->DeleteCurrent();
 						nodes--;
 
 							// Found all the machines we needed!
@@ -2627,12 +2625,12 @@ DedicatedScheduler::computeSchedule( void )
 					}
 				}
 
-				if (still_needed == 0) {
+				if( jobs->Number() == 0) {
 					break;
 				}
 			}
 
-			if( still_needed == 0) {
+			if( jobs->Number() == 0) {
 					// We got every single thing we need
 				printSatisfaction( cluster,
 								   idle_candidates ? 
@@ -2682,7 +2680,7 @@ DedicatedScheduler::computeSchedule( void )
 			}
 			
 			delete preempt_candidates;
-		}
+		} // if (preemption_req & _rank) != NULL
 			// We are done with these now
 		if (preemption_rank) {
 			delete preemption_rank;
@@ -2706,6 +2704,26 @@ DedicatedScheduler::computeSchedule( void )
 			// job in the future, stop here, and stick to strict FIFO,
 			// so that we don't starve the big job at the front of the
 			// queue.  
+
+
+			// clear out jobs
+		jobs->Rewind();
+		while( (jobs->Next()) ) {
+			jobs->DeleteCurrent();
+		}
+
+		int current_proc = 0;
+		while ( (job = GetJobAd( (*idle_clusters)[i], current_proc))) {
+			int hosts;
+			job->LookupInteger(ATTR_MAX_HOSTS, hosts);
+
+			for( int job_num = 0 ; job_num < hosts; job_num++) {
+				jobs->Append(job);
+			}
+			current_proc++;
+		}
+
+		
 		if( isPossibleToSatisfy(jobs, max_hosts) ) {
 				// Yes, we could run it.  Stop here.
 			dprintf( D_FULLDEBUG, "Could satisfy job %d in the future, "
@@ -3506,6 +3524,7 @@ DedicatedScheduler::isPossibleToSatisfy( CAList* jobs, int max_hosts )
 				name_buf[0] = '\0';
 				candidate->LookupString( ATTR_NAME, name_buf );
 				names.append( name_buf );
+				jobs->DeleteCurrent();
 
 				if( num_matches == max_hosts ) {
 					// We've found all we need for this job.
@@ -3527,53 +3546,6 @@ DedicatedScheduler::isPossibleToSatisfy( CAList* jobs, int max_hosts )
 	}
 	return false;
 }
-
-bool
-DedicatedScheduler::isPossibleToSatisfy( ClassAd* job, int max_hosts ) 
-{
-	ClassAd* candidate;
-	int req;
-	StringList names;
-	char name_buf[512];
-	char* name;
-	match_rec* mrec;
-	
-	dprintf( D_FULLDEBUG, 
-			 "Trying to satisfy job with all possible resources\n" );
-
-	resources->Rewind();
-	int num_matches = 0;
-    while( (candidate = resources->Next()) ) {
-			// Make sure the job requirements are satisfied with this
-			// resource.
-		if( job->EvalBool(ATTR_REQUIREMENTS, candidate, req) == 0 ) { 
-				// If it's undefined, treat it as false.
-			req = 0;
-		}
-		if( req ) {
-			num_matches++;
-			name_buf[0] = '\0';
-			candidate->LookupString( ATTR_NAME, name_buf );
-			names.append( name_buf );
-		}
-		if( num_matches == max_hosts ) {
-				// We've found all we need for this job.
-				// Set the scheduled flag on any match records we used
-				// for satisfying this job so we don't release them
-				// prematurely. 
-			names.rewind();
-			while( (name = names.next()) ) {
-				HashKey key(name);
-				if( all_matches->lookup(key, mrec) >= 0 ) {
-					mrec->scheduled = true;
-				}
-			}
-			return true;
-		}
-	}
-	return false;
-}
- 
 
 bool
 DedicatedScheduler::hasDedicatedShadow( void ) 

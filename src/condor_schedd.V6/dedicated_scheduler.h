@@ -103,12 +103,12 @@ class ResList : public CAList {
 			of matches we found at this time, and the candidates list
 			includes a pointer to each resource ad we matched with.
 			@param jobAd The job to satisfy
-			@param max_hosts How many resources does this job need?
 			@param candidates List of pointers to ads that matched
+			@param candidates_jobs parallel list of jobs that matched
 			@return Was the job completely satisfied?
 		*/
 
-	bool satisfyJobs( CAList* jobs, int max_hosts,
+	bool satisfyJobs( CAList* jobs,
 					  CAList* candidates, CAList *candidates_jobs );
 
 	void display( int level );
@@ -349,7 +349,6 @@ class DedicatedScheduler : public Service {
 			@return true if possible, false if not
 		*/
 	bool isPossibleToSatisfy( CAList* jobs, int max_hosts );
-	bool isPossibleToSatisfy( ClassAd* job, int max_hosts );
 
 	bool hasDedicatedShadow( void );
 
