@@ -779,7 +779,7 @@ int GT4Job::doEvaluateState()
 				gmState = GM_DELETE;
 				break;
 			} else {
-				gmState = GM_GENEATE_ID;
+				gmState = GM_GENERATE_ID;
 			}
 			} break;
  		case GM_DELEGATE_PROXY: {
@@ -787,7 +787,7 @@ int GT4Job::doEvaluateState()
 
 			rc = gahp->gt4_gram_client_delegate_credentials (resourceManagerString,
 															 &delegatedCredentialURI,
-															 &errorString);
+															 &error_string);
 			
 			
 			if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
@@ -800,7 +800,7 @@ int GT4Job::doEvaluateState()
 									delegatedCredentialURI );
 				gmState = GM_DELEGATE_PROXY_SAVE;
 			} else {
-				dprintf(D_ALWAYS,"(%d.%d) Delegation Error: %s\n"
+				dprintf(D_ALWAYS,"(%d.%d) Delegation Error: %s\n",
 						procID.cluster, procID.proc, error_string);
 
 				UpdateJobAdString( ATTR_HOLD_REASON, "Failed to delegate credential" );
@@ -1010,7 +1010,7 @@ int GT4Job::doEvaluateState()
 				gmState = GM_CANCEL;
 			} else {
 				CHECK_PROXY;
-				rc = gahp->gt4_gram_client_job_refresh_credentials(
+				rc = gahp->gt4_gram_client_refresh_credentials(
 																jobContact );
 
 				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
@@ -2134,6 +2134,7 @@ WriteGT4ResourceDownEventToUserLog( ClassAd *job_ad )
 const char * 
 GT4Job::printXMLParam (const char * name, const char * value) {
 	static MyString buff;
+		// TODO should perform escaping of special characters in value
 	buff.sprintf ("<%s>%s</%s>", name, value, name);
 	return buff.Value();
 }

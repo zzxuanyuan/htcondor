@@ -36,6 +36,7 @@ GridftpManager::GridftpManager() {
 }
 
 GridftpManager::~GridftpManager() {
+		// TODO should unregister reaper here
 }
 
 void

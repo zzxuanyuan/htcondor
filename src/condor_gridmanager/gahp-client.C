@@ -3257,7 +3257,7 @@ GahpClient::gt4_gram_client_ping(const char * resource_contact)
 }
 
 int
-GahpClient::gt4_gram_client_job_delegate_credentials(const char *delegation_service_url, char ** delegation_uri, char ** error_string)
+GahpClient::gt4_gram_client_delegate_credentials(const char *delegation_service_url, char ** delegation_uri, char ** error_string)
 {
 	static const char* command = "GT4_DELEGATE_CREDENTIAL";
 
@@ -3321,7 +3321,7 @@ GahpClient::gt4_gram_client_job_delegate_credentials(const char *delegation_serv
 
 
 int
-GahpClient::gt4_gram_client_job_refresh_credentials(const char *delegation_uri)
+GahpClient::gt4_gram_client_refresh_credentials(const char *delegation_uri)
 {
 	static const char* command = "GT4_REFRESH_CREDENTIAL";
 
