@@ -32,6 +32,9 @@
 #include "internet.h"
 #include "condor_socket_types.h"
 #include "condor_string.h"
+extern "C" {
+#include "reliUDP.h"
+}
 
 _condorMsgID SafeSock::_outMsgID = {0, 0, 0, 0};
 unsigned long SafeSock::_noMsgs = 0;
@@ -461,9 +464,18 @@ int SafeSock::handle_incoming_packet()
 	int received;
 	_condorInMsg *tempMsg, *delMsg, *prev = NULL;
 	time_t curTime;
+    struct rudpaddr sender;
 
-	received = recvfrom(_sock, _shortMsg.dataGram, SAFE_MSG_MAX_PACKET_SIZE,
-	                    0, (struct sockaddr *)&_who, &fromlen );
+    if (usingReliableUDP()) {
+        memset(&sender, 0, sizeof(struct rudpaddr));
+        received = rudp_recvfrom(_sock, _shortMsg.dataGram, SAFE_MSG_MAX_PACKET_SIZE,
+                                 0, (struct sockaddr *)&_who, &fromlen, &sender );
+    }
+    else {
+        received = recvfrom(_sock, _shortMsg.dataGram, SAFE_MSG_MAX_PACKET_SIZE,
+                            0, (struct sockaddr *)&_who, &fromlen );
+    }
+
     _shortMsg.setVerified(false);  // check MD if necessary
 	if(received < 0) {
 		dprintf(D_NETWORK, "recvfrom failed: errno = %d\n", errno);
