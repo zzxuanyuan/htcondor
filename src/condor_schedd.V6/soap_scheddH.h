@@ -128,8 +128,36 @@ SOAP_FMAC3 int SOAP_FMAC4 soap_out_unsignedInt(struct soap*, const char*, int, c
 SOAP_FMAC3 unsigned int * SOAP_FMAC4 soap_get_unsignedInt(struct soap*, unsigned int *, const char*, const char*);
 SOAP_FMAC3 unsigned int * SOAP_FMAC4 soap_in_unsignedInt(struct soap*, const char*, unsigned int *, const char*);
 
+#ifndef SOAP_TYPE_condorSchedd__UniverseType
+#define SOAP_TYPE_condorSchedd__UniverseType (35)
+#endif
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorSchedd__UniverseType(struct soap*, enum condorSchedd__UniverseType *);
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__UniverseType(struct soap*, enum condorSchedd__UniverseType const*);
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorSchedd__UniverseType(struct soap*, enum condorSchedd__UniverseType *, const char*, const char*);
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorSchedd__UniverseType(struct soap*, const char*, int, const enum condorSchedd__UniverseType *, const char*);
+
+SOAP_FMAC3 const char* SOAP_FMAC4 soap_condorSchedd__UniverseType2s(struct soap*, enum condorSchedd__UniverseType);
+SOAP_FMAC3 enum condorSchedd__UniverseType * SOAP_FMAC4 soap_get_condorSchedd__UniverseType(struct soap*, enum condorSchedd__UniverseType *, const char*, const char*);
+SOAP_FMAC3 enum condorSchedd__UniverseType * SOAP_FMAC4 soap_in_condorSchedd__UniverseType(struct soap*, const char*, enum condorSchedd__UniverseType *, const char*);
+
+SOAP_FMAC3 int SOAP_FMAC4 soap_s2condorSchedd__UniverseType(struct soap*, const char*, enum condorSchedd__UniverseType *);
+
+#ifndef SOAP_TYPE_condorSchedd__HashType
+#define SOAP_TYPE_condorSchedd__HashType (34)
+#endif
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorSchedd__HashType(struct soap*, enum condorSchedd__HashType *);
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__HashType(struct soap*, enum condorSchedd__HashType const*);
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorSchedd__HashType(struct soap*, enum condorSchedd__HashType *, const char*, const char*);
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorSchedd__HashType(struct soap*, const char*, int, const enum condorSchedd__HashType *, const char*);
+
+SOAP_FMAC3 const char* SOAP_FMAC4 soap_condorSchedd__HashType2s(struct soap*, enum condorSchedd__HashType);
+SOAP_FMAC3 enum condorSchedd__HashType * SOAP_FMAC4 soap_get_condorSchedd__HashType(struct soap*, enum condorSchedd__HashType *, const char*, const char*);
+SOAP_FMAC3 enum condorSchedd__HashType * SOAP_FMAC4 soap_in_condorSchedd__HashType(struct soap*, const char*, enum condorSchedd__HashType *, const char*);
+
+SOAP_FMAC3 int SOAP_FMAC4 soap_s2condorSchedd__HashType(struct soap*, const char*, enum condorSchedd__HashType *);
+
 #ifndef SOAP_TYPE_condorCore__ClassAdAttrType
-#define SOAP_TYPE_condorCore__ClassAdAttrType (23)
+#define SOAP_TYPE_condorCore__ClassAdAttrType (24)
 #endif
 SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorCore__ClassAdAttrType(struct soap*, enum condorCore__ClassAdAttrType *);
 SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCore__ClassAdAttrType(struct soap*, enum condorCore__ClassAdAttrType const*);
@@ -141,6 +169,20 @@ SOAP_FMAC3 enum condorCore__ClassAdAttrType * SOAP_FMAC4 soap_get_condorCore__Cl
 SOAP_FMAC3 enum condorCore__ClassAdAttrType * SOAP_FMAC4 soap_in_condorCore__ClassAdAttrType(struct soap*, const char*, enum condorCore__ClassAdAttrType *, const char*);
 
 SOAP_FMAC3 int SOAP_FMAC4 soap_s2condorCore__ClassAdAttrType(struct soap*, const char*, enum condorCore__ClassAdAttrType *);
+
+#ifndef SOAP_TYPE_condorCore__StatusCode
+#define SOAP_TYPE_condorCore__StatusCode (21)
+#endif
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorCore__StatusCode(struct soap*, enum condorCore__StatusCode *);
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCore__StatusCode(struct soap*, enum condorCore__StatusCode const*);
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorCore__StatusCode(struct soap*, enum condorCore__StatusCode *, const char*, const char*);
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorCore__StatusCode(struct soap*, const char*, int, const enum condorCore__StatusCode *, const char*);
+
+SOAP_FMAC3 const char* SOAP_FMAC4 soap_condorCore__StatusCode2s(struct soap*, enum condorCore__StatusCode);
+SOAP_FMAC3 enum condorCore__StatusCode * SOAP_FMAC4 soap_get_condorCore__StatusCode(struct soap*, enum condorCore__StatusCode *, const char*, const char*);
+SOAP_FMAC3 enum condorCore__StatusCode * SOAP_FMAC4 soap_in_condorCore__StatusCode(struct soap*, const char*, enum condorCore__StatusCode *, const char*);
+
+SOAP_FMAC3 int SOAP_FMAC4 soap_s2condorCore__StatusCode(struct soap*, const char*, enum condorCore__StatusCode *);
 
 #ifndef SOAP_TYPE_xsd__boolean
 #define SOAP_TYPE_xsd__boolean (12)
@@ -173,7 +215,7 @@ SOAP_FMAC3 int SOAP_FMAC4 soap_s2bool(struct soap*, const char*, bool *);
 #ifndef WITH_NOGLOBAL
 
 #ifndef SOAP_TYPE_SOAP_ENV__Fault
-#define SOAP_TYPE_SOAP_ENV__Fault (83)
+#define SOAP_TYPE_SOAP_ENV__Fault (96)
 #endif
 SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_SOAP_ENV__Fault(struct soap*, struct SOAP_ENV__Fault const*);
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_SOAP_ENV__Fault(struct soap*, const struct SOAP_ENV__Fault *);
@@ -188,7 +230,7 @@ SOAP_FMAC3 struct SOAP_ENV__Fault * SOAP_FMAC4 soap_in_SOAP_ENV__Fault(struct so
 #ifndef WITH_NOGLOBAL
 
 #ifndef SOAP_TYPE_SOAP_ENV__Detail
-#define SOAP_TYPE_SOAP_ENV__Detail (82)
+#define SOAP_TYPE_SOAP_ENV__Detail (95)
 #endif
 SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_SOAP_ENV__Detail(struct soap*, struct SOAP_ENV__Detail const*);
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_SOAP_ENV__Detail(struct soap*, const struct SOAP_ENV__Detail *);
@@ -203,7 +245,7 @@ SOAP_FMAC3 struct SOAP_ENV__Detail * SOAP_FMAC4 soap_in_SOAP_ENV__Detail(struct 
 #ifndef WITH_NOGLOBAL
 
 #ifndef SOAP_TYPE_SOAP_ENV__Code
-#define SOAP_TYPE_SOAP_ENV__Code (81)
+#define SOAP_TYPE_SOAP_ENV__Code (94)
 #endif
 SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_SOAP_ENV__Code(struct soap*, struct SOAP_ENV__Code const*);
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_SOAP_ENV__Code(struct soap*, const struct SOAP_ENV__Code *);
@@ -218,7 +260,7 @@ SOAP_FMAC3 struct SOAP_ENV__Code * SOAP_FMAC4 soap_in_SOAP_ENV__Code(struct soap
 #ifndef WITH_NOGLOBAL
 
 #ifndef SOAP_TYPE_SOAP_ENV__Header
-#define SOAP_TYPE_SOAP_ENV__Header (80)
+#define SOAP_TYPE_SOAP_ENV__Header (93)
 #endif
 SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_SOAP_ENV__Header(struct soap*, struct SOAP_ENV__Header const*);
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_SOAP_ENV__Header(struct soap*, const struct SOAP_ENV__Header *);
@@ -230,8 +272,19 @@ SOAP_FMAC3 struct SOAP_ENV__Header * SOAP_FMAC4 soap_in_SOAP_ENV__Header(struct 
 
 #endif
 
+#ifndef SOAP_TYPE_condorSchedd__createJobTemplate
+#define SOAP_TYPE_condorSchedd__createJobTemplate (90)
+#endif
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__createJobTemplate(struct soap*, struct condorSchedd__createJobTemplate const*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__createJobTemplate(struct soap*, const struct condorSchedd__createJobTemplate *);
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorSchedd__createJobTemplate(struct soap*, struct condorSchedd__createJobTemplate *);
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorSchedd__createJobTemplate(struct soap*, struct condorSchedd__createJobTemplate *, const char*, const char*);
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorSchedd__createJobTemplate(struct soap*, const char*, int, const struct condorSchedd__createJobTemplate *, const char*);
+SOAP_FMAC3 struct condorSchedd__createJobTemplate * SOAP_FMAC4 soap_get_condorSchedd__createJobTemplate(struct soap*, struct condorSchedd__createJobTemplate *, const char*, const char*);
+SOAP_FMAC3 struct condorSchedd__createJobTemplate * SOAP_FMAC4 soap_in_condorSchedd__createJobTemplate(struct soap*, const char*, struct condorSchedd__createJobTemplate *, const char*);
+
 #ifndef SOAP_TYPE_condorSchedd__discoverDagRequirements
-#define SOAP_TYPE_condorSchedd__discoverDagRequirements (77)
+#define SOAP_TYPE_condorSchedd__discoverDagRequirements (88)
 #endif
 SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__discoverDagRequirements(struct soap*, struct condorSchedd__discoverDagRequirements const*);
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__discoverDagRequirements(struct soap*, const struct condorSchedd__discoverDagRequirements *);
@@ -242,7 +295,7 @@ SOAP_FMAC3 struct condorSchedd__discoverDagRequirements * SOAP_FMAC4 soap_get_co
 SOAP_FMAC3 struct condorSchedd__discoverDagRequirements * SOAP_FMAC4 soap_in_condorSchedd__discoverDagRequirements(struct soap*, const char*, struct condorSchedd__discoverDagRequirements *, const char*);
 
 #ifndef SOAP_TYPE_condorSchedd__discoverJobRequirements
-#define SOAP_TYPE_condorSchedd__discoverJobRequirements (75)
+#define SOAP_TYPE_condorSchedd__discoverJobRequirements (86)
 #endif
 SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__discoverJobRequirements(struct soap*, struct condorSchedd__discoverJobRequirements const*);
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__discoverJobRequirements(struct soap*, const struct condorSchedd__discoverJobRequirements *);
@@ -253,7 +306,7 @@ SOAP_FMAC3 struct condorSchedd__discoverJobRequirements * SOAP_FMAC4 soap_get_co
 SOAP_FMAC3 struct condorSchedd__discoverJobRequirements * SOAP_FMAC4 soap_in_condorSchedd__discoverJobRequirements(struct soap*, const char*, struct condorSchedd__discoverJobRequirements *, const char*);
 
 #ifndef SOAP_TYPE_condorSchedd__sendFile
-#define SOAP_TYPE_condorSchedd__sendFile (73)
+#define SOAP_TYPE_condorSchedd__sendFile (84)
 #endif
 SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__sendFile(struct soap*, struct condorSchedd__sendFile const*);
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__sendFile(struct soap*, const struct condorSchedd__sendFile *);
@@ -263,8 +316,19 @@ SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorSchedd__sendFile(struct soap*, const ch
 SOAP_FMAC3 struct condorSchedd__sendFile * SOAP_FMAC4 soap_get_condorSchedd__sendFile(struct soap*, struct condorSchedd__sendFile *, const char*, const char*);
 SOAP_FMAC3 struct condorSchedd__sendFile * SOAP_FMAC4 soap_in_condorSchedd__sendFile(struct soap*, const char*, struct condorSchedd__sendFile *, const char*);
 
+#ifndef SOAP_TYPE_condorSchedd__declareFile
+#define SOAP_TYPE_condorSchedd__declareFile (81)
+#endif
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__declareFile(struct soap*, struct condorSchedd__declareFile const*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__declareFile(struct soap*, const struct condorSchedd__declareFile *);
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorSchedd__declareFile(struct soap*, struct condorSchedd__declareFile *);
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorSchedd__declareFile(struct soap*, struct condorSchedd__declareFile *, const char*, const char*);
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorSchedd__declareFile(struct soap*, const char*, int, const struct condorSchedd__declareFile *, const char*);
+SOAP_FMAC3 struct condorSchedd__declareFile * SOAP_FMAC4 soap_get_condorSchedd__declareFile(struct soap*, struct condorSchedd__declareFile *, const char*, const char*);
+SOAP_FMAC3 struct condorSchedd__declareFile * SOAP_FMAC4 soap_in_condorSchedd__declareFile(struct soap*, const char*, struct condorSchedd__declareFile *, const char*);
+
 #ifndef SOAP_TYPE_condorSchedd__getJobAd
-#define SOAP_TYPE_condorSchedd__getJobAd (70)
+#define SOAP_TYPE_condorSchedd__getJobAd (79)
 #endif
 SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__getJobAd(struct soap*, struct condorSchedd__getJobAd const*);
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__getJobAd(struct soap*, const struct condorSchedd__getJobAd *);
@@ -275,7 +339,7 @@ SOAP_FMAC3 struct condorSchedd__getJobAd * SOAP_FMAC4 soap_get_condorSchedd__get
 SOAP_FMAC3 struct condorSchedd__getJobAd * SOAP_FMAC4 soap_in_condorSchedd__getJobAd(struct soap*, const char*, struct condorSchedd__getJobAd *, const char*);
 
 #ifndef SOAP_TYPE_condorSchedd__getJobAds
-#define SOAP_TYPE_condorSchedd__getJobAds (67)
+#define SOAP_TYPE_condorSchedd__getJobAds (76)
 #endif
 SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__getJobAds(struct soap*, struct condorSchedd__getJobAds const*);
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__getJobAds(struct soap*, const struct condorSchedd__getJobAds *);
@@ -286,7 +350,7 @@ SOAP_FMAC3 struct condorSchedd__getJobAds * SOAP_FMAC4 soap_get_condorSchedd__ge
 SOAP_FMAC3 struct condorSchedd__getJobAds * SOAP_FMAC4 soap_in_condorSchedd__getJobAds(struct soap*, const char*, struct condorSchedd__getJobAds *, const char*);
 
 #ifndef SOAP_TYPE_condorSchedd__submit
-#define SOAP_TYPE_condorSchedd__submit (64)
+#define SOAP_TYPE_condorSchedd__submit (73)
 #endif
 SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__submit(struct soap*, struct condorSchedd__submit const*);
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__submit(struct soap*, const struct condorSchedd__submit *);
@@ -297,7 +361,7 @@ SOAP_FMAC3 struct condorSchedd__submit * SOAP_FMAC4 soap_get_condorSchedd__submi
 SOAP_FMAC3 struct condorSchedd__submit * SOAP_FMAC4 soap_in_condorSchedd__submit(struct soap*, const char*, struct condorSchedd__submit *, const char*);
 
 #ifndef SOAP_TYPE_condorSchedd__releaseJob
-#define SOAP_TYPE_condorSchedd__releaseJob (61)
+#define SOAP_TYPE_condorSchedd__releaseJob (70)
 #endif
 SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__releaseJob(struct soap*, struct condorSchedd__releaseJob const*);
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__releaseJob(struct soap*, const struct condorSchedd__releaseJob *);
@@ -308,7 +372,7 @@ SOAP_FMAC3 struct condorSchedd__releaseJob * SOAP_FMAC4 soap_get_condorSchedd__r
 SOAP_FMAC3 struct condorSchedd__releaseJob * SOAP_FMAC4 soap_in_condorSchedd__releaseJob(struct soap*, const char*, struct condorSchedd__releaseJob *, const char*);
 
 #ifndef SOAP_TYPE_condorSchedd__holdJob
-#define SOAP_TYPE_condorSchedd__holdJob (59)
+#define SOAP_TYPE_condorSchedd__holdJob (68)
 #endif
 SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__holdJob(struct soap*, struct condorSchedd__holdJob const*);
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__holdJob(struct soap*, const struct condorSchedd__holdJob *);
@@ -319,7 +383,7 @@ SOAP_FMAC3 struct condorSchedd__holdJob * SOAP_FMAC4 soap_get_condorSchedd__hold
 SOAP_FMAC3 struct condorSchedd__holdJob * SOAP_FMAC4 soap_in_condorSchedd__holdJob(struct soap*, const char*, struct condorSchedd__holdJob *, const char*);
 
 #ifndef SOAP_TYPE_condorSchedd__removeJob
-#define SOAP_TYPE_condorSchedd__removeJob (57)
+#define SOAP_TYPE_condorSchedd__removeJob (66)
 #endif
 SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__removeJob(struct soap*, struct condorSchedd__removeJob const*);
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__removeJob(struct soap*, const struct condorSchedd__removeJob *);
@@ -330,7 +394,7 @@ SOAP_FMAC3 struct condorSchedd__removeJob * SOAP_FMAC4 soap_get_condorSchedd__re
 SOAP_FMAC3 struct condorSchedd__removeJob * SOAP_FMAC4 soap_in_condorSchedd__removeJob(struct soap*, const char*, struct condorSchedd__removeJob *, const char*);
 
 #ifndef SOAP_TYPE_condorSchedd__newJob
-#define SOAP_TYPE_condorSchedd__newJob (55)
+#define SOAP_TYPE_condorSchedd__newJob (64)
 #endif
 SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__newJob(struct soap*, struct condorSchedd__newJob const*);
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__newJob(struct soap*, const struct condorSchedd__newJob *);
@@ -341,7 +405,7 @@ SOAP_FMAC3 struct condorSchedd__newJob * SOAP_FMAC4 soap_get_condorSchedd__newJo
 SOAP_FMAC3 struct condorSchedd__newJob * SOAP_FMAC4 soap_in_condorSchedd__newJob(struct soap*, const char*, struct condorSchedd__newJob *, const char*);
 
 #ifndef SOAP_TYPE_condorSchedd__removeCluster
-#define SOAP_TYPE_condorSchedd__removeCluster (53)
+#define SOAP_TYPE_condorSchedd__removeCluster (62)
 #endif
 SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__removeCluster(struct soap*, struct condorSchedd__removeCluster const*);
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__removeCluster(struct soap*, const struct condorSchedd__removeCluster *);
@@ -352,7 +416,7 @@ SOAP_FMAC3 struct condorSchedd__removeCluster * SOAP_FMAC4 soap_get_condorSchedd
 SOAP_FMAC3 struct condorSchedd__removeCluster * SOAP_FMAC4 soap_in_condorSchedd__removeCluster(struct soap*, const char*, struct condorSchedd__removeCluster *, const char*);
 
 #ifndef SOAP_TYPE_condorSchedd__newCluster
-#define SOAP_TYPE_condorSchedd__newCluster (51)
+#define SOAP_TYPE_condorSchedd__newCluster (60)
 #endif
 SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__newCluster(struct soap*, struct condorSchedd__newCluster const*);
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__newCluster(struct soap*, const struct condorSchedd__newCluster *);
@@ -363,7 +427,7 @@ SOAP_FMAC3 struct condorSchedd__newCluster * SOAP_FMAC4 soap_get_condorSchedd__n
 SOAP_FMAC3 struct condorSchedd__newCluster * SOAP_FMAC4 soap_in_condorSchedd__newCluster(struct soap*, const char*, struct condorSchedd__newCluster *, const char*);
 
 #ifndef SOAP_TYPE_condorSchedd__extendTransaction
-#define SOAP_TYPE_condorSchedd__extendTransaction (48)
+#define SOAP_TYPE_condorSchedd__extendTransaction (57)
 #endif
 SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__extendTransaction(struct soap*, struct condorSchedd__extendTransaction const*);
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__extendTransaction(struct soap*, const struct condorSchedd__extendTransaction *);
@@ -374,7 +438,7 @@ SOAP_FMAC3 struct condorSchedd__extendTransaction * SOAP_FMAC4 soap_get_condorSc
 SOAP_FMAC3 struct condorSchedd__extendTransaction * SOAP_FMAC4 soap_in_condorSchedd__extendTransaction(struct soap*, const char*, struct condorSchedd__extendTransaction *, const char*);
 
 #ifndef SOAP_TYPE_condorSchedd__abortTransaction
-#define SOAP_TYPE_condorSchedd__abortTransaction (46)
+#define SOAP_TYPE_condorSchedd__abortTransaction (55)
 #endif
 SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__abortTransaction(struct soap*, struct condorSchedd__abortTransaction const*);
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__abortTransaction(struct soap*, const struct condorSchedd__abortTransaction *);
@@ -385,7 +449,7 @@ SOAP_FMAC3 struct condorSchedd__abortTransaction * SOAP_FMAC4 soap_get_condorSch
 SOAP_FMAC3 struct condorSchedd__abortTransaction * SOAP_FMAC4 soap_in_condorSchedd__abortTransaction(struct soap*, const char*, struct condorSchedd__abortTransaction *, const char*);
 
 #ifndef SOAP_TYPE_condorSchedd__commitTransaction
-#define SOAP_TYPE_condorSchedd__commitTransaction (44)
+#define SOAP_TYPE_condorSchedd__commitTransaction (53)
 #endif
 SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__commitTransaction(struct soap*, struct condorSchedd__commitTransaction const*);
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__commitTransaction(struct soap*, const struct condorSchedd__commitTransaction *);
@@ -396,7 +460,7 @@ SOAP_FMAC3 struct condorSchedd__commitTransaction * SOAP_FMAC4 soap_get_condorSc
 SOAP_FMAC3 struct condorSchedd__commitTransaction * SOAP_FMAC4 soap_in_condorSchedd__commitTransaction(struct soap*, const char*, struct condorSchedd__commitTransaction *, const char*);
 
 #ifndef SOAP_TYPE_condorSchedd__beginTransaction
-#define SOAP_TYPE_condorSchedd__beginTransaction (41)
+#define SOAP_TYPE_condorSchedd__beginTransaction (50)
 #endif
 SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__beginTransaction(struct soap*, struct condorSchedd__beginTransaction const*);
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__beginTransaction(struct soap*, const struct condorSchedd__beginTransaction *);
@@ -406,8 +470,74 @@ SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorSchedd__beginTransaction(struct soap*, 
 SOAP_FMAC3 struct condorSchedd__beginTransaction * SOAP_FMAC4 soap_get_condorSchedd__beginTransaction(struct soap*, struct condorSchedd__beginTransaction *, const char*, const char*);
 SOAP_FMAC3 struct condorSchedd__beginTransaction * SOAP_FMAC4 soap_in_condorSchedd__beginTransaction(struct soap*, const char*, struct condorSchedd__beginTransaction *, const char*);
 
+#ifndef SOAP_TYPE_condorSchedd__ClassAdStructAndStatusResponse
+#define SOAP_TYPE_condorSchedd__ClassAdStructAndStatusResponse (47)
+#endif
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__ClassAdStructAndStatusResponse(struct soap*, struct condorSchedd__ClassAdStructAndStatusResponse const*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__ClassAdStructAndStatusResponse(struct soap*, const struct condorSchedd__ClassAdStructAndStatusResponse *);
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorSchedd__ClassAdStructAndStatusResponse(struct soap*, struct condorSchedd__ClassAdStructAndStatusResponse *);
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorSchedd__ClassAdStructAndStatusResponse(struct soap*, struct condorSchedd__ClassAdStructAndStatusResponse *, const char*, const char*);
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorSchedd__ClassAdStructAndStatusResponse(struct soap*, const char*, int, const struct condorSchedd__ClassAdStructAndStatusResponse *, const char*);
+SOAP_FMAC3 struct condorSchedd__ClassAdStructAndStatusResponse * SOAP_FMAC4 soap_get_condorSchedd__ClassAdStructAndStatusResponse(struct soap*, struct condorSchedd__ClassAdStructAndStatusResponse *, const char*, const char*);
+SOAP_FMAC3 struct condorSchedd__ClassAdStructAndStatusResponse * SOAP_FMAC4 soap_in_condorSchedd__ClassAdStructAndStatusResponse(struct soap*, const char*, struct condorSchedd__ClassAdStructAndStatusResponse *, const char*);
+
+#ifndef SOAP_TYPE_condorSchedd__ClassAdStructArrayAndStatusResponse
+#define SOAP_TYPE_condorSchedd__ClassAdStructArrayAndStatusResponse (46)
+#endif
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__ClassAdStructArrayAndStatusResponse(struct soap*, struct condorSchedd__ClassAdStructArrayAndStatusResponse const*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__ClassAdStructArrayAndStatusResponse(struct soap*, const struct condorSchedd__ClassAdStructArrayAndStatusResponse *);
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorSchedd__ClassAdStructArrayAndStatusResponse(struct soap*, struct condorSchedd__ClassAdStructArrayAndStatusResponse *);
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorSchedd__ClassAdStructArrayAndStatusResponse(struct soap*, struct condorSchedd__ClassAdStructArrayAndStatusResponse *, const char*, const char*);
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorSchedd__ClassAdStructArrayAndStatusResponse(struct soap*, const char*, int, const struct condorSchedd__ClassAdStructArrayAndStatusResponse *, const char*);
+SOAP_FMAC3 struct condorSchedd__ClassAdStructArrayAndStatusResponse * SOAP_FMAC4 soap_get_condorSchedd__ClassAdStructArrayAndStatusResponse(struct soap*, struct condorSchedd__ClassAdStructArrayAndStatusResponse *, const char*, const char*);
+SOAP_FMAC3 struct condorSchedd__ClassAdStructArrayAndStatusResponse * SOAP_FMAC4 soap_in_condorSchedd__ClassAdStructArrayAndStatusResponse(struct soap*, const char*, struct condorSchedd__ClassAdStructArrayAndStatusResponse *, const char*);
+
+#ifndef SOAP_TYPE_condorSchedd__RequirementsAndStatusResponse
+#define SOAP_TYPE_condorSchedd__RequirementsAndStatusResponse (45)
+#endif
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__RequirementsAndStatusResponse(struct soap*, struct condorSchedd__RequirementsAndStatusResponse const*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__RequirementsAndStatusResponse(struct soap*, const struct condorSchedd__RequirementsAndStatusResponse *);
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorSchedd__RequirementsAndStatusResponse(struct soap*, struct condorSchedd__RequirementsAndStatusResponse *);
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorSchedd__RequirementsAndStatusResponse(struct soap*, struct condorSchedd__RequirementsAndStatusResponse *, const char*, const char*);
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorSchedd__RequirementsAndStatusResponse(struct soap*, const char*, int, const struct condorSchedd__RequirementsAndStatusResponse *, const char*);
+SOAP_FMAC3 struct condorSchedd__RequirementsAndStatusResponse * SOAP_FMAC4 soap_get_condorSchedd__RequirementsAndStatusResponse(struct soap*, struct condorSchedd__RequirementsAndStatusResponse *, const char*, const char*);
+SOAP_FMAC3 struct condorSchedd__RequirementsAndStatusResponse * SOAP_FMAC4 soap_in_condorSchedd__RequirementsAndStatusResponse(struct soap*, const char*, struct condorSchedd__RequirementsAndStatusResponse *, const char*);
+
+#ifndef SOAP_TYPE_condorSchedd__IntAndStatusResponse
+#define SOAP_TYPE_condorSchedd__IntAndStatusResponse (44)
+#endif
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__IntAndStatusResponse(struct soap*, struct condorSchedd__IntAndStatusResponse const*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__IntAndStatusResponse(struct soap*, const struct condorSchedd__IntAndStatusResponse *);
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorSchedd__IntAndStatusResponse(struct soap*, struct condorSchedd__IntAndStatusResponse *);
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorSchedd__IntAndStatusResponse(struct soap*, struct condorSchedd__IntAndStatusResponse *, const char*, const char*);
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorSchedd__IntAndStatusResponse(struct soap*, const char*, int, const struct condorSchedd__IntAndStatusResponse *, const char*);
+SOAP_FMAC3 struct condorSchedd__IntAndStatusResponse * SOAP_FMAC4 soap_get_condorSchedd__IntAndStatusResponse(struct soap*, struct condorSchedd__IntAndStatusResponse *, const char*, const char*);
+SOAP_FMAC3 struct condorSchedd__IntAndStatusResponse * SOAP_FMAC4 soap_in_condorSchedd__IntAndStatusResponse(struct soap*, const char*, struct condorSchedd__IntAndStatusResponse *, const char*);
+
+#ifndef SOAP_TYPE_condorSchedd__TransactionAndStatusResponse
+#define SOAP_TYPE_condorSchedd__TransactionAndStatusResponse (43)
+#endif
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__TransactionAndStatusResponse(struct soap*, struct condorSchedd__TransactionAndStatusResponse const*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__TransactionAndStatusResponse(struct soap*, const struct condorSchedd__TransactionAndStatusResponse *);
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorSchedd__TransactionAndStatusResponse(struct soap*, struct condorSchedd__TransactionAndStatusResponse *);
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorSchedd__TransactionAndStatusResponse(struct soap*, struct condorSchedd__TransactionAndStatusResponse *, const char*, const char*);
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorSchedd__TransactionAndStatusResponse(struct soap*, const char*, int, const struct condorSchedd__TransactionAndStatusResponse *, const char*);
+SOAP_FMAC3 struct condorSchedd__TransactionAndStatusResponse * SOAP_FMAC4 soap_get_condorSchedd__TransactionAndStatusResponse(struct soap*, struct condorSchedd__TransactionAndStatusResponse *, const char*, const char*);
+SOAP_FMAC3 struct condorSchedd__TransactionAndStatusResponse * SOAP_FMAC4 soap_in_condorSchedd__TransactionAndStatusResponse(struct soap*, const char*, struct condorSchedd__TransactionAndStatusResponse *, const char*);
+
+#ifndef SOAP_TYPE_condorSchedd__StatusResponse
+#define SOAP_TYPE_condorSchedd__StatusResponse (42)
+#endif
+SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__StatusResponse(struct soap*, struct condorSchedd__StatusResponse const*);
+SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__StatusResponse(struct soap*, const struct condorSchedd__StatusResponse *);
+SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorSchedd__StatusResponse(struct soap*, struct condorSchedd__StatusResponse *);
+SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorSchedd__StatusResponse(struct soap*, struct condorSchedd__StatusResponse *, const char*, const char*);
+SOAP_FMAC3 int SOAP_FMAC4 soap_out_condorSchedd__StatusResponse(struct soap*, const char*, int, const struct condorSchedd__StatusResponse *, const char*);
+SOAP_FMAC3 struct condorSchedd__StatusResponse * SOAP_FMAC4 soap_get_condorSchedd__StatusResponse(struct soap*, struct condorSchedd__StatusResponse *, const char*, const char*);
+SOAP_FMAC3 struct condorSchedd__StatusResponse * SOAP_FMAC4 soap_in_condorSchedd__StatusResponse(struct soap*, const char*, struct condorSchedd__StatusResponse *, const char*);
+
 #ifndef SOAP_TYPE_condorSchedd__IntAndStatus
-#define SOAP_TYPE_condorSchedd__IntAndStatus (38)
+#define SOAP_TYPE_condorSchedd__IntAndStatus (41)
 #endif
 SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__IntAndStatus(struct soap*, struct condorSchedd__IntAndStatus const*);
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__IntAndStatus(struct soap*, const struct condorSchedd__IntAndStatus *);
@@ -418,7 +548,7 @@ SOAP_FMAC3 struct condorSchedd__IntAndStatus * SOAP_FMAC4 soap_get_condorSchedd_
 SOAP_FMAC3 struct condorSchedd__IntAndStatus * SOAP_FMAC4 soap_in_condorSchedd__IntAndStatus(struct soap*, const char*, struct condorSchedd__IntAndStatus *, const char*);
 
 #ifndef SOAP_TYPE_condorSchedd__TransactionAndStatus
-#define SOAP_TYPE_condorSchedd__TransactionAndStatus (37)
+#define SOAP_TYPE_condorSchedd__TransactionAndStatus (40)
 #endif
 SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__TransactionAndStatus(struct soap*, struct condorSchedd__TransactionAndStatus const*);
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__TransactionAndStatus(struct soap*, const struct condorSchedd__TransactionAndStatus *);
@@ -429,7 +559,7 @@ SOAP_FMAC3 struct condorSchedd__TransactionAndStatus * SOAP_FMAC4 soap_get_condo
 SOAP_FMAC3 struct condorSchedd__TransactionAndStatus * SOAP_FMAC4 soap_in_condorSchedd__TransactionAndStatus(struct soap*, const char*, struct condorSchedd__TransactionAndStatus *, const char*);
 
 #ifndef SOAP_TYPE_condorSchedd__RequirementsAndStatus
-#define SOAP_TYPE_condorSchedd__RequirementsAndStatus (36)
+#define SOAP_TYPE_condorSchedd__RequirementsAndStatus (39)
 #endif
 SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__RequirementsAndStatus(struct soap*, struct condorSchedd__RequirementsAndStatus const*);
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__RequirementsAndStatus(struct soap*, const struct condorSchedd__RequirementsAndStatus *);
@@ -440,7 +570,7 @@ SOAP_FMAC3 struct condorSchedd__RequirementsAndStatus * SOAP_FMAC4 soap_get_cond
 SOAP_FMAC3 struct condorSchedd__RequirementsAndStatus * SOAP_FMAC4 soap_in_condorSchedd__RequirementsAndStatus(struct soap*, const char*, struct condorSchedd__RequirementsAndStatus *, const char*);
 
 #ifndef SOAP_TYPE_condorSchedd__Requirements
-#define SOAP_TYPE_condorSchedd__Requirements (34)
+#define SOAP_TYPE_condorSchedd__Requirements (37)
 #endif
 SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__Requirements(struct soap*, struct condorSchedd__Requirements const*);
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__Requirements(struct soap*, struct condorSchedd__Requirements const*);
@@ -451,7 +581,7 @@ SOAP_FMAC3 struct condorSchedd__Requirements * SOAP_FMAC4 soap_get_condorSchedd_
 SOAP_FMAC3 struct condorSchedd__Requirements * SOAP_FMAC4 soap_in_condorSchedd__Requirements(struct soap*, const char*, struct condorSchedd__Requirements *, const char*);
 
 #ifndef SOAP_TYPE_condorSchedd__Transaction
-#define SOAP_TYPE_condorSchedd__Transaction (33)
+#define SOAP_TYPE_condorSchedd__Transaction (36)
 #endif
 SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__Transaction(struct soap*, struct condorSchedd__Transaction const*);
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorSchedd__Transaction(struct soap*, const struct condorSchedd__Transaction *);
@@ -462,7 +592,7 @@ SOAP_FMAC3 struct condorSchedd__Transaction * SOAP_FMAC4 soap_get_condorSchedd__
 SOAP_FMAC3 struct condorSchedd__Transaction * SOAP_FMAC4 soap_in_condorSchedd__Transaction(struct soap*, const char*, struct condorSchedd__Transaction *, const char*);
 
 #ifndef SOAP_TYPE_condorCore__StringAndStatus
-#define SOAP_TYPE_condorCore__StringAndStatus (31)
+#define SOAP_TYPE_condorCore__StringAndStatus (32)
 #endif
 SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCore__StringAndStatus(struct soap*, struct condorCore__StringAndStatus const*);
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorCore__StringAndStatus(struct soap*, const struct condorCore__StringAndStatus *);
@@ -473,7 +603,7 @@ SOAP_FMAC3 struct condorCore__StringAndStatus * SOAP_FMAC4 soap_get_condorCore__
 SOAP_FMAC3 struct condorCore__StringAndStatus * SOAP_FMAC4 soap_in_condorCore__StringAndStatus(struct soap*, const char*, struct condorCore__StringAndStatus *, const char*);
 
 #ifndef SOAP_TYPE_condorCore__ClassAdStructArrayAndStatus
-#define SOAP_TYPE_condorCore__ClassAdStructArrayAndStatus (30)
+#define SOAP_TYPE_condorCore__ClassAdStructArrayAndStatus (31)
 #endif
 SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCore__ClassAdStructArrayAndStatus(struct soap*, struct condorCore__ClassAdStructArrayAndStatus const*);
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorCore__ClassAdStructArrayAndStatus(struct soap*, const struct condorCore__ClassAdStructArrayAndStatus *);
@@ -484,7 +614,7 @@ SOAP_FMAC3 struct condorCore__ClassAdStructArrayAndStatus * SOAP_FMAC4 soap_get_
 SOAP_FMAC3 struct condorCore__ClassAdStructArrayAndStatus * SOAP_FMAC4 soap_in_condorCore__ClassAdStructArrayAndStatus(struct soap*, const char*, struct condorCore__ClassAdStructArrayAndStatus *, const char*);
 
 #ifndef SOAP_TYPE_condorCore__ClassAdStructAndStatus
-#define SOAP_TYPE_condorCore__ClassAdStructAndStatus (29)
+#define SOAP_TYPE_condorCore__ClassAdStructAndStatus (30)
 #endif
 SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCore__ClassAdStructAndStatus(struct soap*, struct condorCore__ClassAdStructAndStatus const*);
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorCore__ClassAdStructAndStatus(struct soap*, const struct condorCore__ClassAdStructAndStatus *);
@@ -495,7 +625,7 @@ SOAP_FMAC3 struct condorCore__ClassAdStructAndStatus * SOAP_FMAC4 soap_get_condo
 SOAP_FMAC3 struct condorCore__ClassAdStructAndStatus * SOAP_FMAC4 soap_in_condorCore__ClassAdStructAndStatus(struct soap*, const char*, struct condorCore__ClassAdStructAndStatus *, const char*);
 
 #ifndef SOAP_TYPE_condorCore__ClassAdStructArray
-#define SOAP_TYPE_condorCore__ClassAdStructArray (27)
+#define SOAP_TYPE_condorCore__ClassAdStructArray (28)
 #endif
 SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCore__ClassAdStructArray(struct soap*, struct condorCore__ClassAdStructArray const*);
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorCore__ClassAdStructArray(struct soap*, struct condorCore__ClassAdStructArray const*);
@@ -506,7 +636,7 @@ SOAP_FMAC3 struct condorCore__ClassAdStructArray * SOAP_FMAC4 soap_get_condorCor
 SOAP_FMAC3 struct condorCore__ClassAdStructArray * SOAP_FMAC4 soap_in_condorCore__ClassAdStructArray(struct soap*, const char*, struct condorCore__ClassAdStructArray *, const char*);
 
 #ifndef SOAP_TYPE_condorCore__ClassAdStruct
-#define SOAP_TYPE_condorCore__ClassAdStruct (25)
+#define SOAP_TYPE_condorCore__ClassAdStruct (26)
 #endif
 SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCore__ClassAdStruct(struct soap*, struct condorCore__ClassAdStruct const*);
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorCore__ClassAdStruct(struct soap*, struct condorCore__ClassAdStruct const*);
@@ -517,7 +647,7 @@ SOAP_FMAC3 struct condorCore__ClassAdStruct * SOAP_FMAC4 soap_get_condorCore__Cl
 SOAP_FMAC3 struct condorCore__ClassAdStruct * SOAP_FMAC4 soap_in_condorCore__ClassAdStruct(struct soap*, const char*, struct condorCore__ClassAdStruct *, const char*);
 
 #ifndef SOAP_TYPE_condorCore__ClassAdStructAttr
-#define SOAP_TYPE_condorCore__ClassAdStructAttr (24)
+#define SOAP_TYPE_condorCore__ClassAdStructAttr (25)
 #endif
 SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCore__ClassAdStructAttr(struct soap*, struct condorCore__ClassAdStructAttr const*);
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorCore__ClassAdStructAttr(struct soap*, const struct condorCore__ClassAdStructAttr *);
@@ -528,7 +658,7 @@ SOAP_FMAC3 struct condorCore__ClassAdStructAttr * SOAP_FMAC4 soap_get_condorCore
 SOAP_FMAC3 struct condorCore__ClassAdStructAttr * SOAP_FMAC4 soap_in_condorCore__ClassAdStructAttr(struct soap*, const char*, struct condorCore__ClassAdStructAttr *, const char*);
 
 #ifndef SOAP_TYPE_condorCore__Status
-#define SOAP_TYPE_condorCore__Status (21)
+#define SOAP_TYPE_condorCore__Status (22)
 #endif
 SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorCore__Status(struct soap*, struct condorCore__Status const*);
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_condorCore__Status(struct soap*, const struct condorCore__Status *);
@@ -552,7 +682,7 @@ SOAP_FMAC3 struct xsd__base64Binary * SOAP_FMAC4 soap_in_xsd__base64Binary(struc
 #ifndef WITH_NOGLOBAL
 
 #ifndef SOAP_TYPE_PointerToSOAP_ENV__Code
-#define SOAP_TYPE_PointerToSOAP_ENV__Code (85)
+#define SOAP_TYPE_PointerToSOAP_ENV__Code (98)
 #endif
 SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_PointerToSOAP_ENV__Code(struct soap*, struct SOAP_ENV__Code *const*);
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_PointerToSOAP_ENV__Code(struct soap*, struct SOAP_ENV__Code *const*);
@@ -567,7 +697,7 @@ SOAP_FMAC3 struct SOAP_ENV__Code ** SOAP_FMAC4 soap_in_PointerToSOAP_ENV__Code(s
 #ifndef WITH_NOGLOBAL
 
 #ifndef SOAP_TYPE_PointerToSOAP_ENV__Detail
-#define SOAP_TYPE_PointerToSOAP_ENV__Detail (84)
+#define SOAP_TYPE_PointerToSOAP_ENV__Detail (97)
 #endif
 SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_PointerToSOAP_ENV__Detail(struct soap*, struct SOAP_ENV__Detail *const*);
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_PointerToSOAP_ENV__Detail(struct soap*, struct SOAP_ENV__Detail *const*);
@@ -580,7 +710,7 @@ SOAP_FMAC3 struct SOAP_ENV__Detail ** SOAP_FMAC4 soap_in_PointerToSOAP_ENV__Deta
 #endif
 
 #ifndef SOAP_TYPE_PointerToxsd__base64Binary
-#define SOAP_TYPE_PointerToxsd__base64Binary (71)
+#define SOAP_TYPE_PointerToxsd__base64Binary (82)
 #endif
 SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_PointerToxsd__base64Binary(struct soap*, struct xsd__base64Binary *const*);
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_PointerToxsd__base64Binary(struct soap*, struct xsd__base64Binary *const*);
@@ -591,7 +721,7 @@ SOAP_FMAC3 struct xsd__base64Binary ** SOAP_FMAC4 soap_get_PointerToxsd__base64B
 SOAP_FMAC3 struct xsd__base64Binary ** SOAP_FMAC4 soap_in_PointerToxsd__base64Binary(struct soap*, const char*, struct xsd__base64Binary **, const char*);
 
 #ifndef SOAP_TYPE_PointerTocondorSchedd__Requirement
-#define SOAP_TYPE_PointerTocondorSchedd__Requirement (35)
+#define SOAP_TYPE_PointerTocondorSchedd__Requirement (38)
 #endif
 SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_PointerTocondorSchedd__Requirement(struct soap*, char **const*);
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_PointerTocondorSchedd__Requirement(struct soap*, char **const*);
@@ -602,7 +732,7 @@ SOAP_FMAC3 char *** SOAP_FMAC4 soap_get_PointerTocondorSchedd__Requirement(struc
 SOAP_FMAC3 char *** SOAP_FMAC4 soap_in_PointerTocondorSchedd__Requirement(struct soap*, const char*, char ***, const char*);
 
 #ifndef SOAP_TYPE_condorSchedd__Requirement
-#define SOAP_TYPE_condorSchedd__Requirement (32)
+#define SOAP_TYPE_condorSchedd__Requirement (33)
 #endif
 SOAP_FMAC3 void SOAP_FMAC4 soap_default_condorSchedd__Requirement(struct soap*, char **);
 SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_condorSchedd__Requirement(struct soap*, char *const*);
@@ -613,7 +743,7 @@ SOAP_FMAC3 char ** SOAP_FMAC4 soap_get_condorSchedd__Requirement(struct soap*, c
 SOAP_FMAC3 char * * SOAP_FMAC4 soap_in_condorSchedd__Requirement(struct soap*, const char*, char **, const char*);
 
 #ifndef SOAP_TYPE_PointerTocondorCore__ClassAdStruct
-#define SOAP_TYPE_PointerTocondorCore__ClassAdStruct (28)
+#define SOAP_TYPE_PointerTocondorCore__ClassAdStruct (29)
 #endif
 SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_PointerTocondorCore__ClassAdStruct(struct soap*, struct condorCore__ClassAdStruct *const*);
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_PointerTocondorCore__ClassAdStruct(struct soap*, struct condorCore__ClassAdStruct *const*);
@@ -624,7 +754,7 @@ SOAP_FMAC3 struct condorCore__ClassAdStruct ** SOAP_FMAC4 soap_get_PointerTocond
 SOAP_FMAC3 struct condorCore__ClassAdStruct ** SOAP_FMAC4 soap_in_PointerTocondorCore__ClassAdStruct(struct soap*, const char*, struct condorCore__ClassAdStruct **, const char*);
 
 #ifndef SOAP_TYPE_PointerTocondorCore__ClassAdStructAttr
-#define SOAP_TYPE_PointerTocondorCore__ClassAdStructAttr (26)
+#define SOAP_TYPE_PointerTocondorCore__ClassAdStructAttr (27)
 #endif
 SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_PointerTocondorCore__ClassAdStructAttr(struct soap*, struct condorCore__ClassAdStructAttr *const*);
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_PointerTocondorCore__ClassAdStructAttr(struct soap*, struct condorCore__ClassAdStructAttr *const*);
@@ -635,7 +765,7 @@ SOAP_FMAC3 struct condorCore__ClassAdStructAttr ** SOAP_FMAC4 soap_get_PointerTo
 SOAP_FMAC3 struct condorCore__ClassAdStructAttr ** SOAP_FMAC4 soap_in_PointerTocondorCore__ClassAdStructAttr(struct soap*, const char*, struct condorCore__ClassAdStructAttr **, const char*);
 
 #ifndef SOAP_TYPE_PointerTocondorCore__Status
-#define SOAP_TYPE_PointerTocondorCore__Status (22)
+#define SOAP_TYPE_PointerTocondorCore__Status (23)
 #endif
 SOAP_FMAC3 void SOAP_FMAC4 soap_serialize_PointerTocondorCore__Status(struct soap*, struct condorCore__Status *const*);
 SOAP_FMAC3 void SOAP_FMAC4 soap_mark_PointerTocondorCore__Status(struct soap*, struct condorCore__Status *const*);

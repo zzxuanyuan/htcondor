@@ -4,6 +4,21 @@
 
 typedef xsd__string condorSchedd__Requirement;
 
+enum condorSchedd__HashType {
+  NOHASH,
+  MD5
+};
+
+enum condorSchedd__UniverseType {
+  STANDARD = 1,
+  PVM = 4,
+  VANILLA = 5,
+  SCHEDULER = 7,
+  MPI = 8,
+  GLOBUS = 9,
+  JAVA = 10
+};
+
 struct condorSchedd__Transaction
 {
   xsd__int id 1:1;

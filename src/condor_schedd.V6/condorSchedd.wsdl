@@ -25,6 +25,15 @@
   elementFormDefault="unqualified"
   attributeFormDefault="unqualified">
   <import namespace="http://schemas.xmlsoap.org/soap/encoding/"/>
+  <simpleType name="StatusCode">
+   <restriction base="xsd:string">
+    <enumeration value="SUCCESS"/>
+    <enumeration value="FAIL"/>
+    <enumeration value="INVALIDTRANSACTION"/>
+    <enumeration value="UNKNOWNFILE"/>
+    <enumeration value="INCOMPLETE"/>
+   </restriction>
+  </simpleType>
   <simpleType name="ClassAdAttrType">
    <restriction base="xsd:string">
     <enumeration value="INTEGER"/>
@@ -38,7 +47,7 @@
   </simpleType>
   <complexType name="Status">
    <sequence>
-    <element name="code" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+    <element name="code" type="condorCore:StatusCode" minOccurs="1" maxOccurs="1"/>
     <element name="message" type="xsd:string" minOccurs="0" maxOccurs="1" nillable="true"/>
     <element name="next" type="condorCore:Status" minOccurs="0" maxOccurs="1" nillable="true"/>
    </sequence>
@@ -100,6 +109,23 @@
    <restriction base="xsd:string">
    </restriction>
   </simpleType>
+  <simpleType name="HashType">
+   <restriction base="xsd:string">
+    <enumeration value="NOHASH"/>
+    <enumeration value="MD5"/>
+   </restriction>
+  </simpleType>
+  <simpleType name="UniverseType">
+   <restriction base="xsd:string">
+    <enumeration value="STANDARD"/>
+    <enumeration value="PVM"/>
+    <enumeration value="VANILLA"/>
+    <enumeration value="SCHEDULER"/>
+    <enumeration value="MPI"/>
+    <enumeration value="GLOBUS"/>
+    <enumeration value="JAVA"/>
+   </restriction>
+  </simpleType>
   <complexType name="ClassAdStruct">
    <sequence>
     <element name="item" type="condorCore:ClassAdStructAttr" minOccurs="0" maxOccurs="unbounded" nillable="true"/>
@@ -139,6 +165,36 @@
     <element name="integer" type="xsd:int" minOccurs="0" maxOccurs="1"/>
    </sequence>
   </complexType>
+  <complexType name="StatusResponse">
+   <sequence>
+    <element name="response" type="condorCore:Status" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="TransactionAndStatusResponse">
+   <sequence>
+    <element name="response" type="condorSchedd:TransactionAndStatus" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="IntAndStatusResponse">
+   <sequence>
+    <element name="response" type="condorSchedd:IntAndStatus" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="RequirementsAndStatusResponse">
+   <sequence>
+    <element name="response" type="condorSchedd:RequirementsAndStatus" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="ClassAdStructArrayAndStatusResponse">
+   <sequence>
+    <element name="response" type="condorCore:ClassAdStructArrayAndStatus" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="ClassAdStructAndStatusResponse">
+   <sequence>
+    <element name="response" type="condorCore:ClassAdStructAndStatus" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
  </schema>
 
 </types>
@@ -147,19 +203,16 @@
  <part name="duration" type="xsd:int"/>
 </message>
 
-<message name="TransactionAndStatus">
- <part name="status" type="condorCore:Status"/>
- <part name="transaction" type="condorSchedd:Transaction"/>
+<message name="TransactionAndStatusResponse">
+ <part name="response" type="condorSchedd:TransactionAndStatus"/>
 </message>
 
 <message name="commitTransactionRequest">
  <part name="transaction" type="condorSchedd:Transaction"/>
 </message>
 
-<message name="Status">
- <part name="code" type="xsd:int"/>
- <part name="message" type="xsd:string"/>
- <part name="next" type="condorCore:Status"/>
+<message name="StatusResponse">
+ <part name="response" type="condorCore:Status"/>
 </message>
 
 <message name="abortTransactionRequest">
@@ -175,9 +228,8 @@
  <part name="transaction" type="condorSchedd:Transaction"/>
 </message>
 
-<message name="IntAndStatus">
- <part name="status" type="condorCore:Status"/>
- <part name="integer" type="xsd:int"/>
+<message name="IntAndStatusResponse">
+ <part name="response" type="condorSchedd:IntAndStatus"/>
 </message>
 
 <message name="removeClusterRequest">
@@ -225,9 +277,8 @@
  <part name="jobAd" type="condorCore:ClassAdStruct"/>
 </message>
 
-<message name="RequirementsAndStatus">
- <part name="status" type="condorCore:Status"/>
- <part name="requirements" type="condorSchedd:Requirements"/>
+<message name="RequirementsAndStatusResponse">
+ <part name="response" type="condorSchedd:RequirementsAndStatus"/>
 </message>
 
 <message name="getJobAdsRequest">
@@ -235,9 +286,8 @@
  <part name="constraint" type="xsd:string"/>
 </message>
 
-<message name="ClassAdStructArrayAndStatus">
- <part name="status" type="condorCore:Status"/>
- <part name="classAdArray" type="condorCore:ClassAdStructArray"/>
+<message name="ClassAdStructArrayAndStatusResponse">
+ <part name="response" type="condorCore:ClassAdStructArrayAndStatus"/>
 </message>
 
 <message name="getJobAdRequest">
@@ -246,9 +296,18 @@
  <part name="jobId" type="xsd:int"/>
 </message>
 
-<message name="ClassAdStructAndStatus">
- <part name="status" type="condorCore:Status"/>
- <part name="classAd" type="condorCore:ClassAdStruct"/>
+<message name="ClassAdStructAndStatusResponse">
+ <part name="response" type="condorCore:ClassAdStructAndStatus"/>
+</message>
+
+<message name="declareFileRequest">
+ <part name="transaction" type="condorSchedd:Transaction"/>
+ <part name="clusterId" type="xsd:int"/>
+ <part name="jobId" type="xsd:int"/>
+ <part name="name" type="xsd:string"/>
+ <part name="size" type="xsd:int"/>
+ <part name="hashType" type="condorSchedd:HashType"/>
+ <part name="hash" type="xsd:string"/>
 </message>
 
 <message name="sendFileRequest">
@@ -268,86 +327,104 @@
  <part name="dag" type="xsd:string"/>
 </message>
 
+<message name="createJobTemplateRequest">
+ <part name="clusterId" type="xsd:int"/>
+ <part name="jobId" type="xsd:int"/>
+ <part name="submitDescription" type="xsd:string"/>
+ <part name="owner" type="xsd:string"/>
+ <part name="type" type="condorSchedd:UniverseType"/>
+</message>
+
 <portType name="condorScheddPortType">
  <operation name="beginTransaction">
   <documentation>Service definition of function condorSchedd__beginTransaction</documentation>
   <input message="tns:beginTransactionRequest"/>
-  <output message="tns:TransactionAndStatus"/>
+  <output message="tns:TransactionAndStatusResponse"/>
  </operation>
  <operation name="commitTransaction">
   <documentation>Service definition of function condorSchedd__commitTransaction</documentation>
   <input message="tns:commitTransactionRequest"/>
-  <output message="tns:Status"/>
+  <output message="tns:StatusResponse"/>
  </operation>
  <operation name="abortTransaction">
   <documentation>Service definition of function condorSchedd__abortTransaction</documentation>
   <input message="tns:abortTransactionRequest"/>
-  <output message="tns:Status"/>
+  <output message="tns:StatusResponse"/>
  </operation>
  <operation name="extendTransaction">
   <documentation>Service definition of function condorSchedd__extendTransaction</documentation>
   <input message="tns:extendTransactionRequest"/>
-  <output message="tns:TransactionAndStatus"/>
+  <output message="tns:TransactionAndStatusResponse"/>
  </operation>
  <operation name="newCluster">
   <documentation>Service definition of function condorSchedd__newCluster</documentation>
   <input message="tns:newClusterRequest"/>
-  <output message="tns:IntAndStatus"/>
+  <output message="tns:IntAndStatusResponse"/>
  </operation>
  <operation name="removeCluster">
   <documentation>Service definition of function condorSchedd__removeCluster</documentation>
   <input message="tns:removeClusterRequest"/>
-  <output message="tns:Status"/>
+  <output message="tns:StatusResponse"/>
  </operation>
  <operation name="newJob">
   <documentation>Service definition of function condorSchedd__newJob</documentation>
   <input message="tns:newJobRequest"/>
-  <output message="tns:IntAndStatus"/>
+  <output message="tns:IntAndStatusResponse"/>
  </operation>
  <operation name="removeJob">
   <documentation>Service definition of function condorSchedd__removeJob</documentation>
   <input message="tns:removeJobRequest"/>
-  <output message="tns:Status"/>
+  <output message="tns:StatusResponse"/>
  </operation>
  <operation name="holdJob">
   <documentation>Service definition of function condorSchedd__holdJob</documentation>
   <input message="tns:holdJobRequest"/>
-  <output message="tns:Status"/>
+  <output message="tns:StatusResponse"/>
  </operation>
  <operation name="releaseJob">
   <documentation>Service definition of function condorSchedd__releaseJob</documentation>
   <input message="tns:releaseJobRequest"/>
-  <output message="tns:Status"/>
+  <output message="tns:StatusResponse"/>
  </operation>
  <operation name="submit">
   <documentation>Service definition of function condorSchedd__submit</documentation>
   <input message="tns:submitRequest"/>
-  <output message="tns:RequirementsAndStatus"/>
+  <output message="tns:RequirementsAndStatusResponse"/>
  </operation>
  <operation name="getJobAds">
   <documentation>Service definition of function condorSchedd__getJobAds</documentation>
   <input message="tns:getJobAdsRequest"/>
-  <output message="tns:ClassAdStructArrayAndStatus"/>
+  <output message="tns:ClassAdStructArrayAndStatusResponse"/>
  </operation>
  <operation name="getJobAd">
   <documentation>Service definition of function condorSchedd__getJobAd</documentation>
   <input message="tns:getJobAdRequest"/>
-  <output message="tns:ClassAdStructAndStatus"/>
+  <output message="tns:ClassAdStructAndStatusResponse"/>
+ </operation>
+ <operation name="declareFile">
+  <documentation>Service definition of function condorSchedd__declareFile</documentation>
+  <input message="tns:declareFileRequest"/>
+  <output message="tns:StatusResponse"/>
  </operation>
  <operation name="sendFile">
   <documentation>Service definition of function condorSchedd__sendFile</documentation>
   <input message="tns:sendFileRequest"/>
-  <output message="tns:Status"/>
+  <output message="tns:StatusResponse"/>
  </operation>
  <operation name="discoverJobRequirements">
   <documentation>Service definition of function condorSchedd__discoverJobRequirements</documentation>
   <input message="tns:discoverJobRequirementsRequest"/>
-  <output message="tns:RequirementsAndStatus"/>
+  <output message="tns:RequirementsAndStatusResponse"/>
  </operation>
  <operation name="discoverDagRequirements">
   <documentation>Service definition of function condorSchedd__discoverDagRequirements</documentation>
   <input message="tns:discoverDagRequirementsRequest"/>
-  <output message="tns:RequirementsAndStatus"/>
+  <output message="tns:RequirementsAndStatusResponse"/>
+ </operation>
+ <operation name="createJobTemplate">
+  <documentation>Service definition of function condorSchedd__createJobTemplate</documentation>
+  <input message="tns:createJobTemplateRequest"/>
+  <output message="tns:ClassAdStructAndStatusResponse"/>
  </operation>
 </portType>
 
@@ -470,6 +547,15 @@
    <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
   </output>
  </operation>
+ <operation name="declareFile">
+  <SOAP:operation soapAction=""/>
+  <input>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+  </input>
+  <output>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+  </output>
+ </operation>
  <operation name="sendFile">
   <SOAP:operation soapAction=""/>
   <input>
@@ -489,6 +575,15 @@
   </output>
  </operation>
  <operation name="discoverDagRequirements">
+  <SOAP:operation soapAction=""/>
+  <input>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+  </input>
+  <output>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+  </output>
+ </operation>
+ <operation name="createJobTemplate">
   <SOAP:operation soapAction=""/>
   <input>
    <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>

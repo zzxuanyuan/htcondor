@@ -15,7 +15,7 @@ LooseFileTransfer::getInputFiles(StringList & inputFileList)
   char *buffer;
 
   InputFiles->rewind();
-  while (buffer = InputFiles->next()) {
+  while (NULL != (buffer = InputFiles->next())) {
     inputFileList.append(buffer);
   }
 

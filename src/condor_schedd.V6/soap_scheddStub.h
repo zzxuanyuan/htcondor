@@ -12,9 +12,24 @@ SOAP_BEGIN_NAMESPACE(soap_schedd)
 
 /* Enumerations */
 
+#ifndef _SOAP_condorCore__StatusCode
+#define _SOAP_condorCore__StatusCode
+enum condorCore__StatusCode {SUCCESS = 0, FAIL = 1, INVALIDTRANSACTION = 2, UNKNOWNFILE = 3, INCOMPLETE = 4};
+#endif
+
 #ifndef _SOAP_condorCore__ClassAdAttrType
 #define _SOAP_condorCore__ClassAdAttrType
 enum condorCore__ClassAdAttrType {INTEGER = 110, FLOAT = 102, STRING = 115, EXPRESSION = 120, BOOL = 98, UNDEFINED = 117, ERROR = 101};
+#endif
+
+#ifndef _SOAP_condorSchedd__HashType
+#define _SOAP_condorSchedd__HashType
+enum condorSchedd__HashType {NOHASH = 0, MD5 = 1};
+#endif
+
+#ifndef _SOAP_condorSchedd__UniverseType
+#define _SOAP_condorSchedd__UniverseType
+enum condorSchedd__UniverseType {STANDARD = 1, PVM = 4, VANILLA = 5, SCHEDULER = 7, MPI = 8, GLOBUS = 9, JAVA = 10};
 #endif
 
 /* Classes and Structs */
@@ -29,7 +44,7 @@ struct xsd__base64Binary
 /* condorCore:Status: */
 struct condorCore__Status
 {
-	int code;	/* return */
+	enum condorCore__StatusCode code;
 	char *message;
 	struct condorCore__Status *next;
 };
@@ -59,14 +74,14 @@ struct condorCore__ClassAdStructArray
 /* condorCore:ClassAdStructAndStatus: */
 struct condorCore__ClassAdStructAndStatus
 {
-	struct condorCore__Status status;	/* return */
+	struct condorCore__Status status;
 	struct condorCore__ClassAdStruct classAd;
 };
 
 /* condorCore:ClassAdStructArrayAndStatus: */
 struct condorCore__ClassAdStructArrayAndStatus
 {
-	struct condorCore__Status status;	/* return */
+	struct condorCore__Status status;
 	struct condorCore__ClassAdStructArray classAdArray;
 };
 
@@ -94,22 +109,58 @@ struct condorSchedd__Requirements
 /* condorSchedd:RequirementsAndStatus: */
 struct condorSchedd__RequirementsAndStatus
 {
-	struct condorCore__Status status;	/* return */
+	struct condorCore__Status status;
 	struct condorSchedd__Requirements requirements;
 };
 
 /* condorSchedd:TransactionAndStatus: */
 struct condorSchedd__TransactionAndStatus
 {
-	struct condorCore__Status status;	/* return */
+	struct condorCore__Status status;
 	struct condorSchedd__Transaction transaction;
 };
 
 /* condorSchedd:IntAndStatus: */
 struct condorSchedd__IntAndStatus
 {
-	struct condorCore__Status status;	/* return */
+	struct condorCore__Status status;
 	int integer;
+};
+
+/* condorSchedd:StatusResponse: */
+struct condorSchedd__StatusResponse
+{
+	struct condorCore__Status response;	/* return */
+};
+
+/* condorSchedd:TransactionAndStatusResponse: */
+struct condorSchedd__TransactionAndStatusResponse
+{
+	struct condorSchedd__TransactionAndStatus response;	/* return */
+};
+
+/* condorSchedd:IntAndStatusResponse: */
+struct condorSchedd__IntAndStatusResponse
+{
+	struct condorSchedd__IntAndStatus response;	/* return */
+};
+
+/* condorSchedd:RequirementsAndStatusResponse: */
+struct condorSchedd__RequirementsAndStatusResponse
+{
+	struct condorSchedd__RequirementsAndStatus response;	/* return */
+};
+
+/* condorSchedd:ClassAdStructArrayAndStatusResponse: */
+struct condorSchedd__ClassAdStructArrayAndStatusResponse
+{
+	struct condorCore__ClassAdStructArrayAndStatus response;	/* return */
+};
+
+/* condorSchedd:ClassAdStructAndStatusResponse: */
+struct condorSchedd__ClassAdStructAndStatusResponse
+{
+	struct condorCore__ClassAdStructAndStatus response;	/* return */
 };
 
 /* condorSchedd:beginTransaction: */
@@ -215,6 +266,18 @@ struct condorSchedd__getJobAd
 	int jobId;
 };
 
+/* condorSchedd:declareFile: */
+struct condorSchedd__declareFile
+{
+	struct condorSchedd__Transaction transaction;
+	int clusterId;
+	int jobId;
+	char *name;
+	int size;
+	enum condorSchedd__HashType hashType;
+	char *hash;
+};
+
 /* condorSchedd:sendFile: */
 struct condorSchedd__sendFile
 {
@@ -236,6 +299,16 @@ struct condorSchedd__discoverJobRequirements
 struct condorSchedd__discoverDagRequirements
 {
 	char *dag;
+};
+
+/* condorSchedd:createJobTemplate: */
+struct condorSchedd__createJobTemplate
+{
+	int clusterId;
+	int jobId;
+	char *submitDescription;
+	char *owner;
+	enum condorSchedd__UniverseType type;
 };
 
 /* SOAP Header: */
@@ -290,71 +363,79 @@ typedef char *condorSchedd__Requirement;
 
 /* Remote Methods */
 
-SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__beginTransaction(struct soap*, int, struct condorSchedd__TransactionAndStatus &);
+SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__beginTransaction(struct soap*, int, struct condorSchedd__TransactionAndStatusResponse &);
 
-SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__commitTransaction(struct soap*, struct condorSchedd__Transaction, struct condorCore__Status &);
+SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__commitTransaction(struct soap*, struct condorSchedd__Transaction, struct condorSchedd__StatusResponse &);
 
-SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__abortTransaction(struct soap*, struct condorSchedd__Transaction, struct condorCore__Status &);
+SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__abortTransaction(struct soap*, struct condorSchedd__Transaction, struct condorSchedd__StatusResponse &);
 
-SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__extendTransaction(struct soap*, struct condorSchedd__Transaction, int, struct condorSchedd__TransactionAndStatus &);
+SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__extendTransaction(struct soap*, struct condorSchedd__Transaction, int, struct condorSchedd__TransactionAndStatusResponse &);
 
-SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__newCluster(struct soap*, struct condorSchedd__Transaction, struct condorSchedd__IntAndStatus &);
+SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__newCluster(struct soap*, struct condorSchedd__Transaction, struct condorSchedd__IntAndStatusResponse &);
 
-SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__removeCluster(struct soap*, struct condorSchedd__Transaction, int, char *, struct condorCore__Status &);
+SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__removeCluster(struct soap*, struct condorSchedd__Transaction, int, char *, struct condorSchedd__StatusResponse &);
 
-SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__newJob(struct soap*, struct condorSchedd__Transaction, int, struct condorSchedd__IntAndStatus &);
+SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__newJob(struct soap*, struct condorSchedd__Transaction, int, struct condorSchedd__IntAndStatusResponse &);
 
-SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__removeJob(struct soap*, struct condorSchedd__Transaction, int, int, char *, bool, struct condorCore__Status &);
+SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__removeJob(struct soap*, struct condorSchedd__Transaction, int, int, char *, bool, struct condorSchedd__StatusResponse &);
 
-SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__holdJob(struct soap*, struct condorSchedd__Transaction, int, int, char *, bool, bool, bool, struct condorCore__Status &);
+SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__holdJob(struct soap*, struct condorSchedd__Transaction, int, int, char *, bool, bool, bool, struct condorSchedd__StatusResponse &);
 
-SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__releaseJob(struct soap*, struct condorSchedd__Transaction, int, int, char *, bool, bool, struct condorCore__Status &);
+SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__releaseJob(struct soap*, struct condorSchedd__Transaction, int, int, char *, bool, bool, struct condorSchedd__StatusResponse &);
 
-SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__submit(struct soap*, struct condorSchedd__Transaction, int, int, struct condorCore__ClassAdStruct *, struct condorSchedd__RequirementsAndStatus &);
+SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__submit(struct soap*, struct condorSchedd__Transaction, int, int, struct condorCore__ClassAdStruct *, struct condorSchedd__RequirementsAndStatusResponse &);
 
-SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__getJobAds(struct soap*, struct condorSchedd__Transaction, char *, struct condorCore__ClassAdStructArrayAndStatus &);
+SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__getJobAds(struct soap*, struct condorSchedd__Transaction, char *, struct condorSchedd__ClassAdStructArrayAndStatusResponse &);
 
-SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__getJobAd(struct soap*, struct condorSchedd__Transaction, int, int, struct condorCore__ClassAdStructAndStatus &);
+SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__getJobAd(struct soap*, struct condorSchedd__Transaction, int, int, struct condorSchedd__ClassAdStructAndStatusResponse &);
 
-SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__sendFile(struct soap*, struct condorSchedd__Transaction, int, int, char *, int, struct xsd__base64Binary *, struct condorCore__Status &);
+SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__declareFile(struct soap*, struct condorSchedd__Transaction, int, int, char *, int, enum condorSchedd__HashType, char *, struct condorSchedd__StatusResponse &);
 
-SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__discoverJobRequirements(struct soap*, struct condorCore__ClassAdStruct *, struct condorSchedd__RequirementsAndStatus &);
+SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__sendFile(struct soap*, struct condorSchedd__Transaction, int, int, char *, int, struct xsd__base64Binary *, struct condorSchedd__StatusResponse &);
 
-SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__discoverDagRequirements(struct soap*, char *, struct condorSchedd__RequirementsAndStatus &);
+SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__discoverJobRequirements(struct soap*, struct condorCore__ClassAdStruct *, struct condorSchedd__RequirementsAndStatusResponse &);
+
+SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__discoverDagRequirements(struct soap*, char *, struct condorSchedd__RequirementsAndStatusResponse &);
+
+SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__createJobTemplate(struct soap*, int, int, char *, char *, enum condorSchedd__UniverseType, struct condorSchedd__ClassAdStructAndStatusResponse &);
 
 /* Stubs */
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__beginTransaction(struct soap*, const char*, const char*, int, struct condorSchedd__TransactionAndStatus &);
+SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__beginTransaction(struct soap*, const char*, const char*, int, struct condorSchedd__TransactionAndStatusResponse &);
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__commitTransaction(struct soap*, const char*, const char*, struct condorSchedd__Transaction, struct condorCore__Status &);
+SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__commitTransaction(struct soap*, const char*, const char*, struct condorSchedd__Transaction, struct condorSchedd__StatusResponse &);
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__abortTransaction(struct soap*, const char*, const char*, struct condorSchedd__Transaction, struct condorCore__Status &);
+SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__abortTransaction(struct soap*, const char*, const char*, struct condorSchedd__Transaction, struct condorSchedd__StatusResponse &);
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__extendTransaction(struct soap*, const char*, const char*, struct condorSchedd__Transaction, int, struct condorSchedd__TransactionAndStatus &);
+SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__extendTransaction(struct soap*, const char*, const char*, struct condorSchedd__Transaction, int, struct condorSchedd__TransactionAndStatusResponse &);
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__newCluster(struct soap*, const char*, const char*, struct condorSchedd__Transaction, struct condorSchedd__IntAndStatus &);
+SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__newCluster(struct soap*, const char*, const char*, struct condorSchedd__Transaction, struct condorSchedd__IntAndStatusResponse &);
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__removeCluster(struct soap*, const char*, const char*, struct condorSchedd__Transaction, int, char *, struct condorCore__Status &);
+SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__removeCluster(struct soap*, const char*, const char*, struct condorSchedd__Transaction, int, char *, struct condorSchedd__StatusResponse &);
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__newJob(struct soap*, const char*, const char*, struct condorSchedd__Transaction, int, struct condorSchedd__IntAndStatus &);
+SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__newJob(struct soap*, const char*, const char*, struct condorSchedd__Transaction, int, struct condorSchedd__IntAndStatusResponse &);
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__removeJob(struct soap*, const char*, const char*, struct condorSchedd__Transaction, int, int, char *, bool, struct condorCore__Status &);
+SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__removeJob(struct soap*, const char*, const char*, struct condorSchedd__Transaction, int, int, char *, bool, struct condorSchedd__StatusResponse &);
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__holdJob(struct soap*, const char*, const char*, struct condorSchedd__Transaction, int, int, char *, bool, bool, bool, struct condorCore__Status &);
+SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__holdJob(struct soap*, const char*, const char*, struct condorSchedd__Transaction, int, int, char *, bool, bool, bool, struct condorSchedd__StatusResponse &);
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__releaseJob(struct soap*, const char*, const char*, struct condorSchedd__Transaction, int, int, char *, bool, bool, struct condorCore__Status &);
+SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__releaseJob(struct soap*, const char*, const char*, struct condorSchedd__Transaction, int, int, char *, bool, bool, struct condorSchedd__StatusResponse &);
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__submit(struct soap*, const char*, const char*, struct condorSchedd__Transaction, int, int, struct condorCore__ClassAdStruct *, struct condorSchedd__RequirementsAndStatus &);
+SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__submit(struct soap*, const char*, const char*, struct condorSchedd__Transaction, int, int, struct condorCore__ClassAdStruct *, struct condorSchedd__RequirementsAndStatusResponse &);
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__getJobAds(struct soap*, const char*, const char*, struct condorSchedd__Transaction, char *, struct condorCore__ClassAdStructArrayAndStatus &);
+SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__getJobAds(struct soap*, const char*, const char*, struct condorSchedd__Transaction, char *, struct condorSchedd__ClassAdStructArrayAndStatusResponse &);
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__getJobAd(struct soap*, const char*, const char*, struct condorSchedd__Transaction, int, int, struct condorCore__ClassAdStructAndStatus &);
+SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__getJobAd(struct soap*, const char*, const char*, struct condorSchedd__Transaction, int, int, struct condorSchedd__ClassAdStructAndStatusResponse &);
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__sendFile(struct soap*, const char*, const char*, struct condorSchedd__Transaction, int, int, char *, int, struct xsd__base64Binary *, struct condorCore__Status &);
+SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__declareFile(struct soap*, const char*, const char*, struct condorSchedd__Transaction, int, int, char *, int, enum condorSchedd__HashType, char *, struct condorSchedd__StatusResponse &);
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__discoverJobRequirements(struct soap*, const char*, const char*, struct condorCore__ClassAdStruct *, struct condorSchedd__RequirementsAndStatus &);
+SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__sendFile(struct soap*, const char*, const char*, struct condorSchedd__Transaction, int, int, char *, int, struct xsd__base64Binary *, struct condorSchedd__StatusResponse &);
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__discoverDagRequirements(struct soap*, const char*, const char*, char *, struct condorSchedd__RequirementsAndStatus &);
+SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__discoverJobRequirements(struct soap*, const char*, const char*, struct condorCore__ClassAdStruct *, struct condorSchedd__RequirementsAndStatusResponse &);
+
+SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__discoverDagRequirements(struct soap*, const char*, const char*, char *, struct condorSchedd__RequirementsAndStatusResponse &);
+
+SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__createJobTemplate(struct soap*, const char*, const char*, int, int, char *, char *, enum condorSchedd__UniverseType, struct condorSchedd__ClassAdStructAndStatusResponse &);
 
 /* Skeletons */
 
@@ -386,11 +467,15 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__getJobAds(struct soap*);
 
 SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__getJobAd(struct soap*);
 
+SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__declareFile(struct soap*);
+
 SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__sendFile(struct soap*);
 
 SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__discoverJobRequirements(struct soap*);
 
 SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__discoverDagRequirements(struct soap*);
+
+SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__createJobTemplate(struct soap*);
 
 SOAP_END_NAMESPACE(soap_schedd)
 

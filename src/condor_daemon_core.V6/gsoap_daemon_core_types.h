@@ -28,9 +28,18 @@ struct xsd__base64Binary
   int __size;
 };
 
+enum condorCore__StatusCode
+{
+  SUCCESS,
+  FAIL,
+  INVALIDTRANSACTION,
+  UNKNOWNFILE,
+  INCOMPLETE
+};
+
 struct condorCore__Status
 {
-  xsd__int code 1:1;
+  enum condorCore__StatusCode code 1:1;
   xsd__string message 0:1;
   struct condorCore__Status *next 0:1;
 };
