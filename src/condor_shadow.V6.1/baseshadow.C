@@ -446,7 +446,7 @@ BaseShadow::nextReconnectDelay( int attempts )
 			// first time, do it right away
 		return 0;
 	}
-	int n = 9 + (int)ceil(pow(reconnect_e_factor, attempts));
+	int n = (int)ceil(pow(reconnect_e_factor, (attempts+2)));
 	if( n > reconnect_ceiling || n < 0 ) {
 		n = reconnect_ceiling;
 	}
