@@ -1438,8 +1438,56 @@ abort_job_myself( PROC_ID job_id, JobAction action, bool log_hold,
 			return;
 		}
 
-		// PVM jobs may not have a match  -Bin
-		if (! IsSchedulerUniverse(srec)) {
+		if( job_universe == CONDOR_UNIVERSE_LOCAL ) {
+				/*
+				  eventually, we'll want the cases for the other
+				  universes with regular shadows to work more like
+				  this.  for now, the starter is smarter about hold
+				  vs. rm vs. vacate kill signals than the shadow is.
+				  -Derek Wright <wright@cs.wisc.edu> 2004-10-28
+				*/
+			if( ! notify ) {
+					// nothing to do
+				return;
+			}
+			dprintf( D_FULLDEBUG, "Found shadow record for job %d.%d\n",
+					 job_id.cluster, job_id.proc );
+
+			int handler_sig;
+			const char* handler_sig_str;
+			switch( action ) {
+			case JA_HOLD_JOBS:
+				handler_sig = DC_SIGHOLD;
+				handler_sig_str = "DC_SIGHOLD";
+				break;
+			case JA_REMOVE_JOBS:
+				handler_sig = DC_SIGREMOVE;
+				handler_sig_str = "DC_SIGREMOVE";
+				break;
+			case JA_VACATE_JOBS:
+				handler_sig = DC_SIGSOFTKILL;
+				handler_sig_str = "DC_SIGSOFTKILL";
+				break;
+			case JA_VACATE_FAST_JOBS:
+				handler_sig = DC_SIGHARDKILL;
+				handler_sig_str = "DC_SIGHARDKILL";
+				break;
+			default:
+				EXCEPT( "unknown action (%d %s) in abort_job_myself()",
+						action, getJobActionString(action) );
+			}
+			if( ! daemonCore->Send_Signal(srec->pid,handler_sig) ) {
+				dprintf( D_ALWAYS,
+						 "Error in sending %s to pid %d errno=%d (%s)\n",
+						 handler_sig_str, srec->pid, errno, strerror(errno) );
+			} else {
+				dprintf( D_FULLDEBUG, "Sent %s to Job Handler Pid %d\n",
+						 handler_sig_str, srec->pid );
+				srec->preempted = TRUE;
+			}
+
+
+		} else if( job_universe != CONDOR_UNIVERSE_SCHEDULER ) {
             
 			if( ! notify ) {
 					// nothing to do
