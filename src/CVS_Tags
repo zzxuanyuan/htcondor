@@ -1,3 +1,9 @@
+8/12/03 gridshell-vdt_1_1_10
+    The state of the V6_5-gridshell3-branch that was used to build the
+    gridshell-related binarines (condor_gridmanager and
+    condor_gridshell) that were used in the VDT 1.1.10 release.
+    (note: the V6_5-gridshell3-branch only exists for src and config)
+
 7/29/03 V6_5-gridshell3-post-V6_5-gridshell2-merge-1
     The state of the V6_5-gridshell3-branch after it had the changes
     from V6_5-gridshell2-branch (as tagged at V6_5-gridshell2-merge-1)
