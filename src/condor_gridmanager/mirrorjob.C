@@ -525,7 +525,6 @@ int MirrorJob::doEvaluateState()
 			// The mirror has just become active. Send a vacate command to
 			// the schedd to stop any local execution of the job.
 
-/* vacateJobs isn't implemented yet
 			int result;
 			CondorError errstack;
 			ClassAd* rval;
@@ -545,10 +544,18 @@ int MirrorJob::doEvaluateState()
 			if ( rval == NULL ||
 				 !rval->LookupInteger(ATTR_ACTION_RESULT, result) ||
 				 !result ) {
-				EXCEPT( "vacateJobs failed" );
+				dprintf( D_FULLDEBUG, "(%d.%d) vacateJobs failed, CondorError: %s\n",procID.cluster,procID.proc,errstack.getFullText());
+				MyString ad_string;
+				rval->sPrint(ad_string);
+//				EXCEPT( "vacateJobs failed" );
 			}
-			delete rval;
-*/
+			if ( rval != NULL ) {
+				MyString ad_string;
+				rval->sPrint(ad_string);
+				dprintf( D_FULLDEBUG, "(%d.%d) vacateJobs result ad: %s\n",
+						 procID.cluster, procID.proc, ad_string.Value());
+				delete rval;
+			}
 
 			gmState = GM_SUBMITTED_MIRROR_ACTIVE;
 			} break;
