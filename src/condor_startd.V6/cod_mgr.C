@@ -156,7 +156,7 @@ CODMgr::starterExited( Claim* c )
 		// otherwise, the claim is back to idle again, so we should
 		// see if we can resume our opportunistic claim, if we've got
 		// one... 
-		// TODO!!!
+	interactionLogicCODStopped();
 }
 
 
@@ -323,8 +323,13 @@ CODMgr::activate( Stream* s, ClassAd* req, Claim* claim )
 		// the starter with the right args if needed...
 	claim->getJobId( req );
 
-	time_t now = time(NULL);
+		// now that we've gotten this far, we know we're going to
+		// start a starter.  so, we call the interactionLogic method
+		// to deal with the state changes of the opportunistic claim
+	interactionLogicCODRunning();
 
+		// finally, spawn the starter and COD job itself
+	time_t now = time(NULL);
 	claim->setStarter( tmp_starter );	
 	claim->spawnStarter( now );
 
@@ -334,9 +339,6 @@ CODMgr::activate( Stream* s, ClassAd* req, Claim* claim )
 		// pointer, and if we try to access this variable, we'll crash 
 	ClassAd* new_req_ad = new ClassAd( *req );
 	claim->beginActivation( new_req_ad, now );
-
-
-		// TODO: deal w/ state interactions w/ opportunistic claim!!!
 
 	ClassAd reply;
 
@@ -422,6 +424,7 @@ CODMgr::deactivate( Stream* s, ClassAd* req, Claim* claim )
 int
 CODMgr::suspend( Stream* s, ClassAd* req, Claim* claim )
 {
+	int rval;
 	ClassAd reply;
 	MyString line;
 
@@ -429,6 +432,7 @@ CODMgr::suspend( Stream* s, ClassAd* req, Claim* claim )
 
 	case CLAIM_RUNNING:
 		if( claim->suspendClaim() ) { 
+
 			line = ATTR_RESULT;
 			line += " = \"";
 			line += getCAResultString( CA_SUCCESS );
@@ -436,7 +440,13 @@ CODMgr::suspend( Stream* s, ClassAd* req, Claim* claim )
 			reply.Insert( line.Value() );
 
 				// TODO any other info for the reply?
-			return sendCAReply( s, "CA_SUSPEND_CLAIM", &reply );
+			rval = sendCAReply( s, "CA_SUSPEND_CLAIM", &reply );
+
+				// now that a COD job has stopped, invoke our helper
+				// to deal w/ interactions w/ the opportunistic claim
+			interactionLogicCODStopped();
+
+			return rval;
 		} else {
 			return sendErrorReply( s, "CA_SUSPEND_CLAIM",
 								   CA_FAILURE, 
@@ -479,12 +489,20 @@ CODMgr::suspend( Stream* s, ClassAd* req, Claim* claim )
 int
 CODMgr::resume( Stream* s, ClassAd* req, Claim* claim )
 {
+	int rval;
 	ClassAd reply;
 	MyString line;
 
 	switch( claim->state() ) {
 
 	case CLAIM_SUSPENDED:
+			// now that a COD job is about to start running again,
+			// invoke our helper to deal w/ interactions w/ the
+			// opportunistic claim.  we want to do this before we
+			// resume the cod job, since we don't want both to run
+			// simultaneously, even if it's only for a very short
+			// period of time.
+		interactionLogicCODRunning();
 		if( claim->resumeClaim() ) { 
 			line = ATTR_RESULT;
 			line += " = \"";
@@ -494,10 +512,15 @@ CODMgr::resume( Stream* s, ClassAd* req, Claim* claim )
 
 				// TODO any other info for the reply?
 			return sendCAReply( s, "CA_RESUME_CLAIM", &reply );
+
 		} else {
-			return sendErrorReply( s, "CA_RESUME_CLAIM",
+			rval = sendErrorReply( s, "CA_RESUME_CLAIM",
 								   CA_FAILURE, 
 						   "Failed to send resume signal to starter" );
+				// since we didn't really suspend, let the
+				// opportunistic job try to run again... 
+			interactionLogicCODStopped();
+			return rval;
 		}
 		break;
 
@@ -535,3 +558,23 @@ CODMgr::resume( Stream* s, ClassAd* req, Claim* claim )
 }
 
 
+void
+CODMgr::interactionLogicCODRunning( void )
+{
+	if( rip->isSuspendedForCOD() ) {
+			// already suspended, nothing to do
+		return;
+	}
+	rip->suspendForCOD();
+}
+
+
+void
+CODMgr::interactionLogicCODStopped( void )
+{
+	if( isRunning() ) {
+			// we've still got something running, nothing to do.
+		return;
+	} 
+	rip->resumeForCOD();
+}

@@ -63,6 +63,17 @@ public:
 
 private:
 
+		/*
+		  helper functions which deal with the interaction of the COD
+		  claims and the opportunistic claims on the resource.  since
+		  there are multiple ways that a COD job could start running
+		  (activate or resume) or could stop (suspend or starter
+		  exits), we put the code for these actions in one place so we
+		  don't duplicate code.
+		*/
+	void interactionLogicCODRunning( void );
+	void interactionLogicCODStopped( void );
+
 	Resource* rip;
 	SimpleList<Claim*> claims;
 
