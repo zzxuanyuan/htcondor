@@ -39,12 +39,6 @@
 #include "syscall_64bit.h"
 #undef _CONDOR_OFF64_T
 
-#if defined(LINUX)
-int _xstat(int, const char *, struct stat *);
-int _fxstat(int, int, struct stat *);
-int _lxstat(int, const char *, struct stat *);
-#endif
-
 #include "syscall_numbers.h"
 #include "condor_syscall_mode.h"
 #include "file_table_interf.h"
@@ -366,61 +360,6 @@ static int fake_writev( int fd, const struct iovec *iov, int iovcnt )
 	}
 #endif
 
-#if defined(SYS_prev_stat) && defined(LINUX)
-int _xstat(int version, const char *path, struct stat *buf)
-{
-    int rval;
-
-    if( LocalSysCalls() ) {
-        rval = syscall( SYS_prev_stat, path, buf );
-    } else {
-        rval = REMOTE_syscall( CONDOR_stat, path, buf );
-    }
-
-    return rval;
-}
-#endif
-
-#if defined(SYS_prev_fstat) && defined(LINUX)
-int _fxstat(int version, int fd, struct stat *buf)
-{
-    int rval;
-    int user_fd;
-    int use_local_access = FALSE;
-
-    if( (user_fd=MapFd(fd)) < 0 ) {
-        return (int)-1;
-    }
-    if( LocalAccess(fd) ) {
-        use_local_access = TRUE;
-    }
-
-    if( LocalSysCalls() || use_local_access ) {
-        rval = syscall( SYS_prev_fstat, user_fd, buf );
-    } else {
-        rval = REMOTE_syscall( CONDOR_fstat, user_fd, buf );
-    }
-
-    return rval;
-}
-#endif
-
-#if defined(SYS_prev_lstat) && defined(LINUX)
-int _lxstat(int version, const char *path, struct stat *buf)
-{
-    int rval;
-
-    if( LocalSysCalls() ) {
-        rval = syscall( SYS_prev_lstat, path, buf );
-    } else {
-        rval = REMOTE_syscall( CONDOR_lstat, path, buf );
-    }
-
-    return rval;
-}
-#endif
-
-
 /* fork() and sigaction() are not in fork.o or sigaction.o on Solaris 2.5
    but instead are only in the threads libraries.  We access the old
    versions through their new names. */
@@ -450,74 +389,6 @@ long _sysconf(int name)
 	return sysconf(name);
 }
 #endif
-
-/* On Solaris and IRIX, stat, lstat, and fstat are statically defined in stat.h,
-   so we can't override them.  Instead, we override the following three
-   xstat definitions.  */
-
-#if defined(IRIX53) || defined(Solaris)
-
-#if defined(IRIX53) && !defined(IRIX62)
-int _xstat(int ver, char *path, struct stat *buf)
-#elif defined(Solaris) || defined(IRIX62)
-int _xstat(const int ver, const char *path, struct stat *buf)
-#endif
-{
-	int	rval;
-
-	if( LocalSysCalls() ) {
-		rval = syscall( SYS_xstat, ver, path, buf );
-	} else {
-		rval = REMOTE_syscall( CONDOR_stat, path, buf );
-	}
-
-	return rval;
-}
-
-#if defined(IRIX53) && !defined(IRIX62)
-int _lxstat(int ver, char *path, struct stat *buf)
-#elif defined(Solaris) || defined(IRIX62)
-int _lxstat(const int ver, const char *path, struct stat *buf)
-#endif
-{
-	int	rval;
-
-	if( LocalSysCalls() ) {
-		rval = syscall( SYS_lxstat, ver, path, buf );
-	} else {
-		rval = REMOTE_syscall( CONDOR_lstat, path, buf );
-	}
-
-	return rval;
-}
-
-#if defined(IRIX53) && !defined(IRIX62)
-int _fxstat(int ver, int fd, struct stat *buf)
-#elif defined(Solaris) || defined(IRIX62)
-int _fxstat(const int ver, int fd, struct stat *buf)
-#endif
-{
-	int	rval;
-	int	user_fd;
-	int use_local_access = FALSE;
-
-	if( (user_fd=MapFd(fd)) < 0 ) {
-		return (int)-1;
-	}
-	if( LocalAccess(fd) ) {
-		use_local_access = TRUE;
-	}
-
-	if( LocalSysCalls() || use_local_access ) {
-		rval = syscall( SYS_fxstat, ver, user_fd, buf );
-	} else {
-		rval = REMOTE_syscall( CONDOR_fstat, user_fd, buf );
-	}
-
-	return rval;
-}
-#endif /* IRIX || Solaris */
-
 
 /* getlogin needs to be special because it returns a char*, and until
  * we make stub_gen return longs instead of ints, casting char* to an int

@@ -90,22 +90,50 @@
 	  success.  code_bytes() itself just returns the number of
 	  bytes read or written, and -1 on failure. 
 
-  ** NEW MEANING **
-  map 	  A special flag placed after a prototype to indicate that the
-	  call should be directed through file_state.C when
-	  MappingFileDescriptors() is in effect.  Both the checkpointing
- 	  and remote syscall library use this feature.
+	** NEW OPTIONS **
+
+	: map
+		A special flag placed after a prototype to indicate that the
+		call should be directed through file_state.C when
+		MappingFileDescriptors() is in effect.  Both the checkpointing
+ 		and remote syscall library use this feature.
+
+	: map_name( id )
+
+		This allows you to select a different map name
+		to use in the open file table.  Example:
+			int fdsync() : map_name(fsync)
+		This switch will call FileTab->fsync() when
+		necessary, but otherwise uses SYS_fdsync.
+
+	: local_name( id )
+
+		This allows you to select a different local
+		system call to use.  Example:
+			int fstat() : local_name(prev_fstat)
+		This switch will call SYS_prev_fstat locally,
+		and CONDOR_fstat remotely.
+
+	: remote_name( id )
+
+		This allows you to select a different remote
+		system call name to use.  Example:
+			int lockf() : remote_name(flock)
+		This switch will use SYS_lockf locally,
+		and CONDOR_flock remotely.
+
+	discard( parameter )
+
+		This will throw out the given parameter
+		when performing a remote system call.
+		See _xstat for an example.
 
   Some system calls simply must be handled specially.  Examples
-  are those system calls which directly affect the open files
-  table used for checkpoint/restart.  Unfortunately, this
-  "specialness" dosen't necessarily span all three pieces of code
-  we want to generate.  For example, the switch for open() must
-  be special because it affects the open files table, but the
-  sender and receiver for open() don't need any special
-  treatment.  We would therefore like to include a prototype for
-  open(), but we must somehow tell the switch generator that it
-  should not generate anything for open().  We solve the problem
+  are readv, and getlogin. This "specialness" dosen't necessarily
+  span all three pieces of code we want to generate.
+  We would therefore like to include a prototype for
+  each special call, but we must somehow tell the switch generator that it
+  should only generate a sender and receiver.  We solve the problem
   by running this file through the C preprocessor (cpp) before
   processing it.  The switch generator will ensure that the macro
   SWITCH is defined, the sender generator will instead define the
@@ -126,10 +154,13 @@
 #   define EXTRACT extract
 #endif
 
-	int open( const char *path, int flags, ... ) : map {
+	int open( const char *path, int flags, ... ) : map
+	{
 		SEND_PATH( path );
 		ALLOC_PATH( path );
 	}
+
+	int open64( const char *path, int flags, ... ) : map, map_name(open), remote_name(open);
 	
 	int fcntl( int fd, int cmd, ... ) : map;
 
@@ -158,7 +189,6 @@
 	int fchown( int fd, uid_t owner, gid_t group ) : map ;
 	int fchmod( int fd, mode_t mode ) : map ;
 	int fchdir( int fd ) : map ;
-	not_supported int lockf( int fd, int request, off_t size );
 
 	#if 0
 		#if HAS_64BIT_SYSCALLS
@@ -189,46 +219,51 @@
 
 	#endif
 
-	#if (defined(Solaris) || defined(LINUX))
-		/* Stat and friends have special switches... */
-		#if !defined(SWITCH)
-			int fstat( int fd, struct stat *buf ) : map, extract {
-				out code( buf );
-				alloc( buf, STAT_SIZE );
-			}
+	/* Linux, Irix, and Solaris need these switches to redirect
+	   these calls to fstat, lstat, and xstat.  Other platforms
+	   take the regular switches, and everyone needs senders
+	   and receivers. */
 
- 			int lstat( const char *path, struct stat *buf ) : extract {
-				SEND_PATH( path );
-				ALLOC_PATH( path );
-				out code( buf );
-				alloc( buf, STAT_SIZE );
-			}
+	#if defined(SWITCH)&&(defined(LINUX)||defined(IRIX)||defined(Solaris))
 
-			int stat( const char *path, struct stat *buf ) : extract {
-				SEND_PATH( path );
-				ALLOC_PATH( path );
-				out code( buf );
-				alloc( buf, STAT_SIZE );
-			}
+		#if defined(LINUX) || defined(IRIX53)
+			int fxstat( discard(int version), int fd, struct stat *buf ) : remote_name(fstat), map_name(fstat), map;
+			int lxstat( discard(int version), char *path, struct stat *buf ) : remote_name(lstat);
+			int xstat( discard(int version), char *path, struct stat *buf ) : remote_name(stat);
+			int xmknod( discard(int version), char *path, mode_t mode, dev_t device ) : remote_name(mknod);
+		#else
+			int fxstat( discard(const int version), int fd, struct stat *buf ) : remote_name(fstat), map_name(fstat), map;
+			int lxstat( discard(const int version), const char *path, struct stat *buf ) : remote_name(lstat);
+			int xstat( discard(const int version), const char *path, struct stat *buf ) : remote_name(stat);
+			int xmknod( discard(const int version), const char *path, mode_t mode, dev_t device ) : remote_name(mknod);
 		#endif
-	#else
-		int fstat( int fd, struct stat *buf ) : map {
+
+	#else 
+		int fstat( int fd, struct stat *buf ) : map
+		{
 			out code( buf );
 			alloc( buf, STAT_SIZE );
 		}
 
- 		int lstat( const char *path, struct stat *buf ) {
+ 		int lstat( const char *path, struct stat *buf )
+		{
 			SEND_PATH( path );
 			ALLOC_PATH( path );
 			out code( buf );
 			alloc( buf, STAT_SIZE );
 		}
 
-		int stat( const char *path, struct stat *buf ) {
+		int stat( const char *path, struct stat *buf )
+		{
 			SEND_PATH( path );
 			ALLOC_PATH( path );
 			out code( buf );
 			alloc( buf, STAT_SIZE );
+		}
+
+		int mknod( const char *path, mode_t mode, dev_t device ) {
+			SEND_PATH( path );
+			ALLOC_PATH( path );
 		}
 	#endif
 
@@ -239,24 +274,29 @@
 	#else
 		int fstatfs( int fd, struct statfs *buf ) : map {
 	#endif
+
 			out code( buf );
 			alloc( buf, STATFS_SIZE );
 		}
 
 	int fsync( int fd ) : map;
+	int fdsync( int fd ) : map, map_name(fsync), remote_name(fsync);
+	int fdatasync( int fd ) : map, map_name(fsync), remote_name(fsync);
 
-	#if defined(Solaris) || defined(IRIX62) || defined(LINUX)
-		int getdents( int fd, struct dirent *buf, size_t nbytes ) : map {
-			out code_bytes_bool( buf, nbytes );
-			alloc( buf, nbytes );
-		}
-	#else
-		int getdirentries( int fd, char *buf, int nbytes, long *basep ) : map {
+	#if defined(HPUX) || defined(OSF1)
+		int getdirentries( int fd, struct dirent *buf, size_t nbytes, off_t *basep ) : map
+		{
 			out code_bytes_bool( buf, rval );
 			in code_bytes_bool( basep, EIGHT );
 			out code_bytes_bool( basep, EIGHT );
 			alloc( buf, nbytes );
 			alloc( basep, LONG_SIZE );
+		}
+	#else 
+		int getdents( int fd, struct dirent *buf, size_t nbytes ) : map
+		{
+			out code_bytes_bool( buf, nbytes );
+			alloc( buf, nbytes );
 		}
 	#endif
 
@@ -267,8 +307,6 @@
 	#endif
 
 /* If we are building the ckpt library, do not build any other switches  */
-
-#if !defined(FILE_SWITCHES_ONLY)
 
 #if !defined(SWITCH) && !defined(CLIP)
 
@@ -702,25 +740,6 @@ int rename( const char *from, const char *to ) : pseudo {
 	}
 
 #endif /* HAS_64BIT_SYSCALLS */
-
-#if (defined(LINUX) && defined(GLIBC)) || defined(Solaris)
-	/* mknod is a special switch */
-	#if !defined(SWITCH)
-	int mknod( const char *path, mode_t mode, dev_t device ) {
-		SEND_PATH( path );
-		ALLOC_PATH( path );
-	}
-	#endif
-#else 
-	#if defined(LINUX) || defined(OSF1) || defined(HPUX)
-	int mknod( const char *path, mode_t mode, dev_t device ) {
-	#else
-	int mknod( const char *path, int mode, dev_t device ) {
-	#endif
-		SEND_PATH( path );
-		ALLOC_PATH( path );
-	}
-#endif
 
 	int chmod( const char *path, mode_t mode ) {
 		SEND_PATH( path );
@@ -1330,6 +1349,4 @@ not_supported {
 }
 
 #endif /* not CLIP */
-
-#endif /* not FILE_SWITCHES_ONLY */
 

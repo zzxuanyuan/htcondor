@@ -27,6 +27,7 @@ extern "C" void restore_condor_sigmask(sigset_t);
 
 #if defined(HPUX)
 	#include<nfs/nfs.h>	/* fhandle_t */
+	#include<sys/mount.h>	/* mount */
 	#define FORK _FORK_sys
 	#define PIPE _PIPE_sys
 #endif
