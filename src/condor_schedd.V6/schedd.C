@@ -600,11 +600,12 @@ Scheduler::count_jobs()
 	sprintf(tmp, "%s = %d", ATTR_TOTAL_REMOVED_JOBS, JobsRemoved);
 	ad->Insert (tmp);
 
-#ifdef WANT_SOAP
-		// If we can support the SOAP API let's let the world know!
-	sprintf(tmp, "%s = True", ATTR_HAS_SOAP_API);
-	ad->Insert(tmp);
-#endif
+
+	if ( param_boolean("ENABLE_SOAP", false) ) {
+			// If we can support the SOAP API let's let the world know!
+		sprintf(tmp, "%s = True", ATTR_HAS_SOAP_API);
+		ad->Insert(tmp);
+	}
 
 
         // Tell negotiator to send us the startd ad
