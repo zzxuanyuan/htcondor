@@ -2279,6 +2279,9 @@ int DaemonCore::HandleReq(int socki)
     KeyInfo *the_key        = NULL;
     char    *the_sid        = NULL;
     char    * who = NULL;   // Remote user
+	bool is_http_post = false;	// must initialize to false
+	bool is_http_get = false;   // must initialize to false
+
 	
 	insock = (*sockTable)[socki].iosock;
 
@@ -2537,13 +2540,48 @@ int DaemonCore::HandleReq(int socki)
 		int nro = condor_read(((Sock*)stream)->get_file_desc(), 
 			tmpbuf, sizeof(tmpbuf) - 1, 10, MSG_PEEK);
 	}
-	if ( (strstr(tmpbuf,"GET") || strstr(tmpbuf,"POST")) )
+	if ( strstr(tmpbuf,"GET") ) {
+		if ( param_boolean("ENABLE_WEB_SERVER",false) ) {
+			// mini-web server requires READ authorization.
+			if ( Verify(READ,((Sock*)stream)->endpoint(),NULL) ) {
+				is_http_get = true;
+			} else {
+				dprintf(D_ALWAYS,"Received HTTP GET connection from %s -- "
+				             "DENIED because host not authorized for READ\n",
+							 sin_to_string(((Sock*)stream)->endpoint()));
+			}
+		} else {
+			dprintf(D_ALWAYS,"Received HTTP GET connection from %s -- "
+				             "DENIED because ENABLE_WEB_SERVER=FALSE\n",
+							 sin_to_string(((Sock*)stream)->endpoint()));
+		}
+	} else {
+		if ( strstr(tmpbuf,"POST") ) {
+			if ( param_boolean("ENABLE_SOAP",false) ) {
+				// SOAP requires SOAP authorization.
+				if ( Verify(SOAP_PERM,((Sock*)stream)->endpoint(),NULL) ) {
+					is_http_post = true;
+				} else {
+					dprintf(D_ALWAYS,"Received HTTP POST connection from %s -- "
+							"DENIED because host not authorized for SOAP\n",
+							 sin_to_string(((Sock*)stream)->endpoint()));
+				}		
+			} else {
+				dprintf(D_ALWAYS,"Received HTTP POST connection from %s -- "
+							 "DENIED because ENABLE_SOAP=FALSE\n",
+							 sin_to_string(((Sock*)stream)->endpoint()));
+			}
+		}
+	}
+	if ( is_http_post || is_http_get )
 	{
 		struct soap *cursoap;
 
 			// Socket appears to be HTTP, so deal with it.
-		dprintf(D_ALWAYS, "Received HTTP connection from %s\n",  
+		dprintf(D_ALWAYS, "Received HTTP %s connection from %s\n",  
+			is_http_get ? "GET" : "POST",
 			sin_to_string(((Sock*)stream)->endpoint()) );
+
 
 		cursoap = soap_copy(&soap);
 		ASSERT(cursoap);
