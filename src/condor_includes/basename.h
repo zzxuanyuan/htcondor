@@ -21,6 +21,9 @@
  * WI 53706-1685, (608) 262-0856 or miron@cs.wisc.edu.
 ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
+#if !defined( _CONDOR_BASENAME_H )
+#define _CONDOR_BASENAME_H
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -56,3 +59,5 @@ int fullpath( const char* path );
 #if defined(__cplusplus)
 }
 #endif
+
+#endif /* _CONDOR_BASENAME_H */
