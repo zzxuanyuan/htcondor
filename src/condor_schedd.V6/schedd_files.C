@@ -63,6 +63,7 @@ void schedd_files_Ins(ClassAd *procad, const char *type)
 	char sum[MAC_SIZE];
 	char hexSum[MAC_SIZE*2+1];
 	bool freeFsDomain = FALSE;
+	bool fileExist = TRUE;
 
 	procad->LookupString(type, &tmpFile);
 
@@ -96,9 +97,10 @@ void schedd_files_Ins(ClassAd *procad, const char *type)
 	if (stat(pathname, &file_status) < 0) {
 		dprintf(D_ALWAYS, "ERROR: File '%s' can not be accessed.\n", 
 				pathname);
+		fileExist = FALSE;
 	}
 
-	if (file_status.st_size > 0) {
+	if (fileExist && file_status.st_size > 0) {
 		schedd_file_checksum(pathname, file_status.st_size, sum);
 		for (int i = 0; i < MAC_SIZE; i++)
 			sprintf(&hexSum[2*i], "%2x", sum[i]);
@@ -118,10 +120,11 @@ void schedd_files_Ins(ClassAd *procad, const char *type)
 		// usageType
 		// globalJobId
 
-	sprintf(sqltext, 
-			"insert into files values('%s', '%s', '%s', '%s', %d, '%s', '%s', '%s')", 
-			fileName, fs_domain, path, ctime(&file_status.st_mtime),
-			(int)file_status.st_size, globalJobId, type, hexSum);
+	if (fileExist)
+		sprintf(sqltext, 
+				"insert into files values('%s', '%s', '%s', '%s', %d, '%s', '%s', '%s')", 
+				fileName, fs_domain, path, ctime(&file_status.st_mtime),
+				(int)file_status.st_size, globalJobId, type, hexSum);
 
 	free(path);
 	free(pathname);
@@ -138,25 +141,87 @@ void schedd_files_Ins(ClassAd *procad, const char *type)
 	DBObj->odbc_sqlstmt(sqltext);
 }
 
-void schedd_files_DbIns(ClassAd *procad, bool preExec)
+void schedd_files_Upd(ClassAd *procad, const char *type, ClassAd *oldad)
+{
+	char *tmpFile1 = NULL, *tmpFile2 = NULL,
+		*globalJobId = NULL, 
+		*newName, 
+		*oldName;
+	
+	char sqltext[MAXSQLLEN];
+
+	procad->LookupString(type, &tmpFile1);
+
+	procad->LookupString(ATTR_GLOBAL_JOB_ID, &globalJobId);
+
+	if (fullpath(tmpFile1)) {
+
+		if (strcmp(tmpFile1, "/dev/null") == 0)
+			return; /* job doesn't care about this type of file */
+		
+		newName = basename(tmpFile1); 
+
+	}
+	else {
+		newName = tmpFile1;
+	}
+
+	oldad->LookupString(type, &tmpFile2);
+
+	if (fullpath(tmpFile2)) {
+
+		if (strcmp(tmpFile2, "/dev/null") == 0)
+			return; /* job doesn't care about this type of file */
+		
+		oldName = basename(tmpFile2); 
+
+	}
+	else {
+		oldName = tmpFile2;
+	}
+	
+	sprintf(sqltext, 
+			"update files set name='%s' where globaljobid='%s' and name='%s'", 
+			newName, globalJobId, oldName);
+
+	free(globalJobId);
+	free(tmpFile1);
+	free(tmpFile2);
+
+	dprintf (D_ALWAYS, "In schedd_files_DbIns. sqltext is: %s\n", sqltext);
+
+
+		//DBObj->execCommand(sqltext);
+	DBObj->odbc_sqlstmt(sqltext);
+}
+
+void schedd_files_DbIns(ClassAd *procad, bool preExec, ClassAd *oldAd)
 {
 		//DBObj->beginTransaction();
 
 	if (preExec) {
-		schedd_files_Ins(procad, ATTR_JOB_CMD);
-		schedd_files_Ins(procad, ATTR_JOB_INPUT);
+			//schedd_files_Ins(procad, ATTR_JOB_CMD);
+			//schedd_files_Ins(procad, ATTR_JOB_INPUT);
 
 		// to avoid duplicate records for files, use StringList
 		// to manage the list and use file_contains to check if 
 		// the list already contains a file.
 
 		// user log file needs to be inserted again after job finished
-		schedd_files_Ins(procad, ATTR_ULOG_FILE);
+		//schedd_files_Ins(procad, ATTR_ULOG_FILE);
 	} else {
 			// post execution
+		schedd_files_Ins(procad, ATTR_JOB_CMD);	
+		schedd_files_Ins(procad, ATTR_JOB_INPUT);
 		schedd_files_Ins(procad, ATTR_JOB_OUTPUT);
 		schedd_files_Ins(procad, ATTR_JOB_ERROR);
 		schedd_files_Ins(procad, ATTR_ULOG_FILE);
+
+			// some files may had macros in it, e.g $$(OPSYS),update them now
+/*
+		if (oldAd)
+			schedd_files_Upd(procad, ATTR_JOB_CMD, oldAd);
+*/
 	}
 		//DBObj->commitTransaction();
 }

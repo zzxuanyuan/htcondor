@@ -6465,11 +6465,6 @@ Scheduler::child_exit(int pid, int status)
 	srec = FindSrecByPid(pid);
 	job_id.cluster = srec->job_id.cluster;
 	job_id.proc = srec->job_id.proc;
-	
-	if(srec) {
-		jobad = GetJobAd( job_id.cluster, job_id.proc );
-		schedd_files_DbIns(jobad, FALSE);
-	}
 
 	if (IsSchedulerUniverse(srec)) {
 		// scheduler universe process
@@ -6581,6 +6576,14 @@ Scheduler::child_exit(int pid, int status)
 				break;
 			case JOB_EXITED:
 				dprintf(D_FULLDEBUG, "Reaper: JOB_EXITED\n");
+
+					// get job outputs into files table only if it's completed successfully	
+					// pass true to make sure $$ variables are replaced
+				jobad = GetJobAd( job_id.cluster, job_id.proc, true);
+					//	oldad = GetJobAd( job_id.cluster, job_id.proc);
+				schedd_files_DbIns(jobad, FALSE, NULL);
+				delete jobad;				
+
 			case JOB_COREDUMPED:
 				if( q_status != HELD ) {
 					set_job_status( srec->job_id.cluster,
@@ -7567,7 +7570,12 @@ Scheduler::reschedule_negotiator(int, Stream *)
 		StartSchedUniverseJobs();
 	}
 
-	 return;
+		// insert files into database if new jobs have been submitted
+		// the reason why we do it here is so that this doesn't delay	
+		// user's submission of jobs and request for reschedule from negotiator
+	//updateFilesInDB();
+	
+	return;
 }
 
 
