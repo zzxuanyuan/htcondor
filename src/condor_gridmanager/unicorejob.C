@@ -639,7 +639,7 @@ MyString *UnicoreJob::buildSubmitAd()
 
 		ExprTree *expr;
 		if ( ( expr = ad->Lookup( regular_attrs[i] ) ) != NULL ) {
-			submit_ad.Insert( expr );
+			submit_ad.Insert( expr->DeepCopy() );
 		}
 
 	}
