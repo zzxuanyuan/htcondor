@@ -131,19 +131,18 @@ JICLocalConfig::getConfigAttr( ClassAd* ad, const char* key, bool warn,
 
 	sprintf( param_name, "%s_%s", key, attr );
 	tmp = param( param_name );
-	if( ! tmp ) {
+	if( ! tmp && alt_name ) {
 		sprintf( param_name, "%s_%s", key, alt_name );
 		tmp = param( param_name );
-		if( ! tmp ) {
-			if( warn ) {
-				dprintf( D_ALWAYS, 
-						 "\"%s\" not found in config file\n", 
-						 param_name );
-			}
-			return false;
-		}
 	}
-
+	if( ! tmp ) {
+		if( warn ) {
+			dprintf( D_ALWAYS, 
+					 "\"%s\" not found in config file\n", 
+					 param_name );
+		}
+		return false;
+	}
 	if( is_string && tmp[0] != '"' ) {
 		needs_quotes = true;
 	}
