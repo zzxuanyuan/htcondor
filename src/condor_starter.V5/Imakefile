@@ -12,6 +12,7 @@ LDFLAGS = KernLib RpcLib MldLib -lbfd -liberty
 LDFLAGS = KernLib SocketLib RpcLib MldLib 
 #endif
 REMOTE_SYSCALL_LIB = \
+	../condor_ckpt/signals_control.o \
 	../condor_syscall_lib/senders.o \
 	../condor_syscall_lib/syscall_mode.o \
 	../condor_syscall_lib/syscall_connect.o \

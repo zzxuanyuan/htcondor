@@ -1094,7 +1094,7 @@ open_std_file( int which )
 	}
 	if( answer < 0 ) {
 		sprintf( buf, "Can't open \"%s\" - %s", name, strerror(errno) );
-		REMOTE_syscall(CONDOR_perm_error, buf );
+		REMOTE_syscall(CONDOR_report_error, buf );
 		exit( 4 );
 	} else {
 		if( answer != which ) {
@@ -1186,7 +1186,7 @@ set_iwd()
 
 	if( REMOTE_syscall(CONDOR_get_iwd,iwd) < 0 ) {
 		REMOTE_syscall(
-			CONDOR_perm_error,
+			CONDOR_report_error,
 			"Can't determine initial working directory"
 		);
 		exit( 4 );
@@ -1207,7 +1207,7 @@ set_iwd()
 			
 		sprintf( buf, "Can't open working directory \"%s\", errno = %d", iwd,
 			    errno );
-		REMOTE_syscall( CONDOR_perm_error, buf );
+		REMOTE_syscall( CONDOR_report_error, buf );
 		exit( 4 );
 	}
 }
