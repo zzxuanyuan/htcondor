@@ -368,7 +368,7 @@ private:
 		// If we we need to reconnect to disconnected starters, we
 		// stash the proc IDs in here while we read through the job
 		// queue.  Then, we can spawn all the shadows after the fact. 
-	Queue<PROC_ID>	jobsToReconnect;
+	SimpleList<PROC_ID> jobsToReconnect;
 	int				checkReconnectQueue_tid;
 
 	// useful names

@@ -3730,7 +3730,7 @@ Scheduler::checkContactQueue()
 bool
 Scheduler::enqueueReconnectJob( PROC_ID job )
 {
-	 if( jobsToReconnect.enqueue(job) < 0 ) {
+	 if( ! jobsToReconnect.Append(job) ) {
 		 dprintf( D_ALWAYS, "Failed to enqueue job id (%d.%d)\n",
 				  job.cluster, job.proc );
 		 return false;
@@ -3766,9 +3766,9 @@ Scheduler::checkReconnectQueue( void )
 		// clear out the timer tid, since we made it here.
 	checkReconnectQueue_tid = -1;
 
-	while( !jobsToReconnect.IsEmpty() ) {
+	jobsToReconnect.Rewind();
+	while( jobsToReconnect.Next(job) ) {
 			// there's a pending registration in the queue:
-		jobsToReconnect.dequeue( job );
 		dprintf( D_FULLDEBUG, "In checkReconnectQueue(), job: %d.%d\n", 
 				 job.cluster, job.proc );
 		makeReconnectRecords( &job );
