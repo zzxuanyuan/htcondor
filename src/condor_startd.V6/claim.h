@@ -180,8 +180,14 @@ public:
 	bool starterKillSoft( void );
 	bool starterKillHard( void );
 
-
 	bool periodicCheckpoint( void );
+
+		// functions for the classad-only claim management protocol
+	bool release( ClassAd* req, ClassAd* reply );
+	bool activate( ClassAd* req, ClassAd* reply );
+	bool deactivate( ClassAd* req, ClassAd* reply );
+	bool suspend( ClassAd* req, ClassAd* reply );
+	bool resume( ClassAd* req, ClassAd* reply );
 
 private:
 	Resource	*c_rip;

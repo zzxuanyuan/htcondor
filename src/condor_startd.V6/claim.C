@@ -636,6 +636,47 @@ Claim::periodicCheckpoint( void )
 }
 
 
+bool
+Claim::release( ClassAd* req, ClassAd* reply )
+{
+		// TODO!
+	return true;
+}
+
+
+bool
+Claim::activate( ClassAd* req, ClassAd* reply )
+{
+		// TODO!
+	return true;
+}
+
+
+bool
+Claim::deactivate( ClassAd* req, ClassAd* reply )
+{
+		// TODO!
+	return true;
+}
+
+
+bool
+Claim:: suspend( ClassAd* req, ClassAd* reply )
+{
+		// TODO!
+	return true;
+}
+
+
+bool
+Claim::resume( ClassAd* req, ClassAd* reply )
+{
+		// TODO!
+	return true;
+}
+
+
+
 ///////////////////////////////////////////////////////////////////////////
 // Client
 ///////////////////////////////////////////////////////////////////////////
