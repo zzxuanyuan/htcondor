@@ -430,3 +430,59 @@ stream_to_rip( Stream* stream )
 	free( cap );
 	return rip;
 }
+
+
+int
+sendCAReply( Stream* s, char* cmd_str, ClassAd* reply )
+{
+	reply->SetMyTypeName( REPLY_ADTYPE );
+	reply->SetTargetTypeName( COMMAND_ADTYPE );
+
+	MyString line;
+	line = ATTR_VERSION;
+	line += " = \"";
+	line += CondorVersion();
+	line += '"';
+	reply->Insert( line.Value() );
+
+	line = ATTR_PLATFORM;
+	line += " = \"";
+	line += CondorPlatform();
+	line += '"';
+	reply->Insert( line.Value() );
+
+	s->encode();
+	if( ! reply->put(*s) ) {
+		dprintf( D_ALWAYS,
+				 "ERROR: Can't send reply classad for %s, aborting\n",
+				 cmd_str );
+		return FALSE;
+	}
+	if( ! s->eom() ) {
+		dprintf( D_ALWAYS, "ERROR: Can't send eom for %s, aborting\n", 
+				 cmd_str );
+		return FALSE;
+	}
+	return TRUE;
+}
+
+
+
+int
+sendErrorReply( Stream* s, char* cmd_str, const char* err_str ) 
+{
+	dprintf( D_ALWAYS, "Aborting %s\n", cmd_str );
+	dprintf( D_ALWAYS, "%s\n", err_str );
+
+	ClassAd reply;
+	reply.Insert( "Result = FALSE" );
+
+	MyString line = ATTR_COMMAND_ERROR;
+	line += " = \"";
+	line += err_str;
+	line += '"';
+	reply.Insert( line.Value() );
+	
+	return sendCAReply( s, cmd_str, &reply );
+}
+

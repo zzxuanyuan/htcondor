@@ -27,6 +27,7 @@ class ClassAd;
 class Stream;
 class Resource;
 
+
 // Our utilities 
 void	cleanup_execute_dir(int pid);
 void	check_perms(void);
@@ -45,5 +46,8 @@ bool	configInsert( ClassAd* ad, const char* param_name,
 int		send_classad_to_sock( int cmd, Daemon* d, ClassAd* pubCA,
 							  ClassAd* privCA ); 
 Resource* stream_to_rip( Stream* );
+
+int sendCAReply( Stream* s, char* cmd_str, ClassAd* reply );
+int sendErrorReply( Stream* s, char* cmd_str, const char* err_str );
 
 #endif /* _UTIL_H */
