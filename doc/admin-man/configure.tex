@@ -2292,9 +2292,12 @@ The following configuration variables support java universe jobs.
 
 \item[\Macro{JAVA\_MAXHEAP\_ARGUMENT}]
 \label{param:JavaMaxheapArgument}
-  The command line argument to the Java interpreter (the Java Virtual Machine)
-  that instructs the Java virtual machine to maximize the heap size.
-  For example, the value may be \Arg{-Xmx}.
+  An incomplete command line argument to the Java interpreter
+  (the Java Virtual Machine)
+  to specify the switch name for the Maxheap Argument.
+  Condor uses it to construct the maximum heap size
+  for the Java Virtual Machine. 
+  For example, the value for the Sun JVM is \Arg{-Xmx}.
 
 \item[\Macro{JAVA\_CLASSPATH\_ARGUMENT}]
 \label{param:JavaClasspathArgument}
@@ -2320,8 +2323,7 @@ The following configuration variables support java universe jobs.
 
 \item[\Macro{JAVA\_EXTRA\_ARGUMENTS}]
 \label{param:JavaExtraArguments}
-  A list of additional arguments to be passed to the Java executable
-  (program).
+  A list of additional arguments to be passed to the Java executable.
 \end{description}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
