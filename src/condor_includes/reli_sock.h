@@ -139,7 +139,13 @@ public:
     ///
 	int authenticate( KeyInfo *& key, int clientFlags = 0 );
     ///
+    const char * getFullyQualifiedUser();
+    ///
 	const char *getOwner();
+    ///
+	const char *getDomain();
+    ///
+    const char * getHostAddress();
     ///
 	int isAuthenticated();
     ///

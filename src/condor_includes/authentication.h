@@ -83,6 +83,8 @@ class Authentication {
     void setAuthAny();
     
     int setOwner( const char *owner );
+
+    const char *getFullyQualifiedUser() const;
     
     const char *getOwner() const;
     

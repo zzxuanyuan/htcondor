@@ -25,7 +25,7 @@
 #define CONDOR_CRYPTO_BLOWFISH
 
 #include "condor_crypt.h"          // base class
-#include <blowfish.h>
+#include <openssl/blowfish.h>
 
 class Condor_Crypt_Blowfish : public Condor_Crypt_Base {
 

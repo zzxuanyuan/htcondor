@@ -125,20 +125,21 @@ class Condor_Auth_Base {
     //          0    -- not yet authenticated
     //------------------------------------------
 
-    const char * getRemoteHost() const;
-    //------------------------------------------
-    // PURPOSE: Find out what remote host is 
-    // REQUIRE: A successful authentication
-    // RETURNS: A pointer to the remote peer
-    //------------------------------------------
-
     const int getMode() const;
     //------------------------------------------
     // PURPOSE: retrieve the mode of the authenticator
     // REQUIRE: None
     // RETURNS: mode -- see the enumeration above
     //------------------------------------------
-    
+
+    const char * getRemoteFQU();
+    //------------------------------------------
+    // PURPOSE: get the user in fully qualifed form
+    //          i.e. who@somewhere.edu
+    // REQUIRE: authenticated
+    // RETURNS: pointer to fqu
+    //------------------------------------------
+
     const char * getRemoteUser() const;
     //------------------------------------------
     // PURPOSE: Return user name of the remote client
@@ -148,13 +149,30 @@ class Condor_Auth_Base {
     //          const char * -- name of the remote user
     //------------------------------------------
 
-    const char * getRemoteDomain() const;
+    const char * getRemoteHost() const;
     //------------------------------------------
-    // PURPOSE: Return domaine of the remote client
-    //          For example, cs.wisc.edu
+    // PURPOSE: Find out what remote host is 
+    // REQUIRE: A successful authentication
+    // RETURNS: A pointer to the remote peer
+    //------------------------------------------
+
+    const char * getRemoteDomain() const;
+    const char * getLocalDomain() const;
+    //------------------------------------------
+    // PURPOSE: getRemoteDomain returns domain of 
+    //          the remote client For example, cs.wisc.edu. 
+    //          getLocalDomain returns domain for 
+    //          itself
     // REQUIRE: successful authentication 
     // RETURSN: null -- if not yet authenticated
     //          const char * -- name of the remote domain
+    //------------------------------------------
+
+    Condor_Auth_Base& setAuthenticated(int authenticated);
+    //------------------------------------------
+    // PURPOSE: Set the state of authentication
+    // REQUIRE: whether it's authenticated or not
+    // RETUNRS: None (this)
     //------------------------------------------
 
     Condor_Auth_Base& setRemoteUser(const char * user);
@@ -164,12 +182,7 @@ class Condor_Auth_Base {
     // RETUNRS: None (this)
     //------------------------------------------
     
-    Condor_Auth_Base& setRemoteDomain(const char * domain);
-    //------------------------------------------
-    // PURPOSE: Set the remote domain
-    // REQUIRE: Name of the remote domain
-    // RETUNRS: None (this)
-    //------------------------------------------
+ protected:
 
     Condor_Auth_Base& setRemoteHost(const char * hostAddr);
     //------------------------------------------
@@ -178,13 +191,14 @@ class Condor_Auth_Base {
     // RETUNRS: None (this)
     //------------------------------------------
 
-    Condor_Auth_Base& setAuthenticated(int authenticated);
+    Condor_Auth_Base& setRemoteDomain(const char * domain);
     //------------------------------------------
-    // PURPOSE: Set the state of authentication
-    // REQUIRE: whether it's authenticated or not
+    // PURPOSE: Set the remote domain
+    // REQUIRE: Name of the remote domain
     // RETUNRS: None (this)
     //------------------------------------------
- protected:
+
+    Condor_Auth_Base& setFullyQualifiedUser(const char * fqu);
 
     const bool isDaemon() const;
     //------------------------------------------
@@ -211,6 +225,8 @@ class Condor_Auth_Base {
     char *          remoteUser_;     // Remote user
     char *          remoteDomain_;   // Remote domain
     char *          remoteHost_;     // Remote host
+    char *          localDomain_;    // Local user domain
+    char *          fqu_;            // Fully qualified
 };
 
 #endif

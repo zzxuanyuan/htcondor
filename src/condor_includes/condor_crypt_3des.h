@@ -25,7 +25,7 @@
 #define CONDOR_CRYPTO_3DES
 
 #include "condor_crypt.h"          // base class
-#include <des.h>
+#include <openssl/des.h>
 
 class Condor_Crypt_3des : public Condor_Crypt_Base {
 
