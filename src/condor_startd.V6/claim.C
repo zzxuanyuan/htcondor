@@ -1235,6 +1235,7 @@ Client::Client()
 {
 	c_user = NULL;
 	c_owner = NULL;
+	c_acctgrp = NULL;
 	c_addr = NULL;
 	c_host = NULL;
 }
@@ -1244,6 +1245,7 @@ Client::~Client()
 {
 	if( c_user) free( c_user );
 	if( c_owner) free( c_owner );
+	if( c_acctgrp) free( c_acctgrp );
 	if( c_addr) free( c_addr );
 	if( c_host) free( c_host );
 }
