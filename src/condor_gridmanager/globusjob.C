@@ -686,7 +686,7 @@ int GlobusJob::doEvaluateState()
 			// constructor is called while we're connected to the schedd).
 			int err;
 
-			if ( gahp.Initialize( myProxy->proxy_filename ) == false ) {
+			if ( gahp.Initialize( myProxy ) == false ) {
 				dprintf( D_ALWAYS, "(%d.%d) Error initializing GAHP\n",
 						 procID.cluster, procID.proc );
 				UpdateJobAdString( ATTR_HOLD_REASON, "Failed to initialize GAHP" );

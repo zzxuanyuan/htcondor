@@ -51,6 +51,7 @@ struct GahpProxyInfo
 {
 	Proxy *proxy;
 	int cached_expiration;
+	int num_references;
 };
 
 static const char *GAHPCLIENT_DEFAULT_SERVER_ID = "DEFAULT";
@@ -87,7 +88,7 @@ class GahpServer : public Service {
 	~GahpServer();
 
 	bool Startup();
-	bool Initialize(const char * proxy_path);
+	bool Initialize(Proxy * proxy);
 
 	void read_argv(Gahp_Args &g_args);
 	void read_argv(Gahp_Args *g_args) { read_argv(*g_args); }
@@ -96,8 +97,12 @@ class GahpServer : public Service {
 	void Reaper(Service*,int pid,int status);
 	int pipe_ready();
 
+	void AddGahpClient( GahpClient *client );
+	void RemoveGahpClient( GahpClient *client );
+
 	int doProxyCheck();
-	GahpProxyInfo *RegisterProxy( const char *proxy_path );
+	GahpProxyInfo *RegisterProxy( Proxy *proxy );
+	void UnregisterProxy( Proxy *proxy );
 
 	/** Set interval to automatically poll the Gahp Server for results.
 		If the Gahp server supports async result notification, then
@@ -207,7 +212,7 @@ class GahpClient : public Service {
 		bool Startup();
 
 		///
-		bool Initialize(const char * proxy_path);
+		bool Initialize(Proxy *proxy);
 
 		///
 		void purgePendingRequests() { clear_pending(); }

@@ -168,6 +168,9 @@ GahpServer::~GahpServer()
 
 		delete ProxiesByFilename;
 	}
+	if ( requestTable != NULL ) {
+		delete requestTable;
+	}
 }
 
 void
@@ -230,7 +233,6 @@ dprintf(D_ALWAYS,"**** GahpClient::GahpClient 0x%p called\n",this);
 	server = GahpServer::FindOrCreateGahpServer(id,path);
 	m_timeout = 0;
 	m_mode = normal;
-	server->m_reference_count++;
 	pending_command[0] = '\0';
 	pending_args = NULL;
 	pending_reqid = 0;
@@ -242,6 +244,8 @@ dprintf(D_ALWAYS,"**** GahpClient::GahpClient 0x%p called\n",this);
 	user_timerid = -1;
 	normal_proxy = NULL;
 	deleg_proxy = NULL;
+
+	server->AddGahpClient( this );
 }
 
 GahpClient::~GahpClient()
@@ -249,12 +253,13 @@ GahpClient::~GahpClient()
 		// call clear_pending to remove this object from hash table,
 		// and deallocate any memory associated w/ a pending command.
 	clear_pending();
+	server->RemoveGahpClient( this );
 	server->m_reference_count--;
-	if ( server->m_reference_count == 0 ) {
-		// all objects are gone - remove request table
-		if (server->requestTable) delete server->requestTable;
-		server->requestTable = NULL;
-		// TODO someday --- perhaps send a QUIT to the Gahp Server?
+	if ( normal_proxy != NULL ) {
+		server->UnregisterProxy( normal_proxy->proxy );
+	}
+	if ( deleg_proxy != NULL ) {
+		server->UnregisterProxy( deleg_proxy->proxy );
 	}
 }
 
@@ -474,6 +479,19 @@ GahpClient::new_reqid()
 	return -1;  // just to make C++ not give a warning...
 }
 
+void
+GahpServer::AddGahpClient( GahpClient *client )
+{
+	m_reference_count++;
+}
+
+void
+GahpServer::RemoveGahpClient( GahpClient *client )
+{
+	m_reference_count--;
+		// TODO arrange to de-allocate GahpServer when this hits zero
+}
+
 bool
 GahpClient::Startup()
 {
@@ -643,16 +661,14 @@ GahpServer::Startup()
 }
 
 bool
-GahpClient::Initialize(const char *proxy_path)
+GahpClient::Initialize(Proxy *proxy)
 {
-	return server->Initialize(proxy_path);
+	return server->Initialize(proxy);
 }
 
 bool
-GahpServer::Initialize(const char *proxy_path)
+GahpServer::Initialize( Proxy *proxy )
 {
-	GahpProxyInfo *proxy_info = NULL;
-
 		// Check if Initialize() has already been successfully called
 	if ( is_initialized == true ) {
 		return true;
@@ -674,10 +690,9 @@ GahpServer::Initialize(const char *proxy_path)
 								(TimerHandlercpp)&GahpServer::doProxyCheck,
 								"GahpServer::doProxyCheck", (Service*) this );
 
-	proxy_info = RegisterProxy( proxy_path );
 
 	master_proxy = new GahpProxyInfo;
-	master_proxy->proxy = proxy_info->proxy->subject->master_proxy;
+	master_proxy->proxy = proxy->subject->master_proxy;
 	AcquireProxy( master_proxy->proxy, proxy_check_tid );
 	master_proxy->cached_expiration = 0;
 
@@ -899,7 +914,7 @@ dprintf(D_FULLDEBUG,"***doProxyCheck() returning\n");
 }
 
 GahpProxyInfo *
-GahpServer::RegisterProxy( const char *proxy_path )
+GahpServer::RegisterProxy( Proxy *proxy )
 {
 	int rc;
 	GahpProxyInfo *gahp_proxy = NULL;
@@ -908,25 +923,62 @@ GahpServer::RegisterProxy( const char *proxy_path )
 		return NULL;
 	}
 
-	rc = ProxiesByFilename->lookup( HashKey( proxy_path ), gahp_proxy );
+	if ( master_proxy != NULL && proxy == master_proxy->proxy ) {
+		master_proxy->num_references++;
+		return master_proxy;
+	}
+
+	rc = ProxiesByFilename->lookup( HashKey( proxy->proxy_filename ),
+									gahp_proxy );
 
 	if ( rc != 0 ) {
 		gahp_proxy = new GahpProxyInfo;
 		ASSERT(gahp_proxy);
-		gahp_proxy->proxy = AcquireProxy( proxy_path, proxy_check_tid );
+		gahp_proxy->proxy = AcquireProxy( proxy, proxy_check_tid );
 		gahp_proxy->cached_expiration = 0;
+		gahp_proxy->num_references = 1;
 //		daemonCore->Reset_Timer( proxy_check_tid, 0 );
 		if ( cacheProxyFromFile( gahp_proxy ) == false ) {
 			EXCEPT( "Failed to cache proxy!" );
 		}
 		gahp_proxy->cached_expiration = gahp_proxy->proxy->expiration_time;
 
-		ProxiesByFilename->insert( HashKey( proxy_path ), gahp_proxy );
+		ProxiesByFilename->insert( HashKey( proxy->proxy_filename ),
+								   gahp_proxy );
 	} else {
-			// do nothing
+		gahp_proxy->num_references++;
 	}
 
 	return gahp_proxy;
+}
+
+void
+GahpServer::UnregisterProxy( Proxy *proxy )
+{
+	int rc;
+	GahpProxyInfo *gahp_proxy = NULL;
+
+	if ( master_proxy != NULL && proxy == master_proxy->proxy ) {
+		master_proxy->num_references--;
+		return;
+	}
+
+	rc = ProxiesByFilename->lookup( HashKey( proxy->proxy_filename ),
+									gahp_proxy );
+
+	if ( rc != 0 ) {
+		dprintf( D_ALWAYS, "GahpServer::UnregisterProxy() called with unknown proxy %s\n", proxy->proxy_filename );
+		return;
+	}
+
+	gahp_proxy->num_references--;
+
+	if ( gahp_proxy->num_references == 0 ) {
+		ProxiesByFilename->remove( HashKey( gahp_proxy->proxy->proxy_filename ) );
+		uncacheProxy( gahp_proxy );
+		ReleaseProxy( gahp_proxy->proxy );
+		delete gahp_proxy;
+	}
 }
 
 void
@@ -975,7 +1027,13 @@ escapeGahpString(const char * input)
 void
 GahpClient::setNormalProxy( Proxy *proxy )
 {
-	GahpProxyInfo *gahp_proxy = server->RegisterProxy(proxy->proxy_filename);
+	if ( normal_proxy != NULL && proxy == normal_proxy->proxy ) {
+		return;
+	}
+	if ( normal_proxy != NULL ) {
+		server->UnregisterProxy( normal_proxy->proxy );
+	}
+	GahpProxyInfo *gahp_proxy = server->RegisterProxy( proxy );
 	ASSERT(gahp_proxy);
 	normal_proxy = gahp_proxy;
 }
@@ -983,7 +1041,13 @@ GahpClient::setNormalProxy( Proxy *proxy )
 void
 GahpClient::setDelegProxy( Proxy *proxy )
 {
-	GahpProxyInfo *gahp_proxy = server->RegisterProxy(proxy->proxy_filename);
+	if ( deleg_proxy != NULL && proxy != deleg_proxy->proxy ) {
+		return;
+	}
+	if ( deleg_proxy != NULL ) {
+		server->UnregisterProxy( deleg_proxy->proxy );
+	}
+	GahpProxyInfo *gahp_proxy = server->RegisterProxy( proxy );
 	ASSERT(gahp_proxy);
 	deleg_proxy = gahp_proxy;
 }
@@ -2420,7 +2484,7 @@ GahpClient::gt3_gram_client_job_callback_register(const char * job_contact,
 	Gahp_Args* result = get_pending_result(command,buf);
 	if ( result ) {
 		// command completed.
-		if (result->argc != 2) {
+		if (result->argc != 3) {
 			EXCEPT("Bad %s Result",command);
 		}
 		int rc = atoi(result->argv[1]);
@@ -2527,7 +2591,7 @@ GahpClient::gt3_gram_client_job_refresh_credentials(const char *job_contact)
 	Gahp_Args* result = get_pending_result(command,buf);
 	if ( result ) {
 		// command completed.
-		if (result->argc != 2) {
+		if (result->argc != 3) {
 			EXCEPT("Bad %s Result",command);
 		}
 		int rc = atoi(result->argv[1]);

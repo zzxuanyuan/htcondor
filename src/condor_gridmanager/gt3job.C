@@ -604,7 +604,7 @@ int GT3Job::doEvaluateState()
 			// constructor is called while we're connected to the schedd).
 			int err;
 
-			if ( gahp->Initialize( myProxy->proxy_filename ) == false ) {
+			if ( gahp->Initialize( myProxy ) == false ) {
 				dprintf( D_ALWAYS, "(%d.%d) Error initializing GAHP\n",
 						 procID.cluster, procID.proc );
 				
@@ -676,9 +676,6 @@ int GT3Job::doEvaluateState()
 			} break;
 		case GM_REGISTER: {
 			// Register for callbacks from an already-running jobmanager.
-// callback_register isn't working yet
-gmState = GM_CANCEL;
-break;
 			CHECK_PROXY;
 			rc = gahp->gt3_gram_client_job_callback_register( jobContact,
 														gramCallbackContact );
@@ -697,8 +694,8 @@ break;
 			callbackRegistered = true;
 			probeNow = true;
 			//gmState = GM_STDIO_UPDATE;
-			gmState = GM_CANCEL;
-			//gmState = GM_SUBMITTED;
+//			gmState = GM_CANCEL;
+			gmState = GM_SUBMITTED;
 			} break;
 		case GM_STDIO_UPDATE: {
 /*
