@@ -163,6 +163,13 @@ ResState::eval( void )
 	switch( r_state ) {
 
 	case claimed_state:
+		if( r_act == suspended_act && rip->isSuspendedForCOD() ) { 
+				// this is the special case where we do *NOT* want to
+				// evaluate any policy expressions.  so long as
+				// there's an active COD job, we want to leave the
+				// opportunistic claim "checkpointed to swap"
+			return 0;
+		}
 		want_suspend = rip->wants_suspend();
 		if( ((r_act == busy_act) && (!want_suspend)) ||
 			(r_act == suspended_act) ) {
