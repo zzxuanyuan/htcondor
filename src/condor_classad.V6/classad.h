@@ -28,6 +28,10 @@
 #include <vector>
 #include "exprTree.h"
 
+#ifdef __cplusplus
+#include <string>
+using namespace std;
+#endif
 
 BEGIN_NAMESPACE( classad );
 
