@@ -26,8 +26,8 @@
 // STL includes
 #include <string>
 #include <set>
-#include <hash_map>
-#include <slist>
+#include <ext/hash_map>
+#include <ext/slist>
 
 #include "exprTree.h"
 #include "matchClassad.h"

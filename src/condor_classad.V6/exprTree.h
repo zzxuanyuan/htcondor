@@ -23,7 +23,7 @@
 #ifndef __EXPR_TREE_H__
 #define __EXPR_TREE_H__
 
-#include <hash_map>
+#include <ext/hash_map>
 #include "common.h"
 #include "value.h"
 

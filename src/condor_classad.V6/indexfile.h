@@ -25,7 +25,7 @@
 #include <stdio.h>
 #include <string>
 #include <map>
-#include <hash_map>
+#include <ext/hash_map>
 #include <sys/types.h>
 
 BEGIN_NAMESPACE( classad );
