@@ -1093,7 +1093,7 @@ void
 Resource::log_ignore( int cmd, State s ) 
 {
 	dprintf( D_ALWAYS, "Got %s while in %s state, ignoring.\n", 
-			 command_to_string(cmd), state_to_string(s) );
+			 getCommandString(cmd), state_to_string(s) );
 }
 
 
@@ -1101,7 +1101,7 @@ void
 Resource::log_ignore( int cmd, State s, Activity a ) 
 {
 	dprintf( D_ALWAYS, "Got %s while in %s/%s state, ignoring.\n", 
-			 command_to_string(cmd), state_to_string(s),
+			 getCommandString(cmd), state_to_string(s),
 			 activity_to_string(a) );
 }
 
@@ -1110,7 +1110,7 @@ void
 Resource::log_shutdown_ignore( int cmd ) 
 {
 	dprintf( D_ALWAYS, "Got %s while shutting down, ignoring.\n", 
-			 command_to_string(cmd) );
+			 getCommandString(cmd) );
 }
 
 
