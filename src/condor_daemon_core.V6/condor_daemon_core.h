@@ -1260,4 +1260,36 @@ int Create_Thread_With_Data(DataThreadWorkerFunc Worker, DataThreadReaperFunc Re
 // Prototype to get sinful string.
 char *global_dc_sinful( void );
 
+
+/**
+   This class is an abstract base class used by some generic data
+   structures in DaemonCore.  It's sort of like the "Service" class
+   defined in condor_timer_manager.h, which is why it's got "Service"
+   in the name (even though i don't like that name).  Any object that
+   you want to store in one of the DC-specific data structures (for
+   now, just the SelfDrainingQueue, but someday there might be more)
+   should be derived from a ServiceData.  This allows
+   SelfDrainingQueue to work properly without itself being a template,
+   and will enable us to let users give us c++ member functions as
+   call-backs for these data structures, if we really wanted...
+*/
+class ServiceData
+{
+public:
+	virtual ~ServiceData() {};
+
+protected:
+    ServiceData() {}
+};
+
+
+/**
+   These are some typedefs for function pointers that deal with
+   ServiceData pointers. 
+*/ 
+typedef int (*ServiceDataHandler)(ServiceData*);
+
+typedef int (Service::*ServiceDataHandlercpp)(ServiceData*);
+
+
 #endif /* _CONDOR_DAEMON_CORE_H_ */
