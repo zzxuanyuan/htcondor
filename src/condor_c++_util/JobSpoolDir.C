@@ -222,40 +222,6 @@ bool recursive_chown_nonroot(const char * path,
 
 /*****************************************************************************/
 
-// Random helper functions
-
-
-/// Lookup a string in a classad (specialized to return a MyString)
-// TODO: Move this into condor_attrlist, where it belongs
-bool LookupString(ClassAd * p, const char * key, MyString & result)
-{
-	ASSERT(p);
-	char * value;
-	if( ! p->LookupString(key, &value) ) {
-		return false;
-	}
-	result = value;
-	free(value);
-	return true;
-}
-
-bool param(const char * key, MyString & val)
-{
-#if 0
-		// Debug code
-#warning "param is hacked on"
-	val = "/scratch/adesmet/V6_7-branch/condor-c/src/condor_schedd.V6/testspool";
-	return true;
-#endif
-	char * valtmp = param(key);
-	if( ! valtmp ) {
-		return false;
-	}
-	val = valtmp;
-	free(valtmp);
-	return true;
-}
-
 
 /// Returns strerror for errno "e" as a MyString
 MyString StringError(int e)
@@ -391,7 +357,8 @@ bool JobSpoolDir::Initialize(int incluster, int inproc, int insubproc, bool allo
 	proc = inproc;
 	subproc = insubproc;
 
-	if( ! param("SPOOL", mainspooldir) ) {
+	mainspooldir = param_mystring("SPOOL");
+	if(mainspooldir.Length() < 1) {
 		joberrordprintf("Unable to locate SPOOL setting.");
 		return false;
 	}
@@ -433,7 +400,7 @@ bool JobSpoolDir::Initialize(ClassAd * JobAd, bool allow_create)
 	// TODO: subproc?
 	insubproc = 0;
 
-	if( ! LookupString(JobAd, ATTR_JOB_CMD, cmd) ) {
+	if( ! JobAd->LookupString(ATTR_JOB_CMD, cmd) ) {
 		jobdprintf(D_ALWAYS, ERROR_MISSING_ATTR, ATTR_JOB_CMD);
 		return false;
 	}
@@ -576,10 +543,8 @@ MyString JobSpoolDir::ExecutablePathForReading() const
 	// Try the old ickpt file in SPOOL.
 
 	{
-		char * spooltmp = param("SPOOL");
-		ASSERT(spooltmp); // No SPOOL?  We're in deep trouble.
-		MyString spool = spooltmp;
-		free(spooltmp);
+		MyString spool = param_mystring("SPOOL");
+		ASSERT(spool.Length() > 0); // No SPOOL?  We're in deep trouble.
 
 		MyString exe = gen_ckpt_name_2(spool.GetCStr(), cluster, ICKPT, 0);
 		StatObj statobj(exe);
