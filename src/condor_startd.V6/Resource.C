@@ -634,6 +634,10 @@ Resource::init_classad( void )
 
 	// Publish everything we know about.
 	this->publish( r_classad, A_PUBLIC | A_ALL | A_EVALUATED );
+		// NOTE: we don't use A_SHARED_VM here, since when
+		// init_classad is being called, we don't necessarily have
+		// classads for the other VMs, yet we'll publish the SHARED_VM
+		// attrs after this...
 	
 	return TRUE;
 }
@@ -699,7 +703,7 @@ Resource::do_update( void )
 	ClassAd private_ad;
 	ClassAd public_ad;
 
-	this->publish( &public_ad, A_PUBLIC | A_ALL | A_EVALUATED );
+	this->publish( &public_ad, A_PUBLIC | A_ALL | A_EVALUATED | A_SHARED_VM );
 	this->publish( &private_ad, A_PRIVATE | A_ALL );
 
 		// Send class ads to collector(s)
@@ -1160,6 +1164,31 @@ Resource::publish( ClassAd* cap, amask_t mask )
 		}
 	}
 
+	if( IS_PUBLIC(mask) && IS_SHARED_VM(mask) ) {
+		resmgr->publishVmAttrs( cap );
+	}
+}
+
+
+void
+Resource::publishVmAttrs( ClassAd* cap )
+{
+	if( ! startd_vm_exprs ) {
+		return;
+	}
+	if( ! cap ) {
+		return;
+	}
+	if( ! r_classad ) {
+		return;
+	}
+	char* ptr;
+	MyString prefix = r_id_str;
+	prefix += '_';
+	startd_vm_exprs->rewind();
+	while( (ptr = startd_vm_exprs->next()) ) {
+		caInsert( cap, r_classad, ptr, prefix.Value() );
+	}
 }
 
 
