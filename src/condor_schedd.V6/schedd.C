@@ -600,11 +600,11 @@ Scheduler::count_jobs()
 	sprintf(tmp, "%s = %d", ATTR_TOTAL_REMOVED_JOBS, JobsRemoved);
 	ad->Insert (tmp);
 
-        #ifdef WANT_SOAP
-        // If we can support the SOAP API let's let the world know!
-        sprintf(tmp, "%s = True", ATTR_HAS_SOAP_API);
-        ad->Insert(tmp);
-        #endif
+#ifdef WANT_SOAP
+		// If we can support the SOAP API let's let the world know!
+	sprintf(tmp, "%s = True", ATTR_HAS_SOAP_API);
+	ad->Insert(tmp);
+#endif
 
 
         // Tell negotiator to send us the startd ad
@@ -7275,51 +7275,57 @@ abortJob( int cluster, int proc, const char *reason, bool use_transaction )
 }
 
 bool
-abortJobsByConstraint( const char *constraint, const char *reason, bool use_transaction )
+abortJobsByConstraint( const char *constraint,
+					   const char *reason,
+					   bool use_transaction )
 {
-    bool result = true;
+	bool result = true;
 
-    ExtArray<PROC_ID> jobs;
-    int job_count;
+	ExtArray<PROC_ID> jobs;
+	int job_count;
 
-    dprintf(D_FULLDEBUG, "abortJobsByConstraint: '%s'\n", constraint);
+	dprintf(D_FULLDEBUG, "abortJobsByConstraint: '%s'\n", constraint);
 
-    if ( use_transaction ) {
-        BeginTransaction();
-    }
+	if ( use_transaction ) {
+		BeginTransaction();
+	}
 
-    job_count = 0;
-    ClassAd *ad = GetNextJobByConstraint(constraint, 1);
-    while ( ad ) {
-            // MATT: What happens if these fail?
-        ad->LookupInteger(ATTR_CLUSTER_ID, jobs[job_count].cluster);
-        ad->LookupInteger(ATTR_PROC_ID, jobs[job_count].proc);
+	job_count = 0;
+	ClassAd *ad = GetNextJobByConstraint(constraint, 1);
+	while ( ad ) {
+			// MATT: What happens if these fail?
+		ad->LookupInteger(ATTR_CLUSTER_ID, jobs[job_count].cluster);
+		ad->LookupInteger(ATTR_PROC_ID, jobs[job_count].proc);
 
-        dprintf(D_FULLDEBUG, "remove by constrain matched: %d.%d\n", jobs[job_count].cluster, jobs[job_count].proc);
+		dprintf(D_FULLDEBUG, "remove by constrain matched: %d.%d\n",
+				jobs[job_count].cluster, jobs[job_count].proc);
 
-        job_count++;
+		job_count++;
 
-        ad = GetNextJobByConstraint(constraint, 0);
-    }
+		ad = GetNextJobByConstraint(constraint, 0);
+	}
 
-    job_count--;
-    while ( job_count >= 0 ) {
-        dprintf(D_FULLDEBUG, "removing: %d.%d\n", jobs[job_count].cluster, jobs[job_count].proc);
+	job_count--;
+	while ( job_count >= 0 ) {
+		dprintf(D_FULLDEBUG, "removing: %d.%d\n",
+				jobs[job_count].cluster, jobs[job_count].proc);
 
-        result = result && abortJobRaw(jobs[job_count].cluster, jobs[job_count].proc, reason);
+		result = result && abortJobRaw(jobs[job_count].cluster,
+									   jobs[job_count].proc,
+									   reason);
 
-        job_count--;
-    }
+		job_count--;
+	}
 
-    if ( use_transaction ) {
-        if ( result ) {
-            CommitTransaction();
-        } else {
-            AbortTransaction();
-        }
-    }
+	if ( use_transaction ) {
+		if ( result ) {
+			CommitTransaction();
+		} else {
+			AbortTransaction();
+		}
+	}
 
-    return result;
+	return result;
 }
 
 
