@@ -1,10 +1,22 @@
 #include "JobSpoolDir.h"
+#include "condor_config.h"
+#include <stdio.h>
 
 int main()
 {
+	config(); // Initialize param();
 	JobSpoolDir s;
-	s.Initialize(123,4,5,true);
+	bool b = s.Initialize(123,4,5,true);
+	if( ! b ) {
+		printf("Failed to initialize\n");
+		return 1;
+	}
 	//s.SetCmd("/example/executable");
-	s.test();
+
+	printf("%s\n",s.SandboxPath(true).GetCStr());
+	printf("%s\n",s.TransferPath(true).GetCStr());
+	s.DestroyProcessDirectory();
+	s.DestroyClusterDirectory();
+
 	return 0;
 }

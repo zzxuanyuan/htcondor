@@ -191,9 +191,6 @@ public:
 	*/
 	MyString ExecutablePathForWriting() const;
 
-
-	void test();
-
 private:
 	int cluster;
 	int proc;

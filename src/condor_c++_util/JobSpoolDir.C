@@ -628,20 +628,6 @@ bool JobSpoolDir::EnsureUsableDir(const MyString & path, bool allow_create)
 
 
 
-void JobSpoolDir::test() 
-{
-	printf("%s\n",DirFullCluster().GetCStr());
-	printf("%s\n",DirFullProcess().GetCStr());
-	printf("%s\n",DirFullSandbox().GetCStr());
-	printf("%s\n",DirFullTransfer().GetCStr());
-	printf("%s\n",FileFullExecutable().GetCStr());
-	jobdprintf(D_ALWAYS, "dprintf 1 (%s)", "substring");
-	joberrordprintf("dprintf 2 (%s)", "substring");
-	printf("%s\n",SandboxPath().GetCStr());
-	printf("%s\n",TransferPath().GetCStr());
-	DestroyProcessDirectory();
-	DestroyClusterDirectory();
-}
 
 void JobSpoolDir::jobdprintf(int flags, const char * fmt, ...) const
 {
