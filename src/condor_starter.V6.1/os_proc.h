@@ -26,7 +26,6 @@
 
 #include "user_proc.h"
 #include "basename.h"
-#include "utc_time.h"
 
 /** This is a generic sort of "OS" process, the base for other types
 	of jobs.
@@ -106,8 +105,6 @@ protected:
 	int soft_kill_sig;
 	int rm_kill_sig;
 
-	UtcTime job_start_time;
-	UtcTime job_exit_time;
 };
 
 #endif

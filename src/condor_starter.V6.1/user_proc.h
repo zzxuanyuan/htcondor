@@ -24,6 +24,7 @@
 #define _CONDOR_USER_PROC_H
 
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
+#include "utc_time.h"
 
 class ClassAd;
 
@@ -112,6 +113,8 @@ protected:
 	int JobPid;
 	int exit_status;
 	bool requested_exit;
+	UtcTime job_start_time;
+	UtcTime job_exit_time;
 };
 
 #endif /* _CONDOR_USER_PROC_H */
