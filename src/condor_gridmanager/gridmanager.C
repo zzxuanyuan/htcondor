@@ -383,6 +383,11 @@ doContactSchedd()
 		// currently being managed and aren't marked as not matched.
 		// If JobManaged is undefined, equate it with false.
 		// If Matched is undefined, equate it with true.
+		// NOTE: Schedds from Condor 6.6 and earlier don't include
+		//   "(Universe==9)" in the constraint they give to the gridmanager,
+		//   so this gridmanager will pull down non-globus-universe ads,
+		//   although it won't use them. This is inefficient but not
+		//   incorrect behavior.
 		if ( firstScheddContact ) {
 			// Grab all jobs for us to manage. This expression is a
 			// derivative of the expression below for new jobs. We add
