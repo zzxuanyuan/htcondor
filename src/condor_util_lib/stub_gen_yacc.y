@@ -16,6 +16,10 @@
 %token NOSUPP
 %token IGNORE
 %token ELLIPSIS
+%token REMOTE_NAME
+%token LOCAL_NAME
+%token MAP_NAME
+%token DISCARD
 
 %type <node> stub_spec param_list param simple_param
 %type <node> stub_body action_func_list
@@ -86,6 +90,13 @@ int IsPseudo = FALSE;
 int DoSysChk = TRUE;
 int IsMapped = FALSE;
 int IsVararg = FALSE;
+int UseAltRemoteName = FALSE;
+int UseAltLocalName = FALSE;
+int UseAltMapName = FALSE;
+
+static char AltRemoteName[80] = {0};
+static char AltLocalName[80] = {0};
+static char AltMapName[80] = {0};
 
 static char global_func[20],global_fd[20];
 #if 0
@@ -293,41 +304,59 @@ opt_reference
 
 specials
 	: /* empty */
-	| ':' special_list
+	| ':' option_list
 	;
 
-special_list
-	: pseudo_or_extract
-	| special_list ',' pseudo_or_extract 
+option_list
+	: option
+	| option_list ',' option 
 	;
 
-pseudo_or_extract
+option
 	:  PSEUDO
 		{
-		Trace( "pseudo_or_extract (1)" );
+		Trace( "option (1)" );
 		IsPseudo = TRUE;
 		}
 	|  EXTRACT
 		{
-		Trace( "pseudo_or_extract (2)" );
+		Trace( "option (2)" );
 		IsExtracted = TRUE;
 		DoSysChk = FALSE;
 		}
 	|  DL_EXTRACT
 		{
-		Trace( "pseudo_or_extract (3)" );
+		Trace( "option (3)" );
 		IsDLExtracted = TRUE;
 		DoSysChk = FALSE;
 		}
 	|  NO_SYS_CHK
 		{
-		Trace( "pseudo_or_extract (3)" );
+		Trace( "option (3)" );
 		DoSysChk = FALSE;
 		}
 	| MAP
 		{
-		Trace( "pseudo_or_extract (4)" );
+		Trace( "option (4)" );
 		IsMapped = TRUE;
+		}
+	| REMOTE_NAME '(' IDENTIFIER ')'
+		{
+		Trace( "option (5)" );
+		UseAltRemoteName = TRUE;
+		strcpy(AltRemoteName,$3.val);
+		}
+	| LOCAL_NAME '(' IDENTIFIER ')'
+		{
+		Trace( "option (5)" );
+		UseAltLocalName = TRUE;
+		strcpy(AltLocalName,$3.val);
+		}
+	| MAP_NAME '(' IDENTIFIER ')'
+		{
+		Trace( "option (5)" );
+		UseAltMapName = TRUE;
+		strcpy(AltMapName,$3.val);
 		}
 	;
 
@@ -343,6 +372,8 @@ param_list
 param
 	: simple_param
 			{ $$ = $1; }
+	| DISCARD '(' simple_param ')'
+			{ $3->discard = TRUE; $$ = $3; }
 	| ELLIPSIS
 			{
 			$$ = mk_param_node("int","lastarg",0,0,0,0,0,0,0,1);
@@ -563,6 +594,7 @@ mk_param_node( char *type, char *name,
 
 	answer->next = answer;
 	answer->prev = answer;
+	answer->discard = 0;
 
 	return answer;
 }
@@ -622,7 +654,28 @@ mk_func_node( char *type, char *name, struct node * p_list,
 	IsVararg = FALSE;
 	answer->param_list = p_list;
 	answer->action_func_list = action_func_list;
-	
+
+	if(UseAltRemoteName) {
+		strcpy(answer->remote_name,AltRemoteName);
+		UseAltRemoteName=FALSE;
+	} else {
+		strcpy(answer->remote_name,name);
+	}
+
+	if(UseAltLocalName) {
+		strcpy(answer->local_name,AltLocalName);
+		UseAltLocalName=FALSE;
+	} else {
+		strcpy(answer->local_name,name);
+	}
+
+	if(UseAltMapName) {
+		strcpy(answer->map_name,AltMapName);
+		UseAltMapName=FALSE;
+	} else {
+		strcpy(answer->map_name,name);
+	}
+
 	return answer;
 }
 
@@ -858,7 +911,7 @@ output_local_call( struct node *n, struct node *list )
 {
 	struct node	*p;
 
-	printf("\t\t\trval = syscall( SYS_%s", n->id );
+	printf("\t\t\trval = syscall( SYS_%s", n->local_name );
 	if( !is_empty_list(list) ) {
 		printf( ", " );
 	}
@@ -871,7 +924,7 @@ output_remote_call( struct node *n, struct node *list )
 {
 	struct node	*p;
 
-	printf("\t\t\trval = REMOTE_syscall( CONDOR_%s", n->id );
+	printf("\t\t\trval = REMOTE_syscall( CONDOR_%s", n->remote_name );
 	if( !is_empty_list(list) ) {
 		printf( ", " );
 	}
@@ -880,11 +933,11 @@ output_remote_call( struct node *n, struct node *list )
 }
 
 void
-output_mapped_call( char *id, struct node *list )
+output_mapped_call( struct node *n, struct node *list )
 {
 	printf( "\t\terrno = 0;\n" );
 	printf( "\t\tInitFileState();\n");
-	printf( "\t\trval = FileTab -> %s ( ", id );
+	printf( "\t\trval = FileTab -> %s ( ", n->map_name );
 	output_param_list( list );
 	printf( " );\n");
 }
@@ -940,9 +993,11 @@ output_param_list( struct node *list )
 	struct node	*p;
 
 	for( p=list->next; p != list; p = p->next ) {
-		printf( "%s", p->id );
-		if( p->next != list ) {
-			printf( ", " );
+		if( !p->discard ) {
+			printf( "%s", p->id );
+			if( p->next!=list ) {
+				printf( ", " );
+			}
 		}
 	}
 }
@@ -993,16 +1048,22 @@ output_receiver( struct node *n )
 
 	assert( n->node_type == FUNC );
 
+	/* If this node is a function which maps to a different
+	   call, skip the receiver, because it will be generated
+	   by the function bearing that name. */
+	
+	if( strcmp(n->id,n->remote_name) ) return;
+
 	if( !n->pseudo && Do_SYS_check && n->sys_chk ) {
-		printf( "#if defined( SYS_%s )\n", n->id );
+		printf( "#if defined( SYS_%s )\n", n->local_name );
 	}
 
-	printf( "	case CONDOR_%s:\n", n->id );
+	printf( "	case CONDOR_%s:\n", n->remote_name );
 	printf( "	  {\n" );
 
 		/* output a local variable decl for each param of the sys call */
 	for( p=param_list->next; p != param_list; p = p->next ) {
-		printf("\t\t%s %s;\n",node_type_noconst(p),p->id);
+		if(!p->discard) printf("\t\t%s %s;\n",node_type_noconst(p),p->id);
 	}
 
 	printf( "\t\tint terrno;\n" );
@@ -1015,7 +1076,7 @@ output_receiver( struct node *n )
 		calling routine.
 		*/
 	for( p=param_list->next; p != param_list; p = p->next ) {
-		if( p->is_ptr || p->is_array ) {
+		if( p->is_ptr || p->is_array || p->discard ) {
 			continue;
 		}
 		printf( "\t\tassert( syscall_sock->code(%s) );\n",
@@ -1081,9 +1142,9 @@ output_receiver( struct node *n )
 	printf( "\n" );
 	printf( "\t\terrno = 0;\n" );
 	if( !Supported  ) {
-		printf( "\t\trval = CONDOR_NotSupported( CONDOR_%s );\n", n->id  );
+		printf( "\t\trval = CONDOR_NotSupported( CONDOR_%s );\n", n->remote_name  );
 	} else if( Ignored ) {
-		printf( "\t\trval = CONDOR_Ignored( CONDOR_%s );\n", n->id  );
+		printf( "\t\trval = CONDOR_Ignored( CONDOR_%s );\n", n->remote_name  );
 	} else {
 
 		printf( "\t\t%s%s%s( ",
@@ -1199,22 +1260,28 @@ output_sender( struct node *n )
 
 	assert( n->node_type == FUNC );
 
-	printf( "	case CONDOR_%s:\n", n->id );
+	/* If this node is a function which maps to a different
+	   call, skip the sender, because it will be generated
+	   by the function bearing that name. */
+	
+	if( strcmp(n->id,n->remote_name) ) return;
+
+	printf( "	case CONDOR_%s:\n", n->remote_name );
 	printf( "	  {\n" );
 
 	/* output a local variable decl for each param of the sys call */
 	for( p=param_list->next; p != param_list; p = p->next ) {
-		printf("\t\t%s %s;\n",node_type_noconst(p),p->id);
+		if(!p->discard) printf("\t\t%s %s;\n",node_type_noconst(p),p->id);
 	}
 	printf( "\n" );
 
 		/* Set up system call number */
-	printf( "\t\tCurrentSysCall = CONDOR_%s;\n\n", n->id  );
+	printf( "\t\tCurrentSysCall = CONDOR_%s;\n\n", n->remote_name  );
 
 		/* Grab values of local variables using varargs routines */
 	for( p=param_list->next; p != param_list; p = p->next ) {
 			/* id = va_arg( ap, type_name * ); - '*' is optional */
-		printf( "\t\t%s = va_arg( ap, %s %s%s);\n",
+		if(!p->discard) printf( "\t\t%s = va_arg( ap, %s %s%s);\n",
 			p->id,
 			p->type_name,
 			p->is_ptr ? "*" : "",
@@ -1234,7 +1301,7 @@ output_sender( struct node *n )
 		calling routine.
 		*/
 	for( p=param_list->next; p != param_list; p = p->next ) {
-		if( p->is_ptr || p->is_array ) {
+		if( p->is_ptr || p->is_array || p->discard ) {
 			continue;
 		}
 		printf( "\t\tassert( syscall_sock->code(%s) );\n",
@@ -1329,7 +1396,7 @@ output_switch( struct node *n )
 	assert( n->node_type == FUNC );
 
 	if( !n->pseudo && Do_SYS_check && n->sys_chk ) {
-		printf( "#if defined( SYS_%s )\n", n->id );
+		printf( "#if defined( SYS_%s )\n", n->local_name );
 	}
 
 	printf("#undef %s\n",n->id);
@@ -1363,7 +1430,7 @@ output_switch( struct node *n )
 
 		if( n->is_mapped ) {
 			printf("\tif( MappingFileDescriptors() ) {\n");
-			output_mapped_call( n->id, n->param_list );
+			output_mapped_call( n, n->param_list );
 			printf("\t} else {\n");
 		}
 
@@ -1462,7 +1529,7 @@ output_send_stub( struct node *n )
 	printf( "	int	rval;\n\n" );
 
 		/* Set up system call number */
-	printf( "\t\tCurrentSysCall = CONDOR_%s;\n\n", n->id  );
+	printf( "\t\tCurrentSysCall = CONDOR_%s;\n\n", n->remote_name  );
 	printf( "\t\tsyscall_sock->encode();\n" );
 	printf( "\t\tassert( syscall_sock->code(CurrentSysCall) );\n");
 		/*
