@@ -1776,12 +1776,27 @@ jobPrepNeedsThread( int cluster, int proc )
 }
 
 
+/*
+  we want to be a little bit careful about this.  we don't want to go
+  messing with the sandbox if a) we've got a partial (messed up)
+  sandbox that hasn't finished being transfered yet or if b)
+  condor_submit (or the SOAP submit interface, whatever) initializes
+  these variables to 0.  we want a real value for stage_in_finish, and
+  we want to make sure it's later than stage_in_start.  todd gets the
+  credit for making this smarter, even though derek made the changes.
+*/
 bool
 jobIsSandboxed( ClassAd * ad )
 {
 	ASSERT(ad);
-	int dummy;
-	return ad->LookupInteger(ATTR_STAGE_IN_START, dummy);
+	int stage_in_start = 0;
+	int stage_in_finish = 0;
+	ad->LookupInteger( ATTR_STAGE_IN_START, stage_in_start );
+	ad->LookupInteger( ATTR_STAGE_IN_FINISH, stage_in_finish );
+	if( stage_in_finish > 0 && stage_in_finish >= stage_in_start ) { 
+		return true;
+	}
+	return false;
 }
 
 
