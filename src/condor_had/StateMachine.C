@@ -193,8 +193,9 @@ HADStateMachine::reinitialize()
         onError( "HAD CONFIGURATION ERROR: \
                 no HAD_CYCLE_INTERVAL in config file " );
     }
-
-    hadTimerID = daemonCore->Register_Timer ( 0 ,hadInterval,
+	
+    //register timer : for first time after hadInterval and for each next time after hadInterval
+    hadTimerID = daemonCore->Register_Timer ( hadInterval, hadInterval,
                                     (TimerHandlercpp) &HADStateMachine::step,
                                     "Time to check HAD", this );
 
