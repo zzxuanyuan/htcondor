@@ -59,6 +59,9 @@ static const char* DEFAULT_INDENT = "DaemonCore--> ";
 #include "exphnd.WIN32.h"
 typedef unsigned (__stdcall *CRT_THREAD_HANDLER) (void *);
 #endif
+extern "C" {
+#include "reliUDP.h"
+}
 
 
 #define SECURITY_HACK_ENABLE
@@ -1359,7 +1362,7 @@ void DaemonCore::Driver()
 #endif
 
 		errno = 0;
-		rv = select( FD_SETSIZE, (SELECT_FDSET_PTR) &readfds, 
+		rv = rudp_select( FD_SETSIZE, (SELECT_FDSET_PTR) &readfds, 
 					 (SELECT_FDSET_PTR) &writefds, 
 					 (SELECT_FDSET_PTR) &exceptfds, ptimer );
 		tmpErrno = errno;
@@ -1555,7 +1558,7 @@ int DaemonCore::ServiceCommandSocket()
 		FD_ZERO(&fds);
 		FD_SET( (*sockTable)[initial_command_sock].sockd,&fds);
 		errno = 0;
-		rv = select(FD_SETSIZE,(SELECT_FDSET_PTR) &fds, NULL, NULL, &timer);
+		rv = rudp_select(FD_SETSIZE,(SELECT_FDSET_PTR) &fds, NULL, NULL, &timer);
 #ifndef WIN32
 		// Unix
 		if(rv < 0) {
