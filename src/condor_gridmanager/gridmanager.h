@@ -34,6 +34,7 @@
 #include "globusresource.h"
 #include "globusjob.h"
 #include "gahp-client.h"
+#include "oraclejob.h"
 
 
 #define UA_UPDATE_JOB_AD			0x0001
