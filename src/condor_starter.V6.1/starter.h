@@ -153,6 +153,7 @@ public:
 	int classadCommand( int, Stream* );
 
     int SpawnSshd( ClassAd * jobAd );
+    void SpawnToolDaemon( UserProc * proc, ClassAd * jobAd);
 
     inline UserProc * getSshdProc(){
 	  return sshdProc;

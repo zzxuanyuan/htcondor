@@ -318,6 +318,8 @@ ParallelMasterProc::SpawnParallelMaster(){
 
 	if (job->StartJob()) {
 	    Starter->appendJobList(job);	
+		Starter->SpawnToolDaemon(job, JobAd);	
+
 		Starter->jic->allJobsSpawned();
 	} else {
 	    dprintf( D_ALWAYS, "Failed to start job, exiting\n" );
