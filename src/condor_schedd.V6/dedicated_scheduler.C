@@ -2611,6 +2611,7 @@ DedicatedScheduler::computeSchedule( void )
 						preempt_candidates->Append(preempt_candidate_array[cand].machine_ad);
 						num_preemptions++;
 						jobs->DeleteCurrent();
+						job = jobs->Next();
 						nodes--;
 
 							// Found all the machines we needed!
