@@ -277,13 +277,13 @@ elif test $os = "Darwin" ; then
   _cv_op_sys="Darwin"
   _cv_opsys="DARWIN"
   if test "$osrelease" = "6.8" ; then
-    _cv_opsys_vers="DARWIN-6_8"
+    _cv_opsys_vers="DARWIN_6_8"
     _cv_sysname="ppc_macosx"
   elif test "$osrelease" = "7.0.0" ; then
-    _cv_opsys_vers="DARWIN-7_0"
+    _cv_opsys_vers="DARWIN_7_0"
     _cv_sysname="ppc_macosx_7_0"
   else
-    _cv_opsys_vers="DARWIN-UNKNOWN"
+    _cv_opsys_vers="DARWIN_UNKNOWN"
     AC_MSG_WARN([Unrecognised MacOSX/Darwin version])
     AC_MSG_WARN([You may have trouble building and/or packaging Condor]) 
   fi  
