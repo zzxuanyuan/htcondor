@@ -69,6 +69,7 @@ MirrorResource::MirrorResource( const char *resource_name )
 	gahpA = NULL;
 	gahpB = NULL;
 	scheddPollActive = false;
+	newLease = 0;
 
 	scheddPollTid = daemonCore->Register_Timer( 0,
 							(TimerHandlercpp)&MirrorResource::DoScheddPoll,
@@ -160,8 +161,10 @@ int DoScheddPoll()
 		constraint.sprintf( "%s =?= \"%s\"", "MirrorSubmitterId",
 							submitter_id );
 
+		newLease = time(NULL) + MirrorJob::leaseInterval;
+
 		ClassAd update_ad;
-		buff.sprintf( "%s = %d", ATTR_MIRROR_LAST_REMOTE_POLL, );
+		buff.sprintf( "%s = %d", ATTR_MIRROR_LEASE_TIME, newLease );
 		update_ad->Insert( buff.Value() );
 
 		rcA = gahpA->condor_job_update_constrained( mirrorScheddName,
@@ -211,10 +214,17 @@ int DoScheddPoll()
 		}
 
 		if ( rcB == 0 ) {
+			MyString update_expr;
+			update_expr.sprintf( "%s = %d", ATTR_MIRROR_REMOTE_LEASE_TIME,
+								 newLease );
 			for ( int i = 0; i < num_status_ads; i++ ) {
 				int cluster, proc;
 				MyString job_id_string;
 				MirrorJob *job;
+
+				// Since we don't know if the new lease time is in the
+				// job ad, add it ourselves
+				status_ads[i].Insert( update_expr.Value() );
 
 				status_ads[i].LookupInteger( ATTR_CLUSTER_ID, cluster );
 				status_ads[i].LookupInteger( ATTR_PROC_ID, proc );

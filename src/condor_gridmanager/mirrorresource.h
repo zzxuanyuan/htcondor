@@ -62,6 +62,7 @@ class MirrorResource : public BaseResource
 	int scheddPollTid;
 	char *mirrorScheddName;
 	bool scheddPollActive;
+	int newLease;
 
  private:
 	static HashTable <HashKey, MirrorResource *> ResourcesByName;

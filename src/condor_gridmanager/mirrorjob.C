@@ -54,10 +54,9 @@
 #define GM_HOLD					14
 #define GM_PROXY_EXPIRED		15
 #define GM_REFRESH_PROXY		16
-#define GM_POLL_MIRROR_SCHEDD	17
-#define GM_START				18
-#define GM_ENABLE_LOCAL_SCHEDULING 19
-#define GM_DISABLE_LOCAL_SCHEDULING 20
+#define GM_START				17
+#define GM_ENABLE_LOCAL_SCHEDULING 18
+#define GM_DISABLE_LOCAL_SCHEDULING 19
 
 static char *GMStateNames[] = {
 	"GM_INIT",
@@ -77,7 +76,6 @@ static char *GMStateNames[] = {
 	"GM_HOLD",
 	"GM_PROXY_EXPIRED",
 	"GM_REFRESH_PROXY",
-	"GM_POLL_MIRROR_SCHEDD",
 	"GM_START",
 	"GM_ENABLE_LOCAL_SCHEDULING",
 	"GM_DISABLE_LOCAL_SCHEDULING"
@@ -122,6 +120,9 @@ void MirrorJobReconfig()
 
 	tmp_int = param_integer("GRIDMANAGER_CONNECT_FAILURE_RETRY_COUNT",3);
 	MirrorJob::setConnectFailureRetry( tmp_int );
+
+	tmp_int = param_integer("GRIDMANAGER_MIRROR_LEASE_INTERVAL",1800);
+	MirrorJob::setLeaseInterval( tmp_int );
 }
 
 const char *MirrorJobAdConst = "JobUniverse =?= 5 && MirrorJob =?= True";
@@ -145,6 +146,7 @@ int MirrorJob::pollMirrorInterval = 300;		// default value
 int MirrorJob::submitInterval = 300;			// default value
 int MirrorJob::gahpCallTimeout = 300;			// default value
 int MirrorJob::maxConnectFailures = 3;			// default value
+int MirrorJob::leaseInterval = 1800;			// default value
 
 MirrorJob::MirrorJob( ClassAd *classad )
 	: BaseJob( classad )
@@ -157,7 +159,6 @@ MirrorJob::MirrorJob( ClassAd *classad )
 	gahpAd = NULL;
 	gmState = GM_INIT;
 	remoteState = JOB_STATE_UNKNOWN;
-	pollMirrorNow = false;
 	enteredCurrentGmState = time(NULL);
 	enteredCurrentRemoteState = time(NULL);
 	lastSubmitAttempt = 0;
@@ -165,8 +166,8 @@ MirrorJob::MirrorJob( ClassAd *classad )
 	submitFailureCode = 0;
 	mirrorScheddName = NULL;
 	remoteJobIdString = NULL;
-	nextMirrorPollTime = 0;
 	localJobSchedulingEnabled = false;
+	myResource = NULL;
 
 	// In GM_HOLD, we assume HoldReason to be set only if we set it, so make
 	// sure it's unset when we start.
@@ -190,6 +191,9 @@ MirrorJob::MirrorJob( ClassAd *classad )
 	} else {
 		remoteState = JOB_STATE_UNSUBMITTED;
 	}
+
+	myResource = MirrorResource::FindOrCreateResource( mirrorScheddName );
+	myResource->RegisterJob( this );
 
 	char *gahp_path = param("MIRROR_GAHP");
 	if ( gahp_path == NULL ) {
@@ -225,6 +229,9 @@ MirrorJob::MirrorJob( ClassAd *classad )
 
 MirrorJob::~MirrorJob()
 {
+	if ( myResource ) {
+		myResource->UnregisterJob( this );
+	}
 	if ( remoteJobIdString != NULL ) {
 		MirrorJobsById.remove( HashKey( remoteJobIdString ) );
 		free( remoteJobIdString );
@@ -302,24 +309,7 @@ int MirrorJob::doEvaluateState()
 			if ( mirrorJobId.cluster == 0 ) {
 				gmState = GM_CLEAR_REQUEST;
 			} else {
-/*
-				if ( globusState == GLOBUS_GRAM_PROTOCOL_JOB_STATE_STAGE_IN ||
-					 globusState == GLOBUS_GRAM_PROTOCOL_JOB_STATE_PENDING ||
-					 globusState == GLOBUS_GRAM_PROTOCOL_JOB_STATE_ACTIVE ||
-					 globusState == GLOBUS_GRAM_PROTOCOL_JOB_STATE_SUSPENDED ||
-					 globusState == GLOBUS_GRAM_PROTOCOL_JOB_STATE_STAGE_OUT ||
-					 globusState == GLOBUS_GRAM_PROTOCOL_JOB_STATE_DONE ) {
-					submitLogged = true;
-				}
-				if ( globusState == GLOBUS_GRAM_PROTOCOL_JOB_STATE_ACTIVE ||
-					 globusState == GLOBUS_GRAM_PROTOCOL_JOB_STATE_SUSPENDED ||
-					 globusState == GLOBUS_GRAM_PROTOCOL_JOB_STATE_STAGE_OUT ||
-					 globusState == GLOBUS_GRAM_PROTOCOL_JOB_STATE_DONE ) {
-					executeLogged = true;
-				}
-*/
 
-				pollMirrorNow = true;
 				gmState = GM_SUBMITTED;
 			}
 			} break;
@@ -425,63 +415,6 @@ int MirrorJob::doEvaluateState()
 			} else if ( remoteState != HELD &&
 						localJobSchedulerEnabled == true ) {
 				gmState = GM_DISABLE_LOCAL_SCHEDULING;
-			} else {
-				now = time(NULL);
-				if ( pollMirrorNow ) {
-					nextMirrorPollTime = now;
-					pollMirrorNow = false;
-				}
-				if ( now >= nextMirrorPollTime ) {
-					gmState = GM_POLL_MIRROR_SCHEDD;
-					break;
-				}
-				unsigned int delay = 0;
-				if ( nextMirrorPollTime > now ) {
-					delay = nextMirrorPollTime - now;
-				}
-				daemonCore->Reset_Timer( evaluateStateTid, delay );
-			}
-			} break;
-		case GM_POLL_MIRROR_SCHEDD: {
-			// Poll the remote schedd to let it know we're alive and see
-			// if it's released the job.
-			if ( condorState == REMOVED || condorState == HELD ) {
-				gmState = GM_CANCEL;
-			} else {
-				ClassAd *mirror_ad = NULL;
-				if ( gahpAd == NULL ) {
-					gahpAd = buildPollAd();
-				}
-				if ( gahpAd == NULL ) {
-					gmState = GM_HOLD;
-					break;
-				}
-				rc = gahp->condor_job_poll( mirrorScheddName, mirrorJobId,
-											gahpAd, &mirror_ad );
-				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
-					 rc == GAHPCLIENT_COMMAND_PENDING ) {
-					break;
-				}
-				now = time(NULL);
-				nextMirrorPollTime = now - (now % pollMirrorInterval) +
-					pollMirrorInterval;
-				if ( rc != GLOBUS_SUCCESS ) {
-					// unhandled error
-					dprintf( D_ALWAYS,
-							 "(%d.%d) condor_job_poll() failed\n",
-							 procID.cluster, procID.proc );
-					gmState = GM_CANCEL;
-					if ( mirror_ad != NULL ) {
-						delete mirror_ad;
-					}
-					break;
-				} else {
-					RemoteStateUpdate( mirror_ad );
-				}
-				if ( mirror_ad != NULL ) {
-					delete mirror_ad;
-				}
-				gmState = GM_SUBMITTED;
 			}
 			} break;
 		case GM_DONE_SAVE: {
@@ -695,10 +628,29 @@ void MirrorJob::SetRemoteJobId( const char *job_id )
 		MirrorJobsById.insert( HashKey( remoteJobIdString ), job );
 		UpdateJobAdString( ATTR_MIRROR_JOB_ID, job_id );
 	}
+	requestScheddUpdate( this );
 }
 
 void MirrorJob::RemoteJobStatusUpdate( ClassAd *update_ad )
 {
+	int rc;
+	int tmp_int;
+
+	update_ad->LookupInteger( ATTR_JOB_STATUS, &tmp_int );
+
+	if ( remoteState == HELD && tmp_int != HELD ) {
+		UpdateJobAdBool( ATTR_MIRROR_ACTIVE, 1 );
+	}
+	remoteState = tmp_int;
+
+	rc = update_ad->LookupInteger( ATTR_MIRROR_LEASE_TIME, &tmp_int );
+	if ( rc ) {
+		UpdateJobAdInt( ATTR_MIRROR_REMOTE_LEASE_TIME, tmp_int );
+	} else {
+		UpdateJobAd( ATTR_MIRROR_REMOTE_LEASE_TIME, "Undefined" );
+	}
+
+	requestScheddUpdate( this );
 }
 
 BaseResource *MirrorJob::GetResource()
@@ -710,16 +662,4 @@ ClassAd *MirrorJob::buildSubmitAd()
 {
 		// TODO fill this in
 	return NULL;
-}
-
-ClassAd *MirrorJob::buildPollAd()
-{
-	MyString expr;
-	ClassAd *poll_ad = new ClassAd();
-
-	expr.sprintf( "%s = %d", ATTR_MIRROR_LAST_REMOTE_POLL,
-				  nextMirrorPollTime );
-	poll_ad->InsertOrUpdate( expr.Value() );
-
-	return poll_ad;
 }

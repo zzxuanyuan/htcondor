@@ -60,6 +60,7 @@ class MirrorJob : public BaseJob
 	static int submitInterval;
 	static int gahpCallTimeout;
 	static int maxConnectFailures;
+	static int leaseInterval;
 
 	static void setPollInterval( int new_interval )
 		{ pollMirrorInterval = new_interval; }
@@ -69,11 +70,12 @@ class MirrorJob : public BaseJob
 		{ gahpCallTimeout = new_timeout; }
 	static void setConnectFailureRetry( int count )
 		{ maxConnectFailures = count; }
+	static void setLeaseInterval( int count )
+		{ leaseInterval = count; }
 
 	// New variables
 	int gmState;
 	int remoteState;
-	bool pollMirrorNow;
 	time_t enteredCurrentGmState;
 	time_t enteredCurrentRemoteState;
 	time_t lastSubmitAttempt;
@@ -82,9 +84,9 @@ class MirrorJob : public BaseJob
 	char *mirrorScheddName;
 	PROC_ID mirrorJobId;
 	char *remoteJobIdString;
-	time_t nextMirrorPollTime;
 	bool localJobSchedulingEnabled;
 
+	MirrorResource *myResource;
 	GahpClient *gahp;
 
 	void RemoteJobStatusUpdate( ClassAd *update_ad );
