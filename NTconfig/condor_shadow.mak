@@ -55,8 +55,6 @@ CLEAN :
 	-@erase "$(INTDIR)\mpiresource.obj"
 	-@erase "$(INTDIR)\mpishadow.obj"
 	-@erase "$(INTDIR)\NTreceivers.obj"
-	-@erase "$(INTDIR)\parallelresource.obj"
-	-@erase "$(INTDIR)\parallelshadow.obj"
 	-@erase "$(INTDIR)\pseudo_ops.obj"
 	-@erase "$(INTDIR)\remoteresource.obj"
 	-@erase "$(INTDIR)\shadow.obj"
@@ -72,20 +70,18 @@ CLEAN :
 "$(OUTDIR)" :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
-CPP_PROJ=/nologo /MTd /W3 /Gm /Gi /GX /ZI /Od /I "..\src\h" /I "..\src\condor_includes" /I "..\src\condor_c++_util" /I "..\src\condor_daemon_client" /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /Fp"$(INTDIR)\condor_common.pch" /Yu"condor_common.h" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP /c 
+CPP_PROJ=/nologo /MDd /W3 /Gm /Gi /GX /ZI /Od /I "..\src\h" /I "..\src\condor_includes" /I "..\src\condor_c++_util" /I "..\src\condor_daemon_client" /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /Fp"$(INTDIR)\condor_common.pch" /Yu"condor_common.h" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP /c 
 BSC32=bscmake.exe
 BSC32_FLAGS=/nologo /o"$(OUTDIR)\condor_shadow.bsc" 
 BSC32_SBRS= \
 	
 LINK32=link.exe
-LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib pdh.lib ws2_32.lib mswsock.lib netapi32.lib ../Debug/condor_common.obj ..\Debug\condor_common_c.obj imagehlp.lib /nologo /subsystem:console /incremental:yes /pdb:"$(OUTDIR)\condor_shadow.pdb" /debug /machine:I386 /out:"$(OUTDIR)\condor_shadow.exe" /pdbtype:sept 
+LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib pdh.lib ws2_32.lib mswsock.lib netapi32.lib ../Debug/condor_common.obj ..\Debug\condor_common_c.obj /nologo /subsystem:console /incremental:yes /pdb:"$(OUTDIR)\condor_shadow.pdb" /debug /machine:I386 /out:"$(OUTDIR)\condor_shadow.exe" /pdbtype:sept 
 LINK32_OBJS= \
 	"$(INTDIR)\baseshadow.obj" \
 	"$(INTDIR)\mpiresource.obj" \
 	"$(INTDIR)\mpishadow.obj" \
 	"$(INTDIR)\NTreceivers.obj" \
-	"$(INTDIR)\parallelresource.obj" \
-	"$(INTDIR)\parallelshadow.obj" \
 	"$(INTDIR)\pseudo_ops.obj" \
 	"$(INTDIR)\remoteresource.obj" \
 	"$(INTDIR)\shadow.obj" \
@@ -132,8 +128,6 @@ CLEAN :
 	-@erase "$(INTDIR)\mpiresource.obj"
 	-@erase "$(INTDIR)\mpishadow.obj"
 	-@erase "$(INTDIR)\NTreceivers.obj"
-	-@erase "$(INTDIR)\parallelresource.obj"
-	-@erase "$(INTDIR)\parallelshadow.obj"
 	-@erase "$(INTDIR)\pseudo_ops.obj"
 	-@erase "$(INTDIR)\remoteresource.obj"
 	-@erase "$(INTDIR)\shadow.obj"
@@ -147,20 +141,18 @@ CLEAN :
 "$(OUTDIR)" :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
-CPP_PROJ=/nologo /MT /W3 /GX /Z7 /O1 /I "..\src\h" /I "..\src\condor_includes" /I "..\src\condor_c++_util" /I "..\src\condor_daemon_client" /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /Fp"$(INTDIR)\condor_common.pch" /Yu"condor_common.h" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP /c 
+CPP_PROJ=/nologo /MD /W3 /GX /Z7 /O1 /I "..\src\h" /I "..\src\condor_includes" /I "..\src\condor_c++_util" /I "..\src\condor_daemon_client" /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /Fp"$(INTDIR)\condor_common.pch" /Yu"condor_common.h" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP /c 
 BSC32=bscmake.exe
 BSC32_FLAGS=/nologo /o"$(OUTDIR)\condor_shadow.bsc" 
 BSC32_SBRS= \
 	
 LINK32=link.exe
-LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib pdh.lib ws2_32.lib mswsock.lib netapi32.lib ../Release/condor_common.obj ../Release/condor_common_c.obj imagehlp.lib /nologo /subsystem:console /pdb:none /map:"$(INTDIR)\condor_shadow.map" /debug /machine:I386 /out:"$(OUTDIR)\condor_shadow.exe" 
+LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib pdh.lib ws2_32.lib mswsock.lib netapi32.lib ../Release/condor_common.obj ../Release/condor_common_c.obj /nologo /subsystem:console /pdb:none /map:"$(INTDIR)\condor_shadow.map" /debug /machine:I386 /out:"$(OUTDIR)\condor_shadow.exe" 
 LINK32_OBJS= \
 	"$(INTDIR)\baseshadow.obj" \
 	"$(INTDIR)\mpiresource.obj" \
 	"$(INTDIR)\mpishadow.obj" \
 	"$(INTDIR)\NTreceivers.obj" \
-	"$(INTDIR)\parallelresource.obj" \
-	"$(INTDIR)\parallelshadow.obj" \
 	"$(INTDIR)\pseudo_ops.obj" \
 	"$(INTDIR)\remoteresource.obj" \
 	"$(INTDIR)\shadow.obj" \
@@ -427,18 +419,6 @@ SOURCE=..\src\condor_shadow.V6.1\mpishadow.C
 SOURCE=..\src\condor_shadow.V6.1\NTreceivers.C
 
 "$(INTDIR)\NTreceivers.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
-	$(CPP) $(CPP_PROJ) $(SOURCE)
-
-
-SOURCE=..\src\condor_shadow.V6.1\parallelresource.C
-
-"$(INTDIR)\parallelresource.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
-	$(CPP) $(CPP_PROJ) $(SOURCE)
-
-
-SOURCE=..\src\condor_shadow.V6.1\parallelshadow.C
-
-"$(INTDIR)\parallelshadow.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 

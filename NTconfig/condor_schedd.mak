@@ -51,7 +51,6 @@ CLEAN :"condor_util_lib - Win32 DebugCLEAN" "condor_cpp_util - Win32 DebugCLEAN"
 !ELSE 
 CLEAN :
 !ENDIF 
-	-@erase "$(INTDIR)\autocluster.obj"
 	-@erase "$(INTDIR)\dedicated_scheduler.obj"
 	-@erase "$(INTDIR)\grid_universe.obj"
 	-@erase "$(INTDIR)\qmgmt.obj"
@@ -69,15 +68,14 @@ CLEAN :
 "$(OUTDIR)" :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
-CPP_PROJ=/nologo /MTd /W3 /Gm /Gi /GX /ZI /Od /I "..\src\h" /I "..\src\condor_includes" /I "..\src\condor_c++_util" /I "..\src\condor_daemon_client" /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /Fp"$(INTDIR)\condor_common.pch" /Yu"condor_common.h" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP /c 
+CPP_PROJ=/nologo /MDd /W3 /Gm /Gi /GX /ZI /Od /I "..\src\h" /I "..\src\condor_includes" /I "..\src\condor_c++_util" /I "..\src\condor_daemon_client" /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /Fp"$(INTDIR)\condor_common.pch" /Yu"condor_common.h" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP /c 
 BSC32=bscmake.exe
 BSC32_FLAGS=/nologo /o"$(OUTDIR)\condor_schedd.bsc" 
 BSC32_SBRS= \
 	
 LINK32=link.exe
-LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib ws2_32.lib mswsock.lib netapi32.lib ../Debug/condor_common.obj ..\Debug\condor_common_c.obj imagehlp.lib /nologo /subsystem:console /incremental:yes /pdb:"$(OUTDIR)\condor_schedd.pdb" /debug /machine:I386 /out:"$(OUTDIR)\condor_schedd.exe" /pdbtype:sept /SWAPRUN:NET 
+LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib ws2_32.lib mswsock.lib netapi32.lib ../Debug/condor_common.obj ..\Debug\condor_common_c.obj /nologo /subsystem:console /incremental:yes /pdb:"$(OUTDIR)\condor_schedd.pdb" /debug /machine:I386 /out:"$(OUTDIR)\condor_schedd.exe" /pdbtype:sept /SWAPRUN:NET 
 LINK32_OBJS= \
-	"$(INTDIR)\autocluster.obj" \
 	"$(INTDIR)\dedicated_scheduler.obj" \
 	"$(INTDIR)\grid_universe.obj" \
 	"$(INTDIR)\qmgmt.obj" \
@@ -121,7 +119,6 @@ CLEAN :"condor_util_lib - Win32 ReleaseCLEAN" "condor_cpp_util - Win32 ReleaseCL
 !ELSE 
 CLEAN :
 !ENDIF 
-	-@erase "$(INTDIR)\autocluster.obj"
 	-@erase "$(INTDIR)\dedicated_scheduler.obj"
 	-@erase "$(INTDIR)\grid_universe.obj"
 	-@erase "$(INTDIR)\qmgmt.obj"
@@ -137,15 +134,14 @@ CLEAN :
 "$(OUTDIR)" :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
-CPP_PROJ=/nologo /MT /W3 /GX /Z7 /O1 /I "..\src\h" /I "..\src\condor_includes" /I "..\src\condor_c++_util" /I "..\src\condor_daemon_client" /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /Fp"$(INTDIR)\condor_common.pch" /Yu"condor_common.h" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP /c 
+CPP_PROJ=/nologo /MD /W3 /GX /Z7 /O1 /I "..\src\h" /I "..\src\condor_includes" /I "..\src\condor_c++_util" /I "..\src\condor_daemon_client" /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /Fp"$(INTDIR)\condor_common.pch" /Yu"condor_common.h" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP /c 
 BSC32=bscmake.exe
 BSC32_FLAGS=/nologo /o"$(OUTDIR)\condor_schedd.bsc" 
 BSC32_SBRS= \
 	
 LINK32=link.exe
-LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib ws2_32.lib mswsock.lib netapi32.lib ../Release/condor_common.obj ../Release/condor_common_c.obj imagehlp.lib /nologo /subsystem:console /pdb:none /map:"$(INTDIR)\condor_schedd.map" /debug /machine:I386 /out:"$(OUTDIR)\condor_schedd.exe" /SWAPRUN:NET 
+LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib ws2_32.lib mswsock.lib netapi32.lib ../Release/condor_common.obj ../Release/condor_common_c.obj /nologo /subsystem:console /pdb:none /map:"$(INTDIR)\condor_schedd.map" /debug /machine:I386 /out:"$(OUTDIR)\condor_schedd.exe" /SWAPRUN:NET 
 LINK32_OBJS= \
-	"$(INTDIR)\autocluster.obj" \
 	"$(INTDIR)\dedicated_scheduler.obj" \
 	"$(INTDIR)\grid_universe.obj" \
 	"$(INTDIR)\qmgmt.obj" \
@@ -365,12 +361,6 @@ LINK32_OBJS= \
    cd "."
 
 !ENDIF 
-
-SOURCE=..\src\condor_schedd.V6\autocluster.C
-
-"$(INTDIR)\autocluster.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
-	$(CPP) $(CPP_PROJ) $(SOURCE)
-
 
 SOURCE=..\src\condor_schedd.V6\dedicated_scheduler.C
 
