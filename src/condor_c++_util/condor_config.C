@@ -398,19 +398,23 @@ get_op_sys()
 	static char answer[1024];
 	OSVERSIONINFO info;
 	info.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
-	switch(info.dwPlatformId) {
-	case VER_PLATFORM_WIN32s:
-		sprintf(answer, "WIN32s%d%d", info.dwMajorVersion, info.dwMinorVersion);
-		break;
-	case VER_PLATFORM_WIN32_WINDOWS:
-		sprintf(answer, "WIN32%d%d", info.dwMajorVersion, info.dwMinorVersion);
-		break;
-	case VER_PLATFORM_WIN32_NT:
-		sprintf(answer, "WINNT%d%d", info.dwMajorVersion, info.dwMinorVersion);
-		break;
-	default:
-		sprintf(answer, "UNKNOWN");
-		break;
+	if (GetVersionEx(&info) > 0) {
+		switch(info.dwPlatformId) {
+		case VER_PLATFORM_WIN32s:
+			sprintf(answer, "WIN32s%d%d", info.dwMajorVersion, info.dwMinorVersion);
+			break;
+		case VER_PLATFORM_WIN32_WINDOWS:
+			sprintf(answer, "WIN32%d%d", info.dwMajorVersion, info.dwMinorVersion);
+			break;
+		case VER_PLATFORM_WIN32_NT:
+			sprintf(answer, "WINNT%d%d", info.dwMajorVersion, info.dwMinorVersion);
+			break;
+		default:
+			sprintf(answer, "UNKNOWN");
+			break;
+		}
+	} else {
+		sprintf(answer, "ERROR");
 	}
 
 	return answer;
