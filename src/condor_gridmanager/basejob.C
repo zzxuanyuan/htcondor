@@ -38,6 +38,8 @@
 
 BaseJob::BaseJob( ClassAd *classad )
 {
+	calcRuntimeStats = true;
+
 	writeUserLog = true;
 	submitLogged = false;
 	executeLogged = false;
@@ -299,6 +301,10 @@ void BaseJob::JobRemoved( const char *remove_reason )
 
 void BaseJob::UpdateRuntimeStats()
 {
+	if ( calcRuntimeStats == false ) {
+		return;
+	}
+
 	// Adjust run time for condor_q
 	int shadowBirthdate = 0;
 	ad->LookupInteger( ATTR_SHADOW_BIRTHDATE, shadowBirthdate );
@@ -399,16 +405,17 @@ void BaseJob::JobAdUpdateFromSchedd( const ClassAd *new_ad )
 int BaseJob::EvalPeriodicJobExpr()
 {
 	float old_run_time;
+	bool old_run_time_dirty;
 	UserPolicy user_policy;
 dprintf(D_FULLDEBUG,"(%d.%d) Evaluating periodic job policy expressions\n",procID.cluster,procID.proc);
 
 	user_policy.Init( ad );
 
-	UpdateJobTime( &old_run_time );
+	UpdateJobTime( &old_run_time, &old_run_time_dirty );
 
 	int action = user_policy.AnalyzePolicy( PERIODIC_ONLY );
 
-	RestoreJobTime( old_run_time );
+	RestoreJobTime( old_run_time, old_run_time_dirty );
 
 	switch( action ) {
 	case UNDEFINED_EVAL:
@@ -439,6 +446,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) Evaluating periodic job policy expressions\n",procI
 int BaseJob::EvalOnExitJobExpr()
 {
 	float old_run_time;
+	bool old_run_time_dirty;
 	UserPolicy user_policy;
 
 	user_policy.Init( ad );
@@ -458,11 +466,11 @@ int BaseJob::EvalOnExitJobExpr()
 	}
 
 	// TODO: We should just mark the job as done running
-	UpdateJobTime( &old_run_time );
+	UpdateJobTime( &old_run_time, &old_run_time_dirty );
 
 	int action = user_policy.AnalyzePolicy( PERIODIC_THEN_EXIT );
 
-	RestoreJobTime( old_run_time );
+	RestoreJobTime( old_run_time, old_run_time_dirty );
 
 	if ( action != REMOVE_FROM_QUEUE ) {
 		UpdateJobAdBool( ATTR_ON_EXIT_BY_SIGNAL, 0 );
@@ -495,7 +503,7 @@ int BaseJob::EvalOnExitJobExpr()
   any stale time values.  Currently, this is just RemoteWallClock.
 */
 void
-BaseJob::UpdateJobTime( float *old_run_time )
+BaseJob::UpdateJobTime( float *old_run_time, bool *old_run_time_dirty )
 {
   float previous_run_time = 0, total_run_time = 0;
   int shadow_bday = 0;
@@ -503,6 +511,7 @@ BaseJob::UpdateJobTime( float *old_run_time )
 
   ad->LookupInteger(ATTR_SHADOW_BIRTHDATE,shadow_bday);
   ad->LookupFloat(ATTR_JOB_REMOTE_WALL_CLOCK,previous_run_time);
+  ad->GetDirtyFlag(ATTR_JOB_REMOTE_WALL_CLOCK,NULL,old_run_time_dirty);
 
   if (old_run_time) {
 	  *old_run_time = previous_run_time;
@@ -519,10 +528,10 @@ BaseJob::UpdateJobTime( float *old_run_time )
   called to restore time values to their original state.
 */
 void
-BaseJob::RestoreJobTime( float old_run_time )
+BaseJob::RestoreJobTime( float old_run_time, bool old_run_time_dirty )
 {
   UpdateJobAdFloat( ATTR_JOB_REMOTE_WALL_CLOCK, old_run_time );
-  ad->SetDirtyFlag( ATTR_JOB_REMOTE_WALL_CLOCK, false );
+  ad->SetDirtyFlag( ATTR_JOB_REMOTE_WALL_CLOCK, old_run_time_dirty );
 }
 
 // Initialize a UserLog object for a given job and return a pointer to

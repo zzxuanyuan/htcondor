@@ -66,13 +66,15 @@ class BaseJob
 	int EvalPeriodicJobExpr();
 	int EvalOnExitJobExpr();
 
-	void UpdateJobTime( float *old_run_time );
-	void RestoreJobTime( float old_run_time );
+	void UpdateJobTime( float *old_run_time, bool *old_run_time_dirty );
+	void RestoreJobTime( float old_run_time, bool old_run_time_dirty );
 
 	ClassAd *ad;
 	PROC_ID procID;
 
 	int condorState;
+
+	bool calcRuntimeStats;
 
 	bool writeUserLog;
 	bool submitLogged;
