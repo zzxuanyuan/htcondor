@@ -62,21 +62,6 @@ int REMOTE_syscall( int syscall_num, ... );
 	int syscall( int, ... );
 #endif
 
-#define IN_LOCAL_MODE(x) \
-	{\
-		int scm = SetSyscalls(SYS_LOCAL|SYS_UNMAPPED);\
-		x;\
-		SetSyscalls(scm);\
-	}
-
-#define IN_REMOTE_MODE(x) \
-	{\
-		int scm = SetSyscalls(SYS_REMOTE|SYS_MAPPED);\
-		x;\
-		SetSyscalls(scm);\
-	}
-
-
 #if defined(__cplusplus)
 }
 #endif
