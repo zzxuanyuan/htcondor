@@ -1,0 +1,34 @@
+#ifndef __CREDD_H__
+#define __CREDD_H__
+#include "condor_common.h"
+#include "sock.h"
+#include "../condor_daemon_core.V6/condor_daemon_core.h"
+#include "stream.h"
+#include "simplelist.h"
+#include "credential.h"
+#include "X509credentialWrapper.h"
+
+
+int CheckCredentials ();
+
+int LoadCredentialList ();
+
+int
+store_cred_handler(Service * service, int i, Stream *socket);
+
+int
+get_cred_handler(Service * service, int i, Stream *socket);
+
+int 
+RefreshProxyThruMyProxy(X509CredentialWrapper * proxy);
+
+int 
+MyProxyGetDelegationReaper(Service *, int exitPid, int exitStatus);
+
+bool
+isSuperUser( const char* user );
+
+void
+Init();
+
+#endif
