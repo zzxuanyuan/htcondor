@@ -2584,7 +2584,6 @@ GahpClient::gt3_gram_client_job_refresh_credentials(const char *job_contact)
 }
 
 int
-//GahpClient::condor_job_submit(const char *schedd_name, const ClassAd *job_ad,
 GahpClient::condor_job_submit(const char *schedd_name, ClassAd *job_ad,
 							  char **job_id)
 {
@@ -2661,7 +2660,6 @@ GahpClient::condor_job_submit(const char *schedd_name, ClassAd *job_ad,
 int
 GahpClient::condor_job_update_constrained(const char *schedd_name,
 										  const char *constraint,
-//										  const ClassAd *update_ad)
 										  ClassAd *update_ad)
 {
 	static const char* command = "CONDOR_JOB_UPDATE_CONSTRAINED";
@@ -2867,7 +2865,6 @@ GahpClient::condor_job_remove(const char *schedd_name, PROC_ID job_id)
 
 int
 GahpClient::condor_job_update(const char *schedd_name, PROC_ID job_id,
-//							  const ClassAd *update_ad)
 							  ClassAd *update_ad)
 {
 	static const char* command = "CONDOR_JOB_UPDATE";
