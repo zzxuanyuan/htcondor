@@ -416,14 +416,14 @@ OsProc::initKillSigs( void )
 	int sig;
 
 	sig = findSoftKillSig( JobAd );
-	if( sig > 0 ) {
+	if( sig >= 0 ) {
 		soft_kill_sig = sig;
 	} else {
 		soft_kill_sig = SIGTERM;
 	}
 
 	sig = findRmKillSig( JobAd );
-	if( sig > 0 ) {
+	if( sig >= 0 ) {
 		rm_kill_sig = sig;
 	} else {
 		rm_kill_sig = SIGTERM;
