@@ -20,21 +20,25 @@
   * RIGHT.
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
-#ifndef _CKPT_NAME
-#define _CKPT_NAME
+#ifndef CONDOR_SYS_TYPES_H
+#define CONDOR_SYS_TYPES_H
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
 
-#if defined(__STDC__) || (__cplusplus)
-char *gen_ckpt_name ( char *dir, int cluster, int proc, int subproc );
-#else
-char *gen_ckpt_name();
-#endif
+/* Define 64 bit integer types */
+# if defined( HAS_INT64_T )
+   /* int64_t already defined; do nothing */
 
-#if defined(__cplusplus)
-}
-#endif
+# elif defined( HAS___INT64 )
+   /* Use the compiler's __int64 type for int64_t */
+   typedef __int64 int64_t;
+   typedef unsigned __int64 uint64_t;
+#  define HAS_INT64_T
 
-#endif /* _CKPT_NAME */
+# elif defined( HAS_LONGLONG )
+   /* Use the compiler's long long type for int64_t */
+   typedef long long int64_t;
+   typedef unsigned long long uint64_t;
+#  define HAS_INT64_T
+# endif
+
+#endif /* CONDOR_SYS_TYPES_H */
