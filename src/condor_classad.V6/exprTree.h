@@ -23,7 +23,12 @@
 #ifndef __EXPR_TREE_H__
 #define __EXPR_TREE_H__
 
+#if (__GNUC__<3)
+#include <hash_map>
+#else
 #include <ext/hash_map>
+using namespace __gnu_cxx;
+#endif
 #include "common.h"
 #include "value.h"
 
