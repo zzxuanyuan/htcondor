@@ -288,7 +288,7 @@ char *filename;
 
 	/* Convert to kbyte blocks: available blks * blksize / 1k bytes. */
 	/* fix the overflow problem. weiru */
-	free_kbytes = (unsigned long)statfsbuf.f_bavail * (unsigned long)statfsbuf.f_bsize / 1024;
+	free_kbytes = (unsigned long)statfsbuf.f_bavail * ( (unsigned long)statfsbuf.f_bsize / 1024 );
 	if(free_kbytes > 0x7fffffff)
 	{
 		dprintf(D_ALWAYS, "Too much free disk space, return LOTS_OF_FREE\n");
