@@ -24,5 +24,5 @@
 #define PlatformFlags	-DSolaris26=Solaris26
 
 #define PlatformLdFlags -ldl -lkstat -lelf -lsocket -lnsl -lm -lc -lresolv \
-  -Xlinker -B -Xlinker static -lstdc++ -lgcc 
+$(LIB_STDCPP)
 
