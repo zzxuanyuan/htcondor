@@ -174,7 +174,7 @@ ReadEvents(Arguments &args)
 	bool	done = false;
 
 	while ( !done ) {
-		ULogEvent	*event;
+		ULogEvent	*event = NULL;
 
 		ULogEventOutcome	outcome = log.readEvent(event);
 		if ( outcome == ULOG_OK ) {
@@ -234,6 +234,8 @@ ReadEvents(Arguments &args)
 			}
 			result = 1;
 		}
+
+		delete event;
 	}
 
 	return result;
