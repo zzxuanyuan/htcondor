@@ -110,7 +110,9 @@ int Condor_Auth_Kerberos :: authenticate(const char * remoteHost, CondorError* e
     
         if ( mySock_->isClient() ) {
             
-            if (isDaemon()) {
+			if (isDaemon() ||
+				((strcmp(mySubSystem, "TOOL") != 0) &&
+				(strcmp(mySubSystem, "SUBMIT") != 0))) {
                 status = init_daemon();
             }
             else {
