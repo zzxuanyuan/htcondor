@@ -145,69 +145,6 @@ BaseJob *CondorJobCreate( ClassAd *jobad )
 }
 
 
-static
-ClassAd *ClassAdDiff( ClassAd *old_ad, ClassAd *new_ad )
-{
-	ClassAd *diff_ad;
-	ExprTree *old_expr;
-	ExprTree *new_expr;
-	const char *next_name;
-	StringList new_attr_names;
-
-	if ( old_ad == NULL || new_ad == NULL ) {
-		return NULL;
-	}
-
-	diff_ad = new ClassAd;
-
-	new_ad->ResetName();
-	while ( (next_name = new_ad->NextNameOriginal()) != NULL ) {
-		new_attr_names.append( next_name );
-
-		old_expr = old_ad->Lookup( next_name );
-		new_expr = new_ad->Lookup( next_name );
-
-		if ( new_expr == NULL ) {
-			EXCEPT( "ClassAdDiff: new_expr is NULL" );
-		}
-
-		if ( ( old_expr == NULL &&
-			   new_expr->RArg()->MyType() != LX_UNDEFINED ) ||
-			 (*old_expr == *new_expr) == false ) {
-
-			diff_ad->Insert( new_expr->DeepCopy() );
-		}
-	}
-
-	old_ad->ResetName();
-	while ( (next_name = old_ad->NextNameOriginal()) != NULL ) {
-		MyString buff;
-		if ( new_attr_names.contains_anycase( next_name ) == false && 
-			 old_ad->Lookup( next_name )->RArg()->MyType() != LX_UNDEFINED ) {
-
-			buff.sprintf( "%s = Undefined", next_name );
-			diff_ad->Insert( buff.Value() );
-		}
-	}
-
-	return diff_ad;
-}
-
-static
-void ClassAdPatch( ClassAd *orig_ad, ClassAd *diff_ad )
-{
-	ExprTree *diff_expr;
-
-	if ( orig_ad == NULL || diff_ad == NULL ) {
-		return;
-	}
-
-	diff_ad->ResetExpr();
-	while ( (diff_expr = diff_ad->NextExpr()) != NULL ) {
-		orig_ad->Insert( diff_expr->DeepCopy() );
-	}
-}
-
 int CondorJob::submitInterval = 300;			// default value
 int CondorJob::gahpCallTimeout = 300;			// default value
 int CondorJob::maxConnectFailures = 3;			// default value
@@ -886,12 +823,35 @@ void CondorJob::NotifyNewRemoteStatus( ClassAd *update_ad )
 
 void CondorJob::ProcessRemoteAd( ClassAd *remote_ad )
 {
-	int rc;
-	int tmp_int;
 	int new_remote_state;
-	ClassAd *diff_ad;
 	MyString buff;
-	const char *next_name;
+	ExprTree *next_expr;
+
+	int index;
+	const char *attrs_to_copy[] = {
+		ATTR_BYTES_SENT,
+		ATTR_BYTES_RECVD,
+		ATTR_COMPLETION_DATE,
+		ATTR_JOB_RUN_COUNT,
+		ATTR_JOB_START_DATE,
+		ATTR_ON_EXIT_BY_SIGNAL,
+		ATTR_ON_EXIT_SIGNAL,
+		ATTR_ON_EXIT_CODE,
+		ATTR_EXIT_REASON,
+		ATTR_JOB_CURRENT_START_DATE,
+		ATTR_JOB_LOCAL_SYS_CPU,
+		ATTR_JOB_LOCAL_USER_CPU,
+		ATTR_JOB_REMOTE_SYS_CPU,
+		ATTR_JOB_REMOTE_USER_CPU,
+		ATTR_NUM_CKPTS,
+		ATTR_NUM_GLOBUS_SUBMITS,
+		ATTR_NUM_MATCHES,
+		ATTR_NUM_RESTARTS,
+		ATTR_JOB_REMOTE_WALL_CLOCK,
+		ATTR_JOB_CORE_DUMPED,
+		ATTR_EXECUTABLE_SIZE,
+		ATTR_IMAGE_SIZE,
+		NULL };		// list must end with a NULL
 
 	if ( remote_ad == NULL ) {
 		return;
@@ -932,77 +892,14 @@ void CondorJob::ProcessRemoteAd( ClassAd *remote_ad )
 	remoteState = new_remote_state;
 
 
-	diff_ad = ClassAdDiff( ad, remote_ad );
-
-	diff_ad->Delete( ATTR_CLUSTER_ID );
-	diff_ad->Delete( ATTR_PROC_ID );
-	diff_ad->Delete( ATTR_MIRROR_SCHEDD );
-	diff_ad->Delete( ATTR_MIRROR_JOB_ID );
-	diff_ad->Delete( ATTR_ULOG_FILE );
-	diff_ad->Delete( ATTR_Q_DATE );
-	diff_ad->Delete( ATTR_ENTERED_CURRENT_STATUS );
-	diff_ad->Delete( ATTR_JOB_LEAVE_IN_QUEUE );
-	diff_ad->Delete( ATTR_HOLD_REASON );
-	diff_ad->Delete( ATTR_HOLD_REASON_CODE );
-	diff_ad->Delete( ATTR_HOLD_REASON_SUBCODE );
-	diff_ad->Delete( ATTR_LAST_HOLD_REASON );
-	diff_ad->Delete( ATTR_LAST_HOLD_REASON_CODE );
-	diff_ad->Delete( ATTR_LAST_HOLD_REASON_SUBCODE );
-	diff_ad->Delete( ATTR_RELEASE_REASON );
-	diff_ad->Delete( ATTR_LAST_RELEASE_REASON );
-	diff_ad->Delete( ATTR_REMOVE_REASON );
-	diff_ad->Delete( ATTR_JOB_STATUS_ON_RELEASE );
-	diff_ad->Delete( ATTR_JOB_STATUS );
-	diff_ad->Delete( ATTR_JOB_MANAGED );
-	diff_ad->Delete( ATTR_PERIODIC_HOLD_CHECK );
-	diff_ad->Delete( ATTR_PERIODIC_RELEASE_CHECK );
-	diff_ad->Delete( ATTR_PERIODIC_REMOVE_CHECK );
-	diff_ad->Delete( ATTR_ON_EXIT_HOLD_CHECK );
-	diff_ad->Delete( ATTR_ON_EXIT_REMOVE_CHECK );
-	diff_ad->Delete( ATTR_SERVER_TIME );
-	diff_ad->Delete( ATTR_WANT_MATCHING );
-	diff_ad->Delete( ATTR_GLOBAL_JOB_ID );
-	diff_ad->Delete( ATTR_JOB_NOTIFICATION );
-	diff_ad->Delete( ATTR_MIRROR_SUBMITTER_ID );
-	diff_ad->Delete( ATTR_STAGE_IN_START );
-	diff_ad->Delete( ATTR_STAGE_IN_FINISH );
-diff_ad->Delete( ATTR_JOB_UNIVERSE );
-diff_ad->Delete( ATTR_JOB_MATCHED );
-diff_ad->Delete( ATTR_WANT_CLAIMING );
-diff_ad->Delete( ATTR_WANT_MATCHING );
-diff_ad->Delete( "RemoteSchedd" );
-diff_ad->Delete( ATTR_GLOBUS_CONTACT_STRING );
-diff_ad->Delete( ATTR_GLOBUS_RESOURCE );
-diff_ad->Delete( ATTR_GLOBUS_STATUS );
-diff_ad->Delete( ATTR_GLOBUS_RESUBMIT_CHECK );
-
-	// Remove attributes that were renamed by the remote schedd because
-	// of moving the job's sandbox. These can be identified by looking
-	// for pairs of attributes named <attr name> and SUBMIT_<attr name>.
-	diff_ad->ResetName();
-	while ( (next_name = diff_ad->NextNameOriginal()) != NULL ) {
-		if ( strncmp( next_name, "SUBMIT_", 7 ) == 0 &&
-			 remote_ad->Lookup( &next_name[7] ) != NULL ) {
-			diff_ad->Delete( next_name );
-			diff_ad->Delete( &next_name[7] );
+	index = -1;
+	while ( attrs_to_copy[++index] != NULL ) {
+		if ( ( next_expr = remote_ad->Lookup( attrs_to_copy[index] ) ) != NULL ) {
+			ad->Insert( next_expr->DeepCopy() );
 		}
 	}
-
-	// Remove attributes that have a REMOTE_<name> equivalent in the
-	// local ad.
-	diff_ad->ResetName();
-	while ( (next_name = diff_ad->NextNameOriginal()) != NULL ) {
-		buff.sprintf( "REMOTE_%s", next_name );
-		if ( ad->Lookup( buff.Value() ) != NULL ) {
-			diff_ad->Delete( next_name );
-		}
-	}
-
-	ClassAdPatch( ad, diff_ad );
 
 	requestScheddUpdate( this );
-
-	delete diff_ad;
 
 	return;
 }
@@ -1017,52 +914,42 @@ ClassAd *CondorJob::buildSubmitAd()
 	int now = time(NULL);
 	MyString expr;
 	ClassAd *submit_ad;
-	const char *next_name;
 	ExprTree *next_expr;
 
-		// Base the submit ad on our own job ad
-	submit_ad = new ClassAd( *ad );
+	int index;
+	const char *attrs_to_copy[] = {
+		ATTR_JOB_CMD,
+		ATTR_JOB_ARGUMENTS,
+		ATTR_JOB_ENVIRONMENT,
+		ATTR_JOB_INPUT,
+		ATTR_JOB_OUTPUT,
+		ATTR_JOB_ERROR,
+		ATTR_REQUIREMENTS,
+		ATTR_RANK,
+		ATTR_OWNER,
+		ATTR_DISK_USAGE,
+		ATTR_IMAGE_SIZE,
+		ATTR_EXECUTABLE_SIZE,
+		ATTR_MAX_HOSTS,
+		ATTR_MIN_HOSTS,
+		ATTR_JOB_PRIO,
+		ATTR_JOB_IWD,
+		NULL };		// list must end with a NULL
 
-	submit_ad->Delete( ATTR_CLUSTER_ID );
-	submit_ad->Delete( ATTR_PROC_ID );
-	submit_ad->Delete( ATTR_MIRROR_SCHEDD );
-	submit_ad->Delete( ATTR_MIRROR_JOB_ID );
-	submit_ad->Delete( ATTR_WANT_MATCHING );
-	submit_ad->Delete( ATTR_PERIODIC_HOLD_CHECK );
-	submit_ad->Delete( ATTR_PERIODIC_RELEASE_CHECK );
-	submit_ad->Delete( ATTR_PERIODIC_REMOVE_CHECK );
-	submit_ad->Delete( ATTR_ON_EXIT_HOLD_CHECK );
-	submit_ad->Delete( ATTR_ON_EXIT_REMOVE_CHECK );
-	submit_ad->Delete( ATTR_HOLD_REASON );
-	submit_ad->Delete( ATTR_HOLD_REASON_CODE );
-	submit_ad->Delete( ATTR_HOLD_REASON_SUBCODE );
-	submit_ad->Delete( ATTR_LAST_HOLD_REASON );
-	submit_ad->Delete( ATTR_LAST_HOLD_REASON_CODE );
-	submit_ad->Delete( ATTR_LAST_HOLD_REASON_SUBCODE );
-	submit_ad->Delete( ATTR_RELEASE_REASON );
-	submit_ad->Delete( ATTR_LAST_RELEASE_REASON );
-	submit_ad->Delete( ATTR_JOB_STATUS_ON_RELEASE );
-	submit_ad->Delete( ATTR_DAG_NODE_NAME );
-	submit_ad->Delete( ATTR_DAGMAN_JOB_ID );
-	submit_ad->Delete( ATTR_ULOG_FILE );
-	submit_ad->Delete( ATTR_SERVER_TIME );
-	submit_ad->Delete( ATTR_JOB_MANAGED );
-	submit_ad->Delete( ATTR_GLOBAL_JOB_ID );
-	submit_ad->Delete( ATTR_STAGE_IN_START );
-	submit_ad->Delete( ATTR_STAGE_IN_FINISH );
-	submit_ad->Delete( ATTR_JOB_MATCHED );
-	submit_ad->Delete( ATTR_WANT_CLAIMING );
-	submit_ad->Delete( ATTR_WANT_MATCHING );
-	submit_ad->Delete( "RemoteSchedd" );
-	submit_ad->Delete( ATTR_GLOBUS_CONTACT_STRING );
-	submit_ad->Delete( ATTR_GLOBUS_RESOURCE );
-	submit_ad->Delete( ATTR_GLOBUS_STATUS );
-	submit_ad->Delete( ATTR_GLOBUS_RESUBMIT_CHECK );
+	submit_ad = new ClassAd;
+
+	index = -1;
+	while ( attrs_to_copy[++index] != NULL ) {
+		if ( ( next_expr = ad->Lookup( attrs_to_copy[index] ) ) != NULL ) {
+			submit_ad->Insert( next_expr->DeepCopy() );
+		}
+	}
 
 	submit_ad->Assign( ATTR_JOB_STATUS, IDLE );
 submit_ad->Assign( ATTR_JOB_UNIVERSE, CONDOR_UNIVERSE_VANILLA );
 
 	submit_ad->Assign( ATTR_Q_DATE, now );
+	submit_ad->Assign( ATTR_CURRENT_HOSTS, 0 );
 	submit_ad->Assign( ATTR_COMPLETION_DATE, 0 );
 	submit_ad->Assign( ATTR_JOB_REMOTE_WALL_CLOCK, (float)0.0 );
 	submit_ad->Assign( ATTR_JOB_LOCAL_USER_CPU, (float)0.0 );
@@ -1082,6 +969,7 @@ submit_ad->Assign( ATTR_JOB_UNIVERSE, CONDOR_UNIVERSE_VANILLA );
 	submit_ad->Assign( ATTR_ENTERED_CURRENT_STATUS, now  );
 	submit_ad->Assign( ATTR_JOB_NOTIFICATION, NOTIFY_NEVER );
 	submit_ad->Assign( ATTR_JOB_LEAVE_IN_QUEUE, true );
+	submit_ad->Assign( ATTR_SHOULD_TRANSFER_FILES, false );
 
 	expr.sprintf( "%s = (%s >= %s) =!= True && CurrentTime > %s + %d",
 				  ATTR_PERIODIC_REMOVE_CHECK, ATTR_STAGE_IN_FINISH,
