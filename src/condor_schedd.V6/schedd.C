@@ -1009,11 +1009,18 @@ count( ClassAd *job )
 		}
 			// We want to record the cluster id of all idle MPI and parallel
 		    // jobs
+
 		if( (universe == CONDOR_UNIVERSE_MPI ||
 			 universe == CONDOR_UNIVERSE_PARALLEL) && status == IDLE ) {
 			int cluster = 0;
 			job->LookupInteger( ATTR_CLUSTER_ID, cluster );
-			dedicated_scheduler.addDedicatedCluster( cluster );
+
+			int proc = 0;
+			job->LookupInteger( ATTR_PROC_ID, proc );
+				// Don't add all the procs in the cluster, just the first
+			if( proc == 0) {
+				dedicated_scheduler.addDedicatedCluster( cluster );
+			}
 		}
 
 		// bailout now, since all the crud below is only for jobs
@@ -6121,7 +6128,7 @@ mark_job_running(PROC_ID* job_id)
 	int universe = CONDOR_UNIVERSE_STANDARD;
 	GetAttributeInt(job_id->cluster, job_id->proc, ATTR_JOB_UNIVERSE,
 					&universe);
-	if (universe == CONDOR_UNIVERSE_PVM) {
+	if( (universe == CONDOR_UNIVERSE_PVM) || (universe == CONDOR_UNIVERSE_MPI)) {
 		ClassAd *ad;
 		ad = GetNextJob(1);
 		while (ad != NULL) {
@@ -6146,7 +6153,7 @@ mark_job_stopped(PROC_ID* job_id)
 	int universe = CONDOR_UNIVERSE_STANDARD;
 	GetAttributeInt(job_id->cluster, job_id->proc, ATTR_JOB_UNIVERSE,
 					&universe);
-	if (universe == CONDOR_UNIVERSE_PVM) {
+	if( (universe == CONDOR_UNIVERSE_PVM) || (universe == CONDOR_UNIVERSE_MPI) ){
 		ClassAd *ad;
 		ad = GetNextJob(1);
 		while (ad != NULL) {
@@ -6570,7 +6577,7 @@ set_job_status(int cluster, int proc, int status)
 {
 	int universe = CONDOR_UNIVERSE_STANDARD;
 	GetAttributeInt(cluster, proc, ATTR_JOB_UNIVERSE, &universe);
-	if (universe == CONDOR_UNIVERSE_PVM) {
+	if( (universe == CONDOR_UNIVERSE_PVM) || ( universe == CONDOR_UNIVERSE_MPI)) {
 		ClassAd *ad;
 		ad = GetNextJob(1);
 		while (ad != NULL) {

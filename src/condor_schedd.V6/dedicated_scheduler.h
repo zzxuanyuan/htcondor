@@ -107,8 +107,9 @@ class ResList : public CAList {
 			@param candidates List of pointers to ads that matched
 			@return Was the job completely satisfied?
 		*/
-	bool satisfyJob( ClassAd* jobAd, int max_hosts,
-					 CAList* candidates );
+
+	bool satisfyJobs( CAList* jobs, int max_hosts,
+					  CAList* candidates, CAList *candidates_jobs );
 
 	void display( int level );
 
@@ -276,6 +277,9 @@ class DedicatedScheduler : public Service {
 		// This one should be seperated out, and most easy to change.
 	bool computeSchedule( void );
 
+		// This creates resource allocations from a matched job
+	void createAllocations( CAList *idle_candidates, CAList *idle_candidates_jobs, int cluster, int nprocs);
+
 		// This does the work of acting on a schedule, once that's
 		// been decided.  
 	bool spawnJobs( void );
@@ -341,6 +345,7 @@ class DedicatedScheduler : public Service {
 			@param max_hosts How many hosts the job is looking for
 			@return true if possible, false if not
 		*/
+	bool isPossibleToSatisfy( CAList* jobs, int max_hosts );
 	bool isPossibleToSatisfy( ClassAd* job, int max_hosts );
 
 	bool hasDedicatedShadow( void );
