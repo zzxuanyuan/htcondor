@@ -2,7 +2,7 @@
 // Author: Francesco Giacomini (francesco.giacomini@cnaf.infn.it)
 // Copyright (C) 2002 Istituto Nazionale di Fisica Nucleare
 
-// $Id: CopyHelper.C,v 1.1.2.1 2002-04-29 08:26:59 giaco Exp $
+// $Id: CopyHelper.C,v 1.1.2.2 2002-06-03 13:34:04 giaco Exp $
 
 #include <string>
 #include <fstream>
@@ -62,10 +62,8 @@ CopyHelper::resolve(string input_file, string output_file) const
 }
 
 extern "C" {
-  CopyHelper* create_helper(void)
+  CopyHelper* create_helper(const ClassAd* configuration)
   {
     return new CopyHelper();
   }
 }
-
-    

@@ -2,24 +2,23 @@
 // Author: Francesco Giacomini (francesco.giacomini@cnaf.infn.it)
 // Copyright (C) 2002 Istituto Nazionale di Fisica Nucleare
 
-// $Id: Helper.C,v 1.1.2.1 2002-04-29 08:27:11 giaco Exp $
+// $Id: Helper.C,v 1.1.2.2 2002-06-03 13:34:05 giaco Exp $
 
 #include <string>
 #include <Helper.h>
 #include <HelperImpl.h>
 
 HelperImpl* get_helper(std::string type);
+void release_helper(HelperImpl* helper);
 
 Helper::Helper(std::string type)
 {
   m_impl = get_helper(type);
-
-  // why save the HelperImpl* in m_impl?
-  // what about calling get_helper() every time it is needed?
 }
 
 Helper::~Helper()
 {
+  release_helper(m_impl);
 }
 
 bool

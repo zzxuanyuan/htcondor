@@ -2,7 +2,7 @@
 // Author: Francesco Giacomini (francesco.giacomini@cnaf.infn.it)
 // Copyright (C) 2002 Istituto Nazionale di Fisica Nucleare
 
-// $Id: CopyHelper.h,v 1.1.2.1 2002-04-29 08:27:12 giaco Exp $
+// $Id: CopyHelper.h,v 1.1.2.2 2002-06-03 13:34:04 giaco Exp $
 
 #ifndef COPY_HELPER_H
 #define COPY_HELPER_H

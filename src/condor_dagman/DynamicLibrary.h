@@ -3,7 +3,7 @@
 //         Francesco Giacomini (francesco.giacomini@cnaf.infn.it)
 // Copyright (C) Istituto Nazionale di Fisica Nucleare (INFN)
 
-// $Id: DynamicLibrary.h,v 1.1.2.1 2002-04-29 08:27:12 giaco Exp $
+// $Id: DynamicLibrary.h,v 1.1.2.2 2002-06-03 13:34:05 giaco Exp $
 
 #ifndef DYNAMIC_LIBRARY_H
 #define DYNAMIC_LIBRARY_H
@@ -24,8 +24,11 @@ class DynamicLibrary
 {
   void* m_handle;
 
+  DynamicLibrary(const DynamicLibrary& other); // not implemented
+  DynamicLibrary& operator=(const DynamicLibrary& other); // not implemented
+
 public:
-  DynamicLibrary(const std::string& name);
+  explicit DynamicLibrary(const std::string& name);
   ~DynamicLibrary();
 
   void* symbol(const std::string& name);

@@ -1,0 +1,6 @@
+[
+  copy = [
+    library = "libcopyhelper.so";
+    configuration = []
+  ]
+]

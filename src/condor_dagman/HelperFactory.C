@@ -1,77 +1,40 @@
-// File: get_helper.C
+// File: HelperFactory.C
 // Author: Francesco Giacomini (francesco.giacomini@cnaf.infn.it)
 // Copyright (C) 2002 Istituto Nazionale di Fisica Nucleare
 
-// $Id: get_helper.C,v 1.1.2.2 2002-06-03 13:34:05 giaco Exp $
+// $Id: HelperFactory.C,v 1.1.2.1 2002-06-03 13:34:05 giaco Exp $
 
-#include <string>
+#include "HelperFactory.h"
 #include <fstream>
 #include <utility>
 #include "HelperImpl.h"
+#include "NullHelper.h"
 #include "DynamicLibrary.h"
 #include "HelperRegistry.h"
 #include "classad_distribution.h"
 
-using namespace std;
-
-// this is a null helper, i.e. a helper that does nothing
-// it is intended for testing and legacy code
-
-class NullHelper: public HelperImpl
-{
-  NullHelper(const NullHelper& other); // not implemented
-  NullHelper& operator=(const NullHelper& other); // not implemented
-
-public:
-  NullHelper() {}
-  ~NullHelper() {}
-
-  virtual bool resolve(std::string input_file, std::string output_file) const
-  {
-    return false;
-  }
-};
-
-HelperRegistry::value_type load_helper(std::string helper_type);
-
-HelperImpl*
-get_helper(std::string helper_type)
-{
-  HelperRegistry::value_type value =
-    HelperRegistry::instance()->lookup(helper_type);
-
-  if (value.first == 0) {
-    if (helper_type == "null") {
-      value = HelperRegistry::value_type(new NullHelper(), 0);
-    } else {                    // load the helper from a shared lib
-      value = load_helper(helper_type);
-    }
-  }
-
-  if (value.first != 0) {
-    HelperRegistry::instance()->add(helper_type, value);
-  }
-
-  return value.first;
-}
-
-void
-release_helper(HelperImpl* helper)
-{
-  HelperRegistry::value_type value = HelperRegistry::instance()->lookup(helper);
-
-  delete value.first;
-  delete value.second;
-}
-
 HelperRegistry::value_type
-load_helper(std::string helper_type)
+load_helper(std::string helper_type, const ClassAd* configuration);
+
+HelperFactory* HelperFactory::s_instance = 0;
+
+HelperFactory*
+HelperFactory::instance()
 {
-  // shared libs for helpers are specified in a configuration file
+  if (s_instance == 0) {
+    s_instance = new HelperFactory;
+  }
+
+  return s_instance;
+}
+
+HelperFactory::HelperFactory()
+  : m_configuration(0)
+{
+  // where is the configuration file?
 
   const char* conf_file_env = getenv("HELPER_CONF_FILE");
   assert(conf_file_env != 0);
-
 
   // read the contents of the configuration file into a string
 
@@ -85,14 +48,53 @@ load_helper(std::string helper_type)
     ad_str.push_back(c);
   }
 
-
   // parse the string into a classad
 
   ClassAdParser parser;
 
-  ClassAd* ad = parser.ParseClassAd(ad_str, true);
+  m_configuration = parser.ParseClassAd(ad_str, true);
+}
 
+HelperFactory::~HelperFactory()
+{
+  delete m_configuration;
+}
 
+HelperImpl*
+HelperFactory::get_helper(std::string helper_type)
+{
+  HelperRegistry::value_type value =
+    HelperRegistry::instance()->lookup(helper_type);
+
+  if (value.first == 0) {
+
+    if (helper_type == "null") {
+
+      value = HelperRegistry::value_type(new NullHelper(), 0);
+
+    } else if (m_configuration != 0) {
+
+      // try load the helper from a shared lib
+      value = load_helper(helper_type, m_configuration);
+
+    }
+  }
+
+  if (value.first != 0) {
+    HelperRegistry::instance()->add(helper_type, value);
+  }
+
+  return value.first;
+}
+
+void
+HelperFactory::release_helper(HelperImpl* helper)
+{
+}
+
+HelperRegistry::value_type
+load_helper(std::string helper_type, const ClassAd* configuration)
+{
   // search an entry for the required helper to get the following two
   // parameters; an entry for a helper has the form:
   //
@@ -101,10 +103,11 @@ load_helper(std::string helper_type)
   //      configuration = [ <helper-specific parameters> ]
   // ]
 
-  string library;                   // mandatory
-  const ClassAd* configuration = 0; // optional
+  string helper_library;                   // mandatory
+  const ClassAd* helper_configuration = 0; // optional
 
-  for (ClassAd::iterator it = ad->begin(); it != ad->end(); ++it) {
+  for (ClassAd::iterator it = configuration->begin();
+       it != configuration->end(); ++it) {
     string attribute = it->first;
     ExprTree* expression = it->second;
 
@@ -125,7 +128,7 @@ load_helper(std::string helper_type)
       dynamic_cast<const Literal*>(expr)->GetValue(value);
       string tmp;
       if (value.IsStringValue(tmp)) {
-        library = tmp;
+        helper_library = tmp;
       }
 
       assert(library != "");    // mandatory!
@@ -134,7 +137,7 @@ load_helper(std::string helper_type)
     { // configuration
       ExprTree* expr = helper_ad->Lookup("configuration");
       if (expr != 0 && expr->GetKind() == ExprTree::CLASSAD_NODE) {
-        configuration = dynamic_cast<const ClassAd*>(expr);
+        helper_configuration = dynamic_cast<const ClassAd*>(expr);
       }
     }
   }
@@ -147,17 +150,25 @@ load_helper(std::string helper_type)
 
   try {
 
-    lib = new DynamicLibrary(library);
+    lib = new DynamicLibrary(helper_library);
 
     HelperImpl* (*creator)(const ClassAd*) =
       (HelperImpl* (*)(const ClassAd*))lib->symbol("create_helper");
 
     if (creator != 0) {
-      helper = creator(configuration);
+      helper = creator(helper_configuration);
     }
 
   } catch (DynamicLibraryNotFound& ex) {
   }
 
-  return make_pair(helper, lib);
+  return HelperRegistry::value_type(helper, lib);
 }
+
+
+#endif // HELPER_FACTORY_H
+
+// Local Variables:
+// mode: c++
+// End:
+

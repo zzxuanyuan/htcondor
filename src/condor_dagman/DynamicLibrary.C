@@ -3,7 +3,7 @@
 //         Francesco Giacomini (francesco.giacomini@cnaf.infn.it)
 // Copyright (C) Istituto Nazionale di Fisica Nucleare (INFN)
 
-// $Id: DynamicLibrary.C,v 1.1.2.1 2002-04-29 08:27:11 giaco Exp $
+// $Id: DynamicLibrary.C,v 1.1.2.2 2002-06-03 13:34:04 giaco Exp $
 
 #include <dlfcn.h>
 #include <string>
@@ -22,7 +22,7 @@ DynamicLibrary::DynamicLibrary(const std::string& name)
 
 DynamicLibrary::~DynamicLibrary()
 {
-  // don't close the library; when to do it?
+  dlclose(m_handle);
 }
 
 void*
