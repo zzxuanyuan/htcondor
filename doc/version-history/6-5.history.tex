@@ -98,6 +98,10 @@ The details of each version are described below.
 \item Added new option \Opt{-dagman} to \Condor{submit\_dag} which allows 
 specification of an alternate \Condor{dagman} executable. 
 
+\item Added new entry in a DAG input file that adds a macro (using the
+"+" syntax) for use in the submit description file.  The new entry
+is called VARS.
+
 \item Improved \Opt{-config} option to \Condor{config\_val} to print
       descriptive lines to stderr and filenames to stdout, so that its
       output can be cleanly piped into tools like xargs.
@@ -193,7 +197,8 @@ use 3 more file descriptors.
 
 \begin{itemize}
 
-\item None.
+\item The VARS entry within a DAG input file is not propagated
+to the rescue DAG.
 
 \end{itemize}
 
