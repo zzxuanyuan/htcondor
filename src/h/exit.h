@@ -89,9 +89,6 @@
 /* The job should be removed */
 #define JOB_SHOULD_REMOVE (13 + EXIT_CODE_OFFSET)
 
-/* The shadow failed to reconnect to a disconnected job */
-#define JOB_RECONNECT_FAILED (14 + EXIT_CODE_OFFSET)
-
 /*
   WARNING: don't go above 27 with these, or we run out of bits in the
   exit status code

@@ -464,7 +464,7 @@ BaseShadow::reconnectFailed( const char* reason )
 		// TODO userlog
 
 		// does not return
-	DC_Exit( JOB_RECONNECT_FAILED );
+	DC_Exit( JOB_SHOULD_REQUEUE );
 }
 
 
