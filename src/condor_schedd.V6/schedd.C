@@ -1334,8 +1334,8 @@ abort_job_myself( PROC_ID job_id, JobAction action, bool log_hold,
 		}
 	}
 
-	if (job_universe == CONDOR_UNIVERSE_PVM) {
-		job_id.proc = 0;		// PVM shadow is always associated with proc 0
+	if( (job_universe == CONDOR_UNIVERSE_PVM) || (job_universe == CONDOR_UNIVERSE_MPI) ) {
+		job_id.proc = 0;		// PVM and MPI shadow is always associated with proc 0
 	} 
 
 	// If it is not a Globus Universe job (which has already been
@@ -3021,12 +3021,13 @@ Scheduler::actOnJobs(int, Stream* s)
 	case JA_REMOVE_JOBS:
 	case JA_VACATE_JOBS:
 	case JA_VACATE_FAST_JOBS:
-		for( i=0; i<num_matches; i++ ) {
-			if( i % 10 == 0 ) {
-				daemonCore->ServiceCommandSocket();
-			}
-			abort_job_myself( jobs[i], action, true, notify );
+		 for( i=0; i<num_matches; i++ ) {
+ 			if( i % 10 == 0 ) {
+ 				daemonCore->ServiceCommandSocket();
+ 			}
+ 			abort_job_myself( jobs[i], action, true, notify );
 		}
+
 		break;
 
 	case JA_RELEASE_JOBS:
@@ -6128,7 +6129,7 @@ mark_job_running(PROC_ID* job_id)
 	int universe = CONDOR_UNIVERSE_STANDARD;
 	GetAttributeInt(job_id->cluster, job_id->proc, ATTR_JOB_UNIVERSE,
 					&universe);
-	if( (universe == CONDOR_UNIVERSE_PVM) || (universe == CONDOR_UNIVERSE_MPI)) {
+	if( universe == CONDOR_UNIVERSE_PVM ) {
 		ClassAd *ad;
 		ad = GetNextJob(1);
 		while (ad != NULL) {

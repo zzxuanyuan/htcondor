@@ -2164,8 +2164,12 @@ DedicatedScheduler::spawnJobs( void )
 				 "Started shadow for MPI job %d.0 (shadow pid = %d)\n", 
 				 id.cluster, pid );
 
-		mark_job_running( &id );
+		for (i = 0; i < allocation->num_procs; i++) {
+			id.proc = i;
+			mark_job_running( &id );
+		}
 
+		id.proc = 0; // GGT
 		srec = scheduler.add_shadow_rec( pid, &id, mrec, -1 );
 
 			// TODO: make sure we set this right for all the procs in
@@ -2296,23 +2300,20 @@ DedicatedScheduler::computeSchedule( void )
 		// Clean-up is done, actually compute a schedule...
 		//----------------------------------------------------------
 
-	CAList *jobs = NULL;
-
 		// For each job, try to satisfy it as soon as possible.
+	CAList *jobs = NULL;
 	l = idle_clusters->getlast();
 	for( i=0; i<=l; i++ ) {
-
-		if( jobs ) {
-			delete jobs;
-		}
-
 
 			// This is the main data structure for handling multiple procs
 			// It just contains one non-unique job ClassAd for each node.
 			// So, if there a two procs, with one and two nodes, respectively,
 			// jobs will have three entries, and the last two will be the same
 			// job ad.
-		CAList *jobs = new CAList;
+		if (jobs) {
+			delete jobs;
+		}
+		jobs = new CAList;
 
 			// put each job ad per proc in this cluster
 			// into jobs
@@ -2517,6 +2518,9 @@ DedicatedScheduler::computeSchedule( void )
 			int proc;
 
 			int nodes_per_proc[nprocs];
+			for (int ni = 0; ni < nprocs; ni++) {
+				nodes_per_proc[ni] = 0;
+			}
 
 			jobs->Rewind();
 			while( (job = jobs->Next()) ) {
@@ -2649,6 +2653,7 @@ DedicatedScheduler::computeSchedule( void )
 				continue;
 			}
 			
+			delete preempt_candidates;
 		}
 			// We are done with these now
 		if (preemption_rank) {
@@ -2657,7 +2662,7 @@ DedicatedScheduler::computeSchedule( void )
 		}
 	
 		if (preemption_req) {
-			delete preemption_rank;
+			delete preemption_req;
 			preemption_req = NULL;
 		}
 	
@@ -2699,6 +2704,7 @@ DedicatedScheduler::computeSchedule( void )
 				unclaimed_candidates_jobs = NULL;
 			}
 
+			delete jobs;
 			return true;
 		} else {
 			dprintf( D_FULLDEBUG, "Can't satisfy job %d with all possible "
@@ -2732,9 +2738,7 @@ DedicatedScheduler::computeSchedule( void )
 			continue;
 		}
 	}
-	if( jobs) {
-		delete jobs;
-	}
+	delete jobs;
 	return true;
 }
 
@@ -3392,12 +3396,23 @@ DedicatedScheduler::isPossibleToSatisfy( CAList* jobs, int max_hosts )
 	dprintf( D_FULLDEBUG, 
 			 "Trying to satisfy job with all possible resources\n" );
 
+	CAList candidate_resources;
+	resources->Rewind();
+
+		// Copy resources to candidate_resources
+	ClassAd *machine;
+	while( (machine = resources->Next() )) {
+		candidate_resources.Append(machine);
+	}
+	candidate_resources.Rewind();
+
+
 	ClassAd *job;
 	jobs->Rewind();
 	int num_matches = 0;
 	while( (job = jobs->Next()) ) {
-		resources->Rewind();
-		while( (candidate = resources->Next()) ) {
+		candidate_resources.Rewind();
+		while( (candidate = candidate_resources.Next()) ) {
 				// Make sure the job requirements are satisfied with this
 				// resource.
 			if( job->EvalBool(ATTR_REQUIREMENTS, candidate, req) == 0 ) { 
@@ -3405,24 +3420,27 @@ DedicatedScheduler::isPossibleToSatisfy( CAList* jobs, int max_hosts )
 				req = 0;
 			}
 			if( req ) {
+				candidate_resources.DeleteCurrent();
 				num_matches++;
 				name_buf[0] = '\0';
 				candidate->LookupString( ATTR_NAME, name_buf );
 				names.append( name_buf );
-			}
-			if( num_matches == max_hosts ) {
+
+				if( num_matches == max_hosts ) {
 					// We've found all we need for this job.
 					// Set the scheduled flag on any match records we used
 					// for satisfying this job so we don't release them
 					// prematurely. 
-				names.rewind();
-				while( (name = names.next()) ) {
-					HashKey key(name);
-					if( all_matches->lookup(key, mrec) >= 0 ) {
-						mrec->scheduled = true;
+					names.rewind();
+					while( (name = names.next()) ) {
+						HashKey key(name);
+						if( all_matches->lookup(key, mrec) >= 0 ) {
+							mrec->scheduled = true;
+						}
 					}
+					return true;
 				}
-				return true;
+				break;
 			}
 		}
 	}
