@@ -332,7 +332,7 @@ clean:: @@\
 	/bin/rm -f service.nsmap Concat(soapname(daemon),H).h Concat(soapname(daemon),Stub).h service.wsdl Concat(soapname(daemon),C).C Concat(soapname(daemon),Server).C soapfiles @@\
 XCOMM Specifically add a dependancy from the generated .C files to the @@\
 XCOMM .o files. Otherwise, the suffix rules do not get the dependencies @@\
-XCOMM right. @@\ 
+XCOMM right. @@\
 $(SOAP_OBJS): $(SOAP_SRC) @@\
 $(SOAP_SRC): soapfiles
 
