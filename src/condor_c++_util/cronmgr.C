@@ -521,6 +521,7 @@ CondorCronMgr::ParseJobList( const char *jobString )
 
 		// Parse any remaining options
 		bool	killMode = false;
+		bool	reconfig = false;
 		while ( 1 ) {
 			// Extract an option
 			const char *option = parser.getOption( );
@@ -541,6 +542,14 @@ CondorCronMgr::ParseJobList( const char *jobString )
 				dprintf( D_FULLDEBUG, "CronMgr: '%s': Continuous option ok\n",
 						 jobName );
 				jobMode = CRON_CONTINUOUS;
+			} else if ( !strcasecmp( option, "reconfig" ) ) {
+				dprintf( D_FULLDEBUG, "CronMgr: '%s': Reconfig option ok\n",
+						 jobName );
+				reconfig = true;
+			} else if ( !strcasecmp( option, "noreconfig" ) ) {
+				dprintf( D_FULLDEBUG, "CronMgr: '%s': NoReconfig option ok\n",
+						 jobName );
+				reconfig = false;
 			} else {
 				dprintf( D_ALWAYS, "CronMgr: Job '%s':"
 						 " Ignoring unknown option '%s'\n",
@@ -587,6 +596,7 @@ CondorCronMgr::ParseJobList( const char *jobString )
 
 		// Set the "Kill" mode
 		job->SetKill( killMode );
+		job->SetReconfig( reconfig );
 
 		// Are there arguments for it?
 		// Force the first arg to be the "Job Name"..

@@ -273,6 +273,14 @@ CondorCronJob::SetKill( bool kill )
 	return 0;
 }
 
+// Set job characteristics: Reconfig option
+int
+CondorCronJob::SetReconfig( bool reconfig )
+{
+	optReconfig = reconfig;
+	return 0;
+}
+
 // Add to the job's path
 int
 CondorCronJob::AddPath( const char *newPath )
@@ -363,7 +371,7 @@ int
 CondorCronJob::Reconfig( void )
 {
 	// Only do this to running continuous jobs
-	if (  ( CRON_CONTINUOUS != mode ) || ( CRON_RUNNING != state )  ) {
+	if (  ( ! optReconfig ) || ( CRON_RUNNING != state )  ) {
 		return 0;
 	}
 

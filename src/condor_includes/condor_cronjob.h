@@ -124,6 +124,7 @@ class CondorCronJob : public Service
 	int SetCwd( const char *cwd );
 	int SetPeriod( CronJobMode mode, unsigned period );
 	int SetKill( bool );
+	int SetReconfig( bool );
 	int AddPath( const char *path );	
 	int AddArgs( const char *args );
 	int AddEnv( const char *env );
@@ -166,6 +167,7 @@ class CondorCronJob : public Service
 
 	// Options
 	bool			optKill;		// Kill the job if before next run?
+	bool			optReconfig;	// Send the job a HUP for reconfig
 
 	// Private methods; these can be replaced
 	virtual int Schedule( void );
