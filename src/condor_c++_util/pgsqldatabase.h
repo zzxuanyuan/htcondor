@@ -26,7 +26,7 @@
 #define  _PGSQLDATABASE_H_
 
 #include "jobqueuedatabase.h"
-#include </scratch/akini/pgsql/include/libpq-fe.h>
+#include <libpq-fe.h>
 
 //! PGSQLDataabse: JobQueueDatabase for PostgreSQL
 //
