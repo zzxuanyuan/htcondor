@@ -1002,6 +1002,7 @@ SetUniverse()
 		(void) sprintf (buffer, "%s = %d", ATTR_JOB_UNIVERSE, CONDOR_UNIVERSE_GLOBUS);
 		InsertJobExpr (buffer);
 		free(univ);
+		univ = 0;
 	
 		// Set Grid_Type
 		if ( JobGridType != NULL ) {
@@ -1014,14 +1015,14 @@ SetUniverse()
 			// Validate
 			// Valid values are (as of 6.7): nordugrid, oracle, gt3, globus,
 			//    gt2, infn, condor
-			if ((stricmp (univ, "globus") == MATCH) ||
-				(stricmp (univ, "gt2") == MATCH) ||
-				(stricmp (univ, "gt3") == MATCH) ||
-				(stricmp (univ, "infn") == MATCH) ||
-				(stricmp (univ, "blah") == MATCH) ||
-				(stricmp (univ, "condor") == MATCH) ||
-				(stricmp (univ, "nordugrid") == MATCH) ||
-				(stricmp (univ, "oracle") == MATCH)) {
+			if ((stricmp (JobGridType, "globus") == MATCH) ||
+				(stricmp (JobGridType, "gt2") == MATCH) ||
+				(stricmp (JobGridType, "gt3") == MATCH) ||
+				(stricmp (JobGridType, "infn") == MATCH) ||
+				(stricmp (JobGridType, "blah") == MATCH) ||
+				(stricmp (JobGridType, "condor") == MATCH) ||
+				(stricmp (JobGridType, "nordugrid") == MATCH) ||
+				(stricmp (JobGridType, "oracle") == MATCH)) {
 				// We're ok	
 				// Values are case-insensitive for gridmanager, so we don't need to change case			
 			} else {
