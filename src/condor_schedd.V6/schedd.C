@@ -5458,12 +5458,6 @@ Scheduler::spawnLocalStarter( shadow_rec* srec )
 	MyString starter_args;
 	bool rval;
 
-		// First, make sure there's a valid execute directory inside
-		// spool for the local starter to use, since we don't want to
-		// rely on condor_[install|configure] setting that up
-		// correctly for us...
-	initLocalStarterDir();
-
 	dprintf( D_FULLDEBUG, "Starting local universe job %d.%d\n",
 			 job_id->cluster, job_id->proc );
 
@@ -5520,6 +5514,7 @@ Scheduler::spawnLocalStarter( shadow_rec* srec )
 void
 Scheduler::initLocalStarterDir( void )
 {
+	static bool first_time = true;
 	mode_t mode;
 #ifdef WIN32
 	mode_t desired_mode = _S_IREAD | _S_IWRITE;
@@ -5529,21 +5524,22 @@ Scheduler::initLocalStarterDir( void )
 #endif
 
 	MyString dir_name;
-	char* tmp = param( "SCHEDD_EXECUTE" );
+	char* tmp = param( "LOCAL_UNIV_EXECUTE" );
 	if( ! tmp ) {
 		tmp = param( "SPOOL" );		
 		if( ! tmp ) {
 			EXCEPT( "SPOOL directory not defined in config file!" );
 		}
-		dir_name.sprintf( "%s%c%s", tmp, DIR_DELIM_CHAR, "execute" );
+		dir_name.sprintf( "%s%c%s", tmp, DIR_DELIM_CHAR,
+						  "local_univ_execute" );
 	} else {
 		dir_name = tmp;
 	}
 	free( tmp );
 	tmp = NULL;
 
-	StatInfo exec_dir( dir_name.Value() );
-	if( ! exec_dir.IsDirectory() ) {
+	StatInfo exec_statinfo( dir_name.Value() );
+	if( ! exec_statinfo.IsDirectory() ) {
 			// our umask is going to mess this up for us, so we might
 			// as well just do the chmod() seperately, anyway, to
 			// ensure we've got it right.  the extra cost is minimal,
@@ -5560,18 +5556,31 @@ Scheduler::initLocalStarterDir( void )
 		}
 		mode = 0777;
 	} else {
-		mode = exec_dir.GetMode();
+		mode = exec_statinfo.GetMode();
+		if( first_time ) {
+				// if this is the startup-case (not reconfig), and the
+				// directory already exists, we want to attempt to
+				// remove everything in it, to clean up any droppings
+				// left by starters that died prematurely, etc.
+			dprintf( D_FULLDEBUG, "initLocalStarterDir: "
+					 "%s already exists, deleting old contents\n",
+					 dir_name.Value() );
+			Directory exec_dir( &exec_statinfo );
+			exec_dir.Remove_Entire_Directory();
+			first_time = false;
+		}
 	}
 
 		// we know the directory exists, now make sure the mode is
 		// right for our needs...
 	if( (mode & desired_mode) != desired_mode ) {
-		dprintf( D_FULLDEBUG, "Changing permission on %s\n",
-				 dir_name.Value() );
+		dprintf( D_FULLDEBUG, "initLocalStarterDir(): "
+				 "Changing permission on %s\n", dir_name.Value() );
 		if( chmod(dir_name.Value(), (mode|desired_mode)) < 0 ) {
-			dprintf( D_ALWAYS, "initLocalStarterDir(): chmod(%s) failed: "
-					 "%s (errno %d)\n", dir_name.Value(), strerror(errno),
-                     errno );
+			dprintf( D_ALWAYS, 
+					 "initLocalStarterDir(): chmod(%s) failed: "
+					 "%s (errno %d)\n", dir_name.Value(), 
+					 strerror(errno), errno );
 		}
 	}
 }
@@ -7261,6 +7270,7 @@ Scheduler::Init()
 		EXCEPT( "No spool directory specified in config file" );
 	}
 
+
 	if ( Collectors ) delete ( Collectors );
 	Collectors = CollectorList::create();
 
@@ -7407,6 +7417,14 @@ Scheduler::Init()
 		NegotiateAllJobsInCluster = true;
 	}
 	if( tmp ) free( tmp );
+
+		// Decide the directory we should use for the execute
+		// directory for local universe starters.  Create it if it
+		// doesn't exist, fix the permissions (1777 on UNIX), and, if
+		// it's the first time we've hit this method (on startup, not
+		// reconfig), we remove any subdirectories that might have
+		// been left due to starter crashes, etc.
+	initLocalStarterDir();
 
 	/* Initialize the hash tables to size MaxJobsRunning * 1.2 */
 		// Someday, we might want to actually resize these hashtables
