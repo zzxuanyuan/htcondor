@@ -648,8 +648,8 @@ int MyProxyGetDelegationReaper(Service *, int exitPid, int exitStatus)
 	int found = FALSE;
 
 	// Iterate through each proxy
-	ProxiesByPath.startIterations();
-	while ( ProxiesByPath.iterate( proxy ) != 0 ) {
+	ProxiesByFilename.startIterations();
+	while ( ProxiesByFilename.iterate( proxy ) != 0 ) {
 		// Iterate through all myproxy entries for the proxy
 		proxy->myproxy_entries.Rewind();
 		while (proxy->myproxy_entries.Next(matched_entry)) {

@@ -385,7 +385,7 @@ int GlobusResource::DoPing()
 		return TRUE;
 	}
 	gahp->setNormalProxy( gahp->getMasterProxy() );
-	if ( PROXY_IS_EXPIRED( myProxy ) ) {
+	if ( PROXY_IS_EXPIRED( gahp->getMasterProxy() ) ) {
 		dprintf( D_ALWAYS,"proxy near expiration or invalid, delaying ping\n" );
 		return TRUE;
 	}

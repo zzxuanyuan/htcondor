@@ -377,7 +377,7 @@ void BaseJob::JobAdUpdateFromSchedd( const ClassAd *new_ad )
 			// update the schedd with the hold.
 		if ( new_condor_state == REMOVED && condorState == HELD ) {
 			bool dirty;
-			classad->GetDirtyFlag( ATTR_JOB_STATUS, NULL, &dirty )
+			ad->GetDirtyFlag( ATTR_JOB_STATUS, NULL, &dirty );
 			if ( dirty ) {
 				UpdateJobAdInt( ATTR_JOB_STATUS_ON_RELEASE, REMOVED );
 			}

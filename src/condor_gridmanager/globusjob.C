@@ -1610,16 +1610,16 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 					//   We need something more intellegent.
 					exit_status_known = true;
 					int int_val;
-					if( jobAd->LookupBool(ATTR_ON_EXIT_BY_SIGNAL, int_val) ) {
+					if( ad->LookupBool(ATTR_ON_EXIT_BY_SIGNAL, int_val) ) {
 						if( int_val ) {
 							exit_normal = false;
-							if( jobAd->LookupInteger(ATTR_ON_EXIT_SIGNAL,
+							if( ad->LookupInteger(ATTR_ON_EXIT_SIGNAL,
 													 int_val) ) {
 								exit_code = int_val;
 							}
 						} else {
 							exit_normal = true;
-							if( jobAd->LookupInteger(ATTR_ON_EXIT_CODE,
+							if( ad->LookupInteger(ATTR_ON_EXIT_CODE,
 													 int_val) ) {
 								exit_code = int_val;
 							}
