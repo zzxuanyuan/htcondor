@@ -1,14 +1,11 @@
 #if !defined(_LIBQMGR_H)
 #define _LIBQMGR_H
 
-#include "condor_xdr.h"
 #include "proc.h"
 
 #define QMGMT_CMD	1111
 
 typedef struct {
-	int		fd;
-	XDR		xdr;
 	int		count;
 	char	*rendevous_file;
 } Qmgr_connection;
@@ -42,8 +39,8 @@ int NextAttribute(int, int, char *);
 int SendSpoolFile(char *filename, char *address);
 
 Qmgr_connection *ConnectQ(char *qmgr_location);
-int DisconnectQ(Qmgr_connection *);
-int WalkJobQueue(scan_func);
+void DisconnectQ(Qmgr_connection *);
+void WalkJobQueue(scan_func);
 
 int rusage_to_float(struct rusage, float *, float *);
 int float_to_rusage(float, float, struct rusage *);
