@@ -27,6 +27,10 @@
 #include "stringSpace.h"
 #include "killfamily.h"
 #include "HashTable.h"
+#include "condor_classad.h"
+#include "classad_collection_types.h"
+#include "MyString.h"
+#include "Set.h"
 
 
 template class List<char>; 		template class Item<char>;
@@ -34,7 +38,17 @@ template class List<int>; 		template class Item<int>;
 template class SimpleList<int>; 
 template class SimpleList<float>;
 template class ExtArray<char *>;
+template class ExtArray<StringSpace::SSStringEnt>;
+template class ExtArray<StringSpace*>;
 template class ExtArray<ProcFamily::a_pid>;
+template class HashTable<int, BaseCollection*>;
+template class HashBucket<int, BaseCollection*>;
+template class Set<MyString>;
+template class SetElem<MyString>;
+template class Set<int>;
+template class SetElem<int>;
+template class Set<RankedClassAd>;
+template class SetElem<RankedClassAd>;
+template class HashTable<MyString, int>;
+template class HashBucket<MyString,int>;
 
-int 	CondorErrno;
-string	CondorErrMsg;
