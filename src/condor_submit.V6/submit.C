@@ -2814,6 +2814,43 @@ SetCoreSize()
 	InsertJobExpr(buffer);
 }
 
+
+void
+SetJobLease( void )
+{
+	static bool warned_too_small = false;
+	char *tmp = condor_param( "job_lease_duration", ATTR_JOB_LEASE_DURATION );
+	if( ! tmp ) {
+		return;
+	}
+	if( ! universeCanReconnect(JobUniverse) ) { 
+		fprintf( stderr, "\nERROR: cannot specify %s for %s universe jobs\n",
+				 ATTR_JOB_LEASE_DURATION, CondorUniverseName(JobUniverse) );
+		DoCleanup(0,0,NULL);
+		exit( 1 );
+	}
+	int lease_duration = atoi( tmp );
+	if( lease_duration <= 0 ) {
+		fprintf( stderr, "\nERROR: invalid %s given: %s\n",
+				 ATTR_JOB_LEASE_DURATION, tmp );
+		DoCleanup(0,0,NULL);
+		exit( 1 );
+	}
+	if( lease_duration < 20 ) {
+		if( ! warned_too_small ) { 
+			fprintf( stderr, "\nWARNING: %s less than 20 is not allowed, "
+					 "using 20 instead\n", ATTR_JOB_LEASE_DURATION );
+			warned_too_small = true;
+		}
+		lease_duration = 20;
+	}
+	MyString val = ATTR_JOB_LEASE_DURATION;
+	val += "=";
+	val += lease_duration;
+	InsertJobExpr( val.Value() );
+}
+
+
 void
 SetForcedAttributes()
 {
@@ -3432,6 +3469,7 @@ queue(int num)
 		SetTransferFiles();	 // must be called _before_ SetImageSize()
 		SetImageSize();		// must be called _after_ SetTransferFiles()
 		SetRequirements();	// must be called _after_ SetTransferFiles()
+		SetJobLease();
 		SetForcedAttributes();
 		SetPeriodicHoldCheck();
 		SetPeriodicRemoveCheck();
