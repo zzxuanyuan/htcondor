@@ -41,6 +41,7 @@ It contains all the binaries and supporting files you would install in
 your release directory:
 \begin{verbatim}
         sbin/condor_collector
+        sbin/condor_stats
         etc/examples/condor_config.local.view_server
 \end{verbatim}
 
@@ -143,8 +144,9 @@ For example:
 \end{verbatim}
 Then, from that same directory, you just have to untar the
 \File{view\_server.tar} file, into your release directory, which will
-install a new \File{\condor{collector}} binary, and an example config
-file.
+install a new \File{\condor{collector}} binary, \File{\condor{stats}},
+a tool that can be used to query this collector for historical
+information, and an example config file.
 Within 5 minutes, the \Condor{master} will notice the new timestamp on
 your \File{\condor{collector}} binary, shutdown your existing
 collector, and spawn the new version.
@@ -154,12 +156,6 @@ directory).
 Once the new collector is running, it is safe to remove your old
 binary, though you may want to keep it around in case you have
 problems with the new version and want to revert back.
-
-Once this is completed, you just have to add a few config file entries
-to the local config file on your central manager to enable historical
-data collection.
-These are described below in the ``Configuring the CondorView Server 
-Module'' section.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsubsection{\label{sec:CondorView-Server-Both}
@@ -173,6 +169,8 @@ temporary location (not your main release directory).
 Copy the \File{sbin/\condor{collector}} file out of there, and into
 your main release directory's sbin with a new name (such as
 \File{\condor{collector}.view\_server}).
+You will also want to copy the \File{\condor{stats}} program to your
+sbin release directory. 
 
 Next, you must configure whatever host is going to run your seperate
 CondorView server to spawn this new collector in addition to whatever
