@@ -237,7 +237,7 @@ int MirrorResource::DoScheddPoll()
 				rc = MirrorJobsById.lookup( HashKey( job_id_string.Value() ),
 											job );
 				if ( rc == 0 ) {
-					job->RemoteJobStatusUpdate( &status_ads[i] );
+					job->NotifyRemoteStatusUpdate( &status_ads[i] );
 				}
 			}
 		}

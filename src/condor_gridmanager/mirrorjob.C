@@ -174,6 +174,7 @@ MirrorJob::MirrorJob( ClassAd *classad )
 	remoteJobIdString = NULL;
 	mirrorActive = false;
 	myResource = NULL;
+	remoteStatusUpdateAd = NULL;
 
 	// In GM_HOLD, we assume HoldReason to be set only if we set it, so make
 	// sure it's unset when we start.
@@ -234,6 +235,9 @@ MirrorJob::MirrorJob( ClassAd *classad )
 
 MirrorJob::~MirrorJob()
 {
+	if ( remoteStatusUpdateAd != NULL ) {
+		delete remoteStatusUpdateAd;
+	}
 	if ( myResource ) {
 		myResource->UnregisterJob( this );
 	}
@@ -430,6 +434,8 @@ int MirrorJob::doEvaluateState()
 				gmState = GM_CANCEL;
 			} else if ( mirrorActive ) {
 				gmState = GM_MIRROR_ACTIVE_SAVE;
+			} else if ( ProcessRemoteStatusUpdate() ) {
+				reevaluate_state = true;
 			}
 			} break;
 		case GM_MIRROR_ACTIVE_SAVE: {
@@ -479,6 +485,8 @@ int MirrorJob::doEvaluateState()
 				gmState = GM_DONE_SAVE;
 			} else if ( condorState == REMOVED || condorState == HELD ) {
 				gmState = GM_CANCEL;
+			} else if ( ProcessRemoteStatusUpdate() ) {
+				reevaluate_state = true;
 			}
 			} break;
 		case GM_DONE_SAVE: {
@@ -572,6 +580,7 @@ int MirrorJob::doEvaluateState()
 			errorString = "";
 			SetRemoteJobId( NULL );
 			JobIdle();
+			ClearRemoteStatusUpdate();
 			if ( submitLogged ) {
 				JobEvicted();
 			}
@@ -683,19 +692,30 @@ void MirrorJob::SetRemoteJobId( const char *job_id )
 	requestScheddUpdate( this );
 }
 
-void MirrorJob::RemoteJobStatusUpdate( ClassAd *update_ad )
+void MirrorJob::NotifyRemoteStatusUpdate( ClassAd *update_ad )
+{
+	ClearRemoteStatusUpdate();
+	update_ad = new ClassAd( *update_ad );
+}
+
+bool MirrorJob::ProcessRemoteStatusUpdate()
 {
 	int rc;
 	int tmp_int;
 
-	update_ad->LookupInteger( ATTR_JOB_STATUS, tmp_int );
+	if ( remoteStatusUpdateAd == NULL ) {
+		return false;
+	}
+
+	remoteStatusUpdateAd->LookupInteger( ATTR_JOB_STATUS, tmp_int );
 
 	if ( remoteState == HELD && tmp_int != HELD ) {
 		UpdateJobAdBool( ATTR_MIRROR_ACTIVE, 1 );
 	}
 	remoteState = tmp_int;
 
-	rc = update_ad->LookupInteger( ATTR_MIRROR_LEASE_TIME, tmp_int );
+	rc = remoteStatusUpdateAd->LookupInteger( ATTR_MIRROR_LEASE_TIME,
+											  tmp_int );
 	if ( rc ) {
 		UpdateJobAdInt( ATTR_MIRROR_REMOTE_LEASE_TIME, tmp_int );
 	} else {
@@ -703,6 +723,18 @@ void MirrorJob::RemoteJobStatusUpdate( ClassAd *update_ad )
 	}
 
 	requestScheddUpdate( this );
+
+	ClearRemoteStatusUpdate();
+
+	return true;
+}
+
+void MirrorJob::ClearRemoteStatusUpdate()
+{
+	if ( remoteStatusUpdateAd != NULL ) {
+		delete remoteStatusUpdateAd;
+		remoteStatusUpdateAd = NULL;
+	}
 }
 
 BaseResource *MirrorJob::GetResource()

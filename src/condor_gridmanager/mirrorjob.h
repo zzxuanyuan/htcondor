@@ -91,7 +91,11 @@ class MirrorJob : public BaseJob
 	MirrorResource *myResource;
 	GahpClient *gahp;
 
-	void RemoteJobStatusUpdate( ClassAd *update_ad );
+	ClassAd *remoteStatusUpdateAd;
+
+	void NotifyRemoteStatusUpdate( ClassAd *update_ad );
+	bool ProcessRemoteStatusUpdate();
+	void ClearRemoteStatusUpdate();
 
 	void SetRemoteJobId( const char *job_id );
 	ClassAd *buildSubmitAd();
