@@ -91,6 +91,8 @@ JICLocal::init( void )
 		return false;
 	}
 
+	initOutputAdFile();
+
 		// Now that the user priv is setup and the temp execute dir
 		// exists, we can initialize the LocalUserLog.  if the job
 		// defines StarterUserLog, we'll write the events.  if not,
