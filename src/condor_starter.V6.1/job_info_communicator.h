@@ -183,6 +183,9 @@ public:
 		*/
 	virtual bool sameUidDomain( void ) = 0;
 
+		/// Has user_priv been initialized yet?
+	bool userPrivInitialized( void ); 
+
 
 protected:
 
@@ -258,6 +261,9 @@ protected:
 			the job ad says.
 		*/
 	bool change_iwd;
+
+	bool user_priv_is_initialized;
+
 };
 
 

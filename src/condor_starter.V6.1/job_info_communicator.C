@@ -38,6 +38,7 @@ JobInfoCommunicator::JobInfoCommunicator()
 	job_iwd = NULL;
 	requested_exit = false;
 	change_iwd = false;
+	user_priv_is_initialized = false;
 }
 
 
@@ -123,6 +124,13 @@ JobInfoCommunicator::gotShutdownGraceful( void )
 {
 		// Set our flag so we know we were asked to vacate.
 	requested_exit = true;
+}
+
+
+bool
+JobInfoCommunicator::userPrivInitialized( void )
+{
+	return user_priv_is_initialized;
 }
 
 
