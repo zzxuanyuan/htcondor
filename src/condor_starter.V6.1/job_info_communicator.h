@@ -181,11 +181,6 @@ public:
 		*/
 	virtual void addToOutputFiles( const char* filename ) = 0;
 
-		/** Compare our own UIDDomain vs. where the job came from.
-			@return true if they match, false if not
-		*/
-	virtual bool sameUidDomain( void ) = 0;
-
 		/// Has user_priv been initialized yet?
 	bool userPrivInitialized( void ); 
 
