@@ -460,16 +460,20 @@ int BaseJob::EvalOnExitJobExpr( bool normal_exit, int code )
 void
 BaseJob::UpdateJobTime( float *old_run_time )
 {
-  float previous_run_time,total_run_time;
-  int shadow_bday;
+  float previous_run_time = 0, total_run_time = 0;
+  int shadow_bday = 0;
   time_t now = time(NULL);
 
   ad->LookupInteger(ATTR_SHADOW_BIRTHDATE,shadow_bday);
   ad->LookupFloat(ATTR_JOB_REMOTE_WALL_CLOCK,previous_run_time);
 
-  if(old_run_time) *old_run_time = previous_run_time;
+  if (old_run_time) {
+	  *old_run_time = previous_run_time;
+  }
   total_run_time = previous_run_time;
-  if(shadow_bday) total_run_time += (now - shadow_bday);
+  if (shadow_bday) {
+	  total_run_time += (now - shadow_bday);
+  }
 
   UpdateJobAdFloat( ATTR_JOB_REMOTE_WALL_CLOCK, total_run_time );
 }
