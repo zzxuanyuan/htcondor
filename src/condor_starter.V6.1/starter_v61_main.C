@@ -63,11 +63,23 @@ usage()
 void
 printClassAd( void )
 {
+	printf( "%s = \"%s\"\n", ATTR_VERSION, CondorVersion() );
 	printf( "%s = True\n", ATTR_IS_DAEMON_CORE );
 	printf( "%s = True\n", ATTR_HAS_FILE_TRANSFER );
 	printf( "%s = True\n", ATTR_HAS_MPI );
-	printf( "%s = \"%s\"\n", ATTR_VERSION, CondorVersion() );
 
+		/*
+		  Attributes describing what kinds of Job Info Communicators
+		  this starter has.  This is mostly for COD, but someday might
+		  be useful to other people, too.  There's no need to
+		  advertise the fact we've got a JICShadow, since all starters
+		  always have and will be able to communicate with a shadow...
+		*/
+
+	printf( "%s = True\n", ATTR_HAS_JIC_LOCAL_CONFIG );
+
+
+		// Java stuff
 	config(true);
 
 	ClassAd *ad = java_detect();
