@@ -85,14 +85,13 @@ struct OwnerData {
   JobsRunning=JobsIdle=JobsHeld=JobsFlocked=FlockLevel=OldFlockLevel=GlobusJobs=GlobusUnmanagedJobs=0; }
 };
 
-#define SIZE_OF_CAPABILITY_STRING 40 /* see also matchmater.C */
 class match_rec
 {
  public:
     match_rec(char*, char*, PROC_ID*, ClassAd*, char*, char* pool);
 	~match_rec();
-    char    		id[SIZE_OF_CAPABILITY_STRING];
-    char    		peer[50];
+    char*    		id;
+    char*   		peer;
 	
 		// cluster of the job we used to obtain the match
 	int				origcluster; 

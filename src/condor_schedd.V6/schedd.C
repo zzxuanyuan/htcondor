@@ -146,8 +146,8 @@ dc_reconfig()
 match_rec::match_rec( char* claim_id, char* p, PROC_ID* job_id, 
 					  ClassAd *match, char *the_user, char *my_pool )
 {
-	strcpy(this->id, claim_id);
-	strcpy(peer, p);
+	id = strdup( claim_id );
+	peer = strdup( p );
 	origcluster = cluster = job_id->cluster;
 	proc = job_id->proc;
 	status = M_UNCLAIMED;
@@ -179,6 +179,12 @@ match_rec::match_rec( char* claim_id, char* p, PROC_ID* job_id,
 
 match_rec::~match_rec()
 {
+	if( id ) {
+		free( id );
+	}
+	if( peer ) {
+		free( peer );
+	}
 	if( my_match_ad ) {
 		delete my_match_ad;
 	}
