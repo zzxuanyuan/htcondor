@@ -22,6 +22,7 @@
 ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
 #include "condor_common.h"
+#include "condor_string.h"
 #include "condor_debug.h"
 #include "condor_commands.h"
 #include "daemon.h"
@@ -39,7 +40,7 @@ DCStartd::DCStartd( const char* name, const char* pool )
 DCStartd::~DCStartd( void )
 {
 	if( claim_id ) {
-		free( claim_id );
+		delete [] claim_id;
 	}
 }
 
@@ -47,13 +48,21 @@ DCStartd::~DCStartd( void )
 bool
 DCStartd::setCapability( const char* cap_str ) 
 {
-	if( ! cap_str ) {
+	return setClaimId( cap_str );
+}
+
+
+bool
+DCStartd::setClaimId( const char* id ) 
+{
+	if( ! id ) {
 		return false;
 	}
 	if( claim_id ) {
-		free( claim_id );
+		delete [] claim_id;
+		claim_id = NULL;
 	}
-	claim_id = strdup( cap_str );
+	claim_id = strnewp( id );
 	return true;
 }
 
@@ -64,18 +73,11 @@ DCStartd::deactivateClaim( bool graceful )
 	dprintf( D_FULLDEBUG, "Entering DCStartd::deactivateClaim(%s)\n",
 			 graceful ? "graceful" : "forceful" );
 
-	if( ! claim_id ) {
-		dprintf( D_ALWAYS, "DCStartd::deactivateClaim "
-				 "called with NULL claim_id, failing\n" );
+	setCmdStr( "deactivateClaim" );
+	if( ! checkClaimId() ) {
 		return false;
 	}
-	if( ! _addr ) {
-		locate();
-	}
-	if( ! _addr ) {
-		dprintf( D_ALWAYS, "DCStartd::deactivateClaim: "
-				 "Can't locate startd: %s\n", _error ? _error : 
-				 "unknown error" );
+	if( ! checkAddr() ) {
 		return false;
 	}
 
@@ -126,6 +128,8 @@ DCStartd::activateClaim( ClassAd* job_ad, int starter_version,
 	int reply;
 	dprintf( D_FULLDEBUG, "Entering DCStartd::activateClaim()\n" );
 
+	setCmdStr( "activateClaim" );
+
 	if( claim_sock_ptr ) {
 			// our caller wants a pointer to the socket we used to
 			// successfully activate the claim.  right now, set it to
@@ -137,15 +141,6 @@ DCStartd::activateClaim( ClassAd* job_ad, int starter_version,
 	if( ! claim_id ) {
 		dprintf( D_ALWAYS, "DCStartd::activateClaim "
 				 "called with NULL claim_id, failing\n" );
-		return NOT_OK;
-	}
-	if( ! _addr ) {
-		locate();
-	}
-	if( ! _addr ) {
-		dprintf( D_ALWAYS, "DCStartd::activateClaim: "
-				 "Can't locate startd: %s\n", _error ? _error : 
-				 "unknown error" );
 		return NOT_OK;
 	}
 
@@ -205,3 +200,18 @@ DCStartd::activateClaim( ClassAd* job_ad, int starter_version,
 }
 
 
+bool
+DCStartd::checkClaimId( void )
+{
+	if( claim_id ) {
+		return true;
+	}
+	MyString err_msg;
+	if( _cmd_str ) {
+		err_msg += _cmd_str;
+		err_msg += ": ";
+	}
+	err_msg += "called with no ClaimId";
+	newError( err_msg.Value() );
+	return false;
+}
