@@ -152,6 +152,8 @@ public:
 		/** Command handler for ClassAd-only protocol commands */
 	int classadCommand( int, Stream* );
 
+    int SpawnSshd( ClassAd * jobAd );
+
 protected:
 	List<UserProc> JobList;
 	List<UserProc> CleanedUpJobList;
@@ -163,6 +165,8 @@ private:
 		// // // // // // // //
 
 	int jobUniverse;
+
+    UserProc * sshdProc;
 
 	char *Execute;
 	char WorkingDir[_POSIX_PATH_MAX]; // The iwd given to the job

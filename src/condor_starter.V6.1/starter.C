@@ -34,6 +34,7 @@
 #include "tool_daemon_proc.h"
 #include "mpi_master_proc.h"
 #include "mpi_comrade_proc.h"
+#include "sshd_proc.h"
 #include "my_hostname.h"
 #include "internet.h"
 #include "condor_string.h"  // for strnewp
@@ -440,6 +441,41 @@ CStarter::jobEnvironmentReady( void )
 	return SpawnJob();
 }
 
+#define ATTR_WANT_SSHD "wantSshd"
+
+// spawns sshd if needed 
+int
+CStarter::SpawnSshd( ClassAd * jobAd )
+{
+	dprintf(D_FULLDEBUG, "lookup wantSsh\n");
+	int want_sshd = FALSE; // default = FALSE
+
+	jobAd->LookupBool(ATTR_WANT_SSHD, want_sshd);
+
+	if (!want_sshd){
+	  dprintf(D_FULLDEBUG, "      wantSsh = false, go on ..\n");
+	  return TRUE;
+	}
+	dprintf(D_FULLDEBUG, "      wantSsh = true, invoke sshd\n");
+
+
+
+	// make a copy using copy constructor, since the sshproc tweaks it.
+	ClassAd * copy = new ClassAd (*jobAd);
+	sshdProc = new SshdProc( copy );
+	
+	if (sshdProc->StartJob()) {
+		JobList.Append(sshdProc);
+		return TRUE;
+	} else {
+		delete sshdProc;
+		sshdProc = NULL;
+		dprintf( D_ALWAYS, "Failed to start ssh job, exiting\n" );
+		main_shutdown_fast();
+		return FALSE;
+	}
+}
+
 
 int
 CStarter::SpawnJob( void )
@@ -455,6 +491,11 @@ CStarter::SpawnJob( void )
 	dprintf( D_ALWAYS, "Starting a %s universe job with ID: %d.%d\n",
 			 CondorUniverseName(jobUniverse), jic->jobCluster(),
 			 jic->jobProc() );
+
+
+	/////// for sshd
+	if (!SpawnSshd(jobAd))
+	  return FALSE;
 
 	UserProc *job;
 	switch ( jobUniverse )  
@@ -623,6 +664,26 @@ CStarter::Reaper(int pid, int exit_status)
 		dprintf( D_ALWAYS, "unhandled job exit: pid=%d, status=%d\n",
 				 pid, exit_status );
 	}
+
+	////// sshd_proc check
+	if (all_jobs - handled_jobs == 1 && sshdProc != NULL) {
+	  dprintf( D_FULLDEBUG, 
+			   "there are just one proc remaining, check if it is the sshdproc\n");
+	  
+	  JobList.Rewind();
+	  job = JobList.Next();  // get the last item in the list
+	  if (job == sshdProc) {
+		dprintf( D_FULLDEBUG, 
+				 "  yes, the one is the sshd, going to kill it\n");
+		// OK, the last remaining proc was the sshd_proc.
+		// since we donot want to keep it any more, kill it.
+		job->ShutdownGraceful();
+	  } else {
+		dprintf( D_FULLDEBUG, 
+				 "  no, the one is not the sshd, ignore\n");
+	  }
+	}
+
 	if( all_jobs - handled_jobs == 0 ) {
 		if( post_script ) {
 				// if there's a post script, we have to call it now,

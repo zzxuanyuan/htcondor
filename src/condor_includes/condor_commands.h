@@ -300,6 +300,16 @@ const int QUERY_ANY_ADS = 48;
 #define GIVE_MATCHES 	       (DCSHADOW_BASE+3)  // for MPI & parallel shadow
 #define RECEIVE_JOBAD		   (DCSHADOW_BASE+4)
 
+/*
+*** commands used by sshd related things by hidemoto
+*/
+#define SSHD_BASE   71100
+#define SSHD_GETINFO           (SSHD_BASE+0) 
+#define SSHD_PUTINFO           (SSHD_BASE+1) 
+#define SSHD_GETKEYS           (SSHD_BASE+2) 
+#define SSHD_GETNUM            (SSHD_BASE+3) 
+#define SSHD_GETINFO_ANY       (SSHD_BASE+4) 
+
 
 #define CREDD_BASE 81000
 #define CREDD_STORE_CRED (CREDD_BASE+0)
