@@ -27,15 +27,17 @@ PLATFORM_EXTRACT = SYSCALL.o __SYSCALL.o
 #endif  /* ======= of if DOES_SAVE_SIGSTATE ==========*/
 
 #if IS_GLIBC_LINUX
-PLATFORM_EXTRACT = MMAP.o SYSCALL.o SYSDEP.o
-#elif IS_LINUX || IS_SOLARIS
-PLATFORM_EXTRACT = MMAP.o SYSCALL.o 
+PLATFORM_EXTRACT = MMAP.o SYSCALL.o SYSDEP.o PIPE.o
+#elif IS_LINUX
+PLATFORM_EXTRACT = MMAP.o SYSCALL.o PIPE.o
+#elif IS_SOLARIS
+PLATFORM_EXTRACT = MMAP.o SYSCALL.o PIPE.o
 #elif IS_ALPHA_OSF1
-PLATFORM_EXTRACT = MMAP.o SYSCALL.o
+PLATFORM_EXTRACT = MMAP.o SYSCALL.o PIPE.o
 #elif IS_HPUX
-PLATFORM_EXTRACT = SYSCALL.o __SYSCALL.o
-#else
-PLATFORM_EXTRACT = 
+PLATFORM_EXTRACT = SYSCALL.o __SYSCALL.o PIPE.o
+#else 
+PLATFORM_EXTRACT = PIPE.o
 #endif
 
 EXTRACT = $(SIG_EXTRACT) $(PLATFORM_EXTRACT)
@@ -197,6 +199,9 @@ clean::
 uppercase_target($(SIMPLE_LIBC),syscall.o,SYSCALL.o,syscall,SYSCALL)
 uppercase_target($(SIMPLE_LIBC),__syscall.o,__SYSCALL.o,__syscall,__SYSCALL)
 #endif
+
+uppercase_target($(SIMPLE_LIBC),pipe.o,PIPE.o,pipe,PIPE)
+uppercase_target($(SIMPLE_LIBC),__pipe.o,__PIPE.o,__pipe,__PIPE)
 
 #if IS_SOLARIS
 program_target(machdep_test,machdep_test.o machdep.$(OS).o tmp_stack.o $(ASSEMBLER_OBJ) MMAP.o SYSCALL.o fake_util_lib.o, )
