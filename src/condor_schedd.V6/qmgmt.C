@@ -576,7 +576,7 @@ handle_q(Service *, int, Stream *sock)
 	// code the request is from an external user instead of originating
 	// from within the schedd itself.
 	Q_SOCK = (ReliSock *)sock;
-	Q_SOCK->unAuthenticate();
+	//Q_SOCK->unAuthenticate();
 #ifndef WIN32
 	active_owner_uid = 0;
 #endif
@@ -592,7 +592,7 @@ handle_q(Service *, int, Stream *sock)
 	// importance is setting Q_SOCK back to NULL. this tells the rest of 
 	// the QMGMT code the request originated internally, and it should
 	// be permitted (i.e. we only call OwnerCheck if Q_SOCK is not NULL).
-	Q_SOCK->unAuthenticate();
+	//Q_SOCK->unAuthenticate();
 	uninit_user_ids();
 	// note: Q_SOCK is static...
 	Q_SOCK = NULL;

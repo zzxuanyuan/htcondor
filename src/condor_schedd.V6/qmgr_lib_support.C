@@ -74,14 +74,14 @@ ConnectQ(char *qmgr_location, int timeout, bool read_only )
 		return( NULL );
 	}
 
-		// no connection active as of now; create a new one
+    // no connection active as of now; create a new one
 	if(scheddAddr) {
-		Daemon d (scheddAddr);
-		qmgmt_sock = (ReliSock*) d.startCommand (QMGMT_CMD, Stream::reli_sock, timeout);
-		ok = (int)qmgmt_sock;
-		if( !ok ) {
-			dprintf(D_ALWAYS, "Can't connect to queue manager\n");
-		}
+        Daemon d (scheddAddr);
+        qmgmt_sock = (ReliSock*) d.startCommand (QMGMT_CMD, Stream::reli_sock, timeout);
+        ok = (int)qmgmt_sock;
+        if( !ok ) {
+            dprintf(D_ALWAYS, "Can't connect to queue manager\n");
+        }
 	} else {
 		ok = FALSE;
 		if( qmgr_location ) {
@@ -113,6 +113,7 @@ ConnectQ(char *qmgr_location, int timeout, bool read_only )
 		free(localScheddAddr);
 	}
 
+    // This could be a problem
 	char *username = my_username();
 
 	if ( !username ) {
@@ -122,17 +123,26 @@ ConnectQ(char *qmgr_location, int timeout, bool read_only )
 		return( 0 );
 	}
 
-	dprintf(D_FULLDEBUG,"Connecting to queue as user \"%s\"\n", username );
+    // This is really stupid. Why are we authenticate first and 
+    // then reauthenticate again? Looks like the schedd is calling
+    // Q_SOCK->unAuthenticate(), which forces the client to 
+    // reauthenticate. Have to fix this.  Hao 2/2002
+
+    // Okay, let's fix it. Hao
+    qmgmt_sock->setOwner( username );
+
+	//dprintf(D_FULLDEBUG,"Connecting to queue as user \"%s\"\n", username );
 
 	/* Get the schedd to handle Q ops. */
-	qmgmt_sock->encode();
-	
+
+    /* Get rid of all the code below
+ 	qmgmt_sock->encode();
+
 	if ( read_only ) {
 		rval = InitializeReadOnlyConnection( username );
 	} else {
 		rval = InitializeConnection( username );
 	}
-	free( username );
 
 	if (rval < 0) {
 		delete qmgmt_sock;
@@ -147,6 +157,9 @@ ConnectQ(char *qmgr_location, int timeout, bool read_only )
 			return 0;
 		}
 	}
+    */
+
+	free( username );
 
 	return &connection;
 }
