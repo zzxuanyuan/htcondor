@@ -1,6 +1,7 @@
 NAME=condor_gridmanager
 GT3GAHP_WRAPPER_NAME = gt3_gahp
-all_target($(NAME) grid_monitor.sh $(GT3GAHP_WRAPPER_NAME))
+GT4GAHP_WRAPPER_NAME = gt4_gahp
+all_target($(NAME) grid_monitor.sh $(GT3GAHP_WRAPPER_NAME) $(GT4GAHP_WRAPPER_NAME))
 
 #if WANT_ORACLE_UNIVERSE
 ORACLE_JOB_FLAGS = -DORACLE_UNIVERSE -I/p/condor/workspaces/jfrey/oracle/OraHome1/rdbms/demo -I/p/condor/workspaces/jfrey/oracle/OraHome1/rdbms/public
@@ -18,7 +19,7 @@ CFLAGS = $(STD_C_FLAGS)
 C_PLUS_FLAGS = $(ORACLE_JOB_FLAGS) $(NORDUGRID_JOB_FLAGS) $(STD_C_PLUS_FLAGS)
 LIB = $(ORACLE_JOB_LIB) $(NORDUGRID_JOB_LIB) $(DAEMONCORE_LIB) $(STD_LIBS)
 
-OBJ = gridmanager_main.o gridmanager.o gridutil.o globusjob.o globusresource.o gt3job.o gt3resource.o infnbatchjob.o mirrorjob.o mirrorresource.o condorjob.o condorresource.o proxymanager.o gahp-client.o $(ORACLE_JOB_OBJ) $(NORDUGRID_JOB_OBJ) basejob.o baseresource.o
+OBJ = gridmanager_main.o gridmanager.o gridutil.o globusjob.o globusresource.o gt3job.o gt3resource.o gt4job.o gt4resource.o condorjob.o condorresource.o infnbatchjob.o mirrorjob.o mirrorresource.o proxymanager.o gahp-client.o $(ORACLE_JOB_OBJ) $(NORDUGRID_JOB_OBJ) basejob.o baseresource.o
 
 c_plus_target($(NAME),$(OBJ),$(LIB))
 
@@ -29,6 +30,7 @@ purecov_c_plus_target($(NAME).pc,$(OBJ),$(LIB))
 pure_c_plus_target($(NAME).pure,$(OBJ),$(LIB))
 
 GT3GAHP_WRAPPER_OBJ = gt3_gahp_wrapper.o
+GT4GAHP_WRAPPER_OBJ = gt4_gahp_wrapper.o
 
 c_plus_target($(GT3GAHP_WRAPPER_NAME),$(GT3GAHP_WRAPPER_OBJ),$(STD_LIBS))
 release_target($(GT3GAHP_WRAPPER_NAME),sbin,EXECUTABLE_MODE)
@@ -36,6 +38,14 @@ strip_target($(GT3GAHP_WRAPPER_NAME),sbin,EXECUTABLE_MODE)
 static_target($(GT3GAHP_WRAPPER_NAME),$(GT3GAHP_WRAPPER_OBJ),$(STD_LIBS),$(STATIC_DIR)/sbin)
 purecov_c_plus_target($(GT3GAHP_WRAPPER_NAME).pc,$(GT3GAHP_WRAPPER_OBJ),$(STD_LIBS))
 pure_c_plus_target($(GT3GAHP_WRAPPER_NAME).pure,$(GT3GAHP_WRAPPER_OBJ),$(STD_LIBS))
+
+
+c_plus_target($(GT4GAHP_WRAPPER_NAME),$(GT4GAHP_WRAPPER_OBJ),$(STD_LIBS))
+release_target($(GT4GAHP_WRAPPER_NAME),sbin,EXECUTABLE_MODE)
+strip_target($(GT4GAHP_WRAPPER_NAME),sbin,EXECUTABLE_MODE)
+static_target($(GT4GAHP_WRAPPER_NAME),$(GT4GAHP_WRAPPER_OBJ),$(STD_LIBS),$(STATIC_DIR)/sbin)
+purecov_c_plus_target($(GT4GAHP_WRAPPER_NAME).pc,$(GT4GAHP_WRAPPER_OBJ),$(STD_LIBS))
+pure_c_plus_target($(GT4GAHP_WRAPPER_NAME).pure,$(GT4GAHP_WRAPPER_OBJ),$(STD_LIBS))
 
 
 release_copy_target($(GAHP_DIR)/gahp_server.dynamic,sbin,gahp_server,EXECUTABLE_MODE)
@@ -53,6 +63,7 @@ grid_monitor.sh: grid_monitor_wrapper grid_manager_monitor_agent
 release_recursive_copy_target($(GT3GAHP_DIR)/gt3,lib/gt3)
 static_recursive_copy_target($(GT3GAHP_DIR)/gt3,lib/gt3)
 strip_recursive_copy_target($(GT3GAHP_DIR)/gt3,lib/gt3)
+
 
 $(GAHP_DIR)/gahp_server:
 	/bin/true

@@ -193,6 +193,11 @@ class GahpServer : public Service {
 	globus_gram_client_callback_func_t globus_gt3_gram_callback_func;
 	int globus_gt3_gram_callback_reqid;
 
+	char *globus_gt4_gram_callback_contact;
+	void *globus_gt4_gram_user_callback_arg;
+	globus_gram_client_callback_func_t globus_gt4_gram_callback_func;
+	int globus_gt4_gram_callback_reqid;
+
 	GahpProxyInfo *master_proxy;
 	int proxy_check_tid;
 	bool is_initialized;
@@ -419,6 +424,72 @@ class GahpClient : public Service {
 		///
 		int
 		gt3_gram_client_job_refresh_credentials(const char *job_contact);
+
+
+
+
+
+		///
+		int
+		gt4_generate_submit_id (char ** submit_id);
+
+
+		int
+		gt4_gram_client_callback_allow(
+			globus_gram_client_callback_func_t callback_func,
+			void * user_callback_arg,
+			char ** callback_contact);
+
+		///
+		int 	
+		gt4_gram_client_job_create(
+								   const char * submit_id,
+								   const char * resource_manager_contact,
+								   const char * jobmanager_type,
+								   const char * callback_contact,
+								   const char * rsl,
+								   const char * gass_url,
+								   char ** job_contact);
+
+		int 
+		gt4_gram_client_job_create(const char * resource_manager_contact,
+			const char * description,
+			const char * callback_contact,
+			char ** job_contact);
+
+		///
+		int
+		gt4_gram_client_job_start(const char *job_contact);
+
+		///
+		int 
+		gt4_gram_client_job_destroy(const char * job_contact);
+
+		///
+		int
+		gt4_gram_client_job_status(const char * job_contact,
+			int * job_status);
+
+		///
+		int
+		gt4_gram_client_job_callback_register(const char * job_contact,
+			const char * callback_contact);
+
+		///
+		int 
+		gt4_gram_client_ping(const char * resource_manager_contact);
+
+		///
+		int
+		gt4_gram_client_delegate_credentials(const char *delegation_service_url,
+											 char ** delegation_uri,
+											 char ** error_string);
+
+		///
+		int
+		gt4_gram_client_refresh_credentials(const char *delegation_uri);
+
+
 
 		int
 		condor_job_submit(const char *schedd_name, ClassAd *job_ad,
