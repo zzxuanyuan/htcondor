@@ -1,0 +1,111 @@
+#!/usr/bin/env perl
+
+# This is a program to test user log reading and writing.  It runs
+# the test_log_writer and test_log_reader programs.
+
+# Note: we should probably add a command-line argument for how many
+# events to generate.
+
+use POSIX "sys_wait_h";
+
+my $debug = 0;
+
+my $result = 0;
+
+my $logfile = "test.log";
+unlink $logfile;
+
+# We're going to wait for all of these processes to finish.  If any
+# of them exit with a non-zero value, the whole test fails.
+my @pidlist;
+
+# Submit 10 log_writer jobs.
+for ($count = 0; $count < 10; $count++) {
+	my $pid = submit_job("test_log_writer -logfile $logfile -numexec 100 -sleep 1");
+	if ($pid != 0) {
+		@pidlist = (@pidlist, $pid);
+	} else {
+		print "Job submit failed!!\n";
+		$result = 1;
+	}
+}
+
+# Submit 100 log_reader jobs.
+for ($count = 0; $count < 100; $count++) {
+	my $pid = submit_job("test_log_reader -logfile $logfile -term 10");
+	if ($pid != 0) {
+		@pidlist = (@pidlist, $pid);
+	} else {
+		print "Job submit failed!!\n";
+		$result = 1;
+	}
+}
+
+print "DIAG pidlist: @pidlist\n" if ($debug);
+
+my $tmpResult = wait_for_all(@pidlist);
+if ($tmpResult != 0) {
+	$result = 1;
+}
+
+if ($result != 0) {
+	print "log_test FAILED!!\n";
+}
+
+exit $result;
+
+#------------------------------------------------------------------------
+# Subroutines.
+
+#........................................................................
+# Submit a job and return the PID.
+sub submit_job {
+	my ($job) = @_;
+	print "DIAG job: <$job>\n" if ($debug);
+
+	if ($pid = fork) {
+		# Parent.
+		return $pid;
+
+	} elsif (defined $pid) {
+		# Child.
+		exec $job;
+		print "Error: exec returned!!\n";
+		exit 1;
+
+	} else {
+		# Error.
+		print "Error in fork!\n";
+		return 0;
+	}
+}
+
+#........................................................................
+# Wait for all of the given processes to finish, checking their exit
+# values.  If any process's exit value is non-zero, this subroutine
+# returns 1, otherwise it returns 0.
+sub wait_for_all {
+	my $result = 0;
+	my @pidlist = @_;
+
+	my $count = 0;
+	while ($#pidlist >= 0) {
+		$pid = shift @pidlist;
+		print "DIAG waiting for pid $pid\n" if ($debug);
+		if (waitpid($pid, WNOHANG) == $pid) {
+			if ($? != 0) {
+				print "Process $pid exited with non-zero value: $?\n";
+				$result = 1;
+			}
+		} else {
+			push @pidlist, ($pid);
+		}
+
+		# Sleep every so often so we don't waste too much effort...
+		if (++$count % 20 == 0) {
+			sleep 1;
+		}
+	}
+
+	return $result;
+}
