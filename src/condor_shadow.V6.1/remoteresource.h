@@ -195,6 +195,12 @@ class RemoteResource : public Service {
 		*/ 
 	int  getExitReason();
 
+		/** Return a pointer to our DCStartd object, so callers can
+			access information in there directly, without having to
+			add other methods in here...
+		*/ 
+	DCStartd* getDCStartd() { return dc_startd; };
+
 		/** Set the info about the startd associated with this
 			remote resource via attributes in the given ClassAd
 		*/
