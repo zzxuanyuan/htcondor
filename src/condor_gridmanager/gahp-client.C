@@ -371,7 +371,7 @@ GahpServer::read_argv(Gahp_Args &g_args)
 	static char* buf = NULL;
 	int ibuf = 0;
 	int result = 0;
-	bool trash_this_line;
+	bool trash_this_line = false;
 	bool escape_seen = false;
 	static const int buf_size = 1024 * 500;
 
@@ -2007,6 +2007,10 @@ GahpServer::poll()
 	GahpClient* entry;
 	ExtArray<Gahp_Args*> result_lines;
 
+		// We must set poll_pending to false before returning from this
+		// function!!
+	poll_pending = false;
+
 		// First, send the RESULTS comand to the gahp server
 	write_line("RESULTS");
 
@@ -2021,7 +2025,6 @@ GahpServer::poll()
 		delete result;
 		return 0;
 	}
-	poll_pending = false;
 	num_results = atoi(result->argv[1]);
 
 		// Now store each result line in an array.
