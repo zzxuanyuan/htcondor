@@ -189,6 +189,11 @@ char	*TransferInput = "transfer_input";
 char	*TransferOutput = "transfer_output";
 char	*TransferError = "transfer_error";
 
+char	*EncryptInputFiles = "encrypt_input_files";
+char	*EncryptOutputFiles = "encrypt_output_files";
+char	*DontEncryptInputFiles = "dont_encrypt_input_files";
+char	*DontEncryptOutputFiles = "dont_encrypt_output_files";
+
 char	*StreamOutput = "stream_output";
 char	*StreamError = "stream_error";
 
@@ -242,6 +247,7 @@ void 	SetRootDir();
 #endif
 void 	SetRequirements();
 void 	SetTransferFiles();
+void 	SetPerFileEncryption();
 bool 	SetNewTransferFiles( void );
 void 	SetOldTransferFiles( bool, bool );
 void	InsertFileTransAttrs( FileTransferOutput_t when_output );
@@ -1534,6 +1540,40 @@ SetTransferFiles()
 	}
 }
 
+
+void SetPerFileEncryption( void )
+{
+	char buffer[ATTRLIST_MAX_EXPRESSION];
+
+	char* encrypt_input_files;
+	char* encrypt_output_files;
+	char* dont_encrypt_input_files;
+	char* dont_encrypt_output_files;
+
+	encrypt_input_files = condor_param( EncryptInputFiles, "EncryptInputFiles");
+	if (encrypt_input_files) {
+		sprintf(buffer,"%s = \"%s\"",ATTR_ENCRYPT_INPUT_FILES,encrypt_input_files);
+		InsertJobExpr( buffer );
+	}
+
+	encrypt_output_files = condor_param( EncryptOutputFiles, "EncryptOutputFiles");
+	if (encrypt_output_files) {
+		sprintf(buffer,"%s = \"%s\"",ATTR_ENCRYPT_OUTPUT_FILES,encrypt_output_files);
+		InsertJobExpr( buffer );
+	}
+
+	dont_encrypt_input_files = condor_param( DontEncryptInputFiles, "DontEncryptInputFiles");
+	if (dont_encrypt_input_files) {
+		sprintf(buffer,"%s = \"%s\"",ATTR_DONT_ENCRYPT_INPUT_FILES,dont_encrypt_input_files);
+		InsertJobExpr( buffer );
+	}
+
+	dont_encrypt_output_files = condor_param( DontEncryptOutputFiles, "DontEncryptOutputFiles");
+	if (dont_encrypt_output_files) {
+		sprintf(buffer,"%s = \"%s\"",ATTR_DONT_ENCRYPT_OUTPUT_FILES,dont_encrypt_output_files);
+		InsertJobExpr( buffer );
+	}
+}
 
 bool
 SetNewTransferFiles( void )
@@ -3389,6 +3429,7 @@ queue(int num)
 		SetTransferFiles();	 // must be called _before_ SetImageSize() 
 		SetImageSize();		// must be called _after_ SetTransferFiles()
 		SetRequirements();	// must be called _after_ SetTransferFiles()
+		SetPerFileEncryption();
 		SetForcedAttributes();
 		SetPeriodicHoldCheck();
 		SetPeriodicRemoveCheck();

@@ -2439,7 +2439,7 @@ int DaemonCore::HandleReq(int socki)
 				goto finalize;
 			}
 
-			if (!stream->set_crypto_key(session->key())) {
+			if (!stream->set_crypto_key(true, session->key())) {
 				dprintf (D_ALWAYS, "DC_AUTHENTICATE: unable to turn on encryption, failing.\n");
 				if( return_address_ss ) {
 					free( return_address_ss );
@@ -2486,7 +2486,7 @@ int DaemonCore::HandleReq(int socki)
 		if ( insock != stream )	{   // delete stream only if we did an accept
 			delete stream;		   
 		} else {
-			stream->set_crypto_key(NULL);
+			stream->set_crypto_key(false, NULL);
 			stream->set_MD_mode(MD_OFF, NULL);
 			stream->end_of_message();
 		}
@@ -2926,6 +2926,8 @@ int DaemonCore::HandleReq(int socki)
 						zz2printf (the_key);
 #endif
 					}
+				} else {
+					sock->set_MD_mode(MD_OFF, the_key);
 				}
 
 
@@ -2938,13 +2940,15 @@ int DaemonCore::HandleReq(int socki)
 					}
 
 					sock->decode();
-					if (!sock->set_crypto_key(the_key) ) {
+					if (!sock->set_crypto_key(true, the_key) ) {
 						dprintf (D_ALWAYS, "DC_AUTHENTICATE: unable to turn on encryption, failing.\n");
 						result = FALSE;
 						goto finalize;
 					} else {
 						dprintf (D_SECURITY, "DC_AUTHENTICATE: encryption enabled for session %s\n", the_sid);
 					}
+				} else {
+					sock->set_crypto_key(false, the_key);
 				}
 
 
@@ -3229,7 +3233,7 @@ finalize:
 
 			// we need to reset the crypto keys
 			stream->set_MD_mode(MD_OFF);
-			stream->set_crypto_key(0);
+			stream->set_crypto_key(false, NULL);
 
 			result = KEEP_STREAM;	// HACK: keep all UDP sockets for now.  The only ones
 									// in Condor so far are Initial command socks, so keep it.
@@ -3238,7 +3242,7 @@ finalize:
 		if (!is_tcp) {
 			stream->end_of_message(); 			
 			stream->set_MD_mode(MD_OFF);
-			stream->set_crypto_key(0);
+			stream->set_crypto_key(false, NULL);
 		}
 	}
 

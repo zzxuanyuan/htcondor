@@ -69,9 +69,9 @@ Stream :: Stream(stream_code c) :
 		// You put _ in the front, I put in the
 		// back, very consistent, isn't it?	
     crypto_(NULL),
+    crypto_mode_(false),
     mdMode_(MD_OFF),
     mdKey_(0),
-    encrypt_(false),
     _code(c), 
     _coding(stream_encode)
 {
@@ -1835,10 +1835,16 @@ Stream::allow_one_empty_message()
 }
 
 
+void 
+Stream::set_crypto_mode(bool enabled)
+{
+    crypto_mode_ = enabled;
+}
+
 bool 
 Stream::get_encryption() const
 {
-    return (crypto_ != 0);
+    return (crypto_mode_);
 }
 
 bool 
@@ -1940,7 +1946,7 @@ const KeyInfo& Stream :: get_md_key() const
 
 
 bool 
-Stream::set_crypto_key(KeyInfo * key, const char * keyId)
+Stream::set_crypto_key(bool enable, KeyInfo * key, const char * keyId)
 {
     bool inited = true;
 #if defined(CONDOR_ENCRYPTION)
@@ -1955,12 +1961,14 @@ Stream::set_crypto_key(KeyInfo * key, const char * keyId)
             crypto_ = 0;
         }
         ASSERT(keyId == 0);
+        ASSERT(enable == false);
         inited = true;
     }
 
     // More check should be done here. what if keyId is NULL?
     if (inited) {
         set_encryption_id(keyId);
+		set_crypto_mode(enable);
     }
     /* 
     // Now, if TCP, the first packet need to contain the key for verification purposes
