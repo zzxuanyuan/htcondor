@@ -322,11 +322,11 @@ fetchAds (ClassAdList &adList, const char *poolName)
 		break;
 
 	  case STORAGE_AD:
-		queryAd.SetTargetTypeName (STORAGE_ADTYPE);
+		queryAd.InsertAttr (ATTR_TARGET_TYPE, STORAGE_ADTYPE);
 		break;
 
 	  case ANY_AD:
-		queryAd.SetTargetTypeName (ANY_ADTYPE);
+		queryAd.InsertAttr ( ATTR_TARGET_TYPE, ANY_ADTYPE);
 		break;
 
 	  default:
