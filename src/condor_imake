@@ -49,7 +49,9 @@ fi
 
 # Here we find out the vendor supplied cpp we should use, which is 
 # incidentally the one that the X source code would use.
-if [ -x "/lib/cpp" ]; then
+if [ -x "/lib/cpp.ansi" ]; then
+	IMAKECPP=/lib/cpp.ansi
+elif [ -x "/lib/cpp" ]; then
 	IMAKECPP=/lib/cpp
 elif [ -x "/usr/ccs/lib/cpp" ]; then
 	IMAKECPP=/usr/ccs/lib/cpp
