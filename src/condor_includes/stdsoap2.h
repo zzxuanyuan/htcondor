@@ -375,8 +375,8 @@ engelen@genivia.com / engelen@acm.org
 #include <limits.h>
 
 #if defined(__cplusplus) && !defined(UNDER_CE)
-# include <iostream>
-using namespace std;
+# include <iostream.h>
+// using namespace std;  /* commented out for Win32 happiness */
 #endif
 
 #ifndef UNDER_CE
