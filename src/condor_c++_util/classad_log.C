@@ -379,7 +379,7 @@ ClassAdLog::LogState(int fd)
 			}
 		}
 			// ok, now that we're done writing out this ad, restore the chain
-		ad->RestoreChain(chain);
+		//ad->RestoreChain(chain);
 	}
 	if (fsync(fd) < 0) {
 		EXCEPT("fsync of %s failed, errno = %d", log_filename, errno);

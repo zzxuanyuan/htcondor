@@ -26,6 +26,7 @@
 #include "condor_debug.h"
 #include "condor_config.h"
 #include "condor_string.h"
+#include "string_list.h"
 #include "extra_param_info.h"
 #include "condor_random_num.h"
 

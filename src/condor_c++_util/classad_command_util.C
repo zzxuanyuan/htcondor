@@ -27,7 +27,7 @@
 #include "condor_version.h"
 #include "condor_io.h"
 #include "command_strings.h"
-
+#include "MyString.h"
 
 int
 sendCAReply( Stream* s, const char* cmd_str, ClassAd* reply )
