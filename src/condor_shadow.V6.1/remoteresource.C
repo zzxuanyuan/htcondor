@@ -1246,7 +1246,7 @@ RemoteResource::locateReconnectStarter( void )
 	dprintf( D_ALWAYS, "Attempting to locate disconnected starter\n" );
 	const char* gjid = shadow->getGlobalJobId();
 	ClassAd reply;
-	if( dc_startd->locateStarter(gjid, &reply) ) {
+	if( dc_startd->locateStarter(gjid, &reply, 20) ) {
 			// it worked, save the results and return success.
 		char* tmp = NULL;
 		if( reply.LookupString(ATTR_STARTER_IP_ADDR, &tmp) ) {
