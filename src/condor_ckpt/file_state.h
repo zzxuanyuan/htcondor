@@ -219,6 +219,7 @@ private:
 	char		remote_working_dir[_POSIX_PATH_MAX];
 	int		prefetch_size;
 	int		resume_count;
+	int		got_buffer_info;
 };
 
 /** This is a pointer to the single global instance of the file

@@ -27,6 +27,7 @@
 #include "condor_syscalls.h"
 #include "condor_sys.h"
 #include "condor_file_info.h"
+#include "condor_syscall_mode.h"
 
 #include "condor_debug.h"
 static char *_FileName_ = __FILE__;
@@ -75,12 +76,17 @@ void OpenFileTable::init()
 	buffer = 0;
 	prefetch_size = 0;
 	resume_count = 0;
+	got_buffer_info = 0;
 
 	int scm = SetSyscalls( SYS_UNMAPPED | SYS_LOCAL );
 	length = sysconf(_SC_OPEN_MAX);
 	SetSyscalls(scm);
 
 	pointers = new (FilePointer *)[length];
+	if(!pointers) {
+		EXCEPT("Condor Error: OpenFileTable: Out of memory!\n");
+		Suicide();
+	}
 
 	for( int i=0; i<length; i++ ) pointers[i]=0;
 
@@ -103,6 +109,9 @@ void OpenFileTable::init_buffer()
 	int blocks=0, blocksize=0;
 
 	if(buffer) return;
+
+	if(got_buffer_info) return;
+	got_buffer_info = 1;
 
 	if(REMOTE_syscall(CONDOR_get_buffer_info,&blocks,&blocksize,&prefetch_size)<0) {
 		dprintf(D_ALWAYS,"get_buffer_info failed!");
@@ -201,9 +210,10 @@ int OpenFileTable::find_empty()
 
 int OpenFileTable::open( const char *path, int flags, int mode )
 {
-	int	kind;
+	int	x,kind,success;
 	int	fd, new_fd;
 	char	new_path[_POSIX_PATH_MAX];
+	struct	stat info;
 	File	*f;
 
 	// Find an open slot in the table
@@ -224,10 +234,21 @@ int OpenFileTable::open( const char *path, int flags, int mode )
 
 	} else {
 
+		char full_path[_POSIX_PATH_MAX];
+
 		init_buffer();
 
-		kind = REMOTE_syscall( CONDOR_file_info, path, &new_fd, new_path );
+		if(path[0]=='/') {
+			strcpy(full_path,path);
+		} else {
+			REMOTE_syscall( CONDOR_getwd, full_path );
+			strcat(full_path,"/");
+			strcat(full_path,path);
+		}
 
+		dprintf(D_ALWAYS,"full_path = %s\n", full_path );
+					 
+		kind = REMOTE_syscall( CONDOR_file_info, full_path, &new_fd, new_path );
 		int match = find_name(new_path);
 		if( match>=0 ) {
 
@@ -647,7 +668,7 @@ void OpenFileTable::checkpoint()
 
 	int scm = GetSyscallMode();
 	getcwd( local_working_dir, _POSIX_PATH_MAX );
-	SetSyscallMode(scm);
+	SetSyscalls(scm);
 
 	if( MyImage.GetMode() != STANDALONE )
 		REMOTE_syscall( CONDOR_getwd, remote_working_dir );
@@ -668,7 +689,7 @@ void OpenFileTable::suspend()
 
 	int scm = GetSyscallMode();
 	getcwd( local_working_dir, _POSIX_PATH_MAX );
-	SetSyscallMode(scm);
+	SetSyscalls(scm);
 
 	if( MyImage.GetMode() != STANDALONE )
 		REMOTE_syscall( CONDOR_getwd, remote_working_dir );
