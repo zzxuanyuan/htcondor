@@ -112,6 +112,14 @@ SOURCE=..\src\condor_schedd.V6\grid_universe.h
 # End Source File
 # Begin Source File
 
+SOURCE=..\src\condor_schedd.V6\loose_file_transfer.C
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\condor_schedd.V6\loose_file_transfer.h
+# End Source File
+# Begin Source File
+
 SOURCE=..\src\condor_schedd.V6\prio_rec.h
 # End Source File
 # Begin Source File
@@ -140,6 +148,14 @@ SOURCE=..\src\condor_schedd.V6\schedd.C
 # End Source File
 # Begin Source File
 
+SOURCE=..\src\condor_schedd.V6\schedd_api.C
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\condor_schedd.V6\schedd_api.h
+# End Source File
+# Begin Source File
+
 SOURCE=..\src\condor_schedd.V6\schedd_main.C
 # End Source File
 # Begin Source File
@@ -153,6 +169,14 @@ SOURCE=..\src\condor_schedd.V6\shadow_mgr.C
 # Begin Source File
 
 SOURCE=..\src\condor_schedd.V6\shadow_mgr.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\condor_schedd.V6\soap_scheddStub.C
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\condor_schedd.V6\soap_scheddStub.h
 # End Source File
 # End Target
 # End Project

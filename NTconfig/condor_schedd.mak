@@ -54,12 +54,15 @@ CLEAN :
 	-@erase "$(INTDIR)\autocluster.obj"
 	-@erase "$(INTDIR)\dedicated_scheduler.obj"
 	-@erase "$(INTDIR)\grid_universe.obj"
+	-@erase "$(INTDIR)\loose_file_transfer.obj"
 	-@erase "$(INTDIR)\qmgmt.obj"
 	-@erase "$(INTDIR)\qmgmt_common.obj"
 	-@erase "$(INTDIR)\qmgmt_receivers.obj"
 	-@erase "$(INTDIR)\schedd.obj"
+	-@erase "$(INTDIR)\schedd_api.obj"
 	-@erase "$(INTDIR)\schedd_main.obj"
 	-@erase "$(INTDIR)\shadow_mgr.obj"
+	-@erase "$(INTDIR)\soap_scheddStub.obj"
 	-@erase "$(INTDIR)\vc60.idb"
 	-@erase "$(INTDIR)\vc60.pdb"
 	-@erase "$(OUTDIR)\condor_schedd.exe"
@@ -86,6 +89,9 @@ LINK32_OBJS= \
 	"$(INTDIR)\schedd.obj" \
 	"$(INTDIR)\schedd_main.obj" \
 	"$(INTDIR)\shadow_mgr.obj" \
+	"$(INTDIR)\soap_scheddStub.obj" \
+	"$(INTDIR)\loose_file_transfer.obj" \
+	"$(INTDIR)\schedd_api.obj" \
 	"..\src\condor_util_lib\condor_util.lib" \
 	"$(OUTDIR)\condor_cpp_util.lib" \
 	"$(OUTDIR)\condor_classad.lib" \
@@ -124,12 +130,15 @@ CLEAN :
 	-@erase "$(INTDIR)\autocluster.obj"
 	-@erase "$(INTDIR)\dedicated_scheduler.obj"
 	-@erase "$(INTDIR)\grid_universe.obj"
+	-@erase "$(INTDIR)\loose_file_transfer.obj"
 	-@erase "$(INTDIR)\qmgmt.obj"
 	-@erase "$(INTDIR)\qmgmt_common.obj"
 	-@erase "$(INTDIR)\qmgmt_receivers.obj"
 	-@erase "$(INTDIR)\schedd.obj"
+	-@erase "$(INTDIR)\schedd_api.obj"
 	-@erase "$(INTDIR)\schedd_main.obj"
 	-@erase "$(INTDIR)\shadow_mgr.obj"
+	-@erase "$(INTDIR)\soap_scheddStub.obj"
 	-@erase "$(INTDIR)\vc60.idb"
 	-@erase "$(OUTDIR)\condor_schedd.exe"
 	-@erase "$(OUTDIR)\condor_schedd.map"
@@ -154,6 +163,9 @@ LINK32_OBJS= \
 	"$(INTDIR)\schedd.obj" \
 	"$(INTDIR)\schedd_main.obj" \
 	"$(INTDIR)\shadow_mgr.obj" \
+	"$(INTDIR)\soap_scheddStub.obj" \
+	"$(INTDIR)\loose_file_transfer.obj" \
+	"$(INTDIR)\schedd_api.obj" \
 	"..\src\condor_util_lib\condor_util.lib" \
 	"$(OUTDIR)\condor_cpp_util.lib" \
 	"$(OUTDIR)\condor_classad.lib" \
@@ -384,6 +396,12 @@ SOURCE=..\src\condor_schedd.V6\grid_universe.C
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
+SOURCE=..\src\condor_schedd.V6\loose_file_transfer.C
+
+"$(INTDIR)\loose_file_transfer.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
 SOURCE=..\src\condor_schedd.V6\qmgmt.C
 
 "$(INTDIR)\qmgmt.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
@@ -408,6 +426,12 @@ SOURCE=..\src\condor_schedd.V6\schedd.C
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
+SOURCE=..\src\condor_schedd.V6\schedd_api.C
+
+"$(INTDIR)\schedd_api.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
 SOURCE=..\src\condor_schedd.V6\schedd_main.C
 
 "$(INTDIR)\schedd_main.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
@@ -417,6 +441,12 @@ SOURCE=..\src\condor_schedd.V6\schedd_main.C
 SOURCE=..\src\condor_schedd.V6\shadow_mgr.C
 
 "$(INTDIR)\shadow_mgr.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE=..\src\condor_schedd.V6\soap_scheddStub.C
+
+"$(INTDIR)\soap_scheddStub.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 

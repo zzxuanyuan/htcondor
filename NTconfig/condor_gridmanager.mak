@@ -80,18 +80,18 @@ BSC32_SBRS= \
 LINK32=link.exe
 LINK32_FLAGS=../Debug/condor_common.obj ..\Debug\condor_common_c.obj kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib ws2_32.lib mswsock.lib netapi32.lib imagehlp.lib Crypt32.lib mpr.lib psapi.lib /nologo /subsystem:console /incremental:yes /pdb:"$(OUTDIR)\condor_gridmanager.pdb" /debug /machine:I386 /out:"$(OUTDIR)\condor_gridmanager.exe" /pdbtype:sept 
 LINK32_OBJS= \
+	"$(INTDIR)\basejob.obj" \
+	"$(INTDIR)\baseresource.obj" \
 	"$(INTDIR)\gahp-client.obj" \
 	"$(INTDIR)\globusjob.obj" \
 	"$(INTDIR)\globusresource.obj" \
 	"$(INTDIR)\gridmanager.obj" \
 	"$(INTDIR)\gridmanager_main.obj" \
-	"$(INTDIR)\proxymanager.obj" \
-	"$(INTDIR)\basejob.obj" \
 	"$(INTDIR)\gt3job.obj" \
 	"$(INTDIR)\gt3resource.obj" \
 	"$(INTDIR)\mirrorjob.obj" \
 	"$(INTDIR)\mirrorresource.obj" \
-	"$(INTDIR)\baseresource.obj" \
+	"$(INTDIR)\proxymanager.obj" \
 	"$(OUTDIR)\condor_classad.lib" \
 	"$(OUTDIR)\condor_cpp_util.lib" \
 	"$(OUTDIR)\condor_daemon_core.lib" \
@@ -155,18 +155,18 @@ BSC32_SBRS= \
 LINK32=link.exe
 LINK32_FLAGS=../Release/condor_common.obj ../Release/condor_common_c.obj kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib ws2_32.lib mswsock.lib netapi32.lib imagehlp.lib Crypt32.lib mpr.lib psapi.lib /nologo /subsystem:console /pdb:none /map:"$(INTDIR)\condor_gridmanager.map" /debug /machine:I386 /out:"$(OUTDIR)\condor_gridmanager.exe" 
 LINK32_OBJS= \
+	"$(INTDIR)\basejob.obj" \
+	"$(INTDIR)\baseresource.obj" \
 	"$(INTDIR)\gahp-client.obj" \
 	"$(INTDIR)\globusjob.obj" \
 	"$(INTDIR)\globusresource.obj" \
 	"$(INTDIR)\gridmanager.obj" \
 	"$(INTDIR)\gridmanager_main.obj" \
-	"$(INTDIR)\proxymanager.obj" \
-	"$(INTDIR)\basejob.obj" \
 	"$(INTDIR)\gt3job.obj" \
 	"$(INTDIR)\gt3resource.obj" \
 	"$(INTDIR)\mirrorjob.obj" \
 	"$(INTDIR)\mirrorresource.obj" \
-	"$(INTDIR)\baseresource.obj" \
+	"$(INTDIR)\proxymanager.obj" \
 	"$(OUTDIR)\condor_classad.lib" \
 	"$(OUTDIR)\condor_cpp_util.lib" \
 	"$(OUTDIR)\condor_daemon_core.lib" \

@@ -151,6 +151,27 @@ SOURCE=..\src\condor_daemon_core.V6\exphnd.WIN32.h
 # End Source File
 # Begin Source File
 
+SOURCE=..\src\condor_daemon_core.V6\httpget.C
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\condor_daemon_core.V6\httpget.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\condor_daemon_core.V6\stdsoap2.C
+
+!IF  "$(CFG)" == "condor_daemon_core - Win32 Debug"
+
+# ADD CPP /Yu
+
+!ELSEIF  "$(CFG)" == "condor_daemon_core - Win32 Release"
+
+!ENDIF 
+
+# End Source File
+# Begin Source File
+
 SOURCE=..\src\condor_daemon_core.V6\timer_manager.C
 # End Source File
 # End Target

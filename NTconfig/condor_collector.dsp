@@ -140,6 +140,14 @@ SOURCE="..\src\condor_c++_util\HashTable.h"
 # End Source File
 # Begin Source File
 
+SOURCE=..\src\condor_collector.V6\soap_collectorStub.C
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\condor_collector.V6\soap_collectorStub.h
+# End Source File
+# Begin Source File
+
 SOURCE=..\src\condor_status.V6\totals.C
 # End Source File
 # Begin Source File

@@ -30,10 +30,10 @@ RSC=rc.exe
 
 !IF  "$(CFG)" == "condor_cpp_util - Win32 Debug"
 
-OUTDIR=.\..\Debug
-INTDIR=.\..\Debug
+OUTDIR=..\Debug
+INTDIR=..\Debug
 # Begin Custom Macros
-OutDir=.\..\Debug
+OutDir=..\Debug
 # End Custom Macros
 
 ALL : "$(OUTDIR)\condor_cpp_util.lib"
@@ -174,6 +174,7 @@ LIB32_OBJS= \
 	"$(INTDIR)\dc_schedd.obj" \
 	"$(INTDIR)\dc_shadow.obj" \
 	"$(INTDIR)\dc_startd.obj" \
+	"$(INTDIR)\dc_starter.obj" \
 	"$(INTDIR)\directory.obj" \
 	"$(INTDIR)\distribution.obj" \
 	"$(INTDIR)\domain_tools.obj" \
@@ -224,8 +225,7 @@ LIB32_OBJS= \
 	"$(INTDIR)\user_job_policy.obj" \
 	"$(INTDIR)\user_log.obj" \
 	"$(INTDIR)\utc_time.obj" \
-	"$(INTDIR)\which.obj" \
-	"$(INTDIR)\dc_starter.obj"
+	"$(INTDIR)\which.obj"
 
 "$(OUTDIR)\condor_cpp_util.lib" : "$(OUTDIR)" $(DEF_FILE) $(LIB32_OBJS)
     $(LIB32) @<<
@@ -234,10 +234,10 @@ LIB32_OBJS= \
 
 !ELSEIF  "$(CFG)" == "condor_cpp_util - Win32 Release"
 
-OUTDIR=.\..\Release
-INTDIR=.\..\Release
+OUTDIR=..\Release
+INTDIR=..\Release
 # Begin Custom Macros
-OutDir=.\..\Release
+OutDir=..\Release
 # End Custom Macros
 
 ALL : "$(OUTDIR)\condor_cpp_util.lib"
@@ -377,6 +377,7 @@ LIB32_OBJS= \
 	"$(INTDIR)\dc_schedd.obj" \
 	"$(INTDIR)\dc_shadow.obj" \
 	"$(INTDIR)\dc_startd.obj" \
+	"$(INTDIR)\dc_starter.obj" \
 	"$(INTDIR)\directory.obj" \
 	"$(INTDIR)\distribution.obj" \
 	"$(INTDIR)\domain_tools.obj" \
@@ -427,8 +428,7 @@ LIB32_OBJS= \
 	"$(INTDIR)\user_job_policy.obj" \
 	"$(INTDIR)\user_log.obj" \
 	"$(INTDIR)\utc_time.obj" \
-	"$(INTDIR)\which.obj" \
-	"$(INTDIR)\dc_starter.obj"
+	"$(INTDIR)\which.obj"
 
 "$(OUTDIR)\condor_cpp_util.lib" : "$(OUTDIR)" $(DEF_FILE) $(LIB32_OBJS)
     $(LIB32) @<<

@@ -49,6 +49,8 @@ CLEAN :
 	-@erase "$(INTDIR)\daemon_core.obj"
 	-@erase "$(INTDIR)\daemon_core_main.obj"
 	-@erase "$(INTDIR)\exphnd.WIN32.obj"
+	-@erase "$(INTDIR)\httpget.obj"
+	-@erase "$(INTDIR)\stdsoap2.obj"
 	-@erase "$(INTDIR)\timer_manager.obj"
 	-@erase "$(INTDIR)\vc60.idb"
 	-@erase "$(INTDIR)\vc60.pdb"
@@ -67,14 +69,16 @@ LIB32_FLAGS=/nologo /out:"$(OUTDIR)\condor_daemon_core.lib"
 LIB32_OBJS= \
 	"$(INTDIR)\accessdesktop.WIN32.obj" \
 	"$(INTDIR)\condor_ipverify.obj" \
+	"$(INTDIR)\condor_lock.obj" \
+	"$(INTDIR)\condor_lock_base.obj" \
+	"$(INTDIR)\condor_lock_file.obj" \
+	"$(INTDIR)\condor_lock_implementation.obj" \
 	"$(INTDIR)\daemon_core.obj" \
 	"$(INTDIR)\daemon_core_main.obj" \
 	"$(INTDIR)\exphnd.WIN32.obj" \
 	"$(INTDIR)\timer_manager.obj" \
-	"$(INTDIR)\condor_lock_base.obj" \
-	"$(INTDIR)\condor_lock_file.obj" \
-	"$(INTDIR)\condor_lock_implementation.obj" \
-	"$(INTDIR)\condor_lock.obj"
+	"$(INTDIR)\stdsoap2.obj" \
+	"$(INTDIR)\httpget.obj"
 
 "$(OUTDIR)\condor_daemon_core.lib" : "$(OUTDIR)" $(DEF_FILE) $(LIB32_OBJS)
     $(LIB32) @<<
@@ -102,6 +106,8 @@ CLEAN :
 	-@erase "$(INTDIR)\daemon_core.obj"
 	-@erase "$(INTDIR)\daemon_core_main.obj"
 	-@erase "$(INTDIR)\exphnd.WIN32.obj"
+	-@erase "$(INTDIR)\httpget.obj"
+	-@erase "$(INTDIR)\stdsoap2.obj"
 	-@erase "$(INTDIR)\timer_manager.obj"
 	-@erase "$(INTDIR)\vc60.idb"
 	-@erase "$(OUTDIR)\condor_daemon_core.lib"
@@ -119,14 +125,16 @@ LIB32_FLAGS=/nologo /out:"$(OUTDIR)\condor_daemon_core.lib"
 LIB32_OBJS= \
 	"$(INTDIR)\accessdesktop.WIN32.obj" \
 	"$(INTDIR)\condor_ipverify.obj" \
+	"$(INTDIR)\condor_lock.obj" \
+	"$(INTDIR)\condor_lock_base.obj" \
+	"$(INTDIR)\condor_lock_file.obj" \
+	"$(INTDIR)\condor_lock_implementation.obj" \
 	"$(INTDIR)\daemon_core.obj" \
 	"$(INTDIR)\daemon_core_main.obj" \
 	"$(INTDIR)\exphnd.WIN32.obj" \
 	"$(INTDIR)\timer_manager.obj" \
-	"$(INTDIR)\condor_lock_base.obj" \
-	"$(INTDIR)\condor_lock_file.obj" \
-	"$(INTDIR)\condor_lock_implementation.obj" \
-	"$(INTDIR)\condor_lock.obj"
+	"$(INTDIR)\stdsoap2.obj" \
+	"$(INTDIR)\httpget.obj"
 
 "$(OUTDIR)\condor_daemon_core.lib" : "$(OUTDIR)" $(DEF_FILE) $(LIB32_OBJS)
     $(LIB32) @<<
@@ -241,6 +249,36 @@ CPP_SWITCHES=/nologo /MTd /W3 /Gm /Gi /GX /ZI /Od /I "..\src\h" /I "..\src\condo
 CPP_SWITCHES=/nologo /MT /W3 /GX /Z7 /O1 /I "..\src\h" /I "..\src\condor_includes" /I "..\src\condor_c++_util" /I "..\src\condor_daemon_client" /I "..\src\condor_daemon_core.V6" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /Fp"$(INTDIR)\condor_common.pch" /Yu"condor_common.h" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP /c 
 
 "$(INTDIR)\exphnd.WIN32.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) @<<
+  $(CPP_SWITCHES) $(SOURCE)
+<<
+
+
+!ENDIF 
+
+SOURCE=..\src\condor_daemon_core.V6\httpget.C
+
+"$(INTDIR)\httpget.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE=..\src\condor_daemon_core.V6\stdsoap2.C
+
+!IF  "$(CFG)" == "condor_daemon_core - Win32 Debug"
+
+CPP_SWITCHES=/nologo /MTd /W3 /Gm /Gi /GX /ZI /Od /I "..\src\h" /I "..\src\condor_includes" /I "..\src\condor_c++_util" /I "..\src\condor_daemon_client" /I "..\src\condor_daemon_core.V6" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /Fp"$(INTDIR)\condor_common.pch" /Yu"condor_common.h" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP /c 
+
+"$(INTDIR)\stdsoap2.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) @<<
+  $(CPP_SWITCHES) $(SOURCE)
+<<
+
+
+!ELSEIF  "$(CFG)" == "condor_daemon_core - Win32 Release"
+
+CPP_SWITCHES=/nologo /MT /W3 /GX /Z7 /O1 /I "..\src\h" /I "..\src\condor_includes" /I "..\src\condor_c++_util" /I "..\src\condor_daemon_client" /I "..\src\condor_daemon_core.V6" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /Fp"$(INTDIR)\condor_common.pch" /Yu"condor_common.h" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP /c 
+
+"$(INTDIR)\stdsoap2.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
 	$(CPP) @<<
   $(CPP_SWITCHES) $(SOURCE)
 <<

@@ -57,6 +57,7 @@ CLEAN :
 	-@erase "$(INTDIR)\collector_stats.obj"
 	-@erase "$(INTDIR)\forkwork.obj"
 	-@erase "$(INTDIR)\hashkey.obj"
+	-@erase "$(INTDIR)\soap_collectorStub.obj"
 	-@erase "$(INTDIR)\totals.obj"
 	-@erase "$(INTDIR)\vc60.idb"
 	-@erase "$(INTDIR)\vc60.pdb"
@@ -84,6 +85,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\hashkey.obj" \
 	"$(INTDIR)\totals.obj" \
 	"$(INTDIR)\view_server.obj" \
+	"$(INTDIR)\soap_collectorStub.obj" \
 	"..\src\condor_util_lib\condor_util.lib" \
 	"$(OUTDIR)\condor_cpp_util.lib" \
 	"$(OUTDIR)\condor_classad.lib" \
@@ -125,6 +127,7 @@ CLEAN :
 	-@erase "$(INTDIR)\collector_stats.obj"
 	-@erase "$(INTDIR)\forkwork.obj"
 	-@erase "$(INTDIR)\hashkey.obj"
+	-@erase "$(INTDIR)\soap_collectorStub.obj"
 	-@erase "$(INTDIR)\totals.obj"
 	-@erase "$(INTDIR)\vc60.idb"
 	-@erase "$(INTDIR)\view_server.obj"
@@ -150,6 +153,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\hashkey.obj" \
 	"$(INTDIR)\totals.obj" \
 	"$(INTDIR)\view_server.obj" \
+	"$(INTDIR)\soap_collectorStub.obj" \
 	"..\src\condor_util_lib\condor_util.lib" \
 	"$(OUTDIR)\condor_cpp_util.lib" \
 	"$(OUTDIR)\condor_classad.lib" \
@@ -395,6 +399,12 @@ SOURCE=..\src\condor_collector.V6\forkwork.C
 SOURCE=..\src\condor_collector.V6\hashkey.C
 
 "$(INTDIR)\hashkey.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE=..\src\condor_collector.V6\soap_collectorStub.C
+
+"$(INTDIR)\soap_collectorStub.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
