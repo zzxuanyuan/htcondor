@@ -187,6 +187,7 @@ void BaseJob::JobTerminated()
 void BaseJob::DoneWithJob()
 {
 	deleteFromGridmanager = true;
+	UpdateJobAdBool( ATTR_JOB_MANAGED, 0 );
 
 	if ( condorState == COMPLETED ) {
 		if ( !terminateLogged ) {

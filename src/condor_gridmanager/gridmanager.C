@@ -509,10 +509,6 @@ dprintf(D_ALWAYS,"***schedd failure at %d!\n",__LINE__);
 
 	while ( pendingScheddUpdates.iterate( curr_job ) != 0 ) {
 
-		if ( curr_job->deleteFromGridmanager ) {
-			curr_job->UpdateJobAdBool( ATTR_JOB_MANAGED, 0 );
-		}
-
 dprintf(D_FULLDEBUG,"Updating classad values for %d.%d:\n",curr_job->procID.cluster, curr_job->procID.proc);
 		char attr_name[1024];
 		char attr_value[1024];
