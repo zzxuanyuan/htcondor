@@ -29,6 +29,7 @@ AC_PREREQ(2.57)
 # Initialize autoconf
 AC_INIT
 
+
 ############################################################
 # Check for command-line arguments and environment variables
 ############################################################
@@ -139,13 +140,60 @@ if test "$_cv_strip_is_gnu" = "no"; then
    fi   
 fi
 
-# GNU tar and gzip are required for packaging up Condor releases. 
-# We depend on some GNU-specific options to tar.
-CHECK_PROG_IS_GNU(TAR, tar)
-if test "$_cv_tar_is_gnu" = "no"; then
-   AC_MSG_ERROR( [GNU tar is required] )
+# We depend on some GNU-specific options to tar.  We also depend on
+# using --owner and --group, and want those to set the ownerships of
+# all files in the tarballs we create to 0.0 (root).  however, not all
+# versions of tar support --group=0, and not all machines have group
+# root. :( so, we test for what we need, and use whatever works.
+# also, some sites have different GNU tar installed under a different
+# name, so we've got to do some magic to handle that, too.
+AC_CACHE_CHECK([for GNU tar],_cv_gnu_tar,
+ [_cv_gnu_tar="not found" ;
+  for a in "$TAR" tar gtar gnutar ; do
+    if test -z "$a" ; then continue ; fi ;
+    if ( sh -c "$a --version" 2> /dev/null | grep GNU  2>&1 > /dev/null );
+    then
+      _cv_gnu_tar=$a;
+      break;
+    fi
+  done;
+ ]
+)
+if test "$_cv_gnu_tar" = "not found" ; then
+   AC_MSG_ERROR([GNU tar is required])
 fi
+# if we got this far, we found a version of GNU tar.  now, see what
+# options work to make tarballs with files owned by 0.0:
+TarRootCmd=''
+CHECK_TAR_OPTION([--group=0], [_cv_gnu_tar_group_zero])
+if test "$_cv_gnu_tar_group_zero" = "yes"; then
+  # we can assume if tar supports "--group=0", "--owner=0" will work.
+  TarCmd="$_cv_gnu_tar --owner=0 --group=0"
+else
+  CHECK_TAR_OPTION([--group=root],[_cv_gnu_tar_group_root])
+  CHECK_TAR_OPTION([--owner=root],[_cv_gnu_tar_owner_root])
+  if test "$_cv_gnu_tar_group_root" = "yes"; then
+     if test "$_cv_gnu_tar_owner_root" = "yes"; then
+       TarCmd="$_cv_gnu_tar --owner=root --group=root"
+     else
+       tar_err_msg="user called \"root\" with UID 0"
+     fi
+  else
+    # group root didn't work, see if owner root did so we can
+    # construct the appropriate error message
+    if test "$_cv_gnu_tar_owner_root" = "yes"; then
+      tar_err_msg="group called \"root\" with GID 0"
+    else
+      tar_err_msg="user and group called \"root\" with UID 0 and GID 0"
+    fi
+  fi
+fi
+if test "x$TarCmd" = "x"; then
+  AC_MSG_ERROR([you system does not support tar features Condor requires for packaging our releases.  you must install a version of GNU tar which supports numeric arguments to --group and --owner (such as version 1.13 or higher), or add a $tar_err_msg, then re-run configure])
+fi
+AC_SUBST(TarCmd,$TarCmd)
 
+# gzip is required for packaging up Condor releases. 
 AC_CHECK_PROG(ac_gzip,gzip,yes,no)
 if test $ac_gzip = no; then
     AC_MSG_ERROR( [gzip is required] )
