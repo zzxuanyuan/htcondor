@@ -68,8 +68,6 @@ REMAP_THREE( mprotect, _mprotect, int , void *, size_t , int )
      /* REMAP_TWO( munmap, _munmap, int , void *, size_t ) */
 REMAP_THREE( open, _open, int , const char *, int , int)
 REMAP_THREE( open, __open, int , const char *, int , int)
-REMAP_THREE( open64, _open64, int , const char *, int , int)
-REMAP_THREE( open64, __open64, int , const char *, int , int)
 /* REMAP_ONE( pipe, _pipe, int , int []) */
 REMAP_ONE( pipe, _pipe, int , int *)
 REMAP_ONE( plock, _plock, int , int )
