@@ -678,6 +678,11 @@ int OpenFileTable::fsync( int fd )
 	pointers[fd]->get_file()->fsync();
 }
 
+int OpenFileTable::fdsync( int fd )
+{
+	return fsync(fd);
+}
+
 void OpenFileTable::checkpoint()
 {
 	dprintf(D_ALWAYS,"OpenFileTable::checkpoint\n");
