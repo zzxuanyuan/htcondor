@@ -1,3 +1,8 @@
+01/14/04 V6_7-core-merge-1
+   The state of the V6_7-core-branch that was merged back into the
+   V6_7-branch.  The V6_7-core-branch will be abandoned after this
+   merge in favor of the V6_7-core-2-branch.
+	 
 12/22/03 V6_7_0-core_snapshot_0
    The state of the V6_7-core-branch that was given to CORE as
    snapshot 0 (it's was a 6.7.0 pre-release).
