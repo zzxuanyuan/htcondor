@@ -290,9 +290,6 @@ ToolDaemonProc::StartJob()
 int
 ToolDaemonProc::JobCleanup(int pid, int status)
 {
-    int reason;	
-    bool job_exit_wants_ad = true;
-
     dprintf( D_FULLDEBUG, "Inside ToolDaemonProc::JobCleanup()\n" );
 
 		// If the tool exited, we want to shutdown everything, and
