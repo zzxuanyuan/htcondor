@@ -5125,7 +5125,7 @@ Scheduler::add_shadow_rec( shadow_rec* new_rec )
 		bool have_remote_host = false;
 		if( mrec->my_match_ad ) {
 			char* tmp = NULL;
-			mrec->my_match_ad->LookupString(ATTR_MACHINE, &tmp );
+			mrec->my_match_ad->LookupString(ATTR_NAME, &tmp );
 			if( tmp ) {
 				SetAttributeString( cluster, proc, ATTR_REMOTE_HOST, tmp );
 				have_remote_host = true;
@@ -5140,7 +5140,7 @@ Scheduler::add_shadow_rec( shadow_rec* new_rec )
 				// CRUFT
 			dprintf( D_ALWAYS, "ERROR: add_shadow_rec() doesn't have %s "
 					 "for of remote resource for setting %s, using "
-					 "inferior alternatives!\n", ATTR_MACHINE, 
+					 "inferior alternatives!\n", ATTR_NAME, 
 					 ATTR_REMOTE_HOST );
 			struct sockaddr_in sin;
 			if( mrec->peer && mrec->peer[0] && 
