@@ -1044,17 +1044,13 @@ pseudo_startup_info_request( STARTUP_INFO *s )
 }
 
 /*
-  Given the fd number of a standard file (fd 0, 1, or 2), we return
-  whether the file is an ordinary file, or a pipe.  In the case of
-  a pipe, we give the fd number at which the user process can find
-  the pipe already open, and in the case of an ordinary file, we
-  give the name of the file.
-
-  Note: we aren't dealing with pipes yet, so for now the answer is always
-  an ordinary file.
+Given the fd number of a standard file (fd 0, 1, or 2), we return
+a url.  logical file name.  This logical file name will be translated
+into a physical file name when get_file_info() is called.
 */
+
 int
-pseudo_std_file_info( int which, char *name, int *pipe_fd )
+pseudo_get_std_file_info( int which, char *name )
 {
 	PROC	*p = (PROC *)Proc;
 
@@ -1072,122 +1068,94 @@ pseudo_std_file_info( int which, char *name, int *pipe_fd )
 			name[0] = '\0';
 			break;
 	}
-	*pipe_fd = -1;
 
 	dprintf( D_SYSCALLS, "\tfd = %d\n", which );
-	dprintf( D_SYSCALLS, "\tIS_FILE, name: \"%s\", fd: %d\n",
-		name, -1
-	);
+	dprintf( D_SYSCALLS, "\tlogical name: \"%s\"\n",name);
 
-	return IS_FILE;
+	return 1;
 }
 
 /*
-  This is the call which answers the question "what should I do to
-  open this file?", given its name.
-  Parameters:
-	name:
-		the name specified by the user code
-	pipe_fd:
-		filled inthe the fd number if this file is a pipe, else -1
-	extern_path:
-		filled in with a name by which the executing machine
-		can access the file directly.
-  Return Value:
-	IS_AFS:			accessible by afs as "extern_path"
-	IS_NFS:			accessible by nfs as "extern_path"
-	IS_RSC:			accessible by remote syscalls as "extern_path"
-	IS_PRE_OPEN:	already open at fd number "pipe_fd"
-	-1:				error
+If short_path is an absolute path, copy it to full path.
+Otherwise, tack the current directory on to the front
+of short_path, and copy it to full_path.
 */
-int
-pseudo_file_info( const char *name, int *pipe_fd, char *extern_path )
+ 
+static void complete_path( const char *short_path, char *full_path )
 {
-	int	answer, len;
-	char	full_path[ _POSIX_PATH_MAX ];
+	if(short_path[0]=='/') {
+		strcpy(full_path,short_path);
+	} else {
+		strcpy(full_path,CurrentWorkingDir);
+		strcat(full_path,"/");
+		strcat(full_path,short_path);
+	}
+}
 
-	*pipe_fd = -1;
+/*
+This call translates a logical path name specified by a user job
+into an acutual url which describes how and where to fetch
+the file from.
 
-	dprintf( D_SYSCALLS, "\tname = \"%s\"\n", name );
+Example:
+	The user opens a file named:
+		data
+	The shadow adds on the current directory to get:
+		/usr/data
+	The shadow then determines the access method for the full path:
+		remote:/usr/data
+	The syscall lib receives this url and then opens the file appropriately.
+*/
+
+int
+pseudo_get_file_info( const char *logical_name, char *actual_url )
+{
+	char	remap_list[ATTRLIST_MAX_EXPRESSION];
+	char	full_path[_POSIX_PATH_MAX];
+	char	*method;
+
+	dprintf( D_SYSCALLS, "\tlogical_name = \"%s\"\n", logical_name );
 
 	/* First check to see if the logical name matches a
 	   filename that is remapped by the job ad. */
 
-	char	remap_list[ATTRLIST_MAX_EXPRESSION];
-	char	full_url[_POSIX_PATH_MAX*3];
-	char	url_method[_POSIX_PATH_MAX];
-	char	url_server[_POSIX_PATH_MAX];
-	int	url_port;
-	
 	JobAd->LookupString(ATTR_FILE_REMAPS,remap_list);
-        if(filename_remap_find(remap_list,(char*)name,full_url)) {
-
-                dprintf(D_SYSCALLS,"\tthis file is remapped by the user.\n");
-
-                filename_url_parse(full_url,url_method,url_server,&url_port,extern_path);
-
-                dprintf(D_SYSCALLS,"\tremap method: %s\n",url_method);
-                dprintf(D_SYSCALLS,"\tremap server: %s\n",url_server);
-                dprintf(D_SYSCALLS,"\tremap port: %d\n",url_port);
-                dprintf(D_SYSCALLS,"\tremap path: %s\n",extern_path);
-
-                if(!strcmp(url_method,"local")) {
-                        answer = IS_LOCAL;
-                } else if(!strcmp(url_method,"remote")) {
-                        answer = IS_RSC;
-                } else {
-                        dprintf(D_SYSCALLS,"\tunknown method (%s) -- defaulting to remote\n",url_method);
-                        answer = IS_RSC;
-                }
-
-		return answer;
+        if(filename_remap_find(remap_list,(char*)logical_name,actual_url)) {
+		dprintf(D_SYSCALLS,"\tremapped to: %s\n",actual_url);
+		return 1;
         }
 
 	dprintf( D_SYSCALLS, "\tnot remapped.\n");
 
-	if( name[0] == '/' ) {
-		strcpy( full_path, name );
-	} else {
-		strcpy( full_path, CurrentWorkingDir );
-		strcat( full_path, "/" );
-		strcat( full_path, name );
-	}
+	/* No special remap was specified by the user, so decide what
+	   method is to be used, based on the complete path. */
 
-	strcpy( extern_path, full_path );
+	complete_path(logical_name,full_path);
 
 #ifdef HPUX
 	/* I have no idea why this is happening, but I have seen it happen many
 	 * times on the HPUX version, so here is a quick hack -Todd 5/19/95 */
-	if ( strcmp(extern_path,"/usr/lib/nls////strerror.cat") == 0 )
-		strcpy( extern_path,"/usr/lib/nls/C/strerror.cat\0");
+	if ( strcmp(full_path,"/usr/lib/nls////strerror.cat") == 0 )
+		strcpy(full_path,"/usr/lib/nls/C/strerror.cat\0");
 #endif
 
-	dprintf( D_SYSCALLS, "\tpipe_fd = %d\n", *pipe_fd);
-	dprintf( D_SYSCALLS, "\tCurrentWorkingDir = \"%s\"\n", CurrentWorkingDir );
-	dprintf( D_SYSCALLS, "\textern_path = \"%s\"\n", extern_path );
-	dprintf( D_SYSCALLS, "\tSpool = \"%s\"\n", Spool );
-
-	// this first one is a special case: if the full_path is a 
-	// checkpoint, ALWAYS transfer via Remote System Call.
 	if(is_ckpt_file(full_path) || is_ickpt_file(full_path)) {
-		answer = IS_RSC;
-		dprintf( D_SYSCALLS, "\tanswer = IS_RSC\n" );
+		method = "remote";
 	} else if( use_local_access(full_path) ) {
-		answer = IS_NFS;	/* should be IS_LOCAL but we need to be compatible
-							   with older syscall lib */
-		dprintf( D_SYSCALLS, "\tanswer = IS_LOCAL (a.k.a. IS_NFS)\n" );
+		method = "local";
 	} else if( access_via_afs(full_path) ) {
-		answer = IS_AFS;
-		dprintf( D_SYSCALLS, "\tanswer = IS_AFS\n" );
+		method = "local";
 	} else if(access_via_nfs(full_path) ) {
-		answer = IS_NFS;
-		dprintf( D_SYSCALLS, "\tanswer = IS_NFS\n" );
+		method = "local";
 	} else {
-		answer = IS_RSC;
-		dprintf( D_SYSCALLS, "\tanswer = IS_RSC\n" );
+		method = "remote";
 	}
 
-	return answer;
+	sprintf(actual_url,"%s:%s",method,full_path);
+
+	dprintf(D_SYSCALLS,"\tactual_url: %s\n",actual_url);
+
+	return 1;
 }
 
 int pseudo_get_buffer_info( int *blocks_out, int *block_size_out, int *prefetch_out )
@@ -1322,6 +1290,7 @@ pseudo_chdir( const char *path )
 		dprintf( D_SYSCALLS, "Failed\n" );
 		return rval;
 	}
+
 	if( path[0] == '/' ) {
 		strcpy( CurrentWorkingDir, path );
 	} else {
