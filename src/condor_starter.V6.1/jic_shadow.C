@@ -39,6 +39,7 @@
 #include "nullfile.h"
 
 extern CStarter *Starter;
+ReliSock *syscall_sock = NULL;
 
 
 JICShadow::JICShadow( char* shadow_sinful ) : JobInfoCommunicator()
@@ -58,6 +59,21 @@ JICShadow::JICShadow( char* shadow_sinful ) : JobInfoCommunicator()
 
 	transfer_at_vacate = false;
 	wants_file_transfer = false;
+
+		// now we need to try to inherit the syscall sock from the startd
+	Stream **socks = daemonCore->GetInheritedSocks();
+	if (socks[0] == NULL || 
+		socks[1] != NULL || 
+		socks[0]->type() != Stream::reli_sock) 
+	{
+		dprintf(D_ALWAYS, "Failed to inherit remote system call socket.\n");
+		DC_Exit(1);
+	}
+	syscall_sock = (ReliSock *)socks[0];
+		/* Set a timeout on remote system calls.  This is needed in
+		   case the user job exits in the middle of a remote system
+		   call, leaving the shadow blocked.  -Jim B. */
+	syscall_sock->timeout(300);
 }
 
 

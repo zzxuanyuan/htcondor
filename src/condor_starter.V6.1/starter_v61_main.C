@@ -36,7 +36,6 @@ extern "C" int exception_cleanup(int,int,char*);	/* Our function called by EXCEP
 
 static CStarter StarterObj;
 CStarter *Starter = &StarterObj;
-ReliSock *syscall_sock = NULL;
 
 static void
 usage()
@@ -124,20 +123,6 @@ main_init(int argc, char *argv[])
 		// for now, assume we're dealing with a shadow.  we can easily
 		// change this once we add support for a JICLocal...
 	jic = new JICShadow( argv[1] );
-
-	Stream **socks = daemonCore->GetInheritedSocks();
-	if (socks[0] == NULL || 
-		socks[1] != NULL || 
-		socks[0]->type() != Stream::reli_sock) 
-	{
-		dprintf(D_ALWAYS, "Failed to inherit remote system call socket.\n");
-		DC_Exit(1);
-	}
-	syscall_sock = (ReliSock *)socks[0];
-		/* Set a timeout on remote system calls.  This is needed in
-		   case the user job exits in the middle of a remote system
-		   call, leaving the shadow blocked.  -Jim B. */
-	syscall_sock->timeout(300);
 
 	if( !Starter->Init(jic) ) {
 		dprintf(D_ALWAYS, "Unable to start job.\n");
