@@ -1,13 +1,14 @@
 \begin{ManPage}{\label{man-condor-submit}\Condor{submit}}{1}
 {Queue jobs for execution under Condor}
 \Synopsis \SynProg{\Condor{submit}}
-\oOpt{--}
+\oOpt{---}
 \oOpt{-v}
 \oOptArg{-n}{schedd\_name}
 \oOptArg{-r}{schedd\_name}
 \oOpt{-d}
 % this option needs the dots in boldface, so using the macro oOptArg won't work
 \Lbr\Opt{-a} \Arg{command} \Opt{\Dots}\Rbr 
+\oOpt{-s}
 \oArg{submit description file}
 
 \index{Condor commands!condor\_submit}
@@ -32,6 +33,13 @@ job in a cluster than for Condor to start a new cluster.  This can make
 a big difference when submitting lots of short jobs.
 \end{itemize}
 
+Note that submission of jobs from a Windows machine requires
+a stashed password to allow Condor to impersonate the user submitting
+the job.
+To stash a password, use the \Condor{store\_cred} command.
+See the manual page at
+page~\pageref{man-condor-store-cred} for details.
+
 \emph{SUBMIT DESCRIPTION FILE COMMANDS}
 
 Each submit description file describes one cluster of jobs to be
@@ -51,14 +59,16 @@ The commands which can appear in the submit description file are:
 %% executable
 %%%%%%%%%%%%%%%%%%%
 
-\item[executable = $<$name$>$]The name of the executable file for this
+\item[executable = $<$name$>$]
+\index{submit commands!executable}
+The name of the executable file for this
 job cluster. Only one executable command may be present in a description
-file. If submitting into the Standard Universe, which is the default,
+file. If submitting into the standard universe, which is the default,
 then the named executable must have been re-linked with the Condor
 libraries (such as via the \Condor{compile} command). If submitting into
-the Vanilla Universe, then the named executable need not be re-linked and
+the vanilla universe, then the named executable need not be re-linked and
 can be any process which can run in the background (shell scripts work
-fine as well).  If submitting into the Java Universe, then the argument
+fine as well).  If submitting into the Java universe, then the argument
 must be a compiled \File{.class} file.
 
 
@@ -66,22 +76,34 @@ must be a compiled \File{.class} file.
 %% input
 %%%%%%%%%%%%%%%%%%%
 
-\item[input = $<$pathname$>$] Condor assumes that its jobs are
+\item[input = $<$pathname$>$]
+\index{submit commands!input}
+Condor assumes that its jobs are
 long-running, and that the user will not wait at the terminal for their
 completion. Because of this, the standard files which normally access
-the terminal, (stdin, stdout, and stderr), must refer to files. Thus,
-the filename specified with \Opt{input} should contain any keyboard
-input the program requires (i.e. this file becomes stdin). If not
-specified, the default value of /dev/null is used. 
+the terminal, (\File{stdin}, \File{stdout}, and \File{stderr}),
+must refer to files. Thus,
+the file name specified with \Opt{input} should contain any keyboard
+input the program requires (that is, this file becomes \File{stdin}).
+If not specified, the default value
+of \File{/dev/null} is used for submission to a Unix machine.
+If not specified, input is ignored
+for submission to an NT machine.
 
 %%%%%%%%%%%%%%%%%%%
 %% output
 %%%%%%%%%%%%%%%%%%%
 
-\item[output = $<$pathname$>$] The \Opt{output} filename will capture
-any information the program would normally write to the screen (i.e.
-this file becomes stdout). If not specified, the default value of
-/dev/null is used. More than one job should not use the same output
+\item[output = $<$pathname$>$]
+\index{submit commands!output}
+The \Opt{output} file name will capture
+any information the program would normally write to the screen
+(that is, this file becomes \File{stdout}).
+If not specified, the default value of
+\File{/dev/null} is used for submission to a Unix machine.
+If not specified, output is ignored
+for submission to an NT machine.
+More than one job should not use the same output
 file, since this will cause one job to overwrite the output of
 another.
 
@@ -89,66 +111,131 @@ another.
 %% error
 %%%%%%%%%%%%%%%%%%%
 
-\item[error = $<$pathname$>$] The \Opt{error} filename will capture any
-error messages the program would normally write to the screen (i.e. this
-file becomes stderr). If not specified, the default value of /dev/null
-is used. More than one job should not use the same error file, since
+\item[error = $<$pathname$>$]
+\index{submit commands!error}
+The \Opt{error} file name will capture any
+error messages the program would normally write to the screen
+(that is, this file becomes \File{stderr}).
+If not specified, the default value of
+\File{/dev/null} is used for submission to a Unix machine.
+If not specified, error messages are ignored
+for submission to an NT machine.
+More than one job should not use the same error file, since
 this will cause one job to overwrite the errors of another.
 
 %%%%%%%%%%%%%%%%%%%
 %% arguments
 %%%%%%%%%%%%%%%%%%%
 
-\item[arguments = $<$argument\_list$>$] List of arguments to be supplied
+\item[arguments = $<$argument\_list$>$]
+\index{submit commands!arguments}
+List of arguments to be supplied
 to the program on the command line.   In the Java Universe, the first
-argument must be the main of the class containing \Code{main}.
+argument must be the name of the class containing \Code{main}.
+Arguments are delimited (separated) by space characters.
+Jobs submitted for the globus universe will parse arguments
+differently 
+due to the differences between the ClassAd representation in Condor and 
+the Resource Specification Language (RSL) used in Globus.
+See section~\ref{sec:CondorG-Submit-Args} for further details.
 
 %%%%%%%%%%%%%%%%%%%
 %% initialdir
 %%%%%%%%%%%%%%%%%%%
 
-\item[initialdir = $<$directory-path$>$] Used to specify the current
+\item[initialdir = $<$directory-path$>$] 
+\index{submit commands!initialdir}
+Used to specify the current
 working directory for the Condor job. Should be a path to a preexisting
 directory. If not specified, \Condor{submit} will automatically insert
 the user's current working directory at the time \Condor{submit} was run
 as the value for \Opt{initialdir}. 
 
 %%%%%%%%%%%%%%%%%%%
+%% should_transfer_files
+%%%%%%%%%%%%%%%%%%%
+
+\item[should\_transfer\_files = $<$YES \Bar\ NO \Bar\ IF\_NEEDED $>$] 
+\index{submit commands!should\_transfer\_files}
+The \Opt{should\_transfer\_files} setting is used to define if Condor
+should transfer files to and from the remote machine where your job
+runs.
+The file transfer mechanism is used to run jobs which are not in the
+Standard Universe (and can therefore use remote system calls for file
+access) on machines which do not have a shared file system with the
+submit machine.
+\Opt{should\_transfer\_files} equal to \Arg{YES} will cause Condor to
+always transfer files for your job.
+\Arg{NO} disables Condor's file transfer mechanism.
+\Arg{IF\_NEEDED} will not transfer files for your job if it is matched
+with a resource in the same \Attr{FileSystemDomain} as your submit
+machine (and therefore, on a machine with the same shared file
+system).
+If the job is matched with a remote resource in a different 
+\Attr{FileSystemDomain}, Condor will transfer the necessary files. 
+
+If you define \Opt{should\_transfer\_files} you \emph{must} also
+define \Opt{when\_to\_transfer\_output} (described below).
+For more information about this and other settings related to
+transferring files, see section~\ref{sec:file-transfer} on
+page~\pageref{sec:file-transfer}.
+
+
+%%%%%%%%%%%%%%%%%%%
+%% when_to_transfer_output
+%%%%%%%%%%%%%%%%%%%
+
+\item[when\_to\_transfer\_output = $<$ ON\_EXIT \Bar\ ON\_EXIT\_OR\_EVICT $>$] 
+\index{submit commands!when\_to\_transfer\_output}
+
+Setting \Opt{when\_to\_transfer\_output} equal to \Arg{ON\_EXIT} will
+cause Condor to transfer the job's output files back to the submitting
+machine only when the job completes (exits on its own).
+
+The \Arg{ON\_EXIT\_OR\_EVICT} option is intended for fault tolerant
+jobs which periodically save their own state and can restart where
+they left off.
+In this case, files are transfered to the submit machine any time the
+job leaves a remote site, either because it exited on its own, or was
+evicted by the Condor system for any reason prior to job completion.
+Any output files transferred back to the submit machine are
+automatically sent back out again as input files if the job restarts.
+
+For more information about this and other settings related to
+transferring files, see section~\ref{sec:file-transfer} on
+page~\pageref{sec:file-transfer}.
+
+
+%%%%%%%%%%%%%%%%%%%
 %% transfer_input_files
 %%%%%%%%%%%%%%%%%%%
 
 \item[transfer\_input\_files = $<$ file1, file2, file... $>$] 
+\index{submit commands!transfer\_input\_files}
 Lists all the files to be transferred into the 
 working directory for the job before the job is started.
-Separate multiple filenames with a comma.
+You must separate multiple file names with a comma.
 By default, the file specified in the
 \Opt{executable} command and any file specified in the \Opt{input}
 command (for example, \File{stdin}) are transferred.
 
-To ensure
-that Condor picks a machine with enough local disk space for the job,
-add to the \Opt{Requirements}
-expression in the submit description file such that it includes
-the \AdAttr{Disk} attribute.
-A \Opt{requirements} example of that specifies only the \AdAttr{Disk} attribute:
-\begin{verbatim}
-        # The machine which runs the job must have more than
-	# 10Mbytes of free disk space.  The "Disk" attribute
-        # is expressed in kilobytes; 10 Mbytes is 10000 kbytes.
-        requirements = Disk > 10000
-\end{verbatim}
-
 Only the transfer of files is available; the transfer of
 subdirectories is not supported.
+
+For more information about this and other settings related to
+transferring files, see section~\ref{sec:file-transfer} on
+page~\pageref{sec:file-transfer}.
+
 
 %%%%%%%%%%%%%%%%%%%
 %% transfer_output_files
 %%%%%%%%%%%%%%%%%%%
 
-\item[transfer\_output\_files = $<$ file1, file2, file... $>$] This
-command forms an explicit list of output files to be transferred
-back from the
-temporary working directory on the execute machine to the submit machine.
+\item[transfer\_output\_files = $<$ file1, file2, file... $>$] 
+\index{submit commands!transfer\_output\_files}
+This command forms an explicit list of output files to be transferred
+back from the temporary working directory on the execute machine to
+the submit machine.
 Most of the time, there is no need to use this command.
 If \Opt{transfer\_output\_files} is not specified,
 Condor will automatically transfer back all files in the job's
@@ -158,34 +245,23 @@ This is usually the desired behavior.
 Explicitly listing output files is typically only done when the job creates
 many files, and the user wants to keep a subset of
 those files. 
-\Warn Do not specify \Opt{transfer\_output\_file} in the
+\Warn Do not specify \Opt{transfer\_output\_files} in the
 submit description file unless there is a really good reason -- it is
 best to let Condor figure things out by itself based upon what
-the job.
+the job produces.
 
-%%%%%%%%%%%%%%%%%%%
-%% transfer_files
-%%%%%%%%%%%%%%%%%%%
-
-\item[transfer\_files = $<$ONEXIT \Bar\ ALWAYS$>$] Setting
-\Opt{transfer\_files} equal to \Arg{ONEXIT} will cause Condor to transfer the
-job's output files back to the submitting machine only when the job
-completes (exits).  If not specified, \Arg{ONEXIT} is used as the default.
-Specifying \Arg{ALWAYS} forces Condor to transfer output files either when
-the job completes or when the job is preempted or killed
-prior to job completion.
-The \Arg{ALWAYS} option is intended
-for fault tolerant jobs which periodically save their own state and
-can restart where they left off.  Any output files transferred back to the
-submit machine are automatically sent back
-out again as input files when the job restarts.
+For more information about this and other settings related to
+transferring files, see section~\ref{sec:file-transfer} on
+page~\pageref{sec:file-transfer}.
 
 
 %%%%%%%%%%%%%%%%%%%
 %% requirements
 %%%%%%%%%%%%%%%%%%%
 
-\item[requirements = $<$ClassAd Boolean Expression$>$] The requirements
+\item[requirements = $<$ClassAd Boolean Expression$>$]
+\index{submit commands!requirements}
+The requirements
 command is a boolean ClassAd expression which uses C-like operators. In
 order for any job in this cluster to run on a given machine, this
 requirements expression must evaluate to true on the given machine. For
@@ -233,7 +309,9 @@ that can be used in the ClassAd expression.
 %% rank
 %%%%%%%%%%%%%%%%%%%
 
-\item[rank = $<$ClassAd Float Expression$>$] A ClassAd Floating-Point 
+\item[rank = $<$ClassAd Float Expression$>$]
+\index{submit commands!rank}
+A ClassAd Floating-Point 
 expression that states how to rank machines which have already met the requirements
 expression. Essentially, rank expresses preference.  A higher numeric value 
 equals better rank. Condor will give the job the machine with the 
@@ -253,13 +331,16 @@ that can be used in the ClassAd expression.
 
 \item[universe = $<$vanilla \Bar\ standard \Bar\ pvm \Bar\ scheduler
 \Bar\ globus \Bar\ mpi \Bar\ java$>$] 
+\index{submit commands!universe}
 Specifies which Condor Universe to use when running this job.  The Condor 
-Universe specifies a Condor execution environment.  The \Arg{standard} 
-Universe is the default, and tells Condor that this job has been re-linked 
+Universe specifies a Condor execution environment.  The standard 
+Universe is the default (except where the configuration variable
+\Macro{DEFAULT\_UNIVERSE} defines it otherwise),
+and tells Condor that this job has been re-linked 
 via \Condor{compile} with the Condor libraries and therefore supports
 checkpointing and remote system calls.  The \Arg{vanilla} Universe is an
 execution environment for jobs which have not been linked with the
-Condor libraries.  \textit{Note:} use the \Arg{vanilla} Universe to
+Condor libraries.  \emph{Note:} Use the \Arg{vanilla} Universe to
 submit shell scripts to Condor.  The \Arg{pvm} Universe is for a
 parallel job written with PVM 3.4. The \Arg{scheduler} is for a job that
 should act as a metascheduler.
@@ -275,6 +356,7 @@ See the Condor User's Manual for more information about using Universe.
 %%%%%%%%%%%%%%%%%%%
 
 \item[on\_exit\_remove = $<$ClassAd Boolean Expression$>$] This expression
+\index{submit commands!on\_exit\_remove}
 is checked when the job exits and if true, then it allows the job to leave the
 queue normally. If false, then the job is placed back into the Idle state.
 If the user job is a vanilla job then it restarts from the beginning. If the
@@ -296,9 +378,10 @@ of the job exiting, it will leave the queue as it normally would have done.
 
 If left unspecified, this will default to \Expr{True}.
 
-periodic\_$*$ expressions(defined elsewhere in this man page) take
-precedent over on\_exit\_$*$ expressions and a $*$\_hold expression takes
-precedent over a $*$\_remove expression.
+\AdAttr{periodic\_*} expressions take
+precedence over \AdAttr{on\_exit\_*} expressions,
+and \AdAttr{*\_hold} expressions take
+precedence over a \AdAttr{*\_remove} expressions.
 
 This expression is available for the vanilla and java universes.
 It is additionally available, when submitted from a Unix machine,
@@ -309,26 +392,29 @@ for the standard universe.
 %%%%%%%%%%%%%%%%%%%
 
 \item[on\_exit\_hold = $<$ClassAd Boolean Expression$>$] This expression
+\index{submit commands!on\_exit\_hold}
 is checked when the job exits and if true, places the job on hold. If false
 then nothing happens and the \AdAttr{on\_exit\_remove} expression is
 checked to determine if that needs to be applied.
 
 For example:
-Suppose you have a job that you know will run for an hour minimum. If
-the job exits after less than an hour, you would like it to be placed on
-hold and notified by e-mail instead of being allowed to leave the queue.
+Suppose a job is known to run for a minimum of an hour.
+If the job exits after less than an hour, the job should be placed on
+hold and an e-mail notification sent,
+instead of being allowed to leave the queue.
 
 \begin{verbatim}
-	on_exit_hold = (ServerStartTime - JobStartDate) < 3600
+	on_exit_hold = (CurrentTime - JobStartDate) > (60 * $(MINUTE))
 \end{verbatim}
 
-The above expression will place the job on hold if it exits for any reason
+This expression places the job on hold if it exits for any reason
 before running for an hour. An e-mail will be sent to the user explaining
-that the job was placed on hold because this expression became true.
+that the job was placed on hold because this expression became \Expr{True}.
 
-periodic\_$*$ expressions(defined elsewhere in this man page) take
-precedent over on\_exit\_$*$ expressions and any $*$\_hold expression takes
-precedent over a $*$\_remove expression.
+\AdAttr{periodic\_*} expressions take
+precedence over \AdAttr{on\_exit\_*} expressions,
+and \AdAttr{*\_hold} expressions take
+precedence over a \AdAttr{*\_remove} expressions.
 
 If left unspecified, this will default to \Expr{False}.
 
@@ -341,34 +427,21 @@ for the standard universe.
 %%%%%%%%%%%%%%%%%%%
 
 \item[periodic\_remove = $<$ClassAd Boolean Expression$>$]
-This expression is checked every 20 seconds(non-configurable,
-but might be in future) and if it becomes true, the job will
-leave the queue. \AdAttr{periodic\_remove} takes precedent over
-\AdAttr{on\_exit\_remove} if the two describe conflicting states.
+\index{submit commands!periodic\_remove}
+This expression is checked every 20 seconds (currently non-configurable),
+and if it becomes \Expr{True}, the job is removed from the queue.
+If unspecified, the default value is \Expr{False}.
 
-For example:
-Suppose you would like your job removed if the total suspension time of the
-job is more than half of the run time of the job.
+See the Examples section for an example of a \AdAttr{periodic\_*}
+expression. 
 
-\begin{verbatim}
-	periodic_remove = CumulativeSuspensionTime > (RemoteWallClockTime / 2.0)
-\end{verbatim}
-
-The above expression will remove the job once the conditions have become true.
-
-\emph{Note:}Currently, this option will force a ``terminate'' event in the user
-log of the job and it will report a successful termination of the job. This
-reporting of this event will be changed in a future version of Condor to
-be a ``job aborted event'' with descriptions of who initiated the event. As
-it stands now, someone looking at the user log termination event wouldn't be
-able to tell the difference between a job that legitimately ended successfully
-and a job where the \AdAttr{periodic\_remove} expression had become true. 
-
-periodic\_$*$ expressions(defined elsewhere in this man page) take
-precedent over on\_exit\_$*$ expressions and any $*$\_hold expression takes
-precedent over a $*$\_remove expression.
-
-If left unspecified, this will default to \Expr{False}.
+\AdAttr{periodic\_*} expressions take
+precedence over \AdAttr{on\_exit\_*} expressions,
+and \AdAttr{*\_hold} expressions take
+precedence over a \AdAttr{*\_remove} expressions.
+So, the \AdAttr{periodic\_remove} expression takes precedent over
+the \AdAttr{on\_exit\_remove} expression,
+if the two describe conflicting actions.
 
 This expression is available for the vanilla and java universes.
 It is additionally available, when submitted from a Unix machine,
@@ -379,38 +452,53 @@ for the standard universe.
 %%%%%%%%%%%%%%%%%%%
 
 \item[periodic\_hold = $<$ClassAd Boolean Expression$>$] This expression
-is checked every 20 seconds(non-configurable, but might be in future) and
-if it becomes true, the job will be placed on hold.
+\index{submit commands!periodic\_hold}
+is checked every 20 seconds(currently non-configurable),
+and if it becomes true, the job will be placed on hold.
+If unspecified, the default value is \Expr{False}.
 
-For example:
-Suppose you would like your job held if the total suspension time of the
-job is more than half of the total run time of the job.
+See the Examples section for an example of a \AdAttr{periodic\_*}
+expression. 
 
-\begin{verbatim}
-	periodic_hold = CumulativeSuspensionTime > (RemoteWallClockTime / 2.0)
-\end{verbatim}
-
-The above expression will place the job on hold if it suspends longer
-than half the amount of time it has totally run.  An e-mail will be
-sent to the user explaining that the job was placed on hold because this
-expression became true.
-
-If left unspecified, this will default to \Expr{False}.
-
-periodic\_$*$ expressions(defined elsewhere in this man page) take
-precedent over on\_exit\_$*$ expressions and any $*$\_hold expression takes
-precedent over a $*$\_remove expression.
+\AdAttr{periodic\_*} expressions take
+precedence over \AdAttr{on\_exit\_*} expressions,
+and \AdAttr{*\_hold} expressions take
+precedence over a \AdAttr{*\_remove} expressions.
 
 This expression is available for the vanilla and java universes.
 It is additionally available, when submitted from a Unix machine,
 for the standard universe.
 
+%%%%%%%%%%%%%%%%%%%
+%% periodic_release
+%%%%%%%%%%%%%%%%%%%
+
+\item[periodic\_release = $<$ClassAd Boolean Expression$>$] This expression
+\index{submit commands!periodic\_release}
+is reevaluated every 20 seconds(currently non-configurable)
+while the job is in the Hold state.
+If the expression becomes \Expr{True}, the job will be released.
+
+% The expression is evaluated:
+%- every time there is a condor_reconfig
+%- every time condor_reschedule happens
+%- every time condor_submit happens
+%- BUT never more often than condor_config SCHEDD_MIN_INTERVAL seconds 
+%(default of 5 seconds)
+%- AND never less often than condor_config SCHEDD_INTERVAL seconds (defaults 
+%to 5 minutes).
+%
+%So the short answer: by default, every SCHEDD_INTERVAL (5 minutes by 
+%default) or more often as needed.
+
+% what universes (other than universe=globus) does this apply to?
 
 %%%%%%%%%%%%%%%%%%%
 %% priority
 %%%%%%%%%%%%%%%%%%%
 
 \item[priority = $<$priority$>$] Condor job priorities range from -20 to
+\index{submit commands!priority}
 +20, with 0 being the default. Jobs with higher numerical priority will
 run before jobs with lower numerical priority. Note that this priority
 is on a per user basis; setting the priority will determine the order in
@@ -422,6 +510,7 @@ not your jobs will run ahead of another user's jobs.
 %%%%%%%%%%%%%%%%%%%
 
 \item[notification = $<$when$>$]\label{man-condor-submit-notification} Owners of Condor jobs are notified by
+\index{submit commands!notification}
 email when certain events occur.
 If \Arg{when} is set to \mbox{Always}, the owner will be notified
 whenever the job is checkpointed, and when it completes.
@@ -440,6 +529,7 @@ page~\pageref{sec:job-completion}.
 %%%%%%%%%%%%%%%%%%%
 
 \item[notify\_user = $<$email-address$>$]\label{man-condor-submit-notify-user} Used to specify the email
+\index{submit commands!notify\_user}
 address to use when Condor sends email about a job.  If not specified,
 Condor will default to using :
 \begin{verbatim}
@@ -457,20 +547,22 @@ to :
 %%%%%%%%%%%%%%%%%%%
 
 \item[copy\_to\_spool = $<$True \Bar\ False$>$] If \Opt{copy\_to\_spool} is set to
-\Arg{True}, then \Condor{submit} will copy the executable to the local spool 
+\index{submit commands!copy\_to\_spool}
+\Expr{True}, then \Condor{submit} will copy the executable to the local spool 
 directory before running it on a remote host. Oftentimes this can be quite
-time consuming and unnecessary. By setting it to \Arg{False}, \Condor{submit}
-will skip this step.  Defaults to \Arg{True}.
+time consuming and unnecessary. By setting it to \Expr{False}, \Condor{submit}
+will skip this step.  Defaults to \Expr{True}.
 
 %%%%%%%%%%%%%%%%%%%
 %% getenv
 %%%%%%%%%%%%%%%%%%%
 
 \item[getenv = $<$True \Bar\ False$>$] If \Opt{getenv} is set to
-\Arg{True}, then \Condor{submit} will copy all of the user's current
+\index{submit commands!getenv}
+\Expr{True}, then \Condor{submit} will copy all of the user's current
 shell environment variables at the time of job submission into the job
 ClassAd. The job will therefore execute with the same set of environment
-variables that the user had at submit time. Defaults to \Arg{False}.
+variables that the user had at submit time. Defaults to \Expr{False}.
 %You must be careful when using this feature, since the maximum allowed
 %size of the environment in Condor is 10240 characters.  
 %If your environment is larger than that, Condor will not allow you to
@@ -482,14 +574,17 @@ variables that the user had at submit time. Defaults to \Arg{False}.
 %%%%%%%%%%%%%%%%%%%
 
 \item[hold = $<$True \Bar\ False$>$] If \Opt{hold} is set to
-\Arg{True}, then the job will be submitted in the hold state.  Jobs in
+\index{submit commands!hold}
+\Expr{True}, then the job will be submitted in the hold state.  Jobs in
 the hold state will not run until released by \Condor{release}.
+Defaults to false.
 
 %%%%%%%%%%%%%%%%%%%
 %% environment
 %%%%%%%%%%%%%%%%%%%
 
 \item[environment = $<$parameter\_list$>$] List of environment variables
+\index{submit commands!environment}
 of the form :
 \begin{verbatim}
         <parameter>=<value>
@@ -509,7 +604,8 @@ Place spaces within the parameter list only if required.
 %% log
 %%%%%%%%%%%%%%%%%%%
 
-\item[log = $<$pathname$>$] Use \Opt{log} to specify a filename where
+\item[log = $<$pathname$>$] Use \Opt{log} to specify a file name where
+\index{submit commands!log}
 Condor will write a log file of what is happening with this job cluster.
 For example, Condor will log into this file when and where the job
 begins running, when the job is checkpointed and/or migrated, when the
@@ -517,13 +613,22 @@ job completes, etc. Most users find specifying a \Opt{log} file to be very
 handy; its use is recommended. If no \Opt{log} entry is specified, 
 Condor does not create a log for this cluster.
 
+\item[log\_xml = $<$True \Bar\ False$>$] If \Opt{log\_xml} is true, 
+then the log file will be written in ClassAd XML. If it isn't
+specified, XML is not used. Note that it's an XML fragment, and is
+missing the file header and footer. Also note that you should never
+mix XML and non-XML in a single file: if multiple jobs write to a
+single log file, it is up to you to make sure that all of them specify
+(or don't specify) this option in the same way.
+
 %%%%%%%%%%%%%%%%%%%
 %% jar_files
 %%%%%%%%%%%%%%%%%%%
 
 \item[jar\_files = $<$file\_list$>$]
+\index{submit commands!jar\_files}
 Specifies a list of additional JAR files to include when using
-the Java Universe.  JAR files will be transferred along with
+the Java universe.  JAR files will be transferred along with
 the executable and automatically added to the classpath.
 
 %%%%%%%%%%%%%%%%%%%
@@ -531,6 +636,7 @@ the executable and automatically added to the classpath.
 %%%%%%%%%%%%%%%%%%%
 
 \item[image\_size = $<$size$>$] This command tells Condor the maximum
+\index{submit commands!image\_size}
 virtual image size to which you believe your program will grow during
 its execution. Condor will then execute your job only on machines which
 have enough resources, (such as virtual memory), to support executing
@@ -548,6 +654,7 @@ an image size of 8 megabytes, use a \Arg{size} of 8000.
 %%%%%%%%%%%%%%%%%%%
 
 \item[machine\_count = $<$min..max$>$ \Bar\ $<$max$>$] 
+\index{submit commands!machine\_count}
 For the PVM universe,
 both \Arg{min} and \Arg{max} or just
 \Arg{max} may be defined. 
@@ -569,6 +676,7 @@ the number of machines to be dedicated toward running the job.
 %%%%%%%%%%%%%%%%%%%
 
 \item[coresize = $<$size$>$] Should the user's program abort and produce
+\index{submit commands!coresize}
 a core file, \Opt{coresize} specifies the maximum size in bytes of the
 core file which the user wishes to keep. If \Opt{coresize} is not
 specified in the command file, the system's user resource limit
@@ -579,8 +687,9 @@ specified in the command file, the system's user resource limit
 %%%%%%%%%%%%%%%%%%%
 
 \item[nice\_user = $<$True \Bar\ False$>$] \label{man-condor-submit-nice}Normally, when a machine
+\index{submit commands!nice\_user}
 becomes available to Condor, Condor decides which job to run based upon
-user and job priorities. Setting \Opt{nice\_user} equal to \Arg{True}
+user and job priorities. Setting \Opt{nice\_user} equal to \Expr{True}
 tells Condor not to use your regular user priority, but that this job
 should have last priority among all users and all jobs. So jobs
 submitted in this fashion run only on machines which no other
@@ -591,11 +700,13 @@ submitted in this fashion have ``nice-user.'' pre-appended in front of
 the owner name when viewed from \Condor{q} or \Condor{userprio}.  The
 default value is \Opt{False}.
 
+
 %%%%%%%%%%%%%%%%%%%
 %% kill_sig
 %%%%%%%%%%%%%%%%%%%
 
 \item[kill\_sig = $<$signal-number$>$] When Condor needs to kick a job
+\index{submit commands!kill\_sig}
 off of a machine, it will send the job the signal specified by
 \Arg{signal-number}.  \Arg{signal-number} needs to be an integer which
 represents a valid signal on the execution machine.  For jobs submitted
@@ -609,12 +720,13 @@ is \verb@SIGTERM@ which is the standard way to terminate a program in UNIX.
 %%%%%%%%%%%%%%%%%%%
 
 \item[compress\_files = file1, file2, ...]
+\index{submit commands!compress\_files}
 
 If your job attempts to access any of the files mentioned in this list,
 Condor will automatically compress them (if writing) or decompress them (if reading).
 The compress format is the same as used by GNU gzip.
 
-The files given in this list may be simple filenames or complete paths and may
+The files given in this list may be simple file names or complete paths and may
 include $*$ as a wildcard.  For example, this list causes the file /tmp/data.gz,
 any file named event.gz, and any file ending in .gzip to be automatically
 compressed or decompressed as needed:
@@ -638,6 +750,7 @@ This option only applies to standard-universe jobs.
 
 \item[fetch\_files = file1, file2, ...]
 
+\index{submit commands!fetch\_files}
 If your job attempts to access a file mentioned in this list,
 Condor will automatically copy the whole file to the executing machine,
 where it can be accessed quickly.  When your job closes the file,
@@ -651,6 +764,7 @@ This option only applies to standard-universe jobs.
 %%%%%%%%%%%%%%%%%%%
 
 \item[append\_files = file1, file2, ...]
+\index{submit commands!append\_files}
 
 If your job attempts to access a file mentioned in this list,
 Condor will force all writes to that file to be appended to the end.
@@ -671,6 +785,7 @@ This option only applies to standard-universe jobs.
 %%%%%%%%%%%%%%%%%%%
 
 \item[local\_files = file1, file2, ...]
+\index{submit commands!local\_files}
 
 If your job attempts to access a file mentioned in this list,
 Condor will cause it to be read or written at the execution machine.
@@ -688,46 +803,49 @@ This option only applies to standard-universe jobs.
 %%%%%%%%%%%%%%%%%%%
 
 \item[file\_remaps $=$ $<$ `` name $=$ newname ; name2 $=$ newname2 ... ''$>$ ]
+\index{submit commands!file\_remaps}
 
-Directs Condor to use a new filename in place of an old one.  \Arg{name}
-describes a filename that your job may attempt to open, and \Arg{newname}
-describes the filename it should be replaced with.
+Directs Condor to use a new file name in place of an old one.  \Arg{name}
+describes a file name that your job may attempt to open, and \Arg{newname}
+describes the file name it should be replaced with.
 \Arg{newname} may include an optional leading
 access specifier, \verb@local:@ or \verb@remote:@.  If left unspecified,
 the default access specifier is \verb@remote:@.  Multiple remaps can be 
 specified by separating each with a semicolon.
 
-This option only applies to standard-universe jobs.
+This option only applies to standard universe jobs.
 
 If you wish to remap file names that contain equals signs or semicolons,
 these special characters may be escaped with a backslash.
 
-This option only applies to standard-universe jobs.
-
 \begin{description}
 \item[Example One:]
-Suppose that your job reads a file named \verb@dataset.1@.  To instruct Condor
-to force your job to read \verb@other.dataset@ instead, 
+Suppose that your job reads a file named \File{dataset.1}.
+To instruct Condor
+to force your job to read \File{other.dataset} instead, 
 add this to the submit file:
 \begin{verbatim}
 file_remaps = "dataset.1=other.dataset"
 \end{verbatim}
 \item[Example Two:]
 Suppose that your run many jobs which all read in the same large file,
-called \verb@very.big@.  If this file can be found in the same place on
+called \File{very.big}.
+If this file can be found in the same place on
 a local disk in every machine in the pool,
-(say \verb@/bigdisk/bigfile@,) you can
-instruct Condor of this fact by remapping \verb@very.big@ to
-\verb@/bigdisk/bigfile@ and specifying that the file is to be read locally,
+(say \File{/bigdisk/bigfile},) you can
+instruct Condor of this fact by remapping \File{very.big} to
+\File{/bigdisk/bigfile} and specifying that the file is to be read locally,
 which will be much faster than reading over the network.
 \begin{verbatim}
 file_remaps = "very.big = local:/bigdisk/bigfile"
 \end{verbatim}
 \item[Example Three:]
 Several remaps can be applied at once by separating each with a semicolon.
+\footnotesize
 \begin{verbatim}
 file_remaps = "very.big = local:/bigdisk/bigfile ; dataset.1 = other.dataset"
 \end{verbatim}
+\normalsize
 \end{description}
 
 %%%%%%%%%%%%%%%%%%%
@@ -737,6 +855,9 @@ file_remaps = "very.big = local:/bigdisk/bigfile ; dataset.1 = other.dataset"
 \item[buffer\_files $=$ $<$ `` name $=$ (size,block-size) ; name2 $=$ (size,block-size) ... '' $>$ ]
 \item[buffer\_size $=$ $<$bytes-in-buffer$>$]
 \item[buffer\_block\_size $=$ $<$bytes-in-block$>$]
+\index{submit commands!buffer\_files}
+\index{submit commands!buffer\_size}
+\index{submit commands!buffer\_block\_size}
 Condor keeps a buffer of recently-used data for each file a job accesses.
 This buffer is used both to cache commonly-used data and to consolidate small
 reads and writes into larger operations that get better throughput.
@@ -745,8 +866,8 @@ The default settings should produce reasonable results for most programs.
 These options only apply to standard-universe jobs.
 
 If needed, you may set the buffer controls individually for each file using
-the buffer\_files option. For example, to set the buffer size to 1MB and
-the block size to 256KB for the file 'input.data', use this command:
+the buffer\_files option. For example, to set the buffer size to 1 Mbyte and
+the block size to 256 KBytes for the file \File{input.data}, use this command:
 
 \begin{verbatim}
 buffer_files = "input.data=(1000000,256000)"
@@ -761,64 +882,75 @@ buffer_block_size = 256000
 \end{verbatim}
 
 If you do not set these, Condor will use the values given by these
-two config file macros:
+two configuration file macros:
 
 \begin{verbatim}
 DEFAULT_IO_BUFFER_SIZE = 1000000
 DEFAULT_IO_BUFFER_BLOCK_SIZE = 256000
 \end{verbatim}
 
-Finally, if no other settings are present, Condor will use a buffer of 512KB
-and a block size of 32KB.
+Finally, if no other settings are present, Condor will use
+a buffer of 512 Kbytes
+and a block size of 32 Kbytes.
 
 %%%%%%%%%%%%%%%%%%%
 %% rendezvousdir
 %%%%%%%%%%%%%%%%%%%
 
 \item[rendezvousdir = $<$directory-path$>$] Used to specify the 
-shared-filesystem directory to be used for filesystem authentication
+\index{submit commands!rendezvousdir}
+shared file system directory to be used for file system authentication
 when submitting to a remote scheduler.  Should be a path to a preexisting 
 directory.  
 
 %%%%%%%%%%%%%%%%%%%
 %% x509directory
 %%%%%%%%%%%%%%%%%%%
-
-\item[x509directory = $<$directory-path$>$] Used to specify the directory 
-which contains the certificate, private key, and trusted certificate directory
-for GSS authentication. If this attribute is set, the environment variables 
-X509\_USER\_KEY, X509\_USER\_CERT, and X509\_CERT\_DIR are exported with 
-default values. See section~\ref{sec:X509-Authentication} for more info.
+% 
+% \item[x509directory = $<$directory-path$>$] Used to specify the directory 
+% \index{submit commands!x509directory}
+% which contains the certificate, private key, and trusted certificate directory
+% for GSS authentication.
+% If this attribute is set, the environment variables 
+% X509\_USER\_KEY, X509\_USER\_CERT, and X509\_CERT\_DIR are exported with 
+% default values.
+%Commented out by Karen for 6.4.3.
+%See section~\ref{sec:X509-Authentication} for more information.
 
 %%%%%%%%%%%%%%%%%%%
 %% x509userproxy
 %%%%%%%%%%%%%%%%%%%
 
 \item[x509userproxy = $<$full-pathname$>$] Used to override the default
+\index{submit commands!x509userproxy}
 pathname for X509 user certificates. The default location for X509 proxies
-is the /tmp directory, which is generally a local filesystem. Setting
-this value would allow Condor to access the proxy in a shared filesystem
-(e.g., AFS). Condor will use the proxy specified in the submit file
-first. If nothing is specified in the submit file, it will use the
-environment variable X509\_USER\_CERT. If that variable is not present,
-it will search in the default location. See 
-section~\ref{sec:X509-Authentication} for more info.
+is the \File{/tmp} directory,
+which is generally a local file system.
+Setting
+this value would allow Condor to access the proxy in a shared file system
+(for example, AFS).
+Condor will use the proxy specified in the submit description file first.
+If nothing is specified in the submit description file,
+it will use the environment variable X509\_USER\_CERT.
+If that variable is not present,
+it will search in the default location.
 
 %%%%%%%%%%%%%%%%%%%
 %% globusscheduler
 %%%%%%%%%%%%%%%%%%%
 
 \item[globusscheduler = $<$scheduler-name$>$] Used to specify the 
+\index{submit commands!globusscheduler}
 Globus resource to which the job should be submitted. More than one scheduler
 can be submitted to, simply place a \Arg{queue} command after each instance
-of globusscheduler. Each instance should be a valid Globus scheduler, using
+of \Opt{globusscheduler}.
+Each instance should be a valid Globus scheduler, using
 either the full Globus contact string or the host/scheduler format shown below:
 \begin{description}
 \item[Example:]
 To submit to the LSF scheduler of the Globus gatekeeper on lego at 
 Boston University:
 \begin{verbatim}
-...
 GlobusScheduler = lego.bu.edu/jobmanager-lsf
 queue
 \end{verbatim}
@@ -829,24 +961,204 @@ queue
 %%%%%%%%%%%%%%%%%%%
 
 \item[globusrsl = $<$RSL-string$>$] Used to provide any additional Globus RSL
-string attributes which are not covered by regular submit file parameters.
+\index{submit commands!globusrsl}
+string attributes which are not covered by regular submit description
+file parameters.
 
 %%%%%%%%%%%%%%%%%%%
-%% Transfer_Executable
+%% globus_resubmit
 %%%%%%%%%%%%%%%%%%%
 
-\item[transfer\_executable = $<$True \Bar\ False$>$] If \Opt{transfer\_executable} is set to
-\Arg{false}, then Condor look for the executable on the remote machine, and
-not transfer it over. This is useful if you have already pre-staged your
-executable, and wish to have Condor behave more like rsh. Defaults to \Arg{True}.
-This option is only used in the Globus universe.
+\item[globus\_resubmit = $<$ClassAd Boolean Expression$>$]
+\index{submit commands!globus\_resubmit}
+The expression is evaluated by the \Condor{gridmanager} each time
+the \Condor{gridmanager} gets a job ad to manage.
+Therefore, the expression is evaluated:
+\begin{enumerate}
+\item
+   when a globus universe job is first submitted to Condor-G
+\item
+   when a globus universe job is released from the hold state
+\item
+   when Condor-G is restarted (specifically, whenever the \Condor{gridmanager}
+   is restarted)
+\end{enumerate}
+If the expression evaluates to \Expr{True},
+then any previous submission to the globus universe will be
+forgotten and this job will be submitted again as a fresh submission to
+the globus universe.
+This may be useful if there is a desire to give up on a
+previous submission and try again.
+Note that this may result in the same job running more than
+once.  Do not treat this operation lightly.
+
+%%%%%%%%%%%%%%%%%%%
+%% globus_rematch
+%%%%%%%%%%%%%%%%%%%
+
+\item[globus\_rematch = $<$ClassAd Boolean Expression$>$]
+\index{submit commands!globus\_rematch}
+This expression is evaluated by the \Condor{gridmanager} whenever:
+\begin{enumerate}
+\item
+   the \Opt{globus\_resubmit} expression evaluates to \Expr{True}
+\item
+   the \Condor{gridmanager} decides it needs to retry a submission
+   (as when a previous submission failed to commit)
+\end{enumerate}
+If \Opt{globus\_rematch} evaluates to \Expr{True},
+then \emph{before} the job is submitted again to globus,
+the \Condor{gridmanager} will request that the \Condor{schedd}
+daemon renegotiate
+with the matchmaker (the \Condor{negotiator}).
+The result is this job will be matched again.
+
+%%%%%%%%%%%%%%%%%%%
+%% leave_in_queue
+%%%%%%%%%%%%%%%%%%%
+
+\item[leave\_in\_queue = $<$ClassAd Boolean Expression$>$] 
+\index{submit commands!leave\_in\_queue}
+When the ClassAd Expression evaluates to \Expr{True}, the job is
+not removed from the queue upon completion.
+The job remains in the queue until the user runs \Condor{rm}
+to remove the job from the queue.
+This allows the user of a remotely spooled job to retrieve output
+files in cases where Condor would have removed them as part of
+the cleanup associated with completion.
+Defaults to \Expr{False}.
+
+%%%%%%%%%%%%%%%%%%%
+%% match_list_length
+%%%%%%%%%%%%%%%%%%%
+
+\item[match\_list\_length = $<$integer value$>$] 
+\index{submit commands!match\_list\_length}
+When \Opt{match\_list\_length} is defined with an integer value
+greater than zero (0),
+attributes are placed in the job ClassAd.
+The maximum number of attributes defined is given by the integer
+value.
+The job ClassAds introduced are given as
+\begin{verbatim} 
+LastMatchName0 = "most-recent-Name"
+LastMatchName1 = "next-most-recent-Name"
+\end{verbatim} 
+
+The value for each introduced ClassAd is given by the
+value of the \Attr{Name} attribute 
+from the machine ClassAd of a previous execution (match).
+As a job is matched, the definitions for these attributes
+will roll, 
+with \verb@LastMatchName1@ becoming \verb@LastMatchName2@,
+\verb@LastMatchName0@ becoming \verb@LastMatchName1@,
+and \verb@LastMatchName0@ being set by the most recent
+value of the \Attr{Name} attribute.
+
+%%%%%%%%%%%%%%%%%%%
+%% transfer_output
+%%%%%%%%%%%%%%%%%%%
+\item[transfer\_output = $<$True \Bar\ False$>$]
+\index{submit commands!transfer\_output}
+For jobs submitted to the globus universe only.
+If \Expr{True}, then the output (from \File{stdout}) from the job
+is transferred from the remote machine back to the submit machine.
+The name of the file after transfer is given
+by the \Opt{output} command.
+If \Expr{False}, no transfer takes place (from the remote machine
+to submit machine),
+and the name of the file is given
+by the \Opt{output} command.
+
+%%%%%%%%%%%%%%%%%%%
+%% transfer_input
+%%%%%%%%%%%%%%%%%%%
+\item[transfer\_input = $<$True \Bar\ False$>$]
+\index{submit commands!transfer\_input}
+For jobs submitted to the globus universe only.
+If \Expr{True}, then the job input (\File{stdin}) is transferred
+from the machine where the job was submitted to the remote machine.
+The name of the file that is transferred is given by the
+\Opt{input} command.
+If \Expr{False}, then the job's input is taken from a pre-staged
+file on the remote machine, and
+the name of the file is given by the \Opt{input} command.
+
+%%%%%%%%%%%%%%%%%%%
+%% transfer_error
+%%%%%%%%%%%%%%%%%%%
+\item[transfer\_error = $<$True \Bar\ False$>$]
+\index{submit commands!transfer\_error}
+For jobs submitted to the globus universe only.
+If \Expr{True}, then the error output (from \File{stderr}) from the job
+is transferred from the remote machine back to the submit machine.
+The name of the file after transfer is given
+by the \Opt{error} command.
+If \Expr{False}, no transfer takes place (from the remote machine
+to submit machine),
+and the name of the file is given
+by the \Opt{error} command.
+
+%%%%%%%%%%%%%%%%%%%
+%% transfer_executable
+%%%%%%%%%%%%%%%%%%%
+
+\item[transfer\_executable = $<$True \Bar\ False$>$]
+For jobs submitted to the globus universe, as well as vanilla and MPI.
+If \Opt{transfer\_executable} is set to
+\index{submit commands!transfer\_executable}
+\Expr{False}, then Condor looks for the executable on the remote machine, and
+does not transfer the executable over.
+This is useful if you have already pre-staged your
+executable and wish to have Condor behave more like rsh.
+Defaults to \Expr{True}.
+
+%%%%%%%%%%%%%%%%%%%
+%% remote_initialdir
+%%%%%%%%%%%%%%%%%%%
+\item[remote\_initialdir = $<$directory-path$>$] 
+\index{submit commands!remote\_initialdir}
+For jobs submitted to the globus universe only,
+the path specifies the directory in which the job is to be
+executed on the remote machine.
+
+
+%%%%%%%%%%%%%%%%%%%
+%% stream_output
+%%%%%%%%%%%%%%%%%%%
+\item[stream\_output = $<$True \Bar\ False$>$] 
+\index{submit commands!stream\_output}
+For jobs submitted to the globus universe only,
+if \Expr{True}, then \File{stdout} is streamed back to
+the machine from which the job was submitted. 
+If \Expr{False}, \File{stdout} is stored by the Globus jobmanager 
+and transferred back when the job completes.
+This command is ignored if the job ClassAd attribute
+\Attr{TransferOut} is
+\Expr{False}.
+The default value is \Expr{True}.
+
+%%%%%%%%%%%%%%%%%%%
+%% stream_error
+%%%%%%%%%%%%%%%%%%%
+\item[stream\_error = $<$True \Bar\ False$>$] 
+\index{submit commands!stream\_error}
+For jobs submitted to the globus universe only,
+if \Expr{True}, then \File{stderr} is streamed back to
+the machine from which the job was submitted. 
+If \Expr{False}, \File{stderr} is stored by the Globus jobmanager 
+and transferred back when the job completes.
+This command is ignored if the job ClassAd attribute
+\Attr{TransferErr} is
+\Expr{False}.
+The default value is \Expr{True}.
 
 %%%%%%%%%%%%%%%%%%%
 % +
 %%%%%%%%%%%%%%%%%%%
 
 \item[+$<$attribute$>$ = $<$value$>$] A line which begins with a '+'
-(plus) character instructs \Condor{submit} to simply insert the
+(plus) character instructs \Condor{submit} to insert the
 following \Arg{attribute} into the job ClasssAd with the given 
 \Arg{value}. 
 
@@ -860,21 +1172,53 @@ following \Arg{attribute} into the job ClasssAd with the given
 % this also doesn't work, but Karen doesn't know what else to try,
 % and it isn't worth the time.
 \item[queue \oOptnm{number-of-procs}] Places one or more
+\index{submit commands!queue}
 copies of the job into
 the Condor queue. If desired, new \Opt{input}, \Opt{output},
 \Opt{error}, \Opt{initialdir}, \Opt{arguments}, \Opt{nice\_user},
 \Opt{priority}, \Opt{kill\_sig}, \Opt{coresize}, or \Opt{image\_size}
 commands may be issued between \Opt{queue} commands. This is very handy
-when submitting multiple runs into one cluster with one submit file; for
-example, by issuing an \Opt{initialdir} between each \Opt{queue}
-command, each run can work in its own subdirectory. The optional
+when submitting multiple runs into one cluster with one submit description
+file;
+for example, by issuing an \Opt{initialdir} between each \Opt{queue}
+command, each run can work in its own subdirectory.
+The optional
 argument \Arg{number-of-procs} specifies how many times to submit the
-job to the queue, and defaults to 1.
+job to the queue, and it defaults to 1.
 
 %%%%%%%%%%%%%%%%%%%
 %% allow_startup_script
 %%%%%%%%%%%%%%%%%%%
-%\item[allow\_startup\_script ]
+\item[allow\_startup\_script = $<$True \Bar\ False$>$]
+\index{submit commands!allow\_startup\_script}
+If True, a standard universe job will execute a script
+instead of submitting the job,
+and the consistency check to see if the executable has
+been linked using \Condor{compile} is omitted.
+The \Opt{executable} command within the submit description
+file specifies the name of the script.
+The script is used to do preprocessing before the
+job is submitted.
+The shell script ends with an \Prog{exec} of the
+job executable, such that the process id of the executable is the
+same as that of the shell script.
+Here is an example script that gets a copy of a machine-specific
+executable before the \Prog{exec}.
+\begin{verbatim} 
+   #! /bin/sh
+
+   # get the host name of the machine
+   $host=`uname -n`
+
+   # grab a standard universe executable designed specifically
+   # for this host
+   scp elsewhere@cs.wisc.edu:${host} executable
+
+   # The PID MUST stay the same, so exec the new standard universe process.
+   exec executable ${1+"$@"}
+\end{verbatim} 
+If this command is not present (defined), then the value
+defaults to false.
 
 \end{description}
 
@@ -884,7 +1228,7 @@ and comments:
 
 \begin{description}
 
-\item[Macros] Parameterless macros in the form of \MacroU{macro\_name}
+\item[Macros] Parameterless macros in the form of \MacroUNI{macro\_name}
 may be inserted anywhere in Condor submit description files. Macros can be
 defined by lines in the form of 
 \begin{verbatim} 
@@ -979,7 +1323,7 @@ character are ignored by the submit description file parser.
 
 \begin{Options}
 
-\OptItem{\Opt{--}}{Accept the command file from stdin.}
+\OptItem{\Opt{---}}{Accept the command file from stdin.}
 \OptItem{\Opt{-v}}{Verbose output - display the created job class-ad}
 
 \OptItem{\OptArg{-n}{schedd\_name}}{Submit to the specified schedd. This option is used when there is more than one schedd running on the submitting machine}
@@ -1002,6 +1346,16 @@ Multiple commands are specified by using the \Opt{-a} option multiple times.
 Each new command is given in a separate \Opt{-a} option.
 Commands with spaces in them will need to be enclosed in double quote
 marks.}
+
+\OptItem{\Opt{-s}}{Spool all required input files, user log, and
+proxy to the machine defined by the \Macro{SCHEDD\_HOST} configuration
+variable.
+This is an alternative way to accomplish the same as using
+the 
+\OptArg{-r}{schedd\_name} option.
+With the 
+\Opt{-s} option, the remote \Condor{schedd} is specified using
+a configuration variable instead of a command line argument.}
 
 \OptItem{submit description file}{The pathname to the submit description
 file. If this optional argument is missing, then the commands are
@@ -1040,6 +1394,7 @@ appear in \File{foo.error}.
       ####################                                                   
                                                                          
       Executable     = foo                                                   
+      Universe       = standard
                                                                          
       Arguments      = 15 2000                                               
       Output  = foo.out1                                                     
@@ -1083,6 +1438,7 @@ in this cluster will be written into file \File{foo.log}.
       ####################                                                    
                                                                           
       Executable     = foo                                                    
+      Universe       = standard
       Requirements   = Memory >= 32 && OpSys == "IRIX6" && Arch =="SGI"     
       Rank           = Memory >= 64
       Image_Size     = 28 Meg                                                 
@@ -1099,11 +1455,28 @@ in this cluster will be written into file \File{foo.log}.
 \Opt{-a} option to add two commands before the job(s) is queued.
 A log file and an error log file are specified.
 The submit description file is unchanged.
+\footnotesize
+\normalsize
 \begin{verbatim}
 condor_submit -a "log = out.log" -a "error = error.log" mysubmitfile
 \end{verbatim}
 Note that each of the added commands is contained within quote marks
 because there are space characters within the command.
+
+\item{\AdAttr{periodic\_remove} example:}
+A job should be removed from the queue,
+if the total suspension time of the job
+is more than half of the run time of the job.
+
+Including the command
+\footnotesize
+\begin{verbatim}
+   periodic_remove = CumulativeSuspensionTime > 
+                     ((RemoteWallClockTime - CumulativeSuspensionTime) / 2.0)
+\end{verbatim}
+\normalsize
+in the submit description file causes this to happen.
+
 \end{itemize} 
 
 

@@ -1,0 +1,101 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{\label{sec:Glidein}Glidein}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\index{universe!Globus}
+\index{Globus}
+\index{Condor commands!condor\_glidein}
+
+Glidein is a mechanism by which one or more Grid resources (remote machines)
+temporarily join a local Condor pool. 
+The program \Condor{glidein} is used to add a machine
+to a Condor pool.
+During the period of time when the added resource is
+part of the local pool, the resource is visible 
+to users of the pool, but the resource is only available for
+use by the user
+that added the resource to the pool.
+
+After glidein, the user may submit jobs for execution on the
+added resource the same way that all Condor jobs are submitted.
+To force a submitted job to run on the added resource, the
+submit description file contains a requirement that the job run 
+specifically on the added resource.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection{\Condor{glidein} Requirements}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+The local Condor pool configuration file(s) must 
+give \Macro{HOSTALLOW\_WRITE} permission
+to every resource that will be added using \Condor{glidein}. 
+Wildcards are permitted in this specification.
+For example, you can add every machine at
+cs.wisc.edu by adding *.cs.wisc.edu to the
+\Macro{HOSTALLOW\_WRITE} list.
+Recall that you must run \Condor{reconfig} for configuration
+file changes to take effect.
+
+Make sure that the Condor and Globus tools are in your \Env{PATH}.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection{What \Condor{glidein} Does}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\Condor{glidein} first contacts the Globus resource and checks for the
+presence of the necessary configuration files and Condor executables.
+If the executables are not present for the machine architecture,
+operating system version, and Condor version required, a
+server running at UW is contacted to transfer the needed executables.
+You can also set up your own server for \Condor{glidein} to contact.
+To gain access to the server or learn how to set up your own server,
+send email to \Email{condor-admin@cs.wisc.edu}.
+
+When the files are correctly in place,
+Condor daemons are started.
+\Condor{glidein} does this by creating a submit description file for
+\Condor{submit}, which runs the \Condor{master} under the Globus
+universe.
+This implies that execution of the \Condor{master} is started on the Globus
+resource.
+The Condor daemons exit gracefully when no jobs run on the daemons for a
+configurable period of time. The default length of time is 20 minutes.
+
+The Condor daemons on the Globus resource contact the local pool and
+attempt to join the pool.  The \Expr{START}
+expression for the \Condor{startd} daemon requires that the username
+of the person running \Condor{glidein} matches the username of the jobs
+submitted through Condor.
+
+After a short length of time,
+the Globus resource can be seen in the local Condor pool,
+as with this example.
+
+\footnotesize
+\begin{verbatim}
+% condor_status | grep denal
+7591386@denal IRIX65      SGI    Unclaimed  Idle       3.700  24064  0+00:06:35
+\end{verbatim}
+\normalsize
+
+Once the Globus resource has been added to the local Condor
+pool with \Condor{glidein},
+job(s) may be submitted.
+To force a job to run on the Globus resource,
+specify that Globus resource as a machine requirement
+in the submit description file. 
+Here is an example from within the submit description file
+that forces submission to the Globus resource denali.mcs.anl.gov:
+\begin{verbatim}
+      requirements = ( machine == "denali.mcs.anl.gov" ) \
+         && FileSystemDomain != "" \
+         && Arch != "" && OpSys != ""
+\end{verbatim}
+This example requires that the job run only on denali.mcs.anl.gov,
+and it prevents Condor from inserting the filesystem domain,
+architecture, and operating system attributes as requirements
+in the matchmaking process.
+Condor must be told not to use the submission machine's
+attributes in those cases
+where the Globus resource's attributes
+do not match the submission machine's attributes.

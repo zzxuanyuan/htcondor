@@ -1,5 +1,5 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{\label{sec:MPI}MPI Support}
+\section{\label{sec:MPI}MPI Applications}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \index{MPI|(}
 MPI stands for Message Passing Interface.
@@ -16,7 +16,7 @@ Condor currently supports MPICH version ch\_p4, the implementation
 offered by Argonne National Labs.
 This version is available without charge by download.
 See the web page at
-\Url{http://www-unix.mcs.anl.gov/mpi/mpich/}
+\URL{http://www-unix.mcs.anl.gov/mpi/mpich/}
 for details and availability.
 Programs to be submitted for execution under Condor will have
 been compiled using \Prog{mpicc}.
@@ -114,6 +114,32 @@ It can therefore be used to identify individual aspects
 of the computation.
 In this example, it is used to give unique names to input
 and output files.
+
+If your site does NOT have a shared filesystem across all the nodes
+where your MPI computation will execute, you can use Condor's file
+transfer mechanism.
+You can find out more details about these settings by reading the
+\Condor{submit} man page or section~\ref{sec:file-transfer} on
+page~\pageref{sec:file-transfer}. 
+Assuming your job only reads input from STDIN, here is an example
+submit file for a site without a shared filesystem:
+
+\begin{verbatim}
+######################################
+## MPI example submit description file
+## without using a shared filesystem
+######################################
+universe = MPI
+executable = simplempi
+log = logfile
+input = infile.$(NODE)
+output = outfile.$(NODE)
+error = errfile.$(NODE)
+machine_count = 4
+should_transfer_files = yes
+when_to_transfer_output = on_exit
+queue
+\end{verbatim}
 
 Consider the following C program that uses this example submit
 description file.
