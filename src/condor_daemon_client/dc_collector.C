@@ -53,7 +53,8 @@ DCCollector::init( void )
 	tcp_collector_addr = NULL;
 	tcp_collector_port = 0;
 	use_tcp = false;
-	update_destination = NULL;
+	udp_update_destination = NULL;
+	tcp_update_destination = NULL;
 	reconfig();
 }
 
@@ -69,8 +70,11 @@ DCCollector::~DCCollector( void )
 	if( tcp_collector_host ) {
 		delete [] tcp_collector_host;
 	}
-	if( update_destination ) {
-		delete [] update_destination;
+	if( udp_update_destination ) {
+		delete [] udp_update_destination;
+	}
+	if( tcp_update_destination ) {
+		delete [] tcp_update_destination;
 	}
 }
 
@@ -107,11 +111,7 @@ DCCollector::reconfig( void )
 		locate();
 	}
 	parseTCPInfo();
-
-	if( update_destination ) {
-		delete [] update_destination;
-		update_destination = NULL;
-	}
+	initDestinationStrings();
 	displayResults();
 }
 
@@ -119,18 +119,14 @@ DCCollector::reconfig( void )
 void
 DCCollector::parseTCPInfo( void )
 {
-	if( ! use_tcp ) {
-			// nothing to do
-		return;
-	}
 	if( tcp_collector_addr ) {
 		delete [] tcp_collector_addr;
 		tcp_collector_addr = NULL;
 	}
 
 	if( ! tcp_collector_host ) {
-			// they want to use TCP but haven't given us a specific
-			// host to use.  so, use the default collector...
+			// there's no specific TCP host to use.  if needed, use
+			// the default collector...
 		tcp_collector_port = _port;
 		tcp_collector_addr = strnewp( _addr );
 	} else {
@@ -168,9 +164,6 @@ DCCollector::parseTCPInfo( void )
 bool
 DCCollector::sendUpdate( int cmd, ClassAd* ad1, ClassAd* ad2 ) 
 {
-	dprintf( D_FULLDEBUG, 
-			 "Attempting to send update via %s to collector %s\n",
-			 use_tcp ? "TCP" : "UDP", update_destination );  
 	if( use_tcp ) {
 		return sendTCPUpdate( cmd, ad1, ad2 );
 	}
@@ -207,6 +200,11 @@ DCCollector::sendUDPUpdate( int cmd, ClassAd* ad1, ClassAd* ad2 )
 		// in every update.  In fact, we want to recreate the SafeSock
 		// itself each time, since it doesn't seem to work if we reuse
 		// the SafeSock object from one update to the next...
+
+	dprintf( D_FULLDEBUG,
+			 "Attempting to send update via UDP to collector %s\n",
+			 udp_update_destination );
+
 	SafeSock ssock;
 	ssock.timeout( 30 );
 	ssock.encode();
@@ -216,7 +214,7 @@ DCCollector::sendUDPUpdate( int cmd, ClassAd* ad1, ClassAd* ad2 )
 		// for this...
 	if( ! ssock.connect(_addr, _port) ) {
 		MyString err_msg = "Failed to connect to collector ";
-		err_msg += update_destination;
+		err_msg += udp_update_destination;
 		newError( err_msg.Value() );
 		return false;
 	}
@@ -233,6 +231,10 @@ DCCollector::sendUDPUpdate( int cmd, ClassAd* ad1, ClassAd* ad2 )
 bool
 DCCollector::sendTCPUpdate( int cmd, ClassAd* ad1, ClassAd* ad2 )
 {
+	dprintf( D_FULLDEBUG,
+			 "Attempting to send update via TCP to collector %s\n",
+			 tcp_update_destination );
+
 	if( ! update_rsock ) {
 			// we don't have a TCP sock for sending an update.  we've
 			// got to create one.  this is a somewhat complicated
@@ -309,45 +311,66 @@ DCCollector::displayResults( void )
 const char*
 DCCollector::updateDestination( void )
 {
-	if( update_destination ) {
-		return update_destination;
+	if( use_tcp ) { 
+		return tcp_update_destination;
 	}
+	return udp_update_destination;
+}
+
+
+void
+DCCollector::initDestinationStrings( void )
+{
+	if( udp_update_destination ) {
+		delete [] udp_update_destination;
+		udp_update_destination = NULL;
+	}
+	if( tcp_update_destination ) {
+		delete [] tcp_update_destination;
+		tcp_update_destination = NULL;
+	}
+
 	MyString dest;
-	bool use_daemon_info = false;
-	if( use_tcp ) {
-		if( ! tcp_collector_host ) { 
-				// they didn't supply anything, so we should use the
-				// info in the Daemon part of ourself...
-			use_daemon_info = true;
-		} else if( is_valid_sinful(tcp_collector_host) ) { 
-				// they gave us a specific host, but it's already in
-				// sinful-string form, so that's all we can do...
-			update_destination = strnewp( tcp_collector_host );
-		} else {
-				// they gave us either an IP or a hostname, either
-				// way... use what they gave us, and tack on the port
-				// we're using (which either came from them, or is the
-				// default COLLECTOR_PORT if unspecified).
-			dest = tcp_collector_addr;
-			char buf[64];
-			sprintf( buf, "%d", tcp_collector_port );
-			dest += " (port: ";
-			dest += buf;
-			dest += ')';
-			update_destination = strnewp( dest.Value() );
-		}
+
+		// UDP updates will always be sent to whatever info we've got
+		// in the Daemon object.  So, there's nothing hard to do for
+		// this... just see what useful info we have and use it. 
+	if( _full_hostname ) {
+		dest = _full_hostname;
+		dest += ' ';
+		dest += _addr;
 	} else {
-		use_daemon_info = true;
+		dest = _addr;
 	}
-	if( ! update_destination && use_daemon_info ) { 
-		if( _full_hostname ) {
-			dest = _full_hostname;
-			dest += ' ';
-			dest += _addr;
-		} else {
-			dest = _addr;
-		}
-		update_destination = strnewp( dest.Value() );
+	udp_update_destination = strnewp( dest.Value() );
+
+		// TCP updates, if they happen at all, might go to a different
+		// place.  So, we've got to do a little more work to figure
+		// out what we should use...
+
+	if( ! tcp_collector_host ) { 
+			// they didn't supply anything, so we should use the info
+			// in the Daemon part of ourself, which we've already got
+			// in the udp_update_destination.  so we just use that.
+		tcp_update_destination = strnewp( udp_update_destination );
+
+	} else if( is_valid_sinful(tcp_collector_host) ) { 
+			// they gave us a specific host, but it's already in
+			// sinful-string form, so that's all we can do...
+		tcp_update_destination = strnewp( tcp_collector_host );
+
+	} else {
+			// they gave us either an IP or a hostname, either
+			// way... use what they gave us, and tack on the port
+			// we're using (which either came from them, or is the
+			// default COLLECTOR_PORT if unspecified).
+
+		dest = tcp_collector_addr;
+		char buf[64];
+		sprintf( buf, "%d", tcp_collector_port );
+		dest += " (port: ";
+		dest += buf;
+		dest += ')';
+		tcp_update_destination = strnewp( dest.Value() );
 	}
-	return update_destination;
 }

@@ -88,9 +88,13 @@ private:
 	bool finishUpdate( Sock* sock, ClassAd* ad1, ClassAd* ad2 );
 
 	void parseTCPInfo( void );
+	void initDestinationStrings( void );
+
 	bool initiateTCPUpdate( int cmd, ClassAd* ad1, ClassAd* ad2 );
 
-	const char* update_destination;
+	const char* tcp_update_destination;
+	const char* udp_update_destination;
+
 	void displayResults( void );
 };
 
