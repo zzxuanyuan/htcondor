@@ -2099,7 +2099,8 @@ GahpServer::poll()
 		if ( result_reqid == globus_gt4_gram_callback_reqid ) {
 			if ( result->argc == 4 ) {
 				(*globus_gt4_gram_callback_func)( globus_gt4_gram_user_callback_arg, result->argv[1], 
-								result->argv[2], 0 );
+								result->argv[2], 
+								strcmp(result->argv[3],NULLSTRING) ? result->argv[3] : NULL );
 			} else {
 				dprintf(D_FULLDEBUG,
 					"GAHP - Bad client_callback results line\n");
