@@ -934,6 +934,14 @@ activate_claim( Resource* rip, Stream* stream )
 		ABORT;
 	}
 
+		// if we're daemonCore, hold onto the sock the shadow used for
+		// this command, and we'll use that for the shadow RSC sock.
+		// otherwise, if we're not windoze, setup our two ports, tell
+		// the shadow about them, and wait for it to connect.
+	Stream* shadow_sock = NULL;
+	if( tmp_starter->is_dc() ) {
+		shadow_sock = stream;
+	} 
 #ifndef WIN32
 	else {
 
@@ -1007,10 +1015,6 @@ activate_claim( Resource* rip, Stream* stream )
 	rip->r_cur->setStarter( tmp_starter );
 
 		// Actually spawn the starter
-	Stream* shadow_sock = NULL;
-	if( tmp_starter->is_dc() ) {
-		shadow_sock = stream;
-	} 
 	if( ! rip->r_cur->spawnStarter(now, shadow_sock) ) {
 			// Error spawning starter!
 		delete( tmp_starter );
