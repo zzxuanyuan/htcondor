@@ -200,122 +200,91 @@ ToolDaemonProc::StartJob()
 	int failedStdin, failedStdout, failedStderr;
 	daemon_fds[0] = -1; daemon_fds[1] = -1; daemon_fds[2] = -1;	
 	failedStdin = 0; failedStdout = 0; failedStderr = 0;
-	char filename1[_POSIX_PATH_MAX];
 	char  *filename = NULL;
-	char daemon_infile[_POSIX_PATH_MAX];
-	char daemon_outfile[_POSIX_PATH_MAX];
-	char daemon_errfile[_POSIX_PATH_MAX];
 
 		// in order to open these files we must have the user's privs:
-
 	priv_state priv;
 	priv = set_user_priv();
 
-	if( JobAd->LookupString(ATTR_TOOL_DAEMON_INPUT, filename1 ) == 1) {
-		if ( !mynullFile(filename1) ) {
-			if( Starter->wantsFileTransfer() ) {
-				filename = basename( filename1 );
-			} else {
-				filename = filename1;
-			}
-            if ( filename[0] != '/' ) {  // prepend full path
-                sprintf( daemon_infile, "%s%c", cwd, DIR_DELIM_CHAR );
-            } else {
-                daemon_infile[0] = '\0';
-            }
-			strcat ( daemon_infile, filename );
-			if ( (daemon_fds[0]=open(daemon_infile, O_RDONLY) ) < 0 ) {
-				dprintf(D_ALWAYS,"failed to open stdin file %s, errno %d\n",
-						daemon_infile, errno);
-				failedStdin = 1;
-			}
-			dprintf ( D_ALWAYS, "Tool Daemon Input file: %s\n", daemon_infile );
+	filename = Starter->jic->getJobStdFile( ATTR_TOOL_DAEMON_INPUT, NULL );
+	if( filename ) {
+		if ( (daemon_fds[0]=open(filename, O_RDONLY) ) < 0 ) {
+			dprintf(D_ALWAYS,"failed to open stdin file %s, errno %d\n",
+					filename, errno);
+			failedStdin = 1;
 		}
+		dprintf ( D_ALWAYS, "Tool Daemon Input file: %s\n", filename );
+		free( filename );
+		filename = NULL;
 	}else {
 	#ifndef WIN32
-		if ( (daemon_fds[0]=open( "/dev/null", O_RDONLY ) ) < 0 ) {
-			dprintf(D_ALWAYS, "failed to open stdin file /dev/null, errno %d\n",
-				errno);
+		if( (daemon_fds[0]=open( "/dev/null", O_RDONLY ) ) < 0 ) {
+			dprintf( D_ALWAYS, 
+					 "failed to open stdin file /dev/null, errno %d\n",
+					 errno );
 			failedStdin = 1;
 		}
 	#endif
 	}
 
-	if( JobAd->LookupString(ATTR_TOOL_DAEMON_OUTPUT, filename1 ) == 1 ) {
-		if( !mynullFile(filename1) ) {
-			if( Starter->wantsFileTransfer() ) {
-				filename = basename( filename1 );
-			} else {
-				filename = filename1;
-			}
-            if( filename[0] != '/' ) {  // prepend full path
-                sprintf( daemon_outfile, "%s%c", cwd, DIR_DELIM_CHAR );
-            } else {
-                daemon_outfile[0] = '\0';
-            }
-			strcat ( daemon_outfile, filename );
+	filename = Starter->jic->getJobStdFile( ATTR_TOOL_DAEMON_OUTPUT, NULL );
+	if( filename ) {
+		if( (daemon_fds[1] = 
+			 open(filename,O_WRONLY|O_CREAT|O_TRUNC, 0666)) < 0 ) {
+				// if failed, try again without O_TRUNC
 			if( (daemon_fds[1] = 
-				 open(daemon_outfile,O_WRONLY|O_CREAT|O_TRUNC, 0666)) < 0 ) {
-					// if failed, try again without O_TRUNC
-				if( (daemon_fds[1] = 
-					 open( daemon_outfile,O_WRONLY|O_CREAT, 0666)) < 0 ) {
-					dprintf( D_ALWAYS,
-							 "failed to open stdout file %s, errno %d\n",
-							 daemon_outfile, errno );
-					failedStdout = 1;
-				}
+				 open(filename,O_WRONLY|O_CREAT, 0666)) < 0 ) {
+				dprintf( D_ALWAYS,
+						 "failed to open stdout file %s, errno %d\n",
+						 filename, errno );
+				failedStdout = 1;
 			}
-			dprintf ( D_ALWAYS, " Tool Daemon Output file: %s\n",
-					  daemon_outfile );
 		}
+		dprintf( D_ALWAYS, " Tool Daemon Output file: %s\n", filename );
+		free( filename );
+		filename = NULL;
 	}else {
 	#ifndef WIN32
-		if ((daemon_fds[1]=open("/dev/null",O_WRONLY|O_CREAT|O_TRUNC, 0666)) < 0 ) {
-			// if failed, try again without O_TRUNC
-			if ( (daemon_fds[1]=open( "/dev/null", O_WRONLY | O_CREAT, 0666)) < 0 ) {
-				dprintf(D_ALWAYS, 
-					"failed to open stdout file /dev/null, errno %d\n", 
-					 errno);
+		if( (daemon_fds[1] = 
+			 open("/dev/null",O_WRONLY|O_CREAT|O_TRUNC, 0666)) < 0 ) {
+				// if failed, try again without O_TRUNC
+			if( (daemon_fds[1] = 
+				 open("/dev/null", O_WRONLY | O_CREAT, 0666)) < 0 ) {
+				dprintf( D_ALWAYS, 
+						 "failed to open stdout file /dev/null, errno %d\n", 
+						 errno );
 				failedStdout = 1;
 			}
 		}
 	#endif
 	}
-	if( JobAd->LookupString(ATTR_TOOL_DAEMON_ERROR, filename1 ) == 1 ) {
-	    if(!mynullFile(filename1) ) {
-			if( Starter->wantsFileTransfer() ) {
-				filename = basename( filename1 );
-			} else {
-				filename = filename1;
+
+	filename = Starter->jic->getJobStdFile( ATTR_TOOL_DAEMON_ERROR, NULL );
+	if( filename ) {
+		if( (daemon_fds[2] =
+			 open(filename,O_WRONLY|O_CREAT|O_TRUNC, 0666)) < 0 ) { 
+				// if failed, try again without O_TRUNC
+			if( (daemon_fds[2] = 
+				 open(filename,O_WRONLY|O_CREAT, 0666)) < 0 ) {
+				dprintf( D_ALWAYS,
+						 "failed to open stderr file %s, errno %d\n",
+						 filename, errno );
+				failedStderr = 1;
 			}
-            if( filename[0] != '/' ) {  // prepend full path
-                sprintf( daemon_errfile, "%s%c", cwd, DIR_DELIM_CHAR );
-            } else {
-                daemon_errfile[0] = '\0';
-            }
-			strcat( daemon_errfile, filename );
-			if( (daemon_fds[2] =
-				 open(daemon_errfile,O_WRONLY|O_CREAT|O_TRUNC, 0666)) < 0 ) { 
-					// if failed, try again without O_TRUNC
-				if( (daemon_fds[2] = 
-					 open(daemon_errfile,O_WRONLY|O_CREAT, 0666)) < 0 ) {
-					dprintf( D_ALWAYS,
-							 "failed to open stderr file %s, errno %d\n",
-							 daemon_errfile, errno );
-					failedStderr = 1;
-				}
-			}
-			dprintf( D_ALWAYS, "Tool Daemon Error file: %s\n",
-					 daemon_errfile ); 
 		}
+		dprintf( D_ALWAYS, "Tool Daemon Error file: %s\n", filename );
+		free( filename );
+		filename = NULL;
 	} else {
 	#ifndef WIN32
-		if ((daemon_fds[2]=open("/dev/null",O_WRONLY|O_CREAT|O_TRUNC, 0666)) < 0 ) {
-			// if failed, try again without O_TRUNC
-			if ( (daemon_fds[2]=open( "/dev/null", O_WRONLY | O_CREAT, 0666)) < 0 ) {
-				dprintf(D_ALWAYS, 
-						"failed to open stderr file /dev/null, errno %d\n", 
-						errno);
+		if( (daemon_fds[2] = 
+			 open("/dev/null",O_WRONLY|O_CREAT|O_TRUNC, 0666)) < 0 ) {
+				// if failed, try again without O_TRUNC
+			if( (daemon_fds[2] = 
+				 open("/dev/null", O_WRONLY | O_CREAT, 0666)) < 0 ) {
+				dprintf( D_ALWAYS, 
+						 "failed to open stderr file /dev/null, errno %d\n", 
+						 errno );
 				failedStderr = 1;
 			}
 		}
