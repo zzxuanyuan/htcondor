@@ -152,7 +152,6 @@ int CondorJob::maxConnectFailures = 3;			// default value
 CondorJob::CondorJob( ClassAd *classad )
 	: BaseJob( classad )
 {
-	int tmp;
 	char buff[4096];
 	char buff2[4096];
 	char *error_string = NULL;
@@ -664,7 +663,6 @@ dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too long!\n",procID.cluster,procI
 		case GM_CLEAR_REQUEST: {
 			// Remove all knowledge of any previous or present job
 			// submission, in both the gridmanager and the schedd.
-			bool tmp_bool;
 
 			// For now, put problem jobs on hold instead of
 			// forgetting about current submission and trying again.
