@@ -43,25 +43,6 @@ HashTable <HashKey, NordugridResource *>
     NordugridResource::ResourcesByName( HASH_TABLE_SIZE,
 										hashFunction );
 
-void print_list(NordugridJob*job,List<NordugridJob>*list)
-{
-	NordugridJob*jobptr;
-	MyString buff;
-	if ( job != NULL){
-		buff.sprintf("***    head: %d.%d  queue: ",job->procID.cluster,job->procID.proc);
-	} else {
-		buff.sprintf("***    head: <none>  queue: ");
-	}
-	list->Rewind();
-	while((jobptr=list->Next())){
-		buff += jobptr->procID.cluster;
-		buff += ".";
-		buff += jobptr->procID.proc;
-		buff += " ";
-	}
-	dprintf(D_FULLDEBUG,"%s\n",buff.Value());
-}
-
 NordugridResource *NordugridResource::FindOrCreateResource( const char * resource_name )
 {
 	int rc;
@@ -128,10 +109,8 @@ ftp_lite_server *NordugridResource::AcquireConnection( NordugridJob *job )
 	NordugridJob *jobptr;
 
 	if ( connectionUser == NULL ) {
-dprintf(D_FULLDEBUG,"*** %d.%d has acquired the connection\n",job->procID.cluster,job->procID.proc);
 		connectionUser = job;
 	} else if ( connectionUser != job ) {
-dprintf(D_FULLDEBUG,"*** %d.%d must wait for the connection\n",job->procID.cluster,job->procID.proc);
 		connectionWaiters->Rewind();
 		while ( connectionWaiters->Next( jobptr ) ) {
 			if ( jobptr == job ) {
@@ -139,32 +118,22 @@ dprintf(D_FULLDEBUG,"*** %d.%d must wait for the connection\n",job->procID.clust
 			}
 		}
 		connectionWaiters->Append( job );
-print_list(connectionUser,connectionWaiters);
 		return NULL;
 	}
-else{
-dprintf(D_FULLDEBUG,"*** %d.%d already has the connection\n",job->procID.cluster,job->procID.proc);
-}
 
 	OpenConnection();
 
-print_list(connectionUser,connectionWaiters);
 	return ftpServer;
 }
 
 void NordugridResource::ReleaseConnection( NordugridJob *job )
 {
 	if ( connectionUser == NULL ) {
-dprintf(D_FULLDEBUG,"*** %d.%d dequeues itself for the connection\n",job->procID.cluster,job->procID.proc);
-print_list(connectionUser,connectionWaiters);
 		return;
 	} else if ( connectionUser != job ) {
-dprintf(D_FULLDEBUG,"*** %d.%d dequeues itself for the connection\n",job->procID.cluster,job->procID.proc);
 		connectionWaiters->Delete( job );
-print_list(connectionUser,connectionWaiters);
 		return;
 	}
-dprintf(D_FULLDEBUG,"*** %d.%d has released the connection\n",job->procID.cluster,job->procID.proc);
 
 	connectionUser = NULL;
 
@@ -173,14 +142,9 @@ dprintf(D_FULLDEBUG,"*** %d.%d has released the connection\n",job->procID.cluste
 		connectionUser = connectionWaiters->Next();
 		connectionWaiters->DeleteCurrent();
 		connectionUser->SetEvaluateState();
-dprintf(D_FULLDEBUG,"***    %d.%d gets the connection next\n",connectionUser->procID.cluster,job->procID.proc);
 	}
-else{
-dprintf(D_FULLDEBUG,"***    no one else is waiting for the connection\n");
-}
 
 		// set timer to close connection after a time?
-print_list(connectionUser,connectionWaiters);
 }
 
 bool NordugridResource::OpenConnection()
