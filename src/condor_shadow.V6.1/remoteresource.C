@@ -1095,10 +1095,16 @@ RemoteResource::reconnect( void )
 {
 	static int last_contact = -1;
 	static int timeout = -1;
+	const char* gjid = shadow->getGlobalJobId();
+	if( ! gjid ) {
+		EXCEPT( "Shadow in reconnect mode but %s is not in the job ad!",
+				ATTR_GLOBAL_JOB_ID );
+	}
 	if( last_contact < 0 ) { 
 			// if it's our first time, figure out what we've got to
 			// work with...
 		ASSERT( timeout < 0 );
+		dprintf( D_FULLDEBUG, "Trying to reconnect job %s\n", gjid );
 		if( ! jobAd->LookupInteger(ATTR_LAST_CONTACT, last_contact) ) {
 			EXCEPT( "Shadow in reconnect mode but %s is not in the job ad!",
 					ATTR_LAST_CONTACT );
@@ -1136,16 +1142,8 @@ RemoteResource::reconnect( void )
 void
 RemoteResource::attemptReconnect( void )
 {
-	static char* gjid = NULL;
-	if( ! gjid ) {
-		if( ! jobAd->LookupString(ATTR_GLOBAL_JOB_ID, &gjid) ) {
-			EXCEPT( "Shadow in reconnect mode but %s is not in the job ad!",
-					ATTR_GLOBAL_JOB_ID );
-		}
-		dprintf( D_FULLDEBUG, "Trying to reconnect job %s\n", gjid );
-	}
-
 	dprintf( D_ALWAYS, "Attempting to locate to disconnected starter\n" );
+	const char* gjid = shadow->getGlobalJobId();
 	ClassAd reply;
 	if( ! dc_startd->locateStarter(gjid, &reply) ) {
 		dprintf( D_ALWAYS, "locateStarter(): %s\n", 
