@@ -52,6 +52,8 @@ template class HashBucket<HashKey, GahpProxyInfo *>;
 
 #define HASH_TABLE_SIZE			50
 
+bool logGahpIo = true;
+
 HashTable <HashKey, GahpServer *>
     GahpServer::GahpServersById( HASH_TABLE_SIZE,
 								 hashFunction );
@@ -61,6 +63,8 @@ const char *escapeGahpString(const char * input);
 void GahpReconfig()
 {
 	int tmp_int;
+
+	logGahpIo = param_boolean( "GRIDMANAGER_GAHPCLIENT_DEBUG", true );
 
 	tmp_int = param_integer( "GRIDMANAGER_MAX_PENDING_REQUESTS", 50 );
 
@@ -191,13 +195,16 @@ GahpServer::~GahpServer()
 void
 GahpServer::write_line(const char *command)
 {
-dprintf(D_FULLDEBUG,"GAHP[%d] <- '%s'\n", m_gahp_pid, command );
 	if ( !command || m_gahp_writefd == -1 ) {
 		return;
 	}
 	
 	write(m_gahp_writefd,command,strlen(command));
 	write(m_gahp_writefd,"\r\n",2);
+
+	if ( logGahpIo ) {
+		dprintf( D_FULLDEBUG, "GAHP[%d] <- '%s'\n", m_gahp_pid, command );
+	}
 
 	return;
 }
@@ -215,10 +222,18 @@ GahpServer::write_line(const char *command, int req, const char *args)
 	write(m_gahp_writefd,buf,strlen(buf));
 	if ( args ) {
 		write(m_gahp_writefd,args,strlen(args));
-dprintf(D_FULLDEBUG,"GAHP[%d] <- '%s%s%s'\n", m_gahp_pid, command, buf, args );
-}else{dprintf(D_FULLDEBUG,"GAHP[%d] <- '%s%s'\n", m_gahp_pid, command, buf );
 	}
 	write(m_gahp_writefd,"\r\n",2);
+
+	if ( logGahpIo ) {
+		if ( args ) {
+			dprintf( D_FULLDEBUG, "GAHP[%d] <- '%s%s%s'\n", m_gahp_pid,
+					 command, buf, args );
+		} else {
+			dprintf( D_FULLDEBUG, "GAHP[%d] <- '%s%s'\n", m_gahp_pid, command,
+					 buf );
+		}
+	}
 
 	return;
 }
@@ -333,7 +348,9 @@ GahpServer::read_argv(Gahp_Args &g_args)
 	g_args.reset();
 
 	if ( m_gahp_readfd == -1 ) {
-dprintf(D_FULLDEBUG,"GAHP[%d] -> (no pipe)\n",m_gahp_pid);
+		if ( logGahpIo ) {
+			dprintf( D_FULLDEBUG, "GAHP[%d] -> (no pipe)\n", m_gahp_pid );
+		}
 		return;
 	}
 
@@ -355,7 +372,9 @@ dprintf(D_FULLDEBUG,"GAHP[%d] -> (no pipe)\n",m_gahp_pid);
 		if ( result == 0 ) {	/* End of File */
 				// clear out all entries
 			g_args.reset();
-dprintf(D_FULLDEBUG,"GAHP[%d] -> EOF\n",m_gahp_pid);
+			if ( logGahpIo ) {
+				dprintf( D_FULLDEBUG, "GAHP[%d] -> EOF\n", m_gahp_pid );
+			}
 			return;
 		}
 
@@ -433,16 +452,22 @@ dprintf(D_FULLDEBUG,"GAHP[%d] -> EOF\n",m_gahp_pid);
 				continue;	// go back to the top of the for loop
 			}
 
-buf[0]='\0';
-if(g_args.argc>0){
-strcat(buf,"'");
-for(int i=0;i<g_args.argc;i++){
-if(i!=0)strcat(buf,"' '");
-if(g_args.argv[i])strcat(buf,g_args.argv[i]);
-}
-strcat(buf,"'");
-}
-dprintf(D_FULLDEBUG,"GAHP[%d] -> %s\n",m_gahp_pid,buf);
+			if ( logGahpIo ) {
+				buf[0] = '\0';
+				if( g_args.argc > 0 ) {
+					strcat( buf, "'" );
+					for ( int i = 0; i < g_args.argc; i++ ) {
+						if ( i != 0 ) {
+							strcat( buf, "' '" );
+						}
+						if ( g_args.argv[i] ) {
+							strcat( buf, g_args.argv[i] );
+						}
+					}
+					strcat( buf, "'" );
+				}
+				dprintf( D_FULLDEBUG, "GAHP[%d] -> %s\n", m_gahp_pid, buf );
+			}
 			return;
 		}
 
