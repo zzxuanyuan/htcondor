@@ -3,10 +3,20 @@
 #define HasGcc		YES
 #define HasGPlusPlus	YES
 
-#define CCompiler	/s/ogcc/bin/gcc 
-#define CPlusCompiler	/s/ogcc/bin/g++
+#define CSL_MACH	YES
+
+#if CSL_MACH  /* We're on a CSL Machine */
+#define CCompiler	/s/egcs-1.1/bin/gcc 
+#define CPlusCompiler	/s/egcs-1.1/bin/g++
 #define PreProcessCmd	CCompiler -E -x c-header
-#define Demangler	/s/ogcc/bin/c++filt
+#define Demangler	/s/egcs-1.1/bin/c++filt
+#else 
+#define CCompiler	gcc
+#define CPlusCompiler	g++
+#define PreProcessCmd	CCompiler -E -x c-header
+#define Demangler	c++filt
+#define DebugFlag -O
+#endif
 
 #define X11LibPath /s/X11R6-2/lib
 #define X11Include /s/X11R6-2/include
@@ -25,19 +35,19 @@
 /* Top should be the root of the source directory you want to use if
 you want our top-level Makefile to build the directory tree with all
 the soft links.  The links will point back to Top/src/... */
-#define Top           /p/condor/workspaces/wright/V6
+#define Top /p/condor/workspaces/shared/colbster/newads2
 
 #define TmpDir		/tmp
 
 /*
  * GccVersion should be the only one that needs to be changed from time to time
  */
-#define GccVersion 2.7.2.3
+#define GccVersion pgcc-2.91.57
 
 #if defined( GccPath )
 #undef GccPath
 #endif
-#define GccPath concat(/s/gcc-,GccVersion)
+#define GccPath /s/egcs-1.1
 
 #if defined( CrtLibPath )
 #undef CrtLibPath
