@@ -59,6 +59,7 @@ Claim::Claim( Resource* rip, bool is_cod )
 	c_rip = rip;
 	c_state = CLAIM_UNCLAIMED;
 	c_is_cod = is_cod;
+	c_wants_release = false;
 }
 
 

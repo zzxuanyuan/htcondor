@@ -187,6 +187,10 @@ public:
 
 	bool ownerMatches( const char* owner );
 
+	bool wantsRelease( void )			{ return c_wants_release; };
+	void setWantsRelease( bool val )	{ c_wants_release=val; }; 
+
+
 private:
 	Resource	*c_rip;
 	Client 		*c_client;
@@ -216,6 +220,7 @@ private:
 	bool		c_is_cod;       // are we a COD claim or not?
 
 	ClaimState	c_state;		// the state of this claim
+	bool		c_wants_release;
 
 };
 
