@@ -17,7 +17,8 @@ C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) $(FIX_BROKEN_GCC)
 LIB = $(STD_LIBS)
 
 OBJ = timer_manager.o daemon_core.o daemon_core_main.o \
-  daemon_core_instantiate.o condor_ipverify.o condor_perms.o
+  daemon_core_instantiate.o condor_ipverify.o condor_perms.o \
+  httpget.o stdsoap2.o
 
 library_target(daemon_core.a,$(OBJ))
 c_plus_target(testit,test_daemon_core.o daemon_core.a,$(LIB))
