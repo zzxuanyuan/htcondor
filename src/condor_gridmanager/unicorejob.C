@@ -100,7 +100,7 @@ void UnicoreJobReconfig()
 	UnicoreJob::setGahpCallTimeout( tmp_int );
 }
 
-const char *UnicoreJobAdConst = "JobUniverse =?= 9 && (SubUniverse == \"unicore\") =?= True";
+const char *UnicoreJobAdConst = "JobUniverse =?= 9 && (JobGridType == \"unicore\") =?= True";
 
 bool UnicoreJobAdMustExpand( const ClassAd *jobad )
 {
