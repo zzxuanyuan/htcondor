@@ -296,9 +296,15 @@ TruncLog(char *log_name)
 	LogState(new_log_fd);
 	close(log_fd);
 	log_fd = new_log_fd;
+#if defined(WIN32)
+	if (MoveFileEx(tmp_log_name, log_name, MOVEFILE_REPLACE_EXISTING) == 0) {
+		return -1;
+	}
+#else
 	if (rename(tmp_log_name, log_name) < 0) {
 		return -1;
 	}
+#endif
 	return 0;
 }
 
@@ -374,7 +380,7 @@ handle_q(Service *, int, Stream *sock)
 		delete trans;
 		trans = 0;
 	}
-	dprintf(D_ALWAYS, "Connection closed, Q is:\n");
+	// dprintf(D_ALWAYS, "Connection closed, Q is:\n");
 	if (rendevous_file != 0) {
 		unlink(rendevous_file);
 		free(rendevous_file);
@@ -463,8 +469,8 @@ int DestroyProc(int cluster_id, int proc_id)
 	LogDestroyProc	*log;
 	PROC_ID		job_id;
 
-        job_id.cluster = cluster_id;
-        job_id.proc = proc_id;
+	job_id.cluster = cluster_id;
+	job_id.proc = proc_id;
 
 	if (CheckConnection() < 0) {
 		return -1;
@@ -497,8 +503,8 @@ int DestroyCluster(int cluster_id)
 	Job					*job;
 	PROC_ID		job_id;
 
-        job_id.cluster = cluster_id;
-        job_id.proc = -1;
+	job_id.cluster = cluster_id;
+	job_id.proc = -1;
 
 	if (CheckConnection() < 0) {
 		return -1;
@@ -758,15 +764,12 @@ NextAttribute(int cluster_id, int proc_id, char *attr_name)
 	return job->NextAttributeName(attr_name);
 }
 
-#if !defined(WIN32)		// NEED TO PORT TO WIN32
 int
-SendSpoolFile(char *filename, char *address)
+SendSpoolFile(char *filename)
 {
-	int sockfd, pid, len;
+	int filesize, total=0, nbytes, written;
 	FILE *fp;
-	struct sockaddr_in addr;
-	char path[_POSIX_PATH_MAX];
-	struct in_addr myaddr;
+	char path[_POSIX_PATH_MAX], buf[4*1024];
 
 	if (strchr(filename, '/') != NULL) {
 		dprintf(D_ALWAYS, "ReceiveFile called with a path (%s)!\n",
@@ -782,92 +785,41 @@ SendSpoolFile(char *filename, char *address)
 		return -1;
 	}
 
-	if ((sockfd = socket(PF_INET,SOCK_STREAM,0)) < 0) {
-		dprintf(D_ALWAYS, "failed to create socket in ReceiveFile()\n");
-		EXCEPT("socket");
+	/* Tell client to go ahead with file transfer. */
+	Q_SOCK->encode();
+	Q_SOCK->put(0);
+	Q_SOCK->eom();
+
+	/* Read file size from client. */
+	Q_SOCK->decode();
+	if (!Q_SOCK->code(filesize)) {
+		dprintf(D_ALWAYS, "Failed to receive file size from client in SendSpoolFile.\n");
+		Q_SOCK->eom();
+		return -1;
 	}
 
-	get_inet_address(&myaddr);
-	memset( (char *)&addr, 0,sizeof(addr));   /* zero out */
-	addr.sin_family = AF_INET;
-	addr.sin_addr = myaddr;
-	addr.sin_port = htons(0);
-
-     if(bind(sockfd,(struct sockaddr *)&addr, sizeof(addr))<0) {      
-		 dprintf(D_ALWAYS, "bind failed in ReceiveFile()\n");
-		 EXCEPT("bind");
-     }
-
-	len = sizeof(addr);
-	if (getsockname(sockfd, (struct sockaddr *)&addr, &len)<0) {
-		dprintf(D_ALWAYS, "getsockname failed in ReceiveFile()\n");
-		EXCEPT("getsockname");
+	while (total < filesize &&
+		   (nbytes = Q_SOCK->code_bytes(buf, sizeof(buf))) > 0) {
+		dprintf(D_FULLDEBUG, "read %d bytes\n", nbytes);
+		if ((written = fwrite(&buf, sizeof(char), nbytes, fp)) < nbytes) {
+			dprintf(D_ALWAYS, "failed to write %d bytes (only wrote %d)\n",
+					nbytes, written);
+			EXCEPT("fwrite");
+		}
+		dprintf(D_FULLDEBUG, "wrote %d bytes\n", written);
+		total += written;
 	}
-
-	strcpy(address, sin_to_string(&addr));
-	dprintf(D_FULLDEBUG, "receiving %s on %s\n", path, address);
-
-	if ((pid = fork()) < 0) {
-		dprintf(D_ALWAYS, "fork failed in ReceiveFile()\n");
-		EXCEPT("fork");
-	}
-
-	if (pid == 0) {				// child
-		char buf[4 * 1024];
-		struct sockaddr from;
-		int nbytes=0, written=0, total=0, xfersock, fromlen = sizeof(from);
-		int filesize;
-		if (listen(sockfd, 1) == -1) {
-			EXCEPT("listen");
-		}
-		if ((xfersock = accept(sockfd, (struct sockaddr *)&from,
-							   &fromlen)) == -1) {
-			EXCEPT("accept");
-		}
-		
-		if (read(xfersock, &filesize, sizeof(int)) < 0) {
-			EXCEPT("read");
-		}
-		filesize = ntohl(filesize);
-
-		while (total < filesize &&
-			   (nbytes = read(xfersock, &buf, sizeof(buf))) > 0) {
-			dprintf(D_FULLDEBUG, "read %d bytes\n", nbytes);
-			if ((written = fwrite(&buf, sizeof(char), nbytes, fp)) < nbytes) {
-				dprintf(D_ALWAYS, "failed to write %d bytes (only wrote %d)\n",
-						nbytes, written);
-				EXCEPT("fwrite");
-			}
-			dprintf(D_FULLDEBUG, "wrote %d bytes\n", written);
-			total += written;
-		}
-		dprintf(D_FULLDEBUG, "done with transfer, errno = %d\n", errno);
-		total = htonl(total);
-		if (write(xfersock, &total, sizeof(int)) < 0) {
-			dprintf(D_ALWAYS, "failed to send ack in ReceiveFile()\n");
-			EXCEPT("write");
-		}
-		dprintf(D_FULLDEBUG, "successfully wrote %s (%d bytes)\n",
-				path, total);
-		exit(0);
-	}
+	Q_SOCK->eom();
+	dprintf(D_FULLDEBUG, "done with transfer, errno = %d\n", errno);
+	dprintf(D_FULLDEBUG, "successfully wrote %s (%d bytes)\n",
+			path, total);
 
 	if (fclose(fp) == EOF) {
 		EXCEPT("fclose");
 	}
-	if (close(sockfd) == -1) {
-		EXCEPT("close");
-	}
 
-	return 0;
+	return total;
 }
-#else
-int
-SendSpoolFile(char *filename, char *address)
-{
-	return -1;
-}
-#endif
 
 } /* should match the extern "C" */
 
@@ -1352,6 +1304,7 @@ Cluster::~Cluster()
 	}
 	if (job != 0) {
 		delete job;
+		job = 0;
 	}
 
 	if (ad != 0) {
