@@ -2,8 +2,7 @@
 #ifndef FILE_TYPES_H
 #define FILE_TYPES_H
 
-#include <limits.h>
-#include <unistd.h>
+#include "condor_common.h"
 
 /**
 A printf-like function to display an unsupported or
