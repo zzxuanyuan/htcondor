@@ -477,8 +477,9 @@ int MirrorJob::doEvaluateState()
 				} else {
 					// unhandled error
 					dprintf( D_ALWAYS,
-							 "(%d.%d) condor_job_submit() failed\n",
-							 procID.cluster, procID.proc );
+							 "(%d.%d) condor_job_submit() failed: %s\n",
+							 procID.cluster, procID.proc,
+							 gahp->getErrorString() );
 					gmState = GM_UNSUBMITTED;
 					reevaluate_state = true;
 				}
@@ -526,8 +527,8 @@ int MirrorJob::doEvaluateState()
 			} else {
 				// unhandled error
 				dprintf( D_ALWAYS,
-						 "(%d.%d) condor_job_stage_in() failed\n",
-						 procID.cluster, procID.proc );
+						 "(%d.%d) condor_job_stage_in() failed: %s\n",
+						 procID.cluster, procID.proc, gahp->getErrorString() );
 				gmState = GM_CANCEL_1;
 			}
 			} break;
@@ -656,8 +657,8 @@ dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too long!\n",procID.cluster,procI
 			if ( rc != GLOBUS_SUCCESS ) {
 				// unhandled error
 				dprintf( D_ALWAYS,
-						 "(%d.%d) condor_job_hold() failed\n",
-						 procID.cluster, procID.proc );
+						 "(%d.%d) condor_job_hold() failed: %s\n",
+						 procID.cluster, procID.proc, gahp->getErrorString() );
 				gmState = GM_CANCEL_1;
 				break;
 			}
@@ -673,8 +674,8 @@ dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too long!\n",procID.cluster,procI
 			if ( rc != GLOBUS_SUCCESS ) {
 				// unhandled error
 				dprintf( D_ALWAYS,
-						 "(%d.%d) condor_job_release() failed\n",
-						 procID.cluster, procID.proc );
+						 "(%d.%d) condor_job_release() failed: %s\n",
+						 procID.cluster, procID.proc, gahp->getErrorString() );
 				gmState = GM_CANCEL_1;
 				break;
 			}
@@ -697,8 +698,8 @@ dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too long!\n",procID.cluster,procI
 			if ( rc != GLOBUS_SUCCESS ) {
 				// unhandled error
 				dprintf( D_ALWAYS,
-						 "(%d.%d) condor_job_status_constrained() failed\n",
-						 procID.cluster, procID.proc );
+						 "(%d.%d) condor_job_status_constrained() failed: %s\n",
+						 procID.cluster, procID.proc, gahp->getErrorString() );
 				gmState = GM_CANCEL_1;
 				break;
 			}
@@ -751,8 +752,8 @@ dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too long!\n",procID.cluster,procI
 			if ( rc != GLOBUS_SUCCESS ) {
 				// unhandled error
 				dprintf( D_ALWAYS,
-						 "(%d.%d) condor_job_complete() failed\n",
-						 procID.cluster, procID.proc );
+						 "(%d.%d) condor_job_update() failed: %s\n",
+						 procID.cluster, procID.proc, gahp->getErrorString() );
 				gmState = GM_CANCEL_1;
 				break;
 			}
@@ -776,7 +777,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too long!\n",procID.cluster,procI
 			rc = gahp->condor_job_update( mirrorScheddName, mirrorJobId,
 										  gahpAd );
 			if ( rc != GAHPCLIENT_COMMAND_PENDING ) {
-				dprintf( D_FULLDEBUG, "(%d.%d) GM_CANCEL: condor_job_update() returned %d\n", procID.cluster, procID.proc, rc );
+				dprintf( D_FULLDEBUG, "(%d.%d) GM_CANCEL: condor_job_update() failed: %s\n", procID.cluster, procID.proc, gahp->getErrorString() );
 			}
 			delete gahpAd;
 			gahpAd = NULL;
@@ -799,8 +800,8 @@ dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too long!\n",procID.cluster,procI
 				if ( rc != GLOBUS_SUCCESS ) {
 					// unhandled error
 					dprintf( D_ALWAYS,
-							 "(%d.%d) condor_job_remove() failed\n",
-							 procID.cluster, procID.proc );
+							 "(%d.%d) condor_job_remove() failed: %s\n",
+							 procID.cluster, procID.proc, gahp->getErrorString() );
 					gmState = GM_CLEAR_REQUEST;
 					break;
 				}
