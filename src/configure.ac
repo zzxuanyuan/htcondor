@@ -35,9 +35,29 @@ AC_INIT
 
 AC_ARG_WITH(externals,
  AC_HELP_STRING([--with-externals=DIR],
-   [Root of directory tree for external programs needed for building Condor (no default, must be specified)]),
- ac_cv_externals=$withval,
- AC_MSG_ERROR([you must use --with-externals=DIR to specify the path to the directory tree for external programs needed to build Condor]))
+   [Root of directory tree for external programs needed for building Condor (default is to search in ../externals)]),
+ [if test $withval = no; then
+    AC_MSG_WARN([You can not use --without-externals or use "no"])
+    AC_MSG_ERROR([--with-externals must define a directory (see --help)])
+  fi
+  CONDOR_VERIFY_EXTERNALS_DIR([$withval],
+    [directory specified with --with-externals ($withval) is not valid])
+ ],
+ [
+  # nothing specified, try ../externals.  however, instead of using
+  # "`pwd`/../externals", we use AS_DIRNAME to strip off the "src"
+  # part of `pwd` and then tack on "/externals".  This doesn't get
+  # things right if there are weird symlinks going on, but it wouldn't
+  # work if we were using "../externals", either.  In the general case
+  # where there's a real parent directory holding src, config and
+  # externals, everything works great, and using this as a default
+  # makes it possible to just run "./configure" most of the time.
+  _cur_pwd=`pwd`
+  _root_dir=`AS_DIRNAME(["$_cur_pwd"])`
+  CONDOR_VERIFY_EXTERNALS_DIR([$_root_dir/externals],
+  [../externals is not a valid directory tree for external programs needed to build Condor, you must use --with-externals=DIR to specify the path])
+ ]
+)
 AC_SUBST(ext_root,$ac_cv_externals)
 
 AC_ARG_VAR(TMPDIR, [Directory for temp files during Condor build [/tmp]])
