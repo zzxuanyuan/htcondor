@@ -764,7 +764,8 @@ bool Sock::test_connection()
 	int error;
 	socklen_t len = sizeof(error);
 	if (Generic_getsockopt(_sock, SOL_SOCKET, SO_ERROR, &error, &len) < 0) {
-		EXCEPT("Sock::test_connection - GCB_getsockopt failed !!!\n");
+		dprintf(D_ALWAYS, "Sock::test_connection - getsockopt failed\n");
+        return false;
 	}
 	// return result
 	if (error) {

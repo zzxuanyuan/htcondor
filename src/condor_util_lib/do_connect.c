@@ -334,13 +334,11 @@ int tcp_accept_timeout(int ConnectionSock, struct sockaddr *sin, int *len,
 #if defined(AIX31) || defined(AIX32)
 	errno = EINTR;  /* Shouldn't have to do this... */
 #endif
-	dprintf(D_FULLDEBUG, "******tcp_accept_timeout is calling select...\n");
     count = Generic_select(FD_SETSIZE, 
 				   (SELECT_FDSET_PTR) &readfds, 
 				   (SELECT_FDSET_PTR) 0, 
 				   (SELECT_FDSET_PTR) 0,
                    (struct timeval *)&timer );
-	dprintf(D_FULLDEBUG, "******select returned %d\n", count);
     if( count < 0 ) {
 		if( errno == EINTR ) {
 			dprintf( D_ALWAYS, "select() interrupted, restarting...\n");

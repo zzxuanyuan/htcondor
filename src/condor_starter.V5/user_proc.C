@@ -535,7 +535,6 @@ UserProc::execute()
 	}
 
 	if( pid == 0 ) {	// the child
-
 			// Block only these 3 signals which have special meaning for
 			// checkpoint/restart purposes.  Leave other signals ublocked
 			// so that if we get an exception during the restart process,
@@ -1239,16 +1238,16 @@ UserProc::UserProc( STARTUP_INFO &s ) :
 	/* GCB for user job */
 	char *GCBroute, *BrokerIP;
     if ( param_boolean("GCB_ENABLE", false) ) {
-		sprintf(buf, "useGCB=yes");
+		sprintf(buf, "GCB_ENABLE=yes");
 		env_obj.add_string(buf);
 	}
 	if ((GCBroute = param("GCB_ROUTE")) != NULL) {
-		sprintf(buf, "GCBroute=%s", GCBroute);
+		sprintf(buf, "GCB_ROUTE=%s", GCBroute);
 		env_obj.add_string(buf);
         free(GCBroute);
 	}
 	if ((BrokerIP = param("GCB_BROKER")) != NULL ) {
-		sprintf(buf, "Broker=%s", BrokerIP);
+		sprintf(buf, "GCB_BROKER=%s", BrokerIP);
 		env_obj.add_string(buf);
         free(BrokerIP);
 	}

@@ -478,7 +478,7 @@ tcp_connect( const char *host, int port )
 	address.sin_family = h->h_addrtype;
 	memcpy(&address.sin_addr.s_addr,h->h_addr_list[0],sizeof(address.sin_addr.s_addr));
 
-	fd = socket( AF_INET, SOCK_STREAM, 0 );
+	fd = Generic_socket( AF_INET, SOCK_STREAM, 0 );
 	if(fd<0) return -1;
 
 	success = Generic_connect( fd, (struct sockaddr *) &address, sizeof(address) );

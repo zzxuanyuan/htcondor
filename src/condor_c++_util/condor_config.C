@@ -193,18 +193,18 @@ condor_GCB_config()
 		  Derek Wright <wright@cs.wisc.edu> 2004-05-25
 		*/
 
-	// Env: useGCB
-	setenv("useGCB", strdup("yes"), 1);
+	// Env: GCB_ENABLE
+	setenv("GCB_ENABLE", strdup("yes"), 1);
 
 	// Env: Broker
 	if (str = param("GCB_BROKER")) {
-		setenv("Broker", str, 1);
+		setenv("GCB_BROKER", str, 1);
 		str = NULL;
 	}
 
 	// Env: GCB routing table
 	if (str = param("GCB_ROUTE")) {
-		setenv("GCBroute", str, 1);
+		setenv("GCB_ROUTE", str, 1);
 	}
 }
 

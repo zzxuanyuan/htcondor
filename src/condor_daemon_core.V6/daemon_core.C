@@ -30,7 +30,7 @@
 #include "condor_common.h"
 #include "generic_socket.h"
 extern "C" {
-void _ss_stop_logging();
+void GCB_stop_logging();
 }
 
 static const int DEFAULT_MAXCOMMANDS = 255;
@@ -5284,7 +5284,7 @@ int DaemonCore::Create_Process(
 			// lock file and has an fd, that we close it before we
 			// exec() so we don't leak it.
 
-        _ss_stop_logging();
+        GCB_stop_logging();
 
 		if( LockFd >= 0 ) {
 			close( LockFd );

@@ -1098,12 +1098,9 @@ int _condorInMsg::getn(char* dta, const int size)
 	} // of while(total..)
 
 	passed += total;
-	/*
-	if( D_FULLDEBUG & DebugFlags )
-		dprintf(D_NETWORK,
-		        "%d bytes read & %d bytes passed\n",
-			  total, passed);
-	*/
+	if( D_FULLDEBUG & DebugFlags ) {
+		dprintf(D_NETWORK, "%d bytes read & %d bytes passed\n", total, passed);
+    }
 	return total;
 }
 
@@ -1154,12 +1151,11 @@ int _condorInMsg::getPtr(void *&buf, char delim)
 		}
 		n++;
 	} // end of while(tempDir->dEntry[...
-	/*
-	if( D_FULLDEBUG & DebugFlags )
+	if( D_FULLDEBUG & DebugFlags ) {
 		dprintf(D_NETWORK, "SafeMsg::_longMsg::getPtr:\
 		                    found delim = %c & length = %d\n",
 			  delim, n);
-	*/
+    }
 	tempBuf = (char *)malloc(n);
 	if(!tempBuf) {
 		dprintf(D_ALWAYS, "getPtr, fail at malloc(%d)\n", n);

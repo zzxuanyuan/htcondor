@@ -116,7 +116,7 @@ char *mode;
 				close( pipe_d[READ_END] );
 			}
 		}
-		Generic_execl( "/bin/sh", "sh", "-c", cmd, 0 );
+		execl( "/bin/sh", "sh", "-c", cmd, 0 );
 		_exit( ENOEXEC );		/* This isn't safe ... */
 	}
 

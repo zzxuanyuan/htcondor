@@ -568,7 +568,7 @@ _condor_local_bind( int fd )
 		memset( (char *)&sin, 0, sizeof(sin) );
 		sin.sin_family = AF_INET;
 		sin.sin_port = 0;
-		sin.sin_addr.s_addr = htonl(INADDR_ANY);
+		sin.sin_addr.s_addr = htonl(my_ip_addr());
 		if( Generic_bind(fd, (struct sockaddr*)&sin, sizeof(sin)) < 0 ) {
 			dprintf( D_ALWAYS, "ERROR: bind(%s:%d) failed, errno: %d\n",
 					 inet_ntoa(sin.sin_addr), sin.sin_port, errno );
@@ -597,7 +597,7 @@ int bindWithin(const int fd, const int low_port, const int high_port)
 
 		memset(&sin, 0, sizeof(sin));
 		sin.sin_family = AF_INET;
-		sin.sin_addr.s_addr = htonl(INADDR_ANY);
+		sin.sin_addr.s_addr = htonl(my_ip_addr());
 		sin.sin_port = htons((u_short)this_trial++);
 
 		if (Generic_bind(fd, (struct sockaddr *)&sin, sizeof(sin)) == 0) { // success
