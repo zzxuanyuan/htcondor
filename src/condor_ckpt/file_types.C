@@ -101,6 +101,11 @@ int LocalFile::write(int pos, char *data, int length) {
 	return result;
 }
 
+/*
+We can happily support any fcntl or ioctl command in local mode.
+Remote mode is a different story, see below.
+*/
+
 int LocalFile::fcntl( int cmd, int arg )
 {
 	int result;
@@ -259,14 +264,66 @@ void RemoteFile::resume( int count )
 	}
 }
 
+/*
+In remote mode, we can only support fcntl and ioctl
+commands that have a single integer argument.  Others
+are a lost cause...
+*/
+
 int RemoteFile::fcntl( int cmd, int arg )
 {
-	return REMOTE_syscall( CONDOR_fcntl, fd, cmd, arg );
+	struct flock *f;
+
+	switch(cmd) {
+		#ifdef F_GETFD
+		case F_GETFD:
+		#endif
+
+		#ifdef F_GETFL
+		case F_GETFL:
+		#endif
+
+		#ifdef F_SETFD
+		case F_SETFD:
+		#endif
+		
+		#ifdef F_SETFL
+		case F_SETFL:
+		#endif
+			return REMOTE_syscall( CONDOR_fcntl, fd, cmd, arg );
+
+		#ifdef F_FREESP
+		case F_FREESP:
+		#endif
+
+		#ifdef F_FREESP64
+		case F_FREESP64:
+		#endif
+
+			/* When all fields of the lockarg are zero,
+			   this is the same as truncate, and we know
+			   how to do that already. */
+
+			f = (struct flock *)arg;
+			if( (f->l_whence==0) && (f->l_start==0) && (f->l_len==0) ) {
+				return ftruncate(0);
+			}
+
+			/* Otherwise, fall through here. */
+
+		default:
+
+			file_warning("fcntl(%d,%d,...) is unsupported for remote files.\n",fd,cmd);
+			errno = EINVAL;
+			return -1;
+	}
 }
 
 int RemoteFile::ioctl( int cmd, int arg )
 {
-	return REMOTE_syscall( CONDOR_ioctl, fd, cmd, arg );
+	file_warning("ioctl(%d,%d,...) is not supported for remote files.\n",fd,cmd);
+	errno = EINVAL;
+	return -1;
 }
 
 int RemoteFile::ftruncate( size_t length )
@@ -282,7 +339,7 @@ int RemoteFile::fsync()
 
 int RemoteFile::local_access_hack()
 {
-	return 1;
+	return 0;
 }
 
 int RemoteFile::map_fd_hack()

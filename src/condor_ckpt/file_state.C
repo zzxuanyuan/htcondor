@@ -475,7 +475,9 @@ int OpenFileTable::dup2( int fd, int nfd )
 		return -1;
 	}
 
-	if( pointers[nfd]!=0 ) close(nfd);
+	if( pointers[nfd]!=0 ) {
+		close(nfd);
+	}
 
 	pointers[fd]->add_user();
 	pointers[nfd] = pointers[fd];
@@ -513,7 +515,7 @@ may or may not support changing directories.
 is mapped locally to, say, /tmp/foo?)
 
 So, we will just avoid the problem by extracting the name
-of the file, and calling chdir.  (Could be local or remote.)
+of the file, and calling chdir.
 */
 
 int OpenFileTable::fchdir( int fd )
@@ -523,8 +525,17 @@ int OpenFileTable::fchdir( int fd )
 		return -1;
 	}
 
-	return chdir( pointers[fd]->get_file()->get_name() );
+	dprintf(D_ALWAYS,"OFT::fchdir(%d) will try chdir(%s)\n",
+		fd, pointers[fd]->get_file()->get_name() );
+
+	return ::chdir( pointers[fd]->get_file()->get_name() );
 }
+
+/*
+ioctls don't affect the open file table, so we will pass them
+along to the individual access method, which will decide
+if it can be supported.
+*/
 
 int OpenFileTable::ioctl( int fd, int cmd, int arg )
 {
@@ -555,13 +566,11 @@ int OpenFileTable::ftruncate( int fd, size_t length )
 
 /*
 fcntl does all sorts of wild stuff.
-We can classify these into three types:
-	1 - Calls that manipulate the fd table. (dup)
-	    Perform these here.
-	2 - Calls that manipulate a particular file.
-	    Pass those along to the right file object.
-	3 - Calls that require variable sized args
-	    We don't support those.
+Some operations affect the fd table.
+Perform these here.  Others merely modify
+an individual file.  Pass these along to
+the access method, which may support the operation,
+or fail with its own error.
 */
 
 int OpenFileTable::fcntl( int fd, int cmd, int arg )
@@ -580,35 +589,12 @@ int OpenFileTable::fcntl( int fd, int cmd, int arg )
 		#ifdef F_DUP2FD
 		case F_DUP2FD:
 		#endif
-
 			return dup2(fd,arg);
 
-		#ifdef F_GETLK64
-		case F_GETLK64:
-		#endif
-
-		#ifdef F_SETLK64
-		case F_SETLK64:
-		#endif
-
-		#ifdef F_SETLKW64
-		case F_SETLKW64:
-		#endif
-
-		case F_GETFD:
-		case F_GETFL:
-		case F_SETFD:
-		case F_SETFL:
-
+		default:
 			return pointers[fd]->get_file()->fcntl(cmd,arg);
 			break;
-
-		default:
-			file_warning("fcntl(%d,%d,...) is not supported.\n",fd,cmd);
-			errno = EINVAL;
-			return -1;
 	}
-
 }
 
 int OpenFileTable::fsync( int fd )
