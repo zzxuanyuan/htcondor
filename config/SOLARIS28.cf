@@ -25,8 +25,3 @@
 
 #define PlatformLdFlags -ldl -lkstat -lelf -lsocket -lresolv -lnsl -lm -lc \
 $(LIB_STDCPP)
-
-#define Strip /s/binutils-2.9.1/bin/strip
-
-
-

@@ -30,7 +30,3 @@
 	-Bstatic -lstdc++ -lgcc -Bdynamic
 /*   -Xlinker -B -Xlinker static -lstdc++ -lgcc  */
 
-#define Strip /usr/local/bin/strip
-
-
-

@@ -67,10 +67,6 @@ SNPRINTF_FLAGS =
 #define PurifyPlatformLdFlags
 #endif
 
-#if !defined(Strip)
-#define Strip strip
-#endif
-
 /*
    These next few lines are not supposed to be pre-processor
    directives, but GNU-make understood directives.  They don't want a
@@ -92,7 +88,7 @@ endif
 JAVAC = JavaCompiler
 JAR = JarTool
 
-STRIP = Strip
+STRIP = strip
 STATIC	= StaticFlag
 MKDEPEND = MkDepend
 STAR	= *
