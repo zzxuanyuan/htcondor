@@ -1895,16 +1895,8 @@ aboutToSpawnJobHandlerDone( int cluster, int proc,
 		return FALSE;
 	}
 
-	if( ! srec ) {
-			// if we weren't given an srec, we're not being called in
-			// the regular shadow/starter case, and we've got nothing
-			// more to do.
-		return TRUE;
-	}
 
-		// if we made it this far, now we've got to spawn the handler
-		// that's described by the shadow record we were given.
-	return (int)scheduler.spawnJobHandler( srec );
+	return (int)scheduler.spawnJobHandler( cluster, proc, srec );
 }
 
 
@@ -1929,20 +1921,36 @@ callAboutToSpawnJobHandler( int cluster, int proc, shadow_rec* srec )
 
 
 bool
-Scheduler::spawnJobHandler( shadow_rec* srec )
+Scheduler::spawnJobHandler( int cluster, int proc, shadow_rec* srec )
 {
-	if( srec->universe == CONDOR_UNIVERSE_LOCAL ) {
-			/*
-			  Local universe is special in that we never have to
-			  worry about the match being deleted, since there is
-			  no match.  so, in this case, we can just spawn the
-			  local universe starter and return.
-			*/
-		scheduler.spawnLocalStarter( srec );
-		return true;
+	int universe;
+	if( srec ) {
+		universe = srec->universe;
+	} else {
+		GetAttributeInt( cluster, proc, ATTR_JOB_UNIVERSE, &universe );
 	}
 
-		// if we're still here, make sure we have a match...
+	switch( universe ) {
+
+	case CONDOR_UNIVERSE_LOCAL:
+		scheduler.spawnLocalStarter( srec );
+		return true;
+		break;
+
+	case CONDOR_UNIVERSE_GLOBUS:
+			// grid universe is special, since we handle spawning
+			// gridmanagers in a different way, and don't need to do
+			// anything here.
+		ASSERT( srec == NULL );
+		return true;
+		break;
+		
+	default:
+		break;
+	}
+
+		// if we're still here, make sure we have a match since we
+		// have to spawn a shadow...
 	if( srec->match ) {
 		scheduler.spawnShadow( srec );
 		return true;

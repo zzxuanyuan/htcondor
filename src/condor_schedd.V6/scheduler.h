@@ -274,7 +274,7 @@ class Scheduler : public Service
 	void			checkReconnectQueue( void );
 	void			makeReconnectRecords( PROC_ID* job, const ClassAd* match_ad );
 
-	bool	spawnJobHandler( shadow_rec* srec );
+	bool	spawnJobHandler( int cluster, int proc, shadow_rec* srec );
 	bool 	enqueueTerminalJob( int cluster, int proc );
 
 
