@@ -27,7 +27,7 @@
 #include "self_draining_queue.h"
 
 
-SelfDrainingQueue::SelfDrainingQueue( const char* queue_name, int frequency )
+SelfDrainingQueue::SelfDrainingQueue( const char* queue_name, int period )
 {
 	if( queue_name ) {
 		name = strdup( queue_name );
@@ -38,7 +38,7 @@ SelfDrainingQueue::SelfDrainingQueue( const char* queue_name, int frequency )
 	handlercpp_fn = NULL;
 	service_ptr = NULL;
 
-	this->frequency = frequency;
+	this->period = period;
 	tid = -1;
 }
 
@@ -148,7 +148,7 @@ SelfDrainingQueue::registerTimer( void )
 	}
 
 	tid = daemonCore->
-		Register_Timer( frequency, 
+		Register_Timer( period, 
 						(TimerHandlercpp)&SelfDrainingQueue::timerHandler,
 						"SelfDrainingQueue::timerHandler", this );
     if( tid == -1 ) {
@@ -157,7 +157,7 @@ SelfDrainingQueue::registerTimer( void )
 				name );
     }
 	dprintf( D_FULLDEBUG, "Registered timer for SelfDrainingQueue %s, "
-			 "frequency: %d (id: %d)\n", name, frequency, tid );
+			 "period: %d (id: %d)\n", name, period, tid );
 }
 
 
@@ -179,7 +179,7 @@ SelfDrainingQueue::resetTimer( void )
 	if( tid == -1 ) {
 		EXCEPT( "Programmer error: resetting a timer that doesn't exist" );
 	}
-	daemonCore->Reset_Timer( tid, frequency, 0 );
+	daemonCore->Reset_Timer( tid, period, 0 );
 	dprintf( D_FULLDEBUG, "Reset timer for SelfDrainingQueue %s, "
-			 "frequency: %d (id: %d)\n", name, frequency, tid );
+			 "period: %d (id: %d)\n", name, period, tid );
 }

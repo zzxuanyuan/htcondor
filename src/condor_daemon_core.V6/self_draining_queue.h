@@ -29,11 +29,11 @@
    This class implements a special kind of Queue: a Queue that can
    drain itself.  Once you instantiate it, all you have to do is give
    it a function pointer to call on each data element, and the
-   (optional) frequency to drain data elements, and this class handles
+   (optional) period to drain data elements, and this class handles
    everything else for you.  So long as there's still data in the
-   queue, this class will dequeue another element at the desired
-   frequency and call the given handler function, passing in a pointer
-   to the data element.  
+   queue, this class will dequeue another element after the desired
+   period and call the given handler function, passing in a pointer to
+   the data element.
 
    To prevent this from itself being a template, and to potentially
    allow more fancy c++ method support, the SelfDrainingQueue only
@@ -48,7 +48,7 @@
 class SelfDrainingQueue : public Service
 {
 public:
-	SelfDrainingQueue( const char* name = NULL, int frequency = 0 );
+	SelfDrainingQueue( const char* name = NULL, int period = 0 );
 	~SelfDrainingQueue();
 	bool registerHandler( ServiceDataHandler handler_fn );
 	bool registerHandlercpp( ServiceDataHandlercpp handlercpp_fn, 
@@ -64,7 +64,7 @@ private:
 	ServiceDataHandlercpp handlercpp_fn;
 	Service* service_ptr;
 	int tid;
-	int frequency;
+	int period;
 	char* name;
 	
 	void registerTimer( void );
