@@ -44,22 +44,22 @@ fi
 if [ ! -x $IMAKE ] ; then
     # if it's not here yet, fatal error
     echo "Failed to build imake!"
-p   exit 1
+	exit 1
 fi
 
-# Now, find an appropriate cpp to use
-if [ ! $os = "AIX" ] ; then
-	IMAKECPP="$IMAKEROOT/imake_cpp"
-	if [ ! -x $IMAKECPP ] ; then
-    	if [ -f $IMAKECPP ] ; then
-        	rm -f $IMAKECPP
-    	fi	 
-    	echo '#!/bin/sh' > $IMAKECPP
-    	echo $Imakecppflags >> $IMAKECPP
-    	chmod 755 $IMAKECPP
-	fi
-	export IMAKECPP
+# Here we find out the vendor supplied cpp we should use, which is 
+# incidentally the one that the X source code would use.
+if [ -x "/lib/cpp" ]; then
+	IMAKECPP=/lib/cpp
+elif [ -x "/usr/ccs/lib/cpp" ]; then
+	IMAKECPP=/usr/ccs/lib/cpp
+elif [ -x "/usr/bin/cpp" ]; then
+	IMAKECPP=/usr/bin/cpp
+else
+	echo "Please determine the path to the vendor cpp!"
+	exit 1
 fi
+export IMAKECPP
 
 # end of USE_OLD_IMAKE
 fi
