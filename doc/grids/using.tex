@@ -586,6 +586,66 @@ This example's attribute name for the additional RSL is
 \verb@project@, and the value assigned is \verb@Test_Project@.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection{\label{sec:CondorG-Submit-Args}Arguments to a Globus Universe Job}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\index{Condor-G!job arguments}
+
+Condor requires space characters to delimit the arguments
+in an submit description file such as
+\begin{verbatim}
+arguments = 13 argument2 argument3
+\end{verbatim}
+This example results in the 3 arguments:
+\begin{verbatim}
+argv[1] = 13
+argv[2] = argument2
+argv[3] = argument3
+\end{verbatim}
+
+With Condor-G, arguments are passed through using RSL.
+Therefore, arguments are parsed in a way that allows space characters
+to be delimiters or to be parts of arguments.
+The single quote character delimits some or all arguments such that
+\begin{verbatim}
+arguments = '%s' 'argument with spaces' '+%d'
+\end{verbatim}
+results in
+\begin{verbatim}
+argv[1] = %s
+argv[2] = argument with spaces
+argv[3] = +%d
+\end{verbatim}
+
+Should the arguments themselves contain the single quote character,
+an escaped double quote character may be used.
+The example
+% % what it is supposed to appear as:
+% % arguments = \"don't\" \"mess with\" \"quoting rules\"
+\begin{verbatim}
+arguments = \"don't\" \"mess with\" \"quoting rules\"
+\end{verbatim}
+results in 
+\begin{verbatim}
+argv[1] = don't
+argv[2] = mess with
+argv[3] = quoting rules
+\end{verbatim}
+
+And, if the job arguments have both single and double quotes,
+the appearance of the quote character twice in a
+row is converted to a single instance of the character and the literal
+continues until the next solo quote character.
+For example
+\begin{verbatim}
+arguments = 'don''t yell \"blah!\"' '+%s'
+\end{verbatim}
+results in
+\begin{verbatim}
+argv[1] = don't yell "blah!"
+argv[2] = +%s
+\end{verbatim}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsubsection{\label{sec:Condor-G-Limits}Limitations of Condor-G}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % This subsubsection used to reside in the file limitations.tex.

@@ -133,6 +133,9 @@ List of arguments to be supplied
 to the program on the command line.   In the Java Universe, the first
 argument must be the name of the class containing \Code{main}.
 Arguments are delimited (separated) by space characters.
+Jobs submitted for the globus universe will parse arguments
+differently due to RSL.
+See section~\ref{sec:CondorG-Submit-Args} for further details.
 
 %%%%%%%%%%%%%%%%%%%
 %% initialdir
@@ -929,7 +932,7 @@ directory.
 % X509\_USER\_KEY, X509\_USER\_CERT, and X509\_CERT\_DIR are exported with 
 % default values.
 %Commented out by Karen for 6.4.3.
-%See section~\ref{sec:X509-Authentication} for more info.
+%See section~\ref{sec:X509-Authentication} for more information.
 
 %%%%%%%%%%%%%%%%%%%
 %% x509userproxy
