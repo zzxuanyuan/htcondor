@@ -36,19 +36,20 @@
 #include "internet.h"
 #include "simplelist.h"
 #include "my_username.h"
-
 #include "globus_utils.h"
 
 #include "proxymanager.h"
 //#include "myproxy_manager.h"
-#include "gahp-client.h"
 #include "gridmanager.h"
 
 #define HASH_TABLE_SIZE			500
 
 template class HashTable<HashKey, Proxy *>;
 template class HashBucket<HashKey, Proxy *>;
-//<<<<<<< proxymanager.C
+template class HashTable<HashKey, ProxySubject *>;
+template class HashBucket<HashKey, ProxySubject *>;
+template class List<Proxy>;
+template class Item<Proxy>;
 
 
 template class SimpleList<MyProxyEntry*>;
@@ -57,21 +58,12 @@ template class SimpleList<MyProxyEntry*>;
 //template class HashTable<HashKey, MyProxyManager *>;
 //template class HashBucket<HashKey, MyProxyManager *>;
 
-HashTable <HashKey, Proxy *> ProxiesByPath( HASH_TABLE_SIZE,
-											hashFunction );
-//HashTable <HashKey, MyProxyManager *> MyProxyManagersByPath ( HASH_TABLE_SIZE, hashFunction );
-
-//MyProxyManager myProxyManager;
-//=======
-template class HashTable<HashKey, ProxySubject *>;
-template class HashBucket<HashKey, ProxySubject *>;
-template class List<Proxy>;
-template class Item<Proxy>;
-
 HashTable <HashKey, Proxy *> ProxiesByFilename( HASH_TABLE_SIZE,
 												hashFunction );
 HashTable <HashKey, ProxySubject *> SubjectsByName( 50, hashFunction );
-//>>>>>>> 1.1.4.1.2.8
+//HashTable <HashKey, MyProxyManager *> MyProxyManagersByPath ( HASH_TABLE_SIZE, hashFunction );
+
+//MyProxyManager myProxyManager;
 
 static bool proxymanager_initialized = false;
 static int CheckProxies_tid = TIMER_UNSET;
@@ -79,7 +71,6 @@ static int CheckProxies_tid = TIMER_UNSET;
 int CheckProxies_interval = 600;		// default value
 int minProxy_time = 3 * 60;				// default value
 int myproxyGetDelegationReaperId = 0;
-
 
 static int next_proxy_id = 1;
 
@@ -230,11 +221,6 @@ AcquireProxy( const char *proxy_path, int notify_tid )
 		ProxiesByFilename.insert( HashKey(new_master->proxy_filename),
 								  new_master );
 
-//<<<<<<< proxymanager.C
-
-
-	daemonCore->Reset_Timer( CheckProxies_tid, 0 );
-//=======
 		proxy_subject->master_proxy = new_master;
 
 		SubjectsByName.insert(HashKey(proxy_subject->subject_name),
@@ -252,7 +238,6 @@ AcquireProxy( const char *proxy_path, int notify_tid )
 	}
 
 	free( subject_name );
-//>>>>>>> 1.1.4.1.2.8
 
 	return proxy;
 }
@@ -291,15 +276,28 @@ ReleaseProxy( Proxy *proxy, int notify_tid )
 
 	if ( proxy->num_references <= 0 ) {
 
+/* TODO If we're going to keep proxies around while myproxy delegation is
+ *  still running, we need a way to clean them up later (either in
+ *  CheckProxies() or MyProxyGetDelegationReaper()).
+		// If myproxy-get-delegation is still running, don't delete this just yet
+		proxy->myproxy_entries.Rewind();
+		MyProxyEntry * mpe;
+		int keep = FALSE;
+		while (proxy->myproxy_entries.Next(mpe)) {
+			if (mpe->get_delegation_pid != FALSE) {
+				keep = TRUE;
+				break;
+			}
+		}
+*/
+
 		ProxySubject *proxy_subject = proxy->subject;
 
 		if ( proxy != proxy_subject->master_proxy ) {
-			ProxiesByFilename.remove( HashKey(proxy->proxy_filename) );
-			proxy_subject->proxies.Delete( proxy );
-			free( proxy->proxy_filename );
-			delete proxy;
+			DeleteProxy( proxy );
 		}
 
+			// TODO should this be moved into DeleteProxy()?
 		if ( proxy_subject->proxies.IsEmpty() &&
 			 proxy_subject->master_proxy->num_references <= 0 ) {
 
@@ -355,7 +353,11 @@ void DeleteMyProxyEntry (MyProxyEntry *& myproxy_entry) {
 }
 
 // Utility function to deep-delete the Proxy data structure
-void DeleteProxy (Proxy *& proxy) {
+void DeleteProxy (Proxy *& proxy)
+{
+	ProxiesByFilename.remove( HashKey(proxy->proxy_filename) );
+
+	proxy->subject->proxies.Delete( proxy );
 
 	if (proxy->proxy_filename) {
 		free( proxy->proxy_filename );
@@ -387,143 +389,41 @@ int CheckProxies()
 {
 	int now = time(NULL);
 	int next_check = CheckProxies_interval + now;
-//<<<<<<< proxymanager.C
-	int rc;
-
-	dprintf(D_FULLDEBUG,"CheckProxies called\n");
-//=======
 	ProxySubject *curr_subject;
-//>>>>>>> 1.1.4.1.2.8
 
 	SubjectsByName.startIterations();
 
-//<<<<<<< proxymanager.C
-	// As we check our proxies, keep an eye out for a new master proxy.
-	// The new master needs to be valid and have an expiration time at
-	// 60 seconds longer than the current master proxy.
-	new_master = NULL;
-	new_max_expire = MasterProxy.expiration_time + 60;
-	if ( new_max_expire < now + 180 ) {
-		new_max_expire = now + 180;
-	}
-//=======
 	while ( SubjectsByName.iterate( curr_subject ) != 0 ) {
-//>>>>>>> 1.1.4.1.2.8
 
 		Proxy *curr_proxy;
 		Proxy *new_master = curr_subject->master_proxy;
 
 		curr_subject->proxies.Rewind();
 
-//<<<<<<< proxymanager.C
-		// Remove any proxies that are no longer being used by anyone
-		if ( next_proxy->num_references == 0 ) {
-
-			// If myproxy-get-delegation is still running, don't delete this just yet
-			next_proxy->myproxy_entries.Rewind();
-			MyProxyEntry * mpe;
-			int keep = FALSE;
-			while (next_proxy->myproxy_entries.Next(mpe)) {
-				if (mpe->get_delegation_pid != FALSE) {
-					keep = TRUE;
-					break;
-				}
-			}
-			if (keep) {
-				continue;
-			}
-
-
-dprintf(D_FULLDEBUG,"  removing old proxy %d\n",next_proxy->gahp_proxy_id);
-			ProxiesByPath.remove( HashKey(next_proxy->proxy_filename) );
-			if ( my_gahp.uncacheProxy( next_proxy->gahp_proxy_id ) == false ) {
-				EXCEPT( "GAHP uncache command failed!" );
-			}
-			/*free( next_proxy->proxy_filename );
-			delete next_proxy;*/
-			DeleteProxy (next_proxy);
-			continue;
-		}
-//=======
 		while ( curr_subject->proxies.Next( curr_proxy ) != false ) {
-//>>>>>>> 1.1.4.1.2.8
-
-//<<<<<<< proxymanager.C
-		/*
-
-		This is moved to RefreshProxy
-
-		// If this proxy is renewable via myproxy
-		// and we don't have the password for it yet,
-		// ask the Schedd
-
-		next_proxy->myproxy_entries.Rewind();
-		MyProxyEntry * mpe = NULL;
-		while (next_proxy->myproxy_entries.Next(mpe)) {
-			if (!mpe->myproxy_password) {
-				if (!GetMyProxyPasswordFromSchedD (mpe->cluster_id,
-													mpe->proc_id,
-													&(mpe->myproxy_password))) {
-					dprintf (D_ALWAYS,
-						"Unable to retrieve MyProxy password from SchedD for proxy (job: %d.%d) %s\n",
-						mpe->cluster_id,
-						mpe->proc_id,
-						next_proxy->proxy_filename);
-					// This is unfortunate, let's hope the proxy doesn't expire before we finish the job
-				}
-			}
-		}*/
-
-		int new_expiration = x509_proxy_expiration_time( next_proxy->proxy_filename );
-		// If the proxy is valid, and either it hasn't been cached in the
-		// gahp_server yet or it's been updated, (re)cache it in the
-		// gahp_server and notify everyone who cares.
-		if ( new_expiration > now + 180 &&
-			 ( next_proxy->gahp_proxy_id == -1 ||
-			   new_expiration > next_proxy->expiration_time ) ) {
-//=======
-			curr_proxy->near_expired =
-				(curr_proxy->expiration_time - now) <= minProxy_time;
-//>>>>>>> 1.1.4.1.2.8
 
 			int new_expiration =
 				x509_proxy_expiration_time( curr_proxy->proxy_filename );
 
+			// Check whether to renew the proxy (renew 4 hrs beforehand)
+			if ( (new_expiration <= now + 4*60*60) &&
+				 (!curr_proxy->myproxy_entries.IsEmpty()) ) {
+				dprintf (D_FULLDEBUG,
+						 "About to RefreshProxyThruMyProxy() for %s\n",
+						 curr_proxy->proxy_filename);
+				RefreshProxyThruMyProxy (curr_proxy);
+			}
+
+			curr_proxy->near_expired =
+				(curr_proxy->expiration_time - now) <= minProxy_time;
+
 			if ( new_expiration > curr_proxy->expiration_time ) {
 
-//<<<<<<< proxymanager.C
-dprintf(D_FULLDEBUG,"  (re)caching proxy %d\n",next_proxy->gahp_proxy_id);
-			if ( my_gahp.cacheProxyFromFile( next_proxy->gahp_proxy_id,
-											 next_proxy->proxy_filename ) == false ) {
-				// TODO is there a better way to react?
-				EXCEPT( "GAHP cache command failed!" );
-			}
-//=======
 				curr_proxy->expiration_time = new_expiration;
-//>>>>>>> 1.1.4.1.2.8
 
 				curr_proxy->near_expired =
 					(curr_proxy->expiration_time - now) <= minProxy_time;
 
-//<<<<<<< proxymanager.C
-		}
-
-
-		// Check whether to renew the proxy (renew 4 hrs beforehand)
-		if ( (new_expiration <= now + 4*60*60) && (!next_proxy->myproxy_entries.IsEmpty()) ) {
-			dprintf (D_FULLDEBUG, "About to RefreshProxyThruMyProxy() for %s\n", next_proxy->proxy_filename);
-			RefreshProxyThruMyProxy (next_proxy);
-		}
-
-
-		if ( new_expiration <= now + minProxy_time ) {
-			// This proxy has expired or is about to expire. Mark it
-			// as such and notify everyone who cares.
-			if ( next_proxy->near_expired == false ) {
-dprintf(D_FULLDEBUG,"  marking proxy %d as about to expire\n",next_proxy->gahp_proxy_id);
-				next_proxy->near_expired = true;
-//=======
-//>>>>>>> 1.1.4.1.2.8
 				int tid;
 				curr_proxy->notification_tids.Rewind();
 				while ( curr_proxy->notification_tids.Next( tid ) ) {
@@ -542,21 +442,6 @@ dprintf(D_FULLDEBUG,"  marking proxy %d as about to expire\n",next_proxy->gahp_p
 					daemonCore->Reset_Timer( tid, 0 );
 				}
 
-//<<<<<<< proxymanager.C
-	// If we found a new master proxy, copy it to the master proxy location,
-	// update the master Proxy struct, update the GAHP server, and notify
-	// everyone who cares
-	if ( new_master != NULL && SetMasterProxy( new_master ) == true ) {
-
-dprintf(D_FULLDEBUG,"  proxy %d is now the master proxy\n",new_master->gahp_proxy_id);
-		if ( gahp_initialized == false ) {
-			// This is our first master proxy, perform the callback so that
-			// the GAHP can be intialized with it
-dprintf(D_FULLDEBUG,"  first master found, calling gahp init function\n");
-			if ( (*InitGahpFunc)( MasterProxy.proxy_filename ) == false ) {
-				EXCEPT( "GAHP initalization failed!" );
-//=======
-//>>>>>>> 1.1.4.1.2.8
 			}
 
 			if ( curr_proxy->expiration_time - minProxy_time < next_check &&
@@ -566,26 +451,9 @@ dprintf(D_FULLDEBUG,"  first master found, calling gahp init function\n");
 
 		}
 
-//<<<<<<< proxymanager.C
-			gahp_initialized = true;
-		} else {
-			// Refresh the master proxy credentials in the GAHP
-dprintf(D_FULLDEBUG,"  refreshing master proxy in gahp\n");
-			rc = my_gahp.globus_gram_client_set_credentials( MasterProxy.proxy_filename );
-			// TODO if set-credentials fails, what to do?
-			if ( rc != 0 ) {
-				dprintf( D_ALWAYS, "GAHP set credentails failed! rc=%d\n", rc);
-			}
-			if ( my_gahp.cacheProxyFromFile( MasterProxy.gahp_proxy_id,
-											 MasterProxy.proxy_filename ) == false ) {
-				EXCEPT( "GAHP cache command failed!" );
-			}
-		}
-//=======
 		if ( new_master != curr_subject->master_proxy ) {
 			
 			SetMasterProxy( curr_subject->master_proxy, new_master );
-//>>>>>>> 1.1.4.1.2.8
 
 		}
 
@@ -593,10 +461,6 @@ dprintf(D_FULLDEBUG,"  refreshing master proxy in gahp\n");
 
 	// next_check is the absolute time of the next check, convert it to
 	// a relative time (from now)
-//<<<<<<< proxymanager.C
-dprintf(D_FULLDEBUG,"  will call CheckProxies again in %d seconds\n",next_check-now);
-//=======
-//>>>>>>> 1.1.4.1.2.8
 	daemonCore->Reset_Timer( CheckProxies_tid, next_check - now );
 
 	return TRUE;
