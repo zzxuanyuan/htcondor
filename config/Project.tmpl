@@ -70,7 +70,7 @@ MakeRPMs =
 /*
    These next few lines are not supposed to be pre-processor
    directives, but GNU-make understood directives.  They don't want a
-   hash mark in front of them.  If you're having problems at these lines,
+   # in front of them.  If you're having problems at these lines,
    you're probably not using gmake.  -peter keller 9/8/2000
 */
 ifdef DEBUG_BUILD
@@ -95,11 +95,34 @@ PLATFORM_LDFLAGS = PlatformLdFlags
 PURIFY_PLATFORM_LDFLAGS = PurifyPlatformLdFlags
 TEST_PLATFORM_LDFLAGS = TestPlatformLdFlags
 
+CMNT ##########
+CMNT Orbacus settings
+CMNT ##########
+#if !defined( PlatformOBLibs )
+#define PlatformOBLibs
+#endif
+
+CMNT Libraries needed to link with OB
+OB_LIBS = -lOB -lJTC -lpthread PlatformOBLibs
+
+CMNT Where are all the OB files kept
+OB_ROOT = /unsup/OB
+
+CMNT IDL is an Orbacus tool for creating source files from .idl files
+IDL = $(OB_ROOT)/bin/idl --c-suffix .C -I$(OB_ROOT)/include 
+
+CMNT In general, we need to use a different version of g++ to build the
+CMNT idl-generated source files (gcc 2.95) than we use to build the rest
+CMNT of Condor (egcs 1.1.2)
+IDL_CC = /s/gcc-2.95.2/bin/g++
+
+CMNT Particle Physics Data Grid CORBA IDL dir
+PPDG_IDL_DIR = /p/condor/workspaces/ppdg/ppdg_idl/idl
 
 /*
    These next few lines are not supposed to be pre-processor
    directives, but GNU-make understood directives.  They don't want a
-   hash mark in front of them.  If you're having problems at these lines,
+   # in front of them.  If you're having problems at these lines,
    you're probably not using gmake.  -Derek Wright 6/16/99
 */
 ifdef SMP_NUM_JOBS
@@ -115,11 +138,11 @@ endif
 #define CKPT_LIBC	$(RELEASE_DIR)/lib/libckpt.a
 #define CONDOR_LIBC	$(RELEASE_DIR)/lib/libcondor.a
 
-#define AR_DELETE(libname,objects)ar d libname objects
-#define AR_EXTRACT(libname,objects)ar x libname objects
+#define AR_DELETE(libname,objects) ar d libname objects
+#define AR_EXTRACT(libname,objects) ar x libname objects
 
 #if HAS_AR_S_OPTION
-#define AR_REPLACE(libname,objects)ar vrs libname objects
+#define AR_REPLACE(libname,objects) ar vrs libname objects
 #else
 #define AR_REPLACE(libname,objects) \
 	ar vr libname objects @@\
@@ -128,15 +151,15 @@ endif
 
 
 #if HAS_CP_PRESERVE			/* cp lib w/o changing modify time - don't ranlib */
-#	define COPY_LIBRARY(src,dst)cp -p src dst
-#	define RANLIB_TOUCH(lib)/bin/true
+#	define COPY_LIBRARY(src,dst) cp -p src dst
+#	define RANLIB_TOUCH(lib)	/bin/true
 #else
 #	if HAS_RANLIB_TOUCH		/* cp lib changes modify time - ranlib -t */
-#		define COPY_LIBRARY(src,dst)cp src dst
-#		define RANLIB_TOUCH(libname)ranlib -t libname
+#		define COPY_LIBRARY(src,dst) cp src dst
+#		define RANLIB_TOUCH(libname) ranlib -t libname
 #	else						/* dumb cp and ranlib - do it the hard way */
-#		define COPY_LIBRARY(src,dst)cp src dst
-#		define RANLIB_TOUCH(libname)ranlib libname
+#		define COPY_LIBRARY(src,dst) cp src dst
+#		define RANLIB_TOUCH(libname) ranlib libname
 #	endif
 #endif
 
@@ -189,94 +212,26 @@ DEBUG_FLAG = DebugFlag
 #define VendorFTestFlags
 #endif
 
+
 #if WANT_CLASSAD_FUNCTIONS && HAS_DLOPEN
-#   define CLASSAD_FUNCTIONS YES
+    #define CLASSAD_FUNCTIONS YES
 #endif
 
 #if WANT_DAGMAN_HELPER && HAS_DAGMAN_HELPER
-#   define DAGMAN_HELPER YES
+    #define DAGMAN_HELPER YES
 #endif 
 
 #if !defined(WANT_ORACLE_UNIVERSE)
-#   define WANT_ORACLE_UNIVERSE NO
+#define WANT_ORACLE_UNIVERSE NO
 #endif
 
 #if !defined(WANT_NORDUGRID_UNIVERSE)
-#   define WANT_NORDUGRID_UNIVERSE NO
+#define WANT_NORDUGRID_UNIVERSE NO
 #endif
-
-
-/**********************************************************************
-A whole bunch of settings related to things included in the Condor
-externals tree.  First, we make sure this particular build has been
-configured to use the externals, and if not, we disable a bunch of
-stuff, even if the rest of the imake configuration things we want it.
-**********************************************************************/
-
-#if ! HAS_EXTERNALS
-
-#ifdef WANT_MAN_PAGES
-#undef WANT_MAN_PAGES
-#endif
-#define WANT_MAN_PAGES	NO
-
-#ifdef WANT_PVM
-#undef WANT_PVM
-#endif
-#define WANT_PVM	NO
-
-#ifdef WANT_CONDOR_G
-#undef WANT_CONDOR_G
-#endif
-#define WANT_CONDOR_G	NO
-
-#ifdef WANT_GSI
-#undef WANT_GSI
-#endif
-#define WANT_GSI	NO
-
-#ifdef WANT_X509
-#undef WANT_X509
-#endif
-#define WANT_X509	NO
-
-#ifdef WANT_KERBEROS
-#undef WANT_KERBEROS
-#endif
-#define WANT_KERBEROS	NO
-
-#ifdef WANT_MD
-#undef WANT_MD
-#endif
-#define WANT_MD		NO
-
-#ifdef WANT_3DES
-#undef WANT_3DES
-#endif
-#define WANT_3DES	NO
-
-#ifdef WANT_BLOWFISH
-#undef WANT_BLOWFISH
-#endif
-#define WANT_BLOWFISH	NO
-
-#ifdef USE_GLOBUS_OPENSSL
-#undef USE_GLOBUS_OPENSSL
-#endif
-#define USE_GLOBUS_OPENSSL	NO
-
-
-#endif /* ! HAS_EXTERNALS */
-
-/****************************************
- Now that all that is taken care of, we
- can setup a bunch of make variables
- depending on what features are enabled
-****************************************/
 
 #if WANT_CONDOR_G && HAS_GLOBUS
 
-#  define NEEDS_GSI YES
+  #define NEEDS_GSI YES
 
   CONDOR_G_FLAGS = -DCONDOR_G
 
@@ -286,7 +241,7 @@ stuff, even if the rest of the imake configuration things we want it.
 
 /* GSI Authentication requires globus*/
 #if WANT_GSI && HAS_GSI
-#  define NEEDS_GSI YES
+  #define NEEDS_GSI YES
   GSI_AUTH_FLAGS = -DGSI_AUTHENTICATION
   GSI_AUTH_LIB =
 #else
@@ -303,25 +258,25 @@ stuff, even if the rest of the imake configuration things we want it.
 
 /* Encryption */
 #if WANT_3DES && HAS_OPENSSL
-#  define CONDOR_3DES_ENCRYPTION YES
+  #define CONDOR_3DES_ENCRYPTION YES
   3DES_FLAGS = -DCONDOR_3DES_ENCRYPTION
-#  define NEEDS_OPENSSL YES
-#  define WANT_ENCRYPTION YES
+  #define NEEDS_OPENSSL YES
+  #define WANT_ENCRYPTION YES
 #else
   3DES_FLAGS =
 #endif
 
 #if WANT_BLOWFISH && HAS_OPENSSL
-#  define CONDOR_BLOWFISH_ENCRYPTION YES
+  #define CONDOR_BLOWFISH_ENCRYPTION YES
   BLOWFISH_FLAGS = -DCONDOR_BLOWFISH_ENCRYPTION
-#  define NEEDS_OPENSSL YES
-#  define WANT_ENCRYPTION YES
+  #define NEEDS_OPENSSL YES
+  #define WANT_ENCRYPTION YES
 #else
   BLOWFISH_FLAGS =
 #endif
 
 #if WANT_ENCRYPTION
-#  define CONDOR_ENCRYPTION YES
+  #define CONDOR_ENCRYPTION YES
   ENCRYPTION_FLAGS = -DCONDOR_ENCRYPTION $(3DES_FLAGS) $(BLOWFISH_FLAGS)
   ENCRYPTION_LIB =
 #else
@@ -330,8 +285,8 @@ stuff, even if the rest of the imake configuration things we want it.
 #endif
 
 #if WANT_MD && HAS_OPENSSL
-#  define NEEDS_OPENSSL YES
-#  define CONDOR_MD YES
+  #define NEEDS_OPENSSL YES
+  #define CONDOR_MD YES
   MD_FLAGS = -DCONDOR_MD
   MD_LIB =
 #else
@@ -358,7 +313,7 @@ only happening to the globus libraries and only on AIX.  go figure.
 
 #if NEEDS_GSI && HAS_GSI
   /* Make sure that USE_GLOBUS_OPENSSL is set */
-#  define NEEDS_OPENSSL YES
+  #define NEEDS_OPENSSL YES
   GSI_FLAGS = -DCONDOR_GSI $(GSI_AUTH_FLAGS)
   GSI_LIB   = $(PRE_GLOBUS_LIBS) \
 	      $(GLOBUS_DIR)/lib/libglobus_gss_assist_$(GlobusFlavor).a \
@@ -381,18 +336,18 @@ only happening to the globus libraries and only on AIX.  go figure.
 #endif
 
 #if NEEDS_OPENSSL && HAS_OPENSSL
-#  if USE_GLOBUS_OPENSSL
+  #if USE_GLOBUS_OPENSSL
     OPENSSL_FLAGS = -I$(OPENSSL_DIR)/include/$(GlobusFlavor)
     OPENSSL_LIB = $(PRE_GLOBUS_LIBS) \
 		  $(OPENSSL_DIR)/lib/libssl_$(GlobusFlavor).a \
 		  $(OPENSSL_DIR)/lib/libcrypto_$(GlobusFlavor).a \
 		  $(POST_GLOBUS_LIBS)
     OPENSSL_MD_LIB = $(OPENSSL_DIR)/lib/libcrypto_$(GlobusFlavor).a 
-#  else
+  #else
     OPENSSL_FLAGS = -I$(OPENSSL_DIR)/include
     OPENSSL_LIB = $(OPENSSL_DIR)/lib/libssl.a $(OPENSSL_DIR)/lib/libcrypto.a
     OPENSSL_MD_LIB = $(OPENSSL_DIR)/lib/libcrypto.a 
-#  endif
+  #endif
 #else
   OPENSSL_FLAGS =
   OPENSSL_LIB =
@@ -412,10 +367,6 @@ NETMAN_FLAGS = -DWANT_NETMAN
 NETMAN_LIB =
 NETMAN_FLAGS =
 #endif
-
-/********************************************
- end of externals-specific settings and flags
-********************************************/
 
 VENDOR_C_FLAGS = CFlags -I$(INCLUDE_DIR) -I$(NEW_INCLUDE_DIR) \
 		 -I$(C_PLUS_INCLUDE) -D$(ARCH_FLAG)=$(ARCH_FLAG) \
@@ -456,8 +407,9 @@ TESTSUITE_FLAGS_G77 =  $(STD_C_FLAGS)
 TESTSUITE_FLAGS_CC = -g $(VENDOR_C_FLAGS) VendorCTestFlags PlatformFlags
 TESTSUITE_FLAGS_CPP = -g $(VENDOR_C_FLAGS) VendorCPPTestFlags PlatformFlags
 TESTSUITE_FLAGS_F77 = -g $(VENDOR_C_FLAGS) VendorFTestFlags PlatformFlags
-
-
+/*
+DAEMON_CLIENT_LIB = ../condor_daemon_client/libdaemonclient.a
+*/
 CKPT_SERV_LIB = ../condor_ckpt_server/ckpt_server_api.a
 QMGMT_LIB = ../condor_schedd.V6/libqmgmt.a
 CLASSAD_LIB = ../condor_classad/libclassad.a
@@ -477,8 +429,6 @@ STD_LIBS = \
   $(CUTIL_LIB) \
   $(CPLUS_LIB) \
   $(CKPT_SERV_LIB) \
-  $(QMGMT_LIB) \
-  $(ACCT_LIB) \
   $(PROCAPI_LIB) \
   $(SYSAPI_LIB) \
   $(CPLUS_LIB) \
