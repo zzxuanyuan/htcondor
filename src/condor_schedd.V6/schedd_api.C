@@ -152,7 +152,18 @@ Job::declare_file(MyString name,
 	FILE *file;
 
 	jobFile.name = name;
-	file = fopen((*spoolDirectory + DIR_DELIM_STRING + jobFile.name).GetCStr(), "w");
+/* It turns out that Windows opens files in a Windows spepcific "text
+   mode" by default. In text mode all LFs are converted to CRLF, which
+   causes problems for binary files. So, on Windows we need to
+   specifically open spool files in "binary mode" by adding "b" to the
+   mode. Lame...
+ */
+#ifdef WIN32
+	char *mode = "wb";
+#else
+	char *mode = "w";
+#endif
+	file = fopen((*spoolDirectory + DIR_DELIM_STRING + jobFile.name).GetCStr(), mode);
 	if (file) {
 		jobFile.file = file;
 		if (requirements->insert(MyString(name), jobFile)) {
