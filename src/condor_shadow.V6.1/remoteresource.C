@@ -66,6 +66,7 @@ RemoteResource::RemoteResource( BaseShadow *shad )
 	fs_domain = NULL;
 	uid_domain = NULL;
 	claim_sock = NULL;
+	last_contact = 0;
 	exit_reason = -1;
 	exited_by_signal = false;
 	exit_value = -1;
@@ -130,6 +131,7 @@ RemoteResource::activateClaim( int starterVersion )
 				   (SocketHandlercpp)&RemoteResource::handleSysCalls, 
 				   "HandleSyscalls", this );
 			setResourceState( RR_STARTUP );		
+			hadContact();
 			return true;
 			break;
 		case CONDOR_TRY_AGAIN:
@@ -343,7 +345,7 @@ RemoteResource::handleSysCalls( Stream *sock )
 			// close sock on this end...the starter has gone away.
 		return TRUE;
 	}
-
+	hadContact();
 	return KEEP_STREAM;
 }
 
@@ -753,6 +755,10 @@ RemoteResource::setJobAd( ClassAd *jA )
 	if( jA->LookupInteger(ATTR_DISK_USAGE, int_value) ) {
 		disk_usage = int_value;
 	}
+
+	if( jA->LookupInteger(ATTR_LAST_CONTACT, int_value) ) {
+		last_contact = (time_t)int_value;
+	}
 }
 
 
@@ -765,6 +771,7 @@ RemoteResource::updateFromStarter( ClassAd* update_ad )
 	char tmp[ATTRLIST_MAX_EXPRESSION];
 
 	dprintf( D_FULLDEBUG, "Inside RemoteResource::updateFromStarter()\n" );
+	hadContact();
 
 	if( DebugFlags & D_MACHINE ) {
 		dprintf( D_MACHINE, "Update ad:\n" );
@@ -1091,31 +1098,46 @@ RemoteResource::beginExecution( void )
 
 
 void
+RemoteResource::hadContact( void )
+{
+		// Length: ATTR_LAST_CONTACT is 11, '=' is 1, MAX_INT is 10,
+		// and another 10 to spare should be more than enough...
+	char contact_buf[32];
+	last_contact = time(0);
+	snprintf( contact_buf, 32, "%s=%d", ATTR_LAST_CONTACT,
+			  (int)last_contact );
+	jobAd->Insert( contact_buf );
+}
+
+
+void
 RemoteResource::reconnect( void )
 {
-	static int last_contact = -1;
 	static int timeout = -1;
 	const char* gjid = shadow->getGlobalJobId();
 	if( ! gjid ) {
 		EXCEPT( "Shadow in reconnect mode but %s is not in the job ad!",
 				ATTR_GLOBAL_JOB_ID );
 	}
-	if( last_contact < 0 ) { 
+	if( timeout < 0 ) { 
 			// if it's our first time, figure out what we've got to
 			// work with...
-		ASSERT( timeout < 0 );
 		dprintf( D_FULLDEBUG, "Trying to reconnect job %s\n", gjid );
-		if( ! jobAd->LookupInteger(ATTR_LAST_CONTACT, last_contact) ) {
-			EXCEPT( "Shadow in reconnect mode but %s is not in the job ad!",
-					ATTR_LAST_CONTACT );
-		}
 		if( ! jobAd->LookupInteger(ATTR_DISCONNECTED_RUN_TIMEOUT, timeout) ) {
 			EXCEPT( "Shadow in reconnect mode but %s is not in the job ad!",
 					ATTR_DISCONNECTED_RUN_TIMEOUT );
 		}
+		if( ! last_contact ) {
+				// if we were spawned in reconnect mode, this should
+				// be set.  if we're just trying a reconnect because
+				// the syscall socket went away, we'll already have
+				// initialized last_contact when we started the job
+			EXCEPT( "Shadow in reconnect mode but %s is not in the job ad!",
+					ATTR_LAST_CONTACT );
+		}
 		dprintf( D_ALWAYS, "Trying to reconnect to disconnected job\n" );
-		dprintf( D_ALWAYS, "Last known contact: %d %s", last_contact, 
-				 ctime((const time_t*)&last_contact) );
+		dprintf( D_ALWAYS, "Last known contact: %d %s", (int)last_contact, 
+				 ctime(&last_contact) );
 		dprintf( D_ALWAYS, "%s: %d seconds\n",
 				 ATTR_DISCONNECTED_RUN_TIMEOUT, timeout );
 	}

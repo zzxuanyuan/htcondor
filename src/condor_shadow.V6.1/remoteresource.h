@@ -325,6 +325,10 @@ class RemoteResource : public Service {
 	int exit_value;
 	bool exited_by_signal;
 
+		/// Updates both the last_contact data member and the job ad
+	void hadContact( void );
+	time_t last_contact;
+
 		/// This is the timeout period to hear from a startd.  (90 seconds).
 	static const int SHADOW_SOCK_TIMEOUT;
 
