@@ -5,6 +5,11 @@
 int main()
 {
 	config(); // Initialize param();
+
+	//Initialize dprintf logging (reroute to stderr)
+	Termlog = 1;
+	dprintf_config("TOOL", fileno(stderr));
+
 	JobSpoolDir s;
 	bool b = s.Initialize(123,4,5,true);
 	if( ! b ) {
@@ -13,8 +18,10 @@ int main()
 	}
 	//s.SetCmd("/example/executable");
 
-	printf("%s\n",s.SandboxPath(true).GetCStr());
-	printf("%s\n",s.TransferPath(true).GetCStr());
+	printf("Sandbox: %s\n",s.SandboxPath(true).GetCStr());
+	printf("Transfer: %s\n",s.TransferPath(true).GetCStr());
+	printf("Read  EXE: %s\n",s.ExecutablePathForReading().GetCStr());
+	printf("Write EXE: %s\n",s.ExecutablePathForWriting().GetCStr());
 	sleep(10);
 	s.DestroyProcessDirectory();
 	s.DestroyClusterDirectory();
