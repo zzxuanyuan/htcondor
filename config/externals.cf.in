@@ -23,25 +23,23 @@ GAHP_DIR = $(EXT_INSTALL_ROOT)/$(EXT_GAHP_VERSION)/bin
 #define NestLibPath /p/condor/workspaces/nest/lib
 #define NestIncludePath /p/condor/workspaces/nest/include
 
-/*------------------------------------------
- * Condor Credential API related
- *------------------------------------------*/
-KERBEROS_DIR = 			$(EXT_INSTALL_ROOT)/$(EXT_KERBEROS_VERSION)
+
+KERBEROS_DIR = $(EXT_INSTALL_ROOT)/$(EXT_KERBEROS_VERSION)
 #if WANT_KERBEROS && HAS_KERBEROS
-KERBEROS_INCLUDE =		$(KERBEROS_DIR)/include
+KERBEROS_INC = $(KERBEROS_DIR)/include
 #if KERBEROS_K5
-KERBEROS_LIB =			$(KERBEROS_DIR)/lib/libkrb5.a        \
-                		$(KERBEROS_DIR)/lib/libk5crypto.a    \
-				$(KERBEROS_DIR)/lib/libcom_err.a
+KERBEROS_LIB = $(KERBEROS_DIR)/lib/libkrb5.a \
+   $(KERBEROS_DIR)/lib/libk5crypto.a \
+   $(KERBEROS_DIR)/lib/libcom_err.a
 #else
-KERBEROS_LIB =			$(KERBEROS_DIR)/lib/libkrb5.a        \
-				$(KERBEROS_DIR)/lib/libcrypto.a      \
-				$(KERBEROS_DIR)/lib/libcom_err.a
+KERBEROS_LIB = $(KERBEROS_DIR)/lib/libkrb5.a \
+   $(KERBEROS_DIR)/lib/libcrypto.a \
+   $(KERBEROS_DIR)/lib/libcom_err.a
 #endif
 
 #else /* WANT_KERBEROS && HAS_KERBEROS */
-KERBEROS_LIB =
-KERBEROS_INCLUDE = 
+KERBEROS_LIB = 
+KERBEROS_INC = 
 #endif
 
 
