@@ -57,6 +57,7 @@
 #define GM_REFRESH_PROXY		16
 #define GM_PROBE_JOBMANAGER		17
 #define GM_START				18
+#define GM_RECOVER				19
 
 static char *GMStateNames[] = {
 	"GM_INIT",
@@ -77,7 +78,8 @@ static char *GMStateNames[] = {
 	"GM_PROXY_EXPIRED",
 	"GM_REFRESH_PROXY",
 	"GM_PROBE_JOBMANAGER",
-	"GM_START"
+	"GM_START",
+	"GM_RECOVER"
 };
 
 // TODO: Let the maximum submit attempts be set in the job ad or, better yet,
@@ -253,9 +255,34 @@ int UnicoreJob::doEvaluateState()
 					executeLogged = true;
 				}
 
-				gmState = GM_SUBMITTED;
+				gmState = GM_RECOVER;
 			}
 			} break;
+		case GM_RECOVER: {
+			// We're recovering from a crash after the job was submitted.
+			// Allow the gahp server to recover its internal state about
+			// the job.
+			if ( submitAd == NULL ) {
+				submitAd = buildSubmitAd();
+			}
+			if ( submitAd == NULL ) {
+				gmState = GM_HOLD;
+				break;
+			}
+			rc = gahp->unicore_job_recover( submitAd->Value() );
+			if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
+				 rc == GAHPCLIENT_COMMAND_PENDING ) {
+				break;
+			}
+			if ( rc != GLOBUS_SUCCESS ) {
+				// unhandled error
+				dprintf(D_ALWAYS,"(%d.%d) unicore_job_recover() failed\n",
+						procID.cluster, procID.proc);
+				gmState = GM_CANCEL;
+				break;
+			}
+			gmState = GM_SUBMITTED;
+		} break;
 		case GM_UNSUBMITTED: {
 			// There are no outstanding gram submissions for this job (if
 			// there is one, we've given up on it).
@@ -624,10 +651,11 @@ void UnicoreJob::UpdateUnicoreState( const char *update_ad_string )
 
 MyString *UnicoreJob::buildSubmitAd()
 {
-	ClassAd submit_ad;
+//	ClassAd submit_ad;
 	ClassAdXMLUnparser xml_unp;
 	MyString *ad_string;
 
+/*
 	ExprTree *expr;
 
 	static const char *regular_attrs[] = {
@@ -661,12 +689,14 @@ MyString *UnicoreJob::buildSubmitAd()
 		}
 
 	}
+*/
 
 	xml_unp.SetUseCompactSpacing( true );
 	xml_unp.SetOutputType( false );
 	xml_unp.SetOutputTargetType( false );
 	ad_string = new MyString;
-	xml_unp.Unparse( &submit_ad, *ad_string );
+//	xml_unp.Unparse( &submit_ad, *ad_string );
+xml_unp.Unparse( ad, *ad_string );
 
 	return ad_string;
 }
