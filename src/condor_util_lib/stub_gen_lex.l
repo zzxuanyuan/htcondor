@@ -41,6 +41,7 @@ long				return grab( TYPE_NAME );
 float				return grab( TYPE_NAME );
 {UNSIGNED}int		return grab( TYPE_NAME );
 {UNSIGNED}long		return grab( TYPE_NAME );
+{UNSIGNED}short		return grab( TYPE_NAME );
 long{WHITE}int		return grab( TYPE_NAME );
 u_short				return grab( TYPE_NAME );
 ulong_t				return grab( TYPE_NAME );
@@ -62,6 +63,8 @@ open_flags_t		return grab( TYPE_NAME );
 fcntl_cmd_t			return grab( TYPE_NAME );
 signal_t			return grab( TYPE_NAME );
 fd_set				return grab( TYPE_NAME );
+nfds_t				return grab( TYPE_NAME );
+MMAP_T				return grab( TYPE_NAME );
 PROC				return grab( TYPE_NAME );
 STARTUP_INFO		return grab( TYPE_NAME );
 {STRUCT}stat		return grab( TYPE_NAME );
@@ -75,7 +78,6 @@ STARTUP_INFO		return grab( TYPE_NAME );
 {STRUCT}timeval		return grab( TYPE_NAME );
 {STRUCT}timezone	return grab( TYPE_NAME );
 {STRUCT}pollfd		return grab( TYPE_NAME );
-{STRUCT}sockaddr	return grab( TYPE_NAME );
 {STRUCT}sigcontext	return grab( TYPE_NAME );
 {STRUCT}sigstack	return grab( TYPE_NAME );
 {STRUCT}rlimit		return grab( TYPE_NAME );
@@ -90,6 +92,10 @@ STARTUP_INFO		return grab( TYPE_NAME );
 {STRUCT}module		return grab( TYPE_NAME );
 {STRUCT}stat64		return grab( TYPE_NAME );
 {STRUCT}rlimit64	return grab( TYPE_NAME );
+{STRUCT}dirent		return grab( TYPE_NAME );
+{STRUCT}dirent64	return grab( TYPE_NAME );
+{STRUCT}statfs64	return grab( TYPE_NAME );
+{STRUCT}pollfd		return grab (TYPE_NAME );
 ClassAd			return grab( TYPE_NAME );
 "["{WHITE}"]"		return grab( ARRAY );
 map					return grab( MAP );
@@ -115,6 +121,7 @@ ignored				return grab( IGNORE );
 ":"					return grab( ':' );
 [ \t]+				;/* eat up whitespace */
 \n					yyline += 1;	/* eat up newlines */
+"..."					return grab( ELLIPSIS );
 .					return grab( UNKNOWN );
 %%
 yywrap()

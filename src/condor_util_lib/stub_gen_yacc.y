@@ -15,8 +15,9 @@
 %token RETURN
 %token NOSUPP
 %token IGNORE
+%token ELLIPSIS
 
-%type <node> stub_spec param_list param simple_param map_param
+%type <node> stub_spec param_list param simple_param
 %type <node> stub_body action_func_list
 %type <node> action_param action_param_list action_func xfer_func alloc_func
 %type <node> return_func
@@ -38,7 +39,7 @@ struct node * mk_alloc_func( struct node *param_list );
 struct node * mk_return_func( struct node *param_list );
 struct node * mk_param_node( char *type, char *name,
 	int is_const, int is_ptr, int is_ref, int is_const_ptr, int is_array,
-	int is_in, int is_out );
+	int is_in, int is_out, int is_vararg );
 struct node * mk_action_param_node( char *name, int is_ref, char *mult );
 struct node *set_map_attr( struct node * simple );
 struct node *insert_node( struct node *list, struct node *new_elem );
@@ -46,16 +47,17 @@ void display_node( struct node * );
 void output_switch( struct node * );
 void display_list( struct node * );
 void output_switch_decl( struct node * );
-void output_local_call(  char *id, struct node *list );
-void output_remote_call(  char *id, struct node *list );
-void output_extracted_call(  char *id, struct node *list );
-void output_dl_extracted_call(  char *id, char *rtn_type, int is_ptr,
-							  struct node *list );
+void output_local_call(  struct node *n, struct node *list );
+void output_remote_call(  struct node *n, struct node *list );
+void output_extracted_call(  struct node *n, struct node *list );
+void output_dl_extracted_call(  struct node *n, char *rtn_type, int is_ptr, struct node *list );
 void output_param_list( struct node *list );
+
 struct node *mk_list();
 void copy_file( FILE *in_fp, FILE *out_fp );
 FILE * open_file( char *name );
 char * mk_upper();
+char * node_type( struct node *n );
 char * abbreviate( char *type_name );
 void Trace( char *msg );
 char * find_type_name( char *param_name, struct node *param_list );
@@ -82,7 +84,8 @@ int IsExtracted = FALSE;
 int IsDLExtracted = FALSE;
 int IsPseudo = FALSE;
 int DoSysChk = TRUE;
-
+int IsMapped = FALSE;
+int IsVararg = FALSE;
 
 static char global_func[20],global_fd[20];
 #if 0
@@ -321,6 +324,11 @@ pseudo_or_extract
 		Trace( "pseudo_or_extract (3)" );
 		DoSysChk = FALSE;
 		}
+	| MAP
+		{
+		Trace( "pseudo_or_extract (4)" );
+		IsMapped = TRUE;
+		}
 	;
 
 param_list
@@ -335,13 +343,11 @@ param_list
 param
 	: simple_param
 			{ $$ = $1; }
-	| map_param
-			{ $$ = $1; }
-	;
-
-map_param
-	: MAP '(' simple_param ')'
-			{ $$ = set_map_attr( $3 ); }
+	| ELLIPSIS
+			{
+			$$ = mk_param_node("int","lastarg",0,0,0,0,0,0,0,1);
+			IsVararg = TRUE;
+			}
 	;
 
 simple_param
@@ -356,7 +362,8 @@ simple_param
 				$6,				/* pointer to const */
 				$8,				/* array */
 				$1.in,			/* in parameter */
-				$1.out			/* out parameter */
+				$1.out,			/* out parameter */
+				0			/* is this a vararg? */
 			);
 			}
 	;
@@ -536,7 +543,7 @@ yyerror( char * s )
 struct node *
 mk_param_node( char *type, char *name,
 	int is_const, int is_ptr, int is_ref, int is_const_ptr, int is_array,
-	int is_in, int is_out )
+	int is_in, int is_out, int is_vararg )
 {
 	struct node	*answer;
 
@@ -552,8 +559,7 @@ mk_param_node( char *type, char *name,
 	answer->is_array = is_array;
 	answer->in_param = is_in;
 	answer->out_param = is_out;
-
-	answer->is_mapped = FALSE;	/* will set later if needed */
+	answer->is_vararg = is_vararg;
 
 	answer->next = answer;
 	answer->prev = answer;
@@ -599,6 +605,9 @@ mk_func_node( char *type, char *name, struct node * p_list,
 	answer->type_name = type;
 	answer->id = name;
 	answer->is_ptr = is_ptr;
+	answer->is_ref = 0;
+	answer->is_array = 0;
+	answer->is_const = 0;
 	answer->extract = IsExtracted;
 	IsExtracted = FALSE;
 	answer->dl_extract = IsDLExtracted;
@@ -607,9 +616,13 @@ mk_func_node( char *type, char *name, struct node * p_list,
 	DoSysChk = TRUE;
 	answer->pseudo = IsPseudo;
 	IsPseudo = FALSE;
+	answer->is_mapped = IsMapped;
+	IsMapped = FALSE;
+	answer->is_vararg = IsVararg;
+	IsVararg = FALSE;
 	answer->param_list = p_list;
 	answer->action_func_list = action_func_list;
-
+	
 	return answer;
 }
 
@@ -695,38 +708,40 @@ output_vararg( struct node *n )
 	printf( "\t\t%s = va_arg( ap, %s );\n", n->id, n->type_name );
 }
 
-void
-output_param_type( struct node *n )
+char * node_type( struct node *n )
 {
-	assert( n->node_type == PARAM );
+	static char buffer[1024];
+	sprintf(buffer,"%s%s %s%s%s%s",
+		n->is_const?"const ":"",
+		n->type_name,
+		n->is_ptr?"* ":" ",
+		"",
+		/* n->is_ref?"& ":"", */
+		n->is_const_ptr?"const ":"",
+		n->is_array?"[] ":"");
+	return buffer;
+}
 
-	if( n->is_const ) {
-		printf( "const " );
-	}
-
-	printf( "%s", n->type_name );
-
-	if( n->is_ptr ) {
-		printf( " *" );
-	}
-
-	if( n->is_ref ) {
-		printf( "&" );
-	}
-
-	if( n->is_const_ptr ) {
-		printf( " const " );
-	}
-
-	if( n->is_array ) {
-		printf( " []" );
-	}
+char * node_type_noconst ( struct node *n )
+{
+	static char buffer[1024];
+	sprintf(buffer,"%s %s%s%s",
+		n->type_name,
+		n->is_ptr?"* ":" ",
+		n->is_ref?"& ":"",
+		n->is_array?"* ":"");
+	return buffer;
 }
 
 void
 output_param_node( struct node *n, int want_id )
 {
 	assert( n->node_type == PARAM );
+
+	if( n->is_vararg ) {
+		printf( "...");
+		return;
+	}
 
 	if( n->is_const ) {
 		printf( "const " );
@@ -759,20 +774,7 @@ display_node( struct node *n )
 {
 	switch( n->node_type ) {
 		case PARAM:
-			if( n->is_mapped ) {
-				printf( "MAP(" );
-			}
-			if( n->is_const ) {
-				printf( "const " );
-			}
-			if( n->is_ptr ) {
-				printf( "%s *%s", n->type_name, n->id );
-			} else {
-				printf( "%s %s", n->type_name, n->id );
-			}
-			if( n->is_mapped ) {
-				printf( ")" );
-			}
+			printf(node_type(n));
 			break;
 		case FUNC:
 			printf( "FUNC: %s %s ", n->type_name, n->id );
@@ -833,7 +835,7 @@ output_switch_generic( struct node *dum, int want_normal )
 	}
 
 	if ( want_normal ) {
-		printf( ")\n" );
+		printf( ")" );
 	}
 }
 
@@ -841,20 +843,22 @@ void
 output_switch_decl( struct node *dum )
 {
 	output_switch_generic( dum, 1 );
+	printf("\n");
 } 
 
 void
 output_switch_listcalls( struct node *dum )
 {
 	output_switch_generic( dum, 0 );
+	printf("\n");
 }
 
 void
-output_local_call( char *id, struct node *list )
+output_local_call( struct node *n, struct node *list )
 {
 	struct node	*p;
 
-	printf( "		rval = syscall( SYS_%s", id );
+	printf("\t\t\trval = syscall( SYS_%s", n->id );
 	if( !is_empty_list(list) ) {
 		printf( ", " );
 	}
@@ -863,11 +867,11 @@ output_local_call( char *id, struct node *list )
 }
 
 void
-output_remote_call( char *id, struct node *list )
+output_remote_call( struct node *n, struct node *list )
 {
 	struct node	*p;
 
-	printf( "		rval = REMOTE_syscall( CONDOR_%s", id );
+	printf("\t\t\trval = REMOTE_syscall( CONDOR_%s", n->id );
 	if( !is_empty_list(list) ) {
 		printf( ", " );
 	}
@@ -876,11 +880,20 @@ output_remote_call( char *id, struct node *list )
 }
 
 void
-output_extracted_call( char *id, struct node *list )
+output_mapped_call( char *id, struct node *list )
+{
+	printf( "\t\terrno = 0;\n" );
+	printf( "\t\tInitFileState();\n");
+	printf( "\t\trval = FileTab -> %s ( ", id );
+	output_param_list( list );
+	printf( " );\n");
+}
+
+void output_extracted_call( struct node *n, struct node *list )
 {
 	struct node	*p;
 
-	printf( "		rval = %s(", mk_upper(id) );
+	printf("\t\t\trval = (int) %s(", mk_upper(n->id) );
 	if( !is_empty_list(list) ) {
 		printf( " " );
 	}
@@ -888,38 +901,36 @@ output_extracted_call( char *id, struct node *list )
 	printf( " );\n" );
 }
 
-void
-output_dl_extracted_call( char *id, char *rtn_type, int is_ptr,
-						 struct node *list )
+void output_dl_extracted_call( struct node *n, char *rtn_type, int is_ptr, struct node *list )
 {
 	struct node	*p;
 
-	printf( "		void *handle;\n");
-	printf( "		%s%s (*fptr)(", rtn_type, is_ptr ? " *" : "" );
+	printf( "\t\tvoid *handle;\n");
+	printf( "\t\t%s (*fptr)(", node_type(n));
 	for( p=list->next; p != list; p = p->next ) {
-		output_param_type( p );
+		printf(node_type(p));
 		if( p->next != list ) {
 			printf( ", " );
 		}
 	}
 	printf( ");\n" );
 
-	printf( "		if ((handle = dlopen(\"/usr/lib/libc.so\", "
-		   "RTLD_LAZY)) == NULL) {\n");
-	printf( "			return (%s%s)-1;\n", rtn_type, is_ptr ? " *" : "");
-	printf( "		}\n\n" );
-	printf( "		if ((fptr = (%s%s (*)(", rtn_type, is_ptr ? " *" : "" );
+	printf( "\t\tif ((handle = dlopen(\"/usr/lib/libc.so\", RTLD_LAZY)) == NULL) {\n");
+	printf( "\t\t\trval = -1;\n");
+	printf( "\t\t}");
+	printf( "\t\tif ((fptr = (%s (*)(", node_type(n));
 	for( p=list->next; p != list; p = p->next ) {
-		output_param_type( p );
+		printf(node_type(p));
 		if( p->next != list ) {
 			printf( ", " );
 		}
 	}
-	printf( "))dlsym(handle, \"%s\")) == NULL) {\n", id );
-	printf( "			return (%s%s)-1;\n", rtn_type, is_ptr ? " *" : "" );
-	printf( "		}\n\n" );
-	printf( "		return (*fptr)(" );
+	printf( "))dlsym(handle, \"%s\")) == NULL) {\n", n->id );
+	printf( "\t\t\trval = -1;\n");
+	printf( "\t\t}\n\n" );
+	printf( "\t\trval = (int) (*fptr)(",node_type(n));
 	output_param_list( list );
+
 	printf( ");\n" );
 }
 
@@ -929,11 +940,7 @@ output_param_list( struct node *list )
 	struct node	*p;
 
 	for( p=list->next; p != list; p = p->next ) {
-		if( p->is_mapped ) {
-			printf( "user_%s", p->id );
-		} else {
-			printf( "%s", p->id );
-		}
+		printf( "%s", p->id );
 		if( p->next != list ) {
 			printf( ", " );
 		}
@@ -973,52 +980,6 @@ mk_list()
 }
 
 /*
-  Look through the list of parameters and see if any are fd's which need
-  to be mapped.  If so output the appropriate declaration and mapping
-  code.
-*/
-void
-output_mapping( char *func_type_name, int is_ptr,  struct node *list )
-{
-	struct node	*n;
-        struct node     *p;
-	int	found_mapping = 0;
-
-	for( n = list->next; n != list; n = n->next ) {
-		if( n->is_mapped ) {
-			printf( "	%s	user_%s;\n", n->type_name, n->id );
-			found_mapping = 1;
-		}
-	}
-
-	if( found_mapping ) {
-		printf( "\tint use_local_access = FALSE;\n" );
-		printf( "\n" );
-	}
-
-	for( n = list->next; n != list; n = n->next ) {
-		if( n->is_mapped ) {
-			printf( "	if( (user_%s=MapFd(%s)) < 0 ) {\n", n->id, n->id );
-			printf( "		return (%s%s)-1;\n",
-				func_type_name,
-				is_ptr ? " *" : ""
-			);
-			printf( "	}\n" );
-			printf( "\tif( LocalAccess(%s) ) {\n", n->id );
-			printf( "\t\tuse_local_access = TRUE;\n" );
-			printf( "\t}\n" );
-		}
-	}
-
-	printf( "\n" );
-	if( found_mapping ) {
-		printf( "	if( LocalSysCalls() || use_local_access ) {\n" );
-	} else {
-		printf( "	if( LocalSysCalls() ) {\n" );
-	}
-}
-
-/*
   Output code for one system call receiver.
 */
 void
@@ -1041,13 +1002,9 @@ output_receiver( struct node *n )
 
 		/* output a local variable decl for each param of the sys call */
 	for( p=param_list->next; p != param_list; p = p->next ) {
-		printf( "\t\t%s %s%s%s;\n",
-			p->type_name,
-			p->is_ptr ? "*" : "",
-			p->is_array ? "*" : "",
-			p->id
-		);
+		printf("\t\t%s %s;\n",node_type_noconst(p),p->id);
 	}
+
 	printf( "\t\tint terrno;\n" );
 	printf( "\n" );
 
@@ -1128,7 +1085,9 @@ output_receiver( struct node *n )
 	} else if( Ignored ) {
 		printf( "\t\trval = CONDOR_Ignored( CONDOR_%s );\n", n->id  );
 	} else {
-		printf( "\t\trval = %s%s( ",
+
+		printf( "\t\t%s%s%s( ",
+			!strcmp(n->type_name,"void") ? "" : "rval = ",
 			n->pseudo ? "pseudo_" : "",
 			n->id
 		);
@@ -1243,14 +1202,9 @@ output_sender( struct node *n )
 	printf( "	case CONDOR_%s:\n", n->id );
 	printf( "	  {\n" );
 
-		/* output a local variable decl for each param of the sys call */
+	/* output a local variable decl for each param of the sys call */
 	for( p=param_list->next; p != param_list; p = p->next ) {
-		printf( "\t\t%s %s%s%s;\n",
-			p->type_name,
-			p->is_ptr ? "*" : "",
-			p->is_array ? "*" : "",
-			p->id
-		);
+		printf("\t\t%s %s;\n",node_type_noconst(p),p->id);
 	}
 	printf( "\n" );
 
@@ -1370,50 +1324,78 @@ output_sender( struct node *n )
 void
 output_switch( struct node *n )
 {
+	char tmpname[80];
+
 	assert( n->node_type == FUNC );
 
 	if( !n->pseudo && Do_SYS_check && n->sys_chk ) {
 		printf( "#if defined( SYS_%s )\n", n->id );
 	}
-	if( n->is_ptr ) {
-		printf( "%s *\n", n->type_name );
-	} else {
-		printf( "%s\n", n->type_name );
+
+	printf("#undef %s\n",n->id);
+
+	if( n->extract ) {
+		printf("extern %s %s ",node_type(n),mk_upper(n->id));
+		output_switch_generic(n->param_list,1);
+		printf(";\n\n");
 	}
-	printf( "%s", n->id );
+
+	printf( "%s %s ", node_type(n), n->id );
 	output_switch_decl( n->param_list );
-	printf( "{\n" );
-	printf( "	int	rval;\n" );
+
+	printf("{\n\tint rval;\n\n");
+
+	/* Notice this: The vararg generator only does enough to
+	   generate a third arg of size int.  */
+
+	if( n->is_vararg ) {
+		printf("\tint lastarg;\n");
+		printf("\tva_list args;\n");
+		printf("\tva_start(args,%s);\n",n->param_list->next->next->id);
+		printf("\tlastarg = va_arg(args,int);\n");
+		printf("\tva_end(args);\n");
+		printf("\n");
+	}
+
+	printf( "\tsigset_t sigs = block_condor_signals();\n\n");
 
 	if (gen_local_calls ) {
-		output_mapping( n->type_name, n->is_ptr, n->param_list );
-		if( n->extract ) {
-			output_extracted_call( n->id, n->param_list );
-		} else if ( n->dl_extract ) {
-			output_dl_extracted_call( n->id, n->type_name, n->is_ptr,
-									 n->param_list );
-		} else {
-			output_local_call( n->id, n->param_list );
+
+		if( n->is_mapped ) {
+			printf("\tif( MappingFileDescriptors() ) {\n");
+			output_mapped_call( n->id, n->param_list );
+			printf("\t} else {\n");
 		}
-		printf( "	} else {\n" );
+
+		printf("\t\tif( LocalSysCalls() ) {\n");
+
+		if( n->extract ) {
+			output_extracted_call( n, n->param_list );
+		} else if ( n->dl_extract ) {
+			output_dl_extracted_call( n, n->type_name, n->is_ptr, n->param_list );
+		} else {
+			output_local_call( n, n->param_list );
+		}
+		printf( "\t\t} else {\n" );
 	}
 
-	output_remote_call(  n->id, n->param_list );
+	output_remote_call(  n, n->param_list );
 
 	if (gen_local_calls) {
-		printf( "	}\n" );
-	}
-	if( strcmp(n->type_name,"void") != 0 ) {
-		printf( "\n" );
-		if( strcmp(n->type_name,"int") == 0 ) {
-			printf( "	return rval;\n" );
-		} else if(n->is_ptr) {
-			printf( "	return (%s *)rval;\n", n->type_name );
-		} else {
-			printf( "	return (%s)rval;\n", n->type_name );
+		printf( "\t\t}\n" );
+
+		if( n->is_mapped ) {
+			printf("\t}\n");
 		}
 	}
-	printf( "}\n" );
+
+	printf( "\trestore_condor_sigmask(sigs);\n");
+
+	if( strcmp(n->type_name,"void") || n->is_ptr) {
+		printf("\n\treturn (%s) rval;\n",node_type(n));
+	}
+	printf( "}\n\n" );
+
 
 	if( n->pseudo || !Do_SYS_check || !n->sys_chk ) {
 		printf( "\n" );

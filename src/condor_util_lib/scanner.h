@@ -48,6 +48,7 @@ struct node {
 	int		is_mapped;
 	int		is_array;
 	int		is_ref;
+	int		is_vararg;
 	int		in_param;
 	int		out_param;
 	int		extract;
