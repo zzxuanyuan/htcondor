@@ -19,11 +19,25 @@ AC_DEFUN( [CHECK_PROG_IS_GNU],
    AC_MSG_ERROR( [$2 is required] )
  fi
  AC_CACHE_CHECK( [if $2 is GNU], [_cv_$2_is_gnu],
- [if ( sh -c "$[$1] --version" 2> /dev/null | grep GNU  2>&1 > /dev/null ) ;
+ [if ( sh -c "$[$1] --version" 2> /dev/null | grep GNU > /dev/null 2>&1 ) ;
   then
      _cv_$2_is_gnu=yes
   else
      _cv_$2_is_gnu=no
+  fi
+ ])
+])
+
+
+AC_DEFUN( [CHECK_TAR_OPTION],
+ [AC_CACHE_CHECK( [if tar supports $1], [$2],
+  [( $_cv_gnu_tar -cf _cv_test_tar.tar $1 configure > /dev/null 2>&1 )
+  _tar_status=$?
+  rm -f _cv_test_tar.tar 2>&1 > /dev/null
+  if test $_tar_status -ne 0; then
+    $2="no";
+  else
+    $2="yes";
   fi
  ])
 ])
