@@ -116,7 +116,7 @@ public:
 
 		/** Someone is attempting to reconnect to this job.
 		 */
-	void reconnect( ReliSock* s, ClassAd* ad );
+	int reconnect( ReliSock* s, ClassAd* ad );
 
 
 		// // // // // // // // // // // //

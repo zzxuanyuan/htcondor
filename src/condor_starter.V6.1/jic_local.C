@@ -191,18 +191,13 @@ JICLocal::allJobsGone( void )
 }
 
 
-void
+int
 JICLocal::reconnect( ReliSock* s, ClassAd* ad )
 {
 		// Someday this might mean something, for now it doesn't.
-
 	sendErrorReply( s, getCommandString(CA_RECONNECT_JOB), CA_FAILURE, 
 					"Starter using JICLocal does not support reconnect" );
-
-		// since the upper layers of the starter and daemoncore itself
-		// aren't going to close up this connection, we need to do
-		// that here.
-	delete s;
+	return FALSE;
 }
 
 

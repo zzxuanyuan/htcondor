@@ -163,7 +163,7 @@ public:
 
 		/** Someone is attempting to reconnect to this job.
 		 */
-	virtual void reconnect( ReliSock* s, ClassAd* ad ) = 0;
+	virtual int reconnect( ReliSock* s, ClassAd* ad ) = 0;
 	
 
 		// // // // // // // // // // // //

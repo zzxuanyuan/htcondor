@@ -837,9 +837,7 @@ CStarter::classadCommand( int, Stream* s )
 
 	case CA_RECONNECT_JOB:
 			// hand this off to our JIC, since it will know what to do
-		jic->reconnect( rsock, &ad );
-			// we do NOT want daemoncore closing this socket on us!
-		return KEEP_STREAM;
+		return jic->reconnect( rsock, &ad );
 		break;
 
 	default:
