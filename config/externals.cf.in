@@ -7,7 +7,8 @@ EXT_TRIGGER = $(EXT_ROOT)/triggers
 EXT_KERBEROS_VERSION = krb5-1.2.5
 EXT_GLOBUS_VERSION = globus-2.2.4
 EXT_GAHP_VERSION = gahp-6.5
-EXT_GLIBC_VERSION = glibc-2.2.2
+EXT_GLIBC22_VERSION = glibc-2.2.2
+EXT_GLIBC21_VERSION = glibc-2.1.1
 EXT_ZLIB_VERSION = zlib-1.1.3
 EXT_GPT_VERSION = gpt-3.0
 EXT_PVM_VERSION = pvm-3.4.2
@@ -56,9 +57,9 @@ ZLIB_INC = $(ZLIB_DIR)/include
 
 /* Set up where I get the glibc libraries for packaging with the release */
 #if IS_GLIBC21
-GLIBC_DIR = /p/condor/workspaces/glibc/glibc-install/lib
+GLIBC_DIR = $(EXT_INSTALL)/$(EXT_GLIBC21_VERSION)/lib
 #elif IS_GLIBC22
-GLIBC_DIR = $(EXT_INSTALL)/$(EXT_GLIBC_VERSION)/lib
+GLIBC_DIR = $(EXT_INSTALL)/$(EXT_GLIBC22_VERSION)/lib
 #elif IS_GLIBC23
 GLIBC_DIR = /p/condor/workspaces/glibc/glibc-install/lib-glibc2.3.2/lib
 #endif
