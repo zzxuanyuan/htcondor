@@ -526,7 +526,7 @@ part_send_job(
 #endif 
 
   /* Connect to the startd */
-  sock = new ReliSock();
+  sock = new ReliSock;
   sock->timeout(90);
   if ( sock->connect(host,START_PORT) == FALSE ) {
 	reason = JOB_NOT_STARTED;
