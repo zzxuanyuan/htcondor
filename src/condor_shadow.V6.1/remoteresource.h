@@ -50,6 +50,8 @@ typedef enum {
 	RR_SUSPENDED,
 		/// Starter exists, but the job is not executing yet 
 	RR_STARTUP,
+		/// Trying to reconnect to the starter
+	RR_RECONNECT,
 		/// The threshold must be last!
 	_RR_STATE_THRESHOLD
 } ResourceState;

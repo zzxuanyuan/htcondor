@@ -49,7 +49,8 @@ static char *Resource_State_String [] = {
 	"PENDING_DEATH", 
 	"FINISHED",
 	"SUSPENDED",
-	"STARTUP"
+	"STARTUP",
+	"RECONNECT",
 };
 
 
@@ -1162,6 +1163,12 @@ RemoteResource::reconnect( void )
 				 ctime(&last_contact) );
 		dprintf( D_ALWAYS, "%s: %d seconds\n",
 				 ATTR_DISCONNECTED_RUN_TIMEOUT, timeout );
+	}
+
+		// If we got here, we're trying to reconnect.  keep track of
+		// that since we need to know in certain situations...
+	if( state != RR_RECONNECT ) {
+		setResourceState( RR_RECONNECT );
 	}
 
 		// each time we get here, see how much time remains...
