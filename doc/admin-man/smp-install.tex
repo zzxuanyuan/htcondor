@@ -17,9 +17,9 @@ To install the SMP-startd from the separate contrib module, you must
 first download the appropriate binary modules for each of your
 platforms.  
 Once you uncompress and untar the module, you will have a directory
-with an \File{smp.tar} file, a \File{README}, and so on.
-The \File{smp.tar} acts much like the \File{release.tar} file for a
-main release.
+with an \File{smp\_startd.tar} file, a \File{README}, and so on.
+The \File{smp\_startd.tar} acts much like the \File{release.tar} file
+for a main release.
 It contains all the binaries and supporting files you would install in
 your release directory:
 \begin{verbatim}
@@ -67,7 +67,7 @@ Simply move the existing \Condor{startd}, \Condor{starter},
 ``\condor{startd}.old'') in the sbin directory, and move
 \Condor{status} out of the way in bin.   
 
-You can simply untar the \File{smp.tar} file into your release 
+You can simply untar the \File{smp\_startd.tar} file into your release
 directory, and it will install the new versions (and overwrite your
 existing binaries if you haven't moved them out of the way).
 Once the new binaries are in place, all you need to do is add the new
@@ -83,7 +83,8 @@ Machines}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 If you only want to run the new startd on your SMP machines, you
-should untar the \File{smp.tar} file into some temporary location.
+should untar the \File{smp\_startd.tar} file into some temporary
+location. 
 Copy the \File{sbin/condor\_startd} file into
 \Release{sbin/condor\_startd.smp}.
 You can simply overwrite \Release{sbin/condor\_preen} and
