@@ -33,14 +33,14 @@
 
 enum ClaimType { CLAIM_COD, CLAIM_OPPORTUNISTIC };
 
-const char* claimTypeString( ClaimType type );
-ClaimType   claimTypeEnum( const char* string );
+const char* getClaimTypeString( ClaimType type );
+ClaimType   getClaimTypeNum( const char* string );
 
 
 enum VacateType { VACATE_GRACEFUL, VACATE_FAST };
 
-const char* vacateTypeString( VacateType type );
-VacateType  vacateTypeEnum( const char* string );
+const char* getVacateTypeString( VacateType type );
+VacateType  getVacateTypeNum( const char* string );
 
 
 #endif /* _CONDOR_ENUM_UTILS_H */

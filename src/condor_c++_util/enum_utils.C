@@ -40,28 +40,28 @@ struct Translation VacateTypeTranslation[] = {
 
 
 const char*
-claimTypeString( ClaimType type )
+getClaimTypeString( ClaimType type )
 {
 	return getNameFromNum( (int)type, ClaimTypeTranslation );
 }
 
 
 ClaimType
-claimTypeEnum( const char* str )
+getClaimTypeNum( const char* str )
 {
 	return (ClaimType)getNumFromName( str, ClaimTypeTranslation );
 }
 
 
 const char*
-vacateTypeString( VacateType type )
+getVacateTypeString( VacateType type )
 {
 	return getNameFromNum( (int)type, VacateTypeTranslation );
 }
 
 
 VacateType
-vacateTypeEnum( const char* str )
+getVacateTypeNum( const char* str )
 {
 	return (VacateType)getNumFromName( str, VacateTypeTranslation );
 }
