@@ -210,8 +210,9 @@ Job::declare_file(const MyString &name,
 			// proper Iwd later on. If there is no path delimiter we
 			// have a problem.
 		if (-1 != name.FindChar(DIR_DELIM_CHAR)) {
-			dprintf(D_FULLDEBUG, "Failed to open '%s' for writing, reason: %s\n",
-					(spoolDirectory + DIR_DELIM_STRING + jobFile.name).GetCStr(),
+			dprintf(D_FULLDEBUG,
+					"Failed to open '%s' for writing, reason: %s\n",
+					(spoolDirectory+DIR_DELIM_STRING+jobFile.name).GetCStr(),
 					strerror(errno));
 
 			errstack.pushf("SOAP",
@@ -259,7 +260,7 @@ Job::submit(const struct condor__ClassAdStruct &jobAd,
 		transferFiles.append(jobFile.name.GetCStr());
 	}
 
-	char *fileList;
+	char *fileList = NULL;
 	if (0 == transferFiles.number()) {
 		fileList = strdup("");
 	} else {
@@ -338,7 +339,7 @@ Job::submit(const struct condor__ClassAdStruct &jobAd,
 			if (rval < 0) {
 				errstack.pushf("SOAP",
 							   FAIL,
-							   "Failed to set job %d.%d's %s attribute to '%s'.",
+							   "Failed to set %d.%d's %s attribute to '%s'.",
 							   clusterId,
 							   jobId,
 							   ATTR_JOB_IWD,
@@ -379,6 +380,7 @@ Job::put_file(const MyString &name,
 
 			return 2;
 		}
+			// XXX: THIS MUST USE condor_full_write()
 		if (data_length != write(jobFile.file, data, data_length)) {
 			errstack.pushf("SOAP",
 						   FAIL,
@@ -422,6 +424,7 @@ Job::get_file(const MyString &name,
 
 			return 2;
 		}
+			// XXX: THIS MUST USE condor_full_read()
 		if (length != read(file, data, sizeof(unsigned char) * length)) {
 			errstack.pushf("SOAP",
 						   FAIL,

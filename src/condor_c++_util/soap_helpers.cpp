@@ -87,7 +87,8 @@ convert_ad_to_adStruct(struct soap *s,
   ad_struct->__ptr[attr_index].name = (char *) ATTR_MY_TYPE;
   ad_struct->__ptr[attr_index].type = STRING_ATTR;
   if (isDeepCopy) {
-	  ad_struct->__ptr[attr_index].value = (char *) soap_malloc(s, strlen(curr_ad->GetMyTypeName()));
+	  ad_struct->__ptr[attr_index].value =
+		  (char *) soap_malloc(s, strlen(curr_ad->GetMyTypeName()));
 	  strcpy(ad_struct->__ptr[attr_index].value, curr_ad->GetMyTypeName());
   } else {
 	  ad_struct->__ptr[attr_index].value = (char *) curr_ad->GetMyTypeName();
@@ -96,17 +97,20 @@ convert_ad_to_adStruct(struct soap *s,
   ad_struct->__ptr[attr_index].name = (char *) ATTR_TARGET_TYPE;
   ad_struct->__ptr[attr_index].type = STRING_ATTR;
   if (isDeepCopy) {
-	  ad_struct->__ptr[attr_index].value = (char *) soap_malloc(s, strlen(curr_ad->GetTargetTypeName()));
+	  ad_struct->__ptr[attr_index].value =
+		  (char *) soap_malloc(s, strlen(curr_ad->GetTargetTypeName()));
 	  strcpy(ad_struct->__ptr[attr_index].value, curr_ad->GetTargetTypeName());
   } else {
-	  ad_struct->__ptr[attr_index].value = (char *) curr_ad->GetTargetTypeName();
+	  ad_struct->__ptr[attr_index].value =
+		  (char *) curr_ad->GetTargetTypeName();
   }
   attr_index++;
   // And, ServerTime...
   ad_struct->__ptr[attr_index].name = (char *) ATTR_SERVER_TIME;
   ad_struct->__ptr[attr_index].type = INTEGER_ATTR;
   MyString timeString = MyString((int) time(NULL));
-  ad_struct->__ptr[attr_index].value = (char *) soap_malloc(s, strlen(timeString.GetCStr()));
+  ad_struct->__ptr[attr_index].value =
+	  (char *) soap_malloc(s, strlen(timeString.GetCStr()));
   strcpy(ad_struct->__ptr[attr_index].value, timeString.GetCStr());
   attr_index++;
 
