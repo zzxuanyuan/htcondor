@@ -85,10 +85,10 @@ END_C_DECLS
 ** Condor-specific system definitions
 ****************************************/
 
-#define HAS_64BIT_STRUCTS		1
 #define HAS_U_TYPES			1
 #define SYNC_RETURNS_VOID		1
 #if defined( Solaris26) 
+	#define HAS_64BIT_STRUCTS	1
 	#define HAS_F_DUP2FD		1
 #endif
 

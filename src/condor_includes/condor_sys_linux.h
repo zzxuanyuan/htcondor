@@ -71,12 +71,14 @@ typedef long rlim_t;
 
 #include <sys/uio.h>
 
+/* swapon and swapoff prototypes */
+#include <linux/swap.h>
+
 /****************************************
 ** Condor-specific system definitions
 ***************************************/
 
 #define HAS_U_TYPES			1
-
 typedef long long off64_t;
 typedef void* MMAP_T;
 

@@ -65,9 +65,13 @@ END_C_DECLS
 #include <sys/select.h>
 
 #include <signal.h>
+
 #if !defined(NSIG) && defined(SIGMAX)
 #define NSIG (SIGMAX+1)
 #endif
+
+/* Kill definitions like signal->_Esignal */
+#undef signal
 
 /* Need these to get statfs and friends defined */
 #include <sys/stat.h>
@@ -98,15 +102,20 @@ END_C_DECLS
 #include <netdb.h>
 #undef gethostid
 
+/* These don't seem to have prototypes in OSF */
+
+BEGIN_C_DECLS
+int async_daemon(void);
+int nfssvc(int,int,int);
+int swapon(char *,int,int,int);
+END_C_DECLS
+
 /****************************************
 ** Condor-specific system definitions
 ****************************************/
 
-#define HAS_64BIT_STRUCTS	0
-#define HAS_U_TYPES		0
+#define HAS_U_TYPES		1
 #define SYNC_RETURNS_VOID	1
-#define SIGISMEMBER_IS_BROKEN	0
-#define HAS_F_DUP2FD		0
 #define NO_VOID_SIGNAL_RETURN	1
 
 typedef long long off64_t;
