@@ -430,7 +430,9 @@ SecMan::CreateSecurityPolicyAd(const char *auth_level, bool other_side_can_negot
 	}
 
 
-	if ( sec_is_negotiable(sec_authentication) || 
+	// for now, we always want the top bracket of code.
+	if ( TRUE ||
+		 sec_is_negotiable(sec_authentication) || 
  		 sec_is_negotiable(sec_encryption) || 
  		 sec_is_negotiable(sec_integrity) ) {
 
@@ -471,16 +473,6 @@ SecMan::CreateSecurityPolicyAd(const char *auth_level, bool other_side_can_negot
 	ad->Insert(buf);
 
 
-	// determine if we are a daemon or a tool.  this is done by checking if there is a daemon core
-	// laying around.  ZZZ_dc_sinful will return NULL if there is no daemoncore, or a pointer to
-	// the sinful string if there is.  we'll use that as an indicator.
-	char* dcss = ZZZ_dc_sinful();
-	if (dcss) {
-		sprintf(buf, "%s=\"%s\"", ATTR_SEC_SERVER_COMMAND_SOCK, dcss);
-		ad->Insert(buf);
-	}
-
-
 	// key duration
 	// ZKM TODO HACK
 	// need to check kerb expiry.
@@ -493,6 +485,12 @@ SecMan::CreateSecurityPolicyAd(const char *auth_level, bool other_side_can_negot
 	if (paramer) {
 		sprintf(buf, "%s=\"%s\"", ATTR_SEC_SESSION_DURATION, paramer);
 		delete paramer;
+
+		ad->Insert(buf);
+		dprintf ( D_SECURITY, "SECMAN: inserted '%s'\n", buf);
+	} else {
+		// default: 4 hours
+		sprintf(buf, "%s=\"14400\"", ATTR_SEC_SESSION_DURATION);
 
 		ad->Insert(buf);
 		dprintf ( D_SECURITY, "SECMAN: inserted '%s'\n", buf);
@@ -749,6 +747,32 @@ SecMan::ReconcileSecurityPolicyAds(ClassAd &cli_ad, ClassAd &srv_ad) {
 
 	if (cli_methods) delete cli_methods;
 	if (srv_methods) delete srv_methods;
+
+
+	// reconcile the session expiration.  it is the SHORTER of
+	// client's and server's value.
+
+	int cli_duration = 0;
+	int srv_duration = 0;
+
+	char *dur = NULL;
+	cli_ad.LookupString(ATTR_SEC_SESSION_DURATION, &dur);
+	if (dur) {
+		cli_duration = atoi(dur);
+		delete dur;
+	}
+
+	dur = NULL;
+	srv_ad.LookupString(ATTR_SEC_SESSION_DURATION, &dur);
+	if (dur) {
+		srv_duration = atoi(dur);
+		delete dur;
+	}
+
+	sprintf (buf, "%s=\"%i\"", ATTR_SEC_SESSION_DURATION,
+			(cli_duration < srv_duration) ? cli_duration : srv_duration );
+	action_ad->Insert(buf);
+
 
 	sprintf (buf, "%s=\"YES\"", ATTR_SEC_ENACT);
 	action_ad->Insert(buf);
@@ -1071,11 +1095,21 @@ SecMan::startCommand( int cmd, Sock* sock, bool can_negotiate, int subCmd)
 
 			dprintf (D_SECURITY, "SECMAN: about to enable message authenticator.\n");
 #ifdef SECURITY_HACK_ENABLE
-				zz1printf(ki);
+			zz1printf(ki);
 #endif
 
+			// prepare the buffer to pass in udp header
+			sprintf(buf, "%s", enc_key->id());
+
+			// stick our command socket sinful string in there
+			char* dcss = ZZZ_dc_sinful();
+			if (dcss) {
+				strcat (buf, ",");
+				strcat (buf, dcss);
+			}
+
 			sock->encode();
-			sock->set_MD_mode(MD_ALWAYS_ON, ki, enc_key->id());
+			sock->set_MD_mode(MD_ALWAYS_ON, ki, buf);
 
 			dprintf ( D_SECURITY, "SECMAN: successfully enabled message authenticator!\n");
 			retval = true;
@@ -1090,11 +1124,22 @@ SecMan::startCommand( int cmd, Sock* sock, bool can_negotiate, int subCmd)
 
 			dprintf (D_SECURITY, "SECMAN: about to enable encryption.\n");
 #ifdef SECURITY_HACK_ENABLE
-				zz1printf(ki);
+			zz1printf(ki);
 #endif
 
+			// prepare the buffer to pass in udp header
+			sprintf(buf, "%s", enc_key->id());
+
+			// stick our command socket sinful string in there
+			char* dcss = ZZZ_dc_sinful();
+			if (dcss) {
+				strcat (buf, ",");
+				strcat (buf, dcss);
+			}
+
+
 			sock->encode();
-			sock->set_crypto_key(ki, enc_key->id());
+			sock->set_crypto_key(ki, buf);
 
 			dprintf ( D_SECURITY, "SECMAN: successfully enabled encryption!\n");
 			retval = true;
@@ -1310,7 +1355,17 @@ SecMan::startCommand( int cmd, Sock* sock, bool can_negotiate, int subCmd)
 
 
 			assert (enc_key == NULL);
-			KeyCacheEntry tmp_key( sid, sock->endpoint(), ki, auth_info, 0);
+
+
+			// extract the session duration
+			char *dur = NULL;
+			auth_info->LookupString(ATTR_SEC_SESSION_DURATION, &dur);
+
+			int expiration_time = time(0) + atoi(dur);
+
+
+			KeyCacheEntry tmp_key( sid, sock->endpoint(), ki, auth_info, expiration_time);
+			dprintf (D_SECURITY, "SECMAN: added session %s to cache for %i seconds.\n", sid, atoi(dur));
 
 			// stick the key in the cache
 			session_cache->insert(tmp_key);
@@ -1557,4 +1612,31 @@ SecMan::ClearCache() {
 					keybuf, sock->get_port());
 
 			goto choose_action;
+*/
+
+
+/*
+	// reconcile the session expiration.  it is the SHORTEST of
+	// a) client's value
+	// b) server's value (for this authorization level)
+	// c) kerb ticket lifetime
+
+	int cli_duration = 0;
+	int srv_duration = 0;
+	int krb_duration = 0;
+
+	char *dur = NULL;
+	cli_ad->LookupString(ATTR_SEC_SESSION_DURATION, &dur);
+	if (dur) {
+		cli_duration = atoi(dur);
+		delete dur;
+	}
+
+	dur = NULL;
+	srv_ad->LookupString(ATTR_SEC_SESSION_DURATION, &dur);
+	if (dur) {
+		srv_duration = atoi(dur);
+		delete dur;
+	}
+
 */
