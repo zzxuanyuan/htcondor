@@ -320,9 +320,7 @@ ext_target(EXT_PVM_VERSION,$(NULL))
 #endif
 ext_nodep_target(EXT_MAN_VERSION,$(NULL))
 
-#if WANT_SOAP
 ext_target(EXT_GSOAP_VERSION,$(NULL))
-#endif
 
 clean::
 	rm -rf $(PURE_DIR)
