@@ -20,7 +20,7 @@ CONDOR_CPLUS=$CONDOR_LIBDIR/libcondorc++support.a
 CONDOR_LD_DIR=$CONDOR_LIBDIR
 CONDOR_SPECIAL_CLIB=/not-there-bull
 
-# now take the above defaults and see if I am on a linux box
+# if I am on a linux box, determine where I should be looking
 LINUX_LIB=
 if [ `uname` = "Linux" ]; then
 	if [ -f /lib/libc-2.1* ]; then
@@ -30,13 +30,7 @@ if [ `uname` = "Linux" ]; then
 	else
 		LINUX_LIB="libc5"
 	fi
-
-	CONDOR_CLIB=$CONDOR_LIBDIR/$LINUX_LIB/libcondorsyscall.a
-	CONDOR_ZCLIB=$CONDOR_LIBDIR/$LINUX_LIB/libcondorzsyscall.a
-	CONDOR_RT0=$CONDOR_LIBDIR/$LINUX_LIB/condor_rt0.o
-	CONDOR_CPLUS=$CONDOR_LIBDIR/$LINUX_LIB/libcondorc++support.a
 fi
-
 
 # --------------------------------------------------
 
@@ -81,14 +75,8 @@ do
 	fi
 
 	if [ $1 = "-condor_standalone" ]; then
-		if [ "X$LINUX_LIB" = "X" ]; then
-			# a non linux machine
-			CONDOR_CLIB=$CONDOR_LIBDIR/libcondorckpt.a
-			CONDOR_ZCLIB=$CONDOR_LIBDIR/libcondorzckpt.a
-		else
-			CONDOR_CLIB=$CONDOR_LIBDIR/$LINUX_LIB/libcondorckpt.a
-			CONDOR_ZCLIB=$CONDOR_LIBDIR/$LINUX_LIB/libcondorzckpt.a
-		fi
+		CONDOR_CLIB=$CONDOR_LIBDIR/libcondorckpt.a
+		CONDOR_ZCLIB=$CONDOR_LIBDIR/libcondorzckpt.a
 		shift
 		continue
 	fi
@@ -98,27 +86,37 @@ do
 		CONDOR_LIBDIR=$1
 		shift
 		# Reset anything based off of the libdir by default
-		if [ "X$LINUX_LIB" = "X" ]; then
-			# a non linux machine
-			CONDOR_CLIB=$CONDOR_LIBDIR/libcondorsyscall.a
-			CONDOR_ZCLIB=$CONDOR_LIBDIR/libcondorzsyscall.a
-			CONDOR_RT0=$CONDOR_LIBDIR/condor_rt0.o
-			CONDOR_CPLUS=$CONDOR_LIBDIR/libcondorc++support.a
-			CONDOR_LD_DIR=$CONDOR_LIBDIRS
-		else
-			# add support for the right platform library
-			CONDOR_CLIB=$CONDOR_LIBDIR/$LINUX_LIB/libcondorsyscall.a
-			CONDOR_ZCLIB=$CONDOR_LIBDIR/$LINUX_LIB/libcondorzsyscall.a
-			CONDOR_RT0=$CONDOR_LIBDIR/$LINUX_LIB/condor_rt0.o
-			CONDOR_CPLUS=$CONDOR_LIBDIR/$LINUX_LIB/libcondorc++support.a
-			CONDOR_LD_DIR=$CONDOR_LIBDIRS
-		fi
+		CONDOR_CLIB=$CONDOR_LIBDIR/libcondorsyscall.a
+		CONDOR_ZCLIB=$CONDOR_LIBDIR/libcondorzsyscall.a
+		CONDOR_RT0=$CONDOR_LIBDIR/condor_rt0.o
+		CONDOR_CPLUS=$CONDOR_LIBDIR/libcondorc++support.a
+		CONDOR_LD_DIR=$CONDOR_LIBDIR
 		continue
 	fi
 
 	# if we made it here, there are no more command-line options
 	break
 done
+
+# if these files exist, then keep them, otherwise append the correct lib dir
+# this is so a developer using make release can still use the libs
+if [ `uname` = "Linux" ]; then
+	if [ ! -f "$CONDOR_CLIB" ]; then
+		CONDOR_CLIB=$CONDOR_LIBDIR/$LINUX_LIB/libcondorsyscall.a
+	fi
+
+	if [ ! -f "$CONDOR_ZCLIB" ]; then
+		CONDOR_ZCLIB=$CONDOR_LIBDIR/$LINUX_LIB/libcondorzsyscall.a
+	fi
+
+	if [ ! -f "$CONDOR_RT0" ]; then
+		CONDOR_RT0=$CONDOR_LIBDIR/$LINUX_LIB/condor_rt0.o
+	fi
+
+	if [ ! -f "$CONDOR_CPLUS" ]; then
+		CONDOR_CPLUS=$CONDOR_LIBDIR/$LINUX_LIB/libcondorc++support.a
+	fi
+fi
 
 if [ -r $STATIC_ZLIB -a -r $CONDOR_ZCLIB ]; then
 	CONDOR_CLIB="$CONDOR_ZCLIB $STATIC_ZLIB"
@@ -127,7 +125,7 @@ fi
 if [ -r $CONDOR_SPECIAL_CLIB ]; then
 	CONDOR_CLIB="$CONDOR_SPECIAL_CLIB"
 fi
-
+	
 # Export these so our special "ld" script can find them
 export CONDOR_LIBDIR
 export CONDOR_CLIB
