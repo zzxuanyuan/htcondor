@@ -133,7 +133,7 @@ void Scanner(char*& s, Token& t)
         {
 			t.length++;
 			for(tmp++; isdigit(*tmp); tmp++) t.length++;
-            t.floatVal = strtod(s, &s);
+            t.floatVal = (float)strtod(s, &s);
             t.type = LX_FLOAT; 
         }
 		else

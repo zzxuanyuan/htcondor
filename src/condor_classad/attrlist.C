@@ -19,7 +19,6 @@
 # include "condor_attrlist.h"
 
 static 	char *_FileName_ = __FILE__;         // Used by EXCEPT (see except.h)
-extern 	"C" int _EXCEPT_(char*, ...);
 extern	"C"	void dprintf(int, char* fmt, ...);
 #if defined(USE_XDR)
 extern  "C" int  xdr_mywrapstring (XDR *, char **);

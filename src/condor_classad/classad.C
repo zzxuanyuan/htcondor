@@ -21,7 +21,6 @@ static Registration regi;                   // this is the registration for
                                             // should be defined in the calling
                                             // procedure.
 static char *_FileName_ = __FILE__;         // Used by EXCEPT (see except.h)
-extern "C" int _EXCEPT_(char*, ...);
 #if defined(USE_XDR)
 extern "C" int xdr_mywrapstring (XDR *, char **);
 #endif
