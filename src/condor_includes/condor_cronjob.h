@@ -67,7 +67,7 @@ typedef enum {
 // Job's "run" mode
 typedef enum 
 { 
-	CRON_CONTINUOUS,		// Keep it running forever (possible delay)
+	CRON_EXIT_TIME,			// Timing from exit
 	CRON_PERIODIC, 			// Run it periodically
 	CRON_KILL,				// Job has been killed
 	CRON_ILLEGAL
