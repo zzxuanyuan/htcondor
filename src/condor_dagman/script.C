@@ -16,7 +16,6 @@ Script::~Script () {
 //-----------------------------------------------------------------------------
 Script::Script (bool post, const std::string & cmd, Job * job) :
     m_post         (post),
-    m_retValScript (-1),
     m_retValJob    (-1),
     m_logged       (false),
     m_job          (job),
@@ -25,7 +24,7 @@ Script::Script (bool post, const std::string & cmd, Job * job) :
 }
 
 //-----------------------------------------------------------------------------
-int Script::Run () {
+bool Script::Run () {
     const char *delimiters = " \t";
     char * token;
     std::string send;
@@ -42,7 +41,19 @@ int Script::Run () {
     }
     delete [] cmd;
     debug_printf (DEBUG_DEBUG_3, "Parsed: %s\n", send.c_str());
-    return m_retValScript = util_popen (send.c_str());
+
+    std::string error;
+
+    if (!util_popen (send.c_str(), & error)) {
+        if (DEBUG_LEVEL(DEBUG_QUIET)) {
+            printf ("%s Script of Job ", m_post ? "POST" : "PRE");
+            m_job->Print();
+            printf (" %s\n", error.c_str());
+        }
+        return false;
+    }
+
+    return true;
 }
 
 } // namespace dagman

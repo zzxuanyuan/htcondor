@@ -278,14 +278,8 @@ bool Dag::ProcessLogEvents (bool recovery) {
                       job->m_scriptPost->m_retValJob = termEvent->normal
                                                      ? termEvent->returnValue
                                                        : -1;
-                      int ret = job->m_scriptPost->Run();
-                      if (ret != 0) {
+                      if (!job->m_scriptPost->Run()) {
                           job->m_Status = Job::STATUS_ERROR;
-                          if (DEBUG_LEVEL(DEBUG_QUIET)) {
-                              printf ("POST Script of Job ");
-                              job->Print();
-                              printf (" failed with status %d\n", ret);
-                          }
                           done   = true;
                       }
                   }
@@ -389,13 +383,7 @@ bool Dag::Submit (Job * job) {
     assert (job != NULL);
 
     if (job->m_scriptPre != NULL) {
-        int ret = job->m_scriptPre->Run();
-        if (ret != 0) {
-            if (DEBUG_LEVEL(DEBUG_QUIET)) {
-                printf ("PRE Script of Job ");
-                job->Print();
-                printf (" failed with status %d\n", ret);
-            }
+        if (!job->m_scriptPre->Run()) {
             job->m_Status = Job::STATUS_ERROR;
             m_numJobsFailed++;
             return true;

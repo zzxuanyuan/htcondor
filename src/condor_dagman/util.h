@@ -10,7 +10,7 @@ namespace dagman {
     @param cmd The command or script to execute
     @return The return status of the command
 */
-extern "C" int util_popen (const char * cmd);
+bool util_popen (const char * cmd, std::string * error = NULL);
 
 } // namespace dagman
 
