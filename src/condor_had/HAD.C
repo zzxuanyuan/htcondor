@@ -10,7 +10,14 @@
 #include "condor_debug.h"
 #include "condor_config.h"
 
+#define  USE_REPLICATION    (0)
+
 #include "StateMachine.h"
+
+#if USE_REPLICATION
+	#include "ReplicaStateMachine.h"
+#endif // USE_REPLICATION
+
 
 extern "C" int SetSyscalls(int val){return val;}
 extern char* myName;
@@ -24,7 +31,12 @@ main_init (int, char *[])
 {
     dprintf(D_ALWAYS,"Starting HAD ....\n");	
     try {
-        stateMachine = new HADStateMachine();	
+#if USE_REPLICATION
+        stateMachine = new ReplicaStateMachine();
+#else
+        stateMachine = new HADStateMachine();
+#endif // USE_REPLICATION
+	
         stateMachine->initialize();
         return TRUE;
     } catch (char* rr) {

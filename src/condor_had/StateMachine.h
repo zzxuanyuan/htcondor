@@ -9,22 +9,21 @@
 
 // TODO : to enter the commands to command types
 // file   condor_includes/condor_commands.h
-#define HAD_ALIVE_CMD           500
-#define HAD_SEND_ID_CMD         501
-#define HAD_REPL_FILE_VERSION   502
-#define HAD_REPL_JOIN           503
-#define HAD_REPL_TRANSFER_FILE  504
-#define HAD_REPL_TRANSFER_COMPLETE  505
+#define HAD_COMMANDS_BASE       700
+#define HAD_ALIVE_CMD           (HAD_COMMANDS_BASE + 0)
+#define HAD_SEND_ID_CMD         (HAD_COMMANDS_BASE + 1)
+
+// command names
+#define HAD_ALIVE_CMD_STR           "HAD_ALIVE_CMD"
+#define HAD_SEND_ID_CMD_STR         "HAD_SEND_ID_CMD"
+#define DAEMON_ON_STR           "DAEMON_ON"
+#define DAEMON_OFF_FAST_STR           "DAEMON_OFF_FAST"
 // end TODO
 
-#define NEGOTIATION_CYCLE 	    	(5) //5 seconds
-#define SEND_COMMAND_TIMEOUT 		(1) // 1 second
-#define REPLICATION_CYCLE 300 //5 min (5*60)
+
+
 #define MESSAGES_PER_INTERVAL_FACTOR (2)
-
-#define  USE_REPLICATION    (0)
-
-class HADReplication;
+#define SEND_COMMAND_TIMEOUT (5) // 5 seconds
 
 typedef enum {
     PRE_STATE = 1,
@@ -49,12 +48,13 @@ public:
     /*
       Destructor
     */
-    ~HADStateMachine();
+    virtual ~HADStateMachine();
 
-    void initialize();
+    virtual void initialize();
 
-    int reinitialize();
+    virtual int reinitialize();
 
+protected:
     /*
       step() - called each hadInterval, implements one state of the
       state machine.
@@ -99,18 +99,13 @@ public:
     int pushReceivedId( int );
 
     void commandHandler(int cmd,Stream *strm) ;
-    void commandHandlerStateMachine(int cmd,Stream *strm) ;
 
-private:
-    int state;
-    
+    void onError(char*);
+        
+    int state;   
     int stateMachineTimerID;
-    int replicaTimerID;
-    int waitingVersionsTimerID;
         
     int hadInterval;
-    int replicationInterval;
-
     int connectionTimeout;
     
     // if callsCounter equals to 0 ,
@@ -119,34 +114,36 @@ private:
     
     int selfId;
     bool isPrimary;
+    bool usePrimary;
     StringList* otherHADIPs;
     Daemon* masterDaemon;
-    HADReplication* replicator;
 
     List<int> receivedAliveList;
     List<int> receivedIdList;
 
-    bool firstTime;
     void initializeHADList(char*);
     int  checkList(List<int>*);
     void removeAllFromList(List<int>*);
     void clearBuffers();
     void printStep(char *curState,char *nextState);
-    void commandToString(int command, char* comm_string);
+    char* commandToString(int command);
 
     void finilize();
     void init();
-    void onError(char*);
-
-    void replicaTimerHandler();
-    void waitingVersionsTimerHandler();
     
+    /*
+        convertToSinfull(char* addr)
+        addr - address in one of the formats :
+            <IP:port>,IP:port,<name:port>,name:port
+        return address in the format <IP:port>
+    */
     char* convertToSinfull(char* addr);
-    void print_params_information();
+    void printParamsInformation();
 
     int myatoi(const char* str, bool* res);
+
     // debug information
-    bool debugMode;
+    bool standAloneMode;
     void my_debug_print_list(StringList* str);
     void my_debug_print_buffers();
 
