@@ -82,6 +82,8 @@ int condorSchedd__beginTransaction(struct soap *s,int duration,
 
 	transactionId = time(NULL);   // TODO : choose unique id - use time for now
 
+	current_trans_id = transactionId;
+
 	setQSock(NULL);	// Tell the qmgmt layer to allow anything -- that is, until
 					// we authenticate the client.
 
