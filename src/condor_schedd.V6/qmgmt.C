@@ -1349,7 +1349,7 @@ SetAttribute(int cluster_id, int proc_id, const char *attr_name,
 			dprintf( D_FULLDEBUG, "SetAttribute() job %d.%d is entering "
 					 "terminal job status (%s)\n", cluster_id, proc_id, 
 					 getJobStatusString(intval) );
-				// TODO -- actually add to the queue, etc. 
+			scheduler.enqueueTerminalJob( cluster_id, proc_id );
 			break;
 		default:
 				// nothing to do

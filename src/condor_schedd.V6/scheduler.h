@@ -48,6 +48,7 @@
 #include "autocluster.h"
 #include "shadow_mgr.h"
 #include "enum_utils.h"
+#include "self_draining_queue.h"
 
 const 	int			MAX_REJECTED_CLUSTERS = 1024;
 extern  int         STARTD_CONTACT_TIMEOUT;
@@ -155,6 +156,7 @@ private:
 	char *csa_sinful;
 	bool csa_is_dedicated;
 };
+
 
 class Scheduler : public Service
 {
@@ -279,6 +281,9 @@ class Scheduler : public Service
 	void			checkReconnectQueue( void );
 	void			makeReconnectRecords( PROC_ID* job, const ClassAd* match_ad );
 
+	bool 	enqueueTerminalJob( int cluster, int proc );
+
+
 		// Useful public info
 	char*			shadowSockSinful( void ) { return MyShadowSockName; };
 	char*			dcSockSinful( void ) { return MySockName; };
@@ -386,6 +391,9 @@ private:
 		// queue.  Then, we can spawn all the shadows after the fact. 
 	SimpleList<PROC_ID> jobsToReconnect;
 	int				checkReconnectQueue_tid;
+
+	SelfDrainingQueue job_is_terminal_queue;
+	int jobIsTerminalHandler( ServiceData* job_id );
 
 	// useful names
 	char*			CondorAdministrator;

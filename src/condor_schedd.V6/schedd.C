@@ -22,7 +22,7 @@
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
 #include "condor_common.h"
-#include "../condor_daemon_core.V6/condor_daemon_core.h"
+#include "condor_daemon_core.h"
 #include "dedicated_scheduler.h"
 #include "condor_config.h"
 #include "condor_debug.h"
@@ -69,6 +69,7 @@
 #include "condor_distribution.h"
 #include "util_lib_proto.h"
 #include "status_string.h"
+#include "condor_id.h"
 
 
 #define DEFAULT_SHADOW_SIZE 125
@@ -228,7 +229,9 @@ ContactStartdArgs::~ContactStartdArgs()
 	free( csa_sinful );
 }
 
-Scheduler::Scheduler()
+
+Scheduler::Scheduler() :
+	job_is_terminal_queue( "job_is_terminal_queue", 0 )
 {
 	ad = NULL;
 	MySockName = NULL;
@@ -304,6 +307,11 @@ Scheduler::Scheduler()
 #endif
 	checkContactQueue_tid = -1;
 	checkReconnectQueue_tid = -1;
+
+	job_is_terminal_queue.
+		registerHandlercpp( (ServiceDataHandlercpp)
+							&Scheduler::jobIsTerminalHandler, this );
+
 	sent_shadow_failure_email = FALSE;
 	ManageBandwidth = false;
 	RejectedClusters.setFiller(0);
@@ -7766,7 +7774,17 @@ Scheduler::check_zombie(int pid, PROC_ID* job_id)
 		handle_mirror_job_notification(
 					GetJobAd(job_id->cluster,job_id->proc),
 					status, *job_id);
-		DestroyProc( job_id->cluster, job_id->proc );
+			/*
+			  we used to call DestroyProc() right here, but we no
+			  longer want to do that.  we'll have just called
+			  SetAttribute() on ATTR_JOB_STATUS to put it into one of
+			  these two "terminal" job states, and therefore, we've
+			  got to wait for our jobIsTerminal() thread to run and
+			  complete before we can call DestroyProc().  so, we'll
+			  just allow that code to work its magic, and once the
+			  jobIsTerminal() thread completes, it'll call
+			  DestroyProc() for us.  -- derek 2005-03-24
+			*/
 		break;
 	default:
 		break;
@@ -9758,3 +9776,26 @@ Scheduler::jobThrottle( void )
 	return delay;
 }
 
+
+int
+Scheduler::jobIsTerminalHandler( ServiceData* data )
+{
+	CondorID* job_id = (CondorID*)data;
+	if( ! job_id ) {
+		return FALSE;
+	}
+
+	Create_Thread_With_Data( Scheduler::jobIsTerminalStatic,
+							 Scheduler::jobIsTerminalReaper,
+							 job_id->_cluster, job_id->_proc, this );
+	delete job_id;
+	return TRUE;
+}
+
+
+bool
+Scheduler::enqueueTerminalJob( int cluster, int proc )
+{
+	CondorID* id = new CondorID( cluster, proc, -1 );
+	return job_is_terminal_queue.enqueue( id );
+}
