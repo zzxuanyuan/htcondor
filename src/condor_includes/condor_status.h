@@ -16,23 +16,5 @@ typedef struct {
 	char	*op_sys;
 } STATUS_LINE;
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
-
-#if defined(__STDC__) || defined(__cplusplus) /* ANSI style prototypes */
-BOOLEAN xdr_status_line( XDR *, STATUS_LINE * );
-
-
-#else	/* Non-ANSI style prototypes */
-BOOLEAN xdr_status_line();
-
-
-#endif /* non-ANSI prototypes */
-
-
-#if defined(__cplusplus)
-}
-#endif
 
 #endif /* _STATUS_H */
