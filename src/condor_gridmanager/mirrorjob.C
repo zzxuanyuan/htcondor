@@ -1118,7 +1118,7 @@ ClassAd *MirrorJob::buildSubmitAd()
 	expr.sprintf( "%s = %d", ATTR_ENTERED_CURRENT_STATUS, now );
 	submit_ad->Insert( expr.Value() );
 
-	expr.sprintf( "%s = \"NEVER\"", ATTR_JOB_NOTIFICATION );
+	expr.sprintf( "%s = %d", ATTR_JOB_NOTIFICATION, NOTIFY_NEVER );
 	submit_ad->Insert( expr.Value() );
 
 	expr.sprintf( "%s = True", ATTR_SUBMIT_IN_PROGRESS );
@@ -1127,13 +1127,13 @@ ClassAd *MirrorJob::buildSubmitAd()
 	expr.sprintf( "%s = True", ATTR_JOB_LEAVE_IN_QUEUE );
 	submit_ad->Insert( expr.Value() );
 
-	expr.sprintf( "%s = %s =?= True && ENV.CurrentTime > %s + %d",
+	expr.sprintf( "%s = %s =?= True && CurrentTime > %s + %d",
 				  ATTR_PERIODIC_REMOVE_CHECK, ATTR_SUBMIT_IN_PROGRESS,
 				  ATTR_Q_DATE, 1800 );
 	submit_ad->Insert( expr.Value() );
 
 	// TODO add clause for ScheddBirthDate
-	expr.sprintf( "%s = %s == %s && %s =!= True && (ENV.CurrentTime > %s) =?= True",
+	expr.sprintf( "%s = %s == %s && %s =!= True && (CurrentTime > %s) =?= True",
 				  ATTR_PERIODIC_RELEASE_CHECK, ATTR_ENTERED_CURRENT_STATUS,
 				  ATTR_Q_DATE, ATTR_SUBMIT_IN_PROGRESS,
 				  ATTR_MIRROR_LEASE_TIME );
