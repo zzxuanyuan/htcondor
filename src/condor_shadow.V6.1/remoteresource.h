@@ -303,6 +303,8 @@ class RemoteResource : public Service {
 
 	virtual void reconnect( void );
 
+	virtual bool supportsReconnect( void );
+
  protected:
 
 		/** The jobAd for this resource.  Why is this here and not
@@ -328,6 +330,7 @@ class RemoteResource : public Service {
 		/// Updates both the last_contact data member and the job ad
 	void hadContact( void );
 	time_t last_contact;
+	bool supports_reconnect;
 
 		/// This is the timeout period to hear from a startd.  (90 seconds).
 	static const int SHADOW_SOCK_TIMEOUT;

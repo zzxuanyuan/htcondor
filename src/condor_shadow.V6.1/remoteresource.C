@@ -75,6 +75,7 @@ RemoteResource::RemoteResource( BaseShadow *shad )
 	image_size = 0;
 	state = RR_PRE;
 	began_execution = false;
+	supports_reconnect = false;
 }
 
 
@@ -622,6 +623,13 @@ RemoteResource::setStarterInfo( ClassAd* ad )
 		free( tmp );
 		tmp = NULL;
 	}
+
+	int tmp_int;
+	if( ad->LookupBool(ATTR_HAS_RECONNECT, tmp_int) ) {
+			// Whatever the starter defines in its own classad
+			// overrides whatever we might think...
+		supports_reconnect = tmp_int;
+	}
 }
 
 
@@ -1107,6 +1115,13 @@ RemoteResource::hadContact( void )
 	snprintf( contact_buf, 32, "%s=%d", ATTR_LAST_CONTACT,
 			  (int)last_contact );
 	jobAd->Insert( contact_buf );
+}
+
+
+bool
+RemoteResource::supportsReconnect( void )
+{
+	return supports_reconnect;
 }
 
 
