@@ -105,4 +105,28 @@ int _condor_file_pre_open( int fd, int readable, int writable, int is_remote )
 	return result;
 }
 
+int creat(const char *path, mode_t mode)
+{
+	return open((char*)path, O_WRONLY | O_CREAT | O_TRUNC, mode);
+}
+
+#ifdef SYS_open64
+int creat64(const char *path, mode_t mode)
+{
+	return open64((char*)path, O_WRONLY | O_CREAT | O_TRUNC, mode );
+}
+#endif
+
+#if defined(OSF1)
+/*
+  This is some kind of cleanup routine for dynamically linked programs which
+  is called by exit.  For some reason it occasionally cuases a SEGV
+  when mixed with the condor checkpointing code.  Since condor programs
+  are always statically linked, we just make a dummy here to avoid
+  the problem.
+*/
+
+void ldr_atexit() {}
+#endif
+
 } // extern "C"
