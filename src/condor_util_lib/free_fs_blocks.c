@@ -241,9 +241,9 @@ char *filename;
 }
 #endif /* VAX && ULTRIX */
 
-#if (defined(I386) && defined(DYNIX)) || defined(LINUX) || (defined(VAX) && defined(BSD43)) || (defined(MC68020) && defined(SUNOS41)) || (defined(IBM032) && defined(BSD43)) || (defined(MC68020) && defined(BSD43)) || (defined(SPARC) && defined(SUNOS41)) || (defined(R6000) && defined(AIX31)) || defined(AIX32) || defined(IRIX331) || (defined(SPARC) && defined(CMOS)) || defined(HPUX) || defined(OSF1) || defined(Solaris) || defined(IRIX53)
+#if (defined(I386) && defined(DYNIX)) || defined(LINUX) || (defined(VAX) && defined(BSD43)) || (defined(MC68020) && defined(SUNOS41)) || (defined(IBM032) && defined(BSD43)) || (defined(MC68020) && defined(BSD43)) || (defined(SPARC) && defined(SUNOS41)) || (defined(R6000) && defined(AIX31)) || defined(AIX32) || (defined(SPARC) && defined(CMOS)) || defined(HPUX) || defined(OSF1) || defined(Solaris) || defined(IRIX)
 
-#if defined(AIX31) || defined(AIX32) || defined(IRIX53)
+#if defined(AIX31) || defined(AIX32) || defined(IRIX)
 #include <sys/statfs.h>
 #elif defined(Solaris)
 #include <sys/statvfs.h>
@@ -251,7 +251,7 @@ char *filename;
 #include <sys/mount.h>
 #endif
 
-#if defined(IRIX331) || defined(IRIX53)
+#if defined(IRIX)
 /* There is no f_bavail on IRIX */
 #define f_bavail f_bfree
 #endif
@@ -268,7 +268,7 @@ const char *filename;
 	unsigned long free_kbytes;
 	float kbytes_per_block;
 
-#if defined(IRIX331) || defined(IRIX53)
+#if defined(IRIX)
 	if(statfs(filename, &statfsbuf, sizeof statfsbuf, 0) < 0) {
 #elif defined(OSF1)
 	if(statfs(filename, &statfsbuf, sizeof statfsbuf) < 0) {

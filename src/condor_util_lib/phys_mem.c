@@ -41,7 +41,7 @@ calc_phys_memory()
 	}
 }
 
-#elif defined(IRIX62)
+#elif defined(IRIX)
 
 #include <unistd.h>
 #include <sys/types.h>
