@@ -309,17 +309,23 @@ doContactSchedd()
 		// If JobManaged is undefined, equate it with false.
 		// If Matched is undefined, equate it with true.
 		if ( firstScheddContact ) {
-			sprintf( expr_buf, 
-					 "(%s) && (%s =!= FALSE || %s =?= TRUE) && ((%s == %d || %s == %d || %s == %d) && %s =!= TRUE) == FALSE",
-					 ScheddJobConstraint, ATTR_JOB_MATCHED, ATTR_JOB_MANAGED,
-					 ATTR_JOB_STATUS, HELD, ATTR_JOB_STATUS, COMPLETED,
-					 ATTR_JOB_STATUS, REMOVED, ATTR_JOB_MANAGED );
-		} else {
+			// Grab all jobs for us to manage. This expression is a
+			// derivative of the expression below for new jobs. We add
+			// "|| Managed =?= TRUE" to also get jobs our previous
+			// incarnation was in the middle of managing when it died
+			// (if it died unexpectedly). With the new term, the
+			// "&& Managed =!= TRUE" from the new jobs expression becomes
+			// superfluous (by boolean logic), so we drop it.
 			sprintf( expr_buf,
-					 "(%s) && %s =!= FALSE && %s != %d && %s != %d && %s != %d && %s =!= TRUE",
+					 "(%s) && ((%s =!= FALSE && %s != %d) || %s =?= TRUE)",
 					 ScheddJobConstraint, ATTR_JOB_MATCHED,
-					 ATTR_JOB_STATUS, HELD, ATTR_JOB_STATUS, COMPLETED,
-					 ATTR_JOB_STATUS, REMOVED, ATTR_JOB_MANAGED );
+					 ATTR_JOB_STATUS, HELD, ATTR_JOB_MANAGED );
+		} else {
+			// Grab new jobs for us to manage
+			sprintf( expr_buf,
+					 "(%s) && %s =!= FALSE && %s =!= TRUE && %s != %d",
+					 ScheddJobConstraint, ATTR_JOB_MATCHED, ATTR_JOB_MANAGED,
+					 ATTR_JOB_STATUS, HELD );
 		}
 		dprintf( D_FULLDEBUG,"Using constraint %s\n",expr_buf);
 		next_ad = GetNextJobByConstraint( expr_buf, 1 );

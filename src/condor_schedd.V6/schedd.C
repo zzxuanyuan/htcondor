@@ -55,8 +55,6 @@
 #include "globus_utils.h"
 #include "env.h"
 #include "dc_schedd.h"  // for JobActionResults class and enums we use  
-#include "dc_startd.h"
-#include "dc_collector.h"
 #include "nullfile.h"
 #include "store_cred.h"
 #include "file_transfer.h"
@@ -266,6 +264,7 @@ Scheduler::Scheduler()
 	N_Owners = 0;
 	LastTimeout = time(NULL);
 	Collector = NULL;
+	ViewCollector = NULL;
 	Negotiator = NULL;
 	CondorAdministrator = NULL;
 	Mail = NULL;
@@ -283,6 +282,7 @@ Scheduler::Scheduler()
 	IdleSchedUniverseJobIDs = NULL;
 	FlockCollectors = NULL;
 	FlockNegotiators = NULL;
+	FlockViewServers = NULL;
 	MaxFlockLevel = 0;
 	FlockLevel = 0;
 	StartJobTimer=-1;
@@ -327,6 +327,9 @@ Scheduler::~Scheduler()
 
 	if( Collector ) {
 		delete( Collector );
+	}
+	if( ViewCollector ) {
+		delete( ViewCollector );
 	}
 	if( Negotiator ) {
 		delete( Negotiator );
@@ -376,8 +379,10 @@ Scheduler::~Scheduler()
 	}
 	if (FlockCollectors) delete FlockCollectors;
 	if (FlockNegotiators) delete FlockNegotiators;
+	if (FlockViewServers) delete FlockViewServers;
 	FlockCollectors = NULL;
 	FlockNegotiators = NULL;
+	FlockViewServers = NULL;
 	if ( checkContactQueue_tid != -1 && daemonCore ) {
 		daemonCore->Cancel_Timer(checkContactQueue_tid);
 	}
@@ -683,17 +688,31 @@ Scheduler::count_jobs()
 	  dprintf( D_ALWAYS, "Sent ad to central manager for %s@%s\n", 
 				SubmittingOwners[i].Name, UidDomain );
 
+	  // condor view uses the acct port - because the accountant today is not
+	  // an independant daemon. In the future condor view will be the
+	  // accountant
+
+		  // The ViewCollector MAY BE NULL!!!!!  It's optional
+		  // whether you define it or not.  This will cause a seg
+		  // fault if we assume it's defined and use it.  
+		  // -Derek Wright 11/4/98 
+	  if( ViewCollector ) {
+		  ViewCollector->sendUpdate( UPDATE_SUBMITTOR_AD, ad );
+	  }
 	}
 
-	// update collector of the pools with which we are flocking, if
-	// any
+	// update collector and condor-view server of the pools with which
+	// we are flocking, if any
 	if (FlockCollectors && FlockNegotiators) {
 		FlockCollectors->rewind();
 		FlockNegotiators->rewind();
+		if (FlockViewServers) FlockViewServers->rewind();
 		for (int flock_level = 1;
 			 flock_level <= MaxFlockLevel; flock_level++) {
 			char *flock_collector = FlockCollectors->next();
 			char *flock_negotiator = FlockNegotiators->next();
+			char *flock_view_server =
+				(FlockViewServers) ? FlockViewServers->next() : NULL;
 			for (i=0; i < N_Owners; i++) {
 				Owners[i].JobsRunning = 0;
 				Owners[i].JobsFlocked = 0;
@@ -745,6 +764,12 @@ Scheduler::count_jobs()
 				updateCentralMgr( UPDATE_SUBMITTOR_AD, ad,
 								  flock_collector,
 								  collector_port ); 
+				if (flock_view_server && flock_view_server[0] != '\0') {
+					int condor_view_port = param_get_condor_view_port();
+					updateCentralMgr( UPDATE_SUBMITTOR_AD, ad, 
+									  flock_view_server,
+									  condor_view_port );
+				}
 			}
 		}
 	}
@@ -988,14 +1013,12 @@ count( ClassAd *job )
 			status = HELD;
 		}
 		// Don't count HELD jobs that have ATTR_JOB_MANAGED set to false.
-		if ( (status != HELD && status != COMPLETED && status != REMOVED) 
-					|| job_managed != 0 ) 
+		if ( status != HELD || job_managed != 0 ) 
 		{
 			needs_management = 1;
 			scheduler.Owners[OwnerNum].GlobusJobs++;
 		}
-		if ( status != HELD && status != COMPLETED && status != REMOVED
-					&& job_managed == 0 ) 
+		if ( status != HELD && job_managed == 0 ) 
 		{
 			scheduler.Owners[OwnerNum].GlobusUnmanagedJobs++;
 		}
@@ -1111,7 +1134,7 @@ Scheduler::updateCentralMgr( int command, ClassAd* ca, char *host,
 		return;
 	}
 
-	DCCollector d(host);
+	Daemon d(host, port);
 
 	d.startCommand(command, &sock);
 
@@ -3285,7 +3308,7 @@ bool
 claimStartd( match_rec* mrec, ClassAd* job_ad, bool is_dedicated )
 {
 
-	DCStartd matched_startd ( mrec->peer, NULL );
+	Daemon matched_startd ( DT_STARTD, mrec->peer, NULL );
 	Sock* sock = NULL;
 
 	dprintf( D_PROTOCOL, "Requesting resource from %s ...\n",
@@ -5133,7 +5156,7 @@ send_vacate(match_rec* match,int cmd)
 		return;
 	}
  
-	DCStartd d( match->peer );
+	Daemon d (match->peer, START_PORT);
 	d.startCommand(cmd, &sock);
 
 	sock.encode();
@@ -5845,6 +5868,14 @@ Scheduler::Init()
 		EXCEPT( "No spool directory specified in config file" );
 	}
 
+	if( ViewCollector ) {
+		delete ViewCollector;
+	}; 
+	tmp = param("CONDOR_VIEW_HOST");
+	if( tmp ) {
+		int condor_view_port = param_get_condor_view_port();
+		ViewCollector = new DCCollector( tmp, condor_view_port );
+	}
 	if( Collector ) {
 		delete( Collector );
 	}
@@ -6008,7 +6039,7 @@ Scheduler::Init()
 			new HashTable <int, ExtArray<PROC_ID> *>(5, pidHash);
 	}
 
-	char *flock_collector_hosts, *flock_negotiator_hosts;
+	char *flock_collector_hosts, *flock_negotiator_hosts, *flock_view_servers;
 	flock_collector_hosts = param( "FLOCK_COLLECTOR_HOSTS" );
 	if (!flock_collector_hosts) { // backward compatibility
 		flock_collector_hosts = param( "FLOCK_HOSTS" );
@@ -6017,6 +6048,7 @@ Scheduler::Init()
 	if (!flock_negotiator_hosts) { // backward compatibility
 		flock_negotiator_hosts = param( "FLOCK_HOSTS" );
 	}
+	flock_view_servers = param( "FLOCK_VIEW_SERVERS" );
 	if (flock_collector_hosts && flock_negotiator_hosts) {
 		if (FlockCollectors) delete FlockCollectors;
 		FlockCollectors = new StringList( flock_collector_hosts );
@@ -6028,6 +6060,10 @@ Scheduler::Init()
 					"FLOCK_NEGOTIATOR_HOSTS lists are not the same size."
 					"Flocking disabled.\n");
 			MaxFlockLevel = 0;
+		}
+		if (flock_view_servers) {
+			if (FlockViewServers) delete FlockViewServers;
+			FlockViewServers = new StringList( flock_view_servers );
 		}
 	} else {
 		MaxFlockLevel = 0;
@@ -6041,6 +6077,7 @@ Scheduler::Init()
 	}
 	if (flock_collector_hosts) free(flock_collector_hosts);
 	if (flock_negotiator_hosts) free(flock_negotiator_hosts);
+	if (flock_view_servers) free(flock_view_servers);
 
 	tmp = param( "RESERVED_SWAP" );
 	 if( !tmp ) {
@@ -6490,7 +6527,7 @@ Scheduler::sendReschedule( void )
 		char *negotiator = FlockNegotiators->next();
 		for( int i=0; negotiator && i < FlockLevel;
 			negotiator = FlockNegotiators->next(), i++ ) {
-			Daemon d( DT_NEGOTIATOR, negotiator );
+			Daemon d(negotiator, port);
 			if (!d.sendCommand(RESCHEDULE, Stream::safe_sock, NEGOTIATOR_CONTACT_TIMEOUT)) {
 				dprintf( D_ALWAYS, "failed to send RESCHEDULE command to %s\n",
 						 negotiator );
@@ -6637,7 +6674,7 @@ Scheduler::Relinquish(match_rec* mrec)
 
 	// inform the startd
 
-	DCStartd d( mrec->peer );
+	Daemon d(mrec->peer);
 	sock = (SafeSock*)d.startCommand(RELINQUISH_SERVICE, Stream::safe_sock, STARTD_CONTACT_TIMEOUT);
 
 	if(!sock) {
@@ -6784,7 +6821,7 @@ sendAlive( match_rec* mrec )
     sock.timeout(STARTD_CONTACT_TIMEOUT);
 	sock.encode();
 
-	DCStartd d( mrec->peer );
+	Daemon d (mrec->peer);
 	id = mrec->id;
 
 	if( !sock.connect(mrec->peer) || !d.startCommand ( ALIVE, &sock) ||
@@ -6888,6 +6925,9 @@ Scheduler::dumpState(int, Stream* s) {
 	intoAd ( ad, "startJobsDelayBit", startJobsDelayBit );
 	intoAd ( ad, "num_reg_contacts", num_reg_contacts );
 	intoAd ( ad, "MAX_STARTD_CONTACTS", MAX_STARTD_CONTACTS );
+	if( ViewCollector ) {
+		intoAd ( ad, "CondorViewHost", ViewCollector->fullHostname() );
+	}
 	intoAd ( ad, "CondorAdministrator", CondorAdministrator );
 	intoAd ( ad, "Mail", Mail );
 	intoAd ( ad, "filename", filename );
