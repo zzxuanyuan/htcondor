@@ -88,9 +88,13 @@ class MirrorJob : public BaseJob
 	MirrorResource *myResource;
 	GahpClient *gahp;
 
-	ClassAd *remoteStatusUpdateAd;
+	ClassAd *newRemoteStatusAd;
+	int newRemoteStatusStartTime;
+	int newRemoteStatusFinishTime;
+	int lastRemoteStatusTime;
 
-	void NotifyRemoteStatusUpdate( ClassAd *update_ad );
+	void NotifyNewRemoteStatus( ClassAd *update_ad, int query_start_time,
+							 int query_finish_time );
 
 	void ProcessRemoteAdInactive( ClassAd *remote_ad );
 	void ProcessRemoteAdActive( ClassAd *remote_ad );

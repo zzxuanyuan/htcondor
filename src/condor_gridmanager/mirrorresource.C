@@ -69,6 +69,7 @@ MirrorResource::MirrorResource( const char *resource_name )
 	gahpA = NULL;
 	gahpB = NULL;
 	scheddPollActive = false;
+	scheddPollStartTime = 0;
 	newLease = 0;
 
 	// TODO this needs to include schedd name and job owner
@@ -189,6 +190,7 @@ int MirrorResource::DoScheddPoll()
 					 rcB );
 		}
 
+		scheddPollStartTime = time(NULL);
 		scheddPollActive = true;
 
 	} else {
@@ -218,6 +220,7 @@ int MirrorResource::DoScheddPoll()
 		}
 
 		if ( rcB == 0 ) {
+			int now = time(NULL);
 			MyString update_expr;
 			update_expr.sprintf( "%s = %d", ATTR_MIRROR_REMOTE_LEASE_TIME,
 								 newLease );
@@ -240,7 +243,9 @@ int MirrorResource::DoScheddPoll()
 				rc = MirrorJobsById.lookup( HashKey( job_id_string.Value() ),
 											job );
 				if ( rc == 0 ) {
-					job->NotifyRemoteStatusUpdate( &status_ads[i] );
+					job->NotifyNewRemoteStatus( &status_ads[i],
+												scheddPollStartTime,
+												now );
 				}
 			}
 		}

@@ -241,7 +241,11 @@ MirrorJob::MirrorJob( ClassAd *classad )
 	remoteJobIdString = NULL;
 	mirrorActive = false;
 	myResource = NULL;
-	remoteStatusUpdateAd = NULL;
+	newRemoteStatusAd = NULL;
+	newRemoteStatusStartTime = 0;
+	newRemoteStatusFinishTime = 0;
+
+	lastRemoteStatusTime = 0;
 
 	// In GM_HOLD, we assume HoldReason to be set only if we set it, so make
 	// sure it's unset when we start.
@@ -302,8 +306,8 @@ MirrorJob::MirrorJob( ClassAd *classad )
 
 MirrorJob::~MirrorJob()
 {
-	if ( remoteStatusUpdateAd != NULL ) {
-		delete remoteStatusUpdateAd;
+	if ( newRemoteStatusAd != NULL ) {
+		delete newRemoteStatusAd;
 	}
 	if ( myResource ) {
 		myResource->UnregisterJob( this );
@@ -503,15 +507,25 @@ int MirrorJob::doEvaluateState()
 				gmState = GM_CANCEL_1;
 			} else if ( mirrorActive ) {
 				gmState = GM_MIRROR_ACTIVE_SAVE;
-			} else if ( remoteStatusUpdateAd != NULL ) {
-				ProcessRemoteAdInactive( remoteStatusUpdateAd );
-				if ( mirrorActive ) {
-					gmState = GM_MIRROR_ACTIVE_SAVE;
+			} else if ( newRemoteStatusAd != NULL ) {
+				if ( newRemoteStatusStartTime <= lastRemoteStatusTime ) {
+dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too long!\n",procID.cluster,procID.proc);
+					delete newRemoteStatusAd;
+					newRemoteStatusAd = NULL;
 				} else {
-					delete remoteStatusUpdateAd;
-					remoteStatusUpdateAd = NULL;
+					ProcessRemoteAdInactive( newRemoteStatusAd );
+					if ( mirrorActive ) {
+						// Leave the new remote status ad looking like an
+						// unprocessed one so that GM_SUBMITTED_MIRROR_ACTIVE
+						// look at it as well
+						gmState = GM_MIRROR_ACTIVE_SAVE;
+					} else {
+						lastRemoteStatusTime = newRemoteStatusFinishTime;
+						delete newRemoteStatusAd;
+						newRemoteStatusAd = NULL;
+					}
+					reevaluate_state = true;
 				}
-				reevaluate_state = true;
 			}
 			} break;
 		case GM_MIRROR_ACTIVE_SAVE: {
@@ -574,11 +588,18 @@ int MirrorJob::doEvaluateState()
 				gmState = GM_HOLD_REMOTE_JOB;
 			}else if ( remoteState == HELD ) {
 				gmState = GM_RELEASE_REMOTE_JOB;
-			} else if ( remoteStatusUpdateAd != NULL ) {
-				ProcessRemoteAdActive( remoteStatusUpdateAd );
-				delete remoteStatusUpdateAd;
-				remoteStatusUpdateAd = NULL;
-				reevaluate_state = true;
+			} else if ( newRemoteStatusAd != NULL ) {
+				if ( newRemoteStatusStartTime <= lastRemoteStatusTime ) {
+dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too long!\n",procID.cluster,procID.proc);
+					delete newRemoteStatusAd;
+					newRemoteStatusAd = NULL;
+				} else {
+					ProcessRemoteAdActive( newRemoteStatusAd );
+					lastRemoteStatusTime = newRemoteStatusFinishTime;
+					delete newRemoteStatusAd;
+					newRemoteStatusAd = NULL;
+					reevaluate_state = true;
+				}
 			}
 			} break;
 		case GM_HOLD_REMOTE_JOB: {
@@ -596,6 +617,7 @@ int MirrorJob::doEvaluateState()
 				break;
 			}
 			remoteState = HELD;
+			lastRemoteStatusTime = time(NULL);
 			gmState = GM_DELETE;
 			} break;
 		case GM_RELEASE_REMOTE_JOB: {
@@ -613,6 +635,7 @@ int MirrorJob::doEvaluateState()
 				break;
 			}
 			remoteState = IDLE;
+			lastRemoteStatusTime = time(NULL);
 			gmState = GM_SUBMITTED_MIRROR_ACTIVE;
 			} break;
 		case GM_DONE_SAVE: {
@@ -728,9 +751,9 @@ int MirrorJob::doEvaluateState()
 				mirrorActive = false;
 			}
 			JobIdle();
-			if ( remoteStatusUpdateAd != NULL ) {
-				delete remoteStatusUpdateAd;
-				remoteStatusUpdateAd = NULL;
+			if ( newRemoteStatusAd != NULL ) {
+				delete newRemoteStatusAd;
+				newRemoteStatusAd = NULL;
 			}
 			if ( submitLogged ) {
 				JobEvicted();
@@ -843,14 +866,18 @@ void MirrorJob::SetRemoteJobId( const char *job_id )
 	requestScheddUpdate( this );
 }
 
-void MirrorJob::NotifyRemoteStatusUpdate( ClassAd *update_ad )
+void MirrorJob::NotifyNewRemoteStatus( ClassAd *update_ad,
+									   int query_start_time,
+									   int query_finish_time )
 {
 	dprintf( D_FULLDEBUG, "(%d.%d) ***got classad from MirrorResource\n",
 			 procID.cluster, procID.proc );
-	if ( remoteStatusUpdateAd != NULL ) {
-		delete remoteStatusUpdateAd;
+	if ( newRemoteStatusAd != NULL ) {
+		delete newRemoteStatusAd;
 	}
-	remoteStatusUpdateAd = new ClassAd( *update_ad );
+	newRemoteStatusAd = new ClassAd( *update_ad );
+	newRemoteStatusStartTime = query_start_time;
+	newRemoteStatusFinishTime = query_finish_time;
 	SetEvaluateState();
 }
 
