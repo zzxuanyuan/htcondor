@@ -1129,15 +1129,16 @@ this attribute to True.
 
 
 \item[\Macro{VMx\_USER}] \label{param:VMxUser}
-The name of an imaginary user for Condor to use instead of
+The name of a user for Condor to use instead of
 user nobody,
 as part of a solution that plugs a security hole whereby
 a lurker process can prey on a subsequent job run as user
-nobody.
+nobody. 
 \MacroNI{x} is an integer associated with virtual machines.
 On Windows, \MacroNI{VMx\_USER}
 will only work if the credential of the specified
 user is stored on the execute machine using \Condor{store\_cred}.
+See Section~\ref{sec:RunAsNobody} for more information.
 
 \item[\Macro{EXECUTE\_LOGIN\_IS\_DEDICATED}]
 \label{param:ExecuteLoginIsDedicated}
