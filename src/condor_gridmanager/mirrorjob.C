@@ -44,7 +44,7 @@
 #define GM_SUBMIT				4
 #define GM_SUBMIT_SAVE			5
 #define GM_SUBMIT_COMMIT		6
-#define GM_SUBMITTED			7
+#define GM_SUBMITTED_MIRROR_INACTIVE	7
 #define GM_DONE_SAVE			8
 #define GM_DONE_COMMIT			9
 #define GM_CANCEL				10
@@ -55,8 +55,9 @@
 #define GM_PROXY_EXPIRED		15
 #define GM_REFRESH_PROXY		16
 #define GM_START				17
-#define GM_ENABLE_LOCAL_SCHEDULING 18
-#define GM_DISABLE_LOCAL_SCHEDULING 19
+#define GM_MIRROR_ACTIVE_SAVE	18
+#define GM_VACATE_SCHEDD		19
+#define GM_SUBMITTED_MIRROR_ACTIVE	20
 
 static char *GMStateNames[] = {
 	"GM_INIT",
@@ -66,7 +67,7 @@ static char *GMStateNames[] = {
 	"GM_SUBMIT",
 	"GM_SUBMIT_SAVE",
 	"GM_SUBMIT_COMMIT",
-	"GM_SUBMITTED",
+	"GM_SUBMITTED_MIRROR_INACTIVE",
 	"GM_DONE_SAVE",
 	"GM_DONE_COMMIT",
 	"GM_CANCEL",
@@ -78,7 +79,8 @@ static char *GMStateNames[] = {
 	"GM_REFRESH_PROXY",
 	"GM_START",
 	"GM_ENABLE_LOCAL_SCHEDULING",
-	"GM_DISABLE_LOCAL_SCHEDULING"
+	"GM_DISABLE_LOCAL_SCHEDULING",
+	"GM_SUBMITTED_MIRROR_ACTIVE"
 };
 
 #define JOB_STATE_UNKNOWN				-1
@@ -417,7 +419,7 @@ int MirrorJob::doEvaluateState()
 				gmState = GM_CANCEL;
 			}
 			} break;
-		case GM_SUBMITTED: {
+		case GM_SUBMITTED_MIRROR_INACTIVE: {
 			// The job has been submitted. Wait for completion or failure,
 			// and poll the remote schedd occassionally to let it know
 			// we're still alive.
@@ -425,12 +427,32 @@ int MirrorJob::doEvaluateState()
 				gmState = GM_DONE_SAVE;
 			} else if ( condorState == REMOVED || condorState == HELD ) {
 				gmState = GM_CANCEL;
-			} else if ( remoteState == HELD &&
-						localJobSchedulingEnabled == false ) {
-				gmState = GM_ENABLE_LOCAL_SCHEDULING;
-			} else if ( remoteState != HELD &&
-						localJobSchedulingEnabled == true ) {
-				gmState = GM_DISABLE_LOCAL_SCHEDULING;
+			} else if ( mirrorActive ) {
+				gmState = GM_MIRROR_ACTIVE_SAVE;
+			}
+			} break;
+		case GM_MIRROR_ACTIVE_SAVE: {
+			// The mirror has just become active. Make sure that state has
+			// been saved in the schedd before we send the vacate command.
+
+			// TODO fill in
+			gmState = GM_VACATE_SCHEDD;
+			} break;
+		case GM_VACATE_SCHEDD: {
+			// The mirror has just become active. Send a vacate command to
+			// the schedd the job from being executing locally.
+
+			// TODO fill in
+			gmState = GM_SUBMITTED_MIRROR_ACTIVE;
+			} break;
+		case GM_SUBMITTED_MIRROR_ACTIVE: {
+			// The job has been submitted. Wait for completion or failure,
+			// and poll the remote schedd occassionally to let it know
+			// we're still alive.
+			if ( remoteState == COMPLETED ) {
+				gmState = GM_DONE_SAVE;
+			} else if ( condorState == REMOVED || condorState == HELD ) {
+				gmState = GM_CANCEL;
 			}
 			} break;
 		case GM_DONE_SAVE: {
@@ -577,21 +599,6 @@ int MirrorJob::doEvaluateState()
 				JobHeld( holdReason );
 			}
 			gmState = GM_DELETE;
-			} break;
-		case GM_ENABLE_LOCAL_SCHEDULING: {
-//			UpdateJobAdInt( ATTR_MIRROR_OK_TO_MATCH, time(NULL) );
-//			requestScheddUpdate( this );
-			localJobSchedulingEnabled = true;
-			gmState = GM_SUBMITTED;
-			} break;
-		case GM_DISABLE_LOCAL_SCHEDULING: {
-//			UpdateJobAd( ATTR_MIRROR_OK_TO_MATCH, "UNDEFINED" );
-//			requestScheddUpdate( this );
-				// may have to send a vacate command and wait for job to
-				// be vacated. MirrorOkToMatch needs to be set in schedd
-				// ad before job finishes vacating.
-			localJobSchedulingEnabled = false;
-			gmState = GM_SUBMITTED;
 			} break;
 		default:
 			EXCEPT( "(%d.%d) Unknown gmState %d!", procID.cluster,procID.proc,
