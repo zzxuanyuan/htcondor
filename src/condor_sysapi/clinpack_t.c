@@ -86,6 +86,8 @@ int kflops_test(int test_blocksize, double perc_sd_variation_ok,
 
 		raw_mean /= (double)test_blocksize;
 		raw_testblocks_mean[i] = raw_mean;
+		dprintf(D_ALWAYS, "SysAPI: Testblock %d, mean:   Raw kflops: %.1f\n",
+				i, raw_mean );
 
 		/* Test if there were any unusually large jumps in the means of the 
 			testblocks */
@@ -113,24 +115,31 @@ int kflops_test(int test_blocksize, double perc_sd_variation_ok,
 
 		raw_testblocks_sd[i] = sqrt(raw_variance);
 
-		dprintf(D_ALWAYS, "SysAPI: Standard deviation of raw testblock %d is: %d KFLOPS\n",
-						i, (int)raw_testblocks_sd[i]);
+		dprintf(D_ALWAYS,
+				"SysAPI: Standard deviation of raw testblock %d is: %d KFLOPS\n",
+				i, (int)raw_testblocks_sd[i]);
 
 		num_tests++;
-		if (raw_testblocks_sd[i] > perc_sd_variation_ok*mean) {
-			dprintf(D_ALWAYS, "SysAPI: WARNING: Raw testblock %d had a standard deviation of %d, "
-							"which is more than %2.2f%% of the mean.\n", i, 
-							(int)raw_testblocks_sd[i], perc_sd_variation_ok*100.0);
+		if (raw_testblocks_sd[i] > perc_sd_variation_ok*raw_mean) {
+			dprintf(D_ALWAYS,
+					"SysAPI: WARNING: Raw testblock %d had a standard deviation of %d, "
+					"which is more than %2.2f%% (= %d) of the mean.\n",
+					i,
+					(int)raw_testblocks_sd[i],
+					perc_sd_variation_ok*100.0,
+					(int) (raw_mean * perc_sd_variation_ok)
+					);
 			num_warnings++;
 		}
 	}
 
 
 	if (((double)num_warnings/(double)num_tests) > perc_sd_variation_ok) {
-			dprintf(D_ALWAYS, "SysAPI: ERROR! Failing because %d of the raw
-							testblocks failed, which is more than %d
-							(%2.2f%%).\n", num_warnings, perc_sd_variation_ok*test_blocksize,
-							perc_sd_variation_ok*100.0);
+			dprintf(D_ALWAYS,
+					"SysAPI: ERROR! Failing because %d of the raw "
+					"testblocks failed, which is more than %d (%2.2f%%).\n",
+					num_warnings, perc_sd_variation_ok*test_blocksize,
+					perc_sd_variation_ok*100.0);
 			return_val = return_val | 1;
 	}
 	
@@ -145,24 +154,32 @@ int kflops_test(int test_blocksize, double perc_sd_variation_ok,
 			test[j] = sysapi_kflops();
 			mean += test[j];
 
-			dprintf(D_ALWAYS, "SysAPI: Testblock %d, test %d: Cooked kflops: %d\n", i, j, test[j]);
+			dprintf(D_ALWAYS,
+					"SysAPI: Testblock %d, test %d: Cooked kflops: %d\n",
+					i, j, test[j]);
 
 			if (test[j] <= 0) {
-				dprintf(D_ALWAYS, "SysAPI: ERROR! Cooked kflops (%d) is negative!\n", bar);
+				dprintf(D_ALWAYS,
+						"SysAPI: ERROR! Cooked kflops (%d) is negative!\n", bar);
 				return_val = 1;
 			}
 		}
 
 		mean /= (double)test_blocksize;
 		testblocks_mean[i] = mean;
+		dprintf(D_ALWAYS,
+				"SysAPI: Testblock %d, mean  : Cooked kflops: %.1f\n",
+				i, mean );
 
 		/* Test if there were any unusually large jumps in the means of the testblocks */
 		num_tests++;
 		if (i > 0) {
-			if (perc_sd_variation_ok < fabs((testblocks_mean[i]/(double)testblocks_mean[i-1])-1)) {
-				dprintf(D_ALWAYS, "SysAPI: WARNING: Cooked testblock %d's value was more than "
-								"%2.2f%% different from the previous testblock - something "
-								"changed dramatically.\n", i, perc_sd_variation_ok*100);
+			if (perc_sd_variation_ok < 
+				fabs((testblocks_mean[i]/(double)testblocks_mean[i-1])-1)) {
+				dprintf(D_ALWAYS,
+						"SysAPI: WARNING: Cooked testblock %d's value was more than "
+						"%2.2f%% different from the previous testblock - something "
+						"changed dramatically.\n", i, perc_sd_variation_ok*100);
 				num_warnings++;
 			}
 		}
@@ -174,22 +191,28 @@ int kflops_test(int test_blocksize, double perc_sd_variation_ok,
 
 		testblocks_sd[i] = sqrt(variance);
 
-		dprintf(D_ALWAYS, "SysAPI: Standard deviation of testblock %d is: %d KFLOPS\n", i, 
-						(int)testblocks_sd[i]);
+		dprintf(D_ALWAYS,
+				"SysAPI: Standard deviation of testblock %d is: %d KFLOPS\n", i, 
+				(int)testblocks_sd[i]);
 
 		num_tests++;
 		if (testblocks_sd[i] > perc_sd_variation_ok*mean) {
-			dprintf(D_ALWAYS, "SysAPI: WARNING: Testblock %d had a standard deviation of %d, "
-							"which is more than %2.2f%% of the mean.\n", i, 
-							(int)testblocks_sd[i], perc_sd_variation_ok*100.0);
+			dprintf(D_ALWAYS,
+					"SysAPI: WARNING: Testblock %d had a standard deviation of %d, "
+					"which is more than %2.2f%% (= %d) of the mean.\n",
+					i, 
+					(int)testblocks_sd[i], perc_sd_variation_ok*100.0,
+					(int)(mean * perc_sd_variation_ok)
+					);
 			num_warnings++;
 		}
 	}
 
 	if (((double)num_warnings/(double)num_tests) > perc_sd_variation_ok) {
-			dprintf(D_ALWAYS, "SysAPI: ERROR! Failing because %d of the cooked testblocks failed, "
-							"which is more than %d (%2.2f%%).\n", num_warnings, 
-							perc_sd_variation_ok*test_blocksize, perc_sd_variation_ok*100);
+			dprintf(D_ALWAYS,
+					"SysAPI: ERROR! Failing because %d of the cooked testblocks failed, "
+					"which is more than %d (%2.2f%%).\n", num_warnings, 
+					perc_sd_variation_ok*test_blocksize, perc_sd_variation_ok*100);
 			return_val = return_val | 1;
 	}
 	return return_val;
