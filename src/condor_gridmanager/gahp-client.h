@@ -67,13 +67,6 @@ static const int GAHPCLIENT_COMMAND_NOT_SUBMITTED = -102;
 ///
 static const int GAHPCLIENT_COMMAND_TIMED_OUT = -103;
 
-// Special values for what proxy to use with commands
-//   Use default proxy (not any cached proxy)
-//static const GahpProxyInfo *GAHPCLIENT_CACHE_DEFAULT_PROXY = ((GahpProxyInfo *)1);
-#define GAHPCLIENT_CACHE_DEFAULT_PROXY ((GahpProxyInfo *)1)
-//   Use last proxy (use whatever proxy was used for the previous command)
-//static const GahpProxyInfo *GAHPCLIENT_CACHE_LAST_PROXY = ((GahpProxyInfo *)2);
-#define GAHPCLIENT_CACHE_LAST_PROXY ((GahpProxyInfo *)2)
 
 void GahpReconfig();
 
