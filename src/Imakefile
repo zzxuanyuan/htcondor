@@ -250,6 +250,7 @@ object_target(netman)
 #endif
 object_target(io)
 object_target(classad.V6)
+object_target(classad_analysis)
 object_target(daemon_core.V6)
 object_target(daemon_client)
 #if WANT_PVM && HAS_PVM
