@@ -81,7 +81,8 @@ TEST_SUITE_BASE = test_suite_base
 		daemon_core.V6 \
 		condor_ckpt_server/ckpt_server_api.a \
 		condor_schedd.V6/libqmgmt.a condor_accountant.V6/libacct.a \
-		StdUnvLibs NetmanLibs chirp DrmaaLibs
+		StdUnvLibs NetmanLibs chirp DrmaaLibs \
+		owl/libanalysis.a
 
 #if HAS_STATIC
 #define StaticDirectories \
@@ -254,12 +255,14 @@ object_dir_target(condor_sdk)
 /* Just create the Stork directory for now. */
 object_dir_target(stork)
 #endif
+object_dir_target(owl)
 
 single_target(condor_procapi,libprocapi.a)
 single_target(condor_sysapi,libsysapi.a)
 single_target(condor_schedd.V6,libqmgmt.a)
 single_target(condor_accountant.V6,libacct.a)
 single_target(condor_ckpt_server,ckpt_server_api.a)
+single_target(owl,libanalysis.a)
 
 object_target(tests)
 object_target(test_suite_C.V5)
@@ -288,6 +291,11 @@ h/syscall_numbers.h: h/syscall_numbers.tmpl h/Makefile
 
 h/syscall_numbers.o: h/syscall_numbers.tmpl h/Makefile
 	cd h; make syscall_numbers.o
+
+makefiles:: owl/Makefile
+
+owl/Makefile: owl owl/Imakefile
+	cd owl; ../condor_imake
 
 check_platform_target
 
