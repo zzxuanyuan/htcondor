@@ -171,6 +171,10 @@ endif
 #define NEEDS_SPECIAL_STATIC_BUILD NO
 #endif
 
+#ifndef HAS_PURIFY
+#define HAS_PURIFY NO
+#endif
+
 OS_FLAG = OperatingSystem
 ARCH_FLAG = Architecture
 
