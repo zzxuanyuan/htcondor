@@ -430,8 +430,9 @@ private:
 	shadow_rec*		start_sched_universe_job(PROC_ID*);
 	shadow_rec*		start_local_universe_job(PROC_ID*);
 	bool			spawnJobHandler( shadow_rec* srec, const char* path,
-									 const char* args, const char* name, 
-									 bool is_dc, bool wants_pipe );
+									 const char* args, const char* env, 
+									 const char* name, bool is_dc,
+									 bool wants_pipe );
 	void			Relinquish(match_rec*);
 	void			check_zombie(int, PROC_ID*);
 	void			kill_zombie(int, PROC_ID*);
