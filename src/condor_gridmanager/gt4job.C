@@ -801,13 +801,16 @@ gmState=GM_SUBMIT;
 				break;
 			}
 
-			if (!gahp->gt4_generate_submit_id (&submit_id)) {
-				dprintf( D_ALWAYS, "(%d.%d) Error initializing GAHP\n",
-						 procID.cluster, procID.proc );
-				
-				UpdateJobAdString( ATTR_HOLD_REASON, "Failed to generate submit ID" );
-				gmState = GM_HOLD;
+			rc = gahp->gt4_generate_submit_id( &submit_id );
+			if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
+				 rc == GAHPCLIENT_COMMAND_PENDING ) {
 				break;
+			}
+			if ( rc != GLOBUS_SUCCESS ) {
+				dprintf( D_ALWAYS, "(%d.%d) Error generating submit id\n",
+						 procID.cluster, procID.proc );
+				errorString = "Failed to generate submit id";
+				gmState = GM_HOLD;
 			} else {
 				UpdateJobAdString( ATTR_GLOBUS_SUBMIT_ID, submit_id );
 				gmState = GM_SUBMIT_ID_SAVE;

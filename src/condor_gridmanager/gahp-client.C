@@ -2718,25 +2718,57 @@ GahpClient::gt3_gram_client_job_refresh_credentials(const char *job_contact)
 // GT4 section
 
 int
-GahpClient::gt4_generate_submit_id (char ** submit_id) {
+GahpClient::gt4_generate_submit_id (char ** submit_id)
+{
 	static const char * command = "GT4_GENERATE_SUBMIT_ID";
 
+		// Clear this now in case we exit out with an error
+	if ( submit_id ) {
+		*submit_id = NULL;
+	}
+
+		// Check if this command is supported
 	if  (server->m_commands_supported->contains_anycase(command)==FALSE) {
-		return FALSE;
+		return GAHPCLIENT_COMMAND_NOT_SUPPORTED;
 	}
 
-	server->write_line(command);
-	Gahp_Args result;
-	server->read_argv(result);
-	if ( result.argc != 2 || 
-		 result.argv[0][0] != 'S' ||
-		 strcasecmp (result.argv[1], NULLSTRING) == 0) {
-		dprintf(D_ALWAYS,"GAHP command '%s' failed\n",command);
-		return FALSE;
+		// Check if this request is currently pending.  If not, make
+		// it the pending request.
+	if ( !is_pending( command, NULL ) ) {
+			// Command is not pending, so go ahead and submit a new one
+			// if our command mode permits.
+		if ( m_mode == results_only ) {
+			return GAHPCLIENT_COMMAND_NOT_SUBMITTED;
+		}
+		now_pending( command, NULL, normal_proxy );
 	}
 
-	*submit_id = strdup (result.argv[1]);
-	return TRUE;
+		//If we made it here, command is pending.
+
+		// Check first if command completed.
+	Gahp_Args* result = get_pending_result( command, NULL );
+	if ( result ) {
+		// command completed.
+		if (result->argc != 2) {
+			EXCEPT( "Bad %s Result", command );
+		}
+		if ( strcasecmp(result->argv[1], NULLSTRING) ) {
+			*submit_id = strdup( result->argv[1] );
+		} else {
+			*submit_id = NULL;
+		}
+		delete result;
+		return 0;
+	}
+
+		// Now check if pending command timed out.
+	if ( check_pending_timeout( command, NULL ) ) {
+		// pending command timed out.
+		return GAHPCLIENT_COMMAND_TIMED_OUT;
+	}
+
+		// If we made it here, command is still pending...
+	return GAHPCLIENT_COMMAND_PENDING;
 }
 
 
