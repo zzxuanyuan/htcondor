@@ -931,6 +931,8 @@ Resource::publish( ClassAd* cap, amask_t mask )
 		// Put in availability statistics
 	r_avail_stats.publish( cap, mask );
 
+	r_cod_mgr->publish( cap, mask );
+
 	// Publish the supplemental Class Ads
 	resmgr->adlist_publish( cap, mask );
 
