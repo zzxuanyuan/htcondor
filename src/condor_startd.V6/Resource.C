@@ -26,9 +26,6 @@
 #include "mds.h"
 
 
-#define WANTS_CONDOR_LOAD 0
-
-
 Resource::Resource( CpuAttributes* cap, int rid )
 {
 	char tmp[256];
@@ -79,10 +76,6 @@ Resource::Resource( CpuAttributes* cap, int rid )
 
 	r_cpu_busy = 0;
 	r_cpu_busy_start_time = 0;
-
-		// Initialize our procInfo structure so we don't use any
-		// values until we've actually computed them.
-	memset( (void*)&r_pinfo, 0, (size_t)sizeof(r_pinfo) );
 
 	if( r_attr->type() ) {
 		dprintf( D_ALWAYS, "New machine resource of type %d allocated\n",  
@@ -835,9 +828,11 @@ Resource::publish( ClassAd* cap, amask_t mask )
 					caInsert( cap, r_cur->ad(), ptr );
 				}
 			}
-				// update ImageSize attribute from procInfo
-			if (r_pinfo.imgsize) {
-				sprintf( line, "%s = %lu", ATTR_IMAGE_SIZE, r_pinfo.imgsize );
+				// update ImageSize attribute from procInfo (this is
+				// only for the opportunistic job, not COD)
+			if( r_cur && r_cur->isActive() ) {
+				unsigned long imgsize = r_cur->imageSize();
+				sprintf( line, "%s = %lu", ATTR_IMAGE_SIZE, imgsize );
 				cap->Insert( line );
 			}
 		}
@@ -982,58 +977,15 @@ Resource::dprintf( int flags, char* fmt, ... )
 float
 Resource::compute_condor_load( void )
 {
-#if WANTS_CONDOR_LOAD
-	float avg;
-	float max;
-	float load;
+	float cpu_usage, avg, max, load;
 	int numcpus = resmgr->num_cpus();
-	int i;
 
-	if( r_starter && r_starter->active() ) { 
-		time_t now = time(NULL);
-		if( now - r_starter->last_snapshot() >= pid_snapshot_interval ) { 
-			r_starter->recompute_pidfamily( now );
-		}
+		// we only consider the opportunistic Condor match for
+		// CondorLoadAvg, not any of the COD matches...
 
-		if( (DebugFlags & D_FULLDEBUG) && (DebugFlags & D_LOAD) ) {
-			dprintf( D_FULLDEBUG, "Computing CondorLoad w/ pids: " );
-			for( i=0; i<r_starter->pidfamily_size(); i++ ) {
-				::dprintf( D_FULLDEBUG | D_NOHEADER, "%d ", (r_starter->pidfamily())[i] );	
-			}
-			::dprintf( D_FULLDEBUG | D_NOHEADER, "\n" );
-		}
-
-			// ProcAPI wants a non-const pointer reference, so we need
-			// a temporary.
-		procInfo *pinfoPTR = &r_pinfo;
-		if( (ProcAPI::getProcSetInfo( r_starter->pidfamily(), 
-									  r_starter->pidfamily_size(),  
-									  pinfoPTR) < -1) ) {
-				// If we failed, it might be b/c our pid family has
-				// stale info, so before we give up for real,
-				// recompute and try once more.
-			r_starter->recompute_pidfamily();
-
-			if( (DebugFlags & D_FULLDEBUG) && (DebugFlags & D_LOAD) ) {
-				dprintf( D_FULLDEBUG, "Failed once, now using pids: " );
-				for( i=0; i<r_starter->pidfamily_size(); i++ ) {
-					::dprintf( D_FULLDEBUG | D_NOHEADER, "%d ", 
-							   (r_starter->pidfamily())[i] );	
-				}
-				::dprintf( D_FULLDEBUG | D_NOHEADER, "\n" );
-			}
-
-			if( (ProcAPI::getProcSetInfo( r_starter->pidfamily(), 
-										  r_starter->pidfamily_size(),  
-										  pinfoPTR) < -1) ) {
-				EXCEPT( "Fatal error getting process info for the starter and decendents" ); 
-			}
-		}
-		if( (DebugFlags & D_FULLDEBUG) && (DebugFlags & D_LOAD) ) {
-			dprintf( D_FULLDEBUG, "Percent CPU usage for those pids is: %f\n", 
-					 r_pinfo.cpuusage );
-		}
-		r_load_queue->push( 1, r_pinfo.cpuusage );
+	if( r_cur && r_cur->isActive() ) {
+		cpu_usage = r_cur->percentCpuUsage();
+		r_load_queue->push( 1, cpu_usage );
 	} else {
 		r_load_queue->push( 1, 0.0 );
 	}
@@ -1042,25 +994,21 @@ Resource::compute_condor_load( void )
 	if( (DebugFlags & D_FULLDEBUG) && (DebugFlags & D_LOAD) ) {
 		r_load_queue->display();
 		dprintf( D_FULLDEBUG, 
-				 "LoadQueue: Size: %d  Avg value: %f  Share of system load: %f\n", 
+				 "LoadQueue: Size: %d  Avg value: %f  "
+				 "Share of system load: %f\n", 
 				 r_load_queue->size(), r_load_queue->avg(), avg );
 	}
-
 	max = MAX( numcpus, resmgr->m_attr->load() );
 	load = (avg * max) / 100;
 		// Make sure we don't think the CondorLoad on 1 node is higher
 		// than the total system load.
 	return MIN( load, resmgr->m_attr->load() );
-#else /* WANTS_CONDOR_LOAD */
-	return 0.0;
-#endif
 }
 
 
 void
 Resource::resize_load_queue( void )
 {
-#if WANTS_CONDOR_LOAD
 	int size = (int)ceil(60.0 / (double)polling_interval);
 	dprintf( D_FULLDEBUG, "Resizing load queue.  Old: %d, New: %d\n",
 			 r_load_queue->size(), size );
@@ -1068,7 +1016,6 @@ Resource::resize_load_queue( void )
 	delete r_load_queue;
 	r_load_queue = new LoadQueue( size );
 	r_load_queue->setval( val );
-#endif /* WANTS_CONDOR_LOAD */
 }
 
 
@@ -1078,7 +1025,7 @@ Resource::compute_cpu_busy( void )
 	int old_cpu_busy;
 	old_cpu_busy = r_cpu_busy;
 	r_cpu_busy = eval_cpu_busy();
-	
+
 	if( ! old_cpu_busy && r_cpu_busy ) {
 			// It's busy now and it wasn't before, so set the
 			// start time to now
