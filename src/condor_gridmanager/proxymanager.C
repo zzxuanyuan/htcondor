@@ -169,7 +169,6 @@ AcquireProxy( const char *proxy_path, int notify_tid )
 		 proxy->notification_tids.IsMember( notify_tid ) == false ) {
 		proxy->notification_tids.Append( notify_tid );
 	}
-dprintf(D_FULLDEBUG,"*** allocated new proxy %d, path=%s\n",proxy->id,proxy->proxy_filename);
 
 	ProxiesByFilename.insert(HashKey(proxy_path), proxy);
 
@@ -191,7 +190,6 @@ dprintf(D_FULLDEBUG,"*** allocated new proxy %d, path=%s\n",proxy->id,proxy->pro
 		SetMasterProxy( new_master, proxy );
 		ProxiesByFilename.insert( HashKey(new_master->proxy_filename),
 								  new_master );
-dprintf(D_FULLDEBUG,"*** allocated new master proxy %d, path=%s\n",new_master->id,new_master->proxy_filename);
 
 		proxy_subject->master_proxy = new_master;
 
@@ -204,7 +202,6 @@ dprintf(D_FULLDEBUG,"*** allocated new master proxy %d, path=%s\n",new_master->i
 	proxy->subject = proxy_subject;
 
 	if ( proxy->expiration_time > proxy_subject->master_proxy->expiration_time ) {
-dprintf(D_FULLDEBUG,"*** found new source (%d,%s) for master proxy (%d,%s)\n",proxy->id,proxy->proxy_filename,proxy_subject->master_proxy->id,proxy_subject->master_proxy->proxy_filename);
 			SetMasterProxy( proxy_subject->master_proxy, proxy );
 	}
 
@@ -301,7 +298,6 @@ int CheckProxies()
 
 		while ( curr_subject->proxies.Next( curr_proxy ) != false ) {
 
-dprintf(D_FULLDEBUG,"*** checking proxy %d, path=%s\n",curr_proxy->id,curr_proxy->proxy_filename);
 			curr_proxy->near_expired =
 				(curr_proxy->expiration_time - now) <= minProxy_time;
 
@@ -320,7 +316,6 @@ dprintf(D_FULLDEBUG,"*** checking proxy %d, path=%s\n",curr_proxy->id,curr_proxy
 				while ( curr_proxy->notification_tids.Next( tid ) ) {
 					daemonCore->Reset_Timer( tid, 0 );
 				}
-dprintf(D_FULLDEBUG,"*** found updated proxy %d, path=%s\n",curr_proxy->id,curr_proxy->proxy_filename);
 
 				if ( curr_proxy->expiration_time > new_master->expiration_time ) {
 					new_master = curr_proxy;
@@ -345,7 +340,6 @@ dprintf(D_FULLDEBUG,"*** found updated proxy %d, path=%s\n",curr_proxy->id,curr_
 
 		if ( new_master != curr_subject->master_proxy ) {
 			
-dprintf(D_FULLDEBUG,"*** found new source (%d,%s) for master proxy (%d,%s)\n",new_master->id,new_master->proxy_filename,curr_subject->master_proxy->id,curr_subject->master_proxy->proxy_filename);
 			SetMasterProxy( curr_subject->master_proxy, new_master );
 
 		}
