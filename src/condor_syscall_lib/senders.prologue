@@ -44,12 +44,11 @@ REMOTE_syscall( int syscall_num, ... )
 	int keep_going = 0;
 #endif
 
+	scm = SetSyscalls( SYS_LOCAL | SYS_UNMAPPED );
 
-	scm = SetSyscalls( SYS_LOCAL | SYS_MAPPED );
 	va_start( ap, syscall_num );
 
-	/* defined in local_startup.c and remote_startup.c */
-	omask = _condor_signals_disable();
+	_condor_signals_disable();
 	
 	switch( syscall_num ) {
 

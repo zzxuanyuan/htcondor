@@ -234,8 +234,7 @@
 	}
 #endif 
 
-	/* defined in signals_support.c */
-	_condor_signals_enable(omask);
+	_condor_signals_enable();
 
 	SetSyscalls( scm );
 	return rval;
