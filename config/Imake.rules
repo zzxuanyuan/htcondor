@@ -861,12 +861,21 @@ clean::						@@\
 ** source directory.  Making it appear as though all the source
 ** files are in the directory where we want to build the objects
 ** will simplify the Makefiles.
+** The really-clean rule is for blowing away a whole build workspace
+** and starting over from scratch.  However, since that's totally
+** overkill and dangerous for a source workspace, if we see a "CVS"
+** directory, we print a message and exit.  Notice that we use "@if"
+** to tell make to pass this directly to the shell.  That way, it
+** doesn't echo this test for every directory, but instead just prints
+** the error and bails out if it finds the directory.
 */
+
 #ifndef object_dir_target
 #define object_dir_target(dir_name)					@@\
 ##dir_name##:								@@\
 	perl $(SRC_TREE)/condor_scripts/make_dir_tree dir_name $(SRC_TREE) @@\
 really-clean::								@@\
+	@if [ -d CVS ]; then echo "You definitely do NOT want to do this in your source repository." ; echo "Try doing it in a build directory, instead."; exit 1; fi @@\
 	rm -rf dir_name
 #endif /* object_dir_target */
 
