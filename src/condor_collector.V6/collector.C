@@ -259,7 +259,9 @@ int CollectorDaemon::receive_invalidation(Service* s, int command, Stream* sock)
 	sock->timeout(ClientTimeout);
     if( !ad.initFromStream(*sock) || !sock->eom() )
     {
-        dprintf(D_ALWAYS,"Failed to receive query on TCP: aborting\n");
+        dprintf( D_ALWAYS, 
+				 "Failed to receive invalidation on %s: aborting\n",
+				 sock->type() == Stream::reli_sock ? "TCP" : "UDP" );
         return FALSE;
     }
 
