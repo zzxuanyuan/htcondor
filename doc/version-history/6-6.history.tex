@@ -9,46 +9,6 @@ in the 6.6 series.
 The details of each version are described below.
 
 
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{\label{sec:New-6-6-5}Version 6.6.5}
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-\noindent Release Notes:
-
-\begin{itemize}
-
-\item None.
-
-\end{itemize}
-
-\noindent New Features:
-
-\begin{itemize}
-
-\item None.
-
-\end{itemize}
-
-\noindent Bugs Fixed:
-
-\begin{itemize}
-
-\item Fixed a problem that sometimes caused DAGMan to segfault while
-      parsing DAGs (as far as we know, only very large DAGs).
-
-\end{itemize}
-
-\noindent Known Bugs:
-
-\begin{itemize}
-
-\item None.
-
-\end{itemize}
-
-
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{\label{sec:New-6-6-4}Version 6.6.4}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -65,6 +25,9 @@ The details of each version are described below.
 \noindent Bugs Fixed:
 
 \begin{itemize}
+
+\item Fixed a major bug in the Windows NT/2000 port that caused the
+  Condor daemons to crash when attempting to authenticate.
 
 \item Fixed the bug in Condor's file transfer mechanism for Mac OSX
   that was introduced in version 6.6.3.
