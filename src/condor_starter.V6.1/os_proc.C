@@ -639,47 +639,12 @@ OsProc::PublishUpdateAd( ClassAd* ad )
 	sprintf( buf, "%s=%d", ATTR_NUM_PIDS, num_pids );
 	ad->Insert( buf );
 
-	if( job_start_time.seconds() > 0 ) {
-		sprintf( buf, "%s=%ld", ATTR_JOB_START_DATE,
-				 job_start_time.seconds() );
-		ad->Insert( buf );
-	}
 	if( exit_status >= 0 ) {
-			/*
-			  If we have the exit status, we want to parse it and set
-			  some attributes which describe the status in a platform
-			  independent way.  This way, we're sure we're analyzing
-			  the status integer with the platform-specific macros
-			  where it came from, instead of assuming that WIFEXITED()
-			  and friends will work correctly on a status integer we
-			  got back from a different platform.
-			*/
-		if( WIFSIGNALED(exit_status) ) {
-			sprintf( buf, "%s = TRUE", ATTR_ON_EXIT_BY_SIGNAL );
-			ad->Insert( buf );
-			sprintf( buf, "%s = %d", ATTR_ON_EXIT_SIGNAL, 
-					 WTERMSIG(exit_status) );
-			ad->Insert( buf );
-			sprintf( buf, "%s = \"died on %s\"", ATTR_EXIT_REASON,
-					 daemonCore->GetExceptionString(WTERMSIG(exit_status)) );
-			ad->Insert( buf );
-		} else {
-			sprintf( buf, "%s = FALSE", ATTR_ON_EXIT_BY_SIGNAL );
-			ad->Insert( buf );
-			sprintf( buf, "%s = %d", ATTR_ON_EXIT_CODE, 
-					 WEXITSTATUS(exit_status) );
-			ad->Insert( buf );
-		}
 		if( dumped_core ) {
 			sprintf( buf, "%s = True", ATTR_JOB_CORE_DUMPED );
 			ad->Insert( buf );
 		} // should we put in ATTR_JOB_CORE_DUMPED = false if not?
-
-		if( job_exit_time.seconds() > 0 ) {
-			sprintf( buf, "%s=%f", ATTR_JOB_DURATION, 
-					 job_exit_time.difference(&job_start_time) );
-			ad->Insert( buf );
-		}
 	}
-	return true;
+
+	return UserProc::PublishUpdateAd( ad );
 }
