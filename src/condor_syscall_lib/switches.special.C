@@ -169,8 +169,48 @@ int getrusage( int who, struct rusage *rusage )
 
 void ldr_atexit() {}
 
+/*
+Force the inclusion of isatty.
+*/
+
+int _condor_hack_isatty(int fd)
+{
+	return isatty(fd);
+}
+
+
 #endif
 
+/*
+This routine which is normally provided in the C library determines
+whether a given file descriptor refers to a tty.  The underlying
+mechanism is an ioctl, but Condor does not support ioctl.  We
+therefore provide a "quick and dirty" substitute here.  This may
+not always be correct, but it will get you by in most cases.
+
+There is now some basic support for ioctl, but it doesn't seem
+to quite solve the problem yet.
+*/
+
+int isatty( int filedes )
+{
+               /* Stdin, stdout, and stderr are redirected to normal
+               ** files for all condor jobs.
+               */
+       if( RemoteSysCalls() ) {
+               return FALSE;
+       }
+ 
+               /* Assume stdin, stdout, and stderr are the only ttys */
+       switch( filedes ) {
+               case 0:
+               case 1:
+               case 2:
+                               return TRUE;
+               default:
+                       return FALSE;
+       }
+}
 
 /*
 All reads must pass through the buffer when mapped,
@@ -482,9 +522,12 @@ int creat(const char *path, mode_t mode)
 	return open((char*)path, O_WRONLY | O_CREAT | O_TRUNC, mode);
 }
 
+#ifdef SYS_open64
 int creat64(const char *path, mode_t mode)
 {
-	return open64((char*)path, O_WRONLY | O_CREAT | O_TRUNC, mode);
+	return open64((char*)path, O_WRONLY | O_CREAT | O_TRUNC, mode );
 }
+#endif
+
 
 } // end extern "C"
