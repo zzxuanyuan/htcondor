@@ -448,12 +448,12 @@ class ProcAPI {
 
   // The following are for the test programs.
   // how many children to you want to create?  5 is a good number for me.
-  const int NUMKIDS = 5;
+  const static int NUMKIDS = 5;
 
   // when each child is created, it allocates some memory.  The first child
   // allocates "MEMFACTOR" Megs.  The second allocates MEMFACTOR * 2 Megs.
   // etc, etc.  Be careful of thrashing...unless that's what you want.
-  const int MEMFACTOR = 3;
+  const static int MEMFACTOR = 3;
 #endif // ndef WIN32
 
 }; 
