@@ -31,13 +31,13 @@
 
 #include "translation_utils.h"
 
-enum ClaimType { CLAIM_COD, CLAIM_OPPORTUNISTIC };
+enum ClaimType { CLAIM_COD=1, CLAIM_OPPORTUNISTIC };
 
 const char* getClaimTypeString( ClaimType type );
 ClaimType   getClaimTypeNum( const char* string );
 
 
-enum VacateType { VACATE_GRACEFUL, VACATE_FAST };
+enum VacateType { VACATE_GRACEFUL=1, VACATE_FAST };
 
 const char* getVacateTypeString( VacateType type );
 VacateType  getVacateTypeNum( const char* string );
