@@ -29,7 +29,6 @@ extern "C" unsigned int ntohl( unsigned int );
 #endif
 
 void terminate_with_sig( int sig );
-void Suicide();
 
 Image MyImage;
 static jmp_buf Env;
@@ -122,17 +121,9 @@ _condor_prestart( int syscall_mode )
 
 		// install the SIGTSTP handler
 	if( sigaction(SIGTSTP,&action,NULL) < 0 ) {
-		perror( "sigaction - TSTP handler" );
+		perror( "sigaction" );
 		exit( 1 );
 	}
-
-		// install the SIGUSR1 handler
-	action.sa_handler = (SIG_HANDLER)Suicide;
-	if( sigaction(SIGUSR1,&action,NULL) < 0 ) {
-		perror( "sigaction - USR1 handler" );
-		exit( 1 );
-	}
-
 
 }
 
@@ -662,16 +653,6 @@ terminate_with_sig( int sig )
 		// Should never get here
 	EXCEPT( "Should never get here" );
 
-}
-
-/*
-  We have been requested to exit.  We do it by sending ourselves a
-  SIGKILL, i.e. "kill -9".
-*/
-void
-Suicide()
-{
-	terminate_with_sig( SIGKILL );
 }
 
 extern "C" {
