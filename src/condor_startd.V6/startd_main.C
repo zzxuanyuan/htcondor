@@ -639,7 +639,7 @@ main_shutdown_graceful()
 int
 reaper(Service *, int pid, int status)
 {
-	Resource* rip;
+	Match* foo;
 
 	if( WIFSIGNALED(status) ) {
 		dprintf(D_FAILURE|D_ALWAYS, "Starter pid %d died on signal %d (%s)\n",
@@ -648,9 +648,9 @@ reaper(Service *, int pid, int status)
 		dprintf(D_FAILURE|D_ALWAYS, "Starter pid %d exited with status %d\n",
 				pid, WEXITSTATUS(status));
 	}
-	rip = resmgr->get_by_pid(pid);
-	if( rip ) {
-		rip->starter_exited();
+	foo = resmgr->getMatchByPid(pid);
+	if( foo ) {
+		foo->starterExited();
 	}		
 	return TRUE;
 }
