@@ -166,6 +166,11 @@ public:
 	int     preemptWasTrue( void ) const; //PREEMPT was true in current claim
 	void    preemptIsTrue();              //records that PREEMPT was true
 
+		// Database ClassAd insert & helper functions
+	int     dbInsert(ClassAd *cl);
+	int     isStatic(char *attName);
+	int     typeOf(char *attName);
+
 		// Data members
 	ResState*		r_state;	// Startd state object, contains state and activity
 	ClassAd*		r_classad;	// Resource classad (contains everything in config file)

@@ -25,6 +25,24 @@
 #include "startd.h"
 #include "mds.h"
 #include "condor_environ.h"
+#include "odbc.h"
+
+#define TYPE_STRING    1
+#define TYPE_NUMBER    2
+#define TYPE_TIMESTAMP 3
+
+// hash function for strings
+static int
+attHashFunction (const MyString &str, int numBuckets)
+{
+        int i = str.Length() - 1, hashVal = 0;
+        while (i >= 0)
+        {
+                hashVal += str[i];
+                i--;
+        }
+        return (hashVal % numBuckets);
+}
 
 Resource::Resource( CpuAttributes* cap, int rid )
 {
@@ -765,6 +783,9 @@ Resource::do_update( void )
 
 	this->publish( &public_ad, A_ALL_PUB );
 	this->publish( &private_ad, A_PRIVATE | A_ALL );
+
+		// insert classad into DB
+	this->dbInsert(&public_ad);
 
 		// Send class ads to collector(s)
 	rval = resmgr->send_update( UPDATE_STARTD_AD, &public_ad,
@@ -1648,3 +1669,186 @@ Resource::endCODLoadHack( void )
 	r_pre_cod_condor_load = 0.0;
 }
 
+int
+Resource::dbInsert( ClassAd *cl )
+{
+	ODBC *dbh = NULL;
+	HashTable<MyString, MyString> newClAd(200, attHashFunction, updateDuplicateKeys);
+	char sql_stmt[1000];
+	int retcode;
+	MyString classAd;
+	const char *iter;
+	char attName[100], attVal[500], attNameList[1000]="", attValList[1000]="", tmpVal[500];
+	int isFirst = TRUE;
+	MyString aName, aVal, temp, machine_id;
+
+	cl->sPrint(classAd);
+
+	// Insert stuff into Machine_Classad
+
+	classAd.Tokenize();
+	iter = classAd.GetNextToken("\n", true);
+
+	while (iter != NULL)
+		{
+			sscanf(iter, "%s = %s", attName, attVal);
+				
+			if (!isStatic(attName)) {
+					// should go into machine_classad table
+				if (isFirst) {
+						//is the first in the list
+					isFirst = FALSE;
+					sprintf(attNameList, "(%s", (strcmp(attName, ATTR_NAME) ? attName : "machine_id") );
+					if (!strcmp(attName, ATTR_NAME))
+					    machine_id = attVal;
+					switch (typeOf(attName)) {
+
+					case TYPE_STRING:
+						sprintf(attValList, "('%s'", attVal);
+						break;
+					case TYPE_TIMESTAMP:
+						sprintf(attValList, "(('epoch'::timestamp + '%s seconds') at time zone 'UTC'", attVal);
+						break;
+					case TYPE_NUMBER:
+						sprintf(attValList, "(%s", attVal);
+						break;
+					default:
+						sprintf(attValList, "(%s", attVal);
+						break;							
+					}
+				} else {
+						// is not the first in the list
+					strcat(attNameList, ", ");
+					strcat(attNameList, (strcmp(attName, ATTR_NAME) ? attName : "machine_id"));
+
+					strcat(attValList, ", ");
+					switch (typeOf(attName)) {
+
+					case TYPE_STRING:
+						sprintf(tmpVal, "'%s'", attVal);
+						break;
+					case TYPE_TIMESTAMP:
+						sprintf(tmpVal, "('epoch'::timestamp + '%s seconds') at time zone 'UTC'", attVal);
+						break;
+					case TYPE_NUMBER:
+						sprintf(tmpVal, "%s", attVal);
+						break;
+					default:
+						sprintf(tmpVal, "%s", attVal);
+						break;							
+					}
+					strcat(attValList, tmpVal);
+
+				}
+			} else {  // static attributes (go into Machine table)
+			        aName = attName;
+				aVal = attVal;
+				// insert into new ClassAd too (since this needs to go into DB)
+				newClAd.insert(aName, aVal);
+			}
+			iter = classAd.GetNextToken("\n", true);
+		}
+
+	strcat(attNameList, ", LastHeardFrom)");
+	strcat(attValList, ", 'now')");
+
+
+	sprintf(sql_stmt, "INSERT INTO Machine_Classad %s VALUES %s", attNameList, attValList);
+
+
+
+	dbh = new ODBC();
+	dbh->odbc_connect("PostgreSQL", "scidb", "");
+
+	dbh->odbc_sqlstmt(sql_stmt);
+
+	// Insert changes into Machine
+	newClAd.startIterations();
+	while (newClAd.iterate(aName, aVal)) {
+
+	  sprintf(sql_stmt, "SELECT attr_name, attr_value FROM Machine WHERE machine_id = '%s' AND attr_name = '%s'", machine_id.Value(), aName.Value());
+	  dbh->odbc_sqlstmt(sql_stmt);
+	  dbh->odbc_bindcol(1, (void *)attName, 100, SQL_C_CHAR); // attr_name
+	  dbh->odbc_bindcol(2, (void *)attVal, 500, SQL_C_CHAR);  // attr_value
+
+	  retcode = dbh->odbc_fetch();
+	  dprintf(D_FULLDEBUG, "In table Val = %s\n", attVal);
+	  dprintf(D_FULLDEBUG, "In classad Val = %s\n", aVal.Value());	
+
+	  if (retcode == SQL_NO_DATA) {
+	    // this value is not present in the Machine table hence insert
+	    dbh->odbc_closestmt();
+	    sprintf(sql_stmt, "INSERT INTO Machine VALUES ('%s', '%s', '%s', 'now')", 
+		    machine_id.Value(), aName.Value(), aVal.Value());
+	    dbh->odbc_sqlstmt(sql_stmt);
+
+	  } else {
+	    // this value is present in the table. if value has changed then update
+	    dbh->odbc_closestmt();    
+	    if (aVal != attVal) {
+	      sprintf(sql_stmt, "UPDATE Machine SET attr_value = '%s', start_time = 'now' WHERE machine_id = '%s' AND attr_name = '%s'", 
+		      aVal.Value(), machine_id.Value(), aName.Value());
+	      dbh->odbc_sqlstmt(sql_stmt);
+	    }
+
+	  }
+
+	}
+
+	dbh->odbc_disconnect();
+
+
+
+}
+
+int 
+Resource::isStatic(char *attName)
+{
+	return (strcmp(attName, ATTR_CKPT_SERVER) && strcmp(attName, "CKPT_SERVER_HOST") &&
+			strcmp(attName, ATTR_STATE) && strcmp(attName, ATTR_ACTIVITY) &&
+			strcmp(attName, ATTR_KEYBOARD_IDLE) && strcmp(attName, ATTR_CONSOLE_IDLE) &&
+			strcmp(attName, ATTR_LOAD_AVG) && strcmp(attName, "CondorLoadAvg") &&
+			strcmp(attName, ATTR_TOTAL_LOAD_AVG) && strcmp(attName, ATTR_VIRTUAL_MEMORY) &&
+			strcmp(attName, ATTR_MEMORY ) && strcmp(attName, ATTR_TOTAL_VIRTUAL_MEMORY) &&
+			strcmp(attName, ATTR_CPU_BUSY_TIME) && strcmp(attName, ATTR_CPU_IS_BUSY) &&
+			strcmp(attName, ATTR_RANK) && strcmp(attName, ATTR_CURRENT_RANK) &&
+			strcmp(attName, ATTR_REQUIREMENTS) && strcmp(attName, ATTR_CLOCK_MIN) &&
+			strcmp(attName, ATTR_CLOCK_DAY) && strcmp(attName, ATTR_LAST_HEARD_FROM) &&
+			strcmp(attName, ATTR_ENTERED_CURRENT_ACTIVITY) && strcmp(attName, ATTR_ENTERED_CURRENT_STATE) &&
+			strcmp(attName, ATTR_UPDATE_SEQUENCE_NUMBER) && strcmp(attName, ATTR_UPDATESTATS_TOTAL) &&
+			strcmp(attName, ATTR_UPDATESTATS_SEQUENCED) && strcmp(attName, ATTR_UPDATESTATS_LOST) &&
+			strcmp(attName, ATTR_NAME)
+			);
+}
+
+int 
+Resource::typeOf(char *attName)
+{
+	if (!(strcmp(attName, ATTR_CKPT_SERVER) && strcmp(attName, "CKPT_SERVER_HOST") &&
+		  strcmp(attName, ATTR_STATE) && strcmp(attName, ATTR_ACTIVITY) &&
+		  strcmp(attName, ATTR_CPU_IS_BUSY) && strcmp(attName, ATTR_RANK) && 
+		  strcmp(attName, ATTR_REQUIREMENTS) && strcmp(attName, ATTR_NAME)
+		  )
+		)
+		return TYPE_STRING;
+
+	if (!(strcmp(attName, ATTR_KEYBOARD_IDLE) && strcmp(attName, ATTR_CONSOLE_IDLE) &&
+		  strcmp(attName, ATTR_LOAD_AVG) && strcmp(attName, "CondorLoadAvg") &&
+		  strcmp(attName, ATTR_TOTAL_LOAD_AVG) && strcmp(attName, ATTR_VIRTUAL_MEMORY) &&
+		  strcmp(attName, ATTR_MEMORY ) && strcmp(attName, ATTR_TOTAL_VIRTUAL_MEMORY) &&
+		  strcmp(attName, ATTR_CPU_BUSY_TIME) && strcmp(attName, ATTR_CURRENT_RANK) &&
+		  strcmp(attName, ATTR_CLOCK_MIN) && strcmp(attName, ATTR_CLOCK_DAY) && 
+		  strcmp(attName, ATTR_UPDATE_SEQUENCE_NUMBER) && strcmp(attName, ATTR_UPDATESTATS_TOTAL) &&
+		  strcmp(attName, ATTR_UPDATESTATS_SEQUENCED) && strcmp(attName, ATTR_UPDATESTATS_LOST)
+		  )
+		)
+		return TYPE_NUMBER;
+
+	if (!(strcmp(attName, ATTR_LAST_HEARD_FROM) &&
+		  strcmp(attName, ATTR_ENTERED_CURRENT_ACTIVITY) && strcmp(attName, ATTR_ENTERED_CURRENT_STATE)
+		  )
+		)
+		return TYPE_TIMESTAMP;
+
+	return -1;
+}
