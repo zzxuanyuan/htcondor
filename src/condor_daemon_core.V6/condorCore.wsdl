@@ -9,8 +9,7 @@
  xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/"
  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
  xmlns:xsd="http://www.w3.org/2001/XMLSchema"
- xmlns:condorCore="urn:condor-daemoncore"
- xmlns:condorCollector="urn:condor-collector">
+ xmlns:condorCore="urn:condor-daemoncore">
 
 <types>
  <schema targetNamespace="urn:condor-daemoncore"
@@ -19,7 +18,6 @@
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xmlns:xsd="http://www.w3.org/2001/XMLSchema"
   xmlns:condorCore="urn:condor-daemoncore"
-  xmlns:condorCollector="urn:condor-collector"
   xmlns="http://www.w3.org/2001/XMLSchema"
   elementFormDefault="unqualified"
   attributeFormDefault="unqualified">
@@ -29,10 +27,6 @@
     <element name="name" type="xsd:string" minOccurs="1" maxOccurs="1" nillable="true"/>
     <element name="type" type="xsd:byte" minOccurs="1" maxOccurs="1"/>
     <element name="value" type="xsd:string" minOccurs="1" maxOccurs="1" nillable="true"/>
-    <element name="valueInt" type="xsd:int" minOccurs="0" maxOccurs="1" nillable="true"/>
-    <element name="valueFloat" type="xsd:float" minOccurs="0" maxOccurs="1" nillable="true"/>
-    <element name="valueBool" type="xsd:boolean" minOccurs="0" maxOccurs="1" nillable="true"/>
-    <element name="valueExpr" type="xsd:string" minOccurs="0" maxOccurs="1" nillable="true"/>
    </sequence>
   </complexType>
 
@@ -57,18 +51,6 @@
     </restriction>
    </complexContent>
   </complexType>
-
- </schema>
- <schema targetNamespace="urn:condor-collector"
-  xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/"
-  xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/"
-  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xmlns:xsd="http://www.w3.org/2001/XMLSchema"
-  xmlns:condorCore="urn:condor-daemoncore"
-  xmlns:condorCollector="urn:condor-collector"
-  xmlns="http://www.w3.org/2001/XMLSchema"
-  elementFormDefault="unqualified"
-  attributeFormDefault="unqualified">
 
  </schema>
 </types>
