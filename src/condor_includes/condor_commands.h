@@ -35,7 +35,7 @@
 **	Scheduler version number
 */
 #define SCHED_VERS			400
-#define CA_CMD_BASE			800
+#define CA_CMD_BASE			1000
 #define ALT_STARTER_BASE 	70
 
 /*
