@@ -1,6 +1,4 @@
 
-#if 0
-
 #ifdef HPUX
 #include "switches.remap-HPUX.h"
 #endif 
@@ -23,8 +21,6 @@
 
 #ifdef OSF1
 #include "switches.remap-DUX4.h"
-#endif
-
 #endif
 
 } // end of extern "C"

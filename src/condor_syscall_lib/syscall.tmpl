@@ -115,12 +115,6 @@
   should generate code.
 */
 
-/*	OSF/1 has some what different prototypes for many system calls.
-	These try to set things up so we don't have to have so many
-	if defined()'s below.  I'm afraid other new platforms may require
-	similar changes.
-*/
-
 #define SEND_PATH(name) in code(name)
 #define GET_PATH(name) out code(name)
 #define ALLOC_PATH(name) alloc(name,_POSIX_PATH_MAX)
@@ -132,14 +126,18 @@
 #   define EXTRACT extract
 #endif
 
-/* File table switches are used by both the ckpt and syscall libraries */
-
-#if !defined(SWITCH)
-	int open( const char *path, int flags, int mode ) : map {
+	int open( const char *path, int flags, ... ) : map {
 		SEND_PATH( path );
 		ALLOC_PATH( path );
 	}
-#endif
+	
+	int fcntl( int fd, int cmd, ... ) : map;
+
+	#if defined(LINUX) && defined(GLIBC)
+		int ioctl( int fd, unsigned long cmd, ... ) : map;
+	#else
+		int ioctl( int fd, int cmd, ... ) : map;
+	#endif
 
 	int close( int fd ) : map;
 	int dup( int old_fd ) : map;
@@ -163,78 +161,109 @@
 	not_supported int lockf( int fd, int request, off_t size );
 
 	#if 0
-	#if HAS_64BIT_SYSCALLS
-	#if defined(Solaris26)
+		#if HAS_64BIT_SYSCALLS
+			#if defined(Solaris26)
 
-	offset_t llseek( int fd, offset_t offset, int whence ) : map ;
-	off64_t	lseek64( int fd, off64_t offset, int whence ) : map, extract;
+				offset_t llseek( int fd, offset_t offset, int whence ) : map ;
+				off64_t	lseek64( int fd, off64_t offset, int whence ) : map, extract;
 
-	#else
+			#else
 
-	off64_t	lseek64( int fd, off64_t offset, int whence ) : map ;
+				off64_t	lseek64( int fd, off64_t offset, int whence ) : map ;
 
-	#endif /* Solaris 2.6 */
+			#endif /* Solaris 2.6 */
 
-	int fstat64( int fd, struct stat64 *buf ) : map {
-			out code( buf );
-			alloc( buf, STAT64_SIZE );
-	}
+			int fstat64( int fd, struct stat64 *buf ) : map {
+				out code( buf );
+				alloc( buf, STAT64_SIZE );
+			}
 
-	#if !defined(HPUX)	/* There is no getdents64 on HPUX 10.20 */
-	int getdents64( int fd, struct dirent64 *buf, size_t nbytes ) : map {
-			out code_bytes_bool( buf, nbytes );
-			alloc( buf, nbytes );
-	}
-	#endif /* HPUX */
+			#if !defined(HPUX)	/* There is no getdents64 on HPUX 10.20 */
+				int getdents64( int fd, struct dirent64 *buf, size_t nbytes ) : map {
+					out code_bytes_bool( buf, nbytes );
+					alloc( buf, nbytes );
+			}
+			#endif /* HPUX */
 
-	#endif /* HAS_64BIT_SYSCALLS */
+		#endif /* HAS_64BIT_SYSCALLS */
 
 	#endif
 
-	#if !defined(SWITCH)
-		/* Stat and friends have special switches in linux */
-		#if defined(LINUX) && !defined(GLIBC)
-		int fstat( int fd, struct stat *buf ) : extract, map {
-		#else
-		int fstat( int fd, struct stat *buf ) : map {
-		#endif
+	#if (defined(Solaris) || defined(LINUX))
+		/* Stat and friends have special switches... */
+		#if !defined(SWITCH)
+			int fstat( int fd, struct stat *buf ) : map, extract {
 				out code( buf );
 				alloc( buf, STAT_SIZE );
 			}
+
+ 			int lstat( const char *path, struct stat *buf ) : extract {
+				SEND_PATH( path );
+				ALLOC_PATH( path );
+				out code( buf );
+				alloc( buf, STAT_SIZE );
+			}
+
+			int stat( const char *path, struct stat *buf ) : extract {
+				SEND_PATH( path );
+				ALLOC_PATH( path );
+				out code( buf );
+				alloc( buf, STAT_SIZE );
+			}
+		#endif
+	#else
+		int fstat( int fd, struct stat *buf ) : map {
+			out code( buf );
+			alloc( buf, STAT_SIZE );
+		}
+
+ 		int lstat( const char *path, struct stat *buf ) {
+			SEND_PATH( path );
+			ALLOC_PATH( path );
+			out code( buf );
+			alloc( buf, STAT_SIZE );
+		}
+
+		int stat( const char *path, struct stat *buf ) {
+			SEND_PATH( path );
+			ALLOC_PATH( path );
+			out code( buf );
+			alloc( buf, STAT_SIZE );
+		}
 	#endif
 
 	int flock( int fd, int op ) : map;
 
 	#if defined(IRIX) || defined(Solaris)
-	int fstatfs( int fd, struct statfs *buf, int len, int fstyp ) : map {
+		int fstatfs( int fd, struct statfs *buf, int len, int fstyp ) : map {
 	#else
-	int fstatfs( int fd, struct statfs *buf ) : map {
+		int fstatfs( int fd, struct statfs *buf ) : map {
 	#endif
-		out code( buf );
-		alloc( buf, STATFS_SIZE );
-	}
+			out code( buf );
+			alloc( buf, STATFS_SIZE );
+		}
 
-	int fsync( int fd ) : map, extract;
+	int fsync( int fd ) : map;
 
 	#if defined(Solaris) || defined(IRIX62) || defined(LINUX)
-	int getdents( int fd, struct dirent *buf, size_t nbytes ) : map {
-		out code_bytes_bool( buf, nbytes );
-		alloc( buf, nbytes );
-	}
+		int getdents( int fd, struct dirent *buf, size_t nbytes ) : map {
+			out code_bytes_bool( buf, nbytes );
+			alloc( buf, nbytes );
+		}
 	#else
-	int getdirentries( int fd, char *buf, int nbytes, long *basep ) : map {
-		out code_bytes_bool( buf, rval );
-		in code_bytes_bool( basep, EIGHT );
-		out code_bytes_bool( basep, EIGHT );
-		alloc( buf, nbytes );
-		alloc( basep, LONG_SIZE );
-	}
+		int getdirentries( int fd, char *buf, int nbytes, long *basep ) : map {
+			out code_bytes_bool( buf, rval );
+			in code_bytes_bool( basep, EIGHT );
+			out code_bytes_bool( basep, EIGHT );
+			alloc( buf, nbytes );
+			alloc( basep, LONG_SIZE );
+		}
 	#endif
 
 	#if defined( LINUX )
-	int ftruncate( int fd, size_t length ) : map;
+		int ftruncate( int fd, size_t length ) : map;
 	#else 
-	int ftruncate( int fd, off_t length ) : map ;
+		int ftruncate( int fd, off_t length ) : map ;
 	#endif
 
 /* If we are building the ckpt library, do not build any other switches  */
@@ -652,32 +681,7 @@ int rename( const char *from, const char *to ) : pseudo {
 
 #if !defined( CLIP )
 
-#if !defined(SWITCH)
-
 	/* Stat and friends have special switches in Linux */
-
-	#if defined(LINUX) && !defined(GLIBC)
-	int stat( const char *path, struct stat *buf ) : extract {
-	#else
-	int stat( const char *path, struct stat *buf ) {
-	#endif
-		SEND_PATH( path );
-		ALLOC_PATH( path );
-		out code( buf );
-		alloc( buf, STAT_SIZE );
-	}
-
-	#if defined(LINUX) && !defined(GLIBC)
-	int lstat( const char *path, struct stat *buf ) : extract {
-	#else
- 	int lstat( const char *path, struct stat *buf ) {
-	#endif
-		SEND_PATH( path );
-		ALLOC_PATH( path );
-		out code( buf );
-		alloc( buf, STAT_SIZE );
-	}
-#endif
 
 #if HAS_64BIT_SYSCALLS
 		/* 64-bit versions of various syscalls.  
@@ -790,9 +794,7 @@ int rename( const char *from, const char *to ) : pseudo {
 		int poll(struct pollfd *p, unsigned long l , int i );
 	}
 
-#if !defined(SWITCH) /* moved into separate .c file to avoid a name conflict */
 	int setpriority( int which, int who, int priority );
-#endif
 	int getpriority( int which, int who );
 
 #if defined(LINUX)
@@ -1011,21 +1013,24 @@ int rename( const char *from, const char *to ) : pseudo {
 	  -Derek Wright, 3/12/98 
 	*/
 not_supported {
-	#if defined(OSF1) || defined(HPUX)
-		/* We have no way of coding up a void *. */
+	#if defined(OSF1)
+		void * mmap( void * a, size_t l, int p, int f, int fd, off_t o );
+		int mprotect( void * addr, size_t len, int prot );
+		int madvise( void * addr, size_t len, int behav );
+		int msync( void * addr, size_t len, int flags );
+	#elif defined(HPUX)
+		void * mmap( void * a, size_t l, int p, int f, int fd, off_t o );
+		int mprotect( void * addr, size_t len, int prot );
+		int madvise( void * addr, size_t len, int behav );
+		int msync( void * addr, size_t len, int flags );
 	#elif defined(LINUX) || defined(IRIX) || defined(Solaris)
-		#if defined(LINUX) && !defined(SWITCH)
+		#if defined(LINUX) && defined(SWITCH)
 			/* Skip mmap on linux -- it is a special switch */
 		#else
 			void * mmap (void * addr, size_t len, int prot, int flags, int fd, off_t off) : EXTRACT;
 		#endif
 		int mprotect(const void * addr, size_t len, int prot);
 		int msync (void * addr, size_t len, int flags);
-	#else
-		void * mmap( void * a, size_t l, int p, int f, int fd, off_t o ) : EXTRACT;
-		int mprotect( void * addr, size_t len, int prot );
-		int madvise( void * addr, size_t len, int behav );
-		int msync( void * addr, size_t len, int flags );
 	#endif
 }
 #if HAS_64BIT_SYSCALLS
@@ -1073,8 +1078,14 @@ not_supported {
 #endif
 	int sethostid( int host_id );
 
-	/* C++ thinks this is varargs */
-	/* int async_daemon(); */
+#if defined(HPUX)
+	void async_daemon();
+	int nfssvc(int sock);
+#else
+	int async_daemon();
+	int nfssvc(int a, int b, int c );
+#endif
+
 #if defined(IRIX)
 	/* nothing */
 #elif defined(HPUX)
@@ -1096,8 +1107,7 @@ not_supported {
 	int sethostname( const char *address, size_t address_len );
 	int settimeofday( const struct timeval *tp, const struct timezone *tzp );
 	int setdomainname( const char *name, size_t namelen );
-	/* Can't interpret varargs yet */
-	/* int swapon( const char *path, int swapflags ); */
+	int swapon( const char *path, int swapflags );
 	int swapoff( const char *path );
 	int bdflush( int func, long data );
 	caddr_t create_module( const char* name, size_t size );
@@ -1179,16 +1189,54 @@ not_supported {
 #endif
 }
 
-	/* Calls relating to sockets - implies multiple communicating processes */
 not_supported {
 
-	#if defined(Solaris)
+	/* After struggling to get all the details right on these calls:
+	   void * vs sockaddr*, const vs non const, signed vs unsigned,
+	   I just gave up and copied all the headers from /usr/include/sys/socket.h
+	   on the appropriate platform.  It may be a little bigger, but this was
+	   very easy to generate and get right. */
 
-		int sendmsg( int socket, const struct msghdr *msg, int flags);
-		int connect( int sock, struct sockaddr *address, int namelen);
+	#if defined(OSF1)
+
+		int      accept          (int a, struct sockaddr * b, int *c);
+		int      bind            (int a, const struct sockaddr * b, int c);
+		int      connect         (int a, const struct sockaddr * b, int c);
+		int      getpeername     (int a, struct sockaddr * b, int * c);
+		int      getsockname     (int a, struct sockaddr * b, int * c);
+		int      getsockopt      (int a, int b, int c, void * d, int * e);
+		int      listen          (int a, int b);
+		int      recv            (int a, void * b, int c, int d);
+		int      recvfrom        (int a, void * b, int c, int d, struct sockaddr *e, int *f);
+		int      recvmsg         (int a, struct msghdr *b, int c);
+		int      send            (int a, const void * b, int c, int d);
+		int      sendmsg         (int a, struct msghdr * b, int c);
+		int      sendto          (int a, const void * b, int c, int d, const struct sockaddr * e, int f);
+		int      setsockopt      (int a, int b, int c, const void *d, int e);
+		int      shutdown        (int a, int b);
+		int      socket          (int a, int b, int c);
+		int      socketpair      (int a, int b, int c, int *d);
+
+	#elif defined(Solaris)
+		int	accept		(int a, struct sockaddr *b, int *c);
+		int	bind		(int a, const struct sockaddr *b, int c);
+		int	connect		(int a, struct sockaddr *b, int c);
+		int	getpeername	(int a, struct sockaddr *b, int *c);
+		int	getsockname	(int a, struct sockaddr *b, int *c);
+		int	getsockopt	(int a, int b, int c, char *d, int *e);
+		int	listen		(int a, int b);
+		int	recv		(int a, char *b, int c, int d);
+		int	recvfrom	(int a, char *b, int c, int d, struct sockaddr * e, int *f);
+		int	recvmsg		(int a, struct msghdr *b, int c);
+		int	send		(int a, const char *b, int c, int d);
+		int	sendmsg		(int a, const struct msghdr *b, int c);
+		int	sendto		(int a, const char *b, int c, int d, const struct sockaddr *e, int f);
+		int	setsockopt	(int a, int b, int c, const char * d, int e);
+		int	shutdown	(int a, int b);
+		int	socket		(int a, int b, int c);
+		int	socketpair	(int a, int b, int c, int *d);
 
 	#elif defined(HPUX)
-		/* These came straight out of sys/socket.h */
 
  		int accept(int s, struct sockaddr *a, size_t *l);
  		int bind(int s, const struct sockaddr *a, size_t l);
@@ -1208,8 +1256,7 @@ not_supported {
  		int socket(int a, int b, int c);
  		int socketpair(int a, int b, int c, int *d);
 
-	#elif defined(IRIX)
-		/* These came straight out of sys/socket.h */
+	#elif defined(IRIX) || defined(LINUX)
 
 		int accept(int a, void *b, int *c);
 		int bind(int a, const void *b, int c);
@@ -1229,32 +1276,7 @@ not_supported {
 		int socket(int a, int b, int c);
 		int socketpair(int a, int b, int c, int *d);
 
-	#elif defined(LINUX) && defined(GLIBC)
-		int recvfrom( int socket, void *buffer, int length, unsigned int flags, struct sockaddr *address, int *addr_len );
-		int accept( int socket, struct sockaddr *address, unsigned int *addr_len );
-		int getpeername( int socket, struct sockaddr *address, unsigned int *addr_len );
-		int getsockname( int socket, struct sockaddr *address, unsigned int *addr_len );
-		int setsockopt( int sock, int level, int opt_name, const void *val, int length );
-
-	#else
-
-		int socket( int addr_family, int type, int protocol );
-		int sendmsg( int socket, struct msghdr *message, int flags );
-		int recvmsg( int socket, struct msghdr *message, int flags );
-		int recvfrom( int socket, char *buffer, int length, int flags, struct sockaddr *address, int *addr_len );
-		int accept( int socket, struct sockaddr *address, int *addr_len );
-		int getpeername( int socket, struct sockaddr *address, int *addr_len );
-		int getsockname( int socket, struct sockaddr *address, int *addr_len );
-		int connect( int sock, struct sockaddr *address, int addr_len );
-		int send( int socket, char *msg, int length, int flags );
-		int recv( int socket, char *msg, int length, int flags );
-		int bind( int socket, struct sockaddr *address, int addr_len );
-		int sendto( int sock, char *msg, int msg_len, int flags,struct sockaddr *dest, int dest_len );
-		int getsockopt( int sock, int level, int opt_name, char *opt_val, int *opt_len );
-		int setsockopt( int sock, int level, int opt_name, char *opt_val, int opt_len );
-		int nfssvc( int sock, int mask, int match );
 	#endif
-
 }
 
 
