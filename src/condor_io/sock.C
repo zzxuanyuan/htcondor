@@ -31,13 +31,18 @@
 #include "condor_debug.h"
 #include "condor_socket_types.h"
 #include "get_port_range.h"
+extern "C" {
+#include "reliUDP.h"
+}
 
 #if !defined(WIN32)
 #define closesocket close
 #endif
 
 
-Sock::Sock() : Stream() {
+Sock::Sock(bool useRUDP)
+: Stream(), _useRUDP(useRUDP)
+{
 	_sock = INVALID_SOCKET;
 	_state = sock_virgin;
 	_timeout = 0;
@@ -81,7 +86,7 @@ Sock::Sock(const Sock & orig) : Stream() {
 		orig._sock,_sock,_state);
 #else
 	// Unix
-	_sock = dup(orig._sock);
+	_sock = rudp_dup(orig._sock);
 	if ( _sock < 0 ) {
 		// dup failed, we're screwed
 		EXCEPT("ERROR: dup() failed in Sock copy ctor");
@@ -263,8 +268,6 @@ int Sock::set_inheritable( int flag )
 
 int Sock::assign(SOCKET sockd)
 {
-	int		my_type;
-
 	if (_state != sock_virgin) return FALSE;
 
 	if (sockd != INVALID_SOCKET){
@@ -275,26 +278,26 @@ int Sock::assign(SOCKET sockd)
 
 	switch(type()){
 		case safe_sock:
-			my_type = SOCK_DGRAM;
+			if (_useRUDP) {
+				_sock = rudp_socket();
+			} else {
+				_sock = socket(AF_INET, SOCK_DGRAM, 0);
+			}
+			if (_sock < 0) {
+				dprintf(D_ALWAYS, "socket call failed: %s\n", strerror(errno));
+				return FALSE;
+			}
 			break;
 		case reli_sock:
-			my_type = SOCK_STREAM;
+			if ((_sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+				dprintf(D_ALWAYS, "socket call failed: %s\n", strerror(errno));
+				return FALSE;
+			}
 			break;
 		default:
 			assert(0);
 	}
 
-#ifndef WIN32 /* Unix */
-	errno = 0;
-#endif
-	if ((_sock = socket(AF_INET, my_type, 0)) < 0) {
-#ifndef WIN32 /* Unix... */
-		if ( errno == EMFILE ) {
-			_condor_fd_panic( __LINE__, __FILE__ ); /* Calls dprintf_exit! */
-		}
-#endif
-		return FALSE;
-	}
 	// on WinNT, sockets are created as inheritable by default.  we
 	// want to create the socket as non-inheritable by default.  so 
 	// we duplicate the socket as non-inheritable and then close

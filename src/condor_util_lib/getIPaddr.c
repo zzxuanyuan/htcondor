@@ -49,7 +49,7 @@
 //			0, if a public ip address found
 //			1, if could not find a public ip but a private ip found
 int
-_ssc_net_getIPaddr(uint32_t *ipaddr)
+_getIPaddr(uint32_t *ipaddr)
 {
 	int sockfd, len, lastlen, flags, myflags;
 	char *ptr, *buf, lastname[IFNAMSIZ], *cptr;
@@ -61,7 +61,7 @@ _ssc_net_getIPaddr(uint32_t *ipaddr)
 	// Create a socket to do ioctl
 	sockfd = socket(AF_INET, SOCK_DGRAM, 0);
 	if (sockfd < 0) {
-		printf("_ssc_net_getIPaddr: socket creation - %s\n", strerror(errno));
+		dprintf(D_ALWAYS, "_getIPaddr: socket creation - %s\n", strerror(errno));
 		return result;
 	}
 
@@ -70,7 +70,7 @@ _ssc_net_getIPaddr(uint32_t *ipaddr)
 	len = 100 * sizeof(struct ifreq); // initial buffer size guess
 	while(1) {
 		if ((buf = (char *)malloc(len)) == NULL) {
-			printf("_ssc_net_getIPaddr: Out of Memory\n");
+			dprintf(D_ALWAYS, "_getIPaddr: Out of Memory\n");
 			return result;
 		}
 		ifc.ifc_len = len;
@@ -82,7 +82,7 @@ _ssc_net_getIPaddr(uint32_t *ipaddr)
 		// same length returned from two consecutive ioctl calls
 		if (ioctl(sockfd, SIOCGIFCONF, &ifc) < 0) {
 			if (errno != EINVAL || lastlen != 0) {
-				printf("_ssc_net_getIPaddr: ioctl failed - %s\n", strerror(errno));
+				dprintf(D_ALWAYS, "_getIPaddr: ioctl failed - %s\n", strerror(errno));
 			}
 		} else {
 			if (ifc.ifc_len == lastlen) { // success
@@ -145,7 +145,7 @@ _ssc_net_getIPaddr(uint32_t *ipaddr)
 		// Now, get the attributes of the current interface
 		ifrcopy = *ifr;
 		if (ioctl(sockfd, SIOCGIFFLAGS, &ifrcopy) < 0) {
-			printf("_ssc_net_getIPaddr: ioctl failed\n");
+			dprintf(D_ALWAYS, "_getIPaddr: ioctl failed\n");
 		}
 
 		// If not up, ignore

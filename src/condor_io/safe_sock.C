@@ -73,15 +73,13 @@ void SafeSock::init()
 
 
 SafeSock::SafeSock(bool useRUDP) 				/* virgin safesock	*/
-	: Sock(),
-      _useRUDP(useRUDP)
+	: Sock(useRUDP)
 {
 	init();
 }
 
 SafeSock::SafeSock(const SafeSock & orig) 
-	: Sock(orig),
-      _useRUDP(orig._useRUDP)
+	: Sock(orig)
 {
 	init();
 	// now copy all cedar state info via the serialize() method
@@ -105,15 +103,10 @@ SafeSock::~SafeSock()
 		}
 		_inMsgs[i] = NULL;
 	}
-	close();
+	rudp_close(_sock);
 	if (_fqu) {
 		delete _fqu;
 	}
-}
-
-void SafeSock :: setUseReliableUDP(bool useRUDP)
-{
-    _useRUDP = useRUDP;
 }
 
 /* End of the current message
@@ -136,7 +129,7 @@ int SafeSock::end_of_message()
 
 	switch(_coding){
 		case stream_encode:
-                    sent = _outMsg.sendMsg(_sock, (struct sockaddr *)&_who, _outMsgID, _useRUDP);
+                    sent = _outMsg.sendMsg(_sock, (struct sockaddr *)&_who, _outMsgID);
                     _outMsgID.msgNo++; // It doesn't hurt to increment msgNO even if fails
                     resetCrypto();
                     if ( allow_empty_message_flag ) {
@@ -300,7 +293,7 @@ int SafeSock::get_bytes(void *dta, int size)
 			FD_ZERO(&readfds);
 			FD_SET(_sock, &readfds);
 				
-			nfound = select( nfds, &readfds, 0, 0, &timer );
+			nfound = rudp_select( nfds, &readfds, 0, 0, &timer );
 			switch(nfound) {
 				case 0:
 					return 0;
@@ -377,7 +370,7 @@ int SafeSock::get_ptr(void *&ptr, char delim)
 			FD_ZERO(&readfds);
 			FD_SET(_sock, &readfds);
 				
-			nfound = select( nfds, &readfds, 0, 0, &timer );
+			nfound = rudp_select( nfds, &readfds, 0, 0, &timer );
 			switch(nfound) {
 				case 0:
 					return 0;
@@ -421,7 +414,7 @@ int SafeSock::peek(char &c)
 			FD_ZERO(&readfds);
 			FD_SET(_sock, &readfds);
 				
-			nfound = select( nfds, &readfds, 0, 0, &timer );
+			nfound = rudp_select( nfds, &readfds, 0, 0, &timer );
 			switch(nfound) {
 				case 0:
 					return 0;
@@ -466,15 +459,8 @@ int SafeSock::handle_incoming_packet()
 	time_t curTime;
     struct rudpaddr sender;
 
-    if (usingReliableUDP()) {
-        memset(&sender, 0, sizeof(struct rudpaddr));
-        received = rudp_recvfrom(_sock, _shortMsg.dataGram, SAFE_MSG_MAX_PACKET_SIZE,
-                                 0, (struct sockaddr *)&_who, &fromlen);
-    }
-    else {
-        received = recvfrom(_sock, _shortMsg.dataGram, SAFE_MSG_MAX_PACKET_SIZE,
-                            0, (struct sockaddr *)&_who, &fromlen);
-    }
+	received = rudp_recvfrom(_sock, _shortMsg.dataGram, SAFE_MSG_MAX_PACKET_SIZE,
+							0, (struct sockaddr *)&_who, &fromlen);
 
     _shortMsg.setVerified(false);  // check MD if necessary
 	if(received < 0) {
@@ -631,8 +617,9 @@ char * SafeSock::serialize() const
 	// first, get the state from our parent class
 	char * parent_state = Sock::serialize();
 	// now concatenate our state
-	char * outbuf = new char[50];
-	sprintf(outbuf,"*%d*%s*%s",_special_state,sin_to_string(&_who),(_fqu ? _fqu : ""));
+	char * outbuf = new char[100];
+	sprintf(outbuf, "*%d*%s*%s*%d", _special_state,
+			sin_to_string(&_who), (_fqu ? _fqu : ""), _useRUDP);
 	strcat(parent_state,outbuf);
 	delete []outbuf;
 	return( parent_state );
@@ -651,7 +638,8 @@ char * SafeSock::serialize(char *buf)
 	// first, let our parent class restore its state
 	ptmp = Sock::serialize(buf);
 	assert( ptmp );
-	sscanf(ptmp,"%d*%s*%s",&_special_state,sinful_string,usernamebuf);
+	sscanf(ptmp, "%d*%s*%s*%d", &_special_state, sinful_string,
+			usernamebuf, &_useRUDP);
 	string_to_sin(sinful_string, &_who);
 
 	if (_fqu) {
@@ -754,7 +742,7 @@ int SafeSock::getMsgSize()
 			FD_ZERO(&readfds);
 			FD_SET(_sock, &readfds);
 				
-			nfound = select( nfds, &readfds, 0, 0, &timer );
+			nfound = rudp_select( nfds, &readfds, 0, 0, &timer );
 			switch(nfound) {
 				case 0:
 					return 0;

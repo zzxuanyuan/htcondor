@@ -54,9 +54,13 @@ getGWaddr(uint32_t *gwAddr)
 	char *gwStr;
 	struct in_addr sAddr;
 
-	if ((gwStr = param("R_UDP_GW_ADDR")) == NULL) {
-		dprintf(D_ALWAYS, "getGWaddr: Gateway address variable not defined\n");
-		return -1;
+	if ((gwStr = getenv("R_UDP_GW_ADDR")) == NULL) {
+		// I decided not to use param, at least at this moment, because user processes
+		// must be able to link with this file, but can't call param
+		//if ((gwStr = param("R_UDP_GW_ADDR")) == NULL) {
+			dprintf(D_ALWAYS, "getGWaddr: Gateway address variable not defined\n");
+			return -1;
+		//}
 	}
 
 	if (!inet_aton(gwStr, &sAddr)) {
@@ -74,7 +78,7 @@ initialize()
 	int ret;
 
 	// get ip address of this machine
-	if ((ret = _ssc_net_getIPaddr(&_rudp_myAddr)) < 0) {
+	if ((ret = _getIPaddr(&_rudp_myAddr)) < 0) {
 		dprintf(D_ALWAYS, "initialize: could not find a valid ip address\n");
 		return -1;
 	}
@@ -253,7 +257,8 @@ unstripeMsg(char *buf, int bufLen,
 }
 
 
-static struct _RUDP_senderInfo * getSender(
+static struct _RUDP_senderInfo *
+getSender(
 		struct _RUDP_senders *senders,
 		uint32_t ip,
 		uint32_t gip,
@@ -297,6 +302,38 @@ static struct _RUDP_senderInfo * getSender(
 	return ptr;
 }
 
+static int
+queueDataPkt(int fd, char *pkt, int pktlen, int seqNo, struct sockaddr_in *from)
+{
+	struct _RUDP_rmsg *msg;
+
+	msg = (struct _RUDP_rmsg *)malloc(sizeof(struct _RUDP_rmsg));
+	if (!msg) {
+		dprintf(D_ALWAYS, "queueDataPkt: malloc - %s\n", strerror(errno));
+		return -1;
+	}
+	msg->msg = (char *)malloc(pktlen);
+	if (!(msg->msg)) {
+		dprintf(D_ALWAYS, "queueDataPkt: malloc - %s\n", strerror(errno));
+		return -1;
+	}
+	memcpy(msg->msg, pkt, pktlen);
+	msg->seq = seqNo;
+	msg->bytes = pktlen;
+	if (_rudp_fdInfo[fd].conn == 0) {
+		memcpy(&(msg->from), from, sizeof(*from));
+	}
+	msg->next = NULL;
+	if (_rudp_fdInfo[fd].qtail) {
+		_rudp_fdInfo[fd].qtail->next = msg;
+	} else {
+		_rudp_fdInfo[fd].qhead = msg;
+	}
+	_rudp_fdInfo[fd].qtail = msg;
+
+	return 0;
+}
+
 // @ret: ACK_PACKET if the expected ACK packet received
 //       DATA_PACKET if a valid data packet is received and queued
 //       0, if any of the following is true:
@@ -304,7 +341,8 @@ static struct _RUDP_senderInfo * getSender(
 //       	- delayed DATA packet arrived
 //       	- delayed ACK packet arrived
 //       -1, if error occurred
-static char procUDPmsg(int fd)
+static char
+procUDPmsg(int fd)
 {
 	char *dptr; 
 	char rcvBuf[1040], opcode;
@@ -329,21 +367,35 @@ static char procUDPmsg(int fd)
 	}
 	
 	// Unstripe the received msg
-	if (unstripeMsg(rcvBuf, result, &opcode, &ip, &gip, &pid, &sec, &usec,
-				&seqNo, &dptr, &dLen) != 1) {
-		dprintf(D_ALWAYS, "procUDPmsg: unstripeMsg failed\n");
-		return -1;
+	rst = unstripeMsg(rcvBuf, result, &opcode, &ip, &gip,
+						&pid, &sec, &usec, &seqNo, &dptr, &dLen);
+	if (rst <= 0) {
+		if (rst < 0) {
+			dprintf(D_ALWAYS, "procUDPmsg: unstripeMsg failed\n");
+			return -1;
+		}
+		if (_rudp_fdInfo[fd].conn) {
+			dprintf(D_FULLDEBUG, "\t\t\tnon-rudp DATA through fd = %d\n", fd);
+		} else {
+			dprintf(D_FULLDEBUG, "\t\t\tnon-rudp DATA from %s\n", sin_to_string(&from));
+		}
+		if (queueDataPkt(fd, rcvBuf, result, -1, &from) < 0) {
+			return -1;
+		}
+		dprintf(D_FULLDEBUG, "\t\t\t\tqueued to rbuf\n");
+		return DATA_PACKET;
 	}
 	
 	switch(opcode) {
 		case DATA_PACKET:
 			if (_rudp_fdInfo[fd].conn) {
-				dprintf(D_NETWORK, "\t\tDATA(%d) through fd = %d\n", seqNo, fd);
+				dprintf(D_FULLDEBUG, "\t\t\tDATA(%d) through fd = %d\n", seqNo, fd);
 			} else {
-				dprintf(D_NETWORK, "\t\tDATA(%d) from %s\n", seqNo, sin_to_string(&from));
+				dprintf(D_FULLDEBUG, "\t\t\tDATA(%d) from %s\n", seqNo, sin_to_string(&from));
 			}
 			// Get the sender info
 			sender = getSender(_rudp_fdInfo[fd].senders, ip, gip, pid, sec, usec);
+			dprintf(D_FULLDEBUG, "\t\t\tsender->seq = %d\n", sender->seq);
 
 			// if the msg is not a delayed msg, queue the msg
 			retval = 0;
@@ -353,30 +405,13 @@ static char procUDPmsg(int fd)
 				(sender->seq > 2.147483e+09 &&
 						(sender->seq < seqNo ||
 						seqNo < sender->seq - 2.147483e+09))) {
-				dprintf(D_NETWORK, "\t\t\tValid data packet - queued to rbuf\n");
-				msg = (struct _RUDP_rmsg *)malloc(sizeof(struct _RUDP_rmsg));
-				if (!msg) {
-					dprintf(D_ALWAYS, "procUDPmsg: malloc - %s\n", strerror(errno));
+
+				// queue the data packet
+				dprintf(D_FULLDEBUG, "\t\t\t\tValid data packet - queue the msg to rbuf\n");
+				if (queueDataPkt(fd, dptr, dLen, seqNo, &from) < 0) {
 					return -1;
 				}
-				msg->msg = (char *)malloc(dLen);
-				if (!(msg->msg)) {
-					dprintf(D_ALWAYS, "procUDPmsg: malloc - %s\n", strerror(errno));
-					return -1;
-				}
-				memcpy(msg->msg, dptr, dLen);
-				msg->seq = seqNo;
-				msg->bytes = dLen;
-				if (_rudp_fdInfo[fd].conn == 0) {
-					memcpy(&(msg->from), &from, sizeof(from));
-				}
-				msg->next = NULL;
-				if (_rudp_fdInfo[fd].qtail) {
-					_rudp_fdInfo[fd].qtail->next = msg;
-				} else {
-					_rudp_fdInfo[fd].qhead = msg;
-				}
-				_rudp_fdInfo[fd].qtail = msg;
+				sender->seq = seqNo;
 				retval = DATA_PACKET;
 			}
 
@@ -396,23 +431,23 @@ static char procUDPmsg(int fd)
 				return -1;
 			}
 			if (_rudp_fdInfo[fd].conn) {
-				dprintf(D_NETWORK, "\t\tACK(%d) fd = %d\n", seqNo, fd);
+				dprintf(D_FULLDEBUG, "\t\t\tACK(%d) fd = %d\n", seqNo, fd);
 			} else {
-				dprintf(D_NETWORK, "\t\tACK(%d) to %s\n", seqNo,
+				dprintf(D_FULLDEBUG, "\t\t\tACK(%d) to %s\n", seqNo,
 						sin_to_string((struct sockaddr_in *)&from));
 			}
 			return retval;
 		case ACK_PACKET:
 			if (_rudp_fdInfo[fd].conn) {
-				dprintf(D_NETWORK, "\t\tACK(%d) fd = %d\n", seqNo, fd); 
+				dprintf(D_FULLDEBUG, "\t\t\tACK(%d) fd = %d\n", seqNo, fd); 
 			} else {
-				dprintf(D_NETWORK, "\t\tACK(%d) from %s\n", seqNo, sin_to_string(&from));
+				dprintf(D_FULLDEBUG, "\t\t\tACK(%d) from %s\n", seqNo, sin_to_string(&from));
 			}
 			if (seqNo != _rudp_seqno) {
-				dprintf(D_NETWORK, "\t\tdelayed ACK\n"); 
+				dprintf(D_FULLDEBUG, "\t\t\tdelayed ACK\n"); 
 				return 0;
 			}
-			dprintf(D_NETWORK, "\t\texpected ACK\n"); 
+			dprintf(D_FULLDEBUG, "\t\t\texpected ACK\n"); 
 			return ACK_PACKET;
 		default:
 			dprintf(D_ALWAYS, "procUDPmsg: invalid opcode\n");
@@ -420,7 +455,8 @@ static char procUDPmsg(int fd)
 	}
 }
 
-static void cleanSenders(struct _RUDP_senders **senders)
+static void
+cleanSenders(struct _RUDP_senders **senders)
 {
 	int i;
 	struct _RUDP_senderInfo *ptr, *pptr;
@@ -448,7 +484,8 @@ static void cleanSenders(struct _RUDP_senders **senders)
 	return;
 }
 
-static void delSenders(struct _RUDP_senders *senders)
+static void
+delSenders(struct _RUDP_senders *senders)
 {
 	int i;
 	struct _RUDP_senderInfo *ptr, *pptr;
@@ -467,7 +504,8 @@ static void delSenders(struct _RUDP_senders *senders)
 	return;
 }
 
-static void delQueue(struct _RUDP_rmsg *qhead)
+static void
+delQueue(struct _RUDP_rmsg *qhead)
 {
 	struct _RUDP_rmsg *ptr, *pptr;
 
@@ -482,7 +520,8 @@ static void delQueue(struct _RUDP_rmsg *qhead)
 	return;
 }
 
-int rudp_socket(void)
+int
+rudp_socket(void)
 {
 	int fd;
 
@@ -507,7 +546,8 @@ int rudp_socket(void)
 	return fd;
 }
 
-int rudp_register(int fd)
+int
+rudp_register(int fd)
 {
 
 	if (_rudp_fdInfo[fd].senders) {
@@ -520,16 +560,21 @@ int rudp_register(int fd)
 		dprintf(D_ALWAYS, "rudp_socket: calloc - %s\n", strerror(errno));
 		return -1;
 	}
-	dprintf(D_NETWORK, "rudp[%d] created\n", fd);
+	_rudp_fdInfo[fd].qhead = _rudp_fdInfo[fd].qtail = NULL;
+	dprintf(D_FULLDEBUG, "rudp[%d] created\n", fd);
 
 	return 0;
 }
 
-int rudp_close(int fd)
+int
+rudp_close(int fd)
 {
 	int ret = 0;
 
-	dprintf(D_NETWORK, "rudp[%d] deleted\n", fd);
+	if (_rudp_fdInfo[fd].senders == NULL) {
+		return close(fd);
+	}
+	dprintf(D_FULLDEBUG, "rudp[%d] deleted\n", fd);
 	delSenders(_rudp_fdInfo[fd].senders);
 	_rudp_fdInfo[fd].senders = NULL;
 	if (_rudp_fdInfo[fd].qhead) {
@@ -542,11 +587,16 @@ int rudp_close(int fd)
 	return ret;
 }
 
-int rudp_dup2(int oldfd, int newfd)
+int
+rudp_dup2(int oldfd, int newfd)
 {
 	int ret;
 
-	dprintf(D_NETWORK, "rudp[%d] is duped to rudp[%d]\n", oldfd, newfd);
+	if (_rudp_fdInfo[oldfd].senders == NULL) {
+		return dup2(oldfd, newfd);
+	}
+
+	dprintf(D_FULLDEBUG, "rudp[%d] is duped to rudp[%d]\n", oldfd, newfd);
 	ret = dup2(oldfd, newfd);
 	if (ret < 0) {
 		dprintf(D_ALWAYS, "rudp_dup2: dup2 - %s\n", strerror(errno));
@@ -566,16 +616,21 @@ int rudp_dup2(int oldfd, int newfd)
 	return ret;
 }
 
-int rudp_dup(int oldfd)
+int
+rudp_dup(int oldfd)
 {
 	int newfd;
+
+	if (_rudp_fdInfo[oldfd].senders == NULL) {
+		return dup(oldfd);
+	}
 
 	newfd = dup(oldfd);
 	if (newfd < 0) {
 		dprintf(D_ALWAYS, "rudp_dup: dup - %s\n", strerror(errno));
 		return -1;
 	}
-	dprintf(D_NETWORK, "rudp[%d] is duped to rudp[%d]\n", oldfd, newfd);
+	dprintf(D_FULLDEBUG, "rudp[%d] is duped to rudp[%d]\n", oldfd, newfd);
 
 	if (_rudp_fdInfo[newfd].senders) {
 		dprintf(D_ALWAYS, "rudp_dup2: newfd = %d is taken by another socket\n", newfd);
@@ -590,7 +645,8 @@ int rudp_dup(int oldfd)
 	return newfd;
 }
 
-static int sendData(
+static int
+sendData(
 		int fd,
 		const void *msg,
 		size_t msgLen,
@@ -630,10 +686,10 @@ static int sendData(
 			}
 		}
 		if (to) {
-			dprintf(D_NETWORK, "\t\tDATA(%d) sent to %s\n",
+			dprintf(D_FULLDEBUG, "\t\t\tDATA(%d) sent to %s\n",
 				_rudp_seqno, sin_to_string((struct sockaddr_in *)to));
 		} else {
-			dprintf(D_NETWORK, "\t\tDATA(%d) sent fd = %d\n",
+			dprintf(D_FULLDEBUG, "\t\t\tDATA(%d) sent fd = %d\n",
 				_rudp_seqno, fd);
 		}
 
@@ -653,7 +709,7 @@ static int sendData(
 			for (i = 0; i < OPEN_MAX; i++) {
 				if (_rudp_fdInfo[i].senders) {
 					FD_SET(i, &rdfds);
-					dprintf(D_NETWORK, "\t\tfd = %d added for readiness to read\n", i);
+					dprintf(D_FULLDEBUG, "\t\t\tfd = %d added for readiness to read\n", i);
 					if (maxfd <= i) {
 						maxfd = i + 1;
 					}
@@ -680,18 +736,19 @@ static int sendData(
 
 			for (i = 0; i < OPEN_MAX; i++) {
 				if (FD_ISSET(i, &rdfds)) {
-					dprintf(D_NETWORK, "\t\tfd = %d is ready to read\n", i);
+					dprintf(D_FULLDEBUG, "\t\t\tfd = %d is ready to read\n", i);
 					rst = procUDPmsg(i);
 					if (rst == ACK_PACKET) {
 						return msgLen;
-					} else {
-						elapsed = time(NULL) - current;
+					} else if (rst < 0) {
+						if (i == fd) return -1;
 					}
+					elapsed = time(NULL) - current;
 				}
 			}
 		} // while (1)
 		tries++;
-		dprintf(D_NETWORK, "\n\t\ttries = %d\n\n", tries);
+		dprintf(D_FULLDEBUG, "\n\t\t\ttries = %d\n\n", tries);
 	} // while(tries < 7)
 
 	dprintf(D_ALWAYS, "sendData: couldn't get ACK from receiver\n");
@@ -708,7 +765,11 @@ rudp_sendto(
 		socklen_t tolen)
 {
 
-	dprintf(D_NETWORK, "\tSENDTO\n");
+	if (_rudp_fdInfo[fd].senders == NULL) {
+		return sendto(fd, msg, msgLen, 0, to, tolen); 
+	}
+
+	dprintf(D_FULLDEBUG, "\t\tSENDTO\n");
 	_rudp_fdInfo[fd].conn = 0;
 
 	if (msgLen > R_UDP_MAX_LEN) {
@@ -726,7 +787,11 @@ rudp_send(
 		const void *msg,
 		size_t msgLen)
 {
-	dprintf(D_NETWORK, "\tSEND\n");
+	if (_rudp_fdInfo[fd].senders == NULL) {
+		return send(fd, msg, msgLen, 0); 
+	}
+
+	dprintf(D_FULLDEBUG, "\t\tSEND\n");
 	_rudp_fdInfo[fd].conn = 1;
 
 	if (msgLen > R_UDP_MAX_LEN) {
@@ -738,7 +803,8 @@ rudp_send(
 }
 
 
-static int recvData(int fd, void *msg, size_t msgLen, int flags,
+static int
+recvData(int fd, void *msg, size_t msgLen, int flags,
 		struct sockaddr *from, socklen_t *fromlen)
 {
 	struct timeval tv;
@@ -760,7 +826,7 @@ static int recvData(int fd, void *msg, size_t msgLen, int flags,
 			_rudp_fdInfo[fd].qhead = ptr->next;
 			if (_rudp_fdInfo[fd].qhead == NULL) {
 				_rudp_fdInfo[fd].qtail = NULL;
-				dprintf(D_NETWORK, "Zero msg remained at the queue[fd = %d]\n", fd);
+				dprintf(D_FULLDEBUG, "\t\t\tZero msg remained at the queue[fd = %d]\n", fd);
 			}
 			if (from) {
 				memcpy(from, &(ptr->from), sizeof(ptr->from));
@@ -778,7 +844,7 @@ static int recvData(int fd, void *msg, size_t msgLen, int flags,
 		for (i = 0; i < OPEN_MAX; i++) {
 			if (_rudp_fdInfo[i].senders) {
 				FD_SET(i, &rdfds);
-				dprintf(D_NETWORK, "\t\tfd = %d added for readiness to read\n", i);
+				dprintf(D_FULLDEBUG, "\t\t\tfd = %d added for readiness to read\n", i);
 				maxfd = i + 1;
 			}
 		}
@@ -808,7 +874,7 @@ static int recvData(int fd, void *msg, size_t msgLen, int flags,
 
 		for (i = 0; i < OPEN_MAX; i++) {
 			if (FD_ISSET(i, &rdfds)) {
-				dprintf(D_NETWORK, "\t\tfd = %d is ready to read\n", i);
+				dprintf(D_FULLDEBUG, "\t\t\tfd = %d is ready to read\n", i);
 				(void) procUDPmsg(i);
 			}
 		}
@@ -820,7 +886,11 @@ int
 rudp_recvfrom(int fd, void *msg, size_t msgLen, int flags,
 		struct sockaddr *from, socklen_t *fromlen)
 {
-	dprintf(D_NETWORK, "\tRECVFROM:\n");
+	if (_rudp_fdInfo[fd].senders == NULL) {
+		return recvfrom(fd, msg, msgLen, flags, from, fromlen);
+	}
+
+	dprintf(D_FULLDEBUG, "\t\tRECVFROM:\n");
 	_rudp_fdInfo[fd].conn = 0;
 	return recvData(fd, msg, msgLen, flags, from, fromlen);
 }
@@ -829,7 +899,97 @@ rudp_recvfrom(int fd, void *msg, size_t msgLen, int flags,
 int
 rudp_recv(int fd, void *msg, size_t msgLen, int flags)
 {
-	dprintf(D_NETWORK, "\tRECV:\n");
+	if (_rudp_fdInfo[fd].senders == NULL) {
+		return recv(fd, msg, msgLen, flags);
+	}
+
+	dprintf(D_FULLDEBUG, "\t\tRECV:\n");
 	_rudp_fdInfo[fd].conn = 1;
 	return recvData(fd, msg, msgLen, flags, NULL, NULL);
+}
+
+int
+rudp_select(
+		int maxfd,
+		fd_set *readfds,
+		fd_set *writefds,
+		fd_set *exceptfds,
+		struct timeval *timeout)
+{
+	fd_set rudp_rdfds, rdfds, wrfds, expfds;
+	int i, rudp_ready = 0;
+	int ready;
+	struct timeval tv;
+
+	dprintf(D_FULLDEBUG, "\t\trudp_select:\n");
+
+	// set rudp_rdfds and rudp_ready
+	bzero(&rudp_rdfds, sizeof(fd_set));
+	for (i = 0; i < maxfd; i++) {
+		if (FD_ISSET(i, readfds) && _rudp_fdInfo[i].senders && _rudp_fdInfo[i].qhead) {
+			FD_SET(i, &rudp_rdfds);
+			rudp_ready++;
+			dprintf(D_FULLDEBUG, "\t\t\tqueue for fd = %d are not empty\n", i);
+		}
+	}
+
+	// do nonblocking select with given fd_sets
+	tv.tv_sec = tv.tv_usec = 0;
+	if (readfds) {
+		memcpy(&rdfds, readfds, sizeof(rdfds));
+	} else {
+		bzero(&rdfds, sizeof(rdfds));
+	}
+	if (writefds) {
+		memcpy(&wrfds, writefds, sizeof(wrfds));
+	} else {
+		bzero(&wrfds, sizeof(wrfds));
+	}
+	if (exceptfds) {
+		memcpy(&expfds, exceptfds, sizeof(expfds));
+	} else {
+		bzero(&expfds, sizeof(expfds));
+	}
+	ready = select(maxfd, &rdfds, &wrfds, &expfds, &tv);
+	dprintf(D_FULLDEBUG, "\t\t\tnonblocking select: %d fds are ready\n", ready);
+
+	// if any fd is either ready or rudp rcv queue is not empty, return result
+	if (ready > 0 || rudp_ready > 0) {
+		if (ready < 0) { ready = 0; }
+		if (rudp_ready > 0) {
+			for (i = 0; i < maxfd; i++) {
+				if (FD_ISSET(i, &rudp_rdfds) && !FD_ISSET(i, &rdfds)) {
+					FD_SET(i, &rdfds);
+					ready++;
+				}
+			}
+		}
+		if (readfds) {
+			memcpy(readfds, &rdfds, sizeof(rdfds));
+		}
+		if (writefds) {
+			memcpy(writefds, &wrfds, sizeof(wrfds));
+		}
+		if (exceptfds) {
+			memcpy(exceptfds, &expfds, sizeof(expfds));
+		}
+		return ready;
+	}
+
+	// if non blocking select, return 0
+	if (timeout && timeout->tv_sec == 0 && timeout->tv_usec == 0) {
+		if (readfds) {
+			bzero(readfds, sizeof(rdfds));
+		}
+		if (writefds) {
+			bzero(writefds, sizeof(wrfds));
+		}
+		if (exceptfds) {
+			bzero(exceptfds, sizeof(expfds));
+		}
+		return 0;
+	}
+
+	// now, do real select
+	return select(maxfd, readfds, writefds, exceptfds, timeout);
 }

@@ -100,7 +100,7 @@ int is_priv_net(uint32_t ip);
 // @return: -1, if failed to find a valid ip address
 //          0, if a public ip address found
 //          1, if could not find a public ip but a private ip found
-int _ssc_net_getIPaddr(uint32_t *ipaddr);
+int _getIPaddr(uint32_t *ipaddr);
 
 #if defined(__cplusplus)
 }
