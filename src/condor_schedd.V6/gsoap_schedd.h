@@ -142,6 +142,11 @@ int condor__listSpool(struct condor__Transaction transaction,
 					      struct condor__FileInfoArrayAndStatus response;
 					  } & result);
 
+int condor__requestReschedule(void *,
+							  struct condor__requestRescheduleResponse {
+								  struct condor__Status response;
+							  } & result);
+
 int condor__discoverJobRequirements(struct ClassAdStruct * jobAd,
 									struct condor__discoverJobRequirementsResponse {
 									    struct condor__RequirementsAndStatus response;

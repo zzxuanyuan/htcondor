@@ -241,6 +241,8 @@ int float_to_rusage(float, float, struct rusage *);
 int GetProc(int, int, PROC *);
 #endif
 
+bool Reschedule();
+
 #if defined(__cplusplus)
 }
 #endif

@@ -25,8 +25,14 @@
 // and the qmgmt server (i.e. the schedd).
 
 #include "condor_common.h"
+#include "../condor_daemon_core.V6/condor_daemon_core.h"
+#include "dedicated_scheduler.h"
+#include "scheduler.h"
 #include "condor_qmgr.h"
+#include "qmgmt.h"
 #include "MyString.h"
+
+extern Scheduler scheduler;
 
 int
 SetAttributeInt(int cl, int pr, const char *name, int val)
@@ -97,4 +103,20 @@ SetAttributeStringByConstraint(const char *con, const char *name,
 	buf += '"';
 	rval = SetAttributeByConstraint(con,name,buf.Value());
 	return(rval);
+}
+
+bool
+Reschedule()
+{
+		// XXX: Abstract this, it was stolen from Scheduler::reschedule_negotiator!
+
+	scheduler.timeout();							// update the central manager now
+
+	dprintf( D_ALWAYS, "Called Reschedule()\n" );
+
+	scheduler.sendReschedule();
+
+	scheduler.StartSchedUniverseJobs();
+
+	return true;
 }

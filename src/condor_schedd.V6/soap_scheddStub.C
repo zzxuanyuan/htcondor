@@ -772,6 +772,20 @@ condor__listSpool(struct soap * soap,
 }
 
 int
+condor__requestReschedule(struct soap *soap,
+						  void *,
+						  struct condor__requestRescheduleResponse & result)
+{
+	if (Reschedule()) {
+		result.response.code = SUCCESS;
+	} else {
+		result.response.code = FAIL;
+	}
+
+	return SOAP_OK;
+}
+
+int
 condor__discoverJobRequirements(struct soap *soap,
                                       struct ClassAdStruct * jobAd,
                                       struct condor__discoverJobRequirementsResponse & result)
