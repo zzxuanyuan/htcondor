@@ -30,6 +30,7 @@
 JobInfoCommunicator::JobInfoCommunicator()
 {
 	job_ad = NULL;
+	u_log = new LocalUserLog( this );
 	orig_job_name = NULL;
 	job_input_name = NULL;
 	job_output_name = NULL;
@@ -44,6 +45,9 @@ JobInfoCommunicator::~JobInfoCommunicator()
 {
 	if( job_ad ) {
 		delete job_ad;
+	}
+	if( u_log ) {
+		delete u_log;
 	}
 	if( orig_job_name ) {
 		free( orig_job_name );

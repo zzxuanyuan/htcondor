@@ -27,6 +27,7 @@
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
 #include "condor_classad.h"
 #include "user_proc.h"
+#include "local_user_log.h"
 
 /** 
 	This class is a base class for the various ways a starter can
@@ -231,6 +232,8 @@ protected:
 		// // // // // // // // // // // //
 		// Protected data members
 		// // // // // // // // // // // //
+
+	LocalUserLog* u_log;
 
 		/** The real job executable name (after ATTR_JOB_CMD
 			is switched to condor_exec).
