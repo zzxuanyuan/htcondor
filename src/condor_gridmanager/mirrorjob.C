@@ -917,6 +917,7 @@ BaseResource *MirrorJob::GetResource()
 
 ClassAd *MirrorJob::buildSubmitAd()
 {
+	int now = time(NULL);
 	MyString expr;
 	ClassAd *submit_ad;
 
@@ -949,7 +950,7 @@ ClassAd *MirrorJob::buildSubmitAd()
 	submit_ad->Delete( ATTR_DAGMAN_JOB_ID );
 	submit_ad->Delete( ATTR_ULOG_FILE );
 
-	expr.sprintf( "%s = %d", ATTR_Q_DATE, time(NULL) );
+	expr.sprintf( "%s = %d", ATTR_Q_DATE, now );
 	submit_ad->Insert( expr.Value() );
 
 	expr.sprintf( "%s = 0", ATTR_COMPLETION_DATE );
@@ -1000,7 +1001,7 @@ ClassAd *MirrorJob::buildSubmitAd()
 	expr.sprintf( "%s = 0", ATTR_CURRENT_HOSTS );
 	submit_ad->Insert( expr.Value() );
 
-	expr.sprintf( "%s = %d", ATTR_ENTERED_CURRENT_STATUS );
+	expr.sprintf( "%s = %d", ATTR_ENTERED_CURRENT_STATUS, now );
 	submit_ad->Insert( expr.Value() );
 
 	expr.sprintf( "%s = NEVER", ATTR_JOB_NOTIFICATION );
@@ -1016,6 +1017,9 @@ ClassAd *MirrorJob::buildSubmitAd()
 				  ATTR_PERIODIC_REMOVE_CHECK, ATTR_SUBMIT_IN_PROGRESS,
 				  ATTR_Q_DATE, 1800 );
 	submit_ad->Insert( expr.Value() );
+
+	expr.sprintf( "%s = \"%s\"", ATTR_MIRROR_SUBMITTER_ID,
+				  myResource->submitter_id );
 
 		// worry about ATTR_JOB_[OUTPUT|ERROR]_ORIG
 

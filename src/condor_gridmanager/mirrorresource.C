@@ -71,6 +71,9 @@ MirrorResource::MirrorResource( const char *resource_name )
 	scheddPollActive = false;
 	newLease = 0;
 
+	// TODO this needs to include schedd name and job owner
+	submitter_id = strdup( my_full_hostname() );
+
 	scheddPollTid = daemonCore->Register_Timer( 0,
 							(TimerHandlercpp)&MirrorResource::DoScheddPoll,
 							"MirrorResource::DoScheddPoll", (Service*)this );
@@ -159,7 +162,7 @@ int MirrorResource::DoScheddPoll()
 		gahpA->setMode( GahpClient::normal );
 		gahpB->setMode( GahpClient::normal );
 
-		constraint.sprintf( "%s =?= \"%s\"", "MirrorSubmitterId",
+		constraint.sprintf( "%s =?= \"%s\"", ATTR_MIRROR_SUBMITTER_ID,
 							submitter_id );
 
 		newLease = time(NULL) + MirrorJob::leaseInterval;
