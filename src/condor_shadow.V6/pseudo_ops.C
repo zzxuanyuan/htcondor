@@ -264,29 +264,18 @@ pseudo_getrusage(int who, struct rusage *use_p )
 int
 pseudo_report_error( char *msg )
 {
-	return job_report_add_error( msg );
+	return job_report_store_error( msg );
 }
 
 int
 pseudo_report_file_info(
-	char *name,
 	int read_count, int read_bytes,
 	int write_count, int write_bytes,
-	int seek_count, int size ) {
+	int seek_count,
+	int actual_read_count, int actual_read_bytes,
+	int actual_write_count, int actual_write_bytes ) {
 
-	// If nothing went on in this file, skip it.
-
-	if( !read_count && !write_count && !seek_count ) return 1;
-
-	job_report_add_info("%s",name);
-	job_report_add_info("\treads:  %6d bytes read:    %s",
-		read_count, metric_units(read_bytes) );
-	job_report_add_info("\twrites: %6d bytes_written: %s",
-		write_count, metric_units(write_bytes) );
-	job_report_add_info("\tseeks:  %6d final size:    %s",
-		seek_count, metric_units(size) );
-
-	return 1;
+	job_report_store_file_totals( read_count, read_bytes, write_count, write_bytes, seek_count, actual_read_count, actual_read_bytes, actual_write_count, actual_write_bytes );
 }
 
 int

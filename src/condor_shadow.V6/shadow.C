@@ -36,6 +36,7 @@
 #include "my_hostname.h"
 #include "../condor_ckpt_server/server_interface.h"
 #include "sig_install.h"
+#include "job_report.h"
 
 #if defined(AIX31) || defined(AIX32)
 #include "syscall.aix.h"
@@ -827,6 +828,8 @@ Wrapup( )
 						   ATTR_BYTES_RECVD, TotalBytesRecvd );
 	}
 
+	job_report_update_queue( Proc );
+
     DisconnectQ (NULL);
 
 	/* fill in the Proc structure's exit_status with JobStatus, so that when
@@ -866,6 +869,7 @@ update_job_status( struct rusage *localp, struct rusage *remotep )
 
 	//new syntax, can use filesystem to authenticate
 	ConnectQ(schedd);
+	job_report_update_queue( Proc );
 	GetAttributeInt(Proc->id.cluster, Proc->id.proc, ATTR_JOB_STATUS, &status);
 	GetAttributeFloat(Proc->id.cluster, Proc->id.proc,
 					ATTR_JOB_REMOTE_WALL_CLOCK, &accum_time);
@@ -1150,6 +1154,7 @@ DoCleanup()
 	if( Proc->id.cluster ) {
 		//new syntax, can use filesystem to authenticate
 		ConnectQ(schedd);
+		job_report_update_queue( Proc );
 		fetch_rval = GetAttributeInt(Proc->id.cluster, Proc->id.proc, 
 									 ATTR_JOB_STATUS, &status);
 

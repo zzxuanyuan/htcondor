@@ -199,12 +199,13 @@ NotifyUser( char *buf, PROC *proc, char *email_addr )
 
 	job_report_display_errors( mailer );
 
-        fprintf(mailer, "\nSubmitted at:        %s", ctime( (time_t *)&proc->q_date) );
+	fprintf(mailer, "\nTime Used:\n");
+        fprintf(mailer, "\tSubmitted at:        %s", ctime( (time_t *)&proc->q_date) );
         if( proc->completion_date ) {
                 real_time = proc->completion_date - proc->q_date;
-                fprintf(mailer, "Completed at:        %s",
+                fprintf(mailer, "\tCompleted at:        %s",
                                                                         ctime((time_t *)&proc->completion_date) );
-                fprintf(mailer, "Real Time:           %s\n", d_format_time(real_time));
+                fprintf(mailer, "\tReal Time:           %s\n", d_format_time(real_time));
         }
         fprintf( mailer, "\n" );
 
@@ -223,18 +224,19 @@ NotifyUser( char *buf, PROC *proc, char *email_addr )
         tltime = lutime + lstime;
 
 
-        fprintf(mailer, "Remote User Time:    %s\n", d_format_time(rutime) );
-        fprintf(mailer, "Remote System Time:  %s\n", d_format_time(rstime) );
-        fprintf(mailer, "Total Remote Time:   %s\n\n", d_format_time(trtime));
-        fprintf(mailer, "Local User Time:     %s\n", d_format_time(lutime) );
-        fprintf(mailer, "Local System Time:   %s\n", d_format_time(lstime) );
-        fprintf(mailer, "Total Local Time:    %s\n\n", d_format_time(tltime));
+        fprintf(mailer, "\tRemote User Time:    %s\n", d_format_time(rutime) );
+        fprintf(mailer, "\tRemote System Time:  %s\n", d_format_time(rstime) );
+        fprintf(mailer, "\tTotal Remote Time:   %s\n\n", d_format_time(trtime));
+        fprintf(mailer, "\tLocal User Time:     %s\n", d_format_time(lutime) );
+        fprintf(mailer, "\tLocal System Time:   %s\n", d_format_time(lstime) );
+        fprintf(mailer, "\tTotal Local Time:    %s\n\n", d_format_time(tltime));
 
         if( tltime >= 1.0 ) {
-                fprintf(mailer, "Leveraging Factor:   %2.1f\n", trtime / tltime);
+                fprintf(mailer, "\tLeveraging Factor:   %2.1f\n", trtime / tltime);
         }
-        fprintf(mailer, "Virtual Image Size:  %d Kilobytes\n", proc->image_size);
+        fprintf(mailer, "\tVirtual Image Size:  %d Kilobytes\n", proc->image_size);
 
+	job_report_display_file_totals( mailer, (int)(trtime+tltime) );
 	job_report_display_info( mailer );
 	job_report_display_calls( mailer );
 
