@@ -226,8 +226,7 @@ bool recursive_chown_nonroot(const char * path,
 /// Returns strerror for errno "e" as a MyString
 MyString StringError(int e)
 {
-	char error[1024];
-	strerror_r(e, error, sizeof(error)-1);
+	char * error = strerror(e);
 	MyString ret;
 	ret.sprintf("%s (errno=%d)", error, e);
 	return ret;
