@@ -155,21 +155,30 @@ void config( char* a_out_name, CONTEXT* context )
 	/* If ARCH is not defined in config file, then try to get value
 	   using uname().  Note that the config file parameter overrides
 	   the uname() value.  -Jim B. */
-	if( (param("ARCH") == NULL) && ((arch = get_arch()) != NULL) ) {
-		insert( "ARCH", arch, ConfigTab, TABLESIZE );
-		if( context ) {
-			insert_context( "Arch", arch, context );
-		}
+	if ((arch = param("ARCH")) == NULL) {
+	  arch = get_arch();
+	}
+
+	/* Always insert Arch into the context (overriding the Arch expression
+	   in the config file).  This special case is needed because ARCH and
+	   Arch differ only by case, triggering a bug which makes it
+	   impossible to override ARCH in the LOCAL_CONFIG_FILE.  -Jim B. */
+	insert( "ARCH", arch, ConfigTab, TABLESIZE );
+	if( context ) {
+	  insert_context( "Arch", arch, context );
 	}
 
 	/* If OPSYS is not defined in config file, then try to get value
 	   using uname().  Note that the config file parameter overrides
 	   the uname() value.  -Jim B. */
-	if( (param("OPSYS") == NULL) && ((op_sys = get_op_sys()) != NULL) ) {
-		insert( "OPSYS", op_sys, ConfigTab, TABLESIZE );
-		if( context ) {
-			insert_context( "OpSys", op_sys, context );
-		}
+	if ((op_sys = param("OPSYS")) == NULL) {
+	  op_sys = get_op_sys();
+	}
+
+	/* Same as with Arch above.  -Jim B. */
+	insert( "OPSYS", op_sys, ConfigTab, TABLESIZE );
+	if( context ) {
+	  insert_context( "OpSys", op_sys, context );
 	}
 }
 
