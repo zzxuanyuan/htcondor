@@ -50,6 +50,8 @@ Credential::GetMetadata() {
 	class_ad->InsertAttr (CREDATTR_TYPE, type);
 	class_ad->InsertAttr (CREDATTR_OWNER, owner.Value());
 	class_ad->InsertAttr (CREDATTR_DATA_SIZE, data_size);
+
+	return class_ad;
 }
 
 int

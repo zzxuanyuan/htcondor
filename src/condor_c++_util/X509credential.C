@@ -1,18 +1,13 @@
 #include "X509credential.h"
 #include "condor_common.h"
+#include "condor_debug.h"
 #include "globus_utils.h"
 #include "classad_distribution.h"
 
 X509Credential::X509Credential (const classad::ClassAd& class_ad) : Credential (class_ad) {
-	type = X509_CREDENTIAL_TYPE;
-
-	MyString myproxy_server_host;
-	MyString myproxy_server_dn;
-	MyString myproxy_server_password;
-	MyString myproxy_credential_name;
-	MyString myproxy_user;
-
 	std::string val;
+
+	type = X509_CREDENTIAL_TYPE;
 
 	if (class_ad.EvaluateAttrString (CREDATTR_MYPROXY_HOST, val)) {
 		myproxy_server_host=val.c_str();
@@ -133,3 +128,18 @@ void
 X509Credential::SetRealExpirationTime (time_t t) {
 	expiration_time = t;
 }
+
+void
+X509Credential::display( int debugflag )
+{
+	time_t RealExpirationTime = GetRealExpirationTime();
+	dprintf( debugflag, "X509Credential:\nexpires: %s",
+			ctime( &RealExpirationTime ) );
+	dprintf( debugflag, "MyProxyServerDN: '%s'\n",
+			GetMyProxyServerDN() );
+	dprintf( debugflag, "MyProxyServerHost: %s\n",
+			GetMyProxyServerHost() );
+	dprintf( debugflag, "CredentialName: %s MyProxyUser: %s\n",
+			GetCredentialName(), GetMyProxyUser() );
+}
+

@@ -40,6 +40,8 @@ public:
 
   virtual classad::ClassAd * GetMetadata();
 
+  virtual void display( int debugflag );
+
  protected:
   MyString myproxy_server_host;
   MyString myproxy_server_dn;

@@ -45,7 +45,7 @@ public:
   const char * GetOrigOwner();
   void SetOrigOwner(const char *);
 
-  classad::ClassAd * GetMetadata();
+  virtual classad::ClassAd * GetMetadata();
  
   virtual int GetDataSize();
   virtual void SetData(const void * pData, int size);
