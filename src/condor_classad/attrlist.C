@@ -166,8 +166,13 @@ AttrList(FILE *file, char *delimitor, int &isEOF, int &error, int &empty)
 			}
 		}
 
+			// if the string is empty, try reading again
+		if( strlen( buffer ) == 0 || strcmp( buffer, "\n" ) == 0 ) {
+			continue;
+		}
+
 			// parse the expression in the string
-		if( Parse(buffer, tree) || Insert( tree ) == FALSE ) {
+		if( Parse( buffer, tree ) || Insert( tree ) == FALSE ) {
 				// read until delimitor or EOF; whichever comes first
 			while( strncmp( buffer, delimitor, delimLen ) && !feof( file ) ) {
 				fgets( buffer, delimLen+1, file );
