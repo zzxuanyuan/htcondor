@@ -1342,7 +1342,9 @@ abort_job_myself( PROC_ID job_id, JobAction action, bool log_hold,
 		}
 	}
 
-	if( (job_universe == CONDOR_UNIVERSE_PVM) || (job_universe == CONDOR_UNIVERSE_MPI) ) {
+	if( (job_universe == CONDOR_UNIVERSE_PVM) || 
+		(job_universe == CONDOR_UNIVERSE_MPI) || 
+		(job_universe == CONDOR_UNIVERSE_PARALLEL) ) {
 		job_id.proc = 0;		// PVM and MPI shadow is always associated with proc 0
 	} 
 
@@ -7225,7 +7227,9 @@ set_job_status(int cluster, int proc, int status)
 {
 	int universe = CONDOR_UNIVERSE_STANDARD;
 	GetAttributeInt(cluster, proc, ATTR_JOB_UNIVERSE, &universe);
-	if( (universe == CONDOR_UNIVERSE_PVM) || ( universe == CONDOR_UNIVERSE_MPI)) {
+	if( ( universe == CONDOR_UNIVERSE_PVM) || 
+		( universe == CONDOR_UNIVERSE_MPI) ||
+		( universe == CONDOR_UNIVERSE_PARALLEL) ) {
 		ClassAd *ad;
 		ad = GetNextJob(1);
 		while (ad != NULL) {
@@ -7770,9 +7774,14 @@ Scheduler::Init()
 		// its own.)  
 		// Only put in in the env if it is not already there, so 
 		// we don't leak memory without reason.		
-	if ( NameInEnv == NULL || strcmp(NameInEnv,Name) ) {
-		NameInEnv = (char *)malloc(strlen("SCHEDD_NAME=")+strlen(Name)+1);
-		sprintf(NameInEnv, "SCHEDD_NAME=%s", Name);
+
+#define SCHEDD_NAME_LHS "SCHEDD_NAME="
+	
+	int lhs_length = strlen(SCHEDD_NAME_LHS);
+
+	if ( NameInEnv == NULL || strcmp(&NameInEnv[lhs_length],Name) ) {
+		NameInEnv = (char *)malloc(lhs_length +strlen(Name)+1);
+		sprintf(NameInEnv, SCHEDD_NAME_LHS "%s", Name);
 		if (putenv(NameInEnv) < 0) {
 			dprintf(D_ALWAYS, "putenv(\"%s\") failed!\n", NameInEnv);
 		}
