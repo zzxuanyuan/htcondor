@@ -83,6 +83,12 @@ Instead, see the attributes: \AdAttr{ExitBySignal},
 \AdAttr{ExitCode}, and
 \AdAttr{ExitSignal}.
 
+%%% ClassAd attribute: HoldKillSig
+\index{ClassAd job attribute!HoldKillSig}
+\item[\AdAttr{HoldKillSig}] :   Currently only for scheduler universe jobs,
+a string containing a name of
+a signal to be sent to the job if the job is put on hold.
+
 %%% ClassAd attribute: HoldReason
 \index{ClassAd job attribute!HoldReason}
 \item[\AdAttr{HoldReason}] :   A string containing a human-readable
@@ -253,6 +259,12 @@ RemoteWallClockTime - CumulativeSuspensionTime
 \end{verbatim}
 Note that this number does not get reset to
 zero when a job is forced to migrate from one machine to another.
+
+%%% ClassAd attribute: RemoveKillSig
+\index{ClassAd job attribute!RemoveKillSig}
+\item[\AdAttr{RemoveKillSig}] :   Currently only for scheduler universe jobs,
+a string containing a name of
+a signal to be sent to the job if the job is removed.
 
 %%% ClassAd attribute: StreamErr
 \index{ClassAd job attribute!StreamErr}

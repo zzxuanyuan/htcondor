@@ -764,12 +764,46 @@ default value is \Opt{False}.
 \item[kill\_sig = $<$signal-number$>$] When Condor needs to kick a job
 \index{submit commands!kill\_sig}
 off of a machine, it will send the job the signal specified by
-\Arg{signal-number}.  \Arg{signal-number} needs to be an integer which
+\Opt{signal-number}.  \Opt{signal-number} needs to be an integer which
 represents a valid signal on the execution machine.  For jobs submitted
-to the Standard Universe, the default value is the number for
+to the standard universe, the default value is the number for
 \verb@SIGTSTP@ which tells the Condor libraries to initiate a checkpoint
-of the process.  For jobs submitted to the Vanilla Universe, the default 
-is \verb@SIGTERM@ which is the standard way to terminate a program in UNIX.  
+of the process.  For jobs submitted to the vanilla universe,
+the default 
+is \verb@SIGTERM@ which is the standard way to terminate a program in Unix.  
+
+%%%%%%%%%%%%%%%%%%%
+%% remove_kill_sig
+%%%%%%%%%%%%%%%%%%%
+
+\item[remove\_kill\_sig = $<$signal-number$>$] For the scheduler universe only,
+\index{submit commands!remove\_kill\_sig}
+\Opt{signal-number} is the signal delivered
+to the job when the job is removed
+with \Condor{rm}.
+\Opt{signal-number} may be either the platform-specific name or value
+of the signal.
+This example shows it both ways for a Linux signal:
+\begin{verbatim}
+remove_kill_sig = SIGUSR1
+remove_kill_sig = 10
+\end{verbatim}
+If this command is not present,
+the value of \Opt{kill\_sig} is used. 
+
+%%%%%%%%%%%%%%%%%%%
+%% remove_kill_sig
+%%%%%%%%%%%%%%%%%%%
+
+\item[hold\_kill\_sig = $<$signal-number$>$] For the scheduler universe only,
+\index{submit commands!hold\_kill\_sig}
+\Opt{signal-number} is the signal delivered
+to the job when the job is put on hold
+with \Condor{hold}.
+\Opt{signal-number} may be either the platform-specific name or value
+of the signal.
+If this command is not present,
+the value of \Opt{kill\_sig} is used. 
 
 %%%%%%%%%%%%%%%%%%%
 %% compress_files
