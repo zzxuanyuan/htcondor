@@ -53,8 +53,9 @@ fi
 AC_ARG_WITH(purecachedir,
  AC_HELP_STRING([--with-purecachedir=DIR],
   [cache directory for objects instrumented with Purify (default is $TMPDIR)]),
- ac_cv_purecachedir=$withval,
- ac_cv_purecachedir='$(TMP_DIR)')
+ [ac_cv_purecachedir=$withval],
+ [ac_cv_purecachedir="$TMPDIR/$USER/.pcache"]
+)
 AC_SUBST(pure_cache_dir,$ac_cv_purecachedir)
 
 
@@ -82,6 +83,17 @@ fi
 AC_CHECK_PROG(ac_yacc,yacc,yes,no)
 if test "$ac_yacc" == no; then
     AC_MSG_ERROR( [yacc is required] )
+fi
+
+AC_CHECK_PROG(ac_purify,purify,yes,no)
+if test "$ac_purify" == yes; then
+   AC_MSG_CHECKING([purify cache directory ($ac_cv_purecachedir)])
+   if test -d $ac_cv_purecachedir && test -w $ac_cv_purecachedir ; then
+      AC_MSG_RESULT( exists )
+   else
+      AS_MKDIR_P($ac_cv_purecachedir)
+      AC_MSG_RESULT( created )
+   fi
 fi
 
 
