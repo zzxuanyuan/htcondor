@@ -19,6 +19,8 @@ schedd_api.C: soap_scheddH.h ../condor_c++_util/soap_helpers.cpp
 
 soap_scheddStub.C: ../condor_c++_util/soap_helpers.cpp
 
+schedd_instantiate.C: soap_scheddH.h
+
 $(QMGMT_LIB) : libqmgmt.a
 
 library_target(libqmgmt.a,$(QMGMT_LIB_OBJ))
