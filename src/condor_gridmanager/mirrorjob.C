@@ -800,6 +800,49 @@ void MirrorJob::ProcessRemoteAdInactive( ClassAd *remote_ad )
 
 void MirrorJob::ProcessRemoteAdActive( ClassAd *remote_ad )
 {
+	int rc;
+	int tmp_int;
+	ClassAd *diff_ad;
+	MyString buff;
+
+	if ( remote_ad == NULL ) {
+		return;
+	}
+
+	remote_ad->LookupInteger( ATTR_JOB_STATUS, tmp_int );
+	remoteState = tmp_int;
+
+	diff_ad = ClassAdDiff( ad, remote_ad );
+
+	rc = diff_ad->LookupInteger( ATTR_MIRROR_LEASE_TIME, tmp_int );
+	if ( rc ) {
+		diff_ad->Assign( ATTR_MIRROR_REMOTE_LEASE_TIME, tmp_int );
+	} else {
+		buff.sprintf( "%s = Undefined", ATTR_MIRROR_REMOTE_LEASE_TIME );
+		diff_ad->Insert( buff.Value() );
+	}
+
+	diff_ad->Delete( ATTR_CLUSTER_ID );
+	diff_ad->Delete( ATTR_PROC_ID );
+	diff_ad->Delete( ATTR_MIRROR_JOB );
+	diff_ad->Delete( ATTR_MIRROR_ACTIVE );
+	diff_ad->Delete( ATTR_MIRROR_SCHEDD );
+	diff_ad->Delete( ATTR_MIRROR_JOB_ID );
+	diff_ad->Delete( ATTR_MIRROR_LEASE_TIME );
+	diff_ad->Delete( ATTR_ULOG_FILE );
+	diff_ad->Delete( ATTR_Q_DATE );
+	diff_ad->Delete( ATTR_ENTERED_CURRENT_STATUS );
+	diff_ad->Delete( ATTR_JOB_LEAVE_IN_QUEUE );
+	diff_ad->Delete( ATTR_JOB_STATUS_ON_RELEASE );
+	diff_ad->Delete( ATTR_JOB_STATUS );
+
+	ClassAdPatch( ad, diff_ad );
+
+	requestScheddUpdate( this );
+
+	delete diff_ad;
+
+	return;
 }
 
 BaseResource *MirrorJob::GetResource()
