@@ -141,6 +141,12 @@ CStarter::Init( JobInfoCommunicator* my_jic, const char* orig_cwd,
 	daemonCore->Register_Signal(DC_SIGPCKPT, "DC_SIGPCKPT",
 		(SignalHandlercpp)&CStarter::PeriodicCkpt, "PeriodicCkpt", this,
 		IMMEDIATE_FAMILY);
+	daemonCore->Register_Signal(DC_SIGREMOVE, "DC_SIGREMOVE",
+		(SignalHandlercpp)&CStarter::Remove, "Remove", this,
+		IMMEDIATE_FAMILY);
+	daemonCore->Register_Signal(DC_SIGHOLD, "DC_SIGHOLD",
+		(SignalHandlercpp)&CStarter::Hold, "Hold", this,
+		IMMEDIATE_FAMILY);
 	daemonCore->Register_Reaper("Reaper", (ReaperHandlercpp)&CStarter::Reaper,
 		"Reaper", this);
 
@@ -261,6 +267,74 @@ CStarter::ShutdownFast(int)
 	if (!jobRunning) {
 		dprintf(D_FULLDEBUG, 
 				"Got ShutdownFast when no jobs running.\n");
+		return 1;
+	}	
+	return 0;
+}
+
+
+int
+CStarter::Remove( int )
+{
+	bool jobRunning = false;
+	UserProc *job;
+
+	dprintf( D_ALWAYS, "Remove all jobs\n" );
+
+		// tell our JobInfoCommunicator about this so it can take any
+		// necessary actions
+	if( jic ) {
+		jic->gotRemove();
+	}
+
+	JobList.Rewind();
+	while( (job = JobList.Next()) != NULL ) {
+		if( job->Remove() ) {
+			// job is completely shut down, so delete it
+			JobList.DeleteCurrent();
+			delete job;
+		} else {
+			// job shutdown is pending, so just set our flag
+			jobRunning = true;
+		}
+	}
+	ShuttingDown = TRUE;
+	if (!jobRunning) {
+		dprintf( D_FULLDEBUG, "Got Remove when no jobs running\n" );
+		return 1;
+	}	
+	return 0;
+}
+
+
+int
+CStarter::Hold( int )
+{
+	bool jobRunning = false;
+	UserProc *job;
+
+	dprintf( D_ALWAYS, "Hold all jobs\n" );
+
+		// tell our JobInfoCommunicator about this so it can take any
+		// necessary actions
+	if( jic ) {
+		jic->gotHold();
+	}
+
+	JobList.Rewind();
+	while( (job = JobList.Next()) != NULL ) {
+		if( job->Hold() ) {
+			// job is completely shut down, so delete it
+			JobList.DeleteCurrent();
+			delete job;
+		} else {
+			// job shutdown is pending, so just set our flag
+			jobRunning = true;
+		}
+	}
+	ShuttingDown = TRUE;
+	if( !jobRunning ) {
+		dprintf( D_FULLDEBUG, "Got Hold when no jobs running\n" );
 		return 1;
 	}	
 	return 0;

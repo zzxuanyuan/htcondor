@@ -96,6 +96,12 @@ public:
 		/** To do */
 	virtual int PeriodicCkpt(int);
 
+		/** Call Remove() on all elements in JobList */
+	virtual int Remove(int);
+
+		/** Call Hold() on all elements in JobList */
+	virtual int Hold(int);
+
 		/** Handles the exiting of user jobs.  If we're shutting down
 			and there are no jobs left alive, we exit ourselves.
 			@param pid The pid that died.
