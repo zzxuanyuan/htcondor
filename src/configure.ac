@@ -62,6 +62,11 @@ AC_SUBST(pure_cache_dir,$ac_cv_purecachedir)
 # checks for programs
 ############################################################
 
+CHECK_GNU_MAKE()
+if test $ifGNUmake = '#' ; then
+   AC_MSG_ERROR( [GNU make is required for building Condor] )
+fi
+
 AC_LANG(C)
 AC_PROG_CC
 
