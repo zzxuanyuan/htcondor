@@ -52,8 +52,6 @@
 
 
 #define StaticFlag -static
-#define PsAllFlag /bin/ps -e		/* "Ps" flag when you want everything */
-#define PsAwkProg '{ print $1 }'	/* Pick out pid from "ps" output */
 
 #ifndef Ctags
 #define Ctags ctags -t

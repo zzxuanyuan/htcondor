@@ -67,8 +67,6 @@
 
 #define StaticFlag /**/
 #define UnixName /unix			/* pathname of the system executable */
-#define PsAllFlag /sbin/ps -ef		/* "Ps" flag when you want everything */
-#define PsAwkProg '{ print $2 }'	/* Pick out pid from "ps" output */
 
 #ifndef Ctags
 #define Ctags ctags -t

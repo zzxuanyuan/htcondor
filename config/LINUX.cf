@@ -108,8 +108,6 @@ statically linked to avoid problems */
 
 #define StaticFlag	-static
 #define UnixName /vmlinuz		/* pathname of the system executable */
-#define PsAllFlag ps -ax		/* "Ps" flag when you want everything */
-#define PsAwkProg '{ print $1 }'	/* Pick out pid from "ps" output */
 
 #ifndef Ctags
 #define Ctags ctags -t
