@@ -82,29 +82,28 @@ options} may be specified.
 		expression.  See section~\ref{sec:classadref} for
 		details on writing expressions.}
 	\OptItem{\OptArg{-format}{fmt attr}}{(Custom option) Display attribute
-              	\emph{attr} in format \emph{fmt}.
+              	\Arg{attr} in format \Arg{fmt}.
 		To display the attribute the format must contain a single
-		{\texttt{printf(3)}} style conversion specifier.
+		\Code{printf(3)} style conversion specifier.
 		Attributes must be from the resource ClassAd.  If the
 		attribute is not present in a given ClassAd then the
 		format option will be silently skipped.
 		The conversion specifier must match the type of the
-		attribute.   \%s is suitable for strings like Name, \%d
-		for integers like LastHeardFrom, and \%f for floating point
-		numbers like LoadAvg.  An incorrect format
+		attribute.   \%s is suitable for strings such as \Attr{Name},
+		\%d for integers such as \Attr{LastHeardFrom},
+		and \%f for floating point numbers such as \Attr{LoadAvg}.
+		An incorrect format
 		will result in undefined behavior.
 		Do not use more than one conversion specifier in a given
 		format.  More than one conversion specifier will result
 		in undefined behavior.  To output multiple attributes
 		repeat the \Opt{-format} option once for each desired
 		attribute.
-		Like {\texttt{printf(3)}} style formats you can include other
+		Like \Code{printf(3)} style formats, you can include other
 		text that will be reproduced directly.   You can specify
-		a format without any conversion specifiers but you must
-		still give attribute.
-		You can include \Bs n to add specify a line break.
-		There are some examples of using \Opt{-format} in the
-		Examples section below. }
+		a format without any conversion specifiers, but you must
+		still give an attribute.
+		You can include \Bs n to add specify a line break. }
 \end{Options}
 
 \GenRem
@@ -164,9 +163,10 @@ options} may be specified.
 \Examples
 
 \underline{Example 1} To view information from all nodes of an SMP
-machine, just use the hostname.
+machine, use only the hostname.
 For example, if you had a 4-CPU machine, named
-``vulture.cs.wisc.edu'', here's what you might see:
+\File{vulture.cs.wisc.edu}, you might see
+\footnotesize
 \begin{verbatim}
 % condor_status vulture
 
@@ -183,12 +183,15 @@ vm4@vulture.c SOLARIS26   INTEL  Claimed    Busy       1.001  128   0+02:21:07
 
                Total        4     0       4         0       0          0
 \end{verbatim}
+\normalsize
+
 
 \underline{Example 2} To view information from a specific nodes of an
 SMP machine, specify the node directly.
-You do this by providing the name of the \Term{virtual machine}.
+You do this by providing the name of the virtual machine.
 This has the form \texttt{vm\#@hostname}.
 For example:
+\footnotesize
 \begin{verbatim}
 % condor_status vm2@vulture
 
@@ -202,6 +205,7 @@ vm2@vulture.c SOLARIS26   INTEL  Claimed    Busy       1.006  128   0+01:16:03
 
                Total        1     0       1         0       0          0
 \end{verbatim}
+\normalsize
 
 \underline{Constraint option examples}
 
@@ -229,6 +233,7 @@ of more than 750, use
 The \Opt{-cod} option displays the status of COD
 claims within a given Condor pool. 
 
+\footnotesize
 \begin{verbatim}
 Name        ID   ClaimState TimeInState RemoteUser JobId Keyword
 astro.cs.wi COD1 Idle        0+00:00:04 wright
@@ -239,6 +244,7 @@ chopin.cs.w COD2 Suspended   0+00:10:21 wright     4.0   fractgen
  INTEL/LINUX       3     1        1          1         0        0
        Total       3     1        1          1         0        0
 \end{verbatim}
+\normalsize
 
 
 \ExitStatus
