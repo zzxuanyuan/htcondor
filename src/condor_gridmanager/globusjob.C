@@ -648,9 +648,6 @@ GlobusJob::~GlobusJob()
 	if ( myProxy ) {
 		ReleaseProxy( myProxy, evaluateStateTid );
 	}
-	if (daemonCore) {
-		daemonCore->Cancel_Timer( evaluateStateTid );
-	}
 }
 
 void GlobusJob::Reconfig()

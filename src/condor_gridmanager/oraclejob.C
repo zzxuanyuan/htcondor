@@ -197,9 +197,6 @@ OracleJob::~OracleJob()
 		rehashRemoteJobId( this, remoteJobId, NULL );
 		free( remoteJobId );
 	}
-	if (daemonCore) {
-		daemonCore->Cancel_Timer( evaluateStateTid );
-	}
 }
 
 void OracleJob::Reconfig()

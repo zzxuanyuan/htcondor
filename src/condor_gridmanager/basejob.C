@@ -73,6 +73,7 @@ BaseJob::~BaseJob()
 	if ( ad ) {
 		delete ad;
 	}
+	daemonCore->Cancel_Timer( evaluateStateTid );
 }
 
 void BaseJob::SetEvaluateState()
