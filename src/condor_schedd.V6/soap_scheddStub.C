@@ -400,7 +400,15 @@ condorSchedd__submit(struct soap *s,
 
     if ( jobAd->__ptr[i].type == 's' ) {
       // string type - put value in quotes as hint for ClassAd parser
-      rval = SetAttributeString(clusterId,jobId,name,value);
+
+      // We need to make sure the Iwd is rewritten so files
+      // in the spool directory can be found.
+      if ((NULL != spoolDirectory) &&
+          (0 == strcmp(name, "Iwd"))) {
+        value = spoolDirectory->GetCStr();
+      }
+
+      rval = SetAttributeString(clusterId, jobId, name, value);
     } else {
       // all other types can be deduced by the ClassAd parser
       rval = SetAttribute(clusterId,jobId,name,value);
