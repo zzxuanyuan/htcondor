@@ -23,6 +23,7 @@
 
 #include "condor_common.h"
 #include "user_log.c++.h"
+#include "condor_debug.h"
 #include <stdio.h>
 
 static const char *	VERSION = "0.9.0";
@@ -48,6 +49,10 @@ ReadEvents(Arguments &args);
 int
 main(int argc, char **argv)
 {
+		// Set up the dprintf stuff...
+	Termlog = true;
+	dprintf_config("test_log_reader", 2);
+
 	int		result = 0;
 
 	Arguments	args;
@@ -58,6 +63,10 @@ main(int argc, char **argv)
 		result = ReadEvents(args);
 	} else if ( tmpStatus == STATUS_ERROR ) {
 		result = 1;
+	}
+
+	if ( result != 0 && args.verbosity >= VERB_ERROR ) {
+		fprintf(stderr, "test_log_reader FAILED\n");
 	}
 
 	return result;
