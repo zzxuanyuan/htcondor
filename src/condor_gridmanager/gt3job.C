@@ -906,8 +906,10 @@ int GT3Job::doEvaluateState()
 				gmState = GM_CANCEL;
 			} else {
 				CHECK_PROXY;
-				rc = gahp->gt3_gram_client_job_refresh_credentials(
-																jobContact );
+//				rc = gahp->gt3_gram_client_job_refresh_credentials(
+//																jobContact );
+//java gahp doesn't support this command yet.
+rc=0;
 				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
 					 rc == GAHPCLIENT_COMMAND_PENDING ) {
 					break;
