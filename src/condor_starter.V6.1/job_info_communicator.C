@@ -31,6 +31,9 @@ JobInfoCommunicator::JobInfoCommunicator()
 {
 	job_ad = NULL;
 	job_universe = CONDOR_UNIVERSE_VANILLA;
+	job_cluster = -1;
+	job_proc = -1;
+	job_subproc = -1;
 	u_log = new LocalUserLog( this );
 	orig_job_name = NULL;
 	job_input_name = NULL;
@@ -118,6 +121,26 @@ JobInfoCommunicator::jobUniverse( void )
 	return job_universe;
 }
 
+
+int
+JobInfoCommunicator::jobCluster( void )
+{
+	return job_cluster;
+}
+
+
+int
+JobInfoCommunicator::jobProc( void )
+{
+	return job_proc;
+}
+
+
+int
+JobInfoCommunicator::jobSubproc( void )
+{
+	return job_subproc;
+}
 
 
 void

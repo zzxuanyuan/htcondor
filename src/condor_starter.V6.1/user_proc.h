@@ -36,7 +36,7 @@ class UserProc : public Service
 {
 public:
 		/// Constructor
-	UserProc() : JobAd(NULL), JobPid(-1), Cluster(-1), Proc(-1),
+	UserProc() : JobAd(NULL), JobPid(-1),
 		exit_status(-1), requested_exit(false) {};
 
 		/// Destructor
@@ -110,8 +110,6 @@ public:
 protected:
 	ClassAd *JobAd;
 	int JobPid;
-	int Cluster;
-	int Proc;
 	int exit_status;
 	bool requested_exit;
 };

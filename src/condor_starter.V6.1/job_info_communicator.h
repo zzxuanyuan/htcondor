@@ -104,7 +104,11 @@ public:
 	virtual ClassAd* jobClassAd( void );
 
 		/// Return the job's universe integer.
-	virtual int jobUniverse( void );
+	int jobUniverse( void );
+
+	int jobCluster( void );
+	int jobProc( void );
+	int jobSubproc( void );
 
 		/// Total bytes sent by this job 
 	virtual float bytesSent( void ) = 0;
@@ -225,8 +229,8 @@ protected:
 		/** Initialize our version of important information for this
 			job which the starter will want to know.  This should
 			init the following: orig_job_name, job_input_name, 
-			job_output_name, job_error_name, job_iwd, and
-			job_universe.  
+			job_output_name, job_error_name, job_iwd, 
+			job_universe, job_cluster, job_proc, and job_subproc
 			@return true on success, false on failure */
 	virtual	bool initJobInfo( void ) = 0;
 
@@ -267,6 +271,10 @@ protected:
 
 		/// The universe of the job.
 	int job_universe;
+
+	int job_cluster;
+	int	job_proc;
+	int	job_subproc;
 
 		/// if true, we were asked to shutdown
 	bool requested_exit;

@@ -51,7 +51,7 @@ OsProc::OsProc( ClassAd* ad )
 {
     dprintf ( D_FULLDEBUG, "In OsProc::OsProc()\n" );
 	JobAd = ad;
-	JobPid = Cluster = Proc = -1;
+	JobPid = -1;
 	exit_status = -1;
 	requested_exit = false;
 	job_suspended = FALSE;
@@ -79,18 +79,6 @@ OsProc::StartJob()
 
 	if ( !JobAd ) {
 		dprintf ( D_ALWAYS, "No JobAd in OsProc::StartJob()!\n" );
-		return 0;
-	}
-
-	if (JobAd->LookupInteger(ATTR_CLUSTER_ID, Cluster) != 1) {
-		dprintf(D_ALWAYS, "%s not found in JobAd.  Aborting StartJob.\n", 
-				ATTR_CLUSTER_ID);
-		return 0;
-	}
-
-	if (JobAd->LookupInteger(ATTR_PROC_ID, Proc) != 1) {
-		dprintf(D_ALWAYS, "%s not found in JobAd.  Aborting StartJob.\n", 
-				ATTR_PROC_ID);
 		return 0;
 	}
 
@@ -493,7 +481,8 @@ OsProc::renameCoreFile( void )
 	priv_state old_priv;
 
 	char buf[64];
-	sprintf( buf, "core.%d.%d", Cluster, Proc );
+	sprintf( buf, "core.%d.%d", Starter->jic->jobCluster(), 
+			 Starter->jic->jobProc() );
 
 	MyString old_name( job_iwd );
 	MyString new_name( job_iwd );
