@@ -63,6 +63,7 @@ JICShadow::JICShadow( char* shadow_sinful ) : JobInfoCommunicator()
 
 	transfer_at_vacate = false;
 	wants_file_transfer = false;
+	job_cleanup_disconnected = false;
 
 		// now we need to try to inherit the syscall sock from the startd
 	Stream **socks = daemonCore->GetInheritedSocks();
@@ -340,8 +341,7 @@ JICShadow::allJobsDone( void )
 
 		if( ! rval ) {
 				// failed to transfer, the shadow is probably gone.
-				// TODO: go into disconnected mode and remember where
-				// we left off...
+			job_cleanup_disconnected = true;
 			return false;
 		}
 	}
@@ -460,8 +460,15 @@ JICShadow::reconnect( ReliSock* s, ClassAd* ad )
 			 syscall_sock->endpoint_ip_str(), 
 			 syscall_sock->endpoint_port() );
 
-		// TODO deal with timer if we're just waiting to send final
-		// update, etc... 
+	if( job_cleanup_disconnected ) {
+			/*
+			  if we were trying to cleanup our job and we noticed we
+			  were disconnected from the shadow, this flag will be
+			  set.  in this case, want to call out to the Starter
+			  object to tell it to try to clean up the job again.
+			*/
+		Starter->allJobsDone();
+	}
 
 		// Now that we're holding onto the ReliSock, we can't let
 		// DaemonCore close it on us!
@@ -544,6 +551,7 @@ JICShadow::notifyJobExit( int exit_status, int reason, UserProc*
 			
 	if( REMOTE_CONDOR_job_exit(exit_status, reason, ad_to_send) < 0 ) {    
 		dprintf( D_ALWAYS, "Failed to send job exit status to shadow\n" );
+		job_cleanup_disconnected = true;
 		return false;
 	}
 	return true;

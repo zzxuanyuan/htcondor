@@ -373,6 +373,13 @@ private:
 	char* fs_domain;
 	bool trust_uid_domain;
 
+		/** A flag to keep track of the case where we were trying to
+			cleanup our job but we discovered that we were
+			disconnected from the shadow.  This way, if there's a
+			successful reconnect, we know we can try to clean up the
+			job again...
+		*/
+	bool job_cleanup_disconnected;
 };
 
 
