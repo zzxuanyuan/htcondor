@@ -112,6 +112,17 @@ SOURCE=..\src\condor_mail\StdAfx.h
 # Begin Source File
 
 SOURCE=..\src\condor_util_lib\uuid_lib.WIN32.c
+
+!IF  "$(CFG)" == "condor_mail - Win32 Debug"
+
+# ADD CPP /Yu
+
+!ELSEIF  "$(CFG)" == "condor_mail - Win32 Release"
+
+# SUBTRACT CPP /YX /Yc /Yu
+
+!ENDIF 
+
 # End Source File
 # End Target
 # End Project

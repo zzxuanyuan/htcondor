@@ -141,6 +141,7 @@ SOURCE="..\src\condor_c++_util\HashTable.h"
 # Begin Source File
 
 SOURCE=..\src\condor_collector.V6\soap_collectorC.C
+# SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
 
@@ -149,6 +150,7 @@ SOURCE=..\src\condor_collector.V6\soap_collectorH.h
 # Begin Source File
 
 SOURCE=..\src\condor_collector.V6\soap_collectorServer.C
+# SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
 

@@ -127,6 +127,17 @@ SOURCE=..\src\condor_master.V6\soap_masterStub.h
 # Begin Source File
 
 SOURCE=..\src\condor_util_lib\uuid_lib.WIN32.c
+
+!IF  "$(CFG)" == "condor_master - Win32 Debug"
+
+# ADD CPP /Yu
+
+!ELSEIF  "$(CFG)" == "condor_master - Win32 Release"
+
+# SUBTRACT CPP /YX /Yc /Yu
+
+!ENDIF 
+
 # End Source File
 # End Target
 # End Project
