@@ -93,7 +93,6 @@ JAR = JarTool
 STATIC	= -static
 STAR	= *
 
-LDFLAGS = -lrt -lpq -pg -L$(ODBC_LIB) -lodbc
 PLATFORM_LDFLAGS = PlatformLdFlags
 PURIFY_PLATFORM_LDFLAGS = PurifyPlatformLdFlags
 TEST_PLATFORM_LDFLAGS = TestPlatformLdFlags
@@ -472,7 +471,7 @@ SYSAPI_LIB = ../condor_sysapi/libsysapi.a
 ACCT_LIB    = ../condor_accountant.V6/libacct.a
 DAEMONCORE_LIB = ../condor_daemon_core.V6/daemon_core.a
 
-ALL_LDFLAGS = -lm $(LDFLAGS) $(PLATFORM_LDFLAGS) $(SITE_LDFLAGS)
+ALL_LDFLAGS = -lm -L$(ODBC_LIB) -lodbc $(LDFLAGS) $(PLATFORM_LDFLAGS) $(SITE_LDFLAGS)
 TEST_LDFLAGS = -lm $(LDFLAGS) $(TEST_PLATFORM_LDFLAGS) $(SITE_LDFLAGS)
 PURIFY_LDFLAGS = -lm $(LDFLAGS) $(PURIFY_PLATFORM_LDFLAGS) $(SITE_LDFLAGS)
 
