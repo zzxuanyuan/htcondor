@@ -144,6 +144,9 @@ public:
 	int			last_pckpt() 	{return m_last_pckpt;};
 	int			getaliveint()	{return m_aliveint;};
 	MatchState	state()			{return m_state;};
+	float		percentCpuUsage( void );
+	unsigned long	imageSize( void );
+	
 
 		// Functions that set the values of data
 	void setrank(float rank)	{m_rank=rank;};

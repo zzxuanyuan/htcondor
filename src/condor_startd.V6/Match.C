@@ -417,6 +417,27 @@ Match::capab( void )
 }
 
 
+float
+Match::percentCpuUsage( void )
+{
+	if( m_starter ) {
+		return m_starter->percentCpuUsage();
+	} else {
+		return 0.0;
+	}
+}
+
+
+unsigned long
+Match::imageSize( void )
+{
+	if( m_starter ) {
+		return m_starter->imageSize();
+	} else {
+		return 0;
+	}
+}
+
 
 int
 Match::spawnStarter( start_info_t* info, time_t now )
