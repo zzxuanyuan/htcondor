@@ -1,3 +1,6 @@
+#ifndef _schedd_api_h
+#define _schedd_api_h
+
 #include "condor_common.h"
 #include "condor_classad.h"
 #include "MyString.h"
@@ -29,11 +32,6 @@ public:
   unsigned long size;
 };
 
-template class HashTable<MyString, JobFile>;
-
-template class List<FileInfo>;
-template class Item<FileInfo>;
-
 class Job
 {
 public:
@@ -64,3 +62,5 @@ protected:
   HashTable<MyString, JobFile> *requirements;
   MyString *spoolDirectory;
 };
+
+#endif
