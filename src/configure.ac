@@ -128,9 +128,15 @@ fi
 # strip is used in the packaging of Condor for all released binaries
 # we require GNU strip since it does a much better job of shrinking
 # the size of our binaries, given that they're all built with GNU CC.
+# however, on OSX, there's no such thing as GNU strip, so we leave
+# that alone for now...
 CHECK_PROG_IS_GNU(STRIP, strip)
 if test "$_cv_strip_is_gnu" = "no"; then
-   AC_MSG_ERROR( [GNU strip is required] )
+   if test `uname -s` != "Darwin"; then
+      AC_MSG_ERROR( [GNU strip is required] )
+   else
+      AC_MSG_WARN( [GNU strip is prefered, but OSX doesn't have it] )
+   fi   
 fi
 
 # GNU tar and gzip are required for packaging up Condor releases. 
