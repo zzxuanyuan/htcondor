@@ -71,12 +71,13 @@ typedef long rlim_t;
 
 #include <sys/uio.h>
 
-/***************************/
-/* Special Condor flags    */
-/***************************/
+/****************************************
+** Condor-specific system definitions
+***************************************/
 
-#define HAS_U_TYPES
+#define HAS_U_TYPES			1
 
+typedef long long off64_t;
 typedef void* MMAP_T;
 
 #endif /* CONDOR_SYS_LINUX_H */

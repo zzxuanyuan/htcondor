@@ -77,19 +77,19 @@ END_C_DECLS
 BEGIN_C_DECLS
 /* This is a system call with no header. */
 extern int fdsync(int fd);
-/* These prototypes got lost in the shuffle. */
+/* I can't find this prototype... */
 extern int getdents(int, struct dirent *, unsigned int);
 END_C_DECLS
 
 /****************************************
 ** Condor-specific system definitions
 ****************************************/
-#define HAS_U_TYPES			1
 
+#define HAS_64BIT_STRUCTS		1
+#define HAS_U_TYPES			1
+#define SYNC_RETURNS_VOID		1
 #if defined( Solaris26) 
-#	define HAS_64BIT_STRUCTS	1
-#	define HAS_64BIT_SYSCALLS	1
-#	define HAS_F_DUP2FD		1
+	#define HAS_F_DUP2FD		1
 #endif
 
 typedef void* MMAP_T;

@@ -99,8 +99,10 @@ int pclose(FILE *stream);
 /****************************************
 ** Condor-specific system definitions
 ****************************************/
-#define HAS_U_TYPES		1
-#define NO_VOID_SIGNAL_RETURN	1
+
+#define HAS_U_TYPES			1
+#define SYNC_RETURNS_VOID		1
+#define NO_VOID_SIGNAL_RETURN		1
 
 typedef void * MMAP_T;
 

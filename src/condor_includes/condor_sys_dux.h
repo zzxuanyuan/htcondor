@@ -35,11 +35,10 @@
    says we should use memset(). */
 #undef FD_ZERO
 #define FD_ZERO(p)     memset((char *)(p), 0, sizeof(*(p)))
-#define HAS_U_TYPES
 
 /* bzero has different types in these two files.  Let's choose one. */
 
-#define bzero __hide_bzero
+#define bzero __condor_hack_bzero
 #include <strings.h>
 #undef bzero
 #include <sys/select.h>
@@ -99,13 +98,18 @@ END_C_DECLS
 #include <netdb.h>
 #undef gethostid
 
-/****************************/
-/* Condor specific flags    */
-/****************************/
+/****************************************
+** Condor-specific system definitions
+****************************************/
 
-#define SYNC_RETURNS_VOID 1
+#define HAS_64BIT_STRUCTS	0
+#define HAS_U_TYPES		0
+#define SYNC_RETURNS_VOID	1
+#define SIGISMEMBER_IS_BROKEN	0
+#define HAS_F_DUP2FD		0
+#define NO_VOID_SIGNAL_RETURN	1
 
-typedef caddr_t MMAP_T
-
+typedef long long off64_t;
+typedef caddr_t MMAP_T;
 
 #endif /* CONDOR_SYS_DUX_H */
