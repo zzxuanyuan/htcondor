@@ -894,7 +894,8 @@ gmState=GM_SUBMIT;
 										jobmanagerType,
 										gramCallbackContact,
 										RSL->Value(),
-										gassServerUrl,
+//										gassServerUrl,
+										NULL,
 										&job_contact );
 
 				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
@@ -1565,13 +1566,25 @@ BaseResource *GT4Job::GetResource()
 MyString *GT4Job::buildSubmitRSL()
 {
 	MyString *rsl = new MyString;
-	MyString iwd = "";
-	MyString riwd = "";
+	MyString local_iwd = "";
+	MyString remote_iwd = "";
+	MyString local_executable = "";
+	MyString remote_executable = "";
+	bool create_remote_iwd = false;
+	bool transfer_executable = true;
 	MyString buff;
 	char *attr_value = NULL;
 	char *rsl_suffix = NULL;
+	StringList stage_in_list;
+	StringList stage_out_list;
 
-	char * gt4_location = param ("GT4_LOCATION");
+//	char * gt4_location = param ("GT4_LOCATION");
+
+	char *local_url_base = param("GRIDFTP_URL_BASE");
+	if ( local_url_base == NULL ) {
+		errorString = "GRIDFTP_URL_BASE not defined";
+		return NULL;
+	}
 
 		// Once we add streaming support, remove this
 	if ( streamOutput || streamError ) {
@@ -1579,14 +1592,41 @@ MyString *GT4Job::buildSubmitRSL()
 		return NULL;
 	}
 
+		// Set our local job working directory
 	if ( ad->LookupString(ATTR_JOB_IWD, &attr_value) && *attr_value ) {
-		iwd = attr_value;
+		local_iwd = attr_value;
 		int len = strlen(attr_value);
 		if ( len > 1 && attr_value[len - 1] != '/' ) {
-			iwd += '/';
+			local_iwd += '/';
 		}
 	} else {
-		iwd = "/";
+		local_iwd = "/";
+	}
+	if ( attr_value != NULL ) {
+		free( attr_value );
+		attr_value = NULL;
+	}
+
+		// Set our remote job working directory
+	if ( ad->LookupString(ATTR_JOB_REMOTE_IWD, &attr_value) && *attr_value ) {
+			// The user gave us a remote IWD, use it.
+		create_remote_iwd = false;
+		remote_iwd = attr_value;
+	} else {
+		// The user didn't specify a remote IWD, so tell the jobmanager to
+		// create a scratch directory in its default location and make that
+		// the remote IWD.
+
+		// Note that ${SCRATCH_DIR} is no longer supported by globus
+		// Instead we'll upload an empty directory to be our scratch dir
+		
+		create_remote_iwd = true;
+		ASSERT (submit_id);	// append submit_id for uniqueness, fool
+		remote_iwd.sprintf ("${GLOBUS_USER_HOME}/job_%s", submit_id);
+	}
+
+	if ( remote_iwd[remote_iwd.Length()-1] != '/' ) {
+		remote_iwd += '/';
 	}
 	if ( attr_value != NULL ) {
 		free( attr_value );
@@ -1606,71 +1646,49 @@ xsi:schemaLocation=\"http://www.globus.org/namespaces/2004/06/job \
 
 
 	//We're assuming all job clasads have a command attribute
-	//First look for executable in the spool area.
-	char *spooldir = param("SPOOL");
-	if ( spooldir ) {
-		char *source = gen_ckpt_name(spooldir,procID.cluster,ICKPT,0);
-		free(spooldir);
-		if ( access(source,F_OK | X_OK) >= 0 ) {
-				// we can access an executable in the spool dir
-			attr_value = strdup(source);
+	ad->LookupString( ATTR_JOB_CMD, &attr_value );
+
+	transfer_executable = true;
+	ad->LookupBool( ATTR_TRANSFER_EXECUTABLE, transfer_executable );
+
+	if ( transfer_executable == false ) {
+			// The executable is already on the remote machine. Leave the
+			// path alone.
+		remote_executable = attr_value;
+	} else {
+			// The executable needs to be transferred. Construct the
+			// pathname of the transferred file.
+		remote_executable = remote_iwd;
+		remote_executable += basename( attr_value );
+
+			// Figure out where the local copy of the executable is
+		char *spooldir = param("SPOOL");
+		if ( spooldir ) {
+			char *source = gen_ckpt_name(spooldir,procID.cluster,ICKPT,0);
+			free(spooldir);
+			if ( access(source,F_OK | X_OK) >= 0 ) {
+					// we can access an executable in the spool dir
+				local_executable = source;
+			}
+		}
+		if ( local_executable.IsEmpty() ) {
+				// didn't find any executable in the spool directory,
+				// so use what is explicitly stated in the job ad
+
+				// We're assuming here that the submitter gives us full
+				// paths for executables that are to be transferred.
+			local_executable = attr_value;
 		}
 	}
-	if ( attr_value == NULL ) {
-			// didn't find any executable in the spool directory,
-			// so use what is explicitly stated in the job ad
-		ad->LookupString( ATTR_JOB_CMD, &attr_value );
-	}
-	
-    //*rsl += "(executable=";
-	*rsl += printXMLParam ("executable", attr_value);
-	free (attr_value);
-	attr_value = NULL;
-	
-/*
-  We don't do GASS_URL appendage here (GAHP does it)
-  So don't worry about this part
-  (this comment smells of BS)
 
-	if ( !ad->LookupBool( ATTR_TRANSFER_EXECUTABLE, transfer ) || transfer ) {
-		buff = "$(GRIDMANAGER_GASS_URL)/";
-		if ( attr_value[0] != '/' ) {
-			buff += iwd;
-		}
-		buff += attr_value;
-	} else {
-		buff = attr_value;
-	}
-	*rsl += rsl_stringify( buff.Value() );
-	free( attr_value );
-	attr_value = NULL;*/
-
-
-	if ( ad->LookupString(ATTR_JOB_REMOTE_IWD, &attr_value) && *attr_value ) {
-		*rsl += printXMLParam ("directory", attr_value);
-
-		riwd = attr_value;
-	} else {
-		// The user didn't specify a remote IWD, so tell the jobmanager to
-		// create a scratch directory in its default location and make that
-		// the remote IWD.
-
-		// Note that ${SCRATCH_DIR} is no longer supported by globus
-		// Instead we'll upload an empty directory to be our scratch dir
-		
-		ASSERT (submit_id);	// append submit_id for uniqueness, fool
-		riwd.sprintf ("${GLOBUS_USER_HOME}/job_%s", submit_id);
-
-		*rsl += printXMLParam ("directory", riwd.Value());
-	}
-
-	if ( riwd[riwd.Length()-1] != '/' ) {
-		riwd += '/';
-	}
 	if ( attr_value != NULL ) {
 		free( attr_value );
 		attr_value = NULL;
 	}
+
+	*rsl += printXMLParam( "executable", remote_executable.Value() );
+	
+	*rsl += printXMLParam( "directory", remote_iwd.Value() );
 
 	if ( ad->LookupString(ATTR_JOB_ARGUMENTS, &attr_value) && *attr_value ) {
 		*rsl += printXMLParam ("arguments", attr_value);
@@ -1680,161 +1698,162 @@ xsi:schemaLocation=\"http://www.globus.org/namespaces/2004/06/job \
 		attr_value = NULL;
 	}
 
+		// Start building the list of files to be staged in
+	if ( ad->LookupString(ATTR_TRANSFER_INPUT_FILES, &attr_value) &&
+		 *attr_value ) {
+		stage_in_list.initializeFromString( attr_value );
+	}
+	if ( attr_value ) {
+		free( attr_value );
+		attr_value = NULL;
+	}
+
+		// Start building the list of files to be staged out
+	if ( ad->LookupString(ATTR_TRANSFER_OUTPUT_FILES, &attr_value) &&
+		 *attr_value ) {
+		stage_out_list.initializeFromString( attr_value );
+	}
+	if ( attr_value ) {
+		free( attr_value );
+		attr_value = NULL;
+	}
+
+		// standard input
 	if ( ad->LookupString(ATTR_JOB_INPUT, &attr_value) && *attr_value &&
 		 strcmp( attr_value, NULL_FILE ) ) {
-		
-		*rsl += printXMLParam ("stdin", attr_value);
+
+		bool transfer = true;
+		ad->LookupBool( ATTR_TRANSFER_INPUT, transfer );
+
+		if ( transfer == false ) {
+			*rsl += printXMLParam( "stdin", attr_value );
+		} else {
+			*rsl += printXMLParam( "stdin", basename(attr_value) );
+			stage_in_list.append( attr_value );
+		}
 	}
 	if ( attr_value != NULL ) {
 		free( attr_value );
 		attr_value = NULL;
 	}
 
-//	if ( streamOutput ) {
-//		*rsl += printXMLParam ("stdout", localOutput );
-//	} else {
-		if ( stageOutput ) {
-			*rsl += printXMLParam ("stdout", "$(GLOBUS_CACHED_STDOUT)");
+		// standard output
+	if ( ad->LookupString(ATTR_JOB_OUTPUT, &attr_value) && *attr_value &&
+		 strcmp( attr_value, NULL_FILE ) ) {
+
+		bool transfer = true;
+		ad->LookupBool( ATTR_TRANSFER_OUTPUT, transfer );
+
+		if ( transfer == false ) {
+			*rsl += printXMLParam( "stdout", attr_value );
 		} else {
-			if ( ad->LookupString(ATTR_JOB_OUTPUT, &attr_value) &&
-				 *attr_value && strcmp( attr_value, NULL_FILE ) ) {
-				
-				*rsl += printXMLParam ("stdout", attr_value);
-			}
-			if ( attr_value != NULL ) {
-				free( attr_value );
-				attr_value = NULL;
-			}
+			*rsl += printXMLParam( "stdout", basename(attr_value) );
+			stage_out_list.append( attr_value );
 		}
-//	}
+	}
+	if ( attr_value != NULL ) {
+		free( attr_value );
+		attr_value = NULL;
+	}
 
-//	if ( streamError ) {
-//		*rsl += printXMLParam ("stderr", localError);
-//	} else {
-		if ( stageError ) {
-			*rsl += printXMLParam ("stderr", "$(GLOBUS_CACHED_STDERR)");
+		// standard error
+	if ( ad->LookupString(ATTR_JOB_ERROR, &attr_value) && *attr_value &&
+		 strcmp( attr_value, NULL_FILE ) ) {
+
+		bool transfer = true;
+		ad->LookupBool( ATTR_TRANSFER_ERROR, transfer );
+
+		if ( transfer == false ) {
+			*rsl += printXMLParam( "stderr", attr_value );
 		} else {
-			if ( ad->LookupString(ATTR_JOB_ERROR, &attr_value) &&
-				 *attr_value && strcmp( attr_value, NULL_FILE ) ) {
-				*rsl +=  printXMLParam ("stderr", attr_value );
-			}
-			if ( attr_value != NULL ) {
-				free( attr_value );
-				attr_value = NULL;
-			}
+			*rsl += printXMLParam( "stderr", basename(attr_value) );
+			stage_out_list.append( attr_value );
 		}
-//	}
+	}
+	if ( attr_value != NULL ) {
+		free( attr_value );
+		attr_value = NULL;
+	}
 
-	// First upload an emtpy dummy directory
-	// This will be the job's sandbox directory
+		// Now add the input staging directives to the job description
+	if ( create_remote_iwd || transfer_executable ||
+		 !stage_in_list.isEmpty() ) {
 
-	const char * file_in_header = "<fileStageIn><transfer>";
-	const char * file_in_footer = "</transfer></fileStageIn>";
+		*rsl += "<fileStageIn>";
 
-/* Only need dummy dir if user didn't specify RemoteIwd
-	*rsl += file_in_header;
-	buff.sprintf( "gsiftp://nostos.cs.wisc.edu%d", getDummyJobScratchDir() );
-	*rsl += printXMLParam ("sourceUrl",
-						   buff.Value());
-	buff.sprintf( "file:///%s", riwd.Value() );
-	*rsl += printXMLParam ("destinationUrl",
-						   buff.Value()); // remote job dir
-	*rsl += file_in_footer;
-*/
+		// First upload an emtpy dummy directory
+		// This will be the job's sandbox directory
+		if ( create_remote_iwd ) {
+			*rsl += "<transfer>";
+			buff.sprintf( "%s%s", local_url_base, getDummyJobScratchDir() );
+			*rsl += printXMLParam( "sourceUrl", buff.Value() );
+			buff.sprintf( "file://%s", remote_iwd.Value() );
+			*rsl += printXMLParam( "destinationUrl", buff.Value());
+			*rsl += "</transfer>";
+		}
 
-		// Now deal with any other files we might wish to transfer
-	if ( ad->LookupString(ATTR_TRANSFER_INPUT_FILES, &attr_value) &&
-		 *attr_value ) {
-		StringList filelist( attr_value, "," );
-		if ( !filelist.isEmpty() ) {
+		// Next, add the executable if needed
+		if ( transfer_executable ) {
+			*rsl += "<transfer>";
+			buff.sprintf( "%s%s", local_url_base, local_executable );
+			*rsl += printXMLParam( "sourceUrl", buff.Value() );
+			buff.sprintf( "file://%s", remote_executable );
+			*rsl += printXMLParam( "destinationUrl", buff.Value());
+			*rsl += "</transfer>";
+		}
+
+		// Finally, deal with any other files we might wish to transfer
+		if ( !stage_in_list.isEmpty() ) {
 			char *filename;
-			   
-			filelist.rewind();
-			while ( (filename = filelist.next()) != NULL ) {
 
-               // append the sandbox dir to the destination name 
-               // of each file that we'll stage in, fool
-			 
-				buff.sprintf ("file://%s/%s",
-							  riwd.Value(),
-							  basename (filename));
-				*rsl += file_in_header;
+			stage_in_list.rewind();
+			while ( (filename = stage_in_list.next()) != NULL ) {
+
+				*rsl += "<transfer>";
+				buff.sprintf( "%s%s%s", local_url_base,
+							  filename[0] == '/' ? "" : local_iwd.Value(),
+							  filename );
 				*rsl += printXMLParam ("sourceUrl", 
-										filename);
+									   filename);
+				buff.sprintf ("file://%s%s",
+							  remote_iwd.Value(),
+							  basename (filename));
 				*rsl += printXMLParam ("destinationUrl", 
 									   buff.Value());
-				*rsl += file_in_footer;
+				*rsl += "</transfer>";
 
-/*
-  // this is no longer needed, as GAHP does substitution
-
-				// append file pairs to rsl
-				*rsl += '(';
-				buff = "$(GRIDMANAGER_GASS_URL)";
-				if ( filename[0] != '/' ) {
-					buff += iwd;
-				}
-				buff += filename;
-				*rsl += rsl_stringify( buff );
-				*rsl += ' ';
-				buff = riwd;
-				buff += basename( filename );
-				*rsl += rsl_stringify( buff );
-				*rsl += ')';*/
 			}
 		}
-	}
-	if ( attr_value ) {
-		free( attr_value );
-		attr_value = NULL;
+
+		*rsl += "</fileStageIn>";
 	}
 
-	if ( ( ad->LookupString(ATTR_TRANSFER_OUTPUT_FILES, &attr_value) &&
-		   *attr_value ) || stageOutput || stageError ) {
-		StringList filelist( attr_value, "," );
-		if ( !filelist.isEmpty() || stageOutput || stageError ) {
-			const char * stage_out_header = "<fileStageOut><transfer>";
-			const char * stage_out_footer = "</transfer></fileStageOut>";
+		// Now add the output staging directives to the job description
+		// All the files we need are in stage_out_list
+	if ( !stage_out_list.isEmpty() ) {
+		char *filename;
 
+		*rsl += "<fileStageOut>";
 
-			char *filename;
+		stage_out_list.rewind();
+		while ( (filename = stage_out_list.next()) != NULL ) {
 
-			if ( stageOutput ) {
-				*rsl += stage_out_header;
-				*rsl += printXMLParam ("sourceFile", 
-									   "$(GLOBUS_CACHED_STDOUT)");
-				*rsl += printXMLParam ("destinationFile", 
-									   localOutput);
-				*rsl += stage_out_footer;
-			}
+			*rsl += "<transfer>";
+			buff.sprintf ("file://%s%s",
+						  remote_iwd.Value(),
+						  basename (filename));
+			*rsl += printXMLParam ("sourceUrl", 
+								   filename);
+			buff.sprintf( "%s%s%s", local_url_base,
+						  filename[0] == '/' ? "" : local_iwd.Value(),
+						  filename );
+			*rsl += printXMLParam ("destinationUrl", 
+								   buff.Value());
+			*rsl += "</transfer>";
 
-			if ( stageError ) {
-				*rsl += stage_out_header;
-				*rsl += printXMLParam ("sourceFile", 
-									   "$(GLOBUS_CACHED_STDERRT)");
-				*rsl += printXMLParam ("destinationFile", 
-									   localError);
-				*rsl += stage_out_footer;
-			}
-
-			filelist.rewind();
-			while ( (filename = filelist.next()) != NULL ) {
-				buff.sprintf ("file://%s/%s",
-							  riwd.Value(),
-							  basename (filename));
-				*rsl += stage_out_header;
-				*rsl += printXMLParam ("sourceFile", 
-									   buff.Value());
-				*rsl += printXMLParam ("destinationFile", 
-									   filename);
-
-				*rsl += stage_out_footer;
-			}
 		}
-	}
-	if ( attr_value ) {
-		free( attr_value );
-		attr_value = NULL;
+
+		*rsl += "</fileStageOut>";
 	}
 
 	if ( ad->LookupString(ATTR_JOB_ENVIRONMENT, &attr_value) && *attr_value ) {
@@ -1889,7 +1908,8 @@ xsi:schemaLocation=\"http://www.globus.org/namespaces/2004/06/job \
 
 	*rsl += "</job>";
 
-	free (gt4_location);
+//	free (gt4_location);
+	free( local_url_base );
 
 	return rsl;
 }
