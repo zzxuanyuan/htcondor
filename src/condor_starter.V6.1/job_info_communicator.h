@@ -102,6 +102,11 @@ public:
 		/// Return a pointer to the ClassAd for our job.
 	virtual ClassAd* jobClassAd( void );
 
+		/// Total bytes sent by this job 
+	virtual float bytesSent( void ) = 0;
+
+		/// Total bytes received by this job 
+	virtual float bytesReceived( void ) = 0;
 
 
 		// // // // // // // // // // // //
