@@ -68,10 +68,10 @@ NameTable ProcStates( ProcStateNames );
 
 /*
   The following are already defined in "proc.h".
-	#define STANDARD 1	// Original - single process jobs, 1 per machine
-	#define PIPE	 2	// Pipes - all processes on single machine
-	#define LINDA	 3	// Parallel applications via Linda
-	#define PVM		 4	// Parallel applications via Parallel Virtual Machine
+#	define STANDARD 1	// Original - single process jobs, 1 per machine
+#	define PIPE	 2	// Pipes - all processes on single machine
+#	define LINDA	 3	// Parallel applications via Linda
+#	define PVM		 4	// Parallel applications via Parallel Virtual Machine
 */
 typedef int JOB_CLASS;
 
@@ -121,9 +121,7 @@ public:
 	virtual void request_exit();
 	virtual void kill_forcibly();
 	virtual void handle_termination( int exit_stat );
-#if defined(OSF1)
 	void make_runnable();	// change from CHECKPOINTING to RUNNABLE
-#endif
 
 		// Access functions
 	PROC_STATE	get_state() { return state; }

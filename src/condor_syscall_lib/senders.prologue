@@ -1,3 +1,7 @@
+#if !defined(OSF1)
+#	define _POSIX_SOURCE
+#endif
+
 #include "condor_common.h"
 #include "condor_debug.h"
 #include <stdarg.h>
@@ -9,7 +13,7 @@
 #include "condor_jobqueue.h"
 #include "xdr_lib.h"
 
-#if defined(ULTRIX42) || defined(ULTRIX43) || defined(OSF1)
+#if defined(ULTRIX43) || defined(OSF1)
 #	include <sys/param.h>
 #	include <sys/mount.h>
 #else
@@ -17,7 +21,7 @@
 #endif
 
 #if defined(OSF1)
-#include <sys/poll.h>
+#	include <sys/poll.h>
 #endif
 
 #include "syscall_param_sizes.h"

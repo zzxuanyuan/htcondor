@@ -1,3 +1,7 @@
+#if !defined(OSF1)
+#	define _POSIX_SOURCE
+#endif
+
 #include "condor_common.h"
 #include "condor_debug.h"
 #include "xdr_lib.h"
