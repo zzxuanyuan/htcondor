@@ -30,6 +30,19 @@ AC_PREREQ(2.57)
 AC_INIT
 
 ############################################################
+# Check for special shell variables we can use
+############################################################
+AC_ARG_VAR(TMPDIR, [Directory for temp files during Condor build [/tmp]])
+if test "$ac_cv_env_TMPDIR_set" != set; then
+    TMPDIR=/tmp
+fi
+if test -d $TMPDIR -a -w $TMPDIR; then
+    AC_MSG_NOTICE([Temporary files during Condor build written to $TMPDIR])
+else
+    AC_MSG_ERROR([TMPDIR ($TMPDIR) is not a writable directory])
+fi
+
+############################################################
 # Setup additional command-line arguments to configure
 ############################################################
 
@@ -42,9 +55,9 @@ AC_SUBST(ext_root,$ac_cv_externals)
 
 AC_ARG_WITH(purecachedir,
  AC_HELP_STRING([--with-purecachedir=DIR],
-   [cache directory for objects instrumented with Purify (default is /tmp)]),
+  [cache directory for objects instrumented with Purify (default is $TMPDIR)]),
  ac_cv_purecachedir=$withval,
- ac_cv_purecachedir=/tmp)
+ ac_cv_purecachedir='$(TMP_DIR)')
 AC_SUBST(pure_cache_dir,$ac_cv_purecachedir)
 
 
