@@ -65,10 +65,9 @@ MirrorResource::MirrorResource( const char *resource_name )
 	scheddPollTid = TIMER_UNSET;
 	registeredJobs = new List<MirrorJob>;
 	mirrorScheddName = strdup( resource_name );
-	gahpA = NULL;
-	gahpB = NULL;
-	scheddPollActive = false;
-	newLease = 0;
+	gahp = NULL;
+	scheddUpdateActive = false;
+	scheddStatusActive = false;
 	submitter_constraint = "";
 
 	scheddPollTid = daemonCore->Register_Timer( 0,
@@ -83,14 +82,10 @@ MirrorResource::MirrorResource( const char *resource_name )
 		//   a gahp server can handle multiple schedds
 		MyString buff;
 		buff.sprintf( "MIRROR/%s", mirrorScheddName );
-		gahpA = new GahpClient( buff.Value(), gahp_path );
-		gahpA->setNotificationTimerId( scheddPollTid );
-		gahpA->setMode( GahpClient::normal );
-		gahpA->setTimeout( MirrorJob::gahpCallTimeout );
-		gahpB = new GahpClient( buff.Value(), gahp_path );
-		gahpB->setNotificationTimerId( scheddPollTid );
-		gahpB->setMode( GahpClient::normal );
-		gahpB->setTimeout( MirrorJob::gahpCallTimeout );
+		gahp = new GahpClient( buff.Value(), gahp_path );
+		gahp->setNotificationTimerId( scheddPollTid );
+		gahp->setMode( GahpClient::normal );
+		gahp->setTimeout( MirrorJob::gahpCallTimeout );
 		free( gahp_path );
 	}
 }
@@ -103,11 +98,8 @@ MirrorResource::~MirrorResource()
 	if ( registeredJobs != NULL ) {
 		delete registeredJobs;
 	}
-	if ( gahpA != NULL ) {
-		delete gahpA;
-	}
-	if ( gahpB != NULL ) {
-		delete gahpB;
+	if ( gahp != NULL ) {
+		delete gahp;
 	}
 	if ( mirrorScheddName != NULL ) {
 		free( mirrorScheddName );
@@ -149,9 +141,10 @@ void MirrorResource::UnregisterJob( MirrorJob *job )
 
 int MirrorResource::DoScheddPoll()
 {
-	int rcA, rcB;
+	int rc;
 
-	if ( registeredJobs->IsEmpty() ) {
+	if ( registeredJobs->IsEmpty() && scheddUpdateActive == false &&
+		 scheddStatusActive == false ) {
 			// No jobs, so nothing to poll/update
 		daemonCore->Reset_Timer( scheddPollTid, scheddPollInterval );
 		return 0;
@@ -159,80 +152,90 @@ int MirrorResource::DoScheddPoll()
 
 	daemonCore->Reset_Timer( scheddPollTid, TIMER_NEVER );
 
-	if ( scheddPollActive == false ) {
+	if ( scheddUpdateActive == false  && scheddStatusActive == false ) {
+
+			// start schedd update command
 		MyString buff;
 		MyString constraint;
+		int new_lease;
 
-		gahpA->setMode( GahpClient::normal );
-		gahpB->setMode( GahpClient::normal );
+dprintf(D_FULLDEBUG,"***starting schedd-update\n");
+		constraint.sprintf( "(%s)", submitter_constraint.Value() );
+
+		new_lease = time(NULL) + MirrorJob::leaseInterval;
+
+		ClassAd update_ad;
+		buff.sprintf( "%s = %d", ATTR_MIRROR_LEASE_TIME, new_lease );
+		update_ad.Insert( buff.Value() );
+
+		rc = gahp->condor_job_update_constrained( mirrorScheddName,
+												  constraint.Value(),
+												  &update_ad );
+
+		if ( rc != GAHPCLIENT_COMMAND_PENDING ) {
+			dprintf( D_ALWAYS, "gahp->condor_job_update_constrained returned %d\n",
+					 rc );
+			EXCEPT( "condor_job_update_constrained failed!" );
+		}
+		scheddUpdateActive = true;
+
+	} else if ( scheddUpdateActive == true ) {
+
+			// finish schedd update command
+dprintf(D_FULLDEBUG,"***finishing(hopefully) schedd-update\n");
+		rc = gahp->condor_job_update_constrained( NULL, NULL, NULL );
+
+		if ( rc == GAHPCLIENT_COMMAND_PENDING ) {
+dprintf(D_FULLDEBUG,"***schedd-update still pending\n");
+			return 0;
+		} else if ( rc != 0 ) {
+			dprintf( D_ALWAYS, "gahp->condor_job_update_constrained returned %d\n",
+					 rc );
+		}
+		scheddUpdateActive = false;
+
+			// start schedd status command
+dprintf(D_FULLDEBUG,"***starting schedd-status\n");
+		MyString constraint;
 
 		constraint.sprintf( "(%s)", submitter_constraint.Value() );
 
-		newLease = time(NULL) + MirrorJob::leaseInterval;
+		rc = gahp->condor_job_status_constrained( mirrorScheddName,
+												  constraint.Value(),
+												  NULL, NULL );
 
-		ClassAd update_ad;
-		buff.sprintf( "%s = %d", ATTR_MIRROR_LEASE_TIME, newLease );
-		update_ad.Insert( buff.Value() );
-
-		rcA = gahpA->condor_job_update_constrained( mirrorScheddName,
-													constraint.Value(),
-													&update_ad );
-
-		if ( rcA != GAHPCLIENT_COMMAND_PENDING ) {
-			dprintf( D_ALWAYS, "gahp->condor_job_update_constrained returned %d\n",
-					 rcA );
-		}
-
-		rcB = gahpB->condor_job_status_constrained( mirrorScheddName,
-													constraint.Value(),
-													NULL, NULL );
-
-		if ( rcB != GAHPCLIENT_COMMAND_PENDING ) {
+		if ( rc != GAHPCLIENT_COMMAND_PENDING ) {
 			dprintf( D_ALWAYS, "gahp->condor_job_status_constrained returned %d\n",
-					 rcB );
+					 rc );
+			EXCEPT( "condor_job_status_constrained failed!" );
 		}
+		scheddStatusActive = true;
 
-		scheddPollActive = true;
+	} else if ( scheddStatusActive == true ) {
 
-	} else {
-
+			// finish schedd status command
+dprintf(D_FULLDEBUG,"***finishing(hopefully) schedd-status\n");
 		int num_status_ads;
 		ClassAd **status_ads = NULL;
 
-		gahpA->setMode( GahpClient::results_only );
-		gahpB->setMode( GahpClient::results_only );
+		rc = gahp->condor_job_status_constrained( NULL, NULL,
+												  &num_status_ads,
+												  &status_ads );
 
-		rcA = gahpA->condor_job_update_constrained( NULL, NULL, NULL );
-
-		if ( rcA != GAHPCLIENT_COMMAND_PENDING &&
-			 rcA != GAHPCLIENT_COMMAND_NOT_SUBMITTED && rcA != 0 ) {
-			dprintf( D_ALWAYS, "gahp->condor_job_update_constrained returned %d\n",
-					 rcA );
-		}
-
-		rcB = gahpB->condor_job_status_constrained( NULL, NULL,
-													&num_status_ads,
-													&status_ads );
-
-		if ( rcB != GAHPCLIENT_COMMAND_PENDING &&
-			 rcB != GAHPCLIENT_COMMAND_NOT_SUBMITTED && rcB != 0 ) {
+		if ( rc == GAHPCLIENT_COMMAND_PENDING ) {
+dprintf(D_FULLDEBUG,"***schedd-status still pending\n");
+			return 0;
+		} else if ( rc != 0 ) {
 			dprintf( D_ALWAYS, "gahp->condor_job_status_constrained returned %d\n",
-					 rcA );
+					 rc );
 		}
 
-		if ( rcB == 0 ) {
-			MyString update_expr;
-			update_expr.sprintf( "%s = %d", ATTR_MIRROR_REMOTE_LEASE_TIME,
-								 newLease );
+		if ( rc == 0 ) {
 			for ( int i = 0; i < num_status_ads; i++ ) {
 				int rc;
 				int cluster, proc;
 				MyString job_id_string;
 				MirrorJob *job;
-
-				// Since we don't know if the new lease time is in the
-				// job ad, add it ourselves
-				status_ads[i]->Insert( update_expr.Value() );
 
 				status_ads[i]->LookupInteger( ATTR_CLUSTER_ID, cluster );
 				status_ads[i]->LookupInteger( ATTR_PROC_ID, proc );
@@ -254,11 +257,9 @@ int MirrorResource::DoScheddPoll()
 			free( status_ads );
 		}
 
-		if ( rcA != GAHPCLIENT_COMMAND_PENDING &&
-			 rcB != GAHPCLIENT_COMMAND_PENDING ) {
-			scheddPollActive = false;
-		}
+		scheddStatusActive = false;
 
+dprintf(D_FULLDEBUG,"***schedd-poll cycle complete\n");
 		daemonCore->Reset_Timer( scheddPollTid, scheddPollInterval );
 	}
 

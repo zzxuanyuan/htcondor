@@ -62,15 +62,14 @@ class MirrorResource : public BaseResource
 	MyString submitter_constraint;
 	int scheddPollTid;
 	char *mirrorScheddName;
-	bool scheddPollActive;
-	int newLease;
+	bool scheddUpdateActive;
+	bool scheddStatusActive;
 
  private:
 	static HashTable <HashKey, MirrorResource *> ResourcesByName;
 
 	List<MirrorJob> *registeredJobs;
-	GahpClient *gahpA;
-	GahpClient *gahpB;
+	GahpClient *gahp;
 };
 
 #endif
