@@ -1,20 +1,29 @@
-# CHECK_MAKE_IS_GNU is based loosely on the CHECK_GNU_MAKE macro 
+#######################################################################
+# CHECK_PROG_IS_GNU is based loosely on the CHECK_GNU_MAKE macro 
 # available from the GNU Autoconf Macro Archive at:
 # http://www.gnu.org/software/ac-archive/htmldoc/check_gnu_make.html
-# Modified by Derek Wright 10/6/03 to improve reporting, and to define 
-# more appropriate variables given that Condor depends on the "make"
-# in your PATH being GNU make...
-AC_DEFUN( [CHECK_MAKE_IS_GNU],
-[AC_CHECK_PROG(MAKE,make,make)
- if test "$MAKE" != "make"; then
-   AC_MSG_ERROR( [make is required] )
+# This version is more generic in that it checks any given program if
+# it's GNU or not.  However, it's more specific that it assumes the
+# given program is required.  If it doesn't find it, it bails out with
+# a fatal error.  Written by Derek Wright <wright@cs.wisc.edu>
+# Arguments:
+#  $1 the variable you want to store the program in (if found) 
+#  $2 is the name of the program to search for
+# Side effects:
+#  Bails out if the program isn't found.
+#  Sets _cv_<progname>_is_gnu to "yes" or "no" as appropriate
+#######################################################################
+AC_DEFUN( [CHECK_PROG_IS_GNU],
+[AC_CHECK_PROG($1,$2,$2)
+ if test "$[$1]" != "$2"; then
+   AC_MSG_ERROR( [$2 is required] )
  fi
- AC_CACHE_CHECK( [if $MAKE is GNU make], [_cv_make_is_gnu],
- [if ( sh -c "$MAKE --version" 2> /dev/null | grep GNU  2>&1 > /dev/null ) ;
+ AC_CACHE_CHECK( [if $2 is GNU], [_cv_$2_is_gnu],
+ [if ( sh -c "$[$1] --version" 2> /dev/null | grep GNU  2>&1 > /dev/null ) ;
   then
-     _cv_make_is_gnu="yes"
+     _cv_$2_is_gnu=yes
   else
-     _cv_make_is_gnu="no"
+     _cv_$2_is_gnu=no
   fi
  ])
 ])
@@ -48,6 +57,7 @@ fi
 ])dnl
 
 
+#######################################################################
 # CONDOR_VERIFY_EXTERNALS_DIR written by Derek Wright
 # <wright@cs.wisc.edu> to verify if a given directory is a valid
 # externals directory tree needed for building Condor.  To simplify
@@ -60,6 +70,7 @@ fi
 # Side Effects:
 #  If the given path is valid, the variable $ac_cv_externals is set to
 #  hold its value
+#######################################################################
 AC_DEFUN([CONDOR_VERIFY_EXTERNALS_DIR],
 [AC_MSG_CHECKING([if $1 is valid])
  if test ! -d $1; then
@@ -75,6 +86,7 @@ AC_DEFUN([CONDOR_VERIFY_EXTERNALS_DIR],
  ac_cv_externals=$1
 ])
 
+#######################################################################
 # CONDOR_VERIFY_EXT_ERROR is a helper for CONDOR_VERIFY_EXTERNALS_DIR 
 # Arguments:
 #  $1 is the specific warning message about why a directory is invalid
@@ -82,6 +94,7 @@ AC_DEFUN([CONDOR_VERIFY_EXTERNALS_DIR],
 #     _condor_VERIFY_EXTERNALS_DIR
 # Side Effects:
 #  Calling this macro terminates configure with AC_MSG_ERROR() 
+#######################################################################
 AC_DEFUN([_condor_VERIFY_EXT_ERROR],
 [AC_MSG_RESULT([no])
  AC_MSG_WARN([$1])
