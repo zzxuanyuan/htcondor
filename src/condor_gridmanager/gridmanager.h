@@ -29,6 +29,8 @@
 #include "user_log.c++.h"
 #include "classad_hashtable.h"
 #include "list.h"
+#include "daemon.h"
+#include "dc_schedd.h"
 
 #include "basejob.h"
 
@@ -52,6 +54,7 @@ void Register();
 void Reconfig();
 
 bool requestScheddUpdate( BaseJob *job );
+bool requestScheddVacate( BaseJob *job, action_result_t &result );
 
 
 #endif
