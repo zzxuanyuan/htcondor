@@ -434,6 +434,13 @@ ClassAdXMLParser::_ParseClassAd(XMLSource &source)
 		delete token;
 	}
 
+		// This is so we can recognize incomplete events in the log
+		// reader code.
+	if ( !done ) {
+		delete classad;
+		classad = NULL;
+	}
+
 	return classad;
 }
 
