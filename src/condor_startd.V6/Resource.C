@@ -44,16 +44,12 @@ Resource::Resource( CpuAttributes* cap, int rid )
 	r_attr = cap;
 	r_attr->attach( this );
 
-	up_tid = -1;
-	poll_tid = -1;
 	kill_tid = -1;
 }
 
 
 Resource::~Resource()
 {
-	daemonCore->Cancel_Timer( up_tid );
-	this->cancel_poll_timer();
 	this->cancel_kill_timer();
 
 	delete r_state;
@@ -136,7 +132,7 @@ Resource::periodic_checkpoint()
 		// Now that we updated this time, be sure to insert those
 		// attributes into the classad right away so we don't keep
 		// periodically checkpointing with stale info.
-	r_cur->update( r_classad );
+	r_cur->publish( r_classad, A_PUBLIC );
 
 	return TRUE;
 }
@@ -340,7 +336,7 @@ Resource::init_classad()
 	r_attr->publish( r_classad, A_ALL );
 
 		// Insert state and activity attributes.
-	r_state->update( r_classad );
+	r_state->publish( r_classad, A_ALL );
 
 
 	return TRUE;
@@ -350,48 +346,16 @@ Resource::init_classad()
 void
 Resource::update_classad()
 {
-	char line[100];
-
-		// Recompute update only stats and fill in classad.
-	r_attr->compute( A_UPDATE );
-	r_attr->publish( r_classad, A_UPDATE );
-	
-		// Also fill in machine-wide attributes 
-	resmgr->m_attr->compute( A_UPDATE );
-	resmgr->m_attr->publish( r_classad, A_UPDATE );
-
-		// Put in state info
-	r_state->update( r_classad );
-
-		// Put in requirement expression info
-	r_reqexp->update( r_classad );
-
-		// Update info from the current Match object 
-	r_cur->update( r_classad );
-
-		// Add currently useful capability.  If r_pre exists, we
-		// need to advertise it's capability.  Otherwise, we should
-		// get the capability from r_cur.
-	if( r_pre ) {
-		sprintf( line, "%s = \"%s\"", ATTR_CAPABILITY, r_pre->capab() );
-	} else {
-		sprintf( line, "%s = \"%s\"", ATTR_CAPABILITY, r_cur->capab() );
-	}		
-	r_classad->Insert( line );
+	this->publish( r_classad, A_UPDATE );
 }
 
 
 void
 Resource::timeout_classad()
 {
-		// Recompute statistics needed at every timeout and fill in classad
-	r_attr->compute( A_TIMEOUT );
-	r_attr->publish( r_classad, A_TIMEOUT ); 
-
-		// Also fill in machine-wide attributes (we only need to
-		// recompute them once)
-	resmgr->m_attr->publish( r_classad, A_TIMEOUT );
+	this->publish( r_classad, A_TIMEOUT );
 }
+
 
 int
 Resource::force_benchmark()
@@ -419,9 +383,6 @@ Resource::update()
 
 		// Set a flag to indicate that we've done an update.
 	did_update = TRUE;
-
-		// Reset our timer so we update again after update_interval.
-	daemonCore->Reset_Timer( up_tid, update_interval, 0 );
 }
 
 
@@ -431,9 +392,9 @@ Resource::final_update()
 	ClassAd public_ad;
 	this->make_public_ad( &public_ad );
 	r_reqexp->unavail();
-	r_state->update( &public_ad );
-	r_reqexp->update( &public_ad );
-	send_classad_to_sock( coll_sock, &public_ad, NULL );
+	r_state->publish( &public_ad, A_PUBLIC );
+	r_reqexp->publish( &public_ad, A_PUBLIC );
+	resmgr->send_update( &public_ad, NULL );
 }
 
 
@@ -451,50 +412,6 @@ Resource::eval_and_update()
 		update();
 	}
 	return TRUE;
-}
-
-
-int
-Resource::start_update_timer()
-{
-	up_tid = 
-		daemonCore->Register_Timer( update_interval, 0,
-									(TimerHandlercpp)eval_and_update,
-									"eval_and_update", this );
-	if( up_tid < 0 ) {
-		EXCEPT( "Can't register DaemonCore timer" );
-	}
-	return TRUE;
-}
-
-
-int
-Resource::start_poll_timer()
-{
-	if( poll_tid >= 0 ) {
-			// Timer already started.
-		return TRUE;
-	}
-	poll_tid = 
-		daemonCore->Register_Timer( polling_interval,
-									polling_interval, 
-									(TimerHandlercpp)eval_state,
-									"poll_resource", this );
-	if( poll_tid < 0 ) {
-		EXCEPT( "Can't register DaemonCore timer" );
-	}
-	return TRUE;
-}
-
-
-void
-Resource::cancel_poll_timer()
-{
-	if( poll_tid != -1 ) {
-		daemonCore->Cancel_Timer( poll_tid );
-		poll_tid = -1;
-		dprintf( D_FULLDEBUG, "Canceled polling timer.\n" );
-	}
 }
 
 
@@ -703,7 +620,7 @@ Resource::make_public_ad(ClassAd* pubCA)
 	caInsert( pubCA, r_classad, ATTR_MACHINE );
 
 		// Insert all state info.
-	r_state->update( pubCA );
+	r_state->publish( pubCA, A_PUBLIC );
 
 		// Insert all info from the machine and CPU we care about. 
 	resmgr->m_attr->publish( pubCA, A_PUBLIC );
@@ -712,11 +629,9 @@ Resource::make_public_ad(ClassAd* pubCA)
 		// Put everything in the public classad from STARTD_EXPRS. 
 	config_fill_ad( pubCA );
 
-		// Insert the currently active requirements expression.  If
-		// it's just START, we need to insert that too.
-	if( (r_reqexp->update( pubCA ) == ORIG) ) {
-		caInsert( pubCA, r_classad, ATTR_START );
-	}
+		// Insert the currently active requirements expression, and
+		// any other expressions it depends on (like START).
+	r_reqexp->publish( pubCA, A_PUBLIC );
 
 	caInsert( pubCA, r_classad, ATTR_RANK );
 	caInsert( pubCA, r_classad, ATTR_CURRENT_RANK );
@@ -753,7 +668,34 @@ Resource::make_private_ad(ClassAd* privCA)
 void
 Resource::publish( ClassAd* cap, amask_t mask ) 
 {
+	char line[128];
 
+		// Put in cpu-specific attributes
+	r_attr->publish( cap, mask );
+	
+		// Put in machine-wide attributes 
+	resmgr->m_attr->publish( r_classad, A_UPDATE );
+
+		// Put in state info
+	r_state->publish( r_classad, mask );
+
+		// Put in requirement expression info
+	r_reqexp->publish( r_classad, mask );
+
+		// Update info from the current Match object 
+	r_cur->publish( r_classad, mask );
+
+	if( IS_PUBLIC(mask) ) {
+			// Add currently useful capability.  If r_pre exists, we  
+			// need to advertise it's capability.  Otherwise, we
+			// should  get the capability from r_cur.
+		if( r_pre ) {
+			sprintf( line, "%s = \"%s\"", ATTR_CAPABILITY, r_pre->capab() );
+		} else {
+			sprintf( line, "%s = \"%s\"", ATTR_CAPABILITY, r_cur->capab() );
+		}		
+		r_classad->Insert( line );
+	}
 }
 
 
