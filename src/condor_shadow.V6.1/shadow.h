@@ -133,6 +133,8 @@ class UniShadow : public BaseShadow
 
 	virtual void resourceBeganExecution( RemoteResource* rr );
 
+	virtual void resourceReconnected( RemoteResource* rr );
+
  private:
 	RemoteResource *remRes;
 };

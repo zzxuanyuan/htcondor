@@ -401,3 +401,20 @@ UniShadow::resourceBeganExecution( RemoteResource* rr )
 }
 
 
+void
+UniShadow::resourceReconnected( RemoteResource* rr )
+{
+	ASSERT( rr == remRes );
+
+		// We've only got one remote resource, so if it successfully
+		// reconnected, we can safely log our reconnect event
+		// TODO!
+
+		// Start the timer for the periodic user job policy  
+	shadow_user_policy.startTimer();
+
+		// Start the timer for updating the job queue for this job 
+	startQueueUpdateTimer();
+}
+
+

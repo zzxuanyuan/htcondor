@@ -154,6 +154,8 @@ class MPIShadow : public BaseShadow
 
 	virtual void resourceBeganExecution( RemoteResource* rr );
 
+	virtual void resourceReconnected( RemoteResource* rr );
+
  private:
 
         /** After the schedd claims a resource, it puts it in a queue

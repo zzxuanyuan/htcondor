@@ -1224,3 +1224,9 @@ MPIShadow::resourceBeganExecution( RemoteResource* rr )
 	}
 }
 
+
+void
+MPIShadow::resourceReconnected( RemoteResource* rr )
+{
+	EXCEPT( "impossible: MPIShadow doesn't support reconnect" );
+}
