@@ -381,7 +381,7 @@ private:
 	void			child_exit(int, int);
 	void			clean_shadow_recs();
 	void			preempt(int);
-	void			preempt_one_job();
+	void			preempt_jobs();
 	static void		refuse( Stream* s );
 	void			tryNextJob( void );
 	void	noShadowForJob( shadow_rec* srec, NoShadowFailure_t why );

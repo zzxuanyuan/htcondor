@@ -65,6 +65,7 @@
 #include "condor_holdcodes.h"
 
 #define DEFAULT_SHADOW_SIZE 125
+#define DEFAULT_JOB_START_COUNT 1
 
 #define SUCCESS 1
 #define CANT_RUN 0
@@ -247,6 +248,7 @@ Scheduler::Scheduler()
 	SchedDInterval = 0;
 	SchedDMinInterval = 0;
 	QueueCleanInterval = 0; JobStartDelay = 0;
+	JobStartCount = DEFAULT_JOB_START_COUNT;
 	MaxJobsRunning = 0;
 	NegotiateAllJobsInCluster = false;
 	JobsStarted = 0;
@@ -425,7 +427,7 @@ Scheduler::timeout()
 
 	/* Call preempt() if we are running more than max jobs; however, do not
 	 * call preempt() here if we are shutting down.  When shutting down, we have
-	 * a timer which is progressively preempting just one job at a time.
+	 * a timer which is progressively preempting NUM_JOBS_START jobs at a time.
 	 */
 
 	int real_jobs = numShadows - SchedUniverseJobsRunning;
@@ -4016,241 +4018,252 @@ Scheduler::StartJobHandler()
 	match_rec* mrec=NULL;
 	shadow_rec* srec;
 
-	// get job from runnable job queue
-	while(!mrec) {	
-		 if (RunnableJobQueue.dequeue(srec)) return;
-		job_id=&srec->job_id;
-		mrec=srec->match;
-		// Check to see if job ad is still around; it may 
-		// have been removed while we were waiting in RunnableJobQueue
-		if ( GetJobAd(job_id->cluster,job_id->proc,false) == NULL ) {
-			// job ad disappeared!  set mrec to NULL so we don't start shadow
-			mrec = NULL;
-		}
-		if (!mrec) {
-			dprintf(D_ALWAYS,
-				"match or classad for job %d.%d was deleted - "
-				"not forking a shadow\n",
-				job_id->cluster,job_id->proc);
-			mark_job_stopped(job_id);
-			RemoveShadowRecFromMrec(srec);
-			delete srec;
-		}
-	}
-
-	ClassAd *jobAd = GetJobAd(job_id->cluster,job_id->proc,false);
-	if(!jobAd) {
-		dprintf(D_ALWAYS,"Couldn't find ClassAd for job %d.%d\n",
-		        job_id->cluster, job_id->proc);
-		tryNextJob();
+	/* If we are trying to exit, don't start any new jobs! */
+	if ( ExitWhenDone ) {
 		return;
 	}
 
-	int universe;
-	if( jobAd->LookupInteger(ATTR_JOB_UNIVERSE,universe)!=1 ) {
-		universe = CONDOR_UNIVERSE_STANDARD;
-	}
-
-	//-------------------------------
-	// Actually fork the shadow
-	//-------------------------------
-
-	int		pid;
-	char	args[_POSIX_ARG_MAX];
-
-	Shadow*	shadow_obj = NULL;
-	int		sh_is_dc = FALSE;
-	char* 	shadow_path = NULL;
-
-#ifdef WIN32
-		// nothing to choose on NT, there's only 1 shadow
-	shadow_path = param("SHADOW");
-	sh_is_dc = TRUE;
-#else
-		// UNIX
-
-	bool old_resource = true;
-	bool nt_resource = false;
- 	char* match_opsys = NULL;
- 	char* match_version = NULL;
- 	if( mrec->my_match_ad ) {
- 		mrec->my_match_ad->LookupString( ATTR_OPSYS, &match_opsys );
-		mrec->my_match_ad->LookupString( ATTR_VERSION, &match_version );
-	}
-	if( match_version ) {
-		CondorVersionInfo ver_info( match_version );
-		if( ver_info.built_since_version(6, 3, 3) ) {
-			old_resource = false;
-		}
-		free( match_version );
-		match_version = NULL;
-	}
-
-	if( match_opsys ) {
-		if( strincmp(match_opsys,"winnt",5) == MATCH ) {
-			nt_resource = true;
-		}
-		free( match_opsys );
-		match_opsys = NULL;
-	}
+	// Start NUM_JOBS_START jobs
+    int start_count = JobStartCount;
+	dprintf(D_FULLDEBUG, "starting %d jobs\n", start_count);
+	while ( start_count-- ) {
 	
-	if( nt_resource ) {
-		shadow_obj = shadow_mgr.findShadow( ATTR_IS_DAEMON_CORE );
+		// get job from runnable job queue
+		while(!mrec) {	
+			 if (RunnableJobQueue.dequeue(srec)) return;
+			job_id=&srec->job_id;
+			mrec=srec->match;
+			// Check to see if job ad is still around; it may 
+			// have been removed while we were waiting in RunnableJobQueue
+			if ( GetJobAd(job_id->cluster,job_id->proc,false) == NULL ) {
+				// job ad disappeared!  set mrec to NULL so we don't start
+				// shadow
+				mrec = NULL;
+			}
+			if (!mrec) {
+				dprintf(D_ALWAYS,
+					"match or classad for job %d.%d was deleted - "
+					"not forking a shadow\n",
+					job_id->cluster,job_id->proc);
+				mark_job_stopped(job_id);
+				RemoveShadowRecFromMrec(srec);
+				delete srec;
+			}
+		}
+	
+		ClassAd *jobAd = GetJobAd(job_id->cluster,job_id->proc,false);
+		if(!jobAd) {
+			dprintf(D_ALWAYS,"Couldn't find ClassAd for job %d.%d\n",
+			        job_id->cluster, job_id->proc);
+			continue;
+		}
+	
+		int universe;
+		if( jobAd->LookupInteger(ATTR_JOB_UNIVERSE,universe)!=1 ) {
+			universe = CONDOR_UNIVERSE_STANDARD;
+		}
+	
+		//-------------------------------
+		// Actually fork the shadow
+		//-------------------------------
+	
+		int		pid;
+		char	args[_POSIX_ARG_MAX];
+	
+		Shadow*	shadow_obj = NULL;
+		int		sh_is_dc = FALSE;
+		char* 	shadow_path = NULL;
+	
+	#ifdef WIN32
+			// nothing to choose on NT, there's only 1 shadow
+		shadow_path = param("SHADOW");
+		sh_is_dc = TRUE;
+	#else
+			// UNIX
+	
+		bool old_resource = true;
+		bool nt_resource = false;
+	 	char* match_opsys = NULL;
+	 	char* match_version = NULL;
+	 	if( mrec->my_match_ad ) {
+	 		mrec->my_match_ad->LookupString( ATTR_OPSYS, &match_opsys );
+			mrec->my_match_ad->LookupString( ATTR_VERSION, &match_version );
+		}
+		if( match_version ) {
+			CondorVersionInfo ver_info( match_version );
+			if( ver_info.built_since_version(6, 3, 3) ) {
+				old_resource = false;
+			}
+			free( match_version );
+			match_version = NULL;
+		}
+	
+		if( match_opsys ) {
+			if( strincmp(match_opsys,"winnt",5) == MATCH ) {
+				nt_resource = true;
+			}
+			free( match_opsys );
+			match_opsys = NULL;
+		}
+		
+		if( nt_resource ) {
+			shadow_obj = shadow_mgr.findShadow( ATTR_IS_DAEMON_CORE );
+			if( ! shadow_obj ) {
+				dprintf( D_ALWAYS, "Trying to run a job on a Windows "
+						 "resource but you do not have a condor_shadow "
+						 "that will work, aborting.\n" );
+				noShadowForJob( srec, NO_SHADOW_WIN32 );
+				continue;
+			}
+		}
+	
 		if( ! shadow_obj ) {
-			dprintf( D_ALWAYS, "Trying to run a job on a Windows "
-					 "resource but you do not have a condor_shadow "
-					 "that will work, aborting.\n" );
-			noShadowForJob( srec, NO_SHADOW_WIN32 );
-			tryNextJob();
-			return;
-		}
-	}
-
-	if( ! shadow_obj ) {
-		switch( universe ) {
-		case CONDOR_UNIVERSE_PVM:
-			EXCEPT( "Trying to spawn a PVM job with StartJobHandler(), "
-					"not start_pvm()!" );
-			break;
-		case CONDOR_UNIVERSE_STANDARD:
-			shadow_obj = shadow_mgr.findShadow( ATTR_HAS_CHECKPOINTING );
-			if( ! shadow_obj ) {
-				dprintf( D_ALWAYS, "Trying to run a STANDARD job but you "
-						 "do not have a condor_shadow that will work, "
-						 "aborting.\n" );
-				noShadowForJob( srec, NO_SHADOW_STD );
-				srec = NULL;
-				tryNextJob();
-				return;
-			}
-			break;
-		case CONDOR_UNIVERSE_VANILLA:
-			if( old_resource ) {
-				shadow_obj = shadow_mgr.findShadow( ATTR_HAS_OLD_VANILLA );
+			switch( universe ) {
+			case CONDOR_UNIVERSE_PVM:
+				EXCEPT( "Trying to spawn a PVM job with StartJobHandler(), "
+						"not start_pvm()!" );
+				break;
+			case CONDOR_UNIVERSE_STANDARD:
+				shadow_obj = shadow_mgr.findShadow( ATTR_HAS_CHECKPOINTING );
 				if( ! shadow_obj ) {
-					dprintf( D_ALWAYS, "Trying to run a VANILLA job on a "
-							 "pre-6.3.3 resource, but you do not have a "
-							 "condor_shadow that will work, aborting.\n" );
-					noShadowForJob( srec, NO_SHADOW_OLD_VANILLA );
-					tryNextJob();
-					return;
+					dprintf( D_ALWAYS, "Trying to run a STANDARD job but you "
+							 "do not have a condor_shadow that will work, "
+							 "aborting.\n" );
+					noShadowForJob( srec, NO_SHADOW_STD );
+					srec = NULL;
+					continue;
 				}
-			} else {
-				shadow_obj = shadow_mgr.findShadow( ATTR_IS_DAEMON_CORE ); 
+				break;
+			case CONDOR_UNIVERSE_VANILLA:
+				if( old_resource ) {
+					shadow_obj = shadow_mgr.findShadow( ATTR_HAS_OLD_VANILLA );
+					if( ! shadow_obj ) {
+						dprintf( D_ALWAYS, "Trying to run a VANILLA job on a "
+								 "pre-6.3.3 resource, but you do not have a "
+								 "condor_shadow that will work, aborting.\n" );
+						noShadowForJob( srec, NO_SHADOW_OLD_VANILLA );
+						continue;
+					}
+				} else {
+					shadow_obj = shadow_mgr.findShadow( ATTR_IS_DAEMON_CORE ); 
+					if( ! shadow_obj ) {
+						dprintf( D_ALWAYS, "Trying to run a VANILLA job on a "
+								 "6.3.3 or later resource, but you do not have "
+								 "condor_shadow that will work, aborting.\n" );
+						noShadowForJob( srec, NO_SHADOW_DC_VANILLA );
+						continue;
+					}
+				}
+				break;
+			case CONDOR_UNIVERSE_JAVA:
+				shadow_obj = shadow_mgr.findShadow( ATTR_HAS_JAVA );
 				if( ! shadow_obj ) {
-					dprintf( D_ALWAYS, "Trying to run a VANILLA job on a "
-							 "6.3.3 or later resource, but you do not have "
-							 "condor_shadow that will work, aborting.\n" );
-					noShadowForJob( srec, NO_SHADOW_DC_VANILLA );
-					tryNextJob();
-					return;
+					dprintf( D_ALWAYS, "Trying to run a JAVA job but you "
+							 "do not have a condor_shadow that will work, "
+							 "aborting.\n" );
+					noShadowForJob( srec, NO_SHADOW_JAVA );
+					continue;
 				}
+				break;
+			default:
+				EXCEPT( "StartJobHandler() does not support %d universe jobs",
+						universe );
 			}
-			break;
-		case CONDOR_UNIVERSE_JAVA:
-			shadow_obj = shadow_mgr.findShadow( ATTR_HAS_JAVA );
-			if( ! shadow_obj ) {
-				dprintf( D_ALWAYS, "Trying to run a JAVA job but you "
-						 "do not have a condor_shadow that will work, "
-						 "aborting.\n" );
-				noShadowForJob( srec, NO_SHADOW_JAVA );
-				tryNextJob();
-				return;
-			}
-			break;
-		default:
-			EXCEPT( "StartJobHandler() does not support %d universe jobs",
-					universe );
 		}
-	}
-
-	shadow_path = strdup( shadow_obj->path() );
-	sh_is_dc = (int)shadow_obj->isDC();
-	delete( shadow_obj );
-
-#endif /* ! WIN32 */
-
-	char ipc_dir[_POSIX_PATH_MAX];
-	ipc_dir[0] = '\0';
-	char *send_ad_via_file = param( "IPC_VIA_FILES_DIR" );
-	if ( send_ad_via_file ) {
-		strcat(ipc_dir,send_ad_via_file);
-		char our_ipc_filename[100];
-		sprintf(our_ipc_filename,"%cpid-%u-%d.%d",DIR_DELIM_CHAR,
-			(unsigned int) daemonCore->getpid(),job_id->cluster,job_id->proc);
-		strcat(ipc_dir,our_ipc_filename);
-		free(send_ad_via_file);
-
-		// now write out the job classad to the file
-		ClassAd *job_to_write = GetJobAd(job_id->cluster,job_id->proc);
-
-		priv_state priv = set_condor_priv();
-		FILE *fp_ipc = fopen(ipc_dir,"w");
-		if ( fp_ipc == NULL ) {
-			ipc_dir[0] = '\0';
-		} else {
-			if ( job_to_write->fPrint(fp_ipc) == FALSE ) {
+	
+		shadow_path = strdup( shadow_obj->path() );
+		sh_is_dc = (int)shadow_obj->isDC();
+		delete( shadow_obj );
+	
+	#endif /* ! WIN32 */
+	
+		char ipc_dir[_POSIX_PATH_MAX];
+		ipc_dir[0] = '\0';
+		char *send_ad_via_file = param( "IPC_VIA_FILES_DIR" );
+		if ( send_ad_via_file ) {
+			strcat(ipc_dir,send_ad_via_file);
+			char our_ipc_filename[100];
+			sprintf(our_ipc_filename,"%cpid-%u-%d.%d",DIR_DELIM_CHAR,
+				(unsigned int) daemonCore->getpid(),job_id->cluster,
+				job_id->proc);
+			strcat(ipc_dir,our_ipc_filename);
+			free(send_ad_via_file);
+	
+			// now write out the job classad to the file
+			ClassAd *job_to_write = GetJobAd(job_id->cluster,job_id->proc);
+	
+			priv_state priv = set_condor_priv();
+			FILE *fp_ipc = fopen(ipc_dir,"w");
+			if ( fp_ipc == NULL ) {
 				ipc_dir[0] = '\0';
+			} else {
+				if ( job_to_write->fPrint(fp_ipc) == FALSE ) {
+					ipc_dir[0] = '\0';
+				}
+				fclose(fp_ipc);
 			}
-			fclose(fp_ipc);
+			set_priv(priv);
+			if ( ipc_dir[0] == '\0' ) {
+				dprintf(D_ALWAYS,
+					"Unable to write classad into file %s, using socket\n",
+					our_ipc_filename);
+			}
 		}
-		set_priv(priv);
-		if ( ipc_dir[0] == '\0' ) {
-			dprintf(D_ALWAYS,
-				"Unable to write classad into file %s, using socket\n",
-				our_ipc_filename);
+	
+		if ( sh_is_dc ) {
+			sprintf(args, "condor_shadow -f %s %s %s %d %d", MyShadowSockName, 
+					mrec->peer, mrec->id, job_id->cluster, job_id->proc);
+		} else {
+			sprintf(args, "condor_shadow %s %s %s %d %d %s", MyShadowSockName, 
+					mrec->peer, mrec->id, job_id->cluster, job_id->proc,
+					ipc_dir);
 		}
-	}
+	
+	        /* Get shadow's nice increment: */
+	    char *shad_nice = param( "SHADOW_RENICE_INCREMENT" );
+	    int niceness = 0;
+	    if ( shad_nice ) {
+	        niceness = atoi( shad_nice );
+	        free( shad_nice );
+	    }
+	
+		/* Print out the current priv state, for debugging. */
+		priv_state current_priv = set_root_priv();
+		set_priv(current_priv);
+	
+		dprintf(D_FULLDEBUG,
+			"About to Create_Process(%s, ...).  Current priv state: %d\n",
+			shadow_path, current_priv);
+	
+		/* We should create the Shadow as PRIV_ROOT so it can read it if
+		   it needs too.  This used to be PRIV_UNKNOWN, which was determined
+		   to be definately not what we wanted.  -Ballard 2/3/00 */
+		pid = daemonCore->Create_Process(shadow_path, args, PRIV_ROOT, 1, 
+	                                     sh_is_dc, NULL, NULL, FALSE, NULL,
+										 NULL, niceness );
+	
+		if (pid == FALSE) {
+			dprintf( D_FAILURE|D_ALWAYS, "CreateProcess(%s, %s) failed\n", 
+					 shadow_path, args );
+			pid = -1;
+		} 
+		free( shadow_path );
+	
+		if( pid < 0 ) {
+			mark_job_stopped(job_id);
+			RemoveShadowRecFromMrec(srec);
+			delete srec;
+		} else {
+			dprintf( D_ALWAYS, "Started shadow for job %d.%d on \"%s\", "
+					 "(shadow pid = %d)\n", job_id->cluster, job_id->proc,
+					 mrec->peer, pid );
+			srec->pid=pid;
+			add_shadow_rec(srec);
+		}
 
-	if ( sh_is_dc ) {
-		sprintf(args, "condor_shadow -f %s %s %s %d %d", MyShadowSockName, 
-				mrec->peer, mrec->id, job_id->cluster, job_id->proc);
-	} else {
-		sprintf(args, "condor_shadow %s %s %s %d %d %s", MyShadowSockName, 
-				mrec->peer, mrec->id, job_id->cluster, job_id->proc, ipc_dir);
-	}
+	} // Start NUM_JOBS_START jobs
 
-        /* Get shadow's nice increment: */
-    char *shad_nice = param( "SHADOW_RENICE_INCREMENT" );
-    int niceness = 0;
-    if ( shad_nice ) {
-        niceness = atoi( shad_nice );
-        free( shad_nice );
-    }
-
-	/* Print out the current priv state, for debugging. */
-	priv_state current_priv = set_root_priv();
-	set_priv(current_priv);
-
-	dprintf(D_FULLDEBUG,
-		"About to Create_Process(%s, ...).  Current priv state: %d\n",
-		shadow_path, current_priv);
-
-	/* We should create the Shadow as PRIV_ROOT so it can read it if
-	   it needs too.  This used to be PRIV_UNKNOWN, which was determined
-	   to be definately not what we wanted.  -Ballard 2/3/00 */
-	pid = daemonCore->Create_Process(shadow_path, args, PRIV_ROOT, 1, 
-                                     sh_is_dc, NULL, NULL, FALSE, NULL, NULL, 
-                                     niceness );
-
-	if (pid == FALSE) {
-		dprintf( D_FAILURE|D_ALWAYS, "CreateProcess(%s, %s) failed\n", 
-				 shadow_path, args );
-		pid = -1;
-	} 
-	free( shadow_path );
-
-	if( pid < 0 ) {
-		mark_job_stopped(job_id);
-		RemoveShadowRecFromMrec(srec);
-		delete srec;
-	} else {
-		dprintf( D_ALWAYS, "Started shadow for job %d.%d on \"%s\", "
-				 "(shadow pid = %d)\n", job_id->cluster, job_id->proc,
-				 mrec->peer, pid );
-		srec->pid=pid;
-		add_shadow_rec(srec);
-	}
+	// Try to submit more jobs, after first waiting for JOB_START_DELAY
 	tryNextJob();
 }
 
@@ -6170,7 +6183,18 @@ Scheduler::Init()
 		JobStartDelay = atoi( tmp );
 		free( tmp );
 	}
-	
+
+	tmp = param("tmp");
+    if ( tmp ) {
+        JobStartCount = atoi( tmp );
+        free( tmp );
+    }
+	if (JobStartCount < 1) {
+		dprintf(D_ALWAYS, "%s value %d is illegal, restoring value to %d\n",
+				"JOB_START_COUNT", JobStartCount, DEFAULT_JOB_START_COUNT);
+		JobStartCount = DEFAULT_JOB_START_COUNT;
+	}
+
 	tmp = param( "MAX_JOBS_RUNNING" );
 	if( ! tmp ) {
 		MaxJobsRunning = 200;
@@ -6553,9 +6577,9 @@ Scheduler::reconfig()
 
 // This function is called by a timer when we are shutting down
 void
-Scheduler::preempt_one_job()
+Scheduler::preempt_jobs()
 {
-	preempt(1);
+	preempt(JobStartCount);
 }
 
 // Perform graceful shutdown.
@@ -6580,8 +6604,8 @@ Scheduler::shutdown_graceful()
 	MaxJobsRunning = 0;
 	ExitWhenDone = TRUE;
 	daemonCore->Register_Timer(0,JobStartDelay,
-					(TimerHandlercpp)&Scheduler::preempt_one_job,
-					"preempt_one_job()", this );
+					(TimerHandlercpp)&Scheduler::preempt_jobs,
+					"preempt_jobs()", this );
 }
 
 // Perform fast shutdown.
@@ -7093,6 +7117,7 @@ Scheduler::dumpState(int, Stream* s) {
 	intoAd ( ad, "SchedDInterval", SchedDInterval );
 	intoAd ( ad, "QueueCleanInterval", QueueCleanInterval );
 	intoAd ( ad, "JobStartDelay", JobStartDelay );
+	intoAd ( ad, "JobStartCount", JobStartCount );
 	intoAd ( ad, "MaxJobsRunning", MaxJobsRunning );
 	intoAd ( ad, "JobsStarted", JobsStarted );
 	intoAd ( ad, "SwapSpace", SwapSpace );
