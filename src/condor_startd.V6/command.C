@@ -1172,7 +1172,7 @@ caRequestCODClaim( Stream *s, char* cmd_str, ClassAd* req_ad )
 		// a complete resource ad (like what we'd send to the
 		// collector), and include the ClaimID  
 	ClassAd reply;
-	rip->publish( &reply, A_PUBLIC | A_ALL | A_EVALUATED );
+	rip->publish( &reply, A_PUBLIC | A_ALL | A_EVALUATED | A_SHARED_VM );
 
 	MyString line;
 	line = ATTR_CLAIM_ID;
