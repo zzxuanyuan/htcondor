@@ -971,6 +971,7 @@ void MirrorJob::ProcessRemoteAdActive( ClassAd *remote_ad )
 	diff_ad->Delete( ATTR_SERVER_TIME );
 	diff_ad->Delete( ATTR_WANT_MATCHING );
 	diff_ad->Delete( ATTR_GLOBAL_JOB_ID );
+	diff_ad->Delete( ATTR_JOB_NOTIFICATION );
 
 	// Remove attributes that were renamed by the remote schedd because
 	// of moving the job's sandbox. These can be identified by looking
