@@ -46,6 +46,8 @@
 #include "condor_common.h"
 
 #include <stdio.h>
+#undef va_start
+#undef va_end
 #include <varargs.h>
 #include <time.h>
 #include <errno.h>
