@@ -65,9 +65,12 @@ convert_FileInfoList_to_Array(struct soap * soap,
                               struct FileInfoArray & array)
 {
   array.__size = list.Number();
+	  //XXX: What if list.Number() == 0?
   array.__ptr = (struct condor__FileInfo *) soap_malloc(soap, array.__size * sizeof(struct condor__FileInfo));
 
   if (NULL == array.__ptr) {
+	  EXCEPT("No memory to create array.__ptr.");
+
 	  return false;
   }
 
@@ -76,11 +79,12 @@ convert_FileInfoList_to_Array(struct soap * soap,
   for (int i = 0; list.Next(info); i++) {
 		  /* It would be easier to use strdup, but we'd leak memory.
 			 array.__ptr[i].name = strdup(info->name.GetCStr()); */
-	array.__ptr[i].name = (char *) soap_malloc(soap, info->name.Length() * sizeof(char));
+	array.__ptr[i].name = strdup(info->name.GetCStr());
+/*	array.__ptr[i].name = (char *) soap_malloc(soap, info->name.Length() * sizeof(char));
 	if (NULL == array.__ptr[i].name) {
 		return false;
 	}
-	strcpy(array.__ptr[i].name, info->name.GetCStr());
+	strcpy(array.__ptr[i].name, info->name.GetCStr());*/
     array.__ptr[i].size = (int) info->size;
   }
 
@@ -395,6 +399,9 @@ condor__newJob(struct soap *s,
     } else {
       // Create a Job for this new job.
       Job *job = new Job(clusterId, result.response.integer);
+	  if (!job) {
+		  EXCEPT("No memory to create new job.");
+	  }
       if (insertJob(clusterId, result.response.integer, job)) {
         result.response.status.code = FAIL;
       } else {
@@ -692,36 +699,47 @@ int condor__getFile(struct soap *soap,
                           int length,
                           struct condor__getFileResponse & result)
 {
-  dprintf(D_ALWAYS,"SOAP entering condor__getFile() \n");
+	dprintf(D_ALWAYS,"SOAP entering condor__getFile() \n");
 
-  if (!valid_transaction(transaction) &&
-      !null_transaction(transaction)) {
-    // TODO error - unrecognized transactionId
-    result.response.status.code = INVALIDTRANSACTION;
-  } else {
-    extendTransaction(transaction);
+	if (!valid_transaction(transaction) &&
+		!null_transaction(transaction)) {
+			// TODO error - unrecognized transactionId
+		result.response.status.code = INVALIDTRANSACTION;
+	} else {
+		extendTransaction(transaction);
 
-    Job *job;
-    if (getJob(clusterId, jobId, job)) {
-      result.response.status.code = UNKNOWNJOB;
-    } else {
-      unsigned char * data =
-        (unsigned char *) soap_malloc(soap, length * sizeof(unsigned char));
-      if (0 == job->get_file(MyString(name),
-                             offset,
-                             length,
-                             data)) {
-        result.response.status.code = SUCCESS;
-        
-        result.response.data.__ptr = data;
-        result.response.data.__size = length;
-      } else {
-        result.response.status.code = FAIL;
-      }
-    }
-  }
+		Job *job;
+		if (getJob(clusterId, jobId, job)) {
+			result.response.status.code = UNKNOWNJOB;
+		} else {
+			if (0 >= length) {
+				result.response.status.code = FAIL;
+				result.response.status.message = "LENGTH must be >= 0";
+				dprintf(D_ALWAYS, "length is <= 0: %d\n", length);
+			} else {
+				unsigned char * data =
+					(unsigned char *) soap_malloc(soap, length * sizeof(unsigned char));
+				if (!data) {
+					EXCEPT("Failed to allocate data.");
+				}
+				int status;
+				if (0 == (status = job->get_file(MyString(name),
+												 offset,
+												 length,
+												 data))) {
+					result.response.status.code = SUCCESS;
 
-  return SOAP_OK;
+					result.response.data.__ptr = data;
+					result.response.data.__size = length;
+				} else {
+					result.response.status.code = FAIL;
+					dprintf(D_ALWAYS, "get_file failed: %d\n", status);
+				}
+			}
+		}
+	}
+
+	return SOAP_OK;
 }
 
 int condor__closeSpool(struct soap *soap,
@@ -768,6 +786,9 @@ condor__listSpool(struct soap * soap,
 		Job *job;
 		if (getJob(clusterId, jobId, job)) {
 			job = new Job(clusterId, jobId);
+			if (!job) {
+				EXCEPT("No memory to create new job.");
+			}
 		}
 
 		List<FileInfo> files;
@@ -784,8 +805,7 @@ condor__listSpool(struct soap * soap,
 				dprintf(D_ALWAYS, "listSpool: convert_FileInfoList_to_Array FAILED\n");
 			}
 		}
-
-		delete job;
+			//delete job; // XXX: Only if it is the temp one.
 	}
 
 		// XXX: Leaking the "files"?
@@ -827,6 +847,9 @@ condor__discoverJobRequirements(struct soap *soap,
   result.response.requirements.__size = inputFiles.number();
   result.response.requirements.__ptr =
     (condor__Requirement *) soap_malloc(soap, result.response.requirements.__size * sizeof(condor__Requirement));
+  if (!result.response.requirements.__ptr) {
+	  EXCEPT("No memory to create result.response.requirements.__ptr.");
+  }
   inputFiles.rewind();
   int i = 0;
   while ((buffer = inputFiles.next()) &&
