@@ -6,4 +6,4 @@ sbin/condor_restart
 bin/condor_config_val
 bin/condor_userlog
 sbin/condor_preen
-CONDOR_LICENSE
+license/CONDOR_LICENSE.txt
