@@ -28,6 +28,7 @@
 #include "condor_io.h"
 #include "condor_classad.h"
 #include "condor_collector.h"
+#include "condor_secman.h"
 #include "daemon_types.h"
 #include "KeyCache.h"
 
@@ -316,13 +317,8 @@ private:
 	daemon_t _type;
 	bool _is_local;
 	bool _tried_locate;
-	bool _auth_cap_known;
-	bool _is_auth_cap;
+	SecMan _sec_man;
 
-// these should be made private, with accessor functions
-public:
-	static KeyCache  *enc_key_cache;
-	static int       enc_key_daemon_ref_count;
 
 private:
 		// //////////////////////////////////////////////////////////
