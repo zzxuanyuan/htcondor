@@ -82,11 +82,15 @@ Starter::initRunData( void )
 	s_pidfamily = NULL;
 	s_birthdate = 0;
 	s_last_snapshot = 0;
+	s_kill_tid = -1;
+
 }
 
 
 Starter::~Starter()
 {
+	cancelKillTimer();
+
 	if (s_path) {
 		delete [] s_path;
 	}
@@ -515,6 +519,9 @@ Starter::spawn( start_info_t* info, time_t now )
 void
 Starter::exited()
 {
+		// Make sure our time isn't going to go off.
+	cancelKillTimer();
+
 		// Just for good measure, try to kill what's left of our whole
 		// pid family.  
 	s_procfam->hardkill();
@@ -747,3 +754,93 @@ Starter::printInfo( int debug_level )
 	}
 	dprintf( debug_level | D_NOHEADER, "*** End of starter info ***\n" ); 
 }
+
+
+bool
+Starter::killHard( void )
+{
+	if( ! active() ) {
+		return true;
+	}
+	if( kill( DC_SIGHARDKILL ) < 0 ) {
+		killpg( SIGKILL );
+		return false;
+	}
+	startKillTimer();
+	return true;
+}
+
+
+bool
+Starter::killSoft( void )
+{
+	if( ! active() ) {
+		return true;
+	}
+	if( kill( DC_SIGSOFTKILL ) < 0 ) {
+		killpg( SIGKILL );
+		return false;
+	}
+	return true;
+}
+
+
+int
+Starter::startKillTimer( void )
+{
+	if( s_kill_tid >= 0 ) {
+			// Timer already started.
+		return TRUE;
+	}
+	s_kill_tid = 
+		daemonCore->Register_Timer( killing_timeout,
+						0, 
+						(TimerHandlercpp)&Starter::sigkillStarter,
+						"sigkillStarter", this );
+	if( s_kill_tid < 0 ) {
+		EXCEPT( "Can't register DaemonCore timer" );
+	}
+	return TRUE;
+}
+
+
+void
+Starter::cancelKillTimer( void )
+{
+	int rval;
+	if( s_kill_tid != -1 ) {
+		rval = daemonCore->Cancel_Timer( s_kill_tid );
+		if( rval < 0 ) {
+			dprintf( D_ALWAYS, 
+					 "Failed to cancel hardkill-starter timer (%d): "
+					 "daemonCore error\n", s_kill_tid );
+		} else {
+			dprintf( D_FULLDEBUG, "Canceled hardkill-starter timer (%d)\n",
+					 s_kill_tid );
+		}
+		s_kill_tid = -1;
+	}
+}
+
+
+int
+Starter::sigkillStarter( void )
+{
+		// Now that the timer has gone off, clear out the tid.
+	s_kill_tid = -1;
+
+	if( active() ) {
+		dprintf( D_ALWAYS, "starter (pid %d) is not responding to the "
+				 "request to hardkill its job.  The startd will now "
+				 "directly hard kill the starter and all its "
+				 "decendents.\n", s_pid );
+
+			// Kill all of the starter's children.
+		killkids( SIGKILL );
+
+			// Kill the starter's entire process group.
+		return killpg( SIGKILL );
+	}
+	return TRUE;
+}
+

@@ -57,7 +57,6 @@ Resource::Resource( CpuAttributes* cap, int rid )
 	r_attr = cap;
 	r_attr->attach( this );
 
-	kill_tid = -1;
 	update_tid = -1;
 	r_is_deactivating = false;
 	update_sequence = 0;
@@ -94,8 +93,6 @@ Resource::Resource( CpuAttributes* cap, int rid )
 
 Resource::~Resource()
 {
-	this->cancel_kill_timer();
-
 	if ( update_tid != -1 ) {
 		if( daemonCore->Cancel_Timer(update_tid) < 0 ) {
 			::dprintf( D_ALWAYS, "failed to cancel update timer (%d): "
@@ -259,28 +256,7 @@ Resource::hardkill_starter( void )
 	if( ! r_starter || ! r_starter->active() ) {
 		return TRUE;
 	}
-	if( r_starter->kill( DC_SIGHARDKILL ) < 0 ) {
-		r_starter->killpg( SIGKILL );
-		return FALSE;
-	} else {
-		start_kill_timer();
-		return TRUE;
-	}
-}
-
-
-int
-Resource::sigkill_starter( void )
-{
-		// Now that the timer has gone off, clear out the tid.
-	kill_tid = -1;
-	if( r_starter && r_starter->active() ) {
-			// Kill all of the starter's children.
-		r_starter->killkids( SIGKILL );
-			// Kill the starter's entire process group.
-		return r_starter->killpg( SIGKILL );
-	}
-	return TRUE;
+	return (int)r_starter->killHard();
 }
 
 
@@ -307,10 +283,6 @@ Resource::starter_exited( void )
 
 		// Let our starter object know it's starter has exited.
 	r_starter->exited();
-
-		// Now that this starter has exited, cancel the timer that
-		// would send it SIGKILL.
-	cancel_kill_timer();
 
 		// now we can actually delete the starter object
 	delete( r_starter );
@@ -595,43 +567,6 @@ Resource::eval_and_update( void )
 	update();
 
 	return TRUE;
-}
-
-
-int
-Resource::start_kill_timer( void )
-{
-	if( kill_tid >= 0 ) {
-			// Timer already started.
-		return TRUE;
-	}
-	kill_tid = 
-		daemonCore->Register_Timer( killing_timeout,
-						0, 
-						(TimerHandlercpp)&Resource::sigkill_starter,
-						"sigkill_starter", this );
-	if( kill_tid < 0 ) {
-		EXCEPT( "Can't register DaemonCore timer" );
-	}
-	return TRUE;
-}
-
-
-void
-Resource::cancel_kill_timer( void )
-{
-	int rval;
-	if( kill_tid != -1 ) {
-		rval = daemonCore->Cancel_Timer( kill_tid );
-		if( rval < 0 ) {
-			dprintf( D_ALWAYS, "Failed to cancel kill timer (%d): "
-					 "daemonCore error\n", kill_tid );
-		} else {
-			dprintf( D_FULLDEBUG, "Canceled claim timer (%d)\n",
-					 kill_tid );
-		}
-		kill_tid = -1;
-	}
 }
 
 

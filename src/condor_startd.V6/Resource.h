@@ -59,9 +59,6 @@ public:
 		// killing_timeout seconds.  
 	int		hardkill_starter( void );
 
-		// Send SIGKILL to starter + process group 
-	int		sigkill_starter( void );
-	
 		// Resource state methods
 	void	set_destination_state( State s ) { r_state->set_destination(s);};
 	State	destination_state( void ) {return r_state->destination();};
@@ -129,10 +126,6 @@ public:
 	void	final_update( void );		// Send a final update to the CM
 									    // with Requirements = False.
 
-		// Methods to control various timers 
-	int		start_kill_timer( void );	// Timer for how long we're willing to 
-	void	cancel_kill_timer( void );	// be in preempting/killing state. 
-
  		// Helper functions to evaluate resource expressions
 	int		wants_vacate( void );		// EXCEPT's on undefined
 	int		wants_suspend( void );		// EXCEPT's on undefined
@@ -163,7 +156,6 @@ public:
 	int				type( void ) { return r_attr->type(); };
 
 private:
-	int			kill_tid;	// DaemonCore timer id for kiling timer.
 	int			update_tid;	// DaemonCore timer id for update delay
 	unsigned	update_sequence;	// Update sequence number
 

@@ -39,7 +39,7 @@ typedef struct jobstartinfo {
 	Stream* shadowCommandSock;
 } start_info_t;
 
-class Starter
+class Starter : public Service
 {
 public:
 	Starter();
@@ -65,6 +65,13 @@ public:
 	void	recompute_pidfamily( time_t now = 0 );
 	void	set_last_snapshot( time_t val ) { s_last_snapshot = val; };
 
+	bool	killHard( void );
+	bool	killSoft( void );
+
+		// Send SIGKILL to starter + process group (called by our kill
+		// timer if we've been hardkilling too long).
+	int		sigkillStarter( void );
+
 	void	publish( ClassAd* ad, amask_t mask, StringList* list );
 
 	bool	satisfies( ClassAd* job_ad, ClassAd* mach_ad );
@@ -86,6 +93,10 @@ private:
 	int		exec_starter(char*, char*, Stream*);
 	void	initRunData( void );
 
+	int		startKillTimer( void );	    // Timer for how long we're willing 
+	void	cancelKillTimer( void );	// to "hardkill" before we SIGKILL
+
+
 		// data that will be the same across all instances of this
 		// starter (i.e. things that are valid for copying)
 	ClassAd* s_ad;
@@ -101,7 +112,7 @@ private:
 	ProcFamily*	s_procfam;
 	time_t	s_birthdate;
 	time_t	s_last_snapshot;
-
+	int		s_kill_tid;		// DC timer id for hard killing
 };
 
 #endif /* _CONDOR_STARTD_STARTER_H */
