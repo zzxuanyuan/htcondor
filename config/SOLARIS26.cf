@@ -21,10 +21,6 @@
 #define		Platform		SUN4X-SOLARIS26
 #endif
 
-#ifndef SC_VERS
-#define SC_VERS SC4.2
-#endif
-
 #define PlatformFlags	-DSolaris26=Solaris26
 
 #define PlatformLdFlags -ldl -lkstat -lelf -lsocket -lnsl -lm -lc -lresolv \

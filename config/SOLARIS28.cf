@@ -19,10 +19,6 @@
 #define HAS_OPENSSL			YES
 #endif
 
-#ifndef SC_VERS
-#define SC_VERS SC5.0
-#endif
-
 #define IS_CLIPPED NO
 
 #define PlatformFlags	-DSolaris28=Solaris28

@@ -119,8 +119,3 @@
 ** Shared things we only can do after we get the version/arch specific 
 ** settings defined. 
 **************************************************************************/
-
-#ifndef CrtLibPath
-#define CrtLibPath concat3(/opt/SUNWspro/,SC_VERS,/lib)
-#endif
-
