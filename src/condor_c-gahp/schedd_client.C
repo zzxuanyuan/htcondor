@@ -42,11 +42,14 @@
 // Schedd contact timeout
 #define QMGMT_TIMEOUT 15
 
+
 // How often we contact the schedd (secs)
-#define CONTACT_SCHEDD_INTERVAL 20
+int contact_schedd_interval = 20;
+
 
 // How often we check results in the pipe (secs)
-#define CHECK_REQUEST_PIPE_INTERVAL 5
+int check_requests_interval = 5;
+
 
 // Pointer to a socket open for QMGMT operations
 extern ReliSock* qmgmt_sock;
@@ -82,11 +85,11 @@ schedd_thread (void * arg, Stream * sock) {
 	request_buffer.setFd( REQUEST_INBOX );
 
     // Just set up timers....
-    contactScheddTid = daemonCore->Register_Timer( CONTACT_SCHEDD_INTERVAL,
+    contactScheddTid = daemonCore->Register_Timer( contact_schedd_interval,
 										(TimerHandler)&doContactSchedd,
 										"doContactSchedD", NULL );
 
-	checkRequestPipeTid = daemonCore->Register_Timer( CHECK_REQUEST_PIPE_INTERVAL,
+	checkRequestPipeTid = daemonCore->Register_Timer( check_requests_interval,
 										(TimerHandler)&checkRequestPipe,
 										"checkRequestPipe", NULL );
 
@@ -148,7 +151,7 @@ checkRequestPipe () {
 	time_t time2 = time (NULL);
 
 	// Come back soon....
-	int next_contact_interval = CHECK_REQUEST_PIPE_INTERVAL - (time2 - time1);
+	int next_contact_interval = check_requests_interval - (time2 - time1);
 	if (next_contact_interval < 0)
 		next_contact_interval = 1;
 	daemonCore->Reset_Timer ( checkRequestPipeTid, next_contact_interval);
@@ -162,7 +165,7 @@ int
 doContactSchedd()
 {
 	if (command_queue.IsEmpty()) {
-		daemonCore->Reset_Timer( contactScheddTid, CONTACT_SCHEDD_INTERVAL ); // Come back in a min
+		daemonCore->Reset_Timer( contactScheddTid, contact_schedd_interval ); // Come back in a min
 		return TRUE;
 	}
 
@@ -640,7 +643,7 @@ doContactSchedd()
 
 	// Come back soon..
 	// QUESTION: Should this always be a fixed time period?
-	daemonCore->Reset_Timer( contactScheddTid, CONTACT_SCHEDD_INTERVAL );
+	daemonCore->Reset_Timer( contactScheddTid, contact_schedd_interval );
 	return TRUE;
 
 }

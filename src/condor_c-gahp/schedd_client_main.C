@@ -26,14 +26,20 @@
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
 #include "basename.h"
 #include "globus_utils.h"
+#include "condor_config.h"
 
 #include "schedd_client.h"
 #include "io_loop.h"
 
 
+// How often we contact the schedd (secs)
+extern int contact_schedd_interval;
+
+// How often we check results in the pipe (secs)
+extern int check_requests_interval;
 
 
-char *mySubSystem = "SCHEDD_CLIENT";	// used by Daemon Core
+char *mySubSystem = "C_GAHP";	// used by Daemon Core
 
 char * myUserName = NULL;
 
@@ -172,6 +178,9 @@ io_loop_reaper (Service*, int pid, int exit_status) {
 
 void
 Init() {
+	contact_schedd_interval = param_integer ("C_GAHP_CONTACT_SCHEDD_DELAY", 20);
+	check_requests_interval = param_integer ("C_GAHP_CHECK_NEW_REQUESTS_DELAY", 5);
+
 }
 
 void

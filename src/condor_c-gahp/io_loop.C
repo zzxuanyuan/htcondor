@@ -86,18 +86,6 @@ io_loop(void * arg, Stream * sock) {
 			return 1;
 		}
 
-		if (is_ready[2]) {
-			// Worker is ready for more requests
-			char dummy;
-			worker_ready=true;
-			read (request_ack_buffer.getFd(), &dummy, 1);	// Swallow the "ready" signal
-		}
-
-		if(worker_ready) {
-			if (flush_next_request(inter_thread_io->request_pipe[1])) {
-				worker_ready=false;
-			}
-		}
 
 
 		if (is_ready[0]) {
@@ -187,6 +175,19 @@ io_loop(void * arg, Stream * sock) {
 					return 1;
 			}
 		} // fi FD_ISSET (stdin)
+
+
+		if (is_ready[2]) {
+			// Worker is ready for more requests
+			char dummy;
+			worker_ready=true;
+			read (request_ack_buffer.getFd(), &dummy, 1);	// Swallow the "ready" signal
+		}
+		if(worker_ready) {
+			if (flush_next_request(inter_thread_io->request_pipe[1])) {
+				worker_ready=false;
+			}
+		}
 
 		if (is_ready[1]) {
 			MyString * line = NULL;
@@ -405,7 +406,7 @@ flush_next_request(int fd) {
 	request_out_buffer.Rewind();
 	char * command;
 	if (request_out_buffer.Next(command)) {
-		dprintf (D_ALWAYS, "Sending %s to worker\n", command);
+		dprintf (D_FULLDEBUG, "Sending %s to worker\n", command);
 		write (  fd, command, strlen (command));
 		write (  fd, "\n", 1);
 
