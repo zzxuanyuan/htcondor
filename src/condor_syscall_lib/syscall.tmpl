@@ -243,17 +243,6 @@ int rename( const char *from, const char *to ) {
 		out xdr_int( kill_sig );
 		alloc( kill_sig, INT_SIZE );
 	}
-
-#if !defined (SWITCH) && !defined(RECEIVER)
-	int pvm_info( const char *response, int mytid ) : pseudo {
-		SEND_PATH( response );
-		ALLOC_PATH( response );
-	}
-
-    int pvm_task_info( int v_pid, int pvm_tid) : pseudo;
-
-    int suspended( int susp ) : pseudo;
-#endif
 		/*
 		This function is intended for setting up the transfer
 		of a whole file via a TCP stream.  This allows more
@@ -382,7 +371,7 @@ int rename( const char *from, const char *to ) {
 		SEND_PATH( path );
 		ALLOC_PATH( path );
 	}
-#	if !defined(SUNOS41) && !defined(ULTRIX43)
+#	if !defined(SUNOS41)
 		int getfsstat( struct statfs buf[], long bufsize, int flags ) {
 			out xdr_opaque( buf, STATFS_ARRAY_SIZE );
 			alloc( buf, bufsize );
@@ -423,11 +412,7 @@ int rename( const char *from, const char *to ) {
 		out xdr_bytes( &grouplist, gidsetsize * GID_T_SIZE, gidsetsize * GID_T_SIZE );
 		alloc( grouplist, gidsetsize * GID_T_SIZE );
 	}
-#if	defined(HPUX9)
-	int	setpgrp();
-#else
 	int setpgrp( int pid, int pgrp );
-#endif
 #	if defined(SUNOS41)
 		int getdents( map(int fd), char *buf, int nbytes ) {
 			out xdr_bytes( &buf, &nbytes, nbytes );
@@ -502,11 +487,7 @@ int rename( const char *from, const char *to ) {
 		alloc( times, TIMEVAL_ARRAY_SIZE );
 	}
 	int gethostid();
-#if defined(HPUX9)
-	int setrlimit( int resource, const  struct rlimit *rlp ) {
-#else
-	int setrlimit( int resource, /* const */ struct rlimit *rlp ) {
-#endif
+	int setrlimit( int resource, struct rlimit *rlp ) {
 		in xdr_rlimit( rlp );
 		alloc( rlp, RLIMIT_SIZE );
 	}
@@ -515,11 +496,7 @@ int rename( const char *from, const char *to ) {
 		alloc( rlp, RLIMIT_SIZE );
 	}
 	pid_t setsid();
-#if defined(HPUX9)
-	int statfs( char *path, struct statfs *buf ) {
-#else
 	int statfs( char *path, struct statfs *buf, int len ) {
-#endif
 		SEND_PATH( path );
 		ALLOC_PATH( path );
 		out xdr_statfs( buf );
@@ -815,8 +792,6 @@ not_supported {
 		in xdr_bytes( &buf, &count, count );
 		alloc( buf, count );
 	}
-
-
 	not_supported {
 		int audit();
 		int auditbin();

@@ -34,9 +34,5 @@
 setegid( egid )
 int		egid;
 {
-#if defined(HPUX9)
-	return setresgid( -1, egid, -1 );
-#else
-	return setregid( -1, egid, -1 );;
-#endif
+	return setregid( -1, egid, -1 );
 }

@@ -1,11 +1,13 @@
-#include <stdio.h>
+#include <iostream.h>
 #include <nlist.h>
+#include <fcntl.h>
 #include <sys/types.h>
 #include <sys/file.h>
+#include <sys/param.h>
 #include <unistd.h>
 #include <sys/utsname.h>
 #include <string.h>
-#include <malloc.h>
+#include <sys/sysinfo.h>
 
 #include "condor_debug.h"
 #include "except.h"
@@ -17,24 +19,31 @@ extern "C"
 {
 	int set_root_euid();
 	int set_condor_euid();
-	int	knlist();
+	int	nlist();
 }
 
 class AixSpecific
 {
 public:
-	AixSpecific();
-	~AixSpecific();
+	AixSpecific() { n_polls = 0; };
 	static struct nlist nl[];   // table for OS symbols
-	int	kd;					// fd for kvm calls
+	int*	kd;					// fd for kvm calls
+	const	int AvgInterval = 60; // Calculate a one minute load average 
+	int     PrevInRunQ, PrevTicks, CurInRunQ, CurTicks;
+	time_t  LastPoll;
+    float   long_avg;
+    time_t  now, elapsed_time;
+    int     n_polls ;
+	void 	poll(int* queue, int* ticks, time_t* poll_time);
 } specific;
 
-enum { X_AVENRUN =0 };
-
+enum { X_SYSINFO =0 };
 struct nlist AixSpecific::nl[] =
-   {
-	{ { "avenrun"}  },
-   };
+    {
+        { "sysinfo" ,0,0,0,0,0},
+        { ""      ,0,0,0,0,0}
+    };
+
 
 Aix::Aix()
 {
@@ -47,11 +56,8 @@ Aix::Aix()
         EXCEPT( "open(/dev/kmem,O_RDONLY,0)" );
     }
     // Get the kernel's name list
-    if( knlist(specific.nl,1,sizeof(struct nlist)) < 0 ) 
-	{
-        set_condor_euid();
-        EXCEPT( "Can't get kernel name list" );
-	}
+    (void)nlist( "/vmunix", specific.nl );
+
 	set_condor_euid();
 }
 
@@ -82,21 +88,69 @@ Aix::readSysParam(const SysParamName sys, char*& buffer, int& size,SysType& t)
 		break;
 
 	case LoadAvg:						// lookup_load_avg()
-		int avenrun[3];
-		off_t addr = specific.nl[X_AVENRUN].n_value;
-        if( lseek(specific.kd,addr,0) != addr ) 
-        {
-            dprintf( D_ALWAYS, "Can't seek to addr 0x%x in /dev/kmem\n", addr );
-            EXCEPT( "lseek in LoadAvg" );
-        }
-        if( read(specific.kd,(void *)avenrun,sizeof (avenrun)) !=sizeof (avenrun))
-        {
-            EXCEPT( "read in LoadAvg" );
-        }
-        size = sizeof(float);
-        t    =  Float;
-        buffer = (char *)new  float[1];
-        *(float *)buffer = ((float)avenrun[0])/ 65536.0;
+    	float   short_avg;
+    	float   weighted_long, weighted_short;
+
+		specific.poll( &specific.CurInRunQ, &specific.CurTicks, &specific.now );
+
+    	if( specific.n_polls == 0 ) 
+		{    			/* first time through, just set things up */
+        	specific.PrevInRunQ = specific.CurInRunQ;
+        	specific.PrevTicks = specific.CurTicks;
+        	specific.LastPoll = specific.now;
+        	specific.n_polls = 1;
+        	short_avg = 1.0;
+        	specific.long_avg = 1.0;
+        	dprintf( D_LOAD, "First Time, returning 1.0\n" );
+			t = Float;
+			size = sizeof(float);
+			buffer = (char *)new float[1];
+			*(float *)buffer = 1.0;
+			break;
+    	}
+    	if( specific.CurTicks == specific.PrevTicks ) 
+		{
+        	dprintf( D_LOAD, "Too short of time to compute avg, returning 
+														%5.2f\n", specific.long_avg );
+			t = Float;
+			size = sizeof(float);
+			buffer = (char *)new float[1];
+			*(float *)buffer = specific.long_avg;
+			break;
+    	}
+    	short_avg = (float)(specific.CurInRunQ - specific.PrevInRunQ) / 
+							(float)(specific.CurTicks - specific.PrevTicks) - 1.0;
+    	specific.elapsed_time = specific.now - specific.LastPoll;
+    	if( specific.n_polls == 1 ) 
+		{    		/* second time through, init long average */
+        	specific.long_avg = short_avg;
+        	specific.PrevInRunQ = specific.CurInRunQ;
+        	specific.PrevTicks = specific.CurTicks;
+        	specific.LastPoll = specific.now;
+        	specific.n_polls = 2;
+        	dprintf( D_LOAD, "Second time, returning %5.2f\n", specific.long_avg );
+			t = Float;
+			size = sizeof(float);
+			buffer = (char *)new float[1];
+			*(float *)buffer = specific.long_avg;
+    	}
+        // after second time through, update long average with new info 
+
+    	weighted_short = short_avg * (float)specific.elapsed_time / (float)specific.AvgInterval;
+    	weighted_long = specific.long_avg *
+                (float)(specific.AvgInterval - specific.elapsed_time) / (float)specific.AvgInterval;
+    	specific.long_avg = weighted_long + weighted_short;
+    	dprintf( D_LOAD, "ShortAvg = %5.2f LongAvg = %5.2f\n",
+                                                        short_avg, specific.long_avg );
+    	dprintf( D_LOAD, "\n" );
+    	specific.PrevInRunQ = specific.CurInRunQ;
+    	specific.PrevTicks = specific.CurTicks;
+    	specific.LastPoll = specific.now;
+
+		t = Float;
+		size = sizeof(float);
+		buffer = (char *)new float[1];
+		*(float *)buffer = specific.long_avg;
 		break;
 #if 0	
 	case SwapSpace:  					// calc_virt_memory()
@@ -153,6 +207,27 @@ Aix::readSysParam(const SysParamName sys, char*& buffer, int& size,SysType& t)
 	set_condor_euid();
 	return 1;
 }
+
+void
+AixSpecific::poll(int*	queue, int*	ticks, time_t*	poll_time)
+{
+    struct sysinfo   info;
+
+    if( lseek(kd,nl[X_SYSINFO].n_value,L_SET) < 0 ) 
+	{
+        perror( "lseek" );
+        exit( 1 );
+    }
+    if( read(kd,(char *)&info,sizeof(struct sysinfo)) < sizeof(struct sysinfo)) 
+	{
+        perror( "read from kmem" );
+        exit( 1 );
+    }
+    *queue = info.runque;
+    *ticks = info.runocc;
+    (void)time( poll_time );
+}
+
 
 // Function to print out system parameter to log file
 void

@@ -211,11 +211,7 @@ void display_ip_addr( unsigned int addr );
 extern int _Ckpt_Via_TCP_Stream;
 
 int
-#if defined(HPUX9)
-_START( int argc, char *argv[], char **envp )
-#else
 MAIN( int argc, char *argv[], char **envp )
-#endif
 {
 	int		cmd_fd = -1;
 	char	*cmd_name;
@@ -230,7 +226,6 @@ MAIN( int argc, char *argv[], char **envp )
 #endif
 
 	_condor_prestart( SYS_REMOTE );
-
 
 
 #define USE_PIPES 0
@@ -319,11 +314,7 @@ MAIN( int argc, char *argv[], char **envp )
 #endif
 
 		/* Now start running user code */
-#if defined(HPUX9)
-	exit(_start( argc, argv, envp ));
-#else
 	main( argc, argv, envp );
-#endif
 }
 
 void
