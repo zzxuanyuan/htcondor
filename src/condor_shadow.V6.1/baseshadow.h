@@ -386,16 +386,6 @@ class BaseShadow : public Service
 		*/
 	void checkSwap( void );
 
-		/** Since the email for most of our events should be so
-			similar, we put the code in a shared method to avoid
-			duplication.
-			@param action String describing the action we're taking
-			@param reason The reason we're taking the action
-			@param subject The subject for the email
-		*/
-	void emailActionEvent( const char* action, const char* reason, 
-						   const char* subject );
-
 		/** See if the job is a) vanilla, b) unix and c) submitted
 			with a 6.3.1 or earlier condor_submit.  if so, it'll have
 			an incorrect default value for ATTR_TRANSFER_FILES of

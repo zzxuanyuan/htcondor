@@ -722,55 +722,16 @@ BaseShadow::requeueJob( const char* reason )
 void
 BaseShadow::emailHoldEvent( const char* reason ) 
 {
-	char subject[256];
-	sprintf( subject, "Condor Job %d.%d put on hold\n", 
-			 getCluster(), getProc() ); 
-	emailActionEvent( "is being put on hold.", reason, subject );
+	Email mailer;
+	mailer.sendHold( jobAd, reason );
 }
 
 
 void
 BaseShadow::emailRemoveEvent( const char* reason ) 
 {
-	char subject[256];
-	sprintf( subject, "Condor Job %d.%d removed\n", 
-			 getCluster(), getProc() ); 
-	emailActionEvent( "is being removed.", reason, subject );
-}
-
-
-void
-BaseShadow::emailActionEvent( const char* action, const char* reason,
-							  const char* subject )
-{
-	FILE* mailer = emailUser( subject );
-	if( ! mailer ) {
-			// nothing to do
-		return;
-	}
-		// Grab a few things out of the job ad we need.
-	char* job_name = NULL;
-	jobAd->LookupString( ATTR_JOB_CMD, &job_name );
-	char* args = NULL;
-	jobAd->LookupString( ATTR_JOB_ARGUMENTS, &args );
-	
-	fprintf( mailer, "Your condor job " );
-		// Only print the args if we have both a name and args.
-		// However, we need to be careful not to leak memory if
-		// there's no job_name.
-	if( job_name ) {
-		fprintf( mailer, "%s ", job_name );
-		if( args ) {
-			fprintf( mailer, "%s ", args );
-		}
-		free( job_name );
-	}
-	if( args ) {
-		free( args );
-	}
-	fprintf( mailer, "\n%s\n\n", action );
-	fprintf( mailer, "%s", reason );
-	email_close(mailer);
+	Email mailer;
+	mailer.sendRemove( jobAd, reason );
 }
 
 
@@ -782,63 +743,6 @@ BaseShadow::emailUser( const char *subjectline )
 		return NULL;
 	}
 	return email_user_open( jobAd, subjectline );
-}
-
-
-FILE*
-BaseShadow::shutDownEmail( int reason ) 
-{
-
-		// everything else we do only makes sense if there is a JobAd, 
-		// so bail out now if there is no JobAd.
-	if ( !jobAd ) {
-		return NULL;
-	}
-
-	// send email if user requested it
-	int notification = NOTIFY_COMPLETE;	// default
-	jobAd->LookupInteger(ATTR_JOB_NOTIFICATION,notification);
-	int send_email = FALSE;
-	switch( notification ) {
-		case NOTIFY_NEVER:
-			break;
-		case NOTIFY_ALWAYS:
-			send_email = TRUE;
-			break;
-		case NOTIFY_COMPLETE:
-			if( (reason == JOB_EXITED) || (reason == JOB_COREDUMPED) ) {
-				send_email = TRUE;
-			}
-			break;
-		case NOTIFY_ERROR:
-				// only send email if the was killed by a signal
-				// and/or core dumped.
-			if( (reason == JOB_COREDUMPED) || 
-				((reason == JOB_EXITED) && (exitedBySignal())) ) {
-                send_email = TRUE;
-			}
-			break;
-		default:
-			dprintf(D_ALWAYS, 
-				"Condor Job %d.%d has unrecognized notification of %d\n",
-				cluster, proc, notification );
-				// When in doubt, better send it anyway...
-			send_email = TRUE;
-			break;
-	}
-
-		// return the mailer 
-	if ( send_email ) {
-		FILE* mailer;
-		char buf[50];
-
-		sprintf( buf, "Condor Job %d.%d", cluster, proc );
-		if ( (mailer=emailUser(buf)) ) {
-			return mailer;
-		}
-	}
-
-	return NULL;
 }
 
 
