@@ -372,14 +372,14 @@ CODMgr::deactivate( Stream* s, ClassAd* req, Claim* claim )
 
 	case CLAIM_IDLE:
 			// it is not activate, so return an error
-		err_msg = "Attempt to deactivate a claim that is not active (";
+		err_msg = "Cannot deactivate a claim that is not active (";
 		err_msg += getClaimStateString( CLAIM_IDLE );
 		err_msg += ')';
 
+		sendErrorReply( s, "CA_DEACTIVATE_CLAIM",
+						CA_INVALID_STATE, err_msg.Value() ); 
 		claim->setRequestStream( NULL );
 		claim->setPendingCmd( -1 );
-		return sendErrorReply( s, "CA_DEACTIVATE_CLAIM",
-							   CA_INVALID_STATE, err_msg.Value() ); 
 		break;
 
 	case CLAIM_RUNNING:
@@ -409,10 +409,10 @@ CODMgr::deactivate( Stream* s, ClassAd* req, Claim* claim )
 
 	}
 		// in general, we're going to have to wait to reply to the
-  		// requesting entity until the starter exists.  even if we're
-		// ready to reply right now, the finishPendingCmd() method will
-		// have deleted the stream, so in all cases, we want
-		// DaemonCore to leave it alone.
+  		// requesting entity until the starter exists.  even if we
+		// just replied, we already deleted the stream by resetting
+		// the stashed stream in the claim object.  so, in all cases,
+		// we want DaemonCore to leave it alone.
 	return KEEP_STREAM;
 }
 
