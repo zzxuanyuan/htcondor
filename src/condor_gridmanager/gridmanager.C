@@ -120,7 +120,7 @@ bool JobMatchesConstraint( const ClassAd *jobad, const char *constraint )
 				 constraint );
 		return false;
 	}
-	tree->EvalTree((AttrList*)jobad, val);           // evaluate the constraint.
+	tree->EvalTree(jobad, val);           // evaluate the constraint.
 	if(!val || val->type != LX_INTEGER) {
 		delete tree;
 		delete val;

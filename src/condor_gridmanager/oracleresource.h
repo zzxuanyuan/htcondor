@@ -30,7 +30,6 @@
 #include "oci.h"
 
 #include "oraclejob.h"
-#include "oracleresource.h"
 
 
 class OracleJob;

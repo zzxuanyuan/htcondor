@@ -450,6 +450,7 @@ int OracleJob::doEvaluateState()
 			} else {
 				rc = doSubmit2();
 				if ( rc >= 0 ) {
+					remoteJobState = ORACLE_JOB_SUBMIT;
 					gmState = GM_SUBMIT_2_SAVE;
 				} else {
 					dprintf(D_ALWAYS,"(%d.%d) job submit 2 failed!\n",
