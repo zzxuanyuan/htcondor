@@ -51,6 +51,7 @@ public:
 	void Display();
 	int Magic() { return magic; }
 	void ResetMagic();
+	int Compare(Header & other);
 private:
 	int		magic;
 	int		n_segs;
@@ -70,6 +71,8 @@ public:
 	long GetLen() { return len; }
 	void MSync();
 	void Display();
+	long TotalPages();
+	int Compare(SegMap &other, int fd, int otherfd);
 private:
 	char		name[14];
 	off_t		file_loc;
@@ -87,8 +90,8 @@ public:
 	int Write( int fd );
 	int Write( const char *name );
 	int Read();
-	int Read( int fd );
-	int Read( const char *name );
+	int Read( int fd ); //non-existent
+	int Read( const char *name ); //nope
 	void Close();
 	void Restore();
 	char *FindSeg( void *addr );
@@ -99,6 +102,8 @@ public:
 	void SetFileName( char *ckpt_name );
 	void SetMode( int syscall_mode );
 	void MSync();
+	int Compare(Image &other);
+
 #if defined(COMPRESS_CKPT)
 	void *FindAltHeap();
 #endif

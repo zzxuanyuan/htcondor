@@ -21,10 +21,11 @@
  * WI 53706-1685, (608) 262-0856 or miron@cs.wisc.edu.
 ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
+
 #include "condor_common.h"
 #include "condor_version.h"
 #include "condor_mmap.h"
-
+#include <math.h>
 #if defined(Solaris)
 #include <netconfig.h>		// for setnetconfig()
 #endif
@@ -253,7 +254,14 @@ Header::Display()
 	DUMP( " ", magic, 0x%X );
 	DUMP( " ", n_segs, %d );
 }
-
+int 
+Header::Compare(Header & other)
+{
+	if (magic!=other.magic  || n_segs!=other.n_segs) {
+		return -1;
+	}
+	return 0;
+}
 void
 SegMap::Init( const char *n, RAW_ADDR c, long l, int p )
 {
@@ -300,6 +308,73 @@ SegMap::Display()
 }
 
 
+//returns the number of pages used in this segment.
+long 
+SegMap::TotalPages()
+{
+	return ((GetLen()/getpagesize())+ ( GetLen()%getpagesize() ==0? 0:1) );
+}
+
+int
+SegMap::Compare(SegMap & other, int fd, int otherfd)
+{
+	//assume that text segments are always equal.
+	if (!strcmp(GetName(), "TEXT")) {
+		return 0;
+	}
+	long myTotalPages, otherTotalPages;
+	long totalMatchingPages=0;
+	myTotalPages=TotalPages();
+	otherTotalPages=other.TotalPages();
+	printf("THIS SEGMENT: \n");
+	Display();
+	printf("OTHER SEGMENT:\n");
+	other.Display();
+	char *pagebuffer=new char[getpagesize()]; 
+	char *otherpagebuffer=new char[getpagesize()];
+	for (int i=0; i< (myTotalPages<otherTotalPages? myTotalPages: otherTotalPages); i++ ){
+		//we will use char pointers.
+		char * p, *op;
+		lseek(fd, file_loc, SEEK_SET);
+		lseek(otherfd, other.file_loc, SEEK_SET);
+	
+
+		memset(pagebuffer, 0, getpagesize());
+		memset(otherpagebuffer, 0 , getpagesize());
+		read(fd,pagebuffer, getpagesize());
+		read(otherfd, otherpagebuffer, getpagesize());
+		p=pagebuffer;
+		op=otherpagebuffer;
+		int bytesMatching=0;
+		for (int j=0; j< getpagesize()/sizeof(char) ; j++ ) {
+			if (*p==*op) {
+				bytesMatching++;
+			}
+			p++;
+			op++;
+		}
+		if (bytesMatching==getpagesize()*sizeof(char)){
+			totalMatchingPages++;
+			printf("Page %d MATCH\n", i);
+		}
+		else {
+			printf("Page %d NOMATCH %d/%d %f\n", i, bytesMatching, getpagesize()*sizeof(char), bytesMatching/(getpagesize()*sizeof(char)));
+		}
+	}
+	delete pagebuffer;
+	delete otherpagebuffer;
+	
+	printf("SEGMENT SUMMARY:\n");
+	printf("%d Matching pages.  %d First pages %d Second pages\n", totalMatchingPages, myTotalPages, otherTotalPages);
+	printf("END SEGMENT SUMMARY\n");
+	
+	if (myTotalPages==otherTotalPages && myTotalPages==totalMatchingPages) {
+		printf("Returning 0\n");
+		return 0;
+	}
+	return -1;
+
+}			
 void
 Image::SetFd( int f )
 {
@@ -912,7 +987,36 @@ Image::MSync()
 		map[i].MSync();
 	}
 }
+//returns !0 if they are different, 0 if they are the same.
 
+int
+Image::Compare(Image &other) 
+{
+	if (head.Compare(other.head)!=0) return -1;
+	int numMatchingSegments=0;
+	//save the positions of the file descriptors:
+	int myOldPos=tell(fd);	
+	int otherOldPos=tell(other.fd);
+	for (int i=0; i< head.N_Segs() ; i++) {
+		if (!map[i].Compare(other.map[i], fd, other.fd)) {
+			numMatchingSegments++;
+		}
+	}
+	lseek(fd, myOldPos, SEEK_SET);
+	lseek(other.fd, otherOldPos, SEEK_SET);
+
+	//return the buffers
+	
+	
+	if ( numMatchingSegments== head.N_Segs() ) {
+		printf("Checkpoints Match Exactly\n");
+		return 0;
+	}
+	else {
+		printf("%d/%d segments match\n", numMatchingSegments, head.N_Segs());
+	}
+	return -1;
+}
 
 /*
   Set up a stream to write our checkpoint information onto, then write
@@ -1101,6 +1205,7 @@ Image::Write( int fd )
 			return -1;
 		}
 		pos += nbytes;
+		dprintf(D_ALWAYS, "THIS IS GREG and JOHN's STUFF\n");
 		dprintf( D_ALWAYS, "Wrote Segment[%d] of type %s -> OK\n", i, map[i].GetName() );
 	}
 

@@ -1,0 +1,22 @@
+CONDOR_LIB_DIR=/local.sleepy.1/gbronner/build/src/release_dir/lib
+CONDOR_COMPILE= condor_compile
+CC=gcc
+CCFLAGS=-g
+MAKE= make
+
+all: grbxxx
+
+# The point of this is
+# First make all of the crap (mostly .o files)
+# then make my driver program .o file
+# then make the library against which my program will linke--this library has to use the new
+# .o files in this directory (talk about horrible build systems....)
+# make release moves all of the crap to the lib dir
+# finally run the whole damn thing through condor compile. This produces a rather plump executable.
+
+grbxxx:
+	$(MAKE)
+	$(MAKE) firstattempt.o
+	cd ../condor_syscall_lib; $(MAKE) ; $(MAKE) release
+	$(CONDOR_COMPILE) -condor_lib $(CONDOR_LIB_DIR) $(CC) $(CCFLAGS) firstattempt.o -o gregxxx
+
