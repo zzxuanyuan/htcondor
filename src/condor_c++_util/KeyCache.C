@@ -43,7 +43,7 @@ KeyCacheEntry::~KeyCacheEntry() {
 	delete_storage();
 }
 
-KeyCacheEntry& KeyCacheEntry::operator=(KeyCacheEntry &copy) {
+KeyCacheEntry& KeyCacheEntry::operator=(const KeyCacheEntry &copy) {
 	if (this != &copy) {
 		delete_storage();
 		_id = strdup(copy._id);
@@ -51,6 +51,7 @@ KeyCacheEntry& KeyCacheEntry::operator=(KeyCacheEntry &copy) {
 		_key = new KeyInfo(*(copy._key));
 		_expiration = copy._expiration;
 	}
+	return *this;
 }
 
 char* KeyCacheEntry::id() {
@@ -96,9 +97,10 @@ KeyCache::~KeyCache() {
 }
 
 	    
-KeyCache::KeyCache& assignment=(const KeyCache& k) {
-	delete_stroage();
+KeyCache& KeyCache::operator=(const KeyCache& k) {
+	delete_storage();
 	key_table = new HashTable<MyString, KeyCacheEntry*>(*(k.key_table));
+	return *this;
 }
 
 void KeyCache::delete_storage() {
@@ -107,15 +109,15 @@ void KeyCache::delete_storage() {
 	}
 }
 
-bool KeyCache::insert(KeyCacheEntry e) {
-	return key_table->insert(e->id(), new KeyCacheEntry(e));
+bool KeyCache::insert(KeyCacheEntry &e) {
+	return key_table->insert(e.id(), new KeyCacheEntry(e));
 }
 
-bool KeyCache::lookup(char* key_id, KeyCacheEntry& e) {
-	return key_table->lookup(key_id, e);
+bool KeyCache::lookup(char *key_id, KeyCacheEntry *&e_ptr) {
+	return key_table->lookup(key_id, e_ptr);
 }
 
-bool KeyCache::remove(char* key_id) {
+bool KeyCache::remove(char *key_id) {
 	return key_table->remove(key_id);
 }
 

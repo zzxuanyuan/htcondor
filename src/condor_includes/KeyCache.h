@@ -40,7 +40,7 @@ class KeyCacheEntry {
     KeyCacheEntry(const KeyCacheEntry &copy);
     ~KeyCacheEntry();
 
-	KeyCacheEntry& operator=(KeyCacheEntry &kc);
+	KeyCacheEntry& operator=(const KeyCacheEntry &kc);
 
     char*                 id();
     struct sockaddr_in *  addr();
@@ -59,6 +59,23 @@ class KeyCacheEntry {
 
 
 
-typedef HashTable<MyString, KeyCacheEntry*> KeyCache;
+class KeyCache {
+public:
+	KeyCache(int nbuckets);
+	KeyCache(const KeyCache&);
+	~KeyCache();
+	
+	KeyCache& operator=(const KeyCache&);
+
+	bool insert(KeyCacheEntry&);
+	bool lookup(char *key_id, KeyCacheEntry*&);
+	bool remove(char *key_id);
+
+private:
+	void delete_storage();
+
+	HashTable<MyString, KeyCacheEntry*> *key_table;
+};
+
 
 #endif
