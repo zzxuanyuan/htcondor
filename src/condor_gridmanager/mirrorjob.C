@@ -177,7 +177,10 @@ ClassAd *ClassAdDiff( ClassAd *old_ad, ClassAd *new_ad )
 			EXCEPT( "ClassAdDiff: new_expr is NULL" );
 		}
 
-		if ( old_expr == NULL || (*old_expr == *new_expr) == false ) {
+		if ( ( old_expr == NULL &&
+			   new_expr->RArg()->MyType() != LX_UNDEFINED ) ||
+			 (*old_expr == *new_expr) == false ) {
+
 			diff_ad->Insert( new_expr->DeepCopy() );
 		}
 	}
@@ -185,7 +188,9 @@ ClassAd *ClassAdDiff( ClassAd *old_ad, ClassAd *new_ad )
 	old_ad->ResetName();
 	while ( (next_name = old_ad->NextNameOriginal()) != NULL ) {
 		MyString buff;
-		if ( new_attr_names.contains_anycase( next_name ) == false ) {
+		if ( new_attr_names.contains_anycase( next_name ) == false && 
+			 old_ad->Lookup( next_name )->RArg()->MyType() != LX_UNDEFINED ) {
+
 			buff.sprintf( "%s = Undefined", next_name );
 			diff_ad->Insert( buff.Value() );
 		}
