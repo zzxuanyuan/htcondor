@@ -16,10 +16,6 @@
 #define SimpleLibC /lib/libc.a
 #define LibC SimpleLibC  
 
-#ifndef YpLib
-#define YpLib
-#endif
-
 #ifndef StaticFlag
 #define StaticFlag -static
 #endif
