@@ -146,6 +146,62 @@ BaseJob *MirrorJobCreate( ClassAd *jobad )
 }
 
 
+ClassAd *ClassAdDiff( ClassAd *old_ad, ClassAd *new_ad )
+{
+	ClassAd *diff_ad;
+	ExprTree *old_expr;
+	ExprTree *new_expr;
+	const char *next_name;
+	StringList new_attr_names;
+
+	if ( old_ad == NULL || new_ad == NULL ) {
+		return NULL;
+	}
+
+	diff_ad = new ClassAd;
+
+	new_ad->ResetName();
+	while ( (next_name = new_ad->NextNameOriginal()) != NULL ) {
+		new_attr_names.append( next_name );
+
+		old_expr = old_ad->Lookup( next_name );
+		new_expr = new_ad->Lookup( next_name );
+
+		if ( new_expr == NULL ) {
+			EXCEPT( "ClassAdDiff: new_expr is NULL" );
+		}
+
+		if ( old_expr == NULL || (*old_expr == *new_expr) == false ) {
+			diff_ad->Insert( new_expr->DeepCopy() );
+		}
+	}
+
+	old_ad->ResetName();
+	while ( (next_name = old_ad->NextNameOriginal()) != NULL ) {
+		MyString buff;
+		if ( new_attr_names.contains_anycase( next_name ) == false ) {
+			buff.sprintf( "%s = Undefined", next_name );
+			diff_ad->Insert( buff.Value() );
+		}
+	}
+
+	return diff_ad;
+}
+
+void ClassAdPatch( ClassAd *orig_ad, ClassAd *diff_ad )
+{
+	ExprTree *diff_expr;
+
+	if ( orig_ad == NULL || diff_ad == NULL ) {
+		return;
+	}
+
+	diff_ad->ResetExpr();
+	while ( (diff_expr = diff_ad->NextExpr()) != NULL ) {
+		orig_ad->Insert( diff_expr->DeepCopy() );
+	}
+}
+
 int MirrorJob::pollMirrorInterval = 300;		// default value
 int MirrorJob::submitInterval = 300;			// default value
 int MirrorJob::gahpCallTimeout = 300;			// default value
