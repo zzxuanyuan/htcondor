@@ -9,9 +9,9 @@ ORACLE_JOB_LIB = /p/condor/workspaces/jfrey/oracle/OraHome1/lib/libclient9.a /p/
 #endif
 
 #if WANT_NORDUGRID_UNIVERSE
-NORDUGRID_JOB_FLAGS = -DNORDUGRID_UNIVERSE -I/p/condor/workspaces/jfrey/ftp_lite/include
-NORDUGRID_JOB_OBJ = nordugridjob.o nordugridresource.o
-NORDUGRID_JOB_LIB = /p/condor/workspaces/jfrey/ftp_lite/lib/libftp_lite.a
+NORDUGRID_JOB_FLAGS = -DNORDUGRID_UNIVERSE -I/p/condor/workspaces/ckireyev/ftp-lite/include
+NORDUGRID_JOB_OBJ = nordugridjob.o nordugridresource.o checksum.o
+NORDUGRID_JOB_LIB = /p/condor/workspaces/ckireyev/ftp-lite/lib/libftp_lite.a
 #endif
 
 CFLAGS = $(STD_C_FLAGS)

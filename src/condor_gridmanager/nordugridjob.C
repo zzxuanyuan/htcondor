@@ -35,7 +35,8 @@
 #include "gridmanager.h"
 #include "nordugridjob.h"
 #include "condor_config.h"
-
+#include "my_hostname.h"
+#include "checksum.h"
 
 // GridManager job states
 #define GM_INIT					0
@@ -114,6 +115,92 @@ template class HashBucket<HashKey, NordugridJob *>;
 
 HashTable <HashKey, NordugridJob *> JobsByRemoteId( HASH_TABLE_SIZE,
 													hashFunction );
+
+////////////////////////////////////////////
+
+/*
+struct ftp_lite_server * 
+_ftp_lite_open_and_auth( const char *host, FILE *log ) {
+	dprintf (D_FULLDEBUG, "==== ftp_lite_open_and_auth(%s)\n", host);
+	return ftp_lite_open_and_auth(host, log);
+}
+
+struct ftp_lite_server * 
+_ftp_lite_open( const char *host, int port, FILE *log ) {
+	dprintf (D_FULLDEBUG, "==== ftp_lite_open(%s)\n", host);
+	return ftp_lite_open( host, port, log );
+}
+
+void 
+_ftp_lite_close( struct ftp_lite_server *server ) {
+	dprintf (D_FULLDEBUG, "==== ftp_lite_close()\n");
+	ftp_lite_close (server);
+}
+
+int _ftp_lite_auth_globus( struct ftp_lite_server *s ) {
+	dprintf (D_FULLDEBUG, "==== ftp_lite_auth_globus()\n");
+	return ftp_lite_auth_globus (s);
+}
+
+
+FILE * 
+_ftp_lite_get( struct ftp_lite_server *s, const char *path, off_t offset ) {
+	dprintf (D_FULLDEBUG, "==== ftp_lite_get ( %s )\n", path);
+	return ftp_lite_get( s, path, offset );
+}
+
+FILE * 
+_ftp_lite_put( struct ftp_lite_server *s, const char *path, off_t offset, size_t size ) {
+	dprintf (D_FULLDEBUG, "==== ftp_lite_put(%s) offset=%d, size=%d\n", path, offset, size);
+	return ftp_lite_put( s, path, offset, size);
+}
+
+FILE * 
+_ftp_lite_list( struct ftp_lite_server *s, const char *path ) {
+	dprintf (D_FULLDEBUG, "==== ftp_lite_list(%s)\n", path);
+	return ftp_lite_list(s, path);
+}
+
+
+int 
+_ftp_lite_done( struct ftp_lite_server *s ) {
+	dprintf (D_FULLDEBUG, "==== ftp_lite_done()\n");
+	return ftp_lite_done(s);
+}
+
+
+int 
+_ftp_lite_delete( struct ftp_lite_server *s, const char *path ) {
+	dprintf (D_FULLDEBUG, "==== ftp_lite_delete(%s)\n", path);
+	return ftp_lite_delete (s, path);
+}
+
+size_t ftp_lite_size( struct ftp_lite_server *s, const char *path );
+
+int ftp_lite_change_dir( struct ftp_lite_server *s, const char *dir );
+int ftp_lite_make_dir( struct ftp_lite_server *s, const char *dir );
+int ftp_lite_delete_dir( struct ftp_lite_server *s, const char *dir );
+int ftp_lite_print_dir( struct ftp_lite_server *s, char **dir );
+
+int ftp_lite_nop( struct ftp_lite_server *s );
+
+int ftp_lite_third_party_transfer( struct ftp_lite_server *source, const char *source_file, struct ftp_lite_server *target, const char *target_file );
+
+
+int 
+_ftp_lite_stream_to_stream( FILE *input, FILE *output ) {
+	dprintf (D_ALWAYS, "==== ftp_lite_stream_to_stream()\n");
+	return ftp_lite_stream_to_stream(input, output);
+}
+
+int 
+_ftp_lite_stream_to_buffer( FILE *input, char **buffer ) {
+	dprintf (D_ALWAYS, "==== ftp_lite_stream_to_buffer()\n");
+	return ftp_lite_stream_to_buffer(input, buffer);
+}
+*/
+
+///////////////////////////////////
 
 void
 rehashRemoteJobId( NordugridJob *job, const char *old_id,
@@ -200,6 +287,8 @@ NordugridJob::NordugridJob( ClassAd *classad )
 	ftp_srvr = NULL;
 	stage_list = NULL;
 	myResource = NULL;
+
+	numExitInfoAttempts = 0;
 
 	// In GM_HOLD, we assume HoldReason to be set only if we set it, so make
 	// sure it's unset when we start.
@@ -431,12 +520,18 @@ int NordugridJob::doEvaluateState()
 			} break;
 		case GM_EXIT_INFO: {
 			rc = doExitInfo();
-			if ( rc == TASK_QUEUED || rc == TASK_IN_PROGRESS ) {
+			if ( rc == TASK_QUEUED ) {
+				break;
+			} else if ( rc == TASK_IN_PROGRESS ) { 
+					// Re-set the timer
+				daemonCore->Reset_Timer( evaluateStateTid, probeInterval );
+				dprintf (D_FULLDEBUG, "Will doExitInfo() again in %d\n", probeInterval);
 				break;
 			} else if ( rc == TASK_FAILED ) {
 				dprintf( D_ALWAYS, "(%d.%d) exit info gathering failed: %s\n",
 						 procID.cluster, procID.proc, errorString.Value() );
-				gmState = GM_CANCEL;
+				gmState = GM_HOLD;
+				errorString = "Unable to gather exit info";
 			} else {
 				gmState = GM_STAGE_OUT;
 			}
@@ -450,11 +545,8 @@ int NordugridJob::doEvaluateState()
 						 procID.cluster, procID.proc, errorString.Value() );
 				gmState = GM_CANCEL;
 			} else {
-				gmState = GM_DONE_SAVE;
-			}
-			} break;
-		case GM_DONE_SAVE: {
-			if ( condorState != HELD && condorState != REMOVED ) {
+					// This technically belongs to GM_STATE_SAVE,
+				    // but you only want to do this once
 				if ( normalExit ) {
 					UpdateJobAdBool( ATTR_ON_EXIT_BY_SIGNAL, 0 );
 					UpdateJobAdInt( ATTR_ON_EXIT_CODE, exitCode );
@@ -462,6 +554,12 @@ int NordugridJob::doEvaluateState()
 					UpdateJobAdBool( ATTR_ON_EXIT_BY_SIGNAL, 1 );
 					UpdateJobAdInt( ATTR_ON_EXIT_SIGNAL, exitCode );
 				}
+
+				gmState = GM_DONE_SAVE;
+			}
+			} break;
+		case GM_DONE_SAVE: {
+			if ( condorState != HELD && condorState != REMOVED ) {
 				JobTerminated();
 				if ( condorState == COMPLETED ) {
 					done = requestScheddUpdate( this );
@@ -518,7 +616,7 @@ int NordugridJob::doEvaluateState()
 			UpdateJobAdString( ATTR_GLOBUS_CONTACT_STRING,
 							   NULL_JOB_CONTACT );
 			requestScheddUpdate( this );
-
+ 
 			if ( condorState == REMOVED ) {
 				gmState = GM_DELETE;
 			} else {
@@ -717,6 +815,7 @@ int NordugridJob::doSubmit( char *&job_id )
 	}
 	tmp_job_id++;
 
+	dprintf (D_FULLDEBUG, "--- ftp_lite_put() offset=%d, size=%d\n", 0, FTP_LITE_WHOLE_FILE);
 	ftp_put_fp = ftp_lite_put( ftp_srvr, "/jobs/new/job", 0,
 							   FTP_LITE_WHOLE_FILE );
 	if ( ftp_put_fp == NULL ) {
@@ -782,9 +881,9 @@ int NordugridJob::doStatus( int &new_remote_state )
 
 	filename.sprintf( "/jobs/%s/%s/status", remoteJobId, NORDUGRID_LOG_DIR );
 
-	status_fp = ftp_lite_get( ftp_srvr, filename.Value(), 0 );
+	status_fp = ::ftp_lite_get( ftp_srvr, filename.Value(), 0 );
 	if ( status_fp == NULL ) {
-		errorString.sprintf( "ftp_lite_get() failed, errno=%d", errno );
+		errorString.sprintf( "ftp_lite_get(%s) failed, errno=%d", filename.Value(), errno );
 		goto doStatus_error_exit;
 	}
 
@@ -811,7 +910,7 @@ int NordugridJob::doStatus( int &new_remote_state )
 		errorString.sprintf( "invalid job status of '%s'", status_buff );
 		goto doStatus_error_exit;
 	}
-
+  
 	return TASK_DONE;
 
  doStatus_error_exit:
@@ -893,6 +992,10 @@ int NordugridJob::doStageIn()
 
 		stage_list->append( STAGE_COMPLETE_FILE );
 
+		char * debug_list = stage_list->print_to_string();
+		dprintf (D_FULLDEBUG, "Will stage in files: %s\n", debug_list);
+		free (debug_list);
+
 		stage_list->rewind();
 	}
 
@@ -907,7 +1010,6 @@ int NordugridJob::doStageIn()
 	curr_filename = stage_list->next();
 
 	if ( curr_filename != NULL ) {
-
 		MyString full_filename;
 		if ( strcmp( curr_filename, STAGE_COMPLETE_FILE ) == 0 ) {
 			full_filename = "/dev/null";
@@ -922,24 +1024,25 @@ int NordugridJob::doStageIn()
 				full_filename = curr_filename;
 			}
 		}
+		dprintf (D_FULLDEBUG, "Transferring input file %s\n", full_filename.Value());
 		curr_file_fp = fopen( full_filename.Value(), "r" );
 		if ( curr_file_fp == NULL ) {
-			errorString = "fopen failed";
+			errorString.sprintf ("Unable to open input file: %s", full_filename.Value());
 			goto doStageIn_error_exit;
 		}
 
-full_filename.sprintf("/jobs/%s",remoteJobId);
-if ( ftp_lite_change_dir( ftp_srvr, full_filename.Value() ) == 0 ) {
-errorString.sprintf( "ftp_lite_change_dir() failed, errno=%d", errno );
-goto doStageIn_error_exit;
-}
+		full_filename.sprintf("/jobs/%s",remoteJobId);
+		if ( ftp_lite_change_dir( ftp_srvr, full_filename.Value() ) == 0 ) {
+			errorString.sprintf( "ftp_lite_change_dir() failed, errno=%d", errno );
+			goto doStageIn_error_exit;
+		}
 
 		full_filename.sprintf( "/jobs/%s/%s", remoteJobId,
 							   basename(curr_filename) );
 		curr_ftp_fp = ftp_lite_put( ftp_srvr, full_filename.Value(), 0,
 									FTP_LITE_WHOLE_FILE );
 		if ( curr_ftp_fp == NULL ) {
-			errorString.sprintf( "ftp_lite_put() failed, errno=%d", errno );
+			errorString.sprintf( "ftp_lite_put(%s) failed, errno=%d", full_filename.Value(), errno );
 			goto doStageIn_error_exit;
 		}
 
@@ -952,6 +1055,7 @@ goto doStageIn_error_exit;
 		fclose( curr_file_fp );
 		curr_file_fp = NULL;
 
+
 		fclose( curr_ftp_fp );
 		curr_ftp_fp = NULL;
 
@@ -962,7 +1066,7 @@ goto doStageIn_error_exit;
 
 		SetEvaluateState();
 		return TASK_IN_PROGRESS;
-	}
+	} // elihw (stage_list->next())
 
 	delete stage_list;
 	stage_list = NULL;
@@ -1053,9 +1157,9 @@ int NordugridJob::doStageOut()
 
 		full_filename.sprintf( "/jobs/%s/%s", remoteJobId,
 							   basename(curr_filename) );
-		curr_ftp_fp = ftp_lite_get( ftp_srvr, full_filename.Value(), 0 );
+		curr_ftp_fp = ::ftp_lite_get( ftp_srvr, full_filename.Value(), 0 );
 		if ( curr_ftp_fp == NULL ) {
-			errorString.sprintf( "ftp_lite_get() failed, errno=%d", errno );
+			errorString.sprintf( "ftp_lite_get( %s ) failed, errno=%d", full_filename.Value(), errno );
 			goto doStageOut_error_exit;
 		}
 
@@ -1104,9 +1208,15 @@ int NordugridJob::doStageOut()
 int NordugridJob::doExitInfo()
 {
 	MyString diag_filename;
-	char diag_buff[256];
+	char diag_buff[5000];
 	FILE *diag_fp = NULL;
 	int rc;
+
+	int line_count=0;
+	bool found_status = false;
+	char * pstatus;
+	const char * search_for = "finished with status ";
+	bool doftp_lite_done = false;
 
 	rc = myResource->AcquireConnection( this, ftp_srvr );
 	if ( rc == ACQUIRE_QUEUED ) {
@@ -1114,62 +1224,66 @@ int NordugridJob::doExitInfo()
 	} else if ( rc == ACQUIRE_FAILED ) {
 		return TASK_FAILED;
 	}
+	
+	numExitInfoAttempts++;
 
-	diag_filename.sprintf( "/jobs/%s/%s/diag", remoteJobId,
-						   NORDUGRID_LOG_DIR );
+		// Try to get the "failed" file
+		// It will only exist if the job's rc != 0
+	diag_filename.sprintf ("/jobs/%s/%s/failed", 
+							 remoteJobId, 
+							 NORDUGRID_LOG_DIR);
 
-	diag_fp = ftp_lite_get( ftp_srvr, diag_filename.Value(), 0 );
-	if ( diag_fp == NULL ) {
-		errorString.sprintf( "ftp_lite_get() failed, errno=%d", errno );
-		goto doExitInfo_error_exit;
-	}
+	diag_fp = ::ftp_lite_get( ftp_srvr, diag_filename.Value(), 0 );
+	if ( diag_fp != NULL ) {
 
-		// line "runtimeenvironments="
-	if ( fgets( diag_buff, sizeof(diag_buff), diag_fp ) == NULL ) {
-		errorString = "fgets() on diag failed";
-		goto doExitInfo_error_exit;
-	}
-		// line "nodename=<hostname>"
-	if ( fgets( diag_buff, sizeof(diag_buff), diag_fp ) == NULL ) {
-		errorString = "fgets() on diag failed";
-		goto doExitInfo_error_exit;
-	}
-		// not sure what this line will be yet...
-	if ( fgets( diag_buff, sizeof(diag_buff), diag_fp ) == NULL ) {
-		errorString = "fgets() on diag failed";
-		goto doExitInfo_error_exit;
-	}
-	if ( sscanf( diag_buff, "Command exited with non-zero status %d",
-				 &exitCode ) == 1 ) {
-		normalExit = true;
+		// Read the first line
+		if (fgets (diag_buff, sizeof (diag_buff), diag_fp)) {
+			errorString.sprintf( "Malformed status file %s", diag_filename.Value());
+		
+			if ( sscanf( diag_buff, "Job exit code is %d != 0",
+						 &exitCode ) == 1 ) {
+				dprintf (D_FULLDEBUG, "Found line: \"%s\" -> exit code = %d\n", diag_buff, exitCode);
+				normalExit = true;
+			} else {	
+				dprintf (D_FULLDEBUG, "Found line: \"%s\" -> abnormal job exit\n", diag_buff);
+				normalExit = false;
+			}
+		} else {
+			dprintf (D_FULLDEBUG, "Malformed status file %s, attempt %d\n", diag_filename.Value(), numExitInfoAttempts);
+			
+			if (diag_fp != NULL) {
+				fclose( diag_fp );
+				diag_fp = NULL;
+				if ( ftp_lite_done( ftp_srvr ) == 0 ) {
+					errorString.sprintf( "ftp_lite_done() failed, errno=%d", errno );
+					goto doExitInfo_error_exit;
+				}
+			}
+			myResource->ReleaseConnection( this );
 
-		if ( fgets( diag_buff, sizeof(diag_buff), diag_fp ) == NULL ) {
-			errorString = "fgets() on diag failed";
-			goto doExitInfo_error_exit;
-		}
-	} else if ( sscanf( diag_buff, "Command terminated by signal %d",
-						&exitCode ) == 1 ) {
-		normalExit = false;
 
-		if ( fgets( diag_buff, sizeof(diag_buff), diag_fp ) == NULL ) {
-			errorString = "fgets() on diag failed";
-			goto doExitInfo_error_exit;
+				// Try this several times b/c sometimes the job.#.failed file comes up empty
+			if (numExitInfoAttempts < 3) {
+				return TASK_IN_PROGRESS; 
+			} else {
+				errorString.sprintf( "Malformed status file %s", diag_filename.Value());
+				return TASK_FAILED;
+			}
 		}
 	} else {
-		normalExit = true;
+		dprintf (D_FULLDEBUG, "No \"failed\" file found -> exit code = 0\n");
 		exitCode = 0;
-	}
-		// now we've just read "WallTime=<float>s"
-		// we can read more if we want, but not for now
-
-	fclose( diag_fp );
-	diag_fp = NULL;
-
-	if ( ftp_lite_done( ftp_srvr ) == 0 ) {
-		errorString.sprintf( "ftp_lite_done() failed, errno=%d", errno );
-		goto doExitInfo_error_exit;
+		normalExit = true;
 	}
 
+	if (diag_fp != NULL) {
+		fclose( diag_fp );
+		diag_fp = NULL;
+		if ( ftp_lite_done( ftp_srvr ) == 0 ) {
+			errorString.sprintf( "ftp_lite_done() failed, errno=%d", errno );
+			goto doExitInfo_error_exit;
+		}
+	}
 	myResource->ReleaseConnection( this );
 
 	return TASK_DONE;
@@ -1177,7 +1291,13 @@ int NordugridJob::doExitInfo()
  doExitInfo_error_exit:
 	if ( diag_fp != NULL ) {
 		fclose( diag_fp );
+		diag_fp = NULL;
 	}
+
+	if (doftp_lite_done) {
+		ftp_lite_done( ftp_srvr );
+	}
+
 	myResource->ReleaseConnection( this );
 
 	return TASK_FAILED;
@@ -1293,7 +1413,10 @@ MyString *NordugridJob::buildSubmitRSL()
 	}
 
 	//Start off the RSL
-	rsl->sprintf( "&(savestate=yes)(action=request)(lrmstype=pbs)(hostname=nostos.cs.wisc.edu)(gmlog=%s)", NORDUGRID_LOG_DIR );
+	// ckireyev: do we need (lrmstype=???)
+	rsl->sprintf( "&(savestate=yes)(action=request)(hostname=%s)(gmlog=%s)", 
+				  my_full_hostname(),
+				  NORDUGRID_LOG_DIR );
 
 	//We're assuming all job clasads have a command attribute
 	ad->LookupString( ATTR_JOB_CMD, &executable );
@@ -1356,11 +1479,43 @@ MyString *NordugridJob::buildSubmitRSL()
 
 		*rsl += ")(inputfiles=";
 
+		char *iwd = NULL;
+		ad->LookupString( ATTR_JOB_IWD, &iwd );
+
 		while ( (file = stage_in_list.next()) != NULL ) {
+			
 			*rsl += "(";
 			*rsl += basename(file);
-			*rsl += " \"\")";
+			*rsl+=" ";
+
+
+			MyString full_filename;
+			if ( file[0] != DIR_DELIM_CHAR ) {
+                full_filename.sprintf( "%s%c%s", iwd, DIR_DELIM_CHAR, file);
+            } else {
+				full_filename = file;
+			}
+
+
+			// Calculate size/checksum
+			MyString size_checksum;
+			long size;
+			unsigned long long int checksum;
+			if (getFileSize (full_filename.Value(), size) &&
+				getFileChecksum (full_filename.Value(), checksum)) {
+				size_checksum.sprintf ("%d.%lu", size, checksum);
+			} else {
+				dprintf (D_FULLDEBUG, 
+						 "WARNING: Unable to get size/checksum for input file %s\n", 
+						 full_filename.Value());
+				size_checksum = "\"\"";
+			}
+
+			*rsl += size_checksum;
+			*rsl += ")";
 		}
+
+		free( iwd );
 	}
 
 	ad->LookupString( ATTR_TRANSFER_OUTPUT_FILES, &attr_value );
@@ -1422,3 +1577,40 @@ dprintf(D_FULLDEBUG,"*** RSL='%s'\n",rsl->Value());
 	return rsl;
 }
 
+bool
+NordugridJob::getFileSize(const char * file, long & size) {
+	struct stat stat_buff;
+	if (stat (file, &stat_buff) == 0) {
+		size = stat_buff.st_size;
+		return true;
+	}
+	
+	return false;
+}	
+
+bool
+NordugridJob::getFileChecksum (const char * file, unsigned long long int & checksum) {
+	char buff[5000];
+	CRC32Sum calc;
+
+
+	int fd = open (file, O_RDONLY);
+	if (fd == -1) 
+		return false;
+
+	int len;
+	calc.start();
+	while ((len = read (fd, buff, 5000)) > 0) {
+		if (len < 0) {
+			close (fd);
+			return false;
+		}
+		calc.add (buff, len);
+	}
+	calc.end();
+
+	close (fd);
+
+	checksum = calc.crc();
+	return true;
+}

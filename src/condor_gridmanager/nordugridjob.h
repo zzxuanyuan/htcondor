@@ -29,7 +29,9 @@
 #include "MyString.h"
 #include "classad_hashtable.h"
 
+extern "C" {
 #include "ftp_lite.h"
+}
 
 #include "basejob.h"
 #include "nordugridresource.h"
@@ -69,6 +71,8 @@ class NordugridJob : public BaseJob
 	time_t lastSubmitAttempt;
 	int numSubmitAttempts;
 
+	int numExitInfoAttempts;
+
 	MyString errorString;
 	char *resourceManagerString;
 
@@ -95,8 +99,12 @@ class NordugridJob : public BaseJob
 	int doStageInQuery( bool &need_stage_in );
 	int doList( const char *dir_name, StringList *&dir_list );
 
+	bool getFileSize ( const char * file, long & size );
+	bool getFileChecksum ( const char * file, unsigned long long int & checksum );
+
 	MyString *buildSubmitRSL();
 
+	FILE * _ftp_lite_get( struct ftp_lite_server *s, const char *path, off_t offset );
  protected:
 };
 

@@ -156,12 +156,18 @@ bool NordugridResource::OpenConnection()
 
 	ftpServer = ftp_lite_open( resourceName, 2811, NULL );
 	if ( ftpServer == NULL ) {
-		dprintf( D_FULLDEBUG, "ftp_lite_open failed!\n" );
+		dprintf( D_FULLDEBUG, "ftp_lite_open to %s failed!\n", resourceName );
 		return false;
 	}
 
+		// REMOVE !!!
+	dprintf( D_FULLDEBUG, "BEFORE SLEEP(20)\n");
+	sleep (20);
+	dprintf (D_FULLDEBUG, "AFTER SLEEP (20)\n");
+		// END REMOVE
+
 	if ( ftp_lite_auth_globus( ftpServer ) == 0 ) {
-		dprintf( D_FULLDEBUG, "ftp_lite_auth_globus() failed\n" );
+		dprintf( D_FULLDEBUG, "ftp_lite_auth_globus( %s ) failed, errno=%d\n", resourceName,errno );
 		ftp_lite_close( ftpServer );
 		ftpServer = NULL;
 		return false;
