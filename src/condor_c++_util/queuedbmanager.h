@@ -23,8 +23,6 @@
 #ifndef _QUEUEDBMANAGER_H_
 #define _QUEUEDBMANAGER_H_
 
-#define _REMOTE_DB_CONNECTION_ 
-
 #include "condor_common.h"
 #include "classad_collection.h"
 #include "odbc.h"
