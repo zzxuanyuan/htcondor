@@ -44,6 +44,7 @@ char*	exec_path = NULL;
 
 // String Lists
 StringList *startd_job_exprs = NULL;
+static StringList *valid_cod_users = NULL; 
 
 // Hosts
 Daemon*	Collector = NULL;
@@ -569,6 +570,17 @@ init_params( int first_time)
 		free( tmp );
 	}
 
+	if( valid_cod_users ) {
+		delete( valid_cod_users );
+		valid_cod_users = NULL;
+	}
+	tmp = param( "VALID_COD_USERS" );
+	if( tmp ) {
+		valid_cod_users = new StringList();
+		valid_cod_users->initializeFromString( tmp );
+		free( tmp );
+	}
+
 	return TRUE;
 }
 
@@ -717,3 +729,12 @@ main_pre_command_sock_init( )
 {
 }
 
+
+bool
+authorizedForCOD( const char* owner )
+{
+	if( ! valid_cod_users ) {
+		return false;
+	}
+	return valid_cod_users->contains( owner );
+}

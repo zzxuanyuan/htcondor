@@ -79,6 +79,7 @@ static const int MAX_STARTERS = 10;
 
 // Define external functions
 extern int finish_main_config( void );
+extern bool authorizedForCOD( const char* owner );
 
 // Define external global variables
 
