@@ -9,15 +9,6 @@ TARGETS = \
 all_target($(TARGETS))
 depend_target($(SRC))
 tags: ALWAYS
-
-#if IS_ALPHA_OSF1
-text_target(condor_config,lib,condor_config.generic)
-text_target(config_on,lib,config_on.generic)
-text_target(config_off,lib,config_off.generic)
-text_target(daemons_off,lib,daemons_off)
-script_target(condor_throttle,bin,condor_throttle.generic)
-script_target(condor_init,bin,condor_init.generic)
-#else
 text_target(condor_config,lib)
 text_target(config_on,lib)
 text_target(config_off,lib)
@@ -25,4 +16,3 @@ text_target(daemons_off,lib)
 script_target(condor_throttle,bin)
 script_target(condor_init,bin)
 setgid_target(condor_throttle)
-#endif

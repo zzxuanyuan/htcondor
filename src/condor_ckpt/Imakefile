@@ -29,22 +29,21 @@ ASSEMBLER_OBJ = _longjmp.AIX32.o
 	m4 /usr/include/sys/asdef.s $*.s | as -o $*.o
 #endif
 
-UTIL_OBJ = dprintf.o dprintf_config.o except.o condor_errlst.o
-SRC =	image.C machdep.$(OS).C file_state.C tmp_stack.C syscall_mode.c \
-		local_startup.c fake_remote_syscall.c
-OBJ =	image.o machdep.$(OS).o file_state.o tmp_stack.o syscall_mode.o \
-		local_startup.o fake_remote_syscall.o $(ASSEMBLER_OBJ) $(UTIL_OBJ)
+SRC = image.C machdep.$(OS).C file_state.C tmp_stack.C
+OBJ = image.o machdep.$(OS).o file_state.o tmp_stack.o $(ASSEMBLER_OBJ)
+MODE = ../condor_syscall_lib/syscall_mode.o
 
 
-all_target(machdep_test libckpt.a c_plus_alloc.o)
+all_target(machdep_test libcondor.a)
 depend_target($(SRC) )
 
 program_target(machdep_test,machdep_test.o machdep.$(OS).o tmp_stack.o,,no_release)
 
-library_target(libckpt.a,$(OBJ),release)
-
-IMPORT_LINKS = ../../config/import_links
-import(../condor_util_lib,$(UTIL_OBJ))
-
-release:: c_plus_alloc.o
-	cp c_plus_alloc.o $(RELEASE_DIR)/lib/c_plus_alloc.o
+libcondor.a: $(OBJ)
+	cp ../condor_syscall_lib/condor_syscall_lib.a libcondor.a
+	AR_REPLACE( libcondor.a, $(OBJ) )
+release:: libcondor.a
+	COPY_LIBRARY( libcondor.a, $(RELEASE_DIR)/lib )
+	RANLIB_TOUCH( $(RELEASE_DIR)/lib/libcondor.a )
+clean::
+	rm -f libcondor.a

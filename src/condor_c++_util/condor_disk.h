@@ -6,13 +6,13 @@
 
 class Header
 {
-public:
+protected:
 	int	activeUsers;
 };
 
 class Data : public Header
 {
-public:
+protected:
 	char	userName[MaxUserNameSize];
 	int	priority;
 };
@@ -32,5 +32,5 @@ public :
 	int  operator >> (UpDown & upDown);       // returns Success or Error
 };
 
-#endif /* __FILE_C */
+#endif __FILE_C
 

@@ -12,7 +12,6 @@
 #	define __STDC__
 #endif
 
-#include "syscall_numbers.h"
 #include "condor_syscall_mode.h"
 #include "file_table_interf.h"
 #include <stdio.h>
