@@ -8,7 +8,7 @@
 
 SOAP_BEGIN_NAMESPACE(soap_schedd)
 
-SOAP_SOURCE_STAMP("@(#) soap_scheddServer.cpp ver 2.5.2 2004-05-20 21:09:39 GMT")
+SOAP_SOURCE_STAMP("@(#) soap_scheddServer.cpp ver 2.5.2 2004-05-21 11:45:50 GMT")
 
 
 SOAP_FMAC5 int SOAP_FMAC6 soap_serve(struct soap *soap)

@@ -99,8 +99,8 @@ struct condorSchedd__Transaction
 	int duration;
 };
 
-/* Array of condorSchedd:Requirements schema type: */
-struct condorSchedd__Requirements
+/* SOAP encoded array of condorSchedd:Requirement schema type: */
+struct Requirements
 {
 	char **__ptr;
 	int __size;
@@ -110,7 +110,7 @@ struct condorSchedd__Requirements
 struct condorSchedd__RequirementsAndStatus
 {
 	struct condorCore__Status status;
-	struct condorSchedd__Requirements requirements;
+	struct Requirements requirements;
 };
 
 /* condorSchedd:TransactionAndStatus: */
@@ -141,8 +141,8 @@ struct condorSchedd__FileInfo
 	LONG64 size;
 };
 
-/* Array of condorSchedd:FileInfoArray schema type: */
-struct condorSchedd__FileInfoArray
+/* SOAP encoded array of condorSchedd:FileInfo schema type: */
+struct FileInfoArray
 {
 	struct condorSchedd__FileInfo *__ptr;
 	int __size;
@@ -152,7 +152,7 @@ struct condorSchedd__FileInfoArray
 struct condorSchedd__FileInfoArrayAndStatus
 {
 	struct condorCore__Status status;
-	struct condorSchedd__FileInfoArray info;
+	struct FileInfoArray info;
 };
 
 /* condorSchedd:StatusResponse: */

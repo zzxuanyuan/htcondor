@@ -58,7 +58,7 @@ HashTable<MyString, Job *> jobs = HashTable<MyString, Job *>(1024, MyStringHash,
 static bool
 convert_FileInfoList_to_Array(struct soap * soap,
                               List<FileInfo> & list,
-                              struct condorSchedd__FileInfoArray & array)
+                              struct FileInfoArray & array)
 {
   array.__size = list.Number();
   array.__ptr = (struct condorSchedd__FileInfo *) soap_malloc(soap, array.__size * sizeof(struct condorSchedd__FileInfo));

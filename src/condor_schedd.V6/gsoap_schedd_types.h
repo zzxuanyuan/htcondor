@@ -25,7 +25,7 @@ struct condorSchedd__Transaction
   xsd__int duration 1:1; // change to xsd:duration ?
 };
 
-struct condorSchedd__Requirements
+struct Requirements
 {
   condorSchedd__Requirement *__ptr;
   int __size;
@@ -34,7 +34,7 @@ struct condorSchedd__Requirements
 struct condorSchedd__RequirementsAndStatus
 {
   struct condorCore__Status status 1:1;
-  struct condorSchedd__Requirements requirements 0:1;
+  struct Requirements requirements 0:1;
 };
 
 
@@ -62,7 +62,7 @@ struct condorSchedd__FileInfo
   xsd__long size 1:1;
 };
 
-struct condorSchedd__FileInfoArray
+struct FileInfoArray
 {
   struct condorSchedd__FileInfo *__ptr;
   int __size;
@@ -71,5 +71,5 @@ struct condorSchedd__FileInfoArray
 struct condorSchedd__FileInfoArrayAndStatus
 {
   struct condorCore__Status status 1:1;
-  struct condorSchedd__FileInfoArray info 0:1;
+  struct FileInfoArray info 0:1;
 };
