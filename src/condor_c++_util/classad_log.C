@@ -29,7 +29,7 @@
 #include "classad_log.h"
 #include "condor_debug.h"
 #include "util_lib_proto.h"
-
+#include "queuedbmanager.h"
 
 // explicitly instantiate the HashTable template
 template class HashTable<HashKey, ClassAd*>;
@@ -50,6 +50,8 @@ if (ptr) free(ptr); \
 ptr = NULL;
 /************************************************************/
 
+//global variable
+extern QueueDBManager queueDBManager;
 
 ClassAdLog::ClassAdLog() : table(1024, hashFunction)
 {
@@ -427,6 +429,9 @@ LogNewClassAd::ReadBody(int fd)
 int
 LogNewClassAd::WriteBody(int fd)
 {
+  //added by Ameet
+  queueDBManager.processNewClassAd(key, mytype, targettype, false); 
+  queueDBManager.commitTransaction();
 	int rval, rval1;
 	rval = write(fd, key, strlen(key));
 	if (rval < 0) return rval;
@@ -478,6 +483,14 @@ LogDestroyClassAd::ReadBody(int fd)
 	return readword(fd, key);
 }
 
+int 
+LogDestroyClassAd::WriteBody(int fd) 
+{
+  //added by Ameet
+  queueDBManager.processDestroyClassAd(key, false);
+  queueDBManager.commitTransaction();
+  return write(fd, key, strlen(key));;
+}
 
 LogSetAttribute::LogSetAttribute(const char *k, const char *n, const char *val)
 {
@@ -515,6 +528,9 @@ LogSetAttribute::Play(void *data_structure)
 int
 LogSetAttribute::WriteBody(int fd)
 {
+  //added by Ameet
+  queueDBManager.processSetAttribute(key, name, value, false);
+  queueDBManager.commitTransaction();
 	int		rval, rval1, len;
 
 	len = strlen(key);
@@ -603,6 +619,9 @@ LogDeleteAttribute::Play(void *data_structure)
 int
 LogDeleteAttribute::WriteBody(int fd)
 {
+  //added by Ameet
+  queueDBManager.processDeleteAttribute(key, name, false);
+  queueDBManager.commitTransaction();
 	int		rval, rval1, len;
 
 	len = strlen(key);
