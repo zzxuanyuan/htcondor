@@ -146,14 +146,16 @@
 
 #define CA_CMD                  (CA_CMD_BASE+0) 
 
-// generic claiming protocol that the startd uses for COD and other things
+// generic claiming protocol that the startd uses for COD
 #define CA_REQUEST_CLAIM        (CA_CMD_BASE+1)
 #define CA_RELEASE_CLAIM        (CA_CMD_BASE+2)
 #define CA_ACTIVATE_CLAIM       (CA_CMD_BASE+3)
 #define CA_DEACTIVATE_CLAIM     (CA_CMD_BASE+4)
 #define CA_SUSPEND_CLAIM        (CA_CMD_BASE+5)
 #define CA_RESUME_CLAIM         (CA_CMD_BASE+6)
+// other commands that use the ClassAd-only protocol 
 #define CA_LOCATE_STARTER       (CA_CMD_BASE+7)
+#define CA_RECONNECT_JOB        (CA_CMD_BASE+8)
 
 
 /************
