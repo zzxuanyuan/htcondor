@@ -876,6 +876,22 @@ condor__listSpool(struct soap * soap,
 		if (getJob(clusterId, jobId, job)) {
 			job = new Job(clusterId, jobId);
 			ASSERT(job);
+			CondorError errstack;
+			if (job->initialize(errstack)) {
+				result.response.status.code =
+					(condor__StatusCode) errstack.code();
+				result.response.status.message =
+					(char *) soap_malloc(soap, strlen(errstack.message()));
+				strcpy(result.response.status.message,
+					   errstack.message());
+
+				if (destroy_job && job) {
+					delete job;
+					job = NULL;
+				}
+
+				return SOAP_OK;
+			}
 
 			destroy_job = true;
 		}
