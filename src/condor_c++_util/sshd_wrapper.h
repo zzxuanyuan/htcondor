@@ -135,7 +135,11 @@ class SshdWrapper
  protected:
 
 	bool createIdentityKeys(char *privateKey);		 
+
  private:
+
+	SshdWrapper(const SshdWrapper &) {}
+	SshdWrapper &operator=(const SshdWrapper &l) {return *this;}
 
 	char *pubKeyFile;
 	char *privKeyFile;

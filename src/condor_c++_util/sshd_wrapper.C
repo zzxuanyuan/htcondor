@@ -40,10 +40,12 @@ SshdWrapper::~SshdWrapper()
 {
 	free(pubKeyFile);
 	free(privKeyFile);
-	free(sinful);
-	free(dir);
-	free(username);
-	free(hostKeyFile)
+	free(hostKeyFile);
+
+		//free(sinful);
+		//free(dir);
+		//free(username);
+	
 }
 
 bool
@@ -83,7 +85,7 @@ SshdWrapper::createIdentityKeys(char *privateKey)
 		return false;
 	}
 
-	char *command = malloc(strlen(keygen) + strlen(args) + strlen(privateKey) + 20);
+	char *command = (char *)malloc(strlen(keygen) + strlen(args) + strlen(privateKey) + 80);
 
 		// Assume args needs privKeyFile as trailing argument
 	sprintf(command, "%s %s %s > /dev/null 2>&1 < /dev/null", keygen, args, privateKey);
