@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 
 ######################################################################
-# $Id: remote_pre.pl,v 1.1.4.2 2004-12-28 19:21:51 wright Exp $
+# $Id: remote_pre.pl,v 1.1.4.2.4.1 2004-12-31 04:06:00 wright Exp $
 # script to set up for Condor testsuite run
 ######################################################################
 
@@ -96,9 +96,8 @@ while( <ORIG> ) {
   if( /CONDOR_HOST.*/ ) {
     print FIX;
     print FIX "COLLECTOR_HOST = \$(CONDOR_HOST):0\n";
-    print FIX "NEGOTIATOR_HOST = \$(CONDOR_HOST):0\n";
+    print FIX "NEGOTIATOR_HOST = \n";
     print FIX "COLLECTOR_ADDRESS_FILE = \$(LOG)/.collector_address\n";
-    print FIX "NEGOTIATOR_ADDRESS_FILE = \$(LOG)/.negotiator_address\n";
   } else {
     print FIX;
   }
