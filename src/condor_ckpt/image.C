@@ -1311,10 +1311,9 @@ SegMap::Read( int fd, ssize_t pos )
 		Suicide();
 	}
 
-	// RTLINK will reset the brk after the ckpt image is fully
-	// restored.
-	if (!condor_rtlink) {
-		if( mystrcmp(name,"DATA") == 0 ) {
+	if( mystrcmp(name,"DATA") == 0 ) {
+		if (!condor_rtlink) {
+			// RTLINK already set the brk in the remote_startup code
 			orig_brk = (char *)sbrk(0);
 			if( orig_brk < (char *)(core_loc + len) ) {
 				brk( (char *)(core_loc + len) );
@@ -1323,7 +1322,6 @@ SegMap::Read( int fd, ssize_t pos )
 			dprintf(D_ALWAYS, "CUR_BRK = %#010x\n", cur_brk);
 		}
 	}
-
 #if defined(Solaris) || defined(IRIX53) || defined(LINUX)
 	else if ( mystrcmp(name,"SHARED LIB") == 0) {
 		int zfd, segSize = len;
@@ -1668,7 +1666,7 @@ Checkpoint( int sig, int code, void *scp )
 #endif
 		if ( do_full_restart ) {
 			if (condor_rtlink) {
-				dprintf(D_ALWAYS, "I have emerged from the asshole of Condor\n");
+				/* dprintf(D_ALWAYS, "I have emerged from the asshole of Condor\n"); */
 
 				// We must re-install the sig handlers now; previously
 				// they were the handlers in librestart.

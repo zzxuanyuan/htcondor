@@ -98,6 +98,8 @@ libckpt.a: libtmp.a ToUpper
 #   endif /* Solaris */
 #else  /* Not GLIBC Linux or Intel Solaris */
 
+#endif /* GLIBC Linux or Intel Solaris */
+
 	library_target(libckpt.a,$(OBJ))
 	shlib_target(libc_plus_alloc.so,c_plus_alloc.o,)
 
@@ -105,8 +107,6 @@ tmp_stack.o: tmp_stack.C
 	$(CPlusPlus) $(C_PLUS_FLAGS_SANS_PIC) -o tmp_stack.o -c $<
 clean::
 	rm -f tmp_stack.o
-
-#endif /* GLIBC Linux or Intel Solaris */
 
 	release_library(libckpt.a,$(RELEASE_DIR)/lib)
 	release_library(libc_plus_alloc.so,$(RELEASE_DIR)/lib)
