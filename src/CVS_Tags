@@ -1,3 +1,7 @@
+05/13/03 V6_5_0-merge-3
+   Merging into the V6_5-branch again.  The last one was done at V6_5_1.
+   V6_5_0-merge-2 was skipped.
+
 04/10/03 V6_5_1_a
    Very small packaging fixes to 6.5.1. They fix how we make our GPT
    package--they are not changes to the Condor code.
