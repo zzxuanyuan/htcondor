@@ -138,8 +138,6 @@ JICShadow::init( void )
 		// with whatever attributes we can find in the job ad.
 	initShadowInfo( job_ad );
 
-	dprintf( D_ALWAYS, "Starter communicating with condor_shadow %s\n",
-			 shadow->addr() );
 	dprintf( D_ALWAYS, "Submitting machine is \"%s\"\n", shadow->name());
 
 		// Now that we know what version of the shadow we're talking
@@ -413,16 +411,26 @@ JICShadow::reconnect( ReliSock* s, ClassAd* ad )
 
 		// Destroy our old DCShadow object and make a new one with the
 		// current info.
+	dprintf( D_ALWAYS, "Accepted request to reconnect from %s\n",
+			 new_owner );
+	dprintf( D_ALWAYS, "Ignoring old shadow %s\n", shadow->addr() );
 	delete shadow;
 	shadow = new DCShadow;
-	initShadowInfo( ad );
+	initShadowInfo( ad );	// this dprintf's D_ALWAYS for us
 	free( shadow_addr );
 	shadow_addr = strdup( shadow->addr() );
 
 		// switch over to the new syscall_sock
+	dprintf( D_FULLDEBUG, "Closing old syscall sock <%s:%d>\n",
+			 syscall_sock->endpoint_ip_str(), 
+			 syscall_sock->endpoint_port() );
 	delete syscall_sock;
 	syscall_sock = s;
 	syscall_sock->timeout(300);
+
+	dprintf( D_FULLDEBUG, "Using new syscall sock <%s:%d>\n",
+			 syscall_sock->endpoint_ip_str(), 
+			 syscall_sock->endpoint_port() );
 
 		// TODO deal with timer if we're just waiting to send final
 		// update, etc... 
@@ -1354,6 +1362,8 @@ JICShadow::initShadowInfo( ClassAd* ad )
 				 "Failed to initialize shadow info from ClassAd!\n" );
 		return;
 	}
+	dprintf( D_ALWAYS, "Communicating with shadow %s\n",
+			 shadow->addr() );
 
 	if( shadow_version ) {
 		delete shadow_version;
@@ -1361,10 +1371,10 @@ JICShadow::initShadowInfo( ClassAd* ad )
 	}
 	char* tmp = shadow->version();
 	if( tmp ) {
-		dprintf( D_FULLDEBUG, "Version of Shadow is %s\n", tmp );
+		dprintf( D_FULLDEBUG, "Shadow version: %s\n", tmp );
 		shadow_version = new CondorVersionInfo( tmp, "SHADOW" );
 	} else {
-		dprintf( D_FULLDEBUG, "Version of Shadow unknown (pre v6.3.3)\n" ); 
+		dprintf( D_FULLDEBUG, "Shadow version: unknown (pre v6.3.3)\n" ); 
 	}
 }
 
