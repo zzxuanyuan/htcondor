@@ -64,3 +64,7 @@ GLIBC_DIR = /p/condor/workspaces/glibc/glibc-install/lib-glibc2.3.2/lib
 #endif
 
 PVM_DIR = $(EXT_INSTALL_ROOT)/$(EXT_PVM_VERSION)
+
+#if HAS_PURIFY
+PURE_CACHE_DIR = @pure_cache_dir@
+#endif
