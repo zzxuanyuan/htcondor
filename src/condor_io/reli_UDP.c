@@ -520,6 +520,7 @@ int rudp_close(int fd)
 
 	dprintf(D_NETWORK, "rudp[%d] deleted\n", fd);
 	delSenders(_rudp_fdInfo[fd].senders);
+	_rudp_fdInfo[fd].senders = NULL;
 	if (_rudp_fdInfo[fd].qhead) {
 		delQueue(_rudp_fdInfo[fd].qhead);
 		_rudp_fdInfo[fd].qhead = _rudp_fdInfo[fd].qtail = NULL;
@@ -542,10 +543,8 @@ int rudp_dup2(int oldfd, int newfd)
 	}
 
 	if (_rudp_fdInfo[ret].senders) {
-		delSenders(_rudp_fdInfo[ret].senders);
-		if (_rudp_fdInfo[ret].qhead) {
-			delQueue(_rudp_fdInfo[ret].qhead);
-		}
+		dprintf(D_ALWAYS, "rudp_dup2: newfd = %d is taken by another socket\n", newfd);
+		return -1;
 	}
 
 	_rudp_fdInfo[ret].conn = _rudp_fdInfo[oldfd].conn;
@@ -568,10 +567,8 @@ int rudp_dup(int oldfd)
 	dprintf(D_NETWORK, "rudp[%d] is duped to rudp[%d]\n", oldfd, newfd);
 
 	if (_rudp_fdInfo[newfd].senders) {
-		delSenders(_rudp_fdInfo[newfd].senders);
-		if (_rudp_fdInfo[newfd].qhead) {
-			delQueue(_rudp_fdInfo[newfd].qhead);
-		}
+		dprintf(D_ALWAYS, "rudp_dup2: newfd = %d is taken by another socket\n", newfd);
+		return -1;
 	}
 
 	_rudp_fdInfo[newfd].conn = _rudp_fdInfo[oldfd].conn;
