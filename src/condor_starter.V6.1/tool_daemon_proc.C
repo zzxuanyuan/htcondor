@@ -46,9 +46,6 @@ ToolDaemonProc::ToolDaemonProc( ClassAd *jobAd, int application_pid )
     dprintf( D_FULLDEBUG, "In ToolDaemonProc::ToolDaemonProc()\n" );
 	family = NULL;
     JobAd = jobAd;
-    JobPid = -1;
-	exit_status = -1;
-	requested_exit = false;
     job_suspended = false;
 	ApplicationPid = application_pid;
 	snapshot_tid = -1;
@@ -167,123 +164,49 @@ ToolDaemonProc::StartJob()
 		// the mainjob's env...
 	Starter->PublishToEnv( &job_env );
 
-	dprintf (D_FULLDEBUG, "Before File management \n");
 
-		// handle stdin, stdout, and stderr redirection for Daemon
-	int daemon_fds[3];
-	int failedStdin, failedStdout, failedStderr;
-	daemon_fds[0] = -1; daemon_fds[1] = -1; daemon_fds[2] = -1;	
-	failedStdin = 0; failedStdout = 0; failedStderr = 0;
-	char  *filename = NULL;
+
+		// // // // // // 
+		// Standard Files
+		// // // // // // 
+
+	const char* job_iwd = Starter->jic->jobIWD();
+	dprintf( D_ALWAYS, "IWD: %s\n", job_iwd );
+
+	// handle stdin, stdout, and stderr redirection
+	int fds[3];
+		// initialize these to -2 to mean they're not specified.
+		// -1 will be treated as an error.
+	fds[0] = -2; fds[1] = -2; fds[2] = -2;
+	bool foo;
 
 		// in order to open these files we must have the user's privs:
 	priv_state priv;
 	priv = set_user_priv();
 
-	filename = Starter->jic->getJobStdFile( ATTR_TOOL_DAEMON_INPUT );
-	if( filename ) {
-		if ( (daemon_fds[0]=open(filename, O_RDONLY) ) < 0 ) {
-			dprintf(D_ALWAYS,"failed to open stdin file %s, errno %d\n",
-					filename, errno);
-			failedStdin = 1;
-		}
-		dprintf ( D_ALWAYS, "Tool Daemon Input file: %s\n", filename );
-		free( filename );
-		filename = NULL;
-	}else {
-	#ifndef WIN32
-		if( (daemon_fds[0]=open( "/dev/null", O_RDONLY ) ) < 0 ) {
-			dprintf( D_ALWAYS, 
-					 "failed to open stdin file /dev/null, errno %d\n",
-					 errno );
-			failedStdin = 1;
-		}
-	#endif
-	}
+	fds[0] = openStdFile( SFT_IN, ATTR_TOOL_DAEMON_INPUT, false, foo,
+						  "Tool Daemon Input file", "standard input file" );
 
-	filename = Starter->jic->getJobStdFile( ATTR_TOOL_DAEMON_OUTPUT );
-	if( filename ) {
-		if( (daemon_fds[1] = 
-			 open(filename,O_WRONLY|O_CREAT|O_TRUNC, 0666)) < 0 ) {
-				// if failed, try again without O_TRUNC
-			if( (daemon_fds[1] = 
-				 open(filename,O_WRONLY|O_CREAT, 0666)) < 0 ) {
-				dprintf( D_ALWAYS,
-						 "failed to open stdout file %s, errno %d\n",
-						 filename, errno );
-				failedStdout = 1;
-			}
-		}
-		dprintf( D_ALWAYS, " Tool Daemon Output file: %s\n", filename );
-		free( filename );
-		filename = NULL;
-	}else {
-	#ifndef WIN32
-		if( (daemon_fds[1] = 
-			 open("/dev/null",O_WRONLY|O_CREAT|O_TRUNC, 0666)) < 0 ) {
-				// if failed, try again without O_TRUNC
-			if( (daemon_fds[1] = 
-				 open("/dev/null", O_WRONLY | O_CREAT, 0666)) < 0 ) {
-				dprintf( D_ALWAYS, 
-						 "failed to open stdout file /dev/null, errno %d\n", 
-						 errno );
-				failedStdout = 1;
-			}
-		}
-	#endif
-	}
+	fds[1] = openStdFile( SFT_OUT, ATTR_TOOL_DAEMON_OUTPUT, false, foo,
+						  "Tool Daemon Output file", "standard output file" );
 
-	filename = Starter->jic->getJobStdFile( ATTR_TOOL_DAEMON_ERROR );
-	if( filename ) {
-		if( (daemon_fds[2] =
-			 open(filename,O_WRONLY|O_CREAT|O_TRUNC, 0666)) < 0 ) { 
-				// if failed, try again without O_TRUNC
-			if( (daemon_fds[2] = 
-				 open(filename,O_WRONLY|O_CREAT, 0666)) < 0 ) {
-				dprintf( D_ALWAYS,
-						 "failed to open stderr file %s, errno %d\n",
-						 filename, errno );
-				failedStderr = 1;
-			}
-		}
-		dprintf( D_ALWAYS, "Tool Daemon Error file: %s\n", filename );
-		free( filename );
-		filename = NULL;
-	} else {
-	#ifndef WIN32
-		if( (daemon_fds[2] = 
-			 open("/dev/null",O_WRONLY|O_CREAT|O_TRUNC, 0666)) < 0 ) {
-				// if failed, try again without O_TRUNC
-			if( (daemon_fds[2] = 
-				 open("/dev/null", O_WRONLY | O_CREAT, 0666)) < 0 ) {
-				dprintf( D_ALWAYS, 
-						 "failed to open stderr file /dev/null, errno %d\n", 
-						 errno );
-				failedStderr = 1;
-			}
-		}
-	#endif
-	}
+	fds[2] = openStdFile( SFT_ERR, ATTR_TOOL_DAEMON_ERROR, false, foo,
+						  "Tool Daemon Error file", "standard error file" );
 
-/* Bail out if we couldn't open the std files correctly */
-	if ( failedStdin || failedStdout || failedStderr ) {
-		/* only close ones that had been opened correctly */
-		if (daemon_fds[0] != -1) {
-			close(daemon_fds[0]);
-		}
-		if (daemon_fds[1] != -1) {
-			close(daemon_fds[1]);
-		}
-		if (daemon_fds[2] != -1) {
-			close(daemon_fds[2]);
+	/* Bail out if we couldn't open the std files correctly */
+	if( fds[0] == -1 || fds[1] == -1 || fds[2] == -1 ) {
+			/* only close ones that had been opened correctly */
+		for( int i=0; i<=2; i++ ) {
+			if( fds[i] >= 0 ) {
+				close(fds[i]);
+			}
 		}
 		dprintf(D_ALWAYS, "Failed to open some/all of the std files...\n");
-		dprintf(D_ALWAYS, "Aborting OsProc::StartJob.\n");
+		dprintf(D_ALWAYS, "Aborting ToolDaemonProc::StartJob.\n");
 		set_priv(priv); /* go back to original priv state before leaving */
 		return 0;
 	}
 
-	dprintf ( D_FULLDEBUG, "After file management \n");
 
 	char* ptmp = param( "JOB_RENICE_INCREMENT" );
 	if ( ptmp ) {
@@ -296,14 +219,6 @@ ToolDaemonProc::StartJob()
 	dprintf( D_ALWAYS, "About to exec %s %s\n", DaemonName,
 			 DaemonArgs ); 
 
-	// get the iwd
-	char* cwd = NULL;
-	if (JobAd->LookupString(ATTR_JOB_IWD, &cwd) != 1) {
-		dprintf( D_ALWAYS, "%s not found in JobAd.  "
-				 "Aborting ToolDaemonProc::StartJob()\n", ATTR_JOB_IWD );
-		return 0;
-	}
-	
 	// Grap the full environment back out of the Env object 
 	env_str = job_env.getDelimitedString();
 
@@ -311,19 +226,23 @@ ToolDaemonProc::StartJob()
 
 	JobPid = daemonCore->
 		Create_Process( DaemonName, DaemonArgs,
-						PRIV_USER_FINAL, 1, FALSE, env_str, cwd, TRUE,
-						NULL, daemon_fds, nice_inc, DCJOBOPT_NO_ENV_INHERIT );
+						PRIV_USER_FINAL, 1, FALSE, env_str, job_iwd, TRUE,
+						NULL, fds, nice_inc, DCJOBOPT_NO_ENV_INHERIT );
+
+		//NOTE: Create_Process() saves the errno for us if it is an
+		//"interesting" error.
+	char const *create_process_error = NULL;
+	if(JobPid == FALSE && errno) create_process_error = strerror(errno);
 
 	// free memory so we don't leak
-	free(cwd);
 	delete[] env_str;
 
 		// now close the descriptors in daemon_fds array.  our child has inherited
 		// them already, so we should close them so we do not leak descriptors.
 
-	for (i=0;i<3;i++) {
-		if ( daemon_fds[i] != -1 ) {
-			close(daemon_fds[i]);
+	for (i=0;i<=2;i++) {
+		if( fds[i] >= 0 ) {
+			close( fds[i] );
 		}
 	}
 
@@ -357,6 +276,7 @@ ToolDaemonProc::StartJob()
 		return TRUE;
 	}
 }
+
 
 /*
 void

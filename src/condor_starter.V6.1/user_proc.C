@@ -174,3 +174,104 @@ UserProc::PublishToEnv( Env* proc_env )
 		}
 	}
 }
+
+
+int
+UserProc::openStdFile( std_file_type type, const char* attr, 
+					   bool allow_dash, bool &used_starter_fd,
+					   const char* log_header, const char* phrase )
+{
+	int fd = -1;
+	const char* filename;
+
+	if( attr ) {
+		filename = Starter->jic->getJobStdFile( attr );
+	} else {
+		switch( type ) {
+		case SFT_IN:
+			filename = Starter->jic->jobInputFilename();
+			break;
+		case SFT_OUT:
+			filename = Starter->jic->jobOutputFilename();
+			break;
+		case SFT_ERR:
+			filename = Starter->jic->jobErrorFilename();
+			break;
+		}
+	}
+
+	if( filename ) {
+		if( allow_dash && filename[0] == '-' && ! filename[1] ) {
+				// special case, use the starter's fd
+			used_starter_fd = true;
+			switch( type ) {
+			case SFT_IN:
+				fd = Starter->starterStdinFd();
+				dprintf( D_ALWAYS, "%s: using STDIN of %s\n", log_header,
+						 mySubSystem );
+				break;
+			case SFT_OUT:
+				fd = Starter->starterStdoutFd();
+				dprintf( D_ALWAYS, "%s: using STDOUT of %s\n", log_header,
+						 mySubSystem );
+				break;
+			case SFT_ERR:
+				fd = Starter->starterStderrFd();
+				dprintf( D_ALWAYS, "%s: using STDERR of %s\n", log_header,
+						 mySubSystem );
+				break;
+			}
+		} else {
+			switch( type ) {
+			case SFT_IN:
+				fd = open( filename, O_RDONLY );
+				break;
+			case SFT_OUT:
+			case SFT_ERR:
+				fd = open( filename, O_WRONLY|O_CREAT|O_TRUNC, 0666 );
+				if( fd < 0 ) {
+						// if failed, try again without O_TRUNC
+					fd = open( filename, O_WRONLY|O_CREAT, 0666 );
+				}
+				break;
+			}
+			if( fd < 0 ) {
+				char const *errno_str = strerror( errno );
+				MyString err_msg;
+				err_msg.sprintf( "Failed to open %s '%s': %s (errno %d)",
+								 phrase, filename, errno_str, errno );
+				dprintf( D_ALWAYS, "%s\n", err_msg.Value() );
+				Starter->jic->notifyStarterError( err_msg.Value(), true );
+				return -1;
+			}
+			dprintf( D_ALWAYS, "%s: %s\n", log_header, filename );
+		}
+	} else { 
+	#ifndef WIN32
+		switch( type ) {
+		case SFT_IN:
+			fd = open( "/dev/null", O_RDONLY );
+			break;
+		case SFT_OUT:
+		case SFT_ERR:
+			fd = open( "/dev/null", O_WRONLY|O_CREAT|O_TRUNC, 0666 );
+			if( fd < 0 ) {
+				// if failed, try again without O_TRUNC
+				fd = open( "/dev/null", O_WRONLY|O_CREAT, 0666 );
+			}
+			break;
+		}
+		if( fd < 0 ) {
+			char const *errno_str = strerror( errno );
+			MyString err_msg;
+			err_msg.sprintf( "Failed to open %s '/dev/null': %s (errno %d)",
+							 phrase, errno_str, errno );
+			dprintf( D_ALWAYS, "%s\n", err_msg.Value() );
+			Starter->jic->notifyStarterError( err_msg.Value(), true );
+			return -1;
+		}
+	#endif
+	}
+	return fd;
+}
+
