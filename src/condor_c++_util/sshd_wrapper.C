@@ -25,7 +25,6 @@
 
 #include "condor_common.h"
 #include "condor_config.h" // for param
-#include <malloc.h>
 
 SshdWrapper::SshdWrapper()
 {
@@ -34,12 +33,17 @@ SshdWrapper::SshdWrapper()
 	sinful = NULL;
 	dir = NULL;
 	username = NULL;
+	hostKeyFile = NULL;
 }
 
 SshdWrapper::~SshdWrapper()
 {
 	free(pubKeyFile);
 	free(privKeyFile);
+	free(sinful);
+	free(dir);
+	free(username);
+	free(hostKeyFile)
 }
 
 bool
@@ -51,12 +55,19 @@ SshdWrapper::initialize(char *filename)
 	privKeyFile = strdup(filename);
 	privKeyFile[strlen(privKeyFile) - 4] = '\0';
 
-	hostKeyFile = strcat(privKeyFile, "-host");
+	hostKeyFile = (char *)malloc(strlen(privKeyFile) + strlen("-host") + 1);
+	sprintf(hostKeyFile, "%s-host", privKeyFile);
+
 	return true;
 }
 
+bool
+SshdWrapper::createIdentityKeys() {
+	return this->createIdentityKeys(privKeyFile);
+}
+
 bool 
-SshdWrapper::createIdentityKeys()
+SshdWrapper::createIdentityKeys(char *privateKey)
 {
 	char *keygen = param("SSH_KEYGEN");
 
@@ -72,17 +83,17 @@ SshdWrapper::createIdentityKeys()
 		return false;
 	}
 
-		// TODO Fix!
-	char command[256];
+	char *command = malloc(strlen(keygen) + strlen(args) + strlen(privateKey) + 20);
 
 		// Assume args needs privKeyFile as trailing argument
-	sprintf(command, "%s %s %s > /dev/null 2>&1 < /dev/null", keygen, args, privKeyFile);
+	sprintf(command, "%s %s %s > /dev/null 2>&1 < /dev/null", keygen, args, privateKey);
 
 	dprintf(D_ALWAYS, "Generating keys with %s\n", command);
 
 		// And run the command...
 	int ret = system(command);
 	
+	free( command );
     free( keygen);
     free( args );
 
@@ -102,7 +113,7 @@ SshdWrapper::getPubKeyFromFile()
 
 		// Get the size of the keyfile
 	if (stat(pubKeyFile, &keyfile) != 0) {
-		dprintf(D_ALWAYS, "Can't stat filename %s:%d\n", pubKeyFile, errno);
+		dprintf(D_ALWAYS, "Can't stat filename %s %d\n", pubKeyFile, errno);
 		return 0;
 	}
 
@@ -166,8 +177,6 @@ SshdWrapper::getSshdExecInfo(char* & executable, char* & args, char* & env )
 		return false;
 	}
 
-	char *buf = (char *) malloc(256); // TODO
-
 	char *rawArgs = param("SSHD_ARGS");
 	if (rawArgs == NULL) {
 		dprintf(D_ALWAYS, "Can't find SSHD_ARGS in config file\n");
@@ -178,8 +187,11 @@ SshdWrapper::getSshdExecInfo(char* & executable, char* & args, char* & env )
 		return false;
 	}
 
+	createIdentityKeys(hostKeyFile);
 
-	sprintf(buf, "-p%d -oAuthorizedKeysFile=%s -h%s %s", port, pubKeyFile, privKeyFile, rawArgs);
+	char *buf = (char *) malloc(256 + strlen(pubKeyFile) + strlen(hostKeyFile) + strlen(rawArgs));
+
+	sprintf(buf, "-p%d -oAuthorizedKeysFile=%s -h%s %s", port, pubKeyFile, hostKeyFile, rawArgs);
 	args = buf;
 	
 	free(rawArgs);
@@ -210,9 +222,27 @@ bool
 SshdWrapper::getSshRuntimeInfo(char* & sinful_string, char* & dir, char* & 
 					   username)
 {
-	sinful_string = strdup(this->sinful);
-	dir = strdup(this->dir);
-	username = strdup(this->username);
+	char hostname[_POSIX_PATH_MAX];
+	gethostname(hostname, _POSIX_PATH_MAX);
+
+	sinful_string = (char *) malloc(strlen(hostname) + 10);
+	sprintf(sinful_string, "<%s:%d>", hostname, port);
+
+		// Is the dir the cwd?
+	char wd[_POSIX_PATH_MAX];
+	getcwd(wd, _POSIX_PATH_MAX);
+	dir = strdup(wd);
+			
+		// At this point am I running as the user?
+
+		// pull the username from the passwd file
+	struct passwd * pw = getpwuid(getuid());
+	if (pw == NULL){
+		dprintf(D_ALWAYS, "failed to get passwd info for this process\n");
+		return false;
+	}
+	username = strdup(pw->pw_name);
+
 	return true;
 }
 
@@ -229,7 +259,7 @@ SshdWrapper::setSshRuntimeInfo(const char* sinful_string, const char* dir,
 bool 
 SshdWrapper::sendPrivateKeyAndContactFile(const char* contactFileSrc)
 {
-	char buf[256];
+	char buf[_POSIX_ARG_MAX];
 	
 	char *scp = param("SCP");  
 	if (scp == NULL) {
@@ -237,16 +267,45 @@ SshdWrapper::sendPrivateKeyAndContactFile(const char* contactFileSrc)
 		return false;
 	}
 
-	char *dstHost = "localhost";
-	char *dstDir  = "/tmp/dir";
+	if (sinful == NULL) {
+		dprintf(D_ALWAYS, "sendPrivateKeyAndContactFile called before runtime set\n");
+		free(scp);
+		return false;
+	}
 
-	sprintf(buf, "%s -q -B -P %d -i %s -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null %s %s %s:%s > /dev/null 2>&1 < /dev/null", scp, port, privKeyFile, privKeyFile, contactFileSrc, dstHost, dstDir);
+	char *dstHost = strdup(sinful);
+	dstHost++; // Skip past '<'
+	char *portStr = dstHost;
+
+		// look for colon
+	while (*portStr && *portStr != ':') {
+		portStr++;
+	}
+	
+	if (*portStr == '0') {
+		dprintf(D_ALWAYS, "sinful string %s malformed\n", dstHost);
+		return false;
+	}
+
+		// replace colon with null, so dstHost is just the host
+	*portStr = '\0';
+	portStr++;
+
+	portStr[strlen(portStr) - 1] = '\0';
+
+	if (dir == NULL) {
+		dprintf(D_ALWAYS, "Destination direction not set, can't send keys\n");
+		return false;
+	}
+
+	sprintf(buf, "%s -q -B -P %s -i %s -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null %s %s %s:%s > /dev/null 2>&1 < /dev/null", scp, portStr, privKeyFile, privKeyFile, contactFileSrc, dstHost, dir);
 
 		// and run it...
-	dprintf(D_ALWAYS, "Sending private keys over via: %s\n", buf);
+	dprintf(D_ALWAYS, "Sending keys and contact info via: %s\n", buf);
 
 	int r = system(buf);
 
+	free(--dstHost);
 	free(scp);
 	if (r == 0) {
 		return true;
@@ -255,9 +314,12 @@ SshdWrapper::sendPrivateKeyAndContactFile(const char* contactFileSrc)
 	}
 }
 
-// Need cluster & node id ?
 char* 
-SshdWrapper::generateContactFileLine(int cluster)
+SshdWrapper::generateContactFileLine(int node)
 {
-	return 0;
+		// 7 is max string length of a port
+	char *buf = (char *) malloc(7 + strlen(sinful) + 1 + strlen(username) + 1 
+								+ strlen(dir) + 1);
+	sprintf(buf, "%d %s %s %s\n", node, sinful, username, dir);
+	return buf;
 }
