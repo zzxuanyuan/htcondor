@@ -193,9 +193,8 @@ DEBUG_FLAG = DebugFlag
     #define WANT_SOAP NO
 #endif
 
-/* gSOAP needs reentrant, thread-safe versions of sys calls. */
 #if WANT_SOAP
-    SOAP_FLAGS = -DWANT_SOAP -D_REENTRANT -D__REENTRANT -D_THREAD_SAFE
+    SOAP_FLAGS = -DWANT_SOAP
 #endif
 
 #if WANT_CLASSAD_FUNCTIONS && HAS_DLOPEN
