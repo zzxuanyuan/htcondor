@@ -11,6 +11,7 @@
 
 namespace dagman {
 
+//---------------------------------------------------------------------------
 ostream & operator << (ostream & out, const std::list<JobID_t> & jobs) {
     std::list<JobID_t>::const_iterator it;
     out << '(';
@@ -18,7 +19,6 @@ ostream & operator << (ostream & out, const std::list<JobID_t> & jobs) {
     cout << "<end>)";
     return out;
 }
-
 
 //---------------------------------------------------------------------------
 void TQI::Print () const {
@@ -415,8 +415,10 @@ bool Dag::Submit (Job * job) {
     }
 
     job->m_Status = Job::STATUS_SUBMITTED;
+
     m_numJobsRunning++;
-    assert (m_numJobsRunningMax >= 0 || m_numJobsRunning <= m_numJobsRunningMax);
+    assert (m_numJobsRunningMax == 0 ||
+            m_numJobsRunning <= m_numJobsRunningMax);
 
     if (DEBUG_LEVEL(DEBUG_VERBOSE)) {
         printf (", ");
@@ -683,6 +685,9 @@ Job * Dag::GetSubmittedJob (bool recovery) {
     m_termQLock = false;
     if (recovery && job_found != NULL) {
         job_found->m_Status = Job::STATUS_SUBMITTED;
+        m_numJobsRunning++;
+        assert (m_numJobsRunningMax == 0 ||
+                m_numJobsRunning <= m_numJobsRunningMax);
     }
     return job_found;
 }
