@@ -46,6 +46,9 @@ CMNT
 #include <Imake.rules>
 #include INCLUDE_IMAKEFILE
 
+clean::
+	rm -f *.o core
+
 instantiate.o: instantiate.C
 	$(CPlusPlus) $(STD_C_FLAGS) -c instantiate.C
 
