@@ -21,9 +21,18 @@
  * WI 53706-1685, (608) 262-0856 or miron@cs.wisc.edu.
 ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
-/* Dummy definition of ZZZ_dc_sinful to be included in Condor
-   libraries where needed. */
-#include "condor_common.h"
+ 
 
-char* global_dc_sinful() { return 0; }
 
+/*
+**	Defines path names of important files relative to
+**	the home directory of 'condor'.
+*/
+
+#define CONFIG				"condor_config"
+#define CONFIG_TEST			"condor_config_t"
+#define LOCAL_CONFIG		"condor_config.local"
+#define LOCAL_CONFIG_TEST	"condor_config_t.local"
+#define MASTER_CONFIG		"condor_config.master"
+#define SERVER_CONFIG		"condor_config.fromserver"
+#define AGGREGATE_CONFIG	"condor_config.aggregate"

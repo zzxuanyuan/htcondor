@@ -76,9 +76,6 @@ class MyString
 	/** Returns length of string */
 	int Length()          const { return Len;                }
 
-	/** Returns true if the string is empty, false otherwise */
-	const bool IsEmpty() const { return (Len == 0); }
-
 	/** Returns space reserved for string */
 	int Capacity()        const { return capacity;           }
 
@@ -218,8 +215,6 @@ class MyString
 
 	/** Like vsprintf, but this appends to existing data. */
 	bool vsprintf_cat(const char *format, va_list args);
-
-	void lower_case(void);
 
 	//@}
 

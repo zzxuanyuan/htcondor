@@ -21,9 +21,30 @@
  * WI 53706-1685, (608) 262-0856 or miron@cs.wisc.edu.
 ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
-/* Dummy definition of ZZZ_dc_sinful to be included in Condor
-   libraries where needed. */
-#include "condor_common.h"
+ 
 
-char* global_dc_sinful() { return 0; }
-
+/*
+** Compatibility routine for systems which utilize setresuid() for
+** this purpose.
+*/
+setregid( rgid, egid )
+int		rgid;
+int		egid;
+{
+	int temp_gid=getgid();
+	int temp_egid=getegid();
+	
+	if (getuid() != 0) { 
+        if(setgid(rgid)==-1) { 
+			return -1;
+		} else if (setegid(egid)==-1) {
+			setgid(temp_gid);
+			setegid(temp_egid);
+			return -1;
+		} else { 
+			return 0;
+		}
+	} else {
+		return setresgid( rgid, egid, egid ); 
+	}
+}

@@ -90,6 +90,7 @@ sysapi_disk_space_raw(const char *filename)
    only C++.  -Derek 6/25/98 */
 extern char* param();
 
+static char	*Afs_Cache_Name;
 
 #define FS_PROGRAM "/usr/afsws/bin/fs"
 #define FS_COMMAND "getcacheparms"
@@ -120,6 +121,7 @@ reserve_for_afs_cache()
 	char	cmd[512];
 	int		cache_size, cache_in_use;
 	int		do_it;
+	char	*str;
 
 	/* See if we're configured to deal with an AFS cache */
 	do_it = _sysapi_reserve_afs_cache;

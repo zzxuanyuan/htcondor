@@ -56,7 +56,8 @@ int 	engine_clientTimeoutHandler (Service *);
 int 	engine_housekeepingHandler  (Service *);
 char	*strStatus (ClassAd *);
 
-CollectorEngine::CollectorEngine (CollectorStats *stats ) : 
+CollectorEngine::
+CollectorEngine () : 
 	StartdAds     (GREATER_TABLE_SIZE, &hashFunction),
 	StartdPrivateAds(GREATER_TABLE_SIZE, &hashFunction),
 	ScheddAds     (GREATER_TABLE_SIZE, &hashFunction),
@@ -73,8 +74,6 @@ CollectorEngine::CollectorEngine (CollectorStats *stats ) :
 	masterCheckInterval = 10800;
 	housekeeperTimerID = -1;
 	masterCheckTimerID = -1;
-
-	collectorStats = stats;
 }
 
 
@@ -372,8 +371,8 @@ collect (int command,ClassAd *clientAd,sockaddr_in *from,int &insert,Sock *sock)
 		}
 		checkMasterStatus (clientAd);
 		sprintf (hashString, "< %s , %s >", hk.name, hk.ip_addr);
-		retVal=updateClassAd (StartdAds, "StartdAd     ", "Start",
-							  clientAd, hk, hashString, insert, from );
+		retVal=updateClassAd (StartdAds, "StartdAd     ", clientAd, hk, 
+							  hashString, insert);
 
 		// if we want to store private ads
 		if (!sock)
@@ -396,9 +395,8 @@ collect (int command,ClassAd *clientAd,sockaddr_in *from,int &insert,Sock *sock)
 			
 			// insert the private ad into its hashtable --- use the same
 			// hash key as the public ad
-			(void) updateClassAd (StartdPrivateAds, "StartdPvtAd  ",
-								  "StartdPvt", pvtAd, hk, hashString, insPvt,
-								  from );
+			(void) updateClassAd (StartdPrivateAds, "StartdPvtAd  ", pvtAd,
+									hk, hashString, insPvt);
 		}
 		break;
 
@@ -411,8 +409,8 @@ collect (int command,ClassAd *clientAd,sockaddr_in *from,int &insert,Sock *sock)
 		}
 		checkMasterStatus (clientAd);
 		sprintf (hashString, "< %s , %s >", hk.name, hk.ip_addr);
-		retVal=updateClassAd (ScheddAds, "ScheddAd     ", "Schedd",
-							  clientAd, hk, hashString, insert, from );
+		retVal=updateClassAd (ScheddAds, "ScheddAd     ", clientAd, hk,
+							  hashString, insert);
 		break;
 
 	  case UPDATE_SUBMITTOR_AD:
@@ -426,8 +424,8 @@ collect (int command,ClassAd *clientAd,sockaddr_in *from,int &insert,Sock *sock)
 		// since submittor ads always follow a schedd ad, and a master check is
 		// performed for schedd ads, we don't need a master check in here
 		sprintf (hashString, "< %s , %s >", hk.name, hk.ip_addr);
-		retVal=updateClassAd (SubmittorAds, "SubmittorAd  ", "Submittor",
-							  clientAd, hk, hashString, insert, from );
+		retVal=updateClassAd (SubmittorAds, "SubmittorAd  ", clientAd, hk,
+							  hashString, insert);
 		break;
 
 	  case UPDATE_LICENSE_AD:
@@ -441,8 +439,8 @@ collect (int command,ClassAd *clientAd,sockaddr_in *from,int &insert,Sock *sock)
 		// since submittor ads always follow a schedd ad, and a master check is
 		// performed for schedd ads, we don't need a master check in here
 		sprintf (hashString, "< %s , %s >", hk.name, hk.ip_addr);
-		retVal=updateClassAd (LicenseAds, "LicenseAd  ", "License",
-							  clientAd, hk, hashString, insert, from );
+		retVal=updateClassAd (LicenseAds, "LicenseAd  ", clientAd, hk,
+							  hashString, insert);
 		break;
 
 	  case UPDATE_MASTER_AD:
@@ -453,8 +451,8 @@ collect (int command,ClassAd *clientAd,sockaddr_in *from,int &insert,Sock *sock)
 			break;
 		}
 		sprintf (hashString, "< %s >", hk.name);
-		retVal=updateClassAd (MasterAds, "MasterAd     ", "Master",
-							  clientAd, hk, hashString, insert, from );
+		retVal=updateClassAd (MasterAds, "MasterAd     ", clientAd, hk, 
+							  hashString, insert);
 		break;
 
 	  case UPDATE_CKPT_SRVR_AD:
@@ -466,8 +464,8 @@ collect (int command,ClassAd *clientAd,sockaddr_in *from,int &insert,Sock *sock)
 		}
 		checkMasterStatus (clientAd);
 		sprintf (hashString, "< %s >", hk.name);
-		retVal=updateClassAd (CkptServerAds, "CkptSrvrAd   ", "CkptSrvr",
-							  clientAd, hk, hashString, insert, from );
+		retVal=updateClassAd (CkptServerAds, "CkptSrvrAd   ", clientAd, hk, 
+							  hashString, insert);
 		break;
 
 	  case UPDATE_COLLECTOR_AD:
@@ -478,8 +476,8 @@ collect (int command,ClassAd *clientAd,sockaddr_in *from,int &insert,Sock *sock)
 			break;
 		}
 		sprintf (hashString, "< %s >", hk.name);
-		retVal=updateClassAd (CollectorAds, "CollectorAd  ", "Collector",
-							  clientAd, hk, hashString, insert, from );
+		retVal=updateClassAd (CollectorAds, "CollectorAd  ", clientAd, hk, 
+							  hashString, insert);
 		break;
 
 	  case UPDATE_STORAGE_AD:
@@ -490,8 +488,8 @@ collect (int command,ClassAd *clientAd,sockaddr_in *from,int &insert,Sock *sock)
 			break;
 		}
 		sprintf (hashString, "< %s >", hk.name);
-		retVal=updateClassAd (StorageAds, "StorageAd  ", "Storage",
-							  clientAd, hk, hashString, insert, from );
+		retVal=updateClassAd (StorageAds, "StorageAd  ", clientAd, hk, 
+							  hashString, insert);
 		break;
 
 	  case QUERY_STARTD_ADS:
@@ -625,13 +623,11 @@ remove (AdTypes adType, HashKey &hk)
 				
 ClassAd * CollectorEngine::
 updateClassAd (CollectorHashTable &hashTable, 
-			   const char *adType,
-			   const char *label,
+			   char *adType, 
 			   ClassAd *ad, 
 			   HashKey &hk,
 			   char *hashString,
-			   int  &insert,
-			   const sockaddr_in *from )
+			   int  &insert )
 {
 	ClassAd  *old_ad, *new_ad;
 	char     buf [40];
@@ -649,15 +645,10 @@ updateClassAd (CollectorHashTable &hashTable,
 	new_ad = ad;
 
 	// check if it already exists in the hash table ...
-	if ( hashTable.lookup (hk, old_ad) == -1)
+	if (hashTable.lookup (hk, old_ad) == -1)
     {	 	
 		// no ... new ad
 		dprintf (D_ALWAYS, "%s: Inserting ** %s\n", adType, hashString);
-
-		// Update statistics
-		collectorStats->update( label, NULL, new_ad );
-
-		// Now, store it away
 		if (hashTable.insert (hk, new_ad) == -1)
 		{
 			EXCEPT ("Error inserting ad (out of memory)");
@@ -671,9 +662,6 @@ updateClassAd (CollectorHashTable &hashTable,
 		// yes ... old ad must be updated
 		dprintf (D_FULLDEBUG, "%s: Updating ... %s\n", adType, hashString);
 
-		// Update statistics
-		collectorStats->update( label, old_ad, new_ad );
-
 		// check if it has special status (master ads)
 		if (old_ad < CollectorEngine::THRESHOLD)
 		{
@@ -686,7 +674,6 @@ updateClassAd (CollectorHashTable &hashTable,
 		}
 		else
 		{
-			// Now, finally, store the new ClassAd
 			old_ad->ExchangeExpressions (new_ad);
 			delete new_ad;
 		}
@@ -694,7 +681,7 @@ updateClassAd (CollectorHashTable &hashTable,
 		insert = 0;
 		return old_ad;
 	}
-}
+}		
 
 void CollectorEngine::
 checkMasterStatus (ClassAd *ad)

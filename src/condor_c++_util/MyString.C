@@ -24,7 +24,6 @@
 #include "condor_common.h"
 #include "MyString.h"
 #include "condor_snutils.h"
-#include "condor_string.h"
 
 /*--------------------------------------------------------------------
  *
@@ -493,13 +492,6 @@ MyString::sprintf(const char *format,...)
 }
 
 
-
-void MyString::
-lower_case(void)
-{
-	::lower_case(Data);
-	return;
-}
 
 /*--------------------------------------------------------------------
  *

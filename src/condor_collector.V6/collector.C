@@ -36,8 +36,7 @@ extern char* mySubSystem;
 extern "C" char* CondorVersion( void );
 extern "C" char* CondorPlatform( void );
 
-CollectorStats CollectorDaemon::collectorStats( false, 0, 0 );
-CollectorEngine CollectorDaemon::collector( &collectorStats );
+CollectorEngine CollectorDaemon::collector;
 int CollectorDaemon::ClientTimeout;
 int CollectorDaemon::QueryTimeout;
 char* CollectorDaemon::CollectorName;
@@ -807,7 +806,9 @@ void CollectorDaemon::Config()
 			delete updateCollector;
 			updateCollector = NULL;
         }
-		updateCollector = new DCCollector( tmp, DCCollector::UDP );
+		int collector_port = param_get_collector_port();
+		updateCollector = new DCCollector( tmp, collector_port, 
+										   DCCollector::UDP );
 		if( UpdateTimerId < 0 ) {
 			UpdateTimerId = daemonCore->
 				Register_Timer( 1, i, (TimerHandler)sendCollectorAd,
@@ -849,8 +850,9 @@ void CollectorDaemon::Config()
     tmp = param("CONDOR_VIEW_HOST");
     if(tmp) {
        if(!same_host(my_full_hostname(), tmp) ) {
+		   int view_port = param_get_condor_view_port();
            dprintf(D_ALWAYS, "Will forward ads on to View Server %s\n", tmp);
-           View_Collector = new DCCollector( tmp );
+           View_Collector = new Daemon(tmp, view_port);
        } 
        free(tmp);
        if(View_Collector) {
@@ -887,34 +889,6 @@ void CollectorDaemon::Config()
 	} else {
 		dprintf( D_FULLDEBUG, "No SocketCache, will refuse TCP updates\n" );
 	}		
-
-    tmp = param ("COLLECTOR_CLASS_HISTORY_SIZE");
-    if( tmp ) {
-		int	size = atoi( tmp );
-        collectorStats.setClassHistorySize( size );
-    } else {
-        collectorStats.setClassHistorySize( 0 );
-    }
-
-    tmp = param ("COLLECTOR_DAEMON_STATS");
-	if( tmp ) {
-		if( ( *tmp == 't' || *tmp == 'T' ) ) {
-			collectorStats.setDaemonStats( true );
-		} else {
-			collectorStats.setDaemonStats( false );
-		}
-		free( tmp );
-	} else {
-		collectorStats.setDaemonStats( false );
-	}
-
-    tmp = param ("COLLECTOR_DAEMON_HISTORY_SIZE");
-    if( tmp ) {
-		int	size = atoi( tmp );
-        collectorStats.setDaemonHistorySize( size );
-    } else {
-        collectorStats.setDaemonHistorySize( 0 );
-    }
 		
     return;
 }
@@ -966,9 +940,6 @@ int CollectorDaemon::sendCollectorAd()
     ad->Insert(line);
     sprintf(line,"%s = %d",ATTR_NUM_HOSTS_OWNER,machinesOwner);
     ad->Insert(line);
-
-	// Collector engine stats, too
-	collectorStats.publishGlobal( ad );
 
     // send the ad
 	if( ! updateCollector->sendUpdate(UPDATE_COLLECTOR_AD, ad) ) {

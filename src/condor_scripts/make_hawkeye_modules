@@ -29,7 +29,6 @@ sub main( @ )
     my $ModulesFile = "Hawkeye.modules";
     my %KnownTargets;
     my $DefaultDir = ".";
-    my $ModulePrefix = "";
     my $TargetDir = "";
     my $Force = 0;
 
@@ -73,10 +72,6 @@ sub main( @ )
 	if ( /^directory:\s+(\S+)/i )
 	{
 	    $DefaultDir = $1;
-	}
-	elsif ( /^prefix:\s+(\S+)/i )
-	{
-	    $ModulePrefix = $1;
 	}
 	elsif ( /^target:\s+(\S+)/i )
 	{
@@ -157,7 +152,7 @@ sub main( @ )
     foreach my $Target ( @Targets )
     {
 	my $Version = $KnownTargets{$Target}{Version};
-	my $TarBall = $ModulePrefix . $Target . "-" . $Version . ".tar.gz";
+	my $TarBall = "$Target-$Version.tar.gz";
 	my $TarBallFull = "$TargetDir/$TarBall";
 
 	# Does it already exist?

@@ -95,40 +95,27 @@ while ( <IN> )
     {
 	my $Host = $1;
 	my $Remain = $2;
-
-	# Ok, let's look at the remainder of the line..
+	my @Notes;
+	my $Date = "";
 	chomp $Remain;
 	$Remain =~ s/\#.*$//;
-	$Remain =~ s/^\s+//;
-	my $NoteString = "";
-	my $Dump = 0;
-
-	# Otherwise, dump if it matches...
-	if ( $Remain =~ /(.+)[\s+,](.+)/ )
+	if ( $Remain =~ /,\s*(.*)/ )
 	{
-	    my $Date = $1;
-	    my $Notes = $2;
-	    if ( $Notes =~ /$NotePattern/i )
-	    {
-		$Dump = 1;
-		$NoteString = "$Date $Notes";
-	    }
-	}
-	# If there is no matching note only dump if there is no pattern...
-	else
-	{
-	    $Dump = 1 if ( $NotePattern eq ".*" );
+	    ( $Date, @Notes ) = split (/[,\s]+/, $1 );
 	}
 
-	# Dump it
-	if ( $Dump )
+	# Ok... Did the user specify a pattern?
+	foreach my $Note ( @Notes )
 	{
-	    printf "%-30s", $Host;
-	    if ( $Verbose )
+	    if ( $Note =~ /$NotePattern/ )
 	    {
-		print "$NoteString";
+		printf "%-30s", $Host;
+		if ( $Verbose )
+		{
+		    print join( " ", ( $Date, @Notes ) );
+		}
+		print "\n";
 	    }
-	    print "\n";
 	}
     }
     elsif ( ! /^$/ )

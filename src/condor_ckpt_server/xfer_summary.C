@@ -32,6 +32,7 @@
 #include "condor_collector.h"
 #include "condor_attributes.h"
 #include "condor_version.h"
+#include "condor_parameters.h"
 #include "my_hostname.h"
 
 
@@ -47,6 +48,7 @@ XferSummary::XferSummary()
 	subnet = 0;
 	log_file = 0;
 	Collector = NULL;
+	ViewCollector = NULL;
 }
 
 
@@ -75,6 +77,15 @@ XferSummary::init()
 
 	if( ! Collector ) {
 		Collector = new DCCollector;
+	}
+
+	char* tmp = param( "CONDOR_VIEW_HOST" );
+	if( tmp ) {
+		if( ! ViewCollector ) { 
+			int condor_view_port = param_get_condor_view_port();
+			ViewCollector = new DCCollector( tmp, condor_view_port );
+		}
+		free( tmp );
 	}
 
 	if( subnet ) { free( subnet ); }
@@ -182,6 +193,15 @@ XferSummary::time_out(time_t now)
 		if( ! Collector->sendUpdate(UPDATE_CKPT_SRVR_AD, &info) ) {
             dprintf( D_ALWAYS, "Failed to update collector %s: %s\n", 
 					 Collector->updateDestination(), Collector->error() );
+		}
+	}
+
+	// Send to condor view host
+	if( ViewCollector ) {
+		if( ! ViewCollector->sendUpdate(UPDATE_CKPT_SRVR_AD, &info) ) {
+            dprintf( D_ALWAYS, "Failed to update view server %s: %s\n", 
+					 ViewCollector->fullHostname(),
+					 ViewCollector->error() );
 		}
 	}
 

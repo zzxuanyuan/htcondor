@@ -7,7 +7,6 @@
 #include "../condor_status.V6/totals.h"
 
 #include "collector_engine.h"
-#include "collector_stats.h"
 #include "dc_collector.h"
 
 //----------------------------------------------------------------
@@ -50,7 +49,6 @@ public:
 	static void send_classad_to_sock( int cmd, Daemon * d, ClassAd* theAd);	
 protected:
 
-	static CollectorStats collectorStats;
 	static CollectorEngine collector;
 	static Daemon* View_Collector;
 	static Sock* view_sock;
@@ -80,7 +78,6 @@ protected:
 	static SocketCache* sock_cache;
 	static int sockCacheHandler( Service*, Stream* sock );
 	static int stashSocket( Stream* sock );
-
 };
 
 #endif
