@@ -812,15 +812,17 @@ doContactSchedd()
 				ASSERT( job_is_managed || job_is_matched );
 
 				resource_name[0] = '\0';
-					// If job is already being managed, the Globus resource is
-					// ATTR_GLOBUS_RESOURCE_INUSE; otherwise, it is 
-					// ATTR_GLOBUS_RESOURCE.
-				if ( job_is_managed ) {
-					next_ad->LookupString( ATTR_GLOBUS_RESOURCE_INUSE, 
-															resource_name );
-				} else {
-					next_ad->LookupString(ATTR_GLOBUS_RESOURCE, resource_name);
-					if ( strstr(resource_name,"$$") ) {
+				int must_expand = 0;
+
+					next_ad->LookupBool(ATTR_JOB_MUST_EXPAND, must_expand);
+					if ( !must_expand ) {
+						next_ad->LookupString(ATTR_GLOBUS_RESOURCE, resource_name);
+						if ( strstr(resource_name,"$$") ) {
+							must_expand = 1;
+						}
+					}
+
+					if (must_expand) {
 						// Get the expanded ClassAd from the schedd, which
 						// has the globus resource filled in with info from
 						// the matched ad.
@@ -831,7 +833,6 @@ doContactSchedd()
 						resource_name[0] = '\0';
 						next_ad->LookupString(ATTR_GLOBUS_RESOURCE, resource_name);
 					}
-				}
 
 				if ( resource_name[0] == '\0' ) {
 
@@ -865,10 +866,6 @@ doContactSchedd()
 								  new_job->procID.proc,
 								  ATTR_JOB_MANAGED,
 								  "TRUE" );
-						SetAttributeString( new_job->procID.cluster,
-								  new_job->procID.proc,
-								  ATTR_GLOBUS_RESOURCE_INUSE,
-								  resource_name );
 					}
 
 				}	// end of if else we have a resource name
