@@ -615,8 +615,16 @@ dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too long!\n",procID.cluster,procI
 			} else if ( condorState == REMOVED ) {
 				gmState = GM_CANCEL_1;
 			} else if ( condorState == HELD ) {
-				gmState = GM_HOLD_REMOTE_JOB;
-			}else if ( remoteState == HELD ) {
+				if ( remoteState == HELD ) {
+					// The job is on hold both locally and remotely. We're
+					// done, delete this job object from the gridmanager.
+					gmState = GM_DELETE;
+				} else {
+					gmState = GM_HOLD_REMOTE_JOB;
+				}
+			} else if ( remoteState == HELD ) {
+				// The job is on hold remotely but not locally. This means
+				// the remote job needs to be released.
 				gmState = GM_RELEASE_REMOTE_JOB;
 			} else if ( newRemoteStatusAd != NULL ) {
 				if ( newRemoteStatusStartTime <= lastRemoteStatusTime ) {
@@ -667,6 +675,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too long!\n",procID.cluster,procI
 				break;
 			}
 			remoteState = IDLE;
+			JobIdle();
 			lastRemoteStatusTime = time(NULL);
 			gmState = GM_SUBMITTED_MIRROR_ACTIVE;
 			} break;
@@ -963,6 +972,7 @@ void MirrorJob::ProcessRemoteAdActive( ClassAd *remote_ad )
 {
 	int rc;
 	int tmp_int;
+	int new_remote_state;
 	ClassAd *diff_ad;
 	MyString buff;
 	const char *next_name;
@@ -974,14 +984,37 @@ void MirrorJob::ProcessRemoteAdActive( ClassAd *remote_ad )
 	dprintf( D_FULLDEBUG, "(%d.%d) ***ProcessRemoteAdActive\n",
 			 procID.cluster, procID.proc );
 
-	remote_ad->LookupInteger( ATTR_JOB_STATUS, tmp_int );
-	remoteState = tmp_int;
+	remote_ad->LookupInteger( ATTR_JOB_STATUS, new_remote_state );
 
-	if ( remoteState == IDLE ) {
-		JobIdle();
-	}
-	if ( remoteState == RUNNING ) {
-		JobRunning();
+	if ( new_remote_state != remoteState ) {
+		if ( new_remote_state == IDLE ) {
+			JobIdle();
+		}
+		if ( new_remote_state == RUNNING ) {
+			JobRunning();
+		}
+		// If the job has been removed locally, don't propagate a hold from
+		// the remote schedd. 
+		// If HELD is the first job status we get from the remote schedd,
+		// assume that it's an old hold that was also reflected in the local
+		// schedd and has since been released locally (and should be released
+		// remotely as well). This won't always be true, but releasing the
+		// remote job anyway shouldn't cause any major trouble.
+		if ( new_remote_state == HELD && condorState != REMOVED &&
+			 remoteState != JOB_STATE_UNKNOWN ) {
+			char *reason = NULL;
+			int code = 0;
+			int subcode = 0;
+			if ( remote_ad->LookupString( ATTR_HOLD_REASON, &reason ) ) {
+				remote_ad->LookupInteger( ATTR_HOLD_REASON_CODE, code );
+				remote_ad->LookupInteger( ATTR_HOLD_REASON_SUBCODE, subcode );
+				JobHeld( reason, code, subcode );
+				free( reason );
+			} else {
+				JobHeld( "held remotely with no hold reason" );
+			}
+		}
+		remoteState = new_remote_state;
 	}
 
 	diff_ad = ClassAdDiff( ad, remote_ad );
