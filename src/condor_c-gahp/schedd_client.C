@@ -92,7 +92,7 @@ schedd_thread (void * arg, Stream * sock) {
 
 
 	write (REQUEST_ACK_OUTBOX, "R", 1); // Signal that we're ready for the first request
-	
+
 	return TRUE;
 }
 
@@ -118,10 +118,10 @@ checkRequestPipe () {
 			dprintf (D_ALWAYS, "Request pipe, closed. Exiting...\n");
 			main_shutdown_graceful();
 		}
-		
+
 		select_result =
 			FdBuffer::Select (wait_on, 1, 3, &is_ready);
-		
+
 		if ( (select_result > 0) && (is_ready) && ((next_line = request_buffer.GetNextLine()) != NULL)) {
 			dprintf (D_FULLDEBUG, "got work request: %s\n", next_line->Value());
 
@@ -141,12 +141,12 @@ checkRequestPipe () {
 				free (argv[argc]);
 			delete [] argv;
 
-			write (REQUEST_ACK_OUTBOX, "R", 1); // Signal that we're ready again		
+			write (REQUEST_ACK_OUTBOX, "R", 1); // Signal that we're ready again
 		}
 	} while (select_result > 0); // Keep selecting while there's stuff to read
 
 	time_t time2 = time (NULL);
-	
+
 	// Come back soon....
 	int next_contact_interval = CHECK_REQUEST_PIPE_INTERVAL - (time2 - time1);
 	if (next_contact_interval < 0)
@@ -168,22 +168,57 @@ doContactSchedd()
 
 	dprintf(D_FULLDEBUG,"in doContactSchedd\n");
 
-	// Try connecting to schedd
-	DCSchedd dc_schedd ( ScheddAddr );
-	if (dc_schedd.error() || !dc_schedd.locate()) {
-	    dprintf( D_ALWAYS, "Failed to connect to schedd, will retry in %d secs!\n", CONTACT_SCHEDD_INTERVAL);
-    	daemonCore->Reset_Timer( contactScheddTid, CONTACT_SCHEDD_INTERVAL );
-	    return TRUE;
-	}
+	SchedDRequest * current_command = NULL;
 
 	CondorError errstack;
 	char error_msg[1000];
 
-	SchedDRequest * current_command = NULL;
+	// Try connecting to schedd
+	DCSchedd dc_schedd ( ScheddAddr );
+	if (dc_schedd.error() || !dc_schedd.locate()) {
+		sprintf (error_msg, "Error locating schedd %s", ScheddAddr);
+
+		dprintf( D_ALWAYS, "%s\n", error_msg);
+
+		// If you can't connect return "Failure" on every job request
+		command_queue.Rewind();
+		while (command_queue.Next(current_command)) {
+			if (current_command->status != SchedDRequest::SDCS_NEW)
+				continue;
+
+			if (current_command->command == SchedDRequest::SDC_STATUS_CONSTRAINED) {
+				const char * result[] = {
+					GAHP_RESULT_FAILURE,
+					error_msg,
+					"0"};
+				enqueue_result (current_command->request_id, result, 3);
+			} else if (current_command->command == SchedDRequest::SDC_SUBMIT_JOB) {
+				const char * result[] = {
+									GAHP_RESULT_FAILURE,
+									NULL,
+									error_msg };
+				enqueue_result (current_command->request_id, result, 3);
+			} else {
+				const char * result[] = {
+									GAHP_RESULT_FAILURE,
+									error_msg };
+				enqueue_result (current_command->request_id, result, 2);
+			}
+		}
+
+		current_command->status = SchedDRequest::SDCS_COMPLETED;
+
+	}
+
+
+
 	command_queue.Rewind();
 	while (command_queue.Next(current_command)) {
-		if (!current_command->status == SchedDRequest::SDCS_NEW)
+		if (current_command->status != SchedDRequest::SDCS_NEW) {
+			delete current_command;
+			command_queue.DeleteCurrent();
 			continue;
+		}
 
 		if (current_command->command == SchedDRequest::SDC_REMOVE_JOB ||
 			current_command->command == SchedDRequest::SDC_HOLD_JOB ||
@@ -225,7 +260,7 @@ doContactSchedd()
 
 			if (!result_ad) {
 				error = TRUE;
-				strcpy (error_msg, "Unknown error");
+				sprintf (error_msg, "Error connecting to schedd %s", ScheddAddr);
 			} else {
 				result_ad->dPrint (D_FULLDEBUG);
 
@@ -303,7 +338,7 @@ doContactSchedd()
 
 			if (!BeginQmgmtTransaction(dc_schedd, TRUE)) {
 				error = TRUE;
-				strcpy (error_msg, "Unable to start QMGMT transaction");
+				sprintf (error_msg, "Error connecting to schedd %s", ScheddAddr);
 				dprintf (D_ALWAYS, "%s\n", error_msg);
 			} else {
 				current_command->classad->ResetExpr();
@@ -356,7 +391,7 @@ doContactSchedd()
 
 			if (!BeginQmgmtTransaction(dc_schedd, TRUE)) {
 				error = TRUE;
-				strcpy (error_msg, "Unable to start QMGMT transaction");
+				sprintf (error_msg, "Error connecting to schedd %s", ScheddAddr);
 				dprintf (D_ALWAYS, "%s\n", error_msg);
 			} else {
 				current_command->classad->ResetExpr();
@@ -405,9 +440,9 @@ doContactSchedd()
 				FinishTransaction(TRUE);
 				enqueue_result (current_command->request_id, result, 2);
 			} // fi
-			
+
 			current_command->status = SchedDRequest::SDCS_COMPLETED;
-			
+
 		} else if (current_command->command == SchedDRequest::SDC_STATUS_CONSTRAINED ) {
 			SimpleList <MyString *> matching_ads;
 
@@ -418,7 +453,7 @@ doContactSchedd()
 
 			if (!BeginQmgmtTransaction(dc_schedd, FALSE)) {
 				error = TRUE;
-				strcpy (error_msg, "Unable to start QMGMT transaction");
+				sprintf (error_msg, "Error connecting to schedd %s", ScheddAddr);
 				dprintf (D_ALWAYS, "%s\n", error_msg);
 			} else {
 				ClassAd * next_ad = GetNextJobByConstraint( current_command->constraint, 1 );
@@ -460,7 +495,7 @@ doContactSchedd()
 
 			if (error) {
 				FinishTransaction(FALSE);
-				
+
 				const char * result[] = {
 					GAHP_RESULT_FAILURE,
 					error_msg,
@@ -480,7 +515,7 @@ doContactSchedd()
 
 			if (!BeginQmgmtTransaction(dc_schedd, TRUE)) {
 				error = TRUE;
-				strcpy (error_msg, "Unable to start QMGMT transaction");
+				sprintf (error_msg, "Error connecting to schedd %s", ScheddAddr);
 				dprintf (D_ALWAYS, "%s\n", error_msg);
 			} else if ((ClusterId = NewCluster()) == -1) {
 				error = TRUE;
@@ -536,7 +571,7 @@ doContactSchedd()
 				// Now transfer the sandbox
 				// This has been moved to a separate command, JOB_STAGE_IN,
 				// by Jaime's request, despite Carey's disgruntlement....
-				
+
 				/*CondorError errstack;
 				ClassAd* array [1];
 				array[0] = current_command->classad;
@@ -580,12 +615,12 @@ doContactSchedd()
 										  array,
 										  &errstack )) {
 				error = TRUE;
-				sprintf (error_msg, "Error transferring sandbox for request %d", current_command->request_id);
+				sprintf (error_msg, "Error connecting to schedd %s", ScheddAddr);
 				dprintf (D_ALWAYS, "%s\n", error_msg);
 			}
 
 			current_command->status = SchedDRequest::SDCS_COMPLETED;
-			
+
 			if (error) {
 				const char * result[] = {
 									GAHP_RESULT_FAILURE,
@@ -760,7 +795,7 @@ handle_gahp_command(char ** argv, int argc) {
 
 		char * constraint = argv[3];
 
-		
+
 		enqueue_command (
 			SchedDRequest::createStatusConstrainedRequest(
 				req_id,
