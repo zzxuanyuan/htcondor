@@ -124,6 +124,7 @@ Claim::publish( ClassAd* ad, amask_t how_much )
 {
 	char line[256];
 	char* tmp;
+	char *remoteUser;
 
 	if( IS_PRIVATE(how_much) ) {
 		return;
@@ -133,9 +134,9 @@ Claim::publish( ClassAd* ad, amask_t how_much )
 	ad->Insert( line );
 
 	if( c_client ) {
-		tmp = c_client->user();
-		if( tmp ) {
-			sprintf( line, "%s=\"%s\"", ATTR_REMOTE_USER, tmp );
+		remoteUser = c_client->user();
+		if( remoteUser ) {
+			sprintf( line, "%s=\"%s\"", ATTR_REMOTE_USER, remoteUser );
 			ad->Insert( line );
 		}
 		tmp = c_client->owner();
@@ -145,7 +146,17 @@ Claim::publish( ClassAd* ad, amask_t how_much )
 		}
 		tmp = c_client->accountingGroup();
 		if( tmp ) {
-			sprintf( line, "%s=\"%s\"", ATTR_ACCOUNTING_GROUP, tmp );
+			char *uidDom = NULL;
+				// The accountant wants to see ATTR_ACCOUNTING_GROUP 
+				// fully qualified
+			if ( remoteUser ) {
+				uidDom = strchr(remoteUser,'@');
+			}
+			if ( uidDom ) {
+				sprintf( line, "%s=\"%s%s\"",ATTR_ACCOUNTING_GROUP,tmp,uidDom);
+			} else {
+				sprintf( line, "%s=\"%s\"", ATTR_ACCOUNTING_GROUP, tmp );
+			}
 			ad->Insert( line );
 		}
 		tmp = c_client->host();
