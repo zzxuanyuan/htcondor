@@ -45,14 +45,6 @@ public:
 		/// Destructor.
 	~DCStartd();
 
-		/** Set the capability for use when talking to this startd.
-			This method is deprecated.  You should use setClaimId(),
-			instead.  
-			@param cap_str The capability string
-			@return true on success, false on invalid input (NULL)
-		*/
-	bool setCapability( const char* cap_str );
-
 		/** Set the ClaimId to use when talking to this startd. 
 			@param id The ClaimID string
 			@return true on success, false on invalid input (NULL)
@@ -60,12 +52,9 @@ public:
 	bool setClaimId( const char* id );
 
 
-		/** @return the capability string for this startd, NULL if we
-			don't have a value yet.  This method is deprecated.  You
-			should use getClaimId(), instead.  
-
+		/** @return the ClaimId string for this startd, NULL if we
+			don't have a value yet.
 		*/
-	char* getCapability( void ) { return claim_id; };
 	char* getClaimId( void ) { return claim_id; };
 
 		/** Send the command to this startd to deactivate the claim 

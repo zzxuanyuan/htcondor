@@ -48,13 +48,6 @@ DCStartd::~DCStartd( void )
 
 
 bool
-DCStartd::setCapability( const char* cap_str ) 
-{
-	return setClaimId( cap_str );
-}
-
-
-bool
 DCStartd::setClaimId( const char* id ) 
 {
 	if( ! id ) {
@@ -105,10 +98,10 @@ DCStartd::deactivateClaim( bool graceful )
 				 "DEACTIVATE_CLAIM_FORCIBLY" );
 		return false;
 	}
-		// Now, send the claim_id
+		// Now, send the ClaimId
 	if( ! reli_sock.code(claim_id) ) {
 		dprintf( D_ALWAYS, "DCStartd::deactivateClaim: "
-				 "Failed to send claim_id to the startd\n" );
+				 "Failed to send ClaimId to the startd\n" );
 		return false;
 	}
 	if( ! reli_sock.eom() ) {
