@@ -83,8 +83,8 @@ Matchmaker ()
 /*	db_handle = new ODBC();
  */
 
-	strcpy(RejectsTable, "Rejects_test2");
-	strcpy(MatchesTable, "Matches_test2");
+	strcpy(RejectsTable, "rejects");
+	strcpy(MatchesTable, "matches");
 }
 
 
