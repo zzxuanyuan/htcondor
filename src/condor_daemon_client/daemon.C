@@ -447,7 +447,7 @@ Daemon::sendCommand( int cmd, Stream::stream_type st, int sec )
 
 
 bool
-Daemon::sendCACmd( ClassAd* req, ClassAd* reply )
+Daemon::sendCACmd( ClassAd* req, ClassAd* reply, bool force_auth )
 {
 	if( !req ) {
 		newError( "sendCACmd() called with no request ClassAd" ); 
@@ -479,6 +479,9 @@ Daemon::sendCACmd( ClassAd* req, ClassAd* reply )
 	if( ! startCommand(CA_CMD, &cmd_sock, 20) ) {
 		newError( "Failed to send command (CA_CMD)" );
 		return false;
+	}
+	if( force_auth && !cmd_sock.isAuthenticated() ) {
+		cmd_sock.authenticate();
 	}
 	if( ! req->put(cmd_sock) ) { 
 		newError( "Failed to send request ClassAd" );

@@ -417,10 +417,11 @@ protected:
 		   calls this.
 		   @param req Pointer to the request ad (you fill it in)
 		   @param reply Pointer to the reply ad (from the server)
+		   @param force_auth should we force authentication for this cmd?
 		   @return false if there were any network errors, otherwise,
 		     return the value of ATTR_RESULT
 		*/
-	bool sendCACmd( ClassAd* req, ClassAd* reply );
+	bool sendCACmd( ClassAd* req, ClassAd* reply, bool force_auth );
 
 		/** 
 		   Helper method for commands to see if we've already got the
