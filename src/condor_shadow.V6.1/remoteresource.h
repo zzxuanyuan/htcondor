@@ -304,7 +304,7 @@ class RemoteResource : public Service {
 		*/
 	virtual void beginExecution( void );
 
-	virtual bool reconnect( void );
+	virtual void reconnect( void );
 
  protected:
 
@@ -350,6 +350,9 @@ class RemoteResource : public Service {
 	bool began_execution;
 
 private:
+
+	void attemptReconnect( void );
+	void requestReconnect( void );
 
 		/** For debugging, print out the values of various statistics
 			related to our bookkeeping of suspend/resume activity for
