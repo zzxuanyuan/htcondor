@@ -52,7 +52,7 @@
 		tools kbdd collector.V6 PvmProgs dagman
 
 #define Libraries \
-		util_lib c++_util procapi io classad daemon_core.V6 \
+		util_lib c++_util procapi io classad.V6 daemon_core.V6 \
 		ckpt syscall_lib condor_ckpt_server/ckpt_server_api.a \
 		condor_schedd.V6/libqmgmt.a condor_accountant.V6/libacct.a
 
@@ -207,7 +207,7 @@ object_target(test_suite_C.V5)
 object_target(ckpt)
 object_target(syscall_lib)
 object_target(io)
-object_target(classad)
+object_target(classad.V6)
 object_target(daemon_core.V6)
 #if WANT_PVM && HAS_PVM
    object_target(starter.jim)
@@ -233,7 +233,7 @@ condor_release_all:
 	rm -rf condor_release/examples
 	make condor_release/examples
 
-h_all: h/Makefile h/syscall_numbers.h h/syscall_numbers.o
+h_all: h/Makefile h/syscall_numbers.h h/syscall_numbers.o h/cpp_syms_saved.h
 
 makefiles:: h/Makefile
 
@@ -245,6 +245,9 @@ h/syscall_numbers.h: h/syscall_numbers.tmpl h/Makefile
 
 h/syscall_numbers.o: h/syscall_numbers.tmpl h/Makefile
 	cd h; make syscall_numbers.o
+
+h/cpp_syms_saved.h: h/cpp_syms.h h/Makefile
+	cd h; make cpp_syms_saved.h
 
 check_platform_target
 
