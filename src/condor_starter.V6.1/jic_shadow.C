@@ -135,7 +135,8 @@ JICShadow::init( void )
 	ASSERT( shadow );
 
 		// Now, initalize our version information about the shadow
-	initShadowInfo();
+		// with whatever attributes we can find in the job ad.
+	initShadowInfo( job_ad );
 
 	dprintf( D_ALWAYS, "Starter communicating with condor_shadow %s\n",
 			 shadow->addr() );
@@ -1278,14 +1279,12 @@ JICShadow::getJobAdFromShadow( void )
 
 
 void
-JICShadow::initShadowInfo( void )
+JICShadow::initShadowInfo( ClassAd* ad )
 {
-	ASSERT( job_ad );
 	ASSERT( shadow );
-
-	if( ! shadow->initFromClassAd(job_ad) ) { 
+	if( ! shadow->initFromClassAd(ad) ) { 
 		dprintf( D_ALWAYS, 
-				 "Failed to initialize shadow info from job ClassAd!\n" );
+				 "Failed to initialize shadow info from ClassAd!\n" );
 		return;
 	}
 

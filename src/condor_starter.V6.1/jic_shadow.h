@@ -202,14 +202,17 @@ private:
 	bool getJobAdFromShadow( void );
 
 		/** Initialize information about the shadow's version and
-			sinful string from the job ad.  Also, try to initialize
-			our ShadowVersion object.  If there's no shadow version,
-			we leave our ShadowVersion NULL.  If we know the version,
-			we instantiate a CondorVersionInfo object so we can
-			perform checks on the version in the various places in the
-			starter where we need to know this for compatibility.
+			sinful string from the given ClassAd.  At startup, we just
+			pass the job ad, since that should have everything in it.
+			But on reconnect, we call this with the request ad.  Also,
+			try to initialize our ShadowVersion object.  If there's no
+			shadow version, we leave our ShadowVersion NULL.  If we
+			know the version, we instantiate a CondorVersionInfo
+			object so we can perform checks on the version in the
+			various places in the starter where we need to know this
+			for compatibility.
 		*/
-	void initShadowInfo( void );
+	void initShadowInfo( ClassAd* ad );
 
 		/** Register some important information about ourself that the
 			shadow might need.
