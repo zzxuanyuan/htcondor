@@ -563,13 +563,11 @@ static_dir/##name##: static					@@\
 ** for either purify, purecoverage, or both.
 ***********************************************************************/
 
-#if IS_SUN4X
-
-#define PureCollector concat3(-collector=,CrtLibPath,/ld)
+#if HAS_PURIFY
 
 #define	pure_c_plus_target( program, objlist, libs )	@@\
 ##program: objlist libs					@@\
-	purify -g++=yes -chain-length=50 PureCollector purecov -g++=yes PureCollector $(CC_LINK) $(C_PLUS_FLAGS) -o program objlist libs $(PURIFY_LDFLAGS)	@@\
+	purify -g++=yes -chain-length=50 -cache-dir=$(PURE_CACHE_DIR) purecov -g++=yes $(CC_LINK) $(C_PLUS_FLAGS) -o program objlist libs $(PURIFY_LDFLAGS)	@@\
 clean::							@@\
 	rm -f program objlist
 
@@ -581,14 +579,14 @@ clean::							@@\
 
 #define	purecov_c_plus_target( program, objlist, libs )	@@\
 ##program: objlist libs					@@\
-	purecov -g++=yes PureCollector $(CC_LINK) $(C_PLUS_FLAGS) -o program objlist libs $(PURIFY_LDFLAGS)						@@\
+	purecov -g++=yes -cache-dir=$(PURE_CACHE_DIR) $(CC_LINK) $(C_PLUS_FLAGS) -o program objlist libs $(PURIFY_LDFLAGS)	@@\
 clean:: 						@@\
 	rm -f program objlist
 
 
 #define	quantify_c_plus_target( program, objlist, libs )	@@\
 ##program: objlist libs						@@\
-	quantify -g++=yes PureCollector $(CC_LINK) $(C_PLUS_FLAGS) -o program objlist libs $(PURIFY_LDFLAGS)	                                 @@\
+	quantify -g++=yes -cache-dir=$(PURE_CACHE_DIR) $(CC_LINK) $(C_PLUS_FLAGS) -o program objlist libs $(PURIFY_LDFLAGS)     @@\
 clean::		 						@@\
 	rm -f program objlist
 
@@ -608,7 +606,7 @@ pure:: $(PURE_DIR)/##program
 #define	purecov_c_plus_target( program, objlist, libs )	/* NULL MACRO */
 #define	quantify_c_plus_target( program, objlist, libs ) /* NULL MACRO */
 
-#endif	/* IS_SUN4M_SOLARIS251 */
+#endif	/* HAS_PURIFY */
 
 
 /***********************************************************************
