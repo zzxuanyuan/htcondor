@@ -11,6 +11,7 @@
 
 //#define REPLICATION_CYCLE 300 //5 min (5*60)
 
+
 class ReplicaVersion;
 
     /**
@@ -30,9 +31,7 @@ public:
     */
 	~HADReplication();
 
-    /**
-    *   initialize() - register to messages
-    */
+    void finilize();
 	void initialize();
 	int reinitialize();
 
@@ -41,17 +40,17 @@ public:
 
     void commandHandler(int cmd,Stream *strm) ;
    
-    void  replicate();  // called each REPLICATION_CYCLE
+    void  replicate();  // called each replication cycle
 
     void  checkReceivedVersions() ;
+
+    void updateReplicaVersion();
 private:
     // param in condor_config, default value is 5 min.
     int replicationInterval;
 
     // buffers for getting received version ids
-
-//    List<ReplicaVersion> receivedVersionsList;
-
+    SimpleList<ReplicaVersion> receivedVersionsList;
     StringList receivedAddrVersionsList;
 
     // reapers
@@ -64,15 +63,14 @@ private:
     ReplicaVersion* repVersion;
     
     void  insertVersion(char* addr,char* version);
-    ReplicaVersion   getBestVersion(char* addr);
-  //  int   calculateOwnVersion();
- //   static char* versionToString(int);
-
-    int replicaTimerID;
-    int waitingVersionsTimerID;
+    ReplicaVersion   getBestVersion(char* addr) ;
 
     StringList* otherHADIPs;
     bool wasInitiated;
+    
+    char* versionFilePath;
+    char* releaseDirPath;
+    char* accountFilePath;
 
     // commands
     int   sendCommandToOthers(int cmd);
@@ -88,12 +86,7 @@ private:
     int  receiveFile(char* );
 
     int Download(ReliSock *s);
-    //static int DownloadThread(void *arg, Stream *s) ;
-    //int DoDownload(ReliSock *s);
-
     int Upload(ReliSock *s);
-    //static int UploadThread(void *arg, Stream *s) ;
-    //int DoUpload(filesize_t *total_bytes, ReliSock *s);
 
     struct paramThread{
         HADReplication* myObj;

@@ -22,7 +22,7 @@ HADStateMachine* stateMachine = NULL;
 int
 main_init (int, char *[])
 {
-    dprintf(D_ALWAYS,"Starting Arbiter ....\n");	
+    dprintf(D_ALWAYS,"Starting HAD ....\n");	
     try {
         stateMachine = new HADStateMachine();	
         stateMachine->initialize();

@@ -98,6 +98,12 @@ public:
     int pushReceivedId( int );
 
     void commandHandler(int cmd,Stream *strm) ;
+    void commandHandlerStateMachine(int cmd,Stream *strm) ;
+
+    /*
+      update replica version
+    */
+    void updateReplicaVersion();
 private:
     int state;
     
@@ -108,6 +114,8 @@ private:
     int hadInterval;
     int replicationInterval;
 
+    int connectionTimeout;
+    
     // if callsCounter equals to 0 ,
     // enter state machine , otherwise send messages
     char callsCounter;
@@ -127,13 +135,19 @@ private:
     void removeAllFromList(List<int>*);
     void clearBuffers();
     void printStep(char *curState,char *nextState);
+    void commandToString(int command, char* comm_string);
 
     void finilize();
     void init();
     void onError(char*);
 
+    void replicaTimerHandler();
+    void waitingVersionsTimerHandler();
+    
     char* convertToSinfull(char* addr);
     void print_params_information();
+
+    int myatoi(const char* str, bool* res);
     // debug information
     bool debugMode;
     void my_debug_print_list(StringList* str);

@@ -81,27 +81,35 @@ ReplicaVersion::ReplicaVersion(char* version){
     time3 = time3_tmp;
     timeLastSizeUpdate = timeLastSizeUpdate_tmp;
     size = size_tmp;
+    filename = NULL;
 
 }
 
 ReplicaVersion::ReplicaVersion(char* name,bool flag){
-#if 0 // debug
     time1 = -1;
     time2 = -1;
     time3 = -1;
     timeLastSizeUpdate = -1;
 
     size = 0;
+    filename = NULL;
     filename = (char*)malloc(strlen(name) + 1);
     strcpy(filename,name);
 
     if(!fetch()){
              saveVersion();   // no such file - create new one                  
-    }else{
-            //dprintf(D_ALWAYS,"Cannot open file %s for writing \n",filename);
     }
 
-#endif
+}
+
+ReplicaVersion::ReplicaVersion(const ReplicaVersion& ver){
+    time1 = ver.getTime1();
+    time2 = ver.getTime2() ;
+    time3 = ver.getTime3() ;
+    timeLastSizeUpdate = ver.getTimeLastSizeUpdate() ;
+    size = ver.getSize();
+    filename = NULL;
+    setFileName(ver.getFilename());
 }
 
 ReplicaVersion::~ReplicaVersion(){
@@ -133,47 +141,59 @@ void ReplicaVersion::setSize(long size_){
     size = size_;
 }
 
-long ReplicaVersion::getSize(){
+long ReplicaVersion::getSize() const{
     return size;
 }
 
 bool ReplicaVersion::fetch(){
     char str[200];
-
+    
     ifstream file_op(filename);
 
-    // read time1
-    if(file_op.eof())
+    if(!file_op.is_open()){
         return false;
-
+    }
+    // read time1
+    if(file_op.eof()){
+        file_op.close();
+        return false;
+    }
     file_op.getline(str,200);
     long time1_tmp = atol(str);      // time_t is generally defined by default to long.
 
     // read time2
-    if(file_op.eof())
+    if(file_op.eof()){
+        file_op.close();
         return false;
+    }
 
     file_op.getline(str,200);
     long time2_tmp = atol(str);
 
     // read time3
-    if(file_op.eof())
+    if(file_op.eof()){
+        file_op.close();
         return false;
+    }
 
     file_op.getline(str,200);
     long time3_tmp = atol(str);
 
 
     // read timeLastSizeUpdate
-    if(file_op.eof())
+    if(file_op.eof()){
+        file_op.close();
         return false;
+    }
 
     file_op.getline(str,200);
     long timeLastSizeUpdate_tmp = atol(str);
 
     // read size
-    if(file_op.eof())
+    if(file_op.eof()){
+        file_op.close();
         return false;
+    }
 
     file_op.getline(str,200);
     long size_tmp = atol(str);
@@ -198,7 +218,7 @@ void ReplicaVersion::saveVersion(){
     file_op.close();
 }
 
-bool ReplicaVersion::operator<(ReplicaVersion& ver){
+bool ReplicaVersion::operator<(const ReplicaVersion& ver){
     if(time1 == ver.getTime1() &&
       time2 == ver.getTime2() &&
       time3 == ver.getTime3()){
@@ -208,11 +228,11 @@ bool ReplicaVersion::operator<(ReplicaVersion& ver){
     }
 }
 
-bool ReplicaVersion::operator>(ReplicaVersion& ver){
+bool ReplicaVersion::operator>(const ReplicaVersion& ver){
     return( !( *this < ver || *this == ver));
 }
 
-bool ReplicaVersion::operator==(ReplicaVersion& ver){
+bool ReplicaVersion::operator==(const ReplicaVersion& ver){
    if(time1 == ver.getTime1() &&
       time2 == ver.getTime2() &&
       time3 == ver.getTime3() &&
@@ -223,15 +243,15 @@ bool ReplicaVersion::operator==(ReplicaVersion& ver){
     return false;
 }
 
-bool ReplicaVersion::operator<=(ReplicaVersion& ver){
+bool ReplicaVersion::operator<=(const ReplicaVersion& ver){
     return (*this < ver || *this == ver);
 }
 
-bool ReplicaVersion::operator>=(ReplicaVersion& ver){
+bool ReplicaVersion::operator>=(const ReplicaVersion& ver){
     return (*this > ver || *this == ver);
 }
 
-void ReplicaVersion::operator=(ReplicaVersion& ver){
+void ReplicaVersion::operator=(const ReplicaVersion& ver){
     time1 = ver.getTime1();
     time2 = ver.getTime2() ;
     time3 = ver.getTime3() ;
@@ -243,25 +263,12 @@ void ReplicaVersion::operator=(ReplicaVersion& ver){
 char* ReplicaVersion::versionToSendString(){
     char str[1000];
     snprintf(str,1000,"%ld.%ld.%ld.%ld.%ld",time1,time2,time3,timeLastSizeUpdate,size);
-/*    str << time1 << "."
-        << time2 << "."
-        << time3 << "."
-        << timeLastSizeUpdate) << "."
-        << size << endl;
-*/
     char* strToReturn = strdup(str);
     return strToReturn;
 }
 
 char* ReplicaVersion::versionToPrintString(){
     char str[1000];
-/*    str << "Time1: " << ctime(time1) << "\n"
-        << "Time2: " << ctime(time2) << "\n"
-        << "Time3: " << ctime(time3) << "\n"
-        << "TimeLastSizeUpdate: " << ctime(TimeLastSizeUpdate) << "\n"
-        << "Size: " << ctime(size) << endl;
-*/
-
     snprintf(str,1000,"Time1: %ld\n Time2: %ld \nTime3: %ld \nLastUpdated: %ld \nSize: %ld",time1,time2,time3,timeLastSizeUpdate,size);
     char* strToReturn = strdup(str);
     return strToReturn;

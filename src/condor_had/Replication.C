@@ -25,20 +25,22 @@
 
 
 #define HAD_ADDRESS_LENGTH 28
-#define NEGOTIATOR_FILE "/tmp/svekant/aaa"
-#define VERSION_FILE "/tmp/svekant/vers"
+
+template class SimpleList<ReplicaVersion>;
+char* processArgs;
 
 /***********************************************************
   Function :
 */
 HADReplication::HADReplication()
 {
-   //   receivedAddrVersionsList = new StringList();
       wasInitiated = false;
-#if 1 // debug
-      repVersion = new ReplicaVersion(VERSION_FILE,TRUE);
-#endif
-//      printf("HADReplication const'r\n");
+      repVersion = NULL;
+      versionFilePath = NULL;
+      releaseDirPath = NULL;
+      accountFilePath = NULL;
+      reaperDownId = -1;
+      reaperUpId = -1;
 }
 
 /***********************************************************
@@ -46,12 +48,29 @@ HADReplication::HADReplication()
 */
 HADReplication::~HADReplication()
 {
-//    if(receivedAddrVersionsList != NULL)
-//        delete receivedAddrVersionsList;
+    finilize();
+}
+
+/***********************************************************
+  Function :
+*/
+void
+HADReplication::finilize(){
     if(repVersion != NULL){
         delete repVersion;
     }
-
+    if ( versionFilePath != NULL){
+      free( versionFilePath );
+      versionFilePath = NULL;
+    }
+    if( releaseDirPath != NULL ){
+      free(releaseDirPath);
+      releaseDirPath = NULL;
+    }
+    if( accountFilePath != NULL ){
+      free(accountFilePath);
+      accountFilePath = NULL;
+    }
 }
 
 /***********************************************************
@@ -60,8 +79,6 @@ HADReplication::~HADReplication()
 void
 HADReplication::initialize()
 {
-   reinitialize();
-
     // Register the download reaper for the child process
     reaperDownId = daemonCore->Register_Reaper("fileTransferDownloadReaper",
             (ReaperHandler) &HADReplication::fileTransferDownloadReaper,
@@ -78,29 +95,34 @@ HADReplication::initialize()
 int
 HADReplication::reinitialize()
 {
+ 
+    finilize();
+    
+    char* tmp;
+    tmp=param( "SPOOL" );
+    if( tmp ){
+        versionFilePath = (char*)malloc(strlen(tmp) + 1 + strlen("/AccountVers"));
+        sprintf(versionFilePath,"%s/AccountVers",tmp);
 
-/*    char* tmp;
-    tmp=param("HAD_REPLICATION_INTERVAL");
-    if( tmp )
-    {
-        replicationInterval = atoi(tmp);
+        accountFilePath = (char*)malloc(strlen(tmp) + 1 + strlen("/aaa"));
+        sprintf(accountFilePath,"%s/aaa",tmp);
+        
         free( tmp );
     } else {
-        replicationInterval = REPLICATION_CYCLE;
+        return FALSE;
     }
-   
-    if ( replicaTimerID >= 0 ) {
-            daemonCore->Cancel_Timer(replicaTimerID);
-    }
-    // Set a timer to replication routine.
-    replicaTimerID = daemonCore->Register_Timer (replicationInterval ,replicationInterval,(TimerHandlercpp) &HADReplication::replicate,
-                                    "Time to replicate file", this);
-    */
-    if(repVersion != NULL){
-        delete repVersion;
-    }
-    repVersion = new ReplicaVersion(VERSION_FILE);
 
+    tmp=param( "RELEASE_DIR" );
+    if( tmp ){
+        releaseDirPath = (char*)malloc(strlen(tmp) + 1 + strlen("/bin"));
+        sprintf(releaseDirPath,"%s/bin",tmp);
+        free( tmp );
+    } else {
+        return FALSE;
+    }
+    
+    repVersion = new ReplicaVersion(versionFilePath,TRUE);
+ 
     return TRUE;
 }
 
@@ -150,7 +172,7 @@ HADReplication::commandHandler(int cmd,Stream *strm)
             }
 
             char* versionReceived = strdup(subsysVer);
-            dprintf( D_ALWAYS, "id Replication - commandHandler4 addr <%s> version <%d>\n",subsys,versionReceived);
+            dprintf( D_ALWAYS, "id Replication - commandHandler4 addr <%s> version <%s>\n",subsys,versionReceived);
             insertVersion(subsys,versionReceived);
 
             free( subsysVer );
@@ -180,17 +202,16 @@ HADReplication::commandHandler(int cmd,Stream *strm)
   Function :
 */
 int
-HADReplication::fileTransferDownloadReaper (Service* , int pid, int exit_status)
+HADReplication::fileTransferDownloadReaper (Service* ser,int pid, int exit_status)
 {
 
     dprintf( D_ALWAYS, "HADReplication::fileTransferDownloadReaper exit status : <%d>\n",exit_status);
-    // rotate file
-    //char filename[_POSIX_PATH_MAX];
-    //sprintf(filename,"%s_%s",NEGOTIATOR_FILE,versionToString(versionToDownLoad));
-    //if(rotate_file(filename,NEGOTIATOR_FILE) < 0)
-    //    return FALSE;
-
-    return TRUE;
+    if(processArgs != NULL){
+        free( processArgs );
+    }
+    dprintf( D_ALWAYS, "HADReplication::fileTransferDownloadReaper update version\n");
+    ((HADStateMachine*)ser)->updateReplicaVersion();
+    return exit_status;
 }
 
 /***********************************************************
@@ -199,8 +220,10 @@ HADReplication::fileTransferDownloadReaper (Service* , int pid, int exit_status)
 int
 HADReplication::fileTransferUploadReaper (Service* , int pid, int exit_status)
 {
-    dprintf( D_ALWAYS, "HADReplication::fileTransferUploadReaper exit status : <%d>\n",exit_status);
-    return 1;
+    if(processArgs != NULL){
+        free( processArgs );
+    }
+    return exit_status;
 }
 
 /***********************************************************
@@ -210,30 +233,30 @@ void
 HADReplication::replicate()
 {
         // send my version to all
-         sendCommandToOthers(HAD_REPL_FILE_VERSION);
+        sendCommandToOthers(HAD_REPL_FILE_VERSION);
 
         // check buffers and pick the best version
-        // if there is the better version than mine , get the file
         checkReceivedVersions();
 
 }
 
-
-
 /***********************************************************
   Function :
-*/ /*
-int  HADReplication::calculateOwnVersion(){
+*/
+void
+HADReplication::updateReplicaVersion()
+{
+  repVersion->fetch();
+}
 
-         return (int)(100000 - daemonCore->getpid());
-} */
 /***********************************************************
   Function :
 */
 int
 HADReplication::sendFile(char* addr)
 {
-    ReliSock* sock = new ReliSock();
+    dprintf( D_ALWAYS, "sendFile() to addr %s\n",addr);
+    ReliSock* sock = new ReliSock();  // close and delete sock in the transfer process
     if(sock == NULL){
         return FALSE;
     }
@@ -246,7 +269,7 @@ HADReplication::sendFile(char* addr)
 
     // send file
     Upload(sock);
-    //sock->close();
+    dprintf( D_ALWAYS, "sendFile() - after upload\n");
     return TRUE;
 }
 
@@ -256,7 +279,8 @@ HADReplication::sendFile(char* addr)
 int
 HADReplication::receiveFile(char* addr)
 {
-     ReliSock* s = sendTransferCommand(addr);
+     dprintf( D_ALWAYS, "receiveFile() from addr %s\n",addr);
+     ReliSock* s = sendTransferCommand(addr);  // close and delete sock in the transfer process
 
      if(s == NULL) {
         return FALSE;
@@ -302,7 +326,8 @@ HADReplication::sendJoinCommand(int cmd,char* addr)
 
     Daemon d( DT_ANY, addr );
     ReliSock sock;
-
+    sock.timeout( SEND_COMMAND_TIMEOUT );
+    
     if(!sock.connect(addr,0,true)){
         dprintf(D_ALWAYS,"id %d , cannot connect to addr %s\n",daemonCore->getpid(),addr);
         sock.close();
@@ -310,8 +335,8 @@ HADReplication::sendJoinCommand(int cmd,char* addr)
     }
 
     // startCommand - max timeout is 1 sec
-    if(! (d.startCommand(cmd,&sock,1))){
-        dprintf(D_ALWAYS,"id %d , cannot start command %s\n",daemonCore->getpid(),addr);
+    if(! (d.startCommand(cmd,&sock,SEND_COMMAND_TIMEOUT))){
+        dprintf(D_ALWAYS,"id %d , cannot start command %d to %s\n",daemonCore->getpid(),cmd,addr);
         sock.close();
         return FALSE;
     }
@@ -372,11 +397,6 @@ HADReplication::sendVersionNumCommand(int cmd,char* addr)
         dprintf(D_ALWAYS,"id %d , sock.code true \n",daemonCore->getpid());
     }
 
-
-    // send versionId
-    //char stringVersion[10];
-    //sprintf(stringVersion,"%d",calculateOwnVersion());
-
     subsys = strdup(repVersion->versionToSendString());
 
     if(!sock.code(subsys) || !sock.eom()){
@@ -387,6 +407,8 @@ HADReplication::sendVersionNumCommand(int cmd,char* addr)
         dprintf(D_ALWAYS,"id %d , sock.code true \n",daemonCore->getpid());
     }
     sock.close();
+    dprintf(D_ALWAYS,"Debug, sendVersionNumCommand vers is <%s>\n",subsys);
+    free(subsys);
     return TRUE;
 }
 
@@ -418,7 +440,6 @@ HADReplication::sendTransferCommand(char* addr){
 
     // find and bind port
     ReliSock transfer_sock;
-
     if(!transfer_sock.bind()){
         sock.close();
         return NULL;
@@ -428,7 +449,6 @@ HADReplication::sendTransferCommand(char* addr){
         sock.close();
         return NULL;
     }
-
     sprintf(stringId,"<%s:%d>",getHostFromAddr(daemonCore->InfoCommandSinfulString()),transfer_sock.get_port());
 
     char* subsys = (char*)stringId;
@@ -442,7 +462,9 @@ HADReplication::sendTransferCommand(char* addr){
 
     sock.close();
 
+    // accept() do new()
     ReliSock *s = transfer_sock.accept();
+    
     return s;
 }
 
@@ -453,31 +475,25 @@ void
 HADReplication::initializeFile(StringList* hadsList,int hadInterval)
 {
     // send to all "join" cmd
-
     otherHADIPs = hadsList;
     sendCommandToOthers(HAD_REPL_JOIN);
-
-    //waitingVersionsTimerID = daemonCore->Register_Timer ( 2*hadInterval,0,(TimerHandlercpp) &HADReplication::checkReceivedVersions,
-    //                                "Time to check received versions", this);
-
 }
 
 /***********************************************************
   Function :
 */
 void
-HADReplication::checkReceivedVersions()
+HADReplication::checkReceivedVersions() 
 {
-
-    daemonCore->Cancel_Timer (waitingVersionsTimerID) ;
 
     // check the versions list and get the better
     char* addr = new char[HAD_ADDRESS_LENGTH];
+    
     ReplicaVersion vers = getBestVersion(addr);
 
-    if(vers <= *repVersion){
+    if(*repVersion >= vers){ 
         wasInitiated = true;
-        free( addr );
+        delete [] addr ;
         return;
     }
 
@@ -485,7 +501,7 @@ HADReplication::checkReceivedVersions()
 
     // transfer file
     receiveFile(addr);
-    free( addr );
+    delete [] addr ;
 
     wasInitiated = true;
 }
@@ -496,36 +512,14 @@ HADReplication::checkReceivedVersions()
   Function :
 */
 ReplicaVersion
-HADReplication::getBestVersion(char* addr)
+HADReplication::getBestVersion(char* addr)  
 {
-
-/*    int myVer = calculateOwnVersion();
-
-    int otherVer;
+    ReplicaVersion otherVer;
     char* otherAddr = new char[HAD_ADDRESS_LENGTH];
-
-    int maxVer = myVer;
-    strcpy(addr,daemonCore->InfoCommandSinfulString());
-
-    receivedVersionsList.Rewind();
-    receivedAddrVersionsList->rewind();
-
-    while(receivedVersionsList.Next(otherVer) && (otherAddr = receivedAddrVersionsList->next())) {
-		if(otherVer > maxVer) {
-              maxVer =  otherVer;
-              strcpy(addr,otherAddr);
-        }
-	}
-
-    free( otherAddr );
-    return  maxVer;
-*/
-
-//    ReplicaVersion otherVer;
-//    char* otherAddr = new char[HAD_ADDRESS_LENGTH];
-
-    ReplicaVersion maxVer;
-   /*
+    
+    strcpy(addr,daemonCore->InfoCommandSinfulString());    
+    ReplicaVersion maxVer(*repVersion);
+   
     receivedVersionsList.Rewind();
     receivedAddrVersionsList.rewind();
 
@@ -535,8 +529,8 @@ HADReplication::getBestVersion(char* addr)
               strcpy(addr,otherAddr);
         }
 	}
-    free( otherAddr );
-*/
+    
+    delete [] otherAddr;
     return maxVer;
 
 }
@@ -550,31 +544,24 @@ void
 HADReplication::insertVersion(char* addr,char* version)
 {
 
-             /*
-    ReplicaVersion* otherVer;
+             
+    ReplicaVersion otherVer;
     char* otherAddr = new char[HAD_ADDRESS_LENGTH];
-
+ 
     receivedVersionsList.Rewind();
     receivedAddrVersionsList.rewind();
     while(receivedVersionsList.Next(otherVer) && (otherAddr = receivedAddrVersionsList.next())) {
 		if(strcmp(otherAddr,addr) == 0) {
                 receivedVersionsList.DeleteCurrent();
-                receivedAddrVersionsList.deleteCurrent();
-                delete otherAddr;
-                delete otherVer;
+                receivedAddrVersionsList.deleteCurrent();       
         }
 	}
-
-    ReplicaVersion* alloc_ver = new ReplicaVersion(version);
+    delete [] otherAddr;
+    ReplicaVersion alloc_ver(version);
     receivedVersionsList.Append(alloc_ver);
 
-    char* alloc_addr = new char[HAD_ADDRESS_LENGTH];
-    strcpy(alloc_addr,addr);
-    receivedAddrVersionsList.append(alloc_addr);
-
-    free(otherAddr);
-
-          */
+    receivedAddrVersionsList.append(addr);
+           
 
 }
 
@@ -591,38 +578,41 @@ HADReplication::insertVersion(char* addr,char* version)
 int
 HADReplication::Download(ReliSock *s)
 {
-    dprintf(D_FULLDEBUG,"entering FileTransfer::Download\n");
-/*
-    struct paramThread *params = (struct paramThread *)malloc(sizeof(struct paramThread));
-    params->myObj = this;
-    params->version = versionToDownLoad;
 
-    int activeTransferTid = daemonCore->
-        Create_Thread((ThreadStartFunc)&HADReplication::DownloadThread,
-        (void *)params, s, reaperDownId);
-
-    if(activeTransferTid == FALSE) {
-        dprintf(D_ALWAYS,"Failed to create FileTransfer DownloadThread!\n");
-        return FALSE;
-    }
-*/
     char* version_str = repVersion->versionToSendString();
-    int len = strlen("condor_replica_down") + strlen(NEGOTIATOR_FILE) + strlen(version_str) + 2*strlen(" ");
-    char args[len];
-    sprintf(args,"condor_replica_down %s %s",NEGOTIATOR_FILE,version_str);
+    int len = strlen("condor_replica_down") + strlen(accountFilePath) +
+                strlen(versionFilePath) +
+                strlen(version_str) + 2*strlen(" ") +
+                strlen(releaseDirPath) + strlen("/") + 1;
+    if(processArgs != NULL){
+      free( processArgs );
+    }
+    processArgs = NULL;
+    processArgs = (char*)malloc(len);
+    sprintf(processArgs,"%s/condor_replica_down %s %s %s",releaseDirPath,
+            accountFilePath,versionFilePath,version_str);
     free( version_str );
-    
-    int ActiveTransferTid = daemonCore->Create_Process (
-        "condor_replica_down",   // name
-        args,  // args
+
+    len = strlen("condor_replica_down") + strlen(releaseDirPath) + strlen("/") + 1;
+    char executable[len];
+    sprintf(executable,"%s/condor_replica_down",releaseDirPath);
+
+   
+    ReliSock* inherited_sockets[2];
+     inherited_sockets[0] = s;
+     inherited_sockets[1] = NULL;
+     int ActiveTransferTid = daemonCore->Create_Process (
+        executable,   // name
+        processArgs,  // args
         PRIV_UNKNOWN,
-        reaperDownId,
+        reaperUpId,
         TRUE,
         NULL,
         NULL,
         FALSE,
-        (Stream**)&s                       // socket to inherit
+        (Stream**)inherited_sockets                       // socket to inherit
         );
+   
     if (ActiveTransferTid == FALSE) {
         dprintf(D_ALWAYS, "Failed to create FileTransfer upload process!\n");
         return FALSE;
@@ -630,103 +620,7 @@ HADReplication::Download(ReliSock *s)
     return TRUE;
 }
 
-/***********************************************************
-  Function :
-*/ /*
-int
-HADReplication::DownloadThread(void *arg, Stream *s)
-{
-    dprintf(D_FULLDEBUG,"entering FileTransfer::DownloadThread\n");
-    struct paramThread* params = (struct paramThread*)arg;
 
-    int total_bytes = params->myObj->DoDownload((ReliSock *)s);
-
-    // rotate file
-    char filename[_POSIX_PATH_MAX];
-    //char* version_str = versionToString(params->version);
-    sprintf(filename,"%s.%s",NEGOTIATOR_FILE,params->version);
-    free( params->version );
-
-    // for debug - change negot.filename
-    char negfilename[_POSIX_PATH_MAX];
-    sprintf(negfilename,"%s_down",NEGOTIATOR_FILE);
-
-    int fd;
-    if((fd = open(filename,O_RDONLY)) < 0){
-        dprintf(D_FULLDEBUG,"FileTransfer::DownloadThread file <%s> doesn't exist\n",filename);
-        return FALSE;
-    }else{
-        close(fd);
-    }
-
-    if(rotate_file(filename,negfilename) < 0)
-    //if(rotate_file(filename,NEGOTIATOR_FILE) < 0)
-        return FALSE;
-
-    ((ReliSock*)s)->close();
-    delete s;
-    delete params;
-    return (total_bytes >= 0);
-}
-   */
-
-/*
-  Define a macro to restore our priv state (if needed) and return.  We
-  do this so we don't leak priv states in functions where we need to
-  be in our desired state.
- */
-
-/***********************************************************
-  Function :
-*/ /*
-int
-HADReplication::DoDownload(ReliSock *s)
-{
-    int reply;
-    filesize_t bytes, total_bytes = 0;
-    char filename[_POSIX_PATH_MAX];
-
-    //char* vresion_str = versionToString(versionToDownLoad);
-    sprintf(filename,"%s.%s",NEGOTIATOR_FILE,versionToDownLoad);
-    //free( vresion_str );
-
-    // check if exist, in such case don't download
-    int fd;
-    if((fd = open(filename,O_RDONLY)) >= 0){
-        close(fd);
-        return TRUE;
-    }
-
-
-    dprintf(D_FULLDEBUG,"entering FileTransfer::DoDownload sync=\n");
-    s->decode();
-
-    for (;;) {
-        if( !s->code(reply) ) {
-            return FALSE;
-        }
-        if( !s->end_of_message() ) {
-            return FALSE;
-        }
-        if( !reply ) {
-            break;
-        }
-
-        if( s->get_file( &bytes, filename ) < 0 ) {
-            return FALSE;
-        }
-
-        if( !s->end_of_message() ) {
-            return FALSE;
-        }
-        total_bytes += bytes;
-    }
-
-    dprintf(D_ALWAYS,"FileTransfer::DoDownload received %d bytes\n",total_bytes);
-    return TRUE;
-}
-
- */
 
 /***********************************************************
   Function :
@@ -734,33 +628,44 @@ HADReplication::DoDownload(ReliSock *s)
 int
 HADReplication::Upload(ReliSock *s)
 {
-    dprintf(D_FULLDEBUG,"entering FileTransfer::Upload\n");
-/*
-    int ActiveTransferTid = daemonCore->
-        Create_Thread((ThreadStartFunc)&HADReplication::UploadThread,
-            (void *)this, s, reaperUpId);
-    if (ActiveTransferTid == FALSE) {
-        dprintf(D_ALWAYS, "Failed to create FileTransfer UploadThread!\n");
-        return FALSE;
-    }
-*/
+  
+
     char* version_str = repVersion->versionToSendString();
-    int len = strlen("condor_replica_up") + strlen(NEGOTIATOR_FILE) + strlen(version_str) + 2*strlen(" ");
-    char args[len];
-    sprintf(args,"condor_replica_up %s %s",NEGOTIATOR_FILE,version_str);
+    int len = strlen("condor_replica_up") + strlen(accountFilePath) +
+                strlen(versionFilePath) +
+                strlen(version_str) + 2*strlen(" ") +
+                strlen(releaseDirPath) + strlen("/") + 1;
+
+    if(processArgs != NULL){
+      free( processArgs );
+    }          
+    processArgs = NULL;            
+    processArgs = (char*)malloc(len);
+    sprintf(processArgs,"%s/condor_replica_up %s %s %s",releaseDirPath,
+                accountFilePath,versionFilePath,version_str);
     free( version_str );
-    
+
+    len = strlen("condor_replica_up") + strlen(releaseDirPath) + strlen("/") + 1;
+    char executable[len];
+    sprintf(executable,"%s/condor_replica_up",releaseDirPath);
+
+    ReliSock* inherited_sockets[2];
+    inherited_sockets[0] = s;
+    inherited_sockets[1] = NULL;
+     
     int ActiveTransferTid = daemonCore->Create_Process (
-        "condor_replica_up",   // name
-        args,  // args
+        executable,   // name
+        processArgs,  // args
         PRIV_UNKNOWN,
         reaperUpId,
         TRUE,
         NULL,
         NULL,
         FALSE,
-        (Stream**)&s                       // socket to inherit
+        (Stream**)inherited_sockets                       // socket to inherit
         );
+    
+
     if (ActiveTransferTid == FALSE) {
         dprintf(D_ALWAYS, "Failed to create FileTransfer upload process!\n");
         return FALSE;
@@ -768,92 +673,7 @@ HADReplication::Upload(ReliSock *s)
     return TRUE;
 }
 
-/***********************************************************
-  Function :
-*/ /*
-int
-HADReplication::UploadThread(void *arg, Stream *s)
-{
-    dprintf(D_FULLDEBUG,"entering FileTransfer::UploadThread\n");
 
-    filesize_t	total_bytes;
-    HADReplication* myobj = (HADReplication*)arg;
-    int status = myobj->DoUpload( &total_bytes, (ReliSock *)s);	
-
-    ((ReliSock*)s)->close();
-    delete s;
-    return status;
-}
-
-/***********************************************************
-  Function :
-*/  /*
-int
-HADReplication::DoUpload(filesize_t *total_bytes, ReliSock *s)
-{
-
-    filesize_t bytes;
-    *total_bytes = 0;
-    dprintf(D_FULLDEBUG,"entering FileTransfer::DoUpload\n");
-
-    s->encode();
-
-    char filename[_POSIX_PATH_MAX];
-    memset(filename,0,_POSIX_PATH_MAX);
-
-    char *version_str = repVersion->versionToSendString();
-    sprintf(filename,"%s%s",NEGOTIATOR_FILE,version_str);
-    free( version_str );
-
-    dprintf(D_FULLDEBUG,"debug orig : <%s> filename : <%s>\n",NEGOTIATOR_FILE,filename);
-
-    // check if exist
-    int fd;
-    if((fd = open(filename,O_RDONLY)) < 0){
-        dprintf(D_FULLDEBUG,"debug orig : cannot open file_vers<%s>\n",filename);
-
-        if( copy_file(NEGOTIATOR_FILE, filename) ){
-               dprintf(D_FULLDEBUG,"debug orig : cannot copy yo file_vers\n") ;
-        }
-    }
-    else{
-       close(fd) ;
-    }
-
-    dprintf(D_FULLDEBUG,"DoUpload: send file %s\n",filename);
-
-    if( !s->snd_int(1,FALSE) ) {
-        dprintf(D_FULLDEBUG,"DoUpload: exiting at %d\n",__LINE__);
-        return FALSE;
-    }
-    if( !s->end_of_message() ) {
-        dprintf(D_FULLDEBUG,"DoUpload: exiting at %d\n",__LINE__);
-        return FALSE;
-    }
-
-    if( s->put_file( &bytes, filename ) < 0 ) {
-        EXCEPT("DoUpload: Failed to send file %s, exiting at %d\n",
-            filename,__LINE__);
-        return FALSE;
-    }
-
-    if( !s->end_of_message() ) {
-        dprintf(D_FULLDEBUG,"DoUpload: exiting at %d\n",__LINE__);
-        return FALSE;
-    }
-
-    *total_bytes += bytes;
-
-
-    // tell our peer we have nothing more to send
-    s->snd_int(0,TRUE);
-
-    dprintf(D_FULLDEBUG,"DoUpload: exiting at %d\n",__LINE__);
-
-
-    return FALSE;
-}
-   */
 
 
 

@@ -24,7 +24,7 @@ public:
     //    Const'r. filename is name of the file that contains version information
     ReplicaVersion(char* filename,bool flag);
 
-    ReplicaVersion(const ReplicaVersion& v){ }
+    ReplicaVersion(const ReplicaVersion& v);
 
     ~ReplicaVersion();
 
@@ -42,11 +42,12 @@ public:
 
 
     //    Get negotiator file size
-    long getSize();
-    time_t getTime1(){return time1;};
-    time_t getTime2(){return time2;};
-    time_t getTime3(){return time3;};
-    time_t getTimeLastSizeUpdate(){return timeLastSizeUpdate;};
+    long getSize() const;
+    time_t getTime1() const {return time1;};
+    time_t getTime2() const {return time2;};
+    time_t getTime3() const {return time3;};
+    char* getFilename() const {return filename;};
+    time_t getTimeLastSizeUpdate() const {return timeLastSizeUpdate;};
 
 
     /*
@@ -65,13 +66,13 @@ public:
     */
 
 
-    bool operator<(ReplicaVersion& ver);
-    bool operator>(ReplicaVersion& ver);
-    bool operator==(ReplicaVersion& ver);
-    bool operator<=(ReplicaVersion& ver);
-    bool operator>=(ReplicaVersion& ver);
+    bool operator<(const ReplicaVersion& ver);
+    bool operator>(const ReplicaVersion& ver);
+    bool operator==(const ReplicaVersion& ver);
+    bool operator<=(const ReplicaVersion& ver);
+    bool operator>=(const ReplicaVersion& ver);
 
-    void operator=(ReplicaVersion& ver);
+    void operator=(const ReplicaVersion& ver);
 
     // don't forget to free returned values
     char* versionToSendString();
