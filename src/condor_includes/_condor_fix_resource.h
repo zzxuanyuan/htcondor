@@ -5,9 +5,14 @@
 extern "C" {
 #endif
 
+#if defined(ULTRIX43)
+#	include <time.h>
+#endif
+
 #if !defined(HPUX9)
 #include <sys/resource.h>
 #else
+
 
 /*
  * Resource utilization information.
