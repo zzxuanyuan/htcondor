@@ -354,7 +354,6 @@ GT4Job::GT4Job( ClassAd *classad )
 	stageOutput = false;
 	stageError = false;
 	globusStateFailureString = 0;
-	globusStateBeforeFailure = 0;
 	callbackGlobusState = 0;
 	callbackGlobusStateFailureString = "";
 	restartingJM = false;
@@ -1500,11 +1499,7 @@ void GT4Job::UpdateGlobusState( int new_state, const char *new_failure )
 			executeLogged = true;
 		}
 
-		if ( new_state == GT4_JOB_STATE_FAILED ) {
-			globusStateBeforeFailure = globusState;
-		} else {
-			UpdateJobAdInt( ATTR_GLOBUS_STATUS, new_state );
-		}
+		UpdateJobAdInt( ATTR_GLOBUS_STATUS, new_state );
 
 		globusState = new_state;
 		globusStateFailureString = new_failure;

@@ -92,7 +92,6 @@ class GT4Job : public BaseJob
 	int gmState;
 	int globusState;
 	MyString globusStateFailureString;
-	int globusStateBeforeFailure;
 	int callbackGlobusState;
 	MyString callbackGlobusStateFailureString;
 	bool resourcePingPending;
