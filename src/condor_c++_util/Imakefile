@@ -1,4 +1,4 @@
-all_target(cplus_lib.a liburl.a libcondorapi.a test_libcondorapi)
+all_target(cplus_lib.a liburl.a libcondorapi.a)
 
 C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) $(OPENSSL_FLAGS)
 CFLAGS = $(STD_C_FLAGS) $(OPENSSL_FLAGS)
@@ -87,7 +87,6 @@ CONLIBAPI_OBJ = \
 	my_subsystem.o \
 	distribution.o \
 	my_distribution.o \
-	$(CLASSAD_OBJ) \
 	$(DH_OBJ) \
 	condor_attributes.o \
 	c++_util_instantiate.o \
