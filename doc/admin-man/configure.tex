@@ -1103,41 +1103,42 @@ server, shadow, and starter, none of which use DaemonCore yet).
   before they do a hard shutdown.  It is defined in terms of seconds.
   The default is 1800 (30 minutes).
 
-\item[\Macro{AUTHENTICATION\_METHODS}]\label{param:AuthenticationMethods}
-  There are many instances when the Condor system needs to authenticate
-  the identity of the user.  For instance, when a job is submitted with
-  \Condor{submit}, Condor needs to authenticate the user so that the job
-  goes into the queue and runs with the proper credentials.  The
-  \MacroNI{AUTHENTICATION\_METHODS} parameter is a list of
-  permitted authentication methods.  The list is ordered by
-  preference.  The actual authentication method used is the first method
-  in this list that both the server and client are able to perform.
-  Possible values are:
-  \begin{itemize}
-	\item NTSSPI Use NT's standard LAN-MANAGER challenge-response protocol.
-	\Note This is the default method used on Windows NT.
-	\item FS Use the filesystem to authenticate the user.  
-		The server requests the client to create a specified temporary
-		file, then the server verifies the ownership of that file. \Note
-		This is the default method used on Unix systems.
-	\item FS\_REMOTE Use a shared filesystem to authenticate the user.
-		This is useful for submitting jobs to a remote schedd.
-		Similar to FS authentication, except the temporary file to be
-		created by the user must be on a shared filesystem (AFS, NFS, etc.)
-		If the client's submit description file does not define the 
-		command \Opt{rendezvousdir}, the \Opt{initialdir} value is used 
-		as the default directory in which to create the temporary file.
-		\Note Normal AFS issues apply here: Condor must be able to write
-		to the directory used.
+% This macro existed for 6.2.x, but does not exist any more.
+%\item[\Macro{AUTHENTICATION\_METHODS}]\label{param:AuthenticationMethods}
+%  There are many instances when the Condor system needs to authenticate
+%  the identity of the user.  For instance, when a job is submitted with
+%  \Condor{submit}, Condor needs to authenticate the user so that the job
+%  goes into the queue and runs with the proper credentials.  The
+%  \MacroNI{AUTHENTICATION\_METHODS} parameter is a list of
+%  permitted authentication methods.  The list is ordered by
+%  preference.  The actual authentication method used is the first method
+%  in this list that both the server and client are able to perform.
+%  Possible values are:
+%  \begin{itemize}
+%	\item NTSSPI Use NT's standard LAN-MANAGER challenge-response protocol.
+%	\Note This is the default method used on Windows NT.
+%	\item FS Use the filesystem to authenticate the user.  
+%		The server requests the client to create a specified temporary
+%		file, then the server verifies the ownership of that file. \Note
+%		This is the default method used on Unix systems.
+%	\item FS\_REMOTE Use a shared filesystem to authenticate the user.
+%		This is useful for submitting jobs to a remote schedd.
+%		Similar to FS authentication, except the temporary file to be
+%		created by the user must be on a shared filesystem (AFS, NFS, etc.)
+%		If the client's submit description file does not define the 
+%		command \Opt{rendezvousdir}, the \Opt{initialdir} value is used 
+%		as the default directory in which to create the temporary file.
+%		\Note Normal AFS issues apply here: Condor must be able to write
+%		to the directory used.
 % commented out by Karen for 6.4.3
 %       \item GSS Use Generic Security Services, which is implemented in Condor 
 %		with X.509 certificates. See section~\ref{sec:X509-Authentication}.
 %		These X.509 certificates are compatible with the Globus system from
 %		Argonne National Labs.
-	\item CLAIMTOBE The server should simply trust the client.  
-		\Note You had better trust all users who have access to your Condor
-		pool if you enable CLAIMTOBE authentication.
-  \end{itemize}
+%	\item CLAIMTOBE The server should simply trust the client.  
+%		\Note You had better trust all users who have access to your Condor
+%		pool if you enable CLAIMTOBE authentication.
+%  \end{itemize}
 
 \item[\Macro{SUBSYS\_ADDRESS\_FILE}]
   \label{param:SubsysAddressFile} Every Condor daemon that uses
@@ -3418,7 +3419,27 @@ Configuration File Entries Relating to Security}
 
 \index{configuration!security configuration variables}
 These macros affect the secure operation of Condor.
+Many of these macros are described in
+section~\ref{sec:Security} on Security In Condor.
+
 \begin{description}
+\item[\Macro{SEC\_*\_AUTHENTICATION}]
+\label{param:SecAuthentication} \Todo
+
+\item[\Macro{SEC\_*\_ENCRYPTION}]
+\label{param:SecEncryption} \Todo
+
+\item[\Macro{SEC\_*\_INTEGRITY}]
+\label{param:SecIntegrity} \Todo
+
+\item[\Macro{SEC\_*\_NEGOTIATION}]
+\label{param:SecNegotiation} \Todo
+
+\item[\Macro{SEC\_*\_AUTHENTICATION\_METHODS}]
+\label{param:SecAuthenticationMethods} \Todo
+
+\item[\Macro{SEC\_*\_CRYPTO\_METHODS}]
+\label{param:SecCryptoMethods} \Todo
 
 \item[\Macro{GSI\_DAEMON\_NAME}]
 \label{param:GSIDaemonName} A comma separated list of the subject
