@@ -1,123 +1,163 @@
 #include "condor_common.h"
 
 #include <list>
+#include <string>
 
 // DAGMan Includes
 #include "job.h"
 #include "util.h"
 #include "debug.h"
 #include "parse.h"
+#include "parser.h"
 
 namespace dagman {
 
 static const char   COMMENT    = '#';
-static const char * DELIMITERS = " \t";
-static const int    MAX_LENGTH = 255;
 
 //-----------------------------------------------------------------------------
-void exampleSyntax (const char * example) {
-    debug_println (DEBUG_QUIET, "Example syntax is: %s", example);
+void exampleSyntax (const std::string & example) {
+    debug_println (DEBUG_QUIET, "Example syntax is: %s", example.c_str());
 }
 
 //-----------------------------------------------------------------------------
-bool isKeyWord (char *token) {
-    const unsigned int numKeyWords = 6;
-    const char * keywords[numKeyWords] = {
-        "JOB", "PARENT", "CHILD", "PRE", "POST", "DONE"
-            };
-    for (unsigned int i = 0 ; i < numKeyWords ; i++) {
-        if (!strcasecmp (token, keywords[i])) return true;
+class KeyWord {
+  public:
+    const static std::string JOB;
+    const static std::string SCRIPT;
+    const static std::string PARENT;
+    const static std::string CHILD;
+    const static std::string PRE;
+    const static std::string POST;
+    const static std::string DONE;
+    
+    const static unsigned int m_count = 6;
+    const static std::string m_keywords[];
+    
+    inline static bool Equal (const std::string & k1,
+                              const std::string & k2) {
+        return !strcasecmp (k1.c_str(), k2.c_str());
     }
-    return false;
-}
+    
+    static bool Is (const std::string & token) {
+        for (unsigned int i = 0 ; i < m_count ; i++) {
+            if (Equal(token, m_keywords[i])) return true;
+        }
+        return false;
+    }
+};
+
+const std::string KeyWord::JOB    = "JOB";
+const std::string KeyWord::SCRIPT = "SCRIPT";
+const std::string KeyWord::PARENT = "PARENT";
+const std::string KeyWord::CHILD  = "CHILD";
+const std::string KeyWord::PRE    = "PRE";
+const std::string KeyWord::POST   = "POST";
+const std::string KeyWord::DONE   = "DONE";
+const std::string KeyWord::m_keywords  [m_count] = {
+    JOB, PARENT, CHILD, PRE, POST, DONE
+};
 
 //-----------------------------------------------------------------------------
-bool parse (char *filename, Dag *dag) {
-
+bool parse (const std::string & filename, Dag *dag) {
+    
     assert (dag != NULL);
-  
-    FILE *fp = fopen(filename, "r");
+    
+    FILE *fp = fopen(filename.c_str(), "r");
     if (fp == NULL) {
         if (DEBUG_LEVEL(DEBUG_QUIET)) {
             debug_println (DEBUG_QUIET, "Could not open file %s for input",
-                           filename);
+                           filename.c_str());
             return false;
         }
     }
 
-    char line [MAX_LENGTH + 1];
-  
-    int lineNumber = 0;
-  
     //
     // This loop will read every line of the input file
     //
-    int len;
-    bool done = false;
-
-    while (!done && (len = util_getline(fp, line, MAX_LENGTH)) >= 0) {
-        lineNumber++;
-
-        //
-        // Find the terminating '\0'
-        //
-        char * endline = line;
-        while (*endline != '\0') endline++;
-
-        if (len == 0) continue;            // Ignore blank lines
-        if (line[0] == COMMENT) continue;  // Ignore comments
-
-        char *token = strtok(line, DELIMITERS);
-      
+    Parser parser(fp);
+    Parser::Result result = Parser::Result_OK;
+    
+    for (int line_num = 0 ; result != Parser::Result_EOF ; line_num++) {
+        
+        std::string token;
+        result = parser.GetToken(token);
+        
+        // Ignore blank lines and comment lines
+        if (result != Parser::Result_OK) continue;
+        if (token[0] == COMMENT) {
+            result = parser.EatLine();
+            continue;
+        }
+        
         //
         // Handle a Job token
         //
         // Example Syntax is:  JOB j1 j1.condor [DONE]
         //
-        if (strcasecmp(token, "JOB") == 0) {
-            const char * example = "JOB j1 j1.condor";
-
-            char *jobName = strtok(NULL, DELIMITERS);
-            if (jobName == NULL) {
+        if ( KeyWord::Equal(token,KeyWord::JOB) ) {
+            const std::string example = "JOB j1 j1.condor";
+            
+            std::string jobName;
+            result = parser.GetToken(jobName);
+            
+            if (result != Parser::Result_OK) {
                 debug_println (DEBUG_QUIET, "%s(%d): Missing job name",
-                               filename, lineNumber);
+                               filename.c_str(), line_num);
                 exampleSyntax (example);
                 fclose(fp);
                 return false;
             }
-
+            
             // The JobName cannot be a keyword
             //
-            if (isKeyWord(jobName)) {
+            if (KeyWord::Is(jobName)) {
                 debug_println (DEBUG_QUIET,
                                "%s(%d): JobName cannot be a keyword.",
-                               filename, lineNumber);
+                               filename.c_str(), line_num);
                 exampleSyntax (example);
                 fclose(fp);
                 return false;
             }
-
+            
             // Next token is the condor command file
             //
-            char *cmd = strtok(NULL, DELIMITERS);
-            if (cmd == NULL) {
+            std::string cmd;
+            result = parser.GetToken(cmd);
+            
+            if (result != Parser::Result_OK) {
                 debug_println (DEBUG_QUIET, "%s(%d): Missing condor cmd file",
-                               filename, lineNumber);
+                               filename.c_str(), line_num);
                 exampleSyntax (example);
                 fclose(fp);
                 return false;
             }
-	  
+            
             Job * job = new Job (jobName, cmd);
             if (job == NULL) debug_error (1, DEBUG_QUIET, "Out of Memory");
-	  
+            
             // Check if the user has pre-definied a Job as being done
             //
-            char *done = strtok(0, DELIMITERS);
-            if (done != NULL && strcasecmp(done, "DONE") == 0) {
-                job->_Status = Job::STATUS_DONE;
+            result = parser.GetToken(token);
+            if (result == Parser::Result_OK) {
+                //
+                // Check for optional DONE keyword
+                //
+                if (KeyWord::Equal(token,KeyWord::DONE)) {
+                    job->m_Status = Job::STATUS_DONE;
+                    result = parser.GetToken(token);
+                }
             }
 
+            // There should not be any more tokens on the line
+            //
+            if (result == Parser::Result_OK) {
+                debug_println (DEBUG_QUIET,
+                               "%s(%d): Extra garbage after condor cmd file",
+                               filename.c_str(), line_num);               
+            }
+
+            // Add the new Job to the Dag
+            //
             if (!dag->Add (*job)) {
                 if (DEBUG_LEVEL(DEBUG_QUIET)) {
                     printf ("ERROR adding JOB ");
@@ -132,47 +172,54 @@ bool parse (char *filename, Dag *dag) {
                 putchar('\n');
             }
         }
-      
+        
         //
         // Handle a SCRIPT token
         //
         // Example Syntax is:  SCRIPT (PRE|POST) JobName ScriptName Args ...
         //
-        else if ( strcasecmp(token, "SCRIPT") == 0 ) {
-            const char * example = "SCRIPT (PRE|POST) JobName Script Args ...";
-            Job * job = NULL;
+        
+        else if ( KeyWord::Equal(token, KeyWord::SCRIPT) ) {
+            const std::string example =
+                "SCRIPT (PRE|POST) JobName Script Args ...";
 
             //
             // Second keyword is either PRE or POST
             //
             bool   post;
-            char * prepost = strtok (NULL, DELIMITERS);
-            if (prepost == NULL) goto MISSING_PREPOST;
-            else if (!strcasecmp (prepost, "PRE" )) post = false;
-            else if (!strcasecmp (prepost, "POST")) post = true;
+
+            result = parser.GetToken(token);
+
+            if (result != Parser::Result_OK) goto MISSING_PREPOST;
+            else if ( KeyWord::Equal(token,KeyWord::PRE)  ) post = false;
+            else if ( KeyWord::Equal(token,KeyWord::POST) ) post = true;
             else {
               MISSING_PREPOST:
                 debug_println (DEBUG_QUIET, "%s(%d): Expected PRE or POST",
-                               filename, lineNumber);
+                               filename.c_str(), line_num);
                 exampleSyntax (example);
                 fclose(fp);
                 return false;
             }
             
+            Job * job = NULL;
+
             //
             // Third token is the JobName
             //
-            char *jobName = strtok(NULL, DELIMITERS);
-            if (jobName == NULL) {
+            std::string jobName;
+            result = parser.GetToken(jobName);
+
+            if (result != Parser::Result_OK) {
                 debug_println (DEBUG_QUIET, "%s(%d): Missing job name",
-                               filename, lineNumber);
+                               filename.c_str(), line_num);
                 exampleSyntax (example);
                 fclose(fp);
                 return false;
-            } else if (isKeyWord(jobName)) {
+            } else if (KeyWord::Is(jobName)) {
                 debug_println (DEBUG_QUIET,
                                "%s(%d): JobName cannot be a keyword.",
-                               filename, lineNumber);
+                               filename.c_str(), line_num);
                 exampleSyntax (example);
                 fclose(fp);
                 return false;
@@ -180,7 +227,8 @@ bool parse (char *filename, Dag *dag) {
                 job = dag->GetJob(jobName);
                 if (job == NULL) {
                     debug_println (DEBUG_QUIET, "%s(%d): Unknown Job %s",
-                                   filename, lineNumber, jobName);
+                                   filename.c_str(), line_num,
+                                   jobName.c_str());
                     fclose(fp);
                     return false;
                 }
@@ -189,9 +237,9 @@ bool parse (char *filename, Dag *dag) {
             //
             // Make sure this job doesn't already have a script
             //
-            if (post ? job->_scriptPost != NULL : job->_scriptPre  != NULL) {
+            if (post ? job->m_scriptPost != NULL : job->m_scriptPre != NULL) {
                 debug_println (DEBUG_QUIET, "%s(%d): Job previously assigned "
-                               "a %s script.", filename, lineNumber,
+                               "a %s script.", filename.c_str(), line_num,
                                post ? "POST" : "PRE");
                 fclose(fp);
                 return false;
@@ -200,12 +248,23 @@ bool parse (char *filename, Dag *dag) {
             //
             // The rest of the line is the script and args
             //
-            char * rest = jobName;
-            while (*rest != '\0') rest++;
-            if (rest < endline)   rest++;
+            std::string rest;
+            result = parser.GetLine(rest);
 
-            if (post) job->_scriptPost = new Script (post, rest, job);
-            else      job->_scriptPre  = new Script (post, rest, job);
+            if (result != Parser::Result_OK) {
+                debug_println (DEBUG_QUIET, "%s(%d): Missing script command",
+                               filename.c_str(), line_num);
+                fclose(fp);
+                return false;
+            }
+
+            if (post) job->m_scriptPost = new Script (post, rest, job);
+            else      job->m_scriptPre  = new Script (post, rest, job);
+
+            debug_printf (DEBUG_DEBUG_3,
+                          "%s: Added %s script to %s: %s\n",
+                          __FUNCTION__, (post ? "POST" : "PRE "),
+                          jobName.c_str(), rest.c_str());
         }
 
         //
@@ -213,19 +272,28 @@ bool parse (char *filename, Dag *dag) {
         //
         // Example Syntax is:  PARENT p1 p2 p3 ... CHILD c1 c2 c3 ...
         //
-        else if (strcasecmp(token, "PARENT") == 0) {
-            const char * example = "PARENT p1 p2 p3 CHILD c1 c2 c3";
+        else if ( KeyWord::Equal(token,KeyWord::PARENT) ) {
+            const std::string example = "PARENT p1 p2 p3 CHILD c1 c2 c3";
             
             std::list<Job *> parents;
 
-            char *jobName;
+            std::string jobName;
 
-            while ((jobName = strtok (NULL, DELIMITERS)) != NULL &&
-                   strcasecmp (jobName, "CHILD") != 0) {
+            while ((result = parser.GetToken(jobName)) == Parser::Result_OK &&
+                   !KeyWord::Equal(jobName,KeyWord::CHILD)) {
+                if (KeyWord::Is(jobName)) {
+                    debug_println (DEBUG_QUIET,
+                                   "%s(%d): JobName cannot be a keyword.",
+                                   filename.c_str(), line_num);
+                    exampleSyntax (example);
+                    fclose(fp);
+                    return false;
+                }
                 Job * job = dag->GetJob(jobName);
                 if (job == NULL) {
                     debug_println (DEBUG_QUIET, "%s(%d): Unknown Job %s",
-                                   filename, lineNumber, jobName);
+                                   filename.c_str(), line_num,
+                                   jobName.c_str());
                     fclose(fp);
                     return false;
                 }
@@ -236,15 +304,15 @@ bool parse (char *filename, Dag *dag) {
             // the CHILD token
             if (parents.size() < 1) {
                 debug_println (DEBUG_QUIET, "%s(%d): Missing Parent Job names",
-                               filename, lineNumber);
+                               filename.c_str(), line_num);
                 exampleSyntax (example);
                 fclose(fp);
                 return false;
             }
 
-            if (jobName == NULL) {
+            if (result != Parser::Result_OK) {
                 debug_println (DEBUG_QUIET, "%s(%d): Expected CHILD token",
-                               filename, lineNumber);
+                               filename.c_str(), line_num);
                 exampleSyntax (example);
                 fclose(fp);
                 return false;
@@ -252,11 +320,12 @@ bool parse (char *filename, Dag *dag) {
 
             std::list<Job *> children;
 
-            while ((jobName = strtok (NULL, DELIMITERS)) != NULL) {
+            while ((result = parser.GetToken(jobName)) == Parser::Result_OK) {
                 Job * job = dag->GetJob(jobName);
                 if (job == NULL) {
                     debug_println (DEBUG_QUIET, "%s(%d): Unknown Job %s",
-                                   filename, lineNumber, jobName);
+                                   filename.c_str(), line_num,
+                                   jobName.c_str());
                     fclose(fp);
                     return false;
                 }
@@ -265,7 +334,7 @@ bool parse (char *filename, Dag *dag) {
 
             if (children.size() < 1) {
                 debug_println (DEBUG_QUIET, "%s(%d): Missing Child Job names",
-                               filename, lineNumber);
+                               filename.c_str(), line_num);
                 exampleSyntax (example);
                 fclose(fp);
                 return false;
@@ -303,7 +372,7 @@ bool parse (char *filename, Dag *dag) {
             //
             debug_println( DEBUG_QUIET,
                            "%s(%d): Expected JOB, SCRIPT, or PARENT token",
-                           filename, lineNumber );
+                           filename.c_str(), line_num );
             fclose(fp);
             return false;
         }
