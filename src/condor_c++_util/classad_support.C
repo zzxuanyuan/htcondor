@@ -11,11 +11,13 @@ static char *assign = " = ";
 /* if the attr isn't already in the dirty list, place it in there */
 void SetAttrDirty(ClassAd *ad, char *attr)
 {
-	char dirty[DIRTY_ATTR_SIZE];
+	//char dirty[DIRTY_ATTR_SIZE];
 	StringList sl;
 	char *tmp, *tmp2;
+    string s;
+    Value v;
 
-	if (!ad->LookupString(ATTR_DIRTY_ATTR_LIST, dirty))
+	if (!ad->EvaluateAttrString(ATTR_DIRTY_ATTR_LIST, s))
 	{
 		/* doesn't exist, so I'll add it */
 		sl.initializeFromString(attr);
@@ -23,7 +25,7 @@ void SetAttrDirty(ClassAd *ad, char *attr)
 	else
 	{
 		/* it does exist, so see if it is in the list and add it if not */
-		sl.initializeFromString(dirty);
+		sl.initializeFromString(s.data());
 		if (sl.contains(attr) == TRUE)
 		{
 			/* already marked dirty, do nothing */
@@ -44,14 +46,15 @@ void SetAttrDirty(ClassAd *ad, char *attr)
 		EXCEPT("Out of memory in SetAttrDirty()");
 	}
 
-	strcpy(tmp2, ATTR_DIRTY_ATTR_LIST);
-	strcat(tmp2, assign);
+	//strcpy(tmp2, ATTR_DIRTY_ATTR_LIST);
+	//strcat(tmp2, assign);
 	strcat(tmp2, "\"");
 	strcat(tmp2, tmp);
 	strcat(tmp2, "\"");
 
+    v.SetStringValue(tmp2);
 	ad->Delete(ATTR_DIRTY_ATTR_LIST);
-	ad->Insert(tmp2);
+	ad->Insert( string(ATTR_DIRTY_ATTR_LIST), Literal::MakeLiteral(v));
 
 	free(tmp);
 	free(tmp2);
@@ -61,17 +64,19 @@ void SetAttrDirty(ClassAd *ad, char *attr)
 	dirty list. */
 void SetAttrClean(ClassAd *ad, char *attr)
 {
-	char dirty[DIRTY_ATTR_SIZE];
+	//char dirty[DIRTY_ATTR_SIZE];
 	StringList sl;
 	char *tmp, *tmp2;
+    string s;
+    Value v;
 
 	/* no dirty list means this is automatically clean */
-	if (!ad->LookupString(ATTR_DIRTY_ATTR_LIST, dirty))
+	if ( !ad->EvaluateAttrString(ATTR_DIRTY_ATTR_LIST, s))
 	{
 		return;
 	}
 
-	sl.initializeFromString(dirty);
+	sl.initializeFromString(s.data());
 
 	/* the attr isn't dirty, so that means it is already clean */
 	if (sl.contains(attr) == FALSE)
@@ -100,14 +105,16 @@ void SetAttrClean(ClassAd *ad, char *attr)
 		EXCEPT("Out of memory in SetAttrClean()");
 	}
 
-	strcpy(tmp2, ATTR_DIRTY_ATTR_LIST);
-	strcat(tmp2, assign);
+	//strcpy(tmp2, ATTR_DIRTY_ATTR_LIST);
+	//strcat(tmp2, assign);
 	strcat(tmp2, "\"");
 	strcat(tmp2, tmp);
 	strcat(tmp2, "\"");
 
+    v.Clear();
+    v.SetStringValue(tmp2);
 	ad->Delete(ATTR_DIRTY_ATTR_LIST);
-	ad->Insert(tmp2);
+	ad->Insert( string(ATTR_DIRTY_ATTR_LIST), Literal::MakeLiteral(v));
 
 	free(tmp);
 	free(tmp2);
@@ -116,16 +123,17 @@ void SetAttrClean(ClassAd *ad, char *attr)
 /* if the chosen attribute is dirty, return true */
 bool IsAttrDirty(ClassAd *ad, char *attr)
 {
-	char dirty[DIRTY_ATTR_SIZE];
+	//char dirty[DIRTY_ATTR_SIZE];
 	StringList sl;
-	
+    string v;
+
 	/* no dirty list means this is automatically clean */
-	if (!ad->LookupString(ATTR_DIRTY_ATTR_LIST, dirty))
+	if (!ad->EvaluateAttrString(ATTR_DIRTY_ATTR_LIST, v))
 	{
 		return false;
 	}
 
-	sl.initializeFromString(dirty);
+	sl.initializeFromString(v.data());
 
 	/* the attr isn't dirty, so that means it is already clean */
 	if (sl.contains(attr) == TRUE)
@@ -139,10 +147,10 @@ bool IsAttrDirty(ClassAd *ad, char *attr)
 /* returns true if there are any dirty attributes at all */
 bool AnyAttrDirty(ClassAd *ad)
 {
-	char dirty[DIRTY_ATTR_SIZE];
+	//char dirty[DIRTY_ATTR_SIZE];
 	
 	/* no dirty list means this is automatically clean */
-	if (ad->LookupString(ATTR_DIRTY_ATTR_LIST, dirty))
+	if (ad->Lookup(ATTR_DIRTY_ATTR_LIST))
 	{
 		return true;
 	}
@@ -155,13 +163,14 @@ bool AnyAttrDirty(ClassAd *ad)
 void EmitDirtyAttrList(int mode, ClassAd *ad)
 {
 	StringList sl;
-	char dirty[DIRTY_ATTR_SIZE];
+	//char dirty[DIRTY_ATTR_SIZE];
+    string v;
 
 	if (AnyAttrDirty(ad) == true)
 	{
-		ad->LookupString(ATTR_DIRTY_ATTR_LIST, dirty);
-
-		dprintf(mode, "%s = %s\n", ATTR_DIRTY_ATTR_LIST, dirty);
+		if (ad->EvaluateAttrString(ATTR_DIRTY_ATTR_LIST, v)) {
+            dprintf(mode, "%s = %s\n", ATTR_DIRTY_ATTR_LIST, v.data());
+        }
 	}
 	else
 	{

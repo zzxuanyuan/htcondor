@@ -86,8 +86,11 @@ email_user_open( ClassAd *jobAd, const char *subject )
 			// If that's not defined, we look for UID_DOMAIN in the
 			// job ad
 		if( ! domain ) {
-			jobAd->LookupString( ATTR_UID_DOMAIN, &domain );
-		}
+            string s;
+            if (jobAd->EvaluateAttrString( ATTR_UID_DOMAIN, s )) {
+                domain = strdup(s.data());
+            }
+        }
 
 			// If that's not there, look for UID_DOMAIN in the config
 			// file
