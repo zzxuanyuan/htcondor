@@ -24,7 +24,7 @@
 #ifndef BUFFER_CACHE_H
 #define BUFFER_CACHE_H
 
-#include <sys/types.h>
+#include "condor_common.h"
 #include "file_types.h"
 
 class BlockInfo;
