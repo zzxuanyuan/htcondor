@@ -6258,58 +6258,81 @@ Scheduler::preempt(int n)
 	 */
 	while (shadowsByPid->iterate(rec) == 1 && n > 0) {
 		if( is_alive(rec) ) {
+			if( rec->preempted ) {
+				if( ! ExitWhenDone ) {
+						// if we're not trying to exit, we should
+						// consider this record already in the process
+						// of preempting, and let it count towards our
+						// "n" shadows to preempt.
+					n--;
+				}
+					// either way, if we already preempted this srec
+					// there's nothing more to do here, and we need to
+					// keep looking for another srec to preempt (or
+					// bail out of our iteration if we've hit "n").
+				continue;
+			}
+
+				// if we got this far, it's an srec that hasn't been
+				// preempted yet.  so, mark it as preempted, decrement
+				// n so we let this count towards our goal, and based
+				// on the universe, do the right thing to preempt it.
+			rec->preempted = TRUE;
+			n--;
 			int universe;
-			GetAttributeInt(rec->job_id.cluster, rec->job_id.proc, 
-							ATTR_JOB_UNIVERSE,&universe);
-			if (universe == CONDOR_UNIVERSE_PVM) {
-				if ( !rec->preempted ) {
-					daemonCore->Send_Signal( rec->pid, SIGTERM );
-				} else {
-					if ( ExitWhenDone ) {
-						n++;
-					}
+			int cluster = rec->job_id.cluster;
+			int proc = rec->job_id.proc; 
+			GetAttributeInt( cluster, proc, ATTR_JOB_UNIVERSE, &universe );
+			ClassAd* job_ad;
+			int kill_sig;
+
+			switch( universe ) {
+			case CONDOR_UNIVERSE_PVM:
+				daemonCore->Send_Signal( rec->pid, SIGTERM );
+				dprintf( D_ALWAYS, "Sent SIGTERM to shadow for PVM job "
+						 "%d.%d (pid: %d)\n", cluster, proc, rec->pid );
+				break;
+
+			case CONDOR_UNIVERSE_LOCAL:
+				daemonCore->Send_Signal( rec->pid, DC_SIGSOFTKILL );
+				dprintf( D_ALWAYS, "Sent DC_SIGSOFTKILL to handler for "
+						 "local universe job %d.%d (pid: %d)\n", 
+						 cluster, proc, rec->pid );
+				break;
+
+			case CONDOR_UNIVERSE_SCHEDULER:
+				job_ad = GetJobAd( rec->job_id.cluster,
+								   rec->job_id.proc );  
+				kill_sig = findSoftKillSig( job_ad );
+				if( kill_sig <= 0 ) {
+					kill_sig = SIGTERM;
 				}
-				rec->preempted = TRUE;
-				n--;
-            }
-			else if (rec->match) {
-				if( !rec->preempted ) {
+				FreeJobAd( job_ad );
+				daemonCore->Send_Signal( rec->pid, kill_sig );
+				dprintf( D_ALWAYS, "Sent %s to scheduler universe job "
+						 "%d.%d (pid: %d)\n", signalName(kill_sig), 
+						 cluster, proc, rec->pid );
+				break;
+
+			default:
+					// all other universes
+				if( rec->match ) {
 					send_vacate( rec->match, CKPT_FRGN_JOB );
+					dprintf( D_ALWAYS, 
+							 "Sent vacate command to %s for job %d.%d\n",
+							 rec->match->peer, cluster, proc );
 				} else {
-					if ( ExitWhenDone ) {
-						n++;
-					}
+						/*
+						   A shadow record without a match for any
+						   universe other than PVM, local, and
+						   scheduler (which we already handled above)
+						   is a shadow for which the claim was
+						   relinquished (by the startd).  In this
+						   case, the shadow is on its way out, anyway,
+						   so there's no reason to send it a signal.
+						*/
 				}
-				rec->preempted = TRUE;
-				n--;
-			} 
-			else if (preempt_all) {
-				if ( !rec->preempted ) {
-					// This is the scheduler universe job case.  We get here
-					// because scheduler universe jobs don't have associated
-					// match records.  We check to make sure this is in fact
-					// a scheduler universe job before we send the signal
-					// beceause it could also be a shadow for which the
-					// claim was relinquished (by the startd).
-					if (IsSchedulerUniverse(rec)) {
-						int kill_sig;
-						ClassAd* job_ad = 
-							GetJobAd( rec->job_id.cluster,
-									  rec->job_id.proc );  
-						kill_sig = findSoftKillSig( job_ad );
-						if( kill_sig <= 0 ) {
-							kill_sig = SIGTERM;
-						}
-						FreeJobAd( job_ad );
-						daemonCore->Send_Signal( rec->pid, kill_sig );
-					}
-				} else {
-					if ( ExitWhenDone ) {
-						n++;
-					}
-				}
-				rec->preempted = TRUE;
-				n--;
+				break;
 			}
 		}
 	}
