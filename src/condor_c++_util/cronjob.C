@@ -336,7 +336,7 @@ int
 CondorCronJob::SetPeriod( CronJobMode newMode, unsigned newPeriod )
 {
 	// Verify that the mode seleted is valid
-	if (  ( CRON_EXIT_TIME != newMode ) && ( CRON_PERIODIC != newMode )  ) {
+	if (  ( CRON_WAIT_FOR_EXIT != newMode ) && ( CRON_PERIODIC != newMode )  ) {
 		dprintf( D_ALWAYS, "Cron: illegal mode selected for job '%s'\n",
 				 GetName() );
 		return -1;
@@ -400,7 +400,7 @@ CondorCronJob::Schedule( void )
 	int	status = 0;
 
 	// It's not a periodic -- just start it
-	if ( CRON_EXIT_TIME == mode ) {
+	if ( CRON_WAIT_FOR_EXIT == mode ) {
 		status = StartJob( );
 
 	} else {				// Periodic
@@ -516,7 +516,7 @@ CondorCronJob::Reaper( int exitPid, int exitStatus )
 		// Normal death
 	case CRON_RUNNING:
 		state = CRON_IDLE;				// Note it's death
-		if ( CRON_EXIT_TIME == mode ) {
+		if ( CRON_WAIT_FOR_EXIT == mode ) {
 			if ( 0 == period ) {			// ExitTime mode, no delay
 				StartJob( );
 			} else {						// ExitTime mode with delay
@@ -986,7 +986,7 @@ CondorCronJob::SetTimer( unsigned first, unsigned period )
 		dprintf( D_FULLDEBUG, 
 				 "Cron: Creating timer for job '%s'\n", GetName() );
 		TimerHandlercpp handler =
-			(  ( CRON_EXIT_TIME == mode ) ? 
+			(  ( CRON_WAIT_FOR_EXIT == mode ) ? 
 			   (TimerHandlercpp)& CondorCronJob::StartJob :
 			   (TimerHandlercpp)& CondorCronJob::RunJob );
 		runTimer = daemonCore->Register_Timer(

@@ -56,21 +56,21 @@ class CronJobErr : public LineBuffer
 
 // Job's state
 typedef enum {
-	CRON_NOINIT,
-	CRON_IDLE, 
-	CRON_RUNNING,
-	CRON_TERMSENT,
-	CRON_KILLSENT,
-	CRON_DEAD
+	CRON_NOINIT,			// Not initialized yet
+	CRON_IDLE, 				// Job is idle / not running
+	CRON_RUNNING,			// Job is running
+	CRON_TERMSENT,			// SIGTERM sent to job, waiting for SIGCHLD
+	CRON_KILLSENT,			// SIGKILL sent to job
+	CRON_DEAD				// Job is dead
 } CronJobState;
 
-// Job's "run" mode
+// Job's "run" (when to restart) mode
 typedef enum 
 { 
-	CRON_EXIT_TIME,			// Timing from exit
+	CRON_WAIT_FOR_EXIT,		// Timing from job's exit
 	CRON_PERIODIC, 			// Run it periodically
-	CRON_KILL,				// Job has been killed
-	CRON_ILLEGAL
+	CRON_KILL,				// Job has been killed & don't restart it
+	CRON_ILLEGAL			// Illegal mode
 } CronJobMode;
 
 // Notification events..

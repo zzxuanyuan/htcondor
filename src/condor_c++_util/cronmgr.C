@@ -564,14 +564,14 @@ CondorCronMgr::ParseJobList( const char *jobString )
 				dprintf( D_FULLDEBUG, "CronMgr: '%s': NoReconfig option ok\n",
 						 jobName );
 				reconfig = false;
-			} else if ( !strcasecmp( option, "WaitFromExit" ) ) {
-				dprintf( D_FULLDEBUG, "CronMgr: '%s': WaitFromExit option ok\n",
+			} else if ( !strcasecmp( option, "WaitForExit" ) ) {
+				dprintf( D_FULLDEBUG, "CronMgr: '%s': WaitForExit option ok\n",
 						 jobName );
-				jobMode = CRON_EXIT_TIME;
+				jobMode = CRON_WAIT_FOR_EXIT;
 			} else if ( !strcasecmp( option, "continuous" ) ) {
 				dprintf( D_FULLDEBUG, "CronMgr: '%s': Continuous option ok\n",
 						 jobName );
-				jobMode = CRON_EXIT_TIME;
+				jobMode = CRON_WAIT_FOR_EXIT;
 				reconfig = true;
 			} else {
 				dprintf( D_ALWAYS, "CronMgr: Job '%s':"
@@ -581,12 +581,12 @@ CondorCronMgr::ParseJobList( const char *jobString )
 		}
 
 		// we change period == 0 to period == 1 for continuous
-		// (now called WaitFromExit)
+		// (now called WaitForExit)
 		// jobs, so Hawkeye doesn't busy-loop if the job fails to
 		// execute for some reason; we mark it as an error for
 		// other job modes, since it's an invalid period...
 		if( jobPeriod == 0 ) {
-			if ( jobMode == CRON_EXIT_TIME ) {
+			if ( jobMode == CRON_WAIT_FOR_EXIT ) {
 				jobPeriod = 1;
 				dprintf( D_ALWAYS, 
 						 "CronMgr: WARNING: Job '%s' period = 0, but this "
@@ -594,7 +594,7 @@ CondorCronMgr::ParseJobList( const char *jobString )
 						 jobName );
 			} else {
 				dprintf( D_ALWAYS,
-						 "CronMgr: ERROR: Job '%s' not 'WaitFromExit', but "
+						 "CronMgr: ERROR: Job '%s' not 'WaitForExit', but "
 						 "period = 0; ignoring Job.\n", jobName );
 				continue; 
 			}
