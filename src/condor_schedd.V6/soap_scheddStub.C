@@ -66,10 +66,9 @@ static bool valid_transaction_id(int id)
 
 static
 int
-getJob(int transaction, int clusterId, int jobId, Job *&job)
+getJob(int clusterId, int jobId, Job *&job)
 {
   MyString key;
-  key += transaction;
   key += clusterId;
   key += jobId;
 
@@ -289,6 +288,14 @@ condorSchedd__newJob(struct soap *s,
     // TODO error case
   }
 
+  // Create a Job for this new job.
+  Job *job = new Job(clusterId, result.response.integer);
+  if (insertJob(transaction.id, clusterId, result.response.integer, job)) {
+    result.response.status.code = FAIL;
+    
+    return SOAP_OK;
+  }
+
   result.response.status.code = SUCCESS;
 
   dprintf(D_ALWAYS,"SOAP leaving condorSchedd__newJob() res=%d\n",result.response.status.code);
@@ -389,8 +396,8 @@ condorSchedd__submit(struct soap *s,
   }
 
   Job *job = new Job(clusterId, jobId);
-  if (getJob(transaction.id, clusterId, jobId, job)) {
-    result.response.status.code = FAIL; // Unknown transaction/cluster/job
+  if (getJob(clusterId, jobId, job)) {
+    result.response.status.code = UNKNOWNJOB;
 
     return SOAP_OK;
   }
@@ -490,14 +497,10 @@ condorSchedd__declareFile(struct soap *soap,
   }
 
   Job *job;
-  if (getJob(transaction.id, clusterId, jobId, job)) {
-    // Assume the Job wasn't created yet.
-    job = new Job(clusterId, jobId);
-    if (insertJob(transaction.id, clusterId, jobId, job)) {
-      result.response.code = FAIL;
+  if (getJob(clusterId, jobId, job)) {
+    result.response.code = UNKNOWNJOB;
 
-      return SOAP_OK;
-    }
+    return SOAP_OK;
   }
 
   result.response.code = SUCCESS;
@@ -527,7 +530,7 @@ condorSchedd__sendFile(struct soap *soap,
   }
 
   Job *job;
-  if (getJob(transaction.id, clusterId, jobId, job)) {
+  if (getJob(clusterId, jobId, job)) {
     result.response.code = INVALIDTRANSACTION;
 
     return SOAP_OK;
@@ -562,8 +565,8 @@ int condorSchedd__getFile(struct soap *soap,
   }
 
   Job *job;
-  if (getJob(transaction.id, clusterId, jobId, job)) {
-    result.response.status.code = INVALIDTRANSACTION;
+  if (getJob(clusterId, jobId, job)) {
+    result.response.status.code = UNKNOWNJOB;
 
     return SOAP_OK;
   }
