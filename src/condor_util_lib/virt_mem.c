@@ -42,7 +42,7 @@ calc_virt_memory()
 {
 	MEMORYSTATUS status;
 	GlobalMemoryStatus(&status);
-	return (int)status.dwTotalPageFile/1024;
+	return (int)status.dwAvailPageFile/1024;
 }
 
 #else
