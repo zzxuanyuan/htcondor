@@ -183,7 +183,6 @@ static BOOLEAN condor_migrate_to( const char *host_addr, const char *port_num );
 static BOOLEAN condor_migrate_from( const char *fd_no );
 static BOOLEAN condor_exit( const char *status );
 static int open_tcp_stream( unsigned int ip_addr, unsigned short port );
-void unblock_signals();
 void display_ip_addr( unsigned int addr );
 void open_std_file( int which );
 void set_iwd();
@@ -348,7 +347,6 @@ MAIN( int argc, char *argv[], char **envp )
 
 	argv[0] = cmd_name;
 
-	unblock_signals();
 	SetSyscalls( SYS_REMOTE | SYS_MAPPED );
 
 #if 0
@@ -627,27 +625,6 @@ get_ckpt_speed()
 	return REMOTE_syscall( CONDOR_get_ckpt_speed );
 }
 
-void
-unblock_signals()
-{
-	sigset_t	sig_mask;
-	int			scm;
-
-	scm = SetSyscalls( SYS_LOCAL | SYS_UNMAPPED );
-
-		/* unblock signals */
-	sigfillset( &sig_mask );
-	if( sigprocmask(SIG_UNBLOCK,&sig_mask,0) < 0 ) {
-		dprintf( D_ALWAYS, "sigprocmask failed in unblock_signals: %s",
-				 strerror(errno));
-		Suicide();
-	}
-
-	SetSyscalls( scm );
-
-	dprintf( D_ALWAYS, "Unblocked all signals\n" );
-}
-
 #define UNIT 10000
 
 #if defined(ALPHA)
@@ -709,31 +686,31 @@ open_std_file( int which )
 {
 	char	name[ _POSIX_PATH_MAX ];
 	char	buf[ _POSIX_PATH_MAX + 50 ];
-	int		pipe_fd;
 	int		answer;
-	int		status;
 
 		/* The ckpt layer assumes the process is attached to a terminal,
 		   so these are "pre_opened" in our open file table.  Here we must
 		   get rid of those entries so we can open them properly for
 		   remotely running jobs.
 		*/
+
 	close( which );
 
-	status =  REMOTE_syscall( CONDOR_std_file_info, which, name, &pipe_fd );
-	if( status == IS_PRE_OPEN ) {
-		answer = pipe_fd;			/* it's a pipe */
-	} else {
-		switch( which ) {			/* it's an ordinary file */
-		  case 0:
+	answer =  REMOTE_syscall( CONDOR_get_std_file_info, which, name );
+	if(answer<0) {
+		EXCEPT("Unable to get info about standard files!");
+	}
+
+	switch( which ) {
+		case 0:
 			answer = open( name, O_RDONLY, 0 );
 			break;
-		  case 1:
-		  case 2:
+		case 1:
+		case 2:
 			answer = open( name, O_WRONLY, 0 );
 			break;
-		}
 	}
+
 	if( answer < 0 ) {
 		sprintf( buf, "Can't open \"%s\"", name );
 		REMOTE_syscall(CONDOR_report_error, buf );

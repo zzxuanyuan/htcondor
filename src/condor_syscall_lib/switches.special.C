@@ -44,10 +44,6 @@ extern "C" int SYSCONF(...);
 extern "C" int SYSCALL(...);
 
 extern "C" {
-
-static int fake_readv( int fd, const struct iovec *iov, int iovcnt );
-static int fake_writev( int fd, const struct iovec *iov, int iovcnt );
-char	*getwd( char * );
 void    *malloc();     
 
 /*
@@ -400,7 +396,6 @@ sync( void )
 	return 0;
 #endif
 }
-
 
 
 } // end extern "C"
