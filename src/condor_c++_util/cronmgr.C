@@ -65,7 +65,11 @@ private:
 // Job list parser constructor
 JobListParser::JobListParser( const char *s )
 {
-	jobListString = strdup( s );
+	if( s ) {
+		jobListString = strdup( s );
+	} else { 
+		jobListString = NULL;
+	}
 	nextJobStart = jobListString;
 	curJobPointer = NULL;
 
@@ -411,11 +415,8 @@ CondorCronMgr::DoConfig( bool initial )
 	// Find our environment variable, if it exits..
 	dprintf( D_FULLDEBUG, "CronMgr: Doing config (%s)\n",
 			 initial ? "initial" : "reconfig" );
-	if( paramBuf == NULL ) {
-		dprintf( D_JOB, "CronMgr: No job list\n" );
-		return 0;
-	} else {
-		ParseJobList( paramBuf );
+	ParseJobList( paramBuf );
+	if( paramBuf ) {
 		free( paramBuf );
 	}
 
