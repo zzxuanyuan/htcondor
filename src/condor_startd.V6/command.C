@@ -1240,6 +1240,74 @@ caRequestClaim( Stream *s, char* cmd_str, ClassAd* req_ad )
 
 
 int
+caLocateStarter( Stream *s, char* cmd_str, ClassAd* req_ad )
+{
+	char* global_job_id = NULL;
+	Claim* claim = NULL;
+	ReliSock* rsock = (ReliSock*)s;
+
+	if( ! req_ad->LookupString(ATTR_GLOBAL_JOB_ID, &global_job_id) ) {
+		dprintf( D_ALWAYS, "Failed to read %s from ClassAd "
+				 "for cmd %s, aborting\n", ATTR_GLOBAL_JOB_ID, cmd_str );
+		MyString err_msg = ATTR_GLOBAL_JOB_ID;
+		err_msg += " not found in request ad";
+		sendErrorReply( s, cmd_str, CA_FAILURE, err_msg.Value() );
+		return FALSE;
+	}
+	claim = resmgr->getClaimByGlobalJobId( global_job_id );
+	if( ! claim ) {
+		MyString err_msg = ATTR_GLOBAL_JOB_ID;
+		err_msg += " (";
+		err_msg += global_job_id;
+		err_msg += ") not found";
+		sendErrorReply( s, cmd_str, CA_FAILURE, err_msg.Value() );
+		free( global_job_id );
+		return FALSE;
+	}
+
+		// make sure the user attempting this action is the same as
+		// the owner of the claim
+	const char* owner = rsock->getFullyQualifiedUser();
+	if( ! claim->ownerMatches(owner) ) {
+		MyString err_msg = "User '";
+		err_msg += owner;
+		err_msg += "' does not match the owner of this claim";
+		sendErrorReply( s, cmd_str, CA_NOT_AUTHORIZED, err_msg.Value() ); 
+		dprintf( D_COMMAND, "Denied request for %s by invalid user '%s'\n", 
+				 cmd_str, owner );
+		free( global_job_id );
+		return FALSE;
+	}
+	dprintf( D_COMMAND, "Serving request for %s by user '%s'\n", 
+			 cmd_str, owner );
+
+	ClassAd reply;
+	if( ! claim->publishStarterAd(&reply) ) {
+		MyString err_msg = "Internal error publishing starter ClassAd"; 
+		sendErrorReply( s, cmd_str, CA_FAILURE, err_msg.Value() );
+		free( global_job_id );
+		return FALSE;
+	}
+
+		// if we're still here, everything worked, so we can reply
+		// with success...
+	MyString line;
+	line = ATTR_RESULT;
+	line += " = \"";
+	line += getCAResultString( CA_SUCCESS );
+	line += '"';
+	reply.Insert( line.Value() );
+
+	int rval = sendCAReply( s, cmd_str, &reply );
+	if( ! rval ) {
+		dprintf( D_ALWAYS, "Failed to reply to request\n" );
+	}
+	free( global_job_id );
+	return rval;
+}
+
+
+int
 command_classad_handler( Service*, int, Stream* s )
 {
 	int rval;
@@ -1305,17 +1373,33 @@ command_classad_handler( Service*, int, Stream* s )
 		return FALSE;
 	}
 
-	if( cmd == CA_REQUEST_CLAIM ) { 
+	switch( cmd ) {
+	case CA_LOCATE_STARTER:
+			// special case, since it's not really about claims at
+			// all, but instead are worrying about trying to find a
+			// starter given a global job id.  this is used for
+			// shadow/starter reconnect mode, so the shadow can find
+			// the right ip/port to reconnect to (since it already has
+			// our address in the job classad).
+		rval = caLocateStarter( s, cmd_str, &ad );
+		free( cmd_str );
+		return rval;
+		break;
+
+	case CA_REQUEST_CLAIM:
 			// this one's a special case, since we're creating a new
 			// claim... 
 		rval = caRequestClaim( s, cmd_str, &ad );
 		free( cmd_str );
 		return rval;
-	}
+		break;
 
-		// for all the rest, we need to read the ClaimId out of the
-		// ad, find the right claim, and call the appropriate method
-		// on it.  
+	default:
+			// for all the rest, we need to read the ClaimId out of
+			// the ad, find the right claim, and call the appropriate
+			// method on it.  nothing more to do here...
+		break;
+	}
 
 	char* claim_id = NULL;
 	Claim* claim = NULL;

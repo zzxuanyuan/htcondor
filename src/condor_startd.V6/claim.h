@@ -195,10 +195,12 @@ public:
 	bool starterKillHard( void );
 	char* makeCODStarterArgs( void );
 	bool verifyCODAttrs( ClassAd* req );
+	bool publishStarterAd( ClassAd* ad );
 
 	bool periodicCheckpoint( void );
 
 	bool ownerMatches( const char* owner );
+	bool globalJobIdMatches( const char* id );
 
 		/**
 		   Remove this claim
@@ -231,6 +233,7 @@ private:
 	int			c_universe;
 	int			c_proc;
 	int			c_cluster;
+	char*		c_global_job_id;
 	int			c_job_start;
 	int			c_last_pckpt;
 	time_t		c_entered_state;

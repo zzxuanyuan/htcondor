@@ -513,6 +513,31 @@ Resource::findClaimById( const char* id )
 }
 
 
+Claim*
+Resource::findClaimByGlobalJobId( const char* id )
+{
+		// first, try our active claim, since that's the only one that
+		// should have it...  
+	if( r_cur && r_cur->globalJobIdMatches(id) ) {
+		return r_cur;
+	}
+
+	if( r_pre && r_pre->globalJobIdMatches(id) ) {
+			// this is bogus, there's no way this should happen, since
+			// the globalJobId is never set until a starter is
+			// activated, and that requires the claim being r_cur, not
+			// r_pre.  so, if for some totally bizzare reason this
+			// becomes true, it's a developer error.
+		EXCEPT( "Preepmting claims should *never* have a GlobalJobId!" );
+	}
+
+		// TODO: ask our CODMgr?
+
+		// if we're still here, we couldn't find it anywhere
+	return NULL;
+}
+
+
 bool
 Resource::claimIsActive( void )
 {

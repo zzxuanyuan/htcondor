@@ -54,6 +54,7 @@ Claim::Claim( Resource* rip, bool is_cod )
 	c_aliveint = -1;
 	c_cluster = -1;
 	c_proc = -1;
+	c_global_job_id = NULL;
 	c_job_start = -1;
 	c_last_pckpt = -1;
 	c_rip = rip;
@@ -96,6 +97,9 @@ Claim::~Claim()
 	}
 	if( c_starter ) {
 		delete( c_starter );
+	}
+	if( c_global_job_id ) { 
+		free( c_global_job_id );
 	}
 	if( c_cod_keyword ) {
 		free( c_cod_keyword );
@@ -147,6 +151,11 @@ Claim::publish( ClassAd* ad, amask_t how_much )
 
 	if( (c_cluster > 0) && (c_proc >= 0) ) {
 		sprintf( line, "%s=\"%d.%d\"", ATTR_JOB_ID, c_cluster, c_proc );
+		ad->Insert( line );
+	}
+
+	if( c_global_job_id ) {
+		sprintf( line, "%s=\"%s\"", ATTR_GLOBAL_JOB_ID, c_global_job_id );
 		ad->Insert( line );
 	}
 
@@ -486,6 +495,13 @@ Claim::saveJobInfo( ClassAd* request_ad )
 			// only print this if the request specified it...
 		c_rip->dprintf( D_ALWAYS, "Remote job ID is %d.%d\n", 
 						c_cluster, c_proc );
+	}
+
+	c_ad->LookupString( ATTR_GLOBAL_JOB_ID, &c_global_job_id );
+	if( c_global_job_id ) {
+			// only print this if the request specified it...
+		c_rip->dprintf( D_FULLDEBUG, "Remote global job ID is %s\n", 
+						c_global_job_id );
 	}
 }
 
@@ -932,6 +948,46 @@ Claim::verifyCODAttrs( ClassAd* req )
 
 
 bool
+Claim::publishStarterAd( ClassAd* ad )
+{
+	MyString line;
+	
+	if( ! c_starter ) {
+		return false;
+	}
+
+	char* ip_addr = c_starter->getIpAddr();
+	if( ip_addr ) {
+		line = ATTR_STARTER_IP_ADDR;
+		line += "=\"";
+		line += ip_addr;
+		line += '"';
+		ad->Insert( line.Value() );
+	}
+
+		// stuff in everything we know about from the Claim object
+	this->publish( ad, A_PUBLIC );
+
+		// stuff in starter-specific attributes, if we have them.
+	StringList ability_list;
+	c_starter->publish( ad, A_STATIC | A_PUBLIC, &ability_list );
+	char* ability_str = ability_list.print_to_string();
+	if( ability_str ) {
+		line = ATTR_STARTER_ABILITY_LIST;
+		line += "=\"";
+		line += ability_str;
+		line += '"';
+		ad->Insert( line.Value() );
+		free( ability_str );
+	}
+
+		// TODO add more goodness to this ClassAd??
+
+	return true;
+}
+
+
+bool
 Claim::periodicCheckpoint( void )
 {
 	if( c_starter ) {
@@ -951,6 +1007,16 @@ Claim::ownerMatches( const char* owner )
 		return true;
 	}
 		// TODO: handle COD_SUPER_USERS
+	return false;
+}
+
+
+bool
+Claim::globalJobIdMatches( const char* id )
+{
+	if( c_global_job_id && !strcmp(c_global_job_id, id) ) {
+		return true;
+	}
 	return false;
 }
 
@@ -1091,6 +1157,10 @@ Claim::resetClaim( void )
 	c_proc = -1;
 	c_job_start = -1;
 	c_last_pckpt = -1;
+	if( c_global_job_id ) {
+		free( c_global_job_id );
+		c_global_job_id = NULL;
+	}
 	if( c_cod_keyword ) {
 		free( c_cod_keyword );
 		c_cod_keyword = NULL;

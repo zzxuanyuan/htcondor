@@ -986,6 +986,23 @@ ResMgr::getClaimById( const char* id )
 }
 
 
+Claim*
+ResMgr::getClaimByGlobalJobId( const char* id )
+{
+	Claim* foo = NULL;
+	if( ! resources ) {
+		return NULL;
+	}
+	int i;
+	for( i = 0; i < nresources; i++ ) {
+		if( (foo = resources[i]->findClaimByGlobalJobId(id)) ) {
+			return foo;
+		}
+	}
+	return NULL;
+}
+
+
 Resource*
 ResMgr::findRipForNewCOD( ClassAd* ad )
 {
