@@ -1,3 +1,7 @@
+06/2/04 V6_6-imake-merge-1
+	The state of the V6_6-imake-branch before a merge into the V6_6-branch.
+	Contains the imake fixes to enable functioning on gcc 3.3.
+
 05/16/04 V6_6-merge-12
    The state of the V6_6-branch for yet another merge into
    V6_7-branch.  fixes getExecPath() on OSX which was breaking the
