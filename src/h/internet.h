@@ -88,6 +88,20 @@ int is_valid_sinful( const char *sinful );
    this machine.   Returns 1 if successful, 0 on error. */
 int _condor_local_bind( int fd );
 
+/* Check if the ip is in private ip address space */
+// @args:   ip - ip address in host byte order
+// @return:	nonzero, if ip is a private ip
+//			zero, if not
+int is_priv_net(uint32_t ip);
+
+/* Get an ip address of this host, preferably public one */
+// @args:   ipaddr - ip address found will be returned via this arg
+//                   in network byte order
+// @return: -1, if failed to find a valid ip address
+//          0, if a public ip address found
+//          1, if could not find a public ip but a private ip found
+int _ssc_net_getIPaddr(uint32_t *ipaddr);
+
 #if defined(__cplusplus)
 }
 #endif

@@ -534,3 +534,12 @@ int bindWithin(const int fd, const int low_port, const int high_port)
 
 	return FALSE;
 }
+
+// @args:   ip - ip address in host byte order
+int
+is_priv_net(uint32_t ip)
+{
+	return ((ip & 0xFF000000) == 0x0A000000 ||      // 10/8
+			(ip & 0xFFF00000) == 0xAC100000 ||      // 172.16/12
+			(ip & 0xFFFF0000) == 0xC0A80000);       // 192.168/16
+}
