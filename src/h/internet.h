@@ -57,6 +57,8 @@ int string_to_sin(char *addr, struct sockaddr_in *sin);
 
 char *sin_to_string(struct sockaddr_in *sin);
 
+char *sock_to_string(SOCKET sockd);
+
 void
 display_from( struct sockaddr_in *from );
 
