@@ -100,6 +100,19 @@ if test $ac_yacc = no; then
     AC_MSG_ERROR( [yacc is required] )
 fi
 
+# ar is used for numerous libraries in Condor, and for extracting
+# objects from the system libc.a for the Condor syscall library.
+AC_CHECK_PROG(ac_ar,ar,yes,no)
+if test $ac_ar = no; then
+    AC_MSG_ERROR( [ar is required] )
+fi
+
+# strip is used in the packaging of Condor for all released binaries
+AC_CHECK_PROG(ac_strip,strip,yes,no)
+if test $ac_strip = no; then
+    AC_MSG_ERROR( [strip is required] )
+fi
+
 # m4 is used to build PVM
 AC_CHECK_PROG(ac_m4prog,m4,yes,no)
 if test $ac_m4prog = no; then
