@@ -59,10 +59,12 @@ SafeSock::SafeSock(					/* listen on serv		*/
 
 SafeSock::SafeSock(
 	char	*host,
-	int		port
+	int		port,
+	int		timeout_val
 	)
 	: Sock()
 {
+	timeout(timeout_val);
 	connect(host, port);
 }
 
@@ -70,10 +72,12 @@ SafeSock::SafeSock(
 
 SafeSock::SafeSock(
 	char	*host,
-	char	*serv
+	char	*serv,
+	int		timeout_val
 	)
 	: Sock()
 {
+	timeout(timeout_val);
 	connect(host, serv);
 }
 

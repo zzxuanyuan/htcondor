@@ -68,8 +68,8 @@ public:
 	SafeSock() : Sock() {}		/* virgin safe_sock		*/
 	SafeSock(int);				/* listen on port		*/
 	SafeSock(char *);			/* listen on serv 		*/
-	SafeSock(char *, int);		/* connect to host/port	*/
-	SafeSock(char *, char *);	/* connect to host/serv	*/
+	SafeSock(char *, int, int timeout_val=0);		/* connect to host/port	*/
+	SafeSock(char *, char *, int timeout_val=0);	/* connect to host/serv	*/
 	~SafeSock();
 
 	int listen();

@@ -60,10 +60,12 @@ ReliSock::ReliSock(					/* listen on serv		*/
 
 ReliSock::ReliSock(
 	char	*host,
-	int		port
+	int		port,
+	int		timeout_val
 	)
 	: Sock()
 {
+	timeout(timeout_val);
 	if (!connect(host, port))
 		dprintf(D_ALWAYS, "failed to connect to %s:%d!\n", host, port);
 }
@@ -72,10 +74,12 @@ ReliSock::ReliSock(
 
 ReliSock::ReliSock(
 	char	*host,
-	char	*serv
+	char	*serv,
+	int		timeout_val
 	)
 	: Sock()
 {
+	timeout(timeout_val);
 	if (!Sock::connect(host, serv))
 		dprintf(D_ALWAYS, "failed to connect to %s:%s!\n", host, serv);
 }

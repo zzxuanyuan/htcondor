@@ -60,8 +60,8 @@ public:
 	ReliSock() : Sock() {}		/* virgin reli_sock		*/
 	ReliSock(int);				/* listen on port		*/
 	ReliSock(char *);			/* listen on serv 		*/
-	ReliSock(char *, int);		/* connect to host/port	*/
-	ReliSock(char *, char *);	/* connect to host/serv	*/
+	ReliSock(char *, int, int timeout_val=0);		/* connect to host/port	*/
+	ReliSock(char *, char *, int timeout_val=0);	/* connect to host/serv	*/
 	~ReliSock();
 
 	int listen();
