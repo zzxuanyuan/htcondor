@@ -118,8 +118,6 @@ public:
 
     bool usingReliableUDP() const { return _useRUDP; }
 
-    void setUseReliableUDP(bool useReliableUDP);
-
 //	PRIVATE INTERFACE TO SAFE SOCKS
 //
 
@@ -155,7 +153,6 @@ protected:
 	int _tOutBtwPkts;
 	char* _fqu;  // fully qualified username
     int   _authenticated;
-    bool  _useRUDP;
 
 	// statistics variables
 	static unsigned long _noMsgs;

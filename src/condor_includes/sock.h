@@ -213,7 +213,7 @@ protected:
 	*/
 
     ///
-	Sock();
+	Sock(bool useRUDP = false);
 
 	int getportbyserv(char *);
 
@@ -272,6 +272,7 @@ protected:
 	sock_state		_state;
 	int				_timeout;
 	struct sockaddr_in _who;	// endpoint of "connection"
+	bool			_useRUDP;
 
 private:
 	int _condor_read(SOCKET fd, char *buf, int sz, int timeout);
