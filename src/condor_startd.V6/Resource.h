@@ -63,9 +63,11 @@ public:
 
 		// Load Average related methods
 	float	condor_load() {return r_attr->condor_load();};
-	float	compute_condor_load() {return r_state->condor_load();};
+	float	compute_condor_load();
+	void	resize_load_queue(); 
 	float	owner_load() {return r_attr->owner_load();};
 	void	set_owner_load( float val) {r_attr->set_owner_load(val);};
+
 
 	void	display( amask_t m ) {r_attr->display(m);}
 
@@ -118,6 +120,7 @@ public:
 	Match*			r_pre;		// Info about the possibly preempting match
 	Reqexp*			r_reqexp;   // Object for the requirements expression
 	CpuAttributes*	r_attr;		// Attributes of this resource
+	LoadQueue*		r_load_queue;  // Holds 1 minute avg % cpu usage
 	char*			r_name;		// Name of this resource
 	char*			r_id;		// CPU id of this resource
 
