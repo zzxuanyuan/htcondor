@@ -100,6 +100,7 @@ static const char ATTR_RANK					[]	= "Rank";
 #endif
 
 #if defined(__cplusplus)
+using namespace std;
 #include <string>
 struct CaseIgnLTStr {
     bool operator( )( const string &s1, const string &s2 ) const {
