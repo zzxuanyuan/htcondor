@@ -114,6 +114,7 @@ discard( parameter )
 	MappingFileDescriptors() is in effect.  Both the checkpointing
 	and remote syscall library use this feature.
 
+
 Each system call prototype has several names associated with
 it.  By default, each name is the same as the function name,
 perhaps with a CONDOR_ or SYS_ appended as appropriate.
@@ -169,6 +170,12 @@ circumstances:
   the macro RECEIVER.  We then use cpp conditional statements to
   ensure that each generator sees only the prototypes for which it
   should generate code.
+
+	In addition to senders, receivers, and switches, this file
+	may be processed with different features in mind.
+		FILE_TABLE - enable switches into the file table
+		SAVE_SIGSTATE - enable support for signal handling
+		REMOTE_SYSCALLS - enable support for misc syscalls
 */
 
 #define SEND_PATH(name) in code(name)
@@ -181,6 +188,17 @@ circumstances:
 #else
 #   define EXTRACT extract
 #endif
+
+/* This group of calls is needed in the syscall lib and
+the standalone ckpt lib, but not in the clipped version.
+All of these calls manipulate the open file table.
+Notice that adding a function here should also require
+an underscore remap in the appropriate switches.REMAP.
+*/ 
+
+#if !defined(CLIP)
+
+#if defined(FILE_TABLE)
 
 	int open( const char *path, int flags, ... )
 		: file_table
@@ -228,7 +246,7 @@ circumstances:
 	#endif
 
 	/* Sync must go through the table to flush the buffer cache.
-	Those that don't have fsync still need the sender, so we provide
+	Systems that don't have SYS_fsync still need the sender, so we provide
 	no_sys_chk for the sender only. */
 
 	int fdsync( int fd )
@@ -254,6 +272,17 @@ circumstances:
 		: file_table_name(ftruncate), remote_name(ftruncate);
 	
 	int fchdir( int fd ) : file_table;
+
+#endif /* FILE_TABLE */
+#endif /* CLIP */
+
+/* None of the remaining functions go through the file table,
+   so they are not needed in the standalone ckpt library.
+*/
+
+#if defined(REMOTE_SYSCALLS)
+#if !defined(CLIP)
+
 	int fchown( map(int fd), uid_t owner, gid_t group );
 	int fchmod( map(int fd), mode_t mode );
 
@@ -310,7 +339,7 @@ circumstances:
 
 	/* Linux, Irix, and Solaris need these switches to redirect
 	   these calls to fxstat, lxstat, and xstat.  On Linux,
-	   fxstat calls CONDOR_fstat or SYS_prev_fstat.  On Irix and
+	   fxstat calls CONDOR_fstat or SYS_oldfstat.  On Irix and
 	   Solaris, fxstat calls CONDOR_fstat or SYS_fxstat.
 	*/
 
@@ -330,13 +359,13 @@ circumstances:
 	#if defined(LINUX)
 
 	int fxstat( discard(int version), map(int fd), struct stat *buf )
-		: sender_name(fstat), local_name(prev_fstat);
-	int lxstat( discard(int version), char *path, struct stat *buf )
-		: sender_name(lstat), local_name(prev_lstat);
-	int xstat( discard(int version), char *path, struct stat *buf )
-		: sender_name(stat), local_name(prev_stat);
-	int xmknod(discard(int version),char *path,mode_t mode,dev_t device)
-		: sender_name(mknod), local_name(mknod);
+		: sender_name(fstat), local_name(oldfstat);
+	int lxstat( discard(int version), const char *path, struct stat *buf )
+		: sender_name(lstat), local_name(oldlstat);
+	int xstat( discard(int version), const char *path, struct stat *buf )
+		: sender_name(stat), local_name(oldstat);
+	int xmknod(discard(int version), const char *path,mode_t mode,dev_t device)
+		: sender_name(mknod), local_name(prev_mknod);
 
 	/* Linux needs these relatives of stat to cover the
 	   old entry points to libc.  */
@@ -411,6 +440,15 @@ circumstances:
 		out code_bytes_bool( buf, nbytes );
 		alloc( buf, nbytes );
 	}
+
+#endif /* !defined(CLIP) */
+
+/*
+These calls do not need switches because they are pseudo calls,
+only invoked by supervisory code in the syscall lib.  They
+are also not needed by the starter, so they are not included
+in the clipped version.
+*/
 
 #if !defined(SWITCH) && !defined(CLIP)
 
@@ -539,7 +577,6 @@ circumstances:
 #endif	/* not SWITCH and not CLIP */
 
 #if !defined(SWITCH)
-/* No switches for pseudo_syscalls */
 	int register_afs_cell( const char *cell ) : pseudo {
 		SEND_PATH( cell );
 		ALLOC_PATH( cell );
@@ -1007,12 +1044,15 @@ int rename( const char *from, const char *to ) : pseudo {
 	}
 
 #if defined(OSF1)
-		int getaddressconf( struct addressconf *buf, size_t length ) {
-			out code_bytes_bool( buf, length );
-			alloc( buf, length );
-		}
+
+	int getaddressconf( struct addressconf *buf, size_t length ) {
+		out code_bytes_bool( buf, length );
+		alloc( buf, length );
+	}
 #endif
-		pid_t getpgid( pid_t pid );
+
+	pid_t getpgid( pid_t pid );
+
 #if defined(Solaris) || defined(LINUX) || defined(IRIX62) || defined(HPUX)
 	not_supported { 
 		int mvalid( char * addr, size_t len, int prot ) {
@@ -1023,70 +1063,77 @@ int rename( const char *from, const char *to ) : pseudo {
 		int uswitch( int cmd, int value );
 	}
 #else
-		int mvalid( char * addr, size_t len, int prot ) {
-			out code_bytes_bool( addr, len );
-			alloc( addr, len );
-		}
+	int mvalid( char * addr, size_t len, int prot ) {
+		out code_bytes_bool( addr, len );
+		alloc( addr, len );
+	}
 
-		int uswitch( int cmd, int value );
+	int uswitch( int cmd, int value );
 #endif /* Solaris || Linux || IRIX62 */
 
-		/*
-		Things having to do with signals - we may support these
-		one day soon.  ...and now we do on some platforms -Todd 1/95 
-		*/
-	not_supported {
+/*
+Things having to do with signals - we may support these
+one day soon.  ...and now we do on some platforms -Todd 1/95 
+*/
+
+not_supported {
 
 #if !defined(SAVE_SIGSTATE)
 
-#if defined(LINUX)
-#define SIG_CONST
-#else 
-#define SIG_CONST const
-#endif
-
-	int sigprocmask( int how, SIG_CONST sigset_t *set, sigset_t *o_set );
-	int sigsuspend( SIG_CONST sigset_t *mask );
+	int sigprocmask( int how, SIGSET_CONST sigset_t *set, sigset_t *o_set);
+	int sigsuspend( SIGSET_CONST sigset_t *mask );
 	int sigpending( sigset_t *set );
 	int sigstack( struct sigstack *instack, struct sigstack *outstack );
 
-#if !defined(LINUX)
+	#if !defined(LINUX)
 		int sigreturn( struct sigcontext *scp );
-#endif
+	#endif
 
 #endif  /* of !defined(SAVE_SIGSTATE) */
 
-
 #if defined(LINUX) || defined(Solaris251) || defined(HPUX) || defined(OSF1)
-		int setitimer( int which, const struct itimerval *value,
-				struct itimerval *oval );
+	int setitimer( int which, const struct itimerval *value,	
+	               struct itimerval *oval );
 #else
-	int setitimer( int which, struct itimerval *value, struct itimerval *oval );
+	int setitimer( int which, struct itimerval *value,
+	               struct itimerval *oval );
 #endif
 	int getitimer( int which, struct itimerval *value );
+
 	}
 
 	/*
-	We don't support these everywhere, but we ignore attempts to do them remotely
-	for the benefit of Fortran compilers...
+	We don't support these everywhere, but we ignore attempts	
+	to do them remotely for the benefit of Fortran compilers...
 	*/
 	ignored {
-#	if !defined (SAVE_SIGSTATE)
-#	    if defined(LINUX)
+#if !defined (SAVE_SIGSTATE)
+	#if defined(LINUX)
 		int sigaction( int sig, struct sigaction *act,
-				struct sigaction *o_act ) : extract;
-#	    else
+		               struct sigaction *o_act ) : extract;
+	#else
 		int sigaction( int sig, const struct sigaction *act,
-						struct sigaction *o_act ) : EXTRACT;
-#	    endif
-#	endif
-		int setsysinfo( unsigned long op, char *buffer, unsigned long nbytes,
-						char * arg, unsigned long flag );
+		               struct sigaction *o_act ) : EXTRACT;
+	#endif
+#endif
+		int setsysinfo( unsigned long op, char *buffer,
+		                unsigned long nbytes, char * arg,
+		                unsigned long flag );
 	}
 
 #endif /* not CLIP */
 
+/*
+The memory mappnig calls have switches in order to
+provide a "not supported" error message for the user, but we
+won't generate senders and receivers because there is no
+mechanism for transmitting (or using) a void*, which is
+MMAP_T on some platforms.
+*/
+
 not_supported {
+#if defined(SWITCH)
+
 	#if defined(LINUX) && defined(SWITCH)
 		/* mmap is a special switch on Linux */
 	#else
@@ -1097,6 +1144,7 @@ not_supported {
 	int madvise( MMAP_T addr, size_t len, int behav );
 	int msync( MMAP_T addr, size_t len, int flags );
 	/* munmap should not be trapped -- it should always unmap locally. */
+#endif /* SWITCH */
 }
 
 #if !defined( CLIP )
@@ -1240,6 +1288,7 @@ not_supported {
 	   on the appropriate platform.  It may be a little bigger, but this was
 	   very easy to generate and get right. */
 
+
 	#if defined(OSF1)
 
 		int      accept          (int a, struct sockaddr * b, int *c);
@@ -1372,4 +1421,5 @@ not_supported {
 }
 
 #endif /* not CLIP */
+#endif /* REMOTE_SYSCALLS */
 
