@@ -89,6 +89,8 @@ If not specified, the default value
 of \File{/dev/null} is used for submission to a Unix machine.
 If not specified, input is ignored
 for submission to an NT machine.
+For globus universe jobs, \Opt{input} may be a URL that the Globus
+tool \Prog{globus\_url\_copy} understands.
 
 %%%%%%%%%%%%%%%%%%%
 %% output
@@ -106,6 +108,8 @@ for submission to an NT machine.
 More than one job should not use the same output
 file, since this will cause one job to overwrite the output of
 another.
+For globus universe jobs, \Opt{output} may be a URL that the Globus
+tool \Prog{globus\_url\_copy} understands.
 
 %%%%%%%%%%%%%%%%%%%
 %% error
@@ -122,6 +126,8 @@ If not specified, error messages are ignored
 for submission to an NT machine.
 More than one job should not use the same error file, since
 this will cause one job to overwrite the errors of another.
+For globus universe jobs, \Opt{error} may be a URL that the Globus
+tool \Prog{globus\_url\_copy} understands.
 
 %%%%%%%%%%%%%%%%%%%
 %% arguments
