@@ -1594,12 +1594,15 @@ MyString *GT4Job::buildSubmitRSL()
 	}
 
 	//Start off the RSL
+/*
 	rsl->sprintf( "\
 <?xml version=\"1.0\" encoding=\"UTF-8\"?>\
-<gram:job xmlns:gram=\"http://www.globus.org/namespaces/2004/06/job\" \
+<job xmlns:gram=\"http://www.globus.org/namespaces/2004/06/job\" \
 xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" \
 xsi:schemaLocation=\"http://www.globus.org/namespaces/2004/06/job \
 %s/share/schema/gram/job_description.xsd\">", gt4_location);
+*/
+	rsl->sprintf( "<job>" );
 
 
 	//We're assuming all job clasads have a command attribute
@@ -1620,7 +1623,7 @@ xsi:schemaLocation=\"http://www.globus.org/namespaces/2004/06/job \
 	}
 	
     //*rsl += "(executable=";
-	*rsl += printXMLParam ("gram:executable", attr_value);
+	*rsl += printXMLParam ("executable", attr_value);
 	free (attr_value);
 	attr_value = NULL;
 	
@@ -1644,7 +1647,7 @@ xsi:schemaLocation=\"http://www.globus.org/namespaces/2004/06/job \
 
 
 	if ( ad->LookupString(ATTR_JOB_REMOTE_IWD, &attr_value) && *attr_value ) {
-		*rsl += printXMLParam ("gram:directory", attr_value);
+		*rsl += printXMLParam ("directory", attr_value);
 
 		riwd = attr_value;
 	} else {
@@ -1658,7 +1661,7 @@ xsi:schemaLocation=\"http://www.globus.org/namespaces/2004/06/job \
 		ASSERT (submit_id);	// append submit_id for uniqueness, fool
 		riwd.sprintf ("${GLOBUS_USER_HOME}/job_%s", submit_id);
 
-		*rsl += printXMLParam ("gram:directory", riwd.Value());
+		*rsl += printXMLParam ("directory", riwd.Value());
 	}
 
 	if ( riwd[riwd.Length()-1] != '/' ) {
@@ -1670,7 +1673,7 @@ xsi:schemaLocation=\"http://www.globus.org/namespaces/2004/06/job \
 	}
 
 	if ( ad->LookupString(ATTR_JOB_ARGUMENTS, &attr_value) && *attr_value ) {
-		*rsl += printXMLParam ("gram:arguments", attr_value);
+		*rsl += printXMLParam ("arguments", attr_value);
 	}
 	if ( attr_value != NULL ) {
 		free( attr_value );
@@ -1680,7 +1683,7 @@ xsi:schemaLocation=\"http://www.globus.org/namespaces/2004/06/job \
 	if ( ad->LookupString(ATTR_JOB_INPUT, &attr_value) && *attr_value &&
 		 strcmp( attr_value, NULL_FILE ) ) {
 		
-		*rsl += printXMLParam ("gram:stdin", attr_value);
+		*rsl += printXMLParam ("stdin", attr_value);
 	}
 	if ( attr_value != NULL ) {
 		free( attr_value );
@@ -1688,15 +1691,15 @@ xsi:schemaLocation=\"http://www.globus.org/namespaces/2004/06/job \
 	}
 
 //	if ( streamOutput ) {
-//		*rsl += printXMLParam ("gram:stdout", localOutput );
+//		*rsl += printXMLParam ("stdout", localOutput );
 //	} else {
 		if ( stageOutput ) {
-			*rsl += printXMLParam ("gram:stdout", "$(GLOBUS_CACHED_STDOUT)");
+			*rsl += printXMLParam ("stdout", "$(GLOBUS_CACHED_STDOUT)");
 		} else {
 			if ( ad->LookupString(ATTR_JOB_OUTPUT, &attr_value) &&
 				 *attr_value && strcmp( attr_value, NULL_FILE ) ) {
 				
-				*rsl += printXMLParam ("gram:stdout", attr_value);
+				*rsl += printXMLParam ("stdout", attr_value);
 			}
 			if ( attr_value != NULL ) {
 				free( attr_value );
@@ -1706,14 +1709,14 @@ xsi:schemaLocation=\"http://www.globus.org/namespaces/2004/06/job \
 //	}
 
 //	if ( streamError ) {
-//		*rsl += printXMLParam ("gram:stderr", localError);
+//		*rsl += printXMLParam ("stderr", localError);
 //	} else {
 		if ( stageError ) {
-			*rsl += printXMLParam ("gram:stderr", "$(GLOBUS_CACHED_STDERR)");
+			*rsl += printXMLParam ("stderr", "$(GLOBUS_CACHED_STDERR)");
 		} else {
 			if ( ad->LookupString(ATTR_JOB_ERROR, &attr_value) &&
 				 *attr_value && strcmp( attr_value, NULL_FILE ) ) {
-				*rsl +=  printXMLParam ("gram:stderr", attr_value );
+				*rsl +=  printXMLParam ("stderr", attr_value );
 			}
 			if ( attr_value != NULL ) {
 				free( attr_value );
@@ -1725,16 +1728,16 @@ xsi:schemaLocation=\"http://www.globus.org/namespaces/2004/06/job \
 	// First upload an emtpy dummy directory
 	// This will be the job's sandbox directory
 
-	const char * file_in_header = "<gram:fileStageIn><gram:transfer>";
-	const char * file_in_footer = "</gram:transfer></gram:fileStageIn>";
+	const char * file_in_header = "<fileStageIn><transfer>";
+	const char * file_in_footer = "</transfer></fileStageIn>";
 
 /* Only need dummy dir if user didn't specify RemoteIwd
 	*rsl += file_in_header;
 	buff.sprintf( "gsiftp://nostos.cs.wisc.edu%d", getDummyJobScratchDir() );
-	*rsl += printXMLParam ("gram:sourceUrl",
+	*rsl += printXMLParam ("sourceUrl",
 						   buff.Value());
 	buff.sprintf( "file:///%s", riwd.Value() );
-	*rsl += printXMLParam ("gram:destinationUrl",
+	*rsl += printXMLParam ("destinationUrl",
 						   buff.Value()); // remote job dir
 	*rsl += file_in_footer;
 */
@@ -1756,9 +1759,9 @@ xsi:schemaLocation=\"http://www.globus.org/namespaces/2004/06/job \
 							  riwd.Value(),
 							  basename (filename));
 				*rsl += file_in_header;
-				*rsl += printXMLParam ("gram:sourceUrl", 
+				*rsl += printXMLParam ("sourceUrl", 
 										filename);
-				*rsl += printXMLParam ("gram:destinationUrl", 
+				*rsl += printXMLParam ("destinationUrl", 
 									   buff.Value());
 				*rsl += file_in_footer;
 
@@ -1790,26 +1793,26 @@ xsi:schemaLocation=\"http://www.globus.org/namespaces/2004/06/job \
 		   *attr_value ) || stageOutput || stageError ) {
 		StringList filelist( attr_value, "," );
 		if ( !filelist.isEmpty() || stageOutput || stageError ) {
-			const char * stage_out_header = "<gram:fileStageOut><gram:transfer>";
-			const char * stage_out_footer = "</gram:transfer></gram:fileStageOut>";
+			const char * stage_out_header = "<fileStageOut><transfer>";
+			const char * stage_out_footer = "</transfer></fileStageOut>";
 
 
 			char *filename;
 
 			if ( stageOutput ) {
 				*rsl += stage_out_header;
-				*rsl += printXMLParam ("gram:sourceFile", 
+				*rsl += printXMLParam ("sourceFile", 
 									   "$(GLOBUS_CACHED_STDOUT)");
-				*rsl += printXMLParam ("gram:destinationFile", 
+				*rsl += printXMLParam ("destinationFile", 
 									   localOutput);
 				*rsl += stage_out_footer;
 			}
 
 			if ( stageError ) {
 				*rsl += stage_out_header;
-				*rsl += printXMLParam ("gram:sourceFile", 
+				*rsl += printXMLParam ("sourceFile", 
 									   "$(GLOBUS_CACHED_STDERRT)");
-				*rsl += printXMLParam ("gram:destinationFile", 
+				*rsl += printXMLParam ("destinationFile", 
 									   localError);
 				*rsl += stage_out_footer;
 			}
@@ -1820,9 +1823,9 @@ xsi:schemaLocation=\"http://www.globus.org/namespaces/2004/06/job \
 							  riwd.Value(),
 							  basename (filename));
 				*rsl += stage_out_header;
-				*rsl += printXMLParam ("gram:sourceFile", 
+				*rsl += printXMLParam ("sourceFile", 
 									   buff.Value());
-				*rsl += printXMLParam ("gram:destinationFile", 
+				*rsl += printXMLParam ("destinationFile", 
 									   filename);
 
 				*rsl += stage_out_footer;
@@ -1839,8 +1842,8 @@ xsi:schemaLocation=\"http://www.globus.org/namespaces/2004/06/job \
 		env_obj.add_string(attr_value);
 		char **env_vec = env_obj.get_vector();
 		int i = 0;
-		const char * envrionment_header = "<gram:environment>";
-		const char * environment_footer = "</gram:environment>";
+		const char * envrionment_header = "<environment>";
+		const char * environment_footer = "</environment>";
 
 		while (env_vec[i]) {
 			char *equals = strchr(env_vec[i],'=');
@@ -1850,8 +1853,8 @@ xsi:schemaLocation=\"http://www.globus.org/namespaces/2004/06/job \
 			}
 			
 			*rsl += envrionment_header;
-			*rsl += printXMLParam ("gram:name", env_vec[i]);
-			*rsl += printXMLParam ("gram:value", equals + 1);
+			*rsl += printXMLParam ("name", env_vec[i]);
+			*rsl += printXMLParam ("value", equals + 1);
 			*rsl += environment_footer;
 
 			i++;
@@ -1884,7 +1887,7 @@ xsi:schemaLocation=\"http://www.globus.org/namespaces/2004/06/job \
 		// Start the job on hold
 	*rsl += printXMLParam ("holdState", "Pending" );
 
-	*rsl += "</gram:job>";
+	*rsl += "</job>";
 
 	free (gt4_location);
 
