@@ -344,8 +344,23 @@ pure_target(condor_collector.V6,condor_collector.pure)
 pure_target(condor_negotiator.V6,condor_negotiator.pure)
 pure_target(condor_dagman,condor_dagman.pure)
 
-externals::
-	cd ../externals; make
+
+ext_target(EXT_ZLIB_VERSION,)
+#if IS_LINUX
+ext_target(EXT_GLIBC_VERSION,)
+#endif
+#if HAS_KERBEROS && WANT_KERBEROS
+ext_target(EXT_KERBEROS_VERSION,)
+#endif
+#if HAS_GLOBUS
+ext_target(EXT_GLOBUS_VERSION,$(EXTERNALS_TRIGGER_DIR)/$(EXT_GPT_VERSION))
+ext_target(EXT_GAHP_VERSION,$(EXTERNALS_TRIGGER_DIR)/$(EXT_GLOBUS_VERSION))
+ext_target(EXT_GPT_VERSION,)
+#endif
+ext_target(EXT_MAN_VERSION,)
+#if HAS_PVM && WANT_PVM
+ext_target(EXT_PVM_VERSION,)
+#endif
 
 clean::
 	rm -rf $(PURE_DIR)
