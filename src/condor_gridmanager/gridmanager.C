@@ -416,6 +416,7 @@ Reconfig()
 
 	contactScheddDelay = param_integer("GRIDMANAGER_CONTACT_SCHEDD_DELAY", 5);
 
+	ReconfigProxyManager();
 	GahpReconfig();
 
 	JobType *job_type;
