@@ -288,7 +288,6 @@ public:
 				Stream::stream_type st = Stream::reli_sock,
 				int sec = 0 );
 	
-private:
 		/** Start sending the given command to the daemon.  The caller
 		  gives the command they want to send, and a pointer to the
 		  Sock they want us to use to send it over.  This method will
