@@ -24,12 +24,15 @@
  
 
 #include "image.h"
+#include "condor_debug.h"
+
 /*
   Switch to a temporary stack area in the DATA segment, then execute the
   given function.  Note: we save the address of the function in a
   global data location - referencing a value on the stack after the SP
   is moved would be an error.
 */
+
 static void (*SaveFunc)();
 static jmp_buf Env;
 
@@ -37,18 +40,54 @@ static jmp_buf Env;
 // machines. This is required so that double's can be pushed
 // on the stack without any alignment problems.
 
-#if defined(LINUX)
-/* Not sure why I have to do this... */
-const int	TmpStackSize = sizeof(char)*65536/sizeof(double);
+static const int KILO=1024;
+static const int TmpStackSize = sizeof(char)*512*KILO/sizeof(double);
+
+#ifdef COMPRESS_CKPT
+static double	*TmpStack;
 #else
-const int	TmpStackSize = sizeof(char)*4096/sizeof(double);
+static double	TmpStack[TmpStackSize];
 #endif
-static double	TmpStack[ TmpStackSize ];
-void
-ExecuteOnTmpStk( void (*func)() )
+
+/*
+Suppose we use up all the stack space while in ExecuteOnTmpStk.
+This causes all sorts of crazy errors in other parts of the program.
+So, we will put a marker at the end of the stack to catch this case.
+
+After some experimentation, it seems that this doesn't catch all
+stack overruns.  Still, it can't hurt...
+*/
+
+static const long OverrunFlag = 0xdeadbeef;
+
+/* This function returns the address at which the marker should go. */
+
+static long *GetOverrunPos()
+{
+	if( StackGrowsDown() ) {
+		return (long*)TmpStack;
+	} else {
+		return (long*)(TmpStack+TmpStackSize-2);
+	}
+}
+
+void ExecuteOnTmpStk( void (*func)() )
 {
 	jmp_buf	env;
 	SaveFunc = func;
+
+	/*
+	condor_malloc gives us memory that is not saved across
+	checkpoint/restart -- the mechanism is always present,
+	but only properly initialized when compression is enabled.
+	*/
+
+	#ifdef COMPRESS_CKPT
+	TmpStack = (double *)condor_malloc(TmpStackSize*sizeof(double));
+	if(!TmpStack) EXCEPT("Unable to allocate temporary stack!");
+	#endif
+
+	*(GetOverrunPos()) = OverrunFlag;
 
 	if( SETJMP(env) == 0 ) {
 			// First time through - move SP
@@ -64,5 +103,15 @@ ExecuteOnTmpStk( void (*func)() )
 	} else {
 			// Second time through - call the function
 		SaveFunc();
+	}
+
+	// Will we ever get here?
+
+	#ifdef COMPRESS_CKPT
+	condor_free(TmpStack);
+	#endif
+
+	if( *(GetOverrunPos()) != OverrunFlag ) {
+		EXCEPT("Stack overrun in ExecuteOnTmpStack.");
 	}
 }
