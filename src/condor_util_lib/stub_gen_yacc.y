@@ -17,8 +17,10 @@
 %token IGNORE
 %token ELLIPSIS
 %token REMOTE_NAME
+%token SENDER_NAME
 %token LOCAL_NAME
 %token FILE_TABLE_NAME
+%token RDISCARD
 %token DISCARD
 %token MAP
 
@@ -55,8 +57,7 @@ void output_local_call(  struct node *n, struct node *list );
 void output_remote_call(  struct node *n, struct node *list );
 void output_extracted_call(  struct node *n, struct node *list );
 void output_dl_extracted_call(  struct node *n, char *rtn_type, int is_ptr, struct node *list );
-void output_param_list( struct node *list );
-void output_param_list_no_discard( struct node *list );
+void output_param_list( struct node *list, int rdiscard, int ldiscard );
 
 struct node *mk_list();
 void copy_file( FILE *in_fp, FILE *out_fp );
@@ -94,10 +95,12 @@ int IsVararg = FALSE;
 int UseAltRemoteName = FALSE;
 int UseAltLocalName = FALSE;
 int UseAltTableName = FALSE;
+int UseAltSenderName = FALSE;
 
 static char AltRemoteName[NAME_LENGTH] = {0};
 static char AltLocalName[NAME_LENGTH] = {0};
 static char AltTableName[NAME_LENGTH] = {0};
+static char AltSenderName[NAME_LENGTH] = {0};
 
 static char global_func[20],global_fd[20];
 #if 0
@@ -347,6 +350,12 @@ option
 		UseAltRemoteName = TRUE;
 		strcpy(AltRemoteName,$3.val);
 		}
+	| SENDER_NAME '(' IDENTIFIER ')'
+		{
+		Trace( "option (5)" );
+		UseAltSenderName = TRUE;
+		strcpy(AltSenderName,$3.val);
+		}
 	| LOCAL_NAME '(' IDENTIFIER ')'
 		{
 		Trace( "option (5)" );
@@ -357,6 +366,7 @@ option
 		{
 		Trace( "option (5)" );
 		UseAltTableName = TRUE;
+		IsTabled = TRUE;
 		strcpy(AltTableName,$3.val);
 		}
 	;
@@ -374,7 +384,9 @@ param
 	: simple_param
 		{ $$ = $1; }
 	| DISCARD '(' simple_param ')'
-		{ $3->discard = TRUE; $$ = $3; }
+		{ $3->rdiscard = TRUE; $3->ldiscard = TRUE; $$ = $3; }
+	| RDISCARD '(' simple_param ')'
+		{ $3->rdiscard = TRUE; $$ = $3; }
 	| MAP '(' simple_param ')'
 		{ $3->is_mapped = TRUE; $$ = $3; }
 	| ELLIPSIS
@@ -598,7 +610,8 @@ mk_param_node( char *type, char *name,
 
 	answer->next = answer;
 	answer->prev = answer;
-	answer->discard = 0;
+	answer->ldiscard = 0;
+	answer->rdiscard = 0;
 
 	return answer;
 }
@@ -671,6 +684,13 @@ mk_func_node( char *type, char *name, struct node * p_list,
 		UseAltTableName=FALSE;
 	} else {
 		strcpy(answer->table_name,name);
+	}
+
+	if(UseAltSenderName) {
+		strcpy(answer->sender_name,AltSenderName);
+		UseAltSenderName=FALSE;
+	} else {
+		strcpy(answer->sender_name,name);
 	}
 
 	return answer;
@@ -912,7 +932,7 @@ output_local_call( struct node *n, struct node *list )
 	if( !is_empty_list(list) ) {
 		printf( ", " );
 	}
-	output_param_list_no_discard( list );
+	output_param_list( list, 0, 1 );
 	printf( " );\n" );
 }
 
@@ -921,11 +941,11 @@ output_remote_call( struct node *n, struct node *list )
 {
 	struct node	*p;
 
-	printf("\t\t\trval = REMOTE_syscall( CONDOR_%s", n->remote_name );
+	printf("\t\t\trval = REMOTE_syscall( CONDOR_%s", n->sender_name );
 	if( !is_empty_list(list) ) {
 		printf( ", " );
 	}
-	output_param_list( list );
+	output_param_list( list, 1, 0 );
 	printf( " );\n" );
 }
 
@@ -935,7 +955,7 @@ output_tabled_call( struct node *n, struct node *list )
 	printf( "\t\terrno = 0;\n" );
 	printf( "\t\t_condor_file_table_init();\n");
 	printf( "\t\trval = FileTab -> %s ( ", n->table_name );
-	output_param_list( list );
+	output_param_list( list, 1, 0 );
 	printf( " );\n");
 }
 
@@ -947,7 +967,7 @@ void output_extracted_call( struct node *n, struct node *list )
 	if( !is_empty_list(list) ) {
 		printf( " " );
 	}
-	output_param_list( list );
+	output_param_list( list, 0, 1 );
 	printf( " );\n" );
 }
 
@@ -979,36 +999,23 @@ void output_dl_extracted_call( struct node *n, char *rtn_type, int is_ptr, struc
 	printf( "\t\t\trval = -1;\n");
 	printf( "\t\t}\n\n" );
 	printf( "\t\trval = (int) (*fptr)(",node_type(n));
-	output_param_list( list );
+	output_param_list( list, 0, 1 );
 
 	printf( ");\n" );
 }
 
-/* Display a parameter list, discard the necessary params */
+/* Display a param list.
+   Discard parameters when rdiscard or ldiscard match up. */
 
 void
-output_param_list( struct node *list )
+output_param_list( struct node *list, int rdiscard, int ldiscard )
 {
 	struct node	*p;
 
 	for( p=list->next; p != list; p = p->next ) {
-		if( !p->discard ) {
-			printf( "%s", p->id );
-			if( p->next!=list ) {
-				printf( ", " );
-			}
-		}
-	}
-}
+		if(p->ldiscard && ldiscard ) continue;
+		if(p->rdiscard && rdiscard ) continue;
 
-/* Display a param list, but ignore the discard flag */
-
-void
-output_param_list_no_discard( struct node *list )
-{
-	struct node	*p;
-
-	for( p=list->next; p != list; p = p->next ) {
        		printf( "%s", p->id );
 	       	if( p->next!=list ) printf( ", " );
 	}
@@ -1065,6 +1072,7 @@ output_receiver( struct node *n )
 	   by the function bearing that name. */
 	
 	if( strcmp(n->id,n->remote_name) ) return;
+	if( strcmp(n->id,n->sender_name) ) return;
 
 	if( !n->pseudo && Do_SYS_check && n->sys_chk ) {
 		printf( "#if defined( SYS_%s )\n", n->local_name );
@@ -1075,7 +1083,7 @@ output_receiver( struct node *n )
 
 		/* output a local variable decl for each param of the sys call */
 	for( p=param_list->next; p != param_list; p = p->next ) {
-		if(!p->discard) printf("\t\t%s %s;\n",node_type_noconst(p),p->id);
+		if(!p->rdiscard) printf("\t\t%s %s;\n",node_type_noconst(p),p->id);
 	}
 
 	printf( "\t\tint terrno;\n" );
@@ -1088,7 +1096,7 @@ output_receiver( struct node *n )
 		calling routine.
 		*/
 	for( p=param_list->next; p != param_list; p = p->next ) {
-		if( p->is_ptr || p->is_array || p->discard ) {
+		if( p->is_ptr || p->is_array || p->rdiscard ) {
 			continue;
 		}
 		printf( "\t\tassert( syscall_sock->code(%s) );\n",
@@ -1273,17 +1281,26 @@ output_sender( struct node *n )
 	assert( n->node_type == FUNC );
 
 	/* If this node is a function which maps to a different
-	   call, skip the receiver, because it will be generated
+	   call, skip the sender, because it will be generated
 	   by the function bearing that name. */
 	
-	if( strcmp(n->id,n->remote_name) ) return;
+	if( strcmp(n->id,n->sender_name) ) return;
 
-	printf( "	case CONDOR_%s:\n", n->remote_name );
-	printf( "	  {\n" );
+	/* Notice that we check for the existence of the local system
+	   call for this stub, which may not be the same as the 
+	   sender name.  This sender will get used only when the local
+	   name is defined.  (See the switch for details) */
+
+	if( !n->pseudo && Do_SYS_check && n->sys_chk ) {
+		printf( "\t#if defined( SYS_%s )\n", n->local_name );
+	}
+
+	printf( "\tcase CONDOR_%s:\n", n->sender_name );
+	printf( "\t  {\n" );
 
 	/* output a local variable decl for each param of the sys call */
 	for( p=param_list->next; p != param_list; p = p->next ) {
-		if(!p->discard) printf("\t\t%s %s;\n",node_type_noconst(p),p->id);
+		if(!p->rdiscard) printf("\t\t%s %s;\n",node_type_noconst(p),p->id);
 	}
 	printf( "\n" );
 
@@ -1293,7 +1310,7 @@ output_sender( struct node *n )
 		/* Grab values of local variables using varargs routines */
 	for( p=param_list->next; p != param_list; p = p->next ) {
 			/* id = va_arg( ap, type_name * ); - '*' is optional */
-		if(!p->discard) printf( "\t\t%s = va_arg( ap, %s %s%s);\n",
+		if(!p->rdiscard) printf( "\t\t%s = va_arg( ap, %s %s%s);\n",
 			p->id,
 			p->type_name,
 			p->is_ptr ? "*" : "",
@@ -1313,7 +1330,7 @@ output_sender( struct node *n )
 		calling routine.
 		*/
 	for( p=param_list->next; p != param_list; p = p->next ) {
-		if( p->is_ptr || p->is_array || p->discard ) {
+		if( p->is_ptr || p->is_array || p->rdiscard ) {
 			continue;
 		}
 		printf( "\t\tassert( syscall_sock->code(%s) );\n",
@@ -1378,6 +1395,12 @@ output_sender( struct node *n )
 
 
 	printf( "\t}\n" );
+
+	/* Header which checks for SYS_name */
+	if( !n->pseudo && Do_SYS_check && n->sys_chk ) {
+		printf( "\t#endif\n");
+	}
+
 	printf( "\n" );
 
 	stub_clump_num++;
@@ -1408,7 +1431,9 @@ output_switch( struct node *n )
 
 	assert( n->node_type == FUNC );
 
-	/* Header which checks for SYS_name */
+	/* Make sure that we use the name corresponding to the local
+	   system call, not the function name. */
+
 	if( !n->pseudo && Do_SYS_check && n->sys_chk ) {
 		printf( "#if defined( SYS_%s )\n", n->local_name );
 	}

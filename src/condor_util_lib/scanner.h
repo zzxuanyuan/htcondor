@@ -57,7 +57,8 @@ struct node {
 	int		dl_extract;
 	int		sys_chk;
 	int		pseudo;
-	int		discard;
+	int		ldiscard;
+	int		rdiscard;
 	struct node	*next;
 	struct node *prev;
 	struct node *param_list;
@@ -65,6 +66,7 @@ struct node {
 	char		table_name[NAME_LENGTH];
 	char		remote_name[NAME_LENGTH];
 	char		local_name[NAME_LENGTH];
+	char		sender_name[NAME_LENGTH];
 };
 
 #define XDR_FUNC id
