@@ -64,10 +64,12 @@ condor_isalnum(int c)
 int Read_config(char* config_file, ClassAd* classAd,
 		BUCKET** table, int table_size, int expand_flag)
 {
-  	FILE	*conf_fp;
-	char	*name, *value, *rhs;
-	char	*ptr;
-	char	op;
+  	FILE			*conf_fp;
+	char			*name, *value, *rhs;
+	char			*ptr;
+	char			op;
+	ClassAdParser	parser;
+	ExprTree		*expr;
 
 	ConfigLineNo = 0;
 
@@ -185,19 +187,10 @@ int Read_config(char* config_file, ClassAd* classAd,
 					}
 				}
 
-				line = (char*)MALLOC( (unsigned)(strlen(name) + strlen(evalue) + 4) );
-
-				if( line == NULL ) {
-					EXCEPT("Out of memory" );
-				}
-
-				(void)sprintf(line, "%s = %s", name, evalue);
-				FREE( evalue );
-
-				//if(!(classAd->Insert(line))) {
-				if( !( classAd->Insert( name, evalue ) ) ) {
-				  EXCEPT("Expression syntax error in <%s> line %d",
-					 config_file, ConfigLineNo );
+				if( !parser.ParseExpression( evalue, expr ) ||
+						!classAd->Insert( name, expr ) ) {
+				  EXCEPT("Expression syntax error in <%s> line %d: %s=%s",
+					 config_file, ConfigLineNo, name, evalue );
 				}
 				FREE( evalue );
 			}
@@ -230,7 +223,7 @@ int Read_config(char* config_file, ClassAd* classAd,
 ** Just compute a hash value for the given string such that
 ** 0 <= value < size 
 */
-hash( register char *string, register int size )
+config_hash( register char *string, register int size )
 {
 	register unsigned int		answer;
 
@@ -259,7 +252,7 @@ insert( char *name, char *value, BUCKET **table, int table_size )
 		/* Make sure not already in hash table */
 	strcpy( tmp_name, name );
 	lower_case( tmp_name );
-	loc = hash( tmp_name, table_size );
+	loc = config_hash( tmp_name, table_size );
 	for( ptr=table[loc]; ptr; ptr=ptr->next ) {
 		if( strcmp(tmp_name,ptr->name) == 0 ) {
 			FREE( ptr->value );
@@ -448,7 +441,7 @@ lookup_macro( char *name, BUCKET **table, int table_size )
 
 	strcpy( tmp_name, name );
 	lower_case( tmp_name );
-	loc = hash( tmp_name, table_size );
+	loc = config_hash( tmp_name, table_size );
 	for( ptr=table[loc]; ptr; ptr=ptr->next ) {
 		if( !strcmp(tmp_name,ptr->name) ) {
 			return ptr->value;
