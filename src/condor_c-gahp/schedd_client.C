@@ -623,13 +623,27 @@ update_report_result:
 		BeginTransaction();
 		error = FALSE;
 
-		if ((ClusterId = NewCluster()) == -1) {
+		if ((ClusterId = NewCluster()) >= 0) {
+			ProcId = NewProc (ClusterId);
+		}
+
+		if ( ClusterId < 0 ) {
 			error = TRUE;
 			strcpy (error_msg, "Unable to create a new job cluster");
 			dprintf (D_ALWAYS, "%s\n", error_msg);
-		} else {
-			ProcId = NewProc (ClusterId);
+		} else if ( ProcId < 0 ) {
+			error = TRUE;
+			strcpy (error_msg, "Unable to create a new job proc");
+			dprintf (D_ALWAYS, "%s\n", error_msg);
+		}
+		if ( ClusterId == -2 || ProcId == -2 ) {
+			error = TRUE;
+			strcpy (error_msg, 
+				"Number of submitted jobs would exceed MAX_JOBS_SUBMITTED\n");
+			dprintf (D_ALWAYS, "%s\n", error_msg);
+		}
 
+		if ( error == FALSE ) {
 			current_command->classad->Assign(ATTR_CLUSTER_ID, ClusterId);
 			current_command->classad->Assign(ATTR_PROC_ID, ProcId);
 
@@ -665,7 +679,7 @@ update_report_result:
 
 				if (error) break;
 			} // elihw classad
-		} // fi NewCluster()
+		} // fi error==FALSE
 
 submit_report_result:
 		char job_id_buff[30];
