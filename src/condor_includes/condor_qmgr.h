@@ -36,7 +36,8 @@ int GetNextJob(int, int, int *, int *);
 int FirstAttribute(int, int, char *);
 int NextAttribute(int, int, char *);
 
-int SendSpoolFile(char *filename, char *address);
+int SendSpoolFile(char *filename);		/* prepare for file xfer */
+int SendSpoolFileBytes(char *filename); /* actually do file xfer */
 
 Qmgr_connection *ConnectQ(char *qmgr_location);
 void DisconnectQ(Qmgr_connection *);
@@ -47,8 +48,10 @@ int float_to_rusage(float, float, struct rusage *);
 
 /* These are here for compatibility with old code which uses the PROC
    structure to ease porting.  Use of these functions is discouraged! */
+#if defined(NEW_PROC)
 int SaveProc(PROC *);
 int GetProc(int, int, PROC *);
+#endif
 
 #if defined(__cplusplus)
 }

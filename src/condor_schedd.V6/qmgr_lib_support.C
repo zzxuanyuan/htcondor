@@ -37,7 +37,7 @@ ConnectQ(char *qmgr_location)
 	char	tmp_file[255];
 	int		fd;
 	int		cmd;
-#if !defined(WIN32
+#if !defined(WIN32)
 	struct  passwd *pwd;
 #endif
 	char	hostname[256]; 
@@ -157,6 +157,63 @@ DisconnectQ(Qmgr_connection *conn)
 	}
 }
 
+
+
+int
+SendSpoolFileBytes(char *filename)
+{
+	int fd, len = 0, cc, ack;
+	char buf[ 4 * 1024 ];
+	struct stat filesize;
+	
+	fd = open( filename, O_RDONLY, 0 );
+	if( fd < 0 ) {
+		EXCEPT("open %s", filename);
+	}
+
+	if (fstat(fd, &filesize) < 0) {
+		EXCEPT("fstat of executable %s failed", filename);
+	}
+
+	qmgmt_sock->encode();
+	if ( !qmgmt_sock->code(filesize.st_size) ) {
+		EXCEPT("filesize write failed");
+	}
+
+	for(;;) {
+		cc = read(fd, buf, sizeof(buf));
+		if( cc < 0 ) {
+			EXCEPT("read %s: len = %d", filename, len);
+		}
+
+		if( qmgmt_sock->code_bytes(buf, cc) != cc ) {
+			fprintf(stderr,"Error writing initial executable into queue\nPerhaps no more space available in $(SPOOL)?\n");
+			EXCEPT("write %s: cc = %d, len = %d", filename, cc, len);
+		}
+
+		len += cc;
+
+		if( cc != sizeof(buf) ) {
+			break;
+		}
+	}
+	qmgmt_sock->eom();
+
+	qmgmt_sock->decode();
+	if (!qmgmt_sock->code(ack)) {
+		EXCEPT("Failed to read ack from qmgmr!  Checkpoint store failed!");
+	}
+	qmgmt_sock->eom();
+
+	if (ack != len) {
+		EXCEPT("Failed to transfer %d bytes of checkpoint file (only %d)",
+			   len, ack);
+	}
+
+	(void)close( fd );
+
+	return 0;
+}
 
 
 void
