@@ -166,7 +166,7 @@ QueueDBManager::tuneupJobQueueDB()
 int
 QueueDBManager::connectDB(int  Xact)
 {
-  db_handle->odbc_connect("PostgreSQL", "scidb", ""); // connect to DB
+  db_handle->odbc_connect("condor", "scidb", ""); // connect to DB
   return db_handle->isConnected();
   //return DBObj->isConnected();
 
@@ -343,14 +343,14 @@ QueueDBManager::processHistoryAd(ClassAd *ad) {
     return 0; // return a error code, 0
   }
 
-  FILE *fp = fopen("/scratch/akini/historylogdump", "a");
-  fprintf(fp, "*************\n");
-  ad->fPrint(fp);
-  fprintf(fp, "*************\n");
-  if ( !fp ) {
-    dprintf(D_ALWAYS,"ERROR saving to history file; cannot open history file\n");
-    return 0;
-  } 
+  //FILE *fp = fopen("/scratch/akini/historylogdump", "a");
+  //fprintf(fp, "*************\n");
+  //ad->fPrint(fp);
+  //fprintf(fp, "*************\n");
+  //if ( !fp ) {
+  //  dprintf(D_ALWAYS,"ERROR saving to history file; cannot open history file\n");
+  // return 0;
+  //} 
   else {
     ad->ResetExpr(); // for iteration initialization
     while((expr=ad->NextExpr()) != NULL) {
@@ -394,18 +394,18 @@ QueueDBManager::processHistoryAd(ClassAd *ad) {
 		"INSERT INTO History_Vertical(cid, pid, attr, val) VALUES(%d, %d, '%s', '%s');", cid, pid, name, value);
       }
       
-      dprintf(D_ALWAYS, "in the processHistoryClassAd before database write\n");
+      //dprintf(D_ALWAYS, "in the processHistoryClassAd before database write\n");
       if (db_handle->odbc_sqlstmt(sql_str1) < 0) {
 	displayDBErrorMsg("History Ad Processing --- ERROR");
 	//if(fp) fclose(fp);
 	//return 0; // return a error code, 0
       }
-      dprintf(D_ALWAYS, "in the processHistoryClassAd after database write\n");
-      fprintf(fp, "%d\t%d\t%s\t%s\n", cid, pid, name, value);
+      //dprintf(D_ALWAYS, "in the processHistoryClassAd after database write\n");
+      //fprintf(fp, "%d\t%d\t%s\t%s\n", cid, pid, name, value);
       free(value);
     }
   }
-  if(fp) fclose(fp);
+  //if(fp) fclose(fp);
   
   return 1;
 }
