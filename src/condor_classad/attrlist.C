@@ -1203,6 +1203,17 @@ ExprTree* AttrList::Lookup(const ExprTree* attr) const
 	return Lookup (((Variable*)attr)->Name());
 }
 
+int AttrList::LookupString(const char * name, MyString & value) const
+{
+	// Implemented via another LookupString to simplify things.
+	char * tmpval = 0;
+	int ret = LookupString(name, &tmpval);
+	if(!ret) { return ret; }
+	value = tmpval;
+	free(tmpval);
+	return ret;
+}
+
 int AttrList::LookupString (const char *name, char *value) const
 {
 	ExprTree *tree, *rhs;

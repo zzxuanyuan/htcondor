@@ -177,6 +177,7 @@ class AttrList : public AttrListAbstract
         ExprTree*	Lookup(const char*) const;	// look up an expression
 		ExprTree*	Lookup(const ExprTree*) const;
 		AttrListElem *LookupElem(const char *name) const;
+		int         LookupString(const char * name, MyString & value) const; 
 		int         LookupString(const char *, char *) const; 
 		int         LookupString(const char *, char *, int) const; //uses strncpy
 		int         LookupString (const char *name, char **value) const;
