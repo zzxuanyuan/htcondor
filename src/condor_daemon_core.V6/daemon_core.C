@@ -29,6 +29,14 @@
 
 #include "condor_common.h"
 
+// for now, turn on TDP
+#define TDP 1
+
+#if defined( LINUX ) && defined( TDP )
+#include <sys/ptrace.h>    // mikel
+#include <sys/wait.h>      // mikel
+#endif /* LINUX && TDP */
+
 static const int DEFAULT_MAXCOMMANDS = 255;
 static const int DEFAULT_MAXSIGNALS = 99;
 static const int DEFAULT_MAXSOCKETS = 8;
@@ -126,6 +134,50 @@ static int compute_pid_hash(const pid_t &key, int numBuckets)
 {
 	return ( key % numBuckets );
 }
+
+
+#if defined(LINUX) && defined(TDP)
+int 
+trace_me( void )
+{
+	if( ptrace(PTRACE_TRACEME, 0, 0, 0) < 0 ) {
+		fprintf( stderr, "TraceMe Call failed: %d (%s) \n", 
+				 errno, strerror(errno) );
+		return( -1 );
+	}
+	return( 1 );
+}
+
+
+int
+wait_stopped_child (pid_t pid)
+{
+
+  int wait_val;
+  
+  if ( waitpid( pid, &wait_val, 0)< 0) {
+    dprintf (D_ALWAYS,"Wait for Stopped Child wait failed: %d (%s) \n", errno, strerror (errno)); 
+
+    return (-1);
+  }
+  else {
+    if( WIFEXITED(wait_val) ) {    
+      return (-WEXITSTATUS(wait_val));  /* Something went wrong with application exec. */
+    }
+
+    if ( kill(pid, SIGSTOP) < 0) {
+      dprintf(D_ALWAYS, "Wait for Stopped Child kill failed: %d (%s) \n", errno, strerror(errno));
+      return (-2);
+    }
+    
+    if (ptrace(PTRACE_DETACH, pid, 0, SIGSTOP) < 0) {
+      dprintf(D_ALWAYS, "Wait for Stopped Child detach failed: %d (%s) \n", errno, strerror(errno));
+      return (-3);
+    }
+    return (1);
+  }
+}
+#endif /* LINUX && TDP */
 
 
 // DaemonCore constructor. 
@@ -4262,6 +4314,10 @@ int DaemonCore::Create_Process(
 #endif
 
 	dprintf(D_DAEMONCORE,"In DaemonCore::Create_Process(%s,...)\n",name);
+	if( HAS_DCJOBOPT_SUSPEND_ON_EXEC(job_opt_mask) ) {
+		dprintf( D_FULLDEBUG, "DaemonCore::Create_Process(): "
+				 "job_opt_mask requested suspend on exec\n" );
+	}
 
 	// First do whatever error checking we can that is not platform specific
 
@@ -4900,8 +4956,18 @@ int DaemonCore::Create_Process(
 			sigemptyset( &emptySet );
 			sigprocmask( SIG_SETMASK, &emptySet, NULL );
 		}
-	
-			// and ( finally ) exec:
+		
+		if( HAS_DCJOBOPT_SUSPEND_ON_EXEC(job_opt_mask) ) {
+#if defined(LINUX) && defined(TDP)
+
+			if( (trace_me() < 0) ) {
+				write(errorpipe[1], &errno, sizeof(errno));
+				exit (errno);
+			} 
+#endif /* LINUX && TDP */
+		}
+			
+// and ( finally ) exec:
 		if( HAS_DCJOBOPT_NO_ENV_INHERIT(job_opt_mask) ) {
 			exec_results =  execve(name, unix_args, unix_env); 
 		} else {
@@ -4945,6 +5011,27 @@ int DaemonCore::Create_Process(
 		}
 		close(errorpipe[0]);
 		
+			// Now that we've seen if exec worked, if we are trying to
+			// create a paused process, we need to wait for the
+			// stopped child.
+		if( HAS_DCJOBOPT_SUSPEND_ON_EXEC(job_opt_mask) ) {
+#if defined(LINUX) && defined(TDP)
+				// NOTE: we need to be in user_priv to do this, since
+				// we're going to be sending signals and such
+			priv_state prev_priv;
+			prev_priv = set_user_priv();
+			int rval = wait_stopped_child( newpid );
+			set_priv( prev_priv );
+			if( rval < 0 ) {
+				dprintf( D_ALWAYS, "Create_Process wait failed: %d (%s)\n", 
+						 errno, strerror (errno) );
+				return FALSE;
+			} else {
+				dprintf( D_ALWAYS, "Create_Process parent: "
+						 "wait_stopped_child succeeded\n" );
+			}
+#endif /* LINUX && TDP */
+		}
 	}
 	else if( newpid < 0 )// Error condition
 	{
@@ -5465,6 +5552,17 @@ DaemonCore::HandleDC_SIGCHLD(int sig)
 			}
             break; // out of the for loop and do not post DC_SERVICEWAITPIDS
         }
+#if defined(LINUX) && defined(TDP)
+		if( WIFSIGNALED(status) && WTERMSIG(status) == SIGTRAP ) {
+				// This means the process has recieved a SIGTRAP to be
+				// stopped.  Oddly, on Linux, this generates a
+				// SIGCHLD.  So, we don't want to call the reaper for
+				// this process, since it hasn't really exited.  So,
+				// just call continue to ignore this particular pid.
+			continue;
+		}
+#endif /* LINUX && TDP */
+
 		// HandleProcessExit(pid, status);
 		wait_entry.child_pid = pid;
 		wait_entry.exit_status = status;
@@ -6440,3 +6538,4 @@ void DaemonCore :: invalidateSessionCache()
         sec_man->invalidateAllCache();
     }
 }
+
