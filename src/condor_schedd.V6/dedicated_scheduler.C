@@ -2242,7 +2242,7 @@ DedicatedScheduler::spawnJobs( void )
 	return true;
 }
 
-
+
 bool
 DedicatedScheduler::computeSchedule( void )
 {
