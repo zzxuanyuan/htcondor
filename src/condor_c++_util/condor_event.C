@@ -262,17 +262,26 @@ int SubmitEvent::
 readEvent (FILE *file)
 {
 	char s[8192];
+	s[0] = '\0';
 	if( submitEventLogNotes ) {
 		delete[] submitEventLogNotes;
 	}
-	int retval = fscanf( file, "Job submitted from host: %s\n", submitHost );
-    if (retval != 1)
-    {
-	return 0;
-    }
-	if( ! fscanf( file, "    %8191[^\n]\n", s ) ) {
+	if( fscanf( file, "Job submitted from host: %s\n", submitHost ) != 1 ) {
 		return 0;
     }
+
+	// see if the optional event notes string is present, and, if not,
+	// rewind, because we probably slurped in the next event delimiter
+	// looking for it...
+
+	fpos_t filep;
+	fgetpos( file, &filep );
+
+	if( fscanf( file, "    %8191s\n", s ) != 1 || strcmp( s, "..." ) == 0 ) {
+		fsetpos( file, &filep );
+		return 1;
+    }
+
 	submitEventLogNotes = strnewp( s );
     return 1;
 }
