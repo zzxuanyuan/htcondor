@@ -612,6 +612,34 @@ int daemon::RealStart( )
 			}
 		}
 	}
+/////////////////////////////////////////// HAD
+    // take command port from arguments( buf )
+        // Don't mess with buf or tmp (they are not our variables) - allocate them again
+        char otherBuf[512];
+        sprintf( otherBuf, "%s_ARGS", name_in_config_file );
+        char* otherTmp = param( otherBuf );
+
+	if(otherTmp){
+		StringList args_list;
+            	args_list.initializeFromString(otherTmp);
+            	free(otherTmp);
+
+            	char* cur_arg;
+            	bool is_port = false;
+
+            	args_list.rewind();
+        	while( (cur_arg = args_list.next()) )
+            	{
+                	if(is_port){
+                        	command_port =  atoi(cur_arg);
+                            	is_port = false;
+                	}
+                	if(strcmp(cur_arg,"-p") == 0){
+                        	is_port = true;
+                	}
+        	}
+    	}
+    ///////////////////////////////////////// end HAD
 
 	pid = daemonCore->Create_Process(
 				process_name,	// program to exec
