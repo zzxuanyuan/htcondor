@@ -82,6 +82,7 @@ convert_FileInfoList_to_Array(struct soap * soap,
 				(char *) soap_malloc(soap, strlen(info->name) + 1);
 			ASSERT(array.__ptr[i].name);
 			strcpy(array.__ptr[i].name, info->name);
+			array.__ptr[i].size = info->size;
 		}
 	}
 
