@@ -159,6 +159,14 @@ class MPIShadow : public BaseShadow
 
 	virtual void resourceReconnected( RemoteResource* rr );
 
+	virtual void logDisconnectedEvent( const char* reason );
+
+ protected:
+
+	virtual void logReconnectedEvent( void );
+
+	virtual void logReconnectFailedEvent( const char* reason );
+
  private:
 
         /** After the schedd claims a resource, it puts it in a queue

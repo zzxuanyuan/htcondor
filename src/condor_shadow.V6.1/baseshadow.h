@@ -349,6 +349,8 @@ class BaseShadow : public Service
 
 	void publishShadowAttrs( ClassAd* ad );
 
+	virtual void logDisconnectedEvent( const char* reason ) = 0;
+
  protected:
 	
 		/** Note that this is the base, "unexpanded" ClassAd for the job.
@@ -369,6 +371,10 @@ class BaseShadow : public Service
 	void logTerminateEvent( int exitReason );
 
 	void logEvictEvent( int exitReason );
+
+	virtual void logReconnectedEvent( void ) = 0;
+
+	virtual void logReconnectFailedEvent( const char* reason ) = 0;
 
 	virtual void emailTerminateEvent( int exitReason ) = 0;
 

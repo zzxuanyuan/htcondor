@@ -406,7 +406,7 @@ UniShadow::resourceReconnected( RemoteResource* rr )
 
 		// We've only got one remote resource, so if it successfully
 		// reconnected, we can safely log our reconnect event
-		// TODO!
+	logReconnectedEvent();
 
 		// Start the timer for the periodic user job policy  
 	shadow_user_policy.startTimer();
@@ -416,3 +416,63 @@ UniShadow::resourceReconnected( RemoteResource* rr )
 }
 
 
+void
+UniShadow::logDisconnectedEvent( const char* reason )
+{
+	JobDisconnectedEvent event;
+	event.setReason( reason );
+
+	DCStartd* dc_startd = remRes->getDCStartd();
+	if( ! dc_startd ) {
+		EXCEPT( "impossible: remRes::getDCStartd() returned NULL" );
+	}
+	event.setStartdAddr( dc_startd->addr() );
+	event.setStartdName( dc_startd->name() );
+
+	if( !uLog.writeEvent(&event) ) {
+		dprintf( D_ALWAYS, "Unable to log ULOG_JOB_DISCONNECTED event\n" );
+	}
+}
+
+
+void
+UniShadow::logReconnectedEvent( void )
+{
+	JobReconnectedEvent event;
+
+	DCStartd* dc_startd = remRes->getDCStartd();
+	if( ! dc_startd ) {
+		EXCEPT( "impossible: remRes::getDCStartd() returned NULL" );
+	}
+	event.setStartdAddr( dc_startd->addr() );
+	event.setStartdName( dc_startd->name() );
+
+	char* starter = NULL;
+	remRes->getStarterAddress( starter );
+	event.setStarterAddr( starter );
+	delete [] starter;
+	starter = NULL;
+
+	if( !uLog.writeEvent(&event) ) {
+		dprintf( D_ALWAYS, "Unable to log ULOG_JOB_RECONNECTED event\n" );
+	}
+}
+
+
+void
+UniShadow::logReconnectFailedEvent( const char* reason )
+{
+	JobReconnectFailedEvent event;
+
+	event.setReason( reason );
+
+	DCStartd* dc_startd = remRes->getDCStartd();
+	if( ! dc_startd ) {
+		EXCEPT( "impossible: remRes::getDCStartd() returned NULL" );
+	}
+	event.setStartdAddr( dc_startd->addr() );
+
+	if( !uLog.writeEvent(&event) ) {
+		dprintf( D_ALWAYS, "Unable to log ULOG_JOB_RECONNECT_FAILED event\n" );
+	}
+}

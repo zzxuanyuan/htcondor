@@ -1227,3 +1227,24 @@ MPIShadow::resourceReconnected( RemoteResource* rr )
 {
 	EXCEPT( "impossible: MPIShadow doesn't support reconnect" );
 }
+
+
+void
+MPIShadow::logDisconnectedEvent( const char* reason )
+{
+	EXCEPT( "impossible: MPIShadow doesn't support reconnect" );
+}
+
+
+void
+MPIShadow::logReconnectedEvent( void )
+{
+	EXCEPT( "impossible: MPIShadow doesn't support reconnect" );
+}
+
+
+void
+MPIShadow::logReconnectFailedEvent( const char* reason )
+{
+	EXCEPT( "impossible: MPIShadow doesn't support reconnect" );
+}

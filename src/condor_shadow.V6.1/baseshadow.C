@@ -461,7 +461,7 @@ BaseShadow::reconnectFailed( const char* reason )
 		// about it, and exit with a special status. 
 	dprintf( D_ALWAYS, "Reconnect FAILED: %s\n", reason );
 	
-		// TODO userlog
+	logReconnectFailedEvent( reason );
 
 		// does not return
 	DC_Exit( JOB_SHOULD_REQUEUE );
