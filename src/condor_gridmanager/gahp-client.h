@@ -286,6 +286,8 @@ class GahpClient : public Service {
 
 		bool isInitialized() { return server->is_initialized; }
 
+		const char *getErrorString();
+
 		//-----------------------------------------------------------
 		
 		/**@name Globus Methods
@@ -473,6 +475,7 @@ class GahpClient : public Service {
 		GahpProxyInfo *normal_proxy;
 		GahpProxyInfo *deleg_proxy;
 		GahpProxyInfo *pending_proxy;
+		MyString error_string;
 
 			// These data members all deal with the GAHP
 			// server.  Since there is only one instance of the GAHP

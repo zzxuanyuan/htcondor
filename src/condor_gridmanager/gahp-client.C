@@ -248,6 +248,7 @@ GahpClient::GahpClient(const char *id, const char *path)
 	user_timerid = -1;
 	normal_proxy = NULL;
 	deleg_proxy = NULL;
+	error_string = "";
 
 	server->AddGahpClient( this );
 }
@@ -1013,6 +1014,12 @@ escapeGahpString(const char * input)
 	}
 
 	return output.Value();
+}
+
+const char *
+GahpClient::getErrorString()
+{
+	return error_string.Value();
 }
 
 void
@@ -2651,6 +2658,11 @@ GahpClient::condor_job_submit(const char *schedd_name, ClassAd *job_ad,
 		if ( result->argv[2] && strcasecmp(result->argv[2], NULLSTRING) ) {
 			*job_id = strdup(result->argv[2]);
 		}
+		if ( strcasecmp(result->argv[3], NULLSTRING) ) {
+			error_string = result->argv[3];
+		} else {
+			error_string = "";
+		}
 		delete result;
 		return rc;
 	}
@@ -2726,6 +2738,11 @@ GahpClient::condor_job_update_constrained(const char *schedd_name,
 		if ( result->argv[1][0] == 'S' ) {
 			rc = 0;
 		}
+		if ( strcasecmp(result->argv[2], NULLSTRING) ) {
+			error_string = result->argv[2];
+		} else {
+			error_string = "";
+		}
 		delete result;
 		return rc;
 	}
@@ -2787,6 +2804,11 @@ GahpClient::condor_job_status_constrained(const char *schedd_name,
 		int rc = 1;
 		if ( result->argv[1][0] == 'S' ) {
 			rc = 0;
+		}
+		if ( strcasecmp(result->argv[2], NULLSTRING) ) {
+			error_string = result->argv[2];
+		} else {
+			error_string = "";
 		}
 		*num_ads = atoi(result->argv[3]);
 		if (result->argc != 4 + *num_ads ) {
@@ -2861,6 +2883,11 @@ GahpClient::condor_job_remove(const char *schedd_name, PROC_ID job_id,
 		if ( result->argv[1][0] == 'S' ) {
 			rc = 0;
 		}
+		if ( strcasecmp(result->argv[2], NULLSTRING) ) {
+			error_string = result->argv[2];
+		} else {
+			error_string = "";
+		}
 		delete result;
 		return rc;
 	}
@@ -2933,6 +2960,11 @@ GahpClient::condor_job_update(const char *schedd_name, PROC_ID job_id,
 		if ( result->argv[1][0] == 'S' ) {
 			rc = 0;
 		}
+		if ( strcasecmp(result->argv[2], NULLSTRING) ) {
+			error_string = result->argv[2];
+		} else {
+			error_string = "";
+		}
 		delete result;
 		return rc;
 	}
@@ -2995,6 +3027,11 @@ GahpClient::condor_job_hold(const char *schedd_name, PROC_ID job_id,
 		if ( result->argv[1][0] == 'S' ) {
 			rc = 0;
 		}
+		if ( strcasecmp(result->argv[2], NULLSTRING) ) {
+			error_string = result->argv[2];
+		} else {
+			error_string = "";
+		}
 		delete result;
 		return rc;
 	}
@@ -3056,6 +3093,11 @@ GahpClient::condor_job_release(const char *schedd_name, PROC_ID job_id,
 		int rc = 1;
 		if ( result->argv[1][0] == 'S' ) {
 			rc = 0;
+		}
+		if ( strcasecmp(result->argv[2], NULLSTRING) ) {
+			error_string = result->argv[2];
+		} else {
+			error_string = "";
 		}
 		delete result;
 		return rc;
@@ -3126,6 +3168,11 @@ GahpClient::condor_job_stage_in(const char *schedd_name, ClassAd *job_ad)
 		int rc = 1;
 		if ( result->argv[1][0] == 'S' ) {
 			rc = 0;
+		}
+		if ( strcasecmp(result->argv[2], NULLSTRING) ) {
+			error_string = result->argv[2];
+		} else {
+			error_string = "";
 		}
 		delete result;
 		return rc;
