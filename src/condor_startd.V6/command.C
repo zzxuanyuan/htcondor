@@ -1244,7 +1244,6 @@ caLocateStarter( Stream *s, char* cmd_str, ClassAd* req_ad )
 {
 	char* global_job_id = NULL;
 	Claim* claim = NULL;
-	ReliSock* rsock = (ReliSock*)s;
 
 	if( ! req_ad->LookupString(ATTR_GLOBAL_JOB_ID, &global_job_id) ) {
 		dprintf( D_ALWAYS, "Failed to read %s from ClassAd "
@@ -1300,64 +1299,15 @@ command_classad_handler( Service*, int, Stream* s )
 	int rval;
 	ClassAd ad;
 	ReliSock* rsock = (ReliSock*)s;
-
-        // make sure this connection is authenticated, and we know who
-        // the user is.  also, set a timeout, since we don't want to
-        // block long trying to read from our client.   
-    rsock->timeout( 10 );  
-    rsock->decode();
-    if( ! rsock->isAuthenticated() ) {
-		char* p = SecMan::getSecSetting( "SEC_%s_AUTHENTICATION_METHODS",
-										 "WRITE" );
-        MyString methods;
-        if( p ) {
-            methods = p;
-            free( p );
-        } else {
-            methods = SecMan::getDefaultAuthenticationMethods();
-        }
-		CondorError errstack;
-        if( ! rsock->authenticate(methods.Value(), &errstack) ) {
-                // we failed to authenticate, we should bail out now
-                // since we don't know what user is trying to perform
-                // this action.
-			sendErrorReply( s, "CA_CMD", CA_NOT_AUTHENTICATED,
-							"Server: client failed to authenticate" );
-			dprintf (D_ALWAYS, "STARTD: authenticate failed\n");
-			dprintf (D_ALWAYS, "%s", errstack.get_full_text());
-			return FALSE;
-        }
-    }
-	
-	if( ! ad.initFromStream(*s) ) { 
-		dprintf( D_ALWAYS, 
-				 "Failed to read ClassAd from network, aborting\n" ); 
-		return FALSE;
-	}
-	if( ! s->eom() ) { 
-		dprintf( D_ALWAYS, 
-				 "Error, more data on stream after ClassAd, aborting\n" ); 
-		return FALSE;
-	}
-
-	if( DebugFlags & D_FULLDEBUG && DebugFlags & D_COMMAND ) {
-		dprintf( D_COMMAND, "Command ClassAd:\n" );
-		ad.dPrint( D_COMMAND );
-		dprintf( D_COMMAND, "*** End of Command ClassAd***\n" );
-	}
-
+	int cmd = 0;
 	char* cmd_str = NULL;
-	int cmd;
+
+	cmd = getCmdFromReliSock( rsock, &ad, true );
+		// since we really care about the command string for a lot of
+		// things, let's just grab it out of the classad once right
+		// here.
 	if( ! ad.LookupString(ATTR_COMMAND, &cmd_str) ) {
-		dprintf( D_ALWAYS, "Failed to read %s from ClassAd, aborting\n", 
-				 ATTR_COMMAND );
-		return FALSE;
-	}		
-	cmd = getCommandNum( cmd_str );
-	if( cmd < 0 ) {
-		unknownCmd( s, cmd_str );
-		free( cmd_str );
-		return FALSE;
+		cmd_str = strdup( "UNKNOWN" );
 	}
 
 	switch( cmd ) {
