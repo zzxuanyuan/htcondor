@@ -364,10 +364,9 @@ Daemon::display( FILE* fp )
 ReliSock*
 Daemon::reliSock( int sec, CondorError* errstack )
 {
-	if( ! _addr ) {
-		if( ! locate() ) {
-			return NULL;
-		}
+	if( !checkAddr() ) {
+			// this already deals w/ _error for us...
+		return NULL;
 	}
 	ReliSock* reli;
 	reli = new ReliSock();
@@ -390,10 +389,9 @@ Daemon::reliSock( int sec, CondorError* errstack )
 SafeSock*
 Daemon::safeSock( int sec, CondorError* errstack )
 {
-	if( ! _addr ) {
-		if( ! locate() ) {
-			return NULL;
-		}
+	if( !checkAddr() ) {
+			// this already deals w/ _error for us...
+		return NULL;
 	}
 	SafeSock* safe;
 	safe = new SafeSock();
@@ -1030,9 +1028,13 @@ Daemon::getCmInfo( const char* subsys )
 	_subsys = strnewp( subsys );
 
 	if( _addr && is_valid_sinful(_addr) ) {
-		dprintf( D_HOSTNAME, "Already have address, no info to locate\n" );
-		_is_local = false;
-		return true;
+			// only consider addresses w/ a non-zero port "valid"...
+		_port = string_to_port( _addr );
+		if( _port > 0 ) {
+			dprintf( D_HOSTNAME, "Already have address, no info to locate\n" );
+			_is_local = false;
+			return true;
+		}
 	}
 
 		// For CM daemons, normally, we're going to be local (we're
@@ -1509,12 +1511,38 @@ Daemon::New_pool( char* str )
 bool
 Daemon::checkAddr( void )
 {
+	bool just_tried_locate = false;
 	if( ! _addr ) {
 		locate();
+		just_tried_locate = true;
 	}
 	if( ! _addr ) {
 			// _error will already be set appropriately
 		return false;
+	}
+	if( _port == 0 ) {
+			// if we didn't *just* try locating, we should try again,
+			// in case the address file for the thing we're trying to
+			// talk to has now been written.
+		if( just_tried_locate ) {
+			newError( CA_LOCATE_FAILED,
+					  "port is still 0 after locate(), address invalid" );
+			return false;
+		}
+			// clear out some things that would confuse locate()
+		_tried_locate = false;
+		delete [] _addr;
+		_addr = NULL;
+		if( _is_local ) {
+			delete [] _name;
+			_name = NULL;
+		}
+		locate();
+		if( _port == 0 ) {
+			newError( CA_LOCATE_FAILED,
+					  "port is still 0 after locate(), address invalid" );
+			return false;
+		}
 	}
 	return true;
 }
