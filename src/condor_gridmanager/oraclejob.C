@@ -379,13 +379,7 @@ int OracleJob::doEvaluateState()
 					if ( rc == COMPLETED && condorState != COMPLETED ) {
 						JobTerminated( true, 0 );
 					}
-					condorState = rc;
-					UpdateJobAdInt( ATTR_JOB_STATUS, condorState );
 					requestScheddUpdate( this );
-					if ( rc == RUNNING || rc == COMPLETED && !executeLogged ) {
-						WriteExecuteEventToUserLog( ad );
-						executeLogged = true;
-					}
 				}
 				lastProbeTime = now;
 				gmState = GM_SUBMITTED;
@@ -394,12 +388,12 @@ int OracleJob::doEvaluateState()
 		case GM_DONE_SAVE: {
 			// Report job completion to the schedd.
 			if ( condorState != HELD && condorState != REMOVED ) {
-				if ( condorState != COMPLETED ) {
-					JobTerminated( true, 0 );
-				}
-				done = requestScheddUpdate( this );
-				if ( !done ) {
-					break;
+				JobTerminated( true, 0 );
+				if ( condorState == COMPLETED ) {
+					done = requestScheddUpdate( this );
+					if ( !done ) {
+						break;
+					}
 				}
 			}
 			gmState = GM_DONE_COMMIT;
