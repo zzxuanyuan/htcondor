@@ -105,6 +105,7 @@ REMAP_THREE( writev, __writev, int, int, const struct iovec *, ssize_t )
 /* Differences */
 
 #if defined(GLIBC)
+
 REMAP_TWO( clone, __clone, pid_t , void *, unsigned long )
 REMAP_TWO( fstat, __fstat, int , int , struct stat *)
 REMAP_TWO( getrusage, __getrusage, int, enum __rusage_who, struct rusage *)
@@ -114,8 +115,11 @@ REMAP_THREE( mknod, __mknod, int , const char *, mode_t , dev_t )
 REMAP_THREE( sigaction, __sigaction, int, int, const struct sigaction *, struct sigaction * )
 REMAP_ONE( sigsuspend, __sigsuspend, int, const sigset_t * )
 REMAP_TWO( stat, __stat, int , const char *, struct stat *)
+
 #else 
+
 REMAP_ONE( fdatasync, __fdatasync, int , int )
+REMAP_TWO( getrusage, __getrusage, int, int , struct rusage *)
 REMAP_ZERO_VOID( idle, __idle, void )
 REMAP_THREE_VARARGS( ioctl, __ioctl, int , int , int , int)
 REMAP_THREE( ioperm, __ioperm, int , unsigned long , unsigned long , int )
@@ -127,5 +131,6 @@ REMAP_TWO( prev_stat, __prev_stat, int , const char *, struct stat *)
 REMAP_THREE( setpriority, __setpriority, int, int, int, int )
 REMAP_THREE( sigaction, __sigaction, int, int, struct sigaction *, struct sigaction * )
 REMAP_ZERO( sync, __sync, int )
+
 #endif
 
