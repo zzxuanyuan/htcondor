@@ -279,6 +279,8 @@ Scheduler::Scheduler()
 	Mail = NULL;
 	filename = NULL;
 	alive_interval = 0;
+	leaseAliveInterval = 500000;	// init to a nice big number
+	aliveid = -1;
 	ExitWhenDone = FALSE;
 	matches = NULL;
 	shadowsByPid = NULL;
@@ -5328,7 +5330,46 @@ Scheduler::add_shadow_rec( shadow_rec* new_rec )
 	dprintf( D_FULLDEBUG, "Added shadow record for PID %d, job (%d.%d)\n",
 			 new_rec->pid, cluster, proc );
 	scheduler.display_shadow_recs();
+	RecomputeAliveInterval(cluster,proc);
 	return new_rec;
+}
+
+void
+Scheduler::RecomputeAliveInterval(int cluster, int proc)
+{
+	// This function makes certain that the schedd sends keepalives to the startds
+	// often enough to ensure that no claims are killed before a job's
+	// ATTR_JOB_LEASE_DURATION has passed...  This makes certain that 
+	// jobs utilizing the disconnection starter/shadow feature are not killed
+	// off before they should be.
+
+	int interval = 0;
+	GetAttributeInt( cluster, proc, ATTR_JOB_LEASE_DURATION, &interval );
+	if ( interval > 0 ) {
+			// Divide by three, since the startd will kill the claim
+			// if three keepalives in a row are missed...
+		interval /= 3;
+			// Floor value: no way are we willing to send alives more often
+			// than every 10 seconds
+		if ( interval < 10 ) {
+			interval = 10;
+		}
+			// If this is the smallest interval we've seen so far,
+			// then update leaseAliveInterval.
+		if ( leaseAliveInterval > interval ) {
+			leaseAliveInterval = interval;
+		}
+			// alive_interval is the value we actually set in a timer.
+			// make certain it is smaller than the smallest 
+			// ATTR_JOB_LEASE_DURATION we've seen.
+		if ( alive_interval > leaseAliveInterval ) {
+			alive_interval = leaseAliveInterval;
+			daemonCore->Reset_Timer(aliveid,10,alive_interval);
+			dprintf(D_FULLDEBUG,
+					"Reset alive_interval to %d based on %s in job %d.%d\n",
+					alive_interval,ATTR_JOB_LEASE_DURATION,cluster,proc);
+		}
+	}
 }
 
 
@@ -6708,10 +6749,14 @@ Scheduler::Init()
 	 }
 
 	tmp = param("ALIVE_INTERVAL");
+		// Don't allow the user to specify an alive interval larger
+		// than leaseAliveInterval, or the startd may start killing off
+		// jobs before ATTR_JOB_LEASE_DURATION has passed, thereby screwing
+		// up the operation of the disconnected shadow/starter feature.
 	 if(!tmp) {
-		alive_interval = 300;
+		alive_interval = MIN(leaseAliveInterval,300);
 	 } else {
-		  alive_interval = atoi(tmp);
+		  alive_interval = MIN(atoi(tmp),leaseAliveInterval);
 		  free(tmp);
 	}
 
@@ -6893,7 +6938,8 @@ Scheduler::Register()
 void
 Scheduler::RegisterTimers()
 {
-	static int aliveid = -1, cleanid = -1, wallclocktid = -1, periodicid=-1;
+	static int cleanid = -1, wallclocktid = -1, periodicid=-1;
+	// Note: aliveid is a data member of the Scheduler class
 
 	// clear previous timers
 	if (timeoutid >= 0) {
@@ -6917,7 +6963,7 @@ Scheduler::RegisterTimers()
 		(Eventcpp)&Scheduler::timeout,"timeout",this);
 	startjobsid = daemonCore->Register_Timer(10,
 		(Eventcpp)&Scheduler::StartJobs,"StartJobs",this);
-	aliveid = daemonCore->Register_Timer(alive_interval, alive_interval,
+	aliveid = daemonCore->Register_Timer(10, alive_interval,
 		(Eventcpp)&Scheduler::sendAlives,"sendAlives", this);
 	cleanid = daemonCore->Register_Timer(QueueCleanInterval,
 		(Event)&CleanJobQueue,"CleanJobQueue");
@@ -7602,6 +7648,7 @@ Scheduler::dumpState(int, Stream* s) {
 	intoAd ( ad, "MaxFlockLevel", MaxFlockLevel );
 	intoAd ( ad, "FlockLevel", FlockLevel );
 	intoAd ( ad, "alive_interval", alive_interval );
+	intoAd ( ad, "leaseAliveInterval", leaseAliveInterval );
 	intoAd ( ad, "MaxExceptions", MaxExceptions );
 	
 	int cmd;

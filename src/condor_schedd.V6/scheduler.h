@@ -231,6 +231,7 @@ class Scheduler : public Service
 	void			StartJobs();
 	void			StartSchedUniverseJobs();
 	void			sendAlives();
+	void			RecomputeAliveInterval(int cluster, int proc);
 	void			StartJobHandler();
 	UserLog*		InitializeUserLog( PROC_ID job_id );
 	bool			WriteAbortToUserLog( PROC_ID job_id );
@@ -434,6 +435,10 @@ private:
 	int				MaxFlockLevel;
 	int				FlockLevel;
     int         	alive_interval;  // how often to broadcast alive
+		// leaseAliveInterval is the minimum interval we need to send
+		// keepalives based upon ATTR_JOB_LEASE_DURATION...
+	int				leaseAliveInterval;  
+	int				aliveid;	// timer id for sending keepalives to startd
 	int				MaxExceptions;	 // Max shadow excep. before we relinquish
 	bool			ManageBandwidth;
 
