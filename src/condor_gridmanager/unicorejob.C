@@ -602,9 +602,80 @@ BaseResource *UnicoreJob::GetResource()
 	return (BaseResource *)NULL;
 }
 
+void UnicoreJob::UpdateUnicoreState( char *status_ad )
+{
+}
+
 MyString *UnicoreJob::buildSubmitAd()
 {
+	MyString iwd = "";
+	MyString buff;
+	char *attr_value = NULL;
+
+	static const char *regular_attrs[] = {
+		ATTR_JOB_ARGUMENTS,
+		ATTR_JOB_ENVIRONMENT,
+		"UnicoreUSite",
+		"UnicoreVSite",
+		"UnicoreKeystoreFile",
+		"UnicorePassphraseFile",
+		NULL
+	};
+
+	static const char *full_path_attrs[] = {
+		ATTR_JOB_CMD,
+		ATTR_JOB_INPUT,
+		ATTR_JOB_OUTPUT,
+		ATTR_JOB_ERROR,
+		NULL
+	};
+
+	if ( ad->LookupString(ATTR_JOB_IWD, &attr_value) && *attr_value ) {
+		iwd = attr_value;
+		int len = strlen(attr_value);
+		if ( len > 1 && attr_value[len - 1] != '/' ) {
+			iwd += '/';
+		}
+	} else {
+		iwd = "/";
+	}
+	if ( attr_value != NULL ) {
+		free( attr_value );
+		attr_value = NULL;
+	}
+
 	submit_ad = new MyString();
+
+	submit_ad += '[';
+
+	for ( int i = 0; regular_attrs[i] != NULL; i++ ) {
+
+		if ( ad->LookupString(regular_attrs[i], &attr_value) && *attr_value ) {
+			buff.sprintf( "%s=\"%s\";", regular_attrs[i], attr_value );
+			submit_ad += buff;
+		}
+		if ( attr_value != NULL ) {
+			free( attr_value );
+			attr_value = NULL;
+		}
+
+	}
+
+	for ( int i = 0; full_path_attrs[i] != NULL; i++ ) {
+
+		if ( ad->LookupString( full_path_attrs[i], &attr_value ) && *attr_value ) {
+			buff.sprintf( "%s=\"%s%s\";", ATTR_JOB_CMD, attr_value[0] != '/' ?
+						  iwd->Value() : "", attr_value );
+			submit_ad += buff;
+		}
+		if ( attr_value != NULL ) {
+			free( attr_value );
+			attr_value = NULL;
+		}
+
+	}
+
+	submit_ad += ']';
 
 	return submit_ad;
 }
