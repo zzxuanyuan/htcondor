@@ -53,6 +53,8 @@ class NordugridJob : public BaseJob
 
 	ftp_lite_server *ftp_srvr;
 
+	StringList *stage_list;
+
 	char *doSubmit();
 	int doCommit();
 	int doStatus();

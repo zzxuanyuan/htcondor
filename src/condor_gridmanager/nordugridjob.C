@@ -174,6 +174,7 @@ NordugridJob::NordugridJob( ClassAd *classad )
 	numSubmitAttempts = 0;
 	resourceManagerString = NULL;
 	ftp_srvr = NULL;
+	stage_list = NULL;
 
 	// In GM_HOLD, we assume HoldReason to be set only if we set it, so make
 	// sure it's unset when we start.
@@ -868,12 +869,9 @@ dprintf(D_FULLDEBUG,"*** failure: %s\n",errorString.Value());
 
 int NordugridJob::doStageIn()
 {
-	//TODO: these can't be static, they have to be class memebers!!!
-	static StringList *stage_list = NULL;
 	FILE *curr_file_fp = NULL;
 	FILE *curr_ftp_fp = NULL;
 	char *curr_filename = NULL;
-	static char *iwd = NULL;
 
 	if ( stage_list == NULL ) {
 		char *buf = NULL;
@@ -907,13 +905,6 @@ int NordugridJob::doStageIn()
 		stage_list->rewind();
 	}
 
-	if ( iwd == NULL ) {
-		if ( ad->LookupString( ATTR_JOB_IWD, &iwd ) != 1 ) {
-			errorString = "ATTR_JOB_IWD not defined";
-			goto doStageIn_error_exit;
-		}
-	}
-
 	if ( ftp_srvr == NULL ) {
 
 		MyString buff;
@@ -943,8 +934,11 @@ int NordugridJob::doStageIn()
 
 		MyString full_filename;
 		if ( curr_filename[0] != DIR_DELIM_CHAR ) {
+			char *iwd = NULL;
+			ad->LookupString( ATTR_JOB_IWD, &iwd );
 			full_filename.sprintf( "%s%c%s", iwd, DIR_DELIM_CHAR,
 								   curr_filename );
+			free( iwd );
 		} else {
 			full_filename = curr_filename;
 		}
@@ -984,9 +978,6 @@ int NordugridJob::doStageIn()
 	ftp_lite_close( ftp_srvr );
 	ftp_srvr = NULL;
 
-	free( iwd );
-	iwd = NULL;
-
 	delete stage_list;
 	stage_list = NULL;
 
@@ -1003,10 +994,6 @@ int NordugridJob::doStageIn()
 		ftp_lite_close( ftp_srvr );
 		ftp_srvr = NULL;
 	}
-	if ( iwd != NULL ) {
-		free( iwd );
-		iwd = NULL;
-	}
 	if ( stage_list != NULL ) {
 		delete stage_list;
 		stage_list = NULL;
@@ -1016,12 +1003,9 @@ int NordugridJob::doStageIn()
 
 int NordugridJob::doStageOut()
 {
-	//TODO: these can't be static, they have to be class memebers!!!
-	static StringList *stage_list = NULL;
 	FILE *curr_file_fp = NULL;
 	FILE *curr_ftp_fp = NULL;
 	char *curr_filename = NULL;
-	static char *iwd = NULL;
 
 	if ( stage_list == NULL ) {
 		char *buf = NULL;
@@ -1055,13 +1039,6 @@ int NordugridJob::doStageOut()
 		stage_list->rewind();
 	}
 
-	if ( iwd == NULL ) {
-		if ( ad->LookupString( ATTR_JOB_IWD, &iwd ) != 1 ) {
-			errorString = "ATTR_JOB_IWD not defined";
-			goto doStageOut_error_exit;
-		}
-	}
-
 	if ( ftp_srvr == NULL ) {
 
 		MyString buff;
@@ -1091,8 +1068,11 @@ int NordugridJob::doStageOut()
 
 		MyString full_filename;
 		if ( curr_filename[0] != DIR_DELIM_CHAR ) {
+			char *iwd = NULL;
+			ad->LookupString( ATTR_JOB_IWD, &iwd );
 			full_filename.sprintf( "%s%c%s", iwd, DIR_DELIM_CHAR,
 								   curr_filename );
+			free( iwd );
 		} else {
 			full_filename = curr_filename;
 		}
@@ -1131,9 +1111,6 @@ int NordugridJob::doStageOut()
 	ftp_lite_close( ftp_srvr );
 	ftp_srvr = NULL;
 
-	free( iwd );
-	iwd = NULL;
-
 	delete stage_list;
 	stage_list = NULL;
 
@@ -1149,10 +1126,6 @@ int NordugridJob::doStageOut()
 	if ( ftp_srvr != NULL ) {
 		ftp_lite_close( ftp_srvr );
 		ftp_srvr = NULL;
-	}
-	if ( iwd != NULL ) {
-		free( iwd );
-		iwd = NULL;
 	}
 	if ( stage_list != NULL ) {
 		delete stage_list;
