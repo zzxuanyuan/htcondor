@@ -1191,7 +1191,9 @@ RemoteResource::reconnect( void )
 	dprintf( D_ALWAYS, "%s remaining: EXPIRED!\n",
 			 ATTR_JOB_LEASE_DURATION );
 		MyString reason = ATTR_JOB_LEASE_DURATION;
-		reason += " expired";
+		reason += " (";
+		reason += lease_duration;
+		reason += " seconds) expired";
 		shadow->reconnectFailed( reason.Value() );
 	}
 	dprintf( D_ALWAYS, "%s remaining: %d\n", ATTR_JOB_LEASE_DURATION,
@@ -1276,7 +1278,7 @@ RemoteResource::locateReconnectStarter( void )
 			// communication successful but GlobalJobId or starter not
 			// found.  either way, we know the job is gone, and can
 			// safely give up and restart.
-		shadow->reconnectFailed( "Job is already gone" );
+		shadow->reconnectFailed( "Job not found at execution machine" );
 		break;
 
 	case CA_NOT_AUTHENTICATED:
@@ -1289,7 +1291,8 @@ RemoteResource::locateReconnectStarter( void )
 			// it'd block, but we don't have anything better to do,
 			// and it helps ensure run-only-once semantics for jobs.
 		shadow->cleanUp();
-		shadow->reconnectFailed( "Old startd is gone" );
+		shadow->reconnectFailed( "Startd is no longer at old port, "
+								 "job must have been killed" );
 		break;
 
 	case CA_CONNECT_FAILED:
