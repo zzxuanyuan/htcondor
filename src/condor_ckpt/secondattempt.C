@@ -6,7 +6,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <string.h>
-
+#include <netinet/in.h>
 #include <sys/mman.h>
 #include "/s/zlib/include/zlib.h"
 #include "secondattempt.h"
@@ -49,11 +49,14 @@ int compare_pages(char * p1, char *p2, int &decile, float &matchPercent) {
 			cout<<"\tSUPER_VERBOSE: PAGE NOMATCH "<<
 				bytes_matching<<"/"<<getpagesize()<<" "<< matchPercent << endl;
 		}
-	}
+	} else {
+		if (decile == 10) cout << "*";
+		else cout << decile;
+	}	
 	return decile==10;
 }
 int compare_segment(CheckpointFile &ck1, CheckpointFile &ck2, char * paddr1, 
-					char * paddr2, int segnumber) {
+					char * paddr2, int segnumber, int &matches, int &pages) {
 	int pgsize=getpagesize();
 	//we are going to read this a page at a time:
 	int bytes_to_read1=ck1.segmap[segnumber].len;
@@ -68,23 +71,59 @@ int compare_segment(CheckpointFile &ck1, CheckpointFile &ck2, char * paddr1,
 	p2=paddr2+ck2.segmap[segnumber].file_loc;
 	int histogram[11];
 	memset(histogram, 0, 11*sizeof(int));
-	cout << "Comparing segment: " << segnumber << endl;
-	while (bytes_to_read1>0 && bytes_to_read2>0) {
+	if (strcmp(ck1.segmap[segnumber].name, ck2.segmap[segnumber].name) != 0) {
+		cerr << "WARNING:  Segments do not correspond, " 
+			<< ck1.segmap[segnumber].name << " and " 
+			<< ck2.segmap[segnumber].name << endl;
+	}
+	cout << "Comparing segment " << ck2.segmap[segnumber].name << ": " << endl;
+	if ( ! SUPER_VERBOSE ) cout << "Per page analysis: ";
+
+	int comparable_bytes;
+	int new_bytes;
+	if (bytes_to_read1 < bytes_to_read2) {
+		comparable_bytes = bytes_to_read1;
+		new_bytes = bytes_to_read2 - bytes_to_read1;
+	} else {
+		comparable_bytes = bytes_to_read2;
+		new_bytes = bytes_to_read1 - bytes_to_read2;
+	}
+
+	while (comparable_bytes>0) {
 		if (compare_pages(p1, p2, decileval, matchPercent)==1) {
 			pages_matching++;
 		} else {
 			matchAverage += matchPercent;
 		}	
 		total_pages++;
-		bytes_to_read1-=pgsize;
-		bytes_to_read2-=pgsize;
+		comparable_bytes-=pgsize;
 		p1+=pgsize;
 		p2+=pgsize;
 		histogram[decileval]++;
 	}
+	while (new_bytes>0) {	// different size segments, pages are considered
+							// match of 0 percent, mark them + in the analysis
+		if ( SUPER_VERBOSE ) {
+			cout<<"\tSUPER_VERBOSE: PAGE NOMATCH 0/" << pgsize  
+				<< " 0 (New page)" << endl;
+		} else {
+			cout << "+";	// for page analysis, + means new
+		}
+		histogram[0]++;
+		total_pages++;
+		new_bytes-=pgsize;
+	}
+
 	matchAverage /= (total_pages - pages_matching);
+	if ( ! SUPER_VERBOSE) cout << endl;
 	cout<<"\tPages matching: "<<pages_matching <<" / "<<total_pages
-		<< "   (ave. nonmatch: " << (int)(100*matchAverage) << "%) "<< endl;
+		<< "   (ave. nonmatch: ";
+	if (total_pages == pages_matching) {
+		cout << "n/a";
+	} else {
+		cout << (int)(100*matchAverage) << "%";
+	}
+	cout << ") "<< endl;
 	cout<<"\tHistogram: ";
 	for (int i=0; i<11; i++) cout<<histogram[i]<<"  ";
 	cout<<endl;
@@ -94,6 +133,10 @@ int compare_segment(CheckpointFile &ck1, CheckpointFile &ck2, char * paddr1,
 		cout <<"\tVERBOSE: " << start << " to " << end <<" % match: "
 			<< histogram[i] << endl;
 	}
+	
+	// set return values
+	matches += pages_matching;
+	pages   += total_pages;
 	return pages_matching==total_pages;
 }			
 
@@ -106,14 +149,42 @@ int read_header(int fd, CheckpointFile &cf) {
 	if (retval!=2*sizeof(int)) {
 		cerr<<"ERROR READING HEADER"<<endl;
 	}
-	cf.compressed=vals[0]==cf.COMPRESS_MAGIC;
+	// check for network to host stuff
+	cf.use_ntoh = (vals[0] != cf.COMPRESS_MAGIC && vals[0] != cf.MAGIC); 
+	if (cf.use_ntoh) {
+		if (DEBUG) cout << "DEBUG: Need to convert from network order" << endl;
+		if (sizeof(int) == sizeof(long)) {
+			cf.ints_are_longs = true;
+		} else if (sizeof(int) == sizeof(short)) {
+			cf.ints_are_longs = false;
+		} else {
+			cerr << "ERROR: CANNOT CONVERT FROM NETWORK ORDER" << endl;;
+			exit (0);
+		}
+	} else {
+		if (DEBUG) cout<< "DEBUG: No need to convert from network order"<<endl;
+	}
+
+	// now make sure values are OK after converting	
+	vals[0] = ntoh(vals[0], cf);
+	vals[1] = ntoh(vals[1], cf);
+	if (vals[0] == cf.COMPRESS_MAGIC) {
+		cf.compressed = true;
+	} else if (vals[0] == cf.MAGIC) {
+		cf.compressed = false;
+	} else {
+		cerr << "ERROR: MAGIC NUMBER UNKNOWN: " << vals[0] << endl;
+		exit (0);
+	}
 	cf.n_segs=vals[1];
-	if (DEBUG) cout <<"DEBUG: cf info "<<cf.compressed<<" "<<cf.n_segs<<endl;
+	if (DEBUG) cout <<"DEBUG: cf, compressed: "<<cf.compressed<<", num segs:  "
+					<<cf.n_segs<<endl;
 	return 0;
 }
+
 //assumes that the checkpoint is created!
 int read_segmap(int fd, CheckpointFile &cf) {
-	if (DEBUG) cerr<<"DEBUG: fd="<<fd;
+	if (DEBUG) cerr<<"DEBUG: fd="<<fd << endl;
 	int retval=lseek(fd,  HEADER_LENGTH, SEEK_SET);
 	if (retval<0 ){
 		cerr<<"ERROR!!!"<<endl;
@@ -121,7 +192,15 @@ int read_segmap(int fd, CheckpointFile &cf) {
 	}
 	//this is tricky, but should work:
 	retval=read(fd, cf.segmap, cf.n_segs*sizeof(SegInfo));
-	if (DEBUG) cout<<"DEBUG: Read "<<retval<<"bytes"<<endl;
+	if (DEBUG) cout<<"DEBUG: Read "<<retval<<" bytes (the segmaps)"<<endl;
+	if (cf.use_ntoh) {
+		cerr << "ERROR: Not yet prepared to convert SegInfo from network order"
+			<< endl;
+		for (int i = 0; i < cf.n_segs; i++) {
+			cf.segmap[i].len = ntohl (cf.segmap[i].len);
+			cf.segmap[i].prot = ntoh (cf.segmap[i].prot, cf);
+		}
+	}
 }
 
 
@@ -146,7 +225,20 @@ z_stream * initialize_zstream(z_stream *pz) {
 	inflateInit(pz);
 	return pz;	
 }	
-	
+
+// a helper function to convert from network order, a little tricky because
+// we don't know whether we need to do so (check cf.use_ntoh) and we don't
+// know whether to use ntohl or ntohs
+int ntoh (int network_int, CheckpointFile &cf) {
+	// maybe no need to convert
+	if ( ! cf.use_ntoh ) return network_int;
+
+	// we already know that ints are either longs or shorts, so just use
+	// the correct one
+	if (cf.ints_are_longs) 	return ntohl(network_int);
+	else 					return ntohs(network_int);		
+}
+
 int setup_uncompressed_addr (int fd, CheckpointFile &ck, z_stream *pz, 
 							char * &paddr) 
 {
@@ -165,9 +257,9 @@ int setup_uncompressed_addr (int fd, CheckpointFile &ck, z_stream *pz,
 		if (DEBUG) cerr<<"DEBUG: end_location is "<<end_loc<<endl;
 		lseek(fd, cur_loc, SEEK_SET);
 		//we should have a pointer to the beginning of a compressed checkpoint
-		paddrtemp=mmap(0, end_loc, PROT_READ, MAP_PRIVATE, fd, 0);
+		paddrtemp=(char *)mmap(0, end_loc, PROT_READ, MAP_PRIVATE, fd, 0);
 		if (paddrtemp==MAP_FAILED) {
-			cerr<<"MAP FaILED"<<endl;
+			cerr<<"ERROR: MAP FaILED"<<endl;
 		}
 		else {
 			if (DEBUG) cerr<<"DEBUG: Address of temporary map: "
@@ -177,7 +269,7 @@ int setup_uncompressed_addr (int fd, CheckpointFile &ck, z_stream *pz,
 		//ok. I wonder if this will work...
 		paddr=(char *) malloc(needed_len);
 		if (paddr==NULL) {
-			cerr<<"malloc of "<<needed_len<<" bytes failed!"<<endl;
+			cerr<<"ERROR: malloc of "<<needed_len<<" bytes failed!"<<endl;
 			return -1;
 		}
 		else {
@@ -196,29 +288,19 @@ int setup_uncompressed_addr (int fd, CheckpointFile &ck, z_stream *pz,
 		//pz->avail_out=getpagesize();
 		//now decompress;
 		int xxx=0;
-		/*
-		cerr<<"avail in "<<pz->avail_in<<endl;
-		while ((xxx=inflate(pz, Z_SYNC_FLUSH))==Z_OK) {
-			pz->avail_out=getpagesize();	
-			pz->next_out=(Bytef*) (unsigned long)
-						(paddr+first_segment_address+pz->total_out);
-			cerr<<xxx<<" Def "<<pz->total_out<<" read "<<pz->total_in
-				<<" avail in "<<pz->avail_in<<endl;
-		} 
-		*/
 		xxx=inflate(pz, Z_FINISH);
 		if (DEBUG) cerr << "DEBUG: " <<xxx<<" Def "<<pz->total_out<<" read "
 						<<pz->total_in <<" avail in "<<pz->avail_in<<endl 
 						<<"xxx "<<xxx<<endl;
 		//now we should be done, unmap the file
 		if (munmap(paddrtemp, end_loc)!=0 ){
-			cerr<<"UNMAP FAILED"<<endl;
+			cerr<<"ERROR: UNMAP FAILED"<<endl;
 		}
 	}
 	else { //non compressed file...
-		paddr=mmap(0, needed_len, PROT_READ, MAP_FIXED, fd, 0);
+		paddr=(char *)mmap(0, needed_len, PROT_READ, MAP_PRIVATE, fd, 0);
 		if (paddr==MAP_FAILED ){
-			cerr<<"MAP FAILED"<<endl;
+			perror("ERROR: MAP FAILED: ");
 		}
 	}
 	return 0;
@@ -243,31 +325,40 @@ int main(int argc, char ** argv ) {
 	read_segmap(fd1, f1);
 	read_segmap(fd2, f2);
 	
-	if (DEBUG) for (int i=0; i<f1.n_segs; i++) f1.segmap[i].Display();
-	
+	if (DEBUG) {
+		cout << "DEBUG: Display segmap 1:" << endl;
+		for (int i=0; i<f1.n_segs; i++) f1.segmap[i].Display();
+	}	
 
 	pz1=initialize_zstream(pz1);
 	pz2=initialize_zstream(pz2);
 
-	if (DEBUG) cerr<<"DEBUG: " << pz1;
+	if (DEBUG) cerr<<"DEBUG: pz1: " << pz1 << endl;
 	paddr1=NULL;
 	paddr2=NULL;
 	setup_uncompressed_addr(fd1, f1, pz1, paddr1);
 	setup_uncompressed_addr(fd2, f2, pz2, paddr2);
-	if (DEBUG) cerr<<"DEBUG: " << paddr1<<paddr2<<endl;
+	if (DEBUG) cerr<<"DEBUG: " << "paddr1 is " << paddr1
+					<< ", paddr2 is " <<paddr2<<endl;
 	
 	int matching_segs=0;
+	int total_matches = 0;
+	int total_pages = 0;
 	int fewer_segs = (f1.n_segs < f2.n_segs) ? f1.n_segs : f2.n_segs;
 	for (int i=0; i<fewer_segs; i++) {
-		if (compare_segment(f1, f2, paddr1, paddr2, i)) {
+		if (compare_segment(f1,f2,paddr1,paddr2,i,total_matches,total_pages)) 
+		{
 			matching_segs++;
 		}
 	}
 	cout<<"Total segment matches:  "<< matching_segs<<" / "<< fewer_segs <<endl;
 	if (f1.n_segs != f2.n_segs) {
-		cout << "There were an unequal number of segments in the ckpt files:"
+		cout << "WARNING: An unequal number of segments in the ckpt files:"
 			<< f1.n_segs << " and " << f2.n_segs << endl;
 	}  
+	float matchPercent = (float) total_matches / total_pages * 100;
+	cout << "Total page matches: " << total_matches << " / " << total_pages 
+		<< "  (" << (int) matchPercent << "%)" << endl;
 
 return 0;
 }

@@ -1,25 +1,16 @@
-CONDOR_LIB_DIR=/local.vulture.3/johnbent/src/release_dir/lib
-CONDOR_COMPILE= condor_compile
-CC=g++
+CC=/s/ogcc/bin/g++
+PURIFY = purify -collector=/s/ogcc/bin/ld -g++
 CCFLAGS=-g 
 MAKE= make
 LIBDIRS=-L/s/zlib/lib 
 LDFLAGS=-Xlinker -dn
 INCLUDEDIRS=-I/s/zlib/include
 
-# The point of this is
-# First make all of the crap (mostly .o files)
-# then make my driver program .o file
-# then make the library against which my program will link
-# this library has to use the new
-# .o files in this directory (talk about horrible build systems....)
-# make release moves all of the crap to the lib dir
-# finally run the whole damn thing through condor compile. 
-# This produces a rather plump executable.
-
 compare: secondattempt.o
-	$(CC) $(CCFLAGS) $(LIBDIRS) $(LDFLAGS) secondattempt.o -lz -o $@ 
+	$(CC) $(CCFLAGS) $(LIBDIRS) $(LDFLAGS) $< -lz -o $@ 
+pure: secondattempt.o
+	$(PURIFY) $(CC) $(LIBDIRS) $(LDFLAGS) $< -lz -o $@
 secondattempt.o: secondattempt.C secondattempt.h
-	$(CC) $(CCFLAGS) $(INCLUDEDIRS) -c secondattempt.C 
+	$(CC) $(CCFLAGS) $(INCLUDEDIRS) -c $< 
 clean:
 	rm -f secondattempt.o compare 
