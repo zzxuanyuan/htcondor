@@ -214,8 +214,70 @@ CODMgr::release( Stream* s, ClassAd* req, Claim* claim )
 int
 CODMgr::activate( Stream* s, ClassAd* req, Claim* claim )
 {
-		// TODO!
-	return true;
+	MyString err_msg;
+	ClassAd *mach_classad = rip->r_classad;
+
+		// first, we have to find a Starter that matches the request
+	Starter* tmp_starter;
+	tmp_starter = resmgr->starter_mgr.findStarter( req, mach_classad );
+	if( ! tmp_starter ) {
+		char* tmp = NULL;
+		req->LookupString( ATTR_REQUIREMENTS, &tmp );
+		if( ! tmp ) {
+			err_msg = "Request does not contain ";
+			err_msg += ATTR_REQUIREMENTS;
+			err_msg += ", can't find a valid starter to activate";
+			return sendErrorReply( s, "CA_ACTIVATE_CLAIM",
+								   CA_INVALID_REQUEST, err_msg.Value() ); 
+		}
+		err_msg = "Cannot find starter that satisfies requirements '";
+		err_msg += tmp;
+		err_msg = "'";
+		free( tmp );
+		return sendErrorReply( s, "CA_ACTIVATE_CLAIM",
+							   CA_INVALID_REQUEST, err_msg.Value() );
+	}
+
+	char* keyword = NULL;
+	if( ! req->LookupString(ATTR_JOB_AD_CONFIG_KEYWORD, &keyword) ) {
+		err_msg = "Request does not contain ";
+		err_msg += ATTR_JOB_AD_CONFIG_KEYWORD;
+		err_msg += ", so server cannot find job in config file\n";
+		delete tmp_starter;
+		return sendErrorReply( s, "CA_ACTIVATE_CLAIM",
+							   CA_INVALID_REQUEST, err_msg.Value() ); 
+	}
+	tmp_starter->setCODArgs( keyword );
+	free( keyword );
+
+	time_t now = time(NULL);
+
+	claim->setStarter( tmp_starter );	
+	claim->spawnStarter( now );
+
+		// we need to make a copy of this, since the original is on
+		// the stack in command.C:command_classad_handler().
+		// otherwise, once the handler completes, we've got a dangling
+		// pointer, and if we try to access this variable, we'll crash 
+	ClassAd* new_req_ad = new ClassAd( *req );
+	claim->beginActivation( new_req_ad, now );
+
+
+		// TODO: deal w/ state interactions w/ opportunistic claim!!!
+
+	ClassAd reply;
+
+	MyString line = ATTR_RESULT;
+	line += " = \"";
+	line += getCAResultString( CA_SUCCESS );
+	line += '"';
+	reply.Insert( line.Value() );
+
+		// TODO any other info for the reply?
+
+	sendCAReply( s, "CA_ACTIVATE_CLAIM", &reply );
+
+	return TRUE;
 }
 
 
