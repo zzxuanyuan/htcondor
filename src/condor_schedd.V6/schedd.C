@@ -1867,6 +1867,21 @@ Scheduler::jobIsTerminal(int cluster, int proc)
 	ASSERT( cluster > 0 );
 	ASSERT( proc >= 0 );
 
+	ClassAd * job_ad = GetJobAd( cluster, proc );
+	if( ! job_ad ) {
+			/*
+			  evil, someone managed to call DestroyProc() before we
+			  had a chance to work our magic.  for whatever reason,
+			  that call succeeded (though it shouldn't in the usual
+			  sandbox case), and now we've got nothing to work with.
+			  in this case, we've just got to bail out.
+			*/
+		dprintf( D_FULLDEBUG, 
+				 "jobIsTerminal(): %d.%d already left job queue\n",
+				 cluster, proc );
+		return 0;
+	}
+
 #ifndef WIN32
 
 	ClassAd * job_ad = GetJobAd( cluster, proc );
@@ -1907,8 +1922,6 @@ Scheduler::jobIsTerminal(int cluster, int proc)
 					 cluster, proc );
 		}
 	}
-	FreeJobAd( job_ad );
-	job_ad = NULL;
 
 #else	/* WIN32 */
 
@@ -1917,6 +1930,9 @@ Scheduler::jobIsTerminal(int cluster, int proc)
 #endif
 
 	// release dynamic accounts here
+
+	FreeJobAd( job_ad );
+	job_ad = NULL;
 
 	return 0;
 }
