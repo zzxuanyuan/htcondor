@@ -28,7 +28,6 @@ ResMgr::ResMgr()
 {
 	coll_sock = NULL;
 	view_sock = NULL;
-	this->init_socks();
 	up_tid = -1;
 	poll_tid = -1;
 
@@ -332,7 +331,18 @@ ResMgr::compute( amask_t how_much )
 	walk( Resource::compute, (how_much & ~(A_SHARED)) );
 	m_attr->compute( (how_much & ~(A_SHARED)) | A_SUMMED );
 	walk( Resource::compute, (how_much | A_SHARED) );
+
+		// Sort the resources so when we're assigning owner load
+		// average and keyboard activity, we get to them in the
+		// following state order: Owner, Unclaimed, Matched, Claimed
+		// Preempting 
+	resource_sort( owner_state_cmp );
+
 	assign_load();
+	assign_keyboard();
+
+		// Now that we're done assigning, display all values 
+	walk( Resource::display, how_much );
 }
 
 
@@ -361,10 +371,6 @@ ResMgr::assign_load()
 		}
 	}
 
-		// Sort the resources so we get to them in the following state
-		// order: Owner, Unclaimed, Matched, Busy, Preempting
-	resource_sort( owner_state_cmp );
-
 		// So long as there's at least two more resources and the
 		// total owner load is greater than 1.0, assign an owner load
 		// of 1.0 to each CPU.  Once we get below 1.0, we assign all
@@ -377,11 +383,40 @@ ResMgr::assign_load()
 		total_owner_load -= 1.0;
 	}
 	resources[i]->set_owner_load( total_owner_load );
-
-		// Now that we're done assigning, display all values for
-		// people that have D_LOAD turned on.
-	walk( Resource::display_load );
 }
+
+
+void
+ResMgr::assign_keyboard()
+{
+	int i;
+	time_t console = m_attr->console_idle();
+	time_t keyboard = m_attr->keyboard_idle();
+	time_t max;
+
+	if( is_smp() ) {
+			// First, initialize all CPUs to the max idle time we've
+			// got, which would be 15 minutes longer than the time
+			// since we started up. 
+		max = (time(0) - startd_startup) + (15 * 60);
+		for( i = 0; i < nresources; i++ ) {
+			resources[i]->r_attr->set_console( max );
+			resources[i]->r_attr->set_keyboard( max );
+		}
+	}
+
+		// Now, assign console activity to all CPUs that care.
+	for( i = 0; i < console_cpus  && i < nresources; i++ ) {
+		resources[i]->r_attr->set_console( console );
+	}
+
+		// Finally, assign keyboard activity to all CPUS that care. 
+	for( i = 0; i < keyboard_cpus && i < nresources; i++ ) {
+		resources[i]->r_attr->set_keyboard( keyboard );
+	}
+}
+
+
 
 
 void
