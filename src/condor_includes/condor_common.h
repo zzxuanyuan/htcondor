@@ -44,6 +44,7 @@
 **********************************************************************/
 #include "condor_constants.h"
 #include "condor_macros.h"
+#include "../condor_c++_util/condor_errno.h"
 
 #if defined(GSS_AUTHENTICATION)
 #ifndef _GSSAPI_H_
