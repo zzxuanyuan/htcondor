@@ -66,10 +66,12 @@ public:
 
 	char*	id() {return c_id;};
 	char*	capab() {return c_id;};
+	char*	codId() {return c_cod_id;};
 	bool	matches( const char* capab );
 
 private:
 	char*	c_id;	// capability string
+	char*	c_cod_id;
 };
 
 
@@ -112,6 +114,7 @@ public:
 	void alive();	// Process a keep alive for this claim
 
 	void publish( ClassAd*, amask_t );
+	void publishCOD( ClassAd* );
 
 	void dprintf( int, char* ... );
 
@@ -149,6 +152,7 @@ public:
 	bool		isCOD()			{return c_is_cod;};
 	char*		id();
 	char*		capab();
+	char*		codId()			{return c_cap->codId();};
 	Client* 	client() 		{return c_client;};
 	Resource* 	rip()			{return c_rip;};
 	Capability* cap()			{return c_cap;};

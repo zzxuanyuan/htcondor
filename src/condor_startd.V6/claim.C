@@ -150,7 +150,81 @@ Claim::publish( ClassAd* ad, amask_t how_much )
 		sprintf(line, "%s=%d", ATTR_LAST_PERIODIC_CHECKPOINT, c_last_pckpt );
 		ad->Insert( line );
 	}
-}	
+}
+
+
+void
+Claim::publishCOD( ClassAd* ad )
+{
+	MyString line;
+	char* tmp;
+
+	line = codId();
+	line += '_';
+	line += ATTR_CLAIM_STATE;
+	line += "=\"";
+	line += getClaimStateString( c_state );
+	line += '"';
+	ad->Insert( line.Value() );
+
+	if( c_client ) {
+		tmp = c_client->user();
+		if( tmp ) {
+			line = codId();
+			line += '_';
+			line += ATTR_REMOTE_USER;
+			line += "=\"";
+			line += tmp;
+			line += '"';
+			ad->Insert( line.Value() );
+		}
+		tmp = c_client->host();
+		if( tmp ) {
+			line = codId();
+			line += '_';
+			line += ATTR_CLIENT_MACHINE;
+			line += "=\"";
+			line += tmp;
+			line += '"';
+			ad->Insert( line.Value() );
+		}
+	}
+
+	if( c_starter ) {
+		tmp = c_starter->getCODKeyword();
+		if( tmp ) {
+			line = codId();
+			line += '_';
+			line += ATTR_JOB_KEYWORD;
+			line += "=\"";
+			line += tmp;
+			line += '"';
+			ad->Insert( line.Value() );
+		}
+		char buf[128];
+		if( (c_cluster > 0) && (c_proc >= 0) ) {
+			sprintf( buf, "%d.%d", c_cluster, c_proc );
+		} else {
+			strcpy( buf, "1.0" );
+		}
+		line = codId();
+		line += '_';
+		line += ATTR_JOB_ID;
+		line += "=\"";
+		line += buf;
+		line += '"';
+		ad->Insert( line.Value() );
+		
+		if( c_job_start > 0 ) {
+			line = codId();
+			line += '_';
+			line += ATTR_JOB_START;
+			line += '=';
+			line += c_job_start; 
+			ad->Insert( line.Value() );
+		}	
+	}
+}
 
 
 void
@@ -1074,8 +1148,9 @@ newCapabilityString()
 }
 
 
-char*
-newCODIdString()
+
+int
+newCODIdString( char** id_str_ptr )
 {
 		// COD id string (capability) is of the form:
 		// "<ip:port>#COD#startd_bday#sequence_num"
@@ -1089,16 +1164,22 @@ newCODIdString()
 	id += (int)startd_startup;
 	id += '#';
 	id += sequence_num;
-	return strdup( id.Value() );
+	*id_str_ptr = strdup( id.Value() );
+	return sequence_num;
 }
 
 
 Capability::Capability( bool is_cod )
 {
+
 	if( is_cod ) { 
-		c_id = newCODIdString();
+		int num = newCODIdString( &c_id );
+		char buf[64];
+		sprintf( buf, "COD%d", num );
+		c_cod_id = strdup( buf );
 	} else {
 		c_id = newCapabilityString();
+		c_cod_id = NULL;
 	}
 }
 
@@ -1106,6 +1187,9 @@ Capability::Capability( bool is_cod )
 Capability::~Capability()
 {
 	free( c_id );
+	if( c_cod_id ) {
+		free( c_cod_id );
+	}
 }
 
 
