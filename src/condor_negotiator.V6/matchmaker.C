@@ -1812,12 +1812,12 @@ void Matchmaker::insert_into_matches(char * scheddName,ClassAd& request, ClassAd
 	offer.LookupString( ATTR_NAME, startdname); 
 	if(offer.LookupString( ATTR_REMOTE_USER, remote_user) == 0)
 	{
-		sprintf((char *)insert_stmt,"insert into %s values (\'%d/%d/%d %02d:%02d:%02d\',\'%s\', %d, %d, \'%s\'\'%s\', null, null)",MatchesTable,tm->tm_mon + 1, tm->tm_mday,tm->tm_year+1900, tm->tm_hour,tm->tm_min, tm->tm_sec,scheddName,cluster,proc,globaljobid,startdname);	
+		sprintf((char *)insert_stmt,"insert into %s values (\'%d/%d/%d %02d:%02d:%02d\',\'%s\', %d, %d, \'%s\',\'%s\', null, null)",MatchesTable,tm->tm_mon + 1, tm->tm_mday,tm->tm_year+1900, tm->tm_hour,tm->tm_min, tm->tm_sec,scheddName,cluster,proc,globaljobid,startdname);	
 	}
 	else
 	{
 		remote_prio = (float) accountant.GetPriority(remote_user);
-		sprintf((char *)insert_stmt,"insert into %s values (\'%d/%d/%d %02d:%02d:%02d\',\'%s\', %d, %d, \'%s\'\'%s\', \'%s\', %f)",MatchesTable,tm->tm_mon + 1, tm->tm_mday,tm->tm_year+1900, tm->tm_hour,tm->tm_min, tm->tm_sec,scheddName,cluster,proc,globaljobid,startdname,remote_user,remote_prio);	
+		sprintf((char *)insert_stmt,"insert into %s values (\'%d/%d/%d %02d:%02d:%02d\',\'%s\', %d, %d, \'%s\',\'%s\', \'%s\', %f)",MatchesTable,tm->tm_mon + 1, tm->tm_mday,tm->tm_year+1900, tm->tm_hour,tm->tm_min, tm->tm_sec,scheddName,cluster,proc,globaljobid,startdname,remote_user,remote_prio);	
 	}
 	DBObj->odbc_sqlstmt(insert_stmt);	
 
