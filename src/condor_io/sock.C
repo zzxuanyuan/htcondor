@@ -42,7 +42,7 @@ class SockInitializer
 {
 public:
 	SockInitializer() {
-		WORD wVersionRequested = MAKEWORD( 1, 1 );
+		WORD wVersionRequested = MAKEWORD( 2, 0 );
 		WSADATA wsaData;
 		int err;
 
@@ -52,7 +52,7 @@ public:
 			exit(1);
 		}
 
-		if ( LOBYTE( wsaData.wVersion ) != 1 || HIBYTE( wsaData.wVersion ) != 1 ) {
+		if ( LOBYTE( wsaData.wVersion ) != 2 || HIBYTE( wsaData.wVersion ) != 0 ) {
 			fprintf( stderr, "Warning: using WinSock version %d.%d, requested 1.1\n",
 				LOBYTE( wsaData.wVersion ), HIBYTE( wsaData.wVersion ) );
 		}
@@ -98,7 +98,37 @@ int Sock::getportbyserv(
 	return ntohs(sp->s_port);
 }
 
+#ifdef WIN32
+int Sock::assign(
+	LPWSAPROTOCOL_INFO pProtoInfo
+	)
+{
+	if (!valid()) return FALSE;
+	if (_state != sock_virgin) return FALSE;
 
+	// verify the win32 socket type we are about to inherit matches
+	// our CEDAR socket type
+	switch(type()){
+		case safe_sock:
+			assert( pProtoInfo->iSocketType == SOCK_DGRAM );
+			break;
+		case reli_sock:
+			assert( pProtoInfo->iSocketType == SOCK_STREAM );
+			break;
+		default:
+			assert(0);
+	}
+
+	_sock = WSASocket(FROM_PROTOCOL_INFO, FROM_PROTOCOL_INFO, 
+					  FROM_PROTOCOL_INFO, pProtoInfo, 0, 0);
+
+	if ( _sock == INVALID_SOCKET )
+		return FALSE;
+
+	_state = sock_assigned;
+	return TRUE;
+}
+#endif
 
 int Sock::assign(
 	SOCKET		sockd
