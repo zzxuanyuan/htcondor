@@ -7,6 +7,10 @@
 #include "syscall_numbers.h"
 #include "image.h"
 
+CondorFile::~CondorFile()
+{
+}
+
 // Initialize all fields to null
 
 void CondorFile::init() {
@@ -17,6 +21,7 @@ void CondorFile::init() {
 	size = 0;
 	forced = 0;
 	seek_count = read_count = write_count = read_bytes = write_bytes = 0;
+	resume_count = 0;
 }
 
 // Display this file in the log
@@ -39,8 +44,6 @@ int CondorFile::open(const char *path, int flags, int mode) {
 
 	strncpy(name,path,_POSIX_PATH_MAX);
 
-	fd = ::open(path,flags,mode);
-
 	switch( flags & O_ACCMODE ) {
 		case O_RDONLY:
 			readable = 1;
@@ -57,6 +60,9 @@ int CondorFile::open(const char *path, int flags, int mode) {
 		default:
 			return -1;
 	}
+
+	fd = ::open(path,flags,mode);
+	if(fd<0) return fd;
 
 	// Find the size of the file
 
@@ -76,7 +82,14 @@ int CondorFile::open(const char *path, int flags, int mode) {
 
 int CondorFile::close()
 {
-	report_file_info();
+	// If this was a placeholder ("forced open"),
+	// do not do an actual close.
+
+	if(!forced) {
+		::close(fd);
+		report_file_info();
+	}
+	fd = -1;
 	return -1;
 }
 

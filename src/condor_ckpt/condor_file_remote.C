@@ -27,10 +27,8 @@ int CondorFileRemote::open(const char *path, int flags, int mode )
 int CondorFileRemote::close() {
 	int scm,result;
 
-	CondorFile::close();
-
 	scm = SetSyscalls(SYS_REMOTE|SYS_UNMAPPED);
-	result = ::close(fd);
+	CondorFile::close();
 	SetSyscalls(scm);
 
 	return result;

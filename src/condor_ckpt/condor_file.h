@@ -30,6 +30,8 @@ integer every time a resume() is performed.
 
 class CondorFile {
 public:
+	virtual ~CondorFile();
+
 	virtual void dump();
 	virtual void init();
 	virtual void abort( char *why );
@@ -60,7 +62,7 @@ public:
 
 	void	enable_buffer()		{ bufferable=1; }
 	void	disable_buffer()	{ bufferable=0; }
-	int	ok_to_buffer()		{ return bufferable; }
+	int	ok_to_buffer()		{ return bufferable && seekable; }
 
 	/**
 	Without performing an actual open, associate this

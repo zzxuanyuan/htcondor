@@ -27,11 +27,8 @@ int CondorFileLocal::open(const char *path, int flags, int mode ) {
 int CondorFileLocal::close() {
 	int result, scm;
 
-	CondorFile::close();
-
 	scm = SetSyscalls(SYS_LOCAL|SYS_UNMAPPED);
-	result = ::close(fd);
-	fd = -1;
+	CondorFile::close();
 	SetSyscalls(scm);
 
 	return result;

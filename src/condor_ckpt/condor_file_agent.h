@@ -18,6 +18,7 @@ public:
 	CondorFileAgent( CondorFile *f );
 	~CondorFileAgent();
 
+	virtual int open( const char *path, int flags, int mode );
 	virtual int close();
 
 	virtual void report_file_info();

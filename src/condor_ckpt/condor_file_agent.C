@@ -12,20 +12,31 @@ CondorFileAgent::CondorFileAgent( CondorFile *file )
 {
 	init();
 	kind = "local copy";
-	strcpy(name,file->get_name());
 	original = file;
-	readable = original->is_readable();
-	writeable = original->is_writeable();
-	seekable = 1;
-	bufferable = 0;
-	size = original->get_size();
-	open_temp();
-	pull_data();
 }
 
 CondorFileAgent::~CondorFileAgent()
 {
 	delete original;
+}
+
+int CondorFileAgent::open( const char *path, int flags, int mode )
+{
+	// Open the original file
+	int result = original->open(path,flags,mode);
+	if(result<0) return -1;
+
+	// Make my info match
+	strcpy(name,original->get_name());
+	readable = original->is_readable();
+	writeable = original->is_writeable();
+	seekable = 1;
+	bufferable = 0;
+	size = original->get_size();
+
+	// And make the local copy
+	open_temp();
+	pull_data();
 }
 
 int CondorFileAgent::close()
@@ -92,11 +103,6 @@ void CondorFileAgent::close_temp()
 
 void CondorFileAgent::pull_data()
 {
-	readable = original->is_readable();
-	writeable = original->is_writeable();
-	bufferable = 0;
-	seekable = 1;
-
 	if(!original->is_readable()) return;
 
 	dprintf(D_ALWAYS,"CondorFileAgent: Loading %s with %s %s\n",
