@@ -33,7 +33,8 @@
 	This object used to live in src/condor_dagman/types.[Ch]
 */
 
-class CondorID {
+class CondorID : public ServiceData
+{
   public:
     /// Constructor
     CondorID () : _cluster(-1), _proc(-1), _subproc(-1) {}
