@@ -87,9 +87,25 @@ if test $_cv_make_is_gnu = no; then
    AC_MSG_ERROR( [GNU make is required] )
 fi
 
-CHECK_PROG_IS_GNU(PATCH, patch)
-if test $_cv_patch_is_gnu = no; then
-   AC_MSG_ERROR( [GNU patch is required] )
+AC_CHECK_PROG(ac_patch,patch,yes,no)
+if test $ac_patch = no; then
+    AC_MSG_ERROR( [patch is required] )
+fi
+# now, make sure patch supports unified diffs
+AC_CACHE_CHECK([if patch supports unified diffs],_cv_unified_patch,
+ [_cv_unified_patch="no" ;
+  ( patch --unified < /dev/null > /dev/null 2>&1 )
+  _patch_status=$?
+  echo "patch status: $_patch_status"
+  if test $_patch_status -ne 0 ; then
+    _cv_unified_patch="no";
+  else 
+    _cv_unified_patch="yes";
+  fi
+ ]
+)
+if test $_cv_unified_patch != "yes"; then
+   AC_MSG_ERROR( [patch must support unified diffs] )
 fi
 
 AC_LANG(C)
