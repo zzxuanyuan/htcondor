@@ -54,6 +54,12 @@ As an example, the following two commands are equivalent:
 \begin{verbatim}
     condor_cod_release -id "<128.105.121.21:49973>#1073352104#4"
 \end{verbatim}
+To make these extended-name commands work,
+hard link  the extended name to the \Condor{cod} executable.
+For example on a Unix machine:
+\begin{verbatim}
+ln condor_cod_request condor_cod
+\end{verbatim}
 
 The \Arg{request} argument gives a claim ID, and the other 
 commands (\Arg{release}, \Arg{activate}, \Arg{deactivate}, \Arg{suspend},
