@@ -8,6 +8,15 @@
 **
 ***********************************************************/
 
+/* When this flags is defined, static and inline definitions
+   of *stat will be killed by the header files.  We do this
+   here so that we can use the same mechanism of include
+   files as the rest of the condor source. */
+
+#if defined(LINUX) || defined(Solaris)
+#define CONDOR_KILLS_STAT_DEFINITIONS
+#endif
+
 #include "condor_common.h"
 #include "syscall_numbers.h"
 #include "syscall_macros.h"
@@ -25,20 +34,12 @@ extern "C" void restore_condor_sigmask(sigset_t);
 #endif
 
 #if defined(HPUX)
-	#include<nfs/nfs.h>	/* fhandle_t */
-	#include<sys/mount.h>	/* mount */
 	#define FORK _FORK_sys
 	#define PIPE _PIPE_sys
 #endif
 
 #if defined(OSF1)
 	#define FORK _FORK
-	#include <sys/uio.h>	/* readv, writev */
-
-	/* These don't seem to have prototypes in OSF */
-	extern "C" int async_daemon(void);
-	extern "C" int nfssvc(int,int,int);
-	extern "C" int swapon(char *,int,int,int);
 #endif
 
 #if defined(LINUX) 
@@ -47,7 +48,6 @@ extern "C" void restore_condor_sigmask(sigset_t);
 	#define GETEGID  __GETEGID
 	#define GETPPID  __GETPPID
 	#define GETEUID  __GETEUID
-	#include <linux/swap.h>	/* swapon, swapoff */
 #endif
 
 extern "C" {
