@@ -70,7 +70,16 @@ char *mode;
 	int		pipe_d[2];
 	int		parent_reads;
 	struct sigaction act;
-	sigset_t	mask;
+
+	act.sa_handler = sigchld_eater;
+	sigemptyset( &act.sa_mask );
+	act.sa_flags = 0;
+
+	if( sigaction(SIGCHLD,&act,&OldAct) < 0 ) {
+		EXCEPT( "sigaction" );
+		exit( 1 );
+	}
+
 
 		/* Figure out who reads and who writes on the pipe */
 	parent_reads = mode[0] == 'r';
@@ -80,26 +89,10 @@ char *mode;
 		return NULL;
 	}
 
-
-		/* Set up our own handler for SIGCHLD */
-	act.sa_handler = sigchld_eater;
-	sigemptyset( &act.sa_mask );
-	act.sa_flags = 0;
-	if( sigaction(SIGCHLD,&act,&OldAct) < 0 ) {
-		EXCEPT( "sigaction" );
-		exit( 1 );
-	}
-
-
 		/* Create a new process */
 	if( (ChildPid=fork()) < 0 ) {
-			/* Clean up file descriptors */
 		close( pipe_d[0] );
 		close( pipe_d[1] );
-			/* Restore original handler for SIGCHLD */
-		if( sigaction(SIGCHLD,&OldAct,0) < 0 ) {
-			EXCEPT( "sigaction" );
-		}
 		return NULL;
 	}
 
@@ -139,39 +132,36 @@ my_pclose(fp)
 FILE	*fp;
 {
 	int			status;
-	sigset_t	mask;
+	sigset_t	sigs;
+	sigset_t	o_sigs;
 
-		/* Close the pipe */
 	(void)fclose( fp );
-
-		/* Wait for child process to exit and get its status */
+	sigemptyset( &sigs );
+	sigaddset( &sigs, SIGINT );
+	sigaddset( &sigs, SIGQUIT );
+	sigaddset( &sigs, SIGHUP );
+	(void)sigprocmask(SIG_BLOCK,&sigs,&o_sigs);
 	while( waitpid(ChildPid,&status,0) < 0 ) {
 		if( errno != EINTR ) {
 			status = -1;
 			break;
 		}
 	}
-
-	/* Note: by the time waitpid() returns we should have already gotten
-	one occurrence of SIGCHLD, and the hanlder for that signal should
-	already have been restored. */
-
-		/* Now return status from child process */
+	(void)sigprocmask( SIG_SETMASK, &o_sigs, 0 );
 	return status;
 }
 
-
 /*
-  Eat up just one instance of the signal SIGCHLD.  We set the
-  SIGCHLD handler back to its original state, so that after catching
-  this one occurrence we don't mess with any further occurrences.
+  Eat up one instance of the signal SIGCHLD, then return the handler
+  to whatever it was before my_popen() was called.
 */
 static void
 sigchld_eater( sig )
 int sig;
 {
-		/* Restore original handler for SIGCHLD */
-	if( sigaction(SIGCHLD,&OldAct,0) < 0 ) {
+	dprintf( D_FULLDEBUG, "Ate one SIGCHLD\n" );
+
+	if( sigaction(SIGCHLD,&OldAct,(struct sigaction *)0) < 0 ) {
 		EXCEPT( "sigaction" );
 		exit( 1 );
 	}

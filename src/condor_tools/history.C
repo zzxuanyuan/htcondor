@@ -145,7 +145,7 @@ main( int argc, char *argv[] )
 	print_alloc_stats();
 #endif
 
-	return 0;
+	exit( 0 );
 
 }
 
@@ -156,6 +156,8 @@ main( int argc, char *argv[] )
 void
 init_params()
 {
+	char	*param();
+
 	Spool = param("SPOOL");
 	if( Spool == NULL ) {
 		EXCEPT( "SPOOL not specified in config file\n" );
