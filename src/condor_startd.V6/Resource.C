@@ -1229,8 +1229,8 @@ Resource::compute_condor_load( void )
 	if( (DebugFlags & D_FULLDEBUG) && (DebugFlags & D_LOAD) ) {
 		r_load_queue->display( this );
 		dprintf( D_FULLDEBUG, 
-				 "LoadQueue: Size: %d  Avg value: %f  "
-				 "Share of system load: %f\n", 
+				 "LoadQueue: Size: %d  Avg value: %.2f  "
+				 "Share of system load: %.2f\n", 
 				 r_load_queue->size(), r_load_queue->avg(), avg );
 	}
 	max = MAX( numcpus, resmgr->m_attr->load() );

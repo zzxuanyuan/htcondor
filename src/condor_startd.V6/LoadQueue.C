@@ -93,7 +93,7 @@ LoadQueue::display( Resource* rip )
 	char numbuf[64];
 	for( i=0; i<q_size; i++ ) {
 		j = (head + i) % q_size;
-		snprintf( numbuf, 64, "%f ", buf[j] );
+		snprintf( numbuf, 64, "%.2f ", buf[j] );
 		msg += numbuf;
 	}
 	if( rip ) {
