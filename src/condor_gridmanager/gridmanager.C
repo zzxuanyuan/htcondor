@@ -127,8 +127,16 @@ addScheddUpdateAction( BaseJob *job, int request_id )
 
 		curr_action->request_id = request_id;
 	} else {
-		// TODO don't add an update action if no attributes are dirty and
-		//   deleteFromSchedd and deleteFromGridmanager are false
+
+		// Check if there's anything that actually requires contacting the
+		// schedd. If not, just return true (i.e. update is complete)
+		job->ad->ResetExpr();
+		if ( job->deleteFromGridmanager == false &&
+			 job->deleteFromSchedd == false &&
+			 job->ad->NextDirtyExpr() == NULL ) {
+			return true;
+		}
+
 		curr_action = new ScheddUpdateAction;
 		curr_action->job = job;
 		curr_action->request_id = request_id;
