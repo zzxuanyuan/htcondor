@@ -923,23 +923,6 @@ activate_claim( Resource* rip, Stream* stream )
 		refuse( stream );
 	    ABORT;
 	}
-	
-		// Make sure the classad we got includes an ATTR_USER field,
-		// so we know who to charge for our services.  If it's not
-		// there, refuse to run the job.
-	char remote_user[256];
-	remote_user[0] = '\0';
-	if( req_classad->EvalString(ATTR_USER, rip->r_classad, 
-								remote_user) == 0 ) {
-		rip->dprintf( D_FULLDEBUG, "WARNING: %s not defined in request "
-					  "classad!  Using old value (%s)\n", ATTR_USER,
-					  rip->r_cur->client()->user() );
-	} else {
-		rip->dprintf( D_FULLDEBUG, 
-					  "Got RemoteUser (%s) from request classad\n",	
-					  remote_user );
-		found_attr_user = true;
-	}
 
 		// If we're here, we've decided to activate the claim.  Tell
 		// the shadow we're ok.
@@ -1029,7 +1012,7 @@ activate_claim( Resource* rip, Stream* stream )
 
 	ji.ji_hname = rip->r_cur->client()->host();
 
-	int now = (int)time( NULL );
+	time_t now = time( NULL );
 
 		// now that we've gotten this far, we're really going to try
 		// to spawn the starter.  set it in our Claim object. 
@@ -1042,43 +1025,10 @@ activate_claim( Resource* rip, Stream* stream )
 		rip->r_cur->setStarter( NULL );
 		ABORT;
 	}
-		// Get a bunch of info out of the request ad that is now
-		// relevant, and store it in the machine ad and cur Claim object
 
-	req_classad->EvalInteger( ATTR_CLUSTER_ID, req_classad, job_cluster );
-	req_classad->EvalInteger( ATTR_PROC_ID, req_classad, job_proc );
-
-	rip->dprintf( D_ALWAYS, "Remote job ID is %d.%d\n", job_cluster,
-				  job_proc );
-
-	if( req_classad->EvalInteger(ATTR_JOB_UNIVERSE,
-								 rip->r_classad, universe) == 0 ) {
-		universe = CONDOR_UNIVERSE_STANDARD;
-		rip->dprintf( D_ALWAYS,
-					  "Default universe (%d) since not in classad \n", 
-					  universe );
-	} else {
-		rip->dprintf( D_ALWAYS, "Got universe (%d) from request classad\n",
-					  universe );
-	}
-	if( universe == CONDOR_UNIVERSE_VANILLA ) {
-		rip->dprintf( D_ALWAYS, 
-					  "Startd using *_VANILLA control expressions.\n" );
-	} else {
-		rip->dprintf( D_ALWAYS, 
-					  "Startd using standard control expressions.\n" );
-	}
-
-	if( found_attr_user ) {
-		rip->r_cur->client()->setuser( remote_user );
-	}
-	rip->r_cur->setproc( job_proc );
-	rip->r_cur->setcluster( job_cluster );
-	rip->r_cur->setad( req_classad );
-	rip->r_cur->setuniverse(universe);
-
-	rip->r_cur->setjobstart(now);	
-	rip->r_cur->setlastpckpt(now);	
+		// Grab everything we need/want out of the request and store
+		// it in our current claim 
+	rip->r_cur->beginActivation( req_classad, now );
 
 		// Finally, update all these things into the resource classad.
 	rip->r_cur->publish( rip->r_classad, A_PUBLIC );
