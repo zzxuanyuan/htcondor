@@ -34,8 +34,8 @@ static char *_FileName_ = __FILE__;
 ResMgr*	resmgr;			// Pointer to the resource manager object
 
 // Polling variables
-int	polling_interval;	// Interval for polling when there are resources in use
-int	update_interval;	// Interval to update CM
+int	polling_interval = 0;	// Interval for polling when there are resources in use
+int	update_interval = 0;	// Interval to update CM
 
 // Paths
 char*	exec_path = NULL;
@@ -132,11 +132,15 @@ main_init( int argc, char* argv[] )
 		// Instantiate the Resource Manager object.
 	resmgr = new ResMgr;
 
+		// Read in global parameters from the config file.
+		// We do this after we instantiate the resmgr, so we can know
+		// what num_cpus is, but before init_resources(), so we can
+		// use polling_interval to figure out how big to make each
+		// Resource's LoadQueue object.
+	init_params(1);		// The 1 indicates that this is the first time
+
 		// Instantiate Resource objects in the ResMgr
 	resmgr->init_resources();
-
-		// Read in 
-	init_params(1);		// The 1 indicates that this is the first time
 
 	resmgr->init_socks();
 
@@ -153,7 +157,7 @@ main_init( int argc, char* argv[] )
 
 		// Do a little sanity checking and cleanup
 	check_perms();
-	cleanup_execute_dir();
+	cleanup_execute_dir( 0 );	// 0 indicates we should clean everything.
 
 		// register daemoncore stuff
 
@@ -259,14 +263,21 @@ main_init( int argc, char* argv[] )
 int
 main_config()
 {
-		// Re-initialize machine-wide attributes object.
-	resmgr->compute( A_ALL );
-		// Re-read config file, and rebuild ads for each resource.  
-	resmgr->walk( Resource::init_classad );  
-		// Re-read config file for startd-wide stuff.
+		// Stash old interval so we know if it's changed.
+	int old_poll = polling_interval;
+		// Reread config file for global settings.
 	init_params(0);
+		// Recompute machine-wide attributes object.
+	resmgr->compute( A_ALL );
+		// Rebuild ads for each resource.  
+	resmgr->walk( Resource::init_classad );  
+		// Reset various settings in the ResMgr.
 	resmgr->init_socks();
 	resmgr->reset_timers();
+	if( old_poll != polling_interval ) {
+		resmgr->walk( Resource::resize_load_queue );
+	}
+
 		// Re-evaluate and update the CM for each resource (again, we
 		// don't need to recompute, since we just did that, so we call
 		// the special case version).
