@@ -2539,17 +2539,24 @@ int DaemonCore::HandleReq(int socki)
 	}
 	if ( (strstr(tmpbuf,"GET") || strstr(tmpbuf,"POST")) )
 	{
+		struct soap *cursoap;
+
 			// Socket appears to be HTTP, so deal with it.
 		dprintf(D_ALWAYS, "Received HTTP connection from %s\n",  
 			sin_to_string(((Sock*)stream)->endpoint()) );
+
+		cursoap = soap_copy(&soap);
+		ASSERT(cursoap);
 
 			// Mimic a gsoap soap_accept as follows:
 			//   1. stash the socket descriptor in the soap object
 			//   2. make socket non-blocking by setting a CEDAR timeout.
 			//   3. increase size of send and receive buffers
 			//   4. set SO_KEEPALIVE [done automatically by CEDAR accept()]
-		soap.socket = ((Sock*)stream)->get_file_desc();
-		if ( soap.recv_timeout > 0 ) {	
+		cursoap->socket = ((Sock*)stream)->get_file_desc();
+		cursoap->recvfd = soap.socket;
+		cursoap->sendfd = soap.socket;
+		if ( cursoap->recv_timeout > 0 ) {	
 			stream->timeout(soap.recv_timeout);
 		} else {
 			stream->timeout(20);
@@ -2559,9 +2566,10 @@ int DaemonCore::HandleReq(int socki)
 
 			// Now, process the Soap RPC request and dispatch it
 		dprintf(D_ALWAYS,"About to serve HTTP request...\n");
-		soap_serve(&soap); 
-		soap_destroy(&soap); // clean up class instances 
-		soap_end(&soap); // clean up everything and close socket 
+		soap_serve(cursoap); 
+		soap_destroy(cursoap); // clean up class instances 
+		soap_end(cursoap); // clean up everything and close socket 
+		free(cursoap);
 		dprintf(D_ALWAYS, "Completed servicing HTTP request\n"); 
 
 		((Sock*)stream)->_sock = INVALID_SOCKET; // so CEDAR won't close it again
