@@ -16,7 +16,7 @@ set EXT_TRIGGERS=%EXTERN_DIR%\triggers
 REM Specify which versions of the externals we're using. To add a 
 REM new external, just add its version here, and add that to the 
 REM EXTERNALS_NEEDED variable defined below.
-set EXT_GSOAP_VERSION=gsoap-2.6
+set EXT_GSOAP_VERSION=gsoap-2.7
 set EXT_KERBEROS_VERSION=
 set EXT_GLOBUS_VERSION=
 
