@@ -44,12 +44,15 @@
 
 #include "../condor_c++_util/soap_helpers.cpp"
 
+#include "qmgmt.h"
 // XXX: There should be checks to see if the cluster/job Ids are valid
 // in the transaction they are being used...
 
 
 static int current_trans_id = 0;
 static int trans_timer_id = -1;
+
+extern Scheduler scheduler;
 
 template class HashTable<MyString, Job *>;
 HashTable<MyString, Job *> jobs = HashTable<MyString, Job *>(1024, MyStringHash, rejectDuplicateKeys);
@@ -1013,6 +1016,22 @@ condor__createJobTemplate(struct soap *soap,
 	  //delete job;
 
   return SOAP_OK;
+}
+
+bool
+Reschedule()
+{
+	// XXX: Abstract this, it was stolen from Scheduler::reschedule_negotiator!
+
+	scheduler.timeout();		// update the central manager now
+
+	dprintf( D_ALWAYS, "Called Reschedule()\n" );
+
+	scheduler.sendReschedule();
+
+	scheduler.StartSchedUniverseJobs();
+
+	return true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////

@@ -32,7 +32,6 @@
 #include "qmgmt.h"
 #include "MyString.h"
 
-extern Scheduler scheduler;
 
 int
 SetAttributeInt(int cl, int pr, const char *name, int val)
@@ -105,18 +104,4 @@ SetAttributeStringByConstraint(const char *con, const char *name,
 	return(rval);
 }
 
-bool
-Reschedule()
-{
-		// XXX: Abstract this, it was stolen from Scheduler::reschedule_negotiator!
 
-	scheduler.timeout();							// update the central manager now
-
-	dprintf( D_ALWAYS, "Called Reschedule()\n" );
-
-	scheduler.sendReschedule();
-
-	scheduler.StartSchedUniverseJobs();
-
-	return true;
-}
