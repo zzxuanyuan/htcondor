@@ -2908,6 +2908,10 @@ check_requirements( char *orig )
 		free( ptr );
 	}
 
+	if ( JobUniverse == CONDOR_UNIVERSE_GLOBUS ) {
+		// We don't want any defaults at all w/ Globus...
+		return answer;
+	}
 
 	checks_arch = findClause( answer, ATTR_ARCH );
 	checks_opsys = findClause( answer, ATTR_OPSYS );
