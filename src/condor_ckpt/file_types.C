@@ -32,24 +32,6 @@ void File::dump() {
 		fd,readable,writeable,size,use_count,kind,name);
 }
 
-int File::illegal( char *op )
-{
-	file_warning("File system call '%s' is not supported for file '%s', which is mapped to a %s.\n",op,get_name(),get_kind());
-	errno = EINVAL;
-	return -1;
-}
-
-int File::map_fd_hack()                       { return fd; }
-int File::local_access_hack()                 { return 0; }
-int File::fstat( struct stat *buf )           { return illegal("fstat"); }
-int File::ioctl( int cmd, int arg )           { return illegal("ioctl"); }
-int File::fstatfs( struct statfs *buf )       { return illegal("fstatfs"); }
-int File::fchown( uid_t owner, gid_t group )  { return illegal("fchown"); }
-int File::fchmod( mode_t mode )               { return illegal("fchmod"); }
-int File::ftruncate( size_t length )          { return illegal("ftruncate"); }
-int File::fsync()                             { return illegal("fsync"); }
-int File::fcntl(int cmd, int arg)             { return illegal("fcntl"); }
-
 LocalFile::LocalFile()
 {
 	fd = -1;
@@ -126,13 +108,6 @@ int LocalFile::fcntl( int cmd, int arg )
 	return result;
 }
 
-int LocalFile::fstat( struct stat *buf )
-{
-	int result;
-	IN_LOCAL_MODE( result = ::fstat(fd,buf); )
-	return result;
-}
-
 int LocalFile::ioctl( int cmd, int arg )
 {
 	int result;
@@ -140,36 +115,9 @@ int LocalFile::ioctl( int cmd, int arg )
 	return result;
 }
 
-int LocalFile::fstatfs( struct statfs *buf )
-{
-	int result;
-	#if defined(IRIX) || defined(Solaris)
-		IN_LOCAL_MODE( result = ::fstatfs(fd,buf,sizeof(struct statfs),0); )
-	#elif defined(OSF1)
-		IN_LOCAL_MODE( result = ::fstatfs(fd,buf,sizeof(struct statfs)); )
-	#else
-		IN_LOCAL_MODE( result = ::fstatfs(fd,buf); )
-	#endif
-	return result;
-}
-
-int LocalFile::fchown( uid_t owner, gid_t group )
-{
-	int result;
-	IN_LOCAL_MODE( result = ::fchown(fd,owner,group) );
-	return result;
-}
-
-int LocalFile::fchmod( mode_t mode )
-{
-	int result;
-	IN_LOCAL_MODE( result = ::fchmod(fd,mode) );
-	return result;
-}
-
 int LocalFile::ftruncate( size_t length )
 {
-	size = length;
+	set_size(length);
 	int result;
 	IN_LOCAL_MODE( result = ::ftruncate(fd,length) );
 	return result;
@@ -213,6 +161,11 @@ void LocalFile::resume( int count )
 int LocalFile::local_access_hack()
 {
 	return 1;
+}
+
+int LocalFile::map_fd_hack()
+{
+	return fd;
 }
 
 RemoteFile::RemoteFile()
@@ -311,34 +264,14 @@ int RemoteFile::fcntl( int cmd, int arg )
 	return REMOTE_syscall( CONDOR_fcntl, fd, cmd, arg );
 }
 
-int RemoteFile::fstat( struct stat *buf )
-{
-	return REMOTE_syscall( CONDOR_fstat, fd, buf );
-}
-
 int RemoteFile::ioctl( int cmd, int arg )
 {
 	return REMOTE_syscall( CONDOR_ioctl, fd, cmd, arg );
 }
 
-int RemoteFile::fstatfs( struct statfs *buf )
-{
-	return REMOTE_syscall( CONDOR_fstatfs, fd, buf );
-}
-
-int RemoteFile::fchown( uid_t owner, gid_t group )
-{
-	return REMOTE_syscall( CONDOR_fchown, fd, owner, group );
-}
-
-int RemoteFile::fchmod( mode_t mode )
-{
-	return REMOTE_syscall( CONDOR_fchmod, fd, mode );
-}
-
 int RemoteFile::ftruncate( size_t length )
 {
-	size = length;
+	set_size(length);
 	return REMOTE_syscall( CONDOR_ftruncate, fd, length );
 }
 
@@ -346,6 +279,17 @@ int RemoteFile::fsync()
 {
 	return REMOTE_syscall( CONDOR_fsync, fd );
 }
+
+int RemoteFile::local_access_hack()
+{
+	return 1;
+}
+
+int RemoteFile::map_fd_hack()
+{
+	return fd;
+}
+
 
 
 

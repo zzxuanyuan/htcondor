@@ -25,14 +25,15 @@ general purpose location...
 extern "C" void __pure_virtual();
 
 /**
-File is a virtual class which defines all the operations that
+File is a virtual class which defines some of the operations that
 can be performed on an fd.  Methods of accessing an fd (local,
 remote, ioserver, etc.) are built be extending File.
 <p>
 Open, close, read, write, checkpoint, suspend, and resume must be
 implemented by subclasses of File.  Esoteric operations
-(fcntl, fstat, etc.) have defaults which display a warning 
-and return an error.
+(fcntl, fstat, etc.) are not generally supported, but they
+could be added in the same format if we find that users
+want to perform them on exotic storage methods.
 <p>
 Notice that all the operations listed below operate on an fd.
 Operations that work on a name instead of an fd are sent off
@@ -57,20 +58,14 @@ public:
 	virtual int read(int offset, char *data, int length)=0;
 	virtual int write(int offset, char *data, int length)=0;
 
+	virtual int fcntl( int cmd, int arg )=0;
+	virtual int ioctl( int cmd, int arg )=0;
+	virtual int ftruncate( size_t length )=0; 
+	virtual int fsync()=0;
+
 	virtual void checkpoint()=0;
 	virtual void suspend()=0;
 	virtual void resume(int count)=0;
-
-	virtual int fcntl( int cmd, int arg );
-	virtual int fstat( struct stat *buf );
-	virtual int ioctl( int cmd, int arg );
-	virtual int fstatfs( struct statfs *buf );
-	virtual int fchown( uid_t owner, gid_t group );
-	virtual int fchmod( mode_t mode );
-	virtual int ftruncate( size_t length ); 
-	virtual int fsync();
-
-	int	illegal( char *op );
 
 	int	is_readable()		{ return readable; }
 	int	is_writeable()		{ return writeable; }
@@ -87,7 +82,7 @@ public:
 	void	disable_buffer()	{ bufferable=0; }
 	int	ok_to_buffer()		{ return bufferable; }
 
-	/*
+	/**
 	Without performing an actual open, associate this
 	object with an existing fd, and mark it readable or writable
 	as indicated.
@@ -100,13 +95,16 @@ public:
 		forced = 1;
 	}
 
-	/*
-	Provide support for the MapFd and LocalAccess interfaces.
-	These will go away soon.
-	*/
+	/** Return the real fd associated with this file.
+	    Returns -1 if the mapping is not trivial.  */
 
-	virtual int map_fd_hack();
-	virtual int local_access_hack();
+	virtual int map_fd_hack()=0;
+
+	/** Returns true if this file can be accessed by
+	    referring to the fd locally.  Returns false
+	    otherwise. */
+
+	virtual int local_access_hack()=0;
 
 protected:
 
@@ -132,24 +130,20 @@ public:
 
 	virtual int open(const char *path, int flags, int mode);
 	virtual int close();
-
 	virtual int read(int offset, char *data, int length);
 	virtual int write(int offset, char *data, int length);
+
+	virtual int fcntl( int cmd, int arg );
+	virtual int ioctl( int cmd, int arg );
+	virtual int ftruncate( size_t length ); 
+	virtual int fsync();
 
 	virtual void checkpoint();
 	virtual void suspend();
 	virtual void resume(int count);
 
-	virtual int fcntl( int cmd, int arg );
-	virtual int fstat( struct stat *buf );
-	virtual int ioctl( int cmd, int arg );
-	virtual int fstatfs( struct statfs *buf );
-	virtual int fchown( uid_t owner, gid_t group );
-	virtual int fchmod( mode_t mode );
-	virtual int ftruncate( size_t length ); 
-	virtual int fsync();
-
 	virtual int local_access_hack();
+	virtual int map_fd_hack();
 };
 
 /**
@@ -162,22 +156,20 @@ public:
 
 	virtual int open(const char *path, int flags, int mode);
 	virtual int close();
-
 	virtual int read(int offset, char *data, int length);
 	virtual int write(int offset, char *data, int length);
+
+	virtual int fcntl( int cmd, int arg );
+	virtual int ioctl( int cmd, int arg );
+	virtual int ftruncate( size_t length ); 
+	virtual int fsync();
 
 	virtual void checkpoint();
 	virtual void suspend();
 	virtual void resume(int count);
 
-	virtual int fcntl( int cmd, int arg );
-	virtual int fstat( struct stat *buf );
-	virtual int ioctl( int cmd, int arg );
-	virtual int fstatfs( struct statfs *buf );
-	virtual int fchown( uid_t owner, gid_t group );
-	virtual int fchmod( mode_t mode );
-	virtual int ftruncate( size_t length ); 
-	virtual int fsync();
+	virtual int local_access_hack();
+	virtual int map_fd_hack();
 };
 
 /**
