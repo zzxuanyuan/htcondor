@@ -52,9 +52,18 @@ public:
   /** Constructor (initialization). It reads the log file and initializes
       the class-ads (that are read from the log file) in memory.
     @param filename the name of the log file.
+    @param rank The rank expression for the collection
     @return nothing
   */
-  ClassAdCollection(const char* filename);
+  ClassAdCollection(const char* filename, const MyString& rank);
+
+  /** Constructor (initialization). It reads the log file and initializes
+      the class-ads (that are read from the log file) in memory.
+    @param filename the name of the log file.
+    @param rank a pointer to the expression tree which will be used to rank the collection
+    @return nothing
+  */
+  ClassAdCollection(const char* filename=NULL, ExprTree* rank=NULL);
 
   /** Destructor - frees the memory used by the collections
     @return nothing
@@ -150,25 +159,6 @@ public:
   */
   //@{
 
-  /** Create an explicit collection, as a child of another collection.
-      An explicit collection can include any subset of ads which are in its 
-	  parent.  The user can actively include and exclude ads from this 
-	  collection.
-      @param ParentCoID The ID of the parent collection.
-      @param Rank The rank expression. Determines how the ads will be ordered 
-	  	in the collection.
-      @param FullFlag The flag which indicates automatic insertion of class-ads 
-	  	from the parent.
-      @return the ID of the new collection, or -1 in case of failure.
-  */
-/*
-  int CreateExplicitCollection(int ParentCoID, const MyString& Rank, 
-		  bool FullFlag=false);
-  /// Same as above, but pass in a classad expression for the rank
-  int CreateExplicitCollection(int ParentCoID, ExprTree *Rank, 
-		  bool FullFlag=false);
-*/
-
   /** Create a constraint collection, as a child of another collection.
       A constraint collection always contains the subset of ads from the parent,
 	  which match the constraint.
@@ -209,6 +199,12 @@ public:
       @return true on success, false otherwise.
   */
   bool DeleteCollection(int CoID);
+
+  /** Get the size of a collection
+      @param CoID The ID of the collection (default is the root collection)
+      @return the size of the collection, or -1 if it doesn't exist
+  */
+  int Size(int CoID=0);
 
   //@}
 

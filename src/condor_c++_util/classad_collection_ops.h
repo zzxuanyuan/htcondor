@@ -30,7 +30,7 @@
 #define CondorLogOp_CollNewClassAd          201
 #define CondorLogOp_CollDestroyClassAd      202
 #define CondorLogOp_CollUpdateClassAd       203
-#define CondorLogOp_BeginTransaction         204
+#define CondorLogOp_BeginTransaction        204
 #define CondorLogOp_EndTransaction          205
 
 //----------------------------------------------------------
@@ -78,11 +78,6 @@ protected:
 class LogBeginTransaction : public LogRecord {
 public:
 	LogBeginTransaction() { op_type = CondorLogOp_BeginTransaction; }
-/*
-protected:
-	virtual bool WriteBody(FILE *) { return 0; }
-	virtual bool ReadBody(FILE *) { return 0; }
-*/
 };
 
 //----------------------------------------------------------
@@ -90,11 +85,6 @@ protected:
 class LogEndTransaction : public LogRecord {
 public:
 	LogEndTransaction() { op_type = CondorLogOp_EndTransaction; }
-/*
-protected:
-	virtual bool WriteBody(FILE *) { return 0; }
-	virtual bool ReadBody(FILE *) { return 0; }
-*/
 };
 
 #endif

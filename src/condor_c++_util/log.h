@@ -40,7 +40,6 @@ public:
 	
 	LogRecord();
 	virtual ~LogRecord();
-//	LogRecord *get_next() { return next; }
 	int get_op_type() { return op_type; }
 
 	bool Write(FILE *fp);
@@ -56,15 +55,10 @@ protected:
 	bool readline(FILE*, char *&);
 	int op_type;	/* This is the type of operation being performed */
 
-private:
 	bool WriteHeader(FILE *fp);
 	virtual bool WriteBody(FILE *) { return true; }
 	bool WriteTail(FILE *fp);
 
-/*
-	LogRecord *next;
-	LogRecord *prev;
-*/
 };
 
 #endif

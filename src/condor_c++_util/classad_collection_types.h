@@ -75,6 +75,8 @@ public:
 	ExtArray<CollChildIterator*> 	childItors;
 	ExtArray<CollContentIterator*> 	contentItors;
 
+	int MemberCount() { return Members.Count(); }
+
 	IntegerSet 		Children;
 	RankedAdSet 	Members;
 	MatchClassAd 	rankCtx;

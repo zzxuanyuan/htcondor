@@ -12,14 +12,27 @@ static bool makePartitionHashKey( ClassAd *, StringSet &, MyString & );
 // Constructor (initialization)
 //-----------------------------------------------------------------------
 
-ClassAdCollection::ClassAdCollection(const char* filename=NULL)
+ClassAdCollection::ClassAdCollection(const char* filename, ExprTree* rank)
   : table(1024, hashFunction), Collections(97, HashFunc)
 {
     log_filename[0] = '\0';
     active_transaction = NULL;
     log_fp = NULL;
     LastCoID=0;
-    Collections.insert(LastCoID,new ExplicitCollection(-1,"",true));
+    Collections.insert(LastCoID,new ExplicitCollection(-1,rank,true));
+    if (filename) ReadLog(filename);
+}
+
+//-----------------------------------------------------------------------
+
+ClassAdCollection::ClassAdCollection(const char* filename, const MyString& rank)
+  : table(1024, hashFunction), Collections(97, HashFunc)
+{
+    log_filename[0] = '\0';
+    active_transaction = NULL;
+    log_fp = NULL;
+    LastCoID=0;
+    Collections.insert(LastCoID,new ExplicitCollection(-1,rank,true));
     if (filename) ReadLog(filename);
 }
 
@@ -299,6 +312,15 @@ LogRecord* ClassAdCollection::InstantiateLogEntry(FILE* fp, int type)
 
 //-----------------------------------------------------------------------
 
+int ClassAdCollection::Size(int CoID)
+{
+  BaseCollection* coll=GetCollection(CoID);
+  if (!coll) return -1;
+  return coll->MemberCount();
+}
+
+//-----------------------------------------------------------------------
+
 void ClassAdCollection::NewClassAd(const char* key, ClassAd* ad)
 {
   	LogRecord* log=new LogCollNewClassAd(key,ad);
@@ -528,8 +550,10 @@ bool ClassAdCollection::DeleteCollection(int CoID)
 {
     BaseCollection* Coll;
     if (Collections.lookup(CoID,Coll)==-1) return false;
-    if (Collections.lookup(Coll->Parent,Coll)==-1) return false;
-    Coll->Children.Remove(CoID);
+    if (Coll->Parent>=0) {
+      if (Collections.lookup(Coll->Parent,Coll)==-1) return false;
+      Coll->Children.Remove(CoID);
+    }
     
 	return (TraverseTree(CoID,&ClassAdCollection::RemoveCollection));
       
