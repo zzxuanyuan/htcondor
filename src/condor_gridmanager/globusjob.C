@@ -114,6 +114,21 @@ static char *GMStateNames[] = {
         procID.cluster,procID.proc,GMStateNames[gmState],globusState, \
         func,error)
 
+#define CHECK_PROXY \
+{ \
+	if ( gahp_proxy_id_set == false ) { \
+		dprintf( D_ALWAYS, "(%d.%d) proxy not cached yet, waiting...\n", \
+				 procID.cluster, procID.proc ); \
+		break; \
+	} \
+	if ( PROXY_NEAR_EXPIRED( myProxy ) && gmState != GM_PROXY_EXPIRED ) { \
+		dprintf( D_ALWAYS, "(%d.%d) proxy is about to expire\n", \
+				 procID.cluster, procID.proc ); \
+		gmState = GM_PROXY_EXPIRED; \
+		break; \
+	} \
+}
+
 //////////////////////from gridmanager.C
 #define HASH_TABLE_SIZE			500
 
@@ -689,22 +704,12 @@ int GlobusJob::doEvaluateState()
 			"(%d.%d) doEvaluateState called: gmState %s, globusState %d\n",
 			procID.cluster,procID.proc,GMStateNames[gmState],globusState);
 
-	if ( myProxy->gahp_proxy_id == -1 ) {
-		dprintf( D_ALWAYS, "(%d.%d) proxy not cached yet, waiting...\n",
-				 procID.cluster, procID.proc );
-		return TRUE;
-	} else if ( gahp_proxy_id_set == false ) {
+	if ( gahp_proxy_id_set == false && myProxy->gahp_proxy_id != -1 ) {
 		gahp.setDelegProxyCacheId( myProxy->gahp_proxy_id );
 		gahp_proxy_id_set = true;
 	}
 
-	if ( PROXY_NEAR_EXPIRED( myProxy ) && gmState != GM_PROXY_EXPIRED ) {
-		dprintf( D_ALWAYS, "(%d.%d) proxy is about to expire, changing state to GM_PROXY_EXPIRED\n",
-				 procID.cluster, procID.proc );
-		gmState = GM_PROXY_EXPIRED;
-	}
-
-	if ( jmUnreachable || resourceDown ) {
+	if ( !resourceStateKnown || jmUnreachable || resourceDown ) {
 		gahp.setMode( GahpClient::results_only );
 	} else {
 		gahp.setMode( GahpClient::normal );
@@ -724,9 +729,6 @@ int GlobusJob::doEvaluateState()
 			// attempt a restart of a jobmanager only to be told that the
 			// old jobmanager process is still alive.
 			errorString = "";
-			if ( resourceStateKnown == false ) {
-				break;
-			}
 			if ( jobContact == NULL ) {
 				gmState = GM_CLEAR_REQUEST;
 			} else if ( wantResubmit || doResubmit ) {
@@ -763,6 +765,7 @@ int GlobusJob::doEvaluateState()
 			} break;
 		case GM_REGISTER: {
 			// Register for callbacks from an already-running jobmanager.
+			CHECK_PROXY;
 			rc = gahp.globus_gram_client_job_callback_register( jobContact,
 										GLOBUS_GRAM_PROTOCOL_JOB_STATE_ALL,
 										gramCallbackContact, &status,
@@ -815,6 +818,7 @@ int GlobusJob::doEvaluateState()
 		case GM_STDIO_UPDATE: {
 			// Update an already-running jobmanager to send its I/O to us
 			// instead a previous incarnation.
+			CHECK_PROXY;
 			if ( RSL == NULL ) {
 				RSL = buildStdioUpdateRSL();
 			}
@@ -884,6 +888,7 @@ int GlobusJob::doEvaluateState()
 			// After a submit, wait at least submitInterval before trying
 			// another one.
 			if ( now >= lastSubmitAttempt + submitInterval ) {
+				CHECK_PROXY;
 				// Once RequestSubmit() is called at least once, you must
 				// CancelRequest() once you're done with the request call
 				if ( myResource->RequestSubmit(this) == false ) {
@@ -1007,6 +1012,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) jobmanager timed out on commit, clearing request\n"
 						break;
 					}
 				}
+				CHECK_PROXY;
 				rc = gahp.globus_gram_client_job_signal( jobContact,
 								GLOBUS_GRAM_PROTOCOL_JOB_SIGNAL_COMMIT_REQUEST,
 								NULL, &status, &error );
@@ -1081,6 +1087,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) jobmanager timed out on commit, clearing request\n"
 			if ( condorState == REMOVED || condorState == HELD ) {
 				gmState = GM_CANCEL;
 			} else {
+				CHECK_PROXY;
 				rc = gahp.globus_gram_client_job_refresh_credentials(
 																jobContact );
 				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
@@ -1108,6 +1115,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) jobmanager timed out on commit, clearing request\n"
 			if ( condorState == REMOVED || condorState == HELD ) {
 				gmState = GM_CANCEL;
 			} else {
+				CHECK_PROXY;
 				rc = gahp.globus_gram_client_job_status( jobContact,
 														 &status, &error );
 				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
@@ -1146,6 +1154,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) jobmanager timed out on commit, clearing request\n"
 					gmState = GM_DONE_SAVE;
 					break;
 				}
+				CHECK_PROXY;
 				int output_size = -1;
 				int error_size = -1;
 				GetOutputSize( output_size, error_size );
@@ -1257,6 +1266,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 		case GM_DONE_COMMIT: {
 			// Tell the jobmanager it can clean up and exit.
 			if ( jmVersion >= GRAM_V_1_5 ) {
+				CHECK_PROXY;
 				rc = gahp.globus_gram_client_job_signal( jobContact,
 									GLOBUS_GRAM_PROTOCOL_JOB_SIGNAL_COMMIT_END,
 									NULL, &status, &error );
@@ -1298,6 +1308,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 		case GM_STOP_AND_RESTART: {
 			// Something has wrong with the jobmanager and we want to stop
 			// it and restart it to clear up the problem.
+			CHECK_PROXY;
 			rc = gahp.globus_gram_client_job_signal( jobContact,
 								GLOBUS_GRAM_PROTOCOL_JOB_SIGNAL_STOP_MANAGER,
 								NULL, &status, &error );
@@ -1339,6 +1350,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 			} else {
 				char *job_contact;
 
+				CHECK_PROXY;
 				// Once RequestSubmit() is called at least once, you must
 				// CancelRequest() once you're done with the request call
 				if ( myResource->RequestSubmit(this) == false ) {
@@ -1444,6 +1456,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 			} break;
 		case GM_RESTART_COMMIT: {
 			// Tell the jobmanager it can proceed with the restart.
+			CHECK_PROXY;
 			rc = gahp.globus_gram_client_job_signal( jobContact,
 								GLOBUS_GRAM_PROTOCOL_JOB_SIGNAL_COMMIT_REQUEST,
 								NULL, &status, &error );
@@ -1482,6 +1495,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 			// We need to cancel the job submission.
 			if ( globusState != GLOBUS_GRAM_PROTOCOL_JOB_STATE_DONE &&
 				 globusState != GLOBUS_GRAM_PROTOCOL_JOB_STATE_FAILED ) {
+				CHECK_PROXY;
 				rc = gahp.globus_gram_client_job_cancel( jobContact );
 				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
 					 rc == GAHPCLIENT_COMMAND_PENDING ) {
@@ -1531,6 +1545,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 					probeNow = false;
 				}
 				if ( now >= lastProbeTime + probeInterval ) {
+					CHECK_PROXY;
 					rc = gahp.globus_gram_client_job_status( jobContact,
 														&status, &error );
 					if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
@@ -1589,6 +1604,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 					// about this job submission. Either we know the job
 					// isn't pending/running or the user has told us to
 					// forget lost job submissions.
+					CHECK_PROXY;
 					rc = gahp.globus_gram_client_job_signal( jobContact,
 									GLOBUS_GRAM_PROTOCOL_JOB_SIGNAL_COMMIT_END,
 									NULL, &status, &error );
@@ -1640,6 +1656,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 		case GM_CLEAN_JOBMANAGER: {
 			// Tell the jobmanager to cleanup an un-restartable job submission
 
+			CHECK_PROXY;
 			// Once RequestSubmit() is called at least once, you must
 			// CancelRequest() once you're done with the request call
 			char cleanup_rsl[4096];
@@ -1850,6 +1867,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 			}
 			} break;
 		case GM_PUT_TO_SLEEP: {
+			CHECK_PROXY;
 			rc = gahp.globus_gram_client_job_signal( jobContact,
 								GLOBUS_GRAM_PROTOCOL_JOB_SIGNAL_STOP_MANAGER,
 								NULL, &status, &error );

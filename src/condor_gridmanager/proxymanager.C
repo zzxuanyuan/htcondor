@@ -336,12 +336,12 @@ dprintf(D_ALWAYS,"  removing old proxy %d\n",next_proxy->gahp_proxy_id);
 		}
 
 		int new_expiration = x509_proxy_expiration_time( next_proxy->proxy_filename );
-		// If the proxy is valid, and either it hasn't been cached in the
-		// gahp_server yet or it's been updated, (re)cache it in the
-		// gahp_server and notify everyone who cares.
-		if ( new_expiration > now + minProxy_time &&
-			 ( next_proxy->gahp_proxy_id == -1 ||
-			   new_expiration > next_proxy->expiration_time ) ) {
+		// If the proxy hasn't been cached in the gahp_server yet or it's
+		// been updated (and the update isn't near expiration), (re)cache
+		// it in the gahp_server and notify everyone who cares.
+		if ( next_proxy->gahp_proxy_id == -1 ||
+			 ( new_expiration > next_proxy->expiration_time &&
+			   new_expiration > now + minProxy_time ) ) {
 
 			if ( next_proxy->gahp_proxy_id == -1 ) {
 				next_proxy->gahp_proxy_id = next_gahp_proxy_id++;
@@ -363,7 +363,9 @@ dprintf(D_ALWAYS,"  (re)caching proxy %d\n",next_proxy->gahp_proxy_id);
 				daemonCore->Reset_Timer( tid, 0 );
 			}
 
-		} else if ( new_expiration <= now + minProxy_time ) {
+		}
+
+		if ( new_expiration <= now + minProxy_time ) {
 			// This proxy has expired or is about to expire. Mark it
 			// as such and notify everyone who cares.
 			if ( next_proxy->near_expired == false ) {
