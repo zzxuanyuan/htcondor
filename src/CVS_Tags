@@ -1,3 +1,9 @@
+03/04/03 V6_5-merge-V6_5-cod-branch
+    A merge branch, off of V6_5-branch, for merging in the
+    V6_5-cod-branch.  A few major conflicts came up that require more
+    than simple CVS conflict resolution, so i'm doing this merge in a
+    seperate merge-branch. 
+
 02/24/03 HAWKEYE_V1_0_RC1
     Release Candidate 1 of Hawkeye 1.0.
 
