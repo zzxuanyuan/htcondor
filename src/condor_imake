@@ -1,16 +1,6 @@
 #!/bin/sh
 
 ##################################################
-# Make sure that one does not build in a CVS workspace
-##################################################
-
-if [ -d CVS ]; then
-	echo "You probably don't want to do this in your source repository."
-	echo "Try doing it in a build directory instead."
-	exit 1
-fi
-
-##################################################
 # Initialize some variables about our arch/os environment
 ##################################################
 
