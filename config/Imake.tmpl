@@ -27,7 +27,6 @@ CMNT
 #include <Compiler.select>
 #include <Platform.select>
 #include <Global.h>
-#include <externals.cf>
 
 #define BeforeVendorCF
 #include <site.def>
@@ -43,6 +42,7 @@ CMNT
 #include <site.def>
 #undef AfterVendorCF
 
+#include <externals.cf>
 #include <Project.tmpl>
 #include <Imake.rules>
 #include INCLUDE_IMAKEFILE
