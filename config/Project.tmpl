@@ -144,10 +144,9 @@ STD_C_FLAGS = CFlags -I$(INCLUDE_DIR) -I$(NEW_INCLUDE_DIR) \
   -I$(C_PLUS_INCLUDE) XInclude -D$(ARCH_FLAG) -D$(OS_FLAG) \
   $(DEBUG_FLAG) PlatformFlags $(SITE_C_FLAGS) $(AUTH_FLAGS)
 
-/* INST_C_PLUS_FLAGS = $(STD_C_FLAGS) -DWANT_NAMESPACES */
-
-INST_C_PLUS_FLAGS = $(STD_C_FLAGS)
-STD_C_PLUS_FLAGS  = $(INST_C_PLUS_FLAGS) -fno-implicit-templates 
+STD_C_PLUS_FLAGS  = $(STD_C_FLAGS)
+INST_C_PLUS_FLAGS = $(C_PLUS_FLAGS) -w
+NON_INST_C_PLUS_FLAGS = $(C_PLUS_FLAGS) -fno-implicit-templates
 
 CKPT_SERV_LIB = ../condor_ckpt_server/ckpt_server_api.a
 QMGMT_LIB = ../condor_schedd.V6/libqmgmt.a
