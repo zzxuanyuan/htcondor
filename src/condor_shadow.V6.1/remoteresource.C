@@ -1265,11 +1265,17 @@ RemoteResource::requestReconnect( void )
 {
 	DCStarter starter( starterAddress );
 
+	dprintf( D_ALWAYS, "Attempting to reconnect to starter %s\n", 
+			 starterAddress );
 		// We want this on the heap, since if this works, we're going
 		// to hold onto it and don't want it on the stack...
 	ReliSock* rsock = new ReliSock;
+		// we don't want to block forever trying to connect and
+		// reestablish contact.  We'll retry if we have to.
+	rsock->timeout(30);
 	ClassAd req;
 	ClassAd reply;
+	MyString msg;
 
 		// First, fill up the request with all the data we need
 	shadow->publishShadowAttrs( &req );
@@ -1279,8 +1285,54 @@ RemoteResource::requestReconnect( void )
 		dprintf( D_ALWAYS, "Attempt to reconnect failed: %s\n", 
 				 starter.error() );
 		delete rsock;
-			// TODO handle errors better!
-		shadow->reconnectFailed( starter.error() );
+		switch( starter.errorCode() ) {
+		case CA_CONNECT_FAILED:
+		case CA_COMMUNICATION_ERROR:
+			// for both of these, we need to keep trying until the
+			// timeout expires, since the starter might still be alive
+			// and only the network is dead...
+			reconnect();
+			return;  // reconnect will return right away, and we want
+					 // to hand control back to DaemonCore ASAP
+			break;
+
+		case CA_NOT_AUTHORIZED:
+		case CA_NOT_AUTHENTICATED:
+				/*
+				  Somehow we authenticated improperly and the starter
+				  doesn't think we own our job anymore. :( Trying
+				  again won't help us at this point...  Normally this
+				  would never happen.  However, if it does, all we can
+				  do is try to kill the job (maybe the startd will
+				  trust us *grin*), and return failure.
+				*/
+			shadow->cleanUp();
+			msg = "Starter refused request (";
+			msg += starter.error();
+			msg += ')';
+			shadow->reconnectFailed( msg.Value() );
+			break;
+
+				// All the errors that can only be programmer
+				// mistakes: the starter should never return them...  
+		case CA_FAILURE:
+		case CA_INVALID_STATE:
+		case CA_INVALID_REQUEST:
+		case CA_INVALID_REPLY:
+			EXCEPT( "impossible: starter returned %s for %s",
+					getCAResultString(dc_startd->errorCode()),
+					getCommandString(CA_RECONNECT_JOB) );
+			break;
+		case CA_LOCATE_FAILED:
+				// we couldn't even find the address of the starter, but
+				// we already know it or we wouldn't be trying this
+				// method...
+			EXCEPT( "impossible: starter address already known" );
+			break;
+		case CA_SUCCESS:
+			EXCEPT( "impossible: success already handled" );
+			break;
+		}
 	}
 
 	dprintf( D_ALWAYS, "Reconnect SUCCESS: connection re-established\n" );
