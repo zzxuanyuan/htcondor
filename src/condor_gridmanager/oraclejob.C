@@ -779,7 +779,7 @@ char *OracleJob::doSubmit1()
 	int job_id;
 	bool trans_open = false;
 	const char *stmt = "begin DBMS_JOB.SUBMIT(:jobid,:jobtext,SYSDATE+(10/1440)); end;";
-	const char *jobtext = "begin null; end;";
+	const char *jobtext = "null;";
 
 	rc = ociSession->AcquireSession( this, srvc_hndl, ret_err_hndl );
 	if ( rc != OCI_SUCCESS ) {
