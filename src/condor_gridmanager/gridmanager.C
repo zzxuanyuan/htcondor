@@ -51,7 +51,7 @@ struct JobType
 	char *Name;
 	void(*InitFunc)();
 	void(*ReconfigFunc)();
-	bool(*AdMatchFunc)(const ClassAd*);
+	const char *AdMatchConst;
 	bool(*AdMustExpandFunc)(const ClassAd*);
 	BaseJob *(*CreateFunc)(ClassAd*);
 };
@@ -105,6 +105,40 @@ int doContactSchedd();
 int ADD_JOBS_signalHandler( int );
 int REMOVE_JOBS_signalHandler( int );
 
+
+bool JobMatchesConstraint( const ClassAd *jobad, const char *constraint )
+{
+	ExprTree *tree;
+	EvalResult *val;
+
+	val = new EvalResult;
+
+	Parse( constraint, tree );
+	if ( tree == NULL ) {
+		dprintf( D_FULLDEBUG,
+				 "Parse() returned a NULL tree on constraint '%s'\n",
+				 constraint );
+		return false;
+	}
+	tree->EvalTree((AttrList*)jobad, val);           // evaluate the constraint.
+	if(!val || val->type != LX_INTEGER) {
+		delete tree;
+		delete val;
+		dprintf( D_FULLDEBUG, "Constraint '%s' evaluated to wrong type\n",
+				 constraint );
+		return false;
+	} else {
+        if( !val->i ) {
+			delete tree;
+			delete val;
+			return false; 
+		}
+	}
+
+	delete tree;
+	delete val;
+	return true;
+}
 
 // Job objects should call this function when they have changes that need
 // to be propagated to the schedd.
@@ -222,7 +256,7 @@ Init()
 	new_type->Name = strdup( "Oracle" );
 	new_type->InitFunc = OracleJobInit;
 	new_type->ReconfigFunc = OracleJobReconfig;
-	new_type->AdMatchFunc = OracleJobAdMatch;
+	new_type->AdMatchConst = OracleJobAdConst;
 	new_type->AdMustExpandFunc = OracleJobAdMustExpand;
 	new_type->CreateFunc = OracleJobCreate;
 	jobTypes.Append( new_type );
@@ -233,7 +267,7 @@ Init()
 	new_type->Name = strdup( "Nordugrid" );
 	new_type->InitFunc = NordugridJobInit;
 	new_type->ReconfigFunc = NordugridJobReconfig;
-	new_type->AdMatchFunc = NordugridJobAdMatch;
+	new_type->AdMatchConst = NordugridJobAdConst;
 	new_type->AdMustExpandFunc = NordugridJobAdMustExpand;
 	new_type->CreateFunc = NordugridJobCreate;
 	jobTypes.Append( new_type );
@@ -243,7 +277,7 @@ Init()
 	new_type->Name = strdup( "Globus" );
 	new_type->InitFunc = GlobusJobInit;
 	new_type->ReconfigFunc = GlobusJobReconfig;
-	new_type->AdMatchFunc = GlobusJobAdMatch;
+	new_type->AdMatchConst = GlobusJobAdConst;
 	new_type->AdMustExpandFunc = GlobusJobAdMustExpand;
 	new_type->CreateFunc = GlobusJobCreate;
 	jobTypes.Append( new_type );
@@ -407,7 +441,8 @@ doContactSchedd()
 				jobTypes.Rewind();
 				while ( jobTypes.Next( job_type ) ) {
 dprintf(D_FULLDEBUG,"***Trying job type %s\n",job_type->Name);
-					if ( job_type->AdMatchFunc( next_ad ) ) {
+					if ( JobMatchesConstraint( next_ad, job_type->AdMatchConst ) ) {
+
 						// Found one!
 						dprintf( D_FULLDEBUG, "Using job type %s for job %d.%d\n",
 								 job_type->Name, procID.cluster, procID.proc );

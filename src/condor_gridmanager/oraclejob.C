@@ -122,22 +122,7 @@ void OracleJobReconfig()
 //	}
 }
 
-bool OracleJobAdMatch( const ClassAd *jobad )
-{
-	bool rc = false;
-	int universe;
-	char *sub_universe = NULL;
-	if ( jobad->LookupInteger( ATTR_JOB_UNIVERSE, universe ) == 1 &&
-		 universe == CONDOR_UNIVERSE_GLOBUS ) {
-		if ( jobad->LookupString( "SubUniverse", &sub_universe ) == 1 ) {
-			if ( stricmp( sub_universe, "oracle" ) == 0 ) {
-				rc = true;
-			}
-			free( sub_universe );
-		}
-	}
-	return rc;
-}
+const char *OracleJobAdConst = "JobUniverse =?= 9 && (SubUniverse == \"oracle\") =?= True";
 
 bool OracleJobAdMustExpand( const ClassAd *jobad )
 {

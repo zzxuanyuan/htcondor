@@ -58,9 +58,9 @@ bool InitializeGahp( const char *proxy_filename );
 
 void GlobusJobInit();
 void GlobusJobReconfig();
-bool GlobusJobAdMatch( const ClassAd *jobad );
 bool GlobusJobAdMustExpand( const ClassAd *jobad );
 BaseJob *GlobusJobCreate( ClassAd *jobad );
+extern const char *GlobusJobAdConst;
 ///////////////////////////////////////
 
 class GlobusJob : public BaseJob

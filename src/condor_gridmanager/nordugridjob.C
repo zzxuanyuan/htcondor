@@ -126,22 +126,7 @@ void NordugridJobReconfig()
 	NordugridJob::setProbeInterval( tmp_int );
 }
 
-bool NordugridJobAdMatch( const ClassAd *jobad )
-{
-	bool rc = false;
-	int universe;
-	char *sub_universe = NULL;
-	if ( jobad->LookupInteger( ATTR_JOB_UNIVERSE, universe ) == 1 &&
-		 universe == CONDOR_UNIVERSE_GLOBUS ) {
-		if ( jobad->LookupString( "SubUniverse", &sub_universe ) == 1 ) {
-			if ( stricmp( sub_universe, "nordugrid" ) == 0 ) {
-				rc = true;
-			}
-			free( sub_universe );
-		}
-	}
-	return rc;
-}
+const char *NordugridJobAdConst = "JobUniverse =?= 9 && (SubUniverse == \"nordugrid\") =?= True";
 
 bool NordugridJobAdMustExpand( const ClassAd *jobad )
 {
