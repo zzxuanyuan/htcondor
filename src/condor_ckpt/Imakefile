@@ -255,4 +255,4 @@ clean::
 clean::
 	rm -f c_plus_alloc.o syscall_mode.o
 
-html_target( buffer_cache.h file_state.h file_types.h file_table_interf.h )
+html_target( buffer_cache.h file_state.h file_types.h ../condor_includes/file_table_interf.h )
