@@ -7282,6 +7282,8 @@ abortJobsByConstraint( const char *constraint, const char *reason, bool use_tran
     ExtArray<PROC_ID> jobs;
     int job_count;
 
+    dprintf(D_FULLDEBUG, "abortJobsByConstraint: '%s'\n", constraint);
+
     if ( use_transaction ) {
         BeginTransaction();
     }
@@ -7292,13 +7294,18 @@ abortJobsByConstraint( const char *constraint, const char *reason, bool use_tran
             // MATT: What happens if these fail?
         ad->LookupInteger(ATTR_CLUSTER_ID, jobs[job_count].cluster);
         ad->LookupInteger(ATTR_PROC_ID, jobs[job_count].proc);
-        
+
+        dprintf(D_FULLDEBUG, "remove by constrain matched: %d.%d\n", jobs[job_count].cluster, jobs[job_count].proc);
+
         job_count++;
 
         ad = GetNextJobByConstraint(constraint, 0);
     }
 
+    job_count--;
     while ( job_count >= 0 ) {
+        dprintf(D_FULLDEBUG, "removing: %d.%d\n", jobs[job_count].cluster, jobs[job_count].proc);
+
         abortJobRaw(jobs[job_count].cluster, jobs[job_count].proc, reason);
 
         job_count--;
