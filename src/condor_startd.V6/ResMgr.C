@@ -945,15 +945,32 @@ ResMgr::adlist_publish( ClassAd *resAd, amask_t mask )
 	return 0;
 }
 
+
 bool
-ResMgr::in_use( void )
+ResMgr::hasOppClaim( void )
 {
 	if( ! resources ) {
 		return false;
 	}
 	int i;
 	for( i = 0; i < nresources; i++ ) {
-		if( resources[i]->in_use() ) {
+		if( resources[i]->hasOppClaim() ) {
+			return true;
+		}
+	}
+	return false;
+}
+
+
+bool
+ResMgr::hasAnyClaim( void )
+{
+	if( ! resources ) {
+		return false;
+	}
+	int i;
+	for( i = 0; i < nresources; i++ ) {
+		if( resources[i]->hasAnyClaim() ) {
 			return true;
 		}
 	}
@@ -1382,7 +1399,7 @@ ResMgr::check_polling( void )
 		return;
 	}
 
-	if( in_use() || m_attr->condor_load() > 0 ) {
+	if( hasOppClaim() || m_attr->condor_load() > 0 ) {
 		start_poll_timer();
 	} else {
 		cancel_poll_timer();
@@ -1604,7 +1621,7 @@ void
 ResMgr::check_use( void ) 
 {
 	int now = time(NULL);
-	if( in_use() ) {
+	if( hasAnyClaim() ) {
 		last_in_use = now;
 	}
 	if( ! startd_noclaim_shutdown ) {
