@@ -95,9 +95,9 @@ void _condor_file_table_init()
 int _condor_file_pre_open( int fd, char *name, int readable, int writable, int is_remote )
 {
 	_condor_file_table_init();
-	sigset_t sigs = _condor_signals_disable();
+	_condor_signals_disable();
 	int result = FileTab->pre_open(fd,name,readable,writable,is_remote);
-	_condor_signals_enable(sigs);
+	_condor_signals_enable();
 	return result;
 }
 
@@ -131,6 +131,48 @@ int creat64(const char *path, mode_t mode)
 */
 
 void ldr_atexit() {}
+#endif
+
+int isatty( int fd )
+{
+	if(fd<3) return 1;
+	else return 0;
+}
+
+int _isatty( int fd )
+{
+	return isatty(fd);
+}
+
+int __isatty( int fd )
+{
+	return isatty(fd);
+}
+
+#if defined(Solaris)
+int _so_socket( int a, int b, int c, int d, int e )
+{
+	int result;
+	sigset_t sigs;
+
+	_condor_signals_disable();
+
+	if(MappingFileDescriptors()) {
+		_condor_file_table_init();
+		result = FileTab->socket(a,b,c);
+	} else {
+		if(LocalSysCalls()) {
+			result = syscall( SYS_so_socket, a, b, c, d, e );
+		} else {
+			result = REMOTE_syscall( CONDOR_socket, a, b, c );
+		}
+	}
+
+	_condor_signals_enable();
+
+	return result;
+}
+
 #endif
 
 } // extern "C"
