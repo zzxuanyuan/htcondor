@@ -35,6 +35,14 @@
 
 #include "gridmanager.h"
 
+#if defined(ORACLE_UNIVERSE)
+#include "oraclejob.h"
+#endif
+
+#if defined(NORDUGRID_UNIVERSE)
+#include "nordugridjob.h"
+#endif
+
 #define QMGMT_TIMEOUT 15
 
 #define UPDATE_SCHEDD_DELAY		5

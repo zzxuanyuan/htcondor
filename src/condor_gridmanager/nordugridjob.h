@@ -24,8 +24,6 @@
 #ifndef NORDUGRIDJOB_H
 #define NORDUGRIDJOB_H
 
-#if defined(NORDUGRID_UNIVERSE)
-
 #include "condor_common.h"
 #include "condor_classad.h"
 #include "MyString.h"
@@ -101,8 +99,6 @@ class NordugridJob : public BaseJob
 
  protected:
 };
-
-#endif // if defined(NORDUGRID_UNIVERSE)
 
 #endif
 

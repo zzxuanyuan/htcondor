@@ -21,8 +21,6 @@
  * WI 53706-1685, (608) 262-0856 or miron@cs.wisc.edu.
 ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
-#if defined(ORACLE_UNIVERSE)
-
 #include "condor_common.h"
 #include "condor_attributes.h"
 #include "condor_debug.h"
@@ -1162,5 +1160,3 @@ int OracleJob::doRemove()
 	}
 	return -1;
 }
-
-#endif // if defined(ORACLE_UNIVERSE)

@@ -34,8 +34,6 @@
 #include "globusresource.h"
 #include "globusjob.h"
 #include "gahp-client.h"
-#include "oraclejob.h"
-#include "nordugridjob.h"
 
 
 extern char *ScheddAddr;
