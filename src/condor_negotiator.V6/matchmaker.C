@@ -778,7 +778,7 @@ negotiate( char *scheddName, char *scheddAddr, double priority, double share,
 	char		prioExpr[128], remoteUser[128];
 
 	// 0.  connect to the schedd --- ask the cache for a connection
-	if (!sockCache->getReliSock((Sock *&)sock, scheddAddr, NegotiatorTimeout))
+	if (!sockCache->getReliSock((Sock *&)sock, scheddAddr, NEGOTIATE, NegotiatorTimeout))
 	{
 		dprintf (D_ALWAYS, "    Failed to connect to %s\n", scheddAddr);
 		return MM_ERROR;
@@ -786,9 +786,9 @@ negotiate( char *scheddName, char *scheddAddr, double priority, double share,
 
 	// 1.  send NEGOTIATE command, followed by the scheddName (user@uiddomain)
 	sock->encode();
-	if (!sock->put(NEGOTIATE)||!sock->put(scheddName)||!sock->end_of_message())
+	if (!sock->put(scheddName) || !sock->end_of_message())
 	{
-		dprintf (D_ALWAYS, "    Failed to send NEGOTIATE/scheddName/eom\n");
+		dprintf (D_ALWAYS, "    Failed to send scheddName/eom\n");
 		sockCache->invalidateSock(scheddAddr);
 		return MM_ERROR;
 	}
