@@ -36,6 +36,7 @@
    ourselves anymore. */
 #include <rpc/types.h>
 
+
 /******************************
 ** unistd.h
 ******************************/
@@ -89,6 +90,9 @@ int pclose(FILE *stream);
 
 #include <sys/select.h>
 
+#undef _SGIAPI
+#define _SGIAPI 1
+
 /* Need these to get statfs and friends defined */
 #include <sys/stat.h>
 #include <sys/statfs.h>
@@ -101,8 +105,10 @@ int pclose(FILE *stream);
 ****************************************/
 
 #define HAS_U_TYPES			1
+#define SIGSET_CONST			const
 #define SYNC_RETURNS_VOID		1
 #define NO_VOID_SIGNAL_RETURN		1
+#define HAS_64BIT_STRUCTS		1
 
 typedef void * MMAP_T;
 

@@ -115,6 +115,7 @@ END_C_DECLS
 ****************************************/
 
 #define HAS_U_TYPES		1
+#define SIGSET_CONST		const
 #define SYNC_RETURNS_VOID	1
 #define NO_VOID_SIGNAL_RETURN	1
 

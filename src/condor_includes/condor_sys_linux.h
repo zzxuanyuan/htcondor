@@ -78,7 +78,9 @@ typedef long rlim_t;
 ** Condor-specific system definitions
 ***************************************/
 
-#define HAS_U_TYPES			1
+#define HAS_U_TYPES	1
+#define SIGSET_CONST	/* nothing */
+
 typedef long long off64_t;
 typedef void* MMAP_T;
 

@@ -73,6 +73,7 @@ struct export;
 ****************************************/
 
 #define HAS_64BIT_STRUCTS		1
+#define SIGSET_CONST			const
 #define HAS_U_TYPES			1
 #define SYNC_RETURNS_VOID		1
 #define SIGISMEMBER_IS_BROKEN		1
