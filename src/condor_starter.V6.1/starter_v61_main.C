@@ -36,6 +36,7 @@
 #include "jic_shadow.h"
 #include "jic_local_config.h"
 #include "jic_local_file.h"
+#include "jic_local_schedd.h"
 
 
 extern "C" int exception_cleanup(int,int,char*);	/* Our function called by EXCEPT */
@@ -278,6 +279,7 @@ parseArgs( int argc, char* argv [] )
 	char* job_stdin = NULL;
 	char* job_stdout = NULL;
 	char* job_stderr = NULL;
+	bool is_local_univ = false;
 
 	bool warn_multi_keyword = false;
 	bool warn_multi_input_ad = false;
@@ -303,6 +305,7 @@ parseArgs( int argc, char* argv [] )
 	char _jobstderr[] = "-job-stderr";
 	char _header[] = "-header";
 	char _gridshell[] = "-gridshell";
+	char _univ_local[] = "-univ-local";
 	char* target = NULL;
 
 	ASSERT( argc >= 2 );
@@ -334,6 +337,11 @@ parseArgs( int argc, char* argv [] )
 				// just skip this one, we already processed this in
 				// main_pre_dc_init()  
 			ASSERT( is_gridshell );
+			continue;
+		}
+
+		if( ! strncmp(opt, _univ_local, opt_len) ) { 
+			is_local_univ = true;
 			continue;
 		}
 
@@ -578,7 +586,15 @@ parseArgs( int argc, char* argv [] )
 		// If the user didn't specify it, use -1 for cluster and/or
 		// proc, and the JIC subclasses will know they weren't on the
 		// command-line.
-	if( job_input_ad ) {
+	if( is_local_univ ) {
+		if( ! job_input_ad ) {
+			dprintf( D_ALWAYS, "ERROR: You must specify '%s' with '%s'\n",
+					 _jobinputad, _univ_local ); 
+			usage();
+		}
+		jic = new JICLocalSchedd( job_input_ad,
+								  job_cluster, job_proc, job_subproc );
+	} else if( job_input_ad ) {
 		if( job_keyword ) {
 			jic = new JICLocalFile( job_input_ad, job_keyword, 
 									job_cluster, job_proc, job_subproc );
