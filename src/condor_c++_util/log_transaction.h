@@ -35,7 +35,8 @@
    so they can be defined as deemed appropriate by the user.
 */
 
-#include "log.h"
+#include <string>
+#include "../condor_classad.V6/collection_ops.h"
 
 class LogPtrListEntry {
 public:
@@ -67,11 +68,15 @@ private:
 
 class Transaction {
 public:
-	bool Commit(FILE *fp, void *data_structure);
-	void AppendLog(LogRecord *);
+	inline void SetXactionName( const std::string &n ) { xactionName = n; }
+	inline void GetXactionName( std::string &n ) { n = xactionName; }
+	bool Log( Sink * );
+	bool Play( void *data_structure );
+	void AppendLog( LogRecord * );
 	LogRecord *FirstEntry() { return op_log.FirstEntry(); }
 	LogRecord *NextEntry(LogRecord *ptr) { return op_log.NextEntry(ptr); }
 private:
+	std::string xactionName;
 	LogPtrList op_log;
 };
 

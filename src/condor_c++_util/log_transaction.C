@@ -27,7 +27,6 @@
 
 #include "condor_common.h"
 #include "condor_debug.h"
-
 #include "log_transaction.h"
 
 static char *_FileName_ = __FILE__;
@@ -113,25 +112,54 @@ LogPtrList::NextEntry(LogRecord *prev)
 
 
 bool
-Transaction::Commit(FILE *fp, void *data_structure)
+Transaction::Log( Sink *snk )
+{
+	CollectionLogRecord	rec;
+	LogRecord			*log;
+
+		// write out a "OpenTransaction" record
+	if( !rec.InsertAttr( "OpType", ClassAdLogOp_OpenTransaction ) ||
+			!rec.InsertAttr( "XactionName", xactionName.c_str( ) ) ||
+			!rec.Write( snk ) ) {
+		return( false );
+	}
+
+		// log all the operations in the transaction
+	for (log = op_log.FirstEntry(); log != 0; log = op_log.NextEntry(log)) {
+		if( !log->Write( snk ) ) {
+			return( false );
+		}
+	}
+	
+		// write out a "CloseTransaction" record and flush the sink
+	if( !rec.InsertAttr( "OpType", ClassAdLogOp_CloseTransaction ) ||
+			!rec.Write( snk ) || !snk->FlushSink( ) ) {
+		return( false );
+	}
+
+	return( true );
+}
+
+bool
+Transaction::Play( void *data_structure )
 {
 	LogRecord		*log;
-	bool			rval=true;
 
-	for (log = op_log.FirstEntry(); log != 0; 
-		 log = op_log.NextEntry(log)) {
-		if (fp) { 
-			if (!log->Write(fp)) {
-				EXCEPT("Couldn't write to log!\n");
-			}
+		// make a first pass to check that all operations can be carried out
+	for (log = op_log.FirstEntry(); log != 0; log = op_log.NextEntry(log)) {
+		if( !log->Check( data_structure ) ) {
+			return( false );
 		}
-		rval = rval && log->Play(data_structure);
 	}
-	if (fp) {
-		fflush( fp );
-		fsync(fileno(fp));
+
+		// now go ahead and make changes to the data structure
+	for (log = op_log.FirstEntry(); log != 0; log = op_log.NextEntry(log)) {
+		if( !log->Play(data_structure) ) {
+			EXCEPT( "internal error:  should have caught error in first pass" );
+		}
 	}
-	return( rval );
+
+	return( true );
 }
 
 
