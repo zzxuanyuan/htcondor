@@ -32,6 +32,7 @@
 
 /* See condor_uid.h for description. */
 static char* CondorUserName = NULL;
+static const char* RealUserName = NULL;
 THREAD_LOCAL_STORAGE static priv_state CurrentPrivState = PRIV_UNKNOWN;
 static int SwitchIds = TRUE;
 
@@ -315,6 +316,15 @@ is_root( void )
 	return root;
 }
 
+
+const char*
+get_real_username( void )
+{
+	if( ! RealUserName ) {
+		RealUserName = strdup( "system" );
+	}
+	return RealUserName;
+}
 
 #else  // end of ifdef WIN32, now below starts Unix-specific code
 
@@ -932,6 +942,25 @@ int
 is_root( void ) 
 {
 	return (! getuid() );
+}
+
+
+const char*
+get_real_username( void )
+{
+	if( ! RealUserName ) {
+		uid_t my_uid = getuid();
+		struct passwd *pwd;
+		pwd = getpwuid( my_uid );
+		if( pwd ) {
+			RealUserName = strdup( pwd->pw_name );
+		} else {
+			char buf[64];
+			sprintf( buf, "uid %d", (int)my_uid );
+			RealUserName = strdup( buf );
+		}
+	}
+	return RealUserName;
 }
 
 #endif  /* #if defined(WIN32) */
