@@ -645,7 +645,7 @@ dprintf(D_ALWAYS,"***schedd failure at %d!\n",__LINE__);
 
 	lastContactSchedd = time(NULL);
 
-	if ( add_remove_jobs_complete == false ) {
+	if ( schedd_deletes_complete == false ) {
 		dprintf( D_ALWAYS, "Schedd connection error! Will retry\n" );
 		RequestContactSchedd();
 	}
