@@ -3774,8 +3774,41 @@ JobReconnectFailedEvent::writeEvent( FILE *file )
 int
 JobReconnectFailedEvent::readEvent( FILE *file )
 {
-		// TODO
-	return 0;
+	MyString line;
+
+		// the first line contains no useful information for us, but
+		// it better be there or we've got a parse error.
+	if( ! line.readLine(file) ) {
+		return 0;
+	}
+
+		// 2nd line is the reason
+	if( line.readLine(file) && line[0] == ' ' && line[1] == ' ' 
+		&& line[2] == ' ' && line[3] == ' ' && line[4] )
+	{
+		line.chomp();
+		setReason( &line[4] );
+	} else {
+		return 0;
+	}
+
+		// 3rd line is who we tried to reconnect to
+	if( line.readLine(file) && 
+		line.replaceString( "    Can not reconnect to ", "" ) )
+	{
+			// now everything until the first ',' will be the name
+		int i = line.FindChar( ',' );
+		if( i > 0 ) {
+			line[i] = '\0';
+			setStartdName( line.Value() );
+		} else {
+			return 0;
+		}
+	} else {
+		return 0;
+	}
+
+	return 1;
 }
 
 
