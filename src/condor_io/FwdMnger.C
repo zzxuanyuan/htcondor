@@ -137,8 +137,8 @@ FwdMnger::addInternal (	unsigned int * lip,
 			return INTERNAL_ERR;
 		}
 	} else {
-		if ( !freePortMnger.nextFree (lip, lport) ) {
-			dprintf (D_ALWAYS, "FwdMnger::addInternal - can't find free (lip, lport)\n");
+		if ( !freePortMnger.nextFree (rport, lip, lport) ) {
+			dprintf (D_ALWAYS, "FwdMnger::addInterna - can't find free (lip, lport)\n");
 			return INTERNAL_ERR;
 		}
 	}

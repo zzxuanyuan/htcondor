@@ -7,9 +7,10 @@
 class PortSet {
 	public:
 		PortSet ();
-		// return the next free port in network byte order.
+		// Find a free port, searching from the given port number,
+		// and return the free port in network order form.
 		// return 0 if no more free port remained
-		unsigned int freePort ();
+		unsigned int freePort (unsigned short port);
 		// mark the port as being used. The port should be in network byte order.
 	   	// @return - false if the port is already marked as being used
 		bool makeOccupied (unsigned short port);
@@ -20,7 +21,6 @@ class PortSet {
 		unsigned int interface ();
 	protected:
 		// index to start search from for the next free port
-    	int _index;
 		// arrary of tag indicating the corresponding port is free or not
 		bool _freeArr[NAT_MAX_PORT];
 };
@@ -28,7 +28,7 @@ class PortSet {
 class FreePortMnger {
 	public:
 		void addInterface(unsigned int ipAddr);
-		bool nextFree (unsigned int *lip, unsigned short *lport);
+		bool nextFree (unsigned short rport, unsigned int *lip, unsigned short *lport);
 		bool makeOccupied (unsigned int lip, unsigned short lport);
 		bool makeFree (unsigned int lip, unsigned short lport);
 	protected:

@@ -443,7 +443,7 @@ int DaemonCore::InfoCommandPort()
 	}
 
 	// this will return a -1 on error
-	return( ((Sock*)((*sockTable)[initial_command_sock].iosock))->get_port() );
+	return( ((Sock*)((*sockTable)[initial_command_sock].iosock))->get_canon_port() );
 }
 
 // NOTE: InfoCommandSinfulString always returns a pointer to a _static_ buffer!
@@ -463,8 +463,8 @@ char * DaemonCore::InfoCommandSinfulString(int pid)
 		}
 
 		if ( myown_sinful_string == NULL ) {
-			myown_sinful_string = strdup( 
-				sock_to_string( (*sockTable)[initial_command_sock].sockd ) );
+			myown_sinful_string = strdup (
+					((Sock *)((*sockTable)[initial_command_sock].iosock))->sinful_string() ); 
 		}
 	
 		return myown_sinful_string;
@@ -1047,9 +1047,11 @@ DaemonCore::ReInit()
 		string_to_sin(addr,&sin);
 		memcpy(&negotiator_sin_addr,&(sin.sin_addr),
 						sizeof(negotiator_sin_addr));
+		dprintf(D_NETWORK, "Negotiator Sinful Addr = %s\n", addr);
 	} else {
 		// we failed to get the address of the negotiator
 		memset(&negotiator_sin_addr,'\0',sizeof(negotiator_sin_addr));
+		dprintf(D_NETWORK, "Negotiator Sinful Addr: NULL\n");
 	}
 
 		// Reset our IpVerify object
@@ -3453,7 +3455,7 @@ int DaemonCore::Create_Process(
 	pidtmp->pid = newpid;
 	pidtmp->new_process_group = new_process_group;
 	if ( want_command_port != FALSE )
-		strcpy(pidtmp->sinful_string,sock_to_string(rsock._sock));
+		strcpy(pidtmp->sinful_string, rsock.sinful_string());
 	else
 		pidtmp->sinful_string[0] = '\0';
 	pidtmp->is_local = TRUE;
@@ -3660,9 +3662,11 @@ DaemonCore::Inherit( void )
 			EXCEPT("CONDOR_INHERIT too large");
 		}
 		dprintf ( D_DAEMONCORE, "CONDOR_INHERIT: \"%s\"\n", ptmp );
+		dprintf ( D_ALWAYS, "CONDOR_INHERIT: \"%s\"\n", ptmp );
 		strncpy(inheritbuf,ptmp,_INHERITBUF_MAXSIZE);
 	} else {
 		dprintf ( D_DAEMONCORE, "CONDOR_INHERIT: is NULL\n", ptmp );
+		dprintf ( D_ALWAYS, "CONDOR_INHERIT: is NULL\n", ptmp );
 	}		
 #endif
 
@@ -3671,11 +3675,13 @@ DaemonCore::Inherit( void )
 		
 		// insert ppid into table
 		dprintf(D_DAEMONCORE,"Parent PID = %s\n",ptmp);
+		dprintf(D_ALWAYS,"Parent PID = %s\n",ptmp);
 		ppid = atoi(ptmp);
 		PidEntry *pidtmp = new PidEntry;
 		pidtmp->pid = ppid;
 		ptmp=strtok(NULL," ");
 		dprintf(D_DAEMONCORE,"Parent Command Sock = %s\n",ptmp);
+		dprintf(D_ALWAYS,"Parent Command Sock = %s\n",ptmp);
 		strcpy(pidtmp->sinful_string,ptmp);
 		pidtmp->is_local = TRUE;
 		pidtmp->parent_is_local = TRUE;
@@ -3708,6 +3714,7 @@ DaemonCore::Inherit( void )
 					dc_rsock->serialize(ptmp);
 					dc_rsock->set_inheritable(FALSE);
 					dprintf(D_DAEMONCORE,"Inherited a ReliSock\n");
+					dprintf(D_ALWAYS,"Inherited a ReliSock\n");
 					// place into array...
 					inheritedSocks[numInheritedSocks++] = (Stream *)dc_rsock;
 					break;
@@ -3717,6 +3724,7 @@ DaemonCore::Inherit( void )
 					dc_ssock->serialize(ptmp);
 					dc_ssock->set_inheritable(FALSE);
 					dprintf(D_DAEMONCORE,"Inherited a SafeSock\n");
+					dprintf(D_ALWAYS,"Inherited a SafeSock\n");
 					// place into array...
 					inheritedSocks[numInheritedSocks++] = (Stream *)dc_ssock;
 					break;
@@ -3736,12 +3744,14 @@ DaemonCore::Inherit( void )
 		ptmp=strtok(NULL," ");
 		if ( ptmp && (strcmp(ptmp,"0") != 0) ) {
 			dprintf(D_DAEMONCORE,"Inheriting Command Sockets\n");
+			dprintf(D_ALWAYS,"Inheriting Command ReliSock\n");
 			dc_rsock = new ReliSock();
 			((ReliSock *)dc_rsock)->serialize(ptmp);
 			dc_rsock->set_inheritable(FALSE);
 		}
 		ptmp=strtok(NULL," ");
 		if ( ptmp && (strcmp(ptmp,"0") != 0) ) {
+			dprintf(D_ALWAYS,"Inheriting Command SafeSock\n");
 			dc_ssock = new SafeSock();
 			dc_ssock->serialize(ptmp);
 			dc_ssock->set_inheritable(FALSE);
@@ -3761,7 +3771,8 @@ DaemonCore::InitCommandSocket( int command_port )
 		return;
 	}
 
-	dprintf( D_DAEMONCORE, "Setting up command socket\n" );
+	dprintf( D_NETWORK | D_DAEMONCORE,
+			"Setting up command socket with command_port = %d\n", command_port);
 
 		// First, try to inherit the sockets from our parent.
 	Inherit();
@@ -3769,6 +3780,7 @@ DaemonCore::InitCommandSocket( int command_port )
 		// If dc_rsock/dc_ssock are still NULL, we need to create our
 		// own udp and tcp sockets, bind them, etc.
 	if( dc_rsock == NULL && dc_ssock == NULL ) {
+		dprintf(D_ALWAYS, "Command Sockets are still NULL after Inherit\n");
 		dc_rsock = new ReliSock;
 		dc_ssock = new SafeSock;
 		if( !dc_rsock ) {
@@ -4555,13 +4567,16 @@ char **DaemonCore::ParseEnvArgsString(char *incomming, bool env)
 int
 BindAnyCommandPort(ReliSock *rsock, SafeSock *ssock)
 {
+	unsigned int lip = 0;
+	unsigned short rport = 0, lport = 0;
+
 	for(int i = 0; i < 1000; i++) {
-		if ( !rsock->bind() ) {
+		if ( !rsock->bind(&rport, &lip, &lport) ) {
 			dprintf(D_ALWAYS, "Failed to bind to command ReliSock\n");
 			return FALSE;
 		}
 		// now open a SafeSock _on the same port_ choosen above
-		if ( !ssock->bind(rsock->get_port()) ) {
+		if ( !ssock->bind(&rport, &lip, &lport) ) {
 			dprintf(D_ALWAYS, "Failed to bind SafeSock to %d\n", rsock->get_port());
 			rsock->close();
 			continue;

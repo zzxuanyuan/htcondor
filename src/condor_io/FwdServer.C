@@ -174,9 +174,9 @@ FwdServer::handleCommand (Stream *cmdSock)
 	char lineBuf[100];
 	char cmd[30];
 	char proto[30];
-	unsigned int ipAddr;
+	unsigned int ipAddr1, ipAddr2;
 	unsigned int rst_ip;
-	unsigned short port;
+	unsigned short port1, port2;
 	unsigned short rst_port;
 	unsigned short mport;
 	int result;
@@ -194,28 +194,36 @@ FwdServer::handleCommand (Stream *cmdSock)
 	if (!getLine (newSock, lineBuf, 100)) {
 		EXCEPT ( "getLine failed");
 	}
-	char tIP[20], tPort[10], tMport[10];
-	int fields = sscanf(lineBuf, "%s %s %s %s %s", cmd, proto, tIP, tPort, tMport);
-	if (fields != 5) {
-		EXCEPT ("FwdServer::handleCommand - scanf failed: ");
+	char tIP1[20], tPort1[10], tIP2[20], tPort2[10], tMport[10];
+	int fields = sscanf(lineBuf, "%s %s %s %s %s %s %s", cmd, proto, tIP1, tPort1, tIP2, tPort2, tMport);
+	if (fields != 7) {
+		char err[50];
+		sprintf(err, "FwdServer::handleCommand - scanf failed: %d returned", fields);
+		EXCEPT (err);
 	}
-	ipAddr = atoi(tIP);
-	port = atoi(tPort);
+	ipAddr1 = atoi(tIP1);
+	port1 = atoi(tPort1);
+	ipAddr2 = atoi(tIP2);
+	port2 = atoi(tPort2);
 	mport = atoi(tMport);
 #ifdef MYDEBUG
-	cout << "\t\tRecv: " << cmd << " " << proto << " " << ipport_to_string(ipAddr, port) << " " << ntohs(mport) << endl;
+	cout << "\t\tRecv: " << cmd << " " << proto << " " << ipport_to_string(ipAddr1, port1) << " ";
+	cout << ipport_to_string(ipAddr2, port2) << " " << ntohs(mport) << endl;
 #endif
-	dprintf (D_NETWORK, "(%s, %s, %d, %d, %d)\n", cmd, proto, ntohl(ipAddr), ntohs(port), ntohs(mport));
+	dprintf (D_NETWORK, "(%s, %s, %d, %d, %d, %d, %d)\n", cmd, proto,
+			ntohl(ipAddr1), ntohs(port1), ntohl(ipAddr2), ntohs(port2), ntohs(mport));
 	if (!strcmp (cmd, ADD)) {
+		rst_ip = ipAddr2;
+		rst_port = port2;
 		if (!strcmp (proto, TCP)) {
-			result = _tcpPortMnger->addRule(&rst_ip, &rst_port, ipAddr, port, mport);
+			result = _tcpPortMnger->addRule(&rst_ip, &rst_port, ipAddr1, port1, mport);
 			if (result != SUCCESS) {
 				reply (newSock, NAK, result, result);
 			} else {
 				reply (newSock, ADDED, rst_ip, rst_port);
 			}
 		} else if (!strcmp (proto, UDP)) {
-			result = _udpPortMnger->addRule (&rst_ip, &rst_port, ipAddr, port, mport);
+			result = _udpPortMnger->addRule (&rst_ip, &rst_port, ipAddr1, port1, mport);
 			if (result != SUCCESS) {
 				reply (newSock, NAK, result, result);
 			} else {
@@ -226,14 +234,14 @@ FwdServer::handleCommand (Stream *cmdSock)
 		}
 	} else if (!strcmp (cmd, QUERY)) {
 		if (!strcmp (proto, TCP)) {
-			result = _tcpPortMnger->queryRule (ipAddr, port, &rst_ip, &rst_port);
+			result = _tcpPortMnger->queryRule (ipAddr1, port1, &rst_ip, &rst_port);
 			if (result != SUCCESS) {
 				reply (newSock, NAK, result, result);
 			} else {
 				reply (newSock, RESULT, rst_ip, rst_port);
 			}
 		} else if (!strcmp (proto, UDP)) {
-			result = _udpPortMnger->queryRule (ipAddr, port, &rst_ip, &rst_port);
+			result = _udpPortMnger->queryRule (ipAddr1, port1, &rst_ip, &rst_port);
 			if (result != SUCCESS) {
 				reply (newSock, NAK, result, result);
 			} else {
@@ -244,14 +252,14 @@ FwdServer::handleCommand (Stream *cmdSock)
 		}
 	} else if (!strcmp (cmd, DELETE)) {		// close
 		if (!strcmp (proto, TCP)) {
-			result = _tcpPortMnger->deleteRule (ipAddr, port, &rst_ip, &rst_port);
+			result = _tcpPortMnger->deleteRule (ipAddr1, port1, &rst_ip, &rst_port);
 			if (result != SUCCESS) {
 				reply (newSock, NAK, result, result);
 			} else {
 				reply (newSock, DELETED, rst_ip, rst_port);
 			}
 		} else if (!strcmp (proto, UDP)) {
-			result = _udpPortMnger->deleteRule (ipAddr, port, &rst_ip, &rst_port);
+			result = _udpPortMnger->deleteRule (ipAddr1, port1, &rst_ip, &rst_port);
 			if (result != SUCCESS) {
 				reply (newSock, NAK, result, result);
 			} else {

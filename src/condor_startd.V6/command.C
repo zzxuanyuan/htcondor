@@ -954,8 +954,8 @@ activate_claim( Resource* rip, Stream* stream )
 		stRec.version_num = VERSION_FOR_FLOCK;
 		sock_1 = create_port(&rsock_1);
 		sock_2 = create_port(&rsock_2);
-		stRec.ports.port1 = rsock_1.get_port();
-		stRec.ports.port2 = rsock_2.get_port();
+		stRec.ports.port1 = rsock_1.get_canon_port();
+		stRec.ports.port2 = rsock_2.get_canon_port();
 
 		stRec.server_name = strdup( my_full_hostname() );
 	

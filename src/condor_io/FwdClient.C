@@ -24,18 +24,22 @@ inline bool
 sendCmd (const int fd,
 		 const char *cmd,
 		 const char *proto,
-		 const unsigned int ip,
-		 const unsigned short port,
+		 const unsigned int ip1,
+		 const unsigned short port1,
+		 const unsigned int ip2,
+		 const unsigned short port2,
 		 const unsigned short mport)
 {
     int written = 0;
-    char msg[50];
+    char msg[80];
 
-    sprintf (msg, "%s %s %d %d %d\n", cmd, proto, ip, port, mport);
+    sprintf (msg, "%s %s %d %d %d %d %d\n", cmd, proto, ip1, port1, ip2, port2, mport);
 #ifdef MYDEBUG
-	cout << "MASQ sent: " << cmd << " " << proto << " " << ipport_to_string(ip, port) << " " << ntohs(mport) << endl;
+	cout << "MASQ sent: " << cmd << " " << proto << " " << ipport_to_string(ip1, port1);
+	cout << " " << ipport_to_string(ip2, port2) << " " << ntohs(mport) << endl;
 #endif
-	dprintf (D_NETWORK, "MASQ sent: (%s %s %s %d)\n", cmd, proto, ipport_to_string(ip, port), ntohs(mport));
+	dprintf (D_NETWORK, "\t\tMASQ sent: (%s %s %s %s %d)\n", cmd, proto,
+			ipport_to_string(ip1, port1), ipport_to_string(ip2, port2), ntohs(mport));
 	if ( !sendLine (fd, msg, sizeof(msg)) ) {
 		dprintf (D_ALWAYS, "fwdClient.C: failed to send cmd");
 		return false;
@@ -75,7 +79,13 @@ setFWrule ( struct sockaddr_in masqServer,
 	}
 
 	// Send setFWrule request
-	if ( !sendCmd (sock, cmd, proto, inIP, inPort, mport) ) {
+	bool result;
+	if ( !outIP || !outPort ) {
+		result = sendCmd (sock, cmd, proto, inIP, inPort, 0, 0, mport);
+	} else {
+		result = sendCmd (sock, cmd, proto, inIP, inPort, *outIP, *outPort, mport);
+	}
+	if ( !result ) {
 		dprintf(D_ALWAYS, "FwdClient.C - could not send req.\n");
 		close (sock);
 		return INTERNAL_ERR;
@@ -106,14 +116,14 @@ setFWrule ( struct sockaddr_in masqServer,
 #ifdef MYDEBUG
 		cout << "MASQ recv: " << errMsg[rcvdIP] << endl;
 #endif
-		dprintf (D_NETWORK, "MASQ recv: (NAK - %s)\n", errMsg[rcvdIP]);
+		dprintf (D_NETWORK, "\t\tMASQ recv: (NAK - %s)\n", errMsg[rcvdIP]);
 		close (sock);
 		return rcvdIP;
 	} else {
 #ifdef MYDEBUG
 		cout << "MASQ recv: " << rst << " " << ipport_to_string(rcvdIP, rcvdPort) << endl;
 #endif
-		dprintf (D_NETWORK, "MASQ recv: (%s %s)\n", rst, ipport_to_string(rcvdIP, rcvdPort));
+		dprintf (D_NETWORK, "\t\tMASQ recv: (%s %s)\n", rst, ipport_to_string(rcvdIP, rcvdPort));
 		if (outIP && outPort) {
 			*outIP = rcvdIP;
 			*outPort = rcvdPort;

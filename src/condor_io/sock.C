@@ -46,60 +46,14 @@ Sock::Sock() : Stream() {
 	connect_state.host = NULL;
 	memset(&_who, 0, sizeof(struct sockaddr_in));
 	memset(&_endpoint_ip_buf, 0, _ENDPOINT_BUF_SIZE);
+	_inherited = false;
 
-	_lip = 0;
-	_lport = 0;
-
-	/* port forwarding */
-		// check if I have a masquerading server to set forwarding rule
-		// get (ip-addr, port #) to which this sock is bound
-		// create a socket and make it passive so that masq server can connect to it
-	char masqServer[50];
-	unsigned short masqPort;
-	if (getMasqServer (masqServer, &masqPort) == TRUE) {
-		struct sockaddr_in myName;
-		unsigned int masqIP;
-		memset (&_masqServer, 0, sizeof (struct sockaddr_in));
-		_masqServer.sin_family = AF_INET;
-		struct in_addr inp;
-		if ( inet_aton(masqServer, &inp) ) {
-			masqIP = inp.s_addr;
-			memcpy(&_masqServer.sin_addr.s_addr, &masqIP, sizeof(masqIP));
-		} else {
-			struct hostent *mngerEnt = gethostbyname(masqServer);
-			if(!mngerEnt) {
-				EXCEPT("Sock::Sock - could not get hostent");
-			}
-			memcpy(&_masqServer.sin_addr.s_addr, mngerEnt->h_addr_list[0], mngerEnt->h_length);
-		}
-		unsigned short nport = htons(masqPort);
-		memcpy(&_masqServer.sin_port, &nport, sizeof(short));
-
-		// create the masq socket
-		_msock = socket (AF_INET, SOCK_STREAM, 0);
-		if (_msock <= 0) {
-			EXCEPT ("Sock::Sock - socket creation failed");
-		}
-		// bind the masq socket and initialize _mport
-		if (_condor_bind(_msock, 0) != TRUE) {
-			EXCEPT ("Sock::Sock - _msock bind failed:");
-		}
-		_mport = sock_to_port (_msock);
-		if (_mport == 0) {
-			EXCEPT ("Sock::Sock - sock_to_port failed");
-		}
-		// make it passive
-		if (listen(_msock, 5)) {
-			EXCEPT ("Sock::Sock - listen failed");
-		}
-	} else {
-		_msock = 0;
-		_mport = 0;
-	}
+	_myIP = _myPort = _msock = _mport = _lip = _lport = 0;
+	memset(&_masqServer, 0, sizeof(struct sockaddr_in));
 }
 
 
-Sock::Sock(const Sock & orig) : Stream() {
+Sock::Sock(Sock & orig) : Stream() {
 
 	// initialize everything in the new sock
 	_sock = INVALID_SOCKET;
@@ -170,7 +124,11 @@ Sock::~Sock()
 {
 	if ( connect_state.host ) free(connect_state.host);
 
-	if (_lip != 0) {
+	// If this socket has setup a port forwarding rule and NOT been inherited,
+	// we want to delete the forwarding rule to release the resources of forwarding
+	// server. However, if this socket has been inherited, the forwarding rule should
+	// NOT be deleted so that the child process gets routed through the forwarding
+	if (_lip != 0 && !_inherited) {
 		(void) deleteFWrule();
 	}
 }
@@ -393,6 +351,54 @@ int Sock::assign(SOCKET sockd)
 	if ( _timeout > 0 )
 		timeout( _timeout );
 
+	/* port forwarding */
+		// check if I have a masquerading server to set forwarding rule
+		// get (ip-addr, port #) to which this sock is bound
+		// create a socket and make it passive so that masq server can connect to it
+	char masqServer[50];
+	unsigned short masqPort;
+	if (getMasqServer (masqServer, &masqPort) == TRUE) {
+		struct sockaddr_in myName;
+		unsigned int masqIP;
+		_masqServer.sin_family = AF_INET;
+		struct in_addr inp;
+		if ( inet_aton(masqServer, &inp) ) {
+			masqIP = inp.s_addr;
+			memcpy(&_masqServer.sin_addr.s_addr, &masqIP, sizeof(masqIP));
+		} else {
+			struct hostent *mngerEnt = gethostbyname(masqServer);
+			if(!mngerEnt) {
+				EXCEPT("Sock::assign - could not get hostent");
+			}
+			memcpy(&_masqServer.sin_addr.s_addr, mngerEnt->h_addr_list[0], mngerEnt->h_length);
+		}
+		unsigned short nport = htons(masqPort);
+		memcpy(&_masqServer.sin_port, &nport, sizeof(short));
+
+		// create the masq socket
+		_msock = socket (AF_INET, SOCK_STREAM, 0);
+		if (_msock <= 0) {
+			EXCEPT ("Sock::assign - socket creation failed");
+		}
+		// bind the masq socket and initialize _mport
+		if (_condor_bind(_msock, 0) != TRUE) {
+			EXCEPT ("Sock::assign - _msock bind failed:");
+		}
+		_mport = sock_to_port (_msock);
+		if (_mport == 0) {
+			EXCEPT ("Sock::assign - sock_to_port failed");
+		}
+		// make it passive
+		if (listen(_msock, 5)) {
+			EXCEPT ("Sock::assign - listen failed");
+		}
+		dprintf(D_NETWORK, "\tbehind the firewall: ");
+		dprintf(D_NETWORK, "\tMasq Server: (%s, %u)\n", masqServer, masqPort);
+	} else {
+		_msock = 0;
+		_mport = 0;
+	}
+
 	return TRUE;
 }
 
@@ -418,7 +424,7 @@ int Sock::bind(int port)
 	}
 	_state = sock_bound;
 
-	// Initialize _myIP and _myPort which have been added for port forwarding
+	// Initialize _myIP and _myPort
 	sockaddr_in		sin;
 	unsigned int addrLen = sizeof(sin);
 	if (getsockname(_sock, (struct sockaddr *)&sin, &addrLen)) {
@@ -428,6 +434,7 @@ int Sock::bind(int port)
 	}
 	_myIP = sin.sin_addr.s_addr;
 	_myPort = sin.sin_port;
+	dprintf(D_NETWORK, "\tBound to %s\n", ipport_to_string(_myIP, _myPort));
 
 	// Make certain SO_LINGER is Off.  This will result in the default
 	// of closesocket returning immediately and the system attempts to 
@@ -460,7 +467,88 @@ int Sock::bind(int port)
 			dprintf (D_ALWAYS, "\t - errcode: %d\n", ret);
 			return FALSE;
 		}
+		dprintf(D_NETWORK, "\t\tbeing Masqed as: %s\n", ipport_to_string(_lip, _lport));
 	}
+	return TRUE;
+}
+
+
+/* This brand new and weired bind method has added to bind command sockets to the same
+   port number and have the same forwarding rule setup.
+
+Note: Unlike the other methods of Sock, all ip-addr and port numbers should be
+in network byte order
+ */
+int Sock::bind( unsigned short *rport,
+				unsigned int *lip,
+				unsigned short *lport)
+{
+	// if stream not assigned to a sock, do it now	*/
+	if (_state == sock_virgin) assign();
+
+	if (_state != sock_assigned) {
+		dprintf(D_ALWAYS, "Sock::bind - _state is not correct\n");
+		return FALSE;
+	}
+
+	if (_condor_bind(_sock, ntohs(*rport)) != TRUE) {
+		dprintf(D_ALWAYS, "Sock::bind - _condor_bind(%d, %u) failed\n", _sock, *rport);
+		return FALSE;
+	}
+	_state = sock_bound;
+
+	// Initialize _myIP and _myPort
+	sockaddr_in		sin;
+	unsigned int addrLen = sizeof(sin);
+	if (getsockname(_sock, (struct sockaddr *)&sin, &addrLen)) {
+		char err[100];
+		sprintf (err, "Sock::bind - getsockname failed: %s", strerror(errno));
+		EXCEPT (err);
+	}
+	_myIP = sin.sin_addr.s_addr;
+	_myPort = sin.sin_port;
+	*rport = _myPort;
+	dprintf(D_NETWORK, "\tBound to %s\n", ipport_to_string(_myIP, _myPort));
+
+	// Make certain SO_LINGER is Off.  This will result in the default
+	// of closesocket returning immediately and the system attempts to 
+	// send any unsent data.
+	// Also set KEEPALIVE so we know if the socket disappears.
+	if ( type() == Stream::reli_sock ) {
+		struct linger linger = {0,0};
+		int on = 1;
+		setsockopt(SOL_SOCKET, SO_LINGER, (char*)&linger, sizeof(linger));
+		setsockopt(SOL_SOCKET, SO_KEEPALIVE, (char*)&on, sizeof(on));
+	}
+
+	/* set port forwarding rule */
+	if (_msock != 0) {
+		// if this machine is behind the firewall
+		char proto[10];
+		switch(type()) {
+			case reli_sock:
+				strcpy(proto, TCP);
+				break;
+			case safe_sock:
+				strcpy(proto, UDP);
+				break;
+			default:
+				assert(0);
+		}
+		_lip = *lip;
+		_lport = *lport;
+		int ret = setFWrule(_masqServer, ADD, proto, _myIP, _myPort, &_lip, &_lport, _mport);
+		if (ret != SUCCESS) {
+			dprintf (D_ALWAYS, "Sock::bind adding fw rule failed\n");
+			dprintf (D_ALWAYS, "\t - errcode: %d\n", ret);
+			_lip = _lport = 0;
+			return FALSE;
+		}
+		*lip = _lip;
+		*lport = _lport;
+		dprintf(D_NETWORK, "\t\tbeing Masqed as: %s\n", ipport_to_string(_lip, _lport));
+	}
+
 	return TRUE;
 }
 
@@ -486,8 +574,6 @@ int Sock::set_os_buffers(int desired_size, bool set_write_buf)
 	temp = sizeof(int);
 	::getsockopt(_sock,SOL_SOCKET,command,
 			(char*)&current_size,&temp);
-	dprintf(D_FULLDEBUG,"Current Socket bufsize=%dk\n",
-		current_size / 1024);
 	current_size = 0;
 
 	/* 
@@ -653,10 +739,6 @@ bool Sock::do_connect_finish()
 {
 	if (test_connection()) {
 		_state = sock_connect;
-		dprintf( D_NETWORK, "CONNECT %s ",
-				 sock_to_string(_sock) );
-		dprintf( D_NETWORK|D_NOHEADER, "%s\n",
-				 sin_to_string(&_who) );
 		if ( connect_state.non_blocking_flag ) {
 			timeout(connect_state.old_timeout_value);			
 		}
@@ -664,8 +746,7 @@ bool Sock::do_connect_finish()
 	}
 	
 	if (!connect_state.failed_once) {
-		dprintf( D_ALWAYS, 
-				 "getpeername failed so connect must have failed\n");
+		dprintf( D_ALWAYS, "getpeername failed so connect must have failed\n");
 		connect_state.failed_once = true;
 	}
 
@@ -692,10 +773,15 @@ bool Sock::do_connect_finish()
 	return false;
 }
 
-bool Sock::do_connect_tryit()
+
+// If this Sock is behind Linux NAT proxy,
+//	- delete the forwarding rule so that no incomming connection can be made to this sock
+//	- query if peer is port forwarded address too and, if yes,
+//		: change the sin of peer(_who) to the original address so that connection can be
+//		  made to the original address directly
+inline bool
+Sock::adjustPeer()
 {
-	// If this Sock is behind Linux NAT proxy, query if _who is port
-	// forwarded address too and connect, if yes, to the original address directly
 	if (_msock != 0) {
 		char proto[10];
 		switch(type()) {
@@ -708,33 +794,43 @@ bool Sock::do_connect_tryit()
 			default:
 				assert(0);
 		}
-		unsigned int lip;
-		unsigned short lport;
+		unsigned int rip = 0;
+		unsigned short rport = 0;
 		int ret = setFWrule(_masqServer, QUERY, proto, _who.sin_addr.s_addr,
-							_who.sin_port, &lip, &lport, _mport);
+							_who.sin_port, &rip, &rport, _mport);
 		if (ret == SUCCESS) {
-			dprintf (D_NETWORK, "Sock::do_connect_tryit - peer is behind the firewall.\n");
-		   	dprintf (D_NETWORK, "\tConnecting through Masq Server...\n");
-			_who.sin_addr.s_addr = lip;
-			_who.sin_port = lport;
+			dprintf (D_NETWORK, "\t\tpeer is within this network\n");
+		   	dprintf (D_NETWORK, "\t\tconnecting directly...\n");
+			_who.sin_addr.s_addr = rip;
+			_who.sin_port = rport;
 		} else if (ret == NOT_FOUND) {
-			dprintf (D_NETWORK, "Sock::do_connect_tryit - peer is NOT behind the firewall.\n");
-		   	dprintf (D_NETWORK, "\tConnecting to the peer directly...\n");
+			dprintf (D_NETWORK, "\t\tpeer is outside of this private network\n");
 		} else {
 			dprintf (D_ALWAYS, "Sock::do_connect_tryit querying fw rule failed\n");
 			dprintf (D_ALWAYS, "\t - errcode: %d\n", ret);
-			return FALSE;
+			return false;
 		}
+		/*
 		if (_lip != 0) {
 			ret = setFWrule (_masqServer, DELETE, proto, _lip, _lport, NULL, NULL, _mport);
 			if ( ret != SUCCESS)
 			{
 				dprintf (D_ALWAYS, "Sock::do_connect_tryit deleting fw rule failed\n");
 				dprintf (D_ALWAYS, "\t - errcode: %d\n", ret);
-				return FALSE;
+				return false;
 			}
 			_lip = _lport = 0;
+			dprintf(D_NETWORK, "\t\tforwarding rule for this socket get deleted\n");
 		}
+		*/
+	}
+	return true;
+}
+
+bool Sock::do_connect_tryit()
+{
+	if ( !adjustPeer() ) {
+		return false;
 	}
 
 	if (::connect(_sock, (sockaddr *)&_who, sizeof(sockaddr_in)) == 0) {
@@ -742,8 +838,6 @@ bool Sock::do_connect_tryit()
 #ifdef MYDEBUG
 		cout << "Connected to " << sin_to_string(&_who) << endl;
 #endif
-		dprintf( D_NETWORK, "CONNECT %s ", sock_to_string(_sock) );
-		dprintf( D_NETWORK|D_NOHEADER, "%s\n", sin_to_string(&_who) );
 		if ( connect_state.non_blocking_flag ) {
 			timeout(connect_state.old_timeout_value);			
 		}
@@ -849,15 +943,14 @@ int Sock::close()
 {
 	if (_state == sock_virgin) return FALSE;
 
-	// port forwarding rule has been setup for this socket, so delete it
-	if (_lip != 0) {
+	// If this socket has setup a port forwarding rule and NOT been inherited,
+	// we want to delete the forwarding rule to release the resources of forwarding
+	// server. However, if this socket has been inherited, the forwarding rule should
+	// NOT be deleted so that the child process gets routed through the forwarding
+	if (_lip != 0 && !_inherited) {
 		if (deleteFWrule() != TRUE) {
 			return FALSE;
 		}
-	}
-
-	if (type() == Stream::reli_sock) {
-		dprintf( D_NETWORK, "CLOSE %s\n", sock_to_string(_sock) );
 	}
 
 	if (::closesocket(_sock) < 0) return FALSE;
@@ -908,24 +1001,54 @@ int Sock::timeout(int sec)
 	return t;
 }
 
-char * Sock::serialize() const
+char * Sock::serialize()
 {
 	// here we want to save our state into a buffer
-	char * outbuf = new char[100];
-	sprintf(outbuf,"%u*%d*%d",_sock,_state,_timeout);
+	char * outbuf = new char[150];
+	sprintf(outbuf,"%d*%d*%d*%u*%u*%d*%u*%u*%u*%s",
+			_sock,_state,_timeout,_myIP,_myPort,_msock,_mport,_lip,_lport,sin_to_string(&_masqServer));
+	dprintf(D_NETWORK, "\t\t_sock = %d\n", _sock);
+	dprintf(D_NETWORK, "\t\t_state = %d\n", _state);
+	dprintf(D_NETWORK, "\t\t_timeout = %d\n", _timeout);
+	dprintf(D_NETWORK, "\t\t<_myIP:_myPort> = %s\n", ipport_to_string(_myIP, _myPort));
+	dprintf(D_NETWORK, "\t\t_msock = %d\n", _msock);
+	dprintf(D_NETWORK, "\t\t_mport = %u\n", _mport);
+	dprintf(D_NETWORK, "\t\t<_lip:_lport> = %s\n", ipport_to_string(_lip, _lport));
+	dprintf(D_NETWORK, "\t\t_masqServer = %s\n", sin_to_string(&_masqServer));
+
+	_inherited = true;
 	return( outbuf );
 }
 
 char * Sock::serialize(char *buf)
 {
 	char *ptmp;
-	int i;
+	int i, rst;
+	char sin_str[40];
 	SOCKET passed_sock;
 
 	assert(buf);
 
 	// here we want to restore our state from the incoming buffer
-	sscanf(buf,"%u*%d*%d",&passed_sock,&_state,&_timeout);
+	rst = sscanf(buf,"%d*%d*%d*%u*%u*%d*%u*%u*%u*%s",
+		&passed_sock,&_state,&_timeout,&_myIP,&_myPort,&_msock,&_mport,&_lip, &_lport,sin_str);
+	if (rst != 10) {
+		char err[100];
+		sprintf(err, "Sock::serialize - sscanf failed: rst = %d : %s", rst, strerror(errno));
+		EXCEPT(err);
+	}
+	dprintf(D_NETWORK, "\t\t_sock = %d\n", passed_sock);
+	dprintf(D_NETWORK, "\t\t_state = %d\n", _state);
+	dprintf(D_NETWORK, "\t\t_timeout = %d\n", _timeout);
+	dprintf(D_NETWORK, "\t\t<_myIP:_myPort> = %s\n", ipport_to_string(_myIP, _myPort));
+	dprintf(D_NETWORK, "\t\t_msock = %d\n", _msock);
+	dprintf(D_NETWORK, "\t\t_mport = %u\n", _mport);
+	dprintf(D_NETWORK, "\t\t<_lip:_lport> = %s\n", ipport_to_string(_lip, _lport));
+	char *tmp = strchr(sin_str, '*');
+	*tmp = '\0';
+	dprintf(D_NETWORK, "\t\t_masqServer = %s\n", sin_str);
+
+	string_to_sin(sin_str, &_masqServer);
 
 	// replace _sock with the one from the buffer _only_ if _sock
 	// is currently invalid.  if it is not invalid, it has already
@@ -941,7 +1064,7 @@ char * Sock::serialize(char *buf)
 
 	// set our return value to a pointer beyond the 3 state values...
 	ptmp = buf;
-	for (i=0;i<3;i++) {
+	for (i=0;i<10;i++) {
 		if ( ptmp ) {
 			ptmp = strchr(ptmp,'*');
 			ptmp++;
@@ -993,11 +1116,43 @@ Sock::get_file_desc()
 int
 Sock::get_port()
 {
-	sockaddr_in	addr;
-	SOCKET_LENGTH_TYPE addr_len = sizeof(sockaddr_in);
+	return ntohs(_myPort);
+}
 
-	if (getsockname(_sock, (sockaddr *)&addr, &addr_len) < 0) return -1;
-	return (int) ntohs(addr.sin_port);
+int
+Sock::get_canon_port()
+{
+	if (_lip != 0) {
+		return ntohs(_lport);
+	} else {
+		return ntohs(_myPort);
+	}
+}
+
+char *
+Sock::sinful_string()
+{
+	struct sockaddr_in sin;
+	sin.sin_family = AF_INET;
+	if (_lip != 0) {
+		sin.sin_addr.s_addr = _lip;
+		sin.sin_port = _lport;
+	} else {
+		sin.sin_addr.s_addr = _myIP;
+		sin.sin_port = _myPort;
+	}
+	return ( sin_to_string( &sin ) );
+}
+
+
+char *
+Sock::canon_hostname(void)
+{
+	if (_lip != 0) {
+		return ip_to_name(_lip);
+	} else {
+		return ip_to_name(_myIP);
+	}
 }
 
 

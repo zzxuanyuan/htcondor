@@ -486,7 +486,7 @@ protected:
 	// serialize object (save/restore object state to an ascii string)
 	//
 	virtual char * serialize(char *) = 0;
-	virtual char * serialize() const = 0;
+	virtual char * serialize() = 0;
 
 	/*
 	**	Type definitions

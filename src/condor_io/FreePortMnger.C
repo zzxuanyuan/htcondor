@@ -16,23 +16,23 @@
 
 PortSet::PortSet ()
 {
-	_index = 0; 
 	for (int i=0; i<NAT_MAX_PORT; i++) {
 		_freeArr[i] = true;
 	}
 }
 
 unsigned int
-PortSet::freePort ()
+PortSet::freePort (unsigned short port)
 {
-	int first = _index;
+	int first = ntohs(port) - NAT_FIRST_PORT;
+	int index = first;
 	do {
-		if (_freeArr[_index]) {
-			_freeArr[_index] = false;
-			return htons (NAT_FIRST_PORT + _index);
+		if (_freeArr[index]) {
+			_freeArr[index] = false;
+			return htons (NAT_FIRST_PORT + index);
 		}
-		_index = (_index < NAT_MAX_PORT - 1) ? _index + 1 : 0;
-	} while (first != _index);
+		index = (index < NAT_MAX_PORT - 1) ? index + 1 : 0;
+	} while (first != index);
 	dprintf (D_ALWAYS, "PortSet::freePort - no more free port remained\n");
 	return 0;
 }
@@ -87,11 +87,13 @@ FreePortMnger::addInterface(unsigned int ipAddr)
 }
 
 bool
-FreePortMnger::nextFree (unsigned int *lip, unsigned short *lport)
+FreePortMnger::nextFree(unsigned short rport,
+						unsigned int *lip,
+						unsigned short *lport)
 {
 	bool found = false;
 	for (int i=0; i<_noInterfaces && !found; i++) {
-		*lport = _interfaces[_nextInterface].portSet->freePort();
+		*lport = _interfaces[_nextInterface].portSet->freePort(rport);
 		if (*lport != 0) {
 			*lip = _interfaces[_nextInterface].ip;
 			found = true;

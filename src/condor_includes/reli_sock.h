@@ -74,7 +74,7 @@ public:
 	ReliSock();
 
 	/// Copy ctor
-	ReliSock(const ReliSock &);
+	ReliSock(ReliSock &);
 
     ///
 	~ReliSock();
@@ -175,7 +175,7 @@ protected:
 	**	Methods
 	*/
 	char * serialize(char *);	// restore state from buffer
-	char * serialize() const;	// save state into buffer
+	char * serialize();	// save state into buffer
 
 	int prepare_for_nobuffering( stream_coding = stream_unknown);
 
@@ -312,7 +312,7 @@ protected:
 	                   // sent less than requested
 
 	// for bandwidth report
-	unsigned long _setTime; // time of whichever recent of setLimit call or
+	unsigned long _setTime; // time of whatever recent of setLimit call or
 	                        // bandwidth reporting
 	unsigned long _totalSent; // total bytes sent between _setTime and _T
 	unsigned long _totalRcvd; // total bytes received since _setTime

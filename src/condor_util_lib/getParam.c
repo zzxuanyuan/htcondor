@@ -32,7 +32,6 @@ int get_port_range(int *low_port, int *high_port)
 	char *low = NULL, *high = NULL;
 
 	if ( (low = param("LOWPORT")) == NULL ) {
-        dprintf(D_NETWORK, "LOWPORT undefined\n");
 		return FALSE;
     }
 	if ( (high = param("HIGHPORT")) == NULL ) {
@@ -88,7 +87,6 @@ int getMasqServer (char *mHost, unsigned short *mPort)
 
 	if ( (host = getenv("_condor_MASQ_SERVER_IP")) == NULL ) {
 		if ( (host = param("MASQ_SERVER_IP")) == NULL ) {
-			dprintf(D_NETWORK, "MASQ_SERVER_IP undefined\n");
 			return FALSE;
 		}
     }
@@ -96,7 +94,8 @@ int getMasqServer (char *mHost, unsigned short *mPort)
 	if ( (port = getenv("_condor_MASQ_SERVER_PORT")) == NULL ) {
 		if ( (port = param("MASQ_SERVER_PORT")) == NULL ) {
 			free(host);
-			dprintf(D_NETWORK, "MASQ_SERVER_PORT undefined\n");
+			dprintf(D_NETWORK, "MASQ_SERVER_IP is defined but ");
+			dprintf(D_NETWORK, "MASQ_SERVER_PORT NOT defined\n");
 			return FALSE;
 		}
     }

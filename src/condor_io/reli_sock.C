@@ -77,10 +77,11 @@ ReliSock::ReliSock()
     : Sock()
 {
     init();
+	dprintf(D_NETWORK, "ReliSock Created\n");
 }
 
 
-ReliSock::ReliSock(const ReliSock & orig) : Sock(orig)
+ReliSock::ReliSock(ReliSock & orig) : Sock(orig)
 {
     init();
     // now copy all cedar state info via the serialize() method
@@ -89,11 +90,13 @@ ReliSock::ReliSock(const ReliSock & orig) : Sock(orig)
     assert(buf);
     serialize(buf);            // put the state into the new sock
     delete [] buf;
+	dprintf(D_NETWORK, "Inherited ReliSock Created\n");
 }
 
 
 ReliSock::~ReliSock()
 {
+	dprintf(D_NETWORK, "\tDeleting ReliSock: %s\n", sock_to_string(_sock));
     close();
     if(_bandReg) {
         reportClose();
@@ -261,11 +264,10 @@ ReliSock::listen()
     }
     if (::listen(_sock, 5) < 0) return FALSE;
 
-    dprintf( D_NETWORK, "LISTEN %s\n", sock_to_string(_sock) );
-
     _state = sock_special;
     _special_state = relisock_listen;
 
+	dprintf(D_NETWORK, "\tListening to %s\n", sock_to_string(_sock));
     return TRUE;
 }
 
@@ -344,8 +346,7 @@ ReliSock::accept( ReliSock  &c )
         }
     }
 
-    dprintf( D_NETWORK, "ACCEPT %s ", sock_to_string(_sock) );
-    dprintf( D_NETWORK|D_NOHEADER, "%s\n", sin_to_string(c.endpoint()) );
+    dprintf( D_NETWORK, "\tConnection from %s accepted to %s\n", sin_to_string(c.endpoint()), c.sinful_string());
 
     return TRUE;
 }
@@ -393,6 +394,7 @@ ReliSock::connect( char *host, int port, bool non_blocking_flag )
 
     /* Connect to peer ReliSock */
     hostAddr = strdup( host );
+	dprintf(D_NETWORK, "\tConnecting to <%s:%d>\n", host, port);
     if(do_connect( host, port, non_blocking_flag) != TRUE) {
         if(_bandReg && _greeted) {
             reportClose();
@@ -406,10 +408,10 @@ ReliSock::connect( char *host, int port, bool non_blocking_flag )
         if (greetMnger() != TRUE) {
             ::close(_sock);
             return FALSE;
-        } else
-            return TRUE;
+        }
     }
-    else return TRUE;
+	dprintf(D_NETWORK, "\tConnected to %s\n", sin_to_string(&_who));
+    return TRUE;
 }
 
 
@@ -1589,8 +1591,10 @@ ReliSock::type()
 }
 
 char * 
-ReliSock::serialize() const
+ReliSock::serialize()
 {
+	dprintf(D_NETWORK, "\tInheriting ReliSock:\n");
+
     // here we want to save our state into a buffer
 
     // first, get the state from our parent class
@@ -1598,6 +1602,8 @@ ReliSock::serialize() const
     // now concatenate our state
     char * outbuf = new char[50];
     sprintf(outbuf,"*%d*%s",_special_state,sin_to_string(&_who));
+	dprintf(D_NETWORK, "\t\t_special_state = %d\n", _special_state);
+	dprintf(D_NETWORK, "\t\t_who = %s\n", sin_to_string(&_who));
     strcat(parent_state,outbuf);
     delete []outbuf;
     return( parent_state );
@@ -1606,6 +1612,8 @@ ReliSock::serialize() const
 char * 
 ReliSock::serialize(char *buf)
 {
+	dprintf(D_NETWORK, "\tBeing inherited ReliSock:\n");
+
     char sinful_string[28];
     char *ptmp;
     
@@ -1617,6 +1625,8 @@ ReliSock::serialize(char *buf)
     ptmp = Sock::serialize(buf);
     assert( ptmp );
     sscanf(ptmp,"%d*%s",&_special_state,sinful_string);
+	dprintf(D_NETWORK, "\t\t_special_state = %d\n", _special_state);
+	dprintf(D_NETWORK, "\t\t_who = %s\n", sinful_string);
     string_to_sin(sinful_string, &_who);
 
     return NULL;
@@ -1702,7 +1712,8 @@ ReliSock::prepare_for_nobuffering(stream_coding direction)
 }
 
 int 
-ReliSock::authenticate() {
+ReliSock::authenticate()
+{
     if ( !authob ) {
         authob = new Authentication( this );
     }
@@ -1713,14 +1724,16 @@ ReliSock::authenticate() {
 }
 
 void
-ReliSock::setOwner( const char *newOwner ) {
+ReliSock::setOwner( const char *newOwner )
+{
     if ( authob ) {
         authob->setOwner( newOwner );
     }
 }
 
 const char *
-ReliSock::getOwner() {
+ReliSock::getOwner()
+{
     if ( authob ) {
         return( authob->getOwner() );
     }
