@@ -992,7 +992,7 @@ Resource::compute_condor_load( void )
 	avg = (r_load_queue->avg() / numcpus);
 
 	if( (DebugFlags & D_FULLDEBUG) && (DebugFlags & D_LOAD) ) {
-		r_load_queue->display();
+		r_load_queue->display( this );
 		dprintf( D_FULLDEBUG, 
 				 "LoadQueue: Size: %d  Avg value: %f  "
 				 "Share of system load: %f\n", 
