@@ -959,9 +959,9 @@ Daemon::getDaemonInfo( const char* subsys, AdTypes adtype, bool query_collector)
 		scan = ads.Next();
 		if(!scan) {
 			dprintf( D_ALWAYS, "Can't find address for %s %s\n",
-					 daemonString(_type), _name );
+					 daemonString(_type), _name ? _name : "" );
 			buf.sprintf( "Can't find address for %s %s", 
-						 daemonString(_type), _name );
+						 daemonString(_type), _name ? _name : "" );
 			newError( CA_LOCATE_FAILED, buf.Value() );
 			return false; 
 		}
@@ -1414,9 +1414,11 @@ Daemon::initStringFromAd( ClassAd* ad, const char* attrname, char** value )
 	MyString buf;
 	if( ! ad->LookupString(attrname, &tmp) ) {
 		dprintf( D_ALWAYS, "Can't find %s in classad for %s %s\n",
-				 attrname, daemonString(_type), _name );
+				 attrname, daemonString(_type),
+				 _name ? _name : "" );
 		buf.sprintf( "Can't find %s in classad for %s %s",
-					 attrname, daemonString(_type), _name );
+					 attrname, daemonString(_type),
+					 _name ? _name : "" );
 		newError( CA_LOCATE_FAILED, buf.Value() );
 		return false;
 	}
