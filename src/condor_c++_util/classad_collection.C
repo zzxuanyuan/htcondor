@@ -149,6 +149,8 @@ ClassAdCollection::TruncLog()
     int     new_log_fd;
     FILE    *new_log_fp;
 
+	if (!log_fp) return;
+
     sprintf(tmp_log_filename, "%s.tmp", log_filename);
     new_log_fd = open(tmp_log_filename, O_RDWR | O_CREAT | O_TRUNC , 0600);
     if (new_log_fd < 0) {
@@ -369,6 +371,18 @@ LogRecord* ClassAdCollection::InstantiateLogEntry(FILE* fp, int type)
         EXCEPT("Can't read log!");
     }
     return log_rec;
+}
+
+//-----------------------------------------------------------------------
+
+bool ClassAdCollection::GetRankValue(char* key, float& rank_value, int CoID=0)
+{
+  BaseCollection* Coll=GetCollection(CoID);
+  if (!Coll) return false;
+  RankedClassAd RankedAd(key);
+  if (Coll->Members.GetKey(RankedAd)!=1) return false;
+  rank_value=RankedAd.Rank;
+  return true;
 }
 
 //-----------------------------------------------------------------------
@@ -799,26 +813,19 @@ bool ClassAdCollection::StartIterateClassAds(int CoID)
 	return true;
 }
 
-bool ClassAdCollection::IterateClassAds( int CoID, ClassAd*& ad )
-{
-	RankedClassAd ra;
-	if( !IterateClassAds( CoID, ra ) ) return false;
-	if( table.lookup( HashKey( ra.OID.Value() ), ad ) == -1 ) return false;
-	return true;
-}
+//-----------------------------------------------------------------------
 
-bool ClassAdCollection::IterateClassAds( int CoID, char *key )
+bool ClassAdCollection::IterateClassAds( char* key, int CoID )
 {
 	RankedClassAd ra;
-	if( !IterateClassAds( CoID, ra ) ) return false;
+	if( !IterateClassAds( ra, CoID ) ) return false;
 	strcpy( key, ra.OID.Value( ) );
 	return( true );
 }
-//-----------------------------------------------------------------------
-/// Get the next class ad and rank in the collection
+
 //-----------------------------------------------------------------------
 
-bool ClassAdCollection::IterateClassAds(int CoID, RankedClassAd& RankedAd)
+bool ClassAdCollection::IterateClassAds( RankedClassAd& RankedAd, int CoID )
 {
 	// Get collection pointer
 	BaseCollection* Coll;
@@ -826,6 +833,35 @@ bool ClassAdCollection::IterateClassAds(int CoID, RankedClassAd& RankedAd)
 
 	if (Coll->Members.Iterate(RankedAd)) return true;
 	return false;
+}
+
+//----------------------------------------------------------------------------------
+// Start iterating on child collections of some parent collection
+//----------------------------------------------------------------------------------
+
+bool ClassAdCollection::StartIterateChildCollections(int ParentCoID)
+{
+  // Get collection pointer
+  BaseCollection* Coll;
+  if (Collections.lookup(ParentCoID,Coll)==-1) return false;
+ 
+  Coll->Children.StartIterations();
+  return true;
+}
+
+//----------------------------------------------------------------------------------
+// Get the next child collection
+//----------------------------------------------------------------------------------
+
+bool ClassAdCollection::IterateChildCollections(int& CoID, int ParentCoID)
+{
+  // Get collection pointer
+  BaseCollection* Coll;
+  if (Collections.lookup(ParentCoID,Coll)==-1) return false;
+ 
+  if (Coll->Children.Iterate(CoID)) return true;
+  return false;
+
 }
 
 //-----------------------------------------------------------------------
