@@ -3293,7 +3293,7 @@ SetGlobusParams()
 	char * jobmanager_type;
 	jobmanager_type = condor_param ( GlobusJobmanagerType );
 	if (jobmanager_type) {
-		if (stricmp (grid_type, "gt4") != MATCH ) {
+		if (stricmp (jobmanager_type, "gt4") != MATCH ) {
 			fprintf(stderr, "\nWARNING: Param %s is not supported for grid types other than gt4\n", GlobusJobmanagerType );
 		}
 		sprintf( buffer, "%s = \"%s\"", ATTR_GLOBUS_JOBMANAGER_TYPE, jobmanager_type );
@@ -3835,14 +3835,6 @@ queue(int num)
 
 		char *proxy_file = condor_param( X509UserProxy );
 
-		if ( proxy_file == NULL && JobUniverse == CONDOR_UNIVERSE_GLOBUS &&
-			 (stricmp (JobGridType, "globus") == MATCH ||
-			  stricmp (JobGridType, "gt2") == MATCH ||
-			  stricmp (JobGridType, "gt3") == MATCH ||
-			  stricmp (JobGridType, "nordugrid") == MATCH)) {
-
-			proxy_file = get_x509_proxy_filename();
-			if ( proxy_file == NULL ) {
 
 		// Issue an error if (no proxy) && (universe=globus,gt2,gt3,nordugrid)
 		if ( proxy_file == NULL) {
@@ -4038,6 +4030,7 @@ queue(int num)
 		if (Quiet) {
 			fprintf(stdout, ".");
 		}
+
 
 	}
 }
