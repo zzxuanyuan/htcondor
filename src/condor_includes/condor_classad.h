@@ -40,9 +40,11 @@ using namespace classad;
 #include "condor_attributes.h"
 #include "condor_adtypes.h"
 
+BEGIN_NAMESPACE( classad )
 void printClassAdExpr( ExprTree * );
 void printClassAdValue( Value & );
 ClassAd* getOldClassAd( Sock& );
 bool getOldClassAd( Sock&, ClassAd& );
+END_NAMESPACE
 
 #endif
