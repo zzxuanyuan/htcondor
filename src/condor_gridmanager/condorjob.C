@@ -1007,7 +1007,7 @@ ClassAd *CondorJob::buildSubmitAd()
 	}
 
 	submit_ad->Assign( ATTR_JOB_STATUS, HELD );
-	submit_ad->Assign( ATTR_JOB_HOLD_REASON, "Spooling input data files" );
+	submit_ad->Assign( ATTR_HOLD_REASON, "Spooling input data files" );
 submit_ad->Assign( ATTR_JOB_UNIVERSE, CONDOR_UNIVERSE_VANILLA );
 
 	submit_ad->Assign( ATTR_Q_DATE, now );
