@@ -319,6 +319,7 @@ const int QUERY_ANY_ADS = 48;
 
 /* Other replies */
 #define CONDOR_TRY_AGAIN	2
+#define CONDOR_ERROR	3
 
 
 #endif  /* of ifndef _CONDOR_COMMANDS_H */
