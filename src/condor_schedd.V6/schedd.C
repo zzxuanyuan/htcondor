@@ -2368,13 +2368,21 @@ Scheduler::spoolJobFiles(int mode, Stream* s)
 	}	
 
 
+	rsock->decode();
 	if ( mode == SPOOL_JOB_FILES ) {
 			// read the number of jobs involved
-		if ( !rsock->code(JobAdsArrayLen) || JobAdsArrayLen <= 0 ) {
+//		if ( !rsock->code(JobAdsArrayLen) || JobAdsArrayLen <= 0 ) {
+		if ( !rsock->code(JobAdsArrayLen) ) {
 				dprintf( D_ALWAYS, "spoolJobFiles(): "
 						 "failed to read JobAdsArrayLen (%d)\n",JobAdsArrayLen );
 				refuse(s);
 				return FALSE;
+		}
+		if ( JobAdsArrayLen <= 0 ) {
+			dprintf( D_ALWAYS, "spoolJobFiles(): "
+					 "read bad JobAdsArrayLen value %d\n", JobAdsArrayLen );
+			refuse(s);
+			return FALSE;
 		}
 		rsock->eom();
 		dprintf(D_FULLDEBUG,"spoolJobFiles(): read JobAdsArrayLen - %d\n",JobAdsArrayLen);
