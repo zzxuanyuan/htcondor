@@ -828,12 +828,10 @@ bool ReliSock::RcvMsg::init_MD(CONDOR_MD_MODE mode, KeyInfo * key)
 
     mode_ = mode;
     delete mdChecker_;
+	mdChecker_ = 0;
 
     if (key) {
         mdChecker_ = new Condor_MD_MAC(key);
-    }
-    else {
-      mdChecker_ = new Condor_MD_MAC();
     }
 
     return true;
@@ -859,7 +857,7 @@ int ReliSock::RcvMsg::rcv_packet( SOCKET _sock, int _timeout)
 	int		len, len_t, header_size;
 	int		tmp_len;
 
-	header_size = mdChecker_ ? MAX_HEADER_SIZE : NORMAL_HEADER_SIZE;
+	header_size = (mode_ != MD_OFF) ? MAX_HEADER_SIZE : NORMAL_HEADER_SIZE;
 
 	if ( condor_read(_sock,hdr,header_size,_timeout) < 0 ) {
 			// condor_read() already does dprintfs into the log
@@ -887,7 +885,7 @@ int ReliSock::RcvMsg::rcv_packet( SOCKET _sock, int _timeout)
 	}
 
         // Now, check MD
-        if (mdChecker_) {
+        if (mode_ != MD_OFF) {
             if (!tmp->verifyMD(&hdr[5], mdChecker_)) {
                 delete tmp;
                 dprintf(D_ALWAYS, "IO: Message Digest/MAC verification failed!\n");
@@ -925,14 +923,14 @@ int ReliSock::SndMsg::snd_packet( int _sock, int end, int _timeout )
 	int		len, header_size;
 	int		ns;
 
-        header_size = mdChecker_ ? MAX_HEADER_SIZE : NORMAL_HEADER_SIZE;
+    header_size = (mode_ != MD_OFF) ? MAX_HEADER_SIZE : NORMAL_HEADER_SIZE;
 	hdr[0] = (char) end;
 	ns = buf.num_used() - header_size;
 	len = (int) htonl(ns);
 
 	memcpy(&hdr[1], &len, 4);
 
-        if (mdChecker_) {
+        if (mode_ != MD_OFF) {
             if (!buf.computeMD(&hdr[5], mdChecker_)) {
                 dprintf(D_ALWAYS, "IO: Failed to compute Message Digest/MAC\n");
                 return FALSE;
@@ -954,12 +952,10 @@ bool ReliSock::SndMsg::init_MD(CONDOR_MD_MODE mode, KeyInfo * key)
 
     mode_ = mode;
     delete mdChecker_;
+	mdChecker_ = 0;
 
     if (key) {
         mdChecker_ = new Condor_MD_MAC(key);
-    }
-    else {
-        mdChecker_ = new Condor_MD_MAC();
     }
 
     return true;
