@@ -1869,6 +1869,60 @@ aboutToSpawnJobHandler( int cluster, int proc, void* )
 
 
 int
+aboutToSpawnJobHandlerDone( int cluster, int proc, 
+							void* shadow_record, int )
+{
+	shadow_rec* srec = (shadow_rec*)shadow_record;
+	dprintf( D_FULLDEBUG, 
+			 "aboutToSpawnJobHandler() completed for job %d.%d%s\n",
+			 cluster, proc, 
+			 srec ? ", attempting to spawn job handler" : "" );
+
+	if( ! srec ) {
+			// if we weren't given an srec, we're not being called in
+			// the regular shadow/starter case, and we've got nothing
+			// more to do.
+		return TRUE;
+	}
+
+		// if we made it this far, now we've got to spawn the handler
+		// that's described by the shadow record we were given.
+	return (int)scheduler.spawnJobHandler( srec );
+}
+
+
+bool
+Scheduler::spawnJobHandler( shadow_rec* srec )
+{
+	if( srec->universe == CONDOR_UNIVERSE_LOCAL ) {
+			/*
+			  Local universe is special in that we never have to
+			  worry about the match being deleted, since there is
+			  no match.  so, in this case, we can just spawn the
+			  local universe starter and return.
+			*/
+		scheduler.spawnLocalStarter( srec );
+		return true;
+	}
+
+		// if we're still here, make sure we have a match...
+	if( srec->match ) {
+		scheduler.spawnShadow( srec );
+		return true;
+	}
+
+			// no match: complain and then try the next job...
+	dprintf( D_ALWAYS, "match for job %d.%d was deleted - not "
+			 "forking a shadow\n", srec->job_id.cluster, 
+			 srec->job_id.proc );
+	mark_job_stopped( &(srec->job_id) );
+	RemoveShadowRecFromMrec( srec );
+	delete srec;
+	return false;
+}
+
+
+int
 Scheduler::jobIsTerminalStatic( int cluster, int proc, void* this_scheduler )
 {
 	ASSERT(this_scheduler);
@@ -2630,7 +2684,7 @@ Scheduler::generalJobFilesWorkerThread(void *arg, Stream* s, int mode)
 			FreeJobAd(ad);
 
 			if(universe == CONDOR_UNIVERSE_GLOBUS) {
-				aboutToSpawnJobHandler(cluster, proc);
+				aboutToSpawnJobHandler( cluster, proc, NULL );
 			}
 		}
 	}
@@ -5342,6 +5396,7 @@ Scheduler::StartJobHandler()
 {
 	shadow_rec* srec;
 	PROC_ID* job_id=NULL;
+	int cluster, proc;
 	ClassAd* job = NULL;
 	int status;
 
@@ -5363,13 +5418,15 @@ Scheduler::StartJobHandler()
 		// Check to see if job ad is still around; it may have been
 		// removed while we were waiting in RunnableJobQueue
 		job_id=&srec->job_id;
-		job = GetJobAd(job_id->cluster,job_id->proc,false);
+		cluster = job_id->cluster;
+		proc = job_id->proc;
+		job = GetJobAd( cluster, proc, false );
 		if( ! job ) {
 				// job ad disappeared, just go to the next thing in
 				// the queue
 			dprintf( D_FULLDEBUG,
 					 "Job %d.%d was deleted while waiting to start\n",
-					 job_id->cluster, job_id->proc );
+					 cluster, proc );
 			RemoveShadowRecFromMrec(srec);
 			delete srec;
 			continue;
@@ -5377,7 +5434,7 @@ Scheduler::StartJobHandler()
 
 		if( job->LookupInteger(ATTR_JOB_STATUS, status) == 0 ) {
 			EXCEPT( "Job %d.%d has no %s while waiting to start!",
-					job_id->cluster, job_id->proc, ATTR_JOB_STATUS );
+					cluster, proc, ATTR_JOB_STATUS );
 		}
 		switch( status ) {
 		case UNEXPANDED:
@@ -5393,8 +5450,7 @@ Scheduler::StartJobHandler()
 		case HELD:
 			dprintf( D_FULLDEBUG,
 					 "Job %d.%d was %s while waiting to start\n",
-					 job_id->cluster, job_id->proc,
-					 getJobStatusString(status) );
+					 cluster, proc, getJobStatusString(status) );
 				// NOTE: it's ok to call mark_job_stopped(), since we
 				// want to clear out ATTR_CURRENT_HOSTS, the shadow
 				// birthday, etc. luckily, mark_job_stopped() won't
@@ -5410,41 +5466,34 @@ Scheduler::StartJobHandler()
 		case SUBMISSION_ERR:
 			EXCEPT( "IMPOSSIBLE: status for job %d.%d is %s "
 					"but we're trying to start a shadow for it!", 
-					job_id->cluster, job_id->proc,
-					getJobStatusString(status) );
+					cluster, proc, getJobStatusString(status) );
 			break;
 
 		default:
 			EXCEPT( "StartJobHandler: Unknown status (%d) for job %d.%d\n",
-					status, job_id->cluster, job_id->proc ); 
+					status, cluster, proc ); 
 			break;
 		}
 
-		if( srec->universe == CONDOR_UNIVERSE_LOCAL ) {
-				/*
-				  Local universe is special in that we never have to
-				  worry about the match being deleted, since there is
-				  no match.  so, in this case, we can just spawn the
-				  local universe starter and return.
-				*/
-			spawnLocalStarter( srec );
-			tryNextJob();
-			return;
+		if( jobPrepNeedsThread(cluster, proc) ) {
+			dprintf( D_FULLDEBUG, "Job prep for %d.%d will block, "
+					 "calling aboutToSpawnJobHandler() in a thread\n",
+					 cluster, proc );
+			Create_Thread_With_Data( aboutToSpawnJobHandler,
+									 aboutToSpawnJobHandlerDone,
+									 cluster, proc, srec );
+		} else {
+			dprintf( D_FULLDEBUG, "Job prep for %d.%d will not block, "
+					 "calling aboutToSpawnJobHandler() directly\n",
+					 cluster, proc );
+			aboutToSpawnJobHandler( cluster, proc, srec );
+			aboutToSpawnJobHandlerDone( cluster, proc, srec, 0 );
 		}
 
-			// if we're still here, make sure we have a match...
-		if( srec->match ) {
-			spawnShadow( srec );
-			tryNextJob();
-			return;
-		}
-
-			// no match: complain and then try the next job...
-		dprintf( D_ALWAYS, "match for job %d.%d was deleted - not "
-				 "forking a shadow\n", job_id->cluster, job_id->proc );
-		mark_job_stopped(job_id);
-		RemoveShadowRecFromMrec(srec);
-		delete srec;
+			// if we got this far, we're done at this time.  just
+			// return and let our timer logic handle the rest.
+		tryNextJob();
+		return;
 	}
 }
 
@@ -5620,8 +5669,8 @@ Scheduler::spawnShadow( shadow_rec* srec )
 		}
 	}
 
-	rval = spawnJobHandler( srec, shadow_path, args, NULL, "shadow",
-							sh_is_dc, sh_reads_file );
+	rval = spawnJobHandlerRaw( srec, shadow_path, args, NULL, "shadow",
+							   sh_is_dc, sh_reads_file );
 
 	free( shadow_path );
 
@@ -5688,9 +5737,9 @@ Scheduler::tryNextJob( void )
 
 
 bool
-Scheduler::spawnJobHandler( shadow_rec* srec, const char* path, 
-							const char* args, const char* env, 
-							const char* name, bool is_dc, bool wants_pipe )
+Scheduler::spawnJobHandlerRaw( shadow_rec* srec, const char* path, 
+							   const char* args, const char* env, 
+							   const char* name, bool is_dc, bool wants_pipe )
 {
 	int pid = -1;
 	PROC_ID* job_id = &srec->job_id;
@@ -5739,7 +5788,7 @@ Scheduler::spawnJobHandler( shadow_rec* srec, const char* path,
 									  std_fds_p, niceness );
 
 	if( pid == FALSE ) {
-		dprintf( D_FAILURE|D_ALWAYS, "spawnJobHandler: "
+		dprintf( D_FAILURE|D_ALWAYS, "spawnJobHandlerRaw: "
 				 "CreateProcess(%s, %s) failed\n", path, args );
 		if( wants_pipe ) {
 			for( int i = 0; i < 2; i++ ) {
@@ -6123,8 +6172,8 @@ Scheduler::spawnLocalStarter( shadow_rec* srec )
 	starter_env.sprintf( "_%s_EXECUTE=%s", myDistro->Get(),
 						 LocalUnivExecuteDir );
 	
-	rval = spawnJobHandler( srec, starter_path, starter_args.Value(),
-							starter_env.Value(), "starter", true, true );
+	rval = spawnJobHandlerRaw( srec, starter_path, starter_args.Value(),
+							   starter_env.Value(), "starter", true, true );
 
 	free( starter_path );
 	starter_path = NULL;

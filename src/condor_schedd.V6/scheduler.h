@@ -279,6 +279,7 @@ class Scheduler : public Service
 	void			checkReconnectQueue( void );
 	void			makeReconnectRecords( PROC_ID* job, const ClassAd* match_ad );
 
+	bool	spawnJobHandler( shadow_rec* srec );
 	bool 	enqueueTerminalJob( int cluster, int proc );
 
 
@@ -441,10 +442,10 @@ private:
 	shadow_rec*		start_pvm(match_rec*, PROC_ID*);
 	shadow_rec*		start_sched_universe_job(PROC_ID*);
 	shadow_rec*		start_local_universe_job(PROC_ID*);
-	bool			spawnJobHandler( shadow_rec* srec, const char* path,
-									 const char* args, const char* env, 
-									 const char* name, bool is_dc,
-									 bool wants_pipe );
+	bool			spawnJobHandlerRaw( shadow_rec* srec, const char* path,
+										const char* args, const char* env, 
+										const char* name, bool is_dc,
+										bool wants_pipe );
 	void			Relinquish(match_rec*);
 	void			check_zombie(int, PROC_ID*);
 	void			kill_zombie(int, PROC_ID*);
@@ -509,6 +510,7 @@ extern bool releaseJob( int cluster, int proc, const char* reason = NULL,
 					 bool email_user = false, bool email_admin = false,
 					 bool write_to_user_log = true);
 
+
 /** Hook to call whenever we're going to give a job to a "job
 	handler", be that a shadow, starter (local univ), or gridmanager.
 	it takes the optional shadow record as a void* so this can be
@@ -518,5 +520,12 @@ extern bool releaseJob( int cluster, int proc, const char* reason = NULL,
 	handler), so we ignore it here, but will need it later...
 */
 int aboutToSpawnJobHandler( int cluster, int proc, void* srec=NULL );
+
+
+/** For use as a reaper with Create_Thread_With_Data(), or to call
+	directly after aboutToSpawnJobHandler() if there's no thread. 
+*/
+int aboutToSpawnJobHandlerDone( int cluster, int proc, void* srec=NULL,
+								int exit_status = 0 );
 
 #endif /* _CONDOR_SCHED_H_ */
