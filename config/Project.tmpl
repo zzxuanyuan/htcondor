@@ -25,6 +25,8 @@ INCLUDE_DIR =		../h
 NEW_INCLUDE_DIR =	../condor_includes
 C_PLUS_INCLUDE =	../condor_c++_util
 DAEMONCLIENT_INCLUDE =	../condor_daemon_client
+ODBC_INCLUDE = /afs/cs.wisc.edu/u/j/h/jhuang/odbc/include
+ODBC_LIB = /afs/cs.wisc.edu/u/j/h/jhuang/odbc/lib
 
 #ifdef NEED_SNPRINTF
 SNPRINTF_FLAGS = -DNEED_SNPRINTF
@@ -91,6 +93,7 @@ JAR = JarTool
 STATIC	= -static
 STAR	= *
 
+LDFLAGS = -lrt -lpq -pg -L$(ODBC_LIB) -lodbc
 PLATFORM_LDFLAGS = PlatformLdFlags
 PURIFY_PLATFORM_LDFLAGS = PurifyPlatformLdFlags
 TEST_PLATFORM_LDFLAGS = TestPlatformLdFlags
@@ -443,7 +446,7 @@ GPP_VERS_FLAGS =
 GPP_SHARED_FLAGS = -fno-implicit-templates $(GPP_VERS_FLAGS)
 
 STD_C_FLAGS = $(VENDOR_C_FLAGS) $(DEBUG_FLAG) $(CC_PIC_FLAG) PlatformFlags PlatformGccFlags $(CCOMPILER_ID) $(HEADER_FEATURE_SET) $(FUNC_FEATURE_SET) $(CTYPE_FEATURE_SET) $(AUTOCONF_DEFS)
-STD_C_PLUS_FLAGS = $(STD_C_FLAGS) $(GPP_SHARED_FLAGS) PlatformGppFlags 
+STD_C_PLUS_FLAGS = $(STD_C_FLAGS) $(GPP_SHARED_FLAGS) PlatformGppFlags -I$(ODBC_INCLUDE)
 /* We basically want INST_C_PLUS_FLAGS to be equal to STD_C_PLUS_FLAGS,
 	but make sure there isn't -fno-implicit-templates in it
 	since we want any templates which need to be created to be created in 
