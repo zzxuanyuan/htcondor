@@ -1467,7 +1467,7 @@ output_switch( struct node *n )
 	}
 
 	/* Disable checkpointing */
-	printf( "\tsigset_t sigs = block_condor_signals();\n\n");
+	printf( "\tsigset_t sigs = _condor_signals_disable();\n\n");
 
 	/* Look up mapped parameters, and map them. */
 	for( p=n->param_list->next; p!=n->param_list; p=p->next ) {
@@ -1509,7 +1509,7 @@ output_switch( struct node *n )
 		}
 	}
 
-	printf( "\trestore_condor_sigmask(sigs);\n");
+	printf( "\t_condor_signals_enable(sigs);\n");
 
 	if( strcmp(n->type_name,"void") || n->is_ptr) {
 		printf("\n\treturn (%s) rval;\n",node_type(n));
