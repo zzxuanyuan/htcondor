@@ -146,4 +146,5 @@ int condorSchedd__createJobTemplate(xsd__int clusterId,
                                     enum condorSchedd__UniverseType type,
                                     xsd__string cmd,
                                     xsd__string args,
+                                    xsd__string requirements,
                                     struct condorSchedd__ClassAdStructAndStatusResponse & result);

@@ -371,6 +371,7 @@ struct condorSchedd__createJobTemplate
 	enum condorSchedd__UniverseType type;
 	char *cmd;
 	char *args;
+	char *requirements;
 };
 
 /* SOAP Header: */
@@ -463,7 +464,7 @@ SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__listSpool(struct soap*, struct condorSch
 
 SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__discoverJobRequirements(struct soap*, struct condorCore__ClassAdStruct *, struct condorSchedd__RequirementsAndStatusResponse &);
 
-SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__createJobTemplate(struct soap*, int, int, char *, enum condorSchedd__UniverseType, char *, char *, struct condorSchedd__ClassAdStructAndStatusResponse &);
+SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__createJobTemplate(struct soap*, int, int, char *, enum condorSchedd__UniverseType, char *, char *, char *, struct condorSchedd__ClassAdStructAndStatusResponse &);
 
 /* Stubs */
 
@@ -505,7 +506,7 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__listSpool(struct soap*, const 
 
 SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__discoverJobRequirements(struct soap*, const char*, const char*, struct condorCore__ClassAdStruct *, struct condorSchedd__RequirementsAndStatusResponse &);
 
-SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__createJobTemplate(struct soap*, const char*, const char*, int, int, char *, enum condorSchedd__UniverseType, char *, char *, struct condorSchedd__ClassAdStructAndStatusResponse &);
+SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__createJobTemplate(struct soap*, const char*, const char*, int, int, char *, enum condorSchedd__UniverseType, char *, char *, char *, struct condorSchedd__ClassAdStructAndStatusResponse &);
 
 /* Skeletons */
 

@@ -401,6 +401,7 @@
  <part name="type" type="condorSchedd:UniverseType"/>
  <part name="cmd" type="xsd:string"/>
  <part name="args" type="xsd:string"/>
+ <part name="requirements" type="xsd:string"/>
 </message>
 
 <portType name="condorScheddPortType">

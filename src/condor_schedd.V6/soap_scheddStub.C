@@ -815,6 +815,7 @@ condorSchedd__createJobTemplate(struct soap *soap,
                                 condorSchedd__UniverseType universe,
                                 char * cmd,
                                 char * args,
+                                char * requirements,
                                 struct condorSchedd__ClassAdStructAndStatusResponse & result)
 {
   MyString attribute;
@@ -993,7 +994,13 @@ condorSchedd__createJobTemplate(struct soap *soap,
   dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
   job->Insert(attribute.GetCStr());
 
-  attribute = MyString(ATTR_REQUIREMENTS) + " = TRUE";
+  attribute = MyString(ATTR_REQUIREMENTS) + " = (";
+  if (requirements) {
+    attribute = attribute + requirements;
+  } else {
+    attribute = attribute + " = TRUE";
+  }
+  attribute = attribute + ")";
   dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
   job->Insert(attribute.GetCStr());
 
