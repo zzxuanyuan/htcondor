@@ -163,8 +163,8 @@ Job::declare_file(MyString name,
 
 	jobFile.name = name;
 
-	file = open((*spoolDirectory + DIR_DELIM_STRING + jobFile.name).GetCStr(), O_WRONLY | O_CREAT | _O_BINARY, 0);
-	if (file) {
+	file = open((*spoolDirectory + DIR_DELIM_STRING + jobFile.name).GetCStr(), O_WRONLY | O_CREAT | _O_BINARY, 0600);
+	if (-1 != file) {
 		jobFile.file = file;
 		if (requirements->insert(MyString(name), jobFile)) {
 			return 2;
@@ -291,7 +291,7 @@ Job::get_file(MyString name,
 {
 	int file = open((*spoolDirectory + DIR_DELIM_STRING + name).GetCStr(), O_RDONLY | _O_BINARY, 0);
 
-	if (file) {
+	if (-1 != file) {
 		if (-1 == lseek(file, offset, SEEK_SET)) {
 			return 2;
 		}
