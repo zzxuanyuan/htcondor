@@ -45,7 +45,12 @@ struct Incr_ckpt_data {
 	long total_pages;
 	long dirty_pages;
 	long orig_brk;
-	char bitmap[0];	// this is a stretchy array
+	char bitmap[1];	// this is a stretchy array
+};
+
+struct CkptInfo {
+	long pages;
+	int  writes;
 };
 
 class Header {
@@ -71,6 +76,7 @@ public:
 	ssize_t Read( int fd, ssize_t pos );
 	ssize_t Write( int fd, ssize_t pos, int incremental );
 	ssize_t WriteIncremental( int fd, ssize_t pos );
+	ssize_t WriteIncrementalOld( int fd, ssize_t pos );
 	ssize_t SetPos( ssize_t my_pos );
 	BOOL Contains( void *addr );
 	char *GetName() { return name; }
@@ -146,6 +152,8 @@ protected:
 	size_t	len;	// size of our ckpt file
 	SegMap  incr_ckpt_map;
 	struct Incr_ckpt_data * incr_ckpt_data;
+public:
+	struct CkptInfo ckptinfo;
 };
 
 /* We would like to access the global image from elsewhere. */

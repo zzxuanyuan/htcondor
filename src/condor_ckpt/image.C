@@ -975,7 +975,7 @@ Image::InitIncrCkptSegment( )
 
 	totalPages  = data->GetPageCount();
 	bitmap_size = totalPages / 8 + 1;	// 8 bits in byte, one bit for each page
-	size = bitmap_size + sizeof( Incr_ckpt_data );
+	size = bitmap_size + sizeof( Incr_ckpt_data ) - 1;	// -1 for stretchy array
 	addr = condor_map_seg( NULL, size );
 
 	dprintf( D_ALWAYS, "InitIncrCkptSegment: totalPages is %d, bitmap_size is "
@@ -1733,11 +1733,11 @@ SegMap::Write( int fd, ssize_t pos, int incremental )
 			write_size = bytes_to_go;
 		}
 		nbytes = write(fd,(void *)ptr,write_size);
-		dprintf(D_CKPT, "I wrote %d bytes with write...\n", nbytes);
+		//dprintf(D_CKPT, "I wrote %d bytes with write...\n", nbytes);
 		if ( nbytes < 0 ) {
-			dprintf( D_ALWAYS, "in SegMap::Write(): fd = %d, write_size=%d\n",
-					 fd, bytes_to_go );
-			dprintf( D_ALWAYS, "errno=%d, core_loc=%x\n", errno, ptr );
+			//dprintf( D_ALWAYS, "in SegMap::Write(): fd = %d, write_size=%d\n",
+			//		 fd, bytes_to_go );
+			//dprintf( D_ALWAYS, "errno=%d, core_loc=%x\n", errno, ptr );
 			return -1;
 		}
 		writes++;
@@ -1747,13 +1747,90 @@ SegMap::Write( int fd, ssize_t pos, int incremental )
 	}
 	if ( strcmp("DATA", name) == 0) {
 		int pages = len / getpagesize();
-		printf( "Sequ wrote %i pages (%i writes).\n", pages, writes );
+		MyImage.ckptinfo.writes = writes;
+		MyImage.ckptinfo.pages  = pages;
+		//printf( "Sequ wrote %i pages (%i writes).\n", pages, writes );
 	}
 	return len;
 }
 
 ssize_t
 SegMap::WriteIncremental( int fd, ssize_t pos ) {
+
+	struct Incr_ckpt_data *data = MyImage.GetIncrCkptData();
+	char *ptr = (char *)core_loc;
+	size_t pagesize   = getpagesize();
+	size_t write_size = 0; 
+	size_t nbytes = 0, length = 0; 
+	int writes = 0;
+
+	for (long i = 0; i < data->total_pages; i++) {
+		write_size = 0;
+		while (bitIsSet( i, data->bitmap ) ) {
+			write_size += pagesize;
+			if (++i == data->total_pages) break;
+		}
+		if (write_size) {
+			//dprintf( D_ALWAYS, "writing %d bytes from Ox%x\n", write_size, (void*)ptr); 
+			length = write( fd, (void *)ptr, write_size );		 
+			if (length != write_size) {
+				dprintf(D_ALWAYS,"in SegMap::Write(): fd = %d, write_size=%d\n",
+						 fd, write_size );
+				dprintf( D_ALWAYS, "errno=%d, core_loc=%x\n", errno, ptr );
+				return -1;
+			}
+			writes++;
+			nbytes += write_size;
+			ptr    += write_size; 
+		} else {
+			ptr += pagesize;
+		}  
+	}
+
+	// this is a bug that is not in the WriteIncrementalOld
+	if (ptr != (char *) data->orig_brk) {
+		int diff = (ptr - (char *) data->orig_brk) / pagesize; 
+		//dprintf( D_ALWAYS, "ptr is Ox%x, orig_brk is Ox%x, diff is %i\n", 
+		//ptr, (char*)data->orig_brk, diff );
+		ptr = (char *) data->orig_brk;
+	}
+
+	// write any new pages
+	write_size = MyImage.NewPages() * pagesize;
+	if (write_size) {
+		//dprintf( D_ALWAYS, "writing %d bytes from Ox%x\n", write_size, (void*)ptr); 
+		length = write( fd, (void *)ptr, write_size );
+		if (length != write_size) {
+			dprintf(D_ALWAYS,"in SegMap::Write(): fd = %d, write_size=%d\n",
+					 fd, write_size );
+			dprintf( D_ALWAYS, "errno=%d, core_loc=%x\n", errno, ptr );
+			return -1;
+		}
+		writes++;
+		nbytes += write_size;
+	}
+	ptr += write_size;
+
+	if ( ptr != (char *)core_loc + len ) {
+		printf( D_ALWAYS, "WARNING: ptr is %s, dataend is %s.\n", ptr, 
+			(char *)core_loc + len );
+	}
+	
+	int pages = nbytes / getpagesize();
+	//dprintf( D_ALWAYS, "Incr wrote %i pages (%i writes).\n", pages, writes );
+	//printf( "Incr wrote %i pages (%i writes).\n", pages, writes );
+	MyImage.ckptinfo.writes = writes;
+	MyImage.ckptinfo.pages  = pages;
+	if (pages != MyImage.DirtyPages() + MyImage.NewPages() ) {
+		printf( "WARNING: counts are bad (%i, %i)\n", MyImage.DirtyPages(),
+		MyImage.NewPages());
+	}
+	return nbytes;
+}
+
+
+ssize_t
+SegMap::WriteIncrementalOld( int fd, ssize_t pos ) {
 
 	struct Incr_ckpt_data *data = MyImage.GetIncrCkptData();
 	char *ptr = (char *)core_loc;
@@ -1764,6 +1841,7 @@ SegMap::WriteIncremental( int fd, ssize_t pos ) {
 	for (long i = 0; i < data->total_pages; i++) {
 		if (bitIsSet( i, data->bitmap ) ) {
 			// write each dirty page
+			dprintf( D_ALWAYS, "writing %d bytes from Ox%x\n", write_size, (void*)ptr); 
 			nbytes = write( fd, (void *)ptr, write_size );		 
 			if (nbytes != write_size) {
 				dprintf(D_ALWAYS,"in SegMap::Write(): fd = %d, write_size=%d\n",
@@ -1781,6 +1859,7 @@ SegMap::WriteIncremental( int fd, ssize_t pos ) {
 	// write any new pages
 	write_size *= MyImage.NewPages();
 	if (write_size) {
+		dprintf( D_ALWAYS, "writing %d bytes from Ox%x\n", write_size, (void*)ptr); 
 		nbytes = write( fd, (void *)ptr, write_size );
 		if (nbytes != write_size) {
 			dprintf(D_ALWAYS,"in SegMap::Write(): fd = %d, write_size=%d\n",
@@ -1799,8 +1878,10 @@ SegMap::WriteIncremental( int fd, ssize_t pos ) {
 	}
 	
 	int pages = length / getpagesize();
-	dprintf( D_ALWAYS, "Incr wrote %i pages (%i writes).\n", pages, writes );
-	printf( "Incr wrote %i pages (%i writes).\n", pages, writes );
+	//dprintf( D_ALWAYS, "Incr wrote %i pages (%i writes).\n", pages, writes );
+	//printf( "Incr wrote %i pages (%i writes).\n", pages, writes );
+	MyImage.ckptinfo.writes = writes;
+	MyImage.ckptinfo.pages  = pages;
 	if (pages != MyImage.DirtyPages() + MyImage.NewPages() ) {
 		printf( "WARNING: counts are bad (%i, %i)\n", MyImage.DirtyPages(),
 		MyImage.NewPages());
@@ -1812,15 +1893,29 @@ SegMap::WriteIncremental( int fd, ssize_t pos ) {
 long
 time_diff( struct timeval start, struct timeval end ) {
 
-	dprintf( D_ALWAYS, "startTime is %d:%d\nendTime is %d:%d.\n",
-						start.tv_sec, start.tv_usec, end.tv_sec, end.tv_usec );
+    long micros = end.tv_sec * MILLION + end.tv_usec;
+    micros -= (start.tv_sec * MILLION + start.tv_usec);
 
-    long simplest = end.tv_sec * MILLION + end.tv_usec;
-	dprintf( D_ALWAYS, "simplest is %d\n", simplest );
-    simplest -= (start.tv_sec * MILLION + start.tv_usec);
-	dprintf( D_ALWAYS, "simplest is %d\n", simplest );
+    return micros;
+}
 
-    return simplest;
+void
+printTms( struct tms *tms ) {
+
+	fprintf( stderr, "utime: %7.2f, stime: %7.2f\n", tms->tms_utime, tms->tms_stime );
+} 
+
+float
+time_diff( struct tms * start, struct tms * end, long clicks ) {
+
+	fprintf( stderr, "clicks is %d\n" );
+	printTms( start );
+	printTms( end );
+
+	float diff = (end->tms_utime - start->tms_utime) / clicks;
+	diff      += (end->tms_stime - start->tms_stime) / clicks;		
+
+	return diff;
 }
 
 
@@ -1847,10 +1942,12 @@ Checkpoint( int sig, int code, void *scp )
 	int		scm, p_scm;
 	int		do_full_restart = 1; // set to 0 for periodic checkpoint
 	int		write_result;
-	long	ckptTime;
 	struct	timezone tz;
 	struct 	timeval  startTime, endTime;
+	struct  tms tmsstart, tmsend;
+	clock_t start_time, end_time;
 	char 	TIMING[256];
+	long	clock_tick;
 
 	/*
 		WARNING: Do not put any code here. This check prevents a race condition.
@@ -1888,6 +1985,13 @@ Checkpoint( int sig, int code, void *scp )
 	if (condor_incremental_ckpt) MyImage.Mprotect( PROT_READ | PROT_WRITE ); 
 
 
+#if defined(OSF1)
+		clock_tick = CLK_TCK;
+#else
+		clock_tick = sysconf( _SC_CLK_TCK );
+#endif
+
+
 	if( MyImage.GetMode() == REMOTE ) {
 		scm = SetSyscalls( SYS_REMOTE | SYS_UNMAPPED );
 #if !defined(PVM_CHECKPOINTING)
@@ -1914,16 +2018,10 @@ Checkpoint( int sig, int code, void *scp )
 		 * The usage is committed with the checkpoint. -Jim B. */
 		struct tms posix_usage;
 		struct rusage bsd_usage;
-		long clock_tick;
 
 		p_scm = SetSyscalls( SYS_LOCAL | SYS_UNMAPPED );
 		memset(&bsd_usage,0,sizeof(struct rusage));
 		times( &posix_usage );
-#if defined(OSF1)
-		clock_tick = CLK_TCK;
-#else
-		clock_tick = sysconf( _SC_CLK_TCK );
-#endif
 		bsd_usage.ru_utime.tv_sec = posix_usage.tms_utime / clock_tick;
 		bsd_usage.ru_utime.tv_usec = posix_usage.tms_utime % clock_tick;
 		(bsd_usage.ru_utime.tv_usec) *= 1000000 / clock_tick;
@@ -1982,16 +2080,29 @@ Checkpoint( int sig, int code, void *scp )
     		if ( gettimeofday( &startTime, &tz ) < 0 ) {
     		    dprintf( D_ALWAYS, "Couldn't set start time.\n" );
     		}
+			// need to restore back to old value however
+				// this doesn't help
+			// SetSyscalls( SYS_LOCAL | SYS_UNMAPPED );
+			if ( (start_time = times( &tmsstart )) < 0) {
+    		    dprintf( D_ALWAYS, "Couldn't set start time(1).\n" );
+			}
 			write_result = MyImage.Write(condor_incremental_ckpt);
-			if ( gettimeofday( &endTime, &tz ) < 0 ) {
-    		    dprintf( D_ALWAYS, "Couldn't set start time.\n" );
+			if ( (end_time = times( &tmsend )) == -1 ) {
+    		    dprintf( D_ALWAYS, "Couldn't set end time(1).\n" );
 			}	
-			ckptTime = time_diff( startTime, endTime );
-			sprintf( TIMING, "Checkpoint %3i took %9d microsecs. "
-						"(compressed=%i,incremental=%i)\n\0", 
-						_condor_numrestarts, ckptTime, condor_compress_ckpt, 1);
-			dprintf( D_ALWAYS, "%s", TIMING ); 
-			printf( "%s", TIMING );
+			if ( gettimeofday( &endTime, &tz ) < 0 ) {
+    		    dprintf( D_ALWAYS, "Couldn't set end time.\n" );
+			}	
+			long ckptTime1 = time_diff( startTime, endTime );
+			printf( "%i:%i:%i:%i:%d:%i:%i\n", 
+					ckptTime1,
+					tmsend.tms_utime - tmsstart.tms_utime,
+					tmsend.tms_stime - tmsstart.tms_stime,
+					_condor_numrestarts,
+					1, // for incremental
+					MyImage.ckptinfo.pages,
+					MyImage.ckptinfo.writes
+					);
 		}
 
 
@@ -1999,17 +2110,28 @@ Checkpoint( int sig, int code, void *scp )
     	if ( gettimeofday( &startTime, &tz ) < 0 ) {
     	    dprintf( D_ALWAYS, "Couldn't set start time.\n" );
     	}
+		if ( (start_time = times( &tmsstart )) < 0) {
+    	    dprintf( D_ALWAYS, "Couldn't set start time(1).\n" );
+		}
 		write_result = MyImage.Write(0);
+		if ( (start_time = times( &tmsend )) < 0) {
+    	    dprintf( D_ALWAYS, "Couldn't set start time(1).\n" );
+		}
 		if ( gettimeofday( &endTime, &tz ) < 0 ) {
     	    dprintf( D_ALWAYS, "Couldn't set start time.\n" );
 		}	
-		ckptTime = time_diff( startTime, endTime );
-		sprintf( TIMING, "Checkpoint %3i took %9d microsecs. "
-					"(compressed=%i,incremental=%i)\n\0", 
-					_condor_numrestarts, ckptTime, condor_compress_ckpt, 0);
-		dprintf( D_ALWAYS, "%s", TIMING ); 
-		printf( "%s", TIMING );
-
+		long ckptTime = time_diff( startTime, endTime );
+		if (_condor_numrestarts > 0) {
+			printf( "%i:%i:%i:%i:%d:%i:%i\n", 
+				ckptTime,
+				tmsend.tms_utime - tmsstart.tms_utime,
+				tmsend.tms_stime - tmsstart.tms_stime,
+				_condor_numrestarts,
+				0, // for incremental
+				MyImage.ckptinfo.pages,
+				MyImage.ckptinfo.writes
+				);
+		}
 
 		if ( sig == SIGTSTP ) {
 			/* we have just checkpointed; now time to vacate */
