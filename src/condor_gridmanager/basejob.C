@@ -247,6 +247,11 @@ void BaseJob::JobHeld( const char *hold_reason, int hold_code,
 					   int hold_sub_code )
 {
 	if ( condorState != HELD ) {
+			// if the job was in REMOVED state, make certain we return
+			// to the removed state when it is released.
+		if ( condorState == REMOVED ) {
+			UpdateJobAdInt( ATTR_JOB_STATUS_ON_RELEASE, REMOVED );
+		}
 		condorState = HELD;
 		UpdateJobAdInt( ATTR_JOB_STATUS, condorState );
 		UpdateJobAdInt( ATTR_ENTERED_CURRENT_STATUS, time(NULL) );
@@ -363,6 +368,19 @@ void BaseJob::JobAdUpdateFromSchedd( const ClassAd *new_ad )
 			//   done dealing with the job?
 			WriteHoldEventToUserLog( ad );
 			holdLogged = true;
+		}
+
+			// If we're about to put a job on hold and learn that it's been
+			// removed, make sure the state returns to removed when it is
+			// released. This is normally checked in JobHeld(), but it's
+			// possible to learn of the removal just as we're about to
+			// update the schedd with the hold.
+		if ( new_condor_state == REMOVED && condorState == HELD ) {
+			bool dirty;
+			classad->GetDirtyFlag( ATTR_JOB_STATUS, NULL, &dirty )
+			if ( dirty ) {
+				UpdateJobAdInt( ATTR_JOB_STATUS_ON_RELEASE, REMOVED );
+			}
 		}
 
 		condorState = new_condor_state;
