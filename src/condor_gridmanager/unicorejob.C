@@ -616,7 +616,7 @@ void UnicoreJob::UpdateUnicoreState( const char *update_ad_string )
 			}
 		}
 		next_expr = update_ad->Lookup( next_attr_name );
-		this->ad->Insert( next_expr );
+		this->ad->Insert( next_expr->DeepCopy() );
 	}
 
 	delete update_ad;
