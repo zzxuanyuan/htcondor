@@ -1153,20 +1153,24 @@ match_info( Resource* rip, char* cap )
 }
 
 
-
-int
-caRequestClaim( char* cmd_str, Stream *s, ClassAd* req_ad )
-{
-		// TODO!!!
-	return TRUE;
-}
-
-
 int
 sendCAReply( Stream* s, char* cmd_str, ClassAd* reply )
 {
 	reply->SetMyTypeName( REPLY_ADTYPE );
 	reply->SetTargetTypeName( COMMAND_ADTYPE );
+
+	MyString line;
+	line = ATTR_VERSION;
+	line += " = \"";
+	line += CondorVersion();
+	line += "\"";
+	reply->Insert( line.Value() );
+
+	line = ATTR_PLATFORM;
+	line += " = \"";
+	line += CondorPlatform();
+	line += "\"";
+	reply->Insert( line.Value() );
 
 	s->encode();
 	if( ! reply->put(*s) ) {
@@ -1184,21 +1188,41 @@ sendCAReply( Stream* s, char* cmd_str, ClassAd* reply )
 }
 
 
+
 int
-unknownCmd( Stream* s, char* cmd_str )
+sendErrorReply( Stream* s, char* cmd_str, const char* err_str ) 
 {
-	dprintf( D_ALWAYS, "Recognized command (%s) in ClassAd, "
-			 "aborting\n", cmd_str );
+	dprintf( D_ALWAYS, "%s\n", err_str );
+
 	ClassAd reply;
 	reply.Insert( "Result = FALSE" );
-	
+
 	MyString line = ATTR_COMMAND_ERROR;
-	line += " = \"Unknown command (";
-	line += cmd_str;
-	line += ") in ClassAd\"";
+	line += " = \"";
+	line += err_str;
+	line += "\"";
 	reply.Insert( line.Value() );
 	
 	return sendCAReply( s, cmd_str, &reply );
+}
+
+int
+unknownCmd( Stream* s, char* cmd_str )
+{
+	MyString line = "Unknown command (";
+	line += cmd_str;
+	line += ") in ClassAd";
+	
+	return sendErrorReply( s, cmd_str, line.Value() );
+}
+
+
+
+int
+caRequestClaim( Stream *s, char* cmd_str, ClassAd* req_ad )
+{
+		// TODO!!
+	return TRUE;
 }
 
 
@@ -1265,7 +1289,7 @@ command_classad_handler( Service*, int, Stream* s )
 	if( cmd == CA_REQUEST_CLAIM ) { 
 			// this one's a special case, since we're creating a new
 			// claim... 
-		rval = caRequestClaim( cmd_str, s, &ad );
+		rval = caRequestClaim( s, cmd_str, &ad );
 		free( cmd_str );
 		return rval;
 	}
