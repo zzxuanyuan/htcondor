@@ -10323,8 +10323,10 @@ http_response(struct soap *soap, int status, size_t count)
     else if ((soap->error = soap->fposthdr(soap, "Status", s)))
       return soap->error;
   }
-  if ((soap->error = soap->fposthdr(soap, "Server", "gSOAP/2.6"))
-   || (soap->error = soap_puthttphdr(soap, status, count)))
+  // Ommit specifying server in http response header.  It could be used
+  // as a security exploit.
+  // if ((soap->error = soap->fposthdr(soap, "Server", "gSOAP/2.6")) ||
+  if ((soap->error = soap_puthttphdr(soap, status, count)))
     return soap->error;
 #ifdef WITH_COOKIES
   if (soap_putsetcookies(soap))
