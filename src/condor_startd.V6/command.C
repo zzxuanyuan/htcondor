@@ -1154,60 +1154,6 @@ match_info( Resource* rip, char* cap )
 
 
 int
-sendCAReply( Stream* s, char* cmd_str, ClassAd* reply )
-{
-	reply->SetMyTypeName( REPLY_ADTYPE );
-	reply->SetTargetTypeName( COMMAND_ADTYPE );
-
-	MyString line;
-	line = ATTR_VERSION;
-	line += " = \"";
-	line += CondorVersion();
-	line += '"';
-	reply->Insert( line.Value() );
-
-	line = ATTR_PLATFORM;
-	line += " = \"";
-	line += CondorPlatform();
-	line += '"';
-	reply->Insert( line.Value() );
-
-	s->encode();
-	if( ! reply->put(*s) ) {
-		dprintf( D_ALWAYS,
-				 "ERROR: Can't send reply classad for %s, aborting\n",
-				 cmd_str );
-		return FALSE;
-	}
-	if( ! s->eom() ) {
-		dprintf( D_ALWAYS, "ERROR: Can't send eom for %s, aborting\n", 
-				 cmd_str );
-		return FALSE;
-	}
-	return TRUE;
-}
-
-
-
-int
-sendErrorReply( Stream* s, char* cmd_str, const char* err_str ) 
-{
-	dprintf( D_ALWAYS, "Aborting %s\n", cmd_str );
-	dprintf( D_ALWAYS, "%s\n", err_str );
-
-	ClassAd reply;
-	reply.Insert( "Result = FALSE" );
-
-	MyString line = ATTR_COMMAND_ERROR;
-	line += " = \"";
-	line += err_str;
-	line += '"';
-	reply.Insert( line.Value() );
-	
-	return sendCAReply( s, cmd_str, &reply );
-}
-
-int
 unknownCmd( Stream* s, char* cmd_str )
 {
 	MyString line = "Unknown command (";
@@ -1441,23 +1387,21 @@ command_classad_handler( Service*, int, Stream* s )
 		return FALSE;
 	}
 
-	ClassAd reply;
-
 	switch( cmd ) {
 	case CA_RELEASE_CLAIM:
-		rval = claim->release( &ad, &reply );
+		rval = claim->release( s, &ad );
 		break;
 	case CA_ACTIVATE_CLAIM:
-		rval = claim->activate( &ad, &reply );
+		rval = claim->activate( s, &ad );
 		break;
 	case CA_DEACTIVATE_CLAIM:
-		rval = claim->deactivate( &ad, &reply );
+		rval = claim->deactivate( s, &ad );
 		break;
 	case CA_SUSPEND_CLAIM:
-		rval = claim->suspend( &ad, &reply );
+		rval = claim->suspend( s, &ad );
 		break;
 	case CA_RESUME_CLAIM:
-		rval = claim->resume( &ad, &reply );
+		rval = claim->resume( s, &ad );
 		break;
 	case CA_REQUEST_CLAIM:
 		EXCEPT( "Already handled CA_REQUEST_CLAIM, shouldn't be here\n" );
@@ -1468,12 +1412,9 @@ command_classad_handler( Service*, int, Stream* s )
 		free( cmd_str );
 		return FALSE;
 	}
-
-		// finally, send the reply back over the wire, and we're done.
-	int result = sendCAReply( s, cmd_str, &reply );
 	free( claim_id );
 	free( cmd_str );
-	return (rval && result);
+	return rval;
 }
 
 
