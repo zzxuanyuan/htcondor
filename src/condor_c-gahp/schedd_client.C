@@ -936,7 +936,11 @@ int
 get_class_ad (const char * s, ClassAd ** class_ad) {
 	static ClassAdXMLParser parser;
     *class_ad = parser.ParseClassAd (s);
-	return TRUE;
+	if ( *class_ad ) {
+		return TRUE;
+	} else {
+		return FALSE;
+	}
 }
 
 
