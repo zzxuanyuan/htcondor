@@ -46,11 +46,22 @@ CODMgr::~CODMgr()
 void
 CODMgr::publish( ClassAd* ad, amask_t mask )
 {
+	int num_claims = numClaims();
+	if( ! (IS_PUBLIC(mask) && IS_UPDATE(mask)) ) {
+		return;
+	}
+	if( ! num_claims ) {
+		return;
+	}
 	Claim* tmp_claim;
 	claims.Rewind();
 	while( claims.Next(tmp_claim) ) {
 			// publish as appropriate :)
 	}
+	MyString line = ATTR_NUM_COD_CLAIMS;
+	line += '=';
+	line += num_claims;
+	ad->Insert( line.Value() );
 }
 
 
