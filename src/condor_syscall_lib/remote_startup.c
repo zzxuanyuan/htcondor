@@ -283,7 +283,7 @@ MAIN( int argc, char *argv[], char **envp )
 
 	dprintf( D_ALWAYS, "User process started\n" );
 	dprintf( D_ALWAYS, "\nOriginal\n" );
-	DumpOpenFds();
+	_condor_file_table_dump();
 	dprintf( D_ALWAYS, "END\n\n" );
 	delay();
 
@@ -304,7 +304,7 @@ MAIN( int argc, char *argv[], char **envp )
 
 #if 0
 		dprintf( D_ALWAYS, "\nBefore reading commands\n" );
-		DumpOpenFds();
+		_condor_file_table_dump();
 		dprintf( D_ALWAYS, "END\n\n" );
 		delay();
 #endif
@@ -359,7 +359,7 @@ MAIN( int argc, char *argv[], char **envp )
 
 #if 0
 	dprintf( D_ALWAYS, "\nBefore calling main()\n" );
-	DumpOpenFds();
+	_condor_file_table_dump();
 	dprintf( D_ALWAYS, "END\n\n" );
 #endif
 
