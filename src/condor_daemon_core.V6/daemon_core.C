@@ -1568,8 +1568,8 @@ int DaemonCore::HandleReq(int socki)
 	int					reqFound = FALSE;
 	int					result;
 	int					old_timeout;
-    int perm         = USER_AUTH_FAILURE;
-    const char *        user = NULL;
+    int                 perm         = USER_AUTH_FAILURE;
+    char                user[256] = {};
 	
 	insock = (*sockTable)[socki].iosock;
 
@@ -1617,25 +1617,25 @@ int DaemonCore::HandleReq(int socki)
 		// we read something off the socket, so we display who from 
 		// after we read the command below...
 
-		dprintf ( D_SECURITY, "DC_AUTH: checking for md5...\n");
+		dprintf ( D_SECURITY, "DC_AUTHENTICATE: checking UDP for md5...\n");
 		const char * sess_id = ((SafeSock*)stream)->isIncomingDataMD5ed();
 		if (sess_id) {
-			dprintf ( D_SECURITY, "DC_AUTH: looking for session %s...\n", sess_id);
+			dprintf ( D_SECURITY, "DC_AUTHENTICATE: looking for session %s...\n", sess_id);
 			char * sid = strdup(sess_id);
 			KeyCacheEntry *session = NULL;
 			bool found_sess = sec_man->enc_key_cache->lookup(sid, session);
 
 			if (!found_sess) {
-				dprintf ( D_SECURITY, "DC_AUTH: session %s NOT FOUND...\n", sess_id);
+				dprintf ( D_SECURITY, "DC_AUTHENTICATE: session %s NOT FOUND...\n", sess_id);
 				// no session... we outta here!
 				result = FALSE;
 				goto finalize;
 			}
 
-			dprintf ( D_SECURITY, "DC_AUTH: session %s is here...\n", sess_id);
+			dprintf ( D_SECURITY, "DC_AUTHENTICATE: session %s is here...\n", sess_id);
 
 			if (!session->key()) {
-				dprintf ( D_SECURITY, "DC_AUTH: session %s is missing the key!\n", sess_id);
+				dprintf ( D_SECURITY, "DC_AUTHENTICATE: session %s is missing the key!\n", sess_id);
 				// uhm, there should be a key here!
 				result = FALSE;
 				goto finalize;
@@ -1652,6 +1652,8 @@ int DaemonCore::HandleReq(int socki)
 #endif
 			}
 			delete sid;
+		} else {
+			dprintf (D_SECURITY, "DC_AUTHENTICATE: incoming data NOT MD5ed.\n");
 		}
 	}
 	
@@ -1839,11 +1841,26 @@ int DaemonCore::HandleReq(int socki)
 			}
 
 			if (session->key()) {
+				// copy this to the HandleReq() scope
 				the_key = new KeyInfo(*session->key());
 			}
 
 			if (session->policy()) {
+				// copy this to the HandleReq() scope
 				the_policy = new ClassAd(*session->policy());
+			}
+
+			// grab the user out of the policy.
+			if (the_policy) {
+				char *the_user  = NULL;
+				the_policy->LookupString( ATTR_SEC_USER, &the_user);
+
+				if (the_user) {
+					// copy this to the HandleReq() scope
+					assert(user == NULL);
+					strcpy (user, the_user);
+					delete the_user;
+				}
 			}
 
 			new_session = false;
@@ -1886,9 +1903,7 @@ int DaemonCore::HandleReq(int socki)
 
 			if (sec_man->sec_lookup_feat_act(auth_info, ATTR_SEC_NEW_SESSION) == SecMan::SEC_FEAT_ACT_YES) {
 
-				if (the_sid) {
-					dprintf ( D_SECURITY, "DC_AUTHENTICATE: session %s already open.\n", the_sid);
-				}
+				// generate a new session
 
 				int    mypid = 0;
 #ifdef WIN32
@@ -1897,7 +1912,9 @@ int DaemonCore::HandleReq(int socki)
 				mypid = ::getpid();
 #endif
 
+				// generate a unique ID.
 				sprintf (buf, "%s:%i:%i:%i", my_hostname(), mypid, time(0), ZZZ_always_increase());
+				assert (the_sid == NULL);
 				the_sid = strdup(buf);
 
 				if ((will_enable_encryption == SecMan::SEC_FEAT_ACT_YES) || (will_enable_integrity == SecMan::SEC_FEAT_ACT_YES)) {
@@ -2169,9 +2186,16 @@ int DaemonCore::HandleReq(int socki)
 	if ( reqFound == TRUE ) {
 
 		// Check the daemon core permission for this command handler
-        if ((user == 0) && is_tcp) {
-            user = ((ReliSock*)stream)->getFullyQualifiedUser();
-        }
+
+		// grab the user from the socket
+        if (is_tcp) {
+            const char *t = ((ReliSock*)stream)->getFullyQualifiedUser();
+			if (t) {
+				strcpy(user, t);
+			}
+        } else {
+			// user is filled in above
+		}
 
 		if ( (perm = Verify(comTable[index].perm, ((Sock*)stream)->endpoint(), user)) != USER_AUTH_SUCCESS )
 		{
