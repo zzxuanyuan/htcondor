@@ -180,6 +180,8 @@ CondorJob::CondorJob( ClassAd *classad )
 	remoteJobIdString = NULL;
 	submitterId = NULL;
 	jobProxy = NULL;
+	remoteProxyExpireTime = 0;
+	lastProxyRefreshAttempt = 0;
 	myResource = NULL;
 	newRemoteStatusAd = NULL;
 	newRemoteStatusServerTime = 0;
@@ -325,7 +327,7 @@ int CondorJob::doEvaluateState()
 	int old_gm_state;
 	int old_remote_state;
 	bool reevaluate_state = true;
-	time_t now;	// make sure you set this before every use!!!
+	time_t now = time(NULL);
 
 	bool done;
 	int rc;
@@ -595,6 +597,7 @@ int CondorJob::doEvaluateState()
 				// in completed, we'll get confused by the jobStatus of
 				// HELD. By doing an active probe, we'll automatically
 				// ignore any update ads from before the probe.
+				remoteProxyExpireTime = jobProxy->expiration_time;
 				gmState = GM_POLL_ACTIVE;
 			} else {
 				// unhandled error
@@ -613,16 +616,15 @@ int CondorJob::doEvaluateState()
 				gmState = GM_CANCEL;
 			} else if ( newRemoteStatusAd != NULL ) {
 				if ( newRemoteStatusServerTime <= lastRemoteStatusServerTime ) {
-dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too old!\n",procID.cluster,procID.proc);
-					delete newRemoteStatusAd;
-					newRemoteStatusAd = NULL;
+					dprintf( D_FULLDEBUG, "(%d.%d) Discarding old job status ad from collective poll\n",
+							 procID.cluster, procID.proc );
 				} else {
 					ProcessRemoteAd( newRemoteStatusAd );
 					lastRemoteStatusServerTime = newRemoteStatusServerTime;
-					delete newRemoteStatusAd;
-					newRemoteStatusAd = NULL;
-					reevaluate_state = true;
 				}
+				delete newRemoteStatusAd;
+				newRemoteStatusAd = NULL;
+				reevaluate_state = true;
 			} else if ( remoteState == COMPLETED ) {
 				gmState = GM_STAGE_OUT;
 			} else if ( condorState == HELD ) {
@@ -637,8 +639,55 @@ dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too old!\n",procID.cluster,procID
 				// The job is on hold remotely but not locally. This means
 				// the remote job needs to be released.
 				gmState = GM_RELEASE_REMOTE_JOB;
+			} else if ( remoteProxyExpireTime < jobProxy->expiration_time ) {
+				int interval = param_integer( "GRIDMANAGER_PROXY_REFRESH_INTERVAL", 10*60 );
+				if ( now >= lastProxyRefreshAttempt + interval ) {
+					gmState = GM_REFRESH_PROXY;
+				} else {
+					dprintf( D_ALWAYS, "(%d.%d) Delaying refresh of proxy\n",
+							 procID.cluster, procID.proc );
+					unsigned int delay = 0;
+					delay = (lastProxyRefreshAttempt + interval) - now;
+					daemonCore->Reset_Timer( evaluateStateTid, delay );
+				}
 			}
 			} break;
+		case GM_REFRESH_PROXY: {
+			if ( condorState == REMOVED || condorState == HELD ) {
+				gmState = GM_SUBMITTED;
+			} else {
+				rc = gahp->condor_job_refresh_proxy( remoteScheddName,
+													 remoteJobId,
+													 jobProxy->proxy_filename );
+				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
+					 rc == GAHPCLIENT_COMMAND_PENDING ) {
+					break;
+				}
+				if ( rc != GLOBUS_SUCCESS ) {
+					// unhandled error
+					dprintf( D_ALWAYS,
+							 "(%d.%d) condor_job_refresh_proxy() failed: %s\n",
+							 procID.cluster, procID.proc, gahp->getErrorString() );
+					errorString = gahp->getErrorString();
+
+					if ( ( remoteProxyExpireTime != 0 &&
+						   remoteProxyExpireTime < now + 60 ) ||
+						 ( remoteProxyExpireTime == 0 &&
+						   jobProxy->near_expired ) ) {
+
+						dprintf( D_ALWAYS,
+								 "(%d.%d) Proxy almosted expired, cancelling job\n",
+								 procID.cluster, procID.proc );
+						gmState = GM_CANCEL;
+						break;
+					}
+				} else {
+					remoteProxyExpireTime = jobProxy->expiration_time;
+				}
+				lastProxyRefreshAttempt = time(NULL);
+				gmState = GM_SUBMITTED;
+			}
+		} break;
 		case GM_HOLD_REMOTE_JOB: {
 			rc = gahp->condor_job_hold( remoteScheddName, remoteJobId,
 										"by gridmanager" );
@@ -856,6 +905,8 @@ dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too old!\n",procID.cluster,procID
 			if ( !done ) {
 				break;
 			}
+			remoteProxyExpireTime = 0;
+			lastProxyRefreshAttempt = 0;
 			submitLogged = false;
 			executeLogged = false;
 			submitFailedLogged = false;
@@ -1196,8 +1247,6 @@ ClassAd *CondorJob::buildSubmitAd()
 	submit_ad->Delete( ATTR_STAGE_IN_FINISH );
 	submit_ad->Delete( ATTR_STAGE_IN_START );
 	submit_ad->Delete( ATTR_SCHEDD_BIRTHDATE );
-	submit_ad->Delete( ATTR_X509_USER_PROXY );
-	submit_ad->Delete( ATTR_X509_USER_PROXY_SUBJECT );
 	submit_ad->Delete( ATTR_FILE_SYSTEM_DOMAIN );
 	submit_ad->Delete( ATTR_ULOG_FILE );
 	submit_ad->Delete( ATTR_ULOG_USE_XML );
