@@ -203,27 +203,23 @@ DCStartd::activateClaim( ClassAd* job_ad, int starter_version,
 
 
 bool
-DCStartd::checkClaimId( void )
-{
-	if( claim_id ) {
-		return true;
-	}
-	MyString err_msg;
-	if( _cmd_str ) {
-		err_msg += _cmd_str;
-		err_msg += ": ";
-	}
-	err_msg += "called with no ClaimId";
-	newError( err_msg.Value() );
-	return false;
-}
-
-
-bool
 DCStartd::requestClaim( ClaimType type, const ClassAd* req_ad, 
 						ClassAd* reply )
 {
 	setCmdStr( "requestClaim" );
+
+	MyString err_msg;
+	switch( type ) {
+	case CLAIM_COD:
+	case CLAIM_OPPORTUNISTIC:
+		break;
+	default:
+		err_msg = "Invalid ClaimType (";
+		err_msg += (int)type;
+		err_msg += ')';
+		newError( err_msg.Value() );
+		return false;
+	}
 
 	ClassAd req( *req_ad );
 	char buf[1024]; 
@@ -315,6 +311,9 @@ DCStartd::deactivateClaim( VacateType type, ClassAd* reply )
 	if( ! checkClaimId() ) {
 		return false;
 	}
+	if( ! checkVacateType(type) ) {
+		return false;
+	}
 
 	ClassAd req;
 	char buf[1024]; 
@@ -342,6 +341,9 @@ DCStartd::releaseClaim( VacateType type, ClassAd* reply )
 	if( ! checkClaimId() ) {
 		return false;
 	}
+	if( ! checkVacateType(type) ) {
+		return false;
+	}
 
 	ClassAd req;
 	char buf[1024]; 
@@ -361,3 +363,40 @@ DCStartd::releaseClaim( VacateType type, ClassAd* reply )
 	return sendCACmd( &req, reply, true );
 }
 
+
+
+
+bool
+DCStartd::checkClaimId( void )
+{
+	if( claim_id ) {
+		return true;
+	}
+	MyString err_msg;
+	if( _cmd_str ) {
+		err_msg += _cmd_str;
+		err_msg += ": ";
+	}
+	err_msg += "called with no ClaimId";
+	newError( err_msg.Value() );
+	return false;
+}
+
+
+bool
+DCStartd::checkVacateType( VacateType t )
+{
+	MyString err_msg;
+	switch( t ) {
+	case VACATE_GRACEFUL:
+	case VACATE_FAST:
+		break;
+	default:
+		err_msg = "Invalid VacateType (";
+		err_msg += (int)t;
+		err_msg += ')';
+		newError( err_msg.Value() );
+		return false;
+	}
+	return true;
+}
