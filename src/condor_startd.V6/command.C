@@ -1293,7 +1293,7 @@ caRequestClaim( Stream *s, char* cmd_str, ClassAd* req_ad )
 int
 command_classad_handler( Service*, int, Stream* s )
 {
-	bool rval;
+	int rval;
 	ClassAd ad;
 	ReliSock* rsock = (ReliSock*)s;
 
