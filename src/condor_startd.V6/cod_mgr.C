@@ -91,3 +91,10 @@ CODMgr::addClaim( )
 	claims.Append( new_claim );
 	return new_claim;
 }
+
+
+int
+CODMgr::numClaims( void )
+{
+	return claims.Number();
+}

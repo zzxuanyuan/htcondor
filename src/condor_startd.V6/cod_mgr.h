@@ -45,6 +45,8 @@ public:
 	Claim* findClaimById( const char* id );
 	Claim* findClaimByPid( pid_t pid );
 
+	int numClaims( void );
+
 private:
 
 	Resource* rip;
