@@ -252,6 +252,11 @@ MirrorJob::MirrorJob( ClassAd *classad )
 
 	lastRemoteStatusServerTime = 0;
 
+	// This is a BaseJob variable. At no time do we want BaseJob mucking
+	// around with job runtime attributes, so set it to false and leave it
+	// that way.
+	calcRuntimeStats = false;
+
 	// In GM_HOLD, we assume HoldReason to be set only if we set it, so make
 	// sure it's unset when we start.
 	if ( ad->LookupString( ATTR_HOLD_REASON, NULL, 0 ) != 0 ) {
@@ -851,7 +856,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too long!\n",procID.cluster,procI
 				mirrorReleased = false;
 			}
 			writeUserLog = false;
-			
+
 			// If there are no updates to be done when we first enter this
 			// state, requestScheddUpdate will return done immediately
 			// and not waste time with a needless connection to the
@@ -1035,36 +1040,35 @@ void MirrorJob::ProcessRemoteAdActive( ClassAd *remote_ad )
 
 	remote_ad->LookupInteger( ATTR_JOB_STATUS, new_remote_state );
 
-	if ( new_remote_state != remoteState ) {
-		if ( new_remote_state == IDLE ) {
-			JobIdle();
-		}
-		if ( new_remote_state == RUNNING ) {
-			JobRunning();
-		}
-		// If the job has been removed locally, don't propagate a hold from
-		// the remote schedd. 
-		// If HELD is the first job status we get from the remote schedd,
-		// assume that it's an old hold that was also reflected in the local
-		// schedd and has since been released locally (and should be released
-		// remotely as well). This won't always be true, but releasing the
-		// remote job anyway shouldn't cause any major trouble.
-		if ( new_remote_state == HELD && condorState != REMOVED &&
-			 remoteState != JOB_STATE_UNKNOWN ) {
-			char *reason = NULL;
-			int code = 0;
-			int subcode = 0;
-			if ( remote_ad->LookupString( ATTR_HOLD_REASON, &reason ) ) {
-				remote_ad->LookupInteger( ATTR_HOLD_REASON_CODE, code );
-				remote_ad->LookupInteger( ATTR_HOLD_REASON_SUBCODE, subcode );
-				JobHeld( reason, code, subcode );
-				free( reason );
-			} else {
-				JobHeld( "held remotely with no hold reason" );
-			}
-		}
-		remoteState = new_remote_state;
+	if ( new_remote_state == IDLE ) {
+		JobIdle();
 	}
+	if ( new_remote_state == RUNNING ) {
+		JobRunning();
+	}
+	// If the job has been removed locally, don't propagate a hold from
+	// the remote schedd. 
+	// If HELD is the first job status we get from the remote schedd,
+	// assume that it's an old hold that was also reflected in the local
+	// schedd and has since been released locally (and should be released
+	// remotely as well). This won't always be true, but releasing the
+	// remote job anyway shouldn't cause any major trouble.
+	if ( new_remote_state == HELD && condorState != REMOVED &&
+		 remoteState != JOB_STATE_UNKNOWN ) {
+		char *reason = NULL;
+		int code = 0;
+		int subcode = 0;
+		if ( remote_ad->LookupString( ATTR_HOLD_REASON, &reason ) ) {
+			remote_ad->LookupInteger( ATTR_HOLD_REASON_CODE, code );
+			remote_ad->LookupInteger( ATTR_HOLD_REASON_SUBCODE, subcode );
+			JobHeld( reason, code, subcode );
+			free( reason );
+		} else {
+			JobHeld( "held remotely with no hold reason" );
+		}
+	}
+	remoteState = new_remote_state;
+
 
 	diff_ad = ClassAdDiff( ad, remote_ad );
 
