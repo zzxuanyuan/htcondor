@@ -317,9 +317,8 @@ bool
 makeNegotiatorAdHashKey (HashKey &hk, ClassAd *ad, sockaddr_in *from)
 {
 	char	*name = NULL;
-	if (!ad->LookupString ("Machine", &name ))
-	{
-		dprintf (D_ALWAYS, "Error:  No 'Machine' attribute\n");
+	if( !ad->LookupString( ATTR_NAME, &name ) ) {
+		dprintf( D_ALWAYS, "Error: No '%s' attribute\n", ATTR_NAME );
 		return false;
 	}
 
