@@ -201,7 +201,7 @@ ToolDaemonProc::StartJob()
 	priv_state priv;
 	priv = set_user_priv();
 
-	filename = Starter->jic->getJobStdFile( ATTR_TOOL_DAEMON_INPUT, NULL );
+	filename = Starter->jic->getJobStdFile( ATTR_TOOL_DAEMON_INPUT );
 	if( filename ) {
 		if ( (daemon_fds[0]=open(filename, O_RDONLY) ) < 0 ) {
 			dprintf(D_ALWAYS,"failed to open stdin file %s, errno %d\n",
@@ -222,7 +222,7 @@ ToolDaemonProc::StartJob()
 	#endif
 	}
 
-	filename = Starter->jic->getJobStdFile( ATTR_TOOL_DAEMON_OUTPUT, NULL );
+	filename = Starter->jic->getJobStdFile( ATTR_TOOL_DAEMON_OUTPUT );
 	if( filename ) {
 		if( (daemon_fds[1] = 
 			 open(filename,O_WRONLY|O_CREAT|O_TRUNC, 0666)) < 0 ) {
@@ -254,7 +254,7 @@ ToolDaemonProc::StartJob()
 	#endif
 	}
 
-	filename = Starter->jic->getJobStdFile( ATTR_TOOL_DAEMON_ERROR, NULL );
+	filename = Starter->jic->getJobStdFile( ATTR_TOOL_DAEMON_ERROR );
 	if( filename ) {
 		if( (daemon_fds[2] =
 			 open(filename,O_WRONLY|O_CREAT|O_TRUNC, 0666)) < 0 ) { 

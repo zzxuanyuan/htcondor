@@ -96,7 +96,7 @@ public:
 			the requested file.
 		*/
 	virtual char* getJobStdFile( const char* attr_name,
-								 const char* alt_name ) = 0;
+								 const char* alt_name = NULL ) = 0;
 
 		/** Return a pointer to the job's initial working directory. 
 		*/

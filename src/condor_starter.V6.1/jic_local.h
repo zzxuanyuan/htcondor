@@ -92,7 +92,8 @@ public:
 			        care about, or NULL if it's not in the job ad or
 					points to /dev/null (or equiv).
 		*/
-	char* getJobStdFile( const char* attr_name, const char* alt_name );
+	char* getJobStdFile( const char* attr_name,
+						 const char* alt_name = NULL );
 
 
 		// // // // // // // // // // // //

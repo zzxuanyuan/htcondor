@@ -365,13 +365,13 @@ JICLocal::initJobInfo( void )
 		// now that we have the real iwd we'll be using, we can
 		// initialize the std files...
 	if( ! job_input_name ) {
-		job_input_name = getJobStdFile( ATTR_JOB_INPUT, NULL );
+		job_input_name = getJobStdFile( ATTR_JOB_INPUT );
 	}
 	if( ! job_output_name ) {
-		job_output_name = getJobStdFile( ATTR_JOB_OUTPUT, NULL );
+		job_output_name = getJobStdFile( ATTR_JOB_OUTPUT );
 	}
 	if( ! job_error_name ) {
-		job_error_name = getJobStdFile( ATTR_JOB_ERROR, NULL );
+		job_error_name = getJobStdFile( ATTR_JOB_ERROR );
 	}
 	return true;
 }
