@@ -88,9 +88,8 @@ getJobStatusString( int status )
 {
 	if( status<0 || status>=JOB_STATUS_MAX ) {
 		return "UNKNOWN";
-	} else {
-		return JobStatusNames[status];
 	}
+	return JobStatusNames[status];
 }
 
 
@@ -121,6 +120,7 @@ getJobStatusNum( const char* name )
 	if( stricmp(name,"SUBMISSION_ERR") == MATCH ) {
 		return SUBMISSION_ERR;
 	}
+	return -1;
 }
 
 
