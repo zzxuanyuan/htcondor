@@ -80,8 +80,11 @@ DCStartd::deactivateClaim( bool graceful )
 	ReliSock reli_sock;
 	reli_sock.timeout(20);   // years of research... :)
 	if( ! reli_sock.connect(_addr) ) {
-		dprintf( D_ALWAYS, "DCStartd::deactivateClaim: "
-				 "Failed to connect to startd (%s)\n", _addr );
+		MyString err = "DCStartd::deactivateClaim: ";
+		err += "Failed to connect to startd (";
+		err += _addr;
+		err += ')';
+		newError( DE_CONNECT_FAILED, err.Value() );
 		return false;
 	}
 	int cmd;
@@ -92,21 +95,28 @@ DCStartd::deactivateClaim( bool graceful )
 	}
 	result = startCommand( cmd, (Sock*)&reli_sock ); 
 	if( ! result ) {
-		dprintf( D_ALWAYS, "DCStartd::deactivateClaim: "
-				 "Failed to send command (%s) to the startd\n", 
-				 graceful ? "DEACTIVATE_CLAIM" :
-				 "DEACTIVATE_CLAIM_FORCIBLY" );
+		MyString err = "DCStartd::deactivateClaim: ";
+		err += "Failed to send command ";
+		if( graceful ) {
+			err += "DEACTIVATE_CLAIM";
+		} else {
+			err += "DEACTIVATE_CLAIM_FORCIBLY";
+		}
+		err += " to the startd";
+		newError( DE_COMMUNICATION_FAILED, err.Value() );
 		return false;
 	}
 		// Now, send the ClaimId
 	if( ! reli_sock.code(claim_id) ) {
-		dprintf( D_ALWAYS, "DCStartd::deactivateClaim: "
-				 "Failed to send ClaimId to the startd\n" );
+		MyString err = "DCStartd::deactivateClaim: ";
+		err += "Failed to send ClaimId to the startd";
+		newError( DE_COMMUNICATION_FAILED, err.Value() );
 		return false;
 	}
 	if( ! reli_sock.eom() ) {
-		dprintf( D_ALWAYS, "DCStartd::deactivateClaim: "
-				 "Failed to send EOM to the startd\n" );
+		MyString err = "DCStartd::deactivateClaim: ";
+		err += "Failed to send EOM to the startd";
+		newError( DE_COMMUNICATION_FAILED, err.Value() );
 		return false;
 	}
 		// we're done
@@ -134,51 +144,61 @@ DCStartd::activateClaim( ClassAd* job_ad, int starter_version,
 	}
 
 	if( ! claim_id ) {
-		dprintf( D_ALWAYS, "DCStartd::activateClaim "
-				 "called with NULL claim_id, failing\n" );
-		return NOT_OK;
+		MyString err = "DCStartd::activateClaim: ";
+		err += "called with NULL claim_id, failing";
+		newError( DE_INVALID_REQUEST, err.Value() );
+		return CONDOR_ERROR;
 	}
 
 	Sock* tmp;
 	tmp = startCommand( ACTIVATE_CLAIM, Stream::reli_sock, 20 ); 
 	if( ! tmp ) {
-		dprintf( D_ALWAYS, "DCStartd::activateClaim: "
-				 "Failed to send command (%s) to the startd\n", 
-				 "ACTIVATE_CLAIM" );
-		return NOT_OK;
+		MyString err = "DCStartd::activateClaim: ";
+		err += "Failed to send command ";
+		err += "ACTIVATE_CLAIM";
+		err += " to the startd";
+		newError( DE_COMMUNICATION_FAILED, err.Value() );
+		delete tmp;
+		return CONDOR_ERROR;
 	}
 	if( ! tmp->code(claim_id) ) {
-		dprintf( D_ALWAYS, "DCStartd::activateClaim: "
-				 "Failed to send claim_id to the startd\n" );
+		MyString err = "DCStartd::activateClaim: ";
+		err += "Failed to send ClaimId to the startd";
+		newError( DE_COMMUNICATION_FAILED, err.Value() );
 		delete tmp;
-		return NOT_OK;
+		return CONDOR_ERROR;
 	}
 	if( ! tmp->code(starter_version) ) {
-		dprintf( D_ALWAYS, "DCStartd::activateClaim: "
-				 "Failed to send starter_version to the startd\n" );
+		MyString err = "DCStartd::activateClaim: ";
+		err += "Failed to send starter_version to the startd";
+		newError( DE_COMMUNICATION_FAILED, err.Value() );
 		delete tmp;
-		return NOT_OK;
+		return CONDOR_ERROR;
 	}
 	if( ! job_ad->put(*tmp) ) {
-		dprintf( D_ALWAYS, "DCStartd::activateClaim: "
-				 "Failed to send job_ad to the startd\n" );
+		MyString err = "DCStartd::activateClaim: ";
+		err += "Failed to send job ClassAd to the startd";
+		newError( DE_COMMUNICATION_FAILED, err.Value() );
 		delete tmp;
-		return NOT_OK;
+		return CONDOR_ERROR;
 	}
 	if( ! tmp->end_of_message() ) {
-		dprintf( D_ALWAYS, "DCStartd::activateClaim: "
-				 "Failed to send EOM to the startd\n" );
+		MyString err = "DCStartd::activateClaim: ";
+		err += "Failed to send EOM to the startd";
+		newError( DE_COMMUNICATION_FAILED, err.Value() );
 		delete tmp;
-		return NOT_OK;
+		return CONDOR_ERROR;
 	}
 
 		// Now, try to get the reply
 	tmp->decode();
 	if( !tmp->code(reply) || !tmp->end_of_message()) {
-		dprintf( D_ALWAYS, "DCStartd::activateClaim: "
-				 "failed to receive reply from %s\n", _addr );
+		MyString err = "DCStartd::activateClaim: ";
+		err += "Failed to receive reply from ";
+		err += _addr;
+		newError( DE_COMMUNICATION_FAILED, err.Value() );
 		delete tmp;
-		return NOT_OK;
+		return CONDOR_ERROR;
 	}
 
 	dprintf( D_FULLDEBUG, "DCStartd::activateClaim: "
@@ -210,7 +230,7 @@ DCStartd::requestClaim( ClaimType type, const ClassAd* req_ad,
 		err_msg = "Invalid ClaimType (";
 		err_msg += (int)type;
 		err_msg += ')';
-		newError( err_msg.Value() );
+		newError( DE_INVALID_REQUEST, err_msg.Value() );
 		return false;
 	}
 
@@ -412,7 +432,7 @@ DCStartd::checkClaimId( void )
 		err_msg += ": ";
 	}
 	err_msg += "called with no ClaimId";
-	newError( err_msg.Value() );
+	newError( DE_INVALID_REQUEST, err_msg.Value() );
 	return false;
 }
 
@@ -429,7 +449,7 @@ DCStartd::checkVacateType( VacateType t )
 		err_msg = "Invalid VacateType (";
 		err_msg += (int)t;
 		err_msg += ')';
-		newError( err_msg.Value() );
+		newError( DE_INVALID_REQUEST, err_msg.Value() );
 		return false;
 	}
 	return true;
