@@ -1904,7 +1904,19 @@ SetStdFile( int which_file )
 	char	 buffer[_POSIX_PATH_MAX + 32];
 
 	if(JobUniverse==CONDOR_UNIVERSE_GLOBUS) {
-		stream_it = true;
+		char *grid_type = condor_param( Grid_Type, ATTR_JOB_GRID_TYPE );
+		if ( grid_type == NULL ||
+			 stricmp (JobGridType, "globus") == MATCH ||
+			 stricmp (JobGridType, "gt2") == MATCH ||
+			 stricmp (JobGridType, "gt3") == MATCH ) {
+
+			stream_it = true;
+		} else {
+			stream_it = false;
+		}
+		if ( grid_type ) {
+			free( grid_type );
+		}
 	} else {
 		stream_it = false;
 	}
@@ -2967,7 +2979,7 @@ SetGlobusParams()
 
 		char *globushost;
 
-		if ( !(globushost = condor_param( GlobusScheduler ) ) ) {
+		if ( !(globushost = condor_param( GlobusScheduler, ATTR_GLOBUS_RESOURCE ) ) ) {
 			fprintf(stderr, "\nERROR: Globus/gt3 jobs require a \"%s\" parameter\n",
 					GlobusScheduler );
 			DoCleanup( 0, 0, NULL );
