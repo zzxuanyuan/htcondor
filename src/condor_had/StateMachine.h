@@ -113,7 +113,9 @@ private:
     void my_debug_print_list(StringList* str);
     void my_debug_print_buffers();
 
-	
+    //bool isValidAddress(char*,struct sockaddr_in*);
+    // bool isMyAddress(struct sockaddr_in);
+    char* convertToSinfull(char* addr);
 };
 
 #endif // !HAD_StateMachine_H__

@@ -5,7 +5,7 @@ all_target( $(NAME) )
 CFLAGS = $(STD_C_FLAGS)
 
 C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS)
-LIB= $(DAEMONCORE_LIB) $(STD_LIBS)
+LIB= $(DAEMONCORE_LIB) $(STD_LIBS) $(QMGMT_LIB)
 
 OBJ = FdBuffer.o io_loop.o schedd_client.o schedd_client_main.o SchedDCommands.o
 

@@ -3,7 +3,7 @@ all_target($(NAME))
 
 CFLAGS = $(STD_C_FLAGS)
 C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS)
-LIB = $(DAEMONCORE_LIB) $(NETMAN_LIB) $(STD_LIBS)
+LIB = $(ACCT_LIB) $(CLASSAD_LIB) $(DAEMONCORE_LIB) $(NETMAN_LIB) $(STD_LIBS) 
 
 OBJ = matchmaker.o main.o matchmaker_instantiate.o
 

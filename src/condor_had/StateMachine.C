@@ -146,6 +146,7 @@ int HADStateMachine::reinitialize(){
 	// DELETE all and start everything over from the scratch
 	finilize();
 	
+    masterDaemon = new Daemon( DT_MASTER );
 
 	tmp = param("HAD_STAND_ALONE_DEBUG");	
 	if(tmp){
@@ -231,7 +232,10 @@ int HADStateMachine::reinitialize(){
         onError("HAD CONFIGURATION ERROR: SEND_COMMAND_TIMEOUT*NUM_of backups > HAD_INTERVAL-SafetyFactor");
     }
 
-    masterDaemon = new Daemon( DT_MASTER );
+    if(debugMode) {
+         return TRUE;
+    }
+
     if(masterDaemon == NULL || sendNegotiatorCmdToMaster(DAEMON_OFF) == FALSE) {
          onError("HAD ERROR: unable to send NEGOTIATOR_OFF command");
     }
@@ -322,7 +326,9 @@ void  HADStateMachine::step(){
                     // send to master "negotiator_off"
                     printStep("LEADER_STATE","PASSIVE_STATE");
                     state = PASSIVE_STATE;
-                    sendNegotiatorCmdToMaster(DAEMON_OFF);
+                    if(!debugMode){
+                        sendNegotiatorCmdToMaster(DAEMON_OFF);
+                    }
                     break;
                 }
             }
@@ -383,7 +389,7 @@ int HADStateMachine::sendCommandToOthers(int comm){
 	    if(!sock.code(subsys) || !sock.eom()){
 		    dprintf(D_ALWAYS,"id %d , sock.code false \n",daemonCore->getpid());
 	    }else{
-            dprintf(D_ALWAYS,"id %d , sock.code true \n",daemonCore->getpid());
+            dprintf(D_FULLDEBUG,"id %d , sock.code true \n",daemonCore->getpid());
 	    }
 
         sock.close();
@@ -411,7 +417,7 @@ int HADStateMachine::sendNegotiatorCmdToMaster(int comm){
 	}
 
 	int cmd = comm;
-	dprintf(D_FULLDEBUG,"id %d ,send command %d (DAEMON_OFF = 467) to master\n",daemonCore->getpid(),cmd);
+	dprintf(D_FULLDEBUG,"id %d ,send command %d (DAEMON_OFF = 467,DAEMON_ON = 469) to master\n",daemonCore->getpid(),cmd);
     dprintf(D_FULLDEBUG,"id %d ,master address is %s\n",daemonCore->getpid(),masterDaemon->addr());
 
     // startCommand - max timeout is 1 sec
@@ -428,7 +434,7 @@ int HADStateMachine::sendNegotiatorCmdToMaster(int comm){
         sock.close();
 		return FALSE;
 	}else{
-        dprintf(D_ALWAYS,"id %d send to master , !sock.code true \n",daemonCore->getpid());
+        dprintf(D_FULLDEBUG,"id %d send to master , !sock.code true \n",daemonCore->getpid());
 	}
 
   sock.close();
@@ -455,6 +461,7 @@ int HADStateMachine::pushReceivedId(int id){
          return (receivedIdList.Append(alloc_id));
 }
 
+
 /***********************************************************
 *  Function :
 */
@@ -468,22 +475,47 @@ void HADStateMachine::initializeHADList(char* str){
 	had_net_list.rewind();
 
     bool iAmPresent = false;
-	while( (try_address = had_net_list.next()) ) {
-
-        if(!is_valid_sinful(try_address)){
-            char error_msg[100];
+    while( (try_address = had_net_list.next()) ) {
+      /*
+        struct sockaddr_in sin;
+        if(!isValidAddress(try_address,&sin)){
+            char error_msg[256];
             sprintf( error_msg, "HAD CONFIGURATION ERROR: %d , not valid sinful address %s",daemonCore->getpid(),try_address);
             onError(error_msg);
             continue;
         }
 
+        dprintf(D_FULLDEBUG," initializeHADList try_address %s port %d\n",inet_ntoa(sin.sin_addr),sin.sin_port);
         // check if not myself
-        if(strcmp(daemonCore->InfoCommandSinfulString(),try_address) != 0){
-            otherHADIPs->insert(try_address);
+        if(! isMyAddress(sin) ){
+            char* ip_addr = strdup(inet_ntoa(sin.sin_addr));
+            char full_addr[256];
+            sprintf(full_addr,"<%s:%d>",ip_addr,sin.sin_port);
+
+            otherHADIPs->insert(full_addr);
+            dprintf(D_FULLDEBUG," initializeHADList insert %s\n",full_addr);
+            delete ip_addr;
         }else{
             iAmPresent = true;
         }
-	}
+	}*/
+
+      char* sinfull_addr = convertToSinfull(try_address);
+      if(sinfull_addr == NULL){
+	    char error_msg[256];
+            sprintf( error_msg, "HAD CONFIGURATION ERROR: %d , not valid address %s",daemonCore->getpid(),try_address);
+            onError(error_msg);
+            continue;
+      }
+      if(strcmp(sinfull_addr,daemonCore->InfoCommandSinfulString()) == 0){
+	iAmPresent = true;
+      }else{
+	otherHADIPs->insert(sinfull_addr);
+	dprintf(D_FULLDEBUG," initializeHADList insert %s\n",sinfull_addr);
+      }
+      delete( sinfull_addr );
+    }
+
     if(!iAmPresent){
         onError("HAD CONFIGURATION ERROR : my address is not present in HAD_NET_LIST");
     }
@@ -529,6 +561,94 @@ void HADStateMachine::clearBuffers(){
 
 /***********************************************************
 *  Function :
+*//*
+bool HADStateMachine::isValidAddress(char* addr,struct sockaddr_in* sockad){
+    char* str;
+    struct sockaddr_in sin;
+
+    if(!(addr[0] == '<') ){
+         str = (char*)malloc(strlen(addr)+3);
+         sprintf(str,"<%s>",addr);
+         if(string_to_sin( str, &sin ) == 0){
+            free( str );
+            return FALSE;
+         }
+
+         dprintf(D_FULLDEBUG," isValidAddress address %s sin_address %s port %d\n",addr,inet_ntoa(sin.sin_addr),sin.sin_port);
+
+         free( str );
+         *sockad = sin;
+	 sockad->sin_port = getPortFromAddr(addr);
+         return TRUE;
+    }else{
+      
+        if(string_to_sin( addr, &sin ) == 0)
+            return FALSE;
+        *sockad = sin;
+	sockad->sin_port = getPortFromAddr(addr);
+	dprintf(D_FULLDEBUG," isValidAddress address2 %s sin_address %s port %d\n",addr,inet_ntoa(sockad->sin_addr),sockad->sin_port);
+        return TRUE;
+    }
+
+
+    }*/
+
+/***********************************************************
+*  Function :
+*/
+char* HADStateMachine::convertToSinfull(char* addr){
+
+    int port = getPortFromAddr(addr);
+    if(port == 0)
+      return NULL;
+
+    char* address = getHostFromAddr(addr);
+    if(address == 0)
+      return NULL;
+
+    struct in_addr sin;
+    if(!is_ipaddr(address, &sin)){
+      struct hostent *ent = gethostbyname(address);
+      if(ent == NULL){
+	free( address );
+	return NULL;
+      }
+      char* ip_addr = inet_ntoa(*((struct in_addr *)ent->h_addr));
+      free( address );
+      address = strdup(ip_addr);
+    }
+
+    char port_str[10];
+    sprintf(port_str,"%d",port);
+    char* result = (char*)malloc(strlen(address) + strlen(port_str) + 2*strlen("<") + strlen(":") + 1);
+    sprintf(result,"<%s:%d>",address,port);
+
+    free( address );
+    return result;
+
+}
+/***********************************************************
+*  Function :
+*//*
+bool HADStateMachine::isMyAddress(struct sockaddr_in other_sin){
+
+    struct sockaddr_in my_sin;
+    string_to_sin( daemonCore->InfoCommandSinfulString(), &my_sin );
+
+    // compare addresses
+    // if( (my_sin.sin_addr.s_addr == other_sin.sin_addr.s_addr) && (my_sin.sin_port == other_sin.sin_port)){
+    //    return TRUE;
+    // }
+    // compare addresses
+    if( (my_sin.sin_addr.s_addr == other_sin.sin_addr.s_addr) && (daemonCore->InfoCommandPort() == other_sin.sin_port)){
+        return TRUE;
+    }
+    return FALSE;
+
+}
+  */
+/***********************************************************
+*  Function :
 */
 void HADStateMachine::printStep(char *curState,char *nextState){
       dprintf( D_FULLDEBUG, "State mashine step :id <%d> port <%d> priority <%d> was <%s> go to <%s>\n",daemonCore->getpid(),daemonCore->InfoCommandPort(),selfId,curState,nextState);
@@ -555,14 +675,14 @@ void HADStateMachine::my_debug_print_buffers(){
     dprintf( D_FULLDEBUG, "ALIVE IDs list : \n");
     receivedAliveList.Rewind();
     while( receivedAliveList.Next(id) ) {
-		      dprintf( D_ALWAYS, "<%d>\n",id);
+		      dprintf( D_FULLDEBUG, "<%d>\n",id);
 	}
 
     int id2;
     dprintf( D_FULLDEBUG, "ELECTION IDs list : \n");
     receivedIdList.Rewind();
     while( receivedIdList.Next(id2) ) {
-		      dprintf( D_ALWAYS, "<%d>\n",id2);
+		      dprintf( D_FULLDEBUG, "<%d>\n",id2);
 	}
 
 }

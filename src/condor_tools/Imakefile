@@ -7,7 +7,7 @@ all_target( $(PROGRAMS) )
 
 CFLAGS = $(STD_C_FLAGS)
 C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS)  
-LIB = $(STD_LIBS)
+LIB = $(STD_LIBS) $(QMGMT_LIB)
 
 c_plus_target(condor_cod,cod_tool.o,$(LIB))
 release_target(condor_cod,bin,EXECUTABLE_MODE)
