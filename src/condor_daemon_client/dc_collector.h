@@ -37,15 +37,17 @@
 */
 class DCCollector : public Daemon {
 public:
+	enum UpdateType { UDP, TCP, CONFIG };
 
 		/** Constructor.  Same as a Daemon object.
 		  @param name The name (or sinful string) of the daemon, NULL
 		              if you want local  
 		  @param pool The name of the pool, NULL if you want local
 		*/
-	DCCollector( const char* name = NULL, const char* pool = NULL );
+	DCCollector( const char* name = NULL, const char* pool = NULL, 
+				 UpdateType type = CONFIG );
 
-	DCCollector( const char* addr, int port = 0 );
+	DCCollector( const char* addr, int port = 0, UpdateType = CONFIG );
 
 		/// Destructor
 	~DCCollector();
@@ -81,6 +83,7 @@ private:
 	char* tcp_collector_addr;
 	int tcp_collector_port;
 	bool use_tcp;
+	UpdateType up_type;
 
 	bool sendTCPUpdate( int cmd, ClassAd* ad1, ClassAd* ad2 );
 	bool sendUDPUpdate( int cmd, ClassAd* ad1, ClassAd* ad2 );

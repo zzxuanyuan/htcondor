@@ -30,17 +30,20 @@
 #include "dc_collector.h"
 
 
-DCCollector::DCCollector( const char* name, const char* pool ) 
+DCCollector::DCCollector( const char* name, const char* pool, 
+						  UpdateType type ) 
 	: Daemon( DT_COLLECTOR, name, pool )
 {
+	up_type = type;
 	init();
 }
 
 
-DCCollector::DCCollector( const char* addr, int port ) 
+DCCollector::DCCollector( const char* addr, int port, UpdateType type ) 
 	: Daemon( addr, port )
 {
 	_type = DT_COLLECTOR;
+	up_type = type;
 	init();
 }
 
@@ -102,14 +105,31 @@ DCCollector::reconfig( void )
 		}
 		free( tmp );
 	}
-	tmp = param( "UPDATE_COLLECTOR_WITH_TCP" );
-	if( tmp ) {
-		use_tcp = true;
-		free( tmp );
-	}
+
 	if( ! _addr ) {
 		locate();
 	}
+
+	switch( up_type ) {
+	case TCP:
+		use_tcp = true;
+		break;
+	case UDP:
+		use_tcp = false;
+		break;
+	case CONFIG:
+		tmp = param( "UPDATE_COLLECTOR_WITH_TCP" );
+		if( tmp ) {
+			if( tmp[0] == 't' || tmp[0] == 'T' || 
+				tmp[0] == 'y' || tmp[0] == 'Y' )
+			{ 
+				use_tcp = true;
+			}
+			free( tmp );
+		}
+		break;
+	}
+
 	parseTCPInfo();
 	initDestinationStrings();
 	displayResults();
