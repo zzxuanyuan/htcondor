@@ -434,6 +434,7 @@ int MirrorJob::doEvaluateState()
 				if ( rc == GLOBUS_SUCCESS ) {
 					SetRemoteJobId( job_id_string );
 					UpdateJobAdBool( ATTR_MIRROR_ACTIVE, 0 );
+					mirrorActive = false;
 					gmState = GM_SUBMIT_SAVE;
 				} else {
 					// unhandled error
@@ -571,6 +572,8 @@ int MirrorJob::doEvaluateState()
 				gmState = GM_CANCEL_1;
 			} else if ( condorState == HELD ) {
 				gmState = GM_HOLD_REMOTE_JOB;
+			}else if ( remoteState == HELD ) {
+				gmState = GM_RELEASE_REMOTE_JOB;
 			} else if ( remoteStatusUpdateAd != NULL ) {
 				ProcessRemoteAdActive( remoteStatusUpdateAd );
 				delete remoteStatusUpdateAd;
@@ -592,19 +595,8 @@ int MirrorJob::doEvaluateState()
 				gmState = GM_CANCEL_1;
 				break;
 			}
-			gmState = GM_HOLD_MIRROR_ACTIVE;
-			} break;
-		case GM_HOLD_MIRROR_ACTIVE: {
-			if ( condorState == REMOVED ) {
-				gmState = GM_CANCEL_1;
-			} else if ( condorState != HELD ) {
-				gmState = GM_RELEASE_REMOTE_JOB;
-			} else if ( remoteStatusUpdateAd != NULL ) {
-				ProcessRemoteAdActive( remoteStatusUpdateAd );
-				delete remoteStatusUpdateAd;
-				remoteStatusUpdateAd = NULL;
-				reevaluate_state = true;
-
+			remoteState = HELD;
+			gmState = GM_DELETE;
 			} break;
 		case GM_RELEASE_REMOTE_JOB: {
 			rc = gahp->condor_job_release( mirrorScheddName, mirrorJobId );
@@ -620,8 +612,8 @@ int MirrorJob::doEvaluateState()
 				gmState = GM_CANCEL_1;
 				break;
 			}
-			gmState = GM_HOLD_MIRROR_ACTIVE;
-			} break;
+			remoteState = IDLE;
+			gmState = GM_SUBMITTED_MIRROR_ACTIVE;
 			} break;
 		case GM_DONE_SAVE: {
 			// Report job completion to the schedd.
@@ -703,6 +695,7 @@ int MirrorJob::doEvaluateState()
 					gmState = GM_CLEAR_REQUEST;
 					break;
 				}
+				SetRemoteJobId( NULL );
 			}
 			if ( condorState == REMOVED ) {
 				gmState = GM_DELETE;
@@ -730,6 +723,10 @@ int MirrorJob::doEvaluateState()
 			}
 			errorString = "";
 			SetRemoteJobId( NULL );
+			if ( mirrorActive == true ) {
+				UpdateJobAdBool( ATTR_MIRROR_ACTIVE, 0 );
+				mirrorActive = false;
+			}
 			JobIdle();
 			if ( remoteStatusUpdateAd != NULL ) {
 				delete remoteStatusUpdateAd;
@@ -945,6 +942,7 @@ void MirrorJob::ProcessRemoteAdActive( ClassAd *remote_ad )
 	diff_ad->Delete( ATTR_ON_EXIT_REMOVE_CHECK );
 	diff_ad->Delete( ATTR_SUBMIT_IN_PROGRESS );
 	diff_ad->Delete( ATTR_SERVER_TIME );
+	diff_ad->Delete( ATTR_WANT_MATCHING );
 
 	ClassAdPatch( ad, diff_ad );
 
@@ -996,6 +994,7 @@ ClassAd *MirrorJob::buildSubmitAd()
 	submit_ad->Delete( ATTR_DAGMAN_JOB_ID );
 	submit_ad->Delete( ATTR_ULOG_FILE );
 	submit_ad->Delete( ATTR_SERVER_TIME );
+	submit_ad->Delete( ATTR_JOB_MANAGED );
 
 	expr.sprintf( "%s = %d", ATTR_JOB_STATUS, HELD );
 	submit_ad->Insert( expr.Value() );
