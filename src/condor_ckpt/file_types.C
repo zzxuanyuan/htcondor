@@ -326,7 +326,8 @@ int RemoteFile::fcntl( int cmd, int arg )
 
 int RemoteFile::ioctl( int cmd, int arg )
 {
-	_condor_file_warning("ioctl(%d,%d,...) is not supported for remote files.",fd,cmd);
+	/* ioctl seems to get used quite often in libc. */
+	/* Let's just fail silently... */
 	errno = EINVAL;
 	return -1;
 }
