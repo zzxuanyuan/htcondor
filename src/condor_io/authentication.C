@@ -199,6 +199,8 @@ void Authentication::unAuthenticate()
 {
 #if !defined(SKIP_AUTHENTICATION)
     auth_status = CAUTH_NONE;
+    delete authenticator_;
+    authenticator_ = 0;
 #endif
 }
 
