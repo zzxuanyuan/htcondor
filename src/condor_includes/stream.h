@@ -43,6 +43,7 @@ const int MD_IS_ON         = 1;
 const int ENCRYPTION_IS_ON = 2;
 
 #include "proc.h"
+#include "condor_old_shadow_types.h"
 
 /* now include sched.h.  cleanup namespace if user has not
  * already included condor_mach_status.h, otherwise leave alone.
