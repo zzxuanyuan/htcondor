@@ -616,7 +616,7 @@ void OpenFileTable::checkpoint()
 	dump();
 
 	if( MyImage.GetMode() == STANDALONE ) {
-		getwd( working_dir );
+		getcwd( working_dir, _POSIX_PATH_MAX );
 	} else {
 		REMOTE_syscall( CONDOR_getwd, working_dir );
 	}
@@ -632,7 +632,7 @@ void OpenFileTable::suspend()
 	dump();
 
 	if( MyImage.GetMode() == STANDALONE ) {
-		getwd( working_dir );
+		getcwd( working_dir, _POSIX_PATH_MAX );
 	} else {
 		REMOTE_syscall( CONDOR_getwd, working_dir );
 	}
