@@ -164,6 +164,13 @@ DCCollector::parseTCPInfo( void )
 bool
 DCCollector::sendUpdate( int cmd, ClassAd* ad1, ClassAd* ad2 ) 
 {
+	if( cmd == UPDATE_COLLECTOR_AD || cmd == INVALIDATE_COLLECTOR_ADS ) {
+			// we *never* want to use TCP to send pool updates to the
+			// developer collector.  so, regardless of what the config
+			// files says, always use UDP for these commands...
+		return sendUDPUpdate( cmd, ad1, ad2 );
+	}
+
 	if( use_tcp ) {
 		return sendTCPUpdate( cmd, ad1, ad2 );
 	}
