@@ -43,8 +43,19 @@
 #define _DEBUG_
 #endif
 
+/* database connection object */
 extern ODBC *DBObj;
 
+/* schedd name */
+extern char *Name;
+
+/* remove the double quote at the end */
+#define strip_double_quote(value) \
+        int len = strlen(value); \
+		if (value[0] == '\"') { \
+			strncpy(value, &value[1], len-2); \
+			value[len-2] = '\0'; \
+		}
 
 //! constructor
 QueueDBManager::QueueDBManager()
@@ -340,10 +351,10 @@ QueueDBManager::processHistoryAd(ClassAd *ad) {
   char name[1000];
   char tempvalue[1000];
 
-  bool flag1=false, flag2=false,flag3=false;
+  bool flag1=false, flag2=false,flag3=false, flag4=false;
   //dprintf(D_ALWAYS, "AMEET entered function %s\n", sql_str1);
   sprintf(sql_str1, 
-	  "INSERT INTO History_Horizontal(cid, pid) VALUES(%d, %d);", cid, pid);
+	  "INSERT INTO History_Horizontal(scheddname, cid, pid) VALUES('%s', %d, %d);", Name, cid, pid);
   if (DBObj->odbc_sqlstmt(sql_str1) < 0) {
     //dprintf(D_ALWAYS, "AMEET entered if %s\n", sql_str1);
     displayDBErrorMsg("History Ad Processing --- ERROR");
@@ -375,7 +386,12 @@ QueueDBManager::processHistoryAd(ClassAd *ad) {
       //valExpr = (StringBase*)expr->RArg();        // Value Express Tree
       //val = valExpr->Value();                                     // Value
       if (value == NULL) break;
-  
+
+	  if(strcasecmp(name, "jobstatus") == 0) {
+        if(flag4) continue;
+		flag4 = true;
+      }
+
       if(strcasecmp(name, "remotewallclocktime") == 0) {
         if(flag1) continue;
 	flag1 = true;
@@ -409,16 +425,18 @@ QueueDBManager::processHistoryAd(ClassAd *ad) {
 	   strcasecmp(name, "completiondate") == 0
 	   ) {
 	  sprintf(sql_str1, 
-		  "UPDATE History_Horizontal SET %s = (('epoch'::timestamp + '%s seconds') at time zone 'UTC') WHERE cid = %d and pid = %d;", name, value, cid, pid);
+		  "UPDATE History_Horizontal SET %s = (('epoch'::timestamp + '%s seconds') at time zone 'UTC') WHERE scheddname = '%s' and cid = %d and pid = %d;", name, value, Name, cid, pid);
 	}
 	else {
+		strip_double_quote(value);
 	  sprintf(sql_str1, 
-		  "UPDATE History_Horizontal SET %s = '%s' WHERE cid = %d and pid = %d;", name, value, cid, pid);
+		  "UPDATE History_Horizontal SET %s = '%s' WHERE scheddname = '%s' and cid = %d and pid = %d;", name, value, Name, cid, pid);
 	}	
       }
       else {
+		strip_double_quote(value);		  
 	sprintf(sql_str1, 
-		"INSERT INTO History_Vertical(cid, pid, attr, val) VALUES(%d, %d, '%s', '%s');", cid, pid, name, value);
+		"INSERT INTO History_Vertical(scheddname, cid, pid, attr, val) VALUES('%s', %d, %d, '%s', '%s');", Name, cid, pid, name, value);
       }
       
       dprintf(D_ALWAYS, "in processHistoryClassAd before database write %s\n", sql_str1);
@@ -595,24 +613,24 @@ QueueDBManager::processNewClassAd(const char* key, const char* mytype, const cha
   switch(id_sort) {
   case 1:
     sprintf(sql_str1, 			
-	    "INSERT INTO ClusterAds_Vertical (cid, attr, val) VALUES ('%s', 'MyType', '\"%s\"');", cid, mytype);
+	    "INSERT INTO ClusterAds_Vertical (scheddname, cid, attr, val) VALUES ('%s', '%s', 'MyType', '%s');", Name, cid, mytype);
     
     sprintf(sql_str2, 
-	    "INSERT INTO ClusterAds_Vertical (cid, attr, val) VALUES ('%s', 'TargetType', '\"%s\"');", cid, ttype);
+	    "INSERT INTO ClusterAds_Vertical (scheddname, cid, attr, val) VALUES ('%s', '%s', 'TargetType', '%s');", Name, cid, ttype);
     
     sprintf(sql_str3, 
-	    "INSERT INTO ClusterAds_Horizontal (cid) VALUES ('%s');", cid);
+	    "INSERT INTO ClusterAds_Horizontal (scheddname, cid) VALUES ('%s', '%s');", Name, cid);
     
     break;
   case 2:
     sprintf(sql_str1, 
-	    "INSERT INTO ProcAds_Vertical (cid, pid, attr, val) VALUES ('%s', '%s', 'MyType', '\"Job\"');", cid, pid);
+	    "INSERT INTO ProcAds_Vertical (scheddname, cid, pid, attr, val) VALUES ('%s', '%s', '%s', 'MyType', 'Job');", Name, cid, pid);
     
     sprintf(sql_str2, 
-	    "INSERT INTO ProcAds_Vertical (cid, pid, attr, val) VALUES ('%s', '%s', 'TargetType', '\"Machine\"');", cid, pid);
+	    "INSERT INTO ProcAds_Vertical (scheddname, cid, pid, attr, val) VALUES ('%s', '%s', '%s', 'TargetType', 'Machine');", Name, cid, pid);
     
     sprintf(sql_str3, 
-	    "INSERT INTO ProcAds_Horizontal (cid, pid) VALUES ('%s', '%s');", cid, pid);
+	    "INSERT INTO ProcAds_Horizontal (scheddname, cid, pid) VALUES ('%s', '%s', '%s');", Name, cid, pid);
 
     break;
   case 0:
@@ -680,19 +698,19 @@ QueueDBManager::processDestroyClassAd(const char* key, bool exec_later)
 	switch(id_sort) {
 	case 1:	// ClusterAds
 		sprintf(sql_str1, 
-		"DELETE FROM ClusterAds_Vertical WHERE cid = '%s';", cid);
+		"DELETE FROM ClusterAds_Vertical WHERE scheddname = '%s' and cid = '%s';", Name, cid);
 
 		sprintf(sql_str2, 
-		"DELETE FROM ClusterAds_Horizontal WHERE cid = '%s';", cid);
+		"DELETE FROM ClusterAds_Horizontal WHERE scheddname = '%s' and cid = '%s';", Name, cid);
 		break;
 	case 2:
 		sprintf(sql_str1, 
-		"DELETE FROM ProcAds_Vertical WHERE cid = '%s' AND pid = '%s';", 
-				cid, pid);
+		"DELETE FROM ProcAds_Vertical WHERE scheddname = '%s' and cid = '%s' AND pid = '%s';", 
+				Name, cid, pid);
 
 		sprintf(sql_str2, 
-		"DELETE FROM ProcAds_Horizontal WHERE cid = '%s' AND pid = '%s';", 
-				cid, pid);
+		"DELETE FROM ProcAds_Horizontal WHERE scheddname = '%s' and cid = '%s' AND pid = '%s';", 
+				Name, cid, pid);
 		break;
 	case 0:
 		fprintf(stdout, "[JQMON] Destroy ClassAd --- ERROR\n");
@@ -770,31 +788,39 @@ QueueDBManager::processSetAttribute(const char* key, const char* name, const cha
 	      strncpy(tempvalue, value+1, strlen(value)-2);
 	      tempvalue[strlen(value)-2] = '\0';
 	      sprintf(sql_str_del_in, 
-		      "UPDATE ClusterAds_Horizontal SET %s_j = '%s' WHERE cid = '%s';", name, tempvalue, cid);
+		      "UPDATE ClusterAds_Horizontal SET %s_j = '%s' WHERE scheddname = '%s' and cid = '%s';", name, tempvalue, Name, cid);
 	    }
 
 	    else if(strcasecmp(name, "qdate") == 0) {
 	      sprintf(sql_str_del_in, 
-		      "UPDATE ClusterAds_Horizontal SET %s = (('epoch'::timestamp + '%s seconds') at time zone 'UTC') WHERE cid = '%s';", name, value, cid);
+		      "UPDATE ClusterAds_Horizontal SET %s = (('epoch'::timestamp + '%s seconds') at time zone 'UTC') WHERE scheddname = '%s' and cid = '%s';", name, value, Name, cid);
 	    }
 	    else {
+			strcpy(tempvalue, value);
+			strip_double_quote(tempvalue);
 	      sprintf(sql_str_del_in, 
-		      "UPDATE ClusterAds_Horizontal SET %s = '%s' WHERE cid = '%s';", name, value, cid);
+		      "UPDATE ClusterAds_Horizontal SET %s = '%s' WHERE scheddname = '%s' and cid = '%s';", name, tempvalue, Name, cid);
 	    }
 	  }
 	  else {
+		  strcpy(tempvalue, value);
+		  strip_double_quote(tempvalue);
 	    sprintf(sql_str_del_in, 
-		    "DELETE FROM ClusterAds_Vertical WHERE cid = '%s' AND attr = '%s'; INSERT INTO ClusterAds_Vertical (cid, attr, val) VALUES ('%s', '%s', '%s');", cid, name, cid, name, value);
+		    "DELETE FROM ClusterAds_Vertical WHERE scheddname = '%s' and cid = '%s' AND attr = '%s'; INSERT INTO ClusterAds_Vertical (scheddname, cid, attr, val) VALUES ('%s', '%s', '%s', '%s');", Name, cid, name, Name, cid, name, tempvalue);
 	  }
 	  break;
 	case 2:
 	  if(isHorizontalProcAttribute(name)) {
+		  strcpy(tempvalue, value);
+		  strip_double_quote(tempvalue);
 	    sprintf(sql_str_del_in, 
-		    "UPDATE ProcAds_Horizontal SET %s = '%s' WHERE cid = '%s' and pid = '%s';", name, value, cid, pid);
+		    "UPDATE ProcAds_Horizontal SET %s = '%s' WHERE scheddname = '%s' and cid = '%s' and pid = '%s';", name, tempvalue, Name, cid, pid);
 	  }
 	  else {
+		  strcpy(tempvalue, value);
+		  strip_double_quote(tempvalue);
 	    sprintf(sql_str_del_in, 
-		    "DELETE FROM ProcAds_Vertical WHERE cid = '%s' AND pid = '%s' AND attr = '%s'; INSERT INTO ProcAds_Vertical (cid, pid, attr, val) VALUES ('%s', '%s', '%s', '%s');", cid, pid, name, cid, pid, name, value);
+		    "DELETE FROM ProcAds_Vertical WHERE scheddname = '%s' and cid = '%s' AND pid = '%s' AND attr = '%s'; INSERT INTO ProcAds_Vertical (scheddname, cid, pid, attr, val) VALUES ('%s', '%s', '%s', '%s', '%s');", Name, cid, pid, name, Name, cid, pid, name, tempvalue);
 	  }
 	  break;
 	case 0:
@@ -868,22 +894,22 @@ QueueDBManager::processDeleteAttribute(const char* key, const char* name, bool e
   case 1:
     if(isHorizontalClusterAttribute(name)) {
       sprintf(sql_str , 
-	      "UPDATE ClusterAds_Horizontal SET %s = NULL WHERE cid = '%s';", name, cid);
+	      "UPDATE ClusterAds_Horizontal SET %s = NULL WHERE scheddname = '%s' and cid = '%s';", name, Name, cid);
     }
     else {
       sprintf(sql_str , 
-	      "DELETE ClusterAds_Vertical WHERE cid = '%s' AND attr = '%s';", cid, name);
+	      "DELETE ClusterAds_Vertical WHERE scheddname = '%s' and cid = '%s' AND attr = '%s';", Name, cid, name);
     }
     
     break;
   case 2:
     if(isHorizontalProcAttribute(name)) {
       sprintf(sql_str, 
-	      "UPDATE ProcAds_Horizontal SET %s = NULL WHERE cid = '%s' AND pid = '%s';", name, cid, pid);
+	      "UPDATE ProcAds_Horizontal SET %s = NULL WHERE scheddname = '%s' and cid = '%s' AND pid = '%s';", name, Name, cid, pid);
     }
     else {
       sprintf(sql_str, 
-	      "DELETE FROM ProcAds_Vertical WHERE cid = '%s' AND pid = '%s' AND attr = '%s';", cid, pid, name);
+	      "DELETE FROM ProcAds_Vertical WHERE scheddname = '%s' and cid = '%s' AND pid = '%s' AND attr = '%s';", Name, cid, pid, name);
     }
     break;
   case 0:
