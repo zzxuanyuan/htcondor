@@ -45,7 +45,7 @@
 
 const 	int			MAX_NUM_OWNERS = 512;
 const 	int			MAX_REJECTED_CLUSTERS = 1024;
-
+const   int         STARTD_CONTACT_TIMEOUT = 45;
 
 extern	char**		environ;
 
@@ -85,6 +85,14 @@ struct match_rec
 	shadow_rec*		 shadowRec;
 	int				 alive_countdown;
 	int				 num_exceptions;
+};
+
+// These are the args to contactStartd that get stored in the queue.
+struct contactStartdArgs {
+	char *capability;
+	char *owner;
+	char *host;
+	PROC_ID id;
 };
 
 class Scheduler : public Service
@@ -177,6 +185,14 @@ class Scheduler : public Service
 	int				timeoutid;		// daemoncore timer id for timeout()
 	int				startjobsid;	// daemoncore timer id for StartJobs()
 	int             startJobsDelayBit;  // for delay when starting jobs.
+
+		// used so that we don't register too many Sockets at once & fd panic
+	int             numRegContacts;  
+		// Here we enqueue calls to 'contactStartd' when we can't just 
+		// call it any more.  See contactStartd and the call to it...
+	Queue<contactStartdArgs*> startdContactQueue;
+	int             checkContactQueue();
+	int             MAX_STARTD_CONTACTS;
 	
 	// useful names
 	char*			CondorViewHost;

@@ -168,7 +168,10 @@ Scheduler::Scheduler()
 	StartJobTimer=-1;
 	timeoutid = -1;
 	startjobsid = -1;
+
 	startJobsDelayBit = FALSE;
+	numRegContacts = 0;
+	MAX_STARTD_CONTACTS = getdtablesize() - 20;  // save 20 fds...
 }
 
 Scheduler::~Scheduler()
@@ -540,7 +543,7 @@ Scheduler::insert_owner(char* owner)
 {
 	int		i;
 	for ( i=0; i<N_Owners; i++ ) {
-		if( strcmp(Owners[i].Name,owner) == MATCH ) {
+		if( strcmp(Owners[i].Name,owner) == 0 ) {
 			return i;
 		}
 	}
@@ -1163,15 +1166,42 @@ Scheduler::negotiate(int, Stream* s)
 					}
 						// host should now point to the sinful string
 						// of the startd we were matched with.
-					perm_rval = contactStartd(capability, owner, host, &id);
-					FREE( host );
-					FREE( capability );
+
+					if ( numRegContacts < MAX_STARTD_CONTACTS ) {
+						dprintf ( D_FULLDEBUG,"Calling contactStartd directly"
+								  ", startd=%s\n", host );
+						perm_rval = contactStartd( capability, strdup(owner), 
+												   host, &id );
+							// note host,capability,owner freed in above call.
+						
+						JobsStarted += perm_rval;
+					}
+					else {
+						/* Here we don't want to call contactStartd directly
+						   because we just might register more Sockets
+						   than the system has fds.  So...we enqueue the
+						   args for a later call.  (The later call will be
+						   made from the startdContactSockHandler) */
+						contactStartdArgs * args = 
+							new contactStartdArgs;
+						dprintf (D_FULLDEBUG, "Queuing contactStartd args=%x, "
+								 "startd=%s\n", args, host );
+
+						args->capability = capability;
+						args->owner = strdup( owner );
+						args->host = host;
+						args->id.cluster = id.cluster;
+						args->id.proc = id.proc;
+						startdContactQueue.enqueue( args );
+					}
+					curr_num_active_shadows += 
+						(perm_rval * shadow_num_increment);
+					host_cnt++;
+
 					host = NULL;
 					capability = NULL;
-					JobsStarted += perm_rval;
-					host_cnt++;
-					curr_num_active_shadows += (perm_rval * shadow_num_increment);
 					break;
+
 				case END_NEGOTIATE:
 					dprintf( D_ALWAYS, "Lost priority - %d jobs matched\n",
 							JobsStarted );
@@ -1253,6 +1283,17 @@ Scheduler::vacate_service(int, Stream *sock)
 	return;
 }
 
+#ifdef BAILOUT   /* this is kinda hack-like, but we need to do it a LOT. */
+#undef BAILOUT
+#endif
+#define BAILOUT              \
+		DelMrec( mrec );     \
+        free( capability );  \
+        free( user );        \
+        free( server );      \
+        delete sock;         \
+        return 0;
+
 int
 Scheduler::contactStartd( char* capability, char *user, 
 						  char* server, PROC_ID* jobId)
@@ -1265,14 +1306,18 @@ Scheduler::contactStartd( char* capability, char *user,
 
 	mrec = AddMrec(capability, server, jobId);
 	if(!mrec) {
-		return 0;
+        free( capability );
+        free( user );
+        free( server );
+        delete sock;
+        return 0;
 	}
 
 	ClassAd *jobAd = GetJobAd(jobId->cluster, jobId->proc);
 	if (!jobAd) {
 		dprintf(D_ALWAYS, "failed to find job %d.%d\n", 
 				jobId->cluster, jobId->proc);
-		return 0;
+		BAILOUT;
 	}
 	// add User = "owner@uiddomain" to ad
 	{
@@ -1281,9 +1326,11 @@ Scheduler::contactStartd( char* capability, char *user,
 		jobAd->Insert (temp);
 	}	
 
+	sock->timeout( STARTD_CONTACT_TIMEOUT );
+
 	if ( !sock->connect(server, 0) ) {
 		dprintf( D_ALWAYS, "Couldn't connect to startd.\n" );
-		return 0;
+		BAILOUT;
 	}
 
 	dprintf (D_PROTOCOL, "Requesting resource from %s ...\n", server);
@@ -1291,51 +1338,74 @@ Scheduler::contactStartd( char* capability, char *user,
 
 	if( !sock->put( REQUEST_SERVICE ) ) {
 		dprintf( D_ALWAYS, "Couldn't send command to startd.\n" );	
-		return 0;
+		BAILOUT;
 	}
 
 	if( !sock->code( capability ) ) {
 		dprintf( D_ALWAYS, "Couldn't send capability to startd.\n" );	
-		return 0;
+		BAILOUT;
 	}
 
 	if( !jobAd->put( *sock ) ) {
 		dprintf( D_ALWAYS, "Couldn't send job classad to startd.\n" );	
-		return 0;
+		BAILOUT;
 	}	
 
 	if( !sock->end_of_message() ) {
 		dprintf( D_ALWAYS, "Couldn't send eom to startd.\n" );	
-		return 0;
+		BAILOUT;
 	}
 
 	mrec->status = M_STARTD_CONTACT_LIMBO;
 
+	char to_startd[256];
+	sprintf ( to_startd, "to startd %s", server );
 	daemonCore->Register_Socket( sock, "<Startd Contact Socket>",
 								 (SocketHandlercpp)startdContactSockHandler,
-								 "<Startd Reply>", this, ALLOW );
+								 to_startd, this, ALLOW );
 
-//	daemonCore->SetDataPtr( mrec );
 	daemonCore->Register_DataPtr( mrec );
 
 	dprintf ( D_FULLDEBUG, "Registered startd contact socket.\n" );
 	dprintf ( D_FULLDEBUG, "Set data pointer to %x\n", mrec );
 
+	free( capability );
+	free( user );
+	free( server );
+
+	numRegContacts++;
+
 	return 1;
 }
+#undef BAILOUT
+
+/* note new BAILOUT def:
+   before each bad return we check to see if there's a pending call
+   in the contact queue. */
+#define BAILOUT               \
+		DelMrec( mrec );      \
+		checkContactQueue();  \
+		return FALSE;
 
 int Scheduler::startdContactSockHandler( Stream *sock )
 {
+		// all return values are non - KEEP_STREAM.  
+		// Therefore, DaemonCore will cancel this socket at the
+		// end of this function, which is exactly what we want!
+
 	int reply;
 
 	dprintf ( D_FULLDEBUG, "In Scheduler::startdContactSockHandler\n" );
+
+		// since all possible returns from here result in the socket being
+		// cancelled, we begin by decrementing the # of contacts.
+	numRegContacts--;
 
 	match_rec *mrec = (match_rec *) daemonCore->GetDataPtr();
 
 	if ( !mrec ) {
 		dprintf ( D_ALWAYS, "deamonCore failed to get data pointer!\n" );
-		daemonCore->Cancel_Socket( sock );
-		delete sock;
+		checkContactQueue();
 		return FALSE;
 	}
 	
@@ -1348,10 +1418,7 @@ int Scheduler::startdContactSockHandler( Stream *sock )
 	if ( mrec->status == M_DELETE_PENDING ) {
 		dprintf( D_FULLDEBUG, "Found pending delete in mrec->status\n" );
 		mrec->status = M_DELETED; // to tell DelMrec to actually delete it
-		DelMrec( mrec );
-		daemonCore->Cancel_Socket( sock );
-		delete sock;
-		return FALSE;
+		BAILOUT;
 	}
 	else {  // we assume things will work out.
 		mrec->status = M_ACTIVE;
@@ -1359,10 +1426,7 @@ int Scheduler::startdContactSockHandler( Stream *sock )
 
  	if( !sock->rcv_int(reply, TRUE) ) {
 		dprintf( D_ALWAYS, "Response problem from startd.\n" );	
-		DelMrec( mrec );
-		daemonCore->Cancel_Socket( sock );
-		delete sock;
-		return FALSE;
+		BAILOUT;
 	}
 
 	if( reply == OK ) {
@@ -1370,34 +1434,19 @@ int Scheduler::startdContactSockHandler( Stream *sock )
 	 	sock->encode();
 		if( !sock->code(MySockName) ) {
 			dprintf( D_ALWAYS, "Couldn't send schedd string to startd.\n" );
-			DelMrec( mrec );
-			daemonCore->Cancel_Socket( sock );
-			delete sock;
-			return FALSE;
+			BAILOUT;
 		}
 		if( !sock->snd_int(aliveInterval, TRUE) ) {
 			dprintf( D_ALWAYS, "Couldn't receive response from startd.\n" );
-			DelMrec( mrec );
-			daemonCore->Cancel_Socket( sock );
-			delete sock;
-			return FALSE;
+			BAILOUT;
 		}
 	} else if( reply == NOT_OK ) {
 		dprintf( D_PROTOCOL, "(Request was NOT accepted)\n" );
-		DelMrec( mrec );
-		daemonCore->Cancel_Socket( sock );
-		delete sock;
-		return FALSE;
+		BAILOUT;
 	} else {
 		dprintf( D_ALWAYS, "Unknown reply from startd.\n");
-		DelMrec( mrec );
-		daemonCore->Cancel_Socket( sock );
-		delete sock;
-		return FALSE;
+		BAILOUT;
 	}
-
-	daemonCore->Cancel_Socket( sock );
-	delete sock;
 
 		// we want to set a timer to go off in 2 seconds that will
 		// do a StartJobs().  However, we don't want to set this
@@ -1409,9 +1458,32 @@ int Scheduler::startdContactSockHandler( Stream *sock )
 		startJobsDelayBit = TRUE;
 	}
 
+	checkContactQueue();
+
 	return TRUE;
 }
+#undef BAILOUT
 
+int
+Scheduler::checkContactQueue() {
+	if ( !startdContactQueue.IsEmpty() ) {
+			// there's a pending registration in the queue:
+		struct contactStartdArgs * args;
+		int rval;
+		startdContactQueue.dequeue ( args );
+		dprintf ( D_FULLDEBUG, "In checkContactQueue(), args = %x, host=%s\n", 
+				  args, args->host );
+		rval = contactStartd( args->capability, args->owner,
+							  args->host, &(args->id) );
+
+		JobsStarted += rval;
+		
+		delete args;
+	}
+	else {
+		dprintf ( D_ALWAYS, "In checkContactQueue(), empty.\n" );
+	}
+}
 
 int
 find_idle_sched_universe_jobs( ClassAd *job )
@@ -1476,14 +1548,20 @@ Scheduler::StartJobs()
 	dprintf(D_FULLDEBUG, "-------- Begin starting jobs --------\n");
 	matches->startIterations();
 	while(matches->iterate(rec) == 1) {
-		if( (rec->status == M_INACTIVE) || 
-			(rec->status == M_STARTD_CONTACT_LIMBO) ) 
-		{
+		if( rec->status == M_INACTIVE ) {
 			dprintf(D_FULLDEBUG, "match (%s) inactive\n", rec->id);
 			continue;
 		}
-		if(rec->shadowRec)
-		{
+		if ( rec->status == M_STARTD_CONTACT_LIMBO ) {
+			dprintf ( D_FULLDEBUG, "match (%s) waiting for startd contact\n", 
+					  rec->id );
+			continue;
+		}
+		if ( rec->status == M_DELETE_PENDING ) {
+			dprintf ( D_FULLDEBUG, "match (%s) pending delete...\n", rec->id);
+			continue;
+		}
+		if ( rec->shadowRec ) {
 			dprintf(D_FULLDEBUG, "match (%s) already running a job\n",
 					rec->id);
 			continue;
@@ -1631,17 +1709,31 @@ void Scheduler::StartJobHandler() {
 	if (Shadow) free(Shadow);
 	Shadow = param("SHADOW");
 
-		// The following is an ugly, ugly hack.  Please remove when 
-		// the change to the new shadow is complete!
-	if ( strstr( Shadow, "v61" ) ) {
+	char *shadow_is_dc;
+	shadow_is_dc = param( "SHADOW_IS_DC" );
+	int sh_is_dc;
+#ifdef WIN32
+	sh_is_dc = TRUE;
+#else
+	sh_is_dc = FALSE;
+#endif
+
+	if (shadow_is_dc) {
+		if ( (shadow_is_dc[0] == 'T') || (shadow_is_dc[0] == 't') ) {  
+			sh_is_dc = TRUE;
+		} else {
+			sh_is_dc = FALSE;
+		}
+		free( shadow_is_dc );
+	}
+
+	if ( sh_is_dc ) {
 		sprintf(args, "condor_shadow -f %s %s %s %d %d", MyShadowSockName, 
 				mrec->peer, mrec->id, job_id->cluster, job_id->proc);
-	}
-	else {
+	} else {
 		sprintf(args, "condor_shadow %s %s %s %d %d", MyShadowSockName, 
 				mrec->peer, mrec->id, job_id->cluster, job_id->proc);
 	}
-		// end ugly, ugly hack
 
 	pid = daemonCore->Create_Process(Shadow, args);
 	if (pid == FALSE) {
@@ -1746,14 +1838,15 @@ Scheduler::start_std(match_rec* mrec , PROC_ID* job_id)
 	SetAttributeInt(job_id->cluster, job_id->proc, ATTR_CURRENT_HOSTS, 1);
 
 	// add job to run queue
-	dprintf(D_FULLDEBUG,"Queueing job %d.%d in runnable job queue\n",job_id->cluster,job_id->proc);
+	dprintf(D_FULLDEBUG,"Queueing job %d.%d in runnable job queue\n",
+			job_id->cluster,job_id->proc);
 	shadow_rec* srec=add_shadow_rec(0,job_id, mrec,-1);
 	if (RunnableJobQueue.enqueue(srec)) {
 		EXCEPT("Cannot put job into run queue\n");
 	}
 	if (StartJobTimer<0) {
-		StartJobTimer=daemonCore->Register_Timer(0,
-						(Eventcpp)&Scheduler::StartJobHandler,"start_job", this);
+		StartJobTimer = daemonCore->Register_Timer(
+				0, (Eventcpp)&Scheduler::StartJobHandler,"start_job", this);
 	 }
 
 	return srec;
@@ -1797,8 +1890,6 @@ Scheduler::start_pvm(match_rec* mrec, PROC_ID *job_id)
 	}
 	SetAttributeInt(job_id->cluster, job_id->proc, "CurrentHosts", c);
 
-	dprintf(D_ALWAYS, "old_proc = %d\n", old_proc);
-	// need to pass to the multi-shadow later. -Bin
 	old_proc = job_id->proc;  
 	
 	/* For PVM/CARMI, all procs in a cluster are considered part of the same
@@ -1824,7 +1915,7 @@ Scheduler::start_pvm(match_rec* mrec, PROC_ID *job_id)
 				return NULL;
 			}
 		}
-	    sprintf ( args, "condor_shadow.carmi %s", MyShadowSockName );
+	    sprintf ( args, "condor_shadow.pvm %s", MyShadowSockName );
 
 		int fds[3];
 		fds[0] = pipes[0];  // the effect is to dup the pipe to stdin in child.
@@ -1878,30 +1969,47 @@ shadow_rec*
 Scheduler::start_sched_universe_job(PROC_ID* job_id)
 {
 #if !defined(WIN32) /* NEED TO PORT TO WIN32 */
-	char 	a_out_name[_POSIX_PATH_MAX];
-	char 	input[_POSIX_PATH_MAX];
-	char 	output[_POSIX_PATH_MAX];
-	char 	error[_POSIX_PATH_MAX];
+
+#ifndef WANT_DC_PM
+	dprintf ( D_ALWAYS, "Starting sched universe jobs no longer "
+			  "supported without WANT_DC_PM\n" );
+	return NULL;
+#else
+
+	char	a_out_name[_POSIX_PATH_MAX];
+	char	input[_POSIX_PATH_MAX];
+	char	output[_POSIX_PATH_MAX];
+	char	error[_POSIX_PATH_MAX];
 	char	env[ATTRLIST_MAX_EXPRESSION];		// fixed size is bad here!!
-	char		job_args[_POSIX_ARG_MAX];
+	char	job_args[_POSIX_ARG_MAX];
 	char	args[_POSIX_ARG_MAX];
 	char	owner[20], iwd[_POSIX_PATH_MAX];
-	Environ	env_obj;
-	char	**envp;
-	char	*argv[_POSIX_ARG_MAX];
-	int		fd, pid, argc;
-	struct passwd	*pwd;
+	int		pid;
 
 	dprintf( D_FULLDEBUG, "Starting sched universe job %d.%d\n",
 			job_id->cluster, job_id->proc );
 
-	strcpy(a_out_name, gen_ckpt_name(Spool, job_id->cluster, ICKPT, 0));
-
 	// make sure file is executable
+	strcpy(a_out_name, gen_ckpt_name(Spool, job_id->cluster, ICKPT, 0));
 	if (chmod(a_out_name, 0755) < 0) {
 		EXCEPT("chmod(%s, 0755)", a_out_name);
 	}
 
+	if (GetAttributeString(job_id->cluster, job_id->proc, 
+						   ATTR_OWNER, owner) < 0) {
+		dprintf(D_FULLDEBUG, "Scheduler::start_sched_universe_job"
+				"--setting owner to \"nobody\"\n" );
+		sprintf(owner, "nobody");
+	}
+	if (strcmp(owner, "root") == 0 ) {
+		dprintf(D_ALWAYS, "Aborting job %d.%d.  Tried to start as root.\n",
+				job_id->cluster, job_id->proc);
+		return NULL;
+	}
+
+	init_user_ids(owner);
+
+		// Get std(in|out|err)
 	if (GetAttributeString(job_id->cluster, job_id->proc, ATTR_JOB_INPUT,
 							input) < 0) {
 		sprintf(input, "/dev/null");
@@ -1914,96 +2022,62 @@ Scheduler::start_sched_universe_job(PROC_ID* job_id)
 							error) < 0) {
 		sprintf(error, "/dev/null");
 	}
+
+	priv_state priv = set_user_priv(); // need user's privs...
+
+		// now open future in|out|err files
+	int inouterr[3];
+	if ((inouterr[0] = open(input, O_RDONLY, 0)) < 0) {
+		dprintf ( D_ALWAYS, "Open of %s failed, errno %d\n", errno );
+		return NULL;
+	}
+	if ((inouterr[1] = open(input, O_WRONLY, 0)) < 0) {
+		dprintf ( D_ALWAYS, "Open of %s failed, errno %d\n", errno );
+		return NULL;
+	}
+	if ((inouterr[2] = open(input, O_WRONLY, 0)) < 0) {
+		dprintf ( D_ALWAYS, "Open of %s failed, errno %d\n", errno );
+		return NULL;
+	}
+	set_priv( priv );  // back to regular privs...
+
 	if (GetAttributeString(job_id->cluster, job_id->proc, ATTR_JOB_ENVIRONMENT,
 							env) < 0) {
 		sprintf(env, "");
 	}
-	env_obj.add_string(env);
-	envp = env_obj.get_vector();
+
 	if (GetAttributeString(job_id->cluster, job_id->proc, ATTR_JOB_ARGUMENTS,
 							args) < 0) {
 		sprintf(args, "");
 	}
 	sprintf(job_args, "%s %s", a_out_name, args);
-	mkargv(&argc, argv, job_args);
-	if (GetAttributeString(job_id->cluster, job_id->proc, ATTR_OWNER,
-							owner) < 0) {
-		dprintf(D_FULLDEBUG,"Scheduler::start_sched_universe_job--setting owner"
-				" to \"nobody\"\n" );
-		sprintf(owner, "nobody");
-	}
-	if (strcmp(owner, "root") == MATCH) {
-		dprintf(D_ALWAYS, "aborting job %d.%d start as root\n",
-				job_id->cluster, job_id->proc);
-		return NULL;
-	}
+
 	if (GetAttributeString(job_id->cluster, job_id->proc, ATTR_JOB_IWD,
 							iwd) < 0) {
-		sprintf(owner, "/tmp");
+		sprintf(iwd, "/tmp");
 	}
 
-	if ((pid = fork()) < 0) {
-		dprintf(D_ALWAYS, "failed for fork for sched universe job start!\n");
+	pid = daemonCore->Create_Process( a_out_name, job_args, PRIV_USER_FINAL, 
+								1, FALSE, env, iwd, FALSE, NULL, inouterr );
+
+		// now close those open fds - we don't want them here.
+	for ( int i=0 ; i<3 ; i++ ) {
+		if ( close( inouterr[i] ) == -1 ) {
+			dprintf ( D_ALWAYS, "FD closing problem, errno = %d\n", errno );
+		}
+	}
+
+	if ( pid <= 0 ) {
+		dprintf ( D_ALWAYS, "Create_Process problems!\n" );
 		return NULL;
 	}
 
-	if (pid == 0) {		// the child
-
-		// set dprintf messages to stderr in case something goes wrong,
-		// since we can't access the SchedLog when running with user_priv
-
-		DebugFP = stderr;
-		DebugFile = NULL;
-		DebugLock = NULL;
-
-		init_user_ids(owner);
-		set_user_priv_final();
-
-		if (chdir(iwd) < 0) {
-			EXCEPT("chdir(%s)", iwd);
-		}
-		if ((fd = open(input, O_RDONLY, 0)) < 0) {
-			EXCEPT("open(%s)", input);
-		}
-		if (dup2(fd, 0) < 0) {
-			EXCEPT("dup2(%d, 0)", fd);
-		}
-		if (close(fd) < 0) {
-			EXCEPT("close(%d)", fd);
-		}
-		if ((fd = open(output, O_WRONLY, 0)) < 0) {
-			EXCEPT("open(%s)", output);
-		}
-		if (dup2(fd, 1) < 0) {
-			EXCEPT("dup2(%d, 1)", fd);
-		}
-		if (close(fd) < 0) {
-			EXCEPT("close(%d)", fd);
-		}
-		if ((fd = open(error, O_WRONLY, 0)) < 0) {
-			EXCEPT("open(%s)", error);
-		}
-		if (dup2(fd, 2) < 0) {
-			EXCEPT("dup2(%d, 2)", fd);
-		}
-		if (close(fd) < 0) {
-			EXCEPT("close(%d)", fd);
-		}
-
-		errno = 0;
-		execve( a_out_name, argv, envp );
-		dprintf( D_ALWAYS, "exec(%s) failed, errno = %d\n", a_out_name,
-				errno );
-		if( errno == ENOMEM ) {
-			exit( JOB_NO_MEM );
-		} else {
-			exit( JOB_EXEC_FAILED );
-		}
-	}
+	dprintf ( D_ALWAYS, "Successfully created sched universe process\n" );
 
 	SetAttributeInt(job_id->cluster, job_id->proc, ATTR_JOB_STATUS, RUNNING);
 	SetAttributeInt(job_id->cluster, job_id->proc, ATTR_CURRENT_HOSTS, 1);
 	return add_shadow_rec(pid, job_id, NULL, -1);
+#endif /* of WANT_DC_PM code */
 #else
 	return NULL;
 #endif /* !defined(WIN32) */
