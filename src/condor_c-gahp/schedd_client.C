@@ -297,7 +297,8 @@ doContactSchedd()
 		// Analyze the result ad
 		if (!result_ad) {
 			error = TRUE;
-			sprintf (error_msg, "Error connecting to schedd %s", ScheddAddr);
+			sprintf (error_msg, "Error connecting to schedd %s %s: %s",
+					 ScheddAddr, dc_schedd.addr(), errstack.getFullText() );
 		}
 		else {
 			result_ad->dPrint (D_FULLDEBUG);
