@@ -590,7 +590,15 @@ abort_job_myself(PROC_ID job_id)
 	// If there is no shadow, then simply call DestroyProc() (if we
 	// are removing the job).
 
-	GetAttributeInt(job_id.cluster, job_id.proc, ATTR_JOB_STATUS, &mode);
+    dprintf ( D_FULLDEBUG, "abort_job_myself: %d.%d\n", 
+              job_id.cluster, job_id.proc );
+
+	if ( GetAttributeInt(job_id.cluster, job_id.proc, 
+                         ATTR_JOB_STATUS, &mode) == -1 ) {
+        dprintf ( D_ALWAYS, "tried to abort %d.%d; not found.\n", 
+                  job_id.cluster, job_id.proc );
+        return;
+    }
 
 	if ((srec = scheduler.FindSrecByProcID(job_id)) != NULL) {
 
