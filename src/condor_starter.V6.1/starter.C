@@ -181,7 +181,9 @@ CStarter::ShutdownFast(int)
 		// tell our JobInfoCommunicator about this so it can take any
 		// necessary actions (for example, disabiling file transfer if
 		// we're talking to a shadow)
-	jic->gotShutdownFast();
+	if( jic ) {
+		jic->gotShutdownFast();
+	}
 
 	JobList.Rewind();
 	while ((job = JobList.Next()) != NULL) {
