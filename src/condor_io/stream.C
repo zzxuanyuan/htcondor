@@ -1270,3 +1270,43 @@ int Stream::get(
         NETWORK_TRACE("get string and int " <<   l);
 	return TRUE;
 }
+
+
+int Stream::snd_int(
+	int val, 
+	int end_of_record
+	)
+{
+	encode();
+	if (!code(val)) {
+		return FALSE;
+	}
+
+	if (end_of_record) {
+		if (!end_of_message()) {
+			return FALSE;
+		}
+	}
+
+	return TRUE;
+}
+
+
+int Stream::rcv_int(
+	int &val,
+	int end_of_record
+	)
+{
+	decode();
+	if (!code(val)) {
+		return FALSE;
+	}
+
+	if (end_of_record) {
+		if (!end_of_message()) {
+			return FALSE;
+		}
+	}
+
+	return TRUE;
+}

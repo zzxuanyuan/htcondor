@@ -100,14 +100,6 @@ public:
 	virtual int peek(char &);
 
 
-	/*
-	** 	Condor Types
-	*/
-
-	int snd_int(int val, int end_of_record);
-	int rcv_int(int &val, int end_of_record);
-
-
 //	PRIVATE INTERFACE TO SAFE SOCKS
 //
 protected:

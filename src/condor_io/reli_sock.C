@@ -312,44 +312,6 @@ int ReliSock::peek(
 	return rcv_msg.buf.peek(c);
 }
 
-int ReliSock::snd_int(
-	int val, 
-	int end_of_record
-	)
-{
-	encode();
-	if (!code(val)) {
-		return FALSE;
-	}
-
-	if (end_of_record) {
-		if (!end_of_message()) {
-			return FALSE;
-		}
-	}
-
-	return TRUE;
-}
-
-int ReliSock::rcv_int(
-	int &val,
-	int end_of_record
-	)
-{
-	decode();
-	if (!code(val)) {
-		return FALSE;
-	}
-
-	if (end_of_record) {
-		if (!end_of_message()) {
-			return FALSE;
-		}
-	}
-
-	return TRUE;
-}
-
 int ReliSock::RcvMsg::rcv_packet(
 	int	_sock,
 	int _timeout

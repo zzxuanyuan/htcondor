@@ -332,6 +332,10 @@ public:
 	//
 	virtual stream_type type() { assert(0); return (stream_type)0; }
 
+	// Condor Compatibility Ops
+	int snd_int(int val, int end_of_record);
+	int rcv_int(int &val, int end_of_record);
+
 
 /*
 **		PRIVATE INTERFACE TO ALL STREAMS
