@@ -4772,10 +4772,10 @@ Scheduler::StartJobHandler()
 					 job_id->cluster, job_id->proc,
 					 getJobStatusString(status) );
 				// NOTE: it's ok to call mark_job_stopped(), since we
-				// want to clear out ATTR_CURRENT_HOSTS, etc. luckily,
-				// mark_job_stopped() won't touch ATTR_JOB_STATUS
-				// unless it's currently "RUNNING", so we won't
-				// clobber it...
+				// want to clear out ATTR_CURRENT_HOSTS, the shadow
+				// birthday, etc. luckily, mark_job_stopped() won't
+				// touch ATTR_JOB_STATUS unless it's currently
+				// "RUNNING", so we won't clobber it...
 			mark_job_stopped( job_id );
 			RemoveShadowRecFromMrec( srec );
 			delete srec;
@@ -6167,17 +6167,6 @@ _mark_job_running(PROC_ID* job_id)
 	SetAttributeInt(job_id->cluster, job_id->proc,
 					ATTR_ENTERED_CURRENT_STATUS, (int)time(0) );
 
-	// Also clear out ATTR_SHADOW_BIRTHDATE.  We'll set it to be the
-	// current time when we actually start the shadow (in add_shadow_rec), 
-	// since that is more accurate (esp if JOB_START_DELAY is large or we
-	// just got lots of resources from the central manager).
-	// By setting it to zero, we prevent condor_q from getting confused by
-	// seeing a job status of running and an old (or non-existant) 
-	// ATTR_SHADOW_BIRTHDATE; this could result in condor_q temporarily
-	// displaying huge run times until the shadow is started. 
-	// -Todd <tannenba@cs.wisc.edu>
-	SetAttributeInt(job_id->cluster, job_id->proc,
-		ATTR_SHADOW_BIRTHDATE, 0);
 }
 
 /*
@@ -6204,6 +6193,18 @@ _mark_job_stopped(PROC_ID* job_id)
 		// CurrentHosts accurate, because we use it to determine if we
 		// need to negotiate for more matches.
 	SetAttributeInt(job_id->cluster, job_id->proc, ATTR_CURRENT_HOSTS, 0);
+
+		/*
+		  Always clear out ATTR_SHADOW_BIRTHDATE.  If there's no
+		  shadow and the job is stopped, it's dumb to leave the shadow
+		  birthday attribute in the job ad.  this confuses condor_q
+		  if the job is marked as running, added to the runnable job
+		  queue, and then JOB_START_DELAY is big.  we used to clear
+		  this out in mark_job_running(), but that's not really a good
+		  idea.  it's better to just clear it out whenever the shadow
+		  is gone.  Derek <wright@cs.wisc.edu>
+		*/
+	DeleteAttribute( job_id->cluster, job_id->proc, ATTR_SHADOW_BIRTHDATE );
 
 	// if job isn't RUNNING, then our work is already done
 	if (status == RUNNING) {
