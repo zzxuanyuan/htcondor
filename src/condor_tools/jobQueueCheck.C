@@ -34,16 +34,13 @@
 
 #define _POSIX_SOURCE
 
-#if defined(Solaris)
-#include "_condor_fix_types.h"
-#endif
+#include "condor_common.h"
+
 #if defined(IRIX62)
 typedef struct fd_set fd_set;
 #endif
 
 #include <time.h>
-#include <signal.h>
-#include "condor_common.h"
 #include "condor_debug.h"
 #include "condor_constants.h"
 #include "condor_config.h"
