@@ -215,7 +215,8 @@ private:
 	FilePointer	**pointers;
 	int		length;
 	BufferCache	*buffer;
-	char		working_dir[_POSIX_PATH_MAX];
+	char		local_working_dir[_POSIX_PATH_MAX];
+	char		remote_working_dir[_POSIX_PATH_MAX];
 	int		prefetch_size;
 	int		resume_count;
 };

@@ -469,8 +469,11 @@ static int _condor_internal_dup2( int oldfd, int newfd )
 		return syscall( SYS_dup2, oldfd, newfd );
 	#elif defined(SYS_fcntl) && defined(F_DUP2FD)
 		return syscall( SYS_fcntl, oldfd, F_DUP2FD, newfd );
+	#elif defined(SYS_fcntl) && defined(F_DUPFD)
+		syscall( SYS_close, newfd );
+		return syscall( SYS_fcntl, oldfd, F_DUPFD, newfd );
 	#else
-		#error "Need either SYS_dup2 or SYS_fcntl and F_DUP2FD!"
+		#error "_condor_internal_dup2: I need SYS_dup2 or F_DUP2FD or F_DUPFD!"
 	#endif
 }
 
@@ -527,7 +530,7 @@ int OpenFileTable::dup2( int fd, int nfd )
 
 	if( MyImage.GetMode()==STANDALONE ) {
 		result = _condor_internal_dup2(fd,nfd);
-		if(result!=nfd) _condor_file_warning("OpenFileTable::dup2(%d,%d): Virtual dup %d does not match real dup %d!\n",fd,nfd,nfd,result);
+		if(result!=nfd) _condor_file_warning("internal_dup2(%d,%d) returned %d but I wanted %d!\n",fd,nfd,result,nfd);
 	}
 	    
 	return nfd;
@@ -642,11 +645,16 @@ void OpenFileTable::checkpoint()
 
 	dump();
 
-	if( MyImage.GetMode() == STANDALONE ) {
-		getcwd( working_dir, _POSIX_PATH_MAX );
-	} else {
-		REMOTE_syscall( CONDOR_getwd, working_dir );
-	}
+	int scm = GetSyscallMode();
+	getcwd( local_working_dir, _POSIX_PATH_MAX );
+	SetSyscallMode(scm);
+
+	if( MyImage.GetMode() != STANDALONE )
+		REMOTE_syscall( CONDOR_getwd, remote_working_dir );
+	else
+		remote_working_dir[0]=0;
+
+	dprintf(D_ALWAYS,"local wd=%s\nremote wd=%s\n",local_working_dir,remote_working_dir);
 
 	for( int i=0; i<length; i++ )
 	     if( pointers[i] ) pointers[i]->get_file()->checkpoint();
@@ -658,13 +666,16 @@ void OpenFileTable::suspend()
 
 	dump();
 
-	if( MyImage.GetMode() == STANDALONE ) {
-		getcwd( working_dir, _POSIX_PATH_MAX );
-	} else {
-		REMOTE_syscall( CONDOR_getwd, working_dir );
-	}
+	int scm = GetSyscallMode();
+	getcwd( local_working_dir, _POSIX_PATH_MAX );
+	SetSyscallMode(scm);
 
-	dprintf(D_ALWAYS,"OpenFileTable::suspend() cwd=%s\n",working_dir);
+	if( MyImage.GetMode() != STANDALONE )
+		REMOTE_syscall( CONDOR_getwd, remote_working_dir );
+	else
+		remote_working_dir[0]=0;
+
+	dprintf(D_ALWAYS,"local wd=%s\nremote wd=%s\n",local_working_dir,remote_working_dir);
 
 	for( int i=0; i<length; i++ )
 	     if( pointers[i] ) pointers[i]->get_file()->suspend();
@@ -676,15 +687,17 @@ void OpenFileTable::resume()
 
 	resume_count++;
 
-	dprintf(D_ALWAYS,"OpenFileTable::resume_count=%d cwd=%s\n",resume_count,working_dir);
+	dprintf(D_ALWAYS,"OpenFileTable::resume_count=%d\n");
+	dprintf(D_ALWAYS,"local wd=%s\nremote wd=%s\n",local_working_dir,remote_working_dir);
+	result = syscall( SYS_chdir, local_working_dir );
 
-	if( MyImage.GetMode() == STANDALONE ) {
-		result = syscall( SYS_chdir, working_dir );
-	} else {
-		result = REMOTE_syscall( CONDOR_chdir, working_dir );
+	if(result<0) _condor_file_warning("After checkpointing, I couldn't find %s again!",local_working_dir);
+
+	if(MyImage.GetMode()!=STANDALONE) {
+		result = REMOTE_syscall(CONDOR_chdir,remote_working_dir);
 	}
 
-	if( result<0 ) _condor_file_warning("OpenFileTable::resume(): Unable to restore working directory after checkpoint!");
+	if(result<0) _condor_file_warning("After checkpointing, I couldn't find %s again!",remote_working_dir);
 
 	/* Resume works a little differently, depending on the image mode.
 	   In the standard condor universe, we just go through each file
@@ -708,7 +721,7 @@ void OpenFileTable::resume()
 				for( int j=0; j<i; j++ ) {
 					if( pointers[j]==pointers[i] ) {
 						int result = _condor_internal_dup2(j,i);
-						if( result!=i ) _condor_file_warning("OpenFileTable::resume(): dup2(%d,%d) returns %d, but I needed %d.",j,i,result,i);
+						if(result!=i) _condor_file_warning("internal_dup2(%d,%d) returned %d but I wanted %d!\n",j,i,result,i);
 						break;
 					}
 				}
