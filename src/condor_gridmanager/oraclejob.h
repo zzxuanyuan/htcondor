@@ -53,6 +53,7 @@ class OracleJob : public BaseJob
 
 	char *remoteJobId;
 
+	char *run_c(char **args);
 	char *run_java(char **args);
 	int do_submit();
 	int do_commit();

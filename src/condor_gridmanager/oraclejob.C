@@ -605,6 +605,86 @@ BaseResource *OracleJob::GetResource()
 	return NULL;
 }
 
+char* OracleJob::run_c(char **args)
+{
+	static char reply[1024];
+	MyString command;
+	char *param_value;
+	int rc;
+
+	*reply = '\0';
+
+	param_value = param("ORACLE_HOME");
+	if ( param_value == NULL ) {
+		EXCEPT("ORACLE_HOME undefined!");
+	}
+	command = "ORACLE_HOME=";
+	command += param_value;
+	command += ";export ORACLE_HOME;";
+	free(param_value);
+
+	param_value = param("ORACLE_INTERFACE");
+	if ( param_value == NULL ) {
+		EXCEPT("ORACLE_INTERFACE undefined!");
+	}
+	command += param_value;
+	free(param_value);
+
+	char *tmp;
+	StringList list( resourceManagerString );
+	list.rewind();
+	while ( (tmp = list.next()) ) {
+		command += " ";
+		command += tmp;
+	}
+
+	char **tmp2 = args;
+	while ( *tmp2 != NULL ) {
+		command += " '";
+		command += *tmp2;
+		command += "'";
+		tmp2++;
+	}
+
+	command += " >/tmp/temp_output";
+command+=" 2>/tmp/temp_error.";
+command+=args[0];
+
+dprintf(D_ALWAYS,"*** command=%s\n",command.Value());
+	rc = system( command.Value() );
+	if ( rc == -1 ) {
+		dprintf(D_ALWAYS,"system(%s) failed, errno=%d\n",command.Value(),
+				errno);
+		return reply;
+	}
+	dprintf(D_FULLDEBUG,"system() returned %d\n",rc);
+
+	FILE *output = fopen("/tmp/temp_output","r");
+	if (output==NULL) {
+		dprintf(D_ALWAYS,"fopen failed\n");
+		unlink("/tmp/temp_output");
+		return reply;
+	}
+
+	if ( fgets(reply,sizeof(reply),output) == NULL ) {
+		dprintf(D_ALWAYS,"fgets returned NULL\n");
+		fclose(output);
+		unlink("/tmp/temp_output");
+		return reply;
+	}
+
+	if ( *reply && reply[strlen(reply)-1] == '\n' ) {
+		reply[strlen(reply)-1] = '\0';
+	}
+
+	fclose(output);
+	unlink("/tmp/temp_output");
+
+	dprintf(D_ALWAYS,"Got reply '%s' from OracleJobInterface\n",reply);
+
+	return reply;
+}
+
 char* OracleJob::run_java(char **args)
 {
 	static char reply[1024];
@@ -701,7 +781,8 @@ int OracleJob::do_submit()
 	args[0] = "submit";
 	args[1] = NULL;
 
-	reply = run_java( args );
+//	reply = run_java( args );
+	reply = run_c( args );
 
 	free(args);
 
@@ -726,7 +807,8 @@ int OracleJob::do_commit()
 	args[2] = buff;
 	args[3] = NULL;
 
-	reply = run_java( args );
+//	reply = run_java( args );
+	reply = run_c( args );
 
 	free(args);
 
@@ -748,7 +830,8 @@ int OracleJob::do_status()
 	args[1] = remoteJobId;
 	args[2] = NULL;
 
-	reply = run_java( args );
+//	reply = run_java( args );
+	reply = run_c( args );
 
 	free(args);
 
@@ -774,7 +857,8 @@ int OracleJob::do_remove()
 	args[1] = remoteJobId;
 	args[2] = NULL;
 
-	reply = run_java( args );
+//	reply = run_java( args );
+	reply = run_c( args );
 
 	free(args);
 
