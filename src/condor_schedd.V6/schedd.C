@@ -3813,7 +3813,6 @@ Scheduler::checkReconnectQueue( void )
 		constraint += '"';
 		free( remote_host );
 		remote_host = NULL;
-		dprintf( D_FULLDEBUG, "Adding contraint: %s\n", constraint.Value() );
 		query.addORConstraint( constraint.Value() );
 	}
 
