@@ -55,6 +55,7 @@ static const int KEEP_STREAM = 100;
 static const int MAX_SOCKS_INHERITED = 4;
 static char* EMPTY_DESCRIP = "<NULL>";
 
+
 /** @name Typedefs for Callback Procedures
  */
 //@{
@@ -101,6 +102,13 @@ int WIFSIGNALED(DWORD stat);
 #define _DC_RAISESIGNAL 1
 #define _DC_BLOCKSIGNAL 2
 #define _DC_UNBLOCKSIGNAL 3
+
+// constants for the DaemonCore::Create_Process job_opt_mask bitmask  
+
+const int DCJOBOPT_SUSPEND_ON_EXEC  = (1<<1);
+
+#define HAS_DCJOBOPT_SUSPEND_ON_EXEC(mask)  ((mask)&DCJOBOPT_SUSPEND_ON_EXEC)
+
 
 // If WANT_DC_PM is defined, it means we want DaemonCore Process Management.
 // We _always_ want it on WinNT; on Unix, some daemons still do their own 
@@ -616,8 +624,12 @@ class DaemonCore : public Service
                child.  0 < nice < 20, and greater numbers mean
                less priority.  This is an addition to the current
                nice value.
-        @return On success, returns the child pid.  On failure, returns FALSE.
-    */
+		@param job_opt_mask A bitmask which defines other optional
+			   behavior we might for this process.  The bits are
+			   defined above, and always begin with "DCJOBOPT".  In
+			   addition, each bit should also define a macro to test a
+			   mask if a given bit is set ("HAS_DCJOBOPT_...")
+        @return On success, returns the child pid.  On failure, returns FALSE.  */
     int Create_Process (
         char        *name,
         char        *args,
@@ -629,7 +641,8 @@ class DaemonCore : public Service
         int         new_process_group    = FALSE,
         Stream      *sock_inherit_list[] = NULL,
         int         std[]                = NULL,
-        int         nice_inc             = 0
+        int         nice_inc             = 0,
+		int			job_opt_mask		 = 0
         );
 
     //@}
