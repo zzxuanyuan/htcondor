@@ -2,7 +2,7 @@ all_target(cplus_lib.a liburl.a libcondorapi.a)
 
 C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) IsCondorG -Wall
 CFLAGS = $(STD_C_FLAGS) -Wall
-LIB = $(STD_LIBS)
+LIB = $(STD_LIBS) $(IO_LIB)
 
 URL_OBJ = url_condor.o cbstp_url.o file_url.o http_url.o filter_url.o \
 	mailto_url.o cfilter_url.o ftp_url.o include_urls.o mkargv.o

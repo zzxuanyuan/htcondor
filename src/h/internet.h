@@ -55,6 +55,12 @@ int string_to_port( const char* addr );
    and convert it to the unsigned int version from the ASCII version */
 unsigned int string_to_ip( const char* addr );
 
+/* Return "<xx.xx.xx.xx:pppp>" from ip addr and port # in network byte order */
+char * ipport_to_string(const unsigned int ip, const unsigned short port);
+
+/* Return hostname from ip addr in network byte order */
+char * ip_to_name (unsigned int ip);
+
 /* Extract the ip_addr from a string of the form "<xx.xx.xx.xx:pppp>"
    and return a pointer to the ASCII version */
 char* string_to_ipstr( const char* addr );
@@ -63,6 +69,9 @@ char* string_to_ipstr( const char* addr );
 char* string_to_hostname( const char* addr );
 
 char *sock_to_string(SOCKET sockd);
+
+/* Return port # in network byte order for the given socket */
+unsigned short sock_to_port (int sock);
 
 /* Return the real hostname of a machine given a sin; return NULL if it cannot
  * be found or error.  Also return aliases. */
@@ -84,6 +93,9 @@ int is_valid_sinful( const char *sinful );
 /* Binds the given fd to any port on the correct local interface for
    this machine.   Returns 1 if successful, 0 on error. */
 int _condor_local_bind( int fd );
+int _condor_bind (int fd, unsigned short port);
+int _condor_connect(int sock, unsigned int ip, unsigned short port);
+int bindWithin(const int sock, const unsigned short low_port, const unsigned short high_port);
 
 #if defined(__cplusplus)
 }

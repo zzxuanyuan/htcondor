@@ -79,7 +79,7 @@ public:
 	SafeSock();
 
 	// Copy constructor
-	SafeSock(const SafeSock &);
+	SafeSock(SafeSock &);
 
 	// Destructor
 	~SafeSock();
@@ -118,7 +118,7 @@ protected:
 	enum safesock_state { safesock_none, safesock_listen };
 
 	char * serialize(char *);
-	char * serialize() const;
+	char * serialize();
 	inline bool SafeSock::same(const _condorMsgID msgA,
 	                           const _condorMsgID msgB)
 	{

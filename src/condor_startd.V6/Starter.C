@@ -583,6 +583,8 @@ Starter::exec_starter( char* starter, char* hostname,
 
 			// Close everything else to prevent fd leaks and other
 			// problems. 
+		dprintf(D_FULLDEBUG, "Now duped: main_sock -> stdio, err_sock -> stderr\n");
+		dprintf(D_FULLDEBUG, "Deleting fds: 3 ~ %d\n", n_fds);
 		for(i = 3; i<n_fds; i++) {
 			(void) close(i);
 		}

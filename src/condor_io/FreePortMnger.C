@@ -1,0 +1,136 @@
+#include "condor_common.h"
+#include "condor_constants.h"
+#include "condor_io.h"
+#include "sock.h"
+#include "condor_network.h"
+#include "internet.h"
+#include "my_hostname.h"
+#include "condor_debug.h"
+#include "condor_socket_types.h"
+#include "../condor_daemon_core.V6/condor_daemon_core.h"
+#include "getParam.h"
+#include "condor_rw.h"
+#include "portfw.h"
+#include "FreePortMnger.h"
+
+
+PortSet::PortSet ()
+{
+	for (int i=0; i<NAT_MAX_PORT; i++) {
+		_freeArr[i] = true;
+	}
+}
+
+unsigned int
+PortSet::freePort (unsigned short port)
+{
+	int first = ntohs(port) - NAT_FIRST_PORT;
+	int index = first;
+	do {
+		if (_freeArr[index]) {
+			_freeArr[index] = false;
+			return htons (NAT_FIRST_PORT + index);
+		}
+		index = (index < NAT_MAX_PORT - 1) ? index + 1 : 0;
+	} while (first != index);
+	dprintf (D_ALWAYS, "PortSet::freePort - no more free port remained\n");
+	return 0;
+}
+
+bool
+PortSet::makeOccupied (unsigned short port)
+{
+	unsigned short hport = ntohs (port);
+	int index = hport - NAT_FIRST_PORT;
+	if ( !_freeArr[index] ) {
+		dprintf (D_ALWAYS, "PortSet::makeOccupied - the port is occupied already\n");
+		return false;
+	}
+	_freeArr[index] = false;
+	return true;
+}
+
+bool
+PortSet::makeFree (unsigned short port)
+{
+	unsigned short hport = ntohs (port);
+	int index = hport - NAT_FIRST_PORT;
+	if (_freeArr[index]) {
+		dprintf (D_ALWAYS, "PortSet::makeFree - the port is free already\n");
+		return false;
+	}
+	_freeArr[index] = true;
+	return true;
+}
+
+void
+FreePortMnger::addInterface(unsigned int ipAddr)
+{
+	if (_noInterfaces >= NAT_MAX_SET - 1) {
+		dprintf (D_ALWAYS, "FreePortMnger::addInterface - too many interfaces\n");
+		exit (1);
+	}
+
+	for (int i=0; i<_noInterfaces; i++) {
+		if (_interfaces[i].ip == ipAddr) {
+			dprintf (D_ALWAYS, "FreePortMnger::addInterface - registration more than once\n");
+			exit (1);
+		}
+	}
+
+	_interfaces[_noInterfaces].ip = ipAddr;
+	_interfaces[_noInterfaces].portSet = new PortSet();
+
+	_noInterfaces++;
+
+	return;
+}
+
+bool
+FreePortMnger::nextFree(unsigned short rport,
+						unsigned int *lip,
+						unsigned short *lport)
+{
+	bool found = false;
+	for (int i=0; i<_noInterfaces && !found; i++) {
+		*lport = _interfaces[_nextInterface].portSet->freePort(rport);
+		if (*lport != 0) {
+			*lip = _interfaces[_nextInterface].ip;
+			found = true;
+		}
+		_nextInterface = (_nextInterface == _noInterfaces-1) ? 0 : _nextInterface + 1;
+	}
+
+	if ( !found ) {
+		dprintf (D_ALWAYS, "FreePortMnger::nextFree - no more free port\n");
+		return false;
+	} else {
+		return true;
+	}
+}
+
+bool
+FreePortMnger::makeOccupied (unsigned int lip, unsigned short lport)
+{
+	for (int i=0; i<_noInterfaces; i++) {
+		if (_interfaces[i].ip == lip) {
+			return _interfaces[i].portSet->makeOccupied (lport);
+		}
+	}
+
+	dprintf (D_ALWAYS, "FreePortMnger::makeFree - invalid ip addr\n");
+	return false;
+}
+
+bool
+FreePortMnger::makeFree (unsigned int lip, unsigned short lport)
+{
+	for (int i=0; i<_noInterfaces; i++) {
+		if (_interfaces[i].ip == lip) {
+			return _interfaces[i].portSet->makeFree (lport);
+		}
+	}
+
+	dprintf (D_ALWAYS, "FreePortMnger::makeFree - invalid ip addr\n");
+	return false;
+}

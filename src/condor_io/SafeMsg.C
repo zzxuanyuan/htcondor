@@ -232,7 +232,7 @@ void _condorPacket::makeHeader(bool last, int seqNo, _condorMsgID msgID)
 	memcpy(&dataGram[23], &stemp, 2);
 }
 
-#ifdef DEBUG
+#ifdef CEDAR_DEBUG
 void _condorPacket::dumpPacket()
 {
 	bool last;
@@ -279,7 +279,6 @@ _condorOutMsg::_condorOutMsg()
 {
 	headPacket = lastPacket = new _condorPacket();
 	if(!headPacket) {
-		dprintf(D_ALWAYS, "new Packet failed. out of memory\n");
 		EXCEPT("new Packet failed. out of memory");
 	}
 	noMsgSent = 0;
@@ -344,17 +343,13 @@ int _condorOutMsg::sendMsg(const int sock,
 		sent = sendto(sock, tempPkt->dataGram,
 		              tempPkt->length + SAFE_MSG_HEADER_SIZE,
 				  0, who, sizeof(struct sockaddr));
-		if( D_FULLDEBUG & DebugFlags )
-			dprintf(D_NETWORK, "SafeMsg: Packet[%d] sent\n", sent);
+		dprintf(D_NETWORK, "SafeMsg: Packet[%d] sent\n", sent);
 		if(sent != tempPkt->length + SAFE_MSG_HEADER_SIZE) {
-			dprintf(D_NETWORK, "sendMsg:sendto failed - errno: %d\n", errno);
+			dprintf(D_ALWAYS, "sendMsg:sendto failed - %s\n", strerror(errno));
 			headPacket = tempPkt;
 			clearMsg();
 			return -1;
 		}
-		dprintf( D_NETWORK, "SEND %s ", sock_to_string(sock) );
-		dprintf( D_NETWORK|D_NOHEADER, "%s\n",
-				 sin_to_string((sockaddr_in *)who) );
 		total += sent;
 		delete tempPkt;
 	}
@@ -364,17 +359,12 @@ int _condorOutMsg::sendMsg(const int sock,
 		msgLen = lastPacket->length;
 		sent = sendto(sock, lastPacket->data, lastPacket->length,
 		              0, who, sizeof(struct sockaddr));
-		if( D_FULLDEBUG & DebugFlags )
-			dprintf(D_NETWORK, "SafeMsg: Packet[%d] sent\n", sent);
+		dprintf(D_NETWORK, "SafeMsg: Packet[%d] sent\n", sent);
 		if(sent != lastPacket->length) {
-			dprintf( D_NETWORK, 
-				 "SafeMsg: sending small msg failed. errno: %d\n",
-				 errno );
+			dprintf( D_ALWAYS, "SafeMsg: sending small msg failed: %s\n", strerror(errno) );
 			headPacket->reset();
 			return -1;
 		}
-		dprintf( D_NETWORK, "SEND %s ", sock_to_string(sock) );
-		dprintf( D_NETWORK|D_NOHEADER, "%s\n", sin_to_string((sockaddr_in *)who) );
 		total = sent;;
 	} else { // the last packet of a long message
 		lastPacket->makeHeader(true, seqNo, msgID);
@@ -382,17 +372,12 @@ int _condorOutMsg::sendMsg(const int sock,
 		sent = sendto(sock, lastPacket->dataGram,
 		              lastPacket->length + SAFE_MSG_HEADER_SIZE,
 		              0, who, sizeof(struct sockaddr));
-		if( D_FULLDEBUG & DebugFlags )
-			dprintf(D_NETWORK, "SafeMsg: Packet[%d] sent\n", sent);
+		dprintf(D_NETWORK, "SafeMsg: Packet[%d] sent\n", sent);
 		if(sent != lastPacket->length + SAFE_MSG_HEADER_SIZE) {
-			dprintf( D_NETWORK, 
-			         "SafeMsg: sending last packet failed. errno: %d\n",
-			         errno );
+			dprintf( D_ALWAYS, "SafeMsg: sending last packet failed: %s\n", strerror(errno) );
 			headPacket->reset();
 			return -1;
 		}
-		dprintf( D_NETWORK, "SEND %s ", sock_to_string(sock) );
-		dprintf( D_NETWORK|D_NOHEADER, "%s\n", sin_to_string((sockaddr_in *)who) );
 		total += sent;
 	}
 
@@ -429,7 +414,7 @@ void _condorOutMsg::clearMsg()
 }
 
 
-#ifdef DEBUG
+#ifdef CEDAR_DEBUG
 int _condorOutMsg::dumpMsg(const _condorMsgID mID)
 {
 	_condorPacket *tempPkt, *nextPkt;
@@ -437,8 +422,7 @@ int _condorOutMsg::dumpMsg(const _condorMsgID mID)
 	int seqNo = 0;
 	int total = 0;
 
-	dprintf(D_NETWORK,
-	        "================================================\n");
+	dprintf(D_NETWORK, "================================================\n");
 
 	if(headPacket->empty()) { // empty message
 		dprintf(D_NETWORK, "empty message\n");
@@ -456,9 +440,7 @@ int _condorOutMsg::dumpMsg(const _condorMsgID mID)
 		tempPkt = nextPkt;
 	}
 
-	dprintf(D_NETWORK,
-	        "------------------- has %d bytes -----------------------\n",
-		  total);
+	dprintf(D_NETWORK, "------------------- has %d bytes -----------------------\n", total);
 
 	return total;
 }
@@ -664,10 +646,7 @@ int _condorInMsg::getn(char* dta, const int size)
 	} // of while(total..)
 
 	passed += total;
-	if( D_FULLDEBUG & DebugFlags )
-		dprintf(D_NETWORK,
-		        "%d bytes read & %d bytes passed\n",
-			  total, passed);
+	dprintf(D_NETWORK, "%d bytes read & %d bytes passed\n", total, passed);
 	return total;
 }
 
@@ -708,19 +687,13 @@ int _condorInMsg::getPtr(void *&buf, char delim)
 				tempDir = tempDir->nextDir;
 				tempPkt = 0;
 			} else if(!tempDir->dEntry[tempPkt].dGram) { // was the last packet
-				if( D_FULLDEBUG & DebugFlags )
-					dprintf(D_NETWORK,
-					        "\nSafeMsg::getPtr: get to end & '%c'\
-						  not found\n", delim);
+				dprintf(D_NETWORK, "\nSafeMsg::getPtr: get to end & '%c' not found\n", delim);
 				return -1;
 			}
 		}
 		n++;
 	} // end of while(tempDir->dEntry[...
-	if( D_FULLDEBUG & DebugFlags )
-		dprintf(D_NETWORK, "SafeMsg::_longMsg::getPtr:\
-		                    found delim = %c & length = %d\n",
-			  delim, n);
+	dprintf(D_NETWORK, "SafeMsg::_longMsg::getPtr: found delim = %c & length = %d\n", delim, n);
 	tempBuf = (char *)malloc(n);
 	if(!tempBuf) {
 		dprintf(D_ALWAYS, "getPtr, fail at malloc(%d)\n", n);
@@ -745,25 +718,20 @@ bool _condorInMsg::consumed()
 	return(msgLen != 0 && msgLen == passed);
 }
 
-#ifdef DEBUG
+#ifdef CEDAR_DEBUG
 void _condorInMsg::dumpMsg()
 {
 	_condorDirPage *tempDir;
 	int i, j, total = 0;
 
-	dprintf(D_NETWORK, "\t=======< ");
-	dprintf(D_NETWORK, "Msg[%d, %d, %d, %d]",
-	        msgID.ip_addr, msgID.pid, msgID.time, msgID.msgNo);
-	dprintf(D_NETWORK, " >=======\n");
+	dprintf(D_NETWORK, "\t=======< Msg[%d, %d, %d, %d] >========\n", msgID.ip_addr, msgID.pid, msgID.time, msgID.msgNo);
 	dprintf(D_NETWORK,
 	        "\tmsgLen: %d\tlastNo: %d\treceived: %d\tlastTime: %d\n",
 	        msgLen, lastNo, received, lastTime);
 	dprintf(D_NETWORK,
 	        "\theadDir: %d\tcurDir: %d\tcurPkt: %d\tcurData: %d\n",
 	        headDir, curDir, curPacket, curData);
-	dprintf(D_NETWORK,
-	        "\t------------------------------------\
-		     -----------------------------------\n");
+	dprintf(D_NETWORK, "\t-----------------------------------------------------------------------\n");
 	tempDir = headDir;
 	while(tempDir) {
 		dprintf(D_NETWORK, "\tdir[%d]  pre: %d  next: %d\n",
@@ -781,8 +749,6 @@ void _condorInMsg::dumpMsg()
 		}
 		tempDir = tempDir->nextDir;
 	}
-	dprintf(D_NETWORK,
-	        "\t----------------------- has %d bytes\
-		     ------------------------------\n", total);;
+	dprintf(D_NETWORK, "\t----------------------- has %d bytes ------------------------------\n", total);;
 }
 #endif

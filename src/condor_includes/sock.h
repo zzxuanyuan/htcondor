@@ -135,6 +135,7 @@ public:
 	int assign(LPWSAPROTOCOL_INFO);		// to inherit sockets from other processes
 #endif
 	int bind(int =0);
+	int bind(unsigned short *rport, unsigned int *lip, unsigned short *lport);
     int setsockopt(int, int, const char*, int); 
 
 	/**  Set the size of the operating system buffers (in the IP stack) for
@@ -173,11 +174,19 @@ public:
 	/// peer's IP address, integer version (e.g. 2154390801)
 	unsigned int endpoint_ip_int();
 
-	/// local port number
+	/// Get the local port number in host-byte order
 	int get_port();
+
+	/// Get canonical port number in host-byte order
+	/// If the machine is behind the port forwarding server and a forwarding rule
+	/// is set up for this Cedar, return the port number _lport, where
+	/// the port forwarding rule is: (_lip, _lport) -> (_myIP, _myPort)
+	/// otherwise return the port number to which the underlying socket is bound
+	int get_canon_port();
 
 	/// local ip address integer
 	unsigned int get_ip_int();
+	unsigned int get_canon_ip();
 
 	/// local file descriptor (fd) of this socket
 	int get_file_desc();
@@ -191,6 +200,18 @@ public:
 	/// Copy constructor -- this also dups the underlying socket
 	Sock(const Sock &);
 
+	/// Get sinful string of this Cedar
+	/// If the machine is behind the port forwarding server and a forwarding rule
+	/// is set up for this Cedar, return the sinful string for (_lip, _lport), where
+	/// the port forwarding rule is: (_lip, _lport) -> (_myIP, _myPort)
+	/// otherwise return the sinful string of (_myIP, _myPort)
+	char * sinful_string();
+
+	/// Get the condor-official hostname
+	/// If the machine is behind the port forwarding server and a forwarding rule
+	/// is set up for this Cedar, return the hostname of forwarding server
+	/// otherwise return the hostname of this machine
+	char * canon_hostname();
 
 //	PRIVATE INTERFACE TO ALL SOCKS
 //
@@ -214,6 +235,7 @@ protected:
     ///
 	Sock();
 
+	inline int deleteFWrule();
 	int getportbyserv(char *);
 
     /**
@@ -223,6 +245,7 @@ protected:
 		@return FALSE on failure, TRUE if connected, CEDAR_EWOULDBLOCK if
 			non_blocking_flag is set to true and connection was not immediate.
     */
+	inline bool adjustPeer();
 	int do_connect(char *host, int port, bool non_blocking_flag = false);
 
 	bool do_connect_finish();
@@ -230,7 +253,7 @@ protected:
 
 	inline SOCKET get_socket (void) { return _sock; }
 	char * serialize(char *);
-	char * serialize() const;
+	char * serialize();
 
 	///
 	virtual int encrypt(bool);
@@ -263,13 +286,18 @@ protected:
 	SOCKET			_sock;
 	sock_state		_state;
 	int				_timeout;
-	struct sockaddr_in _who;	// endpoint of "connection"
+	unsigned int	_myIP;
+	unsigned short	_myPort;
+	struct sockaddr_in _who;	// the endpoint of "connection"
+	bool			_inherited;
+	// port forwarding stuff
+	int				_msock;
+	unsigned short	_mport;
+	unsigned int	_lip;
+	unsigned short	_lport;
+	struct sockaddr_in _masqServer;
 
 private:
-	int _condor_read(SOCKET fd, char *buf, int sz, int timeout);
-	int _condor_write(SOCKET fd, char *buf, int sz, int timeout);
-	int bindWithin(const int low, const int high);
-	///
 	// Buffer to hold the string version of our endpoint's IP address. 
 	char _endpoint_ip_buf[_ENDPOINT_BUF_SIZE];	
 

@@ -33,7 +33,7 @@
 #include "condor_debug.h"
 #include "exit.h"
 #include "shared_utils.h"
-#include "get_port_range.h"
+#include "getParam.h"
 
 extern	ReliSock* syscall_sock;
 
@@ -118,12 +118,11 @@ _condor_dprintf_exit( void )
 }
 
 
-int get_port_range(int *low_port, int *high_port)
+int get_port_range(unsigned short *low_port, unsigned short *high_port)
 {
 	char *low = NULL, *high = NULL;
 
 	if ( (low = getenv("_condor_LOWPORT")) == NULL ) {
-        dprintf(D_NETWORK, "_condor_LOWPORT undefined\n");
 		return FALSE;
     }
 	if ( (high = getenv("_condor_HIGHPORT")) == NULL ) {
@@ -146,6 +145,52 @@ int get_port_range(int *low_port, int *high_port)
 
 	free(low);
 	free(high);
+	return TRUE;
+}
+
+
+int getMnger(char *mHost, unsigned short *mPort)
+{
+	char *host = NULL, *port = NULL;
+
+	if ( (host = getenv("_condor_NETMNGER_IP")) == NULL ) {
+        dprintf(D_NETWORK, "_condor_NETMNGER_IP undefined\n");
+		return FALSE;
+    }
+	if ( (port = getenv("_condor_NETMNGER_PORT")) == NULL ) {
+		free(host);
+        dprintf(D_NETWORK, "_condor_NETMNGER_PORT is undefined\n");
+		return FALSE;
+	}
+
+	strcpy (mHost, host);
+	*mPort = atoi(port);
+
+	free(host);
+	free(port);
+	return TRUE;
+}
+
+
+int getMasqServer (char *mHost, unsigned short *mPort)
+{
+	char *host = NULL, *port = NULL;
+
+	if ( (host = getenv("_condor_MASQ_SERVER_IP")) == NULL ) {
+		return FALSE;
+    }
+	if ( (port = getenv("_condor_MASQ_SERVER_PORT")) == NULL ) {
+		free(host);
+        dprintf(D_NETWORK, "_condor_MASQ_SERVER_IP is defined but ");
+        dprintf(D_NETWORK, "_condor_MASQ_SERVER_PORT NOT defined!\n");
+		return FALSE;
+	}
+
+	strcpy (mHost, host);
+	*mPort = atoi(port);
+
+	free(host);
+	free(port);
 	return TRUE;
 }
 

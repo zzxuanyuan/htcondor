@@ -60,20 +60,20 @@ int magic_check( char *executable )
 
 	bfd_init();
 	if((bfdp=bfd_openr(executable, 0))!=NULL) {
-		dprintf(D_ALWAYS, "\n\nbfdopen(%s) succeeded\n", executable);
+		dprintf(D_ALWAYS, "bfdopen(%s) succeeded\n", executable);
 		// We only want objects, not cores, ...
 		if(bfd_check_format(bfdp, bfd_object)) {
-			dprintf(D_ALWAYS, "File type=bfd_object\n");
+			dprintf(D_ALWAYS, "\tFile type=bfd_object\n");
 			// Make sure it is an executable object.
 			// FIXME - Make sure this eliminates .o files...
 			if(bfd_get_file_flags(bfdp) & EXEC_P)
-				dprintf(D_ALWAYS, "This file is executable\n");
+				dprintf(D_ALWAYS, "\tThis file is executable\n");
 			else
-				dprintf(D_ALWAYS, "This file is NOT executable\n");
+				dprintf(D_ALWAYS, "\tThis file is NOT executable\n");
 			bfd_close(bfdp);
 			return 0;
 		} else {
-			dprintf(D_ALWAYS, "File type unknown!\n");
+			dprintf(D_ALWAYS, "\tFile type unknown!\n");
 			bfd_close(bfdp);
 			return -1;
 		}
@@ -98,20 +98,20 @@ int symbol_main_check( char *executable )
 
 	bfd_init();
 	if((bfdp=bfd_openr(executable, 0))!=NULL) {
-		dprintf(D_ALWAYS, "\n\nbfdopen(%s)\n", executable);
+		dprintf(D_ALWAYS, "bfdopen(%s)\n", executable);
 		if(bfd_check_format(bfdp, bfd_object)) {
 			storage_needed=bfd_get_symtab_upper_bound(bfdp);
 			// Calculate storage needed for the symtab
 			if(storage_needed < 0) {
-				dprintf(D_ALWAYS, "Read of symbol table failed");
+				dprintf(D_ALWAYS, "\tRead of symbol table failed");
 				bfd_close(bfdp);
 				return -1;
 			} else if(storage_needed==0) {
-				dprintf(D_ALWAYS, "Executable has been stripped??");
+				dprintf(D_ALWAYS, "\tExecutable has been stripped??");
 				bfd_close(bfdp);
 				return 0;
 			}
-			dprintf(D_ALWAYS, "storage_needed=%d\n", storage_needed);
+			dprintf(D_ALWAYS, "\tstorage_needed=%d\n", storage_needed);
 			symbol_table=(asymbol **)malloc(storage_needed);
 			if(!symbol_table) {
 				dprintf(D_ALWAYS, "malloc failed");
@@ -121,7 +121,7 @@ int symbol_main_check( char *executable )
 
 			// Get number of syms in the symbol table
 			number_of_symbols=bfd_canonicalize_symtab(bfdp, symbol_table);
-			dprintf(D_ALWAYS, "number_of_symbols=%d\n", number_of_symbols);
+			dprintf(D_ALWAYS, "\tnumber_of_symbols=%d\n", number_of_symbols);
 			if(number_of_symbols < 0) {
 				dprintf(D_ALWAYS, "Error reading symbol table");
 				bfd_close(bfdp);
@@ -134,6 +134,10 @@ int symbol_main_check( char *executable )
 				if(strcmp(bfd_asymbol_name(symbol_table[i]), "_linked_with_condor_message")==0) {
         			dprintf( D_ALWAYS, 	
 						"Symbol _linked_with_condor_message check - OK\n" );
+/*
+				if(strcmp(bfd_asymbol_name(symbol_table[i]), "REMOTE_syscall")==0) {
+        			dprintf( D_ALWAYS, "\tSymbol REMOTE_syscall check - OK\n" );
+*/
 					bfd_close(bfdp);
 					free(symbol_table);
 					return 0;

@@ -154,6 +154,7 @@ init_ipaddr( int config_done )
 		ip_addr = ntohl( sin_addr.s_addr );
 		ipaddr_initialized = TRUE;
 	}
+	dprintf(D_NETWORK, "ip-addr of this machine: %s\n", ipport_to_string(sin_addr.s_addr, 0));
 }
 
 } /* extern "C" */

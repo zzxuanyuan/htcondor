@@ -31,6 +31,9 @@
 #include "condor_debug.h"
 #include "internet.h"
 #include "condor_socket_types.h"
+extern "C" {
+#include "portfw.h"
+}
 
 _condorMsgID SafeSock::_outMsgID = {0, 0, 0, 0};
 unsigned long SafeSock::_noMsgs = 0;
@@ -67,9 +70,10 @@ SafeSock::SafeSock() 				/* virgin safesock	*/
 	: Sock()
 {
 	init();
+	dprintf(D_NETWORK, "SafeSock Created\n");
 }
 
-SafeSock::SafeSock(const SafeSock & orig) 
+SafeSock::SafeSock(SafeSock & orig) 
 	: Sock(orig)
 {
 	init();
@@ -79,12 +83,14 @@ SafeSock::SafeSock(const SafeSock & orig)
 	assert(buf);
 	serialize(buf);	// put the state into the new sock
 	delete [] buf;
+	dprintf(D_NETWORK, "Inherited SafeSock Created\n");
 }
 
 SafeSock::~SafeSock()
 {
 	_condorInMsg *tempMsg, *delMsg;
 
+	dprintf(D_NETWORK, "\tDeleting SafeSock: %s\n", sock_to_string(_sock));
 	for(int i=0; i<SAFE_SOCK_HASH_BUCKET_SIZE; i++) {
 		tempMsg = _inMsgs[i];
 		while(tempMsg) {
@@ -125,8 +131,11 @@ int SafeSock::end_of_message()
 				return TRUE;
 			}
 			if (sent < 0) {
+				dprintf(D_NETWORK, "\tFAIL: sending a message to %s\n", sin_to_string(&_who));
 				return FALSE;
 			} else {
+				dprintf(D_NETWORK, "\tsent a message to %s through %s\n",
+						sin_to_string(&_who), ipport_to_string(_myIP, _myPort));
 				return TRUE;
 			}
 
@@ -174,17 +183,14 @@ int SafeSock::end_of_message()
 }
 
 
-int SafeSock::connect(
-	char	*host,
-	int		port, 
-	bool
-	)
+int SafeSock::connect(char *host, int port, bool)
 {
 	struct hostent	*hostp = NULL;
 	unsigned long	inaddr = 0;
 
 	if (!host || port < 0) return FALSE;
 
+	dprintf(D_NETWORK, "\tSetting peer to <%s:%u>\n", host, port);
 	/* we bind here so that a sock may be	*/
 	/* assigned to the stream if needed		*/
 	if (_state == sock_virgin || _state == sock_assigned) bind();
@@ -218,7 +224,11 @@ int SafeSock::connect(
 		}
 	}
 
+	if ( !adjustPeer() ) {
+		return FALSE;
+	}
 	_state = sock_connect;
+	dprintf(D_NETWORK, "\tPeer set with %s\n", sin_to_string(&_who));
 	return TRUE;
 }
 
@@ -452,12 +462,12 @@ int SafeSock::handle_incoming_packet()
 		dprintf(D_NETWORK, "recvfrom failed: errno = %d\n", errno);
 		return FALSE;
 	}
-	dprintf( D_NETWORK, "RECV %s ", sock_to_string(_sock) );
-	dprintf( D_NETWORK|D_NOHEADER, "%s\n", sin_to_string(&_who) );
 	length = received;
 	if(_shortMsg.getHeader(last, seqNo, length, mID, data)) { // short message
 		_shortMsg.curIndex = 0;
 		_msgReady = true;
+		dprintf(D_NETWORK, "\tShort msg received from %s through %s\n",
+				sin_to_string(&_who), ipport_to_string(_myIP, _myPort));
 		_whole++;
 		if(_whole == 1)
 			_avgSwhole = length;
@@ -499,6 +509,8 @@ int SafeSock::handle_incoming_packet()
 		if(tempMsg->addPacket(last, seqNo, length, data)) { // message is ready
 			_longMsg = tempMsg;
 			_msgReady = true;
+			dprintf(D_NETWORK, "\tLong msg received from %s through %s\n",
+					sin_to_string(&_who), ipport_to_string(_myIP, _myPort));
 			_whole++;
 			if(_whole == 1)
 				_avgSwhole = _longMsg->msgLen;
@@ -568,8 +580,10 @@ int SafeSock::attach_to_file_desc(int fd)
 #endif
 
 
-char * SafeSock::serialize() const
+char * SafeSock::serialize()
 {
+	dprintf(D_NETWORK, "\tInheriting SafeSock:\n");
+
 	// here we want to save our state into a buffer
 
 	// first, get the state from our parent class
@@ -577,6 +591,8 @@ char * SafeSock::serialize() const
 	// now concatenate our state
 	char * outbuf = new char[50];
 	sprintf(outbuf,"*%d*%s",_special_state,sin_to_string(&_who));
+	dprintf(D_NETWORK, "\t\t_special_state = %d\n", _special_state);
+	dprintf(D_NETWORK, "\t\t_who = %s\n", sin_to_string(&_who));
 	strcat(parent_state,outbuf);
 	delete []outbuf;
 	return( parent_state );
@@ -584,6 +600,8 @@ char * SafeSock::serialize() const
 
 char * SafeSock::serialize(char *buf)
 {
+	dprintf(D_NETWORK, "\tBeing inherited SafeSock:\n");
+
 	char sinful_string[28];
 	char *ptmp;
 
@@ -595,7 +613,37 @@ char * SafeSock::serialize(char *buf)
 	ptmp = Sock::serialize(buf);
 	assert( ptmp );
 	sscanf(ptmp,"%d*%s",&_special_state,sinful_string);
+	dprintf(D_NETWORK, "\t\t_special_state = %d\n", _special_state);
+	dprintf(D_NETWORK, "\t\t_who = %s\n", sinful_string);
 	string_to_sin(sinful_string, &_who);
+
+	// setup masquerading rule again, if a rule has been setup by parant
+	if (_msock != 0) {
+		// create the masq socket
+		_msock = socket (AF_INET, SOCK_STREAM, 0);
+		if (_msock <= 0) {
+			EXCEPT ("SafeSock::serialize - socket creation failed");
+		}
+		// bind the masq socket and initialize _mport
+		if (_condor_bind(_msock, 0) != TRUE) {
+			EXCEPT ("SafeSock::serialize - _msock bind failed:");
+		}
+		_mport = sock_to_port (_msock);
+		if (_mport == 0) {
+			EXCEPT ("SafeSock::serialize - sock_to_port failed");
+		}
+		// make it passive
+		if (::listen(_msock, 5)) {
+			EXCEPT ("SafeSock::serialize - listen failed");
+		}
+		// setup the rule
+		int ret = setFWrule(_masqServer, ADD, UDP, _myIP, _myPort, &_lip, &_lport, _mport);
+		if (ret != SUCCESS) {
+			dprintf (D_ALWAYS, "SafeSock::serialize adding fw rule failed\n");
+			dprintf (D_ALWAYS, "\t - errcode: %d\n", ret);
+			EXCEPT ("SafeSock::serialize");
+		}
+	}
 
 	return NULL;
 }

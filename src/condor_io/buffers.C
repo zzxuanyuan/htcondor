@@ -32,7 +32,6 @@ unsigned long num_created = 0;
 unsigned long num_deleted = 0;
 
 
-
 void
 sanity_check()
 {
@@ -42,9 +41,7 @@ sanity_check()
 }
 
 
-Buf::Buf(
-	int	sz
-	)
+Buf::Buf(int sz)
 {
 	_dta = new char[sz];
 	_dta_maxsz = sz;
@@ -62,90 +59,105 @@ Buf::~Buf()
 }
 
 
-
-int Buf::write(
-	SOCKET	sockd,
-	int		sz,
-	int		timeout
-	)
+int Buf::write (SOCKET	dataSock,
+				SOCKET	mngSock,
+				int		sz,
+				int		timeout,
+    			int     threshold,
+				bool	&congested,
+				bool	&ready)
 {
-	int	nw;
-	int nwo;
+	int	nw, nwo, maxfd, nfound;
 	unsigned int start_time, curr_time;
+	struct timeval timer;
+    struct timeval curr, prev;
+	fd_set rdfds;
+    int blocked = 0;
+    int numSends = 0;
+    double elapsed;
 
 	if (sz < 0 || sz > num_untouched()) sz = num_untouched();
 
 	if ( timeout > 0 ) {
 		start_time = time(NULL);
-		curr_time = start_time;
 	}
 
-	for(nw=0;nw < sz;) {
-		if (timeout > 0) {
-			struct timeval	timer;
-			fd_set			writefds;
-			int				nfds=0, nfound;
-
-			if ( curr_time == 0 )
-				curr_time = time(NULL);
-			if ( start_time + timeout > curr_time ) {
-				timer.tv_sec = (start_time + timeout) - curr_time;
-			} else {
-				dprintf(D_ALWAYS,"timeout writing in Buf::write()\n");
-				return -1;
-			}
-			curr_time = 0;	// so we call time() next time around
-			timer.tv_usec = 0;
-	#if !defined(WIN32) // nfds is ignored on WIN32
-			nfds = sockd + 1;
-	#endif
-			FD_ZERO( &writefds );
-			FD_SET( sockd, &writefds );
-
-			nfound = select( nfds, 0, &writefds, &writefds, &timer );
-
-			switch(nfound) {
-			case 0:
-				dprintf(D_ALWAYS,"select timed out in Buf::write()\n");
-				return -1;
-				break;
-			case 1:
-				break;
-			default:
-				dprintf( D_ALWAYS, "select returns %d, send failed\n",
-					nfound );
-				return -1;
-				break;
-			}
-		}
-
-		nwo = send(sockd, &_dta[num_touched()+nw], sz-nw, 0);
-		if (nwo <= 0) {
-			dprintf(D_FULLDEBUG,"Buf:Write send failed, sock=%X, err=%d, len=%d\n",
-				sockd,
-#ifdef WIN32
-				WSAGetLastError(),
-#else
-				errno,
+	nw = 0;
+	while (nw < sz) {
+		// check if mngSock is ready
+		if (mngSock > 0) {
+#if !defined(WIN32) // nfds is ignored on WIN32
+			maxfd = mngSock + 1;
 #endif
-				sz-nw);
-			return -1;
+			FD_ZERO( &rdfds );
+			FD_SET( mngSock, &rdfds );
+			timer.tv_sec = 0;
+			timer.tv_usec = 0;
+
+			(void)gettimeofday(&prev, NULL);
+
+			nfound = select( maxfd, &rdfds, 0, 0, &timer );
+			if ( nfound < 0 ) {
+				if(errno == EINTR) continue;
+				dprintf(D_ALWAYS,"Buf::write: select failed: %s\n", strerror(errno));
+				return -1;
+			}
+
+			if(nfound > 0 && FD_ISSET(mngSock, &rdfds)) {
+				ready = true;
+			}
 		}
 
+		// send data
+		numSends++;
+		nwo = send(dataSock, &_dta[num_touched()+nw], sz-nw, 0);
+		if (nwo <= 0) {
+			if (errno == EWOULDBLOCK || errno == EAGAIN) {
+				blocked++;
+				continue;
+			}
+			dprintf(D_ALWAYS,"Buf:write send failed: %s\n", strerror(errno));
+			return -1;
+		} else if (nwo < sz-nw) {
+			// check if timed out
+			if (timeout > 0) {
+				curr_time = time(NULL);
+				if (timeout + start_time - curr_time <= 0) {
+					dprintf(D_ALWAYS,"timeout writing in Buf::write()\n");
+					return -1;
+				}
+			}
+			blocked++;
+		}
 		nw += nwo;
-	}
+
+		// measure the time taken to send
+		if(threshold > 0) {
+			(void) gettimeofday(&curr, NULL);
+			elapsed = (double)((curr.tv_sec - prev.tv_sec)*1000000.0 + (curr.tv_usec - prev.tv_usec));
+			if(elapsed >= (double)threshold) {
+				congested = true;
+				//cout << "elpased: " << elapsed << "    threshold: " << threshold << endl;
+			}
+		}
+	} // end of while
 
 	_dta_pt += nw;
+
+    if(blocked * 10 > numSends /* more than 10% */)
+        congested = true;
 	return nw;
 }
 
 
-int Buf::flush(
-	SOCKET	sockd,
-	void	*hdr,
-	int		sz,
-	int		timeout
-	)
+int Buf::flush (SOCKET	sockd,
+				SOCKET	mngSock,
+				void	*hdr,
+				int		sz,
+				int		timeout,
+    			int     threshold,
+				bool	&congested,
+				bool	&ready)
 {
 /* DEBUG SESSION
 	int		dbg_fd;
@@ -172,19 +184,22 @@ int Buf::flush(
 */
 
 
-	sz = write(sockd, -1, timeout);
+	sz = write(sockd, mngSock, -1, timeout, threshold, congested, ready);
 	reset();
 
 	return sz;
 }
 
 
-int Buf::read(
-	SOCKET	sockd,
-	int		sz,
-	int		timeout
-	)
+int Buf::read ( SOCKET	dataSock,
+				SOCKET	mngSock,
+				int		sz,
+				int		timeout,
+				bool	&ready )
 {
+	struct timeval timer;
+	fd_set rdfds;
+	int maxfd, nfound;
 	int	nr;
 	int nro;
 	unsigned int start_time, curr_time;
@@ -197,57 +212,63 @@ int Buf::read(
 
 	if ( timeout > 0 ) {
 		start_time = time(NULL);
-		curr_time = start_time;
 	}
 
-	for(nr=0;nr <sz;){
+	nr = 0;
+	while (nr < sz) {
+		// check if mngSock is ready
+		if (mngSock > 0) {
+#if !defined(WIN32) // nfds is ignored on WIN32
+			maxfd = mngSock + 1;
+#endif
+			FD_ZERO(&rdfds);
+			FD_SET(mngSock, &rdfds);
+			timer.tv_sec = 0;
+			timer.tv_usec = 0;
+			nfound = select(maxfd, &rdfds, 0, 0, &timer);
+			if (nfound > 0 && FD_ISSET(mngSock, &rdfds)) {
+				ready = true;
+			}
+		}
 
+		// do select for non-blocking read
 		if (timeout > 0) {
-			struct timeval	timer;
-			fd_set			readfds;
-			int				nfds=0, nfound;
-
-			if ( curr_time == 0 )
-				curr_time = time(NULL);
-			if ( start_time + timeout > curr_time ) {
-				timer.tv_sec = (start_time + timeout) - curr_time;
-			} else {
-				dprintf(D_ALWAYS,"timeout reading in Buf::read()\n");
+#if !defined(WIN32) // nfds is ignored on WIN32
+			maxfd = dataSock + 1;
+#endif
+			FD_ZERO(&rdfds);
+			FD_SET(dataSock, &rdfds);
+			curr_time = time(NULL);
+			unsigned remained = timeout + start_time - curr_time;
+			if (remained <= 0) {
+				dprintf(D_ALWAYS, "Buf::read - timeout\n");
 				return -1;
 			}
-			curr_time = 0;	// so we call time() next time around
+			timer.tv_sec = remained;
 			timer.tv_usec = 0;
-#if !defined(WIN32) // nfds is ignored on WIN32
-			nfds = sockd + 1;
-#endif
-			FD_ZERO( &readfds );
-			FD_SET( sockd, &readfds );
-
-			nfound = select( nfds, &readfds, 0, 0, &timer );
-
-			switch(nfound) {
-			case 0:
-				dprintf( D_ALWAYS, "select timed out in Buf::read()\n" );
+			nfound = select(maxfd, &rdfds, 0, 0, &timer);
+			if (nfound < 0) {
+				if (errno == EINTR) continue;
+				dprintf(D_ALWAYS, "Buf::read - select failed\n");
+				dprintf(D_ALWAYS, "\t%s\n", strerror(errno));
 				return -1;
-			case 1:
-				break;
-			default:
-				dprintf( D_ALWAYS, "select returns %d, recv failed\n",
-					nfound );
+			} else if (nfound == 0) {
+				dprintf(D_ALWAYS, "Buf::read - timeout\n");
 				return -1;
 			}
 		}
 
-		nro = recv(sockd, &_dta[num_used()+nr], sz-nr, 0);
-
-		if (nro <= 0) {
-			dprintf( D_ALWAYS, "recv returned %d, errno = %d\n", 
-					 nro, errno );
+		// do recv. We are here because dataSock is ready or it is of blocking mode
+		nro = recv(dataSock, &_dta[num_used()+nr], sz-nr, 0);
+		if( nro < 0 ) {
+			dprintf(D_ALWAYS, "Buf::read - read failed: %s\n", strerror(errno));
+			return -1;
+		} else if (nro == 0) {
+			dprintf(D_ALWAYS, "Buf::read - socket closed prematurally\n");
 			return -1;
 		}
-
 		nr += nro;
-	}
+	} // of while
 
 	_dta_sz += nr;
 
@@ -269,10 +290,7 @@ int Buf::read(
 
 
 
-int Buf::put_max(
-	const void	*dta,
-	int			sz
-	)
+int Buf::put_max ( const void *dta, int sz )
 {
 	if (sz > num_free()) sz = num_free();
 
@@ -283,10 +301,7 @@ int Buf::put_max(
 }
 
 
-int Buf::get_max(
-	void		*dta,
-	int			sz
-	)
+int Buf::get_max ( void	*dta, int sz )
 {
 	if (sz > num_untouched()) sz = num_untouched();
 
@@ -297,9 +312,7 @@ int Buf::get_max(
 }
 
 
-int Buf::find(
-	char	delim
-	)
+int Buf::find ( char delim )
 {
 	char	*tmp;
 
@@ -311,9 +324,7 @@ int Buf::find(
 }
 
 
-int Buf::peek(
-	char		&c
-	)
+int Buf::peek ( char &c )
 {
 	if (empty() || consumed()) return FALSE;
 
@@ -323,9 +334,7 @@ int Buf::peek(
 
 
 
-int Buf::seek(
-	int		pos
-	)
+int Buf::seek ( int pos )
 {
 	int	tmp;
 
@@ -355,10 +364,7 @@ void ChainBuf::reset()
 
 int dbg_count = 0;
 
-int ChainBuf::get(
-	void	*dta,
-	int		sz
-	)
+int ChainBuf::get ( void *dta, int sz)
 {
 	int		last_incr;
 	int		nr;
@@ -379,9 +385,7 @@ int ChainBuf::get(
 
 
 
-int ChainBuf::put(
-	Buf		*dta
-	)
+int ChainBuf::put ( Buf *dta )
 {
 	if (_tmp) { delete [] _tmp; _tmp = (char *)0; }
 
@@ -399,10 +403,7 @@ int ChainBuf::put(
 }
 
 
-int ChainBuf::get_tmp(
-	void	*&ptr,
-	char	delim
-	)
+int ChainBuf::get_tmp ( void *&ptr, char delim )
 {
 	int	nr;
 	int	tr;
@@ -442,9 +443,7 @@ int ChainBuf::get_tmp(
 }
 
 
-int ChainBuf::peek(
-	char	&c
-	)
+int ChainBuf::peek ( char &c )
 {
 	if (_tmp) { delete [] _tmp; _tmp = (char *)0; }
 	if (!_curr) return FALSE;
@@ -457,4 +456,3 @@ int ChainBuf::peek(
 
 	return TRUE;
 }
-

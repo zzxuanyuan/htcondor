@@ -14,7 +14,7 @@ FIX_BROKEN_GCC =
 
 CFLAGS = $(STD_C_FLAGS)
 C_PLUS_FLAGS = -Wall $(STD_C_PLUS_FLAGS) -DWANT_DC_PM $(FIX_BROKEN_GCC)
-LIB = $(STD_LIBS)
+LIB = $(STD_LIBS) $(IO_LIB)
 
 OBJ = timer_manager.o daemon_core.o daemon_core_main.o \
   daemon_core_instantiate.o condor_ipverify.o

@@ -4709,10 +4709,13 @@ Scheduler::Init()
 		daemonCore->Register_Command_Socket( (Stream*)shadowCommandrsock );
 		daemonCore->Register_Command_Socket( (Stream*)shadowCommandssock );
 
+		/*
 		char nameBuf[50];
 		sprintf( nameBuf, "<%s:%d>", inet_ntoa(*(my_sin_addr())),
 				 shadowCommandrsock->get_port());
 		MyShadowSockName = strdup( nameBuf );
+		*/
+		MyShadowSockName = strdup( shadowCommandrsock->sinful_string() );
 
 		sent_shadow_failure_email = FALSE;
 	}

@@ -309,7 +309,7 @@ IpVerify::Verify( DCpermission perm, const struct sockaddr_in *sin )
 	struct in_addr sin_addr;
 	char *thehost;
 	char **aliases;
-	
+
 	memcpy(&sin_addr,&sin->sin_addr,sizeof(sin_addr));
 	mask = 0;	// must initialize to zero because we logical-or bits into this
 

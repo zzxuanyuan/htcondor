@@ -59,7 +59,7 @@ pseudo_work_request( PROC *p, char *a_out, char *targ, char *orig, int *kill_sig
 #endif
 int pseudo_rename(char *from, char *to);
 int pseudo_get_file_stream(
-		const char *file, size_t *len, unsigned int *ip_addr, u_short *port );
+		const char *file, size_t *len, unsigned int *ip_addr, u_short *port);
 int pseudo_put_file_stream(
 		const char *file, size_t len, unsigned int *ip_addr, u_short *port );
 int pseudo_startup_info_request( STARTUP_INFO *s );

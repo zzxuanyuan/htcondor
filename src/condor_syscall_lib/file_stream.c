@@ -97,6 +97,11 @@ open_file_stream( const char *file, int flags, size_t *len )
 			st = REMOTE_CONDOR_put_file_stream(file,*len,&addr,&port);
 		} else {
 			st = REMOTE_CONDOR_get_file_stream(file, len,&addr,&port);
+			dprintf(D_NETWORK, "Shadow addr to get exec file: %s\n", ipport_to_string(htonl(addr), htons(port)));
+/*
+			st = REMOTE_syscall(CONDOR_get_file_stream, file, len, &addr, &port);
+			dprintf(D_NETWORK, "Shadow addr to get exec file: %s\n", ipport_to_string(htonl(addr), htons(port)));
+*/
 		}
 
 		if( st < 0 ) {
@@ -149,14 +154,9 @@ open_tcp_stream( unsigned int ip_addr, unsigned short port )
 
 		/* Now, set the remote address. */
 	ip_addr = htonl( ip_addr );
-	memset( &sin, '\0', sizeof sin );
-	memcpy( &sin.sin_addr, &ip_addr, sizeof(ip_addr) );
-	sin.sin_family = AF_INET;
-	sin.sin_port = htons( port );
-	dprintf( D_FULLDEBUG, "Internet address structure set up\n" );
-	status = connect( fd, (struct sockaddr *)&sin, sizeof(sin) );
-	if( status < 0 ) {
-		dprintf( D_ALWAYS, "connect() failed - errno = %d\n", errno );
+	port = htons( port );
+	if ( !_condor_connect(fd, ip_addr, port) ) {
+		dprintf( D_ALWAYS, "open_tcp_stream: _condor_connect failed\n");
 		SetSyscalls( scm );
 		return -1;
 	}

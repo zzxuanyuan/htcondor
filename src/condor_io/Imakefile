@@ -4,15 +4,29 @@ CFLAGS = $(STD_C_FLAGS)
 C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) -I$(OpenSSLIncludePath)
 LIB = libcedar.a $(STD_LIBS)
 
-
 CONDOR_TYPE_OBJ = sig_num.o proc.o open_flags.o fcntl_cmd.o
+
+#if IS_LINUX24
+	KERNVER_OBJ = kRule2.4.o libip4tc.o
+
+kRule2.4.o: kRule2.4.c
+	$(CC) $(CFLAGS) "-DNETFILTER_VERSION=\"1.2.1a\"" -c kRule2.4.c
+
+libip4tc.o: libip4tc.c
+	$(CC) $(CFLAGS) "-DNETFILTER_VERSION=\"1.2.1a\"" -c libip4tc.c
+
+#else
+	KERNVER_OBJ = kRule2.2.o
+#endif
+
+NAT_OBJ = FwdServer.o FwdMnger.o FreePortMnger.o $(KERNVER_OBJ)
 
 OBJ = stream.o sock.o reli_sock.o safe_sock.o buffers.o sockCache.o \
 		condor_auth.o condor_auth_claim.o condor_auth_x509.o \
 		condor_auth_kerberos.o condor_auth_fs.o condor_auth_sspi.o \
 		authentication.o credential.o $(CONDOR_TYPE_OBJ) condor_rw.o \
-		SafeMsg.o condor_crypt.o CryptKey.o
-#       condor_crypt_blowfish.o condor_crypt_3des.o 
+		SafeMsg.o condor_crypt.o CryptKey.o FwdClient.o
+#		condor_crypt_blowfish.o condor_crypt_3des.o 
 #		autoTest.o manTest.o
 
 library_target(libcedar.a, $(OBJ))
@@ -21,6 +35,10 @@ c_plus_target(cedar.t, cedar.t.o, $(LIB))
 pure_c_plus_target(cedar.t.pure,$(OBJ),$(LIB))
 purecov_c_plus_target(cedar.t.pc,$(OBJ),$(LIB))
 c_plus_target(buftest, buftest.o, $(LIB))
+c_plus_target(netMnger, netMnger.o, $(LIB))
+c_plus_target(FwdServer, FwdMain.o, $(NAT_OBJ) $(LIB) $(DAEMONCORE_LIB) $(LIB))	
+c_plus_target(netMnger.t, netMnger.t.o, $(LIB))
+c_plus_target(cedar.band.t, cedar.band.t.o, $(LIB))
 html_target( ../condor_includes/stream.h ../condor_includes/reli_sock.h ../condor_includes/safe_sock.h ../condor_includes/sock.h )
 
 release:: all
