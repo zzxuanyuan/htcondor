@@ -343,9 +343,6 @@ const char ATTR_JAVA_VERSION             [] = "JavaVersion";
 
 
 
-// #include "condor_common.h"
-// #include "condor_attributes.h"
-
 // Initialize our logic
 int
 AttrInit( void )
