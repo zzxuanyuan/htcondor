@@ -56,11 +56,11 @@ job had not actually ran.
   process forked from a Condor daemon exits.
 
 \item Fixed bugs in some Condor tools that failed to locate
-  \Condor{startd} daemons that contained multiple \verb%@% signs in
+  \Condor{startd} daemons that contained multiple \verb&@& signs in
   their \Attr{Name} attribute.
   For example, a virtual machine from a multiple-CPU \Condor{startd}
-  spawned using ``glide-in'' would have the name:
-  \verb%vm1@[pid]@[hostname]%.
+  spawned using glidein would have the name:
+  \verb&vm1@[pid]@[hostname]&.
   All Condor tools that need to communicate with a \Condor{startd}
   like this will now succeed.
 
