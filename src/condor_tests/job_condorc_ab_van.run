@@ -11,7 +11,6 @@ $dummyhost = "gamgee.cs.wisc.edu";
 $currenthost = `hostname`;
 chomp($currenthost);
 
-system("date");
 print "Dummyhost was $dummyhost and really running on $currenthost\n";
 
 $mypid = $$;
@@ -117,5 +116,4 @@ $ENV{CONDOR_CONFIG} = $remconfig;
 sleep 20;
 print "sleeping............\n";
 system("condor_off -master");
-system("date");
 
