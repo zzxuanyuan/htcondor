@@ -353,6 +353,7 @@ private:
 	int				SchedUniverseJobsRunning;
 	int				LocalUniverseJobsIdle;
 	int				LocalUniverseJobsRunning;
+	char*			LocalUnivExecuteDir;
 	int				BadCluster;
 	int				BadProc;
 	//int				RejectedClusters[MAX_REJECTED_CLUSTERS];

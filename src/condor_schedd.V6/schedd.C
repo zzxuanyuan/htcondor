@@ -65,6 +65,7 @@
 #include "user_job_policy.h"
 #include "condor_holdcodes.h"
 #include "sig_name.h"
+#include "condor_distribution.h"
 
 #define DEFAULT_SHADOW_SIZE 125
 #define DEFAULT_JOB_START_COUNT 1
@@ -270,6 +271,7 @@ Scheduler::Scheduler()
 	SchedUniverseJobsRunning = 0;
 	LocalUniverseJobsIdle = 0;
 	LocalUniverseJobsRunning = 0;
+	LocalUnivExecuteDir = NULL;
 	ReservedSwap = 0;
 	SwapSpace = 0;
 
@@ -335,6 +337,9 @@ Scheduler::~Scheduler()
 		free(MySockName);
 	if (MyShadowSockName)
 		free(MyShadowSockName);
+	if( LocalUnivExecuteDir ) {
+		free( LocalUnivExecuteDir );
+	}
 
 		// we used to cancel and delete the shadowCommand*socks here,
 		// but now that we're calling Cancel_And_Close_All_Sockets(),
@@ -5490,8 +5495,12 @@ Scheduler::spawnLocalStarter( shadow_rec* srec )
 	mark_job_running( job_id );
 	CommitTransaction();
 
+	MyString starter_env;
+	starter_env.sprintf( "_%s_EXECUTE=%s", myDistro->Get(),
+						 LocalUnivExecuteDir );
+	
 	rval = spawnJobHandler( srec, starter_path, starter_args.Value(),
-							NULL, "starter", true, true );
+							starter_env.Value(), "starter", true, true );
 
 	free( starter_path );
 	starter_path = NULL;
@@ -5530,6 +5539,9 @@ Scheduler::initLocalStarterDir( void )
 		if( ! tmp ) {
 			EXCEPT( "SPOOL directory not defined in config file!" );
 		}
+			// If you change this default, make sure you change
+			// condor_preen, too, so that it doesn't nuke your
+			// directory (assuming you still use SPOOL).
 		dir_name.sprintf( "%s%c%s", tmp, DIR_DELIM_CHAR,
 						  "local_univ_execute" );
 	} else {
@@ -5537,6 +5549,10 @@ Scheduler::initLocalStarterDir( void )
 	}
 	free( tmp );
 	tmp = NULL;
+	if( LocalUnivExecuteDir ) {
+		free( LocalUnivExecuteDir );
+	}
+	LocalUnivExecuteDir = strdup( dir_name.Value() );
 
 	StatInfo exec_statinfo( dir_name.Value() );
 	if( ! exec_statinfo.IsDirectory() ) {
