@@ -1330,10 +1330,10 @@ SetAttribute(int cluster_id, int proc_id, const char *attr_name,
 		}
 	}
 	else if (stricmp(attr_name, ATTR_JOB_STATUS) == 0) {
-			// if we're setting the job status to a "terminal state",
+			// if we're setting the job status to a "finished state",
 			// namely removed or completed, we want to add this job to
-			// a queue that needs to have the JobHandlerExited()
-			// method called for each one...
+			// a queue that needs to have the jobIsFinished() method
+			// called for each one...
 		long intval;
 		char* end;
 		intval = strtol( attr_value, &end, 10 );
@@ -1346,10 +1346,10 @@ SetAttribute(int cluster_id, int proc_id, const char *attr_name,
 		switch( intval ) {
 		case COMPLETED:
 		case REMOVED:
-			dprintf( D_FULLDEBUG, "SetAttribute() job %d.%d is entering "
-					 "terminal job status (%s)\n", cluster_id, proc_id, 
-					 getJobStatusString(intval) );
-			scheduler.enqueueTerminalJob( cluster_id, proc_id );
+			dprintf( D_FULLDEBUG,
+					 "Job %d.%d is finished (entering job status %s)\n",
+					 cluster_id, proc_id, getJobStatusString(intval) );
+			scheduler.enqueueFinishedJob( cluster_id, proc_id );
 			break;
 		default:
 				// nothing to do

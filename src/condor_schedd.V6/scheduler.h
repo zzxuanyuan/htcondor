@@ -275,7 +275,7 @@ class Scheduler : public Service
 	void			makeReconnectRecords( PROC_ID* job, const ClassAd* match_ad );
 
 	bool	spawnJobHandler( int cluster, int proc, shadow_rec* srec );
-	bool 	enqueueTerminalJob( int cluster, int proc );
+	bool 	enqueueFinishedJob( int cluster, int proc );
 
 
 		// Useful public info
@@ -386,8 +386,8 @@ private:
 	SimpleList<PROC_ID> jobsToReconnect;
 	int				checkReconnectQueue_tid;
 
-	SelfDrainingQueue job_is_terminal_queue;
-	int jobIsTerminalHandler( ServiceData* job_id );
+	SelfDrainingQueue job_is_finished_queue;
+	int jobIsFinishedHandler( ServiceData* job_id );
 
 	// useful names
 	char*			CondorAdministrator;
@@ -532,20 +532,20 @@ int aboutToSpawnJobHandlerDone( int cluster, int proc, void* srec=NULL,
 void callAboutToSpawnJobHandler( int cluster, int proc, shadow_rec* srec );
 
 
-/** Hook to call whenever a job enters a "terminal" state, something
+/** Hook to call whenever a job enters a "finished" state, something
 	it can never get out of (namely, COMPLETED or REMOVED).  Like the
 	aboutToSpawnJobHandler() hook above, this might be expensive, so
 	if jobPrepNeedsThread() returns TRUE for this job, we should call
 	this hook within a seperate thread.  Therefore, it takes the
 	optional void* so it can be used for Create_Thread_With_Data().
 */
-int jobIsTerminal( int cluster, int proc, void* vptr = NULL );
+int jobIsFinished( int cluster, int proc, void* vptr = NULL );
 
 
 /** For use as a reaper with Create_Thread_With_Data(), or to call
-	directly after jobIsTerminal() if there's no thread. 
+	directly after jobIsFinished() if there's no thread. 
 */
-int jobIsTerminalDone( int cluster, int proc, void* vptr = NULL,
+int jobIsFinishedDone( int cluster, int proc, void* vptr = NULL,
 					   int exit_status = 0 );
 
 

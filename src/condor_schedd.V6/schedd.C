@@ -234,7 +234,7 @@ ContactStartdArgs::~ContactStartdArgs()
 
 
 Scheduler::Scheduler() :
-	job_is_terminal_queue( "job_is_terminal_queue", 0 )
+	job_is_finished_queue( "job_is_finished_queue", 0 )
 {
 	ad = NULL;
 	MySockName = NULL;
@@ -311,9 +311,9 @@ Scheduler::Scheduler() :
 	checkContactQueue_tid = -1;
 	checkReconnectQueue_tid = -1;
 
-	job_is_terminal_queue.
+	job_is_finished_queue.
 		registerHandlercpp( (ServiceDataHandlercpp)
-							&Scheduler::jobIsTerminalHandler, this );
+							&Scheduler::jobIsFinishedHandler, this );
 
 	sent_shadow_failure_email = FALSE;
 	ManageBandwidth = false;
@@ -1560,11 +1560,11 @@ abort_job_myself( PROC_ID job_id, JobAction action, bool log_hold,
 			  we used to call DestroyProc() right here, but we no
 			  longer want to do that.  we'll have just called
 			  SetAttribute() on ATTR_JOB_STATUS to put it into a
-			  "terminal" job state (REMOVED), and therefore, we've got
-			  to wait for our jobIsTerminal() thread to run and
+			  "finished" job state (REMOVED), and therefore, we've got
+			  to wait for our jobIsFinished() thread to run and
 			  complete before we can call DestroyProc().  so, we'll
 			  just allow that code to work its magic, and once the
-			  jobIsTerminal() thread completes, it'll call
+			  jobIsFinished() thread completes, it'll call
 			  DestroyProc() for us.  -- derek 2005-03-28
 			*/
 	}
@@ -2008,10 +2008,10 @@ Scheduler::spawnJobHandler( int cluster, int proc, shadow_rec* srec )
 
 
 int
-jobIsTerminal( int cluster, int proc, void* )
+jobIsFinished( int cluster, int proc, void* )
 {
 		// this is (roughly) the inverse of aboutToSpawnHandler().
-		// this method gets called whenever the job enters a terminal
+		// this method gets called whenever the job enters a finished
 		// job state (REMOVED or COMPLETED) and the job handler has
 		// finally exited.  this is where we should do any clean-up we
 		// want now that the job is never going to leave this state...
@@ -2029,7 +2029,7 @@ jobIsTerminal( int cluster, int proc, void* )
 			  in this case, we've just got to bail out.
 			*/
 		dprintf( D_FULLDEBUG, 
-				 "jobIsTerminal(): %d.%d already left job queue\n",
+				 "jobIsFinished(): %d.%d already left job queue\n",
 				 cluster, proc );
 		return 0;
 	}
@@ -2089,10 +2089,10 @@ jobIsTerminal( int cluster, int proc, void* )
 
 
 int
-jobIsTerminalDone( int cluster, int proc, void*, int )
+jobIsFinishedDone( int cluster, int proc, void*, int )
 {
 	dprintf( D_FULLDEBUG,
-			 "jobIsTerminal() completed, calling DestroyProc(%d.%d)\n",
+			 "jobIsFinished() completed, calling DestroyProc(%d.%d)\n",
 			 cluster, proc );
 	return DestroyProc( cluster, proc );
 }
@@ -7932,11 +7932,11 @@ Scheduler::check_zombie(int pid, PROC_ID* job_id)
 			  we used to call DestroyProc() right here, but we no
 			  longer want to do that.  we'll have just called
 			  SetAttribute() on ATTR_JOB_STATUS to put it into one of
-			  these two "terminal" job states, and therefore, we've
-			  got to wait for our jobIsTerminal() thread to run and
+			  these two "finished" job states, and therefore, we've
+			  got to wait for our jobIsFinished() thread to run and
 			  complete before we can call DestroyProc().  so, we'll
 			  just allow that code to work its magic, and once the
-			  jobIsTerminal() thread completes, it'll call
+			  jobIsFinished() thread completes, it'll call
 			  DestroyProc() for us.  -- derek 2005-03-24
 			*/
 		break;
@@ -9932,7 +9932,7 @@ Scheduler::jobThrottle( void )
 
 
 int
-Scheduler::jobIsTerminalHandler( ServiceData* data )
+Scheduler::jobIsFinishedHandler( ServiceData* data )
 {
 	CondorID* job_id = (CondorID*)data;
 	if( ! job_id ) {
@@ -9945,18 +9945,18 @@ Scheduler::jobIsTerminalHandler( ServiceData* data )
 
 	if( jobPrepNeedsThread(cluster, proc) ) {
 		dprintf( D_FULLDEBUG, "Job prep for %d.%d will block, "
-				 "calling jobIsTerminal() in a thread\n", cluster, proc );
-		Create_Thread_With_Data( jobIsTerminal, jobIsTerminalDone,
+				 "calling jobIsFinished() in a thread\n", cluster, proc );
+		Create_Thread_With_Data( jobIsFinished, jobIsFinishedDone,
 								 cluster, proc, NULL );
 	} else {
 			// don't need a thread, just call the blocking version
 			// (which will return right away), and the reaper (which
 			// will call DestroyProc()) 
 		dprintf( D_FULLDEBUG, "Job prep for %d.%d will not block, "
-				 "calling jobIsTerminal() directly\n", cluster, proc );
+				 "calling jobIsFinished() directly\n", cluster, proc );
 
-		jobIsTerminal( cluster, proc );
-		jobIsTerminalDone( cluster, proc );
+		jobIsFinished( cluster, proc );
+		jobIsFinishedDone( cluster, proc );
 	}
 
 	return TRUE;
@@ -9964,8 +9964,8 @@ Scheduler::jobIsTerminalHandler( ServiceData* data )
 
 
 bool
-Scheduler::enqueueTerminalJob( int cluster, int proc )
+Scheduler::enqueueFinishedJob( int cluster, int proc )
 {
 	CondorID* id = new CondorID( cluster, proc, -1 );
-	return job_is_terminal_queue.enqueue( id );
+	return job_is_finished_queue.enqueue( id );
 }
