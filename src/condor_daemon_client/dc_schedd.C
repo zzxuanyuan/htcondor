@@ -337,6 +337,8 @@ DCSchedd::receiveJobSandbox(const char* constraint, CondorError * errstack)
 					job.Insert(newattr.Value());
 					free(rhstr);
 				}
+			}
+			if ( lhstr ) {
 				free(lhstr);
 			}
 		}	// while next expr
