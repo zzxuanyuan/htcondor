@@ -151,6 +151,7 @@ public:
 	int	ftruncate( int fd, size_t length );
 	int	fsync( int fd );
 	int	getdents( int fd, struct dirent *list, int size);
+	int	getdirentries( int fd, struct dirent *list, int size, int *buf);
  
 	/** Perform a periodic checkpoint. */
 	void	checkpoint();

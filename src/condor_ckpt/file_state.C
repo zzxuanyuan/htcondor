@@ -679,6 +679,11 @@ int OpenFileTable::getdents( int fd, struct dirent *list, int size)
 	return -1;
 }
 
+int OpenFileTable::getdirentries( int fd, struct dirent *list, int size, int *buf )
+{
+	return getdents(fd,list,size);
+}
+
 void OpenFileTable::checkpoint()
 {
 	dprintf(D_ALWAYS,"OpenFileTable::checkpoint\n");
