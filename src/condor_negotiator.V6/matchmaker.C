@@ -1858,7 +1858,7 @@ static int get_scheddname_from_gjid(const char * globaljobid, char * scheddname 
 
 		if(globaljobid[i] == '\0') 
 		{
-			scheddname[0]= '\0'
+			scheddname[0]= '\0';
 			return -1; /* Parse error, shouldn't happen */
 		}
 		else
