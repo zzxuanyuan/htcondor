@@ -6,7 +6,7 @@ EXT_TRIGGER = $(EXT_ROOT)/triggers
 
 EXT_KERBEROS_VERSION = krb5-1.2.5
 #ifdef IS_DARWIN
-EXT_GLOBUS_VERSION = globus-2.2.4.OSX
+EXT_GLOBUS_VERSION = globus-2.4.3
 #else
 EXT_GLOBUS_VERSION = globus-2.2.4
 #endif
