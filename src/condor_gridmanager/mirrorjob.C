@@ -545,41 +545,17 @@ dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too long!\n",procID.cluster,procI
 			// The mirror has just become active. Send a vacate command to
 			// the schedd to stop any local execution of the job.
 
-			int result;
-			CondorError errstack;
-			ClassAd* rval;
-			MyString buff;
-			DCSchedd* schedd = NULL;
-			StringList job_ids;
-
-			buff.sprintf( "%d.%d", procID.cluster, procID.proc );
-			job_ids.append( buff.Value() );
-
-			schedd = new DCSchedd( ScheddAddr );
-			if( ! schedd->locate() ) {
-				EXCEPT( "DCSchedd::locate failed for our own schedd!" );
-			}
-
-			rval = schedd->vacateJobs( &job_ids, VACATE_FAST, &errstack );
-			if ( rval == NULL ) {
-				dprintf( D_FULLDEBUG, "(%d.%d) vacateJobs returned NULL, CondorError: %s\n",
-						 procID.cluster, procID.proc, errstack.getFullText() );
+			action_result_t result;
+			done = requestScheddVacate( this, result );
+			if ( done == false ) {
+				break;
+			} else if ( result != AR_SUCCESS && result != AR_BAD_STATUS ) {
+				dprintf( D_FULLDEBUG, "(%d.%d) vacateJobs failed, result=%d\n",
+						 procID.cluster, procID.proc, result );
 			} else {
-				MyString attr_name;
-				attr_name.sprintf( "job_%d_%d", procID.cluster, procID.proc );
-				if ( !rval->LookupInteger( attr_name.Value(), result ) ) {
-					dprintf( D_FULLDEBUG, "(%d.%d) vacateJobs returned malformed ad\n",
-							 procID.cluster, procID.proc );
-				} else if ( result != AR_SUCCESS && result != AR_BAD_STATUS ) {
-					dprintf( D_FULLDEBUG, "(%d.%d) vacateJobs failed, result=%d\n",
-							 procID.cluster, procID.proc, result );
-				} else {
-					dprintf( D_FULLDEBUG, "(%d.%d) vacateJobs succeeded, result=%d\n",
-							 procID.cluster, procID.proc, result );
-				}
-				delete rval;
+				dprintf( D_FULLDEBUG, "(%d.%d) vacateJobs succeeded, result=%d\n",
+						 procID.cluster, procID.proc, result );
 			}
-			delete schedd;
 
 			gmState = GM_SUBMITTED_MIRROR_ACTIVE;
 			} break;
