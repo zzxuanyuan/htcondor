@@ -1754,6 +1754,8 @@ Scheduler::PeriodicExprHandler( void )
 static bool get_user_uid_gid(const char * owner, const char * domain,
 	uid_t * uid, gid_t * gid)
 {
+#ifndef WIN32
+
 	// TODO: Definately want someone more familiar with
 	// uid management in Condor to verify that this isn't insane. 
 	if( ! init_user_ids(owner, domain) )
@@ -1764,6 +1766,10 @@ static bool get_user_uid_gid(const char * owner, const char * domain,
 	if(gid) { *gid = get_user_gid(); }
 	uninit_user_ids();
 	return true;
+#else
+	// Windows doesn't do uid/gids
+	return false;
+#endif
 }
 
 
