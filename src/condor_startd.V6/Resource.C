@@ -271,12 +271,16 @@ Resource::starterExited( Claim* cur_claim )
 Claim*
 Resource::findClaimByPid( pid_t starter_pid )
 {
-		// for now, just check r_cur.  once we've got multiple
-		// claims, we can walk through our list(s).
+		// first, check our opportunistic claim (there's never a
+		// starter for r_pre, so we don't have to check that. 
 	if( r_cur && r_cur->starterPidMatches(starter_pid) ) {
 		return r_cur;
 	}
-	return NULL;
+
+		// if it's not there, see if our CODMgr has a Claim with this
+		// starter pid.  if it's not there, we'll get NULL back from
+		// the CODMgr, which is what we should return, anyway.
+	return r_cod_mgr->findClaimByPid( starter_pid );
 }
 
 
