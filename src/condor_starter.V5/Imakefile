@@ -55,7 +55,7 @@ LIB = $(REMOTE_SYSCALL_LIB)
 #if (IS_I386_LINUX)
 LDFLAGS = KernLib RpcLib MldLib -lbfd -liberty
 #else
-LDFLAGS = KernLib SocketLib RpcLib MldLib 
+LDFLAGS = KernLib SocketLib RpcLib MldLib -lgen
 #endif
 
 #if IS_SGI_IRIX62

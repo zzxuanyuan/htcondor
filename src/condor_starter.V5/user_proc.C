@@ -442,9 +442,15 @@ UserProc::execute()
 		dprintf( D_ALWAYS, "cmd_fd = %s\n", buf );
 
 		argv[0] = shortname;
+#if 0 	       
 		argv[1] = "-_condor_cmd_fd";
 		argv[2] = buf;
 		mkargv( &argc, &argv[3], tmp );
+#else
+		mkargv (&argc, &argv[1], tmp);
+		sprintf (buf, "CONDOR_CMDFD=%d", pipe_fds[READ_END]);
+		env_obj.add_string (buf);
+#endif
 		break;
 
 	  case PVM:
@@ -466,7 +472,20 @@ UserProc::execute()
 		break;
 	}
 
+	dprintf (D_ALWAYS, "Using ZANDY starter\n");
 		// set up environment vector
+	// See condor_c++_util/environ.C:186
+	env_obj.unsetenv ("CONDOR_RESTART");
+	if (is_restart ()) {
+	     char buf[128];
+	     env_obj.add_string ("CONDOR_RESTART=TRUE");
+	     sprintf (buf, "cp %s /common/tmp/zandy/ckptexec");
+	     if (system (buf)) {
+		  dprintf (D_ALWAYS, "ZANDY: cp of ckpt failed\n");
+	     }
+	}
+	else
+	     env_obj.add_string ("CONDOR_RESTART=FALSE");
 	envp = env_obj.get_vector();
 
 		// We may run more than one of these, so each needs its own
@@ -492,7 +511,6 @@ UserProc::execute()
 	}
 
 	if( pid == 0 ) {	// the child
-
 			// Block only these 3 signals which have special meaning for
 			// checkpoint/restart purposes.  Leave other signals ublocked
 			// so that if we get an exception during the restart process,
@@ -799,14 +817,11 @@ UserProc::send_sig( int sig )
 		if( kill(pid,SIGCONT) < 0 ) {
 			set_priv(priv);
 			if( errno == ESRCH ) {	// User proc already exited
-				dprintf( D_ALWAYS, "Tried to send signal SIGCONT to user job "
-						 "%d, but that process doesn't exist.\n", pid);
 				return;
 			}
 			perror("kill");
 			EXCEPT( "kill(%d,SIGCONT)", pid  );
 		}
-		dprintf( D_ALWAYS, "Sent signal SIGCONT to user job %d\n", pid);
 	}
 
 #ifdef IRIX62
@@ -815,8 +830,6 @@ UserProc::send_sig( int sig )
 	if( kill(pid,sig) < 0 ) {
 		set_priv(priv);
 		if( errno == ESRCH ) {	// User proc already exited
-			dprintf( D_ALWAYS, "Tried to send signal %d to user job "
-					 "%d, but that process doesn't exist.\n", sig, pid);
 			return;
 		}
 		perror("kill");

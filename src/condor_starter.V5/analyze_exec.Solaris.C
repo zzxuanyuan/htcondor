@@ -128,6 +128,8 @@ int symbol_main_check( char *name )
 	int	status;
 	struct nlist nl[2];
 
+	return (0);		// Zandy tmp fix
+
 	/* Unlike on some other architectures, we want to look for
 	   MAIN and _condor_prestart on Solaris, not _MAIN and
 	   __condor_prestart.  -Jim B. */
