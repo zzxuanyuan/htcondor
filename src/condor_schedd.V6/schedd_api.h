@@ -3,6 +3,7 @@
 
 #include "condor_common.h"
 #include "condor_classad.h"
+#include "CondorError.h"
 #include "MyString.h"
 #include "HashTable.h"
 #include "directory.h"
@@ -12,55 +13,62 @@
 
 class JobFile
 {
-public:
-  JobFile();
-  ~JobFile();
+ public:
+	JobFile();
+	~JobFile();
 
-  int file;
-  MyString name;
-  int size;
-  int currentOffset;
+	int file;
+	MyString name;
+	int size;
+	int currentOffset;
 };
 
 class FileInfo
 {
-public:
-  FileInfo(const char *name, unsigned long size);
-  ~FileInfo();
+ public:
+	FileInfo(const char *name, unsigned long size);
+	~FileInfo();
 
-  char *name;
-  unsigned long size;
+	char *name;
+	unsigned long size;
 };
 
 class Job
 {
-public:
-  Job(int clusterId, int jobId);
-  ~Job();
+ public:
+	Job(int clusterId, int jobId);
+	~Job();
 
-  int submit(struct ClassAdStruct jobAd);
-  int declare_file(MyString name,
-                   int size);
-  int send_file(MyString name,
-                int offset,
-                char * data,
-                int data_length);
-  int get_file(MyString name,
-               int offset,
-               int length,
-               unsigned char * &data);
+	int initialize(CondorError &errstack);
 
-  int get_spool_list(List<FileInfo> & file_list);
+	int submit(const struct ClassAdStruct &jobAd,
+			   CondorError &errstack);
+	int declare_file(const MyString &name,
+					 int size,
+					 CondorError &errstack);
+	int put_file(const MyString &name,
+				 int offset,
+				 char * data,
+				 int data_length,
+				 CondorError &errstack);
+	int get_file(const MyString &name,
+				 int offset,
+				 int length,
+				 unsigned char * &data,
+				 CondorError &errstack);
+	
+	int get_spool_list(List<FileInfo> &file_list,
+					   CondorError &errstack);
 
-  int abort();
+	int abort(CondorError &errstack);
 
-  int getClusterID();
+	int getClusterID();
 
-protected:
-  int clusterId;
-  int jobId;
-  HashTable<MyString, JobFile> *requirements;
-  MyString *spoolDirectory;
+ protected:
+	int clusterId;
+	int jobId;
+	HashTable<MyString, JobFile> *declaredFiles;
+	MyString spoolDirectory;
 };
 
 #endif
