@@ -165,10 +165,11 @@ private:
 		/** Send an update ClassAd to the shadow.  The "insure_update"
 			just means do we make sure the update gets there.  It has
 			nothing to do with the "insure" memory analysis tool.
+			@param update_ad Update ad to use if you've already got the info 
 			@param insure_update Should we insure the update gets there?
 			@return true if success, false if failure
 		*/
-	bool updateShadow( bool insure_update = false );
+	bool updateShadow( ClassAd* update_ad, bool insure_update = false );
 
 		/** Function to be called periodically to update the shadow.
 			We can't just register a timer to call UpdateShadow()

@@ -139,6 +139,19 @@ JICShadow::init( void )
 				 "to run this job as, aborting\n" );
 		return false;
 	}
+
+		// Now that we have the user_priv, we can make the temp
+		// execute dir
+	if( ! Starter->createTempExecuteDir() ) { 
+		return false;
+	}
+
+		// Now that the user priv is setup and the temp execute dir
+		// exists, we can initialize the LocalUserLog.  if the job
+		// defines StarterUserLog, we'll write the events.  if not,
+		// all attemps to log events will just be no-ops.
+	u_log->initFromJobAd( job_ad );
+
 	return true;
 }
 
@@ -163,7 +176,6 @@ JICShadow::setupJobEnvironment( void )
 { 
 		// call our helper method to see if we want to do a file
 		// transfer at all, and if so, initiate it.
-
 	if( beginFileTransfer() ) {
 			// We started a transfer, so we just want to return to
 			// DaemonCore asap and wait for the file transfer callback
@@ -217,11 +229,20 @@ JICShadow::Suspend( void )
 		filetrans->Suspend();
 	}
 	
+		// Next, we need the update ad for our job.  We'll use this
+		// for the LocalUserLog (if it's doing anything), updating the
+		// shadow, etc, etc.
+	ClassAd update_ad;
+	publishUpdateAd( &update_ad );
+	
+		// See if the LocalUserLog wants it
+	u_log->logSuspend( &update_ad );
+
 		// Now that everything is suspended, we want to send another
 		// update to the shadow to let it know the job state.  We want
 		// to confirm the update gets there on this important state
 		// change, to pass in "true" to updateShadow() for that.
-	updateShadow( true );
+	updateShadow( &update_ad, true );
 
 }
 
@@ -235,11 +256,20 @@ JICShadow::Continue( void )
 		filetrans->Continue();
 	}
 
+		// Next, we need the update ad for our job.  We'll use this
+		// for the LocalUserLog (if it's doing anything), updating the
+		// shadow, etc, etc.
+	ClassAd update_ad;
+	publishUpdateAd( &update_ad );
+
+		// See if the LocalUserLog wants it
+	u_log->logContinue( &update_ad );
+
 		// Now that everything is running again, we want to send
 		// another update to the shadow to let it know the job state.
 		// We want to confirm the update gets there on this important
 		// state change, to pass in "true" to updateShadow() for that.
-	updateShadow( true );
+	updateShadow( &update_ad, true );
 }
 
 
@@ -290,6 +320,12 @@ JICShadow::notifyJobPreSpawn( void )
 {
 			// Notify the shadow we're about to exec.
 	REMOTE_CONDOR_begin_execution();
+
+		// let the LocalUserLog know so it can log if necessary.  it
+		// doesn't use the ClassAd for this event at all, so it's not
+		// worth the trouble of creating one and publishing anything
+		// into it.
+	u_log->logExecute( NULL );
 }
 
 
@@ -332,9 +368,15 @@ JICShadow::notifyJobExit( int exit_status, int reason, UserProc*
 
 	ClassAd ad;
 	ClassAd *ad_to_send;
-	
+
+		// We want the update ad anyway, in case we want it for the
+		// LocalUserLog
+	user_proc->PublishUpdateAd( &ad );
+
+		// depending on the exit reason, we want a different event. 
+	u_log->logJobExit( &ad, reason );
+
 	if ( job_exit_wants_ad ) {
-		user_proc->PublishUpdateAd( &ad );
 		ad_to_send = &ad;
 	} else {
 		dprintf( D_FULLDEBUG,
@@ -776,7 +818,12 @@ JICShadow::publishUpdateAd( ClassAd* ad )
 		sprintf( buf, "%s=%u", ATTR_DISK_USAGE, (execsz+1023)/1024 ); 
 		ad->InsertOrUpdate( buf );
 	}
-	return true;
+
+		// Now, get our Starter object to publish, as well.  This will
+		// walk through all the UserProcs and have those publish, as
+		// well.  It returns true if there was anything published,
+		// false if not.
+	return Starter->publishUpdateAd( ad );
 }
 
 
@@ -829,7 +876,7 @@ JICShadow::startUpdateTimer( void )
 int
 JICShadow::periodicShadowUpdate( void )
 {
-	if( updateShadow(false) ) {
+	if( updateShadow(NULL, false) ) {
 		return TRUE;
 	}
 	return FALSE;
@@ -837,29 +884,27 @@ JICShadow::periodicShadowUpdate( void )
 
 
 bool
-JICShadow::updateShadow( bool insure_update )
+JICShadow::updateShadow( ClassAd* update_ad, bool insure_update )
 {
-	ClassAd ad;
-
 	dprintf( D_FULLDEBUG, "Entering JICShadow::updateShadow()\n" );
 
-		// First, get everything out of the JICShadow class.
-	publishUpdateAd( &ad );
-
-		// Now, get our Starter object to publish, as well.  This will
-		// walk through all the UserProcs and have those publish, as
-		// well.  It returns true if there was anything published,
-		// false if not.
-	bool found_one = Starter->publishUpdateAd( &ad );
-
-	if( ! found_one ) {
-		dprintf( D_FULLDEBUG, "JICShadow::updateShadow(): "
-				 "Didn't find any info to update!\n" );
-		return false;
+	ClassAd local_ad;
+	ClassAd* ad;
+	if( update_ad ) {
+			// we already have the update info, so don't bother trying
+			// to publish another one.
+		ad = update_ad;
+	} else {
+		ad = &local_ad;
+		if( ! publishUpdateAd(ad) ) {  
+			dprintf( D_FULLDEBUG, "JICShadow::updateShadow(): "
+					 "Didn't find any info to update!\n" );
+			return false;
+		}
 	}
 
 		// Try to send it to the shadow
-	if( shadow->updateJobInfo(&ad, insure_update) ) {
+	if( shadow->updateJobInfo(ad, insure_update) ) {
 		dprintf( D_FULLDEBUG, "Leaving JICShadow::updateShadow(): success\n" );
 		return true;
 	}
