@@ -32,6 +32,7 @@
 #include "condor_common.h"
 #include "condor_constants.h"
 #include "condor_io.h"
+#include "sock.h"
 #include "condor_network.h"
 #include "internet.h"
 #include "condor_debug.h"
@@ -158,7 +159,43 @@ int Sock::assign(
 
 	if ((_sock = socket(AF_INET, my_type, 0)) < 0) return FALSE;
 
+#ifdef WIN32
+	// on WinNT, sockets are created as inheritable by default.  we
+	// want to create the socket as non-inheritable by default.  so 
+	// we duplicate the socket as non-inheritable and then close
+	// the default inheritable socket.  Note on Win95, it is the opposite:
+	// i.e. on Win95 sockets are created non-inheritable by default.
+	{
+		SOCKET DuplicateSock;
+
+		if (!DuplicateHandle(GetCurrentProcess(),
+            (HANDLE)_sock,
+            GetCurrentProcess(),
+            (HANDLE*)&DuplicateSock,
+            0,
+            FALSE, // i.e. Not Inheritable
+            DUPLICATE_SAME_ACCESS)) {
+				// failed to duplicate
+				dprintf(D_ALWAYS,"ERROR: DuplicateHandle() failed in Sock:assign, error=%d\n"
+					,GetLastError());
+				closesocket(_sock);
+				return FALSE;
+		}
+		// if made it here, successful duplication; replace original
+		closesocket(_sock);
+		_sock = DuplicateSock;
+	}
+#endif	// of WIN32
+
 	_state = sock_assigned;
+
+	// If we called timeout() previously on this object, then called close() on the
+	// socket, we are now left with _timeout set to some positive value __BUT__ the
+	// socket itself has never been set to non-blocking mode with some ioctl or whatever.
+	// SO, we check here for this situation and rectify by calling timeout() again. -Todd 10/97.
+	if ( _timeout > 0 )
+		timeout( _timeout );
+
 	return TRUE;
 }
 
