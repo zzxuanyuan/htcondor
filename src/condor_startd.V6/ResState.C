@@ -160,6 +160,13 @@ ResState::eval( void )
 {
 	int want_suspend;
 
+		// we may need to modify the load average in our internal
+		// policy classad if we're currently running a COD job or have
+		// been running 1 in the last minute.  so, give our rip a
+		// chance to modify the load, if necessary, before we evaluate
+		// anything.  
+	rip->hackLoadForCOD();
+
 	switch( r_state ) {
 
 	case claimed_state:
