@@ -140,11 +140,11 @@ void CondorResource::RegisterJob( CondorJob *job, const char *submitter_id )
 		submitter_ids.append( submitter_id );
 		if ( submitter_constraint.Length() == 0 ) {
 			submitter_constraint.sprintf( "(%s=?=\"%s\")",
-										  ATTR_MIRROR_SUBMITTER_ID,
+										  ATTR_SUBMITTER_ID,
 										  submitter_id );
 		} else {
 			submitter_constraint.sprintf_cat( "||(%s=?=\"%s\")",
-											  ATTR_MIRROR_SUBMITTER_ID,
+											  ATTR_SUBMITTER_ID,
 											  submitter_id );
 		}
 	}

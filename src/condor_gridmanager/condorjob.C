@@ -213,7 +213,7 @@ ad->LookupString( "RemoteSchedd", buff );
 	}
 
 	buff[0] = '\0';
-	ad->LookupString( ATTR_MIRROR_JOB_ID, buff );
+	ad->LookupString( ATTR_REMOTE_JOB_ID, buff );
 	if ( buff[0] != '\0' ) {
 		SetRemoteJobId( buff );
 	} else {
@@ -811,7 +811,7 @@ void CondorJob::SetRemoteJobId( const char *job_id )
 		free( remoteJobIdString );
 		remoteJobIdString = NULL;
 		remoteJobId.cluster = 0;
-		UpdateJobAd( ATTR_MIRROR_JOB_ID, "UNDEFINED" );
+		UpdateJobAd( ATTR_REMOTE_JOB_ID, "UNDEFINED" );
 	}
 	if ( job_id != NULL ) {
 		MyString id_string;
@@ -820,7 +820,7 @@ void CondorJob::SetRemoteJobId( const char *job_id )
 						   remoteJobId.proc );
 		remoteJobIdString = strdup( id_string.Value() );
 		CondorJobsById.insert( HashKey( remoteJobIdString ), this );
-		UpdateJobAdString( ATTR_MIRROR_JOB_ID, job_id );
+		UpdateJobAdString( ATTR_REMOTE_JOB_ID, job_id );
 	}
 	requestScheddUpdate( this );
 }
@@ -1008,7 +1008,7 @@ submit_ad->Assign( ATTR_JOB_UNIVERSE, CONDOR_UNIVERSE_VANILLA );
 				  ATTR_STAGE_IN_START, ATTR_Q_DATE, 1800 );
 	submit_ad->Insert( expr.Value() );
 
-	submit_ad->Assign( ATTR_MIRROR_SUBMITTER_ID, submitterId );
+	submit_ad->Assign( ATTR_SUBMITTER_ID, submitterId );
 
 	ad->ResetExpr();
 	while ( (next_expr = ad->NextExpr()) != NULL ) {
