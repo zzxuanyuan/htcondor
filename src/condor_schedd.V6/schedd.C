@@ -3886,6 +3886,7 @@ Scheduler::makeReconnectRecords( PROC_ID* job, ClassAd* match_ad )
 	char* owner = NULL;
 	char* claim_id = NULL;
 	char* startd_addr = NULL;
+	char* startd_name = NULL;
 
 	if( GetAttributeStringNew(cluster, proc, ATTR_OWNER, &owner) < 0 ) {
 			// we've got big trouble, just give up.
@@ -3906,12 +3907,35 @@ Scheduler::makeReconnectRecords( PROC_ID* job, ClassAd* match_ad )
 		free( owner );
 		return;
 	}
-		
+	if( GetAttributeStringNew(cluster, proc, ATTR_REMOTE_HOST, 
+							  &startd_name) < 0 ) {
+		free( startd_name );
+		dprintf( D_ALWAYS, "WARNING: %s no longer in job queue for %d.%d\n", 
+				 ATTR_REMOTE_HOST, cluster, proc );
+		delete( match_ad );
+		mark_job_stopped( job );
+		free( claim_id );
+		free( owner );
+		return;
+	}
+	
 	startd_addr = getAddrFromClaimId( claim_id );
 	if( GetAttributeStringNew(cluster, proc, ATTR_REMOTE_POOL,
 							  &pool) < 0 ) {
 		free( pool );
 		pool = NULL;
+	}
+
+	UserLog* ULog = this->InitializeUserLog( *job );
+	JobDisconnectedEvent event;
+	const char* txt = "Local job shadow and schedd were killed, "
+		"schedd now running again";
+	event.setReason( txt );
+	event.setStartdAddr( startd_addr );
+	event.setStartdName( startd_name );
+
+	if( !ULog->writeEvent(&event) ) {
+		dprintf( D_ALWAYS, "Unable to log ULOG_JOB_DISCONNECTED event\n" );
 	}
 
 	dprintf( D_FULLDEBUG, "Adding match record for disconnected job %d.%d "
@@ -3934,12 +3958,16 @@ Scheduler::makeReconnectRecords( PROC_ID* job, ClassAd* match_ad )
 		free( startd_addr );
 		startd_addr = NULL;
 	}
+	if( startd_name ) {
+		free( startd_name );
+		startd_name = NULL;
+	}
 	if( claim_id ) {
 		free( claim_id );
 		claim_id = NULL;
 	}
 		// this should never be NULL, particularly after the checks
-		// about, but just to be extra safe, check here, too.
+		// above, but just to be extra safe, check here, too.
 	if( !mrec ) {
 		dprintf( D_ALWAYS, "ERROR: failed to create match_rec for %d.%d\n",
 				 cluster, proc );
