@@ -150,11 +150,7 @@ public:
 	int	fchmod( int fd, mode_t mode );
 	int	ftruncate( int fd, size_t length );
 	int	fsync( int fd );
-	int	fdsync( int fd );
-
-	/** Unimplemented yet */
-	int	getdents( int fd, struct dirent *list, off_t size ) {}
-	int	getdirentries( int fd, char *buffer, off_t size, long *x ) {}
+	int	getdents( int fd, struct dirent *list, int size);
  
 	/** Perform a periodic checkpoint. */
 	void	checkpoint();

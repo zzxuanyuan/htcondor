@@ -672,9 +672,11 @@ int OpenFileTable::fsync( int fd )
 	pointers[fd]->get_file()->fsync();
 }
 
-int OpenFileTable::fdsync( int fd )
+int OpenFileTable::getdents( int fd, struct dirent *list, int size)
 {
-	return fsync(fd);
+	file_warning("getdents() is not supported.\n");
+	errno = EINVAL;
+	return -1;
 }
 
 void OpenFileTable::checkpoint()
