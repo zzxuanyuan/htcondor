@@ -72,7 +72,7 @@ GETMNT_OBJ = getmnt.o
 	$(GETWD_OBJ) $(INSQUE_OBJ) env_param.o ckpt_name.o \
 	lock_file.NON_POSIX.o my_popen.o $(GETMNT_OBJ) \
 	syscall_numbers.o sig_install.o internet.o startup_info.o escapes.o\
-	ckpt_util.o get_random_num.o fdprintf.o rotate_file.o \
+	ckpt_util.o get_random_num.o fdprintf.o rotate_file.o condor_adtypes.o \
 	setsyscalls.o match_prefix.o sleep.o basename.o strcmp_until.o
 
 test.o: test.c
