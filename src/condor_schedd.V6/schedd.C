@@ -5102,7 +5102,16 @@ Scheduler::add_shadow_rec( shadow_rec* new_rec )
 	shadowsByPid->insert(new_rec->pid, new_rec);
 	shadowsByProcID->insert(new_rec->job_id, new_rec);
 
-	if( new_rec->match && !new_rec->is_reconnect ) {
+		// To improve performance and to keep our sanity in case we
+		// get killed in the middle of this operation, do all of these
+		// queue management ops within a transaction.
+	BeginTransaction();
+
+	match_rec* mrec = new_rec->match;
+	int cluster = new_rec->job_id.cluster;
+	int proc = new_rec->job_id.proc;
+
+	if( mrec && !new_rec->is_reconnect ) {
 
 			// we don't want to set any of these things if this is a
 			// reconnect shadow_rec we're adding.  All this does is
@@ -5110,65 +5119,75 @@ Scheduler::add_shadow_rec( shadow_rec* new_rec )
 			// or, in the case of ATTR_LAST_CONTACT, clobbers
 			// accurate info with a now-bogus value.
 
-		SetAttributeString( new_rec->job_id.cluster, new_rec->job_id.proc,
-						    ATTR_CLAIM_ID, new_rec->match->id );
+		SetAttributeString( cluster, proc, ATTR_CLAIM_ID, mrec->id );
+		SetAttributeInt( cluster, proc, ATTR_LAST_CONTACT, (int)time(0) ); 
 
-		SetAttributeInt( new_rec->job_id.cluster, new_rec->job_id.proc,
-						 ATTR_LAST_CONTACT, (int)time(0) ); 
-
-		struct sockaddr_in sin;
-		if ( new_rec->match->peer && new_rec->match->peer[0] &&
-			 string_to_sin(new_rec->match->peer, &sin) == 1) {
-			// make local copy of static hostname buffer
-			char *tmp, *hostname;
-			if( (tmp = sin_to_hostname(&sin, NULL)) ) {
-				hostname = strdup( tmp );
-				SetAttributeString( new_rec->job_id.cluster, 
-									new_rec->job_id.proc,
-									ATTR_REMOTE_HOST, hostname );
-				free(hostname);
-			} else {
-					// Error looking up host info...
-					// Just use the sinful string
-				SetAttributeString( new_rec->job_id.cluster, 
-									new_rec->job_id.proc,
-									ATTR_REMOTE_HOST, 
-									new_rec->match->peer );
+		bool have_remote_host = false;
+		if( mrec->my_match_ad ) {
+			char* tmp = NULL;
+			mrec->my_match_ad->LookupString(ATTR_MACHINE, &tmp );
+			if( tmp ) {
+				SetAttributeString( cluster, proc, ATTR_REMOTE_HOST, tmp );
+				have_remote_host = true;
+				free( tmp );
+				tmp = NULL;
+			}
+			int vm = 1;
+			mrec->my_match_ad->LookupInteger( ATTR_VIRTUAL_MACHINE_ID, vm );
+			SetAttributeInt(cluster,proc,ATTR_REMOTE_VIRTUAL_MACHINE_ID,vm);
+		}
+		if( ! have_remote_host ) {
+				// CRUFT
+			dprintf( D_ALWAYS, "ERROR: add_shadow_rec() doesn't have %s "
+					 "for of remote resource for setting %s, using "
+					 "inferior alternatives!\n", ATTR_MACHINE, 
+					 ATTR_REMOTE_HOST );
+			struct sockaddr_in sin;
+			if( mrec->peer && mrec->peer[0] && 
+				string_to_sin(mrec->peer, &sin) == 1 ) {
+					// make local copy of static hostname buffer
+				char *tmp, *hostname;
+				if( (tmp = sin_to_hostname(&sin, NULL)) ) {
+					hostname = strdup( tmp );
+					SetAttributeString( cluster, proc, ATTR_REMOTE_HOST,
+										hostname );
+					dprintf( D_FULLDEBUG, "Used inverse DNS lookup (%s)\n",
+							 hostname );
+					free(hostname);
+				} else {
+						// Error looking up host info...
+						// Just use the sinful string
+					SetAttributeString( cluster, proc, ATTR_REMOTE_HOST, 
+										mrec->peer );
+					dprintf( D_ALWAYS, "Inverse DNS lookup failed! "
+							 "Using ip/port %s", mrec->peer );
+				}
 			}
 		}
-		if ( new_rec->match->pool ) {
-			SetAttributeString(new_rec->job_id.cluster, new_rec->job_id.proc,
-							   ATTR_REMOTE_POOL, new_rec->match->pool);
-		}
-		if (new_rec->match->my_match_ad) {
-			int vm = 1;
-			new_rec->match->my_match_ad->LookupInteger(ATTR_VIRTUAL_MACHINE_ID,
-													   vm);
-			SetAttributeInt( new_rec->job_id.cluster, new_rec->job_id.proc,
-							 ATTR_REMOTE_VIRTUAL_MACHINE_ID, vm );
+		if( mrec->pool ) {
+			SetAttributeString(cluster, proc, ATTR_REMOTE_POOL, mrec->pool);
 		}
 	}
 	int universe = CONDOR_UNIVERSE_STANDARD;
-	GetAttributeInt(new_rec->job_id.cluster, new_rec->job_id.proc,
-					ATTR_JOB_UNIVERSE, &universe);
+	GetAttributeInt( cluster, proc, ATTR_JOB_UNIVERSE, &universe );
 	if (universe == CONDOR_UNIVERSE_PVM) {
 		ClassAd *ad;
 		ad = GetNextJob(1);
 		while (ad != NULL) {
 			PROC_ID tmp_id;
 			ad->LookupInteger(ATTR_CLUSTER_ID, tmp_id.cluster);
-			if (tmp_id.cluster == new_rec->job_id.cluster) {
+			if (tmp_id.cluster == cluster) {
 				ad->LookupInteger(ATTR_PROC_ID, tmp_id.proc);
 				add_shadow_birthdate(tmp_id.cluster, tmp_id.proc);
 			}
 			ad = GetNextJob(0);
 		}
 	} else {
-		add_shadow_birthdate(new_rec->job_id.cluster, new_rec->job_id.proc);
+		add_shadow_birthdate( cluster, proc );
 	}
-
+	CommitTransaction();
 	dprintf( D_FULLDEBUG, "Added shadow record for PID %d, job (%d.%d)\n",
-			new_rec->pid, new_rec->job_id.cluster, new_rec->job_id.proc );
+			 new_rec->pid, cluster, proc );
 	scheduler.display_shadow_recs();
 	return new_rec;
 }
