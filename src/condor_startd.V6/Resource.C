@@ -33,7 +33,7 @@ Resource::Resource( CpuAttributes* cap, int rid )
 	int size = (int)ceil(60.0 / (double)polling_interval);
 	r_classad = NULL;
 	r_state = new ResState( this );
-	r_cur = new Match( this );
+	r_cur = new Claim( this );
 	r_pre = NULL;
 	r_reqexp = new Reqexp( this );
 	r_load_queue = new LoadQueue( size );
@@ -231,13 +231,13 @@ Resource::in_use( void )
 
 
 void
-Resource::starterExited( Match* cur_match )
+Resource::starterExited( Claim* cur_claim )
 {
-	if( ! cur_match ) {
-		EXCEPT( "Resource::starterExited() called with no Match!" );
+	if( ! cur_claim ) {
+		EXCEPT( "Resource::starterExited() called with no Claim!" );
 	}
 
-		// for now, we've just got 1 match, so we can assume that the
+		// for now, we've just got 1 claim, so we can assume that the
 		// starter exiting will trigger a state change... 
 
 		// All of the potential paths from here result in a state
@@ -266,11 +266,11 @@ Resource::starterExited( Match* cur_match )
 }
 
 
-Match*
-Resource::findMatchByPid( pid_t starter_pid )
+Claim*
+Resource::findClaimByPid( pid_t starter_pid )
 {
 		// for now, just check r_cur.  once we've got multiple
-		// matches, we can walk through our list(s).
+		// claims, we can walk through our list(s).
 	if( r_cur && r_cur->starterPidMatches(starter_pid) ) {
 		return r_cur;
 	}
@@ -279,10 +279,10 @@ Resource::findMatchByPid( pid_t starter_pid )
 
 
 bool
-Resource::matchIsActive( void )
+Resource::claimIsActive( void )
 {
 		// for now, just check r_cur.  once we've got multiple
-		// matches, we can walk through our list(s).
+		// claims, we can walk through our list(s).
 	if( r_cur && r_cur->isActive() ) {
 		return true;
 	}
@@ -294,9 +294,9 @@ Resource::matchIsActive( void )
    This function is called whenever we're in the preempting state
    without a starter.  This situation occurs b/c either the starter
    has finally exited after being told to go away, or we preempted a
-   match that wasn't active with a starter in the first place.  In any
+   claim that wasn't active with a starter in the first place.  In any
    event, leave_preempting_state is the one place that does what needs
-   to be done to all the current and preempting matches we've got, and
+   to be done to all the current and preempting claims we've got, and
    decides which state we should enter.
 */
 void
@@ -304,7 +304,7 @@ Resource::leave_preempting_state( void )
 {
 	int tmp;
 
-	r_cur->vacate();	// Send a vacate to the client of the match
+	r_cur->vacate();	// Send a vacate to the client of the claim
 	delete r_cur;		
 	r_cur = NULL;
 
@@ -350,16 +350,16 @@ Resource::leave_preempting_state( void )
 				// machine busy.  We have a job ad, so local
 				// evaluation gotchas don't apply here.
 			dprintf( D_ALWAYS, 
-					 "State change: preempting match refused - START is false\n" );
+					 "State change: preempting claim refused - START is false\n" );
 			allow_it = false;
 		} else {
 			dprintf( D_ALWAYS, 
-					 "State change: preempting match exists - "
+					 "State change: preempting claim exists - "
 					 "START is true or undefined\n" );
 		}
 	} else {
 		dprintf( D_ALWAYS, 
-				 "State change: No preempting match, returning to owner\n" );
+				 "State change: No preempting claim, returning to owner\n" );
 	}
 
 	if( allow_it ) {
@@ -513,7 +513,7 @@ Resource::wants_vacate( void )
 	int want_vacate = 0;
 	bool unknown = true;
 
-	if( ! matchIsActive() ) {
+	if( ! claimIsActive() ) {
 			// There's no job here, so chances are good that some of
 			// the job attributes that WANT_VACATE might be defined in
 			// terms of won't exist.  So, instead of getting
@@ -818,7 +818,7 @@ Resource::publish( ClassAd* cap, amask_t mask )
 	if( IS_PUBLIC(mask) && IS_UPDATE(mask) ) {
 			// If we're claimed or preempting, handle anything listed 
 			// in STARTD_JOB_EXPRS.
-			// Our current match object might be gone though, so make
+			// Our current claim object might be gone though, so make
 			// sure we have the object before we try to use it.
 		s = this->state();
 		if( s == claimed_state || s == preempting_state ) {
@@ -879,7 +879,7 @@ Resource::publish( ClassAd* cap, amask_t mask )
 		// Put in requirement expression info
 	r_reqexp->publish( cap, mask );
 
-		// Update info from the current Match object, if it exists.
+		// Update info from the current Claim object, if it exists.
 	if( r_cur ) {
 		r_cur->publish( cap, mask );
 	}
@@ -980,8 +980,8 @@ Resource::compute_condor_load( void )
 	float cpu_usage, avg, max, load;
 	int numcpus = resmgr->num_cpus();
 
-		// we only consider the opportunistic Condor match for
-		// CondorLoadAvg, not any of the COD matches...
+		// we only consider the opportunistic Condor claim for
+		// CondorLoadAvg, not any of the COD claims...
 
 	if( r_cur && r_cur->isActive() ) {
 		cpu_usage = r_cur->percentCpuUsage();

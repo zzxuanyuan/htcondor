@@ -33,7 +33,7 @@
 #include "simplelist.h"
 #include "extArray.h"
 #include "Resource.h"
-#include "Match.h"
+#include "claim.h"
 #include "starter_mgr.h"
 
 typedef int (Resource::*ResourceMember)();
@@ -141,7 +141,7 @@ public:
 	void	reset_timers( void );	// Reset the period on our timers,
 									// in case the config has changed.
 
-	Match*		getMatchByPid( pid_t );	// Find Match by pid of starter
+	Claim*		getClaimByPid( pid_t );	// Find Claim by pid of starter
 	Resource*	get_by_cur_cap(char*);	// Find rip by r_cur->capab 
 	Resource*	get_by_any_cap(char*);	// Find rip by r_cur or r_pre
 	Resource*	get_by_name(char*);		// Find rip by r_name

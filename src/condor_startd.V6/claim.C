@@ -20,98 +20,84 @@
  * Livny, 7367 Computer Sciences, 1210 W. Dayton St., Madison, 
  * WI 53706-1685, (608) 262-0856 or miron@cs.wisc.edu.
 ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
+
 /*  
-	This file implements the classes defined in Match.h:
+  	This file implements the classes defined in claim.h.  See that
+	file for comments and documentation on what it's about.
 
-	Match, Capability, and Client
+	Originally written 9/29/97 by Derek Wright <wright@cs.wisc.edu>
 
-	A Match object contains all of the information a startd needs
-    about a given match, such as the capability, the client of this
-    match, etc.  The capability in the match is just a pointer to a
-    Capability object.  The client is also just a pointer to a Client
-    object.  The startd maintains two Match objects in the "rip", the
-    per-resource information structure.  One for the current match,
-    and one for the possibly preempting match that is pending.
- 
-	A Capability object contains the capability string, and some
-	functions to manipulate and compare against this string.  The
-	constructor generates a new capability with the following form:
-	<ip:port>#random_integer
-
-	A Client object contains all the info about a given client of a
-	startd.  In particular, the client name (a.k.a. "user"), the
-	address ("<www.xxx.yyy.zzz:pppp>" formed ip/port), and the
-	hostname.
-
-	Written 9/29/97 by Derek Wright <wright@cs.wisc.edu>	
+	Decided the Match object should really be called "Claim" (the
+	files were renamed in cvs from Match.[Ch] to claim.[Ch], and
+	renamed everything on 1/10/03 - Derek Wright
 */
 
 #include "condor_common.h"
 #include "startd.h"
 
 ///////////////////////////////////////////////////////////////////////////
-// Match
+// Claim
 ///////////////////////////////////////////////////////////////////////////
 
-Match::Match( Resource* rip )
+Claim::Claim( Resource* rip )
 {
-	m_client = new Client;
-	m_cap = new Capability;
-	m_ad = NULL;
-	m_starter = NULL;
-	m_rank = 0;
-	m_oldrank = 0;
-	m_universe = -1;
-	m_agentstream = NULL;
-	m_match_tid = -1;
-	m_claim_tid = -1;
-	m_aliveint = -1;
-	m_cluster = -1;
-	m_proc = -1;
-	m_job_start = -1;
-	m_last_pckpt = -1;
-	m_rip = rip;
-	m_state = MATCH_UNCLAIMED;
+	c_client = new Client;
+	c_cap = new Capability;
+	c_ad = NULL;
+	c_starter = NULL;
+	c_rank = 0;
+	c_oldrank = 0;
+	c_universe = -1;
+	c_agentstream = NULL;
+	c_match_tid = -1;
+	c_claim_tid = -1;
+	c_aliveint = -1;
+	c_cluster = -1;
+	c_proc = -1;
+	c_job_start = -1;
+	c_last_pckpt = -1;
+	c_rip = rip;
+	c_state = CLAIM_UNCLAIMED;
 }
 
 
-Match::~Match()
+Claim::~Claim()
 {	
-		// Cancel any timers associated with this match
+		// Cancel any timers associated with this claim
 	this->cancel_match_timer();
 	this->cancel_claim_timer();
 
 		// Free up memory that's been allocated
-	if( m_ad ) {
-		delete( m_ad );
+	if( c_ad ) {
+		delete( c_ad );
 	}
-	delete( m_cap );
-	if( m_client ) {
-		delete( m_client );
+	delete( c_cap );
+	if( c_client ) {
+		delete( c_client );
 	}
-	if( m_agentstream ) {
-		delete( m_agentstream );
+	if( c_agentstream ) {
+		delete( c_agentstream );
 	}
-	if( m_starter ) {
-		delete( m_starter );
+	if( c_starter ) {
+		delete( c_starter );
 	}
 
 }	
 	
 
 void
-Match::vacate() 
+Claim::vacate() 
 {
-	assert( m_cap );
-		// warn the client of this match that it's being vacated
-	if( m_client && m_client->addr() ) {
-		m_client->vacate( m_cap->capab() );
+	assert( c_cap );
+		// warn the client of this claim that it's being vacated
+	if( c_client && c_client->addr() ) {
+		c_client->vacate( c_cap->capab() );
 	}
 }
 
 
 void
-Match::publish( ClassAd* ad, amask_t how_much )
+Claim::publish( ClassAd* ad, amask_t how_much )
 {
 	char line[256];
 	char* tmp;
@@ -120,69 +106,69 @@ Match::publish( ClassAd* ad, amask_t how_much )
 		return;
 	}
 
-	sprintf( line, "%s = %f", ATTR_CURRENT_RANK, m_rank );
+	sprintf( line, "%s = %f", ATTR_CURRENT_RANK, c_rank );
 	ad->Insert( line );
 
-	if( m_client ) {
-		tmp = m_client->user();
+	if( c_client ) {
+		tmp = c_client->user();
 		if( tmp ) {
 			sprintf( line, "%s=\"%s\"", ATTR_REMOTE_USER, tmp );
 			ad->Insert( line );
 		}
-		tmp = m_client->owner();
+		tmp = c_client->owner();
 		if( tmp ) {
 			sprintf( line, "%s=\"%s\"", ATTR_REMOTE_OWNER, tmp );
 			ad->Insert( line );
 		}
-		tmp = m_client->host();
+		tmp = c_client->host();
 		if( tmp ) {
 			sprintf( line, "%s=\"%s\"", ATTR_CLIENT_MACHINE, tmp );
 			ad->Insert( line );
 		}
 	}
 
-	if( (m_cluster > 0) && (m_proc >= 0) ) {
-		sprintf( line, "%s=\"%d.%d\"", ATTR_JOB_ID, m_cluster, m_proc );
+	if( (c_cluster > 0) && (c_proc >= 0) ) {
+		sprintf( line, "%s=\"%d.%d\"", ATTR_JOB_ID, c_cluster, c_proc );
 		ad->Insert( line );
 	}
 
-	if( m_job_start > 0 ) {
-		sprintf(line, "%s=%d", ATTR_JOB_START, m_job_start );
+	if( c_job_start > 0 ) {
+		sprintf(line, "%s=%d", ATTR_JOB_START, c_job_start );
 		ad->Insert( line );
 	}
 
-	if( m_last_pckpt > 0 ) {
-		sprintf(line, "%s=%d", ATTR_LAST_PERIODIC_CHECKPOINT, m_last_pckpt );
+	if( c_last_pckpt > 0 ) {
+		sprintf(line, "%s=%d", ATTR_LAST_PERIODIC_CHECKPOINT, c_last_pckpt );
 		ad->Insert( line );
 	}
 }	
 
 
 void
-Match::dprintf( int flags, char* fmt, ... )
+Claim::dprintf( int flags, char* fmt, ... )
 {
 	va_list args;
 	va_start( args, fmt );
-	m_rip->dprintf_va( flags, fmt, args );
+	c_rip->dprintf_va( flags, fmt, args );
 	va_end( args );
 }
 
 
 void
-Match::refuse_agent()
+Claim::refuse_agent()
 {
-	if( !m_agentstream ) return;
+	if( !c_agentstream ) return;
 	dprintf( D_ALWAYS, "Refusing request from schedd agent.\n" );
-	m_agentstream->encode();
-	m_agentstream->put(NOT_OK);
-	m_agentstream->end_of_message();
+	c_agentstream->encode();
+	c_agentstream->put(NOT_OK);
+	c_agentstream->end_of_message();
 }
 
 
 void
-Match::start_match_timer()
+Claim::start_match_timer()
 {
-	if( m_match_tid != -1 ) {
+	if( c_match_tid != -1 ) {
 			/*
 			  We got matched twice for the same capability.  This
 			  must be because we got matched, we sent an update that
@@ -194,50 +180,50 @@ Match::start_match_timer()
 			*/
 		
 	   dprintf( D_FAILURE|D_ALWAYS, "Warning: got matched twice for same capability."
-				" Canceling old match timer (%d)\n", m_match_tid );
-	   if( daemonCore->Cancel_Timer(m_match_tid) < 0 ) {
+				" Canceling old match timer (%d)\n", c_match_tid );
+	   if( daemonCore->Cancel_Timer(c_match_tid) < 0 ) {
 		   dprintf( D_ALWAYS, "Failed to cancel old match timer (%d): "
-					"daemonCore error\n", m_match_tid );
+					"daemonCore error\n", c_match_tid );
 	   } else {
 		   dprintf( D_FULLDEBUG, "Cancelled old match timer (%d)\n", 
-					m_match_tid );
+					c_match_tid );
 	   }
-	   m_match_tid = -1;
+	   c_match_tid = -1;
 	}
 
-	m_match_tid = 
+	c_match_tid = 
 		daemonCore->Register_Timer( match_timeout, 0, 
 								   (TimerHandlercpp)
-								   &Match::match_timed_out,
+								   &Claim::match_timed_out,
 								   "match_timed_out", this );
-	if( m_match_tid == -1 ) {
+	if( c_match_tid == -1 ) {
 		EXCEPT( "Couldn't register timer (out of memory)." );
 	}
 	dprintf( D_FULLDEBUG, "Started match timer (%d) for %d seconds.\n", 
-			 m_match_tid, match_timeout );
+			 c_match_tid, match_timeout );
 }
 
 
 void
-Match::cancel_match_timer()
+Claim::cancel_match_timer()
 {
 	int rval;
-	if( m_match_tid != -1 ) {
-		rval = daemonCore->Cancel_Timer( m_match_tid );
+	if( c_match_tid != -1 ) {
+		rval = daemonCore->Cancel_Timer( c_match_tid );
 		if( rval < 0 ) {
 			dprintf( D_ALWAYS, "Failed to cancel match timer (%d): "
-					 "daemonCore error\n", m_match_tid );
+					 "daemonCore error\n", c_match_tid );
 		} else {
 			dprintf( D_FULLDEBUG, "Canceled match timer (%d)\n", 
-					 m_match_tid );
+					 c_match_tid );
 		}
-		m_match_tid = -1;
+		c_match_tid = -1;
 	}
 }
 
 
 int
-Match::match_timed_out()
+Claim::match_timed_out()
 {
 	char* my_cap = capab();
 	if( !my_cap ) {
@@ -278,16 +264,16 @@ Match::match_timed_out()
 			return FALSE;
 		}
 		delete rip->r_cur;
-		rip->r_cur = new Match( rip );
+		rip->r_cur = new Claim( rip );
 		dprintf( D_FAILURE|D_ALWAYS, "State change: match timed out\n" );
 		rip->change_state( owner_state );
 	} else {
-			// The match that timed out was the preempting match.
+			// The match that timed out was the preempting claim.
 		assert( rip->r_pre->cap()->matches( capab() ) );
-			// We need to generate a new preempting match object,
+			// We need to generate a new preempting claim object,
 			// restore our reqexp, and update the CM. 
 		delete rip->r_pre;
-		rip->r_pre = new Match( rip );
+		rip->r_pre = new Claim( rip );
 		rip->r_reqexp->restore();
 		rip->update();
 	}		
@@ -296,57 +282,57 @@ Match::match_timed_out()
 
 
 void
-Match::start_claim_timer()
+Claim::start_claim_timer()
 {
-		// for now, we should change our match state in here, since
-		// this is called once the Match is finally claimed by
+		// for now, we should change our claim state in here, since
+		// this is called once the Claim is finally claimed by
 		// someone.  this will all probably be changed soon, since
 		// having the ResState code starting and stopping timers on
-		// the Match object isn't really a good idea. :)
-	ASSERT( m_state == MATCH_UNCLAIMED );
-	m_state = MATCH_IDLE;
+		// the Claim object isn't really a good idea. :)
+	ASSERT( c_state == CLAIM_UNCLAIMED );
+	c_state = CLAIM_IDLE;
 
-	if( m_aliveint < 0 ) {
+	if( c_aliveint < 0 ) {
 		dprintf( D_ALWAYS, 
 				 "Warning: starting claim timer before alive interval set.\n" );
-		m_aliveint = 300;
+		c_aliveint = 300;
 	}
-	if( m_claim_tid != -1 ) {
-	   EXCEPT( "Match::start_claim_timer() called w/ m_claim_tid = %d", 
-			   m_claim_tid );
+	if( c_claim_tid != -1 ) {
+	   EXCEPT( "Claim::start_claim_timer() called w/ c_claim_tid = %d", 
+			   c_claim_tid );
 	}
-	m_claim_tid =
-		daemonCore->Register_Timer( (3 * m_aliveint), 0,
-				(TimerHandlercpp)&Match::claim_timed_out,
+	c_claim_tid =
+		daemonCore->Register_Timer( (3 * c_aliveint), 0,
+				(TimerHandlercpp)&Claim::claim_timed_out,
 				"claim_timed_out", this );
-	if( m_claim_tid == -1 ) {
+	if( c_claim_tid == -1 ) {
 		EXCEPT( "Couldn't register timer (out of memory)." );
 	}
 	dprintf( D_FULLDEBUG, "Started claim timer (%d) w/ %d second "
-			 "alive interval.\n", m_claim_tid, m_aliveint );
+			 "alive interval.\n", c_claim_tid, c_aliveint );
 }
 
 
 void
-Match::cancel_claim_timer()
+Claim::cancel_claim_timer()
 {
 	int rval;
-	if( m_claim_tid != -1 ) {
-		rval = daemonCore->Cancel_Timer( m_claim_tid );
+	if( c_claim_tid != -1 ) {
+		rval = daemonCore->Cancel_Timer( c_claim_tid );
 		if( rval < 0 ) {
 			dprintf( D_ALWAYS, "Failed to cancel claim timer (%d): "
-					 "daemonCore error\n", m_claim_tid );
+					 "daemonCore error\n", c_claim_tid );
 		} else {
 			dprintf( D_FULLDEBUG, "Canceled claim timer (%d)\n",
-					 m_claim_tid );
+					 c_claim_tid );
 		}
-		m_claim_tid = -1;
+		c_claim_tid = -1;
 	}
 }
 
 
 int
-Match::claim_timed_out()
+Claim::claim_timed_out()
 {
 	Resource* rip = resmgr->get_by_cur_cap( capab() );
 	if( !rip ) {
@@ -354,9 +340,9 @@ Match::claim_timed_out()
 	}
 		// Note that this claim timed out so we don't try to send a 
 		// command to our client.
-	if( m_client ) {
-		delete m_client;
-		m_client = NULL;
+	if( c_client ) {
+		delete c_client;
+		c_client = NULL;
 	}
 
 	dprintf( D_FAILURE|D_ALWAYS, "State change: claim timed out (condor_schedd gone?)\n" );
@@ -368,49 +354,49 @@ Match::claim_timed_out()
 
 
 void
-Match::alive()
+Claim::alive()
 {
 		// Process a keep alive command
-	daemonCore->Reset_Timer( m_claim_tid, (3 * m_aliveint), 0 );
+	daemonCore->Reset_Timer( c_claim_tid, (3 * c_aliveint), 0 );
 }
 
 
 // Set our ad to the given pointer
 void
-Match::setad(ClassAd *ad) 
+Claim::setad(ClassAd *ad) 
 {
-	if( m_ad ) {
-		delete( m_ad );
+	if( c_ad ) {
+		delete( c_ad );
 	}
-	m_ad = ad;
+	c_ad = ad;
 }
 
 
 void
-Match::deletead(void)
+Claim::deletead(void)
 {
-	if( m_ad ) {
-		delete( m_ad );
-		m_ad = NULL;
+	if( c_ad ) {
+		delete( c_ad );
+		c_ad = NULL;
 	}
 }
 
 
 void
-Match::setagentstream(Stream* stream)
+Claim::setagentstream(Stream* stream)
 {
-	if( m_agentstream ) {
-		delete( m_agentstream );
+	if( c_agentstream ) {
+		delete( c_agentstream );
 	}
-	m_agentstream = stream;
+	c_agentstream = stream;
 }
 
 
 char*
-Match::capab( void )
+Claim::capab( void )
 {
-	if( m_cap ) {
-		return m_cap->capab();
+	if( c_cap ) {
+		return c_cap->capab();
 	} else {
 		return NULL;
 	}
@@ -418,10 +404,10 @@ Match::capab( void )
 
 
 float
-Match::percentCpuUsage( void )
+Claim::percentCpuUsage( void )
 {
-	if( m_starter ) {
-		return m_starter->percentCpuUsage();
+	if( c_starter ) {
+		return c_starter->percentCpuUsage();
 	} else {
 		return 0.0;
 	}
@@ -429,10 +415,10 @@ Match::percentCpuUsage( void )
 
 
 unsigned long
-Match::imageSize( void )
+Claim::imageSize( void )
 {
-	if( m_starter ) {
-		return m_starter->imageSize();
+	if( c_starter ) {
+		return c_starter->imageSize();
 	} else {
 		return 0;
 	}
@@ -440,19 +426,19 @@ Match::imageSize( void )
 
 
 int
-Match::spawnStarter( start_info_t* info, time_t now )
+Claim::spawnStarter( start_info_t* info, time_t now )
 {
 	int rval;
-	if( ! m_starter ) {
+	if( ! c_starter ) {
 			// Big error!
-		dprintf( D_ALWAYS, "ERROR! Match::spawnStarter() called "
+		dprintf( D_ALWAYS, "ERROR! Claim::spawnStarter() called "
 				 "w/o a Starter object! Returning failure\n" );
 		return 0;
 	}
 
-	rval = m_starter->spawn( info, now );
+	rval = c_starter->spawn( info, now );
 
-	m_state = MATCH_RUNNING; 
+	c_state = CLAIM_RUNNING; 
 
 		// Fake ourselves out so we take another snapshot in 15
 		// seconds, once the starter has had a chance to spawn the
@@ -460,7 +446,7 @@ Match::spawnStarter( start_info_t* info, time_t now )
 		// forking it's going to do.  If we're planning to check more
 		// often that 15 seconds, anyway, don't bother with this.
 	if( pid_snapshot_interval > 15 ) {
-		m_starter->set_last_snapshot( (now + 15) -
+		c_starter->set_last_snapshot( (now + 15) -
 									  pid_snapshot_interval );
 	} 
 	return rval;
@@ -468,43 +454,43 @@ Match::spawnStarter( start_info_t* info, time_t now )
 
 
 void
-Match::setStarter( Starter* s )
+Claim::setStarter( Starter* s )
 {
-	if( m_starter ) {
-		EXCEPT( "Match::setStarter() called with existing starter!" );
+	if( c_starter ) {
+		EXCEPT( "Claim::setStarter() called with existing starter!" );
 	}
-	m_starter = s;
+	c_starter = s;
 	if( s ) {
-		s->setResource( this->m_rip );
+		s->setResource( this->c_rip );
 	}
 }
 
 
 void
-Match::starterExited( void )
+Claim::starterExited( void )
 {
 		// Now that the starter is gone, we need to change our state
-	m_state = MATCH_IDLE;
+	c_state = CLAIM_IDLE;
 
 		// Notify our starter object that its starter exited, so it
 		// can cancel timers any pending timers, cleanup the starter's
 		// execute directory, and do any other cleanup. 
-	m_starter->exited();
+	c_starter->exited();
 	
 		// Next, we can delete the starter object itself.
-	delete( m_starter );
-	m_starter = NULL;
+	delete( c_starter );
+	c_starter = NULL;
 	
 		// finally, let our resource know that our starter exited, so
 		// it can do the right thing.
-	m_rip->starterExited( this );
+	c_rip->starterExited( this );
 }
 
 
 bool
-Match::starterPidMatches( pid_t starter_pid )
+Claim::starterPidMatches( pid_t starter_pid )
 {
-	if( m_starter && m_starter->pid() == starter_pid ) {
+	if( c_starter && c_starter->pid() == starter_pid ) {
 		return true;
 	}
 	return false;
@@ -512,9 +498,9 @@ Match::starterPidMatches( pid_t starter_pid )
 
 
 bool
-Match::isDeactivating( void )
+Claim::isDeactivating( void )
 {
-	if( m_state == MATCH_PREEMPTING || m_state == MATCH_KILLING ) {
+	if( c_state == CLAIM_PREEMPTING || c_state == CLAIM_KILLING ) {
 		return true;
 	}
 	return false;
@@ -522,10 +508,15 @@ Match::isDeactivating( void )
 
 
 bool
-Match::isActive( void )
+Claim::isActive( void )
 {
-	if( m_starter && m_starter->active() ) {
-		ASSERT( m_state == MATCH_RUNNING || m_state == MATCH_SUSPENDED );  
+	if( c_starter && c_starter->active() ) {
+			// TODO 
+			// this assert is wrong, since we could be preempting or
+			// killing, too.  i need to figure out if we should say
+			// the claim is active if we're trying to deactivate it or
+			// not...
+			// ASSERT( c_state == CLAIM_RUNNING || c_state == CLAIM_SUSPENDED );
 		return true;
 	}
 	return false;
@@ -533,15 +524,15 @@ Match::isActive( void )
 
 
 bool
-Match::deactivateClaim( bool graceful )
+Claim::deactivateClaim( bool graceful )
 {
 	if( isActive() ) {
 			// Singal the starter
 		if( graceful ) {
-			m_state = MATCH_PREEMPTING;
+			c_state = CLAIM_PREEMPTING;
 			return starterKillSoft();
 		} else {
-			m_state = MATCH_KILLING;
+			c_state = CLAIM_KILLING;
 			return starterKillHard();
 		}
 	}
@@ -550,11 +541,11 @@ Match::deactivateClaim( bool graceful )
 
 
 bool
-Match::suspendClaim( void )
+Claim::suspendClaim( void )
 {
-	m_state = MATCH_SUSPENDED;
-	if( m_starter ) {
-		return (bool)m_starter->suspend();
+	c_state = CLAIM_SUSPENDED;
+	if( c_starter ) {
+		return (bool)c_starter->suspend();
 	}
 		// if there's no starter, we don't need to do anything, so
 		// it worked...  
@@ -563,26 +554,26 @@ Match::suspendClaim( void )
 
 
 bool
-Match::resumeClaim( void )
+Claim::resumeClaim( void )
 {
-	if( m_starter ) {
-		m_state = MATCH_RUNNING;
-		return (bool)m_starter->resume();
+	if( c_starter ) {
+		c_state = CLAIM_RUNNING;
+		return (bool)c_starter->resume();
 	}
 		// if there's no starter, we don't need to do anything, so
 		// it worked...  
-	m_state = MATCH_IDLE;
+	c_state = CLAIM_IDLE;
 	return true;
 }
 
 
 bool
-Match::starterKill( int sig )
+Claim::starterKill( int sig )
 {
 		// don't need to work about the state, since we don't use this
-		// method to send any signals that change the match state...
-	if( m_starter ) {
-		return (bool)m_starter->kill( sig );
+		// method to send any signals that change the claim state...
+	if( c_starter ) {
+		return (bool)c_starter->kill( sig );
 	}
 		// if there's no starter, we don't need to kill anything, so
 		// it worked...  
@@ -591,13 +582,13 @@ Match::starterKill( int sig )
 
 
 bool
-Match::starterKillPg( int sig )
+Claim::starterKillPg( int sig )
 {
-	if( m_starter ) {
+	if( c_starter ) {
 			// if we're using KillPg, we're trying to hard-kill the
 			// starter and all its children
-		m_state = MATCH_KILLING;
-		return (bool)m_starter->killpg( sig );
+		c_state = CLAIM_KILLING;
+		return (bool)c_starter->killpg( sig );
 	}
 		// if there's no starter, we don't need to kill anything, so
 		// it worked...  
@@ -606,11 +597,11 @@ Match::starterKillPg( int sig )
 
 
 bool
-Match::starterKillSoft( void )
+Claim::starterKillSoft( void )
 {
-	if( m_starter ) {
-		m_state = MATCH_PREEMPTING;
-		return m_starter->killSoft();
+	if( c_starter ) {
+		c_state = CLAIM_PREEMPTING;
+		return c_starter->killSoft();
 	}
 		// if there's no starter, we don't need to kill anything, so
 		// it worked...  
@@ -619,11 +610,11 @@ Match::starterKillSoft( void )
 
 
 bool
-Match::starterKillHard( void )
+Claim::starterKillHard( void )
 {
-	if( m_starter ) {
-		m_state = MATCH_KILLING;
-		return m_starter->killHard();
+	if( c_starter ) {
+		c_state = CLAIM_KILLING;
+		return c_starter->killHard();
 	}
 		// if there's no starter, we don't need to kill anything, so
 		// it worked...  
@@ -632,10 +623,10 @@ Match::starterKillHard( void )
 
 
 bool
-Match::periodicCheckpoint( void )
+Claim::periodicCheckpoint( void )
 {
-	if( m_starter ) {
-		if( ! m_starter->kill(DC_SIGPCKPT) ) { 
+	if( c_starter ) {
+		if( ! c_starter->kill(DC_SIGPCKPT) ) { 
 			return false;
 		}
 	}

@@ -961,16 +961,16 @@ ResMgr::in_use( void )
 }
 
 
-Match*
-ResMgr::getMatchByPid( pid_t pid )
+Claim*
+ResMgr::getClaimByPid( pid_t pid )
 {
-	Match* foo = NULL;
+	Claim* foo = NULL;
 	if( ! resources ) {
 		return NULL;
 	}
 	int i;
 	for( i = 0; i < nresources; i++ ) {
-		if( (foo = resources[i]->findMatchByPid(pid)) ) {
+		if( (foo = resources[i]->findClaimByPid(pid)) ) {
 			return foo;
 		}
 	}

@@ -388,7 +388,7 @@ command_give_request_ad( Service*, int, Stream* stream)
 {
 	int pid = -1;  // Starter sends it's pid so we know what
 				   // resource's request ad to send 
-	Match*		match;
+	Claim*		claim;
 	ClassAd*	cp;
 
 	if( ! stream->code(pid) ) {
@@ -403,8 +403,8 @@ command_give_request_ad( Service*, int, Stream* stream)
 		stream->end_of_message();
 		return FALSE;
 	}
-	match = resmgr->getMatchByPid( pid );
-	if( !match ) {
+	claim = resmgr->getClaimByPid( pid );
+	if( !claim ) {
 		dprintf( D_ALWAYS, 
 				 "give_request_ad: Can't find starter with pid %d\n",
 				 pid ); 
@@ -412,10 +412,10 @@ command_give_request_ad( Service*, int, Stream* stream)
 		stream->end_of_message();
 		return FALSE;
 	}
-	cp = match->ad();
+	cp = claim->ad();
 	if( !cp ) {
-		match->dprintf( D_ALWAYS, 
-						"give_request_ad: current match has NULL classad.\n" );
+		claim->dprintf( D_ALWAYS, 
+						"give_request_ad: current claim has NULL classad.\n" );
 		stream->encode();
 		stream->end_of_message();
 		return FALSE;
@@ -481,7 +481,7 @@ delete req_classad;						\
 if (client_addr) free(client_addr);		\
 if( s == claimed_state ) {				\
 	delete rip->r_pre;					\
-	rip->r_pre = new Match( rip );		\
+	rip->r_pre = new Claim( rip );		\
 } else {								\
     if( s != owner_state ) {			\
         rip->dprintf( D_ALWAYS, "State change: claiming protocol failed\n" ); \
@@ -504,17 +504,17 @@ request_claim( Resource* rip, char* cap, Stream* stream )
 	State s = rip->state();
 
 	if( !rip->r_cur ) {
-		EXCEPT( "request_claim: no current match object." );
+		EXCEPT( "request_claim: no current claim object." );
 	}
 
 		/* 
 		   Now that we've been contacted by the schedd agent, we can
 		   cancel the match timer on either the current or the
-		   preempting match, depending on what state we're in.  We
+		   preempting claim, depending on what state we're in.  We
 		   want to do this right away so we don't abort this function
 		   for some reason and leave that timer in place, since we'll
 		   EXCEPT later on if it goes off and we're not in the matched
-		   state anymore (and it's the current match at that point).
+		   state anymore (and it's the current claim at that point).
 		   -Derek Wright 3/11/99 
 		*/
 	if( rip->state() == claimed_state ) {
@@ -566,7 +566,7 @@ request_claim( Resource* rip, char* cap, Stream* stream )
 		// we need change the timeout on the socket to the schedd to be
 		// very patient.  By default, daemon core put a timeout of ~20
 		// seconds on this socket.  This is not at all long enough.
-		// since we should only hold this match for match_timeout,
+		// since we should only hold this claim for match_timeout,
 		// set the timeout to be 10 seconds less than that. -Todd
 	if ( match_timeout > 10 ) {
 		stream->timeout( match_timeout - 10 );
@@ -621,29 +621,29 @@ request_claim( Resource* rip, char* cap, Stream* stream )
 		// Now, make sure it's got a high enough rank to preempt us.
 	rank = compute_rank( mach_classad, req_classad );
 
-	rip->dprintf( D_FULLDEBUG, "Rank of this match is: %f\n", rank );
+	rip->dprintf( D_FULLDEBUG, "Rank of this claim is: %f\n", rank );
 
 	if( rip->state() == claimed_state ) {
 			// We're currently claimed.  We might want to preempt the
 			// current claim to make way for this new one...
 		if( !rip->r_pre ) {
 			rip->dprintf( D_ALWAYS, 
-			   "In CLAIMED state without preempting match object, aborting.\n" );
+			   "In CLAIMED state without preempting claim object, aborting.\n" );
 			refuse( stream );
 			ABORT;
 		}
 		if( rip->r_pre->cap()->matches(cap) ) {
 			rip->dprintf( D_ALWAYS, 
-						  "Preempting match has correct capability.\n" );
+						  "Preempting claim has correct capability.\n" );
 			
 				// Check rank, decided to preempt, if needed, do so.
 			if( rank < rip->r_cur->rank() ) {
 				rip->dprintf( D_ALWAYS, 
-				  "Preempting match doesn't have sufficient rank, refusing.\n" );
+				  "Preempting claim doesn't have sufficient rank, refusing.\n" );
 				cmd = NOT_OK;
 			} else {
 				rip->dprintf( D_ALWAYS, 
-				  "New match has sufficient rank, preempting current match.\n" );
+				  "New claim has sufficient rank, preempting current claim.\n" );
 
 					// We're going to preempt.  Save everything we
 					// need to know into r_pre.
@@ -724,7 +724,7 @@ accept_request_claim( Resource* rip )
 	char RemoteOwner[512];
 	RemoteOwner[0] = '\0';
 
-		// There should not be a pre match object now.
+		// There should not be a pre claim object now.
 	assert( rip->r_pre == NULL );
 
 	Stream* stream = rip->r_cur->agentstream();
@@ -1032,7 +1032,7 @@ activate_claim( Resource* rip, Stream* stream )
 	int now = (int)time( NULL );
 
 		// now that we've gotten this far, we're really going to try
-		// to spawn the starter.  set it in our Match object. 
+		// to spawn the starter.  set it in our Claim object. 
 	rip->r_cur->setStarter( tmp_starter );
 
 		// Actually spawn the starter
@@ -1043,7 +1043,7 @@ activate_claim( Resource* rip, Stream* stream )
 		ABORT;
 	}
 		// Get a bunch of info out of the request ad that is now
-		// relevant, and store it in the machine ad and cur Match object
+		// relevant, and store it in the machine ad and cur Claim object
 
 	req_classad->EvalInteger( ATTR_CLUSTER_ID, req_classad, job_cluster );
 	req_classad->EvalInteger( ATTR_PROC_ID, req_classad, job_proc );
@@ -1102,13 +1102,13 @@ match_info( Resource* rip, char* cap )
 	case claimed_state:
 		if( rip->r_cur->cap()->matches(cap) ) {
 				// The capability we got matches the one for the
-				// current match, and we're already claimed.  There's
+				// current claim, and we're already claimed.  There's
 				// nothing to do here.
 			rval = TRUE;
 		} else if( rip->r_pre && rip->r_pre->cap()->matches(cap) ) {
 				// The capability we got matches the preempting
 				// capability we've been advertising.  Advertise
-				// ourself as unavailable for future matches, update
+				// ourself as unavailable for future claims, update
 				// the CM, and set the timer for this match.
 			rip->r_reqexp->unavail();
 			rip->update();
@@ -1139,8 +1139,8 @@ match_info( Resource* rip, char* cap )
 			rval = TRUE;
 		} else {
 			rip->dprintf( D_ALWAYS, 
-					 "Capability from negotiator (%s) doesn't match.\n",  
-					 cap );			
+						  "Invalid capability from negotiator (%s)\n",  
+						  cap );			
 			rval = FALSE;
 		}
 		break;

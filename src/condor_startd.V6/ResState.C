@@ -330,11 +330,11 @@ ResState::enter_action( State s, Activity a,
 {
 	switch( s ) {
 	case owner_state:
-			// Always want to create new match objects
+			// Always want to create new claim objects
 		if( rip->r_cur ) {
 			delete( rip->r_cur );
 		}
-		rip->r_cur = new Match( rip );
+		rip->r_cur = new Claim( rip );
 		if( rip->r_pre ) {
 			delete rip->r_pre;
 			rip->r_pre = NULL;
@@ -354,8 +354,8 @@ ResState::enter_action( State s, Activity a,
 			rip->r_cur->start_claim_timer();	
 				// Update important attributes into the classad.
 			rip->r_cur->publish( rip->r_classad, A_PUBLIC );
-				// Generate a preempting match object
-			rip->r_pre = new Match( rip );
+				// Generate a preempting claim object
+			rip->r_pre = new Claim( rip );
 		}
 		if( a == suspended_act ) {
 			if( ! rip->r_cur->suspendClaim() ) {
@@ -382,7 +382,7 @@ ResState::enter_action( State s, Activity a,
 		rip->r_reqexp->unavail();
 		switch( a ) {
 		case killing_act:
-			if( rip->matchIsActive() ) {
+			if( rip->claimIsActive() ) {
 				if( ! rip->r_cur->starterKillHard() ) {
 						// starterKillHard returns FALSE if there was
 						// an error in kill and we had to send SIGKILL
@@ -398,7 +398,7 @@ ResState::enter_action( State s, Activity a,
 			break;
 
 		case vacating_act:
-			if( rip->matchIsActive() ) {
+			if( rip->claimIsActive() ) {
 				if( ! rip->r_cur->starterKillSoft() ) {
 					rip->r_cur->starterKillPg( SIGKILL );
 					dprintf( D_ALWAYS,

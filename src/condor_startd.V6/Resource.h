@@ -26,7 +26,7 @@
 #include "ResAttributes.h"
 #include "ResState.h"
 #include "Starter.h"
-#include "Match.h"
+#include "claim.h"
 #include "Reqexp.h"
 #include "LoadQueue.h"
 #include "AvailStats.h"
@@ -93,18 +93,18 @@ public:
 	void	log_ignore( int cmd, State s, Activity a );
 	void	log_shutdown_ignore( int cmd );
 
-		// Return a pointer to the Match object whose starter has the
+		// Return a pointer to the Claim object whose starter has the
 		// given pid.  
-	Match*	findMatchByPid( pid_t starter_pid );
+	Claim*	findClaimByPid( pid_t starter_pid );
 
-	bool	matchIsActive( void ); 
+	bool	claimIsActive( void ); 
 
-		// Called when the starter of one of our matches exits
-	void	starterExited( Match* cur_match );	
+		// Called when the starter of one of our claims exits
+	void	starterExited( Claim* cur_claim );	
 
 		// Since the preempting state is so weird, and when we want to
 		// leave it, we need to decide where we want to go, and we
-		// have to do lots of funky twiddling with our match objects,
+		// have to do lots of funky twiddling with our claim objects,
 		// we put all the actions and logic in one place that gets
 		// called whenever we're finally ready to leave the preempting
 		// state. 
@@ -136,8 +136,8 @@ public:
 		// Data members
 	ResState*		r_state;	// Startd state object, contains state and activity
 	ClassAd*		r_classad;	// Resource classad (contains everything in config file)
-	Match*			r_cur;		// Info about the current match
-	Match*			r_pre;		// Info about the possibly preempting match
+	Claim*			r_cur;		// Info about the current claim
+	Claim*			r_pre;		// Info about the possibly preempting claim
 	Reqexp*			r_reqexp;   // Object for the requirements expression
 	CpuAttributes*	r_attr;		// Attributes of this resource
 	LoadQueue*		r_load_queue;  // Holds 1 minute avg % cpu usage

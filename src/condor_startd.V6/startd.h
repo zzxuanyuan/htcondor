@@ -60,7 +60,7 @@ class Resource;
 #include "LoadQueue.h"
 #include "ResAttributes.h"
 #include "AvailStats.h"
-#include "Match.h"
+#include "claim.h"
 #include "Starter.h"
 #include "Reqexp.h"
 #include "ResState.h"

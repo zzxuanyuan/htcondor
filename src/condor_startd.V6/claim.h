@@ -23,15 +23,15 @@
 /*  
 	This file defines the following classes:
 
-	Match, Capability, and Client
+	Claim, Capability, and Client
 
-	A Match object contains all of the information a startd needs
-    about a given match, such as the capability, the client of this
-    match, etc.  The capability in the match is just a pointer to a
+	A Claim object contains all of the information a startd needs
+    about a given claim, such as the capability, the client of this
+    claim, etc.  The capability in the claim is just a pointer to a
     Capability object.  The client is also just a pointer to a Client
-    object.  The startd maintains two Match objects in the "rip", the
-    per-resource information structure.  One for the current match,
-    and one for the possibly preempting match that is pending.
+    object.  The startd maintains two Claim objects in the "rip", the
+    per-resource information structure.  One for the current claim,
+    and one for the possibly preempting claim that is pending.
  
 	A Capability object contains the capability string, and some
 	functions to manipulate and compare against this string.  The
@@ -43,23 +43,27 @@
 	address ("<www.xxx.yyy.zzz:pppp>" formed ip/port), and the
 	hostname.
 
-	Written 9/29/97 by Derek Wright <wright@cs.wisc.edu> 
+	Originally written 9/29/97 by Derek Wright <wright@cs.wisc.edu> 
+
+	Decided the Match object should really be called "Claim" (the
+	files were renamed in cvs from Match.[Ch] to claim.[Ch], and
+	renamed everything on 1/10/03 - Derek Wright
 */
 
-#ifndef _MATCH_H
-#define _MATCH_H
+#ifndef _CLAIM_H
+#define _CLAIM_H
 
 #include "Starter.h"
 
 typedef enum {
-    MATCH_UNCLAIMED,
-    MATCH_IDLE,
-    MATCH_RUNNING,
-    MATCH_SUSPENDED,
-    MATCH_PREEMPTING,
-    MATCH_KILLING,
-    _MATCH_STATE_threshold
-} MatchState;
+    CLAIM_UNCLAIMED,
+    CLAIM_IDLE,
+    CLAIM_RUNNING,
+    CLAIM_SUSPENDED,
+    CLAIM_PREEMPTING,
+    CLAIM_KILLING,
+    _CLAIM_STATE_threshold
+} ClaimState;
 
 
 class Capability
@@ -69,8 +73,8 @@ public:
 	~Capability();
 
 	char*	capab() {return c_capab;};
-	int		matches(char* capab);	// Return 1 if given capab matches
-									// current, 0 if not.
+	int		matches(char* capab);
+
 private:
 	char*	c_capab;	// capability string
 };
@@ -93,7 +97,7 @@ public:
 	void	setaddr(char* addr);
 	void	sethost(char* host);
 
-		// send a message to the client and accountant that the match
+		// send a message to the client and accountant that the claim
 		// is a being vacated
 	void	vacate(char* cap);
 private:
@@ -104,15 +108,15 @@ private:
 };
 
 
-class Match : public Service
+class Claim : public Service
 {
 public:
-	Match( Resource* );
-	~Match();
+	Claim( Resource* );
+	~Claim();
 
-		// Operations you can perform on a Match
-	void vacate();	// Send a vacate command to the client of this match
-	void alive();	// Process a keep alive for this match
+		// Operations you can perform on a Claim
+	void vacate();	// Send a vacate command to the client of this claim
+	void alive();	// Process a keep alive for this claim
 
 	void publish( ClassAd*, amask_t );
 
@@ -130,36 +134,36 @@ public:
 								// keep alive in time from the schedd
 
 		// Functions that return data
-	float		rank()			{return m_rank;};
-	float		oldrank()		{return m_oldrank;};
+	float		rank()			{return c_rank;};
+	float		oldrank()		{return c_oldrank;};
 	char*		capab();
-	Client* 	client() 		{return m_client;};
-	Capability* cap()			{return m_cap;};
-	ClassAd*	ad() 			{return m_ad;};
-	int			universe()		{return m_universe;};
-	Stream*		agentstream()	{return m_agentstream;};
-	int			cluster()		{return m_cluster;};
-	int			proc()			{return m_proc;};
-	int			job_start() 	{return m_job_start;};
-	int			last_pckpt() 	{return m_last_pckpt;};
-	int			getaliveint()	{return m_aliveint;};
-	MatchState	state()			{return m_state;};
+	Client* 	client() 		{return c_client;};
+	Capability* cap()			{return c_cap;};
+	ClassAd*	ad() 			{return c_ad;};
+	int			universe()		{return c_universe;};
+	Stream*		agentstream()	{return c_agentstream;};
+	int			cluster()		{return c_cluster;};
+	int			proc()			{return c_proc;};
+	int			job_start() 	{return c_job_start;};
+	int			last_pckpt() 	{return c_last_pckpt;};
+	int			getaliveint()	{return c_aliveint;};
+	ClaimState	state()			{return c_state;};
 	float		percentCpuUsage( void );
 	unsigned long	imageSize( void );
 	
 
 		// Functions that set the values of data
-	void setrank(float rank)	{m_rank=rank;};
-	void setoldrank(float rank) {m_oldrank=rank;};
+	void setrank(float rank)	{c_rank=rank;};
+	void setoldrank(float rank) {c_oldrank=rank;};
 	void setad(ClassAd *ad);		// Set our ad to the given pointer
 	void deletead(void);
-	void setuniverse(int universe)	{m_universe=universe;};
+	void setuniverse(int universe)	{c_universe=universe;};
 	void setagentstream(Stream* stream);	
-	void setaliveint(int alive)		{m_aliveint=alive;};
-	void setproc(int proc) 			{m_proc=proc;};
-	void setcluster(int cluster)	{m_cluster=cluster;};
-	void setlastpckpt(int lastckpt) {m_last_pckpt=lastckpt;};
-	void setjobstart(int jobstart) 	{m_job_start=jobstart;};
+	void setaliveint(int alive)		{c_aliveint=alive;};
+	void setproc(int proc) 			{c_proc=proc;};
+	void setcluster(int cluster)	{c_cluster=cluster;};
+	void setlastpckpt(int lastckpt) {c_last_pckpt=lastckpt;};
+	void setjobstart(int jobstart) 	{c_job_start=jobstart;};
 
 		// starter-related functions
 	int	 spawnStarter( start_info_t*, time_t );
@@ -180,36 +184,36 @@ public:
 	bool periodicCheckpoint( void );
 
 private:
-	Resource	*m_rip;
-	Client 		*m_client;
-	Capability 	*m_cap;
-	ClassAd*	m_ad;
-	Starter*	m_starter;
-	float		m_rank;
-	float		m_oldrank;
-	int			m_universe;
-	int			m_proc;
-	int			m_cluster;
-	int			m_job_start;
-	int			m_last_pckpt;
-	Stream*		m_agentstream;	// cedar sock that the schedd agent is
+	Resource	*c_rip;
+	Client 		*c_client;
+	Capability 	*c_cap;
+	ClassAd*	c_ad;
+	Starter*	c_starter;
+	float		c_rank;
+	float		c_oldrank;
+	int			c_universe;
+	int			c_proc;
+	int			c_cluster;
+	int			c_job_start;
+	int			c_last_pckpt;
+	Stream*		c_agentstream;	// cedar sock that the schedd agent is
 								// waiting for a response on
 
-	int			m_match_tid;	// DaemonCore timer id for this
+	int			c_match_tid;	// DaemonCore timer id for this
 								// match.  If we're matched but not
 								// claimed within 5 minutes, throw out
 								// the match.
-	int			m_claim_tid;	// DeamonCore timer id for this
+	int			c_claim_tid;	// DeamonCore timer id for this
 								// claim.  If we don't get a keep
 								// alive in 3 alive intervals, the
 								// schedd has died and we need to
 								// release the claim.
-	int			m_aliveint;		// Alive interval for this match
+	int			c_aliveint;		// Alive interval for this claim
 
-	MatchState	m_state;		// the state of this match
+	ClaimState	c_state;		// the state of this claim
 
 };
 
 
-#endif /* _MATCH_H */
+#endif /* _CLAIM_H */
 
