@@ -213,7 +213,7 @@ class Scheduler : public Service
 	void			send_all_jobs_prioritized(ReliSock*, struct sockaddr_in*);
 	friend	int		count(ClassAd *);
 	friend	void	job_prio(ClassAd *);
-	friend  int		find_idle_sched_universe_jobs(ClassAd *);
+	friend  int		find_idle_local_jobs(ClassAd *);
 	void			display_shadow_recs();
 	int				actOnJobs(int, Stream *);
 	int				spoolJobFiles(int, Stream *);
@@ -230,7 +230,7 @@ class Scheduler : public Service
 	void			RemoveShadowRecFromMrec(shadow_rec*);
 	int				AlreadyMatched(PROC_ID*);
 	void			StartJobs();
-	void			StartSchedUniverseJobs();
+	void			StartLocalJobs();
 	void			sendAlives();
 	void			RecomputeAliveInterval(int cluster, int proc);
 	void			StartJobHandler();
@@ -346,6 +346,8 @@ private:
 	int				JobsRemoved;
 	int				SchedUniverseJobsIdle;
 	int				SchedUniverseJobsRunning;
+	int				LocalUniverseJobsIdle;
+	int				LocalUniverseJobsRunning;
 	int				BadCluster;
 	int				BadProc;
 	//int				RejectedClusters[MAX_REJECTED_CLUSTERS];
@@ -420,6 +422,10 @@ private:
 	shadow_rec*		start_std(match_rec*, PROC_ID*);
 	shadow_rec*		start_pvm(match_rec*, PROC_ID*);
 	shadow_rec*		start_sched_universe_job(PROC_ID*);
+	shadow_rec*		start_local_universe_job(PROC_ID*);
+	int				spawnJobHandler( PROC_ID*, const char* path,
+									 const char* args, const char* name, 
+									 bool is_dc, bool wants_pipe );
 	void			Relinquish(match_rec*);
 	void			check_zombie(int, PROC_ID*);
 	void			kill_zombie(int, PROC_ID*);
