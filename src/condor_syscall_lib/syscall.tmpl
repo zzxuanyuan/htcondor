@@ -245,6 +245,8 @@ an underscore remap in the appropriate switches.REMAP.
 		int ioctl( int fd, int cmd, ... ) : file_table;
 	#endif
 
+	int pipe( int fd[] ) : EXTRACT, file_table;
+
 	/* Sync must go through the table to flush the buffer cache.
 	Systems that don't have SYS_fsync still need the sender, so we provide
 	no_sys_chk for the sender only. */
@@ -577,10 +579,6 @@ in the clipped version.
 #endif	/* not SWITCH and not CLIP */
 
 #if !defined(SWITCH)
-	int register_afs_cell( const char *cell ) : pseudo {
-		SEND_PATH( cell );
-		ALLOC_PATH( cell );
-	}
 	int register_fs_domain( const char *domain ) : pseudo {
 		SEND_PATH( domain );
 		ALLOC_PATH( domain );
@@ -716,7 +714,11 @@ int rename( const char *from, const char *to ) : pseudo {
 		out code( use_p );
 		alloc( use_p, RUSAGE_SIZE );
 	}
-	int perm_error( const char *msg ) : pseudo {
+	int report_error( const char *msg ) : pseudo {
+		in code( msg );
+		alloc( msg, MAX_STRING );
+	}
+	int report_info( const char *msg ) : pseudo {
 		in code( msg );
 		alloc( msg, MAX_STRING );
 	}
@@ -925,6 +927,15 @@ int rename( const char *from, const char *to ) : pseudo {
 		out code_bytes_bool( address, address_len );
 		alloc( address, address_len );
 	}
+
+	int uname ( struct utsname *info ) {
+		out code( info );
+		alloc( info, UTSNAME_SIZE );
+	}
+
+	int nuname ( struct utsname *info )
+		: sender_name(uname), local_name(uname);
+
 	int getdtablesize();
 
 	not_supported {
@@ -947,6 +958,7 @@ int rename( const char *from, const char *to ) : pseudo {
 		alloc( tp, TIMEVAL_SIZE );
 		alloc( tzp, TIMEZONE_SIZE );
 	}
+
 #if !defined(LINUX)
 		int lchown( const char *path, uid_t owner, gid_t group ) {
 			SEND_PATH( path );
@@ -1244,7 +1256,6 @@ not_supported {
 	/* Calls having to do with multiple process jobs */
 not_supported {
 	pid_t fork() : EXTRACT;
-	int pipe( int fd[] ) : EXTRACT;
 	/* Other fork()-like calls */
 #if defined(LINUX)
 	pid_t clone(void *sp, unsigned long flags);

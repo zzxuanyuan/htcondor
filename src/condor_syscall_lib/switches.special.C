@@ -158,134 +158,73 @@ int getrusage( int who, struct rusage *rusage )
 }
 
 /*
-All reads must pass through the buffer when mapped,
-so all calls to readv/writev must be converted into reads/writes.
-The only exception is local/unmapped.
+We don't handle readv directly in ANY case.  Split up the read
+and pass it through the regular read mechanism to take advantage
+of whatever magic is implemented there.
 */
 
-#if defined(HPUX9) || (defined(LINUX) && !defined(GLIBC))
+#if defined(HPUX9) || defined(LINUX) 
 ssize_t readv( int fd, const struct iovec *iov, size_t iovcnt )
-#elif defined(IRIX62) || defined(OSF1)|| defined(HPUX10) || defined(Solaris26) || (defined(LINUX)&&defined(GLIBC))
+#elif defined(IRIX) || defined(OSF1)|| defined(HPUX10) || defined(Solaris26)
 ssize_t readv( int fd, const struct iovec *iov, int iovcnt )
 #else
 int readv( int fd, struct iovec *iov, int iovcnt )
 #endif
 {
-	int rval;
+        int i, rval = 0, cc;
 
-	if( LocalSysCalls() && !MappingFileDescriptors() ) {
-		rval = syscall( SYS_readv, fd, iov, iovcnt );
-	} else {
-		rval = fake_readv( fd, iov, iovcnt );
-	}
+        for( i = 0; i < iovcnt; i++ ) {
+                cc = read( fd, iov->iov_base, iov->iov_len );
+                if( cc < 0 ) return cc;
+                rval += cc;
+                if( cc != iov->iov_len ) return rval;
+                iov++;
+        }
 
-	return rval;
+        return rval;
 }
 
-static int fake_readv( int fd, const struct iovec *iov, int iovcnt )
-{
-	register int i, rval = 0, cc;
+/*
+We don't handle writev directly in ANY case.  Split up the write
+and pass it through the regular write mechanism to take advantage
+of whatever magic is implemented there.
+*/
 
-	for( i = 0; i < iovcnt; i++ ) {
-		cc = read( fd, iov->iov_base, iov->iov_len );
-		if( cc < 0 ) {
-			return cc;
-		}
-
-		rval += cc;
-		if( cc != iov->iov_len ) {
-			return rval;
-		}
-
-		iov++;
-	}
-
-	return rval;
-}
-
-/* See comment above about readv */
-
-#if defined(HPUX9) || (defined(LINUX)&&!defined(GLIBC))
+#if defined(HPUX9) || defined(LINUX) 
 ssize_t writev( int fd, const struct iovec *iov, size_t iovcnt )
-#elif defined(Solaris) || defined(IRIX62) || defined(OSF1) || defined(HPUX10) || (defined(LINUX)&&defined(GLIBC))
+#elif defined(Solaris) || defined(IRIX) || defined(OSF1) || defined(HPUX10)
 ssize_t writev( int fd, const struct iovec *iov, int iovcnt )
 #else
 int writev( int fd, struct iovec *iov, int iovcnt )
 #endif
 {
-	int rval;
+        int i, rval = 0, cc;
 
-	if( LocalSysCalls() && !MappingFileDescriptors() ) {
-		rval = syscall( SYS_writev, fd, iov, iovcnt );
-	} else {
-		rval = fake_writev( fd, iov, iovcnt );
-	}
+        for( i = 0; i < iovcnt; i++ ) {
+                cc = write( fd, iov->iov_base, iov->iov_len );
+                if( cc < 0 ) return cc;
+                rval += cc;
+                if( cc != iov->iov_len ) return rval;
+                iov++;
+        }
 
-	return rval;
+        return rval;
 }
-static int fake_writev( int fd, const struct iovec *iov, int iovcnt )
+
+/* Kernel readv and writev for AIX */
+
+#ifdef AIX32
+
+int kwritev( int fd, struct iovec *iov, int iovcnt, int ext )
 {
-	register int i, rval = 0, cc;
-
-	for( i = 0; i < iovcnt; i++ ) {
-		cc = write( fd, iov->iov_base, iov->iov_len );
-		if( cc < 0 ) {
-			return cc;
-		}
-
-		rval += cc;
-		if( cc != iov->iov_len ) {
-			return rval;
-		}
-
-		iov++;
-	}
-
-	return rval;
+        return writev(fd,iov,iovcnt);
 }
 
-#if defined(AIX32)
-	int
-	kwritev( int fd, struct iovec *iov, int iovcnt, int ext )
-	{
-		int rval;
-		int user_fd;
+int kreadv( int fd, struct iovec *iov, int iovcnt, int ext )
+{
+        return readv(fd,iov,iovcnt);
+}
 
-		if( ext != 0 ) {
-			errno = ENOSYS;
-			return -1;
-		}
-
-		if( LocalSysCalls() && !MappingFileDescriptors() ) {
-			rval = syscall( SYS_kwritev, user_fd, iov, iovcnt );
-		} else {
-			rval = fake_writev( user_fd, iov, iovcnt );
-		}
-
-		return rval;
-	}
-#endif
-
-#if defined(AIX32)
-	int
-	kreadv( int fd, struct iovec *iov, int iovcnt, int ext )
-	{
-		int rval;
-		int user_fd;
-
-		if( ext != 0 ) {
-			errno = ENOSYS;
-			return -1;
-		}
-
-		if( LocalSysCalls() && !MappingFileDescriptors() ) {
-			rval = syscall( SYS_kreadv, user_fd, iov, iovcnt );
-		} else {
-			rval = fake_readv( user_fd, iov, iovcnt );
-		}
-
-		return rval;
-	}
 #endif
 
 /* fork() and sigaction() are not in fork.o or sigaction.o on Solaris 2.5

@@ -15,6 +15,7 @@
 
 #if defined(LINUX) || defined(Solaris)
 #define CONDOR_KILLS_STAT_DEFINITIONS
+#define CONDOR_KILLS_UNAME_DEFINITIONS
 #endif
 
 #include "condor_common.h"
@@ -23,11 +24,11 @@
 
 #include "condor_syscall_mode.h"
 #include "file_table_interf.h"
+
 #include "../condor_ckpt/file_state.h"
+#include "../condor_ckpt/signals_control.h"
 
 extern "C" int errno;
-extern "C" sigset_t block_condor_signals();
-extern "C" void restore_condor_sigmask(sigset_t);
 
 #if defined(DL_EXTRACT)
 	#include <dlfcn.h>	/* dlopen and dlsym */

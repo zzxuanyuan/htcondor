@@ -234,8 +234,8 @@
 	}
 #endif 
 
-	/* defined in local_startup.c and remote_startup.c */
-	restore_condor_sigmask(omask);
+	/* defined in signals_support.c */
+	_condor_signals_enable(omask);
 
 	SetSyscalls( scm );
 	return rval;

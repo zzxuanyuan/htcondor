@@ -19,6 +19,7 @@
 #include "condor_mmap.h"
 #include "startup.h"
 #include "pseudo_ops.h"
+#include "../condor_shadow.V6/job_report.h"
 
 #if defined(Solaris)
 extern "C" {
@@ -79,6 +80,9 @@ do_REMOTE_syscall()
 		"Got request for syscall %d <%s>\n",
 		condor_sysnum, _condor_syscall_name(condor_sysnum)
 	);
+
+	job_report_add_call( condor_sysnum );
+
 	switch( condor_sysnum ) {
 #else
 

@@ -112,7 +112,8 @@ REMAP_FOUR( statfs, _statfs, int , char *, struct statfs *, int, int )
 REMAP_TWO( symlink, _symlink, int , const char *, const char *)
 REMAP_ZERO_VOID( sync, _sync, void )
 REMAP_ONE( umask, _umask, unsigned long , unsigned long )
-/* REMAP_ONE( uname, _uname, int , struct utsname *) */
+REMAP_ONE( uname, _uname, int , struct utsname *)
+REMAP_ONE( nuname, _nuname, int , struct utsname *)
 REMAP_ONE( unlink, _unlink, int , const char *)
 /* REMAP_TWO( utimes, _utimes, int , const char *, struct timeval []) */
 REMAP_TWO( utimes, _utimes, int , const char *, struct timeval *)
