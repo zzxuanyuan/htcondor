@@ -204,7 +204,7 @@ DCStartd::activateClaim( ClassAd* job_ad, int starter_version,
 
 bool
 DCStartd::requestClaim( ClaimType type, const ClassAd* req_ad, 
-						ClassAd* reply )
+						ClassAd* reply, int timeout )
 {
 	setCmdStr( "requestClaim" );
 
@@ -232,12 +232,13 @@ DCStartd::requestClaim( ClaimType type, const ClassAd* req_ad,
 	sprintf( buf, "%s = \"%s\"", ATTR_CLAIM_TYPE, getClaimTypeString(type) );
 	req.Insert( buf );
 
-	return sendCACmd( &req, reply, true );
+	return sendCACmd( &req, reply, true, timeout );
 }
 
 
 bool
-DCStartd::activateClaim( const ClassAd* job_ad, ClassAd* reply )
+DCStartd::activateClaim( const ClassAd* job_ad, ClassAd* reply, 
+						 int timeout ) 
 {
 	setCmdStr( "activateClaim" );
 	if( ! checkClaimId() ) {
@@ -254,12 +255,12 @@ DCStartd::activateClaim( const ClassAd* job_ad, ClassAd* reply )
 	sprintf( buf, "%s = \"%s\"", ATTR_CLAIM_ID, claim_id );
 	req.Insert( buf );
 
-	return sendCACmd( &req, reply, true );
+	return sendCACmd( &req, reply, true, timeout );
 }
 
 
 bool
-DCStartd::suspendClaim( ClassAd* reply )
+DCStartd::suspendClaim( ClassAd* reply, int timeout )
 {
 	setCmdStr( "suspendClaim" );
 	if( ! checkClaimId() ) {
@@ -277,12 +278,12 @@ DCStartd::suspendClaim( ClassAd* reply )
 	sprintf( buf, "%s = \"%s\"", ATTR_CLAIM_ID, claim_id );
 	req.Insert( buf );
 
-	return sendCACmd( &req, reply, true );
+	return sendCACmd( &req, reply, true, timeout );
 }
 
 
 bool
-DCStartd::resumeClaim( ClassAd* reply )
+DCStartd::resumeClaim( ClassAd* reply, int timeout )
 {
 	setCmdStr( "resumeClaim" );
 	if( ! checkClaimId() ) {
@@ -300,12 +301,13 @@ DCStartd::resumeClaim( ClassAd* reply )
 	sprintf( buf, "%s = \"%s\"", ATTR_CLAIM_ID, claim_id );
 	req.Insert( buf );
 
-	return sendCACmd( &req, reply, true );
+	return sendCACmd( &req, reply, true, timeout );
 }
 
 
 bool
-DCStartd::deactivateClaim( VacateType type, ClassAd* reply )
+DCStartd::deactivateClaim( VacateType type, ClassAd* reply,
+						   int timeout )
 {
 	setCmdStr( "deactivateClaim" );
 	if( ! checkClaimId() ) {
@@ -330,12 +332,20 @@ DCStartd::deactivateClaim( VacateType type, ClassAd* reply )
 			 getVacateTypeString(type) ); 
 	req.Insert( buf );
 
-	return sendCACmd( &req, reply, true );
+ 		// since deactivate could take a while, if we didn't already
+		// get told what timeout to use, set the timeout to 0 so we
+ 		// don't bail out prematurely...
+	if( timeout < 0 ) {
+		return sendCACmd( &req, reply, true, 0 );
+	} else {
+		return sendCACmd( &req, reply, true, timeout );
+	}
 }
 
 
 bool
-DCStartd::releaseClaim( VacateType type, ClassAd* reply )
+DCStartd::releaseClaim( VacateType type, ClassAd* reply, 
+						int timeout ) 
 {
 	setCmdStr( "releaseClaim" );
 	if( ! checkClaimId() ) {
@@ -360,10 +370,15 @@ DCStartd::releaseClaim( VacateType type, ClassAd* reply )
 			 getVacateTypeString(type) );
 	req.Insert( buf );
 
-	return sendCACmd( &req, reply, true );
+ 		// since release could take a while, if we didn't already get
+		// told what timeout to use, set the timeout to 0 so we don't
+		// bail out prematurely...
+	if( timeout < 0 ) {
+		return sendCACmd( &req, reply, true, 0 );
+	} else {
+		return sendCACmd( &req, reply, true, timeout );
+	}
 }
-
-
 
 
 bool

@@ -89,19 +89,21 @@ public:
 
 		// Generic ClassAd-only protocol for managing claims
 
-	bool requestClaim( ClaimType type, const ClassAd* req_ad, 
-					   ClassAd* reply );
+	bool requestClaim( ClaimType type, const ClassAd* req_ad,
+					   ClassAd* reply, int timeout = -1 );
 
-	bool activateClaim( const ClassAd* job_ad, ClassAd* reply );
+	bool activateClaim( const ClassAd* job_ad, ClassAd* reply,
+						int timeout = -1 );
 
-	bool suspendClaim( ClassAd* reply );
+	bool suspendClaim( ClassAd* reply, int timeout = -1 );
 
-	bool resumeClaim( ClassAd* reply );
+	bool resumeClaim( ClassAd* reply, int timeout = -1 );
 
-	bool deactivateClaim( VacateType type, ClassAd* reply );
+	bool deactivateClaim( VacateType type, ClassAd* reply,
+						  int timeout = -1 );
 
-	bool releaseClaim( VacateType type, ClassAd* reply );
-
+	bool releaseClaim( VacateType type, ClassAd* reply,
+					   int timeout = -1 );
 
  private:
 	char* claim_id;
