@@ -60,11 +60,18 @@ Claim::Claim( Resource* rip, bool is_cod )
 	c_state = CLAIM_UNCLAIMED;
 	c_is_cod = is_cod;
 	c_pending_cmd = -1;
+	c_wants_remove = false;
 }
 
 
 Claim::~Claim()
 {	
+	if( c_is_cod ) {
+		dprintf( D_FULLDEBUG, "Deleted claim %s (owner '%s')\n", 
+				 c_cap->id(), 
+				 c_client->owner() ? c_client->owner() : "unknown" );  
+	}
+
 		// Cancel any timers associated with this claim
 	this->cancel_match_timer();
 	this->cancel_claim_timer();
@@ -604,14 +611,36 @@ Claim::isDeactivating( void )
 bool
 Claim::isActive( void )
 {
-	if( c_starter && c_starter->active() ) {
-			// TODO 
-			// this assert is wrong, since we could be preempting or
-			// killing, too.  i need to figure out if we should say
-			// the claim is active if we're trying to deactivate it or
-			// not...
-			// ASSERT( c_state == CLAIM_RUNNING || c_state == CLAIM_SUSPENDED );
+	switch( c_state ) {
+	case CLAIM_RUNNING:
+	case CLAIM_SUSPENDED:
+	case CLAIM_VACATING:
+	case CLAIM_KILLING:
 		return true;
+		break;
+	case CLAIM_IDLE:
+	case CLAIM_UNCLAIMED:
+		return false;
+		break;
+	}
+	return false;
+}
+
+
+bool
+Claim::isRunning( void )
+{
+	switch( c_state ) {
+	case CLAIM_RUNNING:
+	case CLAIM_VACATING:
+	case CLAIM_KILLING:
+		return true;
+		break;
+	case CLAIM_SUSPENDED:
+	case CLAIM_IDLE:
+	case CLAIM_UNCLAIMED:
+		return false;
+		break;
 	}
 	return false;
 }
@@ -621,15 +650,33 @@ bool
 Claim::deactivateClaim( bool graceful )
 {
 	if( isActive() ) {
-			// Singal the starter
 		if( graceful ) {
-			c_state = CLAIM_VACATING;
 			return starterKillSoft();
 		} else {
-			c_state = CLAIM_KILLING;
 			return starterKillHard();
 		}
 	}
+		// not active, so nothing to do
+	return true;
+}
+
+
+bool
+Claim::removeClaim( bool graceful )
+{
+	if( isActive() ) {
+		c_wants_remove = true;
+		if( graceful ) {
+			starterKillSoft();
+		} else {
+			starterKillHard();
+		}
+		dprintf( D_FULLDEBUG, "Removing active claim %s "
+				 "(waiting for starter pid %d to exit)\n", id(), 
+				 c_starter->pid() );
+		return false;
+	}
+	dprintf( D_FULLDEBUG, "Removing inactive claim %s\n", id() );
 	return true;
 }
 
@@ -755,13 +802,6 @@ Claim::setPendingCmd( int cmd )
 }
 
 
-bool
-Claim::hasPendingCmd( void )
-{ 
-	return c_pending_cmd != -1;
-}
-
-
 int
 Claim::finishPendingCmd( void )
 {
@@ -770,10 +810,10 @@ Claim::finishPendingCmd( void )
 		return FALSE;
 		break;
 	case CA_RELEASE_CLAIM:
-		return finishRelease();
+		return finishReleaseCmd();
 		break;
 	case CA_DEACTIVATE_CLAIM:
-		return finishDeactivate();
+		return finishDeactivateCmd();
 		break;
 	default:
 		EXCEPT( "Claim::finishPendingCmd called with unknown cmd: %s (%d)",
@@ -785,7 +825,7 @@ Claim::finishPendingCmd( void )
 
 
 int
-Claim::finishRelease( void )
+Claim::finishReleaseCmd( void )
 {
 	ClassAd reply;
 	MyString line;
@@ -818,8 +858,7 @@ Claim::finishRelease( void )
 	dprintf( D_ALWAYS, "Finished releasing claim %s (owner: '%s')\n", 
 			 id(), client()->owner() );  
 
-		// finally, we have to remove this claim from the CODMgr
-	c_rip->r_cod_mgr->removeClaim( this );
+	c_rip->removeClaim( this );
 
 		// THIS OBJECT IS NOW DELETED, WE CAN *ONLY* RETURN NOW!!!
 	return rval;
@@ -827,7 +866,7 @@ Claim::finishRelease( void )
 
 
 int
-Claim::finishDeactivate( void )
+Claim::finishDeactivateCmd( void )
 {
 	ClassAd reply;
 	MyString line;
@@ -880,7 +919,6 @@ Claim::resetClaim( void )
 	c_proc = -1;
 	c_job_start = -1;
 }
-
 
 
 ///////////////////////////////////////////////////////////////////////////

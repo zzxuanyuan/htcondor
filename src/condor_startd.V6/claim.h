@@ -162,6 +162,9 @@ public:
 	float		percentCpuUsage( void );
 	unsigned long	imageSize( void );
 	CODMgr*		getCODMgr( void );
+	bool		hasPendingCmd() {return c_pending_cmd != -1;};
+	int  		pendingCmd()	{return c_pending_cmd;};
+	bool		wantsRemove()	{return c_wants_remove;};
 
 		// Functions that set the values of data
 	void setrank(float rank)	{c_rank=rank;};
@@ -177,6 +180,7 @@ public:
 	bool starterPidMatches( pid_t starter_pid );
 	bool isDeactivating( void );
 	bool isActive( void );
+	bool isRunning( void );	
 	bool deactivateClaim( bool graceful );
 	bool suspendClaim( void );
 	bool resumeClaim( void );
@@ -189,9 +193,15 @@ public:
 
 	bool ownerMatches( const char* owner );
 
-	bool setPendingCmd( int cmd );
-	bool hasPendingCmd( void );
+		/**
+		   Remove this claim
+		   @param graceful Gracefully release or quickly kill?
+		   @return true if the claim is gone, 
+		           false if we're waiting for the starter to exit
+		*/
+	bool removeClaim( bool graceful );
 
+	bool setPendingCmd( int cmd );
 	int	 finishPendingCmd( void );
 
 private:
@@ -225,11 +235,12 @@ private:
 	ClaimState	c_state;		// the state of this claim
 	ClaimState	c_last_state;	// the state when a release was requested
 	int			c_pending_cmd;	// the pending command, or -1 if none
+	bool		c_wants_remove;	// are we trying to remove this claim?
 
 
 		// Helper methods
-	int  finishRelease( void );
-	int  finishDeactivate( void );
+	int  finishReleaseCmd( void );
+	int  finishDeactivateCmd( void );
 
 		/** Once the starter exits and the claim is no longer active,
 			reset it by clearing out all the activation-specific data
