@@ -40,11 +40,13 @@ public:
 
 		/** Constructor 
 			@param classad_filename Full path to the ClassAd, "-" if STDIN
-			@cluster Cluster ID number (if any)
-			@proc Proc ID number (if any)
-			@subproc Subproc ID number (if any)
+			@param schedd_address Sinful string of the schedd's qmgmt port
+			@param cluster Cluster ID number (if any)
+			@param proc Proc ID number (if any)
+			@param subproc Subproc ID number (if any)
 		*/
 	JICLocalSchedd( const char* classad_filename,
+					const char* schedd_address,
 					int cluster, int proc, int subproc );
 
 		/// Destructor
@@ -75,6 +77,9 @@ protected:
 
 		/// The value we will exit with to tell our schedd what happened
 	int exit_code;
+
+		/// The sinful string of the schedd's qmgmt command port
+	char* schedd_addr;
 
 };
 

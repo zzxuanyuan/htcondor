@@ -27,6 +27,7 @@
 #include "condor_string.h"
 #include "condor_attributes.h"
 #include "exit.h"
+#include "internet.h"
 
 #include "starter.h"
 #include "jic_local.h"
@@ -36,18 +37,29 @@ extern CStarter *Starter;
 
 
 JICLocalSchedd::JICLocalSchedd( const char* classad_filename, 
+								const char* schedd_address, 
 								int cluster, int proc, int subproc )
 	: JICLocalFile( classad_filename, cluster, proc, subproc )
 {
 		// initialize this to something reasonable.  we'll change it
 		// if anything special happens which needs a different value.
 	exit_code = JOB_EXITED;
+	if( ! is_valid_sinful(schedd_address) ) {
+        EXCEPT("schedd_addr not specified with valid address");
+    }
+    schedd_addr = strdup( schedd_address );
+	dprintf( D_ALWAYS,
+			 "Starter running a job under a schedd listening at %s\n",
+			 schedd_addr );
 }
 
 
 
 JICLocalSchedd::~JICLocalSchedd()
 {
+	if( schedd_addr ) {
+		free( schedd_addr );
+	}
 }
 
 

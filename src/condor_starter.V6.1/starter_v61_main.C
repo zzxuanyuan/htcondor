@@ -279,7 +279,7 @@ parseArgs( int argc, char* argv [] )
 	char* job_stdin = NULL;
 	char* job_stdout = NULL;
 	char* job_stderr = NULL;
-	bool is_local_univ = false;
+	char* schedd_addr = NULL;
 
 	bool warn_multi_keyword = false;
 	bool warn_multi_input_ad = false;
@@ -305,7 +305,7 @@ parseArgs( int argc, char* argv [] )
 	char _jobstderr[] = "-job-stderr";
 	char _header[] = "-header";
 	char _gridshell[] = "-gridshell";
-	char _univ_local[] = "-univ-local";
+	char _schedd_addr[] = "-schedd-addr";
 	char* target = NULL;
 
 	ASSERT( argc >= 2 );
@@ -340,8 +340,12 @@ parseArgs( int argc, char* argv [] )
 			continue;
 		}
 
-		if( ! strncmp(opt, _univ_local, opt_len) ) { 
-			is_local_univ = true;
+		if( ! strncmp(opt, _schedd_addr, opt_len) ) { 
+			if( ! arg ) {
+				another( _schedd_addr );
+			}
+			schedd_addr = strdup( arg );
+			tmp++;	// consume the arg so we don't get confused 
 			continue;
 		}
 
@@ -586,13 +590,13 @@ parseArgs( int argc, char* argv [] )
 		// If the user didn't specify it, use -1 for cluster and/or
 		// proc, and the JIC subclasses will know they weren't on the
 		// command-line.
-	if( is_local_univ ) {
+	if( schedd_addr ) {
 		if( ! job_input_ad ) {
 			dprintf( D_ALWAYS, "ERROR: You must specify '%s' with '%s'\n",
-					 _jobinputad, _univ_local ); 
+					 _jobinputad, _schedd_addr ); 
 			usage();
 		}
-		jic = new JICLocalSchedd( job_input_ad,
+		jic = new JICLocalSchedd( job_input_ad, schedd_addr,
 								  job_cluster, job_proc, job_subproc );
 	} else if( job_input_ad ) {
 		if( job_keyword ) {
@@ -628,6 +632,9 @@ parseArgs( int argc, char* argv [] )
 	if( job_stderr ) {
         jic->setStderr( job_stderr );		
 		free( job_stderr );
+	}
+	if( schedd_addr ) {
+		free( schedd_addr );
 	}
 	return jic;
 }
