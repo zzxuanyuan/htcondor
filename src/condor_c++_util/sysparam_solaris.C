@@ -32,6 +32,8 @@
 #include <sys/utsname.h>
 #include <string.h>
 
+#include "condor_common.h"      // -zandy, 9/18/1998, so that my fresh co
+				// is able to compile
 #include "condor_debug.h"
 #include "condor_sysparam.h"
 

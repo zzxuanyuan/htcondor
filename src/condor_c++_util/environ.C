@@ -169,3 +169,28 @@ Environ::getenv( char *str )
 	}
 	return 0;
 }
+
+
+// FIXME: When job SIGTSTP's itself, Condor restarts it immediately
+// with the same environment it had the last start, for reasons I
+// don't understand.  In user_proc.C, we append CONDOR_RESTART
+// variables to this environment, so there are then two conflicting
+// defs of CONDOR_RESTART.  The job doesn't know if it's restarting or
+// not, and misbehaves.  The temp fix is to provide a mechanism for
+// removing environment variables from Environ objects. -zandy
+// 8/12/1998.
+
+void
+Environ::unsetenv (char *str)
+{
+     int len, i, j;
+     len = strlen (str);
+     for (i = 0; i < count; i++)
+	  if (! strncmp (str, vector[i], len)) {
+	       // Slide vector tail in case env variable order is
+	       // significant
+	       for (j = i + 1; j < count; j++)
+		    vector[j - 1] = vector[j];
+	       count--;
+	  }
+}

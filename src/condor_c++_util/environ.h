@@ -34,6 +34,7 @@ public:
 	~Environ();
 	void	add_string( char * );
 	char	*getenv( char * );
+	void    unsetenv( char * );
 	void	display();
 	char	**get_vector();
 private:
