@@ -50,7 +50,7 @@ typedef int ssize_t; // should be included in <sys/types.h>, but some don't
 
 const int MAGIC = 0xfeafea;
 const int SEG_INCR = 25;
-const int  MAX_SEGS = 50;
+const int  MAX_SEGS = 200;
 
 class Header {
 public:
