@@ -30,8 +30,6 @@
 #include "condor_attributes.h"
 
 #include "condorCollector.nsmap"
-#include "soap_collectorC.cpp"
-#include "soap_collectorServer.cpp"
 
 #include "../condor_c++_util/soap_helpers.cpp"
 

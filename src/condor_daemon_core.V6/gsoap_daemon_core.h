@@ -1,6 +1,5 @@
 #import "gsoap_daemon_core_types.h"
 
-//gsoap condor service name: condor
 //gsoap condor service style: rpc
 //gsoap condor service encoding: encoded
 

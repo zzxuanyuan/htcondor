@@ -38,8 +38,6 @@
 #include "loose_file_transfer.h"
 
 #include "condorSchedd.nsmap"
-#include "soap_scheddC.cpp"
-#include "soap_scheddServer.cpp"
 
 #include "schedd_api.h"
 

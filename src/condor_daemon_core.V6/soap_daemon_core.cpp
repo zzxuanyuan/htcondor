@@ -1,3 +1,6 @@
+#include "condor_common.h"
+#include "condor_version.h"
+
 int
 condor__getPlatformString(struct soap *soap,
 						  void *,

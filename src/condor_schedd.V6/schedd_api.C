@@ -17,69 +17,84 @@
 
 Job::Job(int clusterId, int jobId)
 {
-  this->clusterId = clusterId;
-  this->jobId = jobId;
+	this->clusterId = clusterId;
+	this->jobId = jobId;
 
-  requirements = new HashTable<MyString, JobFile>(64, MyStringHash, rejectDuplicateKeys);
+	requirements = new HashTable<MyString, JobFile>(64, MyStringHash, rejectDuplicateKeys);
 
-  char * Spool = param("SPOOL");
+	char * Spool = param("SPOOL");
 
-  if (Spool) {
-    spoolDirectory = new MyString(strdup(gen_ckpt_name(Spool, clusterId, jobId, 0)));
+	if (Spool) {
+		spoolDirectory = new MyString(strdup(gen_ckpt_name(Spool, clusterId, jobId, 0)));
 
-		//free(Spool);
+			//free(Spool);
 
-    struct stat stats;
-    if (stat(spoolDirectory->GetCStr(), &stats)) {
-      if ((mkdir(spoolDirectory->GetCStr(), 0777) < 0)) {
-        // mkdir can return 17 = EEXIST (dirname exists) or 2 = ENOENT (path not found)
-        dprintf(D_FULLDEBUG,
-                "Job::declareFile: mkdir(%s) failed, errno: %d\n",
-                spoolDirectory->GetCStr(),
-                errno);
-      }
-    }
-  } else {
-    EXCEPT("SPOOL is not defined.");
-  }
+		struct stat stats;
+		if (-1 == stat(spoolDirectory->GetCStr(), &stats)) {
+			if (ENOENT == errno && spoolDirectory->Length() != 0) {
+				if (-1 == mkdir(spoolDirectory->GetCStr(), 0777)) {
+						// mkdir can return 17 = EEXIST (dirname exists) or 2 = ENOENT (path not found)
+					dprintf(D_FULLDEBUG,
+							"Job::Job: ERROR: mkdir(%s) failed, errno: %d\n",
+							spoolDirectory->GetCStr(),
+							errno);
+				} else {
+					dprintf(D_FULLDEBUG,
+							"Job::Job: mkdir(%s) succeeded.\n",
+							spoolDirectory->GetCStr());
+				}
+			} else {
+				dprintf(D_FULLDEBUG, "Job::Job: ERROR: stat(%s) errno: %d\n",
+						spoolDirectory->GetCStr(),
+						errno);
+			}
+		} else {
+			dprintf(D_FULLDEBUG, "Job::Job: ERROR: Job '%d.%d''s spool directory '%s' already exists.\n",
+					clusterId,
+					jobId,
+					spoolDirectory->GetCStr());
+		}
+	} else {
+		EXCEPT("SPOOL is not defined.");
+	}
 }
 
 Job::~Job()
 {
-  // XXX: Duplicate code with abort(), almost.
-  MyString currentKey;
-  JobFile jobFile;
-  requirements->startIterations();
-  while (requirements->iterate(currentKey, jobFile)) {
-    fclose(jobFile.file);
-    requirements->remove(currentKey);
-  }
+		// XXX: Duplicate code with abort(), almost.
+	MyString currentKey;
+	JobFile jobFile;
+	requirements->startIterations();
+	while (requirements->iterate(currentKey, jobFile)) {
+		fclose(jobFile.file);
+		requirements->remove(currentKey);
+	}
 
-  delete requirements;
-  delete spoolDirectory;
+	delete requirements;
+	delete spoolDirectory;
 }
 
 int
 Job::abort()
 {
-  MyString currentKey;
-  JobFile jobFile;
-  requirements->startIterations();
-  while (requirements->iterate(currentKey, jobFile)) {
-    fclose(jobFile.file);
-    requirements->remove(currentKey);
-    remove(jobFile.name.GetCStr());
-  }
+	MyString currentKey;
+	JobFile jobFile;
+	requirements->startIterations();
+	while (requirements->iterate(currentKey, jobFile)) {
+		fclose(jobFile.file);
+		requirements->remove(currentKey);
+		remove(jobFile.name.GetCStr());
+	}
 
-  remove(spoolDirectory->GetCStr());
+	remove(spoolDirectory->GetCStr());
 
-  return 0;
+	return 0;
 }
 
 int
 Job::getClusterID()
 {
-  return clusterId;
+	return clusterId;
 }
 
 JobFile::JobFile()
@@ -92,8 +107,8 @@ JobFile::~JobFile()
 
 FileInfo::FileInfo(MyString name, unsigned long size)
 {
-  this->name = name;
-  this->size = size;
+	this->name = name;
+	this->size = size;
 }
 
 FileInfo::~FileInfo()
@@ -151,6 +166,10 @@ Job::declare_file(MyString name,
 			// it alone. If someone tries to do send_file they will fail
 			// though. A BETTER way would be to actually test 'name' for
 			// path separators!
+		dprintf(D_FULLDEBUG, "Job::declare_file: Failed to open '%s' for writing, errno: %d\n",
+				(*spoolDirectory + DIR_DELIM_STRING + jobFile.name).GetCStr(),
+				errno);
+
 		return 0;
 	}
 }
@@ -158,69 +177,69 @@ Job::declare_file(MyString name,
 int
 Job::submit(struct ClassAdStruct jobAd)
 {
-  int i, rval;
+	int i, rval;
 
-  // XXX: This is ugly, and only should happen when spooling, i.e. not always with cedar.
-  rval = SetAttributeString(clusterId, jobId, ATTR_JOB_IWD, spoolDirectory->GetCStr());
-  if (rval < 0) {
-    return rval;
-  }
-
-  StringList transferFiles;
-  MyString currentKey;
-  JobFile jobFile;
-  requirements->startIterations();
-  while (requirements->iterate(currentKey, jobFile)) {
-    transferFiles.append(jobFile.name.GetCStr());
-  }
-  rval = SetAttributeString(clusterId, jobId, ATTR_TRANSFER_INPUT_FILES, transferFiles.print_to_string());
-  if (rval < 0) {
-    return rval;
-  }
-
-  int found_iwd = 0;
-  for (i = 0; i < jobAd.__size; i++) {
-    const char* name = jobAd.__ptr[i].name;
-    const char* value = jobAd.__ptr[i].value;
-    if (!name) continue;
-    if (!value) value="UNDEFINED";
-
-		// XXX: This is a quick fix. If processing MyType or TargetType they
-		// should be ignored. Ideally we could convert the ClassAdStruct
-		// to a ClassAd and then iterate the ClassAd.
-	if (0 == strcmp(name, ATTR_MY_TYPE) ||
-		0 == strcmp(name, ATTR_TARGET_TYPE)) {
-		continue;
+		// XXX: This is ugly, and only should happen when spooling, i.e. not always with cedar.
+	rval = SetAttributeString(clusterId, jobId, ATTR_JOB_IWD, spoolDirectory->GetCStr());
+	if (rval < 0) {
+		return rval;
 	}
 
-    if ( jobAd.__ptr[i].type == 's' ) {
-      // string type - put value in quotes as hint for ClassAd parser
+	StringList transferFiles;
+	MyString currentKey;
+	JobFile jobFile;
+	requirements->startIterations();
+	while (requirements->iterate(currentKey, jobFile)) {
+		transferFiles.append(jobFile.name.GetCStr());
+	}
+	rval = SetAttributeString(clusterId, jobId, ATTR_TRANSFER_INPUT_FILES, transferFiles.print_to_string());
+	if (rval < 0) {
+		return rval;
+	}
 
-      found_iwd = found_iwd || !strcmp(name, ATTR_JOB_IWD);
+	int found_iwd = 0;
+	for (i = 0; i < jobAd.__size; i++) {
+		const char* name = jobAd.__ptr[i].name;
+		const char* value = jobAd.__ptr[i].value;
+		if (!name) continue;
+		if (!value) value="UNDEFINED";
 
-      rval = SetAttributeString(clusterId, jobId, name, value);
-    } else {
-      // all other types can be deduced by the ClassAd parser
-      rval = SetAttribute(clusterId,jobId,name,value);
-    }
-    if ( rval < 0 ) {
-      return rval;
-    }
-  }
+			// XXX: This is a quick fix. If processing MyType or TargetType they
+			// should be ignored. Ideally we could convert the ClassAdStruct
+			// to a ClassAd and then iterate the ClassAd.
+		if (0 == strcmp(name, ATTR_MY_TYPE) ||
+			0 == strcmp(name, ATTR_TARGET_TYPE)) {
+			continue;
+		}
 
-  // Trust the client knows what it is doing if there is an Iwd.
-  if (!found_iwd) {
-    // We need to make sure the Iwd is rewritten so files
-    // in the spool directory can be found.
-    if (NULL != spoolDirectory) {
-      rval = SetAttributeString(clusterId, jobId, ATTR_JOB_IWD, spoolDirectory->GetCStr());
-      if (rval < 0) {
-        return rval;
-      }
-    }
-  }
+		if ( jobAd.__ptr[i].type == 's' ) {
+				// string type - put value in quotes as hint for ClassAd parser
 
-  return 0;
+			found_iwd = found_iwd || !strcmp(name, ATTR_JOB_IWD);
+
+			rval = SetAttributeString(clusterId, jobId, name, value);
+		} else {
+				// all other types can be deduced by the ClassAd parser
+			rval = SetAttribute(clusterId,jobId,name,value);
+		}
+		if ( rval < 0 ) {
+			return rval;
+		}
+	}
+
+		// Trust the client knows what it is doing if there is an Iwd.
+	if (!found_iwd) {
+			// We need to make sure the Iwd is rewritten so files
+			// in the spool directory can be found.
+		if (NULL != spoolDirectory) {
+			rval = SetAttributeString(clusterId, jobId, ATTR_JOB_IWD, spoolDirectory->GetCStr());
+			if (rval < 0) {
+				return rval;
+			}
+		}
+	}
+
+	return 0;
 }
 
 int
@@ -252,7 +271,7 @@ Job::send_file(MyString name,
 		return 5;
 	}
 
-  return 0;
+	return 0;
 }
 
 int
@@ -261,21 +280,21 @@ Job::get_file(MyString name,
               int length,
               unsigned char * &data)
 {
-  FILE * file = fopen((*spoolDirectory + "/" + name).GetCStr(), "r");
+	FILE * file = fopen((*spoolDirectory + "/" + name).GetCStr(), "r");
 
-  if (file) {
-    if (fseek(file, offset, SEEK_SET)) {
-      return 2;
-    }
-    if (length != fread(data, sizeof(unsigned char), length, file)) {
-      return 3;
-    }
-    if (EOF == fclose(file)) {
-      return 4;
-    }
-  } else {
-    return 1;
-  }
+	if (file) {
+		if (fseek(file, offset, SEEK_SET)) {
+			return 2;
+		}
+		if (length != fread(data, sizeof(unsigned char), length, file)) {
+			return 3;
+		}
+		if (EOF == fclose(file)) {
+			return 4;
+		}
+	} else {
+		return 1;
+	}
 
-  return 0;
+	return 0;
 }

@@ -1,3 +1,3 @@
-#include "condorMaster.nsmap"
-  
+#include "condorStartd.nsmap"
+ 
 #include "../condor_daemon_core.V6/soap_daemon_core.cpp"

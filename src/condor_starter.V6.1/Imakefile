@@ -21,6 +21,8 @@ OS = IRIX65
 OS = OperatingSystem
 #endif
 
+soapobjs(starter)
+
 # this can (and will have to) be made better, but
 # it will suffice for now:
 OBJ = starter_v61_main.o starter.o NTsenders.o user_proc.o \
@@ -29,7 +31,8 @@ OBJ = starter_v61_main.o starter.o NTsenders.o user_proc.o \
 	starter_v61_instantiate.o io_proxy.o io_proxy_handler.o \
 	java_proc.o java_detect.o local_user_log.o \
 	job_info_communicator.o jic_shadow.o jic_local.o \
-	jic_local_config.o jic_local_file.o stream_handler.o
+	jic_local_config.o jic_local_file.o stream_handler.o \
+	$(SOAP_OBJS)
 
 RSH_OBJ = condor_rsh.o
 
@@ -67,3 +70,5 @@ condor_gridshell: condor_starter
 release_link_target($(RELEASE_DIR)/sbin/condor_starter,sbin,condor_gridshell)
 strip_link_target($(STRIP_DIR)/sbin/condor_starter,sbin,condor_gridshell)
 static_link_target($(STATIC_DIR)/sbin/condor_starter,sbin,condor_gridshell)
+
+gen_soapfiles(starter,condorStarter)

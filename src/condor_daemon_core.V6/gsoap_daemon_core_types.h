@@ -13,6 +13,8 @@
  MIN_OCCURRANCES:MAX_OCCURRANCES.
  */
 
+//gsoap condor service namespace: urn:condor
+
 typedef char *xsd__string;
 typedef char *xsd__anyURI;
 typedef float xsd__float;
