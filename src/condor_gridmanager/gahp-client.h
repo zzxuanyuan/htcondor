@@ -70,10 +70,12 @@ class GahpClient;
 
 class GahpServer : public Service {
  public:
-	static GahpServer *FindOrCreateGahpServer(const char *id, const char *path);
+	static GahpServer *FindOrCreateGahpServer(const char *id,
+											  const char *path,
+											  const char *args = NULL);
 	static HashTable <HashKey, GahpServer *> GahpServersById;
 
-	GahpServer(const char *id, const char *path);
+	GahpServer(const char *id, const char *path, const char *args = NULL);
 	~GahpServer();
 
 	bool Startup();
@@ -165,6 +167,7 @@ class GahpServer : public Service {
 	GahpProxyInfo *current_proxy;
 	bool skip_next_r;
 	char *binary_path;
+	char *binary_args;
 	char *my_id;
 
 	char *globus_gass_server_url;
@@ -196,7 +199,8 @@ class GahpClient : public Service {
 	
 			/// Constructor
 		GahpClient(const char *id=GAHPCLIENT_DEFAULT_SERVER_ID,
-				   const char *path=GAHPCLIENT_DEFAULT_SERVER_PATH);
+				   const char *path=GAHPCLIENT_DEFAULT_SERVER_PATH,
+				   const char *args=NULL);
 			/// Destructor
 		~GahpClient();
 		

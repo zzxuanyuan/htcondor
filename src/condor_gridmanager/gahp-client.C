@@ -74,7 +74,9 @@ void GahpReconfig()
 	}
 }
 
-GahpServer *GahpServer::FindOrCreateGahpServer(const char *id, const char *path)
+GahpServer *GahpServer::FindOrCreateGahpServer(const char *id,
+											   const char *path,
+											   const char *args)
 {
 	int rc;
 	GahpServer *server = NULL;
@@ -85,7 +87,7 @@ GahpServer *GahpServer::FindOrCreateGahpServer(const char *id, const char *path)
 
 	rc = GahpServersById.lookup( HashKey( id ), server );
 	if ( rc != 0 ) {
-		server = new GahpServer( id, path );
+		server = new GahpServer( id, path, args );
 		ASSERT(server);
 		GahpServersById.insert( HashKey( id ), server );
 	} else {
@@ -95,7 +97,7 @@ GahpServer *GahpServer::FindOrCreateGahpServer(const char *id, const char *path)
 	return server;
 }
 
-GahpServer::GahpServer(const char *id, const char *path)
+GahpServer::GahpServer(const char *id, const char *path, const char *args)
 {
 	m_gahp_pid = -1;
 	m_reaperid = -1;
@@ -132,6 +134,11 @@ GahpServer::GahpServer(const char *id, const char *path)
 
 	my_id = strdup(id);
 	binary_path = strdup(path);
+	if ( args != NULL ) {
+		binary_args = strdup( args );
+	} else {
+		binary_args = NULL;
+	}
 	proxy_check_tid = TIMER_UNSET;
 	master_proxy = NULL;
 	is_initialized = false;
@@ -154,6 +161,9 @@ GahpServer::~GahpServer()
 	}
 	if ( binary_path != NULL ) {
 		free(binary_path);
+	}
+	if ( binary_args != NULL ) {
+		free(binary_args);
 	}
 	if ( master_proxy != NULL ) {
 		ReleaseProxy( master_proxy->proxy );
@@ -232,9 +242,9 @@ GahpServer::Reaper(Service*,int pid,int status)
 }
 
 
-GahpClient::GahpClient(const char *id, const char *path)
+GahpClient::GahpClient(const char *id, const char *path, const char *args)
 {
-	server = GahpServer::FindOrCreateGahpServer(id,path);
+	server = GahpServer::FindOrCreateGahpServer(id,path,args);
 	m_timeout = 0;
 	m_mode = normal;
 	pending_command[0] = '\0';
@@ -514,9 +524,21 @@ GahpServer::Startup()
 		// First, get path to the GAHP server.
 	if ( binary_path && strcmp( binary_path, GAHPCLIENT_DEFAULT_SERVER_PATH ) != 0 ) {
 		gahp_path = strdup(binary_path);
+		if ( binary_args != NULL ) {
+			gahp_args = strdup(binary_args);
+		}
 	} else {
 		gahp_path = param("GAHP");
 		gahp_args = param("GAHP_ARGS");
+	}
+
+	// If we're passing arguments to the gahp server, insert binary_path
+	// as argv[0] for Create_Process().
+	if ( gahp_args != NULL ) {
+		MyString new_args;
+		new_args.sprintf( "%s %s", gahp_path, gahp_args );
+		free( gahp_args );
+		gahp_args = strdup( new_args.Value() );
 	}
 
 	if (!gahp_path) return false;
