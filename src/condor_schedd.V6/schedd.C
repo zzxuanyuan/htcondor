@@ -1812,16 +1812,16 @@ int Scheduler::aboutToSpawnJobHandler(int cluster, int proc)
 			uid_t dst_uid;
 			gid_t dst_gid;
 
-			if( get_user_uid_gid(owner.GetCStr(), domain.GetCStr(), &dst_uid, & dst_gid) )
+			if( get_user_uid_gid(owner.Value(), domain.Value(), &dst_uid, & dst_gid) )
 			{
-				if( ! recursive_chown(sandbox.GetCStr(), src_uid, dst_uid, dst_gid, true) )
+				if( ! recursive_chown(sandbox.Value(), src_uid, dst_uid, dst_gid, true) )
 				{
-					dprintf( D_ALWAYS, "(%d.%d) Failed to chown %s from %d to %d.%d.  Job may run into permissions problems when it starts.\n", cluster, proc, sandbox.GetCStr(), src_uid, dst_uid, dst_gid);
+					dprintf( D_ALWAYS, "(%d.%d) Failed to chown %s from %d to %d.%d.  Job may run into permissions problems when it starts.\n", cluster, proc, sandbox.Value(), src_uid, dst_uid, dst_gid);
 				}
 			}
 			else // Failed to get uid/gid
 			{
-				dprintf( D_ALWAYS, "(%d.%d) Failed to identify associated UID and GID for user %s.  Cannot chown %s to user.  Job may run into permissions problems when it starts.\n", cluster, proc, owner.GetCStr(), sandbox.GetCStr());
+				dprintf( D_ALWAYS, "(%d.%d) Failed to identify associated UID and GID for user %s.  Cannot chown %s to user.  Job may run into permissions problems when it starts.\n", cluster, proc, owner.Value(), sandbox.Value());
 			}
 		}
 		else 
