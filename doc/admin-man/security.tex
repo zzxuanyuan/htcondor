@@ -164,8 +164,103 @@ Use either root or a user (such as the user condor) that
 exists only to run Condor jobs.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection{\label{sec:RunAsNobody}Jobs Run as User nobody}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\index{user nobody!potential security risk with jobs}
+\index{UID!potential risk running jobs as user nobody}
+\index{security!running jobs as user nobody}
+
+Under Unix, Condor runs jobs either as the user that submitted the jobs,
+or as the user called nobody.
+Condor uses user nobody if the value of the \MacroNI{UID\_DOMAIN}
+configuration variable of the
+submitting and executing machines are different.
+
+When Condor cleans up after a executing a vanilla universe job,
+Condor does the best that it can by
+deleting all of the processes started by the job.
+Unfortunately, it is possible to fool Condor,
+and leave processes behind after Condor has cleaned up.
+If the job is running as user nobody,
+it is possible for it to leave a lurker process lying in wait
+for the next job run as nobody.
+The lurker process may prey maliciously on the next nobody user job,
+wreaking havoc.
+
+Condor could prevent this problem by simply killing all processes run by
+the nobody user, but this would annoy many system administrators.
+The nobody user is often used for non-Condor system processes.
+
+Condor provides a two-part solution to this difficulty.
+First, create user accounts specifically for Condor to use instead
+of user nobody.
+These can be low-privilege accounts,
+as the nobody user is.
+Create one of these accounts for each
+virtual machine per computer,
+so that distinct users can be used for concurrent processes.
+This prevents malicious behavior between
+processes running on distinct virtual machines.
+Section ~\ref{sec:Configuring-SMP} details virtual machines.
+For a sample machine with two virtual machines,
+create two users that are intended only to be used by Condor.
+As an example, call them nobody1 and nobody2.
+Tell Condor about these users
+with the \Macro{VMx\_USER} configuration variables,
+where x is replaced with the
+virtual machine number. In this example:
+
+\begin{verbatim}
+   VM1_USER = nobody1
+   VM2_USER = nobody2
+\end{verbatim}
+
+Reconfigure Condor, so that Condor will make use of these users
+instead of the nobody user.
+One more change is required to prevent lurker processes:
+tell Condor that these accounts are intended only to be used by Condor,
+so Condor can kill all the processes belonging to these users upon
+job completion.
+The configuration variable \Macro{EXECUTE\_LOGIN\_IS\_DEDICATED}
+is introduced and set to True for this purpose.
+
+\begin{verbatim}
+   EXECUTE_LOGIN_IS_DEDICATED = TRUE
+\end{verbatim}
+
+Notes:
+\begin{enumerate}
+
+\item{
+If \MacroNI{UID\_DOMAIN} is not set in the configuration, do not
+set \MacroNI{EXECUTE\_LOGIN\_IS\_DEDICATED}.
+In this case, lurker processes are not a concern,
+and other processes that a user may have running would be killed
+improperly.
+}
+
+\item{
+This only applies to vanilla universe and Java universe jobs.
+Standard universe jobs are not a concern,
+because they are not allowed to create new processes.
+}
+
+\item{
+On Windows, \MacroNI{VMx\_USER} will only work if the credential
+of the specified user is stored on the execute machine
+using \Condor{condor\_store\_cred}.
+See the \Condor{condor\_store\_cred}
+manual page (in section~\ref{man-condor-store-cred}) for details of this command.
+}
+\end{enumerate}
+
+
+% Karen editted to this point
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsubsection{\label{sec:DirOfJob}What directory does a job run in?}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\index{cwd!of jobs}
 
 Any executing process has a notion of its current working
 directory (cwd),
