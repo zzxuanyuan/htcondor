@@ -1446,11 +1446,18 @@ command_classad_handler( Service*, int, Stream* s )
 		return FALSE;
 	}
 
-		// now that we've found the right Claim object, we can free
-		// this so we don't leak memory.  if we need to print it for
-		// an error message, we've still got the right id in the Claim
-		// object itself. 
-	free( claim_id );
+		// make sure the user attempting this action (whatever it
+		// might be) is the same as the owner of the claim
+	const char* owner = rsock->getOwner();
+	if( ! claim->ownerMatches(owner) ) {
+		MyString err_msg = "User '";
+		err_msg += owner;
+		err_msg += "' does not match the owner of this claim";
+		sendErrorReply( s, cmd_str, err_msg.Value() );
+		free( claim_id );
+		free( cmd_str );
+		return FALSE;
+	}
 
 	ClassAd reply;
 
@@ -1475,12 +1482,14 @@ command_classad_handler( Service*, int, Stream* s )
 		break;
 	default:
 		unknownCmd( s, cmd_str );
+		free( claim_id );
 		free( cmd_str );
 		return FALSE;
 	}
 
 		// finally, send the reply back over the wire, and we're done.
 	int result = sendCAReply( s, cmd_str, &reply );
+	free( claim_id );
 	free( cmd_str );
 	return (rval && result);
 }
