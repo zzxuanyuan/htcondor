@@ -8,6 +8,17 @@ namespace dagman {
 debug_level_t debug_level    = DEBUG_NORMAL;
 char *        debug_progname = NULL;
 
+const char * debug_level_names[] = {
+  "SILENT",
+  "QUIET",
+  "NORMAL",
+  "VERBOSE",
+  "DEBUG_1",
+  "DEBUG_2",
+  "DEBUG_3",
+  "DEBUG_4"
+};
+
 /*--------------------------------------------------------------------------*/
 int debug_printf (debug_level_t level, const char *fmt, ...) {
     int ret = 0;

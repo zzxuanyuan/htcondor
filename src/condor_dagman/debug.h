@@ -63,6 +63,8 @@ enum debug_level {
   /** Rarely Used Debug */                   DEBUG_DEBUG_4 = 7
 };
 
+extern const char * debug_level_names[];
+
 ///
 typedef enum debug_level debug_level_t;
 
