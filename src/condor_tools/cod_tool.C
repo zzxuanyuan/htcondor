@@ -673,6 +673,14 @@ parseArgv( int argc, char* argv[] )
 		target = NULL;
 	}
 
+	if( cmd == CA_ACTIVATE_CLAIM && ! job_name ) { 
+		fprintf( stderr,
+				 "ERROR: You must specify -job_config_name for %s\n",
+				 my_name );
+		usage( my_name );
+		
+	}
+
 	if( classad_path ) { 
 		CA_PATH = fopen( classad_path, "w" );
 		if( !CA_PATH ) {
