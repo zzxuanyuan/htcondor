@@ -1237,7 +1237,7 @@ AC_MSG_CHECKING([kerberos])
 if test "$os" = "AIX" ; then
 _cv_ext_kerberos_version="krb5-1.3.1"
 else
-_cv_ext_kerberos_version="krb5-1.2.5"
+_cv_ext_kerberos_version="krb5-1.2.7"
 fi
 AC_MSG_RESULT([$_cv_ext_kerberos_version])
 AC_SUBST(ext_kerberos_version,$_cv_ext_kerberos_version)
