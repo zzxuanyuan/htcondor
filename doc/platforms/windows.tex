@@ -423,18 +423,19 @@ accessed or not via the registry value mentioned above.
 
 METHOD D -  create and have Condor use a special account
 
-Create a permanent account (called nobody-guest in this description)
+Create a permanent account (called condor-guest in this description)
 under which Condor will run jobs.
 On all Windows machines, and on the file server, create the
-nobody-guest account.
+condor-guest account.
 
-On the network file server, give the nobody-guest user permissions
+On the network file server, give the condor-guest user permissions
 to access files needed to run Condor jobs.
 
-Securely store the password of the nobody-guest user in the
-Windows registry using \Condor{store\_cred}.
+Securely store the password of the condor-guest user in the
+Windows registry using \Condor{store\_cred} on all Windows
+machines.
 
-Tell Condor to use the nobody-guest user as the owner of jobs,
+Tell Condor to use the condor-guest user as the owner of jobs,
 when required.
 Details for this are in 
 section~\ref{sec:RunAsNobody}.
