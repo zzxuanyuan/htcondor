@@ -522,8 +522,8 @@ handle_invalidate_key( Service*, int, Stream* stream)
 		return FALSE;
 	}
 
-	if (daemonCore->getSecMan()->enc_key_cache) {
-		if (daemonCore->getSecMan()->enc_key_cache->remove(key_id)) {
+	if (daemonCore->getSecMan()->session_cache) {
+		if (daemonCore->getSecMan()->session_cache->remove(key_id)) {
 			dprintf ( D_SECURITY, "DC_INVALIDATE_KEY: removed key id %s.\n", key_id);
 		} else {
 			dprintf ( D_SECURITY, "DC_INVALIDATE_KEY: ignoring request to invalidate non-existant key %s.\n", key_id);
@@ -1421,7 +1421,7 @@ int main( int argc, char** argv )
 
 	daemonCore->Register_Command( DC_INVALIDATE_KEY, "DC_INVALIDATE_KEY",
 								  (CommandHandler)handle_invalidate_key,
-								  "handle_handle_invalidate_key()", 0, WRITE );
+								  "handle_invalidate_key()", 0, WRITE );
 
 	// Call daemonCore's ReInit(), which clears the cached DNS info.
 	// It also initializes some stuff, which is why we call it now. 

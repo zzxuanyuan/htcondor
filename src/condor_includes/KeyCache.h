@@ -71,14 +71,15 @@ public:
 	~KeyCache();
 	const KeyCache& operator=(const KeyCache&);
 
-	bool insert(char *key_id, KeyCacheEntry&);
-	bool lookup(char *key_id, KeyCacheEntry*&);
-	bool remove(char *key_id);
+	bool insert(KeyCacheEntry&);
+	bool lookup(const char *key_id, KeyCacheEntry*&);
+	bool remove(const char *key_id);
 	void expire(KeyCacheEntry*);
 
 	void RemoveExpiredKeys();
 
 private:
+	void copy_storage(const KeyCache &kc);
 	void delete_storage();
 
 	HashTable<MyString, KeyCacheEntry*> *key_table;

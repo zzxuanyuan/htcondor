@@ -77,8 +77,9 @@ char* SecMan::sec_req_rev[] = {
 	"REQUIRED"
 };
 
-KeyCache* SecMan::enc_key_cache = NULL;
-int SecMan::enc_key_cache_ref_count = 0;
+KeyCache* SecMan::session_cache = NULL;
+HashTable<MyString,MyString>* SecMan::command_map = NULL;
+int SecMan::sec_man_ref_count = 0;
 
 SecMan::sec_req
 SecMan::sec_alpha_to_sec_req(char *b) {
@@ -780,13 +781,33 @@ SecMan::startCommand( int cmd, Sock* sock, bool can_negotiate, int subCmd)
 	// this one is a temp for storing key ids
 	char keybuf[128];
 
-	bool have_private_key = false;
+	bool have_session = false;
 	bool new_session = false;
 
-	// find out whether or not we have a private key for them in our cache
+
+	// find out if we have a session id to use for this command
 	KeyCacheEntry *enc_key = NULL;
+
+	MyString *sid_ptr = NULL;
 	sprintf (keybuf, "{%s,<%i>}", sin_to_string(sock->endpoint()), cmd);
-	have_private_key = enc_key_cache->lookup(keybuf, enc_key);
+	bool found_map_ent = (command_map->lookup(keybuf, sid_ptr) == 0);
+	if (found_map_ent) {
+		dprintf (D_SECURITY, "SECMAN: %s uses session id %s.\n", keybuf, sid_ptr->Value());
+		// we have the session id, now get the session from the cache
+		have_session = session_cache->lookup(sid_ptr->Value(), enc_key);
+		if (!have_session) {
+			// the session is no longer in the cache... might as well
+			// delete this mapping to it.  (we could delete them all, but
+			// it requires iterating through the hash table)
+			if (command_map->remove(keybuf) == 0) {
+				dprintf (D_SECURITY, "SECMAN: session id %s not found, removed %s from map.\n", sid_ptr->Value(), keybuf);
+			} else {
+				dprintf (D_SECURITY, "SECMAN: session id %s not found and failed to removed %s from map!\n", sid_ptr->Value(), keybuf);
+			}
+		}
+	} else {
+		have_session = false;
+	}
 
 
 	// this classad will hold our security policy
@@ -795,7 +816,7 @@ SecMan::startCommand( int cmd, Sock* sock, bool can_negotiate, int subCmd)
 	// if we have a private key, we will use the same security policy that
 	// was decided on when the key was issued.
 	// otherwise, get our security policy and work it out with the server.
-	if (have_private_key) {
+	if (have_session) {
 		auth_info = new ClassAd(*enc_key->policy());
 
 		dprintf (D_SECURITY, "SECMAN: found cached session id %s for %s.\n",
@@ -852,7 +873,8 @@ SecMan::startCommand( int cmd, Sock* sock, bool can_negotiate, int subCmd)
 		// we must _NOT_ do an eom() here!  Ques?  See Todd or Zach 9/01
 
 		// TODO ZKM HACK
-		// make a note that this command was done old-style.
+		// make a note that this command was done old-style.  perhaps it is time
+		// to get some decent error propagation up in here...
 
 		return true;
 	}
@@ -884,7 +906,7 @@ SecMan::startCommand( int cmd, Sock* sock, bool can_negotiate, int subCmd)
 	// so, we send a DC_AUTHENTICATE via TCP.  this will get us authenticated
 	// and get us a key, which is what needs to happen.
 
-	if (!have_private_key && !is_tcp) {
+	if (!have_session && !is_tcp) {
 
 		dprintf ( D_SECURITY, "SECMAN: need to start a session via TCP\n");
 
@@ -894,6 +916,7 @@ SecMan::startCommand( int cmd, Sock* sock, bool can_negotiate, int subCmd)
 		// the timeout
 		const int TCP_SOCK_TIMEOUT = 20;
 
+		// we already know the address - condor uses the same TCP port as it does UDP port.
 		sprintf (buf, sin_to_string(sock->endpoint()));
 		if (!tcp_auth_sock.connect(buf)) {
 			dprintf ( D_SECURITY, "SECMAN: couldn't connect via TCP to %s, failing...\n", buf);
@@ -919,9 +942,34 @@ SecMan::startCommand( int cmd, Sock* sock, bool can_negotiate, int subCmd)
 			// check if there's a key now...  what about now, is there
 			// a key now?  (you see what i'm saying.... :)
 			assert (enc_key == NULL);
-			have_private_key = enc_key_cache->lookup(keybuf, enc_key);
 
-			if (have_private_key) {
+			// need to use the command map to get the sid!!!
+
+			// these are declared above
+			assert(sid_ptr == NULL);
+			// sprintf (keybuf, "{%s,<%i>}", sin_to_string(sock->endpoint()), cmd);
+
+			bool found_map_ent = (command_map->lookup(keybuf, sid_ptr) == 0);
+			if (found_map_ent) {
+				dprintf (D_SECURITY, "SECMAN: %s uses session id %s.\n", keybuf, sid_ptr->Value());
+				// we have the session id, now get the session from the cache
+				have_session = session_cache->lookup(sid_ptr->Value(), enc_key);
+				if (!have_session) {
+					// the session is no longer in the cache... might as well
+					// delete this mapping to it.  (we could delete them all, but
+					// it requires iterating through the hash table)
+					if (command_map->remove(keybuf) == 0) {
+						dprintf (D_SECURITY, "SECMAN: session id %s not found, removed %s from map.\n", sid_ptr->Value(), keybuf);
+					} else {
+						dprintf (D_SECURITY, "SECMAN: session id %s not found and failed to removed %s from map!\n", sid_ptr->Value(), keybuf);
+					}
+				}
+			} else {
+				have_session = false;
+			}
+
+
+			if (have_session) {
 				// i got a key...  let's use it!
 				dprintf ( D_SECURITY, "SECMAN: SEC_UDP obtained key id %s!\n", enc_key->id());
 
@@ -940,7 +988,7 @@ SecMan::startCommand( int cmd, Sock* sock, bool can_negotiate, int subCmd)
 				dprintf ( D_SECURITY, "SECMAN: SEC_UDP has no key to use!\n");
 
 				assert (enc_key == NULL);
-				assert (have_private_key == false);
+				assert (have_session == false);
 			}
 		}
 	}
@@ -1027,7 +1075,7 @@ SecMan::startCommand( int cmd, Sock* sock, bool can_negotiate, int subCmd)
 #endif
 
 			sock->encode();
-			sock->set_MD_mode(MD_ALWAYS_ON, ki);
+			sock->set_MD_mode(MD_ALWAYS_ON, ki, enc_key->id());
 
 			dprintf ( D_SECURITY, "SECMAN: successfully enabled message authenticator!\n");
 			retval = true;
@@ -1046,7 +1094,7 @@ SecMan::startCommand( int cmd, Sock* sock, bool can_negotiate, int subCmd)
 #endif
 
 			sock->encode();
-			sock->set_crypto_key(ki);
+			sock->set_crypto_key(ki, enc_key->id());
 
 			dprintf ( D_SECURITY, "SECMAN: successfully enabled encryption!\n");
 			retval = true;
@@ -1264,6 +1312,11 @@ SecMan::startCommand( int cmd, Sock* sock, bool can_negotiate, int subCmd)
 			assert (enc_key == NULL);
 			KeyCacheEntry tmp_key( sid, sock->endpoint(), ki, auth_info, 0);
 
+			// stick the key in the cache
+			session_cache->insert(tmp_key);
+
+			// now add entrys which map all the {<sinful_string>,<command>} pairs
+			// to the same key id (which is in the variable sid)
 
 			char *p = strrchr(cmd_list, ',');
 			while (p > cmd_list) {
@@ -1271,12 +1324,30 @@ SecMan::startCommand( int cmd, Sock* sock, bool can_negotiate, int subCmd)
 				sprintf (keybuf, "{%s,<%s>}", sin_to_string(sock->endpoint()), p);
 				p = strrchr(cmd_list, ',');
 
-				dprintf (D_SECURITY, "SECMAN: session id %s added to cache under %s.\n", tmp_key.id(), keybuf);
-				enc_key_cache->insert(keybuf, tmp_key);
+				// NOTE: HashTable returns ZERO on SUCCESS!!!
+				if (command_map->insert(keybuf, sid) == 0) {
+					// success
+					dprintf (D_SECURITY, "SECMAN: command %s mapped to session %s.\n", keybuf, sid);
+				} else {
+					// perhaps there is an old entry under the same name.  we should
+					// delete the old one and insert the new one.
+
+					// NOTE: HashTable's remove returns ZERO on SUCCESS!!!
+					if (command_map->remove(keybuf) == 0) {
+						// now let's try to insert again (zero on success)
+						if (command_map->insert(keybuf, sid) == 0) {
+							dprintf (D_SECURITY, "SECMAN: command %s remapped to session %s!\n", keybuf, sid);
+						} else {
+							dprintf (D_SECURITY, "SECMAN: command %s NOT mapped (insert failed!)\n", keybuf, sid);
+						}
+					} else {
+						dprintf (D_SECURITY, "SECMAN: command %s NOT mapped (remove failed!)\n", keybuf, sid);
+					}
+				}
 			}
 			sprintf (keybuf, "{%s,<%s>}", sin_to_string(sock->endpoint()), cmd_list);
-			dprintf (D_SECURITY, "SECMAN: session id %s added to cache under %s.\n", tmp_key.id(), keybuf);
-			enc_key_cache->insert(keybuf, tmp_key);
+			dprintf (D_SECURITY, "SECMAN: command %s mapped to session %s.\n", keybuf, sid);
+			command_map->insert(keybuf, sid);
 			
 			delete sid;
 			delete cmd_list;
@@ -1383,35 +1454,41 @@ SecMan::ReconcileMethodLists( char * cli_methods, char * srv_methods ) {
 
 
 SecMan::SecMan(int nbuckets = 209) {
-	// enc_key_cache is a static member... we only
+	// session_cache is a static member... we only
 	// want to construct it ONCE.
-	if (enc_key_cache == NULL) {
-		enc_key_cache = new KeyCache(nbuckets);
+	if (session_cache == NULL) {
+		session_cache = new KeyCache(nbuckets);
 	}
-	enc_key_cache_ref_count++;
+	if (command_map == NULL) {
+		command_map = new HashTable<MyString,MyString>(nbuckets, MyStringHash, rejectDuplicateKeys);
+	}
+	sec_man_ref_count++;
 }
 
 
 SecMan::SecMan(const SecMan &copy) {
-	// enc_key_cache is static.  if there's a copy, it
+	// session_cache is static.  if there's a copy, it
 	// should already have been constructed.
-	assert (enc_key_cache);
-	enc_key_cache_ref_count++;
+	assert (session_cache);
+	assert (command_map);
+	sec_man_ref_count++;
 }
 
 const SecMan & SecMan::operator=(const SecMan &copy) {
-	// enc_key_cache is static.  if there's a copy, it
+	// session_cache is static.  if there's a copy, it
 	// should already have been constructed.
-	assert (enc_key_cache);
+	assert (session_cache);
+	assert (command_map);
 	return *this;
 }
 
 
 SecMan::~SecMan() {
-	assert (enc_key_cache);
+	assert (session_cache);
+	assert (command_map);
 
-	// don't delete enc_key_cache - it is static!!!
-	enc_key_cache_ref_count--;
+	// don't delete session_cache - it is static!!!
+	sec_man_ref_count--;
 }
 
 
@@ -1437,13 +1514,13 @@ SecMan::sec_copy_attribute( ClassAd &dest, ClassAd &source, const char* attr ) {
 			// a failure here signals that the cache may be invalid.
 			// delete this entry from table and force normal auth.
 			KeyCacheEntry * ek = NULL;
-			if (enc_key_cache->lookup(keybuf, ek) == 0) {
+			if (session_cache->lookup(keybuf, ek) == 0) {
 				delete ek;
 			} else {
 				dprintf (D_SECURITY, "SECMAN: unable to delete KeyCacheEntry.\n");
 			}
-			enc_key_cache->remove(keybuf);
-			have_private_key = false;
+			session_cache->remove(keybuf);
+			have_session = false;
 
 			// close this connection and start a new one
 			if (!sock->close()) {
@@ -1454,6 +1531,10 @@ SecMan::sec_copy_attribute( ClassAd &dest, ClassAd &source, const char* attr ) {
 
 			KeyInfo* nullp = 0;
 			if (!sock->set_crypto_key(nullp)) {
+				dprintf ( D_ALWAYS, "SECMAN: could not re-init crypto!\n");
+				return false;
+			}
+			if (!sock->set_MD_mode(MD_OFF, nullp)) {
 				dprintf ( D_ALWAYS, "SECMAN: could not re-init crypto!\n");
 				return false;
 			}

@@ -637,7 +637,7 @@ const char * SafeSock :: isIncomingDataMD5ed()
     }
 }
 
-const char * SafeSock :: isIncomingDataEncryted()
+const char * SafeSock :: isIncomingDataEncrypted()
 {
     char c;
     if (!peek(c)) {

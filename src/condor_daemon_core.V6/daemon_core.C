@@ -1622,7 +1622,7 @@ int DaemonCore::HandleReq(int socki)
 			dprintf ( D_SECURITY, "DC_AUTHENTICATE: looking for session %s...\n", sess_id);
 			char * sid = strdup(sess_id);
 			KeyCacheEntry *session = NULL;
-			bool found_sess = sec_man->enc_key_cache->lookup(sid, session);
+			bool found_sess = sec_man->session_cache->lookup(sid, session);
 
 			if (!found_sess) {
 				dprintf ( D_SECURITY, "DC_AUTHENTICATE: session %s NOT FOUND...\n", sess_id);
@@ -1653,6 +1653,46 @@ int DaemonCore::HandleReq(int socki)
 			delete sid;
 		} else {
 			dprintf (D_SECURITY, "DC_AUTHENTICATE: incoming data NOT MD5ed.\n");
+		}
+
+
+		dprintf ( D_SECURITY, "DC_AUTHENTICATE: checking UDP for encryption...\n");
+		sess_id = ((SafeSock*)stream)->isIncomingDataEncrypted();
+		if (sess_id) {
+			dprintf ( D_SECURITY, "DC_AUTHENTICATE: looking for session %s...\n", sess_id);
+			char * sid = strdup(sess_id);
+			KeyCacheEntry *session = NULL;
+			bool found_sess = sec_man->session_cache->lookup(sid, session);
+
+			if (!found_sess) {
+				dprintf ( D_SECURITY, "DC_AUTHENTICATE: session %s NOT FOUND...\n", sess_id);
+				// no session... we outta here!
+				result = FALSE;
+				goto finalize;
+			}
+
+			dprintf ( D_SECURITY, "DC_AUTHENTICATE: session %s is here...\n", sess_id);
+
+			if (!session->key()) {
+				dprintf ( D_SECURITY, "DC_AUTHENTICATE: session %s is missing the key!\n", sess_id);
+				// uhm, there should be a key here!
+				result = FALSE;
+				goto finalize;
+			}
+
+			if (!stream->set_crypto_key(session->key())) {
+				dprintf (D_ALWAYS, "DC_AUTHENTICATE: unable to turn on encryption, failing.\n");
+				result = FALSE;
+				goto finalize;
+			} else {
+				dprintf (D_SECURITY, "DC_AUTHENTICATE: encryption enabled with key id %s.\n", sid);
+#ifdef SECURITY_HACK_ENABLE
+				zz2printf (session->key());
+#endif
+			}
+			delete sid;
+		} else {
+			dprintf (D_SECURITY, "DC_AUTHENTICATE: incoming data NOT encrypted.\n");
 		}
 	}
 	
@@ -1786,7 +1826,7 @@ int DaemonCore::HandleReq(int socki)
 
 
 			// lookup the suggested key
-			if (!sec_man->enc_key_cache->lookup(the_sid, session)) {
+			if (!sec_man->session_cache->lookup(the_sid, session)) {
 
 				// the key id they sent was not in our cache.  this is a
 				// problem.
@@ -2126,7 +2166,7 @@ int DaemonCore::HandleReq(int socki)
 
 			// add the key to the cache
 			KeyCacheEntry tmp_key(the_sid, sock->endpoint(), the_key, the_policy, 0);
-			sec_man->enc_key_cache->insert(the_sid, tmp_key);
+			sec_man->session_cache->insert(tmp_key);
 			dprintf (D_SECURITY, "DC_AUTHENTICATE: added session id %s to cache!\n", the_sid);
 		}
 
@@ -2298,8 +2338,7 @@ finalize:
 }
 
 
-int DaemonCore::HandleSigCommand(int command, Stream* stream)
-{
+int DaemonCore::HandleSigCommand(int command, Stream* stream) {
 	int sig;
 
 	assert( command == DC_RAISESIGNAL );
@@ -5306,6 +5345,6 @@ DaemonCore::Register_Priv_State( priv_state priv )
 
 KeyCache*
 DaemonCore::getKeyCache() {
-	return sec_man->enc_key_cache;
+	return sec_man->session_cache;
 }
 

@@ -141,24 +141,40 @@ KeyCache::KeyCache(int nbuckets) {
 }
 
 KeyCache::KeyCache(const KeyCache& k) {
-	key_table = new HashTable<MyString, KeyCacheEntry*>(*(k.key_table));
-	dprintf ( D_SECURITY, "KEYCACHE: created: %x\n", key_table );
+	copy_storage(k);
 }
 
 KeyCache::~KeyCache() {
-	dprintf ( D_SECURITY, "KEYCACHE: deleted: %x\n", key_table );
 	delete_storage();
 }
 	    
 const KeyCache& KeyCache::operator=(const KeyCache& k) {
-	dprintf ( D_SECURITY, "KEYCACHE: created: %x\n", key_table );
 	if (this != &k) {
 		delete_storage();
-		key_table = new HashTable<MyString, KeyCacheEntry*>(*(k.key_table));
-		dprintf ( D_SECURITY, "KEYCACHE: created: %x\n", key_table );
+		copy_storage(k);
 	}
 	return *this;
 }
+
+
+void KeyCache::copy_storage(const KeyCache &copy) {
+	if (copy.key_table) {
+		key_table = new HashTable<MyString, KeyCacheEntry*>(copy.key_table->getTableSize(), MyStringHash, rejectDuplicateKeys);
+		dprintf ( D_SECURITY, "KEYCACHE: created: %x\n", key_table );
+
+		// manually iterate all entries from the hash.  they are
+		// pointers, and we need to copy that object.
+		KeyCacheEntry* key_entry;
+		copy.key_table->startIterations();
+		while (copy.key_table->iterate(key_entry)) {
+			KeyCacheEntry *tmp_ent = new KeyCacheEntry(*key_entry);
+			key_table->insert(tmp_ent->id(), tmp_ent);
+		}
+	} else {
+		key_table = NULL;
+	}
+}
+
 
 void KeyCache::delete_storage() {
 	if (key_table) {
@@ -172,20 +188,45 @@ void KeyCache::delete_storage() {
 			}
 		}
 
-		dprintf ( D_SECURITY, "KEYCACHE: created: %x\n", key_table );
+		dprintf ( D_SECURITY, "KEYCACHE: deleted: %x\n", key_table );
 		delete key_table;
 		key_table = NULL;
 	}
 }
 
-bool KeyCache::insert(char *key_id, KeyCacheEntry &e) {
-	return key_table->insert(key_id, new KeyCacheEntry(e));
+bool KeyCache::insert(KeyCacheEntry &e) {
+
+	// the key_table member is a HashTable which maps
+	// MyString's to KeyCacheEntry's.  (note the '*')
+
+	// the map_table member is a HashTable which maps
+	// MyString's to MyString's.
+
+	// create a new entry
+	KeyCacheEntry *new_ent = new KeyCacheEntry(e);
+
+	// stick a pointer to the entry in the table
+	// NOTE: HashTable's insert returns ZERO on SUCCESS!!!
+	bool retval = (key_table->insert(new_ent->id(), new_ent) == 0);
+
+	if (!retval) {
+		// key was not inserted... delete
+		delete new_ent;
+	}
+
+	return retval;
 }
 
-bool KeyCache::lookup(char *key_id, KeyCacheEntry *&e_ptr) {
+
+bool KeyCache::lookup(const char *key_id, KeyCacheEntry *&e_ptr) {
+
+	// use a temp pointer so that e_ptr is not modified
+	// if a match is not found, or if the match we found
+	// was expired and we are going to lie.
 
 	KeyCacheEntry *tmp_ptr = NULL;
 
+	// NOTE: HashTable's lookup returns ZERO on SUCCESS
 	bool res = (key_table->lookup(key_id, tmp_ptr) == 0);
 
 	if (res) {
@@ -209,8 +250,13 @@ bool KeyCache::lookup(char *key_id, KeyCacheEntry *&e_ptr) {
 	return res;
 }
 
-bool KeyCache::remove(char *key_id) {
-	return key_table->remove(key_id);
+bool KeyCache::remove(const char *key_id) {
+	// to remove a key:
+	// you first need to do a lookup.  part of the KeyCacheEntry
+	// then tells you ALL key_id's that this key was inserted under.
+
+	// NOTE: HashTable's remove returns ZERO on SUCCESS!!!
+	return (key_table->remove(key_id) == 0);
 }
 
 void KeyCache::expire(KeyCacheEntry *e) {

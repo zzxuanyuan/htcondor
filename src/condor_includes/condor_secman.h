@@ -70,8 +70,9 @@ public:
 	static char* sec_feat_act_rev[];
 	static char* sec_req_rev[];
 
-	static KeyCache* enc_key_cache;
-	static int enc_key_cache_ref_count;
+	static KeyCache                      * session_cache;
+	static HashTable<MyString, MyString> * command_map;
+	static int sec_man_ref_count;
 
 	SecMan(int numbuckets = 209);
 	SecMan(const SecMan &);

@@ -88,7 +88,7 @@ public:
 	void init();	/* shared initialization method */
 
     const char * isIncomingDataMD5ed();
-    const char * isIncomingDataEncryted();
+    const char * isIncomingDataEncrypted();
 
 #ifdef DEBUG
 	int getMsgSize();
