@@ -89,7 +89,6 @@ class GlobusResource : public BaseResource
 	int pingTimerId;
 	time_t lastPing;
 	time_t lastStatusChange;
-	Proxy *myProxy;
 	List<GlobusJob> registeredJobs;
 	List<GlobusJob> pingRequesters;
 	// jobs that are currently executing a submit
@@ -114,7 +113,7 @@ class GlobusResource : public BaseResource
 	int jobStatusFileLastReadTime;
 	int logFileLastReadTime;
 
-	GahpClient gahp;
+	GahpClient *gahp;
 };
 
 #endif

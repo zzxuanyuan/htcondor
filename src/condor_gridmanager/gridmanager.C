@@ -36,6 +36,8 @@
 #include "gridmanager.h"
 #include "gahp-client.h"
 
+#include "globusjob.h"
+
 #if defined(ORACLE_UNIVERSE)
 #include "oraclejob.h"
 #endif

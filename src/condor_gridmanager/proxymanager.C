@@ -30,6 +30,7 @@
 #include "condor_config.h"
 #include "classad_hashtable.h"
 #include "util_lib_proto.h"
+#include "globus_utils.h"
 
 #include "proxymanager.h"
 #include "gridmanager.h"
@@ -38,14 +39,17 @@
 
 template class HashTable<HashKey, Proxy *>;
 template class HashBucket<HashKey, Proxy *>;
+template class HashTable<HashKey, ProxySubject *>;
+template class HashBucket<HashKey, ProxySubject *>;
+template class List<Proxy>;
+template class Item<Proxy>;
 
-HashTable <HashKey, Proxy *> ProxiesByPath( HASH_TABLE_SIZE,
-											hashFunction );
+HashTable <HashKey, Proxy *> ProxiesByFilename( HASH_TABLE_SIZE,
+												hashFunction );
+HashTable <HashKey, ProxySubject *> SubjectsByName( 50, hashFunction );
 
 static bool proxymanager_initialized = false;
 static int CheckProxies_tid = TIMER_UNSET;
-char *MasterProxyPath;
-Proxy MasterProxy;
 
 int CheckProxies_interval = 600;		// default value
 int minProxy_time = 3 * 60;				// default value
@@ -55,26 +59,32 @@ static int next_proxy_id = 1;
 int CheckProxies();
 
 static bool
-SetMasterProxy( const Proxy *new_master )
+SetMasterProxy( Proxy *master, const Proxy *copy_src )
 {
 	int rc;
 	MyString tmp_file;
 
-	tmp_file.sprintf( "%s.tmp", MasterProxy.proxy_filename );
+	tmp_file.sprintf( "%s.tmp", master->proxy_filename );
 
-	rc = copy_file( new_master->proxy_filename, tmp_file.Value() );
+	rc = copy_file( copy_src->proxy_filename, tmp_file.Value() );
 	if ( rc != 0 ) {
 		return false;
 	}
 
-	rc = rotate_file( tmp_file.Value(), MasterProxy.proxy_filename );
+	rc = rotate_file( tmp_file.Value(), master->proxy_filename );
 	if ( rc != 0 ) {
 		unlink( tmp_file.Value() );
 		return false;
 	}
 
-	MasterProxy.expiration_time = new_master->expiration_time;
-	MasterProxy.near_expired = new_master->near_expired;
+	master->expiration_time = copy_src->expiration_time;
+	master->near_expired = copy_src->near_expired;
+
+	int tid;
+	master->notification_tids.Rewind();
+	while ( master->notification_tids.Next( tid ) ) {
+		daemonCore->Reset_Timer( tid, 0 );
+	}
 
 	return true;
 }
@@ -86,14 +96,6 @@ bool InitializeProxyManager( const char *proxy_dir )
 	if ( proxymanager_initialized == true ) {
 		return false;
 	}
-
-	MyString buf;
-	buf.sprintf( "%s/master_proxy", proxy_dir );
-	MasterProxy.proxy_filename = strdup( buf.Value() );
-	MasterProxy.num_references = 0;
-	MasterProxy.expiration_time = 0;
-	MasterProxy.id = 0;
-	MasterProxy.near_expired = true;
 
 	CheckProxies_tid = daemonCore->Register_Timer( 1, CheckProxies_interval,
 												   (TimerHandler)&CheckProxies,
@@ -127,19 +129,12 @@ AcquireProxy( const char *proxy_path, int notify_tid )
 		return NULL;
 	}
 
-	if ( proxy_path == NULL ) {
-		MasterProxy.num_references++;
-		if ( notify_tid > 0 &&
-			 MasterProxy.notification_tids.IsMember( notify_tid ) == false ) {
-			MasterProxy.notification_tids.Append( notify_tid );
-		}
-		return &MasterProxy;
-	}
-
 	int expire_time;
-	Proxy *proxy;
+	Proxy *proxy = NULL;
+	ProxySubject *proxy_subject = NULL;
+	char *subject_name = NULL;
 
-	if ( ProxiesByPath.lookup( HashKey(proxy_path), proxy ) == 0 ) {
+	if ( ProxiesByFilename.lookup( HashKey(proxy_path), proxy ) == 0 ) {
 		// We already know about this proxy,
 		// return the existing Proxy struct
 		proxy->num_references++;
@@ -151,15 +146,21 @@ AcquireProxy( const char *proxy_path, int notify_tid )
 	}
 
 	// We don't know about this proxy yet,
-	// create a new Proxy struct and signal CheckProxies
+	// create a new Proxy struct and...
 	expire_time = x509_proxy_expiration_time( proxy_path );
 	if ( expire_time < 0 ) {
-		dprintf( D_ALWAYS, "Something wrong with proxy %s\n", proxy_path );
+		dprintf( D_ALWAYS, "Failed to get expiration time of proxy %s\n",
+				 proxy_path );
+		return NULL;
+	}
+	subject_name = x509_proxy_subject_name( proxy_path );
+	if ( subject_name == NULL ) {
+		dprintf( D_ALWAYS, "Failed to get subject of proxy %s\n", proxy_path );
 		return NULL;
 	}
 
 	proxy = new Proxy;
-	proxy->proxy_filename = strdup( proxy_path);
+	proxy->proxy_filename = strdup(proxy_path);
 	proxy->num_references = 1;
 	proxy->expiration_time = expire_time;
 	proxy->near_expired = (expire_time - time(NULL)) <= minProxy_time;
@@ -168,12 +169,58 @@ AcquireProxy( const char *proxy_path, int notify_tid )
 		 proxy->notification_tids.IsMember( notify_tid ) == false ) {
 		proxy->notification_tids.Append( notify_tid );
 	}
+dprintf(D_FULLDEBUG,"*** allocated new proxy %d, path=%s\n",proxy->id,proxy->proxy_filename);
 
-	ProxiesByPath.insert(HashKey(proxy_path), proxy);
+	ProxiesByFilename.insert(HashKey(proxy_path), proxy);
 
-		// is this necessary anymore?
-	daemonCore->Reset_Timer( CheckProxies_tid, 0 );
+	if ( SubjectsByName.lookup( HashKey(subject_name), proxy_subject ) != 0 ) {
+		// We don't know about this proxy subject yet,
+		// create a new ProxySubject and fill it out
+		proxy_subject = new ProxySubject;
+		proxy_subject->subject_name = strdup( subject_name );
 
+		// Create a master proxy for our new ProxySubject
+		Proxy *new_master = new Proxy;
+		new_master->id = next_proxy_id++;
+		MyString tmp;
+		tmp.sprintf( "%s/master_proxy.%d", GridmanagerScratchDir,
+					 new_master->id );
+		new_master->proxy_filename = strdup( tmp.Value() );
+		new_master->num_references = 0;
+		new_master->subject = proxy_subject;
+		SetMasterProxy( new_master, proxy );
+		ProxiesByFilename.insert( HashKey(new_master->proxy_filename),
+								  new_master );
+dprintf(D_FULLDEBUG,"*** allocated new master proxy %d, path=%s\n",new_master->id,new_master->proxy_filename);
+
+		proxy_subject->master_proxy = new_master;
+
+		SubjectsByName.insert(HashKey(proxy_subject->subject_name),
+							  proxy_subject);
+	}
+
+	proxy_subject->proxies.Append( proxy );
+
+	proxy->subject = proxy_subject;
+
+	if ( proxy->expiration_time > proxy_subject->master_proxy->expiration_time ) {
+dprintf(D_FULLDEBUG,"*** found new source (%d,%s) for master proxy (%d,%s)\n",proxy->id,proxy->proxy_filename,proxy_subject->master_proxy->id,proxy_subject->master_proxy->proxy_filename);
+			SetMasterProxy( proxy_subject->master_proxy, proxy );
+	}
+
+	free( subject_name );
+
+	return proxy;
+}
+
+Proxy *
+AcquireProxy( Proxy *proxy, int notify_tid )
+{
+	proxy->num_references++;
+	if ( notify_tid > 0 &&
+		 proxy->notification_tids.IsMember( notify_tid ) == false ) {
+		proxy->notification_tids.Append( notify_tid );
+	}
 	return proxy;
 }
 
@@ -188,29 +235,41 @@ ReleaseProxy( Proxy *proxy, int notify_tid )
 		return;
 	}
 
-	if ( proxy == &MasterProxy ) {
-		MasterProxy.num_references--;
-		MasterProxy.notification_tids.Delete( notify_tid );
-		return;
-	}
-
-	Proxy *hashed_proxy;
-
-	if ( ProxiesByPath.lookup( HashKey(proxy->proxy_filename),
-							   hashed_proxy ) == 0 ) {
-		if ( hashed_proxy != proxy ) {
-			EXCEPT( "Different Proxy objects with same filename!" );
-		}
-
-		proxy->num_references--;
+	proxy->num_references--;
+	if ( notify_tid > 0 ) {
 		proxy->notification_tids.Delete( notify_tid );
-
-		if ( proxy->num_references == 0 ) {
-			daemonCore->Reset_Timer( CheckProxies_tid, 0 );
-		}
-	} else {
-		EXCEPT( "Released Proxy object isn't in hashtable!" );
 	}
+
+	if ( proxy->num_references < 0 ) {
+		dprintf( D_ALWAYS, "Reference count for proxy %s is negative!\n",
+				 proxy->proxy_filename );
+	}
+
+	if ( proxy->num_references <= 0 ) {
+
+		ProxySubject *proxy_subject = proxy->subject;
+
+		if ( proxy != proxy_subject->master_proxy ) {
+			ProxiesByFilename.remove( HashKey(proxy->proxy_filename) );
+			proxy_subject->proxies.Delete( proxy );
+			free( proxy->proxy_filename );
+			delete proxy;
+		}
+
+		if ( proxy_subject->proxies.IsEmpty() &&
+			 proxy_subject->master_proxy->num_references <= 0 ) {
+
+			ProxiesByFilename.remove( HashKey(proxy_subject->master_proxy->proxy_filename) );
+			free( proxy_subject->master_proxy->proxy_filename );
+			delete proxy_subject->master_proxy;
+
+			SubjectsByName.remove( HashKey(proxy_subject->subject_name) );
+			free( proxy_subject->subject_name );
+			delete proxy_subject;
+		}
+
+	}
+
 }
 
 void doCheckProxies()
@@ -227,114 +286,74 @@ void doCheckProxies()
 // about to expire.
 int CheckProxies()
 {
-	Proxy *next_proxy;
-	Proxy *new_master;
-	int new_max_expire;
 	int now = time(NULL);
 	int next_check = CheckProxies_interval + now;
-dprintf(D_ALWAYS,"CheckProxies called\n");
+	ProxySubject *curr_subject;
 
-	if ( proxymanager_initialized == false ) {
-		daemonCore->Reset_Timer( CheckProxies_tid, CheckProxies_interval );
-		return TRUE;
-	}
+	SubjectsByName.startIterations();
 
-	// As we check our proxies, keep an eye out for a new master proxy.
-	// The new master needs to be valid and have an expiration time at
-	// 60 seconds longer than the current master proxy.
-	new_master = NULL;
-	new_max_expire = MasterProxy.expiration_time + 60;
-	if ( new_max_expire < now + minProxy_time ) {
-		new_max_expire = now + minProxy_time;
-	}
+	while ( SubjectsByName.iterate( curr_subject ) != 0 ) {
 
-	ProxiesByPath.startIterations();
+		Proxy *curr_proxy;
+		Proxy *new_master = curr_subject->master_proxy;
 
-	while ( ProxiesByPath.iterate( next_proxy ) != 0 ) {
+		curr_subject->proxies.Rewind();
 
-		// Remove any proxies that are no longer being used by anyone
-		if ( next_proxy->num_references == 0 ) {
-dprintf(D_ALWAYS,"  removing old proxy %d\n",next_proxy->id);
-			ProxiesByPath.remove( HashKey(next_proxy->proxy_filename) );
-			free( next_proxy->proxy_filename );
-			delete next_proxy;
-			continue;
-		}
+		while ( curr_subject->proxies.Next( curr_proxy ) != false ) {
 
-		int new_expiration = x509_proxy_expiration_time( next_proxy->proxy_filename );
-		// If the proxy hasn't been cached in the gahp_server yet or it's
-		// been updated (and the update isn't near expiration), (re)cache
-		// it in the gahp_server and notify everyone who cares.
-		if ( new_expiration > next_proxy->expiration_time &&
-			 new_expiration > now + minProxy_time ) {
+dprintf(D_FULLDEBUG,"*** checking proxy %d, path=%s\n",curr_proxy->id,curr_proxy->proxy_filename);
+			curr_proxy->near_expired =
+				(curr_proxy->expiration_time - now) <= minProxy_time;
 
-			next_proxy->expiration_time = new_expiration;
-			next_proxy->near_expired = false;
+			int new_expiration =
+				x509_proxy_expiration_time( curr_proxy->proxy_filename );
 
-			int tid;
-			next_proxy->notification_tids.Rewind();
-			while ( next_proxy->notification_tids.Next( tid ) ) {
-				daemonCore->Reset_Timer( tid, 0 );
-			}
+			if ( new_expiration > curr_proxy->expiration_time ) {
 
-		}
+				curr_proxy->expiration_time = new_expiration;
 
-		if ( new_expiration <= now + minProxy_time ) {
-			// This proxy has expired or is about to expire. Mark it
-			// as such and notify everyone who cares.
-			if ( next_proxy->near_expired == false ) {
-dprintf(D_ALWAYS,"  marking proxy %d as about to expire\n",next_proxy->id);
-				next_proxy->near_expired = true;
+				curr_proxy->near_expired =
+					(curr_proxy->expiration_time - now) <= minProxy_time;
+
 				int tid;
-				next_proxy->notification_tids.Rewind();
-				while ( next_proxy->notification_tids.Next( tid ) ) {
+				curr_proxy->notification_tids.Rewind();
+				while ( curr_proxy->notification_tids.Next( tid ) ) {
 					daemonCore->Reset_Timer( tid, 0 );
 				}
+dprintf(D_FULLDEBUG,"*** found updated proxy %d, path=%s\n",curr_proxy->id,curr_proxy->proxy_filename);
+
+				if ( curr_proxy->expiration_time > new_master->expiration_time ) {
+					new_master = curr_proxy;
+				}
+
+			} else if ( curr_proxy->near_expired ) {
+
+				int tid;
+				curr_proxy->notification_tids.Rewind();
+				while ( curr_proxy->notification_tids.Next( tid ) ) {
+					daemonCore->Reset_Timer( tid, 0 );
+				}
+
 			}
+
+			if ( curr_proxy->expiration_time - minProxy_time < next_check &&
+				 !curr_proxy->near_expired ) {
+				next_check = curr_proxy->expiration_time - minProxy_time;
+			}
+
 		}
 
-		// Check if this proxy should become the new master proxy
-		if ( next_proxy->expiration_time > new_max_expire ) {
-			new_master = next_proxy;
-			new_max_expire = next_proxy->expiration_time;
+		if ( new_master != curr_subject->master_proxy ) {
+			
+dprintf(D_FULLDEBUG,"*** found new source (%d,%s) for master proxy (%d,%s)\n",new_master->id,new_master->proxy_filename,curr_subject->master_proxy->id,curr_subject->master_proxy->proxy_filename);
+			SetMasterProxy( curr_subject->master_proxy, new_master );
+
 		}
 
-		// If this proxy will expire before the next scheduled check,
-		// reschedule the check for when this proxy is about to expire
-		if ( next_proxy->expiration_time - minProxy_time < next_check &&
-			 !next_proxy->near_expired ) {
-			next_check = next_proxy->expiration_time - minProxy_time;
-		}
-
-	}
-
-	// If we found a new master proxy, copy it to the master proxy location,
-	// update the master Proxy struct, update the GAHP server, and notify
-	// everyone who cares
-	if ( new_master != NULL && SetMasterProxy( new_master ) == true ) {
-
-dprintf(D_ALWAYS,"  proxy %d is now the master proxy\n",new_master->id);
-		int tid;
-		MasterProxy.notification_tids.Rewind();
-		while ( MasterProxy.notification_tids.Next( tid ) ) {
-			daemonCore->Reset_Timer( tid, 0 );
-		}
-	}
-
-	// Check if the master proxy is about to expire
-	if ( MasterProxy.expiration_time <= now + minProxy_time &&
-		 MasterProxy.near_expired == false ) {
-		MasterProxy.near_expired = true;
-		int tid;
-		MasterProxy.notification_tids.Rewind();
-		while ( MasterProxy.notification_tids.Next( tid ) ) {
-			daemonCore->Reset_Timer( tid, 0 );
-		}
 	}
 
 	// next_check is the absolute time of the next check, convert it to
 	// a relative time (from now)
-dprintf(D_ALWAYS,"  will call CheckProxies again in %d seconds\n",next_check-now);
 	daemonCore->Reset_Timer( CheckProxies_tid, next_check - now );
 
 	return TRUE;

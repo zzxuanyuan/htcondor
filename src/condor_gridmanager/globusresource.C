@@ -62,13 +62,12 @@ GlobusResource::GlobusResource( const char *resource_name )
 								"GlobusResource::DoPing", (Service*)this );
 	lastPing = 0;
 	lastStatusChange = 0;
-	gahp.setNotificationTimerId( pingTimerId );
-	gahp.setMode( GahpClient::normal );
-	gahp.setTimeout( gahpCallTimeout );
+	gahp = new GahpClient();
+	gahp->setNotificationTimerId( pingTimerId );
+	gahp->setMode( GahpClient::normal );
+	gahp->setTimeout( gahpCallTimeout );
 	submitLimit = DEFAULT_MAX_PENDING_SUBMITS_PER_RESOURCE;
 	jobLimit = DEFAULT_MAX_SUBMITTED_JOBS_PER_RESOURCE;
-
-	myProxy = AcquireProxy( NULL, pingTimerId );
 
 	checkMonitorTid = TIMER_UNSET;
 	monitorActive = false;
@@ -88,7 +87,6 @@ GlobusResource::GlobusResource( const char *resource_name )
 
 GlobusResource::~GlobusResource()
 {
-	ReleaseProxy( NULL, pingTimerId );
 	daemonCore->Cancel_Timer( pingTimerId );
 	if ( checkMonitorTid != TIMER_UNSET ) {
 		daemonCore->Cancel_Timer( checkMonitorTid );
@@ -109,7 +107,7 @@ void GlobusResource::Reconfig()
 
 	BaseResource::Reconfig();
 
-	gahp.setTimeout( gahpCallTimeout );
+	gahp->setTimeout( gahpCallTimeout );
 
 	submitLimit = -1;
 	param_value = param( "GRIDMANAGER_MAX_PENDING_SUBMITS_PER_RESOURCE" );
@@ -381,12 +379,18 @@ int GlobusResource::DoPing()
 
 	daemonCore->Reset_Timer( pingTimerId, TIMER_NEVER );
 
-	if ( PROXY_NEAR_EXPIRED( myProxy ) ) {
+	if ( gahp->isInitialized() == false ) {
+		dprintf( D_ALWAYS,"gahp server not up yet, delaying ping\n" );
+		daemonCore->Reset_Timer( pingTimerId, 5 );
+		return TRUE;
+	}
+	gahp->setNormalProxy( gahp->getMasterProxy() );
+	if ( PROXY_NEAR_EXPIRED( gahp->getMasterProxy() ) ) {
 		dprintf( D_ALWAYS,"proxy near expiration or invalid, delaying ping\n" );
 		return TRUE;
 	}
 
-	rc = gahp.globus_gram_client_ping( resourceName );
+	rc = gahp->globus_gram_client_ping( resourceName );
 
 	if ( rc == GAHPCLIENT_COMMAND_PENDING ) {
 		return 0;

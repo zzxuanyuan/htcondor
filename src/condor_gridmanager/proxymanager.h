@@ -28,6 +28,8 @@
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
 #include "simplelist.h"
 
+struct ProxySubject;
+
 struct Proxy {
 	char *proxy_filename;
 	int expiration_time;
@@ -35,6 +37,13 @@ struct Proxy {
 	int id;
 	int num_references;
 	SimpleList<int> notification_tids;
+	ProxySubject *subject;
+};
+
+struct ProxySubject {
+	char *subject_name;
+	Proxy *master_proxy;
+	List<Proxy> proxies;
 };
 
 #define PROXY_NEAR_EXPIRED( p ) \
@@ -46,6 +55,7 @@ extern int minProxy_time;
 bool InitializeProxyManager( const char *proxy_dir );
 
 Proxy *AcquireProxy( const char *proxy_path, int notify_tid = -1 );
+Proxy *AcquireProxy( Proxy *proxy, int notify_tid = -1 );
 void ReleaseProxy( Proxy *proxy, int notify_tid = -1 );
 
 void doCheckProxies();

@@ -70,14 +70,11 @@ GT3Resource::GT3Resource( const char *resource_name )
 	submitLimit = DEFAULT_MAX_PENDING_SUBMITS_PER_RESOURCE;
 	jobLimit = DEFAULT_MAX_SUBMITTED_JOBS_PER_RESOURCE;
 
-	myProxy = AcquireProxy( NULL, pingTimerId );
-
 	Reconfig();
 }
 
 GT3Resource::~GT3Resource()
 {
-	ReleaseProxy( NULL, pingTimerId );
 	daemonCore->Cancel_Timer( pingTimerId );
 	if ( gahp != NULL ) {
 		delete gahp;
@@ -355,7 +352,8 @@ int GT3Resource::DoPing()
 		daemonCore->Reset_Timer( pingTimerId, 5 );
 		return TRUE;
 	}
-	if ( PROXY_NEAR_EXPIRED( myProxy ) ) {
+	gahp->setNormalProxy( gahp->getMasterProxy() );
+	if ( PROXY_NEAR_EXPIRED( gahp->getMasterProxy() ) ) {
 		dprintf( D_ALWAYS,"proxy near expiration or invalid, delaying ping\n" );
 		return TRUE;
 	}

@@ -79,7 +79,6 @@ class GT3Resource : public BaseResource
 	int pingTimerId;
 	time_t lastPing;
 	time_t lastStatusChange;
-	Proxy *myProxy;
 	List<GT3Job> registeredJobs;
 	List<GT3Job> pingRequesters;
 	// jobs that are currently executing a submit

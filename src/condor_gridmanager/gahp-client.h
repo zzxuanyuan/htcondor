@@ -50,7 +50,6 @@
 struct GahpProxyInfo
 {
 	Proxy *proxy;
-	int id;
 	int cached_expiration;
 };
 
@@ -284,6 +283,8 @@ class GahpClient : public Service {
 
 		void setDelegProxy( Proxy *proxy );
 
+		Proxy *getMasterProxy();
+
 		bool isInitialized() { return server->is_initialized; }
 
 		//-----------------------------------------------------------
@@ -421,7 +422,7 @@ class GahpClient : public Service {
 		void clear_pending();
 		bool is_pending(const char *command, const char *buf);
 		void now_pending(const char *command,const char *buf,
-						 GahpProxyInfo *proxy = GAHPCLIENT_CACHE_DEFAULT_PROXY);
+						 GahpProxyInfo *proxy = NULL);
 		Gahp_Args* get_pending_result(const char *,const char *);
 		bool check_pending_timeout(const char *,const char *);
 		int reset_user_timer(int tid);

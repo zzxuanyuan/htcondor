@@ -108,7 +108,7 @@ GahpServer::GahpServer(const char *id, const char *path)
 	poll_pending = false;
 	use_prefix = false;
 	requestTable = NULL;
-	current_proxy = GAHPCLIENT_CACHE_DEFAULT_PROXY;
+	current_proxy = NULL;
 	skip_next_r = false;
 
 	requestTable = new HashTable<int,GahpClient*>( 300, &hashFuncInt );
@@ -226,6 +226,7 @@ GahpServer::Reaper(Service*,int pid,int status)
 
 GahpClient::GahpClient(const char *id, const char *path)
 {
+dprintf(D_ALWAYS,"**** GahpClient::GahpClient 0x%p called\n",this);
 	server = GahpServer::FindOrCreateGahpServer(id,path);
 	m_timeout = 0;
 	m_mode = normal;
@@ -237,10 +238,10 @@ GahpClient::GahpClient(const char *id, const char *path)
 	pending_timeout = 0;
 	pending_timeout_tid = -1;
 	pending_submitted_to_gahp = false;
-	pending_proxy = GAHPCLIENT_CACHE_DEFAULT_PROXY;
+	pending_proxy = NULL;
 	user_timerid = -1;
-	normal_proxy = GAHPCLIENT_CACHE_LAST_PROXY;
-	deleg_proxy = GAHPCLIENT_CACHE_DEFAULT_PROXY;
+	normal_proxy = NULL;
+	deleg_proxy = NULL;
 }
 
 GahpClient::~GahpClient()
@@ -650,7 +651,7 @@ GahpClient::Initialize(const char *proxy_path)
 bool
 GahpServer::Initialize(const char *proxy_path)
 {
-	int rc;
+	GahpProxyInfo *proxy_info = NULL;
 
 		// Check if Initialize() has already been successfully called
 	if ( is_initialized == true ) {
@@ -669,25 +670,19 @@ GahpServer::Initialize(const char *proxy_path)
 															   &hashFunction );
 	ASSERT(ProxiesByFilename);
 
-	MyString filename;
-	filename.sprintf( "%s/master_proxy.%d", GridmanagerScratchDir, m_gahp_pid );
-
-	rc = copy_file( proxy_path, filename.Value() );
-	if ( rc != 0 ) {
-			// bad stuff!
-		EXCEPT( "copy_file() failed!\n" );
-	}
-
 	proxy_check_tid = daemonCore->Register_Timer( TIMER_NEVER,
 								(TimerHandlercpp)&GahpServer::doProxyCheck,
 								"GahpServer::doProxyCheck", (Service*) this );
+
+	proxy_info = RegisterProxy( proxy_path );
+
 	master_proxy = new GahpProxyInfo;
-//	master_proxy->proxy = AcquireProxy( filename.Value(), proxy_check_tid );
-	master_proxy->proxy = AcquireProxy( filename.Value(), TIMER_UNSET );
+	master_proxy->proxy = proxy_info->proxy->subject->master_proxy;
+	AcquireProxy( master_proxy->proxy, proxy_check_tid );
 	master_proxy->cached_expiration = 0;
 
 		// Give the server our x509 proxy.
-	if ( command_initialize_from_file(filename.Value()) == false ) {
+	if ( command_initialize_from_file( master_proxy->proxy->proxy_filename ) == false ) {
 		EXCEPT( "Failed to initialize from file" );
 	}
 
@@ -778,7 +773,7 @@ GahpServer::uncacheProxy( GahpProxyInfo *gahp_proxy )
 	}
 
 	if ( current_proxy == gahp_proxy ) {
-		if ( useCachedProxy( GAHPCLIENT_CACHE_DEFAULT_PROXY ) == false ) {
+		if ( useCachedProxy( master_proxy ) == false ) {
 			EXCEPT( "useCachedProxy failed in uncacheProxy" );
 		}
 	}
@@ -789,29 +784,22 @@ GahpServer::uncacheProxy( GahpProxyInfo *gahp_proxy )
 bool
 GahpServer::useCachedProxy( GahpProxyInfo *new_proxy, bool force )
 {
-	GahpProxyInfo *check_proxy = new_proxy;
-
-		// Figure out which proxy will be become the new current proxy
-	if ( new_proxy == GAHPCLIENT_CACHE_LAST_PROXY ) {
-		check_proxy = current_proxy;
-	} else if ( new_proxy == GAHPCLIENT_CACHE_DEFAULT_PROXY ) {
-		check_proxy = master_proxy;
-		new_proxy = master_proxy;
+		// If the caller doesn't give us a proxy to use, just keep the
+		// current one, but still do the updated proxy check.
+	if ( new_proxy == NULL ) {
+		new_proxy = current_proxy;
 	}
 
 		// Check if the new current proxy has been updated. If so,
 		// re-cache it in the gahp server
-	if ( check_proxy->cached_expiration != check_proxy->proxy->expiration_time ) {
-		if ( command_cache_proxy_from_file( check_proxy ) == false ) {
+	if ( new_proxy->cached_expiration != new_proxy->proxy->expiration_time ) {
+		if ( command_cache_proxy_from_file( new_proxy ) == false ) {
 			EXCEPT( "Failed to recache proxy!" );
 		}
-		check_proxy->cached_expiration = check_proxy->proxy->expiration_time;
+		new_proxy->cached_expiration = new_proxy->proxy->expiration_time;
 			// Now that we've re-cached the proxy, we have to issue a
 			// USE_CACHED_PROXY command
 		force = true;
-			// Since a proxy has been updated, we need to check if it
-			// should be copied to the master proxy
-		daemonCore->Reset_Timer( proxy_check_tid, 0 );
 	}
 
 	if ( force == false && new_proxy == current_proxy ) {
@@ -822,9 +810,7 @@ GahpServer::useCachedProxy( GahpProxyInfo *new_proxy, bool force )
 		return false;
 	}
 
-	if ( new_proxy != GAHPCLIENT_CACHE_LAST_PROXY ) {
-		current_proxy = new_proxy;
-	}
+	current_proxy = new_proxy;
 
 	return true;
 }
@@ -839,16 +825,13 @@ GahpServer::command_use_cached_proxy( GahpProxyInfo *new_proxy )
 		return false;
 	}
 
-	char buf[_POSIX_PATH_MAX];
-	if ( new_proxy == GAHPCLIENT_CACHE_LAST_PROXY ) {
-		return true;
-	} else if ( new_proxy == GAHPCLIENT_CACHE_DEFAULT_PROXY ) {
-		int x = snprintf(buf,sizeof(buf),"%s DEFAULT",command);
-		ASSERT( x > 0 && x < (int)sizeof(buf) );
-	} else {
-		int x = snprintf(buf,sizeof(buf),"%s %d",command,new_proxy->proxy->id);
-		ASSERT( x > 0 && x < (int)sizeof(buf) );
+	if ( new_proxy == NULL ) {
+		return false;
 	}
+
+	char buf[_POSIX_PATH_MAX];
+	int x = snprintf(buf,sizeof(buf),"%s %d",command,new_proxy->proxy->id);
+	ASSERT( x > 0 && x < (int)sizeof(buf) );
 	write_line(buf);
 	Gahp_Args result;
 	read_argv(result);
@@ -869,6 +852,7 @@ GahpServer::command_use_cached_proxy( GahpProxyInfo *new_proxy )
 int
 GahpServer::doProxyCheck()
 {
+dprintf(D_FULLDEBUG,"***doProxyCheck() called\n");
 	daemonCore->Reset_Timer( proxy_check_tid, TIMER_NEVER );
 
 	if ( m_gahp_pid == -1 ) {
@@ -881,25 +865,14 @@ GahpServer::doProxyCheck()
 	while ( ProxiesByFilename->iterate( next_proxy ) != 0 ) {
 
 		if ( next_proxy->proxy->expiration_time >
-			 master_proxy->cached_expiration + 60 ) {
+			 next_proxy->cached_expiration ) {
 
-			int rc;
-			MyString tmp_file;
-
-			tmp_file.sprintf( "%s.tmp", master_proxy->proxy->proxy_filename );
-
-			rc = copy_file( next_proxy->proxy->proxy_filename, tmp_file.Value() );
-			if ( rc != 0 ) {
-				EXCEPT( "failed to copy proxy" );
+dprintf(D_FULLDEBUG,"***   proxy %d needs to be recached\n",next_proxy->proxy->id);
+			if ( cacheProxyFromFile( next_proxy ) == false ) {
+				EXCEPT( "Failed to refresh proxy!" );
 			}
+			next_proxy->cached_expiration = next_proxy->proxy->expiration_time;
 
-			rc = rotate_file( tmp_file.Value(), master_proxy->proxy->proxy_filename );
-			if ( rc != 0 ) {
-				unlink( tmp_file.Value() );
-				EXCEPT( "failed to rename proxy" );
-			}
-
-			master_proxy->proxy->expiration_time = next_proxy->proxy->expiration_time;
 		}
 
 	}
@@ -907,6 +880,7 @@ GahpServer::doProxyCheck()
 	if ( master_proxy->proxy->expiration_time >
 		 master_proxy->cached_expiration ) {
 
+dprintf(D_FULLDEBUG,"***   master proxy %d needs to be recahced\n",master_proxy->proxy->id);
 		static const char *command = "REFRESH_PROXY_FROM_FILE";
 		if ( command_initialize_from_file( master_proxy->proxy->proxy_filename,
 										   command) == false ) {
@@ -920,6 +894,7 @@ GahpServer::doProxyCheck()
 		master_proxy->cached_expiration = master_proxy->proxy->expiration_time;
 	}
 
+dprintf(D_FULLDEBUG,"***doProxyCheck() returning\n");
 	return 0;
 }
 
@@ -938,8 +913,7 @@ GahpServer::RegisterProxy( const char *proxy_path )
 	if ( rc != 0 ) {
 		gahp_proxy = new GahpProxyInfo;
 		ASSERT(gahp_proxy);
-//		gahp_proxy->proxy = AcquireProxy( proxy_path, proxy_check_tid );
-		gahp_proxy->proxy = AcquireProxy( proxy_path, TIMER_UNSET );
+		gahp_proxy->proxy = AcquireProxy( proxy_path, proxy_check_tid );
 		gahp_proxy->cached_expiration = 0;
 //		daemonCore->Reset_Timer( proxy_check_tid, 0 );
 		if ( cacheProxyFromFile( gahp_proxy ) == false ) {
@@ -1012,6 +986,12 @@ GahpClient::setDelegProxy( Proxy *proxy )
 	GahpProxyInfo *gahp_proxy = server->RegisterProxy(proxy->proxy_filename);
 	ASSERT(gahp_proxy);
 	deleg_proxy = gahp_proxy;
+}
+
+Proxy *
+GahpClient::getMasterProxy()
+{
+	return server->master_proxy->proxy;
 }
 
 void

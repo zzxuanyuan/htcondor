@@ -30,10 +30,7 @@
 #include "classad_hashtable.h"
 #include "list.h"
 
-#include "proxymanager.h"
-#include "globusresource.h"
-#include "globusjob.h"
-#include "gahp-client.h"
+#include "basejob.h"
 
 // Special value for a daemon-core timer id which indicates that there
 // is no timer currently registered (for variables holding a timer id) or
