@@ -35,6 +35,9 @@
 #include "condor_distribution.h"
 #include "condor_environ.h"
 
+#define _POSTGRESQL_DBMS_
+#include "pgsqldatabase.h"
+
 #define _NO_EXTERN_DAEMON_CORE 1	
 #include "condor_daemon_core.h"
 
@@ -45,6 +48,7 @@
 // Externs to Globals
 extern char* mySubSystem;	// the subsys ID, such as SCHEDD, STARTD, etc. 
 extern DLL_IMPORT_MAGIC char **environ;
+extern PGSQLDatabase* DBObj;
 
 // External protos
 extern int main_init(int argc, char *argv[]);	// old main()
@@ -1696,6 +1700,10 @@ int main( int argc, char** argv )
 		// will allow people to set with condor_config_val from
 		// various kinds of hosts (ADMINISTRATOR, CONFIG, WRITE, etc). 
 	daemonCore->InitSettableAttrsLists();
+
+		// init db connection
+	DBObj = new PGSQLDatabase("host=127.0.0.1 port=5430 dbname=test user=scidb");
+	DBObj -> connectDB();
 
 	// call the daemon's main_init()
 	main_init( argc, argv );
