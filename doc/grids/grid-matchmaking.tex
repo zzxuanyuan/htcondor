@@ -166,10 +166,10 @@ it is not used, but should be set to 0.
 WantAdRevaluate       = True
 \end{verbatim}
 
-This should be in your ad and should be true. Note that True is not in
-quotes, and it should not be. This is what distinguishes grid site
+The ``WantAdRevluate'' attribute is what distinguishes grid site
 ClassAds from normal machine ClassAds and allows multiple matches to
-be made against a single site. 
+be made against a single site. It should be in your ad and should be
+true. Note that True is not in quotes, and it should not be.
 
 You can add other attributes to your ClassAd, to make it easy for a
 job to decide which grid site it wants to use. For instance, if you
@@ -243,6 +243,7 @@ output          = aaa.$(Cluster).out
 error           = aaa.$(Cluster).err
 log             = aaa.log
 globusscheduler = $$(gatekeeper_url)
+requirements    = HaveBamboozle == True
 leave_in_queue  = jobstatus == 4
 queue
 \end{verbatim}
@@ -275,8 +276,9 @@ combined with match\_list\_length, you can prefer to avoid sites that
 you have already run at. 
 
 In addition, \Condor{submit} has two options to help you control
-Condor-G job resubmissions and rematching. See globus\_resubmit and
-globus\_rematch in the \Condor{submit} manual page. 
+Condor-G job resubmissions and rematching.  See globus\_resubmit and
+globus\_rematch in the \Condor{submit} manual page. These options are
+independent of match\_list\_length.
 
 There are some new attributes that will be added to the Job ClassAd,
 and may be useful to you when you write your rank, requirements,
