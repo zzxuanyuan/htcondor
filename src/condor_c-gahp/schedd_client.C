@@ -33,6 +33,7 @@
 #include "daemon.h"
 #include "dc_schedd.h"
 #include "condor_xml_classads.h"
+#include "condor_new_classads.h"
 #include "FdBuffer.h"
 #include "io_loop.h"
 
@@ -50,6 +51,8 @@ int contact_schedd_interval = 20;
 // How often we check results in the pipe (secs)
 int check_requests_interval = 5;
 
+// Do we use XML-formatted classads when talking to our invoker
+bool useXMLClassads = false;
 
 // Pointer to a socket open for QMGMT operations
 extern ReliSock* qmgmt_sock;
@@ -649,13 +652,18 @@ submit_report_result:
 
 			error = FALSE;
 			
-			ClassAdXMLUnparser XMLer;
-			XMLer.SetUseCompactSpacing(true);
-
 			ClassAd * next_ad = GetNextJobByConstraint( current_command->constraint, 1 );
 			while (next_ad != NULL) {
 				MyString * da_buffer = new MyString();	// Use a ptr to avoid excessive copying
-				XMLer.Unparse (next_ad, *da_buffer);
+				if ( useXMLClassads ) {
+					ClassAdXMLUnparser unparser;
+					unparser.SetUseCompactSpacing(true);
+					unparser.Unparse (next_ad, *da_buffer);
+				} else {
+					NewClassAdUnparser unparser;
+					unparser.SetUseCompactSpacing(true);
+					unparser.Unparse (next_ad, *da_buffer);
+				}
 				matching_ads.Append (da_buffer);
 				next_ad = GetNextJobByConstraint( current_command->constraint, 0 );
 			}
@@ -934,8 +942,13 @@ get_job_id (const char * s, int * cluster_id, int * proc_id) {
 // String (XML) -> classad
 int
 get_class_ad (const char * s, ClassAd ** class_ad) {
-	static ClassAdXMLParser parser;
-    *class_ad = parser.ParseClassAd (s);
+	if ( useXMLClassads ) {
+		ClassAdXMLParser parser;
+		*class_ad = parser.ParseClassAd (s);
+	} else {
+		NewClassAdParser parser;
+		*class_ad = parser.ParseClassAd (s);
+	}
 	if ( *class_ad ) {
 		return TRUE;
 	} else {

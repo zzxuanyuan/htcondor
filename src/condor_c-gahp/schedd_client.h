@@ -56,6 +56,8 @@ extern int contactScheddTid;
 
 
 
+extern bool useXMLClassads;
+
 // initialization
 void Init();
 void Register();

@@ -30,6 +30,7 @@
 #include "MyString.h"
 #include "util_lib_proto.h"
 #include "condor_xml_classads.h"
+#include "condor_new_classads.h"
 
 #include "gahp-client.h"
 #include "gridmanager.h"
@@ -54,6 +55,7 @@ template class HashBucket<HashKey, GahpProxyInfo *>;
 
 bool logGahpIo = true;
 int logGahpIoSize = 0;
+bool useXMLClassads = false;
 
 HashTable <HashKey, GahpServer *>
     GahpServer::GahpServersById( HASH_TABLE_SIZE,
@@ -67,6 +69,8 @@ void GahpReconfig()
 
 	logGahpIo = param_boolean( "GRIDMANAGER_GAHPCLIENT_DEBUG", true );
 	logGahpIoSize = param_integer( "GRIDMANAGER_GAHPCLIENT_DEBUG_SIZE", 0 );
+
+	useXMLClassads = param_boolean( "GAHP_USE_XML_CLASSADS", false );
 
 	tmp_int = param_integer( "GRIDMANAGER_MAX_PENDING_REQUESTS", 50 );
 
@@ -2689,11 +2693,19 @@ GahpClient::condor_job_submit(const char *schedd_name, ClassAd *job_ad,
 	if (!job_ad) {
 		ad_string=NULLSTRING;
 	} else {
-		ClassAdXMLUnparser xml_unp;
-		xml_unp.SetUseCompactSpacing( true );
-		xml_unp.SetOutputType( false );
-		xml_unp.SetOutputTargetType( false );
-		xml_unp.Unparse( job_ad, ad_string );
+		if ( useXMLClassads ) {
+			ClassAdXMLUnparser unparser;
+			unparser.SetUseCompactSpacing( true );
+			unparser.SetOutputType( false );
+			unparser.SetOutputTargetType( false );
+			unparser.Unparse( job_ad, ad_string );
+		} else {
+			NewClassAdUnparser unparser;
+			unparser.SetUseCompactSpacing( true );
+			unparser.SetOutputType( false );
+			unparser.SetOutputTargetType( false );
+			unparser.Unparse( job_ad, ad_string );
+		}
 	}
 	MyString reqline;
 	char *esc1 = strdup( escapeGahpString(schedd_name) );
@@ -2770,11 +2782,19 @@ GahpClient::condor_job_update_constrained(const char *schedd_name,
 	if (!update_ad) {
 		ad_string=NULLSTRING;
 	} else {
-		ClassAdXMLUnparser xml_unp;
-		xml_unp.SetUseCompactSpacing( true );
-		xml_unp.SetOutputType( false );
-		xml_unp.SetOutputTargetType( false );
-		xml_unp.Unparse( update_ad, ad_string );
+		if ( useXMLClassads ) {
+			ClassAdXMLUnparser unparser;
+			unparser.SetUseCompactSpacing( true );
+			unparser.SetOutputType( false );
+			unparser.SetOutputTargetType( false );
+			unparser.Unparse( update_ad, ad_string );
+		} else {
+			NewClassAdUnparser unparser;
+			unparser.SetUseCompactSpacing( true );
+			unparser.SetOutputType( false );
+			unparser.SetOutputTargetType( false );
+			unparser.Unparse( update_ad, ad_string );
+		}
 	}
 	MyString reqline;
 	char *esc1 = strdup( escapeGahpString(schedd_name) );
@@ -2890,8 +2910,13 @@ GahpClient::condor_job_status_constrained(const char *schedd_name,
 		if ( num_ads > 0 ) {
 			*ads = (ClassAd **)malloc( *num_ads * sizeof(ClassAd*) );
 			for ( int i = 0; i < *num_ads; i++ ) {
-				ClassAdXMLParser xml_parser;
-				(*ads)[i] = xml_parser.ParseClassAd( result->argv[4 + i] );
+				if ( useXMLClassads ) {
+					ClassAdXMLParser parser;
+					(*ads)[i] = parser.ParseClassAd( result->argv[4 + i] );
+				} else {
+					NewClassAdParser parser;
+					(*ads)[i] = parser.ParseClassAd( result->argv[4 + i] );
+				}
 			}
 		}
 		delete result;
@@ -2993,11 +3018,19 @@ GahpClient::condor_job_update(const char *schedd_name, PROC_ID job_id,
 	if (!update_ad) {
 		ad_string=NULLSTRING;
 	} else {
-		ClassAdXMLUnparser xml_unp;
-		xml_unp.SetUseCompactSpacing( true );
-		xml_unp.SetOutputType( false );
-		xml_unp.SetOutputTargetType( false );
-		xml_unp.Unparse( update_ad, ad_string );
+		if ( useXMLClassads ) {
+			ClassAdXMLUnparser unparser;
+			unparser.SetUseCompactSpacing( true );
+			unparser.SetOutputType( false );
+			unparser.SetOutputTargetType( false );
+			unparser.Unparse( update_ad, ad_string );
+		} else {
+			NewClassAdUnparser unparser;
+			unparser.SetUseCompactSpacing( true );
+			unparser.SetOutputType( false );
+			unparser.SetOutputTargetType( false );
+			unparser.Unparse( update_ad, ad_string );
+		}
 	}
 	MyString reqline;
 	char *esc1 = strdup( escapeGahpString(schedd_name) );
@@ -3203,11 +3236,19 @@ GahpClient::condor_job_stage_in(const char *schedd_name, ClassAd *job_ad)
 	if (!job_ad) {
 		ad_string=NULLSTRING;
 	} else {
-		ClassAdXMLUnparser xml_unp;
-		xml_unp.SetUseCompactSpacing( true );
-		xml_unp.SetOutputType( false );
-		xml_unp.SetOutputTargetType( false );
-		xml_unp.Unparse( job_ad, ad_string );
+		if ( useXMLClassads ) {
+			ClassAdXMLUnparser unparser;
+			unparser.SetUseCompactSpacing( true );
+			unparser.SetOutputType( false );
+			unparser.SetOutputTargetType( false );
+			unparser.Unparse( job_ad, ad_string );
+		} else {
+			NewClassAdUnparser unparser;
+			unparser.SetUseCompactSpacing( true );
+			unparser.SetOutputType( false );
+			unparser.SetOutputTargetType( false );
+			unparser.Unparse( job_ad, ad_string );
+		}
 	}
 	MyString reqline;
 	char *esc1 = strdup( escapeGahpString(schedd_name) );

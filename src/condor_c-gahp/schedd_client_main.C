@@ -103,6 +103,7 @@ main_init( int argc, char ** const argv )
 
 	Init();
 	Register();
+	Reconfig();
 
 	(void)daemonCore->Register_Timer( 1,
 											(TimerHandler)&my_fork,
@@ -197,6 +198,7 @@ Register() {
 void
 Reconfig()
 {
+	useXMLClassads = param_boolean( "GAHP_USE_XML_CLASSADS", false );
 }
 
 
