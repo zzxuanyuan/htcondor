@@ -179,10 +179,15 @@ public:
 	    access method, and then use that method for the open. */
 	int	open( const char *path, int flags, int mode );
 
-	/** Create two pipe endpoints.  This pipe may be used between
-	    checkpoints, but it must be closed before the job
-	    is checkpointed. */
+	/** Pipe with UNIX semantics.  This implementation may be used
+	    safely as long as it is closed before the next checkpoint.
+	    If a checkpoint occurs, the program will halt with an error. */
 	int	pipe(int fds[]);
+
+	/** Socket with UNIX semantics.  This implementation may be used
+	    safely as long as it is closed before the next checkpoint.
+	    If a checkpoint occurs, the program will halt with an error. */
+	int	socket( int domain, int type, int prototcol );
 
 	/** Close this file with UNIX semantics */
 	int	close( int fd );

@@ -373,6 +373,51 @@ int CondorFileTable::pipe(int fds[])
 
 	return 0;
 }
+
+/*
+Socket is similar to pipe.  We will create an anonymous endpoint that
+can be used just like a local file.  If a checkpoint is performed on
+the endpoint, an error will occur.
+*/
+
+int CondorFileTable::socket( int domain, int type, int protocol )
+{
+	int fd = find_empty();
+	if(fd<0) {
+		errno = EMFILE;
+		return -1;
+	}
+
+	CondorFileSpecial *f = new CondorFileSpecial("socket");
+	if(!f) {
+		errno = ENOMEM;
+		return -1;
+	}
+
+	CondorFilePointer *fp = new CondorFilePointer(f);
+	if(!fp) {
+		errno = ENOMEM;
+		delete f;
+		return -1;
+	}
+
+	int scm = SetSyscalls( SYS_LOCAL|SYS_UNMAPPED ); 
+	int real_fd = ::socket(domain,type,protocol);
+	SetSyscalls(scm);
+	if(!real_fd) {
+		delete fp;
+		delete f;
+		return -1;
+	}
+
+	f->force_open( real_fd, "socket", 1, 1 );
+	f->add_user();
+	fp->add_user();
+	pointers[fd] = fp;
+
+	return fd;
+}
+
 	
 /* 
 Close is a little tricky.
