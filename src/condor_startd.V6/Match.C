@@ -298,6 +298,14 @@ Match::match_timed_out()
 void
 Match::start_claim_timer()
 {
+		// for now, we should change our match state in here, since
+		// this is called once the Match is finally claimed by
+		// someone.  this will all probably be changed soon, since
+		// having the ResState code starting and stopping timers on
+		// the Match object isn't really a good idea. :)
+	ASSERT( m_state == MATCH_UNCLAIMED );
+	m_state = MATCH_IDLE;
+
 	if( m_aliveint < 0 ) {
 		dprintf( D_ALWAYS, 
 				 "Warning: starting claim timer before alive interval set.\n" );
