@@ -72,6 +72,7 @@ extern char    TmpCkptName[];
 extern int             MyPid;
 extern char    *Spool;
 extern char    RCkptName[];
+extern float AccumTime;
 
 #if !defined(AIX31) && !defined(AIX32)
 char *strcpy();
@@ -236,8 +237,7 @@ NotifyUser( char *buf, PROC *proc, char *email_addr )
         }
         fprintf(mailer, "\tVirtual Image Size:  %d Kilobytes\n", proc->image_size);
 
-	job_report_display_file_totals( mailer, (int)(trtime+tltime) );
-	job_report_display_info( mailer );
+	job_report_display_file_info( mailer, (int) AccumTime );
 	job_report_display_calls( mailer );
 
         (void)pclose( mailer );

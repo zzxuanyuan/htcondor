@@ -28,7 +28,6 @@
 
 #include "condor_common.h"
 #include "condor_file.h"
-#include "buffer_cache.h"
 
 /**
 This class maintains a seek pointer which sits between
@@ -64,7 +63,6 @@ This class does several things:
 	<li> checks validity of vfds  
 	<li> multiplexes vfds to file types
 	<li> buffers seek pointers   
-	<li> talks to the buffer cache
 	<li> oversees checkpoint and restore
 </dir>
 
@@ -75,7 +73,7 @@ This class does _not_:
 	<li> Implement read, write, ioctl, etc. for _any_ file.
 	     Subclasses of CondorFile do that (condor_file_*.h)
 	<li> Implement buffering.
-	     A CondorBufferCache does that (buffer_cache.h)
+	     A CondorFileBuffer wrapped around a file object does that.
 	<li> Perform operations on names (i.e. stat()).
 	     Those are handled transparently by the syscall switches.
 </dir>
@@ -136,8 +134,6 @@ fd  fd  fd                 fd  fd fd
 </pre>
 */
 
-class CondorBufferCache;
-
 class CondorFileTable {
 public:
 
@@ -150,20 +146,8 @@ public:
 	/** Display debug info */
 	void	dump();
 
-	/** Configure and use the buffer */
-	void	init_buffer();
-
-	/** Turn off buffering */
-	void	disable_buffer();
-
 	/** Close all outstanding files */
 	void	close_all();
-
-	/** Map a virtual fd to the same real fd.  This is generally only
-	    used by the startup code to bootstrap a usable stdin/stdout until
-	    things get rolling.  You don't want to use this function unless
-	    you want an fd visible by _both_ Condor and the user.  */
-	int	pre_open( int fd, char *name, int readable, int writable, int is_remote );
 
 	/** If in LocalSyscalls, just perform a UNIX open.  If in
 	    RemoteSyscalls, ask the shadow for the appropriate 
@@ -184,14 +168,8 @@ public:
 	/** Read with UNIX semantics */
 	ssize_t	read( int fd, void *data, size_t length );
 
-	/** Read from a specific position, bypassing buffering */
-	ssize_t read_unbuffered( CondorFile *file, off_t offset, void *data, size_t length );
-
 	/** Write with UNIX semantics */
 	ssize_t	write( int fd, const void *data, size_t length );
-
-	/** Write to a specific position, bypassing buffering */
-	ssize_t write_unbuffered( CondorFile *file, off_t offset, const void *data, size_t length );
 
 	/** Seek with UNIX semantics */
 	off_t	lseek( int fd, off_t offset, int whence );
@@ -232,6 +210,12 @@ public:
 	    perform a UNIX fsync/fdsync/fdatasync as appropriate. */
 	int	fsync( int fd );
 
+	/** Return the max number of bytes to buffer per file */
+	int	get_buffer_size();
+
+	/** Return the approximate buffer block size to use */
+	int	get_buffer_block_size();
+
 	/** Perform a periodic checkpoint. */
 	void	checkpoint();
 
@@ -249,9 +233,6 @@ public:
 	    syscalls.  Returns false otherwise. */
 	int	local_access_hack( int fd );
 
-	/** Report an I/O summary to the appropriate authorities */
-	void	report_info();
-
 private:
 
 	int	install_special( char *kind );
@@ -262,21 +243,13 @@ private:
 	int	count_pointer_uses( CondorFilePointer *f );
 
 	CondorFilePointer	**pointers;
-	CondorBufferCache	*buffer;
 
 	int	length;
 	char	working_dir[_POSIX_PATH_MAX];
 	int	resume_count;
+	int	buffer_size;
+	int	buffer_block_size;
 	int	got_buffer_info;
-
-	// How many reads, writes, and seeks are performed?
-	int	read_count, read_bytes;
-	int	write_count, write_bytes;
-	int	seek_count;
-
-	// How many are actually performed after buffering?
-	int	actual_read_count, actual_read_bytes;
-	int	actual_write_count, actual_write_bytes;
 };
 
 

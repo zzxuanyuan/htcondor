@@ -46,7 +46,7 @@
 #endif
 
 #define Programs \
-		accountant.V6 ckpt_server \
+		ckpt_server \
 		master.V6 negotiator.V6 schedd.V6 prio q.V6 rm.V6 \
 		scripts shadow.V6 startd.V6 starter.V5 submit.V6 status.V6 \
 		tools kbdd collector.V6 PvmProgs dagman
@@ -68,7 +68,7 @@
 #endif
 
 #define Directories \
-	condor_shadow.V6.1 condor_starter.V6.1 html \
+	condor_shadow.V6.1 html \
 	release_dir release_dir/bin release_dir/lib release_dir/sbin \
 	strip_dir strip_dir/bin strip_dir/sbin strip_dir/lib \
 	strip_dir/etc strip_dir/etc/examples \

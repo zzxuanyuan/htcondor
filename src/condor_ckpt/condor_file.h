@@ -51,6 +51,7 @@ public:
 	virtual void resume(int count)=0;
 
 	int	get_resume_count()	{ return resume_count; }
+	void	bump_seek_count()	{ seek_count++; }
 
 	int	is_readable()		{ return readable; }
 	int	is_writeable()		{ return writeable; }
@@ -60,9 +61,11 @@ public:
 	char	*get_kind()		{ return kind; }
 	char	*get_name()		{ return name; }
 
-	void	enable_buffer()		{ bufferable=1; }
-	void	disable_buffer()	{ bufferable=0; }
-	int	ok_to_buffer()		{ return bufferable && seekable; }
+	/**
+	Make a report of this file's uses to the shadow.
+	*/
+
+	virtual void report( int closing );
 
 	/**
 	Without performing an actual open, associate this
@@ -70,7 +73,7 @@ public:
 	as indicated.
 	*/
 
-	int	force_open( int f, char *name, int r, int w );
+	virtual int force_open( int f, char *name, int r, int w );
 
 	/**
 	Return the real fd associated with this file.
@@ -95,12 +98,13 @@ protected:
 
 	int	readable;	// can this file be read?
 	int	writeable;	// can this file be written?
-	int	seekable;	// can this file be seekd?
-	int	bufferable;	// should this file be buffered?
 
 	int	size;		// number of bytes in the file
-	int	forced;		// was this created with force_open?
 	int	resume_count;	// how many times have I been resumed?
+	int	forced;		// was I attached to an fd with force_open?
+
+	int	read_count, write_count, seek_count;
+	int	read_bytes, write_bytes;
 };
 
 #endif

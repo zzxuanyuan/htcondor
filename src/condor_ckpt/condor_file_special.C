@@ -11,7 +11,6 @@ CondorFileSpecial::CondorFileSpecial(char *k)
 	init();
 	kind = k;
 	readable = writeable = 1;
-	seekable = 0;
 	_condor_signals_disable();
 }
 

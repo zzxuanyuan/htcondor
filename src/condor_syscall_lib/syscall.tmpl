@@ -731,12 +731,16 @@ int rename( const char *from, const char *to ) : pseudo {
 		alloc( msg, MAX_STRING );
 	}
 	int report_file_info(
-		int read_count, int read_bytes,
-		int write_count, int write_bytes,
-		int seek_count,
-		int actual_read_count, int actual_read_bytes,
-		int actual_write_count, int actual_write_bytes
-		) : pseudo;
+		char *kind, char *name,
+		int read_count, int write_count, int seek_count,
+		int read_bytes, int write_bytes, int done ) : pseudo {
+
+		SEND_PATH(kind);
+		ALLOC_PATH(kind);
+		SEND_PATH(name);
+		ALLOC_PATH(name);
+	}
+
 
 #ifndef RECEIVER  /* We need a special receiver so that we don't leak memory */
 	int startup_info_request( STARTUP_INFO *s ): pseudo {
@@ -748,20 +752,31 @@ int rename( const char *from, const char *to ) : pseudo {
 		GET_PATH( logical_name );
 		ALLOC_PATH( logical_name );
 	}
+        int std_file_info( int which, char *name, int *pipe_fd ) : pseudo {
+                GET_PATH( name );
+                ALLOC_PATH( name );
+                out code( pipe_fd );
+                alloc( pipe_fd, INT_SIZE );
+        }
 	int get_file_info( const char *logical_name, char *actual_url ): pseudo {
 		SEND_PATH( logical_name );
 		ALLOC_PATH( logical_name );
 		GET_PATH( actual_url );
 		ALLOC_PATH( actual_url );
 	}
-
-	int get_buffer_info( int *blocks, int *block_size, int *prefetch_bytes ) : pseudo {
-		out code( blocks );
-		alloc( blocks, INT_SIZE );
+        int file_info( const char *name, int *pipe_fd, char *extern_path ): pseudo {
+                SEND_PATH( name );
+                ALLOC_PATH( name );
+                GET_PATH( extern_path );
+                ALLOC_PATH( extern_path );
+                out code( pipe_fd );
+                alloc( pipe_fd, INT_SIZE );
+        }
+	int get_buffer_info( int *bytes, int *block_size ) : pseudo {
+		out code( bytes );
+		alloc( bytes, INT_SIZE );
 		out code( block_size );
 		alloc( block_size, INT_SIZE );
-		out code( prefetch_bytes );
-		alloc( prefetch_bytes, INT_SIZE );
 	}
 
 	int get_iwd( char *path ) : pseudo {

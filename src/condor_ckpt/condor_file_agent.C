@@ -11,7 +11,7 @@ static char buffer[TRANSFER_BLOCK_SIZE];
 CondorFileAgent::CondorFileAgent( CondorFile *file )
 {
 	init();
-	kind = "local copy";
+	kind = "agent";
 	original = file;
 }
 
@@ -30,27 +30,27 @@ int CondorFileAgent::open( const char *path, int flags, int mode )
 	strcpy(name,original->get_name());
 	readable = original->is_readable();
 	writeable = original->is_writeable();
-	seekable = 1;
-	bufferable = 0;
 	size = original->get_size();
 
 	// And make the local copy
 	open_temp();
 	pull_data();
 
-	return result;
+	return fd;
 }
 
 int CondorFileAgent::close()
 {
 	push_data();
 	close_temp();
+	CondorFile::report(1);
 	return original->close();
 }
 
 void CondorFileAgent::checkpoint()
 {
 	push_data();
+	CondorFile::report(0);
 	original->checkpoint();
 }
 
@@ -58,6 +58,7 @@ void CondorFileAgent::suspend()
 {
 	push_data();
 	close_temp();
+	CondorFile::report(0);
 	original->suspend();
 }
 
@@ -65,7 +66,7 @@ void CondorFileAgent::resume( int count )
 {
 	original->resume( count );
 
-	if( (count==resume_count) || forced ) return;
+	if(count==resume_count) return;
 	resume_count = count;
 
 	open_temp();

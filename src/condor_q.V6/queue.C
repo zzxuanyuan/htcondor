@@ -407,7 +407,7 @@ processCommandLineArguments (int argc, char *argv[])
 
 static void io_header()
 {
-	printf("%-8s %-8s %8s %8s %8s %8s %10s %10s\n", "ID","OWNER","IN","OUT","ACT_IN","ACT_OUT","SEEK_RATIO","BUFFER_EFF");
+	printf("%-8s %-8s %8s %8s %10s %8s %8s %10s\n", "ID","OWNER","IN","OUT","XPUT","REAL_IN","REAL_OUT","REAL_XPUT");
 }
 
 static void io_display(ClassAd *ad)
@@ -415,12 +415,7 @@ static void io_display(ClassAd *ad)
 	int cluster=0, proc=0;
 	int read_bytes=0, write_bytes=0;
 	int actual_read_bytes=0, actual_write_bytes=0;
-	int read_count=0, write_count=0;
-	int actual_read_count=0, actual_write_count=0;
-	int seek_count=0;
-
-	float buffer_eff;
-	float seek_ratio;
+	float wall_clock=-1;
 
 	char owner[256];
 
@@ -432,28 +427,22 @@ static void io_display(ClassAd *ad)
 	ad->EvalInteger(ATTR_FILE_WRITE_BYTES,NULL,write_bytes);
 	ad->EvalInteger(ATTR_FILE_ACTUAL_READ_BYTES,NULL,actual_read_bytes);
 	ad->EvalInteger(ATTR_FILE_ACTUAL_WRITE_BYTES,NULL,actual_write_bytes);
-	ad->EvalInteger(ATTR_FILE_SEEK_COUNT,NULL,seek_count);
+	ad->EvalFloat(ATTR_JOB_REMOTE_WALL_CLOCK,NULL,wall_clock);
 
-	ad->EvalInteger(ATTR_FILE_READ_COUNT,NULL,read_count);
-	ad->EvalInteger(ATTR_FILE_WRITE_COUNT,NULL,write_count);
-	ad->EvalInteger(ATTR_FILE_ACTUAL_READ_COUNT,NULL,actual_read_count);
-	ad->EvalInteger(ATTR_FILE_ACTUAL_WRITE_COUNT,NULL,actual_write_count);
-
-	if((read_count+write_count)==0) {
-		buffer_eff = 0;
-		seek_ratio = 0;
-	} else {
-		buffer_eff = 100.0-100.0*(actual_read_count+actual_write_count)/(read_count+write_count);
-		seek_ratio = 100.0*seek_count/(read_count+write_count);
-	}
 
 	printf("%4d.%-3d %-8s ",cluster,proc,owner);
-	printf("%8s ",metric_units(read_bytes));
-	printf("%8s ",metric_units(write_bytes));
-	printf("%8s ",metric_units(actual_read_bytes));
-	printf("%8s ",metric_units(actual_write_bytes));
-	printf("%9.2f%% ", seek_ratio);
-	printf("%9.2f%%\n", buffer_eff);
+
+	if(wall_clock<0) {
+		printf("          [ no i/o data collected yet ]\n");
+	} else {
+		if(wall_clock==0) wall_clock=1;
+		printf("%8s ",metric_units(read_bytes));
+		printf("%8s ",metric_units(write_bytes));
+		printf("%8s/s ",metric_units((int)((read_bytes+write_bytes)/wall_clock)));
+		printf("%8s ",metric_units(actual_read_bytes));
+		printf("%8s ",metric_units(actual_write_bytes));
+		printf("%8s/s\n",metric_units((int)((actual_read_bytes+actual_write_bytes)/wall_clock)));
+	}
 }
 
 static void

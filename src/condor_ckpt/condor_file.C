@@ -15,12 +15,14 @@ CondorFile::~CondorFile()
 
 void CondorFile::init() {
 	fd = -1;
-	readable = writeable = seekable = bufferable = 0;
+	readable = writeable = 0;
 	kind = 0;
 	name[0] = 0;
 	size = 0;
-	forced = 0;
 	resume_count = 0;
+	forced = 0;
+	read_count = write_count = seek_count = 0;
+	read_bytes = write_bytes = 0;
 }
 
 // Display this file in the log
@@ -67,10 +69,7 @@ int CondorFile::open(const char *path, int flags, int mode) {
 
 	size = ::lseek(fd,0,SEEK_END);
 	if(size==-1) {
-		seekable=0;
 		size=0;
-	} else {
-		seekable=1;
 	}
 	::lseek(fd,0,SEEK_SET);
 
@@ -80,11 +79,16 @@ int CondorFile::open(const char *path, int flags, int mode) {
 
 int CondorFile::close()
 {
-	if(!forced) {
-		::close(fd);
-	}
+	::close(fd);
 	fd = -1;
 	return -1;
+}
+
+void CondorFile::report( int closing )
+{
+	if( MyImage.GetMode() != STANDALONE ) {
+		REMOTE_syscall( CONDOR_report_file_info, kind, name, read_count, write_count, seek_count, read_bytes, write_bytes, closing );
+	}
 }
 
 // Connect this file to an existing fd

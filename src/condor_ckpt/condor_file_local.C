@@ -27,9 +27,12 @@ int CondorFileLocal::open(const char *path, int flags, int mode ) {
 int CondorFileLocal::close() {
 	int result, scm;
 
-	scm = SetSyscalls(SYS_LOCAL|SYS_UNMAPPED);
-	CondorFile::close();
-	SetSyscalls(scm);
+	if( fd!=-1 ) {
+		scm = SetSyscalls(SYS_LOCAL|SYS_UNMAPPED);
+		CondorFile::close();
+		SetSyscalls(scm);
+		report(1);
+	}
 
 	return result;
 }
@@ -37,10 +40,14 @@ int CondorFileLocal::close() {
 int CondorFileLocal::read(int pos, char *data, int length) {
 	int result, scm;
 
+	read_count++;
+
 	scm = SetSyscalls(SYS_LOCAL|SYS_UNMAPPED);
 	::lseek(fd,pos,SEEK_SET);
 	result = ::read(fd,data,length);
 	SetSyscalls(scm);
+
+	if(result>0) read_bytes+=result;
 
 	return result;
 }
@@ -48,10 +55,19 @@ int CondorFileLocal::read(int pos, char *data, int length) {
 int CondorFileLocal::write(int pos, char *data, int length) {
 	int result, scm;
 
+	write_count++;
+
 	scm = SetSyscalls(SYS_LOCAL|SYS_UNMAPPED);
 	::lseek(fd,pos,SEEK_SET);
 	result = ::write(fd,data,length);
 	SetSyscalls(scm);
+
+	if(result>0) {
+		if((pos+result)>get_size()) {
+			set_size(pos+result);
+		}
+		write_bytes += result;
+	}
 
 	return result;
 }
@@ -107,11 +123,13 @@ int CondorFileLocal::fsync()
 
 void CondorFileLocal::checkpoint()
 {
+	report(0);
 }
 
 void CondorFileLocal::suspend()
 {
-	if( (fd==-1) || forced ) return;
+	if(forced) return;
+	if(fd==-1) return;
 	int scm = SetSyscalls(SYS_LOCAL|SYS_UNMAPPED);
 	::close(fd);
 	SetSyscalls(scm);
@@ -120,8 +138,10 @@ void CondorFileLocal::suspend()
 
 void CondorFileLocal::resume( int count )
 {
-	if( (count==resume_count) || forced ) return;
+	if(count==resume_count) return;
 	resume_count = count;
+
+	if(forced) return;
 
 	int flags;
 

@@ -56,11 +56,6 @@ void _condor_file_table_suspend();
 /** Restore the file state after a checkpoint. */
 void _condor_file_table_resume();
 
-/** Map a virtual fd to the same real fd.  This function generally
-is only called but the startup code to get a temporary working
-stdin/stdout. */
-int _condor_file_pre_open( int fd, char *name, int readable, int writeable, int is_remote );
-
 /** Get the real fd associated with this virtual fd. */
 int _condor_file_table_map( int fd );
 

@@ -27,34 +27,50 @@ int CondorFileRemote::open(const char *path, int flags, int mode )
 int CondorFileRemote::close() {
 	int scm,result;
 
-	scm = SetSyscalls(SYS_REMOTE|SYS_UNMAPPED);
-	CondorFile::close();
-	SetSyscalls(scm);
+	if( fd!=-1 ) {
+		scm = SetSyscalls(SYS_REMOTE|SYS_UNMAPPED);
+		CondorFile::close();
+		SetSyscalls(scm);
+		report(1);
+	}
 
 	return result;
 }
 
 int CondorFileRemote::read(int pos, char *data, int length) {
 	int result;
-	// Change this to a switch call when it exists.
+	read_count++;
        	result = REMOTE_syscall( CONDOR_lseekread, fd, pos, SEEK_SET, data, length );
+	if(result>0) read_bytes+=result;
 	return result;
 }
 
 int CondorFileRemote::write(int pos, char *data, int length) {
 	int result;
-	// Change this to switch call when it exists
+
+	write_count++;
+
 	result = REMOTE_syscall( CONDOR_lseekwrite, fd, pos, SEEK_SET, data, length );
+
+	if(result>0) {
+		if((pos+result)>get_size()) {
+			set_size(pos+result);
+		}
+
+		write_bytes += result;
+	}
+
 	return result;
 }
 
 void CondorFileRemote::checkpoint()
 {
+	report(0);
 }
 
 void CondorFileRemote::suspend()
 {
-	if( (fd==-1) || forced ) return;
+	if(fd==-1) return;
 	int scm = SetSyscalls(SYS_REMOTE|SYS_UNMAPPED);
 	::close(fd);
 	SetSyscalls(scm);
@@ -63,7 +79,7 @@ void CondorFileRemote::suspend()
 
 void CondorFileRemote::resume( int count )
 {
-	if( (count==resume_count) || forced ) return;
+	if(count==resume_count) return;
 	resume_count = count;
 
 	int flags;

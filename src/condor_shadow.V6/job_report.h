@@ -26,14 +26,12 @@ to the currently open ClassAd Q.
 #define JOB_REPORT_RECORD_MAX 2048
 
 int  job_report_store_call( int call );
-int  job_report_store_info( char *format, ... );
 int  job_report_store_error( char *format, ... );
-void job_report_store_file_totals( int rc, int rb, int wc, int wb, int sc, int arc, int arb, int awc, int awb );
+void job_report_store_file_info( char *kind, char *name, int rc, int wc, int sc, int rb, int wb, int done );
 
 void job_report_display_calls( FILE *f );
-void job_report_display_info( FILE *f );
 void job_report_display_errors( FILE *f );
-void job_report_display_file_totals( FILE *f, int total_time );
+void job_report_display_file_info( FILE *f, int total_time );
 
 void job_report_update_queue( PROC *proc );
 

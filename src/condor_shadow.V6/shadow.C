@@ -182,6 +182,8 @@ int MaxDiscardedRunTime = 3600;
 extern "C" int ExceptCleanup();
 int Termlog;
 time_t	RunTime;
+float AccumTime=0;
+
 ReliSock	*sock_RSC1 = NULL, *RSC_ShadowInit(int rscsock, int errsock);
 ReliSock	*RSC_MyShadowInit(int rscsock, int errsock);;
 int HandleLog();
@@ -876,6 +878,7 @@ update_job_status( struct rusage *localp, struct rusage *remotep )
 	new_time = time(NULL);
 	accum_time += (float)(new_time - RunTime);
 	RunTime = new_time;
+	AccumTime = accum_time;
 	SetAttributeFloat(Proc->id.cluster, Proc->id.proc,
 					ATTR_JOB_REMOTE_WALL_CLOCK, accum_time);
 

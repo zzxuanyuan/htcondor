@@ -268,14 +268,9 @@ pseudo_report_error( char *msg )
 }
 
 int
-pseudo_report_file_info(
-	int read_count, int read_bytes,
-	int write_count, int write_bytes,
-	int seek_count,
-	int actual_read_count, int actual_read_bytes,
-	int actual_write_count, int actual_write_bytes ) {
-
-	job_report_store_file_totals( read_count, read_bytes, write_count, write_bytes, seek_count, actual_read_count, actual_read_bytes, actual_write_count, actual_write_bytes );
+pseudo_report_file_info( char *kind, char *name, int read_count, int write_count, int seek_count, int read_bytes, int write_bytes, int done )
+{
+	job_report_store_file_info( kind, name, read_count, write_count, seek_count, read_bytes, write_bytes, done );
 }
 
 int
@@ -1064,6 +1059,16 @@ pseudo_get_std_file_info( int which, char *name )
 	return 1;
 }
 
+/* This is provided for compatibility with the old starter */
+
+int pseudo_std_file_info( int which, char *name, int *pipe_fd )
+{
+	*pipe_fd = -1;
+	pseudo_get_std_file_info( which, name );
+	return IS_FILE;
+}
+
+
 /*
 If short_path is an absolute path, copy it to full path.
 Otherwise, tack the current directory on to the front
@@ -1147,42 +1152,62 @@ pseudo_get_file_info( const char *logical_name, char *actual_url )
 	return 1;
 }
 
-int pseudo_get_buffer_info( int *blocks_out, int *block_size_out, int *prefetch_out )
-{
-	int buffer_size=0,block_size=0,blocks=0,prefetch=0;
+/* This is provided for compatibility with the old starter */
 
-	JobAd->LookupInteger(ATTR_BUFFER_SIZE,buffer_size);
-	JobAd->LookupInteger(ATTR_BUFFER_PREFETCH_SIZE,prefetch);
+int pseudo_file_info( const char *name, int *pipe_fd, char *extern_path )
+{
+        int     answer;
+
+        *pipe_fd = -1;
+
+	complete_path( name, extern_path );
+
+        dprintf( D_SYSCALLS, "\tname = \"%s\"\n", name );
+        dprintf( D_SYSCALLS, "\textern_path = \"%s\"\n", extern_path );
+        dprintf( D_SYSCALLS, "\tpipe_fd = %d\n", *pipe_fd);
+        dprintf( D_SYSCALLS, "\tCurrentWorkingDir = \"%s\"\n", CurrentWorkingDir );
+        dprintf( D_SYSCALLS, "\tSpool = \"%s\"\n", Spool );
+
+        // this first one is a special case: if the extern_path is a 
+        // checkpoint, ALWAYS transfer via Remote System Call.
+        if(is_ckpt_file(extern_path) || is_ickpt_file(extern_path)) {
+                answer = IS_RSC;
+                dprintf( D_SYSCALLS, "\tanswer = IS_RSC\n" );
+        } else if( use_local_access(extern_path) ) {
+                answer = IS_NFS;        /* should be IS_LOCAL but we need to be compat
+ible
+                                                           with older syscall lib */
+                dprintf( D_SYSCALLS, "\tanswer = IS_LOCAL (a.k.a. IS_NFS)\n" );
+        } else if( access_via_afs(extern_path) ) {
+                answer = IS_AFS;
+                dprintf( D_SYSCALLS, "\tanswer = IS_AFS\n" );
+        } else if(access_via_nfs(extern_path) ) {
+                answer = IS_NFS;
+                dprintf( D_SYSCALLS, "\tanswer = IS_NFS\n" );
+        } else {
+                answer = IS_RSC;
+                dprintf( D_SYSCALLS, "\tanswer = IS_RSC\n" );
+        }
+
+        return answer;
+}
+
+int pseudo_get_buffer_info( int *bytes_out, int *block_size_out )
+{
+	int bytes, block_size;
+
+	JobAd->LookupInteger(ATTR_BUFFER_SIZE,bytes);
 	JobAd->LookupInteger(ATTR_BUFFER_BLOCK_SIZE,block_size);
 
-	/* If the buffer size is greater than zero, than round it up
-	   to match any block size setting. */
+	if( bytes<0 ) bytes = 0;
+	if( block_size<0 ) block_size = 0;
+	if( (bytes) && (!block_size) ) block_size = 32*1024;
+	if( bytes<block_size ) block_size = bytes;
 
-	if(buffer_size>0) {
-
-		if(block_size<=0) block_size=32768;
-
-		blocks = (buffer_size/block_size);
-		if( (blocks*block_size) < buffer_size ) {
-			blocks++;
-			buffer_size = blocks*block_size;
-		}
-
-		if(prefetch<0) {
-			prefetch = 0;
-		} else if(prefetch<block_size) {
-			prefetch = block_size;
-		} else if(prefetch>buffer_size) {
-			prefetch = buffer_size;
-		}
-	}
-
-	*blocks_out = blocks;
+	*bytes_out = bytes;
 	*block_size_out = block_size;
-	*prefetch_out = prefetch;
 
-	dprintf(D_SYSCALLS,"\tblocks=%d block_size=%d prefetch=%d\n",
-		blocks, block_size, prefetch );
+	dprintf(D_SYSCALLS,"\tbytes=%d block_size=%d\n",bytes, block_size );
 
 	return 0;
 }

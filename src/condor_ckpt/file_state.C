@@ -39,6 +39,7 @@ static char *_FileName_ = __FILE__;
 #include "condor_file_remote.h"
 #include "condor_file_special.h"
 #include "condor_file_agent.h"
+#include "condor_file_buffer.h"
 #include "condor_file_warning.h"
 
 #include <stdarg.h>
@@ -52,18 +53,17 @@ CondorFileTable *FileTab=0;
 /*
 This init function could be called from just about anywhere, perhaps
 even when there is no shadow to talk to.  We will delay initializing
-a buffer until we do the first remote open.
+a buffer until we do the first remote open.  Each of the standard file 
+descriptors will be connected to their local analogues until further
+notice.
 */
 
 void CondorFileTable::init()
 {
-	buffer = 0;
 	resume_count = 0;
 	got_buffer_info = 0;
-
-	read_count = read_bytes = write_count = write_bytes = seek_count = 0;
-	actual_read_count = actual_read_bytes = 0;
-	actual_write_count = actual_write_bytes = 0;
+	buffer_size = 0;
+	buffer_block_size = 0;
 
 	int scm = SetSyscalls( SYS_UNMAPPED | SYS_LOCAL );
 	length = sysconf(_SC_OPEN_MAX);
@@ -77,56 +77,25 @@ void CondorFileTable::init()
 
 	for( int i=0; i<length; i++ ) pointers[i]=0;
 
-	/* Until we know better, identity map std files */
-
-	pre_open( 0, "standard input", 1, 0, 0 );
-	pre_open( 1, "standard output", 0, 1, 0 );
-	pre_open( 2, "standard error", 0, 1, 0 );
-
+	pointers[0] = new CondorFilePointer(new CondorFileLocal());
+	pointers[0]->file->force_open( 0, "stdin", 1, 0 );
+	pointers[1] = new CondorFilePointer(new CondorFileLocal());
+	pointers[1]->file->force_open( 0, "stdout", 0, 1 );
+	pointers[2] = new CondorFilePointer(new CondorFileLocal());
+	pointers[2]->file->force_open( 0, "stderr", 0, 1 );
+	
 	if(atexit(_condor_file_table_cleanup)<0) {
 		_condor_file_warning("atexit() failed.  Files will not be cleaned up correctly at exit.\n");
 	}
 }
 
-void CondorFileTable::init_buffer()
-{
-	int blocks=0, blocksize=0;
-
-	// This value is thrown away
-	int prefetch_size;
-
-	if(buffer) return;
-
-	if(got_buffer_info) return;
-	got_buffer_info = 1;
-
-	if(REMOTE_syscall(CONDOR_get_buffer_info,&blocks,&blocksize,&prefetch_size)<0) {
-		dprintf(D_ALWAYS,"get_buffer_info failed!");
-		buffer = 0;
-		return;
-	}
-
-	if( !blocks || !blocksize ) {
-		dprintf(D_ALWAYS,"Buffer is disabled\n.");
-		buffer = 0;
-	} else {
-		dprintf(D_ALWAYS,"Buffer cache is %d blocks of %d bytes.\n",blocks,blocksize);
-		buffer = new CondorBufferCache( blocks, blocksize );
-	}
-}
-
-
-void CondorFileTable::disable_buffer()
-{
-	if(buffer) {
-		delete buffer;
-		buffer = 0;
-	}
-}
-
 void CondorFileTable::flush()
 {
-	if(buffer) buffer->flush();
+	for( int i=0; i<length; i++ ) {
+		if( pointers[i] ) {
+			pointers[i]->file->fsync();
+		}
+	}
 }
 
 void CondorFileTable::dump()
@@ -149,24 +118,6 @@ void CondorFileTable::close_all()
 {
 	for( int i=0; i<length; i++ )
 		close(i);
-}
-
-int CondorFileTable::pre_open( int fd, char *name, int readable, int writeable, int is_remote )
-{
-	if( (fd<0) || (fd>=length) || (pointers[fd]) ) {
-		errno = EBADF;
-		return -1;
-	}
-
-	CondorFile *f;
-
-	if( is_remote ) f = new CondorFileRemote;
-	else f = new CondorFileLocal;
-
-	f->force_open(fd,name,readable,writeable);
-	pointers[fd] = new CondorFilePointer(f);
-
-	return fd;	
 }
 
 int CondorFileTable::find_name( const char *name )
@@ -219,7 +170,7 @@ int CondorFileTable::count_file_uses( CondorFile *f )
 
 int CondorFileTable::open( const char *logical_name, int flags, int mode )
 {
-	int	fd;
+	int	fd,temp;
 	char	full_path[_POSIX_PATH_MAX];
 	char	url[_POSIX_PATH_MAX];
 	char	method[_POSIX_PATH_MAX];
@@ -256,9 +207,13 @@ int CondorFileTable::open( const char *logical_name, int flags, int mode )
 			strcpy(full_path,logical_name);
 		}
 	} else {
-		init_buffer();
 		REMOTE_syscall( CONDOR_get_file_info, logical_name, url );
 		sscanf(url,"%[^:]:%s",method,full_path);
+		if(!got_buffer_info) {
+			REMOTE_syscall( CONDOR_get_buffer_info, &buffer_size, &buffer_block_size, &temp );
+			got_buffer_info = 1;
+		}
+
 	}
 
 	// If a file by this name is already open, share the file object.
@@ -271,8 +226,11 @@ int CondorFileTable::open( const char *logical_name, int flags, int mode )
 		if(!strcmp(method,"local")) {
 			f = new CondorFileLocal;
 		} else if(!strcmp(method,"remote")) {
-			f = new CondorFileRemote;
-			f->enable_buffer();
+			if( fd==2 || !get_buffer_size() ) {
+				f = new CondorFileRemote();
+			} else {
+				f = new CondorFileBuffer(new CondorFileRemote);
+			}
 		} else if(!strcmp(method,"remotefetch")) {
 			f = new CondorFileAgent(new CondorFileRemote);
 		} else {
@@ -282,11 +240,9 @@ int CondorFileTable::open( const char *logical_name, int flags, int mode )
 		}
 
 		// Open the file according to its method.
-		fd = f->open(full_path,flags,mode);
-		if(fd<0) return -1;
-
-		// Do not buffer stderr
-		if(fd==2) f->disable_buffer();
+		if( f->open(full_path,flags,mode) < 0 ) {
+			return -1;
+		}
 	}
 
 	// Install a new pointer in the file table, and return
@@ -385,6 +341,8 @@ int CondorFileTable::socket( int domain, int type, int protocol )
 
 	pointers[fd]->file->force_open( result, "", 1, 1 );
 
+	dump();
+
 	return fd;
 }
 
@@ -409,7 +367,6 @@ int CondorFileTable::close( int fd )
 
 	// If this is the last use of the file, flush, close, and delete
 	if(count_file_uses(file)==1) {
-		if(buffer) buffer->flush(pointers[fd]->file);
 		file->close();
 		delete file;
 	}
@@ -427,8 +384,6 @@ int CondorFileTable::close( int fd )
 
 ssize_t CondorFileTable::read( int fd, void *data, size_t nbyte )
 {
-	read_count++;
-
 	if( (fd>=length) || (fd<0) || (pointers[fd]==0) ||
 	    (!pointers[fd]->file->is_readable()) ) {
 		errno = EBADF;
@@ -443,56 +398,23 @@ ssize_t CondorFileTable::read( int fd, void *data, size_t nbyte )
 	CondorFilePointer *fp = pointers[fd];
 	CondorFile *f = fp->file;
 
-	// First, figure out the appropriate place to read from.
-
-	int offset = fp->offset;
-	int size = f->get_size();
-	int actual;
-
 	if( nbyte==0 ) return 0;
 
-	// If buffering is allowed, read from the buffer,
-	// otherwise, go straight to the access method
-
-	if( f->ok_to_buffer() && buffer ) {
-
-		// The buffer doesn't know about file sizes,
-		// so cut off extra long reads here
-		if( (offset+nbyte)>size ) nbyte = size-offset;
-
-		// If there is nothing to read, that is not an error
-		if(nbyte==0) return 0;
-
-		// Now fetch from the buffer
-		actual = buffer->read( f, offset, (char*)data, nbyte );
-	} else {
-		actual = read_unbuffered( f, offset, data, nbyte );
-	}
+	// get the data from the object
+	int actual = f->read( fp->offset, (char*) data, nbyte );
 
 	// If there is an error, don't touch the offset.
 	if(actual<0) return -1;
 
-	// Update the offset and summary
-	fp->offset = offset+actual;
-	read_bytes+=actual;
+	// Update the offset
+	fp->offset += actual;
 
 	// Return the number of bytes read
 	return actual;
 }
 
-ssize_t CondorFileTable::read_unbuffered( CondorFile *f, off_t offset, void *data, size_t nbyte )
-{
-	int result;
-	actual_read_count++;
- 	result = f->read( offset, (char*)data, nbyte );
-	if(result>0) actual_read_bytes+=result;
-	return result;
-}
-
 ssize_t CondorFileTable::write( int fd, const void *data, size_t nbyte )
 {
-	write_count++;
-
 	if( (fd>=length) || (fd<0) || (pointers[fd]==0) ||
 	    (!pointers[fd]->file->is_writeable()) ) {
 		errno = EBADF;
@@ -509,41 +431,17 @@ ssize_t CondorFileTable::write( int fd, const void *data, size_t nbyte )
 	CondorFilePointer *fp = pointers[fd];
 	CondorFile *f = fp->file;
 
-	// First, figure out the appropriate place to write to.
-
-	int offset = fp->offset;
-	int actual;
-
-	// If buffering is allowed, write to the buffer,
-	// otherwise, go straight to the access method
-
-	if( f->ok_to_buffer() && buffer ) {
-      		actual = buffer->write( f, offset, (char*)data, nbyte );
-	} else {
-		actual = write_unbuffered( f, offset, data, nbyte );
-	}
+	// Write to the object at the current offset
+	int actual = f->write( fp->offset, (char *) data, nbyte );
 
 	// If there is an error, don't touch the offset.
 	if(actual<0) return -1;
 
-	// Update the offset, and mark the file bigger if necessary
-	if( (offset+actual)>f->get_size() )
-		f->set_size(offset+actual);
-
-	fp->offset = offset+actual;
-	write_bytes += actual;
+	// Update the offset by the amount written
+	fp->offset += actual;
 
 	// Return the number of bytes written
 	return actual;
-}
-
-ssize_t CondorFileTable::write_unbuffered( CondorFile *f, off_t offset, const void *data, size_t nbyte )
-{
-	int result;
-	actual_write_count++;
-	result = f->write( offset, (char*)data, nbyte );
-	actual_write_bytes += result;
-	return result;
 }
 
 off_t CondorFileTable::lseek( int fd, off_t offset, int whence )
@@ -576,7 +474,7 @@ off_t CondorFileTable::lseek( int fd, off_t offset, int whence )
 		return -1;
 	} else {
 		fp->offset = temp;
-		seek_count++;
+		f->bump_seek_count();
 		return temp;
 	}
 }
@@ -707,8 +605,6 @@ int CondorFileTable::ftruncate( int fd, size_t length )
 
 	if( length<0 ) return 0;
 
-	if(buffer) buffer->flush(pointers[fd]->file);
-
 	return pointers[fd]->file->ftruncate(length);
 }
 
@@ -752,8 +648,6 @@ int CondorFileTable::fsync( int fd )
 		return -1;
 	}
 
-	if(buffer) buffer->flush(pointers[fd]->file);
-
 	pointers[fd]->file->fsync();
 }
 
@@ -789,11 +683,14 @@ int CondorFileTable::poll( struct pollfd *fds, int nfds, int timeout )
 	return result;
 }
 
-void CondorFileTable::report_info()
+int CondorFileTable::get_buffer_size()
 {
-	if( MyImage.GetMode()!=STANDALONE ) {
-		REMOTE_syscall( CONDOR_report_file_info, read_count, read_bytes, write_count, write_bytes, seek_count, actual_read_count, actual_read_bytes, actual_write_count, actual_write_bytes );
-	}
+	return buffer_size;
+}
+
+int CondorFileTable::get_buffer_block_size()
+{
+	return buffer_block_size;
 }
 
 void CondorFileTable::checkpoint()
@@ -812,8 +709,6 @@ void CondorFileTable::checkpoint()
 
 	for( int i=0; i<length; i++ )
 	     if( pointers[i] ) pointers[i]->file->checkpoint();
-
-	report_info();
 }
 
 void CondorFileTable::suspend()
@@ -832,13 +727,12 @@ void CondorFileTable::suspend()
 
 	for( int i=0; i<length; i++ )
 	     if( pointers[i] ) pointers[i]->file->suspend();
-
-	report_info();
 }
 
 void CondorFileTable::resume()
 {
 	int result;
+	int temp;
 
 	resume_count++;
 
@@ -846,6 +740,7 @@ void CondorFileTable::resume()
 	dprintf(D_ALWAYS,"working dir = %s\n",working_dir);
 
 	if(MyImage.GetMode()!=STANDALONE) {
+		REMOTE_syscall( CONDOR_get_buffer_info, &buffer_size, &buffer_block_size, &temp );
 		result = REMOTE_syscall(CONDOR_chdir,working_dir);
 	} else {
 		result = ::chdir( working_dir );
