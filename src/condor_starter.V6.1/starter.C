@@ -628,7 +628,20 @@ void
 CStarter::allJobsDone( void )
 {
 		// No more jobs, notify our JobInfoCommunicator
-	jic->allJobsDone();
+	if( ! jic->allJobsDone() ) {
+			/*
+			  there was an error with the JIC in this step.  at this
+			  point, the only possible reason is if we're talking to a
+			  shadow and file transfer failed to send back the files.
+			  in this case, just return to DaemonCore and wait for
+			  other events (like the shadow reconnecting or the startd
+			  deciding the job lease expired and killing us)
+			*/
+
+		dprintf( D_ALWAYS, "JIC::allJobsDone() failed, waiting for job "
+				 "lease to expire or for a reconnect attempt\n" );
+		return;
+	}
 
 		// Now that we're done transfering files and/or doing all
 		// our cleanup, we can finally go through the

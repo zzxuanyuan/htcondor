@@ -93,7 +93,7 @@ public:
 			the timer for updating the shadow, initiate the final file
 			transfer, if needed.
 		*/
-	void allJobsDone( void );
+	bool allJobsDone( void );
 
 		/** The last job this starter is controlling has been
    			completely cleaned up.  We don't care, since we just wait

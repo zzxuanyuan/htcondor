@@ -173,11 +173,12 @@ JICLocal::Continue( void )
 }
 
 
-void
+bool
 JICLocal::allJobsDone( void )
 {
 		// we don't care about anything at this stage.  we'll tell the
 		// user about the jobs exiting when we get the notifyJobExit()
+	return true;
 }
 
 

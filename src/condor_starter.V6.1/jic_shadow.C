@@ -312,7 +312,7 @@ JICShadow::Continue( void )
 }
 
 
-void
+bool
 JICShadow::allJobsDone( void )
 {
 		// now that all the jobs are gone, we can stop our periodic
@@ -335,10 +335,17 @@ JICShadow::allJobsDone( void )
 		priv_state saved_priv = set_user_priv();
 
 			// this will block
-		ASSERT( filetrans->UploadFiles(true, final_transfer) );	
-
+		bool rval = filetrans->UploadFiles( true, final_transfer );
 		set_priv(saved_priv);
+
+		if( ! rval ) {
+				// failed to transfer, the shadow is probably gone.
+				// TODO: go into disconnected mode and remember where
+				// we left off...
+			return false;
+		}
 	}
+	return true;
 }
 
 
