@@ -489,8 +489,13 @@ CondorCronJob::StartJob( void )
 int
 CondorCronJob::Reaper( int exitPid, int exitStatus )
 {
-	dprintf( D_ALWAYS, "Cron: Job '%s' (pid %d) exit status=%d, state=%s\n",
-			 GetName(), exitPid, exitStatus, StateString( ) );
+	if( WIFSIGNALED(exitStatus) ) {
+		dprintf( D_FULLDEBUG, "Cron: '%s' (pid %d) exit_signal=%d\n",
+				 GetName(), exitPid, WTERMSIG(exitStatus) );
+	} else {
+		dprintf( D_FULLDEBUG, "Cron: '%s' (pid %d) exit_status=%d\n",
+				 GetName(), exitPid, WEXITSTATUS(exitStatus) );
+	}
 
 	// What if the PIDs don't match?!
 	if ( exitPid != pid ) {
