@@ -104,6 +104,7 @@ int		DisableFileChecks = 0;
 int	  ClusterId = -1;
 int	  ProcId = -1;
 int	  JobUniverse;
+char *JobGridType = NULL;
 int		Remote=0;
 int		ClusterCreated = FALSE;
 int		ActiveQueueConnection = FALSE;
@@ -999,32 +1000,34 @@ SetUniverse()
 		InsertJobExpr (buffer);
 		free(univ);
 	
-		// Set Grid_Type (for Globus jobs)
-		univ = condor_param( Grid_Type, ATTR_JOB_GRID_TYPE );
-		if( !univ ) {
-			univ = strdup("globus");
+		// Set Grid_Type
+		if ( JobGridType != NULL ) {
+			free( JobGridType );
+		}
+		JobGridType = condor_param( Grid_Type, ATTR_JOB_GRID_TYPE );
+		if( !JobGridType ) {
+			JobGridType = strdup("globus");
 		} else {
 			// Validate
 			// Valid values are (as of 6.7): nordugrid, oracle, gt3, globus,
 			//    gt2, condor
-			if ((stricmp (univ, "globus") == MATCH) ||
-				(stricmp (univ, "gt2") == MATCH) ||
-				(stricmp (univ, "gt3") == MATCH) ||
-				(stricmp (univ, "condor") == MATCH) ||
-				(stricmp (univ, "nordugrid") == MATCH) ||
-				(stricmp (univ, "oracle") == MATCH)) {
+			if ((stricmp (JobGridType, "globus") == MATCH) ||
+				(stricmp (JobGridType, "gt2") == MATCH) ||
+				(stricmp (JobGridType, "gt3") == MATCH) ||
+				(stricmp (JobGridType, "condor") == MATCH) ||
+				(stricmp (JobGridType, "nordugrid") == MATCH) ||
+				(stricmp (JobGridType, "oracle") == MATCH)) {
 				// We're ok	
 				// Values are case-insensitive for gridmanager, so we don't need to change case			
 			} else {
-				fprintf( stderr, "\nERROR: Invalid value '%s' for grid_type\n", univ );
+				fprintf( stderr, "\nERROR: Invalid value '%s' for grid_type\n", JobGridType );
 				fprintf( stderr, "Must be one of: globus, gt2, gt3, condor, nordugrid, or oracle\n" );
 				exit( 1 );
 			}
 		}			
 		
-		(void) sprintf (buffer, "%s = \"%s\"", ATTR_JOB_GRID_TYPE, univ);
+		(void) sprintf (buffer, "%s = \"%s\"", ATTR_JOB_GRID_TYPE, JobGridType);
 		InsertJobExpr (buffer);
-		free (univ);
 		
 		return;
 	};
@@ -1908,18 +1911,13 @@ SetStdFile( int which_file )
 	char	 buffer[_POSIX_PATH_MAX + 32];
 
 	if(JobUniverse==CONDOR_UNIVERSE_GLOBUS) {
-		char *grid_type = condor_param( Grid_Type, ATTR_JOB_GRID_TYPE );
-		if ( grid_type == NULL ||
-			 stricmp (grid_type, "globus") == MATCH ||
-			 stricmp (grid_type, "gt2") == MATCH ||
-			 stricmp (grid_type, "gt3") == MATCH ) {
+		if ( stricmp (JobGridType, "globus") == MATCH ||
+			 stricmp (JobGridType, "gt2") == MATCH ||
+			 stricmp (JobGridType, "gt3") == MATCH ) {
 
 			stream_it = true;
 		} else {
 			stream_it = false;
-		}
-		if ( grid_type ) {
-			free( grid_type );
 		}
 	} else {
 		stream_it = false;
@@ -2968,19 +2966,15 @@ SetGlobusParams()
 	char buff[2048];
 	char *tmp;
 	char *use_gridshell;
-	char *grid_type;
 
 	if ( JobUniverse != CONDOR_UNIVERSE_GLOBUS )
 		return;
 
-	grid_type = condor_param( Grid_Type, ATTR_JOB_GRID_TYPE );
-
-	if ((grid_type == NULL ||
-			(stricmp (grid_type, "globus") == MATCH) ||
-			(stricmp (grid_type, "gt2") == MATCH) ||
-			(stricmp (grid_type, "gt3") == MATCH) ||
-			(stricmp (grid_type, "oracle") == MATCH) ||
-			(stricmp (grid_type, "nordugrid") == MATCH))) {
+	if ( stricmp (JobGridType, "globus") == MATCH ||
+		 stricmp (JobGridType, "gt2") == MATCH ||
+		 stricmp (JobGridType, "gt3") == MATCH ||
+		 stricmp (JobGridType, "oracle") == MATCH ||
+		 stricmp (JobGridType, "nordugrid") == MATCH ) {
 
 		char *globushost;
 
@@ -3030,10 +3024,9 @@ SetGlobusParams()
 		free(use_gridshell);
 	}
 
-	if ((grid_type == NULL ||
-			(stricmp (grid_type, "globus") == MATCH) ||
-			(stricmp (grid_type, "gt2") == MATCH) ||
-			(stricmp (grid_type, "gt3") == MATCH))) {
+	if ( stricmp (JobGridType, "globus") == MATCH ||
+		 stricmp (JobGridType, "gt2") == MATCH ||
+		 stricmp (JobGridType, "gt3") == MATCH ) {
 
 		sprintf( buffer, "%s = %d", ATTR_GLOBUS_STATUS,
 				 GLOBUS_GRAM_PROTOCOL_JOB_STATE_UNSUBMITTED );
@@ -3058,7 +3051,7 @@ SetGlobusParams()
 		InsertJobExpr ( buff );
 	}
 
-	if ( grid_type != NULL && stricmp ( grid_type, "condor" ) == MATCH ) {
+	if ( stricmp ( JobGridType, "condor" ) == MATCH ) {
 
 		char *remote_schedd;
 
@@ -3138,9 +3131,6 @@ SetGlobusParams()
 
 	// END MyProxy-related crap
 
-	if (grid_type != NULL) {
-		free (grid_type);
-	}
 }
 
 #if !defined(WIN32)
@@ -3548,13 +3538,12 @@ queue(int num)
 
 		// Issue an error if (no proxy) && (universe=globus,gt2,gt3,nordugrid)
 		if ( proxy_file == NULL) {
-			char * grid_type = condor_param( Grid_Type, ATTR_JOB_GRID_TYPE );
 			if (JobUniverse == CONDOR_UNIVERSE_GLOBUS &&
-				(grid_type == NULL ||
-					(stricmp (grid_type, "globus") == MATCH) ||
-					(stricmp (grid_type, "gt2") == MATCH) ||
-					(stricmp (grid_type, "gt3") == MATCH) ||
-					(stricmp (grid_type, "nordugrid") == MATCH))) {
+				(stricmp (JobGridType, "globus") == MATCH ||
+				 stricmp (JobGridType, "gt2") == MATCH ||
+				 stricmp (JobGridType, "gt3") == MATCH ||
+				 stricmp (JobGridType, "nordugrid") == MATCH)) {
+
 				fprintf( stderr, "\nERROR: can't determine proxy filename\n" );
 				fprintf( stderr, "x509 user proxy is required for globus, gt2, gt3 or nordugrid jobs\n");
 				exit (1);
