@@ -1170,7 +1170,6 @@ DaemonCore::ReInit()
 	return TRUE;
 }
 
-
 int
 DaemonCore::Verify(DCpermission perm, const struct sockaddr_in *sin, const char * fqu )
 {
@@ -1677,16 +1676,8 @@ int DaemonCore::HandleReq(int socki)
 		} else {
 			stream->end_of_message();
 		}
-
-		// HACK ing going on here...
-		if (is_tcp) {
-			return KEEP_STREAM;
-		} else {
-			// always keep UDP... there is only 1 socket.
-			return KEEP_STREAM;
-		}
+        return KEEP_STREAM;
 	}
-
 
 	if (req == DC_AUTHENTICATE) {
 
@@ -1862,13 +1853,10 @@ int DaemonCore::HandleReq(int socki)
 					delete the_user;
 				}
 			}
-
 			new_session = false;
 
 		} else {
-
 			// they did not request a cached session.  see if they want to start one.
-
 
 			// look at our security policy.
 			ClassAd *our_policy = sec_man->CreateSecurityPolicyAd(PermString(comTable[cmd_index].perm));
@@ -2136,7 +2124,7 @@ int DaemonCore::HandleReq(int socki)
 			sock->eom();
 
 
-			// add the session to the cache
+			// add the key to the cache
 			KeyCacheEntry tmp_key(the_sid, sock->endpoint(), the_key, the_policy, 0);
 			sec_man->enc_key_cache->insert(the_sid, tmp_key);
 			dprintf (D_SECURITY, "DC_AUTHENTICATE: added session id %s to cache!\n", the_sid);
