@@ -229,6 +229,7 @@ MirrorJob::MirrorJob( ClassAd *classad )
 {
 	int tmp;
 	char buff[4096];
+	char buff2[4096];
 	char *error_string = NULL;
 	char *gahp_path;
 
@@ -304,7 +305,8 @@ MirrorJob::MirrorJob( ClassAd *classad )
 		// TODO remove mirrorScheddName from the gahp server key if/when
 		//   a gahp server can handle multiple schedds
 	sprintf( buff, "MIRROR/%s", mirrorScheddName );
-	gahp = new GahpClient( buff, gahp_path );
+	sprintf( buff2, "-f -s %s", mirrorScheddName );
+	gahp = new GahpClient( buff, gahp_path, buff2 );
 	free( gahp_path );
 
 	gahp->setNotificationTimerId( evaluateStateTid );

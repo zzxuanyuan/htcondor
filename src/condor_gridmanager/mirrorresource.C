@@ -81,8 +81,10 @@ MirrorResource::MirrorResource( const char *resource_name )
 		// TODO remove mirrorScheddName from the gahp server key if/when
 		//   a gahp server can handle multiple schedds
 		MyString buff;
+		MyString buff2;
 		buff.sprintf( "MIRROR/%s", mirrorScheddName );
-		gahp = new GahpClient( buff.Value(), gahp_path );
+		buff2.sprintf( "-f -s %s", mirrorScheddName );
+		gahp = new GahpClient( buff.Value(), gahp_path, buff2.Value() );
 		gahp->setNotificationTimerId( scheddPollTid );
 		gahp->setMode( GahpClient::normal );
 		gahp->setTimeout( MirrorJob::gahpCallTimeout );
