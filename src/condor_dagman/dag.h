@@ -7,6 +7,7 @@
 
 #include "job.h"
 #include <list>
+#include <string>
 
 namespace dagman {
 
@@ -47,7 +48,7 @@ class Dag {
         @param condorLog
         @param dagLockFile
     */
-    Dag (const char *condorLog, const char *lockFileName,
+    Dag (const std::string & condorLog, const std::string & lockFileName,
          const int  numJobsRunningMax);
 
     ///
@@ -57,7 +58,7 @@ class Dag {
     bool Bootstrap (bool recovery);
 
     /// Add a job to the collection of jobs managed by this Dag.
-    inline bool Add (Job & job) { _jobs.push_back(& job); return true; }
+    inline bool Add (Job & job) { m_jobs.push_back(& job); return true; }
   
     /** Specify a dependency between two jobs. The child job will only
         run after the parent job has finished.
@@ -87,7 +88,7 @@ class Dag {
     /** Get pointer to job with name jobName
         @return address of Job object, or NULL if not found
     */
-    Job * GetJob (const char * jobName) const;
+    Job * GetJob (const std::string & jobName) const;
 
     /** Get pointer to job with condor ID condorID
         @return address of Job object, or NULL if not found
@@ -101,16 +102,16 @@ class Dag {
     void Print_TermQ () const;
 
     ///
-    inline int NumJobs() const { return _jobs.size(); }
+    inline int NumJobs() const { return m_jobs.size(); }
 
     ///
-    inline int NumJobsDone() const { return _numJobsDone; }
+    inline int NumJobsDone() const { return m_numJobsDone; }
 
     ///
-    inline int NumJobsFailed() const { return _numJobsFailed; }
+    inline int NumJobsFailed() const { return m_numJobsFailed; }
 
     ///
-    inline int NumJobsRunning() const { return _numJobsRunning; }
+    inline int NumJobsRunning() const { return m_numJobsRunning; }
 
     /** Remove all jobs (using condor_rm) that are currently running.
         All jobs currently marked Job::STATUS_SUBMITTED will be fed
@@ -124,7 +125,8 @@ class Dag {
     /** Creates a DAG file based on the DAG in memory, except all
         completed jobs are premarked as DONE.
     */
-    void Rescue (const char * rescue_file, const char * datafile) const;
+    void Rescue (const std::string & rescue_file,
+                 const std::string & datafile) const;
 
   protected:
 
@@ -159,44 +161,44 @@ class Dag {
     bool SubmitReadyJobs ();
   
     /// name of consolidated condor log
-    char        * _condorLogName;
+    std::string  m_condorLogName;
 
     /// Documentation on ReadUserLog is present in condor_c++_util
-    ReadUserLog   _condorLog;
+    ReadUserLog  m_condorLog;
 
     ///
-    bool          _condorLogInitialized;
+    bool         m_condorLogInitialized;
 
     /// Last known size of condor log, used by DetectLogGrowth()
-    off_t         _condorLogSize;
+    off_t        m_condorLogSize;
 
     /** used for recovery purposes presence of file indicates
         abnormal termination
     */
-    char        * _lockFileName;
+    std::string  m_lockFileName;
 
     /// List of Job objects
-    std::list<Job *>    _jobs;
+    std::list<Job *>    m_jobs;
 
     ///
-    std::list<TQI *>    _termQ;
+    std::list<TQI *>    m_termQ;
 
     /// For debugging
-    bool         _termQLock;
+    bool         m_termQLock;
 
     /// Number of Jobs that are done (completed execution)
-    int _numJobsDone;
+    int m_numJobsDone;
     
     /// Number of Jobs that failed (or their PRE or POST script failed).
-    int _numJobsFailed;
+    int m_numJobsFailed;
 
     /// Number of Jobs currently running (submitted to Condor)
-    int _numJobsRunning;
+    int m_numJobsRunning;
 
     /** Maximum number of jobs to run at once.  Non-negative.  Zero means
         unlimited
     */
-    int _numJobsRunningMax;
+    int m_numJobsRunningMax;
 };
 
 } // namespace dagman

@@ -7,17 +7,17 @@
 namespace dagman {
 
 //---------------------------------------------------------------------------
-JobID_t Job::_jobID_counter = 0;  // Initialize the static data memeber
+JobID_t Job::m_jobID_counter = 0;  // Initialize the static data memeber
 
 //---------------------------------------------------------------------------
-const char *Job::queue_t_names[] = {
+const std::string Job::queue_t_names[] = {
     "QUEUE_INCOMING",
     "QUEUE_WAITING ",
     "QUEUE_OUTGOING",
 };
 
 //---------------------------------------------------------------------------
-const char * Job::status_t_names[] = {
+const std::string Job::status_t_names[] = {
     "STATUS_READY    ",
     "STATUS_SUBMITTED",
     "STATUS_DONE     ",
@@ -25,48 +25,43 @@ const char * Job::status_t_names[] = {
 };
 
 //---------------------------------------------------------------------------
-Job::~Job() {
-    delete [] _cmdFile;
-    delete [] _jobName;
-}
+Job::~Job() {}
 
 //---------------------------------------------------------------------------
-Job::Job (const char *jobName, const char *cmdFile):
-    _scriptPre  (NULL),
-    _scriptPost (NULL),
-    _Status     (STATUS_READY)
+Job::Job (const std::string & jobName, const std::string & cmdFile):
+    m_scriptPre  (NULL),
+    m_scriptPost (NULL),
+    m_Status     (STATUS_READY),
+    m_cmdFile    (cmdFile),
+    m_jobName    (jobName)
 {
-
-    _jobName = strnewp (jobName);
-    _cmdFile = strnewp (cmdFile);
-
     // _condorID struct initializes itself
 
     // jobID is a primary key (a database term).  All should be unique
-    _jobID = _jobID_counter++;
+    m_jobID = m_jobID_counter++;
 }
 
 //---------------------------------------------------------------------------
 void Job::Remove (const queue_t queue, const JobID_t jobID) {
-    _queues[queue].remove(jobID);
+    m_queues[queue].remove(jobID);
 }  
 
 //---------------------------------------------------------------------------
 void Job::Dump () const {
     printf ("Job -------------------------------------\n");
-    printf ("          JobID: %d\n", _jobID);
-    printf ("       Job Name: %s\n", _jobName);
-    printf ("     Job Status: %s\n", status_t_names[_Status]);
-    printf ("       Cmd File: %s\n", _cmdFile);
+    printf ("          JobID: %d\n", m_jobID);
+    printf ("       Job Name: %s\n", m_jobName.c_str());
+    printf ("     Job Status: %s\n", status_t_names[m_Status].c_str());
+    printf ("       Cmd File: %s\n", m_cmdFile.c_str());
     printf ("      Condor ID: ");
-    _CondorID.Print();
+    m_CondorID.Print();
     putchar('\n');
   
     for (int i = 0 ; i < 3 ; i++) {
-        printf ("%15s: ", queue_t_names[i]);
+        printf ("%15s: ", queue_t_names[i].c_str());
 
         std::list<int>::const_iterator it;
-        for (it = _queues[i].begin() ; it != _queues[i].end() ; it++)
+        for (it = m_queues[i].begin() ; it != m_queues[i].end() ; it++)
             printf ("%d, ", *it);
         printf ("<END>\n");
     }
@@ -74,10 +69,10 @@ void Job::Dump () const {
 
 //---------------------------------------------------------------------------
 void Job::Print (bool condorID) const {
-    printf ("ID: %4d Name: %s", _jobID, _jobName);
+    printf ("ID: %4d Name: %s", m_jobID, m_jobName.c_str());
     if (condorID) {
         printf ("  CondorID: ");
-        _CondorID.Print();
+        m_CondorID.Print();
     }
 }
 
