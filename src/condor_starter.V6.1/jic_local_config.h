@@ -38,7 +38,8 @@ class JICLocalConfig : public JICLocal {
 public:
 
 		/// Constructor
-	JICLocalConfig( const char* keyword );
+	JICLocalConfig( const char* keyword, int cluster, int proc, 
+					int subproc );
 
 		/// Destructor
 	virtual ~JICLocalConfig();
