@@ -26,7 +26,11 @@
 #include "condor_debug.h"
 
 
-#if defined(CONDOR_GSI)
+#if defined(GLOBUS_SUPPORT)
+#	include "globus_common.h"
+#endif
+
+#if defined(GSS_AUTHENTICATION) || defined(GLOBUS_SUPPORT)
 #   include "sslutils.h"
 #endif
 
@@ -59,8 +63,7 @@ x509_error_string()
 int
 x509_proxy_seconds_until_expire( char *proxy_file )
 {
-#if !defined(CONDOR_GSI)
-	_globus_error_message = "This version of Condor doesn't support X509 credentials!" ;
+#if !defined(GSS_AUTHENTICATION) && !defined(GLOBUS_SUPPORT)
 	return -1;
 #else
 
@@ -77,22 +80,21 @@ x509_proxy_seconds_until_expire( char *proxy_file )
 	ERR_load_prxyerr_strings(0);
 	SSLeay_add_ssl_algorithms();
 
-    pcd = proxy_cred_desc_new(); // Added. But not sure if it's correct. Hao
-
-	if (!pcd) {
-		_globus_error_message = "problem during internal initialization";
-		if ( must_free_proxy_file ) free(proxy_file);
-		return -1;
-	}
-
 	/* Load proxy */
 	if (!proxy_file)  {
-		proxy_get_filenames(pcd, 1, NULL, NULL, &proxy_file, NULL, NULL);
+		proxy_get_filenames(NULL, 1, NULL, NULL, &proxy_file, NULL, NULL);
 		must_free_proxy_file = TRUE;
 	}
 
 	if (!proxy_file || (stat(proxy_file,&stx) != 0) ) {
 		_globus_error_message = "unable to find proxy file";
+		if ( must_free_proxy_file ) free(proxy_file);
+		return -1;
+	}
+
+	pcd = proxy_cred_desc_new();
+	if (!pcd) {
+		_globus_error_message = "problem during internal initialization";
 		if ( must_free_proxy_file ) free(proxy_file);
 		return -1;
 	}
@@ -124,8 +126,6 @@ x509_proxy_seconds_until_expire( char *proxy_file )
 	result = (int) time_diff;
 
 	if ( must_free_proxy_file ) free(proxy_file);
-    
-    proxy_cred_desc_free(pcd);       // Added, not sure if it's correct. Hao
 
 	return result;
 
@@ -135,9 +135,9 @@ x509_proxy_seconds_until_expire( char *proxy_file )
 int
 check_x509_proxy( char *proxy_file )
 {
-#if !defined(CONDOR_GSI)
+#if !defined(GSS_AUTHENTICATION) && !defined(GLOBUS_SUPPORT)
 
-	_globus_error_message = "This version of Condor doesn't support X509 credentials!" ;
+	_globus_error_message = "This version of Condor doesn't support X509 authentication!" ;
 	return 1;
 
 #else
@@ -179,9 +179,9 @@ check_x509_proxy( char *proxy_file )
 
 
 int
-have_condor_g()
+have_globus_support()
 {
-#if defined(CONDOR_G)
+#if defined(GLOBUS_SUPPORT)
 	return 1;
 #else
 	return 0;
@@ -207,7 +207,7 @@ have_condor_g()
  *     a list of strings containing the result.
  *     
  */ 
-#if defined(GLOBUS_SUPPORT) && defined(HAS_LDAP)
+#if defined(GLOBUS_SUPPORT)
 static
 int
 retrieve_attr_values(
@@ -257,25 +257,23 @@ retrieve_attr_values(
 } /* retrieve_attr_values */
 #endif
 
-#if defined(GLOBUS_SUPPORT) && defined(HAS_LDAP)
-/*
+#if defined(GLOBUS_SUPPORT)
 static
 void
 set_ld_timeout(LDAP  *ld, int timeout_val, char *env_string)
 {
 	if(timeout_val > 0) {
 		ld->ld_timeout=timeout_val;
-        } else { 
+	} else { /* check the environment variable */
 		char *tmp=getenv(env_string);
 		int tmp_int=0;
 		if(tmp) tmp_int=atoi(tmp);
 		if(tmp_int>0) ld->ld_timeout=tmp_int;
 	}
 }
-*/
 #endif
 
-#if defined(GLOBUS_SUPPORT) && defined(HAS_LDAP)
+#if defined(GLOBUS_SUPPORT)
 static
 int
 simple_query_ldap(
@@ -292,8 +290,7 @@ simple_query_ldap(
 	LDAPMessage *entry;
 	char *attrs[3];
 	int rc;
-	int match, msgidp;
-    struct timeval timeout;
+	int match;
 
 	*value_list = GLOBUS_NULL;
 	match=0;
@@ -307,8 +304,7 @@ simple_query_ldap(
 	}
 	free(server);
 
-    // OpenLDAP 2 changed API
-	//set_ld_timeout(ldap_server, 0, "GRID_INFO_TIMEOUT");
+	set_ld_timeout(ldap_server, 0, "GRID_INFO_TIMEOUT");
 
 	/* bind anonymously (we can only read public records now */
 	if(ldap_simple_bind_s(ldap_server, "", "") != LDAP_SUCCESS) {
@@ -326,26 +322,15 @@ simple_query_ldap(
 	/* do a search of the entire ldap tree,
 	 * and return the desired attribute
 	 */
-    // OpenLDAP 2 changed the API. ldap_search is deprecated
-
-    timeout.tv_sec  = 0;
-    timeout.tv_usec = 0;
-    if ( rc = ldap_search_ext( ldap_server, base_dn, LDAP_SCOPE_SUBTREE,
-                                  search_string, attrs, 0, NULL, 
-                                  NULL, &timeout, -1, &msgidp ) == -1 ) {
+	if ( ldap_search( ldap_server, base_dn, LDAP_SCOPE_SUBTREE,
+					  search_string, attrs, 0 ) == -1 ) {
 		ldap_perror( ldap_server, "rsl_assist:ldap_search" );
-		return( msgidp );
+		return( ldap_server->ld_errno );
 	}
 
-//	if ( ldap_search( ldap_server, base_dn, LDAP_SCOPE_SUBTREE,
-//					  search_string, attrs, 0 ) == -1 ) {
-//		ldap_perror( ldap_server, "rsl_assist:ldap_search" );
-//		return( ldap_server->ld_errno );
-//	}
-
 	while ( (rc = ldap_result( ldap_server, LDAP_RES_ANY, 0, NULL, &reply ))
-			== LDAP_RES_SEARCH_ENTRY || (rc==-1)) {
-		if(rc==-1) {       // This is timeout
+			== LDAP_RES_SEARCH_ENTRY || ldap_server->ld_errno==LDAP_TIMEOUT) {
+		if(ldap_server->ld_errno==LDAP_TIMEOUT) {
 			continue;
 		}
 		match += retrieve_attr_values(ldap_server,reply, attrs[0],
@@ -374,7 +359,7 @@ simple_query_ldap(
 int
 check_globus_rm_contacts(char* resource)
 {
-#if !defined(GLOBUS_SUPPORT) || !defined(HAS_LDAP)
+#if !defined(GLOBUS_SUPPORT)
 	fprintf( stderr, "This is not a Globus-enabled version of Condor!\n" );
 	exit( 1 );
 	return 0;
