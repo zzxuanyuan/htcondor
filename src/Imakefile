@@ -327,20 +327,20 @@ both_tarball(condor-g.tar,CondorGFiles,CondorGContribFiles)
 #if HAS_STATIC
 #define StaticTar static.tar
 static.tar: static
-	cd static_dir; rm -f release.tar; tar -cvf release.tar --owner=root --group=root AllFiles
+	rm -f static_dir/release.tar
+	cd static_dir; $(TAR_CMD) -cvf release.tar AllFiles
 #else
 #define StaticTar
 #endif 
 
 strip.tar: stripped
-	cd strip_dir; rm -f release.tar; tar -cvf release.tar --owner=root --group=root AllFiles
+	rm -f strip_dir/release.tar
+	cd strip_dir; $(TAR_CMD) -cvf release.tar AllFiles
 
 all_tarballs: strip.tar StaticTar ckpt_server.tar eventd.tar dagman.tar PvmTar CondorGTar
 
 public: release all_tarballs
 	if test ! -d public; then mkdir public; fi
 	rm -f public/unstripped-release.tar.gz
-	cd release_dir; tar -zcvf ../public/unstripped-release.tar.gz --owner=root --group=root *
+	cd release_dir; $(TAR_CMD) -zcvf ../public/unstripped-release.tar.gz *
 	perl condor_scripts/make_final_tarballs -sys $(SYSNAME) -target public
-
-

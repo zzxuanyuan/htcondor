@@ -500,7 +500,7 @@ clean::						@@\
 							@@\
 strip_##type##/##name##: stripped			@@\
 	/bin/rm -f strip_##type##/##name		@@\
-	cd strip_##type##; tar -cvf name --owner=root --group=0 files
+	cd strip_##type##; $(TAR_CMD) -cvf name files
 #endif /* strip_full_tarball */
 
 #ifndef static_full_tarball
@@ -510,7 +510,7 @@ strip_##type##/##name##: stripped			@@\
 							@@\
 static_##type##/##name##: static			@@\
 	/bin/rm -f static_##type##/##name		@@\
-	cd static_##type##; tar -cvf name --owner=root --group=0 files
+	cd static_##type##; $(TAR_CMD) -cvf name files
 #else 
 #define static_full_tarball( name, files, type ) /* NULL MACRO */
 #endif /* HAS_STATIC */
