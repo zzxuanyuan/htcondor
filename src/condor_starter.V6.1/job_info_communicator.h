@@ -91,11 +91,17 @@ public:
 		*/
 	virtual const char* jobIWD( void );
 
+		/** true if the starter is using a different iwd than the one
+			in the job ad, false if not.
+		*/
+	virtual bool iwdIsChanged( void ) { return changed_iwd; };
+
 		/// Return a pointer to the original name for the job.
 	virtual const char* origJobName( void );
 
 		/// Return a pointer to the ClassAd for our job.
 	virtual ClassAd* jobClassAd( void );
+
 
 
 		// // // // // // // // // // // //
@@ -239,6 +245,11 @@ protected:
 
 		/// if true, we were asked to shutdown
 	bool requested_exit;
+
+		/** true if we're using a different iwd for the job than what
+			the job ad says.
+		*/
+	bool changed_iwd;
 };
 
 

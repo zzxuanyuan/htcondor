@@ -36,6 +36,7 @@ JobInfoCommunicator::JobInfoCommunicator()
 	job_error_name = NULL;
 	job_iwd = NULL;
 	requested_exit = false;
+	changed_iwd = false;
 }
 
 

@@ -613,7 +613,8 @@ JICShadow::initJobInfo( void )
 		// and so we know what filenames to use for stdin, stdout,
 		// etc. 
 	char tmp[_POSIX_ARG_MAX];
-	bool change_iwd = true;
+
+	change_iwd = true;
 	wants_file_transfer = true;
 
 		/* setup value for transfer_at_vacate and also determine if 
