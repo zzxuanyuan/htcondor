@@ -25,10 +25,10 @@ public:
 class FileInfo
 {
 public:
-  FileInfo(MyString name, unsigned long size);
+  FileInfo(const char *name, unsigned long size);
   ~FileInfo();
 
-  MyString name;
+  char *name;
   unsigned long size;
 };
 

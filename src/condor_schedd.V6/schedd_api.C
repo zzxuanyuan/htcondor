@@ -104,14 +104,15 @@ JobFile::~JobFile()
 {
 }
 
-FileInfo::FileInfo(MyString name, unsigned long size)
+FileInfo::FileInfo(const char *name, unsigned long size)
 {
-	this->name = name;
+	this->name = strdup(name);
 	this->size = size;
 }
 
 FileInfo::~FileInfo()
 {
+	free(this->name);
 }
 
 int
@@ -123,8 +124,7 @@ Job::get_spool_list(List<FileInfo> & file_list)
 		const char * name;
 		FileInfo *info;
 		while (NULL != (name = directory.Next())) {
-				// XXX: What if MyString(name) fails?
-			info = new FileInfo(MyString(name), directory.GetFileSize());
+			info = new FileInfo(name, directory.GetFileSize());
 			ASSERT(info);
 
 			if (!file_list.Append(info)) {
