@@ -112,6 +112,12 @@ LogCollUpdateClassAd::LogCollUpdateClassAd(const char* k, ClassAd* ad) : LogColl
   op_type = CondorLogOp_CollUpdateClassAd;
 }
 
+LogCollUpdateClassAd::~LogCollUpdateClassAd()
+{
+  if (key) free(key);
+  if (Ad) delete Ad;
+}
+
 void LogCollUpdateClassAd::Play(void *data_structure)
 {
   ClassAdCollection* coll=(ClassAdCollection*) data_structure;

@@ -406,7 +406,6 @@ void ClassAdCollection::NewClassAd(const char* key, ClassAd* ad)
 
 void ClassAdCollection::PlayNewClassAd(const char* key, ClassAd* ad)
 {
-	bool exist=false;
     HashKey hkey(key);
     ClassAd* dummy;
     if (table.lookup(hkey, dummy) == 0) {
@@ -455,9 +454,12 @@ void ClassAdCollection::UpdateClassAd(const char *key, ClassAd* ad)
 
 void ClassAdCollection::PlayUpdateClassAd(const char *key, ClassAd* upd_ad)
 {
-    ClassAd *ad;
-    if (table.lookup(HashKey(key), ad) < 0) return;
-   
+    ClassAd* ad;
+    if (table.lookup(HashKey(key), ad) < 0) {
+		ad=new ClassAd(*upd_ad);
+		PlayNewClassAd(key,ad);
+ 		return;
+	}
     ad->Update(*upd_ad);
     ChangeClassAd(key,ad);
 }

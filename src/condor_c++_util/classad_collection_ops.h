@@ -53,6 +53,7 @@ protected:
 class LogCollUpdateClassAd : public LogCollNewClassAd {
 public:
     LogCollUpdateClassAd(const char *key, ClassAd* ad);
+    ~LogCollUpdateClassAd();
     void Play(void* data_structure);
 };
 
