@@ -497,13 +497,45 @@ int CondorJob::doEvaluateState()
 					SetRemoteJobId( job_id_string );
 					gmState = GM_SUBMIT_SAVE;
 				} else {
-					// unhandled error
 					dprintf( D_ALWAYS,
 							 "(%d.%d) condor_job_submit() failed: %s\n",
 							 procID.cluster, procID.proc,
 							 gahp->getErrorString() );
-					gmState = GM_UNSUBMITTED;
-					reevaluate_state = true;
+					int jcluster = -1;
+					int jproc = -1;
+					sscanf( job_id_string, "%d.%d", &jcluster, &jproc );
+					// if the job failed to submit, the cluster number
+					// will hold the error code for the call to 
+					// NewCluster(), and the proc number will hold
+					// error code for the call to NewProc().
+					// now check if either call failed w/ -2, which
+					// signifies MAX_JOBS_SUBMITTED was exceeded.
+					if ( jcluster==-2 || jproc==-2 ) {
+						// MAX_JOBS_SUBMITTED error.
+						// For now, we will always put this job back
+						// to idle and tell the schedd to find us
+						// another match.
+						// TODO: this hard-coded logic should be
+						// replaced w/ a WANT_REMATCH expression, like
+						// is currently done in the Globus gridtype.
+						dprintf(D_ALWAYS,"(%d.%d) Requesting schedd to "
+							"rematch job because of MAX_JOBS_SUBMITTED\n",
+							procID.cluster, procID.proc);
+						// Set ad attributes so the schedd finds a new match.
+						int dummy;
+						if ( ad->LookupBool( ATTR_JOB_MATCHED, dummy ) != 0 ) {
+							UpdateJobAdBool( ATTR_JOB_MATCHED, 0 );
+							UpdateJobAdInt( ATTR_CURRENT_HOSTS, 0 );
+						}
+						// We are rematching,  so forget about this job 
+						// cuz we wanna pull a fresh new job ad, with 
+						// a fresh new match, from the all-singing schedd.
+						gmState = GM_DELETE;
+					} else {
+						// unhandled error
+						gmState = GM_UNSUBMITTED;
+						reevaluate_state = true;
+					}
 				}
 				if ( job_id_string != NULL ) {
 					free( job_id_string );
