@@ -45,7 +45,7 @@
 #include <sys/syscall.h>
 #endif
 
-#if !defined(AIX31) && !defined(AIX32)  && !defined(IRIX331) && !defined(Solaris) && !defined(IRIX53)
+#if !defined(AIX31) && !defined(AIX32)  && !defined(IRIX331) && !defined(Solaris) && !defined(IRIX53) && !defined(WIN32)
 #include <syscall.h> 
 #endif
 
