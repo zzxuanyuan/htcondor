@@ -74,11 +74,8 @@ init_syscall_connection( int want_debug_mode )
 
 	if( want_debug_mode ) {
 		open_named_pipe( "/tmp/syscall_req", O_WRONLY, REQ_SOCK );
-		pre_open( REQ_SOCK, FALSE, TRUE, TRUE );
 		open_named_pipe( "/tmp/syscall_rpl", O_RDONLY, RPL_SOCK );
-		pre_open( RPL_SOCK, TRUE, FALSE, TRUE );
 		open_named_pipe( "/tmp/log", O_WRONLY, CLIENT_LOG );
-		pre_open( CLIENT_LOG, FALSE, TRUE, TRUE );
 		InDebugMode = TRUE;
 	}
 
