@@ -74,6 +74,7 @@ public:
 	int		eval_state( void )		{return r_state->eval();};
 	bool	hasOppClaim( void );
 	bool	hasAnyClaim( void );
+	bool	hasRunningCODClaim( void ) {return r_cod_mgr->isRunning();};
 	bool	isDeactivating( void )	{return r_cur->isDeactivating();};
 
 		// Methods for computing and publishing resource attributes 
