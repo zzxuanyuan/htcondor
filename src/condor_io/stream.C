@@ -1811,7 +1811,7 @@ void Stream::resetCrypto()
 }
 
 bool 
-Stream::initialize_crypto(KeyInfo * key) 
+Stream::initialize_crypto(KeyInfo * key, const char * keyId) 
 {
     delete crypto_;
     crypto_ = 0;
@@ -1835,6 +1835,8 @@ Stream::initialize_crypto(KeyInfo * key)
         }
     }
 
+    set_encryption_id(keyId);
+
     return (crypto_ != 0);
 }
 
@@ -1851,50 +1853,13 @@ bool Stream::set_MD_mode(CONDOR_MD_MODE mode, KeyInfo * key, const char * keyId)
 }
 
 bool 
-Stream::set_crypto_key(KeyInfo * key)
+Stream::set_crypto_key(KeyInfo * key, const char * keyId)
 {
 
 #if defined(CONDOR_BLOWFISH_ENCRYPTION) || defined(CONDOR_3DES_ENCRYPTION)
-    int code, length;
-    static int PADDING_LEN = 24;
-    char *data = 0;
 
     if (key != 0) {
-        length = key->getKeyLength() + PADDING_LEN; // Pad with 24 bytes of random data
-        data = (char *)malloc(length + 1);
-        ASSERT(data);
-    
-        if (initialize_crypto(key)) {
-	    if (_coding == stream_encode) {
-                // generate random data
-                unsigned char * ran = Condor_Crypt_Base::randomKey(PADDING_LEN);
-                memcpy(data, ran, PADDING_LEN);
-                memcpy(data+PADDING_LEN, key->getKeyData(), key->getKeyLength());
-                free(ran);
-                code = put_bytes(data, length);
-		if (code == length) {
-		    return true;
-		}
-		else {
-		    goto error;
-		}
-	    }
-	    else {
-	        code = get_bytes(data, length);
-                if (code > 0) {
-                    // Only the first key->getKeyLength() are inspected
-                    if (memcmp(data+PADDING_LEN, key->getKeyData(), key->getKeyLength()) != 0) {
-		        goto error;
-	            }
-		    else {
-			return true;
-		    }
-                }
-		else {
-		   goto error;
-		}
-            } 
-        }
+        return initialize_crypto(key, keyId);
     }
     else {
         // We are turning encryption off
@@ -1908,9 +1873,6 @@ Stream::set_crypto_key(KeyInfo * key)
     if (crypto_) {
         delete crypto_;
         crypto_ = 0;
-    }
-    if (data) {
-        free(data);
     }
 #endif /* CONDOR_3DES_ENCRYPTION or CONDOR_BLOWFISH_ENCRYPTION */
 
