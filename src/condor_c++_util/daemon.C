@@ -40,7 +40,7 @@
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
 
 extern char* mySubSystem;
-extern DaemonCore*  daemonCore;
+extern char* ZZZ_dc_sinful();
 
 #define SECURITY_HACK_ENABLE
 void zz1printf(KeyInfo *k) {
@@ -52,7 +52,7 @@ void zz1printf(KeyInfo *k) {
 		sprintf (&hexout[i*2], "%02x", *dataptr++);
 	}
 
-	dprintf (D_SECURITY, "ZKM: [%i] %s\n", length, hexout);
+	dprintf (D_SECURITY, "KEYCACHE: [%i] %s\n", length, hexout);
 }
 
 
@@ -96,11 +96,11 @@ Daemon::Daemon( char* sinful_addr, int port )
 	}
 
 	if (enc_key_cache == NULL) {
-		dprintf (D_SECURITY, "ZKM: creating enc key table!\n");
+		dprintf (D_SECURITY, "KEYCACHE: creating enc key table!\n");
 		enc_key_cache = new KeyCache(101, &MyStringHash, rejectDuplicateKeys);
 	}
 	enc_key_daemon_ref_count++;
-	dprintf (D_SECURITY, "ZKM: Daemon ref count now %i.\n", enc_key_daemon_ref_count);
+	dprintf (D_SECURITY, "KEYCACHE: Daemon ref count now %i.\n", enc_key_daemon_ref_count);
 }
 
 
@@ -136,11 +136,11 @@ Daemon::Daemon( daemon_t type, const char* name, const char* pool )
 	} 
 
 	if (enc_key_cache == NULL) {
-		dprintf (D_SECURITY, "ZKM: creating enc key table!\n");
+		dprintf (D_SECURITY, "KEYCACHE: creating enc key table!\n");
 		enc_key_cache = new KeyCache(101, &MyStringHash, rejectDuplicateKeys);
 	}
 	enc_key_daemon_ref_count++;
-	dprintf (D_SECURITY, "ZKM: Daemon ref count now %i.\n", enc_key_daemon_ref_count);
+	dprintf (D_SECURITY, "KEYCACHE: Daemon ref count now %i.\n", enc_key_daemon_ref_count);
 }
 
 
@@ -157,11 +157,11 @@ Daemon::~Daemon()
 
 	enc_key_daemon_ref_count--;
 	if (enc_key_daemon_ref_count == 0) {
-		dprintf (D_SECURITY, "ZKM: could erase KeyCache.\n");
+		// dprintf (D_SECURITY, "KEYCACHE: could erase KeyCache.\n");
 		// need to walk table and delete individual keys
-		//delete enc_key_cache;
+		// delete enc_key_cache;
 	}
-
+	dprintf (D_SECURITY, "KEYCACHE: Daemon ref count now %i.\n", enc_key_daemon_ref_count);
 }
 
 
@@ -608,8 +608,9 @@ choose_action:
 
 	// if there's a daemonCore, throw our port in there, so if our
 	// key is wrong, we can be told.
-	if (daemonCore) {
-		sprintf(buf, "%s=\"%s\"", ATTR_MY_ADDRESS, daemonCore->InfoCommandSinfulString());
+	char* dcss = ZZZ_dc_sinful();
+	if (dcss) {
+		sprintf(buf, "%s=\"%s\"", ATTR_MY_ADDRESS, dcss);
 		auth_info.Insert(buf);
 	}
 
@@ -1194,7 +1195,7 @@ Daemon::getDaemonInfo( const char* subsys, AdTypes adtype )
 			CondorVersionInfo vi;
 			vi.get_version_from_file(exe_file, ver, 128);
 			New_version( strnewp(ver) );
-			dprintf ( D_SECURITY, "ZKM: discovered %s version %s.\n",
+			dprintf ( D_SECURITY, "DAEMON: discovered %s version %s.\n",
 					subsys, ver);
 		}
 		free( exe_file );

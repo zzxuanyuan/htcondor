@@ -40,14 +40,16 @@ KeyCacheEntry::KeyCacheEntry(const KeyCacheEntry& copy) {
 }
 
 KeyCacheEntry::~KeyCacheEntry() {
-	if (_id) {
-	  delete _id;
-	}
-	if (_addr) {
-	  delete _addr;
-	}
-	if (_key) {
-	  delete _key;
+	delete_storage();
+}
+
+KeyCacheEntry& KeyCacheEntry::operator=(KeyCacheEntry &copy) {
+	if (this != &copy) {
+		delete_storage();
+		_id = strdup(copy._id);
+		_addr = new struct sockaddr_in(*(copy._addr));
+		_key = new KeyInfo(*(copy._key));
+		_expiration = copy._expiration;
 	}
 }
 
@@ -65,6 +67,18 @@ KeyInfo* KeyCacheEntry::key() {
 
 int KeyCacheEntry::expiration() {
 	return _expiration;
+}
+
+void KeyCacheEntry::delete_storage() {
+	if (_id) {
+	  delete _id;
+	}
+	if (_addr) {
+	  delete _addr;
+	}
+	if (_key) {
+	  delete _key;
+	}
 }
 
 

@@ -30,6 +30,7 @@
 #include "limit.h"
 #include "condor_email.h"
 #include "sig_install.h"
+#include "daemon.h"
 
 #include "condor_debug.h"
 
@@ -91,6 +92,13 @@ check_parent()
 }
 #endif
 
+char* ZZZ_dc_sinful() {
+	if (daemonCore) {
+		return daemonCore->InfoCommandSinfulString();
+	} else {
+		return NULL;
+	}
+}
 
 void
 clean_files()
@@ -514,18 +522,14 @@ handle_invalidate_key( Service*, int, Stream* stream)
 		return FALSE;
 	}
 
-	if (daemonCore && daemonCore->getKeyCache()) {
-		if (daemonCore->getKeyCache()->remove(key_id)) {
-			dprintf ( D_SECURITY, "DC_INVALIDATE_KEY: removed key id %s.\n");
+	if (Daemon::enc_key_cache) {
+		if (Daemon::enc_key_cache->remove(key_id)) {
+			dprintf ( D_SECURITY, "DC_INVALIDATE_KEY: removed key id %s.\n", key_id);
 		} else {
-			dprintf ( D_SECURITY, "DC_INVALIDATE_KEY: ignoring request to invalidate non-existant key %s.\n");
+			dprintf ( D_SECURITY, "DC_INVALIDATE_KEY: ignoring request to invalidate non-existant key %s.\n", key_id);
 		}
 	} else {
-		if (daemonCore) {
-			dprintf ( D_ALWAYS, "DC_INVALIDATE_KEY: did not remove %s, no KeyCache exists!\n", key_id);
-		} else {
-			dprintf ( D_ALWAYS, "DC_INVALIDATE_KEY: did not remove %s, no daemonCore exists!?\n", key_id);
-		}
+		dprintf ( D_ALWAYS, "DC_INVALIDATE_KEY: did not remove %s, no KeyCache exists!\n", key_id);
 	}
 
 	return TRUE;

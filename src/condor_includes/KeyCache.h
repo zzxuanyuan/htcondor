@@ -37,8 +37,10 @@ class KeyCacheEntry {
 			KeyInfo* key,
 			int expiration
 			);
-    KeyCacheEntry(const KeyCacheEntry& copy);
+    KeyCacheEntry(const KeyCacheEntry &copy);
     ~KeyCacheEntry();
+
+	KeyCacheEntry& operator=(KeyCacheEntry &kc);
 
     char*                 id();
     struct sockaddr_in *  addr();
@@ -46,11 +48,15 @@ class KeyCacheEntry {
     int                   expiration();
 
  private:
+
+	void delete_storage();
+
     char *               _id;
     struct sockaddr_in * _addr;
     KeyInfo*             _key;
     int                  _expiration;
 };
+
 
 
 typedef HashTable<MyString, KeyCacheEntry*> KeyCache;

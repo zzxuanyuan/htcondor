@@ -70,8 +70,8 @@ void zz2printf(KeyInfo *k) {
     dprintf (D_SECURITY, "ZKM: [%i] %s\n", length, hexout);
 }
 
-static int ZZZZZ = 0;
-int always_increase() {
+static unsigned int ZZZZZ = 0;
+int ZZZ_always_increase() {
 	return ZZZZZ++;
 }
 
@@ -1758,16 +1758,27 @@ int DaemonCore::HandleReq(int socki)
 
 				// if this is UDP, they have no idea the key they are
 				// using is bunk, so  it would be nice of us to tell them.
+
 				// blast off a udp packet, its the least we can do.
-				SafeSock s;
-				if (s.connect(sin_to_string(sock->endpoint()))) {
-					s.encode();
-					s.put(DC_INVALIDATE_KEY);
-					s.code(key_ptr);
-					s.eom();
-					s.close();
-					dprintf (D_SECURITY, "DC_AUTHENTICATE: sent a notify "
-						"packet back to %s.\n", sin_to_string(sock->endpoint()));
+				
+				// get their sinful string
+				char client_sinful_string[256];
+				if( auth_info.LookupString(ATTR_MY_ADDRESS, client_sinful_string)) {
+					SafeSock s;
+					if (s.connect(client_sinful_string)) {
+						s.encode();
+						s.put(DC_INVALIDATE_KEY);
+						s.code(key_ptr);
+						s.eom();
+						s.close();
+						dprintf (D_SECURITY, "DC_AUTHENTICATE: sent a notify "
+							"packet back to %s.\n", client_sinful_string);
+					} else {
+						dprintf ( D_SECURITY, "DC_AUTHENTICATE: couldn't send notify "
+							"packet back to %s.\n", client_sinful_string);
+					}
+				} else {
+					dprintf ( D_SECURITY, "DC_AUTHENTICATE: no return address for invalid UDP.\n");
 				}
 
 				// close the connection.
@@ -1834,7 +1845,7 @@ int DaemonCore::HandleReq(int socki)
 			mypid = ::getpid();
 #endif
 
-			sprintf (key_id, "%s:%i:%i:%i", my_hostname(), mypid, time(0), always_increase());
+			sprintf (key_id, "%s:%i:%i:%i", my_hostname(), mypid, time(0), ZZZ_always_increase());
 
 
 			
