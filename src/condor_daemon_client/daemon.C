@@ -56,7 +56,7 @@ void Daemon::common_init() {
 	_version = NULL;
 	_platform = NULL;
 	_error = NULL;
-	_error_num = DE_NONE;
+	_error_num = CA_SUCCESS;
 	_id_str = NULL;
 	_subsys = NULL;
 	_hostname = NULL;
@@ -503,7 +503,7 @@ Daemon::sendCommand( int cmd, Sock* sock, int sec, CondorError* errstack )
 		char err_buf[256];
 		sprintf( err_buf, "Can't send eom for %d to %s", cmd,  
 				 idStr() );
-		newError( DE_COMMUNICATION_FAILED, err_buf );
+		newError( CA_COMMUNICATION_ERROR, err_buf );
 		return false;
 	}
 	return true;
@@ -521,7 +521,7 @@ Daemon::sendCommand( int cmd, Stream::stream_type st, int sec, CondorError* errs
 		char err_buf[256];
 		sprintf( err_buf, "Can't send eom for %d to %s", cmd,  
 				 idStr() );
-		newError( DE_COMMUNICATION_FAILED, err_buf );
+		newError( CA_COMMUNICATION_ERROR, err_buf );
 		delete tmp;
 		return false;
 	}
@@ -535,12 +535,12 @@ Daemon::sendCACmd( ClassAd* req, ClassAd* reply, bool force_auth,
 				   int timeout )
 {
 	if( !req ) {
-		newError( DE_INVALID_REQUEST,
+		newError( CA_INVALID_REQUEST,
 				  "sendCACmd() called with no request ClassAd" ); 
 		return false;
 	}
 	if( !reply ) {
-		newError( DE_INVALID_REQUEST,
+		newError( CA_INVALID_REQUEST,
 				  "sendCACmd() called with no reply ClassAd" );
 		return false;
 	}
@@ -563,7 +563,7 @@ Daemon::sendCACmd( ClassAd* req, ClassAd* reply, bool force_auth,
 		err_msg += daemonString(_type);
 		err_msg += " ";
 		err_msg += _addr;
-		newError( DE_CONNECT_FAILED, err_msg.Value() );
+		newError( CA_CONNECT_FAILED, err_msg.Value() );
 		return false;
 	}
 
@@ -572,13 +572,13 @@ Daemon::sendCACmd( ClassAd* req, ClassAd* reply, bool force_auth,
 		MyString err_msg = "Failed to send command (CA_CMD)";
 		err_msg += "\n";
 		err_msg += errstack.get_full_text();
-		newError( DE_COMMUNICATION_FAILED, err_msg.Value() );
+		newError( CA_COMMUNICATION_ERROR, err_msg.Value() );
 		return false;
 	}
 	if( force_auth ) {
 		CondorError e;
 		if( ! forceAuthentication(&cmd_sock, &e) ) {
-			newError( DE_AUTHENTICATION_FAILED, e.get_full_text() );
+			newError( CA_NOT_AUTHENTICATED, e.get_full_text() );
 			return false;
 		}
 	}
@@ -591,12 +591,12 @@ Daemon::sendCACmd( ClassAd* req, ClassAd* reply, bool force_auth,
 	}
 
 	if( ! req->put(cmd_sock) ) { 
-		newError( DE_COMMUNICATION_FAILED,
+		newError( CA_COMMUNICATION_ERROR,
 				  "Failed to send request ClassAd" );
 		return false;
 	}
 	if( ! cmd_sock.end_of_message() ) {
-		newError( DE_COMMUNICATION_FAILED,
+		newError( CA_COMMUNICATION_ERROR,
 				  "Failed to send end-of-message" );
 		return false;
 	}
@@ -604,11 +604,11 @@ Daemon::sendCACmd( ClassAd* req, ClassAd* reply, bool force_auth,
 		// Now, try to get the reply
 	cmd_sock.decode();
 	if( ! reply->initFromStream(cmd_sock) ) {
-		newError( DE_COMMUNICATION_FAILED, "Failed to read reply ClassAd" );
+		newError( CA_COMMUNICATION_ERROR, "Failed to read reply ClassAd" );
 		return false;
 	}
 	if( !cmd_sock.end_of_message() ) {
-		newError( DE_COMMUNICATION_FAILED, "Failed to read end-of-message" );
+		newError( CA_COMMUNICATION_ERROR, "Failed to read end-of-message" );
 		return false;
 	}
 
@@ -618,7 +618,7 @@ Daemon::sendCACmd( ClassAd* req, ClassAd* reply, bool force_auth,
 		MyString err_msg = "Reply ClassAd does not have ";
 		err_msg += ATTR_RESULT;
 		err_msg += " attribute";
-		newError( DE_INVALID_REPLY, err_msg.Value() );
+		newError( CA_INVALID_REPLY, err_msg.Value() );
 		return false;
 	}
 	CAResult result = getCAResultNum( result_str );
@@ -647,11 +647,21 @@ Daemon::sendCACmd( ClassAd* req, ClassAd* reply, bool force_auth,
 		err_msg += "' but does not have the ";
 		err_msg += ATTR_ERROR_STRING;
 		err_msg += " attribute";
-		newError( DE_COMMAND_FAILED, err_msg.Value() );
+		newError( result, err_msg.Value() );
 		free( result_str );
 		return false;
 	}
-	newError( DE_COMMAND_FAILED, err );
+	if( result ) {
+			// We recognized the error result code, so use that. 
+		newError( result, err );
+	} else {
+			// The only way this is possible is if the reply is using
+			// codes in the CAResult enum that we don't yet recognize.
+			// From our perspective, it's an invalid reply, something
+			// we're not prepared to handle.  The caller can further
+			// interpret the reply classad if they know how...
+		newError( CA_INVALID_REPLY, err );
+	}			  
 	free( err );
 	free( result_str );
 	return false;
@@ -796,7 +806,7 @@ Daemon::getDaemonInfo( const char* subsys, AdTypes adtype )
 				// hostname.  This is a fatal error.
 			MyString err_msg = "unknown host ";
 			err_msg += get_host_part( _name );
-			newError( DE_LOCATE_FAILED, err_msg.Value() );
+			newError( CA_LOCATE_FAILED, err_msg.Value() );
 			return false;
 		}
 			// if it worked, we've not got the proper values for the
@@ -907,7 +917,7 @@ Daemon::getDaemonInfo( const char* subsys, AdTypes adtype )
 		query.addANDConstraint(buf);
 		CondorError errstack;
 		if (query.fetchAds(ads, _pool, &errstack) != Q_OK) {
-			newError( DE_LOCATE_FAILED, errstack.get_full_text() );
+			newError( CA_LOCATE_FAILED, errstack.get_full_text() );
 			return false;
 		};
 		ads.Open();
@@ -917,7 +927,7 @@ Daemon::getDaemonInfo( const char* subsys, AdTypes adtype )
 					 daemonString(_type), _name );
 			sprintf( buf, "Can't find address for %s %s", 
 					 daemonString(_type), _name );
-			newError( DE_LOCATE_FAILED, buf );
+			newError( CA_LOCATE_FAILED, buf );
 			return false; 
 		}
 
@@ -928,7 +938,7 @@ Daemon::getDaemonInfo( const char* subsys, AdTypes adtype )
 					 tmpname, daemonString(_type), _name );
 			sprintf( buf, "Can't find %s in classad for %s %s",
 					 tmpname, daemonString(_type), _name );
-			newError( DE_LOCATE_FAILED, buf );
+			newError( CA_LOCATE_FAILED, buf );
 			return false;
 		}
 		New_addr( strnewp(buf) );
@@ -941,7 +951,7 @@ Daemon::getDaemonInfo( const char* subsys, AdTypes adtype )
 					 tmpname, daemonString(_type), _name );
 			sprintf( buf, "Can't find %s in classad for %s %s",
 					 tmpname, daemonString(_type), _name );
-			newError( DE_LOCATE_FAILED, buf );
+			newError( CA_LOCATE_FAILED, buf );
 			return false;
 		}
 		New_version( strnewp(buf) );
@@ -954,7 +964,7 @@ Daemon::getDaemonInfo( const char* subsys, AdTypes adtype )
 					 tmpname, daemonString(_type), _name );
 			sprintf( buf, "Can't find %s in classad for %s %s",
 					 tmpname, daemonString(_type), _name );
-			newError( DE_LOCATE_FAILED, buf );
+			newError( CA_LOCATE_FAILED, buf );
 			return false;
 		}
 		New_platform( strnewp(buf) );
@@ -1049,7 +1059,7 @@ Daemon::getCmInfo( const char* subsys )
 	if( ! host ) {
 		sprintf( buf, "%s address or hostname not specified in config file",
 				 subsys ); 
-		newError( DE_LOCATE_FAILED, buf );
+		newError( CA_LOCATE_FAILED, buf );
 		_is_configured = false;
 		if( host ) free( host );
 		return false;
@@ -1097,7 +1107,7 @@ Daemon::getCmInfo( const char* subsys )
 		if( ! tmp ) {
 				// With a hostname, this is a fatal Daemon error.
 			sprintf( buf, "unknown host %s", host );
-			newError( DE_LOCATE_FAILED, buf );
+			newError( CA_LOCATE_FAILED, buf );
 			free( host );
 			return false;
 		}
@@ -1163,7 +1173,7 @@ Daemon::initHostname( void )
 				 strerror(errno), errno );
 		MyString err_msg = "can't find host info for ";
 		err_msg += _addr;
-		newError( DE_LOCATE_FAILED, err_msg.Value() );
+		newError( CA_LOCATE_FAILED, err_msg.Value() );
 		return false;
 	}
 
@@ -1281,13 +1291,13 @@ Daemon::getDefaultPort( void )
 //////////////////////////////////////////////////////////////////////
 
 void
-Daemon::newError( daemon_error_t err_num, const char* str )
+Daemon::newError( CAResult err_code, const char* str )
 {
 	if( _error ) {
 		delete [] _error;
 	}
 	_error = strnewp( str );
-	_error_num = err_num;
+	_error_code = err_code;
 }
 
 

@@ -197,6 +197,10 @@ struct Translation CAResultTranslation[] = {
 	{ "NotAuthorized", CA_NOT_AUTHORIZED },
 	{ "InvalidRequest", CA_INVALID_REQUEST },
 	{ "InvalidState", CA_INVALID_STATE },
+	{ "InvalidReply", CA_INVALID_REPLY },
+	{ "LocateFailed", CA_LOCATE_FAILED },
+	{ "ConnectFailed", CA_CONNECT_FAILED },
+	{ "CommunicationError", CA_COMMUNICATION_ERROR },
 	{ NULL, 0 }
 };
 

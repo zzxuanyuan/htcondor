@@ -84,7 +84,7 @@ DCStartd::deactivateClaim( bool graceful )
 		err += "Failed to connect to startd (";
 		err += _addr;
 		err += ')';
-		newError( DE_CONNECT_FAILED, err.Value() );
+		newError( CA_CONNECT_FAILED, err.Value() );
 		return false;
 	}
 	int cmd;
@@ -103,20 +103,20 @@ DCStartd::deactivateClaim( bool graceful )
 			err += "DEACTIVATE_CLAIM_FORCIBLY";
 		}
 		err += " to the startd";
-		newError( DE_COMMUNICATION_FAILED, err.Value() );
+		newError( CA_COMMUNICATION_ERROR, err.Value() );
 		return false;
 	}
 		// Now, send the ClaimId
 	if( ! reli_sock.code(claim_id) ) {
 		MyString err = "DCStartd::deactivateClaim: ";
 		err += "Failed to send ClaimId to the startd";
-		newError( DE_COMMUNICATION_FAILED, err.Value() );
+		newError( CA_COMMUNICATION_ERROR, err.Value() );
 		return false;
 	}
 	if( ! reli_sock.eom() ) {
 		MyString err = "DCStartd::deactivateClaim: ";
 		err += "Failed to send EOM to the startd";
-		newError( DE_COMMUNICATION_FAILED, err.Value() );
+		newError( CA_COMMUNICATION_ERROR, err.Value() );
 		return false;
 	}
 		// we're done
@@ -146,7 +146,7 @@ DCStartd::activateClaim( ClassAd* job_ad, int starter_version,
 	if( ! claim_id ) {
 		MyString err = "DCStartd::activateClaim: ";
 		err += "called with NULL claim_id, failing";
-		newError( DE_INVALID_REQUEST, err.Value() );
+		newError( CA_INVALID_REQUEST, err.Value() );
 		return CONDOR_ERROR;
 	}
 
@@ -157,35 +157,35 @@ DCStartd::activateClaim( ClassAd* job_ad, int starter_version,
 		err += "Failed to send command ";
 		err += "ACTIVATE_CLAIM";
 		err += " to the startd";
-		newError( DE_COMMUNICATION_FAILED, err.Value() );
+		newError( CA_COMMUNICATION_ERROR, err.Value() );
 		delete tmp;
 		return CONDOR_ERROR;
 	}
 	if( ! tmp->code(claim_id) ) {
 		MyString err = "DCStartd::activateClaim: ";
 		err += "Failed to send ClaimId to the startd";
-		newError( DE_COMMUNICATION_FAILED, err.Value() );
+		newError( CA_COMMUNICATION_ERROR, err.Value() );
 		delete tmp;
 		return CONDOR_ERROR;
 	}
 	if( ! tmp->code(starter_version) ) {
 		MyString err = "DCStartd::activateClaim: ";
 		err += "Failed to send starter_version to the startd";
-		newError( DE_COMMUNICATION_FAILED, err.Value() );
+		newError( CA_COMMUNICATION_ERROR, err.Value() );
 		delete tmp;
 		return CONDOR_ERROR;
 	}
 	if( ! job_ad->put(*tmp) ) {
 		MyString err = "DCStartd::activateClaim: ";
 		err += "Failed to send job ClassAd to the startd";
-		newError( DE_COMMUNICATION_FAILED, err.Value() );
+		newError( CA_COMMUNICATION_ERROR, err.Value() );
 		delete tmp;
 		return CONDOR_ERROR;
 	}
 	if( ! tmp->end_of_message() ) {
 		MyString err = "DCStartd::activateClaim: ";
 		err += "Failed to send EOM to the startd";
-		newError( DE_COMMUNICATION_FAILED, err.Value() );
+		newError( CA_COMMUNICATION_ERROR, err.Value() );
 		delete tmp;
 		return CONDOR_ERROR;
 	}
@@ -196,7 +196,7 @@ DCStartd::activateClaim( ClassAd* job_ad, int starter_version,
 		MyString err = "DCStartd::activateClaim: ";
 		err += "Failed to receive reply from ";
 		err += _addr;
-		newError( DE_COMMUNICATION_FAILED, err.Value() );
+		newError( CA_COMMUNICATION_ERROR, err.Value() );
 		delete tmp;
 		return CONDOR_ERROR;
 	}
@@ -230,7 +230,7 @@ DCStartd::requestClaim( ClaimType type, const ClassAd* req_ad,
 		err_msg = "Invalid ClaimType (";
 		err_msg += (int)type;
 		err_msg += ')';
-		newError( DE_INVALID_REQUEST, err_msg.Value() );
+		newError( CA_INVALID_REQUEST, err_msg.Value() );
 		return false;
 	}
 
@@ -416,7 +416,7 @@ DCStartd::locateStarter( const char* global_job_id, ClassAd* reply,
 	line += '"';
 	req.Insert( line.Value() );
 
-	return sendCACmd( &req, reply, true, timeout );
+	return sendCACmd( &req, reply, false, timeout );
 }
 
 
@@ -432,7 +432,7 @@ DCStartd::checkClaimId( void )
 		err_msg += ": ";
 	}
 	err_msg += "called with no ClaimId";
-	newError( DE_INVALID_REQUEST, err_msg.Value() );
+	newError( CA_INVALID_REQUEST, err_msg.Value() );
 	return false;
 }
 
@@ -449,7 +449,7 @@ DCStartd::checkVacateType( VacateType t )
 		err_msg = "Invalid VacateType (";
 		err_msg += (int)t;
 		err_msg += ')';
-		newError( DE_INVALID_REQUEST, err_msg.Value() );
+		newError( CA_INVALID_REQUEST, err_msg.Value() );
 		return false;
 	}
 	return true;

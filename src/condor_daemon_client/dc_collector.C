@@ -268,17 +268,17 @@ DCCollector::finishUpdate( Sock* sock, ClassAd* ad1, ClassAd* ad2 )
 {
 	sock->encode();
 	if( ad1 && ! ad1->put(*sock) ) {
-		newError( DE_COMMUNICATION_FAILED,
+		newError( CA_COMMUNICATION_ERROR,
 				  "Failed to send ClassAd #1 to collector" );
 		return false;
 	}
 	if( ad2 && ! ad2->put(*sock) ) {
-		newError( DE_COMMUNICATION_FAILED,
+		newError( CA_COMMUNICATION_ERROR,
 				  "Failed to send ClassAd #2 to collector" );
 		return false;
 	}
 	if( ! sock->eom() ) {
-		newError( DE_COMMUNICATION_FAILED,
+		newError( CA_COMMUNICATION_ERROR,
 				  "Failed to send EOM to collector" );
 		return false;
 	}
@@ -309,12 +309,12 @@ DCCollector::sendUDPUpdate( int cmd, ClassAd* ad1, ClassAd* ad2 )
 	if( ! ssock.connect(_addr, _port) ) {
 		MyString err_msg = "Failed to connect to collector ";
 		err_msg += udp_update_destination;
-		newError( DE_CONNECT_FAILED, err_msg.Value() );
+		newError( CA_CONNECT_FAILED, err_msg.Value() );
 		return false;
 	}
 
 	if( ! startCommand(cmd, &ssock, 20) ) { 
-		newError( DE_COMMUNICATION_FAILED,
+		newError( CA_COMMUNICATION_ERROR,
 				  "Failed to send UDP update command to collector" );
 		return false;
 	}
@@ -380,13 +380,13 @@ DCCollector::initiateTCPUpdate( int cmd, ClassAd* ad1, ClassAd* ad2 )
 	if( ! update_rsock->connect(tcp_collector_addr, tcp_collector_port) ) {
 		MyString err_msg = "Failed to connect to collector ";
 		err_msg += updateDestination();
-		newError( DE_CONNECT_FAILED, err_msg.Value() );
+		newError( CA_CONNECT_FAILED, err_msg.Value() );
 		delete update_rsock;
 		update_rsock = NULL;
 		return false;
 	}
 	if( ! startCommand(cmd, update_rsock, 20) ) { 
-		newError( DE_COMMUNICATION_FAILED,
+		newError( CA_COMMUNICATION_ERROR,
 				  "Failed to send TCP update command to collector" );
 		return false;
 	}
