@@ -674,7 +674,6 @@ int GlobusJob::doEvaluateState()
 	int old_gm_state;
 	int old_globus_state;
 	bool reevaluate_state = true;
-	int schedd_actions = 0;
 	time_t now;	// make sure you set this before every use!!!
 
 	bool done;
@@ -859,8 +858,7 @@ int GlobusJob::doEvaluateState()
 			if ( condorState == REMOVED ) {
 				gmState = GM_DELETE;
 			} else if ( condorState == HELD ) {
-				addScheddUpdateAction( this, UA_FORGET_JOB, GM_UNSUBMITTED );
-				// This object will be deleted when the update occurs
+				gmState = GM_DELETE;
 				break;
 			} else {
 				gmState = GM_SUBMIT;
@@ -980,8 +978,7 @@ int GlobusJob::doEvaluateState()
 			if ( condorState == REMOVED || condorState == HELD ) {
 				gmState = GM_CANCEL;
 			} else {
-				done = addScheddUpdateAction( this, UA_UPDATE_JOB_AD,
-											GM_SUBMIT_SAVE );
+				done = addScheddUpdateAction( this, GM_SUBMIT_SAVE );
 				if ( !done ) {
 					break;
 				}
@@ -1248,8 +1245,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 			// Report job completion to the schedd.
 			if ( condorState != HELD && condorState != REMOVED ) {
 				JobTerminated();
-				done = addScheddUpdateAction( this, UA_UPDATE_JOB_AD,
-											  GM_DONE_SAVE );
+				done = addScheddUpdateAction( this, GM_DONE_SAVE );
 				if ( !done ) {
 					break;
 				}
@@ -1292,7 +1288,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 					jobContact = NULL;
 					UpdateJobAdString( ATTR_GLOBUS_CONTACT_STRING,
 									   NULL_JOB_CONTACT );
-					addScheddUpdateAction( this, UA_UPDATE_JOB_AD, 0 );
+					addScheddUpdateAction( this, 0 );
 				}
 				gmState = GM_CLEAR_REQUEST;
 			}
@@ -1438,8 +1434,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 			} break;
 		case GM_RESTART_SAVE: {
 			// Save the restarted jobmanager's contact string on the schedd.
-			done = addScheddUpdateAction( this, UA_UPDATE_JOB_AD,
-										GM_RESTART_SAVE );
+			done = addScheddUpdateAction( this, GM_RESTART_SAVE );
 			if ( !done ) {
 				break;
 			}
@@ -1476,7 +1471,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 					globusState = status;
 					UpdateJobAdInt( ATTR_GLOBUS_STATUS, status );
 					enteredCurrentGlobusState = time(NULL);
-					addScheddUpdateAction( this, UA_UPDATE_JOB_AD, 0 );
+					addScheddUpdateAction( this, 0 );
 				}
 				gmState = GM_SUBMITTED;
 			}
@@ -1624,7 +1619,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 				jmVersion = GRAM_V_UNKNOWN;
 				UpdateJobAdInt( ATTR_GLOBUS_GRAM_VERSION,
 								jmVersion );
-				addScheddUpdateAction( this, UA_UPDATE_JOB_AD, 0 );
+				addScheddUpdateAction( this, 0 );
 
 				if ( condorState == REMOVED ) {
 					gmState = GM_DELETE;
@@ -1635,24 +1630,9 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 			}
 			} break;
 		case GM_DELETE: {
-			// The job has completed or been removed. Delete it from the
-			// schedd.
-			schedd_actions = UA_DELETE_FROM_SCHEDD | UA_FORGET_JOB;
-			if ( condorState == REMOVED ) {
-//				schedd_actions |= UA_LOG_ABORT_EVENT;
-				if ( !abortLogged ) {
-					WriteAbortEventToUserLog( ad );
-					abortLogged = true;
-				}
-			} else if ( condorState == COMPLETED ) {
-//				schedd_actions |= UA_LOG_TERMINATE_EVENT;
-				if ( !terminateLogged ) {
-					WriteTerminateEventToUserLog( ad );
-					EmailTerminateEvent( ad );
-					terminateLogged = true;
-				}
-			}
-			addScheddUpdateAction( this, schedd_actions, GM_DELETE );
+			// We are done with the job. Propagate any remaining updates
+			// to the schedd, then delete this object.
+			DoneWithJob();
 			// This object will be deleted when the update occurs
 			} break;
 		case GM_CLEAN_JOBMANAGER: {
@@ -1743,11 +1723,9 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 					"(%d.%d) Resubmitting to Globus (last submit failed)\n",
 						procID.cluster, procID.proc );
 			}
-			schedd_actions = 0;
 			if ( globusState != GLOBUS_GRAM_PROTOCOL_JOB_STATE_UNSUBMITTED ) {
 				globusState = GLOBUS_GRAM_PROTOCOL_JOB_STATE_UNSUBMITTED;
 				UpdateJobAdInt( ATTR_GLOBUS_STATUS, globusState );
-				schedd_actions |= UA_UPDATE_JOB_AD;
 			}
 			globusStateErrorCode = 0;
 			globusError = 0;
@@ -1765,11 +1743,9 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 				jobContact = NULL;
 				UpdateJobAdString( ATTR_GLOBUS_CONTACT_STRING,
 								   NULL_JOB_CONTACT );
-				schedd_actions |= UA_UPDATE_JOB_AD;
 			}
 			JobIdle();
 			if ( submitLogged ) {
-//				schedd_actions |= UA_LOG_EVICT_EVENT;
 				JobEvicted();
 				if ( !evictLogged ) {
 					WriteEvictEventToUserLog( ad );
@@ -1787,13 +1763,13 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 				if ( ad->LookupBool( ATTR_JOB_MATCHED, dummy ) != 0 ) {
 					UpdateJobAdBool( ATTR_JOB_MATCHED, 0 );
 					UpdateJobAdInt( ATTR_CURRENT_HOSTS, 0 );
-					schedd_actions |= UA_UPDATE_JOB_AD;
 				}
 
 				// If we are rematching, we need to forget about this job
 				// cuz we wanna pull a fresh new job ad, with a fresh new match,
 				// from the all-singing schedd.
-				schedd_actions |= UA_FORGET_JOB;
+				gmState = GM_DELETE;
+				break;
 			}
 			
 			// If there are no updates to be done when we first enter this
@@ -1805,8 +1781,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 			// through. However, since we registered update events the
 			// first time, addScheddUpdateAction won't return done until
 			// they've been committed to the schedd.
-			done = addScheddUpdateAction( this, schedd_actions,
-										  GM_CLEAR_REQUEST );
+			done = addScheddUpdateAction( this, GM_CLEAR_REQUEST );
 			if ( !done ) {
 				break;
 			}
@@ -1828,11 +1803,9 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 				UpdateJobAdInt( ATTR_GLOBUS_STATUS, globusState );
 				//UpdateGlobusState( GLOBUS_GRAM_PROTOCOL_JOB_STATE_UNKNOWN, 0 );
 			}
-			schedd_actions = UA_FORGET_JOB | UA_UPDATE_JOB_AD;
 			// If the condor state is already HELD, then someone already
 			// HELD it, so don't update anything else.
 			if ( condorState != HELD ) {
-				schedd_actions |= UA_HOLD_JOB;
 
 				// Set the hold reason as best we can
 				// TODO: set the hold reason in a more robust way.
@@ -1861,8 +1834,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 
 				JobHeld( holdReason );
 			}
-			addScheddUpdateAction( this, schedd_actions, GM_HOLD );
-			// This object will be deleted when the update occurs
+			gmState = GM_DELETE;
 			} break;
 		case GM_PROXY_EXPIRED: {
 			// The proxy for this job is either expired or about to expire.
@@ -2035,8 +2007,6 @@ void GlobusJob::UpdateGlobusState( int new_state, int new_error_code )
 
 	if ( allow_transition ) {
 		// where to put logging of events: here or in EvaluateState?
-		int update_actions = UA_UPDATE_JOB_AD;
-
 		dprintf(D_FULLDEBUG, "(%d.%d) globus state change: %s -> %s\n",
 				procID.cluster, procID.proc,
 				GlobusJobStatusName(globusState),
@@ -2059,7 +2029,6 @@ void GlobusJob::UpdateGlobusState( int new_state, int new_error_code )
 					// TODO: should SUBMIT_FAILED_EVENT be used only on
 					//   certain errors (ones we know are submit-related)?
 				submitFailureCode = new_error_code;
-//				update_actions |= UA_LOG_SUBMIT_FAILED_EVENT;
 				if ( !submitFailedLogged ) {
 					WriteGlobusSubmitFailedEventToUserLog( ad,
 														   submitFailureCode );
@@ -2069,7 +2038,6 @@ void GlobusJob::UpdateGlobusState( int new_state, int new_error_code )
 					// The request was successfuly submitted. Write it to
 					// the user-log and increment the globus submits count.
 				int num_globus_submits = 0;
-//				update_actions |= UA_LOG_SUBMIT_EVENT;
 				if ( !submitLogged ) {
 					WriteGlobusSubmitEventToUserLog( ad );
 					submitLogged = true;
@@ -2085,7 +2053,6 @@ void GlobusJob::UpdateGlobusState( int new_state, int new_error_code )
 			  new_state == GLOBUS_GRAM_PROTOCOL_JOB_STATE_DONE ||
 			  new_state == GLOBUS_GRAM_PROTOCOL_JOB_STATE_SUSPENDED)
 			 && !executeLogged ) {
-//			update_actions |= UA_LOG_EXECUTE_EVENT;
 			WriteExecuteEventToUserLog( ad );
 			executeLogged = true;
 		}
@@ -2100,7 +2067,7 @@ void GlobusJob::UpdateGlobusState( int new_state, int new_error_code )
 		globusStateErrorCode = new_error_code;
 		enteredCurrentGlobusState = time(NULL);
 
-		addScheddUpdateAction( this, update_actions, 0 );
+		addScheddUpdateAction( this, 0 );
 
 		SetEvaluateState();
 	}

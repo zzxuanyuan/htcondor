@@ -54,6 +54,7 @@ class BaseJob
 	void JobIdle();
 	void JobEvicted();
 	void JobTerminated();
+	void DoneWithJob();
 	void JobHeld( const char *hold_reason );
 
 	virtual void JobAdUpdateFromSchedd( const ClassAd *new_ad );
@@ -70,6 +71,9 @@ class BaseJob
 	bool abortLogged;
 	bool evictLogged;
 	bool holdLogged;
+
+	bool deleteFromGridmanager;
+	bool deleteFromSchedd;
 
 	int wantResubmit;
 	int doResubmit;

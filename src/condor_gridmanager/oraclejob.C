@@ -210,7 +210,6 @@ int OracleJob::doEvaluateState()
 {
 	int old_gm_state;
 	bool reevaluate_state = true;
-	int schedd_actions = 0;
 	time_t now;	// make sure you set this before every use!!!
 
 	bool done;
@@ -257,8 +256,7 @@ int OracleJob::doEvaluateState()
 			if ( condorState == REMOVED ) {
 				gmState = GM_DELETE;
 			} else if ( condorState == HELD ) {
-				addScheddUpdateAction( this, UA_FORGET_JOB, GM_UNSUBMITTED );
-				// This object will be deleted when the update occurs
+				gmState = GM_DELETE;
 				break;
 			} else {
 				gmState = GM_SUBMIT;
@@ -313,8 +311,7 @@ int OracleJob::doEvaluateState()
 			if ( condorState == REMOVED || condorState == HELD ) {
 				gmState = GM_CANCEL;
 			} else {
-				done = addScheddUpdateAction( this, UA_UPDATE_JOB_AD,
-											GM_SUBMIT_SAVE );
+				done = addScheddUpdateAction( this, GM_SUBMIT_SAVE );
 				if ( !done ) {
 					break;
 				}
@@ -386,7 +383,7 @@ int OracleJob::doEvaluateState()
 					}
 					condorState = rc;
 					UpdateJobAdInt( ATTR_JOB_STATUS, condorState );
-					addScheddUpdateAction( this, UA_UPDATE_JOB_AD, 0 );
+					addScheddUpdateAction( this, 0 );
 					if ( rc == RUNNING || rc == COMPLETED && !executeLogged ) {
 						WriteExecuteEventToUserLog( ad );
 						executeLogged = true;
@@ -402,8 +399,7 @@ int OracleJob::doEvaluateState()
 				if ( condorState != COMPLETED ) {
 					JobTerminated();
 				}
-				done = addScheddUpdateAction( this, UA_UPDATE_JOB_AD,
-											  GM_DONE_SAVE );
+				done = addScheddUpdateAction( this, GM_DONE_SAVE );
 				if ( !done ) {
 					break;
 				}
@@ -425,7 +421,7 @@ int OracleJob::doEvaluateState()
 					remoteJobId = NULL;
 					UpdateJobAdString( ATTR_GLOBUS_CONTACT_STRING,
 									   NULL_JOB_CONTACT );
-					addScheddUpdateAction( this, UA_UPDATE_JOB_AD, 0 );
+					addScheddUpdateAction( this, 0 );
 				}
 				gmState = GM_CLEAR_REQUEST;
 			}
@@ -450,7 +446,7 @@ int OracleJob::doEvaluateState()
 			remoteJobId = NULL;
 			UpdateJobAdString( ATTR_GLOBUS_CONTACT_STRING,
 							   NULL_JOB_CONTACT );
-			addScheddUpdateAction( this, UA_UPDATE_JOB_AD, 0 );
+			addScheddUpdateAction( this, 0 );
 
 			if ( condorState == REMOVED ) {
 				gmState = GM_DELETE;
@@ -461,22 +457,7 @@ int OracleJob::doEvaluateState()
 		case GM_DELETE: {
 			// The job has completed or been removed. Delete it from the
 			// schedd.
-			schedd_actions = UA_DELETE_FROM_SCHEDD | UA_FORGET_JOB;
-			if ( condorState == REMOVED ) {
-//				schedd_actions |= UA_LOG_ABORT_EVENT;
-				if ( !abortLogged ) {
-					WriteAbortEventToUserLog( ad );
-					abortLogged = true;
-				}
-			} else if ( condorState == COMPLETED ) {
-//				schedd_actions |= UA_LOG_TERMINATE_EVENT;
-				if ( !terminateLogged ) {
-					WriteTerminateEventToUserLog( ad );
-					EmailTerminateEvent(ad);
-					terminateLogged = true;
-				}
-			}
-			addScheddUpdateAction( this, schedd_actions, GM_DELETE );
+			DoneWithJob();
 			// This object will be deleted when the update occurs
 			} break;
 		case GM_CLEAR_REQUEST: {
@@ -517,7 +498,6 @@ int OracleJob::doEvaluateState()
 					"(%d.%d) Resubmitting to Globus (last submit failed)\n",
 						procID.cluster, procID.proc );
 			}
-			schedd_actions = 0;
 			errorString = "";
 			if ( remoteJobId != NULL ) {
 				rehashRemoteJobId( this, remoteJobId, NULL );
@@ -525,11 +505,9 @@ int OracleJob::doEvaluateState()
 				remoteJobId = NULL;
 				UpdateJobAdString( ATTR_GLOBUS_CONTACT_STRING,
 								   NULL_JOB_CONTACT );
-				schedd_actions |= UA_UPDATE_JOB_AD;
 			}
 			JobIdle();
 			if ( submitLogged ) {
-//				schedd_actions |= UA_LOG_EVICT_EVENT;
 				JobEvicted();
 				if ( !evictLogged ) {
 					WriteEvictEventToUserLog( ad );
@@ -547,13 +525,13 @@ int OracleJob::doEvaluateState()
 				if ( ad->LookupBool( ATTR_JOB_MATCHED, dummy ) != 0 ) {
 					UpdateJobAdBool( ATTR_JOB_MATCHED, 0 );
 					UpdateJobAdInt( ATTR_CURRENT_HOSTS, 0 );
-					schedd_actions |= UA_UPDATE_JOB_AD;
 				}
 
 				// If we are rematching, we need to forget about this job
 				// cuz we wanna pull a fresh new job ad, with a fresh new match,
 				// from the all-singing schedd.
-				schedd_actions |= UA_FORGET_JOB;
+				gmState = GM_DELETE;
+				break;
 			}
 			
 			// If there are no updates to be done when we first enter this
@@ -565,8 +543,7 @@ int OracleJob::doEvaluateState()
 			// through. However, since we registered update events the
 			// first time, addScheddUpdateAction won't return done until
 			// they've been committed to the schedd.
-			done = addScheddUpdateAction( this, schedd_actions,
-										  GM_CLEAR_REQUEST );
+			done = addScheddUpdateAction( this, GM_CLEAR_REQUEST );
 			if ( !done ) {
 				break;
 			}
@@ -581,11 +558,9 @@ int OracleJob::doEvaluateState()
 		case GM_HOLD: {
 			// Put the job on hold in the schedd.
 			// TODO: what happens if we learn here that the job is removed?
-			schedd_actions = UA_FORGET_JOB | UA_UPDATE_JOB_AD;
 			// If the condor state is already HELD, then someone already
 			// HELD it, so don't update anything else.
 			if ( condorState != HELD ) {
-				schedd_actions |= UA_HOLD_JOB;
 
 				// Set the hold reason as best we can
 				// TODO: set the hold reason in a more robust way.
@@ -605,8 +580,7 @@ int OracleJob::doEvaluateState()
 
 				JobHeld( holdReason );
 			}
-			addScheddUpdateAction( this, schedd_actions, GM_HOLD );
-			// This object will be deleted when the update occurs
+			gmState = GM_DELETE;
 			} break;
 		default:
 			EXCEPT( "(%d.%d) Unknown gmState %d!", procID.cluster,procID.proc,

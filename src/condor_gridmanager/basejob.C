@@ -46,6 +46,9 @@ BaseJob::BaseJob( ClassAd *classad )
 	evictLogged = false;
 	holdLogged = false;
 
+	deleteFromGridmanager = false;
+	deleteFromSchedd = false;
+
 	ad = classad;
 
 	ad->LookupInteger( ATTR_CLUSTER_ID, procID.cluster );
@@ -134,7 +137,7 @@ void BaseJob::JobRunning()
 			executeLogged = true;
 		}
 
-		addScheddUpdateAction( this, UA_UPDATE_JOB_AD, 0 );
+		addScheddUpdateAction( this, 0 );
 	}
 }
 
@@ -149,7 +152,7 @@ void BaseJob::JobIdle()
 
 		UpdateRuntimeStats();
 
-		addScheddUpdateAction( this, UA_UPDATE_JOB_AD, 0 );
+		addScheddUpdateAction( this, 0 );
 	}
 }
 
@@ -177,8 +180,36 @@ void BaseJob::JobTerminated()
 
 		UpdateRuntimeStats();
 
-		addScheddUpdateAction( this, UA_UPDATE_JOB_AD, 0 );
+		addScheddUpdateAction( this, 0 );
 	}
+}
+
+void BaseJob::DoneWithJob()
+{
+	deleteFromGridmanager = true;
+
+	if ( condorState == COMPLETED ) {
+		if ( !terminateLogged ) {
+			WriteTerminateEventToUserLog( ad );
+			EmailTerminateEvent( ad );
+			terminateLogged = true;
+		}
+		deleteFromSchedd = true;
+	}
+	if ( condorState == REMOVED ) {
+		if ( !abortLogged ) {
+			WriteAbortEventToUserLog( ad );
+			abortLogged = true;
+		}
+		deleteFromSchedd = true;
+	}
+	if ( condorState == HELD ) {
+		if ( !holdLogged ) {
+			WriteHoldEventToUserLog( ad );
+			holdLogged = true;
+		}
+	}
+	addScheddUpdateAction( this, 0 );
 }
 
 void BaseJob::JobHeld( const char *hold_reason )
@@ -209,7 +240,7 @@ void BaseJob::JobHeld( const char *hold_reason )
 			holdLogged = true;
 		}
 
-		addScheddUpdateAction( this, UA_UPDATE_JOB_AD, 0 );
+		addScheddUpdateAction( this, 0 );
 	}
 }
 
@@ -224,7 +255,7 @@ void BaseJob::UpdateRuntimeStats()
 		int current_time = (int)time(NULL);
 		UpdateJobAdInt( ATTR_SHADOW_BIRTHDATE, current_time );
 
-		addScheddUpdateAction( this, UA_UPDATE_JOB_AD, 0 );
+		addScheddUpdateAction( this, 0 );
 
 	} else if ( condorState != RUNNING && shadowBirthdate != 0 ) {
 
@@ -237,7 +268,7 @@ void BaseJob::UpdateRuntimeStats()
 		UpdateJobAd( ATTR_JOB_WALL_CLOCK_CKPT, "UNDEFINED" );
 		UpdateJobAdInt( ATTR_SHADOW_BIRTHDATE, 0 );
 
-		addScheddUpdateAction( this, UA_UPDATE_JOB_AD, 0 );
+		addScheddUpdateAction( this, 0 );
 
 	}
 }

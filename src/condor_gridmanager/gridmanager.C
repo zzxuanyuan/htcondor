@@ -48,7 +48,6 @@ extern char *myUserName;
 
 struct ScheddUpdateAction {
 	BaseJob *job;
-	int actions;
 	int request_id;
 	bool deleted;
 };
@@ -105,7 +104,7 @@ int REMOVE_JOBS_signalHandler( int );
 // return value of false means requested update has been queued, but has not
 //   been committed to the schedd yet
 bool
-addScheddUpdateAction( BaseJob *job, int actions, int request_id )
+addScheddUpdateAction( BaseJob *job, int request_id )
 {
 	ScheddUpdateAction *curr_action;
 
@@ -126,22 +125,17 @@ addScheddUpdateAction( BaseJob *job, int actions, int request_id )
 	if ( pendingScheddUpdates.lookup( job->procID, curr_action ) == 0 ) {
 		ASSERT( curr_action->job == job );
 
-		curr_action->actions |= actions;
 		curr_action->request_id = request_id;
-	} else if ( actions ) {
+	} else {
+		// TODO don't add an update action if no attributes are dirty and
+		//   deleteFromSchedd and deleteFromGridmanager are false
 		curr_action = new ScheddUpdateAction;
 		curr_action->job = job;
-		curr_action->actions = actions;
 		curr_action->request_id = request_id;
 		curr_action->deleted = false;
 
 		pendingScheddUpdates.insert( job->procID, curr_action );
 		RequestContactSchedd();
-	} else {
-		// If a new request comes in with no actions and there are no
-		// pending actions, just return true (since there's nothing to be
-		// committed to the schedd)
-		return true;
 	}
 
 	return false;
@@ -553,7 +547,7 @@ dprintf(D_ALWAYS,"***schedd failure at %d!\n",__LINE__);
 
 		curr_job = curr_action->job;
 
-		if ( curr_action->actions & UA_FORGET_JOB ) {
+		if ( curr_job->deleteFromGridmanager ) {
 			curr_job->UpdateJobAdBool( ATTR_JOB_MANAGED, 0 );
 		}
 
@@ -597,7 +591,7 @@ dprintf(D_ALWAYS,"***schedd failure at %d!\n",__LINE__);
 
 	while ( pendingScheddUpdates.iterate( curr_action ) != 0 ) {
 
-		if ( curr_action->actions & UA_DELETE_FROM_SCHEDD ) {
+		if ( curr_action->job->deleteFromSchedd ) {
 dprintf(D_FULLDEBUG,"Deleting job %d.%d from schedd\n",curr_action->job->procID.cluster, curr_action->job->procID.proc);
 			BeginTransaction();
 			if ( errno == ETIMEDOUT ) {
@@ -657,9 +651,9 @@ dprintf(D_ALWAYS,"***schedd failure at %d!\n",__LINE__);
 			curr_job->ad->ClearAllDirtyFlags();
 		}
 
-		if ( curr_action->actions & UA_FORGET_JOB ) {
+		if ( curr_job->deleteFromGridmanager ) {
 
-			if ( (curr_action->actions & UA_DELETE_FROM_SCHEDD) ?
+			if ( (curr_job->deleteFromSchedd) ?
 				 curr_action->deleted == true :
 				 true ) {
 

@@ -37,17 +37,6 @@
 #include "oraclejob.h"
 
 
-#define UA_UPDATE_JOB_AD			0x0001
-#define UA_DELETE_FROM_SCHEDD		0x0002
-#define UA_LOG_SUBMIT_EVENT			0x0004
-#define UA_LOG_EXECUTE_EVENT		0x0008
-#define UA_LOG_SUBMIT_FAILED_EVENT	0x0010
-#define UA_LOG_TERMINATE_EVENT		0x0020
-#define UA_LOG_ABORT_EVENT			0x0040
-#define UA_LOG_EVICT_EVENT			0x0080
-#define UA_HOLD_JOB					0x0100
-#define UA_FORGET_JOB				0x0200
-
 extern char *ScheddAddr;
 extern char *X509Proxy;
 extern bool useDefaultProxy;
@@ -62,7 +51,7 @@ void Register();
 // maintainence
 void Reconfig();
 	
-bool addScheddUpdateAction( BaseJob *job, int actions, int request_id = 0 );
+bool addScheddUpdateAction( BaseJob *job, int request_id = 0 );
 void removeScheddUpdateAction( BaseJob *job );
 
 
