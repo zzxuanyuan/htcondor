@@ -68,11 +68,9 @@ static int	BlockFd = -1;
 #if defined( __STDC__ )
 char *param( const char *);
 static int init_block_file( int flags, int mode );
-char *strdup(char *);
 #else
 char *param();
 static int init_block_file();
-char *strdup();
 #endif
 
 /*
@@ -143,23 +141,20 @@ int flags;
 int mode;
 {
 	char	tmp [ 512 ];
-	static char	*name = NULL;
+	char	*name;
 	char	*dir;
 	char	*log;
 	int		fd;
 
-	if( name == NULL ) {
-		name = param( "BLOCK_FILE" );
+	name = param( "BLOCK_FILE" );
 
-		if( name == NULL ) {
-			log = param( "LOG" );
-			if( log == NULL ) {
-				EXCEPT( "No LOG directory specified in config file" );
-			}
-			sprintf( tmp, "%s/%s", log, "BlockCondorJobs" );
-			free( log );
-			name = strdup( tmp );
+	if( name == NULL ) {
+		log = param( "LOG" );
+		if( log == NULL ) {
+			EXCEPT( "No LOG directory specified in config file" );
 		}
+		sprintf( tmp, "%s/%s", log, "BlockCondorJobs" );
+		name = tmp;
 	}
 
 	fd = open( name, flags, mode );

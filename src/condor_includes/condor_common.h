@@ -7,4 +7,3 @@
 #include <fcntl.h>
 #include "_condor_fix_types.h"
 #include <errno.h>
-

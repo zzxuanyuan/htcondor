@@ -41,7 +41,6 @@
 #define HAS_VOID_SIGNAL_RETURN	YES
 #define HAS_AR_S_OPTION			NO
 #define HAS_RANLIB_TOUCH		YES
-#define HAS_CP_PRESERVE			YES
 #define NEEDS_SPECIAL_SETJMP	NO
 #define HAS_FORTRAN				NO
 #define HAS_FLOCK				YES
@@ -80,7 +79,7 @@
 #endif Ctags
 
 #ifndef MkDepend
-#define MkDepend ../../GENERIC/mdepend.sh
+#define MkDepend Tilde/CONDOR/GENERIC/mdepend.sh
 #endif MkDepend
 
 #define TypicalMemory 12

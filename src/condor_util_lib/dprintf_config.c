@@ -65,7 +65,6 @@ int logfd;		/* The descriptor to use if the log output goes to a tty */
 		DebugFlags = D_ALWAYS;
 	} else {
 		set_debug_flags( pval );
-		free( pval );
 	}
 
 	/*

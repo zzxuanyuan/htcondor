@@ -49,11 +49,6 @@
 #include "directory.h"
 #include "alloc.h"
 
-#if defined(OSF1)
-#pragma define_template List<char>
-#pragma define_template Item<char>
-#endif
-
 char *my_hostname();
 
 static char *_FileName_ = __FILE__;		/* Used by EXCEPT (see except.h)     */
@@ -99,7 +94,7 @@ int do_stat( const char *path, struct stat *buf );
 */
 class StringList {
 public:
-	StringList( char *foo[] ) { data = foo; }
+	StringList( const char *foo[] ) { data = foo; }
 	BOOLEAN contains( const char * );
 private:
 	char	**data;
@@ -553,6 +548,7 @@ SetSyscalls( int foo ) { return foo; }
 void
 init_params()
 {
+    char    *param();
 	char	*tmp;
 
 	Spool = param("SPOOL");

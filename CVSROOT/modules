@@ -29,31 +29,28 @@
 world		-a .
 
 # CVSROOT support; run mkmodules whenever anything changes.
-CVSROOT			-i mkmodules CVSROOT
-modules			-i mkmodules CVSROOT modules
-loginfo			-i mkmodules CVSROOT loginfo
-commitinfo		-i mkmodules CVSROOT commitinfo
-rcsinfo			-i mkmodules CVSROOT rcsinfo
-editinfo		-i mkmodules CVSROOT editinfo
-validate_user	-i co validate_user
+CVSROOT		-i mkmodules CVSROOT
+modules		-i mkmodules CVSROOT modules
+loginfo		-i mkmodules CVSROOT loginfo
+commitinfo	-i mkmodules CVSROOT commitinfo
+rcsinfo		-i mkmodules CVSROOT rcsinfo
+editinfo	-i mkmodules CVSROOT editinfo
 
 # Add other modules here...
-TOOLS	-a Distfile GENERIC Imakefile config
-DOC		-a TOOLS doc
-COMMON_CODE	-a src/Imakefile \
+code	-a Distfile GENERIC Imakefile config src
+doc		-a config doc
+AIX_CODE	-a Distfile GENERIC config \
+			src/Imakefile \
 			src/condor_c++_util \
-			src/condor_ckpt \
 			src/condor_collector \
 			src/condor_globalq \
 			src/condor_includes \
-			src/condor_io \
 			src/condor_kbdd \
 			src/condor_master \
 			src/condor_negotiator \
 			src/condor_off \
 			src/condor_on \
 			src/condor_prio \
-			src/condor_pvmd \
 			src/condor_q \
 			src/condor_rm \
 			src/condor_schedd \
@@ -62,17 +59,71 @@ COMMON_CODE	-a src/Imakefile \
 			src/condor_standalone \
 			src/condor_startd \
 			src/condor_starter \
-			src/condor_statistics \
 			src/condor_submit.v2 \
 			src/condor_submit.v3 \
+			src/condor_syscall_lib_aix \
 			src/condor_test_suite_C \
 			src/condor_test_suite_F \
 			src/condor_tools \
 			src/condor_util_lib \
 			src/condor_xdr_lib \
 			src/h
-
-AIX_CODE	-a TOOLS COMMON_CODE src/condor_syscall_lib_aix
-ULTRIX_CODE	-a TOOLS COMMON_CODE src/condor_syscall_lib_ultrix
-OSF1_CODE	-a TOOLS COMMON_CODE src/condor_syscall_lib_ultrix
-SUNOS_CODE	-a TOOLS COMMON_CODE src/condor_syscall_lib_bsd
+ULTRIX_CODE	-a Distfile GENERIC config \
+			src/Imakefile \
+			src/condor_c++_util \
+			src/condor_collector \
+			src/condor_globalq \
+			src/condor_includes \
+			src/condor_kbdd \
+			src/condor_master \
+			src/condor_negotiator \
+			src/condor_off \
+			src/condor_on \
+			src/condor_prio \
+			src/condor_q \
+			src/condor_rm \
+			src/condor_schedd \
+			src/condor_scripts \
+			src/condor_shadow \
+			src/condor_standalone \
+			src/condor_startd \
+			src/condor_starter \
+			src/condor_submit.v2 \
+			src/condor_submit.v3 \
+			src/condor_syscall_lib_ultrix \
+			src/condor_test_suite_C \
+			src/condor_test_suite_F \
+			src/condor_tools \
+			src/condor_util_lib \
+			src/condor_xdr_lib \
+			src/h
+OSF1_CODE &ULTRIX_CODE
+SUNOS_CODE	-a Distfile GENERIC config \
+			src/Imakefile \
+			src/condor_c++_util \
+			src/condor_collector \
+			src/condor_globalq \
+			src/condor_includes \
+			src/condor_kbdd \
+			src/condor_master \
+			src/condor_negotiator \
+			src/condor_off \
+			src/condor_on \
+			src/condor_prio \
+			src/condor_q \
+			src/condor_rm \
+			src/condor_schedd \
+			src/condor_scripts \
+			src/condor_shadow \
+			src/condor_standalone \
+			src/condor_startd \
+			src/condor_starter \
+			src/condor_submit.v2 \
+			src/condor_submit.v3 \
+			src/condor_syscall_lib_bsd \
+			src/condor_test_suite_C \
+			src/condor_test_suite_F \
+			src/condor_tools \
+			src/condor_util_lib \
+			src/condor_xdr_lib \
+			src/h
