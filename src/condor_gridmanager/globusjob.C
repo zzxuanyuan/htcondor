@@ -30,6 +30,8 @@
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
 #include "basename.h"
 #include "condor_ckpt_name.h"
+#include "condor_holdcodes.h"
+#include "condor_parameters.h"
 
 #include "gridmanager.h"
 #include "globusjob.h"
@@ -102,7 +104,8 @@ static char *GMStateNames[] = {
 // TODO: once we can set the jobmanager's proxy timeout, we should either
 // let this be set in the config file or set it to
 // GRIDMANAGER_MINIMUM_PROXY_TIME + 60
-#define JM_MIN_PROXY_TIME		(minProxy_time + 60)
+// #define JM_MIN_PROXY_TIME		(minProxy_time + 60)
+#define JM_MIN_PROXY_TIME		(180 + 60)
 
 // TODO: Let the maximum submit attempts be set in the job ad or, better yet,
 // evalute PeriodicHold expression in job ad.
@@ -127,8 +130,10 @@ static char *GMStateNames[] = {
 
 #define CHECK_PROXY \
 { \
-	if ( PROXY_NEAR_EXPIRED( myProxy ) && gmState != GM_PROXY_EXPIRED ) { \
-		dprintf( D_ALWAYS, "(%d.%d) proxy is about to expire\n", \
+	if ( ((PROXY_NEAR_EXPIRED( myProxy ) && condorState != REMOVED) || \
+		  (PROXY_IS_EXPIRED( myProxy ) && condorState == REMOVED)) \
+		 && gmState != GM_PROXY_EXPIRED ) { \
+		dprintf( D_ALWAYS, "(%d.%d) proxy is about to expire, changing state to GM_PROXY_EXPIRED\n", \
 				 procID.cluster, procID.proc ); \
 		gmState = GM_PROXY_EXPIRED; \
 		break; \
@@ -457,6 +462,7 @@ GlobusJob::GlobusJob( ClassAd *classad )
 	myProxy = NULL;
 	gassServerUrl = NULL;
 	gramCallbackContact = NULL;
+	communicationTimeoutTid = -1;
 
 	// In GM_HOLD, we assme HoldReason to be set only if we set it, so make
 	// sure it's unset when we start.
@@ -635,6 +641,10 @@ GlobusJob::~GlobusJob()
 	if ( gramCallbackContact ) {
 		free( gramCallbackContact );
 	}
+	if ( communicationTimeoutTid != -1 ) {
+		daemonCore->Cancel_Timer(communicationTimeoutTid);
+		communicationTimeoutTid = -1;
+	}
 }
 
 void GlobusJob::Reconfig()
@@ -685,6 +695,16 @@ int GlobusJob::doEvaluateState()
 			// do in the constructor because they could block (the
 			// constructor is called while we're connected to the schedd).
 			int err;
+
+			if ( !myProxy ) {
+				UpdateJobAdString( ATTR_HOLD_REASON,
+								   "Proxy file missing or corrupted" );
+				UpdateJobAdInt(ATTR_HOLD_REASON_CODE,
+							   CONDOR_HOLD_CODE_CorruptedCredential);
+				UpdateJobAdInt(ATTR_HOLD_REASON_SUBCODE, 0);
+				gmState = GM_HOLD;
+				break;
+			}
 
 			if ( gahp.Initialize( myProxy ) == false ) {
 				dprintf( D_ALWAYS, "(%d.%d) Error initializing GAHP\n",
@@ -779,7 +799,7 @@ int GlobusJob::doEvaluateState()
 				break;
 			}
 			if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_CONTACTING_JOB_MANAGER ||
-				 rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
+				 //rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
 				 rc == GAHPCLIENT_COMMAND_TIMED_OUT ) {
 				globusError = GLOBUS_GRAM_PROTOCOL_ERROR_CONTACTING_JOB_MANAGER;
 				gmState = GM_RESTART;
@@ -835,7 +855,7 @@ int GlobusJob::doEvaluateState()
 				break;
 			}
 			if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_CONTACTING_JOB_MANAGER ||
-				 rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
+				 //rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
 				 rc == GAHPCLIENT_COMMAND_TIMED_OUT ) {
 				connect_failure_jobmanager = true;
 				break;
@@ -884,8 +904,10 @@ int GlobusJob::doEvaluateState()
 				break;
 			}
 			if ( numSubmitAttempts >= MAX_SUBMIT_ATTEMPTS ) {
-				UpdateJobAdString( ATTR_HOLD_REASON,
-									"Attempts to submit failed" );
+				// Don't set HOLD_REASON here --- that way, the reason will get set
+				// to the globus error that caused the submission failure.
+				// UpdateJobAdString( ATTR_HOLD_REASON,"Attempts to submit failed" );
+
 				gmState = GM_HOLD;
 				break;
 			}
@@ -918,7 +940,7 @@ int GlobusJob::doEvaluateState()
 				myResource->SubmitComplete(this);
 				lastSubmitAttempt = time(NULL);
 				if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_CONNECTION_FAILED ||
-					 rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
+					 //rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
 					 rc == GAHPCLIENT_COMMAND_TIMED_OUT ) {
 					connect_failure_gatekeeper = true;
 					break;
@@ -1027,7 +1049,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) jobmanager timed out on commit, clearing request\n"
 					break;
 				}
 				if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_CONTACTING_JOB_MANAGER ||
-					 rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
+					 //rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
 					 rc == GAHPCLIENT_COMMAND_TIMED_OUT ) {
 					connect_failure_jobmanager = true;
 					break;
@@ -1102,7 +1124,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) jobmanager timed out on commit, clearing request\n"
 					break;
 				}
 				if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_CONTACTING_JOB_MANAGER ||
-					 rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
+					 //rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
 					 rc == GAHPCLIENT_COMMAND_TIMED_OUT ) {
 					connect_failure_jobmanager = true;
 					break;
@@ -1131,7 +1153,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) jobmanager timed out on commit, clearing request\n"
 					break;
 				}
 				if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_CONTACTING_JOB_MANAGER ||
-					 rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
+					 //rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
 					 rc == GAHPCLIENT_COMMAND_TIMED_OUT ) {
 					connect_failure_jobmanager = true;
 					break;
@@ -1176,7 +1198,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) jobmanager timed out on commit, clearing request\n"
 					break;
 				}
 				if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_CONTACTING_JOB_MANAGER ||
-					 rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
+					 //rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
 					 rc == GAHPCLIENT_COMMAND_TIMED_OUT ) {
 					connect_failure_jobmanager = true;
 					break;
@@ -1285,7 +1307,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 					break;
 				}
 				if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_CONTACTING_JOB_MANAGER ||
-					 rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
+					 //rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
 					 rc == GAHPCLIENT_COMMAND_TIMED_OUT ) {
 					connect_failure_jobmanager = true;
 					break;
@@ -1329,7 +1351,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 				break;
 			}
 			if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_CONTACTING_JOB_MANAGER ||
-				 rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
+				 //rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
 				 rc == GAHPCLIENT_COMMAND_TIMED_OUT ) {
 				connect_failure_jobmanager = true;
 				break;
@@ -1383,7 +1405,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 				myResource->SubmitComplete(this);
 				lastRestartAttempt = time(NULL);
 				if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_CONNECTION_FAILED ||
-					 rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
+					 //rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
 					 rc == GAHPCLIENT_COMMAND_TIMED_OUT ) {
 					connect_failure_gatekeeper = true;
 					break;
@@ -1480,7 +1502,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 				break;
 			}
 			if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_CONTACTING_JOB_MANAGER ||
-				 rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
+				 //rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
 				 rc == GAHPCLIENT_COMMAND_TIMED_OUT ) {
 				connect_failure_jobmanager = true;
 				break;
@@ -1518,7 +1540,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 					break;
 				}
 				if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_CONTACTING_JOB_MANAGER ||
-					 rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
+					 //rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
 					 rc == GAHPCLIENT_COMMAND_TIMED_OUT ) {
 					connect_failure_jobmanager = true;
 					break;
@@ -1570,7 +1592,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 						break;
 					}
 					if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_CONTACTING_JOB_MANAGER ||
-						 rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
+						 //rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
 						 rc == GAHPCLIENT_COMMAND_TIMED_OUT ) {
 						connect_failure_jobmanager = true;
 						break;
@@ -1631,7 +1653,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 						break;
 					}
 					if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_CONTACTING_JOB_MANAGER ||
-						 rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
+						 //rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
 						 rc == GAHPCLIENT_COMMAND_TIMED_OUT ) {
 						connect_failure_jobmanager = true;
 						break;
@@ -1696,7 +1718,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 			}
 			myResource->SubmitComplete(this);
 			if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_CONNECTION_FAILED ||
-				 rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
+				 //rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
 				 rc == GAHPCLIENT_COMMAND_TIMED_OUT ) {
 				connect_failure_gatekeeper = true;
 				break;
@@ -1739,7 +1761,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 			// TODO: Let our action here be dictated by the user preference
 			// expressed in the job ad.
 			if ( (jobContact != NULL || (globusState == GLOBUS_GRAM_PROTOCOL_JOB_STATE_FAILED && globusStateErrorCode != GLOBUS_GRAM_PROTOCOL_ERROR_JOB_UNSUBMITTED)) 
-				     && condorState != REMOVED 
+				     // && condorState != REMOVED 
 					 && wantResubmit == 0 
 					 && doResubmit == 0 ) {
 				gmState = GM_HOLD;
@@ -1849,10 +1871,14 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 				// Set the hold reason as best we can
 				// TODO: set the hold reason in a more robust way.
 				char holdReason[1024];
+				int holdCode = 0;
+				int holdSubCode = 0;
 				holdReason[0] = '\0';
 				holdReason[sizeof(holdReason)-1] = '\0';
 				ad->LookupString( ATTR_HOLD_REASON, holdReason,
 								  sizeof(holdReason) - 1 );
+				ad->LookupInteger(ATTR_HOLD_REASON_CODE,holdCode);
+				ad->LookupInteger(ATTR_HOLD_REASON_SUBCODE,holdSubCode);
 				if ( holdReason[0] == '\0' && errorString != "" ) {
 					strncpy( holdReason, errorString.Value(),
 							 sizeof(holdReason) - 1 );
@@ -1861,17 +1887,21 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 					snprintf( holdReason, 1024, "Globus error %d: %s",
 							  globusStateErrorCode,
 							  gahp.globus_gram_client_error_string( globusStateErrorCode ) );
+					holdCode = CONDOR_HOLD_CODE_GlobusGramError;
+					holdSubCode = globusStateErrorCode;
 				}
 				if ( holdReason[0] == '\0' && globusError != 0 ) {
 					snprintf( holdReason, 1024, "Globus error %d: %s", globusError,
 							  gahp.globus_gram_client_error_string( globusError ) );
+					holdCode = CONDOR_HOLD_CODE_GlobusGramError;
+					holdSubCode = globusError;
 				}
 				if ( holdReason[0] == '\0' ) {
 					strncpy( holdReason, "Unspecified gridmanager error",
 							 sizeof(holdReason) - 1 );
 				}
 
-				JobHeld( holdReason );
+				JobHeld( holdReason, holdCode, holdSubCode );
 			}
 			gmState = GM_DELETE;
 			} break;
@@ -1879,8 +1909,19 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 			// The proxy for this job is either expired or about to expire.
 			// If requested, put the job on hold. Otherwise, wait for the
 			// proxy to be refreshed, then resume handling the job.
+			bool hold_if_credential_expired = 
+				param_boolean(PARAM_HOLD_IF_CRED_EXPIRED,true);
+			if ( hold_if_credential_expired ) {
+					// set hold reason via Globus cred expired error code
+				globusStateErrorCode =
+					GLOBUS_GRAM_PROTOCOL_ERROR_USER_PROXY_EXPIRED;
+				gmState = GM_HOLD;
+				break;
+			}
 			now = time(NULL);
-			if ( myProxy->expiration_time > JM_MIN_PROXY_TIME + now ) {
+			// if ( myProxy->expiration_time > JM_MIN_PROXY_TIME + now ) {
+			if ( myProxy->expiration_time > (minProxy_time + 60) + now ) {
+				// resume handling the job.
 				gmState = GM_START;
 			} else {
 				// Do nothing. Our proxy is about to expire.
@@ -1897,7 +1938,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 				break;
 			}
 			if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_CONTACTING_JOB_MANAGER ||
-				 rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
+				 //rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
 				 rc == GAHPCLIENT_COMMAND_TIMED_OUT ) {
 				connect_failure_jobmanager = true;
 				break;
@@ -1987,6 +2028,19 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 	return TRUE;
 }
 
+int GlobusJob::CommunicationTimeout()
+{
+	// This function is called by a daemonCore timer if the resource
+	// object has been waiting too long for a gatekeeper ping to 
+	// succeed.
+	// For now, put the job on hold.
+
+	globusStateErrorCode = GLOBUS_GRAM_PROTOCOL_ERROR_CONNECTION_FAILED;
+	gmState = GM_HOLD;
+	communicationTimeoutTid = -1;
+	return TRUE;
+}
+
 void GlobusJob::NotifyResourceDown()
 {
 	resourceStateKnown = true;
@@ -1996,12 +2050,42 @@ void GlobusJob::NotifyResourceDown()
 	resourceDown = true;
 	jmUnreachable = false;
 	resourcePingPending = false;
-	// set downtime timestamp?
 	SetEvaluateState();
+	// set a timeout timer, so we don't wait forever for this
+	// resource to reappear.
+	if ( communicationTimeoutTid != -1 ) {
+		// timer already set, our work is done
+		return;
+	}
+	int timeout = param_integer(PARAM_GLOBUS_GATEKEEPER_TIMEOUT,60*60*24*5);
+	int time_of_death = 0;
+	unsigned int now = time(NULL);
+	ad->LookupInteger( ATTR_GLOBUS_RESOURCE_UNAVAILABLE_TIME, time_of_death );
+	if ( time_of_death ) {
+		timeout = timeout - (now - time_of_death);
+	}
+
+	if ( timeout > 0 ) {
+		communicationTimeoutTid = daemonCore->Register_Timer( timeout,
+							(TimerHandlercpp)&GlobusJob::CommunicationTimeout,
+							"CommunicationTimeout", (Service*) this );
+	} else {
+		// timeout must have occurred while the gridmanager was down
+		CommunicationTimeout();
+	}
+
+	if (!time_of_death) {
+		UpdateJobAdInt(ATTR_GLOBUS_RESOURCE_UNAVAILABLE_TIME,now);
+		requestScheddUpdate( this );
+	}
 }
 
 void GlobusJob::NotifyResourceUp()
 {
+	if ( communicationTimeoutTid != -1 ) {
+		daemonCore->Cancel_Timer(communicationTimeoutTid);
+		communicationTimeoutTid = -1;
+	}
 	resourceStateKnown = true;
 	if ( resourceDown == true ) {
 		WriteGlobusResourceUpEventToUserLog( ad );
@@ -2013,6 +2097,12 @@ void GlobusJob::NotifyResourceUp()
 	jmUnreachable = false;
 	resourcePingPending = false;
 	SetEvaluateState();
+	int time_of_death = 0;
+	ad->LookupInteger( ATTR_GLOBUS_RESOURCE_UNAVAILABLE_TIME, time_of_death );
+	if ( time_of_death ) {
+		UpdateJobAd(ATTR_GLOBUS_RESOURCE_UNAVAILABLE_TIME,"UNDEFINED");
+		requestScheddUpdate( this );
+	}
 }
 
 bool GlobusJob::AllowTransition( int new_state, int old_state )
@@ -2489,7 +2579,7 @@ MyString *GlobusJob::buildStdioUpdateRSL()
 {
 	MyString *rsl = new MyString;
 	MyString buff;
-	char *attr_value;
+	char *attr_value = NULL; /* in case the classad lookups fail */
 
 	DeleteOutput();
 
@@ -2669,42 +2759,33 @@ bool
 GlobusJob::JmShouldSleep()
 {
 	if ( jmVersion == GRAM_V_1_0 ) {
-dprintf(D_ALWAYS,"(%d.%d) JmShouldSleep returning false (0)\n",procID.cluster, procID.proc);
 		return false;
 	}
 	if ( jmProxyExpireTime < myProxy->expiration_time ) {
-dprintf(D_ALWAYS,"(%d.%d) JmShouldSleep returning false (0.5)\n",procID.cluster, procID.proc);
 		return false;
 	}
 	if ( condorState != IDLE && condorState != RUNNING ) {
-dprintf(D_ALWAYS,"(%d.%d) JmShouldSleep returning false (1)\n",procID.cluster, procID.proc);
 		return false;
 	}
 	if ( useGridJobMonitor == false ) {
-dprintf(D_ALWAYS,"(%d.%d) JmShouldSleep returning false (2)\n",procID.cluster, procID.proc);
 		return false;
 	}
 
 	if ( myResource->GridJobMonitorActive() == false ) {
-dprintf(D_ALWAYS,"(%d.%d) JmShouldSleep returning false (3)\n",procID.cluster, procID.proc);
 		return false;
 	}
 
 	switch ( globusState ) {
 	case GLOBUS_GRAM_PROTOCOL_JOB_STATE_PENDING:
-dprintf(D_ALWAYS,"(%d.%d) JmShouldSleep returning true (4)\n",procID.cluster, procID.proc);
 		return true;
 	case GLOBUS_GRAM_PROTOCOL_JOB_STATE_ACTIVE:
 	case GLOBUS_GRAM_PROTOCOL_JOB_STATE_SUSPENDED:
 		if ( !streamOutput && !streamError ) {
-dprintf(D_ALWAYS,"(%d.%d) JmShouldSleep returning true (5)\n",procID.cluster, procID.proc);
 			return true;
 		} else {
-dprintf(D_ALWAYS,"(%d.%d) JmShouldSleep returning false (6)\n",procID.cluster, procID.proc);
 			return false;
 		}
 	default:
-dprintf(D_ALWAYS,"(%d.%d) JmShouldSleep returning false (7)\n",procID.cluster, procID.proc);
 		return false;
 	}
 }

@@ -243,7 +243,8 @@ void BaseJob::DoneWithJob()
 	requestScheddUpdate( this );
 }
 
-void BaseJob::JobHeld( const char *hold_reason )
+void BaseJob::JobHeld( const char *hold_reason, int hold_code,
+					   int hold_sub_code )
 {
 	if ( condorState != HELD ) {
 		condorState = HELD;
@@ -251,6 +252,8 @@ void BaseJob::JobHeld( const char *hold_reason )
 		UpdateJobAdInt( ATTR_ENTERED_CURRENT_STATUS, time(NULL) );
 
 		UpdateJobAdString( ATTR_HOLD_REASON, hold_reason );
+		UpdateJobAdInt(ATTR_HOLD_REASON_CODE, hold_code);
+		UpdateJobAdInt(ATTR_HOLD_REASON_SUBCODE, hold_sub_code);
 
 		char *release_reason;
 		if ( ad->LookupString( ATTR_RELEASE_REASON, &release_reason ) != 0 ) {

@@ -58,7 +58,8 @@ class BaseJob
 						int code = 0 );
 	void JobCompleted();
 	void DoneWithJob();
-	void JobHeld( const char *hold_reason );
+	void JobHeld( const char *hold_reason, int hold_code = 0,
+				  int hold_sub_code = 0 );
 	void JobRemoved( const char *remove_reason );
 
 	virtual void JobAdUpdateFromSchedd( const ClassAd *new_ad );
