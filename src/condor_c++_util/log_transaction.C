@@ -26,8 +26,11 @@
 #define _POSIX_SOURCE
 
 #include "condor_common.h"
+#include "condor_debug.h"
 
 #include "log_transaction.h"
+
+static char *_FileName_ = __FILE__;
 
 LogPtrList::~LogPtrList()
 {
@@ -109,17 +112,26 @@ LogPtrList::NextEntry(LogRecord *prev)
 }
 
 
-void
-Transaction::Commit(int fd, void *data_structure)
+bool
+Transaction::Commit(FILE *fp, void *data_structure)
 {
 	LogRecord		*log;
+	bool			rval=true;
 
 	for (log = op_log.FirstEntry(); log != 0; 
 		 log = op_log.NextEntry(log)) {
-		if (fd >= 0) log->Write(fd);
-		log->Play(data_structure);
+		if (fp) { 
+			if (!log->Write(fp)) {
+				EXCEPT("Couldn't write to log!\n");
+			}
+		}
+		rval = rval && log->Play(data_structure);
 	}
-	if (fd >= 0) fsync(fd);
+	if (fp) {
+		fflush( fp );
+		fsync(fileno(fp));
+	}
+	return( rval );
 }
 
 
