@@ -901,7 +901,7 @@ SecMan::startCommand( int cmd, Sock* sock, bool can_negotiate, int subCmd)
 #ifdef SECURITY_HACK_ENABLE
 			zz1printf(enc_key->key());
 #endif
-			auth_info.dPrint( D_SECURITY );
+			//auth_info.dPrint( D_SECURITY );
 		}
 
 		new_session = false;
@@ -931,7 +931,7 @@ SecMan::startCommand( int cmd, Sock* sock, bool can_negotiate, int subCmd)
 	
 	if (DebugFlags & D_FULLDEBUG) {
 		dprintf (D_SECURITY, "SECMAN: Security Policy:\n");
-		auth_info.dPrint( D_SECURITY );
+		//auth_info.dPrint( D_SECURITY );
 	}
 
 
@@ -1070,7 +1070,8 @@ SecMan::startCommand( int cmd, Sock* sock, bool can_negotiate, int subCmd)
 				if (DebugFlags & D_FULLDEBUG) {
 					dprintf ( D_SECURITY, "SECMAN: SEC_UDP obtained key id %s!\n", enc_key->id());
 				}
-				auth_info.clear();
+				// HACK TODO ZKM Hao
+				// auth_info.clear();
 				MergeClassAds( &auth_info, enc_key->policy(), true );
 			} else {
 				// there still is no session.
@@ -1150,7 +1151,7 @@ SecMan::startCommand( int cmd, Sock* sock, bool can_negotiate, int subCmd)
 			// suck.
 
 			dprintf ( D_ALWAYS, "SECMAN: action attribute missing from classad\n");
-			auth_info.dPrint( D_SECURITY );
+			//auth_info.dPrint( D_SECURITY );
 			return false;
 		}
 
@@ -1243,7 +1244,7 @@ SecMan::startCommand( int cmd, Sock* sock, bool can_negotiate, int subCmd)
 
 	if (DebugFlags & D_FULLDEBUG) {
 		dprintf ( D_SECURITY, "SECMAN: sending following classad:\n");
-		auth_info.dPrint ( D_SECURITY );
+		//auth_info.dPrint ( D_SECURITY );
 	}
 
 	// send the classad
@@ -1280,7 +1281,7 @@ SecMan::startCommand( int cmd, Sock* sock, bool can_negotiate, int subCmd)
 
 			if (DebugFlags & D_FULLDEBUG) {
 				dprintf ( D_SECURITY, "SECMAN: server responded with:\n");
-				auth_response.dPrint( D_SECURITY );
+				//auth_response.dPrint( D_SECURITY );
 			}
 
 			sec_copy_attribute( auth_info, auth_response, ATTR_SEC_VERSION );
@@ -1318,7 +1319,7 @@ SecMan::startCommand( int cmd, Sock* sock, bool can_negotiate, int subCmd)
 			// missing some essential info.
 
 			dprintf ( D_SECURITY, "SECMAN: action attribute missing from classad, failing!\n");
-			auth_info.dPrint( D_SECURITY );
+			//auth_info.dPrint( D_SECURITY );
 			return false;
 		}
 
@@ -1341,7 +1342,7 @@ SecMan::startCommand( int cmd, Sock* sock, bool can_negotiate, int subCmd)
 				dprintf ( D_SECURITY, "SECMAN: authenticating RIGHT NOW.\n");
 			}
 			string auth_method;
-			if (auth_info->EvaluateAttrString( ATTR_SEC_AUTHENTICATION_METHODS, auth_method ) &&
+			if (auth_info.EvaluateAttrString( ATTR_SEC_AUTHENTICATION_METHODS, auth_method ) &&
                 (auth_method.length() > 0)) {
 				// there's no auth method.
 				dprintf ( D_ALWAYS, "SECMAN: no auth method!, failing.\n");
@@ -1422,7 +1423,7 @@ SecMan::startCommand( int cmd, Sock* sock, bool can_negotiate, int subCmd)
 			} else {
 				if (DebugFlags & D_FULLDEBUG) {
 					dprintf (D_SECURITY, "SECMAN: received post-auth classad:\n");
-					post_auth_info.dPrint (D_SECURITY);
+					//post_auth_info.dPrint (D_SECURITY);
 				}
 			}
             */
@@ -1436,17 +1437,17 @@ SecMan::startCommand( int cmd, Sock* sock, bool can_negotiate, int subCmd)
 
 			if (DebugFlags & D_FULLDEBUG) {
 				dprintf (D_SECURITY, "SECMAN: policy to be cached:\n");
-				auth_info.dPrint(D_SECURITY);
+				//auth_info.dPrint(D_SECURITY);
 			}
 
             string sid;
-			if (auth_info->EvaluateAttrString(ATTR_SEC_SID, sid) &&
+			if (auth_info.EvaluateAttrString(ATTR_SEC_SID, sid) &&
                 (sid.length() > 0)) {
 				return FALSE;
 			}
 
 			string cmd_list;
-			if (auth_info->EvaluateAttrString(ATTR_SEC_VALID_COMMANDS, cmd_list) &&
+			if (auth_info.EvaluateAttrString(ATTR_SEC_VALID_COMMANDS, cmd_list) &&
                 (cmd_list.length () > 0)) {
 				return FALSE;
 			}
@@ -1458,7 +1459,7 @@ SecMan::startCommand( int cmd, Sock* sock, bool can_negotiate, int subCmd)
 			// extract the session duration
 			string dur;
             int expiration_time = time(0);
-			if (auth_info->EvaluateAttrString(ATTR_SEC_SESSION_DURATION, dur) &&
+			if (auth_info.EvaluateAttrString(ATTR_SEC_SESSION_DURATION, dur) &&
                 (dur.length() > 0)) {
                 expiration_time += atoi((char*)dur.data());
             }
