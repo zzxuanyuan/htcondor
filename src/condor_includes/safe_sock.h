@@ -30,7 +30,12 @@
 #ifndef SAFE_SOCK_H
 #define SAFE_SOCK_H
 
+#if defined(WIN32)
+#include <winsock.h>
+#else
 #include <netinet/in.h>
+#endif
+
 #include "buffers.h"
 #include "sock.h"
 #include "condor_constants.h"
@@ -53,7 +58,6 @@ public:
 	//
 	virtual int handle_incoming_packet();
 	virtual int end_of_message();
-	virtual int close();
 	virtual int connect(char *, int);
 	inline int connect(char *h, char *s) { return connect(h,getportbyserv(s));}
 
@@ -73,12 +77,15 @@ public:
 	inline int listen(char *s) { if (!bind(s)) return FALSE; return listen(); }
 
 	int get_port();
-	int get_file_desc();
-	int attach_to_file_desc(int);
 	struct sockaddr_in *endpoint();
 	char *endpoint_IP();
 	int endpoint_port();
 
+#if 0 // interface no longer supported
+	int get_file_desc();
+	int attach_to_file_desc(int);
+#endif
+	
 	/*
 	**	Stream protocol
 	*/

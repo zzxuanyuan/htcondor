@@ -32,6 +32,11 @@
 
 #include "stream.h"
 
+#if !defined(WIN32)
+typedef int SOCKET
+#define INVALID_SOCKET -1
+#endif
+
 /*
 **	B A S E    S O C K
 */
@@ -52,7 +57,6 @@ public:
 	virtual int handle_incoming_packet() { assert(0); return 0; }
 	virtual int end_of_message() { assert(0); return 0; }
 	inline int eom() { return end_of_message(); }
-	virtual int close() { assert(0); return 0; }
 	virtual int connect(char *, int) { assert(0); return 0; }
 	inline int connect(char *h, char *s) { return connect(h,getportbyserv(s)); }
 
@@ -61,18 +65,24 @@ public:
 	//	Socket services
 	//
 
-	int assign(int =-1);
+	int assign(SOCKET =INVALID_SOCKET);
 	int bind(int =0);
-    int setsockopt(int, int, const char*, int); 
+    int setsockopt(SOCKET, int, const char*, int); 
 	inline int bind(char *s) { return bind(getportbyserv(s)); }
-	inline int get_socket (void) { return _sock; }
+	inline SOCKET get_socket (void) { return _sock; }
+	int close();
+
+	// if any operation takes more than sec seconds, timeout
+	// call timeout(0) to set blocking mode (default)
+	// returns previous timeout
+	int timeout(int sec);
 
 
 	/*
 	**	Stream protocol
 	*/
 
-	virtual ~Sock() {}
+	virtual ~Sock();
 
 
 //	PRIVATE INTERFACE TO ALL SOCKS
@@ -91,7 +101,7 @@ protected:
 	**	Methods
 	*/
 
-	Sock() : Stream(),  _sock(-1), _state(sock_virgin) {}
+	Sock();
 
 	int getportbyserv(char *);
 	int do_connect(char *, int);
@@ -101,8 +111,9 @@ protected:
 	**	Data structures
 	*/
 
-	int				_sock;
+	SOCKET				_sock;
 	sock_state		_state;
+	int				_timeout;
 };
 
 

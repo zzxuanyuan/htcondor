@@ -51,7 +51,6 @@ public:
 	//
 	virtual int handle_incoming_packet();
 	virtual int end_of_message();
-	virtual int close();
 	virtual int connect(char *, int);
 
 
@@ -74,8 +73,11 @@ public:
 	int accept(ReliSock *);
 
 	int get_port();
+
+#if 0 // interface no longer supported
 	int get_file_desc();
 	int attach_to_file_desc(int);
+#endif
 
 
 
@@ -123,7 +125,7 @@ protected:
 	class RcvMsg {
 	public:
 		RcvMsg() : ready(0) {}
-		int rcv_packet(int);
+		int rcv_packet(int, int);
 
 		ChainBuf	buf;
 		int			ready;
@@ -131,7 +133,7 @@ protected:
 
 	class SndMsg {
 	public:
-		int snd_packet(int, int);
+		int snd_packet(int, int, int);
 
 		Buf			buf;
 	} snd_msg;

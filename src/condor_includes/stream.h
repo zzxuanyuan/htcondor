@@ -29,7 +29,7 @@
 
 
 /*
-	* COMPONANTS:
+	* COMPONENTS:
 
 	The condor stream library consists of (for now):
 	- File streams (file.h)
@@ -115,6 +115,7 @@
 #include <assert.h>
 
 #include "condor_common.h"
+
 #include "proc.h"
 
 /* now include sched.h.  cleanup namespace if user has not
@@ -133,6 +134,9 @@
 
 #include "condor_constants.h"	/* to get BOOLEAN typedef... */
 #include "startup.h"
+
+#if !defined(WIN32)
+
 #include <sys/stat.h>
 
 #if defined(OSF1)
@@ -142,6 +146,8 @@
 #else
 #  include <sys/statfs.h>
 #endif
+
+#endif // !defined(WIN32)
 
 class Stream {
 
@@ -197,19 +203,26 @@ public:
 
 	//	Condor types
 
+	int code(PROC_ID &);
+//	int code(PROC &);
+	int code(STARTUP_INFO &);
+	int code(PORTS &);
+	int code(StartdRec &);
+
+#if !defined(WIN32)
+
+	//  UNIX types
+
 	int signal(int &);
 
-	int code(PROC_ID &);
 	int code(struct rusage &);
-	int code(PROC &);
-	int code(STARTUP_INFO &);
 	int code(struct stat &);
 	int code(struct statfs &);
 	int code(struct timezone &);
 	int code(struct timeval &);
 	int code(struct rlimit &);
-	int code(PORTS &);
-	int code(StartdRec &);
+
+#endif // !defined(WIN32)
 
 	//   allow pointers instead of references to ease XDR compatibility
 	//
@@ -224,6 +237,8 @@ public:
 	int code(float *x) 				{ return code(*x); }
 	int code(double *x) 			{ return code(*x); }
 
+#if !defined(WIN32)
+	
 	int signal(int *x)				{ return signal(*x); }
 
 	int code(PROC_ID *x)			{ return code(*x); }
@@ -237,6 +252,8 @@ public:
 	int code(struct rlimit *x)		{ return code(*x); }
 	int code(PORTS *x)				{ return code(*x); }
 	int code(StartdRec *x)			{ return code(*x); }
+
+#endif // !defined(WIN32)
 
 	//	Put operations
 	//

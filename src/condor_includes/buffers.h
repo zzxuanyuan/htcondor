@@ -5,6 +5,10 @@
 
 void sanity_check();
 
+#if !defined(WIN32)
+typedef int SOCKET
+#endif
+
 class Buf {
 public:
 	Buf(int sz=CONDOR_IO_BUF_SIZE);
@@ -25,10 +29,10 @@ public:
 	inline int consumed() const { return _dta_pt == _dta_sz; }
 
 
-	int write_to_fd(int fd, int sz=-1);
-	int read_frm_fd(int fd, int sz=-1);
+	int write(SOCKET sockd, int sz=-1, int timeout=0);
+	int read(SOCKET sockd, int sz=-1, int timeout=0);
 
-	int flush_to_fd(int fd, void * hdr=0, int sz=0);
+	int flush(SOCKET sockd, void * hdr=0, int sz=0, int timeout=0);
 
 	int put_max(const void *, int);
 	int get_max(void *, int);
