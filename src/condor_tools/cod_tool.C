@@ -53,6 +53,7 @@ char* my_name = NULL;
 char* claim_id = NULL;
 char* classad_path = NULL;
 char* requirements = NULL;
+char* job_name = NULL;
 FILE* CA_PATH = NULL;
 int cluster_id = -1;
 int proc_id = -1;
@@ -169,16 +170,27 @@ main( int argc, char *argv[] )
 void
 fillRequirements( ClassAd* req )
 {
-	MyString line;
+	MyString jic_req;
+	jic_req = ATTR_HAS_JIC_LOCAL_CONFIG;
+	jic_req += "==TRUE";
+
+	MyString require;
+	require = ATTR_REQUIREMENTS;
+	require += '=';
+
 	if( requirements ) {
-		line = ATTR_REQUIREMENTS;
-		line += '=';
-		line += requirements;
-		if( ! req->Insert(line.Value()) ) {
-			fprintf( stderr, "ERROR: can't parse requirements '%s'\n",
-					 requirements );
-			exit( 1 );
-		}
+		require += '(';
+		require += requirements;
+		require += ")&&(";
+		require += jic_req;
+		require += ')';
+	} else {
+		require += jic_req;
+	}
+	if( ! req->Insert(require.Value()) ) {
+		fprintf( stderr, "ERROR: can't parse requirements '%s'\n",
+				 requirements );
+		exit( 1 );
 	}
 }
 
@@ -208,7 +220,13 @@ fillActivateAd( ClassAd* req )
 		line += proc_id;
 		req->Insert( line.Value() );
 	}
-	
+	if( job_name ) {
+		line = ATTR_JOB_AD_CONFIG_KEYWORD;
+		line += "=\"";
+		line += job_name;
+		line += '"';
+		req->Insert( line.Value() );
+	}
 }
 
 
@@ -545,6 +563,20 @@ parseArgv( int argc, char* argv[] )
 				another( "-id" );
 			}
 			claim_id = strdup( *tmp );
+			break;
+
+		case 'j':
+			if( cmd != CA_ACTIVATE_CLAIM ) {
+				invalid( *tmp );
+			}
+			if( strncmp("-job_config_name", *tmp, strlen(*tmp)) ) {
+				invalid( *tmp );
+			} 
+			tmp++;
+			if( ! (tmp && *tmp) ) {
+				another( "-job_config_name" );
+			}
+			job_name = strdup( *tmp );
 			break;
 
 				// // // // // // // // // // // // // // // // // // 
