@@ -978,6 +978,23 @@ ResMgr::getClaimByPid( pid_t pid )
 }
 
 
+Claim*
+ResMgr::getClaimById( const char* id )
+{
+	Claim* foo = NULL;
+	if( ! resources ) {
+		return NULL;
+	}
+	int i;
+	for( i = 0; i < nresources; i++ ) {
+		if( (foo = resources[i]->findClaimById(id)) ) {
+			return foo;
+		}
+	}
+	return NULL;
+}
+
+
 Resource*
 ResMgr::get_by_cur_cap( char* cap )
 {
