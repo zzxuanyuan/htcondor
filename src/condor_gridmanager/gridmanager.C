@@ -735,7 +735,7 @@ doContactSchedd()
 						  curr_job->procID.proc,
 						  ATTR_JOB_MATCHED,
 						  "FALSE" );
-			SetAttributeInteger( curr_job->procID.cluster,
+			SetAttributeInt( curr_job->procID.cluster,
 						  curr_job->procID.proc,
 						  ATTR_CURRENT_HOSTS,
 						  0 );
@@ -805,7 +805,7 @@ doContactSchedd()
 			if ( JobsByProcID.lookup( procID, old_job ) != 0 ) {
 
 				int rc;
-				char resource_name[200];
+				char resource_name[300];
 				GlobusResource *resource;
 
 				// job had better be either managed or matched! (or both)
@@ -820,7 +820,7 @@ doContactSchedd()
 															resource_name );
 				} else {
 					next_ad->LookupString(ATTR_GLOBUS_RESOURCE, resource_name);
-					if ( strstr(resource_name,"$$") == 0 ) {
+					if ( strstr(resource_name,"$$") ) {
 						// Get the expanded ClassAd from the schedd, which
 						// has the globus resource filled in with info from
 						// the matched ad.
@@ -828,6 +828,8 @@ doContactSchedd()
 						next_ad = NULL;
 						next_ad = GetJobAd(procID.cluster,procID.proc);
 						ASSERT(next_ad);
+						resource_name[0] = '\0';
+						next_ad->LookupString(ATTR_GLOBUS_RESOURCE, resource_name);
 					}
 				}
 
