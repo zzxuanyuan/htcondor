@@ -1,4 +1,4 @@
-'/***************************Copyright-DO-NOT-REMOVE-THIS-LINE**
+/***************************Copyright-DO-NOT-REMOVE-THIS-LINE**
   *
   * Condor Software Copyright Notice
   * Copyright (C) 1990-2004, Condor Team, Computer Sciences Department,
