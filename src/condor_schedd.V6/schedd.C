@@ -1800,16 +1800,22 @@ jobPrepNeedsThread( int cluster, int proc )
   these variables to 0.  we want a real value for stage_in_finish, and
   we want to make sure it's later than stage_in_start.  todd gets the
   credit for making this smarter, even though derek made the changes.
+
+  however, todd gets the blame for breaking the grid universe case,
+  since these values are being checked in the job spooling thread
+  *BEFORE* stage_in_finish is ever initialized.  :)  so, we're going
+  to ignore the "partially transfered" sandbox logic and just make
+  sure we've got a real value for stage_in_start (which we do, even in
+  grid universe, since the parent sets that before spawning the job
+  spooling thread).  --derek 2005-03-30 
 */
 bool
 jobIsSandboxed( ClassAd * ad )
 {
 	ASSERT(ad);
 	int stage_in_start = 0;
-	int stage_in_finish = 0;
 	ad->LookupInteger( ATTR_STAGE_IN_START, stage_in_start );
-	ad->LookupInteger( ATTR_STAGE_IN_FINISH, stage_in_finish );
-	if( stage_in_finish > 0 && stage_in_finish >= stage_in_start ) { 
+	if( stage_in_start > 0 ) {
 		return true;
 	}
 	return false;
