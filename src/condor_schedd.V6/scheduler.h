@@ -430,7 +430,6 @@ private:
 	HashTable <int, ExtArray<PROC_ID> *> *spoolJobFileWorkers;
 	int				numMatches;
 	int				numShadows;
-	List <PROC_ID>	*IdleSchedUniverseJobIDs;
 	DaemonList		*FlockCollectors, *FlockNegotiators;
 	int				MaxFlockLevel;
 	int				FlockLevel;

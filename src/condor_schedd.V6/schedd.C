@@ -287,7 +287,6 @@ Scheduler::Scheduler()
 	resourcesByProcID = NULL;
 	numMatches = 0;
 	numShadows = 0;
-	IdleSchedUniverseJobIDs = NULL;
 	FlockCollectors = NULL;
 	FlockNegotiators = NULL;
 	MaxFlockLevel = 0;
