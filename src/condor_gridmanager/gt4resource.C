@@ -41,19 +41,50 @@ int GT4Resource::probeInterval = 300;	// default value
 int GT4Resource::probeDelay = 15;		// default value
 int GT4Resource::gahpCallTimeout = 300;	// default value
 
-//////////////from gridmanager.C
 #define HASH_TABLE_SIZE			500
 
 template class HashTable<HashKey, GT4Resource *>;
 template class HashBucket<HashKey, GT4Resource *>;
 
-HashTable <HashKey, GT4Resource *> GT4ResourcesByName( HASH_TABLE_SIZE,
-													   hashFunction );
-////////////////////////////////
+HashTable <HashKey, GT4Resource *>
+    GT4Resource::ResourcesByName( HASH_TABLE_SIZE,
+								  hashFunction );
 
-GT4Resource::GT4Resource( const char *resource_name )
+GT4Resource *GT4Resource::FindOrCreateResource( const char *resource_name,
+												const char *proxy_subject )
+{
+	int rc;
+	GT4Resource *resource = NULL;
+
+	const char *canonical_name = CanonicalName( resource_name );
+	ASSERT(canonical_name);
+
+	const char *hash_name = HashName( canonical_name, proxy_subject );
+	ASSERT(hash_name);
+
+	rc = ResourcesByName.lookup( HashKey( hash_name ), resource );
+	if ( rc != 0 ) {
+		resource = new GT4Resource( canonical_name, proxy_subject );
+		ASSERT(resource);
+		if ( resource->Init() == false ) {
+			delete resource;
+			resource = NULL;
+		} else {
+			ResourcesByName.insert( HashKey( hash_name ), resource );
+		}
+	} else {
+		ASSERT(resource);
+	}
+
+	return resource;
+}
+
+GT4Resource::GT4Resource( const char *resource_name,
+						  const char *proxy_subject )
 	: BaseResource( resource_name )
 {
+	initialized = false;
+	proxySubject = strdup( proxy_subject );
 	resourceDown = false;
 	firstPingDone = false;
 	pingTimerId = daemonCore->Register_Timer( 0,
@@ -61,16 +92,9 @@ GT4Resource::GT4Resource( const char *resource_name )
 								"GT4Resource::DoPing", (Service*)this );
 	lastPing = 0;
 	lastStatusChange = 0;
-		// TODO This assumes that at least one GT4Job has already
-		// initialized the gahp server. Need a better solution.
-	gahp = new GahpClient( "GT4", GAHPCLIENT_DEFAULT_SERVER_PATH );
-	gahp->setNotificationTimerId( pingTimerId );
-	gahp->setMode( GahpClient::normal );
-	gahp->setTimeout( gahpCallTimeout );
+	gahp = NULL;
 	submitLimit = DEFAULT_MAX_PENDING_SUBMITS_PER_RESOURCE;
 	jobLimit = DEFAULT_MAX_SUBMITTED_JOBS_PER_RESOURCE;
-
-	Reconfig();
 }
 
 GT4Resource::~GT4Resource()
@@ -79,6 +103,33 @@ GT4Resource::~GT4Resource()
 	if ( gahp != NULL ) {
 		delete gahp;
 	}
+	if ( proxySubject ) {
+		free( proxySubject );
+	}
+}
+
+bool GT4Resource::Init()
+{
+	if ( initialized ) {
+		return true;
+	}
+
+		// TODO This assumes that at least one GT4Job has already
+		// initialized the gahp server. Need a better solution.
+	MyString gahp_name;
+	gahp_name.sprintf( "GT4/%s", proxySubject );
+
+	gahp = new GahpClient( gahp_name.Value() );
+
+	gahp->setNotificationTimerId( pingTimerId );
+	gahp->setMode( GahpClient::normal );
+	gahp->setTimeout( gahpCallTimeout );
+
+	initialized = true;
+
+	Reconfig();
+
+	return true;
 }
 
 void GT4Resource::Reconfig()
@@ -175,6 +226,16 @@ const char *GT4Resource::CanonicalName( const char *name )
 	return name;
 }
 
+const char *GT4Resource::HashName( const char *resource_name,
+								   const char *proxy_subject )
+{
+	static MyString hash_name;
+
+	hash_name.sprintf( "%s#%s", resource_name, proxy_subject );
+
+	return hash_name.Value();
+}
+
 void GT4Resource::RegisterJob( GT4Job *job, bool already_submitted )
 {
 	registeredJobs.Append( job );
@@ -197,6 +258,11 @@ void GT4Resource::UnregisterJob( GT4Job *job )
 	CancelSubmit( job );
 	registeredJobs.Delete( job );
 	pingRequesters.Delete( job );
+
+	if ( IsEmpty() ) {
+		ResourcesByName.remove( HashKey( HashName( resourceName, proxySubject ) ) );
+		delete this;
+	}
 }
 
 void GT4Resource::RequestPing( GT4Job *job )

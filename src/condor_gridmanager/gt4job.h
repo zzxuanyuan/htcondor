@@ -130,7 +130,7 @@ class GT4Job : public BaseJob
 	char *gramCallbackContact;
 
 
-	Proxy *myProxy;
+	Proxy *jobProxy;
 	GahpClient *gahp;
 
 	MyString *buildSubmitRSL();

@@ -42,11 +42,12 @@ extern HashTable <HashKey, GT4Resource *> GT4ResourcesByName;
 
 class GT4Resource : public BaseResource
 {
- public:
-
-	GT4Resource( const char *resource_name );
+ protected:
+	GT4Resource( const char *resource_name, const char *proxy_subject );
 	~GT4Resource();
 
+ public:
+	bool Init();
 	void Reconfig();
 	void RegisterJob( GT4Job *job, bool already_submitted );
 	void UnregisterJob( GT4Job *job );
@@ -61,6 +62,11 @@ class GT4Resource : public BaseResource
 	time_t getLastStatusChangeTime() { return lastStatusChange; }
 
 	static const char *CanonicalName( const char *name );
+	static const char *HashName( const char *resource_name,
+								 const char *proxy_subject );
+
+	static GT4Resource *FindOrCreateResource( const char *resource_name,
+											  const char *proxy_subject );
 
 	static void setProbeInterval( int new_interval )
 		{ probeInterval = new_interval; }
@@ -71,9 +77,15 @@ class GT4Resource : public BaseResource
 	static void setGahpCallTimeout( int new_timeout )
 		{ gahpCallTimeout = new_timeout; }
 
+	// This should be private, but GT4Job references it directly for now
+	static HashTable <HashKey, GT4Resource *> ResourcesByName;
+
  private:
 	int DoPing();
 
+	bool initialized;
+
+	char *proxySubject;
 	bool resourceDown;
 	bool firstPingDone;
 	int pingTimerId;

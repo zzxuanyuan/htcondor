@@ -104,7 +104,7 @@ static char *GMStateNames[] = {
 
 #define CHECK_PROXY \
 { \
-	if ( PROXY_NEAR_EXPIRED( myProxy ) && gmState != GM_PROXY_EXPIRED ) { \
+	if ( PROXY_NEAR_EXPIRED( jobProxy ) && gmState != GM_PROXY_EXPIRED ) { \
 		dprintf( D_ALWAYS, "(%d.%d) proxy is about to expire\n", \
 				 procID.cluster, procID.proc ); \
 		gmState = GM_PROXY_EXPIRED; \
@@ -216,9 +216,9 @@ void GT4JobReconfig()
 	// Tell all the resource objects to deal with their new config values
 	GT4Resource *next_resource;
 
-	GT4ResourcesByName.startIterations();
+	GT4Resource::ResourcesByName.startIterations();
 
-	while ( GT4ResourcesByName.iterate( next_resource ) != 0 ) {
+	while ( GT4Resource::ResourcesByName.iterate( next_resource ) != 0 ) {
 		next_resource->Reconfig();
 	}
 }
@@ -370,7 +370,7 @@ GT4Job::GT4Job( ClassAd *classad )
 	resourceManagerString = NULL;
 	jobmanagerType = NULL;
 	myResource = NULL;
-	myProxy = NULL;
+	jobProxy = NULL;
 	gramCallbackContact = NULL;
 	gahp = NULL;
 	submit_id = NULL;
@@ -382,23 +382,11 @@ GT4Job::GT4Job( ClassAd *classad )
 		UpdateJobAd( ATTR_HOLD_REASON, "UNDEFINED" );
 	}
 
-	char *gahp_path = param("GT4_GAHP");
-	if ( gahp_path == NULL ) {
-		error_string = "GT4_GAHP not defined";
-		goto error_exit;
-	}
-	gahp = new GahpClient( "GT4", gahp_path );
-	free( gahp_path );
-
-	gahp->setNotificationTimerId( evaluateStateTid );
-	gahp->setMode( GahpClient::normal );
-	gahp->setTimeout( gahpCallTimeout );
-
 	buff[0] = '\0';
 	ad->LookupString( ATTR_X509_USER_PROXY, buff );
 	if ( buff[0] != '\0' ) {
-		myProxy = AcquireProxy( buff, evaluateStateTid );
-		if ( myProxy == NULL ) {
+		jobProxy = AcquireProxy( buff, evaluateStateTid );
+		if ( jobProxy == NULL ) {
 			dprintf( D_ALWAYS, "(%d.%d) error acquiring proxy!\n",
 					 procID.cluster, procID.proc );
 		}
@@ -406,6 +394,19 @@ GT4Job::GT4Job( ClassAd *classad )
 		dprintf( D_ALWAYS, "(%d.%d) %s not set in job ad!\n",
 				 procID.cluster, procID.proc, ATTR_X509_USER_PROXY );
 	}
+
+	char *gahp_path = param("GT4_GAHP");
+	if ( gahp_path == NULL ) {
+		error_string = "GT4_GAHP not defined";
+		goto error_exit;
+	}
+	snprintf( buff, sizeof(buff), "GT4/%s", jobProxy->subject->subject_name );
+	gahp = new GahpClient( buff, gahp_path );
+	free( gahp_path );
+
+	gahp->setNotificationTimerId( evaluateStateTid );
+	gahp->setMode( GahpClient::normal );
+	gahp->setTimeout( gahpCallTimeout );
 
 	buff[0] = '\0';
 	ad->LookupString( ATTR_GLOBUS_RESOURCE, buff );
@@ -416,24 +417,13 @@ GT4Job::GT4Job( ClassAd *classad )
 		goto error_exit;
 	}
 
-////////////////from gridmanager.C
-{
-	const char *canonical_name = GT4Resource::CanonicalName( resourceManagerString );
-	int rc;
-	ASSERT(canonical_name);
-	rc = GT4ResourcesByName.lookup( HashKey( canonical_name ),
-								 myResource );
-
-	if ( rc != 0 ) {
-		myResource = new GT4Resource( canonical_name );
-		ASSERT(myResource);
-		GT4ResourcesByName.insert( HashKey( canonical_name ),
-								myResource );
-	} else {
-		ASSERT(myResource);
+		// Find/create an appropriate GT4Resource for this job
+	myResource = GT4Resource::FindOrCreateResource( resourceManagerString,
+													jobProxy->subject->subject_name);
+	if ( myResource == NULL ) {
+		error_string = "Failed to initialized GT4Resource object";
+		goto error_exit;
 	}
-}
-//////////////////////////////////
 
 	resourceDown = false;
 	resourceStateKnown = false;
@@ -534,11 +524,6 @@ GT4Job::~GT4Job()
 {
 	if ( myResource ) {
 		myResource->UnregisterJob( this );
-		// Should the GT4Resource be responsible for doing this?...
-		if ( myResource->IsEmpty() ) {
-			GT4ResourcesByName.remove( HashKey( myResource->ResourceName() ) );
-			delete myResource;
-		}
 	}
 	if ( resourceManagerString ) {
 		free( resourceManagerString );
@@ -556,8 +541,8 @@ GT4Job::~GT4Job()
 	if ( localError ) {
 		free( localError );
 	}
-	if ( myProxy ) {
-		ReleaseProxy( myProxy, evaluateStateTid );
+	if ( jobProxy ) {
+		ReleaseProxy( jobProxy, evaluateStateTid );
 	}
 	if ( gramCallbackContact ) {
 		free( gramCallbackContact );
@@ -627,7 +612,7 @@ int GT4Job::doEvaluateState()
 			// constructor is called while we're connected to the schedd).
 			int err;
 
-			if ( gahp->Initialize( myProxy ) == false ) {
+			if ( gahp->Initialize( jobProxy ) == false ) {
 				dprintf( D_ALWAYS, "(%d.%d) Error initializing GAHP\n",
 						 procID.cluster, procID.proc );
 				
@@ -636,7 +621,7 @@ int GT4Job::doEvaluateState()
 				break;
 			}
 
-			gahp->setDelegProxy( myProxy );
+			gahp->setDelegProxy( jobProxy );
 
 			gahp->setMode( GahpClient::blocking );
 
@@ -891,7 +876,7 @@ gmState=GM_SUBMIT;
 				myResource->SubmitComplete(this);
 				lastSubmitAttempt = time(NULL);
 				numSubmitAttempts++;
-				jmProxyExpireTime = myProxy->expiration_time;
+				jmProxyExpireTime = jobProxy->expiration_time;
 				if ( rc == GLOBUS_SUCCESS ) {
 					callbackRegistered = true;
 					rehashJobContact( this, jobContact, job_contact );
@@ -973,7 +958,7 @@ gmState=GM_SUBMIT;
 					break;
 				}
 /* Don't worry about delegation for now
-				if ( jmProxyExpireTime < myProxy->expiration_time ) {
+				if ( jmProxyExpireTime < jobProxy->expiration_time ) {
 					gmState = GM_REFRESH_PROXY;
 					break;
 				}
@@ -1016,7 +1001,7 @@ gmState=GM_SUBMIT;
 					gmState = GM_CANCEL;
 					break;
 				}
-				jmProxyExpireTime = myProxy->expiration_time;
+				jmProxyExpireTime = jobProxy->expiration_time;
 				gmState = GM_SUBMITTED;
 			}
 			} break;
@@ -1311,7 +1296,7 @@ gmState=GM_SUBMIT;
 			// If requested, put the job on hold. Otherwise, wait for the
 			// proxy to be refreshed, then resume handling the job.
 			now = time(NULL);
-			if ( myProxy->expiration_time > JM_MIN_PROXY_TIME + now ) {
+			if ( jobProxy->expiration_time > JM_MIN_PROXY_TIME + now ) {
 				gmState = GM_START;
 			} else {
 				// Do nothing. Our proxy is about to expire.
