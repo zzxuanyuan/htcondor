@@ -415,6 +415,14 @@ Resource::hackLoadForCOD( void )
 	}
 	r_classad->Insert( load.Value() );
 	r_classad->Insert( c_load.Value() );
+
+	MyString line = ATTR_CPU_IS_BUSY;
+	line += "=False";
+	r_classad->Insert( line.Value() );
+
+	line = ATTR_CPU_BUSY_TIME;
+	line += "=0";
+	r_classad->Insert( line.Value() );
 }
 
 
