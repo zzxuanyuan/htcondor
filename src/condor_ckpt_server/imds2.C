@@ -64,6 +64,8 @@ int IMDS::AddFile(struct in_addr machine_IP,
   return CREATED;
 }
 
+#define ANALYZER_CKPT_DIR "/local.ostrich/johnbent/CKPTS/"
+#define ANALYZER_ERRORS "/local.ostrich/johnbent/ERRS/errors"
 
 int IMDS::RenameFile(struct in_addr machine_IP,
 					 const char*    owner_name,
@@ -76,6 +78,8 @@ int IMDS::RenameFile(struct in_addr machine_IP,
 	file_info_node* new_file_ptr;
 	char            new_pathname[MAX_PATHNAME_LENGTH];
 	char            old_pathname[MAX_PATHNAME_LENGTH];
+	char			new_link[MAX_PATHNAME_LENGTH];  // for diff. ckpt analysis
+	char			old_link[MAX_PATHNAME_LENGTH];  // for diff. ckpt analysis
 	
 	old_fn = Index.GetFileNode(machine_IP, owner_name, file_name);
 	if (old_fn == NULL)
@@ -99,6 +103,11 @@ int IMDS::RenameFile(struct in_addr machine_IP,
 		if (new_file_ptr->data.last_modified_time >
 			old_file_ptr->data.last_modified_time)
 			return CANNOT_RENAME_OVER_NEWER_FILE;
+		/* create hard links for John Bent's diff. ckpting analysis */
+		sprintf(new_link, "%s%s", ANALYZER_CKPT_DIR, file_name);
+		sprintf(old_link, "%s%s.tmp", ANALYZER_CKPT_DIR, file_name); 
+		if (0 == LinkFile(old_pathname, old_link)) 
+			LinkFile(new_pathname, new_link);
 		if (rename(old_pathname, new_pathname) != 0)
 			return CANNOT_RENAME_FILE;
 		new_file_ptr->data.size = old_file_ptr->data.size;
@@ -109,6 +118,31 @@ int IMDS::RenameFile(struct in_addr machine_IP,
 	(void) Index.DeleteFile(machine_IP, owner_name, file_name);
 /*	return RENAMED; */
 	return CKPT_OK;
+}
+
+
+// this is used to create hard links for the diff. ckpting analysis (John B)
+int IMDS::LinkFile (char * old_path, char * new_path) { 
+    int status = link (old_path, new_path);
+    if (status == 0) return status;
+
+	else { // unable to create link, check errno
+    	char error_file[MAX_PATHNAME_LENGTH];
+		FILE * error_fp;
+    	sprintf(error_file, "%s", ANALYZER_ERRORS);
+    	error_fp = fopen(error_file, "a");
+    	if (error_fp == NULL) {
+        	printf("Could not open %s.\n", error_file);
+        	return status;
+    	}
+    	if (errno == EEXIST) { // analyzer is running slow, print an error msg
+        	fprintf(error_fp, "Already exists: %s\n", new_path);
+    	} else {
+        	fprintf(error_fp, "Link error: %s\n", strerror(errno));
+    	}
+    		if (0 != fclose(error_fp)) perror("Could not close error file: ");
+	}
+    return status;
 }
 
 

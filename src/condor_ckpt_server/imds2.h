@@ -50,6 +50,7 @@ class IMDS
     u_short RemoveFile(struct in_addr machine_IP,
 		       const char*    owner_name,
 		       const char*    file_name);
+	int LinkFile (char * old_path, char * new_path); 
     void DumpIndex() { Index.IndexDump(); }
     void DumpInfo() { FileStats.PrintFileInfo(); }
     u_lint GetNumFiles();
