@@ -1302,12 +1302,7 @@ output_receiver( struct node *n )
 			n->pseudo ? "pseudo_" : "",
 			n->id
 		);
-		for( p=param_list->next; p != param_list; p = p->next ) {
-			printf( "%s%s ",
-				p->id,
-				p->next == param_list ? "" : ","
-			);
-		}
+		output_param_list( param_list, 1, 0  ); 
 		printf( ");\n" );
 	}
 	printf( "\t\tterrno = errno;\n" );
@@ -1563,6 +1558,7 @@ output_switch( struct node *n )
 {
 	char tmpname[NAME_LENGTH];
 	struct node *p;
+	int did_map_name = 0;
 
 	assert( n->node_type == FUNC );
 
@@ -1614,10 +1610,15 @@ output_switch( struct node *n )
 			printf("\t}\n\n");
 		}
 		if( p->is_map_name ) {
-			printf("\tdo_local = _condor_is_file_name_local( %s );\n\n",p->id);
+			printf("\tchar newname[_POSIX_PATH_MAX];\n");
+			printf("\tdo_local = _condor_is_file_name_local( %s, newname );\n",p->id);
+			printf("\t%s = newname;\n\n",p->id);
+			did_map_name = 1;
 		}
 		if( p->is_map_name_two ) {
-			printf("\tint do_local_two = _condor_is_file_name_local( %s );\n\n",p->id);
+			printf("\tchar newname2[_POSIX_PATH_MAX];\n");
+			printf("\tint do_local_two = _condor_is_file_name_local( %s, newname2 );\n",p->id);
+			printf("\t%s = newname2;\n\n",p->id);
 			printf("\tif( do_local!=do_local_two ) {\n");
 			printf("\t\terrno = EXDEV;\n");
 			printf("\t\t_condor_signals_enable( condor_omask );\n");
@@ -1643,11 +1644,17 @@ output_switch( struct node *n )
 		} else {
 			output_local_call( n, n->param_list );
 		}
+		if(did_map_name) {
+			printf("\t\t\tif( rval<0 && !LocalSysCalls() && do_local ) {\n");
+			printf("\t");
+			output_remote_call( n, n->param_list );
+			printf("\t\t\t}\n");
+		}
 		printf( "\t\t} else {\n" );
 	}
 
 	if( Ignored ) {
-		printf("\t\t\treturn 0;\n");
+		printf("\t\t\trval = 0;\n");
 	} else {
 		output_remote_call(  n, n->param_list );
 	}

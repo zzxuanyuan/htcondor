@@ -27,6 +27,7 @@
 #include "condor_config.h"
 #include "condor_network.h"
 #include "condor_io.h"
+#include "condor_parser.h"
 #include "condor_adtypes.h"
 #include "condor_debug.h"
 #include "get_daemon_addr.h"
@@ -278,32 +279,32 @@ fetchAds (ClassAdList &adList, const char *poolName)
 	if (result != Q_OK) return result;
 
 	// fix types
-	queryAd.InsertAttr( ATTR_MY_TYPE, (string)QUERY_ADTYPE ); // NAC
+	queryAd.SetMyTypeName (QUERY_ADTYPE);
 	switch (queryType) {
 	  case STARTD_AD:
 	  case STARTD_PVT_AD:
-		queryAd.InsertAttr( ATTR_TARGET_TYPE, (string)STARTD_ADTYPE ); // NAC
+		queryAd.SetTargetTypeName (STARTD_ADTYPE);
 		break;
 
 	  case SCHEDD_AD:
 	  case SUBMITTOR_AD:
-		queryAd.InsertAttr( ATTR_TARGET_TYPE, (string)SCHEDD_ADTYPE ); // NAC
+		queryAd.SetTargetTypeName (SCHEDD_ADTYPE);
 		break;
 
 	  case LICENSE_AD:
-		queryAd.InsertAttr( ATTR_TARGET_TYPE, (string)LICENSE_ADTYPE ); // NAC
+		queryAd.SetTargetTypeName (LICENSE_ADTYPE);
 		break;
 
 	  case MASTER_AD:
-		queryAd.InsertAttr( ATTR_TARGET_TYPE, (string)MASTER_ADTYPE ); // NAC
+		queryAd.SetTargetTypeName (MASTER_ADTYPE);
 		break;
 
 	  case CKPT_SRVR_AD:
-		queryAd.InsertAttr( ATTR_TARGET_TYPE, (string)CKPT_SRVR_ADTYPE ); // NAC
+		queryAd.SetTargetTypeName (CKPT_SRVR_ADTYPE);
 		break;
 
 	  case COLLECTOR_AD:
-		queryAd.InsertAttr( ATTR_TARGET_TYPE, (string)COLLECTOR_ADTYPE ); // NAC
+		queryAd.SetTargetTypeName (COLLECTOR_ADTYPE);
 		break;
 
 	  default:
@@ -317,12 +318,10 @@ fetchAds (ClassAdList &adList, const char *poolName)
 
 	// ship query
 	sock.encode();
-	if (!sock.code (command) ||   						// NAC
-		!putOldClassAd((Stream *)&sock, queryAd) || 	// NAC
-		!sock.end_of_message()) { 						// NAC
+	if (!sock.code (command) || !queryAd.put (sock) || !sock.end_of_message()) {
 		return Q_COMMUNICATION_ERROR;
 	}
-
+	
 	// get result
 	sock.decode ();
 	more = 1;
@@ -334,7 +333,7 @@ fetchAds (ClassAdList &adList, const char *poolName)
 		}
 		if (more) {
 			ad = new ClassAd;
-			if ( !getOldClassAd( (Stream *)&sock, *ad) ) {  // NAC
+			if( !ad->initFromStream(sock) ) {
 				sock.end_of_message();
 				delete ad;
 				return Q_COMMUNICATION_ERROR;
@@ -360,32 +359,32 @@ getQueryAd (ClassAd &queryAd)
 	if (result != Q_OK) return result;
 
 	// fix types
-	queryAd.InsertAttr( ATTR_MY_TYPE, (string)QUERY_ADTYPE ); // NAC
+	queryAd.SetMyTypeName (QUERY_ADTYPE);
 	switch (queryType) {
 	  case STARTD_AD:
 	  case STARTD_PVT_AD:
-		queryAd.InsertAttr( ATTR_TARGET_TYPE, (string)STARTD_ADTYPE ); // NAC
+		queryAd.SetTargetTypeName (STARTD_ADTYPE);
 		break;
 
 	  case SCHEDD_AD:
 	  case SUBMITTOR_AD:
-		queryAd.InsertAttr( ATTR_TARGET_TYPE, (string)SCHEDD_ADTYPE ); // NAC
+		queryAd.SetTargetTypeName (SCHEDD_ADTYPE);
 		break;
 
 	  case LICENSE_AD:
-		queryAd.InsertAttr( ATTR_TARGET_TYPE, (string)LICENSE_ADTYPE ); // NAC
+		queryAd.SetTargetTypeName (LICENSE_ADTYPE);
 		break;
 
 	  case MASTER_AD:
-		queryAd.InsertAttr( ATTR_TARGET_TYPE, (string)MASTER_ADTYPE ); // NAC
+		queryAd.SetTargetTypeName (MASTER_ADTYPE);
 		break;
 
 	  case CKPT_SRVR_AD:
-		queryAd.InsertAttr( ATTR_TARGET_TYPE, (string)CKPT_SRVR_ADTYPE ); // NAC
+		queryAd.SetTargetTypeName (CKPT_SRVR_ADTYPE);
 		break;
 
 	  case COLLECTOR_AD:
-		queryAd.InsertAttr( ATTR_TARGET_TYPE, (string)COLLECTOR_ADTYPE ); // NAC
+		queryAd.SetTargetTypeName (COLLECTOR_ADTYPE);
 		break;
 
 	  default:
@@ -401,28 +400,16 @@ filterAds (ClassAdList &in, ClassAdList &out)
 {
 	ClassAd queryAd, *candidate;
 	QueryResult	result;
-	MatchClassAd mad;  // NAC
-	bool match;
 
 	// make the query ad
 	result = (QueryResult) query.makeQuery (queryAd);
 	if (result != Q_OK) return result;
 
-	mad.ReplaceLeftAd(&queryAd);  // NAC
-
 	in.Open();
 	while( (candidate = (ClassAd *) in.Next()) )
     {
         // if a match occurs
-			//if ((*candidate) >= (queryAd)) out.Insert (candidate);
-		mad.ReplaceRightAd( candidate );	   						// NAC
-		if( !mad.EvaluateAttrBool( "rightMatchesLeft",  match ) ) { // NAC
-                // there was a problem with the match				// NAC
-			return Q_INVALID_QUERY;									// NAC
-		}															// NAC
-		else if ( match ){											// NAC
-			out.Insert( candidate );			   					// NAC
-		}															// NAC
+		if ((*candidate) >= (queryAd)) out.Insert (candidate);
     }
     in.Close ();
     

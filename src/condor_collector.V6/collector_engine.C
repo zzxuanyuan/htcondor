@@ -309,7 +309,7 @@ collect (int command, Sock *sock, sockaddr_in *from, int &insert)
 	if (!clientAd) return 0;
 
 	// get the ad
-	if (!clientAd->get(*sock))
+	if( !clientAd->initFromStream(*sock) )
 	{
 		dprintf (D_ALWAYS,"Command %d on Sock not follwed by ClassAd (or timeout occured)\n",
 				command);
@@ -369,7 +369,7 @@ collect (int command,ClassAd *clientAd,sockaddr_in *from,int &insert,Sock *sock)
 			{
 				EXCEPT ("Memory error!");
 			}
-			if (!pvtAd->get(*sock))
+			if( !pvtAd->initFromStream(*sock) )
 			{
 				dprintf(D_FULLDEBUG,"\t(Could not get startd's private ad)\n");
 				delete pvtAd;
@@ -593,15 +593,9 @@ updateClassAd (CollectorHashTable &hashTable,
 			   int  &insert)
 {
 	ClassAd  *old_ad, *new_ad;
-	ExprTree *tree;
 	char     buf [40];
 	time_t   now;
 
-	// timestamp the ad
-	if (tree = ad->Lookup (ATTR_LAST_HEARD_FROM))
-	{
-		delete tree;
-	}	
 	(void) time (&now);
 	if (now == (time_t) -1)
 	{
