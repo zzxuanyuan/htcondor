@@ -461,7 +461,7 @@ int MirrorJob::doEvaluateState()
 				EXCEPT( "DCSchedd::locate failed for our own schedd!" );
 			}
 
-			rval = schedd->vacateJobs( job_ids, VACATE_FAST, &errstack );
+			rval = schedd->vacateJobs( &job_ids, VACATE_FAST, &errstack );
 			if ( rval == NULL ||
 				 !rval->LookupInteger(ATTR_ACTION_RESULT, result) ||
 				 !result ) {
