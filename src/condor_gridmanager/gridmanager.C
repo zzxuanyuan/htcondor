@@ -604,7 +604,6 @@ doContactSchedd()
 				// Search our job types for one that'll handle this job
 				jobTypes.Rewind();
 				while ( jobTypes.Next( job_type ) ) {
-dprintf(D_FULLDEBUG,"***Trying job type %s\n",job_type->Name);
 					if ( JobMatchesConstraint( next_ad, job_type->AdMatchConst ) ) {
 
 						// Found one!

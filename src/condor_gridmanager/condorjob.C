@@ -1010,7 +1010,7 @@ void CondorJob::SetRemoteJobId( const char *job_id )
 void CondorJob::NotifyNewRemoteStatus( ClassAd *update_ad )
 {
 	int tmp_int;
-	dprintf( D_FULLDEBUG, "(%d.%d) ***got classad from CondorResource\n",
+	dprintf( D_FULLDEBUG, "(%d.%d) Got classad from CondorResource\n",
 			 procID.cluster, procID.proc );
 	if ( update_ad->LookupInteger( ATTR_SERVER_TIME, tmp_int ) == 0 ) {
 		dprintf( D_ALWAYS, "(%d.%d) Ad from remote schedd has no %s\n",
@@ -1068,7 +1068,7 @@ void CondorJob::ProcessRemoteAd( ClassAd *remote_ad )
 		return;
 	}
 
-	dprintf( D_FULLDEBUG, "(%d.%d) ***ProcessRemoteAd\n",
+	dprintf( D_FULLDEBUG, "(%d.%d) Processing remote job status ad\n",
 			 procID.cluster, procID.proc );
 
 	remote_ad->LookupInteger( ATTR_JOB_STATUS, new_remote_state );
