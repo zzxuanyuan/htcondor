@@ -137,17 +137,17 @@ int condorCore__getInfoAd(struct soap *soap,void *,struct condorCore__ClassAdStr
 	ad.__ptr = (struct condorCore__ClassAdStructAttr *)soap_malloc(soap,3 * sizeof(struct condorCore__ClassAdStructAttr));
 
 	ad.__ptr[0].name = "Name";
-	ad.__ptr[0].type = 's';
+	ad.__ptr[0].type = STRING;
 	ad.__ptr[0].value = todd;
 
 	ad.__ptr[1].name = "Age";
-	ad.__ptr[1].type = 'n';
+	ad.__ptr[1].type = INTEGER;
 	ad.__ptr[1].value = "35";
 	int* age = (int*)soap_malloc(soap,sizeof(int));
 	*age = 35;
 
 	ad.__ptr[2].name = "Friend";
-	ad.__ptr[2].type = 's';
+	ad.__ptr[2].type = STRING;
 	ad.__ptr[2].value = todd;
 
 	return SOAP_OK;

@@ -1,5 +1,5 @@
 
-#import "../condor_daemon_core.V6/gsoap_daemon_core.h"
+#import "../condor_daemon_core.V6/gsoap_daemon_core_types.h"
 
 //gsoap condorCollector service namespace: urn:condor-collector
 //gsoap condorCollector service name: condorCollector

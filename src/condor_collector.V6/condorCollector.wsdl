@@ -25,10 +25,37 @@
   elementFormDefault="unqualified"
   attributeFormDefault="unqualified">
   <import namespace="http://schemas.xmlsoap.org/soap/encoding/"/>
+  <simpleType name="StatusCode">
+   <restriction base="xsd:string">
+    <enumeration value="SUCCESS"/>
+    <enumeration value="FAIL"/>
+    <enumeration value="INVALIDTRANSACTION"/>
+    <enumeration value="UNKNOWNFILE"/>
+    <enumeration value="INCOMPLETE"/>
+   </restriction>
+  </simpleType>
+  <simpleType name="ClassAdAttrType">
+   <restriction base="xsd:string">
+    <enumeration value="INTEGER"/>
+    <enumeration value="FLOAT"/>
+    <enumeration value="STRING"/>
+    <enumeration value="EXPRESSION"/>
+    <enumeration value="BOOL"/>
+    <enumeration value="UNDEFINED"/>
+    <enumeration value="ERROR"/>
+   </restriction>
+  </simpleType>
+  <complexType name="Status">
+   <sequence>
+    <element name="code" type="condorCore:StatusCode" minOccurs="1" maxOccurs="1"/>
+    <element name="message" type="xsd:string" minOccurs="0" maxOccurs="1" nillable="true"/>
+    <element name="next" type="condorCore:Status" minOccurs="0" maxOccurs="1" nillable="true"/>
+   </sequence>
+  </complexType>
   <complexType name="ClassAdStructAttr">
    <sequence>
     <element name="name" type="xsd:string" minOccurs="1" maxOccurs="1" nillable="true"/>
-    <element name="type" type="xsd:byte" minOccurs="1" maxOccurs="1"/>
+    <element name="type" type="condorCore:ClassAdAttrType" minOccurs="1" maxOccurs="1"/>
     <element name="value" type="xsd:string" minOccurs="1" maxOccurs="1" nillable="true"/>
    </sequence>
   </complexType>
@@ -40,6 +67,24 @@
   <complexType name="ClassAdStructArray">
    <sequence>
     <element name="item" type="condorCore:ClassAdStruct" minOccurs="0" maxOccurs="unbounded" nillable="true"/>
+   </sequence>
+  </complexType>
+  <complexType name="ClassAdStructAndStatus">
+   <sequence>
+    <element name="status" type="condorCore:Status" minOccurs="1" maxOccurs="1"/>
+    <element name="classAd" type="condorCore:ClassAdStruct" minOccurs="0" maxOccurs="1" nillable="true"/>
+   </sequence>
+  </complexType>
+  <complexType name="ClassAdStructArrayAndStatus">
+   <sequence>
+    <element name="status" type="condorCore:Status" minOccurs="1" maxOccurs="1"/>
+    <element name="classAdArray" type="condorCore:ClassAdStructArray" minOccurs="0" maxOccurs="1" nillable="true"/>
+   </sequence>
+  </complexType>
+  <complexType name="StringAndStatus">
+   <sequence>
+    <element name="status" type="condorCore:Status" minOccurs="1" maxOccurs="1"/>
+    <element name="message" type="xsd:string" minOccurs="0" maxOccurs="1" nillable="true"/>
    </sequence>
   </complexType>
  </schema>
@@ -233,7 +278,7 @@
 </binding>
 
 <service name="condorCollector">
- <documentation>gSOAP 2.5.1 generated service definition</documentation>
+ <documentation>gSOAP 2.5.2 generated service definition</documentation>
  <port name="condorCollector" binding="tns:condorCollector">
   <SOAP:address location="http://localhost"/>
  </port>
