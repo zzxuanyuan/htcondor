@@ -612,8 +612,10 @@ dprintf(D_FULLDEBUG,"***Trying job type %s\n",job_type->Name);
 		char attr_name[1024];
 		char attr_value[1024];
 		ExprTree *expr;
+		bool fake_job_in_queue = false;
 		curr_job->ad->ResetExpr();
-		while ( (expr = curr_job->ad->NextDirtyExpr()) != NULL ) {
+		while ( (expr = curr_job->ad->NextDirtyExpr()) != NULL &&
+				fake_job_in_queue == false ) {
 			attr_name[0] = '\0';
 			attr_value[0] = '\0';
 			expr->LArg()->PrintToStr(attr_name);
@@ -625,9 +627,21 @@ dprintf(D_FULLDEBUG,"***Trying job type %s\n",job_type->Name);
 							   attr_name,
 							   attr_value);
 			if ( rc < 0 ) {
-				failure_line_num = __LINE__;
-				commit_transaction = false;
-				goto contact_schedd_disconnect;
+				if ( errno == ETIMEDOUT ) {
+					failure_line_num = __LINE__;
+					commit_transaction = false;
+					goto contact_schedd_disconnect;
+				} else {
+						// The job is not in the schedd's job queue. This
+						// probably means that the user did a condor_rm -f,
+						// so pretend that all updates for the job succeed.
+						// Otherwise, we'll never make forward progress on
+						// the job.
+						// TODO We should also fake a job status of REMOVED
+						//   to the job, so it can do what cleanup it can.
+					fake_job_in_queue = true;
+					break;
+				}
 			}
 		}
 
