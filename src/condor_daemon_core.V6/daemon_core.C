@@ -60,15 +60,17 @@ typedef unsigned (__stdcall *CRT_THREAD_HANDLER) (void *);
 
 #define SECURITY_HACK_ENABLE
 void zz2printf(KeyInfo *k) {
-	char hexout[260];  // holds (at least) a 128 byte key.
-	unsigned char* dataptr = k->getKeyData();
-	int   length  =  k->getKeyLength();
+	if (k) {
+		char hexout[260];  // holds (at least) a 128 byte key.
+		unsigned char* dataptr = k->getKeyData();
+		int   length  =  k->getKeyLength();
 
-	for (int i = 0; (i < length) && (i < 24); i++) {
-		sprintf (&hexout[i*2], "%02x", *dataptr++);
+		for (int i = 0; (i < length) && (i < 24); i++) {
+			sprintf (&hexout[i*2], "%02x", *dataptr++);
+		}
+
+    	dprintf (D_SECURITY, "ZKM: [%i] %s\n", length, hexout);
 	}
-
-    dprintf (D_SECURITY, "ZKM: [%i] %s\n", length, hexout);
 }
 
 static unsigned int ZZZZZ = 0;
@@ -1614,6 +1616,43 @@ int DaemonCore::HandleReq(int socki)
 		// in UDP we cannot display who the command is from until 
 		// we read something off the socket, so we display who from 
 		// after we read the command below...
+
+		dprintf ( D_SECURITY, "DC_AUTH: checking for md5...\n");
+		const char * sess_id = ((SafeSock*)stream)->isIncomingDataMD5ed();
+		if (sess_id) {
+			dprintf ( D_SECURITY, "DC_AUTH: looking for session %s...\n", sess_id);
+			char * sid = strdup(sess_id);
+			KeyCacheEntry *session = NULL;
+			bool found_sess = sec_man->enc_key_cache->lookup(sid, session);
+
+			if (!found_sess) {
+				dprintf ( D_SECURITY, "DC_AUTH: session %s NOT FOUND...\n", sess_id);
+				// no session... we outta here!
+				result = FALSE;
+				goto finalize;
+			}
+
+			dprintf ( D_SECURITY, "DC_AUTH: session %s is here...\n", sess_id);
+
+			if (!session->key()) {
+				dprintf ( D_SECURITY, "DC_AUTH: session %s is missing the key!\n", sess_id);
+				// uhm, there should be a key here!
+				result = FALSE;
+				goto finalize;
+			}
+
+			if (!stream->set_MD_mode(MD_ALWAYS_ON, session->key())) {
+				dprintf (D_ALWAYS, "DC_AUTHENTICATE: unable to turn on message authenticator, failing.\n");
+				result = FALSE;
+				goto finalize;
+			} else {
+				dprintf (D_SECURITY, "DC_AUTHENTICATE: message authenticator enabled with key id %s.\n", sid);
+#ifdef SECURITY_HACK_ENABLE
+				zz2printf (session->key());
+#endif
+			}
+			delete sid;
+		}
 	}
 	
 	// read in the command from the stream with a timeout value of 20 seconds
@@ -1754,7 +1793,7 @@ int DaemonCore::HandleReq(int socki)
 
 
 			// lookup the suggested key
-			if (sec_man->enc_key_cache->lookup(the_sid, session) != 0) {
+			if (!sec_man->enc_key_cache->lookup(the_sid, session)) {
 
 				// the key id they sent was not in our cache.  this is a
 				// problem.

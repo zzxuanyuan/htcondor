@@ -36,7 +36,6 @@
 #include "my_hostname.h"
 #include "internet.h"
 #include "HashTable.h"
-#include "KeyCache.h"
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
 
 

@@ -42,7 +42,7 @@ class KeyCacheEntry {
     KeyCacheEntry(const KeyCacheEntry &copy);
     ~KeyCacheEntry();
 
-	KeyCacheEntry& operator=(const KeyCacheEntry &kc);
+	const KeyCacheEntry& operator=(const KeyCacheEntry &kc);
 
     char*                 id();
     struct sockaddr_in *  addr();
@@ -53,6 +53,7 @@ class KeyCacheEntry {
  private:
 
 	void delete_storage();
+	void copy_storage(const KeyCacheEntry &);
 
     char *               _id;
     struct sockaddr_in * _addr;
@@ -68,8 +69,7 @@ public:
 	KeyCache(int nbuckets);
 	KeyCache(const KeyCache&);
 	~KeyCache();
-	
-	KeyCache& operator=(const KeyCache&);
+	const KeyCache& operator=(const KeyCache&);
 
 	bool insert(char *key_id, KeyCacheEntry&);
 	bool lookup(char *key_id, KeyCacheEntry*&);

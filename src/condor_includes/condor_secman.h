@@ -73,7 +73,10 @@ public:
 	static KeyCache* enc_key_cache;
 	static int enc_key_daemon_ref_count;
 
-	SecMan();
+	SecMan(int numbuckets = 101);
+	SecMan(const SecMan &);
+	~SecMan();
+	const SecMan & operator=(const SecMan &);
 
 	bool SecMan::startCommand( int cmd, Sock* sock, bool can_neg = true, int subcmd = 0);
 

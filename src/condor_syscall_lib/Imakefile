@@ -227,7 +227,7 @@ CPP_UTIL_OBJ = condor_version.o
 
 CONDOR_TYPE_OBJ = sig_num.o proc.o open_flags.o fcntl_cmd.o
 
-IO_OBJ = stream.o sock.o safe_sock.o buffers.o $(CONDOR_TYPE_OBJ) condor_rw.o reli_sock_no_auth.o SafeMsg.o ../condor_util_lib/get_random_num.o 
+IO_OBJ = stream.o sock.o safe_sock.o reli_sock.o buffers.o $(CONDOR_TYPE_OBJ) condor_rw.o SafeMsg.o
 
 #if CONDOR_ENCRYPTION
 
@@ -246,9 +246,9 @@ PLATFORM_MD_OBJ = PlatformMdObj
 #else
 #error YOU MUST DEFINE PlatformMdObj IF YOU WANT TO USE ENCRYPTION
 #endif
-CONDOR_MD_OBJ = condor_md.o $(OPENSSL_MD_OBJ) $(PLATFORM_MD_OBJ)
+CONDOR_MD_OBJ = ../condor_c++_util/condor_md.o $(OPENSSL_MD_OBJ) $(PLATFORM_MD_OBJ)
 
-   CONDOR_CRYPT_OBJ = condor_crypt.o $(CONDOR_DES_OBJ) $(CONDOR_BLOWFISH_OBJ) $(CONDOR_MD_OBJ)
+CONDOR_CRYPT_OBJ = condor_crypt.o ../condor_util_lib/get_random_num.o $(CONDOR_DES_OBJ) $(CONDOR_BLOWFISH_OBJ) $(CONDOR_MD_OBJ)
 
 #endif /* CONDOR_ENCRYPTION */
 
@@ -567,25 +567,25 @@ import(../condor_shadow.V6, pseudo_ops.h)
 import(../condor_ckpt,libcondorc++support.a)
 import( ZLibPath , libz.a )
 
-authentication.o: authentication.C
+authentication.o: ../condor_io/authentication.C
 	$(CPlusPlus) $(C_PLUS_FLAGS) -I$(OpenSSLIncludePath) -I../condor_io \
-		-DSKIP_AUTHENTICATION -c authentication.C
+		-DSKIP_AUTHENTICATION -c ../condor_io/authentication.C
 
-condor_crypt_3des.o: condor_crypt_3des.C
+condor_crypt_3des.o: ../condor_io/condor_crypt_3des.C
 	$(CPlusPlus) $(C_PLUS_FLAGS) -I$(OpenSSLIncludePath) -I../condor_io \
-		-DSKIP_AUTHENTICATION -c condor_crypt_3des.C
+		-DSKIP_AUTHENTICATION -c ../condor_io/condor_crypt_3des.C
 
-condor_crypt_blowfish.o: condor_crypt_blowfish.C
+condor_crypt_blowfish.o: ../condor_io/condor_crypt_blowfish.C
 	$(CPlusPlus) $(C_PLUS_FLAGS) -I$(OpenSSLIncludePath) -I../condor_io \
-		-DSKIP_AUTHENTICATION -c condor_crypt_blowfish.C
+		-DSKIP_AUTHENTICATION -c ../condor_io/condor_crypt_blowfish.C
 
-CryptKey.o: CryptKey.C
+CryptKey.o: ../condor_io/CryptKey.C
 	$(CPlusPlus) $(C_PLUS_FLAGS) -I$(OpenSSLIncludePath) -I../condor_io \
-		-DSKIP_AUTHENTICATION -c CryptKey.C
+		-DSKIP_AUTHENTICATION -c ../condor_io/CryptKey.C
 
-condor_crypt.o: condor_crypt.C
+condor_crypt.o: ../condor_io/condor_crypt.C
 	$(CPlusPlus) $(C_PLUS_FLAGS) -I$(OpenSSLIncludePath) -I../condor_io \
-		-DSKIP_AUTHENTICATION -c condor_crypt.C
+		-DSKIP_AUTHENTICATION -c ../condor_io/condor_crypt.C
 
 #if DOES_COMPRESS_CKPT
 $(COMPRESS_LIB) : $(SYSCALL_LIB) $(COMPRESS_OBJ)
