@@ -2866,9 +2866,13 @@ GahpClient::condor_job_remove(const char *schedd_name, PROC_ID job_id)
 }
 
 int
-GahpClient::condor_job_complete(const char *schedd_name, PROC_ID job_id)
+GahpClient::condor_job_update(const char *schedd_name, PROC_ID job_id,
+//							  const ClassAd *update_ad)
+							  ClassAd *update_ad)
 {
-	static const char* command = "CONDOR_JOB_COMPLETE";
+	static const char* command = "CONDOR_JOB_UPDATE";
+
+	MyString ad_string;
 
 		// Check if this command is supported
 	if  (server->m_commands_supported->contains_anycase(command)==FALSE) {
@@ -2877,9 +2881,22 @@ GahpClient::condor_job_complete(const char *schedd_name, PROC_ID job_id)
 
 		// Generate request line
 	if (!schedd_name) schedd_name=NULLSTRING;
+	if (!update_ad) {
+		ad_string=NULLSTRING;
+	} else {
+		ClassAdXMLUnparser xml_unp;
+		xml_unp.SetUseCompactSpacing( true );
+		xml_unp.SetOutputType( false );
+		xml_unp.SetOutputTargetType( false );
+		xml_unp.Unparse( update_ad, ad_string );
+	}
 	MyString reqline;
-	bool x = reqline.sprintf("%s %d.%d", escapeGahpString(schedd_name),
-							 job_id.cluster, job_id.proc);
+	char *esc1 = strdup( escapeGahpString(schedd_name) );
+	char *esc2 = strdup( escapeGahpString(ad_string.Value()) );
+	bool x = reqline.sprintf("%s %d.%d %s", esc1, job_id.cluster, job_id.proc,
+							 esc2);
+	free( esc1 );
+	free( esc2 );
 	ASSERT( x == true );
 	const char *buf = reqline.Value();
 

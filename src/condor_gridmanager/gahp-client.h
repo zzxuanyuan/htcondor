@@ -421,7 +421,9 @@ class GahpClient : public Service {
 		condor_job_remove(const char *schedd_name, PROC_ID job_id);
 
 		int
-		condor_job_complete(const char *schedd_name, PROC_ID job_id);
+		condor_job_update(const char *schedd_name, PROC_ID job_id,
+//						  const ClassAd *update_ad);
+						  ClassAd *update_ad);
 
 #ifdef CONDOR_GLOBUS_HELPER_WANT_DUROC
 	// Not yet ready for prime time...
