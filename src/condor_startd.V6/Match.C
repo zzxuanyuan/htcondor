@@ -58,6 +58,7 @@ Match::Match( Resource* rip )
 	m_client = new Client;
 	m_cap = new Capability;
 	m_ad = NULL;
+	m_starter = NULL;
 	m_rank = 0;
 	m_oldrank = 0;
 	m_universe = -1;
@@ -70,6 +71,7 @@ Match::Match( Resource* rip )
 	m_job_start = -1;
 	m_last_pckpt = -1;
 	m_rip = rip;
+	m_is_deactivating = false;
 }
 
 
@@ -89,6 +91,9 @@ Match::~Match()
 	}
 	if( m_agentstream ) {
 		delete( m_agentstream );
+	}
+	if( m_starter ) {
+		delete( m_starter );
 	}
 
 }	
@@ -401,6 +406,186 @@ Match::capab( void )
 	} else {
 		return NULL;
 	}
+}
+
+
+
+int
+Match::spawnStarter( start_info_t* info, time_t now )
+{
+	int rval;
+	if( ! m_starter ) {
+			// Big error!
+		dprintf( D_ALWAYS, "ERROR! Match::spawnStarter() called "
+				 "w/o a Starter object! Returning failure\n" );
+		return 0;
+	}
+
+	rval = m_starter->spawn( info, now );
+
+		// Fake ourselves out so we take another snapshot in 15
+		// seconds, once the starter has had a chance to spawn the
+		// user job and the job as (hopefully) done any initial
+		// forking it's going to do.  If we're planning to check more
+		// often that 15 seconds, anyway, don't bother with this.
+	if( pid_snapshot_interval > 15 ) {
+		m_starter->set_last_snapshot( (now + 15) -
+									  pid_snapshot_interval );
+	} 
+	return rval;
+}
+
+
+void
+Match::setStarter( Starter* s )
+{
+	if( m_starter ) {
+		EXCEPT( "Match::setStarter() called with existing starter!" );
+	}
+	m_starter = s;
+	if( s ) {
+		s->setResource( this->m_rip );
+	}
+}
+
+
+void
+Match::starterExited( void )
+{
+		// Now that the starter is gone, we can clear this flag.
+	m_is_deactivating = false;
+
+		// Now we can actually delete the starter object, which will
+		// cancel any pending timers, and do other cleanup.
+	delete( m_starter );
+	m_starter = NULL;
+	
+		// finally, let our resource know that our starter exited, so
+		// it can do the right thing.
+	m_rip->starterExited( this );
+}
+
+
+bool
+Match::starterPidMatches( pid_t starter_pid )
+{
+	if( m_starter && m_starter->pid() == starter_pid ) {
+		return true;
+	}
+	return false;
+}
+
+
+bool
+Match::isActive( void )
+{
+	if( m_starter && m_starter->active() ) {
+		return true;
+	}
+	return false;
+}
+
+
+bool
+Match::deactivateClaim( bool graceful )
+{
+	if( isActive() ) {
+			// Set a flag to avoid a potential race in our
+			// protocol.  
+		m_is_deactivating = true;
+			// Singal the starter.
+		if( graceful ) {
+			return starterKillSoft();
+		} else {
+			return starterKillHard();
+		}
+	}
+	return true;
+}
+
+
+bool
+Match::suspendClaim( void )
+{
+	if( m_starter ) {
+		return (bool)m_starter->suspend();
+	}
+		// if there's no starter, we don't need to do anything, so
+		// it worked...  
+	return true;
+}
+
+
+bool
+Match::resumeClaim( void )
+{
+	if( m_starter ) {
+		return (bool)m_starter->resume();
+	}
+		// if there's no starter, we don't need to do anything, so
+		// it worked...  
+	return true;
+}
+
+
+bool
+Match::starterKill( int sig )
+{
+	if( m_starter ) {
+		return (bool)m_starter->kill( sig );
+	}
+		// if there's no starter, we don't need to kill anything, so
+		// it worked...  
+	return true;
+}
+
+
+bool
+Match::starterKillPg( int sig )
+{
+	if( m_starter ) {
+		return (bool)m_starter->killpg( sig );
+	}
+		// if there's no starter, we don't need to kill anything, so
+		// it worked...  
+	return true;
+}
+
+
+bool
+Match::starterKillSoft( void )
+{
+	if( m_starter ) {
+		return m_starter->killSoft();
+	}
+		// if there's no starter, we don't need to kill anything, so
+		// it worked...  
+	return true;
+}
+
+
+bool
+Match::starterKillHard( void )
+{
+	if( m_starter ) {
+		return m_starter->killHard();
+	}
+		// if there's no starter, we don't need to kill anything, so
+		// it worked...  
+	return true;
+}
+
+
+bool
+Match::periodicCheckpoint( void )
+{
+	if( m_starter ) {
+		if( ! m_starter->kill(DC_SIGPCKPT) ) { 
+			return false;
+		}
+	}
+	setlastpckpt( (int)time(NULL) );
+	return true;
 }
 
 

@@ -49,6 +49,7 @@
 #ifndef _MATCH_H
 #define _MATCH_H
 
+#include "Starter.h"
 
 class Capability
 {
@@ -145,11 +146,30 @@ public:
 	void setlastpckpt(int lastckpt) {m_last_pckpt=lastckpt;};
 	void setjobstart(int jobstart) 	{m_job_start=jobstart;};
 
+		// starter-related functions
+	int	 spawnStarter( start_info_t*, time_t );
+	void setStarter( Starter* s );
+	void starterExited( void );
+	bool starterPidMatches( pid_t starter_pid );
+	bool isActive( void );
+	bool isDeactivating( void ) 	{return m_is_deactivating;};
+	bool deactivateClaim( bool graceful );
+	bool suspendClaim( void );
+	bool resumeClaim( void );
+	bool starterKill( int sig );
+	bool starterKillPg( int sig );
+	bool starterKillSoft( void );
+	bool starterKillHard( void );
+
+
+	bool periodicCheckpoint( void );
+
 private:
 	Resource	*m_rip;
 	Client 		*m_client;
 	Capability 	*m_cap;
 	ClassAd*	m_ad;
+	Starter*	m_starter;
 	float		m_rank;
 	float		m_oldrank;
 	int			m_universe;
@@ -170,6 +190,9 @@ private:
 								// schedd has died and we need to
 								// release the claim.
 	int			m_aliveint;		// Alive interval for this match
+
+	bool	m_is_deactivating;	// Are we in the middle of deactivating a claim?
+
 };
 
 
