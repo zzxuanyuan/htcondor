@@ -670,6 +670,12 @@ JICShadow::initJobInfo( void )
 		return false;
 	}
 
+	if( job_ad->LookupInteger(ATTR_JOB_UNIVERSE, job_universe) < 1 ) {
+		dprintf( D_ALWAYS, 
+				 "Job doesn't specify universe, assuming VANILLA\n" ); 
+		job_universe = CONDOR_UNIVERSE_VANILLA;
+	}
+
 		// figure out if we're going to be using file transfer, and
 		// therefore, if we're going to want to change the job's iwd
 		// and so we know what filenames to use for stdin, stdout,
