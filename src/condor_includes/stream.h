@@ -59,7 +59,7 @@
 	* PROTOCOL:
 
 	The Stream base class defines the private protocol for all Streams.
-	This protocol consists of 6 virtual functions:
+	This protocol consists of 8 virtual functions:
 
 	1) Destructor()
 		- Local destructor.
@@ -88,6 +88,12 @@
 		- gets the next character in the stream without consuming it.
 		  returns 1 on success, 0 on error.
 
+	7) struct sockaddr_in *endpoint();
+		- get the sockaddr_in structure which defines the connections
+		peer address/port 
+
+	8) int get_port()
+		- get the IP port of the underlying socket
 
 	* CODE/PUT/GET:
 
@@ -122,7 +128,7 @@
  * already included condor_mach_status.h, otherwise leave alone.
  * this silliness is needed because other parts of the code use
  * an enumerated type which has CHECKPOINTING and SUSPENDED defined,
- * and g++ apparently handles enums via #defines behind the scence. -Todd 7/97
+ * and g++ apparently handles enums via #defines behind the scene. -Todd 7/97
  */
 #ifndef _MACH_STATUS
 #	include "sched.h"
@@ -288,8 +294,6 @@ public:
 	int get(char *&);
 	int get(char *&, int &);
 
-
-
 	/*
 	**	Stream protocol
 	*/
@@ -303,6 +307,13 @@ public:
 	virtual int get_ptr(void *&, char) { assert(0); return 0; }
 	virtual int peek(char &) { assert(0); return 0; }
 
+	// peer information operations (virtually defined by each stream)
+	//
+	virtual struct sockaddr_in *endpoint() { assert(0); return (struct sockaddr_in *)0; }
+
+	// local port information (virtually defined by each stream)
+	//
+	virtual int get_port() { assert(0); return 0; }
 
 	//	type operation
 	//
