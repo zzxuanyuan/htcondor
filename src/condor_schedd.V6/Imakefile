@@ -1,5 +1,5 @@
 NAME = condor_schedd
-all_target($(NAME) libqmgmt.a)
+all_target(libqmgmt.a $(NAME))
 
 C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS)
 CFLAGS = $(STD_C_FLAGS)
@@ -14,6 +14,8 @@ soapobjs(schedd)
 OBJ = schedd.o schedd_main.o $(QMGMT_OBJ) schedd_instantiate.o \
 	dedicated_scheduler.o grid_universe.o shadow_mgr.o autocluster.o \
 	loose_file_transfer.o schedd_api.o instantiate.o $(SOAP_OBJS)
+
+schedd_api.C: soap_scheddH.h
 
 $(QMGMT_LIB) : libqmgmt.a
 
