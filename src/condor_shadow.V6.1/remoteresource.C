@@ -1292,6 +1292,7 @@ RemoteResource::requestReconnect( void )
 		delete claim_sock;
 	}
 	claim_sock = rsock;
+	claim_sock->timeout( 300 );
 	daemonCore->Register_Socket( claim_sock, "RSC Socket", 
 				   (SocketHandlercpp)&RemoteResource::handleSysCalls, 
 				   "HandleSyscalls", this );
