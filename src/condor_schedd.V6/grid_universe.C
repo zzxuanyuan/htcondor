@@ -209,6 +209,25 @@ GridUniverseLogic::SendRemoveSignal(Service *)
 	return 0;
 }
 
+void
+GridUniverseLogic::signal_all(int sig)
+{
+	gman_node_t* gman_node = NULL;
+
+	// Iterate through our entire table and send the desired sig
+
+	if (gman_pid_table) {
+		gman_node_t* tmpnode;
+		gman_pid_table->startIterations();
+		while ( gman_pid_table->iterate(tmpnode) ) {
+			if (tmpnode->pid) {
+				daemonCore->Send_Signal(tmpnode->pid,sig);
+			}
+		}
+	}
+}
+
+
 int 
 GridUniverseLogic::GManagerReaper(Service *,int pid, int exit_status)
 {
