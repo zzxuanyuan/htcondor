@@ -100,11 +100,13 @@ int ADD_JOBS_signalHandler( int );
 int REMOVE_JOBS_signalHandler( int );
 
 
+// Job objects should call this function when they have changes that need
+// to be propagated to the schedd.
 // return value of true means requested update has been committed to schedd.
 // return value of false means requested update has been queued, but has not
 //   been committed to the schedd yet
 bool
-addScheddUpdateAction( BaseJob *job, int request_id )
+requestScheddUpdate( BaseJob *job, int request_id )
 {
 	ScheddUpdateAction *curr_action;
 
@@ -148,21 +150,6 @@ addScheddUpdateAction( BaseJob *job, int request_id )
 
 	return false;
 
-}
-
-void
-removeScheddUpdateAction( BaseJob *job ) {
-	ScheddUpdateAction *curr_action;
-
-	if ( completedScheddUpdates.lookup( job->procID, curr_action ) == 0 ) {
-		completedScheddUpdates.remove( job->procID );
-		delete curr_action;
-	}
-
-	if ( pendingScheddUpdates.lookup( job->procID, curr_action ) == 0 ) {
-		pendingScheddUpdates.remove( job->procID );
-		delete curr_action;
-	}
 }
 
 void

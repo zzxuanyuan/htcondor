@@ -311,7 +311,7 @@ int OracleJob::doEvaluateState()
 			if ( condorState == REMOVED || condorState == HELD ) {
 				gmState = GM_CANCEL;
 			} else {
-				done = addScheddUpdateAction( this, GM_SUBMIT_SAVE );
+				done = requestScheddUpdate( this, GM_SUBMIT_SAVE );
 				if ( !done ) {
 					break;
 				}
@@ -383,7 +383,7 @@ int OracleJob::doEvaluateState()
 					}
 					condorState = rc;
 					UpdateJobAdInt( ATTR_JOB_STATUS, condorState );
-					addScheddUpdateAction( this, 0 );
+					requestScheddUpdate( this, 0 );
 					if ( rc == RUNNING || rc == COMPLETED && !executeLogged ) {
 						WriteExecuteEventToUserLog( ad );
 						executeLogged = true;
@@ -399,7 +399,7 @@ int OracleJob::doEvaluateState()
 				if ( condorState != COMPLETED ) {
 					JobTerminated();
 				}
-				done = addScheddUpdateAction( this, GM_DONE_SAVE );
+				done = requestScheddUpdate( this, GM_DONE_SAVE );
 				if ( !done ) {
 					break;
 				}
@@ -421,7 +421,7 @@ int OracleJob::doEvaluateState()
 					remoteJobId = NULL;
 					UpdateJobAdString( ATTR_GLOBUS_CONTACT_STRING,
 									   NULL_JOB_CONTACT );
-					addScheddUpdateAction( this, 0 );
+					requestScheddUpdate( this, 0 );
 				}
 				gmState = GM_CLEAR_REQUEST;
 			}
@@ -446,7 +446,7 @@ int OracleJob::doEvaluateState()
 			remoteJobId = NULL;
 			UpdateJobAdString( ATTR_GLOBUS_CONTACT_STRING,
 							   NULL_JOB_CONTACT );
-			addScheddUpdateAction( this, 0 );
+			requestScheddUpdate( this, 0 );
 
 			if ( condorState == REMOVED ) {
 				gmState = GM_DELETE;
@@ -535,15 +535,15 @@ int OracleJob::doEvaluateState()
 			}
 			
 			// If there are no updates to be done when we first enter this
-			// state, addScheddUpdateAction will return done immediately
+			// state, requestScheddUpdate will return done immediately
 			// and not waste time with a needless connection to the
 			// schedd. If updates need to be made, they won't show up in
 			// schedd_actions after the first pass through this state
 			// because we modified our local variables the first time
 			// through. However, since we registered update events the
-			// first time, addScheddUpdateAction won't return done until
+			// first time, requestScheddUpdate won't return done until
 			// they've been committed to the schedd.
-			done = addScheddUpdateAction( this, GM_CLEAR_REQUEST );
+			done = requestScheddUpdate( this, GM_CLEAR_REQUEST );
 			if ( !done ) {
 				break;
 			}

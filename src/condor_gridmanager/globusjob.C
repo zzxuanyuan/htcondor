@@ -978,7 +978,7 @@ int GlobusJob::doEvaluateState()
 			if ( condorState == REMOVED || condorState == HELD ) {
 				gmState = GM_CANCEL;
 			} else {
-				done = addScheddUpdateAction( this, GM_SUBMIT_SAVE );
+				done = requestScheddUpdate( this, GM_SUBMIT_SAVE );
 				if ( !done ) {
 					break;
 				}
@@ -1245,7 +1245,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 			// Report job completion to the schedd.
 			if ( condorState != HELD && condorState != REMOVED ) {
 				JobTerminated();
-				done = addScheddUpdateAction( this, GM_DONE_SAVE );
+				done = requestScheddUpdate( this, GM_DONE_SAVE );
 				if ( !done ) {
 					break;
 				}
@@ -1288,7 +1288,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 					jobContact = NULL;
 					UpdateJobAdString( ATTR_GLOBUS_CONTACT_STRING,
 									   NULL_JOB_CONTACT );
-					addScheddUpdateAction( this, 0 );
+					requestScheddUpdate( this, 0 );
 				}
 				gmState = GM_CLEAR_REQUEST;
 			}
@@ -1434,7 +1434,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 			} break;
 		case GM_RESTART_SAVE: {
 			// Save the restarted jobmanager's contact string on the schedd.
-			done = addScheddUpdateAction( this, GM_RESTART_SAVE );
+			done = requestScheddUpdate( this, GM_RESTART_SAVE );
 			if ( !done ) {
 				break;
 			}
@@ -1471,7 +1471,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 					globusState = status;
 					UpdateJobAdInt( ATTR_GLOBUS_STATUS, status );
 					enteredCurrentGlobusState = time(NULL);
-					addScheddUpdateAction( this, 0 );
+					requestScheddUpdate( this, 0 );
 				}
 				gmState = GM_SUBMITTED;
 			}
@@ -1619,7 +1619,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 				jmVersion = GRAM_V_UNKNOWN;
 				UpdateJobAdInt( ATTR_GLOBUS_GRAM_VERSION,
 								jmVersion );
-				addScheddUpdateAction( this, 0 );
+				requestScheddUpdate( this, 0 );
 
 				if ( condorState == REMOVED ) {
 					gmState = GM_DELETE;
@@ -1773,15 +1773,15 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 			}
 			
 			// If there are no updates to be done when we first enter this
-			// state, addScheddUpdateAction will return done immediately
+			// state, requestScheddUpdate will return done immediately
 			// and not waste time with a needless connection to the
 			// schedd. If updates need to be made, they won't show up in
 			// schedd_actions after the first pass through this state
 			// because we modified our local variables the first time
 			// through. However, since we registered update events the
-			// first time, addScheddUpdateAction won't return done until
+			// first time, requestScheddUpdate won't return done until
 			// they've been committed to the schedd.
-			done = addScheddUpdateAction( this, GM_CLEAR_REQUEST );
+			done = requestScheddUpdate( this, GM_CLEAR_REQUEST );
 			if ( !done ) {
 				break;
 			}
@@ -2067,7 +2067,7 @@ void GlobusJob::UpdateGlobusState( int new_state, int new_error_code )
 		globusStateErrorCode = new_error_code;
 		enteredCurrentGlobusState = time(NULL);
 
-		addScheddUpdateAction( this, 0 );
+		requestScheddUpdate( this, 0 );
 
 		SetEvaluateState();
 	}

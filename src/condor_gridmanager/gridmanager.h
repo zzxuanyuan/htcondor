@@ -51,8 +51,7 @@ void Register();
 // maintainence
 void Reconfig();
 	
-bool addScheddUpdateAction( BaseJob *job, int request_id = 0 );
-void removeScheddUpdateAction( BaseJob *job );
+bool requestScheddUpdate( BaseJob *job, int request_id = 0 );
 
 
 #endif

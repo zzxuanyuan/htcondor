@@ -137,7 +137,7 @@ void BaseJob::JobRunning()
 			executeLogged = true;
 		}
 
-		addScheddUpdateAction( this, 0 );
+		requestScheddUpdate( this, 0 );
 	}
 }
 
@@ -152,7 +152,7 @@ void BaseJob::JobIdle()
 
 		UpdateRuntimeStats();
 
-		addScheddUpdateAction( this, 0 );
+		requestScheddUpdate( this, 0 );
 	}
 }
 
@@ -180,7 +180,7 @@ void BaseJob::JobTerminated()
 
 		UpdateRuntimeStats();
 
-		addScheddUpdateAction( this, 0 );
+		requestScheddUpdate( this, 0 );
 	}
 }
 
@@ -209,7 +209,7 @@ void BaseJob::DoneWithJob()
 			holdLogged = true;
 		}
 	}
-	addScheddUpdateAction( this, 0 );
+	requestScheddUpdate( this, 0 );
 }
 
 void BaseJob::JobHeld( const char *hold_reason )
@@ -240,7 +240,7 @@ void BaseJob::JobHeld( const char *hold_reason )
 			holdLogged = true;
 		}
 
-		addScheddUpdateAction( this, 0 );
+		requestScheddUpdate( this, 0 );
 	}
 }
 
@@ -255,7 +255,7 @@ void BaseJob::UpdateRuntimeStats()
 		int current_time = (int)time(NULL);
 		UpdateJobAdInt( ATTR_SHADOW_BIRTHDATE, current_time );
 
-		addScheddUpdateAction( this, 0 );
+		requestScheddUpdate( this, 0 );
 
 	} else if ( condorState != RUNNING && shadowBirthdate != 0 ) {
 
@@ -268,7 +268,7 @@ void BaseJob::UpdateRuntimeStats()
 		UpdateJobAd( ATTR_JOB_WALL_CLOCK_CKPT, "UNDEFINED" );
 		UpdateJobAdInt( ATTR_SHADOW_BIRTHDATE, 0 );
 
-		addScheddUpdateAction( this, 0 );
+		requestScheddUpdate( this, 0 );
 
 	}
 }
