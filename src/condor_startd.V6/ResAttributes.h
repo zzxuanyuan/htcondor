@@ -76,11 +76,14 @@ public:
 	int				phys_mem()	{ return m_phys_mem; };
 	unsigned long   virt_mem()	{ return m_virt_mem; };
 	unsigned long   disk()		{ return m_disk; };
+	float		load()			{ return m_load; };
+	float		condor_load()	{ return m_condor_load; };
 
 private:
 		// Dynamic info
 	float			m_load;
 	float			m_condor_load;
+	float			m_owner_load;
 	unsigned long   m_virt_mem;
 	unsigned long   m_disk;
 	time_t			m_idle;
@@ -114,8 +117,11 @@ public:
 	void publish( ClassAd*, amask_t );  // Publish desired info to given CA
 	void compute( amask_t );			  // Actually recompute desired stats
 
+		// Load average methods
 	float condor_load() { return c_condor_load; };
+	float owner_load() { return c_owner_load; };
 	float compute_condor_load();
+	void set_owner_load( float v ) { c_owner_load = v; };
 
 	void dprintf( int, char*, ... );
 
@@ -125,6 +131,7 @@ private:
 
 		// Dynamic info
 	float			c_condor_load;
+	float			c_owner_load;
 	unsigned long   c_virt_mem;
 	unsigned long   c_disk;
 

@@ -139,13 +139,6 @@ MachAttributes::compute( amask_t how_much )
 
 	if( IS_TIMEOUT(how_much) && IS_SUMMED(how_much) ) {
 		m_condor_load = resmgr->sum( Resource::condor_load );
-		float tmp = m_load - m_condor_load;
-		if( tmp < 0 ) {
-			tmp = 0;
-		}
-		dprintf( D_LOAD, 
-				 "SystemLoad: %.3f\tTotalCondorLoad: %.3f\tTotalOwnerLoad: %.3f\n",  
-				 m_load, m_condor_load, tmp );
 	}
 }
 
@@ -211,10 +204,10 @@ MachAttributes::publish( ClassAd* cp, amask_t how_much)
 
 	if( IS_TIMEOUT(how_much) || IS_PUBLIC(how_much) ) {
 
-		sprintf( line, "%s=%f", ATTR_LOAD_AVG, m_load );
+		sprintf( line, "%s=%f", ATTR_TOTAL_LOAD_AVG, m_load );
 		cp->Insert(line);
 		
-		sprintf( line, "%s=%f", ATTR_CONDOR_LOAD_AVG, m_condor_load );
+		sprintf( line, "%s=%f", ATTR_TOTAL_CONDOR_LOAD_AVG, m_condor_load );
 		cp->Insert(line);
 		
 		sprintf(line, "%s=%d", ATTR_CLOCK_MIN, m_clock_min );
@@ -338,6 +331,10 @@ CpuAttributes::publish( ClassAd* cp, amask_t how_much )
 
 		sprintf( line, "%s=%f", ATTR_CONDOR_LOAD_AVG, c_condor_load );
 		cp->Insert(line);
+
+		sprintf( line, "%s=%f", ATTR_LOAD_AVG, 
+				 (c_owner_load + c_condor_load) );
+		cp->Insert(line);
 	}		
 
 	if( IS_STATIC(how_much) || IS_PUBLIC(how_much) ) {
@@ -389,3 +386,4 @@ CpuAttributes::dprintf( int flags, char* fmt, ... )
 	rip->dprintf( flags, fmt, args );
 	va_end( args );
 }
+
