@@ -90,7 +90,7 @@ convert_ad_to_adStruct(struct soap *s,
 	  ad_struct->__ptr[attr_index].value = (char *) soap_malloc(s, strlen(curr_ad->GetMyTypeName()));
 	  strcpy(ad_struct->__ptr[attr_index].value, curr_ad->GetMyTypeName());
   } else {
-	  ad_struct->__ptr[attr_index].value = curr_ad->GetMyTypeName();
+	  ad_struct->__ptr[attr_index].value = (char *) curr_ad->GetMyTypeName();
   }
   attr_index++;
   ad_struct->__ptr[attr_index].name = (char *) ATTR_TARGET_TYPE;
@@ -99,7 +99,7 @@ convert_ad_to_adStruct(struct soap *s,
 	  ad_struct->__ptr[attr_index].value = (char *) soap_malloc(s, strlen(curr_ad->GetTargetTypeName()));
 	  strcpy(ad_struct->__ptr[attr_index].value, curr_ad->GetTargetTypeName());
   } else {
-	  ad_struct->__ptr[attr_index].value = curr_ad->GetTargetTypeName();
+	  ad_struct->__ptr[attr_index].value = (char *) curr_ad->GetTargetTypeName();
   }
   attr_index++;
   // And, ServerTime...
@@ -186,7 +186,16 @@ convert_ad_to_adStruct(struct soap *s,
     if ( skip_attr ) continue;
 
     // serialize the attribute name, and finally increment our counter.
-    ad_struct->__ptr[attr_index].name = ((Variable*)tree->LArg())->Name();
+	if (isDeepCopy) {
+			//ad_struct->__ptr[attr_index].name =
+			//(char *) soap_malloc(s, strlen(((Variable*)tree->LArg())->Name()));
+			//strcpy(ad_struct->__ptr[attr_index].name,
+			//((Variable*)tree->LArg())->Name());
+		ad_struct->__ptr[attr_index].name =
+			strdup(((Variable*)tree->LArg())->Name());
+	} else {
+		ad_struct->__ptr[attr_index].name = ((Variable*)tree->LArg())->Name();
+	}
     attr_index++;
     ad_struct->__size = attr_index;
   }
