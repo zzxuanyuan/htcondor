@@ -461,13 +461,13 @@ int MirrorJob::doEvaluateState()
 				EXCEPT( "DCSchedd::locate failed for our own schedd!" );
 			}
 
-// vacateJobs isn't defined yet
-//			rval = schedd->vacateJobs( job_ids, &errstack );
+			rval = schedd->vacateJobs( job_ids, VACATE_FAST, &errstack );
 			if ( rval == NULL ||
 				 !rval->LookupInteger(ATTR_ACTION_RESULT, result) ||
 				 !result ) {
 				EXCEPT( "vacateJobs failed" );
 			}
+			delete rval;
 
 			gmState = GM_SUBMITTED_MIRROR_ACTIVE;
 			} break;
