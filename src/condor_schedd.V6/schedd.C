@@ -1837,12 +1837,88 @@ int Scheduler::aboutToSpawnJobHandler(int cluster, int proc)
 	FreeJobAd(job_ad);
 	job_ad = 0;
 #else	/* WIN32 */
+
 // #    error "directory chowning on Win32.  Do we need it?"
+
 #endif
 	return 0;
 }
 
 
+int
+jobIsTerminalStatic( int cluster, int proc, void* this_scheduler )
+{
+	ASSERT(this_scheduler);
+	Scheduler * s = (Scheduler*)this_scheduler;
+	return s->jobIsTerminal(cluster, proc);
+}
+
+
+int
+Scheduler::jobIsTerminal(int cluster, int proc)
+{
+		// this is (roughly) the inverse of aboutToSpawnHandler().
+		// this method gets called whenever the job enters a terminal
+		// job state (REMOVED or COMPLETED) and the job handler has
+		// finally exited.  this is where we should do any clean-up we
+		// want now that the job is never going to leave this state...
+
+	ASSERT( cluster > 0 );
+	ASSERT( proc >= 0 );
+
+#ifndef WIN32
+
+	ClassAd * job_ad = GetJobAd( cluster, proc );
+	ASSERT( job_ad ); // No job ad?
+	if( JobIsSandboxed(job_ad) ) {
+		MyString sandbox;
+		if( GetSandbox(cluster, proc, sandbox) ) {
+			uid_t src_uid = 0;
+			uid_t dst_uid = get_condor_uid();
+			gid_t dst_gid = get_condor_gid();
+
+			MyString owner, domain;
+			job_ad->LookupString( ATTR_OWNER, owner );
+			job_ad->LookupString( ATTR_NT_DOMAIN, domain );
+			if( get_user_uid_gid(owner.Value(), domain.Value(),
+								 &src_uid, NULL) )
+			{
+				if( ! recursive_chown(sandbox.Value(), src_uid,
+									  dst_uid, dst_gid, true) )
+				{
+					dprintf( D_ALWAYS, "(%d.%d) Failed to chown %s from "
+							 "%d to %d.%d.  User may run into permissions "
+							 "problems when fetching sandbox.\n", 
+							 cluster, proc, sandbox.Value(),
+							 src_uid, dst_uid, dst_gid );
+				}
+			} else {
+				dprintf( D_ALWAYS, "(%d.%d) Failed to identify associated "
+						 "UID and GID for user %s.  Cannot chown \"%s\".  "
+						 "User may run into permissions problems when "
+						 "fetching job sandbox.\n", cluster, proc,
+						 owner.Value(), sandbox.Value() );
+			}
+		} else {
+			dprintf( D_ALWAYS, "(%d.%d) Failed to find sandbox for this "
+					 "job.  Cannot chown sandbox to user.  User may run "
+					 "into permissions problems when fetching sandbox.\n",
+					 cluster, proc );
+		}
+	}
+	FreeJobAd( job_ad );
+	job_ad = NULL;
+
+#else	/* WIN32 */
+
+// #    error "directory chowning on Win32.  Do we need it?"
+
+#endif
+
+	// release dynamic accounts here
+
+	return 0;
+}
 
 
 // Initialize a UserLog object for a given job and return a pointer to

@@ -206,7 +206,9 @@ class Scheduler : public Service
 
 	static int		aboutToSpawnJobHandlerStatic(int cluster, int proc, void * this_scheduler);
 	static int		aboutToSpawnJobHandler(int cluster, int proc);
-
+	static int		jobIsTerminal( int cluster, int proc );
+	static int		jobIsTerminalStatic( int cluster, int proc,
+										 void* this_scheduler );
 
 	// match managing
     match_rec*      AddMrec(char*, char*, PROC_ID*, const ClassAd*, char*, char*);
