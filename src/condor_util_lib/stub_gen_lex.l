@@ -64,6 +64,7 @@ fcntl_cmd_t			return grab( TYPE_NAME );
 signal_t			return grab( TYPE_NAME );
 fd_set				return grab( TYPE_NAME );
 nfds_t				return grab( TYPE_NAME );
+time_t				return grab( TYPE_NAME );
 MMAP_T				return grab( TYPE_NAME );
 PROC				return grab( TYPE_NAME );
 STARTUP_INFO		return grab( TYPE_NAME );
