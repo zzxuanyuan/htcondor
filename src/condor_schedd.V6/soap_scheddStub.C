@@ -737,33 +737,38 @@ condorSchedd__listSpool(struct soap * soap,
                         int jobId,
                         struct condorSchedd__FileInfoArrayAndStatusResponse & result)
 {
-  dprintf(D_ALWAYS,"SOAP entering condorSchedd__listSpool() \n");
+	dprintf(D_ALWAYS,"SOAP entering condorSchedd__listSpool() \n");
 
-  if (!valid_transaction(transaction) &&
-      !null_transaction(transaction)) {
-    // TODO error - unrecognized transactionId
-    result.response.status.code = INVALIDTRANSACTION;
-  } else {
-    extendTransaction(transaction);
+	if (!valid_transaction(transaction) &&
+		!null_transaction(transaction)) {
+// TODO error - unrecognized transactionId
+		result.response.status.code = INVALIDTRANSACTION;
+	} else {
+		extendTransaction(transaction);
 
-    Job *job;
-    if (getJob(clusterId, jobId, job)) {
-      result.response.status.code = UNKNOWNJOB;
-    } else {
-      List<FileInfo> files;
-      if (job->get_spool_list(files)) {
-        result.response.status.code = FAIL;
-      } else {
-        if (convert_FileInfoList_to_Array(soap, files, result.response.info)) {
-          result.response.status.code = SUCCESS;
-        } else {
-          result.response.status.code = FAIL;
-        }
-      }
-    }
-  }
+		Job *job;
+		if (getJob(clusterId, jobId, job)) {
+			result.response.status.code = UNKNOWNJOB;
+			dprintf(D_ALWAYS, "listSpool: UNKNOWNJOB\n");
+		} else {
+			List<FileInfo> files;
+			int code;
+			if (code = job->get_spool_list(files)) {
+				result.response.status.code = FAIL;
+				dprintf(D_ALWAYS, "listSpool: get_spool_list FAILED -- %d\n", code);
+			} else {
+				if (convert_FileInfoList_to_Array(soap, files, result.response.info)) {
+					result.response.status.code = SUCCESS;
+					dprintf(D_ALWAYS, "listSpool: SUCCESS\n");
+				} else {
+					result.response.status.code = FAIL;
+					dprintf(D_ALWAYS, "listSpool: convert_FileInfoList_to_Array FAILED\n");
+				}
+			}
+		}
+	}
 
-  return SOAP_OK;
+	return SOAP_OK;
 }
 
 int

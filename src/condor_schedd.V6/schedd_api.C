@@ -101,26 +101,27 @@ FileInfo::~FileInfo()
 int
 Job::get_spool_list(List<FileInfo> & file_list)
 {
-  Directory directory(spoolDirectory->GetCStr());
-  if (directory.IsDirectory()) {
-    const char * name;
-    FileInfo *info;
-    while (NULL != (name = directory.Next())) {
-      // XXX: What is MyString(name) fails?
-      info = new FileInfo(MyString(name), directory.GetFileSize());
-      if (info) {
-        if (!file_list.Append(info)) {
-          return 3;
-        } else {
-          return 2;
-        }
-      }
-    }
+	StatInfo directoryInfo(spoolDirectory->GetCStr());
+	if (directoryInfo.IsDirectory()) {
+		Directory directory(spoolDirectory->GetCStr());
+		const char * name;
+		FileInfo *info;
+		while (NULL != (name = directory.Next())) {
+				// XXX: What is MyString(name) fails?
+			info = new FileInfo(MyString(name), directory.GetFileSize());
+			if (info) {
+				if (!file_list.Append(info)) {
+					return 2;
+				}
+			}
+		}
 
-    return 0;
-  } else {
-    return 1;
-  }
+		return 0;
+	} else {
+		dprintf(D_ALWAYS, "spoolDirectory == '%s'\n", spoolDirectory->GetCStr());
+
+		return 1;
+	}
 }
 
 int
