@@ -208,11 +208,14 @@ Authentication::setupEnv( char *hostAddr )
 	//server should be parsed in schedd from config file.
 
 	if ( mySock->isClient() ) {
-		(int) canUseFlags |= (int) CAUTH_CLAIMTOBE;
+		canUseFlags = Authentication::authentication_state( canUseFlags | 
+			CAUTH_CLAIMTOBE );
 #if defined(WIN32)
-		(int) canUseFlags |= (int) CAUTH_NT;
+		canUseFlags = Authentication::authentication_state( canUseFlags | 
+			CAUTH_NT );
 #else
-		(int) canUseFlags |= (int) CAUTH_FILESYSTEM;
+		canUseFlags = Authentication::authentication_state( canUseFlags | 
+			CAUTH_FILESYSTEM );
 #endif
 
 	}
@@ -475,22 +478,22 @@ Authentication::selectAuthenticationType( int clientCanUse )
 
 	server.rewind();
 	while ( tmp = server.next() ) {
-		if ( ( clientCanUse & CAUTH_GSS ) && !stricmp( tmp, "GSS" ) ) {
+		if ( ( clientCanUse & CAUTH_GSS ) && !strcasecmp( tmp, "GSS" ) ) {
 			retval = CAUTH_GSS;
 			break;
 		}
 #if defined(WIN32)
-		if ( ( clientCanUse & CAUTH_NTSSPI ) && !stricmp( tmp, "NTSSPI" ) ) {
+		if ( ( clientCanUse & CAUTH_NTSSPI ) && !strcasecmp( tmp, "NTSSPI" ) ){
 			retval = CAUTH_NTSSPI;
 			break;
 		}
 #else
-		if ( ( clientCanUse & CAUTH_FILESYSTEM ) && !stricmp( tmp, "FS" ) ) {
+		if ( ( clientCanUse & CAUTH_FILESYSTEM ) && !strcasecmp( tmp, "FS" ) ) {
 			retval = CAUTH_FILESYSTEM;
 			break;
 		}
 #endif
-		if ( ( clientCanUse & CAUTH_CLAIMTOBE ) && !stricmp( tmp, "CLAIMTOBE" ) )
+		if ( ( clientCanUse & CAUTH_CLAIMTOBE ) && !strcasecmp(tmp,"CLAIMTOBE"))
 		{
 			retval = CAUTH_CLAIMTOBE;
 			break;
