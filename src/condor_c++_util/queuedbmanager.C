@@ -43,7 +43,7 @@
 #define _DEBUG_
 #endif
 
-//extern ODBC *DBObj;
+extern ODBC *DBObj;
 
 
 //! constructor
@@ -52,6 +52,7 @@ QueueDBManager::QueueDBManager()
 	// 
 	// Ultimately this two string must be gotten from configuration file
 	//
+  initialized = FALSE;
 	jobQueueDBConn = NULL;
 
 		//
@@ -60,7 +61,7 @@ QueueDBManager::QueueDBManager()
 #ifdef _REMOTE_DB_CONNECTION_
 	//	jobQueueLogFile = strdup("/scratch/condor/spool/job_queue.log");
 	printf( "storing remote database\n");
-	db_handle = new ODBC();
+	//db_handle = new ODBC();
 	//jobQueueDBConn = strdup("host=ad16.cs.wisc.edu port=5432 dbname=jqmon");
 	//	jobQueueDBConn = strdup("host=nighthawk.cs.wisc.edu dbname=jqmon");
 #else
@@ -85,12 +86,13 @@ QueueDBManager::~QueueDBManager()
   //if (jqDatabase != NULL)
   //	delete jqDatabase;
 
+  initialized = FALSE;
 		// release strings
 	if (jobQueueDBConn != NULL)
 		free(jobQueueDBConn);
 	if (multi_sql_str != NULL)
 		free(multi_sql_str);
-	delete db_handle;
+	//delete db_handle;
 }
 
 //**************************************************************************
@@ -125,7 +127,7 @@ QueueDBManager::cleanupJobQueueDB()
 		"DELETE FROM History_Horizontal;");
 
 	for (i = 0; i < sqlNum; i++) {
-		if (db_handle->odbc_sqlstmt(sql_str[i]) < 0) {
+		if (DBObj->odbc_sqlstmt(sql_str[i]) < 0) {
 			displayDBErrorMsg("Clean UP ALL Data --- ERROR");
 			return 0; // return a error code, 0
 		}
@@ -148,7 +150,7 @@ QueueDBManager::tuneupJobQueueDB()
 		"VACUUM;");
 
 	for (i = 0; i < sqlNum; i++) {
-		if (db_handle->odbc_sqlstmt(sql_str[i]) < 0) {
+		if (DBObj->odbc_sqlstmt(sql_str[i]) < 0) {
 			displayDBErrorMsg("VACUUM Database --- ERROR");
 			return 0; // return a error code, 0
 		}
@@ -166,8 +168,9 @@ QueueDBManager::tuneupJobQueueDB()
 int
 QueueDBManager::connectDB(int  Xact)
 {
-  db_handle->odbc_connect("condor", "scidb", ""); // connect to DB
-  return db_handle->isConnected();
+   return 1;
+  //db_handle->odbc_connect("condor", "scidb", ""); // connect to DB
+  //return db_handle->isConnected();
   //return DBObj->isConnected();
 
   /*if (jqDatabase->connectDB(jobQueueDBConn) == 0) // connect to DB
@@ -192,8 +195,9 @@ QueueDBManager::connectDB(int  Xact)
 int
 QueueDBManager::disconnectDB(int commit)
 {
-  db_handle->odbc_disconnect();
-  return 0;  //since its a non-Xact see above function description
+  return 1;
+  //db_handle->odbc_disconnect();
+  //return 0;  //since its a non-Xact see above function description
 
   /*if (commit == COMMIT_XACT) {
     if (xactState != BEGIN_XACT) {
@@ -338,7 +342,7 @@ QueueDBManager::processHistoryAd(ClassAd *ad) {
 
   sprintf(sql_str1, 
 	  "INSERT INTO History_Horizontal(cid, pid) VALUES(%d, %d);", cid, pid);
-  if (db_handle->odbc_sqlstmt(sql_str1) < 0) {
+  if (DBObj->odbc_sqlstmt(sql_str1) < 0) {
     displayDBErrorMsg("History Ad Processing --- ERROR");
     return 0; // return a error code, 0
   }
@@ -395,7 +399,7 @@ QueueDBManager::processHistoryAd(ClassAd *ad) {
       }
       
       //dprintf(D_ALWAYS, "in the processHistoryClassAd before database write\n");
-      if (db_handle->odbc_sqlstmt(sql_str1) < 0) {
+      if (DBObj->odbc_sqlstmt(sql_str1) < 0) {
 	displayDBErrorMsg("History Ad Processing --- ERROR");
 	//if(fp) fclose(fp);
 	//return 0; // return a error code, 0
@@ -409,6 +413,7 @@ QueueDBManager::processHistoryAd(ClassAd *ad) {
   
   return 1;
 }
+
 
 
 
@@ -595,15 +600,15 @@ QueueDBManager::processNewClassAd(const char* key, const char* mytype, const cha
   
   
   if (exec_later == false) { // execute them now
-    if (db_handle->odbc_sqlstmt(sql_str1) < 0) {
+    if (DBObj->odbc_sqlstmt(sql_str1) < 0) {
       displayDBErrorMsg("New ClassAd Processing --- ERROR");
       return 0; // return a error code, 0
     }
-    if (db_handle->odbc_sqlstmt(sql_str2) < 0) {
+    if (DBObj->odbc_sqlstmt(sql_str2) < 0) {
       displayDBErrorMsg("New ClassAd Processing --- ERROR");
       return 0; // return a error code, 0
     }
-    if (db_handle->odbc_sqlstmt(sql_str3) < 0) {
+    if (DBObj->odbc_sqlstmt(sql_str3) < 0) {
       displayDBErrorMsg("New ClassAd Processing --- ERROR");
       return 0; // return a error code, 0
     }
@@ -673,11 +678,11 @@ QueueDBManager::processDestroyClassAd(const char* key, bool exec_later)
 	}
 
 	if (exec_later == false) { 
-		if (db_handle->odbc_sqlstmt(sql_str1) < 0) {
+		if (DBObj->odbc_sqlstmt(sql_str1) < 0) {
 			displayDBErrorMsg("Destroy ClassAd Processing --- ERROR");
 			return 0; // return a error code, 0
 		}
-		if (db_handle->odbc_sqlstmt(sql_str2) < 0) {
+		if (DBObj->odbc_sqlstmt(sql_str2) < 0) {
 			displayDBErrorMsg("Destroy ClassAd Processing --- ERROR");
 			return 0; // return a error code, 0
 		}
@@ -770,7 +775,7 @@ QueueDBManager::processSetAttribute(const char* key, const char* name, const cha
 	
 	int ret_st = 0;
 	if (exec_later == false) {
-	  ret_st = db_handle->odbc_sqlstmt(sql_str_del_in);
+	  ret_st = DBObj->odbc_sqlstmt(sql_str_del_in);
 	  
 	  if (ret_st < 0) {
 	    fprintf(stdout, "[SQL] %s\n", sql_str_del_in);
@@ -858,7 +863,7 @@ QueueDBManager::processDeleteAttribute(const char* key, const char* name, bool e
   
   if (sql_str != NULL) {
     if (exec_later == false) {
-      ret_st = db_handle->odbc_sqlstmt(sql_str);
+      ret_st = DBObj->odbc_sqlstmt(sql_str);
       
       if (ret_st < 0) {
 	fprintf(stdout, "[SQL] %s\n", sql_str);
@@ -915,7 +920,9 @@ QueueDBManager::processEndTransaction()
 int
 QueueDBManager::init(bool initJQDB)
 {
-  if (initJQDB == true) { // initialize Job Queue DB
+  initialized = TRUE;
+  return 1;
+  /*if (initJQDB == true) { // initialize Job Queue DB
     if (checkSchema() == 0)
       return 0;
     //prober->probe();
@@ -924,6 +931,7 @@ QueueDBManager::init(bool initJQDB)
   }
   else
     return checkSchema();
+  */
 }
 
 
