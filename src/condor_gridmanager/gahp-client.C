@@ -696,6 +696,7 @@ GahpServer::Initialize(const char *proxy_path)
 	}
 
 	master_proxy->cached_expiration = master_proxy->proxy->expiration_time;
+	current_proxy = master_proxy;
 
 	is_initialized = true;
 
@@ -795,6 +796,7 @@ GahpServer::useCachedProxy( GahpProxyInfo *new_proxy, bool force )
 		check_proxy = current_proxy;
 	} else if ( new_proxy == GAHPCLIENT_CACHE_DEFAULT_PROXY ) {
 		check_proxy = master_proxy;
+		new_proxy = master_proxy;
 	}
 
 		// Check if the new current proxy has been updated. If so,
@@ -820,7 +822,9 @@ GahpServer::useCachedProxy( GahpProxyInfo *new_proxy, bool force )
 		return false;
 	}
 
-	current_proxy = new_proxy;
+	if ( new_proxy != GAHPCLIENT_CACHE_LAST_PROXY ) {
+		current_proxy = new_proxy;
+	}
 
 	return true;
 }
@@ -2164,7 +2168,7 @@ GahpClient::gt3_gram_client_job_create(
 	char ** job_contact)
 {
 
-	static const char* command = "GT3_GRAM_JOB_REQUEST";
+	static const char* command = "GT3_GRAM_JOB_CREATE";
 
 		// Check if this command is supported
 	if  (server->m_commands_supported->contains_anycase(command)==FALSE) {

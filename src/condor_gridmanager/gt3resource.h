@@ -96,7 +96,7 @@ class GT3Resource : public BaseResource
 	int jobLimit;			// max number of submitted jobs
 	static int gahpCallTimeout;
 
-	GahpClient gahp;
+	GahpClient *gahp;
 };
 
 #endif

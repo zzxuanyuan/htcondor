@@ -638,6 +638,8 @@ int GT3Job::doEvaluateState()
 				break;
 			}
 
+			gahp->setMode( GahpClient::normal );
+
 			gmState = GM_START;
 			} break;
 		case GM_START: {
@@ -674,6 +676,9 @@ int GT3Job::doEvaluateState()
 			} break;
 		case GM_REGISTER: {
 			// Register for callbacks from an already-running jobmanager.
+// callback_register isn't working yet
+gmState = GM_CANCEL;
+break;
 			CHECK_PROXY;
 			rc = gahp->gt3_gram_client_job_callback_register( jobContact,
 														gramCallbackContact );

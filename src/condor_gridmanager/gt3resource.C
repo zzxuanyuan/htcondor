@@ -61,9 +61,12 @@ GT3Resource::GT3Resource( const char *resource_name )
 								"GT3Resource::DoPing", (Service*)this );
 	lastPing = 0;
 	lastStatusChange = 0;
-	gahp.setNotificationTimerId( pingTimerId );
-	gahp.setMode( GahpClient::normal );
-	gahp.setTimeout( gahpCallTimeout );
+		// TODO This assumes that at least one GT3Job has already
+		// initialized the gahp server. Need a better solution.
+	gahp = new GahpClient( "GT3", GAHPCLIENT_DEFAULT_SERVER_PATH );
+	gahp->setNotificationTimerId( pingTimerId );
+	gahp->setMode( GahpClient::normal );
+	gahp->setTimeout( gahpCallTimeout );
 	submitLimit = DEFAULT_MAX_PENDING_SUBMITS_PER_RESOURCE;
 	jobLimit = DEFAULT_MAX_SUBMITTED_JOBS_PER_RESOURCE;
 
@@ -76,6 +79,9 @@ GT3Resource::~GT3Resource()
 {
 	ReleaseProxy( NULL, pingTimerId );
 	daemonCore->Cancel_Timer( pingTimerId );
+	if ( gahp != NULL ) {
+		delete gahp;
+	}
 }
 
 void GT3Resource::Reconfig()
@@ -84,7 +90,7 @@ void GT3Resource::Reconfig()
 
 	BaseResource::Reconfig();
 
-	gahp.setTimeout( gahpCallTimeout );
+	gahp->setTimeout( gahpCallTimeout );
 
 	submitLimit = -1;
 	param_value = param( "GRIDMANAGER_MAX_PENDING_SUBMITS_PER_RESOURCE" );
@@ -349,7 +355,7 @@ int GT3Resource::DoPing()
 		return TRUE;
 	}
 
-	rc = gahp.gt3_gram_client_ping( resourceName );
+	rc = gahp->gt3_gram_client_ping( resourceName );
 
 	if ( rc == GAHPCLIENT_COMMAND_PENDING ) {
 		return 0;

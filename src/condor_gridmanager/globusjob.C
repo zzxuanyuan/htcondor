@@ -719,6 +719,8 @@ int GlobusJob::doEvaluateState()
 				break;
 			}
 
+			gahp.setMode( GahpClient::normal );
+
 			gmState = GM_START;
 			} break;
 		case GM_START: {
