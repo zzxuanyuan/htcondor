@@ -27,6 +27,8 @@
 #include "condor_environ.h"
 #include "odbc.h"
 
+extern ODBC *DBObj;
+
 #define TYPE_STRING    1
 #define TYPE_NUMBER    2
 #define TYPE_TIMESTAMP 3
@@ -1672,7 +1674,7 @@ Resource::endCODLoadHack( void )
 int
 Resource::dbInsert( ClassAd *cl )
 {
-	ODBC *dbh = NULL;
+	ODBC *dbh = DBObj;
 	HashTable<MyString, MyString> newClAd(200, attHashFunction, updateDuplicateKeys);
 	char sql_stmt[1000];
 	int retcode;
@@ -1757,8 +1759,8 @@ Resource::dbInsert( ClassAd *cl )
 
 
 
-	dbh = new ODBC();
-	dbh->odbc_connect("PostgreSQL", "scidb", "");
+	//dbh = new ODBC();
+	//dbh->odbc_connect("condor", "scidb", "");
 
 	dbh->odbc_sqlstmt(sql_stmt);
 
@@ -1795,7 +1797,7 @@ Resource::dbInsert( ClassAd *cl )
 
 	}
 
-	dbh->odbc_disconnect();
+	//dbh->odbc_disconnect();
 
 
 

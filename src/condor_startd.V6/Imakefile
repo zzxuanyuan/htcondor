@@ -9,8 +9,11 @@ CFLAGS = $(STD_C_FLAGS)
 LDFLAGS = -framework IOKit -framework Carbon
 #endif
 
+ODBC_INCLUDE = /afs/cs.wisc.edu/u/j/h/jhuang/odbc/include
 
-C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS)
+C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS)  -I$(ODBC_INCLUDE)
+LDFLAGS = $(STD_LDFLAGS) -lrt -lpq -pg -L /afs/cs.wisc.edu/u/j/h/jhuang/odbc/lib -lodbc
+
 LIB= $(DAEMONCORE_LIB) $(STD_LIBS)
 
 OBJ = LoadQueue.o claim.o Reqexp.o ResAttributes.o ResMgr.o ResState.o \
