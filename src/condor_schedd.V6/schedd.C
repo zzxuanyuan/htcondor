@@ -4878,8 +4878,6 @@ Scheduler::add_shadow_rec( int pid, PROC_ID* job_id, match_rec* mrec, int fd )
 	new_rec->preempted = FALSE;
 	new_rec->removed = FALSE;
 	new_rec->conn_fd = fd;
-    new_rec->sinfulString = 
-        strnewp( daemonCore->InfoCommandSinfulString( pid ) );
 	new_rec->isZombie = FALSE; 
 	
 	if (pid) {
@@ -5125,8 +5123,6 @@ Scheduler::delete_shadow_rec(int pid)
 		shadowsByProcID->remove(rec->job_id);
 		if ( rec->conn_fd != -1 )
 			close(rec->conn_fd);
-        if ( rec->sinfulString ) 
-            delete [] rec->sinfulString;
 
 		delete rec;
 		numShadows -= 1;
