@@ -1267,22 +1267,24 @@ caRequestCODClaim( Stream *s, char* cmd_str, ClassAd* req_ad )
 		return sendErrorReply( s, cmd_str, err_msg.Value() );
 	}
 
-		// it worked!  just fill in the reply ad appropriated
-	ClassAd* reply;
-	reply = new ClassAd( *rip->r_classad );
+		// it worked!  just fill in the reply ad appropriately.
+  		// publish a complete ad (like what we'd send to the
+		// collector), and include the ClaimID 
+	ClassAd reply;
+	rip->publish( &reply, A_PUBLIC | A_ALL | A_EVALUATED );
+
 	MyString line;
 	line = ATTR_CLAIM_ID;
 	line += " = \"";
 	line += claim->id();
 	line += '"';
-	reply->Insert( line.Value() );
+	reply.Insert( line.Value() );
 	
 	line = ATTR_RESULT;
 	line += " = TRUE";
-	reply->Insert( line.Value() );
+	reply.Insert( line.Value() );
 
-	int rval = sendCAReply( s, cmd_str, reply );
-	delete reply;
+	int rval = sendCAReply( s, cmd_str, &reply );
 	return rval;
 }
 
