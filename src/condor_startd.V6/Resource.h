@@ -88,9 +88,6 @@ public:
 									// with Requirements = False.
 
 		// Methods to control various timers 
-	int		start_update_timer();	// Timer for updating CM. 
-	int		start_poll_timer();		// Timer for polling the resource
-	void	cancel_poll_timer();	//    when it's in use by Condor. 
 	int		start_kill_timer();		// Timer for how long we're willing to 
 	void	cancel_kill_timer();	//    be in preempting/killing state. 
 
@@ -119,16 +116,10 @@ private:
 	void make_public_ad( ClassAd* );
 	void make_private_ad( ClassAd* );
 
-	int		up_tid;		// DaemonCore timer id for update timer.
-	int		poll_tid;	// DaemonCore timer id for polling timer.
 	int		kill_tid;	// DaemonCore timer id for kiling timer.
 
 	int		did_update;		// Flag set when we do an update.
 	int		fast_shutdown;	// Flag set if we're in fast shutdown mode.
-
-	Sock*	coll_sock;		// Sock to the collector.
-	Sock* 	alt_sock;		// Sock to the alternate collector.
-
 };
 
 #endif _STARTD_RESOURCE_H
