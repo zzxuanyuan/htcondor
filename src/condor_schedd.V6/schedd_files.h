@@ -7,6 +7,7 @@
 
 // procad: the class ad for the job
 // preExec: called before job execution
-void schedd_files_DbIns(ClassAd *procad, bool preExec);
+// oldad: old ad that doesn't have macro replaced, e.g. $$(OPSYS)
+void schedd_files_DbIns(ClassAd *procad, bool preExec, ClassAd *oldAd = NULL);
 
 #endif
