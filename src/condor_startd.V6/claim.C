@@ -57,10 +57,10 @@ Claim::Claim( Resource* rip, bool is_cod )
 	c_job_start = -1;
 	c_last_pckpt = -1;
 	c_rip = rip;
-	c_state = CLAIM_UNCLAIMED;
 	c_is_cod = is_cod;
 	c_pending_cmd = -1;
 	c_wants_remove = false;
+	changeState( CLAIM_UNCLAIMED );
 }
 
 
@@ -165,6 +165,13 @@ Claim::publishCOD( ClassAd* ad )
 	line += "=\"";
 	line += getClaimStateString( c_state );
 	line += '"';
+	ad->Insert( line.Value() );
+
+	line = codId();
+	line += '_';
+	line += ATTR_ENTERED_CURRENT_STATE;
+	line += '=';
+	line += (int)c_entered_state;
 	ad->Insert( line.Value() );
 
 	if( c_client ) {
@@ -370,7 +377,7 @@ void
 Claim::beginClaim( void ) 
 {
 	ASSERT( c_state == CLAIM_UNCLAIMED );
-	c_state = CLAIM_IDLE;
+	changeState( CLAIM_IDLE );
 
 	if( ! c_is_cod ) {
 			// if we're an opportunistic claim, we want to start our
@@ -609,7 +616,7 @@ Claim::spawnStarter( time_t now, Stream* s )
 
 	rval = c_starter->spawn( now, s );
 
-	c_state = CLAIM_RUNNING; 
+	changeState( CLAIM_RUNNING );
 
 		// Fake ourselves out so we take another snapshot in 15
 		// seconds, once the starter has had a chance to spawn the
@@ -641,7 +648,7 @@ void
 Claim::starterExited( void )
 {
 		// Now that the starter is gone, we need to change our state
-	c_state = CLAIM_IDLE;
+	changeState( CLAIM_IDLE );
 
 		// Notify our starter object that its starter exited, so it
 		// can cancel timers any pending timers, cleanup the starter's
@@ -758,7 +765,8 @@ Claim::removeClaim( bool graceful )
 bool
 Claim::suspendClaim( void )
 {
-	c_state = CLAIM_SUSPENDED;
+	changeState( CLAIM_SUSPENDED );
+
 	if( c_starter ) {
 		return (bool)c_starter->suspend();
 	}
@@ -772,12 +780,13 @@ bool
 Claim::resumeClaim( void )
 {
 	if( c_starter ) {
-		c_state = CLAIM_RUNNING;
+		changeState( CLAIM_RUNNING );
 		return (bool)c_starter->resume();
 	}
 		// if there's no starter, we don't need to do anything, so
 		// it worked...  
-	c_state = CLAIM_IDLE;
+	changeState( CLAIM_IDLE );
+
 	return true;
 }
 
@@ -802,7 +811,7 @@ Claim::starterKillPg( int sig )
 	if( c_starter ) {
 			// if we're using KillPg, we're trying to hard-kill the
 			// starter and all its children
-		c_state = CLAIM_KILLING;
+		changeState( CLAIM_KILLING );
 		return (bool)c_starter->killpg( sig );
 	}
 		// if there's no starter, we don't need to kill anything, so
@@ -815,7 +824,7 @@ bool
 Claim::starterKillSoft( void )
 {
 	if( c_starter ) {
-		c_state = CLAIM_VACATING;
+		changeState( CLAIM_VACATING );
 		return c_starter->killSoft();
 	}
 		// if there's no starter, we don't need to kill anything, so
@@ -828,7 +837,7 @@ bool
 Claim::starterKillHard( void )
 {
 	if( c_starter ) {
-		c_state = CLAIM_KILLING;
+		changeState( CLAIM_KILLING );
 		return c_starter->killHard();
 	}
 		// if there's no starter, we don't need to kill anything, so
@@ -992,6 +1001,22 @@ Claim::resetClaim( void )
 	c_cluster = -1;
 	c_proc = -1;
 	c_job_start = -1;
+}
+
+
+void
+Claim::changeState( ClaimState s )
+{
+	if( c_state == s ) {
+		return;
+	}
+	c_state = s;
+	c_entered_state = time(NULL); 
+		// everytime a cod claim changes state, we want to update the
+		// collector. 
+	if( c_is_cod ) {
+		c_rip->update();
+	}
 }
 
 

@@ -207,6 +207,7 @@ public:
 
 	bool setPendingCmd( int cmd );
 	int	 finishPendingCmd( void );
+	void changeState( ClaimState s );
 
 private:
 	Resource	*c_rip;
@@ -221,6 +222,7 @@ private:
 	int			c_cluster;
 	int			c_job_start;
 	int			c_last_pckpt;
+	time_t		c_entered_state;
 	Stream*		c_request_stream; // cedar sock that a remote request
                                   // is waiting for a response on
 
