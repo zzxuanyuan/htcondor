@@ -41,6 +41,13 @@ STATIC	= StaticFlag
 MKDEPEND = MkDepend
 STAR	= *
 
+SHLIBFLAGS = ShlibFlags
+NATIVECC = NativeCC
+NATIVESYMLIBFLAGS = NativeSymlibFlags
+NATIVESHLIBFLAGS = NativeShlibFlags
+PIC = PICFlags
+NATIVEPIC = NativePICFlags
+
 ifdef SMP_NUM_JOBS
 SMP_FLAGS = -j $(SMP_NUM_JOBS)
 else

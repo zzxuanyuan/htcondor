@@ -100,7 +100,56 @@ clean::								@@\
 	rm -f program objlist
 #endif  c_plus_target
 
+/*
+** Build a shared library from .o files
+*/
+#ifndef shlib_target
+#define shlib_target( libname, objlist, otherlibs )             @@\
+libname: objlist                                                @@\
+	rm -f libname                                           @@\
+	$(CC) $(SHLIBFLAGS) -o libname objlist otherlibs        @@\
+clean::                                                         @@\
+	rm -f libname objlist
+#endif /* shlib_target */
 
+/*
+** Build a shared library from .o files with the native linker
+*/
+#ifndef native_shlib_target
+#define native_shlib_target( libname, objlist, otherlibs )      @@\
+libname: objlist                                                @@\
+	rm -f libname                                           @@\
+	$(NATIVECC) $(NATIVESHLIBFLAGS) -o libname objlist \
+		otherlibs                                       @@\
+clean::                                                         @@\
+	rm -f libname objlist
+#endif /* native_shlib_target */
+
+
+/*
+** Build a .o from a .c with the native compiler
+*/
+#ifndef native_obj_target
+#define native_obj_target( csrc, obj )                          @@\
+obj: csrc                                                       @@\
+	$(NATIVECC) $(NATIVECFLAGS) -c csrc -o obj              @@\
+clean::                                                         @@\
+	rm -f obj
+#endif /* native_obj_target */
+
+
+/* 
+** Build a SYMBOLICALLY linked shared library from .o files with
+** the native linker
+*/
+#ifndef native_symlib_target
+#define native_symlib_target( libname, objlist, otherlibs )     @@\
+libname: objlist                                                @@\
+	$(NATIVECC) $(NATIVESYMLIBFLAGS) -o libname objlist \
+		otherlibs                                       @@\
+clean::                                                         @@\
+	rm -f libname objlist
+#endif /* native_symlib_target */
 
 /***********************************************************************
 ** release targets

@@ -116,6 +116,33 @@
 #define MkDepend ../../GENERIC/mdepend.sh /* Ask Jim */
 #endif MkDepend
 
+#ifndef NativeCC
+#define NativeCC /opt/SUNWspro/bin/cc
+#endif NativeCC
+
+#ifndef NativeShlibFlags
+#define NativeShlibFlags -G
+#endif NativeShlibFlags
+
+#ifndef ShlibFlags
+#define ShlibFlags -G
+#endif ShlibFlags
+
+/* C compiler flags for position independent code */
+#ifndef PICFlags
+#define PICFlags -fpic
+#endif PICFlags
+
+#ifndef NativePICFlags
+#define NativePICFlags -KPIC
+#endif NativePICFlags
+
+/* Native linker commands for creating a symbolically linked shlib.
+   Symbolic linking means resolve all relocations possible at link
+   time. */
+#ifndef NativeSymlibFlags
+#define NativeSymlibFlags -B symbolic -G
+#endif NativeSymlibFlags
 
 /**************************************************************************
 ** Include OS version and Arch-specific config files
