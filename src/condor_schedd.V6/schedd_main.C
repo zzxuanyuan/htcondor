@@ -91,11 +91,10 @@
 
 extern "C"
 {
-	void	_EXCEPT_(char*...);
 	void	dprintf_config(char*, int);
 	void	dprintf(int, char*...);
 	char*	param(char*);
-	int		boolean(char*, char*);
+	int		param_in_pattern(char*, char*);
 	int		SetSyscalls() {}
 	int		ReadLog(char*);
 }
@@ -233,7 +232,7 @@ void Init()
     if( Log == NULL )  {
         EXCEPT( "No log directory specified in config file\n" );
     }
-	Foreground += boolean("SCHEDD_DEBUG","Foreground");
+	Foreground += param_in_pattern("SCHEDD_DEBUG","Foreground");
 
 	Spool = param("SPOOL");
 	if(!Spool)

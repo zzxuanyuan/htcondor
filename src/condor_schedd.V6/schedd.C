@@ -106,7 +106,6 @@ extern "C"
     void 	dprintf(int, char*...);
 	int	 	calc_virt_memory();
 	int	 	getdtablesize();
-	void 	_EXCEPT_(char*...);
 	char* 	gen_ckpt_name(char*, int, int, int);
 	int	 	do_connect(const char*, const char*, u_int);
 #if defined(HPUX9)
@@ -115,7 +114,7 @@ extern "C"
 	int	 	gethostname(char*, int);
 #endif
 	int		send_context_to_machine(DGRAM_IO_HANDLE*, int, CONTEXT*);
-	int	 	boolean(char*, char*);
+	int	 	param_in_pattern(char*, char*);
 	char*	param(char*);
 	void	block_signal(int);
 	void	unblock_signal(int);
