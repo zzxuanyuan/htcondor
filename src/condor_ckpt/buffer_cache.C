@@ -67,7 +67,7 @@ BufferCache::BufferCache(int b, int bs)
 	info = new BlockInfo[blocks];
 
 	if( !buffer || !info ) {
-		file_warning("Condor Warning: Unable to allocate the requested buffer of %d blocks of %d bytes.  Buffering is disabled.\n",blocks,block_size);
+		_condor_file_warning("Condor Warning: Unable to allocate the requested buffer of %d blocks of %d bytes.  Buffering is disabled.\n",blocks,block_size);
 
 		if(info) delete [] info;
 		if(buffer) delete [] buffer;
@@ -124,7 +124,7 @@ int BufferCache::write_block( int position )
 		fragment );
 
 	if(result!=fragment) {
-		file_warning("Unable to write buffered data to file %s! (%s).\n",info[position].owner->get_name(),strerror(errno));
+		_condor_file_warning("Unable to write buffered data to file %s! (%s).\n",info[position].owner->get_name(),strerror(errno));
 	}
 
 	info[position].dirty = 0;
