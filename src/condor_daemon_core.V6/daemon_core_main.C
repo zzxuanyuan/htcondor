@@ -30,6 +30,8 @@
 
 #include "condor_debug.h"
 
+static char *_FileName_ = __FILE__;  // used by EXCEPT 
+
 #define _NO_EXTERN_DAEMON_CORE 1	
 #include "condor_daemon_core.h"
 
@@ -676,7 +678,7 @@ int main( int argc, char** argv )
 				dcargs += 2;
 				ptmp1 = (char *)malloc( strlen(ptmp) + 25 );
 				if ( ptmp1 ) {
-					sprintf(ptmp1,"CONDOR_CONFIG=%s",ptmp);
+					sprintf(ptmp1,"CONDOR_CONFIG=%s\0",ptmp);
 					putenv(ptmp1);
 				}
 			} else {
@@ -908,6 +910,7 @@ int main( int argc, char** argv )
 
 	dprintf(D_ALWAYS,"** PID = %lu\n",daemonCore->getpid());
 
+#ifndef WIN32
 		// Want to do this dprintf() here, since we can't do it w/n 
 		// the priv code itself or we get major problems. 
 		// -Derek Wright 12/21/98 
@@ -916,6 +919,8 @@ int main( int argc, char** argv )
 	} else {
 		dprintf(D_PRIV, "** Running as root: Privilege switching in effect\n");
 	}
+#endif
+
 	dprintf(D_ALWAYS,"******************************************************\n");
 
 #ifdef WIN32
@@ -1027,7 +1032,7 @@ int main( int argc, char** argv )
 		// first command socket registered is TCP, so we must
 		// register the rsock socket first.
 		daemonCore->Register_Command_Socket( (Stream*)rsock );
-		daemonCore->Register_Command_Socket( (Stream*)ssock );		
+		daemonCore->Register_Command_Socket( (Stream*)ssock );
 
 		dprintf( D_ALWAYS,"DaemonCore: Command Socket at %s\n",
 				 daemonCore->InfoCommandSinfulString());
@@ -1040,12 +1045,12 @@ int main( int argc, char** argv )
 
 		// register the command handler to take care of signals
 		daemonCore->Register_Command(DC_RAISESIGNAL,"DC_RAISESIGNAL",
-				(CommandHandlercpp)&(daemonCore->HandleSigCommand),
+				(CommandHandlercpp)daemonCore->HandleSigCommand,
 				"HandleSigCommand()",daemonCore,IMMEDIATE_FAMILY);
 
 		// this handler receives process exit info
 		daemonCore->Register_Command(DC_PROCESSEXIT,"DC_PROCESSEXIT",
-				(CommandHandlercpp)&(daemonCore->HandleProcessExitCommand),
+				(CommandHandlercpp)daemonCore->HandleProcessExitCommand,
 				"HandleProcessExitCommand()",daemonCore,IMMEDIATE_FAMILY);
 
 		// this handler receives keepalive pings from our children, so

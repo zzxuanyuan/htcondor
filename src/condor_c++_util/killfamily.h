@@ -33,6 +33,7 @@ class ProcFamily : public Service {
 public:
 	
 	ProcFamily( pid_t pid, priv_state priv, int test_only = 0 );
+	ProcFamily( pid_t pid, priv_state priv, ProcAPI* papi );
 
 	~ProcFamily();
 
@@ -51,20 +52,6 @@ public:
 
 	void takesnapshot();
 
-#ifdef WITH_DAEMONCORE
-		// This can't exist until everything that uses ProcFamily
-		// links with DaemonCore, and the V5 starter breaks that.
-		// If you turn this back on, also be sure to enable dc_tid, in
-		// the private section.
-
-		// Start a periodic DaemonCore timer to take a snapshot at the
-		// given start time and periodic interval.  If you call this
-		// again when a timer is already set, we cancel the old timer
-		// and register a new one.  To stop the timer, just delete
-		// this object.
-	bool takePeriodicSnapshot( int start, int period );
-#endif /* WITH_DAEMONCORE */
-
 		// Allocates an array for all pids in the current pid family, 
 		// sets the given pointer to that array, and returns the
 		// number of pids  in the family.  The array must be
@@ -74,7 +61,7 @@ public:
 	
 	void	display();		// dprintf's the existing pid family
 
-	
+	void	setFamilyLogin( char *login );
 
 private:
 	enum KILLFAMILY_DIRECTION {
@@ -91,10 +78,14 @@ private:
 
 	priv_state mypriv;
 
-#ifdef WITH_DAEMONCORE
-		// See the comment for takePeriodicSnapshot.
-	int dc_tid;
-#endif 
+	ProcAPI *procAPI;
+
+#ifdef WIN32
+	CSysinfo sysinfo;
+	ExtArray<HANDLE> familyHandles;
+#endif
+
+	void closeFamilyHandles();
 
 	class a_pid {
 		public:
@@ -117,6 +108,7 @@ private:
 	ExtArray<a_pid> *old_pids;
 
 	int family_size;
+	int needs_free;
 
 	// total cpu usage for pids which have exited
 	long exited_cpu_user_time;
@@ -127,6 +119,9 @@ private:
 	long alive_cpu_sys_time;
 
 	unsigned long max_image_size;
+
+	int getPidFamilyByLogin(pid_t *pidFamily);
+	char *searchLogin;
 };
 
 #endif

@@ -141,18 +141,8 @@ ReliSock::accept( ReliSock	&c )
 	}
 
 	addr_sz = sizeof(c._who);
-#ifndef WIN32 /* Unix */
-	errno = 0;
-#endif
-	if ((c_sock = ::accept(_sock, (sockaddr *)&c._who, &addr_sz)) < 0) {
-#ifndef WIN32 /* Unix */
-		if ( errno == EMFILE ) {
-			_condor_fd_panic ( __LINE__, __FILE__ ); /* This calls dprintf_exit! */
-		}
-#endif
+	if ((c_sock = ::accept(_sock, (sockaddr *)&c._who, &addr_sz)) < 0)
 		return FALSE;
-
-	}
 
 	c._sock = c_sock;
 	c._state = sock_connect;
@@ -307,11 +297,12 @@ ReliSock::get_bytes_nobuffer(char *buffer, int max_length, int receive_size)
 }
 
 int
-ReliSock::get_file(const char *destination)
+ReliSock::get_file(const char *destination, bool flush_buffers)
 {
 	int nbytes, written, fd;
 	char buf[65536];
 	unsigned int filesize;
+	unsigned int eom_num;
 	unsigned int total = 0;
 
 	if ( !get(filesize) || !end_of_message() ) {
@@ -322,25 +313,20 @@ ReliSock::get_file(const char *destination)
 	// dprintf(D_FULLDEBUG,"get_file(): filesize=%d\n",filesize);
 
 #if defined(WIN32)
-	if ((fd = ::open(destination, O_WRONLY | O_CREAT | O_TRUNC | _O_BINARY, 0644)) < 0)
-#else /* Unix */
-	errno = 0;
+	if ((fd = ::open(destination, O_WRONLY | O_CREAT | O_TRUNC | 
+		_O_BINARY | _O_SEQUENTIAL, 0644)) < 0)
+#else
 	if ((fd = ::open(destination, O_WRONLY | O_CREAT | O_TRUNC, 0644)) < 0)
 #endif
 	{
-#ifndef WIN32 /* Unix */
-		if ( errno == EMFILE ) {
-			_condor_fd_panic( __LINE__, __FILE__ ); /* This calls dprintf_exit! */
-		}
-#endif
-		dprintf(D_ALWAYS, "get_file(): Failed to open file %s, errno = %d.\n",
-				destination, errno);
+		dprintf(D_ALWAYS, 
+			"get_file(): Failed to open file %s, errno = %d.\n", destination, errno);
 		return -1;
 	}
 
 	while ((filesize == -1 || total < (int)filesize) &&
 			(nbytes = get_bytes_nobuffer(buf, MIN(sizeof(buf),filesize-total),0)) > 0) {
-		dprintf(D_FULLDEBUG, "read %d bytes\n", nbytes);
+		// dprintf(D_FULLDEBUG, "read %d bytes\n", nbytes);
 		if ((written = ::write(fd, buf, nbytes)) < nbytes) {
 			dprintf(D_ALWAYS, "failed to write %d bytes in ReliSock::get_file "
 					"(only wrote %d, errno=%d)\n", nbytes, written, errno);
@@ -351,7 +337,21 @@ ReliSock::get_file(const char *destination)
 		// dprintf(D_FULLDEBUG, "wrote %d bytes\n", written);
 		total += written;
 	}
-	// dprintf(D_FULLDEBUG, "done with transfer, errno = %d\n", errno);
+
+	if ( filesize == 0 ) {
+		get(eom_num);
+		if ( eom_num != 666 ) {
+			dprintf(D_ALWAYS,"get_file: Zero-length file check failed!\n");
+			::close(fd);
+			unlink(destination);
+			return -1;
+		}			
+	}
+
+	if (flush_buffers) {
+		fsync(fd);
+	}
+	
 	dprintf(D_FULLDEBUG, "wrote %d bytes to file %s\n",
 			total, destination);
 
@@ -373,15 +373,18 @@ ReliSock::get_file(const char *destination)
 int
 ReliSock::put_file(const char *source)
 {
-	int nbytes, nrd, fd;
+	int fd;
 	char buf[65536];
 	struct stat filestat;
 	unsigned int filesize;
+	unsigned int eom_num = 666;
 	unsigned int total = 0;
 
 #if defined(WIN32)
 	if ((fd = ::open(source, O_RDONLY | _O_BINARY | _O_SEQUENTIAL, 0)) < 0)
 #else
+	int nbytes, nrd;
+	char buf[65536];
 	if ((fd = ::open(source, O_RDONLY, 0)) < 0)
 #endif
 	{
@@ -402,6 +405,8 @@ ReliSock::put_file(const char *source)
 		return -1;
 	}
 	
+	if ( filesize > 0 ) {
+
 #if defined(WIN32)
 	// First drain outgoing buffers
 	if ( !prepare_for_nobuffering(stream_encode) ) {
@@ -411,8 +416,9 @@ ReliSock::put_file(const char *source)
 	}
 
 	// Now transmit file using special optimized Winsock call
-	if ( TransmitFile(_sock,(HANDLE)_get_osfhandle(fd),
-			filesize,0,NULL,NULL,0) == FALSE ) {
+	// Only transfer if filesize > 0.
+	if ( (filesize > 0) && (TransmitFile(_sock,(HANDLE)_get_osfhandle(fd),
+			filesize,0,NULL,NULL,0) == FALSE) ) {
 		dprintf(D_ALWAYS,"put_file: TransmitFile() failed, errno=%d\n",
 			GetLastError() );
 		::close(fd);
@@ -437,6 +443,12 @@ ReliSock::put_file(const char *source)
 	dprintf(D_FULLDEBUG, "done with transfer (errno = %d)\n", errno);
 #endif
 	
+	} // end of if filesize > 0
+
+	if ( filesize == 0 ) {
+		put(eom_num);
+	}
+
 	dprintf(D_FULLDEBUG, "sent file %s (%d bytes)\n", source, total);
 
 	if (::close(fd) < 0) {
@@ -825,6 +837,11 @@ ReliSock::isAuthenticated()
 	}
 	return( authob->isAuthenticated() );
 	return 0;
+}
+
+void
+ReliSock::setGenericAuthentication() {
+	authob->setAuthAny();
 }
 
 void

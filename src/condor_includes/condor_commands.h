@@ -122,8 +122,8 @@
 #define DAEMON_OFF_FAST		(SCHED_VERS+68)		// specific daemon, subsys follows 
 #define DAEMON_ON			(SCHED_VERS+69)		// specific daemon, subsys follows 
 #define GIVE_TOTALS_CLASSAD	(SCHED_VERS+70)
-#define DUMP_STATE          (SCHED_VERS+71)		// drop internal vars into classad
-#define REQUEST_NETWORK		(SCHED_VERS+72)		// negotiator network mgmt
+#define DUMP_STATE          (SCHED_VERS+71)  // drop internal vars into classad
+#define PERMISSION_AND_AD	(SCHED_VERS+72)	 // negotiator is sending startad to schedd
 
 /************
 *** Command ids used by the collector 
@@ -260,29 +260,5 @@ const int INVALIDATE_LICENSE_ADS	= 44;
 *** Used only in THE TOOL to choose the condor_squawk option.
 */
 #define SQUAWK 72000
-
-/*
-*** Replies used in various stages of various protocols
-*/
-
-/* Failure cases */
-#ifndef NOT_OK 
-#define NOT_OK		0
-#endif
-#ifndef REJECTED
-#define REJECTED	0
-#endif
-
-/* Success cases */
-#ifndef OK
-#define OK			1
-#endif
-#ifndef ACCEPTED
-#define ACCEPTED	1
-#endif
-
-/* Other replies */
-#define TRY_AGAIN	2
-
 
 #endif  /* of ifndef _CONDOR_COMMANDS_H */

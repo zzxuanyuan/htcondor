@@ -23,7 +23,7 @@
 
  
 
-// List of attributes used in ClassAds  If you find yourself using anything
+// List of attributes used in ClassAd's  If you find yourself using anything
 // other than ATTR_<blah> to add/lookup expressions/variables *STOP*, add the
 // new variable to this file and use the ATTR_<blah> symbolic constant.  --RR
 
@@ -38,7 +38,6 @@ const char ATTR_BUFFER_PREFETCH_SIZE	 [] = "BufferPrefetchSize";
 const char ATTR_BYTES_SENT				 [] = "BytesSent";
 const char ATTR_BYTES_RECVD				 [] = "BytesRecvd";
 const char ATTR_CAPABILITY				 [] = "Capability";
-const char ATTR_REQUESTED_CAPACITY		 [] = "RequestedCapacity";
 const char ATTR_CKPT_ARCH				 [] = "CkptArch";
 const char ATTR_CKPT_LAST_READ			 [] = "CkptLastRead";
 const char ATTR_CKPT_OPSYS				 [] = "CkptOpSys";
@@ -55,8 +54,8 @@ const char ATTR_CORE_SIZE				 [] = "CoreSize";
 const char ATTR_CPUS                     [] = "Cpus";
 const char ATTR_CURRENT_HOSTS			 [] = "CurrentHosts";
 const char ATTR_CURRENT_RANK			 [] = "CurrentRank";
-const char ATTR_DESTINATION				 [] = "Destination";
 const char ATTR_DISK                     [] = "Disk";
+const char ATTR_DISK_USAGE				 [] = "DiskUsage";
 const char ATTR_ENTERED_CURRENT_ACTIVITY [] = "EnteredCurrentActivity";
 const char ATTR_ENTERED_CURRENT_STATE	 [] = "EnteredCurrentState";
 const char ATTR_EXECUTABLE_SIZE			 [] = "ExecutableSize";
@@ -64,7 +63,6 @@ const char ATTR_FILE_NAME				 [] = "FileName";
 const char ATTR_FILE_SIZE				 [] = "FileSize";
 const char ATTR_FILE_REMAPS				 [] = "FileRemaps";
 const char ATTR_FILE_SYSTEM_DOMAIN       [] = "FileSystemDomain";
-const char ATTR_FORCE					 [] = "Force";
 const char ATTR_FLAVOR                   [] = "Flavor";
 const char ATTR_IDLE_JOBS                [] = "IdleJobs";
 const char ATTR_IMAGE_SIZE				 [] = "ImageSize";
@@ -89,7 +87,6 @@ const char ATTR_JOB_REMOTE_USER_CPU		 [] = "RemoteUserCpu";
 const char ATTR_JOB_REMOTE_WALL_CLOCK	 [] = "RemoteWallClockTime";
 const char ATTR_JOB_ROOT_DIR			 [] = "RootDir";
 const char ATTR_JOB_START                [] = "JobStart";
-const char ATTR_JOB_START_DATE			 [] = "JobStartDate";
 const char ATTR_JOB_STATUS               [] = "JobStatus";
 const char ATTR_JOB_UNIVERSE             [] = "JobUniverse";
 const char ATTR_KEYBOARD_IDLE            [] = "KeyboardIdle";
@@ -119,6 +116,7 @@ const char ATTR_NICE_USER			 	 [] = "NiceUser";
 const char ATTR_NEST                     [] = "Nest";
 const char ATTR_NEXT_CLUSTER_NUM		 [] = "NextClusterNum";
 const char ATTR_NOTIFY_USER				 [] = "NotifyUser";
+const char ATTR_NT_DOMAIN				 [] = "NTDomain";
 const char ATTR_NUM_CKPTS				 [] = "NumCkpts";
 const char ATTR_NUM_RESTARTS			 [] = "NumRestarts";
 const char ATTR_NUM_USERS                [] = "NumUsers";
@@ -141,7 +139,6 @@ const char ATTR_RUN_BENCHMARKS			 [] = "RunBenchmarks";
 const char ATTR_SHADOW_IP_ADDR			 [] = "ShadowIpAddr";
 const char ATTR_MY_ADDRESS               [] = "MyAddress";
 const char ATTR_SCHEDD_IP_ADDR           [] = "ScheddIpAddr";
-const char ATTR_SOURCE					 [] = "Source";
 const char ATTR_START                    [] = "Start";
 const char ATTR_STARTD_IP_ADDR           [] = "StartdIpAddr";
 const char ATTR_STATE                    [] = "State";
@@ -162,10 +159,9 @@ const char ATTR_UID_DOMAIN               [] = "UidDomain";
 const char ATTR_ULOG_FILE				 [] = "UserLog";
 const char ATTR_UPDATE_INTERVAL			 [] = "UpdateInterval";
 const char ATTR_UPDATE_PRIO              [] = "UpdatePrio";
-const char ATTR_USE_CKPT_SERVER			 [] = "UseCkptServer";
+const char ATTR_USE_CKPT_SERVER_HOST	 [] = "UseCkptServerHost";
 const char ATTR_USER					 [] = "User";
 const char ATTR_VACATE                   [] = "Vacate";
-const char ATTR_VACATE_CKPT_SERVER		 [] = "VacateCkptServer";
 const char ATTR_VIRTUAL_MEMORY           [] = "VirtualMemory";
 const char ATTR_WANT_CHECKPOINT		 	 [] = "WantCheckpoint";
 const char ATTR_WANT_REMOTE_SYSCALLS 	 [] = "WantRemoteSyscalls";
@@ -176,13 +172,14 @@ const char ATTR_NUM_HOSTS_UNCLAIMED		 [] = "HostsUnclaimed";
 const char ATTR_NUM_HOSTS_OWNER			 [] = "HostsOwner";
 const char ATTR_VERSION					 [] = "CondorVersion";
 const char ATTR_VIRTUAL_MACHINE_ID		 [] = "VirtualMachineID";
-const char ATTR_TRANSFER_TYPE			 [] = "TransferType";
+const char ATTR_TRANSFER_FILES			 [] = "TransferFiles";
 const char ATTR_TRANSFER_KEY			 [] = "TransferKey";
 const char ATTR_TRANSFER_INPUT_FILES	 [] = "TransferInput";
 const char ATTR_TRANSFER_OUTPUT_FILES	 [] = "TransferOutput";
 const char ATTR_TRANSFER_SOCKET			 [] = "TransferSocket";
 const char ATTR_SERVER_TIME				 [] = "ServerTime";
 const char ATTR_SHADOW_BIRTHDATE		 [] = "ShadowBday";
-const char ATTR_HOLD_REASON				 [] = "HoldReason";
+const char ATTR_JOB_START_DATE			 [] = "JobStartDate";
+const char ATTR_WANT_RESOURCE_AD		 [] = "WantResAd";
 
 #endif

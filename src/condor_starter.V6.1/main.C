@@ -27,7 +27,8 @@
 #include "starter.h"
 #include "condor_debug.h"
 
-extern "C" int exception_cleanup();		/* Our function called by EXCEPT */
+static char *_FileName_ = __FILE__;     /* Used by EXCEPT (see except.h)    */
+extern "C" int exception_cleanup(int,int,char*);	/* Our function called by EXCEPT */
 
 static CStarter StarterObj;
 CStarter *Starter = &StarterObj;
@@ -115,7 +116,7 @@ main_shutdown_graceful()
 }
 
 extern "C" 
-int exception_cleanup()
+int exception_cleanup(int,int,char*)
 {
 	_EXCEPT_Cleanup = NULL;
 	Starter->ShutdownFast(0);

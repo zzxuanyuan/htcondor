@@ -50,6 +50,7 @@ char*	condor_view_host = NULL;
 char*	accountant_host = NULL;
 
 // Others
+bool	ShuttingDown = false;	// Are we trying to shutdown?
 int		match_timeout;		// How long you're willing to be
 							// matched before claimed 
 int		killing_timeout;	// How long you're willing to be in
@@ -79,7 +80,7 @@ int main_config();
 int finish_main_config();
 int main_shutdown_fast();
 int main_shutdown_graceful();
-extern "C" int do_cleanup();
+extern "C" int do_cleanup(int,int,char*);
 int reaper( Service*, int pid, int status);
 int	check_free();
 int	shutdown_reaper( Service*, int pid, int status ); 
@@ -216,6 +217,10 @@ main_init( int, char* argv[] )
 								  "GIVE_STATE",
 								  (CommandHandler)command_give_state,
 								  "command_give_state", 0, READ );
+	daemonCore->Register_Command( GIVE_CLASSAD,
+								  "GIVE_CLASSAD",
+								  (CommandHandler)command_give_classad,
+								  "command_give_classad", 0, READ );
 	daemonCore->Register_Command( GIVE_TOTALS_CLASSAD,
 								  "GIVE_TOTALS_CLASSAD",
 								  (CommandHandler)command_give_totals_classad,
@@ -223,9 +228,6 @@ main_init( int, char* argv[] )
 	daemonCore->Register_Command( GIVE_REQUEST_AD, "GIVE_REQUEST_AD",
 								  (CommandHandler)command_give_request_ad,
 								  "command_give_request_ad", 0, READ );
-	daemonCore->Register_Command( QUERY_STARTD_ADS, "QUERY_STARTD_ADS",
-								  (CommandHandler)command_query_ads,
-								  "command_query_ads", 0, READ );
 
 		// WRITE permission commands
 	daemonCore->Register_Command( ACTIVATE_CLAIM, "ACTIVATE_CLAIM",
@@ -482,9 +484,8 @@ main_shutdown_fast()
 		// If the machine is free, we can just exit right away.
 	check_free();
 
-		// Remember that we're in shutdown-mode so we will refuse
-		// various commands. 
-	resmgr->markShutdown();
+		// do not allow new claims
+	ShuttingDown = true;
 
 	daemonCore->Reset_Reaper( 1, "shutdown_reaper", 
 								 (ReaperHandler)shutdown_reaper,
@@ -506,9 +507,8 @@ main_shutdown_graceful()
 		// If the machine is free, we can just exit right away.
 	check_free();
 
-		// Remember that we're in shutdown-mode so we will refuse
-		// various commands. 
-	resmgr->markShutdown();
+		// do not allow new claims
+	ShuttingDown = true;
 
 	daemonCore->Reset_Reaper( 1, "shutdown_reaper", 
 								 (ReaperHandler)shutdown_reaper,
@@ -554,7 +554,7 @@ shutdown_reaper(Service *, int pid, int status)
 
 
 int
-do_cleanup()
+do_cleanup(int,int,char*)
 {
 	static int already_excepted = FALSE;
 

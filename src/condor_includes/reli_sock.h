@@ -95,7 +95,7 @@ public:
 	int get_bytes_nobuffer(char *buffer, int max_length,
 							 int receive_size=1);
     /// returns -1 on failure, else number of bytes transferred
-	int get_file(const char *destination);
+	int get_file(const char *destination, bool flush_buffers=false);
     /// returns -1 on failure, else number of bytes transferred
 	int put_file(const char *source);
     ///
@@ -140,6 +140,8 @@ public:
 	const char *getOwner();
     ///
 	void setOwner( const char * );
+    ///
+	void setGenericAuthentication();
 
     ///
 	int isClient() { return is_client; };

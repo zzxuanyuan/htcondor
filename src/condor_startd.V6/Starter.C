@@ -405,7 +405,16 @@ Starter::spawn( start_info_t* info )
 	if( s_pid == 0 ) {
 		dprintf( D_ALWAYS, "ERROR: exec_starter returned %d\n", s_pid );
 	} else {
-		s_procfam = new ProcFamily( s_pid, PRIV_ROOT );
+		s_procfam = new ProcFamily( s_pid, PRIV_ROOT, resmgr->m_proc );
+#if WIN32
+		// we only support running jobs as user nobody for the first pass
+		char nobody_login[60];
+		sprintf(nobody_login,"condor-run-dir_%d",s_pid);
+		// set ProcFamily to find decendants via a common login name
+		s_procfam->setFamilyLogin(nobody_login);
+#endif
+		dprintf( D_PROCFAMILY, 
+				 "Created new ProcFamily w/ pid %d as the parent.\n", s_pid );
 		recompute_pidfamily();
 	}
 	return s_pid;

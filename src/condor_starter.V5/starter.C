@@ -52,6 +52,7 @@ void display_startup_info( const STARTUP_INFO *s, int flags );
 #include "sdpro.h"
 #endif
 
+static char *_FileName_ = __FILE__;     /* Used by EXCEPT (see except.h)     */
 
 char* mySubSystem = "STARTER";
 
@@ -1096,7 +1097,7 @@ cleanup()
 */
 extern "C" {
 int
-exception_cleanup()
+exception_cleanup(int,int,char*)
 {
 	sigset_t	mask;
 

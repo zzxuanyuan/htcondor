@@ -29,6 +29,7 @@
 
 //----------------------------------------------------------------
 
+static char *_FileName_ = __FILE__;		// used by EXCEPT
 extern char* mySubSystem;
 
 CollectorEngine CollectorDaemon::collector;
@@ -472,7 +473,7 @@ void CollectorDaemon::reportToDevelopers (void)
 		return;
 	}
 
-	sprintf( buffer, "Collector (%s):  Monthly report\n", 
+	sprintf( buffer, "Collector (%s):  Monthly report", 
 			 my_full_hostname() );
 	if( ( mailer = email_developers_open(buffer) ) == NULL ) {
 		dprintf (D_ALWAYS, "Didn't send monthly report (couldn't open mailer)\n");		
