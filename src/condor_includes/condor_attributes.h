@@ -172,6 +172,7 @@ const char ATTR_JOB_NOTIFICATION		 [] = "JobNotification";
 const char ATTR_JOB_OUTPUT				 [] = "Out";
 const char ATTR_JOB_OUTPUT_ORIG			 [] = "OutOrig";
 const char ATTR_JOB_OUTPUT_SIZE			 [] = "OutSize";
+const char ATTR_JOB_PID                  [] = "JobPid";
 const char ATTR_JOB_PRIO                 [] = "JobPrio";
 const char ATTR_JOB_COMMITTED_TIME		 [] = "CommittedTime";
 const char ATTR_JOB_LANGUAGE             [] = "JobLanguage";
