@@ -8,9 +8,12 @@ LIB= $(DAEMONCORE_LIB) $(STD_LIBS)
 
 QMGMT_OBJ = qmgmt.o qmgmt_receivers.o qmgmt_common.o
 QMGMT_LIB_OBJ = qmgmt_send_stubs.o qmgr_lib_support.o qmgmt_common.o
+
+soapobjs(schedd)
+
 OBJ = schedd.o schedd_main.o $(QMGMT_OBJ) schedd_instantiate.o \
 	dedicated_scheduler.o grid_universe.o shadow_mgr.o autocluster.o \
-	soap_scheddStub.o loose_file_transfer.o schedd_api.o
+	loose_file_transfer.o schedd_api.o $(SOAP_OBJS)
 
 $(QMGMT_LIB) : libqmgmt.a
 
@@ -26,3 +29,6 @@ purecov_c_plus_target($(NAME).pc,$(OBJ),$(LIB))
 c_plus_target(qmgr_test,qmgr_test.o libqmgmt.a,$(LIB))
 
 html_target( documentation )
+
+gen_soapfiles(schedd,condorSchedd)
+

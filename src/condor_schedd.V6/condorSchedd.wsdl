@@ -120,10 +120,15 @@
     <element name="message" type="xsd:string" minOccurs="0" maxOccurs="1" nillable="true"/>
    </sequence>
   </complexType>
+  <complexType name="StringAndStatusResponse">
+   <sequence>
+    <element name="response" type="condor:StringAndStatus" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
   <complexType name="Transaction">
    <sequence>
-    <element name="id" type="xsd:int" minOccurs="1" maxOccurs="1"/>
-    <element name="duration" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+    <element name="id" type="xsd:int" minOccurs="0" maxOccurs="1"/>
+    <element name="duration" type="xsd:int" minOccurs="0" maxOccurs="1"/>
    </sequence>
   </complexType>
   <complexType name="ArrayOfRequirement">
@@ -180,46 +185,6 @@
    <sequence>
     <element name="status" type="condor:Status" minOccurs="1" maxOccurs="1"/>
     <element name="info" type="condor:ArrayOfFileInfo" minOccurs="0" maxOccurs="1" nillable="true"/>
-   </sequence>
-  </complexType>
-  <complexType name="StatusResponse">
-   <sequence>
-    <element name="response" type="condor:Status" minOccurs="1" maxOccurs="1"/>
-   </sequence>
-  </complexType>
-  <complexType name="TransactionAndStatusResponse">
-   <sequence>
-    <element name="response" type="condor:TransactionAndStatus" minOccurs="1" maxOccurs="1"/>
-   </sequence>
-  </complexType>
-  <complexType name="IntAndStatusResponse">
-   <sequence>
-    <element name="response" type="condor:IntAndStatus" minOccurs="1" maxOccurs="1"/>
-   </sequence>
-  </complexType>
-  <complexType name="RequirementsAndStatusResponse">
-   <sequence>
-    <element name="response" type="condor:RequirementsAndStatus" minOccurs="1" maxOccurs="1"/>
-   </sequence>
-  </complexType>
-  <complexType name="ClassAdStructArrayAndStatusResponse">
-   <sequence>
-    <element name="response" type="condor:ClassAdStructArrayAndStatus" minOccurs="1" maxOccurs="1"/>
-   </sequence>
-  </complexType>
-  <complexType name="ClassAdStructAndStatusResponse">
-   <sequence>
-    <element name="response" type="condor:ClassAdStructAndStatus" minOccurs="1" maxOccurs="1"/>
-   </sequence>
-  </complexType>
-  <complexType name="Base64DataAndStatusResponse">
-   <sequence>
-    <element name="response" type="condor:Base64DataAndStatus" minOccurs="1" maxOccurs="1"/>
-   </sequence>
-  </complexType>
-  <complexType name="FileInfoArrayAndStatusResponse">
-   <sequence>
-    <element name="response" type="condor:FileInfoArrayAndStatus" minOccurs="1" maxOccurs="1"/>
    </sequence>
   </complexType>
  </schema>
@@ -677,7 +642,7 @@
 </binding>
 
 <service name="condorSchedd">
- <documentation>gSOAP 2.6.0 generated service definition</documentation>
+ <documentation>gSOAP 2.6.1 generated service definition</documentation>
  <port name="condorSchedd" binding="tns:condorSchedd">
   <SOAP:address location="http://localhost:80"/>
  </port>
