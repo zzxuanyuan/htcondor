@@ -74,6 +74,8 @@ public:
 		/// Initialize ourselves such that we won't write a user log 
 	bool initNoLogging( void );
 
+		/// Do we want to be writing a log or not?
+	bool wantsLog( void ) { return should_log; };
 
 		// // // // // // // // // // // //
 		// Writing Events
