@@ -43,7 +43,6 @@
 #include "condor_universe.h"
 #include "globus_utils.h"
 #include "env.h"
-#include "schedd_files.h"
 #include "queuedbmanager.h"
 
 extern char *Spool;
@@ -79,7 +78,6 @@ static int next_proc_num = 0;
 static int active_cluster_num = -1;	// client is restricted to only insert jobs to the active cluster
 static int old_cluster_num = -1;	// next_cluster_num at start of transaction
 static bool JobQueueDirty = false;
-static int last_cluster_num = -1;  // used for inserting jobs files to database
 
 class Service;
 
@@ -420,7 +418,6 @@ InitJobQueue(const char *job_queue_name)
 		next_cluster_num = stored_cluster_num;
 	}
 
-	last_cluster_num = next_cluster_num;
 }
 
 
@@ -2798,34 +2795,8 @@ static void AppendHistory(ClassAd* ad)
 }
 
 
-
 void
 dirtyJobQueue()
 {
 	JobQueueDirty = true;
-}
-
-void
-updateFilesInDB()
-{
-	if ( last_cluster_num != next_cluster_num ) {
-		int cluster_id;
-		int 	*numOfProcs = NULL;	
-		int i;
-		ClassAd *procad;
-		ClassAd *clusterad;
-
-		for ( cluster_id=last_cluster_num; cluster_id < next_cluster_num; cluster_id++ ) {
-			if ( (JobQueue->LookupClassAd(IdToStr(cluster_id,-1), clusterad)) &&
-			     (ClusterSizeHashTable->lookup(cluster_id,numOfProcs) != -1) )
-			{
-				for ( i = 0; i < *numOfProcs; i++ ) {
-					if (JobQueue->LookupClassAd(IdToStr(cluster_id,i),procad)) {
-						schedd_files(procad, TRUE); // insert files into database
-					}
-				}	// end of loop thru all proc in cluster cluster_id
-			}	
-		}	// end of loop thru clusters
-	}	// end of if a new cluster(s) submitted
-	last_cluster_num = next_cluster_num;
 }

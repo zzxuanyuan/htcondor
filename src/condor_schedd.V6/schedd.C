@@ -6580,7 +6580,6 @@ Scheduler::child_exit(int pid, int status)
 					// get job outputs into files table only if it's completed successfully	
 					// pass true to make sure $$ variables are replaced
 				jobad = GetJobAd( job_id.cluster, job_id.proc, true);
-					//	oldad = GetJobAd( job_id.cluster, job_id.proc);
 				schedd_files(jobad, FALSE, NULL);
 				delete jobad;				
 
@@ -7570,11 +7569,6 @@ Scheduler::reschedule_negotiator(int, Stream *)
 		StartSchedUniverseJobs();
 	}
 
-		// insert files into database if new jobs have been submitted
-		// the reason why we do it here is so that this doesn't delay	
-		// user's submission of jobs and request for reschedule from negotiator
-	//updateFilesInDB();
-	
 	return;
 }
 
