@@ -128,7 +128,7 @@ void CondorJobReconfig()
 	CondorJob::setConnectFailureRetry( tmp_int );
 }
 
-const char *CondorJobAdConst = "JobUniverse =?= 9 && (SubUniverse == \"condor\") =?= True";
+const char *CondorJobAdConst = "JobUniverse =?= 9 && (JobGridType == \"condor\") =?= True";
 
 bool CondorJobAdMustExpand( const ClassAd *jobad )
 {
