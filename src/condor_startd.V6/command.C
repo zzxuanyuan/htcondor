@@ -1192,9 +1192,8 @@ sendCAReply( Stream* s, char* cmd_str, ClassAd* reply )
 int
 sendErrorReply( Stream* s, char* cmd_str, const char* err_str ) 
 {
-	dprintf( D_ALWAYS, "%s\n", err_str );
 	dprintf( D_ALWAYS, "Aborting %s\n", cmd_str );
-
+	dprintf( D_ALWAYS, "%s\n", err_str );
 
 	ClassAd reply;
 	reply.Insert( "Result = FALSE" );
@@ -1257,7 +1256,7 @@ caRequestCODClaim( Stream *s, char* cmd_str, ClassAd* req_ad )
 	rip = resmgr->findRipForNewCOD( req_ad );
 
 	if( ! rip ) {
-		err_msg = "RequestCODClaim: Can't find Resource matching ";
+		err_msg = "Can't find Resource matching ";
 		err_msg += ATTR_REQUIREMENTS;
 		err_msg += " (";
 		err_msg += requirements_str;
@@ -1272,8 +1271,7 @@ caRequestCODClaim( Stream *s, char* cmd_str, ClassAd* req_ad )
 		// try to create the new claim
 	claim = rip->newCODClaim();
 	if( ! claim ) {
-		err_msg = "RequestCODClaim: Can't create new COD claim";
-		return sendErrorReply( s, cmd_str, err_msg.Value() );
+		return sendErrorReply( s, cmd_str, "Can't create new COD claim" );
 	}
 
 		// Stash some info about who made this request in the Claim  
@@ -1361,14 +1359,8 @@ command_classad_handler( Service*, int, Stream* s )
                 // we failed to authenticate, we should bail out now
                 // since we don't know what user is trying to perform
                 // this action.
-            dprintf( D_ALWAYS, "command_classad_handler(): "
-                     "failed to authenticate, aborting\n" );
-			ClassAd reply;
-			reply.Insert( "Result = FALSE" );
-			MyString line = ATTR_COMMAND_ERROR;
-			line += " = \"Server: client failed to authenticate\"";
-			reply.Insert( line.Value() );
-			sendCAReply( s, "CA_CMD", &reply );
+			sendErrorReply( s, "CA_CMD", 
+							"Server: client failed to authenticate" );
 			return FALSE;
         }
     }
@@ -1427,20 +1419,10 @@ command_classad_handler( Service*, int, Stream* s )
 	}
 	claim = resmgr->getClaimById( claim_id );
 	if( ! claim ) {
-		dprintf( D_ALWAYS, "ERROR in command %s: "
-				 "Can't find claim with id %s, aborting\n", cmd_str,
-				 claim_id ); 
-		ClassAd reply;
-		reply.Insert( "Result = FALSE" );
-
-		MyString line = ATTR_COMMAND_ERROR;
-		line += " = \"ClaimId (";
-		line += claim_id;
-		line += ") not found\"";
-		reply.Insert( line.Value() );
-
-		sendCAReply( s, cmd_str, &reply );
-
+		MyString err_msg = "ClaimID (";
+		err_msg += claim_id;
+		err_msg += ") not found";
+		sendErrorReply( s, cmd_str, err_msg.Value() );
 		free( claim_id );
 		free( cmd_str );
 		return FALSE;
