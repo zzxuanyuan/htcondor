@@ -2209,6 +2209,35 @@ int get_job_prio(ClassAd *job)
 	return cur_hosts;
 }
 
+static bool
+disconnectedRunTimeoutIsValid( ClassAd* job, int cluster, int proc )
+{
+	int last_keepalive, timeout;
+	time_t now;
+	if( ! job->LookupInteger(ATTR_DISCONNECTED_RUN_TIMEOUT, timeout) ) {
+		return false;
+	}
+	if( ! job->LookupInteger(ATTR_LAST_KEEP_ALIVE, last_keepalive) ) {
+		return false;
+	}
+	now = time(0);
+	int diff = now - last_keepalive;
+	int remaining = timeout - diff;
+	dprintf( D_FULLDEBUG, "%d.%d: %s is defined: %d\n", cluster, proc, 
+			 ATTR_DISCONNECTED_RUN_TIMEOUT, timeout );
+	dprintf( D_FULLDEBUG, "%d.%d: now: %d, last_keepalive: %d, diff: %d\n", 
+			 cluster, proc, (int)now, last_keepalive, diff );
+
+	if( remaining <= 0 ) {
+		dprintf( D_ALWAYS, "%d.%d: %s remaining: EXPIRED!\n", 
+				 cluster, proc, ATTR_DISCONNECTED_RUN_TIMEOUT );
+		return false;
+	} 
+	dprintf( D_ALWAYS, "%d.%d: %s remaining: %d\n", cluster, proc,
+			 ATTR_DISCONNECTED_RUN_TIMEOUT, remaining );
+	return true;
+}
+
 extern void mark_job_stopped(PROC_ID* job_id);
 
 int mark_idle(ClassAd *job)
@@ -2267,7 +2296,13 @@ int mark_idle(ClassAd *job)
 						 (int)time(0) );
 	}
 	else if ( status == RUNNING || hosts > 0 ) {
-		mark_job_stopped(&job_id);
+		if( disconnectedRunTimeoutIsValid(job, cluster, proc) ) {
+			dprintf( D_FULLDEBUG, "Job %d.%d might still be alive, "
+					 "spawning shadow to reconnect\n", cluster, proc );
+			scheduler.enqueueReconnectJob( job_id );
+		} else {
+			mark_job_stopped(&job_id);
+		}
 	}
 		
 	int wall_clock_ckpt = 0;
