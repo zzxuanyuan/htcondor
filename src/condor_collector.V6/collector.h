@@ -75,6 +75,9 @@ protected:
 	static SafeSock updateSock;
 	static int UpdateTimerId;
 
+	static SocketCache* sock_cache;
+	static int sockCacheHandler( Service*, Stream* sock );
+	static int stashSocket( Stream* sock );
 };
 
 #endif
