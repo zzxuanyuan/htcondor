@@ -217,8 +217,7 @@ int MirrorJob::leaseInterval = 1800;			// default value
 MirrorJob::MirrorJob( ClassAd *classad )
 	: BaseJob( classad )
 {
-	int tmp1;
-	int tmp2;
+	int tmp;
 	char buff[4096];
 	char *error_string = NULL;
 	char *gahp_path;
@@ -281,9 +280,9 @@ MirrorJob::MirrorJob( ClassAd *classad )
 	gahp->setMode( GahpClient::normal );
 	gahp->setTimeout( gahpCallTimeout );
 
-	tmp1 = 0;
-	ad->LookupBool( ATTR_MIRROR_ACTIVE, tmp1 );
-	if ( tmp1 == 1 ) {
+	tmp = 0;
+	ad->LookupBool( ATTR_MIRROR_ACTIVE, tmp );
+	if ( tmp != 0 ) {
 		mirrorActive = true;
 		dontDeleteFromSchedd = false;
 	}
@@ -1016,6 +1015,13 @@ ClassAd *MirrorJob::buildSubmitAd()
 	expr.sprintf( "%s = %s =?= True && ENV.CurrentTime > %s + %d",
 				  ATTR_PERIODIC_REMOVE_CHECK, ATTR_SUBMIT_IN_PROGRESS,
 				  ATTR_Q_DATE, 1800 );
+	submit_ad->Insert( expr.Value() );
+
+	// TODO add clause for ScheddBirthDate
+	expr.sprintf( "%s = %s == %s && %s =!= True && (ENV.CurrentTime > %s) =?= True",
+				  ATTR_PERIODIC_RELEASE_CHECK, ATTR_ENTERED_CURRENT_STATUS,
+				  ATTR_Q_DATE, ATTR_SUBMIT_IN_PROGRESS,
+				  ATTR_MIRROR_LEASE_TIME );
 	submit_ad->Insert( expr.Value() );
 
 	expr.sprintf( "%s = \"%s\"", ATTR_MIRROR_SUBMITTER_ID,
