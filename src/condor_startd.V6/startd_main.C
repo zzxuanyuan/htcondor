@@ -620,7 +620,7 @@ main_shutdown_fast()
 								 "shutdown_reaper" );
 
 		// Quickly kill all the starters that are running
-	resmgr->walk( &(Resource::kill_claim) );
+	resmgr->walk( &(Resource::killAllClaims) );
 
 	daemonCore->Register_Timer( 0, 5, 
 								(TimerHandler)check_free,
@@ -644,7 +644,7 @@ main_shutdown_graceful()
 								 "shutdown_reaper" );
 
 		// Release all claims, active or not
-	resmgr->walk( &(Resource::release_claim) );
+	resmgr->walk( &(Resource::releaseAllClaims) );
 
 	daemonCore->Register_Timer( 0, 5, 
 								(TimerHandler)check_free,
@@ -711,7 +711,7 @@ check_free()
 	if ( ! resmgr ) {
 		startd_exit();
 	}
-	if( ! resmgr->in_use() ) {
+	if( ! resmgr->hasAnyClaim() ) {
 		startd_exit();
 	} 
 	return TRUE;
