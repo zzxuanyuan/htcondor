@@ -70,6 +70,7 @@ getJob(int clusterId, int jobId, Job *&job)
 {
   MyString key;
   key += clusterId;
+  key += ".";
   key += jobId;
 
   return jobs.lookup(key, job);
@@ -81,6 +82,7 @@ insertJob(int clusterId, int jobId, Job *job)
 {
   MyString key;
   key += clusterId;
+  key += ".";
   key += jobId;
 
   return jobs.insert(key, job);  
