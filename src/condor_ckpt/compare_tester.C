@@ -8,6 +8,7 @@
 #include<time.h>
 #include<signal.h> 
 #include<setjmp.h>
+#include<assert.h>
 
 /** a very simple program that allocates a large chuck of memory and then
 * traipses purposefully through creating various patterns of read and write
@@ -29,6 +30,8 @@ void readArgs(int argc, char ** argv);
 void ckpt();
 void rename_ckpt_file(char * desc, int ckpt_num);
 void increase_stack_size();
+char * getpagestart (char * );
+
 
 // global variables
 int allocSize = -1;	// size to allocate
@@ -108,13 +111,25 @@ main (int argc, char ** argv) {
 	ckpt();
 	rename_ckpt_file("random_first_half", ckpt_num++);
 	
-	// now touch every other page and ckpt and rename
-	dprintf(("Touching every other page\n"));
+	// now touch one byte on every other page and ckpt and rename
+	dprintf(("Touching one byte on every other page\n"));
 	for (i = 0; i < allocSize; i += pagesize*2) {
 		array[i]++;
 	}
 	ckpt();
-	rename_ckpt_file("every_other_page", ckpt_num++);
+	rename_ckpt_file("one_byte_every_other_page", ckpt_num++);
+	
+	// now touch every byte on every other page and ckpt and rename
+	dprintf(("Touching every byte on every other page\n"));
+	// start with the first full page of the array
+	char * pagealignedarray = getpagestart (array) + pagesize;
+	for (int page = 1; page < allocSize / pagesize; page += 2) {
+		for (i = 0; i < pagesize; i++) {
+			pagealignedarray[page * pagesize + i]++;
+		}
+	}
+	ckpt();
+	rename_ckpt_file("every_byte_every_other_page", ckpt_num++);
 
 	// now just read every page and ckpt and rename
 	dprintf(("Reading every page, no writes\n"));
@@ -169,6 +184,20 @@ rename_ckpt_file(char * desc, int ckpt_num) {
 	}
 	dprintf(("saved %s as %s\n", ckpt_file_path, new_name));
 }	
+
+/* takes an address and returns the start boundary of the containing page */
+char *
+getpagestart (char * addr) {
+    char * p;
+    // align to a multiple of pagesize, p will be >= to mem
+    p = (char *)(((int) addr + pagesize-1) & ~(pagesize-1));
+    if (p != addr) {
+        assert (p > addr);
+        p -= pagesize;
+    }
+    return p;
+}
+
 
 /** this function calls the condor library and initiates a ckpt event */
 void
