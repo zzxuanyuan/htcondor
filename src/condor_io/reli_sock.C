@@ -934,9 +934,9 @@ ReliSock::serialize() const
 	char * parent_state = Sock::serialize();
     // now concatenate our state
 	char * outbuf = new char[50];
-	sprintf(outbuf,"*%d*%s",_special_state,sin_to_string(&_who));
+	sprintf(outbuf,"*%d*%s*",_special_state,sin_to_string(&_who));
 	strcat(parent_state,outbuf);
-	/*
+	
     const char * tmp = getFullyQualifiedUser();
     if (tmp) {
         strcat(parent_state, tmp);
@@ -944,7 +944,7 @@ ReliSock::serialize() const
     else {
         strcat(parent_state, " ");
     }
-	*/
+
 	delete []outbuf;
 	return( parent_state );
 }
@@ -956,14 +956,13 @@ ReliSock::serialize(char *buf)
 	char *ptmp;
 	
     assert(buf);
-
+    memset(fqu, 0, 256);
 	// here we want to restore our state from the incoming buffer
 
 	// first, let our parent class restore its state
     ptmp = Sock::serialize(buf);
     assert( ptmp );
-    //sscanf(ptmp,"%d*%s*%s",&_special_state,sinful_string, fqu);
-    sscanf(ptmp,"%d*%s",&_special_state,sinful_string);
+    sscanf(ptmp,"%d*%s*%s",&_special_state,sinful_string, fqu);
     string_to_sin(sinful_string, &_who);
     if ((fqu[0] != ' ') && (fqu[0] != '\0')) {
       if (authob && (authob->getFullyQualifiedUser() != NULL)) {
