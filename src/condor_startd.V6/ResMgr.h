@@ -32,6 +32,7 @@
 
 typedef int (Resource::*ResourceMember)();
 typedef float (Resource::*ResourceFloatMember)();
+typedef void (Resource::*ResourceMaskMember)(amask_t);
 
 class ResMgr
 {
@@ -41,6 +42,9 @@ public:
 
 	void	init_socks();
 	void	init_resources();
+
+	void	compute( amask_t );
+	void	publish( ClassAd*, amask_t );
 
 	bool 	in_use();
 	bool	is_smp() { return( m_attr->num_cpus() > 1 ); };
@@ -53,9 +57,11 @@ public:
 	// These two functions walk through the array of rip pointers and
 	// call the specified function on each resource.  The first takes
 	// functions that take a rip as an arg.  The second takes Resource
-	// member functions that take no args.
-	int		walk( int(*)(Resource*) );
-	int		walk( ResourceMember );
+	// member functions that take no args.  The third takes a Resource
+	// member function that takes an amask_t as its only arg.
+	void	walk( int(*)(Resource*) );
+	void	walk( ResourceMember );
+	void	walk( ResourceMaskMember, amask_t );
 
 	// These functions walk through the array of rip pointers, calls
 	// the specified function on each one, sums the resulting return

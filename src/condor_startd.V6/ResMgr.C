@@ -84,25 +84,33 @@ ResMgr::~ResMgr()
 }
 
 
-int
+void
 ResMgr::walk( int(*func)(Resource*) )
 {
 	int i;
 	for( i = 0; i < nresources; i++ ) {
 		func(resources[i]);
 	}
-	return TRUE;
 }
 
 
-int
+void
 ResMgr::walk( ResourceMember memberfunc )
 {
 	int i;
 	for( i = 0; i < nresources; i++ ) {
 		(resources[i]->*(memberfunc))();
 	}
-	return TRUE;
+}
+
+
+void
+ResMgr::walk( ResourceMaskMember memberfunc, amask_t mask ) 
+{
+	int i;
+	for( i = 0; i < nresources; i++ ) {
+		(resources[i]->*(memberfunc))(mask);
+	}
 }
 
 
@@ -250,6 +258,16 @@ ResMgr::send_update( ClassAd* public_ad, ClassAd* private_ad )
 void
 ResMgr::eval_and_update_all()
 {
-	m_attr->compute( TIMEOUT );
+	m_attr->compute( A_TIMEOUT );
 	walk( Resource::eval_and_update );
 }
+
+
+void
+ResMgr::compute( amask_t how_much )
+{
+	m_attr->compute( how_much & ~(A_SUMMED) );
+	resmgr->walk( Resource::compute, how_much );
+	m_attr->compute( how_much & A_SUMMED );
+}
+
