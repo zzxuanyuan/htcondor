@@ -401,6 +401,28 @@ class GahpClient : public Service {
 		int
 		gt3_gram_client_job_refresh_credentials(const char *job_contact);
 
+		int
+//		condor_job_submit(const char *schedd_name, const ClassAd *job_ad,
+		condor_job_submit(const char *schedd_name, ClassAd *job_ad,
+						  char **job_id);
+
+		int
+		condor_job_update_constrained(const char *schedd_name,
+									  const char *constraint,
+//									  const ClassAd *update_ad);
+									  ClassAd *update_ad);
+
+		int
+		condor_job_status_constrained(const char *schedd_name,
+									  const char *constraint,
+									  int *num_ads, ClassAd **ads);
+
+		int
+		condor_job_remove(const char *schedd_name, PROC_ID job_id);
+
+		int
+		condor_job_complete(const char *schedd_name, PROC_ID job_id);
+
 #ifdef CONDOR_GLOBUS_HELPER_WANT_DUROC
 	// Not yet ready for prime time...
 	globus_duroc_control_barrier_release();
