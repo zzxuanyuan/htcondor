@@ -84,14 +84,31 @@ JICLocalConfig::getLocalJobAd( void )
 	getConfigString( job_ad, key, 0, ATTR_JOB_ENVIRONMENT, "environment" );
 	getConfigString( job_ad, key, 0, ATTR_JAR_FILES, "jar_files" );
 	getConfigInt( job_ad, key, 0, ATTR_KILL_SIG, "kill_sig" );
-	getConfigInt( job_ad, key, 0, ATTR_CLUSTER_ID, "cluster" );
-	getConfigInt( job_ad, key, 1, ATTR_PROC_ID, "proc" );
 	getConfigBool( job_ad, key, 0, ATTR_STARTER_WAIT_FOR_DEBUG, 
 				   "starter_wait_for_debug" );
 	getConfigString( job_ad, key, 0, ATTR_STARTER_ULOG_FILE, "log" );
 	getConfigBool( job_ad, key, 0, ATTR_STARTER_ULOG_USE_XML, 
 				   "log_use_xml" );
 
+		// only check for cluster and proc in the config file if we
+		// didn't get them on the command-line
+	MyString line;
+	if( job_cluster < 0 ) { 
+		getConfigInt( job_ad, key, 0, ATTR_CLUSTER_ID, "cluster" );
+	} else {
+		line = ATTR_CLUSTER_ID;
+		line += '=';
+		line += job_cluster;
+		job_ad->Insert( line.Value() );
+	}
+	if( job_proc < 0 ) {
+		getConfigInt( job_ad, key, 1, ATTR_PROC_ID, "proc" );
+	} else {
+		line = ATTR_PROC_ID;
+		line += '=';
+		line += job_proc;
+		job_ad->Insert( line.Value() );
+	}
 	return true;
 }
 
