@@ -88,6 +88,10 @@ public:
 		/** Continue. */
 	virtual void Continue() = 0;
 
+	virtual bool Remove() = 0;
+
+	virtual bool Hold() = 0;
+
 		/** Graceful shutdown, aka soft kill. 
 			@return true if shutdown complete, false if pending */
 	virtual bool ShutdownGraceful() = 0;
@@ -134,6 +138,7 @@ protected:
 
 	int soft_kill_sig;
 	int rm_kill_sig;
+	int hold_kill_sig;
 
 	UtcTime job_start_time;
 	UtcTime job_exit_time;

@@ -537,6 +537,7 @@ OsProc::ShutdownGraceful()
 	return false;	// return false says shutdown is pending	
 }
 
+
 bool
 OsProc::ShutdownFast()
 {
@@ -546,6 +547,30 @@ OsProc::ShutdownFast()
 	requested_exit = true;
 	daemonCore->Send_Signal(JobPid, SIGKILL);
 	return false;	// return false says shutdown is pending
+}
+
+
+bool
+OsProc::Remove()
+{
+	if ( is_suspended ) {
+		Continue();
+	}
+	requested_exit = true;
+	daemonCore->Send_Signal(JobPid, rm_kill_sig);
+	return false;	// return false says shutdown is pending	
+}
+
+
+bool
+OsProc::Hold()
+{
+	if ( is_suspended ) {
+		Continue();
+	}
+	requested_exit = true;
+	daemonCore->Send_Signal(JobPid, hold_kill_sig);
+	return false;	// return false says shutdown is pending	
 }
 
 
