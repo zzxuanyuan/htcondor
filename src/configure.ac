@@ -64,7 +64,9 @@ if test $my_domain = "cs.wisc.edu" && test -d "/s/std/bin" ; then
     if test $as_dir = $_p_build_bin ; then
       if test $_found_bad_dir = "yes" ; then
         AC_MSG_RESULT([no]) 
-        AC_MSG_ERROR([You are compiling on a UW-Madison CSL-supported machine and $_p_build_bin is *NOT* near the front of your PATH.  This configure script will not be able to find the right versions of the programs it needs to build Condor.  Please fix your PATH by putting $_p_build_bin *BEFORE* any of these directories in your PATH: $_which_bad_dir])
+        AC_MSG_ERROR([You are compiling on a UW-Madison CSL-supported machine and $_p_build_bin is *NOT* near the front of your PATH.  This configure script will not be able to find the right versions of the programs it needs to build Condor.  Please fix 
+
+your PATH by putting $_p_build_bin *BEFORE* any of these directories in your PATH: $_which_bad_dir])
       fi
       _found_p_build_bin=yes
       break
@@ -72,7 +74,9 @@ if test $my_domain = "cs.wisc.edu" && test -d "/s/std/bin" ; then
   done
   if test $_found_p_build_bin = "no" ; then
     AC_MSG_RESULT([no]) 
-    AC_MSG_ERROR([You are compiling on a UW-Madison CSL-supported machine and $_p_build_bin is *NOT* in your PATH.  This configure script will not be able to find the right versions of programs it needs to build Condor.  Please fix your PATH by adding $_p_build_bin (it must be before any of these directories: $_bad_path_dirs) and re-run configure])
+    AC_MSG_ERROR([You are compiling on a UW-Madison CSL-supported machine and $_p_build_bin is *NOT* in your PATH.  This configure script will not be able to find the right versions of programs it needs to build Condor.  Please fix your PATH by adding $_p
+
+_build_bin (it must be before any of these directories: $_bad_path_dirs) and re-run configure])
   fi
   AC_MSG_RESULT([yes])
 fi   
@@ -1011,7 +1015,9 @@ else
   fi
 fi
 if test "x$TarCmd" = "x"; then
-  AC_MSG_ERROR([you system does not support tar features Condor requires for packaging our releases.  you must install a version of GNU tar which supports numeric arguments to --group and --owner (such as version 1.13 or higher), or add a $tar_err_msg, then re-run configure])
+  AC_MSG_ERROR([you system does not support tar features Condor requires for packaging our releases.  you must install a version of GNU tar which supports numeric arguments to --group and --owner (such as version 1.13 or higher), or add a $tar_err_msg, th
+
+en re-run configure])
 fi
 AC_SUBST(TarCmd,$TarCmd)
 
@@ -1304,7 +1310,7 @@ fi
 # end of if $ac_cv_has_externals = "YES" 
 
 AC_MSG_CHECKING([gsoap])
-_cv_ext_gsoap_version="gsoap-2.6"
+_cv_ext_gsoap_version="gsoap-2.7"
 AC_MSG_RESULT([$_cv_ext_gsoap_version])
 AC_SUBST(ext_gsoap_version,$_cv_ext_gsoap_version)
 
