@@ -1251,7 +1251,7 @@ caLocateStarter( Stream *s, char* cmd_str, ClassAd* req_ad )
 				 "for cmd %s, aborting\n", ATTR_GLOBAL_JOB_ID, cmd_str );
 		MyString err_msg = ATTR_GLOBAL_JOB_ID;
 		err_msg += " not found in request ad";
-		sendErrorReply( s, cmd_str, CA_FAILURE, err_msg.Value() );
+		sendErrorReply( s, cmd_str, CA_INVALID_REQUEST, err_msg.Value() );
 		return FALSE;
 	}
 	claim = resmgr->getClaimByGlobalJobId( global_job_id );
@@ -1264,26 +1264,12 @@ caLocateStarter( Stream *s, char* cmd_str, ClassAd* req_ad )
 		free( global_job_id );
 		return FALSE;
 	}
-
-		// make sure the user attempting this action is the same as
-		// the owner of the claim
-	const char* owner = rsock->getFullyQualifiedUser();
-	if( ! claim->ownerMatches(owner) ) {
-		MyString err_msg = "User '";
-		err_msg += owner;
-		err_msg += "' does not match the owner of this claim";
-		sendErrorReply( s, cmd_str, CA_NOT_AUTHORIZED, err_msg.Value() ); 
-		dprintf( D_COMMAND, "Denied request for %s by invalid user '%s'\n", 
-				 cmd_str, owner );
-		free( global_job_id );
-		return FALSE;
-	}
-	dprintf( D_COMMAND, "Serving request for %s by user '%s'\n", 
-			 cmd_str, owner );
-
-	ClassAd reply;
 	if( ! claim->publishStarterAd(&reply) ) {
-		MyString err_msg = "Internal error publishing starter ClassAd"; 
+		MyString err_msg = "No starter found for "
+		err_msg += ATTR_GLOBAL_JOB_ID;
+		err_msg += " (";
+		err_msg += global_job_id;
+		err_msg += ")";
 		sendErrorReply( s, cmd_str, CA_FAILURE, err_msg.Value() );
 		free( global_job_id );
 		return FALSE;
