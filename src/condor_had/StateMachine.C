@@ -522,7 +522,9 @@ HADStateMachine::initializeHADList( char* str )
         } else {
             otherHADIPs->insert( sinfull_addr );
         }
-        delete( sinfull_addr );
+	// put attention to release memory allocated by malloc with free and by new with delete
+	// here convertToSinfull returns memory allocated by malloc
+        free( sinfull_addr );
         counter-- ;
     } // end while
 
@@ -584,6 +586,8 @@ void HADStateMachine::clearBuffers()
         addr - address in one of the formats :
             <IP:port>,IP:port,<name:port>,name:port
         return address in the format <IP:port>
+	[returns dynamically allocated (by malloc) string
+	or NULL in case of failure]
 */
 char*
 HADStateMachine::convertToSinfull( char* addr )
