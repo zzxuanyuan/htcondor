@@ -43,6 +43,8 @@ JobInfoCommunicator* parseArgs( int argc, char* argv [] );
 static CStarter StarterObj;
 CStarter *Starter = &StarterObj;
 
+static bool is_gridshell = false;
+
 // this appears at the bottom of this file:
 extern "C" int display_dprintf_header(FILE *fp);
 static char* dprintf_header = NULL;
@@ -115,17 +117,34 @@ printClassAd( void )
 	}
 }
 
+
+char *mySubSystem = NULL;
+
 void
 main_pre_dc_init( int argc, char* argv[] )
 {	
+		// figure out what mySubSystem should be based on argv[0] 
+	char* base = strdup(basename(argv[0]));
+	char* tmp;
+	tmp = strrchr(base, '_' );
+	if( tmp && strincmp(tmp, "_gridshell", 10) == MATCH ) {
+		mySubSystem = "GRIDSHELL";
+		is_gridshell = true;
+	} else { 
+		mySubSystem = "STARTER";
+	}
+	free( base );
+
+		// if we were passed "-classad", just print our classad and
+		// exit, without going back to daemoncore or anything.  we
+		// need to do this *after* we set mySubSystem, since this ends
+		// up calling functions that rely on it being defined...  
 	if( argc == 2 && strincmp(argv[1],"-cla",4) == MATCH ) {
 		printClassAd();
 		exit(0);
 	}
 }
 
-
-char *mySubSystem = "STARTER";
 
 int
 main_init(int argc, char *argv[])
