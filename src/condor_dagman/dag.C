@@ -21,6 +21,8 @@
  * WI 53706-1685, (608) 262-0856 or miron@cs.wisc.edu.
  ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
+#include "helper.h"
+
 //
 // Local DAGMan includes
 //
@@ -613,7 +615,15 @@ Dag::SubmitReadyJobs()
 				  job->GetJobName() );
   
     CondorID condorID(0,0,0);
-    if( ! submit_submit( job->GetCmdFile(), condorID, job->GetJobName() ) ) {
+//      if( ! submit_submit( job->GetCmdFile(), condorID, job->GetJobName() ) ) {
+
+    std::string cmd_file = Helper().resolve(job->GetCmdFile());
+    if (cmd_file.empty()) {
+      // resolve() failed; log
+    }
+    if (! submit_submit(cmd_file.c_str(),
+			condorID,
+			job->GetJobName())) {
 		// NOTE: this failure does not observe the "retry" feature
 		// (for better or worse)
         job->_Status = Job::STATUS_ERROR;
