@@ -142,3 +142,35 @@ UserProc::PublishUpdateAd( ClassAd* ad )
 	return true;
 }
 
+
+void
+UserProc::PublishToEnv( Env* proc_env )
+{
+	if( exit_status >= 0 ) {
+			// TODO: what should these really be called?  use
+			// myDistro?  mySubSystem?  hard to say...
+		MyString base;
+		base = "_";
+		base += myDistro->Get();
+		base += '_';
+		if( name ) {
+			base += name;
+		} else {
+			base += "MAINJOB";
+		}
+		base += '_';
+		base.upper_case();
+ 
+		MyString env_name;
+
+		if( WIFSIGNALED(exit_status) ) {
+			env_name = base.GetCStr();
+			env_name += "EXIT_SIGNAL";
+			proc_env->Put( env_name.GetCStr(), WTERMSIG(exit_status) );
+		} else {
+			env_name = base.GetCStr();
+			env_name += "EXIT_CODE";
+			proc_env->Put( env_name.GetCStr(), WEXITSTATUS(exit_status) );
+		}
+	}
+}

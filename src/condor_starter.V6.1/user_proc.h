@@ -24,7 +24,9 @@
 #define _CONDOR_USER_PROC_H
 
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
+#include "condor_distribution.h"
 #include "utc_time.h"
+#include "env.h"
 
 class ClassAd;
 
@@ -73,6 +75,12 @@ public:
 			@return true if success, false if failure
 		*/
 	virtual bool PublishUpdateAd( ClassAd* ad );
+
+		/** Put all the environment variables we'd want for other
+			procs into the given Env object.
+			@param proc_env The environment to publish to
+		*/
+	virtual void PublishToEnv( Env* proc_env );
 
 		/** Suspend. */
 	virtual void Suspend() = 0;
