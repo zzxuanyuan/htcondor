@@ -347,8 +347,11 @@ pure_target(condor_dagman,condor_dagman.pure)
 
 
 ext_target(EXT_ZLIB_VERSION,)
+#if !IS_CLIPPED && IS_GLIBC21
+ext_target(EXT_GLIBC21_VERSION,)
+#endif
 #if !IS_CLIPPED && IS_GLIBC22
-ext_target(EXT_GLIBC_VERSION,)
+ext_target(EXT_GLIBC22_VERSION,)
 #endif
 #if WANT_KERBEROS
 ext_target(EXT_KERBEROS_VERSION,)
