@@ -29,7 +29,7 @@
 #include "user_log.c++.h"
 #include <time.h>
 #include "condor_uid.h"
-#include "condor_xml_classads.h"
+#include "MyString.h"
 
 
 static const char SynchDelimiter[] = "...\n";
