@@ -53,6 +53,7 @@ ReliSock::init()
 	is_client = 0;
 	authob = NULL;
 	hostAddr = NULL;
+    fqu_ = NULL;
 	rcv_msg.init_parent(this);
 	snd_msg.init_parent(this);
 }
@@ -86,6 +87,11 @@ ReliSock::~ReliSock()
 		free( hostAddr );
 		hostAddr = NULL;
 	}
+
+    if (fqu_) {
+        free( fqu_ );
+        fqu_ = NULL;
+    }
 }
 
 
@@ -918,8 +924,12 @@ ReliSock::serialize() const
 	char * parent_state = Sock::serialize();
 	// now concatenate our state
 	char * outbuf = new char[50];
-	sprintf(outbuf,"*%d*%s",_special_state,sin_to_string(&_who));
+	sprintf(outbuf,"*%d*%s*",_special_state,sin_to_string(&_who));
 	strcat(parent_state,outbuf);
+    const char * tmp = getFullyQualifiedUser();
+    if (tmp) {
+        strcat(parent_state, tmp);
+    }
 	delete []outbuf;
 	return( parent_state );
 }
@@ -927,7 +937,7 @@ ReliSock::serialize() const
 char * 
 ReliSock::serialize(char *buf)
 {
-	char sinful_string[28];
+	char sinful_string[28], fqu[256];
 	char *ptmp;
 	
 	assert(buf);
@@ -937,9 +947,18 @@ ReliSock::serialize(char *buf)
 	// first, let our parent class restore its state
 	ptmp = Sock::serialize(buf);
 	assert( ptmp );
-	sscanf(ptmp,"%d*%s",&_special_state,sinful_string);
+	sscanf(ptmp,"%d*%s*%s",&_special_state,sinful_string, fqu);
 	string_to_sin(sinful_string, &_who);
-
+    if (fqu[0] != '\0') {
+        if (authob && (authob->getFullyQualifiedUser() != NULL)) {
+            // odd situation!
+            dprintf(D_SECURITY, "WARNING!!!! Trying to serialize a socket for user %s but the socket already has another user: %s", fqu, authob->getFullyQualifiedUser());
+        }
+        else {
+            // We are cozy
+            fqu_ = strdup(fqu);
+        }
+    }
 	return NULL;
 }
 
@@ -993,9 +1012,9 @@ ReliSock::prepare_for_nobuffering(stream_coding direction)
 
 int ReliSock::authenticate(KeyInfo *& key, int clientFlags)
 {
-        if ( !authob ) {
-                authob = new Authentication( this );
-        }
+    if ( !authob ) {
+        authob = new Authentication( this );
+    }
 	if ( authob ) {
 		return( authob->authenticate( hostAddr, key, clientFlags ) );
 	}
@@ -1029,10 +1048,13 @@ ReliSock::getOwner() {
 }
 
 const char *
-ReliSock::getFullyQualifiedUser() {
+ReliSock::getFullyQualifiedUser() const {
 	if ( authob ) {
 		return( authob->getFullyQualifiedUser() );
 	}
+    else if (fqu_) {
+        return fqu_;
+    }
 	return NULL;
 }
 
