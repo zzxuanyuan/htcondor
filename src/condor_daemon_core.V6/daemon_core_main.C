@@ -34,8 +34,6 @@
 #include "condor_debug.h"
 #include "condor_distribution.h"
 #include "condor_environ.h"
-
-#include "pgsqldatabase.h"
 #include "odbc.h"
 
 #define _NO_EXTERN_DAEMON_CORE 1	
@@ -1076,9 +1074,7 @@ handle_dc_sigterm( Service*, int )
 	dprintf(D_ALWAYS, "Got SIGTERM. Performing graceful shutdown.\n");
 
 	if(DBObj) {
-			//DBObj->disconnectDB();
 		delete DBObj;
-			//DBObj = 0;
 	}
 
 #if defined(WIN32) && 0
@@ -1123,9 +1119,6 @@ handle_dc_sigquit( Service*, int )
 	been_here = TRUE;
 
 	if(DBObj) {
-			//DBObj->disconnectDB();
-			//DBObj->odbc_disconnect();
-			//DBObj = 0;
 		delete DBObj;
 	}
 
