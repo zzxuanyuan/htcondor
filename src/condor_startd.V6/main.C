@@ -236,8 +236,10 @@ main_init( int argc, char* argv[] )
 
 	resmgr->start_update_timer();
 
-		// Evaluate the state of all resources and update CM
-	resmgr->eval_and_update_all();
+		// Evaluate the state of all resources and update CM 
+		// We don't just call eval_and_update_all() b/c we don't need
+		// to recompute anything.
+	resmgr->first_eval_and_update_all();
 
 	return TRUE;
 }
@@ -253,8 +255,10 @@ main_config()
 		// Re-read config file for startd-wide stuff.
 	init_params(0);
 	resmgr->init_socks();
-		// Re-evaluate and update the CM for each resource.
-	resmgr->eval_and_update_all();
+		// Re-evaluate and update the CM for each resource (again, we
+		// don't need to recompute, since we just did that, so we call
+		// the special case version).
+	resmgr->first_eval_and_update_all();
 	return TRUE;
 }
 
