@@ -212,6 +212,7 @@ protected:
     ///
 	Sock();
 
+	inline int deleteFWrule();
 	int getportbyserv(char *);
 
     /**
@@ -229,8 +230,6 @@ protected:
 	inline SOCKET get_socket (void) { return _sock; }
 	char * serialize(char *);
 	char * serialize() const;
-
-	int bindWithin(const int sock, const int low, const int high);
 
 #ifdef WIN32
 	int set_inheritable( int flag );
@@ -250,6 +249,14 @@ protected:
 	sock_state		_state;
 	int				_timeout;
 	struct sockaddr_in _who;	// the endpoint of "connection"
+	// port forwarding stuff
+	struct sockaddr_in _masqServer;
+	int				_msock;
+	unsigned int	_lip;
+	unsigned short	_lport;
+	unsigned int	_myIP;
+	unsigned short	_myPort;
+	unsigned short	_mport;
 
 private:
 
