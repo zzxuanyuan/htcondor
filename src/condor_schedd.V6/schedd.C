@@ -6109,7 +6109,8 @@ Scheduler::delete_shadow_rec(int pid)
 		}
 
 		DeleteAttribute( cluster, proc, ATTR_REMOTE_POOL );
-		DeleteAttribute( cluster,proc, ATTR_REMOTE_VIRTUAL_MACHINE_ID );
+		DeleteAttribute( cluster, proc, ATTR_REMOTE_VIRTUAL_MACHINE_ID );
+		DeleteAttribute( cluster, proc, ATTR_SHADOW_BIRTHDATE );
 
 			// we want to commit all of the above changes before we
 			// call check_zombie() since it might do it's own
