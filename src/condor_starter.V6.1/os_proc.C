@@ -51,7 +51,7 @@ OsProc::OsProc( ClassAd* ad )
 {
     dprintf ( D_FULLDEBUG, "In OsProc::OsProc()\n" );
 	JobAd = ad;
-	job_suspended = FALSE;
+	is_suspended = false;
 	num_pids = 0;
 	dumped_core = false;
 	job_iwd = NULL;
@@ -588,22 +588,22 @@ void
 OsProc::Suspend()
 {
 	daemonCore->Send_Signal(JobPid, SIGSTOP);
-	job_suspended = TRUE;
+	is_suspended = true;
 }
 
 void
 OsProc::Continue()
 {
 	daemonCore->Send_Signal(JobPid, SIGCONT);
-	job_suspended = FALSE;
+	is_suspended = false;
 }
 
 bool
 OsProc::ShutdownGraceful()
 {
-	if ( job_suspended == TRUE )
+	if ( is_suspended ) {
 		Continue();
-
+	}
 	requested_exit = true;
 	daemonCore->Send_Signal(JobPid, soft_kill_sig);
 	return false;	// return false says shutdown is pending	
@@ -629,7 +629,7 @@ OsProc::PublishUpdateAd( ClassAd* ad )
 
 	if( exit_status >= 0 ) {
 		sprintf( buf, "%s=\"Exited\"", ATTR_JOB_STATE );
-	} else if( job_suspended ) {
+	} else if( is_suspended ) {
 		sprintf( buf, "%s=\"Suspended\"", ATTR_JOB_STATE );
 	} else {
 		sprintf( buf, "%s=\"Running\"", ATTR_JOB_STATE );
