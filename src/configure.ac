@@ -74,8 +74,13 @@ AC_PROG_CC
 AC_LANG(C++)
 AC_PROG_CXX
 
-AC_PROG_PERL_VERSION([5.005_3], [],
-   [AC_MSG_ERROR([perl version 5.005_3 or higher is required])])
+# Condor only requires 5.002, but GPT apparently relies on 5.005_03 or
+# greater.  Unfortunately, GPT doesn't have a configure script or
+# anything, it just lets perl die with a require statement.  So, we
+# test for the right version here and fail in an early and obvious way
+# if there's a problem.
+AC_PROG_PERL_VERSION([5.005_03], [],
+   [AC_MSG_ERROR([perl version 5.005_03 or higher is required])])
 
 AC_PROG_LEX
 AC_CHECK_PROG(ac_lex,lex,yes,no)
