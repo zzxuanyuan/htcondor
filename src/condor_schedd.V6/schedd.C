@@ -2091,6 +2091,9 @@ Scheduler::negotiate(int, Stream* s)
 	dprintf( D_FULLDEBUG, "\n" );
 	dprintf( D_FULLDEBUG, "Entered negotiate\n" );
 
+	// Set timeout on socket
+	s->timeout( param_integer("NEGOTIATOR_TIMEOUT",20) );
+
 	// BIOTECH
 	bool	biotech = false;
 	char *bio_param = param("BIOTECH");
