@@ -46,9 +46,9 @@ BEGIN_NAMESPACE( classad )
 
 void printClassAdExpr( ExprTree * );
 void printClassAdValue( Value & );
-ClassAd* getOldClassAd( Sock& );
-bool getOldClassAd( Sock&, ClassAd& );
-bool putOldClassAd( Sock&, ClassAd& );
+ClassAd* getOldClassAd( Stream* );
+bool getOldClassAd( Stream*, ClassAd& );
+bool putOldClassAd( Stream*, ClassAd& );
 
 END_NAMESPACE
 
