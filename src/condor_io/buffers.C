@@ -54,7 +54,7 @@ int Buf::write(
 	if (timeout > 0) {
 		struct timeval	timer;
 		fd_set			writefds;
-		int				nfds, nfound;
+		int				nfds=0, nfound;
 		timer.tv_sec = timeout;
 		timer.tv_usec = 0;
 #if !defined(WIN32) // nfds is ignored on WIN32
@@ -146,7 +146,7 @@ int Buf::read(
 		if (timeout > 0) {
 			struct timeval	timer;
 			fd_set			readfds;
-			int				nfds, nfound;
+			int				nfds=0, nfound;
 			timer.tv_sec = timeout;
 			timer.tv_usec = 0;
 #if !defined(WIN32) // nfds is ignored on WIN32

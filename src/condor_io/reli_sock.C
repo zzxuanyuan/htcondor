@@ -120,7 +120,7 @@ int ReliSock::accept(
 	if (_timeout > 0) {
 		struct timeval	timer;
 		fd_set			readfds;
-		int				nfds, nfound;
+		int				nfds=0, nfound;
 		timer.tv_sec = _timeout;
 		timer.tv_usec = 0;
 #if !defined(WIN32) // nfds is ignored on WIN32
