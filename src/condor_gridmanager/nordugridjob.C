@@ -55,6 +55,7 @@
 #define GM_STAGE_IN				13
 #define GM_STAGE_OUT			14
 #define GM_EXIT_INFO			15
+#define GM_RECOVER_QUERY		16
 
 static char *GMStateNames[] = {
 	"GM_INIT",
@@ -72,7 +73,8 @@ static char *GMStateNames[] = {
 	"GM_PROBE_JOB",
 	"GM_STAGE_IN",
 	"GM_STAGE_OUT",
-	"GM_EXIT_INFO"
+	"GM_EXIT_INFO",
+	"GM_RECOVER_QUERY"
 };
 
 #define TASK_IN_PROGRESS	1
@@ -279,7 +281,25 @@ int NordugridJob::doEvaluateState()
 					executeLogged = true;
 				}
 
-				gmState = GM_SUBMITTED;
+				gmState = GM_RECOVER_QUERY;
+			}
+			} break;
+		case GM_RECOVER_QUERY: {
+			bool need_stage_in;
+
+			rc = doStageInQuery( need_stage_in );
+			if ( rc == TASK_QUEUED || rc == TASK_IN_PROGRESS ) {
+				break;
+			} else if ( rc == TASK_FAILED ) {
+				dprintf( D_ALWAYS, "(%d.%d) file stage in query failed: %s\n",
+						 procID.cluster, procID.proc, errorString.Value() );
+				gmState = GM_CANCEL;
+			} else {
+				if ( need_stage_in ) {
+					gmState = GM_STAGE_IN;
+				} else {
+					gmState = GM_SUBMITTED;
+				}
 			}
 			} break;
 		case GM_UNSUBMITTED: {
@@ -308,7 +328,7 @@ int NordugridJob::doEvaluateState()
 
 				rc = doSubmit( job_id );
 
-				if ( rc == TASK_QUEUED ) {
+				if ( rc == TASK_QUEUED || rc == TASK_IN_PROGRESS ) {
 					break;
 				}
 
@@ -346,6 +366,7 @@ int NordugridJob::doEvaluateState()
 					break;
 				}
 				gmState = GM_STAGE_IN;
+EXCEPT("DIE! DIE! DIE!");
 			}
 			} break;
 		case GM_STAGE_IN: {
@@ -353,8 +374,8 @@ int NordugridJob::doEvaluateState()
 			if ( rc == TASK_QUEUED || rc == TASK_IN_PROGRESS ) {
 				break;
 			} else if ( rc == TASK_FAILED ) {
-				dprintf( D_ALWAYS, "(%d.%d) file stage in failed!\n",
-						 procID.cluster, procID.proc );
+				dprintf( D_ALWAYS, "(%d.%d) file stage in failed: %s\n",
+						 procID.cluster, procID.proc, errorString.Value() );
 				gmState = GM_CANCEL;
 			} else {
 				gmState = GM_SUBMITTED;
@@ -1134,6 +1155,85 @@ int NordugridJob::doExitInfo()
  doExitInfo_error_exit:
 	if ( diag_fp != NULL ) {
 		fclose( diag_fp );
+	}
+	myResource->ReleaseConnection( this );
+
+	return TASK_FAILED;
+}
+
+int NordugridJob::doStageInQuery( bool &need_stage_in )
+{
+	int rc;
+	MyString dir_name;
+	StringList *dir_list = NULL;
+
+	dir_name.sprintf( "/jobs/%s", remoteJobId );
+
+	rc = doList( dir_name.Value(), dir_list );
+	if ( rc != TASK_DONE ) {
+		return rc;
+	}
+
+	if ( dir_list->contains( STAGE_COMPLETE_FILE ) == true ) {
+		need_stage_in = false;
+	} else {
+		need_stage_in = true;
+	}
+
+	delete dir_list;
+
+	return TASK_DONE;
+}
+
+int NordugridJob::doList( const char *dir_name, StringList *&dir_list )
+{
+	char list_buff[256];
+	FILE *list_fp = NULL;
+	StringList *my_dir_list = NULL;
+
+	ftp_srvr = myResource->AcquireConnection( this );
+	if ( ftp_srvr == NULL ) {
+		return TASK_QUEUED;
+	}
+
+	list_fp = ftp_lite_list( ftp_srvr, dir_name );
+	if ( list_fp == NULL ) {
+		errorString = "ftp_lite_get() failed";
+		goto doList_error_exit;
+	}
+
+	my_dir_list = new StringList;
+
+	while ( fgets( list_buff, sizeof(list_buff), list_fp ) != NULL ) {
+		int len = strlen( list_buff );
+		if ( list_buff[len-2] == '\015' && list_buff[len-1] == '\012' ) {
+			list_buff[len-2] = '\0';
+		} else if ( list_buff[len-1] == '\n' ) {
+			list_buff[len-1] = '\0';
+		}
+		my_dir_list->append( list_buff );
+	}
+
+	fclose( list_fp );
+	list_fp = NULL;
+
+	if ( ftp_lite_done( ftp_srvr ) == 0 ) {
+		errorString = "ftp_lite_done() failed";
+		goto doList_error_exit;
+	}
+
+	myResource->ReleaseConnection( this );
+
+	dir_list = my_dir_list;
+
+	return TASK_DONE;
+
+ doList_error_exit:
+	if ( my_dir_list != NULL ) {
+		delete my_dir_list;
+	}
+	if ( list_fp != NULL ) {
+		fclose( list_fp );
 	}
 	myResource->ReleaseConnection( this );
 

@@ -72,6 +72,8 @@ class NordugridJob : public BaseJob
 	int doStageIn();
 	int doStageOut();
 	int doExitInfo();
+	int doStageInQuery( bool &need_stage_in );
+	int doList( const char *dir_name, StringList *&dir_list );
 
 	MyString *buildSubmitRSL();
 
