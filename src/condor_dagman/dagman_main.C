@@ -402,6 +402,7 @@ int main_init (int argc, char ** const argv) {
     }
 
 #ifndef NOT_DETECT_CYCLE
+	debug_printf( DEBUG_VERBOSE, "Checking for cycles ...\n" );
 	if (G.dag->isCycle())
 	{
 		debug_error (1, DEBUG_QUIET, "ERROR: a cycle exists in the dag, plese check input\n");
