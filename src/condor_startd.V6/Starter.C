@@ -289,7 +289,8 @@ Starter::exited()
 
 
 int
-exec_starter(char* starter, char* hostname, int main_sock, int err_sock)
+Starter::exec_starter( char* starter, char* hostname, 
+					   int main_sock, int err_sock )
 {
 #if defined(WIN32) /* NEED TO PORT TO WIN32 */
 	return 0;
@@ -378,8 +379,15 @@ exec_starter(char* starter, char* hostname, int main_sock, int err_sock)
 		 * uid and gid.
 		 */
 		set_root_priv();
-		(void)execl(starter, "condor_starter", hostname, 
-					daemonCore->InfoCommandSinfulString(), 0);
+		if( resmgr->is_smp() ) {
+			(void)execl(starter, "condor_starter", hostname, 
+						daemonCore->InfoCommandSinfulString(), 
+						"-l", rip->r_id, 0 );
+		} else {			
+			(void)execl(starter, "condor_starter", hostname, 
+						daemonCore->InfoCommandSinfulString(), 0 );
+
+		}
 		EXCEPT( "execl(%s, condor_starter, %s, %s, 0)", starter, 
 				daemonCore->InfoCommandSinfulString(), hostname );
 	}

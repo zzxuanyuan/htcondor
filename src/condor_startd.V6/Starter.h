@@ -62,8 +62,7 @@ private:
 	pid_t	s_pid;
 	char*	s_name;
 	int		reallykill(int, int);
+	int		exec_starter(char*, char*, int, int);
 };
-
-int exec_starter(char*, char*, int, int);
 
 #endif _CONDOR_STARTD_STARTER_H
