@@ -205,7 +205,6 @@ int IMDS::LinkFile (char * old_path, char * new_path) {
 }
 
 
->>>>>>> 1.9.28.1
 u_short IMDS::RemoveFile(struct in_addr machine_IP,
 						 const char*    owner_name,
 						 const char*    file_name)
