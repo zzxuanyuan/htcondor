@@ -83,7 +83,9 @@ Starter::initRunData( void )
 	s_birthdate = 0;
 	s_last_snapshot = 0;
 	s_kill_tid = -1;
-
+		// Initialize our procInfo structure so we don't use any
+		// values until we've actually computed them.
+	memset( (void*)&s_pinfo, 0, (size_t)sizeof(s_pinfo) );
 }
 
 
@@ -499,18 +501,20 @@ Starter::spawn( start_info_t* info, time_t now )
 		s_birthdate = now;
 		s_procfam = new ProcFamily( s_pid, PRIV_ROOT );
 #if WIN32
-		// we only support running jobs as user nobody for the first pass
+			// we only support running jobs as user nobody for now
 		char nobody_login[100];
 
-		// just use the prefix (we don't know the nobody_login yet since we're in the startd)
+			// just use the prefix (we don't know the nobody_login yet
+			// since we're in the startd)
 		strcpy(nobody_login, myDynuser->account_prefix());
 		
-		// set ProcFamily to find decendants via a common login name
+			// set ProcFamily to find decendants via a common login name
 		s_procfam->setFamilyLogin(nobody_login);
 #endif
 		dprintf( D_PROCFAMILY, 
-				 "Created new ProcFamily w/ pid %d as the parent.\n", s_pid );
-		recompute_pidfamily( now );
+				 "Created new ProcFamily w/ pid %d as the parent.\n",
+				 s_pid ); 
+		recomputePidFamily( now );
 	}
 	return s_pid;
 }
@@ -713,8 +717,49 @@ Starter::dprintf( int flags, char* fmt, ... )
 }
 
 
+float
+Starter::percentCpuUsage( void )
+{
+	time_t now = time(NULL);
+	if( now - s_last_snapshot >= pid_snapshot_interval ) { 
+		recomputePidFamily( now );
+	}
+
+	if( (DebugFlags & D_FULLDEBUG) && (DebugFlags & D_LOAD) ) {
+		printPidFamily( D_FULLDEBUG, 
+						"Computing percent CPU usage with pids: " );
+	}
+
+		// ProcAPI wants a non-const pointer reference, so we need
+		// a temporary.
+	procInfo *pinfoPTR = &s_pinfo;
+	if( (ProcAPI::getProcSetInfo(s_pidfamily, s_family_size,
+								 pinfoPTR) < -1) ) {
+			// If we failed, it might be b/c our pid family has stale
+			// info, so before we give up for real, recompute and try
+			// once more.
+		recomputePidFamily();
+
+		if( (DebugFlags & D_FULLDEBUG) && (DebugFlags & D_LOAD) ) {
+			printPidFamily(D_FULLDEBUG, "Failed once, now using pids: ");  
+		}
+
+		if( (ProcAPI::getProcSetInfo( s_pidfamily, s_family_size, 
+									  pinfoPTR) < -1) ) {
+			EXCEPT( "Fatal error getting process info for the starter "
+					"and decendents" ); 
+		}
+	}
+	if( (DebugFlags & D_FULLDEBUG) && (DebugFlags & D_LOAD) ) {
+		dprintf( D_FULLDEBUG, "Percent CPU usage for those pids is: %f\n", 
+				 s_pinfo.cpuusage );
+	}
+	return s_pinfo.cpuusage;
+}
+
+
 void
-Starter::recompute_pidfamily( time_t now ) 
+Starter::recomputePidFamily( time_t now ) 
 {
 	if( !s_procfam ) {
 		dprintf( D_PROCFAMILY, 
@@ -737,6 +782,34 @@ Starter::recompute_pidfamily( time_t now )
 	} else {
 		s_last_snapshot = time( NULL );
 	}
+}
+
+
+void
+Starter::printPidFamily( int dprintf_level, char* header ) 
+{
+	MyString msg;
+	char numbuf[32];
+
+	if( header ) {
+		msg += header;
+	}
+	int i;
+	for( i=0; i<s_family_size; i++ ) {
+		snprintf( numbuf, 32, "%d ", s_pidfamily[i] );
+		msg += numbuf;
+	}
+	dprintf( dprintf_level, "%s\n", msg.Value() );
+}
+
+
+unsigned long
+Starter::imageSize( void )
+{
+		// we assume we're only asked for this after we've already
+		// computed % cpu usage and we've already got this info
+		// sitting here...
+	return s_pinfo.imgsize;
 }
 
 
