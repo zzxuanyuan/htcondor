@@ -34,7 +34,7 @@ bool Script::Run () {
          token = strtok (NULL, delimiters)) {
         if      (!strcasecmp(token, "$LOG"   )) send += m_logged ? '1' : '0';
         else if (!strcasecmp(token, "$JOB"   )) send += m_job->GetJobName();
-        else if (!strcasecmp(token, "$RETURN")) send += to_string(m_retValJob);
+        else if (!strcasecmp(token, "$RETURN")) send += toString(m_retValJob);
         else                                    send += token;
 
         send += ' ';
@@ -46,9 +46,8 @@ bool Script::Run () {
 
     if (!util_popen (send.c_str(), & error)) {
         if (DEBUG_LEVEL(DEBUG_QUIET)) {
-            printf ("%s Script of Job ", m_post ? "POST" : "PRE");
-            m_job->Print();
-            printf (" %s\n", error.c_str());
+            cout << (m_post ? "POST" : "PRE") << " Script of Job "
+                 << *m_job << ' ' << error << endl;
         }
         return false;
     }
