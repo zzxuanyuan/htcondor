@@ -561,6 +561,33 @@ Stream::code(struct rlimit &rl)
 	return TRUE;
 }
 
+int
+Stream::code(struct utsname &n)
+{
+	/* Every machine has these fields */
+
+	STREAM_ASSERT(code_bytes_bool(n.sysname,SYS_NMLN));
+	STREAM_ASSERT(code_bytes_bool(n.nodename,SYS_NMLN));
+	STREAM_ASSERT(code_bytes_bool(n.release,SYS_NMLN));
+	STREAM_ASSERT(code_bytes_bool(n.version,SYS_NMLN));
+	STREAM_ASSERT(code_bytes_bool(n.machine,SYS_NMLN));
+
+	/* Other fields we just kill to zero-length strings. */
+	
+	#if defined(LINUX) && defined(GLIBC)
+		n.__domainname[0] = 0;
+	#elif defined(LINUX) && !defined(GLIBC)
+		n.domainname[0] = 0;
+	#elif defined(IRIX)
+		n.m_type[0] = 0;
+		n.base_rel[0] = 0;
+	#elif defined(HPUX)
+		n.__idnumber[0] = 0;
+	#endif
+
+	return TRUE;
+}
+
 #endif // !defined(WIN32)
 
 /*
