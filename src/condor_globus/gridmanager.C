@@ -392,6 +392,13 @@ GridManager::REMOVE_JOBS_signalHandler( int signal )
 			JobsByProcID->remove( curr_procid );
 			addJobUpdateEvent( curr_job, JOB_REMOVED );
 			*/
+		} else {
+
+			// If there is no contact, remove the job now
+			addJobUpdateEvent( curr_job, JOB_UE_UPDATE_STATE );
+			addJobUpdateEvent( curr_job, JOB_UE_REMOVE_JOB );
+			addJobUpdateEvent( curr_job, JOB_UE_ULOG_ABORT );
+
 		}
 
 		new_ads.Delete( next_ad );
