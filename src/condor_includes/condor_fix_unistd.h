@@ -15,7 +15,7 @@
 extern "C" {
 #endif
 
-#if defined(SUNOS41)
+#if defined(SUNOS41) || defined(ULTRIX43)
 	typedef unsigned long ssize_t;
 #endif
 
