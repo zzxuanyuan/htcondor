@@ -1541,6 +1541,7 @@ int DaemonCore::HandleReq(int socki)
 	int					reqFound = FALSE;
 	int					result;
 	int					old_timeout;
+    int perm         = USER_AUTH_FAILURE;
     const char *        user = NULL;
 	
 	insock = (*sockTable)[socki].iosock;
@@ -1823,6 +1824,8 @@ int DaemonCore::HandleReq(int socki)
 					zz2printf (key->key());
 #endif
 
+                    // Now, set the user associated with the key
+                    user = key->user();
 				}
 			}
 		}
@@ -1905,7 +1908,9 @@ int DaemonCore::HandleReq(int socki)
 			sock->decode();
 
 			// add the key to the cache
-			KeyCacheEntry tmp_key(key_id, sock->endpoint(), ki, 0);
+            // Right now, the sock is a relisock. However, we should change the sock 
+            // class so that safe sock can be associated with a user as well.
+			KeyCacheEntry tmp_key(key_id, sock->endpoint(), ((ReliSock*)sock)->getFullyQualifiedUser(), ki, 0);
 			enc_key_cache->insert(key_id, tmp_key);
 			dprintf (D_SECURITY, "DC_AUTHENTICATE: added key id %s to cache!\n", key_id);
 #ifdef SECURITY_HACK_ENABLE
@@ -1920,6 +1925,14 @@ int DaemonCore::HandleReq(int socki)
 				// when server required it
 				dprintf (D_ALWAYS, "DC_AUTHENTICATE: client refused to authenticate.\n");
 				result = FALSE;
+                // Reject authorization as well!
+                if (is_tcp) {
+                    stream->encode();
+                    int authcode = USER_AUTH_FAILURE;
+                    if (!stream->code(authcode) || !stream->end_of_message()) {
+                        dprintf(D_ALWAYS, "DaemonCore: Rejecting access request\n");
+                    }
+                }
 				goto finalize;
 			}
 		}
@@ -1972,41 +1985,43 @@ int DaemonCore::HandleReq(int socki)
 			}
 	}
 
-    //At this point, the stream should be a TCP/ReliSock stream
+    //At this point, the stream should be a TCP/ReliSock stream 
+    // Really? I am not sure about this. Hao 1/2002
 	if ( reqFound == TRUE ) {
+
 		// Check the daemon core permission for this command handler
-        if (is_tcp) {
+        if ((user == 0) && is_tcp) {
             user = ((ReliSock*)stream)->getFullyQualifiedUser();
         }
-        else {
-            user = 0;
-        }
-		if ( Verify(comTable[index].perm, ((Sock*)stream)->endpoint(), user) == FALSE )
+
+		if ( (perm = Verify(comTable[index].perm, ((Sock*)stream)->endpoint(), user)) != USER_AUTH_SUCCESS )
 		{
 			// Permission check FAILED
 			reqFound = FALSE;	// so we do not call the handler function below
 			// make result != to KEEP_STREAM, so we blow away this socket below
 			result = 0;
 			dprintf( D_ALWAYS,
-                     "DaemonCore: PERMISSION DENIED to user %s from host %s for command %d (%s)\n",
-                     user, sin_to_string(((Sock*)stream)->endpoint()), req,
+                     "DaemonCore: PERMISSION DENIED to %s from host %s for command %d (%s)\n",
+                     (user == 0)? "unknown user" : user, sin_to_string(((Sock*)stream)->endpoint()), req,
                      comTable[index].command_descrip );
 			// if UDP, consume the rest of this message to try to stay "in-sync"
 			if ( !is_tcp)
 				stream->end_of_message();
+            
 		} else {
 			dprintf(comTable[index].dprintf_flag,
 					"DaemonCore: Command received via %s from %s from host %s\n",
-					user, (is_tcp) ? "TCP" : "UDP",
+					(user == 0) ? "uknown user" : user, (is_tcp) ? "TCP" : "UDP",
 					sin_to_string(((Sock*)stream)->endpoint()) );
 			dprintf(comTable[index].dprintf_flag, 
                     "DaemonCore: received command %d (%s), calling handler (%s)\n",
                     req, comTable[index].command_descrip, 
                     comTable[index].handler_descrip);
 		}
+
 	} else {
 		dprintf(D_ALWAYS, "DaemonCore: Command received via %s from %s from host %s\n",
-				user, (is_tcp) ? "TCP" : "UDP",
+				(user == 0)? "unknown user" : user, (is_tcp) ? "TCP" : "UDP",
 				sin_to_string(((Sock*)stream)->endpoint()) );
 		dprintf(D_ALWAYS,
 			"DaemonCore: received unregistered command request %d !\n",req);
@@ -2016,7 +2031,15 @@ int DaemonCore::HandleReq(int socki)
 		if ( !is_tcp)
 			stream->end_of_message();
 	}
-
+/*
+    // Send authorization message
+    if (is_tcp) {
+        stream->encode();
+        if (!stream->code(perm) || !stream->end_of_message()) {
+            dprintf(D_ALWAYS, "DaemonCore: Unable to send permission results\n");
+        }
+    }
+*/
 	if ( reqFound == TRUE ) {
 		// call the handler function; first curr_dataptr for GetDataPtr()
 		curr_dataptr = &(comTable[index].data_ptr);
