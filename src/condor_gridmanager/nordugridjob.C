@@ -680,10 +680,13 @@ int NordugridJob::doSubmit( char *&job_id )
 	char *job_dir = NULL;
 	char *tmp_job_id = NULL;
 	MyString buff;
+	int rc;
 
-	ftp_srvr = myResource->AcquireConnection( this );
-	if ( ftp_srvr == NULL ) {
+	rc = myResource->AcquireConnection( this, ftp_srvr );
+	if ( rc == ACQUIRE_QUEUED ) {
 		return TASK_QUEUED;
+	} else if ( rc == ACQUIRE_FAILED ) {
+		return TASK_FAILED;
 	}
 
 	rsl = buildSubmitRSL();
@@ -761,10 +764,13 @@ int NordugridJob::doStatus( int &new_remote_state )
 	int status_len = 0;
 	FILE *status_fp = NULL;
 	MyString buff;
+	int rc;
 
-	ftp_srvr = myResource->AcquireConnection( this );
-	if ( ftp_srvr == NULL ) {
+	rc = myResource->AcquireConnection( this, ftp_srvr );
+	if ( rc == ACQUIRE_QUEUED ) {
 		return TASK_QUEUED;
+	} else if ( rc == ACQUIRE_FAILED ) {
+		return TASK_FAILED;
 	}
 
 	filename.sprintf( "/jobs/%s/%s/status", remoteJobId, NORDUGRID_LOG_DIR );
@@ -817,10 +823,13 @@ int NordugridJob::doRemove()
 {
 	MyString dir;
 	MyString buff;
+	int rc;
 
-	ftp_srvr = myResource->AcquireConnection( this );
-	if ( ftp_srvr == NULL ) {
+	rc = myResource->AcquireConnection( this, ftp_srvr );
+	if ( rc == ACQUIRE_QUEUED ) {
 		return TASK_QUEUED;
+	} else if ( rc == ACQUIRE_FAILED ) {
+		return TASK_FAILED;
 	}
 
 	dir.sprintf( "/jobs/%s", remoteJobId );
@@ -844,6 +853,7 @@ int NordugridJob::doStageIn()
 	FILE *curr_file_fp = NULL;
 	FILE *curr_ftp_fp = NULL;
 	char *curr_filename = NULL;
+	int rc;
 
 	if ( stage_list == NULL ) {
 		char *buf = NULL;
@@ -879,9 +889,12 @@ int NordugridJob::doStageIn()
 		stage_list->rewind();
 	}
 
-	ftp_srvr = myResource->AcquireConnection( this );
-	if ( ftp_srvr == NULL ) {
+
+	rc = myResource->AcquireConnection( this, ftp_srvr );
+	if ( rc == ACQUIRE_QUEUED ) {
 		return TASK_QUEUED;
+	} else if ( rc == ACQUIRE_FAILED ) {
+		return TASK_FAILED;
 	}
 
 	curr_filename = stage_list->next();
@@ -964,6 +977,7 @@ int NordugridJob::doStageOut()
 	FILE *curr_file_fp = NULL;
 	FILE *curr_ftp_fp = NULL;
 	char *curr_filename = NULL;
+	int rc;
 
 	if ( stage_list == NULL ) {
 		char *buf = NULL;
@@ -997,9 +1011,11 @@ int NordugridJob::doStageOut()
 		stage_list->rewind();
 	}
 
-	ftp_srvr = myResource->AcquireConnection( this );
-	if ( ftp_srvr == NULL ) {
+	rc = myResource->AcquireConnection( this, ftp_srvr );
+	if ( rc == ACQUIRE_QUEUED ) {
 		return TASK_QUEUED;
+	} else if ( rc == ACQUIRE_FAILED ) {
+		return TASK_FAILED;
 	}
 
 	curr_filename = stage_list->next();
@@ -1077,10 +1093,13 @@ int NordugridJob::doExitInfo()
 	MyString diag_filename;
 	char diag_buff[256];
 	FILE *diag_fp = NULL;
+	int rc;
 
-	ftp_srvr = myResource->AcquireConnection( this );
-	if ( ftp_srvr == NULL ) {
+	rc = myResource->AcquireConnection( this, ftp_srvr );
+	if ( rc == ACQUIRE_QUEUED ) {
 		return TASK_QUEUED;
+	} else if ( rc == ACQUIRE_FAILED ) {
+		return TASK_FAILED;
 	}
 
 	diag_filename.sprintf( "/jobs/%s/%s/diag", remoteJobId,
@@ -1180,10 +1199,13 @@ int NordugridJob::doList( const char *dir_name, StringList *&dir_list )
 	char list_buff[256];
 	FILE *list_fp = NULL;
 	StringList *my_dir_list = NULL;
+	int rc;
 
-	ftp_srvr = myResource->AcquireConnection( this );
-	if ( ftp_srvr == NULL ) {
+	rc = myResource->AcquireConnection( this, ftp_srvr );
+	if ( rc == ACQUIRE_QUEUED ) {
 		return TASK_QUEUED;
+	} else if ( rc == ACQUIRE_FAILED ) {
+		return TASK_FAILED;
 	}
 
 	list_fp = ftp_lite_list( ftp_srvr, dir_name );

@@ -30,6 +30,9 @@
 #include "nordugridjob.h"
 #include "baseresource.h"
 
+#define ACQUIRE_DONE		0
+#define ACQUIRE_QUEUED		1
+#define ACQUIRE_FAILED		2
 
 class NordugridJob;
 class NordugridResource;
@@ -47,7 +50,7 @@ class NordugridResource : public BaseResource
 	void RegisterJob( NordugridJob *job );
 	void UnregisterJob( NordugridJob *job );
 
-	ftp_lite_server *AcquireConnection( NordugridJob *job );
+	int AcquireConnection( NordugridJob *job, ftp_lite_server *&server );
 	void ReleaseConnection( NordugridJob *job );
 
 	static NordugridResource *FindOrCreateResource( const char *resource_name );

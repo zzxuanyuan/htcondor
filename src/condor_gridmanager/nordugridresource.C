@@ -104,7 +104,8 @@ void NordugridResource::UnregisterJob( NordugridJob *job )
 		//   this object
 }
 
-ftp_lite_server *NordugridResource::AcquireConnection( NordugridJob *job )
+int NordugridResource::AcquireConnection( NordugridJob *job,
+										  ftp_lite_server *&server )
 {
 	NordugridJob *jobptr;
 
@@ -114,16 +115,19 @@ ftp_lite_server *NordugridResource::AcquireConnection( NordugridJob *job )
 		connectionWaiters->Rewind();
 		while ( connectionWaiters->Next( jobptr ) ) {
 			if ( jobptr == job ) {
-				return NULL;
+				return ACQUIRE_QUEUED;
 			}
 		}
 		connectionWaiters->Append( job );
-		return NULL;
+		return ACQUIRE_QUEUED;
 	}
 
-	OpenConnection();
-
-	return ftpServer;
+	if ( OpenConnection() ) {
+		server = ftpServer;
+		return ACQUIRE_DONE;
+	} else {
+		return ACQUIRE_FAILED;
+	}
 }
 
 void NordugridResource::ReleaseConnection( NordugridJob *job )
