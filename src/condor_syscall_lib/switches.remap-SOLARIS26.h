@@ -23,10 +23,14 @@
 
 /* These are the ones that are new for Solaris 2.6 */
 
+/* we're not quite ready to support these yet. */
+
+#if 0
+
 REMAP_TWO( creat, creat64, int , const char *, mode_t )
 REMAP_TWO( creat, _creat64, int , const char *, mode_t )
 REMAP_TWO( fstat64, _fstat64, int, int, struct stat64 * )
-REMAP_THREE( getdents64, _getdents64, int, int, char*, unsigned int )
+REMAP_THREE( getdents64, _getdents64, int, int, struct dirent64*, unsigned int )
 REMAP_TWO( getrlimit64, _getrlimit64, int, int, struct rlimit64 * ) 
 REMAP_TWO( link, __link, int , const char *, const char *)
 REMAP_THREE( llseek, _llseek, offset_t, int, offset_t, int )
@@ -35,3 +39,5 @@ REMAP_TWO( lstat64, _lstat64, int, const char *, struct stat64 * )
 REMAP_SIX( mmap64, _mmap64, caddr_t, caddr_t, size_t, int, int, int, off64_t )
 REMAP_TWO( setrlimit64, _setrlimit64, int, int, struct rlimit64 * ) 
 REMAP_TWO( stat64, _stat64, int, const char *, struct stat64 * )
+
+#endif

@@ -36,7 +36,7 @@
    include syscall_64bit.h w/o condor_common.h, so it needs to define
    off64_t in that case. -Derek W. 8/20/98 */
 #define _CONDOR_OFF64_T
-#include "syscall_64bit.h"
+// #include "syscall_64bit.h"
 #undef _CONDOR_OFF64_T
 
 #include "syscall_numbers.h"

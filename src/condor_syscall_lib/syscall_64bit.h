@@ -24,7 +24,7 @@ off64_t lseek64( int, off64_t, int );
 int fstat64( int, struct stat64 * );
 int stat64( const char *, struct stat64 * );
 int lstat64( const char *, struct stat64 * );
-int getdents64( int, char *, int );
+int getdents64( int, struct dirent64*, int );
 int setrlimit64( int, const  struct rlimit64 * );
 int getrlimit64( int, struct rlimit64 * );
 caddr_t mmap64( caddr_t, size_t, int, int, int, off64_t );

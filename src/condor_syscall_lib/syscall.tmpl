@@ -120,7 +120,11 @@
 		system call name to use.  Example:
 			int lockf() : remote_name(flock)
 		This switch will use SYS_lockf locally,
-		and CONDOR_flock remotely.
+		and CONDOR_flock remotely.  Notice that
+		this will still generate a sender called
+		CONDOR_lockf, which will format the arguments
+		appropriately and send CONDOR_flock over
+		the wire.
 
 	discard( parameter )
 
@@ -160,21 +164,10 @@
 		ALLOC_PATH( path );
 	}
 
-	int open64( const char *path, int flags, ... ) : map, map_name(open), remote_name(open);
-	
-	int fcntl( int fd, int cmd, ... ) : map;
-
-	#if defined(LINUX) && defined(GLIBC)
-		int ioctl( int fd, unsigned long cmd, ... ) : map;
-	#else
-		int ioctl( int fd, int cmd, ... ) : map;
-	#endif
+	int open64( const char *path, int flags, ... )
+		: map, remote_name(open), map_name(open);
 
 	int close( int fd ) : map;
-	int dup( int old_fd ) : map;
-	int dup2( int old_fd, int new_fd ) : map;
-
-	off_t lseek( int fd, off_t offset, int whence ) : map; 
 
 	ssize_t read( int fd, void *buf, size_t len ) : map {
 		out code_bytes_bool( buf, len );
@@ -186,46 +179,33 @@
 		alloc( buf, len );
 	}
 
+	off_t lseek( int fd, off_t offset, int whence ) : map; 
+
+	offset_t llseek( int fd, offset_t offset, int whence )
+		: map, map_name(lseek), remote_name(lseek);
+
+	off64_t lseek64( int fd, off64_t offset, int whence )
+		: map, map_name(lseek), remote_name(lseek);
+
+	int dup( int old_fd ) : map;
+	int dup2( int old_fd, int new_fd ) : map;
+
+	int fcntl( int fd, int cmd, ... ) : map;
+
+	#if defined(LINUX) && defined(GLIBC)
+		int ioctl( int fd, unsigned long cmd, ... ) : map;
+	#else
+		int ioctl( int fd, int cmd, ... ) : map;
+	#endif
+
 	int fchown( int fd, uid_t owner, gid_t group ) : map ;
 	int fchmod( int fd, mode_t mode ) : map ;
 	int fchdir( int fd ) : map ;
 
-	#if 0
-		#if HAS_64BIT_SYSCALLS
-			#if defined(Solaris26)
-
-				offset_t llseek( int fd, offset_t offset, int whence ) : map ;
-				off64_t	lseek64( int fd, off64_t offset, int whence ) : map, extract;
-
-			#else
-
-				off64_t	lseek64( int fd, off64_t offset, int whence ) : map ;
-
-			#endif /* Solaris 2.6 */
-
-			int fstat64( int fd, struct stat64 *buf ) : map {
-				out code( buf );
-				alloc( buf, STAT64_SIZE );
-			}
-
-			#if !defined(HPUX)	/* There is no getdents64 on HPUX 10.20 */
-				int getdents64( int fd, struct dirent64 *buf, size_t nbytes ) : map {
-					out code_bytes_bool( buf, nbytes );
-					alloc( buf, nbytes );
-			}
-			#endif /* HPUX */
-
-		#endif /* HAS_64BIT_SYSCALLS */
-
-	#endif
-
 	/* Linux, Irix, and Solaris need these switches to redirect
-	   these calls to fstat, lstat, and xstat.  Other platforms
-	   take the regular switches, and everyone needs senders
-	   and receivers. */
+	   these calls to fxstat, lxstat, and xstat.  */
 
 	#if defined(SWITCH)&&(defined(LINUX)||defined(IRIX)||defined(Solaris))
-
 		#if defined(LINUX) || defined(IRIX53)
 			int fxstat( discard(int version), int fd, struct stat *buf ) : remote_name(fstat), map_name(fstat), map;
 			int lxstat( discard(int version), char *path, struct stat *buf ) : remote_name(lstat);
@@ -237,48 +217,85 @@
 			int xstat( discard(const int version), const char *path, struct stat *buf ) : remote_name(stat);
 			int xmknod( discard(const int version), const char *path, mode_t mode, dev_t device ) : remote_name(mknod);
 		#endif
-
-	#else 
-		int fstat( int fd, struct stat *buf ) : map
-		{
-			out code( buf );
-			alloc( buf, STAT_SIZE );
-		}
-
- 		int lstat( const char *path, struct stat *buf )
-		{
-			SEND_PATH( path );
-			ALLOC_PATH( path );
-			out code( buf );
-			alloc( buf, STAT_SIZE );
-		}
-
-		int stat( const char *path, struct stat *buf )
-		{
-			SEND_PATH( path );
-			ALLOC_PATH( path );
-			out code( buf );
-			alloc( buf, STAT_SIZE );
-		}
-
-		int mknod( const char *path, mode_t mode, dev_t device ) {
-			SEND_PATH( path );
-			ALLOC_PATH( path );
-		}
 	#endif
 
-	int flock( int fd, int op ) : map;
+	int fstat( int fd, struct stat *buf ) : map
+	{
+		out code( buf );
+		alloc( buf, STAT_SIZE );
+	}
+
+	int lstat( const char *path, struct stat *buf )
+	{
+		SEND_PATH( path );
+		ALLOC_PATH( path );
+		out code( buf );
+		alloc( buf, STAT_SIZE );
+	}
+
+	int stat( const char *path, struct stat *buf )
+	{
+		SEND_PATH( path );
+		ALLOC_PATH( path );
+		out code( buf );
+		alloc( buf, STAT_SIZE );
+	}
+
+	int mknod( const char *path, mode_t mode, dev_t device )
+	{
+		SEND_PATH( path );
+		ALLOC_PATH( path );
+	}
+
+	/* Poor relatives of the above calls */
+
+	int prev_fstat( int fd, struct stat *buf )
+		: map, map_name(fstat), remote_name(fstat);
+
+	int prev_lstat( const char *name, struct stat *buf )
+		: remote_name(lstat);
+
+	int prev_stat( const char *name, struct stat *buf )
+		: remote_name(stat);
+
+	int prev_mknod( const char *name, mode_t mode, dev_t dev )
+		: remote_name(mknod);
+
+
+	int oldfstat( int fd, struct stat *buf )
+		: map, map_name(fstat), remote_name(fstat);
+
+	int oldlstat( const char *name, struct stat *buf )
+		: remote_name(lstat);
+
+	int oldstat( const char *name, struct stat *buf )
+		: remote_name(stat);
+
+	#if defined(LINUX) || defined(HPUX)
+		int statfs( const char *path, struct statfs *buf )
+	#elif defined(Solaris) || defined(IRIX)
+		int statfs( const char *path, struct statfs *buf, int len, int fstyp )
+	#else
+		int statfs( char *path, struct statfs *buf, int len )
+	#endif
+	{
+		SEND_PATH( path );
+		ALLOC_PATH( path );
+		out code( buf );
+		alloc( buf, STATFS_SIZE );
+	}
 
 	#if defined(IRIX) || defined(Solaris)
-		int fstatfs( int fd, struct statfs *buf, int len, int fstyp ) : map {
+		int fstatfs( int fd, struct statfs *buf, int len, int fstyp ) : map
 	#else
-		int fstatfs( int fd, struct statfs *buf ) : map {
+		int fstatfs( int fd, struct statfs *buf ) : map
 	#endif
+	{
+		out code( buf );
+		alloc( buf, STATFS_SIZE );
+	}
 
-			out code( buf );
-			alloc( buf, STATFS_SIZE );
-		}
-
+	int flock( int fd, int op ) : map;
 	int fsync( int fd ) : map;
 	int fdsync( int fd ) : map, map_name(fsync), remote_name(fsync);
 	int fdatasync( int fd ) : map, map_name(fsync), remote_name(fsync);
@@ -306,18 +323,20 @@
 		int ftruncate( int fd, off_t length ) : map ;
 	#endif
 
-/* If we are building the ckpt library, do not build any other switches  */
-
 #if !defined(SWITCH) && !defined(CLIP)
 
 	/* Do not generate switches for these pseudo calls */
 
-	int lseekread( int fd, off_t offset, int whence, void *buf, size_t len ) : pseudo {
+	int lseekread( int fd, off_t offset, int whence, void *buf, size_t len )
+		: pseudo
+	{
 		out code_bytes_bool( buf, len );
 		alloc( buf, len );
 	}
 
-        int lseekwrite( int fd, off_t offset, int whence, const void *buf, size_t len ) : pseudo {
+        int lseekwrite( int fd, off_t offset, int whence, const void *buf, size_t len )
+		: pseudo
+	{
 		in code_bytes_bool( buf, len );
 		alloc( buf, len );
         }
@@ -624,17 +643,14 @@ int rename( const char *from, const char *to ) : pseudo {
 		ALLOC_PATH( path );
 	}
 
-
-#if !defined (SWITCH)
 	int pvm_info( const char *response, int mytid ) : pseudo {
 		SEND_PATH( response );
 		ALLOC_PATH( response );
 	}
 
-    int pvm_task_info( int v_pid, int pvm_tid) : pseudo;
+	int pvm_task_info( int v_pid, int pvm_tid) : pseudo;
 
-    int suspended( int susp ) : pseudo;
-#endif
+	int suspended( int susp ) : pseudo;
 		/*
 		This function is intended for setting up the transfer
 		of a whole file via a TCP stream.  This allows more
@@ -718,28 +734,6 @@ int rename( const char *from, const char *to ) : pseudo {
 
 
 #if !defined( CLIP )
-
-	/* Stat and friends have special switches in Linux */
-
-#if HAS_64BIT_SYSCALLS
-		/* 64-bit versions of various syscalls.  
-		   Added on 6/24/98 by Derek Wright */ 
-
-	int stat64( const char *path, struct stat64 *buf ) { 
-			SEND_PATH( path );
-			ALLOC_PATH( path );
-			out code( buf );
-			alloc( buf, STAT64_SIZE );
-	}
-
-	int lstat64( const char *path, struct stat64 *buf ) { 
-			SEND_PATH( path );
-			ALLOC_PATH( path );
-			out code( buf );
-			alloc( buf, STAT64_SIZE );
-	}
-
-#endif /* HAS_64BIT_SYSCALLS */
 
 	int chmod( const char *path, mode_t mode ) {
 		SEND_PATH( path );
@@ -855,7 +849,6 @@ int rename( const char *from, const char *to ) : pseudo {
 	}
 #endif /* ! LINUX */
 
-
 	int mkdir( const char *path, mode_t mode ) {
 		SEND_PATH( path );
 		ALLOC_PATH( path );
@@ -887,58 +880,12 @@ int rename( const char *from, const char *to ) : pseudo {
 		in code( rlp );
 		alloc( rlp, RLIMIT_SIZE );
 	}
+
 	int getrlimit( int resource, struct rlimit *rlp ) {
 		out code( rlp );
 		alloc( rlp, RLIMIT_SIZE );
 	}
 
-#if HAS_64BIT_SYSCALLS
-	int setrlimit64( int resource, const  struct rlimit64 *rlp ) {
-		in code( rlp );
-		alloc( rlp, RLIMIT64_SIZE );
-	}
-	int getrlimit64( int resource, struct rlimit64 *rlp ) {
-		out code( rlp );
-		alloc( rlp, RLIMIT64_SIZE );
-	}
-#endif
-
-#if defined(HPUX)
-	int statfs( const char *path, struct statfs *buf ) {
-		SEND_PATH( path );
-		ALLOC_PATH( path );
-		out code( buf );
-		alloc( buf, STATFS_SIZE );
-	}
-#elif defined(LINUX)
-	#if !defined(SWITCH)
-	/* Special switch needed for stat and friends. */
-	int statfs( const char *path, struct statfs *buf ) {
-		SEND_PATH( path );
-		ALLOC_PATH( path );
-		out code( buf );
-		alloc( buf, STATFS_SIZE );
-	}
-	#endif
-#elif defined(Solaris)
-	not_supported {
-		int statfs( const char *path, struct statfs *buf, int len, int x ) ;
-	}
-#elif defined(IRIX)
-	int statfs( const char *path, struct statfs *buf, int len, int fstyp ) {
-		SEND_PATH( path );
-		ALLOC_PATH( path );
-		out code( buf );
-		alloc( buf, STATFS_SIZE );
-	}
-#else
-	int statfs( char *path, struct statfs *buf, int len ) {
-		SEND_PATH( path );
-		ALLOC_PATH( path );
-		out code( buf );
-		alloc( buf, STATFS_SIZE );
-	}
-#endif
 	int getdomainname( char *name, int namelen ) {
 		out code( name, namelen );
 		alloc( name, namelen );
@@ -1024,57 +971,22 @@ int rename( const char *from, const char *to ) : pseudo {
 
 #endif /* not CLIP */
 
-	/*
-	Things having to do with memory mapped files - we may support these
-	one day soon.
-
-	Don't trap munmap(), we want that to always go locally. 
-	  -Derek Wright, 3/12/98 
-	*/
 not_supported {
-	#if defined(OSF1)
-		void * mmap( void * a, size_t l, int p, int f, int fd, off_t o );
-		int mprotect( void * addr, size_t len, int prot );
-		int madvise( void * addr, size_t len, int behav );
-		int msync( void * addr, size_t len, int flags );
-	#elif defined(HPUX)
-		void * mmap( void * a, size_t l, int p, int f, int fd, off_t o );
-		int mprotect( void * addr, size_t len, int prot );
-		int madvise( void * addr, size_t len, int behav );
-		int msync( void * addr, size_t len, int flags );
-	#elif defined(LINUX) || defined(IRIX) || defined(Solaris)
-		#if defined(LINUX) && defined(SWITCH)
-			/* Skip mmap on linux -- it is a special switch */
-		#else
-			void * mmap (void * addr, size_t len, int prot, int flags, int fd, off_t off) : EXTRACT;
-		#endif
-		int mprotect(const void * addr, size_t len, int prot);
-		int msync (void * addr, size_t len, int flags);
+	#if defined(LINUX) && defined(SWITCH)
+		/* mmap is a special switch on Linux */
+	#else
+		MMAP_T mmap( MMAP_T a, size_t l, int p, int f, int fd, off_t o ) : EXTRACT;
 	#endif
+	int mprotect( MMAP_T addr, size_t len, int prot );
+	int madvise( MMAP_T addr, size_t len, int behav );
+	int msync( MMAP_T addr, size_t len, int flags );
+	/* munmap should not be trapped -- it should always unmap locally. */
 }
-#if HAS_64BIT_SYSCALLS
-    not_supported {
-	caddr_t mmap64( caddr_t addr, size_t len, int prot, int flags,
-					int fildes, off64_t off);
-	}
-#endif
-
-
-/* 
-   We want stubs for kill(), we just don't want a switch, since we
-   define our own switch for it in switches.special.c. 
-   -Derek Wright 7/8/98 
-
-   We actually don't want stubs for kill(), either, since the switch
-   for kill() never sends it remotely (as it shouldn't), and the stubs
-   only open the shadow() up to nasty security problems if someone
-   gains unauthorized access to the shadow.  So, we just have no
-   mention of kill here and leave our switch in switches.special.c 
-   -Derek 7/10/98
-*/
-
 
 #if !defined( CLIP )
+
+	/* kill is always handled locally, as a special switch. */
+
 	/* Calls intended only for the super user or system managers */
 not_supported {
 	int setuid( uid_t uid );
@@ -1143,8 +1055,7 @@ not_supported {
 		int mount( int type, char *mnt_path, int mnt_flag, char *data );
 		int acct( char *path );
 	#elif defined(HPUX)
-		/* need varargs here */
-		/* int mount( const char *spec, const char *dir, int mflag, int fstyp, char *pt, int len ); */
+		/* mount wants varargs */
 		int acct( char *path );
 	#else
 		int mount( char *spec, char *dir, int mflag, int fstyp, char *pt, int len );
@@ -1160,9 +1071,6 @@ not_supported {
 		int settimeofday( struct timeval *tp, struct timezone *tzp );
 		int setdomainname( char *name, int namelen );
 	#endif
-
-	/* Need varargs for this */
-	/* int swapon( char *path, int flags, int lo_water, int hi_water ); */
 
 #endif  /* of not LINUX */
 
@@ -1317,7 +1225,6 @@ not_supported {
 	int quotactl( char *path, int cmd, int id, char *addr );
 	int getsysinfo( unsigned long op, char * buf, unsigned long nbytes, int *start, char *arg );
 }
-
 
 	/*
 	Stuff having to do with message queues.  Probably won't support

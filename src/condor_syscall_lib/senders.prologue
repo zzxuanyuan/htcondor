@@ -20,7 +20,7 @@
 #include "syscall_param_sizes.h"
 
 #include "syscall_sysdep.h"
-#include "syscall_64bit.h"
+// #include "syscall_64bit.h"
 
 #ifdef LINK_PVM
 // ClassAds needed for start_work_request used by PVM starter/shadow

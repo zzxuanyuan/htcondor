@@ -15,7 +15,6 @@
 #include "condor_syscall_mode.h"
 #include "file_table_interf.h"
 #include "../condor_ckpt/file_state.h"
-#include <signal.h>
 
 extern "C" int errno;
 extern "C" sigset_t block_condor_signals();
@@ -52,3 +51,4 @@ extern "C" void restore_condor_sigmask(sigset_t);
 #endif
 
 extern "C" {
+
