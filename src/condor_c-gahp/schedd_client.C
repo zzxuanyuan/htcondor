@@ -418,6 +418,7 @@ dprintf(D_ALWAYS,"*** spooling %d job ads\n",stage_in_batch.Number());
 			sprintf (error_msg, "Error connecting to schedd %s: %s", ScheddAddr, errstack.getFullText());
 			dprintf (D_ALWAYS, "%s\n", error_msg);
 		}
+		delete [] array;
   
 		stage_in_batch.Rewind();
 		while (stage_in_batch.Next(current_command)) {
@@ -722,6 +723,9 @@ submit_report_result:
 					unparser.Unparse (next_ad, *da_buffer);
 				}
 				matching_ads.Append (da_buffer);
+				if ( next_ad ) {
+					FreeJobAd(next_ad);
+				}
 				next_ad = GetNextJobByConstraint( current_command->constraint, 0 );
 			}
 
