@@ -301,8 +301,11 @@ MirrorJob::MirrorJob( ClassAd *classad )
 
 	gahp_path = param("MIRROR_GAHP");
 	if ( gahp_path == NULL ) {
-		error_string = "MIRROR_GAHP not defined";
-		goto error_exit;
+		gahp_path = param( "CONDOR_GAHP" );
+		if ( gahp_path == NULL ) {
+			error_string = "CONDOR_GAHP not defined";
+			goto error_exit;
+		}
 	}
 		// TODO remove mirrorScheddName from the gahp server key if/when
 		//   a gahp server can handle multiple schedds
