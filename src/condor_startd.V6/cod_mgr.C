@@ -131,11 +131,11 @@ CODMgr::removeClaim( Claim* c )
 void
 CODMgr::starterExited( Claim* c ) 
 {
-	if( c->wantsRelease() ) {
-			// if we were trying to release this claim, we can finally
-			// reply and destroy this claim object now that the
-			// starter is gone and we're done cleaning up everything.
-		c->finishRelease();
+	if( c->hasPendingCmd() ) {
+			// if we're in the middle of a pending command, we can
+			// finally complete it and reply now that the starter is
+			// gone and we're done cleaning up everything.
+		c->finishPendingCmd();
 		return;
 	}
 
@@ -184,9 +184,7 @@ CODMgr::release( Stream* s, ClassAd* req, Claim* claim )
 	VacateType vac_type = getVacateType( req );
 
 		// tell this claim we're trying to release it
-	claim->setWantsRelease( true );
-
-		// stash the stream so we can notify it when we're done
+	claim->setPendingCmd( CA_RELEASE_CLAIM );
 	claim->setRequestStream( s );
 
 	switch( claim->state() ) {
@@ -199,7 +197,7 @@ CODMgr::release( Stream* s, ClassAd* req, Claim* claim )
 	case CLAIM_IDLE:
 			// it's not running a job, so we can remove it
 			// immediately.
-		claim->finishRelease();
+		claim->finishPendingCmd();
 		break;
 
 	case CLAIM_RUNNING:
@@ -216,7 +214,6 @@ CODMgr::release( Stream* s, ClassAd* req, Claim* claim )
 			// requested a fast shutdown, do the hardkill.  otherwise,
 			// now that we know to release this claim, there's nothing
 			// else to do except wait for the starter to exit.
-			// work for us to do except wait.
 		if( vac_type == VACATE_FAST ) {
 			claim->deactivateClaim( false );
 		}
@@ -230,7 +227,7 @@ CODMgr::release( Stream* s, ClassAd* req, Claim* claim )
 	}
 		// in general, we're going to have to wait to reply to the
   		// requesting entity until the starter exists.  even if we're
-		// ready to reply right now, the finishRelease() method will
+		// ready to reply right now, the finishPendingCmd() method will
 		// have deleted the stream, so in all cases, we want
 		// DaemonCore to leave it alone.
 	return KEEP_STREAM;
@@ -292,6 +289,7 @@ CODMgr::activate( Stream* s, ClassAd* req, Claim* claim )
 	ClassAd* new_req_ad = new ClassAd( *req );
 	claim->beginActivation( new_req_ad, now );
 
+
 		// TODO: deal w/ state interactions w/ opportunistic claim!!!
 
 	ClassAd reply;
@@ -313,9 +311,67 @@ CODMgr::activate( Stream* s, ClassAd* req, Claim* claim )
 int
 CODMgr::deactivate( Stream* s, ClassAd* req, Claim* claim )
 {
-		// TODO!
-	return true;
+	MyString err_msg;
+	VacateType vac_type = getVacateType( req );
+
+	claim->setPendingCmd( CA_DEACTIVATE_CLAIM );
+	claim->setRequestStream( s );
+
+	switch( claim->state() ) {
+
+	case CLAIM_UNCLAIMED:
+			// This is a programmer error.  we can't possibly get here  
+		EXCEPT( "Trying to deactivate a claim that was never claimed!" ); 
+		break;
+
+	case CLAIM_IDLE:
+			// it is not activate, so return an error
+		err_msg = "Attempt to deactivate a claim that is not active ";
+		err_msg += "(current state: '";
+		err_msg += getClaimStateString( CLAIM_IDLE );
+		err_msg += "')";
+
+		claim->setRequestStream( NULL );
+		claim->setPendingCmd( -1 );
+		return sendErrorReply( s, "CA_DEACTIVATE_CLAIM",
+							   CA_INVALID_STATE, err_msg.Value() ); 
+		break;
+
+	case CLAIM_RUNNING:
+	case CLAIM_SUSPENDED:
+			// for these two, we have to kill the starter, and then
+			// notify the other side when it's gone.  so, all we can
+			// do now is stash the Stream in the claim, and signal the
+			// starter as appropriate;
+		claim->deactivateClaim( vac_type == VACATE_GRACEFUL );
+		break;
+
+	case CLAIM_VACATING:
+			// if we're already preempting gracefully, but the command
+			// requested a fast shutdown, do the hardkill.  otherwise,
+			// now that we set the flag so we know to reply to this
+			// stream, there's nothing else to do except wait for the
+			// starter to exit.
+		if( vac_type == VACATE_FAST ) {
+			claim->deactivateClaim( false );
+		}
+		break;
+
+	case CLAIM_KILLING:
+			// if we're already trying to fast-kill, there's nothing
+			// we can do now except wait for the starter to exit. 
+		break;
+
+	}
+		// in general, we're going to have to wait to reply to the
+  		// requesting entity until the starter exists.  even if we're
+		// ready to reply right now, the finishPendingCmd() method will
+		// have deleted the stream, so in all cases, we want
+		// DaemonCore to leave it alone.
+	return KEEP_STREAM;
 }
+
+
 
 
 int
