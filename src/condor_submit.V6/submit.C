@@ -479,8 +479,7 @@ main( int argc, char *argv[] )
 	int i;
 
 		// init db connection
-	DBObj = new ODBC("condor", "scidb", "");
-	DBObj -> odbc_connect();
+	DBObj = createConnection();
 
 	setbuf( stdout, NULL );
 
