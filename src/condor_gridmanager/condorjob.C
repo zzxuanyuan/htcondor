@@ -62,6 +62,7 @@
 #define GM_CANCEL_2				20
 #define GM_POLL_ACTIVE			21
 #define GM_STAGE_OUT			22
+#define GM_RECOVER_POLL			23
 
 static char *GMStateNames[] = {
 	"GM_INIT",
@@ -86,7 +87,8 @@ static char *GMStateNames[] = {
 	"GM_RELEASE_REMOTE_JOB",
 	"GM_CANCEL_2",
 	"GM_POLL_ACTIVE",
-	"GM_STAGE_OUT"
+	"GM_STAGE_OUT",
+	"GM_RECOVER_POLL"
 };
 
 #define JOB_STATE_UNKNOWN				-1
@@ -360,10 +362,77 @@ int CondorJob::doEvaluateState()
 			errorString = "";
 			if ( remoteJobId.cluster == 0 ) {
 				gmState = GM_CLEAR_REQUEST;
+			} else if ( condorState == COMPLETED ) {
+				gmState = GM_DONE_COMMIT;
 			} else {
-				// TODO: need to ensure that stage-in has been completed
-				gmState = GM_SUBMITTED;
+				gmState = GM_RECOVER_POLL;
 			}
+			} break;
+		case GM_RECOVER_POLL: {
+			int num_ads = 0;
+			int tmp_int = 0;
+			ClassAd **status_ads = NULL;
+			MyString constraint;
+			constraint.sprintf( "%s==%d&&%s==%d", ATTR_CLUSTER_ID,
+								remoteJobId.cluster, ATTR_PROC_ID,
+								remoteJobId.proc );
+			rc = gahp->condor_job_status_constrained( remoteScheddName,
+													  constraint.Value(),
+													  &num_ads, &status_ads );
+			if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
+				 rc == GAHPCLIENT_COMMAND_PENDING ) {
+				break;
+			}
+			if ( rc != GLOBUS_SUCCESS ) {
+				// unhandled error
+				dprintf( D_ALWAYS,
+						 "(%d.%d) condor_job_status_constrained() failed: %s\n",
+						 procID.cluster, procID.proc, gahp->getErrorString() );
+				gmState = GM_CANCEL_1;
+				break;
+			}
+			if ( num_ads != 1 ) {
+					// Didn't get the number of ads we expected. Abort!
+				dprintf( D_ALWAYS,
+						 "(%d.%d) condor_job_status_constrained() returned %d ads\n",
+						 procID.cluster, procID.proc, num_ads );
+				gmState = GM_CANCEL_1;
+			} else if ( status_ads[0]->LookupInteger( ATTR_STAGE_IN_FINISH,
+													  tmp_int ) == 0 ||
+						tmp_int <= 0 ) {
+					// We haven't finished staging in files yet
+				gmState = GM_STAGE_IN;
+			} else {
+
+					// Copy any attributes we care about from the remote
+					// ad to our local one before doing anything else
+				ProcessRemoteAd( status_ads[0] );
+				int server_time;
+				if ( status_ads[0]->LookupInteger( ATTR_SERVER_TIME,
+												   server_time ) == 0 ) {
+					dprintf( D_ALWAYS, "(%d.%d) Ad from remote schedd has "
+							 "no %s, faking with current local time\n",
+							 procID.cluster, procID.proc, ATTR_SERVER_TIME );
+					server_time = time(NULL);
+				}
+				lastRemoteStatusServerTime = server_time;
+
+				if ( remoteState == COMPLETED &&
+					 status_ads[0]->LookupInteger( ATTR_STAGE_OUT_FINISH,
+												   tmp_int ) != 0 &&
+					 tmp_int > 0 ) {
+
+						// We already staged out all the files
+					gmState = GM_DONE_SAVE;
+				} else {
+						// All other cases can be handled by GM_SUBMITTED
+					gmState = GM_SUBMITTED;
+				}
+			}
+			for ( int i = 0; i < num_ads; i++ ) {
+				delete status_ads[i];
+			}
+			free( status_ads );
 			} break;
 		case GM_UNSUBMITTED: {
 			// There are no outstanding remote submissions for this job (if
