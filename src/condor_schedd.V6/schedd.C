@@ -4483,6 +4483,18 @@ Scheduler::StartJobHandler()
 			close( pipe_fds[1] );
 		}
 	}
+		/*
+		  If we just spawned a reconnect shadow, we want to update
+		  ATTR_LAST_CONTACT in the job ad.  This normally gets done
+		  inside add_shadow_rec(), but we don't want that behavior for
+		  reconnect shadows or we clobber the valuable info that was
+		  left in the job queue.  So, we do it here, now that we
+		  already wrote out the job ClassAd to the shadow's pipe.
+		*/
+	if( srec->is_reconnect ) {
+		SetAttributeInt( job_id->cluster, job_id->proc, ATTR_LAST_CONTACT,
+						 (int)time(0) );
+	}
 
 	tryNextJob();
 }
