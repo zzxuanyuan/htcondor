@@ -280,6 +280,30 @@ Resource::findClaimByPid( pid_t starter_pid )
 }
 
 
+Claim*
+Resource::findClaimById( const char* id )
+{
+	Claim* claim = NULL;
+
+		// first, ask our CODMgr, since most likely, that's what we're
+		// looking for
+	claim = r_cod_mgr->findClaimById( id );
+	if( claim ) {
+		return claim;
+	}
+
+		// otherwise, try our opportunistic claims
+	if( r_cur && r_cur->cap()->matches(id) ) {
+		return r_cur;
+	}
+	if( r_pre && r_pre->cap()->matches(id) ) {
+		return r_pre;
+	}
+		// if we're still here, we couldn't find it anywhere
+	return NULL;
+}
+
+
 bool
 Resource::claimIsActive( void )
 {

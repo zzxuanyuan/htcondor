@@ -99,6 +99,9 @@ public:
 		// given pid.  
 	Claim*	findClaimByPid( pid_t starter_pid );
 
+		// Return a pointer to the Claim object with the given ClaimId
+	Claim*	findClaimById( const char* id );
+
 	bool	claimIsActive( void ); 
 
 		// Called when the starter of one of our claims exits
