@@ -47,6 +47,7 @@
 #endif
 
 #include "mirrorjob.h"
+#include "condorjob.h"
 #include "gt3job.h"
 
 #define QMGMT_TIMEOUT 15
@@ -340,6 +341,15 @@ Init()
 	jobTypes.Append( new_type );
 
 	new_type = new JobType;
+	new_type->Name = strdup( "Condor" );
+	new_type->InitFunc = CondorJobInit;
+	new_type->ReconfigFunc = CondorJobReconfig;
+	new_type->AdMatchConst = CondorJobAdConst;
+	new_type->AdMustExpandFunc = CondorJobAdMustExpand;
+	new_type->CreateFunc = CondorJobCreate;
+	jobTypes.Append( new_type );
+
+	new_type = new JobType;
 	new_type->Name = strdup( "GT3" );
 	new_type->InitFunc = GT3JobInit;
 	new_type->ReconfigFunc = GT3JobReconfig;
@@ -439,7 +449,6 @@ doContactSchedd()
 	bool schedd_deletes_complete = false;
 	bool add_remove_jobs_complete = false;
 	bool commit_transaction = true;
-	List<BaseJob> successful_deletes;
 	int failure_line_num = 0;
 	bool send_reschedule = false;
 
@@ -854,6 +863,13 @@ contact_schedd_next_add_job:
 
 	// Delete existing jobs
 	/////////////////////////////////////////////////////
+	BeginTransaction();
+	if ( errno == ETIMEDOUT ) {
+		failure_line_num = __LINE__;
+		commit_transaction = false;
+		goto contact_schedd_disconnect;
+	}
+
 	pendingScheddUpdates.startIterations();
 
 	while ( pendingScheddUpdates.iterate( curr_job ) != 0 ) {
@@ -861,12 +877,6 @@ contact_schedd_next_add_job:
 		if ( curr_job->deleteFromSchedd ) {
 			dprintf(D_FULLDEBUG,"Deleting job %d.%d from schedd\n",
 					curr_job->procID.cluster, curr_job->procID.proc);
-			BeginTransaction();
-			if ( errno == ETIMEDOUT ) {
-				failure_line_num = __LINE__;
-				commit_transaction = false;
-				goto contact_schedd_disconnect;
-			}
 			rc = DestroyProc(curr_job->procID.cluster,
 							 curr_job->procID.proc);
 			if ( rc < 0 ) {
@@ -874,14 +884,14 @@ contact_schedd_next_add_job:
 				commit_transaction = false;
 				goto contact_schedd_disconnect;
 			}
-			if ( CloseConnection() < 0 ) {
-				failure_line_num = __LINE__;
-				commit_transaction = false;
-				goto contact_schedd_disconnect;
-			}
-			successful_deletes.Append( curr_job );
 		}
 
+	}
+
+	if ( CloseConnection() < 0 ) {
+		failure_line_num = __LINE__;
+		commit_transaction = false;
+		goto contact_schedd_disconnect;
 	}
 
 	schedd_deletes_complete = true;
@@ -921,7 +931,7 @@ contact_schedd_next_add_job:
 				// object yet; wait until we successfully delete the job
 				// from the schedd.
 			if ( curr_job->deleteFromSchedd == true &&
-				 successful_deletes.Delete( curr_job ) == false ) {
+				 schedd_deletes_complete == false ) {
 				continue;
 			}
 

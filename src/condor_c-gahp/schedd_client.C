@@ -69,6 +69,7 @@ int checkRequestPipeTid = TIMER_UNSET;
 int contactScheddTid = TIMER_UNSET;
 
 char *ScheddAddr = NULL;
+char *ScheddPool = NULL;
 
 extern char *myUserName;
 
@@ -178,7 +179,7 @@ doContactSchedd()
 	CondorError errstack;
 
 	// Try connecting to schedd
-	DCSchedd dc_schedd ( ScheddAddr );
+	DCSchedd dc_schedd ( ScheddAddr, ScheddPool );
 	if (dc_schedd.error() || !dc_schedd.locate()) {
 		sprintf (error_msg, "Error locating schedd %s", ScheddAddr);
 
@@ -442,7 +443,7 @@ doContactSchedd()
 	// Try connecting to the queue
 	Qmgr_connection * qmgr_connection;
 	
-	if ((qmgr_connection = ConnectQ(ScheddAddr, QMGMT_TIMEOUT, false )) == NULL) {
+	if ((qmgr_connection = ConnectQ(dc_schedd.addr(), QMGMT_TIMEOUT, false )) == NULL) {
 		error = TRUE;
 		sprintf (error_msg, "Error connecting to schedd %s", ScheddAddr);
 		dprintf (D_ALWAYS, "%s\n", error_msg);
@@ -526,7 +527,9 @@ update_report_result:
 			//CloseConnection();
 			enqueue_result (current_command->request_id, result, 2);
 			current_command->status = SchedDRequest::SDCS_COMPLETED;
-			AbortTransaction();
+			if ( qmgr_connection != NULL ) {
+				AbortTransaction();
+			}
 		} else {
 			const char * result[] = {
 				GAHP_RESULT_SUCCESS,
@@ -613,7 +616,9 @@ submit_report_result:
 								job_id_buff,
 									error_msg };
 			enqueue_result (current_command->request_id, result, 3);
-			AbortTransaction();
+			if ( qmgr_connection != NULL ) {
+				AbortTransaction();
+			}
 			current_command->status = SchedDRequest::SDCS_COMPLETED;
 		} else {
 			const char * result[] = {
@@ -697,10 +702,9 @@ submit_report_result:
 	
 	dprintf (D_FULLDEBUG, "Finishing doContactSchedd()\n");
 
-	
-
-
-	DisconnectQ (qmgr_connection, FALSE);
+	if ( qmgr_connection != NULL ) {
+		DisconnectQ (qmgr_connection, FALSE);
+	}
 	qmgmt_sock = NULL;
 
 	// Clean up the list

@@ -58,7 +58,7 @@ void
 usage( char *name )
 {
 	dprintf( D_ALWAYS,
-		"Usage: condor_gahp -s <schedd name>\n",
+		"Usage: condor_gahp -s <schedd name> [-P <pool name>]\n",
 		basename( name ) );
 	DC_Exit( 1 );
 }
@@ -81,6 +81,13 @@ main_init( int argc, char ** const argv )
 			if ( argc <= i + 1 )
 				usage( argv[0] );
 			ScheddAddr = strdup( argv[i + 1] );
+			i++;
+			break;
+		case 'P':
+			// specify what pool (i.e. collector) to lookup the schedd name
+			if ( argc <= i + 1 )
+				usage( argv[0] );
+			ScheddPool = strdup( argv[i + 1] );
 			i++;
 			break;
 		default:
