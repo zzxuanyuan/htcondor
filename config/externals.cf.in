@@ -72,6 +72,8 @@ PVM_DIR = $(EXT_INSTALL)/$(EXT_PVM_VERSION)
 
 TMP_DIR = @TMPDIR@
 
+TAR_CMD = @TarCmd@
+
 #if HAS_PURIFY
 PURE_CACHE_DIR = @pure_cache_dir@
 #endif
