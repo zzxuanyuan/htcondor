@@ -177,6 +177,14 @@ public:
 		 */
 	virtual void gotShutdownGraceful( void );
 
+		/** The starter has been asked to evict for condor_rm
+		 */
+	virtual void gotRemove( void );
+
+		/** The starter has been asked to evict for condor_hold
+		 */
+	virtual void gotHold( void );
+
 		/** Someone is attempting to reconnect to this job.
 		 */
 	virtual int reconnect( ReliSock* s, ClassAd* ad ) = 0;

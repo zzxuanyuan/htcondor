@@ -233,6 +233,22 @@ JobInfoCommunicator::gotShutdownGraceful( void )
 
 
 void
+JobInfoCommunicator::gotRemove( void )
+{
+		// Set our flag so we know we were asked to vacate.
+	requested_exit = true;
+}
+
+
+void
+JobInfoCommunicator::gotHold( void )
+{
+		// Set our flag so we know we were asked to vacate.
+	requested_exit = true;
+}
+
+
+void
 JobInfoCommunicator::setOutputAdFile( const char* path )
 {
 	if( job_output_ad_file ) {
