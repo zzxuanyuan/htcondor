@@ -54,6 +54,8 @@ static int trans_timer_id = -1;
 
 extern Scheduler scheduler;
 
+/* XXX: When we finally have multiple transactions it is important
+        that each one has a "jobs" hashtable! */
 template class HashTable<MyString, Job *>;
 HashTable<MyString, Job *> jobs = HashTable<MyString, Job *>(1024, MyStringHash, rejectDuplicateKeys);
 
@@ -65,10 +67,20 @@ convert_FileInfoList_to_Array(struct soap * soap,
   array.__size = list.Number();
   array.__ptr = (struct condor__FileInfo *) soap_malloc(soap, array.__size * sizeof(struct condor__FileInfo));
 
+  if (NULL == array.__ptr) {
+	  return false;
+  }
+
   FileInfo *info;
   list.Rewind();
   for (int i = 0; list.Next(info); i++) {
-    array.__ptr[i].name = strdup(info->name.GetCStr());
+		  /* It would be easier to use strdup, but we'd leak memory.
+			 array.__ptr[i].name = strdup(info->name.GetCStr()); */
+	array.__ptr[i].name = (char *) soap_malloc(soap, info->name.Length() * sizeof(char));
+	if (NULL == array.__ptr[i].name) {
+		return false;
+	}
+	strcpy(array.__ptr[i].name, info->name.GetCStr());
     array.__ptr[i].size = (int) info->size;
   }
 
@@ -101,7 +113,8 @@ static
 int
 insertJob(int clusterId, int jobId, Job *job)
 {
-		// XXX: Bug when key is popped off the stack?
+		// XXX: Bug when key is popped off the stack? Does
+		// HashTable::Insert() make a copy of the key?
   MyString key;
   key += clusterId;
   key += ".";
