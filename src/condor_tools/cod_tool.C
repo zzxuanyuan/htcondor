@@ -71,6 +71,7 @@ void parseCOpt( char* opt, char* arg );
 void parsePOpt( char* opt, char* arg );
 void parseArgv( int argc, char* argv[] );
 int getCommandFromArgv( int argc, char* argv[] );
+void printOutput( ClassAd* reply, DCStartd* startd );
 void fillRequestAd( ClassAd* );
 void fillActivateAd( ClassAd* );
 
@@ -142,21 +143,7 @@ main( int argc, char *argv[] )
 		return 1;
 	}
 
-	if( CA_PATH ) {
-		reply.fPrint( CA_PATH );
-		fclose( CA_PATH );
-		printf( "Sent %s to startd at %s\n", getCommandString(cmd),
-				startd.addr() ); 
-		printf( "Result ClassAd written to %s\n", classad_path );
-	} else {
-		if( cmd == CA_REQUEST_CLAIM ) {
-			fprintf( stderr, "Sent %s to startd at %s\n", 
-					 getCommandString(cmd), startd.addr() ); 
-			fprintf( stderr, "WARNING: You did not specify "
-					 "-classad_path, printing to STDOUT\n" );
-			reply.fPrint( stdout );
-		}
-	}
+	printOutput( &reply, &startd );
 	return 0;
 }
 
@@ -165,6 +152,67 @@ main( int argc, char *argv[] )
 /*********************************************************************
    Helper functions used by main()
 *********************************************************************/
+
+
+void
+printOutput( ClassAd* reply, DCStartd* startd )
+{
+
+	char* claim_id = NULL;
+	char* last_state = NULL;
+
+	if( cmd == CA_REQUEST_CLAIM ) {
+		reply->LookupString( ATTR_CLAIM_ID, &claim_id );
+	}
+
+	if( CA_PATH ) {
+		reply->fPrint( CA_PATH );
+		fclose( CA_PATH );
+		printf( "Successfully sent %s to startd at %s\n",
+				getCommandString(cmd), startd->addr() ); 
+		printf( "Result ClassAd written to %s\n", classad_path );
+		if( cmd == CA_REQUEST_CLAIM ) {
+			printf( "ID of new claim is: \"%s\"\n", claim_id );
+			free( claim_id );
+		}
+		return;
+	}
+
+	if( cmd == CA_REQUEST_CLAIM ) {
+		fprintf( stderr, "Successfully sent %s to startd at %s\n", 
+				 getCommandString(cmd), startd->addr() ); 
+		fprintf( stderr, "WARNING: You did not specify "
+				 "-classad_path, printing to STDOUT\n" );
+		reply->fPrint( stdout );
+		fprintf( stderr, "ID of new claim is: \"%s\"\n", claim_id );
+		free( claim_id );
+		return;
+	}
+
+	printf( "Successfully sent %s to startd at %s\n",
+			getCommandString(cmd), startd->addr() );
+
+	switch( cmd ) {
+	case CA_REQUEST_CLAIM:
+		EXCEPT( "Already handled CA_REQUEST_CLAIM!" );
+		break;
+
+	case CA_RELEASE_CLAIM:
+		if( reply->LookupString(ATTR_LAST_CLAIM_STATE, &last_state) ) { 
+			printf( "State of claim when it was released: \"%s\"\n",
+					last_state );
+			free( last_state );
+		} else {
+			fprintf( stderr, "Warning: "
+					 "reply ClassAd did not contain attribute \"%s\"\n",
+					 ATTR_LAST_CLAIM_STATE );
+		}
+		break;
+	default:
+			// nothing else yet to print
+		break;
+	}
+}
 
 
 void
