@@ -54,11 +54,6 @@ public:
 		// Quickly kill starter but keep claim
 	int		deactivate_claim_forcibly( void );
 
- 		// Send DC_SIGHARDKILL to the starter and start a timer to
-		// send SIGKILL to the starter if it's not gone in
-		// killing_timeout seconds.  
-	int		hardkill_starter( void );
-
 		// Resource state methods
 	void	set_destination_state( State s ) { r_state->set_destination(s);};
 	State	destination_state( void ) {return r_state->destination();};
@@ -69,7 +64,7 @@ public:
 	Activity	activity( void )	{return r_state->activity();};
 	int		eval_state( void )		{return r_state->eval();};
 	bool	in_use( void );
-	bool	is_deactivating( void ) {return r_is_deactivating;};
+	bool	isDeactivating( void )	{return r_cur->isDeactivating();};
 
 		// Methods for computing and publishing resource attributes 
 	void	compute( amask_t mask);
@@ -99,13 +94,14 @@ public:
 	void	log_ignore( int cmd, State s, Activity a );
 	void	log_shutdown_ignore( int cmd );
 
-		// Called from the reaper to handle things for this rip
-	void	starter_exited( void );	
+		// Return a pointer to the Match object whose starter has the
+		// given pid.  
+	Match*	findMatchByPid( pid_t starter_pid );
 
-		// Called by command_activate_claim() to spawn a starter
-	int		spawn_starter( start_info_t*, time_t );
+	bool	matchIsActive( void ); 
 
-	void	setStarter( Starter* s );
+		// Called when the starter of one of our matches exits
+	void	starterExited( Match* cur_match );	
 
 		// Since the preempting state is so weird, and when we want to
 		// leave it, we need to decide where we want to go, and we
@@ -141,7 +137,6 @@ public:
 		// Data members
 	ResState*		r_state;	// Startd state object, contains state and activity
 	ClassAd*		r_classad;	// Resource classad (contains everything in config file)
-	Starter*		r_starter;	// Starter object
 	Match*			r_cur;		// Info about the current match
 	Match*			r_pre;		// Info about the possibly preempting match
 	Reqexp*			r_reqexp;   // Object for the requirements expression
@@ -161,7 +156,6 @@ private:
 
 	int		fast_shutdown;	// Flag set if we're in fast shutdown mode.
 	void	remove_pre( void );	// If r_pre is set, refuse and delete it.
-	bool	r_is_deactivating;	// Are we in the middle of deactivating a claim?
 	int		r_cpu_busy;
 	time_t	r_cpu_busy_start_time;
 };

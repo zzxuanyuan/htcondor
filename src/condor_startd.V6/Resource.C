@@ -25,6 +25,10 @@
 #include "startd.h"
 #include "mds.h"
 
+
+#define WANTS_CONDOR_LOAD 0
+
+
 Resource::Resource( CpuAttributes* cap, int rid )
 {
 	char tmp[256];
@@ -32,7 +36,6 @@ Resource::Resource( CpuAttributes* cap, int rid )
 	int size = (int)ceil(60.0 / (double)polling_interval);
 	r_classad = NULL;
 	r_state = new ResState( this );
-	r_starter = NULL;
 	r_cur = new Match( this );
 	r_pre = NULL;
 	r_reqexp = new Reqexp( this );
@@ -58,7 +61,6 @@ Resource::Resource( CpuAttributes* cap, int rid )
 	r_attr->attach( this );
 
 	update_tid = -1;
-	r_is_deactivating = false;
 	update_sequence = 0;
 
 		// Set ckpt filename for avail stats here, since this object
@@ -103,9 +105,6 @@ Resource::~Resource()
 
 	delete r_state;
 	delete r_classad;
-	if( r_starter ) {
-		delete r_starter;
-	}
 	delete r_cur;		
 	if( r_pre ) {
 		delete r_pre;		
@@ -131,9 +130,7 @@ Resource::release_claim( void )
 			// we're in any other state.  If there's no starter, this
 			// will just return without doing anything.  If there is a
 			// starter, it shouldn't be there.
-		if( r_starter ) {
-			return r_starter->kill( DC_SIGSOFTKILL );
-		}
+		return (int)r_cur->starterKillSoft();
 	}
 	return TRUE;
 }
@@ -153,7 +150,7 @@ Resource::kill_claim( void )
 		return change_state( owner_state );
 	default:
 			// In other states, try direct kill.  See above.
-		return hardkill_starter();
+		return r_cur->starterKillHard();
 	}
 	return TRUE;
 }
@@ -185,10 +182,7 @@ Resource::periodic_checkpoint( void )
 		return FALSE;
 	}
 	dprintf( D_ALWAYS, "Performing a periodic checkpoint on %s.\n", r_name );
-	if( r_starter && r_starter->kill( DC_SIGPCKPT ) < 0 ) {
-		return FALSE;
-	}
-	r_cur->setlastpckpt((int)time(NULL));
+	r_cur->periodicCheckpoint();
 
 		// Now that we updated this time, be sure to insert those
 		// attributes into the classad right away so we don't keep
@@ -202,8 +196,8 @@ Resource::periodic_checkpoint( void )
 int
 Resource::request_new_proc( void )
 {
-	if( state() == claimed_state && r_starter) {
-		return r_starter->kill( SIGHUP );
+	if( state() == claimed_state && r_cur->isActive()) {
+		return r_cur->starterKill( SIGHUP );
 	} else {
 		return FALSE;
 	}
@@ -215,18 +209,9 @@ Resource::deactivate_claim( void )
 {
 	dprintf(D_ALWAYS, "Called deactivate_claim()\n");
 	if( state() == claimed_state ) {
-		if( r_starter && r_starter->active() ) {
-				// Set a flag to avoid a potential race in our
-				// protocol.  
-			r_is_deactivating = true;
-				// Singal the starter.
-			return r_starter->kill( DC_SIGSOFTKILL );
-		} else {
-			return TRUE;
-		}
-	} else {
-		return FALSE;
-	}
+		return r_cur->deactivateClaim( true );
+	} 
+	return FALSE;
 }
 
 
@@ -235,28 +220,9 @@ Resource::deactivate_claim_forcibly( void )
 {
 	dprintf(D_ALWAYS, "Called deactivate_claim_forcibly()\n");
 	if( state() == claimed_state ) {
-		if( r_starter && r_starter->active() ) {
-				// Set a flag to avoid a potential race in our
-				// protocol.  
-			r_is_deactivating = true;
-				// Singal the starter.
-			return hardkill_starter();
-		} else {
-			return TRUE;
-		}
-	} else {
-		return FALSE;
-	}
-}
-
-
-int
-Resource::hardkill_starter( void )
-{
-	if( ! r_starter || ! r_starter->active() ) {
-		return TRUE;
-	}
-	return (int)r_starter->killHard();
+		return r_cur->deactivateClaim( false );
+	} 
+	return FALSE;
 }
 
 
@@ -272,21 +238,14 @@ Resource::in_use( void )
 
 
 void
-Resource::starter_exited( void )
+Resource::starterExited( Match* cur_match )
 {
-	if( ! r_starter ) {
-		EXCEPT( "starter_exited() called with no starter!" );
+	if( ! cur_match ) {
+		EXCEPT( "Resource::starterExited() called with no Match!" );
 	}
 
-		// Now that the starter is gone, we can clear this flag.
-	r_is_deactivating = false;
-
-		// Let our starter object know it's starter has exited.
-	r_starter->exited();
-
-		// now we can actually delete the starter object
-	delete( r_starter );
-	r_starter = NULL;
+		// for now, we've just got 1 match, so we can assume that the
+		// starter exiting will trigger a state change... 
 
 		// All of the potential paths from here result in a state
 		// change, and all of them are triggered by the starter
@@ -314,42 +273,27 @@ Resource::starter_exited( void )
 }
 
 
-int
-Resource::spawn_starter( start_info_t* info, time_t now )
+Match*
+Resource::findMatchByPid( pid_t starter_pid )
 {
-	int rval;
-	if( ! r_starter ) {
-			// Big error!
-		dprintf( D_ALWAYS, "ERROR! Resource::spawn_starter() called "
-				 "w/o a Starter object! Returning failure\n" );
-		return 0;
+		// for now, just check r_cur.  once we've got multiple
+		// matches, we can walk through our list(s).
+	if( r_cur && r_cur->starterPidMatches(starter_pid) ) {
+		return r_cur;
 	}
-
-	rval = r_starter->spawn( info, now );
-
-		// Fake ourselves out so we take another snapshot in 15
-		// seconds, once the starter has had a chance to spawn the
-		// user job and the job as (hopefully) done any initial
-		// forking it's going to do.  If we're planning to check more
-		// often that 15 seconds, anyway, don't bother with this.
-	if( pid_snapshot_interval > 15 ) {
-		r_starter->set_last_snapshot( (now + 15) -
-									  pid_snapshot_interval );
-	} 
-	return rval;
+	return NULL;
 }
 
 
-void
-Resource::setStarter( Starter* s )
+bool
+Resource::matchIsActive( void )
 {
-	if( r_starter ) {
-		EXCEPT( "Resource::setStarter() called with existing starter!" );
+		// for now, just check r_cur.  once we've got multiple
+		// matches, we can walk through our list(s).
+	if( r_cur && r_cur->isActive() ) {
+		return true;
 	}
-	r_starter = s;
-	if( s ) {
-		s->setResource( this );
-	}
+	return false;
 }
 
 
@@ -576,7 +520,7 @@ Resource::wants_vacate( void )
 	int want_vacate = 0;
 	bool unknown = true;
 
-	if( ! r_starter || ! r_starter->active() ) {
+	if( ! matchIsActive() ) {
 			// There's no job here, so chances are good that some of
 			// the job attributes that WANT_VACATE might be defined in
 			// terms of won't exist.  So, instead of getting
@@ -1038,6 +982,7 @@ Resource::dprintf( int flags, char* fmt, ... )
 float
 Resource::compute_condor_load( void )
 {
+#if WANTS_CONDOR_LOAD
 	float avg;
 	float max;
 	float load;
@@ -1106,12 +1051,16 @@ Resource::compute_condor_load( void )
 		// Make sure we don't think the CondorLoad on 1 node is higher
 		// than the total system load.
 	return MIN( load, resmgr->m_attr->load() );
+#else /* WANTS_CONDOR_LOAD */
+	return 0.0;
+#endif
 }
 
 
 void
 Resource::resize_load_queue( void )
 {
+#if WANTS_CONDOR_LOAD
 	int size = (int)ceil(60.0 / (double)polling_interval);
 	dprintf( D_FULLDEBUG, "Resizing load queue.  Old: %d, New: %d\n",
 			 r_load_queue->size(), size );
@@ -1119,6 +1068,7 @@ Resource::resize_load_queue( void )
 	delete r_load_queue;
 	r_load_queue = new LoadQueue( size );
 	r_load_queue->setval( val );
+#endif /* WANTS_CONDOR_LOAD */
 }
 
 
