@@ -785,6 +785,8 @@ int Sock::close()
 
 	_sock = INVALID_SOCKET;
 	_state = sock_virgin;
+	_timeout = 0;
+	connect_state.host = NULL;
 	memset(&_who, 0, sizeof( struct sockaddr_in ) );
 	memset(&_endpoint_ip_buf, 0, _ENDPOINT_BUF_SIZE );
 	

@@ -20,6 +20,7 @@
  * Livny, 7367 Computer Sciences, 1210 W. Dayton St., Madison, 
  * WI 53706-1685, (608) 262-0856 or miron@cs.wisc.edu.
 ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
+#define CONDOR_3DES_ENCRYPTION
 
 #if defined(CONDOR_3DES_ENCRYPTION) && !defined(CONDOR_CRYPTO_3DES)
 #define CONDOR_CRYPTO_3DES

@@ -53,11 +53,14 @@ ReliSock::init()
 	hostAddr = NULL;
 	rcv_msg.init_parent(this);
 	snd_msg.init_parent(this);
+	snd_msg.buf.reset();
+	rcv_msg.buf.reset();
 }
 
 
 ReliSock::ReliSock()
-	: Sock()
+	: Sock(),
+	  authob(NULL)
 {
 	init();
 }
@@ -225,6 +228,10 @@ ReliSock::accept()
 int 
 ReliSock::connect( char	*host, int port, bool non_blocking_flag )
 {
+	if (authob) {
+		delete authob;
+	}
+	init();
 	is_client = 1;
 	if( ! host ) {
 		return FALSE;

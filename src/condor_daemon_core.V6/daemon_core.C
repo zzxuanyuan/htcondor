@@ -55,6 +55,24 @@ static const char* DEFAULT_INDENT = "DaemonCore--> ";
 typedef unsigned (__stdcall *CRT_THREAD_HANDLER) (void *);
 #endif
 
+static int ZZZZ = 0;
+int always_increase() {
+	return ZZZZ++;
+}
+
+#define SECURITY_HACK_ENABLE
+void zz2printf(KeyInfo *k) {
+	char hexout[260];  // holds (at least) a 128 byte key.
+	unsigned char* dataptr = k->getKeyData();
+	int   length  =  k->getKeyLength();
+
+	for (int i = 0; (i < length) && (i < 24); i++) {
+		sprintf (&hexout[i*2], "%02x", *dataptr++);
+	}
+
+    dprintf (D_SECURITY, "ZKM: [%i] %s\n", length, hexout);
+}
+
 extern void drop_addr_file( void );
 
 extern char* mySubSystem;	// the subsys ID, such as SCHEDD
@@ -1614,12 +1632,8 @@ int DaemonCore::HandleReq(int socki)
 
 	if (req == DC_AUTHENTICATE) {
 
-		// For now, only TCP is authenticated.  But stay tuned,
-		// soon UDP authentication will arrive as well!
-		// ASSERT( is_tcp == TRUE );
 		if (!is_tcp) {
-			dprintf (D_ALWAYS, "DC_AUTHENTICATE: ignoring UDP !\n");
-			return FALSE;
+			dprintf (D_ALWAYS, "DC_AUTHENTICATE: bring on the UDP !\n");
 		}
 
 		Sock* sock = (Sock*)stream;
@@ -1632,12 +1646,20 @@ int DaemonCore::HandleReq(int socki)
 		dprintf (D_SECURITY, "DC_AUTHENTICATE: entry value of result == %i\n", result);
 
 		ClassAd auth_info;
-		if( !auth_info.initFromStream(*sock) || !sock->end_of_message()) {
+		if( !auth_info.initFromStream(*sock)) {
 			dprintf (D_ALWAYS, "ERROR: DC_AUTHENTICATE unable to "
 					   "receive auth_info!\n");
-			return FALSE;	
+			result = FALSE;	
+			goto finalize;
 		}
-
+		
+		if ( is_tcp && !sock->end_of_message()) {
+			dprintf (D_ALWAYS, "ERROR: DC_AUTHENTICATE is TCP, unable to "
+					   "receive eom!\n");
+			result = FALSE;	
+			goto finalize;
+		}
+	
 		dprintf (D_SECURITY, "DC_AUTHENTICATE: received following ClassAd:\n");
 		auth_info.dPrint (D_SECURITY);
 
@@ -1647,7 +1669,8 @@ int DaemonCore::HandleReq(int socki)
 		if( ! auth_info.LookupString(ATTR_AUTH_TYPES, auth_types)) {
 			dprintf (D_ALWAYS, "ERROR: DC_AUTHENTICATE unable to "
 					   "extract auth_info.%s!\n", ATTR_AUTH_TYPES);
-			return FALSE;
+			result = FALSE;
+			goto finalize;
 		}
 
 		dprintf (D_SECURITY, "DC_AUTHENTICATE: auth_info.%s == '%s'\n",
@@ -1656,7 +1679,8 @@ int DaemonCore::HandleReq(int socki)
 		if( ! auth_info.LookupString(ATTR_AUTH_ACTION, buf)) {
 			dprintf (D_ALWAYS, "ERROR: DC_AUTHENTICATE unable to "
 					   "extract auth_info.%s!\n", ATTR_AUTH_ACTION);
-			return FALSE;	
+			result = FALSE;	
+			goto finalize;
 		}
 
 		dprintf (D_SECURITY, "DC_AUTHENTICATE: auth_info.%s == '%s'\n",
@@ -1667,11 +1691,11 @@ int DaemonCore::HandleReq(int socki)
 		const int AUTH_NO       = 2;
 		const int AUTH_ASK      = 3;
 		const int AUTH_YES      = 4;
-		const int AUTH_VIA_ENC  = 5;
+		const int AUTH_ENC      = 5;
 		int authentication_action = AUTH_NO;
 
 		if (strcasecmp(buf, "ENC") == 0) {
-			authentication_action = AUTH_VIA_ENC;
+			authentication_action = AUTH_ENC;
 		} else if (strcasecmp(buf, "YES") == 0) {
 			authentication_action = AUTH_YES;
 		} else if (strcasecmp(buf, "ASK") == 0) {
@@ -1682,6 +1706,12 @@ int DaemonCore::HandleReq(int socki)
 
 
 		if (authentication_action == AUTH_ASK) {
+			if (!is_tcp) {
+				dprintf ( D_SECURITY, "STARTCOMMAND: UDP cannot ASK!\n");
+				result = FALSE;
+				goto finalize;
+			}
+
 			ClassAd auth_response;
 			if (always_authenticate) {
 				authentication_action = AUTH_YES;
@@ -1696,88 +1726,122 @@ int DaemonCore::HandleReq(int socki)
 			sock->encode();
 			dprintf (D_SECURITY, "DC_AUTHENTICATE: sending following classad to client: \n");
 			auth_response.dPrint (D_SECURITY);
-			auth_response.put(*sock);
-			sock->end_of_message();
+
+			if (!auth_response.put(*sock) || !sock->end_of_message()) {
+				dprintf (D_SECURITY, "DC_AUTHENTICATE: unable to send classad!\n");
+				result = FALSE;
+				goto finalize;
+			}
+
+			sock->decode();
 		}
 
-		if (authentication_action == AUTH_VIA_ENC) {
+		if (authentication_action == AUTH_ENC) {
 			dprintf (D_SECURITY, "DC_AUTHENTICATE: request to use cached key.\n");
 
 			int key_id = 0;
 			if( ! auth_info.LookupInteger(ATTR_KEY_ID, key_id)) {
 				dprintf (D_ALWAYS, "ERROR: DC_AUTHENTICATE unable to "
 						   "extract auth_info.%s!\n", ATTR_KEY_ID);
-				return FALSE;	
+				result = FALSE;	
+				goto finalize;
 			}
 
 			dprintf (D_SECURITY, "DC_AUTHENTICATE: looking up cached key id %i.\n", key_id);
 
-			// so, the way this needs to work:
-			// if the client sends over a key that we don't think exists, we need to sync
-			// with them and re-authenticate over this socket.  after authenticating, turn
-			// on encryption with the new key (and update the cache to reflect the new key).
 
+			// lookup the suggested key
 			KeyCacheEntry *key = NULL;
 			if (enc_key_cache->lookup(key_id, key) != 0) {
 				dprintf (D_ALWAYS, "DC_AUTHENTICATE: attempt to "
 						   "authenticate with invalid key id %i.\n", key_id);
 
-				// return, and close the connection.
-				return FALSE;
+				// if this is UDP, they have no idea the key they are
+				// using is bunk, so  it would be nice of us to tell them.
+				// blast off a udp packet, its the laest we can do.
+				Daemon d(sin_to_string(sock->endpoint()));
+				Sock* s = d.startCommand (DC_INVALIDATE_KEY, Stream::safe_sock, 0);
+				if (s) {
+					s->encode();
+					s->code(key_id);
+					s->eom();
+					s->close();
+					delete s;
+				}
+
+				// close the connection.
+				dprintf (D_ALWAYS, "DC_AUTHENTICATE: Closing connection.\n");
+				result = FALSE;
+				goto finalize;
 
 			} else {
-				dprintf (D_SECURITY, "DC_AUTHENTICATE: found cached key id %i to %s.\n",
-							key->id(), key->addr());
+				dprintf (D_SECURITY, "DC_AUTHENTICATE: found cached key id %i given to %s.\n",
+							key->id(), sin_to_string(key->addr()));
 			
-				if (!sock->set_crypto_key(key->key())) {
+#ifdef SECURITY_HACK_ENABLE
+				zz2printf (key->key());
+#endif
+
+
+				sock->decode();
+				if (!sock->set_crypto_key(key->key()) || (is_tcp && !sock->eom())) {
 					delete key;
 					enc_key_cache->remove(key_id);
 					dprintf (D_ALWAYS, "DC_AUTHENTICATE: unable to turn on encryption.\n");
-					return FALSE;
+					result = FALSE;
+					goto finalize;
+
 				} else {
+					// HACK!!!  UDP shouldnt be acking anything.
+					// the problem is thus:
+					// UDP packets go one way.  if the key they have
+					// isn't valid, how are they to find out?  we can
+					// attempt to notify them via TCP, but that's about
+					// it.  discuss....
+					
+					int ack = 1;
+					sock->encode();
+					if (!sock->code(ack) || !sock->eom()) {
+						dprintf(D_SECURITY, "DC_AUTHENTICATION: unable to receive ack.\n");
+						result = FALSE;
+						goto finalize;
+					}
+					sock->decode();
+
 					dprintf (D_SECURITY, "DC_AUTHENTICATE: encryption enabled with key id %i.\n",
 								key->id());
+#ifdef SECURITY_HACK_ENABLE
+					zz2printf (key->key());
+#endif
+
 				}
 			}
 		}
 
 		if (authentication_action == AUTH_YES) {
-			int key_id = (int)time(0);
+			if (!is_tcp) {
+				dprintf ( D_SECURITY, "DC_AUTHENTICATE: UDP can't authenticate!\n");
+				result = FALSE;
+				goto finalize;
+			}
+
+			int key_id = ( ( (int)time(0) % 1000 )  * 1000 + (always_increase() % 1000) ) * 1000 + (rand() % 1000);
 			dprintf (D_SECURITY, "DC_AUTHENTICATE: generating private key id %i...\n", key_id);
 			KeyInfo *ki = new KeyInfo(Condor_Crypt_Base::randomKey(24), 24, CONDOR_3DES);
+#ifdef SECURITY_HACK_ENABLE
+					zz2printf (ki);
+#endif
+
 
 			dprintf (D_SECURITY, "DC_AUTHENTICATE: authenticating RIGHT NOW.\n");
 			if (!sock->authenticate(ki, getAuthBitmask(auth_types))) {
 				dprintf (D_ALWAYS, "DC_AUTHENTICATE: authenticate failed\n");
-				return FALSE;
-			}
-			if (!sock->set_crypto_key(ki)) {
-				dprintf (D_ALWAYS, "DC_AUTHENTICATE: set_crypto_key() failed\n");
-				return FALSE;
-			} else {
-				dprintf (D_SECURITY, "DC_AUTHENTICATE: crypto enabled with key id %i!\n", key_id);
+				result = FALSE;
+				goto finalize;
 			}
 
-			// shove the stupid id over
-			sock->encode();
-			if (!sock->code(key_id) || !sock->eom()) {
-				dprintf (D_ALWAYS, "DC_AUTHENTICATE: unable to send key id number %i.\n", key_id);
-				return FALSE;
-			}
-		}
 
-		if (authentication_action == AUTH_NO) {
-			dprintf (D_SECURITY, "DC_AUTHENTICATE: not authenticating.\n");
-			if (always_authenticate) {
-				// client refused to authenticate
-				// when server required it
-				dprintf (D_ALWAYS, "DC_AUTHENTICATE: client refused to authenticate.\n");
-				return FALSE;
-			}
-		}
-
-		if (is_tcp) {
-			// CHECK TO SEE IF THE KERB-IP is the same
+			// check to see if the kerb IP is the same
 			// as the socket IP.
 			if ( ((ReliSock*)sock)->authob ) {
 				const char* sockip = sin_to_string(sock->endpoint());
@@ -1790,10 +1854,48 @@ int DaemonCore::HandleReq(int socki)
 
 				if (!result) {
 					dprintf (D_ALWAYS, "DC_AUTHENTICATE: ERROR: IP not in agreement!!! BAILING!\n");
-					return FALSE;
+					result = FALSE;
+					goto finalize;
+
 				} else {
 					dprintf (D_SECURITY, "DC_AUTHENTICATE: IP address verified.\n");
 				}
+			}
+
+
+			if (!sock->set_crypto_key(ki)) {
+				dprintf (D_ALWAYS, "DC_AUTHENTICATE: set_crypto_key() failed\n");
+				result = FALSE;
+				goto finalize;
+			} else {
+				dprintf (D_SECURITY, "DC_AUTHENTICATE: crypto enabled with key id %i!\n", key_id);
+				// add the key to the cache
+				enc_key_cache->insert(key_id,
+						new KeyCacheEntry(key_id, sock->endpoint(), ki, 0));
+				dprintf (D_SECURITY, "DC_AUTHENTICATE: added key id %i to cache!\n", key_id);
+#ifdef SECURITY_HACK_ENABLE
+				zz2printf (ki);
+#endif
+			}
+
+			// shove the stupid id over
+			sock->encode();
+			if (!sock->code(key_id) || !sock->eom()) {
+				dprintf (D_ALWAYS, "DC_AUTHENTICATE: unable to send key id number %i.\n", key_id);
+				result = FALSE;
+				goto finalize;
+			}
+			sock->decode();
+		}
+
+		if (authentication_action == AUTH_NO) {
+			dprintf (D_SECURITY, "DC_AUTHENTICATE: not authenticating.\n");
+			if (always_authenticate) {
+				// client refused to authenticate
+				// when server required it
+				dprintf (D_ALWAYS, "DC_AUTHENTICATE: client refused to authenticate.\n");
+				result = FALSE;
+				goto finalize;
 			}
 		}
 
@@ -1810,7 +1912,7 @@ int DaemonCore::HandleReq(int socki)
 		dprintf (D_SECURITY, "DC_AUTHENTICATE: allowing an empty message for sock.\n");
 		sock->allow_one_empty_message();
 
-		result = saveres;
+		result = TRUE;
 		dprintf (D_SECURITY, "DC_AUTHENTICATE: restored result to %i\n", result);
 
 		dprintf (D_SECURITY, "DC_AUTHENTICATE: Success.\n");
@@ -1901,6 +2003,7 @@ int DaemonCore::HandleReq(int socki)
 		curr_dataptr = NULL;
 	}
 	
+finalize:
 	// finalize; the handler is done with the command.  the handler will return
 	// with KEEP_STREAM if we should not touch the stream; otherwise, cleanup
 	// the stream.  On tcp, we just delete it since the stream is the one we got
@@ -1916,6 +2019,10 @@ int DaemonCore::HandleReq(int socki)
 				delete stream;		   //     did not do an accept, Driver() will delete the stream.
 		} else {			
 			stream->end_of_message(); 			
+
+			// we need to reset the crypto keys
+			stream->set_crypto_key(0);
+
 			result = KEEP_STREAM;	// HACK: keep all UDP sockets for now.  The only ones
 									// in Condor so far are Initial command socks, so keep it.
 		}

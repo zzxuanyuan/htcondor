@@ -39,9 +39,22 @@
 #include "KeyCache.h"
 
 
+#define SECURITY_HACK_ENABLE
+void zz1printf(KeyInfo *k) {
+	char hexout[260];  // holds (at least) a 128 byte key.
+	unsigned char* dataptr = k->getKeyData();
+	int   length  =  k->getKeyLength();
+
+	for (int i = 0; (i < length) && (i < 24); i++) {
+		sprintf (&hexout[i*2], "%02x", *dataptr++);
+	}
+
+	dprintf (D_SECURITY, "ZKM: [%i] %s\n", length, hexout);
+}
+
+
 KeyCache* Daemon::enc_key_cache = NULL;
 int Daemon::enc_key_daemon_ref_count = 0;
-
 
 // Hash function for encryption key hash table
 static int
@@ -394,7 +407,7 @@ Daemon::startCommand( int cmd, Sock* sock, int sec )
 		dprintf ( D_ALWAYS, "startCommand() called with a NULL Sock*, failing." );
 		return false;
 	} else {
-		dprintf ( D_SECURITY, "STARTCOMMAND: starting %i to %s.\n", cmd, sin_to_string(sock->endpoint()));
+		dprintf ( D_SECURITY, "STARTCOMMAND: starting %i to %s on port %i.\n", cmd, sin_to_string(sock->endpoint()), sock->get_port());
 	}
 
 	// set up the timeout
@@ -467,11 +480,20 @@ Daemon::startCommand( int cmd, Sock* sock, int sec )
 	previously_auth = (enc_key_cache->lookup(sock->endpoint_ip_int(), enc_key) == 0);
 	if (previously_auth) {
 		dprintf (D_SECURITY, "STARTCOMMAND: found cached key id %i under %s.\n", enc_key->id(), sin_to_string(sock->endpoint()));
+#ifdef SECURITY_HACK_ENABLE
+		zz1printf(enc_key->key());
+#endif
 	} else {
 		dprintf (D_SECURITY, "STARTCOMMAND: no cached key under %s.\n", sin_to_string(sock->endpoint()));
 	}
 
-
+	
+	bool is_tcp = true;
+	if (sock->type() == Stream::safe_sock) {
+		dprintf ( D_SECURITY, "STARTCOMMAND: bring on the UDP !\n");
+		is_tcp = false;
+	}
+	
 choose_action:
 	// possible courses of authentication action:
 	const int AUTH_FAIL     = 0;
@@ -479,21 +501,18 @@ choose_action:
 	const int AUTH_NO       = 2;
 	const int AUTH_ASK      = 3;
 	const int AUTH_YES      = 4;
-	const int AUTH_VIA_ENC  = 5;
+	const int AUTH_ENC      = 5;
+	const int AUTH_UDP      = 6;
 
 	int authentication_action = AUTH_NO;
 
-	// HACK!!!!!
-	// FOR TESTING ONLY
-	// <<< === >>>
-	// ZKM
-	if (sock->type() == Stream::safe_sock) {
-		dprintf ( D_SECURITY, "STARTCOMMAND: UDP will use 6.2 style command.\n");
-		authentication_action = AUTH_OLD;
-	}
-	else
 
-	// END HACK
+
+	//HACK
+	// if (!is_tcp) {
+	//	authentication_action = AUTH_OLD;
+	// } else
+	//HACK
 
 
 	// now the decision
@@ -502,9 +521,13 @@ choose_action:
 			authentication_action = AUTH_FAIL;
 		} else {
 			if (previously_auth) {
-				authentication_action = AUTH_VIA_ENC;
+				authentication_action = AUTH_ENC;
 			} else {
-				authentication_action = AUTH_YES;
+				if (is_tcp) {
+					authentication_action = AUTH_YES;
+				} else {
+					authentication_action = AUTH_UDP;
+				}
 			}
 		}
 	} else {
@@ -516,9 +539,9 @@ choose_action:
 				// encryption key for them, they must have demanded it in
 				// the past.  rather then ask them every time, we'll just
 				// keep using it.
-				authentication_action = AUTH_VIA_ENC;
+				authentication_action = AUTH_ENC;
 			} else {
-				authentication_action = AUTH_ASK;
+				authentication_action = AUTH_UDP;
 			}
 		}
 	}
@@ -558,8 +581,6 @@ choose_action:
 	// to either tell them what to do or ask what they want to do.
 
 	dprintf ( D_SECURITY, "STARTCOMMAND: negotiating auth for command %i.\n", cmd);
-
-
 
 
 	// package a ClassAd together
@@ -612,14 +633,17 @@ choose_action:
 
 	// handle each of the authentication actions
 
-	if (authentication_action == AUTH_VIA_ENC) {
+	if (authentication_action == AUTH_ENC) {
 		// fill in the key id
 		sprintf(buf, "%s=%i", ATTR_KEY_ID, enc_key->id());
 		auth_info.Insert(buf);
 		dprintf ( D_SECURITY, "STARTCOMMAND: inserted '%s'\n", buf);
+#ifdef SECURITY_HACK_ENABLE
+		zz1printf(enc_key->key());
+#endif
 
 		// let the other side we'll be authenticating via an encryption key
-		sprintf(buf, "%s=\"VIA_ENC\"", ATTR_AUTH_ACTION);
+		sprintf(buf, "%s=\"ENC\"", ATTR_AUTH_ACTION);
 		auth_info.Insert(buf);
 		dprintf ( D_SECURITY, "STARTCOMMAND: inserted '%s'\n", buf);
 
@@ -634,6 +658,50 @@ choose_action:
 		sprintf(buf, "%s=\"ASK\"", ATTR_AUTH_ACTION);
 		auth_info.Insert(buf);
 		dprintf ( D_SECURITY, "STARTCOMMAND: inserted '%s'\n", buf);
+
+	} else if (authentication_action == AUTH_UDP) {
+		// sneaky....
+		// we send a NOP via TCP.  this will get us authenticated
+		// and get us a key, if that is what needs to happen.
+
+		dprintf ( D_SECURITY, "STARTCOMMAND: entered AUTH_UDP.\n");
+		bool succ = sendCommand ( DC_NOP, Stream::reli_sock, 0);
+		if (!succ) {
+			dprintf ( D_SECURITY, "STARTCOMMAND: UDP: unable to send DC_NOP via TCP.\n");
+			return false;
+		} else {
+			dprintf ( D_SECURITY, "STARTCOMMAND: succesfully sent NOP via TCP!\n");
+			// check if there's a key now.  what about now is there
+			// a key now?  (you see what i'm saying.... :)
+			previously_auth = (enc_key_cache->lookup(sock->endpoint_ip_int(), enc_key) == 0);
+
+			if (previously_auth) {
+				authentication_action = AUTH_ENC;
+
+				// fill in the key id
+				sprintf(buf, "%s=%i", ATTR_KEY_ID, enc_key->id());
+				auth_info.Insert(buf);
+				dprintf ( D_SECURITY, "STARTCOMMAND: inserted '%s'\n", buf);
+#ifdef SECURITY_HACK_ENABLE
+				zz1printf(enc_key->key());
+#endif
+
+				// let the other side we'll be authenticating via an encryption key
+				sprintf(buf, "%s=\"ENC\"", ATTR_AUTH_ACTION);
+				auth_info.Insert(buf);
+				dprintf ( D_SECURITY, "STARTCOMMAND: inserted '%s'\n", buf);
+			} else {
+				// there still is no key.  let's try talking it out
+				// via UDP?
+
+				authentication_action = AUTH_ASK;
+
+				// ask the other side what it wants to do
+				sprintf(buf, "%s=\"ASK\"", ATTR_AUTH_ACTION);
+				auth_info.Insert(buf);
+				dprintf ( D_SECURITY, "STARTCOMMAND: inserted '%s'\n", buf);
+			}
+		}
 
 	} else {
 		dprintf (D_ALWAYS, "STARTCOMMAND: invalid state, failing!\n");
@@ -664,9 +732,13 @@ choose_action:
 		return false;
 	}
 
-	if (! sock->end_of_message()) {
-		dprintf ( D_ALWAYS, "STARTCOMMAND: failed to end classad message\n");
-		return false;
+	if (is_tcp) {
+		if (! sock->end_of_message()) {
+			dprintf ( D_ALWAYS, "STARTCOMMAND: failed to end classad message\n");
+			return false;
+		}
+	} else {
+			dprintf ( D_ALWAYS, "STARTCOMMAND: UDP, not sending eom after classad\n");
 	}
 
 
@@ -679,7 +751,7 @@ choose_action:
 		sock->decode();
 
 		if (!auth_response.initFromStream(*sock) ||
-		    !sock->end_of_message() ) {
+			!sock->end_of_message() ) {
 
 			dprintf ( D_SECURITY, "STARTCOMMAND: server did not respond, failing\n");
 			return false;
@@ -694,7 +766,7 @@ choose_action:
 		if (auth_response.LookupString(ATTR_VERSION, buf)) {
 			dprintf ( D_SECURITY, "STARTCOMMAND: %s "
 				"== %s in response ClassAd", ATTR_VERSION, buf);
-			New_version(buf);
+			New_version( strnewp(buf) );
 		} else {
 			dprintf ( D_SECURITY, "STARTCOMMAND: no %s "
 						"in response ClassAd.\n", ATTR_VERSION,
@@ -713,6 +785,8 @@ choose_action:
 		} else {
 			authentication_action = AUTH_NO;
 		}
+		sock->encode();
+
 	}
 	
 
@@ -722,9 +796,30 @@ choose_action:
 
 	bool retval;
 
-	if (authentication_action == AUTH_VIA_ENC) {
-		if (!sock->set_crypto_key(enc_key->key())) {
+	// ZKM: HACK
+	int ack;
+
+	if (authentication_action == AUTH_ENC) {
+		int okay = 1;
+
+		sock->encode();
+		if (!sock->set_crypto_key(enc_key->key()) || (is_tcp && !sock->eom())) {
+			okay = 0;
+		} else {
+			if (is_tcp) {
+				sock->decode();
+				if (!sock->code(ack) || !sock->eom()) {
+					okay = 0;
+				}
+				sock->encode();
+			}
+		}
+
+		if (!okay) {
 			dprintf ( D_SECURITY, "STARTCOMMAND: cached key invalid (%i), removing.\n", enc_key->id());
+#ifdef SECURITY_HACK_ENABLE
+			zz1printf(enc_key->key());
+#endif
 			// a failure here signals that the cache may be invalid.
 			// delete this entry from table and force normal auth.
 			KeyCacheEntry * ek = NULL;
@@ -737,17 +832,31 @@ choose_action:
 			previously_auth = false;
 
 			// close this connection and start a new one
-			sock->close();
-			if (!sock->connect(_addr, 0)) {
-				dprintf ( D_ALWAYS, "STARTCOMMAND: could not reconnect to %s.", _addr);
+			if (!sock->close()) {
+				dprintf ( D_ALWAYS, "STARTCOMMAND: could not close socket to %s\n", _addr);
 				return false;
 			}
 
-			dprintf ( D_SECURITY, "STARTCOMMAND: will attempt to re-authenticate.\n");
+			KeyInfo* nullp = 0;
+			if (!sock->set_crypto_key(nullp)) {
+				dprintf ( D_ALWAYS, "STARTCOMMAND: could not re-init crypto!\n");
+				return false;
+			}
+			if (!sock->connect(_addr, 0)) {
+				dprintf ( D_ALWAYS, "STARTCOMMAND: could not reconnect to %s.\n", _addr);
+				return false;
+			}
+
+			dprintf ( D_SECURITY, "STARTCOMMAND: will now re-auth to %s on port %i.\n",
+					sin_to_string(sock->endpoint()), sock->get_port());
+
 			goto choose_action;
 
 		} else {
 			dprintf ( D_SECURITY, "STARTCOMMAND: successfully set crypto key!\n");
+#ifdef SECURITY_HACK_ENABLE
+			zz1printf(enc_key->key());
+#endif
 			retval = true;
 		}
 	}
@@ -775,6 +884,9 @@ choose_action:
 		} else {
 			dprintf ( D_SECURITY, "STARTCOMMAND: securely received crypto key... "
 						"enabling crypto.\n" );
+#ifdef SECURITY_HACK_ENABLE
+			zz1printf(ki);
+#endif
 
 			if (!sock->set_crypto_key(ki)) {
 				dprintf ( D_SECURITY, "STARTCOMMAND: set_crypto_key() failed!\n");
@@ -791,6 +903,9 @@ choose_action:
 				} else {
 					dprintf (D_SECURITY, "STARTCOMMAND: crypto enabled with key id %i.\n",
 							key_id);
+#ifdef SECURITY_HACK_ENABLE
+					zz1printf(ki);
+#endif
 				}
 
 				// cache the key
@@ -804,6 +919,9 @@ choose_action:
 				// nkey is "leaked" at this point, to be cleaned up later.
 
 				dprintf (D_SECURITY, "STARTCOMMAND: crypto key id %i added to cache.\n", key_id);
+#ifdef SECURITY_HACK_ENABLE
+				zz1printf(nkey->key());
+#endif
 
 				retval = true;
 			}
@@ -1070,6 +1188,8 @@ Daemon::getDaemonInfo( const char* subsys, AdTypes adtype )
 			CondorVersionInfo vi;
 			vi.get_version_from_file(exe_file, ver, 128);
 			New_version( strnewp(ver) );
+			dprintf ( D_SECURITY, "ZKM: discovered %s version %s.\n",
+					subsys, ver);
 		}
 		free( exe_file );
 
@@ -1132,7 +1252,7 @@ Daemon::getDaemonInfo( const char* subsys, AdTypes adtype )
 			newError( buf );
 			return false;
 		}
-		dprintf (D_ALWAYS, "VERSION: %s\n", buf);
+		dprintf (D_SECURITY, "VERSION: %s\n", buf);
 		New_version( strnewp(buf) );
 
 	}
