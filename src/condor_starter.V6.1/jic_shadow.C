@@ -387,8 +387,6 @@ JICShadow::reconnect( ReliSock* s, ClassAd* ad )
 				 getCommandString(CA_RECONNECT_JOB), new_owner );
 		return FALSE;
 	}
-	dprintf( D_COMMAND, "Serving request to reconnect by user '%s'\n", 
-			 new_owner );
 
 	ClassAd reply;
 	publishStarterInfo( &reply );
@@ -411,7 +409,7 @@ JICShadow::reconnect( ReliSock* s, ClassAd* ad )
 
 		// Destroy our old DCShadow object and make a new one with the
 		// current info.
-	dprintf( D_ALWAYS, "Accepted request to reconnect from %s\n",
+	dprintf( D_ALWAYS, "Accepted request to reconnect by user '%s'\n",
 			 new_owner );
 	dprintf( D_ALWAYS, "Ignoring old shadow %s\n", shadow->addr() );
 	delete shadow;
