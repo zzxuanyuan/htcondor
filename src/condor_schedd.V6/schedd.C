@@ -3868,8 +3868,26 @@ Scheduler::makeReconnectRecords( PROC_ID* job, ClassAd* match_ad )
 	char* claim_id = NULL;
 	char* startd_addr = NULL;
 
-	GetAttributeStringNew( cluster, proc, ATTR_OWNER, &owner );
-	GetAttributeStringNew( cluster, proc, ATTR_CLAIM_ID, &claim_id );
+	if( GetAttributeStringNew(cluster, proc, ATTR_OWNER, &owner) < 0 ) {
+			// we've got big trouble, just give up.
+		free( owner );
+		dprintf( D_ALWAYS, "WARNING: %s no longer in job queue for %d.%d\n", 
+				 ATTR_OWNER, cluster, proc );
+		delete( match_ad );
+		mark_job_stopped( job );
+		return;
+	}
+	if( GetAttributeStringNew(cluster, proc, ATTR_CLAIM_ID, 
+							  &claim_id) < 0 ) {
+		free( claim_id );
+		dprintf( D_ALWAYS, "WARNING: %s no longer in job queue for %d.%d\n", 
+				 ATTR_CLAIM_ID, cluster, proc );
+		delete( match_ad );
+		mark_job_stopped( job );
+		free( owner );
+		return;
+	}
+		
 	startd_addr = getAddrFromClaimId( claim_id );
 	if( GetAttributeStringNew(cluster, proc, ATTR_REMOTE_POOL,
 							  &pool) < 0 ) {
@@ -3885,14 +3903,35 @@ Scheduler::makeReconnectRecords( PROC_ID* job, ClassAd* match_ad )
 	}
 	match_rec *mrec = AddMrec( claim_id, startd_addr, job, match_ad, 
 							   owner, pool );
+	if( pool ) {
+		free( pool );
+		pool = NULL;
+	}
+	if( owner ) {
+		free( owner );
+		owner = NULL;
+	}
+	if( startd_addr ) {
+		free( startd_addr );
+		startd_addr = NULL;
+	}
+	if( claim_id ) {
+		free( claim_id );
+		claim_id = NULL;
+	}
+		// this should never be NULL, particularly after the checks
+		// about, but just to be extra safe, check here, too.
+	if( !mrec ) {
+		dprintf( D_ALWAYS, "ERROR: failed to create match_rec for %d.%d\n",
+				 cluster, proc );
+		delete( match_ad );
+		mark_job_stopped( job );
+		return;
+	}
 
 	mrec->setStatus( M_CLAIMED );  // it's claimed now.  we'll set
 								   // this to active as soon as we
 								   // spawn the reconnect shadow.
-	if(pool) free (pool);
-	if(owner) free (owner);
-	if(claim_id) free (claim_id);
-	if(startd_addr) free (startd_addr);
 
 		/*
 		  We don't want to use the version of add_shadow_rec() that
