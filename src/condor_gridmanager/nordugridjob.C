@@ -1072,7 +1072,7 @@ int NordugridJob::doStageOut()
 
 int NordugridJob::doExitInfo()
 {
-	MyString dir;
+	MyString diag_filename;
 	char diag_buff[256];
 	FILE *diag_fp = NULL;
 
@@ -1081,13 +1081,9 @@ int NordugridJob::doExitInfo()
 		return TASK_QUEUED;
 	}
 
-	dir.sprintf( "/jobs/%s/job.log", remoteJobId );
-	if ( ftp_lite_change_dir( ftp_srvr, dir.Value() ) == 0 ) {
-		errorString.sprintf( "ftp_lite_change_dir() failed, errno=%d", errno );
-		goto doExitInfo_error_exit;
-	}
+	diag_filename.sprintf( "/jobs/%s/job.log/diag", remoteJobId );
 
-	diag_fp = ftp_lite_get( ftp_srvr, "diag", 0 );
+	diag_fp = ftp_lite_get( ftp_srvr, diag_filename.Value(), 0 );
 	if ( diag_fp == NULL ) {
 		errorString.sprintf( "ftp_lite_get() failed, errno=%d", errno );
 		goto doExitInfo_error_exit;
