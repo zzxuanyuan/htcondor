@@ -2,6 +2,10 @@
    The state of the V6_7-unicore-2-branch before merging in the
    V6_7-unicore-branch as tagged at V6_7-unicore-merge-1.
 
+05/12/04 V6_7-unicore-merge-1
+   The state of the V6_7-unicore-branch when merged into the
+   V6_7-unicore-2-branch.
+
 05/11/04 V6_7-condorc-2-branch
    A new branch off of V6_7-branch created from the V6_7-condorc-2-root
    tag. This is the 2nd generation of the V6_7-condorc2-branch. The

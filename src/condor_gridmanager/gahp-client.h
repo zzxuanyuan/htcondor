@@ -449,6 +449,24 @@ class GahpClient : public Service {
 		int
 		condor_job_stage_in(const char *schedd_name, ClassAd *job_ad);
 
+		///
+		int 
+		unicore_job_create(const char * description,
+						   char ** job_contact);
+
+		///
+		int
+		unicore_job_start(const char *job_contact);
+
+		///
+		int 
+		unicore_job_destroy(const char * job_contact);
+
+		///
+		int
+		unicore_job_status(const char * job_contact,
+						   char **job_status);
+
 #ifdef CONDOR_GLOBUS_HELPER_WANT_DUROC
 	// Not yet ready for prime time...
 	globus_duroc_control_barrier_release();
