@@ -26,7 +26,7 @@
 class Resource : public Service
 {
 public:
-	Resource();
+	Resource( CpuAttributes*, int );
 	~Resource();
 
 		// Public methods that can be called from command handlers
@@ -56,7 +56,10 @@ public:
 	Activity	activity()	{return r_state->activity();};
 	int		eval_state()	{return r_state->eval();};
 	bool	in_use();
-	float	condor_load() {return r_state->condor_load();};
+
+		// Condor Load Average related methods
+	float	condor_load() {return r_attr->condor_load();};
+	float	compute_condor_load() {return r_state->condor_load();};
 
 		// Called from the reaper to handle things for this rip
 	void	starter_exited();	
@@ -78,7 +81,7 @@ public:
 	int		update();				// Update the central manager.
 	int		eval_and_update();		// Evaluate state and update CM. 
 	void	final_update();			// Send a final update to the CM
-									// with Requirements = False
+									// with Requirements = False.
 
 		// Methods to control various timers 
 	int		start_update_timer();	// Timer for updating CM. 
@@ -92,7 +95,7 @@ public:
 	int		wants_suspend();
 	int		wants_pckpt();
 	int		eval_kill();
-	int		eval_vacate();
+	int		eval_preempt();
 	int		eval_suspend();
 	int		eval_continue();
 
@@ -103,9 +106,10 @@ public:
 	Match*			r_cur;		// Info about the current match
 	Match*			r_pre;		// Info about the possibly preempting match
 	Reqexp*			r_reqexp;   // Object for the requirements expression
-	ResAttributes*	r_attr;		// Parameters of this resource
+	CpuAttributes*	r_attr;		// Attributes of this resource
 	char*			r_name;		// Name of this resource
-	
+	int				r_id;		// CPU id number of this resource
+
 private:
 		// Make public and private ads out of our classad
 	void make_public_ad( ClassAd* );
