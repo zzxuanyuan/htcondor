@@ -337,7 +337,7 @@ int Sock::bindWithin(const int low_port, const int high_port)
 
 		memset(&sin, 0, sizeof(sockaddr_in));
 		sin.sin_family = AF_INET;
-		//sin.sin_addr.s_addr = htonl(my_ip_addr());
+		sin.sin_addr.s_addr = htonl(my_ip_addr());
 		sin.sin_port = htons((u_short)this_trial++);
 
 		if ( ::Generic_bind(_sock, (sockaddr *)&sin, sizeof(sockaddr_in)) == 0 ) { // success
@@ -390,7 +390,7 @@ int Sock::bind(int port)
 
 	memset(&sin, 0, sizeof(sockaddr_in));
 	sin.sin_family = AF_INET;
-	//sin.sin_addr.s_addr = htonl(my_ip_addr());
+	sin.sin_addr.s_addr = htonl(my_ip_addr());
 	sin.sin_port = htons((u_short)port);
 
 	if (::Generic_bind(_sock, (sockaddr *)&sin, sizeof(sockaddr_in)) < 0) {

@@ -869,6 +869,9 @@ pseudo_put_file_stream(
 	}
 #endif
 
+    // ip_addr will be updated down below because I changed create_tcp_port so that
+    // ip address the socket is bound to is determined by that function. Therefore,
+    // we don't need to initialize ip_addr here
 	//get_host_addr( ip_addr );
 
 		/* open the file */
@@ -1169,6 +1172,8 @@ RequestCkptBandwidth()
 	dprintf(D_ALWAYS, "vm_id = %d\n", vm_id);
  	sprintf(buf, "%s = %d", ATTR_VIRTUAL_MACHINE_ID, vm_id);
  	request.Insert(buf);
+    // Using ip:pid as an identity of the process is not complete because of private
+    // addresses are reusable. TODO (someday)
 	sprintf(buf, "%s = \"%u.%d\"", ATTR_TRANSFER_KEY, my_ip_addr(),
 			file_stream_info.pid);
  	request.Insert(buf);

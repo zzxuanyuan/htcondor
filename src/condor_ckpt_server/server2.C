@@ -334,7 +334,7 @@ int Server::SetUpPort(u_short port)
   memset((char*) &socket_addr, 0, sizeof(struct sockaddr_in));
   socket_addr.sin_family = AF_INET;
   socket_addr.sin_port = htons(port);
-  //memcpy((char*) &socket_addr.sin_addr, (char*) &server_addr, sizeof(struct in_addr));
+  memcpy((char*) &socket_addr.sin_addr, (char*) &server_addr, sizeof(struct in_addr));
   if ((ret_code=I_bind(temp_sd, &socket_addr)) != CKPT_OK) {
       dprintf(D_ALWAYS, "ERROR: I_bind() returned an error (#%d)\n", ret_code);
       exit(ret_code);
@@ -631,6 +631,8 @@ void Server::ProcessServiceReq(int             req_id,
 	int                num_files;
 	int                child_pid;
 	int                ret_code;
+    struct sockaddr_in sin;
+    socklen_t          namelen;
 
 	service_req.ticket = ntohl(service_req.ticket);
 	if (service_req.ticket != AUTHENTICATION_TCKT) {
@@ -702,7 +704,7 @@ void Server::ProcessServiceReq(int             req_id,
 				}
 				memset((char*) &server_sa, 0, sizeof(server_sa));
 				server_sa.sin_family = AF_INET;
-				//server_sa.sin_addr = server_addr;
+				server_sa.sin_addr = server_addr;
 				server_sa.sin_port = htons(0);
 				if ((ret_code=I_bind(data_conn_sd, &server_sa)) != CKPT_OK) {
 					dprintf(D_ALWAYS, "ERROR: I_bind() returned an error (#%d)", 
@@ -713,11 +715,21 @@ void Server::ProcessServiceReq(int             req_id,
 					dprintf(D_ALWAYS, "ERROR: I_listen() failed to listen");
 					exit(LISTEN_ERROR);
 				}
-				service_reply.server_addr.s_addr = server_sa.sin_addr.s_addr;
-				//service_reply.server_addr = server_addr;
-		  // From the I_bind() call, the port should already be in network-byte
-		  //   order
-				service_reply.port = server_sa.sin_port;
+                // To support private ip network, network layer of Condor uses proxy
+                // address if necessary. This means that the official address of a
+                // socket may differ from what the application passed to the network
+                // layer. Therefore, the application should ask to the network layer
+                // about the official address of the socket
+                namelen = sizeof(struct sockaddr_in);
+                ret_code = Generic_getsockname(data_conn_sd, (struct sockaddr *)&sin, &namelen);
+                if (ret_code < 0) {
+                    dprintf(D_ALWAYS, "Generic_getsockname failed\n");
+                    exit(ret_code);
+                }
+				//service_reply.server_addr.s_addr = server_sa.sin_addr.s_addr;
+				//service_reply.port = server_sa.sin_port;
+				service_reply.server_addr.s_addr = sin.sin_addr.s_addr;
+				service_reply.port = sin.sin_port;
 			} else {
 				service_reply.server_addr.s_addr = htonl(0);
 				service_reply.port = htons(0);
@@ -1209,6 +1221,8 @@ void Server::ProcessStoreReq(int            req_id,
 	char               pathname[MAX_PATHNAME_LENGTH];
 	char               log_msg[256];
 	int                err_code;
+    struct sockaddr_in sin;
+    socklen_t          namelen;
 	
 	store_req.ticket = ntohl(store_req.ticket);
 	if (store_req.ticket != AUTHENTICATION_TCKT) {
@@ -1273,7 +1287,7 @@ void Server::ProcessStoreReq(int            req_id,
 	memset((char*) &server_sa, 0, sizeof(server_sa));
 	server_sa.sin_family = AF_INET;
 	server_sa.sin_port = htons(0);
-	//server_sa.sin_addr = server_addr;
+	server_sa.sin_addr = server_addr;
 	if ((err_code=I_bind(data_conn_sd, &server_sa)) != CKPT_OK) {
 		sprintf(log_msg, "ERROR: I_bind() returns an error (#%d)", 
 				err_code);
@@ -1289,11 +1303,21 @@ void Server::ProcessStoreReq(int            req_id,
 
 	imds.AddFile(shadow_IP, store_req.owner, store_req.filename, 
 				 store_req.file_size, NOT_PRESENT);
-	//store_reply.server_name = server_addr;
-	store_reply.server_name.s_addr = server_sa.sin_addr.s_addr;
-	// From the I_bind() call, the port should already be in network-byte
-		   //   order
-		   store_reply.port = server_sa.sin_port;  
+    // To support private ip network, network layer of Condor uses proxy
+    // address if necessary. This means that the official address of a
+    // socket may differ from what the application passed to the network
+    // layer. Therefore, the application should ask to the network layer
+    // about the official address of the socket
+    namelen = sizeof(struct sockaddr_in);
+    ret_code = Generic_getsockname(data_conn_sd, (struct sockaddr *)&sin, &namelen);
+    if (ret_code < 0) {
+        dprintf(D_ALWAYS, "Generic_getsockname failed\n");
+        exit(ret_code);
+    }
+	//store_reply.server_name.s_addr = server_sa.sin_addr.s_addr;
+	//store_reply.port = server_sa.sin_port;  
+	store_reply.server_name.s_addr = sin.sin_addr.s_addr;
+	store_reply.port = sin.sin_port;  
 	store_reply.req_status = htons(CKPT_OK);
 	if (net_write(req_sd, (char*) &store_reply, 
 				  sizeof(store_reply_pkt)) < 0) {
@@ -1461,6 +1485,8 @@ void Server::ProcessRestoreReq(int             req_id,
 	int                preexist;
 	char               log_msg[256];
 	int                err_code;
+    struct sockaddr_in sin;
+    socklen_t          namelen;
 	
 	restore_req.ticket = ntohl(restore_req.ticket);
 	if (restore_req.ticket != AUTHENTICATION_TCKT) {
@@ -1543,7 +1569,7 @@ void Server::ProcessRestoreReq(int             req_id,
       memset((char*) &server_sa, 0, sizeof(server_sa));
       server_sa.sin_family = AF_INET;
       server_sa.sin_port = htons(0);
-      //server_sa.sin_addr = server_addr;
+      server_sa.sin_addr = server_addr;
       if ((err_code=I_bind(data_conn_sd, &server_sa)) != CKPT_OK) {
 		  sprintf(log_msg, "ERROR: I_bind() returns an error (#%d)", err_code);
 		  Log(0, log_msg);
@@ -1554,11 +1580,21 @@ void Server::ProcessRestoreReq(int             req_id,
 		  Log(0, log_msg);
 		  exit(LISTEN_ERROR);
 	  }
-      restore_reply.server_name.s_addr = server_sa.sin_addr.s_addr;
-      //restore_reply.server_name = server_addr;
-      // From the I_bind() call, the port should already be in network-byte
-      //   order
-      restore_reply.port = server_sa.sin_port;  
+      // To support private ip network, network layer of Condor uses proxy
+      // address if necessary. This means that the official address of a
+      // socket may differ from what the application passed to the network
+      // layer. Therefore, the application should ask to the network layer
+      // about the official address of the socket
+      namelen = sizeof(struct sockaddr_in);
+      ret_code = Generic_getsockname(data_conn_sd, (struct sockaddr *)&sin, &namelen);
+      if (ret_code < 0) {
+          dprintf(D_ALWAYS, "Generic_getsockname failed\n");
+          exit(ret_code);
+      }
+      //restore_reply.server_name.s_addr = server_sa.sin_addr.s_addr;
+      //restore_reply.port = server_sa.sin_port;  
+      restore_reply.server_name.s_addr = sin.sin_addr.s_addr;
+      restore_reply.port = sin.sin_port;  
       restore_reply.file_size = htonl(chkpt_file_status.st_size);
       restore_reply.req_status = htons(CKPT_OK);
       if (net_write(req_sd, (char*) &restore_reply, 

@@ -60,6 +60,8 @@ void SafeSock::init()
 
 	// initialize msgID
 	if(_outMsgID.msgNo == 0) { // first object of this class
+        // Note that using ip:pid:DOB as an identity of the process over history is
+        // not perfect because of private ip addresses being reused. TODO (someday)
 		_outMsgID.ip_addr = (unsigned long)my_ip_addr();
 		_outMsgID.pid = (short)getpid();
 		_outMsgID.time = (unsigned long)time(NULL);

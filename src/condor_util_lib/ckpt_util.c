@@ -207,7 +207,6 @@ int             listen_count;
 	
 	len = sizeof(*sin);
 	Generic_getsockname(socket_fd, (struct sockaddr *) sin, &len);
-	//sin->sin_addr.s_addr = htonl( my_ip_addr() );
 
 	return socket_fd;
 }
