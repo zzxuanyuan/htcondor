@@ -1173,8 +1173,8 @@ SecMan::startCommand( int cmd, Sock* sock, bool can_negotiate, int subCmd)
 			// !new_session is equivilant to use_session in this client.
 			if (!new_session) {
 				// we are using this key
-				if (enc_key) {
-					ki = new KeyInfo(*enc_key->key());
+				if (enc_key && enc_key->key()) {
+					ki = new KeyInfo(*(enc_key->key()));
 				} else {
 					assert (ki == NULL);
 				}
