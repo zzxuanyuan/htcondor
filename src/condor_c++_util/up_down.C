@@ -91,7 +91,6 @@ int UpDown::GetUserPriority(const char*  userName,int*  status)
 	
 void UpDown::UpdatePriority(void)	// updown algorithm
 {
-   int temp;
    for ( int i = 0; i < activeUsers; i++ )
 	if ( (table[i].jobRunning > 0) || ( table[i].jobPending > 0) )
 	{
