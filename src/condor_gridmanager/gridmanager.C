@@ -409,6 +409,7 @@ doContactSchedd()
 	bool commit_transaction = true;
 	List<BaseJob> successful_deletes;
 	int failure_line_num = 0;
+	bool send_reschedule = false;
 
 	dprintf(D_FULLDEBUG,"in doContactSchedd()\n");
 
@@ -842,12 +843,7 @@ dprintf(D_FULLDEBUG,"***Trying job type %s\n",job_type->Name);
 			JobsByProcID.remove( curr_job->procID );
 				// If wantRematch is set, send a reschedule now
 			if ( curr_job->wantRematch ) {
-				static DCSchedd* schedd_obj = NULL;
-				if ( !schedd_obj ) {
-					schedd_obj = new DCSchedd(NULL,NULL);
-					ASSERT(schedd_obj);
-				}
-				schedd_obj->reschedule();
+				send_reschedule = true;
 			}
 			pendingScheddUpdates.remove( curr_job->procID );
 			pendingScheddVacates.remove( curr_job->procID );
@@ -860,6 +856,10 @@ dprintf(D_FULLDEBUG,"***Trying job type %s\n",job_type->Name);
 			curr_job->SetEvaluateState();
 		}
 
+	}
+
+	if ( send_reschedule == true ) {
+		ScheddObj->reschedule();
 	}
 
 	// Check if we have any jobs left to manage. If not, exit.
