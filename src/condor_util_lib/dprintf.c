@@ -107,7 +107,7 @@ char *DebugFlagNames[] = {
 	"D_ALWAYS", "D_TERMLOG", "D_SYSCALLS", "D_CKPT", "D_XDR", "D_MALLOC", 
 	"D_NOHEADER", "D_LOAD", "D_EXPR", "D_PROC", "D_JOB", "D_MACHINE",
 	"D_FULLDEBUG", "D_NFS", "D_UPDOWN", "D_AFS", "D_PREEMPT",
-	"D_PROTOCOL", "D_PRIV", "D_TAPENET", "D_UNDEF20", "D_UNDEF21",
+	"D_PROTOCOL", "D_PRIV", "D_TAPENET", "D_DAEMONCORE", "D_UNDEF21",
 	"D_UNDEF22", "D_UNDEF23", "D_UNDEF24", "D_UNDEF25", "D_UNDEF26",
 	"D_UNDEF27", "D_UNDEF28", "D_UNDEF29", "D_UNDEF30", "D_UNDEF31",
 };
@@ -510,8 +510,9 @@ open_debug_file(char flags[])
 		perror( "open" );
 		abort();
 	}
+	// (void) umask( oumask );  // perhaps no longer need this...
 
 	_set_priv(priv, __FILE__, __LINE__, 0);
 
-	return DebugFP;
+	return fp;
 }
