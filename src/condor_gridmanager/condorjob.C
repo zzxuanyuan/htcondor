@@ -848,6 +848,8 @@ int CondorJob::doEvaluateState()
 					//   recognize it and act accordingly
 				if ( rc != GLOBUS_SUCCESS ) {
 					// unhandled error
+					// Should we retry the remove instead of instantly
+					// giving up?
 					dprintf( D_ALWAYS,
 							 "(%d.%d) condor_job_remove() failed: %s\n",
 							 procID.cluster, procID.proc, gahp->getErrorString() );
@@ -877,7 +879,7 @@ int CondorJob::doEvaluateState()
 			// forgetting about current submission and trying again.
 			// TODO: Let our action here be dictated by the user preference
 			// expressed in the job ad.
-			if ( remoteJobId.cluster != 0 && condorState != REMOVED ) {
+			if ( remoteJobId.cluster != 0 ) {
 				gmState = GM_HOLD;
 				break;
 			}
