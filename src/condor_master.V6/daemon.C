@@ -1377,7 +1377,7 @@ Daemons::UpdateCollector()
 
 		// Port doesn't matter, since we've got the sinful string. 
 	if (!sock.connect(Collector->addr(), 0)) {
-		dprintf( D_ALWAYS, "Can't locate collector %s\n", 
+		dprintf( D_FULLDEBUG, "Can't locate collector %s\n", 
 				 Collector->fullHostname() );
 		return;
 	}
