@@ -1843,7 +1843,7 @@ bool Stream::set_MD_mode(CONDOR_MD_MODE mode, KeyInfo * key, const char * keyId)
     mdMode_ = mode;
     delete mdKey_;
     mdKey_ = 0;
-    if (mdKey_) {
+    if (key) {
       mdKey_  = new KeyInfo(*key);
     }
 

@@ -100,9 +100,15 @@ bool _condorPacket::init_MD(bool outPacket, KeyInfo * key, const char * keyId)
         mdChecker_ = new Condor_MD_MAC();
     }
 
-    if (mdChecker_ && outPacket) {
+    assert(empty());
+
+    if (mdChecker_) {
+        curIndex += MAC_SIZE;
+        length = curIndex;
+    }
+
+    if (outPacket) {
         // you can not change in the middle of a packet!
-        assert(empty());
         curIndex += outgoingIdLen_; 
         length    = curIndex;
     }
@@ -320,8 +326,12 @@ int _condorPacket::peek(char &c)
 void _condorPacket::reset()
 {
     if (mdChecker_) {
-	curIndex = MAC_SIZE;
-	length   = MAC_SIZE;
+        curIndex = MAC_SIZE;
+        length   = MAC_SIZE;
+        if (outgoingMD5KeyId_) {
+            curIndex += outgoingIdLen_;
+            length = curIndex;
+        }
     }
     else {
         curIndex = 0;
@@ -391,10 +401,6 @@ bool _condorPacket::full()
 
 bool _condorPacket::empty()
 {
-  // This is too ugly. Hao
-    if (mdChecker_) {
-        return (length == (MAC_SIZE + outgoingIdLen_));
-    }
     return(length == 0);
 }
 
