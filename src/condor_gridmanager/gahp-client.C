@@ -1840,7 +1840,7 @@ GahpClient::now_pending(const char *command,const char *buf,
 	server->write_line(pending_command,pending_reqid,pending_args);
 	Gahp_Args return_line;
 	server->read_argv(return_line);
-	if ( return_line.argv[0] == NULL || return_line.argv[0][0] != 'S' ) {
+	if ( return_line.argc == 0 || return_line.argv[0][0] != 'S' ) {
 		// Badness !
 		EXCEPT("Bad %s Request",command);
 	}
