@@ -109,22 +109,34 @@ UniShadow::updateFromStarter(int command, Stream *s)
 }
 
 
-void UniShadow::init( ClassAd *jobAd, char schedd_addr[], char host[], 
-					  char claim_id[], char cluster[], char proc[])
+
+void
+UniShadow::init( ClassAd* job_ad, const char* schedd_addr )
 {
-	if ( !jobAd ) {
-		EXCEPT("No jobAd defined!");
+	if ( !job_ad ) {
+		EXCEPT("No job_ad defined!");
 	}
 
-		// we're only dealing with one host, so this is trivial:
-	remRes->setStartdInfo( host, claim_id );
+		// base init takes care of lots of stuff:
+	baseInit( job_ad, schedd_addr );
+
+		// we're only dealing with one host, so the rest is pretty
+		// trivial.  we can just lookup the ClaimId of our 1 claim in
+		// the job ad, and use that.
+	char* claim_id = NULL;
+	job_ad->LookupString( ATTR_CLAIM_ID, &claim_id );
+	if( ! claim_id ) {
+		EXCEPT( "JobAd does not include %s!", ATTR_CLAIM_ID );
+	}
+	char* addr = getAddrFromClaimId( claim_id );
+	if( ! addr ) {
+		EXCEPT( "Invalid %s in JobAd (%s)", ATTR_CLAIM_ID, claim_id );
+	}
+	remRes->setStartdInfo( addr, claim_id );
 		// for now, set this to the sinful string.  when the starter
 		// spawns, it'll do an RSC to register a real hostname...
-	remRes->setMachineName( host );
+	remRes->setMachineName( addr );
 	
-		// base init takes care of lots of stuff:
-	baseInit( jobAd, schedd_addr, cluster, proc );
-
 		// In this case we just pass the pointer along...
 	remRes->setJobAd( jobAd );
 	
@@ -137,7 +149,12 @@ void UniShadow::init( ClassAd *jobAd, char schedd_addr[], char host[],
 						  (CommandHandlercpp)&UniShadow::updateFromStarter, 
 						  "UniShadow::updateFromStarter", this, DAEMON );
 
-		// finally, we can attempt to activate our claim.
+}
+
+
+void
+UniShadow::spawn( void )
+{
 	if( ! remRes->activateClaim() ) {
 			// we're screwed, give up:
 		shutDown( JOB_NOT_STARTED );

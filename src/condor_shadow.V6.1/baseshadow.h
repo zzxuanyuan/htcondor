@@ -30,6 +30,7 @@
 #include "shadow_user_policy.h"
 #include "user_log.c++.h"
 #include "exit.h"
+#include "internet.h"
 #include "../h/shadow.h"
 
 /* Forward declaration to prevent loops... */
@@ -78,25 +79,28 @@ class BaseShadow : public Service
 			It does the following:
 			<ul>
 			 <li>Puts the args into class data members
-			 <li>Stores the classAd, checks its info.
+			 <li>Stores the classAd, checks its info, and pulls
+			     everything we care about out of the ad and into class
+			     data members.
 			 <li>calls config()
 			 <li>calls initUserLog()
 			 <li>registers handleJobRemoval on SIGUSR1
 			</ul>
 			It should be called right after the constructor.
-			@param jobAd The Ad for this job.
+			@param job_ad The ClassAd for this job.
 			@param schedd_addr The sinful string of the schedd
-			@param cluster This job's cluster number
-			@param proc This job's proc number
 		*/
-	void baseInit( ClassAd *jobAd, char schedd_addr[], 
-					   char cluster[], char proc[]);
+	void baseInit( ClassAd *job_ad, const char* schedd_addr );
 
 		/** Everyone must make an init with a bunch of parameters.<p>
 			This function is <b>pure virtual</b>.
 		 */
-	virtual void init( ClassAd *jobAd, char schedd_addr[], char host[], 
-			   char claim_id[], char cluster[], char proc[] ) = 0;
+	virtual void init( ClassAd* job_ad, const char* schedd_addr ) = 0;
+
+		/** Shadow should spawn a new starter for this job.
+			This function is <b>pure virtual</b>.
+		 */
+	virtual void spawn( void ) = 0;
 
 		/** Here, we param for lots of stuff in the config file.  Things
 			param'ed for are: SPOOL, FILESYSTEM_DOMAIN, UID_DOMAIN, 

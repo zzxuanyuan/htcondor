@@ -81,8 +81,11 @@ class MPIShadow : public BaseShadow
 			The parameters passed are all gotten from the 
 			command line and should be easy to figure out.
 		 */
-	void init( ClassAd *jobAd, char schedd_addr[], char host[], 
-			   char claim_id[], char cluster[], char proc[]);
+	void init( ClassAd* job_ad, const char* schedd_addr );
+
+		/** Shadow should spawn a new starter for this job.
+		 */
+	void spawn( void );
 
 		/** Shut down properly.  We have MPI-specific logic in this
 			version which decides if we're really ready to shutdown or

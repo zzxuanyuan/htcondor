@@ -69,6 +69,7 @@ BaseShadow::~BaseShadow() {
 	if (fsDomain) free(fsDomain);
 	if (ckptServerHost) free(ckptServerHost);
 	if (jobAd) FreeJobAd(jobAd);
+	if (scheddAddr) free(scheddAddr);
 	if( common_job_queue_attrs ) { delete common_job_queue_attrs; }
 	if( hold_job_queue_attrs ) { delete hold_job_queue_attrs; }
 	if( evict_job_queue_attrs ) { delete evict_job_queue_attrs; }
@@ -77,19 +78,31 @@ BaseShadow::~BaseShadow() {
 	if( terminate_job_queue_attrs ) { delete terminate_job_queue_attrs; }
 }
 
-void BaseShadow::baseInit( ClassAd *jobAd, char schedd_addr[], 
-				  char cluster[], char proc[])
+void
+BaseShadow::baseInit( ClassAd *job_ad, const char* schedd_addr )
 {
-	if (schedd_addr[0] != '<') {
-		EXCEPT("Schedd_Addr not specified with sinful string.");
+	if( ! job_ad ) {
+		EXCEPT("baseInit() called with NULL job_ad!");
 	}
-	scheddAddr = schedd_addr;
-	this->cluster = atoi(cluster);
-	this->proc = atoi(proc);
+	jobAd = job_ad;
+
+	if( ! is_valid_sinful(schedd_addr) ) {
+		EXCEPT("schedd_addr not specified with valid address");
+	}
+	scheddAddr = strdup( schedd_addr );
 
 	if ( !jobAd->LookupString(ATTR_OWNER, owner)) {
 		EXCEPT("Job ad doesn't contain an %s attribute.", ATTR_OWNER);
 	}
+
+	if( !jobAd->LookupInteger(ATTR_CLUSTER_ID, cluster)) {
+		EXCEPT("Job ad doesn't contain an %s attribute.", ATTR_CLUSTER_ID);
+	}
+
+	if( !jobAd->LookupInteger(ATTR_PROC_ID, proc)) {
+		EXCEPT("Job ad doesn't contain an %s attribute.", ATTR_PROC_ID);
+	}
+
 	// grab the NT domain if we've got it
 	jobAd->LookupString(ATTR_NT_DOMAIN, domain);
 	if ( !jobAd->LookupString(ATTR_JOB_IWD, iwd)) {
@@ -104,25 +117,24 @@ void BaseShadow::baseInit( ClassAd *jobAd, char schedd_addr[],
 	}
 
 		// construct the core file name we'd get if we had one.
-	int size = strlen(iwd) + strlen(cluster) + strlen(proc) + 11;
-	core_file_name = (char*)malloc( size * sizeof(char) );
-	if( ! core_file_name ) {
-		EXCEPT( "Out of memory!" );
-	}
-	sprintf( core_file_name, "%s%ccore.%s.%s", iwd, DIR_DELIM_CHAR,
-			 cluster, proc );
+	MyString tmp_name = iwd;
+	tmp_name += DIR_DELIM_CHAR;
+	tmp_name += "core.";
+	tmp_name += cluster;
+	tmp_name += '.';
+	tmp_name += proc;
+	core_file_name = strdup( tmp_name.Value() );
 
         // put the shadow's sinful string into the jobAd.  Helpful for
         // the mpi shadow, at least...and a good idea in general.
-	char buf[256];
-    sprintf ( buf, "%s = \"%s\"", ATTR_MY_ADDRESS,
-              daemonCore->InfoCommandSinfulString() );
-    if ( !jobAd->Insert( buf )) {
+	MyString tmp_addr = ATTR_MY_ADDRESS;
+	tmp_addr += "=\"";
+	tmp_addr += daemonCore->InfoCommandSinfulString();
+	tmp_addr += '"';
+    if ( !jobAd->Insert( tmp_addr.Value() )) {
         EXCEPT( "Failed to insert %s!", ATTR_MY_ADDRESS );
     }
 
-	this->jobAd = jobAd;
-	
 	DebugId = display_dprintf_header;
 	
 	config();

@@ -71,9 +71,12 @@ class UniShadow : public BaseShadow
 			The parameters passed are all gotten from the 
 			command line and should be easy to figure out.
 		*/
-	void init( ClassAd *jobAd, char schedd_addr[], char host[], 
-			   char claim_id[], char cluster[], char proc[]);
+	void init( ClassAd* job_ad, const char* schedd_addr );
 	
+		/** Shadow should spawn a new starter for this job.
+		 */
+	void spawn( void );
+
 		/**
 		 */
 	int handleJobRemoval(int sig);

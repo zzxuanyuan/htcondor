@@ -64,18 +64,17 @@ MPIShadow::~MPIShadow() {
 }
 
 void 
-MPIShadow::init( ClassAd *jobAd, char schedd_addr[], char host[], 
-                 char claim_id[], char cluster[], char proc[])
+MPIShadow::init( ClassAd* job_ad, const char* schedd_addr )
 {
 
 	char buf[256];
 
-    if ( !jobAd ) {
-        EXCEPT( "No jobAd defined!" );
+    if( ! job_ad ) {
+        EXCEPT( "No job_ad defined!" );
     }
 
         // BaseShadow::baseInit - basic init stuff...
-    baseInit( jobAd, schedd_addr, cluster, proc );
+    baseInit( job_ad, schedd_addr );
 
 		// Register command which gets updates from the starter
 		// on the job's image size, cpu usage, etc.  Each kind of
@@ -103,11 +102,20 @@ MPIShadow::init( ClassAd *jobAd, char schedd_addr[], char host[],
 #endif /* ! MPI_USES_RSH */
 
         // make first remote resource the "master".  Put it first in list.
+	char* claim_id = NULL;
+	job_ad->LookupString( ATTR_CLAIM_ID, &claim_id );
+	if( ! claim_id ) {
+		EXCEPT( "JobAd does not include %s!", ATTR_CLAIM_ID );
+	}
+	char* addr = getAddrFromClaimId( claim_id );
+	if( ! addr ) {
+		EXCEPT( "Invalid %s in JobAd (%s)", ATTR_CLAIM_ID, claim_id );
+	}
     MpiResource *rr = new MpiResource( this );
-	rr->setStartdInfo( host, claim_id );
+	rr->setStartdInfo( addr, claim_id );
 		// for now, set this to the sinful string.  when the starter
 		// spawns, it'll do an RSC to register a real hostname...
-	rr->setMachineName( host );
+	rr->setMachineName( addr );
     ClassAd *temp = new ClassAd( *(getJobAd() ) );
 
     sprintf( buf, "%s = %s", ATTR_MPI_IS_MASTER, "TRUE" );
@@ -130,6 +138,22 @@ MPIShadow::init( ClassAd *jobAd, char schedd_addr[], char host[],
 		// exit status, info about the run, etc, etc.
 	shadow_user_policy.init( temp, this );
 
+}
+
+
+void
+MPIShadow::spawn( void )
+{
+		/*
+		  This is lame.  We should really do a better job of dealing
+		  with the multiple ClassAds for MPI universe via the classad
+		  file mechanism (pipe to STDIN, usually), instead of this
+		  whole mess, and spawn() should really just call
+		  "startMaster()".  however, in the race to get disconnected
+		  operation working for vanilla, we cut a few corners and
+		  leave this as it is.  whenever we're seriously looking at
+		  MPI support again, we should fix this, too.
+		*/
 		/*
 		  Finally, register a timer to call getResources(), which
 		  sends a command to the schedd to get all the job classads,
