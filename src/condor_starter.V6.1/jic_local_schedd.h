@@ -1,0 +1,63 @@
+/***************************Copyright-DO-NOT-REMOVE-THIS-LINE**
+  *
+  * Condor Software Copyright Notice
+  * Copyright (C) 1990-2004, Condor Team, Computer Sciences Department,
+  * University of Wisconsin-Madison, WI.
+  *
+  * This source code is covered by the Condor Public License, which can
+  * be found in the accompanying LICENSE.TXT file, or online at
+  * www.condorproject.org.
+  *
+  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+  * AND THE UNIVERSITY OF WISCONSIN-MADISON "AS IS" AND ANY EXPRESS OR
+  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+  * WARRANTIES OF MERCHANTABILITY, OF SATISFACTORY QUALITY, AND FITNESS
+  * FOR A PARTICULAR PURPOSE OR USE ARE DISCLAIMED. THE COPYRIGHT
+  * HOLDERS AND CONTRIBUTORS AND THE UNIVERSITY OF WISCONSIN-MADISON
+  * MAKE NO MAKE NO REPRESENTATION THAT THE SOFTWARE, MODIFICATIONS,
+  * ENHANCEMENTS OR DERIVATIVE WORKS THEREOF, WILL NOT INFRINGE ANY
+  * PATENT, COPYRIGHT, TRADEMARK, TRADE SECRET OR OTHER PROPRIETARY
+  * RIGHT.
+  *
+  ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
+
+#if !defined(_CONDOR_JIC_LOCAL_SCHEDD_H)
+#define _CONDOR_JIC_LOCAL_SCHEDD_H
+
+#include "jic_local_file.h"
+
+/** 
+	This is the child class of JICLocalFile (and therefore JICLocal
+	and JobInfoCommunicator) that deals with running "local universe"
+	jobs directly under a condor_schedd.  This JIC gets the job
+	ClassAd info from a file (a pipe to STDIN, in fact).  Instead of
+	simply reporting everything to a file, it reports info back to the
+	schedd via special exit status codes.
+*/
+
+class JICLocalSchedd : public JICLocalFile {
+public:
+
+		/** Constructor 
+			@param classad_filename Full path to the ClassAd, "-" if STDIN
+			@cluster Cluster ID number (if any)
+			@proc Proc ID number (if any)
+			@subproc Subproc ID number (if any)
+		*/
+	JICLocalSchedd( const char* classad_filename,
+					int cluster, int proc, int subproc );
+
+		/// Destructor
+	virtual ~JICLocalSchedd();
+
+	virtual void allJobsGone( void );
+
+protected:
+
+		/// This version confirms we're handling a "local" universe job. 
+	virtual bool getUniverse( void );
+
+};
+
+
+#endif /* _CONDOR_JIC_LOCAL_SCHEDD_H */
