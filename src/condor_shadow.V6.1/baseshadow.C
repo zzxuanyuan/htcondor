@@ -214,7 +214,7 @@ BaseShadow::baseInit( ClassAd *job_ad, const char* schedd_addr )
 		 sshdManager, WRITE );
 
         /* Register Command for script to get  */
-	daemonCore->Register_Command( SSHD_GETNUM, "SSHD_GETNUMBER", 
+	daemonCore->Register_Command( SSHD_GETNUM, "SSHD_GETNUM", 
 		 (CommandHandlercpp)&SshdManager::getNumber, "sshdGetNumber", 
 		 sshdManager, WRITE );
         /* Register Command for sneaky rsh to get info: */

@@ -175,6 +175,7 @@ int get_target_info(char * & hostname){
   delete s;
 
   log_header(); fprintf(fp, "get info from %s\n", shadow_contact); fflush(fp);
+
   target_user_shell  = sshd_info.userShell;
   target_work_dir    = sshd_info.workDir;
   target_rsh_dir     = sshd_info.rshDir;
@@ -182,7 +183,14 @@ int get_target_info(char * & hostname){
   target_port        = sshd_info.port;
   target_user_name   = sshd_info.userName;
   hostname           = sshd_info.hostname;
-  
+
+
+  log_header(); fprintf(fp, "       user shell=%s\n", target_user_shell); fflush(fp);
+  log_header(); fprintf(fp, "       work dir  =%s\n", target_work_dir); fflush(fp);
+  log_header(); fprintf(fp, "       rsh  dir  =%s\n", target_rsh_dir); fflush(fp);
+  log_header(); fprintf(fp, "       ssh  dir  =%s\n", target_openssh_dir); fflush(fp);
+  log_header(); fprintf(fp, "       username  =%s\n", target_user_name); fflush(fp);
+
   sprintf(wrapper, "%s/wrapper.sh", target_rsh_dir);
 
   return 1;

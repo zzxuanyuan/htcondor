@@ -53,6 +53,9 @@ public:
 
   virtual bool PublishUpdateAd( ClassAd* ad );
 
+  inline char * getKeyBaseName(){
+	return baseFileName;
+  }
 
 private:
   int getKeys();

@@ -63,6 +63,9 @@ SshdInfo::code(Stream & s){
   if ( !s.code( workDir ) ) {
 	EXCEPT( "Failed to get/send workDir" );
   }
+  if ( !s.code( opensshDir ) ) {
+	EXCEPT( "Failed to get/send opensshDir" );
+  }
   if ( !s.code( userName ) ) {
 	EXCEPT( "Failed to get/send userName" );
   }

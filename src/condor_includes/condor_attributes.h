@@ -253,6 +253,7 @@ const char ATTR_MIRROR_SCHEDD            [] = "MirrorSchedd";
 const char ATTR_MIRROR_SUBMITTER_ID      [] = "MirrorSubmitterId";
 const char ATTR_MPI_IS_MASTER            [] = "MPIIsMaster";
 const char ATTR_MPI_MASTER_ADDR       	 [] = "MPIMasterAddr";
+const char ATTR_WANT_SSHD                [] = "WantSshd";
 const char ATTR_PARALLEL_IS_MASTER       [] = "ParallelIsMaster";   
 const char ATTR_PARALLEL_MASTER_ADDR   	 [] = "ParallelMasterAddr"; 
 const char ATTR_MY_TYPE					 [] = "MyType";

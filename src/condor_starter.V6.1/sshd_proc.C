@@ -124,6 +124,7 @@ SshdProc::PublishUpdateAd( ClassAd* ad ){
 
   VanillaProc::PublishUpdateAd(ad);
   dprintf(D_FULLDEBUG,"in SshdProc::update() (!)\n");    
+  return true;
 }
 
 
@@ -274,6 +275,7 @@ SshdProc::alterEnv()
 
 	free( openssh_dir );
 	free( opensshd_dir );
+
 
 	bool assigned = JobAd->Assign( ATTR_JOB_ENVIRONMENT,env_str );
 	if(env_str) {

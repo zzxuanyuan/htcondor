@@ -154,6 +154,14 @@ public:
 
     int SpawnSshd( ClassAd * jobAd );
 
+    inline UserProc * getSshdProc(){
+	  return sshdProc;
+	}
+
+    inline void appendJobList( UserProc * proc){
+	  JobList.Append(proc);
+	}
+
 protected:
 	List<UserProc> JobList;
 	List<UserProc> CleanedUpJobList;
@@ -180,6 +188,7 @@ private:
 
 	UserProc* pre_script;
 	UserProc* post_script;
+
 };
 
 #endif

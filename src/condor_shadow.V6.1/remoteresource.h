@@ -396,6 +396,10 @@ private:
 	int reconnect_attempts;
 	int next_reconnect_tid;
 
+
+	bool already_killed_graceful;
+    bool already_killed_fast;
+
 		/** For debugging, print out the values of various statistics
 			related to our bookkeeping of suspend/resume activity for
 			the job.

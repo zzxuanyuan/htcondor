@@ -34,6 +34,7 @@
 #include "tool_daemon_proc.h"
 #include "mpi_master_proc.h"
 #include "mpi_comrade_proc.h"
+#include "parallel_master_proc.h"
 #include "sshd_proc.h"
 #include "my_hostname.h"
 #include "internet.h"
@@ -176,6 +177,7 @@ CStarter::Init( JobInfoCommunicator* my_jic, const char* orig_cwd,
 		// done, it'll call our jobEnvironmentReady() method so we can
 		// actually spawn the job.
 	jic->setupJobEnvironment();
+
 	return true;
 }
 
@@ -441,7 +443,6 @@ CStarter::jobEnvironmentReady( void )
 	return SpawnJob();
 }
 
-#define ATTR_WANT_SSHD "wantSshd"
 
 // spawns sshd if needed 
 int
@@ -477,6 +478,9 @@ CStarter::SpawnSshd( ClassAd * jobAd )
 }
 
 
+
+#define ATTR_JOB_SUBUNIVERSE "subuniverse"
+
 int
 CStarter::SpawnJob( void )
 {
@@ -499,7 +503,7 @@ CStarter::SpawnJob( void )
 
 	UserProc *job;
 	switch ( jobUniverse )  
-	{
+	  {
 		case CONDOR_UNIVERSE_VANILLA:
 			job = new VanillaProc( jobAd );
 			break;
@@ -507,16 +511,41 @@ CStarter::SpawnJob( void )
 			job = new JavaProc( jobAd, WorkingDir );
 			break;
 		case CONDOR_UNIVERSE_MPI: {
+		    int    generic_parallel = FALSE;
+		    char * subuniverse = NULL;
 			int is_master = FALSE;
 			if ( jobAd->LookupBool( ATTR_MPI_IS_MASTER, is_master ) < 1 ) {
-				is_master = FALSE;
+			  is_master = FALSE;
 			}
-			if ( is_master ) {
-				dprintf ( D_FULLDEBUG, "Starting a MPIMasterProc\n" );
-				job = new MPIMasterProc( jobAd );
+
+		    if ( jobAd->LookupString(ATTR_JOB_SUBUNIVERSE, &subuniverse)) {
+			    if (strncmp(subuniverse, "parallel", 8) == 0){
+				    generic_parallel = TRUE;
+				    dprintf( D_ALWAYS, "subuniverse = parallel\n");
+				}
+				free (subuniverse);
+			}
+			if ( generic_parallel ) {
+			    //  generic parallel universe use different logic.
+	  		    if ( is_master ) {
+				    // the master job have to wait for all the sshds
+				    // to startup.
+				    ParallelMasterProc * proc = new ParallelMasterProc( jobAd );
+				    return  proc->SpawnParallelMaster();
+			    } else {
+				    //  sshd proc already started, nothing to do
+				    jic->allJobsSpawned();
+					return TRUE;
+				}
 			} else {
-				dprintf ( D_FULLDEBUG, "Starting a MPIComradeProc\n" );
-				job = new MPIComradeProc( jobAd );
+			  // original mpi unvierse for mpich less than 1.2.4
+				if ( is_master ) {
+				    dprintf ( D_FULLDEBUG, "Starting a MPIMasterProc\n" );
+				    job = new MPIMasterProc( jobAd );
+				} else {
+				    dprintf ( D_FULLDEBUG, "Starting a MPIComradeProc\n" );
+				    job = new MPIComradeProc( jobAd );
+				}
 			}
 			break;
 		}

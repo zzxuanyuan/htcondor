@@ -79,6 +79,10 @@ RemoteResource::RemoteResource( BaseShadow *shad )
 	supports_reconnect = false;
 	next_reconnect_tid = -1;
 	reconnect_attempts = 0;
+
+	already_killed_graceful = false;
+	already_killed_fast = false;
+
 }
 
 
@@ -185,8 +189,11 @@ RemoteResource::activateClaim( int starterVersion )
 bool
 RemoteResource::killStarter( bool graceful )
 {
+  /** these should be the instance variable of the object, 
+      since in the mpi job, there will be several instances.
 	static bool already_killed_graceful = false;
 	static bool already_killed_fast = false;
+  **/
 
 	if( (graceful && already_killed_graceful) ||
 		(!graceful && already_killed_fast) ) {
