@@ -39,20 +39,16 @@
 
 class GT4Resource;
 
-/////////////////////from gridmanager.h
 class GT4Job;
 extern HashTable <HashKey, GT4Job *> GT4JobsByContact;
 
 const char *gt4JobId( const char *contact );
-void gramCallbackHandler( void *user_arg, char *job_contact, int state,
-						  int errorcode );
 
 void GT4JobInit();
 void GT4JobReconfig();
 bool GT4JobAdMustExpand( const ClassAd *jobad );
 BaseJob *GT4JobCreate( ClassAd *jobad );
 extern const char *GT4JobAdConst;
-///////////////////////////////////////
 
 class GT4Job : public BaseJob
 {
@@ -66,8 +62,8 @@ class GT4Job : public BaseJob
 	int doEvaluateState();
 	void NotifyResourceDown();
 	void NotifyResourceUp();
-	void UpdateGlobusState( int new_state, int new_error_code );
-	void GramCallback( const char *new_state, int new_error_code );
+	void UpdateGlobusState( int new_state, const char *new_failure );
+	void GramCallback( const char *new_state, const char *new_failure );
 	bool GetCallbacks();
 	void ClearCallbacks();
 	BaseResource *GetResource();
@@ -95,10 +91,10 @@ class GT4Job : public BaseJob
 	bool resourceStateKnown;
 	int gmState;
 	int globusState;
-	int globusStateErrorCode;
+	MyString globusStateFailureString;
 	int globusStateBeforeFailure;
 	int callbackGlobusState;
-	int callbackGlobusStateErrorCode;
+	MyString callbackGlobusStateFailureString;
 	bool resourcePingPending;
 	bool jmUnreachable;
 	bool jmDown;
@@ -109,7 +105,6 @@ class GT4Job : public BaseJob
 	time_t enteredCurrentGlobusState;
 	time_t lastSubmitAttempt;
 	int numSubmitAttempts;
-	int submitFailureCode;
 	int lastRestartReason;
 	time_t lastRestartAttempt;
 	int numRestartAttempts;

@@ -129,7 +129,7 @@ static char *GMStateNames[] = {
 
 static bool WriteGT4SubmitEventToUserLog( ClassAd *job_ad );
 static bool WriteGT4SubmitFailedEventToUserLog( ClassAd *job_ad,
-												int failure_code );
+												const char *failure_string );
 static bool WriteGT4ResourceUpEventToUserLog( ClassAd *job_ad );
 static bool WriteGT4ResourceDownEventToUserLog( ClassAd *job_ad );
 
@@ -181,7 +181,7 @@ rehashJobContact( GT4Job *job, const char *old_contact,
 
 void
 gt4GramCallbackHandler( void *user_arg, const char *job_contact,
-						const char *state, int errorcode )
+						const char *state, const char *failure )
 {
 	int rc;
 	GT4Job *this_job;
@@ -191,16 +191,16 @@ gt4GramCallbackHandler( void *user_arg, const char *job_contact,
 	if ( rc != 0 || this_job == NULL ) {
 		dprintf( D_ALWAYS, 
 			"gt4GramCallbackHandler: Can't find record for globus job with "
-			"contact %s on globus state %s, errorcode %d, ignoring\n",
-			job_contact, state, errorcode );
+			"contact %s on globus state %s, ignoring\n",
+			job_contact, state );
 		return;
 	}
 
-	dprintf( D_ALWAYS, "(%d.%d) gram callback: state %s, errorcode %d\n",
+	dprintf( D_ALWAYS, "(%d.%d) gram callback: state %s, failure %s\n",
 			 this_job->procID.cluster, this_job->procID.proc, state,
-			 errorcode );
+			 failure ? failure : NULL );
 
-	this_job->GramCallback( state, errorcode );
+	this_job->GramCallback( state, failure );
 }
 
 void GT4JobInit()
@@ -353,10 +353,10 @@ GT4Job::GT4Job( ClassAd *classad )
 	streamError = false;
 	stageOutput = false;
 	stageError = false;
-	globusStateErrorCode = 0;
+	globusStateFailureString = 0;
 	globusStateBeforeFailure = 0;
 	callbackGlobusState = 0;
-	callbackGlobusStateErrorCode = 0;
+	callbackGlobusStateFailureString = "";
 	restartingJM = false;
 	restartWhen = 0;
 	gmState = GM_INIT;
@@ -370,7 +370,6 @@ GT4Job::GT4Job( ClassAd *classad )
 	enteredCurrentGlobusState = time(NULL);
 	lastSubmitAttempt = 0;
 	numSubmitAttempts = 0;
-	submitFailureCode = 0;
 	lastRestartReason = 0;
 	lastRestartAttempt = 0;
 	numRestartAttempts = 0;
@@ -696,7 +695,7 @@ int GT4Job::doEvaluateState()
 			}
 			if ( rc != GLOBUS_SUCCESS ) {
 				// unhandled error
-				LOG_GLOBUS_ERROR( "globus_gram_client_job_callback_register()", rc );
+				LOG_GLOBUS_ERROR( "gt4_gram_client_job_callback_register()", rc );
 				globusError = rc;
 				gmState = GM_CANCEL;
 				break;
@@ -903,12 +902,13 @@ gmState=GM_SUBMIT;
 					gmState = GM_SUBMIT_SAVE;
 				} else {
 					// unhandled error
-					LOG_GLOBUS_ERROR( "globus_gram_client_job_create()", rc );
+					LOG_GLOBUS_ERROR( "gt4_gram_client_job_create()", rc );
 					dprintf(D_ALWAYS,"(%d.%d)    RSL='%s'\n",
 							procID.cluster, procID.proc,RSL->Value());
-					submitFailureCode = globusError = rc;
+					globusError = rc;
+						// TODO should probably save error string for hold reason
 					WriteGT4SubmitFailedEventToUserLog( ad,
-														submitFailureCode );
+														gahp->getErrorString() );
 					gmState = GM_UNSUBMITTED;
 					reevaluate_state = true;
 				}
@@ -948,9 +948,9 @@ gmState=GM_SUBMIT;
 				}
 				if ( rc != GLOBUS_SUCCESS ) {
 					// unhandled error
-					LOG_GLOBUS_ERROR( "globus_gram_client_job_start()", rc );
+					LOG_GLOBUS_ERROR( "gt4_gram_client_job_start()", rc );
 					globusError = rc;
-					WriteGT4SubmitFailedEventToUserLog( ad, globusError );
+					WriteGT4SubmitFailedEventToUserLog( ad, gahp->getErrorString() );
 					gmState = GM_CANCEL;
 				} else {
 					gmState = GM_SUBMITTED;
@@ -1042,7 +1042,8 @@ gmState=GM_SUBMIT;
 					}
 					break;
 				}
-				UpdateGlobusState( Gt4JobStateToInt( status ), 0 );
+				UpdateGlobusState( Gt4JobStateToInt( status ),
+								   rc ? gahp->getErrorString() : NULL );
 				if ( status ) {
 					free( status );
 				}
@@ -1107,7 +1108,7 @@ gmState=GM_SUBMIT;
 				}
 				if ( rc != GLOBUS_SUCCESS ) {
 					// unhandled error
-					LOG_GLOBUS_ERROR( "globus_gram_client_job_cancel()", rc );
+					LOG_GLOBUS_ERROR( "gt4_gram_client_job_destroy()", rc );
 					globusError = rc;
 					gmState = GM_CLEAR_REQUEST;
 					break;
@@ -1135,7 +1136,7 @@ gmState=GM_SUBMIT;
 			}
 			if ( rc != GLOBUS_SUCCESS ) {
 					// unhandled error
-				LOG_GLOBUS_ERROR( "globus_gram_client_job_signal(COMMIT_END)", rc );
+				LOG_GLOBUS_ERROR( "gt4_gram_client_job_destroy", rc );
 				globusError = rc;
 				gmState = GM_CLEAR_REQUEST;
 				break;
@@ -1177,7 +1178,7 @@ gmState=GM_SUBMIT;
 			// forgetting about current submission and trying again.
 			// TODO: Let our action here be dictated by the user preference
 			// expressed in the job ad.
-			if ( (jobContact != NULL || (globusState == GT4_JOB_STATE_FAILED && globusStateErrorCode != GLOBUS_GRAM_PROTOCOL_ERROR_JOB_UNSUBMITTED)) 
+			if ( (jobContact != NULL || globusState == GT4_JOB_STATE_FAILED) 
 				     && condorState != REMOVED 
 					 && wantResubmit == 0 
 					 && doResubmit == 0 ) {
@@ -1204,7 +1205,7 @@ gmState=GM_SUBMIT;
 				globusState = GT4_JOB_STATE_UNSUBMITTED;
 				UpdateJobAdInt( ATTR_GLOBUS_STATUS, globusState );
 			}
-			globusStateErrorCode = 0;
+			globusStateFailureString = "";
 			globusError = 0;
 			lastRestartReason = 0;
 			numRestartAttemptsThisSubmit = 0;
@@ -1278,7 +1279,7 @@ gmState=GM_SUBMIT;
 				 globusState != GT4_JOB_STATE_UNKNOWN ) {
 				globusState = GT4_JOB_STATE_UNKNOWN;
 				UpdateJobAdInt( ATTR_GLOBUS_STATUS, globusState );
-				//UpdateGlobusState( GT4_JOB_STATE_UNKNOWN, 0 );
+				//UpdateGlobusState( GT4_JOB_STATE_UNKNOWN, NULL );
 			}
 			// If the condor state is already HELD, then someone already
 			// HELD it, so don't update anything else.
@@ -1295,10 +1296,11 @@ gmState=GM_SUBMIT;
 					strncpy( holdReason, errorString.Value(),
 							 sizeof(holdReason) - 1 );
 				}
-				if ( holdReason[0] == '\0' && globusStateErrorCode != 0 ) {
-					snprintf( holdReason, 1024, "Globus error %d: %s",
-							  globusStateErrorCode,
-							  "" );
+				if ( holdReason[0] == '\0' &&
+					 !globusStateFailureString.IsEmpty() ) {
+
+					snprintf( holdReason, 1024, "Globus error: %s",
+							  globusStateFailureString.Value() );
 				}
 				if ( holdReason[0] == '\0' && globusError != 0 ) {
 					snprintf( holdReason, 1024, "Globus error %d: %s", globusError,
@@ -1441,7 +1443,7 @@ bool GT4Job::AllowTransition( int new_state, int old_state )
 }
 
 
-void GT4Job::UpdateGlobusState( int new_state, int new_error_code )
+void GT4Job::UpdateGlobusState( int new_state, const char *new_failure )
 {
 	bool allow_transition;
 
@@ -1470,10 +1472,9 @@ void GT4Job::UpdateGlobusState( int new_state, int new_error_code )
 			if ( new_state == GT4_JOB_STATE_FAILED ) {
 					// TODO: should SUBMIT_FAILED_EVENT be used only on
 					//   certain errors (ones we know are submit-related)?
-				submitFailureCode = new_error_code;
 				if ( !submitFailedLogged ) {
 					WriteGT4SubmitFailedEventToUserLog( ad,
-														submitFailureCode );
+														new_failure );
 					submitFailedLogged = true;
 				}
 			} else {
@@ -1506,7 +1507,7 @@ void GT4Job::UpdateGlobusState( int new_state, int new_error_code )
 		}
 
 		globusState = new_state;
-		globusStateErrorCode = new_error_code;
+		globusStateFailureString = new_failure;
 		enteredCurrentGlobusState = time(NULL);
 
 		requestScheddUpdate( this );
@@ -1515,7 +1516,7 @@ void GT4Job::UpdateGlobusState( int new_state, int new_error_code )
 	}
 }
 
-void GT4Job::GramCallback( const char *new_state, int new_error_code )
+void GT4Job::GramCallback( const char *new_state, const char *new_failure )
 {
 	int new_state_int = Gt4JobStateToInt( new_state );
 	if ( AllowTransition(new_state_int,
@@ -1524,7 +1525,7 @@ void GT4Job::GramCallback( const char *new_state, int new_error_code )
 						 globusState ) ) {
 
 		callbackGlobusState = new_state_int;
-		callbackGlobusStateErrorCode = new_error_code;
+		callbackGlobusStateFailureString = new_failure ? new_failure : "";
 
 		SetEvaluateState();
 	}
@@ -1534,10 +1535,9 @@ bool GT4Job::GetCallbacks()
 {
 	if ( callbackGlobusState != 0 ) {
 		UpdateGlobusState( callbackGlobusState,
-						   callbackGlobusStateErrorCode );
+						   callbackGlobusStateFailureString.Value() );
 
-		callbackGlobusState = 0;
-		callbackGlobusStateErrorCode = 0;
+		ClearCallbacks();
 		return true;
 	} else {
 		return false;
@@ -1547,7 +1547,7 @@ bool GT4Job::GetCallbacks()
 void GT4Job::ClearCallbacks()
 {
 	callbackGlobusState = 0;
-	callbackGlobusStateErrorCode = 0;
+	callbackGlobusStateFailureString = "";
 }
 
 BaseResource *GT4Job::GetResource()
@@ -2029,10 +2029,10 @@ WriteGT4SubmitEventToUserLog( ClassAd *job_ad )
 }
 
 static bool
-WriteGT4SubmitFailedEventToUserLog( ClassAd *job_ad, int failure_code )
+WriteGT4SubmitFailedEventToUserLog( ClassAd *job_ad,
+									const char *failure_string )
 {
 	int cluster, proc;
-	char buf[1024];
 
 	UserLog *ulog = InitializeUserLog( job_ad );
 	if ( ulog == NULL ) {
@@ -2049,9 +2049,9 @@ WriteGT4SubmitFailedEventToUserLog( ClassAd *job_ad, int failure_code )
 
 	GlobusSubmitFailedEvent event;
 
-	snprintf( buf, 1024, "%d %s", failure_code,
-			  "" );
-	event.reason =  strnewp(buf);
+	if ( failure_string ) {
+		event.reason =  strnewp(failure_string);
+	}
 
 	int rc = ulog->writeEvent(&event);
 	delete ulog;
