@@ -90,6 +90,7 @@ static char *GMStateNames[] = {
 #define REMOTE_STATE_CANCELLING		5
 #define REMOTE_STATE_FINISHING		6
 #define REMOTE_STATE_FINISHED		7
+#define REMOTE_STATE_PENDING		8
 
 // Filenames are case insensitive on Win32, but case sensitive on Unix
 #ifdef WIN32
@@ -145,6 +146,8 @@ int remoteStateNameConvert( const char *name )
 		return REMOTE_STATE_FINISHING;
 	} else if ( strcmp( name, "FINISHED" ) == 0 ) {
 		return REMOTE_STATE_FINISHED;
+	} else if ( strcmp( name, "PENDING:PREPARING" ) == 0 ) {
+		return REMOTE_STATE_PENDING;
 	} else {
 		return REMOTE_STATE_UNKNOWN;
 	}
