@@ -31,6 +31,9 @@
 #include "iso_dates.h"
 #include "condor_attributes.h"
 
+//added by Ameet
+#include "condor_environ.h"
+
 //--------------------------------------------------------
 #include "condor_debug.h"
 //--------------------------------------------------------
@@ -38,6 +41,12 @@
 
 #define ESCAPE { errorNumber=(errno==EAGAIN) ? ULOG_NO_EVENT : ULOG_UNK_ERROR;\
 					 return 0; }
+
+#include "odbc.h"
+extern ODBC *DBObj;
+
+
+//extern ClassAd *JobAd;
 
 const char * ULogEventNumberNames[] = {
 	"ULOG_SUBMIT",					// Job submitted
@@ -1267,12 +1276,56 @@ ExecuteEvent::
 int ExecuteEvent::
 writeEvent (FILE *file)
 {	
-	int retval = fprintf (file, "Job executing on host: %s\n", executeHost);
-	if (retval < 0)
-	{
-		return 0;
-	}
-	return 1;
+  char *sqlstmt;
+  sqlstmt = (char *) malloc(1024 * sizeof(char));
+
+  //char globaljobid[100];
+
+  //JobAd is defined in condor_shadow.V6/log_events.C and is simply
+  //defined as an external variable here
+
+  //JobAd->LookupString(ATTR_GLOBAL_JOB_ID, globaljobid);
+
+  dprintf(D_ALWAYS, "just before initializing scheddname in ExecuteEvent\n");
+  scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
+  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
+
+  if(!scheddname) {
+    dprintf(D_ALWAYS, "scheddname = %s\n", scheddname);
+  }
+  else {
+    dprintf(D_ALWAYS, "scheddname is null\n", scheddname);
+  }
+  sprintf(sqlstmt, 
+	  "INSERT INTO runs (machine_id, scheddname, cid, pid, spid, startts) VALUES('%s', '%s','%d', '%d', '%d', '%d-%02d-%02d %02d:%02d:%02d %s');", 
+	  executeHost, 
+	  scheddname,
+	  cluster, 
+	  proc, 
+	  subproc, 
+	  eventTime.tm_year+1900,
+	  eventTime.tm_mon+1,
+	  eventTime.tm_mday,
+	  eventTime.tm_hour,
+	  eventTime.tm_min,
+	  eventTime.tm_sec,
+	  eventTime.tm_zone);
+
+  if (DBObj->odbc_sqlstmt(sqlstmt) < 0) {
+    dprintf(D_ALWAYS, "Inserting ExecuteEvent --- Error\n");
+    dprintf(D_ALWAYS, "sql = %s\n", sqlstmt);
+    free(sqlstmt);
+    return 0; // return a error code, 0
+  }
+  free(sqlstmt);
+
+ int retval = fprintf (file, "Job executing on host: %s\n", executeHost);
+
+ if (retval < 0)
+   {
+     return 0;
+   }
+ return 1;
 }
 
 int ExecuteEvent::
@@ -1678,71 +1731,145 @@ JobEvictedEvent::readEvent( FILE *file )
 int
 JobEvictedEvent::writeEvent( FILE *file )
 {
-	int retval;
-
-	if( fprintf(file, "Job was evicted.\n\t") < 0 ) { 
-		return 0;
-	}
-
-	if( terminate_and_requeued ) { 
-		retval = fprintf( file, "(0) Job terminated and was requeued\n\t" );
-	} else if( checkpointed ) {
-		retval = fprintf( file, "(1) Job was checkpointed.\n\t" );
-	} else {
-		retval = fprintf( file, "(0) Job was not checkpointed.\n\t" );
-	}
-	if( retval < 0 ) {
-		return 0;
-	}
-
-	if( (!writeRusage (file, run_remote_rusage)) 			||
-		(fprintf (file, "  -  Run Remote Usage\n\t") < 0) 	||
-		(!writeRusage (file, run_local_rusage)) 			||
-		(fprintf (file, "  -  Run Local Usage\n") < 0) )
+  char *sqlstmt, *messagestr, *checkpointedstr, *terminatestr;
+  //char globaljobid[100];
+  
+  //JobAd is defined in condor_shadow.V6/log_events.C and is simply
+  //defined as an external variable here
+  
+  //JobAd->LookupString(ATTR_GLOBAL_JOB_ID, globaljobid);
+  
+  sqlstmt = (char *) malloc(1024 * sizeof(char));
+  messagestr = (char *) malloc(512 * sizeof(char));
+  terminatestr = (char *) malloc(512 * sizeof(char));
+  checkpointedstr = (char *) malloc(6 * sizeof(char));
+  strcpy(checkpointedstr, "");
+  strcpy(messagestr, "");
+  strcpy(terminatestr, "");
+  
+  
+  int retval;
+  
+  if( fprintf(file, "Job was evicted.\n\t") < 0 ) { 
+    return 0;
+  }
+  
+  if( terminate_and_requeued ) { 
+    retval = fprintf( file, "(0) Job terminated and was requeued\n\t" );
+    sprintf(messagestr,  "Job evicted, terminated and was requeued");
+    strcpy(checkpointedstr, "false");
+  } else if( checkpointed ) {
+    retval = fprintf( file, "(1) Job was checkpointed.\n\t" );
+    sprintf(messagestr,  "Job evicted and was checkpointed");	
+    strcpy(checkpointedstr, "true");
+  } else {
+    retval = fprintf( file, "(0) Job was not checkpointed.\n\t" );
+    sprintf(messagestr,  "Job evicted and was not checkpointed");
+    strcpy(checkpointedstr, "false");
+  }
+  
+  if( retval < 0 ) {
+    return 0;
+  }
+  
+  if( (!writeRusage (file, run_remote_rusage)) 			||
+      (fprintf (file, "  -  Run Remote Usage\n\t") < 0) 	||
+      (!writeRusage (file, run_local_rusage)) 			||
+      (fprintf (file, "  -  Run Local Usage\n") < 0) )
     {
-		return 0;
-	}
+      return 0;
+    }
+  
+  if( fprintf(file, "\t%.0f  -  Run Bytes Sent By Job\n", 
+	      sent_bytes) < 0 ) {
+    return 0;
+  }
+  if( fprintf(file, "\t%.0f  -  Run Bytes Received By Job\n", 
+	      recvd_bytes) < 0 ) {
+    return 0;
+  }
+  
+  if(terminate_and_requeued ) {
+    if( normal ) {
+      if( fprintf(file, "\t(1) Normal termination (return value %d)\n", 
+		  return_value) < 0 ) {
+	return 0;
+      }
+      sprintf(terminatestr,  " (1) Normal termination (return value %d)", return_value);
+    } 
+    else {
+      if( fprintf(file, "\t(0) Abnormal termination (signal %d)\n",
+		  signal_number) < 0 ) {
+	return 0;
+      }
+      sprintf(terminatestr,  " (0) Abnormal termination (signal %d)", signal_number);
 
-	if( fprintf(file, "\t%.0f  -  Run Bytes Sent By Job\n", 
-				sent_bytes) < 0 ) {
-		return 0;
-	}
-	if( fprintf(file, "\t%.0f  -  Run Bytes Received By Job\n", 
-				recvd_bytes) < 0 ) {
-		return 0;
-	}
+      if( core_file ) {
+	retval = fprintf( file, "\t(1) Corefile in: %s\n", core_file );
+	strcat(terminatestr, " (1) Corefile in: ");
+	strcat(terminatestr, core_file);
+      } 
+      else {
+	retval = fprintf( file, "\t(0) No core file\n" );
+	strcat(terminatestr, " (0) No core file ");
+      }
+      if( retval < 0 ) {
+	return 0;
+      }
+    }
+    
+    if( reason ) {
+      if( fprintf(file, "\t%s\n", reason) < 0 ) {
+	return 0;
+      }
+      strcat(terminatestr,  " reason: ");
+      strcat(terminatestr,  reason);
+    }
+  
+  }
+  
 
-	if( ! terminate_and_requeued ) {
-			// nothing else to write
-		return 1;
-	}
-
-	if( normal ) {
-		if( fprintf(file, "\t(1) Normal termination (return value %d)\n", 
-					return_value) < 0 ) {
-			return 0;
-		}
-	} else {
-		if( fprintf(file, "\t(0) Abnormal termination (signal %d)\n",
-					signal_number) < 0 ) {
-			return 0;
-		}
-		if( core_file ) {
-			retval = fprintf( file, "\t(1) Corefile in: %s\n", core_file );
-		} else {
-			retval = fprintf( file, "\t(0) No core file\n" );
-		}
-		if( retval < 0 ) {
-			return 0;
-		}
-	}
-
-	if( reason ) {
-		if( fprintf(file, "\t%s\n", reason) < 0 ) {
-			return 0;
-		}
-	}
-	return 1;
+  dprintf(D_ALWAYS, "just before initializing scheddname in EvictEvent\n");
+  scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
+  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
+    
+  sprintf(sqlstmt, 
+	  "UPDATE runs SET endts = '%d-%02d-%02d %02d:%02d:%02d %s', endtype = %d, endmessage = '%s%s', wascheckpointed = '%s', runbytessent= %f, runbytesreceived = %f WHERE scheddname = '%s' AND cid = %d and pid = %d and spid = %d AND endtype is null;", 
+	  eventTime.tm_year+1900,
+	  eventTime.tm_mon+1,
+	  eventTime.tm_mday,
+	  eventTime.tm_hour,
+	  eventTime.tm_min,
+	  eventTime.tm_sec,
+	  eventTime.tm_zone,
+	  ULOG_JOB_EVICTED,
+	  messagestr,
+	  terminatestr,
+	  checkpointedstr,
+	  sent_bytes,
+	  recvd_bytes,
+	  scheddname,
+	  cluster,
+	  proc,
+	  subproc
+	  );
+    
+  dprintf(D_ALWAYS, "sql = %s\n", sqlstmt);
+  if (DBObj->odbc_sqlstmt(sqlstmt) < 0) {
+    dprintf(D_ALWAYS, "Inserting EvictedEvent --- Error\n");
+    dprintf(D_ALWAYS, "sql = %s\n", sqlstmt);
+    free(sqlstmt);
+    free(messagestr);
+    free(checkpointedstr);
+    free(terminatestr);
+    return 0; // return a error code, 0
+  }
+  free(sqlstmt);
+  free(messagestr);
+  free(checkpointedstr);
+  free(terminatestr);
+  
+  return 1;
 }
 
 ClassAd* JobEvictedEvent::
@@ -2012,10 +2139,22 @@ TerminatedEvent::getCoreFile( void )
 	return core_file;
 }
 
-
 int
 TerminatedEvent::writeEvent( FILE *file, const char* header )
 {
+  char *sqlstmt, *messagestr;
+
+  //char globaljobid[100];
+  
+  //JobAd is defined in condor_shadow.V6/log_events.C and is simply
+  //defined as an external variable here
+  
+  //JobAd->LookupString(ATTR_GLOBAL_JOB_ID, globaljobid);
+
+  sqlstmt = (char *) malloc(1024 * sizeof(char));
+  messagestr = (char *) malloc(512 * sizeof(char));
+  strcpy(messagestr, "");
+  
 	int retval=0;
 
 	if( normal ) {
@@ -2023,16 +2162,24 @@ TerminatedEvent::writeEvent( FILE *file, const char* header )
 					returnValue) < 0 ) {
 			return 0;
 		}
+		sprintf(messagestr,  "(1) Normal termination (return value %d)", returnValue);
+
 	} else {
 		if( fprintf(file, "\t(0) Abnormal termination (signal %d)\n",
 					signalNumber) < 0 ) {
 			return 0;
 		}
+
+		sprintf(messagestr,  "(0) Abnormal termination (signal %d)", signalNumber);
+
 		if( core_file ) {
 			retval = fprintf( file, "\t(1) Corefile in: %s\n\t",
 							  core_file );
+			strcat(messagestr, " (1) Corefile in: ");
+			strcat(messagestr, core_file);
 		} else {
 			retval = fprintf( file, "\t(0) No core file\n\t" );
+			strcat(messagestr, " (0) No core file ");
 		}
 	}
 
@@ -2057,6 +2204,40 @@ TerminatedEvent::writeEvent( FILE *file, const char* header )
 		fprintf(file, "\t%.0f  -  Total Bytes Received By %s\n",
 				total_recvd_bytes, header) < 0)
 		return 1;				// backwards compatibility
+
+  dprintf(D_ALWAYS, "just before initializing scheddname in TerminteEvent\n");
+  scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
+  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
+
+  sprintf(sqlstmt, 
+	  "UPDATE runs SET endmessage = '%s', runbytessent= %f, runbytesreceived = %f WHERE scheddname = '%s' and cid = %d and pid = %d and spid = %d AND endts = '%d-%02d-%02d %02d:%02d:%02d %s';", 
+	  messagestr,
+	  sent_bytes,
+	  recvd_bytes,
+	  scheddname,
+	  cluster,
+	  proc,
+	  subproc,
+	  eventTime.tm_year+1900,
+	  eventTime.tm_mon+1,
+	  eventTime.tm_mday,
+	  eventTime.tm_hour,
+	  eventTime.tm_min,
+	  eventTime.tm_sec,
+	  eventTime.tm_zone
+	  );
+
+    dprintf(D_ALWAYS, "sql = %s\n", sqlstmt);
+  if (DBObj->odbc_sqlstmt(sqlstmt) < 0) {
+    dprintf(D_ALWAYS, "Inserting TerminatedEvent --- Error\n");
+    dprintf(D_ALWAYS, "sql = %s\n", sqlstmt);
+    free(sqlstmt);
+    free(messagestr);
+    return 0; // return a error code, 0
+  }
+  free(sqlstmt);
+  free(messagestr);
+
 
 	return 1;
 }
@@ -2145,6 +2326,45 @@ JobTerminatedEvent::~JobTerminatedEvent()
 int
 JobTerminatedEvent::writeEvent (FILE *file)
 {
+  char *sqlstmt;
+  sqlstmt = (char *) malloc(1024 * sizeof(char));
+  //char globaljobid[100];
+  
+  //JobAd is defined in condor_shadow.V6/log_events.C and is simply
+  //defined as an external variable here
+  
+  //JobAd->LookupString(ATTR_GLOBAL_JOB_ID, globaljobid);
+  dprintf(D_ALWAYS, "just before initializing scheddname in JobTerminatedEvent\n");
+  scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
+  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
+
+  sprintf(sqlstmt, 
+	  "UPDATE runs SET endts = '%d-%02d-%02d %02d:%02d:%02d %s', endtype = %d WHERE scheddname = '%s' and cid = %d and pid = %d and spid = %d AND endtype is null;", 
+	  eventTime.tm_year+1900,
+	  eventTime.tm_mon+1,
+	  eventTime.tm_mday,
+	  eventTime.tm_hour,
+	  eventTime.tm_min,
+	  eventTime.tm_sec,
+	  eventTime.tm_zone,
+	  ULOG_JOB_TERMINATED,
+	  scheddname,
+	  cluster,
+	  proc,
+	  subproc
+	  );
+
+    dprintf(D_ALWAYS, "sql = %s\n", sqlstmt);
+  if (DBObj->odbc_sqlstmt(sqlstmt) < 0) {
+    dprintf(D_ALWAYS, "Inserting JobTerminatedEvent --- Error\n");
+    dprintf(D_ALWAYS, "sql = %s\n", sqlstmt);
+    free(sqlstmt);
+    return 0; // return a error code, 0
+  }
+  free(sqlstmt);
+
+
+
 	if( fprintf(file, "Job terminated.\n") < 0 ) {
 		return 0;
 	}
