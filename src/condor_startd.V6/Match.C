@@ -465,8 +465,12 @@ Match::starterExited( void )
 		// Now that the starter is gone, we need to change our state
 	m_state = MATCH_IDLE;
 
-		// Now we can actually delete the starter object, which will
-		// cancel any pending timers, and do other cleanup.
+		// Notify our starter object that its starter exited, so it
+		// can cancel timers any pending timers, cleanup the starter's
+		// execute directory, and do any other cleanup. 
+	m_starter->exited();
+	
+		// Next, we can delete the starter object itself.
 	delete( m_starter );
 	m_starter = NULL;
 	
