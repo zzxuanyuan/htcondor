@@ -390,7 +390,7 @@ void Server::Execute()
 	struct sockaddr_in canon_addr;
 	socklen_t namelen = sizeof(struct sockaddr_in);
 	if (Generic_getsockname(store_req_sd , (struct sockaddr *)&canon_addr, &namelen) < 0) {
-		EXCEPT("Can't getsockname - %s\n", strerror(errno));
+		EXCEPT( "Can't getsockname - %s (errno %d)", strerror(errno), errno );
 	}
 	char *canon_name = inet_ntoa(canon_addr.sin_addr);
 	xfer_summary.time_out(current_time, canon_name);
