@@ -4,20 +4,18 @@
 #include "condor_file_warning.h"
 #include "condor_debug.h"
 #include "condor_syscall_mode.h"
+#include "signals_control.h"
 
 CondorFileSpecial::CondorFileSpecial(char *k)
 {
 	init();
 	kind = k;
+	readable = writeable = 1;
+	seekable = 0;
+	_condor_signals_disable();
 }
 
-void CondorFileSpecial::checkpoint()
+CondorFileSpecial::~CondorFileSpecial()
 {
-	suspend();
-}
-
-void CondorFileSpecial::suspend()
-{
-	_condor_file_warning("A %s cannot be used across checkpoints.\n",kind);
-	Suicide();
+	_condor_signals_enable();
 }

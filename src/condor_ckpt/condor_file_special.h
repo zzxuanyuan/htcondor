@@ -5,22 +5,19 @@
 #include "condor_file_local.h"
 
 /**
-There are lots of items which go into the file table that Condor
-doesn't really understand.  In limited situations, we want to support
-the use of pipes and sockets and record their use, but they certainly
-can't be checkpointed.
+There are several items which look like files, but Condor does not know
+how to checkpoint.  We will allow the use of things like pipes and sockets,
+but we must inhibit checkpointing while these endpoints exist.
 
-This class allows access just like a local file, but checkpoint
-and suspend will cause errors.
+This object blocks the appropriate signals in its constructor and then
+resumes those signals in the destructor.  When none of these objects are
+in the file table, checkpointing is allowed.
 */
 
 class CondorFileSpecial : public CondorFileLocal {
 public:
 	CondorFileSpecial( char *kind );
-
-	/* These methods will cause the program to die. */
-	virtual void checkpoint();
-	virtual void suspend();
+	virtual ~CondorFileSpecial();
 };
 
 #endif
