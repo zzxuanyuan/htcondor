@@ -431,7 +431,7 @@ RemoteResource::setExecutingHost( const char * eHost )
 		*/
 	char *addr;
 	if( (addr = string_to_ipstr(eHost)) ) {
-		daemonCore->AddAllowHost( addr, WRITE );
+		daemonCore->AddAllowHost( addr, DAEMON );
 	} else {
 		dprintf( D_ALWAYS, "ERROR: Can't convert \"%s\" to an IP address!\n", 
 				 eHost );
