@@ -644,7 +644,7 @@ Claim::periodicCheckpoint( void )
 
 
 bool
-Claim::release( ClassAd* req, ClassAd* reply )
+Claim::release( Stream* s, ClassAd* req )
 {
 		// TODO!
 	return true;
@@ -652,7 +652,7 @@ Claim::release( ClassAd* req, ClassAd* reply )
 
 
 bool
-Claim::activate( ClassAd* req, ClassAd* reply )
+Claim::activate( Stream* s, ClassAd* req )
 {
 		// TODO!
 	return true;
@@ -660,7 +660,7 @@ Claim::activate( ClassAd* req, ClassAd* reply )
 
 
 bool
-Claim::deactivate( ClassAd* req, ClassAd* reply )
+Claim::deactivate( Stream* s, ClassAd* req )
 {
 		// TODO!
 	return true;
@@ -668,7 +668,7 @@ Claim::deactivate( ClassAd* req, ClassAd* reply )
 
 
 bool
-Claim:: suspend( ClassAd* req, ClassAd* reply )
+Claim::suspend( Stream* s, ClassAd* req )
 {
 		// TODO!
 	return true;
@@ -676,7 +676,7 @@ Claim:: suspend( ClassAd* req, ClassAd* reply )
 
 
 bool
-Claim::resume( ClassAd* req, ClassAd* reply )
+Claim::resume( Stream* s, ClassAd* req )
 {
 		// TODO!
 	return true;

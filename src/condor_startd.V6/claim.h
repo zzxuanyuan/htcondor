@@ -185,11 +185,11 @@ public:
 	bool periodicCheckpoint( void );
 
 		// functions for the classad-only claim management protocol
-	bool release( ClassAd* req, ClassAd* reply );
-	bool activate( ClassAd* req, ClassAd* reply );
-	bool deactivate( ClassAd* req, ClassAd* reply );
-	bool suspend( ClassAd* req, ClassAd* reply );
-	bool resume( ClassAd* req, ClassAd* reply );
+	bool release( Stream* s, ClassAd* req );
+	bool activate( Stream* s, ClassAd* req );
+	bool deactivate( Stream* s, ClassAd* req );
+	bool suspend( Stream* s, ClassAd* req );
+	bool resume( Stream* s, ClassAd* req );
 
 	bool ownerMatches( const char* owner );
 
