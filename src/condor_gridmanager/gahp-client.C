@@ -305,6 +305,7 @@ GahpServer::read_argv(Gahp_Args &g_args)
 	int iargv = 0;
 	int result = 0;
 	bool trash_this_line;
+	bool escape_seen = false;
 	static const int buf_size = 1024 * 500;
 	static const int argv_size = 60;
 
@@ -344,20 +345,30 @@ dprintf(D_FULLDEBUG,"GAHP[%d] -> EOF\n",m_gahp_pid);
 			return;
 		}
 
-		/* Check if character read was whitespace */
-		if ( buf[ibuf]==' ' || buf[ibuf]=='\t' || buf[ibuf]=='\r' ) {
-			/* Ignore leading whitespace */
-			if ( ibuf == 0 ) {	
-				continue;
-			}
-			/* Handle Transparency: if char is '\' followed by a space,
-			 * it should be considered a space and not as a seperator
-			 * between arguments. */
-			if ( buf[ibuf]==' ' && buf[ibuf-1]=='\\' ) {
-				buf[ibuf-1] = ' ';
-				continue;
-			}
-			/* Trailing whitespace delimits a parameter to copy into argv */
+		/* If we just saw an escaping backslash, let this character
+		 * through unmolested and without special meaning.
+		 */
+		if ( escape_seen ) {
+			ibuf++;
+			escape_seen = false;
+			continue;
+		}
+
+		/* Check if the character read is a backslash. If it is, then it's
+		 * escaping the next character.
+		 */
+		if ( buf[ibuf] == '\\' ) {
+			escape_seen = true;
+			continue;
+		}
+
+		/* Unescaped carriage return characters are ignored */
+		if ( buf[ibuf] == '\r' ) {
+			continue;
+		}
+
+		/* An unescaped space delimits a parameter to copy into argv */
+		if ( buf[ibuf] == ' ' ) {
 			buf[ibuf] = '\0';
 			g_args.argv[iargv] = (char*)malloc(ibuf + 5);
 			strcpy(g_args.argv[iargv],buf);
@@ -1000,7 +1011,7 @@ escapeGahpString(const char * input)
 	unsigned int i = 0;
 	size_t input_len = strlen(input);
 	for (i=0; i < input_len; i++) {
-		if ( input[i] == ' ' ) {
+		if ( input[i] == ' ' || input[i] == '\\' ) {
 			output += '\\';
 		}
 		output += input[i];
