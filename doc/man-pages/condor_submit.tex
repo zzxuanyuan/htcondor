@@ -535,15 +535,13 @@ If the expression becomes \Expr{True}, the job will be released.
 %So the short answer: by default, every SCHEDD_INTERVAL (5 minutes by 
 %default) or more often as needed.
 
-% what universes (other than universe=globus) does this apply to?
-
-This expression is available for the vanilla and java universes.
+This expression is available for the vanilla, java, and globus universes.
 It is additionally available, when submitted from a Unix machine,
 for the standard universe.  Note that the \Condor{schedd} daemon,
 by default, only checks
 periodic expressions once every 300 seconds.  The period of
 these evaluations can be adjusted by setting the
-\Macro{PERIODIC\_EXPR\_INTERVAL} configuration macro.
+\MacroNI{PERIODIC\_EXPR\_INTERVAL} configuration macro.
 
 
 %%%%%%%%%%%%%%%%%%%
