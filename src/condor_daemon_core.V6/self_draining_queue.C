@@ -45,11 +45,11 @@ SelfDrainingQueue::SelfDrainingQueue( const char* queue_name, int frequency )
 
 SelfDrainingQueue::~SelfDrainingQueue()
 {
+	cancelTimer();
+
 	if( name ) {
 		free( name );
-	}
-	if( tid != -1 ) {
-		daemonCore->Cancel_Timer( tid );
+		name = NULL;
 	}
 }
 
@@ -99,12 +99,11 @@ SelfDrainingQueue::timerHandler( void )
 {
 	dprintf( D_FULLDEBUG,
 			 "Inside SelfDrainingQueue::timerHandler() for %s\n", name );
-	tid = -1;
 	ServiceData* d;
 	if( queue.IsEmpty() ) {
-		dprintf( D_FULLDEBUG,
-				 "SelfDrainingQueue %s is empty, timerHandler() returning\n",
-				 name );
+		dprintf( D_FULLDEBUG, "SelfDrainingQueue %s is empty, "
+				 "timerHandler() has nothing to do\n", name );
+		cancelTimer();
 		return TRUE;
 	}
 	queue.dequeue(d);
@@ -118,18 +117,19 @@ SelfDrainingQueue::timerHandler( void )
 		dprintf( D_FULLDEBUG,
 				 "SelfDrainingQueue %s is empty, not resetting timer\n",
 				 name );
+		cancelTimer();
 	} else {
 			// if there's anything left in the queue, reset our timer
 		dprintf( D_FULLDEBUG,
 				 "SelfDrainingQueue %s still has %d element(s), "
 				 "resetting timer\n", name, queue.Length() );
-		registerTimer();
+		resetTimer();
 	}
 	return TRUE;
 }
 
 
-bool
+void
 SelfDrainingQueue::registerTimer( void )
 {
 	if( !handler_fn && !(service_ptr && handlercpp_fn) ) {
@@ -137,9 +137,16 @@ SelfDrainingQueue::registerTimer( void )
 				"SelfDrainingQueue %s without having a handler function", 
 				name );
 	}
+
+		// if we've already got a timer id and we're trying to
+		// re-register, we just want to return, since we know the
+		// timer's going to go off on its own whenever it needs to 
 	if( tid != -1 ) {
-		return true;
+		dprintf( D_FULLDEBUG, "Timer for SelfDrainingQueue %s is already "
+				 "registered (id: %d)\n", name, tid );
+		return;
 	}
+
 	tid = daemonCore->
 		Register_Timer( frequency, 
 						(TimerHandlercpp)&SelfDrainingQueue::timerHandler,
@@ -149,9 +156,30 @@ SelfDrainingQueue::registerTimer( void )
         EXCEPT( "Can't register daemonCore timer for SelfDrainingQueue %s",
 				name );
     }
-	dprintf( D_FULLDEBUG,
-			 "Registered timer from SelfDrainingQueue %s (id: %d)\n",
-			 name, tid );
+	dprintf( D_FULLDEBUG, "Registered timer for SelfDrainingQueue %s, "
+			 "frequency: %d (id: %d)\n", name, frequency, tid );
+}
 
-    return true;
+
+void
+SelfDrainingQueue::cancelTimer( void )
+{
+	if( tid != -1 ) {
+		dprintf( D_FULLDEBUG, "Canceling timer for SelfDrainingQueue %s "
+				 "(timer id: %d)\n", name, tid );
+		daemonCore->Cancel_Timer( tid );
+		tid = -1;
+	}
+}
+
+
+void
+SelfDrainingQueue::resetTimer( void )
+{
+	if( tid == -1 ) {
+		EXCEPT( "Programmer error: resetting a timer that doesn't exist" );
+	}
+	daemonCore->Reset_Timer( tid, frequency, 0 );
+	dprintf( D_FULLDEBUG, "Reset timer for SelfDrainingQueue %s, "
+			 "frequency: %d (id: %d)\n", name, frequency, tid );
 }

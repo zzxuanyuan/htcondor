@@ -67,6 +67,7 @@ private:
 	int frequency;
 	char* name;
 	
-	bool registerTimer( void );
-
+	void registerTimer( void );
+	void cancelTimer( void );
+	void resetTimer( void );
 };
