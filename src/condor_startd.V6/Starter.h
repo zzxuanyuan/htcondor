@@ -32,13 +32,7 @@
 
 #include "../condor_procapi/procapi.h"
 #include "killfamily.h"
-
-typedef struct jobstartinfo {
-	char *ji_hname;
-	int ji_sock1;
-	int ji_sock2;
-	Stream* shadowCommandSock;
-} start_info_t;
+class Claim;
 
 class Starter : public Service
 {
@@ -56,14 +50,16 @@ public:
 	int		kill(int);
 	int		killpg(int);
 	void	killkids(int);
-	int		spawn( start_info_t*, time_t );
 	void	exited();
 	pid_t	pid() {return s_pid;};
 	bool	is_dc() {return s_is_dc;};
+	bool	isCOD(); 
 	bool	active();
 	void	set_last_snapshot( time_t val ) { s_last_snapshot = val; };
 	float	percentCpuUsage( void );
 	unsigned long	imageSize( void );
+
+	int		spawn( time_t now, Stream* s );
 
 	bool	killHard( void );
 	bool	killSoft( void );
@@ -83,7 +79,9 @@ public:
 	void	setPath( const char* path );
 	void	setIsDC( bool is_dc );
 
-	void	setResource( Resource* rip );
+	void	setClaim( Claim* c );
+	void	setPorts( int, int );
+	void	setCODArgs( const char* keyword );
 
 	void	printInfo( int debug_level );
 
@@ -91,8 +89,10 @@ private:
 
 		// methods
 	int		reallykill(int, int);
-	int		exec_starter(char*, char*, int, int);
-	int		exec_starter(char*, char*, Stream*);
+	int		execOldStarter( void );
+	int		execCODStarter( void );
+	int		execDCStarter( Stream* s );
+	int		execDCStarter( char* args, Stream* s );
 	void	initRunData( void );
 
 	int		startKillTimer( void );	    // Timer for how long we're willing 
@@ -110,7 +110,7 @@ private:
 
 		// data that only makes sense once this Starter object has
 		// been assigned to a given resource and spawned.
-	Resource*	rip;
+	Claim*	s_claim;
 	pid_t	s_pid;
 	pid_t*	s_pidfamily;
 	int		s_family_size;
@@ -119,6 +119,9 @@ private:
 	time_t	s_last_snapshot;
 	int		s_kill_tid;		// DC timer id for hard killing
 	procInfo	s_pinfo;	// aggregate ProcAPI info for starter & job
+	int		s_port1;
+	int		s_port2;
+	char*	s_cod_keyword;
 };
 
 #endif /* _CONDOR_STARTD_STARTER_H */

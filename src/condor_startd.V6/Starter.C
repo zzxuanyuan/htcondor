@@ -49,8 +49,9 @@ Starter::Starter()
 
 Starter::Starter( const Starter& s )
 {
-	if( s.rip || s.s_pid || s.s_procfam || s.s_family_size
-		|| s.s_pidfamily || s.s_birthdate ) {
+	if( s.s_claim || s.s_pid || s.s_procfam || s.s_family_size
+		|| s.s_pidfamily || s.s_birthdate || s.s_cod_keyword 
+		|| s.s_port1 >= 0 || s.s_port2 >= 0 ) {
 		EXCEPT( "Trying to copy a Starter object that's already running!" );
 	}
 
@@ -75,7 +76,7 @@ Starter::Starter( const Starter& s )
 void
 Starter::initRunData( void ) 
 {
-	rip = NULL;
+	s_claim = NULL;
 	s_pid = 0;		// pid_t can be unsigned, so use 0, not -1
 	s_procfam = NULL;
 	s_family_size = 0;
@@ -83,6 +84,9 @@ Starter::initRunData( void )
 	s_birthdate = 0;
 	s_last_snapshot = 0;
 	s_kill_tid = -1;
+	s_cod_keyword = NULL;
+	s_port1 = -1;
+	s_port2 = -1;
 		// Initialize our procInfo structure so we don't use any
 		// values until we've actually computed them.
 	memset( (void*)&s_pinfo, 0, (size_t)sizeof(s_pinfo) );
@@ -105,6 +109,9 @@ Starter::~Starter()
 	}
 	if( s_ad ) {
 		delete( s_ad );
+	}
+	if( s_cod_keyword ) {
+		delete [] s_cod_keyword;
 	}
 }
 
@@ -156,18 +163,34 @@ Starter::setPath( const char* path )
 	s_path = strnewp( path );
 }
 
-
 void
 Starter::setIsDC( bool is_dc )
 {
 	s_is_dc = is_dc;
 }
 
+void
+Starter::setClaim( Claim* c )
+{
+	s_claim = c;
+}
+
 
 void
-Starter::setResource( Resource* rip )
+Starter::setPorts( int port1, int port2 )
 {
-	this->rip = rip;
+	s_port1 = port1;
+	s_port2 = port2;
+}
+
+
+void
+Starter::setCODArgs( const char* keyword )
+{
+	if( s_cod_keyword ) {
+		delete [] s_cod_keyword;
+	}
+	s_cod_keyword = strnewp( keyword );
 }
 
 
@@ -470,8 +493,9 @@ Starter::reallykill( int signo, int type )
 			/* Aha, the starter is already dead */
 			return 0;
 		} else {
-			dprintf( D_ALWAYS, "Error sending signal to starter, errno = %d\n", 
-					 errno );
+			dprintf( D_ALWAYS, 
+					 "Error sending signal to starter, errno = %d (%s)\n", 
+					 errno, strerror(errno) );
 			return -1;
 		}
 	} else {
@@ -480,19 +504,17 @@ Starter::reallykill( int signo, int type )
 }
 
 
-int 
-Starter::spawn( start_info_t* info, time_t now )
-{
 
-	if( is_dc() ) {
-			// Use spiffy new starter.
-		s_pid = exec_starter( s_path, info->ji_hname, 
-							  info->shadowCommandSock);
+int 
+Starter::spawn( time_t now, Stream* s )
+{
+	if( isCOD() ) {
+		s_pid = execCODStarter();
+	} else if( is_dc() ) {
+		s_pid = execDCStarter( s ); 
 	} else {
 			// Use old icky non-daemoncore starter.
-		s_pid = exec_starter( s_path, info->ji_hname, 
-							  info->ji_sock1,
-							  info->ji_sock2 );
+		s_pid = execOldStarter();
 	}
 
 	if( s_pid == 0 ) {
@@ -536,24 +558,48 @@ Starter::exited()
 
 
 int
-Starter::exec_starter( char* starter, char* hostname, 
-					   Stream *sock)
+Starter::execCODStarter( void )
 {
 	char args[_POSIX_ARG_MAX];
-	Stream *sock_inherit_list[] = { sock, 0 };
+	sprintf(args, "condor_starter -f -slcf %s", s_cod_keyword );
+	return execDCStarter( args, NULL );
+}
 
+
+int
+Starter::execDCStarter( Stream* s )
+{
+	char args[_POSIX_ARG_MAX];
+
+	char* hostname = s_claim->client()->host();
 	if ( resmgr->is_smp() ) {
 		// Note: the "-a" option is a daemon core option, so it
 		// must come first on the command line.
-		sprintf( args, "condor_starter -f -a %s %s", rip->r_id_str, hostname );
+		sprintf( args, "condor_starter -f -a %s %s",  
+				 s_claim->rip()->r_id_str, hostname );
 	} else {
-		sprintf(args, "condor_starter -f %s", hostname);
+		sprintf(args, "condor_starter -f %s", hostname );
+	}
+	execDCStarter( args, s );
+
+	return s_pid;
+}
+
+
+int
+Starter::execDCStarter( char* args, Stream* s )
+{
+	Stream *sock_inherit_list[] = { s, 0 };
+	Stream** inherit_list = NULL;
+	if( s ) {
+		inherit_list = sock_inherit_list;
 	}
 
 	dprintf ( D_FULLDEBUG, "About to Create_Process \"%s\".\n", args );
 
-	s_pid = daemonCore->Create_Process( s_path, args, PRIV_ROOT, main_reaper, TRUE, 
-										NULL, NULL, TRUE, sock_inherit_list );
+	s_pid = daemonCore->
+		Create_Process( s_path, args, PRIV_ROOT, main_reaper, TRUE, 
+						NULL, NULL, TRUE, inherit_list );
 	if( s_pid == FALSE ) {
 		dprintf( D_ALWAYS, "ERROR: exec_starter failed!\n");
 		s_pid = 0;
@@ -561,16 +607,19 @@ Starter::exec_starter( char* starter, char* hostname,
 	return s_pid;
 }
 
+
 int
-Starter::exec_starter( char* starter, char* hostname, 
-					   int main_sock, int err_sock )
+Starter::execOldStarter( void )
 {
 #if defined(WIN32) /* THIS IS UNIX SPECIFIC */
 	return 0;
 #else
+	char* hostname = s_claim->client()->host();
 	int i;
 	int pid;
 	int n_fds = getdtablesize();
+	int main_sock = s_port1;
+	int err_sock = s_port2;
 
 #if defined(Solaris)
 	sigset_t set;
@@ -605,7 +654,7 @@ Starter::exec_starter( char* starter, char* hostname,
 				"exec_starter( %s, %d, %d ) : pid %d\n",
 				hostname, main_sock, err_sock, pid);
 		dprintf(D_ALWAYS, "execl(%s, \"condor_starter\", %s, 0)\n",
-				starter, hostname);
+				s_path, hostname);
 	} else {	/* the child */
 
 			/* 
@@ -673,18 +722,18 @@ Starter::exec_starter( char* starter, char* hostname,
 		 */
 		set_root_priv();
 		if( resmgr->is_smp() ) {
-			(void)execl(starter, "condor_starter", hostname, 
-						daemonCore->InfoCommandSinfulString(), 
-						"-a", rip->r_id_str, 0 );
+			(void)execl( s_path, "condor_starter", hostname, 
+						 daemonCore->InfoCommandSinfulString(), 
+						 "-a", s_claim->rip()->r_id_str, 0 );
 		} else {			
-			(void)execl(starter, "condor_starter", hostname, 
-						daemonCore->InfoCommandSinfulString(), 0 );
+			(void)execl( s_path, "condor_starter", hostname, 
+						 daemonCore->InfoCommandSinfulString(), 0 );
 
 		}
 			// If we got this far, there was an error in execl().
 		dprintf( D_ALWAYS, 
 				 "ERROR: execl(%s, condor_starter, %s, %s, 0) errno: %d\n", 
-				 starter, daemonCore->InfoCommandSinfulString(), hostname,
+				 s_path, daemonCore->InfoCommandSinfulString(), hostname,
 				 errno );
 		exit( 4 );
 	}
@@ -697,6 +746,13 @@ Starter::exec_starter( char* starter, char* hostname,
 
 		
 bool
+Starter::isCOD()
+{
+	return s_claim->isCOD();
+}
+
+
+bool
 Starter::active()
 {
 	return( (s_pid != 0) );
@@ -708,8 +764,8 @@ Starter::dprintf( int flags, char* fmt, ... )
 {
 	va_list args;
 	va_start( args, fmt );
-	if( rip ) {
-		rip->dprintf_va( flags, fmt, args );
+	if( s_claim && s_claim->rip() ) {
+		s_claim->rip()->dprintf_va( flags, fmt, args );
 	} else {
 		::_condor_dprintf_va( flags, fmt, args );
 	}
