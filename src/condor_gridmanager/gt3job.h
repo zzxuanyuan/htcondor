@@ -1,28 +1,28 @@
 /***************************Copyright-DO-NOT-REMOVE-THIS-LINE**
-  *
-  * Condor Software Copyright Notice
-  * Copyright (C) 1990-2004, Condor Team, Computer Sciences Department,
-  * University of Wisconsin-Madison, WI.
-  *
-  * This source code is covered by the Condor Public License, which can
-  * be found in the accompanying LICENSE.TXT file, or online at
-  * www.condorproject.org.
-  *
-  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-  * AND THE UNIVERSITY OF WISCONSIN-MADISON "AS IS" AND ANY EXPRESS OR
-  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-  * WARRANTIES OF MERCHANTABILITY, OF SATISFACTORY QUALITY, AND FITNESS
-  * FOR A PARTICULAR PURPOSE OR USE ARE DISCLAIMED. THE COPYRIGHT
-  * HOLDERS AND CONTRIBUTORS AND THE UNIVERSITY OF WISCONSIN-MADISON
-  * MAKE NO MAKE NO REPRESENTATION THAT THE SOFTWARE, MODIFICATIONS,
-  * ENHANCEMENTS OR DERIVATIVE WORKS THEREOF, WILL NOT INFRINGE ANY
-  * PATENT, COPYRIGHT, TRADEMARK, TRADE SECRET OR OTHER PROPRIETARY
-  * RIGHT.
-  *
-  ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
+ * CONDOR Copyright Notice
+ *
+ * See LICENSE.TXT for additional notices and disclaimers.
+ *
+ * Copyright (c)1990-1998 CONDOR Team, Computer Sciences Department, 
+ * University of Wisconsin-Madison, Madison, WI.  All Rights Reserved.  
+ * No use of the CONDOR Software Program Source Code is authorized 
+ * without the express consent of the CONDOR Team.  For more information 
+ * contact: CONDOR Team, Attention: Professor Miron Livny, 
+ * 7367 Computer Sciences, 1210 W. Dayton St., Madison, WI 53706-1685, 
+ * (608) 262-0856 or miron@cs.wisc.edu.
+ *
+ * U.S. Government Rights Restrictions: Use, duplication, or disclosure 
+ * by the U.S. Government is subject to restrictions as set forth in 
+ * subparagraph (c)(1)(ii) of The Rights in Technical Data and Computer 
+ * Software clause at DFARS 252.227-7013 or subparagraphs (c)(1) and 
+ * (2) of Commercial Computer Software-Restricted Rights at 48 CFR 
+ * 52.227-19, as applicable, CONDOR Team, Attention: Professor Miron 
+ * Livny, 7367 Computer Sciences, 1210 W. Dayton St., Madison, 
+ * WI 53706-1685, (608) 262-0856 or miron@cs.wisc.edu.
+****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
-#ifndef GLOBUSJOB_H
-#define GLOBUSJOB_H
+#ifndef GT3JOB_H
+#define GT3JOB_H
 
 #include "condor_common.h"
 #include "condor_classad.h"
@@ -32,39 +32,38 @@
 
 #include "proxymanager.h"
 #include "basejob.h"
-#include "globusresource.h"
+#include "gt3resource.h"
 #include "gahp-client.h"
 
 #define JM_COMMIT_TIMEOUT	600
 
-class GlobusResource;
+class GT3Resource;
 
 /////////////////////from gridmanager.h
-class GlobusJob;
-extern HashTable <HashKey, GlobusJob *> JobsByContact;
+class GT3Job;
+extern HashTable <HashKey, GT3Job *> GT3JobsByContact;
 
-char *globusJobId( const char *contact );
+const char *gt3JobId( const char *contact );
 void gramCallbackHandler( void *user_arg, char *job_contact, int state,
 						  int errorcode );
 
-void GlobusJobInit();
-void GlobusJobReconfig();
-bool GlobusJobAdMustExpand( const ClassAd *jobad );
-BaseJob *GlobusJobCreate( ClassAd *jobad );
-extern const char *GlobusJobAdConst;
+void GT3JobInit();
+void GT3JobReconfig();
+bool GT3JobAdMustExpand( const ClassAd *jobad );
+BaseJob *GT3JobCreate( ClassAd *jobad );
+extern const char *GT3JobAdConst;
 ///////////////////////////////////////
 
-class GlobusJob : public BaseJob
+class GT3Job : public BaseJob
 {
  public:
 
-	GlobusJob( ClassAd *classad );
+	GT3Job( ClassAd *classad );
 
-	~GlobusJob();
+	~GT3Job();
 
 	void Reconfig();
 	int doEvaluateState();
-	int CommunicationTimeout();
 	void NotifyResourceDown();
 	void NotifyResourceUp();
 	void UpdateGlobusState( int new_state, int new_error_code );
@@ -72,20 +71,6 @@ class GlobusJob : public BaseJob
 	bool GetCallbacks();
 	void ClearCallbacks();
 	BaseResource *GetResource();
-
-	/* If true, then ATTR_ON_EXIT_BY_SIGNAL, ATTR_ON_EXIT_SIGNAL, and
-	   ATTR_ON_EXIT_CODE are valid.  If false, no exit status is available.
-	   At the moment this only returns true for gridshell jobs.
-
-	   This is virtual as a reminder for when we merge in Jaime's gridmanager
-	   reorg.  GlobusJob derives from a base Job class.  I imagine that the
-	   base job class will provide a virtual version that simply returns false,
-	   and GlobusJob will return true if the grid shell is active.  Heck, maybe
-	   gridshell jobs should be "class GlobusJobGridshell : public GlobusJob",
-	   but that only makes sense if the gridshell is permenantly bound to
-	   GlobusJob.
-	*/
-	virtual bool IsExitStatusValid();
 
 	static int probeInterval;
 	static int submitInterval;
@@ -117,8 +102,7 @@ class GlobusJob : public BaseJob
 	bool resourcePingPending;
 	bool jmUnreachable;
 	bool jmDown;
-	GlobusResource *myResource;
-	int communicationTimeoutTid;
+	GT3Resource *myResource;
 	time_t lastProbeTime;
 	bool probeNow;
 	time_t enteredCurrentGmState;
@@ -145,12 +129,9 @@ class GlobusJob : public BaseJob
 
 
 	Proxy *myProxy;
-	GahpClient gahp;
+	GahpClient *gahp;
 
 	MyString *buildSubmitRSL();
-	MyString *buildRestartRSL();
-	MyString *buildStdioUpdateRSL();
-	bool GetOutputSize( int& output, int& error );
 	void DeleteOutput();
 
 	char *jobContact;
@@ -168,34 +149,16 @@ class GlobusJob : public BaseJob
 	bool stageError;
 	int globusError;
 
-	int jmVersion;
 	bool restartingJM;
 	time_t restartWhen;
 
 	int numGlobusSubmits;
 
-	MyString outputClassadFilename;
-	bool useGridShell;
-
  protected:
 	bool callbackRegistered;
 	int connect_failure_counter;
 	bool AllowTransition( int new_state, int old_state );
-
-	bool FailureIsRestartable( int error_code );
-	bool FailureNeedsCommit( int error_code );
-	bool JmShouldSleep();
-
-private:
-	// Copy constructor not implemented.  Don't call.
-	GlobusJob( GlobusJob& copy );
 };
-
-bool WriteGlobusSubmitEventToUserLog( ClassAd *job_ad );
-bool WriteGlobusSubmitFailedEventToUserLog( ClassAd *job_ad,
-											int failure_code );
-bool WriteGlobusResourceUpEventToUserLog( ClassAd *job_ad );
-bool WriteGlobusResourceDownEventToUserLog( ClassAd *job_ad );
 
 #endif
 
