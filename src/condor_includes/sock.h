@@ -104,18 +104,23 @@ public:
 	// call timeout(0) to set blocking mode (default)
 	// returns previous timeout
 	int timeout(int sec);
-
-
+    
 	/*
 	**	Stream protocol
 	*/
 
 	virtual ~Sock() {}
 
+        /* Anything that calls itself a Sock should have a file descriptor.
+           Note that this should *really* be pure virtual, as should 
+           connect(), etc, but I didn't want to make the leap... MEY */
+    virtual int get_file_desc() { return 0; }
+    
 
 //	PRIVATE INTERFACE TO ALL SOCKS
 //
 protected:
+
 
 	/*
 	**	Type definitions

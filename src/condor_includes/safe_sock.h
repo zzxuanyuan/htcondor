@@ -97,6 +97,7 @@ public:
 	virtual int get_ptr(void *&, char);
 	virtual int peek(char &);
 
+	int get_file_desc();
 
 //	PRIVATE INTERFACE TO SAFE SOCKS
 //
@@ -113,7 +114,6 @@ protected:
 	*/
 	char * serialize(char *);
 	inline char * serialize() { return(serialize(NULL)); }
-	int get_file_desc();
 
 	/*
 	**	Data structures

@@ -87,8 +87,6 @@ public:
 	int get_port();
 	struct sockaddr_in *endpoint();
 
-	int get_file_desc();
-
 	float get_bytes_sent() { return _bytes_sent; }
 	float get_bytes_recvd() { return _bytes_recvd; }
 	void reset_bytes_sent() { _bytes_sent = 0; }
@@ -121,10 +119,12 @@ public:
 
 	int isClient() { return is_client; };
 
+	int get_file_desc();
 
 //	PROTECTED INTERFACE TO RELIABLE SOCKS
 //
 protected:
+
 	/*
 	**	Types
 	*/
