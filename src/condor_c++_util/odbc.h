@@ -33,6 +33,7 @@ public:
 	bool isConnected() {return connected;}
 	long odbc_bindcol(unsigned short col_number, void *result, int buffer_len, SQLSMALLINT col_type = SQL_DEFAULT);
 	long odbc_fetch();
+	long odbc_closestmt() { return (SQLCloseCursor(odbc_hstmt)); }
 
 };
 
