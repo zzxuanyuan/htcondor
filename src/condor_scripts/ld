@@ -43,7 +43,7 @@ else
 fi
 
 case $os in
-	IRIX | IRIX5 | IRIX53 | IRIX62 | IRIX63 | IRIX64 )
+	IRIX | IRIX62 | IRIX65 )
 		if [ -x /usr/lib/ld.real -a -x /usr/lib/uld.real ]; then
 			CONDOR_FULLINSTALL=true
 		fi
@@ -170,10 +170,10 @@ if [ A$CONDOR_COMPILE = Ayes ]; then
 				oscrt0="crt1.o"
 				ldargs="" ;;
 
-	 IRIX | IRIX62 | IRIX63 | IRIX64 )		
+	 IRIX | IRIX62 | IRIX65 )		
 				oscrt0="crt1.o"
 				ldargs="-mips2 -o32" 
-				# must use old_ld to link with Condor on IRIX6
+				# must use old_ld to link with Condor on IRIX
 				# this is because the Condor libs are compiled
 				# with gcc/g++ ver 2.7.2 which only deals with old_ld
 	 			if [ $osmajver = 6 ]; then
@@ -267,11 +267,11 @@ if [ A$CONDOR_COMPILE = Ayes ]; then
 	 # universe job was not linked with condor_syscall_lib.
      -s ) ;;
 
-	 # Condor on IRIX6 only supports old-32 bit mode, because of 
+	 # Condor on IRIX only supports old-32 bit mode, because of 
 	 # restrictions with gcc/g++ (which compiled up condor_syscall_lib),
 	 # thus throw out any options that try using any other MIPS ABI modes
 	 -n32 | -64 | -mips3 | -mips4 | -dont_warn_unused | -warn_unused )
-			if [ $osfull != "IRIX6" ]; then
+			if [ $os != "IRIX" ]; then
 				ldargs=`echo $ldargs $argument`
 		  	fi ;;
 

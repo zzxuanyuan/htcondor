@@ -1,10 +1,10 @@
 NAME = condor_startd
 all_target( $(NAME) )
 
-#if IS_SGI_IRIX62
-#undef MldLib
-#define MldLib /usr/lib/libelf.a
-#endif 
+//#if IS_SGI_IRIX62 || IS_SGI_IRIX65
+//#undef MldLib
+//#define MldLib /usr/lib/libelf.a
+//#endif 
 
 # Use "-O2" in CFLAGS for benchmark code, i.e. clinpack.c & dhry*.c
 CFLAGS = $(STD_C_FLAGS) -O2 
@@ -18,7 +18,7 @@ LIB= $(DAEMONCORE_LIB) $(STD_LIBS)
 #	define LOAD_AVG_OBJ load_avg.LINUX.o
 #elif IS_SOLARIS
 #       define LOAD_AVG_OBJ load_avg.Solaris.o load_avg.uptime.o
-#elif IS_SGI_IRIX62 || IS_SGI_IRIX53
+#elif IS_SGI_IRIX62 || IS_SGI_IRIX65
 #       define LOAD_AVG_OBJ load_avg.IRIX.o load_avg.uptime.o
 #elif IS_HPUX
 #	define LOAD_AVG_OBJ load_avg.HPUX.o

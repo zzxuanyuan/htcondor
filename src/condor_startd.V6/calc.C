@@ -278,7 +278,7 @@ utmp_pty_idle_time( time_t now )
 	}
 
 	while (fread((char *)&utmp, sizeof utmp, 1, fp)) {
-#if defined(AIX31) || defined(AIX32) || defined(IRIX331) || defined(IRIX53) || defined(LINUX) || defined(OSF1)
+#if defined(AIX31) || defined(AIX32) || defined(IRIX) || defined(LINUX) || defined(OSF1)
 		if (utmp.ut_type != USER_PROCESS)
 #else
 			if (utmp.ut_name[0] == '\0')
@@ -357,7 +357,7 @@ dev_idle_time( char *path, time_t now )
 #endif /* defined(WIN32) */
 
 
-#if defined(IRIX53)
+#if defined(IRIX)
 #include <sys/sysmp.h>
 #endif
 
@@ -392,7 +392,7 @@ calc_ncpus()
         }
 #elif defined(Solaris) || defined(DUX)
 	return (int)sysconf(_SC_NPROCESSORS_ONLN);
-#elif defined(IRIX53)
+#elif defined(IRIX)
 	return sysmp(MP_NPROCS);
 #elif defined(WIN32)
 	SYSTEM_INFO info;

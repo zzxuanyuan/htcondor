@@ -77,6 +77,11 @@ int pclose(FILE *stream);
 /* We also want _NO_ANSIMODE and _SGIAPI defined to 1 for sys/wait.h,
    math.h and limits.h */  
 #include <sys/wait.h>    
+/* Some versions of IRIX don't define WCOREFLG, but we need it */
+#if !defined( WCOREFLG )
+#  define WCOREFLG 0200
+#endif
+
 #include <math.h>
 #include <limits.h>
 #undef _NO_ANSIMODE
@@ -85,6 +90,25 @@ int pclose(FILE *stream);
 #undef _SGIAPI
 #define _SGIAPI _save_SGIAPI
 #undef _save_SGIAPI
+
+/******************************
+** sys/socket.h
+******************************/
+/* On Irix 6.5, they actually implement socket() in sys/socket.h by
+   having it call some other xpg socket thing, if you're using XOPEN4.
+   We can't have that, or file_state.C gets really confused.  So, if
+   we're building the ckpt_lib, turn off XOPEN4.
+	!!!THIS IS BAAAAD. We are just hacking the _NO_XOPEN4 since we
+	know what the value is. This should be fixed to correctly hold
+	onto the value and restore it afterward.
+*/
+#if defined(IRIX65) && defined(IN_CKPT_LIB)
+#undef _NO_XOPEN4
+#define _NO_XOPEN4 1
+#include <sys/socket.h>
+#undef _NO_XOPEN4
+#define _NO_XOPEN4 0
+#endif
 
 #include <sys/select.h>
 

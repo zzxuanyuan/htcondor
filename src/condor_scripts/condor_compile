@@ -115,7 +115,7 @@ osfull="$os$osmajver"
 # or not.
 CONDOR_FULLINSTALL=false
 case $os in
-	IRIX | IRIX5 | IRIX53 | IRIX62 | IRIX63 | IRIX64 )
+	IRIX | IRIX62 | IRIX65 )
 		if [ -x /usr/lib/ld.real -a -x /usr/lib/uld.real ]; then
 			CONDOR_FULLINSTALL=true
 		fi
@@ -238,7 +238,7 @@ fi
 
 case $os in 
 
-	IRIX | IRIX62 | IRIX63 | IRIX64 | OSF1 )
+	IRIX | IRIX62 | IRIX65 | OSF1 )
 		if [ $myname = "cc" ]; then
 			exec $ARGS -tul -h$CONDOR_LD_DIR -B
 		fi

@@ -55,7 +55,7 @@ elif [ $os = "IRIX" ] ; then
 	if [ $osversion = "6.5" ] ; then
 		Opsys="-DIS_IRIX65"
 	else
-		Opsys="-DIS_IRIX6"
+		Opsys="-DIS_IRIX62"
 	fi
 
 fi
