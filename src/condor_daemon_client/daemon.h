@@ -432,6 +432,23 @@ protected:
 		*/
 	bool readAddressFile( const char* subsys );
 
+		/** Initialize one of our values from the given ClassAd* and
+			attribute name.  This is shared code when we query the
+			collector to locate a daemon and get the address, version
+			and platform, so i'm putting it in a seperate method.
+			If the attribute wasn't found, it takes care of setting
+			our error string, dprintf()ing, and returns false.
+			Otherwise, it safely stores the value in the string you
+			pass in, which should be one of the data members of the
+			object (e.g. "&_platform").
+			@param ad The ClassAd you want to look up in
+			@param attrname The name of the string attribute in the ad
+			@param value_str Pointer to the place to store the result
+			@return true on success, false on failure (can't find attr)
+		*/
+	bool initStringFromAd( ClassAd* ad, const char* attrname,
+						   char** value_str );
+
 		/* 
 		   These helpers prevent memory leaks.  Whenever we want to
 		   set one of these strings, you just use the helper, which

@@ -807,7 +807,7 @@ Daemon::locate( void )
 bool
 Daemon::getDaemonInfo( const char* subsys, AdTypes adtype, bool query_collector)
 {
-	MyString buf, attrname;
+	MyString buf;
 	char *tmp, *my_name;
 
 	if( _subsys ) {
@@ -967,50 +967,14 @@ Daemon::getDaemonInfo( const char* subsys, AdTypes adtype, bool query_collector)
 		}
 
 		// construct the IP_ADDR attribute
-		attrname.sprintf( "%sIpAddr", subsys );
-		if( ! scan->LookupString( attrname.Value(), &tmp ) ) {
-			dprintf( D_ALWAYS, "Can't find %s in classad for %s %s\n",
-					 attrname.Value(), daemonString(_type), _name );
-			buf.sprintf( "Can't find %s in classad for %s %s",
-						 attrname.Value(), daemonString(_type), _name );
-			newError( CA_LOCATE_FAILED, buf.Value() );
+		buf.sprintf( "%sIpAddr", subsys );
+		if( ! initStringFromAd(scan, buf.Value(), &_addr) ) {
 			return false;
 		}
-		New_addr( strnewp(tmp) );
-		dprintf( D_HOSTNAME, "Found %s in ClassAd from collector, "
-				 "using address \"%s\"\n", attrname.Value(), tmp );
-		free( tmp );
-		tmp = NULL;
-
-		attrname = ATTR_VERSION;
-		if( ! scan->LookupString( attrname.Value(), &tmp ) ) {
-			dprintf( D_ALWAYS, "Can't find %s in classad for %s %s\n",
-					 attrname.Value(), daemonString(_type), _name );
-			buf.sprintf( "Can't find %s in classad for %s %s",
-						 attrname.Value(), daemonString(_type), _name );
-			newError( CA_LOCATE_FAILED, buf.Value() );
-			return false;
-		}
-		New_version( strnewp(tmp) );
-		dprintf( D_HOSTNAME, "Found %s in ClassAd from collector, "
-				 "using version \"%s\"\n", attrname.Value(), tmp );
-		free( tmp );
-		tmp = NULL;
-
-		attrname = ATTR_PLATFORM;
-		if( ! scan->LookupString( attrname.Value(), &tmp ) ) {
-			dprintf( D_ALWAYS, "Can't find %s in classad for %s %s\n",
-					 attrname.Value(), daemonString(_type), _name );
-			buf.sprintf( "Can't find %s in classad for %s %s",
-						 attrname.Value(), daemonString(_type), _name );
-			newError( CA_LOCATE_FAILED, buf.Value() );
-			return false;
-		}
-		New_platform( strnewp(tmp) );
-		dprintf( D_HOSTNAME, "Found %s in ClassAd from collector, "
-				 "using platform \"%s\"\n", attrname.Value(), tmp );
-		free( tmp );
-		tmp = NULL;
+			// The version and platfrom aren't critical, so don't
+			// return failure if we can't find them...
+		initStringFromAd( scan, ATTR_VERSION, &_version );
+		initStringFromAd( scan, ATTR_PLATFORM, &_platform );
 	}
 
 		// Now that we have the sinful string, fill in the port. 
@@ -1437,6 +1401,34 @@ Daemon::readAddressFile( const char* subsys )
 	}
 	fclose( addr_fp );
 	return rval;
+}
+
+
+bool
+Daemon::initStringFromAd( ClassAd* ad, const char* attrname, char** value )
+{
+	if( ! value ) {
+		EXCEPT( "Daemon::initStringFromAd() called with NULL value!" );
+	}
+	char* tmp = NULL;
+	MyString buf;
+	if( ! ad->LookupString(attrname, &tmp) ) {
+		dprintf( D_ALWAYS, "Can't find %s in classad for %s %s\n",
+				 attrname, daemonString(_type), _name );
+		buf.sprintf( "Can't find %s in classad for %s %s",
+					 attrname, daemonString(_type), _name );
+		newError( CA_LOCATE_FAILED, buf.Value() );
+		return false;
+	}
+	if( *value ) {
+		delete [] *value;
+	}
+	*value = strnewp(tmp);
+	dprintf( D_HOSTNAME, "Found %s in ClassAd from collector, "
+			 "using \"%s\"\n", attrname, tmp );
+	free( tmp );
+	tmp = NULL;
+	return true;
 }
 
 
