@@ -309,18 +309,17 @@ doContactSchedd()
 		// If JobManaged is undefined, equate it with false.
 		// If Matched is undefined, equate it with true.
 		if ( firstScheddContact ) {
-//			sprintf( expr_buf, "%s && %s == %d && !(%s == %d && %s =!= TRUE)",
 			sprintf( expr_buf, 
-				"(%s) && %s == %d && (%s =!= FALSE || %s =?= TRUE) && ((%s == %d || %s == %d || %s == %d) && %s =!= TRUE) == FALSE",
-					 ScheddJobConstraint, ATTR_JOB_UNIVERSE, CONDOR_UNIVERSE_GLOBUS, 
-					 ATTR_JOB_MATCHED, ATTR_JOB_MANAGED, ATTR_JOB_STATUS, HELD,
-					 ATTR_JOB_STATUS, COMPLETED, ATTR_JOB_STATUS, REMOVED, ATTR_JOB_MANAGED );
+					 "(%s) && (%s =!= FALSE || %s =?= TRUE) && ((%s == %d || %s == %d || %s == %d) && %s =!= TRUE) == FALSE",
+					 ScheddJobConstraint, ATTR_JOB_MATCHED, ATTR_JOB_MANAGED,
+					 ATTR_JOB_STATUS, HELD, ATTR_JOB_STATUS, COMPLETED,
+					 ATTR_JOB_STATUS, REMOVED, ATTR_JOB_MANAGED );
 		} else {
-			sprintf( expr_buf, 
-				"%s && %s == %d && %s =!= FALSE && %s != %d && %s != %d && %s != %d && %s =!= TRUE",
-					 ScheddJobConstraint, ATTR_JOB_UNIVERSE, CONDOR_UNIVERSE_GLOBUS,
-					 ATTR_JOB_MATCHED, ATTR_JOB_STATUS, HELD, 
-					 ATTR_JOB_STATUS, COMPLETED, ATTR_JOB_STATUS, REMOVED, ATTR_JOB_MANAGED );
+			sprintf( expr_buf,
+					 "(%s) && %s =!= FALSE && %s != %d && %s != %d && %s != %d && %s =!= TRUE",
+					 ScheddJobConstraint, ATTR_JOB_MATCHED,
+					 ATTR_JOB_STATUS, HELD, ATTR_JOB_STATUS, COMPLETED,
+					 ATTR_JOB_STATUS, REMOVED, ATTR_JOB_MANAGED );
 		}
 		dprintf( D_FULLDEBUG,"Using constraint %s\n",expr_buf);
 		next_ad = GetNextJobByConstraint( expr_buf, 1 );
@@ -429,11 +428,11 @@ dprintf(D_ALWAYS,"***schedd failure at %d!\n",__LINE__);
 		// Grab jobs marked as REMOVED or marked as HELD that we haven't
 		// previously indicated that we're done with (by setting JobManaged
 		// to FALSE. If JobManaged is undefined, equate it with false.
-		sprintf( expr_buf, "(%s) && %s == %d && (%s == %d || (%s == %d && %s =?= TRUE))",
-				 ScheddJobConstraint, ATTR_JOB_UNIVERSE, CONDOR_UNIVERSE_GLOBUS,
-				 ATTR_JOB_STATUS, REMOVED, ATTR_JOB_STATUS, HELD,
-				 ATTR_JOB_MANAGED );
+		sprintf( expr_buf, "(%s) && (%s == %d || (%s == %d && %s =?= TRUE))",
+				 ScheddJobConstraint, ATTR_JOB_STATUS, REMOVED,
+				 ATTR_JOB_STATUS, HELD, ATTR_JOB_MANAGED );
 
+		dprintf( D_FULLDEBUG,"Using constraint %s\n",expr_buf);
 		next_ad = GetNextJobByConstraint( expr_buf, 1 );
 		while ( next_ad != NULL ) {
 			PROC_ID procID;
