@@ -319,8 +319,15 @@ UniShadow::emailTerminateEvent( int exitReason )
 
 int UniShadow::handleJobRemoval(int sig) {
     dprintf ( D_FULLDEBUG, "In handleJobRemoval(), sig %d\n", sig );
-	remRes->setExitReason( JOB_KILLED );
-	remRes->killStarter();
+	remove_requested = true;
+		// if we're not in the middle of trying to reconnect, we
+		// should immediately kill the starter.  if we're
+		// reconnecting, we'll do the right thing once a connection is
+		// established now that the remove_requested flag is set... 
+	if( remRes->getResourceState() != RR_RECONNECT ) {
+		remRes->setExitReason( JOB_KILLED );
+		remRes->killStarter();
+	}
 		// more?
 	return 0;
 }
@@ -407,6 +414,14 @@ UniShadow::resourceReconnected( RemoteResource* rr )
 		// We've only got one remote resource, so if it successfully
 		// reconnected, we can safely log our reconnect event
 	logReconnectedEvent();
+
+		// if we're trying to remove this job, now that connection is
+		// reestablished, we can kill the starter, evict the job, and
+		// handle any output/update messages from the starter.
+	if( remove_requested ) {
+		remRes->setExitReason( JOB_KILLED );
+		remRes->killStarter();
+	}
 
 		// Start the timer for the periodic user job policy  
 	shadow_user_policy.startTimer();

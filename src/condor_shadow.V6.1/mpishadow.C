@@ -938,6 +938,7 @@ int
 MPIShadow::handleJobRemoval( int sig ) {
 
     dprintf ( D_FULLDEBUG, "In handleJobRemoval, sig %d\n", sig );
+	remove_requested = true;
 
 	ResourceState s;
 

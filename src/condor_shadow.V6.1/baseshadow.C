@@ -48,6 +48,7 @@ BaseShadow::BaseShadow() {
 	ckptServerHost = NULL;
 	useAFS = useNFS = useCkptServer = false;
 	jobAd = NULL;
+	remove_requested = false;
 	cluster = proc = -1;
 	gjid = NULL;
 	q_update_tid = -1;

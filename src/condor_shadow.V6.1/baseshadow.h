@@ -359,6 +359,9 @@ class BaseShadow : public Service
 			something like $(NODE) into each remoteresource. */
 	ClassAd *jobAd;
 
+		/// Are we trying to remove this job (condor_rm)?
+	bool remove_requested;
+
 	ShadowUserPolicy shadow_user_policy;
 
 	void emailHoldEvent( const char* reason );
