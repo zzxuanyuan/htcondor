@@ -52,73 +52,74 @@ DCCredd::~DCCredd( void )
 bool 
 DCCredd::storeCredential (Credential * cred,
 						  CondorError & error) {
-	this->locate();
 
-	ReliSock rsock;
+	bool rtnVal = false;
+	ReliSock *rsock = NULL;
+	void *data = NULL;
+	char * classad_str = NULL;
+	classad::ClassAd * classad = NULL;
+	int rc = 0;
+	int size=0;
+	std::string adbuffer;
+	classad::ClassAdUnParser unparser;
 
-	rsock.timeout(20);   // years of research... :)
-
-		// Connect
-	if( ! rsock.connect(_addr) ) {
-		error.pushf ( "DC_CREDD", 1, "Failed to connect to CredD %s", _addr);
-		return false;
-	}
-
-		// Start command
-	if( ! startCommand(CREDD_STORE_CRED, (Sock*)&rsock) ) {
-		error.push ( "DC_CREDD", 2, "Failed to start command CREDD_STORE_CRED");
-		return false;
+	rsock = (ReliSock *)startCommand(
+			CREDD_STORE_CRED, Stream::reli_sock, 20, &error);
+	if ( ! rsock ) {
+		goto EXIT;
 	}
 
 		// Force authentication
-	if (!forceAuthentication( &rsock, &error )) {
-		return false;
+	if (!forceAuthentication( rsock, &error )) {
+		goto EXIT;
 	}
 
 		// Prepare to send
-	rsock.encode();
+	rsock->encode();
 
 		// Serialize metadata
 		// We could just send the classad directly over the wire
 		// but that has caused problems in the past for some reason
 		// so we unparse it into a string
-	classad::ClassAd * classad = cred->GetMetadata();
-	classad::ClassAdUnParser unparser;
-	std::string adbuffer;
+	classad = cred->GetMetadata();
 	unparser.Unparse(adbuffer,classad);
-	char * classad_str = strdup(adbuffer.c_str());
-	delete classad;
+	classad_str = strdup(adbuffer.c_str());
 
 		// Retrieve credential data
-	void * data=NULL;
-	int size=0;
 	cred->GetData (data, size);	
 
 		// Send the metadata and data
-	if (!(rsock.code (classad_str) && 
-		  rsock.code_bytes (data, size))) {
-		error.push ("DC_CREDD", 3, "Communication error");
-
-		if (classad_str) free (classad_str);
-		if (data) free (data);
-		return false;
+	if (! rsock->code (classad_str) ) {
+		error.pushf ("DC_CREDD", 3,
+				"Communication error, send credential metadata: %s",
+				strerror(errno) );
+		goto EXIT;
 	}
-	
-	if (classad_str) free (classad_str);
-	if (data) free (data);
-	
-	rsock.eom();
+
+	if (! rsock->code_bytes (data, size) ) {
+		error.pushf ("DC_CREDD", 4,
+				"Communication error, send credential data: %s",
+				strerror(errno) );
+		goto EXIT;
+	}
+
+	rsock->eom();
 
 		// Receive the return code
-	int rc = 0;
-	rsock.decode();
-	rsock.code(rc);
+	rsock->decode();
+	rsock->code(rc);
 
-	rsock.close();
+	rsock->close();
 	if (rc) {
 		error.pushf ("DC_CREDD", 4, "Invalid CredD return code (%d)", rc);
 	}
-	return (rc==0);
+	rtnVal =  (rc==0) ? true : false;
+EXIT:
+	if ( rsock ) delete rsock;
+	if ( data ) free (data);
+	if ( classad_str ) free (classad_str);
+	if ( classad ) delete classad;
+	return rtnVal;
 }
 
 bool 
@@ -180,107 +181,113 @@ DCCredd::listCredentials (SimpleList <Credential*> & result,
 						  int & size,
 						  CondorError & error) {
 
-	this->locate();
+	bool rtnVal = false;	// default
+	ReliSock *rsock = NULL;
+	Credential * cred = NULL;
+	classad::ClassAdParser parser;
+	classad::ClassAd * ad = NULL;
+	char * request = "_";
 
-	ReliSock rsock;
-
-	rsock.timeout(20);   // years of research... :)
-
-		// Connect
-	if( ! rsock.connect(_addr) ) {
-		error.pushf ( "DC_CREDD", 1, "Failed to connect to CredD %s", _addr);
-		return false;
-	}
-
-		// Start command
-	if( ! startCommand(CREDD_QUERY_CRED, (Sock*)&rsock) ) {
-		error.push ( "DC_CREDD", 2, "Failed to start command CREDD_QUERY_CRED");
-		return false;
+	rsock = (ReliSock *)startCommand(
+			CREDD_QUERY_CRED, Stream::reli_sock, 20, &error);
+	if ( ! rsock ) {
+		goto EXIT;
 	}
 
 		// Force authentication
-	if (!forceAuthentication( &rsock, &error )) {
-		return false;
+	if (!forceAuthentication( rsock, &error )) {
+		goto EXIT;
 	}
 
-	rsock.encode();
-	char * request = "_";
-	rsock.code (request);
-	rsock.eom();
+	rsock->encode();
+	rsock->code (request);
+	rsock->eom();
 
 		// Receive response
-	rsock.decode();
+	rsock->decode();
 
-	rsock.code (size);
-	if (size == 0)
-		return true;
-	
-	classad::ClassAdParser parser;
-
+	rsock->code (size);
+	if (size == 0) {
+		rtnVal = true;
+		goto EXIT;
+	}
 
 	int i;
 	for (i=0; i<size; i++) {
 		char * classad_str = NULL;
-		if (!(rsock.code (classad_str))) {
+		if (!(rsock->code (classad_str))) {
 			error.push ("DC_CREDD", 3, "Unable to receive credential data");
-			return false;
+			goto EXIT;
 		}
 
-		classad::ClassAd * ad = parser.ParseClassAd (classad_str);
+		ad = parser.ParseClassAd (classad_str);
 		if (!ad) {
 			error.push ("DC_CREDD", 4, "Unable to parse credential data");
-			return false;
+			goto EXIT;
 		}
 
-		Credential * cred = new X509Credential (*ad);
-		delete ad;
+		cred = new X509Credential (*ad);
 		result.Append (cred);
 	}
 
-	return true;
+	rtnVal =  true;	// success
+
+EXIT:
+	if (ad) delete ad;
+	if ( rsock ) delete rsock;
+	return rtnVal;
 }
-						  
+
 bool 
 DCCredd::removeCredential (const char * cred_name,
 						   CondorError & error) {
 
-	locate();
-	
-	ReliSock rsock;
+	bool rtnVal = false;
+	ReliSock *rsock = NULL;
+	char * _cred_name = NULL;
+	int rc=0;
 
-	rsock.timeout(20);   // years of research... :)
-
-		// Connect
-	if( ! rsock.connect(_addr) ) {
-		error.pushf ( "DC_CREDD", 1, "Failed to connect to CredD %s", _addr);
-		return false;
-	}
-
-		// Start command
-	if( ! startCommand(CREDD_REMOVE_CRED, (Sock*)&rsock) ) {
-		error.push ( "DC_CREDD", 2, "Failed to start command CREDD_REMOVE_CRED");
-		return false;
+	rsock = (ReliSock *)startCommand(
+			CREDD_REMOVE_CRED, Stream::reli_sock, 20, &error);
+	if ( ! rsock ) {
+		goto EXIT;
 	}
 
 		// Force authentication
-	if (!forceAuthentication( &rsock, &error )) {
-		return false;
+	if (!forceAuthentication( rsock, &error )) {
+		goto EXIT;
 	}
 
-	rsock.encode();
+	rsock->encode();
 
-	char * _cred_name=strdup(cred_name); // de-const... fucking lame
-	rsock.code (_cred_name);
-	free (_cred_name);
+	_cred_name=strdup(cred_name); // de-const... fucking lame
+	if ( ! rsock->code (_cred_name) ) {
+		error.pushf ( "DC_CREDD", 3, "Error sending credential name: %s",
+				strerror(errno) );
+		goto EXIT;
+	}
 
-	rsock.eom();
-	rsock.decode();
+	if ( ! rsock->eom() ) {
+		error.pushf ( "DC_CREDD", 3, "Error sending credential eom: %s",
+				strerror(errno) );
+		goto EXIT;
+	}
+	rsock->decode();
 
-	int rc=0;
-	rsock.code (rc);
+	if ( ! rsock->code (rc) ) {
+		error.pushf ( "DC_CREDD", 3, "Error rcving credential rc: %s",
+				strerror(errno) );
+		goto EXIT;
+	}
+
 	if (rc) {
 		error.push ( "DC_CREDD", 3, "Error removing credential");
+		goto EXIT;
 	}
 
-	return (rc==0);
+	rtnVal = rc;
+EXIT:
+	if ( rsock ) delete rsock;
+	if ( _cred_name ) free ( _cred_name );
+	return rtnVal;
 }
