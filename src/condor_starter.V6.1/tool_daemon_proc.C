@@ -141,24 +141,19 @@ ToolDaemonProc::StartJob()
 				 "Aborting OsProc::StartJob.\n", ATTR_JOB_ENVIRONMENT );  
 		return 0;
 	}
+
 		// Now, instantiate an Env object so we can manipulate the
 		// environment as needed.
-
 	Env job_env;
 
 	if( ! job_env.Merge(env_str) ) {
-		dprintf( D_ALWAYS, "Invalid %s found in JobAd.  "
-				 "Aborting ToolDaemonProc::StartJob.\n", ATTR_JOB_ENVIRONMENT );  
+		dprintf( D_ALWAYS, "Invalid %s found in JobAd.  Aborting "
+				 "ToolDaemonProc::StartJob.\n", ATTR_JOB_ENVIRONMENT );  
 		return 0;
 	}
 		// Next, we can free the string we got back from
 		// LookupString() so we don't leak any memory.
 	free( env_str );
-
-	// Now, add some env vars the user job might want to see:
-	char	envName[256];
-	sprintf( envName, "%s_SCRATCH_DIR", myDistro->GetUc() );
-	job_env.Put( envName, Starter->GetWorkingDir() );
 
 	// for now, we pass "ENV" as the address of the LASS
 	// this tells the tool that the job PID will be placed
@@ -168,25 +163,9 @@ ToolDaemonProc::StartJob()
 	sprintf(pid_buf, "%d", ApplicationPid);
 	job_env.Put("TDP_AP_PID", pid_buf);
 
-		// Deal with port regulation stuff
-	char* low = param( "LOWPORT" );
-	char* high = param( "HIGHPORT" );
-	if( low && high ) {
-		sprintf( envName, "_%s_HIGHPORT", myDistro->Get() );
-		job_env.Put( envName, high );
-		sprintf( envName, "_%s_LOWPORT", myDistro->Get() );
-		job_env.Put( envName, low );
-		free( high );
-		free( low );
-	} else if( low ) {
-		dprintf( D_ALWAYS, "LOWPORT is defined but HIGHPORT is not, "
-				 "ignoring LOWPORT\n" );
-		free( low );
-	} else if( high ) {
-		dprintf( D_ALWAYS, "HIGHPORT is defined but LOWPORT is not, "
-				 "ignoring HIGHPORT\n" );
-		free( high );
-    }
+		// Now, let the starter publish any env vars it wants to into
+		// the mainjob's env...
+	Starter->PublishToEnv( &job_env );
 
 	dprintf (D_FULLDEBUG, "Before File management \n");
 
