@@ -49,6 +49,7 @@ BaseShadow::BaseShadow() {
 	useAFS = useNFS = useCkptServer = false;
 	jobAd = NULL;
 	cluster = proc = -1;
+	gjid = NULL;
 	q_update_tid = -1;
 	owner[0] = '\0';
 	iwd[0] = '\0';
@@ -70,6 +71,7 @@ BaseShadow::~BaseShadow() {
 	if (fsDomain) free(fsDomain);
 	if (ckptServerHost) free(ckptServerHost);
 	if (jobAd) FreeJobAd(jobAd);
+	if (gjid) free(gjid); 
 	if (scheddAddr) free(scheddAddr);
 	if( common_job_queue_attrs ) { delete common_job_queue_attrs; }
 	if( hold_job_queue_attrs ) { delete hold_job_queue_attrs; }
@@ -102,6 +104,11 @@ BaseShadow::baseInit( ClassAd *job_ad, const char* schedd_addr )
 
 	if( !jobAd->LookupInteger(ATTR_PROC_ID, proc)) {
 		EXCEPT("Job ad doesn't contain an %s attribute.", ATTR_PROC_ID);
+	}
+
+		// Grab the GlobalJobId if we've got it.
+	if( ! jobAd->LookupString(ATTR_GLOBAL_JOB_ID, &gjid) ) {
+		gjid = NULL;
 	}
 
 	// grab the NT domain if we've got it

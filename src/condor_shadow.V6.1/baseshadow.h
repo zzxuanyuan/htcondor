@@ -247,6 +247,8 @@ class BaseShadow : public Service
 	int getCluster() { return cluster; }
 		/// Returns this job's proc number
 	int getProc() { return proc; }
+		/// Returns this job's GlobalJobId string
+	const char* getGlobalJobId() { return gjid; }
 		/// Returns the spool
 	char *getSpool() { return spool; }
 		/// Returns the schedd address
@@ -424,6 +426,7 @@ class BaseShadow : public Service
 	// job parameters
 	int cluster;
 	int proc;
+	char* gjid;
 	char owner[_POSIX_PATH_MAX];
 	char domain[_POSIX_PATH_MAX];
 	char iwd[_POSIX_PATH_MAX];
