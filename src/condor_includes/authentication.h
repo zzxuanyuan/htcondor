@@ -169,9 +169,9 @@ class Authentication {
     
     void setAuthType( int state );
     
-    int selectAuthenticationType( int clientCanUse );
+    int selectAuthenticationType( int methods );
     
-    void setupEnv( char *hostAddr );
+    int default_auth_methods();
     
 #endif /* !SKIP_AUTHENTICATION */
     
@@ -182,8 +182,8 @@ class Authentication {
     ReliSock         *   mySock;
     transfer_mode        t_mode;
     int                  auth_status;
-    int                  canUseFlags;
-    char             *   serverShouldTry;
+    // int                  canUseFlags;
+    // char             *   serverShouldTry;
 };
 
 #endif /* AUTHENTICATION_H */
