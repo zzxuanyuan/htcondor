@@ -24,7 +24,7 @@
 #ifndef CONDOR_SUBMIT_H
 #define CONDOR_SUBMIT_H
 
-#include "types.h"
+#include "condor_id.h"
 
 // the character we should use to quote command-line arguments when
 // running shell commands

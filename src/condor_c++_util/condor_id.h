@@ -21,27 +21,18 @@
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
-#ifndef _TYPES_H_
-#define _TYPES_H_
+#ifndef _CONDOR_ID_H_
+#define _CONDOR_ID_H_
 
-#include "condor_common.h"    /* for <stdio.h> */
-#include "condor_debug.h"
+#include "condor_common.h"
 
-//---------------------------------------------------------------------------
-#ifndef __cplusplus
-typedef int bool;
-#define true  1
-#define false 0
-#endif
 
-///
-typedef int JobID_t;
-
-//---------------------------------------------------------------------------
-/** An object to represent the Condor ID of a job.  Condor uses three integers
-    (cluster, proc, subproc) to identify jobs.  This structure will be used to
-    store those three numbers.
+/** An object to represent the Condor ID of a job.  Condor uses three
+    integers (cluster, proc, subproc) to identify jobs.  This
+    structure will be used to store those three numbers.
+	This object used to live in src/condor_dagman/types.[Ch]
 */
+
 class CondorID {
   public:
     /// Constructor
@@ -90,4 +81,4 @@ class CondorID {
 };
 
 
-#endif /* #ifndef _TYPES_H_ */
+#endif /* _CONDOR_ID_H_ */
