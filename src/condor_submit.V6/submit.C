@@ -3525,31 +3525,30 @@ queue(int num)
 			SetExecutable();
 		}
 		SetMachineCount();
-//		if ( JobUniverse == CONDOR_UNIVERSE_GLOBUS ) {
+
 			// Find the X509 user proxy
-			// First param for it in the submit file. If it's not there,
-			// then check the usual locations (as defined by GSI).
+			// First param for it in the submit file. If it's not there
+			// and the job type requires an x509 proxy (globus, nordugrid),
+			// then check the usual locations (as defined by GSI) and
+			// bomb out if we can't find it.
 
 		char *proxy_file = condor_param( X509UserProxy );
 
-		if ( proxy_file == NULL ) {
-			proxy_file = get_x509_proxy_filename();
-		}
+		if ( proxy_file == NULL && JobUniverse == CONDOR_UNIVERSE_GLOBUS &&
+			 (stricmp (JobGridType, "globus") == MATCH ||
+			  stricmp (JobGridType, "gt2") == MATCH ||
+			  stricmp (JobGridType, "gt3") == MATCH ||
+			  stricmp (JobGridType, "nordugrid") == MATCH)) {
 
-		// Issue an error if (no proxy) && (universe=globus,gt2,gt3,nordugrid)
-		if ( proxy_file == NULL) {
-			if (JobUniverse == CONDOR_UNIVERSE_GLOBUS &&
-				(stricmp (JobGridType, "globus") == MATCH ||
-				 stricmp (JobGridType, "gt2") == MATCH ||
-				 stricmp (JobGridType, "gt3") == MATCH ||
-				 stricmp (JobGridType, "nordugrid") == MATCH)) {
+			proxy_file = get_x509_proxy_filename();
+
+			if ( proxy_file == NULL ) {
 
 				fprintf( stderr, "\nERROR: can't determine proxy filename\n" );
 				fprintf( stderr, "x509 user proxy is required for globus, gt2, gt3 or nordugrid jobs\n");
 				exit (1);
 			}
 		}
-				
 
 		if (proxy_file != NULL) {
 #ifndef WIN32
