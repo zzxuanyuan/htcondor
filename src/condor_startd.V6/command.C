@@ -508,7 +508,7 @@ request_claim( Resource* rip, char* cap, Stream* stream )
 	}
 
 		/* 
-		   Now that we've been contacted by the schedd agent, we can
+		   Now that we've been contacted by the schedd, we can
 		   cancel the match timer on either the current or the
 		   preempting claim, depending on what state we're in.  We
 		   want to do this right away so we don't abort this function
@@ -525,7 +525,7 @@ request_claim( Resource* rip, char* cap, Stream* stream )
 
 		// Get the classad of the request.
 	if( !req_classad->initFromStream(*stream) ) {
-		rip->dprintf( D_ALWAYS, "Can't receive classad from schedd-agent\n" );
+		rip->dprintf( D_ALWAYS, "Can't receive classad from schedd\n" );
 		ABORT;
 	}
 
@@ -557,7 +557,7 @@ request_claim( Resource* rip, char* cap, Stream* stream )
 	}
 
 	if( !stream->end_of_message() ) {
-		rip->dprintf( D_ALWAYS, "Can't receive eom from schedd-agent\n" );
+		rip->dprintf( D_ALWAYS, "Can't receive eom from schedd\n" );
 		ABORT;
 	}
 
@@ -573,7 +573,7 @@ request_claim( Resource* rip, char* cap, Stream* stream )
 	}
 		
 	rip->dprintf( D_FULLDEBUG,
-				  "Received capability from schedd agent (%s)\n", cap );
+				  "Received capability from schedd (%s)\n", cap );
 
 		// Make sure we're willing to run this job at all.  Verify that 
 		// the machine and job meet each other's requirements.
@@ -647,7 +647,7 @@ request_claim( Resource* rip, char* cap, Stream* stream )
 
 					// We're going to preempt.  Save everything we
 					// need to know into r_pre.
-				rip->r_pre->setagentstream( stream );
+				rip->r_pre->setRequestStream( stream );
 				rip->r_pre->setad( req_classad );
 				rip->r_pre->setrank( rank );
 				rip->r_pre->setoldrank( rip->r_cur->rank() );
@@ -668,7 +668,7 @@ request_claim( Resource* rip, char* cap, Stream* stream )
 			}					
 		} else {
 			rip->dprintf( D_ALWAYS,
-					 "Capability from schedd agent (%s) doesn't match (%s)\n",
+					 "Capability from schedd (%s) doesn't match (%s)\n",
 					 cap, rip->r_pre->capab() );
 			cmd = NOT_OK;
 		}
@@ -679,25 +679,25 @@ request_claim( Resource* rip, char* cap, Stream* stream )
 			cmd = OK;
 		} else {
 			rip->dprintf( D_ALWAYS,
-					"Capability from schedd agent (%s) doesn't match (%s)\n",
+					"Capability from schedd (%s) doesn't match (%s)\n",
 					cap, rip->r_cur->capab() );
 			cmd = NOT_OK;
 		}		
 	}	
 
 	if( cmd == OK ) {
-			// We decided to accept the request, save the agent's
+			// We decided to accept the request, save the schedd's
 			// stream, the rank and the classad of this request.
-		rip->r_cur->setagentstream( stream );
+		rip->r_cur->setRequestStream( stream );
 		rip->r_cur->setad( req_classad );
 		rip->r_cur->setrank( rank );
 		rip->r_cur->setoldrank( oldrank );
 
-			// Call this other function to actually reply to the agent
-			// and perform the last half of the protocol.  We use the
-			// same function after the preemption has completed when
-			// the startd is finally ready to reply to the agent and
-			// finish the claiming process.
+			// Call this other function to actually reply to the
+			// schedd and perform the last half of the protocol.  We
+			// use the same function after the preemption has
+			// completed when the startd is finally ready to reply to
+			// the and finish the claiming process.
 		return accept_request_claim( rip );
 	} else {
 		refuse( stream );
@@ -711,7 +711,7 @@ if( client_addr )					\
     free( client_addr );			\
 stream->encode();					\
 stream->end_of_message();			\
-rip->r_cur->setagentstream( NULL );	\
+rip->r_cur->setRequestStream( NULL );	\
 rip->dprintf( D_ALWAYS, "State change: claiming protocol failed\n" ); \
 rip->change_state( owner_state );	\
 return KEEP_STREAM
@@ -727,17 +727,17 @@ accept_request_claim( Resource* rip )
 		// There should not be a pre claim object now.
 	assert( rip->r_pre == NULL );
 
-	Stream* stream = rip->r_cur->agentstream();
+	Stream* stream = rip->r_cur->requestStream();
 	assert( stream );
 	Sock* sock = (Sock*)stream;
 
 	stream->encode();
 	if( !stream->put( OK ) ) {
-		rip->dprintf( D_ALWAYS, "Can't to send cmd to agent.\n" );
+		rip->dprintf( D_ALWAYS, "Can't to send cmd to schedd.\n" );
 		ABORT;
 	}
 	if( !stream->eom() ) {
-		rip->dprintf( D_ALWAYS, "Can't to send eom to agent.\n" );
+		rip->dprintf( D_ALWAYS, "Can't to send eom to schedd.\n" );
 		ABORT;
 	}
 
@@ -807,8 +807,8 @@ accept_request_claim( Resource* rip )
 		rip->dprintf( D_ALWAYS, "Remote owner is NULL\n" );
 			// TODO: What else should we do here???
 	}		
-		// Since we're done talking to this schedd agent, delete the stream.
-	rip->r_cur->setagentstream( NULL );
+		// Since we're done talking to this schedd, delete the stream.
+	rip->r_cur->setRequestStream( NULL );
 
 	rip->dprintf( D_FAILURE|D_ALWAYS, "State change: claiming protocol successful\n" );
 	rip->change_state( claimed_state );

@@ -386,7 +386,7 @@ Resource::leave_preempting_state( void )
 		// In english:  "If the machine is available and someone
 		// is waiting for it..." 
 	bool allow_it = false;
-	if( r_pre && r_pre->agentstream() ) {
+	if( r_pre && r_pre->requestStream() ) {
 		allow_it = true;
 		if( (r_classad->EvalBool("START", r_pre->ad(), tmp)) 
 			&& !tmp ) {
@@ -1134,8 +1134,8 @@ void
 Resource::remove_pre( void )
 {
 	if( r_pre ) {
-		if( r_pre->agentstream() ) {
-			r_pre->refuse_agent();
+		if( r_pre->requestStream() ) {
+			r_pre->refuseClaimRequest();
 		}
 		delete r_pre;
 		r_pre = NULL;

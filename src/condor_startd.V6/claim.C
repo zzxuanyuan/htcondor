@@ -48,7 +48,7 @@ Claim::Claim( Resource* rip, bool is_cod )
 	c_rank = 0;
 	c_oldrank = 0;
 	c_universe = -1;
-	c_agentstream = NULL;
+	c_request_stream = NULL;
 	c_match_tid = -1;
 	c_claim_tid = -1;
 	c_aliveint = -1;
@@ -77,8 +77,8 @@ Claim::~Claim()
 	if( c_client ) {
 		delete( c_client );
 	}
-	if( c_agentstream ) {
-		delete( c_agentstream );
+	if( c_request_stream ) {
+		delete( c_request_stream );
 	}
 	if( c_starter ) {
 		delete( c_starter );
@@ -157,13 +157,15 @@ Claim::dprintf( int flags, char* fmt, ... )
 
 
 void
-Claim::refuse_agent()
+Claim::refuseClaimRequest()
 {
-	if( !c_agentstream ) return;
-	dprintf( D_ALWAYS, "Refusing request from schedd agent.\n" );
-	c_agentstream->encode();
-	c_agentstream->put(NOT_OK);
-	c_agentstream->end_of_message();
+	if( !c_request_stream ) {
+		return;
+	}
+	dprintf( D_ALWAYS, "Refusing request to claim Resource\n" );
+	c_request_stream->encode();
+	c_request_stream->put(NOT_OK);
+	c_request_stream->end_of_message();
 }
 
 
@@ -385,12 +387,12 @@ Claim::deletead(void)
 
 
 void
-Claim::setagentstream(Stream* stream)
+Claim::setRequestStream(Stream* stream)
 {
-	if( c_agentstream ) {
-		delete( c_agentstream );
+	if( c_request_stream ) {
+		delete( c_request_stream );
 	}
-	c_agentstream = stream;
+	c_request_stream = stream;
 }
 
 

@@ -124,7 +124,7 @@ public:
 
 	void dprintf( int, char* ... );
 
-	void refuse_agent();
+	void refuseClaimRequest();
 
 		// Timer functions
 	void start_match_timer();
@@ -144,7 +144,7 @@ public:
 	Capability* cap()			{return c_cap;};
 	ClassAd*	ad() 			{return c_ad;};
 	int			universe()		{return c_universe;};
-	Stream*		agentstream()	{return c_agentstream;};
+	Stream*		requestStream()	{return c_request_stream;};
 	int			cluster()		{return c_cluster;};
 	int			proc()			{return c_proc;};
 	int			job_start() 	{return c_job_start;};
@@ -161,7 +161,7 @@ public:
 	void setad(ClassAd *ad);		// Set our ad to the given pointer
 	void deletead(void);
 	void setuniverse(int universe)	{c_universe=universe;};
-	void setagentstream(Stream* stream);	
+	void setRequestStream(Stream* stream);	
 	void setaliveint(int alive)		{c_aliveint=alive;};
 	void setproc(int proc) 			{c_proc=proc;};
 	void setcluster(int cluster)	{c_cluster=cluster;};
@@ -204,8 +204,8 @@ private:
 	int			c_cluster;
 	int			c_job_start;
 	int			c_last_pckpt;
-	Stream*		c_agentstream;	// cedar sock that the schedd agent is
-								// waiting for a response on
+	Stream*		c_request_stream; // cedar sock that a remote request
+                                  // is waiting for a response on
 
 	int			c_match_tid;	// DaemonCore timer id for this
 								// match.  If we're matched but not
