@@ -134,6 +134,7 @@ typedef fd_set *SELECT_FDSET_PTR;
 #include <stdarg.h>
 #include <signal.h>
 #include <string.h>
+#include <strings.h>
 #include <sys/param.h>
 #include <sys/file.h>
 #include <sys/ioctl.h>
