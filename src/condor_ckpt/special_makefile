@@ -39,6 +39,8 @@ tester: compare_tester.C
 
 compare: secondattempt.o
 	$(CC) $(CCFLAGS) $(LIBDIRS) $(LDFLAGS) $< -lz -o $@ 
+	chmod 0777 $@
+
 pure: secondattempt.o
 	$(PURIFY) $(CC) $(LIBDIRS) $(LDFLAGS) $< -lz -o $@
 secondattempt.o: secondattempt.C secondattempt.h

@@ -30,7 +30,7 @@ int test_and_set_architecture(int magic) {
 		(swap_byte_order(magic)!=CheckpointFile::COMPRESS_MAGIC))
 		{
 			cout<<"ERROR: bad magic number"<<endl;
-
+			exit (-1);
 		}
 	const int BUFFER_SIZE=25;
 	char *buffer=NULL;
@@ -45,7 +45,7 @@ int test_and_set_architecture(int magic) {
 	
 	
 	//hack because linux has an i686.
-	if (!strcmp(buffer, "i86pc"))
+	if (!strncmp(buffer, "i", 1))
 		{
 		if (DEBUG){
 			cout<<"DEBUG: Machine is an x86"<<endl;
@@ -106,18 +106,8 @@ int compare_pages(char * p1, char *p2, int &decile, float &matchPercent) {
 	
 	matchPercent = bytes_matching / (float) pArch->getpagesize();
 	decile= (int)(10.0*matchPercent);
-	if (SUPER_VERBOSE) {
-		if (decile==10 ){
-			cout<<"\tSUPER_VERBOSE: PAGE MATCH"<<endl;
-		}
-		else {
-			cout<<"\tSUPER_VERBOSE: PAGE NOMATCH "<<
-				bytes_matching<<"/"<<pArch->getpagesize()<<" "<< matchPercent << endl;
-		}
-	} else {
-		if (decile == 10) cout << "*";
-		else cout << decile;
-	}	
+	if (decile == 10) cout << "*";
+	else cout << decile;
 	return decile==10;
 }
 int compare_segment(CheckpointFile &ck1, CheckpointFile &ck2, char * paddr1, 
@@ -139,7 +129,7 @@ int compare_segment(CheckpointFile &ck1, CheckpointFile &ck2, char * paddr1,
 	int histogram[11];
 	memset(histogram, 0, 11*sizeof(int));
 	cout << "Comparing segment " << ck2.segmap[ck2_segnumber].name << ": \n"; 
-	if ( ! SUPER_VERBOSE ) cout << "Per page analysis: ";
+	cout << "Per page analysis: ";
 
 	int comparable_bytes;
 	int new_bytes;
@@ -165,19 +155,14 @@ int compare_segment(CheckpointFile &ck1, CheckpointFile &ck2, char * paddr1,
 	}
 	while (new_bytes>0) {	// different size segments, pages are considered
 							// match of 0 percent, mark them + in the analysis
-		if ( SUPER_VERBOSE ) {
-			cout<<"\tSUPER_VERBOSE: PAGE NOMATCH 0/" << pgsize  
-				<< " 0 (New page)" << endl;
-		} else {
-			cout << "+";	// for page analysis, + means new
-		}
+		cout << "+";	// for page analysis, + means new
 		histogram[0]++;
 		total_pages++;
 		new_bytes-=pgsize;
 	}
 
 	matchAverage /= (total_pages - pages_matching);
-	if ( ! SUPER_VERBOSE) cout << endl;
+	cout << endl;
 	cout<<"\tPages matching: "<<pages_matching <<" / "<<total_pages
 		<< "   (ave. nonmatch: ";
 	if (total_pages == pages_matching) {
@@ -211,6 +196,7 @@ int read_header(int fd, CheckpointFile &cf) {
 	retval=read(fd, vals, 2*sizeof(int));
 	if (retval!=2*sizeof(int)) {
 		cout<<"ERROR READING HEADER"<<endl;
+		exit (-1);
 	}
 	// check for network to host stuff
 	test_and_set_architecture(vals[0]);
@@ -256,7 +242,8 @@ int read_segmap(int fd, CheckpointFile &cf) {
 	}
 
 	//this is tricky, but should work:
-	//this is predicated on being able to read the seginfos properly--DO NOT CHANGE THE STRUCTURE
+	//this is predicated on being able to read the seginfos properly--
+	// DO NOT CHANGE THE STRUCTURE
 	// as it messes up alignment.
 	SegInfo2 * segs=new SegInfo2[cf.n_segs];
 	retval=read(fd, segs, cf.n_segs*sizeof(SegInfo2));
@@ -298,13 +285,13 @@ void SegInfo::Display(){
 //note: this is a pointer.
 z_stream * initialize_zstream(z_stream *pz) {
 	pz= (z_stream *) malloc(sizeof(z_stream));
-	cout<<"PZ= "<<pz<<endl;
+	if (DEBUG) { cout<<"PZ= "<<pz<<endl; }
 	pz->zalloc=Z_NULL;
 	pz->zfree=Z_NULL;
 	pz->opaque=Z_NULL;
 	
 	int xxx=inflateInit(pz);
-	cout<<"InflateInit: "<<xxx<<endl;
+	if (DEBUG) { cout<<"InflateInit: "<<xxx<<endl; }
 	return pz;	
 }	
 
@@ -318,14 +305,13 @@ z_stream * initialize_zstream(z_stream *pz) {
 //greg's approach: 
 //if this is a data segment, find a data segment.
 //note: this is one of the only reasonable uses of the goto statement...
-
 int findMatchingSegment(CheckpointFile &f1, CheckpointFile &f2, int ck1_segNo) {
 	char * type = f1.segmap[ck1_segNo].name;
 	SegInfo *sp=&f1.segmap[ck1_segNo];
 
 	int retval;
-	//if it is a data segment, find a data segment
 
+	//if it is a data segment, find a data segment
 	if (!strcmp(type, "DATA")){
 		for (int i=0; i<f2.n_segs; i++ ){
 			if (!strcmp("DATA", f2.segmap[i].name)) {
@@ -349,6 +335,9 @@ int findMatchingSegment(CheckpointFile &f1, CheckpointFile &f2, int ck1_segNo) {
 	//ok. then it has to be something else.
 	for (int i=0; i<f2.n_segs; i++ ){
 		SegInfo *sp2=&f2.segmap[i];
+		if (sp2->matched) { // already been matched
+			continue;
+		}
 		//only bother if they are the same name
 		if (!strcmp(sp->name, sp2->name)) {
 			if (sp->core_loc==sp2->core_loc) {
@@ -356,7 +345,8 @@ int findMatchingSegment(CheckpointFile &f1, CheckpointFile &f2, int ck1_segNo) {
 				retval=i;
 				goto done;
 			}
-			//ok if the start addresses didn't line up, perhaps their end addresses do?
+			// ok if the start addresses didn't line up, 
+			// perhaps their end addresses do?
 			if (sp->core_loc+sp->len==sp2->core_loc+sp2->len) {
 				retval=i;
 				goto done;
@@ -364,62 +354,18 @@ int findMatchingSegment(CheckpointFile &f1, CheckpointFile &f2, int ck1_segNo) {
 		}
 	}
 
-cout << "ERROR: Unable to match segment of type " << type << endl;
-retval=-1;
-goto end;
+	if (DEBUG) {
+		cout << "WARNING: Unable to match segment of type " << type << endl;
+	}
+	retval=-1;
+	goto end;
  
  done:
 	if (DEBUG) cout<<"Matched segment "<<ck1_segNo<<" to segment "<<retval;
+	f1.segmap[ck1_segNo].matched = f2.segmap[retval].matched = true;
  end:
 	return retval;
 }
-
-		
-
-
-/*
-
-int
-findMatchingSegment(CheckpointFile &f1, CheckpointFile &f2, int ck1_segNo) {
-
-	char * type = f1.segmap[ck1_segNo].name;
-	RAW_ADDR start = f1.segmap[ck1_segNo].core_loc;
-	RAW_ADDR end   = f1.segmap[ck1_segNo].core_loc + f1.segmap[ck1_segNo].len;
-	
-	// first search for a match on the start address of the segments 
-	// second time through, search for a match on the end address 
-	int i, j;
-	for (j = 0; j < 2; j++) {
-		for ( i = 0; i < f2.n_segs; i++) {
-			if (f2.segmap[i].matched) 				continue; // already matched
-			if (strcmp(f2.segmap[i].name, type))  	continue; // wrong type	
-			if ( !j ) { // first time through, check start
-				if (start == f2.segmap[i].core_loc) {
-					break;
-				}
-			} else {   // second time through	
-				if (end == f2.segmap[i].core_loc + f2.segmap[i].len) {
-					break;
-				}
-			}	
-		}
-	}
-
-	if (i == f2.n_segs && j == 2) { // no match
-		cout << "ERROR: Unable to match segment of type " << type << endl;
-		return -1;
-	}
-
-	// this is hopefully the normal path
-	f1.segmap[ck1_segNo].matched = true;
-	f2.segmap[i].matched = true;
-	if (DEBUG) cout << "Matched segments of type " << type
-		<< " using the " << ( (j == 0) ? "front" : "back" )
-		<< " end of the addresses.\n"
-		<< "\tMatched " << ck1_segNo << " to " << i << endl;	
-	return i;
-}
-*/
 
 int setup_uncompressed_addr (int fd, CheckpointFile &ck, z_stream *pz, 
 							char * &paddr) 
@@ -445,6 +391,7 @@ int setup_uncompressed_addr (int fd, CheckpointFile &ck, z_stream *pz,
 		paddrtemp=(char *)mmap(0, end_loc, PROT_READ, MAP_PRIVATE, fd, 0);
 		if (paddrtemp==MAP_FAILED) {
 			cout<<"ERROR: MAP FaILED"<<endl;
+			exit (-1);
 		}
 		else {
 			if (DEBUG) cout<<"DEBUG: Address of temporary map: "
@@ -532,17 +479,30 @@ usage(char * me) {
 	cout << "Usage: " << me << " ckpt_1 ckpt_2  -a arch(SPARC|INTEL) -d\n";
 }
 
+int 
+add_up_unmatched_segs (CheckpointFile& ckpt, int& total_pages) { 
+	int unmatched = 0, pages = 0, tmp;
+
+	for (int i = 0; i < ckpt.n_segs; i++) {
+		if ( ! ckpt.segmap[i].matched) {
+			cout << "Unmatched segment " << ckpt.segmap[i].name << ": \n"; 
+			unmatched++;
+			pages = tmp = ckpt.segmap[i].len / pArch->getpagesize(); 
+			total_pages += pages;
+			cout << "Per page analysis: ";
+			while (tmp--) {
+				cout <<"+";
+			}
+			cout<<"\n\tPages matching: 0 / "<<pages<< "   (ave. nonmatch: 0%)\n";
+			cout<<"\tHistogram: " << pages << " 0 0 0 0 0 0 0 0 0\n";
+		}
+	}
+	return unmatched;
+}
+
 //first thing is file
 int main(int argc, char ** argv ) {
-	cout<<"Displaying stuff: "<<sizeof(long)<<" "<<sizeof(int)<<endl;
 
-	if (argc != 4 && argc != 5) {
-		cout << "Usage: " << argv[0] << " ckpt_1 ckpt_2 arch(SPARC|INTEL)  [debug]" << endl;
-	}
-	if (argc < 3) { 
-		usage(argv[0]);
-		exit(1);
-	}	
 	int curArg = 1;
 	fd1=open(argv[curArg++], O_RDONLY);
 	fd2=open(argv[curArg++], O_RDONLY);
@@ -560,7 +520,6 @@ int main(int argc, char ** argv ) {
 		}
 		curArg++;
 	}
-	//if ( ! arch_set ) initialize_checkpoint_architecture(NULL);
 	
 	//ok. lets try this:
 	//we now initialize the checkpoint architecture in the read_hdeader
@@ -575,9 +534,6 @@ int main(int argc, char ** argv ) {
 		cout << "DEBUG: Display segmap 1:" << endl;
 		for (int i=0; i<f1.n_segs; i++) 
 			{f1.segmap[i].Display();}
-	}	
-		
-	if (DEBUG) {
 		cout << "DEBUG: Display segmap 2:" << endl;
 		for (int i=0; i<f2.n_segs; i++) 
 			{f2.segmap[i].Display();}
@@ -601,24 +557,29 @@ int main(int argc, char ** argv ) {
 	int total_matches = 0;
 	int total_pages = 0;
 	int fewer_segs = (f1.n_segs < f2.n_segs) ? f1.n_segs : f2.n_segs;
+	int more_segs  = (f1.n_segs < f2.n_segs) ? f2.n_segs : f1.n_segs;
 
-	//this is very poor style. don't declare non-loop variables in the head
-	//of a loop.
-	//for (int ck1_segNo = 0, ck2_segNo; ck1_segNo < fewer_segs; ck1_segNo++){
-	for (int ck1_segNo = 0;  ck1_segNo < fewer_segs; ck1_segNo++)
+	int ck2_segNo;
+	for (int ck1_segNo = 0;  ck1_segNo < fewer_segs; ck1_segNo++) {
 		{
-		int ck2_segNo = findMatchingSegment(f1, f2, ck1_segNo);
+		if (-1 == (ck2_segNo = findMatchingSegment(f1, f2, ck1_segNo)))
+			continue;	// no matching segment
+		}
 		if (compare_segment(f1, f2, paddr1, paddr2, ck1_segNo, ck2_segNo,
 				total_matches,total_pages)) 
 		{
 			matching_segs++;
 		}
 	}
-	cout<<"Total segment matches:  "<< matching_segs<<" / "<< fewer_segs <<endl;
-	if (f1.n_segs != f2.n_segs) {
-		cout << "WARNING: An unequal number of segments in the ckpt files:"
-			<< f1.n_segs << " and " << f2.n_segs << endl;
-	}  
+	// now add up all the unmatched pages from the unmatched segments
+	int unmatched_segs = 0;
+	unmatched_segs += add_up_unmatched_segs (f1, total_pages); 
+	unmatched_segs += add_up_unmatched_segs (f2, total_pages); 
+	cout<<"Total segment matches:  "<< matching_segs<<" / "<< more_segs <<endl;
+	if (unmatched_segs != more_segs - fewer_segs) {
+		cout << "WARNING: "<< (unmatched_segs - (more_segs - fewer_segs)) << " segments were not matched.\n";
+	}
+
 	float matchPercent = (float) total_matches / total_pages * 100;
 	cout << "Total page matches: " << total_matches << " / " << total_pages 
 		<< "  (" << (int) matchPercent << "%)" << endl;

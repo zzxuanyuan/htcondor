@@ -7,6 +7,7 @@
 #include<fcntl.h>
 #include<time.h>
 #include<signal.h> 
+#include<setjmp.h>
 
 /** a very simple program that allocates a large chuck of memory and then
 * traipses purposefully through creating various patterns of read and write
@@ -18,7 +19,7 @@
 #define dprintf(x) if (DEBUG) printf x
 #define usage(x) printf("Usage: %s [-s size] [-d]\n", x)
 #define DEFAULT_ALLOC_SIZE 1000 * getpagesize()
-#define RANDOM_CHAR (char)rand()
+#define RANDOM_CHAR (char)random()
 
 // externs
 extern int errno;
@@ -27,22 +28,25 @@ extern int errno;
 void readArgs(int argc, char ** argv);
 void ckpt();
 void rename_ckpt_file(char * desc, int ckpt_num);
+void increase_stack_size();
 
 // global variables
 int allocSize = -1;	// size to allocate
 bool DEBUG = true;
 int ckpt_num = 1;   // to rename and save each successive ckpt file
 char ckpt_file_path [256];
+int pagesize = -1;
 
 int 
 main (int argc, char ** argv) {
-	readArgs(argc, argv);
-
 	// set up the name of the ckpt file
 	sprintf(ckpt_file_path, "%s.ckpt", argv[0]);
 
-	// seed random, used for random writes and for dirty chars
-	srand(time(NULL));
+	// seed random, and set pagesize 
+	srandom(time(NULL));
+	pagesize = getpagesize();
+
+	readArgs(argc, argv);
 
 	// now actually allocate the memory
 	char * array = (char *) malloc(allocSize);
@@ -64,10 +68,26 @@ main (int argc, char ** argv) {
 	ckpt();
 	rename_ckpt_file("linear", ckpt_num++);
 
+	// now linearly touch every other byte and ckpt and rename
+	dprintf(("Linearly touching every other byte all pages\n"));
+	for (i = 0; i < allocSize; i += 2) {
+		array[i]++; 
+	}
+	ckpt();
+	rename_ckpt_file("every_other_byte", ckpt_num++);
+
+	// now linearly touch every fourth byte and ckpt and rename
+	dprintf(("Linearly touching every fourth byte all pages\n"));
+	for (i = 0; i < allocSize; i += 4) {
+		array[i]++; 
+	}
+	ckpt();
+	rename_ckpt_file("every_fourth_byte", ckpt_num++);
+
 	// now randomly touch a bunch of pages and ckpt and rename
 	dprintf(("Randomly touching a bunch of random pages\n"));
-	for (i = 0; i < allocSize*2; i++) {
-		array[rand() % allocSize] = RANDOM_CHAR;
+	for (i = 0; i < allocSize; i++) {
+		array[random() % allocSize] = RANDOM_CHAR;
 	} 
 	ckpt();
 	rename_ckpt_file("random", ckpt_num++);
@@ -82,15 +102,15 @@ main (int argc, char ** argv) {
 
 	// now randomly touch the first half of the array and ckpt and rename
 	dprintf(("Randomly touching the first half of the array\n"));
-	for (i = 0; i < allocSize/2; i++) {
-		array[rand() % allocSize/2] = RANDOM_CHAR;
+	for (i = 0; i < allocSize; i++) {
+		array[random() % allocSize/2] = RANDOM_CHAR;
 	}
 	ckpt();
 	rename_ckpt_file("random_first_half", ckpt_num++);
 	
 	// now touch every other page and ckpt and rename
 	dprintf(("Touching every other page\n"));
-	for (i = 0; i < allocSize; i += getpagesize()*2) {
+	for (i = 0; i < allocSize; i += pagesize*2) {
 		array[i]++;
 	}
 	ckpt();
@@ -105,8 +125,36 @@ main (int argc, char ** argv) {
 	ckpt();
 	rename_ckpt_file("read_only", ckpt_num++);
 
+	/****** I couldn't get this to work right *******
+	// this should really be wrapped in a #ifdef
+	// now pull in a shared library
+	dprintf(("Pulling in a shared library, only interesting on Solaris\n"));
+	jmp_buf jb;
+	setjmp(jb);
+	ckpt();
+	rename_ckpt_file("new_library", ckpt_num++);	
+	************************************************/
+
+	// now make the stack segment larger and ckpt and rename
+	increase_stack_size();
+
+	// now make the data segment larger and ckpt and rename
+	dprintf(("Increasing data segment size\n"));
+	char * array2 = (char *) malloc(allocSize);
+	ckpt();
+	rename_ckpt_file("larger_data", ckpt_num++);
+
 	dprintf(("\nNow run compare against each successive pair of ckpts.\n"));
 	return 0;
+}
+
+/** this function increases the stack size and then ckpts and renames */
+void
+increase_stack_size() {
+	char array[allocSize];
+	dprintf(("Increasing stack segment size.\n"));
+	ckpt();
+	rename_ckpt_file("larger_stack", ckpt_num++);
 }
 
 /** this function saves the current ckpt_file */
@@ -136,7 +184,7 @@ ckpt() {
 		exit(-1);
 	}	
 	kill( getpid(), SIGUSR2 ); /* this will make condor checkpoint */
-	dprintf(("Checkpointing, "));
+	dprintf(("\tCheckpointing, "));
 }
 
 void 
@@ -145,7 +193,7 @@ readArgs (int argc, char ** argv) {
 
 	while (curArg < argc) {
 		if ( ! strcmp(argv[curArg], "-s")) {
-			allocSize = atoi(argv[++curArg]) * getpagesize();
+			allocSize = atoi(argv[++curArg]) * pagesize;
 		} else if ( ! strcmp(argv[curArg], "-d")) {
 			DEBUG = false;
 		} else {
@@ -158,5 +206,5 @@ readArgs (int argc, char ** argv) {
 	if (allocSize < 0) {
 		allocSize = DEFAULT_ALLOC_SIZE;
 	}
-	dprintf(("allocSize is %i (%i pages)\n", allocSize, allocSize / getpagesize()));
+	dprintf(("allocSize is %i (%i pages)\n", allocSize, allocSize / pagesize));
 }
