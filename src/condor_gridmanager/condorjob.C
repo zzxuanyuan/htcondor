@@ -1095,7 +1095,7 @@ ClassAd *CondorJob::buildSubmitAd()
 
 	ad->ResetExpr();
 	while ( (next_expr = ad->NextExpr()) != NULL ) {
-		if ( strncmp( ((Variable*)next_expr->LArg())->Name(), "REMOTE_", 7 ) == 0 ) {
+		if ( strncasecmp( ((Variable*)next_expr->LArg())->Name(), "REMOTE_", 7 ) == 0 ) {
 			char *attr_value;
 			MyString buf;
 			next_expr->RArg()->PrintToNewStr(&attr_value);
@@ -1204,7 +1204,7 @@ ClassAd *CondorJob::buildSubmitAd()
 
 	ad->ResetExpr();
 	while ( (next_expr = ad->NextExpr()) != NULL ) {
-		if ( strncmp( ((Variable*)next_expr->LArg())->Name(), "REMOTE_", 7 ) == 0 ) {
+		if ( strncasecmp( ((Variable*)next_expr->LArg())->Name(), "REMOTE_", 7 ) == 0 ) {
 			char *attr_value;
 			MyString buf;
 			submit_ad->Delete( ((Variable*)next_expr->LArg())->Name() );
