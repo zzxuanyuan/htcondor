@@ -673,17 +673,7 @@ clear_config()
 char *
 param( const char *name )
 {
-	char* val = NULL;
-
-	// first check the environment for _CONDOR_name
-	char s[ATTRLIST_MAX_EXPRESSION] = "_CONDOR_";
-	strncat( s, name, ATTRLIST_MAX_EXPRESSION - 16 );
-	val = getenv( s );
-
-	// if not defined, lookup macro
-	if( val == NULL ) {
-		val = lookup_macro( name, ConfigTab, TABLESIZE );
-	}
+	char *val = lookup_macro( name, ConfigTab, TABLESIZE );
 
 	if( val == NULL || val[0] == '\0' ) {
 		return( NULL );
