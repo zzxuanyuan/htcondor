@@ -15,6 +15,7 @@
 #include "condor_syscall_mode.h"
 #include "condor_io.h"
 #include "condor_sys.h"
+#include "condor_mmap.h"
 #include "startup.h"
 #include "syscall_param_sizes.h"
 
