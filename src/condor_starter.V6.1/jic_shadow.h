@@ -217,6 +217,13 @@ private:
 		*/
 	virtual	bool registerStarterInfo( void );
 	
+		/** All the attributes the shadow cares about that we send via
+			a ClassAd is handled in this method, so that we can share
+			the code between registerStarterInfo() and when we're
+			replying to accept an attempted reconnect.
+		*/ 
+	void publishStarterInfo( ClassAd* ad );
+
 		/** Initialize the priv_state code with the appropriate user
 			for this job.  This function deals with all the logic for
 			checking UID_DOMAIN compatibility, SOFT_UID_DOMAIN

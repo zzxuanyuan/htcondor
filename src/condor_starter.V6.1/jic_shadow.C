@@ -470,72 +470,9 @@ JICShadow::registerStarterInfo( void )
 		// CONDOR_register_starter_info, which just sends a ClassAd
 		// with all the relevent info.
 	if( shadow_version && shadow_version->built_since_version(6,3,3) ) {
-		ClassAd* starter_info = new ClassAd;
-		char *tmp = NULL;
-		char* tmp_val = NULL;
-		int size;
-
-		size = strlen(uid_domain) + strlen(ATTR_UID_DOMAIN) + 5;
-		tmp = (char*) malloc( size * sizeof(char) );
-		sprintf( tmp, "%s=\"%s\"", ATTR_UID_DOMAIN, uid_domain );
-		starter_info->Insert( tmp );
-		free( tmp );
-
-		size = strlen(fs_domain) + strlen(ATTR_FILE_SYSTEM_DOMAIN) + 5;
-		tmp = (char*) malloc( size * sizeof(char) );
-		sprintf( tmp, "%s=\"%s\"", ATTR_FILE_SYSTEM_DOMAIN, fs_domain ); 
-		starter_info->Insert( tmp );
-		free( tmp );
-
-		tmp_val = my_full_hostname();
-		size = strlen(tmp_val) + strlen(ATTR_MACHINE) + 5;
-		tmp = (char*) malloc( size * sizeof(char) );
-		sprintf( tmp, "%s=\"%s\"", ATTR_MACHINE, tmp_val );
-		starter_info->Insert( tmp );
-		free( tmp );
-
-		tmp_val = daemonCore->InfoCommandSinfulString();
- 		size = strlen(tmp_val) + strlen(ATTR_STARTER_IP_ADDR) + 5;
-		tmp = (char*) malloc( size * sizeof(char) );
-		sprintf( tmp, "%s=\"%s\"", ATTR_STARTER_IP_ADDR, tmp_val );
-		starter_info->Insert( tmp );
-		free( tmp );
-
-		tmp_val = CondorVersion();
- 		size = strlen(tmp_val) + strlen(ATTR_VERSION) + 5;
-		tmp = (char*) malloc( size * sizeof(char) );
-		sprintf( tmp, "%s=\"%s\"", ATTR_VERSION, tmp_val );
-		starter_info->Insert( tmp );
-		free( tmp );
-
-		tmp_val = param( "ARCH" );
-		size = strlen(tmp_val) + strlen(ATTR_ARCH) + 5;
-		tmp = (char*) malloc( size * sizeof(char) );
-		sprintf( tmp, "%s=\"%s\"", ATTR_ARCH, tmp_val );
-		starter_info->Insert( tmp );
-		free( tmp );
-		free( tmp_val );
-
-		tmp_val = param( "OPSYS" );
-		size = strlen(tmp_val) + strlen(ATTR_OPSYS) + 5;
-		tmp = (char*) malloc( size * sizeof(char) );
-		sprintf( tmp, "%s=\"%s\"", ATTR_OPSYS, tmp_val );
-		starter_info->Insert( tmp );
-		free( tmp );
-		free( tmp_val );
-
-		tmp_val = param( "CKPT_SERVER_HOST" );
-		if( tmp_val ) {
-			size = strlen(tmp_val) + strlen(ATTR_CKPT_SERVER) + 5; 
-			tmp = (char*) malloc( size * sizeof(char) );
-			sprintf( tmp, "%s=\"%s\"", ATTR_CKPT_SERVER, tmp_val ); 
-			starter_info->Insert( tmp );
-			free( tmp );
-			free( tmp_val );
-		}
-
-		rval = REMOTE_CONDOR_register_starter_info( starter_info );
-		delete( starter_info );
+		ClassAd starter_info;
+		publishStarterInfo( &starter_info );
+		rval = REMOTE_CONDOR_register_starter_info( &starter_info );
 
 	} else {
 			// We've got to use the old method.
@@ -549,6 +486,74 @@ JICShadow::registerStarterInfo( void )
 		return false;
 	}
 	return true;
+}
+
+
+void
+JICShadow::publishStarterInfo( ClassAd* ad )
+{
+	char *tmp = NULL;
+	char* tmp_val = NULL;
+	int size;
+
+	size = strlen(uid_domain) + strlen(ATTR_UID_DOMAIN) + 5;
+	tmp = (char*) malloc( size * sizeof(char) );
+	sprintf( tmp, "%s=\"%s\"", ATTR_UID_DOMAIN, uid_domain );
+	ad->Insert( tmp );
+	free( tmp );
+
+	size = strlen(fs_domain) + strlen(ATTR_FILE_SYSTEM_DOMAIN) + 5;
+	tmp = (char*) malloc( size * sizeof(char) );
+	sprintf( tmp, "%s=\"%s\"", ATTR_FILE_SYSTEM_DOMAIN, fs_domain ); 
+	ad->Insert( tmp );
+	free( tmp );
+
+	tmp_val = my_full_hostname();
+	size = strlen(tmp_val) + strlen(ATTR_MACHINE) + 5;
+	tmp = (char*) malloc( size * sizeof(char) );
+	sprintf( tmp, "%s=\"%s\"", ATTR_MACHINE, tmp_val );
+	ad->Insert( tmp );
+	free( tmp );
+
+	tmp_val = daemonCore->InfoCommandSinfulString();
+	size = strlen(tmp_val) + strlen(ATTR_STARTER_IP_ADDR) + 5;
+	tmp = (char*) malloc( size * sizeof(char) );
+	sprintf( tmp, "%s=\"%s\"", ATTR_STARTER_IP_ADDR, tmp_val );
+	ad->Insert( tmp );
+	free( tmp );
+
+	tmp_val = CondorVersion();
+	size = strlen(tmp_val) + strlen(ATTR_VERSION) + 5;
+	tmp = (char*) malloc( size * sizeof(char) );
+	sprintf( tmp, "%s=\"%s\"", ATTR_VERSION, tmp_val );
+	ad->Insert( tmp );
+	free( tmp );
+
+	tmp_val = param( "ARCH" );
+	size = strlen(tmp_val) + strlen(ATTR_ARCH) + 5;
+	tmp = (char*) malloc( size * sizeof(char) );
+	sprintf( tmp, "%s=\"%s\"", ATTR_ARCH, tmp_val );
+	ad->Insert( tmp );
+	free( tmp );
+	free( tmp_val );
+
+	tmp_val = param( "OPSYS" );
+	size = strlen(tmp_val) + strlen(ATTR_OPSYS) + 5;
+	tmp = (char*) malloc( size * sizeof(char) );
+	sprintf( tmp, "%s=\"%s\"", ATTR_OPSYS, tmp_val );
+	ad->Insert( tmp );
+	free( tmp );
+	free( tmp_val );
+
+	tmp_val = param( "CKPT_SERVER_HOST" );
+	if( tmp_val ) {
+		size = strlen(tmp_val) + strlen(ATTR_CKPT_SERVER) + 5; 
+		tmp = (char*) malloc( size * sizeof(char) );
+		sprintf( tmp, "%s=\"%s\"", ATTR_CKPT_SERVER, tmp_val ); 
+		ad->Insert( tmp );
+		free( tmp );
+		free( tmp_val );
+	}
 }
 
 
