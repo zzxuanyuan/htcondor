@@ -41,16 +41,7 @@ abi=""
 if [ $os = "IRIX" ]; then
 	#6/3/99 mikeu: we need to support use of all three ABIs, so we must
 	#figure out which one to use: -o32, -n32 or -64
-	abi=`printenv MIPS_ABI`  #extract from ENV
-
-	if [ X$abi = X ]; then
-	  #if not overridden in env, then use system default
-	  abi=-`sed -e 's/.*abi=//' -e 's/:.*//' /etc/compiler.defaults`
-	fi
-	#O32 ABI might be specified as -o32 or -32, maybe even -O32
-	if [ X$abi = X-32 -o X$abi = X-O32 ]; then
-		abi="-o32"
-	fi
+	abi=`printenv SGI_ABI`  #extract from ENV
 fi
 
 case $os in

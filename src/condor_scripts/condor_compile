@@ -119,20 +119,29 @@ osfull="$os$osmajver"
 # Determine if the system ld has been replaced with our ld script
 # or not.
 CONDOR_FULLINSTALL=false
+abi=""
 
 case $os in
 	IRIX )
 		if [ -x /usr/lib/ld.real -a -x /usr/lib/uld.real ]; then
 			CONDOR_FULLINSTALL=true
 		fi
-		# on IRIX62, set SGI_ABI environment variable to old 32-bit code
-		# only, since that is what condor_syscall_lib expects.
 		
-			#6/3/99 mikeu: attempt to fix this to allow user to specify 
-			#which linker to use, or use default. Commented out these 
-			#lines so it can be specified elsewhere...
-		#SGI_ABI=-32
-		#export SGI_ABI
+		#6/3/99 mikeu: we need to support use of all three ABIs, so we must
+		#figure out which one to use: -o32, -n32 or -64
+		abi=`printenv SGI_ABI`  #extract from ENV
+
+		if [ X$abi = X ]; then
+		  #if not overridden in env, then use system default
+		  abi=-`sed -e 's/.*abi=//' -e 's/:.*//' /etc/compiler.defaults`
+		fi
+		#O32 ABI might be specified as -o32 or -32, maybe even -O32
+		if [ X$abi = X-32 -o X$abi = X-O32 ]; then
+			abi="-o32"
+		fi
+
+		SGI_ABI=$abi
+		export SGI_ABI
 		;;
 	HP-UX )
 		if [ $osmajver = "10" ]; then
