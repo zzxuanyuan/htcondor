@@ -43,6 +43,7 @@ JobInfoCommunicator* parseArgs( int argc, char* argv [] );
 static CStarter StarterObj;
 CStarter *Starter = &StarterObj;
 
+extern int Foreground;	// from daemoncore
 static bool is_gridshell = false;
 
 // this appears at the bottom of this file:
@@ -152,6 +153,13 @@ main_pre_dc_init( int argc, char* argv[] )
 				 strerror(errno), errno );
 	} else {
 		orig_cwd = strdup(cwd);
+	}
+
+		// if we're the gridshell, assume a "-f" option.  all that
+		// does in DaemonCore-land is set a global variable, so we'll
+		// just do that here, ourselves...
+	if( is_gridshell ) {
+		Foreground = 1;
 	}
 }
 
