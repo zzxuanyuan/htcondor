@@ -377,15 +377,121 @@ CODMgr::deactivate( Stream* s, ClassAd* req, Claim* claim )
 int
 CODMgr::suspend( Stream* s, ClassAd* req, Claim* claim )
 {
-		// TODO!
-	return true;
+	ClassAd reply;
+	MyString line;
+
+	switch( claim->state() ) {
+
+	case CLAIM_RUNNING:
+		if( claim->suspendClaim() ) { 
+			line = ATTR_RESULT;
+			line += " = \"";
+			line += getCAResultString( CA_SUCCESS );
+			line += '"';
+			reply.Insert( line.Value() );
+
+				// TODO any other info for the reply?
+			return sendCAReply( s, "CA_SUSPEND_CLAIM", &reply );
+		} else {
+			return sendErrorReply( s, "CA_SUSPEND_CLAIM",
+								   CA_FAILURE, 
+						   "Failed to send suspend signal to starter" );
+		}
+		break;
+
+	case CLAIM_UNCLAIMED:
+			// This is a programmer error.  we can't possibly get here  
+		EXCEPT( "Trying to suspend a claim that was never claimed!" ); 
+		break;
+
+	case CLAIM_IDLE:
+			// it's not running a job, so we can't suspend it!
+		return sendErrorReply( s, "CA_SUSPEND_CLAIM",
+							   CA_INVALID_STATE, 
+							   "Can't suspend an idle claim" );
+		break;
+
+	case CLAIM_SUSPENDED:
+		return sendErrorReply( s, "CA_SUSPEND_CLAIM",
+							   CA_INVALID_STATE, 
+							   "Claim is already suspended" );
+		break;
+
+
+	case CLAIM_VACATING:
+		return sendErrorReply( s, "CA_SUSPEND_CLAIM",
+							   CA_INVALID_STATE, 
+					   "Can't suspend a claim that's being vacated" );
+		break;
+
+	case CLAIM_KILLING:
+		return sendErrorReply( s, "CA_SUSPEND_CLAIM",
+							   CA_INVALID_STATE, 
+					   "Can't suspend a claim that's being killed" );
+		break;
+	}
+
+	return FALSE;
 }
 
 
 int
 CODMgr::resume( Stream* s, ClassAd* req, Claim* claim )
 {
-		// TODO!
-	return true;
+	ClassAd reply;
+	MyString line;
+
+	switch( claim->state() ) {
+
+	case CLAIM_SUSPENDED:
+		if( claim->resumeClaim() ) { 
+			line = ATTR_RESULT;
+			line += " = \"";
+			line += getCAResultString( CA_SUCCESS );
+			line += '"';
+			reply.Insert( line.Value() );
+
+				// TODO any other info for the reply?
+			return sendCAReply( s, "CA_RESUME_CLAIM", &reply );
+		} else {
+			return sendErrorReply( s, "CA_RESUME_CLAIM",
+								   CA_FAILURE, 
+						   "Failed to send resume signal to starter" );
+		}
+		break;
+
+	case CLAIM_UNCLAIMED:
+			// This is a programmer error.  we can't possibly get here  
+		EXCEPT( "Trying to resume a claim that was never claimed!" ); 
+		break;
+
+	case CLAIM_IDLE:
+			// it's not running a job, so we can't resume it!
+		return sendErrorReply( s, "CA_RESUME_CLAIM",
+							   CA_INVALID_STATE, 
+							   "Can't resume an idle claim" );
+		break;
+
+	case CLAIM_RUNNING:
+		return sendErrorReply( s, "CA_RESUME_CLAIM",
+							   CA_INVALID_STATE, 
+							   "Claim is already running" );
+		break;
+
+	case CLAIM_VACATING:
+		return sendErrorReply( s, "CA_RESUME_CLAIM",
+							   CA_INVALID_STATE, 
+					   "Can't resume a claim that's being vacated" );
+		break;
+
+	case CLAIM_KILLING:
+		return sendErrorReply( s, "CA_RESUME_CLAIM",
+							   CA_INVALID_STATE, 
+					   "Can't resume a claim that's being killed" );
+		break;
+	}
+
+	return FALSE;
 }
+
 
