@@ -184,6 +184,12 @@ class RemoteResource : public Service {
 		*/ 
 	ReliSock* getClaimSock();
 
+		/** Called when our syscall socket got closed.  So, cancel the
+			daemoncore socket handler, delete the object, and set our
+			pointer to NULL.
+		*/
+	void closeClaimSock( void );
+
 		/** Return the reason this host exited.
 			@return The exit reason for this host.
 		*/ 

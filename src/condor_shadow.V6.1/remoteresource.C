@@ -497,6 +497,17 @@ RemoteResource::getClaimSock()
 }
 
 
+void
+RemoteResource::closeClaimSock( void )
+{
+	if( claim_sock ) {
+		daemonCore->Cancel_Socket( claim_sock );
+		delete claim_sock;
+		claim_sock = NULL;
+	}
+}
+
+
 int
 RemoteResource::getExitReason()
 {
