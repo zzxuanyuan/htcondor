@@ -1838,7 +1838,13 @@ Stream::allow_one_empty_message()
 void 
 Stream::set_crypto_mode(bool enabled)
 {
-    crypto_mode_ = enabled;
+	if (crypto_) {
+		crypto_mode_ = enabled;
+	} else {
+		if (enabled) {
+			dprintf ( D_SECURITY, "NOT enabling crypto - there was no key exchanged.\n");
+		}
+	}
 }
 
 bool 
