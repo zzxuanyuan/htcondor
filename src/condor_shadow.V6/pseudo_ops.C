@@ -1142,9 +1142,14 @@ int pseudo_get_buffer_info( int *blocks, int *block_size, int *prefetch_bytes )
 	// then we return zeroes, which disables buffering
 	// or prefetching, as the case may be.
 
-	*blocks = atoi(btext);
-	*block_size = atoi(bstext);
-	*prefetch_bytes = atoi(ptext);
+	if(btext)	*blocks = atoi(btext);
+	else		*blocks = 0;
+
+	if(bstext)	*block_size = atoi(bstext);
+	else		*block_size = 0;
+
+	if(ptext)	*prefetch_bytes = atoi(ptext);
+	else		*prefetch_bytes = 0;
 
 	dprintf(D_SYSCALLS,"\tblocks=%d block_size=%d prefetch_bytes=%d\n",
 		*blocks, *block_size, *prefetch_bytes );
