@@ -288,6 +288,7 @@ class GahpClient : public Service {
 
 		Proxy *getMasterProxy();
 
+		bool isStarted() { return server->m_gahp_pid != -1; }
 		bool isInitialized() { return server->is_initialized; }
 
 		const char *getErrorString();
