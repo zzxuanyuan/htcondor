@@ -12,7 +12,7 @@
 class CollectorEngine : public Service
 {
   public:
-	CollectorEngine(TimerManager *);
+	CollectorEngine();
 	~CollectorEngine();
 
 	// maximum time a client can take to communicate with the collector
@@ -25,9 +25,6 @@ class CollectorEngine : public Service
 	void toggleLogging (void);
 
 	// perform the collect operation of the given command
-#if defined(USE_XDR)
-	ClassAd *collect (int, XDR *, sockaddr_in *, int &);
-#endif
 	ClassAd *collect (int, Sock *, sockaddr_in *, int &);
 	ClassAd *collect (int, ClassAd *, sockaddr_in *, int &);
 
@@ -42,13 +39,13 @@ class CollectorEngine : public Service
 
   private:
 	// the greater tables
-	const int GREATER_TABLE_SIZE = 1024;
+	enum {GREATER_TABLE_SIZE = 1024};
 	CollectorHashTable StartdAds;
 	CollectorHashTable ScheddAds;
 	CollectorHashTable MasterAds;
 
 	// the lesser tables
-	const int LESSER_TABLE_SIZE = 32;
+	enum {LESSER_TABLE_SIZE = 32};
 	CollectorHashTable CkptServerAds;
 	CollectorHashTable GatewayAds;
 
@@ -59,18 +56,11 @@ class CollectorEngine : public Service
 	// communication socket
 	int   clientSocket;
 
-	// check if time to clean out old classads
-	bool  timeToClean;
-
 	// should we log?
 	bool  log;
 
-	// timer services
-	TimerManager *timer;
-	friend int engine_clientTimeoutHandler(Service *);// client takes too long
-	friend int engine_housekeepingHandler (Service *);// clean out old classads
 	
-	void housekeeper (void);
+	int  housekeeper ();
 	int  housekeeperTimerID;
 	void cleanHashTable (CollectorHashTable &, time_t,
 				bool (*) (HashKey &, ClassAd *,sockaddr_in *));
