@@ -134,6 +134,24 @@ removeCluster(int clusterId)
   return 0;
 }
 
+static
+int
+extendTransaction(const condorSchedd__Transaction & transaction)
+{
+  if (transaction.id &&	// must not be 0
+      transaction.id == current_trans_id && // must be the current transaction
+      trans_timer_id != -1) {
+
+    if (transaction.duration < 1) {
+      return 1;
+    }
+
+    daemonCore->Reset_Timer(trans_timer_id, transaction.duration);
+  }
+
+  return 0;
+}
+
 // TODO : Todd needs to redo all the transaction stuff and get it
 // right.  For now it is in horrible "demo" mode with piles of
 // assumptions (i.e. only one client, etc).  Once it is redone and
@@ -255,21 +273,16 @@ condorSchedd__extendTransaction(struct soap *s,
                                 int duration,
                                 struct condorSchedd__TransactionAndStatusResponse & result )
 {
-  result.response.status.code = FAIL;
-  if ( transaction.id &&	// must not be 0
-       transaction.id == current_trans_id &&	// must be the current transaction
-       trans_timer_id != -1 )
-    {
-      result.response.status.code = SUCCESS;
-      if ( duration < 1 ) {
-        duration = 1;
-      }
-      daemonCore->Reset_Timer(trans_timer_id,duration);
+  result.response.status.code = SUCCESS;
 
-      result.response.transaction.id = transaction.id;
-      result.response.transaction.duration = duration;
-    }
-
+  transaction.duration = duration;
+  if (extendTransaction(transaction)) {
+    result.response.status.code = FAIL;
+  } else {
+    result.response.transaction.id = transaction.id;
+    result.response.transaction.duration = duration;
+  }
+  
   dprintf(D_ALWAYS,"SOAP leaving condorSchedd__extendTransaction() res=%d\n",result.response.status.code);
   return SOAP_OK;
 }
@@ -283,6 +296,9 @@ condorSchedd__newCluster(struct soap *s,
   if ( (transaction.id == 0) || (!valid_transaction_id(transaction.id)) ) {
     // TODO error - unrecognized transactionId
   }
+
+  extendTransaction(transaction);
+
   result.response.integer = NewCluster();
   if ( result.response.integer == -1 ) {
     // TODO error case
@@ -308,6 +324,8 @@ condorSchedd__removeCluster(struct soap *s,
     // TODO error - unrecognized transactionId
     result.response.code = INVALIDTRANSACTION;
   } else {
+    extendTransaction(transaction);
+
     if (0 == DestroyCluster(clusterId,reason)) {  // returns -1 or 0
       result.response.code = SUCCESS;
     } else {
@@ -334,6 +352,9 @@ condorSchedd__newJob(struct soap *s,
   if ( (transaction.id == 0) || (!valid_transaction_id(transaction.id)) ) {
     // TODO error - unrecognized transactionId
   }
+
+  extendTransaction(transaction);
+
   result.response.integer = NewProc(clusterId);
   if ( result.response.integer == -1 ) {
     // TODO error case
@@ -368,6 +389,9 @@ condorSchedd__removeJob(struct soap *s,
   if ( !valid_transaction_id(transaction.id) ) {
     // TODO error - unrecognized transactionId
   }
+
+  extendTransaction(transaction);
+
   if ( !abortJob(clusterId,jobId,reason,transaction.id ? false : true) )
     {
       // TODO error - remove failed
@@ -398,6 +422,9 @@ condorSchedd__holdJob(struct soap *s,
   if ( !valid_transaction_id(transaction.id) ) {
     // TODO error - unrecognized transactionId
   }
+
+  extendTransaction(transaction);
+
   if ( !holdJob(clusterId,jobId,reason,transaction.id ? false : true,
                 email_user, email_admin, system_hold) )
     {
@@ -424,6 +451,9 @@ condorSchedd__releaseJob(struct soap *s,
   if ( !valid_transaction_id(transaction.id) ) {
     // TODO error - unrecognized transactionId
   }
+
+  extendTransaction(transaction);
+
   if ( !releaseJob(clusterId,jobId,reason,transaction.id ? false : true,
                    email_user, email_admin) )
     {
@@ -449,6 +479,8 @@ condorSchedd__submit(struct soap *s,
   if ( (transaction.id == 0) || (!valid_transaction_id(transaction.id)) ) {
     // TODO error - unrecognized transactionId
   }
+
+  extendTransaction(transaction);
 
   Job *job = new Job(clusterId, jobId);
   if (getJob(clusterId, jobId, job)) {
@@ -487,6 +519,8 @@ condorSchedd__getJobAds(struct soap *s,
     // TODO error - unrecognized transactionId
   }
 
+  extendTransaction(transaction);
+
   List<ClassAd> adList;
   ClassAd *ad = GetNextJobByConstraint(constraint,1);
   while ( ad ) {
@@ -521,6 +555,8 @@ condorSchedd__getJobAd(struct soap *s,
     // TODO error - unrecognized transactionId
   }
 
+  extendTransaction(transaction);
+
   ClassAd *ad = GetJobAd(clusterId,jobId);
   if ( !convert_ad_to_adStruct(s,ad,&result.response.classAd) ) {
     dprintf(D_ALWAYS,"condorSchedd__getJobAds: convert_adlist_to_adStructArray failed!\n");
@@ -550,6 +586,8 @@ condorSchedd__declareFile(struct soap *soap,
 
     return SOAP_OK;
   }
+
+  extendTransaction(transaction);
 
   Job *job;
   if (getJob(clusterId, jobId, job)) {
@@ -583,6 +621,8 @@ condorSchedd__sendFile(struct soap *soap,
     // TODO error - unrecognized transactionId
     result.response.code = INVALIDTRANSACTION;
   }
+
+  extendTransaction(transaction);
 
   Job *job;
   if (getJob(clusterId, jobId, job)) {
@@ -618,6 +658,8 @@ int condorSchedd__getFile(struct soap *soap,
     // TODO error - unrecognized transactionId
     result.response.status.code = INVALIDTRANSACTION;
   }
+
+  extendTransaction(transaction);
 
   Job *job;
   if (getJob(clusterId, jobId, job)) {
@@ -655,6 +697,8 @@ int condorSchedd__closeSpool(struct soap *soap,
     result.response.code = INVALIDTRANSACTION;
   }
 
+  extendTransaction(transaction);
+
   if (SetAttribute(clusterId, jobId, "FilesRetrieved", "TRUE")) {
     result.response.code = FAIL;
   } else {
@@ -677,6 +721,8 @@ condorSchedd__listSpool(struct soap *soap,
     // TODO error - unrecognized transactionId
     result.response.status.code = INVALIDTRANSACTION;
   }
+
+  extendTransaction(transaction);
 
   Job *job;
   if (getJob(clusterId, jobId, job)) {
