@@ -41,6 +41,7 @@
 #include "shadow.h"
 #include "subproc.h"
 #include "afs.h"
+#include "job_report.h"
 
 extern "C" {
 	void NotifyUser( char *buf, PROC *proc, char *email_addr );
@@ -197,7 +198,7 @@ NotifyUser( char *buf, PROC *proc, char *email_addr )
 
         fprintf(mailer, "%s\n\n", buf );
 
-        display_errors( mailer );
+	job_report_display_errors( mailer );
 
         fprintf(mailer, "Submitted at:        %s", ctime( (time_t *)&proc->q_date) );
         if( proc->completion_date ) {
@@ -234,6 +235,9 @@ NotifyUser( char *buf, PROC *proc, char *email_addr )
                 fprintf(mailer, "Leveraging Factor:   %2.1f\n", trtime / tltime);
         }
         fprintf(mailer, "Virtual Image Size:  %d Kilobytes\n", proc->image_size);
+
+	job_report_display_calls( mailer );
+	job_report_display_info( mailer );
 
         (void)pclose( mailer );
 }

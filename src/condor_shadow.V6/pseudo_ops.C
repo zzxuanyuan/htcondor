@@ -38,6 +38,7 @@
 #include "internet.h"
 #include "condor_config.h"
 #include "filename_tools.h"
+#include "job_report.h"
 
 #ifdef CARMI_OPS
 #include <ProcList.h>
@@ -188,7 +189,7 @@ pseudo_reallyexit( int *status, struct rusage *use_p )
 int
 pseudo_free_fs_blocks( const char *path )
 {
-	return sysapi_disk_space( path );
+	return free_fs_blocks(path);
 }
 
 int
@@ -260,10 +261,15 @@ pseudo_getrusage(int who, struct rusage *use_p )
 }
 
 int
-pseudo_perm_error( const char *msg )
+pseudo_report_error( const char *msg )
 {
-	PERM_ERR( msg );
-	return 0;
+	return job_report_add_error( msg );
+}
+
+int
+pseudo_report_info( const char *msg )
+{
+	return job_report_add_info( msg );
 }
 
 int
@@ -893,8 +899,11 @@ create_tcp_port( u_short *port, int *fd )
 	dprintf( D_FULLDEBUG, "\tconnect_sock = %d\n", *fd );
 
 		/* bind it to an address */
-	if( ! _condor_local_bind(*fd) ) {
-		EXCEPT( "bind" );
+        memset( &sin, '\0', sizeof sin );
+        sin.sin_family = AF_INET;
+        sin.sin_port = 0;
+        if( bind(*fd,(struct sockaddr *)&sin, sizeof sin) < 0 ) {
+                EXCEPT( "bind" );
 	}
 
 		/* determine which local port number we were assigned to */
@@ -1177,7 +1186,7 @@ int pseudo_get_buffer_info( int *blocks_out, int *block_size_out, int *prefetch_
 
 	if(buffer_size>0) {
 
-		if(block_size<=0) block_size=16384;
+		if(block_size<=0) block_size=32768;
 
 		blocks = (buffer_size/block_size);
 		if( (blocks*block_size) < buffer_size ) {
@@ -1668,7 +1677,7 @@ pseudo_sync()
    Specify checkpoint server host.
 */
 int
-pseudo_register_ckpt_server(const char *host)
+pseudo_choose_ckpt_server(const char *host)
 {
 	if (StarterChoosesCkptServer) {
 		if (CkptServerHost) free(CkptServerHost);
