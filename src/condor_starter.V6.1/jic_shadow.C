@@ -35,6 +35,9 @@
 #include "basename.h"
 #include "condor_string.h"  // for strnewp
 #include "condor_attributes.h"
+#include "condor_commands.h"
+#include "command_strings.h"
+#include "classad_command_util.h"
 #include "directory.h"
 #include "nullfile.h"
 
@@ -349,6 +352,20 @@ JICShadow::gotShutdownFast( void )
 
 		// let our parent class do the right thing, too.
 	JobInfoCommunicator::gotShutdownFast();
+}
+
+
+void
+JICShadow::reconnect( ReliSock* s, ClassAd* ad )
+{
+		// TODO
+	sendErrorReply( s, getCommandString(CA_RECONNECT_JOB), CA_FAILURE, 
+					"Starter does not yet support reconnect" );
+
+		// since the upper layers of the starter and daemoncore itself
+		// aren't going to close up this connection, we need to do
+		// that here.
+	delete s;
 }
 
 

@@ -161,6 +161,10 @@ public:
 		 */
 	virtual void gotShutdownGraceful( void );
 
+		/** Someone is attempting to reconnect to this job.
+		 */
+	virtual void reconnect( ReliSock* s, ClassAd* ad ) = 0;
+	
 
 		// // // // // // // // // // // //
 		// Notfication to our controller

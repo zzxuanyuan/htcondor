@@ -107,6 +107,10 @@ public:
 		 */
 	void gotShutdownFast( void );
 
+		/** Someone is attempting to reconnect to this job.
+		 */
+	void reconnect( ReliSock* s, ClassAd* ad );
+
 
 		// // // // // // // // // // // //
 		// Notfication to the shadow

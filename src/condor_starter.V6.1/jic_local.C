@@ -32,6 +32,7 @@
 #include "internet.h"
 #include "condor_string.h"  // for strnewp
 #include "condor_attributes.h"
+#include "classad_command_util.h"
 #include "directory.h"
 #include "nullfile.h"
 #include "basename.h"
@@ -187,6 +188,21 @@ JICLocal::allJobsGone( void )
 		// exit ourselves.
 	dprintf( D_ALWAYS, "All jobs have exited... starter exiting\n" );
 	DC_Exit(0);
+}
+
+
+void
+JICLocal::reconnect( ReliSock* s, ClassAd* ad )
+{
+		// Someday this might mean something, for now it doesn't.
+
+	sendErrorReply( s, getCommandString(CA_RECONNECT_JOB), CA_FAILURE, 
+					"Starter using JICLocal does not support reconnect" );
+
+		// since the upper layers of the starter and daemoncore itself
+		// aren't going to close up this connection, we need to do
+		// that here.
+	delete s;
 }
 
 
