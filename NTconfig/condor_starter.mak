@@ -125,6 +125,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\java_proc.obj" \
 	"$(INTDIR)\jic_local.obj" \
 	"$(INTDIR)\jic_local_config.obj" \
+	"$(INTDIR)\jic_local_file.obj" \
 	"$(INTDIR)\jic_shadow.obj" \
 	"$(INTDIR)\job_info_communicator.obj" \
 	"$(INTDIR)\local_user_log.obj" \
@@ -134,12 +135,11 @@ LINK32_OBJS= \
 	"$(INTDIR)\os_proc.obj" \
 	"$(INTDIR)\parallel_comrade_proc.obj" \
 	"$(INTDIR)\parallel_master_proc.obj" \
+	"$(INTDIR)\script_proc.obj" \
 	"$(INTDIR)\starter_class.obj" \
 	"$(INTDIR)\starter_v61_main.obj" \
-	"$(INTDIR)\vanilla_proc.obj" \
 	"$(INTDIR)\user_proc.obj" \
-	"$(INTDIR)\script_proc.obj" \
-	"$(INTDIR)\jic_local_file.obj" \
+	"$(INTDIR)\vanilla_proc.obj" \
 	"$(OUTDIR)\condor_classad.lib" \
 	"$(OUTDIR)\condor_cpp_util.lib" \
 	"$(OUTDIR)\condor_daemon_core.lib" \
@@ -251,6 +251,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\java_proc.obj" \
 	"$(INTDIR)\jic_local.obj" \
 	"$(INTDIR)\jic_local_config.obj" \
+	"$(INTDIR)\jic_local_file.obj" \
 	"$(INTDIR)\jic_shadow.obj" \
 	"$(INTDIR)\job_info_communicator.obj" \
 	"$(INTDIR)\local_user_log.obj" \
@@ -260,12 +261,11 @@ LINK32_OBJS= \
 	"$(INTDIR)\os_proc.obj" \
 	"$(INTDIR)\parallel_comrade_proc.obj" \
 	"$(INTDIR)\parallel_master_proc.obj" \
+	"$(INTDIR)\script_proc.obj" \
 	"$(INTDIR)\starter_class.obj" \
 	"$(INTDIR)\starter_v61_main.obj" \
-	"$(INTDIR)\vanilla_proc.obj" \
 	"$(INTDIR)\user_proc.obj" \
-	"$(INTDIR)\script_proc.obj" \
-	"$(INTDIR)\jic_local_file.obj" \
+	"$(INTDIR)\vanilla_proc.obj" \
 	"$(OUTDIR)\condor_classad.lib" \
 	"$(OUTDIR)\condor_cpp_util.lib" \
 	"$(OUTDIR)\condor_daemon_core.lib" \

@@ -50,6 +50,7 @@
 	"..\src\condor_includes\SafeMsg.h"\
 	"..\src\condor_includes\sock.h"\
 	"..\src\condor_includes\sockCache.h"\
+	"..\src\condor_includes\stdsoap2.h"\
 	"..\src\condor_includes\stream.h"\
 	"..\src\condor_sysapi\sysapi.h"\
 	"..\src\h\file_lock.h"\
@@ -474,11 +475,14 @@
 	"..\src\condor_c++_util\format_time.h"\
 	"..\src\condor_c++_util\generic_query.h"\
 	"..\src\condor_c++_util\HashTable.h"\
+	"..\src\condor_c++_util\my_hostname.h"\
 	"..\src\condor_c++_util\MyString.h"\
 	"..\src\condor_c++_util\query_result_type.h"\
 	"..\src\condor_c++_util\simplelist.h"\
 	"..\src\condor_c++_util\string_list.h"\
 	"..\src\condor_c++_util\stringSpace.h"\
+	"..\src\condor_daemon_core.V6\condor_ipverify.h"\
+	"..\src\condor_includes\buffers.h"\
 	"..\src\condor_includes\condor_adtypes.h"\
 	"..\src\condor_includes\condor_ast.h"\
 	"..\src\condor_includes\condor_astbase.h"\
@@ -494,10 +498,19 @@
 	"..\src\condor_includes\condor_exprtype.h"\
 	"..\src\condor_includes\condor_fix_assert.h"\
 	"..\src\condor_includes\condor_header_features.h"\
+	"..\src\condor_includes\condor_io.h"\
+	"..\src\condor_includes\condor_md.h"\
 	"..\src\condor_includes\condor_old_shadow_types.h"\
+	"..\src\condor_includes\condor_perms.h"\
 	"..\src\condor_includes\condor_qmgr.h"\
+	"..\src\condor_includes\condor_random_num.h"\
 	"..\src\condor_includes\condor_universe.h"\
 	"..\src\condor_includes\CryptKey.h"\
+	"..\src\condor_includes\reli_sock.h"\
+	"..\src\condor_includes\safe_sock.h"\
+	"..\src\condor_includes\SafeMsg.h"\
+	"..\src\condor_includes\sock.h"\
+	"..\src\condor_includes\sockCache.h"\
 	"..\src\condor_includes\stream.h"\
 	"..\src\condor_sysapi\sysapi.h"\
 	"..\src\h\file_lock.h"\
@@ -580,6 +593,21 @@
 	"..\src\condor_includes\condor_debug.h"\
 	"..\src\condor_includes\condor_fix_assert.h"\
 	"..\src\condor_includes\condor_header_features.h"\
+	"..\src\condor_sysapi\sysapi.h"\
+	"..\src\h\file_lock.h"\
+	
+
+"..\src\condor_c++_util\CondorError.C" : \
+	"..\src\condor_c++_util\CondorError.h"\
+	"..\src\condor_c++_util\MyString.h"\
+	"..\src\condor_c++_util\simplelist.h"\
+	"..\src\condor_includes\condor_common.h"\
+	"..\src\condor_includes\condor_constants.h"\
+	"..\src\condor_includes\condor_debug.h"\
+	"..\src\condor_includes\condor_error_codes.h"\
+	"..\src\condor_includes\condor_fix_assert.h"\
+	"..\src\condor_includes\condor_header_features.h"\
+	"..\src\condor_includes\condor_snutils.h"\
 	"..\src\condor_sysapi\sysapi.h"\
 	"..\src\h\file_lock.h"\
 	
@@ -671,6 +699,7 @@
 	"..\src\condor_includes\SafeMsg.h"\
 	"..\src\condor_includes\sock.h"\
 	"..\src\condor_includes\sockCache.h"\
+	"..\src\condor_includes\stdsoap2.h"\
 	"..\src\condor_includes\stream.h"\
 	"..\src\condor_sysapi\sysapi.h"\
 	"..\src\h\file_lock.h"\
@@ -727,6 +756,7 @@
 	"..\src\condor_includes\SafeMsg.h"\
 	"..\src\condor_includes\sock.h"\
 	"..\src\condor_includes\sockCache.h"\
+	"..\src\condor_includes\stdsoap2.h"\
 	"..\src\condor_includes\stream.h"\
 	"..\src\condor_sysapi\sysapi.h"\
 	"..\src\h\file_lock.h"\
@@ -784,6 +814,7 @@
 	"..\src\condor_includes\SafeMsg.h"\
 	"..\src\condor_includes\sock.h"\
 	"..\src\condor_includes\sockCache.h"\
+	"..\src\condor_includes\stdsoap2.h"\
 	"..\src\condor_includes\stream.h"\
 	"..\src\condor_sysapi\sysapi.h"\
 	"..\src\h\file_lock.h"\
@@ -854,6 +885,7 @@
 	"..\src\condor_includes\SafeMsg.h"\
 	"..\src\condor_includes\sock.h"\
 	"..\src\condor_includes\sockCache.h"\
+	"..\src\condor_includes\stdsoap2.h"\
 	"..\src\condor_includes\stream.h"\
 	"..\src\condor_sysapi\sysapi.h"\
 	"..\src\h\condor_types.h"\
@@ -993,6 +1025,7 @@
 	"..\src\condor_includes\SafeMsg.h"\
 	"..\src\condor_includes\sock.h"\
 	"..\src\condor_includes\sockCache.h"\
+	"..\src\condor_includes\stdsoap2.h"\
 	"..\src\condor_includes\stream.h"\
 	"..\src\condor_sysapi\sysapi.h"\
 	"..\src\h\condor_types.h"\
@@ -1056,6 +1089,7 @@
 	"..\src\condor_includes\SafeMsg.h"\
 	"..\src\condor_includes\sock.h"\
 	"..\src\condor_includes\sockCache.h"\
+	"..\src\condor_includes\stdsoap2.h"\
 	"..\src\condor_includes\stream.h"\
 	"..\src\condor_sysapi\sysapi.h"\
 	"..\src\h\file_lock.h"\
@@ -1295,6 +1329,7 @@
 	"..\src\condor_includes\SafeMsg.h"\
 	"..\src\condor_includes\sock.h"\
 	"..\src\condor_includes\sockCache.h"\
+	"..\src\condor_includes\stdsoap2.h"\
 	"..\src\condor_includes\stream.h"\
 	"..\src\condor_sysapi\sysapi.h"\
 	"..\src\h\file_lock.h"\
@@ -1534,6 +1569,7 @@
 	"..\src\condor_includes\SafeMsg.h"\
 	"..\src\condor_includes\sock.h"\
 	"..\src\condor_includes\sockCache.h"\
+	"..\src\condor_includes\stdsoap2.h"\
 	"..\src\condor_includes\stream.h"\
 	"..\src\condor_sysapi\sysapi.h"\
 	"..\src\h\condor_types.h"\
@@ -1797,6 +1833,7 @@
 	"..\src\condor_includes\SafeMsg.h"\
 	"..\src\condor_includes\sock.h"\
 	"..\src\condor_includes\sockCache.h"\
+	"..\src\condor_includes\stdsoap2.h"\
 	"..\src\condor_includes\stream.h"\
 	"..\src\condor_procapi\procapi.h"\
 	"..\src\condor_sysapi\sysapi.h"\
@@ -2274,6 +2311,17 @@
 	"..\src\h\file_lock.h"\
 	"..\src\h\proc.h"\
 	"..\src\h\startup.h"\
+	
+
+"..\src\condor_c++_util\utc_time.C" : \
+	"..\src\condor_c++_util\utc_time.h"\
+	"..\src\condor_includes\condor_common.h"\
+	"..\src\condor_includes\condor_constants.h"\
+	"..\src\condor_includes\condor_debug.h"\
+	"..\src\condor_includes\condor_fix_assert.h"\
+	"..\src\condor_includes\condor_header_features.h"\
+	"..\src\condor_sysapi\sysapi.h"\
+	"..\src\h\file_lock.h"\
 	
 
 "..\src\condor_c++_util\which.C" : \

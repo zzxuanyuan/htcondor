@@ -3,6 +3,7 @@
 ..\src\condor_eventd\eventd.C : \
 	"..\src\condor_c++_util\classad_hashtable.h"\
 	"..\src\condor_c++_util\command_strings.h"\
+	"..\src\condor_c++_util\CondorError.h"\
 	"..\src\condor_c++_util\extArray.h"\
 	"..\src\condor_c++_util\HashTable.h"\
 	"..\src\condor_c++_util\my_hostname.h"\
@@ -30,6 +31,7 @@
 	"..\src\condor_includes\condor_constants.h"\
 	"..\src\condor_includes\condor_crypt.h"\
 	"..\src\condor_includes\condor_debug.h"\
+	"..\src\condor_includes\condor_error_codes.h"\
 	"..\src\condor_includes\condor_exprtype.h"\
 	"..\src\condor_includes\condor_file_lock.h"\
 	"..\src\condor_includes\condor_fix_access.h"\
@@ -50,6 +52,7 @@
 	"..\src\condor_includes\condor_secman.h"\
 	"..\src\condor_includes\condor_snutils.h"\
 	"..\src\condor_includes\condor_sys_aix.h"\
+	"..\src\condor_includes\condor_sys_bsd.h"\
 	"..\src\condor_includes\condor_sys_dux.h"\
 	"..\src\condor_includes\condor_sys_hpux.h"\
 	"..\src\condor_includes\condor_sys_irix.h"\
@@ -66,21 +69,25 @@
 	"..\src\condor_includes\SafeMsg.h"\
 	"..\src\condor_includes\sock.h"\
 	"..\src\condor_includes\sockCache.h"\
+	"..\src\condor_includes\stdsoap2.h"\
 	"..\src\condor_includes\stream.h"\
 	"..\src\condor_netman\netcapacity.h"\
 	"..\src\condor_netman\netres.h"\
 	"..\src\condor_netman\netusage.h"\
 	"..\src\condor_netman\router.h"\
 	"..\src\condor_sysapi\sysapi.h"\
+	"..\src\h\config.h"\
 	"..\src\h\fake_flock.h"\
 	"..\src\h\file_lock.h"\
 	"..\src\h\proc.h"\
 	"..\src\h\startup.h"\
+	{$(INCLUDE)}"wspiapi.h"\
 	
 
 ..\src\condor_eventd\eventd_instantiate.C : \
 	"..\src\condor_c++_util\classad_hashtable.h"\
 	"..\src\condor_c++_util\command_strings.h"\
+	"..\src\condor_c++_util\CondorError.h"\
 	"..\src\condor_c++_util\extArray.h"\
 	"..\src\condor_c++_util\HashTable.h"\
 	"..\src\condor_c++_util\my_hostname.h"\
@@ -106,6 +113,7 @@
 	"..\src\condor_includes\condor_constants.h"\
 	"..\src\condor_includes\condor_crypt.h"\
 	"..\src\condor_includes\condor_debug.h"\
+	"..\src\condor_includes\condor_error_codes.h"\
 	"..\src\condor_includes\condor_exprtype.h"\
 	"..\src\condor_includes\condor_file_lock.h"\
 	"..\src\condor_includes\condor_fix_access.h"\
@@ -126,6 +134,7 @@
 	"..\src\condor_includes\condor_secman.h"\
 	"..\src\condor_includes\condor_snutils.h"\
 	"..\src\condor_includes\condor_sys_aix.h"\
+	"..\src\condor_includes\condor_sys_bsd.h"\
 	"..\src\condor_includes\condor_sys_dux.h"\
 	"..\src\condor_includes\condor_sys_hpux.h"\
 	"..\src\condor_includes\condor_sys_irix.h"\
@@ -142,21 +151,25 @@
 	"..\src\condor_includes\SafeMsg.h"\
 	"..\src\condor_includes\sock.h"\
 	"..\src\condor_includes\sockCache.h"\
+	"..\src\condor_includes\stdsoap2.h"\
 	"..\src\condor_includes\stream.h"\
 	"..\src\condor_netman\netcapacity.h"\
 	"..\src\condor_netman\netres.h"\
 	"..\src\condor_netman\netusage.h"\
 	"..\src\condor_netman\router.h"\
 	"..\src\condor_sysapi\sysapi.h"\
+	"..\src\h\config.h"\
 	"..\src\h\fake_flock.h"\
 	"..\src\h\file_lock.h"\
 	"..\src\h\proc.h"\
 	"..\src\h\startup.h"\
+	{$(INCLUDE)}"wspiapi.h"\
 	
 
 ..\src\condor_eventd\eventd_main.C : \
 	"..\src\condor_c++_util\classad_hashtable.h"\
 	"..\src\condor_c++_util\command_strings.h"\
+	"..\src\condor_c++_util\CondorError.h"\
 	"..\src\condor_c++_util\extArray.h"\
 	"..\src\condor_c++_util\HashTable.h"\
 	"..\src\condor_c++_util\my_hostname.h"\
@@ -183,6 +196,7 @@
 	"..\src\condor_includes\condor_constants.h"\
 	"..\src\condor_includes\condor_crypt.h"\
 	"..\src\condor_includes\condor_debug.h"\
+	"..\src\condor_includes\condor_error_codes.h"\
 	"..\src\condor_includes\condor_exprtype.h"\
 	"..\src\condor_includes\condor_file_lock.h"\
 	"..\src\condor_includes\condor_fix_access.h"\
@@ -203,6 +217,7 @@
 	"..\src\condor_includes\condor_secman.h"\
 	"..\src\condor_includes\condor_snutils.h"\
 	"..\src\condor_includes\condor_sys_aix.h"\
+	"..\src\condor_includes\condor_sys_bsd.h"\
 	"..\src\condor_includes\condor_sys_dux.h"\
 	"..\src\condor_includes\condor_sys_hpux.h"\
 	"..\src\condor_includes\condor_sys_irix.h"\
@@ -219,20 +234,24 @@
 	"..\src\condor_includes\SafeMsg.h"\
 	"..\src\condor_includes\sock.h"\
 	"..\src\condor_includes\sockCache.h"\
+	"..\src\condor_includes\stdsoap2.h"\
 	"..\src\condor_includes\stream.h"\
 	"..\src\condor_netman\netcapacity.h"\
 	"..\src\condor_netman\netres.h"\
 	"..\src\condor_netman\netusage.h"\
 	"..\src\condor_netman\router.h"\
 	"..\src\condor_sysapi\sysapi.h"\
+	"..\src\h\config.h"\
 	"..\src\h\fake_flock.h"\
 	"..\src\h\file_lock.h"\
 	"..\src\h\proc.h"\
 	"..\src\h\startup.h"\
+	{$(INCLUDE)}"wspiapi.h"\
 	
 
 ..\src\condor_netman\instantiate.C : \
 	"..\src\condor_c++_util\classad_hashtable.h"\
+	"..\src\condor_c++_util\CondorError.h"\
 	"..\src\condor_c++_util\extArray.h"\
 	"..\src\condor_c++_util\HashTable.h"\
 	"..\src\condor_c++_util\my_hostname.h"\
@@ -252,6 +271,7 @@
 	"..\src\condor_includes\condor_constants.h"\
 	"..\src\condor_includes\condor_crypt.h"\
 	"..\src\condor_includes\condor_debug.h"\
+	"..\src\condor_includes\condor_error_codes.h"\
 	"..\src\condor_includes\condor_exprtype.h"\
 	"..\src\condor_includes\condor_file_lock.h"\
 	"..\src\condor_includes\condor_fix_access.h"\
@@ -271,6 +291,7 @@
 	"..\src\condor_includes\condor_random_num.h"\
 	"..\src\condor_includes\condor_snutils.h"\
 	"..\src\condor_includes\condor_sys_aix.h"\
+	"..\src\condor_includes\condor_sys_bsd.h"\
 	"..\src\condor_includes\condor_sys_dux.h"\
 	"..\src\condor_includes\condor_sys_hpux.h"\
 	"..\src\condor_includes\condor_sys_irix.h"\
@@ -321,6 +342,7 @@
 	"..\src\condor_includes\condor_macros.h"\
 	"..\src\condor_includes\condor_snutils.h"\
 	"..\src\condor_includes\condor_sys_aix.h"\
+	"..\src\condor_includes\condor_sys_bsd.h"\
 	"..\src\condor_includes\condor_sys_dux.h"\
 	"..\src\condor_includes\condor_sys_hpux.h"\
 	"..\src\condor_includes\condor_sys_irix.h"\
@@ -355,6 +377,7 @@
 	"..\src\condor_includes\condor_macros.h"\
 	"..\src\condor_includes\condor_snutils.h"\
 	"..\src\condor_includes\condor_sys_aix.h"\
+	"..\src\condor_includes\condor_sys_bsd.h"\
 	"..\src\condor_includes\condor_sys_dux.h"\
 	"..\src\condor_includes\condor_sys_hpux.h"\
 	"..\src\condor_includes\condor_sys_irix.h"\
@@ -389,6 +412,7 @@
 	"..\src\condor_includes\condor_macros.h"\
 	"..\src\condor_includes\condor_snutils.h"\
 	"..\src\condor_includes\condor_sys_aix.h"\
+	"..\src\condor_includes\condor_sys_bsd.h"\
 	"..\src\condor_includes\condor_sys_dux.h"\
 	"..\src\condor_includes\condor_sys_hpux.h"\
 	"..\src\condor_includes\condor_sys_irix.h"\
@@ -407,6 +431,7 @@
 
 ..\src\condor_netman\netman.C : \
 	"..\src\condor_c++_util\classad_hashtable.h"\
+	"..\src\condor_c++_util\CondorError.h"\
 	"..\src\condor_c++_util\extArray.h"\
 	"..\src\condor_c++_util\HashTable.h"\
 	"..\src\condor_c++_util\my_hostname.h"\
@@ -428,6 +453,7 @@
 	"..\src\condor_includes\condor_constants.h"\
 	"..\src\condor_includes\condor_crypt.h"\
 	"..\src\condor_includes\condor_debug.h"\
+	"..\src\condor_includes\condor_error_codes.h"\
 	"..\src\condor_includes\condor_exprtype.h"\
 	"..\src\condor_includes\condor_file_lock.h"\
 	"..\src\condor_includes\condor_fix_access.h"\
@@ -447,6 +473,7 @@
 	"..\src\condor_includes\condor_random_num.h"\
 	"..\src\condor_includes\condor_snutils.h"\
 	"..\src\condor_includes\condor_sys_aix.h"\
+	"..\src\condor_includes\condor_sys_bsd.h"\
 	"..\src\condor_includes\condor_sys_dux.h"\
 	"..\src\condor_includes\condor_sys_hpux.h"\
 	"..\src\condor_includes\condor_sys_irix.h"\
@@ -496,6 +523,7 @@
 	"..\src\condor_includes\condor_macros.h"\
 	"..\src\condor_includes\condor_snutils.h"\
 	"..\src\condor_includes\condor_sys_aix.h"\
+	"..\src\condor_includes\condor_sys_bsd.h"\
 	"..\src\condor_includes\condor_sys_dux.h"\
 	"..\src\condor_includes\condor_sys_hpux.h"\
 	"..\src\condor_includes\condor_sys_irix.h"\
@@ -531,6 +559,7 @@
 	"..\src\condor_includes\condor_macros.h"\
 	"..\src\condor_includes\condor_snutils.h"\
 	"..\src\condor_includes\condor_sys_aix.h"\
+	"..\src\condor_includes\condor_sys_bsd.h"\
 	"..\src\condor_includes\condor_sys_dux.h"\
 	"..\src\condor_includes\condor_sys_hpux.h"\
 	"..\src\condor_includes\condor_sys_irix.h"\
@@ -566,6 +595,7 @@
 	"..\src\condor_includes\condor_macros.h"\
 	"..\src\condor_includes\condor_snutils.h"\
 	"..\src\condor_includes\condor_sys_aix.h"\
+	"..\src\condor_includes\condor_sys_bsd.h"\
 	"..\src\condor_includes\condor_sys_dux.h"\
 	"..\src\condor_includes\condor_sys_hpux.h"\
 	"..\src\condor_includes\condor_sys_irix.h"\
@@ -599,6 +629,7 @@
 	"..\src\condor_includes\condor_macros.h"\
 	"..\src\condor_includes\condor_snutils.h"\
 	"..\src\condor_includes\condor_sys_aix.h"\
+	"..\src\condor_includes\condor_sys_bsd.h"\
 	"..\src\condor_includes\condor_sys_dux.h"\
 	"..\src\condor_includes\condor_sys_hpux.h"\
 	"..\src\condor_includes\condor_sys_irix.h"\
@@ -634,6 +665,7 @@
 	"..\src\condor_includes\condor_macros.h"\
 	"..\src\condor_includes\condor_snutils.h"\
 	"..\src\condor_includes\condor_sys_aix.h"\
+	"..\src\condor_includes\condor_sys_bsd.h"\
 	"..\src\condor_includes\condor_sys_dux.h"\
 	"..\src\condor_includes\condor_sys_hpux.h"\
 	"..\src\condor_includes\condor_sys_irix.h"\
@@ -651,6 +683,7 @@
 	"..\src\condor_c++_util\classad_hashtable.h"\
 	"..\src\condor_c++_util\command_strings.h"\
 	"..\src\condor_c++_util\condor_query.h"\
+	"..\src\condor_c++_util\CondorError.h"\
 	"..\src\condor_c++_util\extArray.h"\
 	"..\src\condor_c++_util\generic_query.h"\
 	"..\src\condor_c++_util\HashTable.h"\
@@ -683,6 +716,7 @@
 	"..\src\condor_includes\condor_constants.h"\
 	"..\src\condor_includes\condor_crypt.h"\
 	"..\src\condor_includes\condor_debug.h"\
+	"..\src\condor_includes\condor_error_codes.h"\
 	"..\src\condor_includes\condor_exprtype.h"\
 	"..\src\condor_includes\condor_file_lock.h"\
 	"..\src\condor_includes\condor_fix_access.h"\
@@ -704,6 +738,7 @@
 	"..\src\condor_includes\condor_secman.h"\
 	"..\src\condor_includes\condor_snutils.h"\
 	"..\src\condor_includes\condor_sys_aix.h"\
+	"..\src\condor_includes\condor_sys_bsd.h"\
 	"..\src\condor_includes\condor_sys_dux.h"\
 	"..\src\condor_includes\condor_sys_hpux.h"\
 	"..\src\condor_includes\condor_sys_irix.h"\
@@ -720,14 +755,17 @@
 	"..\src\condor_includes\SafeMsg.h"\
 	"..\src\condor_includes\sock.h"\
 	"..\src\condor_includes\sockCache.h"\
+	"..\src\condor_includes\stdsoap2.h"\
 	"..\src\condor_includes\stream.h"\
 	"..\src\condor_netman\netcapacity.h"\
 	"..\src\condor_netman\netres.h"\
 	"..\src\condor_netman\netusage.h"\
 	"..\src\condor_netman\router.h"\
 	"..\src\condor_sysapi\sysapi.h"\
+	"..\src\h\config.h"\
 	"..\src\h\fake_flock.h"\
 	"..\src\h\file_lock.h"\
 	"..\src\h\proc.h"\
 	"..\src\h\startup.h"\
+	{$(INCLUDE)}"wspiapi.h"\
 	
