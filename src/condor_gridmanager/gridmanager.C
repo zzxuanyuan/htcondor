@@ -1652,7 +1652,7 @@ WriteTerminateEventToUserLog( GlobusJob *curr_job )
 	event.normal = true;
 	event.returnValue = 0;
 
-	if( curr_job->useGridShell ) {
+	if( curr_job->IsExitStatusValid() ) {
 		int int_val;
 		if( job_ad->LookupBool(ATTR_ON_EXIT_BY_SIGNAL, int_val) ) {
 			if( int_val ) {

@@ -57,6 +57,20 @@ class GlobusJob : public Service
 	void ClearCallbacks();
 	GlobusResource *GetResource();
 
+	/* If true, then ATTR_ON_EXIT_BY_SIGNAL, ATTR_ON_EXIT_SIGNAL, and
+	   ATTR_ON_EXIT_CODE are valid.  If false, no exit status is available.
+	   At the moment this only returns true for gridshell jobs.
+
+	   This is virtual as a reminder for when we merge in Jaime's gridmanager
+	   reorg.  GlobusJob derives from a base Job class.  I imagine that the
+	   base job class will provide a virtual version that simply returns false,
+	   and GlobusJob will return true if the grid shell is active.  Heck, maybe
+	   gridshell jobs should be "class GlobusJobGridshell : public GlobusJob",
+	   but that only makes sense if the gridshell is permenantly bound to
+	   GlobusJob.
+	*/
+	virtual bool IsExitStatusValid();
+
 	static int probeInterval;
 	static int submitInterval;
 	static int restartInterval;

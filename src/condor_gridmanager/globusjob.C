@@ -2238,6 +2238,12 @@ GlobusResource *GlobusJob::GetResource()
 	return myResource;
 }
 
+bool GlobusJob::IsExitStatusValid()
+{
+	/* Using gridshell?  They're valid.  No gridshell?  Not available. */
+	return useGridShell;
+}
+
 MyString *GlobusJob::buildSubmitRSL()
 {
 	int transfer;
