@@ -692,6 +692,8 @@ dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too old!\n",procID.cluster,procID
 					 rc == GAHPCLIENT_COMMAND_PENDING ) {
 					break;
 				}
+					// TODO what about error "Already done"? We should
+					//   recognize it and act accordingly
 				if ( rc != GLOBUS_SUCCESS ) {
 					// unhandled error
 					dprintf( D_ALWAYS,
@@ -995,6 +997,7 @@ ClassAd *CondorJob::buildSubmitAd()
 		ATTR_WHEN_TO_TRANSFER_OUTPUT,
 		ATTR_TRANSFER_INPUT_FILES,
 		ATTR_TRANSFER_OUTPUT_FILES,
+		ATTR_NICE_USER,
 		NULL };		// list must end with a NULL
 
 	submit_ad = new ClassAd;
