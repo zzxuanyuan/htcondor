@@ -26,11 +26,16 @@ INCLUDEDIRS=-I/s/zlib/include
 # finally run the whole damn thing through condor compile. 
 # This produces a rather plump executable.
 
-all: compare thirdattempt
+all: compare 
 compare-sun:
 	make clean;
 	make compare;
 	mv compare compare-sun
+
+tester: compare_tester.C
+	condor_compile g++ $< -o $@
+	@echo ""
+	@echo "Now run $@ to make the ckpts."
 
 compare: secondattempt.o
 	$(CC) $(CCFLAGS) $(LIBDIRS) $(LDFLAGS) $< -lz -o $@ 
@@ -38,9 +43,5 @@ pure: secondattempt.o
 	$(PURIFY) $(CC) $(LIBDIRS) $(LDFLAGS) $< -lz -o $@
 secondattempt.o: secondattempt.C secondattempt.h
 	$(CC) $(CCFLAGS) $(INCLUDEDIRS) -c secondattempt.C 
-thirdattempt: thirdattempt.o
-	$(CC) $(CCFLAGS) $(LIBDIRS) $(LDFLAGS) thirdattempt.o -o $@
-thirdattempt.o: thirdattempt.C thirdattempt.h
-	$(CC) $(CCFLAGS) $(INCLUDEDIRS) -c $< 
 clean:
-	rm -f secondattempt.o compare 
+	rm -f secondattempt*.o compare pure tester tester.ckpt ckpt.*

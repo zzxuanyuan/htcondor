@@ -30,8 +30,8 @@ void rename_ckpt_file(char * desc, int ckpt_num);
 
 // global variables
 int allocSize = -1;	// size to allocate
-bool DEBUG = false;
-int ckpt_num = 0;   // to rename and save each successive ckpt file
+bool DEBUG = true;
+int ckpt_num = 1;   // to rename and save each successive ckpt file
 char ckpt_file_path [256];
 
 int 
@@ -105,6 +105,7 @@ main (int argc, char ** argv) {
 	ckpt();
 	rename_ckpt_file("read_only", ckpt_num++);
 
+	dprintf(("\nNow run compare against each successive pair of ckpts.\n"));
 	return 0;
 }
 
@@ -146,7 +147,7 @@ readArgs (int argc, char ** argv) {
 		if ( ! strcmp(argv[curArg], "-s")) {
 			allocSize = atoi(argv[++curArg]) * getpagesize();
 		} else if ( ! strcmp(argv[curArg], "-d")) {
-			DEBUG = true;
+			DEBUG = false;
 		} else {
 			usage(argv[0]);
 			exit(-1);
@@ -157,5 +158,5 @@ readArgs (int argc, char ** argv) {
 	if (allocSize < 0) {
 		allocSize = DEFAULT_ALLOC_SIZE;
 	}
-	dprintf(("allocSize is %i\n", allocSize));
+	dprintf(("allocSize is %i (%i pages)\n", allocSize, allocSize / getpagesize()));
 }
