@@ -61,7 +61,7 @@ struct GahpProxyInfo
 typedef void (* globus_gt4_gram_callback_func_t)(void * user_callback_arg,
 												 const char * job_contact,
 												 const char * state,
-												 int errorcode);
+												 const char * failure);
 
 static const char *GAHPCLIENT_DEFAULT_SERVER_ID = "DEFAULT";
 static const char *GAHPCLIENT_DEFAULT_SERVER_PATH = "DEFAULT";
