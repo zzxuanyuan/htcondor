@@ -418,6 +418,29 @@ JICShadow::reconnect( ReliSock* s, ClassAd* ad )
 	free( shadow_addr );
 	shadow_addr = strdup( shadow->addr() );
 
+		// tell our FileTransfer object to point to the new 
+		// shadow using the transsock and key in the ad from the
+		// reconnect request
+	if ( filetrans ) {
+		char *value1 = NULL;
+		char *value2 = NULL;
+		ad->LookupString(ATTR_TRANSFER_KEY,&value1);
+		ad->LookupString(ATTR_TRANSFER_SOCKET,&value2);
+		bool result = filetrans->changeServer(value1,value2);
+		if ( value1 && value2 && result ) {
+			dprintf(D_FULLDEBUG,
+				"Switching to new filetrans server, "
+				"sock=%s key=%s\n",value2,value1);
+		} else {
+			dprintf(D_ALWAYS,
+				"ERROR Failed to switch to new filetrans server, "
+				"sock=%s key=%s\n", value2 ? value2 : "(null)",
+				value1 ? value1 : "(null)");
+		}
+		if ( value1 ) free(value1);
+		if ( value2 ) free(value2);
+	}
+
 		// switch over to the new syscall_sock
 	dprintf( D_FULLDEBUG, "Closing old syscall sock <%s:%d>\n",
 			 syscall_sock->endpoint_ip_str(), 
@@ -478,8 +501,11 @@ JICShadow::notifyJobExit( int exit_status, int reason, UserProc*
 #ifdef WIN32		
 	job_exit_wants_ad = false;
 
+
 	if( shadow_version && shadow_version->built_since_version(6,3,0) ) {
+
 		job_exit_wants_ad = true;	// new shadow; send ad
+
 	}
 #endif		
 

@@ -1345,6 +1345,38 @@ RemoteResource::requestReconnect( void )
 		// First, fill up the request with all the data we need
 	shadow->publishShadowAttrs( &req );
 
+		// And also put in the request the ATTR_TRANS_SOCK and
+		// the ATTR_TRANS_KEY --- the starter will need these two
+		// atttribute value in order to re-establish the FileTransfer
+		// objects.  To get the values for these, just instantiate a 
+		// FileTransfer server object right here.  No worries if
+		// one already exists, the FileTransfer object will just
+		// quickly and quietly return success in that case.
+	ASSERT(jobAd);
+	filetrans.Init( jobAd, true, PRIV_USER );
+	char* value = NULL;
+	jobAd->LookupString(ATTR_TRANSFER_KEY,&value);
+	if (value) {
+		msg.sprintf("%s=\"%s\"",ATTR_TRANSFER_KEY,value);
+		req.Insert(msg.Value());
+		free(value);
+		value = NULL;
+	} else {
+		dprintf( D_ALWAYS,"requestReconnect(): failed to determine %s\n",
+			ATTR_TRANSFER_KEY );
+	}
+	jobAd->LookupString(ATTR_TRANSFER_SOCKET,&value);
+	if (value) {
+		msg.sprintf("%s=\"%s\"",ATTR_TRANSFER_SOCKET,value);
+		req.Insert(msg.Value());
+		free(value);
+		value = NULL;
+	} else {
+		dprintf( D_ALWAYS,"requestReconnect(): failed to determine %s\n",
+			ATTR_TRANSFER_SOCKET );
+	}
+
+
 		// try the command itself...
 	if( ! starter.reconnect(&req, &reply, rsock) ) {
 		dprintf( D_ALWAYS, "Attempt to reconnect failed: %s\n", 

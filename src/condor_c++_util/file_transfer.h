@@ -140,6 +140,14 @@ class FileTransfer {
 		*/
 	bool addOutputFile( const char* filename );
 
+		/** Allows the client side of the filetransfer object to 
+			point to a different server.
+			@param transkey Value of ATTR_TRANSFER_KEY set by server
+			@param transsock Value of ATTR_TRANSFER_SOCKET set by server
+			@return true on success, false on failure
+		*/
+	bool changeServer( const char* transkey, const char* transsock );
+
   protected:
 
 	int Download(ReliSock *s, bool blocking);
