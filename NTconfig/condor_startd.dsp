@@ -123,7 +123,7 @@ SOURCE=..\src\condor_startd.V6\CondorSystrayCommon.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_startd.V6\CondorSystrayNotifier.C
+SOURCE=..\src\condor_startd.V6\CondorSystrayNotifier.cpp
 # End Source File
 # Begin Source File
 
