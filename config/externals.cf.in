@@ -1,0 +1,69 @@
+EXTERNALS_INSTALL_ROOT = @prefix@/install
+EXTERNALS_BUNDLE_ROOT = @prefix@/bundles
+EXTERNALS_BUILD = @prefix@/build
+EXTERNALS_TRIGGER_DIR = @prefix@/triggers
+
+EXT_KERBEROS_VERSION = krb5-1.2.5
+EXT_GLOBUS_VERSION = globus_2.2.4
+EXT_GAHP_VERSION = gahp.v65
+EXT_MAN_VERSION = man.6.5.3
+EXT_GLIBC_VERSION = glibc-2.2.2
+EXT_ZLIB_VERSION = zlib-1.1.3
+EXT_GPT_VERSION = gpt-3.0
+EXT_PVM_VERSION = pvm3.4.2
+
+MANDIR = $(EXTERNALS_INSTALL_ROOT)/$(EXT_MAN_VERSION)/v6.5
+
+GCBInclude = /p/condor/workspaces/gcb/include
+GCBLib = /p/condor/workspaces/gcb/lib
+
+OpenSSLPath = $(EXTERNALS_INSTALL_ROOT)/$(EXT_GLOBUS_VERSION)
+GlobusPath = $(EXTERNALS_INSTALL_ROOT)/$(EXT_GLOBUS_VERSION)
+
+GAHP_DIR = $(EXTERNALS_INSTALL_ROOT)/$(EXT_GAHP_VERSION)/bin
+
+
+#define NestLibPath /p/condor/workspaces/nest/lib
+#define NestIncludePath /p/condor/workspaces/nest/include
+
+/*------------------------------------------
+ * Condor Credential API related
+ *------------------------------------------*/
+KERBEROS_DIR = 			$(EXTERNALS_INSTALL_ROOT)/$(EXT_KERBEROS_VERSION)
+#if WANT_KERBEROS && HAS_KERBEROS
+KERBEROS_INCLUDE =		$(KERBEROS_DIR)/include
+#if KERBEROS_K5
+KERBEROS_LIB =			$(KERBEROS_DIR)/lib/libkrb5.a        \
+                		$(KERBEROS_DIR)/lib/libk5crypto.a    \
+				$(KERBEROS_DIR)/lib/libcom_err.a
+#else
+KERBEROS_LIB =			$(KERBEROS_DIR)/lib/libkrb5.a        \
+				$(KERBEROS_DIR)/lib/libcrypto.a      \
+				$(KERBEROS_DIR)/lib/libcom_err.a
+#endif
+
+#else /* WANT_KERBEROS && HAS_KERBEROS */
+KERBEROS_LIB =
+KERBEROS_INCLUDE = 
+#endif
+
+
+#define X11LibPath /s/X11R6-2/lib
+#define X11Include /s/X11R6-2/include
+
+/*#define ZLibPath /p/condor/workspaces/glibc/zlib/lib
+#define ZIncludePath /p/condor/workspaces/glibc/zlib/include*/
+
+ZLibPath = $(EXTERNALS_INSTALL_ROOT)/$(EXT_ZLIB_VERSION)/lib
+ZIncludePath = $(EXTERNALS_INSTALL_ROOT)/$(EXT_ZLIB_VERSION)/include
+
+/* Set up where I get the glibc libraries for packaging with the release */
+#if IS_GLIBC21
+GLIBC_DIR = /p/condor/workspaces/glibc/glibc-install/lib
+#elif IS_GLIBC22
+GLIBC_DIR = $(EXTERNALS_INSTALL_ROOT)/$(EXT_GLIBC_VERSION)/lib
+#elif IS_GLIBC23
+GLIBC_DIR = /p/condor/workspaces/glibc/glibc-install/lib-glibc2.3.2/lib
+#endif
+
+PVM_DIR = $(EXTERNALS_INSTALL_ROOT)/$(EXT_PVM_VERSION)
