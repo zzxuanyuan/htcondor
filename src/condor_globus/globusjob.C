@@ -292,6 +292,12 @@ char *GlobusJob::buildRSL( ClassAd *classad )
 	strcat( rsl, buff );
 
 	buff[0] = '\0';
+	if ( classad->LookupString(ATTR_JOB_REMOTE_IWD, buff) && *buff ) {
+		strcat( rsl, ")(directory=" );
+		strcat( rsl, buff );
+	}
+
+	buff[0] = '\0';
 	if ( classad->LookupString(ATTR_JOB_ARGUMENTS, buff) && *buff ) {
 		strcat( rsl, ")(arguments=" );
 		strcat( rsl, buff );

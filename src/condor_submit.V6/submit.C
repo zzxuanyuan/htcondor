@@ -137,6 +137,7 @@ char	*Error			= "error";
 char	*RootDir		= "rootdir";
 #endif
 char	*InitialDir		= "initialdir";
+char	*RemoteInitialDir		= "remote_initialdir";
 char	*Requirements	= "requirements";
 char	*Preferences	= "preferences";
 char	*Rank				= "rank";
@@ -185,6 +186,7 @@ void 	SetStdFile( int which_file );
 void 	SetPriority();
 void 	SetNotification();
 void 	SetNotifyUser ();
+void	SetRemoteInitialDir();
 void	SetExitRequirements();
 void 	SetArguments();
 void 	SetEnvironment();
@@ -205,7 +207,7 @@ void	SetKillSig();
 void	SetForcedAttributes();
 void 	check_iwd( char *iwd );
 int	read_condor_file( FILE *fp );
-char * 	condor_param( char *name );
+char * 	condor_param( const char *name );
 void 	set_condor_param( char *name, char *value );
 void 	queue(int num);
 char * 	check_requirements( char *orig );
@@ -1347,6 +1349,23 @@ SetNotifyUser()
 }
 
 void
+SetRemoteInitialDir()
+{
+	char *who = condor_param(RemoteInitialDir);
+
+	if( ! who ) {
+			// isn't there, try ClassAd flavor
+		who = condor_param( ATTR_JOB_REMOTE_IWD );
+	}
+
+	if (who) {
+		(void) sprintf (buffer, "%s = \"%s\"", ATTR_JOB_REMOTE_IWD, who);
+		InsertJobExpr (buffer);
+		free(who);
+	}
+}
+
+void
 SetExitRequirements()
 {
 	char *who = condor_param(ExitRequirements);
@@ -2001,7 +2020,7 @@ read_condor_file( FILE *fp )
 }
 
 char *
-condor_param( char *name )
+condor_param( const char *name )
 {
 	char *pval = lookup_macro(name, ProcVars, PROCVARSIZE);
 
@@ -2154,6 +2173,7 @@ queue(int num)
 		SetEnvironment();
 		SetNotification();
 		SetNotifyUser();
+		SetRemoteInitialDir();
 		SetExitRequirements();
 		SetUserLog();
 		SetCoreSize();
