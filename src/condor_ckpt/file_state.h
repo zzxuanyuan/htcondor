@@ -55,7 +55,7 @@ This class does _not_:
 <dir>
 	<li> Decide whether mapping is in effect.
 	     The system call stubs do that.
-	<li> Implement read, write, seek, etc. for _any_ file.
+	<li> Implement read, write, ioctl, etc. for _any_ file.
 	     Subclasses of File do that (file_types.C)
 	<li> Implement buffering.
 	     A BufferCache does that (buffer_cache.C)
@@ -95,6 +95,28 @@ fo
 </pre>
 <p>
 Various implementations of File can be found in file_types.[hC].
+<p>
+When in standalone checkpointing mode, the structure above is
+maintained so that we can use the same object and caching sceme.
+However, we need to construct dups so that functions which do
+not explicitly map the fd will still find the right fo.
+<p>
+In standalone mode, dup() and dup2() will perform a real
+dup syscall.  When the file table is recovered, the lowest
+numbered fd referring to an fp will be created using open().
+The remaining fds which point to the same fp will be
+dup()d to get the same effect.
+<p>
+Notice that this scheme may reverse the original creation
+of the dup, but this should have no effect on the program.
+<pre>
+fd  fd  fd                 fd  fd fd
+  \ |  /     would be      |  /  /
+    fp       restored      | / /
+    |        like this:    fp
+    |                      |
+    fo                     fo
+</pre>
 */
 
 class OpenFileTable {
