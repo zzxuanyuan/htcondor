@@ -31,6 +31,7 @@
 #include "condor_secman.h"
 #include "condor_network.h" // For the port numbers...
 #include "daemon_types.h"
+#include "daemon_error.h"
 #include "KeyCache.h"
 #include "CondorError.h"
 
@@ -122,6 +123,8 @@ public:
 		  string desribing it.  Returns NULL if there's no error.
 		  */
 	char* error( void )	{ return _error; }
+
+	daemon_error_t errorNum( void ) { return _error_num; }
 
 		// //////////////////////////////////////////////////////////
 		/// Methods for getting information about the daemon.
@@ -324,6 +327,7 @@ protected:
 	char* _platform;
 	char* _pool;
 	char* _error;
+	daemon_error_t _error_num;
 	char* _id_str;
 	char* _subsys;
 	int _port;
@@ -401,7 +405,7 @@ protected:
 		  is already set, deallocate the existing string.  Then, make
 		  a copy of the given string and store that in _error.
 		  */
-	void newError( const char* );
+	void newError( daemon_error_t, const char* );
 
 		/** Returns a string containing the local daemon's name.  If
 		  the <subsys>_NAME parameter is set in the config file, we
