@@ -19,6 +19,8 @@ BaseCollection(const MyString& rank) : childItors( 4 ), contentItors( 4 )
         }
     }
     rankCtx.ReplaceLeftAd( ad );
+	lastChildItor = 0;
+	lastContentItor = 0;	
 	childItors.fill( NULL );
 	contentItors.fill( NULL );
 }
@@ -35,6 +37,8 @@ BaseCollection(ExprTree *tree) : childItors( 4 ), contentItors( 4 )
         }
     }
     rankCtx.ReplaceLeftAd( ad );
+	lastChildItor = 0;
+	lastContentItor = 0;
 	childItors.fill( NULL );
 	contentItors.fill( NULL );
 }
@@ -42,6 +46,13 @@ BaseCollection(ExprTree *tree) : childItors( 4 ), contentItors( 4 )
 BaseCollection::
 ~BaseCollection( )
 {
+		// invalidate active iterators
+	for( int i = 0 ; i < lastChildItor ; i++ ) {
+		if( childItors[i] ) childItors[i]->invalidate( );
+	}
+	for( int i = 0 ; i < lastContentItor ; i++ ) {
+		if( contentItors[i] ) contentItors[i]->invalidate( );
+	}
 }
 
 ExprTree *BaseCollection::
@@ -66,52 +77,112 @@ GetRankValue( ClassAd* ad )
 
 
 void BaseCollection::
-RegisterChildItor( CollChildIterator *itor )
+RegisterChildItor( CollChildIterator *itor, ClassAdCollection *cm, int ID )
 {
-	int last = childItors.getlast( );
-	for( int i = 0 ; i <= last ; i++ ) {
-		if( childItors[i] == itor ) return;
+	bool found = false;
+	if( !itor ) return;
+	for( int i = 0 ; i < lastChildItor ; i++ ) {
+		if( childItors[i] == itor ) {
+			found = true;
+			break;
+		}
 	}
-	childItors[last+1] = itor;
+	if( !found ) {
+		childItors[lastChildItor] = itor;
+		lastChildItor++;
+	}
+	itor->initialize( cm, this, ID, Children );
 }
 
 
 void BaseCollection::
 UnregisterChildItor( CollChildIterator *itor )
 {
-	int last = childItors.getlast( );
-	for( int i = 0; i <= last; i++ ) {
+	if( !itor ) return;
+	for( int i = 0; i < lastChildItor; i++ ) {
 		if( childItors[i] == itor ) {
-			childItors[i] = childItors[last];
-			childItors[last] = NULL;
+			lastChildItor--;
+			childItors[i] = childItors[lastChildItor];
+			childItors[lastChildItor] = NULL;
+			return;
 		}
 	}
 }
 
 
 void BaseCollection::
-RegisterContentItor( CollContentIterator *itor )
+RegisterContentItor( CollContentIterator *itor, ClassAdCollection *cm, int ID )
 {
-	int last = contentItors.getlast( );
-	for( int i = 0 ; i <= last ; i++ ) {
-		if( contentItors[i] == itor ) return;
+	bool found = false;
+	if( !itor ) return;
+	for( int i = 0 ; i < lastContentItor ; i++ ) {
+		if( contentItors[i] == itor ) {
+			found = true;
+			break;
+		}
 	}
-	contentItors[last+1] = itor;
+	if( !found ) {
+		contentItors[lastContentItor] = itor;
+		lastContentItor++;
+	}
+	itor->initialize( cm, this, ID, Members );
 }
 
 
 void BaseCollection::
 UnregisterContentItor( CollContentIterator *itor )
 {
-	int last = contentItors.getlast( );
-	for( int i = 0; i <= last; i++ ) {
+	if( !itor ) return;
+	for( int i = 0; i < lastContentItor; i++ ) {
 		if( contentItors[i] == itor ) {
-			contentItors[i] = contentItors[last];
-			contentItors[last] = NULL;
+			lastContentItor--;
+			contentItors[i] = contentItors[lastContentItor];
+			contentItors[lastContentItor] = NULL;
+			return;
 		}
 	}
 }
 
+
+void BaseCollection::
+NotifyContentItorsInsertion( )
+{
+	for( int i = 0 ; i < lastContentItor ; i++ ) {
+		if( contentItors[i] ) {
+			contentItors[i]->updateForInsertion( );
+		}
+	}
+}
+
+void BaseCollection::
+NotifyContentItorsDeletion( const RankedClassAd &ad )
+{
+	for( int i = 0 ; i < lastContentItor ; i++ ) {
+		if( contentItors[i] ) {
+			contentItors[i]->updateForDeletion( ad );
+		}
+	}
+}
+
+void BaseCollection::
+NotifyChildItorsInsertion( )
+{
+	for( int i = 0 ; i < lastChildItor ; i++ ) {
+		if( childItors[i] ) {
+			childItors[i]->updateForInsertion( );
+		}
+	}
+}
+
+void BaseCollection::
+NotifyChildItorsDeletion( int item )
+{
+	for( int i = 0 ; i < lastChildItor ; i++ ) {
+		if( childItors[i] ) {
+			childItors[i]->updateForDeletion( item );
+		}
+	}
+}
 
 ConstraintCollection::
 ConstraintCollection(const MyString& rank, const MyString& constraint)
@@ -272,8 +343,6 @@ bool ClassAdCollection::SetAttribute(const char *key, const char *name, const
 }
 
 	
-
-
 //-----------------------------------------------------------------------
 /** Delete an attribute of a class ad - this operation is logged.
 Any effects on collection membership will also take place.
@@ -317,6 +386,7 @@ int ClassAdCollection::CreateExplicitCollection(int ParentCoID,
 
 	// Add to parent's children
 	Parent->Children.Add(CoID);
+	Parent->NotifyChildItorsInsertion( );
 
 	// Add Parents members to new collection
 	RankedClassAd RankedAd;
@@ -353,6 +423,7 @@ int ClassAdCollection::CreateConstraintCollection(int ParentCoID,
 
 	// Add to parent's children
 	Parent->Children.Add(CoID);
+	Parent->NotifyChildItorsInsertion( );
 
 	// Add Parents members to new collection
 	RankedClassAd RankedAd;
@@ -381,6 +452,7 @@ int ClassAdCollection::CreatePartition(int ParentCoID, const MyString& Rank,
 
 	// Add to parent's children
 	Parent->Children.Add(CoID);
+	Parent->NotifyChildItorsInsertion( );
 
 	// Add Parents members to new collection
 	RankedClassAd RankedAd;
@@ -407,6 +479,7 @@ int ClassAdCollection::CreatePartition(int ParentCoID, ExprTree *Rank,
 
 	// Add to parent's children
 	Parent->Children.Add(CoID);
+	Parent->NotifyChildItorsInsertion( );
 
 	// Add Parents members to new collection
 	RankedClassAd RankedAd;
@@ -427,6 +500,8 @@ int ClassAdCollection::FindPartition( int ParentCoID, ClassAd *rep )
 	int				CoID;
 
 	if( Collections.lookup( ParentCoID, Parent ) == -1 ) return -1;
+	if( Parent->Type( ) != PartitionParent_e ) return -1;
+
 	partitionParent = (PartitionParent*) Parent;
 	if(!makePartitionHashKey(rep,partitionParent->Attributes,partitionValues)){
 		return -1;
@@ -489,11 +564,15 @@ bool ClassAdCollection::AddClassAd(int CoID, const MyString& OID, ClassAd* Ad)
 	while (Coll->Members.Iterate(CurrRankedAd)) {
 		if (RankedAd.Rank<=CurrRankedAd.Rank) {
 			Coll->Members.Insert(RankedAd);
+			Coll->NotifyContentItorsInsertion( );
 			Inserted=true;
 			break;
 		}
 	}
-	if (!Inserted) Coll->Members.Insert(RankedAd);
+	if (!Inserted) {
+		Coll->Members.Insert(RankedAd);
+		Coll->NotifyContentItorsInsertion( );
+	}
 
 	// Insert into chldren
 	int ChildCoID;
@@ -540,6 +619,7 @@ bool ClassAdCollection::CheckClassAd(BaseCollection* Coll,const MyString& OID,
 
 			// Add to parent's children
 		ParentColl->Children.Add(CoID);
+		ParentColl->NotifyChildItorsInsertion( );
 	} 
 
 	// Add to child
@@ -572,6 +652,8 @@ bool ClassAdCollection::RemoveClassAd(int CoID, const MyString& OID)
 {
 	// Get collection pointer
 	BaseCollection* Coll;
+	RankedClassAd	rad( OID );
+
 	if (Collections.lookup(CoID,Coll)==-1) return false;
 
 	// Check if ad is in the collection and remove it
@@ -579,7 +661,8 @@ bool ClassAdCollection::RemoveClassAd(int CoID, const MyString& OID)
 		Coll->Type()!=PartitionParent_e) {
 		return false;
 	}
-	Coll->Members.Remove(RankedClassAd(OID));
+	Coll->NotifyContentItorsDeletion( rad );
+	Coll->Members.Remove(rad);
 
 	// remove from children
 	int ChildCoID;
@@ -616,6 +699,24 @@ bool ClassAdCollection::RemoveCollection(int CoID, BaseCollection* Coll)
 //-----------------------------------------------------------------------
 /// Start iterating on cllection IDs
 //-----------------------------------------------------------------------
+bool ClassAdCollection::
+InitializeIterator( int CoID, CollContentIterator& itor )
+{
+	BaseCollection *bc;
+
+	if( Collections.lookup( CoID, bc ) == -1 ) return false;
+	bc->RegisterContentItor( &itor, this, CoID );
+	return( true );
+}
+
+bool ClassAdCollection::
+InitializeIterator( int CoID, CollChildIterator& itor )
+{
+	BaseCollection *bc;
+	if( Collections.lookup( CoID, bc ) == -1 ) return false;
+	bc->RegisterChildItor( &itor, this, CoID );
+	return( true );
+}
 
 void ClassAdCollection::StartIterateAllCollections()
 {
@@ -865,7 +966,7 @@ CollChildIterator( const CollChildIterator& i )
 
 		// if we're copying from a valid itor, register the new itor
 	if( !( status & COLL_ITOR_INVALID ) ) {
-		baseCollection->RegisterChildItor( this );
+		baseCollection->RegisterChildItor( this, collManager, collID );
 	}
 }
 
@@ -880,24 +981,38 @@ CollChildIterator::
 }
 
 
-int CollChildIterator::
+bool CollChildIterator::
 CurrentCollection( int &childID )
 {
-	if( !( status & COLL_ITOR_OK ) ) return( status );
+	if( !( status & COLL_ITOR_OK ) ) return( false );
 	if( !itor.Current( childID ) ) { 
 		EXCEPT( "Should not reach here" ); 
 	}
+	return( true );
 }
 
 
 int CollChildIterator::
 NextCollection( int &childID )
 {
-	if( ( status & COLL_ITOR_OK ) || ( status & COLL_BEFORE_START ) ) {
-		if( !itor.Next( childID ) ) status |= COLL_AT_END;
+	if( status & COLL_ITOR_INVALID ) {
+		status = COLL_ITOR_INVALID;
+		return( 0 );
 	}
-	status &= ~COLL_BEFORE_START;
-	return( status );
+
+	if( ( status & COLL_ITOR_OK ) || ( status & COLL_BEFORE_START ) ) {
+			// clear out old flags
+		status &= ~( COLL_ITOR_MOVED | COLL_ITEM_ADDED | COLL_ITEM_REMOVED );
+		if( !itor.Next( childID ) ) {
+			status |= COLL_AT_END;
+			status &= ~COLL_ITOR_OK;
+			status &= ~COLL_BEFORE_START;
+			return( 0 );
+		} else {
+			status |= COLL_ITOR_OK;
+		}
+	}
+	return( ( status == COLL_ITOR_OK ) ? +1 : -1 );
 }
 
 
@@ -981,7 +1096,7 @@ CollContentIterator( const CollContentIterator& i )
 
 		// if we're copying from a valid itor, register the new itor
 	if( !( status & COLL_ITOR_INVALID ) ) {
-		baseCollection->RegisterContentItor( this );
+		baseCollection->RegisterContentItor( this, collManager, collID );
 	}
 }
 
@@ -996,12 +1111,12 @@ CollContentIterator::
 }
 
 
-int CollContentIterator::
+bool CollContentIterator::
 CurrentAd( const ClassAd *&classad ) const
 {
 	RankedClassAd 	ra;
 	ClassAd			*ad;
-	if( !( status & COLL_ITOR_OK ) ) return( status );
+	if( !( status & COLL_ITOR_OK ) ) return( false );
 	if( !itor.Current( ra ) ) { 
 		EXCEPT( "Should not reach here" ); 
 	}
@@ -1009,32 +1124,32 @@ CurrentAd( const ClassAd *&classad ) const
 		EXCEPT( "Should not reach here" );
 	}
 	classad = ad;
-	return( status );
+	return( true );
 }
 
 
-int CollContentIterator::
+bool CollContentIterator::
 CurrentAdKey( char *key ) const
 {
 	RankedClassAd ra;
-	if( !( status & COLL_ITOR_OK ) ) return( status );
+	if( !( status & COLL_ITOR_OK ) ) return( false );
 	if( !itor.Current( ra ) ) { 
 		EXCEPT( "Should not reach here" ); 
 	}
 	strcpy( key, ra.OID.Value( ) );
-	return( status );
+	return( true );
 }
 
-int CollContentIterator::
+bool CollContentIterator::
 CurrentAdRank( double &rank ) const
 {
 	RankedClassAd ra;
-	if( !( status & COLL_ITOR_OK ) ) return( status );
+	if( !( status & COLL_ITOR_OK ) ) return( false );
 	if( !itor.Current( ra ) ) { 
 		EXCEPT( "Should not reach here" ); 
 	}
 	rank = ra.Rank;
-	return( status );
+	return( true );
 }
 
 
@@ -1044,15 +1159,28 @@ NextAd( const ClassAd *&classad )
 	RankedClassAd	ra;
 	ClassAd			*ad;
 
+	if( status & COLL_ITOR_INVALID ) {
+		status = COLL_ITOR_INVALID;
+		return( 0 );
+	}
+
 	if( ( status & COLL_ITOR_OK ) || ( status & COLL_BEFORE_START ) ) {
-		if( !itor.Next( ra ) ) status |= COLL_AT_END;
+		if( !itor.Next( ra ) ) {
+			status |= COLL_AT_END;
+			status &= ~COLL_ITOR_OK;
+			status &= ~COLL_BEFORE_START;
+			return( 0 );
+		}
+			// clear out old flags
+		status &= ~( COLL_ITOR_MOVED | COLL_ITEM_ADDED | COLL_ITEM_REMOVED );
 	}
 	if( collManager->table.lookup( HashKey( ra.OID.Value() ), ad ) == -1 ) {
 		EXCEPT( "Should not reach here" );
 	}
 	status &= ~COLL_BEFORE_START;
+	status |= COLL_ITOR_OK;
 	classad = ad;
-	return( status );
+	return( ( status == COLL_ITOR_OK ) ? +1 : -1 );
 }
 
 

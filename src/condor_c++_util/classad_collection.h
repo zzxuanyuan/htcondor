@@ -19,7 +19,7 @@ int partitionHashFcn( const MyString &, int );
 ///--------------------------------------------------------------------------
 
 //@author Adiel Yoaz
-//@include: classad_collection_types.h
+///@include: classad_collection_types.h
 
 /** This is the repository main class. Using the methods of this class
     the user can create and delete class-ads, change their attributes,
@@ -225,6 +225,9 @@ public:
   /**@name Iteration methods
   */
   //@{
+
+  bool InitializeIterator( int CoID, CollContentIterator& i );
+  bool InitializeIterator( int CoID, CollChildIterator& i );
 
   /** Start iterations on all collections
     @return nothing
