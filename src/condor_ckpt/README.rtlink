@@ -1,0 +1,167 @@
+This file summarizes how RTLINK works and lists pending tasks.
+-Vic Zandy, zandy@cs.wisc.edu, June 29 1999.
+
+
+Runtime-loaded Condor libraries (RTLINK Universe):
+
+The RTLINK universe allows an ordinary executable, not linked with the
+Condor libraries, to be submitted to and run under Condor like a
+STANDARD job.  As the job starts, RTLINK loads the Condor libraries
+and binds its system calls to the Condor syscall RPCs.  Like STANDARD
+jobs, no user modification of the application code is required to use
+RTLINK.  It is enabled by setting "universe=rtlink" in the submit
+file.
+
+When the starter execs an RTLINK job, it sets the LD_PRELOAD
+environment variable to the names of three dynamic Condor libraries:
+librtlink_startup.so, libcondor_syscall_lib.so, libc_plus_alloc.so.
+LD_PRELOAD is a runtime linker parameter (see ld.so.1(1)) that causes
+these libraries to be loaded before any other libraries.
+
+libcondor_syscall_lib.so, a dynamic version of condor_syscall_lib.a,
+contains the Condor checkpoint and syscall RPC stubs.  When this
+library is LD_PRELOADed, system calls from application code are
+resolved to these functions, instead of the standard definitions
+contained in libc.
+
+libc_plus_alloc.so is a dynamic version of c_plus_alloc.o, providing
+C++ support to Condor code in otherwise non-C++ applications.
+
+librtlink_startup.so calls the Condor startup code before the
+application starts.  It contains only a definition of the function
+_init(), which is called by the runtime linker when it is loaded.
+_init() calls the Condor startup code.  LD_PRELOADing this library
+ensures that _init() is called before application code.
+
+A fourth library, librtlink_restart.so, is loaded by the job when it
+is restarting a checkpoint.  It is loaded into a region of memory not
+occupied by the checkpoint image to ensure that it does not overwrite
+itself as the checkpoint is restored.  To load this way, we first
+allocate all pages in the ckpt image that are not already allocated in
+the restarting process.  After the ckpt is restored, but before user
+code resumes, we de-allocate the pages not in the ckpt image to unload
+librtlink_restart.so.
+
+Linking librtlink_restart.so requires some special preparation.  The
+goal is to create a "self-contained" shlib with enough code to load
+the ckpt image, copy it into the process, and return to the user app.
+In terms of image.C functions, it needs to implement Image::Restore.
+
+"Self-contained" means that the library contains a definition for
+every symbol it references.  As a self-contained library,
+librtlink_restart can execute without relying on definitions in other
+shlibs or the executable.  It can thus scribble arbitrarily on any
+portion of the address space, other than the space it occupies,
+without fear of clobbering code or data that it may later reference.
+This is how it safely restores the ckpt image.
+
+Making librtlink_restart self-contained requires special linker
+options.  Ordinarily, if librtlink_restart references and defines a
+symbol FOO that is also defined in another shlib or the executable,
+the reference may be resolved to the latter definition.  Although
+librtlink_restart has the potential to be self-contained, since it
+defines FOO, the default behavior is to bind its references into
+previously loaded objects first, rather than into itself.  (This
+behavior is a feature -- we rely upon it to interpose syscall RPCs
+without re-linking the executable.)  A linker option that both gcc and
+the native Solaris ld call "symbolic binding" changes this behavior to
+bind all references internally within librtlink_restart.
+
+Symbolic binding is a pain in the ass.  It is invoked in the native
+Solaris ld with the "-B symbolic" option, and in gcc with "-symbolic".
+The native Solaris 2.6 ld coredumps when symbolic binding is invoked.
+gcc is no help: it calls the native ld, passing it "-B symbolic" as
+well as the option "-z text".  This second option causes the link to
+fail for what look like data relocation errors; we expect the link
+would coredump anyway from "-B symbolic".  Even if ld were fixed, or
+if the (presumably functional) GNU ld were used instead, we cannot use
+gcc until we figure out how to make the relocation errors go away (or
+get gcc to NOT pass "-z text" to ld).
+
+We ignore "-z text" and workaround the Solaris ld coredump.  ld is
+happy when we compile some of the .o's in librestart into PIC
+(position independent code), using the "-f pic" option to gcc.  It
+suffices to compile the objects in condor_syscall_lib/ and
+condor_ckpt/ into PIC; the objects in e.g. condor_util_lib/ and
+condor_io/ need not be PIC.  The precise concentration of PIC needed
+to link librestart without causing ld to foul the nest is unknown.
+
+So, to create librtlink_restart.so, we have done the following: the
+condor_syscall_lib/ and condor_ckpt/ objects are compiled -fpic to
+keep ld happy; and the native ld is explicitly called in the
+condor_syscall_lib/ Makefile to keep gcc from passing "-z text" to ld.
+
+One exception is tmp_stack.C, which defines the function that changes
+the stack (ExecuteOnTmpStk).  It fails when compiled into PIC (the
+algorithm does not work).  tmp_stack.C is compiled into non-PIC.
+Similarly, longjmp/setjmp are extracted from libc.a and linked as .o
+files into librtlink_restart.so; they do not work if they are called
+in libc.so.
+
+
+Files:
+
+In condor_syscall_lib/, remote_startup.c has been split into
+remote_startup_common.c and remote_startup_std.c, and
+remote_startup_rtlink.C has been added.
+
+In condor_ckpt/, mm.C and mm.h have been added.  They define the
+memory map operations required to load and unload the restart library.
+
+
+See Also:
+
+The Solaris "Linkers and Libraries Guide", available from
+docs.sun.com, is a good reference on the workings of dynamic objects.
+
+
+TODO:
+
+- Support non-Solaris platforms.  Platform configuration files need to
+define the shared library and native symbolic linking flags.
+machdep.* need to define versions of mmap_*, as defined in
+machdep.Solaris.C.
+
+- If the user sets LD_LIBRARY_PATH in the submit environment, the
+starter should prepend the path to the Condor libraries to its value,
+rather than clobbering it.
+
+- Add DEFAULT_RANK_RTLINK, APPEND_RANK_RTLINK, APPEND_REQ_RTLINK
+parameters (currently RTLINK uses DEFAULT_RANK_STD, etc.)
+
+- Add a parameter, say RTLINK_RESTART_LIB, that is the name of the
+restart library.  Currently the restart code assumes the name is
+librtlink_restart.so.
+
+- The documentation says nothing about RTLINK.
+
+- Memory protection is a bit broken on Solaris:
+  Protections bits are READ from the process via /proc into the
+pr_mflags member of struct prmap's.  These return flags as follows:
+MA_READ    0x04
+MA_WRITE   0x02
+MA_EXEC    0x01
+
+  Protections are stored in Condor in the prot member of SegMap.  It
+is a copy of the pr_mflags value, obtained in machdep.Solaris.C.
+
+  Protections are SET in the process via mmap.  The protection flags
+for mmap are as follows:
+PROT_READ       0x1
+PROT_WRITE      0x2
+PROT_EXEC       0x4
+
+  However, the flags that are passed in are simply the SegMap prot
+flags.  In that case, when mmap sees PROT_READ set, it is because
+MA_EXEC was set in the Segmap protection, and vice versa.
+
+  This works anyways because executable pages must be readable, and,
+fortunately, Solaris happens to set the exec bit on read-only data
+pages.  To fix this, protections should be converted, either when they
+are obtained, or when they are passed to mmap.
+
+- The global user data pointer, apparently for PVM jobs, is not
+restored in RTLINK ckpt restarts because doing so causes a segfault.
+
+- In file_state.C, mm.C, filestate.h addresses are typed as unsigned
+longs, not RAW_ADDRs.
