@@ -42,6 +42,39 @@ This is a thin wrapper around JobSpoolDir.
 */
 void DestroyClusterDirectory(int cluster);
 
+/** Return path to executable suitable for reading.
+
+On errors dprintfs message and returns empty string.
+
+This is a thin wrapper around JobSpoolDir.
+*/
+MyString ExecutablePathForReading(ClassAd * ad);
+
+/** Return path to executable suitable for writing.
+
+On errors dprintfs message and returns empty string.
+
+This is a thin wrapper around JobSpoolDir.
+*/
+MyString ExecutablePathForWriting(int cluster);
+
+/** Return opaque identifier for the spool file.
+This should be treated as an opaque string, not a file name.
+
+NOT FOR GENERAL USE!
+
+Intended for condor_submit and condor_schedd in SendSpoolFile.  Previously the
+file was identified by the basename of the Ickpt.  Now the schedd no longer
+trusts it, regenerating the name on its side for safety.  However, the schedd
+can still check the provided name as a sanity check and submit needs to be able
+to generate it to talk to older schedds.
+
+On errors dprintfs message and returns empty string.
+
+This is a thin wrapper around JobSpoolDir.
+*/
+MyString SendSpoolFileOpaqueID(int cluster);
+
 /**
 Manages a per-job spool directory under SPOOL
 
@@ -86,7 +119,9 @@ public:
 
 	/** As Initialize, but specialized to handle clusters.
 
-	Only DestroyClusterDirectory is valid after this call.
+	Only the following calls are legal after this form of initialization:
+		- DestroyClusterDirectory 
+		- ExecutablePathForWriting
 	*/
 	bool Initialize(int icluster, bool allow_create);
 

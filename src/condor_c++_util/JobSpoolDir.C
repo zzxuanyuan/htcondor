@@ -130,6 +130,7 @@ bool recursive_chown_nonroot(const char * path,
 
 /*****************************************************************************/
 
+char * orig_gen_ckpt_name( const char * directory, int cluster, int proc, int subproc );
 
 void DestroyClusterDirectory(int cluster)
 {
@@ -143,6 +144,61 @@ void DestroyClusterDirectory(int cluster)
 	dirobj.DestroyClusterDirectory();
 }
 
+
+MyString ExecutablePathForReading(ClassAd * ad)
+{
+	if( ! ad ) {
+		dprintf(D_ALWAYS, "Internal Error: ExecutablePathForReading passed NULL ad.\n");
+		return "";
+	}
+
+	// Get the cluster.proc (so we can print useful error messages)
+	int cluster;
+	int proc;
+	if( ! ad->LookupInteger( ATTR_CLUSTER_ID, cluster ) ) {
+		dprintf(D_ALWAYS,"Internal Error: ExecutablePathForReading handed "
+			"invalid ClassAd (Missing or malformed %s)\n", ATTR_CLUSTER_ID);
+		return "";
+	}
+	if( ! ad->LookupInteger( ATTR_PROC_ID, proc ) ) {
+		dprintf(D_ALWAYS,"Internal Error: write_classad_input_file handed "
+			"invalid ClassAd (Missing or malformed %s)\n", ATTR_PROC_ID);
+		return "";
+	}
+
+	// Find the executable
+	JobSpoolDir dirobj;
+	if( ! dirobj.Initialize(ad, false) )
+	{
+		dprintf(D_ALWAYS, "(%d.%d) Unable to initialize JobSpoolDir, "
+			"unable to find executable\n", cluster, proc);
+		return "";
+	}
+
+	MyString exe = dirobj.ExecutablePathForReading();
+	return exe;
+}
+
+
+MyString ExecutablePathForWriting(int cluster)
+{
+	JobSpoolDir dirobj;
+	if( ! dirobj.Initialize(cluster, true) )
+	{
+		dprintf(D_ALWAYS, "(cluster %d) Unable to initialize JobSpoolDir, "
+			"unable to find executable\n", cluster);
+		return "";
+	}
+
+	MyString exe = dirobj.ExecutablePathForWriting();
+	return exe;
+}
+
+
+MyString SendSpoolFileOpaqueID(int cluster)
+{
+	return orig_gen_ckpt_name(0,cluster,ICKPT,0);
+}
 
 /// Returns strerror for errno "e" as a MyString
 MyString StringError(int e)
@@ -169,6 +225,30 @@ char *gen_ckpt_name_2 ( const char *dir, int cluster, int proc, int subproc )
 	return gen_ckpt_name( const_cast<char *>(dir), cluster, proc, subproc );
 }
 
+// Original version, kept around so we can deal with pre-JobSpoolDir jobs.
+char * orig_gen_ckpt_name( const char * directory, int cluster, int proc, int subproc )
+{
+	static char	answer[ MAXPATHLEN ];
+
+	if( proc == ICKPT ) {
+		if( directory && directory[0] ) {
+			(void)sprintf( answer, "%s%ccluster%d.ickpt.subproc%d",
+						directory, DIR_DELIM_CHAR, cluster, subproc );
+		} else {
+			(void)sprintf( answer, "cluster%d.ickpt.subproc%d",
+						cluster, subproc );
+		}
+	} else {
+		if( directory && directory[0] ) {
+			(void)sprintf( answer, "%s%ccluster%d.proc%d.subproc%d",
+						directory, DIR_DELIM_CHAR, cluster, proc, subproc );
+		} else {
+			(void)sprintf( answer, "cluster%d.proc%d.subproc%d",
+						cluster, proc, subproc );
+		}
+	}
+	return answer;
+}
 
 
 
@@ -456,9 +536,17 @@ void JobSpoolDir::DestroyClusterDirectory()
 	MyString clusterdir = DirFullCluster();
 
 	MyString exefile = FileFullExecutable();
-	if(unlink(exefile.GetCStr())) {
-		if( file_exists(exefile) ) {
-			joberrordprintf("Failed to remove %s.  Error: %s.  May be unable to destroy cluster directory %s.\n", exefile.GetCStr(), StringError(errno).GetCStr(), clusterdir.GetCStr());
+	if( file_exists(exefile) ) {
+		if(unlink(exefile.GetCStr())) {
+				joberrordprintf("Failed to remove %s.  Error: %s.  May be unable to destroy cluster directory %s.\n", exefile.GetCStr(), StringError(errno).GetCStr(), clusterdir.GetCStr());
+		}
+	}
+
+	// Check for the old, pre-JobSpoolDir ICKPT and delete it.
+	exefile = orig_gen_ckpt_name(mainspooldir.GetCStr(), cluster, ICKPT, 0);
+	if( file_exists(exefile) ) {
+		if(unlink(exefile.GetCStr())) {
+				joberrordprintf("Failed to remove %s.  Error: %s.n", exefile.GetCStr(), StringError(errno).GetCStr());
 		}
 	}
 
