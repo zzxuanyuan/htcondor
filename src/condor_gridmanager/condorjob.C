@@ -385,6 +385,7 @@ int CondorJob::doEvaluateState()
 				dprintf( D_ALWAYS,
 						 "(%d.%d) condor_job_status_constrained() failed: %s\n",
 						 procID.cluster, procID.proc, gahp->getErrorString() );
+				errorString = gahp->getErrorString();
 				gmState = GM_CANCEL;
 				break;
 			}
@@ -393,6 +394,7 @@ int CondorJob::doEvaluateState()
 				dprintf( D_ALWAYS,
 						 "(%d.%d) condor_job_status_constrained() returned %d ads\n",
 						 procID.cluster, procID.proc, num_ads );
+				errorString = "Remote schedd returned multiple ads";
 				gmState = GM_CANCEL;
 			} else if ( status_ads[0]->LookupInteger( ATTR_STAGE_IN_FINISH,
 													  tmp_int ) == 0 ||
@@ -452,8 +454,7 @@ int CondorJob::doEvaluateState()
 				break;
 			}
 			if ( numSubmitAttempts >= MAX_SUBMIT_ATTEMPTS ) {
-				UpdateJobAdString( ATTR_HOLD_REASON,
-									"Attempts to submit failed" );
+				errorString = gahp->getErrorString();
 				gmState = GM_HOLD;
 				break;
 			}
@@ -551,6 +552,7 @@ int CondorJob::doEvaluateState()
 				dprintf( D_ALWAYS,
 						 "(%d.%d) condor_job_stage_in() failed: %s\n",
 						 procID.cluster, procID.proc, gahp->getErrorString() );
+				errorString = gahp->getErrorString();
 				gmState = GM_CANCEL;
 			}
 			} break;
@@ -600,6 +602,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too old!\n",procID.cluster,procID
 				dprintf( D_ALWAYS,
 						 "(%d.%d) condor_job_hold() failed: %s\n",
 						 procID.cluster, procID.proc, gahp->getErrorString() );
+				errorString = gahp->getErrorString();
 				gmState = GM_CANCEL;
 				break;
 			}
@@ -617,6 +620,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too old!\n",procID.cluster,procID
 				dprintf( D_ALWAYS,
 						 "(%d.%d) condor_job_release() failed: %s\n",
 						 procID.cluster, procID.proc, gahp->getErrorString() );
+				errorString = gahp->getErrorString();
 				gmState = GM_CANCEL;
 				break;
 			}
@@ -641,6 +645,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too old!\n",procID.cluster,procID
 				dprintf( D_ALWAYS,
 						 "(%d.%d) condor_job_status_constrained() failed: %s\n",
 						 procID.cluster, procID.proc, gahp->getErrorString() );
+				errorString = gahp->getErrorString();
 				gmState = GM_CANCEL;
 				break;
 			}
@@ -648,6 +653,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too old!\n",procID.cluster,procID
 				dprintf( D_ALWAYS,
 						 "(%d.%d) condor_job_status_constrained() returned %d ads\n",
 						 procID.cluster, procID.proc, num_ads );
+				errorString = "Remote schedd returned multiple ads";
 				gmState = GM_CANCEL;
 				break;
 			}
@@ -679,6 +685,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too old!\n",procID.cluster,procID
 				dprintf( D_ALWAYS,
 						 "(%d.%d) condor_job_stage_out() failed: %s\n",
 						 procID.cluster, procID.proc, gahp->getErrorString() );
+				errorString = gahp->getErrorString();
 				gmState = GM_CANCEL;
 			}
 			} break;
@@ -712,6 +719,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too old!\n",procID.cluster,procID
 				dprintf( D_ALWAYS,
 						 "(%d.%d) condor_job_update() failed: %s\n",
 						 procID.cluster, procID.proc, gahp->getErrorString() );
+				errorString = gahp->getErrorString();
 				gmState = GM_CANCEL;
 				break;
 			}
@@ -745,6 +753,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too old!\n",procID.cluster,procID
 					dprintf( D_ALWAYS,
 							 "(%d.%d) condor_job_remove() failed: %s\n",
 							 procID.cluster, procID.proc, gahp->getErrorString() );
+					errorString = gahp->getErrorString();
 					gmState = GM_CLEAR_REQUEST;
 					break;
 				}
