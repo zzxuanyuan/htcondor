@@ -178,6 +178,27 @@ DCCollector::sendUpdate( int cmd, ClassAd* ad1, ClassAd* ad2 )
 }
 
 
+
+bool
+DCCollector::finishUpdate( Sock* sock, ClassAd* ad1, ClassAd* ad2 )
+{
+	sock->encode();
+	if( ad1 && ! ad1->put(*sock) ) {
+		newError( "Failed to send ClassAd #1 to collector" );
+		return false;
+	}
+	if( ad2 && ! ad2->put(*sock) ) {
+		newError( "Failed to send ClassAd #2 to collector" );
+		return false;
+	}
+	if( ! sock->eom() ) {
+		newError( "Failed to send EOM to collector" );
+		return false;
+	}
+	return true;
+}
+
+
 bool
 DCCollector::sendUDPUpdate( int cmd, ClassAd* ad1, ClassAd* ad2 )
 {
@@ -205,20 +226,7 @@ DCCollector::sendUDPUpdate( int cmd, ClassAd* ad1, ClassAd* ad2 )
 		return false;
 	}
 
-	ssock.encode();
-	if( ad1 && ! ad1->put(ssock) ) {
-		newError( "Failed to send ClassAd #1 to collector via UDP" );
-		return false;
-	}
-	if( ad2 && ! ad2->put(ssock) ) {
-		newError( "Failed to send ClassAd #2 to collector via UDP" );
-		return false;
-	}
-	if( ! ssock.eom() ) {
-		newError( "Failed to send EOM to collector via UDP" );
-		return false;
-	}
-	return true;
+	return finishUpdate( &ssock, ad1, ad2 );
 }
 
 
@@ -244,22 +252,12 @@ DCCollector::sendTCPUpdate( int cmd, ClassAd* ad1, ClassAd* ad2 )
 		// thing we have to watch out for is if the collector
 		// invalidated our cached socket, and if so, we'll have to
 		// start another connection.
-
-	bool had_failure = false;
+		// since finishUpdate() assumes we've already sent the command
+		// int, and since we do *NOT* want to use startCommand() again
+		// on a cached TCP socket, just code the int ourselves...
 	update_rsock->encode();
-	if( ! update_rsock->code(cmd) ) {
-		had_failure = true;
-	}
-	if( !had_failure && ad1 && ! ad1->put(*update_rsock) ) {
-		had_failure = true;
-	}
-	if( !had_failure && ad2 && ! ad2->put(*update_rsock) ) {
-		had_failure = true;
-	}
-	if( !had_failure && ! update_rsock->eom() ) {
-		had_failure = true;
-	}
-	if( !had_failure ) {
+	update_rsock->put( cmd );
+	if( finishUpdate(update_rsock, ad1, ad2) ) {
 		return true;
 	}
 	dprintf( D_FULLDEBUG, 
@@ -294,20 +292,7 @@ DCCollector::initiateTCPUpdate( int cmd, ClassAd* ad1, ClassAd* ad2 )
 		newError( "Failed to send TCP update command to collector" );
 		return false;
 	}
-	update_rsock->encode();
-	if( ad1 && ! ad1->put(*update_rsock) ) {
-		newError( "Failed to send ClassAd #1 to collector via TCP" );
-		return false;
-	}
-	if( ad2 && ! ad2->put(*update_rsock) ) {
-		newError( "Failed to send ClassAd #2 to collector via TCP" );
-		return false;
-	}
-	if( ! update_rsock->eom() ) {
-		newError( "Failed to send EOM to collector via TCP" );
-		return false;
-	}
-	return true;
+	return finishUpdate( update_rsock, ad1, ad2 );
 }
 
 

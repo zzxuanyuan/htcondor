@@ -85,6 +85,8 @@ private:
 	bool sendTCPUpdate( int cmd, ClassAd* ad1, ClassAd* ad2 );
 	bool sendUDPUpdate( int cmd, ClassAd* ad1, ClassAd* ad2 );
 
+	bool finishUpdate( Sock* sock, ClassAd* ad1, ClassAd* ad2 );
+
 	void parseTCPInfo( void );
 	bool initiateTCPUpdate( int cmd, ClassAd* ad1, ClassAd* ad2 );
 
