@@ -640,10 +640,10 @@ doContactSchedd()
 		if ( (job_status_schedd == REMOVED && (!(curr_action->actions & UA_HOLD_JOB)))
 			 || job_status_schedd == HELD ) {
 			curr_job->UpdateCondorState( job_status_schedd );
-			curr_job->ad->SetDirtyFlag( ATTR_JOB_STATUS, false );
-			curr_job->ad->SetDirtyFlag( ATTR_HOLD_REASON, false );
-			curr_job->ad->SetDirtyFlag( ATTR_HOLD_REASON_CODE, false );
-			curr_job->ad->SetDirtyFlag( ATTR_HOLD_REASON_SUBCODE, false );
+			curr_job->ad->MarkAttributeClean( ATTR_JOB_STATUS );
+			curr_job->ad->MarkAttributeClean( ATTR_HOLD_REASON );
+			curr_job->ad->MarkAttributeClean( ATTR_HOLD_REASON_CODE );
+			curr_job->ad->MarkAttributeClean( ATTR_HOLD_REASON_SUBCODE );
 		} else if ( curr_action->actions & UA_HOLD_JOB ) {
 			char *reason = NULL;
 			rc = GetAttributeStringNew( curr_job->procID.cluster,
@@ -691,10 +691,10 @@ doContactSchedd()
 			// then relearn about it later (this makes it easier to
 			// ensure that we pick up changed job attributes).
 			if ( curr_job->condorState == HELD ) {
-				curr_job->ad->SetDirtyFlag( ATTR_JOB_STATUS, false );
-				curr_job->ad->SetDirtyFlag( ATTR_HOLD_REASON, false );
-				curr_job->ad->SetDirtyFlag( ATTR_HOLD_REASON_CODE, false );
-				curr_job->ad->SetDirtyFlag( ATTR_HOLD_REASON_SUBCODE, false );
+				curr_job->ad->MarkAttributeClean( ATTR_JOB_STATUS );
+				curr_job->ad->MarkAttributeClean( ATTR_HOLD_REASON );
+				curr_job->ad->MarkAttributeClean( ATTR_HOLD_REASON_CODE );
+				curr_job->ad->MarkAttributeClean( ATTR_HOLD_REASON_SUBCODE );
 			} else {
 					// Finally, if we are just changing from one unintersting state
 					// to another, update the ATTR_ENTERED_CURRENT_STATUS time.
@@ -747,21 +747,25 @@ doContactSchedd()
 
 		dprintf( D_FULLDEBUG, "Updating classad values for %d.%d:\n",
 				 curr_job->procID.cluster, curr_job->procID.proc );
-		char attr_name[1024];
-		char attr_value[1024];
-		ExprTree *expr;
-		curr_job->ad->ResetExpr();
-		while ( (expr = curr_job->ad->NextDirtyExpr()) != NULL ) {
-			attr_name[0] = '\0';
-			attr_value[0] = '\0';
-			expr->LArg()->PrintToStr(attr_name);
-			expr->RArg()->PrintToStr(attr_value);
+        ClassAd::dirtyIterator dirty_exprs;
+        for (dirty_exprs = curr_job->ad->dirtyBegin();
+             dirty_exprs != curr_job->ad->dirtyEnd();
+             dirty_exprs++) {
 
-			dprintf( D_FULLDEBUG, "   %s = %s\n", attr_name, attr_value );
+            string expr_name;
+            string expr_value;
+            ExprTree *expr;
+            ClassAdUnParser unparser;
+
+            expr_name = *dirty_exprs;
+            expr = curr_job->ad->Lookup(expr_name);
+            unparser.Unparse(expr_value, expr);
+
+			dprintf( D_FULLDEBUG, "   %s = %s\n", expr_name.c_str(), expr_value.c_str() );
 			rc = SetAttribute( curr_job->procID.cluster,
 							   curr_job->procID.proc,
-							   attr_name,
-							   attr_value);
+							   expr_name.c_str(),
+							   expr_value.c_str());
 			if ( rc < 0 && fake_job_in_queue == false ) {
 				failure_line_num = __LINE__;
 				commit_transaction = false;
