@@ -369,7 +369,6 @@ class DedicatedScheduler : public Service {
 
 		// All resources, sorted by the time they'll next be available 
 		//AvailTimeList*			avail_time_list;	
-		ResList*			avail_time_list;	
 
 		// 	These four lists are the heart of the data structures for
 		// the dedicated scheduler: We prefer to schedule jobs from
