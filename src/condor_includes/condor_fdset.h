@@ -1,9 +1,13 @@
 #if !defined(_FDSET_H)
 #define _FDSET_H
+
+#if !defined( IRIX62 ) /* for IRIX62, need to include _after_ select.h below */
 #include "condor_fix_timeval.h"
+#endif
 
+#ifndef NBBY
 #define NBBY 8
-
+#endif
 
 #if defined( ULTRIX42 ) || defined( ULTRIX43 )
 #	define	FD_SETSIZE	4096
@@ -11,18 +15,22 @@
 #	define _DEFINE_FD_SET
 	typedef long fd_mask;
 #elif defined( OSF1 )
+#	undef _DEFINE_FD_SET
+#	ifdef  _OSF_SOURCE
+#	include <sys/select.h>
+#	else
+#	define _OSF_SOURCE	/* need to define this to get fd_set from select.h */
+#	include <sys/select.h>	/* OSF1 defines all we need here, so use it! */
+#	undef _OSF_SOURCE
+#	endif
+#ifdef NOT_THERE
 #   define  FD_SETSIZE  4096
 #   define NFDBITS (sizeof (fd_mask) * NBBY)   /* bits per mask */
 #   define _DEFINE_FD_SET
     typedef int fd_mask;
+#endif
 #elif defined( SUNOS41 )
 #	undef _DEFINE_FD_SET
-#ifdef NOT_THERE
-#	define	FD_SETSIZE	256
-#	define NFDBITS (sizeof (fd_mask) * NBBY)   /* bits per mask */
-#	define _DEFINE_FD_SET
-	typedef long fd_mask;
-#endif
 #elif defined(HPUX9)
 #	undef _DEFINE_FD_SET
 #elif defined(LINUX)
@@ -40,6 +48,7 @@
 #	include <sys/select.h>	/* IRIX defines all we need here, so use it! */
 #	undef _BSD_TYPES
 #	endif
+#   include "condor_fix_timeval.h"  /* we skipped it for IRIX62 above.. */
 #elif defined( IRIX53 )
 #	undef _DEFINE_FD_SET 
 #else
