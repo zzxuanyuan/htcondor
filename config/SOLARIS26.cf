@@ -3,7 +3,7 @@
 #define NEEDS_64BIT_SYSCALLS    YES
 #define NEEDS_64BIT_STRUCTS YES
 
-#define HAS_PVM	YES
+#define WANT_PVM	YES
 
 #define HAS_GLOBUS			YES
 #define HAS_GSI				YES

@@ -4,7 +4,7 @@
 
 #define NEEDS_64BIT_SYSCALLS    YES
 #define NEEDS_64BIT_STRUCTS YES
-#define HAS_PVM	YES
+#define WANT_PVM	YES
 
 #if IS_X86
 #define		IS_X86_SOLARIS28	YES

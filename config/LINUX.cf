@@ -99,8 +99,6 @@ statically linked to avoid problems */
 #define HAS_SETEUID			YES
 #define HAS_GETWD			YES
 #define HAS_INSQUE			YES
-#define HAS_PVM				YES
-#define PVM_ARCH			LINUX
 #define HAS_SETLINEBUF			YES
 #define MALLOC_DEBUG			NO
 #define HAS_STATIC			YES

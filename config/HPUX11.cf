@@ -35,15 +35,13 @@
 #define HAS_GSI				NO
 #define HAS_OPENSSL			NO
 
+#define WANT_PVM			NO
+
 #define UnixName /stand/vmunix		/* pathname of the system executable */
 
 #define TypicalMemory 64
 
-#undef IS_CLIPPED
 #define IS_CLIPPED YES
-
-#undef HAS_PVM
-#define HAS_PVM NO
 
 #undef WANT_MAN_PAGES
 #define WANT_MAN_PAGES		NO

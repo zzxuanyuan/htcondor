@@ -3,7 +3,7 @@
 #define NEEDS_64BIT_SYSCALLS    NO
 #define NEEDS_64BIT_STRUCTS NO
 
-#define HAS_PVM	YES
+#define WANT_PVM	YES
 
 #define		IS_SOLARIS251		YES
 

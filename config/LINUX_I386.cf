@@ -42,8 +42,12 @@
 
 #ifdef IS_C_COMP_MAJOR_GCC_3
 #define IS_CLIPPED YES
-#undef HAS_PVM
-#define HAS_PVM NO
+#define WANT_PVM	NO
+#else
+
+#define WANT_PVM	YES
+#define PVM_ARCH	LINUX
+
 #endif
 
 #define HAS_GSI		YES

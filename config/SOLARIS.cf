@@ -69,8 +69,6 @@
 #define HAS_SETEUID			YES
 #define HAS_GETWD			YES
 #define HAS_INSQUE			YES
-
-#define HAS_PVM				YES
 #define HAS_DLOPEN			YES
 #define HAS_DAGMAN_HELPER   NO
 

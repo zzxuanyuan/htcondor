@@ -31,8 +31,7 @@
 #   define EgcsLibc /usr/local/lib/gcc-lib/alphaev5-unknown-linux-gnu/2.95.2/libgcc.a
 #endif
 
-#undef HAS_PVM
-#define HAS_PVM NO
+#define WANT_PVM NO
 
 #undef WANT_KERBEROS
 #define WANT_KERBEROS NO

@@ -5,7 +5,9 @@
 #define IS_DUX		YES
 #define IS_DUX4		YES
 
-#define HAS_PVM		YES
+#define WANT_PVM	YES
+#define PVM_ARCH	ALPHA
+
 #define HAS_GLOBUS	YES
 #define HAS_GSI		YES
 #define HAS_OPENSSL	YES

@@ -23,6 +23,9 @@
 #define HAS_DLOPEN			NO
 #define HAS_DAGMAN_HELPER   NO
 
+#define WANT_PVM			YES
+#define PVM_ARCH			HPPA
+
 #define UnixName /stand/vmunix		/* pathname of the system executable */
 
 #define TypicalMemory 64

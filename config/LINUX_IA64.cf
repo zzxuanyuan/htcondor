@@ -43,8 +43,7 @@
 #define HAS_GSI		YES
 #define HAS_OPENSSL 	YES
 
-#undef  HAS_PVM
-#define HAS_PVM NO
+#define WANT_PVM	NO
 
 #undef WANT_MAN_PAGES
 
