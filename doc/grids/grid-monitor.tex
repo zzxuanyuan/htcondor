@@ -50,8 +50,17 @@ stream_output = False
 stream_error  = False
 \end{verbatim}
 
-The Grid Monitor requires that the gatekeeper support the fork
+The Grid Monitor functions with any Globus jobmanager including
+the condor, pbs, and lfs jobmanagers.
+Custom jobmanagers should work so long as they behave
+similarly to the standard jobmanagers.
+In addition to the jobmanager used by your actual jobs,
+the Grid Monitor requires that the gatekeeper support the fork
 jobmanager with the name \Prog{jobmanager-fork}.
+Jobs submitted to the fork jobmanager must run on the gatekeeper.
+The fork jobmanager is used by Condor-G to start the remote Grid
+Monitor process.
+Your actual jobs do not need to use the fork jobmanager.
 If the gatekeeper does not support the fork jobmanager,
 the Grid Monitor will not be used for that site.
 The \Condor{gridmanager} log file reports any problems
