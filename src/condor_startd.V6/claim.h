@@ -145,9 +145,9 @@ public:
 	void start_match_timer();
 	void cancel_match_timer();
 	int  match_timed_out();		// We were matched, but not claimed in time
-	void start_claim_timer();
-	void cancel_claim_timer();
-	int  claim_timed_out(); 	// We were claimed, but didn't get a
+	void startLeaseTimer();
+	void cancelLeaseTimer();
+	int  leaseExpired();		// We were claimed, but didn't get a
 								// keep alive in time from the schedd
 
 		// Functions that return data
@@ -179,7 +179,7 @@ public:
 	void setoldrank(float rank) {c_oldrank=rank;};
 	void setad(ClassAd *ad);		// Set our ad to the given pointer
 	void setRequestStream(Stream* stream);	
-	void setaliveint(int alive)		{c_aliveint=alive;};
+	void setaliveint(int alive);
 
 		// starter-related functions
 	int	 spawnStarter( time_t, Stream* = NULL );
@@ -247,12 +247,15 @@ private:
 								// match.  If we're matched but not
 								// claimed within 5 minutes, throw out
 								// the match.
-	int			c_claim_tid;	// DeamonCore timer id for this
-								// claim.  If we don't get a keep
-								// alive in 3 alive intervals, the
-								// schedd has died and we need to
-								// release the claim.
+
+		/*  DeamonCore timer id for this claim/job lease.  If we don't
+			get a keepalive before the job lease expires, schedd has
+			died and we need to release the claim.
+		*/
+	int			c_lease_tid;	
+	int			c_lease_duration; // Duration of our claim/job lease
 	int			c_aliveint;		// Alive interval for this claim
+
 	bool		c_is_cod;       // are we a COD claim or not?
 	char*		c_cod_keyword;	// COD keyword for this claim, if any
 	int			c_has_job_ad;	// Do we have a job ad for the COD claim?

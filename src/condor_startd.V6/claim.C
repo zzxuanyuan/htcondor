@@ -50,8 +50,9 @@ Claim::Claim( Resource* rip, bool is_cod )
 	c_universe = -1;
 	c_request_stream = NULL;
 	c_match_tid = -1;
-	c_claim_tid = -1;
+	c_lease_tid = -1;
 	c_aliveint = -1;
+	c_lease_duration = -1;
 	c_cluster = -1;
 	c_proc = -1;
 	c_global_job_id = NULL;
@@ -82,7 +83,7 @@ Claim::~Claim()
 
 		// Cancel any timers associated with this claim
 	this->cancel_match_timer();
-	this->cancel_claim_timer();
+	this->cancelLeaseTimer();
 
 		// Free up memory that's been allocated
 	if( c_ad ) {
@@ -425,7 +426,7 @@ Claim::beginClaim( void )
 	if( ! c_is_cod ) {
 			// if we're an opportunistic claim, we want to start our
 			// claim timer, too.  
-		start_claim_timer();
+		startLeaseTimer();
 	}
 }
 
@@ -496,6 +497,17 @@ Claim::beginActivation( time_t now )
 
 
 void
+Claim::setaliveint( int alive )
+{
+	c_aliveint = alive;
+		// for now, set our lease_duration, too, just so it's
+		// initalized to something reasonable.  once we get the job ad
+		// we'll reset it to the real value if it's defined.
+	c_lease_duration = 3 * alive;
+}
+
+
+void
 Claim::saveJobInfo( ClassAd* request_ad )
 {
 		// this does not make a copy, so we assume we have control
@@ -520,57 +532,77 @@ Claim::saveJobInfo( ClassAd* request_ad )
 		c_rip->dprintf( D_FULLDEBUG, "Remote global job ID is %s\n", 
 						c_global_job_id );
 	}
+
+		// check for an explicit job lease duration.  if it's not
+		// there, we have to use the old default of 3 * aliveint. :( 
+	if( c_ad->LookupInteger(ATTR_JOB_LEASE_DURATION, c_lease_duration) ) {
+		dprintf( D_FULLDEBUG, "%s defined in job ClassAd: %d\n", 
+				 ATTR_JOB_LEASE_DURATION, c_lease_duration );
+		dprintf( D_FULLDEBUG,
+				 "Resetting ClaimLease timer (%d) with new duration\n", 
+				 c_lease_tid );
+	} else {
+		c_lease_duration = 3 * c_aliveint;
+		dprintf( D_FULLDEBUG, "%s not defined: using default %d\n", 
+				 ATTR_JOB_LEASE_DURATION, c_lease_duration );
+	}
+		/* 
+		   This resets the timer for us, and also, we should consider
+		   a request to activate a claim (which is what just happened
+		   if we're in this function) as another keep-alive...
+		*/
+	alive();  
 }
 
 
 void
-Claim::start_claim_timer()
+Claim::startLeaseTimer()
 {
-	if( c_aliveint < 0 ) {
-		dprintf( D_ALWAYS, 
-				 "Warning: starting claim timer before alive interval set.\n" );
-		c_aliveint = 300;
+	if( c_lease_duration < 0 ) {
+		dprintf( D_ALWAYS, "Warning: starting ClaimLease timer before "
+				 "lease duration set.\n" );
+		c_lease_duration = 300;
 	}
-	if( c_claim_tid != -1 ) {
-	   EXCEPT( "Claim::start_claim_timer() called w/ c_claim_tid = %d", 
-			   c_claim_tid );
+	if( c_lease_tid != -1 ) {
+	   EXCEPT( "Claim::startLeaseTimer() called w/ c_lease_tid = %d", 
+			   c_lease_tid );
 	}
-	c_claim_tid =
-		daemonCore->Register_Timer( (3 * c_aliveint), 0,
-				(TimerHandlercpp)&Claim::claim_timed_out,
-				"claim_timed_out", this );
-	if( c_claim_tid == -1 ) {
+	c_lease_tid =
+		daemonCore->Register_Timer( c_lease_duration, 0, 
+				(TimerHandlercpp)&Claim::leaseExpired,
+				"Claim::leaseExpired", this );
+	if( c_lease_tid == -1 ) {
 		EXCEPT( "Couldn't register timer (out of memory)." );
 	}
-	dprintf( D_FULLDEBUG, "Started claim timer (%d) w/ %d second "
-			 "alive interval.\n", c_claim_tid, c_aliveint );
+	dprintf( D_FULLDEBUG, "Started ClaimLease timer (%d) w/ %d second "
+			 "lease duration\n", c_lease_tid, c_lease_duration );
 }
 
 
 void
-Claim::cancel_claim_timer()
+Claim::cancelLeaseTimer()
 {
 	int rval;
-	if( c_claim_tid != -1 ) {
-		rval = daemonCore->Cancel_Timer( c_claim_tid );
+	if( c_lease_tid != -1 ) {
+		rval = daemonCore->Cancel_Timer( c_lease_tid );
 		if( rval < 0 ) {
-			dprintf( D_ALWAYS, "Failed to cancel claim timer (%d): "
-					 "daemonCore error\n", c_claim_tid );
+			dprintf( D_ALWAYS, "Failed to cancel ClaimLease timer (%d): "
+					 "daemonCore error\n", c_lease_tid );
 		} else {
-			dprintf( D_FULLDEBUG, "Canceled claim timer (%d)\n",
-					 c_claim_tid );
+			dprintf( D_FULLDEBUG, "Canceled ClaimLease timer (%d)\n",
+					 c_lease_tid );
 		}
-		c_claim_tid = -1;
+		c_lease_tid = -1;
 	}
 }
 
 
 int
-Claim::claim_timed_out()
+Claim::leaseExpired()
 {
 	Resource* rip = resmgr->get_by_cur_id( id() );
 	if( !rip ) {
-		EXCEPT( "Can't find resource of expired claim." );
+		EXCEPT( "Can't find resource of expired claim" );
 	}
 		// Note that this claim timed out so we don't try to send a 
 		// command to our client.
@@ -579,7 +611,8 @@ Claim::claim_timed_out()
 		c_client = NULL;
 	}
 
-	dprintf( D_FAILURE|D_ALWAYS, "State change: claim timed out (condor_schedd gone?)\n" );
+	dprintf( D_FAILURE|D_ALWAYS, "State change: claim lease expired "
+			 "(condor_schedd gone?)\n" );
 
 		// Kill the claim.
 	rip->kill_claim();
@@ -591,7 +624,7 @@ void
 Claim::alive()
 {
 		// Process a keep alive command
-	daemonCore->Reset_Timer( c_claim_tid, (3 * c_aliveint), 0 );
+	daemonCore->Reset_Timer( c_lease_tid, c_lease_duration, 0 );
 }
 
 
