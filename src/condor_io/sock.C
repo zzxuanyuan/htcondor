@@ -1125,6 +1125,11 @@ bool Sock :: is_hdr_encrypt(){
 	return FALSE;
 }
 
+int Sock :: authenticate(KeyInfo *&, int clientFlags)
+{
+	return -1;
+}
+
 int Sock :: authenticate(int clientFlags)
 {
 	return -1;

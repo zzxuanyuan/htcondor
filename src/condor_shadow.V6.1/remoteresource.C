@@ -31,6 +31,7 @@
 #include "condor_attributes.h"
 #include "internet.h"
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
+#include "daemon.h"
 
 // for remote syscalls, this is currently in NTreceivers.C.
 extern int do_REMOTE_syscall();
@@ -109,9 +110,16 @@ RemoteResource::requestIt( int starterVersion )
 		return -1;
 	}
 
-	claimSock->close();	// make sure ClaimSock is a virgin socket
-	claimSock->timeout(SHADOW_SOCK_TIMEOUT);
-	if (!claimSock->connect(executingHost, 0)) {
+	// make sure ClaimSock is a virgin socket
+	if (claimSock) {	
+		claimSock->close();
+		delete claimSock;
+	}
+
+	Daemon d(executingHost);
+	claimSock = (ReliSock*)d.startCommand(ACTIVATE_CLAIM, Stream::reli_sock, SHADOW_SOCK_TIMEOUT);
+
+	if (!claimSock) {
 		shadow->dprintf(D_ALWAYS, "failed to connect to execute host %s\n", 
 				executingHost);
 		setExitReason(JOB_NOT_STARTED);
@@ -119,8 +127,7 @@ RemoteResource::requestIt( int starterVersion )
 	}
 
 	claimSock->encode();
-	if (!claimSock->put(ACTIVATE_CLAIM)  ||
-		!claimSock->code(capability)     ||
+	if ( !claimSock->code(capability)     ||
 		!claimSock->code(starterVersion) ||
 		!jobAd->put(*claimSock)          ||
 		!claimSock->end_of_message())
@@ -156,8 +163,6 @@ int
 RemoteResource::killStarter()
 {
 
-	ReliSock sock;
-
 	if ( !executingHost ) {
 		shadow->dprintf ( D_ALWAYS, "In killStarter, "
                           "executingHost not defined.\n");
@@ -167,23 +172,27 @@ RemoteResource::killStarter()
 	shadow->dprintf( D_ALWAYS, "Removing machine \"%s\".\n", 
 					 machineName ? machineName : executingHost );
 
-	sock.timeout(SHADOW_SOCK_TIMEOUT);
-	if (!sock.connect(executingHost, 0)) {
+	Daemon d(executingHost);
+	ReliSock *sock = (ReliSock*)d.startCommand (KILL_FRGN_JOB, Stream::reli_sock, SHADOW_SOCK_TIMEOUT);
+
+	if (!sock) {
 		shadow->dprintf(D_ALWAYS, "failed to connect to executing host %s\n",
 				executingHost );
 		return -1;
 	}
 
-	sock.encode();
-	if (!sock.put(KILL_FRGN_JOB) || 
-		!sock.put(capability)    ||
-		!sock.end_of_message())
+	sock->encode();
+	if ( !sock->put(capability)    ||
+		!sock->end_of_message())
 	{
 		shadow->dprintf(D_ALWAYS, "failed to send KILL_FRGN_JOB "
                         "to startd %s\n", executingHost );
+
+		delete sock;
 		return -1;
 	}
 
+	delete sock;
 	return 0;
 }
 

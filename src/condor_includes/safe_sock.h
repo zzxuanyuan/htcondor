@@ -75,7 +75,7 @@ public:
 			 unsigned long &szDeleted);
 	void resetStat();
 
-	//
+   	//
 	SafeSock();
 
 	// Copy constructor

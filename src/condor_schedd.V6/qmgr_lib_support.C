@@ -29,6 +29,7 @@
 #include "condor_debug.h"
 #include "condor_attributes.h"
 #include "condor_classad.h"
+#include "daemon.h"
 #include "my_hostname.h"
 #include "my_username.h"
 #include "get_daemon_addr.h"
@@ -75,11 +76,9 @@ ConnectQ(char *qmgr_location, int timeout, bool read_only )
 
 		// no connection active as of now; create a new one
 	if(scheddAddr) {
-		qmgmt_sock = new ReliSock();
-		if ( timeout > 0 && qmgmt_sock ) {
-			qmgmt_sock->timeout(timeout);
-		}
-		ok = qmgmt_sock && qmgmt_sock->connect(scheddAddr, QMGR_PORT);
+		Daemon d (scheddAddr);
+		qmgmt_sock = (ReliSock*) d.startCommand (QMGMT_CMD, Stream::reli_sock, timeout);
+		ok = (int)qmgmt_sock;
 		if( !ok ) {
 			dprintf(D_ALWAYS, "Can't connect to queue manager\n");
 		}
@@ -127,8 +126,6 @@ ConnectQ(char *qmgr_location, int timeout, bool read_only )
 
 	/* Get the schedd to handle Q ops. */
 	qmgmt_sock->encode();
-	cmd = QMGMT_CMD;
-	qmgmt_sock->code(cmd);
 	
 	if ( read_only ) {
 		rval = InitializeReadOnlyConnection( username );

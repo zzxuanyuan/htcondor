@@ -25,18 +25,18 @@
 #include "CryptKey.h"
 
 KeyInfo:: KeyInfo()
-    : protocol_   (CONDOR_NO_PROTOCOL),
-      keyData_    (0),
+    : keyData_    (0),
       keyDataLen_ (0),
+      protocol_   (CONDOR_NO_PROTOCOL),
       duration_   (0)
 {
     
 }
 
 KeyInfo :: KeyInfo(const KeyInfo& copy)
-    : protocol_   (copy.protocol_),
-      keyData_    (new unsigned char[copy.keyDataLen_]),
+    : keyData_    (new unsigned char[copy.keyDataLen_]),
       keyDataLen_ (copy.keyDataLen_),
+      protocol_   (copy.protocol_),
       duration_   (copy.duration_)
 {
     memcpy(keyData_, copy.keyData_, keyDataLen_);   

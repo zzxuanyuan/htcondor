@@ -36,6 +36,7 @@
 #include "get_daemon_addr.h"
 #include "internet.h"
 #include "get_full_hostname.h"
+#include "daemon.h"
 #include "daemon_types.h"
 #include "sig_install.h"
 #include "command_strings.h"
@@ -709,14 +710,8 @@ doCommand( char *name )
 	}
 
 		/* Connect to the daemon */
-	ReliSock sock;
-	if(!sock.connect(addr)) {
-		namePrintf( stderr, name, "Can't connect to" );
-		RESTORE;
-		return;
-	}
+	Daemon d(addr);
 
-	sock.encode();
 	switch(cmd) {
 	case VACATE_CLAIM:
 		if( fast ) {
@@ -725,13 +720,18 @@ doCommand( char *name )
 		// If no name is specified, or if name is a sinful string or
 		// hostname, we must send VACATE_ALL_CLAIMS.
 		if ( name && !sinful && strchr(name, '@') ) {
-			if( !sock.code(cmd) || !sock.code(name) || !sock.eom() ) {
+			ReliSock *sock = (ReliSock*)d.startCommand (cmd, Stream::reli_sock, 0);
+			if( !sock || !sock->code(name) || !sock->eom() ) {
 				namePrintf( stderr, name, "Can't send %s command to", 
 							 cmdToStr(cmd) );
+				if (sock) {
+					delete sock;
+				}
 				RESTORE;
 				return;
 			} else {
 				done = 1;
+				delete sock;
 			}
 		} else {
 			if( fast ) {
@@ -745,40 +745,60 @@ doCommand( char *name )
 		// If no name is specified, or if name is a sinful string or
 		// hostname, we must send PCKPT_ALL_JOBS.
 		if( name && !sinful && strchr(name, '@') ) {
-			if( !sock.code(cmd) || !sock.code(name) || !sock.eom() ) {
+			ReliSock *sock = (ReliSock*)d.startCommand (cmd, Stream::reli_sock, 0);
+			if( !sock || !sock->code(name) || !sock->eom() ) {
 				namePrintf( stderr, name, "Can't send %s command to", 
 							 cmdToStr(cmd) );
+				if (sock) {
+					delete sock;
+				}
 				RESTORE;
 				return;
 			} else {
 				done = 1;
+				delete sock;
 			}
 		} else {
 			cmd = PCKPT_ALL_JOBS;
 		}
 		break;
 	case DAEMON_OFF:
-			// if -fast is used, we need to send a different command.
-		if( fast ) {
-			cmd = DAEMON_OFF_FAST;
-		}
-		if( !sock.code(cmd) || !sock.code(subsys) || !sock.eom() ) {
-			namePrintf( stderr, name, "Can't send %s command to", 
-						 cmdToStr(cmd) );
-			RESTORE;
-			return;
-		} else {
-			done = 1;
+		{
+				// if -fast is used, we need to send a different command.
+			if( fast ) {
+				cmd = DAEMON_OFF_FAST;
+			}
+
+			ReliSock *sock = (ReliSock*)d.startCommand( cmd, Stream::reli_sock, 0);
+			if( !sock || !sock->code(subsys) || !sock->eom() ) {
+				namePrintf( stderr, name, "Can't send %s command to", 
+							 cmdToStr(cmd) );
+				if (sock) {
+					delete sock;
+				}
+				RESTORE;
+				return;
+			} else {
+				done = 1;
+				delete sock;
+			}
 		}
 		break;
 	case DAEMON_ON:
-		if( !sock.code(cmd) || !sock.code(subsys) || !sock.eom() ) {
-			namePrintf( stderr, name, "Can't send %s command to", 
-						 cmdToStr(cmd) );
-			RESTORE;
-			return;
-		} else {
-			done = 1;
+		{
+			ReliSock *sock = (ReliSock*)d.startCommand (cmd, Stream::reli_sock, 0);
+			if( !sock || !sock->code(subsys) || !sock->eom() ) {
+				namePrintf( stderr, name, "Can't send %s command to", 
+							 cmdToStr(cmd) );
+				if (sock) {
+					delete sock;
+				}
+				RESTORE;
+				return;
+			} else {
+				done = 1;
+				delete sock;
+			}
 		}
 		break;
 	case DAEMONS_OFF:
@@ -798,7 +818,7 @@ doCommand( char *name )
 	}
 
 	if( !done ) {
-		if( !sock.code(cmd) || !sock.eom() ) {
+		if( !d.sendCommand(cmd) ) {
 			namePrintf( stderr, name, "Can't send %s command to", 
 						 cmdToStr(cmd) );
 			RESTORE;
@@ -925,20 +945,19 @@ handleSquawk( char *line, char *addr ) {
 		return FALSE;
 		
 	case 'd': { /* dump state */
-		ReliSock sock;
-		if ( !sock.connect( addr ) ) {
+		Daemon d(addr);
+		ReliSock *sock = (ReliSock*)d.startCommand(DUMP_STATE, Stream::reli_sock, 0);
+		if ( !sock ) {
 			printf ( "Problems connecting to %s\n", addr );
 			return TRUE;
 		}
-		sock.encode();
-		sock.put( DUMP_STATE );
-		sock.eom();
-		sock.decode();
+		sock->decode();
 
 		ClassAd ad;
-		ad.initFromStream( sock );
+		ad.initFromStream( *sock );
 		printAdToFile( &ad, NULL );
 		
+		delete sock;
 		return TRUE;
 	}
 	case 's':  { /* Send a DC signal */
@@ -959,16 +978,17 @@ handleSquawk( char *line, char *addr ) {
 			return TRUE;
 		}
 		
-		ReliSock sock;
-		if ( !sock.connect( addr ) ) {
+		Daemon d(addr);
+		ReliSock *sock = (ReliSock*)d.startCommand (DC_RAISESIGNAL, Stream::reli_sock, 0);
+		if ( !sock ) {
 			printf ( "Problems connecting to %s\n", addr );
 			return TRUE;
 		}
-		sock.encode();
-		sock.put( DC_RAISESIGNAL );
-		sock.code( signal );
-		sock.eom();
+		sock->encode();
+		sock->code( signal );
+		sock->eom();
 		
+		delete sock;
 		return TRUE;
 	}
 	case 'c': { /* Send a DC Command */
@@ -984,29 +1004,32 @@ handleSquawk( char *line, char *addr ) {
 			return TRUE;
 		}
 
-		ReliSock sock;
-		if ( !sock.connect( addr ) ) {
+		Daemon d(addr);
+		ReliSock *sock = (ReliSock*)d.startCommand ( command, Stream::reli_sock, 0);
+		if ( !sock ) {
 			printf ( "Problems connecting to %s\n", addr );
 			return TRUE;
 		}
-		sock.encode();
-		sock.code( command );
+		sock->encode();
 		while ( token = strtok( NULL, " " ) ) {
 			if ( isdigit(token[0]) ) {
 				int dig = atoi( token );
-				if ( !sock.code( dig ) ) {
+				if ( !sock->code( dig ) ) {
 					printf ( "Error coding %d.\n", dig );
+					delete sock;
 					return TRUE;
 				}
 			} else {
-				if ( !sock.code( token ) ) {
+				if ( !sock->code( token ) ) {
 					printf ( "Error coding %s.\n", token );
+					delete sock;
 					return TRUE;
 				}
 			}
 		}
-		sock.eom();
+		sock->eom();
 
+		delete sock;
 		return TRUE;
 	}
 	case 'r':

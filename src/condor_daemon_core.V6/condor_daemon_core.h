@@ -42,6 +42,7 @@
 #include "condor_commands.h"
 #include "condor_classad.h"
 #include "HashTable.h"
+#include "KeyCache.h"
 #include "list.h"
 #include "extArray.h"
 #include "Queue.h"
@@ -902,6 +903,9 @@ class DaemonCore : public Service
             
     static              TimerManager t;
     void                DumpTimerList(int, char* = NULL);
+
+	KeyCacheById		*enc_key_cache;
+
 
     IpVerify            ipverify;   
 
