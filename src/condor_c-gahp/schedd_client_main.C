@@ -161,6 +161,7 @@ my_fork () {
 
 	// This (parent) thread will service schedd requests
 	schedd_thread ((void*)inter_thread_io, NULL);	// This should set timers and return immediately
+	free(inter_thread_io);
 
 	return TRUE;
 }

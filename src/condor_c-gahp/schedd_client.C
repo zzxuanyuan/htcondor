@@ -137,16 +137,14 @@ checkRequestPipe () {
 
 			// Parse the command...
 			if (!(parse_gahp_command (next_line->Value(), &argv, &argc) && handle_gahp_command (argv, argc))) {
-				dprintf (D_ALWAYS, "error processing %s\n", next_line->Value());
-				write (REQUEST_ACK_OUTBOX, "R", 1); // Signal that we're ready again
-				continue;
+				dprintf (D_ALWAYS, "ERROR processing %s\n", next_line->Value());
 			}
 
 			// Clean up...
 			delete  next_line;
 			while ((--argc) >= 0)
 				free (argv[argc]);
-			delete [] argv;
+			free( argv );
 
 			write (REQUEST_ACK_OUTBOX, "R", 1); // Signal that we're ready again
 		}

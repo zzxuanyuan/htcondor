@@ -363,7 +363,15 @@ verify_job_id (const char * s) {
 int
 parse_gahp_command (const char* raw, char *** _argv, int * _argc) {
 
-	char ** argv = (char**)malloc (10*sizeof(char*)); 	// Max possible number of arguments
+	*_argv = NULL;
+	*_argc = 0;
+
+	if (!raw) {
+		dprintf(D_ALWAYS,"ERROR parse_gahp_command: empty command\n");
+		return FALSE;
+	}
+
+	char ** argv = (char**)calloc (10,sizeof(char*)); 	// Max possible number of arguments
 	int argc = 0;
 
 	int beginning = 0;
