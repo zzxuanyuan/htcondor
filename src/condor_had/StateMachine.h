@@ -16,8 +16,8 @@
 #define HAD_REPL_TRANSFER_FILE  504
 // end TODO
 
-#define NEGOTIATION_CYCLE 	    (5) //5 seconds
-#define SEND_COMMAND_TIMEOUT 	(1) // 1 second
+#define NEGOTIATION_CYCLE 	    	(5) //5 seconds
+#define SEND_COMMAND_TIMEOUT 		(1) // 1 second
 
 
 #define  USE_REPLICATION    (0)
@@ -113,8 +113,6 @@ private:
     void my_debug_print_list(StringList* str);
     void my_debug_print_buffers();
 
-    //bool isValidAddress(char*,struct sockaddr_in*);
-    // bool isMyAddress(struct sockaddr_in);
     char* convertToSinfull(char* addr);
 };
 

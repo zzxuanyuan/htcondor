@@ -476,30 +476,6 @@ void HADStateMachine::initializeHADList(char* str){
 
     bool iAmPresent = false;
     while( (try_address = had_net_list.next()) ) {
-      /*
-        struct sockaddr_in sin;
-        if(!isValidAddress(try_address,&sin)){
-            char error_msg[256];
-            sprintf( error_msg, "HAD CONFIGURATION ERROR: %d , not valid sinful address %s",daemonCore->getpid(),try_address);
-            onError(error_msg);
-            continue;
-        }
-
-        dprintf(D_FULLDEBUG," initializeHADList try_address %s port %d\n",inet_ntoa(sin.sin_addr),sin.sin_port);
-        // check if not myself
-        if(! isMyAddress(sin) ){
-            char* ip_addr = strdup(inet_ntoa(sin.sin_addr));
-            char full_addr[256];
-            sprintf(full_addr,"<%s:%d>",ip_addr,sin.sin_port);
-
-            otherHADIPs->insert(full_addr);
-            dprintf(D_FULLDEBUG," initializeHADList insert %s\n",full_addr);
-            delete ip_addr;
-        }else{
-            iAmPresent = true;
-        }
-	}*/
-
       char* sinfull_addr = convertToSinfull(try_address);
       if(sinfull_addr == NULL){
 	    char error_msg[256];
@@ -559,39 +535,6 @@ void HADStateMachine::clearBuffers(){
    removeAllFromList(&receivedIdList);
 }
 
-/***********************************************************
-*  Function :
-*//*
-bool HADStateMachine::isValidAddress(char* addr,struct sockaddr_in* sockad){
-    char* str;
-    struct sockaddr_in sin;
-
-    if(!(addr[0] == '<') ){
-         str = (char*)malloc(strlen(addr)+3);
-         sprintf(str,"<%s>",addr);
-         if(string_to_sin( str, &sin ) == 0){
-            free( str );
-            return FALSE;
-         }
-
-         dprintf(D_FULLDEBUG," isValidAddress address %s sin_address %s port %d\n",addr,inet_ntoa(sin.sin_addr),sin.sin_port);
-
-         free( str );
-         *sockad = sin;
-	 sockad->sin_port = getPortFromAddr(addr);
-         return TRUE;
-    }else{
-      
-        if(string_to_sin( addr, &sin ) == 0)
-            return FALSE;
-        *sockad = sin;
-	sockad->sin_port = getPortFromAddr(addr);
-	dprintf(D_FULLDEBUG," isValidAddress address2 %s sin_address %s port %d\n",addr,inet_ntoa(sockad->sin_addr),sockad->sin_port);
-        return TRUE;
-    }
-
-
-    }*/
 
 /***********************************************************
 *  Function :
@@ -602,9 +545,10 @@ char* HADStateMachine::convertToSinfull(char* addr){
     if(port == 0)
       return NULL;
 
-    char* address = getHostFromAddr(addr);
-    if(address == 0)
+    char* address = getHostFromAddr(addr); //returns dinamically allocated buf
+    if(address == 0){
       return NULL;
+    }
 
     struct in_addr sin;
     if(!is_ipaddr(address, &sin)){
@@ -618,35 +562,15 @@ char* HADStateMachine::convertToSinfull(char* addr){
       address = strdup(ip_addr);
     }
 
-    char port_str[10];
+    char port_str[32];
     sprintf(port_str,"%d",port);
     char* result = (char*)malloc(strlen(address) + strlen(port_str) + 2*strlen("<") + strlen(":") + 1);
     sprintf(result,"<%s:%d>",address,port);
 
     free( address );
     return result;
-
 }
-/***********************************************************
-*  Function :
-*//*
-bool HADStateMachine::isMyAddress(struct sockaddr_in other_sin){
 
-    struct sockaddr_in my_sin;
-    string_to_sin( daemonCore->InfoCommandSinfulString(), &my_sin );
-
-    // compare addresses
-    // if( (my_sin.sin_addr.s_addr == other_sin.sin_addr.s_addr) && (my_sin.sin_port == other_sin.sin_port)){
-    //    return TRUE;
-    // }
-    // compare addresses
-    if( (my_sin.sin_addr.s_addr == other_sin.sin_addr.s_addr) && (daemonCore->InfoCommandPort() == other_sin.sin_port)){
-        return TRUE;
-    }
-    return FALSE;
-
-}
-  */
 /***********************************************************
 *  Function :
 */
