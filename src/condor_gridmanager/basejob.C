@@ -66,6 +66,10 @@ BaseJob::BaseJob( ClassAd *classad )
 	ad->EvalBool(ATTR_GLOBUS_RESUBMIT_CHECK,NULL,wantResubmit);
 
 	ad->ClearAllDirtyFlags();
+
+	periodicPolicyEvalTid = daemonCore->Register_Timer( 30,
+								(TimerHandlercpp)&BaseJob::EvalPeriodicJobExpr,
+								"EvalPeriodicJobExpr", (Service*) this );;
 }
 
 BaseJob::~BaseJob()
@@ -73,6 +77,7 @@ BaseJob::~BaseJob()
 	if ( ad ) {
 		delete ad;
 	}
+	daemonCore->Cancel_Timer( periodicPolicyEvalTid );
 	daemonCore->Cancel_Timer( evaluateStateTid );
 }
 
@@ -187,6 +192,8 @@ void BaseJob::JobTerminated()
 	if ( condorState != COMPLETED && condorState != HELD &&
 		 condorState != REMOVED ) {
 
+		// TODO: put EvalAtExitJobExpr() call here
+
 		condorState = COMPLETED;
 		UpdateJobAdInt( ATTR_JOB_STATUS, condorState );
 		UpdateJobAdInt( ATTR_ENTERED_CURRENT_STATUS, time(NULL) );
@@ -253,6 +260,21 @@ void BaseJob::JobHeld( const char *hold_reason )
 			WriteHoldEventToUserLog( ad );
 			holdLogged = true;
 		}
+
+		requestScheddUpdate( this );
+	}
+}
+
+void BaseJob::JobRemoved( const char *remove_reason )
+{
+	if ( condorState != REMOVED ) {
+		condorState = REMOVED;
+		UpdateJobAdInt( ATTR_JOB_STATUS, condorState );
+		UpdateJobAdInt( ATTR_ENTERED_CURRENT_STATUS, time(NULL) );
+
+		UpdateJobAdString( ATTR_REMOVE_REASON, remove_reason );
+
+		UpdateRuntimeStats();
 
 		requestScheddUpdate( this );
 	}
@@ -334,6 +356,83 @@ void BaseJob::JobAdUpdateFromSchedd( const ClassAd *new_ad )
 		SetEvaluateState();
 	}
 
+}
+
+int BaseJob::EvalPeriodicJobExpr()
+{
+	float old_run_time;
+	UserPolicy user_policy;
+dprintf(D_FULLDEBUG,"(%d.%d) Evaluating periodic job policy expressions\n",procID.cluster,procID.proc);
+
+	user_policy.Init( ad );
+
+	UpdateJobTime( &old_run_time );
+
+	int action = user_policy.AnalyzePolicy( PERIODIC_ONLY );
+
+	RestoreJobTime( old_run_time );
+
+	switch( action ) {
+	case UNDEFINED_EVAL:
+		JobHeld( "Undefined job policy expression" );
+		SetEvaluateState();
+		break;
+	case STAYS_IN_QUEUE:
+			// do nothing
+		break;
+	case REMOVE_FROM_QUEUE:
+		JobRemoved( "Remove job policy expression became true" );
+		SetEvaluateState();
+		break;
+	case HOLD_IN_QUEUE:
+		JobHeld( "Hold job policy expression became true" );
+		SetEvaluateState();
+		break;
+	default:
+		EXCEPT( "Unknown action (%d) in BaseJob::EvalPeriodicJobExpr", 
+				action );
+	}
+
+	return 0;
+}
+
+int BaseJob::EvalAtExitJobExpr()
+{
+	UserPolicy user_policy;
+
+	user_policy.Init( ad );
+
+	return 0;
+}
+
+/*Before evaluating user policy expressions, temporarily update
+  any stale time values.  Currently, this is just RemoteWallClock.
+*/
+void
+BaseJob::UpdateJobTime( float *old_run_time )
+{
+  float previous_run_time,total_run_time;
+  int shadow_bday;
+  time_t now = time(NULL);
+
+  ad->LookupInteger(ATTR_SHADOW_BIRTHDATE,shadow_bday);
+  ad->LookupFloat(ATTR_JOB_REMOTE_WALL_CLOCK,previous_run_time);
+
+  if(old_run_time) *old_run_time = previous_run_time;
+  total_run_time = previous_run_time;
+  if(shadow_bday) total_run_time += (now - shadow_bday);
+
+  UpdateJobAdFloat( ATTR_JOB_REMOTE_WALL_CLOCK, total_run_time );
+}
+
+/*After evaluating user policy expressions, this is
+  called to restore time values to their original state.
+*/
+void
+BaseJob::RestoreJobTime( float old_run_time )
+{
+  UpdateJobAdFloat( ATTR_JOB_REMOTE_WALL_CLOCK, old_run_time );
+  ad->SetDirtyFlag( ATTR_JOB_REMOTE_WALL_CLOCK, false );
 }
 
 // Initialize a UserLog object for a given job and return a pointer to

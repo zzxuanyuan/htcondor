@@ -28,6 +28,7 @@
 #include "condor_classad.h"
 #include "MyString.h"
 #include "user_log.c++.h"
+#include "user_job_policy.h"
 #include "baseresource.h"
 
 class BaseResource;
@@ -56,8 +57,15 @@ class BaseJob
 	void JobTerminated();
 	void DoneWithJob();
 	void JobHeld( const char *hold_reason );
+	void JobRemoved( const char *remove_reason );
 
 	virtual void JobAdUpdateFromSchedd( const ClassAd *new_ad );
+
+	int EvalPeriodicJobExpr();
+	int EvalAtExitJobExpr();
+
+	void UpdateJobTime( float *old_run_time );
+	void RestoreJobTime( float old_run_time );
 
 	ClassAd *ad;
 	PROC_ID procID;
@@ -82,6 +90,7 @@ class BaseJob
  protected:
 	void UpdateRuntimeStats();
 
+	int periodicPolicyEvalTid;
 	int evaluateStateTid;
 };
 
