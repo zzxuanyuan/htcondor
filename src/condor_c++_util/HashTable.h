@@ -23,7 +23,6 @@
 #ifndef HASH_H
 #define HASH_H
 
-#include "condor_common.h"
 #include <iostream.h>
 
 // a generic hash bucket class
