@@ -921,6 +921,12 @@ int NordugridJob::doStageIn()
 			goto doStageIn_error_exit;
 		}
 
+full_filename.sprintf("/jobs/%s",remoteJobId);
+if ( ftp_lite_change_dir( ftp_srvr, full_filename.Value() ) == 0 ) {
+errorString.sprintf( "ftp_lite_change_dir() failed, errno=%d", errno );
+goto doStageIn_error_exit;
+}
+
 		full_filename.sprintf( "/jobs/%s/%s", remoteJobId,
 							   basename(curr_filename) );
 		curr_ftp_fp = ftp_lite_put( ftp_srvr, full_filename.Value(), 0,
