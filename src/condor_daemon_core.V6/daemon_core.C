@@ -1730,7 +1730,7 @@ DaemonCore::Only_Allow_Soap(int duration)
 		only_allow_soap = 0;
 	} else {
 		time_t now = time(NULL);
-		only_allow_soap = now + duration;
+		only_allow_soap = now + duration + 1;  // +1 cuz Matt worries
 	}
 }
 
