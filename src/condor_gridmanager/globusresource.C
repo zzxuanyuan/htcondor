@@ -68,7 +68,6 @@ GlobusResource::GlobusResource( const char *resource_name )
 	gahp.setNotificationTimerId( pingTimerId );
 	gahp.setMode( GahpClient::normal );
 	gahp.setTimeout( gahpCallTimeout );
-	resourceName = strdup( resource_name );
 	submitLimit = DEFAULT_MAX_PENDING_SUBMITS_PER_RESOURCE;
 	jobLimit = DEFAULT_MAX_SUBMITTED_JOBS_PER_RESOURCE;
 
