@@ -244,12 +244,12 @@ int Float::operator <=(ExprTree& tree)
 // evaluation. 
 //----------
 
-int ExprTree::EvalTree(AttrList* l, EvalResult* r)
+int ExprTree::EvalTree(const AttrList* l, EvalResult* r)
 {
 	return EvalTree(l, NULL, r);
 }
 
-int ExprTree::EvalTree(AttrList* l1, AttrList* l2, EvalResult* r)
+int ExprTree::EvalTree(const AttrList* l1, const AttrList* l2, EvalResult* r)
 {
 	int rval;
 
@@ -268,7 +268,7 @@ int ExprTree::EvalTree(AttrList* l1, AttrList* l2, EvalResult* r)
 	return rval;
 }
 
-int Variable::_EvalTree(AttrList* classad, EvalResult* val)
+int Variable::_EvalTree(const AttrList* classad, EvalResult* val)
 {
     ExprTree* tmp = NULL;
     
@@ -286,18 +286,19 @@ int Variable::_EvalTree(AttrList* classad, EvalResult* val)
     return tmp->EvalTree(classad, val);
 }
 
-int Variable::_EvalTree( AttrList* my_classad, AttrList* target_classad, EvalResult* val)
+int Variable::_EvalTree( const AttrList* my_classad, const AttrList* target_classad, EvalResult* val)
 {
 	return _EvalTreeRecursive( name, my_classad, target_classad, val );
 }
 
 /*
 Split a variable name into scope.target 
+(For compatibility, also accept scope__target.)
 If there is no scope, evaluate it simply.
 Otherwise, identify the ClassAd corresponding to the scope, and re-evaluate.
 */
 
-int Variable::_EvalTreeRecursive( char *name, AttrList* my_classad, AttrList* target_classad, EvalResult* val)
+int Variable::_EvalTreeRecursive( char *name, const AttrList* my_classad, const AttrList* target_classad, EvalResult* val)
 {
 	ClassAd *other_classad;
 	char prefix[ATTRLIST_MAX_EXPRESSION];
@@ -308,6 +309,9 @@ int Variable::_EvalTreeRecursive( char *name, AttrList* my_classad, AttrList* ta
 	if( !val || !name ) return FALSE;
 
 	fields = sscanf(name,"%[^.].%s",prefix,rest);
+	if(fields!=2) {
+		fields = sscanf(name,"%[^_]__%s",prefix,rest);
+	}
 
 	if(fields==2) {
 		/* already split */
@@ -351,7 +355,7 @@ Once it has been reduced to a simple name, resolve the variable by
 looking it up first in MY, then TARGET, and finally, the environment.
 */
 
-int Variable::_EvalTreeSimple( char *name, AttrList *my_classad, AttrList *target_classad, EvalResult *val )
+int Variable::_EvalTreeSimple( char *name, const AttrList *my_classad, const AttrList *target_classad, EvalResult *val )
 {
 	ExprTree *tmp;
 
@@ -371,7 +375,7 @@ int Variable::_EvalTreeSimple( char *name, AttrList *my_classad, AttrList *targe
 	return TRUE;
 }
 
-int Integer::_EvalTree(AttrList*, EvalResult* val)
+int Integer::_EvalTree(const AttrList*, EvalResult* val)
 {
     if(!val) 
     {
@@ -391,7 +395,7 @@ int Integer::_EvalTree(AttrList*, EvalResult* val)
 }
 
 //-------tw-------------
-int Integer::_EvalTree(AttrList*, AttrList*, EvalResult* val)
+int Integer::_EvalTree(const AttrList*, const AttrList*, EvalResult* val)
 {
     if(!val) 
     {
@@ -411,7 +415,7 @@ int Integer::_EvalTree(AttrList*, AttrList*, EvalResult* val)
 }
 
 //--------------------
-int Float::_EvalTree(AttrList*, EvalResult* val)
+int Float::_EvalTree(const AttrList*, EvalResult* val)
 {
     if(!val) 
     {
@@ -432,7 +436,7 @@ int Float::_EvalTree(AttrList*, EvalResult* val)
 
 
 //-------tw-------------
-int Float::_EvalTree(AttrList*, AttrList*, EvalResult* val)
+int Float::_EvalTree(const AttrList*, const AttrList*, EvalResult* val)
 {
     if(!val) 
     {
@@ -452,7 +456,7 @@ int Float::_EvalTree(AttrList*, AttrList*, EvalResult* val)
 }
 
 //--------------------------------
-int String::_EvalTree(AttrList*, EvalResult* val)
+int String::_EvalTree(const AttrList*, EvalResult* val)
 {
     if(!val) 
     {
@@ -464,7 +468,7 @@ int String::_EvalTree(AttrList*, EvalResult* val)
     return TRUE;
 }
 
-int ISOTime::_EvalTree(AttrList*, EvalResult* val)
+int ISOTime::_EvalTree(const AttrList*, EvalResult* val)
 {
     if(!val) 
     {
@@ -478,7 +482,7 @@ int ISOTime::_EvalTree(AttrList*, EvalResult* val)
 
 //-------tw-----------------------------
 
-int String::_EvalTree(AttrList*, AttrList*, EvalResult* val)
+int String::_EvalTree(const AttrList*, const AttrList*, EvalResult* val)
 {
     if(!val) 
     {
@@ -490,7 +494,7 @@ int String::_EvalTree(AttrList*, AttrList*, EvalResult* val)
     return TRUE;
 }
 
-int ISOTime::_EvalTree(AttrList*, AttrList*, EvalResult* val)
+int ISOTime::_EvalTree(const AttrList*, const AttrList*, EvalResult* val)
 {
     if(!val) 
     {
@@ -503,7 +507,7 @@ int ISOTime::_EvalTree(AttrList*, AttrList*, EvalResult* val)
 }
 
 //-----------------------------------
-int Boolean::_EvalTree(AttrList*, EvalResult* val)
+int Boolean::_EvalTree(const AttrList*, EvalResult* val)
 {
     if(!val) 
     {
@@ -517,7 +521,7 @@ int Boolean::_EvalTree(AttrList*, EvalResult* val)
 
 //-----------tw------------------------
 
-int Boolean::_EvalTree(AttrList*, AttrList*, EvalResult* val)
+int Boolean::_EvalTree(const AttrList*, const AttrList*, EvalResult* val)
 {
     if(!val) 
     {
@@ -531,7 +535,7 @@ int Boolean::_EvalTree(AttrList*, AttrList*, EvalResult* val)
 //-----------------------------------
 
 
-int Undefined::_EvalTree(AttrList*, EvalResult* val)
+int Undefined::_EvalTree(const AttrList*, EvalResult* val)
 {
     if(!val)
     {
@@ -542,7 +546,7 @@ int Undefined::_EvalTree(AttrList*, EvalResult* val)
 }
 
 //------------tw-------------------
-int Undefined::_EvalTree(AttrList*, AttrList*,  EvalResult* val)
+int Undefined::_EvalTree(const AttrList*, const AttrList*,  EvalResult* val)
 {
     if(!val)
     {
@@ -553,7 +557,7 @@ int Undefined::_EvalTree(AttrList*, AttrList*,  EvalResult* val)
 }
 //--------------------------------
 
-int Error::_EvalTree(AttrList*, EvalResult* val)
+int Error::_EvalTree(const AttrList*, EvalResult* val)
 {
     if(!val)
     {
@@ -564,7 +568,7 @@ int Error::_EvalTree(AttrList*, EvalResult* val)
 }
 
 //------------tw-------------------
-int Error::_EvalTree(AttrList*, AttrList*,  EvalResult* val)
+int Error::_EvalTree(const AttrList*, const AttrList*,  EvalResult* val)
 {
     if(!val)
     {
@@ -1508,13 +1512,13 @@ ExprTree *Function::DeepCopy(void) const
 	return copy;
 }
 
-int Function::_EvalTree(AttrList *attrlist, EvalResult *result)
+int Function::_EvalTree(const AttrList *attrlist, EvalResult *result)
 {
 	_EvalTree(attrlist, NULL, result);
 	return 0;
 }
 
-int Function::_EvalTree(AttrList *attrlist1, AttrList *attrlist2, EvalResult *result)
+int Function::_EvalTree(const AttrList *attrlist1, const AttrList *attrlist2, EvalResult *result)
 {
 	int        number_of_args, i;
 	int        successful_eval;
