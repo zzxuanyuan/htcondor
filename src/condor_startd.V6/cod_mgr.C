@@ -53,14 +53,26 @@ CODMgr::publish( ClassAd* ad, amask_t mask )
 	if( ! num_claims ) {
 		return;
 	}
+	MyString claim_names;
 	Claim* tmp_claim;
 	claims.Rewind();
 	while( claims.Next(tmp_claim) ) {
-			// publish as appropriate :)
+		tmp_claim->publishCOD( ad );
+		claim_names += tmp_claim->codId();
+		if( ! claims.AtEnd() ) {
+			claim_names += ", ";
+		}
 	}
+
 	MyString line = ATTR_NUM_COD_CLAIMS;
 	line += '=';
 	line += num_claims;
+	ad->Insert( line.Value() );
+
+	line = ATTR_COD_CLAIMS;
+	line += " = \"";
+	line += claim_names.Value();
+	line +='"';
 	ad->Insert( line.Value() );
 }
 
