@@ -81,13 +81,13 @@ CheckPlatformType:														@@\
 */
 #ifndef library_target
 #define library_target(libname, objlist,rel)		@@\
-## libname ## :	objlist								@@\
+libname:	objlist									@@\
 	rm -f libname									@@\
 	AR_REPLACE( libname, objlist )					@@\
-## rel ## :: libname								@@\
+rel:: libname										@@\
 	COPY_LIBRARY( libname, $(RELEASE_DIR)/lib )		@@\
 	RANLIB_TOUCH( $(RELEASE_DIR)/lib/libname )		@@\
-clean ## ::											@@\
+clean::												@@\
 	rm -f libname objlist
 #endif
 
@@ -306,20 +306,7 @@ clean::																@@\
 /*
 ** Generate a platform specific version of a shell script file using imake.
 */
-#if IS_ALPHA_OSF1
-#define script_target(targ,dir,dest)										@@\
-##targ: targ##.generic														@@\
-	imake -I../../config -T Scripts.template -s targ##.tmp -f targ##.generic@@\
-	awk -f awk.prog targ##.tmp > targ										@@\
-	rm -f targ##.tmp														@@\
-clean:: 																	@@\
-	rm -f targ 																@@\
-release::																	@@\
-	/bin/rm -f $(RELEASE_DIR)/##dir##/##targ								@@\
-	/bin/rm -f $(RELEASE_DIR)/##dir##/##dest								@@\
-	cp targ $(RELEASE_DIR)/##dir##/##dest									@@\
-	chmod u+x $(RELEASE_DIR)/##dir##/##dest
-#else
+#ifndef script_target
 #define script_target(targ,dest)											@@\
 ##targ: targ##.generic														@@\
 	imake -I../../config -T Scripts.template -s targ##.tmp -f targ##.generic@@\
@@ -337,19 +324,7 @@ release::																	@@\
 /*
 ** Generate a platform specific version of a text file file using imake.
 */
-#if IS_ALPHA_OSF1
-#define text_target(targ,dir,dest)											@@\
-##targ: targ##.generic														@@\
-	imake -I../../config -T Scripts.template -s targ##.tmp -f targ##.generic@@\
-	awk -f awk.prog targ##.tmp > targ										@@\
-	rm -f targ##.tmp														@@\
-clean:: 																	@@\
-	rm -f targ 																@@\
-release::																	@@\
-	/bin/rm -f $(RELEASE_DIR)/##dir##/##targ								@@\
-	/bin/rm -f $(RELEASE_DIR)/##dir##/##dest								@@\
-	cp targ $(RELEASE_DIR)/##dir##/##dest
-#else
+#ifndef text_target
 #define text_target(targ,dest)												@@\
 ##targ: targ##.generic														@@\
 	imake -I../../config -T Scripts.template -s targ##.tmp -f targ##.generic@@\
@@ -373,13 +348,3 @@ release::																	@@\
 	rm -f targ
 #endif
 
-/*
-** Import ".o" files from another directory as symbolic links.  Uses
-** Make macro "IMPORT_LINKS" which must be initialized to the
-** "import_links" shell script in this directory.
-*/
-#define import(dir,obj)			@@\
-## obj ## :						@@\
-	$(IMPORT_LINKS) dir obj		@@\
-## clean::						@@\
-	rm -f obj

@@ -27,39 +27,21 @@
 */ 
 
 /*
-  This is the startup routine for "normal" condor programs - that is
-  linked for both remote system calls and checkpointing.  "Standalone"
-  condor programs - those linked for checkpointing, but not remote
-  system calls, get linked with a completely different version of
-  MAIN() (found in the "condor_ckpt" directory.  We assume here that
-  our parent will provide command line arguments which tell us how to
-  attach to a "command stream", and then provide commands which control
-  how we start things.
-
-  The command stream here is a list of commands issued by the
-  condor_starter to the condor user process on a special file
-  descriptor which the starter will make available to the user process
-  when it is born (via a pipe).  The purpose is to control the user
-  process's initial execution state and the checkpoint, restart, and
-  migrate functions.
-
-  If the command line arguments look like:
-  		<program_name> '-_condor_cmd_fd' <fd_number>
-  then <fd_number> is the file descriptor from which the process should
-  read its commands.
-
-  If the command line arguments look like
-		<program_name> '-_condor_cmd_file' <file_name>
-  then <file_name> is the name of a *local* file which the program should
-  open and read commands from.  This interface is useful for debugging
-  since you can run the command from a shell or a debugger without
-  the need for a parent process to set up a pipe.
-
-  In any case, once the command stream processing is complete, main()
-  will be called in such a way that it appears the above described
-  arguments never existed.
-
-  Commands are:
+  This is the condor "command stream" interpreter.  The command stream
+  here is a list of commands issued by the condor_starter to the condor
+  user process on a special file descriptor which the starter will make
+  available to the user process when it is born (via a pipe).  The
+  purpose is to control the user process's initial execution state and
+  the checkpoint, restart, and migrate functions.  We assume that the
+  user process has been linked in such a way that the routine "MAIN" is
+  called at startup - not "main".  Thus we gain control of the process
+  before any user code is executed.  If the first argument to MAIN() is
+  "-_condor_cmd", then the next argument <some fd number> is the file
+  descriptor from which the process should read its commands, otherwise
+  main() is called in the usual way.  In any case, once the command
+  stream processing is complete, main() will be called in such a way
+  that it appears the arguments "-_condor_cmd" and <some fd number>
+  never existed.  Commands are:
 
 	iwd <pathname>
 		Change working directory to <pathname>.  This is intended to
@@ -75,11 +57,6 @@
 	ckpt <pathname>
 		The process should write its state information to the file
 		<pathname> so that it can be restarted at a later time.
-		We don't actually do a checkpoint here, we just set things
-		up so that when we checkpoint, the given file name will
-		be used.  The actual checkpoint is triggered by recipt of
-		the signal SIGTSTP, or by the user code calling the ckpt()
-		routine.
 
 	restart <pathname>
 		The process should read its state information from the file
@@ -135,16 +112,8 @@
 #define __STDC__
 #include "condor_common.h"
 #include "condor_syscall_mode.h"
-#include "syscall_numbers.h"
+#include "condor_syscall_numbers.h"
 #include <assert.h>
-
-typedef unsigned short u_short;
-#include <sys/socket.h>
-
-#include <netinet/in.h>
-#include <netdb.h>
-#include <errno.h>
-#include <signal.h>
 
 #include "condor_debug.h"
 static char *_FileName_ = __FILE__;
@@ -199,12 +168,7 @@ static BOOLEAN condor_restart( const char *path );
 static BOOLEAN condor_migrate_to( const char *host_addr, const char *port_num );
 static BOOLEAN condor_migrate_from( const char *fd_no );
 static BOOLEAN condor_exit( const char *status );
-static int open_tcp_stream( const char *hostname, unsigned short port );
-static int open_read_stream( const char *path );
-	   int open_write_stream( const char * ckpt_file, size_t n_bytes );
-void unblock_signals();
 
-int
 MAIN( int argc, char *argv[], char **envp )
 {
 	int		cmd_fd = -1;
@@ -212,76 +176,72 @@ MAIN( int argc, char *argv[], char **envp )
 	char	*extra;
 	int		scm;
 
-	_condor_prestart( SYS_REMOTE );
+	SetSyscalls( SYS_LOCAL | SYS_UNMAPPED );
+	init_syscall_connection( SYS_REMOTE | SYS_MAPPED, TRUE );
 
-#define USE_PIPES 0
-
-#if USE_PIPES
-	init_syscall_connection( TRUE );
-#else
-	init_syscall_connection( FALSE );
-#endif
-
-#if 0
 	dprintf( D_ALWAYS, "User process started\n" );
 	dprintf( D_ALWAYS, "\nOriginal\n" );
 	DumpOpenFds();
 	dprintf( D_ALWAYS, "END\n\n" );
-#endif
 
-		// We must be started by a parent providing a command stream,
-		// therefore there must be at least 3 arguments.
-	assert( argc >= 3 );
+	if( argc >= 3 ) {
 
-	if( strcmp("-_condor_cmd_fd",argv[1]) == MATCH ) {
-		dprintf( D_FULLDEBUG, "Found condor_cmd_fd\n" );
-		cmd_fd = strtol( argv[2], &extra, 0 );
-		if( extra[0] ) {
-			dprintf( D_ALWAYS, "Can't parse cmd stream fd (%s)\n", argv[2]);
-			exit( 1 );
+			/* Our parent will give commands on a file descriptor which
+			   is already open.
+			*/
+		if( strcmp("-_condor_cmd_fd",argv[1]) == MATCH ) {
+			dprintf( D_ALWAYS, "Found condor_cmd_fd\n" );
+			cmd_fd = strtol( argv[2], &extra, 0 );
+			if( extra[0] ) {
+				dprintf( D_ALWAYS, "Can't parse cmd stream fd (%s)\n", argv[2]);
+				exit( 1 );
+			}
+			dprintf( D_ALWAYS, "fd number is %d\n", cmd_fd );
+			scm = SetSyscalls( SYS_LOCAL | SYS_MAPPED );
+			pre_open( cmd_fd, TRUE, FALSE );
+
+			dprintf( D_ALWAYS, "\nBefore reading commands\n" );
+			DumpOpenFds();
+			dprintf( D_ALWAYS, "END\n\n" );
+
+
+			/* The special commands are in a file which we should
+			   open.
+			*/
+		} else if( strcmp("-_condor_cmd_file",argv[1]) == MATCH ) {
+			dprintf( D_ALWAYS, "Found condor_cmd_file\n" );
+			scm = SetSyscalls( SYS_LOCAL | SYS_MAPPED );
+			cmd_fd = open( argv[2], O_RDONLY);
+			if( cmd_fd < 0 ) {
+				dprintf( D_ALWAYS, "Can't read cmd file \"%s\"\n", argv[2] );
+				exit( 1 );
+			}
+
+			/* Some error in the command line syntax */
+		} else {
+			dprintf( D_ALWAYS,
+				"Can't parse cmd line: argv[1] = \"%s\"\n",
+				argv[1]
+			);
 		}
-		dprintf( D_FULLDEBUG, "fd number is %d\n", cmd_fd );
-		// scm = SetSyscalls( SYS_LOCAL | SYS_MAPPED );
-		pre_open( cmd_fd, TRUE, FALSE );
 
-#if 0
-		dprintf( D_ALWAYS, "\nBefore reading commands\n" );
-		DumpOpenFds();
-		dprintf( D_ALWAYS, "END\n\n" );
-#endif
-
-
-	} else if( strcmp("-_condor_cmd_file",argv[1]) == MATCH ) {
-
-		dprintf( D_FULLDEBUG, "Found condor_cmd_file\n" );
-		// scm = SetSyscalls( SYS_LOCAL | SYS_MAPPED );
-		cmd_fd = open( argv[2], O_RDONLY);
-		if( cmd_fd < 0 ) {
-			dprintf( D_ALWAYS, "Can't read cmd file \"%s\"\n", argv[2] );
-			exit( 1 );
+			/* If there was a command file, process it */
+		if( cmd_fd >= 0 ) {
+			dprintf( D_ALWAYS, "\nCalling cmd stream processor\n" );
+			_condor_interp_cmd_stream( cmd_fd );
+			dprintf( D_ALWAYS, "Done\n\n" );
+			cmd_name = argv[0];
+			argv += 2;
+			argc -= 2;
+			argv[0] = cmd_name;
 		}
-
-		/* Some error in the command line syntax */
-	} else {
-		assert( FALSE );
 	}
 
-	dprintf( D_FULLDEBUG, "\nCalling cmd stream processor\n" );
-	_condor_interp_cmd_stream( cmd_fd );
-	dprintf( D_FULLDEBUG, "Done\n\n" );
-	cmd_name = argv[0];
-	argv += 2;
-	argc -= 2;
-	argv[0] = cmd_name;
-
-	unblock_signals();
 	SetSyscalls( SYS_REMOTE | SYS_MAPPED );
 
-#if 0
 	dprintf( D_ALWAYS, "\nBefore calling main()\n" );
 	DumpOpenFds();
 	dprintf( D_ALWAYS, "END\n\n" );
-#endif
 
 		/* Now start running user code */
 	main( argc, argv, envp );
@@ -299,6 +259,9 @@ _condor_interp_cmd_stream( int fd )
 
 	while( fgets(buf,sizeof(buf),fp) ) {
 		scan_cmd( buf, &argc, argv );
+#if 0
+		display_cmd( argc, argv );
+#endif
 		switch( do_cmd(argc,argv) ) {
 		  case OK:
 			break;
@@ -329,6 +292,26 @@ scan_cmd( char *buf, int *argc, char *argv[] )
 	*argc = i;
 }
 
+#if 0
+static void
+display_cmd( int argc, char *argv[] )
+{
+	int		i;
+
+	if( argc == 0 ) {
+		return;
+	}
+	printf( "%s( ", argv[0] );
+
+	for( i = 1; i < argc; i++ ) {
+		printf( "%s%s",
+			argv[i], 
+			i == argc - 1 ? " " : ", "
+		);
+	}
+	printf( ")\n" );
+}
+#endif
 
 static enum result
 do_cmd( int argc, char *argv[] )
@@ -394,9 +377,8 @@ find_cmd( const char *str )
 static BOOLEAN
 condor_iwd( const char *path )
 {
-	dprintf( D_FULLDEBUG, "condor_iwd: path = \"%s\"\n", path );
+	dprintf( D_ALWAYS, "condor_iwd: path = \"%s\"\n", path );
 	REMOTE_syscall( CONDOR_chdir, path );
-	Set_CWD( path );
 	return TRUE;
 }
 
@@ -425,10 +407,10 @@ condor_fd( const char *num, const char *path, const char *open_mode )
 		"condor_fd: fd_number = %d, file = \"%s\",  mode = 0%o\n",
 		n, path, mode
 	);
-	scm = SetSyscalls( SYS_REMOTE | SYS_MAPPED );
+	SetSyscalls( SYS_REMOTE | SYS_MAPPED );
 	remote_fd = open( path, mode );
 	assert( remote_fd >= 0 );
-	dprintf( D_FULLDEBUG, "remote_fd = %d, n = %d\n", remote_fd, n );
+	dprintf( D_ALWAYS, "remote_fd = %d, n = %d\n", remote_fd, n );
 	if( remote_fd != n ) {
 		int		status;
 		status = dup2(remote_fd,n);
@@ -446,8 +428,6 @@ static BOOLEAN
 condor_ckpt( const char *path )
 {
 	dprintf( D_ALWAYS, "condor_ckpt: filename = \"%s\"\n", path );
-	init_image_with_file_name( path );
-
 	return TRUE;
 }
 
@@ -455,16 +435,8 @@ condor_ckpt( const char *path )
 static BOOLEAN
 condor_restart( const char *path )
 {
-	int		fd;
-
-	dprintf( D_FULLDEBUG, "condor_restart: file = \"%s\"\n", path );
-
-	fd = open_read_stream( path );
-	init_image_with_file_descriptor( fd );
-	restart();
-
-		/* Can never get here - restart() jumps back into user code */
-	return FALSE;
+	dprintf( D_ALWAYS, "condor_restart: file = \"%s\"\n", path );
+	return TRUE;
 }
 
 static BOOLEAN
@@ -478,7 +450,7 @@ condor_migrate_to( const char *host_name, const char *port_num )
 		return FALSE;
 	}
 
-	dprintf( D_FULLDEBUG,
+	dprintf( D_ALWAYS,
 		"condor_migrate_to: host = \"%s\", port = %d\n", host_name, port
 	);
 	return TRUE;
@@ -495,7 +467,7 @@ condor_migrate_from( const char *fd_no )
 		return FALSE;
 	}
 	
-	dprintf( D_FULLDEBUG, "condor_migrate_from: fd = %d\n", fd );
+	dprintf( D_ALWAYS, "condor_migrate_from: fd = %d\n", fd );
 	return TRUE;
 }
 
@@ -510,128 +482,6 @@ condor_exit( const char *status )
 		return FALSE;
 	}
 	
-	dprintf( D_FULLDEBUG, "condor_exit: status = %d\n", st );
+	dprintf( D_ALWAYS, "condor_exit: status = %d\n", st );
 	return TRUE;
-}
-
-/*
-  Open a TCP connection at the given hostname and port number.  This
-  will result in a file descriptor where we can read data (our checkpoint
-  information).
-*/
-int
-open_tcp_stream( const char *hostname, unsigned short port )
-{
-	struct hostent		*host_ptr;
-	struct sockaddr_in	sin;
-	int		fd;
-	int		status;
-	int		scm;
-
-	scm = SetSyscalls( SYS_LOCAL | SYS_UNMAPPED );
-
-		/* Look up the address of the host */
-	host_ptr = gethostbyname( hostname );
-	assert( host_ptr );
-	dprintf( D_FULLDEBUG, "Found host entry for \"%s\"\n", hostname );
-
-		/* generate a socket */
-	fd = socket( AF_INET, SOCK_STREAM, 0 );
-	assert( fd >= 0 );
-	dprintf( D_FULLDEBUG, "Generated a data socket - fd = %d\n", fd );
-		
-		/* set the address */
-	memset( &sin, '\0', sizeof sin );
-	memcpy( &sin.sin_addr, host_ptr->h_addr, (size_t)host_ptr->h_length );
-	sin.sin_family = host_ptr->h_addrtype;
-	sin.sin_port = htons( port );
-	dprintf( D_FULLDEBUG, "Internet address structure set up\n" );
-
-	status = connect( fd,( struct sockaddr *)&sin, sizeof(sin) );
-	if( status < 0 ) {
-		dprintf( D_ALWAYS, "connect() failed - errno = %d\n", errno );
-		exit( 1 );
-	}
-	dprintf( D_FULLDEBUG, "Connection completed - returning fd %d\n", fd );
-
-	SetSyscalls( scm );
-	return fd;
-}
-
-
-/*
-  Open a stream for writing our checkpoint information.  Since we are in
-  the "remote" startup file, this is the remote version.  We do it with
-  a "pseudo system call" to the shadow.
-*/
-int
-open_write_stream( const char * ckpt_file, size_t n_bytes )
-{
-	int		st;
-	char	hostname[ 1024 ];
-	int		fd;
-	unsigned short	port;
-
-		// Get the hostname and port number of a process to which we
-		// can send the checkpoint data.
-	st = REMOTE_syscall( CONDOR_put_file_stream, ckpt_file, n_bytes, hostname, &port );
-	dprintf( D_FULLDEBUG, "Hostname = \"%s\"\n", hostname );
-	dprintf( D_FULLDEBUG, "Port = %d\n", port );
-
-		// Connect to the specified party
-	fd = open_tcp_stream( hostname, port );
-	dprintf( D_FULLDEBUG, "Checkpoint Data Connection Ready, fd = %d\n", fd );
-
-	return fd;
-}
-
-int
-open_read_stream( const char *path )
-{
-	int		st;
-	size_t	len;
-	unsigned short	port;
-	char	hostname[ 1024 ];
-	int		fd;
-
-
-		// Get the hostname and port number of a process which will
-		// send us the checkpoint data.
-	SetSyscalls( SYS_REMOTE | SYS_MAPPED );
-	st = REMOTE_syscall( CONDOR_get_file_stream, path, &len, hostname, &port );
-	dprintf( D_FULLDEBUG, "Hostname = \"%s\"\n", hostname );
-	dprintf( D_FULLDEBUG, "Port = %d\n", port );
-
-	SetSyscalls( SYS_LOCAL | SYS_UNMAPPED );
-	fd = open_tcp_stream( hostname, port );
-	dprintf( D_FULLDEBUG, "Checkpoint Data Connection Ready, fd = %d\n", fd );
-
-	return fd;
-}
-
-void
-report_image_size( int kbytes )
-{
-	dprintf( D_ALWAYS, "Sending Image Size Report of %d kilobytes\n", kbytes );
-	REMOTE_syscall( CONDOR_image_size, kbytes );
-}
-
-void
-unblock_signals()
-{
-	sigset_t	sig_mask;
-	int			scm;
-
-	scm = SetSyscalls( SYS_LOCAL | SYS_UNMAPPED );
-
-		/* unblock signals */
-	sigfillset( &sig_mask );
-	if( sigprocmask(SIG_UNBLOCK,&sig_mask,0) < 0 ) {
-		perror( "sigprocmask" );
-		exit( 1 );
-	}
-
-	SetSyscalls( scm );
-
-	dprintf( D_ALWAYS, "Unblocked all signals\n" );
 }

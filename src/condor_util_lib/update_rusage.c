@@ -30,10 +30,6 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/resource.h>
-#include "condor_debug.h"
-
-static char *_FileName_ = __FILE__;
-
 
 /*
 ** Add ru2 rusage struct to ru1 rusage struct.
@@ -41,7 +37,6 @@ static char *_FileName_ = __FILE__;
 update_rusage( ru1, ru2 )
 register struct rusage *ru1, *ru2;
 {
-	dprintf( D_ALWAYS, "Entering update_rusage()\n");
 	ru1->ru_utime.tv_usec += ru2->ru_utime.tv_usec;
 	if( ru1->ru_utime.tv_usec >= 1000000 ) {
 		ru1->ru_utime.tv_usec -= 1000000;

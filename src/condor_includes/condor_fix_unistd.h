@@ -9,7 +9,7 @@
   these prototypes, even though the Ultrix 4.2 versions did...
   Once again, OSF1 also chokes, unless _AES_SOURCE(?) is defined JCP
 */
-#if defined(ULTRIX43) || defined(SUNOS41) || defined(OSF1)
+#if defined(ULTRIX43) || defined(OSF1)
 
 #if defined(__cplusplus)
 extern "C" {
@@ -17,7 +17,7 @@ extern "C" {
 
 #if defined(__STDC__) || defined(__cplusplus)
 	int symlink( const char *, const char * );
-	void *sbrk( ssize_t );
+	char *sbrk( int );
 	int gethostname( char *, int );
 #else
 	int symlink();

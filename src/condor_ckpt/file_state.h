@@ -13,7 +13,8 @@ class OpenFileTable;
 class File {
 friend class OpenFileTable;
 public:
-	void	Init();
+	File();
+	~File();
 	void	Display();
 	BOOL	isOpen()			{ return open; }
 	BOOL	isDup()				{ return duplicate; }
@@ -38,11 +39,11 @@ private:
 
 class OpenFileTable {
 public:
-	void Init();
+	OpenFileTable();
 	void Display();
 	void Save();
 	void Restore();
-	int PreOpen( int fd, BOOL readable, BOOL writeable, BOOL shadow_connection);
+	int PreOpen( int fd, BOOL readable, BOOL writeable );
 	int DoOpen( const char *path, int flags, int mode );
 	int DoClose( int fd );
 	int DoDup( int fd );
