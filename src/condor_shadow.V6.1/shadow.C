@@ -165,11 +165,7 @@ UniShadow::spawn( void )
 void
 UniShadow::reconnect( void )
 {
-	if( ! remRes->reconnect() ) {
-			// we're screwed, give up.
-			// is this safe, or do we need a unique status number?
-		shutDown( JOB_SHOULD_REQUEUE );
-	}
+	remRes->reconnect();
 }
 
 
