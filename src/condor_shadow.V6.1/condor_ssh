@@ -1,20 +1,30 @@
 #!/bin/sh
 
 if [ $# -lt 1 ]; then
-	echo 'usage condor_ssh CLUSTER.PROC [commands]'
+	echo 'usage condor_ssh CLUSTER.PROC[.NODE] [commands]'
 	exit -1
 fi
 
 condor_ssh_binary=`dirname $0`/../lib/rsh
+
 # arg[1] should be cluster.proc
 jobid=$1
 shift
 filename=contactFile.$jobid
 args=$*
+any=1
+nodenumber=0
 
 if [ ! -f $filename ]; then
-	echo " file $filename does not exists.  "
-	exit -1
+#	ok, it might be cluster.proc.node
+	if [ -f ${filename%.*} ]; then
+		nodenumber=${filename##*.}
+		filename=${filename%.*}
+		any=0
+	else
+		echo "CONDOR_SSH: cannot find conntact file: $filename."
+		exit -1;
+	fi
 fi
 
 source $filename
@@ -22,5 +32,21 @@ export CONDOR_PARALLEL_OPENSSH_DIR
 export CONDOR_PARALLEL_SHADOW_CONTACT
 export CONDOR_PARALLEL_WORK_DIR
 export CONDOR_PARALLEL_USER_KEY
-$condor_ssh_binary -no_wrapper -choose_any DUMMY_HOST $args
 
+if [ $any -eq 1 ]; then
+	$condor_ssh_binary -no_wrapper -choose_any DUMMY_HOST $args
+else
+	machinefile=machines.${jobid%.*}
+	if [ ! -f $machinefile ]; then
+		echo "CONDOR_SSH: cannot find machine file: $machinefile."
+		exit -1;
+	fi
+	lines=`cat $machinefile | wc -l`
+	linenumber=`expr $nodenumber + 1`
+	if [ $lines -lt $linenumber ]; then
+		echo "CONDOR_SSH: do not have so much nodes: $nodenumber."
+		exit -1;
+	fi
+	hostname=`head -$linenumber < $machinefile | tail -1`
+		$condor_ssh_binary -no_wrapper $hostname $args	
+fi
