@@ -17,16 +17,16 @@ char* mySubSystem = "FWD_SERVER";       // used by Daemon Core
 void inline
 usage (char *msg)
 {
-    cerr << "Usage: FwdServer [DaemonCore options] -i Lip -p Lport [-I Pip]+" << endl;
-    cerr << "\tLip: ip address connected to the private network\n";
+	cerr << "Usage: FwdServer [DaemonCore options] -i Lip -p Lport [-I Pip]+" << endl;
+	cerr << "\tLip: ip address connected to the private network\n";
 	cerr << "\t\tIf you have multiple interface connected to the private network,\n";
 	cerr << "\t\tyou should run this program for each interface to fully utilize the bandwidth\n";
-    cerr << "\tLport: port this daemon is listening from Cedars running in private network\n";
-    cerr << "\tPip(Public IP): Internet ip address known to public(i.e. Internet)\n"; 
+	cerr << "\tLport: port this daemon is listening from Cedars running in private network\n";
+	cerr << "\tPip(Public IP): Internet ip address known to public(i.e. Internet)\n"; 
 	cerr << "\t\tIf the machine has multiple interface connected to Internet,\n";
 	cerr << "\t\tyou should specify every ip-addr of them to fully utilize the bandwidth\n";
 	cerr << "\n" << msg << endl;
-    return;
+	return;
 }
 
 
@@ -116,13 +116,11 @@ main_init (int argc, char *argv[])
 	mng_sin.sin_addr.s_addr = mngAddr;
 	if (bind (listenSock, (struct sockaddr *)&mng_sin, sizeof (mng_sin)) < 0) {
 		EXCEPT ("bind failed");
-		exit (-1);
 	}
 
     	/* make listenSock passive */
     if (listen (listenSock, 5) < 0) {
         EXCEPT ("listen call failed");
-        exit (-1);
     }
 
 		/* create FwdServer */

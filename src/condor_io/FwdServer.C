@@ -168,18 +168,21 @@ FwdServer::handleCommand (Stream *cmdSock)
 	int listenSock = ((ReliSock *)cmdSock)->get_file_desc();
 	int newSock = accept (listenSock, (struct sockaddr *)&cedar, &addrLen);
 	if (newSock < 0) {
-		EXCEPT ("accept failed");
+		dprintf(D_ALWAYS, "accept - %s\n", strerror(errno));
+		return KEEP_STREAM;
 	}
 
 	if (!getLine (newSock, lineBuf, 100)) {
-		EXCEPT ( "getLine failed");
+		dprintf(D_ALWAYS, "getLine failed\n");
+		close(newSock);
+		return KEEP_STREAM;
 	}
 	char tIP1[20], tPort1[10], tIP2[20], tPort2[10], tMport[10];
 	int fields = sscanf(lineBuf, "%s %s %s %s %s %s %s", cmd, proto, tIP1, tPort1, tIP2, tPort2, tMport);
 	if (fields != 7) {
-		char err[50];
-		sprintf(err, "FwdServer::handleCommand - scanf failed: %d returned", fields);
-		EXCEPT (err);
+		dprintf(D_ALWAYS, "FwdServer::handleCommand - scanf failed: %d returned", fields);
+		close(newSock);
+		return KEEP_STREAM;
 	}
 	ipAddr1 = atoi(tIP1);
 	port1 = atoi(tPort1);

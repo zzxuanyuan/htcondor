@@ -476,7 +476,7 @@ FwdMnger::addInterface(char *dotNotation)
 	if ( !inet_aton(dotNotation, &inp) ) {
 		EXCEPT ("FwdMnger::addInterface - inet_aton failed");
 	}
-	unsigned int ipAddr = inp.s_addr;
+	uint32_t ipAddr = inp.s_addr;
 
 	freePortMnger.addInterface(ipAddr);
 
