@@ -51,8 +51,6 @@ you want our top-level Makefile to build the directory tree with all
 the soft links.  The links will point back to Top/src/... */
 #define Top /full/path/to/your/source/workspace
 
-#define TmpDir		/tmp
-
 #if MALLOC_DEBUG
 #define CFlags -DMALLOC_DEBUG
 #else
