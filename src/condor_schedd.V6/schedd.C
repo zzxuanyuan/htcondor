@@ -5236,12 +5236,13 @@ update_remote_wall_clock(int cluster, int proc)
 			// we are sure not to double-count.  The wall-clock
 			// checkpoint (see CkptWallClock above) ensures that
 			// if we crash before committing our wall clock time,
-			// we won't lose too much.
-		BeginTransaction();
+			// we won't lose too much.  
+			// Luckily we're now already inside a transaction, since
+			// *all* of the qmgmt ops we do when we delete the shadow
+			// rec are inside a transaction now... 
 		SetAttributeFloat(cluster, proc,
 						  ATTR_JOB_REMOTE_WALL_CLOCK,accum_time);
 		DeleteAttribute(cluster, proc, ATTR_JOB_WALL_CLOCK_CKPT);
-		CommitTransaction();
 	}
 }
 
@@ -5250,20 +5251,23 @@ void
 Scheduler::delete_shadow_rec(int pid)
 {
 	shadow_rec *rec;
-	int job_status = IDLE;
 
 	dprintf( D_FULLDEBUG, "Entered delete_shadow_rec( %d )\n", pid );
 
-	if (shadowsByPid->lookup(pid, rec) == 0) {
-		dprintf(D_FULLDEBUG,
-				"Deleting shadow rec for PID %d, job (%d.%d)\n",
-				pid, rec->job_id.cluster, rec->job_id.proc );
+	if( shadowsByPid->lookup(pid, rec) == 0 ) {
+		int cluster = rec->job_id.cluster;
+		int proc = rec->job_id.proc;
 
+		dprintf( D_FULLDEBUG,
+				 "Deleting shadow rec for PID %d, job (%d.%d)\n",
+				 pid, cluster, proc );
+
+		BeginTransaction();
+
+		int job_status = IDLE;
 		int universe = CONDOR_UNIVERSE_STANDARD;
-		GetAttributeInt(rec->job_id.cluster, rec->job_id.proc,
-						ATTR_JOB_UNIVERSE, &universe);
-		GetAttributeInt(rec->job_id.cluster, rec->job_id.proc,
-						ATTR_JOB_STATUS, &job_status);
+		GetAttributeInt( cluster, proc, ATTR_JOB_UNIVERSE, &universe );
+		GetAttributeInt( cluster, proc, ATTR_JOB_STATUS, &job_status );
 
 		if (universe == CONDOR_UNIVERSE_PVM) {
 			ClassAd *ad;
@@ -5271,44 +5275,43 @@ Scheduler::delete_shadow_rec(int pid)
 			while (ad != NULL) {
 				PROC_ID tmp_id;
 				ad->LookupInteger(ATTR_CLUSTER_ID, tmp_id.cluster);
-				if (tmp_id.cluster == rec->job_id.cluster) {
+				if (tmp_id.cluster == cluster) {
 					ad->LookupInteger(ATTR_PROC_ID, tmp_id.proc);
 					update_remote_wall_clock(tmp_id.cluster, tmp_id.proc);
 				}
 				ad = GetNextJob(0);
 			}
 		} else {
-			update_remote_wall_clock(rec->job_id.cluster, rec->job_id.proc);
+			update_remote_wall_clock(cluster, proc);
 		}
 
 		char* last_host = NULL;
-		GetAttributeStringNew( rec->job_id.cluster, rec->job_id.proc,
-							   ATTR_REMOTE_HOST, &last_host );
-		DeleteAttribute( rec->job_id.cluster, rec->job_id.proc, 
-						 ATTR_REMOTE_HOST );
+		GetAttributeStringNew( cluster, proc, ATTR_REMOTE_HOST, &last_host );
+		DeleteAttribute( cluster, proc, ATTR_REMOTE_HOST );
 		if( last_host ) {
-			SetAttributeString( rec->job_id.cluster, rec->job_id.proc, 
-								ATTR_LAST_REMOTE_HOST, last_host );
+			SetAttributeString( cluster, proc, ATTR_LAST_REMOTE_HOST,
+								last_host );
 			free( last_host );
 			last_host = NULL;
 		}
 
 		char* last_claim = NULL;
-		GetAttributeStringNew( rec->job_id.cluster, rec->job_id.proc,
-							   ATTR_CLAIM_ID, &last_claim );
-		DeleteAttribute( rec->job_id.cluster, rec->job_id.proc, 
-						 ATTR_CLAIM_ID );
+		GetAttributeStringNew( cluster, proc, ATTR_CLAIM_ID, &last_claim );
+		DeleteAttribute( cluster, proc, ATTR_CLAIM_ID );
 		if( last_claim ) {
-			SetAttributeString( rec->job_id.cluster, rec->job_id.proc, 
-								ATTR_LAST_CLAIM_ID, last_claim );
+			SetAttributeString( cluster, proc, ATTR_LAST_CLAIM_ID, 
+								last_claim );
 			free( last_claim );
 			last_claim = NULL;
 		}
 
-		DeleteAttribute( rec->job_id.cluster, rec->job_id.proc,
-						 ATTR_REMOTE_POOL );
-		DeleteAttribute( rec->job_id.cluster,rec->job_id.proc, 
-			ATTR_REMOTE_VIRTUAL_MACHINE_ID );
+		DeleteAttribute( cluster, proc, ATTR_REMOTE_POOL );
+		DeleteAttribute( cluster,proc, ATTR_REMOTE_VIRTUAL_MACHINE_ID );
+
+			// we want to commit all of the above changes before we
+			// call check_zombie() since it might do it's own
+			// transactions of one sort or another...
+		CommitTransaction();
 
 		check_zombie( pid, &(rec->job_id) );
 			// If the shadow went away, this match is no longer
