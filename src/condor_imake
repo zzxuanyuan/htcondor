@@ -40,7 +40,8 @@ tmp=`gcc -print-libgcc-file-name`
 LibGcc="-DLIB_GCC=$tmp"
 
 # discover the version of gcc I have
-tmp=`((gcc -v) 2>&1) | tail -1 | cut -d' ' -f3`
+tmp=`((gcc -v) 2>&1) | tail -1 | perl  -ne '{/.*gcc version\s*(\S*).*/; print "$1\n"}'`
+
 
 case "$tmp" in
 	"egcs-2.91.66" )
