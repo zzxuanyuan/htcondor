@@ -1718,41 +1718,8 @@ int main( int argc, char** argv )
 		// various kinds of hosts (ADMINISTRATOR, CONFIG, WRITE, etc). 
 	daemonCore->InitSettableAttrsLists();
 
-		// init db connection
-	char *tmp, *odbc_dsn, *odbc_user, *odbc_auth;
-	
-	/* Parse ODBC Connection Params */
-	tmp = param("NEGOTIATOR_ODBC_DSN");
-	if( tmp ) {
-		odbc_dsn = strdup(tmp);
-		free(tmp);
-	}
-	else {
-
-		odbc_dsn = strdup("condor");
-	}
-
-	tmp = param("NEGOTIATOR_ODBC_USER");
-	if( tmp ) {
-		odbc_user = strdup(tmp);
-		free(tmp);
-	}
-	else {
-		odbc_user = strdup("scidb");
-	}
-
-	tmp = param("NEGOTIATOR_ODBC_AUTH");
-	if( tmp ) {
-		odbc_auth = strdup(tmp);
-		free(tmp);
-	}
-	else {
-		odbc_auth = strdup("");
-	}
-
-	DBObj = new ODBC(odbc_dsn, odbc_user, odbc_auth);
-		//DBObj -> connectDB();
-	DBObj->odbc_connect();
+		// create a database connection object
+	DBObj = createConnection();
 
 	// call the daemon's main_init()
 	main_init( argc, argv );
