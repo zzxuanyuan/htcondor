@@ -1,6 +1,5 @@
 #if DOES_REMOTE_SYSCALLS
 SEND_OBJ = send.o
-SETPRIORITY_OBJ = setpriority.o
 #else
 CLIP = -DCLIP
 #endif
@@ -105,8 +104,7 @@ SGI_CKPT = MMAP.MIPS.$(DEP_OS).o SYSCALL.MIPS.$(DEP_OS).o
 FLOCK_OBJ = flock.o
 #endif
 
-STUBS = switches.o switches.special.o $(SEND_OBJ) $(SETPRIORITY_OBJ) \
-	getcwd.o
+STUBS = switches.o switches.special.o $(SEND_OBJ) getcwd.o
 
 UTIL = \
 	remote_syscall.o \
