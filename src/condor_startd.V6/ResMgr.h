@@ -34,7 +34,7 @@ typedef int (Resource::*ResourceMember)();
 typedef float (Resource::*ResourceFloatMember)();
 typedef void (Resource::*ResourceMaskMember)(amask_t);
 
-class ResMgr
+class ResMgr : public Service
 {
 public:
 	ResMgr();
@@ -51,6 +51,9 @@ public:
 	void	send_update( ClassAd*, ClassAd* );
 	void	final_update();
 	
+		// Evaluate the state of all resources.
+	void	eval_all();
+
 		// Evaluate and send updates for all resources.
 	void	eval_and_update_all();
 
@@ -78,6 +81,11 @@ public:
 	// Hack function
 	Resource*	rip() {return resources[0];};
 
+	// Methods to control various timers
+	int		start_update_timer();	// Timer for updating the CM(s)
+	int		start_poll_timer();		// Timer for polling the resources
+	void	cancel_poll_timer();
+
 	Resource*	get_by_pid(int);		// Find rip by pid of starter
 	Resource*	get_by_cur_cap(char*);	// Find rip by r_cur->capab
 	Resource*	get_by_any_cap(char*);	// Find rip by r_cur or r_pre
@@ -92,6 +100,9 @@ private:
 	int			nresources;		// Size of the array
 	SafeSock*	coll_sock;
 	SafeSock*	view_sock;
+
+	int		up_tid;		// DaemonCore timer id for update timer
+	int		poll_tid;	// DaemonCore timer id for polling timer
 
 };
 
