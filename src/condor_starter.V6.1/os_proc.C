@@ -304,9 +304,9 @@ OsProc::JobCleanup( int pid, int status )
 		// exit status for future use.
 	if (JobPid == pid) {		
 		exit_status = status;
+		num_pids = 0;
 		return 1;
 	}
-	num_pids = 0;
 	return 0;
 }
 
