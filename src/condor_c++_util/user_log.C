@@ -1,3 +1,4 @@
+//TEMPTEMP -- test what happens with partial events in XML -- seems to get fucked up... -- thinks it read an event even without ID stuff
 /***************************Copyright-DO-NOT-REMOVE-THIS-LINE**
   *
   * Condor Software Copyright Notice
@@ -643,6 +644,7 @@ readEventOld(ULogEvent *& event)
 	// rewind to this location
 	if (!_fp || ((filepos = ftell(_fp)) == -1L))
 	{
+printf("DIAG 1010\n");//TEMPTEMP
 		return ULOG_UNK_ERROR;
 	}
 
@@ -657,6 +659,7 @@ readEventOld(ULogEvent *& event)
 		if( feof( _fp ) ) {
 			event = NULL;  // To prevent FMR: Free memory read
 			clearerr( _fp );
+printf("DIAG 1020\n");//TEMPTEMP
 			return ULOG_NO_EVENT;
 		}
 	}
@@ -665,6 +668,7 @@ readEventOld(ULogEvent *& event)
 	event = instantiateEvent ((ULogEventNumber) eventnumber);
 	if (!event) 
 	{
+printf("DIAG 1030\n");//TEMPTEMP
 		return ULOG_UNK_ERROR;
 	}
 
@@ -674,6 +678,7 @@ readEventOld(ULogEvent *& event)
 	// check if error in reading event
 	if (!retval1 || !retval2)
 	{	
+printf("DIAG 1035\n");//TEMPTEMP
 		// we could end up here if file locking did not work for
 		// whatever reason (usual NFS bugs, whatever).  so here
 		// try to wait a second until the current partially-written
@@ -688,14 +693,21 @@ readEventOld(ULogEvent *& event)
 		sleep( 1 );
 		if( fseek( _fp, filepos, SEEK_SET)) {
 			dprintf( D_ALWAYS, "fseek() failed in %s:%d\n", __FILE__, __LINE__ );
+printf("DIAG 1040\n");//TEMPTEMP
 			return ULOG_UNK_ERROR;
 		}
+#if 0 //TEMPTEMP
+		//TEMPTEMP -- hmm -- if we just return here we seem to get permanently stuck on a partial event that would otherwise cause an error...  (Note -- this happens with or without the sync...)
+		synchronize();
+		return ULOG_NO_EVENT;
+#else //TEMPTEMP
 		if( synchronize() )
 		{
 			// if synchronization was successful, reset file position and ...
 			if (fseek (_fp, filepos, SEEK_SET))
 			{
 				dprintf(D_ALWAYS, "fseek() failed in ReadUserLog::readEvent\n");
+printf("DIAG 1050\n");//TEMPTEMP
 				return ULOG_UNK_ERROR;
 			}
 			
@@ -714,6 +726,7 @@ readEventOld(ULogEvent *& event)
 			    event =
 			      instantiateEvent( (ULogEventNumber)eventnumber );
 			    if( !event ) { 
+printf("DIAG 1060\n");//TEMPTEMP
 			      return ULOG_UNK_ERROR;
 			    }
 			  }
@@ -726,6 +739,8 @@ readEventOld(ULogEvent *& event)
 				delete event;
 				event = NULL;  // To prevent FMR: Free memory read
 				synchronize ();
+//TEMPTEMP -- we get here when we try to read an event again after we've gotten goofed up by a partial event (we get here when the rest of the event has been written, but we don't read it correctly)
+printf("DIAG 1070\n");//TEMPTEMP
 				return ULOG_RD_ERROR;
 			}
 			else
@@ -733,6 +748,7 @@ readEventOld(ULogEvent *& event)
 			  // finally got the event successfully --
 			  // synchronize the log
 			  if( synchronize() ) {
+printf("DIAG 1080\n");//TEMPTEMP
 			    return ULOG_OK;
 			  }
 			  else
@@ -742,6 +758,7 @@ readEventOld(ULogEvent *& event)
 			    delete event;
 			    event = NULL;  // To prevent FMR: Free memory read
 			    clearerr( _fp );
+printf("DIAG 1090\n");//TEMPTEMP
 			    return ULOG_NO_EVENT;
 			  }
 			}
@@ -753,34 +770,52 @@ readEventOld(ULogEvent *& event)
 			if (fseek (_fp, filepos, SEEK_SET))
 			{
 				dprintf(D_ALWAYS, "fseek() failed in ReadUserLog::readEvent\n");
+printf("DIAG 1100\n");//TEMPTEMP
 				return ULOG_UNK_ERROR;
 			}
 			clearerr (_fp);
 			delete event;
 			event = NULL;  // To prevent FMR: Free memory read
+//TEMPTEMP -- we get here with a partial event that will *not* generate an error
+printf("DIAG 1110\n");//TEMPTEMP
 			return ULOG_NO_EVENT;
 		}
+#endif //TEMPTEMP
 	}
 	else
 	{
 		// got the event successfully -- synchronize the log
 		if (synchronize ())
 		{
+//TEMPTEMP -- got here after successfully reading the second half of a partial event
+printf("DIAG 1120\n");//TEMPTEMP
 			return ULOG_OK;
 		}
 		else
 		{
 			// got the event, but could not synchronize!!  treat as incomplete
 			// event
+//TEMPTEMP -- why don't we fseek back to the beginning of the event here???
 			delete event;
 			event = NULL;  // To prevent FMR: Free memory read
+#if 1 //TEMPTEMP
+			if (fseek (_fp, filepos, SEEK_SET))
+			{
+				dprintf(D_ALWAYS, "fseek() failed in ReadUserLog::readEvent\n");
+printf("DIAG 1125\n");//TEMPTEMP
+				return ULOG_UNK_ERROR;
+			}
+#endif //TEMPTEMP
 			clearerr (_fp);
+//TEMPTEMP -- we get here with a partial event that will generate an error
+printf("DIAG 1130\n");//TEMPTEMP
 			return ULOG_NO_EVENT;
 		}
 	}
 
 	// will not reach here
 
+printf("DIAG 1140\n");//TEMPTEMP
 	return ULOG_UNK_ERROR;
 }
 
