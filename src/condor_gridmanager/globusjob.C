@@ -284,8 +284,20 @@ static bool merge_file_into_classad(const char * filename, ClassAd * ad)
 	   a subset of the ClassAd reading code.  Perhaps load into a ClassAd
 	   and scan that? */
 	{
-		StringList SAVE_ATTRS("RemoteSysCpu,RemoteUserCpu,ImageSize,JobState,"
-			"NumPids,ExitBySignal,ExitCode");
+		StringList SAVE_ATTRS;
+		SAVE_ATTRS.append(ATTR_JOB_REMOTE_SYS_CPU);
+		SAVE_ATTRS.append(ATTR_JOB_REMOTE_USER_CPU);
+		SAVE_ATTRS.append(ATTR_IMAGE_SIZE);
+		SAVE_ATTRS.append(ATTR_JOB_STATE);
+		SAVE_ATTRS.append(ATTR_NUM_PIDS);
+		SAVE_ATTRS.append(ATTR_ON_EXIT_BY_SIGNAL);
+		SAVE_ATTRS.append(ATTR_ON_EXIT_CODE);
+		SAVE_ATTRS.append(ATTR_ON_EXIT_SIGNAL);
+
+		/* TODO: COMPLETION_DATE isn't currently returned.  Who deals with it?
+		   Is it our job?  gridshell's?  Condor-G never really supported it,
+		   but it would be nice to have. */
+		SAVE_ATTRS.append(ATTR_COMPLETION_DATE);
 
 		MyString full_filename;
 		{
@@ -313,14 +325,18 @@ static bool merge_file_into_classad(const char * filename, ClassAd * ad)
 		while( line.readLine(fp) ) {
 			line.chomp();
 			int n = line.find(" = ");
-			if(n == -1) {
+			if(n < 1) {
 				dprintf( D_ALWAYS,
 					"Failed to parse \"%s\", ignoring.", line.GetCStr());
 				continue;
 			}
-			MyString attr = line.Substr(0, n);
+			MyString attr = line.Substr(0, n - 1);
 
 			dprintf( D_ALWAYS, "FILE: %s\n", line.GetCStr() );
+			if( ! SAVE_ATTRS.contains_anycase(attr.GetCStr()) ) {
+				continue;
+			}
+
 			if( ! ad->Insert(line.GetCStr()) ) {
 				dprintf( D_ALWAYS, "Failed to insert \"%s\" into ClassAd, "
 						 "ignoring.\n", line.GetCStr() );
