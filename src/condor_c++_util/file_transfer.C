@@ -1236,7 +1236,7 @@ FileTransfer::DoDownload( filesize_t *total_bytes, ReliSock *s)
 		record.elapsed  = elapsed;
 		record.sockp =s;
 
-		file_transfer_DbIns(&record, jobAd);
+		file_transfer_db(&record, jobAd);
 	}
 
 	// go back to the state we were in before file transfer
