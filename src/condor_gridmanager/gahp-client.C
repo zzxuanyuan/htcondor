@@ -2791,6 +2791,11 @@ GahpClient::gt4_gram_client_callback_allow(
 		const char *es = result.argc >= 3 ? result.argv[2] : "???";
 		dprintf(D_ALWAYS,"GAHP command '%s' failed: %s\n",
 						es);
+		if ( result.argc >= 3 && strcasecmp(result.argv[2], NULLSTRING) ) {
+			error_string = result.argv[2];
+		} else {
+			error_string = "";
+		}
 		return 1;
 	} 
 
@@ -2882,6 +2887,11 @@ GahpClient::gt4_gram_client_job_create(
 		if ( strcasecmp(result->argv[2], NULLSTRING) ) {
 			*job_contact = strdup(result->argv[2]);
 		}
+		if ( strcasecmp(result->argv[3], NULLSTRING) ) {
+			error_string = result->argv[3];
+		} else {
+			error_string = "";
+		}
 		delete result;
 		return rc;
 	}
@@ -2934,6 +2944,11 @@ GahpClient::gt4_gram_client_job_start(const char * job_contact)
 			EXCEPT("Bad %s Result",command);
 		}
 		int rc = atoi(result->argv[1]);
+		if ( strcasecmp(result->argv[2], NULLSTRING) ) {
+			error_string = result->argv[2];
+		} else {
+			error_string = "";
+		}
 		delete result;
 		return rc;
 	}
@@ -2986,6 +3001,11 @@ GahpClient::gt4_gram_client_job_destroy(const char * job_contact)
 			EXCEPT("Bad %s Result",command);
 		}
 		int rc = atoi(result->argv[1]);
+		if ( strcasecmp(result->argv[2], NULLSTRING) ) {
+			error_string = result->argv[2];
+		} else {
+			error_string = "";
+		}
 		delete result;
 		return rc;
 	}
@@ -3042,6 +3062,11 @@ GahpClient::gt4_gram_client_job_status(const char * job_contact,
 		int rc = atoi(result->argv[1]);
 		if ( rc == 0 ) {
 			*job_status = atoi(result->argv[2]);
+		}
+		if ( strcasecmp(result->argv[3], NULLSTRING) ) {
+			error_string = result->argv[3];
+		} else {
+			error_string = "";
 		}
 		delete result;
 		return rc;
@@ -3102,6 +3127,11 @@ GahpClient::gt4_gram_client_job_callback_register(const char * job_contact,
 			EXCEPT("Bad %s Result",command);
 		}
 		int rc = atoi(result->argv[1]);
+		if ( strcasecmp(result->argv[2], NULLSTRING) ) {
+			error_string = result->argv[2];
+		} else {
+			error_string = "";
+		}
 		delete result;
 		return rc;
 	}
@@ -3155,6 +3185,11 @@ GahpClient::gt4_gram_client_ping(const char * resource_contact)
 			EXCEPT("Bad %s Result",command);
 		}
 		int rc = atoi(result->argv[1]);
+		if ( strcasecmp(result->argv[2], NULLSTRING) ) {
+			error_string = result->argv[2];
+		} else {
+			error_string = "";
+		}
 		delete result;
 		return rc;
 	}
@@ -3170,7 +3205,7 @@ GahpClient::gt4_gram_client_ping(const char * resource_contact)
 }
 
 int
-GahpClient::gt4_gram_client_delegate_credentials(const char *delegation_service_url, char ** delegation_uri, char ** error_string)
+GahpClient::gt4_gram_client_delegate_credentials(const char *delegation_service_url, char ** delegation_uri)
 {
 	static const char* command = "GT4_DELEGATE_CREDENTIAL";
 
@@ -3214,7 +3249,9 @@ GahpClient::gt4_gram_client_delegate_credentials(const char *delegation_service_
 		}
 
 		if ( strcasecmp(result->argv[3], NULLSTRING) ) {
-			*error_string = result->argv[3];
+			error_string = result->argv[3];
+		} else {
+			error_string = "";
 		}
 
 		delete result;
@@ -3271,6 +3308,11 @@ GahpClient::gt4_gram_client_refresh_credentials(const char *delegation_uri)
 			EXCEPT("Bad %s Result",command);
 		}
 		int rc = atoi(result->argv[1]);
+		if ( strcasecmp(result->argv[2], NULLSTRING) ) {
+			error_string = result->argv[2];
+		} else {
+			error_string = "";
+		}
 		delete result;
 		return rc;
 	}

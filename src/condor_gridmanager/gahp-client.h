@@ -482,8 +482,7 @@ class GahpClient : public Service {
 		///
 		int
 		gt4_gram_client_delegate_credentials(const char *delegation_service_url,
-											 char ** delegation_uri,
-											 char ** error_string);
+											 char ** delegation_uri);
 
 		///
 		int

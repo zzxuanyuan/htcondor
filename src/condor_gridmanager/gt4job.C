@@ -784,13 +784,9 @@ int GT4Job::doEvaluateState()
 			} break;
  		case GM_DELEGATE_PROXY: {
 /* Don't worry about delegating for now
-			char * error_string = NULL;
-
 			rc = gahp->gt4_gram_client_delegate_credentials (resourceManagerString,
-															 &delegatedCredentialURI,
-															 &error_string);
-			
-			
+															 &delegatedCredentialURI);
+
 			if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
 				 rc == GAHPCLIENT_COMMAND_PENDING ) {
 				break;
@@ -802,7 +798,8 @@ int GT4Job::doEvaluateState()
 				gmState = GM_DELEGATE_PROXY_SAVE;
 			} else {
 				dprintf(D_ALWAYS,"(%d.%d) Delegation Error (rc=%d): %s\n",
-						procID.cluster, procID.proc, rc, error_string);
+						procID.cluster, procID.proc, rc,
+						gahp->getErrorString());
 
 				UpdateJobAdString( ATTR_HOLD_REASON, "Failed to delegate credential" );
 				gmState = GM_HOLD;
