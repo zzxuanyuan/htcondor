@@ -93,6 +93,8 @@ public:
 
 	/** Destroys the directories for this process.
 
+	This will include the sandbox and transfer subdirectories
+
 	On an error, writes an error message to the log.
 	*/
 	void DestroyProcessDirectory();
