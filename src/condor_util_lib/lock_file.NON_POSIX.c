@@ -47,6 +47,8 @@
 */
 
 #include "condor_common.h"
+#include "condor_config.h"
+#include "condor_debug.h"
 
 /**********************************************************************
 ** condor_common.h includes condor_file_lock.h, which defines
@@ -82,6 +84,9 @@ int do_block;
 	  case LOCK_UN:         /* this shud be the corrct case : dhruba */
 		op = LOCK_UN;
 		break;
+      default:
+			  /* unknown lock type, fail immediately */
+		return -1;
 	}
 
 	if( !do_block ) {
@@ -90,8 +95,37 @@ int do_block;
 
 		/* be signal safe */
 	while( flock(fd,op) < 0 ) {
-		if( errno != EINTR ) {
-			return -1;
+		switch (errno) {
+#ifdef ENOLCK
+			/* so, flock never sets errno to ENOLCK.  however, our
+			   flock is actually implemented in terms of fcntl, so
+			   this is a possible result.  this whole locking sub-
+			   system could use a reworking.  -zmiller  */
+			case ENOLCK:
+				{
+					char* p = param("IGNORE_NFS_LOCK_ERRORS");
+					char  val = 'N';
+
+					if (p) {
+						val = p[0];
+						free (p);
+					}
+
+					if (val == 'Y' || val == 'y' || val == 'T' || val == 't') {
+						// pretend there was no error.
+						dprintf ( D_FULLDEBUG, "Ignoring error ENOLCK on fd %i\n", fd );
+						return 0;
+					}
+				}
+				// properly propagate the error
+				return -1;
+#endif /* ENOLCK */
+			case EINTR:
+				// this just means we we interrupted, not
+				// necessarily that we failed.
+				break;
+			default:
+				return -1;
 		}
 	}
 	return 0;
@@ -110,7 +144,6 @@ lock_file( int fd, LOCK_TYPE type, int do_block )
 {
 	struct flock	f;
 	int				cmd;
-	int				status;
 
 	if( do_block ) {
 		cmd = F_SETLKW;		/* blocking */
@@ -135,15 +168,49 @@ lock_file( int fd, LOCK_TYPE type, int do_block )
 	  case LOCK_UN:         /* this shud be the corrct case : dhruba */
 		f.l_type = F_UNLCK;
 		break;
+      default:
+			  /* unknown lock type, fail immediately */
+		return -1;
 	}
+
+	/* now, fcntl should work accross nfs.  but, due to bugs in some
+	   implementations (*cough* linux *cough*) it sometimes fails with
+	   errno 37 (ENOLCK).  if this happens we check the config to see
+	   if we should report this as an error.   -zmiller  07/15/02
+	   */
 
 		/* be signal safe */
 	while( fcntl(fd,cmd,&f) < 0 ) {
-		if( errno != EINTR ) {
-			return -1;
+		switch (errno) {
+#ifdef ENOLCK
+			case ENOLCK:
+				{
+					char* p = param("IGNORE_NFS_LOCK_ERRORS");
+					char  val = 'N';
+
+					if (p) {
+						val = p[0];
+						free (p);
+					}
+
+					if (val == 'Y' || val == 'y' || val == 'T' || val == 't') {
+						// pretend there was no error.
+						dprintf ( D_FULLDEBUG, "Ignoring error ENOLCK on fd %i\n", fd );
+						return 0;
+					}
+				}
+				// properly propagate the error
+				return -1;
+#endif /* ENOLCK */
+			case EINTR:
+				// this just means we were interrupted, not
+				// necessarily that we failed.
+				break;
+			default:
+				return -1;
 		}
 	}
 	return 0;
 }
 
-#endif CONDOR_USE_FLOCK
+#endif /* CONDOR_USE_FLOCK */

@@ -35,8 +35,13 @@
 CondorCronMgr::CondorCronMgr( const char *name )
 {
 	dprintf( D_FULLDEBUG, "CronMgr: Constructing '%s'\n", name );
-	Name = strdup( name );
-	NameLen = strlen( name );
+
+	// Make sure that SetName doesn't try to free Name or ParamBase...
+	Name = NULL;
+	ParamBase = NULL;
+
+	// Set 'em
+	SetName( name, name, "_cron" );
 }
 
 // Basic destructor
@@ -47,6 +52,69 @@ CondorCronMgr::~CondorCronMgr( )
 
 	// Log our death
 	dprintf( D_FULLDEBUG, "CronMgr: bye\n" );
+}
+
+// Set new name..
+int CondorCronMgr::SetName( const char *newName, 
+							const char *newParamBase,
+							const char *newParamExt )
+{
+	int		retval = 0;
+
+	// Debug...
+	dprintf( D_FULLDEBUG, "CronMgr: Setting name to '%s'\n", newName );
+	if ( NULL != Name ) {
+		free( (char *) Name );
+	}
+
+	// Copy it out..
+	Name = strdup( newName );
+	if ( NULL == Name ) {
+		retval = -1;
+	}
+
+	// Set the parameter base name
+	if ( NULL != newParamBase ) {
+		retval = SetParamBase( newParamBase, newParamExt );
+	}
+
+	// Done
+	return retval;
+}
+
+// Set new name..
+int CondorCronMgr::SetParamBase( const char *newParamBase,
+								 const char *newParamExt )
+{
+	dprintf( D_FULLDEBUG, "CronMgr: Setting parameter base to '%s'\n",
+			 newParamBase );
+
+	// Free the old one..
+	if ( NULL != ParamBase ) {
+		free( (void *) ParamBase );
+	}
+
+	// Default?
+	if ( NULL == newParamBase ) {
+		newParamBase = "CRON";
+	}
+	if ( NULL == newParamExt ) {
+		newParamExt = "";
+	}
+
+	// Calc length & allocate
+	int		len = strlen( newParamBase ) + strlen( newParamExt ) + 1;
+	char *tmp = (char * ) malloc( len );
+	if ( NULL == tmp ) {
+		return -1;
+	}
+
+	// Copy it out..
+	strcpy( tmp, newParamBase );
+	strcat( tmp, newParamExt );
+	ParamBase = tmp;
+
+	return 0;
 }
 
 // Kill all running jobs
@@ -64,7 +132,7 @@ CondorCronMgr::KillAll( )
 int
 CondorCronMgr::Reconfig( void )
 {
-	char *paramBuf = GetParam( "CRONJOBS" );
+	char *paramBuf = GetParam( "JOBS" );
 
 	// Find our environment variable, if it exits..
 	if( paramBuf == NULL ) {
@@ -85,35 +153,32 @@ CondorCronMgr::Reconfig( void )
 // Read a parameter
 char *
 CondorCronMgr::GetParam( const char *paramName, 
-		  const char *paramNameSep,
-		  const char *paramName2,
-		  const char *paramName3 )
+						 const char	*paramName2 )
 {
-	// Build the name of the parameter to read
-	int len = NameLen + strlen( paramName ) + 1;
-	if ( paramNameSep && paramName2 ) {
-		int		sepLen = strlen( paramNameSep );
-		len += ( strlen( paramName2 ) + sepLen );
-		if( paramName3 ) {
-			len += strlen( paramName3 ) + sepLen;
-		}
+
+	// Defaults...
+	if ( NULL == paramName2 ) {
+		paramName2 = "";
 	}
+
+	// Build the name of the parameter to read
+	int len = ( strlen( ParamBase ) + 
+				strlen( paramName ) +
+				1 +
+				strlen( paramName2 ) +
+				1 );
 	char *nameBuf = (char *) malloc( len );
 	if ( NULL == nameBuf ) {
 		return NULL;
 	}
-	strcpy( nameBuf, Name );
+	strcpy( nameBuf, ParamBase );
+	strcat( nameBuf, "_" );
 	strcat( nameBuf, paramName );
-	if ( paramNameSep && paramName2 ) {
-		strcat( nameBuf, paramNameSep );
-		strcat( nameBuf, paramName2 );
-		if( paramName3 ) {
-			strcat( nameBuf, paramName3 );
-		}
-	}
+	strcat( nameBuf, paramName2 );
 
 	// Now, go read the actual parameter
 	char *paramBuf = param( nameBuf );
+	dprintf( D_ALWAYS, "Paraming for '%s'\n", nameBuf );
 	free( nameBuf );
 
 	// Done
@@ -208,11 +273,36 @@ CondorCronMgr::ParseJobList( const char *jobString )
 						 "CronMgr: Invalid period modifier '%c' "
 						 "(Job = '%s')\n", modifier, jobDescr );
 			}
+		}
 
-			// Force into "continuous mode" if time is zero
-			if ( 0 == jobPeriod ) {
+		// Parse any remaining options
+		bool	killMode = false;
+		while (  ( tmp = strtok( NULL, ":" ) ) != NULL ) {
+			if ( !strcasecmp( tmp, "kill" ) ) {
+				dprintf( D_FULLDEBUG, "Cron: '%s': Kill option ok\n",
+						 jobName );
+				killMode = true;
+			} else if ( !strcasecmp( tmp, "nokill" ) ) {
+				dprintf( D_FULLDEBUG, "Cron: '%s': NoKill option ok\n",
+						 jobName );
+				killMode = false;
+			} else if ( !strcasecmp( tmp, "continuous" ) ) {
+				dprintf( D_FULLDEBUG, "Cron: '%s': Continuous option ok\n",
+						 jobName );
 				jobMode = CRON_CONTINUOUS;
+			} else {
+				dprintf( D_ALWAYS, "Job '%s': Ignoring unknown option '%s'\n",
+						 jobName, tmp );
 			}
+		}
+
+		// Verify that period==0 is only used in "continuous mode"
+		if ( ( 0 == jobPeriod ) && ( CRON_CONTINUOUS != jobMode ) ) {
+			dprintf( D_ALWAYS,
+					 "CronMgr: Job '%s', Period = 0, not continuous\n",
+					 jobName );
+			free( tmpDescr );
+			continue;
 		}
 
 		// Create the job & add it to the list (if it's new)
@@ -235,34 +325,29 @@ CondorCronMgr::ParseJobList( const char *jobString )
 			}
 		}
 
-		// Parse any remaining options
-		while (  ( tmp = strtok( NULL, ":" ) ) != NULL ) {
-			if ( !strcasecmp( tmp, "kill" ) ) {
-				dprintf( D_FULLDEBUG, "Cron: '%s': Kill option ok\n",
-						 jobName );
-				job->SetKill( true );
-			} else if ( !strcasecmp( tmp, "nokill" ) ) {
-				dprintf( D_FULLDEBUG, "Cron: '%s': NoKill option ok\n",
-						 jobName );
-				job->SetKill( false );
-			} else if ( !strcasecmp( tmp, "continuous" ) ) {
-				dprintf( D_FULLDEBUG, "Cron: '%s': Continuous option ok\n",
-						 jobName );
-				jobMode = CRON_CONTINUOUS;
-			} else {
-				dprintf( D_ALWAYS, "Job '%s': Unknown option '%s'\n",
-						 jobName, tmp );
-			}
-		}
+		// Set the "Kill" mode
+		job->SetKill( killMode );
 
 		// Are there arguments for it?
-		char *argBuf = GetParam( "CRON", "_", jobName, "ARGS" );
+		// Force the first arg to be the "Job Name"..
+		char *argBufTmp = GetParam( jobName, "_ARGS" );
+		char *argBuf;
+		if ( NULL == argBufTmp ) {
+			argBuf = strdup( jobName );
+		} else {
+			int		len = strlen( jobName ) + 1 + strlen( argBufTmp ) + 1;
+			argBuf = new char[len];
+			strcpy( argBuf, jobName );
+			strcat( argBuf, " " );
+			strcat( argBuf, argBufTmp );
+			free( argBufTmp );
+		}
 
 		// Special environment vars?
-		char *envBuf = GetParam( "CRON", "_", jobName, "ENV" );
+		char *envBuf = GetParam( jobName, "_ENV" );
 
 		// CWD?
-		char *cwdBuf = GetParam( "CRON", "_", jobName, "CWD" );
+		char *cwdBuf = GetParam( jobName, "_CWD" );
 
 
 		// Mark the job so that it doesn't get deleted (below)
@@ -275,6 +360,17 @@ CondorCronMgr::ParseJobList( const char *jobString )
 		job->SetEnv( envBuf );
 		job->SetCwd( cwdBuf );
 		job->SetPeriod( jobMode, jobPeriod );
+
+		// Free up memory from param()
+		if ( argBuf ) {
+			free( argBuf );
+		}
+		if ( envBuf ) {
+			free( envBuf );
+		}
+		if ( cwdBuf ) {
+			free( cwdBuf );
+		}
 
 		// Debug info
 		dprintf( D_FULLDEBUG, "CronMgr: Done processing job '%s'\n", jobName );

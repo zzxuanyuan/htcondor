@@ -32,28 +32,41 @@
 #include "condor_debug.h"
 #include "internet.h"
 #include "my_hostname.h"
+#include "condor_config.h"
+#include "get_port_range.h"
+
+int bindWithin(const int fd, const int low_port, const int high_port);
 
 
 /* Convert a string of the form "<xx.xx.xx.xx:pppp>" to a sockaddr_in  TCP */
 /* (Also allow strings of the form "<hostname>:pppp>")  */
 int
-string_to_sin(char *addr, struct sockaddr_in *sin)
+string_to_sin( const char *addr, struct sockaddr_in *sin )
 {
 	char    *cur_byte;
 	char    *end_string;
 	int 	temp=0;
-	char*	addrCpy = (char*)malloc(strlen(addr)+1);
-	char*	string = addrCpy;
+	char*	addrCpy;
+	char*	string;
 	char*   colon = 0;
 	struct  hostent *hostptr;
 
-	strcpy(addrCpy, addr);
+	if( ! addr ) {
+		return 0;
+	}
+	addrCpy = strdup(addr);
+	string = addrCpy;
 	string++;					/* skip the leading '<' */
 
 	/* allow strings of the form "<hostname:pppp>" */
-	colon = strchr(string, ':');
+	if( !(colon = strchr(string, ':')) ) {
+			// Not a valid sinful string, return failure
+		free(addrCpy);
+		return 0;
+	}
 	*colon = '\0';
-	if ((hostptr=gethostbyname(string)) != NULL && hostptr->h_addrtype==AF_INET)
+	if ( is_ipaddr(string,NULL) != TRUE &&	// only call gethostbyname if not numbers
+		((hostptr=gethostbyname(string)) != NULL && hostptr->h_addrtype==AF_INET) )
 	{
 			sin->sin_addr = *(struct in_addr *)(hostptr->h_addr_list[0]);
 			string = colon + 1;
@@ -86,7 +99,6 @@ string_to_sin(char *addr, struct sockaddr_in *sin)
 	string[temp] = '\0';
 	*colon = ':';
 	free(addrCpy);
-
 	return 1;
 }
 
@@ -188,31 +200,20 @@ struct sockaddr_in  *from;
 char *
 calc_subnet_name(char* host)
 {
-	struct hostent	*hostp;
-	char			hostname[MAXHOSTNAMELEN];
 	char			subnetname[MAXHOSTNAMELEN];
 	char			*subnet_ptr;
 	char			*host_addr_string;
 	int				subnet_length;
-	struct in_addr	in;
+	struct			in_addr	in;
+	unsigned int	host_ordered_addr;
+	unsigned int		net_ordered_addr;
 
-	if(!host)
-	{
-		if( gethostname(hostname, sizeof(hostname)) == -1 ) {
-			dprintf( D_ALWAYS, "Gethostname failed");
-			return strdup("");
-		}
-	}
-	else
-	{
-		strcpy(hostname, host);
-	}
-	
-	if( (hostp = gethostbyname(hostname)) == NULL ) {
-		dprintf( D_ALWAYS, "Gethostbyname failed");
+	if ( !(host_ordered_addr = my_ip_addr()) ) {
 		return strdup("");
 	}
-	memcpy((char *) &in,(char *)hostp->h_addr, hostp->h_length);
+
+	net_ordered_addr = htonl(host_ordered_addr);
+	memcpy((char *) &in,(char *)&net_ordered_addr, sizeof(host_ordered_addr));
 	host_addr_string = inet_ntoa( in );
 	if( host_addr_string ) {
 		subnet_ptr = (char *) strrchr(host_addr_string, '.');
@@ -242,13 +243,32 @@ same_host(const char *h1, const char *h2)
 	}
 
 	// stash h_name before our next call to gethostbyname
-	strcpy(cn1, he1->h_name);
+	strncpy(cn1, he1->h_name, MAXHOSTNAMELEN);
 
 	if ((he2 = gethostbyname(h2)) == NULL) {
 		return -1;
 	}
 
 	return (strcmp(cn1, he2->h_name) == MATCH);
+}
+
+
+/*
+  Return TRUE if the given domain contains the given hostname, FALSE
+  if not.  Origionally taken from condor_starter.V5/starter_common.C. 
+  Moved here on 1/18/02 by Derek Wright.
+*/
+int
+host_in_domain( const char *host, const char *domain )
+{
+	const char	*ptr;
+
+	for( ptr=host; *ptr; ptr++ ) {
+		if( strcmp(ptr,domain) == MATCH ) {
+			return TRUE;
+		}
+	}
+	return FALSE;
 }
 
 
@@ -276,7 +296,7 @@ is_ipaddr(const char *inbuf, struct in_addr *sin_addr)
 		return FALSE;	// shortest possible IP addr is "1.*" - 3 chars
 	
 	// copy to our local buf
-	strcpy(buf,inbuf);
+	strncpy( buf, inbuf, 17 );
 
 	// on IP addresses, wildcards only permitted at the end, 
 	// i.e. 144.92.* , _not_ *.92.11
@@ -339,10 +359,26 @@ is_ipaddr(const char *inbuf, struct in_addr *sin_addr)
 
 
 int
+is_valid_sinful( const char *sinful )
+{
+	char* tmp;
+	if( !sinful ) return FALSE;
+	if( !(sinful[0] == '<') ) return FALSE;
+	if( !(tmp = strchr(sinful, ':')) ) return FALSE;
+	if( !(tmp = strrchr(sinful, '>')) ) return FALSE;
+	return TRUE;
+}
+
+
+int
 string_to_port( const char* addr )
 {
 	char *sinful, *tmp;
 	int port = 0;
+
+	if( ! (addr && is_valid_sinful(addr)) ) {
+		return 0;
+	}
 
 	sinful = strdup( addr );
 	if( (tmp = strrchr(sinful, '>')) ) {
@@ -364,18 +400,68 @@ string_to_ip( const char* addr )
 	unsigned int ip = 0;
 	struct in_addr sin_addr;
 
+	if( ! (addr && is_valid_sinful(addr)) ) {
+		return 0;
+	}
+
 	sinful = strdup( addr );
-	if( sinful[0] == '<' && sinful[1] ) {
-		tmp = strchr( sinful, ':' );
-		if( tmp ) {
-			*tmp = '\0';
-		} 
+	if( (tmp = strchr(sinful, ':')) ) {
+		*tmp = '\0';
 		if( is_ipaddr(&sinful[1], &sin_addr) ) {
 			ip = sin_addr.s_addr;
 		}
+	} else {
+		EXCEPT( "is_valid_sinful(\"%s\") is true, but can't find ':'" );
 	}
 	free( sinful );
 	return ip;
+}
+
+
+char*
+string_to_ipstr( const char* addr ) 
+{
+	char *tmp;
+	static char result[MAXHOSTNAMELEN];
+	char sinful[MAXHOSTNAMELEN];
+
+	if( ! (addr && is_valid_sinful(addr)) ) {
+		return NULL;
+	}
+
+	strncpy( sinful, addr, MAXHOSTNAMELEN );
+	tmp = strchr( sinful, ':' );
+	if( tmp ) {
+		*tmp = '\0';
+	} else {
+		return NULL;
+	}
+	if( is_ipaddr(&sinful[1], NULL) ) {
+		strncpy( result, &sinful[1], MAXHOSTNAMELEN );
+		return result;
+	}
+	return NULL;
+}
+
+
+char*
+string_to_hostname( const char* addr ) 
+{
+	char *tmp;
+	static char result[MAXHOSTNAMELEN];
+    struct sockaddr_in sin;
+
+	if( ! (addr && is_valid_sinful(addr)) ) {
+		return NULL;
+	}
+
+    string_to_sin( addr, &sin );
+	if( (tmp = sin_to_hostname(&sin, NULL)) ) {
+		strncpy( result, tmp, MAXHOSTNAMELEN );
+	} else {
+		return NULL;
+	}
+	return result;
 }
 
 
@@ -383,15 +469,70 @@ string_to_ip( const char* addr )
 int
 _condor_local_bind( int fd )
 {
-	struct sockaddr_in sin;
-	memset( (char *)&sin, 0, sizeof(sin) );
-	sin.sin_family = AF_INET;
-	sin.sin_port = 0;
-	sin.sin_addr.s_addr = htonl(my_ip_addr());
-	if( bind(fd, (struct sockaddr*)&sin, sizeof(sin)) < 0 ) {
-		dprintf( D_ALWAYS, "ERROR: bind(%s:%d) failed, errno: %d\n",
-				 inet_ntoa(sin.sin_addr), sin.sin_port, errno );
-		return 0;
+	/* Note: this function is completely WinNT screwed.  However,
+	 * only non-Cedar components call this function (ckpt-server,
+	 * old shadow) --- and these components are not destined for NT
+	 * anyhow.  So on NT, just pass back success so log file is not
+	 * full of scary looking error messages.
+	 *
+	 * This function should go away when everything uses CEDAR.
+	 */
+#ifndef WIN32
+	int lowPort, highPort;
+	if ( get_port_range(&lowPort, &highPort) == TRUE ) {
+		if ( bindWithin(fd, lowPort, highPort) == TRUE )
+            return TRUE;
+        else
+			return FALSE;
+	} else {
+		struct sockaddr_in sin;
+		memset( (char *)&sin, 0, sizeof(sin) );
+		sin.sin_family = AF_INET;
+		sin.sin_port = 0;
+		sin.sin_addr.s_addr = htonl(INADDR_ANY);
+		if( bind(fd, (struct sockaddr*)&sin, sizeof(sin)) < 0 ) {
+			dprintf( D_ALWAYS, "ERROR: bind(%s:%d) failed, errno: %d\n",
+					 inet_ntoa(sin.sin_addr), sin.sin_port, errno );
+			return FALSE;
+		}
 	}
-	return 1;
+#endif  /* of ifndef WIN32 */
+	return TRUE;
+}
+
+
+int bindWithin(const int fd, const int low_port, const int high_port)
+{
+	int start_trial, this_trial;
+	int pid, range;
+
+	// Use hash function with pid to get the starting point
+    pid = (int) getpid();
+    range = high_port - low_port + 1;
+    // this line must be changed to use the hash function of condor
+    start_trial = low_port + (pid * 173/*some prime number*/ % range);
+
+    this_trial = start_trial;
+	do {
+		struct sockaddr_in sin;
+
+		memset(&sin, 0, sizeof(sin));
+		sin.sin_family = AF_INET;
+		sin.sin_addr.s_addr = htonl(INADDR_ANY);
+		sin.sin_port = htons((u_short)this_trial++);
+
+		if (bind(fd, (struct sockaddr *)&sin, sizeof(sin)) == 0) { // success
+			dprintf(D_NETWORK, "_condor_local_bind - bound to %d...\n", this_trial-1);
+			return TRUE;
+		} else {
+            dprintf(D_NETWORK, "_condor_local_bind - failed to bind: %s\n", strerror(errno));
+        }
+		if ( this_trial > high_port )
+			this_trial = low_port;
+    } while(this_trial != start_trial);
+
+	dprintf(D_ALWAYS, "_condor_local_bind::bindWithin - failed to bind any port within (%d ~ %d)\n",
+	        low_port, high_port);
+
+	return FALSE;
 }

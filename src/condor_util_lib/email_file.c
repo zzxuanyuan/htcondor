@@ -25,6 +25,7 @@
 #include "debug.h"
 #include "condor_email.h"
 #include "basename.h"
+#include "condor_config.h"
 
 /* MAX_LINES is the max number of lines we can tail */
 #define MAX_LINES 1024 
@@ -98,7 +99,7 @@ email_corefile_tail( FILE* output, const char * subsystem_name )
 
 
 void
-email_asciifile_tail( FILE* output, char* file, int lines )
+email_asciifile_tail( FILE* output, const char* file, int lines )
 {
 	FILE	*input;
 	int		ch, last_ch;

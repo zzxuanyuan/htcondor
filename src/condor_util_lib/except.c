@@ -22,7 +22,7 @@
 ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
 #include "condor_common.h"
-#include "condor_sys.h"
+#include "condor_syscall_mode.h"
 #include "exit.h"
 #include "condor_debug.h"
 
@@ -31,16 +31,15 @@
 _EXCEPT_(foo)
 char	*foo;
 { printf( foo ); }
-#else LINT
-
-extern int	condor_nerr;
-extern char	*condor_errlist[];
+#else /* LINT */
 
 int		_EXCEPT_Line;
 int		_EXCEPT_Errno;
 char	*_EXCEPT_File;
-int		(*_EXCEPT_Cleanup)();
+int		(*_EXCEPT_Cleanup)(int,int,char*);
 int		SetSyscalls(int);
+
+extern int		_condor_dprintf_works;
 
 void
 _EXCEPT_(char *fmt, ...)
@@ -51,32 +50,14 @@ _EXCEPT_(char *fmt, ...)
 	(void)SetSyscalls( SYS_LOCAL | SYS_RECORDED );
 	va_start(pvar, fmt);
 
-#if vax || (i386 && !LINUX && !defined(Solaris)) || bobcat || ibm032
-	{
-		FILE _strbuf;
-		int *argaddr = &va_arg(pvar, int);
-
-		_strbuf._flag = _IOWRT/*+_IOSTRG*/;
-		_strbuf._ptr  = buf;
-		_strbuf._cnt  = BUFSIZ;
-		_doprnt( fmt, argaddr, &_strbuf );
-		putc('\0', &_strbuf);
-	}
-#else vax || (i386 && !LINUX && !defined(Solaris)) || bobcat || ibm032
 	vsprintf( buf, fmt, pvar );
-#endif vax || (i386 && !LINUXi && !defined(Solaris)) || bobcat || ibm032
 
-	if( _EXCEPT_Errno < 0 ) {
-		_EXCEPT_Errno = -_EXCEPT_Errno;
-		dprintf( D_ALWAYS, "ERROR \"%s\" at line %d in file %s: %s\n",
-					buf, _EXCEPT_Line, _EXCEPT_File,
-					(_EXCEPT_Errno<condor_nerr) ? condor_errlist[_EXCEPT_Errno]
-												 : "Unknown CONDOR error" );
+	if( _condor_dprintf_works ) {
+		dprintf( D_ALWAYS|D_FAILURE, "ERROR \"%s\" at line %d in file %s\n",
+				 buf, _EXCEPT_Line, _EXCEPT_File );
 	} else {
-		dprintf( D_ALWAYS, "ERROR \"%s\" at line %d in file %s: %s\n",
-						buf, _EXCEPT_Line, _EXCEPT_File,
-						(_EXCEPT_Errno<sys_nerr) ? sys_errlist[_EXCEPT_Errno]
-												 : "Unknown error" );
+		fprintf( stderr, "ERROR \"%s\" at line %d in file %s\n",
+				 buf, _EXCEPT_Line, _EXCEPT_File );
 	}
 
 	if( _EXCEPT_Cleanup ) {
@@ -87,4 +68,4 @@ _EXCEPT_(char *fmt, ...)
 
 	exit( JOB_EXCEPTION );
 }
-#endif LINT
+#endif /* LINT */
