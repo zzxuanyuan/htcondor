@@ -135,11 +135,10 @@
 	discard( parameter )
 
 		This will throw out the given parameter
-		when performing a remote system call.
-		See _xstat for an example.  This probably
-		isn't the best solution to the xstat
-		problem, but the code given is no worse
-		than the previous implementation.
+		when performing a remote system call or
+		a file table call.  See _xstat for an example.
+		This is probably not the best solution
+		for that particular example...
 
   Some system calls simply must be handled specially.  Examples
   are readv, and getlogin. This "specialness" dosen't necessarily
@@ -225,10 +224,11 @@
 
 	int ftruncate64( int fd, off64_t length )
 		: file_table, file_table_name(ftruncate), remote_name(ftruncate);
+	
+	int fchdir( int fd ) : file_table;
 
 	int fchown( map(int fd), uid_t owner, gid_t group );
 	int fchmod( map(int fd), mode_t mode );
-	int fchdir( map(int fd) ) ;
 
 	/* Linux, Irix, and Solaris need these switches to redirect
 	   these calls to fxstat, lxstat, and xstat.  */
