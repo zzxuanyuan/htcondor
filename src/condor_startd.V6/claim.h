@@ -116,9 +116,18 @@ public:
 	void dprintf( int, char* ... );
 
 	void refuseClaimRequest();
-	void beginClaim( void );	// we finally accepted a claim, so
-								// change our state, and if we're
-								// opportunistic, start a timer
+
+		/** We finally accepted a claim, so change our state, and if
+			we're opportunistic, start a timer.
+		*/
+	void beginClaim( void );	
+
+		/** We accepted a request to activate the claim and spawn a
+			starter.  pull all the information we need out of the
+			request and store it in this Claim object.
+		*/
+	void beginActivation( ClassAd* request_ad, time_t now ); 
+
 		// Timer functions
 	void start_match_timer();
 	void cancel_match_timer();
@@ -138,10 +147,6 @@ public:
 	ClassAd*	ad() 			{return c_ad;};
 	int			universe()		{return c_universe;};
 	Stream*		requestStream()	{return c_request_stream;};
-	int			cluster()		{return c_cluster;};
-	int			proc()			{return c_proc;};
-	int			job_start() 	{return c_job_start;};
-	int			last_pckpt() 	{return c_last_pckpt;};
 	int			getaliveint()	{return c_aliveint;};
 	ClaimState	state()			{return c_state;};
 	float		percentCpuUsage( void );
@@ -152,14 +157,8 @@ public:
 	void setrank(float rank)	{c_rank=rank;};
 	void setoldrank(float rank) {c_oldrank=rank;};
 	void setad(ClassAd *ad);		// Set our ad to the given pointer
-	void deletead(void);
-	void setuniverse(int universe)	{c_universe=universe;};
 	void setRequestStream(Stream* stream);	
 	void setaliveint(int alive)		{c_aliveint=alive;};
-	void setproc(int proc) 			{c_proc=proc;};
-	void setcluster(int cluster)	{c_cluster=cluster;};
-	void setlastpckpt(int lastckpt) {c_last_pckpt=lastckpt;};
-	void setjobstart(int jobstart) 	{c_job_start=jobstart;};
 
 		// starter-related functions
 	int	 spawnStarter( start_info_t*, time_t );

@@ -299,6 +299,71 @@ Claim::beginClaim( void )
 }
 
 
+
+void
+Claim::beginActivation( ClassAd* request_ad, time_t now )
+{
+		// Get a bunch of info out of the request ad that is now
+		// relevant, and store it in this Claim object
+
+	if( ! request_ad->LookupInteger(ATTR_CLUSTER_ID, c_cluster) ) {
+		c_cluster = 1;
+	}
+	if( ! request_ad->LookupInteger(ATTR_PROC_ID, c_proc) ) {
+		c_proc = 0;
+	}
+	c_rip->dprintf( D_ALWAYS, "Remote job ID is %d.%d\n", c_cluster, 
+					c_proc );
+
+		// See if the classad we got includes an ATTR_USER field,
+		// so we know who to charge for our services.  If not, we use
+		// the same user that claimed us.
+	char* remote_user = NULL;
+	if( ! request_ad->LookupString(ATTR_USER, &remote_user) ) {
+		if( ! c_is_cod ) { 
+			c_rip->dprintf( D_FULLDEBUG, "WARNING: %s not defined in "
+						  "request classad!  Using old value (%s)\n", 
+						  ATTR_USER, c_client->user() );
+		}
+	} else {
+		c_rip->dprintf( D_FULLDEBUG, 
+					  "Got RemoteUser (%s) from request classad\n",	
+					  remote_user );
+		c_client->setuser( remote_user );
+	}
+
+	setad( request_ad );
+	c_job_start = (int)now;
+
+		// Everything else is only going to be valid if we're not a
+		// COD job.  So, if we *are* cod, just return now, since we've
+		// got everything we need...
+	if( c_is_cod ) {
+		return;
+	}
+
+	int universe;
+	if( request_ad->LookupInteger(ATTR_JOB_UNIVERSE, universe) == 0 ) {
+		if( c_is_cod ) {
+			universe = CONDOR_UNIVERSE_VANILLA;
+		} else {
+			universe = CONDOR_UNIVERSE_STANDARD;
+		}
+		c_rip->dprintf( D_ALWAYS, "Default universe \"%s\" (%d) "
+						"since not in classad\n",
+						CondorUniverseName(universe), universe );
+	} else {
+		c_rip->dprintf( D_ALWAYS, "Got universe \"%s\" (%d) "
+						"from request classad\n",
+						CondorUniverseName(universe), universe );
+	}
+	c_universe = universe;
+
+	if( universe == CONDOR_UNIVERSE_STANDARD ) {
+		c_last_pckpt = (int)now;
+	}
+}
+
 void
 Claim::start_claim_timer()
 {
@@ -379,16 +444,6 @@ Claim::setad(ClassAd *ad)
 		delete( c_ad );
 	}
 	c_ad = ad;
-}
-
-
-void
-Claim::deletead(void)
-{
-	if( c_ad ) {
-		delete( c_ad );
-		c_ad = NULL;
-	}
 }
 
 
@@ -507,6 +562,10 @@ Claim::starterExited( void )
 	delete( c_starter );
 	c_starter = NULL;
 	
+		// Clear out the last periodic checkpoint info, since it's no
+		// longer valid now that the starter is gone.
+	c_last_pckpt = -1;
+
 		// finally, let our resource know that our starter exited, so
 		// it can do the right thing.
 	c_rip->starterExited( this );
@@ -656,7 +715,7 @@ Claim::periodicCheckpoint( void )
 			return false;
 		}
 	}
-	setlastpckpt( (int)time(NULL) );
+	c_last_pckpt = (int)time(NULL);
 	return true;
 }
 
