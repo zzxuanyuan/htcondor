@@ -73,7 +73,7 @@ public:
 	~Capability();
 
 	char*	capab() {return c_capab;};
-	int		matches(char* capab);
+	bool	matches( const char* capab );
 
 private:
 	char*	c_capab;	// capability string

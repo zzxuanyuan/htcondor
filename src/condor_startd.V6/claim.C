@@ -800,8 +800,8 @@ Capability::~Capability()
 }
 
 
-int
-Capability::matches(char* capab)
+bool
+Capability::matches( const char* capab )
 {
 	return( strcmp(capab, c_capab) == 0 );
 }
