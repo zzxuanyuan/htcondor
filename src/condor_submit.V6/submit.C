@@ -3835,19 +3835,18 @@ queue(int num)
 
 		char *proxy_file = condor_param( X509UserProxy );
 
+		if ( proxy_file == NULL && JobUniverse == CONDOR_UNIVERSE_GLOBUS &&
+			 (stricmp (JobGridType, "globus") == MATCH ||
+			  stricmp (JobGridType, "gt2") == MATCH ||
+			  stricmp (JobGridType, "gt3") == MATCH ||
+			  stricmp (JobGridType, "gt4") == MATCH ||
+			  stricmp (JobGridType, "nordugrid") == MATCH)) {
 
-		// Issue an error if (no proxy) && (universe=globus,gt2,gt3,nordugrid)
-		if ( proxy_file == NULL) {
-			char * grid_type = condor_param( Grid_Type, ATTR_JOB_GRID_TYPE );
-			if (JobUniverse == CONDOR_UNIVERSE_GLOBUS &&
-				(grid_type == NULL ||
-					(stricmp (grid_type, "globus") == MATCH) ||
-					(stricmp (grid_type, "gt2") == MATCH) ||
-					(stricmp (grid_type, "gt3") == MATCH) ||
-				    (stricmp (grid_type, "gt4") == MATCH) ||
-					(stricmp (grid_type, "nordugrid") == MATCH))) {
+			proxy_file = get_x509_proxy_filename();
+			if ( proxy_file == NULL ) {
+
 				fprintf( stderr, "\nERROR: can't determine proxy filename\n" );
-				fprintf( stderr, "x509 user proxy is required for globus, gt2, gt3,gt4 or nordugrid jobs\n");
+				fprintf( stderr, "x509 user proxy is required for globus, gt2, gt3, gt4 or nordugrid jobs\n");
 				exit (1);
 			}
 		}
