@@ -72,6 +72,12 @@ public:
 		*/
 	virtual bool StartJob();
 
+		/** Create the execute/dir_<pid> directory and chdir() into
+			it.  This can only be called once user_priv is initialized
+			by the JobInfoCommunicator.
+		*/
+	virtual bool createTempExecuteDir( void );
+
 		/** Called by the JobInfoCommunicator whenever the job
 			execution environment is ready so we can actually spawn
 			the job.

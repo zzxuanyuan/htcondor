@@ -205,7 +205,6 @@ CStarter::ShutdownFast(int)
 }
 
 
-
 bool
 CStarter::StartJob()
 {
@@ -217,49 +216,6 @@ CStarter::StartJob()
 		dprintf( D_ALWAYS, 
 				 "Job doesn't specify universe, assuming VANILLA\n" ); 
 	}
-
-		// Once our JobInfoCommmunicator is initialized, we have the
-		// right user for priv_state code.  So, we can finally make
-		// the scratch execute directory for this job.
-
-		// On Unix, be sure we're in user priv for this.
-		// But on NT (at least for now), we should be in Condor priv
-		// because the execute directory on NT is not wworld writable.
-#ifndef WIN32
-		// UNIX
-	priv_state priv = set_user_priv();
-#else
-		// WIN32
-	priv_state priv = set_condor_priv();
-#endif
-
-	if( mkdir(WorkingDir, 0777) < 0 ) {
-		dprintf( D_FAILURE|D_ALWAYS, "couldn't create dir %s: %s\n", 
-				 WorkingDir, strerror(errno) );
-		return false;
-	}
-
-#ifdef WIN32
-		// On NT, we've got to manually set the acls, too.
-	{
-		perm dirperm;
-		const char * nobody_login = get_user_nobody_loginname();
-		ASSERT(nobody_login);
-		dirperm.init(nobody_login);
-		int ret_val = dirperm.set_acls( WorkingDir );
-		if ( ret_val < 0 ) {
-			dprintf(D_ALWAYS,"UNABLE TO SET PERMISSIONS ON EXECUTE DIRECTORY");
-			return false;
-		}
-	}
-#endif /* WIN32 */
-
-	if( chdir(WorkingDir) < 0 ) {
-		dprintf( D_FAILURE|D_ALWAYS, "couldn't move to %s: %s\n", WorkingDir,
-				 strerror(errno) ); 
-		return false;
-	}
-	dprintf( D_FULLDEBUG, "Done moving to directory \"%s\"\n", WorkingDir );
 
 	int want_io_proxy = 0;
 	char io_proxy_config_file[_POSIX_PATH_MAX];
@@ -282,9 +238,6 @@ CStarter::StartJob()
 			dprintf(D_ALWAYS,"StartJob: Initialized IO Proxy.\n");
 		}
 	}
-		
-		// Return to our old priv state
-	set_priv ( priv );
 
 		// Now, ask our JobInfoCommunicator to setup the environment
 		// where our job is going to execute.  This might include
@@ -293,6 +246,59 @@ CStarter::StartJob()
 		// actually spawn the job.
 	jic->setupJobEnvironment();
 
+	return true;
+}
+
+
+bool
+CStarter::createTempExecuteDir( void )
+{
+		// Once our JobInfoCommmunicator has initialized the right
+		// user for the priv_state code, we can finally make the
+		// scratch execute directory for this job.
+
+		// On Unix, be sure we're in user priv for this.
+		// But on NT (at least for now), we should be in Condor priv
+		// because the execute directory on NT is not wworld writable.
+#ifndef WIN32
+		// UNIX
+	priv_state priv = set_user_priv();
+#else
+		// WIN32
+	priv_state priv = set_condor_priv();
+#endif
+
+	if( mkdir(WorkingDir, 0777) < 0 ) {
+		dprintf( D_FAILURE|D_ALWAYS, "couldn't create dir %s: %s\n", 
+				 WorkingDir, strerror(errno) );
+		set_priv( priv );
+		return false;
+	}
+
+#ifdef WIN32
+		// On NT, we've got to manually set the acls, too.
+	{
+		perm dirperm;
+		const char * nobody_login = get_user_nobody_loginname();
+		ASSERT(nobody_login);
+		dirperm.init(nobody_login);
+		int ret_val = dirperm.set_acls( WorkingDir );
+		if ( ret_val < 0 ) {
+			dprintf(D_ALWAYS,"UNABLE TO SET PERMISSIONS ON EXECUTE DIRECTORY");
+			set_priv( priv );
+			return false;
+		}
+	}
+#endif /* WIN32 */
+
+	if( chdir(WorkingDir) < 0 ) {
+		dprintf( D_FAILURE|D_ALWAYS, "couldn't move to %s: %s\n", WorkingDir,
+				 strerror(errno) ); 
+		set_priv( priv );
+		return false;
+	}
+	dprintf( D_FULLDEBUG, "Done moving to directory \"%s\"\n", WorkingDir );
+	set_priv( priv );
 	return true;
 }
 
