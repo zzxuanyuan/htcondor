@@ -187,7 +187,7 @@ BaseShadow::checkFileTransferCruft()
 	int universe; 
 	char* version = NULL;
 	bool is_old = false;
-	if( jobAd->LookupInteger(ATTR_JOB_UNIVERSE, universe) < 0 ) {
+	if( ! jobAd->LookupInteger(ATTR_JOB_UNIVERSE, universe) ) {
 		universe = CONDOR_UNIVERSE_VANILLA;
 	}
 	if( universe != CONDOR_UNIVERSE_VANILLA ) {
