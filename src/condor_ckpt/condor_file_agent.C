@@ -37,6 +37,8 @@ int CondorFileAgent::open( const char *path, int flags, int mode )
 	// And make the local copy
 	open_temp();
 	pull_data();
+
+	return result;
 }
 
 int CondorFileAgent::close()
