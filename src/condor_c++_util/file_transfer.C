@@ -258,42 +258,49 @@ FileTransfer::SimpleInit(ClassAd *Ad, bool want_check_perms, bool is_server,
 		// we know that this file should be called condor_exec on the
 		// client machine.  if an executable for this cluster exists
 		// in the spool dir, use it instead.
-		char *source;
-		char *Spool;
-		int Cluster = 0;
-		int Proc = 0;
 
-		Ad->LookupInteger(ATTR_CLUSTER_ID, Cluster);
-		Ad->LookupInteger(ATTR_PROC_ID, Proc);
-		Spool = param("SPOOL");
-		if ( Spool ) {
+		// Only check the spool directory if we're the server.
+		// Note: This will break Condor-C jobs if they ever spool the
+		//   executable the old-fashioned way (which they don't currently).
+		if ( IsServer() ) {
+			char *source;
+			char *Spool;
+			int Cluster = 0;
+			int Proc = 0;
 
-			SpoolSpace = strdup( gen_ckpt_name(Spool,Cluster,Proc,0) );
-			TmpSpoolSpace = (char*)malloc( strlen(SpoolSpace) + 10 );
-			sprintf(TmpSpoolSpace,"%s.tmp",SpoolSpace);
+			Ad->LookupInteger(ATTR_CLUSTER_ID, Cluster);
+			Ad->LookupInteger(ATTR_PROC_ID, Proc);
+			Spool = param("SPOOL");
+			if ( Spool ) {
 
-			priv_state old_priv = set_condor_priv();
-			
-			if( (mkdir(SpoolSpace,0777) < 0) ) {
-				// mkdir can return 17 = EEXIST (dirname exists) or 2 = ENOENT (path not found)
-				dprintf( D_FULLDEBUG, 
-						 "FileTransfer::Init(): mkdir(%s) failed, errno: %d\n",
-						 SpoolSpace, errno );
+				SpoolSpace = strdup( gen_ckpt_name(Spool,Cluster,Proc,0) );
+				TmpSpoolSpace = (char*)malloc( strlen(SpoolSpace) + 10 );
+				sprintf(TmpSpoolSpace,"%s.tmp",SpoolSpace);
+
+				priv_state old_priv = set_condor_priv();
+
+				if( (mkdir(SpoolSpace,0777) < 0) ) {
+					// mkdir can return 17 = EEXIST (dirname exists) or 2 = ENOENT (path not found)
+					dprintf( D_FULLDEBUG, 
+							 "FileTransfer::Init(): mkdir(%s) failed, errno: %d\n",
+							 SpoolSpace, errno );
+				}
+				if( (mkdir(TmpSpoolSpace,0777) < 0) ) {
+					dprintf( D_FULLDEBUG, 
+							 "FileTransfer::Init(): mkdir(%s) failed, errno: %d\n",
+							 TmpSpoolSpace, errno );
+				}
+				source = gen_ckpt_name(Spool,Cluster,ICKPT,0);
+				free(Spool);
+				if ( access(source,F_OK | X_OK) >= 0 ) {
+					// we can access an executable in the spool dir
+					ExecFile = strdup(source);
+				}
+				set_priv( old_priv );
+
 			}
-			if( (mkdir(TmpSpoolSpace,0777) < 0) ) {
-				dprintf( D_FULLDEBUG, 
-						 "FileTransfer::Init(): mkdir(%s) failed, errno: %d\n",
-						 TmpSpoolSpace, errno );
-			}
-			source = gen_ckpt_name(Spool,Cluster,ICKPT,0);
-			free(Spool);
-			if ( access(source,F_OK | X_OK) >= 0 ) {
-				// we can access an executable in the spool dir
-				ExecFile = strdup(source);
-			}
-			set_priv( old_priv );
-
 		}
+
 		if ( !ExecFile ) {
 			// apparently the executable is not in the spool dir.
 			// so we must make certain the user has permission to read
