@@ -276,6 +276,10 @@ CODMgr::activate( Stream* s, ClassAd* req, Claim* claim )
 	tmp_starter->setCODArgs( keyword );
 	free( keyword );
 
+		// Grab the job ID so we've got it, and can use it to spawn
+		// the starter with the right args if needed...
+	claim->getJobId( req );
+
 	time_t now = time(NULL);
 
 	claim->setStarter( tmp_starter );	
@@ -287,7 +291,6 @@ CODMgr::activate( Stream* s, ClassAd* req, Claim* claim )
 		// pointer, and if we try to access this variable, we'll crash 
 	ClassAd* new_req_ad = new ClassAd( *req );
 	claim->beginActivation( new_req_ad, now );
-
 
 		// TODO: deal w/ state interactions w/ opportunistic claim!!!
 
