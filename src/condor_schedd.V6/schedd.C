@@ -68,6 +68,7 @@
 #include "../condor_procapi/procapi.h"
 #include "condor_distribution.h"
 #include "util_lib_proto.h"
+#include "status_string.h"
 
 
 #define DEFAULT_SHADOW_SIZE 125
@@ -1918,6 +1919,19 @@ Scheduler::jobIsTerminal(int cluster, int proc)
 	// release dynamic accounts here
 
 	return 0;
+}
+
+
+int
+Scheduler::jobIsTerminalReaper( int cluster, int proc, void*,
+								int exit_status )
+{
+	MyString status_str;
+	statusString( exit_status, status_str );
+	dprintf( D_FULLDEBUG,
+			 "jobIsTerminal() thread %s, calling DestroyProc(%d.%d)\n",
+			 status_str.Value(), cluster, proc );
+	return DestroyProc( cluster, proc );
 }
 
 

@@ -209,6 +209,8 @@ class Scheduler : public Service
 	static int		jobIsTerminal( int cluster, int proc );
 	static int		jobIsTerminalStatic( int cluster, int proc,
 										 void* this_scheduler );
+	static int		jobIsTerminalReaper( int cluster, int proc,
+										 void* vptr, int exit_status );
 
 	// match managing
     match_rec*      AddMrec(char*, char*, PROC_ID*, const ClassAd*, char*, char*);
