@@ -447,7 +447,8 @@ Daemon::sendCommand( int cmd, Stream::stream_type st, int sec )
 
 
 bool
-Daemon::sendCACmd( ClassAd* req, ClassAd* reply, bool force_auth )
+Daemon::sendCACmd( ClassAd* req, ClassAd* reply, bool force_auth,
+				   int timeout )
 {
 	if( !req ) {
 		newError( "sendCACmd() called with no request ClassAd" ); 
@@ -466,6 +467,10 @@ Daemon::sendCACmd( ClassAd* req, ClassAd* reply, bool force_auth )
 	req->SetTargetTypeName( REPLY_ADTYPE );
 
 	ReliSock cmd_sock;
+
+	if( timeout >= 0 ) {
+		cmd_sock.timeout( timeout );
+	}
 
 	if( ! cmd_sock.connect(_addr) ) {
 		MyString err_msg = "Failed to connect to ";
@@ -486,6 +491,14 @@ Daemon::sendCACmd( ClassAd* req, ClassAd* reply, bool force_auth )
 			return false;
 		}
 	}
+
+		// due to an EVIL bug in authenticate(), our timeout just got
+		// set to 20.  so, if we were given a timeout, we have to set
+		// it again... :(
+	if( timeout >= 0 ) {
+		cmd_sock.timeout( timeout );
+	}
+
 	if( ! req->put(cmd_sock) ) { 
 		newError( "Failed to send request ClassAd" );
 		return false;

@@ -417,12 +417,14 @@ protected:
 		   calls this.
 		   @param req Pointer to the request ad (you fill it in)
 		   @param reply Pointer to the reply ad (from the server)
-		   @param force_auth should we force authentication for this cmd?
+		   @param force_auth Should we force authentication for this cmd?
+		   @param timeout Network timeout to use (ignored if < 0 )
 		   @return false if there were any network errors, if
 		   ATTR_ERROR_STRING is defined, and/or if ATTR_RESULT is not
 		   CA_SUCCESS.  Otherwise, true.   
 		*/
-	bool sendCACmd( ClassAd* req, ClassAd* reply, bool force_auth );
+	bool sendCACmd( ClassAd* req, ClassAd* reply, bool force_auth,
+					int timeout = -1 );
 
 		/** 
 		   Helper method for commands to see if we've already got the
