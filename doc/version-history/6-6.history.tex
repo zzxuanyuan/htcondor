@@ -123,11 +123,17 @@ page~\pageref{param:PasswdCacheRefresh} for more details.
 
 \begin{itemize}
 
-\item None.
+\item The \Condor{preen} program does not know about Computing on
+  Demand (COD) claims.
+  If there are no regular Condor jobs on a given machine, but there
+  are COD claims, and \Condor{preen} is spawned, it will remove files
+  related to the COD claims.
+  In version 6.6.0, sites using COD are encouraged to disable
+  \Condor{preen} by commenting out the \MacroNI{PREEN} setting in the
+  config files.
+  This bug has been fixed in Condor version 6.6.1.
 
 \end{itemize}
-
-
 
 \begin{center}
 \begin{table}[hbt]
