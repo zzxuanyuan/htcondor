@@ -3520,8 +3520,12 @@ queue(int num)
 	for (int i=0; i < num; i++) {
 
 		if (NewExecutable) {
- 			if ((ClusterId = NewCluster()) == -1) {
+ 			if ((ClusterId = NewCluster()) < 0) {
 				fprintf(stderr, "\nERROR: Failed to create cluster\n");
+				if ( ClusterId == -2 ) {
+					fprintf(stderr,
+					"Number of submitted jobs would exceed MAX_JOBS_SUBMITTED\n");
+				}
 				exit(1);
 			}
 				// We only need to call init_job_ad the second time we see
@@ -3541,6 +3545,16 @@ queue(int num)
 		}
 
 		ProcId = NewProc (ClusterId);
+
+		if ( ProcId < 0 ) {
+			fprintf(stderr, "\nERROR: Failed to create proc\n");
+			if ( ProcId == -2 ) {
+				fprintf(stderr,
+				"Number of submitted jobs would exceed MAX_JOBS_SUBMITTED\n");
+			}
+			DoCleanup(0,0,NULL);
+			exit(1);
+		}
 
 		/*
 		**	Insert the current idea of the cluster and

@@ -257,6 +257,7 @@ Scheduler::Scheduler()
 	QueueCleanInterval = 0; JobStartDelay = 0;
 	RequestClaimTimeout = 0;
 	MaxJobsRunning = 0;
+	MaxJobsSubmitted = INT_MAX;
 	NegotiateAllJobsInCluster = false;
 	JobsStarted = 0;
 	JobsIdle = 0;
@@ -7092,6 +7093,8 @@ Scheduler::Init()
 		MaxJobsRunning = atoi( tmp );
 		free( tmp );
 	}
+
+	MaxJobsSubmitted = param_integer("MAX_JOBS_SUBMITTED",INT_MAX);
 	
 	tmp = param( "NEGOTIATE_ALL_JOBS_IN_CLUSTER" );
 	if( !tmp || tmp[0] == 'f' || tmp[0] == 'F' ) {
@@ -8066,6 +8069,7 @@ Scheduler::dumpState(int, Stream* s) {
 	intoAd ( ad, "QueueCleanInterval", QueueCleanInterval );
 	intoAd ( ad, "JobStartDelay", JobStartDelay );
 	intoAd ( ad, "MaxJobsRunning", MaxJobsRunning );
+	intoAd ( ad, "MaxJobsSubmitted", MaxJobsSubmitted );
 	intoAd ( ad, "JobsStarted", JobsStarted );
 	intoAd ( ad, "SwapSpace", SwapSpace );
 	intoAd ( ad, "ShadowSizeEstimate", ShadowSizeEstimate );

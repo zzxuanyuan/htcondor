@@ -286,6 +286,8 @@ class Scheduler : public Service
 	char*			dcSockSinful( void ) { return MySockName; };
 	int				aliveInterval( void ) { return alive_interval; };
 	char*			uidDomain( void ) { return UidDomain; };
+	int				getJobsTotalAds() { return JobsTotalAds; };
+	int				getMaxJobsSubmitted() { return MaxJobsSubmitted; };
 
 		// Used by the DedicatedScheduler class
 	void 			swap_space_exhausted();
@@ -331,6 +333,7 @@ private:
 	int             RequestClaimTimeout;
 	int				JobStartDelay;
 	int				MaxJobsRunning;
+	int				MaxJobsSubmitted;
 	bool			NegotiateAllJobsInCluster;
 	int				JobsStarted; // # of jobs started last negotiating session
 	int				SwapSpace;	 // available at beginning of last session
