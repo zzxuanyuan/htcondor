@@ -71,7 +71,6 @@ public:
 	void MSync();
 	BOOL Mprotect( int prot );
 	void Display();
-	long TotalPages();
 private:
 	char		name[14];
 	off_t		file_loc;
@@ -89,8 +88,8 @@ public:
 	int Write( int fd );
 	int Write( const char *name );
 	int Read();
-	int Read( int fd ); //non-existent
-	int Read( const char *name ); //nope
+	int Read( int fd );
+	int Read( const char *name );
 	void Close();
 	void Restore();
 	char *FindSeg( void *addr );
@@ -176,14 +175,14 @@ extern "C" {
 	int &prot );
      void display_prmap();
      unsigned long find_correct_vm_addr(unsigned long, unsigned long, int);
-/* Incremental checkpointing stuff - jmb */
-#include <asm/sigcontext.h>
-#include <asm/ucontext.h>
-	char * condor_getfaultaddr( void *context ); 
 };
 #endif
 
 /* Incremental checkpointing stuff - jmb */
+#if defined(LINUX)
+#include <asm/sigcontext.h>
+#include <asm/ucontext.h>
+#endif
 char * condor_getpagestart( char * addr ); 
 void condor_mprotect( char * startaddr, long size, int prot );
 void incr_ckpt_handler( int signal, siginfo_t *info, void *context );  
