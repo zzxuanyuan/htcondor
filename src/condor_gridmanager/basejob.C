@@ -385,6 +385,12 @@ void BaseJob::JobAdUpdateFromSchedd( const ClassAd *new_ad )
 		// TODO do we need to call UpdateRuntimeStats() here?
 		UpdateRuntimeStats();
 		SetEvaluateState();
+
+	} else if ( new_condor_state == COMPLETED ) {
+
+		condorState = new_condor_state;
+			// TODO do we need to update any other attributes?
+		SetEvaluateState();
 	}
 
 }

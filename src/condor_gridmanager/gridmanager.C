@@ -532,9 +532,10 @@ dprintf(D_FULLDEBUG,"***Trying job type %s\n",job_type->Name);
 		// Grab jobs marked as REMOVED or marked as HELD that we haven't
 		// previously indicated that we're done with (by setting JobManaged
 		// to FALSE. If JobManaged is undefined, equate it with false.
-		sprintf( expr_buf, "(%s) && (%s == %d || (%s == %d && %s =?= TRUE))",
+		sprintf( expr_buf, "(%s) && (%s == %d || %s == %d || (%s == %d && %s =?= TRUE))",
 				 ScheddJobConstraint, ATTR_JOB_STATUS, REMOVED,
-				 ATTR_JOB_STATUS, HELD, ATTR_JOB_MANAGED );
+				 ATTR_JOB_STATUS, COMPLETED, ATTR_JOB_STATUS, HELD,
+				 ATTR_JOB_MANAGED );
 
 		dprintf( D_FULLDEBUG,"Using constraint %s\n",expr_buf);
 		next_ad = GetNextJobByConstraint( expr_buf, 1 );
