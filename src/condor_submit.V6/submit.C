@@ -1002,10 +1002,11 @@ SetUniverse()
 		} else {
 			// Validate
 			// Valid values are (as of 6.7): nordugrid, oracle, gt3, globus,
-			//    gt2
+			//    gt2, infn
 			if ((stricmp (univ, "globus") == MATCH) ||
 				(stricmp (univ, "gt2") == MATCH) ||
 				(stricmp (univ, "gt3") == MATCH) ||
+				(stricmp (univ, "infn") == MATCH) ||
 				(stricmp (univ, "nordugrid") == MATCH) ||
 				(stricmp (univ, "oracle") == MATCH)) {
 				// We're ok	
