@@ -75,15 +75,14 @@ This is particularily a problem when using Kerberos on multi-homed machines.
 
 \begin{itemize}
 
-\item When supplying a -L<condor/installation/include> linker flag to
-	find the libcondorapi.a library via the -l linker flag to
-	various compilers, under linux there would be errors emitted
-	that indicated an undefined symbols problem linking with
-	libc. 
-	Condor ships a version of glibc in the same location as the
-	libcondorapi.a file, and there was a libc mismatch during linking
-	of program which only used libcondorapi.a.  
-	This has been fixed.
+\item Fixed a bug on Linux systems caused by both 
+      Condor and the Linux distribution having a library file 
+      called \File{libc.a}.
+      The problem caused the link step to fail on Condor API
+      programs.
+      The evaluation order to determine the location of library
+      files caused use of the wrong file, given the duplicate naming.
+      The bug is fixed by renaming the Condor library files.
 
 \item When the \Condor{startd} is evaluating the state of each virtual
   machine (VM), it now refreshes any ClassAd attributes which are
