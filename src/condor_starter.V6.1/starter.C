@@ -37,6 +37,7 @@
 #include "internet.h"
 #include "condor_string.h"  // for strnewp
 #include "condor_attributes.h"
+#include "classad_command_util.h"
 #include "condor_random_num.h"
 #include "../condor_sysapi/sysapi.h"
 
@@ -141,6 +142,22 @@ CStarter::Init( JobInfoCommunicator* my_jic, const char* orig_cwd,
 		IMMEDIATE_FAMILY);
 	daemonCore->Register_Reaper("Reaper", (ReaperHandlercpp)&CStarter::Reaper,
 		"Reaper", this);
+
+		// Register a command with DaemonCore to handle ClassAd-only
+		// protocol commands.  For now, the only one we care about is
+		// CA_RECONNECT_JOB, which is used if we get disconnected and
+		// a new shadow comes back to try to reconnect, we're willing
+		// to talk to them...  Arguably, that's shadow-specific, and
+		// therefore it should live in the JICShadow, not here.
+		// However, a) we might support other ClassAd-only commands in
+		// the future that make more sense with non-shadow JIC's and
+		// b) someday even CA_RECONNECT_JOB might have some meaning
+		// for COD, who knows...
+	daemonCore->
+		Register_Command( CA_CMD, "CA_CMD",
+						  (CommandHandlercpp)&CStarter::classadCommand,
+						  "CStarter::classadCommand", this, WRITE );
+
 
 	sysapi_set_resource_limits();
 
@@ -799,4 +816,39 @@ CStarter::closeSavedStderr( void )
 		close( starter_stderr_fd );
 		starter_stderr_fd = -1;
 	}
+}
+
+
+int
+CStarter::classadCommand( int, Stream* s )
+{
+	ClassAd ad;
+	ReliSock* rsock = (ReliSock*)s;
+	int cmd = 0;
+
+	cmd = getCmdFromReliSock( rsock, &ad, true );
+
+	switch( cmd ) {
+	case FALSE:
+			// error in getCmd().  it will already have dprintf()'ed
+			// aobut it, so all we have to do is return
+		return FALSE;
+		break;
+
+	case CA_RECONNECT_JOB:
+			// hand this off to our JIC, since it will know what to do
+		jic->reconnect( rsock, &ad );
+			// we do NOT want daemoncore closing this socket on us!
+		return KEEP_STREAM;
+		break;
+
+	default:
+		const char* tmp = getCommandString(cmd);
+		MyString err_msg = "Starter does not support command (";
+		err_msg += tmp;
+		err_msg += ')';
+		sendErrorReply( s, tmp, CA_INVALID_REQUEST, err_msg.Value() );
+		return FALSE;
+	}
+	return TRUE;
 }
