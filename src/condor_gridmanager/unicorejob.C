@@ -602,12 +602,45 @@ BaseResource *UnicoreJob::GetResource()
 	return (BaseResource *)NULL;
 }
 
-void UnicoreJob::UpdateUnicoreState( char *status_ad )
+void UnicoreJob::UpdateUnicoreState( const char *status_ad )
 {
+	ClassAd *update_ad;
+	ClassAdXmlParser xml_parser;
+	const char *next_attr_name;
+	ExprTree *next_expr;
+
+	update_ad = xml_parser.ParseClassAd( status_ad );
+
+	update_ad->ResetName();
+	while ( ( next_attr_name = update_ad->NextName() ) != NULL ) {
+		if ( strcasecmp( next_attr_name, ATTR_MY_TYPE ) == 0 ||
+			 strcasecmp( next_attr_name, ATTR_TARGET_TYPE ) == 0 ) {
+			continue;
+		}
+		if ( strcasecmp( next_attr_name, ATTR_JOB_STATUS ) == 0 ) {
+			int status = 0;
+			status_ad->LookupInteger( ATTR_JOB_STATUS, status );
+			unicoreState = status;
+			if ( unicoreState == RUNNING ) {
+				JobRunning();
+			}
+			if ( unicoreState == IDLE ) {
+				JobIdle();
+			}
+		}
+		next_expr = status_ad->Lookup( next_attr_name );
+		this->ad->Insert( next_expr );
+	}
+
+	delete update_ad;
 }
 
 MyString *UnicoreJob::buildSubmitAd()
 {
+	ClassAd submit_ad;
+	ClassAdXMLUnparser xml_unp;
+	MyString *ad_string;
+
 	MyString iwd = "";
 	MyString buff;
 	char *attr_value = NULL;
@@ -644,15 +677,10 @@ MyString *UnicoreJob::buildSubmitAd()
 		attr_value = NULL;
 	}
 
-	submit_ad = new MyString();
-
-	submit_ad += '[';
-
 	for ( int i = 0; regular_attrs[i] != NULL; i++ ) {
 
 		if ( ad->LookupString(regular_attrs[i], &attr_value) && *attr_value ) {
-			buff.sprintf( "%s=\"%s\";", regular_attrs[i], attr_value );
-			submit_ad += buff;
+			submit_ad.Assign( regular_attrs[i], attr_value );
 		}
 		if ( attr_value != NULL ) {
 			free( attr_value );
@@ -664,9 +692,9 @@ MyString *UnicoreJob::buildSubmitAd()
 	for ( int i = 0; full_path_attrs[i] != NULL; i++ ) {
 
 		if ( ad->LookupString( full_path_attrs[i], &attr_value ) && *attr_value ) {
-			buff.sprintf( "%s=\"%s%s\";", ATTR_JOB_CMD, attr_value[0] != '/' ?
-						  iwd->Value() : "", attr_value );
-			submit_ad += buff;
+			buff.sprintf( "%s%s", attr_value[0] != '/' ? iwd->Value() : "",
+						  attr_value );
+			submit_ad.Assign( full_path_attrs[i], buff.Value() );
 		}
 		if ( attr_value != NULL ) {
 			free( attr_value );
@@ -675,7 +703,11 @@ MyString *UnicoreJob::buildSubmitAd()
 
 	}
 
-	submit_ad += ']';
+	xml_unp.SetUseCompactSpacing( true );
+	xml_unp.SetOutputType( false );
+	xml_unp.SetOutputTargetType( false );
+	ad_string = new MyString;
+	xml_unp.Unparse( submit_ad, ad_string );
 
-	return submit_ad;
+	return ad_string;
 }
