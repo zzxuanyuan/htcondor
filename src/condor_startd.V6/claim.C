@@ -707,7 +707,7 @@ Client::~Client()
 
 
 void
-Client::setuser( char* user )
+Client::setuser( const char* user )
 {
 	if( c_user ) {
 		free( c_user);
@@ -721,7 +721,7 @@ Client::setuser( char* user )
 
 
 void
-Client::setowner( char* owner )
+Client::setowner( const char* owner )
 {
 	if( c_owner ) {
 		free( c_owner);
@@ -735,7 +735,7 @@ Client::setowner( char* owner )
 
 
 void
-Client::setaddr(char* addr)
+Client::setaddr( const char* addr )
 {
 	if( c_addr ) {
 		free( c_addr);
@@ -749,7 +749,7 @@ Client::setaddr(char* addr)
 
 
 void
-Client::sethost(char* host)
+Client::sethost( const char* host )
 {
 	if( c_host ) {
 		free( c_host);

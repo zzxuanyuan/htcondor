@@ -93,10 +93,10 @@ public:
 	char*	host()	{return c_host;};
 	char*	addr() 	{return c_addr;};
 
-	void	setuser(char* user);
-	void	setowner(char* owner);
-	void	setaddr(char* addr);
-	void	sethost(char* host);
+	void	setuser(const char* user);
+	void	setowner(const char* owner);
+	void	setaddr(const char* addr);
+	void	sethost(const char* host);
 
 		// send a message to the client and accountant that the claim
 		// is a being vacated
