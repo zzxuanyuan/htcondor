@@ -51,9 +51,10 @@ for the first time will not need to make any changes.
   ClassAd.
 
 \item Added new macro \Macro{JOB\_START\_COUNT} that works in
-conjunction with existing macro \Macro{JOB\_START\_DELAY} to pace job
-starts.  Together, this macro pair provides greater flexibility
-tuning job start rate versus available \Condor{schedd} performance.
+conjunction with existing macro \Macro{JOB\_START\_DELAY} to 
+throttle job starts.
+Together, this macro pair provides greater flexibility
+tuning job start rate given available \Condor{schedd} performance.
 
 \item Added a libexec directory to the install process. Support commands that
 the Condor system needs will be added to this directory in future releases. This

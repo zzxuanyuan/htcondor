@@ -2559,32 +2559,32 @@ These macros control the \Condor{schedd}.
   
 \item[\Macro{JOB\_START\_COUNT}] \label{param:JobStartCount}
   This macro works together with the \Macro{JOB\_START\_DELAY} macro
-  (below) to pace job starts.  See the \Macro{JOB\_START\_DELAY} macro
-  below.  The default and minimum values for the \Macro{JOB\_START\_COUNT}
-  macro are both 1.  Small values for this macro are preferred and will
-  minimize the load upon the \Condor{schedd}.
+  to throttle job starts.
+  The default and minimum values for this
+  integer configuration variable are both 1.
+  Small values for this macro are preferred and will
+  minimize the load upon the \Condor{schedd} daemon.
   
 \item[\Macro{JOB\_START\_DELAY}] \label{param:JobStartDelay}
-  This macro works together with the \Macro{JOB\_START\_COUNT} macro
-  (above) to pace job starts.  The  \Condor{schedd} will start
-  \Macro{JOB\_START\_COUNT} jobs as quickly as possible, then delay for
-  \Macro{JOB\_START\_DELAY} seconds, before starting the next set of
-  jobs.  The interval "as quickly as possible" indicates the time
-  required for the \Condor{schedd} to claim \Macro{JOB\_START\_COUNT}
-  machines, and can be as small as zero.
+  This integer-valued macro works together with the
+  \Macro{JOB\_START\_COUNT} macro
+  to throttle job starts.  The  \Condor{schedd} daemon starts
+  \MacroUNI{JOB\_START\_COUNT} jobs at a time, then delays for
+  \MacroUNI{JOB\_START\_DELAY} seconds before starting the next set of jobs.
   This delay prevents a sudden, large load on the submit
-  machine as it spawns many shadows simultaneously, and prevents
-  having to deal
-  with their startup activity all at once.
+  machine as it spawns many \Condor{shadow} daemons simultaneously,
+  and it prevents having to deal
+  with their start up activity all at once.
   The resulting job start rate
-  can average as fast as
-  (\Macro{JOB\_START\_COUNT}/\Macro{JOB\_START\_DELAY}) jobs/second.
-  Similarly, this macro is also used during the graceful shutdown of the
-  \Condor{schedd}.
-  During graceful shutdown, this macro determines how long to wait in
-  between asking each \Condor{shadow} to gracefully shutdown.  
-  Defined in terms of seconds and defaults to 2.  Setting this macro to
-  a lower value is not advised, and can overwhelm the \Condor{schedd}.
+  averages as fast as
+  (\MacroUNI{JOB\_START\_COUNT}/\MacroUNI{JOB\_START\_DELAY}) jobs/second.
+  This configuration variable is also used during the graceful shutdown of the
+  \Condor{schedd} daemon.
+  During graceful shutdown, this macro determines the wait time in
+  between requesting each \Condor{shadow} daemon to gracefully shut down.  
+  It is defined in terms of seconds and defaults to 2.  
+  Setting this macro to a lower value is not advised,
+  as it can overwhelm the \Condor{schedd} daemon.
   
 \item[\Macro{ALIVE\_INTERVAL}] \label{param:AliveInterval} This
   macro determines how often the \Condor{schedd} should send a keep
