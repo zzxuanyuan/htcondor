@@ -371,7 +371,6 @@ GT4Job::GT4Job( ClassAd *classad )
 	jobmanagerType = NULL;
 	myResource = NULL;
 	myProxy = NULL;
-	gassServerUrl = NULL;
 	gramCallbackContact = NULL;
 	gahp = NULL;
 	submit_id = NULL;
@@ -560,9 +559,6 @@ GT4Job::~GT4Job()
 	if ( myProxy ) {
 		ReleaseProxy( myProxy, evaluateStateTid );
 	}
-	if ( gassServerUrl ) {
-		free( gassServerUrl );
-	}
 	if ( gramCallbackContact ) {
 		free( gramCallbackContact );
 	}
@@ -650,15 +646,6 @@ int GT4Job::doEvaluateState()
 			if ( err != GLOBUS_SUCCESS ) {
 				dprintf( D_ALWAYS,
 						 "(%d.%d) Error enabling GRAM callback, err=%d\n", 
-						 procID.cluster, procID.proc, err );
-				UpdateJobAdString( ATTR_HOLD_REASON, "Failed to initialize GAHP" );
-				gmState = GM_HOLD;
-				break;
-			}
-
-			err = gahp->globus_gass_server_superez_init( &gassServerUrl, 0 );
-			if ( err != GLOBUS_SUCCESS ) {
-				dprintf( D_ALWAYS, "(%d.%d) Error enabling GASS server, err=%d\n",
 						 procID.cluster, procID.proc, err );
 				UpdateJobAdString( ATTR_HOLD_REASON, "Failed to initialize GAHP" );
 				gmState = GM_HOLD;
@@ -894,7 +881,6 @@ gmState=GM_SUBMIT;
 										jobmanagerType,
 										gramCallbackContact,
 										RSL->Value(),
-//										gassServerUrl,
 										NULL,
 										&job_contact );
 
@@ -1897,11 +1883,6 @@ xsi:schemaLocation=\"http://www.globus.org/namespaces/2004/06/job \
 		// Not sure how to deal with this in GT4:
 
 	buff.sprintf( ")(proxy_timeout=%d", JM_MIN_PROXY_TIME );
-	*rsl += buff;
-
-	buff.sprintf( ")"
-				  "(remote_io_url=$(GRIDMANAGER_GASS_URL))",
-				  JM_COMMIT_TIMEOUT );
 	*rsl += buff;
 
 	*/

@@ -127,7 +127,6 @@ class GT4Job : public BaseJob
 	
 
 		// TODO should query these from GahpClient when needed
-	char *gassServerUrl;
 	char *gramCallbackContact;
 
 
