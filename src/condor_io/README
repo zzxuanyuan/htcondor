@@ -46,6 +46,7 @@ fragment:
 	    s->code(str);		    s->code(str);
 	    s->end_of_message();	    s->end_of_message();
 					    result = verify(data, str);
+					    free(str);
 	    s->decode();		    s->encode();
 	    s->code(result);		    s->code(result);
 	    s->end_of_message();	    s->end_of_message();
