@@ -660,6 +660,104 @@ BaseResource *MirrorJob::GetResource()
 
 ClassAd *MirrorJob::buildSubmitAd()
 {
-		// TODO fill this in
-	return NULL;
+	MyString expr;
+	ClassAd *submit_ad;
+
+		// Base the submit ad on our own job ad
+	submit_ad = new ClassAd( *ad );
+
+	submit_ad->Delete( ATTR_CLUSTER_ID );
+	submit_ad->Delete( ATTR_PROC_ID );
+	submit_ad->Delete( ATTR_MIRROR_JOB );
+	submit_ad->Delete( ATTR_MIRROR_REMOTE_LEASE_TIME );
+	submit_ad->Delete( ATTR_MIRROR_ACTIVE );
+	submit_ad->Delete( ATTR_MIRROR_SCHEDD );
+	submit_ad->Delete( ATTR_MIRROR_JOB_ID );
+	submit_ad->Delete( ATTR_MIRROR_LEASE_TIME );
+	submit_ad->Delete( ATTR_PERIODIC_HOLD_CHECK );
+	submit_ad->Delete( ATTR_PERIODIC_RELEASE_CHECK );
+	submit_ad->Delete( ATTR_PERIODIC_REMOVE_CHECK );
+	submit_ad->Delete( ATTR_ON_EXIT_HOLD_CHECK );
+	submit_ad->Delete( ATTR_ON_EXIT_REMOVE_CHECK );
+	submit_ad->Delete( ATTR_HOLD_REASON );
+	submit_ad->Delete( ATTR_HOLD_REASON_CODE );
+	submit_ad->Delete( ATTR_HOLD_REASON_SUBCODE );
+	submit_ad->Delete( ATTR_LAST_HOLD_REASON );
+	submit_ad->Delete( ATTR_LAST_HOLD_REASON_CODE );
+	submit_ad->Delete( ATTR_LAST_HOLD_REASON_SUBCODE );
+	submit_ad->Delete( ATTR_RELEASE_REASON );
+	submit_ad->Delete( ATTR_LAST_RELEASE_REASON );
+	submit_ad->Delete( ATTR_JOB_STATUS_ON_RELEASE );
+	submit_ad->Delete( ATTR_DAG_NODE_NAME );
+	submit_ad->Delete( ATTR_DAGMAN_JOB_ID );
+	submit_ad->Delete( ATTR_ULOG_FILE );
+
+	expr.sprintf( "%s = %d", ATTR_Q_DATE, time(NULL) );
+	submit_ad->Insert( expr.Value() );
+
+	expr.sprintf( "%s = 0", ATTR_COMPLETION_DATE );
+	submit_ad->Insert( expr.Value() );
+
+	expr.sprintf (buffer, "%s = 0.0", ATTR_JOB_REMOTE_WALL_CLOCK);
+	submit_ad->Insert( expr.Value() );
+
+	expr.sprintf (buffer, "%s = 0.0", ATTR_JOB_LOCAL_USER_CPU);
+	submit_ad->Insert( expr.Value() );
+
+	expr.sprintf (buffer, "%s = 0.0", ATTR_JOB_LOCAL_SYS_CPU);
+	submit_ad->Insert( expr.Value() );
+
+	expr.sprintf (buffer, "%s = 0.0", ATTR_JOB_REMOTE_USER_CPU);
+	submit_ad->Insert( expr.Value() );
+
+	expr.sprintf (buffer, "%s = 0.0", ATTR_JOB_REMOTE_SYS_CPU);
+	submit_ad->Insert( expr.Value() );
+
+	expr.sprintf (buffer, "%s = 0", ATTR_JOB_EXIT_STATUS);
+	submit_ad->Insert( expr.Value() );
+
+	expr.sprintf (buffer, "%s = 0", ATTR_NUM_CKPTS);
+	submit_ad->Insert( expr.Value() );
+
+	expr.sprintf (buffer, "%s = 0", ATTR_NUM_RESTARTS);
+	submit_ad->Insert( expr.Value() );
+
+	expr.sprintf (buffer, "%s = 0", ATTR_NUM_SYSTEM_HOLDS);
+	submit_ad->Insert( expr.Value() );
+
+	expr.sprintf (buffer, "%s = 0", ATTR_JOB_COMMITTED_TIME);
+	submit_ad->Insert( expr.Value() );
+
+	expr.sprintf (buffer, "%s = 0", ATTR_TOTAL_SUSPENSIONS);
+	submit_ad->Insert( expr.Value() );
+
+	expr.sprintf (buffer, "%s = 0", ATTR_LAST_SUSPENSION_TIME);
+	submit_ad->Insert( expr.Value() );
+
+	expr.sprintf (buffer, "%s = 0", ATTR_CUMULATIVE_SUSPENSION_TIME);
+	submit_ad->Insert( expr.Value() );
+
+	expr.sprintf (buffer, "%s = FALSE", ATTR_ON_EXIT_BY_SIGNAL);
+	submit_ad->Insert( expr.Value() );
+
+	expr.sprintf( "%s = 0", ATTR_CURRENT_HOSTS );
+	submit_ad->Insert( expr.Value() );
+
+	expr.sprintf( "%s = %d", ATTR_ENTERED_CURRENT_STATUS );
+	submit_ad->Insert( expr.Value() );
+
+	expr.sprintf( "%s = NEVER", ATTR_JOB_NOTIFICATION );
+	submit_ad->Insert( expr.Value() );
+
+	expr.sprintf( "%s = True", ATTR_JOB_LEAVE_IN_QUEUE );
+	submit_ad->Insert( expr.Value() );
+
+	expr.sprintf( "%s = %s =?= Undefined && ENV.CurrentTime > %s + %d",
+				  ATTR_JOB_PERIODIC_REMOVE_CHECK, ATTR_MIRROR_LEASE_TIME,
+				  ATTR_Q_DATE, 1800 );
+	submit_ad->Insert( expr.Value() );
+
+		// worry about ATTR_JOB_[OUTPUT|ERROR]_ORIG
+
+	return submit_ad;
 }
