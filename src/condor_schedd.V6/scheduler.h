@@ -50,7 +50,7 @@
 #include "enum_utils.h"
 
 const 	int			MAX_REJECTED_CLUSTERS = 1024;
-const   int         STARTD_CONTACT_TIMEOUT = 45;
+extern  int         STARTD_CONTACT_TIMEOUT;
 const	int			NEGOTIATOR_CONTACT_TIMEOUT = 30;
 
 extern	DLL_IMPORT_MAGIC char**		environ;

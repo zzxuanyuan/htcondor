@@ -125,6 +125,7 @@ bool service_this_universe(int, ClassAd*);
 
 int	WallClockCkptInterval = 0;
 static bool gridman_per_job = false;
+int STARTD_CONTACT_TIMEOUT = 45;
 
 #ifdef CARMI_OPS
 struct shadow_rec *find_shadow_by_cluster( PROC_ID * );
@@ -6985,6 +6986,8 @@ Scheduler::Init()
 		NegotiateAllJobsInCluster = true;
 	}
 	if( tmp ) free( tmp );
+
+	STARTD_CONTACT_TIMEOUT = param_integer("STARTD_CONTACT_TIMEOUT",45);
 
 	/* Initialize the hash tables to size MaxJobsRunning * 1.2 */
 		// Someday, we might want to actually resize these hashtables
