@@ -236,6 +236,7 @@ const char ATTR_MAX_JOBS_RUNNING         [] = "MaxJobsRunning";
 const char ATTR_MEMORY                   [] = "Memory";
 const char ATTR_MIN_HOSTS				 [] = "MinHosts";
 const char ATTR_MIPS                     [] = "Mips";
+const char ATTR_MIRROR_ACTIVE            [] = "MirrorActive";
 const char ATTR_MIRROR_JOB               [] = "MirrorJob";
 const char ATTR_MIRROR_JOB_ID            [] = "MirrorJobId";
 const char ATTR_MIRROR_LEASE_TIME        [] = "MirrorLeaseTime";
