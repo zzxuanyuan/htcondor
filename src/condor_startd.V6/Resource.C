@@ -77,6 +77,7 @@ Resource::Resource( CpuAttributes* cap, int rid )
 
 	r_cpu_busy = 0;
 	r_cpu_busy_start_time = 0;
+	r_suspended_for_cod = false;
 
 	if( r_attr->type() ) {
 		dprintf( D_ALWAYS, "New machine resource of type %d allocated\n",  
@@ -294,6 +295,77 @@ Resource::hasAnyClaim( void )
 	}
 	return hasOppClaim();
 }
+
+
+void
+Resource::suspendForCOD( void )
+{
+	r_suspended_for_cod = true;
+
+	switch( r_cur->state() ) { 
+
+    case CLAIM_RUNNING:
+		dprintf( D_ALWAYS, "State change: Suspending because a COD "
+				 "job is now running\n" );
+		change_state( suspended_act );
+		break;
+
+    case CLAIM_VACATING:
+    case CLAIM_KILLING:
+		dprintf( D_ALWAYS, "A COD job is now running, opportunistic "
+				 "claim is already preempting\n" );
+		break;
+
+    case CLAIM_SUSPENDED:
+		dprintf( D_ALWAYS, "A COD job is now running, opportunistic "
+				 "claim is already suspended\n" );
+		break;
+
+    case CLAIM_IDLE:
+    case CLAIM_UNCLAIMED:
+		dprintf( D_ALWAYS, "A COD job is now running, opportunistic "
+				 "claim is unavailable\n" );
+			// TODO: make it unavailable
+		break;
+	}
+}
+
+
+void
+Resource::resumeForCOD( void )
+{
+	r_suspended_for_cod = false;
+
+	switch( r_cur->state() ) { 
+
+    case CLAIM_RUNNING:
+		dprintf( D_ALWAYS, "ERROR: trying to resume opportunistic "
+				 "claim now that there's no COD job, but claim is "
+				 "already running!\n" );
+		break;
+
+    case CLAIM_VACATING:
+    case CLAIM_KILLING:
+			// do we even want to print this one?
+		dprintf( D_FULLDEBUG, "No running COD job, but opportunistic " 
+				 "claim is already preempting\n" );
+		break;
+
+    case CLAIM_SUSPENDED:
+		dprintf( D_ALWAYS, "State Change: No running COD job, "
+				 "resuming opportunistic claim\n" );
+		change_state( busy_act );
+		break;
+
+    case CLAIM_IDLE:
+    case CLAIM_UNCLAIMED:
+		dprintf( D_ALWAYS, "No running COD job, opportunistic "
+				 "claim is now available\n" );
+			// TODO: make it available
+		break;
+	}
+}
+
 
 
 void

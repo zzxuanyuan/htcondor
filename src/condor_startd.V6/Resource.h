@@ -74,8 +74,10 @@ public:
 	int		eval_state( void )		{return r_state->eval();};
 	bool	hasOppClaim( void );
 	bool	hasAnyClaim( void );
-	bool	hasRunningCODClaim( void ) {return r_cod_mgr->isRunning();};
 	bool	isDeactivating( void )	{return r_cur->isDeactivating();};
+	bool	isSuspendedForCOD( void ) {return r_suspended_for_cod;};
+	void	suspendForCOD( void );
+	void	resumeForCOD( void );
 
 		// Methods for computing and publishing resource attributes 
 	void	compute( amask_t mask);
@@ -174,6 +176,7 @@ private:
 	void	remove_pre( void );	// If r_pre is set, refuse and delete it.
 	int		r_cpu_busy;
 	time_t	r_cpu_busy_start_time;
+	bool	r_suspended_for_cod;
 };
 
 #endif /* _STARTD_RESOURCE_H */
