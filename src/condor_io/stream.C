@@ -54,6 +54,13 @@ static int shipcount =0;
 **	CODE ROUTINES
 */
 
+int
+Stream::code( void *&)
+{
+	/* This is a noop just to make stub generation happy. All of the functions
+		that wish to use this overload we don't support or ignore. -psilord */
+	return TRUE;
+}
 
 
 int 

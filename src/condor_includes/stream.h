@@ -209,6 +209,8 @@ public:
     //@{
 
     ///
+	int code(void *&);
+    ///
 	int code(char &);
     ///
 	int code(unsigned char &);
