@@ -409,7 +409,7 @@ char*
 JICLocal::getJobStdFile( const char* attr_name, const char* alt_name )
 {
 	char* tmp = NULL;
-	char filename[_POSIX_PATH_MAX];
+	MyString filename;
 	filename[0] = '\0';
 
 		// the only magic here is to make sure we have full paths for
@@ -424,15 +424,13 @@ JICLocal::getJobStdFile( const char* attr_name, const char* alt_name )
 	}
 	if ( !nullFile(tmp) ) {
 		if( ! fullpath(tmp) ) { 
-			sprintf( filename, "%s%c", job_iwd, DIR_DELIM_CHAR );
-		} else {
-			filename[0] = '\0';
+			filename.sprintf( "%s%c", job_iwd, DIR_DELIM_CHAR );
 		}
-		strcat( filename, tmp );
+		filename += tmp;
 	}
 	free( tmp );
 	if( filename[0] ) { 
-		return strdup( filename );
+		return strdup( filename.Value() );
 	}
 	return NULL;
 }
