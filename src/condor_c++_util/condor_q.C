@@ -155,7 +155,7 @@ fetchQueue (ClassAdList &ca_list, ClassAd *ad, CondorError* errstack)
 		if ( !ad->EvaluateAttrString( ATTR_SCHEDD_IP_ADDR, scheddString, 32 ) ) {	// NAC
 			return Q_NO_SCHEDD_IP_ADDR;	
 		}
-		if( !(qmgr = ConnectQ( scheddString, connect_timeout, true, errstack)) )
+		if( !(qmgr = ConnectQ( scheddString, connect_timeout, true, errstack)) ) {
 			return Q_SCHEDD_COMMUNICATION_ERROR;
 		}
 	}
@@ -193,7 +193,7 @@ fetchQueueFromHost (ClassAdList &ca_list, char *host, CondorError* errstack)
 	 optimal.  :^).
 	*/
 	init();  // needed to get default connect_timeout
-	if( !(qmgr = ConnectQ( host, connect_timeout, true, errstack)) )
+	if( !(qmgr = ConnectQ( host, connect_timeout, true, errstack)) ) {
 		return Q_SCHEDD_COMMUNICATION_ERROR;
 	}
 	// get the ads and filter them
@@ -231,8 +231,9 @@ fetchQueueFromHostAndProcess ( char *host, process_function process_func, Condor
 	 optimal.  :^).
 	*/
 	init();  // needed to get default connect_timeout
-	if( !(qmgr = ConnectQ( host, connect_timeout, true, errstack)) )
+	if( !(qmgr = ConnectQ( host, connect_timeout, true, errstack)) ) {
 		return Q_SCHEDD_COMMUNICATION_ERROR;
+	}
 
 	// get the ads and filter them
 	result = getFilterAndProcessAds (filterAd, process_func);
