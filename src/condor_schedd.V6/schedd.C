@@ -4991,7 +4991,7 @@ Scheduler::spawnShadow( shadow_rec* srec )
 		}
 	}
 
-	rval = spawnJobHandler( srec, shadow_path, args, NULL, "shadow",
+	rval = spawnJobHandler( srec, shadow_path, args, "shadow",
 							sh_is_dc, sh_reads_file );
 
 	free( shadow_path );
@@ -5060,8 +5060,8 @@ Scheduler::tryNextJob( void )
 
 bool
 Scheduler::spawnJobHandler( shadow_rec* srec, const char* path, 
-							const char* args, const char* env, 
-							const char* name, bool is_dc, bool wants_pipe )
+							const char* args, const char* name,
+							bool is_dc, bool wants_pipe )
 {
 	int pid = -1;
 	PROC_ID* job_id = &srec->job_id;
@@ -5106,7 +5106,7 @@ Scheduler::spawnJobHandler( shadow_rec* srec, const char* path,
 	   Someday, hopefully soon, we'll fix this and spawn the
 	   shadow/handler with PRIV_USER_FINAL... */
 	pid = daemonCore->Create_Process( path, args, PRIV_ROOT, 1, 
-									  is_dc, env, NULL, FALSE, NULL, 
+									  is_dc, NULL, NULL, FALSE, NULL, 
 									  std_fds_p, niceness );
 
 	if( pid == FALSE ) {
@@ -5491,7 +5491,7 @@ Scheduler::spawnLocalStarter( shadow_rec* srec )
 	CommitTransaction();
 
 	rval = spawnJobHandler( srec, starter_path, starter_args.Value(),
-							NULL, "starter", true, true );
+							"starter", true, true );
 
 	free( starter_path );
 	starter_path = NULL;
