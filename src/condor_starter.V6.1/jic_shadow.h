@@ -140,13 +140,6 @@ public:
 		*/
 	void addToOutputFiles( const char* filename );
 
-		/** Compare our own UIDDomain vs. where the job came from.
-			We check in the given job ClassAd for ATTR_UID_DOMAIN, and
-			compare that to info we have about our remote shadow.
-			@return true if they match, false if not
-		*/
-	bool sameUidDomain( void );
-
 
 private:
 
@@ -243,6 +236,12 @@ private:
 		/// If the job ad says so, initialize our IO proxy
 	bool initIOProxy( void );
 
+		/** Compare our own UIDDomain vs. where the job came from.
+			We check in the given job ClassAd for ATTR_UID_DOMAIN, and
+			compare that to info we have about our remote shadow.
+			@return true if they match, false if not
+		*/
+	bool sameUidDomain( void );
 
 		// // // // // // // //
 		// Private Data Members
