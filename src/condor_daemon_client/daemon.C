@@ -447,7 +447,6 @@ Daemon::sendCommand( int cmd, Stream::stream_type st, int sec )
 
 
 
-
 //////////////////////////////////////////////////////////////////////
 // Locate-related methods
 //////////////////////////////////////////////////////////////////////
@@ -985,18 +984,7 @@ Daemon::checkAddr( void )
 		locate();
 	}
 	if( ! _addr ) {
-		MyString err_msg;
-		if( _cmd_str ) {
-			err_msg += _cmd_str;
-			err_msg += ": ";
-		}
-		err_msg += "Can't locate daemon: ";
-		if( _error ) {
-			err_msg += _error;
-		} else { 
-			err_msg += "unknown error";
-		}
-		newError( err_msg.Value() );
+			// _error will already be set appropriately
 		return false;
 	}
 	return true;
