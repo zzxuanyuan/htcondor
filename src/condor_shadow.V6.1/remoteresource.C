@@ -1242,7 +1242,8 @@ RemoteResource::reconnect( void )
 	if( remaining <= 0 ) {
 	dprintf( D_ALWAYS, "%s remaining: EXPIRED!\n",
 			 ATTR_JOB_LEASE_DURATION );
-		MyString reason = ATTR_JOB_LEASE_DURATION;
+		MyString reason = "Job disconnected too long: ";
+		reason += ATTR_JOB_LEASE_DURATION;
 		reason += " (";
 		reason += lease_duration;
 		reason += " seconds) expired";
