@@ -1208,72 +1208,28 @@ ClassAd *MirrorJob::buildSubmitAd()
 	submit_ad->Delete( ATTR_STAGE_IN_START );
 	submit_ad->Delete( ATTR_STAGE_IN_FINISH );
 
-	expr.sprintf( "%s = %d", ATTR_JOB_STATUS, HELD );
-	submit_ad->Insert( expr.Value() );
-
-	expr.sprintf( "%s = \"%s\"", ATTR_HOLD_REASON,
-				  "submitted on hold at user's request" );
-	submit_ad->Insert( expr.Value() );
-
-	expr.sprintf( "%s = %d", ATTR_Q_DATE, now );
-	submit_ad->Insert( expr.Value() );
-
-	expr.sprintf( "%s = 0", ATTR_COMPLETION_DATE );
-	submit_ad->Insert( expr.Value() );
-
-	expr.sprintf ( "%s = 0.0", ATTR_JOB_REMOTE_WALL_CLOCK);
-	submit_ad->Insert( expr.Value() );
-
-	expr.sprintf ( "%s = 0.0", ATTR_JOB_LOCAL_USER_CPU);
-	submit_ad->Insert( expr.Value() );
-
-	expr.sprintf ( "%s = 0.0", ATTR_JOB_LOCAL_SYS_CPU);
-	submit_ad->Insert( expr.Value() );
-
-	expr.sprintf ( "%s = 0.0", ATTR_JOB_REMOTE_USER_CPU);
-	submit_ad->Insert( expr.Value() );
-
-	expr.sprintf ( "%s = 0.0", ATTR_JOB_REMOTE_SYS_CPU);
-	submit_ad->Insert( expr.Value() );
-
-	expr.sprintf ( "%s = 0", ATTR_JOB_EXIT_STATUS);
-	submit_ad->Insert( expr.Value() );
-
-	expr.sprintf ( "%s = 0", ATTR_NUM_CKPTS);
-	submit_ad->Insert( expr.Value() );
-
-	expr.sprintf ( "%s = 0", ATTR_NUM_RESTARTS);
-	submit_ad->Insert( expr.Value() );
-
-	expr.sprintf ( "%s = 0", ATTR_NUM_SYSTEM_HOLDS);
-	submit_ad->Insert( expr.Value() );
-
-	expr.sprintf ( "%s = 0", ATTR_JOB_COMMITTED_TIME);
-	submit_ad->Insert( expr.Value() );
-
-	expr.sprintf ( "%s = 0", ATTR_TOTAL_SUSPENSIONS);
-	submit_ad->Insert( expr.Value() );
-
-	expr.sprintf ( "%s = 0", ATTR_LAST_SUSPENSION_TIME);
-	submit_ad->Insert( expr.Value() );
-
-	expr.sprintf ( "%s = 0", ATTR_CUMULATIVE_SUSPENSION_TIME);
-	submit_ad->Insert( expr.Value() );
-
-	expr.sprintf ( "%s = FALSE", ATTR_ON_EXIT_BY_SIGNAL);
-	submit_ad->Insert( expr.Value() );
-
-	expr.sprintf( "%s = 0", ATTR_CURRENT_HOSTS );
-	submit_ad->Insert( expr.Value() );
-
-	expr.sprintf( "%s = %d", ATTR_ENTERED_CURRENT_STATUS, now );
-	submit_ad->Insert( expr.Value() );
-
-	expr.sprintf( "%s = %d", ATTR_JOB_NOTIFICATION, NOTIFY_NEVER );
-	submit_ad->Insert( expr.Value() );
-
-	expr.sprintf( "%s = True", ATTR_JOB_LEAVE_IN_QUEUE );
-	submit_ad->Insert( expr.Value() );
+	submit_ad->Assign( ATTR_JOB_STATUS, HELD );
+	submit_ad->Assign( ATTR_HOLD_REASON, "submitted on hold at user's request" );
+	submit_ad->Assign( ATTR_Q_DATE, now );
+	submit_ad->Assign( ATTR_COMPLETION_DATE, 0 );
+	submit_ad->Assign( ATTR_JOB_REMOTE_WALL_CLOCK, (float)0.0 );
+	submit_ad->Assign( ATTR_JOB_LOCAL_USER_CPU, (float)0.0 );
+	submit_ad->Assign( ATTR_JOB_LOCAL_SYS_CPU, (float)0.0 );
+	submit_ad->Assign( ATTR_JOB_REMOTE_USER_CPU, (float)0.0 );
+	submit_ad->Assign( ATTR_JOB_REMOTE_SYS_CPU, (float)0.0 );
+	submit_ad->Assign( ATTR_JOB_EXIT_STATUS, 0 );
+	submit_ad->Assign( ATTR_NUM_CKPTS, 0 );
+	submit_ad->Assign( ATTR_NUM_RESTARTS, 0 );
+	submit_ad->Assign( ATTR_NUM_SYSTEM_HOLDS, 0 );
+	submit_ad->Assign( ATTR_JOB_COMMITTED_TIME, 0 );
+	submit_ad->Assign( ATTR_TOTAL_SUSPENSIONS, 0 );
+	submit_ad->Assign( ATTR_LAST_SUSPENSION_TIME, 0 );
+	submit_ad->Assign( ATTR_CUMULATIVE_SUSPENSION_TIME, 0 );
+	submit_ad->Assign( ATTR_ON_EXIT_BY_SIGNAL, false );
+	submit_ad->Assign( ATTR_CURRENT_HOSTS, 0 );
+	submit_ad->Assign( ATTR_ENTERED_CURRENT_STATUS, now );
+	submit_ad->Assign( ATTR_JOB_NOTIFICATION, NOTIFY_NEVER );
+	submit_ad->Assign( ATTR_JOB_LEAVE_IN_QUEUE, true );
 
 	expr.sprintf( "%s = (%s >= %s) =!= True && CurrentTime > %s + %d",
 				  ATTR_PERIODIC_REMOVE_CHECK, ATTR_STAGE_IN_FINISH,
@@ -1290,9 +1246,7 @@ ClassAd *MirrorJob::buildSubmitAd()
 				  ATTR_MIRROR_LEASE_TIME, ATTR_SCHEDD_BIRTHDATE, 15*60 );
 	submit_ad->Insert( expr.Value() );
 
-	expr.sprintf( "%s = \"%s\"", ATTR_MIRROR_SUBMITTER_ID,
-				  submitterId );
-	submit_ad->Insert( expr.Value() );
+	submit_ad->Assign( ATTR_MIRROR_SUBMITTER_ID, submitterId );
 
 		// worry about ATTR_JOB_[OUTPUT|ERROR]_ORIG
 
