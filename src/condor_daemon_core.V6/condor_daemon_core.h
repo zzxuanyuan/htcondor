@@ -889,6 +889,12 @@ class DaemonCore : public Service
 	bool GetPeacefulShutdown();
 	void SetPeacefulShutdown(bool value);
 
+	/** Disable all daemon core callbacks for duration seconds, except for the
+		processing of SOAP calls.
+		@param seconds The number of seconds to only permit SOAP callbacks
+	*/
+	void Only_Allow_Soap(int duration);
+
   private:      
 
 	ReliSock* dc_rsock;	// tcp command socket
@@ -1018,6 +1024,7 @@ class DaemonCore : public Service
 	
 	int				  initial_http_sock;
 	struct soap		  soap;
+	time_t			  only_allow_soap;
 
 	struct PidEntry;  // forward reference
     struct PipeEnt

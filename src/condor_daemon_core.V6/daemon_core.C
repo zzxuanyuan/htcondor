@@ -308,6 +308,8 @@ DaemonCore::DaemonCore(int PidSize, int ComSize,int SigSize,
 	_cookie_data_old = _cookie_data = NULL;
 
 	peaceful_shutdown = false;
+
+	only_allow_soap = 0;
 }
 
 // DaemonCore destructor. Delete the all the various handler tables, plus
@@ -1721,6 +1723,16 @@ DaemonCore::AddAllowHost( const char* host, DCpermission perm )
 	return ipverify.AddAllowHost( host, perm );
 }
 
+void
+DaemonCore::Only_Allow_Soap(int duration)
+{
+	if ( duration <= 0 ) {
+		only_allow_soap = 0;
+	} else {
+		time_t now = time(NULL);
+		only_allow_soap = now + duration;
+	}
+}
 
 // This function never returns. It is responsible for monitor signals and
 // incoming messages or requests and invoke corresponding handlers.
@@ -1752,28 +1764,30 @@ void DaemonCore::Driver()
 	{
 		// call signal handlers for any pending signals
 		sent_signal = FALSE;	// set to True inside Send_Signal()
-		for (i=0;i<maxSig;i++) {
-			if ( sigTable[i].handler || sigTable[i].handlercpp ) {
-				// found a valid entry; test if we should call handler
-				if ( sigTable[i].is_pending && !sigTable[i].is_blocked ) {
-					// call handler, but first clear pending flag
-					sigTable[i].is_pending = 0;
-					// Update curr_dataptr for GetDataPtr()
-					curr_dataptr = &(sigTable[i].data_ptr);
-					// log a message
-					dprintf(D_DAEMONCORE,
-									"Calling Handler <%s> for Signal %d <%s>\n",
-									sigTable[i].handler_descrip,sigTable[i].num,
-									sigTable[i].sig_descrip);
-					// call the handler
-					if ( sigTable[i].is_cpp ) 
-						(sigTable[i].service->*(sigTable[i].handlercpp))(sigTable[i].num);
-					else
-						(*sigTable[i].handler)(sigTable[i].service,sigTable[i].num);
-					// Clear curr_dataptr
-					curr_dataptr = NULL;
-					// Make sure we didn't leak our priv state
-					CheckPrivState();
+		if ( !only_allow_soap ) {
+			for (i=0;i<maxSig;i++) {
+				if ( sigTable[i].handler || sigTable[i].handlercpp ) {
+					// found a valid entry; test if we should call handler
+					if ( sigTable[i].is_pending && !sigTable[i].is_blocked ) {
+						// call handler, but first clear pending flag
+						sigTable[i].is_pending = 0;
+						// Update curr_dataptr for GetDataPtr()
+						curr_dataptr = &(sigTable[i].data_ptr);
+						// log a message
+						dprintf(D_DAEMONCORE,
+										"Calling Handler <%s> for Signal %d <%s>\n",
+										sigTable[i].handler_descrip,sigTable[i].num,
+										sigTable[i].sig_descrip);
+						// call the handler
+						if ( sigTable[i].is_cpp ) 
+							(sigTable[i].service->*(sigTable[i].handlercpp))(sigTable[i].num);
+						else
+							(*sigTable[i].handler)(sigTable[i].service,sigTable[i].num);
+						// Clear curr_dataptr
+						curr_dataptr = NULL;
+						// Make sure we didn't leak our priv state
+						CheckPrivState();
+					}
 				}
 			}
 		}
@@ -1797,8 +1811,10 @@ void DaemonCore::Driver()
 		//   and service this outstanding signal and yet we do not 
 		//   starve commands...
 	
-
-		temp = t.Timeout();
+		temp = 0;
+		if ( !only_allow_soap ) {	// call timers unless only allowing soap
+			temp = t.Timeout();
+		}
 	
 		if ( sent_signal == TRUE ) {
 			temp = 0;
@@ -1865,7 +1881,27 @@ void DaemonCore::Driver()
 		// select on.  We write to async_pipe if a unix async signal 
 		// is delivered after we unblock signals and before we block on select.
 		FD_SET(async_pipe[0],&readfds);
+#endif
 
+		if ( only_allow_soap ) {
+			time_t now = time(NULL);
+			if ( now >= only_allow_soap ) {
+				// the time has past... let everything in
+				only_allow_soap = 0;
+				// and call continue so our timers get called at the start
+				// of the infinite loop above.
+				continue;
+			} else {
+				// only allow soap commands for a while longer
+				timer.tv_sec = only_allow_soap - now;
+				FD_ZERO(&readfds);
+				FD_ZERO(&writefds);
+				FD_ZERO(&exceptfds);
+				FD_SET( (*sockTable)[initial_command_sock].sockd, &readfds );
+			}				
+		}
+
+#if !defined(WIN32)
 		// Set aync_sigs_unblocked flag to true so that Send_Signal()
 		// knows to put info onto the async_pipe in order to wake up select().
 		// We _must_ set this flag to TRUE before we unblock async signals, and
@@ -2669,6 +2705,12 @@ int DaemonCore::HandleReq(int socki)
 		return KEEP_STREAM;	
 	}
 
+	if (only_allow_soap && stream != insock ) {
+		dprintf(D_ALWAYS,
+			"Received CEDAR command during SOAP transaction... queueing\n");
+		Register_Command_Socket(stream);	// register to deal with it later
+		return KEEP_STREAM;
+	}
 
 	// read in the command from the stream with a timeout value of 20 seconds
 	old_timeout = stream->timeout(20);
@@ -2681,12 +2723,13 @@ int DaemonCore::HandleReq(int socki)
 			"DaemonCore: Can't receive command request (perhaps a timeout?)\n");
 		if ( insock != stream )	{   // delete stream only if we did an accept
 			delete stream;		   
+			return KEEP_STREAM;		// keep it cuz it is a listen socket
 		} else {
 			stream->set_crypto_key(false, NULL);
 			stream->set_MD_mode(MD_OFF, NULL);
 			stream->end_of_message();
-		}
-        return KEEP_STREAM;
+			return FALSE;	// delete socket cuz it isn't a listen sock
+		}        
 	}
 
 	if (req == DC_AUTHENTICATE) {
