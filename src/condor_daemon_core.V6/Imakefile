@@ -18,10 +18,8 @@ PURIFY_FLAG = -DHAS_PURIFY
 PURIFY_FLAG =
 #endif
 
-ODBC_INCLUDE = /afs/cs.wisc.edu/u/j/h/jhuang/odbc/include
-
 CFLAGS = $(STD_C_FLAGS)
-C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) $(FIX_BROKEN_GCC) $(PURIFY_FLAG) -I$(ODBC_INCLUDE)
+C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) $(FIX_BROKEN_GCC) $(PURIFY_FLAG)
 LIB = $(STD_LIBS)
 
 OBJ = timer_manager.o daemon_core.o daemon_core_main.o \
