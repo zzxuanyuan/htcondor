@@ -33,7 +33,7 @@
 
 #define USE_NEW_SCANNER
 
-#include "condor_attrlist.h"
+#include "condor_classad.h"
 
 class Token
 {
@@ -47,7 +47,7 @@ class Token
 			int		intVal;
 			float	floatVal;
 		};
-		LexemeType	type; 
+		//LexemeType	type; 
 		int			length;	// error position in the string for the parser
 #ifdef USE_NEW_SCANNER
 		char        *strVal;
