@@ -3596,10 +3596,17 @@ GahpClient::unicore_job_create(
 
 		// Generate request line
 	if (!description) description=NULLSTRING;
+char *desc = strdup(description);
+int i = strlen( desc );
+if ( i > 0 && desc[i-1] == '\n' ) {
+desc[i-1] = '\0';
+}
+description = desc;
 	MyString reqline;
 	bool x = reqline.sprintf("%s", escapeGahpString(description) );
 	ASSERT( x == true );
 	const char *buf = reqline.Value();
+free(desc);
 
 		// Check if this request is currently pending.  If not, make
 		// it the pending request.
@@ -3826,10 +3833,17 @@ GahpClient::unicore_job_recover(
 
 		// Generate request line
 	if (!description) description=NULLSTRING;
+char *desc = strdup(description);
+int i = strlen( desc );
+if ( i > 0 && desc[i-1] == '\n' ) {
+desc[i-1] = '\0';
+}
+description = desc;
 	MyString reqline;
 	bool x = reqline.sprintf("%s", escapeGahpString(description) );
 	ASSERT( x == true );
 	const char *buf = reqline.Value();
+free(desc);
 
 		// Check if this request is currently pending.  If not, make
 		// it the pending request.
