@@ -45,10 +45,10 @@
 #include "../condor_c++_util/soap_helpers.cpp"
 
 #include "qmgmt.h"
+
 // XXX: There should be checks to see if the cluster/job Ids are valid
-// in the transaction they are being used...
-
-
+// in the transaction they are being used...but only when we have
+// multiple transactions.
 static int current_trans_id = 0;
 static int trans_timer_id = -1;
 
@@ -73,14 +73,7 @@ convert_FileInfoList_to_Array(struct soap * soap,
   FileInfo *info;
   list.Rewind();
   for (int i = 0; list.Next(info); i++) {
-		  /* It would be easier to use strdup, but we'd leak memory.
-			 array.__ptr[i].name = strdup(info->name.GetCStr()); */
 	array.__ptr[i].name = strdup(info->name.GetCStr());
-/*	array.__ptr[i].name = (char *) soap_malloc(soap, info->name.Length() * sizeof(char));
-	if (NULL == array.__ptr[i].name) {
-		return false;
-	}
-	strcpy(array.__ptr[i].name, info->name.GetCStr());*/
     array.__ptr[i].size = (int) info->size;
   }
 
@@ -139,7 +132,6 @@ static
 int
 removeCluster(int clusterId)
 {
-  // XXX: This should really make sure they are all removed or none!
   MyString currentKey;
   Job *job;
   jobs.startIterations();
@@ -201,7 +193,6 @@ condor__beginTransaction(struct soap *s,
     struct condor__abortTransactionResponse response;
     struct condor__Transaction transaction;
     transaction.id = current_trans_id;
-    // XXX: handle errors
     condor__abortTransaction(s, transaction, response);
   }
   if ( duration < 1 ) {
@@ -264,10 +255,8 @@ condor__abortTransaction(struct soap *s,
     AbortTransactionAndRecomputeClusters();
     dprintf(D_ALWAYS, "SOAP cleared file hashtable for transaction: %d\n", transaction.id);
 
-    // XXX: Call schedd.abort() for all schedd's
-
     // Let's forget about all the file associated with the transaction.
-    //jobs.clear(); /* Memory leak? */
+    //jobs.clear();
 
     current_trans_id = 0;
     transaction.id = 0;
@@ -800,8 +789,6 @@ condor__listSpool(struct soap * soap,
 			//delete job; // XXX: Only if it is the temp one.
 	}
 
-		// XXX: Leaking the "files"?
-
 	return SOAP_OK;
 }
 
@@ -1036,7 +1023,7 @@ condor__createJobTemplate(struct soap *soap,
 		//free(soapLeaveInQueue);
   }
   // XXX: This is recoverable!
-  assert(job->Insert(attribute.GetCStr()));
+  ASSERT(job->Insert(attribute.GetCStr()));
 
   attribute = MyString(ATTR_JOB_ARGUMENTS) + " = \"" + args + "\"";
   job->Insert(attribute.GetCStr());
