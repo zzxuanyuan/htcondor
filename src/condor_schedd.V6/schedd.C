@@ -3928,7 +3928,7 @@ Scheduler::makeReconnectRecords( PROC_ID* job, ClassAd* match_ad )
 
 	UserLog* ULog = this->InitializeUserLog( *job );
 	JobDisconnectedEvent event;
-	const char* txt = "Local job shadow and schedd were killed, "
+	const char* txt = "Local schedd and job shadow died, "
 		"schedd now running again";
 	event.setReason( txt );
 	event.setStartdAddr( startd_addr );
