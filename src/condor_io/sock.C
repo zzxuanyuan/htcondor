@@ -851,9 +851,13 @@ int Sock::timeout(int sec)
 
 char * Sock::serialize() const
 {
+	//KeyInfo * k = this_sockets_key();
+	//char * kserial = k->serialize();
+	char kserial[] = "SERIALIZED_KEY";
+
 	// here we want to save our state into a buffer
 	char * outbuf = new char[100];
-	sprintf(outbuf,"%u*%d*%d",_sock,_state,_timeout);
+	sprintf(outbuf,"%u*%d*%d*%s",_sock,_state,_timeout,kserial);
 	return( outbuf );
 }
 
@@ -865,8 +869,10 @@ char * Sock::serialize(char *buf)
 
 	assert(buf);
 
+	char kserial[300];
+
 	// here we want to restore our state from the incoming buffer
-	sscanf(buf,"%u*%d*%d",&passed_sock,&_state,&_timeout);
+	sscanf(buf,"%u*%d*%d*%s",&passed_sock,&_state,&_timeout,&kserial);
 
 	// replace _sock with the one from the buffer _only_ if _sock
 	// is currently invalid.  if it is not invalid, it has already
@@ -888,6 +894,9 @@ char * Sock::serialize(char *buf)
 			ptmp++;
 		}
 	}
+
+	KeyInfo k((unsigned char *)kserial, 0);
+	set_crypto_key(&k);
 
 	return ptmp;
 }

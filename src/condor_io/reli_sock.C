@@ -54,6 +54,8 @@ ReliSock::init()
 	authob = NULL;
 	hostAddr = NULL;
     fqu_ = NULL;
+	snd_msg.buf.reset();                                                    
+	rcv_msg.buf.reset();   
 	rcv_msg.init_parent(this);
 	snd_msg.init_parent(this);
 }
@@ -236,6 +238,11 @@ ReliSock::accept()
 int 
 ReliSock::connect( char	*host, int port, bool non_blocking_flag )
 {
+	if (authob) {                                                           
+		delete authob;                                                  
+	}  	                                                                     
+ 
+	init();     
 	is_client = 1;
 	if( ! host ) {
 		return FALSE;
@@ -927,8 +934,9 @@ ReliSock::serialize() const
 	char * parent_state = Sock::serialize();
     // now concatenate our state
 	char * outbuf = new char[50];
-	sprintf(outbuf,"*%d*%s*",_special_state,sin_to_string(&_who));
+	sprintf(outbuf,"*%d*%s",_special_state,sin_to_string(&_who));
 	strcat(parent_state,outbuf);
+	/*
     const char * tmp = getFullyQualifiedUser();
     if (tmp) {
         strcat(parent_state, tmp);
@@ -936,6 +944,7 @@ ReliSock::serialize() const
     else {
         strcat(parent_state, " ");
     }
+	*/
 	delete []outbuf;
 	return( parent_state );
 }
@@ -953,7 +962,8 @@ ReliSock::serialize(char *buf)
 	// first, let our parent class restore its state
     ptmp = Sock::serialize(buf);
     assert( ptmp );
-    sscanf(ptmp,"%d*%s*%s",&_special_state,sinful_string, fqu);
+    //sscanf(ptmp,"%d*%s*%s",&_special_state,sinful_string, fqu);
+    sscanf(ptmp,"%d*%s",&_special_state,sinful_string);
     string_to_sin(sinful_string, &_who);
     if ((fqu[0] != ' ') && (fqu[0] != '\0')) {
       if (authob && (authob->getFullyQualifiedUser() != NULL)) {

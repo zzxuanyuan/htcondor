@@ -27,7 +27,8 @@ OBJ = stream.o sock.o reli_sock.o safe_sock.o buffers.o sockCache.o \
 		condor_auth.o condor_auth_claim.o condor_auth_x509.o \
 		condor_auth_fs.o condor_auth_sspi.o condor_auth_anonymous.o \
 		authentication.o credential.o $(CONDOR_TYPE_OBJ) condor_rw.o \
-		SafeMsg.o condor_crypt.o $(CONDOR_CRYPT_OBJ) CryptKey.o $(KERB_OBJ)
+		SafeMsg.o condor_crypt.o $(CONDOR_CRYPT_OBJ) CryptKey.o $(KERB_OBJ) \
+		condor_secman.o
 #		autoTest.o manTest.o
 
 library_target(libcedar.a, $(OBJ))
@@ -41,3 +42,8 @@ html_target( ../condor_includes/stream.h ../condor_includes/reli_sock.h ../condo
 release:: all
 stripped:: all
 static:: all
+
+#  reli_sock_no_auth.o: reli_sock.C
+#  $(CPlusPlus) $(C_PLUS_FLAGS) -DNO_AUTHENTICATION \
+#  -c reli_sock.C -o reli_sock_no_auth.o
+
