@@ -1002,17 +1002,18 @@ SetUniverse()
 		} else {
 			// Validate
 			// Valid values are (as of 6.7): nordugrid, oracle, gt3, globus,
-			//    gt2
+			//    gt2, condor
 			if ((stricmp (univ, "globus") == MATCH) ||
 				(stricmp (univ, "gt2") == MATCH) ||
 				(stricmp (univ, "gt3") == MATCH) ||
+				(stricmp (univ, "condor") == MATCH) ||
 				(stricmp (univ, "nordugrid") == MATCH) ||
 				(stricmp (univ, "oracle") == MATCH)) {
 				// We're ok	
 				// Values are case-insensitive for gridmanager, so we don't need to change case			
 			} else {
 				fprintf( stderr, "\nERROR: Invalid value '%s' for grid_type\n", univ );
-				fprintf( stderr, "Must be one of: globus, gt2, gt3, nordugrid, or oracle\n" );
+				fprintf( stderr, "Must be one of: globus, gt2, gt3, condor, nordugrid, or oracle\n" );
 				exit( 1 );
 			}
 		}			
