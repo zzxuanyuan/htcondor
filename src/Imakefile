@@ -81,8 +81,7 @@ TEST_SUITE_BASE = test_suite_base
 		daemon_core.V6 \
 		condor_ckpt_server/ckpt_server_api.a \
 		condor_schedd.V6/libqmgmt.a condor_accountant.V6/libacct.a \
-		StdUnvLibs NetmanLibs chirp DrmaaLibs \
-		owl/libanalysis.a
+		StdUnvLibs NetmanLibs chirp DrmaaLibs
 
 #if HAS_STATIC
 #define StaticDirectories \
@@ -112,13 +111,20 @@ TEST_SUITE_BASE = test_suite_base
 	strip_contrib strip_contrib/bin strip_contrib/lib \
 	strip_contrib/sbin strip_contrib/etc \
 	strip_contrib/etc/examples strip_contrib/include StaticDirectories
-
+#if WANT_OWL
+all: h h_all externals condor_includes makefiles Directories Libraries \
+	Programs examples owl/libanalysis.a
+#else
 all: h h_all externals condor_includes makefiles Directories Libraries \
 	Programs examples 
+#endif
 release:: all
 stripped:: all
 static:: all
 libs:: h h_all condor_includes makefiles Directories Libraries
+#if WANT_OWL
+libs::	owl/libanalysis.a
+#endif
 
 ALL_TEST_SUITE = $(TEST_SUITE_C) $(TEST_SUITE_F) $(TEST_SUITE_JAVA) $(TEST_SUITE_BASE)
 
@@ -255,14 +261,18 @@ object_dir_target(condor_sdk)
 /* Just create the Stork directory for now. */
 object_dir_target(stork)
 #endif
+#if WANT_OWL
 object_dir_target(owl)
+#endif
 
 single_target(condor_procapi,libprocapi.a)
 single_target(condor_sysapi,libsysapi.a)
 single_target(condor_schedd.V6,libqmgmt.a)
 single_target(condor_accountant.V6,libacct.a)
 single_target(condor_ckpt_server,ckpt_server_api.a)
+#if WANT_OWL
 single_target(owl,libanalysis.a)
+#endif
 
 object_target(tests)
 object_target(test_suite_C.V5)
@@ -292,10 +302,12 @@ h/syscall_numbers.h: h/syscall_numbers.tmpl h/Makefile
 h/syscall_numbers.o: h/syscall_numbers.tmpl h/Makefile
 	cd h; make syscall_numbers.o
 
+#if WANT_OWL
 makefiles:: owl/Makefile
 
 owl/Makefile: owl owl/Imakefile
 	cd owl; ../condor_imake
+#endif
 
 check_platform_target
 
