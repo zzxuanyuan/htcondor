@@ -73,9 +73,9 @@
 
 #define PVM_ARCH			HPPA
 
-#define CCompiler /usr/local/bin/gcc
-#define CPlusCompiler /usr/local/bin/g++
-#define Demangler /usr/local/bin/c++filt
+#define CCompiler /afs/engr.wisc.edu/src/gnu/std/bin/gcc
+#define CPlusCompiler /afs/engr.wisc.edu/src/gnu/std/bin/g++
+#define Demangler /afs/engr.wisc.edu/src/gnu/std/bin/c++filt
 #define StaticFlag -static
 #define UnixName /stand/vmunix				/* pathname of the system executable */
 /* #define syscall_lib  */
