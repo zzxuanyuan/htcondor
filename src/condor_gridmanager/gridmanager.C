@@ -49,9 +49,6 @@
 
 #define HASH_TABLE_SIZE			500
 
-// timer id values that indicates the timer is not registered
-#define TIMER_UNSET		-1
-
 extern char *myUserName;
 
 struct JobType

@@ -32,11 +32,10 @@
 #include "util_lib_proto.h"
 
 #include "proxymanager.h"
+#include "gridmanager.h"
 #include "gahp-client.h"
 
 #define HASH_TABLE_SIZE			500
-
-#define TIMER_UNSET				-1
 
 template class HashTable<HashKey, Proxy *>;
 template class HashBucket<HashKey, Proxy *>;

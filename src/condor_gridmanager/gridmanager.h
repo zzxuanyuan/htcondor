@@ -35,6 +35,12 @@
 #include "globusjob.h"
 #include "gahp-client.h"
 
+// Special value for a daemon-core timer id which indicates that there
+// is no timer currently registered (for variables holding a timer id) or
+// that no timer should be signalled when one normally would be (for
+// functions that take as an argument a timer id to be signalled when
+// something happens).
+#define TIMER_UNSET -1
 
 extern char *ScheddAddr;
 extern char *X509Proxy;

@@ -29,9 +29,6 @@
 #include "oracleresource.h"
 #include "gridmanager.h"
 
-// timer id value that indicates the timer is not registered
-#define TIMER_UNSET		-1
-
 #define MIN_PROBE_JOBS_INTERVAL		2
 #define MAX_PROBE_JOBS_INTERVAL		10
 

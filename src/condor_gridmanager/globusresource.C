@@ -29,9 +29,6 @@
 #include "globusresource.h"
 #include "gridmanager.h"
 
-// timer id value that indicates the timer is not registered
-#define TIMER_UNSET		-1
-
 #define DEFAULT_MAX_PENDING_SUBMITS_PER_RESOURCE	5
 #define DEFAULT_MAX_SUBMITTED_JOBS_PER_RESOURCE		100
 
