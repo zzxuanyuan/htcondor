@@ -24,11 +24,10 @@
 #include "condor_common.h"
 #include <stdlib.h>
 #include "condor_crypt.h"
-
+#include "condor_md.h"
 #if defined(CONDOR_ENCRYPTION)
 #include <openssl/rand.h>              // SSLeay rand function
 #endif
-
 #include <assert.h>
 
 Condor_Crypt_Base :: Condor_Crypt_Base(Protocol protocol, const KeyInfo& keyInfo)
@@ -109,6 +108,15 @@ unsigned char * Condor_Crypt_Base :: randomKey(int length)
     return key;
 #else
 	return 0;
+#endif
+}
+
+unsigned char * Condor_Crypt_Base :: oneWayHashKey(const char * initialKey)
+{
+#if defined(CONDOR_ENCRYPT)
+    return Condor_MD_MAC::computeOnce((unsigned char *)initialKey, strlen(initialKey));
+#else 
+    return 0;
 #endif
 }
 
