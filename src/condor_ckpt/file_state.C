@@ -39,7 +39,7 @@ static char *_FileName_ = __FILE__;
 #include <sys/errno.h>
 
 // XXX Where is the header for this?
-extern "C" int syscall( int kind, ... );
+// extern "C" int syscall( int kind, ... );
 
 // XXX Where is the header for this?
 extern int errno;
@@ -561,7 +561,7 @@ int OpenFileTable::flock( int fd, int op )
 	return pointers[fd]->get_file()->flock(op);
 }
 
-int OpenFileTable::fstatfs( int fd, struct statfs *buf )
+int OpenFileTable::fstatfs( int fd, struct statfs *buf, int x, int y )
 {
 	if( (fd<0) || (fd>=length) || (pointers[fd]==0) ) {
 		errno = EBADF;
@@ -660,7 +660,7 @@ int OpenFileTable::fcntl( int fd, int cmd, int arg )
 
 		default:
 			file_warning("fcntl(%d,%d,...) is not supported.\n",fd,cmd);
-			errno = ENOTSUP;
+			errno = EINVAL;
 			return -1;
 	}
 
