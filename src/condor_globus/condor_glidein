@@ -224,7 +224,7 @@ sub gather_info() {
 	if ( silently( "$G_INFO -exists" ) ) {
 		return( "$NAME needs a valid grid proxy. (Re)run grid-proxy-init." );
 	}
-	if ( silently( "$G_INFO -hours 4" ) ) {
+	if ( silently( "$G_INFO -exists -hours 4" ) ) {
 		return( "Your grid proxy expires in less than four hours.\n"
 			. "Rerun grid-proxy-init." );
 	}
