@@ -27,6 +27,8 @@ Job::Job(int clusterId, int jobId)
   if (Spool) {
     spoolDirectory = new MyString(strdup(gen_ckpt_name(Spool, clusterId, jobId, 0)));
 
+	free(Spool);
+
     struct stat stats;
     if (stat(spoolDirectory->GetCStr(), &stats)) {
       if ((mkdir(spoolDirectory->GetCStr(), 0777) < 0)) {
