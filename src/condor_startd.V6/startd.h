@@ -46,12 +46,12 @@
 #endif
 
 // Startd includes
+class Resource;
+#include "ResAttributes.h"
 #include "Match.h"
 #include "Starter.h"
 #include "Reqexp.h"
-class Resource;
 #include "ResState.h"
-#include "ResAttributes.h"
 #include "Resource.h"
 #include "ResMgr.h"
 #include "calc.h"
