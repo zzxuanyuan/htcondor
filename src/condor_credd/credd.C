@@ -189,6 +189,12 @@ store_cred_handler(Service * service, int i, Stream *stream) {
   rc = CREDD_SUCCESS;
   socket->code(rc);
 
+  dprintf( D_ALWAYS, "Credential name %s owner %s successfully stored\n",
+			 cred_wrapper->cred->GetName(), cred_wrapper->cred->GetOwner() );
+
+  if (type == X509_CREDENTIAL_TYPE) {
+	((X509Credential*)cred_wrapper->cred)->display( D_FULLDEBUG );
+  }
   rtnVal = TRUE;
 
 EXIT:
@@ -210,7 +216,8 @@ get_cred_handler(Service * service, int i, Stream *stream) {
   bool found_cred=false;
   CredentialWrapper * cred = NULL;
   char * owner = NULL;
-  const char * user;
+  const char * user = NULL;
+  void * data = NULL;
 
   ReliSock * socket = (ReliSock*)stream;
 
@@ -282,14 +289,11 @@ get_cred_handler(Service * service, int i, Stream *stream) {
     }
   }
   
-  free (owner);
-  
   socket->encode();
 
   if (found_cred) {
     dprintf (D_FULLDEBUG, "Found cred %s\n", cred->GetStorageName());
     
-    void * data=NULL;
     int data_size;
 
     
@@ -301,7 +305,8 @@ get_cred_handler(Service * service, int i, Stream *stream) {
     
     socket->code (data_size);
     socket->code_bytes (data, data_size);
-    free (data);
+    dprintf (D_ALWAYS, "Credential name %s for owner %s returned to user %s\n",
+			name, owner, user);
   }
   else {
     dprintf (D_ALWAYS, "Cannot find cred %s\n", name);
@@ -313,6 +318,12 @@ get_cred_handler(Service * service, int i, Stream *stream) {
 EXIT:
   if ( name != NULL) {
 	  free (name);
+  }
+  if ( owner != NULL) {
+	  free (owner);
+  }
+  if ( data != NULL) {
+	  free (data);
   }
   return rtnVal;
 }
@@ -498,6 +509,7 @@ rm_cred_handler(Service * service, int i, Stream *stream) {
     SaveCredentialList();
     set_priv(priv);
     delete cred_wrapper;
+    dprintf (D_ALWAYS, "Removed credential %s for owner %s\n", name, owner);
   } else {
     dprintf (D_ALWAYS, "Unable to remove credential %s:%s (not found)\n", owner, name); 
   }
@@ -728,38 +740,39 @@ int RefreshProxyThruMyProxy(X509CredentialWrapper * proxy)
   myproxy_host = getHostFromAddr (((X509Credential*)proxy->cred)->GetMyProxyServerHost());
   int myproxy_port = getPortFromAddr (((X509Credential*)proxy->cred)->GetMyProxyServerHost());
 
-  // construt arguments
+  // construct arguments
   MyString strArgs = "";
-  strArgs += " -v";
+  strArgs += " --verbose ";
 
-  strArgs += " -o ";
+  strArgs += " --out ";
   strArgs += proxy_filename;
 
-  strArgs += " -s ";
+  strArgs += " --pshost ";
   strArgs += myproxy_host;
   if ( myproxy_host != NULL ) {
 	  free ( myproxy_host );
   }
 
-  strArgs += " -d ";
+  strArgs += " --dn_as_username ";
 
-  strArgs += " -t ";
+  strArgs += " --proxy_lifetime ";	// hours
   strArgs += 6;
 
-  strArgs += " -S ";
+  strArgs += " --stdin_pass ";
 
-  strArgs += " -l ";
+  strArgs += " --username ";
   strArgs += username;
 
   // Optional port argument
   if (myproxy_port) {
-    strArgs += " -p ";
+    strArgs += " --psport ";
     strArgs += myproxy_port;
   }
 
   // Optional credential name
-  if (((X509Credential*)proxy->cred)->GetCredentialName()) {
-    strArgs += " -k ";
+  if	(	((X509Credential*)proxy->cred)->GetCredentialName() && 
+  			( ((X509Credential*)proxy->cred)->GetCredentialName() )[0] ) {
+    strArgs += " --credname ";
     strArgs += ((X509Credential*)proxy->cred)->GetCredentialName();
   }
 
