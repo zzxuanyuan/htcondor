@@ -42,7 +42,6 @@ int GlobusResource::probeDelay = 15;		// default value
 int GlobusResource::gahpCallTimeout = 300;	// default value
 bool GlobusResource::enableGridMonitor = false;
 
-//////////////from gridmanager.C
 #define HASH_TABLE_SIZE			500
 
 template class HashTable<HashKey, GlobusResource *>;
@@ -50,7 +49,6 @@ template class HashBucket<HashKey, GlobusResource *>;
 
 HashTable <HashKey, GlobusResource *> ResourcesByName( HASH_TABLE_SIZE,
 													   hashFunction );
-////////////////////////////////
 
 GlobusResource::GlobusResource( const char *resource_name )
 	: BaseResource( resource_name )

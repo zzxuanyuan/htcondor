@@ -153,7 +153,6 @@ static char *GMStateNames[] = {
 	} \
 }
 
-//////////////////////from gridmanager.C
 #define HASH_TABLE_SIZE			500
 
 struct OrphanCallback_t {
@@ -168,10 +167,6 @@ template class List<OrphanCallback_t>;
 template class Item<OrphanCallback_t>;
 
 static GahpClient GahpMain;
-
-// TODO These can't be global!!
-char *gassServerUrl = NULL;
-char *gramCallbackContact = NULL;
 
 HashTable <HashKey, GlobusJob *> JobsByContact( HASH_TABLE_SIZE,
 												hashFunction );
@@ -282,7 +277,7 @@ gramCallbackHandler( void *user_arg, char *job_contact, int state,
 	this_job->GramCallback( state, errorcode );
 }
 
-/////////////////////////added for reorg
+/////////////////////////interface functions to gridmanager.C
 void GlobusJobInit()
 {
 }
@@ -807,24 +802,23 @@ GlobusJob::GlobusJob( ClassAd *classad )
 		goto error_exit;
 	}
 
-////////////////from gridmanager.C
-{
-	const char *canonical_name = GlobusResource::CanonicalName( resourceManagerString );
-	int rc;
-	ASSERT(canonical_name);
-	rc = ResourcesByName.lookup( HashKey( canonical_name ),
-								 myResource );
+	// Find/create an appropriate GlobusResource for this job
+	{
+		const char *canonical_name = GlobusResource::CanonicalName( resourceManagerString );
+		int rc;
+		ASSERT(canonical_name);
+		rc = ResourcesByName.lookup( HashKey( canonical_name ),
+									 myResource );
 
-	if ( rc != 0 ) {
-		myResource = new GlobusResource( canonical_name );
-		ASSERT(myResource);
-		ResourcesByName.insert( HashKey( canonical_name ),
-								myResource );
-	} else {
-		ASSERT(myResource);
+		if ( rc != 0 ) {
+			myResource = new GlobusResource( canonical_name );
+			ASSERT(myResource);
+			ResourcesByName.insert( HashKey( canonical_name ),
+									myResource );
+		} else {
+			ASSERT(myResource);
+		}
 	}
-}
-//////////////////////////////////
 
 	resourceDown = false;
 	resourceStateKnown = false;

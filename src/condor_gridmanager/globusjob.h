@@ -39,7 +39,6 @@
 
 class GlobusResource;
 
-/////////////////////from gridmanager.h
 class GlobusJob;
 extern HashTable <HashKey, GlobusJob *> JobsByContact;
 
@@ -52,7 +51,6 @@ void GlobusJobReconfig();
 bool GlobusJobAdMustExpand( const ClassAd *jobad );
 BaseJob *GlobusJobCreate( ClassAd *jobad );
 extern const char *GlobusJobAdConst;
-///////////////////////////////////////
 
 class GlobusJob : public BaseJob
 {

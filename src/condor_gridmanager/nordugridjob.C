@@ -107,7 +107,6 @@ static char *GMStateNames[] = {
 // evalute PeriodicHold expression in job ad.
 #define MAX_SUBMIT_ATTEMPTS	1
 
-//////////////////////from gridmanager.C
 #define HASH_TABLE_SIZE			500
 
 template class HashTable<HashKey, NordugridJob *>;

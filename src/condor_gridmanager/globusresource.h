@@ -36,9 +36,7 @@
 class GlobusJob;
 class GlobusResource;
 
-////////////from gridmanager.C
 extern HashTable <HashKey, GlobusResource *> ResourcesByName;
-//////////////////////////////
 
 class GlobusResource : public BaseResource
 {

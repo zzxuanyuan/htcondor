@@ -77,7 +77,6 @@ static char *GMStateNames[] = {
 // evalute PeriodicHold expression in job ad.
 #define MAX_SUBMIT_ATTEMPTS	1
 
-//////////////////////from gridmanager.C
 #define HASH_TABLE_SIZE			500
 
 #define ATTR_ORACLE_JOB_RUN_PHASE "OracleJobRunPhase"
