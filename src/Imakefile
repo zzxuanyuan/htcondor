@@ -347,7 +347,7 @@ pure_target(condor_dagman,condor_dagman.pure)
 
 
 ext_target(EXT_ZLIB_VERSION,)
-#if IS_LINUX
+#if !IS_CLIPPED && IS_GLIBC22
 ext_target(EXT_GLIBC_VERSION,)
 #endif
 #if WANT_KERBEROS
