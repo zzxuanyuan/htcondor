@@ -24,6 +24,7 @@
 #include "condor_common.h"
 #include "condor_debug.h"
 #include "condor_daemon_core.h"
+#include "MyString.h"
 #include "self_draining_queue.h"
 
 
@@ -32,8 +33,12 @@ SelfDrainingQueue::SelfDrainingQueue( const char* queue_name, int period )
 	if( queue_name ) {
 		name = strdup( queue_name );
 	} else {
-		name = strdup( "[unnamed]" );
+		name = strdup( "(unnamed)" );
 	}
+	MyString t_name;
+	t_name.sprintf( "SelfDrainingQueue::timerHandler[%s]", name );
+	timer_name = strdup( t_name.Value() );
+
 	handler_fn = NULL;
 	handlercpp_fn = NULL;
 	service_ptr = NULL;
@@ -50,6 +55,10 @@ SelfDrainingQueue::~SelfDrainingQueue()
 	if( name ) {
 		free( name );
 		name = NULL;
+	}
+	if( timer_name ) {
+		free( timer_name );
+		timer_name = NULL;
 	}
 }
 
@@ -150,7 +159,7 @@ SelfDrainingQueue::registerTimer( void )
 	tid = daemonCore->
 		Register_Timer( period, 
 						(TimerHandlercpp)&SelfDrainingQueue::timerHandler,
-						"SelfDrainingQueue::timerHandler", this );
+						timer_name, this );
     if( tid == -1 ) {
             // Error registering timer!
         EXCEPT( "Can't register daemonCore timer for SelfDrainingQueue %s",

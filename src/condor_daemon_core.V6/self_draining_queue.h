@@ -66,6 +66,7 @@ private:
 	int tid;
 	int period;
 	char* name;
+	char* timer_name;
 	
 	void registerTimer( void );
 	void cancelTimer( void );
