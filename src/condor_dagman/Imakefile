@@ -4,10 +4,10 @@ all_target($(NAME))
 C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) -Wall
 CFLAGS = $(STD_C_FLAGS) -Wall
 LDFLAGS = SocketLib
-LIB = $(DAEMONCORE_LIB) $(STD_LIBS)
+LIB = $(DAEMONCORE_LIB) $(CUTIL_LIB) $(CPLUS_LIB) \
+      ../condor_classad.V6/libclassad.a $(IO_LIB) $(CUTIL_LIB) $(CPLUS_LIB)
 
-OBJ = main.o submit.o dag.o job.o util.o parse.o debug.o types.o \
-	script.o instantiate.o
+OBJ = parser.o util.o types.o debug.o script.o submit.o parse.o job.o dag.o main.o instantiate.o
 
 c_plus_target($(NAME),$(OBJ),$(LIB))
 release_target($(NAME),$(RELEASE_DIR)/bin,EXECUTABLE_MODE)
