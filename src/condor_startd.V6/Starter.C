@@ -560,9 +560,20 @@ Starter::exited()
 int
 Starter::execCODStarter( void )
 {
-	char args[_POSIX_ARG_MAX];
-	sprintf(args, "condor_starter -f -slcf %s", s_cod_keyword );
-	return execDCStarter( args, NULL );
+	MyString args;
+	int cluster = s_claim->cluster();
+	int proc = s_claim->proc();
+	args = "condor_starter -f -job_keyword ";
+	args += s_cod_keyword;
+	if( cluster >= 0 ) {
+		args += " -job_cluster ";
+		args += cluster;
+	} 
+	if( proc >= 0 ) {
+		args += " -job_proc ";
+		args += proc;
+	} 
+	return execDCStarter( args.Value(), NULL );
 }
 
 
@@ -587,7 +598,7 @@ Starter::execDCStarter( Stream* s )
 
 
 int
-Starter::execDCStarter( char* args, Stream* s )
+Starter::execDCStarter( const char* args, Stream* s )
 {
 	Stream *sock_inherit_list[] = { s, 0 };
 	Stream** inherit_list = NULL;
@@ -598,8 +609,8 @@ Starter::execDCStarter( char* args, Stream* s )
 	dprintf ( D_FULLDEBUG, "About to Create_Process \"%s\".\n", args );
 
 	s_pid = daemonCore->
-		Create_Process( s_path, args, PRIV_ROOT, main_reaper, TRUE, 
-						NULL, NULL, TRUE, inherit_list );
+		Create_Process( s_path, (char*)args, PRIV_ROOT, main_reaper,
+						TRUE, NULL, NULL, TRUE, inherit_list );
 	if( s_pid == FALSE ) {
 		dprintf( D_ALWAYS, "ERROR: exec_starter failed!\n");
 		s_pid = 0;
