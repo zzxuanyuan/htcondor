@@ -825,7 +825,7 @@ void CondorJob::ProcessRemoteAd( ClassAd *remote_ad )
 {
 	int new_remote_state;
 	MyString buff;
-	ExprTree *next_expr;
+	ExprTree *new_expr, *old_expr;
 
 	int index;
 	const char *attrs_to_copy[] = {
@@ -894,8 +894,11 @@ void CondorJob::ProcessRemoteAd( ClassAd *remote_ad )
 
 	index = -1;
 	while ( attrs_to_copy[++index] != NULL ) {
-		if ( ( next_expr = remote_ad->Lookup( attrs_to_copy[index] ) ) != NULL ) {
-			ad->Insert( next_expr->DeepCopy() );
+		old_expr = ad->Lookup( attrs_to_copy[index] );
+		new_expr = remote_ad->Lookup( attrs_to_copy[index] );
+
+		if ( new_expr != NULL && ( old_expr == NULL || !(*old_expr == *new_expr) ) ) {
+			ad->Insert( new_expr->DeepCopy() );
 		}
 	}
 
