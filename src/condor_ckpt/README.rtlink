@@ -109,6 +109,18 @@ In condor_ckpt/, mm.C and mm.h have been added.  They define the
 memory map operations required to load and unload the restart library.
 
 
+Porting:
+
+These things must be done to get RTLINK up on other platforms:
+
+- Add these configuration flags to the platform configuration file:
+  NativeCC, ShlibFlags, PICFlags, NativeSymlibFlags.
+- In condor_ckpt/machdep.X, define:
+  mmap_get_process_mmap, mmap_mmap, mmap_munmap, mmap_brk
+
+Currently, no other RTLINK code is platform-dependent.
+
+
 See Also:
 
 The Solaris "Linkers and Libraries Guide", available from
