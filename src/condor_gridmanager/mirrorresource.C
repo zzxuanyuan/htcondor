@@ -77,7 +77,7 @@ MirrorResource::MirrorResource( const char *resource_name )
 
 	char *gahp_path = param("MIRROR_GAHP");
 	if ( gahp_path == NULL ) {
-		dprintf( D_ALWAYS, "MIRROR_GAHP not defined in condor config file\n" );
+		EXCEPT( "MIRROR_GAHP not defined in condor config file" );
 	} else {
 		// TODO remove mirrorScheddName from the gahp server key if/when
 		//   a gahp server can handle multiple schedds
