@@ -53,6 +53,10 @@ class Service {
 typedef	int		(*Event)(Service*);
 typedef int		(Service::*Eventcpp)();
 
+// to make the timer handler stuff similar to the rest of Daemon Core...
+#define TimerHandler Event
+#define TimerHandlercpp Eventcpp
+
 typedef struct tagTimer {
     time_t	        	when;
 	unsigned			period;
