@@ -778,12 +778,15 @@ dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too long!\n",procID.cluster,procI
 			}
 			rc = gahp->condor_job_update( mirrorScheddName, mirrorJobId,
 										  gahpAd );
-			if ( rc != GAHPCLIENT_COMMAND_PENDING ) {
-				dprintf( D_FULLDEBUG, "(%d.%d) GM_CANCEL: condor_job_update() failed: %s\n", procID.cluster, procID.proc, gahp->getErrorString() );
+			if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
+				 rc == GAHPCLIENT_COMMAND_PENDING ) {
+				break;
 			}
-			delete gahpAd;
-			gahpAd = NULL;
-
+			if ( rc != GLOBUS_SUCCESS ) {
+				dprintf( D_FULLDEBUG,
+					"(%d.%d) GM_CANCEL_1: condor_job_update() failed: %s\n",
+					procID.cluster, procID.proc, gahp->getErrorString() );
+			}
 			gmState = GM_CANCEL_2;
 			} break;
 		case GM_CANCEL_2: {
