@@ -151,7 +151,6 @@ int MirrorJob::leaseInterval = 1800;			// default value
 MirrorJob::MirrorJob( ClassAd *classad )
 	: BaseJob( classad )
 {
-	int bool_value;
 	int tmp1;
 	int tmp2;
 	char buff[4096];
@@ -266,8 +265,6 @@ int MirrorJob::doEvaluateState()
 
 	bool done;
 	int rc;
-	int status;
-	int error;
 
 	daemonCore->Reset_Timer( evaluateStateTid, TIMER_NEVER );
 
@@ -288,8 +285,6 @@ int MirrorJob::doEvaluateState()
 			// is first created. Here, we do things that we didn't want to
 			// do in the constructor because they could block (the
 			// constructor is called while we're connected to the schedd).
-			int err;
-
 			if ( gahp->Startup() == false ) {
 				dprintf( D_ALWAYS, "(%d.%d) Error starting GAHP\n",
 						 procID.cluster, procID.proc );
@@ -331,7 +326,6 @@ int MirrorJob::doEvaluateState()
 			} break;
 		case GM_SUBMIT: {
 			// Start a new remote submission for this job.
-			char *job_contact = NULL;
 			if ( condorState == REMOVED || condorState == HELD ) {
 				gmState = GM_UNSUBMITTED;
 				break;
