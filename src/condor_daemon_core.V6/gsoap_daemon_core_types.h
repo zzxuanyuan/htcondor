@@ -33,6 +33,7 @@ enum condorCore__StatusCode
   SUCCESS,
   FAIL,
   INVALIDTRANSACTION,
+  UNKNOWNJOB,
   UNKNOWNFILE,
   INCOMPLETE
 };
