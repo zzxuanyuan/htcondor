@@ -21,7 +21,7 @@ CMNT
 #endif
 
 FILE_TABLE = -DFILE_TABLE
-FILE_TABLE_OBJ = file_state.o condor_file.o condor_file_local.o condor_file_remote.o condor_file_special.o file_table_interf.o buffer_cache.o
+FILE_TABLE_OBJ = file_state.o condor_file.o condor_file_local.o condor_file_remote.o condor_file_special.o condor_file_agent.o condor_file_warning.o file_table_interf.o buffer_cache.o
 
 #if IS_IRIX
 /* This silliness is because gcc 2.7.2 on IRIX cannot
@@ -65,7 +65,7 @@ EXTRACT = FORK.o SIGACTION.o GETEUID.o GETPPID.o GETEGID.o \
 #	elif IS_X86_SOLARIS26
 EXTRACT = FORK.o SIGACTION.o GETEUID.o GETPPID.o GETEGID.o \
 		  MMAP.o SYSCALL.o PIPE.o _SIGACTION.o TRUNCATE.o \
-		  GETCWD.o GETRUSAGE.o \
+		  GETCWD.o GETRUSAGE.o\
 		  i386_data.o SYSCONF.o GETLOGIN.o LSEEK64.o FSYNC.o
 #	elif IS_SUN4X_SOLARIS251
 EXTRACT = FORK.o SIGACTION.o GETEUID.o GETPPID.o GETEGID.o \
