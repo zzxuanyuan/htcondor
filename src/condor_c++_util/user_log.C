@@ -466,6 +466,10 @@ initialize (const char *filename)
 bool ReadUserLog::
 determineLogType()
 {
+	if ( !_fp ) {
+		return TRUE;
+	}
+
 	// now determine if the log file is XML and skip over the header (if
 	// there is one) if it is XML
 
