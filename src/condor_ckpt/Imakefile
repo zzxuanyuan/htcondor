@@ -102,6 +102,12 @@ CPP_UTIL_OBJ = condor_version.o
 UTIL_OBJ =  dprintf_common.o mkargv.o
 
 #if DOES_CHECKPOINTING
+FOO= 	 machdep.$(OS).o tmp_stack.o syscall_mode.o \
+	fake_remote_syscall.o fake_hooks.o condor_error.o \
+	$(SAVE_SIGSTATE_OBJ) fake_util_lib.o eprintf.o $(EXTRACT) \
+	$(ASSEMBLER_OBJ) $(CPP_UTIL_OBJ) $(UTIL_OBJ) $(FILE_TABLE_OBJ) \
+	$(COMPRESS_OBJ) shared_utils.o
+
 OBJ =	image.o machdep.$(OS).o tmp_stack.o syscall_mode.o \
 	fake_remote_syscall.o fake_hooks.o condor_error.o \
 	$(SAVE_SIGSTATE_OBJ) fake_util_lib.o eprintf.o $(EXTRACT) \
@@ -255,7 +261,10 @@ program_target(machdep_test,machdep_test.o machdep.$(OS).o tmp_stack.o $(ASSEMBL
 #endif
 
 program_target(ToUpper,ToUpper.o,$(NULL))
-
+firstattemt.o: firstattempt.C
+	CPlusCompiler $(C_PLUS_FLAGS) $(COMPRESS_FLAGS) -o firstattempt.o -c firstattempt.C
+/*program_target(gregxxx, firstattempt.o , libcondorc++support.a $(UTIL_LIB) )*/
+/*c_plus_target(gregxxx, firstattempt.o, $(NULL))*/
 #if DOES_COMPRESS_CKPT
 malloc.o : malloc.c
 	CCompiler -O2 -g -DMORECORE=condor_morecore -DHAVE_MMAP=0 -Dmalloc_getpagesize=8192 -c malloc.c
