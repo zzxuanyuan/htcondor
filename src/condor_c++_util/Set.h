@@ -290,6 +290,7 @@ ToBeforeFirst( )
 	if( !set ) return false;
 	cur = NULL;
 	afterLast = false;
+	return( true );
 }
 
 template <class KeyType> 
