@@ -53,14 +53,10 @@
 #include "debug.h"
 #include "clib.h"
 
-#if defined(HPUX9) || defined(AIX32)
-#	include <signal.h>
-#endif
-
 #if defined(HPUX9)
+#	include <signal.h>
 #	include "fake_flock.h"
 #endif
-
 
 FILE	*debug_lock();
 FILE	*fdopen();
@@ -98,18 +94,12 @@ char *DebugFlagNames[] = {
 dprintf_init( fd )
 int fd;
 {
-	FILE *fp;
-	int		tmp_errno;
-
-	errno = 0;
-	fp = fdopen( fd, "a" );
-	tmp_errno = errno;
+	FILE *fp = fdopen( fd, "a" );
 
 	if( fp != NULL ) {
 		DebugFP = fp;
 	} else {
-		fprintf(stderr, "dprintf_init: failed to fdopen(%d)\n", fd );
-		exit( 1 );
+		dprintf(D_ALWAYS, "dprintf_init: failed to fdopen(%d)\n", fd );
 	}
 }
 

@@ -2,7 +2,7 @@
 #define _CONDOR_SYSCALLS_H
 
 #if defined( AIX32)
-#	include "syscall.aix.h"
+#	include "syscall.aix32.h"
 #else
 #	include <syscall.h>
 #endif

@@ -33,15 +33,10 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/resource.h>
-
 #if defined(OSF1)
-#	define _OSF_SOURCE
+#define _OSF_SOURCE
+#define _BSD
 #endif
-
-#if defined(OSF1) || defined(AIX32)
-#	define _BSD
-#endif
-
 #include <sys/wait.h>
 #include "proc.h"
 #include "debug.h"

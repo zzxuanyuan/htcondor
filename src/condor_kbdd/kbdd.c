@@ -469,7 +469,7 @@ error_handler( d, event )
 Display		*d;
 XErrorEvent	*event;
 {
-	time_t	now;
+	long	now;
 	char	error_text[512];
 
 	if( event->request_code == X_GrabButton && event->error_code == BadAccess) {
@@ -523,7 +523,7 @@ XErrorEvent	*event;
 io_error_handler( d )
 Display		*d;
 {
-	time_t	now;
+	long	now;
 
 	dprintf( D_ALWAYS, "Got X I/O Error, errno = %d\n", errno );
 

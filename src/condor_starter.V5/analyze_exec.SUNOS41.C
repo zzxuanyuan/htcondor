@@ -85,8 +85,7 @@ int symbol_main_check( char *name )
 
 
 	nl[0].n_name = "_MAIN";
-	nl[1].n_name = "__condor_prestart";
-	nl[2].n_name = "";
+	nl[1].n_name = "";
 
 
 		/* If nlist fails just return TRUE - executable may be stripped. */
@@ -101,13 +100,6 @@ int symbol_main_check( char *name )
 		dprintf( D_ALWAYS, "No symbol \"MAIN\" in executable(%s)\n", name );
 		return(-1);
 	}
-
-	if( nl[1].n_type == 0 ) {
-		dprintf( D_ALWAYS,
-				"No symbol \"_condor_prestart\" in executable(%s)\n", name );
-		return(-1);
-	}
-
 	dprintf( D_ALWAYS, "Symbol MAIN check - OK\n" );
 	return 0;
 }

@@ -133,7 +133,7 @@
 
 #define _POSIX_SOURCE
 
-#if defined(OSF1) && !defined(__GNUC__)
+#if defined(OSF1)
 #define __STDC__
 #endif
 
@@ -202,36 +202,22 @@ static BOOLEAN condor_restart( const char *path );
 static BOOLEAN condor_migrate_to( const char *host_addr, const char *port_num );
 static BOOLEAN condor_migrate_from( const char *fd_no );
 static BOOLEAN condor_exit( const char *status );
-static int open_tcp_stream( unsigned int ip_addr, unsigned short port );
+static int open_tcp_stream( const char *hostname, unsigned short port );
 static int open_read_stream( const char *path );
 	   int open_write_stream( const char * ckpt_file, size_t n_bytes );
 void unblock_signals();
-void display_ip_addr( unsigned int addr );
 
 extern int _Ckpt_Via_TCP_Stream;
 
 int
-#if defined(HPUX9)
-_START( int argc, char *argv[], char **envp )
-#else
 MAIN( int argc, char *argv[], char **envp )
-#endif
 {
 	int		cmd_fd = -1;
 	char	*cmd_name;
 	char	*extra;
 	int		scm;
-	
-#undef WAIT_FOR_DEBUGGER
-#if defined(WAIT_FOR_DEBUGGER)
-	int		do_wait = 1;
-	while( do_wait )
-		;
-#endif
 
 	_condor_prestart( SYS_REMOTE );
-
-
 
 #define USE_PIPES 0
 
@@ -319,11 +305,7 @@ MAIN( int argc, char *argv[], char **envp )
 #endif
 
 		/* Now start running user code */
-#if defined(HPUX9)
-	exit(_start( argc, argv, envp ));
-#else
 	main( argc, argv, envp );
-#endif
 }
 
 void
@@ -569,8 +551,9 @@ condor_exit( const char *status )
   information).
 */
 int
-open_tcp_stream( unsigned int ip_addr, unsigned short port )
+open_tcp_stream( const char *hostname, unsigned short port )
 {
+	struct hostent		*host_ptr;
 	struct sockaddr_in	sin;
 	int		fd;
 	int		status;
@@ -578,6 +561,10 @@ open_tcp_stream( unsigned int ip_addr, unsigned short port )
 
 	scm = SetSyscalls( SYS_LOCAL | SYS_UNMAPPED );
 
+		/* Look up the address of the host */
+	host_ptr = gethostbyname( hostname );
+	assert( host_ptr );
+	dprintf( D_FULLDEBUG, "Found host entry for \"%s\"\n", hostname );
 
 		/* generate a socket */
 	fd = socket( AF_INET, SOCK_STREAM, 0 );
@@ -586,8 +573,8 @@ open_tcp_stream( unsigned int ip_addr, unsigned short port )
 		
 		/* set the address */
 	memset( &sin, '\0', sizeof sin );
-	memcpy( &sin.sin_addr, &ip_addr, sizeof(ip_addr) );
-	sin.sin_family = AF_INET;
+	memcpy( &sin.sin_addr, host_ptr->h_addr, (size_t)host_ptr->h_length );
+	sin.sin_family = host_ptr->h_addrtype;
 	sin.sin_port = htons( port );
 	dprintf( D_FULLDEBUG, "Internet address structure set up\n" );
 
@@ -612,7 +599,7 @@ int
 open_write_stream( const char * ckpt_file, size_t n_bytes )
 {
 	int		st;
-	unsigned int ip_addr;
+	char	hostname[ 1024 ];
 	int		fd;
 	unsigned short	port;
 
@@ -625,23 +612,22 @@ open_write_stream( const char * ckpt_file, size_t n_bytes )
 	}
 
 		/*
-		Get the ip address and port number of a process to which we
+		Get the hostname and port number of a process to which we
 		can send the checkpoint data.
 		*/
-	st = REMOTE_syscall( CONDOR_put_file_stream, ckpt_file, n_bytes, &ip_addr, &port );
-
-	display_ip_addr( ip_addr );
+	st = REMOTE_syscall( CONDOR_put_file_stream, ckpt_file, n_bytes, hostname, &port );
+	dprintf( D_FULLDEBUG, "Hostname = \"%s\"\n", hostname );
 	dprintf( D_FULLDEBUG, "Port = %d\n", port );
 
 		/* Connect to the specified party */
-	fd = open_tcp_stream( ip_addr, port );
+	fd = open_tcp_stream( hostname, port );
 	_Ckpt_Via_TCP_Stream = TRUE;
 	dprintf( D_FULLDEBUG, "Checkpoint Data Connection Ready, fd = %d\n", fd );
 
 	return fd;
 }
 
-static char	Hello[] = "Hello World\n";
+char	Hello[] = "Hello World\n";
 
 int
 try_via_afs( remote, mode, perm )
@@ -713,7 +699,7 @@ open_read_stream( const char *path )
 	int		st;
 	size_t	len;
 	unsigned short	port;
-	unsigned int	ip_addr;
+	char	hostname[ 1024 ];
 	int		fd;
 
 	dprintf( D_ALWAYS, "Entering open_read_stream()\n" );
@@ -729,12 +715,12 @@ open_read_stream( const char *path )
 		send us the checkpoint data.
 		*/
 	SetSyscalls( SYS_REMOTE | SYS_MAPPED );
-	st = REMOTE_syscall( CONDOR_get_file_stream, path, &len, &ip_addr, &port );
-	display_ip_addr( ip_addr );
+	st = REMOTE_syscall( CONDOR_get_file_stream, path, &len, hostname, &port );
+	dprintf( D_FULLDEBUG, "Hostname = \"%s\"\n", hostname );
 	dprintf( D_FULLDEBUG, "Port = %d\n", port );
 
 	SetSyscalls( SYS_LOCAL | SYS_UNMAPPED );
-	fd = open_tcp_stream( ip_addr, port );
+	fd = open_tcp_stream( hostname, port );
 	dprintf( D_FULLDEBUG, "Checkpoint Data Connection Ready, fd = %d\n", fd );
 
 	return fd;
@@ -793,24 +779,3 @@ unblock_signals()
 #else
 	delay(){}
 #endif
-#define B_NET(x) (((long)(x)&IN_CLASSB_NET)>>IN_CLASSB_NSHIFT)
-#define B_HOST(x) ((long)(x)&IN_CLASSB_HOST)
-#define HI(x) (((long)(x)&0xff00)>>8)
-#define LO(x) ((long)(x)&0xff)
-
-
-void
-display_ip_addr( unsigned int addr )
-{
-	int		net_part;
-	int		host_part;
-
-	if( IN_CLASSB(addr) ) {
-		net_part = B_NET(addr);
-		host_part = B_HOST(addr);
-		dprintf( D_FULLDEBUG, "%d.%d", HI(B_NET(addr)), LO(B_NET(addr)) );
-		dprintf( D_FULLDEBUG, ".%d.%d\n", HI(B_HOST(addr)), LO(B_HOST(addr)) );
-	} else {
-		dprintf( D_FULLDEBUG, "0x%x\n", addr );
-	}
-}

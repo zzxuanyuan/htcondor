@@ -5,18 +5,13 @@
 	 OSF/1 has this as an "unsigned long", but this is incorrect.  It
 	 is used by lseek(), and must be able to hold negative values.
 	 */
-#if defined(OSF1) && !defined(__GNUC__)
+#if defined(OSF1)
 #define off_t _hide_off_t
-#endif
-
-#if	defined(ULTRIX43)
-#define key_t       long
-typedef int		bool_t;
 #endif
 
 #include <sys/types.h>
 
-#if defined(OSF1) && !defined(__GNUC__)
+#if defined(OSF1)
 #undef off_t
 typedef long off_t;
 #endif
@@ -35,11 +30,7 @@ Various non-POSIX conforming files which depend on sys/types.h will
 need these extra definitions...
 */
 
-#if defined(HPUX9)
-#	define HAS_U_TYPES
-#endif
-
-#if !defined(HAS_U_TYPES)
+#if !defined(HPUX9)
 	typedef unsigned int u_int;
 	typedef unsigned char   u_char;
 	typedef unsigned short  u_short;

@@ -31,7 +31,6 @@
 
 #include <stdio.h>
 #include "types.h"
-#include "_condor_fix_resource.h"
 #include "proto.h"
 
 static char *_FileName_ = __FILE__;     /* Used by EXCEPT (see except.h)     */

@@ -8,7 +8,7 @@
 **
 ***********************************************************/
 
-#if defined(OSF1) && !defined(__GNUC__)
+#if defined(OSF1)
 #	define __STDC__
 #endif
 
@@ -24,62 +24,20 @@
 #define mkdir _hide_mkdir
 #define chmod _hide_chmod
 
-#if defined(HPUX9)
-#	define mknod	__hide_mknod
-#	define select	__hide_select
-#	define fchmod	__hide_fchmod
-#	define setitimer __hide_setitimer
-#	define settimeofday __hide_settimeofday
-#	define profil	__hide_profil
-#endif
 #include <sys/stat.h>
+
 #include <sys/time.h>
-#if defined(HPUX9)
-#	undef mknod
-#	undef select
-#	undef fchmod
-#	undef setitimer
-#	undef settimeofday
-#	undef profil
-	int select();
-	int fchmod( int fd, unsigned int mode );
-	int setitimer( int which,struct itimerval *,struct itimerval * );	
-	int	settimeofday( struct timeval *tp, struct timezone *tzp );
-	void profil( short *buf, unsigned int size, unsigned int ,unsigned int  );
-#endif
-
 #include <sys/resource.h>
-#if defined(HPUX9)
-#undef _PROTOTYPES
-#endif
 #include <sys/socket.h>
-
-#if defined(ULTRIX43)
-#	define uname	__hide_uname
-#endif
 #include <sys/utsname.h>
-#if	defined(ULTRIX43)
-#	undef uname
-	int uname( struct utsname *name );
-#endif
 
-#if defined(SUNOS41) 
+#if defined(SUNOS41)
+#	include <sys/poll.h>
 #	include <signal.h>
 #endif
 
-#if defined(AIX32)
-#	include <signal.h>
-#endif
-
-#if defined(HPUX9)
-#	undef _PROTOTYPES
-#	include <signal.h>
-#	define async_daemon	__hide_async_daemon
-#	include <nfs/nfs.h>
-#	undef async_daemon
-	int async_daemon();	
-#endif
 #if defined(OSF1)
+#	include <sys/poll.h>
 #	include <rpc/types.h>
 #	include <errno.h>
 #	include <sys/param.h>
@@ -90,9 +48,6 @@
 #	include <sys/mman.h>
 #	include <sys/addrconf.h>
 #	include <sys/sysinfo.h>
-#endif
-
-#if defined(OSF1) || defined(AIX32)
 #	define semctl __hide_semctl
 #	include <sys/sem.h>
 #	undef semctl
@@ -102,63 +57,19 @@
 #if defined(ULTRIX42) || defined(ULTRIX43) || defined(OSF1)
 #	include <sys/param.h>
 #	include <sys/mount.h>
-#elif !defined(AIX32)
+#else
 #	include <sys/mount.h>
 #endif
 
-#if defined(HPUX9)
-#   define mknod  	__hide_mknod
-#	define readlink	__hide_readlink
-#	define setpgrp  __hide_setpgrp
-#elif defined(ULTRIX43)
-#	define write	__hide_write
-#	define read		__hide_read
-#endif
 #include "condor_fix_unistd.h"
-#if defined(HPUX9)
-#   undef mknod
-#	undef readlink
-#	undef setpgrp
-	int mknod( const char *path, int mode, dev_t device );
-	int readlink( const char *path, char *buf, int buf_size );
-	int setpgrp(  );
-#elif defined(ULTRIX43)
-#	undef write
-#	undef read
-	ssize_t write( int fd, const void *buf, size_t len );
-	ssize_t read( int fd, void *buf, size_t len );
-#endif
 
-#if defined(HPUX9)
-#	undef _PROTOTYPES
-#endif
 #if defined(SUNOS41) || defined(HPUX9)
 #	include <sys/vfs.h>		 /* for struct statfs */
 #endif
 
-#if defined(AIX32)
-#	include <sys/statfs.h>		 /* for struct statfs */
-#	include <sys/msg.h>		 	/* for struct msqid_ds */
-#endif
-
-#if defined(AIX32)
-#	define shmget __hide_shmget
-#	include <sys/shm.h>		 	/* for struct shmid_ds */
-#	undef shmget
-	int shmget( key_t key, unsigned int size, unsigned int flags );
-#endif
-
-#if defined(SUNOS41) || defined(HPUX9) || defined(ULTRIX43)
+#if defined(SUNOS41)
 #	define TRUE 1
 #	define FALSE 0
-#endif
-
-	/* Use 32 bits for file mode (mode_t) everywhere - hope nobody wants more */
-#undef MODE_T
-#if defined(AIX32)
-#	define MODE_T ulong_t
-#else
-#	define MODE_T unsigned int
 #endif
 
 #undef umask
@@ -167,108 +78,3 @@
 MODE_T	umask( MODE_T mask );
 int mkdir( const char *path, MODE_T mode );
 int chmod( const char *path, MODE_T mode);
-
-#if	defined(ULTRIX43)
-typedef int	bool_t;
-#	include <errno.h>
-#	include <nfs/nfs.h>
-#endif
-
-#if	defined(HPUX9)
-
-#include <sys/types.h>
-
-#define ZERO(old,new) \
-new( arg_1 ) \
-{ \
-return old(); \
-}
-
-#define ONE(old,new,type_1) \
-new( arg_1 ) \
-type_1 arg_1; \
-{ \
-return old( arg_1 ); \
-}
-
-#define TWO(old,new,type_1,type_2) \
-new( arg_1, arg_2, arg_3 ) \
-type_1 arg_1; \
-type_2 arg_2; \
-{ \
-return old( arg_1, arg_2 ); \
-}
-
-#define THREE(old,new,type_1,type_2,type_3) \
-new( arg_1, arg_2, arg_3 ) \
-type_1 arg_1; \
-type_2 arg_2; \
-type_3 arg_3; \
-{ \
-return old( arg_1, arg_2, arg_3 ); \
-}
-
-#define FIVE(old,new,type_1,type_2,type_3,type_4,type_5) \
-new( arg_1, arg_2, arg_3, arg_4, arg_5 ) \
-type_1 arg_1; \
-type_2 arg_2; \
-type_3 arg_3; \
-type_4 arg_4; \
-type_5 arg_5; \
-{ \
-return old( arg_1, arg_2, arg_3, arg_4, arg_5 ); \
-}
-
-#define SIX(old,new,type_1,type_2,type_3,type_4,type_5,type_6) \
-new( arg_1, arg_2, arg_3, arg_4, arg_5, arg_6 ) \
-type_1 arg_1; \
-type_2 arg_2; \
-type_3 arg_3; \
-type_4 arg_4; \
-type_5 arg_5; \
-type_6 arg_6; \
-{ \
-return old( arg_1, arg_2, arg_3, arg_4, arg_5, arg_6 ); \
-}
-
-TWO( access, _access, char *, int );
-ONE( unlink, _unlink, char * )
-ONE( close, _close, int )
-THREE( open, _open, char *, int, int )
-ZERO( getpid, _getpid )
-TWO( kill, _kill, int, int )
-THREE( read, _read, int, char *, int )
-THREE( fcntl, _fcntl, int, int, int )
-THREE( lseek, _lseek, int, int, int )
-ONE( dup, _dup, int )
-TWO( ftruncate, _ftruncate, int, int )
-THREE( write, _write, int, char *, int )
-ONE( isatty, _isatty, int )
-TWO( fstat, _fstat, int, struct stat * )
-ZERO( geteuid, _geteuid )
-TWO( lstat, _lstat, char *, struct stat *)
-ONE( chdir, _chdir, char *)
-ZERO( getegid, _getegid)
-ONE( pipe, _pipe, int *)
-TWO( execv, _execv, char *, char **)
-THREE( bind, _bind, int, void *, int )
-THREE( connect, _connect, int, void *, int )
-THREE( setitimer, _setitimer, int, struct itimerval *, struct itimerval *)
-/* ONE( sigpause, __sigpause, long ) FIX */
-TWO( stat, _stat, char *, struct stat * )
-/* ONE( sigsetmask, __sigsetmask, long ) FIX */
-/* ONE( sigblock, __sigblock, long ) FIX */
-SIX( recvfrom, _recvfrom, int, void *, int, int, void *, int * )
-TWO( dup2, _dup2, int, int )
-TWO( gettimeofday, _gettimeofday, struct timeval *, struct timezone * )
-SIX( sendto, _sendto, int, void *, int, int, void *, int )
-THREE( getsockname, _getsockname, int, void *, int * )
-THREE( ioctl, _ioctl, int, int, int )
-/* THREE( sigvector, __sigvector, int, struct sigvec *, struct sigvec * )  */
-TWO( getitimer, _getitimer, int, struct itimerval * )
-FIVE( setsockopt, _setsockopt, int, int, int, void *, int )
-/*THREE( setresuid, _setresuid, uid_t, uid_t, uid_t ) FIX */
-FIVE( select, _select, size_t, int *, int *, int *, struct timeval * )
-THREE( socket, _socket, int, int, int )
-/* THREE( wait3, _wait3, int *, int, int * ) FIX */
-#endif /* HPUX9 */
