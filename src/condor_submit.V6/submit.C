@@ -167,6 +167,7 @@ char	*NiceUser		= "nice_user";
 
 char	*X509UserProxy	= "x509userproxy";
 char	*GlobusScheduler = "globusscheduler";
+char	*GlobusJobmanagerType = "jobmanager_type";
 char    *GridShell = "gridshell";
 char	*GlobusRSL = "globusrsl";
 char	*RemoteSchedd = "remote_schedd";
@@ -1040,10 +1041,12 @@ SetUniverse()
 		} else {
 			// Validate
 			// Valid values are (as of 6.7): nordugrid, oracle, gt3, globus,
+
 			//    gt2, infn, condor
 			if ((stricmp (JobGridType, "globus") == MATCH) ||
 				(stricmp (JobGridType, "gt2") == MATCH) ||
 				(stricmp (JobGridType, "gt3") == MATCH) ||
+				(stricmp (JobGridType, "gt4") == MATCH) ||
 				(stricmp (JobGridType, "infn") == MATCH) ||
 				(stricmp (JobGridType, "blah") == MATCH) ||
 				(stricmp (JobGridType, "condor") == MATCH) ||
@@ -1052,8 +1055,9 @@ SetUniverse()
 				// We're ok	
 				// Values are case-insensitive for gridmanager, so we don't need to change case			
 			} else {
+
 				fprintf( stderr, "\nERROR: Invalid value '%s' for grid_type\n", JobGridType );
-				fprintf( stderr, "Must be one of: globus, gt2, gt3, condor, nordugrid, or oracle\n" );
+				fprintf( stderr, "Must be one of: globus, gt2, gt3, gt4, condor, nordugrid, or oracle\n" );
 				exit( 1 );
 			}
 		}			
@@ -3233,6 +3237,7 @@ SetGlobusParams()
 	if ( stricmp (JobGridType, "globus") == MATCH ||
 		 stricmp (JobGridType, "gt2") == MATCH ||
 		 stricmp (JobGridType, "gt3") == MATCH ||
+		 stricmp (JobGridType, "gt4") == MATCH ||
 		 stricmp (JobGridType, "oracle") == MATCH ||
 		 stricmp (JobGridType, "nordugrid") == MATCH ) {
 
@@ -3247,7 +3252,7 @@ SetGlobusParams()
 				// to try again with the actual job classad value:
 			globushost = condor_param( ATTR_GLOBUS_RESOURCE, NULL );
 			if( ! globushost ) { 
-				fprintf( stderr, "Globus/gt3 universe jobs require a "
+				fprintf( stderr, "Globus/gt3/gt4 universe jobs require a "
 						 "\"GlobusScheduler\" parameter\n" );
 				DoCleanup( 0, 0, NULL );
 				exit( 1 );
@@ -3256,6 +3261,7 @@ SetGlobusParams()
 
 		sprintf( buffer, "%s = \"%s\"", ATTR_GLOBUS_RESOURCE, globushost );
 		InsertJobExpr (buffer);
+
 
 		if ( strstr(globushost,"$$") ) {
 			// We need to perform matchmaking on the job in order to find
@@ -3284,7 +3290,19 @@ SetGlobusParams()
 		}
 	}
 
+	char * jobmanager_type;
+	jobmanager_type = condor_param ( GlobusJobmanagerType );
+	if (jobmanager_type) {
+		if (stricmp (grid_type, "gt4") != MATCH ) {
+			fprintf(stderr, "\nWARNING: Param %s is not supported for grid types other than gt4\n", GlobusJobmanagerType );
+		}
+		sprintf( buffer, "%s = \"%s\"", ATTR_GLOBUS_JOBMANAGER_TYPE, jobmanager_type );
+		free (jobmanager_type);
+	}
+
+
 	if ( (use_gridshell = condor_param(GridShell, ATTR_USE_GRID_SHELL)) ) {
+
 		if( use_gridshell[0] == 't' || use_gridshell[0] == 'T' ) {
 			MyString tmp;
 			tmp.sprintf( "%s = TRUE", ATTR_USE_GRID_SHELL );
@@ -3826,8 +3844,18 @@ queue(int num)
 			proxy_file = get_x509_proxy_filename();
 			if ( proxy_file == NULL ) {
 
+		// Issue an error if (no proxy) && (universe=globus,gt2,gt3,nordugrid)
+		if ( proxy_file == NULL) {
+			char * grid_type = condor_param( Grid_Type, ATTR_JOB_GRID_TYPE );
+			if (JobUniverse == CONDOR_UNIVERSE_GLOBUS &&
+				(grid_type == NULL ||
+					(stricmp (grid_type, "globus") == MATCH) ||
+					(stricmp (grid_type, "gt2") == MATCH) ||
+					(stricmp (grid_type, "gt3") == MATCH) ||
+				    (stricmp (grid_type, "gt4") == MATCH) ||
+					(stricmp (grid_type, "nordugrid") == MATCH))) {
 				fprintf( stderr, "\nERROR: can't determine proxy filename\n" );
-				fprintf( stderr, "x509 user proxy is required for globus, gt2, gt3 or nordugrid jobs\n");
+				fprintf( stderr, "x509 user proxy is required for globus, gt2, gt3,gt4 or nordugrid jobs\n");
 				exit (1);
 			}
 		}
