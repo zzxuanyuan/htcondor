@@ -110,8 +110,6 @@ ToolDaemonProc::StartJob()
 		return 0;
 	}
 
-//	initKillSigs ();
-
 	char DaemonArgs[_POSIX_ARG_MAX];
 	char tmp[_POSIX_ARG_MAX];
 
@@ -277,37 +275,6 @@ ToolDaemonProc::StartJob()
 	}
 }
 
-
-/*
-void
-ToolDaemonProc::initKillSigs( void )
-{
-	int sig;
-
-	sig = findSoftKillSig( JobAd );
-	if( sig > 0 ) {
-		soft_kill_sig = sig;
-	} else {
-		soft_kill_sig = SIGTERM;
-	}
-
-	sig = findRmKillSig( JobAd );
-	if( sig > 0 ) {
-		rm_kill_sig = sig;
-	} else {
-		rm_kill_sig = SIGTERM;
-	}
-
-	const char* tmp = signalName( soft_kill_sig );
-	dprintf( D_FULLDEBUG, "KillSignal: %d (%s)\n", soft_kill_sig, 
-			 tmp ? tmp : "Unknown" );
-
-	tmp = signalName( rm_kill_sig );
-	dprintf( D_FULLDEBUG, "RmKillSignal: %d (%s)\n", rm_kill_sig, 
-			 tmp ? tmp : "Unknown" );
-}
-
-*/
 
 int
 ToolDaemonProc::JobCleanup(int pid, int status)
