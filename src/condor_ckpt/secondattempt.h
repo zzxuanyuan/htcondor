@@ -5,6 +5,19 @@ typedef unsigned long RAW_ADDR;
 bool DEBUG = true;
 #define SUPER_VERBOSE false
 
+
+//this class is never used. it just tells us how big the structure is.
+struct SegInfo2 {
+	char name[14];
+	off_t		file_loc; //beware--this will be in whatever order the host wrote it in/
+	RAW_ADDR	core_loc; //this will be too.
+	long		len;  //this will be as well..
+	int			prot;	//as will this...
+	void Display();
+};
+
+
+
 //an abstraction of a segment within a ckpt file
 struct SegInfo {
 	char name[14];
@@ -13,7 +26,7 @@ struct SegInfo {
 	long		len;  //this will be as well..
 	int			prot;	//as will this...
 	void Display();
-	bool matched;	
+	bool matched;
 };
 
 //an abstraction of a checkpoint file

@@ -10,7 +10,7 @@ CC=g++
 CC=/s/ogcc/bin/g++
 PURIFY = purify -collector=/s/ogcc/bin/ld -g++
 
-CCFLAGS=-g 
+CCFLAGS=-g
 MAKE= make
 LIBDIRS=-L/s/zlib/lib 
 LDFLAGS=-Xlinker -dn
@@ -27,6 +27,10 @@ INCLUDEDIRS=-I/s/zlib/include
 # This produces a rather plump executable.
 
 all: compare thirdattempt
+compare-sun:
+	make clean;
+	make compare;
+	mv compare compare-sun
 
 compare: secondattempt.o
 	$(CC) $(CCFLAGS) $(LIBDIRS) $(LDFLAGS) $< -lz -o $@ 
