@@ -977,6 +977,7 @@ void MirrorJob::ProcessRemoteAdActive( ClassAd *remote_ad )
 	diff_ad->Delete( ATTR_SUBMIT_IN_PROGRESS );
 	diff_ad->Delete( ATTR_SERVER_TIME );
 	diff_ad->Delete( ATTR_WANT_MATCHING );
+	diff_ad->Delete( ATTR_GLOBAL_JOB_ID );
 
 	ClassAdPatch( ad, diff_ad );
 
@@ -1029,6 +1030,7 @@ ClassAd *MirrorJob::buildSubmitAd()
 	submit_ad->Delete( ATTR_ULOG_FILE );
 	submit_ad->Delete( ATTR_SERVER_TIME );
 	submit_ad->Delete( ATTR_JOB_MANAGED );
+	submit_ad->Delete( ATTR_GLOBAL_JOB_ID );
 
 	expr.sprintf( "%s = %d", ATTR_JOB_STATUS, HELD );
 	submit_ad->Insert( expr.Value() );
