@@ -459,6 +459,7 @@ CStarter::SpawnJob( void )
 	UserProc *job;
 	switch ( jobUniverse )  
 	{
+		case CONDOR_UNIVERSE_LOCAL:
 		case CONDOR_UNIVERSE_VANILLA:
 			job = new VanillaProc( jobAd );
 			break;
