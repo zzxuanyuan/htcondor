@@ -12,21 +12,32 @@
 namespace dagman {
 
 //---------------------------------------------------------------------------
-ostream & operator << (ostream & out, const std::list<JobID_t> & jobs) {
+std::string toString (const std::list<JobID_t> & jobs) {
     std::list<JobID_t>::const_iterator it;
-    out << '(';
-    for (it = jobs.begin() ; it != jobs.end() ; it++) out << (*it) << ',';
-    cout << "<end>)";
-    return out;
+    std::string s;
+    s += '(';
+    for (it = jobs.begin() ; it != jobs.end() ; it++) {
+        s += dagman::toString(*it);
+        s += ',';
+    }
+    s += "<end>)";
+    return s;
 }
 
 //---------------------------------------------------------------------------
-void TQI::Print () const {
-    printf ("Job: ");
-    job_print(parent);
-    printf (", Children: ");
-    cout << children;
-    // children.Display(cout);
+std::string TQI::toString() const {
+    std::string s;
+    s += "Job: ";
+    s += parent ? dagman::toString(parent->GetJobID()) : "<NULL>";
+    s += ", Children: ";
+    s += dagman::toString(children);
+    return s;
+}
+
+//---------------------------------------------------------------------------
+ostream & operator << (ostream & out, const TQI & tqi) {
+    out << tqi.toString();
+    return out;
 }
 
 //---------------------------------------------------------------------------
@@ -51,6 +62,24 @@ Dag::~Dag() {
 
 //-------------------------------------------------------------------------
 bool Dag::Bootstrap (bool recovery) {
+     //--------------------------------------------------
+     // Update dependencies for pre-terminated jobs
+     // (jobs marks DONE in the dag input file)
+     //--------------------------------------------------
+     std::list<Job *>::iterator it;
+     for (it = m_jobs.begin() ; it != m_jobs.end() ; it++) {
+         if ((*it)->m_Status == Job::STATUS_DONE) {
+             m_numJobsDone++;
+             assert ((unsigned)m_numJobsDone <= m_jobs.size());
+             TerminateJob(*it, true);
+         }
+     }
+    
+     debug_println (DEBUG_VERBOSE, "Number of Pre-completed Jobs: %d",
+                    NumJobsDone());
+     
+    if (DEBUG_LEVEL(DEBUG_DEBUG_3)) PrintJobList();
+
     //--------------------------------------------------
     // Add a virtual dependency for jobs that have no
     // parent.  In other words, pretend that there is
@@ -62,39 +91,29 @@ bool Dag::Bootstrap (bool recovery) {
 
     assert (!m_termQLock);
     m_termQLock = true;
-
-    {
-        TQI * god = new TQI;   // Null parent and empty children list
-
-        std::list<Job *>::iterator it;
-        for (it = m_jobs.begin() ; it != m_jobs.end() ; it++) {
-            if ((*it)->IsEmpty(Job::Q_INCOMING)) {
-                god->children.push_back ((*it)->GetJobID());
-            }
+    
+    TQI * god = new TQI;   // Null parent and empty children list
+    
+    for (it = m_jobs.begin() ; it != m_jobs.end() ; it++) {
+        if ((*it)->IsEmpty(Job::Q_WAITING) &&
+            (*it)->m_Status == Job::STATUS_READY) {
+            god->children.push_back ((*it)->GetJobID());
         }
-
-        m_termQ.push_back (god);
     }
     
-     m_termQLock = false;
+    if (god->children.empty()) delete god;
+    else                       m_termQ.push_back (god);
+     
+    m_termQLock = false;
     
-     //--------------------------------------------------
-     // Update dependencies for pre-terminated jobs
-     // (jobs marks DONE in the dag input file)
-     //--------------------------------------------------
-     std::list<Job *>::iterator it;
-     for (it = m_jobs.begin() ; it != m_jobs.end() ; it++) {
-         if ((*it)->m_Status == Job::STATUS_DONE) TerminateJob(*it);
-     }
+    if (DEBUG_LEVEL(DEBUG_DEBUG_1)) Print_TermQ();
     
-     debug_println (DEBUG_VERBOSE, "Number of Pre-completed Jobs: %d",
-                    NumJobsDone());
+    if (recovery) {
+        debug_println (DEBUG_NORMAL, "Running in RECOVERY mode...");
+        if (!ProcessLogEvents (recovery)) return false;
+    }
     
-     if (recovery) {
-         debug_println (DEBUG_NORMAL, "Running in RECOVERY mode...");
-         if (!ProcessLogEvents (recovery)) return false;
-     }
-     return SubmitReadyJobs();
+    return SubmitReadyJobs();
 }
 
 //-------------------------------------------------------------------------
@@ -118,10 +137,7 @@ Job * Dag::GetJob (const JobID_t jobID) const {
 }
 
 //-------------------------------------------------------------------------
-bool Dag::DetectLogGrowth (int checkInterval) {
-    
-    debug_printf (DEBUG_DEBUG_4, "%s: checkInterval=%d -- ", __FUNCTION__,
-                  checkInterval);
+bool Dag::DetectLogGrowth () {
     
     if (!m_condorLogInitialized) {
         m_condorLog.initialize(m_condorLogName.c_str());
@@ -131,7 +147,6 @@ bool Dag::DetectLogGrowth (int checkInterval) {
     int fd = m_condorLog.getfd();
     assert (fd != 0);
     struct stat buf;
-    sleep (checkInterval);
     
     if (fstat (fd, & buf) == -1)
         debug_perror (2, DEBUG_QUIET, m_condorLogName.c_str());
@@ -196,14 +211,9 @@ bool Dag::ProcessLogEvents (bool recovery) {
           case ULOG_OK:
             
             if (DEBUG_LEVEL(DEBUG_VERBOSE)) {
-                putchar (' ');
-                condorID.Print();
-                putchar (' ');
-            }
-            
-            if (DEBUG_LEVEL(DEBUG_VERBOSE)) {
-                printf ("  Event: %s ", ULogEventNumberNames[e->eventNumber]);
-                printf ("for Job ");
+                cout << ' ' << condorID << "   Event: "
+                     << ULogEventNumberNames[e->eventNumber]
+                     << " for Job ";
             }
             
             switch(e->eventNumber) {
@@ -214,23 +224,23 @@ bool Dag::ProcessLogEvents (bool recovery) {
               {
                   Job * job = GetJob (condorID);
                   
-                  if (DEBUG_LEVEL(DEBUG_VERBOSE)) job_print (job,true);
+                  if (DEBUG_LEVEL(DEBUG_VERBOSE)) cout << toString(job,true);
                   
                   // If this is one of our jobs, then we must inform the user
                   // that UNDO is not yet handled
                   if (job != NULL) {
                       if (DEBUG_LEVEL(DEBUG_QUIET)) {
-                          printf ("\n------------------------------------\n");
-                          job->Print(true);
-                          printf (" resulted in %s.\n"
-                                  "This version of Dagman does not support "
-                                  "job resubmition, so this DAG must be "
-                                  "aborted.\n"
-                                  "Version 2 of Dagman will support job UNDO "
-                                  "so that an erroneous job can be "
-                                  "resubmitted\n"
-                                  "while the dag is still running.\n",
-                                  ULogEventNumberNames[e->eventNumber]);
+                          cout << endl << "----------------------------------"
+                               << job->toString(true)
+                               << " resulted in "
+                               << ULogEventNumberNames[e->eventNumber] << endl
+                               << "This version of Dagman does not support "
+                               << "job resubmition, so this DAG must be "
+                               << "aborted." << endl
+                               << "Version 2 of Dagman will support job UNDO "
+                               << "so that an erroneous job can be "
+                               << "resubmitted" << endl
+                               << "while the dag is still running." << endl;
                       }
                       done   = true;
                       result = false;
@@ -246,8 +256,7 @@ bool Dag::ProcessLogEvents (bool recovery) {
               case ULOG_EXECUTE:
                 if (DEBUG_LEVEL(DEBUG_VERBOSE)) {
                     Job * job = GetJob (condorID);
-                    job_print(job,true);
-                    putchar ('\n');
+                    cout << toString(job,true) << endl;
                 }
                 break;
                 
@@ -257,8 +266,7 @@ bool Dag::ProcessLogEvents (bool recovery) {
                   Job * job = GetJob (condorID);
                   
                   if (DEBUG_LEVEL(DEBUG_VERBOSE)) {
-                      job_print(job, true);
-                      putchar ('\n');
+                      cout << toString(job,true) << endl;
                   }
                   
                   if (job == NULL) {
@@ -272,7 +280,27 @@ bool Dag::ProcessLogEvents (bool recovery) {
                   JobTerminatedEvent * termEvent = (JobTerminatedEvent*) e;
 
                   //
-                  // Execute a post script if it exists
+                  // If job terminated abnormally
+                  //
+                  if (! (termEvent->normal &&
+                         termEvent->returnValue == 0)) {
+                      job->m_Status = Job::STATUS_ERROR;
+                      if (DEBUG_LEVEL(DEBUG_QUIET)) {
+                          cout << "Job " << toString(job,true)
+                               << " terminated with ";
+                          if (termEvent->normal) {
+                              cout << "status " << termEvent->returnValue;
+                          } else {
+                              cout << "signal " << termEvent->signalNumber;
+                          }
+                          cout << '.' << endl;
+                      }
+                      done   = true;
+                  }
+
+                  //
+                  // Execute a post script if it exists, regardless
+                  // of the success of the job
                   //
                   if (job->m_scriptPost != NULL) {
                       job->m_scriptPost->m_retValJob = termEvent->normal
@@ -285,39 +313,32 @@ bool Dag::ProcessLogEvents (bool recovery) {
                   }
 
                   //
-                  // If the job terminated abnormally, abort DAGMan
+                  // Check if job and post exited normally
                   //
-                  if (! (termEvent->normal &&
-                         termEvent->returnValue == 0)) {
-                      job->m_Status = Job::STATUS_ERROR;
-                      if (DEBUG_LEVEL(DEBUG_QUIET)) {
-                          printf ("Job ");
-                          job_print(job,true);
-                          printf (" terminated with ");
-                          if (termEvent->normal) {
-                              printf ("status %d.", termEvent->returnValue);
-                          } else {
-                              printf ("signal %d.", termEvent->signalNumber);
-                          }
-                          putchar ('\n');
-                      }
-                      done   = true;
+                  if (job->m_Status == Job::STATUS_ERROR) {
+                      m_numJobsFailed++;
+                      assert ((unsigned)m_numJobsFailed <= m_jobs.size());
                   } else {
+                      m_numJobsDone++;
+                      assert ((unsigned)m_numJobsDone <= m_jobs.size());
+
                       job->m_Status = Job::STATUS_DONE;
-                      TerminateJob(job);
+                      TerminateJob(job, false);
+               
                       if (DEBUG_LEVEL(DEBUG_DEBUG_1)) Print_TermQ();
                       if (!recovery) {
                           debug_printf (DEBUG_VERBOSE, "\n");
-                          if (SubmitReadyJobs() == false) {
+                          if (!SubmitReadyJobs()) {
                               done   = true;
                               result = false;
                           }
                       }
                   }
-                  if (job->m_Status == Job::STATUS_ERROR) m_numJobsFailed++;
+                  m_numJobsRunning--;
+                  assert (m_numJobsRunning >= 0);
               }
                break;
-              
+               
                //--------------------------------------------------
               case ULOG_SUBMIT:
                 
@@ -334,12 +355,11 @@ bool Dag::ProcessLogEvents (bool recovery) {
                 } else {
                     job->m_CondorID = condorID;
                     if (DEBUG_LEVEL(DEBUG_VERBOSE)) {
-                        job_print (job, true);
-                        putchar ('\n');
+                        cout << toString(job,true) << endl;
                     }
                     if (!recovery) {
                         debug_printf (DEBUG_VERBOSE, "\n");
-                        if (SubmitReadyJobs() == false) {
+                        if (!SubmitReadyJobs()) {
                             done   = true;
                             result = false;
                         }
@@ -390,10 +410,7 @@ bool Dag::Submit (Job * job) {
         }
     }
 
-    if (DEBUG_LEVEL(DEBUG_VERBOSE)) {
-        printf ("Submitting JOB ");
-        job->Print();
-    }
+    if (DEBUG_LEVEL(DEBUG_VERBOSE)) cout << "Submitting JOB " << *job;
   
     CondorID condorID(0,0,0);
     if (!submit_submit (job->GetCmdFile(), condorID)) {
@@ -408,12 +425,7 @@ bool Dag::Submit (Job * job) {
     assert (m_numJobsRunningMax == 0 ||
             m_numJobsRunning <= m_numJobsRunningMax);
 
-    if (DEBUG_LEVEL(DEBUG_VERBOSE)) {
-        printf (", ");
-        condorID.Print();
-        putchar('\n');
-    }
-
+    if (DEBUG_LEVEL(DEBUG_VERBOSE)) cout << ", " << condorID << endl;
     return true;
 }
 
@@ -433,18 +445,16 @@ void Dag::PrintJobList() const {
 
 //---------------------------------------------------------------------------
 void Dag::Print_TermQ () const {
-    printf ("Termination Queue:");
+    cout << "Termination Queue:";
     if (m_termQ.empty()) {
-        printf (" <empty>\n");
+        cout << " <empty>" << endl;
         return;
-    } else putchar('\n');
+    } else cout << endl;
 
     std::list<TQI *>::const_iterator it;
 
     for (it = m_termQ.begin() ; it != m_termQ.end() ; it++) {
-        printf ("  ");
-        (*it)->Print();
-        putchar ('\n');
+        cout << "  " << *(*it) << endl;
     }
 }
 
@@ -459,7 +469,7 @@ void Dag::RemoveRunningJobs () const {
 
         if ((*it)->m_Status == Job::STATUS_SUBMITTED) {
             cmd += ' ';
-            cmd += to_string((*it)->m_CondorID._cluster);
+            cmd += toString((*it)->m_CondorID.m_cluster);
             jobs++;
         }
 
@@ -550,7 +560,7 @@ void Dag::Rescue (const std::string & rescue_file,
 //===========================================================================
 
 //-------------------------------------------------------------------------
-void Dag::TerminateJob (Job * job) {
+void Dag::TerminateJob (Job * job, bool bootstrap) {
     assert (job != NULL);
     assert (job->m_Status == Job::STATUS_DONE);
 
@@ -565,15 +575,11 @@ void Dag::TerminateJob (Job * job) {
         assert (child != NULL);
         child->Remove(Job::Q_WAITING, job->GetJobID());
     }
-    m_numJobsDone++;
-    m_numJobsRunning--;
-    assert (m_numJobsRunning >= 0);
-    assert ((unsigned)m_numJobsDone <= m_jobs.size());
 
     //
     // Add job and its dependants to the termination queue
     //
-    if (!job->IsEmpty(Job::Q_OUTGOING)) {
+    if (!bootstrap && !job->IsEmpty(Job::Q_OUTGOING)) {
         assert (!m_termQLock);
         m_termQ.push_back ( new TQI(job,qp) );
     }
@@ -700,9 +706,8 @@ bool Dag::SubmitReadyJobs () {
         if (job->CanSubmit()) {
             if (!Submit (job)) {
                 if (DEBUG_LEVEL(DEBUG_QUIET)) {
-                    printf ("Fatal error submitting job ");
-                    job->Print(true);
-                    putchar('\n');
+                    cout << "Fatal error submitting JOB "
+                         << job->toString(true) << endl;
                 }
                 return false;
             }
@@ -712,4 +717,4 @@ bool Dag::SubmitReadyJobs () {
     return true;
 }
 
-} // using namespace dagman
+} // namespace dagman
