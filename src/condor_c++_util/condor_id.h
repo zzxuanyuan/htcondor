@@ -25,6 +25,7 @@
 #define _CONDOR_ID_H_
 
 #include "condor_common.h"
+#include "dc_service.h"
 
 
 /** An object to represent the Condor ID of a job.  Condor uses three
