@@ -112,7 +112,7 @@ int compare_pages(char * p1, char *p2, int &decile, float &matchPercent) {
 }
 int compare_segment(CheckpointFile &ck1, CheckpointFile &ck2, char * paddr1, 
 					char * paddr2, int ck1_segnumber, int ck2_segnumber, 
-					int &matches, int &pages) 
+					int &matches, int &pages, int &newpages) 
 {
 	int pgsize=pArch->getpagesize();
 	//we are going to read this a page at a time:
@@ -158,6 +158,7 @@ int compare_segment(CheckpointFile &ck1, CheckpointFile &ck2, char * paddr1,
 		cout << "+";	// for page analysis, + means new
 		histogram[0]++;
 		total_pages++;
+		newpages++;
 		new_bytes-=pgsize;
 	}
 
@@ -556,6 +557,7 @@ int main(int argc, char ** argv ) {
 	int matching_segs=0;
 	int total_matches = 0;
 	int total_pages = 0;
+	int newpages = 0;
 	int fewer_segs = (f1.n_segs < f2.n_segs) ? f1.n_segs : f2.n_segs;
 	int more_segs  = (f1.n_segs < f2.n_segs) ? f2.n_segs : f1.n_segs;
 
@@ -566,7 +568,7 @@ int main(int argc, char ** argv ) {
 			continue;	// no matching segment
 		}
 		if (compare_segment(f1, f2, paddr1, paddr2, ck1_segNo, ck2_segNo,
-				total_matches,total_pages)) 
+				total_matches,total_pages, newpages)) 
 		{
 			matching_segs++;
 		}
@@ -583,9 +585,18 @@ int main(int argc, char ** argv ) {
 				<< " resulting in " << unmatched_pages << " unmatched pages.\n";
 	}
 
+	int pagesize = pArch->getpagesize();
 	float matchPercent = (float) total_matches / total_pages * 100;
+	int   cleanBytes = pagesize * total_matches;
+	int   totalBytes = pagesize * total_pages; 
+	float cleanMGs = (float) cleanBytes / (1024 * 1024);
+	float totalMGs = (float) totalBytes / (1024 * 1024);
+	cout << "Total new pages: " << newpages << " / " << total_pages 
+		<< "  (" << (int) ((float)newpages/total_pages * 100) << "%)" << endl;
 	cout << "Total page matches: " << total_matches << " / " << total_pages 
 		<< "  (" << (int) matchPercent << "%)" << endl;
+	printf("Total savings: %7.2f / %7.2f megs (%i\%) (%i byte pages)\n", cleanMGs, 
+		totalMGs, (int) matchPercent, pArch->getpagesize());
 
 return 0;
 }
