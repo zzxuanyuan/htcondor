@@ -124,17 +124,28 @@ static char* orig_cwd = NULL;
 void
 main_pre_dc_init( int argc, char* argv[] )
 {	
-		// figure out what mySubSystem should be based on argv[0] 
-	char* base = strdup(basename(argv[0]));
+		// figure out what mySubSystem should be based on argv[0], or
+		// if we see "-gridshell" anywhere on the command-line
+	char* base = basename(argv[0]);
 	char* tmp;
 	tmp = strrchr(base, '_' );
 	if( tmp && strincmp(tmp, "_gridshell", 10) == MATCH ) {
 		mySubSystem = "GRIDSHELL";
 		is_gridshell = true;
 	} else { 
+		int i, len;
+		for( i=1; i<argc; i++ ) {
+			len = strlen(argv[i]);
+			if( strincmp(argv[i], "-gridshell", len) == MATCH ) {
+				mySubSystem = "GRIDSHELL";
+				is_gridshell = true;
+				break;
+			}
+		}
+	}
+	if( ! is_gridshell ) {
 		mySubSystem = "STARTER";
 	}
-	free( base );
 
 		// if we were passed "-classad", just print our classad and
 		// exit, without going back to daemoncore or anything.  we
@@ -259,6 +270,7 @@ parseArgs( int argc, char* argv [] )
 	char _jobproc[] = "-job_proc";
 	char _jobsubproc[] = "-job_subproc";
 	char _header[] = "-header";
+	char _gridshell[] = "-gridshell";
 	char* target = NULL;
 
 	ASSERT( argc >= 2 );
@@ -283,6 +295,13 @@ parseArgs( int argc, char* argv [] )
 			dprintf_header = strdup( arg );
 			DebugId = display_dprintf_header;
 			tmp++;	// consume the arg so we don't get confused 
+			continue;
+		}
+
+		if( ! strncmp(opt, _gridshell, opt_len) ) { 
+				// just skip this one, we already processed this in
+				// main_pre_dc_init()  
+			ASSERT( is_gridshell );
 			continue;
 		}
 
