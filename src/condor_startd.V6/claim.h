@@ -191,6 +191,8 @@ public:
 	bool suspend( ClassAd* req, ClassAd* reply );
 	bool resume( ClassAd* req, ClassAd* reply );
 
+	bool ownerMatches( const char* owner );
+
 private:
 	Resource	*c_rip;
 	Client 		*c_client;

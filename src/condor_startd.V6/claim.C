@@ -683,6 +683,16 @@ Claim::resume( ClassAd* req, ClassAd* reply )
 }
 
 
+bool
+Claim::ownerMatches( const char* owner )
+{
+	if( ! strcmp(c_client->owner(), owner) ) {
+		return true;
+	}
+		// TODO: handle COD_SUPER_USERS
+	return false;
+}
+
 
 ///////////////////////////////////////////////////////////////////////////
 // Client
