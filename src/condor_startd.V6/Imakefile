@@ -1,0 +1,51 @@
+NAME = condor_startd
+INFO_CLASS = CondorJavaInfo.class
+BENCHMARK_CLASS = scimark2lib.jar
+
+all_target( $(NAME) )
+
+CFLAGS = $(STD_C_FLAGS) -Wall
+
+C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) -Wall
+LIB= $(DAEMONCORE_LIB) $(STD_LIBS)
+
+#if IS_ALPHA_OSF1
+#	define LOAD_AVG_OBJ load_avg.OSF1.o
+#elif IS_LINUX
+#	define LOAD_AVG_OBJ load_avg.LINUX.o
+#elif IS_SOLARIS
+#       define LOAD_AVG_OBJ load_avg.Solaris.o load_avg.uptime.o
+#elif IS_SGI_IRIX
+#       define LOAD_AVG_OBJ load_avg.IRIX.o load_avg.uptime.o
+#elif IS_HPUX
+#	define LOAD_AVG_OBJ load_avg.HPUX.o
+#endif
+
+OBJ = LoadQueue.o Match.o Reqexp.o ResAttributes.o ResMgr.o ResState.o \
+	Resource.o Starter.o command.o startd_main.o util.o \
+	startd_cronmgr.o startd_cronjob.o starter_mgr.o \
+	setsyscalls.o startd_instantiate.o AvailStats.o JavaInfo.o
+
+template_inst( startd_instantiate.C, startd_instantiate.o )
+
+c_plus_target($(NAME),$(OBJ),$(LIB))
+release_target($(NAME),$(RELEASE_DIR)/sbin,EXECUTABLE_MODE)
+strip_target($(NAME),$(STRIP_DIR)/sbin,EXECUTABLE_MODE)
+static_target($(NAME),$(OBJ),$(LIB),$(STATIC_DIR)/sbin)
+pure_c_plus_target($(NAME).pure,$(OBJ),$(LIB))
+purecov_c_plus_target($(NAME).pc,$(OBJ),$(LIB))
+quantify_c_plus_target($(NAME).quantify,$(OBJ),$(LIB))
+c_plus_target(AvailStats.t,AvailStats.o AvailStats.t.o startd_instantiate.o,$(LIB))
+
+release_copy_target($(INFO_CLASS),$(RELEASE_DIR)/lib,$(INFO_CLASS),EXECUTABLE_MODE)
+strip_copy_target($(INFO_CLASS),$(STRIP_DIR)/lib,$(INFO_CLASS),EXECUTABLE_MODE)
+static_copy_target($(INFO_CLASS),$(STATIC_DIR)/lib,$(INFO_CLASS),EXECUTABLE_MODE)
+
+release_copy_target($(BENCHMARK_CLASS),$(RELEASE_DIR)/lib,$(BENCHMARK_CLASS),EXECUTABLE_MODE)
+strip_copy_target($(BENCHMARK_CLASS),$(STRIP_DIR)/lib,$(BENCHMARK_CLASS),EXECUTABLE_MODE)
+static_copy_target($(BENCHMARK_CLASS),$(STATIC_DIR)/lib,$(BENCHMARK_CLASS),EXECUTABLE_MODE)
+
+html:
+
+IMPORT_LINKS = ../../config/import_links
+import(../condor_util_lib, setsyscalls.o )
