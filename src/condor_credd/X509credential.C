@@ -33,12 +33,27 @@ X509Credential::GetMyProxyServerDN() {
   return myproxy_server_dn.GetCStr();
 }
 
+
+void
+X509Credential::SetMyProxyServerDN(const char * dn) {
+  myproxy_server_dn = dn;
+  SetStringAttribute ("MyProxyServerDN", dn);
+}
+
+
 const char *
 X509Credential::GetRefreshPassword() {
-  char * buff = GetStringAttribute ("MyProxyServerPassword");
+  char * buff = GetStringAttribute ("MyProxyPassword");
   myproxy_server_password = buff;
   free (buff);
   return myproxy_server_password.GetCStr();
+}
+
+
+void
+X509Credential::SetRefreshPassword(const char * pwd) {
+  myproxy_server_password = pwd;
+  SetStringAttribute ("MyProxyPassword", pwd);
 }
 
 const char *
@@ -49,6 +64,12 @@ X509Credential::GetMyProxyServerHost() {
   return myproxy_server_host.GetCStr();
 }
 
+void
+X509Credential::SetMyProxyServerHost(const char * host) {
+  myproxy_server_host = host;
+  SetStringAttribute ("MyProxyServerHost", host);
+}
+
 const char *
 X509Credential::GetCredentialName() {
   char * buff = GetStringAttribute ("MyProxyCredentialName");
@@ -57,6 +78,26 @@ X509Credential::GetCredentialName() {
   return myproxy_credential_name.GetCStr();
 }
 
+void
+X509Credential::SetCredentialName(const char * name) {
+  myproxy_credential_name = name;
+  SetStringAttribute ("MyProxyCredentialName", name);
+}
+
+
+const char *
+X509Credential::GetMyProxyUser() {
+  char * buff = GetStringAttribute ("MyProxyUser");
+  myproxy_user = buff;
+  free (buff);
+  return myproxy_user.GetCStr();
+}
+
+void
+X509Credential::SetMyProxyUser(const char * name) {
+  myproxy_user = name;
+  SetStringAttribute ("MyProxyUser", name);
+}
 
 
 int

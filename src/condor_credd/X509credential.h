@@ -18,12 +18,22 @@ public:
   int LoadData ();
 
   const char * GetMyProxyServerDN();
+  void SetMyProxyServerDN(const char*);
+
   const char * GetRefreshPassword();
+  void SetRefreshPassword (const char *);
+
   const char * GetMyProxyServerHost();
+  void SetMyProxyServerHost (const char * host);
+
   const char * GetCredentialName();
+  void SetCredentialName (const char * name);
 
   void SetStorageName (const char *);
   const char * GetStorageName();
+
+  void SetMyProxyUser (const char *);
+  const char * GetMyProxyUser();
 
  protected:
   MyString storage_name;
@@ -31,6 +41,7 @@ public:
   MyString myproxy_server_dn;
   MyString myproxy_server_password;
   MyString myproxy_credential_name;
+  MyString myproxy_user;
 
 };
 

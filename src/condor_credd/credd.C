@@ -88,9 +88,15 @@ store_cred_handler(Service * service, int i, Stream *stream) {
   // Write data to a file
   cred->SetData (data, data_size);
   char * temp_file_name = dircat (cred_store_dir, "credXXXXXX");
+
+  init_user_ids (socket->getOwner(), socket->getDomain());
+  priv_state old_state = set_root_priv();
+
   int fd = mkstemp (temp_file_name);
   write (fd, data, cred->GetDataSize());
   close (fd);
+
+  set_priv (old_state);
   
   // Write metadata to a file
   cred->SetStorageName (temp_file_name);
@@ -98,12 +104,15 @@ store_cred_handler(Service * service, int i, Stream *stream) {
   const ClassAd * pclassad = cred->GetClassAd();
   ClassAd temp_classad(*pclassad); // lame
 
+  old_state = set_root_priv();
   ClassAdXMLUnparser unparser;
   MyString buff;
   unparser.Unparse (&temp_classad, buff);
   FILE * fp = fopen (cred_index_file, "a");
   fprintf (fp, "%s\n", buff.Value());
   fclose (fp);
+  set_priv (old_state);
+
 
   credentials.Append (cred);
 
@@ -148,6 +157,8 @@ get_cred_handler(Service * service, int i, Stream *stream) {
 
   const char * user = socket->getFullyQualifiedUser();
   char * owner = NULL;
+
+  dprintf (D_ALWAYS, "Authenticated as %s\n", user);
 
   if (strchr (name, ':')) {
     // The name is of the form user:name
@@ -202,7 +213,9 @@ get_cred_handler(Service * service, int i, Stream *stream) {
     void * data=NULL;
     int data_size;
     dprintf (D_ALWAYS, "Found cred %s\n", cred->GetStorageName());
+    priv_state priv = set_root_priv ();
     int rc = cred->LoadData();
+    set_priv (priv);
     dprintf (D_ALWAYS, "LoadData %d\n", rc);
     
     rc = cred->GetData (data, data_size);
@@ -239,11 +252,14 @@ LoadCredentialList () {
   
   ClassAdXMLParser parser;
   char buff[10000];
+  
+  priv_state priv = set_root_priv();
 
   FILE * fp = fopen (cred_index_file, "r");
   
   if (!fp) {
     dprintf (D_FULLDEBUG, "Credential database %s does not exist!\n", cred_index_file);
+    set_priv (priv);
     return TRUE;
   }
 
@@ -258,6 +274,7 @@ LoadCredentialList () {
 
     if ((!classad) || (!classad->LookupInteger("Type", type))) {
       dprintf (D_ALWAYS, "Invalid classad %s\n", buff);
+      set_priv (priv);
       return FALSE;
     }
 
@@ -270,15 +287,19 @@ LoadCredentialList () {
     }
   }
   fclose (fp);
+  set_priv (priv);
 
   return TRUE;
 }
 
 int
 SaveCredentialList() {
+  priv_state priv = set_root_priv();
+
   FILE * fp = fopen (cred_index_file, "w");
   if (fp == NULL) {
     dprintf (D_ALWAYS, "Unable to open file %s for writing\n", cred_index_file);
+    set_priv (priv);
     return FALSE;
   }
   
@@ -296,6 +317,7 @@ SaveCredentialList() {
 
   fclose(fp);
 
+  set_priv (priv);
   return TRUE;
 }
 
@@ -604,12 +626,14 @@ Init() {
 
   if (stat (cred_index_file, &stat_buff)) {
     dprintf (D_ALWAYS, "Creating credential index file %s\n", cred_index_file);
+    priv_state priv = set_root_priv();
     int fd = open (cred_index_file, O_WRONLY | O_CREAT | O_TRUNC, 0600);
     if (fd != -1) {
       close (fd);
+      set_priv (priv);
     } else {
       dprintf (D_ALWAYS, "ERROR: Unable to create credential index file %s\n", cred_index_file);
-
+      set_priv (priv);
       DC_Exit (1 );
 
     }
