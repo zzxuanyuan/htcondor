@@ -5449,7 +5449,6 @@ Scheduler::addRunnableJob( shadow_rec* srec )
 }
 
 
-
 void
 Scheduler::spawnLocalStarter( shadow_rec* srec )
 {
@@ -5458,6 +5457,12 @@ Scheduler::spawnLocalStarter( shadow_rec* srec )
 	char* starter_path;
 	MyString starter_args;
 	bool rval;
+
+		// First, make sure there's a valid execute directory inside
+		// spool for the local starter to use, since we don't want to
+		// rely on condor_[install|configure] setting that up
+		// correctly for us...
+	initLocalStarterDir();
 
 	dprintf( D_FULLDEBUG, "Starting local universe job %d.%d\n",
 			 job_id->cluster, job_id->proc );
@@ -5508,6 +5513,62 @@ Scheduler::spawnLocalStarter( shadow_rec* srec )
 
 	dprintf( D_ALWAYS, "Spawned local starter (pid %d) for job %d.%d\n",
 			 srec->pid, job_id->cluster, job_id->proc );
+}
+
+
+
+void
+Scheduler::initLocalStarterDir( void )
+{
+	mode_t mode;
+#ifdef WIN32
+	mode_t desired_mode = _S_IREAD | _S_IWRITE;
+#else
+		// We want execute to be world-writable w/ the sticky bit set.  
+	mode_t desired_mode = (0777 | S_ISVTX);
+#endif
+
+	MyString dir_name;
+	char* tmp = param( "SPOOL" );
+	if( ! tmp ) {
+		EXCEPT( "SPOOL directory not defined in config file!" );
+	}
+	dir_name.sprintf( "%s%c%s", tmp, DIR_DELIM_CHAR, "execute" );
+	free( tmp );
+	tmp = NULL;
+
+	StatInfo exec_dir( dir_name.Value() );
+	if( ! exec_dir.IsDirectory() ) {
+			// our umask is going to mess this up for us, so we might
+			// as well just do the chmod() seperately, anyway, to
+			// ensure we've got it right.  the extra cost is minimal,
+			// since we only do this once...
+		dprintf( D_FULLDEBUG, "initLocalStarterDir(): %s does not exist, "
+				 "calling mkdir()\n", dir_name.Value() );
+		if( mkdir(dir_name.Value(), 0777) < 0 ) {
+			dprintf( D_ALWAYS, "initLocalStarterDir(): mkdir(%s) failed: "
+					 "%s (errno %d)\n", dir_name.Value(), strerror(errno),
+					 errno );
+				// TODO: retry as priv root or something?  deal w/ NFS
+				// and root squashing, etc...
+			return;
+		}
+		mode = 0777;
+	} else {
+		mode = exec_dir.GetMode();
+	}
+
+		// we know the directory exists, now make sure the mode is
+		// right for our needs...
+	if( (mode & desired_mode) != desired_mode ) {
+		dprintf( D_FULLDEBUG, "Changing permission on %s\n",
+				 dir_name.Value() );
+		if( chmod(dir_name.Value(), (mode|desired_mode)) < 0 ) {
+			dprintf( D_ALWAYS, "initLocalStarterDir(): chmod(%s) failed: "
+					 "%s (errno %d)\n", dir_name.Value(), strerror(errno),
+                     errno );
+		}
+	}
 }
 
 

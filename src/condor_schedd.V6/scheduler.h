@@ -411,6 +411,7 @@ private:
 	static void		refuse( Stream* s );
 	void			tryNextJob( void );
 	int				jobThrottle( void );
+	void			initLocalStarterDir( void );
 	void	noShadowForJob( shadow_rec* srec, NoShadowFailure_t why );
 
 
