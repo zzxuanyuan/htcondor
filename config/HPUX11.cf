@@ -37,8 +37,6 @@
 
 #define WANT_PVM			NO
 
-#define TypicalMemory 64
-
 #define IS_CLIPPED YES
 
 #undef WANT_MAN_PAGES
