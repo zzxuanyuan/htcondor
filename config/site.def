@@ -20,9 +20,6 @@ GCC_LIBC = LIB_GCC
 
 #define MkDepend ../../GENERIC/mdepend.sh
 
-#define X11LibPath /s/X11R6-2/lib
-#define X11Include /s/X11R6-2/include
-
 
 /* Put all of your #defines up here do you can turn them off/redefine
 	them selectively for an architecture if you desire. */
