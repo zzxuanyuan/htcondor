@@ -66,9 +66,6 @@
 
 #define StaticFlag /**/
 
-#ifndef MkDepend
-#define MkDepend /usr/sbin/mkdepend
-#endif MkDepend
 
 /**************************************************************************
 ** Include OS version-specific config files

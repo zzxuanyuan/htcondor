@@ -70,10 +70,6 @@
 
 #define HAS_STATIC			NO
 
-#ifndef MkDepend
-#define MkDepend ../../GENERIC/mdepend.sh /* Ask Jim */
-#endif MkDepend
-
 /*
     In the test suite, we only need to make sure we've got the network 
     libs, not all the other stuff for static linking, gcc, etc.  This

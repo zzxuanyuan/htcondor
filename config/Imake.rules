@@ -941,11 +941,6 @@ depend:	ALWAYS				               @@\
 	$(CPlusPlus) $(CFLAGS) -MM $(DEPEND_C_SRC) > dependencies
 #endif
 
-/* The old definition of depend
-depend: ALWAYS						@@\
-	$(MKDEPEND) $(CFLAGS) src_list
-*/
-
 
 /*
 ** Build rule for copying man pages into the right place

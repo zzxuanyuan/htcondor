@@ -62,12 +62,7 @@
 #define HAS_GSI		YES
 #define HAS_OPENSSL	YES
 
-
 #define StaticFlag -static
-
-#ifndef MkDepend
-#define MkDepend ../../GENERIC/mdepend.sh
-#endif MkDepend
 
 #define VendorCTestFlags -std
 

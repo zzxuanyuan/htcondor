@@ -15,8 +15,6 @@ GCC_LIBC = LIB_GCC
 
 #define DocCompiler     /unsup/doc++-3.4.8/bin/doc++
 
-#define MkDepend ../../GENERIC/mdepend.sh
-
 
 /* Put all of your #defines up here do you can turn them off/redefine
 	them selectively for an architecture if you desire. */

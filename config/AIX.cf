@@ -47,10 +47,6 @@
 
 #define StaticFlag -static
 
-#ifndef MkDepend
-#define MkDepend ../../GENERIC/mdepend.sh
-#endif MkDepend
-
 #define ShadowSizeEstimate 200
 
 /**************************************************************************
