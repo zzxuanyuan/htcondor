@@ -783,6 +783,7 @@ int GT4Job::doEvaluateState()
 			}
 			} break;
  		case GM_DELEGATE_PROXY: {
+/* Don't worry about delegating for now
 			char * error_string = NULL;
 
 			rc = gahp->gt4_gram_client_delegate_credentials (resourceManagerString,
@@ -800,15 +801,18 @@ int GT4Job::doEvaluateState()
 									delegatedCredentialURI );
 				gmState = GM_DELEGATE_PROXY_SAVE;
 			} else {
-				dprintf(D_ALWAYS,"(%d.%d) Delegation Error: %s\n",
-						procID.cluster, procID.proc, error_string);
+				dprintf(D_ALWAYS,"(%d.%d) Delegation Error (rc=%d): %s\n",
+						procID.cluster, procID.proc, rc, error_string);
 
 				UpdateJobAdString( ATTR_HOLD_REASON, "Failed to delegate credential" );
 				gmState = GM_HOLD;
 			}
+*/
+gmState=GM_DELEGATE_PROXY_SAVE;
 			} break;
 		case GM_DELEGATE_PROXY_SAVE: {
 				// Save the delegation URI
+/* Don't worry about delegation for now
 			if ( condorState == REMOVED || condorState == HELD ) {
 				gmState = GM_CANCEL;
 			} else {
@@ -818,6 +822,8 @@ int GT4Job::doEvaluateState()
 				}
 				gmState = GM_SUBMIT;
 			}
+*/
+gmState=GM_SUBMIT;
 		} break;
 		case GM_GENERATE_ID: {
 
@@ -982,10 +988,12 @@ int GT4Job::doEvaluateState()
 					reevaluate_state = true;
 					break;
 				}
+/* Don't worry about delegation for now
 				if ( jmProxyExpireTime < myProxy->expiration_time ) {
 					gmState = GM_REFRESH_PROXY;
 					break;
 				}
+*/
 				now = time(NULL);
 				if ( lastProbeTime < enteredCurrentGmState ) {
 					lastProbeTime = enteredCurrentGmState;
@@ -1568,12 +1576,11 @@ MyString *GT4Job::buildSubmitRSL()
 
 	char * gt4_location = param ("GT4_LOCATION");
 
-		/*if ( ad->LookupString( ATTR_GLOBUS_RSL, &rsl_suffix ) &&
-						   rsl_suffix[0] == '&' ) {
-		*rsl = rsl_suffix;
-		free( rsl_suffix );
-		return rsl;
-		}*/
+		// Once we add streaming support, remove this
+	if ( streamOutput || streamError ) {
+		errorString = "Streaming not supported";
+		return NULL;
+	}
 
 	if ( ad->LookupString(ATTR_JOB_IWD, &attr_value) && *attr_value ) {
 		iwd = attr_value;
@@ -1596,10 +1603,6 @@ MyString *GT4Job::buildSubmitRSL()
 xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" \
 xsi:schemaLocation=\"http://www.globus.org/namespaces/2004/06/job \
 %s/share/schema/gram/job_description.xsd\">", gt4_location);
-
-
-/*	rsl->sprintf( "&(rsl_substitution=(GRIDMANAGER_GASS_URL %s))",
-	gassServerUrl );*/
 
 
 	//We're assuming all job clasads have a command attribute
@@ -1627,6 +1630,7 @@ xsi:schemaLocation=\"http://www.globus.org/namespaces/2004/06/job \
 /*
   We don't do GASS_URL appendage here (GAHP does it)
   So don't worry about this part
+  (this comment smells of BS)
 
 	if ( !ad->LookupBool( ATTR_TRANSFER_EXECUTABLE, transfer ) || transfer ) {
 		buff = "$(GRIDMANAGER_GASS_URL)/";
@@ -1640,8 +1644,6 @@ xsi:schemaLocation=\"http://www.globus.org/namespaces/2004/06/job \
 	*rsl += rsl_stringify( buff.Value() );
 	free( attr_value );
 	attr_value = NULL;*/
-
-
 
 
 	if ( ad->LookupString(ATTR_JOB_REMOTE_IWD, &attr_value) && *attr_value ) {
@@ -1688,9 +1690,9 @@ xsi:schemaLocation=\"http://www.globus.org/namespaces/2004/06/job \
 		attr_value = NULL;
 	}
 
-	if ( streamOutput ) {
-		*rsl += printXMLParam ("gram:stdout", localOutput );
-	} else {
+//	if ( streamOutput ) {
+//		*rsl += printXMLParam ("gram:stdout", localOutput );
+//	} else {
 		if ( stageOutput ) {
 			*rsl += printXMLParam ("gram:stdout", "$(GLOBUS_CACHED_STDOUT)");
 		} else {
@@ -1704,13 +1706,13 @@ xsi:schemaLocation=\"http://www.globus.org/namespaces/2004/06/job \
 				attr_value = NULL;
 			}
 		}
-	}
+//	}
 
-	if ( streamError ) {
-		*rsl += printXMLParam ("gram:stderr", localError);
-	} else {
+//	if ( streamError ) {
+//		*rsl += printXMLParam ("gram:stderr", localError);
+//	} else {
 		if ( stageError ) {
-			*rsl += printXMLParam ("gram:stderr", "=$(GLOBUS_CACHED_STDERR)");
+			*rsl += printXMLParam ("gram:stderr", "$(GLOBUS_CACHED_STDERR)");
 		} else {
 			if ( ad->LookupString(ATTR_JOB_ERROR, &attr_value) &&
 				 *attr_value && strcmp( attr_value, NULL_FILE ) ) {
@@ -1721,22 +1723,24 @@ xsi:schemaLocation=\"http://www.globus.org/namespaces/2004/06/job \
 				attr_value = NULL;
 			}
 		}
-	}
+//	}
 
 	// First upload an emtpy dummy directory
 	// This will be the job's sandbox directory
 
-	const char * file_in_header = "<gram:fileStageIn>";
-	const char * file_in_footer = "</gram:fileStageIn>";
+	const char * file_in_header = "<gram:fileStageIn><gram:transfer>";
+	const char * file_in_footer = "</gram:transfer></gram:fileStageIn>";
 
-	MyString dummy_dir = getDummyJobScratchDir();
-			
+/* Only need dummy dir if user didn't specify RemoteIwd
 	*rsl += file_in_header;
-	*rsl += printXMLParam ("gram:sourceFile",
-						   dummy_dir.Value());
-	*rsl += printXMLParam ("gram:destinationFile",
-						   riwd.Value()); // remove job dir
+	buff.sprintf( "gsiftp://nostos.cs.wisc.edu%d", getDummyJobScratchDir() );
+	*rsl += printXMLParam ("gram:sourceUrl",
+						   buff.Value());
+	buff.sprintf( "file:///%s", riwd.Value() );
+	*rsl += printXMLParam ("gram:destinationUrl",
+						   buff.Value()); // remote job dir
 	*rsl += file_in_footer;
+*/
 
 		// Now deal with any other files we might wish to transfer
 	if ( ad->LookupString(ATTR_TRANSFER_INPUT_FILES, &attr_value) &&
@@ -1745,21 +1749,20 @@ xsi:schemaLocation=\"http://www.globus.org/namespaces/2004/06/job \
 		if ( !filelist.isEmpty() ) {
 			char *filename;
 			   
-            MyString dest_name_buff;
 			filelist.rewind();
 			while ( (filename = filelist.next()) != NULL ) {
 
                // append the sandbox dir to the destination name 
                // of each file that we'll stage in, fool
 			 
-				dest_name_buff.sprintf ("%s/%s",
-										riwd.Value(),
-										basename (filename));
+				buff.sprintf ("file://%s/%s",
+							  riwd.Value(),
+							  basename (filename));
 				*rsl += file_in_header;
-				*rsl += printXMLParam ("gram:sourceFile", 
+				*rsl += printXMLParam ("gram:sourceUrl", 
 										filename);
-				*rsl += printXMLParam ("gram:destinationFile", 
-									   dest_name_buff.Value());
+				*rsl += printXMLParam ("gram:destinationUrl", 
+									   buff.Value());
 				*rsl += file_in_footer;
 
 /*
@@ -1790,12 +1793,11 @@ xsi:schemaLocation=\"http://www.globus.org/namespaces/2004/06/job \
 		   *attr_value ) || stageOutput || stageError ) {
 		StringList filelist( attr_value, "," );
 		if ( !filelist.isEmpty() || stageOutput || stageError ) {
-			const char * stage_out_header = "<gram:fileStageOut>";
-			const char * stage_out_footer = "</gram:fileStageOut>";
+			const char * stage_out_header = "<gram:fileStageOut><gram:transfer>";
+			const char * stage_out_footer = "</gram:transfer></gram:fileStageOut>";
 
 
 			char *filename;
-			*rsl += ")(file_stage_out=";
 
 			if ( stageOutput ) {
 				*rsl += stage_out_header;
@@ -1813,40 +1815,20 @@ xsi:schemaLocation=\"http://www.globus.org/namespaces/2004/06/job \
 				*rsl += printXMLParam ("gram:destinationFile", 
 									   localError);
 				*rsl += stage_out_footer;
-
-
-/*				*rsl += "($(GLOBUS_CACHED_STDERR) ";
-				buff.sprintf( "$(GRIDMANAGER_GASS_URL)%s", localError );
-				*rsl += rsl_stringify( buff );
-				*rsl += ')';
-*/
 			}
 
 			filelist.rewind();
 			while ( (filename = filelist.next()) != NULL ) {
+				buff.sprintf ("file://%s/%s",
+							  riwd.Value(),
+							  basename (filename));
 				*rsl += stage_out_header;
 				*rsl += printXMLParam ("gram:sourceFile", 
-									   basename (filename));
+									   buff.Value());
 				*rsl += printXMLParam ("gram:destinationFile", 
 									   filename);
+
 				*rsl += stage_out_footer;
-
-
-/*
-				// append file pairs to rsl
-				*rsl += '(';
-				buff = riwd;
-				buff += basename( filename );
-				*rsl += rsl_stringify( buff );
-				*rsl += ' ';
-				buff = "$(GRIDMANAGER_GASS_URL)";
-				if ( filename[0] != '/' ) {
-					buff += iwd;
-				}
-				buff += filename;
-				*rsl += rsl_stringify( buff );
-				*rsl += ')';
-*/
 			}
 		}
 	}
