@@ -20,6 +20,7 @@
 
 #define DOES_CHECKPOINTING		YES
 #define DOES_REMOTE_SYSCALLS	YES
+#define DOES_SAVE_SIGSTATE		YES
 
 #define HAS_X					YES
 #define HAS_X_EXTENSIONS		NO
@@ -63,9 +64,11 @@
 #if USE_GCC
 #	define CCompiler gcc
 #	define CPlusCompiler g++
+#	define Demangler c++filt
 #else
 #	define CCompiler cc
 #	define CPlusCompiler cxx
+#	define Demangler demangle
 #endif
 
 #define StaticFlag -static

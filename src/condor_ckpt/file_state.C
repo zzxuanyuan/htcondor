@@ -121,6 +121,7 @@ OpenFileTable::Display()
 		dprintf( D_ALWAYS, "%4d ", i );
 		file[i].Display();
 	}
+	dprintf( D_ALWAYS, "CWD = \"%s\"\n", cwd );
 
 	SetSyscalls( scm );
 }
@@ -406,6 +407,7 @@ OpenFileTable::DoSocket(int addr_family, int type, int protocol )
 	return user_fd;
 }
 
+extern "C" char *getwd( char * );
 
 void
 OpenFileTable::Save()
@@ -414,6 +416,7 @@ OpenFileTable::Save()
 	off_t	pos;
 	File	*f;
 
+	getwd( cwd );
 	for( i=0; i<MaxOpenFiles; i++ ) {
 		f = &file[i];
 		if( f->isOpen() && !f->isDup() ) {
@@ -430,6 +433,12 @@ OpenFileTable::Save()
 				abort();
 			}
 			f->offset = pos;
+
+				// Close shadow end so we don't have a fd leak if
+				// we're doing checkpoint/restart repetitively
+			if( f->isRemoteAccess() ) {
+				REMOTE_syscall( CONDOR_close, f->real_fd );
+			}
 		}
 	}
 }
@@ -468,6 +477,7 @@ OpenFileTable::Restore()
 	}
 
 
+	chdir( cwd );
 	for( i=0; i<MaxOpenFiles; i++ ) {
 		f = &file[i];
 		if( f->isOpen() && !f->isDup() && !f->isPreOpened() ) {
@@ -592,6 +602,7 @@ open( const char *path, int flags, ... )
 
 	if( LocalSysCalls() ) {
 		fd = syscall( SYS_open, path, flags, creat_mode );
+		strcpy( local_path, path );
 	} else {
 		status = REMOTE_syscall( CONDOR_file_info, path, &pipe_fd, local_path );
 		if( status < 0 ) {

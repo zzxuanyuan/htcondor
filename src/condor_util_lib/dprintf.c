@@ -61,7 +61,6 @@
 #	include "fake_flock.h"
 #endif
 
-
 FILE	*debug_lock();
 FILE	*fdopen();
 
@@ -86,7 +85,7 @@ int		_Condor_SwitchUids;
 char *DebugFlagNames[] = {
 	"D_ALWAYS", "D_TERMLOG", "D_SYSCALLS", "D_CKPT", "D_XDR", "D_MALLOC", 
 	"D_NOHEADER", "D_LOAD", "D_EXPR", "D_PROC", "D_JOB", "D_MACHINE",
-	"D_FULLDEBUG", "D_NFS", "D_UNDEF14", "D_UNDEF15", "D_UNDEF16",
+	"D_FULLDEBUG", "D_NFS", "D_UPDOWN", "D_AFS", "D_PREEMPT",
 	"D_UNDEF17", "D_UNDEF18", "D_UNDEF19", "D_UNDEF20", "D_UNDEF21",
 	"D_UNDEF22", "D_UNDEF23", "D_UNDEF24", "D_UNDEF25", "D_UNDEF26",
 	"D_UNDEF27", "D_UNDEF28", "D_UNDEF29", "D_UNDEF30", "D_UNDEF31",
@@ -137,12 +136,7 @@ va_dcl
 	long *clock;
 	int scm;
 #if !defined(OSF1)
-#define POSIX_SIGS 1
-#if POSIX_SIGS
 	sigset_t	mask, omask;
-#else
-	int	omask;
-#endif
 #endif
 	int saved_errno;
 	int	saved_flags;
@@ -166,19 +160,16 @@ va_dcl
 	scm = SetSyscalls( SYS_LOCAL | SYS_RECORDED );
 
 #if !defined(OSF1)
-#if POSIX_SIGS
-	sigfillset( &mask );
-	sigdelset( &mask, SIGTRAP );
-	sigprocmask( SIG_SETMASK, &mask, &omask );
-#else
 		/* Block any signal handlers which might try to print something */
-	if( ! InDBX ) {
-		/* Blocking signals makes dbx hang */
-		omask = sigblock( ~0 );
-	} else {
-		omask = sigblock( 0 );
-	}
-#endif
+	sigfillset( &mask );
+	sigdelset( &mask, SIGABRT );
+	sigdelset( &mask, SIGBUS );
+	sigdelset( &mask, SIGFPE );
+	sigdelset( &mask, SIGILL );
+	sigdelset( &mask, SIGQUIT );
+	sigdelset( &mask, SIGSEGV );
+	sigdelset( &mask, SIGTRAP );
+	sigprocmask( SIG_BLOCK, &mask, &omask );
 #endif
 
 		/* Open and lock the log file */
@@ -211,12 +202,8 @@ va_dcl
 	debug_unlock();
 
 #if !defined(OSF1)
-#if POSIX_SIGS
-	(void) sigprocmask( SIG_SETMASK, &omask, 0 );
-#else
 		/* Let them signal handlers go!! */
-	(void) sigsetmask( omask );
-#endif
+	(void) sigprocmask( SIG_SETMASK, &omask, 0 );
 #endif
 
 	(void) SetSyscalls( scm );

@@ -217,6 +217,10 @@ int rename( const char *from, const char *to ) {
 		they are generally used by Condor daemons, not user programs.  Thus,
 		they should be built in the special "clipped" version.
 		*/
+    int get_universe( int *univ_id ) : pseudo {
+        out xdr_int( univ_id );
+        alloc( univ_id, INT_SIZE );
+    }
 	int extern_name( const char *path, char *buf, int bufsize ) : pseudo {
 		SEND_PATH( path );
 		ALLOC_PATH( path );
@@ -228,6 +232,13 @@ int rename( const char *from, const char *to ) {
 		ALLOC_PATH( pathname );
 	}
 	int reallyexit( int *status, struct rusage *use_p ) : pseudo {
+		in xdr_int( status );
+		alloc( status, INT_SIZE );
+		in xdr_rusage( use_p );
+		alloc( use_p, RUSAGE_SIZE );
+		return( NEG_ONE );
+	}
+	int subproc_status(int id,int *status,struct rusage *use_p) : pseudo {
 		in xdr_int( status );
 		alloc( status, INT_SIZE );
 		in xdr_rusage( use_p );
@@ -289,7 +300,7 @@ int rename( const char *from, const char *to ) {
 	}
 
 
-#if !defined (SWITCH) && !defined(RECEIVER)
+#if !defined (SWITCH)
 	int pvm_info( const char *response, int mytid ) : pseudo {
 		SEND_PATH( response );
 		ALLOC_PATH( response );
@@ -470,10 +481,7 @@ int rename( const char *from, const char *to ) {
 		int poll();
 	}
 
-#if 0
-		/* conflicts with library routine in csim.  Also probably not
-		   a reasonable system call for Condor to support.
-		*/
+#if !defined(SWITCH) /* moved into separate .c file to avoid a name conflict */
 	int setpriority( int which, int who, int priority );
 #endif
 	int getpriority( int which, int who );
@@ -580,33 +588,35 @@ int rename( const char *from, const char *to ) {
 
 		/*
 		Things having to do with signals - we may support these
-		one day soon.
+		one day soon.  ...and now we do on some platforms -Todd 1/95 
 		*/
 	not_supported {
+#	if !defined(SAVE_SIGSTATE)
 		int sigprocmask( int how, const sigset_t *set, sigset_t *o_set );
 		int sigpending( sigset_t *set );
 		int sigreturn( struct sigcontext *scp );
-		int setitimer( int which, struct itimerval *value,
-											struct itimerval *oval );
-		int getitimer( int which, struct itimerval *value );
 		int sigsuspend( const sigset_t *mask );
 		int sigstack( struct sigstack *instack, struct sigstack *outstack );
 #	if defined( AIX32)
 		int kill( pid_t pid, int sig );
 #	else
-		int kill( pid_t pid, int sig ) : extract;
+        int kill( pid_t pid, int sig ) : extract;
 #	endif
+#endif  /* of !defined(SAVE_SIGSTATE) */
+		int setitimer( int which, struct itimerval *value,
+											struct itimerval *oval );
+		int getitimer( int which, struct itimerval *value );
 	}
 
 		/*
-		We don't support these, but we ignore attempts to do them remotely
+		We don't support these everywhere, but we ignore attempts to do them remotely
 		for the benefit of Fortran compilers...
 		*/
 	ignored {
-#	if defined( AIX32)
+#	if defined( AIX32) && !defined(SAVE_SIGSTATE)
 		int sigaction( int sig, const struct sigaction *act,
 						struct sigaction *o_act );
-#	else
+#	elif !defined (SAVE_SIGSTATE)
 		int sigaction( int sig, const struct sigaction *act,
 						struct sigaction *o_act ) : extract;
 #	endif
@@ -687,7 +697,9 @@ not_supported {
 	int getsockname( int socket, struct sockaddr *address, int addr_len );
 	int socket( int addr_family, int type, int protocol );
 	int connect( int sock, struct sockaddr *address, int addr_len );
+#if !defined(SWITCH) /* moved into separate .c file to avoid a name conflict */
 	int send( int socket, char *msg, int length, int flags );
+#endif
 	int recv( int socket, char *msg, int length, int flags );
 	int bind( int socket, struct sockaddr *address, int addr_len );
 	int listen( int socket, int backlog );

@@ -47,11 +47,17 @@ static char *_FileName_ = __FILE__;
 #endif
 
 extern int errno;
+extern int _condor_in_file_stream;
 
 const int KILO = 1024;
 
 extern "C" int open_ckpt_file( const char *name, int flags, size_t n_bytes );
 extern "C" void report_image_size( int );
+
+#ifdef SAVE_SIGSTATE
+extern "C" void condor_save_sigstates();
+extern "C" void condor_restore_sigstates();
+#endif
 
 #if defined(OSF1)
 	extern "C" unsigned int htonl( unsigned int );
@@ -67,11 +73,16 @@ extern "C" void report_image_size( int );
 
 void terminate_with_sig( int sig );
 void Suicide();
+static void find_stack_location( RAW_ADDR &start, RAW_ADDR &end );
+static int SP_in_data_area();
+static void calc_stack_to_save();
+extern "C" void _install_signal_handler( int sig, SIG_HANDLER handler );
 
 Image MyImage;
 static jmp_buf Env;
 static RAW_ADDR SavedStackLoc;
-
+int InRestart = FALSE;
+static size_t StackSaveSize;
 
 void
 Header::Init()
@@ -152,25 +163,32 @@ _condor_prestart( int syscall_mode )
 		// Initialize open files table
 	InitFileState();
 
-		// set up to catch SIGTSTP and do a checkpoint
-	action.sa_handler = (SIG_HANDLER)Checkpoint;
+		// Install initial signal handlers
+	_install_signal_handler( SIGTSTP, (SIG_HANDLER)Checkpoint );
+	_install_signal_handler( SIGUSR1, (SIG_HANDLER)Suicide );
+
+	calc_stack_to_save();
+
+}
+
+extern "C" void
+_install_signal_handler( int sig, SIG_HANDLER handler )
+{
+	int		scm;
+	struct sigaction action;
+
+	scm = SetSyscalls( SYS_LOCAL | SYS_UNMAPPED );
+
+	action.sa_handler = handler;
 	sigemptyset( &action.sa_mask );
 	action.sa_flags = 0;
 
-		// install the SIGTSTP handler
-	if( sigaction(SIGTSTP,&action,NULL) < 0 ) {
-		perror( "sigaction - TSTP handler" );
+	if( sigaction(sig,&action,NULL) < 0 ) {
+		perror( "sigaction" );
 		exit( 1 );
 	}
 
-		// install the SIGUSR1 handler
-	action.sa_handler = (SIG_HANDLER)Suicide;
-	if( sigaction(SIGUSR1,&action,NULL) < 0 ) {
-		perror( "sigaction - USR1 handler" );
-		exit( 1 );
-	}
-
-
+	SetSyscalls( scm );
 }
 
 
@@ -196,18 +214,17 @@ Image::Save()
 	AddSegment( "DATA", data_start, data_end );
 
 		// Set up stack segment
-	if( SavedStackLoc ) {
-		stack_start = SavedStackLoc;
-	} else {
-		stack_start = stack_start_addr();
-	}
-	stack_end = stack_end_addr();
+	find_stack_location( stack_start, stack_end );
 	AddSegment( "STACK", stack_start, stack_end );
 
 		// Calculate positions of segments in ckpt file
 	pos = sizeof(Header) + head.N_Segs() * sizeof(SegMap);
 	for( i=0; i<head.N_Segs(); i++ ) {
 		pos = map[i].SetPos( pos );
+	}
+
+	if( pos < 0 ) {
+		EXCEPT( "Internal error, ckpt size calculated is %d", pos );
 	}
 
 	dprintf( D_ALWAYS, "Size of ckpt image = %d bytes\n", pos );
@@ -462,6 +479,8 @@ Image::Write( int fd )
 	int		i;
 	ssize_t	pos = 0;
 	ssize_t	nbytes;
+	ssize_t ack;
+	int		status;
 
 		// Write out the header
 	if( (nbytes=write(fd,&head,sizeof(head))) < 0 ) {
@@ -483,12 +502,29 @@ Image::Write( int fd )
 		// Write out the Segments
 	for( i=0; i<head.N_Segs(); i++ ) {
 		if( (nbytes=map[i].Write(fd,pos)) < 0 ) {
+			dprintf( D_ALWAYS, "Write() of segment %d failed\n", i );
+			dprintf( D_ALWAYS, "errno = %d, nbytes = %d\n", errno, nbytes );
 			return -1;
 		}
 		pos += nbytes;
 		dprintf( D_ALWAYS, "Wrote Segment[%d] OK\n", i );
 	}
 	dprintf( D_ALWAYS, "Wrote all Segments OK\n" );
+
+		/* When using the stream protocol the shadow echo's the number
+		   of bytes transferred as a final acknowledgement. */
+	if( _condor_in_file_stream ) {
+		status = read( fd, &ack, sizeof(ack) );
+		if( status < 0 ) {
+			EXCEPT( "Can't read final ack from the shadow" );
+		}
+
+		ack = ntohl( ack );		// Ack is in network byte order, fix here
+		if( ack != len ) {
+			EXCEPT( "Ack - expected %d, but got %d\n", len, ack );
+		}
+	}
+
 	return 0;
 }
 
@@ -609,6 +645,13 @@ Checkpoint( int sig, int code, void *scp )
 {
 	int		scm;
 
+	dprintf( D_ALWAYS, "Entering Checkpoint()\n" );
+
+		// No sense trying to do a checkpoint in the middle of a
+		// restart, just quit leaving the current ckpt entact.
+	if( InRestart ) {
+		Suicide();
+	}
 
 	if( MyImage.GetMode() == REMOTE ) {
 		SetSyscalls( SYS_REMOTE | SYS_UNMAPPED );
@@ -618,32 +661,39 @@ Checkpoint( int sig, int code, void *scp )
 
 
 	dprintf( D_ALWAYS, "Got SIGTSTP\n" );
-	if( SETJMP(Env) == 0 ) {
+	if( SETJMP(Env) == 0 ) {	// Checkpoint
 		dprintf( D_ALWAYS, "About to save MyImage\n" );
+		InRestart = TRUE;	// not strictly true, but needed in our saved data
+#ifdef SAVE_SIGSTATE
+		dprintf( D_ALWAYS, "About to save signal state\n" );
+		condor_save_sigstates();
+		dprintf( D_ALWAYS, "Done saving signal state\n" );
+#endif
 		SaveFileState();
 		MyImage.Save();
 		MyImage.Write();
 		dprintf( D_ALWAYS,  "Ckpt exit\n" );
 		SetSyscalls( SYS_LOCAL | SYS_UNMAPPED );
 		terminate_with_sig( SIGUSR2 );
-	} else {
+	} else {					// Restart
 		scm = SetSyscalls( SYS_LOCAL | SYS_UNMAPPED );
 		patch_registers( scp );
 		MyImage.Close();
 
-#if 1
 		if( MyImage.GetMode() == REMOTE ) {
 			SetSyscalls( SYS_REMOTE | SYS_MAPPED );
 		} else {
 			SetSyscalls( SYS_LOCAL | SYS_MAPPED );
 		}
-#else
-		SetSyscalls( scm );
-#endif
-		syscall( SYS_write, 1, "About to restore files state\n", 29 );
 		RestoreFileState();
 		syscall( SYS_write, 1, "Done restoring files state\n", 27 );
+#ifdef SAVE_SIGSTATE
+		dprintf( D_ALWAYS, "About to restore signal state\n" );
+		condor_restore_sigstates();
+		dprintf( D_ALWAYS, "Done restoring signal state\n" );
+#endif
 		SetSyscalls( scm );
+		InRestart = FALSE;
 		syscall( SYS_write, 1, "About to return to user code\n", 29 );
 		return;
 	}
@@ -669,6 +719,8 @@ init_image_with_file_descriptor( int fd )
 void
 restart( )
 {
+	InRestart = TRUE;
+
 	MyImage.Read();
 	MyImage.Restore();
 }
@@ -710,8 +762,8 @@ void
 terminate_with_sig( int sig )
 {
 	sigset_t	mask;
-	struct sigaction	act;
 	pid_t		my_pid;
+	struct sigaction act;
 
 		// Make sure all system calls handled "straight through"
 	SetSyscalls( SYS_LOCAL | SYS_UNMAPPED );
@@ -719,7 +771,8 @@ terminate_with_sig( int sig )
 		// Make sure we have the default action in place for the sig
 	if( sig != SIGKILL && sig != SIGSTOP ) {
 		act.sa_handler = (SIG_HANDLER)SIG_DFL;
-		sigemptyset( &act.sa_mask );
+		// mask everything so no user-level sig handlers run
+		sigfillset( &act.sa_mask );
 		act.sa_flags = 0;
 		errno = 0;
 		if( sigaction(sig,&act,0) < 0 ) {
@@ -734,8 +787,10 @@ terminate_with_sig( int sig )
 		EXCEPT( "kill" );
 	}
 
-		// Wait to die...
-	sigemptyset( &mask );
+		// Wait to die... and mask all sigs except the one to kill us; this
+		// way a user's sig won't sneak in on us - Todd 12/94
+	sigfillset( &mask );
+	sigdelset( &mask, sig );
 	sigsuspend( &mask );
 
 		// Should never get here
@@ -751,6 +806,64 @@ void
 Suicide()
 {
 	terminate_with_sig( SIGKILL );
+}
+
+static void
+find_stack_location( RAW_ADDR &start, RAW_ADDR &end )
+{
+	if( SP_in_data_area() ) {
+		dprintf( D_ALWAYS, "Stack pointer in data area\n" );
+		if( StackGrowsDown() ) {
+			end = stack_end_addr();
+			start = end - StackSaveSize;
+		} else {
+			start = stack_start_addr();
+			end = start + StackSaveSize;
+		}
+	} else {
+		start = stack_start_addr();
+		end = stack_end_addr();
+	}
+}
+
+extern "C" double atof( const char * );
+
+const size_t	MEG = (1024 * 1024);
+
+void
+calc_stack_to_save()
+{
+	char	*ptr;
+
+	ptr = getenv( "CONDOR_STACK_SIZE" );
+	if( ptr ) {
+		StackSaveSize = (size_t) (atof(ptr) * MEG);
+	} else {
+		StackSaveSize = MEG * 2;	// default 2 megabytes
+	}
+}
+
+/*
+  Return true if the stack pointer points into the "data" area.  This
+  will often be the case for programs which utilize threads or co-routine
+  packages.
+*/
+static int
+SP_in_data_area()
+{
+	RAW_ADDR	data_start, data_end;
+	RAW_ADDR	SP;
+
+	data_start = data_start_addr();
+	data_end = data_end_addr();
+
+	if( StackGrowsDown() ) {
+		SP = stack_start_addr();
+	} else {
+		SP = stack_end_addr();
+	}
+
+	return data_start <= SP && SP <= data_end;
 }
 
 extern "C" {

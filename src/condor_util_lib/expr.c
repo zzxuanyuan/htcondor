@@ -465,10 +465,12 @@ get_string( elem )
 ELEM	*elem;
 {
 	char	*ptr;
-
+	char *tmpIn;
 	In++;
-	for( ptr=In; *ptr && *ptr != '"'; ptr++ )
-		;
+	tmpIn = strdup(In);
+
+	for( ptr=tmpIn; *ptr && *ptr != '"'; ptr++ )
+	  In++;
 
 	if( *ptr != '"' ) {
 		SCAN_ERROR( "Quote not closed" );
@@ -477,9 +479,9 @@ ELEM	*elem;
 
 	*ptr = '\0';
 	elem->type = STRING;
-	elem->s_val = strdup( In );
-	In = ptr + 1;
-	*ptr = '"';
+	elem->s_val = strdup( tmpIn );
+	In++;
+	free (tmpIn);
 	return elem;
 }
 
@@ -488,16 +490,17 @@ ELEM	*
 get_name( elem )
 ELEM	*elem;
 {
-	char	*ptr, tmp;
+	char	*ptr;
+	char *tmpIn = strdup(In);
 
-	for( ptr=In; ALPHA(*ptr); ptr++ )
-		;
-	tmp = *ptr;
+	for( ptr=tmpIn; ALPHA(*ptr); ptr++ )
+	  In++;
 	*ptr = '\0';
+	
 	elem->type = NAME;
-	elem->s_val = strdup( In );
-	*ptr = tmp;
-	In = ptr;
+	elem->s_val = strdup( tmpIn );
+	free (tmpIn);
+
 
 	if( strcmp(elem->s_val,"T") == MATCH ) {
 		FREE( elem->s_val );
@@ -549,10 +552,12 @@ ELEM	*elem;
 			dprintf( D_EXPR, "TYPE: %s\n", op );
 			break;
 		case NAME:
-			dprintf( D_EXPR, "TYPE: %s	VALUE: \"%s\"\n", op, elem->s_val);
-			break;
 		case STRING:
-			dprintf( D_EXPR, "TYPE: %s	VALUE: \"%s\"\n", op, elem->s_val);
+			if( elem->s_val ) {
+				dprintf( D_EXPR, "TYPE: %s	VALUE: \"%s\"\n", op, elem->s_val);
+			} else {
+				dprintf( D_EXPR, "TYPE: %s	VALUE: NULL\n", op );
+			}
 			break;
 		case FLOAT:
 			dprintf( D_EXPR, "TYPE: %s	VALUE: %f\n", op, elem->f_val );
@@ -638,10 +643,12 @@ FILE	*log_fp;
 			fprintf( log_fp, "(ERROR)" );
 			break;
 		case NAME:
-			fprintf( log_fp,  "%s", elem->s_val );
-			break;
 		case STRING:
-			fprintf( log_fp,  "%s", elem->s_val );
+			if( elem->s_val ) {
+				fprintf( log_fp,  "%s", elem->s_val );
+			} else {
+				fprintf( log_fp,  "NULL" );
+			}
 			break;
 		case FLOAT:
 			fprintf( log_fp,  "%f", elem->f_val );
@@ -1252,7 +1259,9 @@ ELEM	*elem;
 {
 	if( elem->type == STRING || elem->type == NAME ) {
 		/* FREE( elem->s_val ); */
-		free( elem->val.string_val );
+		if( elem->val.string_val ) {
+			free( elem->val.string_val );
+		}
 	}
 	FREE( (char *)elem );
 }
