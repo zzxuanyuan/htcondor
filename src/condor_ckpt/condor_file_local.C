@@ -124,12 +124,24 @@ int CondorFileLocal::fsync()
 void CondorFileLocal::checkpoint()
 {
 	report(0);
+
+	int scm = SetSyscalls(SYS_LOCAL|SYS_UNMAPPED);
+
+	#ifdef I_GETSIG
+	ioctl_sig = ioctl( I_GETSIG, 0 );
+	#endif
+
+	fcntl_fl = fcntl( F_GETFL, 0 );
+	fcntl_fd = fcntl( F_GETFD, 0 );
+
+	SetSyscalls(scm);
 }
 
 void CondorFileLocal::suspend()
 {
 	if(forced) return;
 	if(fd==-1) return;
+	checkpoint();
 	int scm = SetSyscalls(SYS_LOCAL|SYS_UNMAPPED);
 	::close(fd);
 	SetSyscalls(scm);
@@ -150,10 +162,19 @@ void CondorFileLocal::resume( int count )
 	else				flags = O_RDONLY;
 
 	int scm = SetSyscalls(SYS_LOCAL|SYS_UNMAPPED);
+
 	fd = ::open(name,flags);
 	if( fd==-1 ) {
 		_condor_file_warning("Unable to reopen local file %s after a checkpoint!\n",name);
 	}
+
+	#ifdef I_SETSIG
+	ioctl( I_SETSIG, ioctl_sig );
+	#endif
+
+	fcntl( F_SETFL, fcntl_fl );
+	fcntl( F_SETFD, fcntl_fd );
+
 	SetSyscalls(scm);
 }
 

@@ -66,11 +66,23 @@ int CondorFileRemote::write(int pos, char *data, int length) {
 void CondorFileRemote::checkpoint()
 {
 	report(0);
+
+	int scm = SetSyscalls(SYS_LOCAL|SYS_UNMAPPED);
+
+	#ifdef I_GETSIG
+	ioctl_sig = ioctl( I_GETSIG, 0 );
+	#endif
+
+	fcntl_fl = fcntl( F_GETFL, 0 );
+	fcntl_fd = fcntl( F_GETFD, 0 );
+
+	SetSyscalls(scm);
 }
 
 void CondorFileRemote::suspend()
 {
 	if(fd==-1) return;
+	checkpoint();
 	int scm = SetSyscalls(SYS_REMOTE|SYS_UNMAPPED);
 	::close(fd);
 	SetSyscalls(scm);
@@ -93,11 +105,20 @@ void CondorFileRemote::resume( int count )
 	}
 
 	int scm = SetSyscalls(SYS_REMOTE|SYS_UNMAPPED);
+
 	fd = ::open(name,flags,0);
-	SetSyscalls(scm);
 	if(fd<0) {
 		_condor_file_warning("Unable to re-open remote file %s after checkpoint!\n",name);
 	}
+
+	#ifdef I_SETSIG
+	ioctl( I_SETSIG, ioctl_sig );
+	#endif
+
+	fcntl( F_SETFL, fcntl_fl );
+	fcntl( F_SETFD, fcntl_fd );
+
+	SetSyscalls(scm);
 }
 
 /*
@@ -162,6 +183,15 @@ int CondorFileRemote::fcntl( int cmd, int arg )
 
 int CondorFileRemote::ioctl( int cmd, int arg )
 {
+	#ifdef I_SETSIG
+	if(cmd==I_SETSIG) {
+		int scm = SetSyscalls(SYS_REMOTE|SYS_UNMAPPED);
+		int result = ::ioctl( fd, cmd, arg );
+		SetSyscalls(scm);
+		return result;
+	}
+	#endif
+	
 	_condor_file_warning("ioctl(%d,%d,...) is not supported for remote files.",fd,cmd);
 	errno = EINVAL;
 	return -1;

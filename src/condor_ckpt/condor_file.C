@@ -23,6 +23,9 @@ void CondorFile::init() {
 	forced = 0;
 	read_count = write_count = seek_count = 0;
 	read_bytes = write_bytes = 0;
+	ioctl_sig = 0;
+	fcntl_fl = 0;
+	fcntl_fd = 0;
 }
 
 // Display this file in the log

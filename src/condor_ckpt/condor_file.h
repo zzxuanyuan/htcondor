@@ -103,6 +103,10 @@ protected:
 	int	resume_count;	// how many times have I been resumed?
 	int	forced;		// was I attached to an fd with force_open?
 
+	int	ioctl_sig;	// signal flag set by ioctl
+	int	fcntl_fl;	// file flags set by fcntl
+	int	fcntl_fd;	// fd flags set by fcntl
+
 	int	read_count, write_count, seek_count;
 	int	read_bytes, write_bytes;
 };
