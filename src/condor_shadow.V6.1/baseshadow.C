@@ -315,6 +315,26 @@ void BaseShadow::config()
 		useCkptServer = false;
 	}
 	if (tmp) free(tmp);
+
+	reconnect_ceiling = 0;
+	tmp = param( "RECONNECT_BACKOFF_CEILING" );
+	if( tmp ) {
+		reconnect_ceiling = atoi( tmp );
+		free( tmp );
+	} 
+	if( !reconnect_ceiling ) {
+		reconnect_ceiling = 300;
+	}
+
+	reconnect_e_factor = 0;
+	tmp = param( "RECONNECT_BACKOFF_FACTOR" );
+    if( tmp ) {
+        reconnect_e_factor = atof( tmp );
+		free( tmp );
+    } 
+	if( !reconnect_e_factor ) {
+    	reconnect_e_factor = 2.0;
+    }
 }
 
 
@@ -416,6 +436,21 @@ BaseShadow::shutDown( int reason )
 		// if we aren't trying to evaluate the user's policy, we just
 		// want to evict this job.
 	evictJob( reason );
+}
+
+
+int
+BaseShadow::nextReconnectDelay( int attempts )
+{
+	if( ! attempts ) {
+			// first time, do it right away
+		return 0;
+	}
+	int n = 9 + (int)ceil(pow(reconnect_e_factor, attempts));
+	if( n > reconnect_ceiling || n < 0 ) {
+		n = reconnect_ceiling;
+	}
+	return n;
 }
 
 

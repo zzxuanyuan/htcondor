@@ -112,6 +112,11 @@ class BaseShadow : public Service
 		 */
 	virtual bool supportsReconnect( void ) = 0;
 
+		/** Given our config parameters, figure out how long we should
+			delay until our next attempt to reconnect.
+		*/
+	int nextReconnectDelay( int attempts );
+
 		/**	Called by any part of the shadow that finally decides the
 			reconnect has completely failed, we should give up, try
 			one last time to release the claim, write a UserLog event
@@ -426,6 +431,8 @@ class BaseShadow : public Service
 	bool useAFS;
 	bool useNFS;
 	bool useCkptServer;
+	int reconnect_ceiling;
+	double reconnect_e_factor;
 
 	// job parameters
 	int cluster;
