@@ -540,8 +540,8 @@ condorSchedd__getJobAds(struct soap *s,
     extendTransaction(transaction);
 
     List<ClassAd> adList;
-    ClassAd *ad;
-    while (ad = GetNextJobByConstraint(constraint, 1)) {
+    ClassAd *ad = GetNextJobByConstraint(constraint, 1);
+    while (ad) {
       adList.Append(ad);
       ad = GetNextJobByConstraint(constraint, 0);
     }
