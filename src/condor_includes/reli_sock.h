@@ -139,7 +139,7 @@ public:
     ///
 	int authenticate( KeyInfo *& key, int clientFlags = 0 );
     ///
-    const char * getFullyQualifiedUser();
+    const char * getFullyQualifiedUser() const;
     ///
 	const char *getOwner();
     ///
@@ -233,6 +233,7 @@ protected:
 	Authentication * authob;
 	int is_client;
 	char *hostAddr;
+    char * fqu_;
 };
 
 #endif
