@@ -95,9 +95,12 @@ public:
 	Resource*	rip() {return resources[0];};
 
 	// Methods to control various timers
+	void	check_polling();		// See if we need to poll frequently
 	int		start_update_timer();	// Timer for updating the CM(s)
 	int		start_poll_timer();		// Timer for polling the resources
 	void	cancel_poll_timer();
+	void	reset_timers();			// Reset the period on our timers,
+									// in case the config has changed.
 
 	Resource*	get_by_pid(int);		// Find rip by pid of starter
 	Resource*	get_by_cur_cap(char*);	// Find rip by r_cur->capab

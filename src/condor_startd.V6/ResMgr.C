@@ -29,6 +29,8 @@ ResMgr::ResMgr()
 	coll_sock = NULL;
 	view_sock = NULL;
 	this->init_socks();
+	up_tid = -1;
+	poll_tid = -1;
 
 	m_attr = new MachAttributes;
 }
@@ -281,6 +283,7 @@ ResMgr::first_eval_and_update_all()
 	num_updates = 0;
 	walk( Resource::eval_and_update );
 	report_updates();
+	check_polling();
 }
 
 
@@ -291,6 +294,7 @@ ResMgr::eval_and_update_all()
 	compute( A_TIMEOUT | A_UPDATE );
 	walk( Resource::eval_and_update );
 	report_updates();
+	check_polling();
 }
 
 
@@ -301,6 +305,7 @@ ResMgr::eval_all()
 	compute( A_TIMEOUT );
 	walk( Resource::eval_state );
 	report_updates();
+	check_polling();
 }
 
 
@@ -379,6 +384,17 @@ ResMgr::assign_load()
 }
 
 
+void
+ResMgr::check_polling()
+{
+	if( in_use() ) {
+		start_poll_timer();
+	} else {
+		cancel_poll_timer();
+	}
+}
+
+
 int
 ResMgr::start_update_timer()
 {
@@ -408,6 +424,7 @@ ResMgr::start_poll_timer()
 	if( poll_tid < 0 ) {
 		EXCEPT( "Can't register DaemonCore timer" );
 	}
+	dprintf( D_FULLDEBUG, "Started polling timer.\n" );
 	return TRUE;
 }
 
@@ -419,6 +436,20 @@ ResMgr::cancel_poll_timer()
 		daemonCore->Cancel_Timer( poll_tid );
 		poll_tid = -1;
 		dprintf( D_FULLDEBUG, "Canceled polling timer.\n" );
+	}
+}
+
+
+void
+ResMgr::reset_timers()
+{
+	if( poll_tid != -1 ) {
+		daemonCore->Reset_Timer( poll_tid, polling_interval, 
+								 polling_interval );
+	}
+	if( up_tid != -1 ) {
+		daemonCore->Reset_Timer( up_tid, update_interval, 
+								 update_interval );
 	}
 }
 
