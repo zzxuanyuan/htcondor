@@ -90,7 +90,7 @@ SetMasterProxy( Proxy *master, const Proxy *copy_src )
 }
 
 // Initialize the ProxyManager module. proxy_dir is the directory in
-// which the module should place the "master" proxy file.
+// which the module should place the "master" proxy files.
 bool InitializeProxyManager( const char *proxy_dir )
 {
 	if ( proxymanager_initialized == true ) {
@@ -112,16 +112,10 @@ bool InitializeProxyManager( const char *proxy_dir )
 // will be signalled when something interesting happens with the proxy
 // (it's about to expire or has been refreshed). A Proxy struct will be
 // returned. When the Proxy is no longer needed, ReleaseProxy() should be
-// called with it. No blocking operations are performed, and the proxy will
-// not be cached in the GAHP server when AcquireProxy() returns.
-// If Proxy.id is set to a negative value, it's not ready for
-// use yet with any GAHP commands. Once it is ready, Proxy.id
-// will be set to set to the GAHP cache id (a non-negative number) and
-// notify_tid will be signalled. If no notifications are desired, give a
+// called with it. If no notifications are desired, give a
 // negative number for notify_tid or omit it. Note the the Proxy returned
 // is a shared data-structure and shouldn't be delete'd or modified by
-// the caller. If NULL is given for proxy_path, a refernce to the "master"
-// proxy is returned.
+// the caller.
 Proxy *
 AcquireProxy( const char *proxy_path, int notify_tid )
 {
@@ -146,7 +140,7 @@ AcquireProxy( const char *proxy_path, int notify_tid )
 	}
 
 	// We don't know about this proxy yet,
-	// create a new Proxy struct and...
+	// find the proxy's expiration time and subject name
 	expire_time = x509_proxy_expiration_time( proxy_path );
 	if ( expire_time < 0 ) {
 		dprintf( D_ALWAYS, "Failed to get expiration time of proxy %s\n",
@@ -159,6 +153,7 @@ AcquireProxy( const char *proxy_path, int notify_tid )
 		return NULL;
 	}
 
+	// Create a Proxy struct for our new proxy and populate it
 	proxy = new Proxy;
 	proxy->proxy_filename = strdup(proxy_path);
 	proxy->num_references = 1;
@@ -201,6 +196,8 @@ AcquireProxy( const char *proxy_path, int notify_tid )
 
 	proxy->subject = proxy_subject;
 
+	// If the new Proxy is longer-lived than the current master proxy for
+	// this subject, copy it for the new master.
 	if ( proxy->expiration_time > proxy_subject->master_proxy->expiration_time ) {
 			SetMasterProxy( proxy_subject->master_proxy, proxy );
 	}
@@ -276,11 +273,9 @@ void doCheckProxies()
 	}
 }
 
-// Most of the heavy lifting occurs here. All interaction with the GAHP
-// server (aside from startup) happens here. This function is called
+// This function is called
 // periodically to check for updated proxies. It can be called earlier
-// if a new proxy shows up, an old proxy can be removed, or a proxy is
-// about to expire.
+// if a proxy is about to expire.
 int CheckProxies()
 {
 	int now = time(NULL);
