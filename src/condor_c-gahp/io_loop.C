@@ -41,6 +41,8 @@ io_loop(void * arg, Stream * sock) {
 	close (inter_thread_io->request_pipe[0]);
 	close (inter_thread_io->result_pipe[1]);
 
+	bool worker_ready = false;
+
 	dprintf (D_FULLDEBUG,"In io_loop\n");
 
 	int async_mode = 0;
@@ -84,13 +86,19 @@ io_loop(void * arg, Stream * sock) {
 			return 1;
 		}
 
-		if (is_ready[3]) {
-			// Worker is ready for more requests, flush one
+		if (is_ready[2]) {
+			// Worker is ready for more requests
 			char dummy;
-			
-			if (flush_next_request(inter_thread_io->request_pipe[1]))
-				read (request_ack_buffer.getFd(), &dummy, 1);	// Read the signal
+			worker_ready=true;
+			read (request_ack_buffer.getFd(), &dummy, 1);	// Swallow the "ready" signal
 		}
+
+		if(worker_ready) {
+			if (flush_next_request(inter_thread_io->request_pipe[1])) {
+				worker_ready=false;
+			}
+		}
+
 
 		if (is_ready[0]) {
 
@@ -419,7 +427,7 @@ gahp_output_return (const char ** results, const int count) {
 			printf (" ");
 		}
 	}
-	
+
 
 	printf ("\n");
 	fflush(stdout);
