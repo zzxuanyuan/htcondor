@@ -301,12 +301,13 @@ int SafeSock::get_bytes(void *dta, int size)
     unsigned char * dec;
 
 	if(_longMsg) {
-            // long message 
-            readSize = _longMsg->getn(tempBuf, size);
-        }
-	else { // short message
-            readSize = _shortMsg.getn(tempBuf, size);
-        }
+        // long message 
+        readSize = _longMsg->getn(tempBuf, size);
+    }
+	else { 
+        // short message
+        readSize = _shortMsg.getn(tempBuf, size);
+    }
 
 	if(readSize == size) {
             if (get_encryption()) {
@@ -446,7 +447,7 @@ int SafeSock::handle_incoming_packet()
 
 	received = recvfrom(_sock, _shortMsg.dataGram, SAFE_MSG_MAX_PACKET_SIZE,
 	                    0, (struct sockaddr *)&_who, &fromlen );
-    _shortMsg.setVerified(false);
+    _shortMsg.setVerified(false);  // check MD if necessary
 	if(received < 0) {
 		dprintf(D_NETWORK, "recvfrom failed: errno = %d\n", errno);
 		return FALSE;
@@ -527,7 +528,8 @@ int SafeSock::handle_incoming_packet()
     } else { // not found
         if(prev) { // add a new message at the end of the chain
             prev->nextMsg = new _condorInMsg(mID, last, seqNo, length, data, 
-                                             _shortMsg.isDataMD5ed(), _shortMsg.md(), prev);
+                                             _shortMsg.isDataMD5ed(), _shortMsg.md(), 
+                                             _shortMsg.isDataEncrypted(), prev);
             if(!prev->nextMsg) {    
                 EXCEPT("Error:handle_incomming_packet: Out of Memory");
             }
@@ -535,7 +537,8 @@ int SafeSock::handle_incoming_packet()
             return FALSE;
         } else { // first message in the bucket
             _inMsgs[index] = new _condorInMsg(mID, last, seqNo, length, data, 
-                                              _shortMsg.isDataMD5ed(), _shortMsg.md(), NULL);
+                                              _shortMsg.isDataMD5ed(), _shortMsg.md(), 
+                                              _shortMsg.isDataEncrypted(), NULL);
             if(!_inMsgs[index]) {
                 EXCEPT("Error:handle_incomming_packet: Out of Memory");
             }
@@ -619,23 +622,61 @@ char * SafeSock::serialize(char *buf)
 
 const char * SafeSock :: isIncomingDataMD5ed()
 {
-    if(_longMsg) {
-        // long message 
-        return _longMsg->isDataMD5ed();
+    char c;
+    if (!peek(c)) {
+        return 0;
     }
-	else { // short message
-        return _shortMsg.isDataMD5ed();
+    else {
+        if(_longMsg) {
+            // long message 
+            return _longMsg->isDataMD5ed();
+        }
+        else { // short message
+            return _shortMsg.isDataMD5ed();
+        }
     }
+}
+
+const char * SafeSock :: isIncomingDataEncryted()
+{
+    char c;
+    if (!peek(c)) {
+        return 0;
+    }
+    else {
+        if(_longMsg) {
+            // long message 
+            return _longMsg->isDataEncrypted();
+        }
+        else { // short message
+            return _shortMsg.isDataEncrypted();
+        }
+    }
+}
+
+bool SafeSock :: set_encryption_id(const char * keyId)
+{
+    bool inited = true;
+/*
+    inited &= _shortMsg.set_encryption_id(key);
+
+    if (_longMsg) {
+        inited &= _longMsg->set_encryption_id(key);
+    }
+*/
+    inited &= _outMsg.set_encryption_id(keyId);
+
+    return inited;
 }
 
 bool SafeSock :: init_MD(CONDOR_MD_MODE mode, KeyInfo * key, const char * keyId)
 {
     bool inited = true;
    
-    inited &= _shortMsg.init_MD(false, key);
+    inited &= _shortMsg.init_MD(false, key); // For incoming message, we don't need to set keyId
 
     if (_longMsg) {
-        inited &= _longMsg->init_MD(key);
+        inited &= _longMsg->init_MD(key);    // For incoming message, we don't need to set keyId
     }
     
     inited &= _outMsg.init_MD(key, keyId);
