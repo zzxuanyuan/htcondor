@@ -1681,19 +1681,20 @@ check_iwd( char *iwd )
 void
 SetUserLog()
 {
-	char *ulog = condor_param(UserLogFile);
+	char *ulog_entry = condor_param(UserLogFile);
 
-	if (ulog) {
-		if (whitespace(ulog)) {
+	if (ulog_entry) {
+		if (whitespace(ulog_entry)) {
 			fprintf(stderr,"Only one %s can be specified.\n", UserLogFile);
 			DoCleanup(0,0,NULL);
 			exit( 1 );
 		}
+		char *ulog = full_path(ulog_entry,false);
+		free(ulog_entry);
 		check_path_length(ulog, UserLogFile);
 		(void) sprintf(buffer, "%s = \"%s\"", ATTR_ULOG_FILE, ulog);
 		InsertJobExpr(buffer);
 		UserLogSpecified = true;
-		free(ulog);
 	}
 }
 
