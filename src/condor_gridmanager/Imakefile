@@ -9,7 +9,7 @@ ORACLE_JOB_LIB = /scratch.local.1/jfrey/oracle/OraHome1/lib/libclient9.a /scratc
 
 #if NORDUGRID_UNIVERSE
 NORDUGRID_JOB_FLAGS = -DNORDUGRID_UNIVERSE -I/p/condor/workspaces/jfrey/ftp_lite/include
-NORDUGRID_JOB_OBJ = nordugridjob.o
+NORDUGRID_JOB_OBJ = nordugridjob.o nordugridresource.o
 NORDUGRID_JOB_LIB = /p/condor/workspaces/jfrey/ftp_lite/lib/libftp_lite.a
 #endif
 

@@ -12,12 +12,15 @@
 #include "ftp_lite.h"
 
 #include "basejob.h"
+#include "nordugridresource.h"
 
 void NordugridJobInit();
 void NordugridJobReconfig();
 bool NordugridJobAdMatch( const ClassAd *jobad );
 bool NordugridJobAdMustExpand( const ClassAd *jobad );
 BaseJob *NordugridJobCreate( ClassAd *jobad );
+
+class NordugridResource;
 
 class NordugridJob : public BaseJob
 {
@@ -52,12 +55,13 @@ class NordugridJob : public BaseJob
 	char *remoteJobId;
 
 	ftp_lite_server *ftp_srvr;
+	NordugridResource *myResource;
 
+		// Used by doStageIn() and doStageOut()
 	StringList *stage_list;
 
-	char *doSubmit();
-	int doCommit();
-	int doStatus();
+	int doSubmit( char *&job_id );
+	int doStatus( int &new_status );
 	int doRemove();
 	int doStageIn();
 	int doStageOut();
