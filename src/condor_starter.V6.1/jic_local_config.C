@@ -29,7 +29,8 @@
 #include "jic_local_config.h"
 
 
-JICLocalConfig::JICLocalConfig( const char* keyword ) : JICLocal()
+JICLocalConfig::JICLocalConfig( const char* keyword, int cluster, 
+								int proc, int subproc ) : JICLocal()
 {
 	if( keyword ) {
 		key = strdup( keyword );
@@ -37,6 +38,9 @@ JICLocalConfig::JICLocalConfig( const char* keyword ) : JICLocal()
 		EXCEPT( "Can't instantiate a JICLocalConfig object without "
 				"a keyword" );
 	}
+	job_cluster = cluster;
+	job_proc = proc;
+	job_subproc = subproc;
 }
 
 
@@ -57,17 +61,13 @@ JICLocalConfig::getLocalJobAd( void )
 	job_ad = new ClassAd();
 
 		// first, things we absolutely need
-	if( !getUniverse(job_ad, key) ) { return false; }
+	if( !getUniverse(job_ad, key) ) { 
+		return false;
+	}
 	if( !getConfigString(job_ad, key, 1, ATTR_JOB_CMD, "executable")) {
 		return false;
 	}
 	if( !getConfigString(job_ad, key, 1, ATTR_JOB_IWD, "initialdir")) {
-		return false;
-	}
-	if( !getConfigInt(job_ad, key, 1, ATTR_CLUSTER_ID, "cluster")) {
-		return false;
-	}
-	if( !getConfigInt(job_ad, key, 1, ATTR_PROC_ID, "proc")) {
 		return false;
 	}
 
@@ -84,6 +84,8 @@ JICLocalConfig::getLocalJobAd( void )
 	getConfigString( job_ad, key, 0, ATTR_JOB_ENVIRONMENT, "environment" );
 	getConfigString( job_ad, key, 0, ATTR_JAR_FILES, "jar_files" );
 	getConfigInt( job_ad, key, 0, ATTR_KILL_SIG, "kill_sig" );
+	getConfigInt( job_ad, key, 0, ATTR_CLUSTER_ID, "cluster" );
+	getConfigInt( job_ad, key, 1, ATTR_PROC_ID, "proc" );
 	getConfigBool( job_ad, key, 0, ATTR_STARTER_WAIT_FOR_DEBUG, 
 				   "starter_wait_for_debug" );
 	getConfigString( job_ad, key, 0, ATTR_STARTER_ULOG_FILE, "log" );
