@@ -1743,7 +1743,18 @@ void Scheduler::StartJobHandler() {
 				mrec->peer, mrec->id, job_id->cluster, job_id->proc);
 	}
 
-	pid = daemonCore->Create_Process(Shadow, args);
+        /* Get shadow's nice increment: */
+    char *shad_nice = param( "SHADOW_RENICE_INCREMENT" );
+    int niceness = 0;
+    if ( shad_nice ) {
+        niceness = atoi( shad_nice );
+        free( shad_nice );
+    }
+
+	pid = daemonCore->Create_Process(Shadow, args, PRIV_UNKNOWN, 1, 
+                                     TRUE, NULL, NULL, FALSE, NULL, NULL, 
+                                     niceness );
+
 	if (pid == FALSE) {
 		dprintf( D_ALWAYS, "CreateProcess(%s, %s) failed\n", Shadow, args );
 		pid = -1;
