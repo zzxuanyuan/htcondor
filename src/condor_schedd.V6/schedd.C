@@ -5391,6 +5391,9 @@ Scheduler::start_local_universe_job( PROC_ID* job_id )
 		return NULL;
 	}
 
+	dprintf( D_ALWAYS, "Spawned local starter (pid %d) for job %d.%d\n",
+			 pid, job_id->cluster, job_id->proc );
+
 	mark_job_running( job_id );
 	SetAttributeInt( job_id->cluster, job_id->proc, ATTR_CURRENT_HOSTS, 1 );
 	return add_shadow_rec(pid, job_id, NULL, -1);
