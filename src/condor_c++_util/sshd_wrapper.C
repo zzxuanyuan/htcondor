@@ -257,7 +257,7 @@ SshdWrapper::sendPrivateKeyAndContactFile(const char* contactFileSrc)
 
 // Need cluster & node id ?
 char* 
-SshdWrapper::generateContactFileLine(int cluster, int node)
+SshdWrapper::generateContactFileLine(int cluster)
 {
 	return 0;
 }
