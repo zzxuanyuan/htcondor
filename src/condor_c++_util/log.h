@@ -35,12 +35,17 @@
    type (void *) for generality.
 */
 
+#include "condor_classad.h"
+
 class LogRecord {
+
 public:
 	
 	LogRecord();
 	virtual ~LogRecord();
 	int get_op_type() { return op_type; }
+	char* get_key() { return key; }
+	ClassAd* get_ad() { return Ad; }
 
 	bool Write(FILE *fp);
 	bool Read(FILE *fp);
@@ -51,14 +56,17 @@ public:
 	virtual void Play(void*) { return; };
 
 protected:
+
 	bool readword(FILE*, char *&);
 	bool readline(FILE*, char *&);
-	int op_type;	/* This is the type of operation being performed */
 
 	bool WriteHeader(FILE *fp);
 	virtual bool WriteBody(FILE *) { return true; }
 	bool WriteTail(FILE *fp);
 
+	int op_type;	/* This is the type of operation being performed */
+	char* key;
+	ClassAd* Ad;
 };
 
 #endif

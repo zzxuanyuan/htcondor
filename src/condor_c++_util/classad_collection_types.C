@@ -6,10 +6,9 @@
 #include "classad_collection.h"
 
 static char *_FileName_ = __FILE__;
-static bool makePartitionHashKey( ClassAd *, StringSet &, MyString & );
 
 BaseCollection::
-BaseCollection(int parent, const MyString& rank) : childItors( 4 ), contentItors( 4 )
+BaseCollection(BaseCollection* parent, const MyString& rank) : childItors( 4 ), contentItors( 4 )
 {
     Parent=parent;
     ClassAd *ad = new ClassAd( );
@@ -26,7 +25,7 @@ BaseCollection(int parent, const MyString& rank) : childItors( 4 ), contentItors
 }
 
 BaseCollection::
-BaseCollection(int parent, ExprTree *tree) : childItors( 4 ), contentItors( 4 )
+BaseCollection(BaseCollection* parent, ExprTree *tree) : childItors( 4 ), contentItors( 4 )
 {
     Parent=parent;
     ClassAd *ad = new ClassAd( );
@@ -117,7 +116,7 @@ UnregisterContentItor( CollContentIterator *itor )
 
 
 ConstraintCollection::
-ConstraintCollection(int parent, const MyString& rank, const MyString& constraint)
+ConstraintCollection(BaseCollection* parent, const MyString& rank, const MyString& constraint)
 	: BaseCollection(parent,rank)
 {
 	ClassAd *ad = new ClassAd( );
@@ -126,7 +125,7 @@ ConstraintCollection(int parent, const MyString& rank, const MyString& constrain
 }
 
 ConstraintCollection::
-ConstraintCollection(int parent,ExprTree *rank, ExprTree *constraint)
+ConstraintCollection(BaseCollection* parent,ExprTree *rank, ExprTree *constraint)
 	: BaseCollection(parent,rank)
 {
 	if( constraint && rank ) {
@@ -148,5 +147,11 @@ CheckClassAd(ClassAd* Ad)
 		 val.IsBooleanValue( b ) && b );
 	constraintCtx.RemoveRightAd( );
 	return( rval );
+}
+
+bool PartitionChild::
+CheckClassAd(ClassAd* Ad)
+{
+	return true;
 }
 

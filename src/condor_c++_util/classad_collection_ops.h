@@ -45,8 +45,6 @@ protected:
     virtual bool WriteBody(FILE*);
     virtual bool ReadBody(FILE*);
 
-    char *key;
-    ClassAd* Ad;
 	bool Executed;
 };
 
@@ -69,8 +67,6 @@ public:
 protected:
     virtual bool WriteBody(FILE *fp);
     virtual bool ReadBody(FILE *);
-
-    char *key;
 };
 
 //----------------------------------------------------------

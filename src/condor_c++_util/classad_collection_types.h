@@ -55,8 +55,8 @@ class CollContentIterator;
 class BaseCollection {
 public:
 
-	BaseCollection(int parent, const MyString& rank);
-	BaseCollection(int parent, ExprTree *tree);
+	BaseCollection(BaseCollection* parent, const MyString& rank);
+	BaseCollection(BaseCollection* parent, ExprTree *tree);
 	virtual ~BaseCollection( );
 
 	virtual bool CheckClassAd(ClassAd* Ad)=0;
@@ -64,6 +64,8 @@ public:
 
 	ExprTree *GetRankExpr();
 	double GetRankValue( ClassAd* ad );
+
+	BaseCollection* GetParent() { return Parent; }
 
 		// iterator management
 	void RegisterChildItor( CollChildIterator* );
@@ -80,7 +82,9 @@ public:
 	IntegerSet 		Children;
 	RankedAdSet 	Members;
 	MatchClassAd 	rankCtx;
-    int Parent;
+
+protected:
+    BaseCollection* Parent;
 };
 
 //-------------------------------------------------------------------------
@@ -88,13 +92,13 @@ public:
 class ExplicitCollection : public BaseCollection {
 public:
 
-	ExplicitCollection(int parent, const MyString& rank, bool fullFlag) 
+	ExplicitCollection(BaseCollection* parent, const MyString& rank, bool fullFlag) 
 		: BaseCollection(parent, rank) 
 	{
 		FullFlag=fullFlag;
 	}
 
-	ExplicitCollection(int parent, ExprTree *rank, bool fullFlag) 
+	ExplicitCollection(BaseCollection* parent, ExprTree *rank, bool fullFlag) 
 		: BaseCollection(parent,rank) 
 	{
 		FullFlag=fullFlag;
@@ -110,8 +114,8 @@ public:
 
 class ConstraintCollection : public BaseCollection {
 public:
-	ConstraintCollection(int parent, const MyString& rank, const MyString& constraint);
-	ConstraintCollection(int parent, ExprTree *rank, ExprTree *constraint);
+	ConstraintCollection(BaseCollection* parent, const MyString& rank, const MyString& constraint);
+	ConstraintCollection(BaseCollection* parent, ExprTree *rank, ExprTree *constraint);
 	virtual bool CheckClassAd(ClassAd* Ad);
 
 	virtual int Type() { return ConstraintCollection_e; }
@@ -125,13 +129,13 @@ public:
 class PartitionParent : public BaseCollection {
 public:
 
-	PartitionParent(int parent, const MyString& rank, StringSet& attributes)
+	PartitionParent(BaseCollection* parent, const MyString& rank, StringSet& attributes)
 		: BaseCollection(parent,rank), childPartitions( 27, partitionHashFcn )
 	{
 		Attributes=attributes;
 	}
 
-	PartitionParent(int parent, ExprTree *rank, StringSet& attributes)
+	PartitionParent(BaseCollection* parent, ExprTree *rank, StringSet& attributes)
 		: BaseCollection(parent,rank), childPartitions( 27, partitionHashFcn )
 	{
 		Attributes=attributes;
@@ -149,12 +153,12 @@ public:
 class PartitionChild : public BaseCollection {
 public:
 
-	PartitionChild(int parent, ExprTree *rank, MyString& values) :BaseCollection(parent,rank) 
+	PartitionChild(BaseCollection* parent, ExprTree *rank, MyString& values) :BaseCollection(parent,rank) 
 	{
 		PartitionValues=values;
 	}
 
-	virtual bool CheckClassAd(ClassAd*) { return true; }
+	virtual bool CheckClassAd(ClassAd*);
 	virtual int Type() { return PartitionChild_e; }
 
 	MyString PartitionValues;

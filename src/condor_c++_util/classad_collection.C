@@ -19,7 +19,7 @@ ClassAdCollection::ClassAdCollection(const char* filename, ExprTree* rank)
     active_transaction = NULL;
     log_fp = NULL;
     LastCoID=0;
-    Collections.insert(LastCoID,new ExplicitCollection(-1,rank,true));
+    Collections.insert(LastCoID,new ExplicitCollection(NULL,rank,true));
     if (filename) ReadLog(filename);
 }
 
@@ -32,7 +32,7 @@ ClassAdCollection::ClassAdCollection(const char* filename, const MyString& rank)
     active_transaction = NULL;
     log_fp = NULL;
     LastCoID=0;
-    Collections.insert(LastCoID,new ExplicitCollection(-1,rank,true));
+    Collections.insert(LastCoID,new ExplicitCollection(NULL,rank,true));
     if (filename) ReadLog(filename);
 }
 
@@ -209,6 +209,8 @@ ClassAdCollection::AbortTransaction()
 }
 
 //----------------------------------------------------------------------------
+// Commit a transaction
+//----------------------------------------------------------------------------
 
 void
 ClassAdCollection::CommitTransaction()
@@ -224,15 +226,74 @@ ClassAdCollection::CommitTransaction()
 }
 
 //----------------------------------------------------------------------------
+// Lookup a class-ad
+//----------------------------------------------------------------------------
 
-/*
-int
-ClassAdCollection::LookupInTransaction(const char *key, const char *name,
-    ExprTree *&expr)
+bool ClassAdCollection::IsActiveTransaction()
 {
-    return 0;
+	return (active_transaction!=NULL);
 }
-*/
+
+//----------------------------------------------------------------------------
+// Lookup a class-ad
+//----------------------------------------------------------------------------
+
+ClassAd* ClassAdCollection::LookupClassAd(const char* key)
+{
+    ClassAd* Ad=NULL;
+    table.lookup(HashKey(key), Ad);
+    return Ad;
+}
+
+//----------------------------------------------------------------------------
+// Lookup a class-ad including transaction updates (returns a new ad)
+//----------------------------------------------------------------------------
+
+ClassAd* ClassAdCollection::LookupInTransaction(const char *key)
+{
+	ClassAd* Ad=LookupClassAd(key);
+	bool Duplicated=false;
+	ClassAd* tmpAd;
+    if (active_transaction) {
+	    for (LogRecord *log = active_transaction->FirstEntry(); log;
+			log = active_transaction->NextEntry(log)) {
+			switch (log->get_op_type()) {
+				case CondorLogOp_CollNewClassAd:
+					if (strcmp(log->get_key(),key)==0) {
+						if (Duplicated) {
+							delete Ad;
+							Duplicated=false;
+						}
+						Ad=log->get_ad();
+					}
+					break;
+				case CondorLogOp_CollUpdateClassAd:
+					if (strcmp(log->get_key(),key)==0) {
+						if (!Duplicated) {
+							Ad=new ClassAd(*Ad);
+							Duplicated=false;
+						}
+						tmpAd=log->get_ad();
+						Ad->Update(*tmpAd);
+					}
+					break;
+				case CondorLogOp_CollDestroyClassAd:
+					if (strcmp(log->get_key(),key)==0) {
+						if (Duplicated) {
+							delete Ad;
+							Duplicated=false;
+						}
+						Ad=NULL;
+					}
+					break;
+				default:
+					break;
+			}
+		}
+	}
+	if (!Duplicated && Ad) Ad=new ClassAd(*Ad);
+	return Ad;
+}
 
 //----------------------------------------------------------------------------
 
@@ -388,45 +449,6 @@ void ClassAdCollection::PlayUpdateClassAd(const char *key, ClassAd* upd_ad)
 }
 
 //-----------------------------------------------------------------------
-/** Create an Explicit Collection - create a new collection as a child of
-an exisiting collection. This operation, as well as other collection management
-operation is not logged.
-Input: ParentCoID - the ID of the parent collection
-       Rank - the rank expression for the collection
-       FullFlag - indicates wether ads which are added to the parent should 
-	   	automatically be added to the child
-Output: the new collectionID
-*/
-//-----------------------------------------------------------------------
-
-/*
-int ClassAdCollection::CreateExplicitCollection(int ParentCoID, 
-	const MyString& Rank, bool FullFlag)
-{
-	// Lookup the parent
-	BaseCollection* Parent;
-	if (Collections.lookup(ParentCoID,Parent)==-1) return -1;
-
-	// Initialize and insert to collection table
-	ExplicitCollection* Coll=new ExplicitCollection(ParentCoID,Rank,FullFlag);
-	int CoID=LastCoID+1;
-	if (Collections.insert(CoID,Coll)==-1) return -1;
-	LastCoID=CoID;
-
-	// Add to parent's children
-	Parent->Children.Add(CoID);
-
-	// Add Parents members to new collection
-	RankedClassAd RankedAd;
-	Parent->Members.StartIterations();
-	while(Parent->Members.Iterate(RankedAd)) {
-		AddClassAd(CoID,RankedAd.OID);
-	}
-	return CoID;
-}
-*/
-
-//-----------------------------------------------------------------------
 /** Create a constraint Collection - create a new collection as a child of
 an exisiting collection. This operation, as well as other collection management
 operation is not logged.
@@ -445,7 +467,7 @@ int ClassAdCollection::CreateConstraintCollection(int ParentCoID,
 	if (Collections.lookup(ParentCoID,Parent)==-1) return -1;
 
 	// Initialize and insert to collection table
-	ConstraintCollection* Coll=new ConstraintCollection(ParentCoID,Rank,Constraint);
+	ConstraintCollection* Coll=new ConstraintCollection(Parent,Rank,Constraint);
 	int CoID=LastCoID+1;
 	if (Collections.insert(CoID,Coll)==-1) return -1;
 	LastCoID=CoID;
@@ -473,7 +495,7 @@ int ClassAdCollection::CreatePartition(int ParentCoID, const MyString& Rank,
 	if (Collections.lookup(ParentCoID,Parent)==-1) return -1;
 
 	// Initialize and insert to collection table
-	PartitionParent* Coll=new PartitionParent(ParentCoID,Rank,AttrList);
+	PartitionParent* Coll=new PartitionParent(Parent,Rank,AttrList);
 	int CoID=LastCoID+1;
 	if (Collections.insert(CoID,Coll)==-1) return -1;
 	LastCoID=CoID;
@@ -499,7 +521,7 @@ int ClassAdCollection::CreatePartition(int ParentCoID, ExprTree *Rank,
 	if (Collections.lookup(ParentCoID,Parent)==-1) return -1;
 
 	// Initialize and insert to collection table
-	PartitionParent* Coll=new PartitionParent(ParentCoID,Rank,AttrList);
+	PartitionParent* Coll=new PartitionParent(Parent,Rank,AttrList);
 	int CoID=LastCoID+1;
 	if (Collections.insert(CoID,Coll)==-1) return -1;
 	LastCoID=CoID;
@@ -550,9 +572,9 @@ bool ClassAdCollection::DeleteCollection(int CoID)
 {
     BaseCollection* Coll;
     if (Collections.lookup(CoID,Coll)==-1) return false;
-    if (Coll->Parent>=0) {
-      if (Collections.lookup(Coll->Parent,Coll)==-1) return false;
-      Coll->Children.Remove(CoID);
+	BaseCollection* ParentColl=Coll->GetParent();
+    if (ParentColl) {
+      ParentColl->Children.Remove(CoID);
     }
     
 	return (TraverseTree(CoID,&ClassAdCollection::RemoveCollection));
@@ -630,14 +652,10 @@ bool ClassAdCollection::CheckClassAd(int CoID, BaseCollection* Coll,const MyStri
 		return( false );
 	}
 
-	/*
-		printf("AttrValue=%s\n",Values.Value()); 
-	*/
-
 	PartitionChild* ChildColl=NULL;
 	if( ParentColl->childPartitions.lookup( PartitionValues, CoID ) == -1 ) {
 			// no such child partition; create a new child partition
-		ChildColl=new PartitionChild(ParentCoID,ParentColl->GetRankExpr(),PartitionValues);
+		ChildColl=new PartitionChild(ParentColl,ParentColl->GetRankExpr(),PartitionValues);
 		CoID=LastCoID+1;
 		if (Collections.insert(CoID,ChildColl)==-1) return false;
 		if( ParentColl->childPartitions.insert( PartitionValues, CoID )==-1 ) {
@@ -706,6 +724,45 @@ BaseCollection* ClassAdCollection::GetCollection(int CoID) {
   if (Collections.lookup(CoID,Coll)==-1) return NULL;
   return Coll;
 }
+
+//-----------------------------------------------------------------------
+/// Change a class-ad (private method)
+//-----------------------------------------------------------------------
+
+/*
+
+bool ClassAdCollection::ChangeClassAd(int CoID, const MyString& OID, ClassAd* Ad)
+{
+	BaseCollection* Coll=GetCollection(CoID);
+
+	// Create the Ranked Ad
+	RankedClassAd OldRankedAd(OID);
+	bool Exist=false;
+	if (Coll->Children.GetKey(OldRankedAd)==1 || Coll->Type()==PartitionParent_e) Exist=true;
+
+	if (!Exist) {
+		// Class-ad did not exist in this collection before
+		AddClassAd(CoID,OID,Ad);
+	}
+	else {
+		if (Coll->GetRankValue(Ad) != OldRankedAd.Rank) {
+			// Rank has changed - re-insert in correct place
+		}
+		
+		// recursive calls on children
+		int ChildCoID;
+		BaseCollection* ChildColl;
+		Coll->Children.StartIterations();
+		while (Coll->Children.Iterate(ChildCoID)) {
+			ChangeClassAd(ChildCoID,OID,Ad);
+		}
+
+	}    
+
+
+}
+
+*/
 
 //-----------------------------------------------------------------------
 /// Change a class-ad (private method)

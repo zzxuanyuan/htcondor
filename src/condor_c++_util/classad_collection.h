@@ -95,18 +95,18 @@ public:
   */
   void AbortTransaction();
 
+  /** Check if a transaction is in progress
+    @returns true if a transaction is active
+  */
+  bool IsActiveTransaction();
+
   /** Lookup an attribute's value in the current transaction. 
       @param key the key with which the class-ad was inserted into the 
 	  	repository.
-      @param name the name of the attribute.
-      @param expr the attribute expression (output parameter).
-      @return true on success, false otherwise.
+      @return a pointer to a new class-ad which is the value of the
+        original ad including the changes in the current transaction
   */
-/*
-  bool LookupInTransaction(const char *key, const char *name, ExprTree *&val) { 
-	 return (ClassAdLog::LookupInTransaction(key,name,val)==1); 
-  }
-*/
+  ClassAd* LookupInTransaction(const char *key);
   
   /** Truncate the log file by creating a new "checkpoint" of the repository
     @return nothing
@@ -147,10 +147,7 @@ public:
       @param Ad A pointer to the class-ad (output parameter).
       @return true on success, false otherwise.
   */
-  bool LookupClassAd(const char* key, ClassAd*& Ad) 
-  { 
-	  return (table.lookup(HashKey(key), Ad)==0); 
-  }
+  ClassAd* LookupClassAd(const char* key);
   
   //@}
   //------------------------------------------------------------------------
