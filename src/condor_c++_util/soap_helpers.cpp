@@ -40,18 +40,18 @@ convert_ad_to_adStruct(struct soap *s,
   bool tmpbool;
   char *tmpstr;
   ExprTree *tree, *rhs, *lhs;
-  
+
   if ( !ad_struct ) {
     return false;
   }
-  
+
   if ( !curr_ad ) {
     // send back an empty array
     ad_struct->__size = 0;
     ad_struct->__ptr = NULL;
     return true;
   }
-  
+
   // first pass: count attrs
   num_attrs = 0;
   curr_ad->ResetExpr();
@@ -62,24 +62,24 @@ convert_ad_to_adStruct(struct soap *s,
       num_attrs++;
     }
   }
-  
+
   if ( num_attrs == 0 ) {
     // send back an empty array
     ad_struct->__size = 0;
     ad_struct->__ptr = NULL;
     return true;
   }
-  
+
   // We have to add MyType and TargetType manually.
   // Argh, and ServerTime. XXX: This is getting silly, we need a schema.
   num_attrs += 2;
   num_attrs += 1;
-  
+
   // allocate space for attributes
   ad_struct->__size = num_attrs;
   ad_struct->__ptr = (struct condorCore__ClassAdStructAttr *)
     soap_malloc(s,num_attrs * sizeof(struct condorCore__ClassAdStructAttr));
-  
+
   // second pass: serialize attributes
   attr_index = 0;
   // first, add myType and TargetType
@@ -162,16 +162,16 @@ convert_ad_to_adStruct(struct soap *s,
       }
       break;
     }
-    
+
     // skip this attr is requested to do so...
     if ( skip_attr ) continue;
-    
+
     // serialize the attribute name, and finally increment our counter.
     ad_struct->__ptr[attr_index].name = ((Variable*)tree->LArg())->Name();
     attr_index++;
     ad_struct->__size = attr_index;
   }
-  
+
   return true;
 }
 
@@ -179,25 +179,25 @@ static bool
 convert_adlist_to_adStructArray(struct soap *s, List<ClassAd> *adList,
                                 struct condorCore__ClassAdStructArray *ads)
 {
-  
+
   if ( !adList || !ads ) {
     return false;
   }
-  
+
   ClassAd *curr_ad = NULL;
   ads->__size = adList->Number();
   ads->__ptr = (struct condorCore__ClassAdStruct *) soap_malloc(s,
                                                                 ads->__size * sizeof(struct condorCore__ClassAdStruct));
   adList->Rewind();
   int ad_index = 0;
-  
+
   while ( (curr_ad=adList->Next()) )
     {
       if ( convert_ad_to_adStruct(s,curr_ad,&(ads->__ptr[ad_index])) ) {
         ad_index++;
       }
     }
-  
+
   ads->__size = ad_index;
   return true;
 }
@@ -230,6 +230,16 @@ convert_adStruct_to_ad(struct soap *s,
       value = "UNDEFINED";
     else
       value = ad_struct->__ptr[i].value;
+
+		// XXX: This is ugly, but needed because of how MyType and TargetType
+		// are treated specially in old classads.
+	if (name == ATTR_MY_TYPE) {
+		curr_ad->SetMyTypeName(value.GetCStr());
+		continue;
+	} else if (name == ATTR_TARGET_TYPE) {
+		curr_ad->SetTargetTypeName(value.GetCStr());
+		continue;
+	}
 
     if (STRING_ATTR == ad_struct->__ptr[i].type)
       attribute = name + "=\"" + value + "\"";
