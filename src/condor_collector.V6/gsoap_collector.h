@@ -3,6 +3,7 @@
 
 //gsoap condorCollector service namespace: urn:condor-collector
 //gsoap condorCollector service name: condorCollector
+//gsoap condorCollector service encoding: encoding-style
 
 int condorCollector__queryStartdAds(char *constraint,
 	struct condorCore__ClassAdStructArray & result);

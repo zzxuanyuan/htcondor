@@ -111,66 +111,64 @@
     <element name="item" type="condorCore:ClassAdStruct" minOccurs="0" maxOccurs="unbounded" nillable="true"/>
    </sequence>
   </complexType>
-  <element name="constraint" type="xsd:string"/>
-  <element name="result" type="condorCore:ClassAdStructArray"/>
  </schema>
 
 </types>
 
 <message name="queryStartdAdsRequest">
- <part name="constraint" element="condorCollector:constraint"/>
+ <part name="constraint" type="xsd:string"/>
 </message>
 
 <message name="queryStartdAdsResponse">
- <part name="result" element="condorCollector:result"/>
+ <part name="result" type="condorCore:ClassAdStructArray"/>
 </message>
 
 <message name="queryScheddAdsRequest">
- <part name="constraint" element="condorCollector:constraint"/>
+ <part name="constraint" type="xsd:string"/>
 </message>
 
 <message name="queryScheddAdsResponse">
- <part name="result" element="condorCollector:result"/>
+ <part name="result" type="condorCore:ClassAdStructArray"/>
 </message>
 
 <message name="queryMasterAdsRequest">
- <part name="constraint" element="condorCollector:constraint"/>
+ <part name="constraint" type="xsd:string"/>
 </message>
 
 <message name="queryMasterAdsResponse">
- <part name="result" element="condorCollector:result"/>
+ <part name="result" type="condorCore:ClassAdStructArray"/>
 </message>
 
 <message name="querySubmittorAdsRequest">
- <part name="constraint" element="condorCollector:constraint"/>
+ <part name="constraint" type="xsd:string"/>
 </message>
 
 <message name="querySubmittorAdsResponse">
- <part name="result" element="condorCollector:result"/>
+ <part name="result" type="condorCore:ClassAdStructArray"/>
 </message>
 
 <message name="queryLicenseAdsRequest">
- <part name="constraint" element="condorCollector:constraint"/>
+ <part name="constraint" type="xsd:string"/>
 </message>
 
 <message name="queryLicenseAdsResponse">
- <part name="result" element="condorCollector:result"/>
+ <part name="result" type="condorCore:ClassAdStructArray"/>
 </message>
 
 <message name="queryStorageAdsRequest">
- <part name="constraint" element="condorCollector:constraint"/>
+ <part name="constraint" type="xsd:string"/>
 </message>
 
 <message name="queryStorageAdsResponse">
- <part name="result" element="condorCollector:result"/>
+ <part name="result" type="condorCore:ClassAdStructArray"/>
 </message>
 
 <message name="queryAnyAdsRequest">
- <part name="constraint" element="condorCollector:constraint"/>
+ <part name="constraint" type="xsd:string"/>
 </message>
 
 <message name="queryAnyAdsResponse">
- <part name="result" element="condorCollector:result"/>
+ <part name="result" type="condorCore:ClassAdStructArray"/>
 </message>
 
 <portType name="condorCollectorPortType">
@@ -216,64 +214,64 @@
  <operation name="queryStartdAds">
   <SOAP:operation soapAction=""/>
   <input>
-   <SOAP:body use="literal" namespace="urn:condor-collector"/>
+   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="encoding-style"/>
   </input>
   <output>
-   <SOAP:body use="literal" namespace="urn:condor-collector"/>
+   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="encoding-style"/>
   </output>
  </operation>
  <operation name="queryScheddAds">
   <SOAP:operation soapAction=""/>
   <input>
-   <SOAP:body use="literal" namespace="urn:condor-collector"/>
+   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="encoding-style"/>
   </input>
   <output>
-   <SOAP:body use="literal" namespace="urn:condor-collector"/>
+   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="encoding-style"/>
   </output>
  </operation>
  <operation name="queryMasterAds">
   <SOAP:operation soapAction=""/>
   <input>
-   <SOAP:body use="literal" namespace="urn:condor-collector"/>
+   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="encoding-style"/>
   </input>
   <output>
-   <SOAP:body use="literal" namespace="urn:condor-collector"/>
+   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="encoding-style"/>
   </output>
  </operation>
  <operation name="querySubmittorAds">
   <SOAP:operation soapAction=""/>
   <input>
-   <SOAP:body use="literal" namespace="urn:condor-collector"/>
+   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="encoding-style"/>
   </input>
   <output>
-   <SOAP:body use="literal" namespace="urn:condor-collector"/>
+   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="encoding-style"/>
   </output>
  </operation>
  <operation name="queryLicenseAds">
   <SOAP:operation soapAction=""/>
   <input>
-   <SOAP:body use="literal" namespace="urn:condor-collector"/>
+   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="encoding-style"/>
   </input>
   <output>
-   <SOAP:body use="literal" namespace="urn:condor-collector"/>
+   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="encoding-style"/>
   </output>
  </operation>
  <operation name="queryStorageAds">
   <SOAP:operation soapAction=""/>
   <input>
-   <SOAP:body use="literal" namespace="urn:condor-collector"/>
+   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="encoding-style"/>
   </input>
   <output>
-   <SOAP:body use="literal" namespace="urn:condor-collector"/>
+   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="encoding-style"/>
   </output>
  </operation>
  <operation name="queryAnyAds">
   <SOAP:operation soapAction=""/>
   <input>
-   <SOAP:body use="literal" namespace="urn:condor-collector"/>
+   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="encoding-style"/>
   </input>
   <output>
-   <SOAP:body use="literal" namespace="urn:condor-collector"/>
+   <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="encoding-style"/>
   </output>
  </operation>
 </binding>
