@@ -70,9 +70,9 @@ all: targetlist
 #define library_target( libname, objlist )		@@\
 libname: objlist					@@\
 	rm -f libname					@@\
-	AR_REPLACE( libname, objlist )			@@\
+	AR_REPLACE( libname, objlist )	@@\
 clean::							@@\
-	rm -f libname objlist
+	rm -f libname 
 #endif /* library_target */
 
 
@@ -84,8 +84,8 @@ clean::							@@\
 program: objlist libs						@@\
 	$(CC) $(CFLAGS) -o program objlist libs $(LDFLAGS) $(SITE_LDFLAGS) @@\
 clean::								@@\
-	rm -f program objlist
-#endif  program_target
+	rm -f program 
+#endif  /* program_target */
 
 
 /*
@@ -97,9 +97,18 @@ program: objlist libs						@@\
 	$(CPlusPlus) $(C_PLUS_FLAGS) -o program objlist libs \
 		$(LDFLAGS) $(SITE_LDFLAGS) $(DEMANGLE)		@@\
 clean::								@@\
-	rm -f program objlist
-#endif  c_plus_target
+	rm -f program 
+#endif  /* c_plus_target */
 
+
+/*
+** Build a template instantiation object
+*/
+#ifndef template_inst
+#define template_inst( srcfile ) 				@@\
+objfile:										@@\
+	$(CPlusPlus) $(INST_C_PLUS_FLAGS) -c srcfile
+#endif /* template_inst_obj */
 
 
 /***********************************************************************
