@@ -967,6 +967,15 @@ void MirrorJob::ProcessRemoteAdActive( ClassAd *remote_ad )
 	diff_ad->Delete( ATTR_Q_DATE );
 	diff_ad->Delete( ATTR_ENTERED_CURRENT_STATUS );
 	diff_ad->Delete( ATTR_JOB_LEAVE_IN_QUEUE );
+	diff_ad->Delete( ATTR_HOLD_REASON );
+	diff_ad->Delete( ATTR_HOLD_REASON_CODE );
+	diff_ad->Delete( ATTR_HOLD_REASON_SUBCODE );
+	diff_ad->Delete( ATTR_LAST_HOLD_REASON );
+	diff_ad->Delete( ATTR_LAST_HOLD_REASON_CODE );
+	diff_ad->Delete( ATTR_LAST_HOLD_REASON_SUBCODE );
+	diff_ad->Delete( ATTR_RELEASE_REASON );
+	diff_ad->Delete( ATTR_LAST_RELEASE_REASON );
+	diff_ad->Delete( ATTR_REMOVE_REASON );
 	diff_ad->Delete( ATTR_JOB_STATUS_ON_RELEASE );
 	diff_ad->Delete( ATTR_JOB_STATUS );
 	diff_ad->Delete( ATTR_JOB_MANAGED );
