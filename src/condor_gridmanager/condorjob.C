@@ -1011,7 +1011,7 @@ ClassAd *CondorJob::buildSubmitAd()
 
 	submit_ad->Assign( ATTR_JOB_STATUS, HELD );
 	submit_ad->Assign( ATTR_HOLD_REASON, "Spooling input data files" );
-submit_ad->Assign( ATTR_JOB_UNIVERSE, CONDOR_UNIVERSE_VANILLA );
+	submit_ad->Assign( ATTR_JOB_UNIVERSE, CONDOR_UNIVERSE_VANILLA );
 
 	submit_ad->Assign( ATTR_Q_DATE, now );
 	submit_ad->Assign( ATTR_CURRENT_HOSTS, 0 );
@@ -1035,9 +1035,9 @@ submit_ad->Assign( ATTR_JOB_UNIVERSE, CONDOR_UNIVERSE_VANILLA );
 	submit_ad->Assign( ATTR_JOB_NOTIFICATION, NOTIFY_NEVER );
 	submit_ad->Assign( ATTR_JOB_LEAVE_IN_QUEUE, true );
 
-	expr.sprintf( "%s = (%s >= %s) =!= True && CurrentTime > %s + %d",
+	expr.sprintf( "%s = (%s > 0) =!= True && CurrentTime > %s + %d",
 				  ATTR_PERIODIC_REMOVE_CHECK, ATTR_STAGE_IN_FINISH,
-				  ATTR_STAGE_IN_START, ATTR_Q_DATE, 1800 );
+				  ATTR_Q_DATE, 1800 );
 	submit_ad->Insert( expr.Value() );
 
 	submit_ad->Assign( ATTR_SUBMITTER_ID, submitterId );
