@@ -55,10 +55,6 @@ $releasev = $3;
 $version = "$majorv.$minorv.$releasev";
 
 # Things you should probably leave alone:
-BEGIN {
-    unshift(@INC, "/p/condor/home/perl");
-}
-
 require 5.002;
 
 ######################################################################
