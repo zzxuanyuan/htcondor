@@ -23,6 +23,8 @@
 #ifndef _UTIL_H
 #define _UTIL_H
 
+#include "enum_utils.h"
+
 class ClassAd;
 class Stream;
 class Resource;
@@ -47,6 +49,7 @@ int		send_classad_to_sock( int cmd, Daemon* d, ClassAd* pubCA,
 							  ClassAd* privCA ); 
 Resource* stream_to_rip( Stream* );
 
+VacateType getVacateType( ClassAd* ad );
 int sendCAReply( Stream* s, char* cmd_str, ClassAd* reply );
 int sendErrorReply( Stream* s, char* cmd_str, const char* err_str );
 

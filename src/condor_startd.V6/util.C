@@ -432,6 +432,20 @@ stream_to_rip( Stream* stream )
 }
 
 
+VacateType
+getVacateType( ClassAd* ad )
+{
+	VacateType vac_t;
+	char* vac_t_str = NULL;
+	if( ! ad->LookupString(ATTR_VACATE_TYPE, &vac_t_str) ) { 
+		return VACATE_GRACEFUL;
+	}
+	vac_t = getVacateTypeNum( vac_t_str );
+	free( vac_t_str );
+	return vac_t;
+}
+
+
 int
 sendCAReply( Stream* s, char* cmd_str, ClassAd* reply )
 {
