@@ -1,3 +1,7 @@
+03/05/03 V6_5-MB-V6_5-cod-merge-1-MB-m-1
+    the merge-from tag for the final merge of
+    V6_5-MB-V6_5-cod-merge-1-branch into the V6_5-branch.
+
 03/04/03 V6_5-MB-V6_5-cod-merge-1-post_merge
     post_merge tag to demark the point after the basic CVS conflict
     resolution was done, and when the more complicated code changes
