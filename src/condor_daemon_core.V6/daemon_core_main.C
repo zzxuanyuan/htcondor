@@ -71,8 +71,8 @@ char*	logDir = NULL;
 char*	pidFile = NULL;
 char*	addrFile = NULL;
 static	char*	logAppend = NULL;
-//PGSQLDatabase* DBObj = 0;
-ODBC *DBObj = 0;
+
+extern ODBC *DBObj;
 
 #ifdef WIN32
 int line_where_service_stopped = 0;
