@@ -133,6 +133,18 @@ if test "$_cv_strip_is_gnu" = "no"; then
    AC_MSG_ERROR( [GNU strip is required] )
 fi
 
+# GNU tar and gzip are required for packaging up Condor releases. 
+# We depend on some GNU-specific options to tar.
+CHECK_PROG_IS_GNU(TAR, tar)
+if test "$_cv_tar_is_gnu" = "no"; then
+   AC_MSG_ERROR( [GNU tar is required] )
+fi
+
+AC_CHECK_PROG(ac_gzip,gzip,yes,no)
+if test $ac_gzip = no; then
+    AC_MSG_ERROR( [gzip is required] )
+fi
+
 # m4 is used to build PVM
 AC_CHECK_PROG(ac_m4prog,m4,yes,no)
 if test $ac_m4prog = no; then
