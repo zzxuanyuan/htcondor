@@ -132,7 +132,7 @@ CronJobErr::CronJobErr( class CondorCronJob *job ) :
 int
 CronJobErr::Output( const char *buf, int len )
 {
-	dprintf( D_ALWAYS, "%s: %s\n", job->GetName( ), buf );
+	dprintf( D_FULLDEBUG, "%s: %s\n", job->GetName( ), buf );
 
 	// Done
 	return 0;
@@ -177,8 +177,10 @@ CondorCronJob::CondorCronJob( const char *mgrName, const char *jobName )
 // CronJob destructor
 CondorCronJob::~CondorCronJob( )
 {
-	dprintf( D_FULLDEBUG, "Cron: Deleting timer '%s'; ID = %d, path = '%s'\n",
-			 GetName(), runTimer, GetPath() );
+	dprintf( D_ALWAYS, "Cron: Deleting job '%s' (%s)\n", GetName(),
+			 GetPath() );
+	dprintf( D_FULLDEBUG, "Cron: Deleting timer for '%s'; ID = %d\n",
+			 GetName(), runTimer );
 
 	// Delete the timer FIRST
 	if ( runTimer >= 0 ) {
@@ -203,6 +205,9 @@ CondorCronJob::Initialize( )
 
 	// Update our state to idle..
 	state = CRON_IDLE;
+
+	dprintf( D_ALWAYS, "Cron: Initializing job '%s' (%s)\n", 
+			 GetName(), GetPath() );
 
 	// Schedule & see if we should run...
 	return Schedule( );
@@ -378,6 +383,9 @@ CondorCronJob::Reconfig( void )
 	// HUP it; if it dies it'll get the new config when it restarts
 	if ( pid )
 	{
+			// we want this D_ALWAYS, since it's pretty rare anyone
+			// actually wants a SIGHUP, and to aid in debugging, it's
+			// best to always log it when we do so everyone sees it.
 		dprintf( D_ALWAYS, "Cron: Sending HUP to '%s' pid %d\n",
 				 GetName(), pid );
 		return daemonCore->Send_Signal( pid, SIGHUP );
@@ -440,7 +448,7 @@ CondorCronJob::RunJob( void )
 	}
 
 	// Job not running, just start it
-	dprintf( D_JOB, "Cron: Running job '%s', path '%s'\n",
+	dprintf( D_JOB, "Cron: Running job '%s' (%s)\n",
 			 GetName(), GetPath() );
 
 	// Start it up
@@ -453,7 +461,7 @@ CondorCronJob::KillHandler( void )
 {
 
 	// Log that we're here
-	dprintf( D_ALWAYS, "Cron: KillHandler for job '%s'\n", GetName() );
+	dprintf( D_FULLDEBUG, "Cron: KillHandler for job '%s'\n", GetName() );
 
 	// If we're idle, we shouldn't be here.
 	if ( CRON_IDLE == state ) {
@@ -473,7 +481,7 @@ CondorCronJob::StartJob( void )
 		dprintf( D_ALWAYS, "Cron: Job '%s' not idle!\n", GetName() );
 		return 0;
 	}
-	dprintf( D_JOB, "Cron: Starting job '%s', path '%s'\n",
+	dprintf( D_JOB, "Cron: Starting job '%s' (%s)\n",
 			 GetName(), GetPath() );
 
 	// Check output queue!
@@ -632,7 +640,6 @@ int
 CondorCronJob::
 RunProcess( void )
 {
-	dprintf( D_ALWAYS, "Running '%s'\n", GetName() );
 
 	// Create file descriptors
 	if ( OpenFds( ) < 0 ) {
@@ -764,7 +771,7 @@ CondorCronJob::StdoutHandler ( int pipe )
 
 		// Zero means it closed
 		if ( bytes == 0 ) {
-			dprintf( D_ALWAYS, "Cron: STDOUT closed for '%s'\n", GetName() );
+			dprintf(D_FULLDEBUG, "Cron: STDOUT closed for '%s'\n", GetName());
 			daemonCore->Close_Pipe( stdOut );
 			stdOut = -1;
 		}
@@ -828,7 +835,7 @@ CondorCronJob::StderrHandler ( int pipe )
 	// Zero means it closed
 	if ( bytes == 0 )
 	{
-		dprintf( D_ALWAYS, "Cron: STDERR closed for '%s'\n", GetName() );
+		dprintf( D_FULLDEBUG, "Cron: STDERR closed for '%s'\n", GetName() );
 		daemonCore->Close_Pipe( stdErr );
 		stdErr = -1;
 	}
