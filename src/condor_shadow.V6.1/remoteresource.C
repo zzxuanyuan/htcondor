@@ -76,6 +76,8 @@ RemoteResource::RemoteResource( BaseShadow *shad )
 	state = RR_PRE;
 	began_execution = false;
 	supports_reconnect = false;
+	next_reconnect_tid = -1;
+	reconnect_attempts = 0;
 }
 
 
@@ -1175,15 +1177,40 @@ RemoteResource::reconnect( void )
 	dprintf( D_ALWAYS, "%s remaining: %d\n", ATTR_DISCONNECTED_RUN_TIMEOUT,
 			 remaining );
 
-		// TODO: use exponential backoff and DaemonCore timers so we
-		// can service commands from the schedd while we're waiting.
-	attemptReconnect();
+	if( next_reconnect_tid >= 0 ) {
+		EXCEPT( "in reconnect() and timer for next attempt already set" );
+	}
+
+    int delay = shadow->nextReconnectDelay( reconnect_attempts );
+	if( delay > remaining ) {
+		delay = remaining;
+	}
+	if( delay ) {
+			// only need to dprintf if we're not doing it right away
+		dprintf( D_ALWAYS, "Scheduling another attempt to reconnect "
+				 "in %d seconds\n", delay );
+	}
+	next_reconnect_tid = daemonCore->
+		Register_Timer( delay,
+						(TimerHandlercpp)&RemoteResource::attemptReconnect,
+						"RemoteResource::attemptReconnect()", this );
+
+	if( next_reconnect_tid < 0 ) {
+		EXCEPT( "Failed to register timer!" );
+	}
 }
 
 
 void
 RemoteResource::attemptReconnect( void )
 {
+		// now that the timer went off, clear out this variable so we
+		// don't get confused later.
+	next_reconnect_tid = -1;
+
+		// if if this attempt fails, we need to remember we tried
+	reconnect_attempts++;
+
 	if( ! starterAddress ) {
 		if( ! locateReconnectStarter() ) {
 			return;

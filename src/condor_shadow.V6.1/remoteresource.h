@@ -305,6 +305,12 @@ class RemoteResource : public Service {
 
 	virtual bool supportsReconnect( void );
 
+		/** This is actually a DaemonCore timer handler.  It has to be
+			public so DaemonCore can use it, but it's not meant to be 
+			called by other parts of the shadow.
+		*/
+	virtual void attemptReconnect( void );
+
  protected:
 
 		/** The jobAd for this resource.  Why is this here and not
@@ -356,9 +362,10 @@ class RemoteResource : public Service {
 private:
 
 		/// Private helper methods for trying to reconnect
-	void attemptReconnect( void );
-	void requestReconnect( void );
 	bool locateReconnectStarter( void );
+	void requestReconnect( void );
+	int reconnect_attempts;
+	int next_reconnect_tid;
 
 		/** For debugging, print out the values of various statistics
 			related to our bookkeeping of suspend/resume activity for
