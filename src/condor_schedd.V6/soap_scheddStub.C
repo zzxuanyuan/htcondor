@@ -786,6 +786,14 @@ condor__listSpool(struct soap * soap,
 				dprintf(D_ALWAYS, "listSpool: convert_FileInfoList_to_Array FAILED\n");
 			}
 		}
+
+			// Clean up the files.
+		FileInfo *info;
+		files.Rewind();
+		for (int i = 0; files.Next(info); i++) {
+			delete info;
+		}
+
 			//delete job; // XXX: Only if it is the temp one.
 	}
 
