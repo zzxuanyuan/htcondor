@@ -25,6 +25,7 @@
 #define CONDOR_KEYCACHE_H_INCLUDE
 
 #include "condor_common.h"
+#include "condor_classad.h"
 #include "CryptKey.h"
 #include "MyString.h"
 #include "HashTable.h"
@@ -34,8 +35,8 @@ class KeyCacheEntry {
     KeyCacheEntry(
 			char * id,
 			struct sockaddr_in * addr,
-            const char * user, 
-			KeyInfo* key,
+			KeyInfo * key,
+			ClassAd * policy,
 			int expiration
 			);
     KeyCacheEntry(const KeyCacheEntry &copy);
@@ -46,8 +47,8 @@ class KeyCacheEntry {
     char*                 id();
     struct sockaddr_in *  addr();
     KeyInfo*              key();
+    ClassAd*              policy();
     int                   expiration();
-    const char *          user();
 
  private:
 
@@ -56,8 +57,8 @@ class KeyCacheEntry {
     char *               _id;
     struct sockaddr_in * _addr;
     KeyInfo*             _key;
+    ClassAd*             _policy;
     int                  _expiration;
-    char *               _user;
 };
 
 

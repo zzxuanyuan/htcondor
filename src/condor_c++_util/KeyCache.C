@@ -3,7 +3,7 @@
  *
  * See LICENSE.TXT for additional notices and disclaimers.
  *
- * Copyright (c)1990-1998 CONDOR Team, Computer Sciences Department, 
+ * Copyright (c)1990-2002 CONDOR Team, Computer Sciences Department, 
  * University of Wisconsin-Madison, Madison, WI.  All Rights Reserved.  
  * No use of the CONDOR Software Program Source Code is authorized 
  * without the express consent of the CONDOR Team.  For more information 
@@ -25,20 +25,60 @@
 #include "KeyCache.h"
 #include "CryptKey.h"
 
-KeyCacheEntry::KeyCacheEntry( char *id, struct sockaddr_in * addr, const char * user, KeyInfo* key, int expiration) {
-	_id = strdup(id);
-	_addr = new struct sockaddr_in(*addr);
-    _user = user == 0 ? 0 : strdup(user);
-	_key = new KeyInfo(*key);
+KeyCacheEntry::KeyCacheEntry( char *id, struct sockaddr_in * addr, KeyInfo* key, ClassAd * policy, int expiration) {
+	if (id) {
+		_id = strdup(id);
+	} else {
+		_id = NULL;
+	}
+
+	if (addr) {
+		_addr = new struct sockaddr_in(*addr);
+	} else {
+		_addr = NULL;
+	}
+
+	if (key) {
+		_key = new KeyInfo(*key);
+	} else {
+		_key = NULL;
+	}
+
+	if (policy) {
+		_policy = new ClassAd(*policy);
+	} else {
+		_policy = NULL;
+	}
+
 	_expiration = expiration;
 }
 
 KeyCacheEntry::KeyCacheEntry(const KeyCacheEntry& copy) 
 {
-	_id = strdup(copy._id);
-    _addr = new struct sockaddr_in(*(copy._addr));
-    _user = copy._user == 0 ? 0 : strdup(copy._user);
-	_key = new KeyInfo(*(copy._key));
+	if (copy._id) {
+		_id = strdup(copy._id);
+	} else {
+		_id = NULL;
+	}
+
+	if (copy._addr) {
+    	_addr = new struct sockaddr_in(*(copy._addr));
+	} else {
+    	_addr = NULL;
+	}
+
+	if (copy._key) {
+		_key = new KeyInfo(*(copy._key));
+	} else {
+		_key = NULL;
+	}
+
+	if (copy._policy) {
+		_policy = new ClassAd(*(copy._policy));
+	} else {
+		_policy = NULL;
+	}
+
 	_expiration = copy._expiration;
 }
 
@@ -49,10 +89,30 @@ KeyCacheEntry::~KeyCacheEntry() {
 KeyCacheEntry& KeyCacheEntry::operator=(const KeyCacheEntry &copy) {
 	if (this != &copy) {
 		delete_storage();
-		_id = strdup(copy._id);
-		_addr = new struct sockaddr_in(*(copy._addr));
-        _user = copy._user == 0 ? 0 : strdup(copy._user);
-		_key = new KeyInfo(*(copy._key));
+		if (copy._id) {
+			_id = strdup(copy._id);
+		} else {
+			_id = NULL;
+		}
+
+		if (copy._addr) {
+			_addr = new struct sockaddr_in(*(copy._addr));
+		} else {
+			_addr = NULL;
+		}
+
+		if (copy._key) {
+			_key = new KeyInfo(*(copy._key));
+		} else {
+			_key = NULL;
+		}
+
+		if (copy._policy) {
+			_policy = new ClassAd(*(copy._policy));
+		} else {
+			_policy = NULL;
+		}
+
 		_expiration = copy._expiration;
 	}
 	return *this;
@@ -70,13 +130,12 @@ KeyInfo* KeyCacheEntry::key() {
 	return _key;
 }
 
-int KeyCacheEntry::expiration() {
-	return _expiration;
+ClassAd* KeyCacheEntry::policy() {
+	return _policy;
 }
 
-const char * KeyCacheEntry :: user() 
-{
-    return _user;
+int KeyCacheEntry::expiration() {
+	return _expiration;
 }
 
 void KeyCacheEntry::delete_storage() {
@@ -89,9 +148,9 @@ void KeyCacheEntry::delete_storage() {
 	if (_key) {
 	  delete _key;
 	}
-    if (_user) {
-        delete _user;
-    }
+	if (_policy) {
+	  delete _policy;
+	}
 }
 
 KeyCache::KeyCache(int nbuckets) {
