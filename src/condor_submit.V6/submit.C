@@ -1048,12 +1048,13 @@ SetUniverse()
 				(stricmp (JobGridType, "blah") == MATCH) ||
 				(stricmp (JobGridType, "condor") == MATCH) ||
 				(stricmp (JobGridType, "nordugrid") == MATCH) ||
+				(stricmp (JobGridType, "unicore") == MATCH) ||
 				(stricmp (JobGridType, "oracle") == MATCH)) {
 				// We're ok	
 				// Values are case-insensitive for gridmanager, so we don't need to change case			
 			} else {
 				fprintf( stderr, "\nERROR: Invalid value '%s' for grid_type\n", JobGridType );
-				fprintf( stderr, "Must be one of: globus, gt2, gt3, condor, nordugrid, or oracle\n" );
+				fprintf( stderr, "Must be one of: globus, gt2, gt3, condor, nordugrid, unicore, or oracle\n" );
 				exit( 1 );
 			}
 		}			
