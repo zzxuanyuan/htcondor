@@ -14,48 +14,8 @@ The details of each version are described below.
 
 \begin{itemize}
 
-\item None.
-
-\end{itemize}
-
-\noindent New Features:
-
-\begin{itemize}
-
-\item None.
-
-\end{itemize}
-
-\noindent Bugs Fixed:
-
-\begin{itemize}
-
-\item The \Opt{-pool} option to \Condor{config\_val} was broken in
-  version 6.7.2 through version 6.7.4, and was effectively ignored. 
-  Starting in version 6.7.5, this command-line option can once again
-  be used to query and locate daemons in remote Condor pools.
-
-\end{itemize}
-
-\noindent Known Bugs:
-
-\begin{itemize}
-
-\item None.
-
-\end{itemize}
-
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{\label{sec:New-6-7-4}Version 6.7.4}
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-\noindent Release Notes:
-
-\begin{itemize}
-
-\item None.
+\item This release contains all the bug fixes from the 6.6 stable
+  series up to and including version 6.6.9.
 
 \end{itemize}
 
@@ -63,6 +23,8 @@ The details of each version are described below.
 \noindent New Features:
 
 \begin{itemize}
+
+\item Condor now includes a SOAP interface to many of the Condor daemons
 
 \item Added DAG aborting feature -- a DAG can be configured to
 abort immediately if a node exits with a given exit value.
@@ -91,7 +53,7 @@ nodes elsewhere. See ~\ref{sec:MPI} for details.
   To enable this feature and have the \Condor{negotiator} listen on a
   dynamic port, you must comment out the \Macro{NEGOTIATOR\_HOST}
   setting in your configuration file.
-  The new example configutation files shipped with version 6.7.4 and
+  The new example configuration files shipped with version 6.7.4 and
   later will already have this setting undefined.
   However, if you upgrade your binaries and retain an older copy of
   your configuration files, you should consider commenting out 
@@ -123,11 +85,28 @@ startds.  This prevents the long (typically 40 second) hang of all schedd
 operations when the connection attempt does not complete, due to
 network problems.
 
+\item Jobs can now pass arguments to the underlying JVM with the \Attr{JavaVMArgs} attribute in a submit file
+ 
 \end{itemize}
 
 \noindent Bugs Fixed:
 
 \begin{itemize}
+
+\item Fixed the Condor communications library to correctly re-assemble
+fragmented messages that arrived out of order when encryption was 
+active. 
+Sites that are using secure channels should see fewer dropped updates. 
+
+\item Fixed the \Condor{collector} so a machine may have multiple instances of the \Condor{schedd}. 
+Previously, updates from each schedd would overwrite the submitter ad from
+the other instance, and it would be a random choice which one the 
+\Condor{negotiator} would matchmake with.
+
+\item The \Opt{-pool} option to \Condor{config\_val} was broken in
+  version 6.7.2 through version 6.7.4, and was effectively ignored. 
+  Starting in version 6.7.5, this command-line option can once again
+  be used to query and locate daemons in remote Condor pools.
 
 \item Fixed a performance problem with the standard universe when
 \Syscall{gettimeofday} is called in a very tight loop by the application.
@@ -141,8 +120,46 @@ network problems.
 the \Expr{DAGMAN\_MAX\_SUBMIT\_ATTEMPTS} parameter was set to too
 high a value.
 
+
+\end{itemize}
+
+\noindent Known Bugs:
+\begin{itemize}
+
+\item The WSDL files for the SOAP interfaces are not included in this release.
+This is an oversight by the Condor team in packaging, and they will be 
+included in future releases.
+You can get the WSDL files from the web separately.
+
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{\label{sec:New-6-7-4}Version 6.7.4}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\noindent Release Notes:
+
+\begin{itemize}
+
+\item This release of Condor never appeared on the Condor download site.
+
+\end{itemize}
+
+\noindent New Features:
+
+\begin{itemize}
+
+\item None.
+
+\end{itemize}
+
+\noindent Bugs Fixed:
+
+\begin{itemize}
+
 \item Fixed a bug in \Condor{gridmanager} that caused it to crash if
 the grid\_monitor was activated.
+
 
 \end{itemize}
 
@@ -164,10 +181,10 @@ the grid\_monitor was activated.
 \begin{itemize}
 
 \item This release contains all the bug fixes from the 6.6 stable
-  series upto and including version 6.6.7, and some of the fixes that
+  series up to and including version 6.6.7, and some of the fixes that
   will be included in version 6.6.8.
   The bug fixes in version 6.6.8 that were not included in version
-  6.7.3 are listed in a seperate section of the 6.6.8 version
+  6.7.3 are listed in a separate section of the 6.6.8 version
   history. 
 
 \end{itemize}
@@ -228,7 +245,7 @@ find the proxy file.
 when aborting a DAG.
 
 \item Fixed a \Condor{dagman} bug which, if its debug level was set to
-zero (silent), could cause it to to improperly recognize persistant
+zero (silent), could cause it to to improperly recognize persistent
 \Condor{submit} failures.
 
 \item Fixed a bug in Condor's file transfer mechanism that showed up
@@ -362,7 +379,7 @@ dont\_encrypt\_input\_files, encrypt output files, and
 
 \item Added DISABLE\_AUTHENTICATION\_IP\_CHECK which will work around problems
 on dual-homed machines where the IP address is reported incorrectly to condor.
-This is particularily a problem when using Kerberos on multi-homed machines.
+This is particularly a problem when using Kerberos on multi-homed machines.
 
 \end{itemize}
 
@@ -391,7 +408,7 @@ This is particularily a problem when using Kerberos on multi-homed machines.
 \item Condor can now detect the size of memory on a Linux machine with the 2.6
 kernel.
 
-\item JAR files specificed in the submit file were not being transfered
+\item JAR files specified in the submit file were not being transfered
 along with the job unless they were also explicitly placed in the list
 of input files to transfer. Now, the JAR files are implicitly added to the
 list of input files to transfer.
@@ -499,7 +516,7 @@ timeout settings.
   Improved Condor's log messages and email notifications when MPI jobs
   run on multiple virtual machines (the messages now include the
   appropriate ``vmX'' identifier, not just the hostname).
-  Unfortuately, due to changes in MPICH between version 1.2.4 and
+  Unfortunately, due to changes in MPICH between version 1.2.4 and
   1.2.5, Condor's MPI support is not compatible with MPICH 1.2.5.
   We will be addressing this problem in a future release.
 
@@ -531,7 +548,7 @@ timeout settings.
   value.
   For example, if a user tries to print out a boolean attribute with
   \verb@condor_status -format "%d\n" HasFileTransfer@, the
-  \Condor{status} tool will evalute \Attr{HasFiletransfer} and print
+  \Condor{status} tool will evaluate \Attr{HasFiletransfer} and print
   either a 0 or a 1 (FALSE or TRUE).
   If, on the other hand, a user tries to print out a boolean attribute
   with \verb@condor_status -format "%s\n" HasFileTransfer@, the
@@ -657,9 +674,9 @@ option.
 \item Added a (configurable, defaults to off) feature to the \Condor{schedd}
    to allow backup the spool file before doing anything else.
 
-\item The "Continous" option of the \Condor{startd} ``cron'' jobs is
+\item The "Continuous" option of the \Condor{startd} ``cron'' jobs is
 being deprecated.   It's being replaced by two new options which
-control separate aspects of it's behaviour:
+control separate aspects of it's behavior:
 \begin{itemize}
 \item "WaitForExit" specifies the "exit timing" mode
 \item "ReConfig" specifies that the job can handle SIGHUPs, and it should 
