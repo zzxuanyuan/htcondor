@@ -55,8 +55,6 @@ public:
 	//
 
 	virtual int handle_incoming_packet() { assert(0); return 0; }
-	virtual int end_of_message() { assert(0); return 0; }
-	inline int eom() { return end_of_message(); }
 	virtual int connect(char *, int) { assert(0); return 0; }
 	inline int connect(char *h, char *s) { return connect(h,getportbyserv(s)); }
 
