@@ -49,7 +49,7 @@
 #define GM_SUBMITTED			7
 #define GM_DONE_SAVE			8
 #define GM_DONE_COMMIT			9
-#define GM_CANCEL_1				10
+#define GM_CANCEL				10
 #define GM_FAILED				11
 #define GM_DELETE				12
 #define GM_CLEAR_REQUEST		13
@@ -59,10 +59,9 @@
 #define GM_START				17
 #define GM_HOLD_REMOTE_JOB		18
 #define GM_RELEASE_REMOTE_JOB	19
-#define GM_CANCEL_2				20
-#define GM_POLL_ACTIVE			21
-#define GM_STAGE_OUT			22
-#define GM_RECOVER_POLL			23
+#define GM_POLL_ACTIVE			20
+#define GM_STAGE_OUT			21
+#define GM_RECOVER_POLL			22
 
 static char *GMStateNames[] = {
 	"GM_INIT",
@@ -75,7 +74,7 @@ static char *GMStateNames[] = {
 	"GM_SUBMITTED",
 	"GM_DONE_SAVE",
 	"GM_DONE_COMMIT",
-	"GM_CANCEL_1",
+	"GM_CANCEL",
 	"GM_FAILED",
 	"GM_DELETE",
 	"GM_CLEAR_REQUEST",
@@ -85,7 +84,6 @@ static char *GMStateNames[] = {
 	"GM_START",
 	"GM_HOLD_REMOTE_JOB",
 	"GM_RELEASE_REMOTE_JOB",
-	"GM_CANCEL_2",
 	"GM_POLL_ACTIVE",
 	"GM_STAGE_OUT",
 	"GM_RECOVER_POLL"
@@ -388,7 +386,7 @@ int CondorJob::doEvaluateState()
 				dprintf( D_ALWAYS,
 						 "(%d.%d) condor_job_status_constrained() failed: %s\n",
 						 procID.cluster, procID.proc, gahp->getErrorString() );
-				gmState = GM_CANCEL_1;
+				gmState = GM_CANCEL;
 				break;
 			}
 			if ( num_ads != 1 ) {
@@ -396,7 +394,7 @@ int CondorJob::doEvaluateState()
 				dprintf( D_ALWAYS,
 						 "(%d.%d) condor_job_status_constrained() returned %d ads\n",
 						 procID.cluster, procID.proc, num_ads );
-				gmState = GM_CANCEL_1;
+				gmState = GM_CANCEL;
 			} else if ( status_ads[0]->LookupInteger( ATTR_STAGE_IN_FINISH,
 													  tmp_int ) == 0 ||
 						tmp_int <= 0 ) {
@@ -509,7 +507,7 @@ int CondorJob::doEvaluateState()
 		case GM_SUBMIT_SAVE: {
 			// Save the job id for a new remote submission.
 			if ( condorState == REMOVED || condorState == HELD ) {
-				gmState = GM_CANCEL_1;
+				gmState = GM_CANCEL;
 			} else {
 				done = requestScheddUpdate( this );
 				if ( !done ) {
@@ -554,7 +552,7 @@ int CondorJob::doEvaluateState()
 				dprintf( D_ALWAYS,
 						 "(%d.%d) condor_job_stage_in() failed: %s\n",
 						 procID.cluster, procID.proc, gahp->getErrorString() );
-				gmState = GM_CANCEL_1;
+				gmState = GM_CANCEL;
 			}
 			} break;
 		case GM_SUBMITTED: {
@@ -562,7 +560,7 @@ int CondorJob::doEvaluateState()
 			// and poll the remote schedd occassionally to let it know
 			// we're still alive.
 			if ( condorState == REMOVED ) {
-				gmState = GM_CANCEL_1;
+				gmState = GM_CANCEL;
 			} else if ( newRemoteStatusAd != NULL ) {
 				if ( newRemoteStatusServerTime <= lastRemoteStatusServerTime ) {
 dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too old!\n",procID.cluster,procID.proc);
@@ -603,7 +601,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too old!\n",procID.cluster,procID
 				dprintf( D_ALWAYS,
 						 "(%d.%d) condor_job_hold() failed: %s\n",
 						 procID.cluster, procID.proc, gahp->getErrorString() );
-				gmState = GM_CANCEL_1;
+				gmState = GM_CANCEL;
 				break;
 			}
 			gmState = GM_POLL_ACTIVE;
@@ -620,7 +618,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too old!\n",procID.cluster,procID
 				dprintf( D_ALWAYS,
 						 "(%d.%d) condor_job_release() failed: %s\n",
 						 procID.cluster, procID.proc, gahp->getErrorString() );
-				gmState = GM_CANCEL_1;
+				gmState = GM_CANCEL;
 				break;
 			}
 			gmState = GM_POLL_ACTIVE;
@@ -644,14 +642,14 @@ dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too old!\n",procID.cluster,procID
 				dprintf( D_ALWAYS,
 						 "(%d.%d) condor_job_status_constrained() failed: %s\n",
 						 procID.cluster, procID.proc, gahp->getErrorString() );
-				gmState = GM_CANCEL_1;
+				gmState = GM_CANCEL;
 				break;
 			}
 			if ( num_ads != 1 ) {
 				dprintf( D_ALWAYS,
 						 "(%d.%d) condor_job_status_constrained() returned %d ads\n",
 						 procID.cluster, procID.proc, num_ads );
-				gmState = GM_CANCEL_1;
+				gmState = GM_CANCEL;
 				break;
 			}
 			ProcessRemoteAd( status_ads[0] );
@@ -682,7 +680,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too old!\n",procID.cluster,procID
 				dprintf( D_ALWAYS,
 						 "(%d.%d) condor_job_stage_out() failed: %s\n",
 						 procID.cluster, procID.proc, gahp->getErrorString() );
-				gmState = GM_CANCEL_1;
+				gmState = GM_CANCEL;
 			}
 			} break;
 		case GM_DONE_SAVE: {
@@ -715,7 +713,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too old!\n",procID.cluster,procID
 				dprintf( D_ALWAYS,
 						 "(%d.%d) condor_job_update() failed: %s\n",
 						 procID.cluster, procID.proc, gahp->getErrorString() );
-				gmState = GM_CANCEL_1;
+				gmState = GM_CANCEL;
 				break;
 			}
 			if ( condorState == COMPLETED || condorState == REMOVED ) {
@@ -728,27 +726,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too old!\n",procID.cluster,procID
 				gmState = GM_CLEAR_REQUEST;
 			}
 			} break;
-		case GM_CANCEL_1: {
-			if ( gahpAd == NULL ) {
-				MyString buff;
-				gahpAd = new ClassAd;
-				buff.sprintf( "%s = False", ATTR_JOB_LEAVE_IN_QUEUE );
-				gahpAd->Insert( buff.Value() );
-			}
-			rc = gahp->condor_job_update( remoteScheddName, remoteJobId,
-										  gahpAd );
-			if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
-				 rc == GAHPCLIENT_COMMAND_PENDING ) {
-				break;
-			}
-			if ( rc != GLOBUS_SUCCESS ) {
-				dprintf( D_FULLDEBUG,
-					"(%d.%d) GM_CANCEL_1: condor_job_update() failed: %s\n",
-					procID.cluster, procID.proc, gahp->getErrorString() );
-			}
-			gmState = GM_CANCEL_2;
-			} break;
-		case GM_CANCEL_2: {
+		case GM_CANCEL: {
 			// We need to cancel the job submission.
 
 			// Should this if-stmt be here? Even if the job is completed,
@@ -1102,11 +1080,14 @@ ClassAd *CondorJob::buildSubmitAd()
 	submit_ad->Assign( ATTR_CURRENT_HOSTS, 0 );
 	submit_ad->Assign( ATTR_ENTERED_CURRENT_STATUS, now  );
 	submit_ad->Assign( ATTR_JOB_NOTIFICATION, NOTIFY_NEVER );
-	submit_ad->Assign( ATTR_JOB_LEAVE_IN_QUEUE, true );
 
 	expr.sprintf( "%s = (%s > 0) =!= True && CurrentTime > %s + %d",
 				  ATTR_PERIODIC_REMOVE_CHECK, ATTR_STAGE_IN_FINISH,
 				  ATTR_Q_DATE, 1800 );
+	submit_ad->Insert( expr.Value() );
+
+	expr.sprintf( "%s = %s == %d", ATTR_JOB_LEAVE_IN_QUEUE, ATTR_JOB_STATUS,
+				  COMPLETED );
 	submit_ad->Insert( expr.Value() );
 
 	submit_ad->Assign( ATTR_SUBMITTER_ID, submitterId );
