@@ -135,6 +135,8 @@ UnicoreJob::UnicoreJob( ClassAd *classad )
 	numSubmitAttempts = 0;
 	submitFailureCode = 0;
 	submitAd = NULL;
+	gahp = NULL;
+	errorString = "";
 
 	// In GM_HOLD, we assume HoldReason to be set only if we set it, so make
 	// sure it's unset when we start.
@@ -164,6 +166,8 @@ UnicoreJob::UnicoreJob( ClassAd *classad )
 	return;
 
  error_exit:
+		// We must ensure that the code-path from GM_HOLD doesn't depend
+		// on any initialization that's been skipped.
 	gmState = GM_HOLD;
 	if ( error_string ) {
 		UpdateJobAdString( ATTR_HOLD_REASON, error_string );
@@ -184,7 +188,9 @@ UnicoreJob::~UnicoreJob()
 void UnicoreJob::Reconfig()
 {
 	BaseJob::Reconfig();
-	gahp->setTimeout( gahpCallTimeout );
+	if ( gahp ) {
+		gahp->setTimeout( gahpCallTimeout );
+	}
 }
 
 int UnicoreJob::doEvaluateState()
@@ -203,7 +209,9 @@ int UnicoreJob::doEvaluateState()
 			"(%d.%d) doEvaluateState called: gmState %s, unicoreState %d\n",
 			procID.cluster,procID.proc,GMStateNames[gmState],unicoreState);
 
-	gahp->setMode( GahpClient::normal );
+	if ( gahp ) {
+		gahp->setMode( GahpClient::normal );
+	}
 
 	do {
 		reevaluate_state = false;
@@ -560,7 +568,9 @@ if ( unicoreState != COMPLETED ) {
 			enteredCurrentGmState = time(NULL);
 			// If we were waiting for a pending unicore call, we're not
 			// anymore so purge it.
-			gahp->purgePendingRequests();
+			if ( gahp ) {
+				gahp->purgePendingRequests();
+			}
 			// If we were calling unicore_job_create and using submitAd,
 			// we're done with it now, so free it.
 			if ( submitAd ) {

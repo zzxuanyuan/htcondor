@@ -90,8 +90,6 @@ class UnicoreJob : public BaseJob
 	MyString *submitAd;
 	MyString errorString;
 
- protected:
-	int connect_failure_counter;
 };
 
 #endif
