@@ -44,12 +44,14 @@
 #include "globus_utils.h"
 #include "env.h"
 #include "schedd_files.h"
+#include "queuedbmanager.h"
 
 extern char *Spool;
 extern char *Name;
 extern char* JobHistoryFileName;
 extern Scheduler scheduler;
 extern bool	operator==( PROC_ID, PROC_ID );
+QueueDBManager queueDBManager;
 
 extern "C" {
 	int	prio_compar(prio_rec*, prio_rec*);
@@ -222,6 +224,10 @@ InitQmgmt()
 void
 InitJobQueue(const char *job_queue_name)
 {
+  	//added by ameet
+  	queueDBManager.init(1);
+  	queueDBManager.connectDB();
+	
 	assert(!JobQueue);
 	JobQueue = new ClassAdCollection(job_queue_name);
 	ClusterSizeHashTable = new ClusterSizeHashTable_t(37,compute_clustersize_hash);
@@ -429,6 +435,8 @@ CleanJobQueue()
 void
 DestroyJobQueue( void )
 {
+  	queueDBManager.disconnectDB(); //added by ameet
+
 	if (JobQueueDirty) {
 			// We can't destroy it until it's clean.
 		CleanJobQueue();
@@ -2755,9 +2763,11 @@ static void AppendHistory(ClassAd* ad)
 			JobHistoryFileName);
 		if (LogFile) fclose(LogFile);
 		failed = true;
-	  } else {
+	  } else {		
 		fprintf(LogFile,"***\n");   // separator
 		fclose(LogFile);
+		queueDBManager.processHistoryAd(ad);
+		queueDBManager.commitTransaction();
 	  }
   }
 
