@@ -46,26 +46,6 @@ int HasSigchldHandler = 0;
 
 static char *_FileName_ = __FILE__;     /* Used by EXCEPT (see except.h)     */
 
-#ifdef OSF1
-/*
-** Try to determine the swap space available on our own machine.  The answer
-** is in kilobytes.
-
-** Don't know how to do this one.  We just return the soft limit on data
-** space for any children of the calling process.
-*/
-calc_virt_memory()
-{
-	struct rlimit	lim;
-
-	if( getrlimit(RLIMIT_DATA,&lim) < 0 ) {
-		dprintf( D_ALWAYS, "getrlimit() failed - errno = %d", errno );
-		return -1;
-	}
-	return lim.rlim_cur / 1024;
-}
-#endif OSF1
-
 #ifdef IRIX331
 /*
 ** Try to determine the swap space available on our own machine.  The answer
@@ -143,57 +123,59 @@ calc_virt_memory()
         static char errstr [] = "virt_mem.c";
         struct nlist nl[2];
         struct anoninfo a_info;
-        static kvm_t *kd = (kvm_t *)NULL;
+        kvm_t *kd;
         int result, vm_free;
-
-			/* Operate as root to read /dev/kmem */
-		set_root_euid();
 
         /*
          * First time in this call, get the offset to the anon structure.
          * and page to kbyte conversion.
          */
         if ( !initialized ) {
+                initialized = 1;
                 namelist = corefile = swapfile = (char *) NULL;
                 nl [0].n_name = s_anon;
                 nl [1].n_name = (char *) NULL;
+                set_root_euid();
                 kd = kvm_open (namelist, corefile, swapfile, O_RDONLY, errstr);
                 if ( kd == (kvm_t *) NULL) {
-                    set_condor_euid();
                     dprintf (D_ALWAYS, "Open failure on kernel. First call\n");
+                    set_condor_euid();
                     return (-1);
                 }
                 if (kvm_nlist (kd, nl) != 0) {
-						(void)kvm_close( kd );
-						kd = (kvm_t *)NULL;
-                        set_condor_euid();
                         dprintf (D_ALWAYS, "kvm_nlist failed. First call.\n");
+                        set_condor_euid();
+                        return (-1);
+                }
+                if (kvm_close (kd) != 0) {
+                        dprintf (D_ALWAYS, "kvm_close failure. First call.\n");
+                        set_condor_euid();
                         return (-1);
                 }
                 offset = nl[0].n_value;
                 page_to_k = getpagesize () / 1024;
-                initialized = 1;
         }
-		if( !kd ) {
-			kd = kvm_open (namelist, corefile, swapfile, O_RDONLY, errstr);
-			if ( kd == (kvm_t *) NULL) {
-					set_condor_euid();
-					dprintf (D_ALWAYS, "Open failure on kernel.\n");
-					return (-1);
-			}
-		}
-        result = kvm_read (kd, offset, &a_info, sizeof (a_info));
-        if (result != sizeof (a_info)) {
-				kvm_close( kd );
-				kd = (kvm_t *)NULL;
+        set_root_euid();
+        kd = kvm_open (namelist, corefile, swapfile, O_RDONLY, errstr);
+        if ( kd == (kvm_t *) NULL) {
+                dprintf (D_ALWAYS, "Open failure on kernel.\n");
                 set_condor_euid();
-                dprintf (D_ALWAYS, "kvm_read error.\n");
                 return (-1);
         }
+        result = kvm_read (kd, offset, &a_info, sizeof (a_info));
+        if (result != sizeof (a_info)) {
+                dprintf (D_ALWAYS, "kvm_read error.\n");
+                set_condor_euid();
+                return (-1);
+        }
+        if (kvm_close (kd) != 0) {
+                dprintf (D_ALWAYS, "kvm_close failure.\n");
+                set_condor_euid ();
+                return (-1);
+        }
+        set_condor_euid ();
         vm_free = (int) (a_info.ani_max - a_info.ani_resv);
         vm_free *= page_to_k;
-
-        set_condor_euid ();
         return (vm_free);
 }
 #endif /* SunOS4.0 and SunOS4.1 code */
@@ -216,7 +198,7 @@ calc_virt_memory()
 }
 #endif
 	
-#if !defined(IRIX331) && !defined(AIX31) && !defined(AIX32) && !defined(SUNOS40) && !defined(SUNOS41) && !defined(CMOS) && !defined(HPUX8) && !defined(OSF1)
+#if !defined(IRIX331) && !defined(AIX31) && !defined(AIX32) && !defined(SUNOS40) && !defined(SUNOS41) && !defined(CMOS) && !defined(HPUX8)
 /*
 ** Try to determine the swap space available on our own machine.  The answer
 ** is in kilobytes.

@@ -60,7 +60,7 @@ char	*argv[];
 	config( MyName, (CONTEXT *)0 );
 
 	if( argc > 2 ) {
-		usage( argv[0] );
+		usage();
 	}
 	argv++;
 	if( *argv ) {
