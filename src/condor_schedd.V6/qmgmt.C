@@ -816,6 +816,20 @@ NewProc(int cluster_id)
 		(*numOfProcs)++;
 	}
 
+		// now that we have a real job ad with a valid proc id, then
+		// also insert the appropriate GlobalJobId while we're at it.
+	MyString gjid = "\"";
+	gjid += Name;             // schedd's name
+	int now = (int)time(0);
+	gjid += "#";
+	gjid += now;
+	gjid += "#";
+	gjid += cluster_id;
+	gjid += ".";
+	gjid += proc_id;
+	gjid += "\"";
+	JobQueue->SetAttribute( key, ATTR_GLOBAL_JOB_ID, gjid.Value() );
+
 	return proc_id;
 }
 
