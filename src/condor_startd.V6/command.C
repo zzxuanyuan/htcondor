@@ -1163,13 +1163,13 @@ sendCAReply( Stream* s, char* cmd_str, ClassAd* reply )
 	line = ATTR_VERSION;
 	line += " = \"";
 	line += CondorVersion();
-	line += "\"";
+	line += '"';
 	reply->Insert( line.Value() );
 
 	line = ATTR_PLATFORM;
 	line += " = \"";
 	line += CondorPlatform();
-	line += "\"";
+	line += '"';
 	reply->Insert( line.Value() );
 
 	s->encode();
@@ -1193,6 +1193,8 @@ int
 sendErrorReply( Stream* s, char* cmd_str, const char* err_str ) 
 {
 	dprintf( D_ALWAYS, "%s\n", err_str );
+	dprintf( D_ALWAYS, "Aborting %s\n", cmd_str );
+
 
 	ClassAd reply;
 	reply.Insert( "Result = FALSE" );
@@ -1200,7 +1202,7 @@ sendErrorReply( Stream* s, char* cmd_str, const char* err_str )
 	MyString line = ATTR_COMMAND_ERROR;
 	line += " = \"";
 	line += err_str;
-	line += "\"";
+	line += '"';
 	reply.Insert( line.Value() );
 	
 	return sendCAReply( s, cmd_str, &reply );
@@ -1217,12 +1219,112 @@ unknownCmd( Stream* s, char* cmd_str )
 }
 
 
+int
+caRequestCODClaim( Stream *s, char* cmd_str, ClassAd* req_ad )
+{
+	dprintf( D_ALWAYS, "Serving request for a new COD claim\n" );
+	char* requirements_str = NULL;
+	Resource* rip;
+	Claim* claim;
+	MyString err_msg;
+	ExprTree *tree, *rhs;
+
+		// Make sure the ad's got a requirements expression at all.
+	tree = req_ad->Lookup( ATTR_REQUIREMENTS );
+	if( ! tree ) {
+		dprintf( D_FULLDEBUG, 
+				 "Request did not contain %s, assuming TRUE\n",
+				 ATTR_REQUIREMENTS );
+		requirements_str = strdup( "TRUE" );
+		req_ad->Insert( "Requirements = TRUE" );
+	} else {
+		rhs = tree->RArg();
+		if( rhs ) {
+			rhs->PrintToNewStr( &requirements_str );
+		}
+	}
+
+		// Find the right resource for this claim
+	rip = resmgr->findRipForNewCOD( req_ad );
+
+	if( ! rip ) {
+		err_msg = "RequestCODClaim: Can't find Resource matching ";
+		err_msg += ATTR_REQUIREMENTS;
+		err_msg += " (";
+		err_msg += requirements_str;
+		err_msg += ')';
+		free( requirements_str );
+		return sendErrorReply( s, cmd_str, err_msg.Value() );
+	}
+
+		// done with this now, so don't leak it
+	free( requirements_str );
+
+		// try to create the new claim
+	claim = rip->newCODClaim();
+	if( ! claim ) {
+		err_msg = "RequestCODClaim: Can't create new COD claim";
+		return sendErrorReply( s, cmd_str, err_msg.Value() );
+	}
+
+		// it worked!  just fill in the reply ad appropriated
+	ClassAd* reply;
+	reply = new ClassAd( *rip->r_classad );
+	MyString line;
+	line = ATTR_CLAIM_ID;
+	line += " = \"";
+	line += claim->id();
+	line += '"';
+	reply->Insert( line.Value() );
+	
+	line = ATTR_RESULT;
+	line += " = TRUE";
+	reply->Insert( line.Value() );
+
+	int rval = sendCAReply( s, cmd_str, reply );
+	delete reply;
+	return rval;
+}
+
 
 int
 caRequestClaim( Stream *s, char* cmd_str, ClassAd* req_ad )
 {
-		// TODO!!
-	return TRUE;
+	ClaimType claim_type;
+	char* ct_str = NULL;
+	MyString err_msg; 
+
+		// Now, depending on what kind of claim they're asking for, do
+		// the right thing
+	if( ! req_ad->LookupString(ATTR_CLAIM_TYPE, &ct_str) ) {
+		err_msg = "No ";
+		err_msg += ATTR_CLAIM_TYPE;
+		err_msg += " in ClassAd";
+		return sendErrorReply( s, cmd_str, err_msg.Value() );
+	}
+	claim_type = getClaimTypeNum( ct_str );
+	free( ct_str ); 
+	switch( claim_type ) {
+	case CLAIM_COD:
+		return caRequestCODClaim( s, cmd_str, req_ad );
+		break;
+	case CLAIM_OPPORTUNISTIC:
+		err_msg = ATTR_CLAIM_TYPE;
+		err_msg += " (";
+		err_msg += getClaimTypeString( claim_type );
+		err_msg += ") not supported by this startd";
+		return sendErrorReply( s, cmd_str, err_msg.Value() );
+		break;
+	default:
+		err_msg = "Unrecognized ";
+		err_msg += ATTR_CLAIM_TYPE;
+		err_msg += " (";
+		err_msg += getClaimTypeString( claim_type );
+		err_msg += ") in request ClassAd";
+		return sendErrorReply( s, cmd_str, err_msg.Value() );
+		break;
+	}
+	return FALSE;
 }
 
 
