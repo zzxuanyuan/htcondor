@@ -40,6 +40,7 @@
 #include "condor_ckpt_name.h"
 #include "scheduler.h"	// for shadow_rec definition
 #include "condor_email.h"
+#include "condor_universe.h"
 #include "globus_utils.h"
 
 extern char *Spool;
@@ -2300,7 +2301,9 @@ int mark_idle(ClassAd *job)
 						 (int)time(0) );
 	}
 	else if ( status == RUNNING || hosts > 0 ) {
-		if( jobLeaseIsValid(job, cluster, proc) ) {
+		if( universeCanReconnect(universe) &&
+			jobLeaseIsValid(job, cluster, proc) )
+		{
 			dprintf( D_FULLDEBUG, "Job %d.%d might still be alive, "
 					 "spawning shadow to reconnect\n", cluster, proc );
 			scheduler.enqueueReconnectJob( job_id );
