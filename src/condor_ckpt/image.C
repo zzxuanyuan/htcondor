@@ -18,22 +18,17 @@ static char *_FileName_ = __FILE__;
 #include <signal.h>
 #endif
 
-const int KILO = 1024;
-
 extern "C" int open_write_stream( const char * ckpt_file, size_t n_bytes );
-extern "C" void report_image_size( int );
 
 #if defined(OSF1)
 extern "C" unsigned int htonl( unsigned int );
 extern "C" unsigned int ntohl( unsigned int );
 #endif
 
-void terminate_with_sig( int sig );
-void Suicide();
-
 Image MyImage;
 static jmp_buf Env;
-static RAW_ADDR SavedStackLoc;
+
+static int CkptMode;
 
 
 void
@@ -108,7 +103,6 @@ void
 _condor_prestart( int syscall_mode )
 {
 	struct sigaction action;
-	sigset_t		 sig_mask;
 
 	MyImage.SetMode( syscall_mode );
 
@@ -122,18 +116,9 @@ _condor_prestart( int syscall_mode )
 
 		// install the SIGTSTP handler
 	if( sigaction(SIGTSTP,&action,NULL) < 0 ) {
-		perror( "sigaction - TSTP handler" );
+		perror( "sigaction" );
 		exit( 1 );
 	}
-
-		// install the SIGUSR1 handler
-	action.sa_handler = (SIG_HANDLER)Suicide;
-	if( sigaction(SIGUSR1,&action,NULL) < 0 ) {
-		perror( "sigaction - USR1 handler" );
-		exit( 1 );
-	}
-
-
 }
 
 
@@ -159,11 +144,7 @@ Image::Save()
 	AddSegment( "DATA", data_start, data_end );
 
 		// Set up stack segment
-	if( SavedStackLoc ) {
-		stack_start = SavedStackLoc;
-	} else {
-		stack_start = stack_start_addr();
-	}
+	stack_start = stack_start_addr();
 	stack_end = stack_end_addr();
 	AddSegment( "STACK", stack_start, stack_end );
 
@@ -307,10 +288,6 @@ RestoreStack()
 		nbytes = htonl( nbytes );
 		status = write( MyImage.GetFd(), &nbytes, sizeof(nbytes) );
 		dprintf( D_ALWAYS, "USER PROC: CHECKPOINT IMAGE RECEIVED OK\n" );
-
-		SetSyscalls( SYS_REMOTE | SYS_MAPPED );
-	} else {
-		SetSyscalls( SYS_LOCAL | SYS_MAPPED );
 	}
 
 	LONGJMP( Env, 1 );
@@ -321,7 +298,6 @@ Image::Write()
 {
 	return Write( file_name );
 }
-
 
 /*
   Set up a stream to write our checkpoint information onto, then write
@@ -367,14 +343,6 @@ Image::Write( const char *ckpt_file )
 
 	(void)close( fd );
 	SetSyscalls( scm );
-
-
-		// In remote mode we update the shadow on our image size
-	if( MyImage.GetMode() == REMOTE ) {
-		report_image_size( (MyImage.GetLen() + KILO - 1) / KILO );
-	}
-
-
 
 	return status;
 }
@@ -530,16 +498,8 @@ extern "C" {
 void
 Checkpoint( int sig, int code, void *scp )
 {
-	int		scm;
 
-
-	if( MyImage.GetMode() == REMOTE ) {
-		SetSyscalls( SYS_REMOTE | SYS_UNMAPPED );
-	} else {
-		SetSyscalls( SYS_LOCAL | SYS_UNMAPPED );
-	}
-
-
+	SetSyscalls( CkptMode );
 	dprintf( D_ALWAYS, "Got SIGTSTP\n" );
 	if( SETJMP(Env) == 0 ) {
 		dprintf( D_ALWAYS, "About to save MyImage\n" );
@@ -548,25 +508,14 @@ Checkpoint( int sig, int code, void *scp )
 		MyImage.Write();
 		dprintf( D_ALWAYS,  "Ckpt exit\n" );
 		SetSyscalls( SYS_LOCAL | SYS_UNMAPPED );
-		terminate_with_sig( SIGUSR2 );
+		exit( 0 );
 	} else {
-		scm = SetSyscalls( SYS_LOCAL | SYS_UNMAPPED );
 		patch_registers( scp );
+		SetSyscalls( SYS_LOCAL | SYS_UNMAPPED );
 		MyImage.Close();
-
-#if 1
-		if( MyImage.GetMode() == REMOTE ) {
-			SetSyscalls( SYS_REMOTE | SYS_MAPPED );
-		} else {
-			SetSyscalls( SYS_LOCAL | SYS_MAPPED );
-		}
-#else
-		SetSyscalls( scm );
-#endif
-		syscall( SYS_write, 1, "About to restore files state\n", 29 );
+		SetSyscalls( CkptMode );
 		RestoreFileState();
-		syscall( SYS_write, 1, "Done restoring files state\n", 27 );
-		SetSyscalls( scm );
+		// SetSyscalls( SYS_LOCAL | SYS_MAPPED );
 		syscall( SYS_write, 1, "About to return to user code\n", 29 );
 		return;
 	}
@@ -610,74 +559,6 @@ ckpt()
 {
 	int		scm;
 
-	dprintf( D_ALWAYS, "About to send CHECKPOINT signal to SELF\n" );
-	SetSyscalls( SYS_LOCAL | SYS_UNMAPPED );
+	CkptMode = SetSyscalls( SYS_LOCAL | SYS_UNMAPPED );
 	kill( getpid(), SIGTSTP );
-}
-
-/*
-** Some FORTRAN compilers expect "_" after the symbol name.
-*/
-extern "C" {
-void
-ckpt_() {
-    ckpt();
-}
-}
-
-/*
-  Arrange to terminate abnormally with the given signal.  Note: the
-  expectation is that the signal is one whose default action terminates
-  the process - could be with a core dump or not, depending on the sig.
-*/
-void
-terminate_with_sig( int sig )
-{
-	sigset_t	mask;
-	struct sigaction	act;
-	pid_t		my_pid;
-
-		// Make sure all system calls handled "straight through"
-	SetSyscalls( SYS_LOCAL | SYS_UNMAPPED );
-
-		// Make sure we have the default action in place for the sig
-	act.sa_handler = SIG_DFL;
-	sigemptyset( &act.sa_mask );
-	act.sa_flags = 0;
-	if( sigaction(sig,&act,0) < 0 ) {
-		EXCEPT( "sigaction" );
-	}
-
-		// Send ourself the signal
-	my_pid = getpid();
-	dprintf( D_ALWAYS, "About to send signal %d to process %d\n", sig, my_pid );
-	if( kill(my_pid,sig) < 0 ) {
-		EXCEPT( "kill" );
-	}
-
-		// Wait to die...
-	sigemptyset( &mask );
-	sigsuspend( &mask );
-
-		// Should never get here
-	EXCEPT( "Should never get here" );
-
-}
-
-/*
-  We have been requested to exit.  We do it by sending ourselves a
-  SIGKILL, i.e. "kill -9".
-*/
-void
-Suicide()
-{
-	terminate_with_sig( SIGKILL );
-}
-
-extern "C" {
-void
-_condor_save_stack_location()
-{
-	SavedStackLoc = stack_start_addr();
-}
 }
