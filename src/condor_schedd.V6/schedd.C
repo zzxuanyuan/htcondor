@@ -3928,7 +3928,7 @@ Scheduler::makeReconnectRecords( PROC_ID* job, ClassAd* match_ad )
 	JobDisconnectedEvent event;
 	const char* txt = "Local schedd and job shadow died, "
 		"schedd now running again";
-	event.setReason( txt );
+	event.setDisconnectReason( txt );
 	event.setStartdAddr( startd_addr );
 	event.setStartdName( startd_name );
 

@@ -435,7 +435,7 @@ void
 UniShadow::logDisconnectedEvent( const char* reason )
 {
 	JobDisconnectedEvent event;
-	event.setReason( reason );
+	event.setDisconnectReason( reason );
 
 	DCStartd* dc_startd = remRes->getDCStartd();
 	if( ! dc_startd ) {
