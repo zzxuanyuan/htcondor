@@ -23,7 +23,6 @@
 
 #include "condor_common.h"
 #include "condor_debug.h"
-#include "condor_syscall_mode.h"   // moronic: must go before condor_config
 #include "condor_config.h"
 #if defined(__GNUG__)
 #pragma implementation "list.h"
@@ -35,7 +34,6 @@
 #include "mpi_comrade_proc.h"
 #include "parallel_master_proc.h"
 #include "parallel_comrade_proc.h"
-#include "syscall_numbers.h"
 #include "my_hostname.h"
 #include "internet.h"
 #include "condor_string.h"  // for strnewp
@@ -43,8 +41,6 @@
 #include "condor_random_num.h"
 #include "../condor_sysapi/sysapi.h"
 
-
-extern ReliSock *syscall_sock;
 
 extern "C" int get_random_int();
 extern int main_shutdown_fast();
