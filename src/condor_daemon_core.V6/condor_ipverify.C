@@ -244,16 +244,12 @@ bool IpVerify :: has_user(UserPerm_t * perm, const char * user, int & mask, MySt
         }
     }
 
+    // Last resort, see if the wild card is in the list
     if (found == -1) {
-        int m; 
         MyString tmp;
         // see if the user is total wild
         userid = TotallyWild;
         found  = perm->lookup(userid, mask);
-        perm->startIterations();
-        while( perm->iterate( tmp, m ) ) {
-            dprintf(D_ALWAYS, "********************* User is %s ***************\n", tmp.GetCStr());
-        }    
     }
     return (found != -1);
 }   
@@ -280,16 +276,25 @@ IpVerify::add_hash_entry(const struct in_addr & sin_addr, const char * user, int
             // and re-insert it.
             perm->remove(MyString(user));
         }
+        userid = MyString(user);
 	}
     else {
+        // Convert domain to lower case 
+        char * lower = strdup(user);
+        char * at = strchr(lower, '@');
+        if (at) {
+            while (*(++at) != '\0') {
+                *at = tolower((int) *at);
+            }
+        }
         perm = new UserPerm_t(42, compute_host_hash);
         if (PermHashTable->insert(sin_addr, perm) != 0) {
             delete perm;
             return FALSE;
         }
+        userid = MyString(user);
     }
 
-    userid = MyString(user);
     perm->insert(userid, old_mask | new_mask);
 
     return TRUE;
@@ -448,10 +453,14 @@ IpVerify::Verify( DCpermission perm, const struct sockaddr_in *sin, const char *
 	char **aliases;
     UserPerm_t * ptable = NULL;
     MyString     userid;
+    const char * who = user;
 
 	memcpy(&sin_addr,&sin->sin_addr,sizeof(sin_addr));
 	mask = 0;	// must initialize to zero because we logical-or bits into this
 
+    if (who == NULL) {
+        who = TotallyWild;
+    }
 	switch ( perm ) {
 
 	case ALLOW:
@@ -476,7 +485,7 @@ IpVerify::Verify( DCpermission perm, const struct sockaddr_in *sin, const char *
 		
 		if (PermHashTable->lookup(sin_addr, ptable) != -1) {
 
-            if (has_user(ptable, user, mask, userid)) {
+            if (has_user(ptable, who, mask, userid)) {
                 if ( ( (mask & allow_mask(perm)) == 0 ) && ( (mask & deny_mask(perm)) == 0 ) ) {
                     found_match = FALSE;
                 } else {
@@ -498,7 +507,7 @@ IpVerify::Verify( DCpermission perm, const struct sockaddr_in *sin, const char *
 				cur_byte[i] = (unsigned char) 255;
 
 				if ( PermHashTable->lookup(sin_addr, ptable) != -1 ) {
-                    if (has_user(ptable, user, temp_mask, userid)) {
+                    if (has_user(ptable, who, temp_mask, userid)) {
                         j = (temp_mask & ( allow_mask(perm) | deny_mask(perm) ));
                         if ( j != 0 ) {
                             // We found a subnet match.  Logical-or it into our mask.
@@ -524,7 +533,7 @@ IpVerify::Verify( DCpermission perm, const struct sockaddr_in *sin, const char *
                       string_anycase_withwildcard(thehost))) {
                     // See if the user exist
                     if (PermTypeArray[perm]->allow_users->lookup(hoststring, userList) != -1) {
-                        if (lookup_user(userList, user)) {
+                        if (lookup_user(userList, who)) {
                             mask |= allow_mask(perm);
                         }
                     }
@@ -534,7 +543,7 @@ IpVerify::Verify( DCpermission perm, const struct sockaddr_in *sin, const char *
                      (hoststring = PermTypeArray[perm]->deny_hosts->
                       string_anycase_withwildcard(thehost))) {
                     if (PermTypeArray[perm]->deny_users->lookup(hoststring, userList) != -1) {
-                        if (lookup_user(userList, user)) {  
+                        if (lookup_user(userList, who)) {  
                             mask |= deny_mask(perm);
                         }
                     }
@@ -556,24 +565,24 @@ IpVerify::Verify( DCpermission perm, const struct sockaddr_in *sin, const char *
 
 			// finally, add the mask we computed into the table with this IP addr
 			if ( cache_DNS_results == TRUE ) {
-				add_hash_entry(sin->sin_addr, user, mask);			
+				add_hash_entry(sin->sin_addr, who, mask);			
 			}
 		}  // end of if find_match is FALSE
 
 		// decode the mask and return True or False to the user.
 		if ( mask & deny_mask(perm) )
-			return FALSE;
+			return USER_AUTH_FAILURE;
 		if ( mask & allow_mask(perm) )
 			return USER_AUTH_SUCCESS;
 		else
-			return FALSE;
+			return USER_AUTH_FAILURE;
 
 		break;
 	
 	}	// end of switch(perm)
 
 	// should never make it here
-	EXCEPT("IP Verify: could not decide, should never make it here!");
+	EXCEPT("User Verify: could not decide, should never make it here!");
 	return FALSE;
 }
 
