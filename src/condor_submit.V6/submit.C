@@ -1910,7 +1910,7 @@ SetStdFile( int which_file )
 	char	*generic_name;
 	char	 buffer[_POSIX_PATH_MAX + 32];
 
-	if(JobUniverse==CONDOR_UNIVERSE_GLOBUS) {
+	if(JobUniverse==CONDOR_UNIVERSE_GLOBUS && which_file != 0) {
 		if ( stricmp (JobGridType, "globus") == MATCH ||
 			 stricmp (JobGridType, "gt2") == MATCH ||
 			 stricmp (JobGridType, "gt3") == MATCH ) {
