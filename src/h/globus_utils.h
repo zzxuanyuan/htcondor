@@ -27,19 +27,9 @@
 
 BEGIN_C_DECLS
 
-//Keep this consistent with the strings defined in globus_utils.c!!
-#define G_UNSUBMITTED 	0
-#define G_SUBMITTED		1
-#define G_PENDING		2
-#define G_ACTIVE		3
-#define G_FAILED		4
-#define G_DONE			5
-#define G_SUSPENDED		6
-#define G_CANCELED		7
-
 #define NULL_JOB_CONTACT	"X"
 
-extern char *GlobusJobStatusNames[];
+char *GlobusJobStatusName( int status );
 
 int check_x509_proxy( char *proxy_file );
 

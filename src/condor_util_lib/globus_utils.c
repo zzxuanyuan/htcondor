@@ -38,18 +38,27 @@
 #define DEFAULT_MIN_TIME_LEFT 8*60*60;
 
 
-char *GlobusJobStatusNames[] = {
-	"UNSUBMITTED",
-	"SUBMITTED",
-	"PENDING",
-	"ACTIVE",
-	"FAILED",
-	"DONE",
-	"SUSPENDED",
-	"CANCELED"
-};
-
 static char * _globus_error_message = NULL;
+
+char *GlobusJobStatusName( int status )
+{
+	switch ( status ) {
+	case GLOBUS_GRAM_PROTOCOL_JOB_STATE_PENDING:
+		return "PENDING";
+	case GLOBUS_GRAM_PROTOCOL_JOB_STATE_ACTIVE:
+		return "ACTIVE";
+	case GLOBUS_GRAM_PROTOCOL_JOB_STATE_FAILED:
+		return "FAILED";
+	case GLOBUS_GRAM_PROTOCOL_JOB_STATE_DONE:
+		return "DONE";
+	case GLOBUS_GRAM_PROTOCOL_JOB_STATE_SUSPENDED:
+		return "SUSPENDED";
+	case GLOBUS_GRAM_PROTOCOL_JOB_STATE_UNSUBMITTED:
+		return "UNSUBMITTED";
+	default:
+		return "??????";
+	}
+}
 
 const char *
 x509_error_string()
