@@ -300,14 +300,16 @@ Resource::hasAnyClaim( void )
 void
 Resource::suspendForCOD( void )
 {
+	bool did_update = false;
 	r_suspended_for_cod = true;
+	r_reqexp->unavail();
 
 	switch( r_cur->state() ) { 
 
     case CLAIM_RUNNING:
 		dprintf( D_ALWAYS, "State change: Suspending because a COD "
 				 "job is now running\n" );
-		change_state( suspended_act );
+		did_update = change_state( suspended_act );
 		break;
 
     case CLAIM_VACATING:
@@ -325,8 +327,10 @@ Resource::suspendForCOD( void )
     case CLAIM_UNCLAIMED:
 		dprintf( D_ALWAYS, "A COD job is now running, opportunistic "
 				 "claim is unavailable\n" );
-			// TODO: make it unavailable
 		break;
+	}
+	if( ! did_update ) { 
+		update();
 	}
 }
 
@@ -334,7 +338,9 @@ Resource::suspendForCOD( void )
 void
 Resource::resumeForCOD( void )
 {
+	bool did_update = false;
 	r_suspended_for_cod = false;
+	r_reqexp->restore();
 
 	switch( r_cur->state() ) { 
 
@@ -354,18 +360,19 @@ Resource::resumeForCOD( void )
     case CLAIM_SUSPENDED:
 		dprintf( D_ALWAYS, "State Change: No running COD job, "
 				 "resuming opportunistic claim\n" );
-		change_state( busy_act );
+		did_update = change_state( busy_act );
 		break;
 
     case CLAIM_IDLE:
     case CLAIM_UNCLAIMED:
 		dprintf( D_ALWAYS, "No running COD job, opportunistic "
 				 "claim is now available\n" );
-			// TODO: make it available
 		break;
 	}
+	if( ! did_update ) { 
+		update();
+	}
 }
-
 
 
 void
@@ -468,6 +475,7 @@ Resource::newCODClaim( void )
 		return NULL;
 	}
 	dprintf( D_FULLDEBUG, "Created new COD Claim (%s)\n", claim->id() );
+	update();
 	return claim;
 }
 
