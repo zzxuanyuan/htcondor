@@ -132,6 +132,7 @@ int SetAttributeFloat(int cluster, int proc, const char *attr, float value);
 int SetAttributeString(int cluster, int proc, const char *attr, char *value);
 
 int CloseConnection();
+void BeginTransaction();
 
 /** Get value of attr for job with specified cluster and proc.
 	@return -1 on failure; 0 on success
@@ -145,6 +146,11 @@ int GetAttributeInt(int cluster, int proc, const char *attr, int *value);
 	@return -1 on failure; 0 on success
 */
 int GetAttributeString(int cluster, int proc, const char *attr, char *value);
+/** Get value of string attr for job with specified cluster and proc.
+	@return -1 on failure; 0 on success. Allocates new copy of the string.
+*/
+int GetAttributeStringNew( int cluster_id, int proc_id, const char *attr_name, 
+					   char **val );
 /** Get value of attr for job with specified cluster and proc.
 	@return -1 on failure; 0 on success
 */
@@ -156,9 +162,14 @@ int DeleteAttribute(int cluster, int proc, const char *attr);
 
 /** Efficiently get the entire job ClassAd.
 	The caller MUST call FreeJobAd when the ad is no longer in use. 
+	@param cluster_id Cluster number of ad to fetch
+	@param proc_id Process number of ad to fetch
+	@param expStartdAttrs Expand $$(xxx) style macros inside the ClassAd
+		with attributes from the matching Startd ad.  
 	@return NULL on failure; the job ClassAd on success
 */
-ClassAd *GetJobAd(int cluster_id, int proc_id);
+ClassAd *GetJobAd(int cluster_id, int proc_id, bool expStardAttrs = false);
+
 /** Efficiently get the first job ClassAd which matches the constraint.
 	@return NULL on failure; the job ClassAd on success
 */

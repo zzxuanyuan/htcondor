@@ -53,7 +53,7 @@ void debug_unlock(int debug_level);
 void preserve_log_file(int debug_level);
 void _condor_dprintf_exit();
 
-extern	int		errno;
+extern	DLL_IMPORT_MAGIC int		errno;
 extern	int		DebugFlags;
 
 FILE	*DebugFP = 0;
@@ -100,7 +100,6 @@ _condor_dprintf_va( int flags, char* fmt, va_list args )
 {
 	struct tm *tm, *localtime();
 	time_t clock;
-	int scm;
 #if !defined(WIN32)
 	sigset_t	mask, omask;
 	mode_t		old_umask;
@@ -141,12 +140,6 @@ _condor_dprintf_va( int flags, char* fmt, va_list args )
 	EnterCriticalSection(_condor_dprintf_critsec);
 #endif
 
-	saved_errno = errno;
-
-	saved_flags = DebugFlags;       /* Limit recursive calls */
-	DebugFlags = 0;
-
-
 #if !defined(WIN32) /* signals and umasks don't exist in WIN32 */
 
 	/* Block any signal handlers which might try to print something */
@@ -155,10 +148,8 @@ _condor_dprintf_va( int flags, char* fmt, va_list args )
 	sigdelset( &mask, SIGBUS );
 	sigdelset( &mask, SIGFPE );
 	sigdelset( &mask, SIGILL );
-	sigdelset( &mask, SIGQUIT );
 	sigdelset( &mask, SIGSEGV );
 	sigdelset( &mask, SIGTRAP );
-	sigdelset( &mask, SIGCHLD );
 	sigprocmask( SIG_BLOCK, &mask, &omask );
 
 		/* Make sure our umask is reasonable, in case we're the shadow
@@ -168,7 +159,22 @@ _condor_dprintf_va( int flags, char* fmt, va_list args )
 
 #endif
 
+	saved_errno = errno;
+
+	saved_flags = DebugFlags;       /* Limit recursive calls */
+	DebugFlags = 0;
+
+
 	/* log files owned by condor system acct */
+
+		/* If we're in PRIV_USER_FINAL, there's a good chance we won't
+		   be able to write to the log file.  We can't rely on Condor
+		   code to refrain from calling dprintf() after switching to
+		   PRIV_USER_FINAL.  So, we check here and simply don't try to
+		   log anything when we're in PRIV_USER_FINAL, to avoid
+		   exit(DPRINTF_ERROR). */
+	if (get_priv() == PRIV_USER_FINAL) return;
+
 		/* avoid priv macros so we can bypass priv logging */
 	priv = _set_priv(PRIV_CONDOR, __FILE__, __LINE__, 0);
 
@@ -190,14 +196,9 @@ _condor_dprintf_va( int flags, char* fmt, va_list args )
 
 				/* Print the message with the time and a nice identifier */
 				if( ((saved_flags|flags) & D_NOHEADER) == 0 ) {
-					if( (saved_flags|flags) & D_SECONDS ) {
-						fprintf( DebugFP, "%d/%d %02d:%02d:%02d ", 
-								 tm->tm_mon + 1, tm->tm_mday, tm->tm_hour, 
-								 tm->tm_min, tm->tm_sec );
-					} else {
-						fprintf( DebugFP, "%d/%d %02d:%02d ", tm->tm_mon + 1,
-								 tm->tm_mday, tm->tm_hour, tm->tm_min );
-					}
+					fprintf( DebugFP, "%d/%d %02d:%02d:%02d ", 
+							 tm->tm_mon + 1, tm->tm_mday, tm->tm_hour, 
+							 tm->tm_min, tm->tm_sec );
 
 					if ( (saved_flags|flags) & D_FDS ) {
 						fprintf ( DebugFP, "(fd:%d) ", fileno(DebugFP) );
@@ -221,6 +222,9 @@ _condor_dprintf_va( int flags, char* fmt, va_list args )
 		/* restore privileges */
 	_set_priv(priv, __FILE__, __LINE__, 0);
 
+	errno = saved_errno;
+	DebugFlags = saved_flags;
+
 #if !defined(WIN32) // signals and umasks don't exist in WIN32
 
 		/* restore umask */
@@ -230,9 +234,6 @@ _condor_dprintf_va( int flags, char* fmt, va_list args )
 	(void) sigprocmask( SIG_SETMASK, &omask, 0 );
 
 #endif
-
-	errno = saved_errno;
-	DebugFlags = saved_flags;
 
 #ifdef WIN32
 	LeaveCriticalSection(_condor_dprintf_critsec);
@@ -339,7 +340,8 @@ debug_lock(int debug_level)
 				_condor_fd_panic( __LINE__, __FILE__ );
 			}
 #endif
-			fprintf(stderr, "Could not open DebugFile <%s>\n", DebugFile);
+			fprintf( stderr, "Could not open DebugFile <%s>\n", 
+					 DebugFile[debug_level] );
 			_condor_dprintf_exit();
 		}
 			/* Seek to the end */
@@ -453,7 +455,7 @@ preserve_log_file(int debug_level)
 			/* now truncate the original by reopening _not_ with append */
 			DebugFP = open_debug_file(debug_level, "w");
 			if ( DebugFP ==  NULL ) {
-				still_in_old_file == TRUE;
+				still_in_old_file = TRUE;
 			}
 		}
 	}
@@ -611,6 +613,9 @@ open_debug_file(int debug_level, char flags[])
 void
 _condor_dprintf_exit()
 {
+
+	char* null_ptr = NULL;
+
 		/* First, set a flag so we know not to try to keep using
 		   dprintf during the rest of this */
 	DprintfBroken = 1;
@@ -626,7 +631,8 @@ _condor_dprintf_exit()
 
 		/* Actually exit now */
 	fflush (stderr);
-	exit(DPRINTF_ERROR);
+
+	exit(DPRINTF_ERROR); 
 }
 
 
@@ -648,7 +654,7 @@ dprintf_init( int fd )
 		_condor_dprintf_exit();
 	}
 }
-#endif /* ! LOOSE32 */
+#endif /* ! LOSE32 */
 
 
 /*

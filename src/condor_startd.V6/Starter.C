@@ -41,17 +41,21 @@ Starter::Starter( Resource* rip )
 	s_family_size = 0;
 	s_type = -1;
 	s_is_dc = 0;
+	s_birthdate = 0;
 }
 
 
 Starter::~Starter()
 {
-	free( s_name );
+	if (s_name) {
+		free( s_name );
+	}
 	if( s_procfam ) {
 		delete s_procfam;
 	}
 	if( s_pidfamily ) {
 		delete [] s_pidfamily;
+		s_pidfamily = NULL;
 	}
 }
 
@@ -379,16 +383,22 @@ Starter::reallykill( int signo, int type )
 	set_priv(priv);
 
 	if( ret < 0 ) {
-		dprintf( D_ALWAYS, "Error sending signal to starter, errno = %d\n", 
-				 errno );
-		return -1;
+		if(errno==ESRCH) {
+			/* Aha, the starter is already dead */
+			return 0;
+		} else {
+			dprintf( D_ALWAYS, "Error sending signal to starter, errno = %d\n", 
+					 errno );
+			return -1;
+		}
+	} else {
+		return ret;
 	}
-	return ret;
 }
 
 
 int 
-Starter::spawn( start_info_t* info )
+Starter::spawn( start_info_t* info, time_t now )
 {
 
 	if( is_dc() ) {
@@ -405,17 +415,19 @@ Starter::spawn( start_info_t* info )
 	if( s_pid == 0 ) {
 		dprintf( D_ALWAYS, "ERROR: exec_starter returned %d\n", s_pid );
 	} else {
+		s_birthdate = now;
 		s_procfam = new ProcFamily( s_pid, PRIV_ROOT );
 #if WIN32
 		// we only support running jobs as user nobody for the first pass
 		char nobody_login[60];
-		sprintf(nobody_login,"condor-run-dir_%d",s_pid);
+		//sprintf(nobody_login,"condor-run-dir_%d",s_pid);
+		sprintf(nobody_login,"condor-run-%d",s_pid);
 		// set ProcFamily to find decendants via a common login name
 		s_procfam->setFamilyLogin(nobody_login);
 #endif
 		dprintf( D_PROCFAMILY, 
 				 "Created new ProcFamily w/ pid %d as the parent.\n", s_pid );
-		recompute_pidfamily();
+		recompute_pidfamily( now );
 	}
 	return s_pid;
 }
@@ -433,7 +445,10 @@ Starter::exited()
 
 		// Finally, we can free up our memory and data structures.
 	s_pid = 0;
-	free( s_name );
+	if ( s_name ) {
+		free( s_name );
+		s_name = NULL;
+	}
 	s_name = NULL;
 
 	if( s_procfam ) {
@@ -464,7 +479,7 @@ Starter::exec_starter( char* starter, char* hostname,
 
 	dprintf ( D_FULLDEBUG, "About to Create_Process \"%s\".\n", args );
 
-	s_pid = daemonCore->Create_Process( s_name, args, PRIV_ROOT, 1, TRUE, 
+	s_pid = daemonCore->Create_Process( s_name, args, PRIV_ROOT, main_reaper, TRUE, 
 										NULL, NULL, TRUE, sock_inherit_list );
 	if( s_pid == FALSE ) {
 		dprintf( D_ALWAYS, "ERROR: exec_starter failed!\n");
@@ -626,16 +641,27 @@ Starter::dprintf( int flags, char* fmt, ... )
 
 
 void
-Starter::recompute_pidfamily() 
+Starter::recompute_pidfamily( time_t now ) 
 {
 	if( !s_procfam ) {
 		dprintf( D_PROCFAMILY, 
-				 "Starter::recompute_pidfamily: ERROR: No ProcFamily object.\n" );
+		 "Starter::recompute_pidfamily: ERROR: No ProcFamily object.\n" );
 		return;
 	}
+	dprintf( D_PROCFAMILY, "Recomputing pid family\n" );
 	s_procfam->takesnapshot();
 	if( s_pidfamily ) {
 		delete [] s_pidfamily;
+		s_pidfamily = NULL;
 	}
 	s_family_size = s_procfam->currentfamily( s_pidfamily );
+	if( ! s_family_size ) {
+		dprintf( D_ALWAYS, 
+			"WARNING: No processes found in starter's family\n" );
+	}
+	if( now ) {
+		s_last_snapshot = now;
+	} else {
+		s_last_snapshot = time( NULL );
+	}
 }

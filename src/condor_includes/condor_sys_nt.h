@@ -23,6 +23,15 @@
 #ifndef CONDOR_SYS_NT_H
 #define CONDOR_SYS_NT_H
 
+// Disable warning about protected copy constr or assignment ops
+#pragma warning( disable : 4661 )  
+
+// Disable performance warning about casting to a bool
+#pragma warning( disable : 4800 )  
+
+// Disable warnings about multiple template instantiations (done for gcc)
+#pragma warning( disable : 4660 )  
+
 // #define NOGDI
 #define NOSOUND
 #include <winsock2.h>
@@ -55,6 +64,9 @@ typedef DWORD pid_t;
 #define strncasecmp _strnicmp
 #define strincmp _strnicmp
 #define strdup _strdup
+#define strupr _strupr
+#define strlwr _strlwr
+#define snprintf _snprintf
 #define chdir _chdir
 #define fsync _commit
 #define access _access
@@ -62,6 +74,8 @@ typedef DWORD pid_t;
 #define execv _execv
 #define putenv _putenv
 #define itoa _itoa
+#define utime _utime
+#define utimbuf _utimbuf
 #define R_OK 4
 #define W_OK 2
 #define X_OK 4
@@ -85,6 +99,7 @@ typedef DWORD pid_t;
 #include <stdio.h>
 #include <limits.h>
 #include <math.h>
+#include <float.h>   // for DBL_MAX and other constants
 #include <errno.h>
 #include "condor_file_lock.h"
 #include "condor_fix_assert.h"
@@ -99,6 +114,14 @@ typedef DWORD pid_t;
 #define rint(num) floor(num + .5)
 
 #define ETIMEDOUT ERROR_TIMEOUT
+
+/* Some missing ERRNO values.... */
+#ifndef ETXTBSY
+#	define ETXTBSY EBUSY
+#endif
+#ifndef EWOULDBLOCK
+#	define EWOULDBLOCK EAGAIN
+#endif
 
 typedef fd_set *SELECT_FDSET_PTR;
 

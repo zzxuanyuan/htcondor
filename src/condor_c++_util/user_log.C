@@ -33,7 +33,6 @@
 
 static const char SynchDelimiter[] = "...\n";
 
-static void display_ids();
 extern "C" char *find_env (const char *, const char *);
 extern "C" char *get_env_val (const char *);
 
@@ -99,7 +98,7 @@ get_env_val( const char *str )
     return answer;
 }
 
-void UserLog::
+bool UserLog::
 initialize( const char *file, int c, int p, int s )
 {
 	int 			fd;
@@ -109,26 +108,35 @@ initialize( const char *file, int c, int p, int s )
 	strcpy( path, file );
 	in_block = FALSE;
 
-	if (fp) fclose(fp);
-
+	if( fp ) {
+		if( fclose( fp ) != 0 ) {
+			dprintf( D_ALWAYS,
+					 "UserLog::initialize: fclose(\"%s\") failed (%s)",
+					 path, strerror( errno ) );
+		}
+		fp = NULL;
+	}
+	
 #ifndef WIN32
 	// Unix
 	if( (fd = open( path, O_CREAT | O_WRONLY, 0664 )) < 0 ) {
 		dprintf( D_ALWAYS, 
-			"UserLog::initialize: open(%s) failed - errno %d", path, errno );
-		return;
+			"UserLog::initialize: open(%s) failed - errno %d\n", path, errno );
+		return false;
 	}
 
 		// attach it to stdio stream
 	if( (fp = fdopen(fd,"a")) == NULL ) {
 		dprintf( D_ALWAYS, 
-			"UserLog::initialize: fdopen() failed - errno %d", path, errno );
+			"UserLog::initialize: fdopen(%i) failed - errno %d\n", fd, errno );
+		// should return here?
 	}
 #else
 	// Windows (Visual C++)
 	if( (fp = fopen(path,"a+tc")) == NULL ) {
 		dprintf( D_ALWAYS, 
-			"UserLog::initialize: fopen failed - errno %d", path, errno );
+			"UserLog::initialize: fopen(%s) failed - errno %d\n", path, errno );
+		return false;
 	}
 
 	fd = _fileno(fp);
@@ -136,38 +144,42 @@ initialize( const char *file, int c, int p, int s )
 
 		// set the stdio stream for line buffering
 	if( setvbuf(fp,NULL,_IOLBF,BUFSIZ) < 0 ) {
-		dprintf( D_ALWAYS, "setvbuf failed in UserLog::initialize" );
+		dprintf( D_ALWAYS, "setvbuf failed in UserLog::initialize\n" );
 	}
 
 	// prepare to lock the file
 	lock = new FileLock( fd );
 
-	initialize(c, p, s);
+	return initialize(c, p, s);
 }
 
-void UserLog::
+bool UserLog::
 initialize( const char *owner, const char *file, int c, int p, int s )
 {
 	priv_state		priv;
 
+	uninit_user_ids();
 	init_user_ids(owner);
 
 		// switch to user priv, saving the current user
 	priv = set_user_priv();
 
 		// initialize log file
-	initialize(file,c,p,s);
+	bool res = initialize(file,c,p,s);
 
 		// get back to whatever UID and GID we started with
 	set_priv(priv);
+
+	return res;
 }
 
-void UserLog::
+bool UserLog::
 initialize( int c, int p, int s )
 {
 	cluster = c;
 	proc = p;
 	subproc = s;
+	return true;
 }
 
 UserLog::~UserLog()
@@ -306,7 +318,7 @@ InitUserLog( const char *own, const char *file, int c, int p, int s )
 extern "C" void
 CloseUserLog( LP *lp )
 {
-	delete lp;
+	delete (UserLog*)lp;
 }
 
 extern "C" void
@@ -358,6 +370,12 @@ initialize (const char *filename)
 {	
 	if ((_fd = open (filename, O_RDONLY, 0)) == -1) return false;
 	if ((_fp = fdopen (_fd, "r")) == NULL) return false;
+
+    lock = new FileLock( _fd, _fp );
+	if( !lock ) {
+		return false;
+	}
+
 	return true;
 }
 	
@@ -368,21 +386,31 @@ readEvent (ULogEvent *& event)
 	long   filepos;
 	int    eventnumber;
 	int    retval1, retval2;
-	
+
+	// we obtain a write lock here not because we want to write
+	// anything, but because we want to ensure we don't read
+	// mid-way through someone else's write
+	lock->obtain( WRITE_LOCK );
+
 	// store file position so that if we are unable to read the event, we can
 	// rewind to this location
 	if (!_fp || ((filepos = ftell(_fp)) == -1L))
+	{
+		lock->release();
 		return ULOG_UNK_ERROR;
+	}
 
 	retval1 = fscanf (_fp, "%d", &eventnumber);
 
 	// so we don't dump core if the above fscanf failed
-	if (retval1 != 1) eventnumber = 1;
+	if (retval1 != 1) 
+		eventnumber = 1;
 
 	// allocate event object; check if allocated successfully
 	event = instantiateEvent ((ULogEventNumber) eventnumber);
 	if (!event) 
 	{
+		lock->release();
 		return ULOG_UNK_ERROR;
 	}
 
@@ -392,13 +420,21 @@ readEvent (ULogEvent *& event)
 	// check if error in reading event
 	if (!retval1 || !retval2)
 	{	
-		// try to synchronize the log
-		if (synchronize())
+		// wait a second, rewind to our initial position (in case a
+		// buggy getEvent() slurped up more than one event), then
+		// synchronize the log
+		sleep( 1 );
+		if( fseek( _fp, filepos, SEEK_SET)) {
+			dprintf( D_ALWAYS, "fseek() failed in %s:%d", __FILE__, __LINE__ );
+			return ULOG_UNK_ERROR;
+		}
+		if( synchronize() )
 		{
 			// if synchronization was successful, reset file position and ...
 			if (fseek (_fp, filepos, SEEK_SET))
 			{
 				dprintf(D_ALWAYS, "fseek() failed in ReadUserLog::readEvent");
+				lock->release();
 				return ULOG_UNK_ERROR;
 			}
 			
@@ -413,10 +449,12 @@ readEvent (ULogEvent *& event)
 				delete event;
 				event = NULL;  // To prevent FMR: Free memory read
 				synchronize ();
+				lock->release();
 				return ULOG_RD_ERROR;
 			}
 			else
 			{
+				lock->release();
 				return ULOG_OK;
 			}
 		}
@@ -427,11 +465,13 @@ readEvent (ULogEvent *& event)
 			if (fseek (_fp, filepos, SEEK_SET))
 			{
 				dprintf(D_ALWAYS, "fseek() failed in ReadUserLog::readEvent");
+				lock->release();
 				return ULOG_UNK_ERROR;
 			}
 			clearerr (_fp);
 			delete event;
 			event = NULL;  // To prevent FMR: Free memory read
+			lock->release();
 			return ULOG_NO_EVENT;
 		}
 	}
@@ -440,6 +480,7 @@ readEvent (ULogEvent *& event)
 		// got the event successfully -- synchronize the log
 		if (synchronize ())
 		{
+			lock->release();
 			return ULOG_OK;
 		}
 		else
@@ -449,11 +490,13 @@ readEvent (ULogEvent *& event)
 			delete event;
 			event = NULL;  // To prevent FMR: Free memory read
 			clearerr (_fp);
+			lock->release();
 			return ULOG_NO_EVENT;
 		}
 	}
 
 	// will not reach here
+	lock->release();
 	return ULOG_UNK_ERROR;
 }
 
@@ -461,10 +504,17 @@ readEvent (ULogEvent *& event)
 bool ReadUserLog::
 synchronize ()
 {
-	char buffer[32];
-	while (1) {
-		if (fgets (buffer, 32, _fp) == NULL)      return false;
-		if (strcmp (buffer, SynchDelimiter) == 0) return true;
-	}
+    char buffer[512];
+    while( fgets( buffer, 512, _fp ) != NULL ) {
+		if( strcmp( buffer, SynchDelimiter) == 0 ) {
+            return true;
+        }
+    }
     return false;
 }
+
+void ReadUserLog::outputFilePos(const char *pszWhereAmI)
+{
+	dprintf(D_ALWAYS, "Filepos: %d, context: %s\n", ftell(_fp), pszWhereAmI);
+}
+

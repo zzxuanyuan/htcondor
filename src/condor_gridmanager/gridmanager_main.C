@@ -4,20 +4,15 @@
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
 #include "basename.h"
 
-// Globus include files
-#include "globus_common.h"
-#include "globus_gram_client.h"
-#include "globus_gass_server_ez.h"
+#include "sslutils.h"	// for proxy_get_filenames
 
-#include "gm_common.h"
 #include "gridmanager.h"
 
 
-char *gramCallbackContact = NULL;
-char *gassServerUrl = NULL;
-globus_gass_transfer_listener_t gassServerListener;
-
 char *mySubSystem = "GRIDMANAGER";	// used by Daemon Core
+
+// this appears at the bottom of this file
+extern "C" int display_dprintf_header(FILE *fp);
 
 void
 usage( char *name )
@@ -36,7 +31,7 @@ main_activate_globus()
 	// Find the location of our proxy file, if we don't already
 	// know (from the command line)
 	if (X509Proxy == NULL) {
-		proxy_get_filenames(1, NULL, NULL, &X509Proxy, NULL, NULL);
+		proxy_get_filenames(NULL, 1, NULL, NULL, &X509Proxy, NULL, NULL);
 	}
 
 	if(first_time) {
@@ -49,50 +44,24 @@ main_activate_globus()
 		return false;
 	}
 
-/*
-	if ( gramCallbackContact ) {
-		free(gramCallbackContact);
-		gramCallbackContact = NULL;
-	}
-*/
-
-	GahpMain.setMode( blocking );
+	GahpMain.setMode( GahpClient::blocking );
 
 	err = GahpMain.globus_gram_client_callback_allow( gramCallbackHandler,
-													  &gridmanager,
+													  NULL,
 													  &gramCallbackContact );
 	if ( err != GLOBUS_SUCCESS ) {
 		dprintf( D_ALWAYS, "Error enabling GRAM callback, err=%d - %s\n", 
-			err, globus_gram_client_error_string(err) );
-		globus_module_deactivate( GLOBUS_GRAM_CLIENT_MODULE );
+			err, GahpMain.globus_gram_client_error_string(err) );
 		return false;
 	}
 
-/*
-	err = GahpMain.globus_gass_server_ez_init( &gassServerListener,
-										NULL, NULL, NULL,
-										GLOBUS_GASS_SERVER_EZ_READ_ENABLE |
-										GLOBUS_GASS_SERVER_EZ_LINE_BUFFER |
-										GLOBUS_GASS_SERVER_EZ_WRITE_ENABLE,
-										NULL );
-*/
-	err = GahpMain.globus_gass_server_super_ez_init( &gassServerUrl, 0 );
+	err = GahpMain.globus_gass_server_superez_init( &gassServerUrl, 0 );
 	if ( err != GLOBUS_SUCCESS ) {
 		dprintf( D_ALWAYS, "Error enabling GASS server, err=%d\n", err );
-/*
-		GahpMain.globus_gram_client_callback_disallow( gramCallbackContact );
-		globus_module_deactivate_all();
-*/
 		return false;
 	}
+	dprintf( D_FULLDEBUG, "GASS server URL: %s\n", gassServerUrl );
 
-/*
-	if ( gassServerUrl ) {
-		free(gassServerUrl);
-		gassServerUrl = NULL;
-	}
-	gassServerUrl = GahpMain.globus_gass_transfer_listener_get_base_url(gassServerListener);
-*/
 	return true;
 }
 
@@ -100,10 +69,6 @@ main_activate_globus()
 bool
 main_deactivate_globus()
 {
-/*
-	GahpMain.globus_gram_client_callback_disallow( gramCallbackContact );
-	GahpMain.globus_gass_server_ez_shutdown( gassServerListener );
-*/
 	return true;
 }
 
@@ -141,6 +106,9 @@ main_init( int argc, char **argv )
 		i++;
 	}
 
+	// Setup dprintf to display pid
+	DebugId = display_dprintf_header;
+
 	// Activate Globus libraries
 	if ( main_activate_globus() == false ) {
 		dprintf(D_ALWAYS,"Failed to activate Globus Libraries\n");
@@ -158,7 +126,7 @@ main_init( int argc, char **argv )
 }
 
 int
-main_config()
+main_config( bool is_full )
 {
 	Reconfig();
 	return TRUE;
@@ -178,4 +146,21 @@ main_shutdown_graceful()
 	main_deactivate_globus();
 	DC_Exit(0);
 	return TRUE;	// to satify c++
+}
+
+// This function is called by dprintf - always display our pid in our
+// log entries. 
+extern "C" 
+int
+display_dprintf_header(FILE *fp)
+{
+	static pid_t mypid = 0;
+
+	if (!mypid) {
+		mypid = daemonCore->getpid();
+	}
+
+	fprintf( fp, "[%ld] ", mypid );
+
+	return TRUE;
 }

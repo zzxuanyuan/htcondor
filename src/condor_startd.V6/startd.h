@@ -58,6 +58,7 @@ extern "C" int WINAPI KBShutdown(void);	/* in the Kbdd DLL */
 class Resource;
 #include "LoadQueue.h"
 #include "ResAttributes.h"
+#include "AvailStats.h"
 #include "Match.h"
 #include "Starter.h"
 #include "Reqexp.h"
@@ -93,6 +94,7 @@ extern	StringList* startd_job_exprs;
 
 // Hosts
 extern	Daemon*	Collector;
+extern	Daemon*	View_Collector;
 extern	char*	condor_view_host;
 extern	char*	accountant_host;
 
@@ -121,6 +123,15 @@ extern	int		startd_noclaim_shutdown;
     // the plug" and tell the master to shutdown.
 
 extern	char*	Name;			// The startd's name
+
+extern	bool	compute_avail_stats;
+	// should the startd compute vm availability statistics; currently 
+	// false by default
+
+extern	int		pid_snapshot_interval;	
+    // How often do we take snapshots of the pid families? 
+
+extern  int main_reaper;
 
 #endif /* _STARTD_NO_DECLARE_GLOBALS */
 

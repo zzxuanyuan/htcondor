@@ -250,14 +250,15 @@ main(int argc, char* argv[])
     exit(1);
   }
 
+  view_host.startCommand(QueryType, &sock);
+
   sock.encode();
-  if (!sock.code(QueryType) ||
-      !sock.code(FromDate) ||
+  if (!sock.code(FromDate) ||
       !sock.code(ToDate) ||
       !sock.code(Options) ||
       !sock.code(LinePtr) ||
       !sock.end_of_message()) {
-    fprintf( stderr, "failed to send query to the CondorView server\n",
+    fprintf( stderr, "failed to send query to the CondorView server %s\n",
 			 view_host.fullHostname() );
     fputs("No Data.\n",outfile);
     exit(1);

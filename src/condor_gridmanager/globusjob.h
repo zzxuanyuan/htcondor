@@ -5,9 +5,12 @@
 #include "condor_common.h"
 #include "condor_classad.h"
 #include "globus_utils.h"
+#include "gahp-client.h"
 #include "globusresource.h"
 
 #define JM_COMMIT_TIMEOUT	300
+
+class GlobusResource;
 
 class GlobusJob : public Service
 {
@@ -24,12 +27,16 @@ class GlobusJob : public Service
 	void NotifyResourceUp();
 	void UpdateCondorState( int new_state );
 	void UpdateGlobusState( int new_state, int new_error_code );
+	void GramCallback( int new_state, int new_error_code );
+	void GetCallbacks();
+	void ClearCallbacks();
 	GlobusResource *GetResource();
 	int syncIO();
 
-	void setProbeInterval( int new_interval );
+	static int probeInterval;
 
-	static probeInterval;
+	static void setProbeInterval( int new_interval )
+		{ probeInterval = new_interval; }
 
 	// New variables
 	bool resourceDown;
@@ -37,6 +44,9 @@ class GlobusJob : public Service
 	int gmState;
 	int globusState;
 	int globusStateErrorCode;
+	int globusStateBeforeFailure;
+	int callbackGlobusState;
+	int callbackGlobusStateErrorCode;
 	bool jmUnreachable;
 	GlobusResource *myResource;
 	int evaluateStateTid;
@@ -46,6 +56,7 @@ class GlobusJob : public Service
 	int numSubmitAttempts;
 	int syncedOutputSize;
 	int syncedErrorSize;
+	int shadowBirthday;
 
 	GahpClient gahp;
 
@@ -64,6 +75,11 @@ class GlobusJob : public Service
 	int exitValue;
 	bool submitLogged;
 	bool executeLogged;
+	bool submitFailedLogged;
+	bool terminateLogged;
+	bool abortLogged;
+	bool evictLogged;
+
 	bool stateChanged;
 	bool newJM;		// This means a jobmanager that supports restart
 					// and two-phase commit

@@ -127,7 +127,9 @@
 #define REQUEST_NETWORK		(SCHED_VERS+73)	// negotiator network mgmt
 #define VACATE_ALL_FAST		(SCHED_VERS+74)		// fast vacate for whole machine
 #define VACATE_CLAIM_FAST	(SCHED_VERS+75)  	// fast vacate for a given VM
-
+#define REJECTED_WITH_REASON (SCHED_VERS+76) // diagnostic version of REJECTED
+#define START_AGENT		(SCHED_VERS+77) // have the master start an agent
+#define ACT_ON_JOBS		(SCHED_VERS+78) // have the schedd act on some jobs (rm, hold, release)
 
 /************
 *** Command ids used by the collector 
@@ -173,6 +175,12 @@ const int QUERY_HIST_CKPTSRVR_LIST = 31;
 const int UPDATE_LICENSE_AD			= 42;
 const int QUERY_LICENSE_ADS			= 43;
 const int INVALIDATE_LICENSE_ADS	= 44;
+
+const int UPDATE_STORAGE_AD = 45;
+const int QUERY_STORAGE_ADS = 46;
+const int INVALIDATE_STORAGE_ADS = 47;
+
+const int QUERY_ANY_ADS = 48;
 
 /*
 *** Daemon Core Signals
@@ -224,7 +232,7 @@ const int INVALIDATE_LICENSE_ADS	= 44;
 #define DC_SIGPCKPT		104	// periodic checkpoint
 
 /*
-*** Daemon Core Commands
+*** Daemon Core Commands and Signals
 */
 #define DC_BASE	60000
 #define DC_RAISESIGNAL		(DC_BASE+0)
@@ -236,6 +244,32 @@ const int INVALIDATE_LICENSE_ADS	= 44;
 #define DC_OFF_FAST			(DC_BASE+6)
 #define DC_CONFIG_VAL		(DC_BASE+7)
 #define DC_CHILDALIVE		(DC_BASE+8)
+#define DC_SERVICEWAITPIDS	(DC_BASE+9) 
+#define DC_AUTHENTICATE     (DC_BASE+10)
+#define DC_NOP              (DC_BASE+11)
+#define DC_RECONFIG_FULL	(DC_BASE+12)
+#define DC_FETCH_LOG        (DC_BASE+13)
+#define DC_INVALIDATE_KEY   (DC_BASE+14)
+
+/*
+*** Log type supported by DC_FETCH_LOG
+*** These are not interpreted directly by DaemonCore,
+*** so it's ok that they start at zero.
+*/
+
+#define DC_FETCH_LOG_TYPE_PLAIN 0
+  /* Add more type here... */
+
+/*
+*** Result codes given by DC_FETCH_LOG.
+*** These are not interpreted directly by DaemonCore,
+*** so it's ok that they start at zero.
+*/
+
+#define DC_FETCH_LOG_RESULT_SUCCESS   0
+#define DC_FETCH_LOG_RESULT_NO_NAME   1
+#define DC_FETCH_LOG_RESULT_CANT_OPEN 2
+#define DC_FETCH_LOG_RESULT_BAD_TYPE  3
 
 /*
 *** Commands used by the FileTransfer object
@@ -259,11 +293,22 @@ const int INVALIDATE_LICENSE_ADS	= 44;
 #define SHADOW_UPDATEINFO	(DCSHADOW_BASE+0)
 #define TAKE_MATCH          (DCSHADOW_BASE+1)  // for MPI shadow
 #define MPI_START_COMRADE   (DCSHADOW_BASE+2)  // for MPI shadow
+#define GIVE_MATCHES 	    (DCSHADOW_BASE+3)  // for MPI shadow
+#define RECEIVE_JOBAD		(DCSHADOW_BASE+4)
+
 
 /*
 *** Used only in THE TOOL to choose the condor_squawk option.
 */
 #define SQUAWK 72000
+
+/*
+*** Commands used by the gridmanager daemon
+*/
+#define DCGRIDMANAGER_BASE 73000
+#define GRIDMAN_DELETE_OBJS (DCGRIDMANAGER_BASE+0)
+#define GRIDMAN_REMOVE_JOBS DC_SIGUSR1
+#define GRIDMAN_ADD_JOBS DC_SIGUSR2
 
 /*
 *** Replies used in various stages of various protocols

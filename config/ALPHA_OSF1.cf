@@ -1,7 +1,9 @@
 #define OperatingSystem	OSF1
 #define Architecture	ALPHA
 
-#define ImakeOpsysFlag	-DIS_DUX4
+#define HAS_GLOBUS	NO
+#define HAS_GSI		NO
+#define HAS_OPENSSL	NO
 
 #define Platform	ALPHA-DUX4
 #define GccArch		alpha-dec-osf4.0
@@ -17,7 +19,6 @@
 
 #define IS_EGCS_BUILD YES
 #define EgcsPath /s/egcs-1.1.2/alpha_dux40d/lib/gcc-lib/alpha-dec-osf4.0d/egcs-2.91.66
-#define EgcsLibc concat(EgcsPath,/libgcc.a)
 #define SimpleLibC /lib/libc.a
 #define LibC SimpleLibC
 #define Crt0 /usr/lib/cmplrs/cc/crt0.o
@@ -30,7 +31,7 @@
 #define IS_V5				YES
 
 #define DOES_CHECKPOINTING		YES
-#define DOES_COMPRESS_CKPT		YES
+#define DOES_COMPRESS_CKPT		NO
 #define DOES_REMOTE_SYSCALLS		YES
 #define DOES_SAVE_SIGSTATE		YES
 #define DO_BENCHMARKING			YES
@@ -70,7 +71,7 @@
 #define HAS_GETWD			YES
 #define HAS_INSQUE			YES
 #define HAS_SETLINEBUF			YES
-#define HAS_PVM				NO
+#define HAS_PVM				YES
 #define PVM_ARCH			ALPHA
 #define USE_GCC				YES
 #define HAS_STATIC			YES
@@ -89,4 +90,6 @@
 #ifndef MkDepend
 #define MkDepend ../../GENERIC/mdepend.sh
 #endif MkDepend
+
+#define VendorCTestFlags -std
 

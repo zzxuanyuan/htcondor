@@ -62,6 +62,10 @@ void _EXCEPT_ ( char *fmt, ... );
 int flock ( int fd, int op );
 int getdtablesize ( void );
 
+#ifndef WIN32  // on WIN32, it messes with our macro in condor_sys_nt.h
+char* strupr( char* );
+#endif
+
 #ifndef WIN32	// on WIN32, it messes with our getwd macro in condor_sys_nt.h
 char * getwd ( char *path );
 #endif
@@ -85,7 +89,6 @@ int update_rusage ( register struct rusage *ru1, register struct rusage *ru2 );
 int sysapi_swap_space ( void );
 int sysapi_disk_space(const char *filename);
 int calc_disk_needed( PROC * proc );
-char *GetEnvParam( char * param, char * env_string );
 PROC *ConstructProc( int, PROC *);
 
 #else /* HAS_PROTO */
@@ -138,7 +141,6 @@ int update_rusage ();
 int sysapi_swap_space ();
 int sysapi_disk_space();
 int calc_disk_needed();
-char *GetEnvParam();
 PROC *ConstructProc();
 
 #endif /* HAS_PROTO */

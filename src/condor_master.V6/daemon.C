@@ -31,6 +31,7 @@
 #include "my_hostname.h"
 #include "basename.h"
 #include "condor_email.h"
+#include "string_list.h"
 
 // these are defined in master.C
 extern int		RestartsPerHour;
@@ -45,6 +46,7 @@ extern char*	FS_Preen;
 extern			ClassAd* ad;
 extern int		NT_ServiceFlag; // TRUE if running on NT as an NT Service
 extern Daemon*	Collector;
+extern StringList *secondary_collectors;
 
 extern time_t	GetTimeStamp(char* file);
 extern int 	   	NewExecutable(char* file, time_t* tsp);
@@ -78,6 +80,7 @@ extern int			shutdown_fast_timeout;
 extern int			Lines;
 extern int			PublishObituaries;
 extern int			StartDaemons;
+extern int			GotDaemonsOff;
 extern char*		MasterName;
 
 ///////////////////////////////////////////////////////////////////////////
@@ -385,7 +388,7 @@ daemon::Start()
 
 	if ( pid == FALSE ) {
 		// Create_Process failed!
-		dprintf( D_ALWAYS,
+		dprintf( D_FAILURE|D_ALWAYS,
 				 "ERROR: Create_Process failed trying to start %s\n",
 				 process_name);
 		pid = 0;
@@ -403,7 +406,7 @@ daemon::Start()
 	}
 
 	if (command_port) {
-		dprintf( D_ALWAYS,
+		dprintf( D_FAILURE|D_ALWAYS,
 				 "Started DaemonCore process \"%s\", pid and pgroup = %d\n",
 				 process_name, pid );
 	} else {
@@ -552,7 +555,7 @@ daemon::Exited( int status )
 	if ( daemonCore->Was_Not_Responding(pid) ) {
 		sprintf( buf2, "was killed because it was no longer responding");
 	}
-	dprintf( D_ALWAYS, "%s%s\n", buf1, buf2 );
+	dprintf( D_FAILURE|D_ALWAYS, "%s%s\n", buf1, buf2 );
 
 		// For good measure, try to clean up any dead/hung children of
 		// the daemon that just died by sending SIGKILL to it's
@@ -834,6 +837,8 @@ Daemons::InitParams()
 				// The path to this daemon has changed in the config
 				// file, we will need to start the new version.
 			daemon_ptr[i]->newExec = TRUE;
+		}
+		if (tmp) {
 			free( tmp );
 			tmp = NULL;
 		}
@@ -934,7 +939,9 @@ Daemons::DaemonsOn()
 {
 		// Maybe someday we'll add code here to edit the config file.
 	StartDaemons = TRUE;
+	GotDaemonsOff = FALSE;
 	StartAllDaemons();
+	StartNewExecTimer();
 }
 
 
@@ -943,7 +950,9 @@ Daemons::DaemonsOff( int fast )
 {
 		// Maybe someday we'll add code here to edit the config file.
 	StartDaemons = FALSE;
+	GotDaemonsOff = TRUE;
 	all_daemons_gone_action = MASTER_RESET;
+	CancelNewExecTimer();
 	if( fast ) {
 		StopFastAllDaemons();
 	} else {
@@ -1298,21 +1307,6 @@ Daemons::StartTimers()
 		old_update_int = update_interval;
 	}
 
-	int new_check = (int)( old_check_int != check_new_exec_interval );
-	if( new_check || !StartDaemons ) {
-		if( check_new_exec_tid != -1 ) {
-			daemonCore->Cancel_Timer( check_new_exec_tid );
-			check_new_exec_tid = -1;
-		}
-	}
-	if( new_check && StartDaemons ) {
-		check_new_exec_tid = daemonCore->
-			Register_Timer( 5, check_new_exec_interval,
-							(TimerHandlercpp)&Daemons::CheckForNewExecutable,
-							"Daemons::CheckForNewExecutable()", this );
-	}
-	old_check_int = check_new_exec_interval;
-
 	int new_preen = (int)( old_preen_int != preen_interval );
 	int first_preen = MIN( HOUR, preen_interval );
 	if( !FS_Preen || new_preen ) {
@@ -1327,7 +1321,50 @@ Daemons::StartTimers()
 							"run_preen()" );
 	}
 	old_preen_int = preen_interval;
+
+	if( old_check_int != check_new_exec_interval ) {
+			// new value, restart timer
+		CancelNewExecTimer();
+		StartNewExecTimer();
+	}
+	old_check_int = check_new_exec_interval;
 }	
+
+
+void
+Daemons::StartNewExecTimer( void )
+{
+	if( ! check_new_exec_interval ) {
+			// Nothing to do.
+		return;
+	}
+	if( check_new_exec_tid != -1 ) {
+			// Timer already on, nothing to do.
+		return;
+	}
+	if( ! StartDaemons ) {
+			// Don't want to check for new executables if we're not
+			// supposed to be running daemons.
+		return;
+	}
+	check_new_exec_tid = daemonCore->
+		Register_Timer( 5, check_new_exec_interval,
+						(TimerHandlercpp)&Daemons::CheckForNewExecutable,
+						"Daemons::CheckForNewExecutable()", this );
+	if( check_new_exec_tid == -1 ) {
+		dprintf( D_ALWAYS, "ERROR! Can't register DaemonCore timer!\n" );
+	}
+}
+
+
+void
+Daemons::CancelNewExecTimer( void )
+{
+	if( check_new_exec_tid != -1 ) {
+		daemonCore->Cancel_Timer( check_new_exec_tid );
+		check_new_exec_tid = -1;
+	}
+}
 
 
 // Fill in Timestamp and startTime for all daemons info into a
@@ -1362,41 +1399,64 @@ Daemons::Update( ClassAd* ca )
 void
 Daemons::UpdateCollector()
 {
-	int		cmd = UPDATE_MASTER_AD;
+	int		error_debug;
+
+#if defined(CONDOR_G_RELEASE)
+	error_debug = D_FULLDEBUG;
+#else
+	error_debug = D_ALWAYS;
+#endif
 
 	dprintf(D_FULLDEBUG, "enter Daemons::UpdateCollector\n");
 
 	Update(ad);
-
-	SafeSock sock;
+    
+    SafeSock sock;
 	sock.timeout(2);
 
-		// Port doesn't matter, since we've got the sinful string. 
+    // Port doesn't matter, since we've got the sinful string. 
 	if (!sock.connect(Collector->addr(), 0)) {
-		dprintf( D_ALWAYS, "Can't locate collector %s\n", 
+		dprintf( error_debug, "Can't locate collector %s\n", 
+				 Collector->fullHostname() );
+		return;
+	}
+
+    if (!Collector->startCommand(UPDATE_MASTER_AD, &sock)) {
+		dprintf( D_ALWAYS, "Can't send UPDATE_MASTER_AD to collector (%s)\n", 
 				 Collector->fullHostname() );
 		return;
 	}
 
 	sock.encode();
-	if(!sock.code(cmd))
-	{
-		dprintf( D_ALWAYS, "Can't send UPDATE_MASTER_AD to collector (%s)\n", 
-				 Collector->fullHostname() );
-		return;
-	}
-	if(!ad->put(sock))
-	{
+
+	if(!ad->put(sock)) {
 		dprintf( D_ALWAYS, "Can't send ClassAd to the collector (%s)\n",
 				 Collector->fullHostname() );
-
 		return;
 	}
-	if(!sock.end_of_message())
-	{
+
+	if(!sock.end_of_message()) {
 		dprintf( D_ALWAYS, "Can't send EOM to the collector (%s)\n",
 				 Collector->fullHostname() );
+	}
 
+	if (secondary_collectors) {
+		secondary_collectors->rewind();
+		char *collector;
+		while ((collector = secondary_collectors->next()) != NULL) {
+			SafeSock s;
+			s.timeout(2);
+			s.encode();
+            // COLLECTOR_PORT need to be added in there?  Bueller?
+			Daemon col(collector);
+			if (!s.connect(collector, COLLECTOR_PORT)     || 
+                !col.startCommand(UPDATE_MASTER_AD, &s)   ||
+                !ad->put(s) || !s.end_of_message()) {
+				dprintf( D_ALWAYS,
+						 "Failed to send update to secondary collector %s\n",
+						 collector);
+			}
+		}
 	}
 
 		// Reset the timer so we don't do another period update until 

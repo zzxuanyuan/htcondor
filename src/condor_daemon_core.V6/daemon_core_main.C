@@ -28,8 +28,9 @@
 #include "my_hostname.h"
 #include "condor_version.h"
 #include "limit.h"
+#include "condor_email.h"
 #include "sig_install.h"
-
+#include "daemon.h"
 #include "condor_debug.h"
 
 #define _NO_EXTERN_DAEMON_CORE 1	
@@ -44,9 +45,12 @@ extern char* mySubSystem;	// the subsys ID, such as SCHEDD, STARTD, etc.
 
 // External protos
 extern int main_init(int argc, char *argv[]);	// old main()
-extern int main_config();
+extern int main_config(bool is_full);
 extern int main_shutdown_fast();
 extern int main_shutdown_graceful();
+
+// Internal protos
+void dc_reconfig( bool is_full );
 
 // Globals
 int		Foreground = 0;		// run in background by default
@@ -60,6 +64,7 @@ char*	addrFile = NULL;
 int line_where_service_stopped = 0;
 #endif
 bool	DynamicDirs = false;
+
 
 #ifndef WIN32
 // This function polls our parent process; if it is gone, shutdown.
@@ -76,6 +81,20 @@ check_parent()
 }
 #endif
 
+// This function clears expired sessions from the cache
+void
+check_session_cache()
+{
+	daemonCore->getSecMan()->invalidateExpiredCache();
+}
+
+char* global_dc_sinful() {
+	if (daemonCore) {
+		return daemonCore->InfoCommandSinfulString();
+	} else {
+		return NULL;
+	}
+}
 
 void
 clean_files()
@@ -127,9 +146,13 @@ DC_Exit( int status )
 	delete daemonCore;
 	daemonCore = NULL;
 
+		// Free up the memory from the config hash table, too.
+	clear_config();
+	
 		// Finally, exit with the status we were given.
 	exit( status );
 }
+
 
 void
 drop_addr_file()
@@ -148,6 +171,8 @@ drop_addr_file()
 		if( (ADDR_FILE = fopen(addrFile, "w")) ) {
 			fprintf( ADDR_FILE, "%s\n", 
 					 daemonCore->InfoCommandSinfulString() );
+			fprintf( ADDR_FILE, "%s\n", CondorVersion() );
+			fprintf( ADDR_FILE, "%s\n", CondorPlatform() );
 			fclose( ADDR_FILE );
 		} else {
 			dprintf( D_ALWAYS,
@@ -169,7 +194,8 @@ drop_pid_file()
 	}
 
 	if( (PID_FILE = fopen(pidFile, "w")) ) {
-		fprintf( PID_FILE, "%lu\n", daemonCore->getpid() );
+		fprintf( PID_FILE, "%lu\n", 
+				 (unsigned long)daemonCore->getpid() ); 
 		fclose( PID_FILE );
 	} else {
 		dprintf( D_ALWAYS,
@@ -185,6 +211,7 @@ do_kill()
 #ifndef WIN32
 	FILE	*PID_FILE;
 	pid_t 	pid = 0;
+	unsigned long tmp_ul_int = 0;
 	char	*log, *tmp;
 
 	if( !pidFile ) {
@@ -203,7 +230,8 @@ do_kill()
 		}
 	}
 	if( (PID_FILE = fopen(pidFile, "r")) ) {
-		fscanf( PID_FILE, "%lu", &pid ); 
+		fscanf( PID_FILE, "%lu", &tmp_ul_int ); 
+		pid = (pid_t)tmp_ul_int;
 		fclose( PID_FILE );
 	} else {
 		fprintf( stderr, 
@@ -216,7 +244,7 @@ do_kill()
 		if( kill(pid, SIGTERM) < 0 ) {
 			fprintf( stderr, 
 					 "DaemonCore: ERROR: can't send SIGTERM to pid (%lu)\n",  
-					 pid );
+					 (unsigned long)pid );
 			fprintf( stderr, 
 					 "\terrno: %d (%s)\n", errno, strerror(errno) );
 			exit( 1 );
@@ -232,7 +260,7 @@ do_kill()
 	} else {  	// Invalid pid
 		fprintf( stderr, 
 				 "DaemonCore: ERROR: pid (%lu) in pid file (%s) is invalid.\n",
-				 pid, pidFile );	
+				 (unsigned long)pid, pidFile );	
 		exit( 1 );
 	}
 #endif  // of ifndef WIN32
@@ -405,9 +433,6 @@ drop_core_in_log( void )
 }
 
 
-
-
-
 // See if we should set the limits on core files.  If the parameter is
 // defined, do what it says.  Otherwise, do nothing.
 // On NT, if CREATE_CORE_FILES is False, then we will use the
@@ -449,12 +474,14 @@ check_core_files()
 
 }
 
+
 int
 handle_off_fast( Service*, int, Stream* )
 {
 	daemonCore->Send_Signal( daemonCore->getpid(), DC_SIGQUIT );
 	return TRUE;
 }
+
 	
 int
 handle_off_graceful( Service*, int, Stream* )
@@ -462,14 +489,117 @@ handle_off_graceful( Service*, int, Stream* )
 	daemonCore->Send_Signal( daemonCore->getpid(), DC_SIGTERM );
 	return TRUE;
 }
+
 	
 int
-handle_reconfig( Service*, int, Stream* )
+handle_reconfig( Service*, int cmd, Stream* )
 {
-	daemonCore->Send_Signal( daemonCore->getpid(), DC_SIGHUP );
+	if( cmd == DC_RECONFIG_FULL ) {
+		dc_reconfig( true );
+	} else {
+		dc_reconfig( false );
+	}		
 	return TRUE;
 }
-	
+
+int
+handle_fetch_log( Service *service, int cmd, Stream *s )
+{
+	char *name = NULL;
+	ReliSock *stream = (ReliSock*) s;
+	int  total_bytes = 0;
+	int result;
+	int type;
+
+	if( ! stream->code(type) ||
+		! stream->code(name) || 
+		! stream->end_of_message()) {
+		dprintf( D_ALWAYS, "DaemonCore: handle_fetch_log: can't read log request\n" );
+		free( name );
+		return FALSE;
+	}
+
+	stream->encode();
+
+	if(type!=DC_FETCH_LOG_TYPE_PLAIN) {
+		dprintf(D_ALWAYS,"DaemonCore: handle_fetch_log: I don't know about log type %d!\n",type);
+		result = DC_FETCH_LOG_RESULT_BAD_TYPE;
+		stream->code(result);
+		stream->end_of_message();
+		return FALSE;
+	}
+
+	char *pname = (char*)malloc (strlen(name) + 5);
+	strcpy (pname, name);
+	strcat (pname, "_LOG");
+
+	char *filename = param(pname);
+	if(!filename) {
+		dprintf( D_ALWAYS, "DaemonCore: handle_fetch_log: no parameter named %s\n",pname);
+		result = DC_FETCH_LOG_RESULT_NO_NAME;
+		stream->code(result);
+		stream->end_of_message();
+		return FALSE;
+	}
+
+	int fd = open(filename,O_RDONLY);
+	if(fd<0) {
+		dprintf( D_ALWAYS, "DaemonCore: handle_fetch_log: can't open file %s\n",filename);
+		result = DC_FETCH_LOG_RESULT_CANT_OPEN;
+		stream->code(result);
+		stream->end_of_message();
+		return FALSE;
+	}
+
+	result = DC_FETCH_LOG_RESULT_SUCCESS;
+	stream->code(result);
+
+	total_bytes = stream->put_file(fd);
+
+	stream->end_of_message();
+
+	if(total_bytes<0) {
+		dprintf( D_ALWAYS, "DaemonCore: handle_fetch_log: couldn't send all data!\n");
+	}
+
+	close(fd);
+	free(filename);
+	free(pname);
+	free(name);
+
+	return total_bytes>=0;
+}
+
+
+int
+handle_nop( Service*, int, Stream* )
+{
+	return TRUE;
+}
+
+
+int
+handle_invalidate_key( Service*, int, Stream* stream)
+{
+    int result = 0;
+	char *key_id = NULL;
+
+	stream->decode();
+	if ( ! stream->code(key_id) ) {
+		dprintf ( D_ALWAYS, "DC_INVALIDATE_KEY: unable to receive key id!.\n");
+		return FALSE;
+	}
+
+	if ( ! stream->end_of_message() ) {
+		dprintf ( D_ALWAYS, "DC_INVALIDATE_KEY: unable to receive EOM on key %s.\n", key_id);
+		return FALSE;
+	}
+
+    result = daemonCore->getSecMan()->invalidateKey(key_id);
+    free(key_id);
+    return result;
+}
+
 
 int
 handle_config_val( Service*, int, Stream* stream ) 
@@ -523,11 +653,14 @@ handle_config_val( Service*, int, Stream* stream )
 	return TRUE;
 }
 
+
 int
 handle_config( Service *, int cmd, Stream *stream )
 {
 	char *admin = NULL, *config = NULL;
+	char *to_check = NULL;
 	int rval = 0;
+	bool failed = false;
 
 	stream->decode();
 
@@ -544,20 +677,40 @@ handle_config( Service *, int cmd, Stream *stream )
 		return FALSE;
 	}
 
-	switch(cmd) {
-	case DC_CONFIG_PERSIST:
-		rval = set_persistent_config(admin, config);
-		// set_persistent_config will free admin and config when appropriate
-		break;
-	case DC_CONFIG_RUNTIME:
-		rval = set_runtime_config(admin, config);
-		// set_runtime_config will free admin and config when appropriate
-		break;
-	default:
-		dprintf( D_ALWAYS, "unknown DC_CONFIG command!\n" );
+	if( config && config[0] ) {
+		to_check = config;
+	} else {
+		to_check = admin;
+	}
+	if( ! daemonCore->CheckConfigSecurity(to_check, (Sock*)stream) ) {
+			// This request is insecure, so don't try to do anything
+			// with it.  We can't return yet, since we want to send
+			// back an rval indicating the error.
 		free( admin );
 		free( config );
-		return FALSE;
+		rval = -1;
+		failed = true;
+	} 
+
+		// If we haven't hit an error yet, try to process the command  
+	if( ! failed ) {
+		switch(cmd) {
+		case DC_CONFIG_PERSIST:
+			rval = set_persistent_config(admin, config);
+				// set_persistent_config will free admin and config
+				// when appropriate  
+			break;
+		case DC_CONFIG_RUNTIME:
+			rval = set_runtime_config(admin, config);
+				// set_runtime_config will free admin and config when
+				// appropriate 
+			break;
+		default:
+			dprintf( D_ALWAYS, "unknown DC_CONFIG command!\n" );
+			free( admin );
+			free( config );
+			return FALSE;
+		}
 	}
 
 	stream->encode();
@@ -570,8 +723,9 @@ handle_config( Service *, int cmd, Stream *stream )
 		return FALSE;
 	}
 
-	return TRUE;
+	return (failed ? FALSE : TRUE);
 }
+
 
 #ifndef WIN32
 void
@@ -580,11 +734,13 @@ unix_sighup(int)
 	daemonCore->Send_Signal( daemonCore->getpid(), DC_SIGHUP );
 }
 
+
 void
 unix_sigterm(int)
 {
 	daemonCore->Send_Signal( daemonCore->getpid(), DC_SIGTERM );
 }
+
 
 void
 unix_sigquit(int)
@@ -592,11 +748,13 @@ unix_sigquit(int)
 	daemonCore->Send_Signal( daemonCore->getpid(), DC_SIGQUIT );
 }
 
+
 void
 unix_sigchld(int)
 {
 	daemonCore->Send_Signal( daemonCore->getpid(), DC_SIGCHLD );
 }
+
 
 void
 unix_sigusr1(int)
@@ -604,13 +762,13 @@ unix_sigusr1(int)
 	daemonCore->Send_Signal( daemonCore->getpid(), DC_SIGUSR1 );
 }
 
-#endif WIN32
+#endif /* ! WIN32 */
 
-int
-handle_dc_sighup( Service*, int )
+
+
+void
+dc_reconfig( bool is_full )
 {
-	dprintf( D_ALWAYS, "Got SIGHUP.  Re-reading config files.\n" );
-
 		// Actually re-read the files...  Added by Derek Wright on
 		// 12/8/97 (long after this function was first written... 
 		// nice goin', Todd).  *grin*
@@ -635,8 +793,11 @@ handle_dc_sighup( Service*, int )
 	// it will go there.  the location of LOG may have changed, so redo it here.
 	drop_core_in_log();
 
-	// call daemon-core's ReInit
-	daemonCore->ReInit();
+	// If we're doing a full reconfig, call ReInit to clear out the
+	// DNS info we have cashed for the IP verify code
+	if( is_full ) {
+		daemonCore->ReInit();
+	}
 
 	// Re-drop the address file, if it's defined, just to be safe.
 	drop_addr_file();
@@ -646,6 +807,8 @@ handle_dc_sighup( Service*, int )
 		drop_pid_file();
 	}
 
+	daemonCore->InitSettableAttrsLists();
+
 		// If requested to do so in the config file, do a segv now.
 		// This is to test our handling/writing of a core file.
 	char* ptmp;
@@ -653,15 +816,23 @@ handle_dc_sighup( Service*, int )
 		 (*ptmp=='T' || *ptmp=='t') ) {
 			// on purpose, derefernce a null pointer.
 			ptmp = NULL;
-			char crap = *ptmp;		// should blow up here
+			char segfault;	
+			segfault = *ptmp; // should blow up here
 			
 			// should never make it to here!
 			EXCEPT("FAILED TO DROP CORE");	
 	}
-		
-	// call this daemon's specific main_config()
-	main_config();
 
+	// call this daemon's specific main_config()
+	main_config( is_full );
+}
+
+
+int
+handle_dc_sighup( Service*, int )
+{
+	dprintf( D_ALWAYS, "Got SIGHUP.  Re-reading config files.\n" );
+	dc_reconfig( true );
 	return TRUE;
 }
 
@@ -734,8 +905,6 @@ int main( int argc, char** argv )
 	int		dcargs = 0;		// number of daemon core command-line args found
 	char	*ptmp, *ptmp1;
 	int		i;
-	ReliSock* rsock = NULL;	// tcp command socket
-	SafeSock* ssock = NULL;	// udp command socket
 	int		wantsKill = FALSE, wantsQuiet = FALSE;
 	char	*logAppend = NULL;
 	int runfor = 0; //allow cmd line option to exit after *runfor* minutes
@@ -1097,115 +1266,8 @@ int main( int argc, char** argv )
 	}
 #endif
 
-		// Now take care of inheriting resources from our parent
-	daemonCore->Inherit(rsock,ssock);
-
-	// SETUP COMMAND SOCKET
-
-	if ( command_port != 0 ) {
-		dprintf(D_DAEMONCORE,"Setting up command socket\n");
-		
-		// we want a command port for this process, so create
-		// a tcp and a udp socket to listen on if we did not
-		// already inherit them above.
-		// If rsock/ssock are not NULL, it means we inherited them from our parent
-		if ( rsock == NULL && ssock == NULL ) {
-			rsock = new ReliSock;
-			ssock = new SafeSock;
-			if ( !rsock ) {
-				EXCEPT("Unable to create command Relisock");
-			}
-			if ( !ssock ) {
-				EXCEPT("Unable to create command SafeSock");
-			}
-			if ( command_port == -1 ) {
-				// choose any old port (dynamic port)
-				if (!BindAnyCommandPort(rsock, ssock)) {
-					EXCEPT("BindAnyCommandPort failed");
-				}
-				if ( !rsock->listen() ) {
-					EXCEPT("Failed to post listen on command ReliSock");
-				}
-			} else {
-				// use well-known port specified by command_port
-				int on = 1;
-	
-				// Set options on this socket, SO_REUSEADDR, so that
-				// if we are binding to a well known port, and we crash, we can be
-				// restarted and still bind ok back to this same port. -Todd T, 11/97
-				if( (!rsock->setsockopt(SOL_SOCKET, SO_REUSEADDR, (char*)&on, sizeof(on))) ||
-					(!ssock->setsockopt(SOL_SOCKET, SO_REUSEADDR, (char*)&on, sizeof(on))) ) {
-					EXCEPT("setsockopt() SO_REUSEADDR failed\n");
-				}
-				
-				if ( (!rsock->listen(command_port)) ||
-					 (!ssock->bind(command_port)) ) {
-					EXCEPT("Failed to bind to or post listen on command socket(s)");
-				}
-				
-			}
-		}
-
-		// If we are the collector, increase the socket buffer size.  This
-		// helps minimize the number of updates (UDP packets) the collector
-		// drops on the floor.
-		if ( strcmp(mySubSystem,"COLLECTOR") == 0 ) {
-			int desired_size;
-			char *tmp;
-
-			if ( (tmp=param("COLLECTOR_SOCKET_BUFSIZE")) ) {
-				desired_size = atoi(tmp);
-				free(tmp);
-			} else {
-				// default to 1 meg of buffers.  Gulp!  
-				desired_size = 1024000;
-			}		
-			
-			// set the UDP (ssock) read size to be large, so we do not
-			// drop incoming updates.
-			int final_size = ssock->set_os_buffers(desired_size);
-
-			// and also set the outgoing TCP write size to be large so the
-			// collector is not blocked on the network when answering queries
-			rsock->set_os_buffers(desired_size, true);				
-
-			dprintf(D_FULLDEBUG,"Reset OS socket buffer size to %dk\n", 
-				final_size / 1024 );
-		}
-
-		// now register these new command sockets.
-		// Note: In other parts of the code, we assume that the
-		// first command socket registered is TCP, so we must
-		// register the rsock socket first.
-		daemonCore->Register_Command_Socket( (Stream*)rsock );
-		daemonCore->Register_Command_Socket( (Stream*)ssock );
-
-		dprintf( D_ALWAYS,"DaemonCore: Command Socket at %s\n",
-				 daemonCore->InfoCommandSinfulString());
-
-			// Now, drop this sinful string into a file, if
-			// mySubSystem_ADDRESS_FILE is defined.
-		drop_addr_file();
-
-		// now register any DaemonCore "default" handlers
-
-		// register the command handler to take care of signals
-		daemonCore->Register_Command(DC_RAISESIGNAL,"DC_RAISESIGNAL",
-			(CommandHandlercpp)&DaemonCore::HandleSigCommand,
-				"HandleSigCommand()",daemonCore,IMMEDIATE_FAMILY);
-
-		// this handler receives process exit info
-		daemonCore->Register_Command(DC_PROCESSEXIT,"DC_PROCESSEXIT",
-			(CommandHandlercpp)&DaemonCore::HandleProcessExitCommand,
-				"HandleProcessExitCommand()",daemonCore,IMMEDIATE_FAMILY);
-
-		// this handler receives keepalive pings from our children, so
-		// we can detect if any of our kids are hung.
-		daemonCore->Register_Command( DC_CHILDALIVE,"DC_CHILDALIVE",
-			(CommandHandlercpp)&DaemonCore::HandleChildAliveCommand,
-			"HandleChildAliveCommand",daemonCore,IMMEDIATE_FAMILY, 
-			D_FULLDEBUG );
-	}
+		// SETUP COMMAND SOCKET
+	daemonCore->InitCommandSocket( command_port );
 	
 		// Install DaemonCore signal handlers common to all daemons.
 	daemonCore->Register_Signal( DC_SIGHUP, "DC_SIGHUP", 
@@ -1218,6 +1280,9 @@ int main( int argc, char** argv )
 								 (SignalHandler)handle_dc_sigterm,
 								 "handle_dc_sigterm()" );
 #ifndef WIN32
+	daemonCore->Register_Signal( DC_SERVICEWAITPIDS, "DC_SERVICEWAITPIDS",
+								(SignalHandlercpp)&DaemonCore::HandleDC_SERVICEWAITPIDS,
+								"HandleDC_SERVICEWAITPIDS()",daemonCore,IMMEDIATE_FAMILY);
 	daemonCore->Register_Signal( DC_SIGCHLD, "DC_SIGCHLD",
 								 (SignalHandlercpp)&DaemonCore::HandleDC_SIGCHLD,
 								 "HandleDC_SIGCHLD()",daemonCore,IMMEDIATE_FAMILY);
@@ -1243,8 +1308,15 @@ int main( int argc, char** argv )
 	}
 #endif
 
+	daemonCore->Register_Timer( 5 * 60, 0,
+				(TimerHandler)check_session_cache, "check_session_cache" );
+
 		// Install DaemonCore command handlers common to all daemons.
 	daemonCore->Register_Command( DC_RECONFIG, "DC_RECONFIG",
+								  (CommandHandler)handle_reconfig,
+								  "handle_reconfig()", 0, WRITE );
+
+	daemonCore->Register_Command( DC_RECONFIG_FULL, "DC_RECONFIG_FULL",
 								  (CommandHandler)handle_reconfig,
 								  "handle_reconfig()", 0, ADMINISTRATOR );
 
@@ -1256,13 +1328,16 @@ int main( int argc, char** argv )
 								  (CommandHandler)handle_config_val,
 								  "handle_config_val()", 0, READ );
 
+		// The handler for setting config variables does its own
+		// authorization, so these two commands should be registered
+		// as "ALLOW" and the handler will do further checks.
 	daemonCore->Register_Command( DC_CONFIG_PERSIST, "DC_CONFIG_PERSIST",
 								  (CommandHandler)handle_config,
-								  "handle_config()", 0, CONFIG_PERM );
+								  "handle_config()", 0, ALLOW );
 
 	daemonCore->Register_Command( DC_CONFIG_RUNTIME, "DC_CONFIG_RUNTIME",
 								  (CommandHandler)handle_config,
-								  "handle_config()", 0, CONFIG_PERM );
+								  "handle_config()", 0, ALLOW );
 
 	daemonCore->Register_Command( DC_OFF_FAST, "DC_OFF_FAST",
 								  (CommandHandler)handle_off_fast,
@@ -1272,6 +1347,18 @@ int main( int argc, char** argv )
 								  (CommandHandler)handle_off_graceful,
 								  "handle_off_graceful()", 0, ADMINISTRATOR );
 
+	daemonCore->Register_Command( DC_NOP, "DC_NOP",
+								  (CommandHandler)handle_nop,
+								  "handle_nop()", 0, READ );
+
+	daemonCore->Register_Command( DC_FETCH_LOG, "DC_FETCH_LOG",
+								  (CommandHandler)handle_fetch_log,
+								  "handle_fetch_log()", 0, ADMINISTRATOR );
+
+	daemonCore->Register_Command( DC_INVALIDATE_KEY, "DC_INVALIDATE_KEY",
+								  (CommandHandler)handle_invalidate_key,
+								  "handle_invalidate_key()", 0, WRITE );
+
 	// Call daemonCore's ReInit(), which clears the cached DNS info.
 	// It also initializes some stuff, which is why we call it now. 
 	// This function will set a timer to call itself again 8 hours
@@ -1279,6 +1366,12 @@ int main( int argc, char** argv )
 	// reconfig, we still wait 8 hours instead of just using a
 	// periodic timer.  -Derek Wright <wright@cs.wisc.edu> 1/28/99 
 	daemonCore->ReInit();
+
+
+		// Initialize the StringLists that contain the attributes we
+		// will allow people to set with condor_config_val from
+		// various kinds of hosts (ADMINISTRATOR, CONFIG, WRITE, etc). 
+	daemonCore->InitSettableAttrsLists();
 
 	// call the daemon's main_init()
 	main_init( argc, argv );

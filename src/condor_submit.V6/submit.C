@@ -50,12 +50,18 @@
 #include "condor_qmgr.h"
 #include "sig_install.h"
 #include "access.h"
+#include "daemon.h"
 
 #include "extArray.h"
 #include "HashTable.h"
 #include "MyString.h"
+#include "string_list.h"
+#include "which.h"
 
 #include "my_username.h"
+#include "globus_utils.h"
+
+#include "list.h"
 
 static int hashFunction( const MyString&, int );
 HashTable<MyString,MyString> forcedAttributes( 64, hashFunction ); 
@@ -82,14 +88,12 @@ char    JobRootdir[_POSIX_PATH_MAX];
 char    JobIwd[_POSIX_PATH_MAX];
 
 int		LineNo;
+int		ExtraLineNo;
 int		GotQueueCommand;
 
 char	IckptName[_POSIX_PATH_MAX];	/* Pathname of spooled initial ckpt file */
 
 unsigned int TransferInputSize;	/* total size of files transfered to exec machine */
-char GlobusArgs[8192]; /* need to build large string */
-char GlobusEnv[2048]; 
-char GlobusExec[_POSIX_PATH_MAX];
 char	*MyName;
 int		Quiet = 1;
 int		DisableFileChecks = 0;
@@ -103,14 +107,16 @@ bool	NewExecutable = false;
 bool	IsFirstExecutable;
 bool	UserLogSpecified = false;
 bool never_transfer = false;  // never transfer files or do transfer files
+
 // environment vars in the ClassAd attribute are seperated via
 // the env_delimiter character; currently a '|' on NT and ';' on Unix
-#ifdef WIN32
-	char env_delimiter[] = "|";
-#else
-	char env_delimiter[] = ";";
-#endif
+// env_delimiter is a static const chat defined in condor_constants.h.
+// Here we define a char* env_delimiter_string for use with strcat.
+static char env_delimiter_string[5];
 
+char* LogNotesVal = NULL;
+
+List<char> extraLines;  // lines passed in via -a argument
 
 #define PROCVARSIZE	32
 BUCKET *ProcVars[ PROCVARSIZE ];
@@ -137,6 +143,7 @@ char	*Error			= "error";
 char	*RootDir		= "rootdir";
 #endif
 char	*InitialDir		= "initialdir";
+char	*RemoteInitialDir		= "remote_initialdir";
 char	*Requirements	= "requirements";
 char	*Preferences	= "preferences";
 char	*Rank				= "rank";
@@ -144,34 +151,55 @@ char	*ImageSize		= "image_size";
 char	*Universe		= "universe";
 char	*MachineCount	= "machine_count";
 char	*NotifyUser		= "notify_user";
+char	*ExitRequirements = "exit_requirements";
 char	*UserLogFile	= "log";
 char	*CoreSize		= "coresize";
 char	*NiceUser		= "nice_user";
 
 char	*X509UserProxy	= "x509userproxy";
-char	*X509Directory	= "x509directory";
 char	*GlobusScheduler = "globusscheduler";
-char	*GlobusArguments = "globusarguments";
-char	*GlobusExecutable = "globusexecutable";
 char	*GlobusRSL = "globusrsl";
 char	*RendezvousDir	= "rendezvousdir";
-char	*SsleayConf	= "ssleayconf";
 
 char	*FileRemaps = "file_remaps";
+char	*BufferFiles = "buffer_files";
 char	*BufferSize = "buffer_size";
 char	*BufferBlockSize = "buffer_block_size";
+
+char	*FetchFiles = "fetch_files";
+char	*CompressFiles = "compress_files";
+char	*AppendFiles = "append_files";
+char	*LocalFiles = "local_files";
 
 char	*TransferInputFiles = "transfer_input_files";
 char	*TransferOutputFiles = "transfer_output_files";
 char	*TransferFiles = "transfer_files";
+char	*TransferExecutable = "transfer_executable";
+char	*TransferInput = "transfer_input";
+char	*TransferOutput = "transfer_output";
+char	*TransferError = "transfer_error";
+
+char	*CopyToSpool = "copy_to_spool";
+
+char	*PeriodicHoldCheck = "periodic_hold";
+char	*PeriodicRemoveCheck = "periodic_remove";
+char	*OnExitHoldCheck = "on_exit_hold";
+char	*OnExitRemoveCheck = "on_exit_remove";
+
+char	*DAGNodeName = "dag_node_name";
+char	*DAGManJobId = "dagman_job_id";
+char	*LogNotes = "submit_event_notes";
+char	*JarFiles = "jar_files";
 
 #if !defined(WIN32)
 char	*KillSig			= "kill_sig";
+char	*RmKillSig			= "remove_kill_sig";
 #endif
 
 void 	reschedule();
 void 	SetExecutable();
 void 	SetUniverse();
+void	SetMachineCount();
 void 	SetImageSize();
 int 	calc_image_size( char *name);
 int 	find_cmd( char *name );
@@ -180,6 +208,8 @@ void 	SetStdFile( int which_file );
 void 	SetPriority();
 void 	SetNotification();
 void 	SetNotifyUser ();
+void	SetRemoteInitialDir();
+void	SetExitRequirements();
 void 	SetArguments();
 void 	SetEnvironment();
 #if !defined(WIN32)
@@ -199,8 +229,9 @@ void	SetKillSig();
 void	SetForcedAttributes();
 void 	check_iwd( char *iwd );
 int	read_condor_file( FILE *fp );
-char * 	condor_param( char *name );
-void 	set_condor_param( char *name, char *value );
+char * 	condor_param( const char* name, const char* alt_name );
+char * 	condor_param( const char* name ); // call param with NULL as the alt
+void 	set_condor_param( const char* name, char* value );
 void 	queue(int num);
 char * 	check_requirements( char *orig );
 void 	check_open( const char *name, int flags );
@@ -210,17 +241,24 @@ int 	whitespace( const char *str);
 void 	delete_commas( char *ptr );
 void 	compress( char *str );
 char	*full_path(const char *name, bool use_iwd=true);
-void 	magic_check();
 void 	log_submit();
 void 	get_time_conv( int &hours, int &minutes );
 int	  SaveClassAd ();
-void	InsertJobExpr (char *expr, bool clustercheck = true);
+void	InsertJobExpr (const char *expr, bool clustercheck = true);
 void	check_umask();
 void setupAuthentication();
+void	SetPeriodicHoldCheck(void);
+void	SetPeriodicRemoveCheck(void);
+void	SetExitHoldCheck(void);
+void	SetExitRemoveCheck(void);
+void SetDAGNodeName();
+void SetDAGManJobId();
+void SetLogNotes();
+void	SetJarFiles();
 
 char *owner = NULL;
 
-extern char **environ;
+extern DLL_IMPORT_MAGIC char **environ;
 
 
 extern "C" {
@@ -233,16 +271,13 @@ struct SubmitRec {
 	int firstjob;
 	int lastjob;
 	char *logfile;
+	char *lognotes;
 };
 
 ExtArray <SubmitRec> SubmitInfo(10);
 int CurrentSubmitInfo = -1;
 
 // explicit template instantiations
-template class HashTable<MyString, MyString>;
-template class HashBucket<MyString,MyString>;
-template class HashTable<MyString, int>;
-template class HashBucket<MyString,int>;
 template class ExtArray<SubmitRec>;
 
 void TestFilePermissions( char *scheddAddr = NULL )
@@ -314,7 +349,8 @@ init_job_ad()
 			*slash = '\0';
 			if ( strlen(ntdomain) > 0 ) {
 				if ( strlen(ntdomain) > 80 ) {
-					fprintf(stderr,"NT DOMAIN OVERFLOW (%s)\n",ntdomain);
+					fprintf( stderr, "\nERROR: NT Domain Overflow (%s)\n",
+							 ntdomain );
 					exit(1);
 				}
 				(void) sprintf (buffer, "%s = \"%s\"", ATTR_NT_DOMAIN, 
@@ -326,6 +362,9 @@ init_job_ad()
 	}
 #endif
 		
+	(void) sprintf (buffer, "%s = 0.0", ATTR_JOB_REMOTE_WALL_CLOCK);
+	InsertJobExpr (buffer);
+
 	(void) sprintf (buffer, "%s = 0.0", ATTR_JOB_LOCAL_USER_CPU);
 	InsertJobExpr (buffer);
 
@@ -350,6 +389,18 @@ init_job_ad()
 	(void) sprintf (buffer, "%s = 0", ATTR_JOB_COMMITTED_TIME);
 	InsertJobExpr (buffer);
 
+	(void) sprintf (buffer, "%s = 0", ATTR_TOTAL_SUSPENSIONS);
+	InsertJobExpr (buffer);
+
+	(void) sprintf (buffer, "%s = 0", ATTR_LAST_SUSPENSION_TIME);
+	InsertJobExpr (buffer);
+
+	(void) sprintf (buffer, "%s = 0", ATTR_CUMULATIVE_SUSPENSION_TIME);
+	InsertJobExpr (buffer);
+
+	(void) sprintf (buffer, "%s = FALSE", ATTR_ON_EXIT_BY_SIGNAL);
+	InsertJobExpr (buffer);
+
 	config_fill_ad( job );
 }
 
@@ -361,12 +412,16 @@ main( int argc, char *argv[] )
 	char	*cmd_file = NULL;
 	int dag_pause = 0;
 
+	// Initialize env_delimiter string... note that 
+	// const char env_delimiter is defined in condor_constants.h
+	sprintf(env_delimiter_string,"%c\0",env_delimiter);
+
 	setbuf( stdout, NULL );
 
 #if !defined(WIN32)	
 		// Make sure root isn't trying to submit.
 	if( getuid() == 0 || getgid() == 0 ) {
-		fprintf( stderr, "ERROR: Submitting jobs as user/group 0 (root) is not "
+		fprintf( stderr, "\nERROR: Submitting jobs as user/group 0 (root) is not "
 				 "allowed for security reasons.\n" );
 		exit( 1 );
 	}
@@ -380,6 +435,7 @@ main( int argc, char *argv[] )
 
 	MyName = basename(argv[0]);
 	config();
+
 	init_params();
 
 		// If our effective and real gids are different (b/c the
@@ -401,14 +457,13 @@ main( int argc, char *argv[] )
 				Quiet = 0;
 				break;
 			case 'd':
-				DisableFileChecks = 1;
-				break;
-			case 'p':
-					// the -p option will cause condor_submit to pause for about
-					// 4 seconds upon completion.  this prevents 'Broken Pipe'
-					// messages when condor_submit is called from DagMan on
-					// platforms with crappy popen(), like IRIX - Todd T, 2/97
-					dag_pause = 1;
+				if (ptr[0][2] == 'e') {
+					// dprintf to console
+					Termlog = 1;
+					dprintf_config ("TOOL", 2 );
+				} else {
+					DisableFileChecks = 1;
+				}
 				break;
 			case 'r':
 				Remote++;
@@ -441,6 +496,14 @@ main( int argc, char *argv[] )
 					exit(1);
 				}
 				break;
+			case 'a':
+				if( !(--argc) || !(*(++ptr)) ) {
+					fprintf( stderr, "%s: -a requires another argument\n",
+							 MyName );
+					exit( 1 );
+				}
+				extraLines.Append( *ptr );
+				break;
 			default:
 				usage();
 			}
@@ -448,13 +511,20 @@ main( int argc, char *argv[] )
 			cmd_file = *ptr;
 		}
 	}
-	
+
+	char *dis_check = param("SUBMIT_SKIP_FILECHECKS");
+	if ( dis_check ) {
+		if (dis_check[0]=='T' || dis_check[0]=='t') {
+			DisableFileChecks = 1;
+		}
+		free(dis_check);
+	}
 
 	if( !(ScheddAddr = get_schedd_addr(ScheddName)) ) {
 		if( ScheddName ) {
-			fprintf( stderr, "ERROR: Can't find address of schedd %s\n", ScheddName );
+			fprintf( stderr, "\nERROR: Can't find address of schedd %s\n", ScheddName );
 		} else {
-			fprintf( stderr, "ERROR: Can't find address of local schedd\n" );
+			fprintf( stderr, "\nERROR: Can't find address of local schedd\n" );
 		}
 		exit(1);
 	}
@@ -470,7 +540,7 @@ main( int argc, char *argv[] )
 		fp = stdin;
 	} else {
 		if( (fp=fopen(cmd_file,"r")) == NULL ) {
-			fprintf( stderr, "ERROR: Failed to open command file\n");
+			fprintf( stderr, "\nERROR: Failed to open command file\n");
 			exit(1);
 		}
 	}
@@ -487,8 +557,24 @@ main( int argc, char *argv[] )
 
 	//  Parse the file and queue the jobs 
 	if( read_condor_file(fp) < 0 ) {
-		fprintf(stderr, "\nERROR: Failed to parse command file.\n");
+		if( ExtraLineNo == 0 ) {
+			fprintf( stderr,
+					 "\nERROR: Failed to parse command file (line %d).\n",
+					 LineNo);
+		}
+		else {
+			fprintf( stderr,
+					 "\nERROR: Failed to parse -a argument line (#%d).\n",
+					 ExtraLineNo );
+		}
 		exit(1);
+	}
+
+	if( !GotQueueCommand ) {
+		fprintf(stderr, "\nERROR: \"%s\" doesn't contain any \"queue\"",
+				cmd_file ? cmd_file : "(stdin)" );
+		fprintf( stderr, " commands -- no jobs queued\n" );
+		exit( 1 );
 	}
 
 	if ( !DisconnectQ(0) ) {
@@ -525,23 +611,17 @@ main( int argc, char *argv[] )
 
 	ActiveQueueConnection = FALSE; 
 
-	if(ProcId != -1 ) 
-	{
+	if(ProcId != -1 ) {
 		reschedule();
-	}
-
-	if( !GotQueueCommand ) {
-		fprintf(stderr, "ERROR: \"%s\" doesn't contain any \"queue\"", cmd_file );
-		fprintf( stderr, " commands -- no jobs queued\n" );
-		exit( 1 );
 	}
 
 	if ( !DisableFileChecks ) {
 		TestFilePermissions( ScheddAddr );
 	}
 
-	if (dag_pause)
+	if( dag_pause ) {
 		sleep(4);
+	}
 
 	return 0;
 }
@@ -554,20 +634,9 @@ main( int argc, char *argv[] )
 void
 reschedule()
 {
-	int			cmd;
+	Daemon  my_schedd(DT_SCHEDD, NULL, NULL);
 
-	/* Connect to the schedd */
-	ReliSock sock;
-	if(!sock.connect(ScheddAddr)) {
-		fprintf(stderr, "Can't connect to condor scheduler (%s)\n",
-				ScheddAddr );
-		DoCleanup(0,0,NULL);
-		exit( 1 );
-	}
-
-	sock.encode();
-	cmd = RESCHEDULE;
-	if( !sock.code(cmd) || !sock.eom() ) {
+ 	if ( ! my_schedd.sendCommand(RESCHEDULE, Stream::safe_sock, 0) ) {
 		fprintf(stderr, "Can't send RESCHEDULE command to condor scheduler\n" );
 		DoCleanup(0,0,NULL);
 		exit( 1 );
@@ -626,72 +695,43 @@ check_path_length(const char *path, char *lhs)
 void
 SetExecutable()
 {
+	bool	transfer_it = true;
 	char	*ename = NULL;
+	char	*full_ename = NULL;
+	char	*copySpool = NULL;
+	char	*macro_value = NULL;
 
-#if !defined(WIN32)
-		//Allow GlobusExecutable to override executable
-	if ( JobUniverse == GLOBUS_UNIVERSE ) {
-		ename = condor_param( GlobusExecutable );
-	}
-#endif
-
-	if ( ename == NULL ) {
-		ename = condor_param(Executable);
-	}
-
+	ename = condor_param( Executable, ATTR_JOB_CMD );
 	if( ename == NULL ) {
 		fprintf( stderr, "No '%s' parameter was provided\n", Executable);
 		DoCleanup(0,0,NULL);
 		exit( 1 );
 	}
 
-#if !defined(WIN32)
-	if ( JobUniverse == GLOBUS_UNIVERSE ) {
-			/* the end result of this section is:
-			 * place the "executable" value in submit file in arg list
-			 * find SHADOW_GLOBUS and use it for ename (executable in ClassAd)
-			 */
-		char *globusshadow;
-		struct stat statbuf;
-		char size[32];
-		if ( !(globusshadow = param( "SHADOW_GLOBUS" )) ) {
-			fprintf(stderr, "\"SHADOW_GLOBUS\" value not configured in your pool\n" );
-			DoCleanup(0,0,NULL);
-			exit( 1 );
+	macro_value = condor_param( TransferExecutable ) ;
+	if ( macro_value ) {
+		if ( macro_value[0] == 'F' || macro_value[0] == 'f' ) {
+			sprintf( buffer, "%s = FALSE", ATTR_TRANSFER_EXECUTABLE );
+			InsertJobExpr( buffer );
+			transfer_it = false;
 		}
-			//check for existence & size of globusshadow pgm
-/*
-		if ( stat( globusshadow, &statbuf ) ) {
-			fprintf(stderr, "cannot get stat() on %s\n", globusshadow );
-			DoCleanup(0,0,NULL);
-			exit( 1 );
-		}
-*/
-			//value in submit file is probably for globus job, not globusshadow pgm
-			//so just override it here
-		sprintf(size,"%d", ( statbuf.st_size / 1024 ) + 1 );
-		forcedAttributes.remove( MyString( "MemoryRequirements" ) );
-		forcedAttributes.insert( MyString( "MemoryRequirements" ), MyString( size ) );
-
-			//executable named in the submit file should be inserted in the
-			//arguments list to be passed to the globus shadow
-		sprintf( GlobusExec, "&(executable=%s)",ename );
-
-			//now, replace ename with globusshadow value from config file
-			//ename wasn't getting freed anywhere, free old value anyway
-		free( ename );
-			//we want (path to) globusshadow placed in the ad as the executable
-		ename = globusshadow;
+		free( macro_value );
 	}
-#endif !defined(WIN32)
 
-	check_path_length(full_path(ename,false), Executable);
+	// If we're not transfering the executable, leave a relative pathname
+	// unresolved. This is mainly important for the Globus universe.
+	if ( transfer_it ) {
+		full_ename = full_path( ename, false );
+	} else {
+		full_ename = ename;
+	}
+	check_path_length(full_ename, Executable);
 
-	(void) sprintf (buffer, "%s = \"%s\"", ATTR_JOB_CMD, full_path(ename,false));
+	(void) sprintf (buffer, "%s = \"%s\"", ATTR_JOB_CMD, full_ename);
 	InsertJobExpr (buffer);
 
 		/* MPI REALLY doesn't like these! */
-	if ( JobUniverse != MPI ) {
+	if ( JobUniverse != CONDOR_UNIVERSE_MPI && JobUniverse != CONDOR_UNIVERSE_PVM ) {
 		InsertJobExpr ("MinHosts = 1");
 		InsertJobExpr ("MaxHosts = 1");
 	}
@@ -700,42 +740,59 @@ SetExecutable()
 
 	switch(JobUniverse) 
 	{
-	case STANDARD:
+	case CONDOR_UNIVERSE_STANDARD:
 		(void) sprintf (buffer, "%s = TRUE", ATTR_WANT_REMOTE_SYSCALLS);
 		InsertJobExpr (buffer);
 		(void) sprintf (buffer, "%s = TRUE", ATTR_WANT_CHECKPOINT);
 		InsertJobExpr (buffer);
 		break;
-	case PVM:
-	case VANILLA:
-	case SCHED_UNIVERSE:
-	case MPI:  // for now
-	case GLOBUS_UNIVERSE:
+	case CONDOR_UNIVERSE_PVM:
+	case CONDOR_UNIVERSE_VANILLA:
+	case CONDOR_UNIVERSE_SCHEDULER:
+	case CONDOR_UNIVERSE_MPI:  // for now
+	case CONDOR_UNIVERSE_GLOBUS:
+	case CONDOR_UNIVERSE_JAVA:
 		(void) sprintf (buffer, "%s = FALSE", ATTR_WANT_REMOTE_SYSCALLS);
 		InsertJobExpr (buffer);
 		(void) sprintf (buffer, "%s = FALSE", ATTR_WANT_CHECKPOINT);
 		InsertJobExpr (buffer);
 		break;
 	default:
-		fprintf(stderr, "Unknown universe (%d)\n", JobUniverse );
+		fprintf(stderr, "\nERROR: Unknown universe %d (%s)\n", JobUniverse, CondorUniverseName(JobUniverse) );
 		DoCleanup(0,0,NULL);
 		exit( 1 );
+	}
+
+	copySpool = condor_param( CopyToSpool, "CopyToSpool" );
+	if( copySpool == NULL)
+	{
+		copySpool = (char *)malloc(16);
+		if ( JobUniverse == CONDOR_UNIVERSE_GLOBUS ) {
+			strcpy(copySpool, "FALSE");
+		} else {
+			strcpy(copySpool, "TRUE");
+		}
 	}
 
 	// generate initial checkpoint file
 	strcpy( IckptName, gen_ckpt_name(0,ClusterId,ICKPT,0) );
 
 	// spool executable only if no $$(arch).$$(opsys) specified
-	if ( !strstr(ename,"$$") ) {			
+
+	if ( !strstr(ename,"$$") && *copySpool != 'F' && *copySpool != 'f' &&
+		 transfer_it ) {
 
 		if (SendSpoolFile(IckptName) < 0) {
-			fprintf(stderr,"permission to transfer executable %s denied\n",IckptName);
+			fprintf( stderr, "\nERROR: Permission to transfer executable "
+					 "%s denied\n", IckptName );
 			DoCleanup(0,0,NULL);
 			exit( 1 );
 		}
 
 		if (SendSpoolFileBytes(full_path(ename,false)) < 0) {
-			fprintf(stderr,"failed to transfer executable file %s\n", ename);
+			fprintf( stderr,
+					 "\nERROR: failed to transfer executable file %s\n", 
+					 ename );
 			DoCleanup(0,0,NULL);
 			exit( 1 );
 		}
@@ -743,6 +800,7 @@ SetExecutable()
 	}
 
 	free(ename);
+	free(copySpool);
 }
 
 #ifdef WIN32
@@ -753,92 +811,52 @@ void
 SetUniverse()
 {
 	char	*univ;
-	char	*mach_count;
-	char	*ptr;
 
-	univ = condor_param(Universe);
+	univ = condor_param( Universe, ATTR_JOB_UNIVERSE );
 
 #if !defined(WIN32)
 	if( univ && stricmp(univ,"pvm") == MATCH ) 
 	{
-		int tmp;
+		char *pvmd = param("PVMD");
 
-		JobUniverse = PVM;
-		(void) sprintf (buffer, "%s = %d", ATTR_JOB_UNIVERSE, PVM);
+		if (!pvmd || access(pvmd, R_OK|X_OK) != 0) {
+			fprintf(stderr, "\nERROR: Condor PVM support is not installed.\n"
+					"You must install the Condor PVM Contrib Module before\n"
+					"submitting PVM universe jobs\n");
+			if (!pvmd) {
+				fprintf(stderr, "PVMD parameter not defined in the Condor "
+						"configuration file.\n");
+			} else {
+				fprintf(stderr, "Can't access %s: %s\n", pvmd,
+						strerror(errno));
+			}
+			exit(1);
+		}
+
+		JobUniverse = CONDOR_UNIVERSE_PVM;
+		(void) sprintf (buffer, "%s = %d", ATTR_JOB_UNIVERSE, CONDOR_UNIVERSE_PVM);
 		InsertJobExpr (buffer);
 		InsertJobExpr ("Checkpoint = 0");
 
-		mach_count = condor_param(MachineCount);
-
-		if (mach_count != NULL) {
-			for (ptr = mach_count; *ptr && *ptr != '.'; ptr++) ;
-			if (*ptr != '\0') {
-				*ptr = '\0';
-				ptr++;
-			}
-
-			tmp = atoi(mach_count);
-			(void) sprintf (buffer, "%s = %d", ATTR_MIN_HOSTS, tmp);
-			InsertJobExpr (buffer);
-			
-			for ( ; !isdigit(*ptr) && *ptr; ptr++) ;
-			if (*ptr != '\0') {
-				tmp = atoi(ptr);
-			}
-
-			(void) sprintf (buffer, "%s = %d", ATTR_MAX_HOSTS, tmp);
-			InsertJobExpr (buffer);
-			free(mach_count);
-		}
 		free(univ);
 		return;
 	};
 
-	if( univ && stricmp(univ,"mpi") == MATCH ) {
-		JobUniverse = MPI;
-		(void) sprintf (buffer, "%s = %d", ATTR_JOB_UNIVERSE, MPI);
-		InsertJobExpr (buffer);
-		InsertJobExpr ("Checkpoint = 0");
-		
-		mach_count = condor_param( MachineCount );
-		
-		int tmp;
-		if ( mach_count != NULL ) {
-			tmp = atoi(mach_count);
-			free(mach_count);
-		}
-		else {
-			fprintf(stderr, "No machine_count specified!\n" );
-			DoCleanup(0,0,NULL);
-			exit( 1 );
-		}
-
-		(void) sprintf (buffer, "%s = %d", ATTR_MIN_HOSTS, tmp);
-		InsertJobExpr (buffer);
-		(void) sprintf (buffer, "%s = %d", ATTR_MAX_HOSTS, tmp);
-		InsertJobExpr (buffer);
-
-		free(univ);
-		return;
-	}
-
 	if( univ && stricmp(univ,"scheduler") == MATCH ) {
-		JobUniverse = SCHED_UNIVERSE;
-		(void) sprintf (buffer, "%s = %d", ATTR_JOB_UNIVERSE, SCHED_UNIVERSE);
+		JobUniverse = CONDOR_UNIVERSE_SCHEDULER;
+		(void) sprintf (buffer, "%s = %d", ATTR_JOB_UNIVERSE, CONDOR_UNIVERSE_SCHEDULER);
 		InsertJobExpr (buffer);
 		free(univ);
 		return;
 	};
 
 	if( univ && stricmp(univ,"globus") == MATCH ) {
-			//Globus universe jobs need to be transformed to be scheduler
-			//universe jobs, use JobUniverse as the signal for that, but the end 
-			//result should be a scheduler universe job with the globus shadow 
-			//program as the scheduler, and modified executable, arguments, 
-			//universe, in/out/err job attributes. 
-			//Also, find globusrun, and clear & set MemoryRequirements.
-		JobUniverse = GLOBUS_UNIVERSE;
-		(void) sprintf (buffer, "%s = %d", ATTR_JOB_UNIVERSE, SCHED_UNIVERSE);
+		if ( have_condor_g() == 0 ) {
+			fprintf( stderr, "This version of Condor doesn't support Globus Universe jobs.\n" );
+			exit( 1 );
+		}
+		JobUniverse = CONDOR_UNIVERSE_GLOBUS;
+		(void) sprintf (buffer, "%s = %d", ATTR_JOB_UNIVERSE, CONDOR_UNIVERSE_GLOBUS);
 		InsertJobExpr (buffer);
 		free(univ);
 		return;
@@ -846,12 +864,31 @@ SetUniverse()
 #endif  // of !defined(WIN32)
 
 	if( univ && stricmp(univ,"vanilla") == MATCH ) {
-		JobUniverse = VANILLA;
-		(void) sprintf (buffer, "%s = %d", ATTR_JOB_UNIVERSE, VANILLA);
+		JobUniverse = CONDOR_UNIVERSE_VANILLA;
+		(void) sprintf (buffer, "%s = %d", ATTR_JOB_UNIVERSE, CONDOR_UNIVERSE_VANILLA);
 		InsertJobExpr (buffer);
 		free(univ);
 		return;
 	};
+
+	if( univ && stricmp(univ,"mpi") == MATCH ) {
+		JobUniverse = CONDOR_UNIVERSE_MPI;
+		(void) sprintf (buffer, "%s = %d", ATTR_JOB_UNIVERSE, CONDOR_UNIVERSE_MPI);
+		InsertJobExpr (buffer);
+		InsertJobExpr ("Checkpoint = 0");
+		
+		free(univ);
+		return;
+	}
+
+	if( univ && stricmp(univ,"java") == MATCH ) {
+		JobUniverse = CONDOR_UNIVERSE_JAVA;
+		(void) sprintf (buffer, "%s = %d", ATTR_JOB_UNIVERSE, CONDOR_UNIVERSE_JAVA);
+		InsertJobExpr (buffer);
+		InsertJobExpr ("Checkpoint = 0");
+		free(univ);
+		return;
+	}
 
 	if (!univ) {
 		univ = strdup("standard");
@@ -873,14 +910,81 @@ SetUniverse()
 	exit( 1 );
 #endif
 
-	JobUniverse = STANDARD;
-	(void) sprintf (buffer, "%s = %d", ATTR_JOB_UNIVERSE, STANDARD);
+	if(stricmp(univ,"standard")) {
+		fprintf( stderr, "\tERROR: I don't know about the '%s' universe.\n",univ);
+		DoCleanup(0,0,NULL);
+		exit( 1 );
+	}
+
+	JobUniverse = CONDOR_UNIVERSE_STANDARD;
+	(void) sprintf (buffer, "%s = %d", ATTR_JOB_UNIVERSE, CONDOR_UNIVERSE_STANDARD);
 	InsertJobExpr (buffer);
 	if ( univ ) {
 		free(univ);
 	}
 
 	return;
+}
+
+void
+SetMachineCount()
+{
+	char	*mach_count;
+	char	*ptr;
+
+	if (JobUniverse == CONDOR_UNIVERSE_PVM) {
+
+		mach_count = condor_param( MachineCount, "MachineCount" );
+
+		int tmp;
+		if (mach_count != NULL) {
+			for (ptr = mach_count; *ptr && *ptr != '.'; ptr++) ;
+			if (*ptr != '\0') {
+				*ptr = '\0';
+				ptr++;
+			}
+
+			tmp = atoi(mach_count);
+			(void) sprintf (buffer, "%s = %d", ATTR_MIN_HOSTS, tmp);
+			InsertJobExpr (buffer);
+			
+			for ( ; !isdigit(*ptr) && *ptr; ptr++) ;
+			if (*ptr != '\0') {
+				tmp = atoi(ptr);
+			}
+
+			(void) sprintf (buffer, "%s = %d", ATTR_MAX_HOSTS, tmp);
+			InsertJobExpr (buffer);
+			free(mach_count);
+		} else {
+			InsertJobExpr ("MinHosts = 1");
+			InsertJobExpr ("MaxHosts = 1");
+		}
+
+	} else if (JobUniverse == CONDOR_UNIVERSE_MPI) {
+
+		mach_count = condor_param( MachineCount, "MachineCount" );
+		if( ! mach_count ) { 
+				// try an alternate name
+			mach_count = condor_param( "node_count", "NodeCount" );
+		}
+		int tmp;
+		if ( mach_count != NULL ) {
+			tmp = atoi(mach_count);
+			free(mach_count);
+		}
+		else {
+			fprintf(stderr, "\nERROR: No machine_count specified!\n" );
+			DoCleanup(0,0,NULL);
+			exit( 1 );
+		}
+
+		(void) sprintf (buffer, "%s = %d", ATTR_MIN_HOSTS, tmp);
+		InsertJobExpr (buffer);
+		(void) sprintf (buffer, "%s = %d", ATTR_MAX_HOSTS, tmp);
+		InsertJobExpr (buffer);
+
+	}
 }
 
 // Note: you must call SetTransferFiles() *before* calling SetImageSize().
@@ -893,7 +997,7 @@ SetImageSize()
 	char	*p;
 	char    buff[2048];
 
-	tmp = condor_param(ImageSize);
+	tmp = condor_param( ImageSize, ATTR_IMAGE_SIZE );
 
 	// we should only call calc_image_size on the first
 	// proc in the cluster, since the executable cannot change.
@@ -916,7 +1020,7 @@ SetImageSize()
 		}
 		free( tmp );
 		if( size < 1 ) {
-			fprintf(stderr, "Image Size must be positive\n" );
+			fprintf(stderr, "\nERROR: Image Size must be positive\n" );
 			DoCleanup(0,0,NULL);
 			exit( 1 );
 		}
@@ -946,16 +1050,23 @@ void SetFileOptions()
 	char *tmp;
 	char buffer[ATTRLIST_MAX_EXPRESSION];
 
-	tmp = condor_param(FileRemaps);
+	tmp = condor_param( FileRemaps, ATTR_FILE_REMAPS );
 	if(tmp) {
 		sprintf(buffer,"%s = %s",ATTR_FILE_REMAPS,tmp);
 		InsertJobExpr(buffer);
 		free(tmp);
 	}
 
+	tmp = condor_param(BufferFiles);
+	if(tmp) {
+		sprintf(buffer,"%s = %s",ATTR_BUFFER_FILES,tmp);
+		InsertJobExpr(buffer);
+		free(tmp);
+	}
+
 	/* If no buffer size is given, use 512 KB */
 
-	tmp = condor_param(BufferSize);
+	tmp = condor_param( BufferSize, ATTR_BUFFER_SIZE );
 	if(!tmp) {
 		tmp = param("DEFAULT_IO_BUFFER_SIZE");
 		if (!tmp) {
@@ -968,7 +1079,7 @@ void SetFileOptions()
 
 	/* If not buffer block size is given, use 32 KB */
 
-	tmp = condor_param(BufferBlockSize);
+	tmp = condor_param( BufferBlockSize, ATTR_BUFFER_BLOCK_SIZE );
 	if(!tmp) {
 		tmp = param("DEFAULT_IO_BUFFER_BLOCK_SIZE");
 		if (!tmp) {
@@ -1016,34 +1127,68 @@ SetTransferFiles()
 	char	 buffer[ATTRLIST_MAX_EXPRESSION];
 	char	 input_files[ATTRLIST_MAX_EXPRESSION];
 	char	 output_files[ATTRLIST_MAX_EXPRESSION];
+	StringList input_file_list;
 
 	never_transfer = false;
 
 	buffer[0] = input_files[0] = output_files[0] = '\0';
 
-	macro_value = condor_param( TransferInputFiles ) ;
+	macro_value = condor_param( TransferInputFiles, "TransferInputFiles" ) ;
 	TransferInputSize = 0;
-	if( macro_value ) 
-	{
-		StringList files(macro_value,",");
-		files.rewind();
+	if( macro_value ) {
+		input_file_list.initializeFromString( macro_value );
+	}
+
+#if defined( WIN32 )
+	if( JobUniverse == CONDOR_UNIVERSE_MPI ) {
+			// On NT, if we're an MPI job, we need to find the
+			// mpich.dll file and automatically include that in the
+			// transfer input files
+		MyString dll_name( "mpich.dll" );
+
+			// first, check to make sure the user didn't already
+			// specify mpich.dll in transfer_input_files
+		if( ! input_file_list.contains(dll_name.Value()) ) {
+				// nothing there yet, try to find it ourselves
+			MyString dll_path = which( dll_name );
+			if( dll_path.Length() == 0 ) {
+					// File not found, fatal error.
+				fprintf( stderr, "\nERROR: Condor cannot find the "
+						 "\"mpich.dll\" file it needs to run your MPI job.\n"
+						 "Please specify the full path to this file in the "
+						 "\"transfer_input_files\"\n"
+						 "setting in your submit description file.\n" );
+				exit( 1 );
+			}
+				// If we made it here, which() gave us a real path.
+				// so, now we just have to append that to our list of
+				// files. 
+			input_file_list.append( dll_path.Value() );
+		}
+	}
+#endif /* WIN32 */
+
+	if( ! input_file_list.isEmpty() ) {
+		input_file_list.rewind();
 		count = 0;
-		while ( (tmp=files.next()) ) {
+		while ( (tmp=input_file_list.next()) ) {
 			count++;
 			check_path_length(tmp,TransferInputFiles);
 			check_open(tmp, O_RDONLY);
 			TransferInputSize += calc_image_size(tmp);
 		}
 		if ( count ) {
-			(void) sprintf (input_files, "%s = \"%s\"", 
-				ATTR_TRANSFER_INPUT_FILES, macro_value);
+			tmp = input_file_list.print_to_string();
+			(void) sprintf( input_files, "%s = \"%s\"", 
+							ATTR_TRANSFER_INPUT_FILES, tmp );
+			free( tmp );
 			files_specified = true;
 		}
-		free(macro_value);
 	}
 
 
-	macro_value = condor_param( TransferOutputFiles ) ;
+	macro_value = condor_param( TransferOutputFiles,
+								"TransferOutputFiles" ); 
 	if( macro_value ) 
 	{
 		StringList files(macro_value,",");
@@ -1062,7 +1207,7 @@ SetTransferFiles()
 		free(macro_value);
 	}
 
-	macro_value = condor_param( TransferFiles ) ;
+	macro_value = condor_param( TransferFiles, ATTR_TRANSFER_FILES );
 	if( macro_value ) 
 	{
 		// User explicitly specified TransferFiles; do what user says
@@ -1086,8 +1231,8 @@ SetTransferFiles()
 				break;
 			default:
 				// Unrecognized
-				fprintf(stderr,"Unrecognized argument for parameter '%s'\n", 
-						TransferFiles);
+				fprintf( stderr, "\nERROR: Unrecognized argument for "
+						 "parameter '%s'\n", TransferFiles );
 				DoCleanup(0,0,NULL);
 				exit( 1 );
 				break;
@@ -1096,20 +1241,69 @@ SetTransferFiles()
 		free(macro_value);		// condor_param() calls malloc; free it!
 	} else {
 		// User did not explicitly specify TransferFiles; choose a default
-		if ( files_specified ) {
-			sprintf(buffer,"%s = \"%s\"",ATTR_TRANSFER_FILES,"ONEXIT");
-		} else {
-#ifdef WIN32
-			sprintf(buffer,"%s = \"%s\"",ATTR_TRANSFER_FILES,"ONEXIT");
-#else
-			sprintf(buffer,"%s = \"%s\"",ATTR_TRANSFER_FILES,"NEVER");
-			never_transfer = true;
-#endif
-		}
+		sprintf(buffer,"%s = \"%s\"",ATTR_TRANSFER_FILES,"ONEXIT");
 	}
 
 	// Insert what we want for ATTR_TRANSFER_FILES
 	InsertJobExpr (buffer);
+
+	/*
+	In the Java universe, we want to automatically transfer the
+	"executable" (i.e. the entry class) and any requested .jar files.
+	However, the executable is put directly into TransferInputFiles
+	with TransferExecutable set to false, because the FileTransfer object
+	happy renames executables left and right, which we don't want.
+	*/
+
+	if( JobUniverse == CONDOR_UNIVERSE_JAVA ) {
+
+		char file_list[ATTRLIST_MAX_EXPRESSION];
+
+		if(job->LookupString(ATTR_TRANSFER_INPUT_FILES,file_list)!=1) {
+			file_list[0] = 0;
+		}
+
+		macro_value = condor_param(Executable);
+		if(macro_value) {
+			check_path_length(macro_value,TransferInputFiles);
+			check_open(macro_value,O_RDONLY);
+			TransferInputSize += calc_image_size(macro_value);
+			if(file_list[0]) {
+				strcat(file_list,",");
+				strcat(file_list,macro_value);
+			} else {
+				strcpy(file_list,macro_value);
+			}
+			free(macro_value);
+		}
+
+		macro_value = condor_param(JarFiles);
+		if(macro_value) {
+			StringList files(macro_value);
+			files.rewind();
+			while ( (tmp=files.next()) ) {
+				check_path_length(tmp,TransferInputFiles);
+				check_open(tmp, O_RDONLY);
+				TransferInputSize += calc_image_size(tmp);
+				if(file_list[0]) {
+					strcat(file_list,",");
+					strcat(file_list,tmp);
+				} else {
+					strcpy(file_list,tmp);
+				}
+			}
+			free(macro_value);
+		}
+
+		sprintf(buffer,"%s = \"%s\"",ATTR_TRANSFER_INPUT_FILES,file_list);
+		InsertJobExpr(buffer);
+
+		sprintf(buffer,"%s = \"java\"",ATTR_JOB_CMD);
+		InsertJobExpr( buffer );
+
+		sprintf(buffer,"%s = FALSE",ATTR_TRANSFER_EXECUTABLE);
+		InsertJobExpr( buffer );
+	}
 
 	// if we did not set ATTR_TRANSFER_FILES to NEVER, 
 	// insert in input/output exprs
@@ -1121,113 +1315,176 @@ SetTransferFiles()
 			InsertJobExpr (output_files);
 		}
 	}
+
+#ifndef WIN32
+	// On Unix, now set never_transfer to be true before this function exits.
+	// This way, restrictions on file system domain are set.
+	never_transfer = true;
+#endif
+
+}
+
+void
+SetFetchFiles()
+{
+	char buffer[ATTRLIST_MAX_EXPRESSION];
+	char *value;
+
+	value = condor_param( FetchFiles );
+	if(value) {
+		sprintf(buffer,"%s = \"%s\"",ATTR_FETCH_FILES,value);
+		InsertJobExpr (buffer);
+	}
+}
+
+void
+SetCompressFiles()
+{
+	char buffer[ATTRLIST_MAX_EXPRESSION];
+	char *value;
+
+	value = condor_param( CompressFiles );
+	if(value) {
+		sprintf(buffer,"%s = \"%s\"",ATTR_COMPRESS_FILES,value);
+		InsertJobExpr (buffer);
+	}
+}
+
+void
+SetAppendFiles()
+{
+	char buffer[ATTRLIST_MAX_EXPRESSION];
+	char *value;
+
+	value = condor_param( AppendFiles );
+	if(value) {
+		sprintf(buffer,"%s = \"%s\"",ATTR_APPEND_FILES,value);
+		InsertJobExpr (buffer);
+	}
+}
+
+void
+SetLocalFiles()
+{
+	char buffer[ATTRLIST_MAX_EXPRESSION];
+	char *value;
+
+	value = condor_param( LocalFiles );
+	if(value) {
+		sprintf(buffer,"%s = \"%s\"",ATTR_LOCAL_FILES,value);
+		InsertJobExpr (buffer);
+	}
+}
+
+void
+SetJarFiles()
+{
+	char buffer[ATTRLIST_MAX_EXPRESSION];
+	char *value;
+
+	value = condor_param( JarFiles );
+	if(value) {
+		sprintf(buffer,"%s = \"%s\"",ATTR_JAR_FILES,value);
+		InsertJobExpr (buffer);
+	}
 }
 
 void
 SetStdFile( int which_file )
 {
+	bool	transfer_it = true;
 	char	*macro_value = NULL;
 	char	*generic_name;
 	char	 buffer[_POSIX_PATH_MAX + 32];
 
 	switch( which_file ) 
 	{
-	  case 0:
+	case 0:
 		generic_name = Input;
+		macro_value = condor_param( TransferInput );
 		break;
-	  case 1:
+	case 1:
 		generic_name = Output;
+		macro_value = condor_param( TransferOutput );
 		break;
-	  case 2:
+	case 2:
 		generic_name = Error;
+		macro_value = condor_param( TransferError );
 		break;
-	  default:
-		fprintf(stderr, "Unknown standard file descriptor (%d)\n", which_file );
+	default:
+		fprintf( stderr, "\nERROR: Unknown standard file descriptor (%d)\n",
+				 which_file ); 
 		DoCleanup(0,0,NULL);
 	}
 
-
-	macro_value = condor_param( generic_name );
-#if !defined(WIN32)
-		//if no files in Globus job, don't set anything
-	if ( !macro_value && ( JobUniverse == GLOBUS_UNIVERSE ) ) {
-		return;
+	if ( macro_value ) {
+		if ( macro_value[0] == 'F' || macro_value[0] == 'f' ) {
+			transfer_it = false;
+		}
+		free( macro_value );
 	}
-#endif
+
+	macro_value = condor_param( generic_name, NULL );
 	
 	if( !macro_value || *macro_value == '\0') 
 	{
+		transfer_it = false;
 		macro_value = strdup(NULL_FILE);
 	}
 	
 	if( whitespace(macro_value) ) 
 	{
-		fprintf(stderr,"The '%s' takes exactly one argument (%s)\n", 
-				generic_name, macro_value);
+		fprintf( stderr,"\nERROR: The '%s' takes exactly one argument (%s)\n", 
+				 generic_name, macro_value );
 		DoCleanup(0,0,NULL);
 		exit( 1 );
 	}	
 
 	check_path_length(macro_value, generic_name);
 
-#if !defined(WIN32)
-		//if GLOBUS universe, we don't want stdin/out/err in the ads, we
-		//want them to be passed on to globus to deal with them!
-	if ( JobUniverse == GLOBUS_UNIVERSE ) {
-		char tmpbuf[8192];
-		char *fileneeded;
-
-		switch( which_file ) {
-		case 0:
-			fileneeded = "stdin";
-			break;
-		case 1:
-			fileneeded = "stdout";
-			break;
-		case 2:
-			fileneeded = "stderr";
-			break;
-		}
-		strcpy( tmpbuf, GlobusArgs );
-			//if fileneeded not an absolute pathname, use "/./", Globus
-			//GASS notation for CWD
-		sprintf( GlobusArgs, "%s(%s=$(GLOBUSRUN_GASS_URL)%s%s)", tmpbuf, 
-				fileneeded, macro_value[0] == '/' ? "" : "./", macro_value );
-
-		if ( macro_value )
-			free(macro_value);
-
-		return;
-	}
-#endif
-
 	switch( which_file ) 
 	{
-	  case 0:
+	case 0:
 		(void) sprintf (buffer, "%s = \"%s\"", ATTR_JOB_INPUT, macro_value);
 		InsertJobExpr (buffer);
-		check_open( macro_value, O_RDONLY );
+		if ( transfer_it ) {
+			check_open( macro_value, O_RDONLY );
+		} else {
+			sprintf( buffer, "%s = FALSE", ATTR_TRANSFER_INPUT );
+			InsertJobExpr( buffer );
+		}
 		break;
-	  case 1:
+	case 1:
 		(void) sprintf (buffer, "%s = \"%s\"", ATTR_JOB_OUTPUT, macro_value);
 		InsertJobExpr (buffer);
-		check_open( macro_value, O_WRONLY|O_CREAT|O_TRUNC );
+		if ( transfer_it ) {
+			check_open( macro_value, O_WRONLY|O_CREAT|O_TRUNC );
+		} else {
+			sprintf( buffer, "%s = FALSE", ATTR_TRANSFER_OUTPUT );
+			InsertJobExpr( buffer );
+		}
 		break;
-	  case 2:
+	case 2:
 		(void) sprintf (buffer, "%s = \"%s\"", ATTR_JOB_ERROR, macro_value);
 		InsertJobExpr (buffer);
-		check_open( macro_value, O_WRONLY|O_CREAT|O_TRUNC );
+		if ( transfer_it ) {
+			check_open( macro_value, O_WRONLY|O_CREAT|O_TRUNC );
+		} else {
+			sprintf( buffer, "%s = FALSE", ATTR_TRANSFER_ERROR );
+			InsertJobExpr( buffer );
+		}
 		break;
 	}
 		
-	if ( macro_value )
+	if( macro_value ) {
 		free(macro_value);
+	}
 }
 
 void
 SetJobStatus()
 {
-	char *hold = condor_param(Hold);
+	char *hold = condor_param( Hold, NULL );
 
 	if( hold && (hold[0] == 'T' || hold[0] == 't') ) {
 		(void) sprintf (buffer, "%s = %d", ATTR_JOB_STATUS, HELD);
@@ -1237,13 +1494,15 @@ SetJobStatus()
 		InsertJobExpr (buffer);
 	}
 
-	if( hold ) free(hold);
+	if( hold ) {
+		free(hold);
+	}
 }
 
 void
 SetPriority()
 {
-	char *prio = condor_param(Priority);
+	char *prio = condor_param( Priority, ATTR_PRIO );
 	int  prioval = 0;
 
 	if( prio != NULL ) 
@@ -1251,8 +1510,8 @@ SetPriority()
 		prioval = atoi (prio);
 		if( prioval < -20 || prioval > 20 ) 
 		{
-			fprintf(stderr,"Priority must be in the range -20 thru 20 (%d)\n", 
-					prioval );
+			fprintf( stderr, "\nERROR: Priority must be in the range "
+					 "-20 thru 20 (%d)\n", prioval );
 			DoCleanup(0,0,NULL);
 			exit( 1 );
 		}
@@ -1262,7 +1521,7 @@ SetPriority()
 	InsertJobExpr (buffer);
 
 	// also check if the job is "dirt user" priority (i.e., nice_user==True)
-	char *nice_user = condor_param(NiceUser);
+	char *nice_user = condor_param( NiceUser, ATTR_NICE_USER );
 	if( nice_user && (*nice_user == 'T' || *nice_user == 't') )
 	{
 		sprintf( buffer, "%s = TRUE", ATTR_NICE_USER );
@@ -1278,9 +1537,89 @@ SetPriority()
 }
 
 void
+SetPeriodicHoldCheck(void)
+{
+	char *phc = condor_param(PeriodicHoldCheck, ATTR_PERIODIC_HOLD_CHECK);
+
+	if (phc == NULL)
+	{
+		/* user didn't have one, so add one */
+		sprintf( buffer, "%s = FALSE", ATTR_PERIODIC_HOLD_CHECK );
+	}
+	else
+	{
+		/* user had a value for it, leave it alone */
+		sprintf( buffer, "%s = %s", ATTR_PERIODIC_HOLD_CHECK, phc );
+		free(phc);
+	}
+
+	InsertJobExpr( buffer );
+}
+
+void
+SetPeriodicRemoveCheck(void)
+{
+	char *prc = condor_param(PeriodicRemoveCheck, ATTR_PERIODIC_REMOVE_CHECK);
+
+	if (prc == NULL)
+	{
+		/* user didn't have one, so add one */
+		sprintf( buffer, "%s = FALSE", ATTR_PERIODIC_REMOVE_CHECK );
+	}
+	else
+	{
+		/* user had a value for it, leave it alone */
+		sprintf( buffer, "%s = %s", ATTR_PERIODIC_REMOVE_CHECK, prc );
+		free(prc);
+	}
+
+	InsertJobExpr( buffer );
+}
+
+void
+SetExitHoldCheck(void)
+{
+	char *ehc = condor_param(OnExitHoldCheck, ATTR_ON_EXIT_HOLD_CHECK);
+
+	if (ehc == NULL)
+	{
+		/* user didn't have one, so add one */
+		sprintf( buffer, "%s = FALSE", ATTR_ON_EXIT_HOLD_CHECK );
+	}
+	else
+	{
+		/* user had a value for it, leave it alone */
+		sprintf( buffer, "%s = %s", ATTR_ON_EXIT_HOLD_CHECK, ehc );
+		free(ehc);
+	}
+
+	InsertJobExpr( buffer );
+}
+
+void
+SetExitRemoveCheck(void)
+{
+	char *erc = condor_param(OnExitRemoveCheck, ATTR_ON_EXIT_REMOVE_CHECK);
+
+	if (erc == NULL)
+	{
+		/* user didn't have one, so add one */
+		sprintf( buffer, "%s = TRUE", ATTR_ON_EXIT_REMOVE_CHECK );
+	}
+	else
+	{
+		/* user had a value for it, leave it alone */
+		sprintf( buffer, "%s = %s", ATTR_ON_EXIT_REMOVE_CHECK, erc );
+		free(erc);
+	}
+
+	InsertJobExpr( buffer );
+}
+
+void
 SetNotification()
 {
-	char *how = condor_param(Notification);
+	char *how = condor_param( Notification, ATTR_JOB_NOTIFICATION );
 	int notification;
 
 	if( (how == NULL) || (stricmp(how, "COMPLETE") == 0) ) {
@@ -1296,8 +1635,8 @@ SetNotification()
 		notification = NOTIFY_ERROR;
 	} 
 	else {
-		fprintf(stderr,"Notification must be 'Never', 'Always', 'Complete', "
-		"or 'Error'\n");
+		fprintf( stderr, "\nERROR: Notification must be 'Never', "
+				 "'Always', 'Complete', or 'Error'\n" );
 		DoCleanup(0,0,NULL);
 		exit( 1 );
 	}
@@ -1305,22 +1644,111 @@ SetNotification()
 	(void) sprintf (buffer, "%s = %d", ATTR_JOB_NOTIFICATION, notification);
 	InsertJobExpr (buffer);
 
-	if ( how )
+	if ( how ) {
 		free(how);
+	}
 }
 
 void
 SetNotifyUser()
 {
-	char *who = condor_param(NotifyUser);
+	bool needs_warning = false;
+	static bool did_warning = false;
+
+	char *who = condor_param( NotifyUser, ATTR_NOTIFY_USER );
+
+	if (who) {
+		if( ! did_warning ) {
+			if( !stricmp(who, "false") ) {
+				needs_warning = true;
+			}
+			if( !stricmp(who, "never") ) {
+				needs_warning = true;
+			}
+		}
+		if( needs_warning && ! did_warning ) {
+            char* tmp = param( "UID_DOMAIN" );
+
+			fprintf( stderr, "\nWARNING: You used \"%s = %s\" in your "
+					 "submit file.\n", NotifyUser, who );
+			fprintf( stderr, "This means notification email will go to "
+					 "user \"%s@%s\".\n", who, tmp );
+			free( tmp );
+			fprintf( stderr, "This is probably not what you expect!\n"
+					 "If you do not want notification email, put "
+					 "\"notification = never\"\n"
+					 "into your submit file, instead.\n" );
+
+			did_warning = true;
+		}
+		(void) sprintf (buffer, "%s = \"%s\"", ATTR_NOTIFY_USER, who);
+		InsertJobExpr (buffer);
+		free(who);
+	}
+}
+
+void
+SetDAGNodeName()
+{
+	char* name = condor_param( DAGNodeName );
+	if( !name ) {
+		name = condor_param( "DAGNodeName" );
+	}
+	if( name ) {
+		(void) sprintf( buffer, "%s = \"%s\"", ATTR_DAG_NODE_NAME, name );
+		InsertJobExpr( buffer );
+		free( name );
+	}
+}
+
+void
+SetDAGManJobId()
+{
+	char* id = condor_param( DAGManJobId );
+	if( !id ) {
+		id = condor_param( "DAGManJobId" );
+	}
+	if( id ) {
+		(void) sprintf( buffer, "%s = \"%s\"", ATTR_DAGMAN_JOB_ID, id );
+		InsertJobExpr( buffer );
+		free( id );
+	}
+}
+
+void
+SetLogNotes()
+{
+	LogNotesVal = condor_param( LogNotes );
+	if( !LogNotesVal ) {
+		LogNotesVal = condor_param( "SubmitEventNotes" );
+	}
+}
+
+void
+SetRemoteInitialDir()
+{
+	char *who = condor_param(RemoteInitialDir);
 
 	if( ! who ) {
-			// If "notify_user" isn't there, try "NotifyUser" 
-		who = condor_param( "NotifyUser" );
+			// isn't there, try ClassAd flavor
+		who = condor_param( ATTR_JOB_REMOTE_IWD );
 	}
 
 	if (who) {
-		(void) sprintf (buffer, "%s = \"%s\"", ATTR_NOTIFY_USER, who);
+		(void) sprintf (buffer, "%s = \"%s\"", ATTR_JOB_REMOTE_IWD, who);
+		InsertJobExpr (buffer);
+		free(who);
+	}
+}
+
+void
+SetExitRequirements()
+{
+	char *who = condor_param( ExitRequirements,
+							  ATTR_JOB_EXIT_REQUIREMENTS );
+
+	if (who) {
+		sprintf( buffer, "%s = %s", ATTR_JOB_EXIT_REQUIREMENTS, who ); 
 		InsertJobExpr (buffer);
 		free(who);
 	}
@@ -1331,16 +1759,7 @@ SetArguments()
 {
 	char	*args = NULL;
 
-#if !defined(WIN32)
-	//allow GlobusArguments to override arguments
-	if ( JobUniverse == GLOBUS_UNIVERSE ) {
-		args = condor_param(GlobusArguments);
-	}
-#endif
-
-	if ( args == NULL ) {
-		args = condor_param(Arguments);
-	}
+	args = condor_param( Arguments, ATTR_JOB_ARGUMENTS );
 
 	if( args == NULL ) {
 		args = strdup("");
@@ -1353,161 +1772,103 @@ SetArguments()
 		exit( 1 );
 	}
 
-#if !defined(WIN32)
-	if ( JobUniverse == GLOBUS_UNIVERSE ) {
-		char *rsl;
-		if ( rsl = condor_param(GlobusRSL) ) {
-			strcat( GlobusArgs, rsl );
-			free( rsl );
-		}
-			//put specified args into RSL, then insert GlobusArgs into Ad
-		if ( strcmp( args, "" ) ) {
-				//handle args in either Condor format or Globus RSL format
-			StringList newargs( args, " ,\"" );
-			char buf[1024];
-			newargs.rewind();
-			strcat( GlobusArgs, "(arguments=" );
-			for ( char *nextarg = NULL; nextarg = newargs.next();  ) {
-				if ( strcmp( nextarg, "" ) ) {
-					strcat( GlobusArgs, nextarg );
-					strcat( GlobusArgs, " " );
-				}
-			}
-			strcat( GlobusArgs, ")" );
-		}
-         //if the universe is Globus, need to specify GlobusScheduler
-      char *globushost;
-      if ( !(globushost = condor_param( GlobusScheduler ) ) ) {
-         fprintf(stderr, "Globus universe jobs require a \"%s\" parameter\n",
-               GlobusScheduler );
-			DoCleanup(0,0,NULL);
-			exit( 1 );
-      }
-			//extract "GLOBUSRUN" value from config file
-		char *globusrun;
-		struct stat statbuf;
-		if ( !(globusrun = param( "GLOBUSRUN" )) ) {
-			fprintf(stderr, "\"GLOBUSRUN\" value not configured in your pool\n" );
-			DoCleanup(0,0,NULL);
-			exit( 1 );
-		}
-		char *GlobusTmp = new char[_POSIX_ARG_MAX + 64];
-			//new arg list: cluster.proc globusrun flags rsl string
-		sprintf( GlobusTmp, "%d.%d %s %s", ClusterId, ProcId, ScheddAddr, 
-				globusrun );
-		sprintf( buffer, "%s = \"%s\"", ATTR_JOB_ARGUMENTS, GlobusTmp );
-		InsertJobExpr (buffer, false );
+	sprintf (buffer, "%s = \"%s\"", ATTR_JOB_ARGUMENTS, args);
+	InsertJobExpr (buffer);
 
-		sprintf( buffer, "%s = \"%s\"", "GlobusContactString", "X" );
-		InsertJobExpr (buffer, false );
-
-		sprintf( buffer, "%s = %d", "GlobusQueryDelay", 30 );
-		InsertJobExpr (buffer, false );
-
-		sprintf( buffer, "%s = \"%s\"", "GlobusStatus", "UNSUBMITTED" );
-		InsertJobExpr (buffer, false );
-
-			//this is the command line string to pass to globusrun itself
-		sprintf( buffer, "%s = \"-b -r '%s' '%s'\"", "GlobusArgs", globushost, 
-				GlobusArgs );
-		InsertJobExpr (buffer, false );
-		delete [] GlobusTmp;
-	}
-	else 
-#endif
-	{
-		sprintf (buffer, "%s = \"%s\"", ATTR_JOB_ARGUMENTS, args);
-		InsertJobExpr (buffer);
-	}
 	free(args);
 }
 
 void
 SetEnvironment()
 {
-	char *env = condor_param(Environment);
-	char *shouldgetenv = condor_param(GetEnv);
-	char *allowscripts = condor_param(AllowStartupScript);
+	char *env = condor_param( Environment, ATTR_JOB_ENVIRONMENT );
+	char *shouldgetenv = condor_param( GetEnv, "get_env" );
+	char *allowscripts = condor_param( AllowStartupScript,
+									   "AllowStartupScript" );
 	Environ envobject;
-	char newenv[ATTRLIST_MAX_EXPRESSION];
+	MyString newenv;
 	char varname[MAXVARNAME];
 	int envlen;
 	bool first = true;
 
-
-	sprintf(newenv, "%s = \"", ATTR_JOB_ENVIRONMENT);
-
-	if ( JobUniverse == GLOBUS_UNIVERSE ) {
-		strcat( newenv, GlobusEnv );
-	}
+	newenv += ATTR_JOB_ENVIRONMENT;
+	newenv += " = \"";
 
 	if (env) {
-		strcat(newenv, env);
+		MyString E(env);
+		newenv += E.EscapeChars("\"", '\\');
 		envobject.add_string(env);
 		first = false;
 	}
 
 	if (allowscripts && (*allowscripts=='T' || *allowscripts=='t') ) {
 		if ( !first ) {
-			strcat(newenv,env_delimiter);
+			newenv += env_delimiter_string;
 		}
-		strcat(newenv,"_CONDOR_NOCHECK=1");
+		newenv += "_CONDOR_NOCHECK=1";
 		first = false;
 		free(allowscripts);
 	}
 
 
-	envlen = strlen(newenv);
+	envlen = newenv.Length();
 
 	// grab user's environment if getenv == TRUE
 	if ( shouldgetenv && ( shouldgetenv[0] == 'T' || shouldgetenv[0] == 't' ) )
  	{
 
-		for (int i=0; environ[i] && envlen < ATTRLIST_MAX_EXPRESSION; i++) {
+		// escape the double quote
+		MyString CHARS_TO_ESCAPE("\"");
+		char     ESCAPE_CHAR = '\\';
+
+		for (int i=0; environ[i]; i++) {
 
 			// ignore env settings that contain env_delimiter to avoid 
 			// syntax problems
 
-			if (strchr(environ[i], env_delimiter[0]) == NULL) {
+			if (strchr(environ[i], env_delimiter) == NULL) {
 				envlen += strlen(environ[i]);
-				if (envlen < ATTRLIST_MAX_EXPRESSION) {
-
-					// don't override submit file environment settings
-					// check if environment variable is set in submit file
-
-					int j;
-					for (j=0; env && environ[i][j] && environ[i][j] != '='; j++) {
-						varname[j] = environ[i][j];
-					}
-					varname[j] = '\0';
-					if (env == NULL || envobject.getenv(varname) == NULL) {
-						if (first) {
-							first = false;
-						} else {
-							strcat(newenv, env_delimiter);
-						}
-						strcat(newenv, environ[i]);
+				// don't override submit file environment settings
+				// check if environment variable is set in submit file
+				int j;
+				for (j=0; env && environ[i][j] && environ[i][j] != '='; j++) {
+					varname[j] = environ[i][j];
+				}
+				varname[j] = '\0';
+				if (env == NULL || envobject.getenv(varname) == NULL) {
+					if (first) {
+						first = false;
+					} else {
+						newenv += env_delimiter_string;
 					}
 
+					// convert to a MyString for easy manipulation
+					MyString E = environ[i];
+
+					// escape any illegal chars
+					newenv += E.EscapeChars(CHARS_TO_ESCAPE, ESCAPE_CHAR);
 				}
 			}
 		}
 	}
 
-	strcat(newenv, "\"");
+	newenv += "\"";
 
-	InsertJobExpr (newenv);
-	if ( env )
+	InsertJobExpr (newenv.Value());
+	if( env ) {
 		free(env);
-	if ( shouldgetenv ) 
+	}
+	if( shouldgetenv ) {
 		free(shouldgetenv);
+	}
+	return;
 }
 
 #if !defined(WIN32)
 void
 ComputeRootDir()
 {
-	char *rootdir = condor_param(RootDir);
+	char *rootdir = condor_param( RootDir, ATTR_JOB_ROOT_DIR );
 
 	if( rootdir == NULL ) 
 	{
@@ -1516,7 +1877,8 @@ ComputeRootDir()
 	else 
 	{
 		if( access(rootdir, F_OK|X_OK) < 0 ) {
-			fprintf(stderr,"No such directory: %s\n", rootdir);
+			fprintf( stderr, "\nERROR: No such directory: %s\n",
+					 rootdir );
 			DoCleanup(0,0,NULL);
 			exit( 1 );
 		}
@@ -1539,7 +1901,7 @@ SetRootDir()
 void
 SetRequirements()
 {
-	char *requirements = condor_param(Requirements);
+	char *requirements = condor_param( Requirements, NULL );
 	char *tmp;
 	if( requirements == NULL ) 
 	{
@@ -1562,20 +1924,34 @@ void
 SetRank()
 {
 	static char rank[ATTRLIST_MAX_EXPRESSION];
-	char *orig_pref = condor_param(Preferences);
-	char *orig_rank = condor_param(Rank);
+	char *orig_pref = condor_param( Preferences, NULL );
+	char *orig_rank = condor_param( Rank, NULL );
 	char *default_rank = NULL;
 	char *append_rank = NULL;
 	rank[0] = '\0';
 
-	if ( JobUniverse == STANDARD ) {
-		default_rank = param("DEFAULT_RANK_STANDARD");
-		append_rank = param("APPEND_RANK_STANDARD");
+	switch( JobUniverse ) {
+	case CONDOR_UNIVERSE_STANDARD:
+		default_rank = param( "DEFAULT_RANK_STANDARD" );
+		append_rank = param( "APPEND_RANK_STANDARD" );
+		break;
+	case CONDOR_UNIVERSE_VANILLA:
+		default_rank = param( "DEFAULT_RANK_VANILLA" );
+		append_rank = param( "APPEND_RANK_VANILLA" );
+		break;
+	default:
+		default_rank = NULL;
+		append_rank = NULL;
 	}
-	if ( JobUniverse == VANILLA ) {
-		default_rank = param("DEFAULT_RANK_VANILLA");
-		append_rank = param("APPEND_RANK_VANILLA");
-	} 
+
+		// If they're not yet defined, or they're defined but empty,
+		// try the generic, non-universe-specific versions.
+	if( ! default_rank || ! default_rank[0]  ) {
+		default_rank = param("DEFAULT_RANK");
+	}
+	if( ! append_rank || ! append_rank[0]  ) {
+		append_rank = param("APPEND_RANK");
+	}
 
 		// If any of these are defined but empty, treat them as
 		// undefined, or else, we get nasty errors.  -Derek W. 8/21/98
@@ -1593,8 +1969,8 @@ SetRank()
 	}		
 
 	if( orig_pref && orig_rank ) {
-		fprintf(stderr,"\nERROR: %s and %s may not both be specified for a job\n",
-			   Preferences, Rank);
+		fprintf( stderr, "\nERROR: %s and %s may not both be specified "
+				 "for a job\n", Preferences, Rank );
 		exit(1);
 	} else if( orig_rank ) {
 		(void)strcat( rank, orig_rank );
@@ -1632,7 +2008,6 @@ SetRank()
 		free(orig_pref);
 	if ( orig_rank )
 		free(orig_rank);
-
 }
 
 void
@@ -1645,7 +2020,12 @@ ComputeIWD()
 	memset(iwd, 0, sizeof(iwd));
 	memset(cwd, 0, sizeof(cwd));
 
-	shortname = condor_param( InitialDir );
+	shortname = condor_param( InitialDir, ATTR_JOB_IWD );
+	if( ! shortname ) {
+			// neither "initialdir" nor "iwd" were there, try some
+			// others, just to be safe:
+		shortname = condor_param( "initial_dir", "job_iwd" );
+	}
 
 #if !defined(WIN32)
 	ComputeRootDir();
@@ -1711,7 +2091,7 @@ check_iwd( char *iwd )
 	compress( pathname );
 
 	if( access(pathname, F_OK|X_OK) < 0 ) {
-		fprintf(stderr, "No such directory: %s\n", pathname);
+		fprintf( stderr, "\nERROR: No such directory: %s\n", pathname );
 		DoCleanup(0,0,NULL);
 		exit( 1 );
 	}
@@ -1720,19 +2100,32 @@ check_iwd( char *iwd )
 void
 SetUserLog()
 {
-	char *ulog = condor_param(UserLogFile);
+	char *ulog_entry = condor_param( UserLogFile, ATTR_ULOG_FILE );
 
-	if (ulog) {
-		if (whitespace(ulog)) {
-			fprintf(stderr,"Only one %s can be specified.\n", UserLogFile);
+	if (ulog_entry) {
+		if (whitespace(ulog_entry)) {
+			fprintf( stderr, "\nERROR: Only one %s can be specified.\n",
+					 UserLogFile );
 			DoCleanup(0,0,NULL);
 			exit( 1 );
 		}
+		char *ulog = full_path(ulog_entry);
+		free(ulog_entry);
+
+		// check that the log is a valid path
+		FILE* test = fopen(ulog, "a+");
+		if (!test) {
+			fprintf(stderr,
+				"\nWARNING: Invalid log file: \"%s\"\n", ulog);
+			exit( 1 );
+		} else {
+			fclose(test);
+		}
+
 		check_path_length(ulog, UserLogFile);
 		(void) sprintf(buffer, "%s = \"%s\"", ATTR_ULOG_FILE, ulog);
 		InsertJobExpr(buffer);
 		UserLogSpecified = true;
-		free(ulog);
 	}
 }
 
@@ -1746,7 +2139,7 @@ SetUserLog()
 void
 SetCoreSize()
 {
-	char *size = condor_param(CoreSize);
+	char *size = condor_param( CoreSize, "core_size" );
 	long coresize;
 
 	if (size == NULL) {
@@ -1788,8 +2181,8 @@ SetForcedAttributes()
 		exValue = expand_macro( (char*)value.Value(), ProcVars, PROCVARSIZE );
 		if( !exValue )
 		{
-			fprintf( stderr, "\nWarning:  Unable to expand macros in \"%s\"."
-							"  Ignoring.\n", value.Value() );
+			fprintf( stderr, "\nWarning: Unable to expand macros in \"%s\"."
+					 "  Ignoring.\n", value.Value() );
 			continue;
 		}
 		sprintf( buffer, "%s = %s", name.Value(), exValue );
@@ -1804,6 +2197,42 @@ SetForcedAttributes()
 	}	
 }
 
+void
+SetGlobusParams()
+{
+	char buff[2048];
+	char *globushost;
+	char *tmp;
+
+	if ( JobUniverse != CONDOR_UNIVERSE_GLOBUS )
+		return;
+
+	if ( !(globushost = condor_param( GlobusScheduler ) ) ) {
+		fprintf(stderr, "Globus universe jobs require a \"%s\" parameter\n",
+				GlobusScheduler );
+		DoCleanup( 0, 0, NULL );
+		exit( 1 );
+	}
+
+	sprintf( buffer, "%s = \"%s\"", ATTR_GLOBUS_RESOURCE, globushost );
+	InsertJobExpr (buffer, false );
+
+	free( globushost );
+
+	sprintf( buffer, "%s = \"%s\"", ATTR_GLOBUS_CONTACT_STRING,
+			 NULL_JOB_CONTACT );
+	InsertJobExpr (buffer, false );
+
+	sprintf( buffer, "%s = %d", ATTR_GLOBUS_STATUS,
+			 GLOBUS_JOB_UNSUBMITTED );
+	InsertJobExpr (buffer, false );
+
+	if ( tmp = condor_param(GlobusRSL) ) {
+		sprintf( buff, "%s = \"%s\"", ATTR_GLOBUS_RSL, tmp );
+		free( tmp );
+		InsertJobExpr ( buff, false );
+	}
+}
 
 #if !defined(WIN32)
 struct SigTable { int v; char *n; };
@@ -1839,12 +2268,13 @@ sig_name_lookup(char sig[])
 	}
 	fprintf( stderr, "\nERROR: unknown signal %s\n", sig );
 	exit(1);
+	return -1;
 }
 
 void
 SetKillSig()
 {
-	char *sig = condor_param(KillSig);
+	char *sig = condor_param( KillSig, ATTR_KILL_SIG );
 	int signo;
 
 	if (sig) {
@@ -1852,10 +2282,14 @@ SetKillSig()
 		if (signo == 0 && isalnum(sig[0])) {
 			signo = sig_name_lookup(sig);
 		}
+		if( signo == 0 ) {
+			fprintf( stderr, "\nERROR: invalid signal %s\n", sig );
+			exit( 1 );
+		}
 		free(sig);
 	} else {
 		switch(JobUniverse) {
-		case STANDARD:
+		case CONDOR_UNIVERSE_STANDARD:
 			signo = SIGTSTP;
 			break;
 		default:
@@ -1866,6 +2300,22 @@ SetKillSig()
 
 	(void) sprintf (buffer, "%s = %d", ATTR_KILL_SIG, signo);
 	InsertJobExpr(buffer);
+
+	sig = condor_param( RmKillSig, ATTR_REMOVE_KILL_SIG );
+
+	if (sig) {
+		signo = atoi(sig);
+		if (signo == 0 && isalnum(sig[0])) {
+			signo = sig_name_lookup(sig);
+		}
+		if( signo == 0 ) {
+			fprintf( stderr, "\nERROR: invalid signal %s\n", sig );
+			exit( 1 );
+		}
+		free(sig);
+		(void) sprintf (buffer, "%s = %d", ATTR_REMOVE_KILL_SIG, signo);
+		InsertJobExpr(buffer);
+	} 
 }
 #endif  // of ifndef WIN32
 
@@ -1877,23 +2327,47 @@ read_condor_file( FILE *fp )
 	char	*ptr;
 	int		force = 0, queue_modifier;
 
+	char* justSeenQueue = NULL;
+
 	JobIwd[0] = '\0';
 
 	LineNo = 0;
-	
+	ExtraLineNo = 0;
+
+	extraLines.Rewind();
 
 	for(;;) {
 		force = 0;
 
-		name = getline(fp);
+		// check if we've just seen a "queue" command and need to
+		// parse any extra lines passed in via -a first
+		if( justSeenQueue ) {
+			if( extraLines.Next( name ) ) {
+				name = strdup( name );
+				ExtraLineNo++;
+			}
+			else {
+				// there are no more -a lines to parse, so rewind
+				// extraLines in case we encounter another queue
+				// command later, and restore the "queue" line itself
+				// (stashed in justSeenQueue) so we can now parse it
+				extraLines.Rewind();
+				ExtraLineNo = 0;
+				name = justSeenQueue;
+			}
+		}
+		else {
+			name = getline( fp );
+			LineNo++;
+		}
 		if( name == NULL ) {
 			break;
 		}
 
 			/* Skip over comments */
-		if( *name == '#' || blankline(name) )
+		if( *name == '#' || blankline(name) ) {
 			continue;
-		
+		}
 		/* check if the user wants to force a parameter into/outof the job ad */
 		if (*name == '+') {
 			force = 1;
@@ -1907,11 +2381,28 @@ read_condor_file( FILE *fp )
 		}
 
 		if( strincmp(name, "queue", strlen("queue")) == 0 ) {
+			// if this is the first time we've seen this "queue"
+			// command, then set justSeenQueue to TRUE and go back to
+			// the top of the loop to process extraLines before
+			// proceeding; if justSeenQueue is already TRUE, however,
+			// then we've just finished processing extraLines, and
+			// we're ready to go ahead parsing the "queue" command
+			// itself
+			if( !justSeenQueue ) {
+				justSeenQueue = name;
+				continue;
+			}
+			else {
+				justSeenQueue = NULL;
+				// we don't have to worry about freeing justSeenQueue
+				// since the string is still pointed to by name and
+				// will be freed below like any other line...
+			}
 			name = expand_macro( name, ProcVars, PROCVARSIZE );
 			if( name == NULL ) {
 				(void)fclose( fp );
-				fprintf(stderr, 
-					"\nERROR: Failed to expand macros in: %s\n", name);
+				fprintf( stderr, "\nERROR: Failed to expand macros "
+						 "in: %s\n", name );
 				return( -1 );
 			}
 			name = expand_macro( name, ProcVars, PROCVARSIZE );
@@ -1921,7 +2412,7 @@ read_condor_file( FILE *fp )
 			queue(queue_modifier);
 			continue;
 		}	
-		
+
 #define isop(c)		((c) == '=')
 		
 		/* Separate out the parameter name */
@@ -1972,7 +2463,8 @@ read_condor_file( FILE *fp )
 			name = expand_macro( name, ProcVars, PROCVARSIZE );
 			if( name == NULL ) {
 				(void)fclose( fp );
-				fprintf(stderr, "\nERROR: Failed to expand macros in: %s\n", name);
+				fprintf( stderr, "\nERROR: Failed to expand macros in: %s\n",
+						 name );
 				return( -1 );
 			}
 		}
@@ -1987,9 +2479,12 @@ read_condor_file( FILE *fp )
 
 		lower_case( name );
 
-		if ( (strcmp(name, Executable) == 0)
-			|| ( strcmp(name, GlobusExecutable) == 0) )
-		{
+		if( strcmp(name, Executable) == 0 ) {
+			NewExecutable = true;
+		}
+			// Also, see if we're hitting "cmd", instead (we've
+			// already lower-cased the name we're looking at)
+		if( strcmp(name, "cmd") == 0 ) {
 			NewExecutable = true;
 		}
 
@@ -2004,31 +2499,40 @@ read_condor_file( FILE *fp )
 }
 
 char *
-condor_param( char *name )
+condor_param( const char* name) 
 {
-	char *pval = lookup_macro(name, ProcVars, PROCVARSIZE);
+	return condor_param(name, NULL);
+}
 
+char *
+condor_param( const char* name, const char* alt_name )
+{
+	bool used_alt = false;
+	char *pval = lookup_macro( name, ProcVars, PROCVARSIZE );
 
-	if( pval == NULL ) {
+	if( ! pval && alt_name ) {
+		pval = lookup_macro( alt_name, ProcVars, PROCVARSIZE );
+		used_alt = true;
+	}
+
+	if( ! pval ) {
 		return( NULL );
 	}
 
-	//DON'T expand values that start with "globus", they need to
-	//be passed unexpanded to globusrun
-	if ( strncasecmp( name, "GLOBUS", strlen( "GLOBUS" ) ) ) {
-		pval = expand_macro(pval, ProcVars, PROCVARSIZE);
+	pval = expand_macro( pval, ProcVars, PROCVARSIZE );
 
-		if (pval == NULL) {
-			fprintf(stderr, "\nERROR: Failed to expand macros in: %s\n", name);
-			exit(1);
-		}
+	if( pval == NULL ) {
+		fprintf( stderr, "\nERROR: Failed to expand macros in: %s\n",
+				 used_alt ? alt_name : name );
+		exit(1);
 	}
 
 	return( pval );
 }
 
+
 void
-set_condor_param( char *name, char *value )
+set_condor_param( const char *name, char *value )
 {
 	char *tval = strdup( value );
 
@@ -2039,7 +2543,9 @@ set_condor_param( char *name, char *value )
 int
 strcmpnull(const char *str1, const char *str2)
 {
-	if (str1 && str2) return strcmp(str1, str2);
+	if( str1 && str2 ) {
+		return strcmp(str1, str2);
+	}
 	return (str1 || str2);
 }
 
@@ -2056,11 +2562,11 @@ connect_to_the_schedd()
 	if (ConnectQ(ScheddAddr) == 0) {
 		if( ScheddName ) {
 			fprintf( stderr, 
-					"ERROR: Failed to connect to queue manager %s\n",
+					"\nERROR: Failed to connect to queue manager %s\n",
 					 ScheddName );
 		} else {
 			fprintf( stderr, 
-				"ERROR: Failed to connect to local queue manager\n" );
+				"\nERROR: Failed to connect to local queue manager\n" );
 		}
 		exit(1);
 	}
@@ -2100,8 +2606,8 @@ queue(int num)
 		}
 
 		if ( ClusterId == -1 ) {
-			fprintf(stderr,
-			"\nERROR: Used queue command without specifying an executable\n");
+			fprintf( stderr, "\nERROR: Used queue command without "
+					 "specifying an executable\n" );
 			exit(1);
 		}
 
@@ -2127,15 +2633,48 @@ queue(int num)
 			SetUniverse();
 			SetExecutable();
 		}
-		if ( JobUniverse == GLOBUS_UNIVERSE ) {
-			strcpy( GlobusArgs, GlobusExec );
+		SetMachineCount();
+		if ( JobUniverse == CONDOR_UNIVERSE_GLOBUS ) {
+			// Find the X509 user proxy
+			// First, grab the environment. Then param for it.
+			// This lets us override the environ with the submit file
+			// Globus will look at the first at the filename
+			// we pass in, then the X509_USER_PROXY environment variable,
+			// then in /tmp (or wherever the default secure tmpdir is
+
+			char *proxy_env_var = (char *)getenv( "X509_USER_PROXY" );
+			char *proxy_file = condor_param( X509UserProxy );
+
+			if(proxy_file == NULL) proxy_file = proxy_env_var;
+
+			char *rm_contact = condor_param( GlobusScheduler );
+
+			if ( check_x509_proxy(proxy_file) != 0 ) {
+				fprintf( stderr, "\nERROR: %s\n", x509_error_string() );
+				exit( 1 );
+			}
+			
+/*
+			if ( rm_contact && (check_globus_rm_contacts(rm_contact) != 0) ) {
+				fprintf( stderr, "\nERROR: Can't find scheduler in MDS\n" );
+				exit( 1 );
+			}
+*/
+			if ( proxy_file ) {
+				(void) sprintf(buffer, "%s=\"%s\"", ATTR_X509_USER_PROXY, 
+								proxy_file);
+				InsertJobExpr(buffer);	
+				free( proxy_file );
+			}
+			if ( rm_contact )
+				free( rm_contact );
 		}
 
 			/* For MPI only... we have to define $(NODE) to some string
 			   here so that we don't break the param parser.  In the 
 			   MPI shadow, we'll convert the string into an integer 
 			   corresponding to the mpi node's number. */
-		if ( JobUniverse == MPI ) {
+		if ( JobUniverse == CONDOR_UNIVERSE_MPI ) {
 			set_condor_param ( "NODE", "#MpInOdE#" );
 		}
 
@@ -2147,6 +2686,8 @@ queue(int num)
 		SetEnvironment();
 		SetNotification();
 		SetNotifyUser();
+		SetRemoteInitialDir();
+		SetExitRequirements();
 		SetUserLog();
 		SetCoreSize();
 #if !defined(WIN32)
@@ -2157,14 +2698,28 @@ queue(int num)
 		SetStdFile( 1 );
 		SetStdFile( 2 );
 		SetFileOptions();
+		SetFetchFiles();
+		SetCompressFiles();
+		SetAppendFiles();
+		SetLocalFiles();
 		SetTransferFiles();	 // must be called _before_ SetImageSize() 
 		SetImageSize();		// must be called _after_ SetTransferFiles()
 		SetRequirements();	// must be called _after_ SetTransferFiles()
 		SetForcedAttributes();
+		SetPeriodicHoldCheck();
+		SetPeriodicRemoveCheck();
+		SetExitHoldCheck();
+		SetExitRemoveCheck();
 			//SetArguments needs to be last for Globus universe args
 		SetArguments(); 
+		SetGlobusParams();
+		SetDAGNodeName();
+		SetDAGManJobId();
+		SetJarFiles();
 
 		rval = SaveClassAd();
+
+		SetLogNotes();
 
 		switch( rval ) {
 		case 0:			/* Success */
@@ -2183,7 +2738,7 @@ queue(int num)
 				job->fPrint (stdout);
 			}
 
-		logfile = condor_param(UserLogFile);
+		logfile = condor_param( UserLogFile, ATTR_ULOG_FILE );
 		// Convert to a pathname using IWD if needed
 		if ( logfile ) {
 			logfile = full_path(logfile);
@@ -2191,7 +2746,10 @@ queue(int num)
 
 		if (CurrentSubmitInfo == -1 ||
 			SubmitInfo[CurrentSubmitInfo].cluster != ClusterId ||
-			strcmpnull(SubmitInfo[CurrentSubmitInfo].logfile, logfile) != 0) {
+			strcmpnull( SubmitInfo[CurrentSubmitInfo].logfile,
+						logfile ) != 0 ||
+			strcmpnull( SubmitInfo[CurrentSubmitInfo].lognotes,
+						LogNotesVal ) != 0 ) {
 			CurrentSubmitInfo++;
 			SubmitInfo[CurrentSubmitInfo].cluster = ClusterId;
 			SubmitInfo[CurrentSubmitInfo].firstjob = ProcId;
@@ -2200,6 +2758,12 @@ queue(int num)
 				SubmitInfo[CurrentSubmitInfo].logfile = strdup(logfile);
 			} else {
 				SubmitInfo[CurrentSubmitInfo].logfile = NULL;
+			}
+			if( LogNotesVal ) {
+				SubmitInfo[CurrentSubmitInfo].lognotes = strdup( LogNotesVal );
+			}
+			else {
+				SubmitInfo[CurrentSubmitInfo].lognotes = NULL;
 			}
 		}
 		SubmitInfo[CurrentSubmitInfo].lastjob = ProcId;
@@ -2220,113 +2784,172 @@ check_requirements( char *orig )
 	int		has_opsys = FALSE;
 	int		has_arch = FALSE;
 	int		has_disk = FALSE;
-	int		has_virtmem = FALSE;
+	int		has_mem = FALSE;
 	int		has_fsdomain = FALSE;
-	char	*ptr;
-	static char	answer[2048];
+	int		has_ckpt_arch = FALSE;
+	char	*ptr, *tmp;
+	static char	answer[4096];
 
-	for( ptr = orig; *ptr; ptr++ ) {
+	if( strlen(orig) ) {
+		(void) sprintf( answer, "(%s)", orig );
+	} else {
+		answer[0] = '\0';
+	}
+
+	switch( JobUniverse ) {
+	case CONDOR_UNIVERSE_VANILLA:
+		ptr = param( "APPEND_REQ_VANILLA" );
+		break;
+	case CONDOR_UNIVERSE_STANDARD:
+		ptr = param( "APPEND_REQ_STANDARD" );
+		break;
+	default:
+		ptr = NULL;
+		break;
+	} 
+	if( ptr == NULL ) {
+			// Didn't find a per-universe version, try the generic,
+			// non-universe specific one:
+		ptr = param( "APPEND_REQUIREMENTS" );
+	}
+
+	if( ptr != NULL ) {
+			// We found something to append.  
+		if( answer[0] ) {
+				// We've already got something in requirements, so we
+				// need to append an AND clause.
+			(void) strcat( answer, " && (" );
+		} else {
+				// This is the first thing in requirements, so just
+				// put this as the first clause.
+			(void) strcat( answer, "(" );
+		}
+		(void) strcat( answer, ptr );
+		(void) strcat( answer, ")" );
+		free( ptr );
+	}
+
+				
+	for( ptr = answer; *ptr; ptr++ ) {
 		if( strincmp(ATTR_ARCH,ptr,4) == MATCH ) {
 			has_arch = TRUE;
 			break;
 		}
 	}
 
-	for( ptr = orig; *ptr; ptr++ ) {
+	for( ptr = answer; *ptr; ptr++ ) {
 		if( strincmp(ATTR_OPSYS,ptr,5) == MATCH ) {
 			has_opsys = TRUE;
 			break;
 		}
 	}
  
-	for( ptr = orig; *ptr; ptr++ ) {
+	for( ptr = answer; *ptr; ptr++ ) {
 		if( strincmp(ATTR_DISK,ptr,5) == MATCH ) {
 			has_disk = TRUE;
 			break;
 		}
 	}
  
-	for( ptr = orig; *ptr; ptr++ ) {
-		if( strincmp(ATTR_VIRTUAL_MEMORY,ptr,5) == MATCH ) {
-			has_virtmem = TRUE;
+	for( ptr = answer; *ptr; ptr++ ) {
+		if( strincmp(ATTR_MEMORY,ptr,5) == MATCH ) {
+				// We found "Memory", but we need to make sure that's
+				// not part of "VirtualMemory"...
+			if( ptr == answer ) {
+					// We're at the beginning, must be Memory, since
+					// there's nothing before it.
+				has_mem = TRUE;
+				break;
+			}
+				// Otherwise, it's safe to go back one position:
+			tmp = ptr - 1;
+			if( *tmp == 'l' || *tmp == 'L' ) {
+					// Must be VirtualMemory, keep searching...
+				continue;
+			}
+				// If it wasn't an 'l', we must have found it...
+			has_mem = TRUE;
 			break;
 		}
 	}
  
-	if( strlen(orig) ) {
-		(void)sprintf( answer, "(%s)", orig );
-	} else {
-		answer[0] = '\0';
-	}
-
-	if( !has_arch ) {
-		if( answer[0] ) {
-			(void)strcat( answer, " && (Arch == \"" );
-		} else {
-			(void)strcpy( answer, "(Arch == \"" );
+	for( ptr = answer; *ptr; ptr++ ) {
+		if( strincmp(ATTR_CKPT_ARCH,ptr,4) == MATCH ) {
+			has_ckpt_arch = TRUE;
+			break;
 		}
-		(void)strcat( answer, Architecture );
-		(void)strcat( answer, "\")" );
 	}
 
-	if( !has_opsys ) {
-		(void)strcat( answer, " && (OpSys == \"" );
-		(void)strcat( answer, OperatingSystem );
-		(void)strcat( answer, "\")" );
+	if( JobUniverse == CONDOR_UNIVERSE_JAVA ) {
+		if( answer[0] ) {
+			strcat( answer, " && (HasJava) ");
+		} else {
+			strcat( answer, "(HasJava) ");
+		}
+	} else {
+		if( !has_arch ) {
+			if( answer[0] ) {
+				(void)strcat( answer, " && (Arch == \"" );
+			} else {
+				(void)strcpy( answer, "(Arch == \"" );
+			}
+			(void)strcat( answer, Architecture );
+			(void)strcat( answer, "\")" );
+		}
+
+		if( !has_opsys ) {
+			(void)strcat( answer, " && (OpSys == \"" );
+			(void)strcat( answer, OperatingSystem );
+			(void)strcat( answer, "\")" );
+		}
 	}
 
-	if( !has_opsys && !has_arch ) {
-		magic_check();
+	if ( JobUniverse == CONDOR_UNIVERSE_STANDARD && !has_ckpt_arch ) {
+		(void)strcat( answer, " && ((CkptArch == Arch) ||" );
+		(void)strcat( answer, " (CkptArch =?= UNDEFINED))" );
+		(void)strcat( answer, " && ((CkptOpSys == OpSys) ||" );
+		(void)strcat( answer, "(CkptOpSys =?= UNDEFINED))" );
 	}
 
 	if( !has_disk ) {
 		(void)strcat( answer, " && (Disk >= DiskUsage)" );
 	}
 
-	if ( !has_virtmem ) {
-		(void)strcat( answer, " && (VirtualMemory >= ImageSize)" );
+	if ( !has_mem ) {
+		(void)strcat( answer, " && ( (Memory * 1024) >= ImageSize )" );
 	}
 
-	if ( JobUniverse == PVM ) {
-		(void)strcat( answer, " && (Machine != \"" );
-		(void)strcat( answer, my_full_hostname() );
-	         // XXX Temporary hack:  we only want to run on the first node
-	         // of an SMP machine for pvm jobs.
-		(void)strcat( answer, "\" && ((VirtualMachineID =?= UNDEFINED ) "
-	                   "|| (VirtualMachineID =?= 1)) )" );
+	if ( JobUniverse == CONDOR_UNIVERSE_PVM ) {
+		ptr = param("PVM_OLD_PVMD");
+		if (ptr) {
+			if (ptr[0] == 'T' || ptr[0] == 't') {
+				(void)strcat( answer, " && (Machine != \"" );
+				(void)strcat( answer, my_full_hostname() );
+					// XXX Temporary hack: we only want to run on the
+					// first node of an SMP machine for pvm jobs.
+				(void)strcat( answer,
+							  "\" && ((VirtualMachineID =?= UNDEFINED ) "
+							  "|| (VirtualMachineID =?= 1)) )" );
+			}
+			free(ptr);
+		}
 	} 
 
-	if ( JobUniverse == VANILLA ) {
-		ptr = param("APPEND_REQ_VANILLA");
-		if ( ptr != NULL ) {
-			(void) strcat( answer," && (" );
-			(void) strcat( answer, ptr );
-			(void) strcat( answer,")" );
-		}
+	if ( JobUniverse == CONDOR_UNIVERSE_VANILLA ) {
 		for( ptr = answer; *ptr; ptr++ ) {
 			if( strincmp("FileSystemDo",ptr,12) == MATCH ) {
 				has_fsdomain = TRUE;
 				break;
 			}
 		}
-
 		if ( !has_fsdomain && never_transfer) {
-			(void)strcat( answer, " && (FileSystemDomain == \"" );
+			(void)strcat( answer, " && ((OpSys == \"WINNT40\" || OpSys == \"WINNT50\") || (OpSys != \"WINNT40\" && OpSys != \"WINNT50\" && FileSystemDomain == \"" );
 			(void)strcat( answer, My_fs_domain );
-			(void)strcat( answer, "\")" );
+			(void)strcat( answer, "\"))" );
 		} 
 
 	}
 
-	if ( JobUniverse == STANDARD ) {
-		ptr = param("APPEND_REQ_STANDARD");
-		if ( ptr != NULL ) {
-			(void) strcat( answer," && (" );
-			(void) strcat( answer, ptr );
-			(void) strcat( answer,")" );
-		}
-	}
-				
 	return answer;
 }
 
@@ -2369,46 +2992,57 @@ void
 check_open( const char *name, int flags )
 {
 	int		fd;
-	char	*pathname, *temp;
+	MyString strPathname;
+	char *temp;
+	StringList *list;
 
 	/* No need to check for existence of the Null file. */
-	if (strcmp(name, NULL_FILE) == MATCH) return;
+	if( strcmp(name, NULL_FILE) == MATCH ) {
+		return;
+	}
 
-	pathname = full_path(name);
+	strPathname = full_path(name);
 
 		/* This is only for MPI.  We test for our string that
 		   we replaced "$(NODE)" with, and replace it with "0".  Thus, 
 		   we will really only try and access the 0th file only */
-	if ( JobUniverse == MPI ) {
-		if ( (temp = strstr( pathname, "#MpInOdE#" ) ) != NULL ) {
-			*(temp++) = '0';
-			*temp = '\0';
-			memmove ( temp, temp+8, strlen(temp+8) );
-		}
+	if ( JobUniverse == CONDOR_UNIVERSE_MPI ) {
+		strPathname.replaceString("#MpInOdE#", "0");
 	}
 
-	if( (fd=open(pathname,flags,0664)) < 0 ) {
-		fprintf(stderr, "\nCan't open \"%s\"  with flags 0%o\n", pathname, flags );
+	/* If this file as marked as append-only, do not truncate it here */
+
+	temp = condor_param( AppendFiles );
+	if(temp) {
+		list = new StringList(temp);
+		if(list->contains_withwildcard(name)) {
+			flags = flags & ~O_TRUNC;
+		}
+		delete list;
+	}
+
+	if( (fd=open(strPathname.Value(),flags,0664)) < 0 ) {
+		fprintf( stderr, "\nERROR: Can't open \"%s\"  with flags 0%o\n",
+				 strPathname.Value(), flags );
 		DoCleanup(0,0,NULL);
 		exit( 1 );
 	}
 	(void)close( fd );
 
 	// Queue files for testing access if not already queued
-	MyString pathname_key(pathname);
 	int crap;
 	if( flags & O_WRONLY )
 	{
-		if ( CheckFilesWrite.lookup(pathname_key,crap) < 0 ) {
+		if ( CheckFilesWrite.lookup(strPathname,crap) < 0 ) {
 			// this file not found in our list; add it
-			CheckFilesWrite.insert(pathname_key,crap);
+			CheckFilesWrite.insert(strPathname,crap);
 		}
 	}
 	else
 	{
-		if ( CheckFilesRead.lookup(pathname_key,crap) < 0 ) {
+		if ( CheckFilesRead.lookup(strPathname,crap) < 0 ) {
 			// this file not found in our list; add it
-			CheckFilesRead.insert(pathname_key,crap);
+			CheckFilesRead.insert(strPathname,crap);
 		}
 	}
 }
@@ -2423,6 +3057,9 @@ usage()
 	fprintf( stderr, "	-n schedd_name\tsubmit to the specified schedd\n" );
 	fprintf( stderr, 
 			 "	-r schedd_name\tsubmit to the specified remote schedd\n" );
+	fprintf( stderr,
+			 "	-a line       \tadd line to submit file before processing\n"
+			 "                \t(overrides submit file; multiple -a lines ok)\n" );
 	fprintf( stderr, "	-d\t\tdisable file permission checks\n\n" );
 	fprintf( stderr, "	If [cmdfile] is omitted, input is read from stdin\n" );
 	exit( 1 );
@@ -2527,11 +3164,6 @@ compress( char *str )
 	*dst = '\0';
 }
 
-void
-magic_check()
-{
-	return;
-}
 
 void
 delete_commas( char *ptr )
@@ -2555,27 +3187,42 @@ log_submit()
 	 UserLog usr_log;
 	 SubmitEvent jobSubmit;
 
-	if (Quiet) fprintf(stdout, "Logging submit event(s)");
+	if( Quiet ) {
+		fprintf(stdout, "Logging submit event(s)");
+	}
 
 	strcpy (jobSubmit.submitHost, ScheddAddr);
+
+	if( LogNotesVal ) {
+		jobSubmit.submitEventLogNotes = strnewp( LogNotesVal );
+		free( LogNotesVal );
+	}
 
 	for (int i=0; i <= CurrentSubmitInfo; i++) {
 
 		if ((simple_name = SubmitInfo[i].logfile) != NULL) {
+			if( jobSubmit.submitEventLogNotes ) {
+				delete[] jobSubmit.submitEventLogNotes;
+			}
+			jobSubmit.submitEventLogNotes = strnewp( SubmitInfo[i].lognotes );
 
 			usr_log.initialize(owner, simple_name, 0, 0, 0);
 
 			// Output the information
 			for (int j=SubmitInfo[i].firstjob; j<=SubmitInfo[i].lastjob; j++) {
 				usr_log.initialize(SubmitInfo[i].cluster, j, 0);
-				if (!usr_log.writeEvent (&jobSubmit))
+				if( ! usr_log.writeEvent(&jobSubmit) ) {
 					fprintf(stderr, "\nERROR: Failed to log submit event.\n");
-				if (Quiet) fprintf(stdout, ".");
+				}
+				if( Quiet ) {
+					fprintf(stdout, ".");
+				}
 			}
 		}
 	}
-
-	if (Quiet) fprintf(stdout, "\n");
+	if( Quiet ) {
+		fprintf( stdout, "\n" );
+	}
 }
 
 
@@ -2583,7 +3230,7 @@ int
 SaveClassAd ()
 {
 	ExprTree *tree = NULL, *lhs = NULL, *rhs = NULL;
-	char lhstr[128], rhstr[ATTRLIST_MAX_EXPRESSION];
+	char *lhstr, *rhstr;
 	int  retval = 0;
 	int myprocid = ProcId;
 
@@ -2597,18 +3244,19 @@ SaveClassAd ()
 	
 
 	job->ResetExpr();
-	while (tree = job->NextExpr())
-	{
-		lhstr[0] = '\0';
-		rhstr[0] = '\0';
-		if (lhs = tree->LArg()) lhs->PrintToStr (lhstr);
-		if (rhs = tree->RArg()) rhs->PrintToStr (rhstr);
-		if (!lhs || !rhs) retval = -1;
-		if (SetAttribute (ClusterId, myprocid, lhstr, rhstr) == -1) {
-			fprintf(stderr, "\nERROR: Failed to set %s=%s for job %d.%d\n", 
-				lhstr, rhstr, ClusterId, ProcId);
+	while( (tree = job->NextExpr()) ) {
+		lhstr = NULL;
+		rhstr = NULL;
+		if( (lhs = tree->LArg()) ) { lhs->PrintToNewStr (&lhstr); }
+		if( (rhs = tree->RArg()) ) { rhs->PrintToNewStr (&rhstr); }
+		if( !lhs || !rhs || !lhstr || !rhstr) { retval = -1; }
+		if( SetAttribute(ClusterId, myprocid, lhstr, rhstr) == -1 ) {
+			fprintf( stderr, "\nERROR: Failed to set %s=%s for job %d.%d\n", 
+					 lhstr, rhstr, ClusterId, ProcId );
 			retval = -1;
 		}
+		free(lhstr);
+		free(rhstr);
 	}
 
 	if ( ProcId == 0 ) {
@@ -2620,7 +3268,7 @@ SaveClassAd ()
 
 
 void 
-InsertJobExpr (char *expr, bool clustercheck)
+InsertJobExpr (const char *expr, bool clustercheck)
 {
 	ExprTree *tree = NULL, *lhs = NULL;
 	char      name[128];
@@ -2654,10 +3302,9 @@ InsertJobExpr (char *expr, bool clustercheck)
 		exit( 1 );
 	}
 
-	if (lhs = tree->LArg()) 
+	if( (lhs = tree->LArg()) ) {
 		lhs->PrintToStr (name);
-	else
-	{
+	} else {
 		fprintf (stderr, "\nERROR: Expression not assignment: %s\n", expr);
 		fprintf(stderr,"Error in submit file\n");
 		DoCleanup(0,0,NULL);
@@ -2666,7 +3313,7 @@ InsertJobExpr (char *expr, bool clustercheck)
 	
 	if (!job->InsertOrUpdate (expr))
 	{	
-		fprintf(stderr,"Unable to insert expression: %s\n", expr);
+		fprintf(stderr,"\nERROR: Unable to insert expression: %s\n", expr);
 		DoCleanup(0,0,NULL);
 		exit( 1 );
 	}
@@ -2675,12 +3322,12 @@ InsertJobExpr (char *expr, bool clustercheck)
 		// We are working on building the ad which will serve as our
 		// cluster ad.  Thus insert this expr into our hashtable.
 		if ( ClusterAdAttrs.insert(hashkey,unused) < 0 ) {
-			fprintf(stderr,"Unable to insert expression into hashtable\n", expr);
+			fprintf( stderr,"\nERROR: Unable to insert expression into "
+					 "hashtable: %s\n", expr );
 			DoCleanup(0,0,NULL);
 			exit( 1 );
 		}
 	}
-
 
 	delete tree;
 }
@@ -2718,109 +3365,18 @@ setupAuthentication()
 {
 		//RendezvousDir for remote FS auth can be specified in submit file.
 	char *Rendezvous = NULL;
-	if ( Rendezvous = condor_param( RendezvousDir ) )
-	{
+	Rendezvous = condor_param( RendezvousDir, "rendezvous_dir" );
+	if( ! Rendezvous ) {
+			// If those didn't work, try a few other variations, just
+			// to be safe:
+		Rendezvous = condor_param( "rendezvousdirectory",
+								   "rendezvous_directory" );
+	}
+	if( Rendezvous ) {
 		dprintf( D_FULLDEBUG,"setting RENDEZVOUS_DIRECTORY=%s\n", Rendezvous );
 		sprintf( buffer, "RENDEZVOUS_DIRECTORY=%s", Rendezvous );
 			//putenv because Authentication::authenticate() expects them there.
 		putenv( strdup( buffer ) );
 		free( Rendezvous );
 	}
-
-#ifndef WIN32
-		//X509_USER_PROXY needed for Globus universe and glideins under condor
-	char *UserFile = NULL;
-	if ( UserFile = condor_param( X509UserProxy ) ) {
-		dprintf( D_FULLDEBUG, "setting X509_USER_PROXY=%s\n", UserFile );
-		sprintf( buffer, "X509_USER_PROXY=%s", UserFile );
-		if ( JobUniverse == GLOBUS_UNIVERSE ) {
-			strcat( GlobusEnv, buffer );
-			strcat( GlobusEnv, env_delimiter );
-				//Put it in the ClassAd as well (per directive from 7th floor...)
-			sprintf( buffer, "X509_USER_PROXY = \"%s\"", UserFile );
-			InsertJobExpr( buffer );
-		}
-		else { 
-			putenv( strdup( buffer ) );
-		}
-		
-		free( UserFile );
-		UserFile = NULL;
-	}
-
-	char *ssleay = condor_param( SsleayConf );
-
-	if ( UserFile = condor_param( X509Directory ) ) {
-		dprintf( D_FULLDEBUG, "X509_DIRECTORY=%s\n", UserFile );
-
-			//if it's Globus universe, set all defaults, else just put in ENV
-		if ( JobUniverse != GLOBUS_UNIVERSE ) {
-				//put x509_directory in ENV for authentication code to use.
-			sprintf( buffer, "X509_DIRECTORY=%s", UserFile );
-			putenv( strdup( buffer ) );
-		}
-		else {
-			//set all the X509_* stuff to default names under this directory
-
-			sprintf( buffer, "X09_CERT_DIR=%s/certdir", UserFile );
-			strcat( GlobusEnv, buffer );
-			strcat( GlobusEnv, env_delimiter );
-				//Put it in the ClassAd as well (per directive from 7th floor...)
-			sprintf( buffer, "X509_CERT_DIR = \"%s/certdir\"", UserFile );
-			InsertJobExpr( buffer );
-
-			sprintf( buffer, "X09_USER_CERT=%s/usercert.pem", UserFile );
-			strcat( GlobusEnv, buffer );
-			strcat( GlobusEnv, env_delimiter );
-				//Put it in the ClassAd as well (per directive from 7th floor...)
-			sprintf( buffer, "X509_USER_CERT = \"%s/usercert.pem\"", UserFile );
-			InsertJobExpr( buffer );
-
-			sprintf( buffer, "X09_USER_KEY=%s/userkey.pem", UserFile );
-			strcat( GlobusEnv, buffer );
-			strcat( GlobusEnv, env_delimiter );
-				//Put it in the ClassAd as well (per directive from 7th floor...)
-			sprintf( buffer, "X509_USER_KEY = \"%s/userkey.pem\"", UserFile );
-			InsertJobExpr( buffer );
-
-			char sslFile[_POSIX_PATH_MAX];
-			if ( ssleay ) {
-					//if specified, override condor default
-				strcpy( sslFile, ssleay );
-			}
-			else {
-					//use condor default
-				sprintf( sslFile, "%s/condor_ssl.cnf", UserFile );
-			}
-			sprintf( buffer, "SSLEAY_CONF=%s", sslFile );
-			strcat( GlobusEnv, buffer );
-			strcat( GlobusEnv, env_delimiter );
-				//Put it in the ClassAd as well (per directive from 7th floor...)
-			sprintf( buffer, "SSLEAY_CONF = \"%s\"", sslFile );
-			InsertJobExpr( buffer );
-		}
-			
-		free( UserFile );
-		UserFile = NULL;
-	}
-	else if ( ssleay ) {
-		sprintf( buffer, "SSLEAY_CONF=%s", ssleay );
-		if ( JobUniverse == GLOBUS_UNIVERSE ) {
-			strcat( GlobusEnv, buffer );
-			strcat( GlobusEnv, env_delimiter );
-				//Put it in the ClassAd as well (per directive from 7th floor...)
-			sprintf( buffer, "SSLEAY_CONF = \"%s\"", ssleay );
-			InsertJobExpr( buffer );
-		}
-		else {
-			putenv( strdup( buffer ) );
-		}
-	}
-
-		//For condor_glidein to run under condor, either GLOBUS_INSTALL_PATH 
-		//or GLOBUS_DEPLOY_PATH, as well as HOME and the path to globus, condor 
-		//and /bin user programs must be in the users environment. I check
-		//that stuff in condor_glidein, but mention it here because it is
-		//apropososos.
-#endif // of ifndef WIN32
 }

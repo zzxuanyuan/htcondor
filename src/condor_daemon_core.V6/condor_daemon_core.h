@@ -41,12 +41,17 @@
 #include "condor_ipverify.h"
 #include "condor_commands.h"
 #include "condor_classad.h"
+#include "condor_secman.h"
 #include "HashTable.h"
+#include "KeyCache.h"
 #include "list.h"
 #include "extArray.h"
+#include "Queue.h"
 #ifdef WIN32
 #include "ntsysinfo.h"
 #endif
+
+#define DEBUG_SETTABLE_ATTR_LISTS 0
 
 static const int KEEP_STREAM = 100;
 static const int MAX_SOCKS_INHERITED = 4;
@@ -88,7 +93,9 @@ typedef int		(*ThreadStartFunc)(void *,Stream*);
 #define WEXITSTATUS(stat) ((int)(stat))
 #define WTERMSIG(stat) ((int)(stat))
 #define WIFSTOPPED(stat) ((int)(0))
+///
 int WIFEXITED(DWORD stat);
+///
 int WIFSIGNALED(DWORD stat);
 #endif  // of ifdef WIN32
 
@@ -142,34 +149,16 @@ class DaemonCore : public Service
     
   public:
     
-    /** Not_Yet_Documented
-        @param PidSize   Not_Yet_Documented
-        @param ComSize   Not_Yet_Documented
-        @param SigSize   Not_Yet_Documented
-        @param SocSize   Not_Yet_Documented
-        @param ReapSize  Not_Yet_Documented
-    */
+  	/* These are all declarations for methods which never need to be
+	 * called by the end user.  Thus they are not docified.
+	 * Typically these methods are invoked from functions inside 
+	 * of daemon_core_main.C.
+	 */
     DaemonCore (int PidSize = 0, int ComSize = 0, int SigSize = 0,
                 int SocSize = 0, int ReapSize = 0);
-    
-    ///
     ~DaemonCore();
-    
-    /// Not_Yet_Documented
     void Driver();
 
-    /** Not_Yet_Documented
-        @return Not_Yet_Documented
-    */
-    int ServiceCommandSocket();
-
-    /** Not_Yet_Documented
-        @return Not_Yet_Documented
-    */
-    int InServiceCommandSocket() {
-        return inServiceCommandSocket_flag;
-    }
-    
     /** Not_Yet_Documented
         @return Not_Yet_Documented
     */
@@ -180,8 +169,16 @@ class DaemonCore : public Service
         @param sin  Not_Yet_Documented
         @return Not_Yet_Documented
     */
-    int Verify (DCpermission perm, const struct sockaddr_in *sin);
-    
+    int Verify (DCpermission perm, const struct sockaddr_in *sin, const char * fqu);
+    int AddAllowHost( const char* host, DCpermission perm );
+
+    /** clear all sessions associated with the child 
+     */
+    void clearSession(pid_t pid);
+
+	/** @name Command Events
+	 */
+	//@{
 
     /** Not_Yet_Documented
         @param command         Not_Yet_Documented
@@ -240,6 +237,25 @@ class DaemonCore : public Service
     char* InfoCommandSinfulString (int pid = -1);
 
     /** Not_Yet_Documented
+        @return Not_Yet_Documented
+		*/
+    int ServiceCommandSocket();
+
+    /** Not_Yet_Documented
+        @return Not_Yet_Documented
+    */
+    int InServiceCommandSocket() {
+        return inServiceCommandSocket_flag;
+    }
+	//@}
+    
+
+
+	/** @name Signal events
+	 */
+	//@{
+
+    /** Not_Yet_Documented
         @param sig              Not_Yet_Documented
         @param sig_descrip      Not_Yet_Documented
         @param handler          Not_Yet_Documented
@@ -293,6 +309,30 @@ class DaemonCore : public Service
     int Unblock_Signal (int sig) {
         return(HandleSig(_DC_UNBLOCKSIGNAL,sig));
     }
+
+    /** Send a signal to daemonCore processes or non-DC process
+        @param pid The receiving process ID
+        @param sig The signal to send
+        @return Not_Yet_Documented
+    */
+    int Send_Signal (pid_t pid, int sig);
+	//@}
+
+
+	/** @name Reaper events.
+	 */
+	//@{
+
+
+    /** This method selects the reaper to be called when a process exits
+        and no reaper is registered.  This can be used, for example,
+        to catch the exit of processes that were created by other facilities
+        than DaemonCore.
+
+        @param reaper_id The already-registered reaper number to use.
+     */
+
+    void Set_Default_Reaper( int reaper_id );
 
     /** Not_Yet_Documented
         @param reap_descrip     Not_Yet_Documented
@@ -351,7 +391,24 @@ class DaemonCore : public Service
         @return Not_Yet_Documented
     */
     int Cancel_Reaper (int rid);
+   
+
+    /** Not_Yet_Documented
+        @param signal signal
+        @return Not_Yet_Documented
+    */
+	static const char *GetExceptionString(int signal);
+
+    /** Not_Yet_Documented
+        @param pid pid
+        @return Not_Yet_Documented
+    */
+    int Was_Not_Responding(pid_t pid);
+	//@}
         
+	/** @name Socket events.
+	 */
+	//@{
     /** Not_Yet_Documented
         @param iosock           Not_Yet_Documented
         @param iosock_descrip   Not_Yet_Documented
@@ -412,7 +469,11 @@ class DaemonCore : public Service
         @return Not_Yet_Documented
     */
     int Lookup_Socket ( Stream * iosock );
+	//@}
 
+	/** @name Timer events.
+	 */
+	//@{
     /** Not_Yet_Documented
         @param deltawhen       Not_Yet_Documented
         @param event           Not_Yet_Documented
@@ -478,12 +539,19 @@ class DaemonCore : public Service
         @return Not_Yet_Documented
     */
     int Reset_Timer ( int id, unsigned when, unsigned period = 0 );
+	//@}
 
     /** Not_Yet_Documented
         @param flag   Not_Yet_Documented
         @param indent Not_Yet_Documented
     */
     void Dump (int flag, char* indent = NULL );
+
+
+    /** @name Process management.
+        These work on any process, not just daemon core processes.
+    */
+    //@{
 
     /** Not_Yet_Documented
         @return Not_Yet_Documented
@@ -494,18 +562,6 @@ class DaemonCore : public Service
         @return Not_Yet_Documented
     */
     inline pid_t getppid() { return ppid; };
-
-    /** Send a signal to daemonCore processes or non-DC process
-        @param pid The receiving process ID
-        @param sig The signal to send
-        @return Not_Yet_Documented
-    */
-    int Send_Signal (pid_t pid, int sig);
-
-    /** @name Process management.
-        These work on any process, not just daemon core processes.
-    */
-    //@{
 
     /** Not_Yet_Documented
         @param pid Not_Yet_Documented
@@ -537,6 +593,51 @@ class DaemonCore : public Service
     */
     int Continue_Process(pid_t pid);
 
+    /** Create a process.  Works for NT and Unix.  On Unix, a
+        fork and exec are done.  Read the source for ugly 
+        details - it takes care of most everything.
+
+        @param name The full path name of the executable.  If this 
+               is a relative path name AND cwd is specified, then we
+               prepend the result of getcwd() to 'name' and pass 
+               that to exec().
+        @param args The list of args, separated by spaces.  The 
+               first arg is argv[0], the name you want to appear in 
+               'ps'.  If you don't specify agrs, then 'name' is 
+               used as argv[0].
+        @param priv The priv state to change into right before
+               the exec.  Default = no action.
+        @param reaper_id The reaper number to use.  Default = 1.
+        @param want_command_port Well, do you?  Default = TRUE
+        @param env A colon-separated list of stuff to be put into
+               the environment of the new process
+        @param cwd Current Working Directory
+        @param new_process_group Do you want to make one? Default = FALSE
+        @param sock_inherit_list A list of socks to inherit.
+        @param std An array of three file descriptors to map
+               to stdin, stdout, stderr respectively.  If this array
+               is NULL, don't perform remapping.  If any one of these
+			   is -1, it is ignored and *not* mapped.
+        @param nice_inc The value to be passed to nice() in the
+               child.  0 < nice < 20, and greater numbers mean
+               less priority.  This is an addition to the current
+               nice value.
+        @return On success, returns the child pid.  On failure, returns FALSE.
+    */
+    int Create_Process (
+        char        *name,
+        char        *args,
+        priv_state  priv                 = PRIV_UNKNOWN,
+        int         reaper_id            = 1,
+        int         want_commanand_port  = TRUE,
+        char        *env                 = NULL,
+        char        *cwd                 = NULL,
+        int         new_process_group    = FALSE,
+        Stream      *sock_inherit_list[] = NULL,
+        int         std[]                = NULL,
+        int         nice_inc             = 0
+        );
+
     //@}
 
     /** @name Data pointer functions.
@@ -544,7 +645,6 @@ class DaemonCore : public Service
         associating a pointer to data with a registered callback.
     */
     //@{
-
     /** Set the data pointer when you're <b>inside</b> the handler
         function.  It will not work outside.
 
@@ -573,6 +673,19 @@ class DaemonCore : public Service
     void *GetDataPtr();
     //@}
     
+	/** @name Key management.
+	 */
+	//@{
+    /** Access to the SecMan object;
+        @return Pointer to this daemon's SecMan
+    */
+    SecMan* getSecMan();
+    KeyCache* getKeyCache();
+	//@}
+
+ 	/** @name Environment management.
+	 */
+	//@{
     /** Put the {key, value} pair into the environment
         @param key
         @param value
@@ -585,51 +698,11 @@ class DaemonCore : public Service
         must be of the form 'name=value' 
     */
     int SetEnv(char *env_var);
-        
-    /** Create a process.  Works for NT and Unix.  On Unix, a
-        fork and exec are done.  Read the source for ugly 
-        details - it takes care of most everything.
-
-        @param name The full path name of the executable.  If this 
-               is a relative path name AND cwd is specified, then we
-               prepend the result of getcwd() to 'name' and pass 
-               that to exec().
-        @param args The list of args, separated by spaces.  The 
-               first arg is argv[0], the name you want to appear in 
-               'ps'.  If you don't specify agrs, then 'name' is 
-               used as argv[0].
-        @param priv The priv state to change into right before
-               the exec.  Default = no action.
-        @param reaper_id The reaper number to use.  Default = 1.
-        @param want_command_port Well, do you?  Default = TRUE
-        @param env A colon-separated list of stuff to be put into
-               the environment of the new process
-        @param cwd Current Working Directory
-        @param new_process_group Do you want to make one? Default = FALSE
-        @param sock_inherit_list A list of socks to inherit.
-        @param std An array of three file descriptors to map
-               to stdin, stdout, stderr respectively.  If this array
-               is NULL, don't perform remapping.
-        @param nice_inc The value to be passed to nice() in the
-               child.  0 < nice < 20, and greater numbers mean
-               less priority.  This is an addition to the current
-               nice value.
-        @return The pid of the newly created process.
-    */
-    int Create_Process (
-        char        *name,
-        char        *args,
-        priv_state  priv                 = PRIV_UNKNOWN,
-        int         reaper_id            = 1,
-        int         want_commanand_port  = TRUE,
-        char        *env                 = NULL,
-        char        *cwd                 = NULL,
-        int         new_process_group    = FALSE,
-        Stream      *sock_inherit_list[] = NULL,
-        int         std[]                = NULL,
-        int         nice_inc             = 0
-        );
-
+	//@}
+     
+	/** @name Thread management.
+	 */
+	//@{
 		/** Create a "poor man's" thread.  Works for NT (via
 			CreateThread) and Unix (via fork).  The new thread does
 			not have a DaemonCore command socket.
@@ -672,14 +745,10 @@ class DaemonCore : public Service
 
 	///
 	int Kill_Thread(int tid);
+	//@}
 
-    // NULL terminated array of inherited sockets
     Stream **GetInheritedSocks() { return (Stream **)inheritedSocks; }
 
-    // see if process was killed because it was hung
-    int Was_Not_Responding(pid_t pid);
-
-	static const char *GetExceptionString(int signal);
 
 		/** Register the Priv state this Daemon wants to be in, every time
 		    DaemonCore is returned to the Handler DaemonCore will check to see
@@ -690,14 +759,44 @@ class DaemonCore : public Service
 		*/
 	priv_state Register_Priv_State( priv_state priv );
 	
+		/** Initialize our array of StringLists that we use to verify
+			if a given request to set a configuration variable with
+			condor_config_val should be allowed.
+		*/
+	void InitSettableAttrsLists( void );
+
+		/** Check the table of attributes we're willing to allow users
+			at hosts of different permission levels to change to see
+			if we should allow the given request to succeed.
+			@param config String containing the configuration request
+			@param sock The sock that we're handling this command with
+			@return true if we should allow this, false if not
+		*/
+	bool CheckConfigSecurity( const char* config, Sock* sock );
+
+
+    /** Invalidate all session related cache since the configuration
+     */
+    void invalidateSessionCache();
+
   private:      
+
+	ReliSock* dc_rsock;	// tcp command socket
+	SafeSock* dc_ssock;	// udp command socket
+
+    int getAuthBitmask( char* methods );
+
+    void Inherit( void );  // called in main()
+	void InitCommandSocket( int command_port );  // called in main()
+
     int HandleSigCommand(int command, Stream* stream);
     int HandleReq(int socki);
     int HandleSig(int command, int sig);
-    void Inherit( ReliSock* &rsock, SafeSock* &ssock );  // called in main()
+
     int HandleProcessExitCommand(int command, Stream* stream);
     int HandleProcessExit(pid_t pid, int exit_status);
     int HandleDC_SIGCHLD(int sig);
+	int HandleDC_SERVICEWAITPIDS(int sig);
  
     int Register_Command(int command, char *com_descip,
                          CommandHandler handler, 
@@ -733,6 +832,8 @@ class DaemonCore : public Service
                         char *handler_descrip,
                         Service* s, 
                         int is_cpp);
+
+	MyString DaemonCore::GetCommandsInAuthLevel(DCpermission perm);
 
     struct CommandEnt
     {
@@ -787,6 +888,8 @@ class DaemonCore : public Service
         char*           iosock_descrip;
         char*           handler_descrip;
         void*           data_ptr;
+		bool			is_connect_pending;
+		bool			call_handler;
     };
     void              DumpSocketTable(int, const char* = NULL);
     int               maxSocket;  // number of socket handlers to start with
@@ -809,6 +912,7 @@ class DaemonCore : public Service
     int                 maxReap;        // max number of reaper handlers
     int                 nReap;          // number of reaper handlers used
     ReapEnt*            reapTable;      // reaper table
+    int                 defaultReaper;
 
     struct PidEntry
     {
@@ -852,11 +956,14 @@ class DaemonCore : public Service
     static              TimerManager t;
     void                DumpTimerList(int, char* = NULL);
 
+	SecMan	    		*sec_man;
+
+
     IpVerify            ipverify;   
 
     void free_descrip(char *p) { if(p &&  p != EMPTY_DESCRIP) free(p); }
     
-    fd_set              readfds; 
+    fd_set              readfds,writefds,exceptfds; 
 
     struct in_addr      negotiator_sin_addr;    // used by Verify method
 
@@ -872,6 +979,23 @@ class DaemonCore : public Service
 #ifndef WIN32
     int async_pipe[2];  // 0 for reading, 1 for writing
     volatile int async_sigs_unblocked;
+
+	// Data memebers for queuing up waitpid() events
+	struct WaitpidEntry_s
+	{
+		pid_t child_pid;
+		int exit_status;
+		bool operator==( const struct WaitpidEntry_s &target) { 
+			if(child_pid == target.child_pid) {
+				return true;
+			}
+			return false;
+		}
+
+	};
+	typedef struct WaitpidEntry_s WaitpidEntry;
+	Queue<WaitpidEntry> WaitpidQueue;
+
 #endif
 
     Stream *inheritedSocks[MAX_SOCKS_INHERITED+1];
@@ -899,6 +1023,9 @@ class DaemonCore : public Service
 #endif
 
 	priv_state Default_Priv_State;
+
+	bool InitSettableAttrsList( const char* subsys, int i );
+	StringList* SettableAttrsLists[LAST_PERM];
 };
 
 #ifndef _NO_EXTERN_DAEMON_CORE

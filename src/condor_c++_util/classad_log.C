@@ -35,6 +35,22 @@
 template class HashTable<HashKey, ClassAd*>;
 template class HashBucket<HashKey,ClassAd*>;
 
+/***** Prevent calling free multiple times in this code *****/
+/* This fixes bugs where we would segfault when reading in
+ * a corrupted log file, because memory would be deallocated
+ * both in ReadBody and in the destructor. 
+ * To fix this, we make certain all calls to free() in this
+ * file reset the pointer to NULL so we know now to call
+ * it again. */
+#ifdef free
+#undef free
+#endif
+#define free(ptr) \
+if (ptr) free(ptr); \
+ptr = NULL;
+/************************************************************/
+
+
 ClassAdLog::ClassAdLog() : table(1024, hashFunction)
 {
 	log_filename[0] = '\0';
@@ -225,7 +241,7 @@ ClassAdLog::LookupInTransaction(const char *key, const char *name, char *&val)
 			char *lkey = ((LogSetAttribute *)log)->get_key();
 			if (strcmp(lkey, key) == 0) {
 				char *lname = ((LogSetAttribute *)log)->get_name();
-				if (strcmp(lname, name) == 0) {
+				if (stricmp(lname, name) == 0) {
 					if (ValFound) {
 						free(val);
 					}
@@ -242,7 +258,7 @@ ClassAdLog::LookupInTransaction(const char *key, const char *name, char *&val)
 			char *lkey = ((LogDeleteAttribute *)log)->get_key();
 			if (strcmp(lkey, key) == 0) {
 				char *lname = ((LogDeleteAttribute *)log)->get_name();
-				if (strcmp(lname, name) == 0) {
+				if (stricmp(lname, name) == 0) {
 					if (ValFound) {
 						free(val);
 					}
@@ -273,7 +289,7 @@ ClassAdLog::LogState(int fd)
 	HashKey		hashval;
 	char		key[_POSIX_PATH_MAX];
 	char		*attr_name = NULL;
-	char		attr_val[ATTRLIST_MAX_EXPRESSION];
+	char		*attr_val;
 
 	table.startIterations();
 	while(table.iterate(ad) == 1) {
@@ -287,15 +303,16 @@ ClassAdLog::LogState(int fd)
 		ad->ResetName();
 		attr_name = ad->NextName();
 		while (attr_name) {
-			attr_val[0] = 0;
+			attr_val = NULL;
 			expr = ad->Lookup(attr_name);
 			if (expr) {
-				expr->RArg()->PrintToStr(attr_val);
+				expr->RArg()->PrintToNewStr(&attr_val);
 				log = new LogSetAttribute(key, attr_name, attr_val);
 				if (log->Write(fd) < 0) {
 					EXCEPT("write to %s failed, errno = %d", log_filename,
 						   errno);
 				}
+				free(attr_val);
 				delete log;
 				delete [] attr_name;
 				attr_name = ad->NextName();
