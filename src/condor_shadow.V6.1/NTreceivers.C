@@ -28,9 +28,13 @@
 #include "condor_constants.h"
 #include "pseudo_ops.h"
 #include "condor_sys.h"
+#include "baseshadow.h"
+#include "MyString.h"
 
 
 extern ReliSock *syscall_sock;
+extern BaseShadow *Shadow;
+
 
 
 #ifdef WIN32
@@ -135,11 +139,27 @@ do_REMOTE_syscall()
 
 	rval = syscall_sock->code(condor_sysnum);
 	if (!rval) {
-		char *execute_machine_ip;
-
-		execute_machine_ip = syscall_sock->endpoint_ip_str();
-		EXCEPT("Can no longer talk to condor_starter on execute machine (%s)",
-			   (execute_machine_ip != NULL) ? execute_machine_ip : "Unknown");
+		MyString err_msg;
+		err_msg = "Can no longer talk to condor_starter <";
+		err_msg += syscall_sock->endpoint_ip_str();
+		err_msg += ':';
+		err_msg += syscall_sock->endpoint_port();
+		err_msg += '>';
+		if( Shadow->supportsReconnect() ) {
+				// instead of having to EXCEPT, we can now try to
+				// reconnect.  happy day! :)
+			dprintf( D_ALWAYS, "%s\n", err_msg.Value() );
+			Shadow->reconnect();
+				// we need to return 0 so that our caller doesn't
+				// think the job exited and doesn't do anything to the
+				// syscall socket.  we'll cancel it out of DaemonCore
+				// and delete it when and if we reestablish contact...
+			return 0;
+		} else {
+				// The remote starter doesn't support it, so give up
+				// like we always used to.
+			EXCEPT( "%s", err_msg.Value() );
+		}
 	}
 
 	dprintf(D_SYSCALLS,
