@@ -868,6 +868,7 @@ dprintf(D_FULLDEBUG,"*** failure: %s\n",errorString.Value());
 
 int NordugridJob::doStageIn()
 {
+	//TODO: these can't be static, they have to be class memebers!!!
 	static StringList *stage_list = NULL;
 	FILE *curr_file_fp = NULL;
 	FILE *curr_ftp_fp = NULL;
@@ -1015,6 +1016,7 @@ int NordugridJob::doStageIn()
 
 int NordugridJob::doStageOut()
 {
+	//TODO: these can't be static, they have to be class memebers!!!
 	static StringList *stage_list = NULL;
 	FILE *curr_file_fp = NULL;
 	FILE *curr_ftp_fp = NULL;
@@ -1164,7 +1166,8 @@ MyString *NordugridJob::buildSubmitRSL()
 	int transfer_exec = TRUE;
 	MyString *rsl = new MyString;
 	MyString buff;
-	StringList stage_list( NULL, "," );
+	StringList stage_in_list( NULL, "," );
+	StringList stage_out_list( NULL, "," );
 	char *attr_value = NULL;
 	char *rsl_suffix = NULL;
 	char *iwd = NULL;
@@ -1196,11 +1199,11 @@ MyString *NordugridJob::buildSubmitRSL()
 	// If we're transferring the executable, strip off the path for the
 	// remote machine, since it refers to the submit machine.
 	if ( transfer_exec ) {
-		*rsl += basename( attr_value );
+		*rsl += basename( executable );
 	} else {
-		*rsl += attr_value;
+		*rsl += executable;
 	}
-	free( attr_value );
+
 	if ( ad->LookupString(ATTR_JOB_ARGUMENTS, &attr_value) && *attr_value ) {
 		*rsl += " ";
 		*rsl += attr_value;
@@ -1219,7 +1222,7 @@ MyString *NordugridJob::buildSubmitRSL()
 
 	ad->LookupString( ATTR_TRANSFER_INPUT_FILES, &attr_value );
 	if ( attr_value != NULL ) {
-		stage_list.initializeFromString( attr_value );
+		stage_in_list.initializeFromString( attr_value );
 		free( attr_value );
 		attr_value = NULL;
 	}
@@ -1229,8 +1232,8 @@ MyString *NordugridJob::buildSubmitRSL()
 		if ( ! nullFile(attr_value) ) {
 			*rsl += ")(stdin=";
 			*rsl += basename(attr_value);
-			if ( !stage_list.file_contains( attr_value ) ) {
-				stage_list.append( attr_value );
+			if ( !stage_in_list.file_contains( attr_value ) ) {
+				stage_in_list.append( attr_value );
 			}
 		}
 		free( attr_value );
@@ -1238,18 +1241,18 @@ MyString *NordugridJob::buildSubmitRSL()
 	}
 
 	if ( transfer_exec ) {
-		if ( !stage_list.file_contains( executable ) ) {
-			stage_list.append( executable );
+		if ( !stage_in_list.file_contains( executable ) ) {
+			stage_in_list.append( executable );
 		}
 	}
 
-	if ( stage_list.isEmpty() == false ) {
+	if ( stage_in_list.isEmpty() == false ) {
 		char *file;
-		stage_list.rewind();
+		stage_in_list.rewind();
 
 		*rsl += ")(inputfiles=";
 
-		while ( (file = stage_list.next()) != NULL ) {
+		while ( (file = stage_in_list.next()) != NULL ) {
 			*rsl += "(";
 			*rsl += basename(file);
 			*rsl += " \"\")";
@@ -1258,11 +1261,9 @@ MyString *NordugridJob::buildSubmitRSL()
 
 	ad->LookupString( ATTR_TRANSFER_OUTPUT_FILES, &attr_value );
 	if ( attr_value != NULL ) {
-		stage_list.initializeFromString( attr_value );
+		stage_out_list.initializeFromString( attr_value );
 		free( attr_value );
 		attr_value = NULL;
-	} else {
-		stage_list.initializeFromString( "" );
 	}
 
 	if ( ad->LookupString( ATTR_JOB_OUTPUT, &attr_value ) == 1) {
@@ -1270,8 +1271,8 @@ MyString *NordugridJob::buildSubmitRSL()
 		if ( ! nullFile(attr_value) ) {
 			*rsl += ")(stdout=";
 			*rsl += basename(attr_value);
-			if ( !stage_list.file_contains( attr_value ) ) {
-				stage_list.append( attr_value );
+			if ( !stage_out_list.file_contains( attr_value ) ) {
+				stage_out_list.append( attr_value );
 			}
 		}
 		free( attr_value );
@@ -1283,20 +1284,20 @@ MyString *NordugridJob::buildSubmitRSL()
 		if ( ! nullFile(attr_value) ) {
 			*rsl += ")(stderr=";
 			*rsl += basename(attr_value);
-			if ( !stage_list.file_contains( attr_value ) ) {
-				stage_list.append( attr_value );
+			if ( !stage_out_list.file_contains( attr_value ) ) {
+				stage_out_list.append( attr_value );
 			}
 		}
 		free( attr_value );
 	}
 
-	if ( stage_list.isEmpty() == false ) {
+	if ( stage_out_list.isEmpty() == false ) {
 		char *file;
-		stage_list.rewind();
+		stage_out_list.rewind();
 
 		*rsl += ")(outputfiles=";
 
-		while ( (file = stage_list.next()) != NULL ) {
+		while ( (file = stage_out_list.next()) != NULL ) {
 			*rsl += "(";
 			*rsl += basename(file);
 			*rsl += " \"\")";

@@ -797,7 +797,6 @@ char *OracleJob::doSubmit1()
 		goto doSubmit1_error_exit;
 	}
 
-dprintf(D_ALWAYS,"*OCITransStart( srvc_hndl, ociErrorHndl, 60, OCI_TRANS_NEW )\n");
 	rc = OCITransStart( srvc_hndl, ociErrorHndl, 60, OCI_TRANS_NEW );
 	if ( rc != OCI_SUCCESS ) {
 		dprintf( D_ALWAYS, "OCITransStart failed\n" );
@@ -806,7 +805,6 @@ dprintf(D_ALWAYS,"*OCITransStart( srvc_hndl, ociErrorHndl, 60, OCI_TRANS_NEW )\n
 	}
 	trans_open = true;
 
-dprintf(D_ALWAYS,"*OCIHandleAlloc( GlobalOciEnvHndl, (dvoid**)&stmt_hndl, OCI_HTYPE_STMT, 0, NULL )\n");
 	rc = OCIHandleAlloc( GlobalOciEnvHndl, (dvoid**)&stmt_hndl, OCI_HTYPE_STMT,
 						 0, NULL );
 	if ( rc != OCI_SUCCESS ) {
@@ -815,7 +813,6 @@ dprintf(D_ALWAYS,"*OCIHandleAlloc( GlobalOciEnvHndl, (dvoid**)&stmt_hndl, OCI_HT
 		goto doSubmit1_error_exit;
 	}
 
-dprintf(D_ALWAYS,"*OCIStmtPrepare( stmt_hndl, ociErrorHndl, (const OraText *)stmt, strlen(stmt), OCI_NTV_SYNTAX, OCI_DEFAULT )\n");
 	rc = OCIStmtPrepare( stmt_hndl, ociErrorHndl, (const OraText *)stmt,
 						 strlen(stmt), OCI_NTV_SYNTAX, OCI_DEFAULT );
 	if ( rc != OCI_SUCCESS ) {
@@ -824,7 +821,6 @@ dprintf(D_ALWAYS,"*OCIStmtPrepare( stmt_hndl, ociErrorHndl, (const OraText *)stm
 		goto doSubmit1_error_exit;
 	}
 
-dprintf(D_ALWAYS,"*OCIBindByName( stmt_hndl, &bind1_hndl, ociErrorHndl, (const OraText *)\":jobid\", strlen(\":jobid\"), &job_id, sizeof(job_id), SQLT_INT, NULL, NULL, NULL, 0, NULL, OCI_DEFAULT )\n");
 	rc = OCIBindByName( stmt_hndl, &bind1_hndl, ociErrorHndl,
 						(const OraText *)":jobid",
 						strlen(":jobid"), &job_id, sizeof(job_id), SQLT_INT,
@@ -835,7 +831,6 @@ dprintf(D_ALWAYS,"*OCIBindByName( stmt_hndl, &bind1_hndl, ociErrorHndl, (const O
 		goto doSubmit1_error_exit;
 	}
 
-dprintf(D_ALWAYS,"*OCIBindByName(...)\n");
 	rc = OCIBindByName( stmt_hndl, &bind2_hndl, ociErrorHndl,
 						(const OraText *)":jobtext",
 						strlen( ":jobtext" ), (void *)jobtext, strlen(jobtext) + 1,
@@ -846,7 +841,6 @@ dprintf(D_ALWAYS,"*OCIBindByName(...)\n");
 		goto doSubmit1_error_exit;
 	}
 
-dprintf(D_ALWAYS,"*OCIStmtExecute(...)\n");
 	rc = OCIStmtExecute( srvc_hndl, stmt_hndl, ociErrorHndl, 1, 0, NULL, NULL,
 						 OCI_DEFAULT );
 	if ( rc != OCI_SUCCESS ) {
@@ -855,7 +849,6 @@ dprintf(D_ALWAYS,"*OCIStmtExecute(...)\n");
 		goto doSubmit1_error_exit;
 	}
 
-dprintf(D_ALWAYS,"*OCITransCommit(...)\n");
 	rc = OCITransCommit( srvc_hndl, ociErrorHndl, 0 );
 	if ( rc != OCI_SUCCESS ) {
 		dprintf( D_ALWAYS, "OCITransCommit failed\n" );
@@ -864,7 +857,6 @@ dprintf(D_ALWAYS,"*OCITransCommit(...)\n");
 	}
 	trans_open = false;
 
-dprintf(D_ALWAYS,"*OCIHandleFree( stmt_hndl, OCI_HTYPE_STMT )\n");
 	rc = OCIHandleFree( stmt_hndl, OCI_HTYPE_STMT );
 	if ( rc != OCI_SUCCESS ) {
 		dprintf( D_ALWAYS, "OCIHandleFree failed, ignoring\n" );
@@ -901,7 +893,11 @@ int OracleJob::doSubmit2()
 	int rc;
 	bool trans_open = false;
 	MyString stmt;
+	MyString jobtext_str = "";
 	char *jobtext = NULL;
+	char *exec_file = NULL;
+	char buff[1024];
+	FILE *exec_fp;
 
 	rc = ociSession->AcquireSession( this, srvc_hndl, ret_err_hndl );
 	if ( rc != OCI_SUCCESS ) {
@@ -910,11 +906,28 @@ int OracleJob::doSubmit2()
 		goto doSubmit2_error_exit;
 	}
 
-	ad->LookupString( ATTR_JOB_ARGUMENTS, &jobtext );
-	if ( jobtext == NULL || *jobtext == '\0' ) {
-		dprintf( D_ALWAYS, "No arguments\n" );
+	ad->LookupString( ATTR_JOB_CMD, &exec_file );
+	if ( exec_file == NULL || *exec_file == '\0' ) {
+		dprintf( D_ALWAYS, "No executable defined!\n" );
 		goto doSubmit2_error_exit;
 	}
+
+	exec_fp = fopen( exec_file, "r" );
+	if ( exec_fp == NULL ) {
+		dprintf( D_ALWAYS, "fopen of exec file failed\n" );
+		goto doSubmit2_error_exit;
+	}
+
+	while ( fgets( buff, sizeof(buff), exec_fp ) ) {
+		jobtext_str += buff;
+	}
+
+	fclose( exec_fp );
+	exec_fp = NULL;
+	free( exec_file );
+	exec_file = NULL;
+
+	jobtext = strdup( jobtext_str.Value() );
 
 	rc = OCITransStart( srvc_hndl, ociErrorHndl, 60, OCI_TRANS_NEW );
 	if ( rc != OCI_SUCCESS ) {
@@ -984,6 +997,12 @@ int OracleJob::doSubmit2()
 	return 0;
 
  doSubmit2_error_exit:
+	if ( exec_file != NULL ) {
+		free( exec_file );
+	}
+	if ( exec_fp != NULL ) {
+		fclose( exec_fp );
+	}
 	if ( stmt_hndl != NULL ) {
 		OCIHandleFree( stmt_hndl, OCI_HTYPE_STMT );
 	}
