@@ -1,4 +1,4 @@
-EXT_ROOT = @prefix@
+EXT_ROOT = @ext_root@
 EXT_INSTALL_ROOT = $(EXT_ROOT)/install
 EXT_BUNDLE_ROOT = $(EXT_ROOT)/bundles
 EXT_BUILD = $(EXT_ROOT)/build
