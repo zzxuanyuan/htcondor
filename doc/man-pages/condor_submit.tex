@@ -1343,30 +1343,28 @@ executed on the remote machine.
 %% stream_input
 %%%%%%%%%%%%%%%%%%%
 \item[stream\_input = $<$True \Bar\ False$>$] 
-\index{submit commands!stream\_output}
-if \Expr{True}, then \File{stdout} is streamed back to
-the machine from which the job was submitted. 
-If \Expr{False}, \File{stdout} is stored locally
-and transferred back when the job completes.
-This command is ignored if the job ClassAd attribute
-\Attr{TransferOut} is
-\Expr{False}.
-The default value is \Expr{True} in the Globus
-universe and \Expr{False} otherwise.
+\index{submit commands!stream\_input}
+If \Expr{True}, then \File{stdin} is streamed from the
+machine from which the job was submitted. 
+The default value is \Expr{False},
+the command is only relevant for jobs submitted to
+the vanilla or java universes, and
+it is ignored by the grid and globus
+universe.
 
 %%%%%%%%%%%%%%%%%%%
 %% stream_output
 %%%%%%%%%%%%%%%%%%%
 \item[stream\_output = $<$True \Bar\ False$>$] 
 \index{submit commands!stream\_output}
-if \Expr{True}, then \File{stdout} is streamed back to
+If \Expr{True}, then \File{stdout} is streamed back to
 the machine from which the job was submitted. 
 If \Expr{False}, \File{stdout} is stored locally
 and transferred back when the job completes.
 This command is ignored if the job ClassAd attribute
 \Attr{TransferOut} is
 \Expr{False}.
-The default value is \Expr{True} in the Globus
+The default value is \Expr{True} in the grid and globus
 universe and \Expr{False} otherwise.
 
 %%%%%%%%%%%%%%%%%%%
@@ -1374,14 +1372,14 @@ universe and \Expr{False} otherwise.
 %%%%%%%%%%%%%%%%%%%
 \item[stream\_error = $<$True \Bar\ False$>$] 
 \index{submit commands!stream\_error}
-if \Expr{True}, then \File{stderr} is streamed back to
+If \Expr{True}, then \File{stderr} is streamed back to
 the machine from which the job was submitted. 
 If \Expr{False}, \File{stderr} is stored locally
 and transferred back when the job completes.
 This command is ignored if the job ClassAd attribute
 \Attr{TransferErr} is
 \Expr{False}.
-The default value is \Expr{True} in the globus
+The default value is \Expr{True} in the grid and globus
 universe and \Expr{False} otherwise.
 
 %%%%%%%%%%%%%%%%%%%
