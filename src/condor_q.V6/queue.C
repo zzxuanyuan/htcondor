@@ -41,6 +41,7 @@
 #include "internet.h"
 #include "sig_install.h"
 #include "format_time.h"
+#include "metric_units.h"
 
 static char *_FileName_ = __FILE__;
 
@@ -55,7 +56,7 @@ static 	void displayJobShort (ClassAd *);
 static 	void shorten (char *, int);
 static	bool show_queue (char*, char*, char*);
 
-static 	int verbose = 0, summarize = 1, global = 0;
+static 	int verbose = 0, summarize = 1, global = 0, show_io = 0;
 static 	int malformed, unexpanded, running, idle, held;
 
 static	CondorQ 	Q;
@@ -390,6 +391,10 @@ processCommandLineArguments (int argc, char *argv[])
 			run = true;
 		}
 		else
+		if (match_prefix(arg,"io")) {
+			show_io = true;
+		}   
+		else
 		{
 			// assume name of owner of job
 			if (Q.add (CQ_OWNER, argv[i]) != Q_OK) {
@@ -400,6 +405,56 @@ processCommandLineArguments (int argc, char *argv[])
 	}
 }
 
+static void io_header()
+{
+	printf("%-8s %-8s %8s %8s %8s %8s %10s %10s\n", "ID","OWNER","IN","OUT","ACT_IN","ACT_OUT","SEEK_RATIO","BUFFER_EFF");
+}
+
+static void io_display(ClassAd *ad)
+{
+	int cluster=0, proc=0;
+	int read_bytes=0, write_bytes=0;
+	int actual_read_bytes=0, actual_write_bytes=0;
+	int read_count=0, write_count=0;
+	int actual_read_count=0, actual_write_count=0;
+	int seek_count=0;
+
+	float buffer_eff;
+	float seek_ratio;
+
+	char owner[256];
+
+	ad->EvalInteger(ATTR_CLUSTER_ID,NULL,cluster);
+	ad->EvalInteger(ATTR_PROC_ID,NULL,proc);
+	ad->EvalString(ATTR_OWNER,NULL,owner);
+
+	ad->EvalInteger(ATTR_FILE_READ_BYTES,NULL,read_bytes);
+	ad->EvalInteger(ATTR_FILE_WRITE_BYTES,NULL,write_bytes);
+	ad->EvalInteger(ATTR_FILE_ACTUAL_READ_BYTES,NULL,actual_read_bytes);
+	ad->EvalInteger(ATTR_FILE_ACTUAL_WRITE_BYTES,NULL,actual_write_bytes);
+	ad->EvalInteger(ATTR_FILE_SEEK_COUNT,NULL,seek_count);
+
+	ad->EvalInteger(ATTR_FILE_READ_COUNT,NULL,read_count);
+	ad->EvalInteger(ATTR_FILE_WRITE_COUNT,NULL,write_count);
+	ad->EvalInteger(ATTR_FILE_ACTUAL_READ_COUNT,NULL,actual_read_count);
+	ad->EvalInteger(ATTR_FILE_ACTUAL_WRITE_COUNT,NULL,actual_write_count);
+
+	if((read_count+write_count)==0) {
+		buffer_eff = 0;
+		seek_ratio = 0;
+	} else {
+		buffer_eff = 100.0-100.0*(actual_read_count+actual_write_count)/(read_count+write_count);
+		seek_ratio = 100.0*seek_count/(read_count+write_count);
+	}
+
+	printf("%4d.%-3d %-8s ",cluster,proc,owner);
+	printf("%8s ",metric_units(read_bytes));
+	printf("%8s ",metric_units(write_bytes));
+	printf("%8s ",metric_units(actual_read_bytes));
+	printf("%8s ",metric_units(actual_write_bytes));
+	printf("%9.2f%% ", seek_ratio);
+	printf("%9.2f%%\n", buffer_eff);
+}
 
 static void
 displayJobShort (ClassAd *ad)
@@ -521,6 +576,7 @@ usage (char *myName)
 		"\t\t-long\t\t\tVerbose output\n"
 		"\t\t-analyze\t\tPerform schedulability analysis on jobs\n"
 		"\t\t-run\t\t\tGet information about running jobs\n"
+		"\t\t-io\t\t\tShow information regarding I/O\n",
 		"\t\trestriction list\n"
 		"\twhere each restriction may be one of\n"
 		"\t\t<cluster>\t\tGet information about specific cluster\n"
@@ -598,6 +654,13 @@ show_queue( char* scheddAddr, char* scheddName, char* scheddMachine )
 								  ATTR_REMOTE_HOST, "[????????????????]");
 			mask.registerFormat("\n", "*bogus*", "\n");  // force newline
 			mask.display(stdout, &jobs);
+		} else if( show_io ) {
+			io_header();
+			jobs.Open();
+			while(job=jobs.Next()) {
+				io_display( job );
+			}
+			jobs.Close();
 		} else {
 			short_header();
 			jobs.Open();
