@@ -6,9 +6,6 @@
 #define SimpleLibC /lib/libc.a
 #define LibC SimpleLibC
 
-#define XLibPath /**/
-#define XExtLibPath /**/
-
 #define IS_V5				YES
 
 #define MALLOC_DEBUG 			NO

@@ -9,9 +9,6 @@
 #define SimpleLibC /lib/libc.a
 #define LibC SimpleLibC
 
-#define XLibPath /usr/lib/libX11.a /usr/lib/libdnet_stub.a
-#define XExtLibPath /usr/lib/libXext.a
-
 #define DebugFlag -ggdb
 
 #define IS_V5				YES

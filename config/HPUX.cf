@@ -10,9 +10,6 @@
 #define SimpleLibC /lib/libc.a
 #define LibC SimpleLibC
 
-#define XLibPath /**/
-#define XExtLibPath /**/
-
 #define BSDLibrary /usr/lib/libBSD.a
 
 #define IS_V5				YES

@@ -50,9 +50,6 @@ KERBEROS_INC =
 #endif
 
 
-#define X11LibPath /s/X11R6-2/lib
-#define X11Include /s/X11R6-2/include
-
 ZLIB_DIR = $(EXT_INSTALL_ROOT)/$(EXT_ZLIB_VERSION)
 ZLIB_LIB = $(ZLIB_DIR)/lib
 ZLIB_INC = $(ZLIB_DIR)/include

@@ -27,12 +27,6 @@ NEW_INCLUDE_DIR =	../condor_includes
 C_PLUS_INCLUDE =	../condor_c++_util
 DAEMONCLIENT_INCLUDE =	../condor_daemon_client
 
-#ifdef X11Include
-X11_INCLUDE = X11Include
-#else
-X11_INCLUDE = /usr/X11R6/include	
-#endif
-
 #ifdef GLOBUS_FLAVOR
 GlobusFlavor = GLOBUS_FLAVOR
 #else
@@ -99,8 +93,6 @@ endif
 JAVAC = JavaCompiler
 JAR = JarTool
 
-LIBX = XLibPath
-LIBXEXT = XExtLibPath
 STRIP = Strip
 STATIC	= StaticFlag
 MKDEPEND = MkDepend
@@ -166,12 +158,6 @@ endif
 #  undef DOES_REMOTE_SYSCALLS
 #  define DOES_REMOTE_SYSCALLS NO
 #endif /* IS_CLIPPED */
-
-#ifdef XIncludeFlag
-#define XInclude XIncludeFlag
-#else
-#define XInclude
-#endif
 
 #ifndef FORTRAN_HAS_RECURSION
 #define FORTRAN_HAS_RECURSION NO
@@ -350,7 +336,7 @@ NETMAN_FLAGS =
 #endif
 
 VENDOR_C_FLAGS = CFlags -I$(INCLUDE_DIR) -I$(NEW_INCLUDE_DIR) \
-		 -I$(C_PLUS_INCLUDE) XInclude -D$(ARCH_FLAG)=$(ARCH_FLAG) \
+		 -I$(C_PLUS_INCLUDE) -D$(ARCH_FLAG)=$(ARCH_FLAG) \
 		 -D$(OS_FLAG)=$(OS_FLAG) $(SITE_C_FLAGS) $(CONDOR_G_FLAGS) \
 		 $(SECURITY_FLAGS) $(NETMAN_FLAGS) $(SNPRINTF_FLAGS)\
 		 -I$(DAEMONCLIENT_INCLUDE)
