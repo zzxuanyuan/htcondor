@@ -138,6 +138,9 @@ MachAttributes::compute( amask_t how_much )
 
 	if( IS_TIMEOUT(how_much) && IS_SUMMED(how_much) ) {
 		m_condor_load = resmgr->sum( Resource::condor_load );
+		if( m_condor_load > m_load ) {
+			m_condor_load = m_load;
+		}
 	}
 }
 
@@ -214,16 +217,6 @@ MachAttributes::publish( ClassAd* cp, amask_t how_much)
 
 		sprintf(line, "%s=%d", ATTR_CLOCK_DAY, m_clock_day );
 		cp->Insert(line); 
-
-		sprintf(line, "%s=%d", ATTR_KEYBOARD_IDLE, (int)m_idle );
-		cp->Insert(line); 
-  
-			// ConsoleIdle cannot be determined on all platforms; thus, only
-			// advertise if it is not -1.
-		if( m_console_idle != -1 ) {
-			sprintf( line, "%s=%d", ATTR_CONSOLE_IDLE, (int)m_console_idle );
-			cp->Insert(line); 
-		}
 	}
 }
 
@@ -302,6 +295,8 @@ CpuAttributes::CpuAttributes( MachAttributes* map,
 	c_disk_percent = disk_percent;
 	this->map = map;
 	c_num_cpus = 1;
+	c_idle = -1;
+	c_console_idle = -1;
 }
 
 
@@ -334,7 +329,17 @@ CpuAttributes::publish( ClassAd* cp, amask_t how_much )
 		sprintf( line, "%s=%f", ATTR_LOAD_AVG, 
 				 (c_owner_load + c_condor_load) );
 		cp->Insert(line);
-	}		
+
+		sprintf(line, "%s=%d", ATTR_KEYBOARD_IDLE, (int)c_idle );
+		cp->Insert(line); 
+  
+			// ConsoleIdle cannot be determined on all platforms; thus, only
+			// advertise if it is not -1.
+		if( c_console_idle != -1 ) {
+			sprintf( line, "%s=%d", ATTR_CONSOLE_IDLE, (int)c_console_idle );
+			cp->Insert(line); 
+		}
+	}
 
 	if( IS_STATIC(how_much) || IS_PUBLIC(how_much) ) {
 
@@ -374,6 +379,24 @@ CpuAttributes::compute( amask_t how_much )
 		// Dynamic, non-shared attributes we need to actually compute
 		c_condor_load = rip->compute_condor_load();
 	}	
+}
+
+
+void
+CpuAttributes::display( amask_t how_much )
+{
+	if( IS_TIMEOUT(how_much) ) {
+		dprintf( D_FULLDEBUG, 
+				 "Idle time: %s %-8d %s %d\n",  
+				 "Keyboard:", (int)c_idle, 
+				 "Console:", (int)c_console_idle );
+
+		dprintf( D_LOAD, 
+				 "%s %.3f  %s %.3f  %s %.3f\n",  
+				 "SystemLoad:", c_condor_load + c_owner_load,
+				 "CondorLoad:", c_condor_load,
+				 "OwnerLoad:", c_owner_load );
+	}
 }
 
 

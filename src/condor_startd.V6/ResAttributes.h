@@ -78,6 +78,8 @@ public:
 	unsigned long   disk()		{ return m_disk; };
 	float		load()			{ return m_load; };
 	float		condor_load()	{ return m_condor_load; };
+	time_t		keyboard_idle() { return m_idle; };
+	time_t		console_idle() { return m_console_idle; };
 
 private:
 		// Dynamic info
@@ -113,6 +115,7 @@ public:
 	CpuAttributes( MachAttributes*, float, float, float );
 
 	void attach( Resource* );	// Attach to the given Resource
+									   
 
 	void publish( ClassAd*, amask_t );  // Publish desired info to given CA
 	void compute( amask_t );			  // Actually recompute desired stats
@@ -123,6 +126,14 @@ public:
 	float compute_condor_load();
 	void set_owner_load( float v ) { c_owner_load = v; };
 
+		// Keyboad activity methods
+	void set_keyboard( time_t k ) { c_idle = k; };
+	void set_console( time_t k ) { c_console_idle = k; };
+	time_t keyboard_idle() { return c_idle; };
+	time_t console_idle() { return c_console_idle; };
+
+	void display( amask_t );
+
 	void dprintf( int, char*, ... );
 
 private:
@@ -132,6 +143,8 @@ private:
 		// Dynamic info
 	float			c_condor_load;
 	float			c_owner_load;
+	time_t			c_idle;
+	time_t			c_console_idle;
 	unsigned long   c_virt_mem;
 	unsigned long   c_disk;
 
