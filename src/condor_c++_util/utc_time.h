@@ -35,14 +35,26 @@ class UtcTime
 {
 public:
 
+		/// Default constructor, does not compute current time
 	UtcTime();
 
+		/// Compute the current time
 	void getTime( void );
 
+		/// Return the last computed epoch time in seconds
 	long seconds( void ) { return sec; };
+
+		/// Return mircosecond field of the last computed epoch time
 	long microseconds( void ) { return usec; };
 
-		// How much time elapsed between the two times?
+		/** How much time elapsed between the two times.  This method
+			subtracts the time of the other UtcTime object we're
+			passed from the value in this current object.
+			@param other_time Another UtcTime class to compare against
+			@return The elapsed time between the two, represented as a
+			double precision float, with both seconds and micro
+			seconds in the same number.
+		 */
 	double difference( UtcTime* other_time );
 
 private:
