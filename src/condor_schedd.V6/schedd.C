@@ -6450,7 +6450,7 @@ Scheduler::expand_mpi_procs(StringList *job_ids, StringList *expanded_ids) {
 	char *id;
 	char buf[40];
 	while( (id = job_ids->next())) {
-		expanded_ids->append(strdup(id));
+		expanded_ids->append(id);
 	}
 
 	job_ids->rewind();
