@@ -88,7 +88,7 @@ convert_ad_to_adStruct(struct soap *s,
   ad_struct->__ptr[attr_index].type = STRING_ATTR;
   if (isDeepCopy) {
 	  ad_struct->__ptr[attr_index].value =
-		  (char *) soap_malloc(s, strlen(curr_ad->GetMyTypeName()));
+		  (char *) soap_malloc(s, strlen(curr_ad->GetMyTypeName()) + 1);
 	  strcpy(ad_struct->__ptr[attr_index].value, curr_ad->GetMyTypeName());
   } else {
 	  ad_struct->__ptr[attr_index].value = (char *) curr_ad->GetMyTypeName();
@@ -98,7 +98,7 @@ convert_ad_to_adStruct(struct soap *s,
   ad_struct->__ptr[attr_index].type = STRING_ATTR;
   if (isDeepCopy) {
 	  ad_struct->__ptr[attr_index].value =
-		  (char *) soap_malloc(s, strlen(curr_ad->GetTargetTypeName()));
+		  (char *) soap_malloc(s, strlen(curr_ad->GetTargetTypeName()) + 1);
 	  strcpy(ad_struct->__ptr[attr_index].value, curr_ad->GetTargetTypeName());
   } else {
 	  ad_struct->__ptr[attr_index].value =
@@ -110,7 +110,7 @@ convert_ad_to_adStruct(struct soap *s,
   ad_struct->__ptr[attr_index].type = INTEGER_ATTR;
   MyString timeString = MyString((int) time(NULL));
   ad_struct->__ptr[attr_index].value =
-	  (char *) soap_malloc(s, strlen(timeString.GetCStr()));
+	  (char *) soap_malloc(s, strlen(timeString.GetCStr()) + 1);
   strcpy(ad_struct->__ptr[attr_index].value, timeString.GetCStr());
   attr_index++;
 
@@ -125,9 +125,10 @@ convert_ad_to_adStruct(struct soap *s,
     switch ( rhs->MyType() ) {
     case LX_STRING:
 		if (isDeepCopy) {
-				//ad_struct->__ptr[attr_index].value = (char *) soap_malloc(s, strlen(((String *) rhs)->Value()));
-				//strcpy(ad_struct->__ptr[attr_index].value, ((String *) rhs)->Value());
-			ad_struct->__ptr[attr_index].value = strdup(((String*)rhs)->Value());
+			ad_struct->__ptr[attr_index].value =
+				(char *) soap_malloc(s, strlen(((String *) rhs)->Value()) + 1);
+			strcpy(ad_struct->__ptr[attr_index].value,
+				   ((String *) rhs)->Value());
 		} else {
 			ad_struct->__ptr[attr_index].value = ((String*)rhs)->Value();
 		}
@@ -191,12 +192,11 @@ convert_ad_to_adStruct(struct soap *s,
 
     // serialize the attribute name, and finally increment our counter.
 	if (isDeepCopy) {
-			//ad_struct->__ptr[attr_index].name =
-			//(char *) soap_malloc(s, strlen(((Variable*)tree->LArg())->Name()));
-			//strcpy(ad_struct->__ptr[attr_index].name,
-			//((Variable*)tree->LArg())->Name());
 		ad_struct->__ptr[attr_index].name =
-			strdup(((Variable*)tree->LArg())->Name());
+			(char *)
+			soap_malloc(s, strlen(((Variable*)tree->LArg())->Name()) + 1);
+		strcpy(ad_struct->__ptr[attr_index].name,
+			   ((Variable*)tree->LArg())->Name());
 	} else {
 		ad_struct->__ptr[attr_index].name = ((Variable*)tree->LArg())->Name();
 	}

@@ -78,11 +78,10 @@ convert_FileInfoList_to_Array(struct soap * soap,
 		FileInfo *info;
 		list.Rewind();
 		for (int i = 0; list.Next(info); i++) {
-				//array.__ptr[i].name = (char *) soap_malloc(soap, strlen(info->name));
-				//ASSERT(array.__ptr[i].name);
-				//strcpy(array.__ptr[i].name, info->name);
-			array.__ptr[i].name = strdup(info->name);
-			array.__ptr[i].size = (int) info->size;
+			array.__ptr[i].name =
+				(char *) soap_malloc(soap, strlen(info->name) + 1);
+			ASSERT(array.__ptr[i].name);
+			strcpy(array.__ptr[i].name, info->name);
 		}
 	}
 
@@ -435,7 +434,7 @@ condor__newJob(struct soap *soap,
 				result.response.status.code =
 					(condor__StatusCode) errstack.code();
 				result.response.status.message =
-					(char *) soap_malloc(soap, strlen(errstack.message()));
+					(char *) soap_malloc(soap, strlen(errstack.message()) + 1);
 				strcpy(result.response.status.message,
 					   errstack.message());
 			} else {
@@ -592,7 +591,8 @@ condor__submit(struct soap *soap,
 					result.response.status.code =
 						(condor__StatusCode) errstack.code();
 					result.response.status.message =
-						(char *) soap_malloc(soap, strlen(errstack.message()));
+						(char *)
+						soap_malloc(soap, strlen(errstack.message()) + 1);
 					strcpy(result.response.status.message,
 						   errstack.message());
 				} else {
@@ -720,7 +720,7 @@ condor__declareFile(struct soap *soap,
 				result.response.code =
 					(condor__StatusCode) errstack.code();
 				result.response.message =
-					(char *) soap_malloc(soap, strlen(errstack.message()));
+					(char *) soap_malloc(soap, strlen(errstack.message()) + 1);
 				strcpy(result.response.message,
 					   errstack.message());
 			} else {
@@ -767,7 +767,7 @@ condor__sendFile(struct soap *soap,
 				result.response.code =
 					(condor__StatusCode) errstack.code();
 				result.response.message =
-					(char *) soap_malloc(soap, strlen(errstack.message()));
+					(char *) soap_malloc(soap, strlen(errstack.message()) + 1);
 				strcpy(result.response.message,
 					   errstack.message());
 			}
@@ -824,7 +824,8 @@ int condor__getFile(struct soap *soap,
 					result.response.status.code =
 						(condor__StatusCode) errstack.code();
 					result.response.status.message =
-						(char *) soap_malloc(soap, strlen(errstack.message()));
+						(char *)
+						soap_malloc(soap, strlen(errstack.message()) + 1);
 					strcpy(result.response.status.message,
 						   errstack.message());
 
@@ -889,7 +890,7 @@ condor__listSpool(struct soap * soap,
 				result.response.status.code =
 					(condor__StatusCode) errstack.code();
 				result.response.status.message =
-					(char *) soap_malloc(soap, strlen(errstack.message()));
+					(char *) soap_malloc(soap, strlen(errstack.message()) + 1);
 				strcpy(result.response.status.message,
 					   errstack.message());
 
@@ -911,7 +912,7 @@ condor__listSpool(struct soap * soap,
 			result.response.status.code =
 				(condor__StatusCode) errstack.code();
 			result.response.status.message =
-				(char *) soap_malloc(soap, strlen(errstack.message()));
+				(char *) soap_malloc(soap, strlen(errstack.message()) + 1);
 			strcpy(result.response.status.message,
 				   errstack.message());
 			dprintf(D_FULLDEBUG,
@@ -997,7 +998,7 @@ condor__discoverJobRequirements(struct soap *soap,
 	while ((buffer = inputFiles.next()) &&
 		   (i < result.response.requirements.__size)) {
 		result.response.requirements.__ptr[i] =
-			(char *) soap_malloc(soap, strlen(buffer));
+			(char *) soap_malloc(soap, strlen(buffer) + 1);
 		ASSERT(result.response.requirements.__ptr[i]);
 		strcpy(result.response.requirements.__ptr[i], buffer);
 		i++;
