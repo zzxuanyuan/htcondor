@@ -1167,21 +1167,23 @@ unknownCmd( Stream* s, char* cmd_str )
 int
 caRequestCODClaim( Stream *s, char* cmd_str, ClassAd* req_ad )
 {
-	dprintf( D_ALWAYS, "Serving request for a new COD claim\n" );
 	char* requirements_str = NULL;
 	Resource* rip;
 	Claim* claim;
 	MyString err_msg;
 	ExprTree *tree, *rhs;
 	ReliSock* rsock = (ReliSock*)s;
-	const char* claim_owner = rsock->getOwner();
+	const char* owner = rsock->getOwner();
 
-	if( ! authorizedForCOD(claim_owner) ) {
+	if( ! authorizedForCOD(owner) ) {
 		err_msg = "User '";
-		err_msg += claim_owner;
+		err_msg += owner;
 		err_msg += "' is not authorized for using COD at this machine"; 
 		return sendErrorReply( s, cmd_str, err_msg.Value() );
 	}
+	dprintf( D_COMMAND, 
+			 "Serving request for a new COD claim by user '%s'\n", 
+			 owner );
 
 		// Make sure the ad's got a requirements expression at all.
 	tree = req_ad->Lookup( ATTR_REQUIREMENTS );
@@ -1221,8 +1223,8 @@ caRequestCODClaim( Stream *s, char* cmd_str, ClassAd* req_ad )
 	}
 
 		// Stash some info about who made this request in the Claim  
-	claim->client()->setuser( claim_owner );
-	claim->client()->setowner( claim_owner );
+	claim->client()->setuser( owner );
+	claim->client()->setowner(owner );
 	claim->client()->sethost( rsock->endpoint_ip_str() );
 
 		// now, we just fill in the reply ad appropriately.  publish
@@ -1386,6 +1388,8 @@ command_classad_handler( Service*, int, Stream* s )
 		free( cmd_str );
 		return FALSE;
 	}
+	dprintf( D_COMMAND, "Serving request for %s by user '%s'\n", 
+			 cmd_str, owner );
 
 		// now, find the CODMgr managing this Claim, and call the
 		// appropriate method for the given command
