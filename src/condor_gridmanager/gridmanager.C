@@ -115,7 +115,6 @@ template class Item<JobType>;
 HashTable <PROC_ID, BaseJob *> pendingScheddUpdates( HASH_TABLE_SIZE,
 													 procIDHash );
 bool addJobsSignaled = false;
-bool removeJobsSignaled = false;
 int contactScheddTid = TIMER_UNSET;
 int contactScheddDelay;
 time_t lastContactSchedd = 0;
@@ -423,10 +422,7 @@ REMOVE_JOBS_signalHandler( int signal )
 {
 	dprintf(D_FULLDEBUG,"Received REMOVE_JOBS signal\n");
 
-	if ( !removeJobsSignaled ) {
-		RequestContactSchedd();
-		removeJobsSignaled = true;
-	}
+	RequestContactSchedd();
 
 	return TRUE;
 }
@@ -659,7 +655,10 @@ dprintf(D_FULLDEBUG,"***Trying job type %s\n",job_type->Name);
 
 	// RemoveJobs
 	/////////////////////////////////////////////////////
-	if ( removeJobsSignaled ) {
+
+	// We also want to perform this check. Otherwise, we may overwrite a
+	// REMOVED/HELD/COMPLETED status with something else below.
+	{
 		int num_ads = 0;
 
 		dprintf( D_FULLDEBUG, "querying for removed/held jobs\n" );
@@ -884,7 +883,6 @@ dprintf(D_FULLDEBUG,"***Trying job type %s\n",job_type->Name);
 	if ( add_remove_jobs_complete == true ) {
 		firstScheddContact = false;
 		addJobsSignaled = false;
-		removeJobsSignaled = false;
 	} else {
 		dprintf( D_ALWAYS, "Schedd connection error during Add/RemoveJobs at line %d! Will retry\n", failure_line_num );
 		RequestContactSchedd();
