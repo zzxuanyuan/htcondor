@@ -21,18 +21,54 @@
  * WI 53706-1685, (608) 262-0856 or miron@cs.wisc.edu.
 ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
+#ifndef PARALLELRESOURCE_H
+#define PARALLELRESOURCE_H
+
 #include "condor_common.h"
-#include "list.h"
-#include "mpiresource.h"
-#include "parallelresource.h"
-#include "file_transfer.h"
-#include "HashTable.h"
+#include "remoteresource.h"
 
-// for the MPIShadow, a list of remote resource classes....
-template class ExtArray<MpiResource *>;
-// for the ParallelShadow, a list of remote resource classes....
-template class ExtArray<ParallelResource *>;
+/** Here we have a remote resource that is specific to a parallel job. */
 
-// for the file transfer object.
-template class HashBucket<MyString, FileTransfer *>;
+class ParallelResource : public RemoteResource {
 
+ public:
+
+		/** See the RemoteResource's constructor.
+		*/
+	ParallelResource( BaseShadow *shadow );
+
+		/// Destructor
+	~ParallelResource() {};
+
+		/** Special format... */
+	virtual void printExit( FILE *fp );
+
+	int node( void ) { return node_num; };
+	void setNode( int node ) { node_num = node; };
+
+		/** Call RemoteResource::resourceExit() and log a
+			NodeTerminatedEvent to the UserLog
+		*/
+	void resourceExit( int reason, int status );
+
+		/** Before we log anything to the UserLog, we want to
+			initialize the UserLog with our node number.  
+		*/
+	virtual bool writeULogEvent( ULogEvent* event );
+
+		/** Our job on the remote resource started to execute, so we
+			want to log a NodeExecuteEvent.
+		*/
+	virtual void beginExecution( void );
+
+ private:
+
+		// Making these private PREVENTS copying.
+	ParallelResource( const ParallelResource& );
+	ParallelResource& operator = ( const ParallelResource& );
+
+	int node_num;
+};
+
+
+#endif
