@@ -6469,7 +6469,7 @@ Scheduler::expand_mpi_procs(StringList *job_ids, StringList *expanded_ids) {
 		while( (GetJobAd(p.cluster, proc_index, false) )) {
 			sprintf(buf, "%d.%d", p.cluster, proc_index);
 			if (! expanded_ids->contains(buf)) {
-				expanded_ids->append(strdup(buf));
+				expanded_ids->append(buf);
 			}
 			proc_index++;
 		}
