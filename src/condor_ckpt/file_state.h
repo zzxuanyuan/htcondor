@@ -26,10 +26,7 @@
 #ifndef _FILE_STATE_H
 #define _FILE_STATE_H
 
-#include <limits.h>
-#include <string.h>
-#include <sys/types.h>
-
+#include "condor_common.h"
 #include "file_types.h"
 #include "buffer_cache.h"
 
@@ -148,12 +145,16 @@ public:
 	int	fcntl( int fd, int cmd, int arg );
 	int	ioctl( int fd, int cmd, int arg );
 	int	flock( int fd, int op );
-	int	fstatfs( int fsync, struct statfs * buf );
+	int	fstatfs( int fsync, struct statfs * buf, int x=0, int y=0 );
 	int	fchown( int fd, uid_t owner, gid_t group );
 	int	fchmod( int fd, mode_t mode );
 	int	ftruncate( int fd, size_t length );
 	int	fsync( int fd );
 
+	/** Unimplemented yet */
+	int	getdents( int fd, struct dirent *list, off_t size ) {}
+	int	getdirentries( int fd, char *buffer, off_t size, long *x ) {}
+ 
 	/** Perform a periodic checkpoint. */
 	void	checkpoint();
 
