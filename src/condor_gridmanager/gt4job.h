@@ -67,7 +67,7 @@ class GT4Job : public BaseJob
 	void NotifyResourceDown();
 	void NotifyResourceUp();
 	void UpdateGlobusState( int new_state, int new_error_code );
-	void GramCallback( int new_state, int new_error_code );
+	void GramCallback( const char *new_state, int new_error_code );
 	bool GetCallbacks();
 	void ClearCallbacks();
 	BaseResource *GetResource();

@@ -2099,7 +2099,7 @@ GahpServer::poll()
 		if ( result_reqid == globus_gt4_gram_callback_reqid ) {
 			if ( result->argc == 4 ) {
 				(*globus_gt4_gram_callback_func)( globus_gt4_gram_user_callback_arg, result->argv[1], 
-								atoi(result->argv[2]), 0 );
+								result->argv[2], 0 );
 			} else {
 				dprintf(D_FULLDEBUG,
 					"GAHP - Bad client_callback results line\n");
@@ -2774,7 +2774,7 @@ GahpClient::gt4_generate_submit_id (char ** submit_id)
 
 int 
 GahpClient::gt4_gram_client_callback_allow(
-	globus_gram_client_callback_func_t callback_func,
+	globus_gt4_gram_callback_func_t callback_func,
 	void * user_callback_arg,
 	char ** callback_contact)
 {
@@ -3055,7 +3055,7 @@ GahpClient::gt4_gram_client_job_destroy(const char * job_contact)
 
 int
 GahpClient::gt4_gram_client_job_status(const char * job_contact,
-	int * job_status)
+	char ** job_status)
 {
 	static const char* command = "GT4_GRAM_JOB_STATUS";
 
@@ -3092,8 +3092,10 @@ GahpClient::gt4_gram_client_job_status(const char * job_contact,
 			EXCEPT("Bad %s Result",command);
 		}
 		int rc = atoi(result->argv[1]);
-		if ( rc == 0 ) {
-			*job_status = atoi(result->argv[2]);
+		if ( strcasecmp( result->argv[2], NULLSTRING ) ) {
+			*job_status = strdup( result->argv[2] );
+		} else {
+			*job_status = NULL;
 		}
 		if ( strcasecmp(result->argv[3], NULLSTRING) ) {
 			error_string = result->argv[3];

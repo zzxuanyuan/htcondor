@@ -58,6 +58,11 @@ struct GahpProxyInfo
 	int num_references;
 };
 
+typedef void (* globus_gt4_gram_callback_func_t)(void * user_callback_arg,
+												 const char * job_contact,
+												 const char * state,
+												 int errorcode);
+
 static const char *GAHPCLIENT_DEFAULT_SERVER_ID = "DEFAULT";
 static const char *GAHPCLIENT_DEFAULT_SERVER_PATH = "DEFAULT";
 
@@ -195,7 +200,7 @@ class GahpServer : public Service {
 
 	char *globus_gt4_gram_callback_contact;
 	void *globus_gt4_gram_user_callback_arg;
-	globus_gram_client_callback_func_t globus_gt4_gram_callback_func;
+	globus_gt4_gram_callback_func_t globus_gt4_gram_callback_func;
 	int globus_gt4_gram_callback_reqid;
 
 	GahpProxyInfo *master_proxy;
@@ -436,7 +441,7 @@ class GahpClient : public Service {
 
 		int
 		gt4_gram_client_callback_allow(
-			globus_gram_client_callback_func_t callback_func,
+			globus_gt4_gram_callback_func_t callback_func,
 			void * user_callback_arg,
 			char ** callback_contact);
 
@@ -468,7 +473,7 @@ class GahpClient : public Service {
 		///
 		int
 		gt4_gram_client_job_status(const char * job_contact,
-			int * job_status);
+			char ** job_status);
 
 		///
 		int

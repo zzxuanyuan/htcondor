@@ -87,6 +87,18 @@ static char *GMStateNames[] = {
 	"GM_SUBMIT_ID_SAVE"
 };
 
+#define GT4_JOB_STATE_PENDING		1
+#define GT4_JOB_STATE_ACTIVE		2
+#define GT4_JOB_STATE_FAILED		4
+#define GT4_JOB_STATE_DONE			8
+#define GT4_JOB_STATE_SUSPENDED		16
+#define GT4_JOB_STATE_UNSUBMITTED	32
+#define GT4_JOB_STATE_STAGE_IN		64
+#define GT4_JOB_STATE_STAGE_OUT		128
+#define GT4_JOB_STATE_CLEAN_UP		256
+#define GT4_JOB_STATE_UNKNOWN		0
+
+
 // TODO: once we can set the jobmanager's proxy timeout, we should either
 // let this be set in the config file or set it to
 // GRIDMANAGER_MINIMUM_PROXY_TIME + 60
@@ -168,8 +180,8 @@ rehashJobContact( GT4Job *job, const char *old_contact,
 }
 
 void
-gt4GramCallbackHandler( void *user_arg, char *job_contact, int state,
-					 int errorcode )
+gt4GramCallbackHandler( void *user_arg, const char *job_contact,
+						const char *state, int errorcode )
 {
 	int rc;
 	GT4Job *this_job;
@@ -179,12 +191,12 @@ gt4GramCallbackHandler( void *user_arg, char *job_contact, int state,
 	if ( rc != 0 || this_job == NULL ) {
 		dprintf( D_ALWAYS, 
 			"gt4GramCallbackHandler: Can't find record for globus job with "
-			"contact %s on globus state %d, errorcode %d, ignoring\n",
+			"contact %s on globus state %s, errorcode %d, ignoring\n",
 			job_contact, state, errorcode );
 		return;
 	}
 
-	dprintf( D_ALWAYS, "(%d.%d) gram callback: state %d, errorcode %d\n",
+	dprintf( D_ALWAYS, "(%d.%d) gram callback: state %s, errorcode %d\n",
 			 this_job->procID.cluster, this_job->procID.proc, state,
 			 errorcode );
 
@@ -265,6 +277,56 @@ const char *xml_stringify( const MyString& src )
 	return xml_stringify( src.Value() );
 }
 
+int Gt4JobStateToInt( const char *status ) {
+	if ( !strcmp( status, "Pending" ) ) {
+		return GT4_JOB_STATE_PENDING;
+	} else if ( !strcmp( status, "Active" ) ) {
+		return GT4_JOB_STATE_ACTIVE;
+	} else if ( !strcmp( status, "Failed" ) ) {
+		return GT4_JOB_STATE_FAILED;
+	} else if ( !strcmp( status, "Done" ) ) {
+		return GT4_JOB_STATE_DONE;
+	} else if ( !strcmp( status, "Suspended" ) ) {
+		return GT4_JOB_STATE_SUSPENDED;
+	} else if ( !strcmp( status, "Unsubmitted" ) ) {
+		return GT4_JOB_STATE_UNSUBMITTED;
+	} else if ( !strcmp( status, "StageIn" ) ) {
+		return GT4_JOB_STATE_STAGE_IN;
+	} else if ( !strcmp( status, "CleanUp" ) ) {
+		return GT4_JOB_STATE_CLEAN_UP;
+	} else {
+		return GT4_JOB_STATE_UNKNOWN;
+	}
+}
+
+const char *Gt4JobStateToString( int status )
+{
+	switch ( status ) {
+	case GT4_JOB_STATE_PENDING:
+		return "Pending";
+	case GT4_JOB_STATE_ACTIVE:
+		return "Active";
+	case GT4_JOB_STATE_FAILED:
+		return "Failed";
+	case GT4_JOB_STATE_DONE:
+		return "Done";
+	case GT4_JOB_STATE_SUSPENDED:
+		return "Suspended";
+	case GT4_JOB_STATE_UNSUBMITTED:
+		return "Unsubmitted";
+	case GT4_JOB_STATE_STAGE_IN:
+		return "StageIn";
+	case GT4_JOB_STATE_STAGE_OUT:
+		return "StageOut";
+	case GT4_JOB_STATE_CLEAN_UP:
+		return "CleanUp";
+	case GT4_JOB_STATE_UNKNOWN:
+		return "Unknown";
+	default:
+		return "??????";
+	}
+}
+
 int GT4Job::probeInterval = 300;			// default value
 int GT4Job::submitInterval = 300;			// default value
 int GT4Job::restartInterval = 60;			// default value
@@ -298,7 +360,7 @@ GT4Job::GT4Job( ClassAd *classad )
 	restartingJM = false;
 	restartWhen = 0;
 	gmState = GM_INIT;
-	globusState = GLOBUS_GRAM_PROTOCOL_JOB_STATE_UNSUBMITTED;
+	globusState = GT4_JOB_STATE_UNSUBMITTED;
 	resourcePingPending = false;
 	jmUnreachable = false;
 	jmDown = false;
@@ -530,7 +592,6 @@ int GT4Job::doEvaluateState()
 
 	bool done;
 	int rc;
-	int status;
 
 	daemonCore->Reset_Timer( evaluateStateTid, TIMER_NEVER );
 
@@ -606,18 +667,18 @@ int GT4Job::doEvaluateState()
 			} else if ( wantResubmit || doResubmit ) {
 				gmState = GM_CLEAR_REQUEST;
 			} else {
-				if ( globusState == GLOBUS_GRAM_PROTOCOL_JOB_STATE_STAGE_IN ||
-					 globusState == GLOBUS_GRAM_PROTOCOL_JOB_STATE_PENDING ||
-					 globusState == GLOBUS_GRAM_PROTOCOL_JOB_STATE_ACTIVE ||
-					 globusState == GLOBUS_GRAM_PROTOCOL_JOB_STATE_SUSPENDED ||
-					 globusState == GLOBUS_GRAM_PROTOCOL_JOB_STATE_STAGE_OUT ||
-					 globusState == GLOBUS_GRAM_PROTOCOL_JOB_STATE_DONE ) {
+				if ( globusState == GT4_JOB_STATE_STAGE_IN ||
+					 globusState == GT4_JOB_STATE_PENDING ||
+					 globusState == GT4_JOB_STATE_ACTIVE ||
+					 globusState == GT4_JOB_STATE_SUSPENDED ||
+					 globusState == GT4_JOB_STATE_STAGE_OUT ||
+					 globusState == GT4_JOB_STATE_DONE ) {
 					submitLogged = true;
 				}
-				if ( globusState == GLOBUS_GRAM_PROTOCOL_JOB_STATE_ACTIVE ||
-					 globusState == GLOBUS_GRAM_PROTOCOL_JOB_STATE_SUSPENDED ||
-					 globusState == GLOBUS_GRAM_PROTOCOL_JOB_STATE_STAGE_OUT ||
-					 globusState == GLOBUS_GRAM_PROTOCOL_JOB_STATE_DONE ) {
+				if ( globusState == GT4_JOB_STATE_ACTIVE ||
+					 globusState == GT4_JOB_STATE_SUSPENDED ||
+					 globusState == GT4_JOB_STATE_STAGE_OUT ||
+					 globusState == GT4_JOB_STATE_DONE ) {
 					executeLogged = true;
 				}
 
@@ -685,7 +746,7 @@ int GT4Job::doEvaluateState()
 				gmState = GM_STOP_AND_RESTART;
 				break;
 			}
-			if ( globusState == GLOBUS_GRAM_PROTOCOL_JOB_STATE_UNSUBMITTED ) {
+			if ( globusState == GT4_JOB_STATE_UNSUBMITTED ) {
 				gmState = GM_SUBMIT_COMMIT;
 			} else {
 				gmState = GM_SUBMITTED;
@@ -900,9 +961,9 @@ gmState=GM_SUBMIT;
 			// The job has been submitted (or is about to be by the
 			// jobmanager). Wait for completion or failure, and probe the
 			// jobmanager occassionally to make it's still alive.
-			if ( globusState == GLOBUS_GRAM_PROTOCOL_JOB_STATE_DONE ) {
+			if ( globusState == GT4_JOB_STATE_DONE ) {
 				gmState = GM_DONE_SAVE;
-			} else if ( globusState == GLOBUS_GRAM_PROTOCOL_JOB_STATE_FAILED ) {
+			} else if ( globusState == GT4_JOB_STATE_FAILED ) {
 				gmState = GM_FAILED;
 			} else if ( condorState == REMOVED || condorState == HELD ) {
 				gmState = GM_CANCEL;
@@ -963,9 +1024,10 @@ gmState=GM_SUBMIT;
 			if ( condorState == REMOVED || condorState == HELD ) {
 				gmState = GM_CANCEL;
 			} else {
+				char *status = NULL;
 				CHECK_PROXY;
 				rc = gahp->gt4_gram_client_job_status( jobContact,
-													  &status );
+													   &status );
 				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
 					 rc == GAHPCLIENT_COMMAND_PENDING ) {
 					break;
@@ -975,9 +1037,15 @@ gmState=GM_SUBMIT;
 					LOG_GLOBUS_ERROR( "gt4_gram_client_job_status()", rc );
 					globusError = rc;
 					gmState = GM_CANCEL;
+					if ( status ) {
+						free( status );
+					}
 					break;
 				}
-				UpdateGlobusState( status, 0 );
+				UpdateGlobusState( Gt4JobStateToInt( status ), 0 );
+				if ( status ) {
+					free( status );
+				}
 				ClearCallbacks();
 				lastProbeTime = time(NULL);
 				gmState = GM_SUBMITTED;
@@ -1029,8 +1097,8 @@ gmState=GM_SUBMIT;
 			} break;
 		case GM_CANCEL: {
 			// We need to cancel the job submission.
-			if ( globusState != GLOBUS_GRAM_PROTOCOL_JOB_STATE_DONE &&
-				 globusState != GLOBUS_GRAM_PROTOCOL_JOB_STATE_FAILED ) {
+			if ( globusState != GT4_JOB_STATE_DONE &&
+				 globusState != GT4_JOB_STATE_FAILED ) {
 				CHECK_PROXY;
 				rc = gahp->gt4_gram_client_job_destroy( jobContact );
 				if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
@@ -1109,7 +1177,7 @@ gmState=GM_SUBMIT;
 			// forgetting about current submission and trying again.
 			// TODO: Let our action here be dictated by the user preference
 			// expressed in the job ad.
-			if ( (jobContact != NULL || (globusState == GLOBUS_GRAM_PROTOCOL_JOB_STATE_FAILED && globusStateErrorCode != GLOBUS_GRAM_PROTOCOL_ERROR_JOB_UNSUBMITTED)) 
+			if ( (jobContact != NULL || (globusState == GT4_JOB_STATE_FAILED && globusStateErrorCode != GLOBUS_GRAM_PROTOCOL_ERROR_JOB_UNSUBMITTED)) 
 				     && condorState != REMOVED 
 					 && wantResubmit == 0 
 					 && doResubmit == 0 ) {
@@ -1132,8 +1200,8 @@ gmState=GM_SUBMIT;
 					"(%d.%d) Resubmitting to Globus (last submit failed)\n",
 						procID.cluster, procID.proc );
 			}
-			if ( globusState != GLOBUS_GRAM_PROTOCOL_JOB_STATE_UNSUBMITTED ) {
-				globusState = GLOBUS_GRAM_PROTOCOL_JOB_STATE_UNSUBMITTED;
+			if ( globusState != GT4_JOB_STATE_UNSUBMITTED ) {
+				globusState = GT4_JOB_STATE_UNSUBMITTED;
 				UpdateJobAdInt( ATTR_GLOBUS_STATUS, globusState );
 			}
 			globusStateErrorCode = 0;
@@ -1207,10 +1275,10 @@ gmState=GM_SUBMIT;
 			// Put the job on hold in the schedd.
 			// TODO: what happens if we learn here that the job is removed?
 			if ( jobContact &&
-				 globusState != GLOBUS_GRAM_PROTOCOL_JOB_STATE_UNKNOWN ) {
-				globusState = GLOBUS_GRAM_PROTOCOL_JOB_STATE_UNKNOWN;
+				 globusState != GT4_JOB_STATE_UNKNOWN ) {
+				globusState = GT4_JOB_STATE_UNKNOWN;
 				UpdateJobAdInt( ATTR_GLOBUS_STATUS, globusState );
-				//UpdateGlobusState( GLOBUS_GRAM_PROTOCOL_JOB_STATE_UNKNOWN, 0 );
+				//UpdateGlobusState( GT4_JOB_STATE_UNKNOWN, 0 );
 			}
 			// If the condor state is already HELD, then someone already
 			// HELD it, so don't update anything else.
@@ -1267,8 +1335,8 @@ gmState=GM_SUBMIT;
 		if ( globusState != old_globus_state ) {
 //			dprintf(D_FULLDEBUG, "(%d.%d) globus state change: %s -> %s\n",
 //					procID.cluster, procID.proc,
-//					GlobusJobStatusName(old_globus_state),
-//					GlobusJobStatusName(globusState));
+//					Gt4JobStateToString(old_globus_state),
+//					Gt4JobStateToString(globusState));
 			enteredCurrentGlobusState = time(NULL);
 		}
 		if ( gmState != old_gm_state ) {
@@ -1355,17 +1423,17 @@ bool GT4Job::AllowTransition( int new_state, int old_state )
 	// The jobmanager shouldn't do this, but notification of events may
 	// get re-ordered (callback and probe results arrive backwards).
     if ( new_state == old_state ||
-		 new_state == GLOBUS_GRAM_PROTOCOL_JOB_STATE_UNSUBMITTED ||
-		 old_state == GLOBUS_GRAM_PROTOCOL_JOB_STATE_DONE ||
-		 old_state == GLOBUS_GRAM_PROTOCOL_JOB_STATE_FAILED ||
-		 ( new_state == GLOBUS_GRAM_PROTOCOL_JOB_STATE_STAGE_IN &&
-		   old_state != GLOBUS_GRAM_PROTOCOL_JOB_STATE_UNSUBMITTED) ||
-		 ( new_state == GLOBUS_GRAM_PROTOCOL_JOB_STATE_PENDING &&
-		   old_state != GLOBUS_GRAM_PROTOCOL_JOB_STATE_UNSUBMITTED &&
-		   old_state != GLOBUS_GRAM_PROTOCOL_JOB_STATE_STAGE_IN) ||
-		 ( old_state == GLOBUS_GRAM_PROTOCOL_JOB_STATE_STAGE_OUT &&
-		   new_state != GLOBUS_GRAM_PROTOCOL_JOB_STATE_DONE &&
-		   new_state != GLOBUS_GRAM_PROTOCOL_JOB_STATE_FAILED ) ) {
+		 new_state == GT4_JOB_STATE_UNSUBMITTED ||
+		 old_state == GT4_JOB_STATE_DONE ||
+		 old_state == GT4_JOB_STATE_FAILED ||
+		 ( new_state == GT4_JOB_STATE_STAGE_IN &&
+		   old_state != GT4_JOB_STATE_UNSUBMITTED) ||
+		 ( new_state == GT4_JOB_STATE_PENDING &&
+		   old_state != GT4_JOB_STATE_UNSUBMITTED &&
+		   old_state != GT4_JOB_STATE_STAGE_IN) ||
+		 ( old_state == GT4_JOB_STATE_STAGE_OUT &&
+		   new_state != GT4_JOB_STATE_DONE &&
+		   new_state != GT4_JOB_STATE_FAILED ) ) {
 		return false;
 	}
 
@@ -1383,23 +1451,23 @@ void GT4Job::UpdateGlobusState( int new_state, int new_error_code )
 		// where to put logging of events: here or in EvaluateState?
 		dprintf(D_FULLDEBUG, "(%d.%d) globus state change: %s -> %s\n",
 				procID.cluster, procID.proc,
-				GlobusJobStatusName(globusState),
-				GlobusJobStatusName(new_state));
+				Gt4JobStateToString(globusState),
+				Gt4JobStateToString(new_state));
 
-		if ( ( new_state == GLOBUS_GRAM_PROTOCOL_JOB_STATE_ACTIVE ||
-			   new_state == GLOBUS_GRAM_PROTOCOL_JOB_STATE_STAGE_OUT ) &&
+		if ( ( new_state == GT4_JOB_STATE_ACTIVE ||
+			   new_state == GT4_JOB_STATE_STAGE_OUT ) &&
 			 condorState == IDLE ) {
 			JobRunning();
 		}
 
-		if ( new_state == GLOBUS_GRAM_PROTOCOL_JOB_STATE_SUSPENDED &&
+		if ( new_state == GT4_JOB_STATE_SUSPENDED &&
 			 condorState == RUNNING ) {
 			JobIdle();
 		}
 
-		if ( globusState == GLOBUS_GRAM_PROTOCOL_JOB_STATE_UNSUBMITTED &&
+		if ( globusState == GT4_JOB_STATE_UNSUBMITTED &&
 			 !submitLogged && !submitFailedLogged ) {
-			if ( new_state == GLOBUS_GRAM_PROTOCOL_JOB_STATE_FAILED ) {
+			if ( new_state == GT4_JOB_STATE_FAILED ) {
 					// TODO: should SUBMIT_FAILED_EVENT be used only on
 					//   certain errors (ones we know are submit-related)?
 				submitFailureCode = new_error_code;
@@ -1422,16 +1490,16 @@ void GT4Job::UpdateGlobusState( int new_state, int new_error_code )
 				UpdateJobAdInt( ATTR_NUM_GLOBUS_SUBMITS, num_globus_submits );
 			}
 		}
-		if ( (new_state == GLOBUS_GRAM_PROTOCOL_JOB_STATE_ACTIVE ||
-			  new_state == GLOBUS_GRAM_PROTOCOL_JOB_STATE_STAGE_OUT ||
-			  new_state == GLOBUS_GRAM_PROTOCOL_JOB_STATE_DONE ||
-			  new_state == GLOBUS_GRAM_PROTOCOL_JOB_STATE_SUSPENDED)
+		if ( (new_state == GT4_JOB_STATE_ACTIVE ||
+			  new_state == GT4_JOB_STATE_STAGE_OUT ||
+			  new_state == GT4_JOB_STATE_DONE ||
+			  new_state == GT4_JOB_STATE_SUSPENDED)
 			 && !executeLogged ) {
 			WriteExecuteEventToUserLog( ad );
 			executeLogged = true;
 		}
 
-		if ( new_state == GLOBUS_GRAM_PROTOCOL_JOB_STATE_FAILED ) {
+		if ( new_state == GT4_JOB_STATE_FAILED ) {
 			globusStateBeforeFailure = globusState;
 		} else {
 			UpdateJobAdInt( ATTR_GLOBUS_STATUS, new_state );
@@ -1447,14 +1515,15 @@ void GT4Job::UpdateGlobusState( int new_state, int new_error_code )
 	}
 }
 
-void GT4Job::GramCallback( int new_state, int new_error_code )
+void GT4Job::GramCallback( const char *new_state, int new_error_code )
 {
-	if ( AllowTransition(new_state,
+	int new_state_int = Gt4JobStateToInt( new_state );
+	if ( AllowTransition(new_state_int,
 						 callbackGlobusState ?
 						 callbackGlobusState :
 						 globusState ) ) {
 
-		callbackGlobusState = new_state;
+		callbackGlobusState = new_state_int;
 		callbackGlobusStateErrorCode = new_error_code;
 
 		SetEvaluateState();
