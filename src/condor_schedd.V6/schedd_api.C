@@ -71,20 +71,20 @@ Job::abort()
   return 0;
 }
 
-int 
+int
 Job::declare_file(MyString name,
                   int size)
 {
   JobFile jobFile;
   jobFile.size = size;
   jobFile.currentOffset = 0;
-  
+
   FILE *file;
 
   // XXX: Handle errors!
   // XXX: How do I get the FS separator?
-  jobFile.name = *spoolDirectory + "/" + name;
-  file = fopen(jobFile.name.GetCStr(), "w");
+  jobFile.name = name;
+  file = fopen((*spoolDirectory + "/" + jobFile.name).GetCStr(), "w");
   jobFile.file = file;
   requirements->insert(MyString(name), jobFile);
 
@@ -97,7 +97,19 @@ Job::submit(struct condorCore__ClassAdStruct jobAd)
   int i,rval;
 
   // XXX: This is ugly, and only should happen when spooling, i.e. not always with cedar.
-  rval = SetAttributeString(clusterId, jobId, "Iwd", spoolDirectory->GetCStr());
+  rval = SetAttributeString(clusterId, jobId, ATTR_JOB_IWD, spoolDirectory->GetCStr());
+  if (rval < 0) {
+    return rval;
+  }
+
+  StringList transferFiles;
+  MyString currentKey;
+  JobFile jobFile;
+  requirements->startIterations();
+  while (requirements->iterate(currentKey, jobFile)) {
+    transferFiles.append(jobFile.name.GetCStr());
+  }
+  rval = SetAttributeString(clusterId, jobId, ATTR_TRANSFER_INPUT_FILES, transferFiles.print_to_string());
   if (rval < 0) {
     return rval;
   }
