@@ -4856,6 +4856,10 @@ Scheduler::add_shadow_rec( shadow_rec* new_rec )
 	if ( new_rec->match ) {
 		SetAttributeString( new_rec->job_id.cluster, new_rec->job_id.proc,
 						    ATTR_CLAIM_ID, new_rec->match->id );
+
+		SetAttributeInt( new_rec->job_id.cluster, new_rec->job_id.proc,
+						 ATTR_LAST_KEEP_ALIVE, (int)time(0) ); 
+
 		struct sockaddr_in sin;
 		if ( new_rec->match->peer && new_rec->match->peer[0] &&
 			 string_to_sin(new_rec->match->peer, &sin) == 1) {
@@ -7062,6 +7066,41 @@ Scheduler::sendAlives()
 {
 	match_rec	*mrec;
 	int		  	numsent=0;
+
+		/*
+		  we need to timestamp any job ad with the last time we sent a
+		  keepalive if the claim is active (i.e. there's a shadow for
+		  it).  this way, if we've been disconnected, we know how long
+		  it was since our last attempt to communicate.  we need to do
+		  this *before* we actually send the keep alives, so that if
+		  we're killed in the middle of this operation, we'll err on
+		  the side of thinking the job might still be alive and
+		  waiting a little longer to give up and start it elsewhere,
+		  instead of potentially starting it on a new host while it's
+		  still running on the last one.  so, we actually iterate
+		  through the mrec's twice, first to see which ones we *would*
+		  send a keepalive to and to write the timestamp into the job
+		  queue, and then a second time to actually send the
+		  keepalives.  we write all the timestamps to the job queue
+		  within a transaction not because they're logically together
+		  and they need to be atomically commited, but instead as a
+		  performance optimization.  we don't want to wait for the
+		  expensive fsync() operation for *every* claim we're trying
+		  to keep alive.  ideally, the qmgmt code will only do a
+		  single fsync() if these are all written within a single
+		  transaction...  2003-12-07 Derek <wright@cs.wisc.edu>
+		*/
+
+	int now = (int)time(0);
+	BeginTransaction();
+	matches->startIterations();
+	while (matches->iterate(mrec) == 1) {
+		if( mrec->status == M_ACTIVE ) {
+			SetAttributeInt( mrec->cluster, mrec->proc, 
+							 ATTR_LAST_KEEP_ALIVE, now ); 
+		}
+	}
+	CommitTransaction();
 
 	matches->startIterations();
 	while (matches->iterate(mrec) == 1) {
