@@ -8,8 +8,6 @@
 #ifndef DEBUG_H
 #define DEBUG_H
 
-extern int DebugFlags;	/* Bits to look for in dprintf                       */
-
 #if !defined(__STDC__) && !defined(__cplusplus)
 #define const
 #endif
@@ -37,12 +35,15 @@ static const int D_PREEMPT		= (1<<16);
 static const int D_PROTOCOL		= (1<<17);
 static const int D_PRIV			= (1<<18);
 static const int D_TAPENET		= (1<<19);
+static const int D_DAEMONCORE	= (1<<20);
 static const int D_MAXFLAGS		= 32;
 static const int D_ALL			= (~(1<<5));
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
+
+extern int DebugFlags;	/* Bits to look for in dprintf */
 
 #if defined(__STDC__) || defined(__cplusplus)
 void dprintf_init ( int fd );
