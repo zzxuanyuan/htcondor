@@ -164,13 +164,13 @@ static bool write_classad_input_file( ClassAd *classad,
 
 	MyString out_filename_full;
 	{
-		char buff[2048];
+		char * buff = NULL;
 		// TODO: Check return code of LookupString
-		// TODO: Is there a LookupString option that will return
-		//       arbitrary length strings (that I may need to free)?
-		tmpclassad.LookupString( ATTR_JOB_IWD, buff, sizeof(buff) );
-		out_filename_full.sprintf("%s/%s",
-			buff, out_filename.GetCStr());
+		tmpclassad.LookupString( ATTR_JOB_IWD, &buff );
+		out_filename_full = buff;
+		free(buff);
+		out_filename_full += "/";
+		out_filename_full += out_filename;
 	}
 
 		// Fix the universe, too, since the starter is going to expect
