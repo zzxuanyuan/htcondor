@@ -53,18 +53,9 @@
 #ifndef _CLAIM_H
 #define _CLAIM_H
 
+#include "enum_utils.h"
 #include "Starter.h"
 class CODMgr;
-
-typedef enum {
-    CLAIM_UNCLAIMED,
-    CLAIM_IDLE,
-    CLAIM_RUNNING,
-    CLAIM_SUSPENDED,
-    CLAIM_PREEMPTING,
-    CLAIM_KILLING,
-    _CLAIM_STATE_threshold
-} ClaimState;
 
 
 class Capability
