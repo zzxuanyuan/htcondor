@@ -1948,10 +1948,10 @@ control state or activity transitions within the
   did not want to be matched with machines that were only really
   offering ``fractional CPUs''.
 
-\item[\Macro[COUNT\_HYPERTHREAD\_CPUS]] \label[param:CountHyperthreadCpus]
-  This macro controls how condor sees hyperthreaded
-  processors. When set to TRUE (the default) it includes virtual CPUs in
-  the default value of \MacroNI[NUM\_CPUS]. On dedicated cluster nodes, 
+\item[\Macro{COUNT\_HYPERTHREAD\_CPUS}] \label{param:CountHyperthreadCpus}
+  This macro controls how Condor sees hyperthreaded
+  processors. When set to TRUE (the default), it includes virtual CPUs in
+  the default value of \MacroNI{NUM\_CPUS}. On dedicated cluster nodes, 
   counting virtual CPUs can sometimes improve total throughput at the expense 
   of individual job speed. However, counting them on desktop workstations can
   interfere with interactive job performance.
