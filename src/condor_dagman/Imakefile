@@ -1,4 +1,4 @@
-CLASSADS_ROOT=/scratch/giaco/local/classads-0.9.4
+CLASSADS_ROOT=/unsup/classads
 NAME = condor_dagman
 all_target($(NAME) t_helper)
 
