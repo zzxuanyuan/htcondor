@@ -24,7 +24,9 @@
 #include "condor_common.h"
 #include "condor_string.h"
 #include "condor_debug.h"
+#include "condor_attributes.h"
 #include "condor_commands.h"
+#include "command_strings.h"
 #include "daemon.h"
 #include "dc_startd.h"
 
@@ -215,3 +217,145 @@ DCStartd::checkClaimId( void )
 	newError( err_msg.Value() );
 	return false;
 }
+
+
+bool
+DCStartd::requestClaim( ClaimType type, const ClassAd* req_ad, 
+						ClassAd* reply )
+{
+	setCmdStr( "requestClaim" );
+
+	ClassAd req( *req_ad );
+	char buf[1024]; 
+
+		// Add our own attributes to the request ad we're sending
+	sprintf( buf, "%s = \"%s\"", ATTR_COMMAND,
+			 getCommandString(CA_REQUEST_CLAIM) );
+	req.Insert( buf );
+
+	sprintf( buf, "%s = \"%s\"", ATTR_CLAIM_TYPE, claimTypeString(type) );
+	req.Insert( buf );
+
+	return sendCACmd( &req, reply, true );
+}
+
+
+bool
+DCStartd::activateClaim( const ClassAd* job_ad, ClassAd* reply )
+{
+	setCmdStr( "activateClaim" );
+	if( ! checkClaimId() ) {
+		return false;
+	}
+	ClassAd req( *job_ad );
+	char buf[1024]; 
+
+		// Add our own attributes to the request ad we're sending
+	sprintf( buf, "%s = \"%s\"", ATTR_COMMAND,
+			 getCommandString(CA_ACTIVATE_CLAIM) );
+	req.Insert( buf );
+
+	sprintf( buf, "%s = \"%s\"", ATTR_CLAIM_ID, claim_id );
+	req.Insert( buf );
+
+	return sendCACmd( &req, reply, true );
+}
+
+
+bool
+DCStartd::suspendClaim( ClassAd* reply )
+{
+	setCmdStr( "suspendClaim" );
+	if( ! checkClaimId() ) {
+		return false;
+	}
+
+	ClassAd req;
+	char buf[1024]; 
+
+		// Add our own attributes to the request ad we're sending
+	sprintf( buf, "%s = \"%s\"", ATTR_COMMAND,
+			 getCommandString(CA_SUSPEND_CLAIM) );
+	req.Insert( buf );
+
+	sprintf( buf, "%s = \"%s\"", ATTR_CLAIM_ID, claim_id );
+	req.Insert( buf );
+
+	return sendCACmd( &req, reply, true );
+}
+
+
+bool
+DCStartd::resumeClaim( ClassAd* reply )
+{
+	setCmdStr( "resumeClaim" );
+	if( ! checkClaimId() ) {
+		return false;
+	}
+
+	ClassAd req;
+	char buf[1024]; 
+
+		// Add our own attributes to the request ad we're sending
+	sprintf( buf, "%s = \"%s\"", ATTR_COMMAND,
+			 getCommandString(CA_RESUME_CLAIM) );
+	req.Insert( buf );
+
+	sprintf( buf, "%s = \"%s\"", ATTR_CLAIM_ID, claim_id );
+	req.Insert( buf );
+
+	return sendCACmd( &req, reply, true );
+}
+
+
+bool
+DCStartd::deactivateClaim( VacateType type, ClassAd* reply )
+{
+	setCmdStr( "deactivateClaim" );
+	if( ! checkClaimId() ) {
+		return false;
+	}
+
+	ClassAd req;
+	char buf[1024]; 
+
+		// Add our own attributes to the request ad we're sending
+	sprintf( buf, "%s = \"%s\"", ATTR_COMMAND,
+			 getCommandString(CA_DEACTIVATE_CLAIM) );
+	req.Insert( buf );
+
+	sprintf( buf, "%s = \"%s\"", ATTR_CLAIM_ID, claim_id );
+	req.Insert( buf );
+
+	sprintf( buf, "%s = \"%s\"", ATTR_VACATE_TYPE, vacateTypeString(type) );
+	req.Insert( buf );
+
+	return sendCACmd( &req, reply, true );
+}
+
+
+bool
+DCStartd::releaseClaim( VacateType type, ClassAd* reply )
+{
+	setCmdStr( "releaseClaim" );
+	if( ! checkClaimId() ) {
+		return false;
+	}
+
+	ClassAd req;
+	char buf[1024]; 
+
+		// Add our own attributes to the request ad we're sending
+	sprintf( buf, "%s = \"%s\"", ATTR_COMMAND,
+			 getCommandString(CA_RELEASE_CLAIM) );
+	req.Insert( buf );
+
+	sprintf( buf, "%s = \"%s\"", ATTR_CLAIM_ID, claim_id );
+	req.Insert( buf );
+
+	sprintf( buf, "%s = \"%s\"", ATTR_VACATE_TYPE, vacateTypeString(type) );
+	req.Insert( buf );
+
+	return sendCACmd( &req, reply, true );
+}
+

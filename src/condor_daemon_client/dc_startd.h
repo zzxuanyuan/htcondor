@@ -27,6 +27,8 @@
 #include "condor_common.h"
 #include "condor_classad.h"
 #include "condor_io.h"
+#include "enum_utils.h"
+
 
 class DCStartd : public Daemon {
 public:
@@ -84,6 +86,21 @@ public:
 		*/
 	int activateClaim( ClassAd* job_ad, int starter_version, 
 					   ReliSock** claim_sock_ptr );
+
+		// Generic ClassAd-only protocol for managing claims
+
+	bool requestClaim( ClaimType type, const ClassAd* req_ad, 
+					   ClassAd* reply );
+
+	bool activateClaim( const ClassAd* job_ad, ClassAd* reply );
+
+	bool suspendClaim( ClassAd* reply );
+
+	bool resumeClaim( ClassAd* reply );
+
+	bool deactivateClaim( VacateType type, ClassAd* reply );
+
+	bool releaseClaim( VacateType type, ClassAd* reply );
 
 
  private:
