@@ -35,6 +35,7 @@
 #include "condor_debug.h"
 #include "condor_version.h"
 #include "get_full_hostname.h"
+#include "get_daemon_addr.h"
 #include "daemon.h"
 #include "dc_startd.h"
 #include "sig_install.h"
@@ -43,9 +44,10 @@ void version();
 
 // Global variables
 int cmd = 0;
-daemon_t dt = DT_NONE;
+char* addr = NULL;
+char* name = NULL;
 char* pool = NULL;
-char* subsys = NULL;
+char* target = NULL;
 char* my_name = NULL;
 char* claim_id = NULL;
 bool needs_id = true;
@@ -61,7 +63,7 @@ usage( char *str )
 
 
 int
-getCommandFromName( int argc, char* argv[] )
+getCommandFromArgv( int argc, char* argv[] )
 {
 	char* cmd_str = NULL;
 	int size;
@@ -119,25 +121,12 @@ getCommandFromName( int argc, char* argv[] )
 }
 
 
-int
-main( int argc, char *argv[] )
+
+void
+parseArgv( int argc, char* argv[] )
 {
-	char** tmp;
-	char* addr = NULL;
+	char** tmp = argv;
 
-#ifndef WIN32
-	// Ignore SIGPIPE so if we cannot connect to a daemon we do not
-	// blowup with a sig 13.
-	install_sig_handler(SIGPIPE, SIG_IGN );
-#endif
-
-	myDistro->Init( argc, argv );
-	config();
-
-	cmd = getCommandFromName( argc, argv );
-	
-		// First, deal with options (begin with '-')
-	tmp = argv;
 	for( tmp++; *tmp; tmp++ ) {
 		if( (*tmp)[0] != '-' ) {
 				// If it doesn't start with '-', skip it
@@ -162,7 +151,7 @@ main( int argc, char *argv[] )
 			} else {
 				fprintf( stderr,
 						 "ERROR: -pool requires another argument\n" );
-				usage( NULL );
+				usage( my_name );
 			}
 			break;
 		case 'd':
@@ -177,7 +166,7 @@ main( int argc, char *argv[] )
 			if( ! (tmp && *tmp) ) {
 				fprintf( stderr, 
 						 "ERROR: -addr requires another argument\n" ); 
-				usage( NULL );
+				usage( my_name );
 			}
 			addr = strdup( *tmp ); 
 			break;
@@ -186,7 +175,7 @@ main( int argc, char *argv[] )
 			if( ! (tmp && *tmp) ) {
 				fprintf( stderr, 
 						 "ERROR: -id requires another argument\n" ); 
-				usage( NULL );
+				usage( my_name );
 			} else {
 				claim_id = strdup( *tmp );
 			}
@@ -198,7 +187,13 @@ main( int argc, char *argv[] )
 			if( ! (tmp && *tmp) ) {
 				fprintf( stderr, 
 						 "ERROR: -name requires another argument\n" );
-				usage( NULL );
+				usage( my_name );
+			}
+			name = get_daemon_name( *tmp );
+			if( ! name ) {
+                fprintf( stderr, "%s: unknown host %s\n", my_name, 
+                         get_host_part(*tmp) );
+				exit( 1 );
 			}
 			break;
 		default:
@@ -208,17 +203,53 @@ main( int argc, char *argv[] )
 		}
 	}
 
-	DCStartd startd( addr, pool );
+		// now that we're done parsing, do some checking
+	if( needs_id && ! claim_id ) {
+		fprintf( stderr, 
+				 "You need to specify the ClaimID with -id for %s\n",
+				 my_name );
+		exit( 1 );
+	}
+
+	if( addr && name ) {
+		fprintf( stderr, 
+				 "ERROR: You cannot specify both -name and -address\n" );
+		usage( my_name );
+	}
+	if( addr ) {
+		target = addr;
+	} else if( name ) {
+		target = name;
+	} else { 
+			// local startd
+		target = NULL;
+	}
+}
+
+
+int
+main( int argc, char *argv[] )
+{
+
+#ifndef WIN32
+	// Ignore SIGPIPE so if we cannot connect to a daemon we do not
+	// blowup with a sig 13.
+	install_sig_handler(SIGPIPE, SIG_IGN );
+#endif
+
+	myDistro->Init( argc, argv );
+
+	config();
+
+	cmd = getCommandFromArgv( argc, argv );
+	
+	parseArgv( argc, argv );
+
+	DCStartd startd( target, pool );
 
 	if( needs_id ) {
-		if( ! claim_id ) {
-			fprintf( stderr, 
-					 "You need to specify the ClaimID with -id for %s\n",
-					 my_name );
-			exit( 1 );
-		} else {
-			startd.setClaimId( claim_id );
-		}
+		assert( claim_id );
+		startd.setClaimId( claim_id );
 	}
 
 	if( ! startd.locate() ) {
@@ -254,16 +285,15 @@ main( int argc, char *argv[] )
 		break;
 	}
 
-	if( rval ) {
-		printf( "Sent %s to startd at %s\n", getCommandString(cmd),
-				startd.addr() ); 
-		return 0;
-	} 
-	fprintf( stderr, "Failed to send %s to startd %s\n%s\n",
-			 getCommandString(cmd), startd.addr(), startd.error() );
-	return 1;
+	if( ! rval ) {
+		fprintf( stderr, "Failed to send %s to startd %s\n%s\n",
+				 getCommandString(cmd), startd.addr(), startd.error() ); 
+		return 1;
+	}
+	printf( "Sent %s to startd at %s\n", getCommandString(cmd),
+			startd.addr() ); 
+	return 0;
 }
-
 
 void
 version()
