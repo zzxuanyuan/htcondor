@@ -139,6 +139,12 @@ public:
 		*/
 	virtual void allJobsDone( void ) = 0;
 
+		/** The last job this starter is controlling has been
+			completely cleaned up.  Do whatever final work we want to
+			do to shutdown, notify others, etc.
+		*/
+	virtual void allJobsGone( void ) = 0;
+
 		/** The starter has been asked to shutdown fast.
 		 */
 	virtual void gotShutdownFast( void );
