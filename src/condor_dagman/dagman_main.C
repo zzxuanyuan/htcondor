@@ -35,6 +35,7 @@ char* mySubSystem = "DAGMAN";         // used by Daemon Core
 
 bool run_post_on_failure = TRUE;
 
+char* lockFileName = NULL;
 char* DAGManJobId;
 
 // Required for linking with condor libs
@@ -117,6 +118,7 @@ int main_shutdown_remove(Service *, int) {
         debug_println (DEBUG_NORMAL, "Writing Rescue DAG file...");
         G.dag->Rescue(G.rescue_file, G.datafile);
     }
+	unlink( lockFileName ); 
 	main_shutdown_graceful();
 	return FALSE;
 }
@@ -138,7 +140,6 @@ int main_init (int argc, char **argv) {
     debug_level = DEBUG_NORMAL;  // Default debug level is normal output
 
     char *condorLogName  = NULL;
-    char *lockFileName   = NULL;
 
     for (int i = 0 ; i < argc ; i++) {
         printf ("argv[%d] == \"%s\"\n", i, argv[i]);
@@ -284,7 +285,7 @@ int main_init (int argc, char **argv) {
     // Create the DAG
     //
   
-    G.dag = new Dag( condorLogName, lockFileName, G.maxJobs, G.maxPreScripts,
+    G.dag = new Dag( condorLogName, G.maxJobs, G.maxPreScripts,
 					 G.maxPostScripts );
 
     if( G.dag == NULL ) {
@@ -396,6 +397,7 @@ void main_timer () {
             G.dag->RemoveRunningJobs();
             debug_println (DEBUG_NORMAL, "Writing Rescue DAG file...");
             G.dag->Rescue(G.rescue_file, G.datafile);
+			unlink( lockFileName );
 			main_shutdown_graceful();
 			return;
         }
@@ -447,6 +449,7 @@ void main_timer () {
 		else {
 			debug_println( DEBUG_NORMAL, "Rescue file not defined..." );
 		}
+		unlink( lockFileName );
 		main_shutdown_graceful();
     }
 }
