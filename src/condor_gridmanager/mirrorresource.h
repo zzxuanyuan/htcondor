@@ -63,7 +63,6 @@ class MirrorResource : public BaseResource
 	int scheddPollTid;
 	char *mirrorScheddName;
 	bool scheddPollActive;
-	int scheddPollStartTime;
 	int newLease;
 
  private:

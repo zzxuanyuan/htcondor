@@ -68,7 +68,6 @@ MirrorResource::MirrorResource( const char *resource_name )
 	gahpA = NULL;
 	gahpB = NULL;
 	scheddPollActive = false;
-	scheddPollStartTime = 0;
 	newLease = 0;
 	submitter_constraint = "";
 
@@ -193,7 +192,6 @@ int MirrorResource::DoScheddPoll()
 					 rcB );
 		}
 
-		scheddPollStartTime = time(NULL);
 		scheddPollActive = true;
 
 	} else {
@@ -223,7 +221,6 @@ int MirrorResource::DoScheddPoll()
 		}
 
 		if ( rcB == 0 ) {
-			int now = time(NULL);
 			MyString update_expr;
 			update_expr.sprintf( "%s = %d", ATTR_MIRROR_REMOTE_LEASE_TIME,
 								 newLease );
@@ -246,9 +243,7 @@ int MirrorResource::DoScheddPoll()
 				rc = MirrorJobsById.lookup( HashKey( job_id_string.Value() ),
 											job );
 				if ( rc == 0 ) {
-					job->NotifyNewRemoteStatus( status_ads[i],
-												scheddPollStartTime,
-												now );
+					job->NotifyNewRemoteStatus( status_ads[i] );
 				} else {
 					delete status_ads[i];
 				}
