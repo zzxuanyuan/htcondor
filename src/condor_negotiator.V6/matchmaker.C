@@ -1831,19 +1831,41 @@ void Matchmaker::insert_into_matches(char * userName,ClassAd& request, ClassAd& 
 	DBObj->odbc_sqlstmt(insert_stmt);	
 
 }
-/* This extracts the machine name from the global job ID user@machine.name#timestamp#cluster.proc*/
+/* This extracts the machine name from the global job ID [user@]machine.name#timestamp#cluster.proc*/
 static int get_scheddname_from_gjid(const char * globaljobid, char * scheddname )
 {
 	int i,j;
 
 	scheddname[0] = '\0';
-	for (i=0;globaljobid[i]!='\0' && globaljobid[i]!='@';i++);
-	if(globaljobid[i] == '\0') return -1; /* Parse error, shouldn't happen */
-	else i++; /* Get past the '@' */
+	for (i=0;globaljobid[i]!='\0' && globaljobid[i]!='@' && globaljobid[i]!='#';i++)
+		scheddname[i]=globaljobid[i];
+	if(globaljobid[i] == '\0') 
+	{
+		scheddname[0] = '\0';
+		return -1; /* Parse error, shouldn't happen */
+	}
+	else if(globaljobid[i]=='#')
+	{
+		scheddname[i]='\0';	
+		return 1;
+	}
+	else
+	{
+		i++; /* get past '@' */
 	
-	for (j=0;globaljobid[i]!='\0' && globaljobid[i]!='#';i++,j++)
-		scheddname[j]=globaljobid[i];
-	scheddname[j]='\0';
-	if(globaljobid[i] == '\0') return -1; /* Parse error, shouldn't happen */
-	return 1;
+		for (j=0;globaljobid[i]!='\0' && globaljobid[i]!='#';i++,j++)
+			scheddname[j]=globaljobid[i];
+
+		if(globaljobid[i] == '\0') 
+		{
+			scheddname[0]= '\0'
+			return -1; /* Parse error, shouldn't happen */
+		}
+		else
+		{
+			scheddname[j]='\0';
+			return 1;
+		}
+	}
+	return -1;
 }
