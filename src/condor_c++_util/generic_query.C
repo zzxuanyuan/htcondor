@@ -285,14 +285,15 @@ makeQueryAd( ClassAd &ad )
 		return( false );
 	}
 
-		// if no projection attributes, don't Insert ATTR_PROJ_ATTRS
-	if( project && !ad.Insert( ATTR_PROJ_ATTRS, project->Copy( ) ) ) {
+		// if no projection attributes, don't Insert ATTR_PROJECT_THROUGH
+	if( project && !ad.Insert( ATTR_PROJECT_THROUGH, project->Copy( ) ) ) {
 		return( false );
 	}
 
-		// if no collection identification hints, don't Insert ATTR_COLL_HINTS
+		// if no collection identification hints, don't Insert 
+		// ATTR_COLLECTION_HINTS
 	if( collIdHints ) {
-		if( !ad.Insert( ATTR_COLL_HINTS, collIdentHints->Copy( ) ) ) {
+		if( !ad.Insert( ATTR_COLLECTION_HINTS, collIdentHints->Copy( ) ) ) {
 			return( false );
 		}
 	}
@@ -303,9 +304,9 @@ makeQueryAd( ClassAd &ad )
 	}
 
 		// required parts of the query
-	if( !ad.InsertAttr( ATTR_WANT_PREAMBLE, preamble ) ||
+	if( !ad.InsertAttr( ATTR_WANT_PRELUDE, preamble ) ||
 		!ad.InsertAttr( ATTR_WANT_RESULTS, results ) ||
-		!ad.InsertAttr( ATTR_WANT_SUMMARY, summary ) ) {
+		!ad.InsertAttr( ATTR_WANT_POSTLUDE, summary ) ) {
 			return false;
 	}
 	return( true );
