@@ -13,9 +13,11 @@ The details of each version are described below.
 
 \begin{itemize}
 
-\item MPI users who are upgrading from previous versions of Condor to 6.7.2
-will need to modify the MPI\_CONDOR\_RSH\_PATH setting of their dedicated
-resource to be LIBEXEC instead of SBIN. Users who are installing 6.7.2
+\item MPI users who are upgrading from previous versions of Condor
+to version 6.7.2 will need to modify the 
+\Macro{MPI\_CONDOR\_RSH\_PATH} configuration macro of their dedicated
+resource to be \MacroU{LIBEXEC} instead of \MacroUNI{SBIN}.
+Users who are installing Condor version 6.7.2
 for the first time will not need to make any changes.
 
 \end{itemize}
@@ -56,9 +58,10 @@ throttle job starts.
 Together, this macro pair provides greater flexibility
 tuning job start rate given available \Condor{schedd} performance.
 
-\item Added a libexec directory to the install process. Support commands that
-the Condor system needs will be added to this directory in future releases. This
-directory should not be added to a user or systemwide path.  
+\item Added a \MacroNI{LIBEXEC} directory to the install process.
+Support commands that
+the Condor system needs will be added to this directory in future releases.
+This directory should not be added to a user or systemwide path.  
 
 \item Added the ability to decide for each file that condor transfers whether
 it should be encrypted or not, using encrypt\_input\_files, 

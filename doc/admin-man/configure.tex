@@ -398,6 +398,11 @@ system.
   relative to the \MacroUNI{RELEASE\_DIR} macro, and has no default
   value.
 
+\item[\Macro{LIBEXEC}] \label{param:LibExec} This directory points
+  to the Condor directory where support commands that Condor
+  needs will be placed.
+  Do not add this directory to a user or systemwide path.
+
 \item[\Macro{INCLUDE}] \label{param:Include} This directory points
   to the Condor directory where header files reside.
   \MacroUNI{INCLUDE} would usually be defined relative to
@@ -2784,6 +2789,13 @@ These macros control the \Condor{schedd}.
   backup of the current spool file to the spool directory.  This
   backup file will be overwritten each time the \Condor{schedd}
   starts.  \Macro{SCHEDD\_BACKUP\_SPOOL} defaults to ``False''.
+
+\item[\Macro{MPI\_CONDOR\_RSH\_PATH}]
+  \label{param:MPICondorRshPath} The complete path to the
+  special version of \Prog{rsh} that is required to spawn MPI
+  jobs under Condor.
+  \MacroU{LIBEXEC} is the proper value for this 
+  configuration variable, required when running MPI dedicated jobs.
 
 \end{description}
 
