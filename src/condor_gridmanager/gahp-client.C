@@ -634,7 +634,7 @@ GahpServer::Startup()
 	     (daemonCore->Create_Pipe(stdout_pipefds) == FALSE) ||
 	     (daemonCore->Create_Pipe(stderr_pipefds, TRUE) == FALSE)) 
 	{
-		dprintf(D_ALWAYS,"GahpClient::Initialize - pipe() failed, errno=%d\n",
+		dprintf(D_ALWAYS,"GahpServer::Startup - pipe() failed, errno=%d\n",
 			errno);
 		free( gahp_path );
 		if (gahp_args) free(gahp_args);
@@ -773,11 +773,13 @@ GahpServer::Initialize( Proxy *proxy )
 
 		// Give the server our x509 proxy.
 	if ( command_initialize_from_file( master_proxy->proxy->proxy_filename ) == false ) {
-		EXCEPT( "Failed to initialize from file" );
+		dprintf( D_ALWAYS, "GAHP: Failed to initialize from file\n" );
+		return false;
 	}
 
 	if ( cacheProxyFromFile( master_proxy ) == false ) {
-		EXCEPT( "Failed to cache proxy from file!" );
+		dprintf( D_ALWAYS, "GAHP: Failed to cache proxy from file!\n" );
+		return false;
 	}
 
 	master_proxy->cached_expiration = master_proxy->proxy->expiration_time;
