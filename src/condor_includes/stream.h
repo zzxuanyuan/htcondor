@@ -213,6 +213,10 @@ public:
 	int code(float &);
 	int code(double &);
 	int code(char *&);
+	// This means to transmit an integer representation
+	// of this pointer.  It may not be terribly useful,
+	// but it gets mmap() to compile on IRIX.
+	int code(void *&);
 	int code(char *&, int &);
 	int code_bytes(void *, int);
 	int code_bytes_bool(void *, int);
