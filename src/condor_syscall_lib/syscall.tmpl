@@ -13,7 +13,7 @@
   syscall() routine.  In the case of remote calls, that will always be
   the REMOTE_syscall() routine.  The syscall() routine is generally
   provided in the C library, and REMOTE_syscall() is provided by
-  Condor.  More on this in the next paragraph...
+  Condor.
 
   Senders are the part of the code which packages up the arguments of a
   system call, sends them to the shadow for remote execution, and then
@@ -25,8 +25,7 @@
   Receivers are the part of the code which runs on the submitting
   machine that matches with the sender.  The receiver reads all the
   arguments to the system call, performs the call, then sends back the
-  results.  We plan to eventually generate the recievers from this
-  template file, but the current code doesn't do it.
+  results.
 
   The general format of this file is a function prototype for every
   system call.  Those give the system call return type, the name, and
@@ -90,55 +89,72 @@
 	  success.  code_bytes() itself just returns the number of
 	  bytes read or written, and -1 on failure. 
 
-	** NEW OPTIONS **
+** NEW OPTIONS **
 
-	map( int fd )
-		When MappingFileDescriptors() is in effect, convert this
-		fd and check to see if the operation should be performed
-		locally.  Not all access methods will support map(). In
-		this case, the syscall will fail with EINVAL.
+map( int fd )
 
-	: file_table
-		A special flag placed after a prototype to indicate that the
-		call should be directed through file_state.C when
-		MappingFileDescriptors() is in effect.  Both the checkpointing
- 		and remote syscall library use this feature.
+	When MappingFileDescriptors() is in effect, convert this
+	fd and check to see if the operation should be performed
+	locally.  Not all access methods will support map(). In
+	this case, the syscall will fail with EINVAL.
 
-	: file_table_name( id )
+rdiscard( parameter )
 
-		This allows you to select a different name
-		to use in the open file table.  Example:
-			int fdsync() : file_table_name(fsync)
-		This switch will call FileTab->fsync() when
-		necessary, but otherwise uses SYS_fdsync.
+	This will throw out the given parameter
+	when performing a remote system call.
 
-	: local_name( id )
+discard( parameter )
 
-		This allows you to select a different local
-		system call to use.  Example:
-			int fstat() : local_name(prev_fstat)
-		This switch will call SYS_prev_fstat locally,
-		and CONDOR_fstat remotely.
+	This will throw out the given parameter
+	for both local and remote system calls.
 
-	: remote_name( id )
+: file_table
+	A special flag placed after a prototype to indicate that the
+	call should be directed through file_state.C when
+	MappingFileDescriptors() is in effect.  Both the checkpointing
+	and remote syscall library use this feature.
 
-		This allows you to select a different remote
-		system call name to use.  Example:
-			int lockf() : remote_name(flock)
-		This switch will use SYS_lockf locally,
-		and CONDOR_flock remotely.  Notice that
-		this will still generate a sender called
-		CONDOR_lockf, which will format the arguments
-		appropriately and send CONDOR_flock over
-		the wire.
+Each system call prototype has several names associated with
+it.  By default, each name is the same as the function name,
+perhaps with a CONDOR_ or SYS_ appended as appropriate.
+However, you can specify a different name to use in special
+circumstances:
 
-	discard( parameter )
+: file_table_name( id )
 
-		This will throw out the given parameter
-		when performing a remote system call or
-		a file table call.  See _xstat for an example.
-		This is probably not the best solution
-		for that particular example...
+	The file table name specifies the method to call when
+	MappingFileDescriptors is in effect, and the file table
+	must be used.
+
+	For example, open64() calls FileTab->open().
+
+: local_name( id )
+
+	The local name specifies the system call name to use
+	when LocalSysCalls is in effect.
+
+	For example, on some variations of linux, fstat
+	needs to call SYS_prev_fstat.
+
+: sender_name( id )
+
+	The sender name indicates that an existing sender
+	should be used to generate remote calls by this name.
+
+	For example, fdatasync() uses the existing sender
+	CONDOR_fsync.
+
+: remote_name( id )
+
+	Generate a sender for this system call, but use the
+	given name when transmitting the arguments.
+
+	For example, fstat64() uses the sender named 
+	CONDOR_fstat64, because the conversion from
+	structure to network is slightly different than
+	that of fstat().  However, it must use the 
+	number CONDOR_fstat, because we want to use
+	one receiver to interpret both calls.
 
   Some system calls simply must be handled specially.  Examples
   are readv, and getlogin. This "specialness" dosen't necessarily
@@ -166,38 +182,39 @@
 #   define EXTRACT extract
 #endif
 
-	int open( const char *path, int flags, ... ) : file_table
+	int open( const char *path, int flags, ... )
+		: file_table
 	{
 		SEND_PATH( path );
 		ALLOC_PATH( path );
 	}
 
 	int open64( const char *path, int flags, ... )
-		: file_table, remote_name(open), file_table_name(open)
-	{
-		SEND_PATH( path );
-		ALLOC_PATH( path );
-	}
+		: sender_name(open), file_table_name(open);
 
 	int close( int fd ) : file_table;
 
-	ssize_t read( int fd, void *buf, size_t len ) : file_table {
+	ssize_t read( int fd, void *buf, size_t len )
+		: file_table
+	{
 		out code_bytes_bool( buf, len );
 		alloc( buf, len );
 	}
 	
-        ssize_t write( int fd, const void *buf, size_t len ) : file_table {
+        ssize_t write( int fd, const void *buf, size_t len )
+		: file_table
+	{
 		in code_bytes_bool( buf, len );
 		alloc( buf, len );
 	}
 
-	off_t lseek( int fd, off_t offset, int whence ) : file_table; 
-
+	off_t lseek( int fd, off_t offset, int whence )
+		: file_table; 
 	offset_t llseek( int fd, offset_t offset, int whence )
-		: file_table, file_table_name(lseek), remote_name(lseek);
-
+		: file_table_name(lseek), remote_name(lseek);
 	off64_t lseek64( int fd, off64_t offset, int whence )
-		: file_table, file_table_name(lseek), remote_name(lseek);
+		: file_table_name(lseek), remote_name(lseek),
+		  local_name(llseek);
 
 	int dup( int old_fd ) : file_table;
 	int dup2( int old_fd, int new_fd ) : file_table;
@@ -210,12 +227,23 @@
 		int ioctl( int fd, int cmd, ... ) : file_table;
 	#endif
 
-	/* Sync must go through the table to flush the buffer cache */
-	int fsync( int fd ) : file_table;
-	int fdsync( int fd ) : file_table, file_table_name(fsync), remote_name(fsync);
-	int fdatasync( int fd ) : file_table, file_table_name(fsync), remote_name(fsync);
+	/* Sync must go through the table to flush the buffer cache.
+	Those that don't have fsync still need the sender, so we provide
+	no_sys_chk for the sender only. */
 
-	/* Truncate must go through the table to update the stored file size. */
+	int fdsync( int fd )
+		: file_table_name(fsync), sender_name(fsync);
+	int fdatasync( int fd )
+		: file_table_name(fsync), sender_name(fsync);
+	int fsync( int fd )
+		#if defined(SENDER)
+			: file_table, no_sys_chk;
+		#else
+			: file_table;
+		#endif
+
+	/* Truncate must go through the table to update the file size. */
+
 	#if defined( LINUX )
 		int ftruncate( int fd, size_t length ) : file_table;
 	#else 
@@ -223,29 +251,11 @@
 	#endif
 
 	int ftruncate64( int fd, off64_t length )
-		: file_table, file_table_name(ftruncate), remote_name(ftruncate);
+		: file_table_name(ftruncate), remote_name(ftruncate);
 	
 	int fchdir( int fd ) : file_table;
-
 	int fchown( map(int fd), uid_t owner, gid_t group );
 	int fchmod( map(int fd), mode_t mode );
-
-	/* Linux, Irix, and Solaris need these switches to redirect
-	   these calls to fxstat, lxstat, and xstat.  */
-
-	#if defined(SWITCH)&&(defined(LINUX)||defined(IRIX)||defined(Solaris))
-		#if defined(LINUX) || defined(IRIX53)
-			int fxstat( discard(int version), map(int fd), struct stat *buf ) : remote_name(fstat);
-			int lxstat( discard(int version), char *path, struct stat *buf ) : remote_name(lstat);
-			int xstat( discard(int version), char *path, struct stat *buf ) : remote_name(stat);
-			int xmknod( discard(int version), char *path, mode_t mode, dev_t device ) : remote_name(mknod);
-		#else
-			int fxstat( discard(const int version), map(int fd), struct stat *buf ) : remote_name(fstat);
-			int lxstat( discard(const int version), const char *path, struct stat *buf ) : remote_name(lstat);
-			int xstat( discard(const int version), const char *path, struct stat *buf ) : remote_name(stat);
-			int xmknod( discard(const int version), const char *path, mode_t mode, dev_t device ) : remote_name(mknod);
-		#endif
-	#endif
 
 	int fstat( map(int fd), struct stat *buf )
 	{
@@ -269,7 +279,7 @@
 	}
 
 	int lstat64( const char *path, struct stat64 *buf )
-		: remote_name(fstat)
+		: remote_name(lstat)
 	{
 		out code( buf );
 		alloc( buf, STAT64_SIZE );
@@ -298,15 +308,55 @@
 		ALLOC_PATH( path );
 	}
 
-	/* Poor relatives of the above calls */
+	/* Linux, Irix, and Solaris need these switches to redirect
+	   these calls to fxstat, lxstat, and xstat.  On Linux,
+	   fxstat calls CONDOR_fstat or SYS_prev_fstat.  On Irix and
+	   Solaris, fxstat calls CONDOR_fstat or SYS_fxstat.
+	*/
 
-	int prev_fstat( map(int fd), struct stat *buf ) : remote_name(fstat);
-	int prev_lstat( const char *name, struct stat *buf ) : remote_name(lstat);
-	int prev_stat( const char *name, struct stat *buf ) : remote_name(stat);
-	int prev_mknod( const char *name, mode_t mode, dev_t dev ) : remote_name(mknod);
-	int oldfstat( map(int fd), struct stat *buf ) : remote_name(fstat);
-	int oldlstat( const char *name, struct stat *buf ) : remote_name(lstat);
-	int oldstat( const char *name, struct stat *buf ) : remote_name(stat);
+	#if defined(Solaris) || defined(IRIX)
+
+	int fxstat( rdiscard(const int version), map(int fd), struct stat *buf )
+		: sender_name(fstat), local_name(fxstat);
+	int lxstat( rdiscard(const int version), const char *path, struct stat *buf )
+		: sender_name(lstat), local_name(lxstat);
+	int xstat( rdiscard(const int version), const char *path, struct stat *buf )
+		: sender_name(stat), local_name(xstat);
+	int xmknod( rdiscard(int version), const char *path, mode_t mode, dev_t device )
+		: sender_name(mknod), local_name(xmknod);
+
+	#endif /* Solaris or IRIX */
+
+	#if defined(LINUX)
+
+	int fxstat( discard(int version), map(int fd), struct stat *buf )
+		: sender_name(fstat), local_name(prev_fstat);
+	int lxstat( discard(int version), char *path, struct stat *buf )
+		: sender_name(lstat), local_name(prev_lstat);
+	int xstat( discard(int version), char *path, struct stat *buf )
+		: sender_name(stat), local_name(prev_stat);
+	int xmknod(discard(int version),char *path,mode_t mode,dev_t device)
+		: sender_name(mknod), local_name(mknod);
+
+	/* Linux needs these relatives of stat to cover the
+	   old entry points to libc.  */
+
+	int prev_fstat( map(int fd), struct stat *buf )
+		: sender_name(fstat);
+	int prev_lstat( const char *name, struct stat *buf )
+		: sender_name(lstat);
+	int prev_stat( const char *name, struct stat *buf )
+		: sender_name(stat);
+	int prev_mknod( const char *name, mode_t mode, dev_t dev )
+		: sender_name(mknod);
+	int oldfstat( map(int fd), struct stat *buf )
+		: sender_name(fstat);
+	int oldlstat( const char *name, struct stat *buf )
+		: sender_name(lstat);
+	int oldstat( const char *name, struct stat *buf )
+		: sender_name(stat);
+
+	#endif /* LINUX */
 
 	#if defined(LINUX) || defined(HPUX)
 		int statfs( const char *path, struct statfs *buf )
@@ -346,21 +396,21 @@
 			alloc( buf, nbytes );
 			alloc( basep, LONG_SIZE );
 		}
-	#else 
+	#elif defined(Solaris) || defined(IRIX)
 		int getdents( map(int fd), struct dirent *buf, size_t nbytes )
 		{
 			out code_bytes_bool( buf, nbytes );
 			alloc( buf, nbytes );
 		}
 
-		int getdents64( map(int fd), struct dirent64 *buf, size_t nbytes )
-			: remote_name(getdents)
-		{
-			out code_bytes_bool( buf, nbytes );
-			alloc( buf, nbytes );
-		}
-
 	#endif
+
+	int getdents64( map(int fd), struct dirent64 *buf, size_t nbytes )
+		: remote_name(getdents)
+	{
+		out code_bytes_bool( buf, nbytes );
+		alloc( buf, nbytes );
+	}
 
 #if !defined(SWITCH) && !defined(CLIP)
 
@@ -860,12 +910,12 @@ int rename( const char *from, const char *to ) : pseudo {
 		alloc( tp, TIMEVAL_SIZE );
 		alloc( tzp, TIMEZONE_SIZE );
 	}
-#	if !defined(LINUX)
+#if !defined(LINUX)
 		int lchown( const char *path, uid_t owner, gid_t group ) {
 			SEND_PATH( path );
 			ALLOC_PATH( path );
 		}
-#	endif
+#endif
 	int chown( const char *path, uid_t owner, gid_t group ) {
 		SEND_PATH( path );
 		ALLOC_PATH( path );
@@ -918,6 +968,7 @@ int rename( const char *from, const char *to ) : pseudo {
 #else
 	int gethostid();
 #endif
+
 #if defined(HPUX) || defined(LINUX) || defined(Solaris) || defined(IRIX)
 	int setrlimit( int resource, const  struct rlimit *rlp ) {
 #else
@@ -999,14 +1050,14 @@ int rename( const char *from, const char *to ) : pseudo {
 	int sigpending( sigset_t *set );
 	int sigstack( struct sigstack *instack, struct sigstack *outstack );
 
-#	if !defined(LINUX)
+#if !defined(LINUX)
 		int sigreturn( struct sigcontext *scp );
-#	endif
+#endif
 
 #endif  /* of !defined(SAVE_SIGSTATE) */
 
 
-#if	defined(LINUX) || defined(Solaris251) || defined(HPUX) || defined(OSF1)
+#if defined(LINUX) || defined(Solaris251) || defined(HPUX) || defined(OSF1)
 		int setitimer( int which, const struct itimerval *value,
 				struct itimerval *oval );
 #else
