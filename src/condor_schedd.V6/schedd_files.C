@@ -22,8 +22,10 @@ void schedd_file_checksum(char *filePathName, int fileSize, char *sum)
 	unsigned char *checksum;
 
 	fd = open(filePathName, O_RDONLY, 0);
-	if (fd < 0)
+	if (fd < 0) {
 		dprintf(D_ALWAYS, "schedd_file_checksum: can't open %s\n", filePathName);
+		return;
+	}
 
 	data = (char *)mmap(0, fileSize, PROT_READ, MAP_PRIVATE, fd, 0);
 	if (data == ((char *) -1))
