@@ -47,6 +47,8 @@ so, please.... don't use it... okay?
 #if defined(__GNUC__)
 #if __GNUC__ == 2
 #	define CONDOR_HAD_GNUC 2
+#elif __GNUC__ == 3
+#	define CONDOR_HAD_GNUC 3
 #else
 #	error "Please fix the definition of CONDOR_HAD_GNUC."
 #endif
