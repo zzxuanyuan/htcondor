@@ -398,6 +398,8 @@ int MirrorJob::doEvaluateState()
 			} else if ( condorState == HELD ) {
 				gmState = GM_DELETE;
 				break;
+			} else if ( condorState == COMPLETED ) {
+				gmState = GM_DELETE;
 			} else {
 				gmState = GM_SUBMIT;
 			}
@@ -503,7 +505,8 @@ int MirrorJob::doEvaluateState()
 			// we're still alive.
 			if ( remoteState == COMPLETED ) {
 				gmState = GM_DONE_SAVE;
-			} else if ( condorState == REMOVED || condorState == HELD ) {
+			} else if ( condorState == REMOVED || condorState == HELD ||
+						condorState == COMPLETED ) {
 				gmState = GM_CANCEL_1;
 			} else if ( mirrorActive ) {
 				gmState = GM_MIRROR_ACTIVE_SAVE;
@@ -753,17 +756,21 @@ dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too long!\n",procID.cluster,procI
 			}
 			errorString = "";
 			SetRemoteJobId( NULL );
-			if ( mirrorActive == true ) {
-				UpdateJobAdBool( ATTR_MIRROR_ACTIVE, 0 );
-				mirrorActive = false;
-			}
-			JobIdle();
 			if ( newRemoteStatusAd != NULL ) {
 				delete newRemoteStatusAd;
 				newRemoteStatusAd = NULL;
 			}
-			if ( submitLogged ) {
-				JobEvicted();
+			// If we haven't failed over to the mirror job, don't change
+			// any attributes that may affect the local job execution.
+			if ( mirrorActive == true ) {
+				JobIdle();
+				if ( submitLogged ) {
+					JobEvicted();
+				}
+			}
+			if ( mirrorActive == true ) {
+				UpdateJobAdBool( ATTR_MIRROR_ACTIVE, 0 );
+				mirrorActive = false;
 			}
 			
 			// If there are no updates to be done when we first enter this
