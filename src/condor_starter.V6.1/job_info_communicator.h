@@ -92,6 +92,12 @@ public:
 		*/
 	virtual const char* jobErrorFilename( void );	
 
+		/** Return a string containing a copy of the full pathname of
+			the requested file.
+		*/
+	virtual char* getJobStdFile( const char* attr_name,
+								 const char* alt_name ) = 0;
+
 		/** Return a pointer to the job's initial working directory. 
 		*/
 	virtual const char* jobIWD( void );
