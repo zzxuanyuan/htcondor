@@ -2397,7 +2397,10 @@ MyString *GlobusJob::buildSubmitRSL()
 			return NULL;
 		}
 		StringList filelist( attr_value, "," );
-		filelist.append(output_classad_filename.GetCStr());
+		if( use_gridshell ) {
+			ASSERT( output_classad_filename.GetCStr() );
+			filelist.append(output_classad_filename.GetCStr());
+		}
 		if ( !filelist.isEmpty() || stageOutput || stageError ) {
 			char *filename;
 			*rsl += ")(file_stage_out=";
