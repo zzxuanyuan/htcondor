@@ -26,6 +26,8 @@
 #include "image.h"
 #include "condor_debug.h"
 
+static char *_FileName_ = __FILE__;
+
 /*
   Switch to a temporary stack area in the DATA segment, then execute the
   given function.  Note: we save the address of the function in a

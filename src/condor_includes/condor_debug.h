@@ -71,7 +71,7 @@ extern int Termlog;		/* Are we logging to a terminal? */
 
 #if defined(__STDC__) || defined(__cplusplus)
 void dprintf_init ( int fd );
-void dprintf ( int flags, ... );
+void dprintf ( int flags, char *fmt, ... );
 int  dprintf_config (char *, int );
 void _EXCEPT_ ( char *fmt, ... );
 void Suicide();
