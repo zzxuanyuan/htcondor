@@ -131,6 +131,7 @@ CODMgr::removeClaim( Claim* c )
 	}
 	if( found_it ) {
 		delete c;
+		rip->update();
 	} else {
 		dprintf( D_ALWAYS, 
 				 "WARNING: CODMgr::removeClaim() could not find claim %s\n", 
