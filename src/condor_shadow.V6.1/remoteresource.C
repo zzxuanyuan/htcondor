@@ -31,7 +31,7 @@
 #include "condor_attributes.h"
 #include "internet.h"
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
-#include "daemon.h"
+#include "dc_starter.h"
 
 // for remote syscalls, this is currently in NTreceivers.C.
 extern int do_REMOTE_syscall();
@@ -1223,5 +1223,52 @@ RemoteResource::attemptReconnect( void )
 void
 RemoteResource::requestReconnect( void )
 {
-	EXCEPT( "Don't know how to reconnect yet!\n" );
+	DCStarter starter( starterAddress );
+
+		// We want this on the heap, since if this works, we're going
+		// to hold onto it and don't want it on the stack...
+	ReliSock* rsock = new ReliSock;
+	ClassAd req;
+	ClassAd reply;
+
+		// First, fill up the request with all the data we need
+	shadow->publishShadowAttrs( &req );
+
+		// try the command itself...
+	if( ! starter.reconnect(&req, &reply, rsock) ) {
+		dprintf( D_ALWAYS, "Attempt to reconnect failed: %s\n", 
+				 starter.error() );
+		delete rsock;
+			// TODO handle errors better!
+		shadow->reconnectFailed( starter.error() );
+	}
+
+	dprintf( D_ALWAYS, "Reconnect SUCCESS: connection re-established\n" );
+
+	dprintf( D_FULLDEBUG, "Registering socket for future syscalls\n" );
+	if( claim_sock ) {
+		dprintf( D_FULLDEBUG, "About to cancel old claim_sock\n" );
+		daemonCore->Cancel_Socket( claim_sock );
+		delete claim_sock;
+	}
+	claim_sock = rsock;
+	daemonCore->Register_Socket( claim_sock, "RSC Socket", 
+				   (SocketHandlercpp)&RemoteResource::handleSysCalls, 
+				   "HandleSyscalls", this );
+
+		// Read all the info out of the reply ad and stash it in our
+		// private data members, just like we do when we get the
+		// pseudo syscall on job startup for the starter to register
+		// this stuff about itself. 
+	setStarterInfo( &reply );
+
+	began_execution = true;
+	setResourceState( RR_EXECUTING );
+
+		// Tell the Shadow object so it can take care of the rest.
+	shadow->resourceReconnected( this );
+
+		// that's it, we're done!  we can now return to DaemonCore and
+		// wait to service requests on the syscall or command socket
+	return;
 }
