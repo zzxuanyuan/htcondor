@@ -15,6 +15,7 @@ int main()
 
 	printf("%s\n",s.SandboxPath(true).GetCStr());
 	printf("%s\n",s.TransferPath(true).GetCStr());
+	sleep(10);
 	s.DestroyProcessDirectory();
 	s.DestroyClusterDirectory();
 

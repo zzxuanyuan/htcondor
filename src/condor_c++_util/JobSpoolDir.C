@@ -257,7 +257,11 @@ char *gen_ckpt_name_2 ( const char *dir, int cluster, int proc, int subproc )
 
 /**********************************************************************/
 
-#define AssertIsInitialized() AssertIsInitializedImpl(__FILE__, __LINE__)
+// Validate that the object is initialized and the associated
+// directory not (yet) destroyed.
+#define AssertIsInitialized() AssertIsInitializedImpl(__FILE__, __LINE__, false)
+// Validate that the object is initialized
+#define AssertIsInitializedDestroyedOK() AssertIsInitializedImpl(__FILE__, __LINE__, true)
 
 JobSpoolDir::JobSpoolDir()  :
 	cluster(0),
@@ -276,12 +280,7 @@ bool JobSpoolDir::IsInitialized() const
 
 MyString JobSpoolDir::DirBaseCluster() const
 {
-	// We can't use AssertIsInitialized because that
-	// fails if the process directory has been destroyed.
-	// We can pretty much assume it has been at this point.
-	if( ! IsInitialized() ) {
-		EXCEPT("Internal Error: Attempting to use uninitialized JobSpoolDir");
-	}
+	AssertIsInitializedDestroyedOK();
 	MyString s;
 	s.sprintf("cluster%d", cluster);
 	return s;
@@ -326,13 +325,13 @@ MyString JobSpoolDir::FileBaseExecutable() const
 
 MyString JobSpoolDir::FileFullExecutable() const
 {
-	AssertIsInitialized();
+	AssertIsInitializedDestroyedOK();
 	return ConcatDir(DirFullCluster(), FileBaseExecutable());
 }
 
 
 
-void JobSpoolDir::AssertIsInitializedImpl(const char * filename, int linenum) const
+void JobSpoolDir::AssertIsInitializedImpl(const char * filename, int linenum, bool destroyed_ok) const
 {
 	if( ! IsInitialized() ) {
 		MyString errmsg;
@@ -340,7 +339,7 @@ void JobSpoolDir::AssertIsInitializedImpl(const char * filename, int linenum) co
 		const char * msg = errmsg.GetCStr();
 		EXCEPT(const_cast<char *>(msg));
 	}
-	if( is_destroyed ) {
+	if( destroyed_ok == false && is_destroyed ) {
 		MyString errmsg;
 		errmsg.sprintf("Internal Error: Attempting to use destroyed JobSpoolDir (%s(%d))", filename, linenum);
 		const char * msg = errmsg.GetCStr();

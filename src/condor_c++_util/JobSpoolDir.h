@@ -229,10 +229,15 @@ private:
 
 	/** Tests IsInitialized().  If not logs an error message and EXCEPTs
 
-	You'll probably want to use AssertIsInitialized, a macro
-	that automatically handles filename and linenum.
+	If destroyed_ok is true than it's okay if
+	the process directory has been destroyed.  Otherwise we also require
+	that the directory not have been destroyed.
+
+	You'll probably want to use AssertIsInitialized or
+	AssertIsInitializedDestroyedOK, macros that automatically handles filename
+	and linenum.
 	*/
-	void AssertIsInitializedImpl(const char * filename, int linenum) const;
+	void AssertIsInitializedImpl(const char * filename, int linenum, bool destroyed_ok) const;
 
 
 
