@@ -37,8 +37,7 @@ class UserProc : public Service
 {
 public:
 		/// Constructor
-	UserProc() : JobAd(NULL), JobPid(-1),
-		exit_status(-1), requested_exit(false) {};
+	UserProc() : JobAd(NULL) { initialize(); }; 
 
 		/// Destructor
 	virtual ~UserProc() {};
@@ -109,12 +108,24 @@ public:
 	bool RequestedExit( void ) { return requested_exit; };
 
 protected:
+
+	void initialize( void );
+
 	ClassAd *JobAd;
 	int JobPid;
 	int exit_status;
 	bool requested_exit;
+
+	int soft_kill_sig;
+	int rm_kill_sig;
+
 	UtcTime job_start_time;
 	UtcTime job_exit_time;
+
+private:
+
+	void initKillSigs( void );
+
 };
 
 #endif /* _CONDOR_USER_PROC_H */
