@@ -687,8 +687,29 @@ format_remote_host (char *, AttrList *ad)
 	static char result[MAXHOSTNAMELEN];
 	static char unknownHost [] = "[????????????????]";
 	char* tmp;
-
 	struct sockaddr_in sin;
+
+	int universe = STANDARD;
+	ad->LookupInteger( ATTR_JOB_UNIVERSE, universe );
+	if (universe == SCHED_UNIVERSE &&
+		string_to_sin(scheddAddr, &sin) == 1) {
+		if( (tmp = sin_to_hostname(&sin, NULL)) ) {
+			strcpy( result, tmp );
+			return result;
+		} else {
+			return unknownHost;
+		}
+	} else if (universe == PVM) {
+		int current_hosts;
+		if (ad->LookupInteger( ATTR_CURRENT_HOSTS, current_hosts ) == 1) {
+			if (current_hosts == 1) {
+				sprintf(result, "1 host");
+			} else {
+				sprintf(result, "%d hosts", current_hosts);
+			}
+			return result;
+		}
+	}
 	if (ad->LookupString(ATTR_REMOTE_HOST, result) == 1) {
 		if( is_valid_sinful(result) && 
 			(string_to_sin(result, &sin) == 1) ) {  
@@ -699,28 +720,6 @@ format_remote_host (char *, AttrList *ad)
 			}
 		}
 		return result;
-	} else {
-		int universe = STANDARD;
-		ad->LookupInteger( ATTR_JOB_UNIVERSE, universe );
-		if (universe == SCHED_UNIVERSE &&
-			string_to_sin(scheddAddr, &sin) == 1) {
-			if( (tmp = sin_to_hostname(&sin, NULL)) ) {
-				strcpy( result, tmp );
-				return result;
-			} else {
-				return unknownHost;
-			}
-		} else if (universe == PVM) {
-			int current_hosts;
-			if (ad->LookupInteger( ATTR_CURRENT_HOSTS, current_hosts ) == 1) {
-				if (current_hosts == 1) {
-					sprintf(result, "1 host");
-				} else {
-					sprintf(result, "%d hosts", current_hosts);
-				}
-				return result;
-			}
-		}
 	}
 	return unknownHost;
 }
@@ -805,71 +804,39 @@ format_owner (char *owner, AttrList *ad)
 
 
 static char *
-format_globusHostJMAndExec( char  *globusArgs, AttrList * )
+format_globusHostJMAndExec( char  *globusResource, AttrList *ad )
 {
 	static char result[64];
-	char	host[80], jobManager[80], exec[10240];
-	char	*tmp, *jm, *ex;
-	int		i, p;
+	char	host[80] = "[?????]";
+	char	exec[1024] = "[?????]";
+	char	jm[80] = "[?????]";
+	char	*tmp;
+	int	p;
 
-	strcpy( result, "[?????] [?????]\n" );
+	// copy the hostname
+	p = strcspn( globusResource, ":/" );
+	if ( p > sizeof(host) )
+		p = sizeof(host) - 1;
+	strncpy( host, tmp, p );
+	host[p] = '\0';
 
-	if( ( tmp = strstr( globusArgs, "jobmanager-" ) ) == NULL ) {
-		return( result );
-	} 
+	if ( ( tmp = strstr( globusResource, "jobmanager-" ) ) != NULL ) {
+		tmp += 11; // 11==strlen("jobmanager-")
 
-	jm = tmp + 11; // 11==strlen("jobmanager-")
-
-		// A.  Get the HOST part
-		// scan backwards until (')
-	while( *tmp != '\'' ) {
-			// make sure we don't overrun the beginning of the string
-		if( tmp == globusArgs ) return( result );
-		tmp--;
+		// copy the jobmanager name
+		p = strcspn( tmp, ":" );
+		if ( p > sizeof(jm) )
+			p = sizeof(jm) - 1;
+		strncpy( jm, tmp, p );
+		jm[p] = '\0';
 	}
-	tmp++;
-	i = 0;
-	while( *tmp != ':' && i < sizeof(host)-1 ) {
-			// make sure we don't overrun the end of the string
-		if( *tmp == '\0' ) return( result );
-		host[i] = *tmp;
-		tmp++;
-		i++;
-	}
-	host[i] = '\0';
 
-		// B.  Get the JOBMANAGER part
-	i = 0;
-	while( *jm != ':' && i < sizeof(jobManager)-1 ) {
-			// make sure we don't overrun the end of the string
-		if( *jm == '\0' ) return( result );
-		jobManager[i] = *jm;
-		jm++;
-		i++;
-	}
-	jobManager[i] = '\0';
-		
-		// C.  Get the globus executable
-	if( ( tmp = strstr( globusArgs, "&(executable=" ) ) == NULL ) {
-		return( result );
-	}
-	ex = tmp + 13;	// 13==strlen("&(executable=")
-	i = 0;
-	p = 1;
-	while( p > 0 && i < sizeof(exec)-1 ) {
-			// make sure we don't overrun the end of the string
-		if( *ex == '\0' ) return( result );
-		exec[i] = *ex;
-		ex++;
-		i++;
-		if( *ex == '(' ) p++;
-		if( *ex == ')' ) p--;
-	}
-	exec[i] = '\0';
+	// get the executable name
+	ad->LookupString(ATTR_JOB_CMD, result);
 
-		// done --- pack components into the result string and return
-	sprintf( result, " %-8.8s %-18.18s  %-18.18s\n", jobManager, host, 
-		basename(exec) );
+	// done --- pack components into the result string and return
+	sprintf( result, " %-8.8s %-18.18s  %-18.18s\n", jm, host,
+			 basename(exec) );
 	return( result );
 }
 
@@ -990,7 +957,7 @@ show_queue_buffered( char* scheddAddr, char* scheddName, char* scheddMachine )
 			mask.registerFormat( "%7s ", "GlobusStatus" );
 			mask.registerFormat( (StringCustomFmt)
 								 format_globusHostJMAndExec,
-								 "GlobusArgs", "[?????] [?????]\n" );
+								 ATTR_GLOBUS_RESOURCE, "[?????] [?????]\n" );
 			setup_mask = true;
 			usingPrintMask = true;
 		}
@@ -1151,7 +1118,7 @@ show_queue( char* scheddAddr, char* scheddName, char* scheddMachine )
 				mask.registerFormat( "%7s ", "GlobusStatus" );
 				mask.registerFormat( (StringCustomFmt)
 									 format_globusHostJMAndExec,
-									 "GlobusArgs", "[?????] [?????]\n" );
+									 ATTR_GLOBUS_RESOURCE, "[?????] [?????]\n" );
 				setup_mask = true;
 				usingPrintMask = true;
 			}
@@ -1531,6 +1498,28 @@ doRunAnalysisToBuffer( ClassAd *request )
 		fPreemptReqTest,
 		available );
 
+	int last_match_time=0, last_rej_match_time=0;
+	request->LookupInteger(ATTR_LAST_MATCH_TIME, last_match_time);
+	request->LookupInteger(ATTR_LAST_REJ_MATCH_TIME, last_rej_match_time);
+	if (last_match_time) {
+		time_t t = (time_t)last_match_time;
+		sprintf( return_buff, "%s\tLast successful match: %s",
+				 return_buff, ctime(&t) );
+	} else if (last_rej_match_time) {
+		strcat( return_buff, "\tNo successful match recorded.\n" );
+	}
+	if (last_rej_match_time > last_match_time) {
+		time_t t = (time_t)last_rej_match_time;
+		sprintf( return_buff, "%s\tLast failed match: %s",
+				 return_buff, ctime(&t) );
+		buffer[0] = '\0';
+		request->LookupString(ATTR_LAST_REJ_MATCH_REASON, buffer);
+		if (buffer[0]) {
+			sprintf( return_buff, "%s\tReason for last match failure: %s\n",
+					 return_buff, buffer );
+		}
+	}
+
 	if( niceUser ) {
 		sprintf( return_buff, 
 				 "%s\n\t(*)  Since this is a \"nice-user\" request, this request "
@@ -1558,7 +1547,7 @@ doRunAnalysisToBuffer( ClassAd *request )
 
 	if( fOffConstraint == totalMachines ) {
 		sprintf( return_buff, "%s\nWARNING:  Be advised:", return_buff );
-		sprintf( return_buff, "%s   Request %d.%d did not match any"
+		sprintf( return_buff, "%s   Request %d.%d did not match any "
 			"resource's constraints\n\n", return_buff, cluster, proc);
 	}
 

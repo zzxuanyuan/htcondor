@@ -6,6 +6,21 @@
 #include "job.h"
 #include "types.h"
 
+#include "HashTable.h"
+#include "../condor_daemon_core.V6/condor_daemon_core.h"
+
+//-----------------------------------------------------------------------------
+Script::Script( bool post, char* cmd, Job* job ) :
+    _post         (post),
+    _retValScript (-1),
+    _retValJob    (-1),
+    _logged       (false),
+	_pid		  (0),
+    _job          (job)
+{
+    _cmd = strnewp (cmd);
+}
+
 //-----------------------------------------------------------------------------
 Script::~Script () {
     delete [] _cmd;
@@ -13,18 +28,10 @@ Script::~Script () {
 }
 
 //-----------------------------------------------------------------------------
-Script::Script (bool post, char * cmd, Job * job) :
-    _post         (post),
-    _retValScript (-1),
-    _retValJob    (-1),
-    _logged       (false),
-    _job          (job)
+int
+Script::BackgroundRun( int reaperId )
 {
-    _cmd = strnewp (cmd);
-}
-
-//-----------------------------------------------------------------------------
-int Script::Run () {
+	// construct command line
     const char *delimiters = " \t";
     char * token;
     string send;
@@ -38,6 +45,10 @@ int Script::Run () {
 
         send += ' ';
     }
+
+	_pid = daemonCore->Create_Process( cmd, (char*) send.str(),
+									   PRIV_UNKNOWN, reaperId, TRUE,
+									   NULL, NULL, FALSE, NULL, NULL, 0 );
     delete [] cmd;
-    return _retValScript = util_popen (send.str());
+	return _pid;
 }

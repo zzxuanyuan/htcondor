@@ -50,7 +50,7 @@ const 	int			MAX_REJECTED_CLUSTERS = 1024;
 const   int         STARTD_CONTACT_TIMEOUT = 45;
 const	int			NEGOTIATOR_CONTACT_TIMEOUT = 30;
 
-extern	char**		environ;
+extern	DLL_IMPORT_MAGIC char**		environ;
 
 struct shadow_rec
 {
@@ -68,11 +68,14 @@ struct OwnerData {
   int JobsRunning;
   int JobsIdle;
   int JobsHeld;
+  int JobsFlocked;
   int FlockLevel;
   int OldFlockLevel;
+  int GlobusJobs;
+  int GlobusUnsubmittedJobs;
   time_t NegotiationTimestamp;
   OwnerData() { Name=NULL;
-                JobsRunning=JobsIdle=JobsHeld=FlockLevel=OldFlockLevel=0; }
+  JobsRunning=JobsIdle=JobsHeld=JobsFlocked=FlockLevel=OldFlockLevel=GlobusJobs=GlobusUnsubmittedJobs=0; }
 };
 
 struct match_rec
@@ -81,25 +84,32 @@ struct match_rec
 	~match_rec();
     char    		id[SIZE_OF_CAPABILITY_STRING];
     char    		peer[50];
+	
+		// cluster of the job we used to obtain the match
+	int				origcluster; 
+
+		// if match is currently active, cluster and proc of the
+		// running job associated with this match; otherwise,
+		// cluster==origcluster and proc==-1
     int     		cluster;
     int     		proc;
+
     int     		status;
 	shadow_rec*		shadowRec;
 	int				alive_countdown;
 	int				num_exceptions;
-    int             isMatchedMPI;
 	ClassAd*		my_match_ad;
 	char*			user;
 	char*			pool;		// negotiator hostname if flocking; else NULL
 	bool			sent_alive_interval;
+	bool			allocated;	// For use by the DedicatedScheduler
 };
 
 enum MrecStatus {
-    M_ACTIVE,
-    M_INACTIVE,
-    M_DELETED,
+    M_UNCLAIMED,
 	M_STARTD_CONTACT_LIMBO,  // after contacting startd; before recv'ing reply
-	M_DELETE_PENDING         // is set if we should delete, but in above state
+	M_CLAIMED,
+    M_ACTIVE
 };
 
 // These are the args to contactStartd that get stored in the queue.
@@ -111,6 +121,16 @@ struct contactStartdArgs {
 	ClassAd *my_match_ad;
 	char *pool;
 };
+
+// SC2000 This struct holds the state in contactStartdArgs.  We register
+// a pointer to this state so we can restore it after a non-blocking connect.
+struct contactStartdState {
+    match_rec* mrec;
+    char* capability;
+    char* server;
+    ClassAd *jobAd;
+};
+
 
 class Scheduler : public Service
 {
@@ -153,22 +173,51 @@ class Scheduler : public Service
     match_rec*      AddMrec(char*, char*, PROC_ID*, ClassAd*, char*, char*);
     int         	DelMrec(char*);
     int         	DelMrec(match_rec*);
-    int         	MarkDel(char*);
 	shadow_rec*		FindSrecByPid(int);
 	shadow_rec*		FindSrecByProcID(PROC_ID);
 	void			RemoveShadowRecFromMrec(shadow_rec*);
 	int				AlreadyMatched(PROC_ID*);
 	void			StartJobs();
 	void			StartSchedUniverseJobs();
-	void			send_alive();
+	void			sendAlives();
 	void			StartJobHandler();
 	UserLog*		InitializeUserLog( PROC_ID job_id );
 	bool			WriteAbortToUserLog( PROC_ID job_id );
 	bool			WriteExecuteToUserLog( PROC_ID job_id, const char* sinful = NULL );
 	bool			WriteEvictToUserLog( PROC_ID job_id, bool checkpointed = false );
 	bool			WriteTerminateToUserLog( PROC_ID job_id, int status );
+#ifdef WANT_NETMAN
 	void			RequestBandwidth(int cluster, int proc, match_rec *rec);
-	
+#endif
+
+		// Public startd socket management functions
+	void			addRegContact( void ) { num_reg_contacts++; };
+	void			delRegContact( void ) { num_reg_contacts--; };
+	int				numRegContacts( void ) { return num_reg_contacts; };
+	void            checkContactQueue();
+		/** Registered in contactStartd, this function is called when
+			the startd replies to our request.  If it replies in the 
+			positive, the mrec->status is set to M_ACTIVE, else the 
+			mrec gets deleted.  The 'sock' is de-registered and deleted
+			before this function returns.
+			@param sock The sock with the startd's reply.
+			@return FALSE on denial/problems, TRUE on success
+		*/
+	int             startdContactSockHandler( Stream *sock );
+
+		// Useful public info
+	char*			shadowSockSinful( void ) { return MyShadowSockName; };
+	char*			dcSockSinful( void ) { return MySockName; };
+	int				aliveInterval( void ) { return alive_interval; };
+	char*			uidDomain( void ) { return UidDomain; };
+
+		// Used by the DedicatedScheduler class
+	void 			swap_space_exhausted();
+	void			delete_shadow_rec(int);
+	shadow_rec*     add_shadow_rec(int, PROC_ID*, match_rec*, int);
+	shadow_rec*		add_shadow_rec(shadow_rec*);
+	void			HadException( match_rec* );
+
   private:
 	
 	// information about this scheduler
@@ -186,6 +235,7 @@ class Scheduler : public Service
 	int				QueueCleanInterval;
 	int				JobStartDelay;
 	int				MaxJobsRunning;
+	bool			NegotiateAllJobsInCluster;
 	int				JobsStarted; // # of jobs started last negotiating session
 	int				SwapSpace;	 // available at beginning of last session
 	int				ShadowSizeEstimate;	// Estimate of swap needed to run a job
@@ -194,12 +244,14 @@ class Scheduler : public Service
 	int				JobsIdle; 
 	int				JobsRunning;
 	int				JobsHeld;
+	int				JobsFlocked;
 	int				JobsRemoved;
 	int				SchedUniverseJobsIdle;
 	int				SchedUniverseJobsRunning;
 	int				BadCluster;
 	int				BadProc;
-	int				RejectedClusters[MAX_REJECTED_CLUSTERS];
+	//int				RejectedClusters[MAX_REJECTED_CLUSTERS];
+	ExtArray<int>   RejectedClusters;
 	int				N_RejectedClusters;
     OwnerData			Owners[MAX_NUM_OWNERS];
 	int				N_Owners;
@@ -213,11 +265,10 @@ class Scheduler : public Service
 	int             startJobsDelayBit;  // for delay when starting jobs.
 
 		// used so that we don't register too many Sockets at once & fd panic
-	int             numRegContacts;  
+	int             num_reg_contacts;  
 		// Here we enqueue calls to 'contactStartd' when we can't just 
 		// call it any more.  See contactStartd and the call to it...
 	Queue<contactStartdArgs*> startdContactQueue;
-	void            checkContactQueue();
 	int             MAX_STARTD_CONTACTS;
 	int				checkContactQueue_tid;	// DC Timer ID to check queue
 	
@@ -273,33 +324,16 @@ class Scheduler : public Service
 								  char *server, PROC_ID *jobId,
 								  ClassAd *my_match_ad, char *pool);
 
-		/** Registered in contactStartd, this function is called when
-			the startd replies to our request.  If it replies in the 
-			positive, the mrec->status is set to M_ACTIVE, else the 
-			mrec gets deleted.  The 'sock' is de-registered and deleted
-			before this function returns.
-			@param sock The sock with the startd's reply.
-			@return FALSE on denial/problems, TRUE on success
-		*/
-	int             startdContactSockHandler( Stream *sock );
-
 	shadow_rec*		StartJob(match_rec*, PROC_ID*);
 	shadow_rec*		start_std(match_rec*, PROC_ID*);
 	shadow_rec*		start_pvm(match_rec*, PROC_ID*);
-	shadow_rec*     start_mpi(match_rec*, PROC_ID*);
 	shadow_rec*		start_sched_universe_job(PROC_ID*);
 	void			Relinquish(match_rec*);
-	void 			swap_space_exhausted();
-	void			delete_shadow_rec(int);
-	void			mark_job_running(PROC_ID*);
-	int				is_alive(shadow_rec* srec);
 	void			check_zombie(int, PROC_ID*);
 	void			kill_zombie(int, PROC_ID*);
+	int				is_alive(shadow_rec* srec);
 	shadow_rec*     find_shadow_rec(PROC_ID*);
-	shadow_rec*     add_shadow_rec(int, PROC_ID*, match_rec*, int);
-	shadow_rec*		add_shadow_rec(shadow_rec*);
 	void			NotifyUser(shadow_rec*, char*, int, int);
-	void			HadException( match_rec* );
 	
 #ifdef CARMI_OPS
 	shadow_rec*		find_shadow_by_cluster( PROC_ID * );
@@ -314,21 +348,9 @@ class Scheduler : public Service
 	StringList		*FlockCollectors, *FlockNegotiators, *FlockViewServers;
 	int				MaxFlockLevel;
 	int				FlockLevel;
-    int         	aliveInterval;             // how often to broadcast alive
+    int         	alive_interval;  // how often to broadcast alive
 	int				MaxExceptions;	 // Max shadow excep. before we relinquish
 	bool			ManageBandwidth;
-
-        // Used to push matches at the mpi shadow:
-    int pushMPIMatches( char * shadow, ExtArray<match_rec*> *MpiMatches, 
-                        int procs );
-        // helper of above function
-    int countOfProc( ExtArray<match_rec*> matches, int proc );
-        // hashed on cluster, the matches stored for this MPI job...
-    HashTable <int, ExtArray<match_rec*>*> *storedMatches;
-    friend int mpiHashFunc( const int& cluster, int numbuckets );
-    static const int MPIShadowSockTimeout;
-		// Remove all startds from a given match.
-	void nuke_mpi ( shadow_rec *srec );
 
 		// put state into ClassAd return it.  Used for condor_squawk
 	int	dumpState(int, Stream *);
@@ -341,4 +363,9 @@ class Scheduler : public Service
 
 };
 	
+// Other prototypes
+extern void set_job_status(int cluster, int proc, int status);
+extern bool claimStartd( match_rec* mrec, ClassAd* job_ad, bool is_dedicated );
+extern bool sendAlive( match_rec* mrec );
+
 #endif

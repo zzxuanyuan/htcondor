@@ -204,8 +204,24 @@ bool parse (char *filename, Dag *dag) {
             while (*rest != '\0') rest++;
             if (rest < endline)   rest++;
 
-            if (post) job->_scriptPost = new Script (post, rest, job);
-            else      job->_scriptPre  = new Script (post, rest, job);
+            if( post ) {
+				job->_scriptPost =
+					new Script( post, rest, job );
+				if( job->_scriptPost == NULL ) {
+					debug_error( 1, DEBUG_SILENT,
+								 "ERROR: out of memory (%s() in %s:%d)!\n",
+								 __FUNCTION__, __FILE__, __LINE__ );
+				}
+			}
+            else {
+				job->_scriptPre =
+					new Script( post, rest, job );
+				if( job->_scriptPre == NULL ) {
+					debug_error( 1, DEBUG_SILENT,
+								 "ERROR: out of memory (%s() in %s:%d)!\n",
+								 __FUNCTION__, __FILE__, __LINE__ );
+				}
+			}
         }
 
         //

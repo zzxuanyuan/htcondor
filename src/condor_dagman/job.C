@@ -7,15 +7,17 @@ JobID_t Job::_jobID_counter = 0;  // Initialize the static data memeber
 
 //---------------------------------------------------------------------------
 const char *Job::queue_t_names[] = {
-    "QUEUE_INCOMING",
-    "QUEUE_WAITING ",
-    "QUEUE_OUTGOING",
+    "Q_PARENTS",
+    "Q_WAITING",
+    "Q_CHILDREN",
 };
 
 //---------------------------------------------------------------------------
 const char * Job::status_t_names[] = {
     "STATUS_READY    ",
+    "STATUS_PRERUN   ",
     "STATUS_SUBMITTED",
+	"STATUS_POSTRUN  ",
     "STATUS_DONE     ",
     "STATUS_ERROR    ",
 };
@@ -32,7 +34,8 @@ Job::Job (const char *jobName, const char *cmdFile):
     _scriptPost (NULL),
     _Status     (STATUS_READY)
 {
-
+	assert( jobName != NULL );
+	assert( cmdFile != NULL );
     _jobName = strnewp (jobName);
     _cmdFile = strnewp (cmdFile);
 
@@ -61,7 +64,16 @@ void Job::Dump () const {
     printf ("          JobID: %d\n", _jobID);
     printf ("       Job Name: %s\n", _jobName);
     printf ("     Job Status: %s\n", status_t_names[_Status]);
+	if( _Status == STATUS_ERROR ) {
+		printf( "          Error: %s\n", error_text ? error_text : "unknown" );
+	}
     printf ("       Cmd File: %s\n", _cmdFile);
+	if( _scriptPre ) {
+		printf( "     PRE Script: %s\n", _scriptPre->GetCmd() );
+	}
+	if( _scriptPost ) {
+		printf( "    POST Script: %s\n", _scriptPost->GetCmd() );
+	}
     printf ("      Condor ID: ");
     _CondorID.Print();
     putchar('\n');

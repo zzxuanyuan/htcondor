@@ -65,6 +65,14 @@ while( $_ = shift ) {
 	}
 	last SWITCH;
     }
+    if( /^-r/ ) {
+	$remote_schedd = shift;
+	if( ! $remote_schedd ) {
+	    &usage();
+	}
+	$remote_schedd = "-r $remote_schedd";
+	last SWITCH;
+    }
     $dagfile = $_;
   }
 }
@@ -80,9 +88,17 @@ if( ! $dagfile ) {
     $rescue_file = "$dagfile.rescue";
 }
 
-# Figure out if condor_dagman is installed, and if so, where. 
-chop( $dagman_path = `which condor_dagman` );
--x $dagman_path || 
+
+# See if there is an executable 'condor_dagman' anywhere in our path.
+foreach $dir ( split /:/, $ENV{PATH} )
+{
+    $cur_path = "$dir/condor_dagman";
+    if( -x $cur_path ) {
+        $dagman_path = $cur_path;
+        last;
+    }
+}
+$dagman_path || 
     die "Can't find the condor_dagman exectuable in your PATH, aborting.\n";
 
 # Make sure all the files we're going to use are available, and if
@@ -120,7 +136,7 @@ print "\n";
 print "Condor Log file for all jobs of this DAG : $job_log\n";
 
 if( $submit ) {
-    print `condor_submit $sub_file`;
+    print `condor_submit $remote_schedd $sub_file`;
 } else {
     print "-no_submit given, not submitting DAG to Condor.  You can do this with:\n";
     print "\"condor_submit $sub_file\"\n";
@@ -150,7 +166,7 @@ sub usage {
 }
 
 sub parse_dag_file {
-    local( %cmd_files, %log_names, $log_name, $had_error, $did_one, $len, $max );
+    local( %cmd_files, %log_names, $log_name, $had_error, $did_one, $len );
     $had_error = 0;
     $did_one = 0;
     open( DAG, "<$dagfile" ) || die "Can't open $dagfile for reading: $!\n";

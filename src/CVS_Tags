@@ -1,15 +1,47 @@
-9/14/00 trunk-pre-merge-V6_3-post-merge-V6_1_16
-	The state of the trunk before merging in the V6_3-branch where
-	it stood after merging in V6_1_16 from the V6_2-branch.
-	(confused yet?) :) 
+12/22/00 V6_3-post-merge-V6_2-merge-2
+	The state of the V6_3-branch after merging in the V6_2-branch
+	as tagged at V6_2-merge-2.
 
-7/7/00 trunk-pre-merge-V6_1-NewAds-3-branch-merge-1
-	The state of the trunk before merging in the NewAds-3-branch.
+12/22/00 V6_3-pre-merge-V6_2-merge-2
+	The state of the V6_3-branch before merging in the V6_2-branch
+	as tagged at V6_2-merge-2.
 
-7/7/00 V6_1-NewAds-3-branch-merge-1
-	This is the NewAds-3-branch, at the time it was about to be
-	merged into the 6.5 trunk.  This should be the end of the road
-	for the NewAds branches, since now, the trunk will be NewAds. 
+12/22/00 V6_2-merge-2
+	V6_2 branch state (still prior to 6.1.17, so not quite worthy
+        of the V6_1_17 tag) for merging into V6_3 branch
+
+12/6/00 V6_3-post-merge-V6_2-merge-1
+	The state of the V6_3-branch after merging in the V6_2-branch
+	as tagged at V6_2-merge-1.
+
+12/6/00 V6_3-pre-merge-V6_2-merge-1
+	The state of the V6_3-branch before merging in the V6_2-branch
+	as tagged at V6_2-merge-1.
+
+12/6/00 V6_2-merge-1
+	V6_2 branch state (just prior to 6.1.17, so not quite worthy
+        of the V6_1_17 tag) for merging into V6_3 branch
+
+9/14/00 V6_3-post-merge-V6_1_16
+	The state of the V6_3-branch after merging in the V6_2-branch
+	as tagged at V6_1_16.
+
+9/13/00 V6_3-pre-merge-V6_1_16
+	The state of the V6_3-branch before merging in the V6_2-branch
+	as tagged at V6_1_16.
+
+9/8?/00 V6_1_16
+	6.1.16 release tag, which lives on the V6_2-branch.  config
+	was tagged on 9/12, with the code from the earlier date.
+	NTconfig and doc were tagged on 9/13/00 with the tail of the
+	branch (since I don't think NTconfig changed, doc didn't
+	change much, and it doesn't matter nearly as much) There are
+	now a bunch more module names and renewed awareness of using
+	the *_ALL module names to help avoid these sorts of things in
+	the future.  -Derek
+
+8/22/00 V6_1_15
+	6.1.15 release tag, which lives on the V6_2-branch.
 
 7/6/00 V6_3-branch
 	The branch for all of Condor version 6.3.X (and, probably,
@@ -19,13 +51,6 @@
 	features, Globus universe stuff, Condor-G, Personal Condor
 	stuff, etc.  It should *NOT* contain new classads, new schedd,
 	etc, etc. 
-
-	Note: when merging V6_3-branch condor_netman directory into
-	the trunk, please make sure CVS takes the V6_3-branch version
-	of the code instead of the trunk version.  Jim Basney added
-	the condor_netman directory to both the V6_3-branch and the
-	trunk (by mistake) on 12/1/00.  The V6_3-branch version is the
-	authoritative one.
 
 7/6/00 V6_2-branch The branch for all of Condor version 6.2.X.  In
 	addition, the last few 6.1.X releases (hopefully, just

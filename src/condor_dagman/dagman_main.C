@@ -1,4 +1,5 @@
 #include "condor_common.h"
+#include "condor_config.h"
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
 #include "basename.h"
 #include "dag.h"
@@ -8,6 +9,8 @@
 //---------------------------------------------------------------------------
 char* mySubSystem = "DAGMAN";         // used by Daemon Core
 
+bool run_post_on_failure;	// for DAGMAN_RUN_POST_ON_FAILURE config setting
+
 // Required for linking with condor libs
 extern "C" int SetSyscalls() { return 0; }
 
@@ -16,11 +19,13 @@ class Global {
     inline Global ():
         dag          (NULL),
         maxJobs      (0),
+        maxScripts   (0),
         rescue_file  (NULL),
         datafile     (NULL) {}
     inline void CleanUp () { delete dag; }
     Dag * dag;
     int maxJobs;  // Maximum number of Jobs to run at once
+    int maxScripts;  // max. number of PRE/POST scripts to run at once
     char *rescue_file;
     char *datafile;
 };
@@ -37,6 +42,7 @@ static void Usage() {
             "\t\t-Dag <NAME.dag>\n"
             "\t\t-Rescue <Rescue.dag>\n"
             "\t\t[-MaxJobs] <int N>\n\n"
+            "\t\t[-MaxScripts] <int N>\n\n"
             "\twhere NAME is the name of your DAG.\n"
             "\twhere N is Maximum # of Jobs to run at once "
             "(0 means unlimited)\n"
@@ -56,6 +62,16 @@ void touch (const char * filename) {
 //---------------------------------------------------------------------------
 
 int main_config() { 
+	char* s = param( "DAGMAN_RUN_POST_ON_FAILURE" );
+	if( s != NULL && !strcasecmp( s, "TRUE" ) ) {
+		run_post_on_failure = TRUE;
+	}	
+	else {
+		run_post_on_failure = FALSE;
+	}
+	if( s != NULL ) {
+		free( s );
+	}
     return TRUE;
 }
 
@@ -155,6 +171,14 @@ int main_init (int argc, char **argv) {
                 Usage();
             }
             G.maxJobs = atoi (argv[i]);
+        } else if( !strcmp( "-MaxScripts", argv[i] ) ) {
+            i++;
+            if( argc <= i ) {
+                debug_println( DEBUG_SILENT,
+							   "Integer missing after -MaxScripts" );
+                Usage();
+            }
+            G.maxScripts = atoi( argv[i] );
         } else Usage();
     }
   
@@ -176,6 +200,10 @@ int main_init (int argc, char **argv) {
     }
     if (G.maxJobs < 0) {
         debug_println (DEBUG_SILENT, "-MaxJobs must be non-negative");
+        Usage();
+    }
+    if( G.maxScripts < 0 ) {
+        debug_println( DEBUG_SILENT, "-MaxScripts must be non-negative" );
         Usage();
     }
  
@@ -203,7 +231,12 @@ int main_init (int argc, char **argv) {
     // Create the DAG
     //
   
-    G.dag = new Dag (condorLogName, lockFileName, G.maxJobs);
+    G.dag = new Dag( condorLogName, lockFileName, G.maxJobs, G.maxScripts );
+
+    if( G.dag == NULL ) {
+        EXCEPT( "ERROR: out of memory (%s() in %s:%d)!\n",
+                __FUNCTION__, __FILE__, __LINE__ );
+    }
   
     //
     // Parse the input file.  The parse() routine
@@ -217,8 +250,6 @@ int main_init (int argc, char **argv) {
     debug_println (DEBUG_VERBOSE, "Dag contains %d total jobs",
                    G.dag->NumJobs());
 
-    if (DEBUG_LEVEL(DEBUG_DEBUG_3)) G.dag->PrintJobList();
-  
     //------------------------------------------------------------------------
     // Bootstrap and Recovery
     //
@@ -278,6 +309,13 @@ void main_timer () {
     
     debug_println (DEBUG_DEBUG_2, "%s: Jobs Done: %d/%d", __FUNCTION__,
                    G.dag->NumJobsDone(), G.dag->NumJobs());
+
+	if( DEBUG_LEVEL( DEBUG_VERBOSE ) ) {
+		printf( "%d Jobs Total / %d Submitted / %d Failed / %d Done "
+				"(%d Scripts Running)\n", G.dag->NumJobs(),
+				G.dag->NumJobsSubmitted(), G.dag->NumJobsFailed(),
+				G.dag->NumJobsDone(), G.dag->NumScriptsRunning() );
+	}
     
     // If the log has grown
     if (G.dag->DetectLogGrowth()) {
@@ -299,19 +337,29 @@ void main_timer () {
     // If DAG is complete, hurray, and exit.
     //
     if (G.dag->NumJobsDone() >= G.dag->NumJobs()) {
-        assert (G.dag->NumJobsRunning() == 0);
+        assert (G.dag->NumJobsSubmitted() == 0);
         debug_println (DEBUG_NORMAL, "All jobs Completed!");
         G.CleanUp();
         DC_Exit(0);
     }
 
     //
-    // If no jobs are running, but the dag is not complete,
+    // If no jobs are submitted, but the dag is not complete,
     // then at least one job failed, or a cycle exists.
     // 
-    if (G.dag->NumJobsRunning() == 0 && G.rescue_file != NULL) {
-        debug_println (DEBUG_NORMAL, "Writing Rescue DAG file...");
-        G.dag->Rescue(G.rescue_file, G.datafile);
+    if( G.dag->NumJobsSubmitted() == 0 &&
+		G.dag->NumScriptsRunning() == 0 ) {
+		if( DEBUG_LEVEL( DEBUG_QUIET ) ) {
+			printf( "ERROR: the following job(s) failed:\n" );
+			G.dag->PrintJobList( Job::STATUS_ERROR );
+		}
+		if( G.rescue_file != NULL ) {
+			debug_println (DEBUG_NORMAL, "Writing Rescue DAG file...");
+			G.dag->Rescue(G.rescue_file, G.datafile);
+		}
+		else {
+			debug_println( DEBUG_NORMAL, "Rescue file not defined..." );
+		}
         G.CleanUp();
         DC_Exit(0);
     }
