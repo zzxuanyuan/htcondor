@@ -101,6 +101,7 @@ static char *GMStateNames[] = {
 #endif
 
 #define STAGE_COMPLETE_FILE	".condor_complete"
+#define NORDUGRID_LOG_DIR ".nordugrid_log"
 
 // TODO: Let the maximum submit attempts be set in the job ad or, better yet,
 // evalute PeriodicHold expression in job ad.
@@ -765,7 +766,7 @@ int NordugridJob::doStatus( int &new_remote_state )
 		return TASK_QUEUED;
 	}
 
-	filename.sprintf( "/jobs/%s/job.log/status", remoteJobId );
+	filename.sprintf( "/jobs/%s/%s/status", remoteJobId, NORDUGRID_LOG_DIR );
 
 	status_fp = ftp_lite_get( ftp_srvr, filename.Value(), 0 );
 	if ( status_fp == NULL ) {
@@ -1081,7 +1082,8 @@ int NordugridJob::doExitInfo()
 		return TASK_QUEUED;
 	}
 
-	diag_filename.sprintf( "/jobs/%s/job.log/diag", remoteJobId );
+	diag_filename.sprintf( "/jobs/%s/%s/diag", remoteJobId,
+						   NORDUGRID_LOG_DIR );
 
 	diag_fp = ftp_lite_get( ftp_srvr, diag_filename.Value(), 0 );
 	if ( diag_fp == NULL ) {
@@ -1255,7 +1257,7 @@ MyString *NordugridJob::buildSubmitRSL()
 	}
 
 	//Start off the RSL
-	rsl->sprintf( "&(savestate=yes)(action=request)(lrmstype=pbs)(hostname=nostos.cs.wisc.edu)(gmlog=job.log)" );
+	rsl->sprintf( "&(savestate=yes)(action=request)(lrmstype=pbs)(hostname=nostos.cs.wisc.edu)(gmlog=%s)", NORDUGRID_LOG_DIR );
 
 	//We're assuming all job clasads have a command attribute
 	ad->LookupString( ATTR_JOB_CMD, &executable );
