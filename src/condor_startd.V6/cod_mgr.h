@@ -47,6 +47,13 @@ public:
 
 	int numClaims( void );
 
+		// functions for the classad-only claim management protocol
+	bool release( Stream* s, ClassAd* req, Claim* claim );
+	bool activate( Stream* s, ClassAd* req, Claim* claim );
+	bool deactivate( Stream* s, ClassAd* req, Claim* claim );
+	bool suspend( Stream* s, ClassAd* req, Claim* claim );
+	bool resume( Stream* s, ClassAd* req, Claim* claim );
+
 private:
 
 	Resource* rip;

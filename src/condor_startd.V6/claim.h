@@ -54,6 +54,7 @@
 #define _CLAIM_H
 
 #include "Starter.h"
+class CODMgr;
 
 typedef enum {
     CLAIM_UNCLAIMED,
@@ -152,7 +153,7 @@ public:
 	ClaimState	state()			{return c_state;};
 	float		percentCpuUsage( void );
 	unsigned long	imageSize( void );
-	
+	CODMgr*		getCODMgr( void );
 
 		// Functions that set the values of data
 	void setrank(float rank)	{c_rank=rank;};
@@ -183,13 +184,6 @@ public:
 	bool starterKillHard( void );
 
 	bool periodicCheckpoint( void );
-
-		// functions for the classad-only claim management protocol
-	bool release( Stream* s, ClassAd* req );
-	bool activate( Stream* s, ClassAd* req );
-	bool deactivate( Stream* s, ClassAd* req );
-	bool suspend( Stream* s, ClassAd* req );
-	bool resume( Stream* s, ClassAd* req );
 
 	bool ownerMatches( const char* owner );
 

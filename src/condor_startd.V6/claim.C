@@ -433,6 +433,15 @@ Claim::imageSize( void )
 }
 
 
+CODMgr*
+Claim::getCODMgr( void )
+{
+	if( ! c_rip ) {
+		return NULL;
+	}
+	return c_rip->r_cod_mgr;
+}
+
 int
 Claim::spawnStarter( start_info_t* info, time_t now )
 {
@@ -639,46 +648,6 @@ Claim::periodicCheckpoint( void )
 		}
 	}
 	setlastpckpt( (int)time(NULL) );
-	return true;
-}
-
-
-bool
-Claim::release( Stream* s, ClassAd* req )
-{
-		// TODO!
-	return true;
-}
-
-
-bool
-Claim::activate( Stream* s, ClassAd* req )
-{
-		// TODO!
-	return true;
-}
-
-
-bool
-Claim::deactivate( Stream* s, ClassAd* req )
-{
-		// TODO!
-	return true;
-}
-
-
-bool
-Claim::suspend( Stream* s, ClassAd* req )
-{
-		// TODO!
-	return true;
-}
-
-
-bool
-Claim::resume( Stream* s, ClassAd* req )
-{
-		// TODO!
 	return true;
 }
 

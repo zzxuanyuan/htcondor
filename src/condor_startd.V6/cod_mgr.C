@@ -109,3 +109,44 @@ CODMgr::numClaims( void )
 {
 	return claims.Number();
 }
+
+
+bool
+CODMgr::release( Stream* s, ClassAd* req, Claim* claim )
+{
+		// TODO!
+	return true;
+}
+
+
+bool
+CODMgr::activate( Stream* s, ClassAd* req, Claim* claim )
+{
+		// TODO!
+	return true;
+}
+
+
+bool
+CODMgr::deactivate( Stream* s, ClassAd* req, Claim* claim )
+{
+		// TODO!
+	return true;
+}
+
+
+bool
+CODMgr::suspend( Stream* s, ClassAd* req, Claim* claim )
+{
+		// TODO!
+	return true;
+}
+
+
+bool
+CODMgr::resume( Stream* s, ClassAd* req, Claim* claim )
+{
+		// TODO!
+	return true;
+}
+

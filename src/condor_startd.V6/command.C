@@ -1387,21 +1387,28 @@ command_classad_handler( Service*, int, Stream* s )
 		return FALSE;
 	}
 
+		// now, find the CODMgr managing this Claim, and call the
+		// appropriate method for the given command
+	CODMgr* cod_mgr = claim->getCODMgr();
+	if( ! cod_mgr ) {
+		EXCEPT( "Resource does not have a CODMgr!" );
+	}
+
 	switch( cmd ) {
 	case CA_RELEASE_CLAIM:
-		rval = claim->release( s, &ad );
+		rval = cod_mgr->release( s, &ad, claim );
 		break;
 	case CA_ACTIVATE_CLAIM:
-		rval = claim->activate( s, &ad );
+		rval = cod_mgr->activate( s, &ad, claim );
 		break;
 	case CA_DEACTIVATE_CLAIM:
-		rval = claim->deactivate( s, &ad );
+		rval = cod_mgr->deactivate( s, &ad, claim );
 		break;
 	case CA_SUSPEND_CLAIM:
-		rval = claim->suspend( s, &ad );
+		rval = cod_mgr->suspend( s, &ad, claim );
 		break;
 	case CA_RESUME_CLAIM:
-		rval = claim->resume( s, &ad );
+		rval = cod_mgr->resume( s, &ad, claim );
 		break;
 	case CA_REQUEST_CLAIM:
 		EXCEPT( "Already handled CA_REQUEST_CLAIM, shouldn't be here\n" );
