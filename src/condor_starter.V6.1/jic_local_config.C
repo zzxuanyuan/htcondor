@@ -64,15 +64,17 @@ JICLocalConfig::getLocalJobAd( void )
 	if( !getConfigString(job_ad, key, 1, ATTR_JOB_IWD, "initialdir")) {
 		return false;
 	}
-	if( !getConfigString(job_ad, key, 1, ATTR_OWNER, NULL) ) { 
-		return false;
-	}
 	if( !getConfigInt(job_ad, key, 1, ATTR_CLUSTER_ID, "cluster")) {
 		return false;
 	}
 	if( !getConfigInt(job_ad, key, 1, ATTR_PROC_ID, "proc")) {
 		return false;
 	}
+
+		// ATTR_OWNER only matters if we're running as root, and we'll
+		// catch it later if we need it and it's not defined.  so,
+		// just treat it as optional at this point.
+	getConfigString( job_ad, key, 0, ATTR_OWNER, NULL );
 
 		// now, optional things
 	getConfigString( job_ad, key, 0, ATTR_JOB_INPUT, "input" );
