@@ -29,6 +29,7 @@
 #include "condor_attributes.h"
 #include "scheduler.h"
 #include "condor_qmgr.h"
+#include "MyString.h"
 
 #include "condorSchedd.nsmap"
 #include "soap_scheddC.cpp"
@@ -194,7 +195,7 @@ int condorSchedd__newJob(struct soap *s,xsd__long transactionId,
 			int clusterId, int & result)
 {
 	result = 0;
-	if ( !valid_transaction_id(transactionId) ) {
+	if ( (transactionId == 0) || (!valid_transaction_id(transactionId)) ) {
 		// TODO error - unrecognized transactionId
 	}
 	result = NewProc(clusterId);
@@ -274,7 +275,32 @@ int condorSchedd__submit(struct soap *s,xsd__long transactionId,
 				struct ClassAdStruct * jobAd,
 				int & result)
 {
-	// TODO!!!!
+	result = 0;
+
+	if ( (transactionId == 0) || (!valid_transaction_id(transactionId)) ) {
+		// TODO error - unrecognized transactionId
+	}
+
+	int i,rval;
+	MyString buf;
+	for (i=0; i < jobAd->__size; i++ ) {
+		const char* name = jobAd->__ptr[i].name;
+		const char* value = jobAd->__ptr[i].value;
+		if (!name) continue;   
+		if (!value) value="UNDEFINED";
+
+		if ( jobAd->__ptr[i].type == 's' ) {
+			// string type - put value in quotes as hint for ClassAd parser
+			buf.sprintf("%s=\"%s\"", name, value);
+		} else {
+			// all other types can be deduced by the ClassAd parser
+			buf.sprintf("%s=%s",name,value);
+		}
+		rval = SetAttribute(clusterId,jobId,name,value);
+		if ( rval < 0 ) {
+			result = -1;
+		}
+	}
 
 	dprintf(D_ALWAYS,"SOAP leaving condorSchedd__submit() res=%d\n",result);
 	return SOAP_OK;
