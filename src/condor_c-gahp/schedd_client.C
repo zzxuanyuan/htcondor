@@ -89,6 +89,8 @@ schedd_thread (void * arg, Stream * sock) {
 										"checkRequestPipe", NULL );
 
 
+	write (REQUEST_ACK_OUTBOX, "R", 1); // Signal that we're ready for the first request
+	
 	return TRUE;
 }
 
@@ -107,36 +109,39 @@ checkRequestPipe () {
 
 	FdBuffer * wait_on [] = { &request_buffer };
 	int is_ready = FALSE;
+	int select_result = 0;
 
 	do {
-		write (REQUEST_ACK_OUTBOX, "R", 1);
+		if (request_buffer.IsError()) {
+			dprintf (D_ALWAYS, "Request pipe, closed. Exiting...\n");
+			DC_Exit(0);
+		}
 		
-		int select_result =
+		select_result =
 			FdBuffer::Select (wait_on, 1, 3, &is_ready);
-
-		next_line = request_buffer.GetNextLine();
-		if ( (select_result > 0) && (is_ready) && (next_line != NULL)) {
+		
+		if ( (select_result > 0) && (is_ready) && ((next_line = request_buffer.GetNextLine()) != NULL)) {
 			dprintf (D_FULLDEBUG, "got work request: %s\n", next_line->Value());
-			// TODO: Will these ever fail??	
 
 			char ** argv;
 			int argc;
 
 			// Parse the command...
-			int rc = parse_gahp_command (next_line->Value(), &argv, &argc);
-			dprintf (D_FULLDEBUG, "parsed: rc=%d\n", rc );
-
-			// Add this command to the command queue...
-			rc = handle_gahp_command (argv, argc);
-			dprintf (D_FULLDEBUG, "handled rc=%d\n", rc);
+			if (!(parse_gahp_command (next_line->Value(), &argv, &argc) && handle_gahp_command (argv, argc))) {
+				dprintf (D_ALWAYS, "error processing %s\n", next_line->Value());
+				write (REQUEST_ACK_OUTBOX, "R", 1); // Signal that we're ready again
+				continue;
+			}
 
 			// Clean up...
 			delete  next_line;
 			while ((--argc) >= 0)
 				free (argv[argc]);
 			delete [] argv;
+
+			write (REQUEST_ACK_OUTBOX, "R", 1); // Signal that we're ready again		
 		}
-	} while (next_line);
+	} while (select_result > 0); // Keep selecting while there's stuff to read
 
 	time_t time2 = time (NULL);
 	
@@ -154,22 +159,18 @@ template class SimpleList <MyString*>;
 int
 doContactSchedd()
 {
-		dprintf(D_FULLDEBUG,"in pre-doContactSchedd\n");
 	if (command_queue.IsEmpty()) {
 		daemonCore->Reset_Timer( contactScheddTid, CONTACT_SCHEDD_INTERVAL ); // Come back in a min
 		return TRUE;
 	}
 
 	dprintf(D_FULLDEBUG,"in doContactSchedd\n");
-	if (ScheddAddr)
-		dprintf(D_FULLDEBUG,"schedd=%s\n",ScheddAddr);
-	else
-		dprintf(D_FULLDEBUG,"schedd=NULL\n");
 
 	// Try connecting to schedd
 	DCSchedd dc_schedd ( ScheddAddr );
 	if (dc_schedd.error() || !dc_schedd.locate()) {
-	    dprintf( D_ALWAYS, "Failed to connect to schedd!\n");
+	    dprintf( D_ALWAYS, "Failed to connect to schedd, will retry in %d secs!\n", CONTACT_SCHEDD_INTERVAL);
+    	daemonCore->Reset_Timer( contactScheddTid, CONTACT_SCHEDD_INTERVAL );
 	    return TRUE;
 	}
 
@@ -297,7 +298,7 @@ doContactSchedd()
 		} else if (current_command->command == SchedDRequest::SDC_UPDATE_CONSTRAINED ) {
 			int error = 0;
 
-			// TODO: figure out transactions
+
 			if (!BeginQmgmtTransaction(dc_schedd, TRUE)) {
 				error = TRUE;
 				strcpy (error_msg, "Unable to start QMGMT transaction");
@@ -335,14 +336,12 @@ doContactSchedd()
 			}
 
 			if (error) {
-				// TODO: abort
 				const char * result[] = {
 					GAHP_RESULT_FAILURE,
 					error_msg };
 				FinishTransaction(FALSE);
 				enqueue_result (current_command->request_id, result, 2);
 			} else {
-				// TODO: Commit
 				const char * result[] = {
 					GAHP_RESULT_SUCCESS,
 					NULL };
@@ -353,7 +352,6 @@ doContactSchedd()
 		} else if (current_command->command == SchedDRequest::SDC_UPDATE_JOB ) {
 			int error = 0;
 
-			// TODO: figure out transactions
 			if (!BeginQmgmtTransaction(dc_schedd, TRUE)) {
 				error = TRUE;
 				strcpy (error_msg, "Unable to start QMGMT transaction");
@@ -393,14 +391,12 @@ doContactSchedd()
 			}
 
 			if (error) {
-				// TODO: abort
 				const char * result[] = {
 					GAHP_RESULT_FAILURE,
 					error_msg };
 				FinishTransaction(FALSE);
 				enqueue_result (current_command->request_id, result, 2);
 			} else {
-				// TODO: Commit
 				const char * result[] = {
 					GAHP_RESULT_SUCCESS,
 					NULL };
@@ -809,7 +805,6 @@ handle_gahp_command(char ** argv, int argc) {
 		return TRUE;
 	}
 
-	// TODO: Fill out the other commands
 	dprintf (D_ALWAYS, "Invalid command %s\n", argv[0]);
 	return FALSE;
 }
@@ -820,7 +815,6 @@ handle_gahp_command(char ** argv, int argc) {
 // String -> int
 int
 get_int (const char * blah, int * s) {
-	// TODO: Make more robust, beyatch
 	*s = atoi(blah);
 	return TRUE;
 }
@@ -830,7 +824,6 @@ get_int (const char * blah, int * s) {
 int
 get_job_id (const char * s, int * cluster_id, int * proc_id) {
 
-	// TODO: Make more robust, you pile of worthless pigeon droppings....
 	char * pdot = strchr(s, '.');
 	if (pdot) {
 		char * buff = strdup (s);

@@ -112,11 +112,10 @@ FdBuffer::GetNextLine () {
 			// Try the buffer again
 			result = ReadNextLineFromBuffer();
 		} else {
-			// Hack (sorta):
-			// If we're stdin and we didn't block and couldn't read anything
-			// we must have been closed
-			if (fd == STDIN_FILENO)
-				error = TRUE;
+			dprintf (D_ALWAYS, "Read 0 bytes from fd %d ==> fd must be closed\n", this->fd);
+			// If the select (supposedly) triggered BUT we can't read anything
+			// the stream must have been closed
+			error = TRUE;
 		}
 	}
 

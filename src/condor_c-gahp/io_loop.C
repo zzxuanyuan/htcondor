@@ -87,9 +87,9 @@ io_loop(void * arg, Stream * sock) {
 		if (is_ready[3]) {
 			// Worker is ready for more requests, flush one
 			char dummy;
-			read (request_ack_buffer.getFd(), &dummy, 1);	// Read the signal
 			
-			flush_next_request(inter_thread_io->request_pipe[1]);
+			if (flush_next_request(inter_thread_io->request_pipe[1]))
+				read (request_ack_buffer.getFd(), &dummy, 1);	// Read the signal
 		}
 
 		if (is_ready[0]) {
@@ -192,8 +192,8 @@ io_loop(void * arg, Stream * sock) {
 					if (!new_results_signaled) {
 						printf ("R\n");
 						fflush (stdout);
-						new_results_signaled = TRUE;	// So that we only do it once
 					}
+					new_results_signaled = TRUE;	// So that we only do it once
 				}
 
 				delete line;
