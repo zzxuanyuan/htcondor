@@ -243,20 +243,6 @@ Stream::code( char	*&s)
 	return FALSE;	/* will never get here	*/
 }
 
-int 
-Stream::code( void *&s)
-{
-	switch(_coding){
-		case stream_encode:
-			return put((int&)s);
-		case stream_decode:
-			return get((int&)s);
-	}
-
-	return FALSE;	/* will never get here	*/
-}
-
-
 
 int 
 Stream::code( char	*&s, int		&len)
