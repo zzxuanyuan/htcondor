@@ -103,6 +103,9 @@ public:
 		/// Return a pointer to the ClassAd for our job.
 	virtual ClassAd* jobClassAd( void );
 
+		/// Return the job's universe integer.
+	virtual int jobUniverse( void );
+
 		/// Total bytes sent by this job 
 	virtual float bytesSent( void ) = 0;
 
@@ -215,7 +218,8 @@ protected:
 		/** Initialize our version of important information for this
 			job which the starter will want to know.  This should
 			init the following: orig_job_name, job_input_name, 
-			job_output_name, job_error_name, and job_iwd.
+			job_output_name, job_error_name, job_iwd, and
+			job_universe.  
 			@return true on success, false on failure */
 	virtual	bool initJobInfo( void ) = 0;
 
@@ -253,6 +257,9 @@ protected:
 	
 		/// The ClassAd for our job.  We control the memory for this.
 	ClassAd* job_ad;
+
+		/// The universe of the job.
+	int job_universe;
 
 		/// if true, we were asked to shutdown
 	bool requested_exit;

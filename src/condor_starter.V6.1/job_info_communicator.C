@@ -30,6 +30,7 @@
 JobInfoCommunicator::JobInfoCommunicator()
 {
 	job_ad = NULL;
+	job_universe = CONDOR_UNIVERSE_VANILLA;
 	u_log = new LocalUserLog( this );
 	orig_job_name = NULL;
 	job_input_name = NULL;
@@ -109,6 +110,14 @@ JobInfoCommunicator::jobClassAd( void )
 {
 	return job_ad;
 }
+
+
+int
+JobInfoCommunicator::jobUniverse( void )
+{
+	return job_universe;
+}
+
 
 
 void
