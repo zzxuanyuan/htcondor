@@ -62,11 +62,10 @@ usage()
 	}
 	dprintf(D_ALWAYS, "usage: condor_starter initiating_host\n");
 	dprintf(D_ALWAYS, "   or: condor_starter -job_keyword keyword\n");
+	dprintf(D_ALWAYS, "                      -job_ad_path filename\n");
 	dprintf(D_ALWAYS, "                      -job_cluster number\n");
 	dprintf(D_ALWAYS, "                      -job_proc    number\n");
 	dprintf(D_ALWAYS, "                      -job_subproc number\n");
-	dprintf(D_ALWAYS, "   or: condor_starter -job_on_stdin\n");
-//	dprintf(D_ALWAYS, "   or: condor_starter -localfile filename\n");
 	DC_Exit(1);
 }
 
@@ -426,6 +425,11 @@ parseArgs( int argc, char* argv [] )
 		if( job_keyword ) {
 			dprintf( D_ALWAYS, "You cannot use '%s' and specify a "
 					 "shadow host\n", _jobkeyword );
+			usage();
+		}
+		if( job_ad_path ) {
+			dprintf( D_ALWAYS, "You cannot use '%s' and specify a "
+					 "shadow host\n", _jobadpath );
 			usage();
 		}
 		jic = new JICShadow( shadow_host );
