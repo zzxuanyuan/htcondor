@@ -91,6 +91,7 @@ syscalls and standalone checkpointing.
 
 #undef ngetdents
 #if defined( SYS_ngetdents )
+extern "C" int REMOTE_CONDOR_getdents( int, struct dirent*, size_t);
 int   ngetdents ( int fd, struct dirent *buf, size_t nbytes, int *eof )
 {
 	int rval,do_local=0;
@@ -106,7 +107,7 @@ int   ngetdents ( int fd, struct dirent *buf, size_t nbytes, int *eof )
 		if( LocalSysCalls() || do_local ) {
 			rval = syscall( SYS_getdents, fd , buf , nbytes );
 		} else {
-			rval = REMOTE_syscall( CONDOR_getdents, fd , buf , nbytes );
+			rval = REMOTE_CONDOR_getdents( fd , buf , nbytes );
 		}
 
 	_condor_signals_enable(omask);
@@ -143,7 +144,7 @@ int   ngetdents64 ( int fd, struct dirent64 *buf, size_t nbytes, int *eof )
 		if( LocalSysCalls() || do_local ) {
 			rval = syscall( SYS_getdents64, fd , buf , nbytes );
 		} else {
-			rval = REMOTE_syscall( CONDOR_getdents64, fd , buf , nbytes );
+			rval = REMOTE_CONDOR_getdents64( fd , buf , nbytes );
 		}
 
 	_condor_signals_enable(omask);
@@ -245,6 +246,7 @@ Whee!
 
 #if defined(Solaris) && !defined(Solaris251)
 
+extern "C" int REMOTE_CONDOR_socket( int, int, int);
 int so_socket( int a, int b, int c, int d, int e )
 {
 	int result;
@@ -259,7 +261,7 @@ int so_socket( int a, int b, int c, int d, int e )
 		if(LocalSysCalls()) {
 			result = syscall( SYS_so_socket, a, b, c, d, e );
 		} else {
-			result = REMOTE_syscall( CONDOR_socket, a, b, c );
+			result = REMOTE_CONDOR_socket( a, b, c );
 		}
 	}
 
@@ -495,6 +497,8 @@ it came from the heap.
 
 #if defined( LINUX  )
 #include "condor_mmap.h"
+extern "C" int REMOTE_CONDOR_mmap(MMAP_T, size_t, int, int,
+	int, off_t);
 MMAP_T
 mmap( MMAP_T a, size_t l, int p, int f, int fd, off_t o )
 {
@@ -513,7 +517,7 @@ mmap( MMAP_T a, size_t l, int p, int f, int fd, off_t o )
                 if( LocalSysCalls() ) {
                         rval = (MMAP_T) MAP_FAILED;
                 } else {
-                        rval = (MMAP_T) REMOTE_syscall( CONDOR_mmap, a, l, p, f, fd, o );
+                    rval = (MMAP_T) REMOTE_CONDOR_mmap( a, l, p, f, fd, o );
                 }
         }
 
@@ -987,6 +991,7 @@ _condor_s_stat_convert64( int version, const struct stat *source,
    going to confuse our caller.  -Jim B. (5/8/2000)
 */
 
+extern "C" int REMOTE_CONDOR_stat( const char *, struct stat * );
 int _condor_xstat(int version, const char *path, struct stat *buf)
 {
 	int rval;
@@ -1009,7 +1014,7 @@ int _condor_xstat(int version, const char *path, struct stat *buf)
 				_condor_k_stat_convert( version, &kbuf, buf );
 			}
 		} else {
-			rval = REMOTE_syscall( CONDOR_stat, path, &sbuf );
+			rval = REMOTE_CONDOR_stat( path, &sbuf );
 			if (rval >= 0) {
 				_condor_s_stat_convert( version, &sbuf, buf );
 			}
@@ -1020,6 +1025,7 @@ int _condor_xstat(int version, const char *path, struct stat *buf)
 }
 
 #if defined(GLIBC21)
+extern "C" int REMOTE_CONDOR_stat( const char *, struct stat * );
 int _condor_xstat64(int version, const char *path, struct stat64 *buf)
 {
 	int rval;
@@ -1044,7 +1050,7 @@ int _condor_xstat64(int version, const char *path, struct stat64 *buf)
 				_condor_k_stat_convert64( version, &kbuf, buf );
 			}
 		} else {
-			rval = REMOTE_syscall( CONDOR_stat, path, &sbuf );
+			rval = REMOTE_CONDOR_stat( path, &sbuf );
 			if (rval >= 0) {
 				_condor_s_stat_convert64( version, &sbuf, buf );
 			}
@@ -1055,6 +1061,7 @@ int _condor_xstat64(int version, const char *path, struct stat64 *buf)
 }
 #endif
 
+extern "C" int REMOTE_CONDOR_fstat( int, struct stat * );
 int
 _condor_fxstat(int version, int fd, struct stat *buf)
 {
@@ -1077,7 +1084,7 @@ _condor_fxstat(int version, int fd, struct stat *buf)
 				_condor_k_stat_convert( version, &kbuf, buf );
 			}
 		} else {
-			rval = REMOTE_syscall( CONDOR_fstat, fd, &sbuf );
+			rval = REMOTE_CONDOR_fstat( fd, &sbuf );
 			if (rval >= 0) {
 				_condor_s_stat_convert( version, &sbuf, buf );
 			}
@@ -1089,6 +1096,7 @@ _condor_fxstat(int version, int fd, struct stat *buf)
 }
 
 #if defined(GLIBC21)
+extern "C" int REMOTE_CONDOR_fstat( int, struct stat * );
 int
 _condor_fxstat64(int version, int fd, struct stat64 *buf)
 {
@@ -1112,7 +1120,7 @@ _condor_fxstat64(int version, int fd, struct stat64 *buf)
 				_condor_k_stat_convert64( version, &kbuf, buf );
 			}
 		} else {
-			rval = REMOTE_syscall( CONDOR_fstat, fd, &sbuf );
+			rval = REMOTE_CONDOR_fstat( fd, &sbuf );
 			if (rval >= 0) {
 				_condor_s_stat_convert64( version, &sbuf, buf );
 			}
@@ -1124,6 +1132,7 @@ _condor_fxstat64(int version, int fd, struct stat64 *buf)
 }
 #endif
 
+extern "C" int REMOTE_CONDOR_lstat( const char *, struct stat *);
 int _condor_lxstat(int version, const char *path, struct stat *buf)
 {
 	int rval;
@@ -1146,7 +1155,7 @@ int _condor_lxstat(int version, const char *path, struct stat *buf)
 				_condor_k_stat_convert( version, &kbuf, buf );
 			}
 		} else {
-			rval = REMOTE_syscall( CONDOR_lstat, path, &sbuf );
+			rval = REMOTE_CONDOR_lstat( path, &sbuf );
 			if (rval >= 0) {
 				_condor_s_stat_convert( version, &sbuf, buf );
 			}
@@ -1157,6 +1166,7 @@ int _condor_lxstat(int version, const char *path, struct stat *buf)
 }
 
 #if defined(GLIBC21)
+extern "C" int REMOTE_CONDOR_lstat( const char *, struct stat *);
 int _condor_lxstat64(int version, const char *path, struct stat64 *buf)
 {
 	int rval;
@@ -1179,7 +1189,7 @@ int _condor_lxstat64(int version, const char *path, struct stat64 *buf)
 				_condor_k_stat_convert64( version, &kbuf, buf );
 			}
 		} else {
-			rval = REMOTE_syscall( CONDOR_lstat, path, &sbuf );
+			rval = REMOTE_CONDOR_lstat( path, &sbuf );
 			if (rval >= 0) {
 				_condor_s_stat_convert64( version, &sbuf, buf );
 			}
@@ -1204,9 +1214,8 @@ to be similar to the Linux definitions.  thain, 28 Dec 1999.
 
 #if defined(Solaris)
 
-#if defined(Solaris)
+extern "C" int REMOTE_CONDOR_stat( const char *, struct stat * );
 int _xstat(const int ver, const char *path, struct stat *buf)
-#endif
 {
 	int	rval;
 	int	do_local = 0;
@@ -1220,7 +1229,7 @@ int _xstat(const int ver, const char *path, struct stat *buf)
 		if( LocalSysCalls() ) {
 			rval = syscall( SYS_xstat, ver, path, buf );
 		} else {
-			rval = REMOTE_syscall( CONDOR_stat, path, buf );
+			rval = REMOTE_CONDOR_stat( path, buf );
 		}
 	}
 
@@ -1228,9 +1237,8 @@ int _xstat(const int ver, const char *path, struct stat *buf)
 	return rval;
 }
 
-#if defined(Solaris)
+extern "C" int REMOTE_CONDOR_lstat( const char *, struct stat *);
 int _lxstat(const int ver, const char *path, struct stat *buf)
-#endif
 {
 	int	rval;
 	int	do_local=0;
@@ -1244,7 +1252,7 @@ int _lxstat(const int ver, const char *path, struct stat *buf)
 		if( LocalSysCalls() ) {
 			rval = syscall( SYS_lxstat, ver, path, buf );
 		} else {
-			rval = REMOTE_syscall( CONDOR_lstat, path, buf );
+			rval = REMOTE_CONDOR_lstat( path, buf );
 		}
 	}
 
@@ -1252,9 +1260,8 @@ int _lxstat(const int ver, const char *path, struct stat *buf)
 	return rval;
 }
 
-#if defined(Solaris)
+extern "C" int REMOTE_CONDOR_fstat( int, struct stat * );
 int _fxstat(const int ver, int fd, struct stat *buf)
-#endif
 {
 	int	rval;
 	int use_local_access = FALSE;
@@ -1268,7 +1275,7 @@ int _fxstat(const int ver, int fd, struct stat *buf)
 		if( LocalSysCalls() ) {
 			rval = syscall( SYS_fxstat, ver, fd, buf );
 		} else {
-			rval = REMOTE_syscall( CONDOR_fstat, fd, buf );
+			rval = REMOTE_CONDOR_fstat( fd, buf );
 		}
 	}
 
@@ -1409,6 +1416,7 @@ void _exit( int status )
   current machine, and the usages it accumulated on all the machines
   where it has run in the past.
 */
+extern "C" int REMOTE_CONDOR_getrusage( int, struct rusage * );
 int
 getrusage( int who, struct rusage *rusage )
 {
@@ -1473,7 +1481,7 @@ getrusage( int who, struct rusage *rusage )
 			 */
 			if ( _condor_numrestarts != num_restarts ) {
 				num_restarts = _condor_numrestarts;
-				rval = REMOTE_syscall( CONDOR_getrusage, who, &accum_rusage );
+				rval = REMOTE_CONDOR_getrusage( who, &accum_rusage );
 				/* on failure, clear out accum_rusage so we do not blow up
 				 * inside of update_rusage()
 				 */
@@ -1580,6 +1588,7 @@ long _sysconf(int name)
  * we make stub_gen return longs instead of ints, casting char* to an int
  * causes problems on some platforms...  also, stubgen does not deal
  * well with a function like getlogin which returns a NULL on error */
+extern "C" int REMOTE_CONDOR_getlogin( char * );
 char *
 getlogin()
 {
@@ -1614,7 +1623,7 @@ getlogin()
 			loginbuf = (char *)malloc(35);
 			memset( loginbuf, 0, 35 );
 		}
-		rval = REMOTE_syscall( CONDOR_getlogin, loginbuf );
+		rval = REMOTE_CONDOR_getlogin( loginbuf );
 	}
 
 	if ( rval >= 0 )
@@ -1652,6 +1661,7 @@ kill( pid_t pid, int sig )
 	return rval;
 }
 
+extern "C" int REMOTE_CONDOR_sync(void);
 #if SYNC_RETURNS_VOID
 void
 #else
@@ -1671,7 +1681,7 @@ sync( void )
 
 	/* If we're in remote mode, also want to send a sync() to the shadow */
 	if( RemoteSysCalls() ) {
-		REMOTE_syscall( CONDOR_sync );
+		REMOTE_CONDOR_sync( );
 	}
 #if ! SYNC_RETURNS_VOID
 	return 0;
