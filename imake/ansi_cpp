@@ -30,7 +30,7 @@ case "x$os" in
 		exec gcc -E -w -no-cpp-precomp $*
 		;;
 	xSunOS)
-		exec /lib/cpp $*
+		exec /usr/ccs/lib/cpp $*
 		;;
 	*)
 		echo "$0 can't figure out the right cpp to use on $os!";
