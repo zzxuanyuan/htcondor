@@ -130,7 +130,7 @@ x509_proxy_seconds_until_expire( char *proxy_file )
 
 	return result;
 
-#endif
+#endif /* !defined(GSS_AUTHENTICATION) */
 }
 
 int
@@ -175,7 +175,7 @@ check_x509_proxy( char *proxy_file )
 
 	return 0;
 
-#endif
+#endif /* !defined(GSS_AUTHENTICATION) */
 }
 
 
@@ -189,6 +189,8 @@ have_globus_support()
 #endif
 }
 
+
+#if 0 /* We're not currently using these functions */
 
 /*
  * Function: simple_query_ldap()
@@ -254,7 +256,7 @@ retrieve_attr_values(
 	return cnt;
 
 } /* retrieve_attr_values */
-#endif
+#endif /* defined(GLOBUS_SUPPORT) */
 
 #if defined(GLOBUS_SUPPORT)
 static
@@ -270,7 +272,7 @@ set_ld_timeout(LDAP  *ld, int timeout_val, char *env_string)
 		if(tmp_int>0) ld->ld_timeout=tmp_int;
 	}
 }
-#endif
+#endif /* defined(GLOBUS_SUPPORT) */
 
 #if defined(GLOBUS_SUPPORT)
 static
@@ -352,7 +354,7 @@ simple_query_ldap(
 		return rc;
 
 } /* simple_query_ldap() */
-#endif
+#endif /* defined(GLOBUS_SUPPORT) */
 
 
 int
@@ -423,9 +425,11 @@ check_globus_rm_contacts(char* resource)
 		return 1;
 	}
 
-#endif
+#endif /* !defined(GLOBUS_SUPPORT) */
 
 } /* check_globus_rm_contact() */
+
+#endif /* 0 */
 
 char *rsl_stringify( char *string )
 {
