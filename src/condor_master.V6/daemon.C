@@ -535,10 +535,9 @@ int daemon::RealStart( )
 			// wants_condor_priv = true;
 	} 
 	else if( strcmp(name_in_config_file,"NEGOTIATOR") == 0 ) {
-		char * host = NULL;
-		if (Daemon::getCmHostFromConfig ("NEGOTIATOR", host)) {
+		char* host = getCmHostFromConfig( "NEGOTIATOR" );
+		if( host ) {
 			free (host);
-
 			Daemon d( DT_NEGOTIATOR );
 			command_port = d.port();
 			// We can't do this b/c of needing to read host certs as root 
