@@ -1725,8 +1725,9 @@ doRunAnalysisToBuffer( ClassAd *request )
 			// FOR BACK COMPATIBILITY
 			// Add conditional operators to offer Rank expression if needed
 		ExprTree* rankExpr = offer->Lookup( ATTR_RANK );
-		if( analyzer.AddExplicitConditionals( rankExpr ) ) {
-			offer->Insert( ATTR_RANK, rankExpr );
+		ExprTree* newRankExpr = analyzer.AddExplicitConditionals( rankExpr );
+		if( newRankExpr != NULL ) {
+			offer->Insert( ATTR_RANK, newRankExpr );
 		}
 
 		// 3. Is there a remote user?
