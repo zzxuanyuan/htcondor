@@ -1548,6 +1548,7 @@ MyString *GT4Job::buildSubmitRSL()
 	char *rsl_suffix = NULL;
 	StringList stage_in_list;
 	StringList stage_out_list;
+	bool staging_input = false;
 
 //	char * gt4_location = param ("GT4_LOCATION");
 
@@ -1757,6 +1758,8 @@ xsi:schemaLocation=\"http://www.globus.org/namespaces/2004/06/job \
 	if ( create_remote_iwd || transfer_executable ||
 		 !stage_in_list.isEmpty() ) {
 
+		staging_input = true;
+
 		*rsl += "<fileStageIn>";
 
 		// First upload an emtpy dummy directory
@@ -1884,7 +1887,11 @@ xsi:schemaLocation=\"http://www.globus.org/namespaces/2004/06/job \
 	}
 
 		// Start the job on hold
-	*rsl += printXMLParam ("holdState", "StageIn" );
+	if ( staging_input ) {
+		*rsl += printXMLParam( "holdState", "StageIn" );
+	} else {
+		*rsl += printXMLParam( "holdState", "Pending" );
+	}
 
 	*rsl += "</job>";
 
