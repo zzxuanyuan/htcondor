@@ -611,23 +611,27 @@ dprintf(D_ALWAYS,"***schedd failure at %d!\n",__LINE__);
 
 		if ( curr_job->deleteFromGridmanager ) {
 
-			if ( (curr_job->deleteFromSchedd) ?
-				 successful_deletes.Delete( curr_job ) :
-				 true ) {
-
-				JobsByProcID.remove( curr_job->procID );
-					// If wantRematch is set, send a reschedule now
-				if ( curr_job->wantRematch ) {
-					static DCSchedd* schedd_obj = NULL;
-					if ( !schedd_obj ) {
-						schedd_obj = new DCSchedd(NULL,NULL);
-						ASSERT(schedd_obj);
-					}
-					schedd_obj->reschedule();
-				}
-				pendingScheddUpdates.remove( curr_job->procID );
-				delete curr_job;
+				// If the Job object wants to delete the job from the
+				// schedd but we failed to do so, don't delete the job
+				// object yet; wait until we successfully delete the job
+				// from the schedd.
+			if ( curr_job->deleteFromSchedd == true &&
+				 successful_deletes.Delete( curr_job ) == false ) {
+				continue;
 			}
+
+			JobsByProcID.remove( curr_job->procID );
+				// If wantRematch is set, send a reschedule now
+			if ( curr_job->wantRematch ) {
+				static DCSchedd* schedd_obj = NULL;
+				if ( !schedd_obj ) {
+					schedd_obj = new DCSchedd(NULL,NULL);
+					ASSERT(schedd_obj);
+				}
+				schedd_obj->reschedule();
+			}
+			pendingScheddUpdates.remove( curr_job->procID );
+			delete curr_job;
 
 		} else {
 			pendingScheddUpdates.remove( curr_job->procID );
