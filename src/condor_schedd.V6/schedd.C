@@ -2137,8 +2137,7 @@ Scheduler::spoolJobFilesReaper(int tid,int exit_status)
 		}
 
 			// And now release the job.
-//		releaseJob(cluster,proc,"Data files spooled",false,false,false,false);
-		SetAttributeInt(cluster,proc,ATTR_STAGE_IN_FINISH,time(NULL));
+		releaseJob(cluster,proc,"Data files spooled",false,false,false,false);
 		CommitTransaction();
 	}
 
@@ -2281,16 +2280,6 @@ Scheduler::spoolJobFiles(int, Stream* s)
 	}
 
 	rsock->eom();
-
-	for ( i = 0; i < JobAdsArrayLen; i++ ) {
-		ClassAd *ad = GetJobAd( (*jobs)[i].cluster, (*jobs)[i].proc );
-		if ( ad ) {
-			BeginTransaction();
-			SetAttributeInt( (*jobs)[i].cluster, (*jobs)[i].proc,
-							 ATTR_STAGE_IN_START, time(NULL) );
-			CommitTransaction();
-		}
-	}
 
 	if ( reaper_id == -1 ) {
 		reaper_id = daemonCore->Register_Reaper(
