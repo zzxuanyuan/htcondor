@@ -969,6 +969,7 @@ clean::							@@\
 
 #ifndef ext_target
 #define ext_target(package_id,ext_dep)				@@\
-$(EXTERNALS_TRIGGER_DIR)/$(##package_id##): ext_dep		@@\
-	./build_external  --bundle_dir=$(EXTERNALS_BUNDLE_ROOT) --install_dir=$(EXTERNALS_INSTALL_ROOT) --build_dir=$(EXTERNALS_BUILD) --log=$(EXTERNALS_BUILD)/log.$(##package_id##) --package_name=$(##package_id##) --package_dir=$(EXTERNALS_INSTALL_ROOT)/$(##package_id##) --trigger_dir=$(EXTERNALS_TRIGGER_DIR)
+$(EXT_TRIGGER_DIR)/$(##package_id##): ext_dep		@@\
+	$(EXT_ROOT)/build_external  --bundle_dir=$(EXT_BUNDLE_ROOT) --install_dir=$(EXT_INSTALL_ROOT) --build_dir=$(EXT_BUILD) --log=$(EXT_BUILD)/log.$(##package_id##) --package_name=$(##package_id##) --package_dir=$(EXT_INSTALL_ROOT)/$(##package_id##) --trigger_dir=$(EXT_TRIGGER_DIR) @@\
+externals:: $(EXT_TRIGGER_DIR)/$(##package_id##)
 #endif
