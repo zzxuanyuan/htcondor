@@ -624,10 +624,15 @@ WriteTerminateEventToUserLog( ClassAd *job_ad )
 	event.total_sent_bytes = 0;
 	event.total_recvd_bytes = 0;
 
-	// Globus doesn't tell us how the job exited, so we'll just assume it
-	// exited normally.
-	event.normal = true;
-	event.returnValue = 0;
+	int tmp;
+	job_ad->LookupBool( ATTR_ON_EXIT_BY_SIGNAL, tmp );
+	if ( tmp == 0 ) {
+		event.normal = true;
+		job_ad->LookupInteger( ATTR_ON_EXIT_CODE, event.returnValue );
+	} else {
+		event.normal = false;
+		job_ad->LookupInteger( ATTR_ON_EXIT_SIGNAL, event.signalNumber );
+	}
 
 	int rc = ulog->writeEvent(&event);
 	delete ulog;
