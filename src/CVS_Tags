@@ -1,3 +1,6 @@
+04/10/03 V6_5_1_a
+   Very small packaging fixes to 6.5.1. They fix how we make our GPT
+   package--they are not changes to the Condor code.
 
 04/08/03 V6_5_1
    The 6.5.1 release, which lives on the V6_5_0-branch for everything
