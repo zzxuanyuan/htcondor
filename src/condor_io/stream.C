@@ -291,7 +291,6 @@ Stream::code( double	&d)
 }
 
 
-
 int 
 Stream::code( char	*&s)
 {

@@ -72,7 +72,6 @@ struct shadow_rec
 struct OwnerData {
   char* Name;
   char* Domain;
-  char* X509;
   int JobsRunning;
   int JobsIdle;
   int JobsHeld;
@@ -82,7 +81,7 @@ struct OwnerData {
   int GlobusJobs;
   int GlobusUnmanagedJobs;
   time_t NegotiationTimestamp;
-  OwnerData() { Name=NULL; Domain=NULL; X509=NULL;
+  OwnerData() { Name=NULL; Domain=NULL;
   JobsRunning=JobsIdle=JobsHeld=JobsFlocked=FlockLevel=OldFlockLevel=GlobusJobs=GlobusUnmanagedJobs=0; }
 };
 
@@ -217,9 +216,13 @@ class Scheduler : public Service
 	void			display_shadow_recs();
 	int				actOnJobs(int, Stream *);
 	int				spoolJobFiles(int, Stream *);
-	static int		spoolJobFilesWorkerThread(void *, Stream*);
-	int				spoolJobFilesReaper(int,int);
-	void				PeriodicExprHandler( void );
+	static int		spoolJobFilesWorkerThread(void *, Stream *);
+	static int		transferJobFilesWorkerThread(void *, Stream *);
+	static int		generalJobFilesWorkerThread(void *, Stream *, int);
+	int				spoolJobFilesReaper(int,int);	
+	int				transferJobFilesReaper(int,int);
+	void			PeriodicExprHandler( void );
+
 
 	// match managing
     match_rec*      AddMrec(char*, char*, PROC_ID*, ClassAd*, char*, char*);
@@ -394,7 +397,7 @@ private:
 	void   			mark_cluster_rejected(int); 
 	int				count_jobs();
 	void   			check_claim_request_timeouts( void );
-	int				insert_owner(char*, char*);
+	int				insert_owner(char*);
 	void			child_exit(int, int);
 	void			clean_shadow_recs();
 	void			preempt(int);

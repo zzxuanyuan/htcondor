@@ -116,9 +116,6 @@ static bool WriteGT3ResourceDownEventToUserLog( ClassAd *job_ad );
 template class HashTable<HashKey, GT3Job *>;
 template class HashBucket<HashKey, GT3Job *>;
 
-// TODO need to get rid of this
-static GahpClient GahpMain;
-
 HashTable <HashKey, GT3Job *> GT3JobsByContact( HASH_TABLE_SIZE,
 												hashFunction );
 
@@ -208,9 +205,9 @@ void GT3JobReconfig()
 	// Tell all the resource objects to deal with their new config values
 	GT3Resource *next_resource;
 
-	GT3ResourcesByName.startIterations();
+	GT3Resource::ResourcesByName.startIterations();
 
-	while ( GT3ResourcesByName.iterate( next_resource ) != 0 ) {
+	while ( GT3Resource::ResourcesByName.iterate( next_resource ) != 0 ) {
 		next_resource->Reconfig();
 	}
 }
@@ -371,18 +368,6 @@ GT3Job::GT3Job( ClassAd *classad )
 		UpdateJobAd( ATTR_HOLD_REASON, "UNDEFINED" );
 	}
 
-	char *gahp_path = param("GT3_GAHP");
-	if ( gahp_path == NULL ) {
-		error_string = "GT3_GAHP not defined";
-		goto error_exit;
-	}
-	gahp = new GahpClient( "GT3", gahp_path );
-	free( gahp_path );
-
-	gahp->setNotificationTimerId( evaluateStateTid );
-	gahp->setMode( GahpClient::normal );
-	gahp->setTimeout( gahpCallTimeout );
-
 	buff[0] = '\0';
 	ad->LookupString( ATTR_X509_USER_PROXY, buff );
 	if ( buff[0] != '\0' ) {
@@ -396,6 +381,20 @@ GT3Job::GT3Job( ClassAd *classad )
 				 procID.cluster, procID.proc, ATTR_X509_USER_PROXY );
 	}
 
+	char *gahp_path = param("GT3_GAHP");
+	if ( gahp_path == NULL ) {
+		error_string = "GT3_GAHP not defined";
+		goto error_exit;
+	}
+	snprintf( buff, sizeof(buff), "GT3/%s",
+			  myProxy->subject->subject_name );
+	gahp = new GahpClient( buff, gahp_path );
+	free( gahp_path );
+
+	gahp->setNotificationTimerId( evaluateStateTid );
+	gahp->setMode( GahpClient::normal );
+	gahp->setTimeout( gahpCallTimeout );
+
 	buff[0] = '\0';
 	ad->LookupString( ATTR_GLOBUS_RESOURCE, buff );
 	if ( buff[0] != '\0' ) {
@@ -405,28 +404,15 @@ GT3Job::GT3Job( ClassAd *classad )
 		goto error_exit;
 	}
 
-////////////////from gridmanager.C
-{
-	const char *canonical_name = GT3Resource::CanonicalName( resourceManagerString );
-	int rc;
-	ASSERT(canonical_name);
-	rc = GT3ResourcesByName.lookup( HashKey( canonical_name ),
-								 myResource );
-
-	if ( rc != 0 ) {
-		myResource = new GT3Resource( canonical_name );
-		ASSERT(myResource);
-		GT3ResourcesByName.insert( HashKey( canonical_name ),
-								myResource );
-	} else {
-		ASSERT(myResource);
+	myResource = GT3Resource::FindOrCreateResource( resourceManagerString,
+													myProxy->subject->subject_name);
+	if ( myResource == NULL ) {
+		error_string = "Failed to initialized GT3Resource object";
+		goto error_exit;
 	}
-}
-//////////////////////////////////
 
 	resourceDown = false;
 	resourceStateKnown = false;
-//	myResource = resource;
 	// RegisterJob() may call our NotifyResourceUp/Down(), so be careful.
 	myResource->RegisterJob( this, job_already_submitted );
 
@@ -514,11 +500,6 @@ GT3Job::~GT3Job()
 {
 	if ( myResource ) {
 		myResource->UnregisterJob( this );
-		// Should the GT3Resource be responsible for doing this?...
-		if ( myResource->IsEmpty() ) {
-			GT3ResourcesByName.remove( HashKey( myResource->ResourceName() ) );
-			delete myResource;
-		}
 	}
 	if ( resourceManagerString ) {
 		free( resourceManagerString );

@@ -458,7 +458,10 @@ ReliSock::get_file( filesize_t *size, const char *destination, bool flush_buffer
 		dprintf(D_ALWAYS, "get_file(): Failed to open file %s, errno = %d.\n",
 				destination, errno);
 		return -1;
-	}
+	} 
+
+	dprintf(D_FULLDEBUG,"get_file(): going to write to filename %s\n",
+		destination);
 
 	result = get_file( size, fd,flush_buffers);
 
@@ -551,6 +554,9 @@ ReliSock::put_file( filesize_t *size, const char *source)
 				source, errno);
 		return -1;
 	}
+
+	dprintf(D_FULLDEBUG,"put_file: going to send from filename %s\n",
+		source);
 
 	result = put_file( size, fd);
 
