@@ -1,4 +1,8 @@
 #define AllFiles etc include src lib libexec bin sbin man 
+#if !WANT_NEW_CLASSADS
+#   define WANT_NEW_CLASSADS              YES	/* TEMPORARY TEST ONLY! */
+#endif
+
 
 #if HAS_FORTRAN
   TEST_SUITE_F = test_suite_F.V5
@@ -338,7 +342,9 @@ ext_target(EXT_GT3GAHP_VERSION,$(NULL))
 ext_target(EXT_PVM_VERSION,$(NULL))
 #endif
 ext_nodep_target(EXT_MAN_VERSION,$(NULL))
+#if WANT_NEW_CLASSADS
 ext_target(EXT_CLASSADS_VERSION, $(NULL))
+#endif
 
 clean::
 	rm -rf $(PURE_DIR)
