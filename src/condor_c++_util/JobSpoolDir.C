@@ -234,13 +234,12 @@ MyString StringError(int e)
 }
 
 /// Concatenates a directory with a basename in that directory.
-MyString ConcatDir(MyString lhs, MyString rhs)
+MyString ConcatDir(const MyString & lhs, const MyString & rhs)
 {
-	// TODO: Check if lhs already ends with DIR_DELIM_STRING,
-	// don't append if that's the case.
-	lhs += DIR_DELIM_STRING;
-	lhs += rhs;
-	return lhs;
+	char * tmp = dircat(lhs.GetCStr(), rhs.GetCStr());
+	MyString ret(tmp);
+	delete tmp; // dircat allocated new space.
+	return ret;
 }
 
 
@@ -514,9 +513,13 @@ void JobSpoolDir::EraseTransferContents()
 void JobSpoolDir::DestroyClusterDirectory()
 {
 	MyString clusterdir = DirFullCluster();
-	ASSERT(0); // TODO #error "TODO"
-	// Verify only thing present is condor_exec.exe
-	// Delete condor_exec.exe
+
+	MyString exefile = FileFullExecutable();
+	if(unlink(exefile.GetCStr())) {
+		joberrordprintf("Failed to remove %s.  Error: %s.  May be unable to destroy cluster directory %s.\n", exefile.GetCStr(), StringError(errno).GetCStr(), clusterdir.GetCStr());
+	}
+
+	// Note: assuming that rmdir fails if there are files in the directory.
 	if( rmdir(clusterdir.GetCStr()) != 0 ) {
 		joberrordprintf("Failed to remove  %s.  Error: %s. Directory will be left behind.",
 			clusterdir.GetCStr(), StringError(errno).GetCStr());
