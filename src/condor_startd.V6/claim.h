@@ -189,10 +189,10 @@ public:
 
 	bool ownerMatches( const char* owner );
 
-	bool wantsRelease( void )			{ return c_wants_release; };
-	void setWantsRelease( bool val );
-	int  finishRelease( void );
+	bool setPendingCmd( int cmd );
+	bool hasPendingCmd( void );
 
+	int	 finishPendingCmd( void );
 
 private:
 	Resource	*c_rip;
@@ -224,7 +224,17 @@ private:
 
 	ClaimState	c_state;		// the state of this claim
 	ClaimState	c_last_state;	// the state when a release was requested
-	bool		c_wants_release;
+	int			c_pending_cmd;	// the pending command, or -1 if none
+
+
+		// Helper methods
+	int  finishRelease( void );
+	int  finishDeactivate( void );
+
+		/** Once the starter exits and the claim is no longer active,
+			reset it by clearing out all the activation-specific data
+		*/
+	void resetClaim( void );
 
 };
 

@@ -59,7 +59,7 @@ Claim::Claim( Resource* rip, bool is_cod )
 	c_rip = rip;
 	c_state = CLAIM_UNCLAIMED;
 	c_is_cod = is_cod;
-	c_wants_release = false;
+	c_pending_cmd = -1;
 }
 
 
@@ -740,13 +740,47 @@ Claim::ownerMatches( const char* owner )
 }
 
 
-void
-Claim::setWantsRelease( bool val )
-{ 
-	c_wants_release = val;
+bool
+Claim::setPendingCmd( int cmd )
+{
+ 		// TODO: we might want to check what our currently pending
+		// command is and do something special... 
+	c_pending_cmd = cmd;
+
 		// also, keep track of what state we were in when we got this
-		// request, since we want to put that in the reply classad. 
+		// request, since we might want that in the reply classad. 
 	c_last_state = c_state;
+
+	return true;
+}
+
+
+bool
+Claim::hasPendingCmd( void )
+{ 
+	return c_pending_cmd != -1;
+}
+
+
+int
+Claim::finishPendingCmd( void )
+{
+	switch( c_pending_cmd ) {
+	case -1:
+		return FALSE;
+		break;
+	case CA_RELEASE_CLAIM:
+		return finishRelease();
+		break;
+	case CA_DEACTIVATE_CLAIM:
+		return finishDeactivate();
+		break;
+	default:
+		EXCEPT( "Claim::finishPendingCmd called with unknown cmd: %s (%d)",
+				getCommandString(c_pending_cmd), c_pending_cmd );
+		break;
+	}
+	return TRUE;
 }
 
 
@@ -756,9 +790,6 @@ Claim::finishRelease( void )
 	ClassAd reply;
 	MyString line;
 	int rval;
-
-	dprintf( D_ALWAYS, "Releasing claim %s (owner: '%s')\n", id(),
-			 client()->owner() );  
 
 	line = ATTR_RESULT;
 	line += " = \"";
@@ -782,6 +813,10 @@ Claim::finishRelease( void )
 		// that for us in this case
 	delete c_request_stream;
 	c_request_stream = NULL;
+	c_pending_cmd = -1;
+	
+	dprintf( D_ALWAYS, "Finished releasing claim %s (owner: '%s')\n", 
+			 id(), client()->owner() );  
 
 		// finally, we have to remove this claim from the CODMgr
 	c_rip->r_cod_mgr->removeClaim( this );
@@ -789,6 +824,63 @@ Claim::finishRelease( void )
 		// THIS OBJECT IS NOW DELETED, WE CAN *ONLY* RETURN NOW!!!
 	return rval;
 }
+
+
+int
+Claim::finishDeactivate( void )
+{
+	ClassAd reply;
+	MyString line;
+	int rval;
+
+	line = ATTR_RESULT;
+	line += " = \"";
+	line += getCAResultString( CA_SUCCESS );
+	line += '"';
+	reply.Insert( line.Value() );
+
+	line = ATTR_LAST_CLAIM_STATE;
+	line += "=\"";
+	line += getClaimStateString( c_last_state );
+	line += '"';
+	reply.Insert( line.Value() );
+	
+		// TODO: hopefully we can put the final job update ad in here,
+		// too. 
+	
+	rval = sendCAReply( c_request_stream, "CA_DEACTIVATE_CLAIM", &reply );
+	
+		// now that we're done replying, we need to delete this stream
+		// so we don't leak memory, since DaemonCore's not going to do
+		// that for us in this case
+	delete c_request_stream;
+	c_request_stream = NULL;
+	c_pending_cmd = -1;
+
+	dprintf( D_ALWAYS, "Finished deactivating claim %s (owner: '%s')\n", 
+			 id(), client()->owner() );  
+
+		// also, we must reset all the attributes we're storing in
+		// this Claim object that are specific to a given activation. 
+	resetClaim();
+
+	return rval;
+}
+
+
+void
+Claim::resetClaim( void )
+{
+	delete( c_starter );
+	c_starter = NULL;
+	delete( c_ad );
+	c_ad = NULL;
+	c_universe = -1;
+	c_cluster = -1;
+	c_proc = -1;
+	c_job_start = -1;
+}
+
 
 
 ///////////////////////////////////////////////////////////////////////////
