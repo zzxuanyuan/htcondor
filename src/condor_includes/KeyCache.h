@@ -26,12 +26,13 @@
 
 #include "condor_common.h"
 #include "CryptKey.h"
+#include "MyString.h"
 #include "HashTable.h"
 
 class KeyCacheEntry {
  public:
     KeyCacheEntry(
-			int id,
+			char * id,
 			struct sockaddr_in * addr,
 			KeyInfo* key,
 			int expiration
@@ -39,19 +40,19 @@ class KeyCacheEntry {
     KeyCacheEntry(const KeyCacheEntry& copy);
     ~KeyCacheEntry();
 
-    int                   id();
+    char*                 id();
     struct sockaddr_in *  addr();
     KeyInfo*              key();
     int                   expiration();
 
  private:
-    int                 _id;
-    struct sockaddr_in  _addr;
-    KeyInfo*            _key;
-    int                 _expiration;
+    char *               _id;
+    struct sockaddr_in * _addr;
+    KeyInfo*             _key;
+    int                  _expiration;
 };
 
 
-typedef HashTable<unsigned int, KeyCacheEntry*> KeyCache;
+typedef HashTable<MyString, KeyCacheEntry*> KeyCache;
 
 #endif

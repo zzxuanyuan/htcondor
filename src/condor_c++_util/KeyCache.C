@@ -25,32 +25,38 @@
 #include "KeyCache.h"
 #include "CryptKey.h"
 
-KeyCacheEntry::KeyCacheEntry( int id, struct sockaddr_in * addr, KeyInfo* key, int expiration) {
-	_id = id;
-	memcpy (&_addr, addr, sizeof(struct sockaddr_in));
+KeyCacheEntry::KeyCacheEntry( char *id, struct sockaddr_in * addr, KeyInfo* key, int expiration) {
+	_id = strdup(id);
+	_addr = new struct sockaddr_in(*addr);
 	_key = new KeyInfo(*key);
 	_expiration = expiration;
 }
 
 KeyCacheEntry::KeyCacheEntry(const KeyCacheEntry& copy) {
-	_id = copy._id;
-	memcpy (&_addr, &(copy._addr), sizeof(struct sockaddr_in));
+	_id = strdup(copy._id);
+	_addr = new struct sockaddr_in(*(copy._addr));
 	_key = new KeyInfo(*(copy._key));
 	_expiration = copy._expiration;
 }
 
 KeyCacheEntry::~KeyCacheEntry() {
+	if (_id) {
+	  delete _id;
+	}
+	if (_addr) {
+	  delete _addr;
+	}
 	if (_key) {
 	  delete _key;
 	}
 }
 
-int KeyCacheEntry::id() {
+char* KeyCacheEntry::id() {
 	return _id;
 }
 
 struct sockaddr_in *  KeyCacheEntry::addr() {
-	return &_addr;
+	return _addr;
 }
 
 KeyInfo* KeyCacheEntry::key() {

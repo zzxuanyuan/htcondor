@@ -51,5 +51,5 @@ template class Set<RankedClassAd>;
 template class SetElem<RankedClassAd>;
 template class HashTable<MyString, int>;
 template class HashBucket<MyString,int>;
-template class HashTable<unsigned int, KeyCacheEntry*>;
+template class HashTable<MyString, KeyCacheEntry*>;
 

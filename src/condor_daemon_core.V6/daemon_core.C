@@ -55,10 +55,6 @@ static const char* DEFAULT_INDENT = "DaemonCore--> ";
 typedef unsigned (__stdcall *CRT_THREAD_HANDLER) (void *);
 #endif
 
-static int ZZZZ = 0;
-int always_increase() {
-	return ZZZZ++;
-}
 
 #define SECURITY_HACK_ENABLE
 void zz2printf(KeyInfo *k) {
@@ -85,11 +81,6 @@ static int compute_pid_hash(const pid_t &key, int numBuckets)
 	return ( key % numBuckets );
 }
 
-// Hash function for key cache.
-static int compute_enc_key_hash(const unsigned int &key, int numBuckets) 
-{
-	return ( key % numBuckets );
-}
 
 static int delete_enc_key(KeyCacheEntry *ke) {
 	delete ke;
@@ -146,7 +137,7 @@ DaemonCore::DaemonCore(int PidSize, int ComSize,int SigSize,
 	if(maxSocket == 0)
 		maxSocket = DEFAULT_MAXSOCKETS;
 
-	enc_key_cache = new KeyCache(197, &compute_enc_key_hash);
+	enc_key_cache = new KeyCache(197, &MyStringHash, rejectDuplicateKeys);
 	sockTable = new ExtArray<SockEnt>(maxSocket);
 	if(sockTable == NULL)
 	{
@@ -1739,22 +1730,24 @@ int DaemonCore::HandleReq(int socki)
 		if (authentication_action == AUTH_ENC) {
 			dprintf (D_SECURITY, "DC_AUTHENTICATE: request to use cached key.\n");
 
-			int key_id = 0;
-			if( ! auth_info.LookupInteger(ATTR_KEY_ID, key_id)) {
+			char key_id[300];
+			char* key_ptr = key_id; // need this to use cedar
+
+			if( ! auth_info.LookupString(ATTR_KEY_ID, key_id)) {
 				dprintf (D_ALWAYS, "ERROR: DC_AUTHENTICATE unable to "
 						   "extract auth_info.%s!\n", ATTR_KEY_ID);
 				result = FALSE;	
 				goto finalize;
 			}
 
-			dprintf (D_SECURITY, "DC_AUTHENTICATE: looking up cached key id %i.\n", key_id);
+			dprintf (D_SECURITY, "DC_AUTHENTICATE: looking up cached key id %s.\n", key_id);
 
 
 			// lookup the suggested key
 			KeyCacheEntry *key = NULL;
 			if (enc_key_cache->lookup(key_id, key) != 0) {
 				dprintf (D_ALWAYS, "DC_AUTHENTICATE: attempt to "
-						   "authenticate with invalid key id %i.\n", key_id);
+						   "authenticate with invalid key id %s.\n", key_id);
 
 				// if this is UDP, they have no idea the key they are
 				// using is bunk, so  it would be nice of us to tell them.
@@ -1763,7 +1756,7 @@ int DaemonCore::HandleReq(int socki)
 				if (s.connect(sin_to_string(sock->endpoint()))) {
 					s.encode();
 					s.put(DC_INVALIDATE_KEY);
-					s.code(key_id);
+					s.code(key_ptr);
 					s.eom();
 					s.close();
 					dprintf (D_SECURITY, "DC_AUTHENTICATE: sent a notify "
@@ -1821,8 +1814,17 @@ int DaemonCore::HandleReq(int socki)
 				goto finalize;
 			}
 
-			int key_id = ( ( (int)time(0) % 1000 )  * 1000 + (always_increase() % 1000) ) * 1000 + (rand() % 1000);
-			dprintf (D_SECURITY, "DC_AUTHENTICATE: generating private key id %i...\n", key_id);
+			char   key_id[300];
+			char*  key_ptr = key_id;  // need this to use cedar
+			char   hostnm[256];
+			if (!gethostname(hostnm, 256)) {
+				strcpy (hostnm, "BUFF_TOO_SMALL");
+			}
+			sprintf (key_id, "%s:%i:%i", hostnm, getpid(), time(0));
+
+			
+
+			dprintf (D_SECURITY, "DC_AUTHENTICATE: generating private key id %s...\n", key_id);
 			KeyInfo *ki = new KeyInfo(Condor_Crypt_Base::randomKey(24), 24, CONDOR_3DES);
 #ifdef SECURITY_HACK_ENABLE
 					zz2printf (ki);
@@ -1863,25 +1865,27 @@ int DaemonCore::HandleReq(int socki)
 				dprintf (D_ALWAYS, "DC_AUTHENTICATE: set_crypto_key() failed\n");
 				result = FALSE;
 				goto finalize;
-			} else {
-				dprintf (D_SECURITY, "DC_AUTHENTICATE: crypto enabled with key id %i!\n", key_id);
-				// add the key to the cache
-				enc_key_cache->insert(key_id,
-						new KeyCacheEntry(key_id, sock->endpoint(), ki, 0));
-				dprintf (D_SECURITY, "DC_AUTHENTICATE: added key id %i to cache!\n", key_id);
-#ifdef SECURITY_HACK_ENABLE
-				zz2printf (ki);
-#endif
 			}
 
+			dprintf (D_SECURITY, "DC_AUTHENTICATE: crypto enabled with key id %s!\n", key_id);
+
 			// shove the stupid id over
+			// this should be a classad!
 			sock->encode();
-			if (!sock->code(key_id) || !sock->eom()) {
-				dprintf (D_ALWAYS, "DC_AUTHENTICATE: unable to send key id number %i.\n", key_id);
+			if (!sock->code(key_ptr) || !sock->eom()) {
+				dprintf (D_ALWAYS, "DC_AUTHENTICATE: unable to send key id number %s.\n", key_id);
 				result = FALSE;
 				goto finalize;
 			}
 			sock->decode();
+
+			// add the key to the cache
+			enc_key_cache->insert(key_id,
+					new KeyCacheEntry(key_id, sock->endpoint(), ki, 0));
+			dprintf (D_SECURITY, "DC_AUTHENTICATE: added key id %s to cache!\n", key_id);
+#ifdef SECURITY_HACK_ENABLE
+			zz2printf (ki);
+#endif
 		}
 
 		if (authentication_action == AUTH_NO) {

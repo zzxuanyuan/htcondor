@@ -56,14 +56,6 @@ void zz1printf(KeyInfo *k) {
 KeyCache* Daemon::enc_key_cache = NULL;
 int Daemon::enc_key_daemon_ref_count = 0;
 
-// Hash function for encryption key hash table
-static int
-compute_enc_hash(const unsigned int &ip, int numBuckets)
-{
-    unsigned int h = ip % numBuckets;
-	dprintf (D_SECURITY, "ZKM: hashing %x yields %i\n", ip, h);
-	return ( h );
-}
 
 
 Daemon::Daemon( char* sinful_addr, int port ) 
@@ -102,7 +94,7 @@ Daemon::Daemon( char* sinful_addr, int port )
 
 	if (enc_key_cache == NULL) {
 		dprintf (D_SECURITY, "ZKM: creating enc key table!\n");
-		enc_key_cache = new KeyCache(101, &compute_enc_hash, rejectDuplicateKeys);
+		enc_key_cache = new KeyCache(101, &MyStringHash, rejectDuplicateKeys);
 	}
 	enc_key_daemon_ref_count++;
 	dprintf (D_SECURITY, "ZKM: Daemon ref count now %i.\n", enc_key_daemon_ref_count);
@@ -142,7 +134,7 @@ Daemon::Daemon( daemon_t type, const char* name, const char* pool )
 
 	if (enc_key_cache == NULL) {
 		dprintf (D_SECURITY, "ZKM: creating enc key table!\n");
-		enc_key_cache = new KeyCache(101, &compute_enc_hash, rejectDuplicateKeys);
+		enc_key_cache = new KeyCache(101, &MyStringHash, rejectDuplicateKeys);
 	}
 	enc_key_daemon_ref_count++;
 	dprintf (D_SECURITY, "ZKM: Daemon ref count now %i.\n", enc_key_daemon_ref_count);
@@ -477,7 +469,7 @@ Daemon::startCommand( int cmd, Sock* sock, int sec )
 
 	// see if we have a cached key
 	KeyCacheEntry *enc_key = NULL;
-	previously_auth = (enc_key_cache->lookup(sock->endpoint_ip_int(), enc_key) == 0);
+	previously_auth = (enc_key_cache->lookup(sin_to_string(sock->endpoint()), enc_key) == 0);
 	if (previously_auth) {
 		dprintf (D_SECURITY, "STARTCOMMAND: found cached key id %i under %s.\n", enc_key->id(), sin_to_string(sock->endpoint()));
 #ifdef SECURITY_HACK_ENABLE
@@ -673,7 +665,7 @@ choose_action:
 			dprintf ( D_SECURITY, "STARTCOMMAND: succesfully sent NOP via TCP!\n");
 			// check if there's a key now.  what about now is there
 			// a key now?  (you see what i'm saying.... :)
-			previously_auth = (enc_key_cache->lookup(sock->endpoint_ip_int(), enc_key) == 0);
+			previously_auth = (enc_key_cache->lookup(sin_to_string(sock->endpoint()), enc_key) == 0);
 
 			if (previously_auth) {
 				authentication_action = AUTH_ENC;
@@ -823,12 +815,12 @@ choose_action:
 			// a failure here signals that the cache may be invalid.
 			// delete this entry from table and force normal auth.
 			KeyCacheEntry * ek = NULL;
-			if (enc_key_cache->lookup(sock->endpoint_ip_int(), ek) == 0) {
+			if (enc_key_cache->lookup(sin_to_string(sock->endpoint()), ek) == 0) {
 				delete ek;
 			} else {
 				dprintf (D_SECURITY, "STARTCOMMAND: unable to delete KeyCacheEntry.\n");
 			}
-			enc_key_cache->remove(sock->endpoint_ip_int());
+			enc_key_cache->remove(sin_to_string(sock->endpoint()));
 			previously_auth = false;
 
 			// close this connection and start a new one
@@ -895,18 +887,21 @@ choose_action:
 			} else {
 
 				// receive the key's ID
-				int key_id = 0;
+				char key_id[300];
+				char *key_ptr = key_id;  // need this to use cedar
 				sock->decode();
-				if (!sock->code(key_id) || !sock->eom()) {
-					dprintf (D_ALWAYS, "STARTCOMMAND: could not receive key id number.\n");
+				if (!sock->code(key_ptr) || !sock->eom()) {
+					dprintf (D_ALWAYS, "STARTCOMMAND: could not receive key id.\n");
 					retval = false;
 				} else {
-					dprintf (D_SECURITY, "STARTCOMMAND: crypto enabled with key id %i.\n",
+					dprintf (D_SECURITY, "STARTCOMMAND: crypto enabled with key id %s.\n",
 							key_id);
 #ifdef SECURITY_HACK_ENABLE
 					zz1printf(ki);
 #endif
 				}
+
+				assert (key_ptr == key_id);
 
 				// cache the key
 				KeyCacheEntry * nkey = new KeyCacheEntry(
@@ -914,11 +909,11 @@ choose_action:
 											sock->endpoint(),
 											ki,
 											0);
-				enc_key_cache->insert(sock->endpoint_ip_int(), nkey);
+				enc_key_cache->insert(sin_to_string(sock->endpoint()), nkey);
 				// ki is copied by KeyCacheEntry's constructor.
 				// nkey is "leaked" at this point, to be cleaned up later.
 
-				dprintf (D_SECURITY, "STARTCOMMAND: crypto key id %i added to cache.\n", key_id);
+				dprintf (D_SECURITY, "STARTCOMMAND: crypto key id %s added to cache.\n", key_id);
 #ifdef SECURITY_HACK_ENABLE
 				zz1printf(nkey->key());
 #endif
