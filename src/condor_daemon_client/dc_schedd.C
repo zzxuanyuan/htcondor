@@ -343,7 +343,7 @@ DCSchedd::receiveJobSandbox(const char* constraint, CondorError * errstack)
 			}
 		}	// while next expr
 
-		if ( !ftrans.SimpleInit(&job,false,true,&rsock) ) {
+		if ( !ftrans.SimpleInit(&job,false,false,&rsock) ) {
 			return false;
 		}
 		if ( !ftrans.DownloadFiles() ) {

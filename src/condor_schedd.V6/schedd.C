@@ -2187,14 +2187,8 @@ Scheduler::generalJobFilesWorkerThread(void *arg, Stream* s, int mode)
 					"transfer files for job %d.%d\n",cluster,proc);
 		}
 
-			// Create a file transfer object
-		if ( mode == SPOOL_JOB_FILES ) {
-			// receive sandbox into the schedd
-			result = ftrans.SimpleInit(ad, true, true, rsock);
-		} else {
-			// send sandbox out of the schedd
-			result = ftrans.SimpleInit(ad,true,false,rsock);
-		}
+			// Create a file transfer object, with schedd as the server
+		result = ftrans.SimpleInit(ad, true, true, rsock);
 		if ( !result ) {
 			dprintf( D_ALWAYS, "generalJobFilesWorkerThread(): "
 					 "failed to init filetransfer for job %d.%d \n",
