@@ -61,14 +61,14 @@ public:
 	virtual int JobCleanup(int pid, int status) = 0;
 
 		/** Job exits.  Starter has decided it's done with everything
-			it needs to do, and we can now tell the shadow we've
-			exited so the job can leave the queue.
+			it needs to do, and we can now notify the job's controller
+			we've exited so it can do whatever it wants to.
 		    @return true on success, false on failure
-		*/ 
+		*/
 	virtual bool JobExit( void ) = 0;
 
 		/** Publish all attributes we care about for updating the
-			shadow into the given ClassAd.
+			job controller into the given ClassAd.
 			@param ad pointer to the classad to publish into
 			@return true if success, false if failure
 		*/
