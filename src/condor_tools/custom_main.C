@@ -329,6 +329,14 @@ main()
 		printf("\nCompleted setting ownerships/permissions sucuessfully\n");
 	}
 
+#if defined(IRIX62) || defined(IRIX53)
+	/* Create some symbolic links for IRIX C++ vendor compiler */
+	printf("\nCreating symbolic links for compatibility with IRIX C++\n");
+	sprintf(dir,"/bin/ln -s /usr/lib/c++/*  %s/lib/.",release_dir.get_val());
+	system(dir);
+	printf("\nDone.\n");
+#endif
+
 	return 0;
 }
 
