@@ -363,7 +363,7 @@ Resource::update()
 		// Send class ads to collector(s)
 	rval = resmgr->send_update( &public_ad, &private_ad );
 	if( rval ) {
-		dprintf( D_ALWAYS, "Sent update to %d collector(s)\n", rval );
+		dprintf( D_FULLDEBUG, "Sent update to %d collector(s)\n", rval );
 	} else {
 		dprintf( D_ALWAYS, "Error sending update to collector(s)\n" );
 	}
@@ -677,6 +677,11 @@ Resource::compute( amask_t mask )
 		// Only resource-specific things that need to be computed are
 		// in the CpuAttributes object.
 	r_attr->compute( mask );
+
+		// Actually, we'll have the Reqexp object compute too, so that
+		// we get static stuff recomputed on reconfig, etc.
+	r_reqexp->compute( mask );
+
 }
 
 
