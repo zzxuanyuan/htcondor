@@ -71,7 +71,7 @@ Match::Match( Resource* rip )
 	m_job_start = -1;
 	m_last_pckpt = -1;
 	m_rip = rip;
-	m_is_deactivating = false;
+	m_state = MATCH_UNCLAIMED;
 }
 
 
@@ -423,6 +423,8 @@ Match::spawnStarter( start_info_t* info, time_t now )
 
 	rval = m_starter->spawn( info, now );
 
+	m_state = MATCH_RUNNING; 
+
 		// Fake ourselves out so we take another snapshot in 15
 		// seconds, once the starter has had a chance to spawn the
 		// user job and the job as (hopefully) done any initial
@@ -452,8 +454,8 @@ Match::setStarter( Starter* s )
 void
 Match::starterExited( void )
 {
-		// Now that the starter is gone, we can clear this flag.
-	m_is_deactivating = false;
+		// Now that the starter is gone, we need to change our state
+	m_state = MATCH_IDLE;
 
 		// Now we can actually delete the starter object, which will
 		// cancel any pending timers, and do other cleanup.
@@ -477,9 +479,20 @@ Match::starterPidMatches( pid_t starter_pid )
 
 
 bool
+Match::isDeactivating( void )
+{
+	if( m_state == MATCH_PREEMPTING || m_state == MATCH_KILLING ) {
+		return true;
+	}
+	return false;
+}
+
+
+bool
 Match::isActive( void )
 {
 	if( m_starter && m_starter->active() ) {
+		ASSERT( m_state == MATCH_RUNNING || m_state == MATCH_SUSPENDED );  
 		return true;
 	}
 	return false;
@@ -490,13 +503,12 @@ bool
 Match::deactivateClaim( bool graceful )
 {
 	if( isActive() ) {
-			// Set a flag to avoid a potential race in our
-			// protocol.  
-		m_is_deactivating = true;
-			// Singal the starter.
+			// Singal the starter
 		if( graceful ) {
+			m_state = MATCH_PREEMPTING;
 			return starterKillSoft();
 		} else {
+			m_state = MATCH_KILLING;
 			return starterKillHard();
 		}
 	}
@@ -507,6 +519,7 @@ Match::deactivateClaim( bool graceful )
 bool
 Match::suspendClaim( void )
 {
+	m_state = MATCH_SUSPENDED;
 	if( m_starter ) {
 		return (bool)m_starter->suspend();
 	}
@@ -520,10 +533,12 @@ bool
 Match::resumeClaim( void )
 {
 	if( m_starter ) {
+		m_state = MATCH_RUNNING;
 		return (bool)m_starter->resume();
 	}
 		// if there's no starter, we don't need to do anything, so
 		// it worked...  
+	m_state = MATCH_IDLE;
 	return true;
 }
 
@@ -531,6 +546,8 @@ Match::resumeClaim( void )
 bool
 Match::starterKill( int sig )
 {
+		// don't need to work about the state, since we don't use this
+		// method to send any signals that change the match state...
 	if( m_starter ) {
 		return (bool)m_starter->kill( sig );
 	}
@@ -544,6 +561,9 @@ bool
 Match::starterKillPg( int sig )
 {
 	if( m_starter ) {
+			// if we're using KillPg, we're trying to hard-kill the
+			// starter and all its children
+		m_state = MATCH_KILLING;
 		return (bool)m_starter->killpg( sig );
 	}
 		// if there's no starter, we don't need to kill anything, so
@@ -556,6 +576,7 @@ bool
 Match::starterKillSoft( void )
 {
 	if( m_starter ) {
+		m_state = MATCH_PREEMPTING;
 		return m_starter->killSoft();
 	}
 		// if there's no starter, we don't need to kill anything, so
@@ -568,6 +589,7 @@ bool
 Match::starterKillHard( void )
 {
 	if( m_starter ) {
+		m_state = MATCH_KILLING;
 		return m_starter->killHard();
 	}
 		// if there's no starter, we don't need to kill anything, so

@@ -51,6 +51,17 @@
 
 #include "Starter.h"
 
+typedef enum {
+    MATCH_UNCLAIMED,
+    MATCH_IDLE,
+    MATCH_RUNNING,
+    MATCH_SUSPENDED,
+    MATCH_PREEMPTING,
+    MATCH_KILLING,
+    _MATCH_STATE_threshold
+} MatchState;
+
+
 class Capability
 {
 public:
@@ -132,6 +143,7 @@ public:
 	int			job_start() 	{return m_job_start;};
 	int			last_pckpt() 	{return m_last_pckpt;};
 	int			getaliveint()	{return m_aliveint;};
+	MatchState	state()			{return m_state;};
 
 		// Functions that set the values of data
 	void setrank(float rank)	{m_rank=rank;};
@@ -151,8 +163,8 @@ public:
 	void setStarter( Starter* s );
 	void starterExited( void );
 	bool starterPidMatches( pid_t starter_pid );
+	bool isDeactivating( void );
 	bool isActive( void );
-	bool isDeactivating( void ) 	{return m_is_deactivating;};
 	bool deactivateClaim( bool graceful );
 	bool suspendClaim( void );
 	bool resumeClaim( void );
@@ -191,7 +203,7 @@ private:
 								// release the claim.
 	int			m_aliveint;		// Alive interval for this match
 
-	bool	m_is_deactivating;	// Are we in the middle of deactivating a claim?
+	MatchState	m_state;		// the state of this match
 
 };
 
