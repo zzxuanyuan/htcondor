@@ -996,6 +996,34 @@ ResMgr::getClaimById( const char* id )
 
 
 Resource*
+ResMgr::findRipForNewCOD( ClassAd* ad )
+{
+	if( ! resources ) {
+		return NULL;
+	}
+	int requirements;
+	int i;
+
+ 		// sort the resources so that, all else being equal, we'll
+		// give out this COD claim on an unused (by Condor) resource.  
+	resource_sort( ownerStateCmp );
+
+		// now, just find the first resource that matches the request  
+	for( i = 0; i < nresources; i++ ) {
+		if( ad->EvalBool( ATTR_REQUIREMENTS, resources[i]->r_classad,
+						  requirements ) == 0 ) {
+			requirements = 0;
+		}
+		if( requirements ) { 
+			return resources[i];
+		}
+	}
+	return NULL;
+}
+
+
+
+Resource*
 ResMgr::get_by_cur_cap( char* cap )
 {
 	if( ! resources ) {

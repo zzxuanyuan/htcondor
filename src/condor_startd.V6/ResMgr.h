@@ -143,10 +143,12 @@ public:
 
 	Claim*		getClaimByPid( pid_t );	// Find Claim by pid of starter
 	Claim*		getClaimById( const char* id );	// Find Claim by ClaimId
+	Resource*	findRipForNewCOD( ClassAd* ad );
 	Resource*	get_by_cur_cap(char*);	// Find rip by r_cur->capab 
 	Resource*	get_by_any_cap(char*);	// Find rip by r_cur or r_pre
 	Resource*	get_by_name(char*);		// Find rip by r_name
 	State		state( void );			// Return the machine state
+
 
 	int	force_benchmark( void ); 	// Force a resource to benchmark
 	
