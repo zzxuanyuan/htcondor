@@ -24,6 +24,9 @@ bool OracleJobAdMatch( const ClassAd *jobad );
 bool OracleJobAdMustExpand( const ClassAd *jobad );
 BaseJob *OracleJobCreate( ClassAd *jobad );
 
+extern OCIEnv *GlobalOciEnvHndl;
+extern OCIError *GlobalOciErrHndl;
+
 void print_error( sword status, OCIError *error_handle );
 
 class OracleJob : public BaseJob

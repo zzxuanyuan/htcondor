@@ -152,14 +152,55 @@ bool OracleJobAdMustExpand( const ClassAd *jobad )
 
 BaseJob *OracleJobCreate( ClassAd *jobad )
 {
-	if ( InitGlobalOci() != OCI_SUCCESS ) {
-		EXCEPT( "Init failed!" );
-	}
 	return (BaseJob *)new OracleJob( jobad );
 }
 
 int OracleJob::probeInterval = 300;		// default value
 int OracleJob::submitInterval = 300;	// default value
+
+OCIEnv *GlobalOciEnvHndl = NULL;
+OCIError *GlobalOciErrHndl = NULL;
+bool GlobalOciInitDone = false;
+
+int InitGlobalOci()
+{
+	int rc;
+	char *param_value = NULL;
+	MyString buff;
+
+	if ( GlobalOciInitDone ) {
+		return OCI_SUCCESS;
+	}
+
+	param_value = param("ORACLE_HOME");
+	if ( param_value == NULL ) {
+		dprintf( D_ALWAYS, "ORACLE_HOME undefined!\n" );
+		return -1;
+	}
+	buff.sprintf( "ORACLE_HOME=%s", param_value );
+	putenv( strdup( buff.Value() ) );
+	free(param_value);
+
+	if ( GlobalOciEnvHndl == NULL ) {
+		rc = OCIEnvCreate( &GlobalOciEnvHndl, OCI_DEFAULT, NULL, NULL, NULL,
+						   NULL, 0, NULL );
+		if ( rc != OCI_SUCCESS ) {
+			return rc;
+		}
+	}
+
+	if ( GlobalOciErrHndl == NULL ) {
+		rc = OCIHandleAlloc( GlobalOciEnvHndl, (dvoid**)&GlobalOciErrHndl,
+							 OCI_HTYPE_ERROR, 0, NULL );
+		if ( rc != OCI_SUCCESS ) {
+			return rc;
+		}
+	}
+
+	GlobalOciInitDone = true;
+
+	return OCI_SUCCESS;
+}
 
 void print_error( sword status, OCIError *error_handle )
 {
@@ -226,6 +267,12 @@ OracleJob::OracleJob( ClassAd *classad )
 		UpdateJobAd( ATTR_HOLD_REASON, "UNDEFINED" );
 	}
 
+		// Ensure that OCI has been initialized successfully
+	if ( InitGlobalOci() != OCI_SUCCESS ) {
+		error_string = "OCI initialization failed";
+		goto error_exit;
+	}
+
 	buff[0] = '\0';
 	ad->LookupString( ATTR_GLOBUS_RESOURCE, buff );
 	if ( buff[0] != '\0' ) {
@@ -250,6 +297,10 @@ OracleJob::OracleJob( ClassAd *classad )
 	}
 
 	ociSession = GetOciSession( dbName, dbUsername, dbPassword );
+	if ( ociSession == NULL ) {
+		error_string = "OCI initialization failed";
+		goto error_exit;
+	}
 	ociSession->RegisterJob( this );
 
 	buff[0] = '\0';
@@ -261,9 +312,9 @@ OracleJob::OracleJob( ClassAd *classad )
 
 	if ( OCIHandleAlloc( GlobalOciEnvHndl, (dvoid**)&ociErrorHndl,
 						 OCI_HTYPE_ERROR, 0, NULL ) != OCI_SUCCESS ) {
-		EXCEPT( "alloc of ociErrorHndl failed!" );
+		error_string = "OCI initialization failed";
+		goto error_exit;
 	}
-
 
 	return;
 

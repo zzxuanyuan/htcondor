@@ -37,11 +37,6 @@ class OracleJob;
 class OciSession;
 class OciServer;
 
-extern OCIEnv *GlobalOciEnvHndl;
-extern OCIError *GlobalOciErrHndl;
-
-int InitGlobalOci();
-
 OciSession *GetOciSession( const char *db_name, const char *db_username,
 						   const char *db_password );
 
@@ -63,10 +58,10 @@ class OciSession : public Service
 						OCIError *&err_hndl );
 	int ReleaseSession( OracleJob *job );
 
+ private:
 	int OpenSession( OCIError *&err_hndl );
 	int CloseSession();
 
- private:
 	bool initDone;
 	OciServer *server;
 	char *username;
@@ -75,10 +70,11 @@ class OciSession : public Service
 	OCISession *ociSessionHndl;
 	OCITrans *ociTransHndl;
 	OCIError *ociErrorHndl;
+		// We use a pointer to a List here because we want to put
+		// OciSessions into Lists, which require operator=() to be defined,
+		// but List itself doesn't have a usable operator=().
 	List<OracleJob> *registeredJobs;
 	bool sessionOpen;
-	bool transactionOpen;
-	int commitTid;
 };
 
 class OciServer : public Service
@@ -97,12 +93,12 @@ class OciServer : public Service
 					   OCIError *&err_hndl );
 	void SessionInactive( OciSession *session );
 
+ private:
 	int IdleDisconnectHandler();
 
 	int ServerConnect();
 	int ServerDisconnect();
 
- private:
 	bool initDone;
 	char *dbName;
 	HashTable<HashKey, OciSession *> sessionsByUsername;

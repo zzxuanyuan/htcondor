@@ -49,53 +49,6 @@ template class HashBucket<HashKey, OciServer *>;
 HashTable <HashKey, OciServer *> ServersByName( HASH_TABLE_SIZE,
 												hashFunction );
 
-OCIEnv *GlobalOciEnvHndl = NULL;
-OCIError *GlobalOciErrHndl = NULL;
-bool GlobalOciInitDone = false;
-
-int InitGlobalOci()
-{
-	int rc;
-	char *param_value = NULL;
-	MyString buff;
-
-	if ( GlobalOciInitDone ) {
-		return OCI_SUCCESS;
-	}
-
-	param_value = param("ORACLE_HOME");
-	if ( param_value == NULL ) {
-		EXCEPT("ORACLE_HOME undefined!");
-	}
-	buff.sprintf( "ORACLE_HOME=%s", param_value );
-	putenv( strdup( buff.Value() ) );
-	free(param_value);
-
-	if ( GlobalOciEnvHndl == NULL ) {
-dprintf(D_ALWAYS,"*OCIEnvCreate( &GlobalOciEnvHndl, OCI_DEFAULT, NULL, NULL, NULL, NULL, 0, NULL )...\n");
-		rc = OCIEnvCreate( &GlobalOciEnvHndl, OCI_DEFAULT, NULL, NULL, NULL,
-						   NULL, 0, NULL );
-		if ( rc != OCI_SUCCESS ) {
-dprintf(D_ALWAYS,"***OCIEnvCreate failed\n");
-			return rc;
-		}
-	}
-
-	if ( GlobalOciErrHndl == NULL ) {
-dprintf(D_ALWAYS,"*OCIHandleAlloc( GlobalOciEnvHndl, (dvoid**)&GlobalOciErrHndl, OCI_HTYPE_ERROR, 0, NULL )...\n");
-		rc = OCIHandleAlloc( GlobalOciEnvHndl, (dvoid**)&GlobalOciErrHndl,
-							 OCI_HTYPE_ERROR, 0, NULL );
-		if ( rc != OCI_SUCCESS ) {
-dprintf(D_ALWAYS,"***OCIHandleAlloc failed\n");
-			return rc;
-		}
-	}
-
-	GlobalOciInitDone = true;
-
-	return OCI_SUCCESS;
-}
-
 OciSession *GetOciSession( const char *db_name, const char *db_username,
 						   const char *db_password )
 {
@@ -112,6 +65,10 @@ OciSession *GetOciSession( const char *db_name, const char *db_username,
 	if ( rc != 0 ) {
 		server = new OciServer( db_name );
 		ASSERT(server);
+		if ( server->Initialize() != OCI_SUCCESS ) {
+			delete server;
+			return NULL;
+		}
 		ServersByName.insert( HashKey( db_name ), server );
 	} else {
 		ASSERT(server);
@@ -120,6 +77,12 @@ OciSession *GetOciSession( const char *db_name, const char *db_username,
 	session = server->FindSession( db_username );
 	if ( session == NULL ) {
 		session = new OciSession( server, db_username, db_password );
+		ASSERT(session);
+		if ( session->Initialize() != OCI_SUCCESS ) {
+			delete session;
+			return NULL;
+		}
+	} else {
 		ASSERT(session);
 	}
 
@@ -151,6 +114,18 @@ OciSession::~OciSession()
 	if ( server != NULL ) {
 		server->UnregisterSession( this, username );
 	}
+	if ( ociTransHndl != NULL ) {
+		OCIHandleFree( ociTransHndl, OCI_HTYPE_TRANS );
+	}
+	if ( ociSessionHndl != NULL ) {
+		OCIHandleFree( ociSessionHndl, OCI_HTYPE_SESSION );
+	}
+	if ( ociSvcCtxHndl != NULL ) {
+		OCIHandleFree( ociSvcCtxHndl, OCI_HTYPE_SVCCTX );
+	}
+	if ( ociErrorHndl != NULL ) {
+		OCIHandleFree( ociErrorHndl, OCI_HTYPE_ERROR );
+	}
 	if ( username != NULL ) {
 		free( username );
 	}
@@ -167,79 +142,59 @@ int OciSession::Initialize()
 		return OCI_SUCCESS;
 	}
 
-	if ( (rc = InitGlobalOci()) != OCI_SUCCESS ) {
-		return rc;
-	}
-
 	if ( ociErrorHndl == NULL ) {
-dprintf(D_ALWAYS,"*OCIHandleAlloc( GlobalOciEnvHndl, (dvoid**)&ociErrorHndl, OCI_HTYPE_ERROR, 0, NULL )...\n");
 		rc = OCIHandleAlloc( GlobalOciEnvHndl, (dvoid**)&ociErrorHndl,
 							 OCI_HTYPE_ERROR, 0, NULL );
 		if ( rc != OCI_SUCCESS ) {
-dprintf(D_ALWAYS,"***OCIHandleAlloc failed\n");
 			return rc;
 		}
 	}
 
 	if ( ociSessionHndl == NULL ) {
-dprintf(D_ALWAYS,"*OCIHandleAlloc( GlobalOciEnvHndl, (dvoid**)&ociSessionHndl, OCI_HTYPE_SESSION, 0, NULL )\n");
 		rc = OCIHandleAlloc( GlobalOciEnvHndl, (dvoid**)&ociSessionHndl,
 							 OCI_HTYPE_SESSION, 0, NULL );
 		if ( rc != OCI_SUCCESS ) {
-dprintf(D_ALWAYS,"***OCIHandleAlloc failed\n");
 			return rc;
 		}
 	}
 
 	if ( ociSvcCtxHndl == NULL ) {
-dprintf(D_ALWAYS,"*OCIHandleAlloc( GlobalOciEnvHndl, (dvoid**)&ociSvcCtxHndl, OCI_HTYPE_SVCCTX, 0, NULL )\n");
 		rc = OCIHandleAlloc( GlobalOciEnvHndl, (dvoid**)&ociSvcCtxHndl,
 							 OCI_HTYPE_SVCCTX, 0, NULL );
 		if ( rc != OCI_SUCCESS ) {
-dprintf(D_ALWAYS,"***OCIHandleAlloc failed\n");
 			return rc;
 		}
 	}
 
 	if ( ociTransHndl == NULL ) {
-dprintf(D_ALWAYS,"*OCIHandleAlloc( GlobalOciEnvHndl, (dvoid**)&ociTransHndl, OCI_HTYPE_TRANS, 0, NULL )\n");
 		rc = OCIHandleAlloc( GlobalOciEnvHndl, (dvoid**)&ociTransHndl,
 							 OCI_HTYPE_TRANS, 0, NULL );
 		if ( rc != OCI_SUCCESS ) {
-dprintf(D_ALWAYS,"***OCIHandleAlloc failed\n");
 			return rc;
 		}
 	}
 
-dprintf(D_ALWAYS,"*OCIAttrSet( ociSessionHndl, OCI_HTYPE_SESSION, username, strlen(username), OCI_ATTR_USERNAME, ociErrorHndl )\n");
 	rc = OCIAttrSet( ociSessionHndl, OCI_HTYPE_SESSION, username,
 					 strlen(username), OCI_ATTR_USERNAME, ociErrorHndl );
 	if ( rc != OCI_SUCCESS ) {
-dprintf(D_ALWAYS,"***OCIAttrSet failed\n");
 		return rc;
 	}
 
-dprintf(D_ALWAYS,"*OCIAttrSet( ociSessionHndl, OCI_HTYPE_SESSION, password, strlen(password), OCI_ATTR_PASSWORD, ociErrorHndl )\n");
 	rc = OCIAttrSet( ociSessionHndl, OCI_HTYPE_SESSION, password,
 					 strlen(password), OCI_ATTR_PASSWORD, ociErrorHndl );
 	if ( rc != OCI_SUCCESS ) {
-dprintf(D_ALWAYS,"***OCIAttrSet failed\n");
 		return rc;
 	}
 
-dprintf(D_ALWAYS,"*rc = OCIAttrSet( ociSvcCtxHndl, OCI_HTYPE_SVCCTX, ociSessionHndl, 0, OCI_ATTR_SESSION, ociErrorHndl )\n");
 	rc = OCIAttrSet( ociSvcCtxHndl, OCI_HTYPE_SVCCTX, ociSessionHndl, 0,
 					 OCI_ATTR_SESSION, ociErrorHndl );
 	if ( rc != OCI_SUCCESS ) {
-dprintf(D_ALWAYS,"***OCIAttrSet failed\n");
 		return rc;
 	}
 
-dprintf(D_ALWAYS,"*rc = OCIAttrSet( ociSvcCtxHndl, OCI_HTYPE_SVCCTX, ociTransHndl, 0, OCI_ATTR_TRANS, ociErrorHndl )\n");
 	rc = OCIAttrSet( ociSvcCtxHndl, OCI_HTYPE_SVCCTX, ociTransHndl, 0,
 					 OCI_ATTR_TRANS, ociErrorHndl );
 	if ( rc != OCI_SUCCESS ) {
-dprintf(D_ALWAYS,"***OCIAttrSet failed\n");
 		return rc;
 	}
 
@@ -288,7 +243,6 @@ int OciSession::AcquireSession( OracleJob *job, OCISvcCtx *&svc_hndl,
 		}
 	}
 
-dprintf(D_ALWAYS,"***ociSvcCtxHndl=0x%x\n",ociSvcCtxHndl);
 	svc_hndl = ociSvcCtxHndl;
 
 	return OCI_SUCCESS;
@@ -306,14 +260,6 @@ int OciSession::OpenSession( OCIError *&err_hndl )
 
 	if ( sessionOpen ) {
 		return OCI_SUCCESS;
-	}
-
-	rc = Initialize();
-	if ( rc != OCI_SUCCESS ) {
-		if ( rc == OCI_ERROR ) {
-			err_hndl = ociErrorHndl;
-		}
-		return rc;
 	}
 
 	rc = server->SessionActive( this, server_hndl, err_hndl );
@@ -400,11 +346,9 @@ OciServer::~OciServer()
 		free( dbName );
 	}
 	if ( ociServerHndl != NULL ) {
-dprintf(D_ALWAYS,"*OCIHandleFree( ociServerHndl, OCI_HTYPE_SERVER )\n");
 		OCIHandleFree( ociServerHndl, OCI_HTYPE_SERVER );
 	}
 	if ( ociErrorHndl != NULL ) {
-dprintf(D_ALWAYS,"*OCIHandleFree( ociErrorHndl, OCI_HTYPE_ERROR )\n");
 		OCIHandleFree( ociErrorHndl, OCI_HTYPE_ERROR );
 	}
 }
@@ -417,26 +361,18 @@ int OciServer::Initialize()
 		return OCI_SUCCESS;
 	}
 
-	if ( (rc = InitGlobalOci()) != OCI_SUCCESS ) {
-		return rc;
-	}
-
 	if ( ociErrorHndl == NULL ) {
-dprintf(D_ALWAYS,"*OCIHandleAlloc( GlobalOciEnvHndl, (dvoid**)&ociErrorHndl, OCI_HTYPE_ERROR, 0, NULL )\n");
 		rc = OCIHandleAlloc( GlobalOciEnvHndl, (dvoid**)&ociErrorHndl,
 							 OCI_HTYPE_ERROR, 0, NULL );
 		if ( rc != OCI_SUCCESS ) {
-dprintf(D_ALWAYS,"***OCIHandleAlloc failed\n");
 			return rc;
 		}
 	}
 
 	if ( ociServerHndl == NULL ) {
-dprintf(D_ALWAYS,"*OCIHandleAlloc( GlobalOciEnvHndl, (dvoid**)&ociServerHndl, OCI_HTYPE_SERVER, 0, NULL )\n");
 		rc = OCIHandleAlloc( GlobalOciEnvHndl, (dvoid**)&ociServerHndl,
 							 OCI_HTYPE_SERVER, 0, NULL );
 		if ( rc != OCI_SUCCESS ) {
-dprintf(D_ALWAYS,"***OCIHandleAlloc failed\n");
 			return rc;
 		}
 	}
@@ -544,11 +480,6 @@ int OciServer::ServerConnect()
 
 	if ( connectionOpen ) {
 		return OCI_SUCCESS;
-	}
-
-	rc = Initialize();
-	if ( rc != OCI_SUCCESS ) {
-		return rc;
 	}
 
 dprintf(D_ALWAYS,"*OCIServerAttach( ociServerHndl, ociErrorHndl, (OraText *)dbName, strlen(dbName), OCI_DEFAULT)...\n");
