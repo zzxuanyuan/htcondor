@@ -81,8 +81,8 @@ public:
 	char *endpoint_IP();
 	int endpoint_port();
 
-#if 0 // interface no longer supported
 	int get_file_desc();
+#if 0 // interface no longer supported
 	int attach_to_file_desc(int);
 #endif
 	
