@@ -682,6 +682,12 @@ GlobusJob::GlobusJob( ClassAd *classad )
 
 	buff[0] = '\0';
 	ad->LookupString( ATTR_X509_USER_PROXY, buff );
+	if ( buff[0] == '\0' ) {
+		ad->LookupString( ATTR_X509_USER_PROXY_SUBJECT, buff2 );
+		if ( buff2[0] != '\0' ) {
+			snprintf( buff, sizeof(buff), "#%s", buff2 );
+		}
+	}
 	if ( buff[0] != '\0' ) {
 		jobProxy = AcquireProxy( buff, evaluateStateTid );
 		if ( jobProxy == NULL ) {
@@ -1018,6 +1024,12 @@ int GlobusJob::doEvaluateState()
 							   CONDOR_HOLD_CODE_CorruptedCredential);
 				UpdateJobAdInt(ATTR_HOLD_REASON_SUBCODE, 0);
 				gmState = GM_HOLD;
+				break;
+			}
+
+			if ( !PROXY_IS_VALID(jobProxy) ) {
+				dprintf( D_FULLDEBUG, "(%d.%d) proxy not valid, waiting\n",
+						 procID.cluster, procID.proc );
 				break;
 			}
 

@@ -3589,6 +3589,16 @@ queue(int num)
 		}
 
 		if (proxy_file != NULL) {
+			if ( proxy_file[0] == '#' ) {
+				(void) sprintf(buffer, "%s=\"%s\"", ATTR_X509_USER_PROXY_SUBJECT, 
+							   &proxy_file[1]);
+				InsertJobExpr(buffer);	
+
+//				(void) sprintf(buffer, "%s=\"%s\"", ATTR_X509_USER_PROXY, 
+//							   proxy_file);
+//				InsertJobExpr(buffer);	
+				free( proxy_file );
+			} else {
 #ifndef WIN32
 			if ( check_x509_proxy(proxy_file) != 0 ) {
 				fprintf( stderr, "\nERROR: %s\n", x509_error_string() );
@@ -3626,6 +3636,7 @@ queue(int num)
 						full_path(proxy_file));
 			InsertJobExpr(buffer);	
 			free( proxy_file );
+			}
 		}
 	
 
