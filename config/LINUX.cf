@@ -106,10 +106,6 @@ statically linked to avoid problems */
 
 #define StaticFlag	-static
 
-#ifndef Ctags
-#define Ctags ctags -t
-#endif Ctags
-
 #ifndef MkDepend
 #define MkDepend Tilde/CONDOR.new/GENERIC/mdepend.sh
 #endif MkDepend

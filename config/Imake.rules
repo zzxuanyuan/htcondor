@@ -958,17 +958,6 @@ depend: ALWAYS						@@\
 	$(MKDEPEND) $(CFLAGS) src_list
 */
 
-/*
-** Build a tags file for a source directory.
-*/
-#ifndef tags_target
-#define tags_target( c_files, libdirs )			@@\
-tags: ALWAYS						@@\
-	condor_ctags c_files -l libdirs			@@\
-clean::							@@\
-	rm -f tags
-#endif 
-
 
 /*
 ** Build rule for copying man pages into the right place

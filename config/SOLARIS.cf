@@ -74,10 +74,6 @@
 
 #define HAS_STATIC			NO
 
-#ifndef Ctags
-#define Ctags ctags -t
-#endif Ctags
-
 #ifndef MkDepend
 #define MkDepend ../../GENERIC/mdepend.sh /* Ask Jim */
 #endif MkDepend
