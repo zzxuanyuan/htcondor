@@ -306,15 +306,6 @@ Claim::beginActivation( ClassAd* request_ad, time_t now )
 		// Get a bunch of info out of the request ad that is now
 		// relevant, and store it in this Claim object
 
-	if( ! request_ad->LookupInteger(ATTR_CLUSTER_ID, c_cluster) ) {
-		c_cluster = 1;
-	}
-	if( ! request_ad->LookupInteger(ATTR_PROC_ID, c_proc) ) {
-		c_proc = 0;
-	}
-	c_rip->dprintf( D_ALWAYS, "Remote job ID is %d.%d\n", c_cluster, 
-					c_proc );
-
 		// See if the classad we got includes an ATTR_USER field,
 		// so we know who to charge for our services.  If not, we use
 		// the same user that claimed us.
@@ -363,6 +354,24 @@ Claim::beginActivation( ClassAd* request_ad, time_t now )
 		c_last_pckpt = (int)now;
 	}
 }
+
+
+void
+Claim::getJobId( ClassAd* request_ad )
+{
+	request_ad->LookupInteger( ATTR_CLUSTER_ID, c_cluster );
+	request_ad->LookupInteger( ATTR_PROC_ID, c_proc );
+	if( c_cluster >= 0 ) { 
+			// if the cluster is set and the proc isn't, use 0.
+		if( c_proc < 0 ) { 
+			c_proc = 0;
+		}
+			// only print this if the request specified it...
+		c_rip->dprintf( D_ALWAYS, "Remote job ID is %d.%d\n", 
+						c_cluster, c_proc );
+	}
+}
+
 
 void
 Claim::start_claim_timer()
