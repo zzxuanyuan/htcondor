@@ -1,5 +1,12 @@
 AC_INIT
 
+AC_ARG_WITH(externals,
+ AC_HELP_STRING([--with-externals=DIR],
+   [Root of directory tree for external programs needed for building Condor (no default, must be specified)]),
+ ac_cv_externals=$withval,
+ AC_MSG_ERROR([you must use --with-externals=DIR to specify the path to the directory tree for external programs needed to build Condor]))
+AC_SUBST(ext_root,$ac_cv_externals)
+
 AC_ARG_WITH([purecachedir],AC_HELP_STRING([--with-purecachedir=DIR],[cache directory for objects instrumented with Purify (default is /tmp)]),ac_cv_purecachedir=$withval,[ac_cv_purecachedir=/tmp])
 AC_SUBST(pure_cache_dir,$ac_cv_purecachedir)
 
