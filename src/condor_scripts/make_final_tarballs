@@ -25,6 +25,9 @@ while( $_ = shift( @ARGV ) ) {
     }
     if( /-t.*/ ) {
         $target = shift(@ARGV);
+	if( ! -d $target ) {
+	    die "Target directory $target does not exist!\n";
+	}
         last SWITCH;
     }
     if( /-l.*/ ) {
