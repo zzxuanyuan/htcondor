@@ -30,12 +30,12 @@
 
 #define _POSIX_SOURCE
 
+#include <stdio.h>
 #include "condor_common.h"
 #include "condor_constants.h"
 #include "condor_io.h"
 #include "condor_debug.h"
-
-
+#include "internet.h"
 
 
 ReliSock::ReliSock(					/* listen on port		*/
@@ -208,6 +208,8 @@ int ReliSock::handle_incoming_packet()
 
 int ReliSock::end_of_message()
 {
+	int ret_val = FALSE;
+
 	switch(_coding){
 		case stream_encode:
 			if (!snd_msg.buf.empty()){
@@ -216,10 +218,11 @@ int ReliSock::end_of_message()
 			break;
 
 		case stream_decode:
-			if (rcv_msg.ready && rcv_msg.buf.consumed()){
+			if ( rcv_msg.ready ) {
+				if ( rcv_msg.buf.consumed() )
+					ret_val = TRUE;
 				rcv_msg.ready = FALSE;
 				rcv_msg.buf.reset();
-				return TRUE;
 			}
 			break;
 
@@ -227,7 +230,7 @@ int ReliSock::end_of_message()
 			assert(0);
 	}
 
-	return FALSE;
+	return ret_val;
 }
 
 
@@ -317,7 +320,7 @@ int ReliSock::peek(
 }
 
 int ReliSock::RcvMsg::rcv_packet(
-	int	_sock,
+	SOCKET _sock,
 	int _timeout
 	)
 {
@@ -329,6 +332,33 @@ int ReliSock::RcvMsg::rcv_packet(
 
     len = 0;
     while (len < 5) {
+		if (_timeout > 0) {
+			struct timeval	timer;
+			fd_set			readfds;
+			int				nfds=0, nfound;
+			timer.tv_sec = _timeout;
+			timer.tv_usec = 0;
+#if !defined(WIN32) // nfds is ignored on WIN32
+			nfds = _sock + 1;
+#endif
+			FD_ZERO( &readfds );
+			FD_SET( _sock, &readfds );
+
+			nfound = select( nfds, &readfds, 0, 0, &timer );
+
+			switch(nfound) {
+			case 0:
+				return -1;
+				break;
+			case 1:
+				break;
+			default:
+				dprintf( D_ALWAYS, "select returns %d, recv failed\n",
+					nfound );
+				return -1;
+				break;
+			}
+		}
         tmp_len = recv(_sock, hdr+len, 5-len, 0);
         if (tmp_len <= 0)
             return FALSE;
@@ -393,6 +423,8 @@ struct sockaddr_in * ReliSock::endpoint()
 {
 	int addr_len;
 
+	addr_len = sizeof(sockaddr_in);
+
 	if (getpeername(_sock, (struct sockaddr *) &_who, &addr_len) < 0) 
 		return NULL;	// socket not connected
 
@@ -430,3 +462,32 @@ int ReliSock::attach_to_file_desc(
 	return TRUE;
 }
 #endif
+
+char * ReliSock::serialize(char *buf)
+{
+	char sinful_string[28];
+	char *ptmp;
+
+	if ( buf == NULL ) {
+		// here we want to save our state into a buffer
+
+		// first, get the state from our parent class
+		char * parent_state = Sock::do_serialize();
+		// now concatenate our state
+		char * outbuf = new char[50];
+		sprintf(outbuf,"*%d*%s",_special_state,sin_to_string(&_who));
+		strcat(parent_state,outbuf);
+		delete []outbuf;
+		return( parent_state );
+	}
+
+	// here we want to restore our state from the incoming buffer
+
+	// first, let our parent class restore its state
+	ptmp = Sock::do_serialize(buf);
+	assert( ptmp );
+	sscanf(ptmp,"%d*%s",&_special_state,sinful_string);
+	string_to_sin(sinful_string, &_who);
+
+	return NULL;
+}
