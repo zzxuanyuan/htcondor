@@ -64,7 +64,7 @@ AC_SUBST(pure_cache_dir,$ac_cv_purecachedir)
 ############################################################
 
 CHECK_MAKE_IS_GNU()
-if test $_cv_make_is_gnu == "no"; then
+if test $_cv_make_is_gnu = no; then
    AC_MSG_ERROR( [GNU make is required] )
 fi
 
@@ -79,12 +79,12 @@ AC_PROG_PERL_VERSION([5.005_3], [],
 
 AC_PROG_LEX
 AC_CHECK_PROG(ac_lex,lex,yes,no)
-if test "$ac_lex" == no; then
+if test $ac_lex = no; then
     AC_MSG_ERROR( [lex is required] )
 fi
 
 AC_CHECK_PROG(ac_yacc,yacc,yes,no)
-if test "$ac_yacc" == no; then
+if test $ac_yacc = no; then
     AC_MSG_ERROR( [yacc is required] )
 fi
 
