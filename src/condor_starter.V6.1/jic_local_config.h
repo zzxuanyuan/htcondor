@@ -58,6 +58,8 @@ private:
 	bool getConfigAttr( ClassAd* ad, const char* key, bool warn,
 						const char* attr, bool is_string );
 
+	bool getUniverse( ClassAd* ad, const char* key );
+
 		// Private data
 	char* key;
 };

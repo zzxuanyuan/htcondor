@@ -57,11 +57,10 @@ JICLocalConfig::getLocalJobAd( void )
 	job_ad = new ClassAd();
 
 		// first, things we absolutely need
-
+	if( ! getUniverse(job_ad, key) ) { return false; }
 	if( ! getConfigString(job_ad, key, 1, ATTR_JOB_CMD) ) { return false; }
 	if( ! getConfigString(job_ad, key, 1, ATTR_JOB_IWD) ) { return false; }
 	if( ! getConfigString(job_ad, key, 1, ATTR_OWNER) ) { return false; }
-	if( ! getConfigInt(job_ad, key, 1, ATTR_JOB_UNIVERSE) ) { return false; }
 	if( ! getConfigInt(job_ad, key, 1, ATTR_CLUSTER_ID) ) { return false; }
 	if( ! getConfigInt(job_ad, key, 1, ATTR_PROC_ID) ) { return false; }
 
@@ -139,6 +138,98 @@ JICLocalConfig::getConfigAttr( ClassAd* ad, const char* key, bool warn,
 		expr += "\"";
 	}
 	free( tmp );
+
+	if( ad->Insert(expr.Value()) ) {
+		return true;
+	}
+	dprintf( D_ALWAYS, "ERROR: Failed to insert into job ad: %s\n",
+			 expr.Value() );
+	return false;
+}
+
+
+bool
+JICLocalConfig::getUniverse( ClassAd* ad, const char* key ) 
+{
+	char* tmp;
+	char param_name[256];
+	int univ = 0;
+
+		// first try the ClassAd attr name:
+	sprintf( param_name, "%s_%s", key, ATTR_JOB_UNIVERSE );
+	tmp = param( param_name );
+	if( ! tmp ) {
+			// now, try just "key_universe"
+		sprintf( param_name, "%s_universe", key );
+		tmp = param( param_name );
+		if( ! tmp ) {
+			dprintf( D_ALWAYS, "\"%s\" not found in config file\n",
+					 param_name );
+			return false;
+		}
+	}
+
+		// tmp now holds whatever they told us the universe should be.
+		// however, it might be a string universe name, or the integer
+		// of the universe we eventually want.  first, see if it's
+		// just an integer already...
+	univ = atoi( tmp );
+	if( ! univ ) {
+			// it's not already an int, try to convert from a string. 
+		univ = CondorUniverseNumber( tmp );
+	}
+
+		// Make sure the universe we job got is valid.  If the user
+		// gave a string which wasn't valid, we'll get back a 0, which
+		// is the same as CONDOR_UNIVERSE_MIN, so we'll catch it.
+	if( univ >= CONDOR_UNIVERSE_MAX || univ <= CONDOR_UNIVERSE_MIN ) { 
+		dprintf( D_ALWAYS, 
+				 "ERROR: Unrecognized %s \"%s\", aborting\n",
+				 param_name, tmp );
+		free( tmp );
+		return false;
+	}
+		// we're done with this, so avoid leaking by free'ing now.
+	free( tmp );
+	tmp = NULL;
+
+		// now that we know what they wanted, see if we'll support it
+	switch( univ ) {
+	case CONDOR_UNIVERSE_VANILLA:
+	case CONDOR_UNIVERSE_JAVA:
+			// for now, we don't support much. :)
+		break;
+	case CONDOR_UNIVERSE_STANDARD:
+	case CONDOR_UNIVERSE_PVM:
+	case CONDOR_UNIVERSE_SCHEDULER:
+	case CONDOR_UNIVERSE_MPI:
+	case CONDOR_UNIVERSE_GLOBUS:
+	case CONDOR_UNIVERSE_PARALLEL:
+			// these are at least valid tries, but we don't work with
+			// any of them in stand-alone starter mode... yet.
+		dprintf( D_ALWAYS, "ERROR: %s %s (%d) not supported without the "
+				 "schedd and/or shadow, aborting\n", param_name,
+				 CondorUniverseName(univ), univ );
+		return false;
+	default:
+			// downright unsupported universes
+		dprintf( D_ALWAYS, "ERROR: %s %s (%d) is not supported\n", 
+				 param_name, CondorUniverseName(univ), univ );
+		return false;
+
+	}
+
+		// MyString likes to append strings, so print out the string
+		// version of the integer so we can use it.
+	char univ_str[32];
+	sprintf( univ_str, "%d", univ );
+
+		// finally, we can construct the expression and insert it into
+		// the ClassAd
+	MyString expr;
+	expr = ATTR_JOB_UNIVERSE;
+	expr += " = ";
+	expr += univ_str;
 
 	if( ad->Insert(expr.Value()) ) {
 		return true;
