@@ -149,6 +149,7 @@
 #define HAS_PVM				NO
 #endif
 
+#define IS_V5 YES
 #define HAS_NDBM			YES
 #define HAS_FSTATFS			YES
 #define NEEDS_XDR_FLOAT			NO
@@ -171,8 +172,8 @@
 #define HAS_GETPGRP2			NO
 #define HAS_KILLPG			YES
 #define HAS_SETHOSTNAME			YES
-#define HAS_SETREGID			NO
-#define HAS_SETREUID			NO
+#define HAS_SETREGID			YES
+#define HAS_SETREUID			YES
 #define HAS_UTIMES			YES
 #define HAS_UTIME			NO
 #define HAS_VHANGUP			YES
