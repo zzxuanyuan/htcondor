@@ -102,6 +102,9 @@
 		- on encode, flush stream and send record delimiter.  on decode, discard
 		data up until the next record delimiter.
 
+	11) char * serialize()
+		- save/restore object state
+
 	* CODE/PUT/GET:
 
 	- Put (and Get) routines write to (and read from) streams,
@@ -168,6 +171,8 @@ class Stream {
 **		PUBLIC INTERFACE TO ALL STREAMS
 */
 public:
+
+	friend class DaemonCore;
 
 	/*
 	**	Type definitions
@@ -332,6 +337,7 @@ public:
 	//
 	virtual stream_type type() { assert(0); return (stream_type)0; }
 
+
 	// Condor Compatibility Ops
 	int snd_int(int val, int end_of_record);
 	int rcv_int(int &val, int end_of_record);
@@ -341,6 +347,12 @@ public:
 **		PRIVATE INTERFACE TO ALL STREAMS
 */
 protected:
+
+	// serialize object (save/restore object state to an ascii string)
+	//
+	virtual char * serialize(char *) { assert(0); return (char *)0; }
+	// virtual char * serialize(char *) = 0;
+	inline char * serialize() { return(serialize(NULL)); }
 
 	/*
 	**	Type definitions
