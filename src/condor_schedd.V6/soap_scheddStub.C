@@ -432,7 +432,8 @@ condor__newJob(struct soap *soap,
 			CondorError errstack;
 			if (job->initialize(errstack)) {
 				result.response.integer = -1;
-				result.response.status.code = errstack.code();
+				result.response.status.code =
+					(condor__StatusCode) errstack.code();
 				result.response.status.message =
 					(char *) soap_malloc(soap, strlen(errstack.message()));
 				strcpy(result.response.status.message,
@@ -588,7 +589,8 @@ condor__submit(struct soap *soap,
 			} else {
 				CondorError errstack;
 				if (job->submit(*jobAd, errstack)) {
-					result.response.status.code = errstack.code();
+					result.response.status.code =
+						(condor__StatusCode) errstack.code();
 					result.response.status.message =
 						(char *) soap_malloc(soap, strlen(errstack.message()));
 					strcpy(result.response.status.message,
@@ -707,7 +709,8 @@ condor__declareFile(struct soap *soap,
 		} else {
 			CondorError errstack;
 			if (job->declare_file(MyString(name), size, errstack)) {
-				result.response.code = errstack.code();
+				result.response.code =
+					(condor__StatusCode) errstack.code();
 				result.response.message =
 					(char *) soap_malloc(soap, strlen(errstack.message()));
 				strcpy(result.response.message,
@@ -753,7 +756,8 @@ condor__sendFile(struct soap *soap,
 				result.response.code = SUCCESS;
 				result.response.message = "That's quite a fastball.";
 			} else {
-				result.response.code = errstack.code();
+				result.response.code =
+					(condor__StatusCode) errstack.code();
 				result.response.message =
 					(char *) soap_malloc(soap, strlen(errstack.message()));
 				strcpy(result.response.message,
@@ -809,7 +813,8 @@ int condor__getFile(struct soap *soap,
 					result.response.data.__ptr = data;
 					result.response.data.__size = length;
 				} else {
-					result.response.status.code = errstack.code();
+					result.response.status.code =
+						(condor__StatusCode) errstack.code();
 					result.response.status.message =
 						(char *) soap_malloc(soap, strlen(errstack.message()));
 					strcpy(result.response.status.message,
@@ -879,7 +884,8 @@ condor__listSpool(struct soap * soap,
 		int code;
 		CondorError errstack;
 		if (code = job->get_spool_list(files, errstack)) {
-			result.response.status.code = errstack.code();
+			result.response.status.code =
+				(condor__StatusCode) errstack.code();
 			result.response.status.message =
 				(char *) soap_malloc(soap, strlen(errstack.message()));
 			strcpy(result.response.status.message,
