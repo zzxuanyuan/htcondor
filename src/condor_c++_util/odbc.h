@@ -21,10 +21,12 @@ private:
 	char dsn[81];
 	char user[31];
 	char auth[81];
+	int timeout;
+	bool    in_xact;
 public:
 	
 	ODBC();
-	ODBC(char *dsn, char *user, char *auth);
+	ODBC(char *dsn, char *user, char *auth, char* timeout);
 	~ODBC();
 	long odbc_connect();
 	long odbc_connect(char *dsn, char *user, char *auth);
@@ -33,6 +35,8 @@ public:
 	bool isConnected() {return connected;}
 	long odbc_bindcol(unsigned short col_number, void *result, int buffer_len, SQLSMALLINT col_type = SQL_DEFAULT);
 	long odbc_fetch();
+	long ODBC::odbc_beginxtstmt(const char * statement);
+	long ODBC::odbc_endxtstmt(const char * statement);
 	long odbc_closestmt() { return (SQLCloseCursor(odbc_hstmt)); }
 
 };
