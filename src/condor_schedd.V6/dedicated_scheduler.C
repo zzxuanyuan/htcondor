@@ -2367,6 +2367,7 @@ DedicatedScheduler::computeSchedule( void )
 		if( idle_resources->satisfyJobs(jobs, max_hosts, idle_candidates,
 										idle_candidates_jobs) )
 		{
+			printSatisfaction( cluster, idle_candidates->Length(), 0, 0, 0 );
 			createAllocations( idle_candidates, idle_candidates_jobs,
 							   cluster, nprocs );
 				
@@ -2402,8 +2403,11 @@ DedicatedScheduler::computeSchedule( void )
 							limbo_candidates_jobs) )
 			{
 					// Could satisfy with idle and/or limbo
-				dprintf( D_FULLDEBUG, "Satisfied job %d from idle_resources + limbo_resources\n",
-						 cluster );
+				printSatisfaction( cluster,
+								   idle_candidates ? 
+								   idle_candidates->Length() : 0,
+								   limbo_candidates->Length(), 0, 0 );
+
 					// Mark any idle resources we are going to use as
 					// scheduled.
 				if( idle_candidates ) {
@@ -2449,10 +2453,12 @@ DedicatedScheduler::computeSchedule( void )
 					// resources requests for each one, remove them from
 					// the unclaimed_resources list, and go onto the next
 					// job.
-
-				dprintf( D_FULLDEBUG, "Satisfied job %d with %d unclaimed "
-						 "resource(s), generating resource request(s)\n", 
-						 cluster, still_needed );
+				printSatisfaction( cluster,
+								   idle_candidates ? 
+								   idle_candidates->Length() : 0,
+								   limbo_candidates ? 
+								   limbo_candidates->Length() : 0, 
+								   unclaimed_candidates->Length(), 0 );
 
 				unclaimed_candidates->Rewind();
 				unclaimed_candidates_jobs->Rewind();
@@ -2628,8 +2634,14 @@ DedicatedScheduler::computeSchedule( void )
 
 			if( still_needed == 0) {
 					// We got every single thing we need
-				dprintf( D_FULLDEBUG, "Satisfied job %d from busy_resources\n",
-						 cluster );
+				printSatisfaction( cluster,
+								   idle_candidates ? 
+								   idle_candidates->Length() : 0,
+								   limbo_candidates ? 
+								   limbo_candidates->Length() : 0, 
+								   unclaimed_candidates ? 
+								   unclaimed_candidates->Length() : 0, 
+								   preempt_candidates->Length() );
 
 				preempt_candidates->Rewind();
 				while( ClassAd *mach = preempt_candidates->Next()) {
@@ -2766,9 +2778,6 @@ DedicatedScheduler::createAllocations( CAList *idle_candidates,
 {
 	AllocationNode *alloc;
 	MRecArray* matches;
-
-	dprintf( D_FULLDEBUG, "Satisfied job %d from idle_resources\n",
-			 cluster );
 
 		// Debugging hack: allow config file to specify which
 		// ip address we want the master to run on.
@@ -3240,6 +3249,57 @@ DedicatedScheduler::displayResourceRequests( void )
 	dprintf( D_FULLDEBUG,
 			 "Waiting to negotiate for %d dedicated resource request(s)\n",
 			 resource_requests->Length() );
+}
+
+
+void
+DedicatedScheduler::printSatisfaction( int cluster, int idle, int limbo,
+									   int unclaimed, int busy )
+{
+	MyString msg;
+	msg.sprintf( "Satisfied job %d with ", cluster );
+	bool had_one = false;
+	if( idle ) {
+		msg += idle;
+		msg += " idle";
+		had_one = true;
+	}
+	if( limbo ) {
+		if( had_one ) {
+			msg += ", ";
+		}
+		msg += limbo;
+		msg += " limbo";
+		had_one = true;
+	}
+	if( unclaimed ) {
+		if( had_one ) {
+			msg += ", ";
+		}
+		msg += unclaimed;
+		msg += " unclaimed";
+		had_one = true;
+	}
+	if( busy ) {
+		if( had_one ) {
+			msg += ", ";
+		}
+		msg += busy;
+		msg += " busy";
+		had_one = true;
+	}
+	msg += " resources";
+	dprintf( D_FULLDEBUG, "%s\n", msg.Value() );
+
+	if( unclaimed ) {
+		dprintf( D_FULLDEBUG, "Generating %d resource requests for job %d\n", 
+				 unclaimed, cluster  );
+	}
+
+	if( busy ) {
+		dprintf( D_FULLDEBUG, "Preempting %d resources for job %d\n", 
+				 busy, cluster  );
+	}
 }
 
 
