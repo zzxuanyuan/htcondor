@@ -851,7 +851,7 @@ reinsert_specials( char* host )
 
 
 void
-config_insert( char* attrName, char* attrValue )
+config_insert( const char* attrName, const char* attrValue )
 {
 	if( ! (attrName && attrValue) ) {
 		return;
