@@ -105,9 +105,9 @@ clean::								@@\
 ** Build a template instantiation object
 */
 #ifndef template_inst
-#define template_inst( srcfile ) 				@@\
-objfile:										@@\
-	$(CPlusPlus) $(INST_C_PLUS_FLAGS) -c srcfile
+#define template_inst( srcfile, objfile ) 		@@\
+objfile: srcfile								@@\
+	$(CPlusPlus) $(INST_C_PLUS_FLAGS) -c srcfile -o objfile
 #endif /* template_inst_obj */
 
 
