@@ -42,10 +42,8 @@ CLASSAD_OBJ = \
 	../condor_classad/scanner.o \
 	../condor_classad/value.o \
 	../condor_classad/xml_classads.o \
-	../condor_classad/registration.o \
-	../condor_util_lib/condor_snutils.o \
-	stringSpace.o \
-	MyString.o
+	../condor_classad/registration.o 
+
 
 /* Construct a libcondorapi.a that includes enough stuff to read and write
 	log files. The libcondorapi_stubs.o object contains stubs for cedar, the
@@ -72,9 +70,11 @@ CONLIBAPI_OBJ = \
 	my_subsystem.o \
 	distribution.o \
 	my_distribution.o \
-	$(CLASSAD_OBJ) \
 	$(DH_OBJ) \
 	c++_util_instantiate.o \
+	../condor_util_lib/condor_snutils.o \
+	stringSpace.o \
+	MyString.o \
 	libcondorapi_stubs.o
 
 DAEMON_CLIENT_OBJ = daemon.o daemon_types.o dc_shadow.o dc_startd.o \
