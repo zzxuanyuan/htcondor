@@ -447,6 +447,10 @@ time_t findAvailTime( match_rec* mrec );
 // Comparison function for sorting job cluster ids by QDate
 int clusterSortByDate( const void* ptr1, const void* ptr2 );
 
+// Comparison function for sorting job cluster ids by Priority and QDate
+int clusterSortByPriorityAndDate( const void *ptr1, const void* ptr2 );
+
+
 // Comparison function for sorting machines by rank, cluster_id
 int
 RankSorter( const void *ptr1, const void* ptr2 );

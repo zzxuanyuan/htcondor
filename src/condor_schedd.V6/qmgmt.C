@@ -2377,6 +2377,121 @@ int get_job_prio(ClassAd *job)
 	return cur_hosts;
 }
 
+
+//  by Hidemoto for license management hack.
+//  basically, does the same thing with above. 
+//  skip job status check to include HOLD jobs 
+int get_job_prio_hack(ClassAd *job)
+{
+    int job_prio;
+    int job_status;
+    PROC_ID id;
+    int     q_date;
+    char    buf[100];
+	char	owner[100];
+    int     cur_hosts;
+    int     max_hosts;
+	int 	niceUser;
+	int		universe;
+
+	ASSERT(job);
+
+	buf[0] = '\0';
+	owner[0] = '\0';
+
+		// We must call getAutoClusterid() in get_job_prio!!!  We CANNOT
+		// return from this function before we call getAutoClusterid(), so call
+		// it early on (before any returns) right now.  The reason for this is
+		// getAutoClusterid() performs a mark/sweep algorithm to garbage collect
+		// old autocluster information.  If we fail to call getAutoClusterid, the
+		// autocluster information for this job will be removed, causing the schedd
+		// to ASSERT later on in the autocluster code. 
+		// Quesitons?  Ask Todd <tannenba@cs.wisc.edu> 01/04
+	int auto_id = scheduler.autocluster.getAutoClusterid(job);
+
+	job->LookupInteger(ATTR_JOB_UNIVERSE, universe);
+	job->LookupInteger(ATTR_JOB_STATUS, job_status);
+    if (job->LookupInteger(ATTR_CURRENT_HOSTS, cur_hosts) == 0) {
+        cur_hosts = ((job_status == RUNNING) ? 1 : 0);
+    }
+    if (job->LookupInteger(ATTR_MAX_HOSTS, max_hosts) == 0) {
+        max_hosts = ((job_status == IDLE || job_status == UNEXPANDED) ? 1 : 0);
+    }
+
+
+	// tweaked by Hidemoto
+#if 0
+	// Figure out if we should contine and put this job into the PrioRec array
+	// or not.
+    // No longer judge whether or not a job can run by looking at its status.
+    // Rather look at if it has all the hosts that it wanted.
+    if (cur_hosts>=max_hosts || job_status==HELD || 
+			job_status==REMOVED || job_status==COMPLETED ||
+			!service_this_universe(universe,job)) 
+	{
+        return cur_hosts;
+	}
+#else
+    if (cur_hosts>=max_hosts)
+	{
+        return cur_hosts;
+	}
+#endif
+
+
+	// --- Insert this job into the PrioRec array ---
+
+    job->LookupInteger(ATTR_JOB_PRIO, job_prio);
+    job->LookupInteger(ATTR_Q_DATE, q_date);
+	if( job->LookupInteger( ATTR_NICE_USER, niceUser ) && niceUser ) {
+		strcpy(owner,NiceUserName);
+		strcat(owner,".");
+	}
+	buf[0] = '\0';
+	job->LookupString(ATTR_ACCOUNTING_GROUP,buf,sizeof(buf));  // TODDCORE
+	if ( buf[0] == '\0' ) {
+		job->LookupString(ATTR_OWNER, buf, sizeof(buf));  
+	}
+	strcat(owner,buf);
+		// Note, we should use this method instead of just looking up
+		// ATTR_USER directly, since that includes UidDomain, which we
+		// don't want for this purpose...
+	job->LookupInteger(ATTR_CLUSTER_ID, id.cluster);
+	job->LookupInteger(ATTR_PROC_ID, id.proc);
+
+	
+#if 0
+    // No longer judge whether or not a job can run by looking at its status.
+    // Rather look at if it has all the hosts that it wanted.
+    if (cur_hosts>=max_hosts || job_status==HELD)
+        return cur_hosts;
+#else
+    if (cur_hosts>=max_hosts)
+        return cur_hosts;
+#endif
+
+    PrioRec[N_PrioRecs].id       = id;
+    PrioRec[N_PrioRecs].job_prio = job_prio;
+    PrioRec[N_PrioRecs].status   = job_status;
+    PrioRec[N_PrioRecs].qdate    = q_date;
+	if ( auto_id == -1 ) {
+		PrioRec[N_PrioRecs].auto_cluster_id = id.cluster;
+	} else {
+		PrioRec[N_PrioRecs].auto_cluster_id = auto_id;
+	}
+
+	strcpy(PrioRec[N_PrioRecs].owner,owner);
+
+	dprintf(D_UPDOWN,"get_job_prio(): added PrioRec %d - id = %d.%d, owner = %s\n",N_PrioRecs,PrioRec[N_PrioRecs].id.cluster,PrioRec[N_PrioRecs].id.proc,PrioRec[N_PrioRecs].owner);
+    N_PrioRecs += 1;
+	if ( N_PrioRecs == MAX_PRIO_REC ) {
+		grow_prio_recs( 2 * N_PrioRecs );
+	}
+
+	return cur_hosts;
+}
+
+
 static bool
 jobLeaseIsValid( ClassAd* job, int cluster, int proc )
 {

@@ -120,7 +120,12 @@ extern const char ATTR_USER_ERROR_REASON[];
 /* NEW INTERFACE */
 
 enum { STAYS_IN_QUEUE = 0, REMOVE_FROM_QUEUE, HOLD_IN_QUEUE, UNDEFINED_EVAL, RELEASE_FROM_HOLD };
-enum { PERIODIC_ONLY = 0, PERIODIC_THEN_EXIT };
+// added Evict here. - hidemoto 
+enum { PERIODIC_ONLY = 0, PERIODIC_THEN_EXIT, EVICT_ONLY };
+
+// also add ATTRs. - hidemoto  
+// it should be in condor_include/condor_attribute.h, eventually
+const char ATTR_ON_EVICT_HOLD_CHECK[] = "OnEvictHold";
 
 /* ok, here is the first set of expressions that should be available
 	in the classad when it is given to Init():

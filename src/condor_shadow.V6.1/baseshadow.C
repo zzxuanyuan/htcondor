@@ -765,6 +765,9 @@ BaseShadow::evictJob( int reason )
 		dprintf( D_ALWAYS, "Failed to update job queue!\n" );
 	}
 
+	// does not return if it should be held
+	shadow_user_policy.checkAtEvict();
+
 		// does not return.
 	DC_Exit( reason );
 }

@@ -98,6 +98,19 @@ ShadowUserPolicy::checkAtExit( void )
 	doAction( action, false );
 }
 
+void
+ShadowUserPolicy::checkAtEvict( void )
+{
+  int action = user_policy.AnalyzePolicy( EVICT_ONLY );
+
+	
+  if (action == HOLD_IN_QUEUE)
+	doAction(action, false);
+
+  return;
+}
+
+
 
 void
 ShadowUserPolicy::checkPeriodic( void )

@@ -1556,13 +1556,17 @@ ResponsibleForPeriodicExprs( ClassAd *jobad )
 	}
 }
 
+
+
+
+
 /*
 For a given job, evaluate any periodic expressions
 and abort, hold, or release the job as necessary.
 */
 
 static int
-PeriodicExprEval( ClassAd *jobad )
+ExprEval( ClassAd *jobad, int mode )
 {
 	int cluster=-1, proc=-1, status=-1, action=-1;
 
@@ -1595,7 +1599,7 @@ PeriodicExprEval( ClassAd *jobad )
 	UserPolicy policy;
 	policy.Init(jobad);
 
-	action = policy.AnalyzePolicy(PERIODIC_ONLY);
+	action = policy.AnalyzePolicy(mode);
 
 	// Build a "reason" string for logging
 	MyString reason;
@@ -1661,15 +1665,82 @@ PeriodicExprEval( ClassAd *jobad )
 	return 1;
 }
 
+
+static int
+PeriodicExprEval( ClassAd *jobad ){
+  return ExprEval(jobad, PERIODIC_ONLY);
+}
+
+
+static void
+EvalOnEvict(PROC_ID job_id){
+  dprintf(D_FULLDEBUG, "go check ON_EVICT_HOlD \n");
+  ClassAd * jobad = GetJobAd(job_id.cluster, job_id.proc);
+  ExprEval(jobad, EVICT_ONLY);
+}
+
+
+
 /*
 For all of the jobs in the queue, evaluate the 
 periodic user policy expressions.
 */
 
+extern int get_job_prio_hack(ClassAd *ad);
+
+void
+job_prio_hack(ClassAd *ad)
+{
+  get_job_prio_hack(ad);
+}
+
+
 void
 Scheduler::PeriodicExprHandler( void )
 {
+  /* orignal code was just this.
 	WalkJobQueue(PeriodicExprEval);
+	*/
+  
+  /* 
+   * tweaked by hidemoto to allow priority order evaluation
+   * for license management hack.
+   * Almost all the code here is borrowed from 'negotiate'.
+   */
+	 
+
+	autocluster.mark();
+	N_PrioRecs = 0;
+
+	WalkJobQueue( (int(*)(ClassAd *))job_prio_hack );
+
+
+	if( !shadow_prio_recs_consistent() ) {
+		mail_problem_message();
+	}
+
+	if( N_PrioRecs ) {
+		qsort( (char *)PrioRec, N_PrioRecs, sizeof(PrioRec[0]),
+			   (int(*)(const void*, const void*))prio_compar );
+	}
+	autocluster.sweep();
+
+	dprintf ( D_FULLDEBUG, "PeriodicExprHandler ...\n");
+
+	for(int i=0; i < N_PrioRecs; i++ ) {
+	  ClassAd * job_ad;
+
+	  job_ad = GetJobAd(PrioRec[i].id.cluster, PrioRec[i].id.proc);
+	  if ( !job_ad ) {
+        dprintf ( D_ALWAYS, "cannot find %d.%d in PeriodicExprHandler. Ignoring.\n", 
+                  PrioRec[i].id.cluster, PrioRec[i].id.proc );
+		continue;
+	  }
+	  dprintf ( D_FULLDEBUG, "   eval %d.%d ...\n", PrioRec[i].id.cluster, PrioRec[i].id.proc);
+	  PeriodicExprEval(job_ad);
+	}
+	dprintf ( D_FULLDEBUG, "               done ...\n");
+
 }
 
 // Initialize a UserLog object for a given job and return a pointer to
@@ -6698,6 +6769,7 @@ Scheduler::child_exit(int pid, int status)
 					// job's queue status will already be correct, so
 					// we don't have to change anything else...
 				WriteEvictToUserLog( job_id );
+				EvalOnEvict(job_id);
 			}
 		} else 
 		if(WIFSIGNALED(status)) {
@@ -6721,6 +6793,7 @@ Scheduler::child_exit(int pid, int status)
 							WTERMSIG(status), COMPLETED );
 			} else {
 				WriteEvictToUserLog( job_id );
+				EvalOnEvict(job_id);
 			}
 		}
 		delete_shadow_rec( pid );

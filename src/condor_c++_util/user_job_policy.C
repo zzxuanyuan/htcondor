@@ -415,6 +415,23 @@ UserPolicy::AnalyzePolicy( int mode )
 		EXCEPT("UserPolicy Error: Must call Init() first!");
 	}
 
+	// check evict  - hidemoto
+
+	if ( mode == EVICT_ONLY ) {
+	  int on_evict_hold;
+	  m_fire_expr = ATTR_ON_EVICT_HOLD_CHECK;
+	  if( ! m_ad->EvalBool(ATTR_ON_EVICT_HOLD_CHECK, m_ad, on_evict_hold) ) {
+		return UNDEFINED_EVAL;
+	  }
+	  if( on_exit_hold ) {
+		m_fire_expr_val = 1;
+		return HOLD_IN_QUEUE;
+	  }
+	  m_fire_expr_val = 0;
+	  return STAYS_IN_QUEUE;
+	}
+
+
 	if (mode != PERIODIC_ONLY && mode != PERIODIC_THEN_EXIT)
 	{
 		EXCEPT("UserPolicy Error: Unknown mode in AnalyzePolicy()");

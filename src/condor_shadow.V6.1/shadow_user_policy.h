@@ -67,6 +67,11 @@ class ShadowUserPolicy : public Service
 	void checkAtExit( void );
 
 		/** Check the UserPolicy to see if we should do anything
+			special with the job once it has evicted. 
+		*/
+	void checkAtEvict( void );
+
+		/** Check the UserPolicy to see if we should do anything
 			special with the job as it is running.  This method will
 			act on the return value from UserPolicy.AnalyzePolicy(),
 			and perform all the necessary actions as appropriate.

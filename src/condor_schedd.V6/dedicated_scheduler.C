@@ -1820,9 +1820,9 @@ DedicatedScheduler::sortJobs( void )
 	dprintf( D_FULLDEBUG, "Found %d idle dedicated job(s)\n",
 			 next_cluster );
 
-		// Now, sort them by qdate
+		// Now, sort them by prio and qdate -hidemoto
 	qsort( &(*idle_clusters)[0], next_cluster, sizeof(int), 
-		   clusterSortByDate ); 
+		   clusterSortByPriorityAndDate ); 
 
 		// Show the world what we've got
 	listDedicatedJobs( D_FULLDEBUG );
@@ -3757,6 +3757,32 @@ clusterSortByDate( const void *ptr1, const void* ptr2 )
 		(GetAttributeInt(cluster2, 0, ATTR_Q_DATE, &qdate2) < 0) ) {
 		return -1;
 	}
+	return (qdate1 - qdate2);
+}
+
+// Comparison function for sorting jobs (given cluster id) by Priority and QDate 
+int
+clusterSortByPriorityAndDate( const void *ptr1, const void* ptr2 )
+{
+	int cluster1 = *((int*)ptr1);
+	int cluster2 = *((int*)ptr2);
+	int prio1, prio2;
+	int qdate1, qdate2;
+
+	if( (GetAttributeInt(cluster1, 0, ATTR_JOB_PRIO, &prio1) < 0) ||
+	    (GetAttributeInt(cluster2, 0, ATTR_JOB_PRIO, &prio2) < 0) ) {
+	  return -1;
+	}
+	if (prio1 < prio2)
+	  return 1;
+	if (prio1 > prio2)
+	  return -1;
+
+	if( (GetAttributeInt(cluster1, 0, ATTR_Q_DATE, &qdate1) < 0) || 
+		(GetAttributeInt(cluster2, 0, ATTR_Q_DATE, &qdate2) < 0) ) {
+		return -1;
+	}
+
 	return (qdate1 - qdate2);
 }
 
