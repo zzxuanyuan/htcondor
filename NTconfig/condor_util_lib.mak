@@ -27,8 +27,8 @@ NULL=nul
 
 !IF  "$(CFG)" == "condor_util_lib - Win32 Debug"
 
-OUTDIR=.\..\Debug
-INTDIR=.\..\Debug
+OUTDIR=..\Debug
+INTDIR=..\Debug
 
 ALL : "..\src\h\syscall_numbers.h" "..\src\condor_util_lib\condor_util.lib"
 
@@ -160,8 +160,8 @@ LIB32_OBJS= \
 
 !ELSEIF  "$(CFG)" == "condor_util_lib - Win32 Release"
 
-OUTDIR=.\..\Release
-INTDIR=.\..\Release
+OUTDIR=..\Release
+INTDIR=..\Release
 
 ALL : "..\src\h\syscall_numbers.h" "..\src\condor_util_lib\condor_util.lib"
 

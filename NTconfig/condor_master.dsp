@@ -101,5 +101,9 @@ SOURCE=..\src\condor_master.V6\master.h
 
 SOURCE=..\src\condor_master.V6\service.WIN32.C
 # End Source File
+# Begin Source File
+
+SOURCE=..\src\condor_master.V6\soap_masterStub.C
+# End Source File
 # End Target
 # End Project
