@@ -33,6 +33,8 @@
 
 //added by Ameet
 #include "condor_environ.h"
+#include <sys/types.h>
+#include <sys/socket.h>
 
 //--------------------------------------------------------
 #include "condor_debug.h"
@@ -1276,6 +1278,9 @@ ExecuteEvent::
 int ExecuteEvent::
 writeEvent (FILE *file)
 {	
+  struct hostent *hp;
+  unsigned long addr;
+  char *executehostname;
   char *sqlstmt;
   sqlstmt = (char *) malloc(1024 * sizeof(char));
 
@@ -1286,19 +1291,28 @@ writeEvent (FILE *file)
 
   //JobAd->LookupString(ATTR_GLOBAL_JOB_ID, globaljobid);
 
-  dprintf(D_ALWAYS, "just before initializing scheddname in ExecuteEvent\n");
   scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
-  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
-
-  if(!scheddname) {
-    dprintf(D_ALWAYS, "scheddname = %s\n", scheddname);
+  
+  if(!scheddname) 
+    dprintf(D_FULLDEBUG, "scheddname = %s\n", scheddname);
+  
+  else 
+    dprintf(D_FULLDEBUG, "scheddname is null\n");
+  
+  addr = inet_addr(executeHost);
+  executehostname = (char *) malloc(32 * sizeof(char));
+  hp = gethostbyaddr((char *) &addr, sizeof(addr), AF_INET);
+  if(hp) {    
+    dprintf(D_FULLDEBUG, "Executehost name = %s\n", hp->h_name);
+    strcpy(executehostname, hp->h_name);
+    free(hp);
   }
   else {
-    dprintf(D_ALWAYS, "scheddname is null\n", scheddname);
+    strcpy(executehostname, executeHost);
   }
   sprintf(sqlstmt, 
 	  "INSERT INTO runs (machine_id, scheddname, cid, pid, spid, startts) VALUES('%s', '%s','%d', '%d', '%d', '%d-%02d-%02d %02d:%02d:%02d %s');", 
-	  executeHost, 
+	  executehostname, 
 	  scheddname,
 	  cluster, 
 	  proc, 
@@ -1318,6 +1332,7 @@ writeEvent (FILE *file)
     return 0; // return a error code, 0
   }
   free(sqlstmt);
+  free(executehostname);
 
  int retval = fprintf (file, "Job executing on host: %s\n", executeHost);
 
