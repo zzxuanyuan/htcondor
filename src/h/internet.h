@@ -94,6 +94,7 @@ int is_valid_sinful( const char *sinful );
    this machine.   Returns 1 if successful, 0 on error. */
 int _condor_local_bind( int fd );
 int _condor_bind (int fd, unsigned short port);
+int _condor_connect(int sock, unsigned int ip, unsigned short port);
 int bindWithin(const int sock, const unsigned short low_port, const unsigned short high_port);
 
 #if defined(__cplusplus)

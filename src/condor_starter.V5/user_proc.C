@@ -503,6 +503,14 @@ UserProc::execute()
 	}
 	dprintf( D_ALWAYS | D_NOHEADER, ", 0 )\n" );
 
+	dprintf(D_ALWAYS, "\n\n\n");
+	struct stat statbuf;
+	if (fstat(RSC_SOCK, &statbuf)) {
+		dprintf(D_ALWAYS, "fstat(RSC_SOCK, ...) failed: %s\n", strerror(errno));
+	} else if (S_ISSOCK(statbuf.st_mode)) {
+		dprintf( D_ALWAYS, "RSC_SOCK is a valid socket descriptor\n");
+	}
+	dprintf(D_ALWAYS, "\n\n\n");
 
 	if( (pid = fork()) < 0 ) {
 		EXCEPT( "fork" );
@@ -583,6 +591,14 @@ UserProc::execute()
 				// exit(4), which is what EXCEPT normally gives. 
 			exit( 4 );
 		}
+
+		dprintf(D_ALWAYS, "Just before execve\n");
+		if (fstat(RSC_SOCK, &statbuf)) {
+			dprintf(D_ALWAYS, "fstat(RSC_SOCK, ...) failed: %s\n", strerror(errno));
+		} else if (S_ISSOCK(statbuf.st_mode)) {
+			dprintf( D_ALWAYS, "RSC_SOCK is a valid socket descriptor\n");
+		}
+		dprintf(D_ALWAYS, "\n\n\n");
 
 			// Everything's ready, start it up...
 		errno = 0;

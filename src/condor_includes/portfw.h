@@ -19,9 +19,12 @@
 #define INVALID_PROTO 2
 #define INVALID_PORT 3
 #define NO_MORE_FREE_PORT 4
-#define NOT_FOUND 5
-#define ALREADY_SET 6
-#define INTERNAL_ERR 9
+#define ALREADY_SET 5
+#define RULE_REUSED 6
+#define LOCAL_NOAVAIL 7
+#define COLFLICT_RULE 8
+#define RULE_NOT_FOUND 9
+#define INTERNAL_ERR 19
 
 int setFWrule ( struct sockaddr_in masqServer,
 				char *cmd,

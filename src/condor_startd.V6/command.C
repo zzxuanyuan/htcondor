@@ -950,16 +950,16 @@ activate_claim( Resource* rip, Stream* stream )
 
 	if( ! (rip->r_starter->is_dc()) ) {
 
-			// Set up the two starter ports and send them to the shadow
+			// Set up the ip-addr and two ports of starter and send them to the shadow
 		stRec.version_num = VERSION_FOR_FLOCK;
-		sock_1 = create_port(&rsock_1);
+		sock_1 = create_port(&rsock_1);	// bind & listen the ReliSock and return _sock
 		sock_2 = create_port(&rsock_2);
 		stRec.ports.port1 = rsock_1.get_canon_port();
 		stRec.ports.port2 = rsock_2.get_canon_port();
-
 		stRec.server_name = strdup( my_full_hostname() );
-	
-			// Send our local IP address, too.
+		// If this machine is behind the port forwarding server and shadow use this ip-addr
+		// of stRec to connect to two ports of starter, this line should be changed to ask
+		// cedar to return the canonical ip addr
 		memcpy( &stRec.ip_addr, my_sin_addr(), sizeof(struct in_addr) );
 		
 		stream->encode();
@@ -991,6 +991,7 @@ activate_claim( Resource* rip, Stream* stream )
 				}
 			}
 		}
+		dprintf(D_NETWORK, "Connection accepted to port1 of starter\n");
 	
 			/* Wait for connection to port2 */
 		len = sizeof frm;
@@ -1009,6 +1010,7 @@ activate_claim( Resource* rip, Stream* stream )
 				}
 			}
 		}
+		dprintf(D_NETWORK, "Connection accepted to port2 of starter\n");
 		ji.ji_sock1 = fd_1;
 		ji.ji_sock2 = fd_2;
 	}

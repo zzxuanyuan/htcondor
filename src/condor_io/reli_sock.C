@@ -28,9 +28,11 @@
 #include "authentication.h"
 #include "condor_debug.h"
 #include "internet.h"
-#include "condor_rw.h"
 #include "condor_socket_types.h"
 #include "getParam.h"
+extern "C" {
+#include "condor_rw.h"
+}
 
 #ifdef WIN32
 #include <mswsock.h>    // For TransmitFile()
@@ -346,7 +348,7 @@ ReliSock::accept( ReliSock  &c )
         }
     }
 
-    dprintf( D_NETWORK, "\tConnection from %s accepted to %s\n", sin_to_string(c.endpoint()), c.sinful_string());
+    dprintf( D_NETWORK, "\tConnection from %s accepted to %s\n", sin_to_string(c.endpoint()), this->sinful_string());
 
     return TRUE;
 }
@@ -532,7 +534,7 @@ ReliSock::put_bytes_nobuffer( char *buf, int length , int send_size)
 
                     congested = false;
                     result = condor_mux_write(_sock, _mngSock, cur, (length - i), _timeout,
-                                              40000, congested, mngReady);
+                                              40000, (int *)&congested, (int *)&mngReady);
                     if(result <0) {
                         dprintf(D_ALWAYS, "ReliSock::put_bytes_nobuffer: Send failed.\n");
                         return -1;
@@ -545,7 +547,7 @@ ReliSock::put_bytes_nobuffer( char *buf, int length , int send_size)
                     }
                 } else {
                     result = condor_mux_write(_sock, _mngSock, cur, (length - i), _timeout,
-                                              0, congested, mngReady);
+                                              0, (int *)&congested, (int *)&mngReady);
                     if(result <0) {
                         dprintf(D_ALWAYS, "ReliSock::put_bytes_nobuffer: Send failed.\n");
                         return -1;
@@ -585,7 +587,7 @@ ReliSock::put_bytes_nobuffer( char *buf, int length , int send_size)
 
                     congested = false;
                     result = condor_mux_write(_sock, _mngSock, cur, pagesize, _timeout,
-                                              40000, congested, mngReady);
+                                              40000, (int *)&congested, (int *)&mngReady);
                     if(result < 0) {
                         dprintf(D_ALWAYS, "ReliSock::put_bytes_nobuffer: Send failed.\n");
                         return -1;
@@ -598,7 +600,7 @@ ReliSock::put_bytes_nobuffer( char *buf, int length , int send_size)
                     }
                 } else {
                     result = condor_mux_write(_sock, _mngSock, cur, pagesize, _timeout,
-                                              0, congested, mngReady);
+                                              0, (int *)&congested, (int *)&mngReady);
                     if(result < 0) {
                         dprintf(D_ALWAYS, "ReliSock::put_bytes_nobuffer: Send failed.\n");
                         return -1;
@@ -664,7 +666,7 @@ ReliSock::get_bytes_nobuffer(char *buffer, int max_length, int receive_size)
     }
 
     if(_bandReg)
-        result = condor_mux_read(_sock, _mngSock, buffer, length, _timeout, mngReady);
+        result = condor_mux_read(_sock, _mngSock, buffer, length, _timeout, (int *)&mngReady);
     else
         result = condor_read(_sock, buffer, length, _timeout);
     
@@ -1058,67 +1060,80 @@ int ReliSock::RcvMsg::rcv_packet(SOCKET _sock,
                                  int _timeout,
                                  bool &mngReady)
 {
-    Buf        *tmp;
-    char    hdr[5];
-    int        end;
-    int        len, len_t;
-    int        tmp_len;
-    struct    timeval *timer = NULL;
-    fd_set    rdfds;
-    int        nfound, maxfd;
+	Buf		*tmp;
+	char	hdr[5];
+	int		end;
+	int		len, len_t;
+	int		tmp_len;
+	struct	timeval timer;
+	fd_set	rdfds;
+	int		nfound, maxfd;
+	unsigned start_time, curr_time;
 
+	if (_timeout > 0) {
+		start_time = time(NULL);
+	}
+
+	// receive header of the packet
+	len = 0;
+	while (len < 5) {
+		// check if something is ready to read at the mng socket
+		if (_mngSock > 0) {
 #if !defined(WIN32) // nfds is ignored on WIN32
-    maxfd = (_sock > _mngSock) ? _sock + 1 : _mngSock + 1;
+			maxfd = _mngSock + 1;
 #endif
-    if(_timeout > 0) {
-        timer = (struct timeval *)malloc(sizeof(struct timeval));
-        timer->tv_sec = _timeout;
-        timer->tv_usec = 0;
-    }
+			FD_ZERO(&rdfds);
+			FD_SET(_mngSock, &rdfds);
+			timer.tv_sec = 0;
+			timer.tv_usec = 0;
+			nfound = select(maxfd, &rdfds, 0, 0, &timer);
+			if (nfound > 0 && FD_ISSET(_mngSock, &rdfds)) {
+				mngReady = true;
+			}
+		}
 
-    len = 0;
-    while (len < 5) {
-        FD_ZERO(&rdfds);
-        FD_SET(_sock, &rdfds);
-        if(_mngSock > 0)
-            FD_SET(_mngSock, &rdfds);
-                
-        nfound = select(maxfd, &rdfds, 0, 0, timer);
-        if(nfound < 0) {
-            if(errno == EINTR) continue;
-            dprintf(D_ALWAYS, "ReliSock::RcvMsg::rcv_packet -\
-                               select failed: %s\n", strerror(errno));
-            return FALSE;
-        }
-        if(nfound == 0) {
-            dprintf(D_ALWAYS, "ReliSock::RcvMsg::rcv_packet -\
-                               No socket descriptor is ready for read: timeout\n");
-            if(timer) free(timer);
-            return FALSE;
-        }
-        if(_mngSock > 0 && FD_ISSET(_mngSock, &rdfds)) {
-            mngReady = true;
-        }
-        if(FD_ISSET(_sock, &rdfds)) {
-            tmp_len = recv(_sock, hdr+len, 5-len, 0);
-            if (tmp_len == 0) {
-                if(timer) free(timer);
-                dprintf(D_ALWAYS, "ReliSock::rcv_packet: peer closed prematurely\n");
-                return FALSE;
-            } else if (tmp_len <= 0) {
-                if(timer) free(timer);
-                dprintf(D_ALWAYS, "ReliSock::rcv_packet: recv failed %s\n", strerror(errno));
-                return FALSE;
-            }
-            len += tmp_len;
-        }
-    }
-    if(timer) free(timer);
+		if (_timeout > 0) {
+#if !defined(WIN32) // nfds is ignored on WIN32
+			maxfd = _sock + 1;
+#endif
+			FD_ZERO(&rdfds);
+			FD_SET(_sock, &rdfds);
+			curr_time = time(NULL);
+			unsigned remained = _timeout + start_time - curr_time;
+			if (remained <= 0) {
+				dprintf(D_ALWAYS, "ReliSock::RcvMsg::rcv_packet - timeout\n");
+				return FALSE;
+			}
+			timer.tv_sec = remained;
+			timer.tv_usec = 0;
+			nfound = select(maxfd, &rdfds, 0, 0, &timer);
+			if (nfound < 0) {
+				if (errno == EINTR) continue;
+				dprintf(D_ALWAYS, "ReliSock::RcvMsg::rcv_packet - select failed\n");
+				dprintf(D_ALWAYS, "\t%s\n", strerror(errno));
+				return FALSE;
+			} else if (nfound == 0) {
+				dprintf(D_ALWAYS, "ReliSock::RcvMsg::rcv_packet - timeout\n");
+				return FALSE;
+			}
+		}
+		tmp_len = recv(_sock, hdr+len, 5-len, 0);
+		if (tmp_len == 0) {
+			dprintf(D_ALWAYS, "ReliSock::rcv_packet: peer closed prematurely\n");
+			return FALSE;
+		} else if (tmp_len < 0) {
+			dprintf(D_ALWAYS, "ReliSock::rcv_packet: recv failed %s\n", strerror(errno));
+			return FALSE;
+		}
+		len += tmp_len;
+	}
 
+	// figure out the size of the body
     end = (int) ((char *)hdr)[0];
     memcpy(&len_t,  &hdr[1], 4);
     len = (int) ntohl(len_t);
-        
+
+	// receive the body of the message
     if (!(tmp = new Buf)){
         dprintf(D_ALWAYS, "IO: Out of memory\n");
         return FALSE;
@@ -1128,7 +1143,7 @@ int ReliSock::RcvMsg::rcv_packet(SOCKET _sock,
         dprintf(D_ALWAYS, "IO: Incoming packet is too big\n");
         return FALSE;
     }
-    if ((tmp_len = tmp->read(_sock, len, _timeout)) != len){
+    if ((tmp_len = tmp->read(_sock, _mngSock, len, _timeout, mngReady)) != len){
         delete tmp;
         dprintf(D_ALWAYS, "IO: Packet read failed: read %d of %d\n",
                 tmp_len, len);
@@ -1143,6 +1158,7 @@ int ReliSock::RcvMsg::rcv_packet(SOCKET _sock,
     if (end) {
         ready = TRUE;
     }
+	dprintf(D_NETWORK, "--rcv: %d\n", len+5);
     return TRUE;
 }
 

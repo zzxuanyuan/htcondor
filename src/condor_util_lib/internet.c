@@ -33,6 +33,8 @@
 #include "internet.h"
 #include "my_hostname.h"
 #include "condor_config.h"
+#include "getParam.h"
+#include "portfw.h"
 
 
 /* Convert a string of the form "<xx.xx.xx.xx:pppp>" to a sockaddr_in  TCP */
@@ -126,6 +128,8 @@ sin_to_string(const struct sockaddr_in *sin)
 	return buf;
 }
 
+// ip: network-byte order
+// port: network-byte order
 char * ipport_to_string(const unsigned int ip, const unsigned short port)
 {
 	int             i;
@@ -491,7 +495,7 @@ _condor_local_bind( int fd )
 	 * This function should go away when everything uses CEDAR.
 	 */
 #ifndef WIN32
-	int lowPort, highPort;
+	unsigned short lowPort, highPort;
 	if ( get_port_range(&lowPort, &highPort) == TRUE ) {
 		if ( bindWithin(fd, lowPort, highPort) == TRUE )
             return TRUE;
@@ -543,12 +547,89 @@ _condor_bind(int fd, unsigned short port)
 		int error = WSAGetLastError();
 		dprintf( D_ALWAYS, "bind failed: WSAError = %d\n", error );
 #else
-		dprintf(D_NETWORK, "bind failed errno = %d\n", errno);
+		dprintf(D_NETWORK, "bind failed: %s\n", strerror(errno));
+		dprintf(D_NETWORK, "\tsinful: %s\n", sin_to_string(&sin));
 #endif
 		return FALSE;
 	}
 	return TRUE;
 }
+
+// This is a wrapper function for unix/NT connect
+// Connect to the host identified by <ip:port>
+// @args
+//	sock: socket descriptor
+//	ip: ip-addr in network byte order
+//	port: port number in network byte order
+// @return:
+//	true, if succeed
+//	false, otherwise
+//
+// Note: bandwidth regulation should be incoporated later
+int
+_condor_connect(int sock, unsigned int ip, unsigned short port)
+{
+	struct sockaddr_in peer;
+	char masqServer[50];
+	unsigned short masqPort;
+	struct sockaddr_in mAddr;
+	unsigned int rip = 0;
+	unsigned short rport = 0;
+	struct in_addr inp;
+	struct hostent *mngerEnt;
+	unsigned short nport;
+	int ret;
+
+	memset(&peer, 0, sizeof(peer));
+	peer.sin_family = AF_INET;
+	// If this host is inside the private network being masqueraded,
+	// query whether peer is in the same private network. If so,
+	// connect to peer's real ip:port to bypass the ip:port translation
+	if (getMasqServer (masqServer, &masqPort) == TRUE) {
+		memset(&mAddr, 0, sizeof(mAddr));
+		mAddr.sin_family = AF_INET;
+		if ( inet_aton(masqServer, &inp) ) {
+			memcpy(&mAddr.sin_addr.s_addr, &inp.s_addr, sizeof(inp.s_addr));
+		} else {
+			mngerEnt = gethostbyname(masqServer);
+			if(!mngerEnt) {
+				EXCEPT("could not get hostent");
+			}
+			memcpy(&mAddr.sin_addr.s_addr, mngerEnt->h_addr_list[0], mngerEnt->h_length);
+		}
+		nport = htons(masqPort);
+		memcpy(&mAddr.sin_port, &nport, sizeof(short));
+
+		ret = setFWrule(mAddr, QUERY, TCP, ip, port, &rip, &rport, 0);
+		if (ret == SUCCESS) {
+			dprintf (D_NETWORK, "\tpeer is within this network\n");
+			dprintf (D_NETWORK, "\tconnecting directly...\n");
+			peer.sin_addr.s_addr = rip;
+			peer.sin_port = rport;
+		} else if (ret == RULE_NOT_FOUND) {
+			dprintf (D_NETWORK, "\tpeer is outside this private network\n");
+			peer.sin_addr.s_addr = ip;
+			peer.sin_port = port;
+		} else {
+			dprintf (D_ALWAYS, "_condor_connect querying fw rule failed\n");
+			dprintf (D_ALWAYS, "\t - errcode: %d\n", ret);
+			return FALSE;
+		}
+	} else {
+		peer.sin_addr.s_addr = ip;
+		peer.sin_port = port;
+	}
+
+	// do connect
+	dprintf(D_NETWORK, "internet.c: connecting to %s\n", sin_to_string(&peer));
+	if (connect(sock, (struct sockaddr *)&peer, sizeof(struct sockaddr_in))) {
+		dprintf(D_ALWAYS, "Connection failed: %s\n", strerror(errno));
+		return FALSE;
+	}
+	dprintf(D_NETWORK, "Connected to %s\n", sin_to_string(&peer));
+	return TRUE;
+}
+
 
 char *
 ip_to_name (unsigned int ip)

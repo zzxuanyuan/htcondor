@@ -3,7 +3,7 @@ all_target($(NAME))
 
 CFLAGS = $(STD_C_FLAGS)
 C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) -Wall
-LIB = $(STD_LIBS)
+LIB = $(STD_LIBS) $(IO_LIB)
 
 OBJ = setflags.o status.o totals.o prettyPrint.o
 

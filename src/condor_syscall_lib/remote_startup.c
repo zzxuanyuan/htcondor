@@ -173,7 +173,7 @@ static BOOLEAN condor_restart( );
 static BOOLEAN condor_migrate_to( const char *host_addr, const char *port_num );
 static BOOLEAN condor_migrate_from( const char *fd_no );
 static BOOLEAN condor_exit( const char *status );
-static int open_tcp_stream( unsigned int ip_addr, unsigned short port );
+//static int open_tcp_stream( unsigned int ip_addr, unsigned short port );
 void display_ip_addr( unsigned int addr );
 void open_std_file( int which );
 void _condor_set_iwd();
@@ -210,6 +210,9 @@ MAIN( int argc, char *argv[], char **envp )
 		*/
 	int		user_argc;
 	char*	user_argv[_POSIX_ARG_MAX];
+
+    struct stat statbuf;
+	char errbuf[100];
 
 		/* The first arg will always be the same */
 	user_argv[0] = argv[0];
@@ -374,6 +377,12 @@ MAIN( int argc, char *argv[], char **envp )
 		}
 
 		_condor_error_fatal("I don't understand argument %s",arg);
+	}
+
+	if (fstat(RSC_SOCK, &statbuf)) {
+		sprintf(errbuf, "fstat(RSC_SOCK, ...) failed: %s\n", strerror(errno));
+	} else if (S_ISSOCK(statbuf.st_mode)) {
+		sprintf(errbuf, "RSC_SOCK is a valid socket descriptor\n");
 	}
 
 		/*

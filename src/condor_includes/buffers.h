@@ -60,7 +60,11 @@ public:
               int threshold,
 			  bool &congested,
 			  bool &ready);
-	int read(SOCKET sockd, int sz=-1, int timeout=0);
+	int read (	SOCKET  dataSock,
+				SOCKET  mngSock,
+				int     sz,
+				int     timeout,
+				bool    &ready );
 
 	int flush(SOCKET sockd, SOCKET mngSock,
 	          void *hdr, int sz, int timeout,

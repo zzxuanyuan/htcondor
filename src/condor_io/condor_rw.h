@@ -25,14 +25,12 @@
 #ifndef __CONDOR_RW_H__
 #define __CONDOR_RW_H__
 
-#include "sock.h"
-
-bool getLine(const int sock, char *buf, const int max);
-bool sendLine (const int fd, const char *line, const int max);
-int condor_read(SOCKET fd, char *buf, int sz, int timeout);
-int condor_write(SOCKET fd, char *buf, int sz, int timeout);
-int condor_mux_read(SOCKET fd, SOCKET mfd, char *buf,
-                    int sz, int timeout, bool &ready);
-int condor_mux_write(SOCKET fd, SOCKET mfd, char *buf, int sz, int timeout,
-                     int thresh, bool &congested, bool &ready);
+int getLine(const int sock, char *buf, const int max);
+int sendLine (const int fd, const char *line, const int max);
+int condor_read(int fd, char *buf, int sz, int timeout);
+int condor_write(int fd, char *buf, int sz, int timeout);
+int condor_mux_read(int fd, int mfd, char *buf,
+                    int sz, int timeout, int *ready);
+int condor_mux_write(int fd, int mfd, char *buf, int sz, int timeout,
+                     int thresh, int *congested, int *ready);
 #endif

@@ -31,8 +31,10 @@
 #include "condor_debug.h"
 #include "condor_socket_types.h"
 #include "getParam.h"
+extern "C" {
 #include "condor_rw.h"
 #include "portfw.h"
+}
 
 #if !defined(WIN32)
 #define closesocket close
@@ -124,12 +126,21 @@ Sock::~Sock()
 {
 	if ( connect_state.host ) free(connect_state.host);
 
+	/*
+	   Following lines for deleting port forwarding rule upon deletion of the Sock
+	   has been deleted to cope with cases where multiple Cedar Socks share a single
+	   forwarding rule. Cleaning up will be done by FwdMnger periodically.
+
 	// If this socket has setup a port forwarding rule and NOT been inherited,
 	// we want to delete the forwarding rule to release the resources of forwarding
 	// server. However, if this socket has been inherited, the forwarding rule should
 	// NOT be deleted so that the child process gets routed through the forwarding
 	if (_lip != 0 && !_inherited) {
 		(void) deleteFWrule();
+	}
+	*/
+	if (_mport != 0) {
+		::close(_mport);
 	}
 }
 
@@ -775,7 +786,6 @@ bool Sock::do_connect_finish()
 
 
 // If this Sock is behind Linux NAT proxy,
-//	- delete the forwarding rule so that no incomming connection can be made to this sock
 //	- query if peer is port forwarded address too and, if yes,
 //		: change the sin of peer(_who) to the original address so that connection can be
 //		  made to the original address directly
@@ -803,26 +813,13 @@ Sock::adjustPeer()
 		   	dprintf (D_NETWORK, "\t\tconnecting directly...\n");
 			_who.sin_addr.s_addr = rip;
 			_who.sin_port = rport;
-		} else if (ret == NOT_FOUND) {
+		} else if (ret == RULE_NOT_FOUND) {
 			dprintf (D_NETWORK, "\t\tpeer is outside of this private network\n");
 		} else {
 			dprintf (D_ALWAYS, "Sock::do_connect_tryit querying fw rule failed\n");
 			dprintf (D_ALWAYS, "\t - errcode: %d\n", ret);
 			return false;
 		}
-		/*
-		if (_lip != 0) {
-			ret = setFWrule (_masqServer, DELETE, proto, _lip, _lport, NULL, NULL, _mport);
-			if ( ret != SUCCESS)
-			{
-				dprintf (D_ALWAYS, "Sock::do_connect_tryit deleting fw rule failed\n");
-				dprintf (D_ALWAYS, "\t - errcode: %d\n", ret);
-				return false;
-			}
-			_lip = _lport = 0;
-			dprintf(D_NETWORK, "\t\tforwarding rule for this socket get deleted\n");
-		}
-		*/
 	}
 	return true;
 }
@@ -943,6 +940,11 @@ int Sock::close()
 {
 	if (_state == sock_virgin) return FALSE;
 
+	/*
+	   Following lines for deleting port forwarding rule upon deletion of the Sock
+	   has been deleted to cope with cases where multiple Cedar Socks share a single
+	   forwarding rule. Cleaning up will be done by FwdMnger periodically.
+
 	// If this socket has setup a port forwarding rule and NOT been inherited,
 	// we want to delete the forwarding rule to release the resources of forwarding
 	// server. However, if this socket has been inherited, the forwarding rule should
@@ -952,6 +954,7 @@ int Sock::close()
 			return FALSE;
 		}
 	}
+	*/
 
 	if (::closesocket(_sock) < 0) return FALSE;
 
@@ -1159,11 +1162,20 @@ Sock::canon_hostname(void)
 unsigned int 
 Sock::get_ip_int()
 {
-	sockaddr_in	addr;
-	SOCKET_LENGTH_TYPE addr_len = sizeof(sockaddr_in);
+	if (_myIP != 0) {
+		return ntohl(_myIP);
+	} else
+		return 0;
+}
 
-	if (getsockname(_sock, (sockaddr *)&addr, &addr_len) < 0) return 0;
-	return (unsigned int) ntohl(addr.sin_addr.s_addr);
+unsigned int
+Sock::get_canon_ip()
+{
+	if (_lip != 0) {
+		return ntohl(_lip);
+	} else {
+		return ntohl(_myIP);
+	}
 }
 
 #if !defined(WIN32)

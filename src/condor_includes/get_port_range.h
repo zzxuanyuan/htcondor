@@ -24,7 +24,7 @@
 #if defined(__cplusplus)
 extern "C" {
 #endif
-int get_port_range(int *low_port, int *high_port);
+int get_port_range(unsigned short *low_port, unsigned short *high_port);
 #if defined(__cplusplus)
 }
 #endif

@@ -99,9 +99,7 @@ main_init (int argc, char *argv[])
 	}
 
     	/* initialize forwardMngers*/
-#ifdef MYDEBUG
-	cout << "Initial Synchronization...\n";
-#endif
+	dprintf(D_ALWAYS, "Initial Synchronization...\n");
 	tcpPortMnger->sync();
 	udpPortMnger->sync();
 
@@ -124,13 +122,13 @@ main_init (int argc, char *argv[])
 	mng_sin.sin_port = htons (mngPort);
 	mng_sin.sin_addr.s_addr = mngAddr;
 	if (bind (listenSock, (struct sockaddr *)&mng_sin, sizeof (mng_sin)) < 0) {
-		perror ("bind failed");
+		EXCEPT ("bind failed");
 		exit (-1);
 	}
 
     	/* make listenSock passive */
     if (listen (listenSock, 5) < 0) {
-        perror ("listen call failed");
+        EXCEPT ("listen call failed");
         exit (-1);
     }
 
@@ -139,25 +137,19 @@ main_init (int argc, char *argv[])
 	if (fwdServer == NULL) {
 		EXCEPT ("Failed to create FwdServer\n");
 	}
-#ifdef MYDEBUG
-	cout << "FwdServer created\n";
-#endif
+	dprintf(D_ALWAYS, "FwdServer created\n");
 
 		/* register Socket and Timer */
 	daemonCore->Register_Socket (cmdSock, "<FwdServer Command Socket>",
 								 (SocketHandlercpp) &FwdServer::handleCommand,
 								 "port forwarding command handler",
 								 fwdServer, ALLOW);
-#ifdef MYDEBUG
-	cout << "Socket Registered\n";
-#endif
+	dprintf(D_ALWAYS, "Socket Registered\n");
 	daemonCore->Register_Timer (30, 30,
 								(Eventcpp) &FwdServer::probeCedars,
 								"Cedar Heartbeat checker",
 								fwdServer);
-#ifdef MYDEBUG
-	cout << "Timer Registered\n";
-#endif
+	dprintf(D_ALWAYS, "Timer Registered\n");
 
 	// return to the previous privilige
 	set_priv(priv);

@@ -185,6 +185,7 @@ public:
 
 	/// local ip address integer
 	unsigned int get_ip_int();
+	unsigned int get_canon_ip();
 
 	/// local file descriptor (fd) of this socket
 	int get_file_desc();
@@ -273,7 +274,7 @@ protected:
 	unsigned int	_myIP;
 	unsigned short	_myPort;
 	struct sockaddr_in _who;	// the endpoint of "connection"
-	bool _inherited;
+	bool			_inherited;
 	// port forwarding stuff
 	int				_msock;
 	unsigned short	_mport;

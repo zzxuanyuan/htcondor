@@ -650,7 +650,7 @@ pseudo_get_file_stream(
 	int		data_sock;
 	int		file_fd;
 	int		bytes_sent;
-	pid_t	child_pid;
+	pid_t	child_pid, wait_pid;
 	int		rval;
 	PROC *p = (PROC *)Proc;
 	int		retry_wait;
@@ -718,12 +718,12 @@ pseudo_get_file_stream(
 #endif
 
 		*ip_addr = ntohl( *ip_addr );
-		display_ip_addr( *ip_addr );
 		*port = ntohs( *port );
 		dprintf( D_ALWAYS, "RestoreRequest returned %d using port %d\n", 
 				rval, *port );
 		BytesSent += *len;
 		NumRestarts++;
+
 		return 0;
 	}
 
@@ -742,11 +742,16 @@ pseudo_get_file_stream(
 	dprintf( D_FULLDEBUG, "\tlen = %d\n", *len );
 	BytesSent += *len;
 
-	get_host_addr( ip_addr );
-	display_ip_addr( *ip_addr );
-
-	create_tcp_port( port, &connect_sock );
-	dprintf( D_FULLDEBUG, "\tPort = %d\n", *port );
+	ReliSock connSock, *dataSock;
+	if ( connSock.bind() != TRUE ) {
+		EXCEPT("bind failed\n");
+	}
+	if ( connSock.listen() != TRUE ) {
+		EXCEPT("listen failed\n");
+	}
+	*ip_addr = connSock.get_canon_ip();
+	*port = connSock.get_canon_port();
+	dprintf(D_NETWORK, "Shadow address to send exec file: %s\n", ipport_to_string(htonl(*ip_addr), htons(*port)));
 		
 #if WANT_NETMAN
 	if (CkptFile || ICkptFile) {
@@ -763,30 +768,31 @@ pseudo_get_file_stream(
 	}
 #endif
 
+	int sockfd;
+	int ret = 0;
 	switch( child_pid = fork() ) {
 	case -1:	/* error */
 		dprintf( D_ALWAYS, "fork() failed, errno = %d\n", errno );
 		if (CkptFile || ICkptFile) set_priv(priv);
 		return -1;
 	case 0:	/* the child */
-		data_sock = connect_file_stream( connect_sock );
-		if( data_sock < 0 ) {
-			exit( 1 );
+		connSock.timeout(300);
+		if ((dataSock = connSock.accept()) == NULL) {
+			EXCEPT ("accept failed");
 		}
+		sockfd = dataSock->get_file_desc();
 		dprintf( D_FULLDEBUG, "\tShould Send %d bytes of data\n", 
 				 *len );
-		bytes_sent = stream_file_xfer( file_fd, data_sock, *len );
+		bytes_sent = stream_file_xfer( file_fd, sockfd, *len );
 		if (bytes_sent != *len) {
 			dprintf(D_ALWAYS,
 					"Failed to transfer %d bytes (only sent %d)\n",
 					*len, bytes_sent);
 			exit(1);
 		}
-
 		exit( 0 );
 	default:	/* the parent */
 		close( file_fd );
-		close( connect_sock );
 		if (CkptFile || ICkptFile) {
 			set_priv(priv);
 			if (CkptFile) NumRestarts++;
@@ -795,6 +801,7 @@ pseudo_get_file_stream(
 			RequestCkptBandwidth();
 #endif
 		}
+
 		return 0;
 	}
 
@@ -854,7 +861,6 @@ pseudo_put_file_stream(
 #endif
 
 	get_host_addr( ip_addr );
-	display_ip_addr( *ip_addr );
 
 		/* open the file */
 	if (CkptFile && UseCkptServer) {
@@ -932,7 +938,6 @@ pseudo_put_file_stream(
 	(void)umask(omask);
 
 	get_host_addr( ip_addr );
-	display_ip_addr( *ip_addr );
 
 	create_tcp_port( port, &connect_sock );
 	dprintf( D_FULLDEBUG, "\tPort = %d\n", *port );

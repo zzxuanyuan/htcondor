@@ -59,14 +59,14 @@ core_is_valid( char *core_fn )
 	// some feedback. -- Greger
 	bfd_init();
 	if((bfdp=bfd_openr(core_fn, 0))!=NULL) {
-		dprintf(D_ALWAYS, "\n\nbfdopen(%s) succeeded\n", core_fn);
+		dprintf(D_ALWAYS, "bfdopen(%s) succeeded\n", core_fn);
 		// Check if it is a core.
 		if(bfd_check_format(bfdp, bfd_core)) {
-			dprintf(D_ALWAYS, "File type=bfd_core\n");
+			dprintf(D_ALWAYS, "\tFile type=bfd_core\n");
 			bfd_close(bfdp);
 			return TRUE;
 		} else {
-			dprintf(D_ALWAYS, "File %s is not a valid core file\n", core_fn);
+			dprintf(D_ALWAYS, "\tFile %s is not a valid core file\n", core_fn);
 			bfd_close(bfdp);
 			return FALSE;
 		}
