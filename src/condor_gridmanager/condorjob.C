@@ -135,6 +135,13 @@ bool CondorJobAdMustExpand( const ClassAd *jobad )
 	int must_expand = 0;
 
 	jobad->LookupBool(ATTR_JOB_MUST_EXPAND, must_expand);
+	if ( !must_expand ) {
+		char resource_name[800];
+		jobad->LookupString( "RemoteSchedd", resource_name );
+		if ( strstr(resource_name,"$$") ) {
+			must_expand = 1;
+		}
+	}
 
 	return must_expand != 0;
 }
