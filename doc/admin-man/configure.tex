@@ -124,11 +124,31 @@ in your config files, and these attributes will just be treated as
 macros.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection{\label{sec:Config-File-Env}
+Config File Environment References}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+References to the Condor process's environment are also allowed in the
+configuration file.
+Environment references are of the form:
+\begin{verbatim}
+        $ENV(environment_variable_name)
+\end{verbatim}
+For example, 
+\begin{verbatim}
+        A = $ENV(HOME)
+\end{verbatim}
+binds \MacroNI{A} to the value of the HOME environment variable.
+Environment references are not currently used in standard Condor
+configurations.
+However, they can sometimes be useful in custom configurations.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsubsection{\label{sec:Other-Syntax}
 Comments and Line Continuations}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-Other than macros, a Condor configuration file can contain comments or
+A Condor configuration file can also contain comments or
 line continuations.
 A comment is any line beginning with a ``\#'' character.
 A continuation is any entry that continues across multiples lines.
@@ -600,10 +620,8 @@ of the subsystem corresponding to the daemon.
   defined in \Macro{SCHEDD\_DEBUG} there will be verbose logging of all
   queue management operations the \Condor{schedd} performs.  
 
-\item[\Dflag{BANDWIDTH}] \label{dflag:bandwidth} When this flag is
-  set, the negotiator logs a message for every match. It 
-  includes the amount of network bandwidth used for job placement and
-  preemption.
+\item[\Dflag{MATCH}] \label{dflag:match} When this flag is
+  set, the negotiator logs a message for every match.
 
 \item[\Dflag{NETWORK}] \label{dflag:network} When this flag is set,
   all Condor daemons will log a message on every TCP accept, connect,
@@ -1044,6 +1062,14 @@ These macros control the \Condor{master}.
   special daemon that we can acquire this information on those
   platforms. 
 
+\item[\Macro{DC\_DAEMON\_LIST}] \label{param:DCDaemonList} This macro
+  lists the daemons in \Macro{DAEMON\_LIST} which use the Condor
+  DaemonCore library.  The \Condor{master} must differentiate between
+  daemons that use DaemonCore and those that don't so it uses the
+  appropriate inter-process communication mechanisms.  This list
+  currently includes all Condor daemons except the checkpoint server
+  by default.
+
 \item[\Macro{SUBSYS}] \label{param:SUBSYS} Once you have defined which
   subsystems you want the \Condor{master} to start, you must provide
   it with the full path to each of these binaries.  For example:
@@ -1229,6 +1255,20 @@ will not want to change them for any reason.
   section~\ref{param:SubsysAddressFile} as
   \Macro{SUBSYS\_ADDRESS\_FILE} 
 
+\item[\Macro{SECONDARY\_COLLECTOR\_LIST}]
+  \label{param:SecondaryCollectorList} This macro lists the hostnames
+  of ``secondary collectors''.  A secondary collector is a machine
+  running a \Condor{collector} daemon that is not the Central Manager.
+  Secondary collectors make it possible to execute administrative
+  commands in the pool when the Central Manager is down by using the
+  \Opt{-pool} argument to specify the name of a secondary collector to
+  use to locate the \Condor{master} daemon.
+
+\item[\Macro{ALLOW\_ADMIN\_COMMANDS}]
+  \label{param:AllowAdminCommands} If set to NO for a given host, this
+  macro disables administrative commands, such as \Condor{reconfig},
+  \Condor{restart}, \Condor{on}, and \Condor{off}, to that host.
+
 \end{description}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1369,6 +1409,19 @@ control state or activity transitions within the
   This way, jobs submitted in your pool could specify that they did or
   did not want to be matched with machines that were only really
   offering ``fractional CPUs''.
+
+\item[\Macro{MEMORY}] \label{param:Memory}
+  Normally, Condor will automatically detect the amount of physical
+  memory available on your machine.  Define \Macro{MEMORY} to tell
+  Condor how much physical memory (in MB) your machine has, overriding
+  the value Condor computes automatically.
+
+\item[\Macro{RESERVED\_MEMORY}] \label{param:ReservedMemory}
+  How much memory would you like reserved from Condor?  By default,
+  Condor considers all the physical memory of your machine as
+  available to be used by Condor jobs.  If \Macro{RESERVED\_MEMORY} is
+  defined, Condor subtracts it from the amount of memory it advertises
+  as available.
 
 \end{description}
 
@@ -1664,6 +1717,23 @@ These macros control the \Condor{schedd}.
   \MacroU{CONDOR\_VIEW\_HOST} does not appear in the
   \MacroU{FLOCK\_VIEW\_SERVERS} list.
 
+\item[\Macro{NEGOTIATE\_ALL\_JOBS\_IN\_CLUSTER}]
+  \label{param:NegotiateAllJobsInCluster}
+  If this macro is set to False (the default), when the schedd fails
+  to start an idle job, it will not try to start any other
+  idle jobs in the same cluster during that negotiation cycle.  This
+  makes negotiation much more efficient for large job clusters.
+  However, in some cases other jobs in the cluster can be started even
+  though an earlier job can't.  For example, the jobs' requirements
+  may differ, because of different disk space, memory, or
+  operating system requirements.  Or, machines may be willing to run
+  only some jobs in the cluster, because their requirements reference
+  the jobs' virtual memory size or other attribute.  Setting this
+  macro to True will force the schedd to try to start all idle jobs in
+  each negotiation cycle.  This will make negotiation cycles last
+  longer, but it will ensure that all jobs that can be started will be
+  started.
+
 \end{description}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1747,6 +1817,19 @@ special shadow.  See section~\ref{sec:Shadow-Config-File-Entries}.
 
 These settings affect the \Condor{starter}.
 \begin{description}
+
+\item[\Macro{EXEC\_TRANSFER\_ATTEMPTS}] \label{param:ExecTransferAttempts}
+  Sometimes due to a router misconfiguration, kernel bug, or other Act
+  of God network problem, the transfer of the initial checkpoint from
+  the submit machine to the execute machine will fail midway through.
+  This parameter allows a retry of the transfer a certain number of times
+  that must be equal to or greater than 1. If this parameter is not
+  specified, or specified incorrectly, then it will default to three.
+  If the transfer of the initial executable fails every attempt, then
+  the job goes back into the idle state until the next renegotiation
+  cycle.
+
+  \Note: This parameter does not exist in the NT starter.
 
 \item[\Macro{JOB\_RENICE\_INCREMENT}] \label{param:JobReniceIncrement}
   When the starter spawns a Condor job, it can do so with a
@@ -2045,6 +2128,11 @@ These macros affect the \Condor{negotiator}.
   on User Priorities for details.  It is defined in seconds and defaults
   to 86400 (1 day).
 
+\item[\Macro{DEFAULT\_PRIO\_FACTOR}] \label{param:DefaultPrioFactor} 
+  This macro sets the priority factor for local users. See
+  section~\ref{sec:user-priority-explained}
+  on User Priorities for details.  Defaults to 1.
+
 \item[\Macro{NICE\_USER\_PRIO\_FACTOR}] \label{param:NiceUserPrioFactor} 
   This macro sets the priority factor for nice users. See
   section~\ref{sec:user-priority-explained}
@@ -2089,26 +2177,6 @@ These macros affect the \Condor{negotiator}.
   with an idle machine over a preemptable machine, if the job has no
   preference between them.
 
-\item[\Macro{NEGOTIATOR\_TRAFFIC\_LIMIT}]
-  \label{param:NegotiatorTrafficLimit} This macro specifies the
-  maximum amount of network traffic (in Kbytes) that the negotiator may
-  initiate per \Macro{NEGOTIATOR\_TRAFFIC\_INTERVAL} for job placement
-  and preemption.  The negotiator uses the job \AdAttr{ImageSize} and
-  \AdAttr{ExecutableSize} parameters to track network usage.  The negotiator
-  will try to use bandwidth up to the limit, so if starting a large
-  \AdAttr{ImageSize} job would put the negotiator over the limit, it will try
-  to start a small \AdAttr{ImageSize} job in its place.  Thus, using traffic
-  limits penalizes large \AdAttr{ImageSize} jobs for the load they place on the
-  network.  This parameter defaults to 0, which disables network usage
-  management in the negotiator.
-
-\item[\Macro{NEGOTIATOR\_TRAFFIC\_INTERVAL}]
-  \label{param:NegotiatorTrafficInterval} This macro specifies the
-  interval (in seconds) to be used in maintaining the
-  \Macro{NEGOTIATOR\_TRAFFIC\_LIMIT}.  This macro defaults to 0,
-  which disables network usage management in the negotiator.  It is
-  common to set this macro equal to \Macro{NEGOTIATOR\_INTERVAL}.
-  
 \item[\Macro{NEGOTIATOR\_DEBUG}] \label{param:NegotiatorDebug} This macro
   (and other settings related to debug logging in the negotiator) is
   described in section~\ref{param:SubsysDebug} as \Macro{SUBSYS\_DEBUG}.
