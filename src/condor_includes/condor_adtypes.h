@@ -26,16 +26,15 @@
 #ifndef __CONDOR_ADTYPES__
 #define __CONDOR_ADTYPES__
 
-/* these should really be const, but that causes problems with 
-   ClassAd::SetMyTypeName and ClassAd::SetTargetTypeName.  -Jim B. */
+const char STARTD_ADTYPE	[] = "Machine";
+const char SCHEDD_ADTYPE	[] = "Scheduler";
+const char MASTER_ADTYPE	[] = "DaemonMaster";
+const char CKPT_SRVR_ADTYPE	[] = "CkptServer";
+const char JOB_ADTYPE	 	[] = "Job";
+const char QUERY_ADTYPE		[] = "Query";
+const char COLLECTOR_ADTYPE	[] = "Collector";
+const char CKPT_FILE_ADTYPE	[] = "CkptFile";
 
-static char STARTD_ADTYPE		[] = "Machine";
-static char SCHEDD_ADTYPE		[] = "Scheduler";
-static char MASTER_ADTYPE		[] = "DaemonMaster";
-static char CKPT_SRVR_ADTYPE	[] = "CkptServer";
-static char JOB_ADTYPE	 		[] = "Job";
-static char QUERY_ADTYPE		[] = "Query";
-static char COLLECTOR_ADTYPE	[] = "Collector";
-static char CKPT_FILE_ADTYPE	[] = "CkptFile";
+typedef const char *CondorAdType;
 
 #endif
