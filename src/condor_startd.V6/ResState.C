@@ -157,15 +157,10 @@ ResState::eval()
 
 	case claimed_state:
 		want_suspend = rip->wants_suspend();
-		want_vacate = rip->wants_vacate();
 		if( ((r_act == busy_act) && (!want_suspend)) ||
 			(r_act == suspended_act) ) {
-					// STATE TRANSITION #15 or #16
-			if( want_vacate && rip->eval_vacate() ) {
-				return change( preempting_state, vacating_act ); 
-			}
-			if( !want_vacate && rip->eval_kill() ) {
-				return change( preempting_state, killing_act );  
+			if( rip->eval_preempt() ) {
+				return change( preempting_state ); 
 			}
 		}
 		if( (r_act == busy_act) && want_suspend ) {
