@@ -35,8 +35,6 @@
    type (void *) for generality.
 */
 
-#include "condor_classad.h"
-
 class LogRecord {
 
 public:
@@ -44,8 +42,6 @@ public:
 	LogRecord();
 	virtual ~LogRecord();
 	int get_op_type() { return op_type; }
-	char* get_key() { return key; }
-	ClassAd* get_ad() { return Ad; }
 
 	bool Write(FILE *fp);
 	bool Read(FILE *fp);
@@ -65,8 +61,6 @@ protected:
 	bool WriteTail(FILE *fp);
 
 	int op_type;	/* This is the type of operation being performed */
-	char* key;
-	ClassAd* Ad;
 };
 
 #endif
