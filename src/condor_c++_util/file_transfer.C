@@ -1193,6 +1193,9 @@ FileTransfer::DoDownload(ReliSock *s)
 		total_bytes += bytes;
 	}
 
+	// go back to the state we were in before file transfer
+	s->set_crypto_mode(socket_default_crypto);
+
 	bytesRcvd += total_bytes;
 
 	if ( !final_transfer && IsServer() ) {
@@ -1493,6 +1496,9 @@ FileTransfer::DoUpload(ReliSock *s)
 
 	// tell our peer we have nothing more to send
 	s->snd_int(0,TRUE);
+
+	// go back to the state we were in before file transfer
+	s->set_crypto_mode(socket_default_crypto);
 
 	dprintf(D_FULLDEBUG,"DoUpload: exiting at %d\n",__LINE__);
 
