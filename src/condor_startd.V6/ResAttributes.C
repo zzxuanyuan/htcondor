@@ -62,8 +62,7 @@ MachAttributes::init()
 void
 MachAttributes::compute( amask_t how_much )
 {
-
-	if( IS_STATIC(how_much) ) {
+	if( IS_STATIC(how_much) && IS_SHARED(how_much) ) {
 
 			// Physical memory
 		m_phys_mem = calc_phys_memory();
@@ -353,14 +352,14 @@ CpuAttributes::compute( amask_t how_much )
 {
 	float val;
 
-	if( IS_STATIC(how_much) ) {
+	if( IS_STATIC(how_much) && IS_SHARED(how_much) ) {
 
 			// Physical memory
 		val = map->phys_mem() * c_phys_mem_percent;
 		c_phys_mem = (int)floor( val );
 	}
 
-	if( IS_UPDATE(how_much) ) {
+	if( IS_UPDATE(how_much) && IS_SHARED(how_much) ) {
 
 			// Shared attributes that we only get a percentage of
 		val = map->virt_mem() * c_virt_mem_percent;
@@ -370,7 +369,7 @@ CpuAttributes::compute( amask_t how_much )
 		c_disk = (unsigned long)floor( val );
 	}
 
-	if( IS_TIMEOUT(how_much) ) {
+	if( IS_TIMEOUT(how_much) && !IS_SHARED(how_much) ) {
 
 		// Dynamic, non-shared attributes we need to actually compute
 		c_condor_load = rip->compute_condor_load();
