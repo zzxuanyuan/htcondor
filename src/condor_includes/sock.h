@@ -66,6 +66,9 @@ public:
 	//
 
 	int assign(SOCKET =INVALID_SOCKET);
+#ifdef WIN32
+	int assign(LPWSAPROTOCOL_INFO);		// to inherit sockets from other processes
+#endif
 	int bind(int =0);
     int setsockopt(SOCKET, int, const char*, int); 
 	inline int bind(char *s) { return bind(getportbyserv(s)); }
