@@ -33,5 +33,3 @@
 
 /* XXX temporary redhat 7.1-ism */
 #define HAS_GLOBUS	NO
-#undef HAS_PVM
-#define HAS_PVM NO
