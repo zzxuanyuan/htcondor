@@ -117,6 +117,7 @@ const char ATTR_GLOBUS_CONTACT_STRING	 [] = "GlobusContactString";
 const char ATTR_GLOBUS_GRAM_VERSION		 [] = "GlobusGramVersion";
 const char ATTR_GLOBUS_RESOURCE			 [] = "GlobusResource";
 const char ATTR_GLOBUS_RESOURCE_UNAVAILABLE_TIME [] = "GlobusResourceUnavailableTime";
+const char ATTR_GLOBUS_GRID_SHELL        [] = "GlobusGridShell";
 const char ATTR_JOB_MUST_EXPAND			 [] = "MustExpand";
 const char ATTR_GLOBUS_RSL				 [] = "GlobusRSL";
 const char ATTR_GLOBUS_STATUS			 [] = "GlobusStatus";
