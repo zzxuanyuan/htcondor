@@ -85,7 +85,36 @@ insertJob(int clusterId, int jobId, Job *job)
   key += ".";
   key += jobId;
 
-  return jobs.insert(key, job);  
+  return jobs.insert(key, job);
+}
+
+static
+int
+removeJob(int clusterId, int jobId)
+{
+  MyString key;
+  key += clusterId;
+  key += ".";
+  key += jobId;
+
+  return jobs.remove(key);
+}
+
+static
+int
+removeCluster(int clusterId)
+{
+  // XXX: This should really make sure they are all removed or none!
+  MyString currentKey;
+  Job *job;
+  jobs.startIterations();
+  while (jobs.iterate(currentKey, job)) {
+    if (job->getClusterID() == clusterId) {
+      jobs.remove(currentKey);
+    }
+  }
+
+  return 0;
 }
 
 // TODO : Todd needs to redo all the transaction stuff and get it
@@ -269,6 +298,10 @@ condorSchedd__removeCluster(struct soap *s,
     }
   }
 
+  if (removeCluster(clusterId)) {
+    result.response.code = FAIL;
+  }
+
   dprintf(D_ALWAYS,"SOAP leaving condorSchedd__removeCluster() res=%d\n",result.response.code);
   return SOAP_OK;
 }
@@ -293,7 +326,7 @@ condorSchedd__newJob(struct soap *s,
   Job *job = new Job(clusterId, result.response.integer);
   if (insertJob(clusterId, result.response.integer, job)) {
     result.response.status.code = FAIL;
-    
+
     return SOAP_OK;
   }
 
@@ -323,6 +356,10 @@ condorSchedd__removeJob(struct soap *s,
       // TODO error - remove failed
       result.response.code = FAIL;
     }
+
+  if (removeJob(clusterId, jobId)) {
+    result.response.code = FAIL;
+  }
 
   dprintf(D_ALWAYS,"SOAP leaving condorSchedd__removeJob() res=%d\n",result.response.code);
   return SOAP_OK;

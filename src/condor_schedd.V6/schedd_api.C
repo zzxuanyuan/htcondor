@@ -72,6 +72,12 @@ Job::abort()
 }
 
 int
+Job::getClusterID()
+{
+  return clusterId;
+}
+
+int
 Job::declare_file(MyString name,
                   int size)
 {

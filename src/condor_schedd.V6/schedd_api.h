@@ -36,6 +36,8 @@ public:
 
   int abort();
 
+  int getClusterID();
+
 protected:
   int clusterId;
   int jobId;
