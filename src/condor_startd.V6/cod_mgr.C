@@ -128,6 +128,22 @@ CODMgr::removeClaim( Claim* c )
 }
 
 
+void
+CODMgr::starterExited( Claim* c ) 
+{
+	if( c->wantsRelease() ) {
+			// if we were trying to release this claim, we can finally
+			// reply and destroy this claim object now that the
+			// starter is gone and we're done cleaning up everything.
+		c->finishRelease();
+		return;
+	}
+
+		// otherwise, the claim is back to idle again, so we should
+		// see if we can resume our opportunistic claim, if we've got
+		// one... 
+		// TODO!!!
+}
 
 int
 CODMgr::numClaims( void )

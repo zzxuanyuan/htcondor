@@ -43,6 +43,8 @@ public:
 	Claim* addClaim();
 	bool removeClaim( Claim* c );
 
+	void starterExited( Claim* c );
+
 	Claim* findClaimById( const char* id );
 	Claim* findClaimByPid( pid_t pid );
 

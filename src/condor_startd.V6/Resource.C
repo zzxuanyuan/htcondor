@@ -239,8 +239,12 @@ Resource::starterExited( Claim* cur_claim )
 		EXCEPT( "Resource::starterExited() called with no Claim!" );
 	}
 
-		// for now, we've just got 1 claim, so we can assume that the
-		// starter exiting will trigger a state change... 
+	if( cur_claim != r_cur ) {
+  			// this isn't our opportunistic claim, so hand this off to
+			// the CODMgr, since it should know about this, too.
+		r_cod_mgr->starterExited( cur_claim );
+		return;
+	}
 
 		// All of the potential paths from here result in a state
 		// change, and all of them are triggered by the starter
