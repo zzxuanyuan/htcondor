@@ -704,96 +704,92 @@ GlobusJob::GlobusJob( ClassAd *classad )
 					 procID.cluster, procID.proc );
 		}
 		else {
-			// ckireyev: Check for MyProxy server
+				// ckireyev: Check for MyProxy server
 
-		  if (ad->LookupString (ATTR_MYPROXY_HOST_NAME, buff)) {
+			if (ad->LookupString (ATTR_MYPROXY_HOST_NAME, buff)) {
 
-			MyProxyEntry * myProxyEntry =new MyProxyEntry();
+				MyProxyEntry * myProxyEntry =new MyProxyEntry();
 
-			myProxyEntry->last_invoked_time=0;
-			myProxyEntry->get_delegation_pid=FALSE;
-			myProxyEntry->get_delegation_err_fd=-1;
-			myProxyEntry->get_delegation_err_filename=NULL;
-			myProxyEntry->myproxy_server_dn=NULL;
-			myProxyEntry->myproxy_password=NULL;
-			myProxyEntry->myproxy_credential_name=NULL;
+				myProxyEntry->last_invoked_time=0;
+				myProxyEntry->get_delegation_pid=FALSE;
+				myProxyEntry->get_delegation_err_fd=-1;
+				myProxyEntry->get_delegation_err_filename=NULL;
+				myProxyEntry->myproxy_server_dn=NULL;
+				myProxyEntry->myproxy_password=NULL;
+				myProxyEntry->myproxy_credential_name=NULL;
 
-			myProxyEntry->myproxy_host=strdup(buff);
-			myProxyEntry->cluster_id = procID.cluster;
-			myProxyEntry->proc_id = procID.proc;
+				myProxyEntry->myproxy_host=strdup(buff);
+				myProxyEntry->cluster_id = procID.cluster;
+				myProxyEntry->proc_id = procID.proc;
 
-			// Get optional MYPROXY_SERVER_DN attribute
-		    if (ad->LookupString (ATTR_MYPROXY_SERVER_DN, buff)) {
-				myProxyEntry->myproxy_server_dn=strdup(buff);
-			}
-
-			if (ad->LookupString (ATTR_MYPROXY_CRED_NAME, buff)) {
-				myProxyEntry->myproxy_credential_name=strdup(buff);
-			}
-			
-			dprintf (D_FULLDEBUG,
-				"Adding new MyProxy entry for proxy %s : host=%s, cred name=%s\n",
-				myProxy->proxy_filename,
-				myProxyEntry->myproxy_host,
-				(myProxyEntry->myproxy_credential_name!=NULL)?(myProxyEntry->myproxy_credential_name):"<default>");
-			myProxy->myproxy_entries.Prepend (myProxyEntry); // Add at the top of the list, so it'll be used first
-
-			
-
-
-			// See if we already have a MyProxy entry for the given host/credential name
-			/*int found = FALSE;
-			MyProxyEntry * currentMyProxyEntry = NULL;
-			myProxy->myproxy_entries.Rewind();
-
-			while (myProxy->myproxy_entries.Next (currentMyProxyEntry)) {
-				if (strcmp (currentMyProxyEntry->myproxy_host, myProxyEntry->myproxy_host)) {
-					continue;
+				// Get optional MYPROXY_SERVER_DN attribute
+				if (ad->LookupString (ATTR_MYPROXY_SERVER_DN, buff)) {
+					myProxyEntry->myproxy_server_dn=strdup(buff);
 				}
 
-				if (myProxyEntry->myproxy_credential_name == NULL || myProxyEntry->myproxy_credential_name == NULL) {
-					if (myProxyEntry->myproxy_credential_name != NULL || myProxyEntry->myproxy_credential_name != NULL) {
-						// One credential name is NULL, the other is not
-						continue;
-					}
-				} else {
-					if (strcmp (currentMyProxyEntry->myproxy_credential_name, myProxyEntry->myproxy_credential_name))  {
-						// credential names non-null and not-equal
-						continue;
-					}
+				if (ad->LookupString (ATTR_MYPROXY_CRED_NAME, buff)) {
+					myProxyEntry->myproxy_credential_name=strdup(buff);
 				}
-
-				// If we've gotten this far, we've got a match
-				found = TRUE;
-				break;
-			}
-
-			//... If we don't, insert it
-			if (!found) {
+			
 				dprintf (D_FULLDEBUG,
-					"Adding new MyProxy entry for proxy %s : host=%s, cred name=%s\n",
-					myProxy->proxy_filename,
-					myProxyEntry->myproxy_host,
-					(myProxyEntry->myproxy_credential_name!=NULL)?(myProxyEntry->myproxy_credential_name):"<default>");
-				myProxy->myproxy_entries.Append (myProxyEntry);
-			} else {
-				// No need to insert this
-				delete myProxyEntry;
-			}*/
+						 "Adding new MyProxy entry for proxy %s : host=%s, cred name=%s\n",
+						 myProxy->proxy_filename,
+						 myProxyEntry->myproxy_host,
+						 (myProxyEntry->myproxy_credential_name!=NULL)?(myProxyEntry->myproxy_credential_name):"<default>");
+				myProxy->myproxy_entries.Prepend (myProxyEntry); // Add at the top of the list, so it'll be used first
 
 
+				// See if we already have a MyProxy entry for the given host/credential name
+				/*int found = FALSE;
+				MyProxyEntry * currentMyProxyEntry = NULL;
+				myProxy->myproxy_entries.Rewind();
+
+				while (myProxy->myproxy_entries.Next (currentMyProxyEntry)) {
+					if (strcmp (currentMyProxyEntry->myproxy_host, myProxyEntry->myproxy_host)) {
+						continue;
+					}
+
+					if (myProxyEntry->myproxy_credential_name == NULL || myProxyEntry->myproxy_credential_name == NULL) {
+						if (myProxyEntry->myproxy_credential_name != NULL || myProxyEntry->myproxy_credential_name != NULL) {
+							// One credential name is NULL, the other is not
+							continue;
+						}
+					} else {
+						if (strcmp (currentMyProxyEntry->myproxy_credential_name, myProxyEntry->myproxy_credential_name))  {
+							// credential names non-null and not-equal
+							continue;
+						}
+					}
+
+					// If we've gotten this far, we've got a match
+					found = TRUE;
+					break;
+				}
+
+				//... If we don't, insert it
+				if (!found) {
+					dprintf (D_FULLDEBUG,
+							 "Adding new MyProxy entry for proxy %s : host=%s, cred name=%s\n",
+							 myProxy->proxy_filename,
+							 myProxyEntry->myproxy_host,
+							 (myProxyEntry->myproxy_credential_name!=NULL)?(myProxyEntry->myproxy_credential_name):"<default>");
+					myProxy->myproxy_entries.Append (myProxyEntry);
+				} else {
+					// No need to insert this
+					delete myProxyEntry;
+				}*/
 
 
-		    /*
-		       Don't ask for password since we're in the middle of a Schedd contact
-		    // Lookup myproxy password - or set it on a timer
-		    char * myproxy_pwd = NULL;
-		    (void)GetMyProxyPasswordFromSchedD(procID.cluster, procID.proc, &myproxy_pwd); */
+				/*
+				  Don't ask for password since we're in the middle of a Schedd contact
+				// Lookup myproxy password - or set it on a timer
+				char * myproxy_pwd = NULL;
+				(void)GetMyProxyPasswordFromSchedD(procID.cluster, procID.proc, &myproxy_pwd); */
 
-		    //dprintf( D_ALWAYS, "Calling SetMyProxyHostForProxy %s, dn=%s\n", buff, (pDN != NULL)?pDN:"NULL");
-		    //SetMyProxyHostForProxy (buff, pDN, myProxy);
+				//dprintf( D_ALWAYS, "Calling SetMyProxyHostForProxy %s, dn=%s\n", buff, (pDN != NULL)?pDN:"NULL");
+				//SetMyProxyHostForProxy (buff, pDN, myProxy);
 
-		  }
+			}
 		}
 	} else {
 		dprintf( D_ALWAYS, "(%d.%d) %s not set in job ad!\n",
