@@ -25,16 +25,19 @@
 #include "KeyCache.h"
 #include "CryptKey.h"
 
-KeyCacheEntry::KeyCacheEntry( char *id, struct sockaddr_in * addr, KeyInfo* key, int expiration) {
+KeyCacheEntry::KeyCacheEntry( char *id, struct sockaddr_in * addr, const char * user, KeyInfo* key, int expiration) {
 	_id = strdup(id);
 	_addr = new struct sockaddr_in(*addr);
+    _user = user == 0 ? 0 : strdup(user);
 	_key = new KeyInfo(*key);
 	_expiration = expiration;
 }
 
-KeyCacheEntry::KeyCacheEntry(const KeyCacheEntry& copy) {
+KeyCacheEntry::KeyCacheEntry(const KeyCacheEntry& copy) 
+{
 	_id = strdup(copy._id);
-	_addr = new struct sockaddr_in(*(copy._addr));
+    _addr = new struct sockaddr_in(*(copy._addr));
+    _user = copy._user == 0 ? 0 : strdup(copy._user);
 	_key = new KeyInfo(*(copy._key));
 	_expiration = copy._expiration;
 }
@@ -48,6 +51,7 @@ KeyCacheEntry& KeyCacheEntry::operator=(const KeyCacheEntry &copy) {
 		delete_storage();
 		_id = strdup(copy._id);
 		_addr = new struct sockaddr_in(*(copy._addr));
+        _user = copy._user == 0 ? 0 : strdup(copy._user);
 		_key = new KeyInfo(*(copy._key));
 		_expiration = copy._expiration;
 	}
@@ -70,6 +74,11 @@ int KeyCacheEntry::expiration() {
 	return _expiration;
 }
 
+const char * KeyCacheEntry :: user() 
+{
+    return _user;
+}
+
 void KeyCacheEntry::delete_storage() {
 	if (_id) {
 	  delete _id;
@@ -80,9 +89,10 @@ void KeyCacheEntry::delete_storage() {
 	if (_key) {
 	  delete _key;
 	}
+    if (_user) {
+        delete _user;
+    }
 }
-
-
 
 KeyCache::KeyCache(int nbuckets) {
 	key_table = new HashTable<MyString, KeyCacheEntry*>(nbuckets, MyStringHash, rejectDuplicateKeys);
