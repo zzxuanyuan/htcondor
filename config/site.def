@@ -86,27 +86,6 @@ the soft links.  The links will point back to Top/src/... */
 #define CondorAdministrator	condor-admin
 #define YpLib
 
-/*------------------------------------------
- * Condor Credential API related
- *------------------------------------------*/
-#if WANT_KERBEROS && HAS_KERBEROS
-KERBEROS_DIR = 			KERBEROS_PATH
-KERBEROS_INCLUDE =		$(KERBEROS_DIR)/include
-#if KERBEROS_K5
-KERBEROS_LIB =			$(KERBEROS_DIR)/lib/libkrb5.a        \
-                		$(KERBEROS_DIR)/lib/libk5crypto.a    \
-				$(KERBEROS_DIR)/lib/libcom_err.a
-#else
-KERBEROS_LIB =			$(KERBEROS_DIR)/lib/libkrb5.a        \
-				$(KERBEROS_DIR)/lib/libcrypto.a      \
-				$(KERBEROS_DIR)/lib/libcom_err.a
-#endif
-
-#else /* WANT_KERBEROS && HAS_KERBEROS */
-KERBEROS_LIB =
-KERBEROS_INCLUDE = 
-#endif
-
 CONDOR_ANALYZE_DIR = /afs/cs.wisc.edu/p/condor/workspaces/epaulson/condor_analyze_dir/bin
 
 #endif  /* AfterVendorCF */
