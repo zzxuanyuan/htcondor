@@ -611,6 +611,9 @@ CStarter::publishUpdateAd( ClassAd* ad )
 		// goodies from derived classes, as well.  If any of them put
 		// info into the ad, return true.  Otherwise, return false.
 	bool found_one = false;
+	if( pre_script && pre_script->PublishUpdateAd(ad) ) {
+		found_one = true;
+	}
 	UserProc *job;
 	JobList.Rewind();
 	while ((job = JobList.Next()) != NULL) {
@@ -618,14 +621,32 @@ CStarter::publishUpdateAd( ClassAd* ad )
 			found_one = true;
 		}
 	}
-	if( pre_script && pre_script->PublishUpdateAd(ad) ) {
-		found_one = true;
-	}
 	if( post_script && post_script->PublishUpdateAd(ad) ) {
 		found_one = true;
 	}
 	return found_one;
 }
+
+
+bool
+CStarter::publishPreScriptUpdateAd( ClassAd* ad )
+{
+	if( pre_script && pre_script->PublishUpdateAd(ad) ) {
+		return true;
+	}
+	return false;
+}
+
+
+bool
+CStarter::publishPostScriptUpdateAd( ClassAd* ad )
+{
+	if( post_script && post_script->PublishUpdateAd(ad) ) {
+		return true;
+	}
+	return false;
+}
+	
 
 int
 CStarter::getMyVMNumber( void )

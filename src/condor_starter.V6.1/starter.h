@@ -113,6 +113,8 @@ public:
 		*/
 	bool publishUpdateAd( ClassAd* ad );
 
+	bool publishPreScriptUpdateAd( ClassAd* ad );
+	bool publishPostScriptUpdateAd( ClassAd* ad );
 
 		/** Pointer to our JobInfoCommuniator object, which abstracts
 			away any details about our communications with whatever

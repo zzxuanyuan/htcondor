@@ -207,9 +207,9 @@ JICLocal::notifyJobExit( int exit_status, int reason, UserProc*
 
 		// TODO: this is a hack.  we need a better way to get the
 		// pre/post info back to the right places...
-	Starter->publishUpdateAd( &ad );
-
+	Starter->publishPreScriptUpdateAd( &ad );
 	user_proc->PublishUpdateAd( &ad );
+	Starter->publishPostScriptUpdateAd( &ad );
 
 		// depending on the exit reason, we want a different event. 
 	u_log->logJobExit( &ad, reason );
