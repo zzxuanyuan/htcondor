@@ -14,14 +14,33 @@ int compare(int a, int b) {
 
 //---------------------------------------------------------------------------
 int CondorID::Compare (const CondorID condorID) const {
-    int result = compare (_cluster, condorID._cluster);
-    if (result == 0) result = compare (_proc, condorID._proc);
-    if (result == 0) result = compare (_subproc, condorID._subproc);
+    int result = compare (m_cluster, condorID.m_cluster);
+    if (result == 0) result = compare (m_proc, condorID.m_proc);
+    if (result == 0) result = compare (m_subproc, condorID.m_subproc);
     return result;
 }
 
 //---------------------------------------------------------------------------
-std::string to_string (int i) {
+CondorID::operator std::string() const {
+    std::string s;
+    s += '(';
+    s += toString(m_cluster);
+    s += '.';
+    s += toString(m_proc);
+    s += '.';
+    s += toString(m_subproc);
+    s += ')';
+    return s;
+}
+
+//---------------------------------------------------------------------------
+ostream & operator << (ostream & out, const CondorID & condorID) {
+    out << (std::string) condorID;
+    return out;
+}
+
+//---------------------------------------------------------------------------
+std::string toString (int i) {
     char s[32];
     sprintf (s, "%d", i);
     return s;

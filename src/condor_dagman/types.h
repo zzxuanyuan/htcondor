@@ -22,17 +22,17 @@ typedef int JobID_t;
 class CondorID {
   public:
     ///
-    CondorID () : _cluster(-1), _proc(-1), _subproc(-1) {}
+    CondorID () : m_cluster(-1), m_proc(-1), m_subproc(-1) {}
 
     ///
     CondorID (int cluster, int proc, int subproc):
-        _cluster(cluster), _proc(proc), _subproc(subproc) {}
+        m_cluster(cluster), m_proc(proc), m_subproc(subproc) {}
 
     ///
     inline void Set (int cluster, int proc, int subproc) {
-        _cluster = cluster;
-        _proc    = proc;
-        _subproc = subproc;
+        m_cluster = cluster;
+        m_proc    = proc;
+        m_subproc = subproc;
     }
 
     /** Compare this condorID's with another
@@ -46,17 +46,16 @@ class CondorID {
     }
 
     ///
-    inline void Print (FILE * file = stdout) const {
-        fprintf (file, "(%d.%d.%d)", _cluster, _proc, _subproc);
-    }
+    operator std::string() const;
 
-    /** */ int _cluster;
-    /** */ int _proc;
-    /** */ int _subproc;
+    /** */ int m_cluster;
+    /** */ int m_proc;
+    /** */ int m_subproc;
 };
 
 //---------------------------------------------------------------------------
-std::string to_string (int i);
+ostream & operator << (ostream & out, const CondorID & condorID);
+std::string toString (int i);
 
 } // namespace dagman
 
