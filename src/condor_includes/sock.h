@@ -81,6 +81,7 @@ public:
 
 	friend class DaemonCore;
 	friend class Daemon;
+	friend class SecMan;
 
 	/*
 	**	Methods
