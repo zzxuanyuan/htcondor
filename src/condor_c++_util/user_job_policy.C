@@ -158,7 +158,8 @@ ClassAd* user_job_policy(ClassAd *jad)
 			}
 
 			/* Should I perform a periodic release? */
-			jad->EvalBool(ATTR_PERIODIC_RELEASE_CHECK, jad, periodic_release);
+			jad->EvaluateAttrBool( ATTR_PERIODIC_RELEASE_CHECK,
+								   periodic_release );
 			if (periodic_release == 1)
 			{
 				/* make a result classad explaining this and return it */
@@ -349,8 +350,7 @@ void UserPolicy::SetDefaults()
 	}
 
 	if (pl_expr == NULL) {
-		sprintf(buf, "%s = FALSE", ATTR_PERIODIC_RELEASE_CHECK);
-		m_ad->Insert(buf);
+		m_ad->InsertAttr( ATTR_PERIODIC_RELEASE_CHECK, false );
 	}
 
 	if (oeh_expr == NULL) {
@@ -411,7 +411,8 @@ UserPolicy::AnalyzePolicy( int mode )
 	/* Should I perform a periodic release? */
 	if(state==HELD) {
 		m_fire_expr = ATTR_PERIODIC_RELEASE_CHECK;
-		if(!m_ad->EvalBool(ATTR_PERIODIC_RELEASE_CHECK, m_ad, periodic_release)) {
+		if( !m_ad->EvaluateAttrBool(ATTR_PERIODIC_RELEASE_CHECK,
+								   periodic_release) ) {
 			return UNDEFINED_EVAL;
 		}
 		if( periodic_release ) {

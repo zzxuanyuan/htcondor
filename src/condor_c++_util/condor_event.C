@@ -1160,16 +1160,16 @@ RemoteErrorEvent::toClassAd()
 	if( !myad ) return NULL;
 
 	if(*daemon_name) {
-		myad->Assign("Daemon",daemon_name);
+		myad->InsertAttr("Daemon",daemon_name);
 	}
 	if(*execute_host) {
-		myad->Assign("ExecuteHost",execute_host);
+		myad->InsertAttr("ExecuteHost",execute_host);
 	}
 	if(error_str) {
-		myad->Assign("ErrorMsg",error_str);
+		myad->InsertAttr("ErrorMsg",error_str);
 	}
 	if(!critical_error) { //default is true
-		myad->Assign("CriticalError",(int)critical_error);
+		myad->InsertAttr("CriticalError",(int)critical_error);
 	}
 
 	return myad;
