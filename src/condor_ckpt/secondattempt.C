@@ -8,7 +8,7 @@
 #include <string.h>
 #include <netinet/in.h>
 #include <sys/mman.h>
-#include "/s/zlib/include/zlib.h"
+#include <zlib.h> 
 #include "secondattempt.h"
 
 //these functions get used by zlib.
@@ -79,27 +79,24 @@ int compare_pages(char * p1, char *p2, int &decile, float &matchPercent) {
 	return decile==10;
 }
 int compare_segment(CheckpointFile &ck1, CheckpointFile &ck2, char * paddr1, 
-					char * paddr2, int segnumber, int &matches, int &pages) {
+					char * paddr2, int ck1_segnumber, int ck2_segnumber, 
+					int &matches, int &pages) 
+{
 	int pgsize=pArch->getpagesize();
 	//we are going to read this a page at a time:
-	int bytes_to_read1=ck1.segmap[segnumber].len;
-	int bytes_to_read2=ck2.segmap[segnumber].len;
+	int bytes_to_read1=ck1.segmap[ck1_segnumber].len;
+	int bytes_to_read2=ck2.segmap[ck2_segnumber].len;
 	int pages_matching=0;
 	int total_pages=0;
 	float matchPercent;
 	float matchAverage = 0;
 	int decileval=0;
 	char * p1, *p2;
-	p1=paddr1+ck1.segmap[segnumber].file_loc;
-	p2=paddr2+ck2.segmap[segnumber].file_loc;
+	p1=paddr1+ck1.segmap[ck1_segnumber].file_loc;
+	p2=paddr2+ck2.segmap[ck2_segnumber].file_loc;
 	int histogram[11];
 	memset(histogram, 0, 11*sizeof(int));
-	if (strcmp(ck1.segmap[segnumber].name, ck2.segmap[segnumber].name) != 0) {
-		cout << "WARNING:  Segments do not correspond, " 
-			<< ck1.segmap[segnumber].name << " and " 
-			<< ck2.segmap[segnumber].name << endl;
-	}
-	cout << "Comparing segment " << ck2.segmap[segnumber].name << ": " << endl;
+	cout << "Comparing segment " << ck2.segmap[ck2_segnumber].name << ": \n"; 
 	if ( ! SUPER_VERBOSE ) cout << "Per page analysis: ";
 
 	int comparable_bytes;
@@ -174,27 +171,20 @@ int read_header(int fd, CheckpointFile &cf) {
 		cout<<"ERROR READING HEADER"<<endl;
 	}
 	// check for network to host stuff
-	cout<<"MAGIC: "<<cf.MAGIC<<"\tCOMPRESS_MAGIC"<<cf.COMPRESS_MAGIC<<endl;
-	cout<<"Value of first int "<< vals[0]<< " Swapped: "<<swap_byte_order(vals[0])<<endl;
-	//unsigned int foo= (unsigned int) vals[0];
-	//cout<<swap_byte_order(foo)<<endl;
-	//cout<<"Value of foo"<<foo<<endl;
-	
-	if (vals[0]==cf.COMPRESS_MAGIC|| vals[0]==cf.MAGIC) {
-		cf.needs_byte_swap=false;
+	if (cf.needs_byte_swap = ! (vals[0]==cf.COMPRESS_MAGIC||vals[0]==cf.MAGIC)){
+		if (DEBUG) cout << "DEBUG: Need to swap bytes for different arch\n"; 
+		vals[0] = swap_byte_order(vals[0]);
 	}
-	else if (swap_byte_order(vals[0])==cf.COMPRESS_MAGIC||
-			 swap_byte_order(vals[0])==cf.MAGIC) 
-		{
-			if (DEBUG) cout << "DEBUG: Need to convert from network order" << endl;
-			cf.needs_byte_swap=true;
-	}
-	else {
+			
+	if (DEBUG) 
+		cout<<"MAGIC: "<<cf.MAGIC<<"\tCOMPRESS_MAGIC "<<cf.COMPRESS_MAGIC
+			<< ", cf.magic is " << vals[0] <<endl;
+	if (vals[0] != cf.MAGIC && vals[0] != cf.COMPRESS_MAGIC) {
 		cout << "ERROR: CANNOT CONVERT FROM NETWORK ORDER" << endl;;
-			exit (0);
+		exit (0);
 	}
+
 	// now make sure values are OK after converting	
-	vals[0] = (cf.needs_byte_swap? swap_byte_order(vals[0]): vals[0]);
 	vals[1]= (cf.needs_byte_swap? swap_byte_order(vals[1]): vals[1]);
 	if (vals[0] == cf.COMPRESS_MAGIC) {
 		cf.compressed = true;
@@ -225,10 +215,12 @@ int read_segmap(int fd, CheckpointFile &cf) {
 	if (DEBUG) cout<<"DEBUG: Read "<<retval<<" bytes (the segmaps)"<<endl;
 	if (cf.needs_byte_swap) {
 		for (int i = 0; i < cf.n_segs; i++) {
-			cf.segmap[i].len = swap_byte_order (cf.segmap[i].len);//sizeof long needs sizeof int...
+			cf.segmap[i].len = swap_byte_order (cf.segmap[i].len);
+				//sizeof long needs sizeof int...
 			cf.segmap[i].prot = swap_byte_order (cf.segmap[i].prot);
 			cf.segmap[i].file_loc=swap_byte_order(cf.segmap[i].file_loc);
 			cf.segmap[i].core_loc=swap_byte_order(cf.segmap[i].core_loc);
+			cf.segmap[i].matched = false;
 		}
 	}
 }
@@ -260,6 +252,51 @@ z_stream * initialize_zstream(z_stream *pz) {
 	cout<<"InflateInit: "<<xxx<<endl;
 	return pz;	
 }	
+
+/**
+* this function searches the second ckpt file for a segment which appears
+* to correspond to the specified segment in the first ckpt file
+*/
+int
+findMatchingSegment(CheckpointFile &f1, CheckpointFile &f2, int ck1_segNo) {
+
+	char * type = f1.segmap[ck1_segNo].name;
+	RAW_ADDR start = f1.segmap[ck1_segNo].core_loc;
+	RAW_ADDR end   = f1.segmap[ck1_segNo].core_loc + f1.segmap[ck1_segNo].len;
+	
+	// first search for a match on the start address of the segments 
+	// second time through, search for a match on the end address 
+	int i, j;
+	for (j = 0; j < 2; j++) {
+		for ( i = 0; i < f2.n_segs; i++) {
+			if (f2.segmap[i].matched) 				continue; // already matched
+			if (strcmp(f2.segmap[i].name, type))  	continue; // wrong type	
+			if ( !j ) { // first time through, check start
+				if (start == f2.segmap[i].core_loc) {
+					break;
+				}
+			} else {   // second time through	
+				if (end == f2.segmap[i].core_loc + f2.segmap[i].len) {
+					break;
+				}
+			}	
+		}
+	}
+
+	if (i == f2.n_segs && j == 2) { // no match
+		cout << "ERROR: Unable to match segment of type " << type << endl;
+		return -1;
+	}
+
+	// this is hopefully the normal path
+	f1.segmap[ck1_segNo].matched = true;
+	f2.segmap[i].matched = true;
+	if (DEBUG) cout << "Matched segments of type " << type
+		<< " using the " << ( (j == 0) ? "front" : "back" )
+		<< " end of the addresses.\n"
+		<< "\tMatched " << ck1_segNo << " to " << i << endl;	
+	return i;
+}
 
 
 int setup_uncompressed_addr (int fd, CheckpointFile &ck, z_stream *pz, 
@@ -301,7 +338,7 @@ int setup_uncompressed_addr (int fd, CheckpointFile &ck, z_stream *pz,
 		}
 		//now lets start decompressing...
 		//I guess we'll just copy everything before the segments themselves...
-		int xqqq=memcpy(paddr, paddrtemp, first_segment_address);
+		int xqqq=(int)memcpy(paddr, paddrtemp, first_segment_address);
 		if (DEBUG) { cout<<"xqqq"<<xqqq<<endl;}
 		pz->total_out=0;
 		pz->total_in=0;
@@ -336,28 +373,37 @@ int setup_uncompressed_addr (int fd, CheckpointFile &ck, z_stream *pz,
 //corny function to initialize an archspecific
 int initialize_checkpoint_architecture(char * arch) {
 	int retval=0;
-	if (arch==NULL||!strcmp(arch, ArchSpecific::SPARC)) {
-		cout<<"No architecture specificed--defaulting to SUN"<<endl;
-		pArch=new Sun4Specific();
-	}
-	else if (!strcmp(arch, ArchSpecific::INTEL)) {
+	if (arch==NULL||!strcmp(arch, ArchSpecific::INTEL)) {
+		if (DEBUG) {
+			if ( arch == NULL ) 
+			cout<<"DEBUG: No architecture specificed--defaulting to INTEL\n";
+			else
+			cout << "DEBUG: INTEL specified\n";
+		}
 		pArch=new Suni386Specific();
 	}
+	else if (!strcmp(arch, ArchSpecific::SPARC)) {
+		if (DEBUG) cout << "DEBUG: SPARC specified\n";
+		pArch=new Sun4Specific();
+	}
 	else {
-		cout<<"Unknown Architecture "<<arch<<endl;
+		cout<<"ERROR: Unknown Architecture "<<arch<<endl;
 		exit(2);
 	}
 	return retval;
 }
 
-
+void
+usage(char * me) {
+	cout << "Usage: " << me << " ckpt_1 ckpt_2  -a arch(SPARC|INTEL) -d\n";
+}
 
 //first thing is file
 int main(int argc, char ** argv ) {
 	//test swap bute order
 	//int xa, xb, xc, xd;
-//	xa=0x000000AA;
-//	xb=0x0000BB00;
+	//	xa=0x000000AA;
+	//	xb=0x0000BB00;
 	//xc=0x00CC0000;
 	//xd=0xDD000000;
 	//int ax, bx, cx, dx;
@@ -372,20 +418,46 @@ int main(int argc, char ** argv ) {
 	//swap_byte_order(xb)<<SPACE<<
 	//swap_byte_order(xc)<<SPACE<<
 	//swap_byte_order(xd)<<SPACE<<endl;	
-	cout<<sizeof(off_t)<<endl;
-	if (argc != 4 && argc != 5) {
-		cout << "Usage: " << argv[0] << " ckpt_1 ckpt_2 arch(SPARC|INTEL)  [debug]" << endl;
+	//cout<<sizeof(off_t)<<endl;
+
+	int foo = 398756743;
+	int goo = swap_byte_order(foo);
+	if (foo != swap_byte_order(goo)) {
+		cout << "GREG, please test your code\n";
+		exit (-1);
+	}
+	if (sizeof(long) != sizeof(int)) {
+		cout << "GREG, problem with swap_byte_order\n";
+		exit (-1);
+	}
+
+	if (argc < 3) { 
+		usage(argv[0]);
 		exit(1);
 	}	
-	fd1=open(argv[1], O_RDONLY);
-	fd2=open(argv[2], O_RDONLY);
-	DEBUG = (argc == 5);  // a fourth arg will turn on debugging
-	initialize_checkpoint_architecture(argv[3]);
+	int curArg = 1;
+	fd1=open(argv[curArg++], O_RDONLY);
+	fd2=open(argv[curArg++], O_RDONLY);
+	bool arch_set = false;
+	DEBUG = false;
+	while (curArg < argc) {
+		if (!strcmp(argv[curArg], "-d")) {
+			DEBUG = true;
+		} else if ( !strcmp(argv[curArg], "-a")) {
+			initialize_checkpoint_architecture(argv[++curArg]);
+			arch_set = true;
+		} else {
+			usage(argv[0]);
+			exit (-1);
+		}
+		curArg++;
+	}
+	if ( ! arch_set ) initialize_checkpoint_architecture(NULL);
 	
 	//ok. lets try this:
 	read_header(fd1, f1);
 	read_header(fd2, f2);
-	cout<<"Read Headers"<<endl;
+	if (DEBUG) cout<<"DEBUG: Read Headers"<<endl;
 	
 	read_segmap(fd1, f1);
 	read_segmap(fd2, f2);
@@ -414,8 +486,10 @@ int main(int argc, char ** argv ) {
 	int total_matches = 0;
 	int total_pages = 0;
 	int fewer_segs = (f1.n_segs < f2.n_segs) ? f1.n_segs : f2.n_segs;
-	for (int i=0; i<fewer_segs; i++) {
-		if (compare_segment(f1,f2,paddr1,paddr2,i,total_matches,total_pages)) 
+	for (int ck1_segNo = 0, ck2_segNo; ck1_segNo < fewer_segs; ck1_segNo++){
+		ck2_segNo = findMatchingSegment(f1, f2, ck1_segNo);
+		if (compare_segment(f1, f2, paddr1, paddr2, ck1_segNo, ck2_segNo,
+				total_matches,total_pages)) 
 		{
 			matching_segs++;
 		}

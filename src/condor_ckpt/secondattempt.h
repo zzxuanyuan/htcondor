@@ -13,7 +13,7 @@ struct SegInfo {
 	long		len;  //this will be as well..
 	int			prot;	//as will this...
 	void Display();
-	
+	bool matched;	
 };
 
 //an abstraction of a checkpoint file
@@ -33,6 +33,7 @@ int read_segmap(int fd, CheckpointFile &ck);
 z_stream * initialize_zstream(z_stream *pz);
 int ntoh (int network_int, CheckpointFile &ck);
 int swap_byte_order(unsigned int);
+int findMatchingSegment(CheckpointFile &f1, CheckpointFile &f2, int ck1_segNo); 
 const int HEADER_LENGTH=1024-64; //this works. not sure why --
 								//probably annoying alignment issues
 
