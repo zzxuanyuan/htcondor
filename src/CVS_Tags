@@ -1,3 +1,16 @@
+03/04/03 V6_5-MB-V6_5-cod-merge-1-post_merge
+    post_merge tag to demark the point after the basic CVS conflict
+    resolution was done, and when the more complicated code changes
+    where started to get this branch building and working again.
+
+03/04/03 V6_5-MB-V6_5-cod-merge-1-branch
+    the *right* name for the COD->V6_5 merge branch.  because of the
+    extensive changes required for COD and various things that were
+    changed on V6_5 (how CEDAR authenticate() works, and the starter
+    exception userlog event), i decided to use a merge-branch for this
+    merge so that we can track the changes i had to make to resolve
+    conflicts and get everything working after the merge.
+
 03/03/03 V6_5-cod-merge-1
      The state of the COD branch when it was merged into V6_5 (via the 
      "V6_5-MB-V6_5-cod-merge-1-branch" merge branch)
