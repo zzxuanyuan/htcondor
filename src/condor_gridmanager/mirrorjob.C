@@ -430,7 +430,14 @@ int MirrorJob::doEvaluateState()
 			} break;
 		case GM_DONE_COMMIT: {
 			// Tell the remote schedd it can remove the job from the queue.
-			rc = gahp->condor_job_complete( mirrorScheddName, mirrorJobId );
+			if ( gahpAd == NULL ) {
+				MyString expr;
+				gahpAd = new ClassAd;
+				expr.sprintf( "%s = False", ATTR_JOB_LEAVE_IN_QUEUE );
+				gahpAd->Insert( expr.Value() );
+			}
+			rc = gahp->condor_job_update( mirrorScheddName, mirrorJobId,
+										  gahpAd );
 			if ( rc == GAHPCLIENT_COMMAND_NOT_SUBMITTED ||
 				 rc == GAHPCLIENT_COMMAND_PENDING ) {
 				break;
