@@ -1884,8 +1884,6 @@ Scheduler::jobIsTerminal(int cluster, int proc)
 
 #ifndef WIN32
 
-	ClassAd * job_ad = GetJobAd( cluster, proc );
-	ASSERT( job_ad ); // No job ad?
 	if( JobIsSandboxed(job_ad) ) {
 		MyString sandbox;
 		if( GetSandbox(cluster, proc, sandbox) ) {
