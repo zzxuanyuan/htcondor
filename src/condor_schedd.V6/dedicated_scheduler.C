@@ -34,6 +34,8 @@
 
 */
 
+#define CLASSAD_EXPERIMENT
+
 #include "condor_common.h"
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
 #include "dedicated_scheduler.h"
@@ -52,6 +54,11 @@
 #include "exit.h"
 #include "dc_startd.h"
 #include "dc_collector.h"
+
+#ifdef CLASSAD_EXPERIMENT
+#define WANT_NAMESPACES
+#include "classad_distribution.h"
+#endif
 
 extern Scheduler scheduler;
 extern char* Name;
@@ -376,6 +383,13 @@ DedicatedScheduler::DedicatedScheduler()
 	ds_owner = NULL;
 	ds_name = NULL;
 	shadow_obj = NULL;
+
+#ifdef CLASSAD_EXPERIMENT
+    classad::ClassAd *classad;
+
+    classad = new classad::ClassAd;
+    int x = classad->size();
+#endif
 }
 
 
