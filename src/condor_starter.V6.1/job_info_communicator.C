@@ -46,19 +46,19 @@ JobInfoCommunicator::~JobInfoCommunicator()
 		delete job_ad;
 	}
 	if( orig_job_name ) {
-		delete [] orig_job_name;
+		free( origjob_name );
 	}
 	if( job_input_name ) {
-		delete [] job_input_name;
+		free( job_input_name);
 	}
 	if( job_output_name ) {
-		delete [] job_output_name;
+		free( job_output_name);
 	}
 	if( job_error_name ) {
-		delete [] job_error_name;
+		free( job_error_name);
 	}
 	if( job_iwd ) {
-		delete [] job_iwd;
+		free( job_iwd);
 	}
 
 }
