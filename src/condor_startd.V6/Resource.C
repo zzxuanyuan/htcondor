@@ -35,6 +35,7 @@ Resource::Resource( CpuAttributes* cap, int rid )
 	r_state = new ResState( this );
 	r_cur = new Claim( this );
 	r_pre = NULL;
+	r_cod_mgr = new CODMgr( this );
 	r_reqexp = new Reqexp( this );
 	r_load_queue = new LoadQueue( size );
 
@@ -102,6 +103,7 @@ Resource::~Resource()
 	if( r_pre ) {
 		delete r_pre;		
 	}
+	delete r_cod_mgr;
 	delete r_reqexp;   
 	delete r_attr;		
 	delete r_load_queue;

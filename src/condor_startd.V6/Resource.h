@@ -30,6 +30,8 @@
 #include "Reqexp.h"
 #include "LoadQueue.h"
 #include "AvailStats.h"
+#include "cod_mgr.h"
+
 
 class Resource : public Service
 {
@@ -138,6 +140,7 @@ public:
 	ClassAd*		r_classad;	// Resource classad (contains everything in config file)
 	Claim*			r_cur;		// Info about the current claim
 	Claim*			r_pre;		// Info about the possibly preempting claim
+	CODMgr*			r_cod_mgr;	// Object to manage COD claims
 	Reqexp*			r_reqexp;   // Object for the requirements expression
 	CpuAttributes*	r_attr;		// Attributes of this resource
 	LoadQueue*		r_load_queue;  // Holds 1 minute avg % cpu usage
