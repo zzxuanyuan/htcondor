@@ -395,6 +395,7 @@ Image::Write( const char *ckpt_file )
 	int	status;
 	int	scm;
 	int bytes_read;
+	char	tmp_name[ _POSIX_PATH_MAX ];
 #if defined(ALPHA)
 	unsigned int  nbytes;		// 32 bit unsigned
 #else
@@ -405,7 +406,9 @@ Image::Write( const char *ckpt_file )
 		ckpt_file = file_name;
 	}
 
-	if( (fd=open_write_stream(ckpt_file,len)) < 0 ) {
+	sprintf( tmp_name, "%s.tmp", ckpt_file );
+
+	if( (fd=open_write_stream(tmp_name,len)) < 0 ) {
 		perror( "open_write_stream" );
 		exit( 1 );
 	}
@@ -433,6 +436,10 @@ Image::Write( const char *ckpt_file )
 
 	dprintf( D_ALWAYS, "USER PROC: CHECKPOINT IMAGE SENT OK\n" );
 	SetSyscalls( scm );
+
+	if( rename(tmp_name,ckpt_file) < 0 ) {
+		EXCEPT( "rename" );
+	}
 
 
 		// In remote mode we update the shadow on our image size
