@@ -31,6 +31,7 @@
 #include "starter.h"
 #include "vanilla_proc.h"
 #include "java_proc.h"
+#include "tool_daemon_proc.h"
 #include "mpi_master_proc.h"
 #include "mpi_comrade_proc.h"
 #include "syscall_numbers.h"
@@ -347,7 +348,7 @@ CStarter::StartJob()
 		dprintf(D_FAILURE|D_ALWAYS, 
 				"Failed to get job info from Shadow.  Aborting StartJob.\n");
 		return false;
-	}
+	}	
 
 	if ( jobAd->LookupInteger( ATTR_JOB_UNIVERSE, jobUniverse ) < 1 ) {
 		dprintf( D_ALWAYS, 
@@ -574,14 +575,33 @@ CStarter::TransferCompleted( FileTransfer *ftrans )
 			return FALSE;
 	} /* switch */
 
-	if (job->StartJob()) {
-		JobList.Append(job);
+	if( job->StartJob() ) {
+		JobList.Append( job );
 
 		// update the shadow every 20 minutes.  years of study say
 		// this is the optimal value. :^).
 		shadowupdate_tid = daemonCore->Register_Timer(8,(20*60)+6,
 			(TimerHandlercpp)&CStarter::PeriodicShadowUpdate,
 			"CStarter::PeriodicShadowUpdate", this);
+
+		// Now, see if we also need to start up a ToolDaemon
+		// for this job.
+		char* tool_daemon_name = NULL;
+		jobAd->LookupString( ATTR_TOOL_DAEMON_CMD,
+							 &tool_daemon_name );
+		if( tool_daemon_name ) {
+				// we need to start one a tool daemon for this job
+			ToolDaemonProc* tool_daemon_proc;
+			tool_daemon_proc = new ToolDaemonProc( jobAd );
+			if( tool_daemon_proc->StartJob() ) {
+				JobList.Append( tool_daemon_proc );
+				dprintf( D_FULLDEBUG, "ToolDaemonProc added to JobList\n");
+			} else {
+				dprintf( D_ALWAYS, "Failed to start ToolDaemonProc!\n");
+				delete tool_daemon_proc;
+			}
+			free( tool_daemon_name );
+		}
 
 		return TRUE;
 	} else {
