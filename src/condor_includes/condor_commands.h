@@ -283,6 +283,11 @@ const int QUERY_ANY_ADS = 48;
 #define RECEIVE_JOBAD		   (DCSHADOW_BASE+4)
 
 
+#define STORK_BASE 80000
+#define STORK_SUBMIT (STORK_BASE+0)
+#define STORK_REMOVE (STORK_BASE+1)
+#define STORK_STATUS (STORK_BASE+2)
+
 /*
 *** Used only in THE TOOL to choose the condor_squawk option.
 */
