@@ -105,6 +105,8 @@ submit file.  Otherwise, the initial value is equal to the size of the
 executable.  When the job checkpoints, the \AdAttr{ImageSize}
 attribute is set to the size of the checkpoint file (since the
 checkpoint file contains the job's memory image).
+A vanilla universe job's \AdAttr{ImageSize} is recomputed
+internally every 15 seconds.
 
 %%% ClassAd attribute: JobPrio
 \index{ClassAd job attribute!JobPrio}

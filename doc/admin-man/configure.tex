@@ -2595,6 +2595,12 @@ These settings affect the \Condor{shadow}.
   described in section~\ref{param:SubsysDebug} as
   \MacroNI{SUBSYS\_DEBUG}.
 
+\item[\Macro{SHADOW\_QUEUE\_UPDATE\_INTERVAL}]
+\label{param:ShadowQueueUpdateInterval}
+The amount of time (in seconds) between ClassAd updates that the
+\Condor{shadow} daemon sends to the \Condor{schedd} daemon.
+Defaults to 900 (15 minutes).
+
 \item[\Macro{COMPRESS\_PERIODIC\_CKPT}]
   \label{param:CompressPeriodicCkpt} This boolean macro specifies
   whether the shadow should instruct applications to compress periodic
@@ -2711,6 +2717,11 @@ These settings affect the \Condor{starter}.
   (and other settings related to debug logging in the starter) is
   described above in section~\ref{param:SubsysDebug} as
   \MacroUNI{SUBSYS\_DEBUG}.
+
+\item[\Macro{STARTER\_UPDATE\_INTERVAL}] \label{param:StarterUpdateInterval}
+The amount of time (in seconds) between ClassAd updates that the
+\Condor{starter} daemon sends to the \Condor{shadow} daemon.
+Defaults to 1200 (20 minutes).
 
 \item[\Macro{USER\_JOB\_WRAPPER}] \label{param:UserJobWrapper} This macro
   allows the administrator to specify a ``wrapper'' script to handle the
