@@ -95,12 +95,11 @@ JICLocal::init( void )
 	initOutputAdFile();
 
 		// Now that the user priv is setup and the temp execute dir
-		// exists, we can initialize the LocalUserLog.  if the job
-		// defines StarterUserLog, we'll write the events.  if not,
-		// all attemps to log events will just be no-ops.
-	if( ! u_log->initFromJobAd(job_ad) ) {
+		// exists, we can initialize the LocalUserLog.
+	if( ! initLocalUserLog() ) {
 		return false;
 	}
+
 	return true;
 }
 
@@ -450,6 +449,7 @@ bool
 JICLocal::checkUniverse( int univ ) 
 {
 	switch( univ ) {
+	case CONDOR_UNIVERSE_LOCAL:
 	case CONDOR_UNIVERSE_VANILLA:
 	case CONDOR_UNIVERSE_JAVA:
 			// for now, we don't support much. :)
@@ -475,4 +475,12 @@ JICLocal::checkUniverse( int univ )
 
 	}
 }
+
+
+bool
+JICLocal::initLocalUserLog( void )
+{
+	return u_log->initFromJobAd( job_ad );
+}
+
 
