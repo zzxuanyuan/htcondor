@@ -107,11 +107,11 @@ Dag::~Dag() {
 //-------------------------------------------------------------------------
 bool Dag::Bootstrap (bool recovery) {
     Job* node;
-    map<const char*, Job*, Dag::strlt>::const_iterator nodes = _nodes.begin();
+    map<const char*, Job*, Dag::strlt>::const_iterator nodes = _nodesByName.begin();
 
     // update dependencies for pre-completed jobs (jobs marked DONE in
     // the DAG input file)
-    while(nodes != _nodes.end()) {
+    while(nodes != _nodesByName.end()) {
 		node = (*nodes++).second;
 		if( node->GetStatus() == Job::STATUS_DONE ) {
 			TerminateJob( node, true );
@@ -135,8 +135,8 @@ bool Dag::Bootstrap (bool recovery) {
 		}
 
 		// all jobs stuck in STATUS_POSTRUN need their scripts run
-		nodes = _nodes.begin();
-		while(nodes != _nodes.end()) {
+		nodes = _nodesByName.begin();
+		while(nodes != _nodesByName.end()) {
 			node = (*nodes++).second;
 			if( node->GetStatus() == Job::STATUS_POSTRUN ) {
 				_postScriptQ->Run( node->_scriptPost );
@@ -149,8 +149,8 @@ bool Dag::Bootstrap (bool recovery) {
 		PrintReadyQ( DEBUG_DEBUG_2 );
     }	
     
-	nodes = _nodes.begin();
-    while(nodes != _nodes.end()) {
+	nodes = _nodesByName.begin();
+    while(nodes != _nodesByName.end()) {
 		node = (*nodes++).second;
 		if( node->GetStatus() == Job::STATUS_READY &&
 			node->IsEmpty( Job::Q_WAITING ) ) {
@@ -177,14 +177,11 @@ bool Dag::AddDependency (Job * parent, Job * child) {
 
 //-------------------------------------------------------------------------
 Job * Dag::GetJob (const JobID_t jobID) const {
-    Job* node;
-    map<const char*, Job*, Dag::strlt>::const_iterator nodes = _nodes.begin();
-    while (nodes != _nodes.end()) {
-		node = (*nodes++).second;
-        if (node->GetJobID() == jobID) {
-			return node;
-		}
-    }
+    map<JobID_t, Job*>::const_iterator node;
+	node = _nodesByID.find(jobID);
+	if(node != _nodesByID.end()) {
+		return (*node).second;
+	}
     return NULL;
 }
 
@@ -667,8 +664,9 @@ Job * Dag::GetJob (const char * jobName) const {
 	if( !jobName ) {
 		return NULL;
 	}
-    map<const char*, Job*, Dag::strlt>::const_iterator node = _nodes.find(jobName);
-	if(node != _nodes.end()) {
+    map<const char*, Job*, Dag::strlt>::const_iterator node;
+	node = _nodesByName.find(jobName);
+	if(node != _nodesByName.end()) {
 		return (*node).second;
 	}
     return NULL;
@@ -683,13 +681,13 @@ Dag::NodeExists( const char* nodeName ) const {
 
 //---------------------------------------------------------------------------
 Job * Dag::GetJob (const CondorID condorID) const {
-    Job* node;
-    map<const char*, Job*, Dag::strlt>::const_iterator nodes = _nodes.begin();
-    while (nodes != _nodes.end()) {
+	Job* node;
+    map<const char*, Job*, Dag::strlt>::const_iterator nodes;
+	nodes = _nodesByName.begin();
+    while (nodes != _nodesByName.end()) {
 		node = (*nodes++).second;
-		if(node->_CondorID == condorID) {
+		if(node->_CondorID == condorID)
 			return node;
-		}
 	}
 	return NULL;
 }
@@ -928,8 +926,9 @@ Dag::PostScriptReaper( const char* nodeName, int status )
 
 //---------------------------------------------------------------------------
 void Dag::PrintJobList() const {
-    map<const char*, Job*, Dag::strlt>::const_iterator nodes = _nodes.begin();
-    while (nodes != _nodes.end()) {
+    map<const char*, Job*, Dag::strlt>::const_iterator nodes;
+	nodes = _nodesByName.begin();
+    while (nodes != _nodesByName.end()) {
 		(*nodes++).second->Dump();
 	}
     dprintf( D_ALWAYS, "---------------------------------------\t<END>\n" );
@@ -939,8 +938,9 @@ void
 Dag::PrintJobList( Job::status_t status ) const
 {
 	Job* node;
-    map<const char*, Job*, Dag::strlt>::const_iterator nodes = _nodes.begin();
-    while (nodes != _nodes.end()) {
+    map<const char*, Job*, Dag::strlt>::const_iterator nodes;
+	nodes = _nodesByName.begin();
+    while (nodes != _nodesByName.end()) {
 		node = (*nodes++).second;
 		if(node->GetStatus() == status) {
 			node->Dump();
@@ -984,8 +984,9 @@ void Dag::RemoveRunningJobs () const {
 		// TODO: we need to check for failures here
 
     Job* node;
-    map<const char*, Job*, Dag::strlt>::const_iterator nodes = _nodes.begin();
-    while (nodes != _nodes.end()) {
+    map<const char*, Job*, Dag::strlt>::const_iterator nodes;
+	nodes = _nodesByName.begin();
+    while (nodes != _nodesByName.end()) {
 		node = (*nodes++).second;
 
 		ASSERT( node != NULL );
@@ -1046,8 +1047,9 @@ void Dag::Rescue (const char * rescue_file, const char * datafile) const {
     fprintf (fp, "#   ");
 
 	Job* node;
-    map<const char*, Job*, Dag::strlt>::const_iterator nodes = _nodes.begin();
-    while (nodes != _nodes.end()) {
+    map<const char*, Job*, Dag::strlt>::const_iterator nodes;
+	nodes = _nodesByName.begin();
+    while (nodes != _nodesByName.end()) {
 		node = (*nodes++).second;
         if (node->GetStatus() == Job::STATUS_ERROR) {
             fprintf (fp, "%s,", node->GetJobName());
@@ -1058,8 +1060,8 @@ void Dag::Rescue (const char * rescue_file, const char * datafile) const {
     //
     // Print JOBS and SCRIPTS
     //
-	nodes = _nodes.begin();
-    while (nodes != _nodes.end()) {
+	nodes = _nodesByName.begin();
+    while (nodes != _nodesByName.end()) {
 		node = (*nodes++).second;
 		if( node->JobType() == Job::TYPE_CONDOR ) {
 			fprintf (fp, "JOB %s %s %s\n", node->GetJobName(),
@@ -1121,8 +1123,8 @@ void Dag::Rescue (const char * rescue_file, const char * datafile) const {
 	// Print Dependency Section
 	//
 	fprintf (fp, "\n");
-	nodes = _nodes.begin();
-    while (nodes != _nodes.end()) {
+	nodes = _nodesByName.begin();
+    while (nodes != _nodesByName.end()) {
 		node = (*nodes++).second;
 
 		SimpleList<JobID_t> & _queue = node->GetQueueRef(Job::Q_CHILDREN);
@@ -1262,8 +1264,8 @@ Dag::isCycle ()
 	//Visit all jobs in DAG and number them	
 	
     Job* node;
-    map<const char*, Job*, Dag::strlt>::const_iterator nodes = _nodes.begin();
-    while (nodes != _nodes.end()) {
+    map<const char*, Job*, Dag::strlt>::const_iterator nodes = _nodesByName.begin();
+    while (nodes != _nodesByName.end()) {
 		node = (*nodes++).second;
 
   		if (!node->_visited &&
@@ -1272,8 +1274,8 @@ Dag::isCycle ()
 	}	
 
 	//Detect cycle
-	nodes = _nodes.begin();
-	while (nodes != _nodes.end()) {
+	nodes = _nodesByName.begin();
+	while (nodes != _nodesByName.end()) {
 		node = (*nodes++).second;
 		
 		child_list.Initialize(node->GetQueueRef(Job::Q_CHILDREN));
@@ -1445,8 +1447,8 @@ void
 Dag::DumpDotFileNodes(FILE *temp_dot_file)
 {
     Job* node;
-    map<const char*, Job*, Dag::strlt>::const_iterator nodes = _nodes.begin();
-    while (nodes != _nodes.end()) {
+    map<const char*, Job*, Dag::strlt>::const_iterator nodes = _nodesByName.begin();
+    while (nodes != _nodesByName.end()) {
 		node = (*nodes++).second;
 
 		const char *node_name;
@@ -1508,8 +1510,8 @@ void
 Dag::DumpDotFileArcs(FILE *temp_dot_file)
 {
     Job* node;
-    map<const char*, Job*, Dag::strlt>::const_iterator nodes = _nodes.begin();
-    while (nodes != _nodes.end()) {
+    map<const char*, Job*, Dag::strlt>::const_iterator nodes = _nodesByName.begin();
+    while (nodes != _nodesByName.end()) {
 		node = (*nodes++).second;
 
 		Job        *child;
@@ -1574,11 +1576,17 @@ Dag::ChooseDotFileName(MyString &dot_file_name)
 
 bool Dag::Add( Job& job )
 {
-	return
-		_nodes.insert(
+	bool success = 
+		_nodesByName.insert(
 			map<const char*, Job*, Dag::strlt>::value_type(
 				job.GetJobName(), &job)
+		).second
+		&&
+		_nodesByID.insert(
+			map<JobID_t, Job*>::value_type(
+				job.GetJobID(), &job)
 		).second;
+	return success;
 }
 
 
@@ -1654,8 +1662,9 @@ Dag::RemoveNode( const char *name, MyString &whynot )
 	}
 
 		// remove node from the DAG
-	removed = (_nodes.erase(name) > 0);
-		// we know the node is in _nodes (since we looked it up via
+	removed = (_nodesByName.erase(name) > 0) &&
+	          (_nodesByID.erase(node->GetJobID()) > 0);
+		// we know the node is in _nodesByName (since we looked it up via
 		// GetJob() above), and DeleteCurrent() can't fail (!), so
 		// there should be no way for us to get through the above loop
 		// without having seen & removed the node... also, we can't

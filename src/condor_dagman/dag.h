@@ -149,7 +149,10 @@ class Dag {
 
     /** @return the total number of jobs in the DAG
      */
-    inline int NumJobs() const { return _nodes.size(); }
+    inline int NumJobs() const {
+		ASSERT(_nodesByName.size() == _nodesByID.size());
+		return _nodesByName.size();
+	}
 
     /** @return the number of jobs completed
      */
@@ -327,7 +330,8 @@ private:
 		}
 	};
 	
-	map<const char*, Job*, strlt> _nodes;
+	map<const char*, Job*, strlt> _nodesByName;
+	map<JobID_t, Job*>            _nodesByID;
 };
 
 #endif /* #ifndef DAG_H */
