@@ -3251,7 +3251,9 @@ JobDisconnectedEvent::JobDisconnectedEvent()
 	eventNumber = ULOG_JOB_DISCONNECTED;
 	startd_addr = NULL;
 	startd_name = NULL;
-	reason = NULL;
+	disconnect_reason = NULL;
+	no_reconnect_reason = NULL;
+	can_reconnect = true;
 }
 
 
@@ -3263,8 +3265,11 @@ JobDisconnectedEvent::~JobDisconnectedEvent()
 	if( startd_name ) {
 		delete [] startd_name;
 	}
-	if( reason ) {
-		delete [] reason;
+	if( disconnect_reason ) {
+		delete [] disconnect_reason;
+	}
+	if( no_reconnect_reason ) {
+		delete [] no_reconnect_reason;
 	}
 }
 
@@ -3302,17 +3307,34 @@ JobDisconnectedEvent::setStartdName( const char* name )
 
 
 void
-JobDisconnectedEvent::setReason( const char* reason_str )
+JobDisconnectedEvent::setDisconnectReason( const char* reason_str )
 {
-	if( reason ) {
-		delete [] reason;
-		reason = NULL;
+	if( disconnect_reason ) {
+		delete [] disconnect_reason;
+		disconnect_reason = NULL;
 	}
 	if( reason_str ) {
-		reason = strnewp( reason_str );
-		if( !reason ) {
+		disconnect_reason = strnewp( reason_str );
+		if( !disconnect_reason ) {
 			EXCEPT( "ERROR: out of memory!\n" );
 		}
+	}
+}
+
+
+void
+JobDisconnectedEvent::setNoReconnectReason( const char* reason_str )
+{
+	if( no_reconnect_reason ) {
+		delete [] no_reconnect_reason;
+		no_reconnect_reason = NULL;
+	}
+	if( reason_str ) {
+		no_reconnect_reason = strnewp( reason_str );
+		if( !no_reconnect_reason ) {
+			EXCEPT( "ERROR: out of memory!\n" );
+		}
+		can_reconnect = false;
 	}
 }
 
@@ -3320,8 +3342,9 @@ JobDisconnectedEvent::setReason( const char* reason_str )
 int
 JobDisconnectedEvent::writeEvent( FILE *file )
 {
-	if( ! reason ) {
-		EXCEPT( "JobDisconnectedEvent::writeEvent() called without reason" );
+	if( ! disconnect_reason ) {
+		EXCEPT( "JobDisconnectedEvent::writeEvent() called without "
+				"disconnect_reason" );
 	}
 	if( ! startd_addr ) {
 		EXCEPT( "JobDisconnectedEvent::writeEvent() called without "
@@ -3331,16 +3354,30 @@ JobDisconnectedEvent::writeEvent( FILE *file )
 		EXCEPT( "JobDisconnectedEvent::writeEvent() called without "
 				"startd_name" );
 	}
+	if( ! can_reconnect && ! no_reconnect_reason ) {
+		EXCEPT( "impossible: JobDisconnectedEvent::writeEvent() called "
+				"without no_reconnect_reason when can_reconnect is FALSE" );
+	}
 
-	if( fprintf(file, "Job disconnected, attempting to reconnect\n") < 0 ) {
+	if( fprintf(file, "Job disconnected, %s reconnect\n", 
+				can_reconnect ? "attempting to" : "can not") < 0 ) { 
 		return 0;
 	}
-	if( fprintf(file, "    %.8191s\n", reason) < 0 ) {
+	if( fprintf(file, "    %.8191s\n", disconnect_reason) < 0 ) {
 		return 0;
 	}
-	if( fprintf(file, "    Trying to reconnect to %s %s\n", 
+	if( fprintf(file, "    %s reconnect to %s %s\n", 
+				can_reconnect ? "Trying to" : "Can not",
 				startd_name, startd_addr) < 0 ) {
 		return 0;
+	}
+	if( no_reconnect_reason ) {
+		if( fprintf(file, "    %.8191s\n", no_reconnect_reason) < 0 ) {
+			return 0;
+		}
+		if( fprintf(file, "    Rescheduling job\n") < 0 ) {
+			return 0;
+		}
 	}
 	return( 1 );
 }
@@ -3350,9 +3387,16 @@ int
 JobDisconnectedEvent::readEvent( FILE *file )
 {
 	MyString line;
-		// the first line contains no useful information for us, but
-		// it better be there or we've got a parse error.
-	if( ! line.readLine(file) ) {
+	if(line.readLine(file) && line.replaceString("Job disconnected, ", "")) {
+		line.chomp();
+		if( line == "attempting to reconnect" ) {
+			can_reconnect = true;
+		} else if( line == "can not reconnect" ) {
+			can_reconnect = false;
+		} else {
+			return 0;
+		}
+	} else {
 		return 0;
 	}
 
@@ -3360,20 +3404,41 @@ JobDisconnectedEvent::readEvent( FILE *file )
 		&& line[2] == ' ' && line[3] == ' ' && line[4] )
 	{
 		line.chomp();
-		setReason( &line[4] );
+		setDisconnectReason( &line[4] );
 	} else {
 		return 0;
 	}
 
-	if( line.readLine(file) &&
-		line.replaceString( "    Trying to reconnect to ", "" ) )
-	{
-		line.chomp();
+	if( ! line.readLine(file) ) {
+		return 0;
+	}
+	line.chomp();
+	if( line.replaceString("    Trying to reconnect to ", "") ) {
 		int i = line.FindChar( ' ' );
 		if( i > 0 ) {
 			line[i] = '\0';
 			setStartdName( line.Value() );
 			setStartdAddr( &line[i+1] );
+		} else {
+			return 0;
+		}
+	} else if( line.replaceString("    Can not reconnect to ", "") ) {
+		if( can_reconnect ) {
+			return 0;
+		}
+		int i = line.FindChar( ' ' );
+		if( i > 0 ) {
+			line[i] = '\0';
+			setStartdName( line.Value() );
+			setStartdAddr( &line[i+1] );
+		} else {
+			return 0;
+		}
+		if( line.readLine(file) && line[0] == ' ' && line[1] == ' ' 
+			&& line[2] == ' ' && line[3] == ' ' && line[4] )
+		{
+			line.chomp();
+			setNoReconnectReason( &line[4] );
 		} else {
 			return 0;
 		}
@@ -3388,8 +3453,9 @@ JobDisconnectedEvent::readEvent( FILE *file )
 ClassAd*
 JobDisconnectedEvent::toClassAd( void )
 {
-	if( ! reason ) {
-		EXCEPT( "JobDisconnectedEvent::toClassAd() called without reason" );
+	if( ! disconnect_reason ) {
+		EXCEPT( "JobDisconnectedEvent::toClassAd() called without"
+				"disconnect_reason" );
 	}
 	if( ! startd_addr ) {
 		EXCEPT( "JobDisconnectedEvent::toClassAd() called without "
@@ -3399,6 +3465,11 @@ JobDisconnectedEvent::toClassAd( void )
 		EXCEPT( "JobDisconnectedEvent::toClassAd() called without "
 				"startd_name" );
 	}
+	if( ! can_reconnect && ! no_reconnect_reason ) {
+		EXCEPT( "JobDisconnectedEvent::toClassAd() called without "
+				"no_reconnect_reason when can_reconnect is FALSE" );
+	}
+
 
 	ClassAd* myad = ULogEvent::toClassAd();
 	if( !myad ) {
@@ -3414,15 +3485,28 @@ JobDisconnectedEvent::toClassAd( void )
 	if( !myad->Insert(line.Value()) ) {
 		return NULL;
 	}
-	line.sprintf( "Reason = \"%s\"", reason );
+	line.sprintf( "DisconnectReason = \"%s\"", disconnect_reason );
 	if( !myad->Insert(line.Value()) ) {
 		return NULL;
 	}
-	line = "EventDescription = ";
-	line += "\"Job disconnected, attempting to reconnect\"";
+
+	line = "EventDescription = \"Job disconnected, ";
+	if( can_reconnect ) {
+		line += "attempting to reconnect\"";
+	} else {
+		line += "can not reconnect, rescheduling job\"";
+	}
 	if( !myad->Insert(line.Value()) ) {
 		return NULL;
 	}
+
+	if( no_reconnect_reason ) { 
+		line.sprintf( "NoReconnectReason = \"%s\"", no_reconnect_reason );
+		if( !myad->Insert(line.Value()) ) {
+			return NULL;
+		}
+	}
+
 	return myad;
 }
 
@@ -3438,32 +3522,30 @@ JobDisconnectedEvent::initFromClassAd( ClassAd* ad )
 
 	// this fanagling is to ensure we don't malloc a pointer then delete it
 	char* mallocstr = NULL;
-	ad->LookupString( "Reason", &mallocstr );
+	ad->LookupString( "DisconnectReason", &mallocstr );
 	if( mallocstr ) {
-		if( reason ) {
-			delete [] reason;
-		}
-		reason = strnewp( mallocstr );
+		setDisconnectReason( mallocstr );
+		free( mallocstr );
+		mallocstr = NULL;
+	}
+
+	ad->LookupString( "NoReconnectReason", &mallocstr );
+	if( mallocstr ) {
+		setNoReconnectReason( mallocstr );
 		free( mallocstr );
 		mallocstr = NULL;
 	}
 
 	ad->LookupString( "StartdAddr", &mallocstr );
 	if( mallocstr ) {
-		if( startd_addr ) {
-			delete [] startd_addr;
-		}
-		startd_addr = strnewp( mallocstr );
+		setStartdAddr( mallocstr );
 		free( mallocstr );
 		mallocstr = NULL;
 	}
 
 	ad->LookupString( "StartdName", &mallocstr );
 	if( mallocstr ) {
-		if( startd_name ) {
-			delete [] startd_name;
-		}
-		startd_name = strnewp( mallocstr );
+		setStartdName( mallocstr );
 		free( mallocstr );
 		mallocstr = NULL;
 	}
