@@ -25,7 +25,7 @@
 #include "condor_md.h"
 
 #if defined(CONDOR_MD)
-#include <md5.h>
+#include <openssl/md5.h>
 #endif
 
 class MD_Context {
