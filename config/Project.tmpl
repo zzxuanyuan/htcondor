@@ -110,28 +110,28 @@ PLATFORM_LDFLAGS = PlatformLdFlags
 PURIFY_PLATFORM_LDFLAGS = PurifyPlatformLdFlags
 TEST_PLATFORM_LDFLAGS = TestPlatformLdFlags
 
-##########
-# Orbacus settings
-##########
+CMNT ##########
+CMNT Orbacus settings
+CMNT ##########
 #if !defined( PlatformOBLibs )
 #define PlatformOBLibs
 #endif
 
-# Libraries needed to link with OB
+CMNT Libraries needed to link with OB
 OB_LIBS = -lOB -lJTC -lpthread PlatformOBLibs
 
-# Where are all the OB files kept
+CMNT Where are all the OB files kept
 OB_ROOT = /unsup/OB
 
-# IDL is an Orbacus tool for creating source files from .idl files
+CMNT IDL is an Orbacus tool for creating source files from .idl files
 IDL = $(OB_ROOT)/bin/idl --c-suffix .C -I$(OB_ROOT)/include 
 
-# In general, we need to use a different version of g++ to build the
-# idl-generated source files (gcc 2.95) than we use to build the rest
-# of Condor (egcs 1.1.2)
+CMNT In general, we need to use a different version of g++ to build the
+CMNT idl-generated source files (gcc 2.95) than we use to build the rest
+CMNT of Condor (egcs 1.1.2)
 IDL_CC = /s/gcc-2.95.2/bin/g++
 
-# Particle Physics Data Grid CORBA IDL dir
+CMNT Particle Physics Data Grid CORBA IDL dir
 PPDG_IDL_DIR = /p/condor/workspaces/ppdg/ppdg_idl/idl
 
 /*
