@@ -371,10 +371,11 @@ preserve_log_file()
 
 	fclose( DebugFP );
 
+	unlink(old);
+
 #if defined(WIN32)
 
 	/* use rename on WIN32, since link isn't available */
-
 	if (rename(DebugFile, old) < 0)
 		exit (__LINE__);
 
@@ -386,8 +387,6 @@ preserve_log_file()
 	** this to a unlink/link/unlink sequence seems to work.  May as well do
 	** it for all platforms as there is no need for atomicity.  --RR
     */
-
-	unlink (old);
 
 	if (link (DebugFile, old) < 0)
 		exit (__LINE__);
