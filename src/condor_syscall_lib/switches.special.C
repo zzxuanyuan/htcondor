@@ -157,44 +157,7 @@ int getrusage( int who, struct rusage *rusage )
 	}
 }
 
-/*
-  This routine which is normally provided in the C library determines
-  whether a given file descriptor refers to a tty.  The underlying
-  mechanism is an ioctl, but Condor does not support ioctl.  We
-  therefore provide a "quick and dirty" substitute here.  This may
-  not always be correct, but it will get you by in most cases.
-*/
-
-/* Some support for ioctl has been built in file_state.C ... */
-
-int isatty( int filedes )
-{
-		/* Stdin, stdout, and stderr are redirected to normal
-		** files for all condor jobs.
-		*/
-	if( RemoteSysCalls() ) {
-		return FALSE;
-	}
-
-		/* Assume stdin, stdout, and stderr are the only ttys */
-	switch( filedes ) {
-		case 0:
-		case 1:
-		case 2:
-				return TRUE;
-		default:
-			return FALSE;
-	}
-}
-
 #if defined(OSF1)
-/* Force isatty() to be undefined so programs that use it get it from
-   the condor library rather than libc.a. */
-
-int _condor_force_isatty_hack()
-{
-	return isatty(0);
-}
 
 /*
   This is some kind of cleanup routine for dynamically linked programs which
@@ -517,6 +480,11 @@ sync( void )
 int creat(const char *path, mode_t mode)
 {
 	return open((char*)path, O_WRONLY | O_CREAT | O_TRUNC, mode);
+}
+
+int creat64(const char *path, mode_t mode)
+{
+	return open64((char*)path, O_WRONLY | O_CREAT | O_TRUNC, mode);
 }
 
 } // end extern "C"
