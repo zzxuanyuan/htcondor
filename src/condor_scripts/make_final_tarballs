@@ -313,6 +313,9 @@ foreach $module ( @modules ) {
 	} else {
 	    $targetdir = "$target/contrib";
 	}
+	if( ! -d $targetdir ) {
+	    mkdir( $targetdir, 0777 ) || die "Can't mkdir $targetdir: $!\n";
+	}
 	$targetfile = "$targetdir/$release-$platform.tar";
 
 	# Make sure there's nothing in the way where we want to put it.
