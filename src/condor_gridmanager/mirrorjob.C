@@ -510,10 +510,6 @@ int MirrorJob::doEvaluateState()
 			JobIdle();
 			if ( submitLogged ) {
 				JobEvicted();
-//				if ( !evictLogged ) {
-//					WriteEvictEventToUserLog( ad );
-//					evictLogged = true;
-//				}
 			}
 			
 			// If there are no updates to be done when we first enter this
@@ -567,14 +563,14 @@ int MirrorJob::doEvaluateState()
 			gmState = GM_DELETE;
 			} break;
 		case GM_ENABLE_LOCAL_SCHEDULING: {
-			UpdateJobAdInt( ATTR_MIRROR_OK_TO_MATCH, time(NULL) );
-			requestScheddUpdate( this );
+//			UpdateJobAdInt( ATTR_MIRROR_OK_TO_MATCH, time(NULL) );
+//			requestScheddUpdate( this );
 			localJobSchedulingEnabled = true;
 			gmState = GM_SUBMITTED;
 			} break;
 		case GM_DISABLE_LOCAL_SCHEDULING: {
-			UpdateJobAd( ATTR_MIRROR_OK_TO_MATCH, "UNDEFINED" );
-			requestScheddUpdate( this );
+//			UpdateJobAd( ATTR_MIRROR_OK_TO_MATCH, "UNDEFINED" );
+//			requestScheddUpdate( this );
 				// may have to send a vacate command and wait for job to
 				// be vacated. MirrorOkToMatch needs to be set in schedd
 				// ad before job finishes vacating.
