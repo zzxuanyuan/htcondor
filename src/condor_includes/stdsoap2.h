@@ -1,6 +1,6 @@
 /*
 
-stdsoap2.h 2.5.1
+stdsoap2.h 2.6.0
 
 Runtime environment.
 
@@ -156,7 +156,7 @@ engelen@genivia.com / engelen@acm.org
 # define SYMBIAN
 #endif
 
-#ifdef __MWERKS__
+#ifdef __palmos__
 # define PALM
 #endif
 
@@ -375,8 +375,8 @@ engelen@genivia.com / engelen@acm.org
 #include <limits.h>
 
 #if defined(__cplusplus) && !defined(UNDER_CE)
-# include <iostream.h>
-// using namespace std;  /* commented out for Win32 happiness */
+# include <iostream>
+// using namespace std; /* This cannot be used to compile on Windows. */
 #endif
 
 #ifndef UNDER_CE
@@ -498,6 +498,7 @@ extern "C" {
 #  include <fcntl.h>
 # endif
 # include <winsock.h>
+/* # include <winsock2.h> */ /* Alternative: use winsock2 (not available with eVC) */
 /* WR[ */
 # ifdef WITH_IPV6
 #  include <ws2tcpip.h>
@@ -645,6 +646,10 @@ extern const struct soap_double_nan { unsigned int n1, n2; } soap_double_nan;
 
 #ifndef SOAP_MAXKEEPALIVE
 # define SOAP_MAXKEEPALIVE (100) /* max iterations to keep server connection alive */
+#endif
+
+#ifndef SOAP_MAXARRAYSIZE
+# define SOAP_MAXARRAYSIZE (10000) /* "trusted" max size of inbound SOAP array (per dimension) for compound array allocation */
 #endif
 
 /* WR[ */
@@ -882,7 +887,7 @@ extern const struct soap_double_nan { unsigned int n1, n2; } soap_double_nan;
 # define DBGMSG(DBGFILE, MSG, LEN)
 #endif
 
-typedef long wchar; /* for compatibility */
+typedef long wchar; /* 32 bit, for compatibility */
 
 struct Namespace
 { const char *id;
@@ -1146,6 +1151,7 @@ struct soap
   short alloced;
   short peeked;
   short dot_net_bug;
+  short keep_alive;
   size_t chunksize;
   size_t chunkbuflen;
   char endpoint[SOAP_TAGLEN];
@@ -1153,7 +1159,7 @@ struct soap
   char host[SOAP_TAGLEN];
   char *action;
   int port;
-  short keep_alive;
+  unsigned int max_keep_alive;
   const char *proxy_host;	/* Proxy Server host name */
   int proxy_port;		/* Proxy Server port (default = 8080) */
   const char *proxy_userid;	/* Proxy Authorization user name */
@@ -1248,6 +1254,24 @@ struct soap_plugin
 extern SOAP_NMAC struct Namespace namespaces[];
 #endif
 
+#ifdef HAVE_STRRCHR
+ #define soap_strrchr(s, t) strrchr(s, t)
+#else
+ SOAP_FMAC1 char* SOAP_FMAC2 soap_strrchr(const char *s, int t);
+#endif
+
+#ifdef HAVE_STRTOL
+ #define soap_strtol(s, t, b) strtol(s, t, b)
+#else
+ SOAP_FMAC1 long SOAP_FMAC2 soap_strtol(const char *s, char **t, int b);
+#endif
+
+#ifdef HAVE_STRTOUL
+ #define soap_strtoul(s, t, b) strtoul(s, t, b)
+#else
+ SOAP_FMAC1 unsigned long SOAP_FMAC2 soap_strtoul(const char *s, char **t, int b);
+#endif
+
 SOAP_FMAC1 void SOAP_FMAC2 soap_fault(struct soap*);
 SOAP_FMAC1 const char** SOAP_FMAC2 soap_faultcode(struct soap*);
 SOAP_FMAC1 const char** SOAP_FMAC2 soap_faultstring(struct soap*);
@@ -1292,10 +1316,10 @@ SOAP_FMAC1 int SOAP_FMAC2 soap_recv(struct soap*);
 SOAP_FMAC1 int SOAP_FMAC2 soap_pututf8(struct soap*, unsigned long);
 SOAP_FMAC1 wchar SOAP_FMAC2 soap_getutf8(struct soap*);
 
-SOAP_FMAC1 int SOAP_FMAC2 soap_putbase64(struct soap*, const unsigned char*, size_t);
-SOAP_FMAC1 unsigned char* SOAP_FMAC2 soap_getbase64(struct soap*, size_t*, int);
-SOAP_FMAC1 int SOAP_FMAC2 soap_puthex(struct soap*, const unsigned char*, size_t);
-SOAP_FMAC1 unsigned char* SOAP_FMAC2 soap_gethex(struct soap*, size_t*);
+SOAP_FMAC1 int SOAP_FMAC2 soap_putbase64(struct soap*, const unsigned char*, int);
+SOAP_FMAC1 unsigned char* SOAP_FMAC2 soap_getbase64(struct soap*, int*, int);
+SOAP_FMAC1 int SOAP_FMAC2 soap_puthex(struct soap*, const unsigned char*, int);
+SOAP_FMAC1 unsigned char* SOAP_FMAC2 soap_gethex(struct soap*, int*);
 
 
 SOAP_FMAC1 struct soap_ilist* SOAP_FMAC2 soap_lookup(struct soap*, const char*);
@@ -1326,8 +1350,8 @@ SOAP_FMAC1 int SOAP_FMAC2 soap_is_multi(struct soap*, struct soap_plist*);
 SOAP_FMAC1 void SOAP_FMAC2 soap_set_embedded(struct soap*, struct soap_plist*);
 
 SOAP_FMAC1 const struct soap_code_map* SOAP_FMAC2 soap_code(const struct soap_code_map*, const char *str);
-SOAP_FMAC1 LONG64 SOAP_FMAC2 soap_int_code(const struct soap_code_map*, const char *str, LONG64 other);
-SOAP_FMAC1 const char* SOAP_FMAC2 soap_str_code(const struct soap_code_map*, LONG64 code);
+SOAP_FMAC1 long SOAP_FMAC2 soap_int_code(const struct soap_code_map*, const char *str, long other);
+SOAP_FMAC1 const char* SOAP_FMAC2 soap_str_code(const struct soap_code_map*, long code);
 
 SOAP_FMAC1 int SOAP_FMAC2 soap_getline(struct soap*, char*, int);
 SOAP_FMAC1 int SOAP_FMAC2 soap_begin_recv(struct soap*);

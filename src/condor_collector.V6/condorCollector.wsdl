@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <definitions name="condorCollector"
- xmlns="http://schemas.xmlsoap.org/wsdl/"
  targetNamespace="urn:condor-collector"
  xmlns:tns="urn:condor-collector"
  xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/"
@@ -10,7 +9,8 @@
  xmlns:condorCore="urn:condor-daemoncore"
  xmlns:condorCollector="urn:condor-collector"
  xmlns:SOAP="http://schemas.xmlsoap.org/wsdl/soap/"
- xmlns:WSDL="http://schemas.xmlsoap.org/wsdl/">
+ xmlns:WSDL="http://schemas.xmlsoap.org/wsdl/"
+ xmlns="http://schemas.xmlsoap.org/wsdl/">
 
 <types>
 
@@ -215,7 +215,7 @@
 <binding name="condorCollector" type="tns:condorCollectorPortType">
  <SOAP:binding style="rpc" transport="http://schemas.xmlsoap.org/soap/http"/>
  <operation name="queryStartdAds">
-  <SOAP:operation soapAction=""/>
+  <SOAP:operation style="rpc" soapAction=""/>
   <input>
    <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
@@ -224,7 +224,7 @@
   </output>
  </operation>
  <operation name="queryScheddAds">
-  <SOAP:operation soapAction=""/>
+  <SOAP:operation style="rpc" soapAction=""/>
   <input>
    <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
@@ -233,7 +233,7 @@
   </output>
  </operation>
  <operation name="queryMasterAds">
-  <SOAP:operation soapAction=""/>
+  <SOAP:operation style="rpc" soapAction=""/>
   <input>
    <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
@@ -242,7 +242,7 @@
   </output>
  </operation>
  <operation name="querySubmittorAds">
-  <SOAP:operation soapAction=""/>
+  <SOAP:operation style="rpc" soapAction=""/>
   <input>
    <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
@@ -251,7 +251,7 @@
   </output>
  </operation>
  <operation name="queryLicenseAds">
-  <SOAP:operation soapAction=""/>
+  <SOAP:operation style="rpc" soapAction=""/>
   <input>
    <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
@@ -260,7 +260,7 @@
   </output>
  </operation>
  <operation name="queryStorageAds">
-  <SOAP:operation soapAction=""/>
+  <SOAP:operation style="rpc" soapAction=""/>
   <input>
    <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
@@ -269,7 +269,7 @@
   </output>
  </operation>
  <operation name="queryAnyAds">
-  <SOAP:operation soapAction=""/>
+  <SOAP:operation style="rpc" soapAction=""/>
   <input>
    <SOAP:body use="encoded" namespace="urn:condor-collector" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
@@ -280,9 +280,9 @@
 </binding>
 
 <service name="condorCollector">
- <documentation>gSOAP 2.5.2 generated service definition</documentation>
+ <documentation>gSOAP 2.6.0 generated service definition</documentation>
  <port name="condorCollector" binding="tns:condorCollector">
-  <SOAP:address location="http://localhost"/>
+  <SOAP:address location="http://localhost:80"/>
  </port>
 </service>
 

@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <definitions name="condorSchedd"
- xmlns="http://schemas.xmlsoap.org/wsdl/"
  targetNamespace="urn:condor-schedd"
  xmlns:tns="urn:condor-schedd"
  xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/"
@@ -10,7 +9,8 @@
  xmlns:condorCore="urn:condor-daemoncore"
  xmlns:condorSchedd="urn:condor-schedd"
  xmlns:SOAP="http://schemas.xmlsoap.org/wsdl/soap/"
- xmlns:WSDL="http://schemas.xmlsoap.org/wsdl/">
+ xmlns:WSDL="http://schemas.xmlsoap.org/wsdl/"
+ xmlns="http://schemas.xmlsoap.org/wsdl/">
 
 <types>
 
@@ -510,7 +510,7 @@
 <binding name="condorSchedd" type="tns:condorScheddPortType">
  <SOAP:binding style="rpc" transport="http://schemas.xmlsoap.org/soap/http"/>
  <operation name="beginTransaction">
-  <SOAP:operation soapAction=""/>
+  <SOAP:operation style="rpc" soapAction=""/>
   <input>
    <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
@@ -519,7 +519,7 @@
   </output>
  </operation>
  <operation name="commitTransaction">
-  <SOAP:operation soapAction=""/>
+  <SOAP:operation style="rpc" soapAction=""/>
   <input>
    <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
@@ -528,7 +528,7 @@
   </output>
  </operation>
  <operation name="abortTransaction">
-  <SOAP:operation soapAction=""/>
+  <SOAP:operation style="rpc" soapAction=""/>
   <input>
    <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
@@ -537,7 +537,7 @@
   </output>
  </operation>
  <operation name="extendTransaction">
-  <SOAP:operation soapAction=""/>
+  <SOAP:operation style="rpc" soapAction=""/>
   <input>
    <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
@@ -546,7 +546,7 @@
   </output>
  </operation>
  <operation name="newCluster">
-  <SOAP:operation soapAction=""/>
+  <SOAP:operation style="rpc" soapAction=""/>
   <input>
    <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
@@ -555,7 +555,7 @@
   </output>
  </operation>
  <operation name="removeCluster">
-  <SOAP:operation soapAction=""/>
+  <SOAP:operation style="rpc" soapAction=""/>
   <input>
    <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
@@ -564,7 +564,7 @@
   </output>
  </operation>
  <operation name="newJob">
-  <SOAP:operation soapAction=""/>
+  <SOAP:operation style="rpc" soapAction=""/>
   <input>
    <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
@@ -573,7 +573,7 @@
   </output>
  </operation>
  <operation name="removeJob">
-  <SOAP:operation soapAction=""/>
+  <SOAP:operation style="rpc" soapAction=""/>
   <input>
    <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
@@ -582,7 +582,7 @@
   </output>
  </operation>
  <operation name="holdJob">
-  <SOAP:operation soapAction=""/>
+  <SOAP:operation style="rpc" soapAction=""/>
   <input>
    <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
@@ -591,7 +591,7 @@
   </output>
  </operation>
  <operation name="releaseJob">
-  <SOAP:operation soapAction=""/>
+  <SOAP:operation style="rpc" soapAction=""/>
   <input>
    <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
@@ -600,7 +600,7 @@
   </output>
  </operation>
  <operation name="submit">
-  <SOAP:operation soapAction=""/>
+  <SOAP:operation style="rpc" soapAction=""/>
   <input>
    <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
@@ -609,7 +609,7 @@
   </output>
  </operation>
  <operation name="getJobAds">
-  <SOAP:operation soapAction=""/>
+  <SOAP:operation style="rpc" soapAction=""/>
   <input>
    <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
@@ -618,7 +618,7 @@
   </output>
  </operation>
  <operation name="getJobAd">
-  <SOAP:operation soapAction=""/>
+  <SOAP:operation style="rpc" soapAction=""/>
   <input>
    <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
@@ -627,7 +627,7 @@
   </output>
  </operation>
  <operation name="declareFile">
-  <SOAP:operation soapAction=""/>
+  <SOAP:operation style="rpc" soapAction=""/>
   <input>
    <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
@@ -636,7 +636,7 @@
   </output>
  </operation>
  <operation name="sendFile">
-  <SOAP:operation soapAction=""/>
+  <SOAP:operation style="rpc" soapAction=""/>
   <input>
    <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
@@ -645,7 +645,7 @@
   </output>
  </operation>
  <operation name="getFile">
-  <SOAP:operation soapAction=""/>
+  <SOAP:operation style="rpc" soapAction=""/>
   <input>
    <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
@@ -654,7 +654,7 @@
   </output>
  </operation>
  <operation name="closeSpool">
-  <SOAP:operation soapAction=""/>
+  <SOAP:operation style="rpc" soapAction=""/>
   <input>
    <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
@@ -663,7 +663,7 @@
   </output>
  </operation>
  <operation name="listSpool">
-  <SOAP:operation soapAction=""/>
+  <SOAP:operation style="rpc" soapAction=""/>
   <input>
    <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
@@ -672,7 +672,7 @@
   </output>
  </operation>
  <operation name="discoverJobRequirements">
-  <SOAP:operation soapAction=""/>
+  <SOAP:operation style="rpc" soapAction=""/>
   <input>
    <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
@@ -681,7 +681,7 @@
   </output>
  </operation>
  <operation name="createJobTemplate">
-  <SOAP:operation soapAction=""/>
+  <SOAP:operation style="rpc" soapAction=""/>
   <input>
    <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
   </input>
@@ -692,9 +692,9 @@
 </binding>
 
 <service name="condorSchedd">
- <documentation>gSOAP 2.5.2 generated service definition</documentation>
+ <documentation>gSOAP 2.6.0 generated service definition</documentation>
  <port name="condorSchedd" binding="tns:condorSchedd">
-  <SOAP:address location="http://localhost"/>
+  <SOAP:address location="http://localhost:80"/>
  </port>
 </service>
 
