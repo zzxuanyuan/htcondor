@@ -629,22 +629,8 @@ dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too long!\n",procID.cluster,procI
 			// and poll the remote schedd occassionally to let it know
 			// we're still alive.
 			writeUserLog = true;
-			if ( remoteState == COMPLETED ) {
-				gmState = GM_DONE_SAVE;
-			} else if ( condorState == REMOVED ) {
+			if ( condorState == REMOVED ) {
 				gmState = GM_CANCEL_1;
-			} else if ( condorState == HELD ) {
-				if ( remoteState == HELD ) {
-					// The job is on hold both locally and remotely. We're
-					// done, delete this job object from the gridmanager.
-					gmState = GM_DELETE;
-				} else {
-					gmState = GM_HOLD_REMOTE_JOB;
-				}
-			} else if ( remoteState == HELD ) {
-				// The job is on hold remotely but not locally. This means
-				// the remote job needs to be released.
-				gmState = GM_RELEASE_REMOTE_JOB;
 			} else if ( newRemoteStatusAd != NULL ) {
 				if ( newRemoteStatusServerTime <= lastRemoteStatusServerTime ) {
 dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too long!\n",procID.cluster,procID.proc);
@@ -657,6 +643,20 @@ dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too long!\n",procID.cluster,procI
 					newRemoteStatusAd = NULL;
 					reevaluate_state = true;
 				}
+			} else if ( remoteState == COMPLETED ) {
+				gmState = GM_DONE_SAVE;
+			} else if ( condorState == HELD ) {
+				if ( remoteState == HELD ) {
+					// The job is on hold both locally and remotely. We're
+					// done, delete this job object from the gridmanager.
+					gmState = GM_DELETE;
+				} else {
+					gmState = GM_HOLD_REMOTE_JOB;
+				}
+			} else if ( remoteState == HELD ) {
+				// The job is on hold remotely but not locally. This means
+				// the remote job needs to be released.
+				gmState = GM_RELEASE_REMOTE_JOB;
 			}
 			} break;
 		case GM_HOLD_REMOTE_JOB: {
