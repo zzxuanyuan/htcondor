@@ -30,11 +30,40 @@
 #define MEG (KILO*KILO)
 #define GIG (MEG*KILO)
 
+static int check_free(int before, int after, int write_size, double tolerance, 
+					  const char *label ) {
+	int		expected;				/* Expected free disk space */
+	double	error;
+
+
+	/* Should never go negative */
+	if (after < 0) {
+		dprintf(D_ALWAYS, "SysAPI: ERROR! %s free space should never be "
+				"negative!\n", label );
+		return -1;
+	}
+
+	expected = before - write_size;
+	error = ( after - expected ) / ( after + 1.0 );
+	if ( fabs(error) > tolerance ) {
+		dprintf(D_ALWAYS,
+				"SysAPI: WARNING! %s free space went from "
+				"%d to %d, but probably shouldn't have "
+				"changed more than %%%f tolerance. "
+				"Another process may have used/freed space.\n",
+				label, before, after, tolerance*100);
+		dprintf(D_ALWAYS, "exp=%d, error=%.3f\n", expected, error );
+		return 1;
+	}
+
+	return 0;
+}
+
 int free_fs_blocks_test(int trials, double tolerance, double perc_warn_ok) {
-	int		foo = 0;
-	int		foo2 = 0;
-	int		bar = 0;
-	int		bar2 = 0;
+	int		dfree1_raw = 0;			/* "Raw" free disk space *before* write */
+	int		dfree1 = 0;				/* Free disk space *before* write */
+	int		dfree2_raw = 0;			/* "Raw" free disk space *after* write */
+	int		dfree2 = 0;				/* Free disk space *after* write */
 	int		i, j;
 	FILE *	stream;
 	char *	empty;
@@ -56,12 +85,12 @@ int free_fs_blocks_test(int trials, double tolerance, double perc_warn_ok) {
 						"half(or up to 2 gigs, whichever is smaller), "
 						"testing, and then unlinking.\n", trials);
 
-    foo = sysapi_disk_space_raw("/tmp");
-    dprintf(D_ALWAYS, "SysAPI: Initial sysapi_disk_space_raw() -> %d\n", foo);
-    foo2 = sysapi_disk_space("/tmp");
-    dprintf(D_ALWAYS, "SysAPI: Initial sysapi_disk_space() -> %d\n", foo);
+    dfree1_raw = sysapi_disk_space_raw("/tmp");
+    dprintf(D_ALWAYS, "SysAPI: Initial sysapi_disk_space_raw() -> %d\n", dfree1_raw);
+    dfree1 = sysapi_disk_space("/tmp");
+    dprintf(D_ALWAYS, "SysAPI: Initial sysapi_disk_space() -> %d\n", dfree1_raw);
 
-	if (foo < 0 || foo2 < 0) {
+	if (dfree1_raw < 0 || dfree1 < 0) {
 			dprintf(D_ALWAYS, "SysAPI: ERROR! Disk space should never be "
 								"negative.\n");
 			return_val = return_val | 1;
@@ -70,7 +99,7 @@ int free_fs_blocks_test(int trials, double tolerance, double perc_warn_ok) {
 	for (i=0; i<trials; i++) {
 		// Take half the free space and fill it up
 
-		write_size = foo / 2; /* in K */
+		write_size = dfree1_raw / 2; /* in K */
 
 		/* Here we deal with stupid 2 gig file size limit on ext2fs */
 		if (write_size >= 2*1024*KILO) /* 2 gigs */
@@ -162,48 +191,33 @@ int free_fs_blocks_test(int trials, double tolerance, double perc_warn_ok) {
 			fclose(stream);
 		}
 	
-    	bar = sysapi_disk_space_raw("/tmp");
+    	dfree2_raw = sysapi_disk_space_raw("/tmp");
     	dprintf(D_ALWAYS, "SysAPI: After %dKB write: "
-							"sysapi_disk_space_raw() -> %d\n", write_size, bar);
-    	bar2 = sysapi_disk_space("/tmp");
+							"sysapi_disk_space_raw() -> %d\n", write_size, dfree2_raw);
+    	dfree2 = sysapi_disk_space("/tmp");
     	dprintf(D_ALWAYS, "SysAPI: After %dKB write: "
-							"sysapi_disk_space() -> %d\n", write_size, bar);
+							"sysapi_disk_space() -> %d\n", write_size, dfree2_raw);
 		num_tests += 2;
 	
 	
-		// Raw free space after write
-		if (bar < 0) {
-			dprintf(D_ALWAYS, "SysAPI: ERROR! Raw free space should never be "
-								"negative!\n");
+		/* Raw free space after write */
+		rval = check_free( dfree1_raw, dfree2_raw, write_size, tolerance, "Raw" );
+		if ( rval < 0 ) {
 			return_val = return_val | 1;
 			break;
-		}
-		else if ( (fabs((bar - (foo - write_size))/((double)bar+1)))>tolerance){
-			dprintf(D_ALWAYS, "SysAPI: WARNING! Raw free space went from "
-								"%d to %d, but probably shouldn't have "
-								"changed more than %%%f tolerance. "
-								"Another process may have used/freed space.\n",
-								foo, bar, tolerance*100);
+		} else if ( rval > 0 ) {
 			num_warnings++;
 		}
 
-		// Cooked free space after write
-		if (bar2 < 0) {
-			dprintf(D_ALWAYS, "SysAPI: ERROR! Cooked free space should never "
-								"be negative!\n");
+		/* Cooked free space after write */
+		rval = check_free( dfree1, dfree2, write_size, tolerance, "Cooked" );
+		if ( rval < 0 ) {
 			return_val = return_val | 1;
 			break;
-		}
-		else if ( (fabs((bar2-(foo2-write_size)))/((double)bar2+1))>tolerance){
-			dprintf(D_ALWAYS, "SysAPI: WARNING! Cooked free space went from "
-								"%d to %d, but probably shouldn't have "
-								"changed more than %%%f tolerance. "
-								"Another process may have used/freed space.\n",
-								foo, bar, tolerance*100);
+		} else if ( rval > 0 ) {
 			num_warnings++;
 		}
-	
-	
+
 		if (unlink(filename) < 0) {
 			dprintf(D_ALWAYS, "SysAPI: Can't delete %s\n", filename);
 			dprintf(D_ALWAYS, "SysAPI: Error reported: %s\n", strerror(errno));
@@ -211,43 +225,44 @@ int free_fs_blocks_test(int trials, double tolerance, double perc_warn_ok) {
 		}
 
 	
-    	foo = sysapi_disk_space_raw("/tmp");
+    	dfree1_raw = sysapi_disk_space_raw("/tmp");
     	dprintf(D_ALWAYS, "SysAPI: After unlinking files: "
-							"sysapi_disk_space_raw() -> %d\n", foo);
-    	foo2 = sysapi_disk_space("/tmp");
+							"sysapi_disk_space_raw() -> %d\n", dfree1_raw);
+    	dfree1 = sysapi_disk_space("/tmp");
     	dprintf(D_ALWAYS, "SysAPI: After unlinking files: "
-							"sysapi_disk_space() -> %d\n",foo2);
+							"sysapi_disk_space() -> %d\n",dfree1);
 		num_tests += 2;
 	
 		// Raw free space after unlink
-		if (foo < 0) {
+		if (dfree1_raw < 0) {
 			dprintf(D_ALWAYS, "SysAPI: ERROR! Raw free space should never "
 								"be negative!\n");
 			return_val = return_val | 1;
 			break;
 		}
-		else if ( (fabs((foo-(bar+write_size))/((double)foo+1))) > tolerance){
+		else if ( (fabs((dfree1_raw-(dfree2_raw+write_size))/((double)dfree1_raw+1))) >
+				  tolerance){
 			dprintf(D_ALWAYS, "SysAPI: WARNING! Raw free space went from "
 								"%d to %d, but probably shouldn't have "
 								"changed more than %%%f tolerance. "
 								"Another process may have used/freed space.\n",
-								bar, foo, tolerance*100);
+								dfree2_raw, dfree1_raw, tolerance*100);
 			num_warnings++;
 		}
 
 		// Cooked free space after unlink
-		if (foo2 < 0) {
+		if (dfree1 < 0) {
 			dprintf(D_ALWAYS, "SysAPI: ERROR! Cooked free space should never "
 								"be negative!\n");
 			return_val = return_val | 1;
 			break;
 		}
-		else if ( (fabs((foo2-(bar2+write_size))/((double)foo2+1)))>tolerance){
+		else if ( (fabs((dfree1-(dfree2+write_size))/((double)dfree1+1)))>tolerance){
 			dprintf(D_ALWAYS, "SysAPI: WARNING! Raw free space went from "
 								"%d to %d, but probably shouldn't have "
 								"changed more than %%%f tolerance. "
 								"Another process may have used/freed space.\n",
-								foo2, bar2, tolerance*100);
+								dfree1, dfree2, tolerance*100);
 			num_warnings++;
 		}
 	}
