@@ -81,7 +81,7 @@ AC_SUBST(pure_cache_dir,$ac_cv_purecachedir)
 # checks for programs
 ############################################################
 
-CHECK_MAKE_IS_GNU()
+CHECK_PROG_IS_GNU(MAKE, make)
 if test $_cv_make_is_gnu = no; then
    AC_MSG_ERROR( [GNU make is required] )
 fi
@@ -126,9 +126,11 @@ if test $ac_ar = no; then
 fi
 
 # strip is used in the packaging of Condor for all released binaries
-AC_CHECK_PROG(ac_strip,strip,yes,no)
-if test $ac_strip = no; then
-    AC_MSG_ERROR( [strip is required] )
+# we prefer GNU strip since it does a much better job of shrinking the
+# size of our binaries, given that they're all built with GNU CC.
+CHECK_PROG_IS_GNU(STRIP, strip)
+if test "$_cv_strip_is_gnu" = "no"; then
+   AC_MSG_WARN( [GNU strip is recommended] )
 fi
 
 # m4 is used to build PVM
