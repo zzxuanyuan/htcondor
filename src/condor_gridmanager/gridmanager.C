@@ -347,7 +347,7 @@ doContactSchedd()
 
 					new_job = new OracleJob( next_ad );
 
-				}else if ( GlobusJobAdMatch( next_ad ) ) {
+				} else if ( GlobusJobAdMatch( next_ad ) ) {
 
 					if ( GlobusJobAdMustExpand( next_ad ) ) {
 						// Get the expanded ClassAd from the schedd, which
@@ -380,11 +380,6 @@ dprintf(D_ALWAYS,"***schedd failure at %d!\n",__LINE__);
 				num_ads++;
 
 				if ( !job_is_managed ) {
-					// Set Managed to true in the local ad and leave it
-					// dirty so that if our update here to the schedd is
-					// aborted, the change will make it the first time
-					// the job tries to update anything on the schedd.
-					new_job->UpdateJobAdBool( ATTR_JOB_MANAGED, 1 );
 					rc = SetAttribute( new_job->procID.cluster,
 									   new_job->procID.proc,
 									   ATTR_JOB_MANAGED,
@@ -399,7 +394,16 @@ dprintf(D_ALWAYS,"***schedd failure at %d!\n",__LINE__);
 			} else {
 
 				// We already know about this job, skip
+				// But also set Managed=true on the schedd so that it won't
+				// keep signalling us about it
 				delete next_ad;
+				rc = SetAttribute( procID.cluster, procID.proc,
+								   ATTR_JOB_MANAGED, "TRUE" );
+				if ( rc < 0 ) {
+dprintf(D_ALWAYS,"***schedd failure at %d!\n",__LINE__);
+					commit_transaction = false;
+					goto contact_schedd_disconnect;
+				}
 
 			}
 
