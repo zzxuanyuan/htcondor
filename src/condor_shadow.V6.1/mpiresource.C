@@ -144,9 +144,8 @@ MpiResource::beginExecution( void )
 }
 
 
-bool
+void
 MpiResource::reconnect( void )
 {
 	EXCEPT( "The MpiResource class does not support reconnect" ); 
-	return false;
 }
