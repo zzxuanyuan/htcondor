@@ -7274,6 +7274,49 @@ abortJob( int cluster, int proc, const char *reason, bool use_transaction )
 	return result;
 }
 
+bool
+abortJobsByConstraint( const char *constraint, const char *reason, bool use_transaction )
+{
+    bool result;
+
+    ExtArray<PROC_ID> jobs;
+    int job_count;
+
+    if ( use_transaction ) {
+        BeginTransaction();
+    }
+
+    job_count = 0;
+    ClassAd *ad = GetNextJobByConstraint(constraint, 1);
+    while ( ad ) {
+            // MATT: What happens if these fail?
+        ad->LookupInteger(ATTR_CLUSTER_ID, jobs[job_count].cluster);
+        ad->LookupInteger(ATTR_PROC_ID, jobs[job_count].proc);
+        
+        job_count++;
+
+        ad = GetNextJobByConstraint(constraint, 0);
+    }
+
+    while ( job_count >= 0 ) {
+        abortJobRaw(jobs[job_count].cluster, jobs[job_count].proc, reason);
+
+        job_count--;
+    }
+
+    if ( use_transaction ) {
+        if ( result ) {
+            CommitTransaction();
+        } else {
+            AbortTransaction();
+        }
+    }
+
+    return result;
+}
+
+
+
 /*
 Hold a job by stopping the shadow, changing the job state,
 writing to the user log, and updating the job queue.

@@ -331,26 +331,28 @@ condorSchedd__removeCluster(struct soap *s,
                             char* reason,
                             struct condorSchedd__StatusResponse & result)
 {
-  if (!valid_transaction(transaction) &&
-      !null_transaction(transaction)) {
-    // TODO error - unrecognized transactionId
-    result.response.code = INVALIDTRANSACTION;
-  } else {
-    extendTransaction(transaction);
-
-    if (0 == DestroyCluster(clusterId,reason)) {  // returns -1 or 0
-      if (removeCluster(clusterId)) {
-        result.response.code = FAIL;
-      } else {
-        result.response.code = SUCCESS;
-      }
+    if ( !valid_transaction(transaction) &&
+         !null_transaction(transaction) ) {
+            // TODO error - unrecognized transactionId
+        result.response.code = INVALIDTRANSACTION;
     } else {
-      result.response.code = FAIL;
-    }
-  }
+        extendTransaction(transaction);
 
-  dprintf(D_ALWAYS,"SOAP leaving condorSchedd__removeCluster() res=%d\n",result.response.code);
-  return SOAP_OK;
+        MyString constraint;
+        constraint.sprintf("%s==%d", ATTR_CLUSTER_ID, clusterId);
+        if ( abortJobsByConstraint(constraint.GetCStr(), reason, transaction.id ? false : true) ) {
+            if ( removeCluster(clusterId) ) {
+                result.response.code = FAIL;
+            } else {
+                result.response.code = SUCCESS;
+            }
+        } else {
+            result.response.code = FAIL;
+        }
+    }
+
+    dprintf(D_ALWAYS,"SOAP leaving condorSchedd__removeCluster() res=%d\n",result.response.code);
+    return SOAP_OK;
 }
 
 
