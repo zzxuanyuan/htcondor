@@ -17,12 +17,13 @@ MAN_DIR = $(EXT_INSTALL_ROOT)/$(EXT_MAN_VERSION)/v6.5
 
 OPENSSL_DIR = $(EXT_INSTALL_ROOT)/$(EXT_GLOBUS_VERSION)
 GLOBUS_DIR = $(EXT_INSTALL_ROOT)/$(EXT_GLOBUS_VERSION)
-
 GAHP_DIR = $(EXT_INSTALL_ROOT)/$(EXT_GAHP_VERSION)/bin
 
-#define NestLibPath /p/condor/workspaces/nest/lib
-#define NestIncludePath /p/condor/workspaces/nest/include
-
+#if WANT_NEST
+NEST_DIR = /p/condor/workspaces/nest
+NEST_LIB = $(NEST_DIR)/lib
+NEST_INC = $(NEST_DIR)/include
+#endif /* WANT_NEST */
 
 KERBEROS_DIR = $(EXT_INSTALL_ROOT)/$(EXT_KERBEROS_VERSION)
 #if WANT_KERBEROS
