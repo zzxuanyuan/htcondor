@@ -35,8 +35,10 @@
 #include "condor_io.h"
 #include <sys/stat.h>
 #include "condor_fix_socket.h"
+#if !defined(WIN32)
 #include <netinet/in.h>
 #include <sys/param.h>
+#endif
 
 #include "condor_debug.h"
 
@@ -79,11 +81,15 @@ enum {
 	CONNECTION_ACTIVE,
 } connection_state = CONNECTION_ACTIVE;
 
+#if !defined(WIN32)
 uid_t	active_owner_uid = 0;
+#endif
 char	*active_owner = 0;
 char	*rendevous_file = 0;
 
 Transaction *trans = 0;
+
+class Service;
 
 prio_rec	PrioRecArray[INITIAL_MAX_PRIO_REC];
 prio_rec	* PrioRec = &PrioRecArray[0];
@@ -98,7 +104,9 @@ InvalidateConnection()
 		free(active_owner);
 	}
 	active_owner = 0;
+#if !defined(WIN32)
 	active_owner_uid = 0;
+#endif
 	connection_state = CONNECTION_CLOSED;
 }
 
@@ -150,7 +158,9 @@ FreeConnection()
 		free(active_owner);
 	}
 	active_owner = 0;
+#if !defined(WIN32)
 	active_owner_uid = 0;
+#endif
 	connection_state = CONNECTION_ACTIVE;
 }
 
@@ -161,7 +171,9 @@ UnauthenticatedConnection()
 	dprintf( D_ALWAYS, "Unable to authenticate connection.  Setting owner"
 			" to \"nobody\"\n" );
 	init_user_ids("nobody");
+#if !defined(WIN32)
 	active_owner_uid = get_user_uid();
+#endif
 	if (active_owner != 0)
 		free(active_owner);
 	active_owner = strdup( "nobody" );
@@ -195,11 +207,13 @@ ValidateRendevous()
 
 	unlink(rendevous_file);
 
+#if !defined(WIN32)
 	if (stat_buf.st_uid != active_owner_uid && stat_buf.st_uid != 0 &&
 		stat_buf.st_uid != get_condor_uid()) {
 		UnauthenticatedConnection();
 		return 0;
 	}
+#endif
 	connection_state = CONNECTION_ACTIVE;
 	return 0;
 }
@@ -339,17 +353,17 @@ AppendLog(LogRecord *log, Job *job, Cluster *cl)
 extern "C" {
 
 int
-handle_q(ReliSock *sock, struct sockaddr_in* = NULL)
+handle_q(Service *, int, Stream *sock)
 {
 	int	rval;
 
 	trans = new Transaction;
-	Q_SOCK = sock;
+	Q_SOCK = (ReliSock *)sock;
 
 	InvalidateConnection();
 	do {
 		/* Probably should wrap a timer around this */
-		rval = do_Q_request( sock );
+		rval = do_Q_request( (ReliSock *)sock );
 	} while(rval >= 0);
 	FreeConnection();
 
@@ -366,6 +380,7 @@ handle_q(ReliSock *sock, struct sockaddr_in* = NULL)
 		free(rendevous_file);
 		rendevous_file = 0;
 	}
+	return 0;
 }
 
 
@@ -379,10 +394,12 @@ InitializeConnection( char *owner, char *tmp_file )
 	// man page says string returned by tempnam has been malloc()'d
 	free(new_file);
 	init_user_ids( owner );
+#if !defined(WIN32)
 	active_owner_uid = get_user_uid();
 	if (active_owner_uid < 0) {
 		return -1;
 	}
+#endif
 	active_owner = strdup( owner );
 	rendevous_file = strdup( tmp_file );
 	dprintf(D_ALWAYS, "InitializeConnection returning 0 (%s)\n",
@@ -741,6 +758,7 @@ NextAttribute(int cluster_id, int proc_id, char *attr_name)
 	return job->NextAttributeName(attr_name);
 }
 
+#if !defined(WIN32)		// NEED TO PORT TO WIN32
 int
 SendSpoolFile(char *filename, char *address)
 {
@@ -843,6 +861,13 @@ SendSpoolFile(char *filename, char *address)
 
 	return 0;
 }
+#else
+int
+SendSpoolFile(char *filename, char *address)
+{
+	return -1;
+}
+#endif
 
 } /* should match the extern "C" */
 
@@ -1002,6 +1027,7 @@ Job::EvalAttribute(const char *name, EvalResult &result)
 	}
 
 	expr_tree->EvalTree(ad, &result);
+	return 0;
 }
 
 
@@ -1041,7 +1067,6 @@ int
 Job::GetAttribute(const char *name, char *val)
 {
 	EvalResult	result;
-	char		*ptr;
 
 	if (ad == 0) {
 		*val = 0;
@@ -1131,7 +1156,9 @@ Job::OwnerCheck(char *test_owner)
 		return 1;
 	}
 	if (strcmp(my_owner, test_owner) != 0) {
+#if !defined(WIN32)
 		errno = EACCES;
+#endif
 		return 0;
 	} else {
 		return 1;
@@ -1542,7 +1569,6 @@ int get_job_prio(int cluster, int proc)
     int job_prio;
     int status;
     int job_status;
-    struct shadow_rec *srp;
     PROC_ID id;
     int     q_date;
     char    buf[100], *owner;
@@ -1608,6 +1634,7 @@ int get_job_prio(int cluster, int proc)
 ** regardless of the state they are in.
 */
 
+int
 all_job_prio(int cluster, int proc)
 {
     int prio;
@@ -1640,6 +1667,7 @@ all_job_prio(int cluster, int proc)
 	if ( N_PrioRecs == MAX_PRIO_REC ) {
 		grow_prio_recs( 2 * N_PrioRecs );
 	}
+	return 0;
 }
 
 int mark_idle(int cluster, int proc)
@@ -1676,7 +1704,6 @@ int mark_idle(int cluster, int proc)
 */
 void mark_jobs_idle()
 {
-    char    queue[MAXPATHLEN];
     WalkJobQueue( mark_idle );
 }
 

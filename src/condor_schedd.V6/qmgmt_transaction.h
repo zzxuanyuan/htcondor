@@ -37,7 +37,7 @@ class Transaction {
 public:
 //	Transaction();
 //	~Transaction();
-	void Commit(XDR *);
+	void Commit(Stream *);
 	void Commit(int fd);
 	void Rollback();
 	void AppendLog(LogRecord *);

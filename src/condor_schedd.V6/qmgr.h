@@ -13,7 +13,8 @@
 extern "C" {
 #endif
 
-int handle_q(ReliSock *, struct sockaddr_in*);
+class Service;
+int handle_q(Service *, int, Stream *sock);
 
 #if defined(__cplusplus)
 }

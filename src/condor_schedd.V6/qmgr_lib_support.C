@@ -95,7 +95,10 @@ ConnectQ(char *qmgr_location)
 	qmgmt_sock->encode();
 	cmd = QMGMT_CMD;
 	qmgmt_sock->code(cmd);
+	
+	/* No end of message here.  Send InitializeConnection info in the same packet.
 	qmgmt_sock->end_of_message();
+	*/
 
 #if defined(WIN32)
 	char username[UNLEN+1];
