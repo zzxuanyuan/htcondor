@@ -184,6 +184,56 @@ DCSchedd::releaseJobs( StringList* ids, const char* reason,
 }
 
 
+ClassAd*
+DCSchedd::vacateJobs( const char* constraint, VacateType vacate_type,
+					  CondorError * errstack,
+					  action_result_type_t result_type,
+					  bool notify_scheduler )
+{
+	if( ! constraint ) {
+		dprintf( D_ALWAYS, "DCSchedd::vacateJobs: "
+				 "constraint is NULL, aborting\n" );
+		return NULL;
+	}
+	job_action_t cmd;
+	const char* cmd_str = NULL;
+	if( vacate_type == VACATE_FAST ) {
+		cmd = JA_VACATE_FAST_JOBS;
+		cmd_str = "vacate-fast";
+	} else {
+		cmd = JA_VACATE_JOBS;
+		cmd_str = "vacate";
+	}
+	return actOnJobs( cmd, cmd_str, constraint, NULL, NULL, NULL,
+					  result_type, notify_scheduler, errstack );
+}
+
+
+ClassAd*
+DCSchedd::vacateJobs( StringList* ids, VacateType vacate_type,
+					  CondorError * errstack,
+					  action_result_type_t result_type,
+					  bool notify_scheduler )
+{
+	if( ! ids ) {
+		dprintf( D_ALWAYS, "DCSchedd::vacateJobs: "
+				 "list of jobs is NULL, aborting\n" );
+		return NULL;
+	}
+	job_action_t cmd;
+	const char* cmd_str = NULL;
+	if( vacate_type == VACATE_FAST ) {
+		cmd = JA_VACATE_FAST_JOBS;
+		cmd_str = "vacate-fast";
+	} else {
+		cmd = JA_VACATE_JOBS;
+		cmd_str = "vacate";
+	}
+	return actOnJobs( cmd, cmd_str, NULL, ids, NULL, NULL,
+					  result_type, notify_scheduler, errstack );
+}
+
+
 bool
 DCSchedd::reschedule()
 {
