@@ -392,6 +392,14 @@ condorSchedd__submit(struct soap *s,
   }
 
   int i,rval;
+
+  // XXX: This is ugly.
+  rval = SetAttributeString(clusterId, jobId, "Iwd", spoolDirectory->GetCStr());
+  if (rval < 0) {
+    result.response.status.code = FAIL;
+    return SOAP_OK;
+  }
+
   for (i=0; i < jobAd->__size; i++ ) {
     const char* name = jobAd->__ptr[i].name;
     const char* value = jobAd->__ptr[i].value;
