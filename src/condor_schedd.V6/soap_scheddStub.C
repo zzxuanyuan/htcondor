@@ -73,8 +73,6 @@ getJob(int transaction, int clusterId, int jobId, Job *&job)
   key += clusterId;
   key += jobId;
 
-  printf("hash: %d\n", MyStringHash(key, 64));
-
   return jobs.lookup(key, job);
 }
 
