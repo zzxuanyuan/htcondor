@@ -60,7 +60,6 @@ QueueDBManager::QueueDBManager()
   //
 #ifdef _REMOTE_DB_CONNECTION_
   //	jobQueueLogFile = strdup("/scratch/condor/spool/job_queue.log");
-  printf( "storing remote database\n");
   //db_handle = new ODBC();
   //jobQueueDBConn = strdup("host=ad16.cs.wisc.edu port=5432 dbname=jqmon");
   //	jobQueueDBConn = strdup("host=nighthawk.cs.wisc.edu dbname=jqmon");
@@ -342,10 +341,11 @@ QueueDBManager::processHistoryAd(ClassAd *ad) {
   char tempvalue[1000];
 
   bool flag1=false, flag2=false,flag3=false;
-
+  //dprintf(D_ALWAYS, "AMEET entered function %s\n", sql_str1);
   sprintf(sql_str1, 
 	  "INSERT INTO History_Horizontal(cid, pid) VALUES(%d, %d);", cid, pid);
   if (DBObj->odbc_sqlstmt(sql_str1) < 0) {
+    //dprintf(D_ALWAYS, "AMEET entered if %s\n", sql_str1);
     displayDBErrorMsg("History Ad Processing --- ERROR");
     return 0; // return a error code, 0
   }
@@ -359,6 +359,7 @@ QueueDBManager::processHistoryAd(ClassAd *ad) {
   // return 0;
   //} 
   else {
+    //dprintf(D_ALWAYS, "AMEET entered else %s\n", sql_str1);
     ad->ResetExpr(); // for iteration initialization
     while((expr=ad->NextExpr()) != NULL) {
     //while((expr = (AssignOpBase*)(ad->NextExpr())) != NULL) {
@@ -420,7 +421,7 @@ QueueDBManager::processHistoryAd(ClassAd *ad) {
 		"INSERT INTO History_Vertical(cid, pid, attr, val) VALUES(%d, %d, '%s', '%s');", cid, pid, name, value);
       }
       
-      //dprintf(D_ALWAYS, "in the processHistoryClassAd before database write\n");
+      dprintf(D_ALWAYS, "in processHistoryClassAd before database write %s\n", sql_str1);
       if (DBObj->odbc_sqlstmt(sql_str1) < 0) {
 	displayDBErrorMsg("History Ad Processing --- ERROR");
 	//if(fp) fclose(fp);
