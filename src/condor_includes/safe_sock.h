@@ -88,6 +88,7 @@ public:
 	void init();	/* shared initialization method */
 
     const char * isIncomingDataMD5ed();
+    const char * isIncomingDataEncryted();
 
 #ifdef DEBUG
 	int getMsgSize();
@@ -116,7 +117,8 @@ public:
 // next line should be uncommented after testing
 protected:
 
-    virtual bool init_MD(CONDOR_MD_MODE mode, KeyInfo * key, const char * keyId);
+    bool init_MD(CONDOR_MD_MODE mode, KeyInfo * key, const char * keyId);
+    bool set_encryption_id(const char * keyId);
 
 	static _condorMsgID _outMsgID;
 
