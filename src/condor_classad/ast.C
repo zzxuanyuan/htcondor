@@ -1542,7 +1542,7 @@ int Function::_EvalTree(AttrList *attrlist1, AttrList *attrlist2, EvalResult *re
 			} else {
 				// This will let us refer to attributes in two ClassAds: like 
 				// "My" and "Target"
-				arg->EvalTree(attrlist1, &evaluated_args[i++]);
+				arg->EvalTree(attrlist1, attrlist2, &evaluated_args[i++]);
 			}
 		}
 		
