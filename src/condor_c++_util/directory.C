@@ -289,6 +289,51 @@ StatInfo::GetMode( void )
 	return file_mode;	
 }
 
+bool
+StatInfo::IsOwnerReadable()
+{
+	if(Error()) { return false; } // Error?  This isn't anything.
+#ifdef WIN32
+		/* Logical meaning: Can the owner of the file (not necessarily
+		   the owner of this process) read it?  If the file is a directory,
+		   can we read files in it?
+		*/
+#	error "Implement Directory::IsOwnerReadableon Win32"
+#else // ! WIN32
+	return GetMode() & S_IRUSR;
+#endif
+}
+
+bool
+StatInfo::IsOwnerWritable()
+{
+	if(Error()) { return false; } // Error?  This isn't anything.
+#ifdef WIN32
+		/* Logical meaning: Can the owner of the file (not necessarily
+		   the owner of this process) write it?  If the file is a directory,
+		   can we write files into it?
+		*/
+#	error "Implement Directory::IsOwnerWritable on Win32"
+#else // ! WIN32
+	return GetMode() & S_IWUSR;
+#endif
+}
+
+bool
+StatInfo::IsOwnerSearchable()
+{
+	if(Error()) { return false; } // Error?  This isn't anything.
+	if( ! IsDirectory() ) { return false; } // Only directories are searchable
+#ifdef WIN32
+		/* Logical meaning: Can the owner of the _directory_ (not necessarily
+		   the owner of this process) visit the directory (will readdir work?
+		   can we chdir into it?) */
+#	error "Implement Directory::IsOwnerSearchable on Win32"
+#else // ! WIN32
+	return GetMode() & S_IXUSR;
+#endif
+}
+
 
 Directory::Directory( const char *name, priv_state priv ) 
 {
@@ -1001,6 +1046,7 @@ Directory::Next()
 		return_and_resetpriv( NULL );
 	}
 }
+
 
 
 // The rest of the functions in this file are global functions and can

@@ -174,6 +174,43 @@ public:
 	*/
 	bool IsSymlink() { return issymlink; }
 
+	/** Can the owner of this file read it?
+
+		Is unable to provide perfect knowledge (say, because of race
+		conditions, or file system extensions like ACLs).  Primarily intended
+		for sanity checking.
+
+		The owner "r" bit on Unix.
+
+		@return true if the owner can read it, false if not
+	*/
+	bool IsOwnerReadable();
+
+	/** Can the owner of this file write it?
+
+		Is unable to provide perfect knowledge (say, because of race
+		conditions, or file system extensions like ACLs).  Primarily intended
+		for sanity checking.
+
+		The owner "w" bit on Unix.
+
+		@return true if the owner can write it, false if not
+	*/
+	bool IsOwnerWritable();
+
+	/** Can the owner of this directory search it?
+
+		Is unable to provide perfect knowledge (say, because of race
+		conditions, or file system extensions like ACLs).  Primarily intended
+		for sanity checking.
+
+		Search means "Can I chdir into it?" and "Will opendir/readdir return
+		anything useful?"  The owner "x" bit on Unix.
+
+		@return true if the owner can write it, false if not
+	*/
+	bool IsOwnerSearchable();
+
 #ifndef WIN32
 	/** Get the owner of the entry.
 		@return the uid of the entry's owner
