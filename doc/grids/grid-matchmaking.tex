@@ -72,7 +72,7 @@ MyType                = "Machine"
 TargetType            = "Job"
 Name                  = "Example1_Gatekeeper"
 gatekeeper_url        = "grid.example.com/jobmanager"
-Requirements          = CurMatches < 10
+Requirements          = (CurMatches < 10) && (TARGET.JobUniverse == 9)
 Rank                  = 0.000000
 CurrentRank           = 0.000000
 WantAdRevaluate       = True
@@ -160,18 +160,18 @@ a grid site.
 
 \footnotesize
 \begin{verbatim}
-Requirements          = CurMatches < 10
+Requirements          = (CurMatches < 10) && (TARGET.JobUniverse == 9)
 \end{verbatim}
 \normalsize
 
-These are the requirements that the grid site insists must be trust
+These are the requirements that the grid site insists must be true
 before it will accept a job. These could refer to features of the
-job's ClassAd. In this case, we'll take any job, as long we have less
-than 10 matches currently. This will ensure that Condor-G will only
-run 10 jobs at your site---assuming that you keep CurMatches up to
-date when jobs finish. Of course, you can edit this statement to have
-different requirements. For example, if you want to accept all jobs,
-you can have ``Requirements = True''. 
+job's ClassAd. In this case, we'll take any globus-universe job, as
+long we have less than 10 matches currently. This will ensure that
+Condor-G will only run 10 jobs at your site---assuming that you keep
+CurMatches up to date when jobs finish. Of course, you can edit this
+statement to have different requirements. For example, if you want to
+accept all jobs, you can have ``Requirements = True''.
 
 \footnotesize
 \begin{verbatim}
@@ -248,7 +248,7 @@ gatekeeper URL in the grid site ClassAd:
 \footnotesize
 \begin{verbatim}
 globusscheduler = $$(gatekeeper_url)
-requirements    = true
+requirements    = TARGET.gatekeeper_url =!= UNDEFINED
 \end{verbatim}
 \normalsize
 
@@ -271,7 +271,7 @@ output          = aaa.$(Cluster).out
 error           = aaa.$(Cluster).err
 log             = aaa.log
 globusscheduler = $$(gatekeeper_url)
-requirements    = HaveBamboozle == True
+requirements    = (HaveBamboozle == True) && (TARGET.gatekeeper_url =!= UNDEFINED)
 leave_in_queue  = jobstatus == 4
 queue
 \end{verbatim}
