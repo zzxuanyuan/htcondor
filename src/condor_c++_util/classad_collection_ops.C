@@ -114,8 +114,14 @@ LogCollUpdateClassAd::LogCollUpdateClassAd(const char* k, ClassAd* ad) : LogColl
 
 LogCollUpdateClassAd::~LogCollUpdateClassAd()
 {
-  if (key) free(key);
-  if (Ad) delete Ad;
+  if (key) {
+    free(key);
+    key=NULL;
+  }
+  if (Ad) {
+    delete Ad;
+    Ad=NULL;
+  }
 }
 
 void LogCollUpdateClassAd::Play(void *data_structure)
