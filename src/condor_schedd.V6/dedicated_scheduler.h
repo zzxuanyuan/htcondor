@@ -232,6 +232,8 @@ class DedicatedScheduler : public Service {
 
 	void generateRequest( ClassAd* job );
 
+	ClassAd *makeGenericAdFromJobAd(ClassAd *job);
+
 		/** Clear out all existing resource requests.  Used at the
 			begining of computeSchedule(), since, if there are still
 			resource requests from the last schedule that we haven't
@@ -417,7 +419,7 @@ class DedicatedScheduler : public Service {
 	HashTable <HashKey, match_rec*>* all_matches_by_id;
 
 		// Queue for resource requests we need to negotiate for. 
-	Queue<ClassAd*>* resource_requests;
+	Queue<PROC_ID>* resource_requests;
 
 	int		num_matches;	// Total number of matches in all_matches 
 
