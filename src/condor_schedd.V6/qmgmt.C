@@ -51,12 +51,12 @@ extern char *Name;
 extern char* JobHistoryFileName;
 extern Scheduler scheduler;
 extern bool	operator==( PROC_ID, PROC_ID );
-QueueDBManager queueDBManager;
 
 extern "C" {
 	int	prio_compar(prio_rec*, prio_rec*);
 }
 
+extern QueueDBManager queueDBManager;
 
 
 extern	int		Parse(const char*, ExprTree*&);
@@ -226,7 +226,7 @@ InitJobQueue(const char *job_queue_name)
 {
   	//added by ameet
   	queueDBManager.init(1);
-  	queueDBManager.connectDB();
+  	//queueDBManager.connectDB();
 	
 	assert(!JobQueue);
 	JobQueue = new ClassAdCollection(job_queue_name);
@@ -435,7 +435,7 @@ CleanJobQueue()
 void
 DestroyJobQueue( void )
 {
-  	queueDBManager.disconnectDB(); //added by ameet
+  //queueDBManager.disconnectDB(); //added by ameet
 
 	if (JobQueueDirty) {
 			// We can't destroy it until it's clean.
@@ -2794,6 +2794,7 @@ static void AppendHistory(ClassAd* ad)
   
   return;
 }
+
 
 
 void
