@@ -55,6 +55,7 @@ tab (the project file needs to be selected in the file view) and add
 
 */
 
+#include "condor_common.h"
 #include "stdsoap2.h"
 
 #ifdef __cplusplus
