@@ -53,21 +53,21 @@ EXTRACT = FORK.o GETEUID.o GETPPID.o GETEGID.o GETCWD.o \
 #	elif IS_X86_SOLARIS251
 EXTRACT = FORK.o SIGACTION.o GETEUID.o GETPPID.o GETEGID.o \
 		  MMAP.o SYSCALL.o PIPE.o _SIGACTION.o TRUNCATE.o GETCWD.o \
-		  i386_data.o SYSCONF.o GETLOGIN.o GETRUSAGE.o
+		  i386_data.o SYSCONF.o GETLOGIN.o GETRUSAGE.o FSYNC.o
 #	elif IS_X86_SOLARIS26
 EXTRACT = FORK.o SIGACTION.o GETEUID.o GETPPID.o GETEGID.o \
 		  MMAP.o SYSCALL.o PIPE.o _SIGACTION.o TRUNCATE.o \
 		  GETCWD.o GETRUSAGE.o \
-		  i386_data.o SYSCONF.o GETLOGIN.o LSEEK64.o
+		  i386_data.o SYSCONF.o GETLOGIN.o LSEEK64.o FSYNC.o
 #	elif IS_SUN4X_SOLARIS251
 EXTRACT = FORK.o SIGACTION.o GETEUID.o GETPPID.o GETEGID.o \
 		  MMAP.o SYSCALL.o PIPE.o _SIGACTION.o TRUNCATE.o GETCWD.o \
-		  SYSCONF.o GETLOGIN.o GETRUSAGE.o
+		  SYSCONF.o GETLOGIN.o GETRUSAGE.o FSYNC.o
 #	elif IS_SUN4X_SOLARIS26
 EXTRACT = FORK.o SIGACTION.o GETEUID.o GETPPID.o GETEGID.o \
 		  MMAP.o SYSCALL.o PIPE.o _SIGACTION.o TRUNCATE.o \
 		  GETCWD.o GETRUSAGE.o \
-		  SYSCONF.o GETLOGIN.o LSEEK64.o
+		  SYSCONF.o GETLOGIN.o LSEEK64.o FSYNC.o
 #	elif IS_IRIX
 EXTRACT = /* don't extract anything */
 #	else
@@ -127,7 +127,7 @@ SRC = \
 	senders.prologue \
 	switches.prologue \
 	switches.epilogue \
-	switches.special.c \
+	switches.special.C \
 	syscall.tmpl \
 	syscall_connect.C \
 	syscall_numbers.c \
@@ -181,7 +181,7 @@ all_target($(SYSCALL_LIB) $(COMPRESS_LIB) receivers.o $(SIMPLE_OBJ) $(AIX_OBJ) s
 all_target($(SYSCALL_SUPPORT_OBJ))
 #endif
 
-stubs: switches.c senders.C receivers.C
+stubs: switches.C senders.C receivers.C
 
 ToUpper:
 	ln -s ../condor_ckpt/ToUpper ToUpper
@@ -194,6 +194,7 @@ uppercase_target($(SIMPLE_LIBC),getppid.o,GETPPID.o,getppid,GETPPID)
 uppercase_target($(SIMPLE_LIBC),getegid.o,GETEGID.o,getegid,GETEGID)
 uppercase_target($(SIMPLE_LIBC),getlogin.o,GETLOGIN.o,getlogin,GETLOGIN)
 uppercase_target($(SIMPLE_LIBC),fork.o,FORK.o,fork,FORK)
+uppercase_target($(SIMPLE_LIBC),fsync.o,FSYNC.o,fsync,FSYNC)
 
 #if IS_X86_SOLARIS
 SIGACTION.o : ToUpper $(SIMPLE_LIBC)
@@ -340,10 +341,10 @@ STUB_GEN_PLATFORM = -DIRIX62
 STUB_GEN_FLAGS = $(STUB_GEN_PLATFORM) $(DL_EXTRACT) -D$(OS) \
 	$(SAVE_SIGSTATE) $(CLIP) -Wall
 
-switches.c: syscall.tmpl switches.prologue stub_gen switches.epilogue
+switches.C: syscall.tmpl switches.prologue stub_gen switches.epilogue
 	$(CPP) -DSWITCH $(STUB_GEN_FLAGS) syscall.tmpl | \
 	./stub_gen -mode switches  -p switches.prologue -e switches.epilogue \
-	> switches.c
+	> switches.C
 
 senders.C: syscall.tmpl stub_gen senders.prologue senders.epilogue
 	$(CPP) -DSENDER $(STUB_GEN_FLAGS) syscall.tmpl | \
@@ -363,7 +364,7 @@ clean::
 	rm -f syscall-list
 
 clean::
-	rm -f lex.yy.c y.tab.c y.tab.h switches.c senders.C receivers.C *.o
+	rm -f lex.yy.c y.tab.c y.tab.h switches.C senders.C receivers.C *.o
 
 depend_target($(SRC))
 
