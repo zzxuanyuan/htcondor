@@ -303,6 +303,13 @@ CondorCronMgr::~CondorCronMgr( )
 	dprintf( D_FULLDEBUG, "CronMgr: bye\n" );
 }
 
+// Handle initialization
+int
+CondorCronMgr::Initialize( void )
+{
+	return DoConfig( true );
+}
+
 // Set new name..
 int
 CondorCronMgr::SetName( const char *newName, 
@@ -374,7 +381,7 @@ CondorCronMgr::KillAll( bool force)
 	// Log our death
 	dprintf( D_FULLDEBUG, "CronMgr: Killing all jobs\n" );
 
-	// Reconfigure all running jobs
+	// Kill all running jobs
 	return Cron.KillAll( force );
 }
 
@@ -392,9 +399,18 @@ CondorCronMgr::IsAllIdle( void )
 int
 CondorCronMgr::Reconfig( void )
 {
+	return DoConfig( false );
+}
+
+// Handle configuration
+int
+CondorCronMgr::DoConfig( bool initial )
+{
 	char *paramBuf = GetParam( "JOBS" );
 
 	// Find our environment variable, if it exits..
+	dprintf( D_FULLDEBUG, "CronMgr: Doing config (%s)\n",
+			 initial ? "initial" : "reconfig" );
 	if( paramBuf == NULL ) {
 		dprintf( D_JOB, "CronMgr: No job list\n" );
 		return 0;
@@ -404,7 +420,9 @@ CondorCronMgr::Reconfig( void )
 	}
 
 	// Reconfigure all running jobs
-	Cron.Reconfig( );
+	if ( ! initial ) {
+		Cron.Reconfig( );
+	}
 
 	// Done
 	return 0;
