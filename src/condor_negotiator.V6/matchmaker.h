@@ -62,7 +62,7 @@ class Matchmaker : public Service
 		bool FindCoMatch(char*,ClassAd&,ClassAdList&,ClassAdList&,double,ClassAdList&, ClassAdList&);
 		void MoveAds(ClassAdList* from_list, ClassAdList* to_list=NULL);
 		int matchmakingProtocol(ClassAd &,ClassAd *,ClassAdList&,ClassAdList&,ClassAdList &,Sock *,char*);
-		bool NotifyResources(ClassAdList& reslist, char* capability);
+		bool NotifyResources(ClassAd&,ClassAdList& startdOffers, ClassAdList& startdPvtAds, char* first_capability);
 		void calculateNormalizationFactor (ClassAdList &, double &, double &);
 		char *getCapability (char *, char *, ClassAdList &);
 		void addRemoteUserPrios( ClassAdList& );

@@ -555,9 +555,11 @@ obtainAdsFromCollector (ClassAdList &startdAds,
 		return false;
 	}
 
-	// 1a.  Fetch ads of license ads
+	// 1a.  Fetch unclaimed license ads
 	dprintf (D_ALWAYS, "  Getting license ads ...\n");
-	if	((result = licenseQuery.fetchAds(licenseAds))!= Q_OK)
+	sprintf (buffer, "(%s == \"%s\")", ATTR_STATE,state_to_string(unclaimed_state));
+	if	(((result = licenseQuery.addConstraint(buffer))    != Q_OK) ||
+		((result = licenseQuery.fetchAds(licenseAds))!= Q_OK))
 	{
 		dprintf (D_ALWAYS, 
 			"Error %s:  failed to fetch license ads ... aborting\n",
@@ -1163,15 +1165,9 @@ matchmakingProtocol (ClassAd &request, ClassAd *offer,
 						ClassAdList& startdOffers, ClassAdList& licenseOffers,
 						ClassAdList &startdPvtAds, Sock *sock, char* scheddName)
 {
-	int  cluster, proc;
 	char startdAddr[32];
 	char startdName[64];
-	char *capability;
-//	ReliSock startdSock;
-
-	// these will succeed
-	request.LookupInteger (ATTR_CLUSTER_ID, cluster);
-	request.LookupInteger (ATTR_PROC_ID, proc);
+	char capability[80];
 
 	// these should too, but may not
 	if (!offer->LookupString (ATTR_STARTD_IP_ADDR, startdAddr)		||
@@ -1183,18 +1179,10 @@ matchmakingProtocol (ClassAd &request, ClassAd *offer,
 		return MM_BAD_MATCH;
 	}
 
-	// find the startd's capability from the private ad
-	if (!(capability = getCapability (startdName, startdAddr, startdPvtAds)))
-	{
-		dprintf(D_ALWAYS,"      %s has no capability\n", startdName);
-		startdOffers.Delete(offer);
-		return MM_BAD_MATCH;
-	}
-	
 	// ---- real matchmaking protocol begins ----
 
-	if (!NotifyResources(startdOffers,capability)) return MM_BAD_MATCH;
-	if (!NotifyResources(licenseOffers,capability)) return MM_BAD_MATCH;
+	if (!NotifyResources(request,startdOffers,startdPvtAds,capability)) return MM_BAD_MATCH;
+	if (!NotifyResources(request,licenseOffers,startdPvtAds,NULL)) return MM_BAD_MATCH;
 
 	// 3.  send the match and capability to the schedd
 	// This needs to be extended for co-allocation:
@@ -1224,14 +1212,22 @@ matchmakingProtocol (ClassAd &request, ClassAd *offer,
 
 //-----------------------------------------------------------------------------
 
-bool Matchmaker::NotifyResources(ClassAdList& reslist, char* capability)
+bool Matchmaker::NotifyResources(ClassAd& request, ClassAdList& reslist, ClassAdList& startdPvtAds, char* first_capability)
 {
+	char* capability;
 	char startdAddr[32];
 	char startdName[64];
-	ReliSock startdSock;
+	char res_id[80];
 	ClassAd* ad;
+	bool first=true;
 	reslist.Open();
+
+	char job_id[200];
+	if (!request.LookupString(ATTR_JOB_ID,job_id)) *job_id='\0';
+		
 	while ((ad=reslist.Next())) {
+
+		ReliSock startdSock;
 
     	if (!ad->LookupString (ATTR_STARTD_IP_ADDR, startdAddr)      ||
         	!ad->LookupString (ATTR_NAME, startdName))
@@ -1241,6 +1237,25 @@ bool Matchmaker::NotifyResources(ClassAdList& reslist, char* capability)
 			reslist.Delete(ad);
         	return false;
     	}
+
+		if (first_capability) {
+			// startd resources
+    		// find the startd's capability from the private ad
+    		if (!(capability = getCapability (startdName, startdAddr, startdPvtAds)))
+    		{
+        		dprintf(D_ALWAYS,"      %s has no capability\n", startdName);
+        		reslist.Delete(ad);
+        		return false;
+    		}
+			strcpy(res_id,capability);
+			if (first) {
+				strcpy(first_capability,capability);
+				first=false;
+			}
+		} else {
+			// license resource
+			strcpy(res_id,startdName);
+		}
 
     	dprintf (D_FULLDEBUG, "      Connecting to startd %s at %s\n",
        	         startdName, startdAddr);
@@ -1255,18 +1270,38 @@ bool Matchmaker::NotifyResources(ClassAdList& reslist, char* capability)
 	
     	// 2.  pass the startd MATCH_INFO and capability string
     	dprintf (D_FULLDEBUG, "      Sending MATCH_INFO/capability\n" );
-    	dprintf (D_FULLDEBUG, "      (Capability is \"%s\" )\n", capability);
+    	dprintf (D_FULLDEBUG, "      (Capability is \"%s\" )\n", res_id);
     	startdSock.encode();
-    	if (!startdSock.put (MATCH_INFO) ||
-        	!startdSock.put (capability) ||
-        	!startdSock.end_of_message())
-    	{
-        	dprintf (D_ALWAYS,"      Could not send MATCH_INFO/capability to %s\n",
-                    	startdName );
-        	dprintf (D_FULLDEBUG, "      (Capability is \"%s\")\n", capability );
-			reslist.Delete(ad);
-        	return false;
-    	}
+
+		if (first_capability) {
+
+			// startd notification
+	    	if (!startdSock.put (MATCH_INFO) ||
+   		     	!startdSock.put (res_id) ||
+   		     	!startdSock.end_of_message())
+   		 	{
+   		     	dprintf (D_ALWAYS,"      Could not send MATCH_INFO/capability to %s\n",
+   		                 	startdName );
+				reslist.Delete(ad);
+	        	return false;
+   		 	}
+
+		} else {
+	
+			// license notification
+	    	if (!startdSock.put (MATCH_INFO) ||
+   		     	!startdSock.put (res_id) ||
+   		     	!startdSock.put (job_id) ||
+   		     	!startdSock.end_of_message())
+   		 	{
+   		     	dprintf (D_ALWAYS,"      Could not send MATCH_INFO/capability to %s\n",
+   		                 	startdName );
+				reslist.Delete(ad);
+	        	return false;
+   		 	}
+			
+
+		}
 
 	}
 	reslist.Close();
