@@ -150,73 +150,63 @@ DCSchedd::actOnJobs( job_action_t action, const char* action_str,
 					 action_result_type_t result_type,
 					 bool notify_scheduler )
 {
-	char* tmp = NULL;
-	char buf[512];
-	int size, reply;
+	int reply;
 	ReliSock rsock;
-
 		// // // // // // // //
 		// Construct the ad we want to send
 		// // // // // // // //
 
 	ClassAd cmd_ad;
+    Value v;
+    string s;
 
-	sprintf( buf, "%s = %d", ATTR_JOB_ACTION, action );
-	cmd_ad.Insert( buf );
+    // Can be a memroy leak, please check to see if insert take a
+    // copy of the parameter or the original, looks like Insert
+    // takes the original pointer. Hao
+    v.SetIntegerValue((int)action);
+	cmd_ad.Insert( string(ATTR_JOB_ACTION), Literal::MakeLiteral(v) );
 	
-	sprintf( buf, "%s = %d", ATTR_ACTION_RESULT_TYPE, 
-			 (int)result_type );
-	cmd_ad.Insert( buf );
+    v.Clear();
+    v.SetIntegerValue((int)result_type);
+	cmd_ad.Insert( string(ATTR_ACTION_RESULT_TYPE), Literal::MakeLiteral(v) );
 
-	sprintf( buf, "%s = %s", ATTR_NOTIFY_JOB_SCHEDULER, 
-			 notify_scheduler ? "True" : "False" );
-	cmd_ad.Insert( buf );
+    v.Clear();
+    // Hmmm, should use setBoolean or setString?
+    v.SetStringValue(string(notify_scheduler ? "True" : "False"));
+	cmd_ad.Insert( string(ATTR_NOTIFY_JOB_SCHEDULER), Literal::MakeLiteral(v) );
 
 	if( constraint ) {
 		if( ids ) {
 				// This is a programming error, not a run-time one
 			EXCEPT( "DCSchedd::actOnJobs has both constraint and ids!" );
 		}
-		size = strlen(constraint) + strlen(ATTR_ACTION_CONSTRAINT) + 4;  
-		tmp = (char*) malloc( size*sizeof(char) );
-		if( !tmp ) {
-			EXCEPT( "Out of memory!" );
-		}
-		sprintf( tmp, "%s = %s", ATTR_ACTION_CONSTRAINT, constraint ); 
-		if( ! cmd_ad.Insert(tmp) ) {
+
+        v.Clear();
+        v.SetStringValue(string(constraint));
+		if( ! cmd_ad.Insert( string(ATTR_ACTION_CONSTRAINT), Literal::MakeLiteral(v)) ) {
 			dprintf( D_ALWAYS, "DCSchedd::actOnJobs: "
 					 "Can't insert constraint (%s) into ClassAd!\n",
 					 constraint );
-			free( tmp );
 			return NULL;
 		}			
-		free( tmp );
-		tmp = NULL;
 	} else if( ids ) {
 		char* action_ids = ids->print_to_string();
-		size = strlen(action_ids) + strlen(ATTR_ACTION_IDS) + 7;
-		tmp = (char*) malloc( size*sizeof(char) );
-		if( !tmp ) {
-			EXCEPT( "Out of memory!" );
-		}
-		sprintf( tmp, "%s = \"%s\"", ATTR_ACTION_IDS, action_ids );
-		cmd_ad.Insert( tmp );
-		free( tmp );
-		tmp = NULL;
+        // This is probably not what we want. a normal String Literal should be fine
+        char * tmp = (char*) malloc( (strlen(action_ids) + 3)*sizeof(char) );
+
+        v.Clear();
+        sprintf( tmp, "\"%s\"", action_ids );
+        v.SetStringValue(string(tmp));
+		cmd_ad.Insert( string(ATTR_ACTION_IDS), Literal::MakeLiteral(v) );
+        free(tmp);
 	} else {
 		EXCEPT( "DCSchedd::actOnJobs called without constraint or ids" );
 	}
 
 	if( reason_attr && reason ) {
-		size = strlen(reason_attr) + strlen(reason) + 7;
-		tmp = (char*) malloc( size*sizeof(char) );
-		if( !tmp ) {
-			EXCEPT( "Out of memory!" );
-		}
-		sprintf( tmp, "%s = \"%s\"", reason_attr, reason );
-		cmd_ad.Insert( tmp );
-		free( tmp );
-		tmp = NULL;
+        v.Clear();
+        v.SetStringValue(string(reason));
+		cmd_ad.Insert( string(reason_attr), Literal::MakeLiteral(v) );
 	}
 
 		// // // // // // // //
@@ -240,35 +230,43 @@ DCSchedd::actOnJobs( job_action_t action, const char* action_str,
 	}
 
 		// Now, put the command classad on the wire
+    /* Needs work! Hao 
 	if( ! (cmd_ad.put(rsock) && rsock.eom()) ) {
 		dprintf( D_ALWAYS, "DCSchedd:actOnJobs: Can't send classad\n" );
 		return NULL;
 	}
-
+    */
 		// Next, we need to read the reply from the schedd if things
 		// are ok and it's going to go forward.  If the schedd can't
 		// read our reply to this ClassAd, it assumes we got killed
 		// and it should abort its transaction
 	rsock.decode();
 	ClassAd* result_ad = new ClassAd();
+    /* Need work! Hao
 	if( ! (result_ad->initFromStream(rsock) && rsock.eom()) ) {
 		dprintf( D_ALWAYS, "DCSchedd:actOnJobs: "
 				 "Can't read response ad from %s\n", _addr );
 		delete( result_ad );
 		return NULL;
 	}
-
+    */
 		// If the action totally failed, the schedd will already have
 		// aborted the transaction and closed up shop, so there's no
 		// reason trying to continue.  However, we still want to
 		// return the result ad we got back so that our caller can
 		// figure out what went wrong.
 	reply = FALSE;
-	result_ad->LookupInteger( ATTR_ACTION_RESULT, reply );
-	if( reply != OK ) {
+    int result;
+	if (!result_ad->EvaluateAttrInt( ATTR_ACTION_RESULT, result) ) {
 		dprintf( D_ALWAYS, "DCSchedd:actOnJobs: Action failed\n" );
 		return result_ad;
 	}
+    else {
+        if (result != OK) {
+            dprintf( D_ALWAYS, "DCSchedd:actOnJobs: Action failed\n" );
+            return result_ad;
+        }
+    }
 
 		// Tell the schedd we're still here and ready to go
 	rsock.encode();
@@ -324,6 +322,7 @@ void
 JobActionResults::record( PROC_ID job_id, action_result_t result ) 
 {
 	char buf[64];
+    Value v;
 
 	if( ! result_ad ) {
 		result_ad = new ClassAd();
@@ -331,9 +330,9 @@ JobActionResults::record( PROC_ID job_id, action_result_t result )
 
 	if( result_type == AR_LONG ) {
 			// Put it directly in our ad
-		sprintf( buf, "job_%d_%d = %d", job_id.cluster, job_id.proc,
-				 (int)result );
-		result_ad->Insert( buf );
+        v.SetIntegerValue((int)result);
+		sprintf( buf, "job_%d_%d", job_id.cluster, job_id.proc);
+		result_ad->Insert( string(buf), Literal::MakeLiteral(v) );
 		return;
 	}
 
@@ -366,6 +365,7 @@ void
 JobActionResults::readResults( ClassAd* ad ) 
 {
 	char attr_name[64];
+    int  result;
 
 	if( ! ad ) {
 		return;
@@ -377,44 +377,72 @@ JobActionResults::readResults( ClassAd* ad )
 	result_ad = new ClassAd( *ad );
 
 	action = JA_ERROR;
-	int tmp = 0;
-	if( ad->LookupInteger(ATTR_JOB_ACTION, tmp) ) {
-		switch( tmp ) {
+	if( ad->EvaluateAttrInt( ATTR_JOB_ACTION, result)) {
+		switch( result ) {
 		case JA_HOLD_JOBS:
 		case JA_REMOVE_JOBS:
 		case JA_RELEASE_JOBS:
-			action = (job_action_t)tmp;
+			action = (job_action_t) result;
 			break;
 		default:
 			action = JA_ERROR;
 		}
 	}
 
-	tmp = 0;
 	result_type = AR_TOTALS;
-	if( ad->LookupInteger(ATTR_ACTION_RESULT_TYPE, tmp) ) {
-		if( tmp == AR_LONG ) {
+	if( ad->EvaluateAttrInt(ATTR_ACTION_RESULT_TYPE, result)) {
+		if( result == AR_LONG ) {
 			result_type = AR_LONG;
 		}
 	}
 
 	sprintf( attr_name, "result_total_%d", AR_ERROR );
-	ad->LookupInteger( attr_name, ar_error );
+	if (ad->EvaluateAttrInt( attr_name, result)) {
+        ar_error = result;
+    }
+    else {
+        // 
+    }
 
 	sprintf( attr_name, "result_total_%d", AR_SUCCESS );
-	ad->LookupInteger( attr_name, ar_success );
+	if ( ad->EvaluateAttrInt( attr_name, result) ) {
+        ar_success = result;
+    }
+    else {
+        // 
+    }
 
 	sprintf( attr_name, "result_total_%d", AR_NOT_FOUND );
-	ad->LookupInteger( attr_name, ar_not_found );
+	if ( ad->EvaluateAttrInt( attr_name, result) ) {
+        ar_not_found = result;
+    }
+    else {
+        // 
+    }
 
 	sprintf( attr_name, "result_total_%d", AR_BAD_STATUS );
-	ad->LookupInteger( attr_name, ar_bad_status );
+	if ( ad->EvaluateAttrInt( attr_name, result) ) {
+        ar_bad_status = result;
+    }
+    else {
+        // 
+    }
 
 	sprintf( attr_name, "result_total_%d", AR_ALREADY_DONE );
-	ad->LookupInteger( attr_name, ar_already_done );
+	if (ad->EvaluateAttrInt( attr_name, result) ) {
+        ar_already_done = result;
+    }
+    else {
+        // 
+    }
 
 	sprintf( attr_name, "result_total_%d", AR_PERMISSION_DENIED );
-	ad->LookupInteger( attr_name, ar_permission_denied );
+    if (ad->EvaluateAttrInt(attr_name, result) ) {
+        ar_permission_denied = result;
+    }
+    else {
+        // 
+    }
 
 }
 
@@ -423,6 +451,7 @@ ClassAd*
 JobActionResults::publishResults( void ) 
 {
 	char buf[128];
+    Value v;
 
 		// no matter what they want, give them a few things of
 		// interest, like what kind of results we're giving them. 
@@ -430,9 +459,8 @@ JobActionResults::publishResults( void )
 		result_ad = new ClassAd();
 	}
 
-	sprintf( buf, "%s = %d", ATTR_ACTION_RESULT_TYPE, 
-			 (int)result_type ); 
-	result_ad->Insert( buf );
+    v.SetIntegerValue((int) result_type);
+	result_ad->Insert( string(ATTR_ACTION_RESULT_TYPE), Literal::MakeLiteral(v) );
 
 	if( result_type == AR_LONG ) {
 			// we've got everything we need in our ad already, nothing
@@ -441,28 +469,35 @@ JobActionResults::publishResults( void )
 	}
 
 		// They want totals for each possible result
-	sprintf( buf, "result_total_%d = %d", AR_ERROR, ar_error );
-	result_ad->Insert( buf );
+    v.Clear();
+    sprintf( buf, "result_total_%d", AR_ERROR );
+    v.SetIntegerValue(ar_error);
+	result_ad->Insert( string(buf), Literal::MakeLiteral(v) );
 
-	sprintf( buf, "result_total_%d = %d", AR_SUCCESS,
-			 ar_success ); 
-	result_ad->Insert( buf );
-		
-	sprintf( buf, "result_total_%d = %d", AR_NOT_FOUND,
-			 ar_not_found ); 
-	result_ad->Insert( buf );
+    v.Clear();
+    sprintf( buf, "result_total_%d", AR_SUCCESS );
+    v.SetIntegerValue(ar_success);
+	result_ad->Insert( string(buf), Literal::MakeLiteral(v) );
 
-	sprintf( buf, "result_total_%d = %d", AR_BAD_STATUS,
-			 ar_bad_status );
-	result_ad->Insert( buf );
+    v.Clear();
+    sprintf( buf, "result_total_%d", AR_NOT_FOUND );
+    v.SetIntegerValue(ar_not_found);
+	result_ad->Insert( string(buf), Literal::MakeLiteral(v) );
 
-	sprintf( buf, "result_total_%d = %d", AR_ALREADY_DONE,
-			 ar_already_done );
-	result_ad->Insert( buf );
+    v.Clear();
+    sprintf( buf, "result_total_%d", AR_BAD_STATUS );
+    v.SetIntegerValue(ar_bad_status);
+	result_ad->Insert( string(buf), Literal::MakeLiteral(v) );
 
-	sprintf( buf, "result_total_%d = %d", AR_PERMISSION_DENIED,
-			 ar_permission_denied );
-	result_ad->Insert( buf );
+    v.Clear();
+    sprintf( buf, "result_total_%d", AR_ALREADY_DONE );
+    v.SetIntegerValue(ar_already_done);
+	result_ad->Insert( string(buf), Literal::MakeLiteral(v) );
+
+    v.Clear();
+    sprintf( buf, "result_total_%d", AR_PERMISSION_DENIED );
+    v.SetIntegerValue(ar_permission_denied);
+	result_ad->Insert( string(buf), Literal::MakeLiteral(v) );
 
 	return result_ad;
 }
@@ -472,13 +507,13 @@ action_result_t
 JobActionResults::getResult( PROC_ID job_id )
 {
 	char buf[64];
-	int result;
+    int result;
 
 	if( ! result_ad ) { 
 		return AR_ERROR;
 	}
 	sprintf( buf, "job_%d_%d", job_id.cluster, job_id.proc );
-	if( ! result_ad->LookupInteger(buf, result) ) {
+	if( !result_ad->EvaluateAttrInt( buf, result)) {
 		return AR_ERROR;
 	}
 	return (action_result_t) result;

@@ -32,7 +32,6 @@
 #include "dc_shadow.h"
 #include "internet.h"
 
-
 DCShadow::DCShadow( const char* name ) : Daemon( DT_SHADOW, name, NULL )
 {
 	is_initialized = false;
@@ -51,7 +50,7 @@ DCShadow::~DCShadow( void )
 bool
 DCShadow::initFromClassAd( ClassAd* ad )
 {
-	char* tmp = NULL;
+	string tmp;
 
 	if( ! ad ) {
 		dprintf( D_ALWAYS, 
@@ -59,32 +58,27 @@ DCShadow::initFromClassAd( ClassAd* ad )
 		return false;
 	}
 
-	ad->LookupString( ATTR_SHADOW_IP_ADDR, &tmp );
-	if( ! tmp ) {
-			// If that's not defined, try ATTR_MY_ADDRESS
-		ad->LookupString( ATTR_MY_ADDRESS, &tmp );
+	if (!ad->EvaluateAttrString( ATTR_SHADOW_IP_ADDR, tmp )) {
+        // If that's not defined, try ATTR_MY_ADDRESS
+		ad->EvaluateAttrString( ATTR_MY_ADDRESS, tmp );
 	}
-	if( ! tmp ) {
+	if( tmp.length() <= 0 ) {
 		dprintf( D_FULLDEBUG, "ERROR: DCShadow::initFromClassAd(): "
 				 "Can't find shadow address in ad\n" );
 		return false;
 	} else {
-		if( is_valid_sinful(tmp) ) {
-			New_addr( strnewp(tmp) );
+		if( is_valid_sinful(tmp.data()) ) {
+			New_addr( strnewp(tmp.data()) );
 			is_initialized = true;
 		} else {
 			dprintf( D_FULLDEBUG, 
 					 "ERROR: DCShadow::initFromClassAd(): invalid %s in ad (%s)\n", 
-					 ATTR_SHADOW_IP_ADDR, tmp );
+					 ATTR_SHADOW_IP_ADDR, tmp.data() );
 		}
-		free( tmp );
-		tmp = NULL;
 	}
 
-	if( ad->LookupString(ATTR_SHADOW_VERSION, &tmp) ) {
-		New_version( strnewp(tmp) );
-		free( tmp );
-		tmp = NULL;
+	if( ad->EvaluateAttrString( ATTR_SHADOW_VERSION, tmp)) {
+		New_version( strnewp(tmp.data()) );
 	}
 
 	return is_initialized;
@@ -147,6 +141,7 @@ DCShadow::updateJobInfo( ClassAd* ad, bool insure_update )
 		}
 		return false;
 	}
+    /* Needs work! Hao
 	if( ! ad->put(*tmp) ) {
 		dprintf( D_FULLDEBUG, 
 				 "Failed to send SHADOW_UPDATEINFO ClassAd to shadow\n" );
@@ -156,6 +151,7 @@ DCShadow::updateJobInfo( ClassAd* ad, bool insure_update )
 		}
 		return false;
 	}
+    */
 	if( ! tmp->end_of_message() ) {
 		dprintf( D_FULLDEBUG, 
 				 "Failed to send SHADOW_UPDATEINFO EOM to shadow\n" );
