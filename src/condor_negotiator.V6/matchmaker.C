@@ -54,7 +54,16 @@ Matchmaker ()
 	PreemptionRank = NULL;
 	sockCache = NULL;
 
-	sprintf (buf, "MY.%s > MY.%s", ATTR_RANK, ATTR_CURRENT_RANK);
+	// rankCondStd also needs to make certain ATTR_RANK > 0.0 
+	// because with old pre-v6.3.x startds, ATTR_CURRENT_RANK
+	// would default to be -1.0 and ATTR_RANK would default to 
+	// be 0.0.  Thus just RANK > CUURENT_RANK would always eval to 
+	// True.  This is especially problemtaic  in the case of a 
+	// pool with v6.2 startds and a newer v6.3 negotiatotor which 
+	// has the only-preempt-for-startd-rank logic which we 
+	// did for MPI.  -Todd <tannenba@cs.wisc.edu>
+	sprintf (buf, "(MY.%s > MY.%s) && (MY.%s > 0.0)", ATTR_RANK, 
+		ATTR_CURRENT_RANK, ATTR_RANK);
 	Parse (buf, rankCondStd);
 
 	sprintf (buf, "MY.%s >= MY.%s", ATTR_RANK, ATTR_CURRENT_RANK);
