@@ -159,7 +159,7 @@ JobInfoCommunicator::initUserPrivNoOwner( void )
 		// ourselves done. :) 
 	dprintf( D_FULLDEBUG, 
 			 "Starter running as '%s', no uid switching possible\n",
-			 daemonCore->getRealUserName() );
+			 get_real_username() );
 	user_priv_is_initialized = true;
 	return true;
 }
