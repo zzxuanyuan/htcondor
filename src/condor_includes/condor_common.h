@@ -7,6 +7,4 @@
 #include <ctype.h>
 #include <fcntl.h>
 #include <errno.h>
-#if !defined(SUNOS41)
 #include <signal.h>
-#endif
