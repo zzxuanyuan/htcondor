@@ -43,6 +43,7 @@ public:
 	Claim* addClaim();
 
 	Claim* findClaimById( const char* id );
+	Claim* findClaimByPid( pid_t pid );
 
 private:
 

@@ -70,6 +70,20 @@ CODMgr::findClaimById( const char* id )
 
 
 Claim*
+CODMgr::findClaimByPid( pid_t pid )
+{
+	Claim* tmp_claim;
+	claims.Rewind();
+	while( claims.Next(tmp_claim) ) {
+		if( tmp_claim->starterPidMatches(pid) ) {
+			return tmp_claim;
+		}
+	}
+	return NULL;
+}
+
+
+Claim*
 CODMgr::addClaim( ) 
 {
 	Claim* new_claim;
