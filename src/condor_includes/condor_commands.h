@@ -161,12 +161,18 @@ const int QUERY_HIST_CKPTSRVR = 30;
 const int QUERY_HIST_CKPTSRVR_LIST = 31;
 
 // The following should replace 0--21
-const int UPDATE_PUBLIC_ADS  	= 32;
-const int UPDATE_PRIVATE_ADS 	= 33;
-const int QUERY_PUBLIC_ADS		= 34;
-const int QUERY_PRIVATE_ADS		= 35;
-const int INVALIDATE_PUBLIC_ADS	= 36;
-const int INVALIDATE_PRIVATE_ADS= 37;
+const int MODIFY_PUBLIC_AD  	= 32;
+const int MODIFY_PRIVATE_AD 	= 33;
+const int UPDATE_PUBLIC_AD		= 34;
+const int UPDATE_PRIVATE_AD		= 35;
+const int QUERY_PUBLIC_ADS		= 36;
+const int QUERY_PRIVATE_ADS		= 37;
+const int REMOVE_PUBLIC_AD		= 37;
+const int REMOVE_PRIVATE_AD 	= 39;
+
+// the following are temporary
+const int UPDATE_NETWORK_AD		= 40;
+const int QUERY_NETWORK_ADS		= 41;
 
 /*
 *** Daemon Core Signals
