@@ -19,7 +19,7 @@ enum condorCore__StatusCode {SUCCESS = 0, FAIL = 1, INVALIDTRANSACTION = 2, UNKN
 
 #ifndef _SOAP_condorCore__ClassAdAttrType
 #define _SOAP_condorCore__ClassAdAttrType
-enum condorCore__ClassAdAttrType {INTEGER = 110, FLOAT = 102, STRING = 115, EXPRESSION = 120, BOOL = 98, UNDEFINED = 117, ERROR = 101};
+enum condorCore__ClassAdAttrType {INTEGER_ATTR = 110, FLOAT_ATTR = 102, STRING_ATTR = 115, EXPRESSION_ATTR = 120, BOOLEAN_ATTR = 98, UNDEFINED_ATTR = 117, ERROR_ATTR = 101};
 #endif
 
 #ifndef _SOAP_condorSchedd__HashType

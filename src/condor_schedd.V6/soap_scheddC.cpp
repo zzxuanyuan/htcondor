@@ -8,7 +8,7 @@
 
 SOAP_BEGIN_NAMESPACE(soap_schedd)
 
-SOAP_SOURCE_STAMP("@(#) soap_scheddC.cpp ver 2.5.2 2004-04-02 18:33:37 GMT")
+SOAP_SOURCE_STAMP("@(#) soap_scheddC.cpp ver 2.5.2 2004-04-05 15:36:01 GMT")
 
 
 #ifndef WITH_NOGLOBAL
@@ -1674,13 +1674,13 @@ SOAP_FMAC3 int SOAP_FMAC4 soap_put_condorCore__ClassAdAttrType(struct soap *soap
 }
 
 static const struct soap_code_map soap_codes_condorCore__ClassAdAttrType[] =
-{	{ (long)INTEGER, "INTEGER" },
-	{ (long)FLOAT, "FLOAT" },
-	{ (long)STRING, "STRING" },
-	{ (long)EXPRESSION, "EXPRESSION" },
-	{ (long)BOOL, "BOOL" },
-	{ (long)UNDEFINED, "UNDEFINED" },
-	{ (long)ERROR, "ERROR" },
+{	{ (long)INTEGER_ATTR, "INTEGER-ATTR" },
+	{ (long)FLOAT_ATTR, "FLOAT-ATTR" },
+	{ (long)STRING_ATTR, "STRING-ATTR" },
+	{ (long)EXPRESSION_ATTR, "EXPRESSION-ATTR" },
+	{ (long)BOOLEAN_ATTR, "BOOLEAN-ATTR" },
+	{ (long)UNDEFINED_ATTR, "UNDEFINED-ATTR" },
+	{ (long)ERROR_ATTR, "ERROR-ATTR" },
 	{ 0, NULL }
 };
 

@@ -50,14 +50,13 @@ struct condorCore__Status
 
 enum condorCore__ClassAdAttrType
 {
-  INTEGER = 'n',
-  FLOAT = 'f',
-  STRING = 's',
-  EXPRESSION = 'x',
-  // I'd like BOOLEAN but condor_c++_util/user_log.c++.h:34 claimed it already!
-  BOOL = 'b',
-  UNDEFINED = 'u',
-  ERROR = 'e'
+  INTEGER_ATTR = 'n',
+  FLOAT_ATTR = 'f',
+  STRING_ATTR = 's',
+  EXPRESSION_ATTR = 'x',
+  BOOLEAN_ATTR = 'b',
+  UNDEFINED_ATTR = 'u',
+  ERROR_ATTR = 'e'
 };
 
 // n=int,f=float,s=string,x=expression,b=bool,u=undefined,e=error

@@ -84,16 +84,16 @@ convert_ad_to_adStruct(struct soap *s,
   attr_index = 0;
   // first, add myType and TargetType
   ad_struct->__ptr[attr_index].name = strdup(ATTR_MY_TYPE);
-  ad_struct->__ptr[attr_index].type = STRING;
+  ad_struct->__ptr[attr_index].type = STRING_ATTR;
   ad_struct->__ptr[attr_index].value = strdup(curr_ad->GetMyTypeName());
   attr_index++;
   ad_struct->__ptr[attr_index].name = strdup(ATTR_TARGET_TYPE);
-  ad_struct->__ptr[attr_index].type = STRING;
+  ad_struct->__ptr[attr_index].type = STRING_ATTR;
   ad_struct->__ptr[attr_index].value = strdup(curr_ad->GetTargetTypeName());
   attr_index++;
   // And, ServerTime...
   ad_struct->__ptr[attr_index].name = strdup(ATTR_SERVER_TIME);
-  ad_struct->__ptr[attr_index].type = INTEGER;
+  ad_struct->__ptr[attr_index].type = INTEGER_ATTR;
   ad_struct->__ptr[attr_index].value = strdup(MyString((int) time(NULL)).GetCStr());
   attr_index++;
 
@@ -109,7 +109,7 @@ convert_ad_to_adStruct(struct soap *s,
     case LX_STRING:
       ad_struct->__ptr[attr_index].value = ((String*)rhs)->Value();
       //dprintf(D_ALWAYS,"STRINGSPACE|%s|%p\n",ad_struct->__ptr[attr_index].value,ad_struct->__ptr[attr_index].value);
-      ad_struct->__ptr[attr_index].type = STRING;
+      ad_struct->__ptr[attr_index].type = STRING_ATTR;
       break;
     case LX_INTEGER:
       tmpint = ((Integer*)rhs)->Value();
@@ -117,7 +117,7 @@ convert_ad_to_adStruct(struct soap *s,
       snprintf(ad_struct->__ptr[attr_index].value,20,"%d",tmpint);
       // ad_struct->__ptr[attr_index].valueInt = (int*)soap_malloc(s,sizeof(int));
       // *(ad_struct->__ptr[attr_index].valueInt) = tmpint;
-      ad_struct->__ptr[attr_index].type = INTEGER;
+      ad_struct->__ptr[attr_index].type = INTEGER_ATTR;
       break;
     case LX_FLOAT:
       tmpfloat = ((Float*)rhs)->Value();
@@ -125,7 +125,7 @@ convert_ad_to_adStruct(struct soap *s,
       snprintf(ad_struct->__ptr[attr_index].value,20,"%f",tmpfloat);
       // ad_struct->__ptr[attr_index].valueFloat = (float*)soap_malloc(s,sizeof(float));
       // *(ad_struct->__ptr[attr_index].valueFloat) = tmpfloat;
-      ad_struct->__ptr[attr_index].type = FLOAT;
+      ad_struct->__ptr[attr_index].type = FLOAT_ATTR;
       break;
     case LX_BOOL:
       tmpbool = ((ClassadBoolean*)rhs)->Value() ? true : false;
@@ -136,7 +136,7 @@ convert_ad_to_adStruct(struct soap *s,
       }
       // ad_struct->__ptr[attr_index].valueBool = (bool*)soap_malloc(s,sizeof(bool));
       // *(ad_struct->__ptr[attr_index].valueBool) = tmpbool;
-      ad_struct->__ptr[attr_index].type = BOOL;
+      ad_struct->__ptr[attr_index].type = BOOLEAN_ATTR;
       break;
     case LX_NULL:
     case LX_UNDEFINED:
@@ -158,7 +158,7 @@ convert_ad_to_adStruct(struct soap *s,
         ad_struct->__ptr[attr_index].value = tmpstr;
         // ad_struct->__ptr[attr_index].valueExpr = tmpstr;
         // soap_link(s,(void*)tmpstr,0,1,NULL);
-        ad_struct->__ptr[attr_index].type = EXPRESSION;
+        ad_struct->__ptr[attr_index].type = EXPRESSION_ATTR;
       }
       break;
     }
@@ -231,7 +231,7 @@ convert_adStruct_to_ad(struct soap *s,
     else
       value = ad_struct->__ptr[i].value;
 
-    if (STRING == ad_struct->__ptr[i].type)
+    if (STRING_ATTR == ad_struct->__ptr[i].type)
       attribute = name + "=\"" + value + "\"";
     else
       attribute = name + "=" + value;

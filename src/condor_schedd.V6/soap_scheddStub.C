@@ -1056,7 +1056,7 @@ condorSchedd__createJobTemplate(struct soap *soap,
     else
       value = result.response.classAd.__ptr[i].value;
 
-    if (STRING == result.response.classAd.__ptr[i].type)
+    if (STRING_ATTR == result.response.classAd.__ptr[i].type)
       attribute = name + "=\"" + value + "\"";
     else
       attribute = name + "=" + value;
@@ -1103,17 +1103,17 @@ condorCore__getInfoAd(struct soap *soap,
   result.response.classAd.__ptr = (struct condorCore__ClassAdStructAttr *)soap_malloc(soap,3 * sizeof(struct condorCore__ClassAdStructAttr));
 
   result.response.classAd.__ptr[0].name = "Name";
-  result.response.classAd.__ptr[0].type = STRING;
+  result.response.classAd.__ptr[0].type = STRING_ATTR;
   result.response.classAd.__ptr[0].value = todd;
 
   result.response.classAd.__ptr[1].name = "Age";
-  result.response.classAd.__ptr[1].type = INTEGER;
+  result.response.classAd.__ptr[1].type = INTEGER_ATTR;
   result.response.classAd.__ptr[1].value = "35";
   int* age = (int*)soap_malloc(soap,sizeof(int));
   *age = 35;
 
   result.response.classAd.__ptr[2].name = "Friend";
-  result.response.classAd.__ptr[2].type = STRING;
+  result.response.classAd.__ptr[2].type = STRING_ATTR;
   result.response.classAd.__ptr[2].value = todd;
 
   result.response.status.code = 0;

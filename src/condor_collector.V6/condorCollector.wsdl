@@ -40,13 +40,13 @@
   </simpleType>
   <simpleType name="ClassAdAttrType">
    <restriction base="xsd:string">
-    <enumeration value="INTEGER"/>
-    <enumeration value="FLOAT"/>
-    <enumeration value="STRING"/>
-    <enumeration value="EXPRESSION"/>
-    <enumeration value="BOOL"/>
-    <enumeration value="UNDEFINED"/>
-    <enumeration value="ERROR"/>
+    <enumeration value="INTEGER-ATTR"/>
+    <enumeration value="FLOAT-ATTR"/>
+    <enumeration value="STRING-ATTR"/>
+    <enumeration value="EXPRESSION-ATTR"/>
+    <enumeration value="BOOLEAN-ATTR"/>
+    <enumeration value="UNDEFINED-ATTR"/>
+    <enumeration value="ERROR-ATTR"/>
    </restriction>
   </simpleType>
   <complexType name="Status">
