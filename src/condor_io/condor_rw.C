@@ -28,6 +28,103 @@
 #include "condor_io.h"
 #include "condor_debug.h"
 
+/* Get a line from this socket.  Return true on success. */
+bool
+getLine(const int sock, char *buf, const int max)
+{
+    int rbytes = 0;
+
+    while (rbytes <= max) {
+        if ( read (sock, &buf[rbytes], 1) != 1 ) {
+			if (errno != EWOULDBLOCK || errno != EAGAIN || errno != EINTR) {
+				continue;
+			} else {
+				//error
+            	dprintf (D_ALWAYS, "getLine: failed to read from socket:");
+            	dprintf (D_ALWAYS, "%s\n", strerror (errno));
+            	return false;
+			}
+        }
+        if(buf[rbytes] == '\n' || buf[rbytes] == '\0') {
+            buf[rbytes] = '\0';
+            return true;
+        } else rbytes++;
+    }
+    dprintf (D_ALWAYS, "getLine: line is too long\n");
+    return false;
+}
+
+
+// Send a line which terminates with '\n' or '\0'
+bool
+sendLine (const int fd, const char *line, const int max)
+{
+    int written = 0;
+	int index = 0;
+
+    while (written <= max) {
+        if ( write (fd, &line[written], 1) != 1 ) {
+			if (errno != EWOULDBLOCK || errno != EAGAIN || errno != EINTR) {
+				continue;
+			} else {
+				//error
+            	dprintf (D_ALWAYS, "sendLine: failed to send to socket:");
+            	dprintf (D_ALWAYS, "%s\n", strerror (errno));
+            	return false;
+			}
+        }
+        if(line[written] == '\n' || line[written] == '\0') {
+            return true;
+        } else written++;
+    }
+    dprintf (D_ALWAYS, "sendLine: line is too long\n");
+    return false;
+}
+
+
+int
+bindWithin(const int sock, const int low_port, const int high_port)
+{
+    // Use hash function with pid to get the starting point
+    struct timeval curTime;
+#ifndef WIN32
+    (void) gettimeofday(&curTime, NULL);
+#else
+    // Win32 does not have gettimeofday, sigh.
+    curTime.tv_usec = ::GetTickCount();
+#endif
+
+    // int pid = (int) getpid();
+    int range = high_port - low_port + 1;
+    // this line must be changed to use the hash function of condor
+    int start_trial = low_port + (curTime.tv_usec * 73/*some prime number*/ % range);
+
+    int this_trial = start_trial;
+    do {
+        sockaddr_in     sin;
+
+        memset(&sin, 0, sizeof(sockaddr_in));
+        sin.sin_family = AF_INET;
+        sin.sin_addr.s_addr = htonl(my_ip_addr());
+        sin.sin_port = htons((u_short)this_trial++);
+
+        if (::bind(sock, (sockaddr *)&sin, sizeof(sockaddr_in)) == 0 ) { // success
+            dprintf(D_NETWORK, "bindWithin - bound to %d...\n", this_trial-1);
+            return TRUE;
+        } else {
+            dprintf(D_NETWORK, "bindWithin - failed to bind: %s\n", strerror(errno));
+        }
+
+        if ( this_trial > high_port )
+            this_trial = low_port;
+    } while(this_trial != start_trial);
+
+    dprintf(D_ALWAYS, "bindWithin - failed to bind any port within (%d ~ %d)\n",
+            low_port, high_port);
+
+    return FALSE;
+}
+
 
 /* Generic read/write wrappers for condor.  These function emulate the 
  * read/write system calls under unix except that they are portable, use
@@ -113,8 +210,6 @@ int condor_read(SOCKET fd, char *buf, int sz, int timeout)
 	ASSERT(nr > 0); /* We should have read at least SOME data */
 	return nr;
 }
-
-
 
 
 int condor_write(SOCKET fd, char *buf, int sz, int timeout) {

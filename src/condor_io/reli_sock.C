@@ -30,7 +30,7 @@
 #include "internet.h"
 #include "condor_rw.h"
 #include "condor_socket_types.h"
-#include "get_port_range.h"
+#include "getParam.h"
 
 #ifdef WIN32
 #include <mswsock.h>    // For TransmitFile()
@@ -430,9 +430,9 @@ ReliSock::greetMnger()
     // Bind _mngSock
     int lowPort, highPort;
     if ( get_port_range(&lowPort, &highPort) == TRUE ) {
-        if ( bindWithin(_mngSock, lowPort, highPort) == TRUE ) {
-            return TRUE;
-        } else return FALSE;
+        if ( bindWithin(_mngSock, lowPort, highPort) != TRUE ) {
+            return FALSE;
+        }
     } else {
         bzero(&sockAddr, sizeof(sockAddr));
         sockAddr.sin_family = AF_INET;
@@ -446,17 +446,19 @@ ReliSock::greetMnger()
     }
 
     // get (ip-addr, port) of netMnger
-    char *mngerHost = getenv("CONDOR_NET_MNGER");
-        mngerHost = NET_MNGER_ADDR;
-    char *mngerPort = getenv("CONDOR_NET_MNGER_PORT");
-    int portNum = (mngerPort) ? atoi(mngerPort) : NET_MNGER_PORT;
+	char mngerHost[50];
+	int mngerPort;
+	if ( getMnger (mngerHost, &mngerPort) != TRUE ) {
+		dprintf (D_ALWAYS, "ReliSock::greetMnger -\
+							failed to get NetMnger info\n");
+		return FALSE;
+	}
 
     // Connect to netMnger
     bzero(&sockAddr, sizeof(sockAddr));
     sockAddr.sin_family = AF_INET;
     unsigned long mngerIP;
     if((mngerIP = inet_addr(mngerHost)) != (unsigned)-1) {
-        sockAddr.sin_addr.s_addr = mngerIP;
         memcpy(&sockAddr.sin_addr, &mngerIP, sizeof(mngerIP));
     } else {
         struct hostent *mngerEnt = gethostbyname(mngerHost);
@@ -466,7 +468,7 @@ ReliSock::greetMnger()
         }
         memcpy(&sockAddr.sin_addr, mngerEnt->h_addr_list[0], mngerEnt->h_length);
     }
-    sockAddr.sin_port = htons((u_short)portNum);
+    sockAddr.sin_port = htons((u_short)mngerHost);
     if(::connect(_mngSock, (sockaddr *)&sockAddr, addrLen)) {
         dprintf(D_ALWAYS, "ReliSock::greetMnger -\
                            Failed to connect to netMnger\n");
@@ -1247,7 +1249,7 @@ int ReliSock::setLimit(const int sec, const int bytes, const float percent)
     dprintf(D_FULLDEBUG, "[%d msec, %d bytes]", _w[0], _l[0]);
     for(int i=1; i<BND_CTL_LEVELS; i++) {
         _w[i] = _w[i-1] / 2;
-        _l[i] = _l[i-1] / 9.0 * 5.0;
+        _l[i] = (unsigned int)(_l[i-1] / 9.0 * 5.0);
         dprintf(D_FULLDEBUG, "  [%d msec, %d bytes]", _w[i], _l[i]);
     }
     dprintf(D_FULLDEBUG, "\n");
@@ -1480,7 +1482,7 @@ void ReliSock::calculateAllowance()
     _allowance = _l[BND_CTL_LEVELS - 1];
     index = _curIdx;
     for(int i=0; i<BND_CTL_LEVELS-1; i++) {
-        for(int j=0; j<(int)s_pow(2,i); j++) {
+        for(int j=0; j<(int)s_pow(2.0,i); j++) {
             sent += _s[index];
             if(--index < 0) index = BND_CTL_WINS - 1;
         }
