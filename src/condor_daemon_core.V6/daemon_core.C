@@ -1759,14 +1759,15 @@ int DaemonCore::HandleReq(int socki)
 				// if this is UDP, they have no idea the key they are
 				// using is bunk, so  it would be nice of us to tell them.
 				// blast off a udp packet, its the laest we can do.
-				Daemon d(sin_to_string(sock->endpoint()));
-				Sock* s = d.startCommand (DC_INVALIDATE_KEY, Stream::safe_sock, 0);
-				if (s) {
-					s->encode();
-					s->code(key_id);
-					s->eom();
-					s->close();
-					delete s;
+				SafeSock s;
+				if (s.connect(sin_to_string(sock->endpoint()))) {
+					s.encode();
+					s.put(DC_INVALIDATE_KEY);
+					s.code(key_id);
+					s.eom();
+					s.close();
+					dprintf (D_SECURITY, "DC_AUTHENTICATE: sent a notify "
+						"packet back to the client.\n");
 				}
 
 				// close the connection.
@@ -1792,21 +1793,16 @@ int DaemonCore::HandleReq(int socki)
 					goto finalize;
 
 				} else {
-					// HACK!!!  UDP shouldnt be acking anything.
-					// the problem is thus:
-					// UDP packets go one way.  if the key they have
-					// isn't valid, how are they to find out?  we can
-					// attempt to notify them via TCP, but that's about
-					// it.  discuss....
-					
-					int ack = 1;
-					sock->encode();
-					if (!sock->code(ack) || !sock->eom()) {
-						dprintf(D_SECURITY, "DC_AUTHENTICATION: unable to receive ack.\n");
-						result = FALSE;
-						goto finalize;
+					if (is_tcp) {
+						int ack = 1;
+						sock->encode();
+						if (!sock->code(ack) || !sock->eom()) {
+							dprintf(D_SECURITY, "DC_AUTHENTICATION: unable to receive ack.\n");
+							result = FALSE;
+							goto finalize;
+						}
+						sock->decode();
 					}
-					sock->decode();
 
 					dprintf (D_SECURITY, "DC_AUTHENTICATE: encryption enabled with key id %i.\n",
 								key->id());
