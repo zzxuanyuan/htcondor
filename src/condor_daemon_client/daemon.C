@@ -481,7 +481,10 @@ Daemon::sendCACmd( ClassAd* req, ClassAd* reply, bool force_auth )
 		return false;
 	}
 	if( force_auth && !cmd_sock.isAuthenticated() ) {
-		cmd_sock.authenticate();
+		if( ! cmd_sock.authenticate() ) {
+			newError( "Client: server failed to authenticate" );
+			return false;
+		}
 	}
 	if( ! req->put(cmd_sock) ) { 
 		newError( "Failed to send request ClassAd" );
