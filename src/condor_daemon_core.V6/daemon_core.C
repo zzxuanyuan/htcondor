@@ -2287,7 +2287,9 @@ int DaemonCore::Create_Process(
 			char		*cwd,
 			int			new_process_group,
 			Stream		*sock_inherit_list[],
-			int			std[])
+			int			std[],
+            int         nice_inc
+            )
 {
 	int i;
 	char *ptmp;
@@ -2737,6 +2739,16 @@ int DaemonCore::Create_Process(
 					"CONDOR_INHERIT env.\n");
 			exit(1); // Yes, we really want to exit here.
 		}
+
+            /* Re-nice ourself */
+        if ( nice_inc > 0 && nice_inc < 20 ) {
+            dprintf ( D_FULLDEBUG, "calling nice(%d)\n", nice_inc );
+            nice( nice_inc );
+        }
+        else if ( nice_inc >= 20 ) {
+            dprintf ( D_FULLDEBUG, "calling nice(19)\n" );
+            nice( 19 );
+        }
 
 #if defined( Solaris ) && defined( sun4m )
 			/* The following will allow purify to pop up windows 
