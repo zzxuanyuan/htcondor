@@ -52,6 +52,7 @@ typedef struct bucket {
 	bool param_boolean( const char *name, const bool default_value );
 	bool param_get_location(const char *parameter, MyString &filename,
 							int &line_number);
+	MyString param_mystring(const char *name, const char * default_value = "");
 
 /* here we provide C linkage to C++ defined functions. This seems a bit
 	odd since if a .c file includes this, these prototypes technically don't

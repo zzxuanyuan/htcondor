@@ -932,6 +932,17 @@ param_boolean( const char *name, const bool default_value )
 	return result;
 }
 
+MyString param_mystring(const char * name, const char * default_value /* = "" */)
+{
+	char * valtmp = param(name);
+	if( ! valtmp ) {
+		return default_value;
+	}
+	MyString ret = valtmp;
+	free(valtmp);
+	return ret;
+}
+
 
 char *
 macro_expand( const char *str )
