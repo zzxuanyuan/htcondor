@@ -48,8 +48,6 @@ BaseJob::BaseJob( ClassAd *classad )
 
 	exitStatusKnown = false;
 
-	dontDeleteFromSchedd = false;
-
 	deleteFromGridmanager = false;
 	deleteFromSchedd = false;
 
@@ -225,18 +223,14 @@ void BaseJob::DoneWithJob()
 			EmailTerminateEvent( ad, exitStatusKnown );
 			terminateLogged = true;
 		}
-		if ( dontDeleteFromSchedd == false ) {
-			deleteFromSchedd = true;
-		}
+		deleteFromSchedd = true;
 	}
 	if ( condorState == REMOVED ) {
 		if ( !abortLogged ) {
 			WriteAbortEventToUserLog( ad );
 			abortLogged = true;
 		}
-		if ( dontDeleteFromSchedd == false ) {
-			deleteFromSchedd = true;
-		}
+		deleteFromSchedd = true;
 	}
 	if ( condorState == HELD ) {
 		if ( !holdLogged ) {
