@@ -206,8 +206,6 @@ class Scheduler : public Service
 	int				transferJobFilesReaper(int,int);
 	void			PeriodicExprHandler( void );
 
-	static int		aboutToSpawnJobHandlerStatic(int cluster, int proc, void * this_scheduler);
-	static int		aboutToSpawnJobHandler(int cluster, int proc);
 	static int		jobIsTerminal( int cluster, int proc );
 	static int		jobIsTerminalStatic( int cluster, int proc,
 										 void* this_scheduler );
@@ -510,4 +508,15 @@ extern bool releaseJob( int cluster, int proc, const char* reason = NULL,
 					 bool use_transaction = false, 
 					 bool email_user = false, bool email_admin = false,
 					 bool write_to_user_log = true);
+
+/** Hook to call whenever we're going to give a job to a "job
+	handler", be that a shadow, starter (local univ), or gridmanager.
+	it takes the optional shadow record as a void* so this can be
+	seamlessly used for Create_Thread_With_Data().  In fact, we don't
+	need the srec at all for the function itself, but we'll need it as
+	our data pointer in the reaper (so we can actually spawn the right
+	handler), so we ignore it here, but will need it later...
+*/
+int aboutToSpawnJobHandler( int cluster, int proc, void* srec=NULL );
+
 #endif /* _CONDOR_SCHED_H_ */

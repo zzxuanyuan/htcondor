@@ -1740,21 +1740,6 @@ Scheduler::PeriodicExprHandler( void )
 	WalkJobQueue(PeriodicExprEval);
 }
 
-/**
-Interface to the non-static aboutToSpawnJobHandler.  Suitable for
-use with Create_Thread_With_Data.  Be sure to pass the Scheduler pointer
-in as the void *.
-
-For example:
-
-Start_Thread_With_Data(Scheduler::aboutToSpawnJobHandlerStatic, 0, cluster, proc, this);  // "this" is a pointer to Scheduler
-*/
-int Scheduler::aboutToSpawnJobHandlerStatic(int cluster, int proc, void * schedulerobj)
-{
-	ASSERT(schedulerobj);
-	Scheduler * s = (Scheduler*)schedulerobj;
-	return s->aboutToSpawnJobHandler(cluster, proc);
-}
 
 static bool get_user_uid_gid(const char * owner, const char * domain,
 	uid_t * uid, gid_t * gid)
@@ -1822,14 +1807,14 @@ getSandbox( int cluster, int proc, MyString & path )
 This is a last chance to do any final work before starting a
 job handler (starting condor_shadow, handing off to condor_gridmanager,
 etc).  May block for a long time, so you'll probably want to do this is
-a thread.  Indeed, see aboutToSpawnJobHandlerStatic for a interface
-suitable for handing to Create_Thread_With_Data.
+a thread.
 
 What do we do here?  At the moment if the job has a "sandbox" directory
 ("condor_submit -s", Condor-C, or the SOAP interface) we chown it from
 condor to the user.  In the future we might allocate a dynamic account here.
 */
-int Scheduler::aboutToSpawnJobHandler(int cluster, int proc)
+int
+aboutToSpawnJobHandler( int cluster, int proc, void* )
 {
 	ASSERT(cluster > 0);
 	ASSERT(proc >= 0);
