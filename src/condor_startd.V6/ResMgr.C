@@ -167,6 +167,15 @@ ResMgr::max( ResourceMember memberfunc, int* val )
 }
 
 
+void
+ResMgr::resource_sort( ComparisonFunc compar )
+{
+	if( nresources > 1 ) {
+		qsort( resources, nresources, sizeof(Resource*), compar );
+	} 
+}
+
+
 bool
 ResMgr::in_use( void )
 {
@@ -323,17 +332,24 @@ ResMgr::assign_load()
 		total_owner_load = 0;
 	}
 	if( is_smp() ) {
+			// Print out the totals we already know.
 		dprintf( D_LOAD, 
 				 "%s %.3f\t%s %.3f\t%s %.3f\n",  
 				 "SystemLoad:", m_attr->load(),
 				 "TotalCondorLoad:", m_attr->condor_load(),
 				 "TotalOwnerLoad:", total_owner_load );
+
+			// Initialize everything to 0.  Only need this for SMP
+			// machines, since on single CPU machines, we just assign
+			// all OwnerLoad to the 1 CPU.
+		for( i = 0; i < nresources; i++ ) {
+			resources[i]->set_owner_load( 0 );
+		}
 	}
 
-		// Initialize everything to 0.
-	for( i = 0; i < nresources; i++ ) {
-		resources[i]->set_owner_load( 0 );
-	}
+		// Sort the resources so we get to them in the following state
+		// order: Owner, Unclaimed, Matched, Busy, Preempting
+	resource_sort( owner_state_cmp );
 
 		// So long as there's at least two more resources and the
 		// total owner load is greater than 1.0, assign an owner load
@@ -395,5 +411,21 @@ ResMgr::cancel_poll_timer()
 		poll_tid = -1;
 		dprintf( D_FULLDEBUG, "Canceled polling timer.\n" );
 	}
+}
+
+
+int
+owner_state_cmp( const void* a, const void* b )
+{
+	Resource *rip1, *rip2;
+	int val1, val2;
+	rip1 = (Resource*)a;
+	rip2 = (Resource*)b;
+		// Since the State enum is already in the "right" order for
+		// this kind of sort, we don't need to do anything fancy, we
+		// just cast the state enum to an int and we're done.
+	val1 = (int)rip1->state();
+	val2 = (int)rip2->state();
+	return val2 - val1;
 }
 

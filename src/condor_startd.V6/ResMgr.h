@@ -34,7 +34,7 @@ typedef int (Resource::*ResourceMember)();
 typedef float (Resource::*ResourceFloatMember)();
 typedef void (Resource::*ResourceMaskMember)(amask_t);
 typedef void (Resource::*VoidResourceMember)();
-
+typedef int (*ComparisonFunc)(const void *, const void *);
 
 class ResMgr : public Service
 {
@@ -83,6 +83,10 @@ public:
 	// function, and returns a pointer to that Resource.
 	Resource*	max( ResourceMember, int* val = NULL );
 
+	// Sort our Resource pointer array with the given comparison
+	// function.  
+	void resource_sort( ComparisonFunc );
+
 	// Hack function
 	Resource*	rip() {return resources[0];};
 
@@ -113,5 +117,10 @@ private:
 	int		poll_tid;	// DaemonCore timer id for polling timer
 
 };
+
+// Comparison functions for sorting resources:
+
+// Sort on State, with Owner state resources coming first, etc.
+int owner_state_cmp( const void*, const void* );
 
 #endif _RESMGR_H
