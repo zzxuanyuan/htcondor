@@ -2062,11 +2062,10 @@ Scheduler::spoolJobFiles(int, Stream* s)
 				// this action.
 				// TODO: it'd be nice to print out what failed, but we
 				// need better error propagation for that...
-			dprintf( D_ALWAYS, "spoolJobFiles(): "
-					 "failed to authenticate, aborting\n" );
 			errstack.push( "SCHEDD", SCHEDD_ERR_SPOOL_FILES_FAILED,
-					"Failure to spool job files: Authentication failed");
-			dprintf( D_ALWAYS, "%s", errstack.get_full_text());
+					"Failure to spool job files - Authentication failed" );
+			dprintf( D_ALWAYS, "spoolJobFiles() aborting: %s\n",
+					 errstack.getFullText() );
 			refuse( s );
 			return FALSE;
 		}
@@ -2179,11 +2178,10 @@ Scheduler::actOnJobs(int, Stream* s)
 				// this action.
 				// TODO: it'd be nice to print out what failed, but we
 				// need better error propagation for that...
-			dprintf( D_ALWAYS, "actOnJobs(): "
-					 "failed to authenticate, aborting\n" );
 			errstack.push( "SCHEDD", SCHEDD_ERR_JOB_ACTION_FAILED,
-					"Failed to act on jobs:  Authentication failed");
-			dprintf( D_ALWAYS, "%s", errstack.get_full_text());
+					"Failed to act on jobs - Authentication failed");
+			dprintf( D_ALWAYS, "actOnJobs() aborting: %s\n",
+					 errstack.getFullText() );
 			refuse( s );
 			return FALSE;
 		}
@@ -3819,7 +3817,7 @@ Scheduler::checkReconnectQueue( void )
 	CondorError errstack;
 	if( query.fetchAds(ads, NULL, &errstack) != Q_OK ) {
 		dprintf( D_ALWAYS, "ERROR: failed to query collector (%s)\n",
-				 errstack.get_full_text() );
+				 errstack.getFullText() );
 			// TODO! deal violently with this failure. ;)
 		jobsToReconnect.Rewind();
 		while( jobsToReconnect.Next(job) ) {

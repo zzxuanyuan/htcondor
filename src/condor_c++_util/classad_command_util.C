@@ -128,8 +128,8 @@ getCmdFromReliSock( ReliSock* s, ClassAd* ad, bool force_auth )
                 // this action.
 			sendErrorReply( s, "CA_CMD", CA_NOT_AUTHENTICATED,
 							"Server: client failed to authenticate" );
-			dprintf (D_ALWAYS, "getCmdFromSock: authenticate failed\n");
-			dprintf (D_ALWAYS, "%s", errstack.get_full_text());
+			dprintf( D_ALWAYS, "getCmdFromSock: authenticate failed\n" );
+			dprintf( D_ALWAYS, "%s\n", errstack.getFullText() );
 			return FALSE;
         }
     }

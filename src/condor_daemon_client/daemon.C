@@ -485,7 +485,7 @@ Daemon::startCommand( int cmd, Sock* sock, int sec, CondorError *errstack )
 
 	// dump the errors in the log if not being collected
 	if (!result && !errstack) {
-		dprintf( D_ALWAYS, "ERROR:\n%s", errstack_select->get_full_text());
+		dprintf( D_ALWAYS, "ERROR: %s\n", errstack_select->getFullText() );
 	}
 				
 	return result;
@@ -581,16 +581,15 @@ Daemon::sendCACmd( ClassAd* req, ClassAd* reply, ReliSock* cmd_sock,
 
 	CondorError errstack;
 	if( ! startCommand(CA_CMD, cmd_sock, 20, &errstack) ) {
-		MyString err_msg = "Failed to send command (CA_CMD)";
-		err_msg += "\n";
-		err_msg += errstack.get_full_text();
+		MyString err_msg = "Failed to send command (CA_CMD): ";
+		err_msg += errstack.getFullText();
 		newError( CA_COMMUNICATION_ERROR, err_msg.Value() );
 		return false;
 	}
 	if( force_auth ) {
 		CondorError e;
 		if( ! forceAuthentication(cmd_sock, &e) ) {
-			newError( CA_NOT_AUTHENTICATED, e.get_full_text() );
+			newError( CA_NOT_AUTHENTICATED, e.getFullText() );
 			return false;
 		}
 	}
@@ -929,7 +928,7 @@ Daemon::getDaemonInfo( const char* subsys, AdTypes adtype )
 		query.addANDConstraint(buf);
 		CondorError errstack;
 		if (query.fetchAds(ads, _pool, &errstack) != Q_OK) {
-			newError( CA_LOCATE_FAILED, errstack.get_full_text() );
+			newError( CA_LOCATE_FAILED, errstack.getFullText() );
 			return false;
 		};
 		ads.Open();

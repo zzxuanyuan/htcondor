@@ -683,7 +683,7 @@ main( int argc, char *argv[] )
 										  JobAdsArray.getarray(),
 										  &errstack );
 		if ( !result ) {
-			fprintf( stderr, "\n%s", errstack.get_full_text() );
+			fprintf( stderr, "\n%s\n", errstack.getFullText(true) );
 			fprintf( stderr, "ERROR: Failed to spool job files.\n" );
 			exit(1);
 		}
@@ -3306,12 +3306,12 @@ connect_to_the_schedd()
 	if( ConnectQ(MySchedd->addr(), 0 /* default */, false /* default */, &errstack) == 0 ) {
 		if( ScheddName ) {
 			fprintf( stderr, 
-					"\nERROR: Failed to connect to queue manager %s\n%s",
-					 ScheddName, errstack.get_full_text() );
+					"\nERROR: Failed to connect to queue manager %s\n%s\n",
+					 ScheddName, errstack.getFullText(true) );
 		} else {
 			fprintf( stderr, 
-				"\nERROR: Failed to connect to local queue manager\n%s",
-				errstack.get_full_text());
+				"\nERROR: Failed to connect to local queue manager\n%s\n",
+				errstack.getFullText(true) );
 		}
 		exit(1);
 	}
