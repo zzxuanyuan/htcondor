@@ -54,6 +54,7 @@ void Daemon::common_init() {
 	_id_str = NULL;
 	_hostname = NULL;
 	_full_hostname = NULL;
+	_cmd_str = NULL;
 }
 
 Daemon::Daemon( const char* addr_string, int port ) 
@@ -138,7 +139,7 @@ Daemon::~Daemon()
 	if( _full_hostname ) delete [] _full_hostname;
 	if( _version ) delete [] _version;
 	if( _platform ) { delete [] _platform; }
-
+	if( _cmd_str ) { delete [] _cmd_str; }
 }
 
 
@@ -877,7 +878,7 @@ Daemon::getCmInfo( const char* subsys, int port )
 //////////////////////////////////////////////////////////////////////
 
 void
-Daemon::newError( char* str )
+Daemon::newError( const char* str )
 {
 	if( _error ) {
 		delete [] _error;
@@ -974,4 +975,42 @@ Daemon::New_pool( char* str )
 	} 
 	_pool = str;
 	return str;
+}
+
+
+bool
+Daemon::checkAddr( void )
+{
+	if( ! _addr ) {
+		locate();
+	}
+	if( ! _addr ) {
+		MyString err_msg;
+		if( _cmd_str ) {
+			err_msg += _cmd_str;
+			err_msg += ": ";
+		}
+		err_msg += "Can't locate daemon: ";
+		if( _error ) {
+			err_msg += _error;
+		} else { 
+			err_msg += "unknown error";
+		}
+		newError( err_msg.Value() );
+		return false;
+	}
+	return true;
+}
+
+
+void
+Daemon::setCmdStr( const char* cmd )
+{
+	if( _cmd_str ) { 
+		delete [] _cmd_str;
+		_cmd_str = NULL;
+	}
+	if( cmd ) {
+		_cmd_str = strnewp( cmd );
+	}
 }

@@ -368,7 +368,7 @@ protected:
 		  is already set, deallocate the existing string.  Then, make
 		  a copy of the given string and store that in _error.
 		  */
-	void newError( char* );
+	void newError( const char* );
 
 		/** Returns a string containing the local daemon's name.  If
 		  the <subsys>_NAME parameter is set in the config file, we
@@ -396,6 +396,23 @@ protected:
 	char* New_platform( char* );
 	char* New_addr( char* );
 	char* New_pool( char* );
+
+		/**
+		   Set a string so we know what command we're inside for use
+		   in constructing error messages, and so we know the last
+		   command we tried to perform.
+		 */
+	void setCmdStr( const char* cmd );
+	char* _cmd_str;
+
+		/** 
+		   Helper method for commands to see if we've already got the
+		   right address for our daemon.  If not, we try to locate
+		   it.  
+		   @return true if we've got the address or found it, false 
+		   if we failed to locate it.
+		*/
+	bool checkAddr( void );
 
  private:
 
