@@ -375,6 +375,32 @@ DCStartd::releaseClaim( VacateType type, ClassAd* reply,
 
 
 bool
+DCStartd::locateStarter( const char* global_job_id, ClassAd* reply,
+						 int timeout = -1 )
+{
+	setCmdStr( "locateStarter" );
+
+	ClassAd req;
+	MyString line;
+
+		// Add our own attributes to the request ad we're sending
+	line = ATTR_COMMAND;
+	line += "=\"";
+	line += getCommandString( CA_LOCATE_STARTER );
+	line += '"';
+	req.Insert( line.Value() );
+
+	line = ATTR_GLOBAL_JOB_ID;
+	line += "=\"";
+	line += global_job_id;
+	line += '"';
+	req.Insert( line.Value() );
+
+	return sendCACmd( &req, reply, true, timeout );
+}
+
+
+bool
 DCStartd::checkClaimId( void )
 {
 	if( claim_id ) {

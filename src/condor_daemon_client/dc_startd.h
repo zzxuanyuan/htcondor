@@ -96,6 +96,9 @@ public:
 	bool releaseClaim( VacateType type, ClassAd* reply,
 					   int timeout = -1 );
 
+	bool locateStarter( const char* global_job_id, ClassAd* reply, 
+					   int timeout = -1 );
+
  private:
 	char* claim_id;
 
