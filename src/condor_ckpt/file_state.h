@@ -145,11 +145,12 @@ public:
 	int	fcntl( int fd, int cmd, int arg );
 	int	ioctl( int fd, int cmd, int arg );
 	int	flock( int fd, int op );
-	int	fstatfs( int fsync, struct statfs * buf, int x=0, int y=0 );
+	int	fstatfs( int fd, struct statfs * buf, int x=0, int y=0 );
 	int	fchown( int fd, uid_t owner, gid_t group );
 	int	fchmod( int fd, mode_t mode );
 	int	ftruncate( int fd, size_t length );
 	int	fsync( int fd );
+	int	fdsync( int fd );
 
 	/** Unimplemented yet */
 	int	getdents( int fd, struct dirent *list, off_t size ) {}
