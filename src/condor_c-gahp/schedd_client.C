@@ -526,7 +526,9 @@ update_report_result:
 			//CloseConnection();
 			enqueue_result (current_command->request_id, result, 2);
 			current_command->status = SchedDRequest::SDCS_COMPLETED;
-			AbortTransaction();
+			if ( qmgr_connection != NULL ) {
+				AbortTransaction();
+			}
 		} else {
 			const char * result[] = {
 				GAHP_RESULT_SUCCESS,
@@ -613,7 +615,9 @@ submit_report_result:
 								job_id_buff,
 									error_msg };
 			enqueue_result (current_command->request_id, result, 3);
-			AbortTransaction();
+			if ( qmgr_connection != NULL ) {
+				AbortTransaction();
+			}
 			current_command->status = SchedDRequest::SDCS_COMPLETED;
 		} else {
 			const char * result[] = {
@@ -700,7 +704,9 @@ submit_report_result:
 
 //	FinishQmgmtTransaction (TRUE);
 
-	DisconnectQ (qmgr_connection, FALSE);
+	if ( qmgr_connection != NULL ) {
+		DisconnectQ (qmgr_connection, FALSE);
+	}
 	if (qmgmt_sock)
 		delete qmgmt_sock;
 	qmgmt_sock = NULL;
