@@ -1,8 +1,9 @@
-#import "gsoap_schedd_types.h"
-
-#import "gsoap_daemon_core.h"
-
 //gsoap condor service name: condorSchedd
+//gsoap condor service style: rpc
+//gsoap condor service encoding: encoded
+//gsoap condor service namespace: urn:condor
+
+#import "gsoap_schedd_types.h"
 
 int condor__beginTransaction(xsd__int duration,
                                    struct condor__TransactionAndStatusResponse & result);

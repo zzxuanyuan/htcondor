@@ -19,8 +19,8 @@ enum condor__UniverseType {
 
 struct condor__Transaction
 {
-  xsd__int id 1:1;
-  xsd__int duration 1:1; // change to xsd:duration ?
+  xsd__int id 0:1;
+  xsd__int duration 0:1; // change to xsd:duration ?
 };
 
 struct Requirements
