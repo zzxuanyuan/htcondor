@@ -10,6 +10,8 @@
 #include "internet.h"
 #include "client_common.h"
 #include <unistd.h>
+#include "dc_credd.h"
+#include "credential.h"
 
 const char * MyName = "condor_store_cred";
 char Myproxy_pw[512];	// pasaword for credential access from MyProxy
@@ -19,6 +21,7 @@ bool Read_Myproxy_pw_terminal = true;
 int parseMyProxyArgument(const char*, char*&, char*&, int&);
 char * prompt_password (const char *);
 char * stdin_password (const char *);
+bool read_file (const char * filename, char *& data, int & size);
 
 void
 usage()
@@ -28,7 +31,7 @@ usage()
 	fprintf( stderr, "      -v\tverbose output\n\n" );
 	fprintf( stderr, "      -s <host>\tsubmit to the specified credd\n" );
 	fprintf( stderr, "      \t(e.g. \"-s myhost.cs.wisc.edu\")\n\n");
-		//  fprintf( stderr, "      -t <x509|password> specify credential type );
+	fprintf( stderr, "      -t <x509|password> specify credential type");
 	fprintf( stderr, "      -f <file>\tspecify where credential is stored\n\n");
 	fprintf( stderr, "      -n <name>\tspecify credential name\n\n");
 	fprintf( stderr, "      -m [user@]host[:port]\tspecify MyProxy user/server\n" );
@@ -157,48 +160,51 @@ int main(int argc, char **argv)
 
 	}
 
-	X509Credential * cred = new X509Credential();
+    Credential * cred = NULL;
+	if (cred_type == X509_CREDENTIAL_TYPE) {
+		cred = new X509Credential();
+	} else {
+		fprintf ( stderr, "Invalid credential type\n");
+		exit (1);
+	}
 
-	cred->SetStorageName(cred_file_name);
     
-	int fd = open (cred_file_name, O_RDONLY);
-	if (fd == -1) {
+	char * data = NULL;
+	int data_size;
+	if (!read_file (cred_file_name, data, data_size)) {
 		fprintf (stderr, "Can't open %s\n", cred_file_name);
 		exit (1);
 	}
- 
-	char buff [100000];
-	int data_size = read (fd, buff, 100000);
-	buff[data_size]='\0';
-	close (fd);
 
-	cred->SetData (buff, data_size);
+	cred->SetData (data, data_size);
 
 	if (cred_name !=NULL) {
 		cred->SetName(cred_name);
 	} else {
-		cred->SetName("<default>");
+		cred->SetName(DEFAULT_CREDENTIAL_NAME);
 	}
 
 	char * username = my_username(0);
 	cred->SetOwner (username);
   
-	if (myproxy_host != NULL) {
+	if (cred_type == X509_CREDENTIAL_TYPE && myproxy_host != NULL) {
+		X509Credential * x509cred = (X509Credential*)cred;
+
 		MyString str_host_port = myproxy_host;
 		if (myproxy_port != 0) {
 			str_host_port += ":";
 			str_host_port += myproxy_port;
 		}
-		cred->SetMyProxyServerHost (str_host_port.Value());
+		x509cred->SetMyProxyServerHost (str_host_port.Value());
 
 		if (myproxy_user != NULL) {
-			cred->SetMyProxyUser (myproxy_user);
+			x509cred->SetMyProxyUser (myproxy_user);
 		} else {
-			cred->SetMyProxyUser (username);
+			x509cred->SetMyProxyUser (username);
 		}
 
 		if (myproxy_dn != NULL) {
-			cred->SetMyProxyServerDN (myproxy_dn);
+			x509cred->SetMyProxyServerDN (myproxy_dn);
 		}
 
 		char * myproxy_password;
@@ -212,53 +218,20 @@ int main(int argc, char **argv)
 				"Please enter the MyProxy password from the standard input\n");
 		}
 		if (myproxy_password) {
-			cred->SetRefreshPassword ( myproxy_password );
+			x509cred->SetRefreshPassword ( myproxy_password );
 		}
 	}
 
-	int size = cred->GetDataSize();
-
-	ReliSock * sock = NULL;
-	if (!start_command_and_authenticate (server_address, CREDD_STORE_CRED, sock)) {
-		return 1;
-	}
-
-	sock->encode();
-
-
-	classad::ClassAd classad(*(cred->GetClassAd()));
-	classad::ClassAdUnParser unparser;
-	std::string adbuffer;
-	unparser.Unparse(adbuffer,&classad);
-	char * classad_str = strdup(adbuffer.c_str());
-
-	void * data;
-	cred->GetData (data, size);	
-
-	if (!(sock->code (classad_str) && 
-		  sock->code_bytes (data, size))) {
-		fprintf (stderr, "Unable to submit credential (communication error)!\n");
-		delete sock;
-		return 1;
-	}
-
-
-
-	free (classad_str);
-	free (data);
-
-	sock->eom();
-	sock->decode();
-	int rc;
-	sock->code(rc);
-	if (rc == 0) {
+	CondorError errstack;
+	DCCredd dc_credd (server_address);
+	if (dc_credd.storeCredential(cred, errstack)) {
 		printf ("Credential submitted successfully\n");
 	} else {
-		fprintf (stderr, "Unable to submit credential (error code %d)!\n", rc);
+		fprintf (stderr, "Unable to submit credential (%d : %s)!\n",
+				 errstack.code(), 
+				 errstack.message());
 	}
 
-	sock->close();
-	delete sock;
 	return 0;
 }
 
@@ -326,4 +299,33 @@ stdin_password(const char * prompt) {
 	}
 
 	return Myproxy_pw;
+}
+
+bool
+read_file (const char * filename, char *& data, int & size) {
+
+	int fd = open (filename, O_RDONLY);
+	if (fd == -1) {
+		return false;
+	}
+
+	struct stat my_stat;
+	if (fstat (fd, &my_stat) != 0) {
+		close (fd);
+		return false;
+	}
+
+	size = (int)my_stat.st_size;
+	data = (char*)malloc(size+1);
+	data[size]='\0';
+	if (!data) 
+		return false;
+ 	
+	if (!read (fd, data, size)) {
+		free (data);
+		return false;
+	}
+
+	close (fd);
+	return true;
 }

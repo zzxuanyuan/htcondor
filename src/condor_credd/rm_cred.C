@@ -76,6 +76,11 @@ int main(int argc, char **argv)
     }
   } //rof
 
+  if (cred_name == NULL) {
+	  cred_name = DEFAULT_CREDENTIAL_NAME;
+  }
+
+
   config ();
 
   ReliSock * sock = NULL;

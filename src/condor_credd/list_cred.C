@@ -6,6 +6,7 @@
 #include "condor_distribution.h"
 #include "client_common.h"
 #include "classadUtil.h"
+#include "dc_credd.h"
 
 const char * MyName = "condor_list_cred";
 
@@ -61,34 +62,28 @@ int main(int argc, char **argv)
 
 	config ();
 
-	ReliSock * sock = NULL;
-	if (!start_command_and_authenticate (server_address, CREDD_QUERY_CRED, sock)) {
+	CondorError errorstack;
+	int number = 0;
+	SimpleList <Credential*> result;
+
+	DCCredd credd(server_address);
+	if (!credd.listCredentials (result,
+								number,
+								errorstack)) {
+		fprintf (stderr, "Unable to retrieve credentials (%s)\n",
+				 errorstack.message());
 		return 1;
 	}
+	 
 
 
-		// Send request
-	sock->encode();
-	char * request = "_";
-	sock->code (request);
-	sock->eom();
-
-		// Receive response
-	sock->decode();
-
-	int number = -1;
-	sock->code (number); 
-  
 	if (number > 0) {
+		Credential * cred;
+		result.Rewind();
 		printf ("Name\tType\n-----\t-----\n");
-		for (int i=0; i<number; i++) {
-			classad::ClassAd classad;
-			//classad.initFromStream (*sock);
-			getOldClassAd(sock, classad);
-      
-			X509Credential cred (classad);
-
-			printf ("%s\t%s\n", cred.GetName(), cred.GetTypeString());
+		while (result.Next (cred)) {
+			
+			printf ("%s\t%s\n", cred->GetName(), cred->GetTypeString());
 		}
 
 		printf ("\nTotal %d\n", number);
@@ -98,8 +93,6 @@ int main(int argc, char **argv)
 		fprintf (stderr, "ERROR\n");
 	}
 
-	sock->close();
-	delete sock;
 	return 0;
 }
 
