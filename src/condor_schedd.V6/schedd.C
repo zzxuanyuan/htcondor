@@ -24,7 +24,7 @@
 #include "condor_common.h"
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
 #include "sched.h"
-#include "dedicated_scheduler.h"
+// #include "dedicated_scheduler.h"
 #include "condor_config.h"
 #include "condor_debug.h"
 #include "proc.h"
@@ -93,7 +93,7 @@ extern char *DebugFile;
 extern char *DebugLock;
 
 extern Scheduler scheduler;
-extern DedicatedScheduler dedicated_scheduler;
+// extern DedicatedScheduler dedicated_scheduler;
 
 // priority records
 extern prio_rec *PrioRec;
@@ -1885,7 +1885,7 @@ Scheduler::vacate_service(int, Stream *sock)
 	if( DelMrec(capability) < 0 ) {
 			// We couldn't find this match in our table, perhaps it's
 			// from a dedicated resource.
-		dedicated_scheduler.DelMrec( capability );
+			// dedicated_scheduler.DelMrec( capability );
 	}
 	FREE (capability);
 	dprintf (D_PROTOCOL, "## 7(*)  Completed vacate_service\n");
@@ -2013,10 +2013,13 @@ claimStartd( match_rec* mrec, ClassAd* job_ad, bool is_dedicated )
 	sprintf ( to_startd, "to startd %s", mrec->peer );
 
 	if( is_dedicated ) {
+#if 0
 		daemonCore->
 			Register_Socket( sock, "<Startd Contact Socket>",
 			  (SocketHandlercpp)&DedicatedScheduler::startdContactSockHandler,
 			  to_startd, &dedicated_scheduler, ALLOW );
+#endif
+		EXCEPT( "in claimStartd() w/ isDedicated == True!" );
 	} else {
 		daemonCore->
 			Register_Socket( sock, "<Startd Contact Socket>",
@@ -5093,10 +5096,12 @@ Scheduler::sendAlives()
 	dprintf( D_PROTOCOL, "## 6. (Done sending alive messages to "
 			 "%d startds)\n", numsent );
 
+#if 0
 		// Just so we don't have to deal with a seperate DC timer for
 		// this, just call the dedicated_scheduler's version of the
 		// same thing so we keep all of those claims alive, too.
 	dedicated_scheduler.sendAlives();
+#endif
 }
 
 
