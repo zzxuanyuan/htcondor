@@ -1,4 +1,5 @@
 #define Platform	ALPHA-DUX5
+SYSNAME = alpha_dux51
 #define PlatformFlags	-DDUX=DUX -DDUX5=DUX5 -Wno-deprecated
 
 #define IS_ALPHA_OSF1	YES

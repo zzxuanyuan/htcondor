@@ -9,11 +9,13 @@
 #if IS_X86
 #define		IS_X86_SOLARIS28	YES
 #define		Platform		INTEL-SOLARIS28
+SYSNAME = sunx86_58
 #endif
 
 #if IS_SUN4X
 #define		IS_SUN4X_SOLARIS28	YES
 #define		Platform		SUN4X-SOLARIS28
+SYSNAME = sun4x_58
 #define HAS_GLOBUS 			YES
 #define HAS_GSI				YES
 #define HAS_OPENSSL			YES

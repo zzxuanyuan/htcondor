@@ -14,11 +14,13 @@
 #if IS_X86
 #define		IS_X86_SOLARIS26	YES
 #define		Platform		INTEL-SOLARIS26
+SYSNAME = sunx86_56
 #endif
 
 #if IS_SUN4X
 #define		IS_SUN4X_SOLARIS26	YES
 #define		Platform		SUN4X-SOLARIS26
+SYSNAME = sun4x_56
 #endif
 
 #define PlatformFlags	-DSolaris26=Solaris26

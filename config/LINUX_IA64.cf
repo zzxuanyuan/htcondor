@@ -14,12 +14,16 @@
 
 #if defined( IS_GLIBC22 )
 #   define Platform		IA64-LINUX-GLIBC22
+SYSNAME = ia64_linux24
 #elif defined( IS_GLIBC21 )
 #   define Platform		IA64-LINUX-GLIBC21
+/* ERROR? */
 #elif defined( IS_GLIBC20 )
 #   define Platform		IA64-LINUX-GLIBC20
+/* ERROR? */
 #else
 #   define Platform		IA64-LINUX-LIBC5
+/* ERROR? */
 #endif
 
 

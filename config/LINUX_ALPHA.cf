@@ -8,10 +8,13 @@
 
 #if defined( IS_GLIBC21 )
 #   define Platform		ALPHA-LINUX-GLIBC21
+SYSNAME = alpha_linux22
 #elif defined( IS_GLIBC20 )
 #   define Platform		ALPHA-LINUX-GLIBC20
+SYSNAME = alpha_linux3
 #else
 #   define Platform		ALPHA-LINUX-LIBC5
+/* ERROR!?!?  We don't support this combination at all, do we? */
 #endif
 
 /* For now, try a "clipped" version */
