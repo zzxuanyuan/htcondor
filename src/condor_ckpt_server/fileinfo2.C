@@ -1,29 +1,14 @@
-/***************************Copyright-DO-NOT-REMOVE-THIS-LINE**
- * CONDOR Copyright Notice
- *
- * See LICENSE.TXT for additional notices and disclaimers.
- *
- * Copyright (c)1990-1998 CONDOR Team, Computer Sciences Department, 
- * University of Wisconsin-Madison, Madison, WI.  All Rights Reserved.  
- * No use of the CONDOR Software Program Source Code is authorized 
- * without the express consent of the CONDOR Team.  For more information 
- * contact: CONDOR Team, Attention: Professor Miron Livny, 
- * 7367 Computer Sciences, 1210 W. Dayton St., Madison, WI 53706-1685, 
- * (608) 262-0856 or miron@cs.wisc.edu.
- *
- * U.S. Government Rights Restrictions: Use, duplication, or disclosure 
- * by the U.S. Government is subject to restrictions as set forth in 
- * subparagraph (c)(1)(ii) of The Rights in Technical Data and Computer 
- * Software clause at DFARS 252.227-7013 or subparagraphs (c)(1) and 
- * (2) of Commercial Computer Software-Restricted Rights at 48 CFR 
- * 52.227-19, as applicable, CONDOR Team, Attention: Professor Miron 
- * Livny, 7367 Computer Sciences, 1210 W. Dayton St., Madison, 
- * WI 53706-1685, (608) 262-0856 or miron@cs.wisc.edu.
-****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
-#include "condor_common.h"
 #include "fileinfo2.h"
 #include "network2.h"
 #include "gen_lib.h"
+#include <iostream.h>
+#include <iomanip.h>
+#include <fstream.h>
+#include <time.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <errno.h>
 
 
 FileInformation::FileInformation()
@@ -55,29 +40,49 @@ void FileInformation::DeleteFileInfo()
     }
   head = NULL;
   tail = NULL;
+  if (num_files != 0)
+    {
+      cerr << endl << "WARNING:" << endl;
+      cerr << "WARNING:" << endl;
+      cerr << "WARNING: upon deletion, incorrect number of files maintained"
+           << endl;
+      cerr << "WARNING:" << endl;
+      cerr << "WARNING:" << endl;
+    }
 }
 
 
 int FileInformation::RemoveFileInfo(file_info_node* d_ptr)
 {
-	if (d_ptr) {
-		if ((head == d_ptr) && (tail == d_ptr)) {
-			head = NULL;
-			tail = NULL;
-        } else if (head == d_ptr) {
-			head = head->next;
-			head->prev = NULL;
-        } else if (tail == d_ptr) {
-			tail = tail->prev;
-			tail->next = NULL;
-        } else {
-			d_ptr->prev->next = d_ptr->next;
-			d_ptr->next->prev = d_ptr->prev;
+
+  if (d_ptr->lock != UNLOCKED)
+    return FILE_LOCKED;
+  if (d_ptr != NULL)
+    {
+      if ((head == d_ptr) && (tail == d_ptr))
+        {
+          head = NULL;
+          tail = NULL;
         }
-		delete d_ptr;
+      else if (head == d_ptr)
+        {
+          head = head->next;
+          head->prev = NULL;
+        }
+      else if (tail == d_ptr)
+        {
+          tail = tail->prev;
+          tail->next = NULL;
+        }
+      else
+        {
+          d_ptr->prev->next = d_ptr->next;
+          d_ptr->next->prev = d_ptr->prev;
+        }
+      delete d_ptr;
+      num_files--;
     }
-	num_files--;
-	return (REMOVED_FILE);
+  return (REMOVED_FILE);
 }
 
 
@@ -124,6 +129,7 @@ file_info_node* FileInformation::AddFileInfo(struct in_addr machine_IP,
       tail = n;
     }
   num_files++;
+  n->lock = EXCLUSIVE_LOCK;
   return n;
 }
 
@@ -132,8 +138,12 @@ int FileInformation::RenameFileInfo(file_info_node* r_ptr,
                                     const char*     new_file_name)
 {
 	if (r_ptr != NULL)
-		strcpy(r_ptr->data.file_name, new_file_name);
-	return CKPT_OK;
+		if (r_ptr->lock != UNLOCKED)
+			return FILE_LOCKED;
+		else
+			strcpy(r_ptr->data.file_name, new_file_name);
+/*	return RENAMED; */
+	return OK;
 }
 
 

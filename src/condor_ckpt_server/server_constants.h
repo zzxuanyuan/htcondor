@@ -1,25 +1,3 @@
-/***************************Copyright-DO-NOT-REMOVE-THIS-LINE**
- * CONDOR Copyright Notice
- *
- * See LICENSE.TXT for additional notices and disclaimers.
- *
- * Copyright (c)1990-1998 CONDOR Team, Computer Sciences Department, 
- * University of Wisconsin-Madison, Madison, WI.  All Rights Reserved.  
- * No use of the CONDOR Software Program Source Code is authorized 
- * without the express consent of the CONDOR Team.  For more information 
- * contact: CONDOR Team, Attention: Professor Miron Livny, 
- * 7367 Computer Sciences, 1210 W. Dayton St., Madison, WI 53706-1685, 
- * (608) 262-0856 or miron@cs.wisc.edu.
- *
- * U.S. Government Rights Restrictions: Use, duplication, or disclosure 
- * by the U.S. Government is subject to restrictions as set forth in 
- * subparagraph (c)(1)(ii) of The Rights in Technical Data and Computer 
- * Software clause at DFARS 252.227-7013 or subparagraphs (c)(1) and 
- * (2) of Commercial Computer Software-Restricted Rights at 48 CFR 
- * 52.227-19, as applicable, CONDOR Team, Attention: Professor Miron 
- * Livny, 7367 Computer Sciences, 1210 W. Dayton St., Madison, 
- * WI 53706-1685, (608) 262-0856 or miron@cs.wisc.edu.
-****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 /******************************************************************************
 *                                                                             *
 *   Author:  Hsu-lin Tsao                                                     *
@@ -47,7 +25,7 @@
 
 /* Symbolic Constants */
 
-#define CKPT_OK                             0
+#define OK                                  0
 #define CKPT_SVR_STORE_REQ_PORT             5651
 #define CKPT_SVR_RESTORE_REQ_PORT           5652
 #define AUTHENTICATION_TCKT                 1637102411L
@@ -90,7 +68,7 @@
 #define LOG_FILE_OPEN_ERROR                 26
 #define ACCEPT_ERROR                        27
 #define BIND_ERROR                          28
-#define CKPT_SERVER_SOCKET_ERROR            29
+#define SOCKET_ERROR                        29
 #define BAD_SOCKET_DESC_ERROR               30
 #define NOT_TCPIP                           31
 #define LISTEN_ERROR                        32

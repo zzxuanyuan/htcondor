@@ -1,25 +1,3 @@
-/***************************Copyright-DO-NOT-REMOVE-THIS-LINE**
- * CONDOR Copyright Notice
- *
- * See LICENSE.TXT for additional notices and disclaimers.
- *
- * Copyright (c)1990-1998 CONDOR Team, Computer Sciences Department, 
- * University of Wisconsin-Madison, Madison, WI.  All Rights Reserved.  
- * No use of the CONDOR Software Program Source Code is authorized 
- * without the express consent of the CONDOR Team.  For more information 
- * contact: CONDOR Team, Attention: Professor Miron Livny, 
- * 7367 Computer Sciences, 1210 W. Dayton St., Madison, WI 53706-1685, 
- * (608) 262-0856 or miron@cs.wisc.edu.
- *
- * U.S. Government Rights Restrictions: Use, duplication, or disclosure 
- * by the U.S. Government is subject to restrictions as set forth in 
- * subparagraph (c)(1)(ii) of The Rights in Technical Data and Computer 
- * Software clause at DFARS 252.227-7013 or subparagraphs (c)(1) and 
- * (2) of Commercial Computer Software-Restricted Rights at 48 CFR 
- * 52.227-19, as applicable, CONDOR Team, Attention: Professor Miron 
- * Livny, 7367 Computer Sciences, 1210 W. Dayton St., Madison, 
- * WI 53706-1685, (608) 262-0856 or miron@cs.wisc.edu.
-****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 /******************************************************************************
 *                                                                             *
 *   Author:  Hsu-lin Tsao                                                     *
@@ -45,11 +23,18 @@
 
 /* Header Files */
 
-#include "condor_common.h"
+#include <sys/types.h>
 #include "constants2.h"
+#include <time.h>
+#include <stdlib.h>
+#include <iostream.h>
 #include "network2.h"
 #include "xferstat2.h"
-#include "xfer_summary.h"
+#include <stdio.h>
+#include <signal.h>
+#include <string.h>
+
+
 
 
 /* Class TransferState ********************************************************
@@ -109,7 +94,7 @@ TransferState::TransferState()
 
 TransferState::~TransferState()
 {
-	DestroyList();
+  DestroyList();
 }
 
 
@@ -151,32 +136,31 @@ TransferState::~TransferState()
 
 transferinfo* TransferState::Find(int child_pid)
 { 
-	transferinfo* ptr;
-	
-	ptr = head;
-	while ((ptr != NULL) && (ptr->child_pid != child_pid))
-		ptr = ptr->next;
-	return ptr;
+  transferinfo* ptr;
+
+  ptr = head;
+  while ((ptr != NULL) && (ptr->child_pid != child_pid))
+    ptr = ptr->next;
+  return ptr;
 }
 
 
 
 
 transferinfo* TransferState::Find(struct in_addr SM_addr,
-								  const char*    owner,
-								  const char*    filename)
+				  const char*    owner,
+				  const char*    filename)
 {
-	transferinfo* ptr;
-	
-	ptr = head;
-	while ((ptr != NULL) && (memcmp((char*) &SM_addr, 
-									(char*) &ptr->shadow_addr, 
-									sizeof(struct in_addr)) || 
-							 strncmp(owner, ptr->owner, MAX_NAME_LENGTH) || 
-							 strncmp(filename, ptr->filename, 
-									 MAX_CONDOR_FILENAME_LENGTH)))
-		ptr = ptr->next;
-	return ptr;
+  transferinfo* ptr;
+
+  ptr = head;
+  while ((ptr != NULL) && (memcmp((char*) &SM_addr, (char*) &ptr->shadow_addr, 
+				  sizeof(struct in_addr)) || 
+			   strncmp(owner, ptr->owner, MAX_NAME_LENGTH) || 
+			   strncmp(filename, ptr->filename, 
+				   MAX_CONDOR_FILENAME_LENGTH)))
+    ptr = ptr->next;
+  return ptr;
 }
 
 
@@ -184,29 +168,29 @@ transferinfo* TransferState::Find(struct in_addr SM_addr,
 
 int TransferState::GetKey(int child_pid)
 {
-	transferinfo* ptr;
-	
-	ptr = Find(child_pid);
-	if (ptr == NULL)
-		return BAD_CHILD_PID;
-	else
-		return ptr->key;
+  transferinfo* ptr;
+
+  ptr = Find(child_pid);
+  if (ptr == NULL)
+    return BAD_CHILD_PID;
+  else
+    return ptr->key;
 }
 
 
 
 
 int TransferState::GetKey(struct in_addr SM_addr,
-						  const char*    owner,
-						  const char*    filename)
+			  const char*    owner,
+			  const char*    filename)
 {
-	transferinfo* ptr;
-	
-	ptr = Find(SM_addr, owner, filename);
-	if (ptr == NULL)
-		return BAD_CHILD_PID;
-	else
-		return ptr->key;
+  transferinfo* ptr;
+
+  ptr = Find(SM_addr, owner, filename);
+  if (ptr == NULL)
+    return BAD_CHILD_PID;
+  else
+    return ptr->key;
 }
 
 
@@ -263,44 +247,45 @@ int TransferState::GetKey(struct in_addr SM_addr,
 
 
 void TransferState::Insert(int            child_pid, 
-						   int            req_id,
-						   struct in_addr shadow_addr,
-						   const char*    filename, 
-						   const char*    owner,
-						   int            filesize,
-						   u_lint         key,
-						   u_lint         priority,
-						   xfer_type      type)
+			   int            req_id,
+			   struct in_addr shadow_addr,
+			   const char*    filename, 
+			   const char*    owner,
+			   int            filesize,
+			   u_lint         key,
+			   u_lint         priority,
+			   xfer_type      type)
 {
-	transferinfo* t;
-	
-	t = new transferinfo;
-	if (t == NULL) {
-		cerr << endl << "ERROR:" << endl;
-		cerr << "ERROR:" << endl;
-		cerr << "ERROR: cannot make new fileinfo node" << endl;
-		cerr << "ERROR:" << endl;
-		cerr << "ERROR:" << endl << endl;
-		exit(DYNAMIC_ALLOCATION);
+  transferinfo* t;
+
+  t = new transferinfo;
+  if (t == NULL)
+    {
+      cerr << endl << "ERROR:" << endl;
+      cerr << "ERROR:" << endl;
+      cerr << "ERROR: cannot make new fileinfo node" << endl;
+      cerr << "ERROR:" << endl;
+      cerr << "ERROR:" << endl << endl;
+      exit(DYNAMIC_ALLOCATION);
     }
-	memcpy((char*) &t->shadow_addr, (char*) &shadow_addr, 
-		   sizeof(struct in_addr));
-	strncpy(t->filename, filename, MAX_CONDOR_FILENAME_LENGTH);
-	strncpy(t->owner, owner, MAX_NAME_LENGTH);
-	t->req_id = req_id;
-	t->child_pid = child_pid;
-	t->start_time = time(NULL);
-	t->file_size = filesize;
-	t->status = type;
-	t->priority = priority;
-	t->key = key;
-	t->override = 0;
-	t->prev = NULL;
-	t->next = head;
-	if (head != NULL)
-		head->prev = t;
-	head = t;
-	num_transfers++;
+  memcpy((char*) &t->shadow_addr, (char*) &shadow_addr, 
+	 sizeof(struct in_addr));
+  strncpy(t->filename, filename, MAX_CONDOR_FILENAME_LENGTH);
+  strncpy(t->owner, owner, MAX_NAME_LENGTH);
+  t->req_id = req_id;
+  t->child_pid = child_pid;
+  t->start_time = time(NULL);
+  t->file_size = filesize;
+  t->status = type;
+  t->priority = priority;
+  t->key = key;
+  t->override = 0;
+  t->prev = NULL;
+  t->next = head;
+  if (head != NULL)
+    head->prev = t;
+  head = t;
+  num_transfers++;
 }
 
 
@@ -340,44 +325,44 @@ void TransferState::Insert(int            child_pid,
 *                                   in any node in the list                   *
 *              CANNOT_DELETE_FILE - a partially transferred file could not be *
 *                                   removed (only when receiving a file)      *
-*              CKPT_OK                 - deletion was successful                   *
+*              OK                 - deletion was successful                   *
 *                                                                             *
 ******************************************************************************/
 
 
-int TransferState::Delete(int child_pid, bool success_flag,
-						  struct in_addr peer)
+int TransferState::Delete(int child_pid)
 {
-	transferinfo* ptr;
-	extern XferSummary	xfer_summary;
-	
-	ptr = Find(child_pid);
-	if (ptr == NULL) {
-		cout << endl << "WARNING:" << endl;
-		cout << "WARNING:" << endl;
-		cout << "WARNING: cannot find child with pid=" << child_pid << endl;
-		cout << "WARNING:" << endl;
-		cout << "WARNING:" << endl << endl;
-		return BAD_CHILD_PID;
-    } else {
-		if ((ptr->prev == NULL) && (ptr->next == NULL))
-			head = NULL;
-		else if (ptr->prev == NULL) {
-			head = ptr->next;
-			head->prev = NULL;
-		} else if (ptr->next == NULL)
-			ptr->prev->next = NULL;
-		else {
-			ptr->prev->next = ptr->next;
-			ptr->next->prev = ptr->prev;
-		}
-		if (ptr->file_size == -1) {
-			ptr->file_size = get_file_size(ptr->filename);
-		}
-		xfer_summary.Result(ptr, success_flag, peer);
-		delete ptr;
-		num_transfers--;
-		return CKPT_OK;
+  transferinfo* ptr;
+
+  ptr = Find(child_pid);
+  if (ptr == NULL)
+    {
+      cout << endl << "WARNING:" << endl;
+      cout << "WARNING:" << endl;
+      cout << "WARNING: cannot find child with pid=" << child_pid << endl;
+      cout << "WARNING:" << endl;
+      cout << "WARNING:" << endl << endl;
+      return BAD_CHILD_PID;
+    }
+  else 
+    {
+      if ((ptr->prev == NULL) && (ptr->next == NULL))
+	head = NULL;
+      else if (ptr->prev == NULL)
+	{
+	  head = ptr->next;
+	  head->prev = NULL;
+	}
+      else if (ptr->next == NULL)
+	ptr->prev->next = NULL;
+      else
+	{
+	  ptr->prev->next = ptr->next;
+	  ptr->next->prev = ptr->prev;
+	}
+      delete ptr;
+      num_transfers--;
+      return OK;
     }
 }
 
@@ -386,24 +371,24 @@ int TransferState::Delete(int child_pid, bool success_flag,
 
 void TransferState::SetOverride(int child_pid)
 {
-	transferinfo* ptr;
-	
-	ptr = Find(child_pid);
-	if (ptr != NULL)
-		ptr->override = OVERRIDE;
+  transferinfo* ptr;
+
+  ptr = Find(child_pid);
+  if (ptr != NULL)
+    ptr->override = OVERRIDE;
 }
 
 
 
 void TransferState::SetOverride(struct in_addr SM_addr,
-								const char*    owner,
-								const char*    filename)
+				const char*    owner,
+				const char*    filename)
 {
-	transferinfo* ptr;
-	
-	ptr = Find(SM_addr, owner, filename);
-	if (ptr != NULL)
-		ptr->override = OVERRIDE;
+  transferinfo* ptr;
+  
+  ptr = Find(SM_addr, owner, filename);
+  if (ptr != NULL)
+    ptr->override = OVERRIDE;
 }
 
 
@@ -433,13 +418,13 @@ void TransferState::SetOverride(struct in_addr SM_addr,
 
 int TransferState::GetXferType(int child_pid)
 {
-	transferinfo* ptr;
-	
-	ptr = Find(child_pid);
-	if (ptr == NULL)
-		return BAD_CHILD_PID;
-	else
-		return ptr->status;
+  transferinfo* ptr;
+
+  ptr = Find(child_pid);
+  if (ptr == NULL)
+    return BAD_CHILD_PID;
+  else
+    return ptr->status;
 }
 
 
@@ -477,14 +462,15 @@ int TransferState::GetXferType(int child_pid)
 
 void TransferState::Reclaim(time_t current)
 {
-	transferinfo* ptr;
-	
-	ptr = head;
-	while (ptr != NULL) {
-		if (ptr->priority != RECLAIM_BYPASS)
-			if (current-ptr->start_time > MAX_ALLOWED_XFER_TIME)
-				kill(ptr->child_pid, SIGTERM);
-		ptr = ptr->next;
+  transferinfo* ptr;
+
+  ptr = head;
+  while (ptr != NULL)
+    {
+      if (ptr->priority != RECLAIM_BYPASS)
+	if (current-ptr->start_time > MAX_ALLOWED_XFER_TIME)
+	  kill(ptr->child_pid, SIGTERM);
+      ptr = ptr->next;
     }
 }
 
@@ -519,23 +505,25 @@ void TransferState::Reclaim(time_t current)
 
 void TransferState::DestroyList()
 {
-	transferinfo* p;
-	transferinfo* trail;
-	
-	p = head;
-	head = NULL;
-	while (p != NULL) {
-		trail = p;
-		p = p->next;
-		delete trail;
-		num_transfers--;
+  transferinfo* p;
+  transferinfo* trail;
+
+  p = head;
+  head = NULL;
+  while (p != NULL)
+    {
+      trail = p;
+      p = p->next;
+      delete trail;
+      num_transfers--;
     }
-	if (num_transfers != 0) {
-		cerr << endl << "WARNING:" << endl;
-		cerr << "WARNING:" << endl;
-		cerr << "WARNING: incorrect count of nodes in transfer list" << endl;
-		cerr << "WARNING:" << endl;
-		cerr << "WARNING:" << endl << endl;
+  if (num_transfers != 0)
+    {
+      cerr << endl << "WARNING:" << endl;
+      cerr << "WARNING:" << endl;
+      cerr << "WARNING: incorrect count of nodes in transfer list" << endl;
+      cerr << "WARNING:" << endl;
+      cerr << "WARNING:" << endl << endl;
     }
 }
 
@@ -566,26 +554,42 @@ void TransferState::DestroyList()
 
 void TransferState::Dump()
 {
-	transferinfo* p;
-	int           count=0;
-	
-	cout << "Transfer List Dump" << endl;
-	cout << "=-=-=-=-=-=-=-=-=-" << endl;
-	p = head;
-	while (p != NULL) {
-		cout << "Node #" << (++count) << ':' << endl;
-		cout << "\tProcess ID: " << p->child_pid << endl;
-		cout << "\tMachine:    " << inet_ntoa(p->shadow_addr) << endl;
-		if (p->status != FILE_STATUS) {
-			cout << "\tOwner:      " << p->owner << endl;
-			cout << "\tFilename:   " << p->filename << endl;
-			cout << "\tPriority:   " << p->priority << endl;
-			cout << "\tStart time: " << p->start_time << endl << endl;
-		}
-		else
-			cout << "\tTransferring Checkpoint Server Status" << endl << endl;
-		p = p->next;
+  transferinfo* p;
+  int           count=0;
+  
+  cout << "Transfer List Dump" << endl;
+  cout << "=-=-=-=-=-=-=-=-=-" << endl;
+  p = head;
+  while (p != NULL)
+    {
+      cout << "Node #" << (++count) << ':' << endl;
+      cout << "\tProcess ID: " << p->child_pid << endl;
+      cout << "\tMachine:    " << inet_ntoa(p->shadow_addr) << endl;
+      if (p->status != FILE_STATUS)
+	{
+	  cout << "\tOwner:      " << p->owner << endl;
+	  cout << "\tFilename:   " << p->filename << endl;
+	  cout << "\tPriority:   " << p->priority << endl;
+	  cout << "\tStart time: " << p->start_time << endl << endl;
+	}
+      else
+	cout << "\tTransferring Checkpoint Server Status" << endl << endl;
+      p = p->next;
     }
-	cout << "End of Transfer List Dump" << endl;
-	cout << "=-=-=-=-=-=-=-=-=-=-=-=-=" << endl << endl << endl;
+  cout << "End of Transfer List Dump" << endl;
+  cout << "=-=-=-=-=-=-=-=-=-=-=-=-=" << endl << endl << endl;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+

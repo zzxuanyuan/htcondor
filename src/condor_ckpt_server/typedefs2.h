@@ -1,32 +1,14 @@
-/***************************Copyright-DO-NOT-REMOVE-THIS-LINE**
- * CONDOR Copyright Notice
- *
- * See LICENSE.TXT for additional notices and disclaimers.
- *
- * Copyright (c)1990-1998 CONDOR Team, Computer Sciences Department, 
- * University of Wisconsin-Madison, Madison, WI.  All Rights Reserved.  
- * No use of the CONDOR Software Program Source Code is authorized 
- * without the express consent of the CONDOR Team.  For more information 
- * contact: CONDOR Team, Attention: Professor Miron Livny, 
- * 7367 Computer Sciences, 1210 W. Dayton St., Madison, WI 53706-1685, 
- * (608) 262-0856 or miron@cs.wisc.edu.
- *
- * U.S. Government Rights Restrictions: Use, duplication, or disclosure 
- * by the U.S. Government is subject to restrictions as set forth in 
- * subparagraph (c)(1)(ii) of The Rights in Technical Data and Computer 
- * Software clause at DFARS 252.227-7013 or subparagraphs (c)(1) and 
- * (2) of Commercial Computer Software-Restricted Rights at 48 CFR 
- * 52.227-19, as applicable, CONDOR Team, Attention: Professor Miron 
- * Livny, 7367 Computer Sciences, 1210 W. Dayton St., Madison, 
- * WI 53706-1685, (608) 262-0856 or miron@cs.wisc.edu.
-****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 #ifndef SERVER_TYPEDEFS2_H
 #define SERVER_TYPEDEFS2_H
+
 
 #include "constants2.h"
 #include "network2.h"
 #include <time.h>
-#include "sig_install.h"
+#include "OS"
+
+
+
 
 #ifdef OSF1
 typedef unsigned int u_lint;
@@ -36,15 +18,30 @@ typedef unsigned long int u_lint;
 
 
 
+
+typedef void (*SIG_HANDLER)(int);
+
+
+
+
+typedef enum lock_status
+{
+  UNLOCKED,
+  EXCLUSIVE_LOCK
+} lock_status;
+
+
+
+
 typedef enum service_type
 {
-  CKPT_SERVER_SERVICE_STATUS=190,
-  SERVICE_RENAME=191,
-  SERVICE_DELETE=192,
-  SERVICE_EXIST=193,
-  SERVICE_COMMIT_REPLICATION=194,
-  SERVICE_ABORT_REPLICATION=195
+  STATUS=190,
+  RENAME=191,
+  DELETE=192,
+  EXIST=193
 } service_type;
+
+
 
 
 typedef enum file_state
@@ -63,8 +60,7 @@ typedef enum request_type
 {
   SERVICE_REQ,
   STORE_REQ,
-  RESTORE_REQ,
-  REPLICATE_REQ
+  RESTORE_REQ
 } request_type;
 
 
@@ -100,6 +96,7 @@ typedef struct file_info
 typedef struct file_info_node
 {
   file_info       data;
+  lock_status     lock;
   struct file_info_node* prev;
   struct file_info_node* next;
 } file_info_node;
@@ -161,8 +158,7 @@ typedef struct service_req_pkt
   u_lint  key;
   char    owner_name[MAX_NAME_LENGTH]; 
   char    file_name[MAX_CONDOR_FILENAME_LENGTH];
-  char    new_file_name[MAX_CONDOR_FILENAME_LENGTH-4]; /* -4 to fit shadowIP */
-  struct in_addr shadow_IP;
+  char    new_file_name[MAX_CONDOR_FILENAME_LENGTH];
 } service_req_pkt;
 
 
@@ -177,18 +173,6 @@ typedef struct service_reply_pkt
 } service_reply_pkt;
 
 
-typedef struct replicate_req_pkt
-{
-  u_lint file_size;
-  u_lint ticket;
-  u_lint priority;                                    
-  u_lint time_consumed;                             
-  u_lint key;
-  char   filename[MAX_CONDOR_FILENAME_LENGTH];
-  char   owner[MAX_NAME_LENGTH];
-  struct in_addr shadow_IP;
-} replicate_req_pkt;
-	
 
 
 typedef recv_req_pkt   store_req_pkt;
@@ -209,7 +193,6 @@ typedef xmit_req_pkt   restore_req_pkt;
 typedef xmit_reply_pkt restore_reply_pkt;
 
 
-typedef recv_reply_pkt replicate_reply_pkt;
 
 
 

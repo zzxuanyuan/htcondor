@@ -1,27 +1,3 @@
-/***************************Copyright-DO-NOT-REMOVE-THIS-LINE**
- * CONDOR Copyright Notice
- *
- * See LICENSE.TXT for additional notices and disclaimers.
- *
- * Copyright (c)1990-1998 CONDOR Team, Computer Sciences Department, 
- * University of Wisconsin-Madison, Madison, WI.  All Rights Reserved.  
- * No use of the CONDOR Software Program Source Code is authorized 
- * without the express consent of the CONDOR Team.  For more information 
- * contact: CONDOR Team, Attention: Professor Miron Livny, 
- * 7367 Computer Sciences, 1210 W. Dayton St., Madison, WI 53706-1685, 
- * (608) 262-0856 or miron@cs.wisc.edu.
- *
- * U.S. Government Rights Restrictions: Use, duplication, or disclosure 
- * by the U.S. Government is subject to restrictions as set forth in 
- * subparagraph (c)(1)(ii) of The Rights in Technical Data and Computer 
- * Software clause at DFARS 252.227-7013 or subparagraphs (c)(1) and 
- * (2) of Commercial Computer Software-Restricted Rights at 48 CFR 
- * 52.227-19, as applicable, CONDOR Team, Attention: Professor Miron 
- * Livny, 7367 Computer Sciences, 1210 W. Dayton St., Madison, 
- * WI 53706-1685, (608) 262-0856 or miron@cs.wisc.edu.
-****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
-#include "condor_common.h"
-#include "condor_debug.h"
 #include "server_interface.h"
 #if 0
 #include "../server2/constants2.h"
@@ -35,20 +11,9 @@
 #include <errno.h>
 #include <assert.h>
 #include <string.h>
-#if !defined(WIN32)
 #include <unistd.h>
-#endif
 #include <stdio.h>
 
-#if !defined(TRUE)
-#define TRUE (1)
-#endif
-
-#if !defined(FALSE)
-#define FALSE (0)
-#endif
-
-extern char* param(char*);
 
 void StripPrefix(const char* pathname,
 				 char        filename[MAX_CONDOR_FILENAME_LENGTH])
@@ -67,15 +32,10 @@ void StripPrefix(const char* pathname,
 int ConnectToServer(request_type type)
 {
 	int                conn_req_sd;
+	struct hostent*    h;
 	struct sockaddr_in server_sa;
 	char			   *server_IP;
-	int				   on = 1;
 	
-	server_IP = getserveraddr();
-	if (server_IP == 0) {
-		return -1;
-	}
-
 	conn_req_sd = I_socket();
 	if (conn_req_sd == INSUFFICIENT_RESOURCES) {
 		fprintf(stderr, "ERROR:\n");
@@ -85,16 +45,17 @@ int ConnectToServer(request_type type)
 		fprintf(stderr, "ERROR:\n");
 		return INSUFFICIENT_RESOURCES;
     }
-	else if (conn_req_sd == CKPT_SERVER_SOCKET_ERROR) {
+	else if (conn_req_sd == SOCKET_ERROR) {
 		fprintf(stderr, "ERROR:\n");
 		fprintf(stderr, "ERROR:\n");
 		fprintf(stderr, "ERROR: unable to create a new socket\n");
 		fprintf(stderr, "ERROR:\n");
 		fprintf(stderr, "ERROR:\n");
-		return CKPT_SERVER_SOCKET_ERROR;
+		return SOCKET_ERROR;
     }
-	memset((char*) &server_sa, 0, (int) sizeof(server_sa));
+	bzero((char*) &server_sa, (int) sizeof(server_sa));
 	server_sa.sin_family = AF_INET;
+	server_IP = getserveraddr();
 	memcpy((char*) &server_sa.sin_addr.s_addr, (char*) server_IP, 
 		   sizeof(struct in_addr));
 	switch (type) {
@@ -108,11 +69,8 @@ int ConnectToServer(request_type type)
 			server_sa.sin_port = htons(CKPT_SVR_RESTORE_REQ_PORT);
 		}
 	if (connect(conn_req_sd, (struct sockaddr*) &server_sa, 
-				sizeof(server_sa)) < 0) {
-		close(conn_req_sd);
+				sizeof(server_sa)) < 0)
 		return CONNECT_ERROR;
-	}
-	setsockopt(conn_req_sd,SOL_SOCKET,SO_KEEPALIVE,(char*)&on,sizeof(on));
 	return conn_req_sd;
 }
 
@@ -129,28 +87,9 @@ int IsLocal(const char* path)
 }
 
 
-int FileExists(const char *filename, const char *owner)
-{
-	int rval;
-
-	if (IsLocal(filename) == LOCAL) {
-		return TRUE;
-	}
-
-	rval = FileOnServer(owner, filename);
-	if (rval == 0) {
-		return TRUE;
-	} else if (rval == DOES_NOT_EXIST) {
-		return FALSE;
-	} else {
-		return -1;
-	}
-}
-
-
 int RequestStore(const char*     owner,
 				 const char*     filename,
-				 size_t          len,
+				 u_lint          len,
 				 struct in_addr* server_IP,
 				 u_short*        port)
 {
@@ -162,11 +101,7 @@ int RequestStore(const char*     owner,
 	int             bytes_recvd=0;
 	int             ret_code;
 	
-	server_sd = ConnectToServer(STORE_REQ);
-	if (server_sd < 0)
-		return server_sd;
 	key = getpid();
-	memset((void *)&req, 0, sizeof(req));
 	req.file_size = htonl(len);
 	req.ticket = htonl(AUTHENTICATION_TCKT);
 	req.priority = htonl(0);
@@ -174,31 +109,21 @@ int RequestStore(const char*     owner,
 	req.key = htonl(key);
 	strncpy(req.owner, owner, MAX_NAME_LENGTH);
 	StripPrefix(filename, req.filename);
+	server_sd = ConnectToServer(STORE_REQ);
+	if (server_sd < 0)
+		return server_sd;
 	ret_code = net_write(server_sd, (char*) &req, sizeof(req));
-	if (ret_code != sizeof(req)) {
-		close(server_sd);
+	if (ret_code != sizeof(req))
 		return CHILDTERM_CANNOT_WRITE;
-	}
 	while (bytes_recvd != sizeof(reply)) {
 		errno = 0;
 		bytes_read = read(server_sd, ((char*) &reply)+bytes_recvd, 
 						  sizeof(reply)-bytes_recvd);
-
-		/* assert(bytes_read >= 0); */
-		if ( !(bytes_read >= 0) ) {
-			close(server_sd);
-			return -1;
-		}
-			
-		if (bytes_read == 0) {
-			/* assert(errno == EINTR); */
-			if ( !(errno == EINTR) ) {
-				close(server_sd);
-				return -1;
-			}
-		} else {
+		assert(bytes_read >= 0);
+		if (bytes_read == 0)
+			assert(errno == EINTR);
+		else
 			bytes_recvd += bytes_read;
-		}
     }
 	close(server_sd);
 	server_IP->s_addr = reply.server_name.s_addr;
@@ -209,7 +134,7 @@ int RequestStore(const char*     owner,
 
 int RequestRestore(const char*     owner,
 				   const char*     filename,
-				   size_t*         len,
+				   u_lint*         len,
 				   struct in_addr* server_IP,
 				   u_short*        port)
 {
@@ -220,40 +145,26 @@ int RequestRestore(const char*     owner,
 	int               bytes_read;
 	int               bytes_recvd=0;
 	
+	key = getpid();
 	server_sd = ConnectToServer(RESTORE_REQ);
 	if (server_sd < 0)
 		return server_sd;
-	key = getpid();
-	memset((void *)&req, 0, sizeof(req));
 	req.ticket = htonl(AUTHENTICATION_TCKT);
 	req.priority = htonl(0);
 	req.key = htonl(key);
 	strncpy(req.owner, owner, MAX_NAME_LENGTH);
 	StripPrefix(filename, req.filename);
-	/* assert(net_write(server_sd, (char*) &req, sizeof(req)) == sizeof(req)); */
-	if ( !(net_write(server_sd, (char*) &req, sizeof(req)) == sizeof(req)) ) {
-		close(server_sd);
-		return -1;
-	}
+	assert(net_write(server_sd, (char*) &req, sizeof(req)) == sizeof(req));
 	while (bytes_recvd != sizeof(reply))
     {
 		errno = 0;
 		bytes_read = read(server_sd, ((char*) &reply)+bytes_recvd, 
 						  sizeof(reply)-bytes_recvd);
-		/* assert(bytes_read >= 0); */
-		if ( !( bytes_read >= 0 ) ) {
-			close(server_sd);
-			return -1;
-		}
-		if (bytes_read == 0) {
-			/* assert(errno == EINTR); */
-			if ( !( errno == EINTR ) ) {
-				close(server_sd);
-				return -1;
-			}
-		} else {
+		assert(bytes_read >= 0);
+		if (bytes_read == 0)
+			assert(errno == EINTR);
+		else
 			bytes_recvd += bytes_read;
-		}
     }
 	close(server_sd);
 	server_IP->s_addr = reply.server_name.s_addr;
@@ -279,43 +190,29 @@ int RequestService(const char*     owner,
 	int               bytes_read;
 	int               bytes_recvd=0;
 	
+	key = getpid();
 	server_sd = ConnectToServer(SERVICE_REQ);
 	if (server_sd < 0)
 		return server_sd;
-	key = getpid();
-	memset((void *)&req, 0, sizeof(req));
 	req.ticket = htonl(AUTHENTICATION_TCKT);
 	req.key = htonl(key);
-	req.service = htons((short)type);
+	req.service = htons(type);
 	if (owner != NULL)
 		strncpy(req.owner_name, owner, MAX_NAME_LENGTH);
 	if (filename != NULL)
 		StripPrefix(filename, req.file_name);
 	if (new_filename != NULL)
 		StripPrefix(new_filename, req.new_file_name);
-	/* assert(net_write(server_sd, (char*) &req, sizeof(req)) == sizeof(req)); */
-	if ( !( net_write(server_sd, (char*) &req, sizeof(req)) == sizeof(req) )) {
-		close(server_sd);
-		return -1;
-	}
+	assert(net_write(server_sd, (char*) &req, sizeof(req)) == sizeof(req));
 	while (bytes_recvd != sizeof(reply)) {
 		errno = 0;
 		bytes_read = read(server_sd, ((char*) &reply)+bytes_recvd, 
 						  sizeof(reply)-bytes_recvd);
-		/* assert(bytes_read >= 0); */
-		if ( !( bytes_read >= 0 ) ) {
-			close(server_sd);
-			return -1;
-		}
-		if (bytes_read == 0) {
-			/* assert(errno == EINTR); */
-			if ( !( errno == EINTR ) ) {
-				close(server_sd);
-				return -1;
-			}
-		} else {
+		assert(bytes_read >= 0);
+		if (bytes_read == 0)
+			assert(errno == EINTR);
+		else
 			bytes_recvd += bytes_read;
-		}
     }
 	close(server_sd);
 	if (server_IP != NULL)
@@ -334,25 +231,16 @@ int RequestService(const char*     owner,
 int FileOnServer(const char* owner,
 				 const char* filename)
 {
-	return (RequestService(owner, filename, NULL, SERVICE_EXIST,
-						   NULL, NULL, NULL, NULL));
+	return (RequestService(owner, filename, NULL, EXIST, NULL, NULL, NULL, 
+						   NULL));
 }
 
 
 int RemoveRemoteFile(const char* owner,
 					 const char* filename)
 {
-	return (RequestService(owner, filename, NULL, SERVICE_DELETE, NULL,
-						   NULL, NULL, NULL));
-}
-
-
-int RemoveLocalOrRemoteFile(const char* owner,
-							const char* filename)
-{
-	unlink(filename);
-	return (RequestService(owner, filename, NULL, SERVICE_DELETE, NULL,
-						   NULL, NULL, NULL));
+	return (RequestService(owner, filename, NULL, DELETE, NULL, NULL, NULL, 
+						   NULL));
 }
 
 
@@ -360,44 +248,6 @@ int RenameRemoteFile(const char* owner,
 					 const char* filename,
 					 const char* new_filename)
 {
-	return (RequestService(owner, filename, new_filename, SERVICE_RENAME,
-						   NULL, NULL, NULL, NULL));
-}
-
-extern int ckpt_server_number;
-
-int
-set_ckpt_server_number(int new_server)
-{
-	int		rval;
-
-	rval = ckpt_server_number;
-	ckpt_server_number = new_server;
-	return rval;
-}
-
-
-int
-get_ckpt_server_count()
-{
-	int		i;
-	char	ckpt_server_config[30], *tmp;
-
-	for (i = 0; ; i++) {
-		sprintf(ckpt_server_config, "CKPT_SERVER_HOST_%d", i);
-		if( (tmp = param(ckpt_server_config)) == 0) {
-			break;
-		} else {
-			free( tmp );
-		}
-	}
-
-	if (i == 0) {
-		if( (tmp = param("CKPT_SERVER_HOST")) == 0) {
-			i = -1;
-		} else {
-			free( tmp );
-		}
-	}
-	return i;
+	return (RequestService(owner, filename, new_filename, RENAME, NULL, NULL,
+						   NULL, NULL));
 }

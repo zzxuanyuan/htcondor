@@ -1,25 +1,3 @@
-/***************************Copyright-DO-NOT-REMOVE-THIS-LINE**
- * CONDOR Copyright Notice
- *
- * See LICENSE.TXT for additional notices and disclaimers.
- *
- * Copyright (c)1990-1998 CONDOR Team, Computer Sciences Department, 
- * University of Wisconsin-Madison, Madison, WI.  All Rights Reserved.  
- * No use of the CONDOR Software Program Source Code is authorized 
- * without the express consent of the CONDOR Team.  For more information 
- * contact: CONDOR Team, Attention: Professor Miron Livny, 
- * 7367 Computer Sciences, 1210 W. Dayton St., Madison, WI 53706-1685, 
- * (608) 262-0856 or miron@cs.wisc.edu.
- *
- * U.S. Government Rights Restrictions: Use, duplication, or disclosure 
- * by the U.S. Government is subject to restrictions as set forth in 
- * subparagraph (c)(1)(ii) of The Rights in Technical Data and Computer 
- * Software clause at DFARS 252.227-7013 or subparagraphs (c)(1) and 
- * (2) of Commercial Computer Software-Restricted Rights at 48 CFR 
- * 52.227-19, as applicable, CONDOR Team, Attention: Professor Miron 
- * Livny, 7367 Computer Sciences, 1210 W. Dayton St., Madison, 
- * WI 53706-1685, (608) 262-0856 or miron@cs.wisc.edu.
-****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 /******************************************************************************
 *                                                                             *
 *   Author:  Hsu-lin Tsao                                                     *
@@ -53,25 +31,18 @@
 
 /* Header Files */
 
-#include "condor_common.h"
-#include "condor_debug.h"
-
-#if !defined(WIN32)
+#include "constants2.h"
 #include <sys/types.h>
 #include <netdb.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <unistd.h>
-#endif
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <errno.h>
-#include "constants2.h"
-#include "debug.h"
 
-/* P R O T O T Y P E S */
-char *param();
+
 
 
 char* GetIPName(struct in_addr machine_IP)
@@ -125,20 +96,15 @@ int I_bind(int                 socket_desc,
 	    struct sockaddr_in* addr)
 {
   int temp;
-  int					on = 1;
-  struct linger		linger = {0, 0}; 
 
   temp = sizeof(struct sockaddr_in);
-  setsockopt(socket_desc, SOL_SOCKET, SO_REUSEADDR, (char*)&on, sizeof(on));
-  setsockopt(socket_desc, SOL_SOCKET, SO_LINGER,
-			 (char*)&linger, sizeof(linger));
   if (bind(socket_desc, (struct sockaddr*)addr, temp) < 0)
     {
       fprintf(stderr, "\nERROR:\n");
       fprintf(stderr, "ERROR:\n");
       fprintf(stderr, "ERROR: unable to bind socket (pid=%d)\n", 
 	      (int) getpid());
-	  fprintf(stderr, "\terrno = %d\n", errno);
+      fprintf(stderr, "\terrno = %d\n", errno);
       fprintf(stderr, "ERROR:\n");
       fprintf(stderr, "ERROR:\n\n");
       return BIND_ERROR;
@@ -164,7 +130,7 @@ int I_bind(int                 socket_desc,
       fprintf(stderr, "ERROR:\n\n");
       return NOT_TCPIP;
     }
-  return CKPT_OK;
+  return OK;
 }
 
 
@@ -276,6 +242,8 @@ char* gethostaddr(void)
 }
 
 
+
+
 /******************************************************************************
 *                                                                             *
 *   Function: getserveraddr(void)                                             *
@@ -300,42 +268,17 @@ char* gethostaddr(void)
 *                                                                             *
 ******************************************************************************/
 
-int ckpt_server_number = -1;
 
 char* getserveraddr()
 {
 	struct hostent* h;
 	char	*server;
-	char	ckpt_server_config[30];
-
-	/* First verify that USE_CKPT_SERVER is TRUE */
-	server = param("USE_CKPT_SERVER");
-	if ( server == NULL ) {
-		/* do not use ckpt server */
-		return NULL;
-	} else {
-		if ( *server != 'T' && *server != 't' ) {
-			free(server);
-			return NULL;
-		}
-		free(server);
-		server = NULL;
-	}
-
-	/* Now get the name of the CKPT_SERVER */
-	if (ckpt_server_number == -1) {
-		server = param("CKPT_SERVER_HOST");
-	} else {
-		sprintf(ckpt_server_config, "CKPT_SERVER_HOST_%d", ckpt_server_number);
-		server = param(ckpt_server_config);
-	}
-
+	
+	server = param("CKPT_SERVER");
 	if (server) {
 		h = gethostbyname(server);
-		free(server);	/* BUG FIXED : Ashish */
 	} else {
-		dprintf(D_FULLDEBUG, "CKPT_SERVER Not defined in the config file.\n");
-		return NULL;
+		h = gethostbyname(SERVER);
 	}
 	if (h == NULL) {
 		fprintf(stderr, "\nERROR:\n");
@@ -345,7 +288,7 @@ char* getserveraddr()
 		fprintf(stderr, "ERROR:\n");
 		fprintf(stderr, "ERROR:\n\n");
 		return NULL;
-        }
+    }
 	return(h->h_addr);
 }
 
@@ -378,7 +321,6 @@ char* getserveraddr()
 
 int I_socket()
 {
-#if !defined(WIN32) /* NEED TO PORT TO WIN32 */
 	int sd;
 	
 	sd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -392,12 +334,9 @@ int I_socket()
 			fprintf(stderr, "(%d)\n", (int) getpid());
 			fprintf(stderr, "ERROR:\n");
 			fprintf(stderr, "ERROR:\n\n");
-			return CKPT_SERVER_SOCKET_ERROR;
+			return SOCKET_ERROR;
 		}
 	return(sd);
-#else
-	return 0;
-#endif
 }
 
 
@@ -434,7 +373,6 @@ int I_socket()
 int I_listen(int socket_desc,
 	     int queue_len)
 {
-#if !defined(WIN32) /* NEED TO PORT TO WIN32 */
   if ((queue_len > 5) || (queue_len < 0))
     queue_len = 5;
   if (listen(socket_desc, queue_len) < 0)
@@ -447,8 +385,7 @@ int I_listen(int socket_desc,
       fprintf(stderr, "ERROR:\n\n");
       return LISTEN_ERROR;
     }
-#endif
-  return CKPT_OK;
+  return OK;
 }
 
 
@@ -499,9 +436,7 @@ int I_accept(int                 socket_desc,
 			 struct sockaddr_in* addr, 
 			 int*                addr_len)
 {
-#if !defined(WIN32) /* NEED TO PORT TO WIN32 */
 	int temp;
-	int on = 1;
 	
 	while ((temp=accept(socket_desc, (struct sockaddr*) addr, addr_len)) < 0) {
 		if (errno != EINTR) {
@@ -514,11 +449,7 @@ int I_accept(int                 socket_desc,
 			return ACCEPT_ERROR;
 		}
     }
-	setsockopt( temp, SOL_SOCKET, SO_KEEPALIVE, (char*)&on, sizeof(on) );
 	return(temp);
-#else
-	return 0;
-#endif
 }
 
 
@@ -560,7 +491,6 @@ int net_write(int   socket_desc,
 			  char* buffer, 
 			  int   size)
 {
-#if !defined(WIN32) /* NEED TO PORT TO WIN32 */
 	int bytes_written;
 	int bytes_remaining;
 	int total=0;
@@ -577,7 +507,4 @@ int net_write(int   socket_desc,
 	if (total != size)
 		return CHILDTERM_BAD_FILE_SIZE;
 	return total;
-#else
-	return 0;
-#endif
 }

@@ -1,27 +1,10 @@
-/***************************Copyright-DO-NOT-REMOVE-THIS-LINE**
- * CONDOR Copyright Notice
- *
- * See LICENSE.TXT for additional notices and disclaimers.
- *
- * Copyright (c)1990-1998 CONDOR Team, Computer Sciences Department, 
- * University of Wisconsin-Madison, Madison, WI.  All Rights Reserved.  
- * No use of the CONDOR Software Program Source Code is authorized 
- * without the express consent of the CONDOR Team.  For more information 
- * contact: CONDOR Team, Attention: Professor Miron Livny, 
- * 7367 Computer Sciences, 1210 W. Dayton St., Madison, WI 53706-1685, 
- * (608) 262-0856 or miron@cs.wisc.edu.
- *
- * U.S. Government Rights Restrictions: Use, duplication, or disclosure 
- * by the U.S. Government is subject to restrictions as set forth in 
- * subparagraph (c)(1)(ii) of The Rights in Technical Data and Computer 
- * Software clause at DFARS 252.227-7013 or subparagraphs (c)(1) and 
- * (2) of Commercial Computer Software-Restricted Rights at 48 CFR 
- * 52.227-19, as applicable, CONDOR Team, Attention: Professor Miron 
- * Livny, 7367 Computer Sciences, 1210 W. Dayton St., Madison, 
- * WI 53706-1685, (608) 262-0856 or miron@cs.wisc.edu.
-****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
-#include "condor_common.h"
 #include "fileindex2.h"
+#include <iostream.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <limits.h>
+#include <errno.h>
 #include "gen_lib.h" 
 
 
@@ -44,9 +27,9 @@ FileIndex::~FileIndex()
 int FileIndex::Hash(struct in_addr machine_IP)
 {
   int   val;
-  unsigned char* c_ptr;
+  char* c_ptr;
 
-  c_ptr = (unsigned char*) &machine_IP.s_addr;
+  c_ptr = (char*) &machine_IP.s_addr;
   val = *c_ptr + *(c_ptr+1) + *(c_ptr+2) + *(c_ptr+3);
   return val%MAX_HASH_SIZE;
 }
@@ -255,6 +238,36 @@ int FileIndex::Exists(struct in_addr machine_IP,
       exit(IMDS_INDEX_ERROR);
     }
   return EXISTS;
+}
+
+
+int FileIndex::LockStatus(struct in_addr machine_IP,
+			  const char*    owner_name,
+			  const char*    file_name)
+{
+  machine_node* m;
+  owner_node*   o;
+  file_node*    f;
+
+  m = FindOrAddMachine(machine_IP, 0);
+  if (m == NULL)
+    return DOES_NOT_EXIST;
+  o = FindOrAddOwner(m, owner_name, 0);
+  if (o == NULL)
+    return DOES_NOT_EXIST;
+  f = FindOrAddFile(o->file_root, file_name, 0);
+  if (f == NULL)
+    return DOES_NOT_EXIST;
+  if (f->file_data == NULL)
+    {
+      cerr << endl << "ERROR:" << endl;
+      cerr << "ERROR:" << endl;
+      cerr << "ERROR: IMDS index is inconsistent" << endl;
+      cerr << "ERROR:" << endl;
+      cerr << "ERROR:" << endl;
+      exit(IMDS_INDEX_ERROR);
+    }
+  return f->file_data->lock;
 }
 
 
@@ -590,6 +603,11 @@ void FileIndex::FIDump(file_node* f_ptr)
       FIDump(f_ptr->left);
       cout << "\t\t\tFile Name: " << f_ptr->file_data->data.file_name << endl;
       cout << "\t\t\tFile Size: " << f_ptr->file_data->data.size << endl;
+      cout << "\t\t\tLock:      ";
+      if (f_ptr->file_data->lock == UNLOCKED)
+	cout << "unlocked" << endl;
+      else
+	cout << "exclusive lock" << endl;
       cout << "\t\t\tStatus:    ";
       switch (f_ptr->file_data->data.state)
 	{

@@ -1,25 +1,3 @@
-/***************************Copyright-DO-NOT-REMOVE-THIS-LINE**
- * CONDOR Copyright Notice
- *
- * See LICENSE.TXT for additional notices and disclaimers.
- *
- * Copyright (c)1990-1998 CONDOR Team, Computer Sciences Department, 
- * University of Wisconsin-Madison, Madison, WI.  All Rights Reserved.  
- * No use of the CONDOR Software Program Source Code is authorized 
- * without the express consent of the CONDOR Team.  For more information 
- * contact: CONDOR Team, Attention: Professor Miron Livny, 
- * 7367 Computer Sciences, 1210 W. Dayton St., Madison, WI 53706-1685, 
- * (608) 262-0856 or miron@cs.wisc.edu.
- *
- * U.S. Government Rights Restrictions: Use, duplication, or disclosure 
- * by the U.S. Government is subject to restrictions as set forth in 
- * subparagraph (c)(1)(ii) of The Rights in Technical Data and Computer 
- * Software clause at DFARS 252.227-7013 or subparagraphs (c)(1) and 
- * (2) of Commercial Computer Software-Restricted Rights at 48 CFR 
- * 52.227-19, as applicable, CONDOR Team, Attention: Professor Miron 
- * Livny, 7367 Computer Sciences, 1210 W. Dayton St., Madison, 
- * WI 53706-1685, (608) 262-0856 or miron@cs.wisc.edu.
-****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 /******************************************************************************
 *                                                                             *
 *   Author:  Hsu-lin Tsao                                                     *
@@ -65,26 +43,25 @@ typedef enum xfer_type
 {
   RECV=300,
   XMIT=301,
-  FILE_STATUS=302,
-  REPLICATE=303
+  FILE_STATUS=302
 } xfer_type;
 
 
 typedef struct transferinfo
 {
-	int            req_id;
-	int            child_pid;
-	time_t         start_time;
-	u_lint         file_size;
-	xfer_type      status;
-	int            priority;
-	int            key;
-	u_short        override;
-	transferinfo*  prev;
-	transferinfo*  next;
-	struct in_addr shadow_addr;
-	char           filename[MAX_CONDOR_FILENAME_LENGTH];
-	char           owner[MAX_NAME_LENGTH];
+  int            req_id;
+  int            child_pid;
+  time_t         start_time;
+  u_lint         file_size;
+  xfer_type      status;
+  int            priority;
+  int            key;
+  u_short        override;
+  transferinfo*  prev;
+  transferinfo*  next;
+  struct in_addr shadow_addr;
+  char           filename[MAX_CONDOR_FILENAME_LENGTH];
+  char           owner[MAX_NAME_LENGTH];
 } transferinfo;
 
 
@@ -221,7 +198,7 @@ class TransferState
     transferinfo* Find(struct in_addr SM_addr,
 		       const char*    owner,
 		       const char*    filename);
-    int Delete(int child_pid, bool success_flag, struct in_addr peer);
+    int Delete(int child_pid);
     int GetXferType(int child_pid);
     int GetKey(int child_pid);
     int GetKey(struct in_addr SM_addr,

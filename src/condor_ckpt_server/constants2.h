@@ -1,25 +1,3 @@
-/***************************Copyright-DO-NOT-REMOVE-THIS-LINE**
- * CONDOR Copyright Notice
- *
- * See LICENSE.TXT for additional notices and disclaimers.
- *
- * Copyright (c)1990-1998 CONDOR Team, Computer Sciences Department, 
- * University of Wisconsin-Madison, Madison, WI.  All Rights Reserved.  
- * No use of the CONDOR Software Program Source Code is authorized 
- * without the express consent of the CONDOR Team.  For more information 
- * contact: CONDOR Team, Attention: Professor Miron Livny, 
- * 7367 Computer Sciences, 1210 W. Dayton St., Madison, WI 53706-1685, 
- * (608) 262-0856 or miron@cs.wisc.edu.
- *
- * U.S. Government Rights Restrictions: Use, duplication, or disclosure 
- * by the U.S. Government is subject to restrictions as set forth in 
- * subparagraph (c)(1)(ii) of The Rights in Technical Data and Computer 
- * Software clause at DFARS 252.227-7013 or subparagraphs (c)(1) and 
- * (2) of Commercial Computer Software-Restricted Rights at 48 CFR 
- * 52.227-19, as applicable, CONDOR Team, Attention: Professor Miron 
- * Livny, 7367 Computer Sciences, 1210 W. Dayton St., Madison, 
- * WI 53706-1685, (608) 262-0856 or miron@cs.wisc.edu.
-****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 /******************************************************************************
 *                                                                             *
 *   Author:  Hsu-lin Tsao                                                     *
@@ -51,11 +29,10 @@
 
 #define CKPT_ACCEPT_TIMEOUT					120
 
-#define CKPT_OK                             0
+#define OK                                  0
 #define CKPT_SVR_STORE_REQ_PORT             5651
 #define CKPT_SVR_RESTORE_REQ_PORT           5652
 #define CKPT_SVR_SERVICE_REQ_PORT           5653
-#define CKPT_SVR_REPLICATE_REQ_PORT			5654
 #ifdef OSF1
 #define AUTHENTICATION_TCKT                 1637102411
 #else
@@ -66,8 +43,8 @@
 #define MAX_NAME_LENGTH                     50
 #define MAX_PATHNAME_LENGTH                 512
 #define DATA_BUFFER_SIZE                    50000
-#define RECLAIM_INTERVAL                    60
-#define MAX_ALLOWED_XFER_TIME               60*60
+#define RECLAIM_INTERVAL                    300
+#define MAX_ALLOWED_XFER_TIME               600
 #define RECLAIM_BYPASS                      100
 #define STATUS_FILENAME_LENGTH              31
 #define STATUS_MACHINE_NAME_LENGTH          16
@@ -85,7 +62,6 @@
 #define OVERRIDE                            1
 #define LOG_EVENT_WIDTH_1                   49
 #define LOG_EVENT_WIDTH_2                   47
-#define MAX_PEERS							50
 
 
 
@@ -128,7 +104,7 @@
 #define LOG_FILE_OPEN_ERROR                 26
 #define ACCEPT_ERROR                        -27
 #define BIND_ERROR                          28
-#define CKPT_SERVER_SOCKET_ERROR            -29
+#define SOCKET_ERROR                        -29
 #define BAD_SOCKET_DESC_ERROR               30
 #define NOT_TCPIP                           31
 #define LISTEN_ERROR                        32
@@ -157,7 +133,7 @@
 #define INSUFFICIENT_BANDWIDTH              72
 #define DESIRED_FILE_NOT_FOUND              73
 #define IMDS_INDEX_ERROR                    80
-#define CANNOT_RENAME_OVER_NEWER_FILE		82
+#define FILE_LOCKED                         81
 #define EXISTS                              90
 #define DOES_NOT_EXIST                      91
 #define CREATED                             92

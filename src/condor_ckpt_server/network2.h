@@ -1,25 +1,3 @@
-/***************************Copyright-DO-NOT-REMOVE-THIS-LINE**
- * CONDOR Copyright Notice
- *
- * See LICENSE.TXT for additional notices and disclaimers.
- *
- * Copyright (c)1990-1998 CONDOR Team, Computer Sciences Department, 
- * University of Wisconsin-Madison, Madison, WI.  All Rights Reserved.  
- * No use of the CONDOR Software Program Source Code is authorized 
- * without the express consent of the CONDOR Team.  For more information 
- * contact: CONDOR Team, Attention: Professor Miron Livny, 
- * 7367 Computer Sciences, 1210 W. Dayton St., Madison, WI 53706-1685, 
- * (608) 262-0856 or miron@cs.wisc.edu.
- *
- * U.S. Government Rights Restrictions: Use, duplication, or disclosure 
- * by the U.S. Government is subject to restrictions as set forth in 
- * subparagraph (c)(1)(ii) of The Rights in Technical Data and Computer 
- * Software clause at DFARS 252.227-7013 or subparagraphs (c)(1) and 
- * (2) of Commercial Computer Software-Restricted Rights at 48 CFR 
- * 52.227-19, as applicable, CONDOR Team, Attention: Professor Miron 
- * Livny, 7367 Computer Sciences, 1210 W. Dayton St., Madison, 
- * WI 53706-1685, (608) 262-0856 or miron@cs.wisc.edu.
-****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 /******************************************************************************
 *                                                                             *
 *   Author:  Hsu-lin Tsao                                                     *
@@ -56,15 +34,14 @@
 
 /* Header Files */
 
-#if !defined(WIN32)
 #include <sys/types.h>
 #include <netdb.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <unistd.h>
-#endif
 #include "typedefs2.h"
+#include <unistd.h>
+#include "OS"
 
 
 
@@ -72,8 +49,6 @@
 
 
 /* External Functions */
-
-#if 0
 
 #ifdef OSF1
 extern "C" { unsigned int ntohl(unsigned int); }
@@ -83,12 +58,12 @@ extern "C" { unsigned short int htons(unsigned short int); }
 #else
 extern "C" { unsigned long int ntohl(unsigned long int); }
 extern "C" { unsigned long int htonl(unsigned long int); }
-extern "C" { unsigned short int ntohs(unsigned int); }
-extern "C" { unsigned short int htons(unsigned int); }
+extern "C" { unsigned short int ntohs(unsigned short int); }
+extern "C" { unsigned short int htons(unsigned short int); }
 #endif
 extern "C" { void bzero(char*, int); }
 extern "C" { pid_t getpid(void); }
-/* extern "C" { int gethostname(const char*, int); } */
+extern "C" { int gethostname(const char*, int); }
 extern "C" { int close(int); }
 extern "C" { pid_t fork(void); }
 extern "C" { int select(int, fd_set*, fd_set*, fd_set*, struct timeval*); }
@@ -99,8 +74,11 @@ extern "C" { int listen(int, int); }
 extern "C" { int getsockname(int, struct sockaddr*, int*); }
 extern "C" { int getsockopt(int, int, int, void*, int*); }
 extern "C" { int setsockopt(int, int, int, const void*, int); }
-
+#if 0
+extern "C" { struct hostent* gethostbyname( const char*); }
+extern "C" { struct hostent* gethostbyaddr( const char*, int, int); }
 #endif
+
 
 
 
