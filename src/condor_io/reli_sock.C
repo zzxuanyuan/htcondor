@@ -34,6 +34,7 @@
 #include "internet.h"
 #include "condor_rw.h"
 
+#include <sys/syscall.h>	// FIXME -- Shouldn't need syscall level fns here - zandy
 static char _FileName_[] = __FILE__;
 
 ReliSock::ReliSock(					/* listen on port		*/
@@ -425,7 +426,8 @@ int ReliSock::RcvMsg::rcv_packet(
 					break;
 				}
 			}
-			tmp_len = recv(_sock, hdr+len, 5-len, 0);
+//                      tmp_len = recv(_sock, hdr+len, 5-len, 0);
+		        tmp_len = syscall (SYS_read, _sock, hdr+len, 5-len);
 			if (tmp_len <= 0)
 				return FALSE;
 			len += tmp_len;

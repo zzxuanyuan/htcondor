@@ -27,6 +27,7 @@
 #include "condor_io.h"
 #include "condor_debug.h"
 
+#include <sys/syscall.h>
 
 unsigned long num_created = 0;
 unsigned long num_deleted = 0;
@@ -119,7 +120,8 @@ int Buf::write(
 			}
 		}
 
-		nwo = send(sockd, &_dta[num_touched()+nw], sz-nw, 0);
+//		nwo = send(sockd, &_dta[num_touched()+nw], sz-nw, 0);
+		nwo = syscall (SYS_write, sockd, &_dta[num_touched()+nw], sz-nw);
 		if (nwo <= 0) return -1;
 
 		nw += nwo;
@@ -228,7 +230,8 @@ int Buf::read(
 			}
 		}
 
-		nro = recv(sockd, &_dta[num_used()+nr], sz-nr, 0);
+//		nro = recv(sockd, &_dta[num_used()+nr], sz-nr, 0);
+		nro = syscall (SYS_read, sockd, &_dta[num_used()+nr], sz-nr);
 
 		if (nro <= 0) {
 			dprintf( D_ALWAYS, "recv returned %d, errno = %d\n", 
