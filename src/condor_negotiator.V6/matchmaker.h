@@ -28,7 +28,8 @@
 #include "condor_io.h"
 #include "HashTable.h"
 #include "dc_collector.h"
-
+/* ODBC include */
+#include "odbc.h"
 #ifdef WANT_NETMAN
 #include "../condor_netman/netman.h"
 #endif
@@ -94,7 +95,10 @@ class Matchmaker : public Service
 		float EvalNegotiatorMatchRank(char const *expr_name,ExprTree *expr,
 		                              ClassAd &request,ClassAd *resource);
 
-
+		/* ODBC insert functions */
+		void insert_into_rejects(char *scheddName, ClassAd& job, ClassAd& machine,const char *diagnosis);
+		void insert_into_matches(char * scheddName, int cluster, int proc, ClassAd& offer);
+		
 		// configuration information
 		char *AccountantHost;		// who (if at all) is the accountant?
 		int  NegotiatorInterval;	// interval between negotiation cycles
@@ -137,6 +141,11 @@ class Matchmaker : public Service
 		// DaemonCore Timer ID for periodic negotiations
 		int negotiation_timerID;
 		bool GotRescheduleCmd;
+
+		/* ODBC Stuff */
+		ODBC * db_handle;
+		char RejectsTable[40];
+		char MatchesTable[40];
 };
 
 
