@@ -176,29 +176,34 @@ void KeyCache::copy_storage(const KeyCache &copy) {
 }
 
 
-void KeyCache::delete_storage() {
-	if (key_table) {
-		// Delete all entries from the hash, and the table itself
-		//KeyCacheEntry* key_entry;
-		//key_table->startIterations();
-		//while (key_table->iterate(key_entry)) {
-		//	if ( key_entry ) {
-		//		dprintf ( D_SECURITY, "KEYCACHEENTRY: deleted: %x\n", key_entry );
-		//		delete key_entry;
-		//	}
-		//}
-
-        key_table->clear();
-		dprintf ( D_SECURITY, "KEYCACHE: deleted: %x\n", key_table );
+void KeyCache::delete_storage()
+{
+	if( key_table ) {
+			// Delete all entries from the hash, and the table itself
+		KeyCacheEntry* key_entry;
+		key_table->startIterations();
+		while( key_table->iterate(key_entry) ) {
+			if( key_entry ) {
+				if( DebugFlags & D_FULLDEBUG ) {
+					dprintf( D_SECURITY, "KEYCACHEENTRY: deleted: %x\n", 
+							 key_entry );
+				}
+				delete key_entry;
+			}
+		}
 		delete key_table;
+		if( DebugFlags & D_FULLDEBUG ) {
+			dprintf( D_SECURITY, "KEYCACHE: deleted: %x\n", key_table );
+		}
 		key_table = NULL;
 	}
 }
 
+
 bool KeyCache::insert(KeyCacheEntry &e) {
 
 	// the key_table member is a HashTable which maps
-	// MyString's to KeyCacheEntry's.  (note the '*')
+	// MyString's to KeyCacheEntry*'s.  (note the '*')
 
 	// the map_table member is a HashTable which maps
 	// MyString's to MyString's.
@@ -253,18 +258,24 @@ bool KeyCache::lookup(const char *key_id, KeyCacheEntry *&e_ptr) {
 
 bool KeyCache::remove(const char *key_id) {
 	// to remove a key:
-	// you first need to do a lookup.  part of the KeyCacheEntry
-	// then tells you ALL key_id's that this key was inserted under.
+	// you first need to do a lookup, so we can get the pointer to delete.
+	KeyCacheEntry *tmp_ptr = NULL;
 
-	// NOTE: HashTable's remove returns ZERO on SUCCESS!!!
-	return (key_table->remove(key_id) == 0);
+	// NOTE: HashTable's lookup returns ZERO on SUCCESS
+	bool res = (key_table->lookup(key_id, tmp_ptr) == 0);
+
+	if (res) {
+		// ** HEY **
+		// key_id could be pointing to the string tmp_ptr->id.  so, we'd
+		// better finish using key_id *before* we delete tmp_ptr.
+		res = (key_table->remove(key_id) == 0);
+		delete tmp_ptr;
+	}
+
+	return res;
 }
 
 void KeyCache::expire(KeyCacheEntry *e) {
-	// ** HEY **
-	// the pointer they passed in could be pointing
-	// to the string within this object, so we need
-	// to keep the info we want before we delete it
 	char* key_id = strdup (e->id());
 	time_t key_exp = e->expiration();
 

@@ -25,6 +25,7 @@
 #define _CONDOR_OS_PROC_H
 
 #include "user_proc.h"
+#include "basename.h"
 
 /** This is a generic sort of "OS" process, the base for other types
 	of jobs.
@@ -34,7 +35,7 @@ class OsProc : public UserProc
 {
 public:
 		/// Constructor
-	OsProc();
+	OsProc( ClassAd* jobAd );
 
 		/// Destructor
 	virtual ~OsProc();
@@ -73,16 +74,16 @@ public:
 		*/
 	virtual bool PublishUpdateAd( ClassAd* ad );
 
-		/// Send a DC_SIGSTOP
+		/// Send a SIGSTOP
 	virtual void Suspend();
 
-		/// Send a DC_SIGCONT
+		/// Send a SIGCONT
 	virtual void Continue();
 
-		/// Send a DC_SIGTERM
+		/// Send a SIGTERM
 	virtual bool ShutdownGraceful();
 
-		/// Send a DC_SIGKILL
+		/// Send a SIGKILL
 	virtual bool ShutdownFast();
 
 		/// rename a core file created by this process
@@ -98,6 +99,13 @@ protected:
 
 	bool dumped_core;
 	char* job_iwd;
+
+	void initKillSigs( void );
+
+	int soft_kill_sig;
+	int rm_kill_sig;
 };
 
+// a little helper function that will move to the util lib later
+int nullFile(const char *filename);
 #endif

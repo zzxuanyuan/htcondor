@@ -20,31 +20,59 @@
  * Livny, 7367 Computer Sciences, 1210 W. Dayton St., Madison, 
  * WI 53706-1685, (608) 262-0856 or miron@cs.wisc.edu.
 ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
+#include "condor_common.h"
+#include "condor_distribution.h"
 
- 
-
-/*
-** Compatibility routine for systems which utilize setresuid() for
-** this purpose.
-*/
-setregid( rgid, egid )
-int		rgid;
-int		egid;
+// Constructor
+Distribution::Distribution()
 {
-	int temp_gid=getgid();
-	int temp_egid=getegid();
-	
-	if (getuid() != 0) { 
-        if(setgid(rgid)==-1) { 
-			return -1;
-		} else if (setegid(egid)==-1) {
-			setgid(temp_gid);
-			setegid(temp_egid);
-			return -1;
-		} else { 
-			return 0;
-		}
+	// Are we 'Condor' or 'Hawkeye'?
+		SetDistribution( "condor" );
+}
+
+int Distribution::Init( int argc, char **argv )
+{
+	char	*argv0 = argv[0];
+
+	// Are we 'Condor' or 'Hawkeye'?
+	if (  ( strstr ( argv0, "hawkeye" ) ) ||
+		  ( strstr ( argv0, "Hawkeye" ) ) ||
+		  ( strstr ( argv0, "HAWKEYE" ) )  ) {
+		SetDistribution( "hawkeye" );
 	} else {
-		return setresgid( rgid, egid, egid ); 
+		SetDistribution( "condor" );
 	}
+
+	return 1;
+}
+
+// Destructor (does nothing for now)
+Distribution::~Distribution( )
+{
+}
+
+// Set my actual distro name
+void Distribution :: SetDistribution( const char *name )
+{
+	// Make my own private copies of the name
+	strncpy( distribution, name, MAX_DISTRIBUTION_NAME );
+	distribution[MAX_DISTRIBUTION_NAME] = '\0';
+	strcpy( distribution_uc, distribution );
+	strcpy( distribution_cap, distribution );
+
+	// Make the 'uc' version upper case
+	char	*cp = distribution_uc;
+	while ( *cp )
+	{
+		char	c = *cp;
+		*cp = toupper( c );
+		cp++;
+	}
+
+	// Capitalize the first char of the Cap version
+	char	c = distribution_cap[0];
+	distribution_cap[0] = toupper( c );
+
+	// Cache away it's length
+	distribution_length = strlen( distribution );
 }

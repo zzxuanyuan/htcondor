@@ -78,7 +78,7 @@ GridUniverseLogic::~GridUniverseLogic()
 					daemonCore->Cancel_Timer(node->remove_timer_id);
 				}
 				if ( node->pid > 0 ) {
-					daemonCore->Send_Signal(node->pid,DC_SIGQUIT);
+					daemonCore->Send_Signal( node->pid, SIGQUIT );
 				}
 			}
 			delete node;
@@ -95,17 +95,17 @@ GridUniverseLogic::~GridUniverseLogic()
 void 
 GridUniverseLogic::JobCountUpdate(const char* owner, const char* proxy, 
 			int cluster, int proc, int num_globus_jobs,
-			int num_globus_unsubmitted_jobs)
+			int num_globus_unmanaged_jobs)
 {
 	// Quick sanity checks - this should never be...
-	ASSERT( num_globus_jobs >= num_globus_unsubmitted_jobs );
+	ASSERT( num_globus_jobs >= num_globus_unmanaged_jobs );
 	ASSERT( num_globus_jobs >= 0 );
-	ASSERT( num_globus_unsubmitted_jobs >= 0 );
+	ASSERT( num_globus_unmanaged_jobs >= 0 );
 
 	// if there are unsubmitted jobs, the gridmanager apparently
 	// does not know they are in the queue. so tell it some jobs
 	// were added.
-	if ( num_globus_unsubmitted_jobs > 0 ) {
+	if ( num_globus_unmanaged_jobs > 0 ) {
 		JobAdded(owner, proxy, cluster, proc);
 		return;
 	}
@@ -404,6 +404,14 @@ GridUniverseLogic::StartOrFindGManager(const char* owner, const char* proxy,
 	}
 
 	ASSERT( gman_pid_table->insert(owner_key,gman_node) == 0 );
+
+	// start timer to signal gridmanager if we haven't already
+	if ( gman_node->add_timer_id == -1 ) {  // == -1 means no timer set
+		gman_node->add_timer_id = daemonCore->Register_Timer(job_added_delay,
+			(TimerHandler) &GridUniverseLogic::SendAddSignal,
+			"GridUniverseLogic::SendAddSignal");
+		daemonCore->Register_DataPtr(gman_node);
+	}
 
 	// All done
 	return gman_node;

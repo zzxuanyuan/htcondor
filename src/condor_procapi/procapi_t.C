@@ -5,9 +5,10 @@ bool verbose;
 bool monitor;
 int main(int argc, char* argv[])
 {
-        int success;
-        verbose = false;
-        if (argc > 1)
+	int success;
+	verbose = false;
+
+	if (argc > 1)
 	{
 	  if(strcmp(argv[1], "-v") == 0){
 	    verbose = true;

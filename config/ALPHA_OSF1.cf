@@ -1,9 +1,11 @@
 #define OperatingSystem	OSF1
 #define Architecture	ALPHA
 
-#define HAS_GLOBUS	NO
-#define HAS_GSI		NO
-#define HAS_OPENSSL	NO
+#define HAS_GLOBUS	YES
+#define HAS_GSI		YES
+#define HAS_OPENSSL	YES
+
+#define GLOBUS_FLAVOR gcc64dbg
 
 #define Platform	ALPHA-DUX4
 #define GccArch		alpha-dec-osf4.0
@@ -59,13 +61,9 @@
 #define HAS_GETPGRP2			NO
 #define HAS_KILLPG			YES
 #define HAS_SETHOSTNAME			YES
-#define HAS_SETREGID			YES
-#define HAS_SETREUID			YES
 #define HAS_UTIMES			YES
 #define HAS_UTIME			YES
 #define HAS_VHANGUP			NO
-#define HAS_SETRESUID			NO
-#define HAS_SETRESGID			NO
 #define HAS_SETEGID			YES
 #define HAS_SETEUID			YES
 #define HAS_GETWD			YES
@@ -75,6 +73,7 @@
 #define PVM_ARCH			ALPHA
 #define USE_GCC				YES
 #define HAS_STATIC			YES
+#define NEED_SNPRINTF		YES
 
 #define HAS_DYNAMIC_USER_JOBS	NO
 

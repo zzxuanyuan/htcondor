@@ -2,6 +2,7 @@
 #include "MyString.h"
 #include "which.h"
 #include "string_list.h"
+#include "condor_distribution.h"
 
 struct SubmitDagOptions
 {
@@ -59,6 +60,7 @@ int main(int argc, char *argv[])
 	printf("\n");
 
 	SubmitDagOptions opts;
+	myDistro->Init( argc, argv );
 	parseCommandLine(opts, argc, argv);
 	
 	if (opts.strDagFile == "")
@@ -247,6 +249,7 @@ void writeSubmitFile(const MyString &strDagmanPath, const SubmitDagOptions &opts
 	fprintf(pSubFile, "output\t\t= %s\n", opts.strLibLog.Value());
     fprintf(pSubFile, "error\t\t= %s\n", opts.strLibLog.Value());
     fprintf(pSubFile, "log\t\t= %s\n", opts.strSchedLog.Value());
+    fprintf(pSubFile, "remove_kill_sig\t= SIGUSR1\n" );
 
 	MyString strArgs;
 	strArgs.reserve_at_least(256);

@@ -40,6 +40,7 @@
 #include "condor_io.h"
 #include "condor_parser.h"
 #include "condor_scanner.h"
+#include "condor_distribution.h"
 #include "files.h"
 #if !defined(WIN32)
 #include <pwd.h>
@@ -57,6 +58,8 @@
 #include "MyString.h"
 #include "string_list.h"
 #include "which.h"
+#include "sig_name.h"
+#include "print_wrapped_text.h"
 
 #include "my_username.h"
 #include "globus_utils.h"
@@ -434,6 +437,7 @@ main( int argc, char *argv[] )
 	}
 
 	MyName = basename(argv[0]);
+	myDistro->Init( argc, argv );
 	config();
 
 	init_params();
@@ -814,6 +818,15 @@ SetUniverse()
 
 	univ = condor_param( Universe, ATTR_JOB_UNIVERSE );
 
+	if (!univ) {
+		// get a default universe from the config file
+		univ = param("DEFAULT_UNIVERSE");
+		if( !univ ) {
+			// if nothing else, it must be a standard universe
+			univ = strdup("standard");
+		}
+	}
+
 #if !defined(WIN32)
 	if( univ && stricmp(univ,"pvm") == MATCH ) 
 	{
@@ -836,7 +849,6 @@ SetUniverse()
 		JobUniverse = CONDOR_UNIVERSE_PVM;
 		(void) sprintf (buffer, "%s = %d", ATTR_JOB_UNIVERSE, CONDOR_UNIVERSE_PVM);
 		InsertJobExpr (buffer);
-		InsertJobExpr ("Checkpoint = 0");
 
 		free(univ);
 		return;
@@ -875,7 +887,6 @@ SetUniverse()
 		JobUniverse = CONDOR_UNIVERSE_MPI;
 		(void) sprintf (buffer, "%s = %d", ATTR_JOB_UNIVERSE, CONDOR_UNIVERSE_MPI);
 		InsertJobExpr (buffer);
-		InsertJobExpr ("Checkpoint = 0");
 		
 		free(univ);
 		return;
@@ -885,14 +896,10 @@ SetUniverse()
 		JobUniverse = CONDOR_UNIVERSE_JAVA;
 		(void) sprintf (buffer, "%s = %d", ATTR_JOB_UNIVERSE, CONDOR_UNIVERSE_JAVA);
 		InsertJobExpr (buffer);
-		InsertJobExpr ("Checkpoint = 0");
 		free(univ);
 		return;
 	}
 
-	if (!univ) {
-		univ = strdup("standard");
-	}
 
 #if defined( CLIPPED )
 		// If we got this far, we must be a standard job.  Since we're
@@ -1124,6 +1131,8 @@ SetTransferFiles()
 	int count;
 	char *tmp;
 	bool files_specified = false;
+	bool in_files_specified = false;
+	bool out_files_specified = false;
 	char	 buffer[ATTRLIST_MAX_EXPRESSION];
 	char	 input_files[ATTRLIST_MAX_EXPRESSION];
 	char	 output_files[ATTRLIST_MAX_EXPRESSION];
@@ -1183,6 +1192,7 @@ SetTransferFiles()
 							ATTR_TRANSFER_INPUT_FILES, tmp );
 			free( tmp );
 			files_specified = true;
+			in_files_specified = true;
 		}
 	}
 
@@ -1203,6 +1213,7 @@ SetTransferFiles()
 			(void) sprintf (output_files, "%s = \"%s\"", 
 				ATTR_TRANSFER_OUTPUT_FILES, macro_value);
 			files_specified = true;
+			out_files_specified = true;
 		}
 		free(macro_value);
 	}
@@ -1216,6 +1227,29 @@ SetTransferFiles()
 			case 'n':
 			case 'N':
 				// Handle "Never"
+				if( files_specified ) {
+					MyString err_msg;
+					err_msg += "\nERROR: you specified '";
+					err_msg += TransferFiles;
+					err_msg += " = Never' but listed files you want "
+						"transfered via '";
+					if( in_files_specified ) {
+						err_msg += "transfer_input_files";
+						if( out_files_specified ) {
+							err_msg += "' and 'transfer_output_files'.";
+						} else {
+							err_msg += "'.";
+						}
+					} else {
+						ASSERT( out_files_specified );
+						err_msg += "transfer_output_files'.";
+					}
+					err_msg += "  Please remove this contradiction from "
+						"your submit file and try again.";
+					print_wrapped_text( err_msg.Value(), stderr );
+					DoCleanup(0,0,NULL);
+					exit( 1 );
+				}
 				sprintf(buffer,"%s = \"%s\"",ATTR_TRANSFER_FILES,"NEVER");
 				never_transfer = true;
 				break;
@@ -1241,7 +1275,35 @@ SetTransferFiles()
 		free(macro_value);		// condor_param() calls malloc; free it!
 	} else {
 		// User did not explicitly specify TransferFiles; choose a default
+#ifdef WIN32
 		sprintf(buffer,"%s = \"%s\"",ATTR_TRANSFER_FILES,"ONEXIT");
+#else
+		if( files_specified ) {
+			MyString err_msg;
+			err_msg += "\nERROR: you specified files you want Condor to "
+				"transfer via '";
+			if( in_files_specified ) {
+				err_msg += "transfer_input_files";
+				if( out_files_specified ) {
+					err_msg += "' and 'transfer_output_files',";
+				} else {
+					err_msg += "',";
+				}
+			} else {
+				ASSERT( out_files_specified );
+				err_msg += "transfer_output_files',";
+			}
+			err_msg += " but you did not specify *when* you want Condor to "
+				"transfer the files.  Please put either \"transfer_files "
+				"= ONEXIT\" or \"transfer_files = ALWAYS\" in your "
+				"submit file and try again.";
+			print_wrapped_text( err_msg.Value(), stderr );
+			DoCleanup(0,0,NULL);
+			exit( 1 );
+		}
+		sprintf(buffer,"%s = \"%s\"",ATTR_TRANSFER_FILES,"NEVER");
+		never_transfer = true;
+#endif
 	}
 
 	// Insert what we want for ATTR_TRANSFER_FILES
@@ -1315,13 +1377,6 @@ SetTransferFiles()
 			InsertJobExpr (output_files);
 		}
 	}
-
-#ifndef WIN32
-	// On Unix, now set never_transfer to be true before this function exits.
-	// This way, restrictions on file system domain are set.
-	never_transfer = true;
-#endif
-
 }
 
 void
@@ -1489,10 +1544,18 @@ SetJobStatus()
 	if( hold && (hold[0] == 'T' || hold[0] == 't') ) {
 		(void) sprintf (buffer, "%s = %d", ATTR_JOB_STATUS, HELD);
 		InsertJobExpr (buffer);
+
+		(void)sprintf( buffer, "%s=\"submitted on hold at user's request\"", 
+					   ATTR_HOLD_REASON );
+		InsertJobExpr( buffer );
 	} else {
 		(void) sprintf (buffer, "%s = %d", ATTR_JOB_STATUS, IDLE);
 		InsertJobExpr (buffer);
 	}
+
+	(void) sprintf( buffer, "%s = %d", ATTR_ENTERED_CURRENT_STATUS,
+					(int)time(0) );
+	InsertJobExpr( buffer );
 
 	if( hold ) {
 		free(hold);
@@ -2224,7 +2287,7 @@ SetGlobusParams()
 	InsertJobExpr (buffer, false );
 
 	sprintf( buffer, "%s = %d", ATTR_GLOBUS_STATUS,
-			 GLOBUS_JOB_UNSUBMITTED );
+			 GLOBUS_GRAM_PROTOCOL_JOB_STATE_UNSUBMITTED );
 	InsertJobExpr (buffer, false );
 
 	if ( tmp = condor_param(GlobusRSL) ) {
@@ -2235,87 +2298,68 @@ SetGlobusParams()
 }
 
 #if !defined(WIN32)
-struct SigTable { int v; char *n; };
 
-static struct SigTable SigNameArray[] = {
-	{ SIGABRT, "SIGABRT" },
-	{ SIGALRM, "SIGALRM" },
-	{ SIGFPE, "SIGFPE" },
-	{ SIGHUP, "SIGHUP" },
-	{ SIGILL, "SIGILL" },
-	{ SIGINT, "SIGINT" },
-	{ SIGKILL, "SIGKILL" },
-	{ SIGPIPE, "SIGPIPE" },
-	{ SIGQUIT, "SIGQUIT" },
-	{ SIGSEGV, "SIGSEGV" },
-	{ SIGTERM, "SIGTERM" },
-	{ SIGUSR1, "SIGUSR1" },
-	{ SIGUSR2, "SIGUSR2" },
-	{ SIGCHLD, "SIGCHLD" },
-	{ SIGTSTP, "SIGTSTP" },
-	{ SIGTTIN, "SIGTTIN" },
-	{ SIGTTOU, "SIGTTOU" },
-	{ -1, 0 }
-};
-
-int
-sig_name_lookup(char sig[])
+// this allocates memory, free() it when you're done.
+char*
+findKillSigName( const char* submit_name, const char* attr_name )
 {
-	for (int i = 0; SigNameArray[i].n != 0; i++) {
-		if (stricmp(SigNameArray[i].n, sig) == 0) {
-			return SigNameArray[i].v;
-		}
-	}
-	fprintf( stderr, "\nERROR: unknown signal %s\n", sig );
-	exit(1);
-	return -1;
-}
-
-void
-SetKillSig()
-{
-	char *sig = condor_param( KillSig, ATTR_KILL_SIG );
+	char *sig = condor_param( submit_name, attr_name );
+	char *signame = NULL;
+	const char *tmp;
 	int signo;
 
 	if (sig) {
 		signo = atoi(sig);
-		if (signo == 0 && isalnum(sig[0])) {
-			signo = sig_name_lookup(sig);
+		if( signo ) {
+				// looks like they gave us an actual number, map that
+				// into a string for the classad:
+			tmp = signalName( signo );
+			if( ! tmp ) {
+				fprintf( stderr, "\nERROR: invalid signal %s\n", sig );
+				exit( 1 );
+			}
+			signame = strdup( tmp );
+		} else {
+				// should just be a string, let's see if it's valid:
+			signo = signalNumber( sig );
+			if( signo == -1 ) {
+				fprintf( stderr, "\nERROR: invalid signal %s\n", sig );
+				exit( 1 );
+			}
+				// cool, just use what they gave us.
+			signame = strupr(sig);
 		}
-		if( signo == 0 ) {
-			fprintf( stderr, "\nERROR: invalid signal %s\n", sig );
-			exit( 1 );
-		}
-		free(sig);
-	} else {
+	}
+	return signame;
+}
+
+
+void
+SetKillSig()
+{
+	char* sig_name;
+
+	sig_name = findKillSigName( KillSig, ATTR_KILL_SIG );
+	if( ! sig_name ) {
 		switch(JobUniverse) {
 		case CONDOR_UNIVERSE_STANDARD:
-			signo = SIGTSTP;
+			sig_name = strdup( "SIGTSTP" );
 			break;
 		default:
-			signo = SIGTERM;
+			sig_name = strdup( "SIGTERM" );
 			break;
 		}
 	}
+	sprintf( buffer, "%s=\"%s\"", ATTR_KILL_SIG, sig_name );
+	InsertJobExpr( buffer );
+	free( sig_name );
 
-	(void) sprintf (buffer, "%s = %d", ATTR_KILL_SIG, signo);
-	InsertJobExpr(buffer);
-
-	sig = condor_param( RmKillSig, ATTR_REMOVE_KILL_SIG );
-
-	if (sig) {
-		signo = atoi(sig);
-		if (signo == 0 && isalnum(sig[0])) {
-			signo = sig_name_lookup(sig);
-		}
-		if( signo == 0 ) {
-			fprintf( stderr, "\nERROR: invalid signal %s\n", sig );
-			exit( 1 );
-		}
-		free(sig);
-		(void) sprintf (buffer, "%s = %d", ATTR_REMOVE_KILL_SIG, signo);
-		InsertJobExpr(buffer);
-	} 
+	sig_name = findKillSigName( RmKillSig, ATTR_REMOVE_KILL_SIG );
+	if( sig_name ) {
+		sprintf( buffer, "%s=\"%s\"", ATTR_REMOVE_KILL_SIG, sig_name );
+		InsertJobExpr( buffer );
+		free( sig_name );
+	}
 }
 #endif  // of ifndef WIN32
 
@@ -2778,15 +2822,33 @@ queue(int num)
 	}
 }
 
+
+bool
+findClause( const char* buffer, const char* attr_name )
+{
+	char* ptr;
+	int len = strlen( attr_name );
+	for( ptr = (char*)buffer; *ptr; ptr++ ) {
+		if( strincmp(attr_name,ptr,len) == MATCH ) {
+			return true;
+		}
+	}
+	return false;
+}
+
+
 char *
 check_requirements( char *orig )
 {
-	int		has_opsys = FALSE;
-	int		has_arch = FALSE;
-	int		has_disk = FALSE;
-	int		has_mem = FALSE;
-	int		has_fsdomain = FALSE;
-	int		has_ckpt_arch = FALSE;
+	bool	checks_opsys = false;
+	bool	checks_arch = false;
+	bool	checks_disk = false;
+	bool	checks_mem = false;
+	bool	checks_fsdomain = false;
+	bool	checks_ckpt_arch = false;
+	bool	checks_file_transfer = false;
+	bool	checks_pvm = false;
+	bool	checks_mpi = false;
 	char	*ptr, *tmp;
 	static char	answer[4096];
 
@@ -2829,28 +2891,34 @@ check_requirements( char *orig )
 		free( ptr );
 	}
 
-				
-	for( ptr = answer; *ptr; ptr++ ) {
-		if( strincmp(ATTR_ARCH,ptr,4) == MATCH ) {
-			has_arch = TRUE;
-			break;
+
+	checks_arch = findClause( answer, ATTR_ARCH );
+	checks_opsys = findClause( answer, ATTR_OPSYS );
+	checks_disk =  findClause( answer, ATTR_DISK );
+
+	if( JobUniverse == CONDOR_UNIVERSE_STANDARD ) {
+		checks_ckpt_arch = findClause( answer, ATTR_CKPT_ARCH );
+	}
+	if( JobUniverse == CONDOR_UNIVERSE_PVM ) {
+		checks_pvm = findClause( answer, ATTR_HAS_PVM );
+	}
+	if( JobUniverse == CONDOR_UNIVERSE_MPI ) {
+		checks_mpi = findClause( answer, ATTR_HAS_MPI );
+	}
+	if( (JobUniverse == CONDOR_UNIVERSE_VANILLA) 
+		|| (JobUniverse == CONDOR_UNIVERSE_MPI) 
+		|| (JobUniverse == CONDOR_UNIVERSE_JAVA) ) {
+		if( never_transfer ) {
+			checks_fsdomain = findClause( answer,
+										  ATTR_FILE_SYSTEM_DOMAIN ); 
+		} else {
+			checks_file_transfer = findClause( answer,
+											   ATTR_HAS_FILE_TRANSFER );
 		}
 	}
 
-	for( ptr = answer; *ptr; ptr++ ) {
-		if( strincmp(ATTR_OPSYS,ptr,5) == MATCH ) {
-			has_opsys = TRUE;
-			break;
-		}
-	}
- 
-	for( ptr = answer; *ptr; ptr++ ) {
-		if( strincmp(ATTR_DISK,ptr,5) == MATCH ) {
-			has_disk = TRUE;
-			break;
-		}
-	}
- 
+		// because of the special-case nature of "Memory" and
+		// "VirtualMemory", we have to do this one manually...
 	for( ptr = answer; *ptr; ptr++ ) {
 		if( strincmp(ATTR_MEMORY,ptr,5) == MATCH ) {
 				// We found "Memory", but we need to make sure that's
@@ -2858,7 +2926,7 @@ check_requirements( char *orig )
 			if( ptr == answer ) {
 					// We're at the beginning, must be Memory, since
 					// there's nothing before it.
-				has_mem = TRUE;
+				checks_mem = true;
 				break;
 			}
 				// Otherwise, it's safe to go back one position:
@@ -2868,26 +2936,21 @@ check_requirements( char *orig )
 				continue;
 			}
 				// If it wasn't an 'l', we must have found it...
-			has_mem = TRUE;
+			checks_mem = true;
 			break;
 		}
 	}
  
-	for( ptr = answer; *ptr; ptr++ ) {
-		if( strincmp(ATTR_CKPT_ARCH,ptr,4) == MATCH ) {
-			has_ckpt_arch = TRUE;
-			break;
-		}
-	}
-
 	if( JobUniverse == CONDOR_UNIVERSE_JAVA ) {
 		if( answer[0] ) {
-			strcat( answer, " && (HasJava) ");
+			strcat( answer, " && (" );
 		} else {
-			strcat( answer, "(HasJava) ");
+			(void)strcat( answer, "(" );
 		}
+		(void)strcat( answer, ATTR_HAS_JAVA );
+		(void)strcat( answer, ")" );
 	} else {
-		if( !has_arch ) {
+		if( !checks_arch ) {
 			if( answer[0] ) {
 				(void)strcat( answer, " && (Arch == \"" );
 			} else {
@@ -2897,25 +2960,25 @@ check_requirements( char *orig )
 			(void)strcat( answer, "\")" );
 		}
 
-		if( !has_opsys ) {
+		if( !checks_opsys ) {
 			(void)strcat( answer, " && (OpSys == \"" );
 			(void)strcat( answer, OperatingSystem );
 			(void)strcat( answer, "\")" );
 		}
 	}
 
-	if ( JobUniverse == CONDOR_UNIVERSE_STANDARD && !has_ckpt_arch ) {
+	if ( JobUniverse == CONDOR_UNIVERSE_STANDARD && !checks_ckpt_arch ) {
 		(void)strcat( answer, " && ((CkptArch == Arch) ||" );
 		(void)strcat( answer, " (CkptArch =?= UNDEFINED))" );
 		(void)strcat( answer, " && ((CkptOpSys == OpSys) ||" );
 		(void)strcat( answer, "(CkptOpSys =?= UNDEFINED))" );
 	}
 
-	if( !has_disk ) {
+	if( !checks_disk ) {
 		(void)strcat( answer, " && (Disk >= DiskUsage)" );
 	}
 
-	if ( !has_mem ) {
+	if ( !checks_mem ) {
 		(void)strcat( answer, " && ( (Memory * 1024) >= ImageSize )" );
 	}
 
@@ -2933,25 +2996,58 @@ check_requirements( char *orig )
 			}
 			free(ptr);
 		}
+		if( ! checks_pvm ) {
+			(void)strcat( answer, "&& (" );
+			(void)strcat( answer, ATTR_HAS_PVM );
+			(void)strcat( answer, ")" );
+		}
 	} 
 
-	if ( JobUniverse == CONDOR_UNIVERSE_VANILLA ) {
-		for( ptr = answer; *ptr; ptr++ ) {
-			if( strincmp("FileSystemDo",ptr,12) == MATCH ) {
-				has_fsdomain = TRUE;
-				break;
-			}
+	if( JobUniverse == CONDOR_UNIVERSE_MPI ) {
+		if( ! checks_mpi ) {
+			(void)strcat( answer, "&& (" );
+			(void)strcat( answer, ATTR_HAS_MPI );
+			(void)strcat( answer, ")" );
 		}
-		if ( !has_fsdomain && never_transfer) {
-			(void)strcat( answer, " && ((OpSys == \"WINNT40\" || OpSys == \"WINNT50\") || (OpSys != \"WINNT40\" && OpSys != \"WINNT50\" && FileSystemDomain == \"" );
-			(void)strcat( answer, My_fs_domain );
-			(void)strcat( answer, "\"))" );
-		} 
+	}
 
+
+	if( (JobUniverse == CONDOR_UNIVERSE_VANILLA) 
+		|| (JobUniverse == CONDOR_UNIVERSE_MPI) 
+		|| (JobUniverse == CONDOR_UNIVERSE_JAVA) ) {
+			/* 
+			   This is a kind of job that might be using file transfer
+			   or a shared filesystem.  so, tack on the appropriate
+			   clause to make sure we're either at a machine that
+			   supports file transfer, or that we're in the same file
+			   system domain.
+			*/
+
+		if( never_transfer ) {
+				// no file transfer used.  if there's nothing about
+				// the FileSystemDomain yet, tack on a clause for
+				// that. 
+			if( ! checks_fsdomain ) {
+				(void)strcat( answer, "&& (" );
+				(void)strcat( answer, ATTR_FILE_SYSTEM_DOMAIN );
+				(void)strcat( answer, " == \"" );
+				(void)strcat( answer, My_fs_domain );
+				(void)strcat( answer, "\")" );
+			} 
+		} else {
+				// we're going to use file transfer.  
+			if( ! checks_file_transfer ) {
+				(void)strcat( answer, "&& (");
+				(void)strcat( answer, ATTR_HAS_FILE_TRANSFER );
+				(void)strcat( answer, ")");
+			}
+		}			
 	}
 
 	return answer;
 }
+
+
 
 char *
 full_path(const char *name, bool use_iwd)
@@ -2960,6 +3056,7 @@ full_path(const char *name, bool use_iwd)
 	pathname[0] = '\0';
 	char *p_iwd;
 	char realcwd[_POSIX_PATH_MAX];
+	int root_len, iwd_len, name_len, real_len;
 
 	if ( use_iwd ) {
 		ASSERT(JobIwd[0]);
@@ -2976,10 +3073,29 @@ full_path(const char *name, bool use_iwd)
 		(void)sprintf( pathname, "%s\\%s", p_iwd, name );
 	}
 #else
+	root_len = strlen(JobRootdir);
+	iwd_len = strlen(p_iwd);
+	name_len = strlen(name);
 	if( name[0] == '/' ) {	/* absolute wrt whatever the root is */
-		(void)sprintf( pathname, "%s%s", JobRootdir, name );
+		if(root_len + name_len >= _POSIX_PATH_MAX) {
+		fprintf(stderr, "\nERROR: Value for \"%s/%s\" is too long:\n"
+                                "\tPosix limits path names to %d bytes\n",
+                                JobRootdir, name, _POSIX_PATH_MAX);
+                DoCleanup(0,0,NULL);
+                exit( 1 );
+	
+		}
+		real_len=sprintf( pathname, "%s%s", JobRootdir, name );
 	} else {	/* relative to iwd which is relative to the root */
-		(void)sprintf( pathname, "%s/%s/%s", JobRootdir, p_iwd, name );
+		if(root_len + iwd_len + name_len + 2 >= _POSIX_PATH_MAX) {
+		fprintf(stderr, "\nERROR: Value for \"%s/%s\%s\" is too long:\n"
+                                "\tPosix limits path names to %d bytes\n",
+                                JobRootdir, p_iwd,  name, _POSIX_PATH_MAX);
+                DoCleanup(0,0,NULL);
+                exit( 1 );
+	
+		}
+		real_len=sprintf( pathname, "%s/%s/%s", JobRootdir, p_iwd, name );
 	}
 #endif
 

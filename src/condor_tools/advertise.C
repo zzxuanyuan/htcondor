@@ -29,6 +29,7 @@
 #include "command_strings.h"
 #include "daemon.h"
 #include "safe_sock.h"
+#include "condor_distribution.h"
 
 void
 usage( char *cmd )
@@ -55,6 +56,7 @@ int main( int argc, char *argv[] )
 	int command=-1;
 	int i;
 
+	myDistro->Init( argc, argv );
 	config();
 
 	for( i=1; i<argc; i++ ) {

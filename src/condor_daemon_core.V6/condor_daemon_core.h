@@ -54,6 +54,7 @@
 #define DEBUG_SETTABLE_ATTR_LISTS 0
 
 static const int KEEP_STREAM = 100;
+static const int CLOSE_STREAM = 101;
 static const int MAX_SOCKS_INHERITED = 4;
 static char* EMPTY_DESCRIP = "<NULL>";
 
@@ -77,6 +78,12 @@ typedef int     (*SocketHandler)(Service*,Stream*);
 
 ///
 typedef int     (Service::*SocketHandlercpp)(Stream*);
+
+///
+typedef int     (*PipeHandler)(Service*,int);
+
+///
+typedef int     (Service::*PipeHandlercpp)(int);
 
 ///
 typedef int     (*ReaperHandler)(Service*,int pid,int exit_status);
@@ -104,13 +111,14 @@ int WIFSIGNALED(DWORD stat);
 #define _DC_BLOCKSIGNAL 2
 #define _DC_UNBLOCKSIGNAL 3
 
-// If WANT_DC_PM is defined, it means we want DaemonCore Process Management.
-// We _always_ want it on WinNT; on Unix, some daemons still do their own 
-// Process Management (just until we get around to changing them to use 
-// daemon core).
-#if defined(WIN32) && !defined(WANT_DC_PM)
-#define WANT_DC_PM
-#endif
+// constants for the DaemonCore::Create_Process job_opt_mask bitmask
+
+const int DCJOBOPT_SUSPEND_ON_EXEC  = (1<<1);
+const int DCJOBOPT_NO_ENV_INHERIT   = (1<<2);
+
+#define HAS_DCJOBOPT_SUSPEND_ON_EXEC(mask)  ((mask)&DCJOBOPT_SUSPEND_ON_EXEC)
+#define HAS_DCJOBOPT_NO_ENV_INHERIT(mask)  ((mask)&DCJOBOPT_NO_ENV_INHERIT)
+
 
 /** helper function for finding available port for both 
     TCP and UDP command socket */
@@ -155,7 +163,7 @@ class DaemonCore : public Service
 	 * of daemon_core_main.C.
 	 */
     DaemonCore (int PidSize = 0, int ComSize = 0, int SigSize = 0,
-                int SocSize = 0, int ReapSize = 0);
+                int SocSize = 0, int ReapSize = 0, int PipeSize = 0);
     ~DaemonCore();
     void Driver();
 
@@ -464,11 +472,73 @@ class DaemonCore : public Service
     */
     int Cancel_Socket ( Stream * insock );
 
+	/// Cancel and close all registed sockets.
+	int Cancel_And_Close_All_Sockets(void);
+
+
     /** Not_Yet_Documented
         @param insock           Not_Yet_Documented
         @return Not_Yet_Documented
     */
     int Lookup_Socket ( Stream * iosock );
+	//@}
+
+	/** @name Pipe events.
+	 */
+	//@{
+    /** Not_Yet_Documented
+        @param pipefd           Not_Yet_Documented
+        @param iosock_descrip   Not_Yet_Documented
+        @param handler          Not_Yet_Documented
+        @param handler_descrip  Not_Yet_Documented
+        @param s                Not_Yet_Documented
+        @param perm             Not_Yet_Documented
+        @return Not_Yet_Documented
+    */
+    int Register_Pipe (int		           pipefd,
+                         char *            iosock_descrip,
+                         PipeHandler       handler,
+                         char *            handler_descrip,
+                         Service *         s                = NULL,
+                         DCpermission      perm             = ALLOW);
+
+    /** Not_Yet_Documented
+        @param pipefd           Not_Yet_Documented
+        @param iosock_descrip   Not_Yet_Documented
+        @param handlercpp       Not_Yet_Documented
+        @param handler_descrip  Not_Yet_Documented
+        @param s                Not_Yet_Documented
+        @param perm             Not_Yet_Documented
+        @return Not_Yet_Documented
+    */
+    int Register_Pipe (int					  pipefd,
+                         char *               iosock_descrip,
+                         PipeHandlercpp       handlercpp,
+                         char *               handler_descrip,
+                         Service*             s,
+                         DCpermission         perm = ALLOW);
+
+
+    /** Not_Yet_Documented
+        @param pipefd           Not_Yet_Documented
+        @return Not_Yet_Documented
+    */
+    int Cancel_Pipe ( int pipefd );
+
+	/// Cancel and close all registed pipes.
+	int Cancel_And_Close_All_Pipes(void);
+
+	/** Create an anonymous pipe.
+	*/
+	int Create_Pipe( int *pipefds, bool nonblocking_read = false, 
+		bool nonblocking_write = false, unsigned int psize = 0);
+
+	/** Close an anonymous pipe.  This function will also call 
+	 * Cancel_Pipe() on behalf of the caller if the pipefd had
+	 * been registed via Register_Pipe().
+	*/
+	int Close_Pipe(int piepfd);
+
 	//@}
 
 	/** @name Timer events.
@@ -608,7 +678,13 @@ class DaemonCore : public Service
         @param priv The priv state to change into right before
                the exec.  Default = no action.
         @param reaper_id The reaper number to use.  Default = 1.
-        @param want_command_port Well, do you?  Default = TRUE
+        @param want_command_port Well, do you?  Default = TRUE.  If
+			   want_command_port it TRUE, the child process will be
+			   born with a daemonCore command socket on a dynamic port.
+			   If it is FALSE, the child process will not have a command
+			   socket.  If it is any integer > 1, then it will have a
+			   command socket on a port well-known port 
+			   specified by want_command_port.
         @param env A colon-separated list of stuff to be put into
                the environment of the new process
         @param cwd Current Working Directory
@@ -622,6 +698,11 @@ class DaemonCore : public Service
                child.  0 < nice < 20, and greater numbers mean
                less priority.  This is an addition to the current
                nice value.
+        @param job_opt_mask A bitmask which defines other optional
+               behavior we might for this process.  The bits are
+               defined above, and always begin with "DCJOBOPT".  In
+               addition, each bit should also define a macro to test a
+               mask if a given bit is set ("HAS_DCJOBOPT_...")
         @return On success, returns the child pid.  On failure, returns FALSE.
     */
     int Create_Process (
@@ -635,7 +716,8 @@ class DaemonCore : public Service
         int         new_process_group    = FALSE,
         Stream      *sock_inherit_list[] = NULL,
         int         std[]                = NULL,
-        int         nice_inc             = 0
+        int         nice_inc             = 0,
+        int         job_opt_mask         = 0
         );
 
     //@}
@@ -691,7 +773,7 @@ class DaemonCore : public Service
         @param value
         @return Not_Yet_Documented
     */
-    int SetEnv(char *key, char *value);
+    int SetEnv(const char *key, char *value);
 
     /** Put env_var into the environment
         @param env_var Desired string to go into environment;
@@ -773,6 +855,7 @@ class DaemonCore : public Service
 			@return true if we should allow this, false if not
 		*/
 	bool CheckConfigSecurity( const char* config, Sock* sock );
+	bool CheckConfigAttrSecurity( const char* attr, Sock* sock );
 
 
     /** Invalidate all session related cache since the configuration
@@ -820,6 +903,15 @@ class DaemonCore : public Service
                         char *iosock_descrip,
                         SocketHandler handler, 
                         SocketHandlercpp handlercpp,
+                        char *handler_descrip,
+                        Service* s, 
+                        DCpermission perm,
+                        int is_cpp);
+
+    int Register_Pipe(int pipefd,
+                        char *pipefd_descrip,
+                        PipeHandler handler, 
+                        PipeHandlercpp handlercpp,
                         char *handler_descrip,
                         Service* s, 
                         DCpermission perm,
@@ -897,6 +989,27 @@ class DaemonCore : public Service
     ExtArray<SockEnt> *sockTable; // socket table; grows dynamically if needed
     int               initial_command_sock;  
 
+	struct PidEntry;  // forward reference
+    struct PipeEnt
+    {
+        int				pipefd;
+        PipeHandler	   handler;
+        PipeHandlercpp    handlercpp;
+        int             is_cpp;
+        DCpermission    perm;
+        Service*        service; 
+        char*           pipe_descrip;
+        char*           handler_descrip;
+        void*           data_ptr;
+		bool			call_handler;
+		PidEntry*		pentry;
+		bool			in_handler;
+    };
+    // void              DumpPipeTable(int, const char* = NULL);
+    int               maxPipe;  // number of pipe handlers to start with
+    int               nPipe;      // number of pipe handlers used
+    ExtArray<PipeEnt> *pipeTable; // pipe table; grows dynamically if needed
+
     struct ReapEnt
     {
         int             num;
@@ -923,6 +1036,10 @@ class DaemonCore : public Service
         HANDLE hThread;
         DWORD tid;
         HWND hWnd;
+		HANDLE hPipe;
+		LONG pipeReady;
+		LONG deallocate;
+		HANDLE watcherEvent;
 #endif
         char sinful_string[28];
         char parent_sinful_string[28];
@@ -1026,6 +1143,7 @@ class DaemonCore : public Service
 
 	bool InitSettableAttrsList( const char* subsys, int i );
 	StringList* SettableAttrsLists[LAST_PERM];
+
 };
 
 #ifndef _NO_EXTERN_DAEMON_CORE

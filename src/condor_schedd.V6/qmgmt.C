@@ -685,12 +685,15 @@ handle_q(Service *, int, Stream *sock)
 int
 InitializeConnection( const char *owner )
 {
+	
 	if ( owner ) {
+		dprintf(D_SECURITY,"in qmgmt InitializeConnection(owner=%s)\n",owner);
 		init_user_ids( owner );
 	}
 	else {
 		//this is a relic, but better than setting to NULL!
 		//    init_user_ids( "nobody" );
+		dprintf(D_SECURITY,"in qmgmt InitializeConnection(owner=NULL)\n");
 		return -1;
 	}
 
@@ -966,7 +969,8 @@ int DestroyClusterByConstraint(const char* constraint)
 
 
 int
-SetAttributeByConstraint(const char *constraint, const char *attr_name, char *attr_value)
+SetAttributeByConstraint(const char *constraint, const char *attr_name,
+						 const char *attr_value)
 {
 	ClassAd	*ad;
 	int cluster_num, proc_num;	
@@ -999,7 +1003,8 @@ SetAttributeByConstraint(const char *constraint, const char *attr_name, char *at
 }
 
 int
-SetAttribute(int cluster_id, int proc_id, const char *attr_name, char *attr_value)
+SetAttribute(int cluster_id, int proc_id, const char *attr_name,
+			 const char *attr_value)
 {
 //	LogSetAttribute	*log;
 	char			key[_POSIX_PATH_MAX];
@@ -1546,7 +1551,9 @@ GetJobAd(int cluster_id, int proc_id, bool expStartdAd)
 			// a client.  Then restork Q_SOCK back to the original value.
 			ReliSock* saved_sock = Q_SOCK;
 			Q_SOCK = NULL;
-			SetAttributeInt( cluster_id, proc_id,ATTR_JOB_STATUS, HELD );
+			SetAttributeInt( cluster_id, proc_id, ATTR_JOB_STATUS, HELD );
+			SetAttributeInt( cluster_id, proc_id,
+							 ATTR_ENTERED_CURRENT_STATUS, (int)time(0) ); 
 			Q_SOCK = saved_sock;
 			char buf[256];
 			sprintf(buf,"Your job (%d.%d) is on hold",cluster_id,proc_id);
@@ -1814,6 +1821,8 @@ int mark_idle(ClassAd *job)
 		DestroyProc( cluster, proc );
 	} else if ( status == UNEXPANDED ) {
 		SetAttributeInt(cluster,proc,ATTR_JOB_STATUS,IDLE);
+		SetAttributeInt( cluster, proc, ATTR_ENTERED_CURRENT_STATUS,
+						 (int)time(0) );
 	}
 	else if ( status == RUNNING || hosts > 0 ) {
 		mark_job_stopped(&job_id);
@@ -2116,6 +2125,9 @@ void FindPrioJob(PROC_ID & job_id)
 
 static void AppendHistory(ClassAd* ad)
 {
+  bool failed = false;
+  static bool sent_mail_about_bad_history = false;
+
   if (!JobHistoryFileName) return;
   dprintf(D_FULLDEBUG, "Saving classad to history file\n");
 
@@ -2128,16 +2140,41 @@ static void AppendHistory(ClassAd* ad)
   FILE* LogFile=fopen(JobHistoryFileName,"a");
   if ( !LogFile ) {
 	dprintf(D_ALWAYS,"ERROR saving to history file; cannot open %s\n",JobHistoryFileName);
+	failed = true;
+  } else {
+	  if (!ad->fPrint(LogFile)) {
+		dprintf(D_ALWAYS, 
+			"ERROR: failed to write job class ad to history file %s\n",
+			JobHistoryFileName);
+		if (LogFile) fclose(LogFile);
+		failed = true;
+	  } else {
+		fprintf(LogFile,"***\n");   // separator
+		fclose(LogFile);
+	  }
   }
 
-  if (!ad->fPrint(LogFile)) {
-    dprintf(D_ALWAYS, "ERROR in Scheduler::LogMatchEnd - failed to write clas ad to log file %s\n",JobHistoryFileName);
-	fclose(LogFile);
-    return;
+  if ( failed ) {
+	  if ( !sent_mail_about_bad_history ) {
+		  FILE* email_fp = email_admin_open("Failed to write to HISTORY file");
+		  if ( email_fp ) {
+			sent_mail_about_bad_history = true;
+			fprintf(email_fp,
+			 "Failed to write completed job class ad to HISTORY file:\n"
+			 "      %s\n"
+			 "If you do not wish for Condor to save completed job ClassAds\n"
+			 "for later viewing via the condor_history command, you can \n"
+			 "remove the 'HISTORY' parameter line specified in the condor_config\n"
+			 "file(s) and issue a condor_reconfig command.\n"
+			 ,JobHistoryFileName);
+			email_close(email_fp);
+		  }
+	  }
+  } else {
+	  // did not fail, reset our email flag.
+	  sent_mail_about_bad_history = false;
   }
   
-  fprintf(LogFile,"***\n");   // separator
-  fclose(LogFile);
   return;
 }
 

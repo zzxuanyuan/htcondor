@@ -122,8 +122,9 @@ RemoteResource::activateClaim( int starterVersion )
 			shadow->dprintf( D_ALWAYS, 
 							 "Request to run on %s was ACCEPTED\n",
 							 dc_startd->addr() );
-
-				// Register the claim_sock for remote system calls.
+				// first, set a timeout on the socket 
+			claim_sock->timeout( 300 );
+				// Now, register it for remote system calls.
 				// It's a bit funky, but works.
 			daemonCore->Register_Socket( claim_sock, "RSC Socket", 
 				   (SocketHandlercpp)&RemoteResource::handleSysCalls, 
@@ -249,8 +250,8 @@ RemoteResource::dprintfSelf( int debugLevel )
 void
 RemoteResource::printExit( FILE *fp )
 {
-	char ename[ATTRLIST_MAX_EXPRESSION];
-	int got_exception = jobAd->LookupString(ATTR_EXCEPTION_NAME,ename);
+	char* ename = NULL;
+	int got_exception = jobAd->LookupString(ATTR_EXCEPTION_NAME, &ename); 
 	char* reason_str = NULL;
 	jobAd->LookupString( ATTR_EXIT_REASON, &reason_str );
 
@@ -309,6 +310,12 @@ RemoteResource::printExit( FILE *fp )
 		fprintf ( fp, "has a strange exit reason of %d.\n", exit_reason );
 	}
 	} // switch()
+	if( ename ) {
+		free( ename );
+	}
+	if( reason_str ) {
+		free( reason_str );
+	}		
 }
 
 

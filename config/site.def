@@ -27,7 +27,6 @@ OpenSSLPath        = /unsup/globus-2.0-latest
 #define USE_GLOBUS_OPENSSL YES
 
 GlobusPath = /unsup/globus-2.0-latest
-GlobusFlavor = gcc32dbg
 
 /* Uncomment this line to enable the NeST I/O module */
 /* #define ENABLE_NEST */
@@ -76,13 +75,12 @@ the soft links.  The links will point back to Top/src/... */
 
 #define WANT_PVM	YES
 
-#define WANT_CONDOR_G	NO
-#define CONDOR_G_RELEASE NO
+#define WANT_CONDOR_G	YES
 
 #define WANT_NETMAN	YES
 
 #define WANT_X509       YES
-#define WANT_KERBEROS   NO
+#define WANT_KERBEROS   YES
 #define WANT_MD         YES
 #define WANT_3DES       YES
 #define WANT_BLOWFISH   YES
@@ -109,6 +107,7 @@ KERBEROS_INCLUDE =
 #endif
 
 
+GAHP_DIR = /p/condor/workspaces/epaulson/gahp/bin
 #endif  /* AfterVendorCF */
 
 

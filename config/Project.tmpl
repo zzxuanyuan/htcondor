@@ -36,6 +36,19 @@ X11_INCLUDE = X11Include
 X11_INCLUDE = /usr/X11R6/include	
 #endif
 
+#ifdef GLOBUS_FLAVOR
+GlobusFlavor = GLOBUS_FLAVOR
+#else
+GlobusFlavor = gcc32dbg
+#endif
+
+#ifdef NEED_SNPRINTF
+SNPRINTF_FLAGS = -DNEED_SNPRINTF
+#else
+SNPRINTF_FLAGS = 
+#endif
+
+
 #if !defined( CLinker )
 #define CLinker CCompiler
 #endif
@@ -54,6 +67,10 @@ X11_INCLUDE = /usr/X11R6/include
 
 #if !defined(TestPlatformLdFlags)
 #define TestPlatformLdFlags
+#endif
+
+#if !defined(PurifyPlatformLdFlags)
+#define PurifyPlatformLdFlags
 #endif
 
 #if !defined(Strip)
@@ -89,6 +106,7 @@ MKDEPEND = MkDepend
 STAR	= *
 
 PLATFORM_LDFLAGS = PlatformLdFlags
+PURIFY_PLATFORM_LDFLAGS = PurifyPlatformLdFlags
 TEST_PLATFORM_LDFLAGS = TestPlatformLdFlags
 
 ##########
@@ -222,12 +240,6 @@ DEBUG_FLAG = DebugFlag
 #define VendorFTestFlags
 #endif
 
-#if CONDOR_G_RELEASE
-  #define IsCondorGRelease -DCONDOR_G_RELEASE
-#else
-  #define IsCondorGRelease
-#endif
-
 #if WANT_CONDOR_G && HAS_GLOBUS
 
   #define NEEDS_GSI YES
@@ -235,7 +247,7 @@ DEBUG_FLAG = DebugFlag
   CONDOR_G_FLAGS = -DCONDOR_G
 
 #else
-  CONDOR_G_FLAGS =
+ CONDOR_G_FLAGS =
 #endif /*HasGlobus && WantCondorG */
 
 GLOBUS_LIB = $(GlobusPath)/lib/libglobus_gass_server_ez_$(GlobusFlavor).a \
@@ -354,7 +366,7 @@ NETMAN_FLAGS =
 VENDOR_C_FLAGS = CFlags -I$(INCLUDE_DIR) -I$(NEW_INCLUDE_DIR) \
 		 -I$(C_PLUS_INCLUDE) XInclude -D$(ARCH_FLAG)=$(ARCH_FLAG) \
 		 -D$(OS_FLAG)=$(OS_FLAG) $(SITE_C_FLAGS) $(CONDOR_G_FLAGS) \
-		 $(SECURITY_FLAGS) $(NETMAN_FLAGS) \
+		 $(SECURITY_FLAGS) $(NETMAN_FLAGS) $(SNPRINTF_FLAGS)\
 		 -I$(DAEMONCLIENT_INCLUDE)
 
 /*
@@ -395,6 +407,7 @@ DAEMONCORE_LIB = ../condor_daemon_core.V6/daemon_core.a
 
 ALL_LDFLAGS = -lm $(LDFLAGS) $(PLATFORM_LDFLAGS) $(SITE_LDFLAGS)
 TEST_LDFLAGS = -lm $(LDFLAGS) $(TEST_PLATFORM_LDFLAGS) $(SITE_LDFLAGS)
+PURIFY_LDFLAGS = -lm $(LDFLAGS) $(PURIFY_PLATFORM_LDFLAGS) $(SITE_LDFLAGS)
 
 STD_LIBS = \
   $(CUTIL_LIB) \

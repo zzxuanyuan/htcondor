@@ -114,11 +114,22 @@ IpVerify::~IpVerify()
 	int i;
 
 	// Clear the Permission Hash Table
-	if (PermHashTable)
-		delete PermHashTable;
+	if (PermHashTable) {
+		// iterate through the table and delete the entries
+		struct in_addr key;
+		UserPerm_t * value;
+		PermHashTable->startIterations();
 
-	if( AllowHostsTable )
+		while (PermHashTable->iterate(key, value)) {
+			delete value;
+		}
+
+		delete PermHashTable;
+	}
+
+	if( AllowHostsTable ) { 
 		delete AllowHostsTable;
+	}
 
 	// Clear the Permission Type Array
 	for (i=0;i<USERVERIFY_MAX_PERM_TYPES;i++) {
@@ -140,8 +151,18 @@ IpVerify::Init()
 	did_init = TRUE;
 	
 	// Clear the Permission Hash Table in case re-initializing
-	if (PermHashTable)
+	if (PermHashTable) {
+		// iterate through the table and delete the entries
+		struct in_addr key;
+		UserPerm_t * value;
+		PermHashTable->startIterations();
+
+		while (PermHashTable->iterate(key, value)) {
+			delete value;
+		}
+
 		PermHashTable->clear();
+	}
 
 	// and Clear the Permission Type Array
 	for (i=0;i<USERVERIFY_MAX_PERM_TYPES;i++) {

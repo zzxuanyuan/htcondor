@@ -57,11 +57,9 @@ email_open( const char *email_addr, const char *subject )
 	char *Mailer;
 	char *temp;
 	FILE *mailerstream;
-	priv_state priv;
 	char RelayHost[150];
 	const char *FinalSubject = "\0";
 	char final_command[2000];
-	int prev_umask;
 
 	RelayHost[0] = '\0';
 
@@ -284,6 +282,7 @@ email_open_implementation(char *Mailer, char *final_command)
 		/* WARNING  This code must happen before the close/dup operation. */
 		condor_uid = get_condor_uid();
 		condor_gid = get_condor_gid();
+		uninit_user_ids();
 		set_user_ids( condor_uid, condor_gid );
 		set_user_priv_final();
 

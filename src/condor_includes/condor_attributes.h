@@ -63,9 +63,9 @@ const char ATTR_CLOCK_MIN                [] = "ClockMin";
 const char ATTR_CLUSTER_ID               [] = "ClusterId";
 const char ATTR_COLLECTOR_IP_ADDR        [] = "CollectorIpAddr";
 const char ATTR_COMPLETION_DATE			 [] = "CompletionDate";
-const char ATTR_COMPRESS_FILES		 [] = "CompressFiles";
-const char ATTR_CONDOR_ADMIN			 [] = "CondorAdmin";
-const char ATTR_CONDOR_LOAD_AVG			 [] = "CondorLoadAvg";
+const char ATTR_COMPRESS_FILES			 [] = "CompressFiles";
+#define ATTR_CONDOR_LOAD_AVG			AttrGetName( ATTRE_CONDOR_LOAD_AVG )
+#define ATTR_CONDOR_ADMIN				AttrGetName( ATTRE_CONDOR_ADMIN )
 const char ATTR_CONSOLE_IDLE			 [] = "ConsoleIdle";
 const char ATTR_CONTINUE                 [] = "Continue";
 const char ATTR_CORE_SIZE				 [] = "CoreSize";
@@ -84,6 +84,7 @@ const char ATTR_DISK                     [] = "Disk";
 const char ATTR_DISK_USAGE				 [] = "DiskUsage";
 const char ATTR_ENTERED_CURRENT_ACTIVITY [] = "EnteredCurrentActivity";
 const char ATTR_ENTERED_CURRENT_STATE	 [] = "EnteredCurrentState";
+const char ATTR_ENTERED_CURRENT_STATUS	 [] = "EnteredCurrentStatus";
 const char ATTR_EXCEPTION_HIERARCHY      [] = "ExceptionHierarchy";
 const char ATTR_EXCEPTION_NAME           [] = "ExceptionName";
 const char ATTR_EXCEPTION_TYPE           [] = "ExceptionType";
@@ -103,17 +104,25 @@ const char ATTR_FLAVOR                   [] = "Flavor";
 const char ATTR_FLOCKED_JOBS			 [] = "FlockedJobs";
 const char ATTR_FORCE					 [] = "Force";
 const char ATTR_GID						 [] = "Gid";
+const char ATTR_GZIP					 [] = "GZIP";
 const char ATTR_GLOBUS_CONTACT_STRING	 [] = "GlobusContactString";
 const char ATTR_GLOBUS_RESOURCE			 [] = "GlobusResource";
 const char ATTR_GLOBUS_RSL				 [] = "GlobusRSL";
 const char ATTR_GLOBUS_STATUS			 [] = "GlobusStatus";
-const char ATTR_HAS_IO_PROXY		[] = "HasIOProxy";
-const char ATTR_HAS_JAVA                [] = "HasJava";
+const char ATTR_HAS_CHECKPOINTING        [] = "HasCheckpointing";
+const char ATTR_HAS_FILE_TRANSFER        [] = "HasFileTransfer";
+const char ATTR_HAS_IO_PROXY             [] = "HasIOProxy";
+const char ATTR_HAS_JAVA                 [] = "HasJava";
+const char ATTR_HAS_MPI                  [] = "HasMPI";
+const char ATTR_HAS_OLD_VANILLA          [] = "HasOldVanilla";
+const char ATTR_HAS_PVM                  [] = "HasPVM";
+const char ATTR_HAS_REMOTE_SYSCALLS      [] = "HasRemoteSyscalls";
 const char ATTR_HELD_JOBS				 [] = "HeldJobs";
 const char ATTR_HOLD_REASON				 [] = "HoldReason";
 const char ATTR_IDLE_JOBS                [] = "IdleJobs";
 const char ATTR_IMAGE_SIZE				 [] = "ImageSize";
 const char ATTR_INACTIVE                 [] = "Inactive";
+const char ATTR_IS_DAEMON_CORE           [] = "IsDaemonCore";
 const char ATTR_IS_OWNER                 [] = "IsOwner";
 const char ATTR_IS_QUEUE_SUPER_USER      [] = "IsQueueSuperUser";
 const char ATTR_JAR_FILES                [] = "JarFiles";
@@ -141,6 +150,7 @@ const char ATTR_JOB_LAST_START_DATE		 [] = "JobLastStartDate";
 const char ATTR_JOB_LOCAL_CPU			 [] = "LocalCpu";
 const char ATTR_JOB_LOCAL_SYS_CPU		 [] = "LocalSysCpu";
 const char ATTR_JOB_LOCAL_USER_CPU		 [] = "LocalUserCpu";
+const char ATTR_JOB_MANAGED				 [] = "Managed";
 const char ATTR_JOB_NOTIFICATION		 [] = "JobNotification";
 const char ATTR_JOB_OUTPUT				 [] = "Out";
 const char ATTR_JOB_OUTPUT_SIZE			 [] = "OutSize";
@@ -167,10 +177,12 @@ const char ATTR_LAST_BENCHMARK			 [] = "LastBenchmark";
 const char ATTR_LAST_CKPT_SERVER		 [] = "LastCkptServer";
 const char ATTR_LAST_CKPT_TIME			 [] = "LastCkptTime";
 const char ATTR_LAST_HEARD_FROM          [] = "LastHeardFrom";
+const char ATTR_LAST_HOLD_REASON         [] = "LastHoldReason";
 const char ATTR_LAST_MATCH_TIME			 [] = "LastMatchTime";
 const char ATTR_LAST_PERIODIC_CHECKPOINT [] = "LastPeriodicCheckpoint";
 const char ATTR_LAST_REJ_MATCH_REASON	 [] = "LastRejMatchReason";
 const char ATTR_LAST_REJ_MATCH_TIME		 [] = "LastRejMatchTime";
+const char ATTR_LAST_RELEASE_REASON      [] = "LastReleaseReason";
 const char ATTR_LAST_REMOTE_HOST		 [] = "LastRemoteHost";
 const char ATTR_LAST_SUSPENSION_TIME     [] = "LastSuspensionTime";
 const char ATTR_LAST_UPDATE				 [] = "LastUpdate";
@@ -218,7 +230,7 @@ const char ATTR_OWNER                    [] = "Owner";
 const char ATTR_PERIODIC_CHECKPOINT      [] = "PeriodicCheckpoint";
 const char ATTR_PERIODIC_HOLD_CHECK		 [] = "PeriodicHold";
 const char ATTR_PERIODIC_REMOVE_CHECK	 [] = "PeriodicRemove";
-const char ATTR_PLATFORM                 [] = "CondorPlatform";
+#define ATTR_PLATFORM					AttrGetName( ATTRE_PLATFORM )
 const char ATTR_PREFERENCES				 [] = "Preferences";
 const char ATTR_PREV_RECV_ESTIMATE		 [] = "PrevRecvEstimate";
 const char ATTR_PREV_SEND_ESTIMATE		 [] = "PrevSendEstimate";
@@ -276,6 +288,7 @@ const char ATTR_SHADOW_WAIT_FOR_DEBUG    [] = "ShadowWaitForDebug";
 const char ATTR_SOURCE					 [] = "Source";
 const char ATTR_STARTD_IP_ADDR           [] = "StartdIpAddr";
 const char ATTR_STARTER_IP_ADDR          [] = "StarterIpAddr";
+const char ATTR_STARTER_ABILITY_LIST     [] = "StarterAbilityList";
 const char ATTR_STARTER_WAIT_FOR_DEBUG   [] = "StarterWaitForDebug";
 const char ATTR_START                    [] = "Start";
 const char ATTR_STATE                    [] = "State";
@@ -284,7 +297,7 @@ const char ATTR_SUBMITTOR_PRIO           [] = "SubmittorPrio";
 const char ATTR_SUBNET                   [] = "Subnet";
 const char ATTR_SUSPEND                  [] = "Suspend";
 const char ATTR_TARGET_TYPE				 [] = "TargetType";
-const char ATTR_TOTAL_CONDOR_LOAD_AVG	 [] = "TotalCondorLoadAvg";
+#define ATTR_TOTAL_CONDOR_LOAD_AVG			AttrGetName( ATTRE_TOTAL_LOAD )
 const char ATTR_TOTAL_CPUS				 [] = "TotalCpus";
 const char ATTR_TOTAL_DISK				 [] = "TotalDisk";
 const char ATTR_TOTAL_FLOCKED_JOBS		 [] = "TotalFlockedJobs";
@@ -318,7 +331,7 @@ const char ATTR_USE_CKPT_SERVER          [] = "UseCkptServer";
 const char ATTR_USER					 [] = "User";
 const char ATTR_VACATE_CKPT_SERVER       [] = "VacateCkptServer";
 const char ATTR_VACATE                   [] = "Vacate";
-const char ATTR_VERSION					 [] = "CondorVersion";
+#define ATTR_VERSION					AttrGetName( ATTRE_VERSION )
 const char ATTR_VIRTUAL_MACHINE_ID		 [] = "VirtualMachineID";
 const char ATTR_VIRTUAL_MEMORY           [] = "VirtualMemory";
 const char ATTR_WANT_CHECKPOINT		 	 [] = "WantCheckpoint";
@@ -330,4 +343,56 @@ const char ATTR_WANT_REMOTE_SYSCALLS 	 [] = "WantRemoteSyscalls";
 const char ATTR_WANT_RESOURCE_AD		 [] = "WantResAd";
 const char ATTR_WANT_SUBMIT_NET_STATS	 [] = "WantSubmitNetStats";
 const char ATTR_X509_USER_PROXY          [] = "x509userproxy";			
+
+// Enumerate the ones that can't be constant strings..
+typedef enum
+{
+	ATTRE_CONDOR_LOAD_AVG = 0,
+	ATTRE_CONDOR_ADMIN,
+	ATTRE_PLATFORM,
+	ATTRE_TOTAL_LOAD,
+	ATTRE_VERSION,
+	// ....
+} CONDOR_ATTR;
+
+// Prototypes
+int AttrInit( void );
+const char *AttrGetName( CONDOR_ATTR );
+
+
+// ------------------------------------------------------
+// Stuff private to the environment variable manager
+// ------------------------------------------------------
+#if defined _CONDOR_ATTR_MAIN
+
+// Flags available
+typedef enum
+{
+	ATTR_FLAG_NONE = 0,			// No special treatment
+	ATTR_FLAG_DISTRO,			// Plug in the distribution name
+	ATTR_FLAG_DISTRO_UC,		// Plug in the UPPER CASE distribution name
+	ATTR_FLAG_DISTRO_CAP,		// Plug in the Capitolized distribution name
+} CONDOR_ATTR_FLAGS;
+
+// Data on each env variable
+typedef struct
+{
+	CONDOR_ATTR			sanity;		// Used to sanity check
+	const char			*string;	// My format string
+	CONDOR_ATTR_FLAGS	flag;		// Flags
+	const char			*cached;	// Cached answer
+} CONDOR_ATTR_ELEM;
+
+// The actual list of variables indexed by CONDOR_ATTR
+static CONDOR_ATTR_ELEM CondorAttrList[] =
+{
+	{ ATTRE_CONDOR_LOAD_AVG,"%sLoadAvg",		ATTR_FLAG_DISTRO_CAP },
+	{ ATTRE_CONDOR_ADMIN,	"%sAdmin",			ATTR_FLAG_DISTRO_CAP },
+	{ ATTRE_PLATFORM,		"%sPlatform",		ATTR_FLAG_DISTRO_CAP },
+	{ ATTRE_TOTAL_LOAD,		"Total%sLoadAvg",	ATTR_FLAG_DISTRO_CAP },
+	{ ATTRE_VERSION,		"%sVersion",		ATTR_FLAG_DISTRO_CAP },
+	// ....
+};
+#endif		// _CONDOR_ATTR_MAIN
+
 #endif

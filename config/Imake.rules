@@ -55,7 +55,7 @@ all:: targetlist
 */
 #define single_target(dir, target)			@@\
 ##dir##/##target##: dir					@@\
-	cd dir; make target
+	cd dir; make $(SMP_FLAGS) target
 
 
 /***********************************************************************
@@ -560,7 +560,7 @@ static_dir/##name##: static					@@\
 ** PureSoftware targets
 **
 ** These rules are used for creating special debugging binaries built
-** for either purify, or purecoverage.
+** for either purify, purecoverage, or both.
 ***********************************************************************/
 
 #if IS_SUN4X
@@ -568,6 +568,12 @@ static_dir/##name##: static					@@\
 #define PureCollector concat3(-collector=,CrtLibPath,/ld)
 
 #define	pure_c_plus_target( program, objlist, libs )	@@\
+##program: objlist libs					@@\
+	purify -g++=yes PureCollector purecov -g++=yes PureCollector $(CC_LINK) $(NON_INST_C_PLUS_FLAGS) -o program objlist libs $(ALL_LDFLAGS)	@@\
+clean::							@@\
+	rm -f program objlist
+
+#define	purify_c_plus_target( program, objlist, libs )	@@\
 ##program: objlist libs					@@\
 	purify -g++=yes PureCollector $(CC_LINK) $(NON_INST_C_PLUS_FLAGS) -o program objlist libs $(ALL_LDFLAGS)	@@\
 clean::							@@\
@@ -598,6 +604,7 @@ pure:: $(PURE_DIR)/##program
 
 #define	pure_target( dir, program )			/* NULL MACRO */
 #define	pure_c_plus_target( program, objlist, libs )	/* NULL MACRO */
+#define	purify_c_plus_target( program, objlist, libs )	/* NULL MACRO */
 #define	purecov_c_plus_target( program, objlist, libs )	/* NULL MACRO */
 #define	quantify_c_plus_target( program, objlist, libs ) /* NULL MACRO */
 

@@ -32,7 +32,8 @@
 static const int DEFAULT_MAXCOMMANDS = 255;
 static const int DEFAULT_MAXSIGNALS = 99;
 static const int DEFAULT_MAXSOCKETS = 8;
-static const int DEFAULT_MAXREAPS = 8;
+static const int DEFAULT_MAXPIPES = 8;
+static const int DEFAULT_MAXREAPS = 100;
 static const int DEFAULT_PIDBUCKETS = 11;
 static const int ERRNO_EXEC_AS_ROOT = 666666;
 static const char* DEFAULT_INDENT = "DaemonCore--> ";
@@ -53,13 +54,46 @@ static const char* DEFAULT_INDENT = "DaemonCore--> ";
 #include "condor_config.h"
 #include "condor_attributes.h"
 #include "strupr.h"
+#include "sig_name.h"
 #include "env.h"
 #include "condor_secman.h"
+#include "condor_distribution.h"
+#include "condor_environ.h"
 #ifdef WIN32
 #include "exphnd.WIN32.h"
 typedef unsigned (__stdcall *CRT_THREAD_HANDLER) (void *);
 #endif
 
+#if 0
+	// Lord help us -- here we define some CRT internal data structure info.
+	// If you compile Condor NT with anything other than VC++ 6.0, you
+	// need to check the C runtime library (CRT) source to make certain the below
+	// still makes sense (in particular, the ioinfo struct).  In the CRT,
+	// look at INTERNAL.H and MSDOS.H.  Good Luck.
+	typedef struct {
+			long osfhnd;    /* underlying OS file HANDLE */
+			char osfile;    /* attributes of file (e.g., open in text mode?) */
+			char pipech;    /* one char buffer for handles opened on pipes */
+			#ifdef _MT
+			int lockinitflag;
+			CRITICAL_SECTION lock;
+			#endif  /* _MT */
+		}   ioinfo;
+	#define IOINFO_L2E          5
+	#define IOINFO_ARRAY_ELTS   (1 << IOINFO_L2E)
+	#define IOINFO_ARRAYS       64
+	#define _pioinfo(i) ( __pioinfo[(i) >> IOINFO_L2E] + ((i) & (IOINFO_ARRAY_ELTS - \
+								  1)) )
+	#define _osfile(i)  ( _pioinfo(i)->osfile )
+	#define _pipech(i)  ( _pioinfo(i)->pipech )
+	extern _CRTIMP ioinfo * __pioinfo[];
+	extern int _nhandle;
+	#define FOPEN           0x01    /* file handle open */
+	#define FPIPE           0x08    /* file handle refers to a pipe */
+	#define FDEV            0x40    /* file handle refers to device */
+	extern void __cdecl _lock_fhandle(int);
+	extern void __cdecl _unlock_fhandle(int);
+#endif
 
 #define SECURITY_HACK_ENABLE
 void zz2printf(KeyInfo *k) {
@@ -97,7 +131,7 @@ static int compute_pid_hash(const pid_t &key, int numBuckets)
 // DaemonCore constructor. 
 
 DaemonCore::DaemonCore(int PidSize, int ComSize,int SigSize,
-				int SocSize,int ReapSize)
+				int SocSize,int ReapSize,int PipeSize)
 {
 
 	if(ComSize < 0 || SigSize < 0 || SocSize < 0 || PidSize < 0)
@@ -119,6 +153,7 @@ DaemonCore::DaemonCore(int PidSize, int ComSize,int SigSize,
 	maxSig = SigSize;
 	maxSocket = SocSize;
 	maxReap = ReapSize;
+	maxPipe = PipeSize;
 
 	if(maxCommand == 0)
 		maxCommand = DEFAULT_MAXCOMMANDS;
@@ -157,6 +192,19 @@ DaemonCore::DaemonCore(int PidSize, int ComSize,int SigSize,
 	sockTable->fill(blankSockEnt);
 
 	initial_command_sock = -1;
+
+	if(maxPipe == 0)
+		maxPipe = DEFAULT_MAXPIPES;
+
+	pipeTable = new ExtArray<PipeEnt>(maxPipe);
+	if(pipeTable == NULL)
+	{
+		EXCEPT("Out of memory!");
+	}
+	nPipe = 0;
+	PipeEnt blankPipeEnt;
+	memset(&blankPipeEnt,'\0',sizeof(PipeEnt));
+	pipeTable->fill(blankPipeEnt);
 
 	if(maxReap == 0)
 		maxReap = DEFAULT_MAXREAPS;
@@ -197,6 +245,7 @@ DaemonCore::DaemonCore(int PidSize, int ComSize,int SigSize,
 	}
 
 	Default_Priv_State = PRIV_CONDOR;
+	
 }
 
 // DaemonCore destructor. Delete the all the various handler tables, plus
@@ -250,7 +299,14 @@ DaemonCore::~DaemonCore()
 	}
 
 	if (sec_man) {
+		// the reference counting in sec_man is currently disabled,
+		// so we need to clean up after it quite explicitly.  ZKM.
+		KeyCache * tmp_kt = sec_man->session_cache;
+		HashTable<MyString,MyString>* tmp_cm = sec_man->command_map;
+
 		delete sec_man;
+		delete tmp_kt;
+		delete tmp_cm;
 	}
 
 		// Since we created these, we need to clean them up.
@@ -285,6 +341,9 @@ DaemonCore::~DaemonCore()
 		}
 	}
 
+	if( pipeTable ) {
+		delete( pipeTable );
+	}
 	t.CancelAllTimers();
 }
 
@@ -346,6 +405,23 @@ int	DaemonCore::Register_Socket(Stream* iosock, char* iosock_descrip,
 				Service* s, DCpermission perm) 
 {
 	return( Register_Socket(iosock, iosock_descrip, NULL, handlercpp, 
+							handler_descrip, s, perm, TRUE) ); 
+}
+
+int	DaemonCore::Register_Pipe(int pipefd, char* pipefd_descrip, 
+				PipeHandler handler, char* handler_descrip, 
+				Service* s, DCpermission perm) 
+{
+	return( Register_Pipe(pipefd, pipefd_descrip, handler, 
+							(PipeHandlercpp)NULL, handler_descrip, s, 
+							perm, FALSE) );
+}
+
+int	DaemonCore::Register_Pipe(int pipefd, char* piepfd_descrip, 
+				PipeHandlercpp handlercpp, char* handler_descrip, 
+				Service* s, DCpermission perm) 
+{
+	return( Register_Pipe(pipefd, piepfd_descrip, NULL, handlercpp, 
 							handler_descrip, s, perm, TRUE) ); 
 }
 
@@ -424,7 +500,7 @@ int DaemonCore::Register_Command(int command, char* command_descrip,
     int     i;		// hash value
     int     j;		// for linear probing
     
-    if( handler == NULL && handlercpp == NULL) {
+    if( handler == NULL && handlercpp == NULL ) {
 		dprintf(D_DAEMONCORE, "Can't register NULL command handler\n");
 		return -1;
     }
@@ -563,16 +639,16 @@ int DaemonCore::Register_Signal(int sig, char* sig_descrip,
     }
 
 	// Semantics dictate that certain signals CANNOT be caught!
-	// In addition, allow DC_SIGCHLD to be automatically replaced (for backwards
-	// compatibility), so cancel any previous registration for DC_SIGCHLD.
+	// In addition, allow SIGCHLD to be automatically replaced (for backwards
+	// compatibility), so cancel any previous registration for SIGCHLD.
 	switch (sig) {
-		case DC_SIGKILL:
-		case DC_SIGSTOP:
-		case DC_SIGCONT:
+		case SIGKILL:
+		case SIGSTOP:
+		case SIGCONT:
 			EXCEPT("Trying to Register_Signal for sig %d which cannot be caught!",sig);
 			break;
-		case DC_SIGCHLD:
-			Cancel_Signal(DC_SIGCHLD);
+		case SIGCHLD:
+			Cancel_Signal(SIGCHLD);
 			break;
 		default:
 			break;
@@ -801,6 +877,57 @@ int DaemonCore::Register_Socket(Stream *iosock, char* iosock_descrip,
 }
 
 
+int 
+DaemonCore::Cancel_And_Close_All_Sockets(void) 
+{
+	// This method will cancel *and delete* all registered sockets.
+	// It will return the number of sockets cancelled + closed.
+	int i = 0;
+
+	while ( nSock > 0 ) {
+		if ( (*sockTable)[0].iosock ) {	// if a valid entry....
+			Stream* insock = (*sockTable)[0].iosock;
+				// Note:  calling Cancel_Socket will decrement
+				// variable nSock (number of registered Sockets)
+				// by one.
+			Cancel_Socket( insock );		
+			delete insock;
+			if( insock == (Stream*)dc_rsock ) {
+				dc_rsock = NULL;
+			}
+			if( insock == (Stream*)dc_ssock ) {
+				dc_ssock = NULL;
+			}
+			i++;
+		}
+	}
+
+	return i;
+}
+
+
+int 
+DaemonCore::Cancel_And_Close_All_Pipes(void) 
+{
+	// This method will cancel *and delete* all registered pipes.
+	// It will return the number of pipes cancelled + closed.
+	int i = 0;
+
+	while ( nPipe > 0 ) {
+		if ( (*pipeTable)[0].pipefd ) {	// if a valid entry....
+				// Note:  calling Close_Pipe will decrement
+				// variable nPipe (number of registered Sockets)
+				// by one.
+			Close_Pipe( (*pipeTable)[0].pipefd );		
+			i++;
+		}
+	}
+
+	return i;
+}
+		
+
+
 int DaemonCore::Cancel_Socket( Stream* insock)
 {
 	int i,j;
@@ -851,6 +978,306 @@ int DaemonCore::Cancel_Socket( Stream* insock)
 
 	return TRUE;
 }
+
+
+int DaemonCore::Register_Pipe(int pipefd, char* pipefd_descrip, 
+				PipeHandler handler, PipeHandlercpp handlercpp, 
+				char *handler_descrip, Service* s, DCpermission perm, 
+				int is_cpp)
+{
+    int     i;	
+    int     j;	
+
+	// Since FD_ISSET only allows us to probe, we do not bother using a 
+	// hash table for pipes.  We simply store them in an array.  
+
+    if ( pipefd < 1 ) {
+		dprintf(D_DAEMONCORE, "Register_Pipe: invalid pipefd \n");
+		return -1;
+    }
+
+#if 0
+	_lock_fhandle(pipefd);
+	if ( ((unsigned)pipefd >= (unsigned)_nhandle) ||
+			!(_osfile(pipefd) & FOPEN) ||  
+			!(_osfile(pipefd) & (FPIPE|FDEV)) ) 
+	{
+		dprintf(D_DAEMONCORE, "Register_Pipe: invalid pipefd \n");
+		_unlock_fhandle(pipefd);
+		return -1;
+	}
+	_unlock_fhandle(pipefd);
+#endif
+
+#ifdef WIN32
+	HANDLE dupped_pipe_handle;
+	if ( _get_osfhandle(pipefd) == -1L ) {
+		dprintf(D_DAEMONCORE, "Register_Pipe: invalid pipefd \n");
+		return -1;
+    }
+	if (!DuplicateHandle(GetCurrentProcess(),
+        (HANDLE)_get_osfhandle(pipefd),
+        GetCurrentProcess(),
+        (HANDLE*)&dupped_pipe_handle,
+        0,
+        0, // inheritable flag
+        DUPLICATE_SAME_ACCESS)) {
+			// failed to duplicate
+			dprintf(D_ALWAYS,
+				"ERROR: DuplicateHandle() failed in Register_Pipe\n");
+			return -1;
+	}
+#endif
+
+	i = nPipe;
+
+	// Make certain that entry i is empty.
+	if ( (*pipeTable)[i].pipefd ) {
+        EXCEPT("Pipe table fubar!  nPipe = %d\n", nPipe );
+	}
+
+	// Verify that this piepfd has not already been registered
+	for ( j=0; j < nPipe; j++ ) 
+	{
+		if ( (*pipeTable)[j].pipefd == pipefd ) {
+			EXCEPT("DaemonCore: Same pipe registered twice");
+        }
+	}
+
+	// Found a blank entry at index i. Now add in the new data.
+	(*pipeTable)[i].pentry = NULL;	
+	(*pipeTable)[i].call_handler = false;
+	(*pipeTable)[i].in_handler = false;
+	(*pipeTable)[i].pipefd = pipefd;
+	(*pipeTable)[i].handler = handler;
+	(*pipeTable)[i].handlercpp = handlercpp;
+	(*pipeTable)[i].is_cpp = is_cpp;
+	(*pipeTable)[i].perm = perm;
+	(*pipeTable)[i].service = s;
+	(*pipeTable)[i].data_ptr = NULL;
+	free_descrip((*pipeTable)[i].pipe_descrip);
+	if ( pipefd_descrip )
+		(*pipeTable)[i].pipe_descrip = strdup(pipefd_descrip);
+	else
+		(*pipeTable)[i].pipe_descrip = EMPTY_DESCRIP;
+	free_descrip((*pipeTable)[i].handler_descrip);
+	if ( handler_descrip )
+		(*pipeTable)[i].handler_descrip = strdup(handler_descrip);
+	else
+		(*pipeTable)[i].handler_descrip = EMPTY_DESCRIP;
+
+	// Increment the counter of total number of entries
+	nPipe++;
+
+	// Update curr_regdataptr for SetDataPtr()
+	curr_regdataptr = &((*pipeTable)[i].data_ptr);
+
+#ifdef WIN32
+	// On Win32, make a "pid entry" and pass it to our Pid Watcher thread.
+	// This thread will then watch over the pipe handle and notify us
+	// when there is something to read.  
+	// NOTE: WatchPid() must be called at the very end of this function.
+	(*pipeTable)[i].pentry = new PidEntry;	
+	(*pipeTable)[i].pentry->hPipe = dupped_pipe_handle;
+	(*pipeTable)[i].pentry->hProcess = 0;
+	(*pipeTable)[i].pentry->hThread = 0;
+	(*pipeTable)[i].pentry->pipeReady = 0;
+	(*pipeTable)[i].pentry->deallocate = 0;
+	WatchPid((*pipeTable)[i].pentry);
+#endif
+
+	return pipefd;
+}
+
+int DaemonCore::Create_Pipe( int *filedes, bool nonblocking_read, 
+		bool nonblocking_write, unsigned int psize)
+{
+	dprintf(D_DAEMONCORE,"Entering Create_Pipe()\n");
+
+	if ( psize == 0 ) {
+		// set default pipe size at 4k, the size of one page on most platforms
+		psize = 1024 * 4;
+	}
+
+	bool failed = false;
+
+#ifdef WIN32
+	// WIN32
+	long handle;
+	DWORD Mode = PIPE_READMODE_BYTE | PIPE_NOWAIT;
+	if ( _pipe(filedes, psize, _O_BINARY) == -1 ) {
+		dprintf(D_ALWAYS,"Create_Pipe(): call to pipe() failed\n");
+		return FALSE;
+	}
+	if ( nonblocking_read ) {
+		handle = _get_osfhandle( filedes[0] );
+		if ( SetNamedPipeHandleState(
+				(HANDLE) handle,					// handle to pipe
+				&Mode,	// new pipe mode
+				NULL,  // maximum collection count
+				NULL   // time-out value
+				) == 0 ) {
+			failed = true;
+		}
+	}
+	if ( nonblocking_write ) {
+		handle = _get_osfhandle( filedes[1] );
+		if ( SetNamedPipeHandleState(
+				(HANDLE) handle,					// handle to pipe
+				&Mode,	// new pipe mode
+				NULL,  // maximum collection count
+				NULL   // time-out value
+				) == 0 ) {
+			failed = true;
+		}
+	}
+#else
+	// Unix
+	if ( pipe(filedes) == -1 ) {
+		dprintf(D_ALWAYS,"Create_Pipe(): call to pipe() failed\n");
+		return FALSE;
+	}
+	
+	if ( nonblocking_read ) {
+		int fcntl_flags;
+		if ( (fcntl_flags=fcntl(filedes[0], F_GETFL)) < 0 ) {
+			failed = true;
+		} else {
+			fcntl_flags |= O_NONBLOCK;	// set nonblocking mode
+			if ( fcntl(filedes[0],F_SETFL,fcntl_flags) == -1 ) {
+				failed = true;
+			}
+		}
+	}
+	if ( nonblocking_write ) {
+		int fcntl_flags;
+		if ( (fcntl_flags=fcntl(filedes[1], F_GETFL)) < 0 ) {
+			failed = true;
+		} else {
+			fcntl_flags |= O_NONBLOCK;	// set nonblocking mode
+			if ( fcntl(filedes[1],F_SETFL,fcntl_flags) == -1 ) {
+				failed = true;
+			}
+		}
+	}
+#endif
+
+	if ( failed == true ) {
+		close(filedes[0]);
+		filedes[0] = -1;
+		close(filedes[1]);
+		filedes[1] = -1;
+		dprintf(D_ALWAYS,"Create_Pipe() failed to set non-blocking mode\n");
+		return FALSE;
+	} else {
+		dprintf(D_DAEMONCORE,"Create_Pipe() success readfd=%d writefd=%d\n",
+			filedes[0],filedes[1]);
+		return TRUE;
+	}
+}
+
+
+int DaemonCore::Close_Pipe( int pipefd )
+{
+	// First, call Cancel_Pipe on this pipefd.  
+	int i,j;
+	i = -1;
+	for (j=0;j<nPipe;j++) {
+		if ( (*pipeTable)[j].pipefd == pipefd ) {
+			i = j;
+			break;
+		}
+	}
+	if ( i != -1 ) {
+		// We now know that this pipefd is registed.  Cancel it.
+		int result = Cancel_Pipe(pipefd);
+		// ASSERT that it did not fail, because the only reason it should
+		// fail is if it is not registered.  And we already checked that.
+		ASSERT( result == TRUE );
+	}
+
+	// Now, close the fd.
+	if ( close(pipefd) < 0 ) {
+		dprintf(D_ALWAYS,
+			"Close_Pipe(pipefd=%d) failed, errno=%d\n",pipefd,errno);
+		return FALSE;  // probably a bad fd
+	} else {
+		dprintf(D_DAEMONCORE,
+			"Close_Pipe(pipefd=%d) succeeded\n",pipefd);
+		return TRUE;
+	}
+}
+
+
+int DaemonCore::Cancel_Pipe( int pipefd )
+{
+	int i,j;
+
+	i = -1;
+	for (j=0;j<nPipe;j++) {
+		if ( (*pipeTable)[j].pipefd == pipefd ) {
+			i = j;
+			break;
+		}
+	}
+
+	if ( i == -1 ) {
+		dprintf( D_ALWAYS,"Cancel_Pipe: called on non-registered pipe!\n");
+		dprintf( D_ALWAYS,"Offending pipe fd number %d\n", pipefd ); 
+		return FALSE;
+	}
+
+	// Remove entry at index i by moving the last one in the table here.
+
+	// Clear any data_ptr which go to this entry we just removed
+	if ( curr_regdataptr == &( (*pipeTable)[i].data_ptr) )
+		curr_regdataptr = NULL;
+	if ( curr_dataptr == &( (*pipeTable)[i].data_ptr) )
+		curr_dataptr = NULL;
+
+	// Log a message
+	dprintf(D_DAEMONCORE,
+			"Cancel_Pipe: cancelled pipe fd %d <%s> (entry=%d)\n",
+			pipefd,(*pipeTable)[i].pipe_descrip, i );
+	
+	// Remove entry, move the last one in the list into this spot
+	(*pipeTable)[i].pipefd = 0;
+	free_descrip( (*pipeTable)[i].pipe_descrip );
+	(*pipeTable)[i].pipe_descrip = NULL;
+	free_descrip( (*pipeTable)[i].handler_descrip );
+	(*pipeTable)[i].handler_descrip = NULL;
+#ifdef WIN32
+	// Instead of deallocating, just set deallocate flag and then 
+	// the pointer to NULL -- 
+	// actual memory will get dealloacted by a seperate thread.
+	// note: we must acccess the deallocate flag in a thread-safe manner.
+	ASSERT( (*pipeTable)[i].pentry );
+	InterlockedExchange(&((*pipeTable)[i].pentry->deallocate),1L);	
+	// Now if we are called from inside of our handler, we have nothing more to
+	// do because when we return to DaemonCore, DaemonCore will call WatchPid() again
+	// to hand this PidEntry off to a watcher thread which will then deallocate.
+	// However, if we are not called from inside of our handler, we need to call 
+	// SetEvent to get the attention of the thread watching this entry.
+	if ( (*pipeTable)[i].in_handler == false && 
+		 (*pipeTable)[i].pentry->watcherEvent ) 
+	{
+		::SetEvent((*pipeTable)[i].pentry->watcherEvent);
+	}
+#endif
+	(*pipeTable)[i].pentry = NULL;
+	if ( i < nPipe - 1 ) {	
+            // if not the last entry in the table, move the last one here
+		(*pipeTable)[i] = (*pipeTable)[nPipe - 1];
+		(*pipeTable)[nPipe - 1].pipefd = 0;
+		(*pipeTable)[nPipe - 1].pipe_descrip = NULL;
+		(*pipeTable)[nPipe - 1].handler_descrip = NULL;
+		(*pipeTable)[nPipe - 1].pentry = NULL;
+	}
+	nPipe--;
+
+	return TRUE;
+}
+
 
 int DaemonCore::Register_Reaper(int rid, char* reap_descrip, 
 				ReaperHandler handler, ReaperHandlercpp handlercpp, 
@@ -1012,7 +1439,6 @@ MyString DaemonCore::GetCommandsInAuthLevel(DCpermission perm) {
 	return res;
 
 }
-
 
 void DaemonCore::DumpReapTable(int flag, const char* indent)
 {
@@ -1248,6 +1674,7 @@ void DaemonCore::Driver()
 	struct timeval *ptimer;
 	int temp;
 	int result;
+
 #ifndef WIN32
 	sigset_t fullset, emptyset;
 	sigfillset( &fullset );
@@ -1310,17 +1737,21 @@ void DaemonCore::Driver()
 		//   TRUE, set the select timeout to zero so that we break thru select
 		//   and service this outstanding signal and yet we do not 
 		//   starve commands...
+	
+
 		temp = t.Timeout();
-		if ( sent_signal == TRUE )
+	
+		if ( sent_signal == TRUE ) {
 			temp = 0;
+		}
 		timer.tv_sec = temp;
 		timer.tv_usec = 0;
-		if ( temp < 0 )
+		if ( temp < 0 ) {
 			ptimer = NULL;
-		else
+		} else {
 			ptimer = &timer;		// no timeout on the select() desired
+		}
 		
-
 		// Setup what socket descriptors to select on.  We recompute this
 		// every time because 1) some timeout handler may have removed/added
 		// sockets, and 2) it ain't that expensive....
@@ -1347,10 +1778,18 @@ void DaemonCore::Driver()
 
 		
 #if !defined(WIN32)
+		// Add the registered pipe fds into the list of descriptors to
+		// select on.
+		for (i = 0; i < nPipe; i++) {
+			if ( (*pipeTable)[i].pipefd ) {	// if a valid entry....
+				// Add the pipe fd to our read fd set
+				FD_SET( (*pipeTable)[i].pipefd,&readfds);
+			}
+        }
+
 		// Add the read side of async_pipe to the list of file descriptors to
 		// select on.  We write to async_pipe if a unix async signal 
 		// is delivered after we unblock signals and before we block on select.
-
 		FD_SET(async_pipe[0],&readfds);
 
 		// Set aync_sigs_unblocked flag to true so that Send_Signal()
@@ -1398,11 +1837,11 @@ void DaemonCore::Driver()
 		
 		if (rv > 0) {	// connection requested
 
+			bool recheck_status = false;
+
 			// scan through the socket table to find which ones select() set
-			for(i = 0; i < nSock; i++) {
-				
-				if ( (*sockTable)[i].iosock ) {	// if a valid entry...
-					
+			for(i = 0; i < nSock; i++) {			
+				if ( (*sockTable)[i].iosock ) {	// if a valid entry...					
 					// figure out if we should call a handler.  to do this,
 					// if the socket was doing a connect(), we check the
 					// writefds and excepfds.  otherwise, check readfds.
@@ -1429,13 +1868,178 @@ void DaemonCore::Driver()
 				}	// end of if valid sock entry
 			}	// end of for loop through all sock entries
 
-			for(i = 0; i < nSock; i++) {
-				
+			// scan through the pipe table to find which ones select() set
+			for(i = 0; i < nPipe; i++) {				
+				if ( (*pipeTable)[i].pipefd ) {	// if a valid entry...					
+					// figure out if we should call a handler.
+					(*pipeTable)[i].call_handler = false;	
+#ifdef WIN32
+					// For Windows, check if our pidwatcher thread set the flag
+					ASSERT( (*pipeTable)[i].pentry );
+					if (InterlockedExchange(&((*pipeTable)[i].pentry->pipeReady),0L))
+					{
+						// pipeReady flag was set by the pidwatcher thread.
+						(*pipeTable)[i].call_handler = true;
+					}
+#else
+					// For Unix, check if select set the bit
+					if (FD_ISSET((*pipeTable)[i].pipefd, &readfds)) 
+					{
+						(*pipeTable)[i].call_handler = true;
+					}
+#endif
+				}	// end of if valid pipe entry
+			}	// end of for loop through all pipe entries
+
+
+			// Now loop through all pipe entries, calling handlers if required.
+			for(i = 0; i < nPipe; i++) {				
+				if ( (*pipeTable)[i].pipefd ) {	// if a valid entry...
+
+					if ( (*pipeTable)[i].call_handler ) {
+
+						(*pipeTable)[i].call_handler = false;
+
+						// save the pentry on the stack, since we'd otherwise lose it
+						// if the user's handler call Cancel_Pipe().
+						PidEntry* saved_pentry = (*pipeTable)[i].pentry;
+
+						if ( recheck_status || saved_pentry ) {
+							// we have already called at least one callback handler.  what
+							// if this handler drained this registed pipe, so that another
+							// read on the pipe could block?  to prevent this, we need
+							// to check one more time to make certain the pipe is ready
+							// for reading.
+							// NOTE: we also enter this code if saved_pentry != NULL.
+							//       why?  because that means we are on Windows, and
+							//       on Windows we need to check because pipes are 
+							//       signalled not by select() but by our pidwatcher
+							//       thread, which may have signaled this pipe ready
+							//       when were in a timer handler or whatever.
+#ifdef WIN32
+							// WINDOWS
+							DWORD num_bytes_avail = 0;
+							if ( saved_pentry && saved_pentry->hPipe ) 
+							{
+								PeekNamedPipe(
+								  saved_pentry->hPipe,	// handle to pipe
+								  NULL,				// data buffer
+								  0,				// size of data buffer
+								  NULL,				// number of bytes read
+								  &num_bytes_avail,	// number of bytes available
+								  NULL  // unread bytes
+								);
+							}
+							if ( num_bytes_avail == 0 ) {
+								// there is no longer anything available to read
+								// on the pipe.  try the next entry....
+								continue;
+							}
+#else
+							// UNIX
+							FD_ZERO(&readfds);
+							FD_SET( (*pipeTable)[i].pipefd,&readfds);
+							struct timeval stimeout;
+							stimeout.tv_sec = 0;	// set timeout for a poll
+							stimeout.tv_usec = 0;
+							int sresult = select( (*pipeTable)[i].pipefd + 1, 
+								(SELECT_FDSET_PTR) &readfds, 
+								(SELECT_FDSET_PTR) 0,(SELECT_FDSET_PTR) 0, 
+								&stimeout );
+							if ( sresult == 0 ) {
+								// nothing available, try the next entry...
+								continue;
+							}
+#endif
+						}	// end of if ( recheck_status || saved_pentry )
+						
+						(*pipeTable)[i].in_handler = true;
+						
+
+						// log a message
+						dprintf(D_DAEMONCORE,
+									"Calling Handler <%s> for Pipe fd=%d <%s>\n",
+									(*pipeTable)[i].handler_descrip,
+									(*pipeTable)[i].pipefd,
+									(*pipeTable)[i].pipe_descrip);
+
+						// Update curr_dataptr for GetDataPtr()
+						curr_dataptr = &( (*pipeTable)[i].data_ptr);
+						recheck_status = true;
+						if ( (*pipeTable)[i].handler )
+							// a C handler
+							result = (*( (*pipeTable)[i].handler))( (*pipeTable)[i].service, (*pipeTable)[i].pipefd);
+						else
+						if ( (*pipeTable)[i].handlercpp )
+							// a C++ handler
+							result = ((*pipeTable)[i].service->*( (*pipeTable)[i].handlercpp))((*pipeTable)[i].pipefd);
+						else 
+						{
+							// no handler registered
+							EXCEPT("No pipe handler callback");
+						}
+
+						// Make sure we didn't leak our priv state
+						CheckPrivState();
+
+						// Clear curr_dataptr
+						curr_dataptr = NULL;
+
+						(*pipeTable)[i].in_handler = false;
+
+#ifdef WIN32
+						// Ask a pid watcher thread to watch over this pipe
+						// handle.  Note that if Cancel_Pipe() was called by the
+						// handler above, the deallote flag will be set in the 
+						// pentry and the pidwatcher thread will cleanup.
+						if ( saved_pentry ) {
+							WatchPid(saved_pentry);
+						}
+#endif
+
+						if ( (*pipeTable)[i].call_handler == true ) {
+							// looks like the handler called Cancel_Pipe(),
+							// and now entry i no longer points to what we 
+							// think it points to.  Decrement i now, so when
+							// we loop back we do not miss calling a handler.
+							i--;
+						}
+
+					}	// if call_handler is True
+				}	// if valid entry in pipeTable
+			}	// for 0 thru nPipe checking if call_handler is true
+
+
+			// Now loop through all sock entries, calling handlers if required.
+			for(i = 0; i < nSock; i++) {				
 				if ( (*sockTable)[i].iosock ) {	// if a valid entry...
 
 					if ( (*sockTable)[i].call_handler ) {
 
 						(*sockTable)[i].call_handler = false;
+
+						if ( recheck_status &&
+							 ((*sockTable)[i].is_connect_pending == false) ) 
+						{
+							// we have already called at least one callback handler.  what
+							// if this handler drained this registed pipe, so that another
+							// read on the pipe could block?  to prevent this, we need
+							// to check one more time to make certain the pipe is ready
+							// for reading.
+							FD_ZERO(&readfds);
+							FD_SET( (*sockTable)[i].sockd,&readfds);
+							struct timeval stimeout;
+							stimeout.tv_sec = 0;	// set timeout for a poll
+							stimeout.tv_usec = 0;
+							int sresult = select( FD_SETSIZE, 
+								(SELECT_FDSET_PTR) &readfds, 
+								(SELECT_FDSET_PTR) 0,(SELECT_FDSET_PTR) 0, 
+								&stimeout );
+							if ( sresult == 0 ) {
+								// nothing available, try the next entry...
+								continue;
+							}
+						}
 
 						// ok, select says this socket table entry has new data.
 
@@ -1462,8 +2066,18 @@ void DaemonCore::Driver()
 						// request number and calls any registered command 
 						// handler.
 
+						// log a message
+						if ( (*sockTable)[i].handler || (*sockTable)[i].handlercpp )
+						{
+							dprintf(D_DAEMONCORE,
+									"Calling Handler <%s> for Socket <%s>\n",
+									(*sockTable)[i].handler_descrip,
+									(*sockTable)[i].iosock_descrip);
+						}
+
 						// Update curr_dataptr for GetDataPtr()
 						curr_dataptr = &( (*sockTable)[i].data_ptr);
+						recheck_status = true;
 						if ( (*sockTable)[i].handler )
 							// a C handler
 							result = (*( (*sockTable)[i].handler))( (*sockTable)[i].service, (*sockTable)[i].iosock);
@@ -1498,12 +2112,12 @@ void DaemonCore::Driver()
 
 					}	// if call_handler is True
 				}	// if valid entry in sockTable
-			}	// for 0 thru nSock
+			}	// for 0 thru nSock checking if call_handler is true
+
 		}	// if rv > 0
 
 	}	// end of infinite for loop
 }
-
 
 void
 DaemonCore::CheckPrivState( void )
@@ -1535,7 +2149,6 @@ DaemonCore::CheckPrivState( void )
 		}
 	}
 }	
-
 
 int DaemonCore::ServiceCommandSocket()
 {
@@ -1684,12 +2297,9 @@ int DaemonCore::HandleReq(int socki)
 				// this is unlikely to work, but we may as well try... so, we
 				// don't fail here.
 			}
-		} else {
-			dprintf ( D_SECURITY, "DC_AUTHENTICATE: no MD5...\n");
 		}
 
 		if (sess_id) {
-			dprintf ( D_SECURITY, "DC_AUTHENTICATE: looking for session %s...\n", sess_id);
 			KeyCacheEntry *session = NULL;
 			bool found_sess = sec_man->session_cache->lookup(sess_id, session);
 
@@ -1714,21 +2324,37 @@ int DaemonCore::HandleReq(int socki)
 						sess_id, return_address_ss);
 				}
 
+				if( return_address_ss ) {
+					free( return_address_ss );
+					return_address_ss = NULL;
+				}
+				free( sess_id );
+				sess_id = NULL;
 				result = FALSE;
 				goto finalize;
 			}
 
-			dprintf ( D_SECURITY, "DC_AUTHENTICATE: session %s is here...\n", sess_id);
-
 			if (!session->key()) {
 				dprintf ( D_SECURITY, "DC_AUTHENTICATE: session %s is missing the key!\n", sess_id);
 				// uhm, there should be a key here!
+				if( return_address_ss ) {
+					free( return_address_ss );
+					return_address_ss = NULL;
+				}
+				free( sess_id );
+				sess_id = NULL;
 				result = FALSE;
 				goto finalize;
 			}
 
 			if (!stream->set_MD_mode(MD_ALWAYS_ON, session->key())) {
 				dprintf (D_ALWAYS, "DC_AUTHENTICATE: unable to turn on message authenticator, failing.\n");
+				if( return_address_ss ) {
+					free( return_address_ss );
+					return_address_ss = NULL;
+				}
+				free( sess_id );
+				sess_id = NULL;
 				result = FALSE;
 				goto finalize;
 			} else {
@@ -1746,11 +2372,8 @@ int DaemonCore::HandleReq(int socki)
 			if (return_address_ss) {
 				free( return_address_ss );
 			}
-		} else {
-			dprintf (D_SECURITY, "DC_AUTHENTICATE: incoming data NOT MD5ed.\n");
 		}
 
-		dprintf ( D_SECURITY, "DC_AUTHENTICATE: checking UDP for encryption...\n");
 
 		// get the info, if there is any
 		cleartext_info = (char*)((SafeSock*)stream)->isIncomingDataEncrypted();
@@ -1781,7 +2404,6 @@ int DaemonCore::HandleReq(int socki)
 
 
 		if (sess_id) {
-			dprintf ( D_SECURITY, "DC_AUTHENTICATE: looking for session %s...\n", sess_id);
 			KeyCacheEntry *session = NULL;
 			bool found_sess = sec_man->session_cache->lookup(sess_id, session);
 
@@ -1809,8 +2431,6 @@ int DaemonCore::HandleReq(int socki)
 				goto finalize;
 			}
 
-			dprintf ( D_SECURITY, "DC_AUTHENTICATE: session %s is here...\n", sess_id);
-
 			if (!session->key()) {
 				dprintf ( D_SECURITY, "DC_AUTHENTICATE: session %s is missing the key!\n", sess_id);
 				// uhm, there should be a key here!
@@ -1836,13 +2456,12 @@ int DaemonCore::HandleReq(int socki)
 			if (return_address_ss) {
 				free( return_address_ss );
 			}
-		} else {
-			dprintf (D_SECURITY, "DC_AUTHENTICATE: incoming data NOT encrypted.\n");
 		}
 
         if (who.length() > 0) {
             ((SafeSock*)stream)->setFullyQualifiedUser((char *)who.data());
             ((SafeSock*)stream)->setAuthenticated(true);
+			dprintf (D_SECURITY, "DC_AUTHENTICATE: authenticated UDP message is from %s.\n", who);
         }
 	}
 	
@@ -1869,16 +2488,10 @@ int DaemonCore::HandleReq(int socki)
 
 	if (req == DC_AUTHENTICATE) {
 
-		if (!is_tcp) {
-			dprintf (D_SECURITY, "DC_AUTHENTICATE: bring on the UDP !\n");
-		}
-
 		Sock* sock = (Sock*)stream;
 		sock->decode();
 
 		dprintf (D_SECURITY, "DC_AUTHENTICATE: received DC_AUTHENTICATE from %s\n", sin_to_string(sock->endpoint()));
-
-		dprintf (D_SECURITY, "DC_AUTHENTICATE: entry value of result == %i\n", result);
 
 		ClassAd auth_info;
 
@@ -1898,8 +2511,10 @@ int DaemonCore::HandleReq(int socki)
 			goto finalize;
 		}
 	
-		dprintf (D_SECURITY, "DC_AUTHENTICATE: received following ClassAd:\n");
-		//auth_info.dPrint (D_SECURITY);
+		if (DebugFlags & D_FULLDEBUG) {
+			dprintf (D_SECURITY, "DC_AUTHENTICATE: received following ClassAd:\n");
+			auth_info.dPrint (D_SECURITY);
+		}
 
 		char buf[ATTRLIST_MAX_EXPRESSION];
 
@@ -1956,8 +2571,6 @@ int DaemonCore::HandleReq(int socki)
 
 			KeyCacheEntry *session = NULL;
 
-			dprintf (D_SECURITY, "DC_AUTHENTICATE: request to use cached session.\n");
-
             string tmp_sid;
 			if( ! auth_info.EvaluateAttrString(ATTR_SEC_SID, tmp_sid)) {
 				dprintf (D_ALWAYS, "ERROR: DC_AUTHENTICATE unable to "
@@ -1971,7 +2584,6 @@ int DaemonCore::HandleReq(int socki)
 			dprintf (D_SECURITY, "DC_AUTHENTICATE: looking up cached key id %s.\n", the_sid);
 
 
-			// lookup the suggested key
 			if (!sec_man->session_cache->lookup(the_sid, session)) {
 
 				// the key id they sent was not in our cache.  this is a
@@ -1980,42 +2592,14 @@ int DaemonCore::HandleReq(int socki)
 				dprintf (D_ALWAYS, "DC_AUTHENTICATE: attempt to open "
 						   "invalid session %s, failing.\n", the_sid);
 
-				/* this is not UDP.
-				// if this is UDP, they have no idea the key they are
-				// using is bunk, so  it would be nice of us to tell them.
-
-				// blast off a udp packet, its the least we can do.
-				
-				// get their sinful string
-				char client_sinful_string[256];
-				if( auth_info.LookupString(ATTR_SEC_SERVER_COMMAND_SOCK, client_sinful_string)) {
-					SafeSock s;
-					if (s.connect(client_sinful_string)) {
-						s.encode();
-						s.put(DC_INVALIDATE_KEY);
-						s.code(the_sid);
-						s.eom();
-						s.close();
-						dprintf (D_SECURITY, "DC_AUTHENTICATE: sent DC_INVALIDATE %s to %s.\n",
-							the_sid, client_sinful_string);
-					} else {
-						dprintf (D_SECURITY, "DC_AUTHENTICATE: couldn't send DC_INVALIDATE %s to %s.\n",
-							the_sid, client_sinful_string);
-					}
-				} else {
-					dprintf ( D_SECURITY, "DC_AUTHENTICATE: no return address for invalid UDP.\n");
-				}
-				*/
-
 				// close the connection.
-				dprintf (D_ALWAYS, "DC_AUTHENTICATE: Closing connection.\n");
 				result = FALSE;
 				goto finalize;
 
 			} else {
 				// the session->id() and the_sid strings should be identical.
 
-				dprintf (D_SECURITY, "DC_AUTHENTICATE: found session id %s given to %s:\n",
+				dprintf (D_SECURITY, "DC_AUTHENTICATE: resuming session id %s given to %s:\n",
 							session->id(), sin_to_string(session->addr()));
 			}
 
@@ -2027,7 +2611,10 @@ int DaemonCore::HandleReq(int socki)
 			if (session->policy()) {
 				// copy this to the HandleReq() scope
 				the_policy = new ClassAd(*session->policy());
-				//the_policy->dPrint (D_SECURITY);
+				if (DebugFlags & D_FULLDEBUG) {
+					dprintf (D_SECURITY, "DC_AUTHENTICATE: Cached Session:\n");
+					the_policy->dPrint (D_SECURITY);
+				}
 			}
 
 			// grab the user out of the policy.
@@ -2043,33 +2630,37 @@ int DaemonCore::HandleReq(int socki)
 			new_session = false;
 
 		} else {
-			// they did not request a cached session.  see if they want to start one.
-
-			// look at our security policy.
-			ClassAd *our_policy = sec_man->CreateSecurityPolicyAd(PermString(comTable[cmd_index].perm));
-			if (!our_policy) {
-				// our policy is invalid even without the other side getting involved.
-				dprintf(D_ALWAYS, "DC_AUTHENTICATE: Security policy is invalid!\n");
+				// they did not request a cached session.  see if they
+				// want to start one.  look at our security policy.
+			ClassAd our_policy;
+			if( ! sec_man->FillInSecurityPolicyAd( 
+				  PermString(comTable[cmd_index].perm), &our_policy) ) { 
+					// our policy is invalid even without the other
+					// side getting involved.
+				dprintf( D_ALWAYS, "DC_AUTHENTICATE: "
+						 "Our security policy is invalid!\n" );
 				result = FALSE;
 				goto finalize;
 			}
 
-			dprintf ( D_SECURITY, "DC_AUTHENTICATE: our_policy:\n" );
-			//our_policy->dPrint(D_SECURITY);
+			if (DebugFlags & D_FULLDEBUG) {
+				dprintf ( D_SECURITY, "DC_AUTHENTICATE: our_policy:\n" );
+				our_policy.dPrint(D_SECURITY);
+			}
 			
 			// reconcile.  if unable, close socket.
-			the_policy = sec_man->ReconcileSecurityPolicyAds(auth_info, *our_policy);
-
-			// done with this now
-			delete our_policy;
+			the_policy = sec_man->ReconcileSecurityPolicyAds( auth_info,
+															  our_policy ); 
 
 			if (!the_policy) {
 				dprintf(D_ALWAYS, "DC_AUTHENTICATE: Unable to reconcile!\n");
 				result = FALSE;
 				goto finalize;
 			} else {
-				dprintf ( D_SECURITY, "DC_AUTHENTICATE: the_policy:\n" );
-				//the_policy->dPrint(D_SECURITY);
+				if (DebugFlags & D_FULLDEBUG) {
+					dprintf ( D_SECURITY, "DC_AUTHENTICATE: the_policy:\n" );
+					the_policy->dPrint(D_SECURITY);
+				}
 			}
 
 			// handy policy vars
@@ -2091,7 +2682,7 @@ int DaemonCore::HandleReq(int socki)
 				sprintf( buf, "%s:%i:%i:%i", my_hostname(), mypid, 
 						 (int)time(0), ZZZ_always_increase() );
 				assert (the_sid == NULL);
-				the_sid = strdup(buf); // This is a memory leak. Fixed above by strdup the other the_sid as well Hao
+				the_sid = strdup(buf);
 
 				if ((will_enable_encryption == SecMan::SEC_FEAT_ACT_YES) || (will_enable_integrity == SecMan::SEC_FEAT_ACT_YES)) {
 
@@ -2102,7 +2693,6 @@ int DaemonCore::HandleReq(int socki)
 						goto finalize;
 					}
 
-					dprintf (D_SECURITY, "DC_AUTHENTICATE: generating private key id %s...\n", the_sid);
 					unsigned char* rkey = Condor_Crypt_Base::randomKey(24);
 					unsigned char  rbuf[24];
 					if (rkey) {
@@ -2112,24 +2702,29 @@ int DaemonCore::HandleReq(int socki)
 					} else {
 						memset (rbuf, 0, 24);
 						dprintf ( D_SECURITY, "DC_AUTHENTICATE: unable to generate key - no crypto available!\n");
-						// result = FALSE;
-						// goto finalize;
+						result = FALSE;
+						free( crypto_method );
+						crypto_method = NULL;
+						goto finalize;
 					}
 
 					switch (toupper(crypto_method[0])) {
 						case 'B': // blowfish
-							dprintf ( D_SECURITY, "DC_AUTHENTICATE: created blowfish key.\n" );
+							dprintf (D_SECURITY, "DC_AUTHENTICATE: generating BLOWFISH key for session %s...\n", the_sid);
 							the_key = new KeyInfo(rbuf, 24, CONDOR_BLOWFISH);
 							break;
 						case '3': // 3des
 						case 'T': // Tripledes
-							dprintf ( D_SECURITY, "DC_AUTHENTICATE: created 3des key.\n" );
+							dprintf (D_SECURITY, "DC_AUTHENTICATE: generating 3DES key for session %s...\n", the_sid);
 							the_key = new KeyInfo(rbuf, 24, CONDOR_3DES);
 							break;
 						default:
 							dprintf ( D_SECURITY, "DC_AUTHENTICATE: this version doesn't support %s crypto.\n", crypto_method.data() );
 							break;
 					}
+
+					free( crypto_method );
+					crypto_method = NULL;
 
 					if (!the_key) {
 						result = FALSE;
@@ -2146,8 +2741,10 @@ int DaemonCore::HandleReq(int socki)
 
 			// if they asked, tell them
 			if (is_tcp && (sec_man->sec_lookup_feat_act(auth_info, ATTR_SEC_ENACT) == SecMan::SEC_FEAT_ACT_NO)) {
-				dprintf (D_SECURITY, "SECMAN: Sending following response ClassAd:\n");
-				//the_policy->dPrint( D_SECURITY );
+				if (DebugFlags & D_FULLDEBUG) {
+					dprintf (D_SECURITY, "SECMAN: Sending following response ClassAd:\n");
+					the_policy->dPrint( D_SECURITY );
+				}
 				sock->encode();
                 /* Need work Hao
 				if (!the_policy->put(*sock) ||
@@ -2185,17 +2782,12 @@ int DaemonCore::HandleReq(int socki)
 				// it will be detected as long as some crypto is used.
 
 
-				// this means we are authenticating for real
-
-				if (!is_tcp) {
-					dprintf ( D_SECURITY, "DC_AUTHENTICATE: UDP can't authenticate!\n");
-					result = FALSE;
-					goto finalize;
-				}
 				string auth_method;
 				the_policy->EvaluateAttrString(ATTR_SEC_AUTHENTICATION_METHODS, auth_method);
 
-				dprintf (D_SECURITY, "DC_AUTHENTICATE: authenticating RIGHT NOW.\n");
+				if (DebugFlags & D_FULLDEBUG) {
+					dprintf (D_SECURITY, "DC_AUTHENTICATE: authenticating RIGHT NOW.\n");
+				}
 				if (!sock->authenticate(the_key, sec_man->getAuthBitmask((char *)auth_method.data()))) {
 					dprintf (D_ALWAYS, "DC_AUTHENTICATE: authenticate failed\n");
 					result = FALSE;
@@ -2211,22 +2803,23 @@ int DaemonCore::HandleReq(int socki)
 
 					result = !strncmp (sockip + 1, kerbip, strlen(kerbip) );
 
-					dprintf (D_SECURITY, "DC_AUTHENTICATE: sock ip -> %s\n", sockip);
-					dprintf (D_SECURITY, "DC_AUTHENTICATE: kerb ip -> %s\n", kerbip);
-
 					if (!result) {
+						dprintf (D_ALWAYS, "DC_AUTHENTICATE: sock ip -> %s\n", sockip);
+						dprintf (D_ALWAYS, "DC_AUTHENTICATE: kerb ip -> %s\n", kerbip);
 						dprintf (D_ALWAYS, "DC_AUTHENTICATE: ERROR: IP not in agreement!!! BAILING!\n");
+
 						result = FALSE;
 						goto finalize;
 
 					} else {
-						dprintf (D_SECURITY, "DC_AUTHENTICATE: host %s address verified.\n", kerbip);
+						dprintf (D_SECURITY, "DC_AUTHENTICATE: mutual authentication to %s complete.\n", kerbip);
 					}
 				}
 
 			} else {
-				// an FYI
-				dprintf (D_SECURITY, "DC_AUTHENTICATE: not authenticating.\n");
+				if (DebugFlags & D_FULLDEBUG) {
+					dprintf (D_SECURITY, "DC_AUTHENTICATE: not authenticating.\n");
+				}
 			}
 
 
@@ -2260,11 +2853,6 @@ int DaemonCore::HandleReq(int socki)
 					goto finalize;
 				}
 
-				dprintf (D_SECURITY, "about to enable encryption.\n");
-#ifdef SECURITY_HACK_ENABLE
-				zz2printf (the_key);
-#endif
-
 				sock->decode();
 				if (!sock->set_crypto_key(the_key) ) {
 					dprintf (D_ALWAYS, "DC_AUTHENTICATE: unable to turn on encryption, failing.\n");
@@ -2276,14 +2864,12 @@ int DaemonCore::HandleReq(int socki)
 			}
 
 
-
 			if (new_session) {
 				// clear the buffer
 				sock->decode();
 				sock->eom();
 
 				// ready a classad to send
-				dprintf (D_SECURITY, "DC_AUTHENTICATE: sending p.a. classad.\n");
 				ClassAd pa_ad;
 
 				// session user
@@ -2311,9 +2897,21 @@ int DaemonCore::HandleReq(int socki)
 
 
 				sock->encode();
+
                 // Need work Hao
 				//pa_ad.put(*sock);
 				sock->eom();
+
+/* here is the old code-
+				if (! pa_ad.put(*sock) ||
+					! sock->eom() ) {
+					dprintf (D_SECURITY, "DC_AUTHENTICATE: unable to send session %s info!\n", the_sid);
+				} else {
+					if (DebugFlags & D_FULLDEBUG) {
+						dprintf (D_SECURITY, "DC_AUTHENTICATE: sent session %s info!\n", the_sid);
+					}
+				}
+*/
 
 				// extract the session duration
 				string dur;
@@ -2326,7 +2924,9 @@ int DaemonCore::HandleReq(int socki)
 				// add the key to the cache
 				KeyCacheEntry tmp_key(the_sid, sock->endpoint(), the_key, the_policy, expiration_time);
 				sec_man->session_cache->insert(tmp_key);
-				dprintf (D_SECURITY, "DC_AUTHENTICATE: added session id %s to cache for %i seconds!\n", the_sid, expiration_time);
+				dprintf (D_SECURITY, "DC_AUTHENTICATE: added session id %s to cache for %s seconds!\n", the_sid, dur);
+				free( dur );
+				dur = NULL;
 			}
 		}
 
@@ -2340,11 +2940,13 @@ int DaemonCore::HandleReq(int socki)
 		req = real_cmd;
 		result = TRUE;
 
-		dprintf (D_SECURITY, "DC_AUTHENTICATE: setting sock->decode()\n");
 		sock->decode();
-
-		dprintf (D_SECURITY, "DC_AUTHENTICATE: allowing an empty message for sock.\n");
 		sock->allow_one_empty_message();
+
+		if (DebugFlags & D_FULLDEBUG) {
+			dprintf (D_SECURITY, "DC_AUTHENTICATE: setting sock->decode()\n");
+			dprintf (D_SECURITY, "DC_AUTHENTICATE: allowing an empty message for sock.\n");
+		}
 
 		// fill in the command info
 		reqFound = TRUE;
@@ -2352,10 +2954,6 @@ int DaemonCore::HandleReq(int socki)
 
 		dprintf (D_SECURITY, "DC_AUTHENTICATE: Success.\n");
 	} else {
-		// need to check our security policy to see if this is allowed.
-
-		dprintf (D_SECURITY, "DaemonCore received UNAUTHENTICATED command %i.\n", req);
-		dprintf (D_SECURITY, "\tNormally, this may not be allowed.  For now, it is.\n");
 
 		// get the handler function
 		
@@ -2378,6 +2976,48 @@ int DaemonCore::HandleReq(int socki)
 					index = j;
 					break;
 				}
+			}
+		}
+
+
+		if (reqFound) {
+			// need to check our security policy to see if this is allowed.
+
+			dprintf (D_SECURITY, "DaemonCore received UNAUTHENTICATED command %i.\n", req);
+
+			ClassAd our_policy;
+        	if( ! sec_man->FillInSecurityPolicyAd( PermString(comTable[index].perm), &our_policy) ) {
+				dprintf( D_ALWAYS, "DC_AUTHENTICATE: "
+						 "Our security policy is invalid!\n" );
+				result = FALSE;
+				goto finalize;
+			}
+
+			// well, they didn't authenticate, turn on encryption,
+			// or turn on integrity.  check to see if any of those
+			// were required.
+
+			if (  (sec_man->sec_lookup_req(our_policy, ATTR_SEC_NEGOTIATION)
+				   == SecMan::SEC_REQ_REQUIRED)
+			   || (sec_man->sec_lookup_req(our_policy, ATTR_SEC_AUTHENTICATION)
+				   == SecMan::SEC_REQ_REQUIRED)
+			   || (sec_man->sec_lookup_req(our_policy, ATTR_SEC_ENCRYPTION)
+				   == SecMan::SEC_REQ_REQUIRED)
+			   || (sec_man->sec_lookup_req(our_policy, ATTR_SEC_INTEGRITY)
+				   == SecMan::SEC_REQ_REQUIRED) ) {
+
+				// yep, they were.  deny.
+
+				dprintf(D_ALWAYS,
+					"DaemonCore: PERMISSION DENIED for %d via %s%s%s from host %s\n",
+					req,
+					(is_tcp) ? "TCP" : "UDP",
+					(user[0] != '\0') ? " from " : "",
+					(user[0] != '\0') ? user : "",
+					sin_to_string(((Sock*)stream)->endpoint()) );
+
+				result = FALSE;
+				goto finalize;
 			}
 		}
 	}
@@ -2416,8 +3056,10 @@ int DaemonCore::HandleReq(int socki)
             
 		} else {
 			dprintf(comTable[index].dprintf_flag,
-					"DaemonCore: Command received via %s from %s from host %s\n",
-					(user[0] == '\0') ? "unknown user" : user, (is_tcp) ? "TCP" : "UDP",
+					"DaemonCore: Command received via %s%s%s from host %s\n",
+					(is_tcp) ? "TCP" : "UDP",
+					(user[0] != '\0') ? " from " : "",
+					(user[0] != '\0') ? user : "",
 					sin_to_string(((Sock*)stream)->endpoint()) );
 			dprintf(comTable[index].dprintf_flag, 
                     "DaemonCore: received command %d (%s), calling handler (%s)\n",
@@ -2426,8 +3068,11 @@ int DaemonCore::HandleReq(int socki)
 		}
 
 	} else {
-		dprintf(D_ALWAYS, "DaemonCore: Command received via %s from %s from host %s\n",
-				(user[0] == '\0')? "unknown user" : user, (is_tcp) ? "TCP" : "UDP",
+		dprintf(comTable[index].dprintf_flag,
+				"DaemonCore: Command received via %s%s%s from host %s\n",
+				(is_tcp) ? "TCP" : "UDP",
+				(user[0] != '\0') ? " from " : "",
+				(user[0] != '\0') ? user : "",
 				sin_to_string(((Sock*)stream)->endpoint()) );
 		dprintf(D_ALWAYS,
 			"DaemonCore: received unregistered command request %d !\n",req);
@@ -2630,96 +3275,48 @@ int DaemonCore::Send_Signal(pid_t pid, int sig)
 	// handle the "special" action signals which are really just telling
 	// DaemonCore to do something.
 	switch (sig) {
-		case DC_SIGTERM:
-			// if the process we are signalling is a daemon core process, 
-			// then target_has_dcpm == TRUE and we will just fall thru and
-			// send the DC_SIGTERM as usual.
-			if ( target_has_dcpm == FALSE ) {
-				return Shutdown_Graceful(pid);
+		case SIGTERM:
+			if ( pid != mypid ) {
+					/* 
+					   If the pid you're shutting down is a DaemonCore
+					   process (including ourself) Shutdown_Graceful()
+					   just turns around and sends some kind of
+					   SIGTERM.  This would result in an infinite
+					   loop.  So, instead of using the special
+					   shutdown method, we just fall through and
+					   actually send a real DC SIGTERM to ourselves.
+					   We want to do this here, since on UNIX there's
+					   more to it than just raising the signal, we
+					   also want to write to the async pipe to make
+					   sure select() wakes up, etc, etc.
+					   -Derek Wright <wright@cs.wisc.edu> 5/17/02 
+					*/
+				if ( target_has_dcpm == FALSE ) { // I think Derek forgot this
+					return Shutdown_Graceful(pid); // -stolley 6/18/2002
+				}
 			}
 			break;
-		case DC_SIGKILL:
+		case SIGKILL:
 			return Shutdown_Fast(pid);
 			break;
-		case DC_SIGSTOP:
+		case SIGSTOP:
 			return Suspend_Process(pid);
 			break;
-		case DC_SIGCONT:
+		case SIGCONT:
 			return Continue_Process(pid);
 			break;
 		default:
 #ifndef WIN32
 			// If we are on Unix, and we are not sending a 'special' signal,
 			// and our child is not a daemon-core process, then just send
-			// the signal as usual via kill() after translating DC sig num
-			// into the equivelent Unix signal on this platform.
+			// the signal as usual via kill()
 			if ( target_has_dcpm == FALSE ) {
-#define TRANSLATE_SIG( x ) case DC_##x: unixsig = x; unixsigname = #x; break;
-
-				int unixsig;
-				char *unixsigname;
-				switch( sig ) {
-					TRANSLATE_SIG( SIGHUP )
-					TRANSLATE_SIG( SIGINT )
-					TRANSLATE_SIG( SIGQUIT )
-					TRANSLATE_SIG( SIGILL )
-					TRANSLATE_SIG( SIGTRAP )
-					TRANSLATE_SIG( SIGABRT )
-#if defined(SIGEMT)
-					TRANSLATE_SIG( SIGEMT )
-#endif
-					TRANSLATE_SIG( SIGFPE )
-					TRANSLATE_SIG( SIGKILL )
-					TRANSLATE_SIG( SIGBUS )
-					TRANSLATE_SIG( SIGSEGV )
-#if defined(SIGSYS)
-					TRANSLATE_SIG( SIGSYS )
-#endif
-					TRANSLATE_SIG( SIGPIPE )
-					TRANSLATE_SIG( SIGALRM )
-					TRANSLATE_SIG( SIGTERM )
-#if defined(SIGURG)
-					TRANSLATE_SIG( SIGURG )
-#endif
-					TRANSLATE_SIG( SIGSTOP )
-					TRANSLATE_SIG( SIGTSTP )
-					TRANSLATE_SIG( SIGCONT )
-					TRANSLATE_SIG( SIGCHLD )
-					TRANSLATE_SIG( SIGTTIN )
-					TRANSLATE_SIG( SIGTTOU )
-#if defined(SIGIO)
-					TRANSLATE_SIG( SIGIO )
-#endif
-#if defined(SIGXCPU)
-					TRANSLATE_SIG( SIGXCPU )
-#endif
-#if defined(SIGXFSZ)
-					TRANSLATE_SIG( SIGXFSZ )
-#endif
-#if defined(SIGVTALRM)
-					TRANSLATE_SIG( SIGVTALRM )
-#endif
-#if defined(SIGPROF)
-					TRANSLATE_SIG( SIGPROF )
-#endif
-#if defined(SIGWINCH)
-					TRANSLATE_SIG( SIGWINCH )
-#endif
-#if defined(SIGINFO)
-					TRANSLATE_SIG( SIGINFO )
-#endif
-					TRANSLATE_SIG( SIGUSR1 )
-					TRANSLATE_SIG( SIGUSR2 )
-					default:   	
-						{
-							EXCEPT("Trying to send unknown signal");
-						}
-				}
-				dprintf(D_DAEMONCORE,
-					"Send_Signal(): Doing kill(%d,%d) [sig %d=%s]\n",
-					pid, unixsig,unixsig,unixsigname);
+				const char* tmp = signalName(sig);
+				dprintf( D_DAEMONCORE,
+						 "Send_Signal(): Doing kill(%d,%d) [%s]\n",
+						 pid, sig, tmp ? tmp : "Unknown" );
 				priv_state priv = set_root_priv();
-				int status = ::kill(pid, unixsig);
+				int status = ::kill(pid, sig);
 				set_priv(priv);
 				// return 1 if kill succeeds, 0 otherwise
 				return (status >= 0);
@@ -2774,7 +3371,7 @@ int DaemonCore::Send_Signal(pid_t pid, int sig)
 	}
 
 	// handle case of sending to a child process; get info on this pid
-	if ( pid != mypid ) {		
+	if ( pid != mypid ) {
 		if ( target_has_dcpm == FALSE || pidinfo == NULL) {
 			// this child process does not have a command socket
 			dprintf(D_ALWAYS,
@@ -2922,10 +3519,10 @@ int DaemonCore::Shutdown_Graceful(pid_t pid)
 	}
 
 	if ( pidinfo->sinful_string[0] != '\0' ) {
-		// pid is a DaemonCore Process; send it a DC_SIGTERM signal instead.
+		// pid is a DaemonCore Process; send it a SIGTERM signal instead.
 		dprintf(D_PROCFAMILY,
-					"Shutdown_Graceful: Sending pid %d DC_SIGTERM\n",pid);
-		return Send_Signal(pid,DC_SIGTERM);
+					"Shutdown_Graceful: Sending pid %d SIGTERM\n",pid);
+		return Send_Signal(pid,SIGTERM);
 	}
 
 	// Find the Window Handle to this pid, if we don't already know it
@@ -3000,8 +3597,28 @@ int DaemonCore::Shutdown_Graceful(pid_t pid)
 
 	// UNIX 
 
+		/*
+		  We convert unix SIGTERM into DC SIGTERM via a signal handler
+		  which calls Send_Signal.  When we want to Send_Signal() a
+		  SIGTERM, we usually call Shutdown_Graceful().  But, if
+		  Shutdown_Graceful() turns around and sends a unix signal to
+		  ourselves, we're in an infinite loop.  So, Send_Signal()
+		  checks the pid, and if it's sending a SIGTERM to itself, it
+		  just does the regular stuff to raise a DC SIGTERM, instead
+		  of using this special method.  However, if someone else
+		  other than Send_Signal() called Shutdown_Graceful with our
+		  own pid, we'd still have the infinite loop.  To be safe, we
+		  check again here to catch future programmer errors...
+		  -Derek Wright <wright@cs.wisc.edu> 5/17/02 
+		*/
+	if( pid == mypid ) {
+		EXCEPT( "Called Shutdown_Graceful() on yourself, "
+				"which would cause an infinite loop on UNIX" );
+	}
+
+	int status;
 	priv_state priv = set_root_priv();
-	int status = kill(pid, SIGTERM);
+	status = kill(pid, SIGTERM);
 	set_priv(priv);
 	return (status >= 0);		// return 1 if kill succeeds, 0 otherwise
 
@@ -3552,7 +4169,7 @@ DCFindWindow(HWND hWnd, LPARAM p)
 }
 #endif	// of ifdef WIN32
 
-int DaemonCore::SetEnv( char *key, char *value)
+int DaemonCore::SetEnv( const char *key, char *value)
 {
 	assert(key);
 	assert(value);
@@ -3643,13 +4260,15 @@ int DaemonCore::Create_Process(
 			int			new_process_group,
 			Stream		*sock_inherit_list[],
 			int			std[],
-            int         nice_inc
+            int         nice_inc,
+			int			job_opt_mask
             )
 {
 	int i;
 	char *ptmp;
 	int inheritSockFds[MAX_INHERIT_SOCKS];
 	int numInheritSockFds = 0;
+	int exec_results;
 
 	char inheritbuf[_INHERITBUF_MAXSIZE];
 		// note that these are on the stack; they go away nicely
@@ -3910,7 +4529,7 @@ int DaemonCore::Create_Process(
 		}
 
 			// now, add in the inherit buf
-		job_environ.Put("CONDOR_INHERIT", inheritbuf);
+		job_environ.Put( EnvGetName( ENV_INHERIT ), inheritbuf);
 
 			// and finally, get it all back as a NULL delimited string.
 			// remember to deallocate this with delete [] since it will
@@ -3920,9 +4539,9 @@ int DaemonCore::Create_Process(
 	} else {
 	
 		newenv = NULL;
-		if( !SetEnv("CONDOR_INHERIT", inheritbuf) ) {
-			dprintf(D_ALWAYS, "Create_Process: Failed to set "
-					"CONDOR_INHERIT env.\n");
+		if( !SetEnv( EnvGetName( ENV_INHERIT ), inheritbuf) ) {
+			dprintf(D_ALWAYS, "Create_Process: Failed to set %s env.\n",
+					EnvGetName( ENV_INHERIT ) );
 			return FALSE;
 		}
 	
@@ -4232,9 +4851,10 @@ int DaemonCore::Create_Process(
 
 			// Place inheritbuf into the environment as 
 			// env variable CONDOR_INHERIT
-		if( !SetEnv("CONDOR_INHERIT", inheritbuf) ) {
-			dprintf(D_ALWAYS, "Create_Process: Failed to set "
-					"CONDOR_INHERIT env.\n");
+		char	*env = strdup( EnvGetName( ENV_INHERIT ) );
+		if( !SetEnv( env, inheritbuf) ) {
+			dprintf(D_ALWAYS, "Create_Process: Failed to set %s env.\n",
+					EnvGetName( ENV_INHERIT ) );
 				// before we exit, make sure our parent knows something
 				// went wrong before the exec...
 			write(errorpipe[1], &errno, sizeof(errno));
@@ -4303,9 +4923,14 @@ int DaemonCore::Create_Process(
 			sigemptyset( &emptySet );
 			sigprocmask( SIG_SETMASK, &emptySet, NULL );
 		}
-
+	
 			// and ( finally ) exec:
-		if( execv(name, unix_args) == -1 )
+		if( HAS_DCJOBOPT_NO_ENV_INHERIT(job_opt_mask) ) {
+			exec_results =  execve(name, unix_args, unix_env); 
+		} else {
+			exec_results =  execv(name, unix_args);
+		}
+		if( exec_results == -1 )
 		{
 				// We no longer have privs to dprintf. :-(.
 				// Let's exit with our errno.
@@ -4371,6 +4996,9 @@ int DaemonCore::Create_Process(
 	pidtmp->hThread = piProcess.hThread;
 	pidtmp->tid = piProcess.dwThreadId;
 	pidtmp->hWnd = 0;
+	pidtmp->hPipe = 0;
+	pidtmp->pipeReady = 0;
+	pidtmp->deallocate = 0;
 #endif 
 	assert( pidTable->insert(newpid,pidtmp) == 0 );  
 	dprintf(D_DAEMONCORE,
@@ -4502,6 +5130,8 @@ DaemonCore::Create_Thread(ThreadStartFunc start_func, void *arg, Stream *sock,
 	pidtmp->hThread = hThread;
 	pidtmp->tid = tid;
 	pidtmp->hWnd = 0;
+	pidtmp->hPipe = 0;
+	pidtmp->deallocate = 0;
 #else
 	pidtmp->pid = tid;
 #endif 
@@ -4553,23 +5183,27 @@ DaemonCore::Inherit( void )
 		*	command sockets.  first the rsock, then the ssock, then a "0".
 	*/
 	inheritbuf[0] = '\0';
+	const char	*envName = EnvGetName( ENV_INHERIT );
 #ifdef WIN32
-	if (GetEnvironmentVariable("CONDOR_INHERIT",inheritbuf,
+	if (GetEnvironmentVariable( envName ,inheritbuf,
 							   _INHERITBUF_MAXSIZE) > _INHERITBUF_MAXSIZE-1) {
-		EXCEPT("CONDOR_INHERIT too large");
+		EXCEPT("%s too large", envName);
 	}
-	SetEnvironmentVariable("CONDOR_INHERIT", "");
+	SetEnvironmentVariable( envName, "");
 #else
-	ptmp = getenv("CONDOR_INHERIT");
+	ptmp = getenv( envName );
 	if ( ptmp ) {
 		if ( strlen(ptmp) > _INHERITBUF_MAXSIZE-1 ) {
-			EXCEPT("CONDOR_INHERIT too large");
+			EXCEPT("%s too large", envName );
 		}
-		dprintf ( D_DAEMONCORE, "CONDOR_INHERIT: \"%s\"\n", ptmp );
+		dprintf ( D_DAEMONCORE, "%s: \"%s\"\n", envName, ptmp );
 		strncpy(inheritbuf,ptmp,_INHERITBUF_MAXSIZE);
-		putenv("CONDOR_INHERIT=");
+		char	tmp[50];
+		strcpy( tmp, envName );
+		strcat( tmp, "=" );
+		putenv( tmp );
 	} else {
-		dprintf ( D_DAEMONCORE, "CONDOR_INHERIT: is NULL\n", ptmp );
+		dprintf ( D_DAEMONCORE, "%s: is NULL\n", envName );
 	}		
 #endif
 
@@ -4829,7 +5463,7 @@ DaemonCore::HandleDC_SIGCHLD(int sig)
 	bool first_time = true;
 
 
-	assert( sig == DC_SIGCHLD );
+	assert( sig == SIGCHLD );
 
 	for(;;) {
 		errno = 0;
@@ -4906,7 +5540,7 @@ pidWatcherThread( void* arg )
 	HANDLE hKids[MAXIMUM_WAIT_OBJECTS];
 	int last_pidentry_exited = MAXIMUM_WAIT_OBJECTS + 5;
 	unsigned int exited_pid;
-
+	
 	entry = (DaemonCore::PidWatcherEntry *) arg;
 
 	for (;;) {
@@ -4914,12 +5548,27 @@ pidWatcherThread( void* arg )
 	::EnterCriticalSection(&(entry->crit_section));
 	numentries = 0;
 	for (i=0; i < entry->nEntries; i++ ) {
-		if ( i != last_pidentry_exited ) {
+		if ( (i != last_pidentry_exited) && (entry->pidentries[i]) ) {
+			if (InterlockedExchange(&(entry->pidentries[i]->deallocate),0L)) 
+			{
+				// deallocate flag was set.  delete this pidentry.
+				// no need to close any process/thread handles, since we 
+				// know this is a pipe - deallocate is flag only set for pipes
+				ASSERT( entry->pidentries[i]->hPipe );
+				::CloseHandle(entry->pidentries[i]->hPipe);
+				delete entry->pidentries[i];
+				entry->pidentries[i] = NULL;
+				continue;	// on to the next i...
+			}
 			hKids[numentries] = entry->pidentries[i]->hProcess;
 			// if process handle is NULL, it is really a thread
 			if ( hKids[numentries] == NULL ) {
 				// this is a thread entry, not a process entry
 				hKids[numentries] = entry->pidentries[i]->hThread;
+			}
+			if ( hKids[numentries] == NULL ) {
+				// if it is still NULL, it is a pipe entry
+				hKids[numentries] = entry->pidentries[i]->hPipe;
 			}
 			entry->pidentries[numentries] = entry->pidentries[i];
 			numentries++;
@@ -4944,33 +5593,62 @@ pidWatcherThread( void* arg )
 	// if result < numentries, then result signifies a child process 
 	// which exited.
 	if ( (result < numentries) && (result >= 0) ) {
+		
+		sent_result = FALSE;
+		last_pidentry_exited = result;
+		
 		// notify our main thread which process exited
 		// note: if it was a thread which exited, the entry's 
-		// pid contains the tid
-		exited_pid = entry->pidentries[result]->pid;	
+		// pid contains the tid.  if we are talking about a pipe,
+		// set the exited_pid to be zero.
+		if ( entry->pidentries[result]->hPipe ) {
+			exited_pid = 0;
+			if (InterlockedExchange(&(entry->pidentries[result]->deallocate),0L)) {
+				// this entry should be deallocated.  set things up so 
+				// it will be done at the top of the loop; no need to send 
+				// the UDP message to break out of select in the main thread.
+				sent_result = TRUE;
+				last_pidentry_exited = MAXIMUM_WAIT_OBJECTS + 5;
+			} else {
+				// pipe is ready and has not been deallocated.
+				InterlockedExchange(&(entry->pidentries[result]->pipeReady),1L);
+			}
+		} else {
+			exited_pid = entry->pidentries[result]->pid;	
+		}
 
-		sent_result = FALSE;
 		while ( sent_result == FALSE ) {
 			// Can no longer use localhost (127.0.0.1) here because we may
 			// only have our command socket bound to a specific address. -Todd
 			// sock.connect("127.0.0.1",daemonCore->InfoCommandPort());		
-            SafeSock sock;
+	        SafeSock sock;
 			Daemon d(daemonCore->InfoCommandSinfulString());
 
-            if ( !sock.connect(daemonCore->InfoCommandSinfulString()) ||
-				 !d.startCommand(DC_PROCESSEXIT, &sock, 0) ||
+			bool notify_failed;
+			if ( exited_pid ) {
+				// a process exited; send DC_PROCESSEXIT command w/ pid
+				notify_failed = !sock.connect(daemonCore->InfoCommandSinfulString()) ||
+				 !d.startCommand(DC_PROCESSEXIT, &sock, 1) ||
 				 !sock.code(exited_pid) ||
-				 !sock.end_of_message() )
+				 !sock.end_of_message();
+			} else {
+				// a pipe is ready; send a NOP command to wake up select()
+				notify_failed = 
+					!sock.connect(daemonCore->InfoCommandSinfulString()) ||
+					!d.sendCommand(DC_NOP, &sock, 1);
+			}
+
+            if ( notify_failed )
 			{
 				// failed to get the notification off to the main thread.
 				// we'll log a message, wait a bit, and try again
 				dprintf(D_ALWAYS,
-						"PidWatcher thread couldn't notify main thread\n");
+					"PidWatcher thread couldn't notify main thread " 
+					"(exited_pid=%d)\n", exited_pid);
 
 				::Sleep(500);	// sleep for a half a second (500 ms)
 			} else {
-				sent_result = TRUE;
-				last_pidentry_exited = result;
+				sent_result = TRUE;				
 			}
 		}
 	} else {
@@ -5011,6 +5689,7 @@ DaemonCore::WatchPid(PidEntry *pidentry)
 		if ( entry->nEntries < ( MAXIMUM_WAIT_OBJECTS - 1 ) ) {
 			// found one with space
 			entry->pidentries[entry->nEntries] = pidentry;
+			pidentry->watcherEvent = entry->event;
 			(entry->nEntries)++;
 			if ( !::SetEvent(entry->event) ) {
 				EXCEPT("SetEvent failed");
@@ -5033,6 +5712,7 @@ DaemonCore::WatchPid(PidEntry *pidentry)
 		EXCEPT("CreateEvent failed");
 	}
 	entry->pidentries[0] = pidentry;
+	pidentry->watcherEvent = entry->event;
 	entry->nEntries = 1;
 	unsigned threadId;
 	entry->hThread = (HANDLE) _beginthreadex(NULL, 1024, 
@@ -5246,7 +5926,7 @@ int DaemonCore::HandleProcessExit(pid_t pid, int exit_status)
 	if (pid == ppid) {
 		dprintf(D_ALWAYS,
 				"Our Parent process (pid %lu) exited; shutting down\n",pid);
-		Send_Signal(mypid,DC_SIGTERM);	// SIGTERM means shutdown graceful
+		Send_Signal(mypid,SIGTERM);	// SIGTERM means shutdown graceful
 	}
 
 	return TRUE;
@@ -5566,13 +6246,6 @@ DaemonCore::Register_Priv_State( priv_state priv )
 bool
 DaemonCore::CheckConfigSecurity( const char* config, Sock* sock ) 
 {
-	// Grab some pointer to these sock strings, since they're
-	// used many times.  none need to be freed.
-
-	sockaddr_in *endpoint = sock->endpoint();
-	char *endpoint_string = sin_to_string(endpoint);
-	const char *user      = sock->getFullyQualifiedUser();
-
 	// we've got to check each textline of the string passed in by
 	// config.  here we use the StringList class to split lines.
 
@@ -5588,100 +6261,107 @@ DaemonCore::CheckConfigSecurity( const char* config, Sock* sock )
 	// short-circuit out of the while once any attribute is not
 	// okay.  otherwise, get one value at a time
 	while (all_attrs_okay && (single_attr = all_attrs.next())) {
-
-		char *name, *tmp;
-		int i;
-
-		if( ! (name = strdup(single_attr)) ) {
-			EXCEPT( "Out of memory!" );
+		// check this individual attr
+		if (!CheckConfigAttrSecurity(single_attr, sock)) {
+			all_attrs_okay = false;
 		}
-		tmp = strchr( name, '=' );
-		if( ! tmp ) {
-			tmp = strchr( name, ':' );
-		}
-		if( tmp ) {
-				// someone's trying to set something, so we should trim
-				// off the value they want to set it to and any whitespace
-				// so we can just look at the attribute name.
-			*tmp = ' ';
-			while( isspace(*tmp) ) {
-				*tmp = '\0';
-				tmp--;
-			}
-		} 
-
-#if (DEBUG_SETTABLE_ATTR_LISTS)
-			dprintf( D_ALWAYS, "CheckConfigSecurity: name is: %s\n", name );
-#endif
-
-			// Now, name should point to a NULL-terminated version of the
-			// attribute name we're trying to set.  This is what we must
-			// compare against our SettableAttrsLists.  We need to iterate
-			// through all the possible permission levels, and for each
-			// one, see if we find the given attribute in the
-			// corresponding SettableAttrsList.
-		for( i=0; all_attrs_okay && (i<LAST_PERM); i++ ) {
-
-				// skip permission levels we know we don't want to trust
-			if( i == ALLOW || i == IMMEDIATE_FAMILY ) {
-				continue;
-			}
-
-			if( ! SettableAttrsLists[i] ) { 
-					// there's no list for this perm level, skip it. 
-				continue;
-			}
-
-				// if we're here, we might allow someone to set something
-				// if they qualify for the perm level we're considering.
-				// so, now see if the connection qualifies for this access
-				// level.
-			
-			if( Verify((DCpermission)i, endpoint, user)) {
-					// now we can see if the specific attribute they're
-					// trying to set is in our list.
-				if( (SettableAttrsLists[i])->
-					contains_anycase_withwildcard(name) ) {
-						// everything's cool.  allow this.
-
-#if (DEBUG_SETTABLE_ATTR_LISTS)
-					dprintf( D_ALWAYS, "CheckConfigSecurity: "
-							 "found %s at perm level %s\n", name,
-							 PermString((DCpermission)i) );
-#endif
-
-					free( name );
-
-					// this attribute is definately okay
-					// all_attrs_okay defaults to true, so
-					// no need to modify it here, just when
-					// the security check fails (below)
-				}
-			}
-		} // end of for()
-
-			// If we're still here, someone is trying to set something
-			// they're not allowed to set.  print this out into the log so
-			// folks can see that things are failing due to permissions. 
-
-			// Upper-case-ify the string for everything we print out.
-		strupr(name);
-
-			// First, log it.
-		dprintf( D_ALWAYS,
-				 "WARNING: User %s at %s is trying to modify \"%s\"\n",
-				 user, endpoint_string, name );
-		dprintf( D_ALWAYS, 
-				 "WARNING: Potential security problem, request refused\n" );
-
-		free( name );
-
-		// set the flag saying that not all attributes passed the
-		// security test
-		all_attrs_okay = false;
 	}
 
 	return all_attrs_okay;
+}
+
+
+
+bool
+DaemonCore::CheckConfigAttrSecurity( const char* attr, Sock* sock ) 
+{
+	char *name, *tmp;
+	char* ip_str;
+	int i;
+
+	if( ! (name = strdup(attr)) ) {
+		EXCEPT( "Out of memory!" );
+	}
+	tmp = strchr( name, '=' );
+	if( ! tmp ) {
+		tmp = strchr( name, ':' );
+	}
+	if( tmp ) {
+			// someone's trying to set something, so we should trim
+			// off the value they want to set it to and any whitespace
+			// so we can just look at the attribute name.
+		*tmp = ' ';
+		while( isspace(*tmp) ) {
+			*tmp = '\0';
+			tmp--;
+		}
+	} 
+
+#if (DEBUG_SETTABLE_ATTR_LISTS)
+		dprintf( D_ALWAYS, "CheckConfigSecurity: name is: %s\n", name );
+#endif
+
+		// Now, name should point to a NULL-terminated version of the
+		// attribute name we're trying to set.  This is what we must
+		// compare against our SettableAttrsLists.  We need to iterate
+		// through all the possible permission levels, and for each
+		// one, see if we find the given attribute in the
+		// corresponding SettableAttrsList.
+	for( i=0; i<LAST_PERM; i++ ) {
+
+			// skip permission levels we know we don't want to trust
+		if( i == ALLOW || i == IMMEDIATE_FAMILY ) {
+			continue;
+		}
+
+		if( ! SettableAttrsLists[i] ) { 
+				// there's no list for this perm level, skip it. 
+			continue;
+		}
+
+			// if we're here, we might allow someone to set something
+			// if they qualify for the perm level we're considering.
+			// so, now see if the connection qualifies for this access
+			// level.
+		
+		if( Verify((DCpermission)i, sock->endpoint(), sock->getFullyQualifiedUser())) {
+				// now we can see if the specific attribute they're
+				// trying to set is in our list.
+			if( (SettableAttrsLists[i])->
+				contains_anycase_withwildcard(name) ) {
+					// everything's cool.  allow this.
+
+#if (DEBUG_SETTABLE_ATTR_LISTS)
+				dprintf( D_ALWAYS, "CheckConfigSecurity: "
+						 "found %s at perm level %s\n", name,
+						 PermString((DCpermission)i) );
+#endif
+
+				free( name );
+				return true;
+			}
+		}
+	} // end of for()
+
+		// If we're still here, someone is trying to set something
+		// they're not allowed to set.  print this out into the log so
+		// folks can see that things are failing due to permissions. 
+
+		// Grab a pointer to this string, since it's a little bit
+		// expensive to re-compute.
+	ip_str = sock->endpoint_ip_str();
+		// Upper-case-ify the string for everything we print out.
+	strupr(name);
+
+		// First, log it.
+	dprintf( D_ALWAYS,
+			 "WARNING: Someone at %s is trying to modify \"%s\"\n",
+			 ip_str, name );
+	dprintf( D_ALWAYS, 
+			 "WARNING: Potential security problem, request refused\n" );
+
+	free( name );
+	return false;
 }
 
 

@@ -40,19 +40,19 @@ char *GlobusJobStatusName( int status )
 {
 #if defined(CONDOR_G)
 	switch ( status ) {
-	case 1:			// GLOBUS_GRAM_PROTOCOL_JOB_STATE_PENDING
+	case GLOBUS_GRAM_PROTOCOL_JOB_STATE_PENDING:
 		return "PENDING";
-	case 2:			// GLOBUS_GRAM_PROTOCOL_JOB_STATE_ACTIVE
+	case GLOBUS_GRAM_PROTOCOL_JOB_STATE_ACTIVE:
 		return "ACTIVE";
-	case 4:			// GLOBUS_GRAM_PROTOCOL_JOB_STATE_FAILED
+	case GLOBUS_GRAM_PROTOCOL_JOB_STATE_FAILED:
 		return "FAILED";
-	case 8:			// GLOBUS_GRAM_PROTOCOL_JOB_STATE_DONE
+	case GLOBUS_GRAM_PROTOCOL_JOB_STATE_DONE:
 		return "DONE";
-	case 16:		// GLOBUS_GRAM_PROTOCOL_JOB_STATE_SUSPENDED
+	case GLOBUS_GRAM_PROTOCOL_JOB_STATE_SUSPENDED:
 		return "SUSPENDED";
-	case 32:		// GLOBUS_GRAM_PROTOCOL_JOB_STATE_UNSUBMITTED
+	case GLOBUS_GRAM_PROTOCOL_JOB_STATE_UNSUBMITTED:
 		return "UNSUBMITTED";
-	case GLOBUS_JOB_STATE_UNKNOWN:
+	case GLOBUS_GRAM_PROTOCOL_JOB_STATE_UNKNOWN:
 		return "UNKNOWN";
 	default:
 		return "??????";
@@ -199,7 +199,19 @@ int
 have_condor_g()
 {
 #if defined(CONDOR_G)
-	return 1;
+	
+	// Our Condor-G test will be to see if we've defined a GRIDMANAGER. 
+	// If we don't have one, then this install does not support Condor-G.	
+	char *gridmanager;
+
+	gridmanager = NULL;
+	gridmanager = param("GRIDMANAGER");
+	if(gridmanager) {
+		free(gridmanager);
+		return 1;
+	} else {
+		return 0;
+	}
 #else
 	return 0;
 #endif

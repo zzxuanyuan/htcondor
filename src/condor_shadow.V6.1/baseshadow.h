@@ -81,7 +81,7 @@ class BaseShadow : public Service
 			 <li>Stores the classAd, checks its info.
 			 <li>calls config()
 			 <li>calls initUserLog()
-			 <li>registers handleJobRemoval on DC_SIGUSR1
+			 <li>registers handleJobRemoval on SIGUSR1
 			</ul>
 			It should be called right after the constructor.
 			@param jobAd The Ad for this job.
@@ -366,6 +366,14 @@ class BaseShadow : public Service
 			@return success or failure to set the attribute
 		 */
 	bool updateExprTree( ExprTree* tree );
+
+		/** See if the job is a) vanilla, b) unix and c) submitted
+			with a 6.3.1 or earlier condor_submit.  if so, it'll have
+			an incorrect default value for ATTR_TRANSFER_FILES of
+			"ON_EXIT" that will cause all sorts of problems.  If all
+			those conditions are met, we change the value to "NEVER".
+		*/
+	void checkFileTransferCruft( void );
 
 	// config file parameters
 	char *spool;

@@ -155,6 +155,9 @@ main_init( int, char* argv[] )
 		// Instantiate the Resource Manager object.
 	resmgr = new ResMgr;
 
+		// find all the starters we care about and get their classads. 
+	resmgr->starter_mgr.init();
+
 		// Read in global parameters from the config file.
 		// We do this after we instantiate the resmgr, so we can know
 		// what num_cpus is, but before init_resources(), so we can
@@ -367,6 +370,7 @@ finish_main_config( void )
 	}
 	dprintf( D_FULLDEBUG, "MainConfig finish\n" );
 	Cronmgr->Reconfig( );
+	resmgr->starter_mgr.init();
 
 		// Re-evaluate and update the CM for each resource (again, we
 		// don't need to recompute, since we just did that, so we call
@@ -638,10 +642,10 @@ reaper(Service *, int pid, int status)
 	Resource* rip;
 
 	if( WIFSIGNALED(status) ) {
-		dprintf(D_FAILURE|D_ALWAYS, "starter pid %d died on signal %d (%s)\n",
+		dprintf(D_FAILURE|D_ALWAYS, "Starter pid %d died on signal %d (%s)\n",
 				pid, WTERMSIG(status), daemonCore->GetExceptionString(status));
 	} else {
-		dprintf(D_FAILURE|D_ALWAYS, "starter pid %d exited with status %d\n",
+		dprintf(D_FAILURE|D_ALWAYS, "Starter pid %d exited with status %d\n",
 				pid, WEXITSTATUS(status));
 	}
 	rip = resmgr->get_by_pid(pid);
@@ -695,3 +699,10 @@ check_free()
 	} 
 	return TRUE;
 }
+
+
+void
+main_pre_dc_init( int argc, char* argv[] )
+{
+}
+

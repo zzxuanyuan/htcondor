@@ -39,6 +39,7 @@
 #include "classad_hashtable.h"
 #include "MyString.h"
 #include "basename.h"
+#include "condor_distribution.h"
 
 // Globals
 
@@ -446,6 +447,7 @@ main(int argc, char *argv[])
 
 	virtualMachineCounts = new HashTable <HashKey, int> (25, hashFunction); 
 	mySubSystem = "INTERACTIVE";
+	myDistro->Init( argc, argv );
 	config();
 
 	// parse command line args

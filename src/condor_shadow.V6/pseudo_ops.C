@@ -45,6 +45,8 @@
 #include "condor_ver_info.h"
 #include "string_list.h"
 #include "condor_socket_types.h"
+#include "classad_helpers.h"
+
 
 extern "C" {
 	void log_checkpoint (struct rusage *, struct rusage *);
@@ -66,6 +68,7 @@ extern "C" {
 }
 
 extern int JobStatus;
+extern int MyPid;
 extern int ImageSize;
 extern struct rusage JobRusage;
 extern ReliSock *syscall_sock;
@@ -104,8 +107,8 @@ static char Executing_Filesystem_Domain[ MAX_STRING ];
 static char Executing_UID_Domain[ MAX_STRING ];
 char *Executing_Arch=NULL, *Executing_OpSys=NULL;
 
-extern char My_Filesystem_Domain[];
-extern char My_UID_Domain[];
+extern char* My_Filesystem_Domain;
+extern char* My_UID_Domain;
 extern int	UseAFS;
 extern int  UseNFS;
 extern int  UseCkptServer;
@@ -221,6 +224,7 @@ pseudo_free_fs_blocks( const char *path )
 int
 pseudo_image_size( int size )
 {
+	int new_size;
 	if (size > 0) {
 		int executable_size = 0;
 		dprintf( D_SYSCALLS,
@@ -228,7 +232,13 @@ pseudo_image_size( int size )
 		JobAd->LookupInteger(ATTR_EXECUTABLE_SIZE, executable_size);
 		dprintf( D_SYSCALLS, "\tAdding executable size of %d kilobytes\n",
 				 executable_size );
-		ImageSize = size + executable_size;
+		new_size = size + executable_size;
+		if( new_size == ImageSize ) {
+			dprintf( D_SYSCALLS, "Got Image Size report with same size "
+					 "(%d)\n", new_size );
+			return 0;
+		}
+		ImageSize = new_size;
 		dprintf( D_SYSCALLS, "Set Image Size to %d kilobytes\n", ImageSize );
 		
 		// log the event
@@ -772,6 +782,8 @@ pseudo_get_file_stream(
 		if (CkptFile || ICkptFile) set_priv(priv);
 		return -1;
 	case 0:	/* the child */
+			// reset this so dprintf has the right pid in the header
+		MyPid = getpid();
 		data_sock = connect_file_stream( connect_sock );
 		if( data_sock < 0 ) {
 			exit( 1 );
@@ -960,6 +972,8 @@ pseudo_put_file_stream(
 		if (CkptFile || ICkptFile) set_priv(priv);	// restore user privileges
 		return -1;
 	  case 0:	/* the child */
+			// reset this so dprintf has the right pid in the header
+		MyPid = getpid();
 		data_sock = connect_file_stream( connect_sock );
 		if( data_sock < 0 ) {
 			exit( 1 );
@@ -1485,7 +1499,11 @@ pseudo_startup_info_request( STARTUP_INFO *s )
 		*/
 	s->virt_pid = -1;
 
-	JobAd->LookupInteger(ATTR_KILL_SIG, s->soft_kill_sig);
+	int soft_kill = findSoftKillSig( JobAd );
+	if( soft_kill < 0 ) {
+		soft_kill = SIGTERM;
+	}
+	s->soft_kill_sig = soft_kill;
 
 	s->cmd = Strdup( p->cmd[0] );
 	s->args = Strdup( p->args[0] );

@@ -31,6 +31,7 @@
 #include "internet.h"
 #include "condor_uid.h"
 #include "condor_adtypes.h"
+#include "condor_version.h"
 #include "condor_attributes.h"
 #include "condor_config.h"
 #include "my_hostname.h"
@@ -38,6 +39,8 @@
 #include "sig_install.h"
 #include "job_report.h"
 #include "../condor_c++_util/directory.h"
+#include "condor_distribution.h"
+#include "condor_environ.h"
 
 #include "user_job_policy.h"
 
@@ -250,8 +253,21 @@ extern ClassAd *JobAd;
 
 char		*schedd = NULL, *scheddName = NULL;
 
+
+void
+printClassAd( void )
+{
+	printf( "%s = False\n", ATTR_IS_DAEMON_CORE );
+	printf( "%s = True\n", ATTR_HAS_REMOTE_SYSCALLS );
+	printf( "%s = True\n", ATTR_HAS_CHECKPOINTING );
+	printf( "%s = True\n", ATTR_HAS_OLD_VANILLA );
+	printf( "%s = \"%s\"\n", ATTR_VERSION, CondorVersion() );
+}
+
+
 /*ARGSUSED*/
-main(int argc, char *argv[], char *envp[])
+int
+main(int argc, char *argv[] )
 {
 	char	*tmp = NULL;
 	int		reserved_swap, free_swap;
@@ -260,6 +276,12 @@ main(int argc, char *argv[], char *envp[])
 	char	*use_ckpt_server = NULL;
 	char	*capability;
 	int		i;
+
+	myDistro->Init( argc, argv );
+	if( argc == 2 && strincmp(argv[1], "-cl", 3) == MATCH ) {
+		printClassAd();
+		exit( 0 );
+	}
 
 	/* on OSF/1 as installed currently on our machines, attempts to read from
 	   the FILE * returned by popen() fail if the underlying file descriptor
@@ -311,7 +333,10 @@ main(int argc, char *argv[], char *envp[])
 	dprintf_config( mySubSystem, SHADOW_LOG );
 	DebugId = whoami;
 
-	dprintf( D_ALWAYS, "********** Shadow starting up **********\n" );
+	dprintf( D_ALWAYS, "******* Standard Shadow starting up *******\n" );
+	dprintf( D_ALWAYS, "** %s\n", CondorVersion() );
+	dprintf( D_ALWAYS, "** %s\n", CondorPlatform() );
+	dprintf( D_ALWAYS, "*******************************************\n" );
 
 	if( (tmp=param("RESERVED_SWAP")) == NULL ) {
 		reserved_swap = 5 * 1024;			/* 5 megabytes */
@@ -371,7 +396,7 @@ main(int argc, char *argv[], char *envp[])
 		RemoveNewShadowDroppings(cluster, proc);
 		regular_setup( host, cluster, proc, capability );
 	}
-	scheddName = getenv("SCHEDD_NAME");
+	scheddName = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
 
 	GlobalCap = strdup(capability);
 
@@ -383,7 +408,6 @@ main(int argc, char *argv[], char *envp[])
 
 	// initialize the user log
 	initializeUserLog();
-
 
 	My_Filesystem_Domain = param( "FILESYSTEM_DOMAIN" ); 
 	dprintf( D_ALWAYS, "My_Filesystem_Domain = \"%s\"\n", 
@@ -567,7 +591,12 @@ main(int argc, char *argv[], char *envp[])
 	{
 		static_policy();
 	}
-
+    if( My_UID_Domain ) {
+        free( My_UID_Domain );
+    }
+    if( My_Filesystem_Domain ) {
+        free( My_Filesystem_Domain );
+    }
 	dprintf( D_ALWAYS, "********** Shadow Exiting(%d) **********\n",
 		ExitReason );
 	exit( ExitReason );
@@ -783,9 +812,6 @@ Wrapup( )
 	if( notification[0] ) {
 		NotifyUser( notification, Proc );
 	}
-    // Free up data
-    free(My_UID_Domain);
-    free(My_Filesystem_Domain);
 }
 
 /* evaluate various periodic checks during the running of the shadow and
@@ -1179,8 +1205,6 @@ send_job( V2_PROC *proc, char *host, char *cap)
 }
 
 
-extern char	*SigNames[];
-
 /*
 ** Opens job queue (Q), and reads in process structure (Proc) as side
 ** affects.
@@ -1343,6 +1367,9 @@ regular_setup( char *host, char *cluster, char *proc, char *capability )
 		"Hostname = \"%s\", Job = %s.%s\n",
 		host, cluster, proc
 	);
+	if( Spool ) {
+		free( Spool );
+	}
 	Spool = param( "SPOOL" );
 	if( Spool == NULL ) {
 		EXCEPT( "Spool directory not specified in config file" );
@@ -1354,7 +1381,6 @@ regular_setup( char *host, char *cluster, char *proc, char *capability )
 	ExecutingHost = host;
 	start_job( cluster, proc );
 	send_job( Proc, host, capability );
-    free( Spool );
 }
 
 void
@@ -1365,6 +1391,9 @@ pipe_setup( char *cluster, char *proc, char *capability )
 	UsePipes = TRUE;
 	dprintf( D_ALWAYS, "Job = %s.%s\n", cluster, proc );
 
+	if( Spool ) {
+		free( Spool );
+	}
 	Spool = param( "SPOOL" );
 	if( Spool == NULL ) {
 		EXCEPT( "Spool directory not specified in config file" );
@@ -1384,8 +1413,6 @@ pipe_setup( char *cluster, char *proc, char *capability )
 
 	sock_RSC1 = RSC_ShadowInit( RSC_SOCK, CLIENT_LOG );
 	start_job( cluster, proc );
-
-    free( Spool );
 }
 
 /*

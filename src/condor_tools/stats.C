@@ -33,6 +33,7 @@
 #include "condor_commands.h"
 #include "condor_io.h"
 #include "daemon.h"
+#include "condor_distribution.h"
 
 //------------------------------------------------------------------------
 
@@ -96,6 +97,8 @@ main(int argc, char* argv[])
   MyString FileName;
   MyString TimeFileName;
   char* pool = NULL;
+
+  myDistro->Init( argc, argv );
 
   for(int i=1; i<argc; i++) {
 

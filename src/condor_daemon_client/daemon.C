@@ -41,7 +41,7 @@
 
 void Daemon::common_init() {
 	_type = DT_NONE;
-	_port = 0;
+	_port = -1;
 	_is_local = false;
 	_tried_locate = false;
 
@@ -56,7 +56,7 @@ void Daemon::common_init() {
 	_full_hostname = NULL;
 }
 
-Daemon::Daemon( char* sinful_addr, int port ) 
+Daemon::Daemon( const char* addr_string, int port ) 
 {
 	common_init();
 	
@@ -64,20 +64,42 @@ Daemon::Daemon( char* sinful_addr, int port )
 	_type = DT_ANY;
 	_tried_locate = true;
 
-	if( sinful_addr && is_valid_sinful(sinful_addr) ) {
-		if (port) {
-			char new_sinful_addr[128] = {0};
-			int iplen = strchr( sinful_addr, ':') - sinful_addr;
-			strncpy (new_sinful_addr, sinful_addr, iplen);
-			sprintf (new_sinful_addr + iplen, ":%i>", port);
-			_addr = strnewp( new_sinful_addr );
+	if( addr_string ) {
+		if ( is_valid_sinful(addr_string) ) {
+			_addr = strnewp( addr_string );
+			_port = string_to_port( addr_string );
+		} else if ( is_ipaddr(addr_string, NULL) ) {
+			// allocate the length of the IP addr plus
+			// 16 for the '<', ':', '>', and port.
+			_addr = new char[16 + strlen(addr_string)];
+			_port = port;
+			sprintf (_addr, "<%s:%d>", addr_string, port);
 		} else {
-			_addr = strnewp( sinful_addr );
+			// well, if it isn't a sinful or an IP address,
+			// we'll treat it as a hostname.
+
+			struct in_addr sin_addr;
+
+			// resolv the hostname to an IP
+			char* tmp = get_full_hostname( addr_string, &sin_addr );
+			if( ! tmp ) {
+					// With a hostname, this is a fatal Daemon error.
+				char buf[128];
+				sprintf( buf, "unknown host %s", addr_string );
+				newError( buf );
+				_addr = NULL;
+				_port = -1;
+				return;
+			}
+			New_full_hostname( tmp );
+			// 32 bytes is more than enough for <234.678.012.456:890123456>
+			_addr = new char[32];
+			_port = port;
+			sprintf( _addr, "<%s:%d>", inet_ntoa(sin_addr), port );
 		}
-		_port = string_to_port( _addr );
 	} else {
 		_addr = NULL;
-		_port = 0;
+		_port = -1;
 	}
 
 }
@@ -354,7 +376,7 @@ Daemon::startCommand( int cmd, Sock* sock, int sec )
 
 	// basic sanity check
 	if( ! sock ) {
-		dprintf ( D_ALWAYS, "startCommand() called with a NULL Sock*, failing." );
+		dprintf ( D_ALWAYS, "startCommand() called with a NULL Sock*, failing.\n" );
 		return false;
 	} else {
 		dprintf ( D_SECURITY, "STARTCOMMAND: starting %i to %s on %s port %i.\n", cmd, sin_to_string(sock->endpoint()), (sock->type() == Stream::safe_sock) ? "UDP" : "TCP", sock->get_port());
@@ -369,12 +391,13 @@ Daemon::startCommand( int cmd, Sock* sock, int sec )
 	bool    other_side_can_negotiate = true;
 
 	// look at the version if it is available.  we must disable
-	// negotiation when talk to pre-6.3.2.
+	// negotiation when talking to pre-6.3.3.
 	if (_version) {
 		dprintf(D_SECURITY, "DAEMON: talking to a %s daemon.\n", _version);
 		CondorVersionInfo vi(_version);
-		if ( !vi.built_since_version(6,3,2) ) {
-			dprintf(D_SECURITY, "DAEMON: security negotiation not possible, disabling.\n");
+		if ( !vi.built_since_version(6,3,3) ) {
+			dprintf( D_SECURITY, "DAEMON: "
+					 "security negotiation not possible, disabling.\n" );
 			other_side_can_negotiate = false;
 		}
 	}
@@ -454,6 +477,7 @@ Daemon::locate( void )
 	switch( _type ) {
 	case DT_ANY:
 		// don't do anything
+		rval = true;
 		break;
 	case DT_CLUSTER:
 		rval = getDaemonInfo( "CLUSTER", CLUSTER_AD );
@@ -675,7 +699,7 @@ Daemon::getDaemonInfo( const char* subsys, AdTypes adtype )
 		ads.Open();
 		scan = ads.Next();
 		if(!scan) {
-			dprintf(D_ALWAYS, "Can't find address for %s %s", 
+			dprintf(D_ALWAYS, "Can't find address for %s %s\n", 
 					 daemonString(_type), _name );
 			sprintf( buf, "Can't find address for %s %s", 
 					 daemonString(_type), _name );
@@ -686,7 +710,7 @@ Daemon::getDaemonInfo( const char* subsys, AdTypes adtype )
 		// construct the IP_ADDR attribute
 		sprintf( tmpname, "%sIpAddr", subsys );
 		if(scan->EvaluateAttrString( tmpname, buf, BUF_LEN ) == FALSE) {
-			dprintf(D_ALWAYS, "Can't find %s in classad for %s %s",
+			dprintf(D_ALWAYS, "Can't find %s in classad for %s %s\n",
 					 tmpname, daemonString(_type), _name );
 			sprintf( buf, "Can't find %s in classad for %s %s",
 					 tmpname, daemonString(_type), _name );
@@ -697,7 +721,7 @@ Daemon::getDaemonInfo( const char* subsys, AdTypes adtype )
 
 		sprintf( tmpname, ATTR_VERSION );
 		if(scan->EvaluateAttrString( tmpname, buf, BUF_LEN ) == FALSE) {
-			dprintf(D_ALWAYS, "Can't find %s in classad for %s %s",
+			dprintf(D_ALWAYS, "Can't find %s in classad for %s %s\n",
 					 tmpname, daemonString(_type), _name );
 			sprintf( buf, "Can't find %s in classad for %s %s",
 					 tmpname, daemonString(_type), _name );
@@ -708,7 +732,7 @@ Daemon::getDaemonInfo( const char* subsys, AdTypes adtype )
 
 		sprintf( tmpname, ATTR_PLATFORM );
 		if(scan->EvaluateAttrString( tmpname, buf, BUF_LEN ) == FALSE) {
-			dprintf(D_ALWAYS, "Can't find %s in classad for %s %s",
+			dprintf(D_ALWAYS, "Can't find %s in classad for %s %s\n",
 					 tmpname, daemonString(_type), _name );
 			sprintf( buf, "Can't find %s in classad for %s %s",
 					 tmpname, daemonString(_type), _name );

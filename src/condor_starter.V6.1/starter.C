@@ -67,6 +67,7 @@ CStarter::CStarter()
 	filetrans = NULL;
 	transfer_at_vacate = false;
 	requested_exit = false;
+	wants_file_transfer = false;
 }
 
 
@@ -241,7 +242,7 @@ CStarter::InitShadowInfo( void )
 		dprintf( D_FULLDEBUG, "Version of Shadow is %s\n", tmp );
 		ShadowVersion = new CondorVersionInfo( tmp, "SHADOW" );
 	} else {
-		dprintf( D_FULLDEBUG, "Version of Shadow unknown (pre v6.3.2)\n" ); 
+		dprintf( D_FULLDEBUG, "Version of Shadow unknown (pre v6.3.3)\n" ); 
 	}
 }
 
@@ -255,12 +256,12 @@ CStarter::RegisterStarterInfo( void )
 		EXCEPT( "RegisterStarterInfo called with NULL DCShadow object" );
 	}
 
-		// If the shadow is older than 6.3.2, we need to use the
+		// If the shadow is older than 6.3.3, we need to use the
 		// CONDOR_register_machine_info method, which sends a bunch of
-		// strings over the wire.  If we're 6.3.2 or later, we can use
+		// strings over the wire.  If we're 6.3.3 or later, we can use
 		// CONDOR_register_starter_info, which just sends a ClassAd
 		// with all the relevent info.
-	if( ShadowVersion && ShadowVersion->built_since_version(6,3,2) ) {
+	if( ShadowVersion && ShadowVersion->built_since_version(6,3,3) ) {
 		ClassAd* starter_info = new ClassAd;
 		char *tmp = NULL;
 		char* tmp_val = NULL;
@@ -326,7 +327,8 @@ CStarter::RegisterStarterInfo( void )
 		}
 
 		rval = REMOTE_CONDOR_register_starter_info( starter_info );
-		
+		delete( starter_info );
+
 	} else {
 			// We've got to use the old method.
 		char *mfhn = strnewp ( my_full_hostname() );
@@ -489,6 +491,7 @@ CStarter::BeginFileTransfer( void )
 {
 	char tmp[_POSIX_ARG_MAX];
 	int change_iwd = true;
+	wants_file_transfer = true;
 
 		/* setup value for transfer_at_vacate and also determine if 
 		   we should change our working directory */
@@ -503,6 +506,7 @@ CStarter::BeginFileTransfer( void )
 	case 'n':  /* for "Never" */
 	case 'N':
 		change_iwd = false;  // It's true otherwise...
+		wants_file_transfer = false;
 		break;
 	}
 
@@ -579,25 +583,21 @@ CStarter::TransferCompleted( FileTransfer *ftrans )
 			break;
 		case CONDOR_UNIVERSE_MPI: {
 			int is_master = FALSE;
-			dprintf ( D_FULLDEBUG, "Is master: %s\n", ATTR_MPI_IS_MASTER );
 			if ( jobAd->LookupBool( ATTR_MPI_IS_MASTER, is_master ) < 1 ) {
 				is_master = FALSE;
 			}
-			
-			dprintf ( D_FULLDEBUG, "is_master : %d\n", is_master );
-
 			if ( is_master ) {
-				dprintf ( D_FULLDEBUG, "Firing up a MPIMasterProc\n" );
+				dprintf ( D_FULLDEBUG, "Starting a MPIMasterProc\n" );
 				job = new MPIMasterProc( jobAd );
 			} else {
-				dprintf ( D_FULLDEBUG, "Firing up a MPIComradeProc\n" );
+				dprintf ( D_FULLDEBUG, "Starting a MPIComradeProc\n" );
 				job = new MPIComradeProc( jobAd );
 			}
 			break;
 		}
 		default:
-			dprintf( D_ALWAYS, "I don't support universe %d (%s)\n",
-					 jobUniverse, CondorUniverseName(jobUniverse) );
+			dprintf( D_ALWAYS, "Starter doesn't support universe %d (%s)\n",
+					 jobUniverse, CondorUniverseName(jobUniverse) ); 
 			return FALSE;
 	} /* switch */
 
@@ -677,7 +677,7 @@ CStarter::InitUserPriv( void )
 		// submitting machine.  If so, we'll try to initialize
 		// user_priv via ATTR_OWNER.  If there's no such user in the
 		// passwd file, SOFT_UID_DOMAIN is True, and we're talking to
-		// at least a 6.3.2 version of the shadow, we'll do a remote 
+		// at least a 6.3.3 version of the shadow, we'll do a remote 
 		// system call to ask the shadow what uid and gid we should
 		// use.  If SOFT_UID_DOMAIN is False and there's no such user
 		// in the password file, but the UID_DOMAIN's match, it's a
@@ -714,7 +714,7 @@ CStarter::InitUserPriv( void )
 					// first, see if the shadow is new enough to
 					// support the RSC we need to do...
 				if( ShadowVersion && 
-					ShadowVersion->built_since_version(6,3,2) ) {
+					ShadowVersion->built_since_version(6,3,3) ) {
 						shadow_is_old = false;
 				}
 			} else {
@@ -732,13 +732,11 @@ CStarter::InitUserPriv( void )
 				// to find out the right uid/gid.
 			if( shadow_is_old ) {
 				dprintf( D_ALWAYS, "ERROR: Uid for \"%s\" not found in "
-						 "passwd file,\n"
-						 "\t\tSOFT_UID_DOMAIN is True, but the "
-						 "condor_shadow on the submitting\n"
-						 "\t\thost is too old to support SOFT_UID_DOMAIN. "
-						 " You must upgrade\n"
-						 "\t\tCondor on the submitting host to at least "
-						 "version 6.3.2.\n", owner );
+						 "passwd file, SOFT_UID_DOMAIN is True, but the "
+						 "condor_shadow on the submitting host is too old "
+						 "to support SOFT_UID_DOMAIN.  You must upgrade "
+						 "Condor on the submitting host to at least "
+						 "version 6.3.3.\n", owner ); 
 				free( owner );
 				return false;
 			}
@@ -755,13 +753,11 @@ CStarter::InitUserPriv( void )
 				dprintf( D_ALWAYS, "ERROR: "
 						 "REMOTE_CONDOR_get_user_info() failed\n" );
 				dprintf( D_ALWAYS, "ERROR: Uid for \"%s\" not found in "
-						 "passwd file,\n"
-						 "\t\tSOFT_UID_DOMAIN is True, but the "
-						 "condor_shadow on the submitting\n"
-						 "\t\thost cannot support SOFT_UID_DOMAIN. "
-						 " You must upgrade\n"
-						 "\t\tCondor on the submitting host to at least "
-						 "version 6.3.2.\n", owner );
+						 "passwd file, SOFT_UID_DOMAIN is True, but the "
+						 "condor_shadow on the submitting host cannot "
+						 "support SOFT_UID_DOMAIN.  You must upgrade "
+						 "Condor on the submitting host to at least "
+						 "version 6.3.3.\n", owner );
 				free( owner );
 				return false;
 			}
@@ -887,8 +883,13 @@ CStarter::Reaper(int pid, int exit_status)
 	int all_jobs = 0;
 	UserProc *job;
 
-	dprintf( D_ALWAYS, "Job exited, pid=%d, status=%d\n", pid,
-			 exit_status );
+	if( WIFSIGNALED(exit_status) ) {
+		dprintf( D_ALWAYS, "Job exited, pid=%d, signal=%d\n", pid,
+				 WTERMSIG(exit_status) );
+	} else {
+		dprintf( D_ALWAYS, "Job exited, pid=%d, status=%d\n", pid,
+				 WEXITSTATUS(exit_status) );
+	}
 
 	JobList.Rewind();
 	while ((job = JobList.Next()) != NULL) {
@@ -989,9 +990,9 @@ CStarter::SameUidDomain( void )
 	if( host_in_domain(shadow->name(), UIDDomain) ) {
 		return true;
 	}
-	dprintf( D_ALWAYS, "ERROR: the submitting host claims to be in our\n"
-			 "\t\tUidDomain, yet its hostname (%s) does not match\n",
-			 shadow->name() );
+	dprintf( D_ALWAYS, "ERROR: the submitting host claims to be in our "
+			 "UidDomain (%s), yet its hostname (%s) does not match\n",
+			 UIDDomain, shadow->name() );
 	return false;
 }
 

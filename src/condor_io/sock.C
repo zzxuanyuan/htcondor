@@ -863,11 +863,52 @@ char * Sock::serializeCryptoInfo() const
     }
 
 	// here we want to save our state into a buffer
-	char * outbuf = new char[100];
+	char * outbuf = NULL;
     if (len > 0) {
-        sprintf(outbuf,"%d*%s",len,kserial);
+        int buflen = len*2+32;
+        outbuf = new char[buflen];
+        sprintf(outbuf,"%d*%d*", len*2, (int)get_crypto_key().getProtocol());
+
+        // Hex encode the binary key
+        char * ptr = outbuf + strlen(outbuf);
+        for (int i=0; i < len; i++, kserial++, ptr+=2) {
+            sprintf(ptr, "%02X", *kserial);
+        }
     }
     else {
+        outbuf = new char[2];
+        memset(outbuf, 0, 2);
+        sprintf(outbuf,"%d",0);
+    }
+	return( outbuf );
+}
+
+char * Sock::serializeMdInfo() const
+{
+    const unsigned char * kmd = NULL;
+    int len = 0;
+
+    if (isOutgoing_MD5_on()) {
+        kmd = get_md_key().getKeyData();
+        len = get_md_key().getKeyLength();
+    }
+
+	// here we want to save our state into a buffer
+	char * outbuf = NULL;
+    if (len > 0) {
+        int buflen = len*2+32;
+        outbuf = new char[buflen];
+        sprintf(outbuf,"%d*", len*2);
+
+        // Hex encode the binary key
+        char * ptr = outbuf + strlen(outbuf);
+        for (int i=0; i < len; i++, kmd++, ptr+=2) {
+            sprintf(ptr, "%02X", *kmd);
+        }
+    }
+    else {
+        outbuf = new char[2];
+        memset(outbuf, 0, 2);
         sprintf(outbuf,"%d",0);
     }
 	return( outbuf );
@@ -875,33 +916,100 @@ char * Sock::serializeCryptoInfo() const
 
 char * Sock::serializeCryptoInfo(char * buf)
 {
-	char * kserial = NULL, * ptmp = buf;
-    int    len = 0;
+	unsigned char * kserial = NULL;
+    char * ptmp = buf;
+    int    len = 0, encoded_len = 0;
+    int protocol = CONDOR_NO_PROTOCOL;
 
     // kserial may be a problem since reli_sock also has stuff after
     // it. As a result, kserial may contains not just the key, but
     // other crap from reli_sock as well. Hence the code below. Hao
     ASSERT(ptmp);
 
-    sscanf(ptmp, "%d", &len);
-    if ( (len > 0) && ptmp ) {
-        char format[100] = "%";
-        sprintf(&format[1], "%d%s", len, "s");
-        kserial = (char *) malloc(len);
-        sscanf(ptmp, format, kserial);
+    sscanf(ptmp, "%d*", &encoded_len);
+    if ( encoded_len > 0 ) {
+        len = encoded_len/2;
+        kserial = (unsigned char *) malloc(len);
 
-        // skip over one *
+        // skip the *
         ptmp = strchr(ptmp, '*');
+		ASSERT( ptmp );
         ptmp++;
 
+        // Reading protocol
+        sscanf(ptmp, "%d*", &protocol);
+        ptmp = strchr(ptmp, '*');
+		ASSERT( ptmp );
+        ptmp++;
+
+        // Now, convert from Hex back to binary
+        unsigned char * ptr = kserial;
+        unsigned int hex;
+        for(int i = 0; i < len; i++) {
+            sscanf(ptmp, "%2X", &hex);
+            *ptr = (unsigned char)hex;
+			ptmp += 2;  // since we just consumed 2 bytes of hex
+			ptr++;      // since we just stored a single byte of binary
+        }        
+
         // Initialize crypto info
-        KeyInfo k((unsigned char *)kserial, 0);
+        KeyInfo k((unsigned char *)kserial, len, (Protocol)protocol);
         set_crypto_key(&k, 0);
         free(kserial);
+		ASSERT( *ptmp == '*' );
+        // Now, skip over this one
+        ptmp++;
     }
-    // Now, skip over this one
-    ptmp = strchr(ptmp,'*');
-    ptmp++;
+    else {
+        ptmp = strchr(ptmp, '*');
+        ptmp++;
+    }
+	return ptmp;
+}
+
+char * Sock::serializeMdInfo(char * buf)
+{
+	unsigned char * kmd = NULL;
+    char * ptmp = buf;
+    int    len = 0, encoded_len = 0;
+
+    // kmd may be a problem since reli_sock also has stuff after
+    // it. As a result, kmd may contains not just the key, but
+    // other crap from reli_sock as well. Hence the code below. Hao
+    ASSERT(ptmp);
+
+    sscanf(ptmp, "%d*", &encoded_len);
+    if ( encoded_len > 0 ) {
+        len = encoded_len/2;
+        kmd = (unsigned char *) malloc(len);
+
+        // skip the *
+        ptmp = strchr(ptmp, '*');
+		ASSERT( ptmp );
+        ptmp++;
+
+        // Now, convert from Hex back to binary
+        unsigned char * ptr = kmd;
+        unsigned int hex;
+        for(int i = 0; i < len; i++) {
+            sscanf(ptmp, "%2X", &hex);
+            *ptr = (unsigned char)hex;
+			ptmp += 2;  // since we just consumed 2 bytes of hex
+			ptr++;      // since we just stored a single byte of binary
+        }        
+
+        // Initialize crypto info
+        KeyInfo k((unsigned char *)kmd, len);
+        set_MD_mode(MD_ALWAYS_ON, &k, 0);
+        free(kmd);
+		ASSERT( *ptmp == '*' );
+        // Now, skip over this one
+        ptmp++;
+    }
+    else {
+        ptmp = strchr(ptmp, '*');
+        ptmp++;
+    }
 	return ptmp;
 }
 
@@ -909,7 +1017,13 @@ char * Sock::serialize() const
 {
 	// here we want to save our state into a buffer
 	char * outbuf = new char[500];
-	sprintf(outbuf,"%u*%d*%d",_sock,_state,_timeout);
+    if (outbuf) {
+        memset(outbuf, 0, 500);
+        sprintf(outbuf,"%u*%d*%d",_sock,_state,_timeout);
+    }
+    else {
+        dprintf(D_ALWAYS, "Out of memory!\n");
+    }
 	return( outbuf );
 }
 
@@ -922,7 +1036,7 @@ char * Sock::serialize(char *buf)
 	ASSERT(buf);
 
 	// here we want to restore our state from the incoming buffer
-	sscanf(buf,"%u*%d*%d",&passed_sock,&_state,&_timeout);
+	sscanf(buf,"%u*%d*%d*",&passed_sock,&_state,&_timeout);
 
 	// replace _sock with the one from the buffer _only_ if _sock
 	// is currently invalid.  if it is not invalid, it has already
@@ -1052,7 +1166,11 @@ static void async_handler( int s )
 }
 
 /*
-Set this fd up for asynchronous operation.  There are many ways of accomplishing this.  Some systems require multiple calls, some systems only support a few of these calls, and some support multiple, but only require one.  On top of that, many calls with defined constants are known to fail.  So, we will throw all of our knives at once and ignore return values.
+Set this fd up for asynchronous operation.  There are many ways of accomplishing this.  
+Some systems require multiple calls, some systems only support a few of these calls, 
+and some support multiple, but only require one.  
+On top of that, many calls with defined constants are known to fail.  
+So, we will throw all of our knives at once and ignore return values.
 */
 
 static void make_fd_async( int fd )
@@ -1115,7 +1233,10 @@ static void  make_fd_sync( int fd )
 }
 
 /*
-This function adds a new entry to the handler table and marks the fd as asynchronous.  If the table does not exist yet, it is allocated and the async_handler is installed as the handler for SIGIO.  If "handler" is null, then async notification is disabled for that fd.
+This function adds a new entry to the handler table and marks the fd as 
+asynchronous.  If the table does not exist yet, it is allocated and the 
+async_handler is installed as the handler for SIGIO.  
+If "handler" is null, then async notification is disabled for that fd.
 */
 
 static int install_async_handler( int fd, CedarHandler *handler, Stream *stream )

@@ -34,12 +34,22 @@ class GlobusJob : public Service
 	int syncIO();
 
 	static int probeInterval;
+	static int submitInterval;
+	static int restartInterval;
+	static int gahpCallTimeout;
 
 	static void setProbeInterval( int new_interval )
 		{ probeInterval = new_interval; }
+	static void setSubmitInterval( int new_interval )
+		{ submitInterval = new_interval; }
+	static void setRestartInterval( int new_interval )
+		{ restartInterval = new_interval; }
+	static void setGahpCallTimeout( int new_timeout )
+		{ gahpCallTimeout = new_timeout; }
 
 	// New variables
 	bool resourceDown;
+	bool resourceStateKnown;
 	int condorState;
 	int gmState;
 	int globusState;
@@ -53,14 +63,19 @@ class GlobusJob : public Service
 	time_t lastProbeTime;
 	time_t enteredCurrentGmState;
 	time_t enteredCurrentGlobusState;
+	time_t lastSubmitAttempt;
 	int numSubmitAttempts;
 	int syncedOutputSize;
 	int syncedErrorSize;
 	int shadowBirthday;
+	char *holdReason;
+	int submitFailureCode;
+	int lastRestartReason;
+	time_t lastRestartAttempt;
+	int numRestartAttempts;
+	int numRestartAttemptsThisSubmit;
 
 	GahpClient gahp;
-
-	const char *errorString();
 
 	char *buildRSL( ClassAd *classad );
 
@@ -70,7 +85,6 @@ class GlobusJob : public Service
 	char *localOutput;
 	char *localError;
 	int globusError;
-	int jmFailureCode;
 	char *userLogFile;
 	int exitValue;
 	bool submitLogged;
@@ -79,6 +93,7 @@ class GlobusJob : public Service
 	bool terminateLogged;
 	bool abortLogged;
 	bool evictLogged;
+	bool holdLogged;
 
 	bool stateChanged;
 	bool newJM;		// This means a jobmanager that supports restart

@@ -44,6 +44,7 @@
 #include "classad_hashtable.h"	// for HashKey class
 #include "Queue.h"
 #include "user_log.c++.h"
+#include "shadow_mgr.h"
 
 const 	int			MAX_NUM_OWNERS = 512;
 const 	int			MAX_REJECTED_CLUSTERS = 1024;
@@ -76,10 +77,10 @@ struct OwnerData {
   int FlockLevel;
   int OldFlockLevel;
   int GlobusJobs;
-  int GlobusUnsubmittedJobs;
+  int GlobusUnmanagedJobs;
   time_t NegotiationTimestamp;
   OwnerData() { Name=NULL;
-  JobsRunning=JobsIdle=JobsHeld=JobsFlocked=FlockLevel=OldFlockLevel=GlobusJobs=GlobusUnsubmittedJobs=0; }
+  JobsRunning=JobsIdle=JobsHeld=JobsFlocked=FlockLevel=OldFlockLevel=GlobusJobs=GlobusUnmanagedJobs=0; }
 };
 
 class match_rec
@@ -124,6 +125,15 @@ enum MrecStatus {
 };
 
 	
+typedef enum {
+	NO_SHADOW_STD,
+	NO_SHADOW_JAVA,
+	NO_SHADOW_WIN32,
+	NO_SHADOW_DC_VANILLA,
+	NO_SHADOW_OLD_VANILLA,
+} NoShadowFailure_t;
+
+
 // These are the args to contactStartd that get stored in the queue.
 class ContactStartdArgs
 {
@@ -277,6 +287,9 @@ class Scheduler : public Service
 	void			updateCentralMgr( int command, ClassAd* ca, 
 									  char* host, int port ); 
 
+		// object to manage our various shadows and their ClassAds
+	ShadowMgr shadow_mgr;
+
   private:
 	
 	// information about this scheduler
@@ -335,7 +348,6 @@ class Scheduler : public Service
 	
 	// useful names
 	char*			CondorViewHost;
-	char*			Shadow;
 	char*			CondorAdministrator;
 	char*			Mail;
 	char*			filename;					// save UpDown object
@@ -355,14 +367,14 @@ class Scheduler : public Service
 	void   			mark_cluster_rejected(int); 
 	int				count_jobs();
 	int				insert_owner(char*, char*);
-#ifndef WANT_DC_PM
-	void			reaper(int);
-#endif
 	void			child_exit(int, int);
 	void			clean_shadow_recs();
 	void			preempt(int);
 	void			preempt_one_job();
 	void			refuse( Stream* s );
+	void			tryNextJob( void );
+	void	noShadowForJob( shadow_rec* srec, NoShadowFailure_t why );
+
 
 		/** We add a match record (AddMrec), then open a ReliSock to the
 			startd.  We push the capability and the jobAd, then register
@@ -417,5 +429,12 @@ class Scheduler : public Service
 extern void set_job_status(int cluster, int proc, int status);
 extern bool claimStartd( match_rec* mrec, ClassAd* job_ad, bool is_dedicated );
 extern bool sendAlive( match_rec* mrec );
+extern void fixReasonAttrs( PROC_ID job_id, int action );
+extern bool moveStrAttr( PROC_ID job_id, const char* old_attr,  
+						 const char* new_attr, bool verbose );
+extern bool holdJob( int cluster, int proc, const char* reason = NULL, 
+					 bool use_transaction = false, 
+					 bool notify_shadow = true,  
+					 bool email_user = false, bool email_admin = false );
 
-#endif
+#endif /* _CONDOR_SCHED_H_ */

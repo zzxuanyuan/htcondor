@@ -3,7 +3,7 @@
  *
  * See LICENSE.TXT for additional notices and disclaimers.
  *
- * Copyright (c)1990-1998 CONDOR Team, Computer Sciences Department, 
+ * Copyright (c)1990-2002 CONDOR Team, Computer Sciences Department, 
  * University of Wisconsin-Madison, Madison, WI.  All Rights Reserved.  
  * No use of the CONDOR Software Program Source Code is authorized 
  * without the express consent of the CONDOR Team.  For more information 
@@ -21,14 +21,31 @@
  * WI 53706-1685, (608) 262-0856 or miron@cs.wisc.edu.
 ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
- 
+
+#include "condor_common.h" 
 
 /*
-** Compatibility routine for systems which utilize setresgid() for
-** this purpose.
+** Compatibility routine for systems that don't have an snprintf
 */
-setrgid( rgid )
-int		rgid;
+
+#ifdef NEED_SNPRINTF
+int 
+snprintf( char *str, size_t size, const  char  *format, ... )
 {
-	return setregid( rgid, -1);
+	int len;
+
+	va_list args;
+	va_start( args, format );
+
+	len = vsprintf(str, format, args);
+	va_end(args);
+
+	/* if len > size, this would be a good place to note that... */
+	/* according to the linux manpage, snprintf returns the number of bytes */
+	/* that WOULD have been written, had space been available. Since we're */
+	/* not checking space requirements, go ahead and lie and say what we */
+	/* actually wrote - we can code as though the write "failed" and deal */
+	/* with it at the caller */
+	return len;
 }
+#endif

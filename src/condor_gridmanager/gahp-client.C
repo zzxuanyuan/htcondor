@@ -25,6 +25,7 @@
 #include "condor_debug.h"
 #include "condor_config.h"
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
+#include "globus_utils.h"
 #include "gahp-client.h"
 
 	// Initialize static data members
@@ -37,17 +38,23 @@ char GahpClient::m_gahp_version[150];
 StringList* GahpClient::m_commands_supported = NULL;
 unsigned int GahpClient::m_pollInterval = 5;
 int GahpClient::poll_tid = -1;
+int GahpClient::max_pending_requests = 50;
+int GahpClient::num_pending_requests = 0;
 char* GahpClient::m_callback_contact = NULL;
 void* GahpClient::m_user_callback_arg = NULL;
 globus_gram_client_callback_func_t GahpClient::m_callback_func = NULL;
 int GahpClient::m_callback_reqid = 0;
+bool GahpClient::poll_pending = false;
+bool Gahp_Args::skip_next_r = false;
 HashTable<int,GahpClient*> * GahpClient::requestTable = NULL;
+Queue<int> GahpClient::waitingToSubmit;
 
 
 #ifndef WIN32
 	// Explicit template instantiation.  Sigh.
 	template class HashTable<int,GahpClient*>;
 	template class ExtArray<Gahp_Args*>;
+	template class Queue<int>;
 #endif	
 
 #define NULLSTRING "NULL"
@@ -62,6 +69,8 @@ GahpClient::GahpClient()
 	pending_reqid = 0;
 	pending_result = NULL;
 	pending_timeout = 0;
+	pending_timeout_tid = -1;
+	pending_submitted_to_gahp = false;
 	user_timerid = -1;
 	if ( requestTable == NULL ) {
 		requestTable = new HashTable<int,GahpClient*>( 300, &hashFuncInt );
@@ -87,7 +96,7 @@ GahpClient::~GahpClient()
 void
 GahpClient::write_line(const char *command)
 {
-dprintf(D_FULLDEBUG,"sending '%s'\n", command );
+dprintf(D_FULLDEBUG,"GAHP <- '%s'\n", command );
 	if ( !command || m_gahp_writefd == -1 ) {
 		return;
 	}
@@ -111,8 +120,8 @@ GahpClient::write_line(const char *command, int req, const char *args)
 	write(m_gahp_writefd,buf,strlen(buf));
 	if ( args ) {
 		write(m_gahp_writefd,args,strlen(args));
-dprintf(D_FULLDEBUG,"sending '%s%s%s'\n", command, buf, args );
-}else{dprintf(D_FULLDEBUG,"sending '%s%s'\n", command, buf );
+dprintf(D_FULLDEBUG,"GAHP <- '%s%s%s'\n", command, buf, args );
+}else{dprintf(D_FULLDEBUG,"GAHP <- '%s%s'\n", command, buf );
 	}
 	write(m_gahp_writefd,"\r\n",2);
 
@@ -169,13 +178,14 @@ Gahp_Args::read_argv(int readfd)
 	int ibuf = 0;
 	int iargv = 0;
 	int result = 0;
-	static const int buf_size = 1024 * 100;
+	static const int buf_size = 1024 * 500;
 	static const int argv_size = 60;
 
 	free_argv();
 	argv = (char**)calloc(argv_size, sizeof(char*));
 
 	if ( readfd == -1 ) {
+dprintf(D_FULLDEBUG,"GAHP -> (no pipe)\n");
 		return argv;
 	}
 
@@ -203,6 +213,7 @@ Gahp_Args::read_argv(int readfd)
 				argv[i] = NULL;
 			}
 			argc = 0;
+dprintf(D_FULLDEBUG,"GAHP -> EOF\n");
 			return argv;
 		}
 
@@ -237,6 +248,36 @@ Gahp_Args::read_argv(int readfd)
 				strcpy(argv[iargv],buf);
 			}
 			argc = iargv + 1;
+
+			// We are all done and about to return.  But first,
+			// check for a single "R".  This means we should check
+			// for results in gahp async mode.  
+			if ( argv[0] && argv[0][0] == 'R' ) {
+				if ( skip_next_r ) {
+					// we should not poll this time --- apparently we saw
+					// this R come through via our pipe handler.
+					skip_next_r = false;
+				} else {
+					GahpClient::poll_real_soon();
+				}
+				// now reset all our buffers and read the next line
+				free_argv();
+				argv = (char**)calloc(argv_size, sizeof(char*));
+				ibuf = 0;
+				iargv = 0;
+				continue;	// go back to the top of the for loop
+			}
+
+buf[0]='\0';
+if(argc>0){
+strcat(buf,"'");
+for(int i=0;i<argc;i++){
+if(i!=0)strcat(buf,"' '");
+if(argv[i])strcat(buf,argv[i]);
+}
+strcat(buf,"'");
+}
+dprintf(D_FULLDEBUG,"GAHP -> %s\n",buf);
 			return argv;
 		}
 
@@ -259,7 +300,7 @@ GahpClient::new_reqid()
 	
 	next_reqid++;
 	while (starting_reqid != next_reqid) {
-		if ( next_reqid > 99000000 ) {
+		if ( next_reqid > 990000000 ) {
 			next_reqid = 1;
 			had_to_rotate = true;
 		}
@@ -302,6 +343,7 @@ bool
 GahpClient::Initialize(const char *proxy_path, const char *input_path)
 {
 	char *gahp_path = NULL;
+	char *gahp_args = NULL;
 	int stdin_pipefds[2];
 	int stdout_pipefds[2];
 
@@ -317,6 +359,7 @@ GahpClient::Initialize(const char *proxy_path, const char *input_path)
 		gahp_path = strdup(input_path);
 	} else {
 		gahp_path = param("GAHP");
+		gahp_args = param("GAHP_ARGS");
 	}
 
 	if (!gahp_path) return false;
@@ -335,10 +378,13 @@ GahpClient::Initialize(const char *proxy_path, const char *input_path)
 
 		// Create two pairs of pipes which we will use to 
 		// communicate with the GAHP server.
-	if ( (pipe(stdin_pipefds) < 0) || (pipe(stdout_pipefds) < 0) ) {
+	if ( (daemonCore->Create_Pipe(stdin_pipefds) == FALSE) ||
+		 (daemonCore->Create_Pipe(stdout_pipefds) == FALSE) ) 
+	{
 		dprintf(D_ALWAYS,"GahpClient::Initialize - pipe() failed, errno=%d\n",
 			errno);
 		free( gahp_path );
+		if (gahp_args) free(gahp_args);
 		return false;
 	}
 
@@ -349,7 +395,7 @@ GahpClient::Initialize(const char *proxy_path, const char *input_path)
 
 	m_gahp_pid = daemonCore->Create_Process(
 			gahp_path,		// Name of executable
-			NULL,			// Args
+			gahp_args,		// Args
 			PRIV_UNKNOWN,	// Priv State ---- keep the same 
 			m_reaperid,		// id for our registered reaper
 			FALSE,			// do not want a command port
@@ -364,18 +410,20 @@ GahpClient::Initialize(const char *proxy_path, const char *input_path)
 		dprintf(D_ALWAYS,"Failed to start GAHP server (%s)\n",
 				gahp_path);
 		free( gahp_path );
+		if (gahp_args) free(gahp_args);
 		return false;
 	} else {
 		dprintf(D_ALWAYS,"GAHP server pid = %d\n",m_gahp_pid);
 	}
 
 	free( gahp_path );
+	if (gahp_args) free(gahp_args);
 
 		// Now that the GAHP server is running, close the sides of
 		// the pipes we gave away to the server, and stash the ones
 		// we want to keep in an object data member.
-	close( io_redirect[0] );
-	close( io_redirect[1] );
+	daemonCore->Close_Pipe( io_redirect[0] );
+	daemonCore->Close_Pipe( io_redirect[1] );
 	m_gahp_readfd = stdout_pipefds[0];
 	m_gahp_writefd = stdin_pipefds[1];
 
@@ -398,10 +446,27 @@ GahpClient::Initialize(const char *proxy_path, const char *input_path)
 		return false;
 	}
 
-		// set poll timer unless ASYNC command supported
-		// if  m_commands_supported->contains_anycase("ASYNC" ....
-	setPollInterval(m_pollInterval);
-
+		// try to turn on gahp async notification mode
+	if  ( !command_async_mode_on() ) {
+		// not supported, set a poll interval
+		setPollInterval(m_pollInterval);
+	} else {
+		// command worked... register the pipe and stop polling
+		int result = daemonCore->Register_Pipe(m_gahp_readfd,
+			"m_gahp_readfd",(PipeHandler)&Gahp_Args::pipe_ready,
+			"&Gahp_Args::pipe_ready");
+		if ( result == -1 ) {
+			// failed to register the pipe for some reason; fall 
+			// back on polling (yuck).
+			setPollInterval(m_pollInterval);
+		} else {
+			// pipe all registered.  stop polling.
+//			setPollInterval(0);
+		        // temporary kludge to work around gahp server hanging
+		        setPollInterval(m_pollInterval * 12);
+		}
+	}
+		
 	return true;
 }
 
@@ -410,6 +475,7 @@ GahpClient::setPollInterval(unsigned int interval)
 {
 	if (poll_tid != -1) {
 		daemonCore->Cancel_Timer(poll_tid);
+		poll_tid = -1;
 	}
 	m_pollInterval = interval;
 	if ( m_pollInterval > 0 ) {
@@ -465,6 +531,30 @@ GahpClient::globus_gram_client_set_credentials(const char *proxy_path)
 	}
 }
 
+void
+GahpClient::poll_real_soon()
+{	
+	// Poll for results asap via a timer, unless a request
+	// to poll for resuts is already pending.
+	if (!poll_pending) {
+		int tid = daemonCore->Register_Timer(0,
+			(TimerHandler)&GahpClient::poll,
+			"GahpClient:poll from poll_real_soon");
+		if ( tid != -1 ) {
+			poll_pending = true;
+		}
+	}
+}
+
+
+int
+Gahp_Args::pipe_ready()
+{
+	skip_next_r = true;
+	GahpClient::poll_real_soon();
+	return TRUE;
+}
+
 
 bool
 GahpClient::command_initialize_from_file(const char *proxy_path,
@@ -490,6 +580,27 @@ GahpClient::command_initialize_from_file(const char *proxy_path,
 			reason = "Unspecified error";
 		}
 		dprintf(D_ALWAYS,"GAHP command '%s' failed: %s\n",command,reason);
+		return false;
+	}
+
+	return true;
+}
+
+
+bool
+GahpClient::command_async_mode_on()
+{
+	static const char* command = "ASYNC_MODE_ON";
+
+	if  (m_commands_supported->contains_anycase(command)==FALSE) {
+		return false;
+	}
+
+	write_line(command);
+	Gahp_Args result;
+	char **argv = result.read_argv(m_gahp_readfd);
+	if ( argv[0] == NULL || argv[0][0] != 'S' ) {
+		dprintf(D_ALWAYS,"GAHP command '%s' failed\n",command);
 		return false;
 	}
 
@@ -610,15 +721,7 @@ GahpClient::globus_gass_server_superez_init( char **gass_url, int port )
 		if ( m_mode == results_only ) {
 			return GAHPCLIENT_COMMAND_NOT_SUBMITTED;
 		}
-		int reqid = new_reqid();
-		write_line(command,reqid,buf);
-		Gahp_Args return_line;
-		char **argv = return_line.read_argv(m_gahp_readfd);
-		if ( argv[0] == NULL || argv[0][0] != 'S' ) {
-			// Badness !
-			EXCEPT("Bad %s Request",command);
-		}
-		now_pending(command,reqid,buf);
+		now_pending(command,buf);
 	}
 
 		// If we made it here, command is pending.
@@ -689,15 +792,7 @@ GahpClient::globus_gram_client_job_request(
 		if ( m_mode == results_only ) {
 			return GAHPCLIENT_COMMAND_NOT_SUBMITTED;
 		}
-		int reqid = new_reqid();
-		write_line(command,reqid,buf);
-		Gahp_Args return_line;
-		char **argv = return_line.read_argv(m_gahp_readfd);
-		if ( argv[0] == NULL || argv[0][0] != 'S' ) {
-			// Badness !
-			EXCEPT("Bad %s Request",command);
-		}
-		now_pending(command,reqid,buf);
+		now_pending(command,buf);
 	}
 
 		// If we made it here, command is pending.
@@ -754,15 +849,7 @@ GahpClient::globus_gram_client_job_cancel(char * job_contact)
 		if ( m_mode == results_only ) {
 			return GAHPCLIENT_COMMAND_NOT_SUBMITTED;
 		}
-		int reqid = new_reqid();
-		write_line(command,reqid,buf);
-		Gahp_Args return_line;
-		char **argv = return_line.read_argv(m_gahp_readfd);
-		if ( argv[0] == NULL || argv[0][0] != 'S' ) {
-			// Badness !
-			EXCEPT("Bad %s Request",command);
-		}
-		now_pending(command,reqid,buf);
+		now_pending(command,buf);
 	}
 
 		// If we made it here, command is pending.
@@ -817,15 +904,7 @@ GahpClient::globus_gram_client_job_status(char * job_contact,
 		if ( m_mode == results_only ) {
 			return GAHPCLIENT_COMMAND_NOT_SUBMITTED;
 		}
-		int reqid = new_reqid();
-		write_line(command,reqid,buf);
-		Gahp_Args return_line;
-		char **argv = return_line.read_argv(m_gahp_readfd);
-		if ( argv[0] == NULL || argv[0][0] != 'S' ) {
-			// Badness !
-			EXCEPT("Bad %s Request",command);
-		}
-		now_pending(command,reqid,buf);
+		now_pending(command,buf);
 	}
 
 		// If we made it here, command is pending.
@@ -892,15 +971,7 @@ GahpClient::globus_gram_client_job_signal(char * job_contact,
 		if ( m_mode == results_only ) {
 			return GAHPCLIENT_COMMAND_NOT_SUBMITTED;
 		}
-		int reqid = new_reqid();
-		write_line(command,reqid,buf);
-		Gahp_Args return_line;
-		char **argv = return_line.read_argv(m_gahp_readfd);
-		if ( argv[0] == NULL || argv[0][0] != 'S' ) {
-			// Badness !
-			EXCEPT("Bad %s Request",command);
-		}
-		now_pending(command,reqid,buf);
+		now_pending(command,buf);
 	}
 
 		// If we made it here, command is pending.
@@ -967,15 +1038,7 @@ GahpClient::globus_gram_client_job_callback_register(char * job_contact,
 		if ( m_mode == results_only ) {
 			return GAHPCLIENT_COMMAND_NOT_SUBMITTED;
 		}
-		int reqid = new_reqid();
-		write_line(command,reqid,buf);
-		Gahp_Args return_line;
-		char **argv = return_line.read_argv(m_gahp_readfd);
-		if ( argv[0] == NULL || argv[0][0] != 'S' ) {
-			// Badness !
-			EXCEPT("Bad %s Request",command);
-		}
-		now_pending(command,reqid,buf);
+		now_pending(command,buf);
 	}
 
 		// If we made it here, command is pending.
@@ -1033,15 +1096,7 @@ GahpClient::globus_gram_client_ping(const char * resource_contact)
 		if ( m_mode == results_only ) {
 			return GAHPCLIENT_COMMAND_NOT_SUBMITTED;
 		}
-		int reqid = new_reqid();
-		write_line(command,reqid,buf);
-		Gahp_Args return_line;
-		char **argv = return_line.read_argv(m_gahp_readfd);
-		if ( argv[0] == NULL || argv[0][0] != 'S' ) {
-			// Badness !
-			EXCEPT("Bad %s Request",command);
-		}
-		now_pending(command,reqid,buf);
+		now_pending(command,buf);
 	}
 
 		// If we made it here, command is pending.
@@ -1072,8 +1127,9 @@ GahpClient::globus_gram_client_ping(const char * resource_contact)
 bool
 GahpClient::is_pending(const char *command, const char *buf) 
 {
+		// note: do _NOT_ check pending reqid here.
 	if ( strcmp(command,pending_command)==0 && 
-		 strcmp(buf,pending_args)==0 )	// note: do not check pending_reqid
+		 ( (pending_args==NULL) || strcmp(buf,pending_args)==0) )
 	{
 		return true;
 	} 
@@ -1085,8 +1141,15 @@ void
 GahpClient::clear_pending()
 {
 	if ( pending_reqid ) {
-		// remove from hashtable
-		requestTable->remove(pending_reqid);
+			// remove from hashtable
+		if (requestTable->remove(pending_reqid) == 0) {
+				// entry was still in the hashtable, which means
+				// that this reqid is still with the gahp server or
+				// still in our waitingToSubmit queue.
+				// so re-insert an entry with this pending_reqid
+				// with a NULL data field so we do not reuse this reqid.
+			requestTable->insert(pending_reqid,NULL);
+		}
 	}
 	pending_reqid = 0;
 	if (pending_result) delete pending_result;
@@ -1095,26 +1158,93 @@ GahpClient::clear_pending()
 	if (pending_args) free(pending_args);
 	pending_args = NULL;
 	pending_timeout = 0;
+	if (pending_submitted_to_gahp) {
+		num_pending_requests--;
+	}
+	pending_submitted_to_gahp = false;
+	if ( pending_timeout_tid != -1 ) {
+		daemonCore->Cancel_Timer(pending_timeout_tid);
+		pending_timeout_tid = -1;
+	}
+}
+
+int
+GahpClient::reset_user_timer_alarm()
+{
+	return reset_user_timer(pending_timeout_tid);
+}
+
+int
+GahpClient::reset_user_timer(int tid)
+{
+	int retval = TRUE;
+
+	if ( user_timerid != -1 ) {
+		retval =  daemonCore->Reset_Timer(user_timerid,0);
+	}
+	
+	// clear out any timeout timer on this event.
+	if ( pending_timeout_tid != -1 ) {
+		if ( tid < 0 ) {
+			// if tid < 0, we were not called from DaemonCore, so our timer
+			// is still out there.  Cancel it.  Note that if tid >= 0, then
+			// DaemonCore has already canceled the timer because it just
+			// went off, and it is not periodic.
+			daemonCore->Cancel_Timer(pending_timeout_tid);
+		}
+		pending_timeout_tid = -1;
+	}
+
+	return retval;
 }
 
 void
-GahpClient::now_pending(const char *command,int reqid,const char *buf)
+GahpClient::now_pending(const char *command,const char *buf)
 {
 
-		// First, carefully clear out the previous pending request.
-	clear_pending();
-
-		// Now stash our new pending request
-	strcpy(pending_command,command);
-	pending_reqid = reqid;
-		// add new reqid to hashtable
-	requestTable->insert(pending_reqid,this);
-
-	if (buf) {
-		pending_args = strdup(buf);
+		// First, if command is not NULL we have a new pending request.
+		// If so, carefully clear out the previous pending request
+		// and stash our new pending request.  If command is NULL,
+		// we have a request which is pending, but not yet submitted
+		// to the GAHP.
+	if ( command ) {
+		clear_pending();
+		strcpy(pending_command,command);
+		pending_reqid = new_reqid();
+		if (buf) {
+			pending_args = strdup(buf);
+		}
+		if (m_timeout) {
+			pending_timeout = m_timeout;
+		}
+			// add new reqid to hashtable
+		requestTable->insert(pending_reqid,this);
 	}
-	if (m_timeout) {
-		pending_timeout = time(NULL) + m_timeout;
+
+	if ( num_pending_requests >= max_pending_requests ) {
+			// We have too many requests outstanding.  Queue up
+			// this request for later.
+		waitingToSubmit.enqueue(pending_reqid);
+		return;
+	}
+
+		// Write the command out to the gahp server.
+	write_line(pending_command,pending_reqid,pending_args);
+	Gahp_Args return_line;
+	char **argv = return_line.read_argv(m_gahp_readfd);
+	if ( argv[0] == NULL || argv[0][0] != 'S' ) {
+		// Badness !
+		EXCEPT("Bad %s Request",command);
+	}
+
+	pending_submitted_to_gahp = true;
+	num_pending_requests++;
+
+	if (pending_timeout) {
+		pending_timeout_tid = daemonCore->Register_Timer(pending_timeout + 1,
+			(TimerHandlercpp)&GahpClient::reset_user_timer_alarm,
+			"GahpClient::reset_user_timer_alarm",this);
+		pending_timeout += time(NULL);
 	}
 }
 
@@ -1160,7 +1290,7 @@ GahpClient::poll()
 	int i, result_reqid;
 	GahpClient* entry;
 	ExtArray<Gahp_Args*> result_lines;
-	
+
 		// First, send the RESULTS comand to the gahp server
 	write_line("RESULTS");
 
@@ -1174,6 +1304,7 @@ GahpClient::poll()
 		dprintf(D_ALWAYS,"GAHP command 'RESULTS' failed\n");
 		return 0;
 	} 
+	poll_pending = false;
 	num_results = atoi(argv[1]);
 
 		// Now store each result line in an array.
@@ -1235,16 +1366,48 @@ GahpClient::poll()
 			result = NULL;
 				// mark pending request completed by setting reqid to 0
 			entry->pending_reqid = 0;
-				// clear entry from our hashtable so we can reuse the reqid
-			requestTable->remove(result_reqid);
 				// and reset the user's timer if requested
-			if ( entry->user_timerid != -1 ) {
-				daemonCore->Reset_Timer(entry->user_timerid,0);
-			}
+			entry->reset_user_timer(-1);				
+				// and decrement our counter
+			num_pending_requests--;
+				// and reset our flag
+			ASSERT(entry->pending_submitted_to_gahp);
+			entry->pending_submitted_to_gahp = false;
 		}
+			// clear entry from our hashtable so we can reuse the reqid
+		requestTable->remove(result_reqid);
+
 	}	// end of looping through each result line
 
 	if ( result ) delete result;
+
+
+		// Ok, at this point we may have handled a bunch of results.  So
+		// that means that some gahp requests languishing in the 
+		// waitingToSubmit queue may be good to go.
+	ASSERT(num_pending_requests >= 0);
+	int waiting_reqid = -1;
+	while ( (waitingToSubmit.Length() > 0) &&
+			(num_pending_requests < max_pending_requests) ) 
+	{
+		waitingToSubmit.dequeue(waiting_reqid);
+		entry = NULL;
+		requestTable->lookup(waiting_reqid,entry);
+		if ( entry ) {
+			ASSERT(entry->pending_reqid == waiting_reqid);
+				// Try to send this request to the gahp.
+			entry->now_pending(NULL,NULL);
+		} else {
+				// this pending entry had been cleared long ago, and
+				// has been just sitting around in the hash table
+				// to make certain the reqid is not re-used until
+				// it is dequeued from the waitingToSubmit queue.
+				// So now remove the entry from the hash table
+				// so the reqid can be reused.
+			requestTable->remove(result_reqid);
+		}
+	}
+
 
 	return num_results;
 }
@@ -1255,6 +1418,13 @@ GahpClient::check_pending_timeout(const char *,const char *)
 
 		// if no command is pending, there is no timeout
 	if ( pending_reqid == 0 ) {
+		return false;
+	}
+
+		// if the command has not yet been given to the gahp server
+		// (i.e. it is in the WaitingToSubmit queue), then there is
+		// no timeout.
+	if ( pending_submitted_to_gahp == false ) {
 		return false;
 	}
 

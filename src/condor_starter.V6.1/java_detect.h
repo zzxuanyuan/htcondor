@@ -21,15 +21,19 @@
  * WI 53706-1685, (608) 262-0856 or miron@cs.wisc.edu.
 ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
- 
+#ifndef _CONDOR_JAVA_DETECT_H
+#define _CONDOR_JAVA_DETECT_H
+
+#include "condor_classad.h"
 
 /*
-** Compatibility routine for systems which utilize setresuid() for
-** this purpose.
+Probe the Java configuration and return a ClassAd describing
+its properties.  If the ad is empty or zero, then Java is
+not available here.  Note that the attribute names present
+here are decided on by the JVM, not Condor, so some translation
+may be necessary to match the Condor schema.
 */
-setreuid( ruid, euid )
-int		ruid;
-int		euid;
-{
-	return setresuid( ruid, euid, euid );
-}
+
+ClassAd * java_detect();
+
+#endif

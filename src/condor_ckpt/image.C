@@ -131,8 +131,8 @@ net_read(int fd, void *buf, int size)
 	bytes_read = 0;
 	do {
 		this_read = read(fd, buf, size - bytes_read);
-		if (this_read < 0) {
-			return this_read;
+		if (this_read <= 0) {
+			return -1;
 		}
 		bytes_read += this_read;
 		buf = (void *) ( (char *) buf + this_read );
@@ -775,7 +775,7 @@ Image::Restore()
 	Suicide();
 }
 
-#if defined(COMPRESS_CKPT)
+#if defined(COMPRESS_CKPT) && defined(HAS_DYNAMIC_USER_JOBS)
 /* zlib uses memcpy, but we can't assume that libc.so is in a good state,
    so we provide our own version... - Jim B. */
 extern "C" {
@@ -1416,7 +1416,7 @@ SegMap::Read( int fd, ssize_t pos )
 #else
 		nbytes =  syscall( SYS_read, fd, (void *)ptr, read_size );
 #endif
-		if( nbytes < 0 ) {
+		if( nbytes <= 0 ) {
 			dprintf(D_ALWAYS, "in Segmap::Read(): fd = %d, read_size=%d\n", fd,
 				read_size);
 			dprintf(D_ALWAYS, "core_loc=%x, nbytes=%d\n",
@@ -2039,6 +2039,10 @@ calc_stack_to_save()
 {
 	char	*ptr;
 
+	// NRL 2002-04-22: In an ideal world, this would be something like:
+	//   ptr = getenv( EnvGetName( ENV_STACKSIZE ) );
+	// However, this causes all kinds of linkage problems for programs
+	// that are condor_compiled, and I just don't want to go there.
 	ptr = getenv( "CONDOR_STACK_SIZE" );
 	if( ptr ) {
 		StackSaveSize = (size_t) (atof(ptr) * MEG);

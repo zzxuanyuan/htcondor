@@ -301,12 +301,13 @@ ResState::leave_action( State s, Activity a,
 		break;
 	case claimed_state:
 		if( a == suspended_act ) {
-			if( rip->r_starter->kill( DC_SIGCONTINUE ) < 0 ) {
+			if( rip->r_starter && 
+				rip->r_starter->kill( DC_SIGCONTINUE ) < 0 ) {
 					// If there's an error sending kill, it could only
 					// mean the starter has blown up and we didn't
 					// know about it.  Send SIGKILL to the process
 					// group and go to the owner state.
-				rip->r_starter->killpg( DC_SIGKILL );
+				rip->r_starter->killpg( SIGKILL );
 				dprintf( D_ALWAYS,
 						 "State change: Error sending signals to starter\n" );
 				return change( owner_state );
@@ -358,8 +359,9 @@ ResState::enter_action( State s, Activity a,
 			rip->r_pre = new Match( rip );
 		}
 		if( a == suspended_act ) {
-			if( rip->r_starter->kill( DC_SIGSUSPEND ) < 0 ) {
-				rip->r_starter->killpg( DC_SIGKILL );
+			if( rip->r_starter &&
+				rip->r_starter->kill( DC_SIGSUSPEND ) < 0 ) {
+				rip->r_starter->killpg( SIGKILL );
 				dprintf( D_ALWAYS,
 						 "State change: Error sending signals to starter\n" );
 				return change( owner_state );
@@ -382,7 +384,7 @@ ResState::enter_action( State s, Activity a,
 		rip->r_reqexp->unavail();
 		switch( a ) {
 		case killing_act:
-			if( rip->r_starter->active() ) {
+			if( rip->r_starter && rip->r_starter->active() ) {
 				if( ! rip->hardkill_starter() ) {
 						// hardkill_starter returns FALSE if there was
 						// an error in kill and we had to send SIGKILL
@@ -398,9 +400,9 @@ ResState::enter_action( State s, Activity a,
 			break;
 
 		case vacating_act:
-			if( rip->r_starter->active() ) {
+			if( rip->r_starter && rip->r_starter->active() ) {
 				if( rip->r_starter->kill( DC_SIGSOFTKILL ) < 0 ) {
-					rip->r_starter->killpg( DC_SIGKILL );
+					rip->r_starter->killpg( SIGKILL );
 					dprintf( D_ALWAYS,
 							 "State change: Error sending signals to starter\n" );
 					return change( owner_state );

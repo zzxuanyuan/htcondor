@@ -12,7 +12,6 @@
 #define HAS_GETPGRP			YES
 #define HAS_KILLPG			YES
 #define HAS_SETHOSTNAME			YES
-#define HAS_SETREUID			YES
 #define HAS_UTIMES			YES
 #define HAS_GETWD			YES
 #define HAS_INSQUE			YES
@@ -22,7 +21,6 @@
 #define HAS_GLOBUS			NO
 #define HAS_GSI				NO
 #define HAS_OPENSSL			NO
-#define KERBEROS_PATH		/usr/local
 
 #define UnixName /stand/vmunix		/* pathname of the system executable */
 

@@ -33,8 +33,11 @@
 #include "condor_attributes.h"
 #include "condor_syscall_mode.h"
 #include "syscall_numbers.h"
+#include "classad_helpers.h"
+#include "sig_name.h"
 #include "exit.h"
 #include "condor_uid.h"
+#include "condor_distribution.h"
 #ifdef WIN32
 #include "perm.h"
 #endif
@@ -43,10 +46,10 @@ extern CStarter *Starter;
 
 /* OsProc class implementation */
 
-OsProc::OsProc()
+OsProc::OsProc( ClassAd* ad )
 {
     dprintf ( D_FULLDEBUG, "In OsProc::OsProc()\n" );
-	JobAd = NULL;
+	JobAd = ad;
 	JobPid = Cluster = Proc = -1;
 	exit_status = -1;
 	requested_exit = false;
@@ -62,6 +65,7 @@ OsProc::~OsProc()
 		free( job_iwd );
 	}
 }
+
 
 int
 OsProc::StartJob()
@@ -95,6 +99,8 @@ OsProc::StartJob()
 				 ATTR_JOB_CMD );
 		return 0;
 	}
+
+	initKillSigs();
 
 		// // // // // // 
 		// Arguments
@@ -155,8 +161,10 @@ OsProc::StartJob()
 	} 
 		// Either way, we now have to add the user-specified args as
 		// the rest of the Args string.
-	strcat( Args, " " );
-	strcat( Args, tmp );
+	if ( tmp[0] != '\0' ) {
+		strcat( Args, " " );
+		strcat( Args, tmp );
+	}
 
 		// // // // // // 
 		// Environment 
@@ -180,15 +188,19 @@ OsProc::StartJob()
 		// LookupString() so we don't leak any memory.
 	free( env_str );
 
-		// Now, add some env vars the user job might want to see:
-	job_env.Put( "CONDOR_SCRATCH_DIR", Starter->GetWorkingDir() );
+	// Now, add some env vars the user job might want to see:
+	char	envName[256];
+	sprintf( envName, "%s_SCRATCH_DIR", myDistro->GetUc() );
+	job_env.Put( envName, Starter->GetWorkingDir() );
 
 		// Deal with port regulation stuff
 	char* low = param( "LOWPORT" );
 	char* high = param( "HIGHPORT" );
 	if( low && high ) {
-		job_env.Put( "_condor_HIGHPORT", high );
-		job_env.Put( "_condor_LOWPORT", low );
+		sprintf( envName, "_%s_HIGHPORT", myDistro->Get() );
+		job_env.Put( envName, high );
+		sprintf( envName, "_%s_LOWPORT", myDistro->Get() );
+		job_env.Put( envName, low );
 		free( high );
 		free( low );
 	} else if( low ) {
@@ -213,8 +225,11 @@ OsProc::StartJob()
 
 	// handle stdin, stdout, and stderr redirection
 	int fds[3];
+	int failedStdin, failedStdout, failedStderr;
 	fds[0] = -1; fds[1] = -1; fds[2] = -1;
-	char filename[_POSIX_PATH_MAX];
+	failedStdin = 0; failedStdout = 0; failedStderr = 0;
+	char filename1[_POSIX_PATH_MAX];
+	char *filename;
 	char infile[_POSIX_PATH_MAX];
 	char outfile[_POSIX_PATH_MAX];
 	char errfile[_POSIX_PATH_MAX];
@@ -223,8 +238,13 @@ OsProc::StartJob()
 	priv_state priv;
 	priv = set_user_priv();
 
-	if (JobAd->LookupString(ATTR_JOB_INPUT, filename) == 1) {
-		if ( strcmp(filename,"NUL") != 0 ) {
+	if (JobAd->LookupString(ATTR_JOB_INPUT, filename1) == 1) {
+		if ( !nullFile(filename1) ) {
+			if( Starter->wantsFileTransfer() ) {
+				filename = basename( filename1 );
+			} else {
+				filename = filename1;
+			}
             if ( filename[0] != '/' ) {  // prepend full path
                 sprintf( infile, "%s%c", job_iwd, DIR_DELIM_CHAR );
             } else {
@@ -234,13 +254,27 @@ OsProc::StartJob()
 			if ( (fds[0]=open( infile, O_RDONLY ) ) < 0 ) {
 				dprintf(D_ALWAYS,"failed to open stdin file %s, errno %d\n",
 						infile, errno);
+				failedStdin = 1;
 			}
 		dprintf ( D_ALWAYS, "Input file: %s\n", infile );
 		}
+	} else {
+	#ifndef WIN32
+		if ( (fds[0]=open( "/dev/null", O_RDONLY ) ) < 0 ) {
+			dprintf(D_ALWAYS, "failed to open stdin file /dev/null, errno %d\n",
+				errno);
+			failedStdin = 1;
+		}
+	#endif
 	}
 
-	if (JobAd->LookupString(ATTR_JOB_OUTPUT, filename) == 1) {
-		if ( strcmp(filename,"NUL") != 0 ) {
+	if (JobAd->LookupString(ATTR_JOB_OUTPUT, filename1) == 1) {
+		if ( !nullFile(filename1) ) {
+			if( Starter->wantsFileTransfer() ) {
+				filename = basename( filename1 );
+			} else {
+				filename = filename1;
+			}
             if ( filename[0] != '/' ) {  // prepend full path
                 sprintf( outfile, "%s%c", job_iwd, DIR_DELIM_CHAR );
             } else {
@@ -253,14 +287,32 @@ OsProc::StartJob()
 					dprintf(D_ALWAYS,
 							"failed to open stdout file %s, errno %d\n",
 							outfile, errno);
+					failedStdout = 1;
 				}
 			}
 			dprintf ( D_ALWAYS, "Output file: %s\n", outfile );
 		}
+	} else {
+	#ifndef WIN32
+		if ((fds[1]=open("/dev/null",O_WRONLY|O_CREAT|O_TRUNC, 0666)) < 0 ) {
+			// if failed, try again without O_TRUNC
+			if ( (fds[1]=open( "/dev/null", O_WRONLY | O_CREAT, 0666)) < 0 ) {
+				dprintf(D_ALWAYS, 
+					"failed to open stdout file /dev/null, errno %d\n", 
+					 errno);
+				failedStdout = 1;
+			}
+		}
+	#endif
 	}
 
-	if (JobAd->LookupString(ATTR_JOB_ERROR, filename) == 1) {
-		if ( strcmp(filename,"NUL") != 0 ) {
+	if (JobAd->LookupString(ATTR_JOB_ERROR, filename1) == 1) {
+		if ( !nullFile(filename1) ) {
+			if( Starter->wantsFileTransfer() ) {
+				filename = basename( filename1 );
+			} else {
+				filename = filename1;
+			}
             if ( filename[0] != '/' ) {  // prepend full path
                 sprintf( errfile, "%s%c", job_iwd, DIR_DELIM_CHAR );
             } else {
@@ -273,10 +325,42 @@ OsProc::StartJob()
 					dprintf(D_ALWAYS,
 							"failed to open stderr file %s, errno %d\n",
 							errfile, errno);
+					failedStderr = 1;
 				}
 			}
 			dprintf ( D_ALWAYS, "Error file: %s\n", errfile );
 		}
+	} else {
+	#ifndef WIN32
+		if ((fds[2]=open("/dev/null",O_WRONLY|O_CREAT|O_TRUNC, 0666)) < 0 ) {
+			// if failed, try again without O_TRUNC
+			if ( (fds[2]=open( "/dev/null", O_WRONLY | O_CREAT, 0666)) < 0 ) {
+				dprintf(D_ALWAYS, 
+						"failed to open stderr file /dev/null, errno %d\n", 
+						errno);
+				failedStderr = 1;
+			}
+		}
+	#endif
+	}
+
+
+	/* Bail out if we couldn't open the std files correctly */
+	if ( failedStdin || failedStdout || failedStderr ) {
+		/* only close ones that had been opened correctly */
+		if (fds[0] != -1) {
+			close(fds[0]);
+		}
+		if (fds[1] != -1) {
+			close(fds[1]);
+		}
+		if (fds[2] != -1) {
+			close(fds[2]);
+		}
+		dprintf(D_ALWAYS, "Failed to open some/all of the std files...\n");
+		dprintf(D_ALWAYS, "Aborting OsProc::StartJob.\n");
+		set_priv(priv); /* go back to original priv state before leaving */
+		return 0;
 	}
 
 		// // // // // // 
@@ -314,7 +398,8 @@ OsProc::StartJob()
 	set_priv ( priv );
 
 	JobPid = daemonCore->Create_Process(JobName, Args, PRIV_USER_FINAL, 1,
-				   FALSE, env_str, job_iwd, TRUE, NULL, fds, nice_inc );
+				   FALSE, env_str, job_iwd, TRUE, NULL, fds, nice_inc,
+				   DCJOBOPT_NO_ENV_INHERIT );
 
 	// now close the descriptors in fds array.  our child has inherited
 	// them already, so we should close them so we do not leak descriptors.
@@ -339,6 +424,35 @@ OsProc::StartJob()
 	dprintf(D_ALWAYS,"Create_Process succeeded, pid=%d\n",JobPid);
 
 	return 1;
+}
+
+
+void
+OsProc::initKillSigs( void )
+{
+	int sig;
+
+	sig = findSoftKillSig( JobAd );
+	if( sig > 0 ) {
+		soft_kill_sig = sig;
+	} else {
+		soft_kill_sig = SIGTERM;
+	}
+
+	sig = findRmKillSig( JobAd );
+	if( sig > 0 ) {
+		rm_kill_sig = sig;
+	} else {
+		rm_kill_sig = SIGTERM;
+	}
+
+	const char* tmp = signalName( soft_kill_sig );
+	dprintf( D_FULLDEBUG, "KillSignal: %d (%s)\n", soft_kill_sig, 
+			 tmp ? tmp : "Unknown" );
+
+	tmp = signalName( rm_kill_sig );
+	dprintf( D_FULLDEBUG, "RmKillSignal: %d (%s)\n", rm_kill_sig, 
+			 tmp ? tmp : "Unknown" );
 }
 
 
@@ -436,39 +550,35 @@ OsProc::renameCoreFile( void )
 	bool rval = false;
 
 	priv_state old_priv;
+
 	char buf[64];
 	sprintf( buf, "core.%d.%d", Cluster, Proc );
-	int size = strlen(job_iwd) + 1;
-	char* old_name = (char*) malloc( (size+5) * sizeof(char) );
-	if( ! old_name ) {
-		EXCEPT( "Out of memory!" );
-	}
-	sprintf( old_name, "%s%c%s", job_iwd, DIR_DELIM_CHAR, "core" );
 
-	size += strlen(buf);
-	char* new_name = (char*) malloc( size * sizeof(char) );
-	if( ! new_name ) {
-		EXCEPT( "Out of memory!" );
-	}
-	sprintf( new_name, "%s%c%s", job_iwd, DIR_DELIM_CHAR, buf );
+	MyString old_name( job_iwd );
+	MyString new_name( job_iwd );
+
+	old_name += DIR_DELIM_CHAR;
+	old_name += "core";
+
+	new_name += DIR_DELIM_CHAR;
+	new_name += buf;
 
 		// we need to do this rename as the user...
 	errno = 0;
 	old_priv = set_user_priv();
-	if( rename(old_name, new_name) >= 0 ) {
+	if( rename(old_name.Value(), new_name.Value()) >= 0 ) {
 		rval = true;
 	}
 	set_priv( old_priv );
-	free( old_name );
-	free( new_name );
 
 	if( rval ) {
 			// make sure it'll get transfered back, too.
 		Starter->addToTransferOutputFiles( buf );
 		dprintf( D_FULLDEBUG, "Found core file, renamed to %s\n", buf );
 	} else if( errno != ENOENT ) {
-		dprintf( D_ALWAYS, "Failed to rename core file: "
-				 "errno %d (%s)\n", errno, strerror(errno) );
+		dprintf( D_ALWAYS, "Failed to rename(%s,%s): errno %d (%s)\n",
+				 old_name.Value(), new_name.Value(), errno,
+				 strerror(errno) );
 	}
 
 	return rval;
@@ -478,14 +588,14 @@ OsProc::renameCoreFile( void )
 void
 OsProc::Suspend()
 {
-	daemonCore->Send_Signal(JobPid, DC_SIGSTOP);
+	daemonCore->Send_Signal(JobPid, SIGSTOP);
 	job_suspended = TRUE;
 }
 
 void
 OsProc::Continue()
 {
-	daemonCore->Send_Signal(JobPid, DC_SIGCONT);
+	daemonCore->Send_Signal(JobPid, SIGCONT);
 	job_suspended = FALSE;
 }
 
@@ -496,7 +606,7 @@ OsProc::ShutdownGraceful()
 		Continue();
 
 	requested_exit = true;
-	daemonCore->Send_Signal(JobPid, DC_SIGTERM);
+	daemonCore->Send_Signal(JobPid, soft_kill_sig);
 	return false;	// return false says shutdown is pending	
 }
 
@@ -507,7 +617,7 @@ OsProc::ShutdownFast()
 	// in potentially swapping the job back into memory if our next
 	// step is to hard kill it.
 	requested_exit = true;
-	daemonCore->Send_Signal(JobPid, DC_SIGKILL);
+	daemonCore->Send_Signal(JobPid, SIGKILL);
 	return false;	// return false says shutdown is pending
 }
 
@@ -562,4 +672,34 @@ OsProc::PublishUpdateAd( ClassAd* ad )
 		} // should we put in ATTR_JOB_CORE_DUMPED = false if not?
 	}
 	return true;
+}
+
+int 
+nullFile(const char *filename)
+{
+	// On WinNT, /dev/null is NUL
+	// on UNIX, /dev/null is /dev/null
+	
+	// a UNIX->NT submit will result in the NT starter seeing /dev/null, so it
+	// needs to recognize that /dev/null is the null file
+
+	// an NT->NT submit will result in the NT starter seeing NUL as the null 
+	// file
+
+	// a UNIX->UNIX submit ill result in the UNIX starter seeing /dev/null as
+	// the null file
+	
+	// NT->UNIX submits are not worried about - we don't think that anyone can
+	// do them, and to make it clean we'll fix submit to always use /dev/null,
+	// in the job ad, even on NT. 
+
+	#ifdef WIN32
+	if(_stricmp(filename, "NUL") == 0) {
+		return 1;
+	}
+	#endif
+	if(strcmp(filename, "/dev/null") == 0 ) {
+		return 1;
+	}
+	return 0;
 }

@@ -2188,7 +2188,7 @@ void UnblockSignals()
 }
 
 
-int main()
+int main( int argc, char **argv )
 {
 	set_condor_priv();
 	server.Init();

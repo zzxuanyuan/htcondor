@@ -37,6 +37,7 @@
 #include "string_list.h"
 #include "condor_string.h"   // for strnewp()
 #include "print_wrapped_text.h"
+#include "condor_distribution.h"
 
 // global variables
 ClassAdPrintMask pm;
@@ -84,6 +85,7 @@ main (int argc, char *argv[])
 #endif
 
 	// initialize to read from config file
+	myDistro->Init( argc, argv );
 	myName = argv[0];
 	config();
 

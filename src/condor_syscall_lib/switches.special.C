@@ -46,13 +46,20 @@ This file can be processed with several purposes in mind.
 
 extern unsigned int _condor_numrestarts;  /* in image.C */
 
+/* get rid of the remapping of access() to access_euid() since system calls
+	generally should be what they actually should be, and not what we think
+	they should be. */
+#ifdef access
+# undef access
+#endif
+
 extern "C" {
 
 int GETRUSAGE(...);
-int update_rusage(...);
 int _libc_FORK(...);
 int SYSCONF(...);
 int SYSCALL(...);
+void update_rusage( register struct rusage *ru1, register struct rusage *ru2 );
 
 #if defined(LINUX) || defined(IRIX)
 int _condor_xstat(int version, const char *path, struct stat *buf);
@@ -91,14 +98,6 @@ syscalls and standalone checkpointing.
 
 #if defined(LINUX)
 
-/*
-This variable is normally defined in glibc by the various get*id
-functions, however, the symbol seems to get lost in thr process
-of extraction.  So, we just define it with the default value here.
-See the comments int he glibc source for a better understanding.
-*/
-
-int __libc_missing_32bit_uids = -1;                                                        
 /*
 __getdents has a very special switch on Linux.
 There are two distinct problems.

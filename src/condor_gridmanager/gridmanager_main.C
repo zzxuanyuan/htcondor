@@ -32,10 +32,17 @@ main_activate_globus()
 	// know (from the command line)
 	if (X509Proxy == NULL) {
 		proxy_get_filenames(NULL, 1, NULL, NULL, &X509Proxy, NULL, NULL);
+		if ( X509Proxy == NULL ) {
+			dprintf(D_ALWAYS,"Error finding X509 proxy filename. "
+					"Proxy file probably doesn't exist. Aborting.\n");
+			return false;
+		}
 	}
 
 	if(first_time) {
-		setenv("X509_USER_PROXY", X509Proxy, 1);
+		char buf[1024];
+		snprintf(buf,1024,"X509_USER_PROXY=%s",X509Proxy);
+		putenv(buf);
 		first_time = false;
 	}		
 
@@ -76,6 +83,10 @@ main_deactivate_globus()
 int
 main_init( int argc, char **argv )
 {
+
+	dprintf(D_FULLDEBUG,
+		"Welcome to the all-singing, all dancing, \"amazing\" GridManager!\n");
+
 	// handle specific command line args
 	int i = 1;
 	while ( i < argc ) {
@@ -118,10 +129,6 @@ main_init( int argc, char **argv )
 	Init();
 	Register();
 
-	// Trigger a check of the schedd's jobs here to make certain we start
-	// managing any globus universe jobs already in the queue at the time we're born
-	daemonCore->Send_Signal( getpid(), GRIDMAN_ADD_JOBS );
-
 	return TRUE;
 }
 
@@ -146,6 +153,11 @@ main_shutdown_graceful()
 	main_deactivate_globus();
 	DC_Exit(0);
 	return TRUE;	// to satify c++
+}
+
+void
+main_pre_dc_init( int argc, char* argv[] )
+{
 }
 
 // This function is called by dprintf - always display our pid in our

@@ -30,6 +30,7 @@
 #include "condor_classad.h"
 #include "ad_printmask.h"
 #include "Set.h"
+#include "condor_distribution.h"
 
 template class List<char>; 		template class Item<char>;
 template class List<int>; 		template class Item<int>;

@@ -25,6 +25,7 @@
 
 #include "my_hostname.h"
 #include "condor_query.h"
+#include "daemon.h"
 #include "get_daemon_addr.h"
 
 #include <utmp.h>
@@ -110,12 +111,8 @@ main_init(int, char **)
 }
 
 
-
-
-
-
-
-
-
-
+void
+main_pre_dc_init( int, char** )
+{
+}
 

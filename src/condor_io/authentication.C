@@ -32,6 +32,7 @@
 #include "condor_auth_x509.h"
 #include "condor_auth_kerberos.h"
 #include "condor_secman.h"
+#include "condor_environ.h"
 
 #if !defined(SKIP_AUTHENTICATION)
 #   include "condor_debug.h"
@@ -507,14 +508,16 @@ int Authentication::default_auth_methods() {
 		SecMan s;
 
 		bitmask = s.getAuthBitmask(methods);
-		delete methods;
+		free( methods );
 	} else {
 
-		// try whatever we support
+		// clear the mask
 		bitmask = 0;
 
-        bitmask |= (int) CAUTH_CLAIMTOBE;
-        bitmask |= (int) CAUTH_ANONYMOUS;
+		// these do _not_ go in the default
+		// bitmask |= (int) CAUTH_CLAIMTOBE;
+		// bitmask |= (int) CAUTH_ANONYMOUS;
+
 #if defined(WIN32)
         bitmask |= (int) CAUTH_NTSSPI;
 #else
@@ -522,7 +525,7 @@ int Authentication::default_auth_methods() {
         
         //RendezvousDirectory is for use by shared-filesystem filesys auth.
         //if user specfied RENDEZVOUS_DIRECTORY, extract it
-        if ( getenv( "RENDEZVOUS_DIRECTORY" )) {
+        if ( getenv( EnvGetName( ENV_RENDEZVOUS ) )) {
 	    	bitmask |= (int) CAUTH_FILESYSTEM_REMOTE;
         }
 #endif

@@ -52,6 +52,7 @@
 #include "condor_classad_analysis.h"
 #include "globus_utils.h"
 #include "print_wrapped_text.h"
+#include "condor_distribution.h"
 
 extern 	"C" int SetSyscalls(int val){return val;}
 extern  void short_print(int,int,const char*,int,int,int,int,int,const char *);
@@ -160,6 +161,7 @@ int main (int argc, char **argv)
 	char		*tmp;
 
 	// load up configuration file
+	myDistro->Init( argc, argv );
 	config();
 
 

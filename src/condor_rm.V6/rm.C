@@ -38,6 +38,7 @@
 #include "string_list.h"
 #include "daemon.h"
 #include "dc_schedd.h"
+#include "condor_distribution.h"
 
 
 char	*MyName;
@@ -124,6 +125,7 @@ main( int argc, char *argv[] )
 		// Initialize our global variables
 	has_constraint = false;
 
+	myDistro->Init( argc, argv );
 	MyName = strrchr( argv[0], DIR_DELIM_CHAR );
 	if( !MyName ) {
 		MyName = argv[0];
@@ -281,13 +283,13 @@ main( int argc, char *argv[] )
 		// If this schedd doesn't support the new protocol, give a
 		// useful error message.
 	CondorVersionInfo ver_info( schedd->version(), "SCHEDD" );
-	if( ! ver_info.built_since_version(6, 3, 2) ) {
+	if( ! ver_info.built_since_version(6, 3, 3) ) {
 		fprintf( stderr, "The version of the condor_schedd you want to "
 				 "communicate with is:\n%s\n", schedd->version() );
 		fprintf( stderr, "It is too old to support this version of "
 				 "%s:\n%s\n", MyName, CondorVersion() );
 		fprintf( stderr, "To use this version of %s you must upgrade "
-				 "the\n%s to at least version 6.3.2.\nAborting.\n",
+				 "the\n%s to at least version 6.3.3.\nAborting.\n",
 				 MyName, schedd->idStr() ); 
 		exit( 1 );
 	}

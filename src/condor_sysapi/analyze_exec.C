@@ -25,6 +25,7 @@
 #include "condor_common.h"
 #include "condor_debug.h"
 #include "condor_constants.h"
+#include "condor_ver_info.h"
 
 
 #if defined( LINUX )
@@ -48,105 +49,71 @@ Portability:
 	2.6.0.14 only.  Please back up old versions just in case!!
 ******************************************************************/
 
+#include "condor_common.h"
 #include <sys/file.h>
 #include <bfd.h>
 
-
+extern "C" {
 int
 sysapi_magic_check( char *executable )
 {
-	bfd		*bfdp;
-	long	storage_needed;
+	struct stat buf;
 
+	/* This should prolly do more, but for now this is good enough */
 
-	bfd_init();
-	if((bfdp=bfd_openr(executable, 0))!=NULL) {
-		dprintf(D_ALWAYS, "\n\nbfdopen(%s) succeeded\n", executable);
-		// We only want objects, not cores, ...
-		if(bfd_check_format(bfdp, bfd_object)) {
-			dprintf(D_ALWAYS, "File type=bfd_object\n");
-			// Make sure it is an executable object.
-			// FIXME - Make sure this eliminates .o files...
-			if(bfd_get_file_flags(bfdp) & EXEC_P)
-				dprintf(D_ALWAYS, "This file is executable\n");
-			else
-				dprintf(D_ALWAYS, "This file is NOT executable\n");
-			bfd_close(bfdp);
-			return 0;
-		} else {
-			dprintf(D_ALWAYS, "File type unknown!\n");
-			bfd_close(bfdp);
-			return -1;
-		}
-	} else {
-		dprintf(D_ALWAYS, "bfdopen(%s) failed\n", executable);
+	if (stat(executable, &buf) < 0) {
 		return -1;
 	}
+	if (!(buf.st_mode & S_IFREG)) {
+		return -1;
+	}
+	if (!(buf.st_mode & S_IXUSR)) {
+		dprintf(D_ALWAYS, "Magic check warning. Executable '%s' not "
+			"executable\n", executable);
+	}
+
+	return 0;
 }
+
 
 /*
   - Check to see that the checkpoint file is linked with the Condor
   - library by looking for the symbol "_linked_with_condor_message".
+
+  - Ok. This used to do the above work, but now it just uses the version 
+  	object to see if the executable contains the right version info.
+	I have a feeling this will be rewritten to do what it used to, just not
+	with libbfd. But for now, this needs to go in like this to get rid of
+	libbfd.
+	psilord 04/22/2002
 */
 int
 sysapi_symbol_main_check( char *executable )
 {
-	bfd		*bfdp;
-	long	storage_needed;
-	asymbol	**symbol_table;
-	long	number_of_symbols;
-	long	i;
+	char *version;
+	char *platform;
+	CondorVersionInfo vinfo;
 
+	version = vinfo.get_version_from_file(executable);
+	
+    if (version == NULL)
+    {
+        dprintf(D_ALWAYS, 
+			"File '%s' is not a valid standard universe executable\n", 
+			executable);
+        return -1;
+    }
 
-	bfd_init();
-	if((bfdp=bfd_openr(executable, 0))!=NULL) {
-		dprintf(D_ALWAYS, "\n\nbfdopen(%s)\n", executable);
-		if(bfd_check_format(bfdp, bfd_object)) {
-			storage_needed=bfd_get_symtab_upper_bound(bfdp);
-			// Calculate storage needed for the symtab
-			if(storage_needed < 0) {
-				dprintf(D_ALWAYS, "Read of symbol table failed");
-				bfd_close(bfdp);
-				return -1;
-			} else if(storage_needed==0) {
-				dprintf(D_ALWAYS, "Executable has been stripped??");
-				bfd_close(bfdp);
-				return 0;
-			}
-			dprintf(D_ALWAYS, "storage_needed=%d\n", storage_needed);
-			symbol_table=(asymbol **)malloc(storage_needed);
-			if(!symbol_table) {
-				dprintf(D_ALWAYS, "malloc failed");
-				bfd_close(bfdp);
-				return -1;
-			}
+	/* if the above existed, this prolly does too */
+	platform = vinfo.get_platform_from_file(executable);
 
-			// Get number of syms in the symbol table
-			number_of_symbols=bfd_canonicalize_symtab(bfdp, symbol_table);
-			dprintf(D_ALWAYS, "number_of_symbols=%d\n", number_of_symbols);
-			if(number_of_symbols < 0) {
-				dprintf(D_ALWAYS, "Error reading symbol table");
-				bfd_close(bfdp);
-				free(symbol_table);
-				return -1;
-			}
+	dprintf( D_ALWAYS,  "Executable '%s' is linked with \"%s\" on a \"%s\"\n",
+		executable, version, platform?platform:"(NULL)");
 
-			// Search for the _linked_with_condor_message sym
-			for(i=0;i<number_of_symbols;i++) {
-				if(strcmp(bfd_asymbol_name(symbol_table[i]), "_linked_with_condor_message")==0) {
-        			dprintf( D_ALWAYS, 	
-						"Symbol _linked_with_condor_message check - OK\n" );
-					bfd_close(bfdp);
-					free(symbol_table);
-					return 0;
-				}
-			}
-		}
-	} else {
-		dprintf(D_ALWAYS, "bfdopen(%s) failed in symbol check\n", executable);
-		return -1;
-	}
+    return 0;
 }
+
+} /* extern "C" */
 
 #elif defined( Solaris )
 
@@ -178,6 +145,8 @@ Portability:
 #else
 #define SOLARIS_MAGIC 046106
 #endif
+
+extern "C" {
 
 int
 sysapi_magic_check( char *a_out )
@@ -275,6 +244,8 @@ sysapi_symbol_main_check( char *name )
 	return 0;
 }
 
+} /* extern "C" */
+
 #elif defined( IRIX )
 
 /****************************************************************
@@ -294,6 +265,8 @@ Portability:
 #include <a.out.h>
 #include <nlist.h>
 
+
+extern "C" {
 
 int
 sysapi_magic_check( char *a_out )
@@ -367,6 +340,8 @@ sysapi_symbol_main_check( char *name )
 	return 0;
 }
 
+} /* extern "C" */
+
 #elif defined( OSF1 )
 
 /****************************************************************
@@ -393,6 +368,8 @@ typedef struct filehdr  FILE_HDR;
 typedef struct aouthdr  AOUT_HDR;
 #define FILE_HDR_SIZ    sizeof(FILE_HDR)
 #define AOUT_HDR_SIZ    sizeof(AOUT_HDR)
+
+extern "C" {
 
 int
 sysapi_magic_check( char *a_out )
@@ -525,6 +502,8 @@ sysapi_symbol_main_check( char *name )
 	return 0;
 }
 
+} /* extern "C" */
+
 #elif defined( HPUX )
 
 #include <filehdr.h>
@@ -532,6 +511,8 @@ sysapi_symbol_main_check( char *name )
 #include <model.h>
 #include <magic.h>
 #include <nlist.h>
+
+extern "C" {
 
 int
 sysapi_magic_check( char *a_out )
@@ -596,9 +577,12 @@ sysapi_symbol_main_check( char *name )
 	return 0;
 }
 
+} /* extern "C" */
 
 #else
 
 #error DO NOT KNOW HOW TO ANALYZE EXECUTABLES ON THIS PLATFORM
 
 #endif
+
+

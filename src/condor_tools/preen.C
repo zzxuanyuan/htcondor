@@ -46,6 +46,8 @@
 #include "sig_install.h"
 #include "condor_email.h"
 #include "daemon.h"
+#include "condor_distribution.h"
+
 State get_machine_state();
 
 
@@ -106,6 +108,7 @@ main( int argc, char *argv[] )
 
 		// Initialize things
 	MyName = argv[0];
+	myDistro->Init( argc, argv );
 	config();
 	init_params();
 	BadFiles = new StringList;

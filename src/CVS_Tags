@@ -1,3 +1,57 @@
+6/19/02 V6_4_0
+	The 6.4.0 Release tag, which lives on the V6_3-bracnh. NMI-R1 and 6.4.0
+were both built from this tag, with identical flags
+
+6/19/02 V6_2_3
+	The 6.2.3 Release tag, which lives on the V6_2-bracnh
+
+6/17/02 V6_3-dzero-branch
+	A new branch to hold the changes to Condor-G for DZero.  
+	Specifically, the first pass at Alain's old ClassAd "plugin"
+	support, and Todd's first pass at matchmaking Globus Universe
+	jobs.
+
+5/31/02 V6_3_3
+	The 6.3.3 release tag, which lives on the V6_3-branch
+
+5/24/02 V6_3-privnet-reliable-udp
+	The state of the V6_3-privnet-branch after sonny had finished
+	checking in all his reliable udp stuff, before he goes on to
+	do all the other private network stuff.  this way, we can
+	merge reliable udp support into the appropriate condor
+	mainline development branch without having to get all of the
+	private net stuff, too.
+
+5/15/02 V6_3-NMI-Condor-G-Beta1
+	The 6.3 branch that was released as the first NMI beta. It's a bit before
+	6.3.3, and is built with WANT_GLOBUS=TRUE and IS_CONDORG_RELEASE = Yes,
+	or whatever the settings are. The version string these carry are
+	6.3.2-NMI-Condor-G-Beta
+
+5/01/02 HAWKEYE_V0_1_2
+	The Hawkeye 0.1.2 release tag
+
+4/30/02 HAWKEYE_V0_1_1
+	The Hawkeye 0.1.1 release tag
+
+4/25/02 V6_3-post-merge-V6_2_2
+	The V6_3-branch right before merging in the
+	V6_2-branch as tagged at V6_2_2
+
+4/25/02 V6_3-pre-merge-V6_2_2
+	The V6_3-branch right before merging in the
+	V6_2-branch as tagged at V6_2_2
+
+4/25/02 V6_2_2
+	The 6.2.2 release tag, which lives on the V6_2-branch.
+
+04/15/02 V6_3-merge-1
+		The state of the V6_3-branch right before being merged into
+		trunk-merge-V6_3-branch-1
+
+04/15/02 trunk-merge-V6_3-branch-1
+		A new branch from the trunk for merging in the 6_3-branch.
+
 04/04/02 V6_3-privnet-branch
 	A new branch for a second generation of sonny's private
 	network support, including a first pass of udp w/ ack. 

@@ -32,6 +32,8 @@
 #include "sig_install.h"
 #include "daemon.h"
 #include "condor_debug.h"
+#include "condor_distribution.h"
+#include "condor_environ.h"
 
 #define _NO_EXTERN_DAEMON_CORE 1	
 #include "condor_daemon_core.h"
@@ -48,6 +50,7 @@ extern int main_init(int argc, char *argv[]);	// old main()
 extern int main_config(bool is_full);
 extern int main_shutdown_fast();
 extern int main_shutdown_graceful();
+extern void main_pre_dc_init(int argc, char *argv[]);
 
 // Internal protos
 void dc_reconfig( bool is_full );
@@ -76,7 +79,7 @@ check_parent()
 		dprintf(D_ALWAYS,
 			"Our parent process (pid %d) went away; shutting down\n",
 			daemonCore->getppid());
-		daemonCore->Send_Signal( daemonCore->getpid(), DC_SIGTERM );
+		daemonCore->Send_Signal( daemonCore->getpid(), SIGTERM );
 	}
 }
 #endif
@@ -139,8 +142,8 @@ DC_Exit( int status )
 	clean_files();
 
 		// Log a message
-	dprintf(D_ALWAYS,"**** %s (CONDOR_%s) EXITING WITH STATUS %d\n",
-		myName,mySubSystem,status);
+	dprintf(D_ALWAYS,"**** %s (%s_%s) EXITING WITH STATUS %d\n",
+		myName,myDistro->Get(),mySubSystem,status);
 
 		// Now, delete the daemonCore object, since we allocated it. 
 	delete daemonCore;
@@ -352,14 +355,18 @@ set_dynamic_dir( char* param_name, const char* append_str )
 		// this new directory.
 	config_insert( (char *) param_name, newdir );
 
-		// Finally, insert the _condor_<param_name> environment
-		// variable, so our children get the right configuration.
-	char* env_str = (char*) malloc( (strlen(param_name) + 10 +
-									 strlen(newdir)) * sizeof(char) ); 
-	sprintf( env_str, "_condor_%s=%s", param_name, newdir );
-	if( putenv(env_str) < 0 ) {
+	// Finally, insert the _condor_<param_name> environment
+	// variable, so our children get the right configuration.
+	MyString env_str( "_" );
+	env_str += myDistro->Get();
+	env_str += "_";
+	env_str += param_name;
+	env_str += "=";
+	env_str += newdir;
+	char *env_cstr = strdup( env_str.Value() );
+	if( putenv(env_cstr) < 0 ) {
 		fprintf( stderr, "ERROR: Can't add %s to the environment!\n", 
-				 env_str );
+				 env_cstr );
 		exit( 4 );
 	}
 }
@@ -385,7 +392,7 @@ handle_dynamic_dirs()
 
 		// Final, evil hack.  Set the _condor_STARTD_NAME environment
 		// variable, so that the startd will have a unique name. 
-	sprintf( buf, "_condor_STARTD_NAME=%d", mypid );
+	sprintf( buf, "_%s_STARTD_NAME=%d", myDistro->Get(), mypid );
 	char* env_str = strdup( buf );
 	if( putenv(env_str) < 0 ) {
 		fprintf( stderr, "ERROR: Can't add %s to the environment!\n", 
@@ -478,7 +485,7 @@ check_core_files()
 int
 handle_off_fast( Service*, int, Stream* )
 {
-	daemonCore->Send_Signal( daemonCore->getpid(), DC_SIGQUIT );
+	daemonCore->Send_Signal( daemonCore->getpid(), SIGQUIT );
 	return TRUE;
 }
 
@@ -486,7 +493,7 @@ handle_off_fast( Service*, int, Stream* )
 int
 handle_off_graceful( Service*, int, Stream* )
 {
-	daemonCore->Send_Signal( daemonCore->getpid(), DC_SIGTERM );
+	daemonCore->Send_Signal( daemonCore->getpid(), SIGTERM );
 	return TRUE;
 }
 
@@ -731,35 +738,35 @@ handle_config( Service *, int cmd, Stream *stream )
 void
 unix_sighup(int)
 {
-	daemonCore->Send_Signal( daemonCore->getpid(), DC_SIGHUP );
+	daemonCore->Send_Signal( daemonCore->getpid(), SIGHUP );
 }
 
 
 void
 unix_sigterm(int)
 {
-	daemonCore->Send_Signal( daemonCore->getpid(), DC_SIGTERM );
+	daemonCore->Send_Signal( daemonCore->getpid(), SIGTERM );
 }
 
 
 void
 unix_sigquit(int)
 {
-	daemonCore->Send_Signal( daemonCore->getpid(), DC_SIGQUIT );
+	daemonCore->Send_Signal( daemonCore->getpid(), SIGQUIT );
 }
 
 
 void
 unix_sigchld(int)
 {
-	daemonCore->Send_Signal( daemonCore->getpid(), DC_SIGCHLD );
+	daemonCore->Send_Signal( daemonCore->getpid(), SIGCHLD );
 }
 
 
 void
 unix_sigusr1(int)
 {
-	daemonCore->Send_Signal( daemonCore->getpid(), DC_SIGUSR1 );
+	daemonCore->Send_Signal( daemonCore->getpid(), SIGUSR1 );
 }
 
 #endif /* ! WIN32 */
@@ -947,8 +954,17 @@ int main( int argc, char** argv )
 		is_master = 1;
 	}
 
-		// set myName to be argv[0] with the path stripped off
+	// set myName to be argv[0] with the path stripped off
 	myName = basename(argv[0]);
+	myDistro->Init( argc, argv );
+	if ( EnvInit() < 0 ) {
+		exit( 1 );
+	}
+
+		// call out to the handler for pre daemonCore initialization
+		// stuff so that our client side can do stuff before we start
+		// messing with argv[]
+	main_pre_dc_init( argc, argv );
 
 	// strip off any daemon-core specific command line arguments
 	// from the front of the command line.
@@ -994,9 +1010,11 @@ int main( int argc, char** argv )
 			if( ptr && *ptr ) {
 				ptmp = *ptr;
 				dcargs += 2;
-				ptmp1 = (char *)malloc( strlen(ptmp) + 25 );
+
+				ptmp1 = 
+					(char *)malloc( strlen(ptmp) + myDistro->GetLen() + 10 );
 				if ( ptmp1 ) {
-					sprintf(ptmp1,"CONDOR_CONFIG=%s",ptmp);
+					sprintf(ptmp1,"%s_CONFIG=%s", myDistro->GetUc(), ptmp);
 					putenv(ptmp1);
 				}
 			} else {
@@ -1216,7 +1234,8 @@ int main( int argc, char** argv )
 		// banner.  Plus, if we're using dynamic dirs, we have dprintf
 		// configured now, so the dprintf()s will work.
 	dprintf(D_ALWAYS,"******************************************************\n");
-	dprintf(D_ALWAYS,"** %s (CONDOR_%s) STARTING UP\n",myName,mySubSystem);
+	dprintf(D_ALWAYS,"** %s (%s_%s) STARTING UP\n",
+			myName,myDistro->GetUc(),mySubSystem);
 	dprintf(D_ALWAYS,"** %s\n", CondorVersion());
 	dprintf(D_ALWAYS,"** %s\n", CondorPlatform());
 	dprintf(D_ALWAYS,"** PID = %lu\n",daemonCore->getpid());
@@ -1270,20 +1289,20 @@ int main( int argc, char** argv )
 	daemonCore->InitCommandSocket( command_port );
 	
 		// Install DaemonCore signal handlers common to all daemons.
-	daemonCore->Register_Signal( DC_SIGHUP, "DC_SIGHUP", 
+	daemonCore->Register_Signal( SIGHUP, "SIGHUP", 
 								 (SignalHandler)handle_dc_sighup,
 								 "handle_dc_sighup()" );
-	daemonCore->Register_Signal( DC_SIGQUIT, "DC_SIGQUIT", 
+	daemonCore->Register_Signal( SIGQUIT, "SIGQUIT", 
 								 (SignalHandler)handle_dc_sigquit,
 								 "handle_dc_sigquit()" );
-	daemonCore->Register_Signal( DC_SIGTERM, "DC_SIGTERM", 
+	daemonCore->Register_Signal( SIGTERM, "SIGTERM", 
 								 (SignalHandler)handle_dc_sigterm,
 								 "handle_dc_sigterm()" );
 #ifndef WIN32
 	daemonCore->Register_Signal( DC_SERVICEWAITPIDS, "DC_SERVICEWAITPIDS",
 								(SignalHandlercpp)&DaemonCore::HandleDC_SERVICEWAITPIDS,
 								"HandleDC_SERVICEWAITPIDS()",daemonCore,IMMEDIATE_FAMILY);
-	daemonCore->Register_Signal( DC_SIGCHLD, "DC_SIGCHLD",
+	daemonCore->Register_Signal( SIGCHLD, "SIGCHLD",
 								 (SignalHandlercpp)&DaemonCore::HandleDC_SIGCHLD,
 								 "HandleDC_SIGCHLD()",daemonCore,IMMEDIATE_FAMILY);
 #endif
