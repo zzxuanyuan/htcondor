@@ -26,6 +26,10 @@ get_cred_handler(Service * service, int i, Stream *socket);
 int
 rm_cred_handler(Service * service, int i, Stream *socket);
 
+int
+query_cred_handler(Service * service, int i, Stream *stream);
+ 
+
 int 
 RefreshProxyThruMyProxy(X509CredentialWrapper * proxy);
 

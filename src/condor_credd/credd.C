@@ -218,6 +218,79 @@ get_cred_handler(Service * service, int i, Stream *stream) {
 
 
 int 
+query_cred_handler(Service * service, int i, Stream *stream) {
+  char request[_POSIX_PATH_MAX];
+
+  ReliSock * socket = (ReliSock*)stream;
+
+  socket->decode();
+
+  if (!socket->isAuthenticated()) {
+    char * p = SecMan::getSecSetting ("SEC_%s_AUTHENTICATION_METHODS", "READ");
+    MyString methods;
+    if (p) {
+      methods = p;
+      free (p);
+    } else {
+      methods = SecMan::getDefaultAuthenticationMethods();
+    }
+    CondorError errstack;
+    if( ! socket->authenticate(methods.Value(), &errstack) ) {
+      dprintf (D_ALWAYS, "Unable to authenticate, qutting\n");
+      return FALSE;
+    }
+  }
+
+
+  char * pstr = (char*)request;
+  if (!socket->code(pstr)) {
+    dprintf (D_ALWAYS, "Error receiving request\n"); 
+    return FALSE;
+  }
+
+
+  const char * user = socket->getFullyQualifiedUser();
+  char * owner = NULL;
+
+  dprintf (D_ALWAYS, "Authenticated as %s\n", user);
+
+  if (strcmp (request, "*") == 0) {
+      if (!isSuperUser (user)) {
+	dprintf (D_ALWAYS, "User %s is NOT super user, request DENIED\n", user);
+	return FALSE;
+    }
+  }
+
+    
+  Credential * cred = NULL;
+
+  SimpleList <Credential*> result_list;
+
+  bool found_cred=false;
+  credentials.Rewind();
+  while (credentials.Next(cred)) {
+    if (cred->GetType() == X509_CREDENTIAL_TYPE) {
+      if (strcmp(cred->GetOwner(), user) == 0) {
+	result_list.Append (cred);
+      }
+    }
+  }
+
+  socket->encode();
+  int length = result_list.Length();
+  socket->code (length);
+
+  result_list.Rewind();
+  while (result_list.Next(cred)) {
+    ClassAd _temp (*(cred->GetClassAd()));
+    _temp.put (*socket);
+  }
+  
+  return TRUE;
+}
+
+
+int 
 rm_cred_handler(Service * service, int i, Stream *stream) {
   char name[_POSIX_PATH_MAX];
 

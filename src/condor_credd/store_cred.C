@@ -12,26 +12,26 @@ const char * MyName = "condor_store_cred";
 
 int parseMyProxyArgument(const char*, char*&, char*&, int&);
 char * prompt_password (const char *);
-/*
+
 void
 usage()
 {
   fprintf( stderr, "Usage: %s [options] [cmdfile]\n", MyName );
   fprintf( stderr, "      Valid options:\n" );
-  fprintf( stderr, "      -v\t\tverbose output\n" );
-  fprintf( stderr, "      -n schedd_name\tsubmit to the specified schedd\n" );
-  fprintf( stderr,
-	   "      -r schedd_name\tsubmit to the specified remote schedd\n" );
-  fprintf( stderr,
-                         "      -a line       \tadd line to submit file before processing\n"
-	   "                \t(overrides submit file; multiple -a lines ok)\n" );
-  fprintf( stderr, "      -d\t\tdisable file permission checks\n\n" );
-  fprintf( stderr, "      -s\t\tspool all files to the schedd\n\n" );
-  fprintf( stderr, "      -p password\tspecify password to MyProxy server\n\n" );
-  fprintf( stderr, "      If [cmdfile] is omitted, input is read from stdin\n" );
+  fprintf( stderr, "      -v\tverbose output\n\n" );
+  fprintf( stderr, "      -s <host>\tsubmit to the specified credd\n" );
+  fprintf( stderr, "      \t(e.g. \"-s myhost.cs.wisc.edu\")\n\n");
+  //  fprintf( stderr, "      -t <x509|password> specify credential type );
+  fprintf( stderr, "      -f <file>\tspecify where credential is stored\n\n");
+  fprintf( stderr, "      -n <name>\tspecify credential name\n\n");
+  fprintf( stderr, "      -m [user@]host[:port]\tspecify MyProxy user/server\n" );
+  fprintf( stderr, "      \t(e.g. \"-m wright@myproxy.cs.wisc.edu:1234\")\n\n");
+  fprintf( stderr, "      -D <DN>\tspecify myproxy server DN (if not standard)\n" );
+  fprintf( stderr, "      \t(e.g. \"-D \'/CN=My/CN=Proxy/O=Host\'\")\n\n" );
+  fprintf( stderr, "      -h\tprint this message\n\n");
   exit( 1 );
 }
-*/
+
 
 int main(int argc, char **argv)
 {
@@ -42,8 +42,10 @@ int main(int argc, char **argv)
   char * cred_name = NULL;
   char * cred_file_name = NULL;
   char * myproxy_user = NULL;
+
   char * myproxy_host = NULL;
   int myproxy_port = 0;
+
   char * myproxy_dn = NULL;
   char * myproxy_password = NULL;
 
@@ -54,7 +56,11 @@ int main(int argc, char **argv)
   for (ptr=argv+1,argc--; argc > 0; argc--,ptr++) {
     if ( ptr[0][0] == '-' ) {
       switch ( ptr[0][1] ) {
-      case 'd':
+      case 'h':
+	usage();
+	exit(0);
+	break;
+      case 'v':
 	if (ptr[0][2] == 'e') {
 	  // dprintf to console
 	  Termlog = 1;
@@ -123,15 +129,13 @@ int main(int argc, char **argv)
       default:
 	fprintf( stderr, "%s: Unknown option %s\n",
 		 MyName, *ptr);
+	usage();
 	exit(1);
       }
     } //fi
   } //rof
 
   config();
-
-
-
 
   if (( cred_file_name == NULL ) && (cred_type == 0)) {
     fprintf ( stderr, "Credential filename or type not specified\n");
@@ -189,10 +193,7 @@ int main(int argc, char **argv)
     }
   }
 
-
-
   int size = cred->GetDataSize();
-
 
   Daemon my_credd(DT_CREDD, server_address, NULL);
   Sock * sock = my_credd.startCommand (CREDD_STORE_CRED, Stream::reli_sock, 0);
@@ -217,8 +218,11 @@ int main(int argc, char **argv)
   
   int rc;
   sock->code(rc);
-
-  printf ("Server returned %d \n", rc);
+  if (rc == 0) {
+    printf ("Credential submitted successfully\n");
+  } else {
+    fprintf (stderr, "Unable to submit credential (error code %d)!\n", rc);
+  }
 
   sock->close();
   delete sock;

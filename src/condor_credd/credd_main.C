@@ -108,6 +108,10 @@ Register() {
                                (CommandHandler)&rm_cred_handler,
                                "rm_cred_handler", NULL,WRITE);
 
+  daemonCore->Register_Command(CREDD_QUERY_CRED, "CREDD_QUERY_CRED",
+                               (CommandHandler)&query_cred_handler,
+                               "query_cred_handler", NULL,WRITE);
+
   CheckCredentials_tid = daemonCore->Register_Timer( 1, 
 						     CheckCredentials_interval,
                                                      (TimerHandler)&CheckCredentials,
