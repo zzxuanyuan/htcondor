@@ -128,6 +128,7 @@ Image MyImage;
 static jmp_buf Env;
 static RAW_ADDR SavedStackLoc;
 volatile int InRestart = TRUE;
+volatile int InWriteCkpt = FALSE;
 volatile int check_sig;		// the signal which activated the checkpoint; used
 							// by some routines to determine if this is a periodic
 							// checkpoint (USR2) or a check & vacate (TSTP).
@@ -510,6 +511,10 @@ Image::Restore()
 		// we are working with has been overwritten too.  Fortunately,
 		// the only thing that has changed is the file descriptor.
 	fd = save_fd;
+		// We also need to reset InWriteCkpt back to FALSE, because
+		// it was set to TRUE when we wrote out the data segment that 
+		// we just restored -Todd 6/97
+	InWriteCkpt = FALSE;
 
 #if defined(PVM_CHECKPOINTING)
 	memcpy(global_user_data, user_data, sizeof(user_data));
@@ -664,15 +669,9 @@ Image::Write( const char *ckpt_file )
 		dprintf( D_ALWAYS, "Tmp name is \"%s\"\n", tmp_name );
 		if ((fd = open_ckpt_file(tmp_name, O_WRONLY|O_TRUNC|O_CREAT,
 								len)) < 0)  {
-			if (check_sig == SIGUSR2) { // periodic checkpoint
-				dprintf( D_ALWAYS,
-						"open_ckpt_file failed, aborting periodic ckpt\n" );
-				return -1;
-			}
-			else {
-				perror( "open_ckpt_file" );
-				exit( 1 );
-			}
+			dprintf( D_ALWAYS,
+					"open_ckpt_file failed, aborting ckpt\n" );
+			return -1;
 		}	
 	// }  // this is the matching brace to the open_url; see comment above
 
@@ -696,15 +695,9 @@ Image::Write( const char *ckpt_file )
 		dprintf(D_ALWAYS, "About to rename \"%s\" to \"%s\"\n",
 				tmp_name, ckpt_file);
 		if( rename(tmp_name,ckpt_file) < 0 ) {
-			if (check_sig == SIGUSR2) { // periodic checkpoint
-				dprintf( D_ALWAYS,
-						"rename failed, aborting periodic ckpt\n" );
-				return -1;
-			}
-			else {
-				perror( "rename" );
-				exit( 1 );
-			}
+			dprintf( D_ALWAYS,
+					"rename failed, aborting ckpt\n" );
+			return -1;
 		}
 		dprintf( D_ALWAYS, "Renamed OK\n" );
 	}
@@ -768,12 +761,14 @@ Image::Write( int fd )
 	if( _condor_in_file_stream ) {
 		status = net_read( fd, &ack, sizeof(ack) );
 		if( status < 0 ) {
-			EXCEPT( "Can't read final ack from the shadow" );
+			dprintf( D_ALWAYS,"ERROR Can't read final ack from the shadow!\n" );
+			return -1;
 		}
 
 		ack = ntohl( ack );		// Ack is in network byte order, fix here
 		if( ack != len ) {
-			EXCEPT( "Ack - expected %d, but got %d\n", len, ack );
+			dprintf( D_ALWAYS,"ERROR Ack - expected %d, but got %d\n", len, ack );
+			return -1;
 		}
 	}
 
@@ -987,21 +982,24 @@ Checkpoint( int sig, int code, void *scp )
 {
 	int		scm, p_scm;
 	int		do_full_restart = 1; // set to 0 for periodic checkpoint
+	int 	write_result;
 
 		// No sense trying to do a checkpoint in the middle of a
 		// restart, just quit leaving the current ckpt entact.
 	    // WARNING: This test should be done before any other code in
 	    // the signal handler.
 	if( InRestart ) {
-		if ( sig == SIGTSTP )
-			Suicide();
-		else
-			return;
+	  if (sig == SIGTSTP)
+		Suicide();     // if we're supposed to vacate, kill ourselves
+	  else
+		return;		   // if periodic ckpt or we're currently ckpting
 	}
+	InRestart = TRUE;	// not strictly true, but needed in our saved data
+	InWriteCkpt = TRUE;
+	check_sig = sig;
 
 	dprintf( D_ALWAYS, "Entering Checkpoint()\n" );
 
-	check_sig = sig;
 
 	if( MyImage.GetMode() == REMOTE ) {
 		scm = SetSyscalls( SYS_REMOTE | SYS_UNMAPPED );
@@ -1035,7 +1033,6 @@ Checkpoint( int sig, int code, void *scp )
 #endif
 	if( SETJMP(Env) == 0 ) {	// Checkpoint
 		dprintf( D_ALWAYS, "About to save MyImage\n" );
-		InRestart = TRUE;	// not strictly true, but needed in our saved data
 #ifdef SAVE_SIGSTATE
 		dprintf( D_ALWAYS, "About to save signal state\n" );
 		condor_save_sigstates();
@@ -1043,7 +1040,7 @@ Checkpoint( int sig, int code, void *scp )
 #endif
 		SaveFileState();
 		MyImage.Save();
-		MyImage.Write();
+		write_result = MyImage.Write();
 		if ( sig == SIGTSTP ) {
 			/* we have just checkpointed; now time to vacate */
 			dprintf( D_ALWAYS,  "Ckpt exit\n" );
@@ -1062,6 +1059,7 @@ Checkpoint( int sig, int code, void *scp )
 				// it here.
 				MyImage.SetFd( -1 );
 
+				if ( write_result == 0 ) {   /* only update if write was happy */
 				/* now update shadow with CPU time info.  unfortunately, we need
 				 * to convert to struct rusage here in the user code, because
 				 * clock_tick is platform dependent and we don't want CPU times
@@ -1087,6 +1085,7 @@ Checkpoint( int sig, int code, void *scp )
 				SetSyscalls( SYS_REMOTE | SYS_UNMAPPED );
 				(void)REMOTE_syscall( CONDOR_send_rusage, (void *) &bsd_usage );
 				SetSyscalls( p_scm );
+				}
 				
 			}
 			do_full_restart = 0;
@@ -1100,6 +1099,7 @@ Checkpoint( int sig, int code, void *scp )
 	while( wait_up )
 		;
 #endif
+		InWriteCkpt = FALSE;
 		if ( do_full_restart ) {
 			scm = SetSyscalls( SYS_LOCAL | SYS_UNMAPPED );
 			patch_registers( scp );
@@ -1138,8 +1138,8 @@ Checkpoint( int sig, int code, void *scp )
 #endif
 
 		SetSyscalls( scm );
-		InRestart = FALSE;
 		dprintf( D_ALWAYS, "About to return to user code\n" );
+		InRestart = FALSE;
 		return;
 	}
 }
@@ -1165,6 +1165,7 @@ void
 restart( )
 {
 	InRestart = TRUE;
+	InWriteCkpt = FALSE;
 
 	MyImage.Read();
 	MyImage.Restore();
@@ -1185,7 +1186,7 @@ ckpt()
 
 	dprintf( D_ALWAYS, "About to send CHECKPOINT signal to SELF\n" );
 	scm = SetSyscalls( SYS_LOCAL | SYS_UNMAPPED );
-	kill( getpid(), SIGTSTP );
+	kill( getpid(), SIGUSR2 );
 	SetSyscalls( scm );
 }
 
