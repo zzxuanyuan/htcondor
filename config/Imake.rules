@@ -252,7 +252,8 @@ clean::                                               @@\
 #define soapobjs(daemon) @@\
 SOAP_OBJS = concat(soapname(daemon),C).o concat(soapname(daemon),Server).o \
 	concat(soapname(daemon),Stub).o @@\
-SOAP_SRC = concat(soapname(daemon),C).C concat(soapname(daemon),Server).C
+SOAP_SRC = concat(soapname(daemon),C).C concat(soapname(daemon),Server).C \
+	 concat(soapname(daemon),H).h concat(soapname(daemon),Stub).h
 
 /* given a daemon name, and a service, use the soap compiler to produce a 
 	set of interface files in a temporary directory and then copy the files
