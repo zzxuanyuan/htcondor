@@ -73,6 +73,7 @@ public:
 	void Display();
 	long TotalPages();
 	int Compare(SegMap &other, int fd, int otherfd);
+	static int PrintHistogram(int *); //prints histogram
 private:
 	char		name[14];
 	off_t		file_loc;

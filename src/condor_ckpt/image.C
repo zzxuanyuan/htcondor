@@ -260,6 +260,10 @@ Header::Compare(Header & other)
 	if (magic!=other.magic  || n_segs!=other.n_segs) {
 		return -1;
 	}
+	if (magic==COMPRESS_MAGIC||other.magic==COMPRESS_MAGIC) {
+		printf("\n\nSorry, comparison of compressed checkpoints is not yet supported\n");
+		return -1;
+	}
 	return 0;
 }
 void
@@ -332,49 +336,114 @@ SegMap::Compare(SegMap & other, int fd, int otherfd)
 	other.Display();
 	char *pagebuffer=new char[getpagesize()]; 
 	char *otherpagebuffer=new char[getpagesize()];
+	int histogram[11];//the histogram
+	for (int i=0; i<11; i++) {
+		histogram[i]=0;
+	}
+	int totalbytes[2];
+	totalbytes[1]=0;
+	totalbytes[0]=0;
 	for (int i=0; i< (myTotalPages<otherTotalPages? myTotalPages: otherTotalPages); i++ ){
 		//we will use char pointers.
 		char * p, *op;
-		lseek(fd, file_loc, SEEK_SET);
-		lseek(otherfd, other.file_loc, SEEK_SET);
-	
+		int retval=lseek(fd, file_loc+i*getpagesize(), SEEK_SET);
+		if (retval==-1) {
+			perror("ERROR SEEKING FIRST FILE");
+			errno=0;
+		}
+		retval=lseek(otherfd, other.file_loc+i*getpagesize(), SEEK_SET);
+		if (retval==-1) {
+			perror("ERROR SEEKING 2nd FILE");
+			errno=0;
+		}
 
 		memset(pagebuffer, 0, getpagesize());
 		memset(otherpagebuffer, 0 , getpagesize());
-		read(fd,pagebuffer, getpagesize());
-		read(otherfd, otherpagebuffer, getpagesize());
+		int readbytes=read(fd,pagebuffer, getpagesize());
+		//not really sure what to do here...
+		if (readbytes==0) {
+			break;
+		}
+		if (readbytes<0){
+			perror("ERROR READING FIRST FILE");
+			errno=0;
+		}
+		else {
+			totalbytes[0]+=readbytes;
+		}
+		int readbytes2=read(otherfd, otherpagebuffer, getpagesize() );
+		if (readbytes==0 ){
+			break;
+		}
+		if (readbytes<0) {
+			perror("ERROR READING SECOND FILE");
+			errno=0;
+		}
+		else {
+			totalbytes[1]+=readbytes;
+		}
 		p=pagebuffer;
 		op=otherpagebuffer;
 		int bytesMatching=0;
-		for (int j=0; j< getpagesize()/sizeof(char) ; j++ ) {
+		//only look for matches on overlapping bytes.
+		for (int j=0; j< (readbytes>readbytes2?readbytes2:readbytes) ; j++ ) {
 			if (*p==*op) {
 				bytesMatching++;
 			}
 			p++;
 			op++;
 		}
-		if (bytesMatching==getpagesize()*sizeof(char)){
+		int histindex;
+		if (bytesMatching==readbytes && readbytes==readbytes2){
 			totalMatchingPages++;
-			printf("Page %d MATCH\n", i);
+			printf("VERBOSE Page %d MATCH\n", i);
+			histindex=10;
 		}
 		else {
-			printf("Page %d NOMATCH %d/%d %f\n", i, bytesMatching, getpagesize()*sizeof(char), bytesMatching/(getpagesize()*sizeof(char)));
+			//the percentage match should be over the largest number of bytes
+			int maxb=(readbytes>readbytes2?readbytes:readbytes2);
+			
+			printf("VERBOSE Page %d NOMATCH %d/%d %f\n", i, 
+				   bytesMatching, 
+				   maxb,
+				   bytesMatching/(float)maxb);
+			histindex= (int) (10.0*(bytesMatching/(float)maxb));
 		}
+		//update the histogram:
+		//not sure what to do if the segments are different sizes--maybe just spike the
+		// histogram at zero?
+		histogram[histindex]++;
+		
 	}
 	delete pagebuffer;
 	delete otherpagebuffer;
 	
 	printf("SEGMENT SUMMARY:\n");
+	printf("Total bytes read: %d, %d\n", totalbytes[0], totalbytes[1]);
 	printf("%d Matching pages.  %d First pages %d Second pages\n", totalMatchingPages, myTotalPages, otherTotalPages);
+	PrintHistogram(histogram);
 	printf("END SEGMENT SUMMARY\n");
 	
 	if (myTotalPages==otherTotalPages && myTotalPages==totalMatchingPages) {
-		printf("Returning 0\n");
+		printf("Returning 0\n"); 
 		return 0;
 	}
 	return -1;
 
-}			
+}
+
+//prints out a histogram of size 11			
+int
+SegMap::PrintHistogram(int * histptr)
+{
+	for (int i=0; i<10; i++) {
+		printf("%d  -- %d:\t%d", i*10, (i+1)*10, histptr[i]) ;
+		printf("\n");
+	}
+	printf("perfect matches: %d", (histptr[10]));
+	printf("\n");
+	return 0;
+}
 void
 Image::SetFd( int f )
 {

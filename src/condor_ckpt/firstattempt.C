@@ -13,10 +13,12 @@
 #include "condor_debug.h"
 #include "image.h"
 #include "firstattempt.h"
+extern int condor_compress_ckpt;
 char * firstfile;
 char * secondfile;
 
 int main(int argc, char** argv) {
+	condor_compress_ckpt=0;
 	printf("Usage: xxx <condor crap arguments> -first <filename> -second <filename>\n");
 	for (int i=1	; i<argc-1; i++ )	{		
 		if (!strcmp(	 argv[i], "-first")	) {
