@@ -1,5 +1,4 @@
 #if DOES_REMOTE_SYSCALLS
-SEND_OBJ = send.o
 #else
 CLIP = -DCLIP
 #endif
@@ -104,7 +103,7 @@ SGI_CKPT = MMAP.MIPS.$(DEP_OS).o SYSCALL.MIPS.$(DEP_OS).o
 FLOCK_OBJ = flock.o
 #endif
 
-STUBS = switches.o switches.special.o $(SEND_OBJ) getcwd.o
+STUBS = switches.o switches.special.o getcwd.o
 
 UTIL = \
 	remote_syscall.o \
@@ -116,7 +115,6 @@ UTIL = \
 NAME_TAB = syscall_numbers.o
 
 SRC = \
-	extern_path.c \
 	receivers.epilogue \
 	receivers.prologue \
 	remote_startup.c \
@@ -169,7 +167,7 @@ SPECIAL_IO_SRC = authentication.C
 LIB_OBJ = $(EXTRACT) $(STUBS) $(UTIL) $(NAME_TAB) $(XDR_OBJ) $(UTIL_OBJ) \
 	$(CKPT_OBJ) $(UTIL_EXTRACT) $(IO_OBJ) $(SPECIAL_IO_OBJ)
 
-SIMPLE_OBJ = condor_rt0.o extern_path.o xfer_file.o c_plus_alloc.o \
+SIMPLE_OBJ = condor_rt0.o xfer_file.o c_plus_alloc.o \
 	libckpt.a $(STANDALONE_COMPRESS_LIB)
 SYSCALL_LIB = condor_syscall_lib.a
 
