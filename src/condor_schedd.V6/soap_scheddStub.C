@@ -215,7 +215,10 @@ condorSchedd__commitTransaction(struct soap *s,
                                 struct condorSchedd__Transaction transaction,
                                 struct condorSchedd__StatusResponse & result )
 {
-  if ( transaction.id == current_trans_id ) {
+  if (!valid_transaction(transaction) ||
+      null_transaction(transaction)) {
+    result.response.code = INVALIDTRANSACTION;
+  } else {
     CommitTransaction();
     current_trans_id = 0;
     transaction.id = 0;
@@ -223,12 +226,7 @@ condorSchedd__commitTransaction(struct soap *s,
       daemonCore->Cancel_Timer(trans_timer_id);
       trans_timer_id = -1;
     }
-  }
 
-  if (!valid_transaction(transaction) ||
-      null_transaction(transaction)) {
-    result.response.code = INVALIDTRANSACTION;
-  } else {
     result.response.code = SUCCESS;
   }
 
