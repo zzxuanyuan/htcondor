@@ -519,6 +519,7 @@ bool
 Daemon::getDaemonInfo( const char* subsys, AdTypes adtype )
 {
 	char				buf[512], tmpname[512];
+    int                 BUF_LEN = 512; // Change this if you also change buf
 	char				*addr_file, *tmp, *my_name;
 	FILE				*addr_fp;
 	struct				sockaddr_in sockaddr;
@@ -684,7 +685,7 @@ Daemon::getDaemonInfo( const char* subsys, AdTypes adtype )
 
 		// construct the IP_ADDR attribute
 		sprintf( tmpname, "%sIpAddr", subsys );
-		if(scan->EvalString( tmpname, NULL, buf ) == FALSE) {
+		if(scan->EvaluateAttrString( tmpname, buf, BUF_LEN ) == FALSE) {
 			dprintf(D_ALWAYS, "Can't find %s in classad for %s %s",
 					 tmpname, daemonString(_type), _name );
 			sprintf( buf, "Can't find %s in classad for %s %s",
@@ -695,7 +696,7 @@ Daemon::getDaemonInfo( const char* subsys, AdTypes adtype )
 		New_addr( strnewp(buf) );
 
 		sprintf( tmpname, ATTR_VERSION );
-		if(scan->EvalString( tmpname, NULL, buf ) == FALSE) {
+		if(scan->EvaluateAttrString( tmpname, buf, BUF_LEN ) == FALSE) {
 			dprintf(D_ALWAYS, "Can't find %s in classad for %s %s",
 					 tmpname, daemonString(_type), _name );
 			sprintf( buf, "Can't find %s in classad for %s %s",
@@ -706,7 +707,7 @@ Daemon::getDaemonInfo( const char* subsys, AdTypes adtype )
 		New_version( strnewp(buf) );
 
 		sprintf( tmpname, ATTR_PLATFORM );
-		if(scan->EvalString( tmpname, NULL, buf ) == FALSE) {
+		if(scan->EvaluateAttrString( tmpname, buf, BUF_LEN ) == FALSE) {
 			dprintf(D_ALWAYS, "Can't find %s in classad for %s %s",
 					 tmpname, daemonString(_type), _name );
 			sprintf( buf, "Can't find %s in classad for %s %s",
