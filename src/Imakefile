@@ -338,9 +338,7 @@ ext_target(EXT_GT3GAHP_VERSION,$(NULL))
 ext_target(EXT_PVM_VERSION,$(NULL))
 #endif
 ext_nodep_target(EXT_MAN_VERSION,$(NULL))
-#if WANT_NEW_CLASSADS
 ext_target(EXT_CLASSADS_VERSION, $(NULL))
-#endif
 
 clean::
 	rm -rf $(PURE_DIR)
