@@ -3,12 +3,13 @@
 // Copyright (c) 2002 EU DataGrid.
 // For license conditions see http://www.eu-datagrid.org/license.html
 
-// $Id: planner.C,v 1.1.2.1 2002-11-11 14:46:07 giaco Exp $
+// $Id: planner.C,v 1.1.2.2 2002-12-05 11:33:25 giaco Exp $
 
 #include "planner.h"
 #include <fstream>
 #include <memory> // for std::auto_ptr
 #include "classad_distribution.h"
+#include "edg/workload/common/requestad/convert.h"
 
 using namespace classad;
 
@@ -18,6 +19,7 @@ namespace {
 ClassAd*
 f_resolve(ClassAd const& input_ad)
 {
+  // here goes the REAL stuff, in particular matchmaking
   return new ClassAd(input_ad);
 }
 
@@ -72,7 +74,7 @@ Planner::PlannerImpl::resolve(std::string const& input_file)
   std::auto_ptr<ClassAd> resolved_ad(f_resolve(input_ad));
   assert(resolved_ad.get() != 0);
 
-  //  edg::workload::common::requestad::to_submit_stream(fout, *resolve_ad);
+  edg::workload::common::requestad::to_submit_stream(fout, *resolved_ad);
   fout << '\n';
 
   return output_file;
