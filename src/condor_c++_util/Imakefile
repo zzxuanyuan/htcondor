@@ -86,9 +86,3 @@ static:
 
 foo.o: user_log.h
 test.o: user_log.h
-
-cpp_syms_saved.h: cpp_syms.h Makefile
-	@echo "#ifndef CPP_SYMS_SAVED_H" > $@
-	@echo "#define CPP_SYMS_SAVED_H" >> $@
-	$(CC) -E cpp_syms.h | awk '/SAVE/{print "#define " $$0}' >> $@
-	@echo "#endif" >> $@
