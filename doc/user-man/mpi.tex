@@ -36,131 +36,17 @@ implementation does not support dynamic resource management.  That is,
 processes in the virtual machine may NOT join or leave the computation at 
 any time.  If you start an MPI job with 4 nodes, for example, none of those 4 
 nodes can be preempted by other Condor jobs or the machine's owner.
+Certain resources in your Condor pool should be configured with this
+policy.
+There is a whole section in the Administrator's Manual regarding how
+to configure resource in a Condor Pool to be dedicated resources which
+can execute an MPI application.
 
-\item[Scheduling] We do not yet have a sophisticated scheduling 
-algorithm in place for MPI jobs.  If you set things up properly, 
-there shouldn't be much of a problem.  However, if there are several
-users trying to run MPI jobs on the same machines, it may be the case 
-that no jobs will run at all and Condor's scheduling will deadlock.  
-Writing a good scheduler for this environment is high on the priority 
-list for Condor version 6.5.
+\item[Condor Version 6.3.0+] You must be running this version of 
+the Condor distribution (or greater) in order to submit MPI jobs.
 
-\item[``New'' shadow and starter] We have been developing new versions
-of the \Condor{shadow} and the \Condor{starter}.  You have to use these
-new versions to run MPI jobs.  For information on obtaining these 
-binaries, see below.
-
-\item[Shared File System] The machines where you want your MPI job
-to run must have a shared file system.  There is no remote I/O for
-our MPI support like there is for our Standard Universe jobs.
-
-\item[Condor Version 6.1.15+] You must be running this version of 
-the Condor distribution (or greater) in order to use this contrib 
-module.
 \end{description}
 
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{\label{sec:MPI-binaries}Getting the Binaries}
-
-There is now an MPI ``contrib'' module available with Condor.  It can
-be found in the contrib section of the downloads.  When you un-tar the 
-tarfile, there will be three files:
-
-\begin{itemize}
-\item\Condor{starter.v61}
-\item\Condor{shadow.v61}
-\item\Prog{rsh}
-\end{itemize}
-
-The last item is named \File{rsh}, but it is not the \Prog{rsh} utility you're 
-familiar with --- it's a wrapper that is required for our implementation to 
-function correctly. 
-These three binaries should go in Condor's \File{sbin} directory, where
-many other files like them reside.
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{\label{sec:MPI-config}Configuring Condor }
-
-Now that you've got the necessary binaries, you'll have to configure Condor
-to use MPI.  Insert the following lines in the main \condor{config} file:
-\begin{verbatim}
-ALTERNATE_STARTER_2	= $(SBIN)/condor_starter.v61
-STARTER_2_IS_DC		= TRUE
-MPI_CONDOR_RSH_PATH	= $(SBIN)
-SHADOW_MPI		= $(SBIN)/condor_shadow.v61
-\end{verbatim}
-Reconfigure your pool by typing
-\begin{verbatim}
-condor_reconfig `condor_status -m`
-\end{verbatim}
-The -m argument tells \Condor{status} to return just the names of all
-the running \Condor{master} daemons in your pool.  Note that you have to do 
-this from a machine with administrator privileges.
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{\label{sec:MPI-machines}Managing Dedicated Machines}
-
-There are several ways that you can set up a pool to run MPI jobs without 
-interruption.  We will cover two methods that will work, although more
-sophisticated solutions are possible. 
-Familiarity with Startd policy configuration
-(Section~\ref{sec:Configuring-Policy}) is necessary to understand the
-following examples.
-
-For the first example, let's assume that you have a cluster of machines which
-do not have regular users on them.  Let's also assume that these machines are 
-solely dedicated to the use of Condor.  
-The simplest way to set up your policy is as follows:
-\begin{verbatim}
-START       = TRUE
-CONTINUE    = TRUE
-SUSPEND     = FALSE
-PREEMPT     = FALSE
-KILL        = FALSE
-\end{verbatim}
-
-With the above configuration, the machines will accept any Condor job, and the
-jobs will never be suspended, preempted, or killed.  You will never have to 
-worry about an MPI job (or any job, for that matter) being evicted from the 
-machines.
-
-For a more complex example, let us assume you have machines with sophisticated 
-policies already in place, and you'd like the machines to manage MPI jobs 
-differently.  The following macros (which should be specified
-near other Startd policy support macros) allow you to accomplish the task 
-easily.
-\begin{verbatim}
-MPI	  = 8
-IsMPI = (JobUniverse == $(MPI))
-\end{verbatim}
-Now change your configuration from
-\begin{verbatim}
-START	= /* your interesting policy here */
-\end{verbatim}
-to 
-\begin{verbatim}
-FORMER_START	= /* your interesting policy here */
-\end{verbatim}
-Similarly, the \Macro{CONTINUE}, \Macro{SUSPEND}, \Macro{PREEMPT}, and 
-\Macro{KILL} expressions should be changed to macros named 
-\MacroNI{FORMER\_CONTINUE}, etc.  The following configuration will ensure that
-MPI jobs are never suspended or evicted while implementing your former policy
-for all other jobs.
-\begin{verbatim}
-START		= ( $(FORMER_START) )
-CONTINUE	= ( $(FORMER_CONTINUE) )
-SUSPEND		= ( $(FORMER_SUSPEND) && ((IsMPI) == FALSE ) )
-PREEMPT		= ( $(FORMER_PREEMPT) && ((IsMPI) == FALSE ) )
-KILL		= ( $(FORMER_KILL) && ((IsMPI) == FALSE ) )
-\end{verbatim}
-Thus, Condor will never attempt to vacate an MPI job from a machine once 
-it starts running on that machine.  
-Some machine owners may not like this setup, so you may need to customize 
-your configuration to suit your needs.  
-The most important point to remember when creating your Startd policy is 
-that MPI jobs are immediately killed if one or more nodes of the job leave
-the computation.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{\label{sec:MPI-submit}Submitting to Condor}
