@@ -563,7 +563,14 @@ Starter::execCODStarter( void )
 	MyString args;
 	int cluster = s_claim->cluster();
 	int proc = s_claim->proc();
-	args = "condor_starter -f -job_keyword ";
+	args = "condor_starter -f -append cod -lockfile StarterLock.cod ";
+	args += "-header (";
+	if( resmgr->is_smp() ) {
+		args += s_claim->rip()->r_id_str;
+		args += ':';
+	}
+	args += s_claim->codId();
+	args += ") -job_keyword ";
 	args += s_cod_keyword;
 	if( cluster >= 0 ) {
 		args += " -job_cluster ";
