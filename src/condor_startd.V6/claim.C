@@ -693,7 +693,9 @@ Claim::finishRelease( void )
 			 client()->owner() );  
 
 	line = ATTR_RESULT;
-	line += "=TRUE";
+	line += " = \"";
+	line += getCAResultString( CA_SUCCESS );
+	line += '"';
 	reply.Insert( line.Value() );
 
 	line = ATTR_LAST_CLAIM_STATE;
