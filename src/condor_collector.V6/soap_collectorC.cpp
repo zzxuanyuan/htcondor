@@ -8,7 +8,7 @@
 
 SOAP_BEGIN_NAMESPACE(soap_collector)
 
-SOAP_SOURCE_STAMP("@(#) soap_collectorC.cpp ver 2.5.2 2004-04-01 22:31:33 GMT")
+SOAP_SOURCE_STAMP("@(#) soap_collectorC.cpp ver 2.5.2 2004-04-02 05:47:48 GMT")
 
 
 #ifndef WITH_NOGLOBAL
@@ -1269,6 +1269,8 @@ static const struct soap_code_map soap_codes_condorCore__StatusCode[] =
 	{ (long)UNKNOWNJOB, "UNKNOWNJOB" },
 	{ (long)UNKNOWNFILE, "UNKNOWNFILE" },
 	{ (long)INCOMPLETE, "INCOMPLETE" },
+	{ (long)INVALIDOFFSET, "INVALIDOFFSET" },
+	{ (long)ALREADYEXISTS, "ALREADYEXISTS" },
 	{ 0, NULL }
 };
 

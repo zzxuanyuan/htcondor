@@ -14,7 +14,7 @@ SOAP_BEGIN_NAMESPACE(soap_schedd)
 
 #ifndef _SOAP_condorCore__StatusCode
 #define _SOAP_condorCore__StatusCode
-enum condorCore__StatusCode {SUCCESS = 0, FAIL = 1, INVALIDTRANSACTION = 2, UNKNOWNJOB = 3, UNKNOWNFILE = 4, INCOMPLETE = 5, INVALIDOFFSET = 6};
+enum condorCore__StatusCode {SUCCESS = 0, FAIL = 1, INVALIDTRANSACTION = 2, UNKNOWNJOB = 3, UNKNOWNFILE = 4, INCOMPLETE = 5, INVALIDOFFSET = 6, ALREADYEXISTS = 7};
 #endif
 
 #ifndef _SOAP_condorCore__ClassAdAttrType

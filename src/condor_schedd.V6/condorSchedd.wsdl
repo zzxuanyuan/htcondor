@@ -34,6 +34,7 @@
     <enumeration value="UNKNOWNFILE"/>
     <enumeration value="INCOMPLETE"/>
     <enumeration value="INVALIDOFFSET"/>
+    <enumeration value="ALREADYEXISTS"/>
    </restriction>
   </simpleType>
   <simpleType name="ClassAdAttrType">

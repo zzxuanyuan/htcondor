@@ -8,7 +8,7 @@
  parses this file it will see types of for form x__y, the x will
  become the namespace and y will be the actual name of the type.
 
- gSOAP also recognizes structs with values "*__ptr" and "__size" are
+ gSOAP also recognizes structs with values "*__ptr" and "__size" as
  representing an array type.
 
  The numbers after a struct's member's name is
@@ -35,7 +35,9 @@ enum condorCore__StatusCode
   INVALIDTRANSACTION,
   UNKNOWNJOB,
   UNKNOWNFILE,
-  INCOMPLETE
+  INCOMPLETE,
+  INVALIDOFFSET,
+  ALREADYEXISTS
 };
 
 struct condorCore__Status

@@ -8,7 +8,7 @@
 
 SOAP_BEGIN_NAMESPACE(soap_schedd)
 
-SOAP_SOURCE_STAMP("@(#) soap_scheddC.cpp ver 2.5.2 2004-04-02 05:37:34 GMT")
+SOAP_SOURCE_STAMP("@(#) soap_scheddC.cpp ver 2.5.2 2004-04-02 05:47:33 GMT")
 
 
 #ifndef WITH_NOGLOBAL
@@ -1784,6 +1784,7 @@ static const struct soap_code_map soap_codes_condorCore__StatusCode[] =
 	{ (long)UNKNOWNFILE, "UNKNOWNFILE" },
 	{ (long)INCOMPLETE, "INCOMPLETE" },
 	{ (long)INVALIDOFFSET, "INVALIDOFFSET" },
+	{ (long)ALREADYEXISTS, "ALREADYEXISTS" },
 	{ 0, NULL }
 };
 
