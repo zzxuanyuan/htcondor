@@ -82,3 +82,40 @@ void KeyCacheEntry::delete_storage() {
 }
 
 
+
+KeyCache::KeyCache(int nbuckets) {
+	key_table = new HashTable<MyString, KeyCacheEntry*>(nbuckets, MyStringHash, rejectDuplicateKeys);
+}
+
+KeyCache::KeyCache(const KeyCache& k) {
+	key_table = new HashTable<MyString, KeyCacheEntry*>(*(k.key_table));
+}
+
+KeyCache::~KeyCache() {
+	delete_storage();
+}
+
+	    
+KeyCache::KeyCache& assignment=(const KeyCache& k) {
+	delete_stroage();
+	key_table = new HashTable<MyString, KeyCacheEntry*>(*(k.key_table));
+}
+
+void KeyCache::delete_storage() {
+	if (key_table) {
+		delete key_table;
+	}
+}
+
+bool KeyCache::insert(KeyCacheEntry e) {
+	return key_table->insert(e->id(), new KeyCacheEntry(e));
+}
+
+bool KeyCache::lookup(char* key_id, KeyCacheEntry& e) {
+	return key_table->lookup(key_id, e);
+}
+
+bool KeyCache::remove(char* key_id) {
+	return key_table->remove(key_id);
+}
+
