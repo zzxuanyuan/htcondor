@@ -45,6 +45,7 @@ void printClassAdExpr( ExprTree * );
 void printClassAdValue( Value & );
 ClassAd* getOldClassAd( Sock& );
 bool getOldClassAd( Sock&, ClassAd& );
+bool putOldClassAd( Sock&, ClassAd& );
 END_NAMESPACE
 
 #endif
