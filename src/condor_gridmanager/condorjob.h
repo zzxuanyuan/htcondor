@@ -83,6 +83,7 @@ class CondorJob : public BaseJob
 	char *remoteJobIdString;
 	char *submitterId;
 
+	Proxy *jobProxy;
 	CondorResource *myResource;
 	GahpClient *gahp;
 

@@ -179,6 +179,7 @@ CondorJob::CondorJob( ClassAd *classad )
 	remotePoolName = NULL;
 	remoteJobIdString = NULL;
 	submitterId = NULL;
+	jobProxy = NULL;
 	myResource = NULL;
 	newRemoteStatusAd = NULL;
 	newRemoteStatusServerTime = 0;
@@ -196,6 +197,16 @@ CondorJob::CondorJob( ClassAd *classad )
 	// sure it's unset when we start.
 	if ( ad->LookupString( ATTR_HOLD_REASON, NULL, 0 ) != 0 ) {
 		UpdateJobAd( ATTR_HOLD_REASON, "UNDEFINED" );
+	}
+
+	buff[0] = '\0';
+	ad->LookupString( ATTR_X509_USER_PROXY, buff );
+	if ( buff[0] != '\0' ) {
+		jobProxy = AcquireProxy( buff, evaluateStateTid );
+		if ( jobProxy == NULL ) {
+			dprintf( D_ALWAYS, "(%d.%d) error acquiring proxy!\n",
+					 procID.cluster, procID.proc );
+		}
 	}
 
 	buff[0] = '\0';
@@ -273,6 +284,9 @@ CondorJob::CondorJob( ClassAd *classad )
 
 CondorJob::~CondorJob()
 {
+	if ( jobProxy != NULL ) {
+		ReleaseProxy( jobProxy, evaluateStateTid );
+	}
 	if ( submitterId != NULL ) {
 		free( submitterId );
 	}
