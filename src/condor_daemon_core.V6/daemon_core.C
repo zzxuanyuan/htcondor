@@ -1605,9 +1605,10 @@ int DaemonCore::HandleReq(int socki)
 	user[0] = '\0';
     ClassAd *the_policy     = NULL;
     KeyInfo *the_key        = NULL;
-    char    *the_sid        = NULL;
-    char    * who = NULL;   // Remote user
-	
+    char * the_sid = NULL;
+    string who;   // Remote user
+	Value v;
+
 	insock = (*sockTable)[socki].iosock;
 
 	switch ( insock->type() ) {
@@ -1738,7 +1739,7 @@ int DaemonCore::HandleReq(int socki)
 			}
 
             // Lookup remote user
-            session->policy()->LookupString(ATTR_SEC_USER, &who);
+            session->policy()->EvaluateAttrString(ATTR_SEC_USER, who);
 
 			free( sess_id );
 
@@ -1828,8 +1829,8 @@ int DaemonCore::HandleReq(int socki)
 #endif
 			}
             // Lookup user if necessary
-            if (who == NULL) {
-                session->policy()->LookupString(ATTR_SEC_USER, &who);
+            if (who.length() > 0) {
+                session->policy()->EvaluateAttrString(ATTR_SEC_USER, who);
             }
 			free( sess_id );
 			if (return_address_ss) {
@@ -1839,8 +1840,8 @@ int DaemonCore::HandleReq(int socki)
 			dprintf (D_SECURITY, "DC_AUTHENTICATE: incoming data NOT encrypted.\n");
 		}
 
-        if (who != NULL) {
-            ((SafeSock*)stream)->setFullyQualifiedUser(who);
+        if (who.length() > 0) {
+            ((SafeSock*)stream)->setFullyQualifiedUser((char *)who.data());
             ((SafeSock*)stream)->setAuthenticated(true);
         }
 	}
@@ -1880,12 +1881,17 @@ int DaemonCore::HandleReq(int socki)
 		dprintf (D_SECURITY, "DC_AUTHENTICATE: entry value of result == %i\n", result);
 
 		ClassAd auth_info;
+
+        ClassadParser parse;
+
+        /* Need work Hao
 		if( !auth_info.initFromStream(*sock)) {
 			dprintf (D_ALWAYS, "ERROR: DC_AUTHENTICATE unable to "
 					   "receive auth_info!\n");
 			result = FALSE;	
 			goto finalize;
 		}
+        */
 		
 		if ( is_tcp && !sock->end_of_message()) {
 			dprintf (D_ALWAYS, "ERROR: DC_AUTHENTICATE is TCP, unable to "
@@ -1895,18 +1901,18 @@ int DaemonCore::HandleReq(int socki)
 		}
 	
 		dprintf (D_SECURITY, "DC_AUTHENTICATE: received following ClassAd:\n");
-		auth_info.dPrint (D_SECURITY);
+		//auth_info.dPrint (D_SECURITY);
 
 		char buf[ATTRLIST_MAX_EXPRESSION];
 
 		// look at the ad.  get the command number.
 		int real_cmd = 0;
 		int tmp_cmd = 0;
-		auth_info.LookupInteger(ATTR_SEC_COMMAND, real_cmd);
+		auth_info.EvaluateAttrInt(ATTR_SEC_COMMAND, real_cmd);
 
 		if (real_cmd == DC_AUTHENTICATE) {
 			// we'll set tmp_cmd temporarily to 
-			auth_info.LookupInteger(ATTR_SEC_AUTH_COMMAND, tmp_cmd);
+			auth_info.EvaluateAttrInt(ATTR_SEC_AUTH_COMMAND, tmp_cmd);
 		} else {
 			tmp_cmd = real_cmd;
 		}
@@ -1954,15 +1960,15 @@ int DaemonCore::HandleReq(int socki)
 
 			dprintf (D_SECURITY, "DC_AUTHENTICATE: request to use cached session.\n");
 
-            char * tmp_sid = NULL;
-			if( ! auth_info.LookupString(ATTR_SEC_SID, &tmp_sid)) {
+            string tmp_sid;
+			if( ! auth_info.EvaluateAttrString(ATTR_SEC_SID, tmp_sid)) {
 				dprintf (D_ALWAYS, "ERROR: DC_AUTHENTICATE unable to "
 						   "extract auth_info.%s!\n", ATTR_SEC_SID);
 				result = FALSE;	
 				goto finalize;
 			}
 
-            the_sid = strdup(tmp_sid);
+            the_sid = strdup(tmp_sid.data());
 
 			dprintf (D_SECURITY, "DC_AUTHENTICATE: looking up cached key id %s.\n", the_sid);
 
@@ -2023,18 +2029,17 @@ int DaemonCore::HandleReq(int socki)
 			if (session->policy()) {
 				// copy this to the HandleReq() scope
 				the_policy = new ClassAd(*session->policy());
-				the_policy->dPrint (D_SECURITY);
+				//the_policy->dPrint (D_SECURITY);
 			}
 
 			// grab the user out of the policy.
 			if (the_policy) {
-				char *the_user  = NULL;
-				the_policy->LookupString( ATTR_SEC_USER, &the_user);
+				string the_user;
+				the_policy->EvaluateAttrString( ATTR_SEC_USER, the_user);
 
-				if (the_user) {
+				if (the_user.length() > 0) {
 					// copy this to the HandleReq() scope
-					strcpy (user, the_user);
-					delete the_user;
+					strcpy (user, the_user.data());
 				}
 			}
 			new_session = false;
@@ -2052,7 +2057,7 @@ int DaemonCore::HandleReq(int socki)
 			}
 
 			dprintf ( D_SECURITY, "DC_AUTHENTICATE: our_policy:\n" );
-			our_policy->dPrint(D_SECURITY);
+			//our_policy->dPrint(D_SECURITY);
 			
 			// reconcile.  if unable, close socket.
 			the_policy = sec_man->ReconcileSecurityPolicyAds(auth_info, *our_policy);
@@ -2066,7 +2071,7 @@ int DaemonCore::HandleReq(int socki)
 				goto finalize;
 			} else {
 				dprintf ( D_SECURITY, "DC_AUTHENTICATE: the_policy:\n" );
-				the_policy->dPrint(D_SECURITY);
+				//the_policy->dPrint(D_SECURITY);
 			}
 
 			// handy policy vars
@@ -2092,8 +2097,8 @@ int DaemonCore::HandleReq(int socki)
 
 				if ((will_enable_encryption == SecMan::SEC_FEAT_ACT_YES) || (will_enable_integrity == SecMan::SEC_FEAT_ACT_YES)) {
 
-					char *crypto_method = NULL;
-					if (!the_policy->LookupString(ATTR_SEC_CRYPTO_METHODS, &crypto_method)) {
+					string crypto_method;
+					if (!the_policy->EvaluateAttrString(ATTR_SEC_CRYPTO_METHODS, crypto_method)) {
 						dprintf ( D_ALWAYS, "DC_AUTHENTICATE: tried to enable encryption but we have none!\n" );
 						result = FALSE;
 						goto finalize;
@@ -2124,7 +2129,7 @@ int DaemonCore::HandleReq(int socki)
 							the_key = new KeyInfo(rbuf, 24, CONDOR_3DES);
 							break;
 						default:
-							dprintf ( D_SECURITY, "DC_AUTHENTICATE: this version doesn't support %s crypto.\n", crypto_method );
+							dprintf ( D_SECURITY, "DC_AUTHENTICATE: this version doesn't support %s crypto.\n", crypto_method.data() );
 							break;
 					}
 
@@ -2144,14 +2149,16 @@ int DaemonCore::HandleReq(int socki)
 			// if they asked, tell them
 			if (is_tcp && (sec_man->sec_lookup_feat_act(auth_info, ATTR_SEC_ENACT) == SecMan::SEC_FEAT_ACT_NO)) {
 				dprintf (D_SECURITY, "SECMAN: Sending following response ClassAd:\n");
-				the_policy->dPrint( D_SECURITY );
+				//the_policy->dPrint( D_SECURITY );
 				sock->encode();
+                /* Need work Hao
 				if (!the_policy->put(*sock) ||
 					!sock->eom()) {
 					dprintf (D_ALWAYS, "SECMAN: Error sending response classad!\n");
 					result = FALSE;
 					goto finalize;
 				}
+                */
 				sock->decode();
 			} else {
 				dprintf( D_SECURITY, "SECMAN: Enact was '%s', not sending response.\n",
@@ -2187,18 +2194,15 @@ int DaemonCore::HandleReq(int socki)
 					result = FALSE;
 					goto finalize;
 				}
-				char * auth_method = NULL;
-				the_policy->LookupString(ATTR_SEC_AUTHENTICATION_METHODS, &auth_method);
+				string auth_method;
+				the_policy->EvaluateAttrString(ATTR_SEC_AUTHENTICATION_METHODS, auth_method);
 
 				dprintf (D_SECURITY, "DC_AUTHENTICATE: authenticating RIGHT NOW.\n");
-				if (!sock->authenticate(the_key, sec_man->getAuthBitmask(auth_method))) {
+				if (!sock->authenticate(the_key, sec_man->getAuthBitmask((char *)auth_method.data()))) {
 					dprintf (D_ALWAYS, "DC_AUTHENTICATE: authenticate failed\n");
 					result = FALSE;
 					goto finalize;
 				}
-
-				free( auth_method );
-
 
 				// check to see if the kerb IP is the same
 				// as the socket IP.  this cast is safe because
@@ -2285,16 +2289,22 @@ int DaemonCore::HandleReq(int socki)
 				ClassAd pa_ad;
 
 				// session user
-				sprintf (buf, "%s=\"%s\"", ATTR_SEC_USER, ((ReliSock*)sock)->getFullyQualifiedUser());
-				pa_ad.Insert(buf);
+				sprintf (buf, "\"%s\"", ((ReliSock*)sock)->getFullyQualifiedUser());
+                v.Clear();
+                v.SetStringValue(buf);
+				pa_ad.Insert(string(ATTR_SEC_USER), Literal::MakeLiteral(v));
 
 				// session id
-				sprintf (buf, "%s=\"%s\"", ATTR_SEC_SID, the_sid);
-				pa_ad.Insert(buf);
+				sprintf (buf, "\"%s\"", the_sid);
+                v.Clear();
+                v.SetStringValue(buf);
+				pa_ad.Insert(string(ATTR_SEC_SID), Literal::MakeLiteral(v));
 
 				// other commands this session is good for
-				sprintf (buf, "%s=\"%s\"", ATTR_SEC_VALID_COMMANDS, GetCommandsInAuthLevel(comTable[cmd_index].perm).Value());
-				pa_ad.Insert(buf);
+				sprintf (buf, "\"%s\"", GetCommandsInAuthLevel(comTable[cmd_index].perm).Value());
+                v.Clear();
+                v.SetStringValue(buf);
+				pa_ad.Insert(string(ATTR_SEC_VALID_COMMANDS), Literal::MakeLiteral(v));
 
 				// also put these attributes in the policy classad we are caching.
 				sec_man->sec_copy_attribute( *the_policy, pa_ad, ATTR_SEC_USER );
@@ -2303,14 +2313,17 @@ int DaemonCore::HandleReq(int socki)
 
 
 				sock->encode();
-				pa_ad.put(*sock);
+                // Need work Hao
+				//pa_ad.put(*sock);
 				sock->eom();
 
 				// extract the session duration
-				char *dur = NULL;
-				the_policy->LookupString(ATTR_SEC_SESSION_DURATION, &dur);
-
-				int expiration_time = time(0) + atoi(dur);
+				string dur;
+				int expiration_time = time(0);
+				
+                if (the_policy->EvaluateAttrString(ATTR_SEC_SESSION_DURATION, dur)) {
+                    expiration_time += atoi(dur.data());
+                }
 
 				// add the key to the cache
 				KeyCacheEntry tmp_key(the_sid, sock->endpoint(), the_key, the_policy, expiration_time);
@@ -2469,9 +2482,6 @@ finalize:
     }
     if (the_sid) {
         free(the_sid);
-    }
-    if (who) {
-        free(who);
     }
 	if ( result != KEEP_STREAM ) {
 		stream->encode();	// we wanna "flush" below in the encode direction 
