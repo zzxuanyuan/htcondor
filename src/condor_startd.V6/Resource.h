@@ -55,6 +55,11 @@ public:
 		// Quickly kill starter but keep claim
 	int		deactivate_claim_forcibly( void );
 
+		// Shutdown methods that deal w/ opportunistic *and* COD claims
+	int		shutdownAllClaims( bool graceful );
+	int		releaseAllClaims( void );
+	int		killAllClaims( void );
+
 		// Resource state methods
 	void	set_destination_state( State s ) { r_state->set_destination(s);};
 	State	destination_state( void ) {return r_state->destination();};
@@ -64,7 +69,8 @@ public:
 	State		state( void )		{return r_state->state();};
 	Activity	activity( void )	{return r_state->activity();};
 	int		eval_state( void )		{return r_state->eval();};
-	bool	in_use( void );
+	bool	hasOppClaim( void );
+	bool	hasAnyClaim( void );
 	bool	isDeactivating( void )	{return r_cur->isDeactivating();};
 
 		// Methods for computing and publishing resource attributes 
