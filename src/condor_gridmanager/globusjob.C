@@ -1240,8 +1240,8 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 			} break;
 		case GM_DONE_SAVE: {
 			// Report job completion to the schedd.
-			if ( condorState != HELD && condorState != REMOVED ) {
-				JobTerminated();
+			JobTerminated( true, 0 );
+			if ( condorState == COMPLETED ) {
 				done = requestScheddUpdate( this );
 				if ( !done ) {
 					break;

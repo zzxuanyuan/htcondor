@@ -377,7 +377,7 @@ int OracleJob::doEvaluateState()
 						JobIdle();
 					}
 					if ( rc == COMPLETED && condorState != COMPLETED ) {
-						JobTerminated();
+						JobTerminated( true, 0 );
 					}
 					condorState = rc;
 					UpdateJobAdInt( ATTR_JOB_STATUS, condorState );
@@ -395,7 +395,7 @@ int OracleJob::doEvaluateState()
 			// Report job completion to the schedd.
 			if ( condorState != HELD && condorState != REMOVED ) {
 				if ( condorState != COMPLETED ) {
-					JobTerminated();
+					JobTerminated( true, 0 );
 				}
 				done = requestScheddUpdate( this );
 				if ( !done ) {

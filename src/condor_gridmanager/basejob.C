@@ -187,12 +187,18 @@ void BaseJob::JobEvicted()
 	}
 }
 
-void BaseJob::JobTerminated()
+void BaseJob::JobTerminated( bool normal_exit, int code )
+{
+	if ( condorState != HELD && condorState != COMPLETED &&
+		 condorState != REMOVED ) {
+		EvalOnExitJobExpr( normal_exit, code );
+	}
+}
+
+void BaseJob::JobCompleted()
 {
 	if ( condorState != COMPLETED && condorState != HELD &&
 		 condorState != REMOVED ) {
-
-		// TODO: put EvalAtExitJobExpr() call here
 
 		condorState = COMPLETED;
 		UpdateJobAdInt( ATTR_JOB_STATUS, condorState );
@@ -396,11 +402,52 @@ dprintf(D_FULLDEBUG,"(%d.%d) Evaluating periodic job policy expressions\n",procI
 	return 0;
 }
 
-int BaseJob::EvalAtExitJobExpr()
+int BaseJob::EvalOnExitJobExpr( bool normal_exit, int code )
 {
+	float old_run_time;
 	UserPolicy user_policy;
 
 	user_policy.Init( ad );
+
+	// The user policy code expects an exit value to be set
+	if ( normal_exit ) {
+		UpdateJobAdBool( ATTR_ON_EXIT_BY_SIGNAL, 0 );
+		UpdateJobAdInt( ATTR_ON_EXIT_CODE, code );
+	} else {
+		UpdateJobAdBool( ATTR_ON_EXIT_BY_SIGNAL, 1 );
+		UpdateJobAdInt( ATTR_ON_EXIT_SIGNAL, code );
+	}
+
+	// TODO: We should just mark the job as done running
+	UpdateJobTime( &old_run_time );
+
+	int action = user_policy.AnalyzePolicy( PERIODIC_THEN_EXIT );
+
+	RestoreJobTime( old_run_time );
+
+	if ( action != REMOVE_FROM_QUEUE ) {
+		UpdateJobAdBool( ATTR_ON_EXIT_BY_SIGNAL, 0 );
+		UpdateJobAd( ATTR_ON_EXIT_CODE, "UNDEFINED" );
+		UpdateJobAd( ATTR_ON_EXIT_SIGNAL, "UNDEFINED" );
+	}
+
+	switch( action ) {
+	case UNDEFINED_EVAL:
+		JobHeld( "Undefined job policy expression" );
+		break;
+	case STAYS_IN_QUEUE:
+			// clean up job but don't set status to complete
+		break;
+	case REMOVE_FROM_QUEUE:
+		JobCompleted();
+		break;
+	case HOLD_IN_QUEUE:
+		JobHeld( "Hold job policy became true" );
+		break;
+	default:
+		EXCEPT( "Unknown action (%d) in BaseJob::EvalAtExitJobExpr", 
+				action );
+	}
 
 	return 0;
 }
