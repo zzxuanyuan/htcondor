@@ -168,12 +168,9 @@ initialize ()
 			"Time to negotiate", this);
 
 	update_collector_tid = daemonCore->Register_Timer (
-			0, 
-			update_interval,
+			0, update_interval,
 			(TimerHandlercpp) &Matchmaker::updateCollector,
-			"Update Collector",
-			this );
-														   
+			"Update Collector", this );
 
 }
 
@@ -181,6 +178,7 @@ int Matchmaker::
 reinitialize ()
 {
 	char *tmp;
+	static bool first_time = true;
 
     // Initialize accountant params
     accountant.Initialize();
@@ -292,6 +290,13 @@ reinitialize ()
 	want_simple_matching = param_boolean("NEGOTIATOR_SIMPLE_MATCHING",false);
 	want_matchlist_caching = param_boolean("NEGOTIATOR_MATCHLIST_CACHING",false);
 	ConsiderPreemption = param_boolean("NEGOTIATOR_CONSIDER_PREEMPTION",true);
+
+	if( first_time ) {
+		first_time = false;
+	} else { 
+			// be sure to try to publish a new negotiator ad on reconfig
+		updateCollector();
+	}
 
 	// done
 	return TRUE;
