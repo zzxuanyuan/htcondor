@@ -29,6 +29,7 @@
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
 #include "basename.h"
 #include "condor_ckpt_name.h"
+#include "globus_utils.h"
 
 #include "gridmanager.h"
 #include "oraclejob.h"

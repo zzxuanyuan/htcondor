@@ -31,6 +31,7 @@
 #include "condor_ckpt_name.h"
 #include "nullfile.h"
 
+#include "globus_utils.h"
 #include "gridmanager.h"
 #include "nordugridjob.h"
 #include "condor_config.h"
