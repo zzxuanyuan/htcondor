@@ -26,7 +26,6 @@
 
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
 #include "list.h"
-#include "os_proc.h"
 #include "user_proc.h"
 #include "job_info_communicator.h"
 
@@ -56,6 +55,8 @@ public:
 		/** Params for "EXECUTE" and other useful stuff 
 		 */
 	virtual void Config();
+
+	virtual int SpawnJob( void );
 
 		/** Walk through list of jobs, call ShutDownGraceful on each.
 			@return 1 if no jobs running, 0 otherwise 
@@ -143,6 +144,8 @@ private:
 	bool is_gridshell;
 	int ShuttingDown;
 
+	UserProc* pre_script;
+	UserProc* post_script;
 };
 
 #endif

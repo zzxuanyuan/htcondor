@@ -28,6 +28,7 @@
 #pragma implementation "list.h"
 #endif
 #include "starter.h"
+#include "script_proc.h"
 #include "vanilla_proc.h"
 #include "java_proc.h"
 #include "mpi_master_proc.h"
@@ -58,6 +59,8 @@ CStarter::CStarter()
 	ShuttingDown = FALSE;
 	jic = NULL;
 	jobUniverse = CONDOR_UNIVERSE_VANILLA;
+	pre_script = NULL;
+	post_script = NULL;
 
 }
 
@@ -72,6 +75,12 @@ CStarter::~CStarter()
 	}
 	if( jic ) {
 		delete jic;
+	}
+	if( pre_script ) {
+		delete( pre_script );
+	}
+	if( post_script ) {
+		delete( post_script );
 	}
 }
 
@@ -329,6 +338,52 @@ CStarter::createTempExecuteDir( void )
 int
 CStarter::jobEnvironmentReady( void )
 {
+		// first, see if we're going to need any pre and post scripts
+	ClassAd* jobAd = jic->jobClassAd();
+	char* tmp = NULL;
+	MyString attr;
+
+	attr = "Pre";
+	attr += ATTR_JOB_CMD;
+	if( jobAd->LookupString(attr.GetCStr(), &tmp) ) {
+		free( tmp );
+		tmp = NULL;
+		pre_script = new ScriptProc( jobAd, "Pre" );
+	}
+
+	attr = "Post";
+	attr += ATTR_JOB_CMD;
+	if( jobAd->LookupString(attr.GetCStr(), &tmp) ) {
+		free( tmp );
+		tmp = NULL;
+		post_script = new ScriptProc( jobAd, "Post" );
+	}
+
+	if( pre_script ) {
+			// if there's a pre script, try to run it now
+
+		if( pre_script->StartJob() ) {
+				// if it's running, all we can do is return to
+				// DaemonCore and wait for the it to exit.  the
+				// reaper will then do the right thing
+			return TRUE;
+		} else {
+			dprintf( D_ALWAYS, "Failed to start prescript, exiting\n" );
+				// TODO notify the JIC somehow?
+			main_shutdown_fast();
+			return FALSE;
+		}
+	}
+
+		// if there's no pre-script, we can go directly to trying to
+		// spawn the main job
+	return SpawnJob();
+}
+
+
+int
+CStarter::SpawnJob( void )
+{
 		// Now that we've got all our files, we can figure out what
 		// kind of job we're starting up, instantiate the appropriate
 		// userproc class, and actually start the job.
@@ -399,7 +454,7 @@ CStarter::jobEnvironmentReady( void )
 	}
 }
 
-	
+
 int
 CStarter::Suspend(int)
 {
@@ -452,11 +507,27 @@ CStarter::Reaper(int pid, int exit_status)
 	UserProc *job;
 
 	if( WIFSIGNALED(exit_status) ) {
-		dprintf( D_ALWAYS, "Job exited, pid=%d, signal=%d\n", pid,
+		dprintf( D_ALWAYS, "Process exited, pid=%d, signal=%d\n", pid,
 				 WTERMSIG(exit_status) );
 	} else {
-		dprintf( D_ALWAYS, "Job exited, pid=%d, status=%d\n", pid,
+		dprintf( D_ALWAYS, "Process exited, pid=%d, status=%d\n", pid,
 				 WEXITSTATUS(exit_status) );
+	}
+
+	if( pre_script && pre_script->JobCleanup(pid, exit_status) ) {		
+		handled_jobs++;
+			// TODO: deal with shutdown case?!?
+		
+			// when the pre_script exits, we know the JobList is going
+			// to be empty, so don't bother with any of the rest of
+			// this.  instead, the starter is now able to call
+			// SpawnJob() to launch the main job.
+		if( ! SpawnJob() ) {
+			dprintf( D_ALWAYS, "Failed to start main job, exiting\n" );
+			main_shutdown_fast();
+			return FALSE;
+		}
+		return TRUE;
 	}
 
 	JobList.Rewind();
@@ -468,6 +539,7 @@ CStarter::Reaper(int pid, int exit_status)
 			CleanedUpJobList.Append(job);
 		}
 	}
+
 	dprintf( D_FULLDEBUG, "Reaper: all=%d handled=%d ShuttingDown=%d\n",
 			 all_jobs, handled_jobs, ShuttingDown );
 
@@ -517,6 +589,12 @@ CStarter::publishUpdateAd( ClassAd* ad )
 		if( job->PublishUpdateAd(ad) ) {
 			found_one = true;
 		}
+	}
+	if( pre_script && pre_script->PublishUpdateAd(ad) ) {
+		found_one = true;
+	}
+	if( post_script && post_script->PublishUpdateAd(ad) ) {
+		found_one = true;
 	}
 	return found_one;
 }
