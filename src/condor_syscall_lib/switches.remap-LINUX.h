@@ -54,6 +54,8 @@ REMAP_THREE( sigprocmask, __sigprocmask, int, int, const sigset_t *, sigset_t * 
 REMAP_ONE( sigsetmask, __sigsetmask, int, int )
 #if defined(GLIBC)
 REMAP_THREE( sigaction, __sigaction, int, int, const struct sigaction *, struct sigaction * )
+/* Although analyze_syscalls complains, strange things happen
+   when sigsuspend is remapped here. */
 #else
 REMAP_ONE( sigsuspend, __sigsuspend, int, const sigset_t * )
 REMAP_THREE( sigaction, __sigaction, int, int, struct sigaction *, struct sigaction * )
