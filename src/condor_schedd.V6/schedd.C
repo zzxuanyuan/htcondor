@@ -4854,6 +4854,8 @@ Scheduler::add_shadow_rec( shadow_rec* new_rec )
 	shadowsByProcID->insert(new_rec->job_id, new_rec);
 
 	if ( new_rec->match ) {
+		SetAttributeString( new_rec->job_id.cluster, new_rec->job_id.proc,
+						    ATTR_CLAIM_ID, new_rec->match->id );
 		struct sockaddr_in sin;
 		if ( new_rec->match->peer && new_rec->match->peer[0] &&
 			 string_to_sin(new_rec->match->peer, &sin) == 1) {
@@ -5000,16 +5002,30 @@ Scheduler::delete_shadow_rec(int pid)
 			update_remote_wall_clock(rec->job_id.cluster, rec->job_id.proc);
 		}
 
-		char last_host[256];
-		last_host[0] = '\0';
-		GetAttributeString(rec->job_id.cluster,rec->job_id.proc,
-			ATTR_REMOTE_HOST,last_host);
-		DeleteAttribute( rec->job_id.cluster,rec->job_id.proc, 
-			ATTR_REMOTE_HOST );
-		if ( last_host[0] ) {
-			SetAttributeString( rec->job_id.cluster,rec->job_id.proc, 
-							ATTR_LAST_REMOTE_HOST, last_host );
+		char* last_host = NULL;
+		GetAttributeStringNew( rec->job_id.cluster, rec->job_id.proc,
+							   ATTR_REMOTE_HOST, &last_host );
+		DeleteAttribute( rec->job_id.cluster, rec->job_id.proc, 
+						 ATTR_REMOTE_HOST );
+		if( last_host ) {
+			SetAttributeString( rec->job_id.cluster, rec->job_id.proc, 
+								ATTR_LAST_REMOTE_HOST, last_host );
+			free( last_host );
+			last_host = NULL;
 		}
+
+		char* last_claim = NULL;
+		GetAttributeStringNew( rec->job_id.cluster, rec->job_id.proc,
+							   ATTR_CLAIM_ID, &last_claim );
+		DeleteAttribute( rec->job_id.cluster, rec->job_id.proc, 
+						 ATTR_CLAIM_ID );
+		if( last_claim ) {
+			SetAttributeString( rec->job_id.cluster, rec->job_id.proc, 
+								ATTR_LAST_CLAIM_ID, last_claim );
+			free( last_claim );
+			last_claim = NULL;
+		}
+
 		DeleteAttribute( rec->job_id.cluster, rec->job_id.proc,
 						 ATTR_REMOTE_POOL );
 		DeleteAttribute( rec->job_id.cluster,rec->job_id.proc, 
