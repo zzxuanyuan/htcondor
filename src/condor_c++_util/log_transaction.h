@@ -67,7 +67,6 @@ private:
 
 class Transaction {
 public:
-	void Commit(int fd, void *data_structure);
 	void Commit(FILE *fp, void *data_structure);
 	void AppendLog(LogRecord *);
 	LogRecord *FirstEntry() { return op_log.FirstEntry(); }

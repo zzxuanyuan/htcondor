@@ -7,19 +7,21 @@
 #include "Set.h"
 #include "HashTable.h"
 #include "MyString.h"
-#include "classad_log.h"
-
+#include "log.h"
+#include "classad_hashtable.h"
+#include "log_transaction.h"
 #include "classad_collection_types.h"
 
 //--------------------------------------------------------------------------
 
 typedef HashTable<int,BaseCollection*> CollectionHashTable;
+typedef HashTable <HashKey, ClassAd *> ClassAdHashTable;
 int partitionHashFcn( const MyString &, int );
 
 ///--------------------------------------------------------------------------
 
 //@author Adiel Yoaz
-///@include: classad_collection_types.h
+//@include: classad_collection_types.h
 
 /** This is the repository main class. Using the methods of this class
     the user can create and delete class-ads, change their attributes,
@@ -31,22 +33,21 @@ int partitionHashFcn( const MyString &, int );
     @author Adiel Yoaz
 */
 
-class ClassAdCollection : private ClassAdLog {
-friend CollChildIterator;
-friend CollContentIterator;
+class ClassAdCollection {
+
+friend class CollChildIterator;
+friend class CollContentIterator;
+
+friend class LogCollNewClassAd;
+friend class LogCollDestroyClassAd;
+friend class LogCollUpdateClassAd;
+
 public:
 
   //------------------------------------------------------------------------
   /**@name Constructor and Destructor
   */
   //@{
-
-  /** Constructor (initialization). No logging is done if the log
-      filename is not given using this constructor. We start with an
-      empty repository.
-    @return nothing
-  */
-  ClassAdCollection();
 
   /** Constructor (initialization). It reads the log file and initializes
       the class-ads (that are read from the log file) in memory.
@@ -73,17 +74,17 @@ public:
   /** Begin a transaction
     @return nothing
   */
-  void BeginTransaction() { ClassAdLog::BeginTransaction(); }
+  void BeginTransaction();
 
   /** Commit a transaction
     @return nothing
   */
-  void CommitTransaction() { ClassAdLog::CommitTransaction(); }
+  void CommitTransaction();
 
   /** Abort a transaction
     @return nothing
   */
-  void AbortTransaction() { ClassAdLog::AbortTransaction(); }
+  void AbortTransaction();
 
   /** Lookup an attribute's value in the current transaction. 
       @param key the key with which the class-ad was inserted into the 
@@ -92,14 +93,16 @@ public:
       @param expr the attribute expression (output parameter).
       @return true on success, false otherwise.
   */
+/*
   bool LookupInTransaction(const char *key, const char *name, ExprTree *&val) { 
 	 return (ClassAdLog::LookupInTransaction(key,name,val)==1); 
   }
+*/
   
   /** Truncate the log file by creating a new "checkpoint" of the repository
     @return nothing
   */
-  void TruncLog() { ClassAdLog::TruncLog(); }
+  void TruncLog();
 
   //@}
   //------------------------------------------------------------------------
@@ -107,25 +110,19 @@ public:
   */
   //@{
 
-  /** Insert a new empty class-ad with the specified key.
-      @param key The class-ad's key.
-      @return true on success, false otherwise.
-  */
-  bool NewClassAd(const char* key);
-
   /** Insert a new class-ad with the specified key.
       The new class-ad will be a copy of the ad supplied.
       @param key The class-ad's key.
       @param ad The class-ad to copy into the repository.
       @return true on success, false otherwise.
   */
-  bool NewClassAd(const char* key, ClassAd* ad);
+  void NewClassAd(const char* key, ClassAd* ad);
 
   /** Destroy the class-ad with the specified key.
       @param key The class-ad's key.
       @return true on success, false otherwise.
   */
-  bool DestroyClassAd(const char* key);
+  void DestroyClassAd(const char* key);
 
   /** Set an attribute in a class-ad.
       @param key The class-ad's key.
@@ -133,16 +130,7 @@ public:
       @param expr the attribute expression
       @return true on success, false otherwise.
   */
-  bool SetAttribute(const char* key, const char* name, ExprTree* expr);
-  bool SetAttribute(const char* key, const char* name, const char *expr, 
-		  	int len=-1);
-
-  /** Delete an attribute in a class-ad.
-      @param key The class-ad's key.
-      @param name the name of the attribute.
-      @return true on success, false otherwise.
-  */
-  bool DeleteAttribute(const char* key, const char* name);
+  void UpdateClassAd(const char* key, ClassAd* ad);
 
   /** Get a class-ad from the repository.
       Note that the class-ad returned cannot be modified directly.
@@ -173,11 +161,13 @@ public:
 	  	from the parent.
       @return the ID of the new collection, or -1 in case of failure.
   */
+/*
   int CreateExplicitCollection(int ParentCoID, const MyString& Rank, 
 		  bool FullFlag=false);
   /// Same as above, but pass in a classad expression for the rank
   int CreateExplicitCollection(int ParentCoID, ExprTree *Rank, 
 		  bool FullFlag=false);
+*/
 
   /** Create a constraint collection, as a child of another collection.
       A constraint collection always contains the subset of ads from the parent,
@@ -221,39 +211,11 @@ public:
   bool DeleteCollection(int CoID);
 
   //@}
+
   //------------------------------------------------------------------------
   /**@name Iteration methods
   */
   //@{
-
-  bool InitializeIterator( int CoID, CollContentIterator& i );
-  bool InitializeIterator( int CoID, CollChildIterator& i );
-
-  /** Start iterations on all collections
-    @return nothing
-  */
-  void StartIterateAllCollections();
-
-  /** Get the next collection ID
-      @param CoID The ID of the next collection (output parameter).
-      @return true on success, false otherwise.
-  */
-  bool IterateAllCollections(int& CoID);
-
-  /** Start iterations on child collections of a specified collection.
-      @param ParentCoID The ID of the parent of the collections to be iterated 
-	  	on.
-      @return true on success, false otherwise.
-  */
-  bool StartIterateChildCollections(int ParentCoID);
-
-  /** Get the next child of the specified parent collection.
-      @param ParentCoID The ID of the parent of the collections to be iterated 
-	  	on.
-      @param CoID The ID of the next collection (output parameter).
-      @return true on success, false otherwise.
-  */
-  bool IterateChildCollections(int ParentCoID, int& CoID);
 
   bool StartIterateClassAds(int CoID);
   bool IterateClassAds( int CoID, ClassAd *& ad );
@@ -270,8 +232,18 @@ public:
   */
   bool IterateAllClassAds(ClassAd*& Ad) { return (table.iterate(Ad)==1); }
 
+  bool IterateAllClassAds(char* key, ClassAd*& ad) { 
+    HashKey HK;
+    if (table.iterate(HK,ad)==1) {
+      HK.sprint(key);
+      return true;
+    }
+    return false;
+  }
+
   //@}
   //------------------------------------------------------------------------
+
   /**@name Misc methods
   */
   //@{
@@ -291,6 +263,8 @@ public:
   */
   void Print(int CoID);
 
+  void PrintAllAds();
+
   /// A hash function used by the hash table objects (used internally).
   static int HashFunc(const int& Key, int TableSize) { return (Key % TableSize); }
 
@@ -298,6 +272,7 @@ public:
   //------------------------------------------------------------------------
 
 private:
+
   bool IterateClassAds( int CoID, RankedClassAd &Ranked );
   //------------------------------------------------------------------------
   // Data Members
@@ -310,12 +285,33 @@ private:
   bool AddClassAd(int CoID, const MyString& OID);
   bool AddClassAd(int CoID, const MyString& OID, ClassAd* ad);
   bool RemoveClassAd(int CoID, const MyString& OID);
-  bool ChangeClassAd(const MyString& OID);
+  bool ChangeClassAd(const MyString& OID, ClassAd* ad);
   bool RemoveCollection(int CoID, BaseCollection* Coll);
   bool TraverseTree(int CoID, 
 		  bool (ClassAdCollection::*Func)(int,BaseCollection*));
   static bool EqualSets(StringSet& S1, StringSet& S2);
-  bool CheckClassAd(BaseCollection* Coll, const MyString& OID, ClassAd* Ad);
+  bool CheckClassAd(int CoID, BaseCollection* Coll, const MyString& OID, ClassAd* Ad);
+  BaseCollection* GetCollection(int CoID);
+
+  void PlayDestroyClassAd(const char* key);
+  void PlayNewClassAd(const char* key, ClassAd* ad);
+  void PlayUpdateClassAd(const char* key, ClassAd* ad);
+
+  void AppendLog(LogRecord *log);
+  
+    ClassAdHashTable table;  // Hash table of class ads in memory
+
+    void ReadLog(const char* filename);
+    LogRecord* ReadLogEntry(FILE* fp);
+    LogRecord* InstantiateLogEntry(FILE* fp, int type);
+
+    void    LogState(FILE *fp);
+    char    log_filename[_POSIX_PATH_MAX];
+    FILE    *log_fp;
+    Source  src;
+    Sink    snk;
+    bool    EmptyTransaction;
+    Transaction *active_transaction;
 
 };
 

@@ -3,360 +3,366 @@
 #include "condor_attributes.h"
 
 #include "classad_collection.h"
+#include "classad_collection_ops.h"
 
 static char *_FileName_ = __FILE__;
 static bool makePartitionHashKey( ClassAd *, StringSet &, MyString & );
 
-BaseCollection::
-BaseCollection(const MyString& rank) : childItors( 4 ), contentItors( 4 )
-{
-    ClassAd *ad = new ClassAd( );
-    if( ad ) {
-        if( rank.Value() && strcmp( rank.Value(), "" ) != 0 ) {
-            ad->Insert( ATTR_RANK, rank.Value( ) );
-        } else {
-            ad->InsertAttr( ATTR_RANK, 0 );
-        }
-    }
-    rankCtx.ReplaceLeftAd( ad );
-	lastChildItor = 0;
-	lastContentItor = 0;	
-	childItors.fill( NULL );
-	contentItors.fill( NULL );
-}
-
-BaseCollection::
-BaseCollection(ExprTree *tree) : childItors( 4 ), contentItors( 4 )
-{
-    ClassAd *ad = new ClassAd( );
-    if( ad ) {
-        if( tree ) {
-            ad->Insert( ATTR_RANK, tree->Copy( ) );
-        } else {
-            ad->InsertAttr( ATTR_RANK, 0 );
-        }
-    }
-    rankCtx.ReplaceLeftAd( ad );
-	lastChildItor = 0;
-	lastContentItor = 0;
-	childItors.fill( NULL );
-	contentItors.fill( NULL );
-}
-
-BaseCollection::
-~BaseCollection( )
-{
-		// invalidate active iterators
-	for( int i = 0 ; i < lastChildItor ; i++ ) {
-		if( childItors[i] ) childItors[i]->invalidate( );
-	}
-	for( int i = 0 ; i < lastContentItor ; i++ ) {
-		if( contentItors[i] ) contentItors[i]->invalidate( );
-	}
-}
-
-ExprTree *BaseCollection::
-GetRankExpr()
-{
-    ClassAd *ad = rankCtx.GetLeftAd( );
-    return( ad ? ad->Lookup( ATTR_RANK ) : NULL );
-}
-
-double BaseCollection::
-GetRankValue( ClassAd* ad )
-{
-    double d;
-	rankCtx.ReplaceRightAd( ad );
-    if( !rankCtx.EvaluateAttrNumber( "leftrankvalue", d ) ) {
-        rankCtx.RemoveRightAd( );
-        return -1;
-    }
-    rankCtx.RemoveRightAd( );
-    return d;
-}
-
-
-void BaseCollection::
-RegisterChildItor( CollChildIterator *itor, ClassAdCollection *cm, int ID )
-{
-	bool found = false;
-	if( !itor ) return;
-	for( int i = 0 ; i < lastChildItor ; i++ ) {
-		if( childItors[i] == itor ) {
-			found = true;
-			break;
-		}
-	}
-	if( !found ) {
-		childItors[lastChildItor] = itor;
-		lastChildItor++;
-	}
-	itor->initialize( cm, this, ID, Children );
-}
-
-
-void BaseCollection::
-UnregisterChildItor( CollChildIterator *itor )
-{
-	if( !itor ) return;
-	for( int i = 0; i < lastChildItor; i++ ) {
-		if( childItors[i] == itor ) {
-			lastChildItor--;
-			childItors[i] = childItors[lastChildItor];
-			childItors[lastChildItor] = NULL;
-			return;
-		}
-	}
-}
-
-
-void BaseCollection::
-RegisterContentItor( CollContentIterator *itor, ClassAdCollection *cm, int ID )
-{
-	bool found = false;
-	if( !itor ) return;
-	for( int i = 0 ; i < lastContentItor ; i++ ) {
-		if( contentItors[i] == itor ) {
-			found = true;
-			break;
-		}
-	}
-	if( !found ) {
-		contentItors[lastContentItor] = itor;
-		lastContentItor++;
-	}
-	itor->initialize( cm, this, ID, Members );
-}
-
-
-void BaseCollection::
-UnregisterContentItor( CollContentIterator *itor )
-{
-	if( !itor ) return;
-	for( int i = 0; i < lastContentItor; i++ ) {
-		if( contentItors[i] == itor ) {
-			lastContentItor--;
-			contentItors[i] = contentItors[lastContentItor];
-			contentItors[lastContentItor] = NULL;
-			return;
-		}
-	}
-}
-
-
-void BaseCollection::
-NotifyContentItorsInsertion( )
-{
-	for( int i = 0 ; i < lastContentItor ; i++ ) {
-		if( contentItors[i] ) {
-			contentItors[i]->updateForInsertion( );
-		}
-	}
-}
-
-void BaseCollection::
-NotifyContentItorsDeletion( const RankedClassAd &ad )
-{
-	for( int i = 0 ; i < lastContentItor ; i++ ) {
-		if( contentItors[i] ) {
-			contentItors[i]->updateForDeletion( ad );
-		}
-	}
-}
-
-void BaseCollection::
-NotifyChildItorsInsertion( )
-{
-	for( int i = 0 ; i < lastChildItor ; i++ ) {
-		if( childItors[i] ) {
-			childItors[i]->updateForInsertion( );
-		}
-	}
-}
-
-void BaseCollection::
-NotifyChildItorsDeletion( int item )
-{
-	for( int i = 0 ; i < lastChildItor ; i++ ) {
-		if( childItors[i] ) {
-			childItors[i]->updateForDeletion( item );
-		}
-	}
-}
-
-ConstraintCollection::
-ConstraintCollection(const MyString& rank, const MyString& constraint)
-	: BaseCollection(rank)
-{
-	ClassAd *ad = new ClassAd( );
-	ad->Insert( ATTR_REQUIREMENTS, constraint.Value( ) );
-	constraintCtx.ReplaceLeftAd( ad );
-}
-
-ConstraintCollection::
-ConstraintCollection(ExprTree *rank, ExprTree *constraint)
-	: BaseCollection(rank)
-{
-	if( constraint && rank ) {
-		ClassAd *ad = new ClassAd( );
-		ad->Insert( ATTR_REQUIREMENTS, constraint->Copy( ) );
-		constraintCtx.ReplaceLeftAd( ad );
-	} else {
-		constraint = rank = NULL;
-	}
-}
-
-bool ConstraintCollection::
-CheckClassAd(ClassAd* Ad)
-{
-	bool rval, b;
-	Value val;
-	constraintCtx.ReplaceRightAd( Ad );
-	rval = ( constraintCtx.EvaluateAttr( "rightmatchesleft", val ) &&
-		 val.IsBooleanValue( b ) && b );
-	constraintCtx.RemoveRightAd( );
-	return( rval );
-}
-
 //-----------------------------------------------------------------------
 // Constructor (initialization)
 //-----------------------------------------------------------------------
 
-ClassAdCollection::ClassAdCollection(const char* filename) 
-  : Collections(97, HashFunc), ClassAdLog(filename)
+ClassAdCollection::ClassAdCollection(const char* filename=NULL)
+  : table(1024, hashFunction), Collections(97, HashFunc)
 {
-	LastCoID=0;
-	Collections.insert(LastCoID,new ExplicitCollection("",true));
-
-	HashKey HK;
-	char key[_POSIX_PATH_MAX];
-	ClassAd* Ad;
-	table.startIterations();
-	while(table.iterate(HK,Ad)) {
-		HK.sprint(key);
-		AddClassAd(0,key,Ad);
-	}
+    log_filename[0] = '\0';
+    active_transaction = NULL;
+    log_fp = NULL;
+    LastCoID=0;
+    Collections.insert(LastCoID,new ExplicitCollection(-1,"",true));
+    if (filename) ReadLog(filename);
 }
 
 //-----------------------------------------------------------------------
-// Constructor (initialization)
-//-----------------------------------------------------------------------
 
-ClassAdCollection::ClassAdCollection() 
-  : Collections(97, HashFunc), ClassAdLog()
+void ClassAdCollection::ReadLog(const char *filename)
 {
-  	LastCoID=0;
-  	Collections.insert(LastCoID,new ExplicitCollection("",true));
+    strcpy(log_filename, filename);
+    int fd;
+
+        // open the file with open to get the permissions right (in case the
+        // the file is being created)  then wrap a FILE  around it
+    if( ( fd = open(log_filename, O_RDWR | O_CREAT, 0600) ) < 0 ) {
+        EXCEPT("failed to open log %s, errno = %d", log_filename, errno);
+    }
+    if( ( log_fp = fdopen( fd, "r+" ) ) == NULL ) {
+        EXCEPT( "failed to fdopen() log %s, errno = %d", log_filename, errno );
+    }
+
+        // Read all of the log records
+    LogRecord   *log_rec;
+    while ((log_rec = ReadLogEntry(log_fp)) != 0) {
+        switch (log_rec->get_op_type()) {
+        case CondorLogOp_BeginTransaction:
+            if (active_transaction) {
+                dprintf(D_ALWAYS, "Warning: Encountered nested transactions "
+                    "in %s, log may be bogus...", filename);
+            } else {
+                active_transaction = new Transaction();
+            }
+            delete log_rec;
+            break;
+
+        case CondorLogOp_EndTransaction:
+            if (!active_transaction) {
+                dprintf(D_ALWAYS, "Warning: Encountered unmatched end "
+                    "transaction in %s, log may be bogus...", filename);
+            } else {
+                    // commit in memory only
+                active_transaction->Commit(NULL, (void*)this);
+                delete active_transaction;
+                active_transaction = NULL;
+            }
+            delete log_rec;
+            break;
+
+        default:
+            if (active_transaction) {
+                active_transaction->AppendLog(log_rec);
+            } else {
+                log_rec->Play((void *)this);
+                delete log_rec;
+            }
+        }
+    }
+    if (active_transaction) {   // abort incomplete transaction
+        delete active_transaction;
+        active_transaction = NULL;
+    }
+	TruncLog();
 }
 
-//-----------------------------------------------------------------------
-// Destructor - frees the memory used by the collections
-//-----------------------------------------------------------------------
+//--------------------------------------------------------------------------------
 
-ClassAdCollection::~ClassAdCollection() {
+ClassAdCollection::~ClassAdCollection()
+{
   	DeleteCollection(0);
+
+    if (active_transaction) delete active_transaction;
+
+    // HashTable class will not delete the ClassAd pointers we have
+    // inserted, so we delete them here...
+    table.startIterations();
+    ClassAd *ad;
+    HashKey key;
+    while (table.iterate(key, ad) == 1) {
+        delete ad;
+    }
 }
 
-//-----------------------------------------------------------------------
-/** Insert a new Class Ad -
- this inserts a classad with a given key, type, and target type. The class ad is
-inserted as an empty class ad (use SetAttribute to set its attributes).
-This operation is logged. The class ad is inserted into the root collection,
-and into its children if appropriate.
-Input: key - the unique key for the ad
-       mytype - the ad's type
-       targettype - the target type
-Output: true on success, false otherwise
+//--------------------------------------------------------------------------------
+
+void
+ClassAdCollection::AppendLog(LogRecord *log)
+{
+    if (active_transaction) {
+        if (EmptyTransaction) {
+            LogBeginTransaction *log = new LogBeginTransaction;
+            active_transaction->AppendLog(log);
+            EmptyTransaction = false;
+        }
+        active_transaction->AppendLog(log);
+    } else {
+        if( log_fp ) {
+            if (!log->Write(log_fp)) {
+                EXCEPT("write to %s failed, errno = %d", log_filename, errno);
+            }
+            fflush( log_fp );
+            if (fsync( fileno( log_fp ) ) < 0) {
+                EXCEPT("fsync of %s failed, errno = %d", log_filename, errno);
+            }
+        }
+        log->Play((void *)this);
+        delete log;
+    }
+}
+
+//----------------------------------------------------------------------------
+
+void
+ClassAdCollection::TruncLog()
+{
+    char    tmp_log_filename[_POSIX_PATH_MAX];
+    int     new_log_fd;
+    FILE    *new_log_fp;
+
+    sprintf(tmp_log_filename, "%s.tmp", log_filename);
+    new_log_fd = open(tmp_log_filename, O_RDWR | O_CREAT | O_TRUNC , 0600);
+    if (new_log_fd < 0) {
+        dprintf(D_ALWAYS, "failed to truncate log: open(%s) returns %d\n",
+                tmp_log_filename, new_log_fd);
+        return;
+    }
+    if( ( new_log_fp = fdopen( new_log_fd, "r+" ) ) == NULL ) {
+        dprintf( D_ALWAYS, "failed to truncate log: fdopen(%s) failed, "
+            "errno = %d\n", tmp_log_filename, errno );
+        return;
+    }
+
+    LogState(new_log_fp);
+    fclose(log_fp);
+    fclose(new_log_fp);
+#if defined(WIN32)
+    if (MoveFileEx(tmp_log_filename, log_filename, MOVEFILE_REPLACE_EXISTING)
+            == 0) {
+        dprintf(D_ALWAYS, "failed to truncate log: MoveFileEx failed with "
+            "error %d\n", GetLastError());
+        return;
+    }
+#else
+    if (rename(tmp_log_filename, log_filename) < 0) {
+        dprintf(D_ALWAYS, "failed to truncate log: rename(%s, %s) returns "
+                "errno %d", tmp_log_filename, log_filename, errno);
+        return;
+    }
+#endif
+
+    if( ( log_fp = fopen( log_filename, "a+" ) ) == NULL ) {
+        EXCEPT( "Failed to reopen %s, errno = %d", log_filename, errno );
+    }
+}
+
+//----------------------------------------------------------------------------
+
+void
+ClassAdCollection::BeginTransaction()
+{
+    assert(!active_transaction);
+    active_transaction = new Transaction();
+    EmptyTransaction = true;
+}
+
+//----------------------------------------------------------------------------
+
+void
+ClassAdCollection::AbortTransaction()
+{
+    // Sometimes we do an AbortTransaction() when we don't know if there was
+    // an active transaction.  This is allowed.
+    if (active_transaction) {
+        delete active_transaction;
+        active_transaction = NULL;
+    }
+}
+
+//----------------------------------------------------------------------------
+
+void
+ClassAdCollection::CommitTransaction()
+{
+    assert(active_transaction);
+    if (!EmptyTransaction) {
+        LogEndTransaction *log = new LogEndTransaction;
+        active_transaction->AppendLog(log);
+        active_transaction->Commit(log_fp, (void*)this);
+    }
+    delete active_transaction;
+    active_transaction = NULL;
+}
+
+//----------------------------------------------------------------------------
+
+/*
+int
+ClassAdCollection::LookupInTransaction(const char *key, const char *name,
+    ExprTree *&expr)
+{
+    return 0;
+}
 */
-//-----------------------------------------------------------------------
 
-bool ClassAdCollection::NewClassAd(const char* key)
+//----------------------------------------------------------------------------
+
+void
+ClassAdCollection::LogState( FILE *fp )
 {
-  	LogRecord* log=new LogNewClassAd(key);
-  	ClassAdLog::AppendLog(log);
-  	return AddClassAd(0,key);
+    LogRecord   *log=NULL;
+    ClassAd     *ad=NULL;
+    ExprTree    *expr=NULL;
+    HashKey     hashval;
+    char        key[_POSIX_PATH_MAX];
+    char        *attr_name = NULL;
+    ClassAdIterator itor;
+
+    table.startIterations();
+    while(table.iterate(ad) == 1) {
+        table.getCurrentKey(hashval);
+        hashval.sprint(key);
+        log = new LogCollNewClassAd(key,ad);
+        if (!log->Write(fp)) {
+            EXCEPT("write to %s failed, errno = %d", log_filename, errno);
+        }
+        delete log;
+    }
+    if (fsync(fileno(fp)) < 0) {
+        EXCEPT("fsync of %s failed, errno = %d", log_filename, errno);
+    }
+}
+
+//----------------------------------------------------------------------------
+
+LogRecord* ClassAdCollection::ReadLogEntry(FILE* fp)
+{
+    LogRecord       *log_rec;
+    LogRecord       head_only;
+
+    if (!head_only.ReadHeader(fp)) return NULL;
+    log_rec = InstantiateLogEntry(fp, head_only.get_op_type());
+    if (!head_only.ReadTail(fp)) {
+        delete log_rec;
+        return NULL;
+    }
+    return log_rec;
+}
+
+//----------------------------------------------------------------------------
+
+LogRecord* ClassAdCollection::InstantiateLogEntry(FILE* fp, int type)
+{
+    LogRecord   *log_rec;
+
+    switch(type) {
+        case CondorLogOp_CollNewClassAd:
+            log_rec = new LogCollNewClassAd(NULL, NULL);
+            break;
+        case CondorLogOp_CollDestroyClassAd:
+            log_rec = new LogCollDestroyClassAd(NULL);
+            break;
+        case CondorLogOp_CollUpdateClassAd:
+            log_rec = new LogCollUpdateClassAd(NULL, NULL);
+            break;
+        case CondorLogOp_BeginTransaction:
+            log_rec = new LogBeginTransaction();
+            break;
+        case CondorLogOp_EndTransaction:
+            log_rec = new LogEndTransaction();
+            break;
+        default:
+            return NULL;
+            break;
+    }
+    if (!log_rec->ReadBody(fp)) {
+        EXCEPT("Can't read log!");
+    }
+    return log_rec;
 }
 
 //-----------------------------------------------------------------------
 
-bool ClassAdCollection::NewClassAd(const char* key, ClassAd* ad)
+void ClassAdCollection::NewClassAd(const char* key, ClassAd* ad)
 {
-	LogRecord 		*log=new LogNewClassAd(key);
-	ExprTree 		*expr;
-	char 			*name;
-	ClassAdIterator itor;
-
-	ClassAdLog::AppendLog(log);
-	itor.Initialize( *ad );
-	while( itor.NextAttribute( name, expr ) ) {
-		LogRecord* log=new LogSetAttribute(key,name,expr);
-		ClassAdLog::AppendLog(log);
-	}
-	return AddClassAd(0,key);
+  	LogRecord* log=new LogCollNewClassAd(key,ad);
+  	AppendLog(log);
 }
 
 //-----------------------------------------------------------------------
-/** Delete a Class Ad
-Delete a class ad. The ad is deleted from all the collections. This operation
-is logged. 
-Input: key - the class ad's key.
-Output: true on success, false otherwise
-*/
-//-----------------------------------------------------------------------
 
-bool ClassAdCollection::DestroyClassAd(const char *key)
+void ClassAdCollection::PlayNewClassAd(const char* key, ClassAd* ad)
 {
-	LogRecord* log=new LogDestroyClassAd(key);
-	ClassAdLog::AppendLog(log);
-	return RemoveClassAd(0,key);
+	bool exist=false;
+    HashKey hkey(key);
+    ClassAd* dummy;
+    if (table.lookup(hkey, dummy) == 0) {
+        // Class-ad already exists in collection!
+        PlayDestroyClassAd(key);
+    }
+    table.insert(key, ad);
+    AddClassAd(0,key,ad);
 }
 
 //-----------------------------------------------------------------------
-/** Change attribute of a class ad - this operation is logged.
-Any effects on collection membership will also take place.
-Input: key - the class ad's key
-       name - the attribute name
-       value - the attribute value
-Output: true on success, false otherwise
-*/
+// Delete a Class Ad
 //-----------------------------------------------------------------------
 
-bool ClassAdCollection::SetAttribute(const char *key, const char *name, 
-	ExprTree *expr)
+void ClassAdCollection::DestroyClassAd(const char *key)
 {
-	LogRecord* log=new LogSetAttribute(key,name,expr);
-	ClassAdLog::AppendLog(log);
-	return ChangeClassAd(key);
+	LogRecord* log=new LogCollDestroyClassAd(key);
+	AppendLog(log);
 }
 
-bool ClassAdCollection::SetAttribute(const char *key, const char *name, const
-	char *expr, int len )
+//-----------------------------------------------------------------------
+
+void ClassAdCollection::PlayDestroyClassAd(const char* key)
 {
-	Source 	src;
-	ExprTree *tree;
-	src.SetSource( expr, len );
-	if( !src.ParseExpression( tree ) || !SetAttribute( key, name, tree ) ) {
-		return false;
-	}
-	delete tree;
-	return true;
+    HashKey hkey(key);
+    ClassAd *ad;
+    if (table.lookup(hkey, ad) < 0) {
+        return;
+    }
+    table.remove(hkey);
+    RemoveClassAd(0,key);
+    delete ad;
 }
 
-	
 //-----------------------------------------------------------------------
-/** Delete an attribute of a class ad - this operation is logged.
-Any effects on collection membership will also take place.
-Input: key - the class ad's key
-       name - the attribute name
-Output: true on success, false otherwise
-*/
+// Change attribute of a class ad - this operation is logged.
 //-----------------------------------------------------------------------
 
-bool ClassAdCollection::DeleteAttribute(const char *key, const char *name)
+void ClassAdCollection::UpdateClassAd(const char *key, ClassAd* ad)
 {
-	LogRecord* log=new LogDeleteAttribute(key,name);
-	ClassAdLog::AppendLog(log);
-	return ChangeClassAd(key);
+	LogRecord* log=new LogCollUpdateClassAd(key,ad);
+	AppendLog(log);
+}
+
+//-----------------------------------------------------------------------
+
+void ClassAdCollection::PlayUpdateClassAd(const char *key, ClassAd* upd_ad)
+{
+    ClassAd *ad;
+    if (table.lookup(HashKey(key), ad) < 0) return;
+   
+    ad->Update(*upd_ad);
+    ChangeClassAd(key,ad);
 }
 
 //-----------------------------------------------------------------------
@@ -371,6 +377,7 @@ Output: the new collectionID
 */
 //-----------------------------------------------------------------------
 
+/*
 int ClassAdCollection::CreateExplicitCollection(int ParentCoID, 
 	const MyString& Rank, bool FullFlag)
 {
@@ -379,14 +386,13 @@ int ClassAdCollection::CreateExplicitCollection(int ParentCoID,
 	if (Collections.lookup(ParentCoID,Parent)==-1) return -1;
 
 	// Initialize and insert to collection table
-	ExplicitCollection* Coll=new ExplicitCollection(Rank,FullFlag);
+	ExplicitCollection* Coll=new ExplicitCollection(ParentCoID,Rank,FullFlag);
 	int CoID=LastCoID+1;
 	if (Collections.insert(CoID,Coll)==-1) return -1;
 	LastCoID=CoID;
 
 	// Add to parent's children
 	Parent->Children.Add(CoID);
-	Parent->NotifyChildItorsInsertion( );
 
 	// Add Parents members to new collection
 	RankedClassAd RankedAd;
@@ -396,6 +402,7 @@ int ClassAdCollection::CreateExplicitCollection(int ParentCoID,
 	}
 	return CoID;
 }
+*/
 
 //-----------------------------------------------------------------------
 /** Create a constraint Collection - create a new collection as a child of
@@ -416,14 +423,13 @@ int ClassAdCollection::CreateConstraintCollection(int ParentCoID,
 	if (Collections.lookup(ParentCoID,Parent)==-1) return -1;
 
 	// Initialize and insert to collection table
-	ConstraintCollection* Coll=new ConstraintCollection(Rank,Constraint);
+	ConstraintCollection* Coll=new ConstraintCollection(ParentCoID,Rank,Constraint);
 	int CoID=LastCoID+1;
 	if (Collections.insert(CoID,Coll)==-1) return -1;
 	LastCoID=CoID;
 
 	// Add to parent's children
 	Parent->Children.Add(CoID);
-	Parent->NotifyChildItorsInsertion( );
 
 	// Add Parents members to new collection
 	RankedClassAd RankedAd;
@@ -445,14 +451,13 @@ int ClassAdCollection::CreatePartition(int ParentCoID, const MyString& Rank,
 	if (Collections.lookup(ParentCoID,Parent)==-1) return -1;
 
 	// Initialize and insert to collection table
-	PartitionParent* Coll=new PartitionParent(Rank,AttrList);
+	PartitionParent* Coll=new PartitionParent(ParentCoID,Rank,AttrList);
 	int CoID=LastCoID+1;
 	if (Collections.insert(CoID,Coll)==-1) return -1;
 	LastCoID=CoID;
 
 	// Add to parent's children
 	Parent->Children.Add(CoID);
-	Parent->NotifyChildItorsInsertion( );
 
 	// Add Parents members to new collection
 	RankedClassAd RankedAd;
@@ -472,14 +477,13 @@ int ClassAdCollection::CreatePartition(int ParentCoID, ExprTree *Rank,
 	if (Collections.lookup(ParentCoID,Parent)==-1) return -1;
 
 	// Initialize and insert to collection table
-	PartitionParent* Coll=new PartitionParent(Rank,AttrList);
+	PartitionParent* Coll=new PartitionParent(ParentCoID,Rank,AttrList);
 	int CoID=LastCoID+1;
 	if (Collections.insert(CoID,Coll)==-1) return -1;
 	LastCoID=CoID;
 
 	// Add to parent's children
 	Parent->Children.Add(CoID);
-	Parent->NotifyChildItorsInsertion( );
 
 	// Add Parents members to new collection
 	RankedClassAd RankedAd;
@@ -500,8 +504,6 @@ int ClassAdCollection::FindPartition( int ParentCoID, ClassAd *rep )
 	int				CoID;
 
 	if( Collections.lookup( ParentCoID, Parent ) == -1 ) return -1;
-	if( Parent->Type( ) != PartitionParent_e ) return -1;
-
 	partitionParent = (PartitionParent*) Parent;
 	if(!makePartitionHashKey(rep,partitionParent->Attributes,partitionValues)){
 		return -1;
@@ -524,7 +526,13 @@ Output: true on success, false otherwise
 
 bool ClassAdCollection::DeleteCollection(int CoID)
 {
-	return TraverseTree(CoID,&ClassAdCollection::RemoveCollection);
+    BaseCollection* Coll;
+    if (Collections.lookup(CoID,Coll)==-1) return false;
+    if (Collections.lookup(Coll->Parent,Coll)==-1) return false;
+    Coll->Children.Remove(CoID);
+    
+	return (TraverseTree(CoID,&ClassAdCollection::RemoveCollection));
+      
 }
 
 //-----------------------------------------------------------------------
@@ -551,7 +559,7 @@ bool ClassAdCollection::AddClassAd(int CoID, const MyString& OID, ClassAd* Ad)
 	if (Collections.lookup(CoID,Coll)==-1) return false;
 
 	// Check if ad matches the collection
-	if (!CheckClassAd(Coll,OID,Ad)) return false;
+	if (!CheckClassAd(CoID,Coll,OID,Ad)) return false;
 
 	// Create the Ranked Ad
 	RankedClassAd RankedAd(OID, Coll->GetRankValue( Ad ));
@@ -564,15 +572,11 @@ bool ClassAdCollection::AddClassAd(int CoID, const MyString& OID, ClassAd* Ad)
 	while (Coll->Members.Iterate(CurrRankedAd)) {
 		if (RankedAd.Rank<=CurrRankedAd.Rank) {
 			Coll->Members.Insert(RankedAd);
-			Coll->NotifyContentItorsInsertion( );
 			Inserted=true;
 			break;
 		}
 	}
-	if (!Inserted) {
-		Coll->Members.Insert(RankedAd);
-		Coll->NotifyContentItorsInsertion( );
-	}
+	if (!Inserted) Coll->Members.Insert(RankedAd);
 
 	// Insert into chldren
 	int ChildCoID;
@@ -587,11 +591,12 @@ bool ClassAdCollection::AddClassAd(int CoID, const MyString& OID, ClassAd* Ad)
 
 //-----------------------------------------------------------------------
 
-bool ClassAdCollection::CheckClassAd(BaseCollection* Coll,const MyString& OID, 
+bool ClassAdCollection::CheckClassAd(int CoID, BaseCollection* Coll,const MyString& OID, 
 	ClassAd* Ad) 
 {
 	PartitionParent* 	ParentColl=(PartitionParent*) Coll;
 	MyString			PartitionValues;
+    int ParentCoID=CoID;
 
   	if (Coll->Type()!=PartitionParent_e) {
 		return Coll->CheckClassAd(Ad);
@@ -605,11 +610,10 @@ bool ClassAdCollection::CheckClassAd(BaseCollection* Coll,const MyString& OID,
 		printf("AttrValue=%s\n",Values.Value()); 
 	*/
 
-	int CoID;
 	PartitionChild* ChildColl=NULL;
 	if( ParentColl->childPartitions.lookup( PartitionValues, CoID ) == -1 ) {
 			// no such child partition; create a new child partition
-		ChildColl=new PartitionChild(ParentColl->GetRankExpr(),PartitionValues);
+		ChildColl=new PartitionChild(ParentCoID,ParentColl->GetRankExpr(),PartitionValues);
 		CoID=LastCoID+1;
 		if (Collections.insert(CoID,ChildColl)==-1) return false;
 		if( ParentColl->childPartitions.insert( PartitionValues, CoID )==-1 ) {
@@ -619,7 +623,6 @@ bool ClassAdCollection::CheckClassAd(BaseCollection* Coll,const MyString& OID,
 
 			// Add to parent's children
 		ParentColl->Children.Add(CoID);
-		ParentColl->NotifyChildItorsInsertion( );
 	} 
 
 	// Add to child
@@ -652,8 +655,6 @@ bool ClassAdCollection::RemoveClassAd(int CoID, const MyString& OID)
 {
 	// Get collection pointer
 	BaseCollection* Coll;
-	RankedClassAd	rad( OID );
-
 	if (Collections.lookup(CoID,Coll)==-1) return false;
 
 	// Check if ad is in the collection and remove it
@@ -661,8 +662,7 @@ bool ClassAdCollection::RemoveClassAd(int CoID, const MyString& OID)
 		Coll->Type()!=PartitionParent_e) {
 		return false;
 	}
-	Coll->NotifyContentItorsDeletion( rad );
-	Coll->Members.Remove(rad);
+	Coll->Members.Remove(RankedClassAd(OID));
 
 	// remove from children
 	int ChildCoID;
@@ -676,10 +676,18 @@ bool ClassAdCollection::RemoveClassAd(int CoID, const MyString& OID)
 }
 
 //-----------------------------------------------------------------------
+
+BaseCollection* ClassAdCollection::GetCollection(int CoID) {
+  BaseCollection* Coll;
+  if (Collections.lookup(CoID,Coll)==-1) return NULL;
+  return Coll;
+}
+
+//-----------------------------------------------------------------------
 /// Change a class-ad (private method)
 //-----------------------------------------------------------------------
 
-bool ClassAdCollection::ChangeClassAd(const MyString& OID)
+bool ClassAdCollection::ChangeClassAd(const MyString& OID, ClassAd* ad)
 {
 	RemoveClassAd(0,OID);
 	return AddClassAd(0,OID);
@@ -694,72 +702,6 @@ bool ClassAdCollection::RemoveCollection(int CoID, BaseCollection* Coll)
 	delete Coll;
 	if (Collections.remove(CoID)==-1) return false;
 	return true;
-}
-
-//-----------------------------------------------------------------------
-/// Start iterating on cllection IDs
-//-----------------------------------------------------------------------
-bool ClassAdCollection::
-InitializeIterator( int CoID, CollContentIterator& itor )
-{
-	BaseCollection *bc;
-
-	if( Collections.lookup( CoID, bc ) == -1 ) return false;
-	bc->RegisterContentItor( &itor, this, CoID );
-	return( true );
-}
-
-bool ClassAdCollection::
-InitializeIterator( int CoID, CollChildIterator& itor )
-{
-	BaseCollection *bc;
-	if( Collections.lookup( CoID, bc ) == -1 ) return false;
-	bc->RegisterChildItor( &itor, this, CoID );
-	return( true );
-}
-
-void ClassAdCollection::StartIterateAllCollections()
-{
-	Collections.startIterations();
-}
-
-//-----------------------------------------------------------------------
-/// Get the next collection ID
-//-----------------------------------------------------------------------
-
-bool ClassAdCollection::IterateAllCollections(int& CoID)
-{
-	BaseCollection* Coll;
-	if (Collections.iterate(CoID,Coll)) return true;
-	return false;
-}
-
-//-----------------------------------------------------------------------
-/// Start iterating on child collections of some parent collection
-//-----------------------------------------------------------------------
-
-bool ClassAdCollection::StartIterateChildCollections(int ParentCoID)
-{
-	// Get collection pointer
-	BaseCollection* Coll;
-	if (Collections.lookup(ParentCoID,Coll)==-1) return false;
-
-	Coll->Children.StartIterations();
-	return true;
-}
-
-//-----------------------------------------------------------------------
-/// Get the next child collection
-//-----------------------------------------------------------------------
-
-bool ClassAdCollection::IterateChildCollections(int ParentCoID, int& CoID)
-{
-	// Get collection pointer
-	BaseCollection* Coll;
-	if (Collections.lookup(ParentCoID,Coll)==-1) return false;
-
-	if (Coll->Children.Iterate(CoID)) return true;
-	return false;
 }
 
 //-----------------------------------------------------------------------
@@ -911,6 +853,29 @@ void ClassAdCollection::Print(int CoID)
   printf("\n-----------------------------------------\n");
 }
 
+//-----------------------------------------------------------------------
+/// Print all the ads in the collection
+//-----------------------------------------------------------------------
+  
+void ClassAdCollection::PrintAllAds()
+{
+  HashKey HK;
+  char key[_POSIX_PATH_MAX];
+  ClassAd* Ad;
+  table.startIterations();
+  while(table.iterate(HK,Ad)) {
+    HK.sprint(key);
+    printf("Key=%s : ",key);
+    Sink s;
+    s.SetSink(stdout);
+    Ad->ToSink(s);
+    s.FlushSink();
+    printf("\n");
+  }
+}
+
+//-----------------------------------------------------------------------
+  
 int
 partitionHashFcn( const MyString &str, int numBkts )
 {
@@ -966,7 +931,7 @@ CollChildIterator( const CollChildIterator& i )
 
 		// if we're copying from a valid itor, register the new itor
 	if( !( status & COLL_ITOR_INVALID ) ) {
-		baseCollection->RegisterChildItor( this, collManager, collID );
+		baseCollection->RegisterChildItor( this );
 	}
 }
 
@@ -981,38 +946,24 @@ CollChildIterator::
 }
 
 
-bool CollChildIterator::
+int CollChildIterator::
 CurrentCollection( int &childID )
 {
-	if( !( status & COLL_ITOR_OK ) ) return( false );
+	if( !( status & COLL_ITOR_OK ) ) return( status );
 	if( !itor.Current( childID ) ) { 
 		EXCEPT( "Should not reach here" ); 
 	}
-	return( true );
 }
 
 
 int CollChildIterator::
 NextCollection( int &childID )
 {
-	if( status & COLL_ITOR_INVALID ) {
-		status = COLL_ITOR_INVALID;
-		return( 0 );
-	}
-
 	if( ( status & COLL_ITOR_OK ) || ( status & COLL_BEFORE_START ) ) {
-			// clear out old flags
-		status &= ~( COLL_ITOR_MOVED | COLL_ITEM_ADDED | COLL_ITEM_REMOVED );
-		if( !itor.Next( childID ) ) {
-			status |= COLL_AT_END;
-			status &= ~COLL_ITOR_OK;
-			status &= ~COLL_BEFORE_START;
-			return( 0 );
-		} else {
-			status |= COLL_ITOR_OK;
-		}
+		if( !itor.Next( childID ) ) status |= COLL_AT_END;
 	}
-	return( ( status == COLL_ITOR_OK ) ? +1 : -1 );
+	status &= ~COLL_BEFORE_START;
+	return( status );
 }
 
 
@@ -1096,7 +1047,7 @@ CollContentIterator( const CollContentIterator& i )
 
 		// if we're copying from a valid itor, register the new itor
 	if( !( status & COLL_ITOR_INVALID ) ) {
-		baseCollection->RegisterContentItor( this, collManager, collID );
+		baseCollection->RegisterContentItor( this );
 	}
 }
 
@@ -1111,12 +1062,12 @@ CollContentIterator::
 }
 
 
-bool CollContentIterator::
+int CollContentIterator::
 CurrentAd( const ClassAd *&classad ) const
 {
 	RankedClassAd 	ra;
 	ClassAd			*ad;
-	if( !( status & COLL_ITOR_OK ) ) return( false );
+	if( !( status & COLL_ITOR_OK ) ) return( status );
 	if( !itor.Current( ra ) ) { 
 		EXCEPT( "Should not reach here" ); 
 	}
@@ -1124,32 +1075,32 @@ CurrentAd( const ClassAd *&classad ) const
 		EXCEPT( "Should not reach here" );
 	}
 	classad = ad;
-	return( true );
+	return( status );
 }
 
 
-bool CollContentIterator::
+int CollContentIterator::
 CurrentAdKey( char *key ) const
 {
 	RankedClassAd ra;
-	if( !( status & COLL_ITOR_OK ) ) return( false );
+	if( !( status & COLL_ITOR_OK ) ) return( status );
 	if( !itor.Current( ra ) ) { 
 		EXCEPT( "Should not reach here" ); 
 	}
 	strcpy( key, ra.OID.Value( ) );
-	return( true );
+	return( status );
 }
 
-bool CollContentIterator::
+int CollContentIterator::
 CurrentAdRank( double &rank ) const
 {
 	RankedClassAd ra;
-	if( !( status & COLL_ITOR_OK ) ) return( false );
+	if( !( status & COLL_ITOR_OK ) ) return( status );
 	if( !itor.Current( ra ) ) { 
 		EXCEPT( "Should not reach here" ); 
 	}
 	rank = ra.Rank;
-	return( true );
+	return( status );
 }
 
 
@@ -1159,28 +1110,15 @@ NextAd( const ClassAd *&classad )
 	RankedClassAd	ra;
 	ClassAd			*ad;
 
-	if( status & COLL_ITOR_INVALID ) {
-		status = COLL_ITOR_INVALID;
-		return( 0 );
-	}
-
 	if( ( status & COLL_ITOR_OK ) || ( status & COLL_BEFORE_START ) ) {
-		if( !itor.Next( ra ) ) {
-			status |= COLL_AT_END;
-			status &= ~COLL_ITOR_OK;
-			status &= ~COLL_BEFORE_START;
-			return( 0 );
-		}
-			// clear out old flags
-		status &= ~( COLL_ITOR_MOVED | COLL_ITEM_ADDED | COLL_ITEM_REMOVED );
+		if( !itor.Next( ra ) ) status |= COLL_AT_END;
 	}
 	if( collManager->table.lookup( HashKey( ra.OID.Value() ), ad ) == -1 ) {
 		EXCEPT( "Should not reach here" );
 	}
 	status &= ~COLL_BEFORE_START;
-	status |= COLL_ITOR_OK;
 	classad = ad;
-	return( ( status == COLL_ITOR_OK ) ? +1 : -1 );
+	return( status );
 }
 
 

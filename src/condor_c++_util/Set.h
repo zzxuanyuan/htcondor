@@ -47,6 +47,7 @@ public:
 
   int Count();                     // Returns the number of elements in the set
   int Exist(const KeyType& Key);   // Returns 1 if Key is in the set, 0 otherwise
+  int GetKey(KeyType& Key);   // Returns 1 if Key is in the set, 0 otherwise
   void Add(const KeyType& Key);    // Add Key to the set (in the beginning)
   void Remove(const KeyType& Key); // Remove Key from the set
   void Clear();
@@ -141,6 +142,17 @@ void Set<KeyType>::Clear() {
 template <class KeyType> 
 int Set<KeyType>::Exist(const KeyType& Key) { 
   return(Find(Key) ? 1 : 0); 
+}
+  
+// 0=Not in set, 1=is in the set
+template <class KeyType> 
+int Set<KeyType>::GetKey(KeyType& Key) { 
+  SetElem<KeyType>* N=Find(Key);
+  if (N) {
+    Key=N->Key;
+    return 1;
+  }
+  return 0; 
 }
   
 // Add to set

@@ -40,41 +40,31 @@ public:
 	
 	LogRecord();
 	virtual ~LogRecord();
-	LogRecord *get_next() { return next; }
+//	LogRecord *get_next() { return next; }
 	int get_op_type() { return op_type; }
 
-	int Write(int fd);
-	int Write(FILE *fp);
-	int Read(int fd);
-	int Read(FILE *fp);
-	int ReadHeader(int fd);
-	int ReadHeader(FILE *fp);
-	virtual int ReadBody(int) { return 0; }
-	virtual int ReadBody(FILE *) { return 0; }
-	int ReadTail(int fd);
-	int ReadTail(FILE *fp);
+	bool Write(FILE *fp);
+	bool Read(FILE *fp);
+	bool ReadHeader(FILE *fp);
+	virtual bool ReadBody(FILE *) { return true; }
+	bool ReadTail(FILE *fp);
 
-	virtual int Play(void *) { return 0; }
+	virtual void Play(void*) { return; };
 
 protected:
-	int readword(FILE*, char *&);
-	int readline(FILE*, char *&);
-	int readword(int, char *&);
-	int readline(int, char *&);
+	bool readword(FILE*, char *&);
+	bool readline(FILE*, char *&);
 	int op_type;	/* This is the type of operation being performed */
 
 private:
-	int WriteHeader(int fd);
-	int WriteHeader(FILE *fp);
-	virtual int WriteBody(int) { return 0; }
-	virtual int WriteBody(FILE *) { return 0; }
-	int WriteTail(int fd);
-	int WriteTail(FILE *fp);
+	bool WriteHeader(FILE *fp);
+	virtual bool WriteBody(FILE *) { return true; }
+	bool WriteTail(FILE *fp);
 
+/*
 	LogRecord *next;
 	LogRecord *prev;
+*/
 };
 
-LogRecord *ReadLogEntry(int fd, LogRecord* (*InstantiateLogEntry)(int fd, int type));
-LogRecord *ReadLogEntry(FILE* fp, LogRecord* (*InstantiateLogEntry)(FILE *fp, int type));
 #endif
