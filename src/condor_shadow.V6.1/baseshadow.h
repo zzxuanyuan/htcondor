@@ -31,7 +31,6 @@
 #include "user_log.c++.h"
 #include "exit.h"
 #include "internet.h"
-#include "../h/shadow.h"
 
 /* Forward declaration to prevent loops... */
 class RemoteResource;

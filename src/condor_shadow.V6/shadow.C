@@ -50,7 +50,6 @@
 #include "condor_debug.h"
 #include "fileno.h"
 #include "exit.h"
-#include "shadow.h"
 
 /* XXX This should not be here */
 #if !defined( WCOREDUMP )
