@@ -428,7 +428,7 @@ private:
 	shadow_rec*		start_pvm(match_rec*, PROC_ID*);
 	shadow_rec*		start_sched_universe_job(PROC_ID*);
 	shadow_rec*		start_local_universe_job(PROC_ID*);
-	int				spawnJobHandler( PROC_ID*, const char* path,
+	bool			spawnJobHandler( shadow_rec* srec, const char* path,
 									 const char* args, const char* name, 
 									 bool is_dc, bool wants_pipe );
 	void			Relinquish(match_rec*);

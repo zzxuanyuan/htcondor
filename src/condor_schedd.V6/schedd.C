@@ -4782,7 +4782,7 @@ Scheduler::spawnShadow( shadow_rec* srec )
 	// Actually fork the shadow
 	//-------------------------------
 
-	int		pid;
+	bool	rval;
 	char	args[_POSIX_ARG_MAX];
 
 	match_rec* mrec = srec->match;
@@ -4941,12 +4941,12 @@ Scheduler::spawnShadow( shadow_rec* srec )
 		}
 	}
 
-	pid = spawnJobHandler( job_id, shadow_path, args, "shadow",
-						   sh_is_dc, sh_reads_file );
+	rval = spawnJobHandler( srec, shadow_path, args, "shadow",
+							sh_is_dc, sh_reads_file );
 
 	free( shadow_path );
 
-	if( pid < 0 ) {
+	if( ! rval ) {
 		mark_job_stopped(job_id);
 		RemoveShadowRecFromMrec(srec);
 		delete srec;
@@ -4955,9 +4955,7 @@ Scheduler::spawnShadow( shadow_rec* srec )
 
 	dprintf( D_ALWAYS, "Started shadow for job %d.%d on \"%s\", "
 			 "(shadow pid = %d)\n", job_id->cluster, job_id->proc,
-			 mrec->peer, pid );
-	srec->pid=pid;
-	add_shadow_rec(srec);
+			 mrec->peer, srec->pid );
 
 		// If this is a reconnect shadow, update the mrec with some
 		// important info.  This usually happens in StartJobs(), but
@@ -5010,12 +5008,13 @@ Scheduler::tryNextJob( void )
 }
 
 
-int
-Scheduler::spawnJobHandler( PROC_ID* job_id, const char* path, 
+bool
+Scheduler::spawnJobHandler( shadow_rec* srec, const char* path, 
 							const char* args, const char* name,
 							bool is_dc, bool wants_pipe )
 {
 	int pid = -1;
+	PROC_ID* job_id = &srec->job_id;
 
 		/* Setup the array of fds for stdin, stdout, stderr */
 	int* std_fds_p = NULL;
@@ -5028,7 +5027,7 @@ Scheduler::spawnJobHandler( PROC_ID* job_id, const char* path,
 			dprintf( D_ALWAYS, 
 					 "ERROR: Can't create DC pipe for writing job "
 					 "ClassAd to the %s, aborting\n", name );
-			return -1;
+			return false;
 		} 
 			// pipe_fds[0] is the read-end of the pipe.  we want that
 			// setup as STDIN for the handler.  we'll hold onto the
@@ -5070,8 +5069,15 @@ Scheduler::spawnJobHandler( PROC_ID* job_id, const char* path,
 				}
 			}
 		}
-		return -1;
+		return false;
 	} 
+
+		// if it worked, store the pid in our shadow record, and add
+		// this srec to our various tables.  this ensures we have
+		// ATTR_REMOTE_HOST set in the job ad by the time we give it
+		// to the shadow...
+	srec->pid=pid;
+	add_shadow_rec(srec);
 
 		// finally, now that the handler has been spawned, we need to
 		// do some things with the pipe (if there is one):
@@ -5119,7 +5125,7 @@ Scheduler::spawnJobHandler( PROC_ID* job_id, const char* path,
 		daemonCore->Close_Pipe( pipe_fds[1] );
 	}
 
-	return pid;
+	return true;
 }
 
 
@@ -5401,7 +5407,7 @@ Scheduler::spawnLocalStarter( shadow_rec* srec )
 	PROC_ID* job_id = &srec->job_id;
 	char* starter_path;
 	MyString starter_args;
-	int pid = 0;
+	bool rval;
 
 	dprintf( D_FULLDEBUG, "Starting local universe job %d.%d\n",
 			 job_id->cluster, job_id->proc );
@@ -5430,31 +5436,27 @@ Scheduler::spawnLocalStarter( shadow_rec* srec )
 	dprintf( D_FULLDEBUG, "About to spawn %s %s\n", 
 			 starter_path, starter_args.Value() );
 
-	pid = spawnJobHandler( job_id, starter_path, starter_args.Value(),
-						   "starter", true, true );
-
-	free( starter_path );
-	starter_path = NULL;
-
-	if( pid < 0 ) {
-		dprintf( D_ALWAYS|D_FAILURE, "Can't spawn local starter for "
-				 "job %d.%d\n", job_id->cluster, job_id->proc );
-			// set this back to 0, so we remember this job isn't
-			// running and we'll consider it idle again.
-		SetAttributeInt( job_id->cluster, job_id->proc, 
-						 ATTR_CURRENT_HOSTS, 0 );		
-		return;
-	}
-
-	dprintf( D_ALWAYS, "Spawned local starter (pid %d) for job %d.%d\n",
-			 pid, job_id->cluster, job_id->proc );
-	srec->pid=pid;
-
 	BeginTransaction();
 	mark_job_running( job_id );
 	CommitTransaction();
 
-	add_shadow_rec(srec);
+	rval = spawnJobHandler( srec, starter_path, starter_args.Value(),
+							"starter", true, true );
+
+	free( starter_path );
+	starter_path = NULL;
+
+	if( ! rval ) {
+		dprintf( D_ALWAYS|D_FAILURE, "Can't spawn local starter for "
+				 "job %d.%d\n", job_id->cluster, job_id->proc );
+		BeginTransaction();
+		mark_job_stopped( job_id );
+		CommitTransaction();
+		return;
+	}
+
+	dprintf( D_ALWAYS, "Spawned local starter (pid %d) for job %d.%d\n",
+			 srec->pid, job_id->cluster, job_id->proc );
 }
 
 
@@ -5778,6 +5780,8 @@ Scheduler::add_shadow_rec( int pid, PROC_ID* job_id, int univ,
 static void
 add_shadow_birthdate(int cluster, int proc)
 {
+	dprintf( D_ALWAYS, "Starting add_shadow_birthdate(%d.%d)\n",
+			 cluster, proc );
 	int current_time = (int)time(NULL);
 	int job_start_date = 0;
 	SetAttributeInt(cluster, proc, ATTR_SHADOW_BIRTHDATE, current_time);
