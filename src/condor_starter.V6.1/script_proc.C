@@ -25,7 +25,6 @@
 #include "condor_classad.h"
 #include "condor_config.h"
 #include "condor_debug.h"
-#include "env.h"
 #include "user_proc.h"
 #include "script_proc.h"
 #include "starter.h"
@@ -33,7 +32,6 @@
 #include "condor_attributes.h"
 #include "exit.h"
 #include "condor_uid.h"
-#include "condor_distribution.h"
 
 
 extern CStarter *Starter;
@@ -165,11 +163,9 @@ ScriptProc::StartJob()
 		free( tmp );
 		tmp = NULL;
 	}
+		// Now, let the starter publish any env vars it wants to add
+	Starter->PublishToEnv( &job_env );
 
-		// Now, add some env vars the user job might want to see: 
-	char envName[256];
-	sprintf( envName, "%s_SCRATCH_DIR", myDistro->GetUc() );
-	job_env.Put( envName, Starter->GetWorkingDir() );
 
 		// TODO: Deal with port regulation stuff?
 

@@ -37,7 +37,6 @@
 #include "sig_name.h"
 #include "exit.h"
 #include "condor_uid.h"
-#include "condor_distribution.h"
 #ifdef WIN32
 #include "perm.h"
 #endif
@@ -205,30 +204,10 @@ OsProc::StartJob()
 		free( env_str );
 	}
 
-	// Now, add some env vars the user job might want to see:
-	char	envName[256];
-	sprintf( envName, "%s_SCRATCH_DIR", myDistro->GetUc() );
-	job_env.Put( envName, Starter->GetWorkingDir() );
+		// Now, let the starter publish any env vars it wants to into
+		// the mainjob's env...
+	Starter->PublishToEnv( &job_env );
 
-		// Deal with port regulation stuff
-	char* low = param( "LOWPORT" );
-	char* high = param( "HIGHPORT" );
-	if( low && high ) {
-		sprintf( envName, "_%s_HIGHPORT", myDistro->Get() );
-		job_env.Put( envName, high );
-		sprintf( envName, "_%s_LOWPORT", myDistro->Get() );
-		job_env.Put( envName, low );
-		free( high );
-		free( low );
-	} else if( low ) {
-		dprintf( D_ALWAYS, "LOWPORT is defined but HIGHPORT is not, "
-				 "ignoring LOWPORT\n" );
-		free( low );
-	} else if( high ) {
-		dprintf( D_ALWAYS, "HIGHPORT is defined but LOWPORT is not, "
-				 "ignoring HIGHPORT\n" );
-		free( high );
-    }
 
 		// // // // // // 
 		// Standard Files
