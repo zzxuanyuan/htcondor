@@ -376,7 +376,7 @@ DCStartd::releaseClaim( VacateType type, ClassAd* reply,
 
 bool
 DCStartd::locateStarter( const char* global_job_id, ClassAd* reply,
-						 int timeout = -1 )
+						 int timeout )
 {
 	setCmdStr( "locateStarter" );
 
