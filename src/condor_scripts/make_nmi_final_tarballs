@@ -54,6 +54,7 @@ $minorv = $2;
 $releasev = $3;
 $version = "$majorv.$minorv.$releasev";
 
+print "Extracted $version from Condor**************************************************************\n";
 # Things you should probably leave alone:
 BEGIN {
     unshift(@INC, "/p/condor/home/perl");
@@ -69,7 +70,7 @@ require 5.002;
 @modules = ( "condor", "ckpt_server", "pvm", "sdk","eventd", "dagman", "condor-g" );
 #@modules = ( "smp_startd", "ckpt_server", "pvm", "sdk" );
 #@modules = ( "condor", "ckpt_server", "pvm", "mpi" );
-#@modules = ( "ckpt_server", "pvm" );
+#@modules = ( "view_server", "ckpt_server", "pvm" );
 #@modules = ( "condor" );
 
 # List any special files, other than README, DOC, INSTALL, and
@@ -135,8 +136,6 @@ $realskel="condor_release";
   "i386_rh62"     => "linux",
   "i386_rh71"     => "linux",
   "i386_rh72"     => "linux",
-  "i386_rh80"     => "linux",
-  "i386_rh9"     => "linux",
   "ia64_linux24"  => "linux",
   "alpha_linux3"  => "linux",
   "alpha_linux22" => "linux",
@@ -146,7 +145,6 @@ $realskel="condor_release";
   "sgi_63"        => "irix6",
   "sgi_64"        => "irix6",
   "sgi_65"        => "irix65",
-  "ppc_macosx"    => "MacOSX",
   "hp_ux102"      => "hpux10.20",
   "hp_ux110"      => "hpux11.00"
 );
@@ -165,8 +163,6 @@ $realskel="condor_release";
   "i386_rh62"     => "x86",
   "i386_rh71"     => "x86",
   "i386_rh72"     => "x86",
-  "i386_rh80"     => "x86",
-  "i386_rh9"     => "x86",
   "i386_linux3"   => "x86",
   "ia64_linux24"  => "ia64",
   "alpha_linux3"  => "Alpha",
@@ -177,7 +173,6 @@ $realskel="condor_release";
   "sgi_63"        => "SGI",
   "sgi_64"        => "SGI",
   "sgi_65"        => "SGI",
-  "ppc_macosx"    => "PPC",
   "hp_ux102"      => "HPPAR",
   "hp_ux110"      => "HPPAR"
 );
@@ -191,8 +186,6 @@ $realskel="condor_release";
   "i386_rh62"   => "glibc21",
   "i386_rh71"   => "glibc22",
   "i386_rh72"   => "glibc22",
-  "i386_rh80"   => "glibc22",
-  "i386_rh9"   => "glibc23",
   "ia64_linux24" => "glibc22",
   "alpha_linux3"  => "glibc20",
   "alpha_linux22" => "glibc21"

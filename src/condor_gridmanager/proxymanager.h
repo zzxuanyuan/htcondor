@@ -20,50 +20,41 @@
  * Livny, 7367 Computer Sciences, 1210 W. Dayton St., Madison, 
  * WI 53706-1685, (608) 262-0856 or miron@cs.wisc.edu.
 ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
+
+#ifndef PROXYMANAGER_H
+#define PROXYMANAGER_H
+
 #include "condor_common.h"
-#include "matchmaker.h"
+#include "../condor_daemon_core.V6/condor_daemon_core.h"
+#include "simplelist.h"
 
-// for daemon core
-char *mySubSystem = "NEGOTIATOR";
+#include "gahp-client.h"
 
-// the matchmaker object
-Matchmaker matchMaker;
+struct Proxy {
+	char *proxy_filename;
+	int expiration_time;
+	bool near_expired;
+	int gahp_proxy_id;
+	int num_references;
+	SimpleList<int> notification_tids;
+};
 
-int main_init (int, char *[])
-{
-	// read in params
-	matchMaker.initialize ();
-	return TRUE;
-}
+#define PROXY_NEAR_EXPIRED( p ) \
+    ((p)->expiration_time - time(NULL) <= minProxy_time)
+#define PROXY_IS_EXPIRED( p ) \
+    ((p)->expiration_time - time(NULL) <= 180)
 
-int main_shutdown_graceful()
-{
-	DC_Exit(0);
-	return 0;
-}
+extern int CheckProxies_interval;
+extern int minProxy_time;
 
+bool UseMultipleProxies( const char *proxy_dir,
+						 bool(*init_gahp_func)(const char *proxy) );
+bool UseSingleProxy( const char *proxy_path,
+					 bool(*init_gahp_func)(const char *proxy) );
 
-int main_shutdown_fast()
-{
-	DC_Exit(0);
-	return 0;
-}
+Proxy *AcquireProxy( const char *proxy_path, int notify_tid = -1 );
+void ReleaseProxy( Proxy *proxy, int notify_tid = -1 );
 
-int
-main_config( bool is_full )
-{
-	return (matchMaker.reinitialize ());
-}
+void doCheckProxies();
 
-
-void
-main_pre_dc_init( int argc, char* argv[] )
-{
-}
-
-
-void
-main_pre_command_sock_init( )
-{
-}
-
+#endif // defined PROXYMANAGER_H
