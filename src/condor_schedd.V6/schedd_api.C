@@ -150,6 +150,7 @@ Job::submit(struct condorCore__ClassAdStruct jobAd)
     return rval;
   }
 
+  int found_iwd = 0;
   for (i=0; i < jobAd.__size; i++ ) {
     const char* name = jobAd.__ptr[i].name;
     const char* value = jobAd.__ptr[i].value;
@@ -159,12 +160,7 @@ Job::submit(struct condorCore__ClassAdStruct jobAd)
     if ( jobAd.__ptr[i].type == 's' ) {
       // string type - put value in quotes as hint for ClassAd parser
 
-      // We need to make sure the Iwd is rewritten so files
-      // in the spool directory can be found.
-      if ((NULL != spoolDirectory) &&
-          (0 == strcmp(name, "Iwd"))) {
-        value = spoolDirectory->GetCStr();
-      }
+      found_iwd = found_iwd || !strcmp(name, "Iwd");
 
       rval = SetAttributeString(clusterId, jobId, name, value);
     } else {
@@ -173,6 +169,18 @@ Job::submit(struct condorCore__ClassAdStruct jobAd)
     }
     if ( rval < 0 ) {
       return rval;
+    }
+  }
+
+  // Trust the client knows what it is doing if there is an Iwd.
+  if (!found_iwd) {
+    // We need to make sure the Iwd is rewritten so files
+    // in the spool directory can be found.
+    if (NULL != spoolDirectory) {
+      rval = SetAttributeString(clusterId, jobId, "Iwd", spoolDirectory->GetCStr());
+      if (rval < 0) {
+        return rval;
+      }
     }
   }
 
