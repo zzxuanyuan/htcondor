@@ -296,7 +296,7 @@ Job::get_file(MyString name,
 #else
 	char *mode = "r";
 #endif
-	FILE * file = fopen((*spoolDirectory + "/" + name).GetCStr(), mode);
+	FILE * file = fopen((*spoolDirectory + DIR_DELIM_STRING + name).GetCStr(), mode);
 
 	if (file) {
 		if (fseek(file, offset, SEEK_SET)) {
