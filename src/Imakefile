@@ -253,7 +253,6 @@ object_target(scripts)
 #endif
 object_target(starter.V6.1)
 object_target(shadow.V6.1)
-object_target(dcskel)
 
 object_dir_target(h)
 object_dir_target(condor_includes)

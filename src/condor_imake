@@ -22,6 +22,7 @@ ArchFlag=""
 Opsys=""
 Other=""
 Other2=""
+KernVer="-DIS_UNKNOWN_KERNVER"
 
 # kerberos discovery
 KerbPath="-DKERBEROS_PATH=/s/krb5"
@@ -31,6 +32,12 @@ KerbFlags="$KerbPath $HasKerb"
 # figure out where that annoying libgcc is... 
 LIBGCC=`gcc -print-libgcc-file-name`
 EgcsLib="-DLIB_GCC=$LIBGCC"
+
+if [ $os = "Linux" -a `echo $osversion | egrep -e  '^2\.2\..*'` ]; then
+	KernVer="-DIS_LINUX22"
+elif [ $os = "Linux" -a ]; then
+	KernVer="-DIS_LINUX24"
+fi
 
 
 if [ $os = "HP-UX" -a $osversion = "B.10.20" ] ; then
@@ -89,4 +96,6 @@ if [ $gss = "Y" ]; then
 	fi
 fi
 
-imake -s Makefile $ArchFlag $Opsys $Other $Other2 $GssAuth $EgcsLib $KerbFlags -I../config -I../../config $*
+imake -s Makefile $ArchFlag $Opsys $Other $Other2 $GssAuth $EgcsLib $KerbFlags $KernVer -I../config -I../../config $*
+echo "imake -s Makefile $ArchFlag $Opsys $Other $Other2 $GssAuth $EgcsLib $KerbFlags $KernVer -I../config -I../../config $*"
+#imake -s Makefile $ArchFlag $Opsys $Other $Other2 $GssAuth $EgcsLib $KerbFlags -I../config -I../../config $*
