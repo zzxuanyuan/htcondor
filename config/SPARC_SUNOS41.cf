@@ -11,8 +11,8 @@
 #define Crt0 /lib/crt0.o
 #define SyscallsExp /**/
 
-#define XLibPath /usr/misc/X11/lib/libX11.a
-#define XExtLibPath /usr/misc/X11/lib/libXext.a
+#define XLibPath /usr/sup/X11/lib/libX11.a
+#define XExtLibPath /usr/sup/X11/lib/libXext.a
 #define DbmLibrary -ldbm
 
 #define HAS_NEW_FORTRAN		YES
@@ -41,6 +41,7 @@
 #define HAS_VOID_SIGNAL_RETURN	YES
 #define HAS_AR_S_OPTION			NO
 #define HAS_RANLIB_TOUCH		YES
+#define HAS_CP_PRESERVE			YES
 #define NEEDS_SPECIAL_SETJMP	NO
 #define HAS_FORTRAN				NO
 #define HAS_FLOCK				YES
@@ -79,7 +80,7 @@
 #endif Ctags
 
 #ifndef MkDepend
-#define MkDepend Tilde/CONDOR/GENERIC/mdepend.sh
+#define MkDepend ../../GENERIC/mdepend.sh
 #endif MkDepend
 
 #define TypicalMemory 12

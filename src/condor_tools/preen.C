@@ -35,21 +35,24 @@
 
 
 #define _POSIX_SOURCE
-#include <stdio.h>
-#include <unistd.h>
-#include <ctype.h>
-#include <fcntl.h>
-#include "types.h"
-#include "util_lib_proto.h"
-#include "proc_obj.h"
-#include "filter.h"
-#include "sched.h"
-#include "directory.h"
-#include <string.h>
-#include <errno.h>
-#include <sys/stat.h>
+
 #include <time.h>
+#include "condor_common.h"
+#include <sys/stat.h>
+#include "condor_debug.h"
+#include "condor_constants.h"
+#include "condor_config.h"
+#include "condor_jobqueue.h"
+#include "condor_mach_status.h"
+#include "condor_uid.h"
+#include "proc_obj.h"
+#include "directory.h"
 #include "alloc.h"
+
+#if defined(OSF1)
+#pragma define_template List<char>
+#pragma define_template Item<char>
+#endif
 
 char *my_hostname();
 
@@ -69,10 +72,6 @@ BOOLEAN		RmFlag;				// true if we should remove extraneous files
 List<ProcObj>	*ProcList;		// all processes in current job queue
 List<char>	*BadFiles;			// list of files which don't belong
 
-#ifdef MATCH
-#undef MATCH
-#endif
-const int MATCH = 0;			// for strcmp()
 
 	// prototypes of local interest
 void usage();
@@ -100,7 +99,7 @@ int do_stat( const char *path, struct stat *buf );
 */
 class StringList {
 public:
-	StringList( const char *foo[] ) { data = foo; }
+	StringList( char *foo[] ) { data = foo; }
 	BOOLEAN contains( const char * );
 private:
 	char	**data;
@@ -215,7 +214,7 @@ main( int argc, char *argv[] )
 	print_alloc_stats( "End of main" );
 #endif
 
-	exit( 0 );
+	return 0;
 }
 
 /*
@@ -554,7 +553,6 @@ SetSyscalls( int foo ) { return foo; }
 void
 init_params()
 {
-    char    *param();
 	char	*tmp;
 
 	Spool = param("SPOOL");

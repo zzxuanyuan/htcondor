@@ -33,17 +33,18 @@
 ****************************************************************/
 
 #define _POSIX_SOURCE
-#include <stdio.h>
-#include <unistd.h>
-#include <ctype.h>
-#include <fcntl.h>
-#include "types.h"
-#include "util_lib_proto.h"
+
+#include "condor_common.h"
+#include "condor_debug.h"
+#include "condor_constants.h"
+#include "condor_config.h"
+#include "condor_jobqueue.h"
 #include "proc_obj.h"
-#include "filter.h"
 #include "alloc.h"
 
+
 static char *_FileName_ = __FILE__;		/* Used by EXCEPT (see except.h)     */
+extern "C" char * format_time ( float fp_secs );
 
 class UserRec {
 public:
@@ -63,10 +64,13 @@ private:
 	float	remote_cpu;
 };
 
+#if defined(OSF1)
+#pragma define_template List<UserRec>
+#pragma define_template Item<UserRec>
+#endif
+
 List<UserRec>	*UserList;
 UserRec			*Totals = new UserRec( "TOTAL" );
-
-const int MATCH = 0;	// for strcmp()
 
 char		*MyName;	// Name by which this program was invoked
 char		*Spool;		// Name of job queue directory
@@ -171,7 +175,7 @@ main( int argc, char *argv[] )
 	print_alloc_stats();
 #endif
 
-	exit( 0 );
+	return 0;
 
 }
 
@@ -182,8 +186,6 @@ main( int argc, char *argv[] )
 void
 init_params()
 {
-	char	*param();
-
 	Spool = param("SPOOL");
 	if( Spool == NULL ) {
 		EXCEPT( "SPOOL not specified in config file\n" );

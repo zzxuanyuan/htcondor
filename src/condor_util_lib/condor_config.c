@@ -204,7 +204,8 @@ char	*pattern;
 	char	*tmp;
 
 		/* Look up the parameter and break its value into an argv */
-	tmp = strdup( param(parameter) );
+	/* tmp = strdup( param(parameter) ); */
+	tmp = param(parameter);
 	mkargv( &argc, argv, tmp );
 
 		/* Search for the given pattern */
@@ -218,9 +219,11 @@ char	*pattern;
 	return 0;
 }
 
-#if defined(SUNOS41)
+#if defined(SUNOS41) || defined(ULTRIX43)
 #include <sys/utsname.h>
+#endif
 
+#if defined(SUNOS41)
 char *
 get_arch()
 {
@@ -232,7 +235,15 @@ get_arch()
 
 	return buf.machine;
 }
+#else
+char *
+get_arch()
+{
+	return NULL;
+}
+#endif
 
+#if defined(SUNOS41) || defined(ULTRIX43)
 char *
 get_op_sys()
 {
@@ -248,11 +259,6 @@ get_op_sys()
 	return answer;
 }
 #else
-char *
-get_arch()
-{
-	return NULL;
-}
 char *
 get_op_sys()
 {
