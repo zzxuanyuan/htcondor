@@ -24,6 +24,7 @@
 #define _ENV_H
 
 #include "HashTable.h"
+#include "MyString.h"
 
 // ********* These are deprecated:
 
