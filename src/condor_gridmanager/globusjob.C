@@ -318,6 +318,9 @@ void GlobusJobReconfig()
 	bool tmp_bool;
 	int tmp_int;
 
+	tmp_int = param_integer( "GRIDMANAGER_MAX_PENDING_REQUESTS", 50 );
+	GahpMain.setMaxPendingRequests( tmp_int );
+
 	tmp_int = param_integer( "GRIDMANAGER_JOB_PROBE_INTERVAL", 5 * 60 );
 	GlobusJob::setProbeInterval( tmp_int );
 
@@ -685,15 +688,6 @@ void GlobusJob::Reconfig()
 {
 	BaseJob::Reconfig();
 	gahp.setTimeout( gahpCallTimeout );
-
-//////////////////////from gridmanager.C
-	// TODO We should have a static GlobusJob::Reconfig for this...
-	int max_requests = param_integer( "GRIDMANAGER_MAX_PENDING_REQUESTS", 50 );
-//	if ( max_requests < max_pending_submits * 5 ) {
-//		max_requests = max_pending_submits * 5;
-//	}
-	GahpMain.setMaxPendingRequests(max_requests);
-////////////////////////////////////////
 }
 
 int GlobusJob::doEvaluateState()
@@ -1972,7 +1966,6 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 
 	} while ( reevaluate_state );
 
-//	if ( connect_failure && !jmUnreachable && !resourceDown ) {
 	if ( ( connect_failure_jobmanager || connect_failure_gatekeeper ) && 
 		 !resourceDown ) {
 		if ( connect_failure_counter < maxConnectFailures ) {
