@@ -111,7 +111,11 @@ CStarter::Init( JobInfoCommunicator* my_jic )
 	sysapi_set_resource_limits();
 
 		// initialize our JobInfoCommunicator
-	jic->init();
+	if( ! jic->init() ) {
+		dprintf( D_ALWAYS, 
+				 "Failed to initialize JobInfoCommunicator, aborting\n" );
+		return false;
+	}
 
 		// try to spawn our job
 	return StartJob();
