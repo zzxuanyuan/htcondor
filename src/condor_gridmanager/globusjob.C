@@ -357,13 +357,21 @@ void GlobusJobReconfig()
 
 bool GlobusJobAdMatch( const ClassAd *jobad )
 {
+	bool rc = false;
 	int universe;
-	if ( jobad->LookupInteger( ATTR_JOB_UNIVERSE, universe ) == 0 ||
-		 universe != CONDOR_UNIVERSE_GLOBUS ) {
-		return false;
-	} else {
-		return true;
+	char *sub_universe = NULL;
+	if ( jobad->LookupInteger( ATTR_JOB_UNIVERSE, universe ) == 1 &&
+		 universe == CONDOR_UNIVERSE_GLOBUS ) {
+		if ( jobad->LookupString( "SubUniverse", &sub_universe ) == 1 ) {
+			if ( stricmp( sub_universe, "globus" ) == 0 ) {
+				rc = true;
+			}
+			free( sub_universe );
+		} else {
+			rc = true;
+		}
 	}
+	return rc;
 }
 
 bool GlobusJobAdMustExpand( const ClassAd *jobad )
