@@ -75,15 +75,17 @@ KerbFlags="$HasKerb $KerbK5 $KerbPath"
 # Determine compiler features and variousl compiler related libraries
 ##################################################
 
+GCC=gcc
+
 # Which gcc am I using?
-CompilerPath=`which gcc`
+CompilerPath=`which $GCC`
 
 # Find libgcc.a ( needed for all platforms )
-tmp=`gcc -print-libgcc-file-name`
+tmp=`$GCC -print-libgcc-file-name`
 LibGcc="-DLIB_GCC=$tmp"
 
 # discover the version of gcc I have
-tmp=`((gcc -v) 2>&1) | tail -1 | cut -d' ' -f3`
+tmp=`(($GCC -v) 2>&1) | tail -1 | cut -d' ' -f3`
 
 case "$tmp" in
 	"egcs-2.91.66" )
