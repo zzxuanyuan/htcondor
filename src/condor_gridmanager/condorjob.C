@@ -1059,89 +1059,28 @@ ClassAd *CondorJob::buildSubmitAd()
 	submit_ad->Delete( ATTR_GLOBUS_STATUS );
 	submit_ad->Delete( ATTR_GLOBUS_RESUBMIT_CHECK );
 
-//	expr.sprintf( "%s = %d", ATTR_JOB_STATUS, IDLE );
-//	submit_ad->Insert( expr.Value() );
 	submit_ad->Assign( ATTR_JOB_STATUS, IDLE );
 submit_ad->Assign( ATTR_JOB_UNIVERSE, CONDOR_UNIVERSE_VANILLA );
 
-//	expr.sprintf( "%s = %d", ATTR_Q_DATE, now );
-//	submit_ad->Insert( expr.Value() );
 	submit_ad->Assign( ATTR_Q_DATE, now );
-
-//	expr.sprintf( "%s = 0", ATTR_COMPLETION_DATE );
-//	submit_ad->Insert( expr.Value() );
 	submit_ad->Assign( ATTR_COMPLETION_DATE, 0 );
-
-//	expr.sprintf ( "%s = 0.0", ATTR_JOB_REMOTE_WALL_CLOCK);
-//	submit_ad->Insert( expr.Value() );
 	submit_ad->Assign( ATTR_JOB_REMOTE_WALL_CLOCK, (float)0.0 );
-
-//	expr.sprintf ( "%s = 0.0", ATTR_JOB_LOCAL_USER_CPU);
-//	submit_ad->Insert( expr.Value() );
 	submit_ad->Assign( ATTR_JOB_LOCAL_USER_CPU, (float)0.0 );
-
-//	expr.sprintf ( "%s = 0.0", ATTR_JOB_LOCAL_SYS_CPU);
-//	submit_ad->Insert( expr.Value() );
 	submit_ad->Assign( ATTR_JOB_LOCAL_SYS_CPU, (float)0.0 );
-
-//	expr.sprintf ( "%s = 0.0", ATTR_JOB_REMOTE_USER_CPU);
-//	submit_ad->Insert( expr.Value() );
 	submit_ad->Assign( ATTR_JOB_REMOTE_USER_CPU, (float)0.0 );
-
-//	expr.sprintf ( "%s = 0.0", ATTR_JOB_REMOTE_SYS_CPU);
-//	submit_ad->Insert( expr.Value() );
 	submit_ad->Assign( ATTR_JOB_REMOTE_SYS_CPU, (float)0.0 );
-
-//	expr.sprintf ( "%s = 0", ATTR_JOB_EXIT_STATUS);
-//	submit_ad->Insert( expr.Value() );
 	submit_ad->Assign( ATTR_JOB_EXIT_STATUS, 0 );
-
-//	expr.sprintf ( "%s = 0", ATTR_NUM_CKPTS);
-//	submit_ad->Insert( expr.Value() );
 	submit_ad->Assign( ATTR_NUM_CKPTS, 0 );
-
-//	expr.sprintf ( "%s = 0", ATTR_NUM_RESTARTS);
-//	submit_ad->Insert( expr.Value() );
 	submit_ad->Assign( ATTR_NUM_RESTARTS, 0 );
-
-//	expr.sprintf ( "%s = 0", ATTR_NUM_SYSTEM_HOLDS);
-//	submit_ad->Insert( expr.Value() );
 	submit_ad->Assign( ATTR_NUM_SYSTEM_HOLDS, 0 );
-
-//	expr.sprintf ( "%s = 0", ATTR_JOB_COMMITTED_TIME);
-//	submit_ad->Insert( expr.Value() );
 	submit_ad->Assign( ATTR_JOB_COMMITTED_TIME, 0 );
-
-//	expr.sprintf ( "%s = 0", ATTR_TOTAL_SUSPENSIONS);
-//	submit_ad->Insert( expr.Value() );
 	submit_ad->Assign( ATTR_TOTAL_SUSPENSIONS, 0 );
-
-//	expr.sprintf ( "%s = 0", ATTR_LAST_SUSPENSION_TIME);
-//	submit_ad->Insert( expr.Value() );
 	submit_ad->Assign( ATTR_LAST_SUSPENSION_TIME, 0 );
-
-//	expr.sprintf ( "%s = 0", ATTR_CUMULATIVE_SUSPENSION_TIME);
-//	submit_ad->Insert( expr.Value() );
 	submit_ad->Assign( ATTR_CUMULATIVE_SUSPENSION_TIME, 0 );
-
-//	expr.sprintf ( "%s = FALSE", ATTR_ON_EXIT_BY_SIGNAL);
-//	submit_ad->Insert( expr.Value() );
 	submit_ad->Assign( ATTR_ON_EXIT_BY_SIGNAL, false );
-
-//	expr.sprintf( "%s = 0", ATTR_CURRENT_HOSTS );
-//	submit_ad->Insert( expr.Value() );
 	submit_ad->Assign( ATTR_CURRENT_HOSTS, 0 );
-
-//	expr.sprintf( "%s = %d", ATTR_ENTERED_CURRENT_STATUS, now );
-//	submit_ad->Insert( expr.Value() );
 	submit_ad->Assign( ATTR_ENTERED_CURRENT_STATUS, now  );
-
-//	expr.sprintf( "%s = %d", ATTR_JOB_NOTIFICATION, NOTIFY_NEVER );
-//	submit_ad->Insert( expr.Value() );
 	submit_ad->Assign( ATTR_JOB_NOTIFICATION, NOTIFY_NEVER );
-
-//	expr.sprintf( "%s = True", ATTR_JOB_LEAVE_IN_QUEUE );
-//	submit_ad->Insert( expr.Value() );
 	submit_ad->Assign( ATTR_JOB_LEAVE_IN_QUEUE, true );
 
 	expr.sprintf( "%s = (%s >= %s) =!= True && CurrentTime > %s + %d",
@@ -1149,9 +1088,6 @@ submit_ad->Assign( ATTR_JOB_UNIVERSE, CONDOR_UNIVERSE_VANILLA );
 				  ATTR_STAGE_IN_START, ATTR_Q_DATE, 1800 );
 	submit_ad->Insert( expr.Value() );
 
-//	expr.sprintf( "%s = \"%s\"", ATTR_MIRROR_SUBMITTER_ID,
-//				  submitterId );
-//	submit_ad->Insert( expr.Value() );
 	submit_ad->Assign( ATTR_MIRROR_SUBMITTER_ID, submitterId );
 
 	ad->ResetExpr();
