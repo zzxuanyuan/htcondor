@@ -26,23 +26,41 @@ DH_OBJ = condor_dh.o
 	to remedy the situation. If you're just reading log files, then you don't
 	need that functionality anyway. */
 CLASSAD_OBJ = \
-	../condor_classad/ast.o \
-	../condor_classad/astbase.o \
-	../condor_classad/attrlist.o \
-	../condor_classad/buildtable.o \
-	../condor_classad/classad.o \
-	../condor_classad/classad_instantiate.o \
-	../condor_classad/classad_lookup.o \
-	../condor_classad/classad_util.o  \
-	../condor_classad/classifiedjobs.o \
-	../condor_classad/environment.o \
-	../condor_classad/evaluateOperators.o \
-	../condor_classad/operators.o \
-	../condor_classad/parser.o \
-	../condor_classad/scanner.o \
-	../condor_classad/value.o \
-	../condor_classad/xml_classads.o \
-	../condor_classad/registration.o 
+	../condor_classad.V6/attrrefs.o \
+	../condor_classad.V6/cclassad.o \
+	../condor_classad.V6/classad_deprecated.o \
+	../condor_classad.V6/classad.o \
+	../condor_classad.V6/coll-client-inst.o \
+	../condor_classad.V6/coll-comm-inst.o \
+	../condor_classad.V6/collectionBase.o \
+	../condor_classad.V6/collectionClient.o \
+	../condor_classad.V6/collection.o \
+	../condor_classad.V6/collectionServer.o \
+	../condor_classad.V6/coll-serv-inst.o \
+	../condor_classad.V6/condorUtil.o \
+	../condor_classad.V6/exprList.o \
+	../condor_classad.V6/exprTree.o \
+	../condor_classad.V6/extra_tests.o \
+	../condor_classad.V6/fnCall.o \
+	../condor_classad.V6/indexfile.o \
+	../condor_classad.V6/instantiations.o \
+	../condor_classad.V6/lexer.o \
+	../condor_classad.V6/lexerSource.o \
+	../condor_classad.V6/literals.o \
+	../condor_classad.V6/matchClassad.o \
+	../condor_classad.V6/operators.o \
+	../condor_classad.V6/query.o \
+	../condor_classad.V6/remoteQuery.o \
+	../condor_classad.V6/sink.o \
+	../condor_classad.V6/source.o \
+	../condor_classad.V6/test_xml.o \
+	../condor_classad.V6/transaction.o \
+	../condor_classad.V6/util.o \
+	../condor_classad.V6/value.o \
+	../condor_classad.V6/view.o \
+	../condor_classad.V6/xmlLexer.o \
+	../condor_classad.V6/xmlSink.o \
+	../condor_classad.V6/xmlSource.o
 
 
 /* Construct a libcondorapi.a that includes enough stuff to read and write
@@ -70,7 +88,9 @@ CONLIBAPI_OBJ = \
 	my_subsystem.o \
 	distribution.o \
 	my_distribution.o \
+	$(CLASSAD_OBJ) \
 	$(DH_OBJ) \
+	condor_attributes.o \
 	c++_util_instantiate.o \
 	../condor_util_lib/condor_snutils.o \
 	stringSpace.o \
