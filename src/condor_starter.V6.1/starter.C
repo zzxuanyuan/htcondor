@@ -441,6 +441,8 @@ CStarter::Reaper(int pid, int exit_status)
 			CleanedUpJobList.DeleteCurrent();
 			delete job;
 		}
+			// No more jobs, all cleanup done, notify our JIC
+		jic->allJobsGone();
 	}
 
 	if ( ShuttingDown && (all_jobs - handled_jobs == 0) ) {
