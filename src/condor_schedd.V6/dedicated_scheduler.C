@@ -2637,12 +2637,12 @@ DedicatedScheduler::computeSchedule( void )
 				delete preempt_candidates;
 
 				if (preemption_rank) {
-					free( preemption_rank);
+					delete preemption_rank;
 					preemption_rank = NULL;
 				}
 	
 				if (preemption_req) {
-					free( preemption_req);
+					delete preemption_req;
 					preemption_req = NULL;
 				}
 	
@@ -2652,12 +2652,12 @@ DedicatedScheduler::computeSchedule( void )
 		}
 			// We are done with these now
 		if (preemption_rank) {
-			free( preemption_rank);
+			delete preemption_rank;
 			preemption_rank = NULL;
 		}
 	
 		if (preemption_req) {
-			free( preemption_req);
+			delete preemption_rank;
 			preemption_req = NULL;
 		}
 	
