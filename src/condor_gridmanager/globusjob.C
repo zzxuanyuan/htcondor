@@ -326,6 +326,9 @@ static bool merge_file_into_classad(const char * filename, ClassAd * ad)
 		SAVE_ATTRS.append(ATTR_ON_EXIT_BY_SIGNAL);
 		SAVE_ATTRS.append(ATTR_ON_EXIT_CODE);
 		SAVE_ATTRS.append(ATTR_ON_EXIT_SIGNAL);
+		SAVE_ATTRS.append(ATTR_JOB_START_DATE);
+		SAVE_ATTRS.append(ATTR_JOB_DURATION);
+
 
 		/* TODO: COMPLETION_DATE isn't currently returned.  Who deals with it?
 		   Is it our job?  gridshell's?  Condor-G never really supported it,
