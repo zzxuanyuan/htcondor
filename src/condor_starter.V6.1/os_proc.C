@@ -455,15 +455,24 @@ OsProc::StartJob()
 	dprintf(D_FULLDEBUG, "Env = %s\n", env_str);
 
 
-	// Check to see if we need to start this process paused, and if
-	// so, pass the right flag to DC::Create_Process().
+	// check to see if we need to start this process paused
+	// if we are a nested starter, don't suspend the job since our
+	// parent (the wrapper starter) started us suspended
+	// (this assumes a wrapper starter does not spawn OsProc's)
 	int job_opt_mask = DCJOBOPT_NO_ENV_INHERIT;
-	int suspend_job_at_exec = 0;
+	bool suspend_job_at_exec = false;
 	JobAd->LookupBool( ATTR_SUSPEND_JOB_AT_EXEC, suspend_job_at_exec);
-	if( suspend_job_at_exec ) {
-		dprintf( D_FULLDEBUG, "OsProc::StartJob(): "
-				 "Job wants to be suspended at exec\n" );
+	int tracing_starter = false;
+	JobAd->LookupBool( ATTR_TOOL_DAEMON_STARTER, tracing_starter );
+	if ( suspend_job_at_exec && !tracing_starter ) {
 		job_opt_mask |= DCJOBOPT_SUSPEND_ON_EXEC;
+		dprintf( D_FULLDEBUG, "job will start suspended\n");
+	}
+
+	// HACK for demo
+	if (tracing_starter) {
+		//job_opt_mask |= DCJOBOPT_SPIN_BEFORE_EXEC;
+		//job_opt_mask |= DCJOBOPT_DONT_CLOSE_THREE;
 	}
 
 	set_priv ( priv );

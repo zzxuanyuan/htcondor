@@ -86,10 +86,38 @@ StarterProc::StartJob()
 		DC_Exit(1);
 	}
 
+	// see if we wish to suspend at exec
+	bool suspend_at_exec = false;
+	JobAd->LookupBool( ATTR_SUSPEND_JOB_AT_EXEC, suspend_at_exec );
+	int job_opt = suspend_at_exec ? DCJOBOPT_SUSPEND_ON_EXEC : 0;
+
+	if ( suspend_at_exec )
+		dprintf( D_FULLDEBUG, "job will start suspended\n");
+
 	dprintf(D_FULLDEBUG, "About to call Create_Process\n");
 	JobPid = daemonCore->
 		Create_Process( command, args, PRIV_ROOT, 1, TRUE,
-				NULL, NULL, TRUE, socks, NULL );
+				NULL, NULL, TRUE, socks, NULL, 0, job_opt );
+
+	// Create_Process saves "interesting" errors
+	char const *create_process_error = NULL;
+	if(JobPid == FALSE && errno) create_process_error = strerror(errno);
+	if ( JobPid == FALSE ) {
+		JobPid = -1;
+		
+		if ( create_process_error ) {
+			MyString err_msg = "Failed to execute '";
+			err_msg += command;
+			err_msg += ' ';
+			err_msg += args;
+			err_msg += "': ";
+			err_msg += create_process_error;
+			Starter->jic->notifyStarterError( err_msg.Value(), true );
+		}
+
+		EXCEPT("Create_Process for nested starter");
+		return 0;
+	}
 
 	return TRUE;
 }

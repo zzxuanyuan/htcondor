@@ -174,7 +174,7 @@ wait_stopped_child (pid_t pid)
       return (-2);
     }
     
-    if (ptrace(PTRACE_DETACH, pid, 0, SIGSTOP) < 0) {
+    if (ptrace(PTRACE_DETACH, pid, 0, 0) < 0) {
       dprintf(D_ALWAYS, "Wait for Stopped Child detach failed: %d (%s) \n", errno, strerror(errno));
       return (-3);
     }
@@ -5237,6 +5237,10 @@ int DaemonCore::Create_Process(
 		bool found;
 		for ( int j=3 ; j < openfds ; j++ ) {
 			if ( j == errorpipe[1] ) continue; // don't close our errorpipe!
+
+			// total hack to get paradyn demo working
+			if ( HAS_DCJOBOPT_DONT_CLOSE_THREE(job_opt_mask) && j == 3)
+				continue;
 			found = FALSE;
 			for ( int k=0 ; k < numInheritSockFds ; k++ ) {
                 if ( inheritSockFds[k] == j ) {
@@ -5283,11 +5287,23 @@ int DaemonCore::Create_Process(
 		if( HAS_DCJOBOPT_SUSPEND_ON_EXEC(job_opt_mask) ) {
 #if defined(LINUX) && defined(TDP)
 
+			// unblock all signals so parent can properly trace us
+			sigset_t emptySet;
+			sigemptyset( &emptySet );
+			sigprocmask( SIG_SETMASK, &emptySet, NULL );
+
 			if( (trace_me() < 0) ) {
 				write(errorpipe[1], &errno, sizeof(errno));
 				exit (errno);
 			} 
 #endif /* LINUX && TDP */
+		}
+
+		// HACK for testing: just spin to test paradyn's fork handling
+		if ( HAS_DCJOBOPT_SPIN_BEFORE_EXEC(job_opt_mask) ) {
+			while (true) {
+				sleep(5);
+			}
 		}
 			
 // and ( finally ) exec:
@@ -5355,6 +5371,7 @@ int DaemonCore::Create_Process(
 				dprintf( D_ALWAYS, "Create_Process parent: "
 						 "wait_stopped_child succeeded\n" );
 			}
+			dprintf( D_FULLDEBUG, "new process with pid %d created\n", newpid);
 #endif /* LINUX && TDP */
 		}
 	}

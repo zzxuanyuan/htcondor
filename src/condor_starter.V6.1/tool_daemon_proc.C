@@ -84,17 +84,17 @@ ToolDaemonProc::StartJob()
 
 	char DaemonNameTemp [_POSIX_PATH_MAX];
 	char DaemonName	[_POSIX_PATH_MAX];
-	if( JobAd->LookupString( ATTR_TOOL_DAEMON_CMD, DaemonNameTemp ) != 1 ) {
+	if( JobAd->LookupString( ATTR_TOOL_DAEMON_CMD, DaemonName ) != 1 ) {
 	    dprintf( D_ALWAYS, "%s not found in JobAd.  Aborting StartJob. \n", 
 				 ATTR_TOOL_DAEMON_CMD );
 	    return 0;
 	}
 
+	/*
 	sprintf( DaemonName, "%s%c%s", Starter->GetWorkingDir(),
 				 DIR_DELIM_CHAR, DaemonNameTemp );
-
+	*/
 	dprintf ( D_FULLDEBUG, " Daemon Name %s \n", DaemonName);
-
 		// This is something of an ugly hack.  filetransfer doesn't
 		// preserve file permissions when it moves a file.  so, our
 		// tool "binary" (or script, whatever it is), is sitting in
@@ -105,7 +105,7 @@ ToolDaemonProc::StartJob()
         // If daemon_name is an absolute path, chmod has to be applied
         // to the file copied in cwd (skipping path information referred
 	    // to the submiting host).
-
+	/*
 	priv_state old_priv = set_user_priv();
 	int retval = chmod( DaemonName, S_IRWXU | S_IRWXO | S_IRWXG );
 	set_priv( old_priv );
@@ -113,6 +113,7 @@ ToolDaemonProc::StartJob()
 		dprintf( D_ALWAYS, "Failed to chmod %s!\n", DaemonName );
 		return 0;
 	}
+	*/
 
 //	initKillSigs ();
 

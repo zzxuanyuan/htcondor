@@ -485,6 +485,7 @@ CStarter::SpawnJob( void )
 			 jic->jobProc() );
 
 	UserProc *job;
+	bool starter_is_wrapper = false;
 	switch ( jobUniverse )  
 	{
 		case CONDOR_UNIVERSE_VANILLA:
@@ -510,6 +511,7 @@ CStarter::SpawnJob( void )
 		case CONDOR_UNIVERSE_STARTER:
 			dprintf( D_FULLDEBUG, "Starting a StarterProc\n");
 			job = new StarterProc( jobAd );
+			starter_is_wrapper = true;
 			break;
 		default:
 			dprintf( D_ALWAYS, "Starter doesn't support universe %d (%s)\n",
@@ -520,12 +522,12 @@ CStarter::SpawnJob( void )
 	if (job->StartJob()) {
 		JobList.Append(job);
 
-		// Now, see if we also need to start up a ToolDaemon
-		// for this job.
+		// see if we also need to start up a ToolDaemon for this job
+		bool tracing_starter = false;
+		jobAd->LookupBool( ATTR_TOOL_DAEMON_STARTER, tracing_starter );
 		char* tool_daemon_name = NULL;
-		jobAd->LookupString( ATTR_TOOL_DAEMON_CMD,
-							 &tool_daemon_name );
-		if( tool_daemon_name ) {
+		jobAd->LookupString( ATTR_TOOL_DAEMON_CMD, &tool_daemon_name );
+		if( tool_daemon_name && ( starter_is_wrapper || !tracing_starter ) ) {
 				// we need to start a tool daemon for this job
 			ToolDaemonProc* tool_daemon_proc;
 			tool_daemon_proc = new ToolDaemonProc( jobAd, job->GetJobPid() );
@@ -535,7 +537,7 @@ CStarter::SpawnJob( void )
 				JobList.Append( tool_daemon_proc );
 				dprintf( D_FULLDEBUG, "ToolDaemonProc added to JobList\n");
 
-				// place application PID into LASS
+				// place application (or starter) PID into LASS
 				char pid_str[10];
 				snprintf(pid_str, 10, "%d", job->GetJobPid());
 				tool_daemon_proc->tdp_lass_put("PID", pid_str);
