@@ -1307,6 +1307,11 @@ _cv_ext_pvm_version="pvm-3.4.2"
 AC_MSG_RESULT([$_cv_ext_pvm_version])
 AC_SUBST(ext_pvm_version,$_cv_ext_pvm_version)
 
+AC_MSG_CHECKING([classads])
+_cv_ext_classads_version="classads-0.9.7"
+AC_MSG_RESULT([$_cv_ext_classads_version])
+AC_SUBST(ext_classads_version,$_cv_ext_classads_version)
+
 else
 # if there's no externals at all, we still need to define these to
 # avoid imake troubles...
