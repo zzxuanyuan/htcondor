@@ -26,8 +26,6 @@
 
 - Writing input classad to file in BuildSubmitRSL seems wrong.  But where?
   (And how to pass filename to BuildSubmitRSL)
-- When job finishes, copy return classad file (or parts of it) into local real
-  classad.
 - Log retrieval:
 	- propagating things from the submit file to allow the user to
 	  specify (it's all hard coded now).
