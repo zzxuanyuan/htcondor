@@ -89,6 +89,9 @@ public:
  private:
 	char* claim_id;
 
+		// Helper methods
+	bool checkClaimId( void );
+
 		// I can't be copied (yet)
 	DCStartd( const DCStartd& );
 	DCStartd& operator = ( const DCStartd& );
