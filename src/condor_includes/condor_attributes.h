@@ -242,6 +242,7 @@ const char ATTR_MIRROR_JOB_ID            [] = "MirrorJobId";
 const char ATTR_MIRROR_LEASE_TIME        [] = "MirrorLeaseTime";
 const char ATTR_MIRROR_REMOTE_LEASE_TIME [] = "MirrorRemoteLeaseTime";
 const char ATTR_MIRROR_SCHEDD            [] = "MirrorSchedd";
+const char ATTR_MIRROR_SUBMITTER_ID      [] = "MirrorSubmitterId";
 const char ATTR_MPI_IS_MASTER            [] = "MPIIsMaster";
 const char ATTR_MPI_MASTER_ADDR       	 [] = "MPIMasterAddr";
 const char ATTR_PARALLEL_IS_MASTER       [] = "ParallelIsMaster";   
