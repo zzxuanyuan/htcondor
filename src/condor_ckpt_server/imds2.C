@@ -139,47 +139,6 @@ int IMDS::RenameFile(struct in_addr machine_IP,
 	return CKPT_OK;
 }
 
-
-// this is used to create hard links for the diff. ckpting analysis (John B)
-// it also sets world writeable permissions to allow the manager to remove
-// the links when done
-int IMDS::LinkFile (char * old_path, char * new_path) { 
-    int status = link (old_path, new_path);
-    if (status == 0) { // link ok, now set permissions
-		status = access(new_path, R_OK | W_OK );
-		if (status == 0) return status;
-		dprintf( D_ALWAYS, "IMDS:LinkFile: access error" );
-	}
-
-	else { // unable to create link, check errno
-    	char * error_file;
-		FILE * error_fp;
-		
-		if ( (error_file = param("DIFF_CKPT_ERR")) != NULL) {
-    		sprintf(error_file, "%s", error_file);
-    		error_fp = fopen(error_file, "a");
-    		if (error_fp == NULL) {
-        		printf("Could not open %s.\n", error_file);
-				free( error_file );
-        		return status;
-    		}
-    		if (errno == EEXIST) { // analyzer is running slow, print an err msg
-        		fprintf(error_fp, "Already exists: %s\n", new_path);
-    		} else {
-        		fprintf(error_fp, "Link error: %s\n", strerror(errno));
-    		}
-    		if (0 != fclose(error_fp)) {
-				dprintf( D_ALWAYS, "Could not close error file: \n" );
-			}
-			free( error_file );
-		} else {
-			dprintf( D_ALWAYS, "No DIFF_CKPT_ERR param\n" );
-		}
-	}
-    return status;
-}
-
-
 // this is used to create hard links for the diff. ckpting analysis (John B)
 int IMDS::LinkFile (char * old_path, char * new_path) { 
     int status = link (old_path, new_path);

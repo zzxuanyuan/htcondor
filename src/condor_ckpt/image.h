@@ -51,7 +51,6 @@ public:
 	void Display();
 	int Magic() { return magic; }
 	void ResetMagic();
-	int Compare(Header & other);
 private:
 	int		magic;
 	int		n_segs;
@@ -73,8 +72,6 @@ public:
 	BOOL Mprotect( int prot );
 	void Display();
 	long TotalPages();
-	int Compare(SegMap &other, int fd, int otherfd);
-	static int PrintHistogram(int *); //prints histogram
 private:
 	char		name[14];
 	off_t		file_loc;
@@ -105,7 +102,6 @@ public:
 	void SetMode( int syscall_mode );
 	void MSync();
 	BOOL Mprotect( int prot );
-	int Compare(Image &other);
 
 #if defined(COMPRESS_CKPT)
 	void *FindAltHeap();
