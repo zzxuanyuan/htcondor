@@ -30,8 +30,16 @@ AC_PREREQ(2.57)
 AC_INIT
 
 ############################################################
-# Check for special shell variables we can use
+# Check for command-line arguments and environment variables
 ############################################################
+
+AC_ARG_WITH(externals,
+ AC_HELP_STRING([--with-externals=DIR],
+   [Root of directory tree for external programs needed for building Condor (no default, must be specified)]),
+ ac_cv_externals=$withval,
+ AC_MSG_ERROR([you must use --with-externals=DIR to specify the path to the directory tree for external programs needed to build Condor]))
+AC_SUBST(ext_root,$ac_cv_externals)
+
 AC_ARG_VAR(TMPDIR, [Directory for temp files during Condor build [/tmp]])
 if test "$ac_cv_env_TMPDIR_set" != set; then
     TMPDIR=/tmp
@@ -41,17 +49,6 @@ if test -d $TMPDIR -a -w $TMPDIR; then
 else
     AC_MSG_ERROR([TMPDIR ($TMPDIR) is not a writable directory])
 fi
-
-############################################################
-# Setup additional command-line arguments to configure
-############################################################
-
-AC_ARG_WITH(externals,
- AC_HELP_STRING([--with-externals=DIR],
-   [Root of directory tree for external programs needed for building Condor (no default, must be specified)]),
- ac_cv_externals=$withval,
- AC_MSG_ERROR([you must use --with-externals=DIR to specify the path to the directory tree for external programs needed to build Condor]))
-AC_SUBST(ext_root,$ac_cv_externals)
 
 AC_ARG_WITH(purecachedir,
  AC_HELP_STRING([--with-purecachedir=DIR],
