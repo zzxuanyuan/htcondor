@@ -70,18 +70,18 @@ struct condorCore__ClassAdStructArray
 
 struct condorCore__ClassAdStructAndStatus
 {
-  struct condorCore__Status *status 1:1;
-  struct condorCore__ClassAdStruct *classAd 0:1;
+  struct condorCore__Status status 1:1;
+  struct condorCore__ClassAdStruct classAd 0:1;
 };
 
 struct condorCore__ClassAdStructArrayAndStatus
 {
-  struct condorCore__Status *status 1:1;
-  struct condorCore__ClassAdStructArray *classAdArray 0:1;
+  struct condorCore__Status status 1:1;
+  struct condorCore__ClassAdStructArray classAdArray 0:1;
 };
 
 struct condorCore__StringAndStatus
 {
-  struct condorCore__Status *status 1:1;
+  struct condorCore__Status status 1:1;
   xsd__string message 0:1;
 };

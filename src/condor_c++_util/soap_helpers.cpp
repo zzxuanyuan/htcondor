@@ -3,21 +3,21 @@
  *
  * See LICENSE.TXT for additional notices and disclaimers.
  *
- * Copyright (c)1990-1998 CONDOR Team, Computer Sciences Department, 
- * University of Wisconsin-Madison, Madison, WI.  All Rights Reserved.  
- * No use of the CONDOR Software Program Source Code is authorized 
- * without the express consent of the CONDOR Team.  For more information 
- * contact: CONDOR Team, Attention: Professor Miron Livny, 
- * 7367 Computer Sciences, 1210 W. Dayton St., Madison, WI 53706-1685, 
+ * Copyright (c)1990-1998 CONDOR Team, Computer Sciences Department,
+ * University of Wisconsin-Madison, Madison, WI.  All Rights Reserved.
+ * No use of the CONDOR Software Program Source Code is authorized
+ * without the express consent of the CONDOR Team.  For more information
+ * contact: CONDOR Team, Attention: Professor Miron Livny,
+ * 7367 Computer Sciences, 1210 W. Dayton St., Madison, WI 53706-1685,
  * (608) 262-0856 or miron@cs.wisc.edu.
  *
- * U.S. Government Rights Restrictions: Use, duplication, or disclosure 
- * by the U.S. Government is subject to restrictions as set forth in 
- * subparagraph (c)(1)(ii) of The Rights in Technical Data and Computer 
- * Software clause at DFARS 252.227-7013 or subparagraphs (c)(1) and 
- * (2) of Commercial Computer Software-Restricted Rights at 48 CFR 
- * 52.227-19, as applicable, CONDOR Team, Attention: Professor Miron 
- * Livny, 7367 Computer Sciences, 1210 W. Dayton St., Madison, 
+ * U.S. Government Rights Restrictions: Use, duplication, or disclosure
+ * by the U.S. Government is subject to restrictions as set forth in
+ * subparagraph (c)(1)(ii) of The Rights in Technical Data and Computer
+ * Software clause at DFARS 252.227-7013 or subparagraphs (c)(1) and
+ * (2) of Commercial Computer Software-Restricted Rights at 48 CFR
+ * 52.227-19, as applicable, CONDOR Team, Attention: Professor Miron
+ * Livny, 7367 Computer Sciences, 1210 W. Dayton St., Madison,
  * WI 53706-1685, (608) 262-0856 or miron@cs.wisc.edu.
 ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
@@ -27,7 +27,7 @@
   condor_common.h !
 *****/
 
-static bool 
+static bool
 convert_ad_to_adStruct( struct soap *s, ClassAd *curr_ad, struct condorCore__ClassAdStruct *ad_struct)
 {
 	int attr_index = 0;
@@ -37,7 +37,7 @@ convert_ad_to_adStruct( struct soap *s, ClassAd *curr_ad, struct condorCore__Cla
 	float tmpfloat;
 	bool tmpbool;
 	char *tmpstr;
-	ExprTree *tree, *rhs, *lhs;	
+	ExprTree *tree, *rhs, *lhs;
 
 	if ( !ad_struct ) {
 		return false;
@@ -56,7 +56,7 @@ convert_ad_to_adStruct( struct soap *s, ClassAd *curr_ad, struct condorCore__Cla
 	while( (tree = curr_ad->NextExpr()) ) {
 		lhs = tree->LArg();
 		rhs = tree->RArg();
-		if( lhs && rhs ) { 
+		if( lhs && rhs ) {
 			num_attrs++;
 		}
 	}
@@ -72,9 +72,9 @@ convert_ad_to_adStruct( struct soap *s, ClassAd *curr_ad, struct condorCore__Cla
 	ad_struct->__size = num_attrs;
 	ad_struct->__ptr = (struct condorCore__ClassAdStructAttr *)
 			soap_malloc(s,num_attrs * sizeof(struct condorCore__ClassAdStructAttr));
-	
+
 		// second pass: serialize attributes
-	attr_index = 0;		
+	attr_index = 0;
 	curr_ad->ResetExpr();
 	while( (tree = curr_ad->NextExpr()) ) {
 		rhs = tree->RArg();
@@ -142,7 +142,7 @@ convert_ad_to_adStruct( struct soap *s, ClassAd *curr_ad, struct condorCore__Cla
 		}
 
 			// skip this attr is requested to do so...
-		if ( skip_attr ) continue;	
+		if ( skip_attr ) continue;
 
 			// serialize the attribute name, and finally increment our counter.
 		ad_struct->__ptr[attr_index].name = ((Variable*)tree->LArg())->Name();
@@ -154,7 +154,7 @@ convert_ad_to_adStruct( struct soap *s, ClassAd *curr_ad, struct condorCore__Cla
 }
 
 static bool
-convert_adlist_to_adStructArray(struct soap *s, List<ClassAd> *adList, 
+convert_adlist_to_adStructArray(struct soap *s, List<ClassAd> *adList,
 									struct condorCore__ClassAdStructArray *ads)
 {
 
@@ -164,12 +164,12 @@ convert_adlist_to_adStructArray(struct soap *s, List<ClassAd> *adList,
 
 	ClassAd *curr_ad = NULL;
 	ads->__size = adList->Number();
-	ads->__ptr = (struct condorCore__ClassAdStruct *) soap_malloc(s, 
+	ads->__ptr = (struct condorCore__ClassAdStruct *) soap_malloc(s,
 							ads->__size * sizeof(struct condorCore__ClassAdStruct));
 	adList->Rewind();
 	int ad_index = 0;
 
-	while ( (curr_ad=adList->Next()) ) 
+	while ( (curr_ad=adList->Next()) )
     {
 		if ( convert_ad_to_adStruct(s,curr_ad,&(ads->__ptr[ad_index])) ) {
 			ad_index++;
@@ -181,3 +181,42 @@ convert_adlist_to_adStructArray(struct soap *s, List<ClassAd> *adList,
 }
 
 
+static bool
+convert_adStruct_to_ad(struct soap *s,
+                       ClassAd *curr_ad,
+                       struct condorCore__ClassAdStruct *ad_struct)
+{
+  MyString attribute;
+  MyString name;
+  MyString value;
+  int i = 0;
+
+  if (!ad_struct) {
+    return false;
+  }
+
+  if (!curr_ad) {
+    return false;
+  }
+
+  for (i = 0; i < ad_struct->__size; i++) {
+    if (!ad_struct->__ptr[i].name)
+      continue;
+    else
+      name = ad_struct->__ptr[i].name;
+
+    if (!ad_struct->__ptr[i].value)
+      value = "UNDEFINED";
+    else
+      value = ad_struct->__ptr[i].value;
+
+    if (STRING == ad_struct->__ptr[i].type)
+      attribute = name + "=\"" + value + "\"";
+    else
+      attribute = name + "=" + value;
+
+    curr_ad->Insert(attribute.GetCStr());
+  }
+
+  return true;
+}

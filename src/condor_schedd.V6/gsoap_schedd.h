@@ -67,13 +67,18 @@ int condorSchedd__getJobAd(struct condorSchedd__Transaction transaction,
                            xsd__int jobId,
                            struct condorCore__ClassAdStructAndStatus & result);
 
-/*
+
 int condorSchedd__sendFile(struct condorSchedd__Transaction transaction,
+                           xsd__int clusterId,
+                           xsd__int jobId,
                            xsd__string name,
                            xsd__int offset,
                            struct xsd__base64Binary * data,
                            struct condorCore__Status & result);
 
-int condorSchedd__discoverRequirements(struct condorCore__ClassAdStruct * jobAd,
-                                       struct condorSchedd__RequirementsAndStatus & result);
-*/
+int condorSchedd__discoverJobRequirements(struct condorCore__ClassAdStruct * jobAd,
+                                          struct condorSchedd__RequirementsAndStatus & result);
+
+int condorSchedd__discoverDagRequirements(xsd__string dag,
+                                           struct condorSchedd__RequirementsAndStatus & result);
+

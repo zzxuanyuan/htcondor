@@ -62,19 +62,19 @@
   </complexType>
   <complexType name="ClassAdStructAndStatus">
    <sequence>
-    <element name="status" type="condorCore:Status" minOccurs="1" maxOccurs="1" nillable="true"/>
+    <element name="status" type="condorCore:Status" minOccurs="1" maxOccurs="1"/>
     <element name="classAd" type="condorCore:ClassAdStruct" minOccurs="0" maxOccurs="1" nillable="true"/>
    </sequence>
   </complexType>
   <complexType name="ClassAdStructArrayAndStatus">
    <sequence>
-    <element name="status" type="condorCore:Status" minOccurs="1" maxOccurs="1" nillable="true"/>
+    <element name="status" type="condorCore:Status" minOccurs="1" maxOccurs="1"/>
     <element name="classAdArray" type="condorCore:ClassAdStructArray" minOccurs="0" maxOccurs="1" nillable="true"/>
    </sequence>
   </complexType>
   <complexType name="StringAndStatus">
    <sequence>
-    <element name="status" type="condorCore:Status" minOccurs="1" maxOccurs="1" nillable="true"/>
+    <element name="status" type="condorCore:Status" minOccurs="1" maxOccurs="1"/>
     <element name="message" type="xsd:string" minOccurs="0" maxOccurs="1" nillable="true"/>
    </sequence>
   </complexType>
@@ -123,19 +123,19 @@
   </complexType>
   <complexType name="RequirementsAndStatus">
    <sequence>
-    <element name="status" type="condorCore:Status" minOccurs="1" maxOccurs="1" nillable="true"/>
+    <element name="status" type="condorCore:Status" minOccurs="1" maxOccurs="1"/>
     <element name="requirements" type="condorSchedd:Requirements" minOccurs="0" maxOccurs="1" nillable="true"/>
    </sequence>
   </complexType>
   <complexType name="TransactionAndStatus">
    <sequence>
-    <element name="status" type="condorCore:Status" minOccurs="1" maxOccurs="1" nillable="true"/>
-    <element name="transaction" type="condorSchedd:Transaction" minOccurs="0" maxOccurs="1" nillable="true"/>
+    <element name="status" type="condorCore:Status" minOccurs="1" maxOccurs="1"/>
+    <element name="transaction" type="condorSchedd:Transaction" minOccurs="0" maxOccurs="1"/>
    </sequence>
   </complexType>
   <complexType name="IntAndStatus">
    <sequence>
-    <element name="status" type="condorCore:Status" minOccurs="1" maxOccurs="1" nillable="true"/>
+    <element name="status" type="condorCore:Status" minOccurs="1" maxOccurs="1"/>
     <element name="id" type="xsd:int" minOccurs="0" maxOccurs="1"/>
    </sequence>
   </complexType>
@@ -251,6 +251,23 @@
  <part name="classAd" type="condorCore:ClassAdStruct"/>
 </message>
 
+<message name="sendFileRequest">
+ <part name="transaction" type="condorSchedd:Transaction"/>
+ <part name="clusterId" type="xsd:int"/>
+ <part name="jobId" type="xsd:int"/>
+ <part name="name" type="xsd:string"/>
+ <part name="offset" type="xsd:int"/>
+ <part name="data" type="xsd:base64Binary"/>
+</message>
+
+<message name="discoverJobRequirementsRequest">
+ <part name="jobAd" type="condorCore:ClassAdStruct"/>
+</message>
+
+<message name="discoverDagRequirementsRequest">
+ <part name="dag" type="xsd:string"/>
+</message>
+
 <portType name="condorScheddPortType">
  <operation name="beginTransaction">
   <documentation>Service definition of function condorSchedd__beginTransaction</documentation>
@@ -316,6 +333,21 @@
   <documentation>Service definition of function condorSchedd__getJobAd</documentation>
   <input message="tns:getJobAdRequest"/>
   <output message="tns:ClassAdStructAndStatus"/>
+ </operation>
+ <operation name="sendFile">
+  <documentation>Service definition of function condorSchedd__sendFile</documentation>
+  <input message="tns:sendFileRequest"/>
+  <output message="tns:Status"/>
+ </operation>
+ <operation name="discoverJobRequirements">
+  <documentation>Service definition of function condorSchedd__discoverJobRequirements</documentation>
+  <input message="tns:discoverJobRequirementsRequest"/>
+  <output message="tns:RequirementsAndStatus"/>
+ </operation>
+ <operation name="discoverDagRequirements">
+  <documentation>Service definition of function condorSchedd__discoverDagRequirements</documentation>
+  <input message="tns:discoverDagRequirementsRequest"/>
+  <output message="tns:RequirementsAndStatus"/>
  </operation>
 </portType>
 
@@ -430,6 +462,33 @@
   </output>
  </operation>
  <operation name="getJobAd">
+  <SOAP:operation soapAction=""/>
+  <input>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+  </input>
+  <output>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+  </output>
+ </operation>
+ <operation name="sendFile">
+  <SOAP:operation soapAction=""/>
+  <input>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+  </input>
+  <output>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+  </output>
+ </operation>
+ <operation name="discoverJobRequirements">
+  <SOAP:operation soapAction=""/>
+  <input>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+  </input>
+  <output>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>
+  </output>
+ </operation>
+ <operation name="discoverDagRequirements">
   <SOAP:operation soapAction=""/>
   <input>
    <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="encoding-style"/>

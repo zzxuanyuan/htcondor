@@ -18,19 +18,19 @@ struct condorSchedd__Requirements
 
 struct condorSchedd__RequirementsAndStatus
 {
-  struct condorCore__Status *status 1:1;
-  struct condorSchedd__Requirements *requirements 0:1;
+  struct condorCore__Status status 1:1;
+  struct condorSchedd__Requirements requirements 0:1;
 };
 
 
 struct condorSchedd__TransactionAndStatus
 {
-  struct condorCore__Status *status 1:1;
-  struct condorSchedd__Transaction *transaction 0:1;
+  struct condorCore__Status status 1:1;
+  struct condorSchedd__Transaction transaction 0:1;
 };
 
 struct condorSchedd__IntAndStatus
 {
-  struct condorCore__Status *status 1:1;
+  struct condorCore__Status status 1:1;
   xsd__int id 0:1;
 };

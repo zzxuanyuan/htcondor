@@ -59,21 +59,21 @@ struct condorCore__ClassAdStructArray
 /* condorCore:ClassAdStructAndStatus: */
 struct condorCore__ClassAdStructAndStatus
 {
-	struct condorCore__Status *status;	/* return */
-	struct condorCore__ClassAdStruct *classAd;
+	struct condorCore__Status status;	/* return */
+	struct condorCore__ClassAdStruct classAd;
 };
 
 /* condorCore:ClassAdStructArrayAndStatus: */
 struct condorCore__ClassAdStructArrayAndStatus
 {
-	struct condorCore__Status *status;	/* return */
-	struct condorCore__ClassAdStructArray *classAdArray;
+	struct condorCore__Status status;	/* return */
+	struct condorCore__ClassAdStructArray classAdArray;
 };
 
 /* condorCore:StringAndStatus: */
 struct condorCore__StringAndStatus
 {
-	struct condorCore__Status *status;
+	struct condorCore__Status status;
 	char *message;
 };
 
@@ -94,21 +94,21 @@ struct condorSchedd__Requirements
 /* condorSchedd:RequirementsAndStatus: */
 struct condorSchedd__RequirementsAndStatus
 {
-	struct condorCore__Status *status;	/* return */
-	struct condorSchedd__Requirements *requirements;
+	struct condorCore__Status status;	/* return */
+	struct condorSchedd__Requirements requirements;
 };
 
 /* condorSchedd:TransactionAndStatus: */
 struct condorSchedd__TransactionAndStatus
 {
-	struct condorCore__Status *status;	/* return */
-	struct condorSchedd__Transaction *transaction;
+	struct condorCore__Status status;	/* return */
+	struct condorSchedd__Transaction transaction;
 };
 
 /* condorSchedd:IntAndStatus: */
 struct condorSchedd__IntAndStatus
 {
-	struct condorCore__Status *status;	/* return */
+	struct condorCore__Status status;	/* return */
 	int id;
 };
 
@@ -215,6 +215,29 @@ struct condorSchedd__getJobAd
 	int jobId;
 };
 
+/* condorSchedd:sendFile: */
+struct condorSchedd__sendFile
+{
+	struct condorSchedd__Transaction transaction;
+	int clusterId;
+	int jobId;
+	char *name;
+	int offset;
+	struct xsd__base64Binary *data;
+};
+
+/* condorSchedd:discoverJobRequirements: */
+struct condorSchedd__discoverJobRequirements
+{
+	struct condorCore__ClassAdStruct *jobAd;
+};
+
+/* condorSchedd:discoverDagRequirements: */
+struct condorSchedd__discoverDagRequirements
+{
+	char *dag;
+};
+
 /* SOAP Header: */
 struct SOAP_ENV__Header
 {
@@ -293,6 +316,12 @@ SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__getJobAds(struct soap*, struct condorSch
 
 SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__getJobAd(struct soap*, struct condorSchedd__Transaction, int, int, struct condorCore__ClassAdStructAndStatus &);
 
+SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__sendFile(struct soap*, struct condorSchedd__Transaction, int, int, char *, int, struct xsd__base64Binary *, struct condorCore__Status &);
+
+SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__discoverJobRequirements(struct soap*, struct condorCore__ClassAdStruct *, struct condorSchedd__RequirementsAndStatus &);
+
+SOAP_FMAC5 int SOAP_FMAC6 condorSchedd__discoverDagRequirements(struct soap*, char *, struct condorSchedd__RequirementsAndStatus &);
+
 /* Stubs */
 
 SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__beginTransaction(struct soap*, const char*, const char*, int, struct condorSchedd__TransactionAndStatus &);
@@ -320,6 +349,12 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__submit(struct soap*, const cha
 SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__getJobAds(struct soap*, const char*, const char*, struct condorSchedd__Transaction, char *, struct condorCore__ClassAdStructArrayAndStatus &);
 
 SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__getJobAd(struct soap*, const char*, const char*, struct condorSchedd__Transaction, int, int, struct condorCore__ClassAdStructAndStatus &);
+
+SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__sendFile(struct soap*, const char*, const char*, struct condorSchedd__Transaction, int, int, char *, int, struct xsd__base64Binary *, struct condorCore__Status &);
+
+SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__discoverJobRequirements(struct soap*, const char*, const char*, struct condorCore__ClassAdStruct *, struct condorSchedd__RequirementsAndStatus &);
+
+SOAP_FMAC5 int SOAP_FMAC6 soap_call_condorSchedd__discoverDagRequirements(struct soap*, const char*, const char*, char *, struct condorSchedd__RequirementsAndStatus &);
 
 /* Skeletons */
 
@@ -350,6 +385,12 @@ SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__submit(struct soap*);
 SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__getJobAds(struct soap*);
 
 SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__getJobAd(struct soap*);
+
+SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__sendFile(struct soap*);
+
+SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__discoverJobRequirements(struct soap*);
+
+SOAP_FMAC5 int SOAP_FMAC6 soap_serve_condorSchedd__discoverDagRequirements(struct soap*);
 
 SOAP_END_NAMESPACE(soap_schedd)
 
