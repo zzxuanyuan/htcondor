@@ -55,8 +55,16 @@ AC_ARG_WITH(externals,
   # makes it possible to just run "./configure" most of the time.
   _cur_pwd=`pwd`
   _root_dir=`AS_DIRNAME(["$_cur_pwd"])`
-  CONDOR_VERIFY_EXTERNALS_DIR([$_root_dir/externals],
-  [../externals is not a valid directory tree for external programs needed to build Condor, you must use --with-externals=DIR to specify the path])
+  _local_ext_dir="$_root_dir/externals"
+  if test -d $_local_ext_dir ; then 
+    CONDOR_VERIFY_EXTERNALS_DIR([$_local_ext_dir],
+    [$_local_ext_dir exists but is not a valid directory tree for external programs needed to build Condor, you must use --with-externals=DIR to specify the path])
+  else
+    # try /p/condor/workspaces/externals for builds at UW-Madison CS
+    _uw_cs_externals="/p/condor/workspaces/externals"
+    CONDOR_VERIFY_EXTERNALS_DIR([$_uw_cs_externals],
+    [neither $_local_ext_dir (../externals) nor $_uw_cs_externals is a valid directory tree for external programs needed to build Condor, you must use --with-externals=DIR to specify the path])
+  fi
  ]
 )
 AC_SUBST(ext_root,$ac_cv_externals)
