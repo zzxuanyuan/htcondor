@@ -184,20 +184,27 @@ condor_GCB_config()
 {
 	char *str = NULL;
 
+		/*
+		  you're not supposed to touch memory you give to setenv(), or
+		  pass in stack varialbes, since on some platforms that ends
+		  up trashing the environment.  unfortunately, that means we
+		  have to leak these small values, but there's nothing we can
+		  do about it since UNIX sucks. :(
+		  Derek Wright <wright@cs.wisc.edu> 2004-05-25
+		*/
+
 	// Env: useGCB
-	setenv("useGCB", "yes", 1);
+	setenv("useGCB", strdup("yes"), 1);
 
 	// Env: Broker
 	if (str = param("GCB_BROKER")) {
 		setenv("Broker", str, 1);
-        free(str);
-        str = NULL;
+		str = NULL;
 	}
 
 	// Env: GCB routing table
 	if (str = param("GCB_ROUTE")) {
 		setenv("GCBroute", str, 1);
-        free(str);
 	}
 }
 
