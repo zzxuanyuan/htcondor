@@ -49,7 +49,7 @@
 #define GM_SUBMITTED_MIRROR_INACTIVE	7
 #define GM_DONE_SAVE			8
 #define GM_DONE_COMMIT			9
-#define GM_CANCEL				10
+#define GM_CANCEL_1				10
 #define GM_FAILED				11
 #define GM_DELETE				12
 #define GM_CLEAR_REQUEST		13
@@ -63,6 +63,7 @@
 #define GM_HOLD_MIRROR_ACTIVE	21
 #define GM_HOLD_REMOTE_JOB		22
 #define GM_RELEASE_REMOTE_JOB	23
+#define GM_CANCEL_2				24
 
 static char *GMStateNames[] = {
 	"GM_INIT",
@@ -75,7 +76,7 @@ static char *GMStateNames[] = {
 	"GM_SUBMITTED_MIRROR_INACTIVE",
 	"GM_DONE_SAVE",
 	"GM_DONE_COMMIT",
-	"GM_CANCEL",
+	"GM_CANCEL_1",
 	"GM_FAILED",
 	"GM_DELETE",
 	"GM_CLEAR_REQUEST",
@@ -88,7 +89,8 @@ static char *GMStateNames[] = {
 	"GM_SUBMITTED_MIRROR_ACTIVE",
 	"GM_HOLD_MIRROR_ACTIVE",
 	"GM_HOLD_REMOTE_JOB",
-	"GM_RELEASE_REMOTE_JOB"
+	"GM_RELEASE_REMOTE_JOB",
+	"GM_CANCEL_2"
 };
 
 #define JOB_STATE_UNKNOWN				-1
@@ -457,7 +459,7 @@ int MirrorJob::doEvaluateState()
 		case GM_SUBMIT_SAVE: {
 			// Save the job id for a new remote submission.
 			if ( condorState == REMOVED || condorState == HELD ) {
-				gmState = GM_CANCEL;
+				gmState = GM_CANCEL_1;
 			} else {
 				done = requestScheddUpdate( this );
 				if ( !done ) {
@@ -487,7 +489,7 @@ int MirrorJob::doEvaluateState()
 				dprintf( D_ALWAYS,
 						 "(%d.%d) condor_job_update() failed\n",
 						 procID.cluster, procID.proc );
-				gmState = GM_CANCEL;
+				gmState = GM_CANCEL_1;
 			}
 			} break;
 		case GM_SUBMITTED_MIRROR_INACTIVE: {
@@ -497,7 +499,7 @@ int MirrorJob::doEvaluateState()
 			if ( remoteState == COMPLETED ) {
 				gmState = GM_DONE_SAVE;
 			} else if ( condorState == REMOVED || condorState == HELD ) {
-				gmState = GM_CANCEL;
+				gmState = GM_CANCEL_1;
 			} else if ( mirrorActive ) {
 				gmState = GM_MIRROR_ACTIVE_SAVE;
 			} else if ( remoteStatusUpdateAd != NULL ) {
@@ -566,7 +568,7 @@ int MirrorJob::doEvaluateState()
 			if ( remoteState == COMPLETED ) {
 				gmState = GM_DONE_SAVE;
 			} else if ( condorState == REMOVED ) {
-				gmState = GM_CANCEL;
+				gmState = GM_CANCEL_1;
 			} else if ( condorState == HELD ) {
 				gmState = GM_HOLD_REMOTE_JOB;
 			} else if ( remoteStatusUpdateAd != NULL ) {
@@ -587,14 +589,14 @@ int MirrorJob::doEvaluateState()
 				dprintf( D_ALWAYS,
 						 "(%d.%d) condor_job_hold() failed\n",
 						 procID.cluster, procID.proc );
-				gmState = GM_CANCEL;
+				gmState = GM_CANCEL_1;
 				break;
 			}
 			gmState = GM_HOLD_MIRROR_ACTIVE;
 			} break;
 		case GM_HOLD_MIRROR_ACTIVE: {
 			if ( condorState == REMOVED ) {
-				gmState = GM_CANCEL;
+				gmState = GM_CANCEL_1;
 			} else if ( condorState != HELD ) {
 				gmState = GM_RELEASE_REMOTE_JOB;
 			} else if ( remoteStatusUpdateAd != NULL ) {
@@ -615,7 +617,7 @@ int MirrorJob::doEvaluateState()
 				dprintf( D_ALWAYS,
 						 "(%d.%d) condor_job_release() failed\n",
 						 procID.cluster, procID.proc );
-				gmState = GM_CANCEL;
+				gmState = GM_CANCEL_1;
 				break;
 			}
 			gmState = GM_HOLD_MIRROR_ACTIVE;
@@ -651,7 +653,7 @@ int MirrorJob::doEvaluateState()
 				dprintf( D_ALWAYS,
 						 "(%d.%d) condor_job_complete() failed\n",
 						 procID.cluster, procID.proc );
-				gmState = GM_CANCEL;
+				gmState = GM_CANCEL_1;
 				break;
 			}
 			if ( condorState == COMPLETED || condorState == REMOVED ) {
@@ -664,7 +666,24 @@ int MirrorJob::doEvaluateState()
 				gmState = GM_CLEAR_REQUEST;
 			}
 			} break;
-		case GM_CANCEL: {
+		case GM_CANCEL_1: {
+			if ( gahpAd == NULL ) {
+				MyString buff;
+				gahpAd = new ClassAd;
+				buff.sprintf( "%s = False", ATTR_JOB_LEAVE_IN_QUEUE );
+				gahpAd->Insert( buff.Value() );
+			}
+			rc = gahp->condor_job_update( mirrorScheddName, mirrorJobId,
+										  gahpAd );
+			if ( rc != GAHPCLIENT_COMMAND_PENDING ) {
+				dprintf( D_FULLDEBUG, "(%d.%d) GM_CANCEL: condor_job_update() returned %d\n", procID.cluster, procID.proc, rc );
+			}
+			delete gahpAd;
+			gahpAd = NULL;
+
+			gmState = GM_CANCEL_2;
+			} break;
+		case GM_CANCEL_2: {
 			// We need to cancel the job submission.
 
 			// Should this if-stmt be here? Even if the job is completed,
