@@ -489,37 +489,64 @@ int rename( const char *from, const char *to ) : pseudo {
 
 #if !defined( CLIP )
 
-#	if !defined(AIX32) && !defined(LINUX)
+#   if !defined(AIX32) && !defined(LINUX)
+
 	int fstat( map(int fd), struct stat *buf ) {
 			out xdr_stat( buf );
 			alloc( buf, STAT_SIZE );
-		}
-    int stat( const char *path, struct stat *buf ) {
-			SEND_PATH( path );
-			ALLOC_PATH( path );
-			out xdr_stat( buf );
-			alloc( buf, STAT_SIZE );
-		}
-    int lstat( const char *path, struct stat *buf ) {
-			SEND_PATH( path );
-			ALLOC_PATH( path );
-			out xdr_stat( buf );
-			alloc( buf, STAT_SIZE );
-		}
-#	endif
+	}
 
+	int stat( const char *path, struct stat *buf ) {
+			SEND_PATH( path );
+			ALLOC_PATH( path );
+			out xdr_stat( buf );
+			alloc( buf, STAT_SIZE );
+	}
+
+	int lstat( const char *path, struct stat *buf ) {
+			SEND_PATH( path );
+			ALLOC_PATH( path );
+			out xdr_stat( buf );
+			alloc( buf, STAT_SIZE );
+	}
+
+#endif /* !defined(AIX32) */
+
+#if defined(LINUX) && defined(SWITCH)
+	/* These aren't really syscalls on Linux, so we don't want
+	   stub_gen making senders and receivers for them, since
+	   stub_gen will check for SYS_stat, etc.  We already have 
+	   valid senders and recievers in senders.epilogue, etc, so we
+	   just want stub_gen to make us a switch for them.  -Derek */
+	int fstat( map(int fd), struct stat *buf ) : extract {
+			out xdr_stat( buf );
+			alloc( buf, STAT_SIZE );
+	}
+
+	int stat( const char *path, struct stat *buf ) : extract {
+			SEND_PATH( path );
+			ALLOC_PATH( path );
+			out xdr_stat( buf );
+			alloc( buf, STAT_SIZE );
+	}
+
+	int lstat( const char *path, struct stat *buf ) : extract {
+			SEND_PATH( path );
+			ALLOC_PATH( path );
+			out xdr_stat( buf );
+			alloc( buf, STAT_SIZE );
+	}
+#endif
 
 #if defined(LINUX)
 	int mknod( const char *path, mode_t mode, dev_t device ) {
-		SEND_PATH( path );
-		ALLOC_PATH( path );
-	}
 #else
 	int mknod( const char *path, int mode, dev_t device ) {
+#endif
 		SEND_PATH( path );
 		ALLOC_PATH( path );
 	}
-#endif
+
 	int chmod( const char *path, MODE_T mode ) {
 		SEND_PATH( path );
 		ALLOC_PATH( path );
@@ -864,6 +891,9 @@ int fstatfs( map(int fd), struct statfs *buf ) {
 	/*
 	Things having to do with memory mapped files - we may support these
 	one day soon.
+
+	Don't trap munmap(), we want that to always go locally. 
+	  -Derek Wright, 3/12/98 
 	*/
 not_supported {
 #	if defined(IRIX53) || defined(OSF1)
@@ -874,19 +904,28 @@ not_supported {
 	void * mmap( void * a, size_t l, int p, int f, map(int fd),
 														off_t o ) : extract;
 #	endif  /* of OSF1 */
-	int munmap( void * addr, size_t len );
 	int mprotect( ALPHA_CONST void * addr, size_t len, int prot );
 	int madvise( INV_SYSCALL_PTR * addr, size_t len, int behav );
+	int msync( void * addr, size_t len, int flags );
+#	elif defined(LINUX)
+	int mprotect( void * addr, size_t len, int prot );
 	int msync( void * addr, size_t len, int flags );
 #	else 
 	char * mmap( char * a, size_t l, int p, int f, map(int fd),
 														off_t o ) : extract;
-	int munmap( char * addr, size_t len );
 	int mprotect( char * addr, size_t len, int prot );
 	int madvise( char * addr, size_t len, int behav );
 	int msync( char * addr, size_t len, int flags );
 #	endif
 }
+#if defined( LINUX ) && ! defined( SWITCH )
+	/* We need an mmap in switches.special.c to handle
+	   Linux-specific flags.  Derek Wright 3/12 */
+	not_supported {
+		void * mmap( void * a, size_t l, int p, int f, map(int fd),						                     off_t o ) : extract;
+	}
+#endif
+
 
 #if !defined( CLIP )
 	/* Calls intended only for the super user or system managers */
