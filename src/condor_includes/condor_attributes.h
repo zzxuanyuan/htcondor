@@ -255,6 +255,7 @@ const char ATTR_RESULT                   [] = "Result";
 const char ATTR_RSC_BYTES_SENT			 [] = "RSCBytesSent";
 const char ATTR_RSC_BYTES_RECVD			 [] = "RSCBytesRecvd";
 const char ATTR_RUNNING_JOBS             [] = "RunningJobs";
+const char ATTR_RUNNING_COD_JOB          [] = "RunningCODJob";
 const char ATTR_RUN_BENCHMARKS			 [] = "RunBenchmarks";
 const char ATTR_SHADOW_IP_ADDR			 [] = "ShadowIpAddr";
 const char ATTR_MY_ADDRESS               [] = "MyAddress";
