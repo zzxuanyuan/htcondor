@@ -3238,7 +3238,7 @@ GahpClient::gt4_gram_client_ping(const char * resource_contact)
 	Gahp_Args* result = get_pending_result(command,buf);
 	if ( result ) {
 		// command completed.
-		if (result->argc != 2) {
+		if (result->argc != 3) {
 			EXCEPT("Bad %s Result",command);
 		}
 		int rc = atoi(result->argv[1]);
@@ -3354,7 +3354,7 @@ GahpClient::gt4_gram_client_refresh_credentials(const char *delegation_uri)
 	Gahp_Args* result = get_pending_result(command,buf);
 	if ( result ) {
 		// command completed.
-		if (result->argc != 2) {
+		if (result->argc != 3) {
 			EXCEPT("Bad %s Result",command);
 		}
 		int rc = atoi(result->argv[1]);
