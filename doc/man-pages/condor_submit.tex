@@ -1120,6 +1120,9 @@ and the name of the file is given
 by the \Opt{output} command.
 The default value is \Expr{True}.
 
+For transferring files other than \File{stdout},
+see \Opt{transfer\_output\_files}.
+
 %%%%%%%%%%%%%%%%%%%
 %% transfer_input
 %%%%%%%%%%%%%%%%%%%
@@ -1134,6 +1137,9 @@ If \Expr{False}, then the job's input is taken from a pre-staged
 file on the remote machine, and
 the name of the file is given by the \Opt{input} command.
 The default value is \Expr{True}.
+
+For transferring files other than \File{stdin},
+see \Opt{transfer\_input\_files}.
 
 %%%%%%%%%%%%%%%%%%%
 %% transfer_error
