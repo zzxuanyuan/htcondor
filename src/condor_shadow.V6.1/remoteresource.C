@@ -1422,6 +1422,7 @@ RemoteResource::requestReconnect( void )
 
 	began_execution = true;
 	setResourceState( RR_EXECUTING );
+	reconnect_attempts = 0;
 
 		// Tell the Shadow object so it can take care of the rest.
 	shadow->resourceReconnected( this );
