@@ -64,20 +64,25 @@ convert_FileInfoList_to_Array(struct soap * soap,
                               List<FileInfo> & list,
                               struct FileInfoArray & array)
 {
-  array.__size = list.Number();
-	  //XXX: What if list.Number() == 0?
-  array.__ptr = (struct condor__FileInfo *) soap_malloc(soap, array.__size * sizeof(struct condor__FileInfo));
+	array.__size = list.Number();
+		//XXX: What if list.Number() == 0?
+	array.__ptr = (struct condor__FileInfo *) soap_malloc(soap, array.__size * sizeof(struct condor__FileInfo));
 
-  ASSERT(array.__ptr);
+	ASSERT(array.__ptr);
 
-  FileInfo *info;
-  list.Rewind();
-  for (int i = 0; list.Next(info); i++) {
-	array.__ptr[i].name = strdup(info->name.GetCStr());
-    array.__ptr[i].size = (int) info->size;
-  }
+	FileInfo *info;
+	list.Rewind();
+	for (int i = 0; list.Next(info); i++) {
+			//array.__ptr[i].name = (char *) soap_malloc(soap, strlen(info->name));
+			//ASSERT(array.__ptr[i].name);
+			//strcpy(array.__ptr[i].name, info->name);
+		array.__ptr[i].name = strdup(info->name);
+		printf("info name: %s\n", info->name);
+		printf("array name: %s\n", array.__ptr[i].name);
+		array.__ptr[i].size = (int) info->size;
+	}
 
-  return true;
+	return true;
 }
 
 static bool null_transaction(const struct condor__Transaction & transaction)
@@ -788,11 +793,11 @@ condor__listSpool(struct soap * soap,
 		}
 
 			// Clean up the files.
-		FileInfo *info;
-		files.Rewind();
-		for (int i = 0; files.Next(info); i++) {
-			delete info;
-		}
+			FileInfo *info;
+			files.Rewind();
+			for (int i = 0; files.Next(info); i++) {
+				delete info;
+			}
 
 			//delete job; // XXX: Only if it is the temp one.
 	}
