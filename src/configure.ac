@@ -76,13 +76,12 @@ AC_PROG_CXX
 AC_PROG_LEX
 AC_CHECK_PROG(ac_lex,lex,yes,no)
 if test "$ac_lex" == no; then
-	echo "lex is required";
-	exit;
+    AC_MSG_ERROR( [lex is required] )
 fi
+
 AC_CHECK_PROG(ac_yacc,yacc,yes,no)
 if test "$ac_yacc" == no; then
-	echo "yacc is required";
-	exit;
+    AC_MSG_ERROR( [yacc is required] )
 fi
 
 
