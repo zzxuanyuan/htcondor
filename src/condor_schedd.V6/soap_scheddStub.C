@@ -669,15 +669,23 @@ condor__getJobAd(struct soap *soap,
 		extendTransaction(transaction);
 
 		ClassAd *ad = GetJobAd(clusterId,jobId);
-		if (!convert_ad_to_adStruct(soap,ad,&result.response.classAd, false)) {
-			dprintf(D_FULLDEBUG,
-					"condor__getJobAds: adlist to adStructArray failed!\n");
-
-			result.response.status.code = FAIL;
-			result.response.status.message = "Failed to serialize job ad.";
+		if (!ad) {
+			result.response.status.code = UNKNOWNJOB;
+			result.response.status.message = "Specified job is unknown.";
 		} else {
-			result.response.status.code = SUCCESS;
-			result.response.status.message = "Remember to love it.";
+			if (!convert_ad_to_adStruct(soap,
+										ad,
+										&result.response.classAd,
+										false)) {
+				dprintf(D_FULLDEBUG,
+						"condor__getJobAd: adlist to adStructArray failed!\n");
+
+				result.response.status.code = FAIL;
+				result.response.status.message = "Failed to serialize job ad.";
+			} else {
+				result.response.status.code = SUCCESS;
+				result.response.status.message = "Remember to love it.";
+			}
 		}
 	}
 
