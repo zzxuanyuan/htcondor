@@ -2018,6 +2018,7 @@ int
 Scheduler::transferJobFilesReaper(int tid,int exit_status)
 {
 	ExtArray<PROC_ID> *jobs;
+	int i;
 
 	dprintf(D_FULLDEBUG,"transferJobFilesReaper tid=%d status=%d\n",
 			tid,exit_status);
@@ -2039,6 +2040,12 @@ Scheduler::transferJobFilesReaper(int tid,int exit_status)
 	}
 
 		// For each job, modify its ClassAd
+	time_t now = time(NULL);
+	int len = (*jobs).getlast() + 1;
+	for (i=0; i < len; i++) {
+			// TODO --- maybe put this in a transaction?
+		SetAttributeInt((*jobs)[i].cluster,(*jobs)[i].proc,ATTR_STAGE_OUT_FINISH,now);
+	}
 
 		// Now, deallocate memory
 	spoolJobFileWorkers->remove(tid);
@@ -2171,14 +2178,14 @@ Scheduler::spoolJobFilesReaper(int tid,int exit_status)
 			}
 		}
 
-			// Set ATTR_JOB_SPOOL_COMPLETIONTIME if not already set.
+			// Set ATTR_STAGE_IN_FINISH if not already set.
 		int spool_completion_time = 0;
-		ad->LookupInteger(ATTR_JOB_SPOOL_COMPLETIONTIME,spool_completion_time);
+		ad->LookupInteger(ATTR_STAGE_IN_FINISH,spool_completion_time);
 		if ( !spool_completion_time ) {
 			// Set completion time to be one second backwards, in case
 			// the job runs and completes in one second or less --- this
 			// way we don't miss any output files for short running jobs.
-			SetAttributeInt(cluster,proc,ATTR_JOB_SPOOL_COMPLETIONTIME,now-1);
+			SetAttributeInt(cluster,proc,ATTR_STAGE_IN_FINISH,now-1);
 		}
 
 			// And now release the job.
@@ -2408,6 +2415,8 @@ Scheduler::spoolJobFiles(int mode, Stream* s)
 
 	setQSock(rsock);	// so OwnerCheck() will work
 
+	time_t now = time(NULL);
+
 	if ( mode == SPOOL_JOB_FILES ) {
 		for (i=0; i<JobAdsArrayLen; i++) {
 			rsock->code(a_job);
@@ -2416,6 +2425,7 @@ Scheduler::spoolJobFiles(int mode, Stream* s)
 				// to transfer data to/from a job.
 			if (OwnerCheck(a_job.cluster,a_job.proc)) {
 				(*jobs)[i] = a_job;
+				SetAttributeInt(a_job.cluster,a_job.proc,ATTR_STAGE_IN_START,now);
 			}
 		}
 	}
@@ -2433,6 +2443,12 @@ Scheduler::spoolJobFiles(int mode, Stream* s)
 			tmp_ad = GetNextJobByConstraint(constraint_string,0);
 		}
 		if (constraint_string) free(constraint_string);
+			// Now set ATTR_STAGE_OUT_START
+		for (i=0; i<JobAdsArrayLen; i++) {
+				// TODO --- maybe put this in a transaction?
+			SetAttributeInt((*jobs)[i].cluster,(*jobs)[i].proc,ATTR_STAGE_OUT_START,now);
+		}
+
 	}
 
 
@@ -2457,6 +2473,7 @@ Scheduler::spoolJobFiles(int mode, Stream* s)
 					this
 				);
 		}
+
 
 			// Start a new thread (process on Unix) to do the work
 		tid = daemonCore->Create_Thread(

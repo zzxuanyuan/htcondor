@@ -353,7 +353,7 @@ FileTransfer::SimpleInit(ClassAd *Ad, bool want_check_perms, bool is_server,
 	}
 
 	int spool_completion_time = 0;
-	Ad->LookupInteger(ATTR_JOB_SPOOL_COMPLETIONTIME,spool_completion_time);
+	Ad->LookupInteger(ATTR_STAGE_IN_FINISH,spool_completion_time);
 	last_download_time = spool_completion_time;
 
 	did_init = true;
