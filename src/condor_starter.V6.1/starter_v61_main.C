@@ -27,6 +27,7 @@
 #include "condor_attributes.h"
 #include "condor_version.h"
 #include "starter.h"
+#include "jic_shadow.h"
 #include "condor_debug.h"
 #include "condor_config.h"
 #include "java_detect.h"
@@ -118,6 +119,12 @@ main_init(int argc, char *argv[])
 	// register a cleanup routine to kill our kids in case we EXCEPT
 	_EXCEPT_Cleanup = exception_cleanup;
 
+	JobInfoCommunicator* jic;
+
+		// for now, assume we're dealing with a shadow.  we can easily
+		// change this once we add support for a JICLocal...
+	jic = new JICShadow( argv[1] );
+
 	Stream **socks = daemonCore->GetInheritedSocks();
 	if (socks[0] == NULL || 
 		socks[1] != NULL || 
@@ -132,7 +139,7 @@ main_init(int argc, char *argv[])
 		   call, leaving the shadow blocked.  -Jim B. */
 	syscall_sock->timeout(300);
 
-	if(!Starter->Init(argv[1])) {
+	if( !Starter->Init(jic) ) {
 		dprintf(D_ALWAYS, "Unable to start job.\n");
 		DC_Exit(1);
 	}
