@@ -1385,13 +1385,20 @@ achieved with the following policy:
 
 \begin{verbatim}
 PREEMPT = False
-START = $(START) && (State == "Unclaimed")
+PREEMPTION_REQUIREMENTS = False
+RANK = 0
 \end{verbatim}
 
-Setting \Macro{PREEMPT} to be false disables preemption by the machine
-owner.  Making the \Macro{START} expression require the machine to be
-in an unclaimed state prevents higher priority users from preempting
-lower priority users who already have a claim to the machine.
+Setting \Macro{PREEMPT} to be false disables preemption from activity
+on the machine (e.g. console activity from the machine owner).
+\Macro{PREEMPTION\_REQUIREMENTS} is set to false to disable preemption
+by users with better priority in the pool.  (Technically, that is part
+of the negotiator policy, not the startd policy.)  Setting the
+startd's \Macro{RANK} expression to 0 removes the possibility of
+startd preemption, which is when the negotiator finds a job that the
+startd likes better than the current job it is running.  For this
+purpose, setting the rank to any constant or to nothing at all would
+work just as well.
 
 You should be aware of one disadvantage of this policy: A low priority
 user can get a claim to a machine and then hold on to it indefinitely,
