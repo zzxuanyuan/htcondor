@@ -27,27 +27,27 @@
 /**********************************************************************
 ** Special macros and things we always want our header files to have
 *********************************************************************/
-//#include "condor_header_features.h"
+#include "condor_header_features.h"
 
 /**********************************************************************
 ** System specific headers and definitions
 *********************************************************************/
-//#include "condor_system.h"
+#include "condor_system.h"
 
 /**********************************************************************
 ** Condor specific headers and definitions
 **********************************************************************/
-//#include "condor_constants.h"
-//#include "condor_macros.h"
+#include "condor_constants.h"
+#include "condor_macros.h"
 
 /**********************************************************************
 ** C++ specific stuff 
 **********************************************************************/
 #if defined(__cplusplus)
 
-//#include <iostream>
-//#include <iomanip>
-//#include <fstream>
+#include <iostream.h>
+#include <iomanip.h>
+#include <fstream.h>
 
 #endif /* __cplusplus */
 
