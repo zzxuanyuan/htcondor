@@ -26,13 +26,16 @@ static char *_FileName_ = __FILE__;
 Resource::Resource( CpuAttributes* cap, int rid )
 {
 	char tmp[256];
+	int size = (int)ceil(60 / polling_interval);
 	r_classad = NULL;
 	r_state = new ResState( this );
 	r_starter = new Starter( this );
 	r_cur = new Match( this );
 	r_pre = NULL;
 	r_reqexp = new Reqexp( this );
-	sprintf( tmp, "cpu%d", rid );
+	r_load_queue = new LoadQueue( size );
+
+	sprintf( tmp, "ro%d", rid );
 	r_id = strdup( tmp );
 	
 	if( resmgr->is_smp() ) {
@@ -60,6 +63,7 @@ Resource::~Resource()
 	delete r_pre;		
 	delete r_reqexp;   
 	delete r_attr;		
+	delete r_load_queue;
 	free( r_name );
 	free( r_id );
 }
@@ -705,4 +709,63 @@ Resource::dprintf( int flags, char* fmt, ... )
 	this->dprintf_va( flags, fmt, args );
 	va_end( args );
 }
+
+
+float
+Resource::compute_condor_load()
+{
+	float avg;
+	float max;
+	float load;
+	int numcpus = resmgr->num_cpus();
+	procInfo* pinfo = NULL;
+	static int num_called = 0;
+
+	if( r_starter->active() ) { 
+		num_called++;
+		if( num_called >= 10 ) {
+			r_starter->recompute_pidfamily();
+			num_called = 0;
+		}
+
+		resmgr->m_proc->getProcSetInfo( r_starter->pidfamily(), 
+										r_starter->pidfamily_size(), 
+										pinfo ); 
+		if( !pinfo ) {
+			EXCEPT( "Out of memory!" );
+		}
+		r_load_queue->push( 1, pinfo->cpuusage );
+		delete pinfo;
+	} else {
+		r_load_queue->push( 1, 0.0 );
+	}
+	avg = (r_load_queue->avg() / numcpus);
+
+#if 0
+	r_load_queue->display();
+	dprintf( D_FULLDEBUG | D_NOHEADER, "Size: %d  Avg value: %f\n", 
+			 r_load_queue->size(), avg );
+#endif
+
+	max = MAX( numcpus, resmgr->m_attr->load() );
+	load = (avg * max) / 100;
+		// Make sure we don't think the CondorLoad on 1 node is higher
+		// than the total system load.
+	return MIN( load, resmgr->m_attr->load() );
+}
+
+
+void
+Resource::resize_load_queue()
+{
+	int size = (int)ceil(60 / polling_interval);
+	dprintf( D_FULLDEBUG, "Resizing load queue.  Old: %d, New: %d\n",
+			 r_load_queue->size(), size );
+	float val = r_load_queue->avg();
+	delete r_load_queue;
+	r_load_queue = new LoadQueue( size );
+	r_load_queue->setval( val );
+}
+	
+
 
