@@ -84,9 +84,6 @@ Package=<4>
     Project_Dep_Name condor_submit_dag
     End Project Dependency
     Begin Project Dependency
-    Project_Dep_Name condor_eventd
-    End Project Dependency
-    Begin Project Dependency
     Project_Dep_Name condor_fetchlog
     End Project Dependency
     Begin Project Dependency
@@ -615,10 +612,10 @@ Package=<4>
     Project_Dep_Name condor_io
     End Project Dependency
     Begin Project Dependency
-    Project_Dep_Name condor_qmgmt
+    Project_Dep_Name condor_sysapi
     End Project Dependency
     Begin Project Dependency
-    Project_Dep_Name condor_sysapi
+    Project_Dep_Name condor_qmgmt
     End Project Dependency
 }}}
 
@@ -841,9 +838,6 @@ Package=<4>
     End Project Dependency
     Begin Project Dependency
     Project_Dep_Name condor_procapi
-    End Project Dependency
-    Begin Project Dependency
-    Project_Dep_Name condor_kbdd_dll
     End Project Dependency
     Begin Project Dependency
     Project_Dep_Name condor_sysapi

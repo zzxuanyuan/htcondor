@@ -435,20 +435,13 @@
 	
 
 ..\src\condor_daemon_core.V6\stdsoap2.C : \
-	"..\src\condor_includes\cedar_enums.h"\
 	"..\src\condor_includes\condor_common.h"\
 	"..\src\condor_includes\condor_constants.h"\
 	"..\src\condor_includes\condor_debug.h"\
-	"..\src\condor_includes\condor_file_lock.h"\
 	"..\src\condor_includes\condor_fix_assert.h"\
 	"..\src\condor_includes\condor_header_features.h"\
-	"..\src\condor_includes\condor_macros.h"\
-	"..\src\condor_includes\condor_sys_nt.h"\
-	"..\src\condor_includes\condor_sys_types.h"\
-	"..\src\condor_includes\condor_system.h"\
 	"..\src\condor_includes\stdsoap2.h"\
 	"..\src\condor_sysapi\sysapi.h"\
-	"..\src\h\fake_flock.h"\
 	"..\src\h\file_lock.h"\
 	
 

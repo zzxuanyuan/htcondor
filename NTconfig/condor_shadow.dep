@@ -39,15 +39,8 @@
 	"..\src\condor_includes\condor_error_codes.h"\
 	"..\src\condor_includes\condor_exprtype.h"\
 	"..\src\condor_includes\condor_file_lock.h"\
-	"..\src\condor_includes\condor_fix_access.h"\
 	"..\src\condor_includes\condor_fix_assert.h"\
-	"..\src\condor_includes\condor_fix_sys_resource.h"\
-	"..\src\condor_includes\condor_fix_sys_stat.h"\
-	"..\src\condor_includes\condor_fix_sys_time.h"\
-	"..\src\condor_includes\condor_fix_sys_utsname.h"\
-	"..\src\condor_includes\condor_fix_unistd.h"\
 	"..\src\condor_includes\condor_header_features.h"\
-	"..\src\condor_includes\condor_hpux_64bit_types.h"\
 	"..\src\condor_includes\condor_io.h"\
 	"..\src\condor_includes\condor_macros.h"\
 	"..\src\condor_includes\condor_md.h"\
@@ -56,15 +49,7 @@
 	"..\src\condor_includes\condor_qmgr.h"\
 	"..\src\condor_includes\condor_random_num.h"\
 	"..\src\condor_includes\condor_secman.h"\
-	"..\src\condor_includes\condor_snutils.h"\
-	"..\src\condor_includes\condor_sys_aix.h"\
-	"..\src\condor_includes\condor_sys_bsd.h"\
-	"..\src\condor_includes\condor_sys_dux.h"\
-	"..\src\condor_includes\condor_sys_hpux.h"\
-	"..\src\condor_includes\condor_sys_irix.h"\
-	"..\src\condor_includes\condor_sys_linux.h"\
 	"..\src\condor_includes\condor_sys_nt.h"\
-	"..\src\condor_includes\condor_sys_solaris.h"\
 	"..\src\condor_includes\condor_sys_types.h"\
 	"..\src\condor_includes\condor_system.h"\
 	"..\src\condor_includes\condor_uid.h"\
@@ -81,7 +66,6 @@
 	"..\src\condor_shadow.V6.1\baseshadow.h"\
 	"..\src\condor_shadow.V6.1\shadow_user_policy.h"\
 	"..\src\condor_sysapi\sysapi.h"\
-	"..\src\h\config.h"\
 	"..\src\h\exit.h"\
 	"..\src\h\fake_flock.h"\
 	"..\src\h\file_lock.h"\
@@ -89,7 +73,6 @@
 	"..\src\h\proc.h"\
 	"..\src\h\shadow.h"\
 	"..\src\h\startup.h"\
-	{$(INCLUDE)}"wspiapi.h"\
 	
 
 ..\src\condor_shadow.V6.1\mpiresource.C : \
@@ -135,15 +118,8 @@
 	"..\src\condor_includes\condor_error_codes.h"\
 	"..\src\condor_includes\condor_exprtype.h"\
 	"..\src\condor_includes\condor_file_lock.h"\
-	"..\src\condor_includes\condor_fix_access.h"\
 	"..\src\condor_includes\condor_fix_assert.h"\
-	"..\src\condor_includes\condor_fix_sys_resource.h"\
-	"..\src\condor_includes\condor_fix_sys_stat.h"\
-	"..\src\condor_includes\condor_fix_sys_time.h"\
-	"..\src\condor_includes\condor_fix_sys_utsname.h"\
-	"..\src\condor_includes\condor_fix_unistd.h"\
 	"..\src\condor_includes\condor_header_features.h"\
-	"..\src\condor_includes\condor_hpux_64bit_types.h"\
 	"..\src\condor_includes\condor_io.h"\
 	"..\src\condor_includes\condor_macros.h"\
 	"..\src\condor_includes\condor_md.h"\
@@ -152,15 +128,7 @@
 	"..\src\condor_includes\condor_perms.h"\
 	"..\src\condor_includes\condor_random_num.h"\
 	"..\src\condor_includes\condor_secman.h"\
-	"..\src\condor_includes\condor_snutils.h"\
-	"..\src\condor_includes\condor_sys_aix.h"\
-	"..\src\condor_includes\condor_sys_bsd.h"\
-	"..\src\condor_includes\condor_sys_dux.h"\
-	"..\src\condor_includes\condor_sys_hpux.h"\
-	"..\src\condor_includes\condor_sys_irix.h"\
-	"..\src\condor_includes\condor_sys_linux.h"\
 	"..\src\condor_includes\condor_sys_nt.h"\
-	"..\src\condor_includes\condor_sys_solaris.h"\
 	"..\src\condor_includes\condor_sys_types.h"\
 	"..\src\condor_includes\condor_system.h"\
 	"..\src\condor_includes\condor_uid.h"\
@@ -179,7 +147,6 @@
 	"..\src\condor_shadow.V6.1\remoteresource.h"\
 	"..\src\condor_shadow.V6.1\shadow_user_policy.h"\
 	"..\src\condor_sysapi\sysapi.h"\
-	"..\src\h\config.h"\
 	"..\src\h\exit.h"\
 	"..\src\h\fake_flock.h"\
 	"..\src\h\file_lock.h"\
@@ -187,7 +154,6 @@
 	"..\src\h\proc.h"\
 	"..\src\h\shadow.h"\
 	"..\src\h\startup.h"\
-	{$(INCLUDE)}"wspiapi.h"\
 	
 
 ..\src\condor_shadow.V6.1\mpishadow.C : \
@@ -235,15 +201,8 @@
 	"..\src\condor_includes\condor_error_codes.h"\
 	"..\src\condor_includes\condor_exprtype.h"\
 	"..\src\condor_includes\condor_file_lock.h"\
-	"..\src\condor_includes\condor_fix_access.h"\
 	"..\src\condor_includes\condor_fix_assert.h"\
-	"..\src\condor_includes\condor_fix_sys_resource.h"\
-	"..\src\condor_includes\condor_fix_sys_stat.h"\
-	"..\src\condor_includes\condor_fix_sys_time.h"\
-	"..\src\condor_includes\condor_fix_sys_utsname.h"\
-	"..\src\condor_includes\condor_fix_unistd.h"\
 	"..\src\condor_includes\condor_header_features.h"\
-	"..\src\condor_includes\condor_hpux_64bit_types.h"\
 	"..\src\condor_includes\condor_io.h"\
 	"..\src\condor_includes\condor_macros.h"\
 	"..\src\condor_includes\condor_md.h"\
@@ -253,15 +212,7 @@
 	"..\src\condor_includes\condor_qmgr.h"\
 	"..\src\condor_includes\condor_random_num.h"\
 	"..\src\condor_includes\condor_secman.h"\
-	"..\src\condor_includes\condor_snutils.h"\
-	"..\src\condor_includes\condor_sys_aix.h"\
-	"..\src\condor_includes\condor_sys_bsd.h"\
-	"..\src\condor_includes\condor_sys_dux.h"\
-	"..\src\condor_includes\condor_sys_hpux.h"\
-	"..\src\condor_includes\condor_sys_irix.h"\
-	"..\src\condor_includes\condor_sys_linux.h"\
 	"..\src\condor_includes\condor_sys_nt.h"\
-	"..\src\condor_includes\condor_sys_solaris.h"\
 	"..\src\condor_includes\condor_sys_types.h"\
 	"..\src\condor_includes\condor_system.h"\
 	"..\src\condor_includes\condor_uid.h"\
@@ -281,7 +232,6 @@
 	"..\src\condor_shadow.V6.1\remoteresource.h"\
 	"..\src\condor_shadow.V6.1\shadow_user_policy.h"\
 	"..\src\condor_sysapi\sysapi.h"\
-	"..\src\h\config.h"\
 	"..\src\h\exit.h"\
 	"..\src\h\fake_flock.h"\
 	"..\src\h\file_lock.h"\
@@ -289,7 +239,6 @@
 	"..\src\h\proc.h"\
 	"..\src\h\shadow.h"\
 	"..\src\h\startup.h"\
-	{$(INCLUDE)}"wspiapi.h"\
 	
 
 ..\src\condor_shadow.V6.1\NTreceivers.C : \
@@ -335,15 +284,8 @@
 	"..\src\condor_includes\condor_error_codes.h"\
 	"..\src\condor_includes\condor_exprtype.h"\
 	"..\src\condor_includes\condor_file_lock.h"\
-	"..\src\condor_includes\condor_fix_access.h"\
 	"..\src\condor_includes\condor_fix_assert.h"\
-	"..\src\condor_includes\condor_fix_sys_resource.h"\
-	"..\src\condor_includes\condor_fix_sys_stat.h"\
-	"..\src\condor_includes\condor_fix_sys_time.h"\
-	"..\src\condor_includes\condor_fix_sys_utsname.h"\
-	"..\src\condor_includes\condor_fix_unistd.h"\
 	"..\src\condor_includes\condor_header_features.h"\
-	"..\src\condor_includes\condor_hpux_64bit_types.h"\
 	"..\src\condor_includes\condor_io.h"\
 	"..\src\condor_includes\condor_macros.h"\
 	"..\src\condor_includes\condor_md.h"\
@@ -352,15 +294,7 @@
 	"..\src\condor_includes\condor_perms.h"\
 	"..\src\condor_includes\condor_random_num.h"\
 	"..\src\condor_includes\condor_secman.h"\
-	"..\src\condor_includes\condor_snutils.h"\
-	"..\src\condor_includes\condor_sys_aix.h"\
-	"..\src\condor_includes\condor_sys_bsd.h"\
-	"..\src\condor_includes\condor_sys_dux.h"\
-	"..\src\condor_includes\condor_sys_hpux.h"\
-	"..\src\condor_includes\condor_sys_irix.h"\
-	"..\src\condor_includes\condor_sys_linux.h"\
 	"..\src\condor_includes\condor_sys_nt.h"\
-	"..\src\condor_includes\condor_sys_solaris.h"\
 	"..\src\condor_includes\condor_sys_types.h"\
 	"..\src\condor_includes\condor_system.h"\
 	"..\src\condor_includes\condor_uid.h"\
@@ -380,7 +314,6 @@
 	"..\src\condor_shadow.V6.1\shadow_user_policy.h"\
 	"..\src\condor_sysapi\sysapi.h"\
 	"..\src\h\condor_sys.h"\
-	"..\src\h\config.h"\
 	"..\src\h\exit.h"\
 	"..\src\h\fake_flock.h"\
 	"..\src\h\file_lock.h"\
@@ -388,7 +321,7 @@
 	"..\src\h\proc.h"\
 	"..\src\h\shadow.h"\
 	"..\src\h\startup.h"\
-	{$(INCLUDE)}"wspiapi.h"\
+	"..\src\h\syscall_numbers.h"\
 	
 
 ..\src\condor_shadow.V6.1\pseudo_ops.C : \
@@ -435,15 +368,8 @@
 	"..\src\condor_includes\condor_error_codes.h"\
 	"..\src\condor_includes\condor_exprtype.h"\
 	"..\src\condor_includes\condor_file_lock.h"\
-	"..\src\condor_includes\condor_fix_access.h"\
 	"..\src\condor_includes\condor_fix_assert.h"\
-	"..\src\condor_includes\condor_fix_sys_resource.h"\
-	"..\src\condor_includes\condor_fix_sys_stat.h"\
-	"..\src\condor_includes\condor_fix_sys_time.h"\
-	"..\src\condor_includes\condor_fix_sys_utsname.h"\
-	"..\src\condor_includes\condor_fix_unistd.h"\
 	"..\src\condor_includes\condor_header_features.h"\
-	"..\src\condor_includes\condor_hpux_64bit_types.h"\
 	"..\src\condor_includes\condor_io.h"\
 	"..\src\condor_includes\condor_macros.h"\
 	"..\src\condor_includes\condor_md.h"\
@@ -452,15 +378,7 @@
 	"..\src\condor_includes\condor_perms.h"\
 	"..\src\condor_includes\condor_random_num.h"\
 	"..\src\condor_includes\condor_secman.h"\
-	"..\src\condor_includes\condor_snutils.h"\
-	"..\src\condor_includes\condor_sys_aix.h"\
-	"..\src\condor_includes\condor_sys_bsd.h"\
-	"..\src\condor_includes\condor_sys_dux.h"\
-	"..\src\condor_includes\condor_sys_hpux.h"\
-	"..\src\condor_includes\condor_sys_irix.h"\
-	"..\src\condor_includes\condor_sys_linux.h"\
 	"..\src\condor_includes\condor_sys_nt.h"\
-	"..\src\condor_includes\condor_sys_solaris.h"\
 	"..\src\condor_includes\condor_sys_types.h"\
 	"..\src\condor_includes\condor_system.h"\
 	"..\src\condor_includes\condor_uid.h"\
@@ -481,7 +399,6 @@
 	"..\src\condor_shadow.V6.1\shadow.h"\
 	"..\src\condor_shadow.V6.1\shadow_user_policy.h"\
 	"..\src\condor_sysapi\sysapi.h"\
-	"..\src\h\config.h"\
 	"..\src\h\exit.h"\
 	"..\src\h\fake_flock.h"\
 	"..\src\h\file_lock.h"\
@@ -489,7 +406,6 @@
 	"..\src\h\proc.h"\
 	"..\src\h\shadow.h"\
 	"..\src\h\startup.h"\
-	{$(INCLUDE)}"wspiapi.h"\
 	
 
 ..\src\condor_shadow.V6.1\remoteresource.C : \
@@ -539,16 +455,9 @@
 	"..\src\condor_includes\condor_error_codes.h"\
 	"..\src\condor_includes\condor_exprtype.h"\
 	"..\src\condor_includes\condor_file_lock.h"\
-	"..\src\condor_includes\condor_fix_access.h"\
 	"..\src\condor_includes\condor_fix_assert.h"\
-	"..\src\condor_includes\condor_fix_sys_resource.h"\
-	"..\src\condor_includes\condor_fix_sys_stat.h"\
-	"..\src\condor_includes\condor_fix_sys_time.h"\
-	"..\src\condor_includes\condor_fix_sys_utsname.h"\
-	"..\src\condor_includes\condor_fix_unistd.h"\
 	"..\src\condor_includes\condor_getmnt.h"\
 	"..\src\condor_includes\condor_header_features.h"\
-	"..\src\condor_includes\condor_hpux_64bit_types.h"\
 	"..\src\condor_includes\condor_io.h"\
 	"..\src\condor_includes\condor_macros.h"\
 	"..\src\condor_includes\condor_md.h"\
@@ -557,17 +466,9 @@
 	"..\src\condor_includes\condor_perms.h"\
 	"..\src\condor_includes\condor_random_num.h"\
 	"..\src\condor_includes\condor_secman.h"\
-	"..\src\condor_includes\condor_snutils.h"\
 	"..\src\condor_includes\condor_status.h"\
 	"..\src\condor_includes\condor_string.h"\
-	"..\src\condor_includes\condor_sys_aix.h"\
-	"..\src\condor_includes\condor_sys_bsd.h"\
-	"..\src\condor_includes\condor_sys_dux.h"\
-	"..\src\condor_includes\condor_sys_hpux.h"\
-	"..\src\condor_includes\condor_sys_irix.h"\
-	"..\src\condor_includes\condor_sys_linux.h"\
 	"..\src\condor_includes\condor_sys_nt.h"\
-	"..\src\condor_includes\condor_sys_solaris.h"\
 	"..\src\condor_includes\condor_sys_types.h"\
 	"..\src\condor_includes\condor_system.h"\
 	"..\src\condor_includes\condor_uid.h"\
@@ -586,7 +487,6 @@
 	"..\src\condor_shadow.V6.1\shadow_user_policy.h"\
 	"..\src\condor_sysapi\sysapi.h"\
 	"..\src\h\condor_types.h"\
-	"..\src\h\config.h"\
 	"..\src\h\exit.h"\
 	"..\src\h\fake_flock.h"\
 	"..\src\h\file_lock.h"\
@@ -595,7 +495,6 @@
 	"..\src\h\shadow.h"\
 	"..\src\h\startup.h"\
 	"..\src\h\util_lib_proto.h"\
-	{$(INCLUDE)}"wspiapi.h"\
 	
 
 ..\src\condor_shadow.V6.1\shadow.C : \
@@ -643,15 +542,8 @@
 	"..\src\condor_includes\condor_error_codes.h"\
 	"..\src\condor_includes\condor_exprtype.h"\
 	"..\src\condor_includes\condor_file_lock.h"\
-	"..\src\condor_includes\condor_fix_access.h"\
 	"..\src\condor_includes\condor_fix_assert.h"\
-	"..\src\condor_includes\condor_fix_sys_resource.h"\
-	"..\src\condor_includes\condor_fix_sys_stat.h"\
-	"..\src\condor_includes\condor_fix_sys_time.h"\
-	"..\src\condor_includes\condor_fix_sys_utsname.h"\
-	"..\src\condor_includes\condor_fix_unistd.h"\
 	"..\src\condor_includes\condor_header_features.h"\
-	"..\src\condor_includes\condor_hpux_64bit_types.h"\
 	"..\src\condor_includes\condor_io.h"\
 	"..\src\condor_includes\condor_macros.h"\
 	"..\src\condor_includes\condor_md.h"\
@@ -661,15 +553,7 @@
 	"..\src\condor_includes\condor_qmgr.h"\
 	"..\src\condor_includes\condor_random_num.h"\
 	"..\src\condor_includes\condor_secman.h"\
-	"..\src\condor_includes\condor_snutils.h"\
-	"..\src\condor_includes\condor_sys_aix.h"\
-	"..\src\condor_includes\condor_sys_bsd.h"\
-	"..\src\condor_includes\condor_sys_dux.h"\
-	"..\src\condor_includes\condor_sys_hpux.h"\
-	"..\src\condor_includes\condor_sys_irix.h"\
-	"..\src\condor_includes\condor_sys_linux.h"\
 	"..\src\condor_includes\condor_sys_nt.h"\
-	"..\src\condor_includes\condor_sys_solaris.h"\
 	"..\src\condor_includes\condor_sys_types.h"\
 	"..\src\condor_includes\condor_system.h"\
 	"..\src\condor_includes\condor_uid.h"\
@@ -688,7 +572,6 @@
 	"..\src\condor_shadow.V6.1\shadow.h"\
 	"..\src\condor_shadow.V6.1\shadow_user_policy.h"\
 	"..\src\condor_sysapi\sysapi.h"\
-	"..\src\h\config.h"\
 	"..\src\h\exit.h"\
 	"..\src\h\fake_flock.h"\
 	"..\src\h\file_lock.h"\
@@ -696,7 +579,6 @@
 	"..\src\h\proc.h"\
 	"..\src\h\shadow.h"\
 	"..\src\h\startup.h"\
-	{$(INCLUDE)}"wspiapi.h"\
 	
 
 ..\src\condor_shadow.V6.1\shadow_user_policy.C : \
@@ -733,15 +615,8 @@
 	"..\src\condor_includes\condor_error_codes.h"\
 	"..\src\condor_includes\condor_exprtype.h"\
 	"..\src\condor_includes\condor_file_lock.h"\
-	"..\src\condor_includes\condor_fix_access.h"\
 	"..\src\condor_includes\condor_fix_assert.h"\
-	"..\src\condor_includes\condor_fix_sys_resource.h"\
-	"..\src\condor_includes\condor_fix_sys_stat.h"\
-	"..\src\condor_includes\condor_fix_sys_time.h"\
-	"..\src\condor_includes\condor_fix_sys_utsname.h"\
-	"..\src\condor_includes\condor_fix_unistd.h"\
 	"..\src\condor_includes\condor_header_features.h"\
-	"..\src\condor_includes\condor_hpux_64bit_types.h"\
 	"..\src\condor_includes\condor_io.h"\
 	"..\src\condor_includes\condor_macros.h"\
 	"..\src\condor_includes\condor_md.h"\
@@ -749,15 +624,7 @@
 	"..\src\condor_includes\condor_perms.h"\
 	"..\src\condor_includes\condor_random_num.h"\
 	"..\src\condor_includes\condor_secman.h"\
-	"..\src\condor_includes\condor_snutils.h"\
-	"..\src\condor_includes\condor_sys_aix.h"\
-	"..\src\condor_includes\condor_sys_bsd.h"\
-	"..\src\condor_includes\condor_sys_dux.h"\
-	"..\src\condor_includes\condor_sys_hpux.h"\
-	"..\src\condor_includes\condor_sys_irix.h"\
-	"..\src\condor_includes\condor_sys_linux.h"\
 	"..\src\condor_includes\condor_sys_nt.h"\
-	"..\src\condor_includes\condor_sys_solaris.h"\
 	"..\src\condor_includes\condor_sys_types.h"\
 	"..\src\condor_includes\condor_system.h"\
 	"..\src\condor_includes\condor_uid.h"\
@@ -774,7 +641,6 @@
 	"..\src\condor_shadow.V6.1\baseshadow.h"\
 	"..\src\condor_shadow.V6.1\shadow_user_policy.h"\
 	"..\src\condor_sysapi\sysapi.h"\
-	"..\src\h\config.h"\
 	"..\src\h\exit.h"\
 	"..\src\h\fake_flock.h"\
 	"..\src\h\file_lock.h"\
@@ -782,7 +648,6 @@
 	"..\src\h\proc.h"\
 	"..\src\h\shadow.h"\
 	"..\src\h\startup.h"\
-	{$(INCLUDE)}"wspiapi.h"\
 	
 
 ..\src\condor_shadow.V6.1\shadow_v61_main.C : \
@@ -829,15 +694,8 @@
 	"..\src\condor_includes\condor_error_codes.h"\
 	"..\src\condor_includes\condor_exprtype.h"\
 	"..\src\condor_includes\condor_file_lock.h"\
-	"..\src\condor_includes\condor_fix_access.h"\
 	"..\src\condor_includes\condor_fix_assert.h"\
-	"..\src\condor_includes\condor_fix_sys_resource.h"\
-	"..\src\condor_includes\condor_fix_sys_stat.h"\
-	"..\src\condor_includes\condor_fix_sys_time.h"\
-	"..\src\condor_includes\condor_fix_sys_utsname.h"\
-	"..\src\condor_includes\condor_fix_unistd.h"\
 	"..\src\condor_includes\condor_header_features.h"\
-	"..\src\condor_includes\condor_hpux_64bit_types.h"\
 	"..\src\condor_includes\condor_io.h"\
 	"..\src\condor_includes\condor_macros.h"\
 	"..\src\condor_includes\condor_md.h"\
@@ -846,15 +704,7 @@
 	"..\src\condor_includes\condor_perms.h"\
 	"..\src\condor_includes\condor_random_num.h"\
 	"..\src\condor_includes\condor_secman.h"\
-	"..\src\condor_includes\condor_snutils.h"\
-	"..\src\condor_includes\condor_sys_aix.h"\
-	"..\src\condor_includes\condor_sys_bsd.h"\
-	"..\src\condor_includes\condor_sys_dux.h"\
-	"..\src\condor_includes\condor_sys_hpux.h"\
-	"..\src\condor_includes\condor_sys_irix.h"\
-	"..\src\condor_includes\condor_sys_linux.h"\
 	"..\src\condor_includes\condor_sys_nt.h"\
-	"..\src\condor_includes\condor_sys_solaris.h"\
 	"..\src\condor_includes\condor_sys_types.h"\
 	"..\src\condor_includes\condor_system.h"\
 	"..\src\condor_includes\condor_uid.h"\
@@ -875,7 +725,6 @@
 	"..\src\condor_shadow.V6.1\shadow.h"\
 	"..\src\condor_shadow.V6.1\shadow_user_policy.h"\
 	"..\src\condor_sysapi\sysapi.h"\
-	"..\src\h\config.h"\
 	"..\src\h\exit.h"\
 	"..\src\h\fake_flock.h"\
 	"..\src\h\file_lock.h"\
@@ -883,5 +732,74 @@
 	"..\src\h\proc.h"\
 	"..\src\h\shadow.h"\
 	"..\src\h\startup.h"\
-	{$(INCLUDE)}"wspiapi.h"\
 	
+
+..\src\condor_shadow.V6.1\soap_shadowC.C : \
+	"..\src\condor_includes\cedar_enums.h"\
+	"..\src\condor_includes\condor_common.h"\
+	"..\src\condor_includes\condor_constants.h"\
+	"..\src\condor_includes\condor_debug.h"\
+	"..\src\condor_includes\condor_file_lock.h"\
+	"..\src\condor_includes\condor_fix_assert.h"\
+	"..\src\condor_includes\condor_header_features.h"\
+	"..\src\condor_includes\condor_macros.h"\
+	"..\src\condor_includes\condor_sys_nt.h"\
+	"..\src\condor_includes\condor_sys_types.h"\
+	"..\src\condor_includes\condor_system.h"\
+	"..\src\condor_includes\stdsoap2.h"\
+	"..\src\condor_shadow.V6.1\soap_shadowH.h"\
+	"..\src\condor_shadow.V6.1\soap_shadowStub.h"\
+	"..\src\condor_sysapi\sysapi.h"\
+	"..\src\h\fake_flock.h"\
+	"..\src\h\file_lock.h"\
+	
+
+..\src\condor_shadow.V6.1\soap_shadowServer.C : \
+	"..\src\condor_includes\cedar_enums.h"\
+	"..\src\condor_includes\condor_common.h"\
+	"..\src\condor_includes\condor_constants.h"\
+	"..\src\condor_includes\condor_debug.h"\
+	"..\src\condor_includes\condor_file_lock.h"\
+	"..\src\condor_includes\condor_fix_assert.h"\
+	"..\src\condor_includes\condor_header_features.h"\
+	"..\src\condor_includes\condor_macros.h"\
+	"..\src\condor_includes\condor_sys_nt.h"\
+	"..\src\condor_includes\condor_sys_types.h"\
+	"..\src\condor_includes\condor_system.h"\
+	"..\src\condor_includes\stdsoap2.h"\
+	"..\src\condor_shadow.V6.1\soap_shadowH.h"\
+	"..\src\condor_shadow.V6.1\soap_shadowStub.h"\
+	"..\src\condor_sysapi\sysapi.h"\
+	"..\src\h\fake_flock.h"\
+	"..\src\h\file_lock.h"\
+	
+
+..\src\condor_shadow.V6.1\soap_shadowStub.C : \
+	"..\src\condor_c++_util\condor_version.h"\
+	"..\src\condor_daemon_core.v6\soap_daemon_core.cpp"\
+	"..\src\condor_includes\cedar_enums.h"\
+	"..\src\condor_includes\condor_common.h"\
+	"..\src\condor_includes\condor_constants.h"\
+	"..\src\condor_includes\condor_debug.h"\
+	"..\src\condor_includes\condor_file_lock.h"\
+	"..\src\condor_includes\condor_fix_assert.h"\
+	"..\src\condor_includes\condor_header_features.h"\
+	"..\src\condor_includes\condor_macros.h"\
+	"..\src\condor_includes\condor_sys_nt.h"\
+	"..\src\condor_includes\condor_sys_types.h"\
+	"..\src\condor_includes\condor_system.h"\
+	"..\src\condor_includes\stdsoap2.h"\
+	"..\src\condor_shadow.v6.1\condorshadow.nsmap"\
+	"..\src\condor_shadow.V6.1\soap_shadowH.h"\
+	"..\src\condor_shadow.V6.1\soap_shadowStub.h"\
+	"..\src\condor_sysapi\sysapi.h"\
+	"..\src\h\fake_flock.h"\
+	"..\src\h\file_lock.h"\
+	
+
+!IF  "$(CFG)" == "condor_shadow - Win32 Debug"
+
+!ELSEIF  "$(CFG)" == "condor_shadow - Win32 Release"
+
+!ENDIF 
+

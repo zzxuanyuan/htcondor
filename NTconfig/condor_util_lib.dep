@@ -343,6 +343,12 @@
 	"..\src\h\file_lock.h"\
 	
 
+!IF  "$(CFG)" == "condor_util_lib - Win32 Debug"
+
+!ELSEIF  "$(CFG)" == "condor_util_lib - Win32 Release"
+
+!ENDIF 
+
 ..\src\condor_util_lib\win32_posix.c : \
 	"..\src\condor_includes\condor_common.h"\
 	"..\src\condor_includes\condor_constants.h"\
