@@ -50,7 +50,14 @@ const amask_t A_SHARED_VM = 256;
   unless we explicity ask for it.
   Same thing for A_SHARED_VM...
 */
-const amask_t A_ALL		= (A_UPDATE | A_TIMEOUT | A_STATIC | A_SHARED | A_SUMMED );
+const amask_t A_ALL	= (A_UPDATE | A_TIMEOUT | A_STATIC | A_SHARED | A_SUMMED);
+/*
+  HOWEVER: We do want to include A_EVALUATED and A_SHARED_VM in a
+  single bitmask since there are multiple places in the startd where
+  we really want *everything*, and it's lame to have to keep changing
+  all those call sites whenever we add another special-case bit.
+*/
+const amask_t A_ALL_PUB	= (A_PUBLIC | A_ALL | A_EVALUATED | A_SHARED_VM);
 
 #define IS_PUBLIC(mask)		((mask) & A_PUBLIC)
 #define IS_PRIVATE(mask)	((mask) & A_PRIVATE)

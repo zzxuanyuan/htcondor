@@ -703,7 +703,7 @@ Resource::do_update( void )
 	ClassAd private_ad;
 	ClassAd public_ad;
 
-	this->publish( &public_ad, A_PUBLIC | A_ALL | A_EVALUATED | A_SHARED_VM );
+	this->publish( &public_ad, A_ALL_PUB );
 	this->publish( &private_ad, A_PRIVATE | A_ALL );
 
 		// Send class ads to collector(s)

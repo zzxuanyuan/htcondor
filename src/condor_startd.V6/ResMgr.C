@@ -1534,8 +1534,7 @@ ResMgr::makeAdList( ClassAdList *list )
 
 	for( i=0; i<nresources; i++ ) {
 		ad = new ClassAd;
-		resources[i]->publish( ad, A_PUBLIC | A_ALL | A_EVALUATED  
-							       | A_SHARED_VM ); 
+		resources[i]->publish( ad, A_ALL_PUB ); 
 		ad->Insert( buf );
 		list->Insert( ad );
 	}
