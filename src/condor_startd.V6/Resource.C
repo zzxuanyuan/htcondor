@@ -1233,7 +1233,6 @@ Resource::compute_condor_load( void )
 	float cpu_usage, avg, max, load;
 	int numcpus = resmgr->num_cpus();
 
-	int i;
 	time_t now = resmgr->now();
 	int num_since_last = now - r_last_compute_condor_load;
 	if( num_since_last < 1 ) {
@@ -1243,6 +1242,8 @@ Resource::compute_condor_load( void )
 		num_since_last = polling_interval;
 	}
 
+		// we only consider the opportunistic Condor claim for
+		// CondorLoadAvg, not any of the COD claims...
 	if( r_cur && r_cur->isActive() ) {
 		cpu_usage = r_cur->percentCpuUsage();
 	} else {
