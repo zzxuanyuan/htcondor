@@ -3252,7 +3252,7 @@ SetGlobusParams()
 
 		char *globushost;
 
-		if ( !(globushost = condor_param( GlobusScheduler ) ) ) {
+		if ( !(globushost = condor_param( GlobusScheduler, ATTR_GLOBUS_RESOURCE ) ) ) {
 			fprintf(stderr, "\nERROR: Globus/gt3 jobs require a \"%s\" parameter\n",
 					GlobusScheduler );
 			DoCleanup( 0, 0, NULL );
