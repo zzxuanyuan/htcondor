@@ -658,6 +658,47 @@ Reason number 4 is if Condor is to be shutdown:
 on a machine that is currently running a job.
 Condor evicts the currently running job before proceding
 with the shutdown.
+
+\item[What signals get sent to my jobs when Condor needs to preempt or
+kill them, or when I remove them from the queue?  Can I tell Condor
+which signals to send?]
+
+The answer is dependent on the universe of the jobs.
+
+Under the scheduler universe,
+the signal jobs get upon \Condor{rm} can be set by
+the user in the submit description file with the form of
+\begin{verbatim}
+remove_kill_sig = SIGWHATEVER
+\end{verbatim}
+If this command is not defined, 
+Condor further looks for a command 
+in the submit description file with the form
+\begin{verbatim}
+kill_sig = SIGWHATEVER
+\end{verbatim}
+And, if that command is also not given,
+Condor uses SIGTERM.
+
+For all other universes, the jobs get the value of
+the submit description file command
+\verb@kill_sig@, which is SIGTERM by default.
+
+If a job is killed or evicted, the job is sent a
+\verb@kill_sig@, 
+unless it is on the receiving end of a hard kill,
+in which case it gets SIGKILL.
+
+Under all universes,
+the signal is sent only to the parent PID of the job,
+namely, the first child of the \Condor{starter}.
+If the child itself is forking,
+the child must catch and forward signals as appropriate.
+This in turn depends on the user's desired behavior.
+The exception to this is (again) where the job is receiving
+a hard kill.
+Condor sends the value SIGKILL to all the PIDs in the family.
+
 \end{description}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
