@@ -1074,24 +1074,23 @@ open_std_file( int which )
 {
 	char	name[ _POSIX_PATH_MAX ];
 	char	buf[ _POSIX_PATH_MAX + 50 ];
-	int		pipe_fd;
-	int		answer;
-	int		status;
+	int	answer;
 
-	status =  REMOTE_syscall( CONDOR_std_file_info, which, name, &pipe_fd );
-	if( status == IS_PRE_OPEN ) {
-		EXCEPT( "Don't know how to deal with pipelined VANILLA jobs" );
-	} else {
-		switch( which ) {			/* it's an ordinary file */
-		  case 0:
+	answer = REMOTE_syscall( CONDOR_get_std_file_info, which, name );
+	if(!answer) {
+		EXCEPT("Couldn't get info about standard files!");
+	}
+
+	switch( which ) {
+		case 0:
 			answer = open( name, O_RDONLY, 0 );
 			break;
-		  case 1:
-		  case 2:
+		case 1:
+		case 2:
 			answer = open( name, O_WRONLY, 0 );
 			break;
-		}
 	}
+
 	if( answer < 0 ) {
 		sprintf( buf, "Can't open \"%s\" - %s", name, strerror(errno) );
 		REMOTE_syscall(CONDOR_report_error, buf );
