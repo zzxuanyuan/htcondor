@@ -47,7 +47,6 @@ int main(int argc, char **argv)
   int myproxy_port = 0;
 
   char * myproxy_dn = NULL;
-  char * myproxy_password = NULL;
 
   char * server_address= NULL;
 
@@ -203,6 +202,25 @@ int main(int argc, char **argv)
     return 1;
   }
 
+  ReliSock * reli_sock = (ReliSock*)sock;
+
+  if (!reli_sock->isAuthenticated()) { 
+    char * p = SecMan::getSecSetting ("SEC_%s_AUTHENTICATION_METHODS", "CLIENT");
+    MyString methods;
+    if (p) {
+      methods = p;
+      free (p);
+    } else {
+     methods = SecMan::getDefaultAuthenticationMethods();
+    }
+    CondorError errstack;
+    if( ! reli_sock->authenticate(methods.Value(), &errstack) ) {
+      dprintf (D_ALWAYS, "Unable to authenticate, qutting\n");
+      delete reli_sock;
+      return 1;
+    }
+  }
+
   sock->encode();
 
   ClassAd classad(*(cred->GetClassAd()));
@@ -211,7 +229,6 @@ int main(int argc, char **argv)
   void * data;
   cred->GetData (data, size);
   sock->code_bytes (data, size);
-  printf ("sent data\n");
 
   sock->eom();
   sock->decode();

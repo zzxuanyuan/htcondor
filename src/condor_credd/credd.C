@@ -21,6 +21,8 @@ StringList super_users;
 char * cred_store_dir = NULL;
 char * cred_index_file = NULL;
 
+int default_cred_expire_threshold;
+
 int 
 store_cred_handler(Service * service, int i, Stream *stream) {
 
@@ -502,7 +504,7 @@ CheckCredentials () {
 	       pCred->GetOwner(),
 	       pCred->GetName());
     }
-    else if (time - now < 3600) {
+    else if (time - now < default_cred_expire_threshold) {
       dprintf (D_FULLDEBUG, "Credential %s:%s about to expire\n",
 	       pCred->GetOwner(),
 	       pCred->GetName());
@@ -776,6 +778,9 @@ Init() {
     cred_index_file = dircat (cred_store_dir, "cred-index");
   }
 
+  // default 1 hr
+  default_cred_expire_threshold = param_integer ("DEFAULT_CRED_EXPIRE_THRESHOLD", 3600);
+
   struct stat stat_buff;
   if (stat (cred_store_dir, &stat_buff)) {
     dprintf (D_ALWAYS, "ERROR: Cred store directory %s does not exist\n", cred_store_dir);
@@ -796,8 +801,9 @@ Init() {
 
     }
   } else {
-    if (stat_buff.st_mode & (S_IRWXG | S_IRWXO)) {
-      dprintf (D_ALWAYS, "ERROR: Invalid permissions on credential index file %s\n", 
+    if ((stat_buff.st_mode & (S_IRWXG | S_IRWXO)) ||
+	(stat_buff.st_uid != getuid())) {
+      dprintf (D_ALWAYS, "ERROR: Invalid ownership / permissions on credential index file %s\n", 
 	       cred_index_file);
       DC_Exit (1 );
     }
