@@ -1,3 +1,10 @@
+07/08/04 V6_7-tdp_2-no_tracing-branch
+   This branch was created off of V6_7-tdp_2-branch with the intent of
+   stripping out the starter-tracing functionality so we can boil down to
+   the minimal amount of TDP suppport. This should ease merging of the
+   basic TDP stuff into V6_7-branch so we can make TDP available in an
+   upcoming release.
+
 03/10/04 V6_7-condorc-branch
    A new branch off of V6_7-branch created from the V6_7-condorc-root
    tag. This will hold work to implement Condor-C.
