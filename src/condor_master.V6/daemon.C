@@ -539,6 +539,11 @@ int daemon::RealStart( )
 			// We can't do this b/c of needing to read host certs as root 
 			// wants_condor_priv = true;
 	}
+	
+		// Check if user overrides the port for this daemon via <subsys>_PORT
+	MyString port_override(name_in_config_file);
+	port_override += "_PORT";
+	command_port = param_integer(port_override.Value(),command_port);
 
 	priv_state priv_mode = PRIV_ROOT;
 	
