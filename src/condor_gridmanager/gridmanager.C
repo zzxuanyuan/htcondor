@@ -228,6 +228,17 @@ Init()
 	jobTypes.Append( new_type );
 #endif
 
+#if defined(NORDUGRID_UNIVERSE)
+	new_type = new JobType;
+	new_type->Name = strdup( "Nordugrid" );
+	new_type->InitFunc = NordugridJobInit;
+	new_type->ReconfigFunc = NordugridJobReconfig;
+	new_type->AdMatchFunc = NordugridJobAdMatch;
+	new_type->AdMustExpandFunc = NordugridJobAdMustExpand;
+	new_type->CreateFunc = NordugridJobCreate;
+	jobTypes.Append( new_type );
+#endif
+
 	new_type = new JobType;
 	new_type->Name = strdup( "Globus" );
 	new_type->InitFunc = GlobusJobInit;
@@ -395,8 +406,11 @@ doContactSchedd()
 				// Search our job types for one that'll handle this job
 				jobTypes.Rewind();
 				while ( jobTypes.Next( job_type ) ) {
+dprintf(D_FULLDEBUG,"***Trying job type %s\n",job_type->Name);
 					if ( job_type->AdMatchFunc( next_ad ) ) {
 						// Found one!
+						dprintf( D_FULLDEBUG, "Using job type %s for job %d.%d\n",
+								 job_type->Name, procID.cluster, procID.proc );
 						break;
 					}
 				}

@@ -3,13 +3,20 @@ all_target($(NAME))
 
 #if ORACLE_UNIVERSE
 ORACLE_JOB_FLAGS = -DORACLE_UNIVERSE
+ORACLE_JOB_OBJ = oraclejob.o
+#endif
+
+#if NORDUGRID_UNIVERSE
+NORDUGRID_JOB_FLAGS = -DNORDUGRID_UNIVERSE -I/p/condor/workspaces/jfrey/ftp_lite/include
+NORDUGRID_JOB_OBJ = nordugridjob.o
+NORDUGRID_JOB_LIB = /p/condor/workspaces/jfrey/ftp_lite/lib/libftp_lite.a
 #endif
 
 CFLAGS = $(STD_C_FLAGS)
-C_PLUS_FLAGS = $(ORACLE_JOB_FLAGS) $(STD_C_PLUS_FLAGS)
-LIB = $(DAEMONCORE_LIB) $(STD_LIBS)
+C_PLUS_FLAGS = $(ORACLE_JOB_FLAGS) $(NORDUGRID_JOB_FLAGS) $(STD_C_PLUS_FLAGS)
+LIB = $(NORDUGRID_JOB_LIB) $(DAEMONCORE_LIB) $(STD_LIBS)
 
-OBJ = gridmanager_main.o gridmanager.o globusjob.o globusresource.o proxymanager.o gahp-client.o oraclejob.o basejob.o baseresource.o
+OBJ = gridmanager_main.o gridmanager.o globusjob.o globusresource.o proxymanager.o gahp-client.o $(ORACLE_JOB_OBJ) $(NORDUGRID_JOB_OBJ) basejob.o baseresource.o
 
 c_plus_target($(NAME),$(OBJ),$(LIB))
 
