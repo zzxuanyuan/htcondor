@@ -64,6 +64,7 @@
 #define GM_HOLD_REMOTE_JOB		22
 #define GM_RELEASE_REMOTE_JOB	23
 #define GM_CANCEL_2				24
+#define GM_VACATE_WAIT			25
 
 static char *GMStateNames[] = {
 	"GM_INIT",
@@ -90,7 +91,8 @@ static char *GMStateNames[] = {
 	"GM_HOLD_MIRROR_ACTIVE",
 	"GM_HOLD_REMOTE_JOB",
 	"GM_RELEASE_REMOTE_JOB",
-	"GM_CANCEL_2"
+	"GM_CANCEL_2",
+	"GM_VACATE_WAIT"
 };
 
 #define JOB_STATE_UNKNOWN				-1
@@ -240,6 +242,7 @@ MirrorJob::MirrorJob( ClassAd *classad )
 	mirrorScheddName = NULL;
 	remoteJobIdString = NULL;
 	mirrorActive = false;
+	mirrorReleased = false;
 	submitterId = NULL;
 	myResource = NULL;
 	newRemoteStatusAd = NULL;
@@ -306,6 +309,12 @@ MirrorJob::MirrorJob( ClassAd *classad )
 	ad->LookupBool( ATTR_MIRROR_ACTIVE, tmp );
 	if ( tmp != 0 ) {
 		mirrorActive = true;
+	}
+
+	tmp = 0;
+	ad->LookupBool( ATTR_MIRROR_RELEASED, tmp );
+	if ( tmp != 0 ) {
+		mirrorReleased = true;
 	}
 
 	return;
@@ -401,8 +410,10 @@ int MirrorJob::doEvaluateState()
 			errorString = "";
 			if ( mirrorJobId.cluster == 0 ) {
 				gmState = GM_CLEAR_REQUEST;
-			} else if ( mirrorActive == false ) {
+			} else if ( mirrorReleased == false ) {
 				gmState = GM_SUBMITTED_MIRROR_INACTIVE;
+			} else if ( mirrorActive == false ) {
+				gmState = GM_VACATE_SCHEDD;
 			} else {
 				gmState = GM_SUBMITTED_MIRROR_ACTIVE;
 			}
@@ -456,8 +467,6 @@ int MirrorJob::doEvaluateState()
 				numSubmitAttempts++;
 				if ( rc == GLOBUS_SUCCESS ) {
 					SetRemoteJobId( job_id_string );
-					UpdateJobAdBool( ATTR_MIRROR_ACTIVE, 0 );
-					mirrorActive = false;
 					gmState = GM_SUBMIT_SAVE;
 				} else {
 					// unhandled error
@@ -525,7 +534,7 @@ int MirrorJob::doEvaluateState()
 			} else if ( condorState == REMOVED || condorState == HELD ||
 						condorState == COMPLETED ) {
 				gmState = GM_CANCEL_1;
-			} else if ( mirrorActive ) {
+			} else if ( mirrorReleased ) {
 				gmState = GM_MIRROR_ACTIVE_SAVE;
 			} else if ( newRemoteStatusAd != NULL ) {
 				if ( newRemoteStatusStartTime <= lastRemoteStatusTime ) {
@@ -534,7 +543,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too long!\n",procID.cluster,procI
 					newRemoteStatusAd = NULL;
 				} else {
 					ProcessRemoteAdInactive( newRemoteStatusAd );
-					if ( mirrorActive ) {
+					if ( mirrorReleased ) {
 						// Leave the new remote status ad looking like an
 						// unprocessed one so that GM_SUBMITTED_MIRROR_ACTIVE
 						// look at it as well
@@ -574,7 +583,27 @@ dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too long!\n",procID.cluster,procI
 						 procID.cluster, procID.proc, result );
 			}
 
-			gmState = GM_SUBMITTED_MIRROR_ACTIVE;
+			gmState = GM_VACATE_WAIT;
+			} break;
+		case GM_VACATE_WAIT: {
+
+			int job_status;
+			done = requestJobStatus( this, job_status );
+			if ( done == false ) {
+				break;
+			} else if ( job_status == RUNNING ) {
+				// The shadow is still running, wait and poll again
+				reevaluate_state = true;
+				break;
+			} else if ( job_status == COMPLETED ) {
+				// Cancel the mirror job and let the local job complete
+				gmState = GM_CANCEL_1;
+			} else {
+				mirrorActive = true;
+				UpdateJobAdBool( ATTR_MIRROR_ACTIVE, 1 );
+				requestScheddUpdate( this );
+				gmState = GM_SUBMITTED_MIRROR_ACTIVE;
+			}
 			} break;
 		case GM_SUBMITTED_MIRROR_ACTIVE: {
 			// The job has been submitted. Wait for completion or failure,
@@ -739,6 +768,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too long!\n",procID.cluster,procI
 		case GM_CLEAR_REQUEST: {
 			// Remove all knowledge of any previous or present job
 			// submission, in both the gridmanager and the schedd.
+			bool tmp_bool;
 
 			// For now, put problem jobs on hold instead of
 			// forgetting about current submission and trying again.
@@ -762,9 +792,15 @@ dprintf(D_FULLDEBUG,"(%d.%d) newRemoteStatusAd too long!\n",procID.cluster,procI
 					JobEvicted();
 				}
 			}
-			if ( mirrorActive == true ) {
+			if ( mirrorActive == true ||
+				 ad->LookupBool( ATTR_MIRROR_ACTIVE, tmp_bool ) == false ) {
 				UpdateJobAdBool( ATTR_MIRROR_ACTIVE, 0 );
 				mirrorActive = false;
+			}
+			if ( mirrorReleased == true ||
+				 ad->LookupBool( ATTR_MIRROR_RELEASED, tmp_bool ) == false ) {
+				UpdateJobAdBool( ATTR_MIRROR_RELEASED, 0 );
+				mirrorReleased = false;
 			}
 			writeUserLog = false;
 			
@@ -905,8 +941,8 @@ void MirrorJob::ProcessRemoteAdInactive( ClassAd *remote_ad )
 	remote_ad->LookupInteger( ATTR_JOB_STATUS, tmp_int );
 
 	if ( tmp_int != HELD ) {
-		UpdateJobAdBool( ATTR_MIRROR_ACTIVE, 1 );
-		mirrorActive = true;
+		UpdateJobAdBool( ATTR_MIRROR_RELEASED, 1 );
+		mirrorReleased = true;
 	}
 	remoteState = tmp_int;
 

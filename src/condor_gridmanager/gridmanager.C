@@ -91,10 +91,22 @@ HashTable <PROC_ID, VacateRequest> pendingScheddVacates( HASH_TABLE_SIZE,
 HashTable <PROC_ID, VacateRequest> completedScheddVacates( HASH_TABLE_SIZE,
 														   procIDHash );
 
+struct JobStatusRequest {
+	BaseJob *job;
+	int job_status;
+};
+
+HashTable <PROC_ID, JobStatusRequest> pendingJobStatus( HASH_TABLE_SIZE,
+														procIDHash );
+HashTable <PROC_ID, JobStatusRequest> completedJobStatus( HASH_TABLE_SIZE,
+														  procIDHash );
+
 template class HashTable<PROC_ID, BaseJob *>;
 template class HashBucket<PROC_ID, BaseJob *>;
 template class HashTable<PROC_ID, VacateRequest>;
 template class HashBucket<PROC_ID, VacateRequest>;
+template class HashTable<PROC_ID, JobStatusRequest>;
+template class HashBucket<PROC_ID, JobStatusRequest>;
 template class List<BaseJob>;
 template class Item<BaseJob>;
 template class List<JobType>;
@@ -209,6 +221,30 @@ requestScheddVacate( BaseJob *job, action_result_t &result )
 		// A new request; add it to the hash table
 		hashed_request.job = job;
 		pendingScheddVacates.insert( job->procID, hashed_request );
+		RequestContactSchedd();
+	}
+
+	return false;
+}
+
+bool
+requestJobStatus( BaseJob *job, int &job_status )
+{
+	JobStatusRequest hashed_request;
+
+	// Check if this is an old request that's completed
+	if ( completedJobStatus.lookup( job->procID, hashed_request ) == 0 ) {
+		// If the request is done, remove it from the hashtable and return
+		// the job status
+		completedJobStatus.remove( job->procID );
+		job_status = hashed_request.job_status;
+		return true;
+	}
+
+	if ( pendingJobStatus.lookup( job->procID, hashed_request ) != 0 ) {
+		// A new request; add it to the hash table
+		hashed_request.job = job;
+		pendingJobStatus.insert( job->procID, hashed_request );
 		RequestContactSchedd();
 	}
 
@@ -711,6 +747,47 @@ dprintf(D_FULLDEBUG,"***Trying job type %s\n",job_type->Name);
 	}
 
 
+	// requestJobStatus
+	/////////////////////////////////////////////////////
+	if ( pendingJobStatus.getNumElements() != 0 ) {
+		MyString buff;
+		JobStatusRequest curr_request;
+
+		pendingJobStatus.startIterations();
+		while ( pendingJobStatus.iterate( curr_request ) != 0 ) {
+
+			int rc;
+			int status;
+
+			rc = GetAttributeInt( curr_request.job->procID.cluster,
+								  curr_request.job->procID.proc,
+								  ATTR_JOB_STATUS, &status );
+			if ( rc < 0 ) {
+				if ( errno == ETIMEDOUT ) {
+					failure_line_num = __LINE__;
+					commit_transaction = false;
+					goto contact_schedd_disconnect;
+				} else {
+						// The job is not in the schedd's job queue. This
+						// probably means that the user did a condor_rm -f,
+						// so return a job status of REMOVED.
+					status = REMOVED;
+				}
+			}
+				// return status
+			dprintf( D_FULLDEBUG, "%d.%d job status: %d\n",
+					 curr_request.job->procID.cluster,
+					 curr_request.job->procID.proc,status);
+			pendingJobStatus.remove( curr_request.job->procID );
+			curr_request.job_status = status;
+			curr_request.job->SetEvaluateState();
+			completedJobStatus.insert( curr_request.job->procID,
+									   curr_request );
+		}
+
+	}
+
+
 	// Update existing jobs
 	/////////////////////////////////////////////////////
 	pendingScheddUpdates.startIterations();
@@ -847,6 +924,8 @@ dprintf(D_FULLDEBUG,"***Trying job type %s\n",job_type->Name);
 			}
 			pendingScheddUpdates.remove( curr_job->procID );
 			pendingScheddVacates.remove( curr_job->procID );
+			pendingJobStatus.remove( curr_job->procID );
+			pendingJobStatus.remove( curr_job->procID );
 			completedScheddVacates.remove( curr_job->procID );
 			delete curr_job;
 

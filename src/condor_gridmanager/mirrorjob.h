@@ -84,6 +84,7 @@ class MirrorJob : public BaseJob
 	PROC_ID mirrorJobId;
 	char *remoteJobIdString;
 	bool mirrorActive;
+	bool mirrorReleased;
 	char *submitterId;
 
 	MirrorResource *myResource;
