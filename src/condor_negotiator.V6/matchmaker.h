@@ -98,7 +98,7 @@ class Matchmaker : public Service
 
 		/* ODBC insert functions */
 		void insert_into_rejects(char *scheddName, ClassAd& job, ClassAd& machine,const char *diagnosis);
-		void insert_into_matches(char * scheddName, int cluster, int proc, ClassAd& offer);
+		void insert_into_matches(char * scheddName, ClassAd& request, ClassAd& offer);
 		
 		// configuration information
 		char *AccountantHost;		// who (if at all) is the accountant?

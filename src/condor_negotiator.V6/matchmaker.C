@@ -1631,7 +1631,7 @@ matchmakingProtocol (ClassAd &request, ClassAd *offer,
 			startdAddr);
 
 	/* ODBC Insert into matches table */
-	insert_into_matches(scheddName,cluster,proc,*offer);
+	insert_into_matches(scheddName, request, *offer);
 
 #if WANT_NETMAN
 	// match was successful; commit our network bandwidth allocation
@@ -1776,6 +1776,7 @@ void Matchmaker::insert_into_rejects(char *scheddName, ClassAd& job, ClassAd& ma
 	char insert_stmt[256];
 	int cluster, proc;
 	char startdname[80];
+	char globaljobid[80];
 
 	struct tm *tm;
 	time_t clock;
@@ -1785,16 +1786,19 @@ void Matchmaker::insert_into_rejects(char *scheddName, ClassAd& job, ClassAd& ma
 
 	job.LookupInteger (ATTR_CLUSTER_ID, cluster);
 	job.LookupInteger (ATTR_PROC_ID, proc);
+	job.LookupString( ATTR_GLOBAL_JOB_ID, globaljobid); 
 	machine.LookupString(ATTR_NAME, startdname);
 
-	sprintf((char*) insert_stmt,"insert into %s values (\'%d/%d/%d %02d:%02d:%02d\',\'%s\', %d, %d, \'%s\', \'%s\')",RejectsTable,tm->tm_mon + 1, tm->tm_mday,tm->tm_year+1900, tm->tm_hour,tm->tm_min, tm->tm_sec,scheddName,cluster,proc,startdname,diagnosis);	
+	sprintf((char*) insert_stmt,"insert into %s values (\'%d/%d/%d %02d:%02d:%02d\',\'%s\', %d, %d, \'%s\',\'%s\', \'%s\')",RejectsTable,tm->tm_mon + 1, tm->tm_mday,tm->tm_year+1900, tm->tm_hour,tm->tm_min, tm->tm_sec,scheddName,cluster,proc,globaljobid,startdname,diagnosis);	
 	DBObj->odbc_sqlstmt(insert_stmt);	
 }
-void Matchmaker::insert_into_matches(char * scheddName, int cluster, int proc, ClassAd& offer)
+void Matchmaker::insert_into_matches(char * scheddName,ClassAd& request, ClassAd& offer)
 {
 	char insert_stmt[256];
 	char startdname[80],remote_user[80];
+	char globaljobid[80];
 	float remote_prio;
+	int cluster, proc;
 
 	struct tm *tm;
 	time_t clock;
@@ -1802,10 +1806,19 @@ void Matchmaker::insert_into_matches(char * scheddName, int cluster, int proc, C
 	(void)time(  (time_t *)&clock );
 	tm = localtime( (time_t *)&clock );
 
+	request.LookupInteger (ATTR_CLUSTER_ID, cluster);
+	request.LookupInteger (ATTR_PROC_ID, proc);
+	request.LookupString( ATTR_GLOBAL_JOB_ID, globaljobid); 
 	offer.LookupString( ATTR_NAME, startdname); 
-	if(offer.LookupString( ATTR_REMOTE_USER, remote_user) == 0) strcpy(remote_user,"None"); /* XXX This should be null */
-	remote_prio = (float) accountant.GetPriority(remote_user);
-	sprintf((char *)insert_stmt,"insert into %s values (\'%d/%d/%d %02d:%02d:%02d\',\'%s\', %d, %d, \'%s\', \'%s\', %f)",MatchesTable,tm->tm_mon + 1, tm->tm_mday,tm->tm_year+1900, tm->tm_hour,tm->tm_min, tm->tm_sec,scheddName,cluster,proc,startdname,remote_user,remote_prio);	
+	if(offer.LookupString( ATTR_REMOTE_USER, remote_user) == 0)
+	{
+		sprintf((char *)insert_stmt,"insert into %s values (\'%d/%d/%d %02d:%02d:%02d\',\'%s\', %d, %d, \'%s\'\'%s\', null, null)",MatchesTable,tm->tm_mon + 1, tm->tm_mday,tm->tm_year+1900, tm->tm_hour,tm->tm_min, tm->tm_sec,scheddName,cluster,proc,globaljobid,startdname);	
+	}
+	else
+	{
+		remote_prio = (float) accountant.GetPriority(remote_user);
+		sprintf((char *)insert_stmt,"insert into %s values (\'%d/%d/%d %02d:%02d:%02d\',\'%s\', %d, %d, \'%s\'\'%s\', \'%s\', %f)",MatchesTable,tm->tm_mon + 1, tm->tm_mday,tm->tm_year+1900, tm->tm_hour,tm->tm_min, tm->tm_sec,scheddName,cluster,proc,globaljobid,startdname,remote_user,remote_prio);	
+	}
 	DBObj->odbc_sqlstmt(insert_stmt);	
 
 } 
