@@ -81,7 +81,7 @@ do_REMOTE_syscall()
 		condor_sysnum, _condor_syscall_name(condor_sysnum)
 	);
 
-	job_report_add_call( condor_sysnum );
+	job_report_store_call( condor_sysnum );
 
 	switch( condor_sysnum ) {
 #else
