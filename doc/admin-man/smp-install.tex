@@ -1,0 +1,158 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{\label{sec:SMP-install}Installing The SMP-Startd Contrib
+Module} 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Basically, the ``SMP-Startd Contrib module'' is just a selection of a
+few files needed to run the 6.1 startd in your existing 6.0 pool.
+For documentation on the new startd or the supporting files, see the
+version 6.1 manual.
+
+See section~\ref{sec:install} on page~\pageref{sec:install} for
+complete details on how to install Condor.
+In particular, you should read the first few sections that discuss
+\Term{release directories}, pool layout, and so on.
+
+To install the SMP-startd from the separate contrib module, you must
+first download the appropriate binary modules for each of your
+platforms.  
+Once you uncompress and untar the module, you will have a directory
+with an \File{smp.tar} file, a \File{README}, and so on.
+The \File{smp.tar} acts much like the \File{release.tar} file for a
+main release.
+It contains all the binaries and supporting files you would install in
+your release directory:
+\begin{verbatim}
+        sbin/condor_startd
+        sbin/condor_starter
+        sbin/condor_preen
+        bin/condor_status
+        etc/examples/condor_config.local.smp
+\end{verbatim}
+
+\Condor{preen} and \Condor{status} are both fully backwards
+compatible, so you can use the new version for your entire pool
+without changing any of your config files.  
+They each have just been enhanced to handle the SMP startd.
+See the version 6.1 man pages on each for details.
+The \Condor{starter} is also backwards compatible, so you probably
+want to install it pool-wide, as well.
+
+The SMP startd is backwards compatible, only in the sense that it
+still runs and works just fine on single-CPU machines.
+However, it uses different policy expressions to control its policy,
+so in this (more important) sense, it is not backwards compatible.
+For this reason, you must have some separate config file settings in
+effect on machines running the new version.
+Therefore, you must decide if you want to convert all your machines to
+the new version, or only convert your SMP machines.
+If you just convert the SMP machines, you can put the new settings in
+the local config file for each SMP machine.
+If you convert all your machines, you will want to put the new
+settings into your global config file.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection{\label{sec:SMP-full-install}Installing Pool-Wide}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Since you are installing new daemon binaries for all hosts in your
+pool, it's generally a good idea to make sure no jobs are running and
+all the Condor daemons are shut off before you begin.
+Please see section~\ref{sec:Pool-Management} on
+page~\pageref{sec:Pool-Management} for details on how to do this.
+
+You may want to keep your old binaries around, just to be safe.
+Simply move the existing \Condor{startd}, \Condor{starter},
+\Condor{preen} out of the way (for example, to
+``\condor{startd}.old'') in the sbin directory, and move
+\Condor{status} out of the way in bin.   
+
+You can simply untar the \File{smp.tar} file into your release 
+directory, and it will install the new versions (and overwrite your
+existing binaries if you haven't moved them out of the way).
+Once the new binaries are in place, all you need to do is add the new
+settings for the SMP startd to your global config file.
+
+Once the binaries and config settings are in place, you can restart
+your pool, as described in section~\ref{sec:Pool-Restart} on
+page~\pageref{sec:Pool-Restart} on ``Restarting Your Condor Pool''. 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection{\label{sec:SMP-partial-install}Installing Only on SMP
+Machines} 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+If you only want to run the new startd on your SMP machines, you
+should untar the \File{smp.tar} file into some temporary location.
+Copy the \File{sbin/condor\_startd} file into
+\Release{sbin/condor\_startd.smp}.
+You can simply overwrite \Release{sbin/condor\_preen} and
+\Release{bin/condor\_status} with the new versions.
+In case you have any currently running \condor{starter} processes, you
+should move the existing binary to \condor{starter.old} with ``mv'' so
+that you don't get starters that crash with SIGILL or SIGBUS.  
+Once you have moved the existing starter out of the way, you can
+install the new version from your scratch directory.
+
+Once you've got all the new binaries installed, all you need to do is
+edit the local config file for each SMP host in your pool to add the 
+SMP-specific settings described below.
+In addition, you will need to add the line:
+\begin{verbatim}
+        STARTD = $(SBIN)/condor_startd.smp
+\end{verbatim}
+to let the \Condor{master} know you want the new version spawned on
+that host.
+
+Once the binaries are all in place and all the configuration settings
+are done, you can send a \Condor{reconfig} command to your SMP hosts
+(from any machine listed in the \Macro{HOST\_ALLOW\_ADMINISTRATOR}
+setting in your config files), the \Condor{master} should notice the
+new binaries on the SMP machines, and spawn them.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection{\label{sec:SMP-config-install}Notes on SMP Startd
+configuration} 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+All documentation for the new Startd can be found in the version 6.1
+manual.  
+In the \File{etc/examples/condor\_config.local.smp} file, you will see
+all the new config file settings you must define or change with the
+new version.
+Mainly, these are the new policy expressions.  
+Look in the version 6.1 manual, in the ``Configuring The Startd
+Policy'' section for complete details on how to configure the policy
+for the 6.1 startd.
+In particular, you probably want to read
+the section titled ``Differences from the Version 6.0 Policy
+Settings'' to see how the new policy expressions differ from previous
+versions. 
+These changes are not SMP-specific, they just make writing more
+complicated policies much easier.
+Given the wide range of SMP machines, from dual-CPU desktop
+workstations, up to giant, 128-node super computers, more flexibility
+in writing complicated policies is a big help.
+
+In addition to the new policy expressions, there are a few settings
+that control how the SMP startd's view of the machine state effects
+each of the virtual machines it is representing.  
+See the section ``Configuring The Startd for SMP Machines'' for full
+details on configuring these other settings of the SMP startd.
+
+Finally, on SMP machines, each running node has its own
+\Condor{starter}, and each starter maintains its own log file with a
+different name.
+Therefore, you want to list which files \Condor{preen} should remove
+from the \File{log} directory, instead of having to list the files you
+want to keep.
+To do this, you specify a \Macro{INVALID\_LOG\_FILES} setting instead
+of a \Macro{VALID\_LOG\_FILES} setting.
+In both install cases, since you are using the new \Condor{preen} in
+your whole pool, you should add the following to your global config
+file:
+\begin{verbatim}
+        INVALID_LOG_FILES = core
+\end{verbatim}
+since core files are the only unwanted things that might show up in
+your \File{log} directory. 
