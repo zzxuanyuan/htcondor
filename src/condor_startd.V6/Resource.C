@@ -320,6 +320,20 @@ Resource::claimIsActive( void )
 }
 
 
+Claim*
+Resource::newCODClaim( void )
+{
+	Claim* claim;
+	claim = r_cod_mgr->addClaim();
+	if( ! claim ) {
+		dprintf( D_ALWAYS, "Failed to create new COD Claim!\n" );
+		return NULL;
+	}
+	dprintf( D_FULLDEBUG, "Created new COD Claim (%s)\n", claim->id() );
+	return claim;
+}
+
+
 /* 
    This function is called whenever we're in the preempting state
    without a starter.  This situation occurs b/c either the starter
