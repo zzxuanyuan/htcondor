@@ -78,3 +78,9 @@ JICLocalSchedd::getUniverse( void )
 } 
 
 
+bool
+JICLocalSchedd::initLocalUserLog( void )
+{
+	return u_log->initFromJobAd( job_ad, ATTR_ULOG_FILE,
+								 ATTR_ULOG_USE_XML );
+}

@@ -57,6 +57,9 @@ protected:
 		/// This version confirms we're handling a "local" universe job. 
 	virtual bool getUniverse( void );
 
+		/// Initialize our local UserLog-writing code.
+	virtual bool initLocalUserLog( void );
+
 };
 
 
