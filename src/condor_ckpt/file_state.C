@@ -213,12 +213,22 @@ int CondorFileTable::count_file_uses( CondorFile *f )
 	return count;
 }
 
-int CondorFileTable::open( const char *path, int flags, int mode )
+int CondorFileTable::open( const char *logical_name, int flags, int mode )
 {
-	int	x,kind,success;
-	int	fd, new_fd;
-	char	new_path[_POSIX_PATH_MAX];
+	int	fd;
+	char	full_path[_POSIX_PATH_MAX];
+	char	url[_POSIX_PATH_MAX];
+	char	method[_POSIX_PATH_MAX];
+
 	CondorFile	*f;
+
+	// Opening files O_RDWR is not safe across checkpoints
+	// However, there is no problem as far as the rest of the
+	// file code is concerned.  We will catch it here,
+	// but the rest of the file table and buffer has no problem.
+
+	if( flags & O_RDWR )
+		_condor_file_warning("Opening file '%s' for read and write is not safe in a program that may be checkpointed!  You should use separate files for reading and writing.",logical_name);
 
 	// Find an open slot in the table
 
@@ -228,192 +238,76 @@ int CondorFileTable::open( const char *path, int flags, int mode )
 		return -1;
 	}
 
-	if( LocalSysCalls() ) {
+	// Decide how to access the file.
+	// In local syscalls, always use local.
+	// In remote, ask the shadow for a complete url.
 
-		f = new CondorFileLocal;
-		if( f->open(path,flags,mode)<0 ) {
-			delete f;
+	if( LocalSysCalls() ) {
+		strcpy(method,"local");
+		if(logical_name[0]!='/') {
+			getcwd(full_path,_POSIX_PATH_MAX);
+			strcat(full_path,"/");
+			strcat(full_path,logical_name);
+		} else {
+			strcpy(full_path,logical_name);
+		}
+	} else {
+		init_buffer();
+		REMOTE_syscall( CONDOR_get_file_info, logical_name, url );
+		sscanf(url,"%[^:]:%s",method,full_path);
+	}
+
+	// If a file by this name is already open, share the file object.
+	// Otherwise, create a new one according to the given method.
+
+	int match = find_name(full_path);
+	if(match>=0) {
+		f = pointers[match]->file;
+	} else {
+		if(!strcmp(method,"local")) {
+			f = new CondorFileLocal;
+		} else if(!strcmp(method,"remote")) {
+			f = new CondorFileRemote;
+			f->enable_buffer();
+		} else if(!strcmp(method,"remotefetch")) {
+			f = new CondorFileAgent(new CondorFileRemote);
+		} else {
+			_condor_file_warning("I don't know how to access file '%s'",url);
+			errno = ENOENT;
 			return -1;
 		}
 
-	} else {
+		// Open the file according to its method.
+		fd = f->open(full_path,flags,mode);
+		if(fd<0) return -1;
 
-		init_buffer();
+		// Do not buffer stderr
+		if(fd==2) f->disable_buffer();
 
-		char full_path[_POSIX_PATH_MAX];
-
-		if(path[0]=='/') {
-			strcpy(full_path,path);
-		} else {
-			REMOTE_syscall( CONDOR_getwd, full_path );
-			strcat(full_path,"/");
-			strcat(full_path,path);
-		}
-
-		// Always ask the shadow what to do with this file.
-
-		kind = REMOTE_syscall( CONDOR_file_info, full_path, &new_fd, new_path );
-
-		// Check to see if this file is already open
-
-		int match = find_name(full_path);
-		if(match>=0) {
-
-			// If so, share the file object
-
-			f = pointers[match]->file;
-
-		} else {
-
-			// Otherwise, create a new file object 
-
-			switch( kind ) {
-				case IS_PRE_OPEN:
-				f = new CondorFileLocal;
-				f->force_open( new_fd, "inherited stream", 1, 1 );
-				break;
-
-				case IS_NFS:
-				case IS_AFS:
-				case IS_LOCAL:
-				f = new CondorFileLocal;
-				break;
-
-				case IS_RSC:
-				default:
-				f = new CondorFileRemote;
-				f->enable_buffer();
-				break;
-			}
-
-			// Do not buffer stderr
-			if(fd==2) f->disable_buffer();
-
-			// Open according to the access method.
-			// Forced files are not re-opened.
-
-			if( (kind!=IS_PRE_OPEN) && (f->open(new_path,flags,mode)<0) ) {
-				delete f;
-				return -1;
-			}
-			
-			// If we want the whole file to be downloaded
-			// and then accessed locally, then wrap an
-			// agent around the file.  The agent is responsible
-			// for uploading and downloading when necessary.
-
-			// if( kind==IS_RSC ) {
-			// 	f = new CondorFileAgent(f);
-			//}
-		}
+		// Prefetch as allowed
+		if( f->ok_to_buffer() && buffer && (prefetch_size>0) )
+			buffer->prefetch(f,0,prefetch_size);
 	}
 
-	// Opening files O_RDWR is not safe across checkpoints
-	// However, there is no problem as far as the rest of the
-	// file code is concerned.  We will catch it here,
-	// but the rest of the file table and buffer has no problem.
-
-	if( flags & O_RDWR )
-		_condor_file_warning("Opening file '%s' for read and write is not safe in a program that may be checkpointed!  You should use separate files for reading and writing.",path);
+	// Install a new pointer in the file table, and return
+	// the new file descriptor
 
 	pointers[fd] = new CondorFilePointer(f);
-
-	// Prefetch as allowed
-
-	if( f->ok_to_buffer() && buffer && (prefetch_size>0) )
-		buffer->prefetch(f,0,prefetch_size);
 
 	return fd;
 }
 
-/*
-There is a limited support for pipes as special endpoints.
-We will create the pipe locally, install placeholders, and get out of
-the way.  A CondorFileSpecial object is just like a CondorFileLocal, but it
-cannot be checkpointed.
-*/
+/* Install a CondorFileSpecial on an fd, and return that fd. */
 
-int CondorFileTable::pipe(int fds[])
-{
-	int real_fds[2];
-	CondorFileSpecial *a, *b;
-
-	if(RemoteSysCalls()) {
-		_condor_file_warning("pipe() is unsupported.\n");
-		errno = EINVAL;
-		return -1;
-	}
-
-	fds[0] = find_empty();
-	fds[1] = find_empty();
-
-	if( (fds[0]<0) || (fds[1]<0) ) {
-		errno = EMFILE;
-		return -1;
-	}
-
-	CondorFileSpecial *fa = new CondorFileSpecial("pipe endpoint");
-	if(!fa) {
-		errno = ENOMEM;
-		return -1;
-	}
-
-	CondorFileSpecial *fb = new CondorFileSpecial("pipe endpoint");
-	if(!fb) {
-		delete fa;
-		errno = ENOMEM;
-		return -1;
-	}
-
-	CondorFilePointer *pa = new CondorFilePointer(fa);
-	if(!pa) {
-		delete fa;
-		delete fb;
-		errno = ENOMEM;
-		return -1;
-	}
-
-	CondorFilePointer *pb = new CondorFilePointer(fb);
-	if(!pb) {
-		delete fa;
-		delete fb;
-		delete pa;
-		errno = ENOMEM;
-		return -1;
-	}
-
-	if(pipe(real_fds)<0) {
-		delete fa;
-		delete fb;
-		delete pa;
-		delete pb;
-		return -1;
-	}
-
-	pointers[fds[0]] = pa;
-	pointers[fds[1]] = pb;
-
-	fa->force_open(real_fds[0],"unnamed",1,1);
-	fb->force_open(real_fds[1],"unnamed",1,1);
-
-	return 0;
-}
-
-/*
-Socket is similar to pipe.  We will create an anonymous endpoint that
-can be used just like a local file.  If a checkpoint is performed on
-the endpoint, an error will occur.
-*/
-
-int CondorFileTable::socket( int domain, int type, int protocol )
+int CondorFileTable::install_special( char * kind )
 {
 	int fd = find_empty();
-	if(fd<0) {
+	if(!fd) {
 		errno = EMFILE;
 		return -1;
 	}
 
-	CondorFileSpecial *f = new CondorFileSpecial("socket");
+	CondorFileSpecial *f = new CondorFileSpecial(kind);
 	if(!f) {
 		errno = ENOMEM;
 		return -1;
@@ -421,22 +315,75 @@ int CondorFileTable::socket( int domain, int type, int protocol )
 
 	CondorFilePointer *fp = new CondorFilePointer(f);
 	if(!fp) {
-		errno = ENOMEM;
 		delete f;
+		errno = ENOMEM;
+		return -1;
+	}
+
+	pointers[fd] = fp;
+	return fd;
+}
+
+/*
+pipe() works by invoking a local pipe, and then installing a
+CondorFileSpecial on those two fds.  A CondorFileSpecial is just like 
+a local file, but checkpointing is prohibited will it exists.
+*/
+
+int CondorFileTable::pipe(int fds[])
+{
+	int real_fds[2];
+
+	fds[0] = install_special("pipe");
+	if(fds[0]<0) {
+		return -1;
+	}
+
+	fds[1] = install_special("pipe");
+	if(fds[1]<0) {
+		close(fds[0]);
+		return -1;
+	}
+
+	int scm = SetSyscalls( SYS_LOCAL|SYS_UNMAPPED );
+	int result = pipe(real_fds);
+	SetSyscalls(scm);
+
+	if(result<0) {
+		close(fds[0]);
+		close(fds[1]);
+		return -1;
+	}
+
+	pointers[fds[0]]->file->force_open(real_fds[0],"0",1,1);
+	pointers[fds[1]]->file->force_open(real_fds[1],"1",1,1);
+
+	return 0;
+}
+
+/*
+Socket is similar to pipe.  We will perform a local socket(), and then
+install a CondorFileSpecial on that fd to access it locally and inhibit
+checkpointing in the meantime.
+*/
+
+int CondorFileTable::socket( int domain, int type, int protocol )
+{
+	int fd = install_special("socket");
+	if(fd<0) {
 		return -1;
 	}
 
 	int scm = SetSyscalls( SYS_LOCAL|SYS_UNMAPPED ); 
-	int real_fd = ::socket(domain,type,protocol);
+	int result = ::socket(domain,type,protocol);
 	SetSyscalls(scm);
-	if(!real_fd) {
-		delete fp;
-		delete f;
+
+	if(result<0) {
+		close(fd);
 		return -1;
 	}
 
-	f->force_open( real_fd, "socket", 1, 1 );
-	pointers[fd] = fp;
+	pointers[fd]->file->force_open( result, "", 1, 1 );
 
 	return fd;
 }
@@ -500,7 +447,7 @@ ssize_t CondorFileTable::read( int fd, void *data, size_t nbyte )
 	int size = f->get_size();
 	int actual;
 
-	if( (offset>=size) || (nbyte==0) ) return 0;
+	if( nbyte==0 ) return 0;
 
 	// If buffering is allowed, read from the buffer,
 	// otherwise, go straight to the access method
@@ -515,8 +462,6 @@ ssize_t CondorFileTable::read( int fd, void *data, size_t nbyte )
 		// Now fetch from the buffer
 
 		actual = buffer->read( f, offset, (char*)data, nbyte );
-
-
 	} else {
 		actual = f->read( offset, (char*)data, nbyte );
 	}
@@ -785,6 +730,39 @@ int CondorFileTable::fsync( int fd )
 
 	pointers[fd]->file->fsync();
 }
+
+int CondorFileTable::poll( struct pollfd *fds, int nfds, int timeout )
+{
+	struct pollfd *realfds;
+
+	realfds = (struct pollfd *) malloc( sizeof(struct pollfd)*nfds );
+	if(!realfds) {
+		errno = ENOMEM;
+		return -1;
+	}
+
+	for( int i=0; i<nfds; i++ ) {
+		if(_condor_file_is_local(fds[i].fd)) {
+			realfds[i].fd = _condor_file_table_map(fds[i].fd);
+			realfds[i].events = fds[i].events;
+		} else {
+			realfds[i].fd = -1;
+		}
+	}
+
+	int scm = SetSyscalls( SYS_LOCAL|SYS_UNMAPPED );
+	int result = ::poll( realfds, nfds, timeout );
+	SetSyscalls(scm);
+
+	for( int i=0; i<nfds; i++ ) {
+		fds[i].revents = realfds[i].revents;
+	}
+
+	free(realfds);
+
+	return result;
+}
+
 
 void CondorFileTable::checkpoint()
 {

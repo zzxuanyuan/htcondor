@@ -168,16 +168,14 @@ public:
 	    access method, and then use that method for the open. */
 	int	open( const char *path, int flags, int mode );
 
-	/** Pipe with UNIX semantics.  This implementation may be used
-	    safely as long as it is closed before the next checkpoint.
-	    If a checkpoint occurs, the program will halt with an error. */
+	/** Pipe with UNIX semantics.
+	    While a pipe is open, checkpointing is disabled.  */
 	int	pipe(int fds[]);
 
-	/** Socket with UNIX semantics.  This implementation may be used
-	    safely as long as it is closed before the next checkpoint.
-	    If a checkpoint occurs, the program will halt with an error. */
+	/** Socket with UNIX semantics.
+	    While a socket is open, checkpointing is disabled. */
 	int	socket( int domain, int type, int prototcol );
-
+	
 	/** Close this file with UNIX semantics */
 	int	close( int fd );
 
@@ -213,13 +211,19 @@ public:
 	/** See comments for fcntl. */
 	int	ioctl( int fd, int cmd, int arg );
 
+	/** This poll() will only work on certain kinds of files.
+	    If you attempt to poll on a file that doesn't make any
+	    sense, it will quietly remove it from the mix. */
+	int	poll( struct pollfd fds[], int count, int timeout );
+
+	/** poll() will quietly remove any fds it doesn't underst
 	/** Truncate with UNIX semantics */
 	int	ftruncate( int fd, size_t length );
 
 	/** Flush any Condor-buffered data on this file, then
 	    perform a UNIX fsync/fdsync/fdatasync as appropriate. */
 	int	fsync( int fd );
- 
+
 	/** Perform a periodic checkpoint. */
 	void	checkpoint();
 
@@ -239,12 +243,13 @@ public:
 
 private:
 
+	int	install_special( char *kind );
 	int	find_name(const char *name);
 	int	find_empty();
 	void	replace_file( CondorFile *oldfile, CondorFile *newfile );
 	int	count_file_uses( CondorFile *f );
 	int	count_pointer_uses( CondorFilePointer *f );
-	
+
 	CondorFilePointer	**pointers;
 	CondorBufferCache	*buffer;
 
