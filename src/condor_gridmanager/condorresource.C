@@ -42,16 +42,21 @@ HashTable <HashKey, CondorResource *>
 
 int CondorResource::scheddPollInterval = 300;		// default value
 
-CondorResource *CondorResource::FindOrCreateResource( const char * resource_name )
+CondorResource *CondorResource::FindOrCreateResource( const char * resource_name,
+													  const char *pool_name )
 {
 	int rc;
+	MyString resource_key;
 	CondorResource *resource = NULL;
 
-	rc = ResourcesByName.lookup( HashKey( resource_name ), resource );
+	resource_key.sprintf( "%s/%s", pool_name ? pool_name : "NULL",
+						  resource_name );
+
+	rc = ResourcesByName.lookup( HashKey( resource_key.Value() ), resource );
 	if ( rc != 0 ) {
-		resource = new CondorResource( resource_name );
+		resource = new CondorResource( resource_name, pool_name );
 		ASSERT(resource);
-		ResourcesByName.insert( HashKey( resource_name ), resource );
+		ResourcesByName.insert( HashKey( resource_key.Value() ), resource );
 	} else {
 		ASSERT(resource);
 	}
@@ -59,7 +64,7 @@ CondorResource *CondorResource::FindOrCreateResource( const char * resource_name
 	return resource;
 }
 
-CondorResource::CondorResource( const char *resource_name )
+CondorResource::CondorResource( const char *resource_name, const char *pool_name )
 	: BaseResource( resource_name )
 {
 	scheddPollTid = TIMER_UNSET;
@@ -68,6 +73,12 @@ CondorResource::CondorResource( const char *resource_name )
 	gahp = NULL;
 	scheddStatusActive = false;
 	submitter_constraint = "";
+
+	if ( pool_name != NULL ) {
+		poolName = strdup( pool_name );
+	} else {
+		poolName = NULL;
+	}
 
 	scheddPollTid = daemonCore->Register_Timer( 0,
 							(TimerHandlercpp)&CondorResource::DoScheddPoll,
@@ -81,8 +92,12 @@ CondorResource::CondorResource( const char *resource_name )
 		//   a gahp server can handle multiple schedds
 		MyString buff;
 		MyString buff2;
-		buff.sprintf( "CONDORRESOURCE/%s", scheddName );
+		buff.sprintf( "CONDORRESOURCE/%s/%s", poolName ? poolName : "NULL",
+					  scheddName );
 		buff2.sprintf( "-f -s %s", scheddName );
+		if ( poolName != NULL ) {
+			buff2.sprintf_cat( " -P %s", poolName );
+		}
 		gahp = new GahpClient( buff.Value(), gahp_path, buff2.Value() );
 		gahp->setNotificationTimerId( scheddPollTid );
 		gahp->setMode( GahpClient::normal );

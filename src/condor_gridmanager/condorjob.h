@@ -78,6 +78,7 @@ class CondorJob : public BaseJob
 	int numSubmitAttempts;
 	int submitFailureCode;
 	char *remoteScheddName;
+	char *remotePoolName;
 	PROC_ID remoteJobId;
 	char *remoteJobIdString;
 	char *submitterId;

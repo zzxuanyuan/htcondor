@@ -42,7 +42,7 @@ class CondorResource : public BaseResource
 {
  public:
 
-	CondorResource( const char *resource_name );
+	CondorResource( const char *resource_name, const char *pool_name );
 	~CondorResource();
 
 	bool IsEmpty();
@@ -53,7 +53,8 @@ class CondorResource : public BaseResource
 
 	int DoScheddPoll();
 
-	static CondorResource *FindOrCreateResource( const char *resource_name );
+	static CondorResource *FindOrCreateResource( const char *resource_name,
+												 const char *pool_name );
 	static void setPollInterval( int new_interval )
 		{ scheddPollInterval = new_interval; }
 
@@ -63,6 +64,7 @@ class CondorResource : public BaseResource
 	MyString submitter_constraint;
 	int scheddPollTid;
 	char *scheddName;
+	char *poolName;
 	bool scheddStatusActive;
 
  private:

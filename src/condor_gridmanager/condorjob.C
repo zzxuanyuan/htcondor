@@ -167,6 +167,7 @@ CondorJob::CondorJob( ClassAd *classad )
 	numSubmitAttempts = 0;
 	submitFailureCode = 0;
 	remoteScheddName = NULL;
+	remotePoolName = NULL;
 	remoteJobIdString = NULL;
 	submitterId = NULL;
 	myResource = NULL;
@@ -197,6 +198,12 @@ ad->LookupString( "RemoteSchedd", buff );
 	}
 
 	buff[0] = '\0';
+	ad->LookupString( "RemotePool", buff );
+	if ( buff[0] != '\0' ) {
+		remotePoolName = strdup( buff );
+	}
+
+	buff[0] = '\0';
 	ad->LookupString( ATTR_MIRROR_JOB_ID, buff );
 	if ( buff[0] != '\0' ) {
 		SetRemoteJobId( buff );
@@ -217,7 +224,8 @@ ad->LookupString( "RemoteSchedd", buff );
 		goto error_exit;
 	}
 
-	myResource = CondorResource::FindOrCreateResource( remoteScheddName );
+	myResource = CondorResource::FindOrCreateResource( remoteScheddName,
+													   remotePoolName );
 	myResource->RegisterJob( this, submitterId );
 
 	gahp_path = param("CONDOR_GAHP");
@@ -227,8 +235,13 @@ ad->LookupString( "RemoteSchedd", buff );
 	}
 		// TODO remove remoteScheddName from the gahp server key if/when
 		//   a gahp server can handle multiple schedds
-	sprintf( buff, "CONDOR/%s", remoteScheddName );
+	sprintf( buff, "CONDOR/%s/%s", remotePoolName ? remotePoolName : "NULL",
+			 remoteScheddName );
 	sprintf( buff2, "-f -s %s", remoteScheddName );
+	if ( remotePoolName ) {
+		strcat( buff2, " -P " );
+		strcat( buff2, remotePoolName );
+	}
 	gahp = new GahpClient( buff, gahp_path, buff2 );
 	free( gahp_path );
 
@@ -263,6 +276,9 @@ CondorJob::~CondorJob()
 	}
 	if ( remoteScheddName ) {
 		free( remoteScheddName );
+	}
+	if ( remotePoolName ) {
+		free( remotePoolName );
 	}
 	if ( gahpAd ) {
 		delete gahpAd;
