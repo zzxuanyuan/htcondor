@@ -15,5 +15,6 @@
 #define strcasecmp _stricmp
 #define strncasecmp _strnicmp
 #include <time.h>
+#include <lmcons.h> // for UNLEN
 
 #endif
