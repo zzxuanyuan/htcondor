@@ -687,7 +687,7 @@ int NordugridJob::doSubmit( char *&job_id )
 	rsl_len = strlen( rsl->Value() );
 
 	if ( ftp_lite_change_dir( ftp_srvr, "/jobs/new" ) == 0 ) {
-		errorString = "ftp_lite_change_dir() failed";
+		errorString = "ftp_lite_change_dir(/jobs/new) failed";
 		goto doSubmit_error_exit;
 	}
 
@@ -723,6 +723,11 @@ int NordugridJob::doSubmit( char *&job_id )
 		goto doSubmit_error_exit;
 	}
 
+	if ( ftp_lite_change_dir( ftp_srvr, "/jobs" ) == 0 ) {
+		errorString = "ftp_lite_change_dir(/jobs) failed";
+		goto doSubmit_error_exit;
+	}
+
 	dprintf(D_FULLDEBUG,"*** job_dir='%s' job_id='%s'\n",job_dir,tmp_job_id);
 	job_id = strdup( tmp_job_id );
 	free( job_dir );
@@ -748,7 +753,7 @@ dprintf(D_FULLDEBUG,"*** failure: %s\n",errorString.Value());
 
 int NordugridJob::doStatus( int &new_remote_state )
 {
-	MyString dir;
+	MyString filename;
 	char *status_buff = NULL;
 	int status_len = 0;
 	FILE *status_fp = NULL;
@@ -759,13 +764,9 @@ int NordugridJob::doStatus( int &new_remote_state )
 		return TASK_QUEUED;
 	}
 
-	dir.sprintf( "/jobs/%s/job.log", remoteJobId );
-	if ( ftp_lite_change_dir( ftp_srvr, dir.Value() ) == 0 ) {
-		errorString = "ftp_lite_change_dir() failed";
-		goto doStatus_error_exit;
-	}
+	filename.sprintf( "/jobs/%s/job.log/status", remoteJobId );
 
-	status_fp = ftp_lite_get( ftp_srvr, "status", 0 );
+	status_fp = ftp_lite_get( ftp_srvr, filename.Value(), 0 );
 	if ( status_fp == NULL ) {
 		errorString = "ftp_lite_get() failed";
 		goto doStatus_error_exit;
@@ -882,13 +883,6 @@ int NordugridJob::doStageIn()
 		return TASK_QUEUED;
 	}
 
-	MyString buff;
-	buff.sprintf( "/jobs/%s", remoteJobId );
-	if ( ftp_lite_change_dir( ftp_srvr, buff.Value() ) == 0 ) {
-		errorString = "ftp_lite_change_dir() failed";
-		goto doStageIn_error_exit;
-	}
-
 	curr_filename = stage_list->next();
 
 	if ( curr_filename != NULL ) {
@@ -913,7 +907,9 @@ int NordugridJob::doStageIn()
 			goto doStageIn_error_exit;
 		}
 
-		curr_ftp_fp = ftp_lite_put( ftp_srvr, basename(curr_filename), 0,
+		full_filename.sprintf( "/jobs/%s/%s", remoteJobId,
+							   basename(curr_filename) );
+		curr_ftp_fp = ftp_lite_put( ftp_srvr, full_filename.Value(), 0,
 									FTP_LITE_WHOLE_FILE );
 		if ( curr_ftp_fp == NULL ) {
 			errorString = "ftp_lite_put() failed";
@@ -1004,13 +1000,6 @@ int NordugridJob::doStageOut()
 		return TASK_QUEUED;
 	}
 
-	MyString buff;
-	buff.sprintf( "/jobs/%s", remoteJobId );
-	if ( ftp_lite_change_dir( ftp_srvr, buff.Value() ) == 0 ) {
-		errorString = "ftp_lite_change_dir() failed";
-		goto doStageOut_error_exit;
-	}
-
 	curr_filename = stage_list->next();
 
 	if ( curr_filename != NULL ) {
@@ -1031,7 +1020,9 @@ int NordugridJob::doStageOut()
 			goto doStageOut_error_exit;
 		}
 
-		curr_ftp_fp = ftp_lite_get( ftp_srvr, basename(curr_filename), 0 );
+		full_filename.sprintf( "/jobs/%s/%s", remoteJobId,
+							   basename(curr_filename) );
+		curr_ftp_fp = ftp_lite_get( ftp_srvr, full_filename.Value(), 0 );
 		if ( curr_ftp_fp == NULL ) {
 			errorString = "ftp_lite_get() failed";
 			goto doStageOut_error_exit;
