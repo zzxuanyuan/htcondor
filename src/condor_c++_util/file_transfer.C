@@ -160,6 +160,7 @@ int
 FileTransfer::Init( ClassAd *Ad, bool want_check_perms, priv_state priv ) 
 {
 	char buf[ATTRLIST_MAX_EXPRESSION];
+    Value v;
 
 	if( did_init ) {
 			// no need to except, just quietly return success
@@ -355,9 +356,9 @@ FileTransfer::Init( ClassAd *Ad, bool want_check_perms, priv_state priv )
 		// and we haven't set TRANSFER_EXECTUABLE to false, send it along.
 		// If we didn't set TRANSFER_EXECUTABLE, default to true 
 
-		int xferExec;
-		if(!Ad->LookupBool(ATTR_TRANSFER_EXECUTABLE,xferExec)) {
-			xferExec=1;
+		bool xferExec;
+		if( !Ad->EvaluateAttrBool(ATTR_TRANSFER_EXECUTABLE, xferExec)) {
+			xferExec=true;
 		}
 
 		if ( xferExec && !InputFiles->contains(ExecFile) ) {
@@ -429,17 +430,19 @@ FileTransfer::Init( ClassAd *Ad, bool want_check_perms, priv_state priv )
 			// we know that filelist has at least one entry, so
 			// insert it as an attribute into the ClassAd which
 			// will get sent to our peer.
-			sprintf(buf,"%s=\"%s\"",
-				ATTR_TRANSFER_INTERMEDIATE_FILES,filelist.Value());
-			Ad->InsertOrUpdate(buf);
+			sprintf(buf,"\"%s\"",filelist.Value());
+            v.SetStringValue(buf);
+            // Needs work Hao
+			//Ad->InsertOrUpdate( string(ATTR_TRANSFER_INTERMEDIATE_FILES), Literal::MakeLiteral(v));
 			dprintf(D_FULLDEBUG,"%s\n",buf);
 		}
 	}
 	if ( IsClient() && upload_changed_files ) {
-		buf[0] = '\0';
-		Ad->LookupString(ATTR_TRANSFER_INTERMEDIATE_FILES,buf);
-		if ( buf[0] ) {
-			SpooledIntermediateFiles = strnewp(buf);
+        string s;
+        if (Ad->EvaluateAttrString(ATTR_TRANSFER_INTERMEDIATE_FILES, s)) {
+            if ( s.length() > 0 ) {
+                SpooledIntermediateFiles = strnewp(s.data());
+            }
 		}
 		dprintf(D_FULLDEBUG,"%s=\"%s\"\n",
 				ATTR_TRANSFER_INTERMEDIATE_FILES,buf);
