@@ -2369,7 +2369,7 @@ DedicatedScheduler::computeSchedule( void )
 		if( idle_resources->satisfyJobs(jobs, idle_candidates,
 										idle_candidates_jobs) )
 		{
-			printSatisfaction( cluster, idle_candidates->Length(), 0, 0, 0 );
+			printSatisfaction( cluster, idle_candidates, NULL, NULL, NULL );
 			createAllocations( idle_candidates, idle_candidates_jobs,
 							   cluster, nprocs );
 				
@@ -2403,10 +2403,8 @@ DedicatedScheduler::computeSchedule( void )
 							limbo_candidates_jobs) )
 			{
 					// Could satisfy with idle and/or limbo
-				printSatisfaction( cluster,
-								   idle_candidates ? 
-								   idle_candidates->Length() : 0,
-								   limbo_candidates->Length(), 0, 0 );
+				printSatisfaction( cluster, idle_candidates,
+								   limbo_candidates, NULL, NULL );
 
 					// Mark any idle resources we are going to use as
 					// scheduled.
@@ -2452,12 +2450,9 @@ DedicatedScheduler::computeSchedule( void )
 					// resources requests for each one, remove them from
 					// the unclaimed_resources list, and go onto the next
 					// job.
-				printSatisfaction( cluster,
-								   idle_candidates ? 
-								   idle_candidates->Length() : 0,
-								   limbo_candidates ? 
-								   limbo_candidates->Length() : 0, 
-								   unclaimed_candidates->Length(), 0 );
+				printSatisfaction( cluster, idle_candidates,
+								   limbo_candidates,
+								   unclaimed_candidates, NULL );
 
 				unclaimed_candidates->Rewind();
 				unclaimed_candidates_jobs->Rewind();
@@ -2632,14 +2627,9 @@ DedicatedScheduler::computeSchedule( void )
 
 			if( jobs->Number() == 0) {
 					// We got every single thing we need
-				printSatisfaction( cluster,
-								   idle_candidates ? 
-								   idle_candidates->Length() : 0,
-								   limbo_candidates ? 
-								   limbo_candidates->Length() : 0, 
-								   unclaimed_candidates ? 
-								   unclaimed_candidates->Length() : 0, 
-								   preempt_candidates->Length() );
+				printSatisfaction( cluster, idle_candidates,
+								   limbo_candidates, unclaimed_candidates,
+								   preempt_candidates );
 
 				preempt_candidates->Rewind();
 				while( ClassAd *mach = preempt_candidates->Next()) {
@@ -3271,52 +3261,53 @@ DedicatedScheduler::displayResourceRequests( void )
 
 
 void
-DedicatedScheduler::printSatisfaction( int cluster, int idle, int limbo,
-									   int unclaimed, int busy )
+DedicatedScheduler::printSatisfaction( int cluster, CAList* idle, 
+									   CAList* limbo, CAList* unclaimed, 
+									   CAList* busy )
 {
 	MyString msg;
 	msg.sprintf( "Satisfied job %d with ", cluster );
 	bool had_one = false;
-	if( idle ) {
-		msg += idle;
+	if( idle && idle->Length() ) {
+		msg += idle->Length();
 		msg += " idle";
 		had_one = true;
 	}
-	if( limbo ) {
+	if( limbo && limbo->Length() ) {
 		if( had_one ) {
 			msg += ", ";
 		}
-		msg += limbo;
+		msg += limbo->Length();
 		msg += " limbo";
 		had_one = true;
 	}
-	if( unclaimed ) {
+	if( unclaimed && unclaimed->Length() ) {
 		if( had_one ) {
 			msg += ", ";
 		}
-		msg += unclaimed;
+		msg += unclaimed->Length();
 		msg += " unclaimed";
 		had_one = true;
 	}
-	if( busy ) {
+	if( busy && busy->Length() ) {
 		if( had_one ) {
 			msg += ", ";
 		}
-		msg += busy;
+		msg += busy->Length();
 		msg += " busy";
 		had_one = true;
 	}
 	msg += " resources";
 	dprintf( D_FULLDEBUG, "%s\n", msg.Value() );
 
-	if( unclaimed ) {
+	if( unclaimed && unclaimed->Length() ) {
 		dprintf( D_FULLDEBUG, "Generating %d resource requests for job %d\n", 
-				 unclaimed, cluster  );
+				 unclaimed->Length(), cluster  );
 	}
 
-	if( busy ) {
+	if( busy && busy->Length() ) {
 		dprintf( D_FULLDEBUG, "Preempting %d resources for job %d\n", 
-				 busy, cluster  );
+				 busy->Length(), cluster  );
 	}
 }
 

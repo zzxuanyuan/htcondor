@@ -295,8 +295,8 @@ class DedicatedScheduler : public Service {
 		// Print out all our pending resource requests.
 	void displayResourceRequests( void );
 
-	void printSatisfaction( int cluster, int num_idle, int num_limbo, 
-							int num_unclaimed, int num_busy );
+	void printSatisfaction( int cluster, CAList* idle, CAList* limbo,
+							CAList* unclaimed, CAList* busy );
 
 	void sortResources( void );
 	void clearResources( void );
