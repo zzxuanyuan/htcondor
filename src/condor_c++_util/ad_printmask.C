@@ -131,13 +131,14 @@ display (ClassAd *ad)
 {
 	Formatter *fmt;
 	char 	*attr, *alt;
-	ExprTree *tree;
+	ExprTree *tree, *rhs;
 //	EvalResult result;
 	Value 	result;				// NAC
 	char * 	retval = new char[1024 * 8];
 	int		intValue;
 	float 	floatValue;
 	char  	stringValue[1024];
+	char*	bool_str = NULL;
 
 	int 	tempInt;			// NAC
 	double 	tempReal;			// NAC
@@ -198,6 +199,27 @@ display (ClassAd *ad)
 						sprintf( stringValue, fmt->printfFmt, tempInt );	// NAC
 						strcat( retval, stringValue );				
 						break;
+
+					case LX_UNDEFINED:
+					case LX_BOOL:
+
+							// if the classad lookup worked, but the
+							// evaluation gave us an undefined result,
+							// (or if it's a bool), we know the
+							// attribute is there.  so, instead of
+							// printing out the evaluated result, just
+							// print out the unevaluated expression.
+						rhs = tree->RArg();
+						if( rhs ) {
+							rhs->PrintToNewStr( &bool_str );
+							if( bool_str ) {
+								sprintf( stringValue, fmt->printfFmt,
+										 bool_str );
+								strcat( retval, stringValue );
+								free( bool_str );
+								break;
+							}
+						}
 
 					default:
 						strcat( retval, alt );

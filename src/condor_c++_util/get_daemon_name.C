@@ -23,19 +23,17 @@
 
  
 
-///////////////////////////////////////////////////////////////////////////////
-// Get the ip address and port number of a schedd from the collector.
-///////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////
+// Methods to manipulate and manage daemon names
+//////////////////////////////////////////////////////////////////////
 
 #include "condor_common.h"
 #include "condor_config.h"
 #include "condor_string.h"
-#include "daemon.h"
 #include "get_full_hostname.h"
 #include "my_hostname.h"
 #include "my_username.h"
 #include "condor_uid.h"
-#include "daemon_types.h"
 
 extern "C" {
 
@@ -68,6 +66,9 @@ get_daemon_name( const char* name )
 	char *tmp, *fullname, *tmpname, *daemon_name = NULL;
 	int size;
 
+	dprintf( D_HOSTNAME, "Finding proper daemon name for \"%s\"\n",
+			 name ); 
+
 		// First, check for a '@' in the name.
 	tmpname = strdup( name );
 	tmp = strchr( tmpname, '@' );
@@ -78,8 +79,12 @@ get_daemon_name( const char* name )
 		if( *tmp ) {
 				// There was something after the @, try to resolve it
 				// as a full hostname:
+			dprintf( D_HOSTNAME, "Daemon name has data after the '@', "
+					 "trying to resolve \"%s\"\n", tmp ); 
 			fullname = get_full_hostname( tmp );
 		} else {
+			dprintf( D_HOSTNAME, "Daemon name has no data after the '@', "
+					 "trying to use the local host\n" ); 
 				// There was nothing after the @, use localhost:
 			fullname = strnewp( my_full_hostname() );
 		}
@@ -91,10 +96,19 @@ get_daemon_name( const char* name )
 		} 
 	} else {
 			// There's no '@', just try to resolve the hostname.
+		dprintf( D_HOSTNAME, "Daemon name contains no '@', treating as a "
+				 "regular hostname\n" );
 		daemon_name = get_full_hostname( tmpname );
 	}
 	free( tmpname );
+
 		// If there was an error, this will still be NULL.
+	if( daemon_name ) { 
+		dprintf( D_HOSTNAME, "Returning daemon name: \"%s\"\n", daemon_name );
+	} else {
+		dprintf( D_HOSTNAME, "Failed to construct daemon name, "
+				 "returning NULL\n" );
+	}
 	return daemon_name;
 }
 
@@ -187,96 +201,6 @@ default_daemon_name( void )
 	sprintf( ans, "%s@%s", name, host );
 	free(name);
 	return ans;
-}
-
-
-char*
-get_schedd_addr(const char* name, const char* pool)
-{
-	static char addr[100];
-	Daemon d( DT_SCHEDD, name, pool );
-	if( d.locate() ) {
-		strncpy( addr, d.addr(), 100 );
-		return addr;
-	} else {
-		return NULL;
-	}
-} 
-
-
-char*
-get_startd_addr(const char* name, const char* pool)
-{
-	static char addr[100];
-	Daemon d( DT_STARTD, name, pool );
-	if( d.locate() ) {
-		strncpy( addr, d.addr(), 100 );
-		return addr;
-	} else {
-		return NULL;
-	}
-} 
-
-
-char*
-get_master_addr(const char* name, const char* pool)
-{
-	static char addr[100];
-	Daemon d( DT_MASTER, name, pool );
-	if( d.locate() ) {
-		strncpy( addr, d.addr(), 100 );
-		return addr;
-	} else {
-		return NULL;
-	}
-} 
-
-char*
-get_negotiator_addr(const char* name)
-{
-	static char addr[100];
-	Daemon d( DT_NEGOTIATOR, name );
-	if( d.locate() ) {
-		strncpy( addr, d.addr(), 100 );
-		return addr;
-	} else {
-		return NULL;
-	}
-}
-
-
-char*
-get_collector_addr(const char* name)
-{
-	static char addr[100];
-	Daemon d( DT_COLLECTOR, name );
-	if( d.locate() ) {
-		strncpy( addr, d.addr(), 100 );
-		return addr;
-	} else {
-		return NULL;
-	}
-}
-
-
-char*
-get_daemon_addr( daemon_t dt, const char* name, const char* pool )
-{
-	switch( dt ) {
-	case DT_MASTER:
-		return get_master_addr( name, pool );
-	case DT_STARTD:
-		return get_startd_addr( name, pool );
-	case DT_SCHEDD:
-		return get_schedd_addr( name, pool );
-	case DT_NEGOTIATOR:
-		return get_negotiator_addr( name );
-	case DT_COLLECTOR:
-		return get_collector_addr( name );
-	default:
-		return NULL;
-	}
-	return NULL;
 }
 
 

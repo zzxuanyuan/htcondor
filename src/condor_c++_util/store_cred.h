@@ -20,29 +20,44 @@
  * Livny, 7367 Computer Sciences, 1210 W. Dayton St., Madison, 
  * WI 53706-1685, (608) 262-0856 or miron@cs.wisc.edu.
 ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
-#ifndef CONDOR_GET_DAEMON_ADDR_H
-#define CONDOR_GET_DAEMON_ADDR_H
 
-#include "daemon_types.h"
+#ifndef STORE_CRED_H
+#define STORE_CRED_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#ifdef WIN32
+#include "condor_common.h"
+#include "condor_io.h"
 
-extern char* get_daemon_addr( daemon_t dt = DT_MASTER, 
-							  const char* name = NULL, const char* pool = NULL);
-extern char* get_schedd_addr(const char* name = NULL, const char* pool = NULL);
-extern char* get_startd_addr(const char* name = NULL, const char* pool = NULL);
-extern char* get_master_addr(const char* name = NULL, const char* pool = NULL);
-extern char* get_negotiator_addr(const char* name = NULL);
-extern char* get_collector_addr(const char* name = NULL);
-extern char* get_daemon_name(const char* name);
-extern const char* get_host_part(const char* name);
-extern char* build_valid_daemon_name(char* name);
-extern char* default_daemon_name( void );
 
-#ifdef __cplusplus
-}
-#endif
+// store cred return codes
+const int SUCCESS = 0; 				// it worked!
+const int FAILURE = 1;				// communication error
+const int FAILURE_BAD_PASSWORD = 2; // bad (wrong) password
 
-#endif /* CONDOR_GET_DAEMON_ADDR_H */
+// store cred modes
+const int ADD_MODE = 100;
+const int DELETE_MODE = 101;
+const int QUERY_MODE = 102;
+
+const char ADD_CREDENTIAL[] = "add";
+const char DELETE_CREDENTIAL[] = "delete";
+const char QUERY_CREDENTIAL[] = "query";
+const char CONFIG_CREDENTIAL[] = "config";
+
+#define MAX_PASSWORD_LENGTH 255
+
+void store_cred_handler(void *, int i, Stream *s);
+int store_cred(char *user, char* pw, int mode );
+
+bool read_no_echo(char* buf, int maxlength);
+char* get_password(void);
+int addCredential(char* user, char* pw);
+int deleteCredential(char* user); // not checking password before removal yet
+int queryCredential(char* user);  // just tell me if I have one stashed
+
+#endif // WIN32
+#endif // STORE_CRED_H
+
+
+
+	
