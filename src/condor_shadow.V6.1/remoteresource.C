@@ -147,6 +147,13 @@ RemoteResource::activateClaim( int starterVersion )
 					 retry_delay ); 
 			sleep( retry_delay );
 			break;
+
+		case CONDOR_ERROR:
+			shadow->dprintf( D_ALWAYS, "%s\n", dc_startd->error() );
+			setExitReason( JOB_NOT_STARTED );
+			return false;
+			break;
+
 		case NOT_OK:
 			shadow->dprintf( D_ALWAYS, 
 							 "Request to run on %s was REFUSED\n",
