@@ -67,7 +67,7 @@ public:
 	
 	KeyCache& operator=(const KeyCache&);
 
-	bool insert(KeyCacheEntry&);
+	bool insert(char *key_id, KeyCacheEntry&);
 	bool lookup(char *key_id, KeyCacheEntry*&);
 	bool remove(char *key_id);
 

@@ -98,8 +98,10 @@ KeyCache::~KeyCache() {
 
 	    
 KeyCache& KeyCache::operator=(const KeyCache& k) {
-	delete_storage();
-	key_table = new HashTable<MyString, KeyCacheEntry*>(*(k.key_table));
+	if (this != &k) {
+		delete_storage();
+		key_table = new HashTable<MyString, KeyCacheEntry*>(*(k.key_table));
+	}
 	return *this;
 }
 
@@ -109,8 +111,8 @@ void KeyCache::delete_storage() {
 	}
 }
 
-bool KeyCache::insert(KeyCacheEntry &e) {
-	return key_table->insert(e.id(), new KeyCacheEntry(e));
+bool KeyCache::insert(char *key_id, KeyCacheEntry &e) {
+	return key_table->insert(key_id, new KeyCacheEntry(e));
 }
 
 bool KeyCache::lookup(char *key_id, KeyCacheEntry *&e_ptr) {

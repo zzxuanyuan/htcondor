@@ -143,7 +143,7 @@ DaemonCore::DaemonCore(int PidSize, int ComSize,int SigSize,
 	if(maxSocket == 0)
 		maxSocket = DEFAULT_MAXSOCKETS;
 
-	enc_key_cache = new KeyCache(197, &MyStringHash, rejectDuplicateKeys);
+	enc_key_cache = new KeyCache(197);
 
 	sockTable = new ExtArray<SockEnt>(maxSocket);
 	if(sockTable == NULL)
@@ -241,7 +241,6 @@ DaemonCore::~DaemonCore()
 	}
 
 	if (enc_key_cache) {
-		enc_key_cache->walk(&delete_enc_key);
 		delete enc_key_cache;
 	}
 
@@ -1906,8 +1905,8 @@ int DaemonCore::HandleReq(int socki)
 			sock->decode();
 
 			// add the key to the cache
-			enc_key_cache->insert(key_id,
-					new KeyCacheEntry(key_id, sock->endpoint(), ki, 0));
+			KeyCacheEntry tmp_key(key_id, sock->endpoint(), ki, 0);
+			enc_key_cache->insert(key_id, tmp_key);
 			dprintf (D_SECURITY, "DC_AUTHENTICATE: added key id %s to cache!\n", key_id);
 #ifdef SECURITY_HACK_ENABLE
 			zz2printf (ki);

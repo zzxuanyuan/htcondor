@@ -97,7 +97,7 @@ Daemon::Daemon( char* sinful_addr, int port )
 
 	if (enc_key_cache == NULL) {
 		dprintf (D_SECURITY, "KEYCACHE: creating enc key table!\n");
-		enc_key_cache = new KeyCache(101, &MyStringHash, rejectDuplicateKeys);
+		enc_key_cache = new KeyCache(101);
 	}
 	enc_key_daemon_ref_count++;
 	dprintf (D_SECURITY, "KEYCACHE: Daemon ref count now %i.\n", enc_key_daemon_ref_count);
@@ -137,7 +137,7 @@ Daemon::Daemon( daemon_t type, const char* name, const char* pool )
 
 	if (enc_key_cache == NULL) {
 		dprintf (D_SECURITY, "KEYCACHE: creating enc key table!\n");
-		enc_key_cache = new KeyCache(101, &MyStringHash, rejectDuplicateKeys);
+		enc_key_cache = new KeyCache(101);
 	}
 	enc_key_daemon_ref_count++;
 	dprintf (D_SECURITY, "KEYCACHE: Daemon ref count now %i.\n", enc_key_daemon_ref_count);
@@ -916,18 +916,12 @@ choose_action:
 				assert (key_ptr == key_id);
 
 				// cache the key
-				KeyCacheEntry * nkey = new KeyCacheEntry(
-											key_id,
-											sock->endpoint(),
-											ki,
-											0);
+				KeyCacheEntry nkey( key_id, sock->endpoint(), ki, 0);
 				enc_key_cache->insert(sin_to_string(sock->endpoint()), nkey);
-				// ki is copied by KeyCacheEntry's constructor.
-				// nkey is "leaked" at this point, to be cleaned up later.
 
 				dprintf (D_SECURITY, "STARTCOMMAND: crypto key id %s added to cache.\n", key_id);
 #ifdef SECURITY_HACK_ENABLE
-				zz1printf(nkey->key());
+				zz1printf(nkey.key());
 #endif
 
 				retval = true;
