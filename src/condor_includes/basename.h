@@ -44,6 +44,15 @@ char* basename( const char* path );
 */
 char* dirname( const char* path );
 
+
+/* 
+   return TRUE if the given path is a full pathname, FALSE if not.  by
+   full pathname, we mean it either begins with "/" or "\" or "*:\"
+   (something like "c:\..." on windoze).
+*/
+int fullpath( const char* path );
+
+
 #if defined(__cplusplus)
 }
 #endif
