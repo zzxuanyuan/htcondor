@@ -869,7 +869,7 @@ void Server::ProcessServiceReq(int             req_id,
 				Log(req_id, "Request for server status GRANTED:");
 				Log("No files on checkpoint server");
 			} else {
-				child_pid = fork();
+				child_pid = Generic_fork();
 				if (child_pid < 0) {
 					Generic_close(data_conn_sd);
 					Log(req_id, "Unable to honor status service request:");
@@ -959,7 +959,7 @@ void Server::Replicate()
 		req.file_size = htonl(chkpt_file_status.st_size);
 #undef AVOID_FORK
 #if !defined(AVOID_FORK)
-		child_pid = fork();
+		child_pid = Generic_fork();
 		if (child_pid < 0) {
 			Log("Unable to perform replication.  Cannot fork child process.");
 		} else if (child_pid == 0) {
@@ -1331,7 +1331,7 @@ void Server::ProcessStoreReq(int            req_id,
 	} else {
 		Generic_close(req_sd);
 
-		child_pid = fork();
+		child_pid = Generic_fork();
 
 		if (child_pid < 0) {
 			Generic_close(data_conn_sd);
@@ -1607,7 +1607,7 @@ void Server::ProcessRestoreReq(int             req_id,
 		  Generic_close(data_conn_sd);
 	  } else {
 		  Generic_close(req_sd);
-		  child_pid = fork();
+		  child_pid = Generic_fork();
 		  if (child_pid < 0) {
 			  Generic_close(data_conn_sd);
 			  Log(req_id, "Unable to honor restore request:");

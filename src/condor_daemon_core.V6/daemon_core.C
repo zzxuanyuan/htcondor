@@ -30,7 +30,7 @@
 #include "condor_common.h"
 #include "generic_socket.h"
 extern "C" {
-void GCB_stop_logging();
+void Generic_stop_logging();
 }
 
 static const int DEFAULT_MAXCOMMANDS = 255;
@@ -1171,7 +1171,7 @@ int DaemonCore::Create_Pipe( int *filedes, bool nonblocking_read,
 			failed = true;
 		} else {
 			fcntl_flags |= O_NONBLOCK;	// set nonblocking mode
-			if ( fcntl(filedes[0],F_SETFL,fcntl_flags) == -1 ) {
+			if ( Generic_fcntl(filedes[0],F_SETFL,(void *)fcntl_flags) == -1 ) {
 				failed = true;
 			}
 		}
@@ -1182,7 +1182,7 @@ int DaemonCore::Create_Pipe( int *filedes, bool nonblocking_read,
 			failed = true;
 		} else {
 			fcntl_flags |= O_NONBLOCK;	// set nonblocking mode
-			if ( fcntl(filedes[1],F_SETFL,fcntl_flags) == -1 ) {
+			if ( Generic_fcntl(filedes[1],F_SETFL,(void *)fcntl_flags) == -1 ) {
 				failed = true;
 			}
 		}
@@ -5008,7 +5008,7 @@ int DaemonCore::Create_Process(
 		goto wrapup;
 	}
 
-	newpid = fork();
+	newpid = Generic_fork();
 	if( newpid == 0 ) // Child Process
 	{
 			// make sure we're not going to try to share the lock file
@@ -5284,7 +5284,7 @@ int DaemonCore::Create_Process(
 			// lock file and has an fd, that we close it before we
 			// exec() so we don't leak it.
 
-        GCB_stop_logging();
+        Generic_stop_logging();
 
 		if( LockFd >= 0 ) {
 			close( LockFd );
@@ -5516,7 +5516,7 @@ DaemonCore::Create_Thread(ThreadStartFunc start_func, void *arg, Stream *sock,
 	}
 #else
 	int tid;
-	tid = fork();
+	tid = Generic_fork();
 	if (tid == 0) {				// new thread (i.e., child process)
 		_condor_exit_with_exec = 1;
 		exit(start_func(arg, sock));

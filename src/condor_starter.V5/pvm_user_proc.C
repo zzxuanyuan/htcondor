@@ -95,7 +95,7 @@ void PVMdProc::execute()
 	pipe(pipes);
 	dprintf( D_ALWAYS, "pipes: %d & %d\n", pipes[0], pipes[1] );
 
-	if( (pid = fork()) < 0 ) {
+	if( (pid = Generic_fork()) < 0 ) {
 		EXCEPT( "fork" );
 	}
 

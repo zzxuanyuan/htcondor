@@ -231,7 +231,7 @@ email_open_implementation(char *Mailer, char *final_command)
 	}
 
 	dprintf(D_FULLDEBUG, "Forking Mailer process...\n");
-	if ((pid = fork()) < 0)
+	if ((pid = Generic_fork()) < 0)
 	{
 		dprintf(D_ALWAYS, "Could not fork email process!\n");
 		return NULL;

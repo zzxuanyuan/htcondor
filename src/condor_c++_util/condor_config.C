@@ -180,7 +180,7 @@ config_host( char* host )
 
 
 void
-condor_GCB_config()
+condor_Generic_config()
 {
 	char *str = NULL;
 
@@ -193,19 +193,38 @@ condor_GCB_config()
 		  Derek Wright <wright@cs.wisc.edu> 2004-05-25
 		*/
 
-	// Env: GCB_ENABLE
-	setenv("GCB_ENABLE", strdup("yes"), 1);
-
-	// Env: Broker
-	if (str = param("GCB_BROKER")) {
-		setenv("GCB_BROKER", str, 1);
-		str = NULL;
-	}
-
-	// Env: GCB routing table
-	if (str = param("GCB_ROUTE")) {
-		setenv("GCB_ROUTE", str, 1);
-	}
+    // Env: the type of service
+    setenv("GENERIC_ENABLE", strdup("yes"), 1);
+    str = param("GENERIC_SERVICE");
+    if (str) {
+        if (!strcasecmp(str, "GCB")) {
+            setenv("GCB_ENABLE", strdup("yes"), 1);
+            free(str);
+            str = NULL;
+            // Env: InAgent
+            if (str = param("GENERIC_INAGENT")) {
+                setenv("GCB_INAGENT", str, 1);
+                str = NULL;
+            }
+            // Env: Routing table
+            if (str = param("GENERIC_ROUTE")) {
+                setenv("GCB_ROUTE", str, 1);
+            }
+        } else if (!strcasecmp(str, "DPF")) {
+            setenv("DPF_ENABLE", strdup("yes"), 1);
+            free(str);
+            str = NULL;
+            // Env: InAgent
+            if (str = param("GENERIC_INAGENT")) {
+                setenv("DPF_INAGENT", str, 1);
+                str = NULL;
+            }
+            // Env: Routing table
+            if (str = param("GENERIC_ROUTE")) {
+                setenv("DPF_ROUTE", str, 1);
+            }
+        }
+    }
 }
 
 void
@@ -333,8 +352,8 @@ real_config(char* host, int wantsQuiet)
 		// The following lines should be placed very carefully. Must be after
 		// global and local config files being processed but before any call to
 		// Generic_*
-    if ( param_boolean("GCB_ENABLE", false) ) {
-        condor_GCB_config();
+    if ( param_boolean("GENERIC_ENABLE", false) ) {
+        condor_Generic_config();
     }
 
 		// Re-insert the special macros.  We don't want the user to 

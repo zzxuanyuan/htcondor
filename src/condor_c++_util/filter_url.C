@@ -62,7 +62,7 @@ int condor_open_filter( const char *name, int flags, size_t n_bytes )
 		return rval;
 	}
 	
-	child_pid = fork();
+	child_pid = Generic_fork();
 
 	if (child_pid) {
 		/* The parent */
@@ -78,7 +78,7 @@ int condor_open_filter( const char *name, int flags, size_t n_bytes )
 		waitpid(child_pid, &status, 0);
 	} else {
 		/* The child */
-		grand_child_pid = fork();
+		grand_child_pid = Generic_fork();
 		if (grand_child_pid) {
 			/* Still the child */
 			exit(0);

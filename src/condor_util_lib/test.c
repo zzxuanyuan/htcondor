@@ -114,7 +114,7 @@ spawn( int n )
 
 		N_Children += 1;
 
-		switch( pid = fork() ) {
+		switch( pid = Generic_fork() ) {
 
 		  case -1:	/* Error */
 			EXCEPT( "fork" );

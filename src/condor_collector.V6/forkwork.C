@@ -27,6 +27,7 @@
 #include "condor_debug.h"
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
 #include "forkwork.h"
+#include "generic_socket.h"
 
 // Instantiate the list of Cron Jobs
 template class SimpleList<ForkWorker *>;
@@ -52,7 +53,7 @@ ForkWorker::Fork( void )
 {
 # ifndef WIN32
 	// Fork
-	pid = fork( );
+	pid = Generic_fork( );
 
 	if ( pid < 0 ) {
 		dprintf( D_ALWAYS, "ForkWorker::Fork: Fork failed\n" );

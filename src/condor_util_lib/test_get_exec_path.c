@@ -66,7 +66,7 @@ fool_child( void )
 {
 	int pid;
 	int status;
-	pid = fork();
+	pid = Generic_fork();
 	if( pid ) {
 			/* parent */
 		waitpid( pid, &status, 0 );

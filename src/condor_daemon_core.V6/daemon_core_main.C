@@ -34,6 +34,7 @@
 #include "condor_debug.h"
 #include "condor_distribution.h"
 #include "condor_environ.h"
+#include "generic_socket.h"
 
 #define _NO_EXTERN_DAEMON_CORE 1	
 #include "condor_daemon_core.h"
@@ -1392,7 +1393,7 @@ int main( int argc, char** argv )
 		FreeConsole();
 #else	// UNIX
 		// on unix, background means just fork ourselves
-		if ( fork() ) {
+		if ( Generic_fork() ) {
 			// parent
 			exit(0);
 		}
@@ -1523,8 +1524,8 @@ int main( int argc, char** argv )
 		// async signals.  We do this after logging is setup so that
 		// we can EXCEPT (and really log something) on failure...
 	if ( pipe(daemonCore->async_pipe) == -1 ||
-		 fcntl(daemonCore->async_pipe[0],F_SETFL,O_NONBLOCK) == -1 ||
-		 fcntl(daemonCore->async_pipe[1],F_SETFL,O_NONBLOCK) == -1 ) {
+		 Generic_fcntl(daemonCore->async_pipe[0],F_SETFL,(void *)O_NONBLOCK) == -1 ||
+		 Generic_fcntl(daemonCore->async_pipe[1],F_SETFL,(void *)O_NONBLOCK) == -1 ) {
 			EXCEPT("Failed to create async pipe");
 	}
 #endif

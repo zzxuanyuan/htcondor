@@ -243,10 +243,19 @@ SPECIAL_OBJ = special_stubs.o
  * files are in GCB library. Later we must come up with an approach that
  * automatically figures out what files are in GCB library.
  */
+/* this is real GCB objects */
 GCB_OBJ = accept.o client_util.o dup.o get_GCB_env.o inherit.o route.o serialize.o \
     active.o close.o getsockname.o init.o select.o socket.o async_event.o connect.o \
     execv.o getsockopt.o listen.o send.o bind.o data.o heartbeat.o recv.o sendto.o \
     generic_socket.o log.o util.o ex_cmd.o
+/* this is real DPF objects
+GCB_OBJ = accept.o data.o fork.o listen.o send.o TCP_SERVER_machine.o bind.o dup.o \
+    getsockname.o recv.o sendto.o TCP_sock.o client_sock.o event_handler.o \
+    getsockopt.o recvfrom.o socket.o UDP_machine.o close.o execv.o inherit.o \
+    route.o TCP_CLIENT_machine.o UDP_sock.o connect.o fcntl.o init.o select.o \
+    TCP_MANAGER_machine.o generic_socket.o internet.o log.o nb_wbuf.o sock.o \
+    DPF_recbuf.o ex_addr.o DPF_channel.o DPF_stripe.o
+*/
 #else
 GCB_OBJ =
 #endif

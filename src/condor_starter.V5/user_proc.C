@@ -530,7 +530,7 @@ UserProc::execute()
 	dprintf( D_ALWAYS | D_NOHEADER, ", 0 )\n" );
 
 
-	if( (pid = fork()) < 0 ) {
+	if( (pid = Generic_fork()) < 0 ) {
 		EXCEPT( "fork" );
 	}
 
@@ -1235,21 +1235,42 @@ UserProc::UserProc( STARTUP_INFO &s ) :
 	}
 	/* end - Port regulation for user job */
 
-	/* GCB for user job */
-	char *GCBroute, *BrokerIP;
-    if ( param_boolean("GCB_ENABLE", false) ) {
-		sprintf(buf, "GCB_ENABLE=yes");
-		env_obj.add_string(buf);
-	}
-	if ((GCBroute = param("GCB_ROUTE")) != NULL) {
-		sprintf(buf, "GCB_ROUTE=%s", GCBroute);
-		env_obj.add_string(buf);
-        free(GCBroute);
-	}
-	if ((BrokerIP = param("GCB_BROKER")) != NULL ) {
-		sprintf(buf, "GCB_BROKER=%s", BrokerIP);
-		env_obj.add_string(buf);
-        free(BrokerIP);
+	/* Generic socket for user job */
+    if ( param_boolean("GENERIC_ENABLE", false) ) {
+        sprintf(buf, "GENERIC_ENABLE=yes");
+        env_obj.add_string(buf);
+	    char *Generic_service, *Generic_inagent, *Generic_route;
+        Generic_service = param("GENERIC_SERVICE");
+        if (Generic_service) {
+            if (!strcasecmp(Generic_service, "GCB")) {
+                sprintf(buf, "GCB_ENABLE=yes");
+                env_obj.add_string(buf);
+                if ((Generic_inagent = param("GENERIC_INAGENT")) != NULL ) {
+                    sprintf(buf, "GCB_INAGENT=%s", Generic_inagent);
+                    env_obj.add_string(buf);
+                    free(Generic_inagent);
+                }
+                if ((Generic_route = param("GENERIC_ROUTE")) != NULL) {
+                    sprintf(buf, "GCB_ROUTE=%s", Generic_route);
+                    env_obj.add_string(buf);
+                    free(Generic_route);
+                }
+            } else if (!strcasecmp(Generic_service, "DPF")) {
+                sprintf(buf, "DPF_ENABLE=yes");
+                env_obj.add_string(buf);
+                if ((Generic_inagent = param("GENERIC_INAGENT")) != NULL ) {
+                    sprintf(buf, "DPF_INAGENT=%s", Generic_inagent);
+                    env_obj.add_string(buf);
+                    free(Generic_inagent);
+                }
+                if ((Generic_route = param("GENERIC_ROUTE")) != NULL) {
+                    sprintf(buf, "DPF_ROUTE=%s", Generic_route);
+                    env_obj.add_string(buf);
+                    free(Generic_route);
+                }
+            }
+            free(Generic_service);
+        }
 	}
 	/* end - GCB for user job */
 

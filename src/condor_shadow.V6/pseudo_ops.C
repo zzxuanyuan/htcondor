@@ -777,7 +777,7 @@ pseudo_get_file_stream(
 	}
 #endif
 
-	switch( child_pid = fork() ) {
+	switch( child_pid = Generic_fork() ) {
 	case -1:	/* error */
 		dprintf( D_ALWAYS, "fork() failed, errno = %d\n", errno );
 		if (CkptFile || ICkptFile) set_priv(priv);
@@ -965,7 +965,7 @@ pseudo_put_file_stream(
 	file_stream_info.total_bytes = len;
 #endif
 
-	switch( child_pid = fork() ) {
+	switch( child_pid = Generic_fork() ) {
 	  case -1:	/* error */
 		dprintf( D_ALWAYS, "fork() failed, errno = %d\n", errno );
 		if (CkptFile || ICkptFile) set_priv(priv);	// restore user privileges

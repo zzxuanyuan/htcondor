@@ -237,7 +237,6 @@ init_shadow_connections()
 {
 	int		scm;
 
-
 	(void) Generic_dup2( 1, RSC_SOCK );
 	(void) Generic_dup2( 2, CLIENT_LOG );
 	SyscallStream = init_syscall_connection( FALSE);

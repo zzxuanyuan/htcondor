@@ -675,7 +675,7 @@ Starter::execOldStarter( void )
 	int omask = sigblock(-1);
 #endif
 
-	if( (pid = fork()) < 0 ) {
+	if( (pid = Generic_fork()) < 0 ) {
 		EXCEPT( "fork" );
 	}
 

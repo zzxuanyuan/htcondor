@@ -2726,7 +2726,7 @@ void ProcAPI::sprog1 ( pid_t *childlist, int numkids, int f ) {
   char **big;
 
   for ( i = 0; i < numkids ; i++ ) {
-    child = fork();
+    child = Generic_fork();
     if ( !child ) {  // in child 
       printf("Child process # %d started....\n", i );
       fflush (stdout);
@@ -2780,7 +2780,7 @@ void ProcAPI::sprog2( int numkids, int f ) {
   if ( numkids == 0 )   // bail out when we're done. (stop the recursion!)
     return;
 
-  child = fork();
+  child = Generic_fork();
   if ( !child ) { // in child
     sprog2 ( numkids-1, f );
 
@@ -2879,7 +2879,7 @@ void ProcAPI::test2() {
   printf ( "should still be possible to monitor this group by getting the\n");
   printf ( "family info for the parent pid.  Let's see...\n\n");
 
-  child = fork();
+  child = Generic_fork();
   if ( !child ) { // in child 
     sprog2 ( NUMKIDS, 1 );
     sleep(60);
@@ -2963,13 +2963,13 @@ void ProcAPI::test5() {
 
   int child;
 
-  child = fork();
+  child = Generic_fork();
   if ( !child ) { // in child
     printf ( "Child %d created.\n", getpid() );    
-    child = fork();
+    child = Generic_fork();
     if ( !child ) { // in child
       printf ( "Child %d created.\n", getpid() );    
-      child = fork();
+      child = Generic_fork();
       if ( !child ) { // in child
         printf ( "Child %d created.\n", getpid() );    
         sleep(20);
@@ -3014,7 +3014,7 @@ void ProcAPI::test6() {
   printf ( "and working.  I'll return info on that process.\n");
   printf ( "This test runs for one minute.\n");
 
-  child = fork();
+  child = Generic_fork();
   if ( !child ) { // in child
     for ( int i=0 ; i<4 ; i++ ) {
       char * poo = new char[1024*1024];
@@ -3047,7 +3047,7 @@ void ProcAPI::test_monitor ( char * jobname ) {
   printf ( "This monitoring program will wake up every 10 seconds and\n");
   printf ( "spit out a report.\n");
 
-  child = fork();
+  child = Generic_fork();
   
   if ( !child ) { // in child
     rval = Generic_execl( jobname, jobname, (char*)0 );

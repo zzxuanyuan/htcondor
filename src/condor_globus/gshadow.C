@@ -74,7 +74,7 @@ void wait_for_debugger( int do_wait )
 
 void
 remove_job( int signal ) {
-	if ( contactString && globusrun && ( fork() == 0 ) ) {
+	if ( contactString && globusrun && ( Generic_fork() == 0 ) ) {
 			//calling globusrun -kill <contact string> is like condor_rm
 			//I used exec here rather than popen because pclose blocks
 			//until completion, and I figured we wanted a fast shutdown.

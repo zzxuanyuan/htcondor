@@ -88,7 +88,7 @@ char *mode;
 
 
 		/* Create a new process */
-	if( (ChildPid=fork()) < 0 ) {
+	if( (ChildPid=Generic_fork()) < 0 ) {
 			/* Clean up file descriptors */
 		close( pipe_d[0] );
 		close( pipe_d[1] );

@@ -67,7 +67,7 @@ RSC_ShadowInit( int rscsock, int errsock )
 
 	LogSock = errsock;
 	// Now set LogSock to be posix-style non-blocking
-	fcntl(LogSock,F_SETFL,O_NONBLOCK);
+	Generic_fcntl(LogSock,F_SETFL,(void *)O_NONBLOCK);
 
 	return( syscall_sock );
 }

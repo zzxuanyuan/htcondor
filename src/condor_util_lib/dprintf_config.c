@@ -49,7 +49,7 @@ extern void		_condor_dprintf_saved_lines( void );
 
 FILE *open_debug_file( int debug_level, char flags[] );
 
-void GCB_set_log_va(void(*app_log_va)(int level, char *fmt, va_list args));
+void Generic_set_log_va(void(*app_log_va)(int level, char *fmt, va_list args));
 
 void
 dprintf_config( subsys, logfd )
@@ -181,8 +181,8 @@ int logfd;		/* logfd is the descriptor to use if the log output goes to a tty */
 	first_time = 0;
 	_condor_dprintf_works = 1;
 
-    if ( param_boolean_int("GCB_ENABLE", 0) ) {
-        GCB_set_log_va(_condor_dprintf_va);
+    if ( param_boolean_int("GENERIC_ENABLE", 0) ) {
+        Generic_set_log_va(_condor_dprintf_va);
     }
 	_condor_dprintf_saved_lines();
 }

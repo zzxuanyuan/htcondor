@@ -101,9 +101,6 @@ extern "C" int open_ckpt_file( const char *name, int flags, size_t n_bytes );
 extern "C" int get_ckpt_mode( int sig );
 extern "C" int get_ckpt_speed( );
 
-extern "C" void _CB_cleanup(void);
-extern "C" int useGCB();
-
 Image MyImage;
 static jmp_buf Env;
 static RAW_ADDR SavedStackLoc;
@@ -1004,13 +1001,13 @@ Image::Write( const char *ckpt_file )
 		}
 	// }  // this is the matching brace to the open_url; see comment above
 
-		// 'open_ckpt_file' above may have created a GCB socket and possibly several
+		// 'open_ckpt_file' above may have created a Generic socket and possibly several
 		// management sockets to make connection to the checkpoint station. The problem is
-		// that information of those GCB sockets is recoded in Data segment and
+		// that information of those Generic sockets may be recoded in Data segment and
 		// that information is not a part of userproc image and should not be checkpointed.
 		// Luckily, no sockets are checkpointed at the moment. Hence we can safely close
-		// all GCB and RUDP sockets and free memories assigned to them
-		if (useGCB()) {
+		// all Generic sockets and free memories assigned to them
+		if (useGeneric()) {
 			// First we need to dup fd to newfd so that Image::Write can write process image
 			// using newfd
 			newfd = dup(fd);
@@ -1019,8 +1016,8 @@ Image::Write( const char *ckpt_file )
 				SetSyscalls(scm);
 				return -1;
 			}
-			// close all GCB sockets
-			_CB_cleanup();
+			// close all Generic sockets
+			Generic_cleanup();
 			// restore fd
 			dup2(newfd, fd);
 			close(newfd);
@@ -1270,8 +1267,8 @@ Image::Close()
 	if( fd < 0 ) {
 		dprintf( D_ALWAYS, "Image::Close - file not open!\n" );
 	}
-	// Here we call close no matter whether fd is GCB socket or not because
-	// 1. GCB close calls 'free' and we can't do that here
+	// Here we call close no matter whether fd is Generic socket or not because
+	// 1. Generic close may call 'free' and we can't do that here
 	// 2. Data segment will anyway be overwritten by the data segment of checkpointed image
 	close( fd );
 	/* The next checkpoint is going to assume the fd is -1, so set it here */
@@ -1671,8 +1668,8 @@ Checkpoint( int sig, int code, void *scp )
 
 	if( SETJMP(Env) == 0 ) {	// Checkpoint
 			// I really don't like this type of heck, but I was in such a bad luck:
-			// GCB and Cedar need to malloc to make connection to checkpoint station
-			// and to communicate with Shadow. This malloc make process image grow
+			// Generic socket and Cedar need to malloc to make connection to checkpoint
+            // station and communicate with Shadow. This malloc make process image grow
 			// and end up partial image being checkpointed sometime. Unfortunately
 			// the current checkpoint protocol needs to know process image right ahead of
 			// the real image being transferred and the size is used by all participants

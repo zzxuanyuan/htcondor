@@ -56,7 +56,7 @@
 #define D_UPDOWN        (1<<12)
 // D_AFS seems to not be used anywhere in Condor. Therefore I decided to recycle
 // this. -- Sechang Son.
-#define D_GCB           (1<<13)
+#define D_GENERIC       (1<<13)
 #define D_PREEMPT		(1<<14)
 #define D_PROTOCOL		(1<<15)
 #define D_PRIV			(1<<16)

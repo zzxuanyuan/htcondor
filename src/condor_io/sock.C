@@ -844,7 +844,7 @@ int Sock::timeout(int sec)
 		if ( (fcntl_flags=fcntl(_sock, F_GETFL)) < 0 )
 			return -1;
 		fcntl_flags &= ~O_NONBLOCK;	// reset blocking mode
-		if ( fcntl(_sock,F_SETFL,fcntl_flags) == -1 )
+		if ( Generic_fcntl(_sock,F_SETFL,(void *)fcntl_flags) == -1 )
 			return -1;
 #endif
 	} else {
@@ -857,7 +857,7 @@ int Sock::timeout(int sec)
 		if ( (fcntl_flags=fcntl(_sock, F_GETFL)) < 0 )
 			return -1;
 		fcntl_flags |= O_NONBLOCK;	// set nonblocking mode
-		if ( fcntl(_sock,F_SETFL,fcntl_flags) == -1 )
+		if ( Generic_fcntl(_sock,F_SETFL,(void *)fcntl_flags) == -1 )
 			return -1;
 #endif
 	}

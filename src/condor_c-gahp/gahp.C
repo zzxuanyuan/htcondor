@@ -27,7 +27,7 @@ int main() {
 
 	pid_t child_pid = 0;
 
-	if ((child_pid = fork()) == 0) {
+	if ((child_pid = Generic_fork()) == 0) {
 		printf ("Child\n");
 
 
