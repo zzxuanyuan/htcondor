@@ -235,22 +235,31 @@ SPECIAL_IO_OBJ = authentication.o $(CONDOR_CRYPT_OBJ)
 
 SPECIAL_OBJ = special_stubs.o
 
+
+#if WANT_GCB
+/* This is for extracting object files from GCB library and putting them in syscall
+ * lib. For now, we statically define what GCB files must be included in syscall lib.
+ * This way is not good because we need to keep this Imakefile up-to-date with what
+ * files are in GCB library. Later we must come up with an approach that
+ * automatically figures out what files are in GCB library.
+ */
+GCB_OBJ = accept.o client_util.o dup.o get_GCB_env.o inherit.o route.o serialize.o \
+    active.o close.o getsockname.o init.o select.o socket.o async_event.o connect.o \
+    execv.o getsockopt.o listen.o send.o bind.o data.o heartbeat.o recv.o sendto.o \
+    generic_socket.o log.o util.o ex_cmd.o
+#else
+GCB_OBJ =
+#endif
+
 LIB_OBJ = $(EXTRACT) $(STUBS) $(UTIL) $(NAME_TAB) $(XDR_OBJ) $(UTIL_OBJ) \
 	$(CKPT_OBJ) $(UTIL_EXTRACT) $(IOS_STUBS) $(IO_OBJ) $(SPECIAL_IO_OBJ) \
-	$(SPECIAL_OBJ) $(CPP_UTIL_OBJ) $(NEST_OBJ)
+	$(SPECIAL_OBJ) $(CPP_UTIL_OBJ) $(NEST_OBJ) $(GCB_OBJ)
 
 SIMPLE_OBJ = condor_rt0.o extern_path.o xfer_file.o libcondorc++support.a
 SYSCALL_LIB = libcondorsyscall.a
 
-#if WANT_GCB
-GCB_LIB_TARGET = libGCB.a
-#else
-GCB_LIB_TARGET =
-#endif
-
-
 #if DOES_REMOTE_SYSCALLS
-all_target($(SYSCALL_LIB) $(COMPRESS_LIB) receivers.o $(SIMPLE_OBJ) syscall-list libz.a $(GCB_LIB_TARGET))
+all_target($(SYSCALL_LIB) $(COMPRESS_LIB) receivers.o $(SIMPLE_OBJ) syscall-list libz.a)
 #else 
 all_target($(SYSCALL_SUPPORT_OBJ) extern_path.o file_stream.o)
 #endif
@@ -453,10 +462,13 @@ static_library(libz.a,lib)
 #endif
 
 #if WANT_GCB
+obj_extract($(GCB_LIB),$(GCB_OBJ)) /* Extract GCB objects from the GCB library */
+#if 0
 import($(GCB_DIR)/lib,libGCB.a)
 release_library(libGCB.a,$(RELEASE_DIR)/lib)
 strip_library(libGCB.a,$(STRIP_DIR)/lib)
 static_library(libGCB.a,$(STATIC_DIR)/lib)
+#endif
 #endif /* WANT_GCB */
 
 #if DOES_COMPRESS_CKPT
@@ -579,6 +591,7 @@ $(NEST_OBJ)::
 clean::
 	rm -rf $(NEST_OBJ)
 #endif /* WANT_NEST */
+
 
 html:
 
