@@ -58,7 +58,7 @@ int CollectorDaemon::machinesClaimed;
 int CollectorDaemon::machinesOwner;
 
 ClassAd* CollectorDaemon::ad;
-SafeSock CollectorDaemon::updateSock;
+DCCollector* CollectorDaemon::updateCollector;
 int CollectorDaemon::UpdateTimerId;
 
 ClassAd *CollectorDaemon::query_any_result;
@@ -87,6 +87,7 @@ void CollectorDaemon::Init()
 	view_sock=NULL;
 	UpdateTimerId=-1;
 	sock_cache = NULL;
+	updateCollector = NULL;
 	Config();
 
 
@@ -781,8 +782,6 @@ void CollectorDaemon::Config()
             UpdateTimerId = -1;
     }
 
-    updateSock.close();
-
     tmp = param ("CONDOR_DEVELOPERS_COLLECTOR");
     if (tmp == NULL) {
             tmp = strdup("condor.cs.wisc.edu");
@@ -799,11 +798,31 @@ void CollectorDaemon::Config()
             i = 900;                // default to 15 minutes
     }
     if ( tmp && i ) {
-        if ( updateSock.connect(tmp,COLLECTOR_PORT) == TRUE ) {
-                UpdateTimerId = daemonCore->Register_Timer(1,i,
-                        (TimerHandler)sendCollectorAd, "sendCollectorAd");
+		if( updateCollector ) {
+				// we should just delete it.  since we never use TCP
+				// for these updates, we don't really loose anything
+				// by destroying the object and recreating it...  
+			delete updateCollector;
+			updateCollector = NULL;
         }
-    }
+		updateCollector = new DCCollector( tmp, COLLECTOR_PORT, 
+										   DCCollector::UDP );
+		if( UpdateTimerId < 0 ) {
+			UpdateTimerId = daemonCore->
+				Register_Timer( 1, i, (TimerHandler)sendCollectorAd,
+								"sendCollectorAd" );
+		}
+    } else {
+		if( updateCollector ) {
+			delete updateCollector;
+			updateCollector = NULL;
+		}
+		if( UpdateTimerId > 0 ) {
+			daemonCore->Cancel_Timer( UpdateTimerId );
+			UpdateTimerId = -1;
+		}
+	}
+
 	init_classad(i);
 
     if (tmp)
@@ -912,25 +931,12 @@ int CollectorDaemon::sendCollectorAd()
     ad->Insert(line);
 
     // send the ad
-    int             cmd = UPDATE_COLLECTOR_AD;
-
-    updateSock.encode();
-    if(!updateSock.code(cmd))
-    {
-            dprintf(D_ALWAYS, "Can't send UPDATE_MASTER_AD to the collector\n");
-            return 0;
+	if( ! updateCollector->sendUpdate(UPDATE_COLLECTOR_AD, ad) ) {
+		dprintf( D_ALWAYS, "Can't send UPDATE_COLLECTOR_AD to collector "
+				 "(%s): %s\n", updateCollector->fullHostname(),
+				 updateCollector->error() );
+		return 0;
     }
-    if(!ad->put(updateSock))
-    {
-            dprintf(D_ALWAYS, "Can't send ClassAd to the collector\n");
-            return 0;
-    }
-    if(!updateSock.end_of_message())
-    {
-            dprintf(D_ALWAYS, "Can't send endofrecord to the collector\n");
-            return 0;
-    }
-
     return 1;
 }
  
