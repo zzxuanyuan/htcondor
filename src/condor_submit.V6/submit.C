@@ -1906,9 +1906,9 @@ SetStdFile( int which_file )
 	if(JobUniverse==CONDOR_UNIVERSE_GLOBUS) {
 		char *grid_type = condor_param( Grid_Type, ATTR_JOB_GRID_TYPE );
 		if ( grid_type == NULL ||
-			 stricmp (JobGridType, "globus") == MATCH ||
-			 stricmp (JobGridType, "gt2") == MATCH ||
-			 stricmp (JobGridType, "gt3") == MATCH ) {
+			 stricmp (grid_type, "globus") == MATCH ||
+			 stricmp (grid_type, "gt2") == MATCH ||
+			 stricmp (grid_type, "gt3") == MATCH ) {
 
 			stream_it = true;
 		} else {
@@ -2975,6 +2975,7 @@ SetGlobusParams()
 			(stricmp (grid_type, "globus") == MATCH) ||
 			(stricmp (grid_type, "gt2") == MATCH) ||
 			(stricmp (grid_type, "gt3") == MATCH) ||
+			(stricmp (grid_type, "oracle") == MATCH) ||
 			(stricmp (grid_type, "nordugrid") == MATCH))) {
 
 		char *globushost;
@@ -3001,6 +3002,19 @@ SetGlobusParams()
 		}
 
 		free( globushost );
+
+		sprintf( buffer, "%s = \"%s\"", ATTR_GLOBUS_CONTACT_STRING,
+				 NULL_JOB_CONTACT );
+		InsertJobExpr (buffer);
+
+		if( (tmp = condor_param(GlobusResubmit,ATTR_GLOBUS_RESUBMIT_CHECK)) ) {
+			sprintf( buff, "%s = %s", ATTR_GLOBUS_RESUBMIT_CHECK, tmp );
+			free(tmp);
+			InsertJobExpr (buff, false );
+		} else {
+			sprintf( buff, "%s = FALSE", ATTR_GLOBUS_RESUBMIT_CHECK);
+			InsertJobExpr (buff, false );
+		}
 	}
 
 	if ( (use_gridshell = condor_param(GridShell)) ) {
@@ -3012,28 +3026,21 @@ SetGlobusParams()
 		free(use_gridshell);
 	}
 
-	sprintf( buffer, "%s = \"%s\"", ATTR_GLOBUS_CONTACT_STRING,
-			 NULL_JOB_CONTACT );
-	InsertJobExpr (buffer);
+	if ((grid_type == NULL ||
+			(stricmp (grid_type, "globus") == MATCH) ||
+			(stricmp (grid_type, "gt2") == MATCH) ||
+			(stricmp (grid_type, "gt3") == MATCH))) {
 
-	sprintf( buffer, "%s = %d", ATTR_GLOBUS_STATUS,
-			 GLOBUS_GRAM_PROTOCOL_JOB_STATE_UNSUBMITTED );
-	InsertJobExpr (buffer);
+		sprintf( buffer, "%s = %d", ATTR_GLOBUS_STATUS,
+				 GLOBUS_GRAM_PROTOCOL_JOB_STATE_UNSUBMITTED );
+		InsertJobExpr (buffer);
+	}
 
 	sprintf( buffer, "%s = False", ATTR_WANT_CLAIMING );
 	InsertJobExpr(buffer);
 
 	sprintf( buffer, "%s = 0", ATTR_NUM_GLOBUS_SUBMITS );
 	InsertJobExpr (buffer, false );
-
-	if( (tmp = condor_param(GlobusResubmit,ATTR_GLOBUS_RESUBMIT_CHECK)) ) {
-		sprintf( buff, "%s = %s", ATTR_GLOBUS_RESUBMIT_CHECK, tmp );
-		free(tmp);
-		InsertJobExpr (buff, false );
-	} else {
-		sprintf( buff, "%s = FALSE", ATTR_GLOBUS_RESUBMIT_CHECK);
-		InsertJobExpr (buff, false );
-	}
 
 	if( (tmp = condor_param(GlobusRematch,ATTR_REMATCH_CHECK)) ) {
 		sprintf( buff, "%s = %s", ATTR_REMATCH_CHECK, tmp );
