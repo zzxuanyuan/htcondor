@@ -32,7 +32,7 @@ SelfDrainingQueue::SelfDrainingQueue( const char* queue_name, int frequency )
 	if( queue_name ) {
 		name = strdup( queue_name );
 	} else {
-		name = NULL;
+		name = strdup( "[unnamed]" );
 	}
 	handler_fn = NULL;
 	handlercpp_fn = NULL;
