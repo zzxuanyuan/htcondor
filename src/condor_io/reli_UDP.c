@@ -495,24 +495,20 @@ int rudp_socket(void)
 		dprintf(D_ALWAYS, "rudp_socket: socket - %s\n", strerror(errno));
 		return fd;
 	}
+	dprintf(D_NETWORK, "rudp[%d] created\n", fd);
 
 	// If _rudp_fdInfo[fd] is taken by another socket, this means that
 	// the socket has been closed. So we have to clean the data structure
 	// taken by the socket deleted
 	if (_rudp_fdInfo[fd].senders) {
-		cleanSenders(&(_rudp_fdInfo[fd].senders));
-		delQueue(_rudp_fdInfo[fd].qhead);
-		_rudp_fdInfo[fd].qhead = _rudp_fdInfo[fd].qtail = NULL;
+		dprintf(D_ALWAYS, "rudp_socket: the slot[%d] is taken by another socket\n", fd);
+		return -1;
 	}
 
-	// If we cleaned the data structure taken by another socket, we don't
-	// need to allocate
+	_rudp_fdInfo[fd].senders = (struct _RUDP_senders *)calloc(sizeof(struct _RUDP_senders), 1);
 	if (!_rudp_fdInfo[fd].senders) {
-		_rudp_fdInfo[fd].senders = (struct _RUDP_senders *)calloc(sizeof(struct _RUDP_senders), 1);
-		if (!_rudp_fdInfo[fd].senders) {
-			dprintf(D_ALWAYS, "rudp_socket: calloc - %s\n", strerror(errno));
-			return -1;
-		}
+		dprintf(D_ALWAYS, "rudp_socket: calloc - %s\n", strerror(errno));
+		return -1;
 	}
 
 	return fd;
@@ -522,6 +518,7 @@ int rudp_close(int fd)
 {
 	int ret = 0;
 
+	dprintf(D_NETWORK, "rudp[%d] deleted\n", fd);
 	delSenders(_rudp_fdInfo[fd].senders);
 	if (_rudp_fdInfo[fd].qhead) {
 		delQueue(_rudp_fdInfo[fd].qhead);
@@ -537,6 +534,7 @@ int rudp_dup2(int oldfd, int newfd)
 {
 	int ret;
 
+	dprintf(D_NETWORK, "rudp[%d] is duped to rudp[%d]\n", oldfd, newfd);
 	ret = dup2(oldfd, newfd);
 	if (ret < 0) {
 		dprintf(D_ALWAYS, "rudp_dup2: dup2 - %s\n", strerror(errno));
@@ -556,6 +554,32 @@ int rudp_dup2(int oldfd, int newfd)
 	_rudp_fdInfo[ret].senders->ref++;
 
 	return ret;
+}
+
+int rudp_dup(int oldfd)
+{
+	int newfd;
+
+	newfd = dup(oldfd);
+	if (newfd < 0) {
+		dprintf(D_ALWAYS, "rudp_dup: dup - %s\n", strerror(errno));
+		return -1;
+	}
+	dprintf(D_NETWORK, "rudp[%d] is duped to rudp[%d]\n", oldfd, newfd);
+
+	if (_rudp_fdInfo[newfd].senders) {
+		delSenders(_rudp_fdInfo[newfd].senders);
+		if (_rudp_fdInfo[newfd].qhead) {
+			delQueue(_rudp_fdInfo[newfd].qhead);
+		}
+	}
+
+	_rudp_fdInfo[newfd].conn = _rudp_fdInfo[oldfd].conn;
+	_rudp_fdInfo[newfd].qhead = _rudp_fdInfo[newfd].qtail = NULL;
+	_rudp_fdInfo[newfd].senders = _rudp_fdInfo[oldfd].senders;
+	_rudp_fdInfo[newfd].senders->ref++;
+
+	return newfd;
 }
 
 static int sendData(
@@ -737,6 +761,7 @@ static int recvData(int fd, void *msg, size_t msgLen, int flags,
 		for (i = 0; i < OPEN_MAX; i++) {
 			if (_rudp_fdInfo[i].senders) {
 				FD_SET(i, &rdfds);
+				dprintf(D_NETWORK, "\t\tfd = %d added for readiness to read\n", i);
 				maxfd = i + 1;
 			}
 		}
@@ -766,6 +791,7 @@ static int recvData(int fd, void *msg, size_t msgLen, int flags,
 
 		for (i = 0; i < OPEN_MAX; i++) {
 			if (FD_ISSET(i, &rdfds)) {
+				dprintf(D_NETWORK, "\t\tfd = %d is ready to read\n", i);
 				(void) procUDPmsg(i);
 			}
 		}

@@ -55,6 +55,7 @@ int rudp_socket(void);
 int rudp_close(int fd);
 
 int rudp_dup2(int oldfd, int newfd);
+int rudp_dup(int oldfd);
 
 /* Send a message through a UDP socket in error free way */
 // ACK from receiver after checksum check done
