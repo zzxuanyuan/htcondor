@@ -1,36 +1,25 @@
 /***************************Copyright-DO-NOT-REMOVE-THIS-LINE**
-  *
-  * Condor Software Copyright Notice
-  * Copyright (C) 1990-2004, Condor Team, Computer Sciences Department,
-  * University of Wisconsin-Madison, WI.
-  *
-  * This source code is covered by the Condor Public License, which can
-  * be found in the accompanying LICENSE.TXT file, or online at
-  * www.condorproject.org.
-  *
-  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-  * AND THE UNIVERSITY OF WISCONSIN-MADISON "AS IS" AND ANY EXPRESS OR
-  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-  * WARRANTIES OF MERCHANTABILITY, OF SATISFACTORY QUALITY, AND FITNESS
-  * FOR A PARTICULAR PURPOSE OR USE ARE DISCLAIMED. THE COPYRIGHT
-  * HOLDERS AND CONTRIBUTORS AND THE UNIVERSITY OF WISCONSIN-MADISON
-  * MAKE NO MAKE NO REPRESENTATION THAT THE SOFTWARE, MODIFICATIONS,
-  * ENHANCEMENTS OR DERIVATIVE WORKS THEREOF, WILL NOT INFRINGE ANY
-  * PATENT, COPYRIGHT, TRADEMARK, TRADE SECRET OR OTHER PROPRIETARY
-  * RIGHT.
-  *
-  ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
-
-
-/* TODO XXX adesmet: Notes on gridshell, TODO List
-
-- Writing input classad to file in BuildSubmitRSL seems wrong.  But where?
-  (And how to pass filename to BuildSubmitRSL)
-- Log retrieval:
-	- propagating things from the submit file to allow the user to
-	  specify (it's all hard coded now).
-
-*/
+ * CONDOR Copyright Notice
+ *
+ * See LICENSE.TXT for additional notices and disclaimers.
+ *
+ * Copyright (c)1990-1998 CONDOR Team, Computer Sciences Department, 
+ * University of Wisconsin-Madison, Madison, WI.  All Rights Reserved.  
+ * No use of the CONDOR Software Program Source Code is authorized 
+ * without the express consent of the CONDOR Team.  For more information 
+ * contact: CONDOR Team, Attention: Professor Miron Livny, 
+ * 7367 Computer Sciences, 1210 W. Dayton St., Madison, WI 53706-1685, 
+ * (608) 262-0856 or miron@cs.wisc.edu.
+ *
+ * U.S. Government Rights Restrictions: Use, duplication, or disclosure 
+ * by the U.S. Government is subject to restrictions as set forth in 
+ * subparagraph (c)(1)(ii) of The Rights in Technical Data and Computer 
+ * Software clause at DFARS 252.227-7013 or subparagraphs (c)(1) and 
+ * (2) of Commercial Computer Software-Restricted Rights at 48 CFR 
+ * 52.227-19, as applicable, CONDOR Team, Attention: Professor Miron 
+ * Livny, 7367 Computer Sciences, 1210 W. Dayton St., Madison, 
+ * WI 53706-1685, (608) 262-0856 or miron@cs.wisc.edu.
+****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
 
 #include "condor_common.h"
@@ -41,13 +30,11 @@
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
 #include "basename.h"
 #include "condor_ckpt_name.h"
-#include "condor_holdcodes.h"
+
 #include "gridmanager.h"
 #include "globusjob.h"
 #include "condor_config.h"
-#include "condor_parameters.h"
-#include "string_list.h"
-//#include "myproxy_manager.h"
+
 
 // GridManager job states
 #define GM_INIT					0
@@ -115,8 +102,7 @@ static char *GMStateNames[] = {
 // TODO: once we can set the jobmanager's proxy timeout, we should either
 // let this be set in the config file or set it to
 // GRIDMANAGER_MINIMUM_PROXY_TIME + 60
-// #define JM_MIN_PROXY_TIME		(minProxy_time + 60)
-#define JM_MIN_PROXY_TIME		(180 + 60)
+#define JM_MIN_PROXY_TIME		(minProxy_time + 60)
 
 // TODO: Let the maximum submit attempts be set in the job ad or, better yet,
 // evalute PeriodicHold expression in job ad.
@@ -130,97 +116,6 @@ static char *GMStateNames[] = {
         procID.cluster,procID.proc,GMStateNames[gmState],globusState, \
         func,error)
 
-//<<<<<<< globusjob.C
-/* Given a classad, write it to a file for later staging to the gridshell.
-Returns true/false on success/failure.  If successful, out_filename contains
-the filename of the classad.  If not successful, out_filename's contents are
-undefined.
-*/
-static bool write_classad_input_file( ClassAd *classad, 
-	const MyString & executable_path,
-	MyString & out_filename )
-{
-	if( ! classad ) {
-		dprintf(D_ALWAYS,"Internal Error: write_classad_input_file handed "
-			"invalid ClassAd (null)\n");
-		return false;
-	}
-
-	ClassAd tmpclassad(*classad);
-
-	MyString CmdExpr;
-	CmdExpr = ATTR_JOB_CMD;
-	CmdExpr += "=\"";
-	CmdExpr += basename( executable_path.GetCStr() );
-	CmdExpr += '"';
-	// TODO: Store old Cmd as OrigCmd?
-	tmpclassad.InsertOrUpdate(CmdExpr.GetCStr());
-
-	PROC_ID procID;
-	if( ! tmpclassad.LookupInteger( ATTR_CLUSTER_ID, procID.cluster ) ) {
-		dprintf(D_ALWAYS,"Internal Error: write_classad_input_file handed "
-			"invalid ClassAd (Missing or malformed %s)\n", ATTR_CLUSTER_ID);
-		return false;
-	}
-	if( ! tmpclassad.LookupInteger( ATTR_PROC_ID, procID.proc ) ) {
-		dprintf(D_ALWAYS,"Internal Error: write_classad_input_file handed "
-			"invalid ClassAd (Missing or malformed %s)\n", ATTR_PROC_ID);
-		return false;
-	}
-
-	out_filename.sprintf("_condor_private_classad_in_%d.%d", 
-		procID.cluster, procID.proc);
-
-	MyString out_filename_full;
-	{
-		char * buff = NULL;
-		if( ! tmpclassad.LookupString( ATTR_JOB_IWD, &buff ) ) {
-
-			dprintf(D_ALWAYS,"(%d.%d) Internal Error: "
-				"write_classad_input_file handed "
-				"invalid ClassAd (Missing or malformed %s)\n",
-				procID.cluster, procID.proc, ATTR_JOB_IWD);
-
-			return false;
-		}
-		out_filename_full = buff;
-		free(buff);
-		out_filename_full += "/";
-		out_filename_full += out_filename;
-	}
-
-		// Fix the universe, too, since the starter is going to expect
-		// "VANILLA", not "GLOBUS"...
-	tmpclassad.InsertOrUpdate( "JobUniverse = 5" );
-
-	dprintf(D_FULLDEBUG,"(%d.%d) Writing ClassAd to file %s\n",
-		procID.cluster, procID.proc, out_filename.GetCStr());
-
-	// TODO: Test for file's existance, complain and die on existance?
-	FILE * fp = fopen(out_filename_full.GetCStr(), "w");
-
-	if( ! fp )
-	{
-		dprintf(D_ALWAYS,"(%d.%d) Failed to write ClassAd to file %s. "
-			"Error number %d (%s).\n",
-			procID.cluster, procID.proc, out_filename.GetCStr(),
-			errno, strerror(errno));
-		return false;
-	}
-
-	if( tmpclassad.fPrint(fp) ) {
-		dprintf(D_ALWAYS,"(%d.%d) Failed to write ClassAd to file %s. "
-			"Unknown error in ClassAd::fPrint.\n",
-			procID.cluster, procID.proc, out_filename.GetCStr());
-		fclose(fp);
-		return false;
-	} 
-
-	fclose(fp);
-	return true;
-}
-
-//=======
 #define GOTO_RESTART_IF_JM_DOWN \
 { \
     if ( jmDown == true ) { \
@@ -438,7 +333,6 @@ BaseJob *GlobusJobCreate( ClassAd *jobad )
 ////////////////////////////////////////
 
 static
-//>>>>>>> 1.13.4.38.4.27.2.19
 const char *rsl_stringify( const MyString& src )
 {
 	int src_len = src.Length();
@@ -504,119 +398,6 @@ const char *rsl_stringify( const char *string )
 	return rsl_stringify( src );
 }
 
-//<<<<<<< globusjob.C
-static bool merge_file_into_classad(const char * filename, ClassAd * ad)
-{
-	if( ! ad ) {
-		// TODO dprintf?
-		dprintf(D_ALWAYS, "Internal error: "
-			"merge_file_into_classad called without ClassAd\n");
-		return false;
-	}
-	if( ! filename ) {
-		// TODO dprintf?
-		dprintf(D_ALWAYS, "Internal error: "
-			"merge_file_into_classad called without filename\n");
-		return false;
-	}
-	if( ! strlen(filename) ) {
-		// TODO dprintf?
-		dprintf(D_ALWAYS, "Internal error: "
-			"merge_file_into_classad called with empty filename\n");
-		return false;
-	}
-
-	PROC_ID procID;
-	if( ! ad->LookupInteger( ATTR_CLUSTER_ID, procID.cluster ) ) {
-		dprintf(D_ALWAYS,"Internal Error: merge_file_into_classad handed "
-			"invalid ClassAd (Missing or malformed %s)\n", ATTR_CLUSTER_ID);
-		return false;
-	}
-	if( ! ad->LookupInteger( ATTR_PROC_ID, procID.proc ) ) {
-		dprintf(D_ALWAYS,"Internal Error: merge_file_into_classad handed "
-			"invalid ClassAd (Missing or malformed %s)\n", ATTR_PROC_ID);
-		return false;
-	}
-
-	/* TODO: Is this the right solution?  I'm basically reimplementing
-	   a subset of the ClassAd reading code.  Perhaps load into a ClassAd
-	   and scan that? */
-	{
-		StringList SAVE_ATTRS;
-		SAVE_ATTRS.append(ATTR_JOB_REMOTE_SYS_CPU);
-		SAVE_ATTRS.append(ATTR_JOB_REMOTE_USER_CPU);
-		SAVE_ATTRS.append(ATTR_IMAGE_SIZE);
-		SAVE_ATTRS.append(ATTR_JOB_STATE);
-		SAVE_ATTRS.append(ATTR_NUM_PIDS);
-		SAVE_ATTRS.append(ATTR_ON_EXIT_BY_SIGNAL);
-		SAVE_ATTRS.append(ATTR_ON_EXIT_CODE);
-		SAVE_ATTRS.append(ATTR_ON_EXIT_SIGNAL);
-		SAVE_ATTRS.append(ATTR_JOB_START_DATE);
-		SAVE_ATTRS.append(ATTR_JOB_DURATION);
-
-
-		/* TODO: COMPLETION_DATE isn't currently returned.  Who deals with it?
-		   Is it our job?  gridshell's?  Condor-G never really supported it,
-		   but it would be nice to have.  Update: Normally
-		   condor_schedd.V6/qmgmt.C does it in DestroyProc.  Why isn't it?
-		   */
-
-		SAVE_ATTRS.append(ATTR_COMPLETION_DATE);
-
-		MyString full_filename;
-		{
-			char * buff = NULL;
-			if( ! ad->LookupString( ATTR_JOB_IWD, &buff ) ) {
-				dprintf(D_ALWAYS,"(%d.%d) Internal Error: "
-					"merge_file_into_classad handed "
-					"invalid ClassAd (Missing or malformed %s)\n",
-					procID.cluster, procID.proc, ATTR_JOB_IWD);
-				return false;
-			}
-			full_filename = buff;
-			free(buff);
-			full_filename += "/";
-			full_filename += filename;
-		}
-		
-		FILE * fp = fopen(full_filename.GetCStr(), "r");
-		if( ! fp ) {
-			dprintf(D_ALWAYS, "Unable to read output ClassAd at %s.  "
-				"Error number %d (%s).  "
-				"Results will not be integrated into history.\n",
-				filename, errno, strerror(errno));
-			return false;
-		}
-
-		MyString line;
-		while( line.readLine(fp) ) {
-			line.chomp();
-			int n = line.find(" = ");
-			if(n < 1) {
-				dprintf( D_ALWAYS,
-					"Failed to parse \"%s\", ignoring.", line.GetCStr());
-				continue;
-			}
-			MyString attr = line.Substr(0, n - 1);
-
-			dprintf( D_ALWAYS, "FILE: %s\n", line.GetCStr() );
-			if( ! SAVE_ATTRS.contains_anycase(attr.GetCStr()) ) {
-				continue;
-			}
-
-			if( ! ad->Insert(line.GetCStr()) ) {
-				dprintf( D_ALWAYS, "Failed to insert \"%s\" into ClassAd, "
-						 "ignoring.\n", line.GetCStr() );
-			}
-		}
-		fclose( fp );
-	}
-
-	return true;
-}
-
-//=======
-//>>>>>>> 1.13.4.38.4.27.2.19
 int GlobusJob::probeInterval = 300;		// default value
 int GlobusJob::submitInterval = 300;	// default value
 int GlobusJob::restartInterval = 60;	// default value
@@ -671,26 +452,11 @@ GlobusJob::GlobusJob( ClassAd *classad )
 	outputWaitLastGrowth = 0;
 	// HACK!
 	retryStdioSize = true;
-//<<<<<<< globusjob.C
-	gahp_proxy_id_set = false;
-	communicationTimeoutTid = -1;
-	ad = classad;
-
-	useGridShell = false;
-
-	{
-		int use_gridshell;
-		if( classad->LookupBool(ATTR_USE_GRID_SHELL, use_gridshell) ) {
-			useGridShell = use_gridshell;
-		}
-	}
-//=======
 	resourceManagerString = NULL;
 	myResource = NULL;
 	myProxy = NULL;
 	gassServerUrl = NULL;
 	gramCallbackContact = NULL;
-//>>>>>>> 1.13.4.38.4.27.2.19
 
 	// In GM_HOLD, we assme HoldReason to be set only if we set it, so make
 	// sure it's unset when we start.
@@ -702,10 +468,6 @@ GlobusJob::GlobusJob( ClassAd *classad )
 	gahp.setMode( GahpClient::normal );
 	gahp.setTimeout( gahpCallTimeout );
 
-//<<<<<<< globusjob.C
-	myProxy = NULL;
-//=======
-//>>>>>>> 1.13.4.38.4.27.2.19
 	buff[0] = '\0';
 	ad->LookupString( ATTR_X509_USER_PROXY, buff );
 	if ( buff[0] != '\0' ) {
@@ -713,98 +475,6 @@ GlobusJob::GlobusJob( ClassAd *classad )
 		if ( myProxy == NULL ) {
 			dprintf( D_ALWAYS, "(%d.%d) error acquiring proxy!\n",
 					 procID.cluster, procID.proc );
-		}
-		else {
-			// ckireyev: Check for MyProxy server
-
-		  if (ad->LookupString (ATTR_MYPROXY_HOST_NAME, buff)) {
-
-			MyProxyEntry * myProxyEntry =new MyProxyEntry();
-
-			myProxyEntry->last_invoked_time=0;
-			myProxyEntry->get_delegation_pid=FALSE;
-			myProxyEntry->get_delegation_err_fd=-1;
-			myProxyEntry->get_delegation_err_filename=NULL;
-			myProxyEntry->myproxy_server_dn=NULL;
-			myProxyEntry->myproxy_password=NULL;
-			myProxyEntry->myproxy_credential_name=NULL;
-
-			myProxyEntry->myproxy_host=strdup(buff);
-			myProxyEntry->cluster_id = procID.cluster;
-			myProxyEntry->proc_id = procID.proc;
-
-			// Get optional MYPROXY_SERVER_DN attribute
-		    if (ad->LookupString (ATTR_MYPROXY_SERVER_DN, buff)) {
-				myProxyEntry->myproxy_server_dn=strdup(buff);
-			}
-
-			if (ad->LookupString (ATTR_MYPROXY_CRED_NAME, buff)) {
-				myProxyEntry->myproxy_credential_name=strdup(buff);
-			}
-			
-			dprintf (D_FULLDEBUG,
-				"Adding new MyProxy entry for proxy %s : host=%s, cred name=%s\n",
-				myProxy->proxy_filename,
-				myProxyEntry->myproxy_host,
-				(myProxyEntry->myproxy_credential_name!=NULL)?(myProxyEntry->myproxy_credential_name):"<default>");
-			myProxy->myproxy_entries.Prepend (myProxyEntry); // Add at the top of the list, so it'll be used first
-
-			
-
-
-			// See if we already have a MyProxy entry for the given host/credential name
-			/*int found = FALSE;
-			MyProxyEntry * currentMyProxyEntry = NULL;
-			myProxy->myproxy_entries.Rewind();
-
-			while (myProxy->myproxy_entries.Next (currentMyProxyEntry)) {
-				if (strcmp (currentMyProxyEntry->myproxy_host, myProxyEntry->myproxy_host)) {
-					continue;
-				}
-
-				if (myProxyEntry->myproxy_credential_name == NULL || myProxyEntry->myproxy_credential_name == NULL) {
-					if (myProxyEntry->myproxy_credential_name != NULL || myProxyEntry->myproxy_credential_name != NULL) {
-						// One credential name is NULL, the other is not
-						continue;
-					}
-				} else {
-					if (strcmp (currentMyProxyEntry->myproxy_credential_name, myProxyEntry->myproxy_credential_name))  {
-						// credential names non-null and not-equal
-						continue;
-					}
-				}
-
-				// If we've gotten this far, we've got a match
-				found = TRUE;
-				break;
-			}
-
-			//... If we don't, insert it
-			if (!found) {
-				dprintf (D_FULLDEBUG,
-					"Adding new MyProxy entry for proxy %s : host=%s, cred name=%s\n",
-					myProxy->proxy_filename,
-					myProxyEntry->myproxy_host,
-					(myProxyEntry->myproxy_credential_name!=NULL)?(myProxyEntry->myproxy_credential_name):"<default>");
-				myProxy->myproxy_entries.Append (myProxyEntry);
-			} else {
-				// No need to insert this
-				delete myProxyEntry;
-			}*/
-
-
-
-
-		    /*
-		       Don't ask for password since we're in the middle of a Schedd contact
-		    // Lookup myproxy password - or set it on a timer
-		    char * myproxy_pwd = NULL;
-		    (void)GetMyProxyPasswordFromSchedD(procID.cluster, procID.proc, &myproxy_pwd); */
-
-		    //dprintf( D_ALWAYS, "Calling SetMyProxyHostForProxy %s, dn=%s\n", buff, (pDN != NULL)?pDN:"NULL");
-		    //SetMyProxyHostForProxy (buff, pDN, myProxy);
-
-		  }
 		}
 	} else {
 		dprintf( D_ALWAYS, "(%d.%d) %s not set in job ad!\n",
@@ -959,17 +629,8 @@ GlobusJob::~GlobusJob()
 	if ( myProxy ) {
 		ReleaseProxy( myProxy, evaluateStateTid );
 	}
-//<<<<<<< globusjob.C
-	if (daemonCore) {
-		daemonCore->Cancel_Timer( evaluateStateTid );
-		if ( communicationTimeoutTid != -1 ) {
-			daemonCore->Cancel_Timer(communicationTimeoutTid);
-			communicationTimeoutTid = -1;
-		}
-//=======
 	if ( gassServerUrl ) {
 		free( gassServerUrl );
-//>>>>>>> 1.13.4.38.4.27.2.19
 	}
 	if ( gramCallbackContact ) {
 		free( gramCallbackContact );
@@ -1002,45 +663,11 @@ int GlobusJob::doEvaluateState()
 			"(%d.%d) doEvaluateState called: gmState %s, globusState %d\n",
 			procID.cluster,procID.proc,GMStateNames[gmState],globusState);
 
-//<<<<<<< globusjob.C
-	if ( !myProxy ) {
-		UpdateJobAdString( ATTR_HOLD_REASON,"Proxy file missing or corrupted" );
-		UpdateJobAdInt(ATTR_HOLD_REASON_CODE, CONDOR_HOLD_CODE_CorruptedCredential);
-		UpdateJobAdInt(ATTR_HOLD_REASON_SUBCODE, 0);
-		gmState = GM_HOLD;
-	} else {
-		if ( myProxy->gahp_proxy_id == -1 ) {
-			dprintf( D_ALWAYS, "(%d.%d) proxy not cached yet, waiting...\n",
-					 procID.cluster, procID.proc );
-			return TRUE;
-		} else if ( gahp_proxy_id_set == false ) {
-			gahp.setDelegProxyCacheId( myProxy->gahp_proxy_id );
-			gahp_proxy_id_set = true;
-		}
-
-			// For a job remove operation, we will try to use any proxy that is still
-			// valid.  For any other purpose, however, we require that the proxy
-			// at least has a minimum number of seconds left on it.
-			// This allows the user to perform a condor_rm on a job which has been put
-			// on hold when the proxy is about to expire (as long as they are quick
-			// about it!).  
-		if ( ((PROXY_NEAR_EXPIRED( myProxy ) && condorState != REMOVED) ||	// min # of seconds
-			  (PROXY_IS_EXPIRED( myProxy ) && condorState == REMOVED))		// any time at all
-			  && gmState != GM_PROXY_EXPIRED ) {
-			dprintf( D_ALWAYS, "(%d.%d) proxy is about to expire, changing state to GM_PROXY_EXPIRED\n",
-					 procID.cluster, procID.proc );
-			gmState = GM_PROXY_EXPIRED;
-		}
-	}	// of myProxy != NULL
-
-	if ( jmUnreachable || resourceDown ) {
-//=======
 		// We don't include jmDown here because we don't want it to block
 		// connections to the gatekeeper (particularly restarts) and any
 		// state that contacts to the jobmanager should be jumping to
 		// GM_RESTART instead.
 	if ( !resourceStateKnown || resourcePingPending || resourceDown ) {
-//>>>>>>> 1.13.4.38.4.27.2.19
 		gahp.setMode( GahpClient::results_only );
 	} else {
 		gahp.setMode( GahpClient::normal );
@@ -1152,7 +779,7 @@ int GlobusJob::doEvaluateState()
 				break;
 			}
 			if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_CONTACTING_JOB_MANAGER ||
-				 // rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
+				 rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
 				 rc == GAHPCLIENT_COMMAND_TIMED_OUT ) {
 				globusError = GLOBUS_GRAM_PROTOCOL_ERROR_CONTACTING_JOB_MANAGER;
 				gmState = GM_RESTART;
@@ -1208,7 +835,7 @@ int GlobusJob::doEvaluateState()
 				break;
 			}
 			if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_CONTACTING_JOB_MANAGER ||
-				 // rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
+				 rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
 				 rc == GAHPCLIENT_COMMAND_TIMED_OUT ) {
 				connect_failure_jobmanager = true;
 				break;
@@ -1257,10 +884,8 @@ int GlobusJob::doEvaluateState()
 				break;
 			}
 			if ( numSubmitAttempts >= MAX_SUBMIT_ATTEMPTS ) {
-				// Don't set HOLD_REASON here --- that way, the reason will get set
-				// to the globus error that caused the submission failure.
-				// UpdateJobAdString( ATTR_HOLD_REASON,"Attempts to submit failed" );
-
+				UpdateJobAdString( ATTR_HOLD_REASON,
+									"Attempts to submit failed" );
 				gmState = GM_HOLD;
 				break;
 			}
@@ -1293,7 +918,7 @@ int GlobusJob::doEvaluateState()
 				myResource->SubmitComplete(this);
 				lastSubmitAttempt = time(NULL);
 				if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_CONNECTION_FAILED ||
-					 // rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
+					 rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
 					 rc == GAHPCLIENT_COMMAND_TIMED_OUT ) {
 					connect_failure_gatekeeper = true;
 					break;
@@ -1402,7 +1027,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) jobmanager timed out on commit, clearing request\n"
 					break;
 				}
 				if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_CONTACTING_JOB_MANAGER ||
-					 // rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
+					 rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
 					 rc == GAHPCLIENT_COMMAND_TIMED_OUT ) {
 					connect_failure_jobmanager = true;
 					break;
@@ -1477,7 +1102,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) jobmanager timed out on commit, clearing request\n"
 					break;
 				}
 				if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_CONTACTING_JOB_MANAGER ||
-					 // rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
+					 rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
 					 rc == GAHPCLIENT_COMMAND_TIMED_OUT ) {
 					connect_failure_jobmanager = true;
 					break;
@@ -1506,7 +1131,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) jobmanager timed out on commit, clearing request\n"
 					break;
 				}
 				if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_CONTACTING_JOB_MANAGER ||
-					 // rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
+					 rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
 					 rc == GAHPCLIENT_COMMAND_TIMED_OUT ) {
 					connect_failure_jobmanager = true;
 					break;
@@ -1551,7 +1176,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) jobmanager timed out on commit, clearing request\n"
 					break;
 				}
 				if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_CONTACTING_JOB_MANAGER ||
-					 // rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
+					 rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
 					 rc == GAHPCLIENT_COMMAND_TIMED_OUT ) {
 					connect_failure_jobmanager = true;
 					break;
@@ -1638,28 +1263,9 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 			} break;
 		case GM_DONE_SAVE: {
 			// Report job completion to the schedd.
-//<<<<<<< globusjob.C
-			if ( condorState != HELD && condorState != REMOVED ) {
-				if ( condorState != COMPLETED ) {
-					condorState = COMPLETED;
-					UpdateJobAdInt( ATTR_JOB_STATUS, condorState );
-				}
-
-				if(useGridShell) {
-					if( ! merge_file_into_classad(outputClassadFilename.GetCStr(), ad) ) {
-						/* TODO: put job on hold or otherwise don't let it
-						   quietly pass into the great beyond? */
-						dprintf(D_ALWAYS,"(%d.%d) Failed to add job result attributes to job's classad.  Job's history will lack run information.\n",procID.cluster,procID.proc);
-					}
-				}
-
-				done = addScheddUpdateAction( this, UA_UPDATE_JOB_AD,
-											  GM_DONE_SAVE );
-//=======
 			JobTerminated( true, 0 );
 			if ( condorState == COMPLETED ) {
 				done = requestScheddUpdate( this );
-//>>>>>>> 1.13.4.38.4.27.2.19
 				if ( !done ) {
 					break;
 				}
@@ -1679,7 +1285,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 					break;
 				}
 				if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_CONTACTING_JOB_MANAGER ||
-					 // rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
+					 rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
 					 rc == GAHPCLIENT_COMMAND_TIMED_OUT ) {
 					connect_failure_jobmanager = true;
 					break;
@@ -1692,27 +1298,9 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 					break;
 				}
 			}
-				// Clear the contact string here because it may not get
-				// cleared in GM_CLEAR_REQUEST (it might go to GM_HOLD first).
-				// And even if we decide to go to GM_DELETE, that may
-				// not actually remove the job from the queue if 
-				// leave_job_in_queue attribute evals to TRUE --- and then
-				// the job will errantly go on hold when the user
-				// subsequently does a condor_rm.
-			if ( jobContact != NULL ) {
-				rehashJobContact( this, jobContact, NULL );
-				free( jobContact );
-				myResource->CancelSubmit( this );
-				jobContact = NULL;
-				UpdateJobAdString( ATTR_GLOBUS_CONTACT_STRING,
-								   NULL_JOB_CONTACT );
-				addScheddUpdateAction( this, UA_UPDATE_JOB_AD, 0 );
-			}
 			if ( condorState == COMPLETED || condorState == REMOVED ) {
 				gmState = GM_DELETE;
 			} else {
-//<<<<<<< globusjob.C
-//=======
 				// Clear the contact string here because it may not get
 				// cleared in GM_CLEAR_REQUEST (it might go to GM_HOLD first).
 				if ( jobContact != NULL ) {
@@ -1725,7 +1313,6 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 					requestScheddUpdate( this );
 					jmDown = false;
 				}
-//>>>>>>> 1.13.4.38.4.27.2.19
 				gmState = GM_CLEAR_REQUEST;
 			}
 			} break;
@@ -1742,7 +1329,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 				break;
 			}
 			if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_CONTACTING_JOB_MANAGER ||
-				 // rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
+				 rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
 				 rc == GAHPCLIENT_COMMAND_TIMED_OUT ) {
 				connect_failure_jobmanager = true;
 				break;
@@ -1796,7 +1383,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 				myResource->SubmitComplete(this);
 				lastRestartAttempt = time(NULL);
 				if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_CONNECTION_FAILED ||
-					 // rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
+					 rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
 					 rc == GAHPCLIENT_COMMAND_TIMED_OUT ) {
 					connect_failure_gatekeeper = true;
 					break;
@@ -1893,7 +1480,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 				break;
 			}
 			if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_CONTACTING_JOB_MANAGER ||
-				 // rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
+				 rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
 				 rc == GAHPCLIENT_COMMAND_TIMED_OUT ) {
 				connect_failure_jobmanager = true;
 				break;
@@ -1931,7 +1518,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 					break;
 				}
 				if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_CONTACTING_JOB_MANAGER ||
-					 // rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
+					 rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
 					 rc == GAHPCLIENT_COMMAND_TIMED_OUT ) {
 					connect_failure_jobmanager = true;
 					break;
@@ -1983,7 +1570,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 						break;
 					}
 					if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_CONTACTING_JOB_MANAGER ||
-						 // rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
+						 rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
 						 rc == GAHPCLIENT_COMMAND_TIMED_OUT ) {
 						connect_failure_jobmanager = true;
 						break;
@@ -2044,7 +1631,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 						break;
 					}
 					if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_CONTACTING_JOB_MANAGER ||
-						 // rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
+						 rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
 						 rc == GAHPCLIENT_COMMAND_TIMED_OUT ) {
 						connect_failure_jobmanager = true;
 						break;
@@ -2080,21 +1667,9 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 			}
 			} break;
 		case GM_DELETE: {
-//<<<<<<< globusjob.C
-			// The job has completed or been removed. Delete it from the
-			// schedd.
-			schedd_actions = UA_DELETE_FROM_SCHEDD | UA_FORGET_JOB;
-			if ( condorState == REMOVED ) {
-				schedd_actions |= UA_LOG_ABORT_EVENT;
-			} else if ( condorState == COMPLETED ) {
-				schedd_actions |= UA_LOG_TERMINATE_EVENT;
-			}
-			addScheddUpdateAction( this, schedd_actions, GM_DELETE );
-//=======
 			// We are done with the job. Propagate any remaining updates
 			// to the schedd, then delete this object.
 			DoneWithJob();
-//>>>>>>> 1.13.4.38.4.27.2.19
 			// This object will be deleted when the update occurs
 			} break;
 		case GM_CLEAN_JOBMANAGER: {
@@ -2121,7 +1696,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 			}
 			myResource->SubmitComplete(this);
 			if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_CONNECTION_FAILED ||
-				 // rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
+				 rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
 				 rc == GAHPCLIENT_COMMAND_TIMED_OUT ) {
 				connect_failure_gatekeeper = true;
 				break;
@@ -2164,7 +1739,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 			// TODO: Let our action here be dictated by the user preference
 			// expressed in the job ad.
 			if ( (jobContact != NULL || (globusState == GLOBUS_GRAM_PROTOCOL_JOB_STATE_FAILED && globusStateErrorCode != GLOBUS_GRAM_PROTOCOL_ERROR_JOB_UNSUBMITTED)) 
-				     // && condorState != REMOVED 
+				     && condorState != REMOVED 
 					 && wantResubmit == 0 
 					 && doResubmit == 0 ) {
 				gmState = GM_HOLD;
@@ -2267,39 +1842,6 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 				UpdateJobAdInt( ATTR_GLOBUS_STATUS, globusState );
 				//UpdateGlobusState( GLOBUS_GRAM_PROTOCOL_JOB_STATE_UNKNOWN, 0 );
 			}
-//<<<<<<< globusjob.C
-			// Set the hold reason as best we can
-			// TODO: set the hold reason in a more robust way.
-			char holdReason[1024];
-			int holdCode = 0;
-			int holdSubCode = 0;
-			holdReason[0] = '\0';
-			holdReason[sizeof(holdReason)-1] = '\0';
-			ad->LookupString( ATTR_HOLD_REASON, holdReason,
-							  sizeof(holdReason) - 1 );
-			ad->LookupInteger(ATTR_HOLD_REASON_CODE,holdCode);
-			ad->LookupInteger(ATTR_HOLD_REASON_SUBCODE,holdSubCode);
-			if ( holdReason[0] == '\0' && errorString != "" ) {
-				strncpy( holdReason, errorString.Value(),
-						 sizeof(holdReason) - 1 );
-			}
-			if ( holdReason[0] == '\0' && globusStateErrorCode != 0 ) {
-				snprintf( holdReason, 1024, "Globus error %d: %s",
-						  globusStateErrorCode,
-						  gahp.globus_gram_client_error_string( globusStateErrorCode ) );
-				holdCode = CONDOR_HOLD_CODE_GlobusGramError;
-				holdSubCode = globusStateErrorCode;
-			}
-			if ( holdReason[0] == '\0' && globusError != 0 ) {
-				snprintf( holdReason, 1024, "Globus error %d: %s", globusError,
-						gahp.globus_gram_client_error_string( globusError ) );
-				holdCode = CONDOR_HOLD_CODE_GlobusGramError;
-				holdSubCode = globusError;
-			}
-			if ( holdReason[0] == '\0' ) {
-				strncpy( holdReason, "Unspecified gridmanager error",
-						 sizeof(holdReason) - 1 );
-//=======
 			// If the condor state is already HELD, then someone already
 			// HELD it, so don't update anything else.
 			if ( condorState != HELD ) {
@@ -2330,41 +1872,16 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 				}
 
 				JobHeld( holdReason );
-//>>>>>>> 1.13.4.38.4.27.2.19
 			}
-//<<<<<<< globusjob.C
-			UpdateJobAdString( ATTR_HOLD_REASON, holdReason );
-			UpdateJobAdInt(ATTR_HOLD_REASON_CODE, holdCode);
-			UpdateJobAdInt(ATTR_HOLD_REASON_SUBCODE, holdSubCode);
-			addScheddUpdateAction( this, schedd_actions, GM_HOLD );
-			// This object will be deleted when the update occurs
-//=======
 			gmState = GM_DELETE;
-//>>>>>>> 1.13.4.38.4.27.2.19
 			} break;
 		case GM_PROXY_EXPIRED: {
 			// The proxy for this job is either expired or about to expire.
 			// If requested, put the job on hold. Otherwise, wait for the
 			// proxy to be refreshed, then resume handling the job.
-			bool hold_if_credential_expired = 
-				param_boolean(PARAM_HOLD_IF_CRED_EXPIRED,true);
-			if ( hold_if_credential_expired ) {
-					// set hold reason via Globus cred expired error code
-				globusStateErrorCode =
-					GLOBUS_GRAM_PROTOCOL_ERROR_USER_PROXY_EXPIRED;
-				gmState = GM_HOLD;
-				break;
-			}
 			now = time(NULL);
-//<<<<<<< globusjob.C
-			// if ( myProxy->expiration_time > JM_MIN_PROXY_TIME + now ) {
-			if ( myProxy->expiration_time > (minProxy_time + 60) + now ) {
-				// resume handling the job.
-				gmState = GM_INIT;
-//=======
 			if ( myProxy->expiration_time > JM_MIN_PROXY_TIME + now ) {
 				gmState = GM_START;
-//>>>>>>> 1.13.4.38.4.27.2.19
 			} else {
 				// Do nothing. Our proxy is about to expire.
 			}
@@ -2380,7 +1897,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 				break;
 			}
 			if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_CONTACTING_JOB_MANAGER ||
-				 // rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
+				 rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
 				 rc == GAHPCLIENT_COMMAND_TIMED_OUT ) {
 				connect_failure_jobmanager = true;
 				break;
@@ -2470,19 +1987,6 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 	return TRUE;
 }
 
-int GlobusJob::CommunicationTimeout()
-{
-	// This function is called by a daemonCore timer if the resource
-	// object has been waiting too long for a gatekeeper ping to 
-	// succeed.
-	// For now, put the job on hold.
-
-	globusStateErrorCode = GLOBUS_GRAM_PROTOCOL_ERROR_CONNECTION_FAILED;
-	gmState = GM_HOLD;
-	communicationTimeoutTid = -1;
-	return TRUE;
-}
-
 void GlobusJob::NotifyResourceDown()
 {
 	resourceStateKnown = true;
@@ -2491,47 +1995,13 @@ void GlobusJob::NotifyResourceDown()
 	}
 	resourceDown = true;
 	jmUnreachable = false;
-//<<<<<<< globusjob.C
-//=======
 	resourcePingPending = false;
 	// set downtime timestamp?
-//>>>>>>> 1.13.4.38.4.27.2.19
 	SetEvaluateState();
-	// set a timeout timer, so we don't wait forever for this
-	// resource to reappear.
-	if ( communicationTimeoutTid != -1 ) {
-		// timer already set, our work is done
-		return;
-	}
-	int timeout = param_integer(PARAM_GLOBUS_GATEKEEPER_TIMEOUT,60*60*24*5);
-	int time_of_death = 0;
-	unsigned int now = time(NULL);
-	ad->LookupInteger( ATTR_GLOBUS_RESOURCE_UNAVAILABLE_TIME, time_of_death );
-	if ( time_of_death ) {
-		timeout = timeout - (now - time_of_death);
-	}
-
-	if ( timeout > 0 ) {
-		communicationTimeoutTid = daemonCore->Register_Timer( timeout,
-							(TimerHandlercpp)&GlobusJob::CommunicationTimeout,
-							"CommunicationTimeout", (Service*) this );
-	} else {
-		// timeout must have occurred while the gridmanager was down
-		CommunicationTimeout();
-	}
-
-	if (!time_of_death) {
-		UpdateJobAdInt(ATTR_GLOBUS_RESOURCE_UNAVAILABLE_TIME,now);
-		addScheddUpdateAction( this, UA_UPDATE_JOB_AD, 0 );
-	}
 }
 
 void GlobusJob::NotifyResourceUp()
 {
-	if ( communicationTimeoutTid != -1 ) {
-		daemonCore->Cancel_Timer(communicationTimeoutTid);
-		communicationTimeoutTid = -1;
-	}
 	resourceStateKnown = true;
 	if ( resourceDown == true ) {
 		WriteGlobusResourceUpEventToUserLog( ad );
@@ -2543,12 +2013,6 @@ void GlobusJob::NotifyResourceUp()
 	jmUnreachable = false;
 	resourcePingPending = false;
 	SetEvaluateState();
-	int time_of_death = 0;
-	ad->LookupInteger( ATTR_GLOBUS_RESOURCE_UNAVAILABLE_TIME, time_of_death );
-	if ( time_of_death ) {
-		UpdateJobAd(ATTR_GLOBUS_RESOURCE_UNAVAILABLE_TIME,"UNDEFINED");
-		addScheddUpdateAction( this, UA_UPDATE_JOB_AD, 0 );
-	}
 }
 
 bool GlobusJob::AllowTransition( int new_state, int old_state )
@@ -2689,12 +2153,6 @@ BaseResource *GlobusJob::GetResource()
 	return (BaseResource *)myResource;
 }
 
-bool GlobusJob::IsExitStatusValid()
-{
-	/* Using gridshell?  They're valid.  No gridshell?  Not available. */
-	return useGridShell;
-}
-
 MyString *GlobusJob::buildSubmitRSL()
 {
 	int transfer;
@@ -2704,11 +2162,6 @@ MyString *GlobusJob::buildSubmitRSL()
 	MyString buff;
 	char *attr_value = NULL;
 	char *rsl_suffix = NULL;
-
-	if(useGridShell) {
-		dprintf(D_FULLDEBUG, "(%d.%d) Using gridshell\n",
-			procID.cluster, procID.proc );
-	}
 
 	if ( ad->LookupString( ATTR_GLOBUS_RSL, &rsl_suffix ) &&
 						   rsl_suffix[0] == '&' ) {
@@ -2742,94 +2195,35 @@ MyString *GlobusJob::buildSubmitRSL()
 		*rsl += "(executable=$(GLOBUS_CACHED_STDOUT))";
 	}
 
-	//We're assuming all job classads have a command attribute
+	//We're assuming all job clasads have a command attribute
 	//First look for executable in the spool area.
-	MyString executable_path;
 	char *spooldir = param("SPOOL");
 	if ( spooldir ) {
 		char *source = gen_ckpt_name(spooldir,procID.cluster,ICKPT,0);
 		free(spooldir);
 		if ( access(source,F_OK | X_OK) >= 0 ) {
 				// we can access an executable in the spool dir
-			executable_path = source;
+			attr_value = strdup(source);
 		}
 	}
-	if( executable_path.IsEmpty() ) {
+	if ( attr_value == NULL ) {
 			// didn't find any executable in the spool directory,
 			// so use what is explicitly stated in the job ad
-		if( ! ad->LookupString( ATTR_JOB_CMD, &attr_value ) ) {
-			attr_value = (char *)malloc(1);
-			attr_value[0] = 0;
-		}
-		executable_path = attr_value;
-		free(attr_value);
-		attr_value = NULL;
+		ad->LookupString( ATTR_JOB_CMD, &attr_value );
 	}
 	*rsl += "(executable=";
-
-	int transfer_executable = 0;
-	if( ! ad->LookupBool( ATTR_TRANSFER_EXECUTABLE, transfer ) ) {
-		transfer_executable = 1;
-	}
-
-	MyString input_classad_filename;
-	MyString output_classad_filename;
-	MyString gridshell_log_filename = "condor_gridshell.log.";
-	gridshell_log_filename += procID.cluster;
-	gridshell_log_filename += '.';
-	gridshell_log_filename += procID.proc;
-
-	if( useGridShell ) {
-		// We always transfer the gridshell executable.
-
-		/* TODO XXX adesmet: I'm probably stomping all over the GRAM 1.4
-		   detection and work around.  For example, I assume I can stick the
-		   real executable into the transfer_input_files, but 1.4 doesn't
-		   support that (1.6 does).  Make sure this is worked out.  */
-
-		/* TODO XXX adesmet: This assumes that the local gridshell can run on
-		 * the 
-		   remote side.  For cross-architecture/OS jobs, this is false.  We'll
-		   need to more intelligently select a gridshell binary, perhaps
-		   autodetectings (surprisingly hard), or forcing user to specify
-		   CPU/OS (and defaulting to local one if not specified).*/
-
+	if ( !ad->LookupBool( ATTR_TRANSFER_EXECUTABLE, transfer ) || transfer ) {
 		buff = "$(GRIDMANAGER_GASS_URL)";
-		char * tmp = param("GRIDSHELL");
-		if( tmp ) {
-			buff += tmp;
-			free(tmp);
-		} else {
-
-			/* TODO XXX adesmet: Put job on hold, then bail.  Also add test to
-			   condor_submit.  If job.gridshell == TRUE, then condor_config_val
-			   GRIDSHELL must be defined. */
-
-		}
-
-		bool bsuccess = write_classad_input_file( ad, executable_path, input_classad_filename );
-		if( ! bsuccess ) {
-			/* TODO XXX adesmet: Writing to file failed?  Bail. */
-			dprintf(D_ALWAYS, "(%d.%d) Attempt to write gridshell file %s failed.\n", 
-				procID.cluster, procID.proc, input_classad_filename.GetCStr() );
-		}
-
-		output_classad_filename.sprintf("%s.OUT", input_classad_filename.GetCStr());
-		outputClassadFilename = output_classad_filename;
-
-
-	} else if ( transfer_executable ) {
-		buff = "$(GRIDMANAGER_GASS_URL)";
-		if ( executable_path[0] != '/' ) {
+		if ( attr_value[0] != '/' ) {
 			buff += iwd;
 		}
-		buff += executable_path;
-
+		buff += attr_value;
 	} else {
-		buff = executable_path;
+		buff = attr_value;
 	}
-
 	*rsl += rsl_stringify( buff.Value() );
+	free( attr_value );
+	attr_value = NULL;
 
 	if ( ad->LookupString(ATTR_JOB_REMOTE_IWD, &attr_value) && *attr_value ) {
 		*rsl += ")(directory=";
@@ -2856,17 +2250,7 @@ MyString *GlobusJob::buildSubmitRSL()
 		attr_value = NULL;
 	}
 
-	if(useGridShell) {
-		/* for gridshell, pass the gridshell the filename of the input
-		   classad.  The real arguments will be in the classad, so we
-		   don't need to pass them. */
-		*rsl += ")(arguments=-gridshell -job-input-ad ";
-		*rsl += input_classad_filename;
-		*rsl += " -job-output-ad ";
-		*rsl += output_classad_filename;
-		*rsl += " -job-stdin - -job-stdout - -job-stderr -";
-	} else if ( ad->LookupString(ATTR_JOB_ARGUMENTS, &attr_value)
-				&& *attr_value ) {
+	if ( ad->LookupString(ATTR_JOB_ARGUMENTS, &attr_value) && *attr_value ) {
 		*rsl += ")(arguments=";
 		*rsl += attr_value;
 	}
@@ -2875,8 +2259,8 @@ MyString *GlobusJob::buildSubmitRSL()
 		attr_value = NULL;
 	}
 
-	if( ad->LookupString(ATTR_JOB_INPUT, &attr_value) && *attr_value &&
-		strcmp(attr_value, NULL_FILE) ) {
+	if ( ad->LookupString(ATTR_JOB_INPUT, &attr_value) && *attr_value &&
+		 strcmp( attr_value, NULL_FILE ) ) {
 		*rsl += ")(stdin=";
 		if ( !ad->LookupBool( ATTR_TRANSFER_INPUT, transfer ) || transfer ) {
 			buff = "$(GRIDMANAGER_GASS_URL)";
@@ -2934,9 +2318,8 @@ MyString *GlobusJob::buildSubmitRSL()
 		}
 	}
 
-	bool has_input_files = ad->LookupString(ATTR_TRANSFER_INPUT_FILES, &attr_value) && *attr_value;
-
-	if ( ( useGridShell && transfer_executable ) || has_input_files) {
+	if ( ad->LookupString(ATTR_TRANSFER_INPUT_FILES, &attr_value) &&
+		 *attr_value ) {
 		if ( jmVersion < GRAM_V_1_6 && jmVersion != GRAM_V_UNKNOWN ) {
 			// the jobmanager doesn't support file transfers.
 			dprintf(D_ALWAYS,
@@ -2947,16 +2330,7 @@ MyString *GlobusJob::buildSubmitRSL()
 			errorString = "Remote jobmanager doesn't support file transfer";
 			return NULL;
 		}
-		StringList filelist( NULL, "," );
-		if( attr_value ) {
-			filelist.initializeFromString( attr_value );
-		}
-		if( useGridShell ) {
-			filelist.append(input_classad_filename.GetCStr());
-			if(transfer_executable) {
-				filelist.append(executable_path.GetCStr());
-			}
-		}
+		StringList filelist( attr_value, "," );
 		if ( !filelist.isEmpty() ) {
 			char *filename;
 			*rsl += ")(file_stage_in=";
@@ -2984,7 +2358,7 @@ MyString *GlobusJob::buildSubmitRSL()
 	}
 
 	if ( ( ad->LookupString(ATTR_TRANSFER_OUTPUT_FILES, &attr_value) &&
-		   *attr_value ) || stageOutput || stageError || useGridShell) {
+		   *attr_value ) || stageOutput || stageError ) {
 		if ( jmVersion < GRAM_V_1_6 && jmVersion != GRAM_V_UNKNOWN ) {
 			// the jobmanager doesn't support file transfers.
 			dprintf(D_ALWAYS,
@@ -2995,19 +2369,7 @@ MyString *GlobusJob::buildSubmitRSL()
 			errorString = "Remote jobmanager doesn't support file transfer";
 			return NULL;
 		}
-		StringList filelist( NULL, "," );
-		if( attr_value ) {
-			filelist.initializeFromString( attr_value );
-		}
-		if( useGridShell ) {
-				// If we're the grid shell, we want to append some
-				// files to  be transfered back: the final status
-				// ClassAd from the gridshell
-
-			ASSERT( output_classad_filename.GetCStr() );
-			filelist.append( output_classad_filename.GetCStr() );
-			filelist.append( gridshell_log_filename.GetCStr() );
-		}
+		StringList filelist( attr_value, "," );
 		if ( !filelist.isEmpty() || stageOutput || stageError ) {
 			char *filename;
 			*rsl += ")(file_stage_out=";
@@ -3049,15 +2411,7 @@ MyString *GlobusJob::buildSubmitRSL()
 		attr_value = NULL;
 	}
 
-	if ( useGridShell ) {
-		*rsl += ")(environment=";
-		*rsl += "(CONDOR_CONFIG 'only_env')";
-		*rsl += "(_CONDOR_GRIDSHELL_DEBUG 'D_FULLDEBUG')";
-		*rsl += "(_CONDOR_GRIDSHELL_LOG '";
-		*rsl += gridshell_log_filename.GetCStr();
-		*rsl += "')";
-	} else if ( ad->LookupString(ATTR_JOB_ENVIRONMENT, &attr_value)
-				&& *attr_value ) {
+	if ( ad->LookupString(ATTR_JOB_ENVIRONMENT, &attr_value) && *attr_value ) {
 		Environ env_obj;
 		env_obj.add_string(attr_value);
 		char **env_vec = env_obj.get_vector();
@@ -3098,7 +2452,6 @@ MyString *GlobusJob::buildSubmitRSL()
 		free( rsl_suffix );
 	}
 
-	dprintf( D_ALWAYS, "Final RSL: %s\n", rsl->GetCStr() );
 	return rsl;
 }
 
@@ -3136,7 +2489,7 @@ MyString *GlobusJob::buildStdioUpdateRSL()
 {
 	MyString *rsl = new MyString;
 	MyString buff;
-	char *attr_value = NULL; /* in case the classad lookups fail */
+	char *attr_value;
 
 	DeleteOutput();
 
@@ -3316,39 +2669,45 @@ bool
 GlobusJob::JmShouldSleep()
 {
 	if ( jmVersion == GRAM_V_1_0 ) {
+dprintf(D_ALWAYS,"(%d.%d) JmShouldSleep returning false (0)\n",procID.cluster, procID.proc);
 		return false;
 	}
 	if ( jmProxyExpireTime < myProxy->expiration_time ) {
+dprintf(D_ALWAYS,"(%d.%d) JmShouldSleep returning false (0.5)\n",procID.cluster, procID.proc);
 		return false;
 	}
 	if ( condorState != IDLE && condorState != RUNNING ) {
+dprintf(D_ALWAYS,"(%d.%d) JmShouldSleep returning false (1)\n",procID.cluster, procID.proc);
 		return false;
 	}
 	if ( useGridJobMonitor == false ) {
+dprintf(D_ALWAYS,"(%d.%d) JmShouldSleep returning false (2)\n",procID.cluster, procID.proc);
 		return false;
 	}
 
 	if ( myResource->GridJobMonitorActive() == false ) {
+dprintf(D_ALWAYS,"(%d.%d) JmShouldSleep returning false (3)\n",procID.cluster, procID.proc);
 		return false;
 	}
 
 	switch ( globusState ) {
 	case GLOBUS_GRAM_PROTOCOL_JOB_STATE_PENDING:
+dprintf(D_ALWAYS,"(%d.%d) JmShouldSleep returning true (4)\n",procID.cluster, procID.proc);
 		return true;
 	case GLOBUS_GRAM_PROTOCOL_JOB_STATE_ACTIVE:
 	case GLOBUS_GRAM_PROTOCOL_JOB_STATE_SUSPENDED:
 		if ( !streamOutput && !streamError ) {
+dprintf(D_ALWAYS,"(%d.%d) JmShouldSleep returning true (5)\n",procID.cluster, procID.proc);
 			return true;
 		} else {
+dprintf(D_ALWAYS,"(%d.%d) JmShouldSleep returning false (6)\n",procID.cluster, procID.proc);
 			return false;
 		}
 	default:
+dprintf(D_ALWAYS,"(%d.%d) JmShouldSleep returning false (7)\n",procID.cluster, procID.proc);
 		return false;
 	}
 }
-//<<<<<<< globusjob.C
-
-//=======
 
 bool
 WriteGlobusSubmitEventToUserLog( ClassAd *job_ad )
@@ -3511,4 +2870,3 @@ WriteGlobusResourceDownEventToUserLog( ClassAd *job_ad )
 
 	return true;
 }
-//>>>>>>> 1.13.4.38.4.27.2.19
