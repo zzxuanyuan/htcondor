@@ -1102,6 +1102,16 @@ The \Condor{startd} keeps track
   to turn on all debugging in all subsystems, set
   \verb$ALL_DEBUG = D_ALL$.
 
+\item[\Macro{TOOL\_DEBUG}] \label{param:ToolDebug} Uses the same
+  values (debugging levels) as \MacroNI{SUBSYS\_DEBUG} to
+  describe the amount of debugging information sent to \File{stderr} 
+  for Condor tools.
+
+\item[\Macro{SUBMIT\_DEBUG}] \label{param:SubmitDebug} Uses the same
+  values (debugging levels) as \MacroNI{SUBSYS\_DEBUG} to
+  describe the amount of debugging information sent to \File{stderr} 
+  for \Condor{submit}.
+
 \end{description}
 
 Log files may optionally be specified per debug level as follows:

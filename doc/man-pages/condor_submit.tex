@@ -6,6 +6,7 @@
 \oOptArg{-n}{schedd\_name}
 \oOptArg{-r}{schedd\_name}
 \oOpt{-d}
+\ToolDebugOption
 % this option needs the dots in boldface, so using the macro oOptArg won't work
 \Lbr\Opt{-a} \Arg{command} \Opt{\Dots}\Rbr 
 \oOpt{-s}
@@ -1501,6 +1502,9 @@ AUTHENTICATION\_METHODS configuration setting to enable remote file system
 (FS\_REMOTE) authentication.}
 
 \OptItem{\Opt{-d}}{Disable file permission checks.}
+
+\OptItem{\Opt{-debug}}{Cause debugging information to be sent to \File{stderr},
+based on the value of the configuration variable \MacroNI{SUBMIT\_DEBUG}.}
 
 \OptItem{\OptArg{-a}{command}}{Augment the commands in the submit 
 description file with the given command.
