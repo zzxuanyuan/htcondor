@@ -30,7 +30,7 @@
 	This is the child class of JobInfoCommunicator that deals with
 	running "local" jobs, namely, ones without a shadow.  It is itself
 	an abstract base class for different versions of "local" jobs that
-	might get there job classads from different places: the config
+	might get their job classads from different places: the config
 	file, a file from the filesystem, etc, etc.  JICLocal has some
 	pure virtual functions, so you can't instantiate one of these, you
 	have to instantiate a subclass.
@@ -119,7 +119,7 @@ public:
 		// Notfication to our controller
 		// // // // // // // // // // // //
 
-		/** Notifyour controller that the job is about to spawn
+		/** Notify our controller that the job is about to spawn
 		 */
 	void notifyJobPreSpawn( void );
 
@@ -151,7 +151,7 @@ protected:
 		// // // // // // // // // // // //
 
 		/** Register some important information about ourself that the
-			job controller might needs.
+			job controller might need.
 			@return true on success, false on failure
 		*/
 	bool registerStarterInfo( void );
