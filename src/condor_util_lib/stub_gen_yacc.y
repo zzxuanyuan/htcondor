@@ -2,7 +2,7 @@
 %token CONST
 %token IDENTIFIER
 %token UNKNOWN
-%token MAP
+%token FILE_TABLE
 %token EXTRACT
 %token DL_EXTRACT
 %token PSEUDO
@@ -18,14 +18,15 @@
 %token ELLIPSIS
 %token REMOTE_NAME
 %token LOCAL_NAME
-%token MAP_NAME
+%token FILE_TABLE_NAME
 %token DISCARD
+%token MAP
 
 %type <node> stub_spec param_list param simple_param
 %type <node> stub_body action_func_list
 %type <node> action_param action_param_list action_func xfer_func alloc_func
 %type <node> return_func
-%type <tok> TYPE_NAME CONST IDENTIFIER UNKNOWN MAP DL_EXTRACT NO_SYS_CHK ARRAY opt_mult
+%type <tok> TYPE_NAME CONST IDENTIFIER UNKNOWN FILE_TABLE DL_EXTRACT NO_SYS_CHK ARRAY opt_mult
 %type <bool> opt_const opt_ptr opt_ptr_to_const opt_array
 %type <bool> opt_reference
 %type <param_mode> use_type
@@ -45,7 +46,6 @@ struct node * mk_param_node( char *type, char *name,
 	int is_const, int is_ptr, int is_ref, int is_const_ptr, int is_array,
 	int is_in, int is_out, int is_vararg );
 struct node * mk_action_param_node( char *name, int is_ref, char *mult );
-struct node *set_map_attr( struct node * simple );
 struct node *insert_node( struct node *list, struct node *new_elem );
 void display_node( struct node * );
 void output_switch( struct node * );
@@ -88,15 +88,15 @@ int IsExtracted = FALSE;
 int IsDLExtracted = FALSE;
 int IsPseudo = FALSE;
 int DoSysChk = TRUE;
-int IsMapped = FALSE;
+int IsTabled = FALSE;
 int IsVararg = FALSE;
 int UseAltRemoteName = FALSE;
 int UseAltLocalName = FALSE;
-int UseAltMapName = FALSE;
+int UseAltTableName = FALSE;
 
-static char AltRemoteName[80] = {0};
-static char AltLocalName[80] = {0};
-static char AltMapName[80] = {0};
+static char AltRemoteName[NAME_LENGTH] = {0};
+static char AltLocalName[NAME_LENGTH] = {0};
+static char AltTableName[NAME_LENGTH] = {0};
 
 static char global_func[20],global_fd[20];
 #if 0
@@ -335,10 +335,10 @@ option
 		Trace( "option (3)" );
 		DoSysChk = FALSE;
 		}
-	| MAP
+	| FILE_TABLE
 		{
 		Trace( "option (4)" );
-		IsMapped = TRUE;
+		IsTabled = TRUE;
 		}
 	| REMOTE_NAME '(' IDENTIFIER ')'
 		{
@@ -352,11 +352,11 @@ option
 		UseAltLocalName = TRUE;
 		strcpy(AltLocalName,$3.val);
 		}
-	| MAP_NAME '(' IDENTIFIER ')'
+	| FILE_TABLE_NAME '(' IDENTIFIER ')'
 		{
 		Trace( "option (5)" );
-		UseAltMapName = TRUE;
-		strcpy(AltMapName,$3.val);
+		UseAltTableName = TRUE;
+		strcpy(AltTableName,$3.val);
 		}
 	;
 
@@ -371,14 +371,16 @@ param_list
 
 param
 	: simple_param
-			{ $$ = $1; }
+		{ $$ = $1; }
 	| DISCARD '(' simple_param ')'
-			{ $3->discard = TRUE; $$ = $3; }
+		{ $3->discard = TRUE; $$ = $3; }
+	| MAP '(' simple_param ')'
+		{ $3->is_mapped = TRUE; $$ = $3; }
 	| ELLIPSIS
-			{
-			$$ = mk_param_node("int","lastarg",0,0,0,0,0,0,0,1);
-			IsVararg = TRUE;
-			}
+		{
+		$$ = mk_param_node("int","lastarg",0,0,0,0,0,0,0,1);
+		IsVararg = TRUE;
+		}
 	;
 
 simple_param
@@ -588,6 +590,7 @@ mk_param_node( char *type, char *name,
 	answer->is_ptr = is_ptr;
 	answer->is_ref = is_ref;
 	answer->is_array = is_array;
+	answer->is_mapped = 0;
 	answer->in_param = is_in;
 	answer->out_param = is_out;
 	answer->is_vararg = is_vararg;
@@ -620,13 +623,6 @@ mk_action_param_node( char *name, int is_ref, char *mult )
 }
 
 struct node *
-set_map_attr( struct node * simple )
-{
-	simple->is_mapped = TRUE;
-	return simple;
-}
-
-struct node *
 mk_func_node( char *type, char *name, struct node * p_list,
 	int is_ptr, struct node *action_func_list )
 {
@@ -648,8 +644,8 @@ mk_func_node( char *type, char *name, struct node * p_list,
 	DoSysChk = TRUE;
 	answer->pseudo = IsPseudo;
 	IsPseudo = FALSE;
-	answer->is_mapped = IsMapped;
-	IsMapped = FALSE;
+	answer->is_tabled = IsTabled;
+	IsTabled = FALSE;
 	answer->is_vararg = IsVararg;
 	IsVararg = FALSE;
 	answer->param_list = p_list;
@@ -669,11 +665,11 @@ mk_func_node( char *type, char *name, struct node * p_list,
 		strcpy(answer->local_name,name);
 	}
 
-	if(UseAltMapName) {
-		strcpy(answer->map_name,AltMapName);
-		UseAltMapName=FALSE;
+	if(UseAltTableName) {
+		strcpy(answer->table_name,AltTableName);
+		UseAltTableName=FALSE;
 	} else {
-		strcpy(answer->map_name,name);
+		strcpy(answer->table_name,name);
 	}
 
 	return answer;
@@ -933,11 +929,11 @@ output_remote_call( struct node *n, struct node *list )
 }
 
 void
-output_mapped_call( struct node *n, struct node *list )
+output_tabled_call( struct node *n, struct node *list )
 {
 	printf( "\t\terrno = 0;\n" );
-	printf( "\t\tInitFileState();\n");
-	printf( "\t\trval = FileTab -> %s ( ", n->map_name );
+	printf( "\t\t_condor_file_table_init();\n");
+	printf( "\t\trval = FileTab -> %s ( ", n->table_name );
 	output_param_list( list );
 	printf( " );\n");
 }
@@ -1261,7 +1257,7 @@ output_sender( struct node *n )
 	assert( n->node_type == FUNC );
 
 	/* If this node is a function which maps to a different
-	   call, skip the sender, because it will be generated
+	   call, skip the receiver, because it will be generated
 	   by the function bearing that name. */
 	
 	if( strcmp(n->id,n->remote_name) ) return;
@@ -1391,26 +1387,31 @@ output_sender( struct node *n )
 void
 output_switch( struct node *n )
 {
-	char tmpname[80];
+	char tmpname[NAME_LENGTH];
+	struct node *p;
 
 	assert( n->node_type == FUNC );
 
+	/* Header which checks for SYS_name */
 	if( !n->pseudo && Do_SYS_check && n->sys_chk ) {
 		printf( "#if defined( SYS_%s )\n", n->local_name );
 	}
 
+	/* Undefine any ugly redirections of this function */
 	printf("#undef %s\n",n->id);
 
+	/* If we extracted a function, prototype it here. */
 	if( n->extract ) {
 		printf("extern %s %s ",node_type(n),mk_upper(n->id));
 		output_switch_generic(n->param_list,1);
 		printf(";\n\n");
 	}
 
+	/* Give the switch header */
 	printf( "%s %s ", node_type(n), n->id );
 	output_switch_decl( n->param_list );
 
-	printf("{\n\tint rval;\n\n");
+	printf("{\n\tint rval,do_local=0;\n\n");
 
 	/* Notice this: The vararg generator only does enough to
 	   generate a third arg of size int.  */
@@ -1424,17 +1425,28 @@ output_switch( struct node *n )
 		printf("\n");
 	}
 
+	/* Disable checkpointing */
 	printf( "\tsigset_t sigs = block_condor_signals();\n\n");
+
+	/* Look up mapped parameters, and map them. */
+	for( p=n->param_list->next; p!=n->param_list; p=p->next ) {
+		if( p->is_mapped ) {
+			printf("\tif( MappingFileDescriptors() ) {\n");
+			printf("\t\tdo_local = _condor_file_is_local( %s );\n",p->id);
+			printf("\t\t%s = _condor_file_table_map( %s );\n",p->id,p->id);
+			printf("\t}\n\n");
+		}
+	}
 
 	if (gen_local_calls ) {
 
-		if( n->is_mapped ) {
+		if( n->is_tabled ) {
 			printf("\tif( MappingFileDescriptors() ) {\n");
-			output_mapped_call( n, n->param_list );
+			output_tabled_call( n, n->param_list );
 			printf("\t} else {\n");
 		}
 
-		printf("\t\tif( LocalSysCalls() ) {\n");
+		printf("\t\tif( LocalSysCalls() || do_local ) {\n");
 
 		if( n->extract ) {
 			output_extracted_call( n, n->param_list );
@@ -1449,9 +1461,9 @@ output_switch( struct node *n )
 	output_remote_call(  n, n->param_list );
 
 	if (gen_local_calls) {
-		printf( "\t\t}\n" );
+		printf( "\t\t}\n\n" );
 
-		if( n->is_mapped ) {
+		if( n->is_tabled ) {
 			printf("\t}\n");
 		}
 	}
