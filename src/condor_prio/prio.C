@@ -26,7 +26,6 @@
 #include "condor_common.h"
 #include "condor_config.h"
 #include "condor_attributes.h"
-#include "alloc.h"
 #include "my_hostname.h"
 #include "get_daemon_addr.h"
 
@@ -147,10 +146,6 @@ main( int argc, char *argv[] )
 		ProcArg(args[i]);
 	}
 	DisconnectQ(q);
-
-#if defined(ALLOC_DEBUG)
-	print_alloc_stats();
-#endif
 
 	return 0;
 }

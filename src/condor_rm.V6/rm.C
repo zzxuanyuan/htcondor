@@ -32,7 +32,6 @@
 #include "condor_network.h"
 #include "condor_io.h"
 #include "sched.h"
-#include "alloc.h"
 #include "get_daemon_addr.h"
 #include "condor_attributes.h"
 #include  "list.h"
@@ -171,10 +170,6 @@ main( int argc, char *argv[] )
 	// entire queue.
 	if ( nToProcess != 0 )
 		notify_schedd();
-
-#if defined(ALLOC_DEBUG)
-	print_alloc_stats();
-#endif
 
 	return 0;
 }

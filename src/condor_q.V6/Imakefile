@@ -1,5 +1,5 @@
 CFLAGS = $(STD_C_FLAGS) $(PLATFORM_C_FLAGS)
-C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) -DNEW_PROC -DALLOC_DEBUG -fno-implicit-templates
+C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) -DNEW_PROC -fno-implicit-templates
 LDFLAGS = -lm RpcLib SocketLib
 
 SRC = queue.C
