@@ -121,6 +121,9 @@ sensibly under their DAGMan master job.
 
 \begin{itemize}
 
-\item None.
+\item \Condor{kbdd} doesn't work properly under Compaq Tru64 5.1, and
+as a result, resources may not leave the ``Unclaimed'' state
+regardless of keyboard or pty activity.  Compaq Tru64 5.0a and earlier
+do work properly.
 
 \end{itemize}
