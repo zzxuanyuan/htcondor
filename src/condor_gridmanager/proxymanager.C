@@ -466,8 +466,8 @@ int CheckProxies()
 	return TRUE;
 }
 
-int RefreshProxyThruMyProxy(Proxy * proxy) {
-
+int RefreshProxyThruMyProxy(Proxy * proxy)
+{
 	char * proxy_filename = proxy->proxy_filename;
 	MyProxyEntry * myProxyEntry = NULL;
 
@@ -479,8 +479,8 @@ int RefreshProxyThruMyProxy(Proxy * proxy) {
 	while (proxy->myproxy_entries.Next (myProxyEntry)) {
 		if (myProxyEntry->myproxy_password ||
 			GetMyProxyPasswordFromSchedD (myProxyEntry->cluster_id,
-												myProxyEntry->proc_id,
-												&(myProxyEntry->myproxy_password))) {
+										  myProxyEntry->proc_id,
+										  &(myProxyEntry->myproxy_password))) {
 			found=TRUE;
 
 			//. Now move it to the front of the list
@@ -495,20 +495,24 @@ int RefreshProxyThruMyProxy(Proxy * proxy) {
 		return FALSE;
 	}
 
-  // Make sure we're not called more often than necessary and if
-  time_t now=time(NULL);
-  if ((myProxyEntry->get_delegation_pid != FALSE) || (now - myProxyEntry->last_invoked_time < 30)) {
-  	dprintf (D_ALWAYS, "proxy %s too soon or myproxy-get-delegation already started\n",proxy_filename);
-	return FALSE;
-  }
-  myProxyEntry->last_invoked_time=now;
+	// Make sure we're not called more often than necessary and if
+	time_t now=time(NULL);
+	if ((myProxyEntry->get_delegation_pid != FALSE) ||
+		(now - myProxyEntry->last_invoked_time < 30)) {
+
+		dprintf (D_ALWAYS,
+			 "proxy %s too soon or myproxy-get-delegation already started\n",
+				 proxy_filename);
+		return FALSE;
+	}
+	myProxyEntry->last_invoked_time=now;
 
 
-  // If you don't have a myproxy password, ask SchedD for it
-  if (!myProxyEntry->myproxy_password) {
-  	// Will there ever be a case when there is no MyProxy password needed at all?
-  	return FALSE;
-  }
+	// If you don't have a myproxy password, ask SchedD for it
+	if (!myProxyEntry->myproxy_password) {
+		// Will there ever be a case when there is no MyProxy password needed at all?
+		return FALSE;
+	}
 
 	// Initialize reaper, if needed
 	if (myproxyGetDelegationReaperId == 0 ) {
@@ -516,14 +520,15 @@ int RefreshProxyThruMyProxy(Proxy * proxy) {
 					   "GetDelegationReaper",
 					   (ReaperHandler) &MyProxyGetDelegationReaper,
 					   "GetDelegation Reaper");
-  	}
+ 	}
 
 	// Set up environnment for myproxy-get-delegation
 	Env myEnv;
 	char buff[_POSIX_PATH_MAX];
 
 	if (myProxyEntry->myproxy_server_dn) {
-		sprintf (buff, "MYPROXY_SERVER_DN=%s", myProxyEntry->myproxy_server_dn);
+		sprintf (buff, "MYPROXY_SERVER_DN=%s",
+				 myProxyEntry->myproxy_server_dn);
 		myEnv.Put (buff);
 		dprintf (D_FULLDEBUG, "%s\n", buff);
 	}
@@ -534,11 +539,11 @@ int RefreshProxyThruMyProxy(Proxy * proxy) {
 	dprintf (D_FULLDEBUG, "%s\n", buff);
 
 
-    // Print password (this will end up in stdin for myproxy-get-delegation)
+	// Print password (this will end up in stdin for myproxy-get-delegation)
 	pipe (myProxyEntry->get_delegation_password_pipe);
 	write (myProxyEntry->get_delegation_password_pipe[1],
-		myProxyEntry->myproxy_password,
-		strlen (myProxyEntry->myproxy_password));
+		   myProxyEntry->myproxy_password,
+		   strlen (myProxyEntry->myproxy_password));
 	write (myProxyEntry->get_delegation_password_pipe[1], "\n", 1);
 
 
@@ -553,10 +558,10 @@ int RefreshProxyThruMyProxy(Proxy * proxy) {
 	// args
 	char args[1000];
 	sprintf(args, "-v -o %s -s %s -d -t %d -S -l %s",
-		proxy_filename,
-		myproxy_host,
-		12,
-		username);
+			proxy_filename,
+			myproxy_host,
+			12,
+			username);
 
 
 	// Optional port argument
@@ -579,7 +584,8 @@ int RefreshProxyThruMyProxy(Proxy * proxy) {
 	chmod (myProxyEntry->get_delegation_err_filename, 0600);
 	myProxyEntry->get_delegation_err_fd = open (myProxyEntry->get_delegation_err_filename,O_RDWR);
 	if (myProxyEntry->get_delegation_err_fd == -1) {
-		dprintf (D_ALWAYS, "Error opening file %s\n",myProxyEntry->get_delegation_err_filename);
+		dprintf (D_ALWAYS, "Error opening file %s\n",
+				 myProxyEntry->get_delegation_err_filename);
 	}
 
 
@@ -611,7 +617,7 @@ int RefreshProxyThruMyProxy(Proxy * proxy) {
 
 	free (myproxy_get_delegation_pgm);
 
-  	if (pid == FALSE) {
+	if (pid == FALSE) {
 		dprintf (D_ALWAYS, "Failed to run myproxy-get-delegation\n");
 
 		myProxyEntry->get_delegation_err_fd=-1;
@@ -628,15 +634,14 @@ int RefreshProxyThruMyProxy(Proxy * proxy) {
 		return FALSE;
 	}
 
-  myProxyEntry->get_delegation_pid = pid;
+	myProxyEntry->get_delegation_pid = pid;
 
-  return TRUE;
-
+	return TRUE;
 }
 
 
-int MyProxyGetDelegationReaper(Service *, int exitPid, int exitStatus) {
-
+int MyProxyGetDelegationReaper(Service *, int exitPid, int exitStatus)
+{
 	// Find the right MyProxyEntry
 	Proxy *proxy=NULL;
 	MyProxyEntry *matched_entry=NULL;
@@ -714,8 +719,9 @@ int MyProxyGetDelegationReaper(Service *, int exitPid, int exitStatus) {
    return TRUE;
 }
 
-int GetMyProxyPasswordFromSchedD (int cluster_id, int proc_id, char ** password) {
-
+int GetMyProxyPasswordFromSchedD (int cluster_id, int proc_id,
+								  char ** password)
+{
 	// This might seem not necessary, but it IS
 	// For some reason you can't just pass cluster_id to sock->code() directly!!!!
 	int cluster, proc;
