@@ -1683,6 +1683,7 @@ Resource::dbInsert( ClassAd *cl )
 	char attName[100], attVal[500], attNameList[1000]="", attValList[1000]="", tmpVal[500];
 	int isFirst = TRUE;
 	MyString aName, aVal, temp, machine_id;
+	char *tmp1;
 
 	cl->sPrint(classAd);
 
@@ -1693,7 +1694,20 @@ Resource::dbInsert( ClassAd *cl )
 
 	while (iter != NULL)
 		{
+			int attValLen;
 			sscanf(iter, "%s = %s", attName, attVal);
+
+				// strip quotes from attVal (if any)
+			attValLen = strlen(attVal);
+			if (attVal[attValLen-1] == '"' || attVal[attValLen-1] == '\'')
+				attVal[attValLen-1] = 0;
+			if (attVal[0] == '"' || attVal[0] == '\'') {
+				
+				tmp1 = attVal+1;
+				strcpy(tmpVal, tmp1);
+				strcpy(attVal, tmpVal);
+			}
+			
 				
 			if (!isStatic(attName)) {
 					// should go into machine_classad table
@@ -1777,24 +1791,25 @@ Resource::dbInsert( ClassAd *cl )
 	  dprintf(D_FULLDEBUG, "In table Val = %s\n", attVal);
 	  dprintf(D_FULLDEBUG, "In classad Val = %s\n", aVal.Value());	
 
-	  if (retcode == SQL_NO_DATA) {
-	    // this value is not present in the Machine table hence insert
-	    dbh->odbc_closestmt();
-	    sprintf(sql_stmt, "INSERT INTO Machine VALUES ('%s', '%s', '%s', 'now')", 
-		    machine_id.Value(), aName.Value(), aVal.Value());
-	    dbh->odbc_sqlstmt(sql_stmt);
+	  if (retcode != SQL_ERROR) {
+		  if (retcode == SQL_NO_DATA) {
+				  // this value is not present in the Machine table hence insert
+			  dbh->odbc_closestmt();
+			  sprintf(sql_stmt, "INSERT INTO Machine VALUES ('%s', '%s', '%s', 'now')", 
+					  machine_id.Value(), aName.Value(), aVal.Value());
+			  dbh->odbc_sqlstmt(sql_stmt);
+			  
+		  } else {
+				  // this value is present in the table. if value has changed then update
+			  dbh->odbc_closestmt();    
+			  if (aVal != attVal) {
+				  sprintf(sql_stmt, "UPDATE Machine SET attr_value = '%s', start_time = 'now' WHERE machine_id = '%s' AND attr_name = '%s'", 
+						  aVal.Value(), machine_id.Value(), aName.Value());
+				  dbh->odbc_sqlstmt(sql_stmt);
+			  }
 
-	  } else {
-	    // this value is present in the table. if value has changed then update
-	    dbh->odbc_closestmt();    
-	    if (aVal != attVal) {
-	      sprintf(sql_stmt, "UPDATE Machine SET attr_value = '%s', start_time = 'now' WHERE machine_id = '%s' AND attr_name = '%s'", 
-		      aVal.Value(), machine_id.Value(), aName.Value());
-	      dbh->odbc_sqlstmt(sql_stmt);
-	    }
-
+		  }
 	  }
-
 	}
 
 	//dbh->odbc_disconnect();
@@ -1806,7 +1821,8 @@ Resource::dbInsert( ClassAd *cl )
 int 
 Resource::isStatic(char *attName)
 {
-	return (strcmp(attName, ATTR_CKPT_SERVER) && strcmp(attName, "CKPT_SERVER_HOST") &&
+	return (strcmp(attName, ATTR_OPSYS) && strcmp(attName, ATTR_ARCH) &&
+			strcmp(attName, ATTR_CKPT_SERVER) && strcmp(attName, "CKPT_SERVER_HOST") &&
 			strcmp(attName, ATTR_STATE) && strcmp(attName, ATTR_ACTIVITY) &&
 			strcmp(attName, ATTR_KEYBOARD_IDLE) && strcmp(attName, ATTR_CONSOLE_IDLE) &&
 			strcmp(attName, ATTR_LOAD_AVG) && strcmp(attName, "CondorLoadAvg") &&
@@ -1829,7 +1845,8 @@ Resource::typeOf(char *attName)
 	if (!(strcmp(attName, ATTR_CKPT_SERVER) && strcmp(attName, "CKPT_SERVER_HOST") &&
 		  strcmp(attName, ATTR_STATE) && strcmp(attName, ATTR_ACTIVITY) &&
 		  strcmp(attName, ATTR_CPU_IS_BUSY) && strcmp(attName, ATTR_RANK) && 
-		  strcmp(attName, ATTR_REQUIREMENTS) && strcmp(attName, ATTR_NAME)
+		  strcmp(attName, ATTR_REQUIREMENTS) && strcmp(attName, ATTR_NAME) &&
+		  strcmp(attName, ATTR_OPSYS) && strcmp(attName, ATTR_ARCH)
 		  )
 		)
 		return TYPE_STRING;
