@@ -34,6 +34,8 @@
 #include "tool_daemon_proc.h"
 #include "mpi_master_proc.h"
 #include "mpi_comrade_proc.h"
+#include "parallel_master_proc.h"
+#include "sshd_proc.h"
 #include "my_hostname.h"
 #include "internet.h"
 #include "condor_string.h"  // for strnewp
@@ -175,6 +177,7 @@ CStarter::Init( JobInfoCommunicator* my_jic, const char* orig_cwd,
 		// done, it'll call our jobEnvironmentReady() method so we can
 		// actually spawn the job.
 	jic->setupJobEnvironment();
+
 	return true;
 }
 
@@ -441,6 +444,43 @@ CStarter::jobEnvironmentReady( void )
 }
 
 
+// spawns sshd if needed 
+int
+CStarter::SpawnSshd( ClassAd * jobAd )
+{
+	dprintf(D_FULLDEBUG, "lookup wantSsh\n");
+	int want_sshd = FALSE; // default = FALSE
+
+	jobAd->LookupBool(ATTR_WANT_SSHD, want_sshd);
+
+	if (!want_sshd){
+	  dprintf(D_FULLDEBUG, "      wantSsh = false, go on ..\n");
+	  return TRUE;
+	}
+	dprintf(D_FULLDEBUG, "      wantSsh = true, invoke sshd\n");
+
+
+
+	// make a copy using copy constructor, since the sshproc tweaks it.
+	ClassAd * copy = new ClassAd (*jobAd);
+	sshdProc = new SshdProc( copy );
+	
+	if (sshdProc->StartJob()) {
+		JobList.Append(sshdProc);
+		return TRUE;
+	} else {
+		delete sshdProc;
+		sshdProc = NULL;
+		dprintf( D_ALWAYS, "Failed to start ssh job, exiting\n" );
+		main_shutdown_fast();
+		return FALSE;
+	}
+}
+
+
+
+#define ATTR_JOB_SUBUNIVERSE "subuniverse"
+
 int
 CStarter::SpawnJob( void )
 {
@@ -456,9 +496,14 @@ CStarter::SpawnJob( void )
 			 CondorUniverseName(jobUniverse), jic->jobCluster(),
 			 jic->jobProc() );
 
+
+	/////// for sshd
+	if (!SpawnSshd(jobAd))
+	  return FALSE;
+
 	UserProc *job;
 	switch ( jobUniverse )  
-	{
+	  {
 		case CONDOR_UNIVERSE_VANILLA:
 			job = new VanillaProc( jobAd );
 			break;
@@ -466,16 +511,41 @@ CStarter::SpawnJob( void )
 			job = new JavaProc( jobAd, WorkingDir );
 			break;
 		case CONDOR_UNIVERSE_MPI: {
+		    int    generic_parallel = FALSE;
+		    char * subuniverse = NULL;
 			int is_master = FALSE;
 			if ( jobAd->LookupBool( ATTR_MPI_IS_MASTER, is_master ) < 1 ) {
-				is_master = FALSE;
+			  is_master = FALSE;
 			}
-			if ( is_master ) {
-				dprintf ( D_FULLDEBUG, "Starting a MPIMasterProc\n" );
-				job = new MPIMasterProc( jobAd );
+
+		    if ( jobAd->LookupString(ATTR_JOB_SUBUNIVERSE, &subuniverse)) {
+			    if (strncmp(subuniverse, "parallel", 8) == 0){
+				    generic_parallel = TRUE;
+				    dprintf( D_ALWAYS, "subuniverse = parallel\n");
+				}
+				free (subuniverse);
+			}
+			if ( generic_parallel ) {
+			    //  generic parallel universe use different logic.
+	  		    if ( is_master ) {
+				    // the master job have to wait for all the sshds
+				    // to startup.
+				    ParallelMasterProc * proc = new ParallelMasterProc( jobAd );
+				    return  proc->SpawnParallelMaster();
+			    } else {
+				    //  sshd proc already started, nothing to do
+				    jic->allJobsSpawned();
+					return TRUE;
+				}
 			} else {
-				dprintf ( D_FULLDEBUG, "Starting a MPIComradeProc\n" );
-				job = new MPIComradeProc( jobAd );
+			  // original mpi unvierse for mpich less than 1.2.4
+				if ( is_master ) {
+				    dprintf ( D_FULLDEBUG, "Starting a MPIMasterProc\n" );
+				    job = new MPIMasterProc( jobAd );
+				} else {
+				    dprintf ( D_FULLDEBUG, "Starting a MPIComradeProc\n" );
+				    job = new MPIComradeProc( jobAd );
+				}
 			}
 			break;
 		}
@@ -487,28 +557,9 @@ CStarter::SpawnJob( void )
 
 	if (job->StartJob()) {
 		JobList.Append(job);
-
-		// Now, see if we also need to start up a ToolDaemon
-		// for this job.
-		char* tool_daemon_name = NULL;
-		jobAd->LookupString( ATTR_TOOL_DAEMON_CMD,
-							 &tool_daemon_name );
-		if( tool_daemon_name ) {
-				// we need to start a tool daemon for this job
-			ToolDaemonProc* tool_daemon_proc;
-			tool_daemon_proc = new ToolDaemonProc( jobAd, job->GetJobPid() );
-
-			if( tool_daemon_proc->StartJob() ) {
-				JobList.Append( tool_daemon_proc );
-				dprintf( D_FULLDEBUG, "ToolDaemonProc added to JobList\n");
-			} else {
-				dprintf( D_ALWAYS, "Failed to start ToolDaemonProc!\n");
-				delete tool_daemon_proc;
-			}
-			free( tool_daemon_name );
-		}
-
-			// let our JobInfoCommunicator know the job was started.
+		SpawnToolDaemon(job, jobAd);
+		
+		// let our JobInfoCommunicator know the job was started.
 		jic->allJobsSpawned();
 		return TRUE;
 	} else {
@@ -519,6 +570,29 @@ CStarter::SpawnJob( void )
 		main_shutdown_fast();
 		return FALSE;
 	}
+}
+
+void 
+CStarter::SpawnToolDaemon(UserProc * job, ClassAd * jobAd){
+  // Now, see if we also need to start up a ToolDaemon
+  // for this job.
+  char* tool_daemon_name = NULL;
+  jobAd->LookupString( ATTR_TOOL_DAEMON_CMD,
+					   &tool_daemon_name );
+  if( tool_daemon_name ) {
+	// we need to start a tool daemon for this job
+	ToolDaemonProc* tool_daemon_proc;
+	tool_daemon_proc = new ToolDaemonProc( jobAd, job->GetJobPid() );
+	
+	if( tool_daemon_proc->StartJob() ) {
+	  JobList.Append( tool_daemon_proc );
+	  dprintf( D_FULLDEBUG, "ToolDaemonProc added to JobList\n");
+	} else {
+	  dprintf( D_ALWAYS, "Failed to start ToolDaemonProc!\n");
+	  delete tool_daemon_proc;
+	}
+	free( tool_daemon_name );
+  }
 }
 
 
@@ -623,6 +697,26 @@ CStarter::Reaper(int pid, int exit_status)
 		dprintf( D_ALWAYS, "unhandled job exit: pid=%d, status=%d\n",
 				 pid, exit_status );
 	}
+
+	////// sshd_proc check
+	if (all_jobs - handled_jobs == 1 && sshdProc != NULL) {
+	  dprintf( D_FULLDEBUG, 
+			   "there are just one proc remaining, check if it is the sshdproc\n");
+	  
+	  JobList.Rewind();
+	  job = JobList.Next();  // get the last item in the list
+	  if (job == sshdProc) {
+		dprintf( D_FULLDEBUG, 
+				 "  yes, the one is the sshd, going to kill it\n");
+		// OK, the last remaining proc was the sshd_proc.
+		// since we donot want to keep it any more, kill it.
+		job->ShutdownGraceful();
+	  } else {
+		dprintf( D_FULLDEBUG, 
+				 "  no, the one is not the sshd, ignore\n");
+	  }
+	}
+
 	if( all_jobs - handled_jobs == 0 ) {
 		if( post_script ) {
 				// if there's a post script, we have to call it now,

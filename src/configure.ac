@@ -1299,6 +1299,11 @@ CONDOR_EXTERNAL_VERSION([classads],[0.9.7])
 # AC_SUBST(ext_srb_version,$_cv_ext_srb_version)
 CONDOR_EXTERNAL_VERSION([srb],[3.2.1])
 
+AC_MSG_CHECKING([classads])
+_cv_ext_classads_version="classads-0.9.7"
+AC_MSG_RESULT([$_cv_ext_classads_version])
+AC_SUBST(ext_classads_version,$_cv_ext_classads_version)
+
 else
 # if there's no externals at all, we still need to define these to
 # avoid imake troubles...

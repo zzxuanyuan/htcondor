@@ -152,6 +152,17 @@ public:
 		/** Command handler for ClassAd-only protocol commands */
 	int classadCommand( int, Stream* );
 
+    int SpawnSshd( ClassAd * jobAd );
+    void SpawnToolDaemon( UserProc * proc, ClassAd * jobAd);
+
+    inline UserProc * getSshdProc(){
+	  return sshdProc;
+	}
+
+    inline void appendJobList( UserProc * proc){
+	  JobList.Append(proc);
+	}
+
 protected:
 	List<UserProc> JobList;
 	List<UserProc> CleanedUpJobList;
@@ -163,6 +174,8 @@ private:
 		// // // // // // // //
 
 	int jobUniverse;
+
+    UserProc * sshdProc;
 
 	char *Execute;
 	char WorkingDir[_POSIX_PATH_MAX]; // The iwd given to the job
@@ -176,6 +189,7 @@ private:
 
 	UserProc* pre_script;
 	UserProc* post_script;
+
 };
 
 #endif

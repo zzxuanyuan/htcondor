@@ -21,19 +21,57 @@
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
+#ifndef _CONDOR_SSHD_PROC_H
+#define _CONDOR_SSHD_PROC_H
+
 #include "condor_common.h"
-#include "list.h"
-#include "mpiresource.h"
-#include "file_transfer.h"
-#include "HashTable.h"
-#include "sshd_info.h"
+#include "condor_classad.h"
+#include "vanilla_proc.h"
 
-// for the MPIShadow, a list of remote resource classes....
-template class ExtArray<MpiResource *>;
 
-// for the SshdManager
-template class ExtArray<SshdInfo *>;
+class SshdProc : public VanillaProc
+{
+public:
 
-// for the file transfer object.
-template class HashBucket<MyString, FileTransfer *>;
+    SshdProc( ClassAd * jobAd );
+    virtual ~SshdProc();
 
+/** 
+ * 1.) replace the executable
+ * 2.) get keys 
+ * 3.) set the environment variables
+ *     - KEY
+ *     - OPEN_SSHD, SSH location
+ */
+  virtual int StartJob();
+
+  virtual void Suspend();
+
+  /** This is here just so we can print out a log message, since
+	we don't expect this will ever get called. */
+  virtual void Continue();
+
+  virtual bool PublishUpdateAd( ClassAd* ad );
+
+  inline char * getKeyBaseName(){
+	return baseFileName;
+  }
+
+private:
+  int getKeys();
+
+  int alterExec();
+
+  int alterEnv();  
+
+  char * baseFileName;
+
+  char shadow_contact[100];
+
+  int readStoreFile(Stream * s, char * filename, int mode);
+
+  
+
+};
+
+#endif

@@ -26,6 +26,7 @@
 #include "baseshadow.h"
 #include "shadow.h"
 #include "mpishadow.h"
+#include "parallelshadow.h"
 #include "exit.h"
 #include "condor_debug.h"
 #include "condor_version.h"
@@ -196,6 +197,8 @@ readJobAd( void )
 }
 
 
+#define ATTR_JOB_SUBUNIVERSE "subuniverse"
+
 void
 initShadow( ClassAd* ad )
 {
@@ -207,6 +210,19 @@ initShadow( ClassAd* ad )
 		universe = CONDOR_UNIVERSE_VANILLA;
 	}
 
+
+	dprintf( D_FULLDEBUG, "lookup subunivers\n");
+	char * subuniverse = NULL;
+	bool generic_parallel = false;
+
+	if ( ad->LookupString(ATTR_JOB_SUBUNIVERSE, &subuniverse)) {
+	  if (strncmp(subuniverse, "parallel", 8) == 0){
+		generic_parallel  = true;
+		dprintf( D_ALWAYS, "subuniverse = %s\n", subuniverse);
+		free (subuniverse);
+	  }
+	}
+
 	dprintf( D_ALWAYS, "Initializing a %s shadow for job %d.%d\n", 
 			 CondorUniverseName(universe), cluster, proc );
 
@@ -216,8 +232,13 @@ initShadow( ClassAd* ad )
 		Shadow = new UniShadow();
 		break;
 	case CONDOR_UNIVERSE_MPI:
-		Shadow = new MPIShadow();
-		break;
+	    {
+		    if ( generic_parallel ) 
+			    Shadow = new ParallelShadow();
+		    else
+			    Shadow = new MPIShadow();
+	    }
+	    break;
 	case CONDOR_UNIVERSE_PVM:
 			// some day we'll support this.  for now, fall through and
 			// print out an error message that might mean something to

@@ -1,10 +1,10 @@
 NAME = condor_schedd
 all_target($(NAME) libqmgmt.a)
 
-C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS)
+C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) -I$(NEW_CLASSADS_INC)
 CFLAGS = $(STD_C_FLAGS)
 
-LIB= $(DAEMONCORE_LIB) $(STD_LIBS)
+LIB= $(DAEMONCORE_LIB) $(STD_LIBS) -L$(NEW_CLASSADS_LIB) -lclassad_ns
 
 QMGMT_OBJ = qmgmt.o qmgmt_receivers.o qmgmt_common.o
 QMGMT_LIB_OBJ = qmgmt_send_stubs.o qmgr_lib_support.o qmgmt_common.o

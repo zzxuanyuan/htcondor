@@ -32,6 +32,7 @@
 #include "exit.h"
 #include "internet.h"
 #include "../h/shadow.h"
+#include "sshd_manager.h"
 
 /* Forward declaration to prevent loops... */
 class RemoteResource;
@@ -312,7 +313,7 @@ class BaseShadow : public Service
 		/** Do whatever cleanup (like killing starter(s)) that's
 			required before the shadow can exit.
 		*/
-	virtual void cleanUp( void ) = 0;
+	virtual void cleanUp( void );
 
 		/** Did this shadow's job exit by a signal or not?  This is
 			virtual since each kind of shadow will need to implement a
@@ -394,6 +395,8 @@ class BaseShadow : public Service
 			updated in the job queue itself
 		*/ 
 	void initJobQueueAttrLists( void );
+
+    SshdManager * sshdManager;
 
  private:
 
