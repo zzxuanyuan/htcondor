@@ -38,6 +38,7 @@
 
 BaseJob::BaseJob( ClassAd *classad )
 {
+	writeUserLog = true;
 	submitLogged = false;
 	executeLogged = false;
 	submitFailedLogged = false;
@@ -152,7 +153,7 @@ void BaseJob::JobRunning()
 
 		UpdateRuntimeStats();
 
-		if ( !executeLogged ) {
+		if ( writeUserLog && !executeLogged ) {
 			WriteExecuteEventToUserLog( ad );
 			executeLogged = true;
 		}
@@ -183,7 +184,7 @@ void BaseJob::JobEvicted()
 	UpdateRuntimeStats();
 
 		//  should we be updating job ad values here?
-	if ( !evictLogged ) {
+	if ( writeUserLog && !evictLogged ) {
 		WriteEvictEventToUserLog( ad );
 		evictLogged = true;
 	}
@@ -218,7 +219,7 @@ void BaseJob::DoneWithJob()
 	UpdateJobAdBool( ATTR_JOB_MANAGED, 0 );
 
 	if ( condorState == COMPLETED ) {
-		if ( !terminateLogged ) {
+		if ( writeUserLog && !terminateLogged ) {
 			WriteTerminateEventToUserLog( ad );
 			EmailTerminateEvent( ad, exitStatusKnown );
 			terminateLogged = true;
@@ -226,14 +227,14 @@ void BaseJob::DoneWithJob()
 		deleteFromSchedd = true;
 	}
 	if ( condorState == REMOVED ) {
-		if ( !abortLogged ) {
+		if ( writeUserLog && !abortLogged ) {
 			WriteAbortEventToUserLog( ad );
 			abortLogged = true;
 		}
 		deleteFromSchedd = true;
 	}
 	if ( condorState == HELD ) {
-		if ( !holdLogged ) {
+		if ( writeUserLog && !holdLogged ) {
 			WriteHoldEventToUserLog( ad );
 			holdLogged = true;
 		}
@@ -272,7 +273,7 @@ void BaseJob::JobHeld( const char *hold_reason, int hold_code,
 
 		UpdateRuntimeStats();
 
-		if ( !holdLogged ) {
+		if ( writeUserLog && !holdLogged ) {
 			WriteHoldEventToUserLog( ad );
 			holdLogged = true;
 		}
@@ -361,7 +362,7 @@ void BaseJob::JobAdUpdateFromSchedd( const ClassAd *new_ad )
 			ad->SetDirtyFlag( held_removed_update_attrs[i], false );
 		}
 
-		if ( new_condor_state == HELD && !holdLogged ) {
+		if ( new_condor_state == HELD && writeUserLog && !holdLogged ) {
 			// TODO should this log event be delayed until gridmanager is
 			//   done dealing with the job?
 			WriteHoldEventToUserLog( ad );

@@ -74,6 +74,7 @@ class BaseJob
 
 	int condorState;
 
+	bool writeUserLog;
 	bool submitLogged;
 	bool executeLogged;
 	bool submitFailedLogged;
