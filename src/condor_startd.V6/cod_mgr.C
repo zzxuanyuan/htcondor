@@ -265,9 +265,9 @@ CODMgr::activate( Stream* s, ClassAd* req, Claim* claim )
 	}
 
 	char* keyword = NULL;
-	if( ! req->LookupString(ATTR_JOB_AD_CONFIG_KEYWORD, &keyword) ) {
+	if( ! req->LookupString(ATTR_JOB_KEYWORD, &keyword) ) {
 		err_msg = "Request does not contain ";
-		err_msg += ATTR_JOB_AD_CONFIG_KEYWORD;
+		err_msg += ATTR_JOB_KEYWORD;
 		err_msg += ", so server cannot find job in config file\n";
 		delete tmp_starter;
 		return sendErrorReply( s, "CA_ACTIVATE_CLAIM",
