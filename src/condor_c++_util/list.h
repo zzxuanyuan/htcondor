@@ -164,7 +164,7 @@ public:
 
 protected:
 	List(const List<ObjType> &toCopy); // disallow copy constructor 
-	List<ObjType> &operator=(const List<ObjType> &toCopy); // disallow assignment operator
+//	List<ObjType> &operator=(const List<ObjType> &toCopy); // disallow assignment operator
 
 	void	RemoveItem( Item<ObjType> * );
 	Item<ObjType>	*dummy;
