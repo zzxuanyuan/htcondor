@@ -22,7 +22,6 @@
 ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
  
-
 #define _POSIX_SOURCE
 
 #include "condor_common.h"
@@ -38,96 +37,19 @@ LogRecord::~LogRecord()
 {
 }
 
-bool LogRecord::readword(FILE *fp, char * &str)
+
+bool LogRecord::Write( Sink *snk )
 {
-	int		i, bufsize = 1024;
-	char	*buf = (char *)malloc(bufsize);
-
-	// ignore leading whitespace
-	do {
-		buf[0] = fgetc( fp );
-		if( buf[0] == EOF && !feof( fp ) ) {
-			free( buf );
-			return( false );
-		}
-	} while (isspace(buf[0]) && buf[0] != EOF );
-
-	// read until whitespace
-	for (i = 1; !isspace(buf[i-1]) && buf[i-1]!='\0' && buf[i-1]!=EOF; i++) {
-		if (i == bufsize) {
-			buf = (char *)realloc(buf, bufsize*2);
-			bufsize *= 2;
-		} 
-		buf[i] = fgetc( fp );
-		if( buf[i] == EOF && !feof( fp ) ) {
-			free( buf );
-			return( false );
-		}
-	}
-	buf[i-1] = '\0';
-	str = strdup(buf);
-	free(buf);
-	return true;
+	if( !snk ) return( false );
+	snk->SetTerminalChar( '\n' );
+	return( ToSink( *snk ) && snk->FlushSink( ) );
 }
 
-bool LogRecord::readline(FILE *fp, char * &str)
+
+bool LogRecord::Read( Source *src )
 {
-	int		i, bufsize = 1024;
-	char	*buf = (char *)malloc(bufsize);
-
-	// ignore leading whitespace
-	do {
-		buf[0] = fgetc( fp );
-		if( buf[0] == EOF && !feof( fp ) ) {
-			free( buf );
-			return( false );
-		}
-	} while (isspace(buf[0]) && buf[0] != EOF );
-
-	// read until newline
-	for (i = 1; buf[i-1]!='\n' && buf[i-1] != '\0' && buf[i-1] != EOF; i++) {
-		if (i == bufsize) {
-			buf = (char *)realloc(buf, bufsize*2);
-			bufsize *= 2;
-		} 
-		buf[i] = fgetc( fp );
-		if( buf[i] == EOF && !feof( fp ) ) {
-			free( buf );
-			return( false );
-		}
-	}
-	buf[i-1] = '\0';
-	str = strdup(buf);
-	free(buf);
-	return true;
-}
-
-bool LogRecord::Write(FILE *fp)
-{
-	return (WriteHeader(fp) && WriteBody(fp) && WriteTail(fp));
-}
-
-bool LogRecord::Read(FILE *fp)
-{
-	return (ReadHeader(fp) && ReadBody(fp) && ReadTail(fp));
-}
-
-bool LogRecord::WriteHeader(FILE *fp)
-{
-	return (fprintf(fp, "%d ", op_type)>=0);
-}
-
-bool LogRecord::WriteTail(FILE *fp)
-{
-	return (fprintf(fp, "\n")>=0);
-}
-
-bool LogRecord::ReadHeader(FILE *fp)
-{
-	return (fscanf(fp, "%d ", &op_type)>=0);
-}
-
-bool LogRecord::ReadTail(FILE *fp)
-{
-	return true;
+	if( !src ) return( false );
+	src->SetSentinelChar( '\n' );
+	Clear( );
+	return( src->ParseClassAd(*this,true) && src->Reinitialize( ) );
 }

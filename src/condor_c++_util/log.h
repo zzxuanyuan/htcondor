@@ -26,41 +26,27 @@
 /* 
    This defines a base class for logs of data structure operations.  
    The logs are meant to be strictly ascii (for example, no '\0' 
-   characters).  A log entry is of the form: "op_type body\n" where
-   op_type is the ascii decimal representation of op_type and body
-   is defined by WriteBody and ReadBody for that log entry.  Users
-   are encouraged to use fflush() and fsync() to commit entries to the 
-   log.  The Play() method is defined to perform the operation on
-   the data structure passed in as an argument.  The argument is of
-   type (void *) for generality.
+   characters).  A log entry is a line containing a single classad. 
+   I.e., a classad followed by a '\n'.  The classad contains an
+   integer valued attribute named OpType.  Remaining attributes are
+   specific to the operation in question.  The Play() method is defined 
+   to perform the operation on the data structure passed in as an 
+   argument.  The argument is of type (void *) for generality.
 */
 
-class LogRecord {
+#include "condor_classad.h"
 
+class LogRecord : public ClassAd {
 public:
 	
 	LogRecord();
 	virtual ~LogRecord();
-	int get_op_type() { return op_type; }
 
-	bool Write(FILE *fp);
-	bool Read(FILE *fp);
-	bool ReadHeader(FILE *fp);
-	virtual bool ReadBody(FILE *) { return true; }
-	bool ReadTail(FILE *fp);
+	bool Write( Sink * );
+	bool Read( Source * );
 
-	virtual bool Play(void*) { return( true ); };
-
-protected:
-
-	bool readword(FILE*, char *&);
-	bool readline(FILE*, char *&);
-
-	bool WriteHeader(FILE *fp);
-	virtual bool WriteBody(FILE *) { return true; }
-	bool WriteTail(FILE *fp);
-
-	int op_type;	/* This is the type of operation being performed */
+	virtual bool Check( void* ) { return( true ); };
+	virtual bool Play( void* ) { return( true ); };
 };
 
 #endif
