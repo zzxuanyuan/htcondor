@@ -91,11 +91,6 @@ static int compute_pid_hash(const pid_t &key, int numBuckets)
 }
 
 
-static int delete_enc_key(KeyCacheEntry *ke) {
-	delete ke;
-	return 0;
-}
-
 // DaemonCore constructor. 
 
 DaemonCore::DaemonCore(int PidSize, int ComSize,int SigSize,
@@ -1622,17 +1617,62 @@ int DaemonCore::HandleReq(int socki)
 		dprintf ( D_SECURITY, "DC_AUTHENTICATE: received UDP packet from %s.\n",
 				sin_to_string(((Sock*)stream)->endpoint()));
 
-		dprintf ( D_SECURITY, "DC_AUTHENTICATE: checking UDP for md5...\n");
-		const char * sess_id = ((SafeSock*)stream)->isIncomingDataMD5ed();
+
+		// get the info, if there is any
+		char * cleartext_info = (char*)((SafeSock*)stream)->isIncomingDataMD5ed();
+		char * sess_id = NULL;
+		char * return_address_ss = NULL;
+
+		if (cleartext_info) {
+			StringList info_list(cleartext_info);
+			char * tmp = NULL;
+
+			info_list.rewind();
+			tmp = info_list.next();
+			if (tmp) {
+				sess_id = strdup(tmp);
+				dprintf ( D_SECURITY, "DC_AUTHENTICATE: packet is MD5ed with key %s.\n", sess_id);
+
+				tmp = info_list.next();
+				if (tmp) {
+					return_address_ss = strdup(tmp);
+					dprintf ( D_SECURITY, "DC_AUTHENTICATE: packet is from daemon %s.\n", return_address_ss);
+				}
+			} else {
+				// protocol violation... StringList didn't give us anything!
+				// this is unlikely to work, but we may as well try... so, we
+				// don't fail here.
+			}
+		} else {
+			dprintf ( D_SECURITY, "DC_AUTHENTICATE: no MD5...\n");
+		}
+
 		if (sess_id) {
 			dprintf ( D_SECURITY, "DC_AUTHENTICATE: looking for session %s...\n", sess_id);
-			char * sid = strdup(sess_id);
 			KeyCacheEntry *session = NULL;
-			bool found_sess = sec_man->session_cache->lookup(sid, session);
+			bool found_sess = sec_man->session_cache->lookup(sess_id, session);
 
 			if (!found_sess) {
 				dprintf ( D_SECURITY, "DC_AUTHENTICATE: session %s NOT FOUND...\n", sess_id);
 				// no session... we outta here!
+
+
+				// but first, we should be nice and send a message back to
+				// the people who sent us the wrong session id.
+				SafeSock s;
+				if (s.connect(return_address_ss)) {
+					s.encode();
+					s.put(DC_INVALIDATE_KEY);
+					s.code(sess_id);
+					s.eom();
+					s.close();
+					dprintf (D_SECURITY, "DC_AUTHENTICATE: sent DC_INVALIDATE %s to %s.\n",
+						sess_id, return_address_ss);
+				} else {
+					dprintf (D_SECURITY, "DC_AUTHENTICATE: couldn't send DC_INVALIDATE %s to %s.\n",
+						sess_id, return_address_ss);
+				}
+
 				result = FALSE;
 				goto finalize;
 			}
@@ -1651,28 +1691,76 @@ int DaemonCore::HandleReq(int socki)
 				result = FALSE;
 				goto finalize;
 			} else {
-				dprintf (D_SECURITY, "DC_AUTHENTICATE: message authenticator enabled with key id %s.\n", sid);
+				dprintf (D_SECURITY, "DC_AUTHENTICATE: message authenticator enabled with key id %s.\n", sess_id);
 #ifdef SECURITY_HACK_ENABLE
 				zz2printf (session->key());
 #endif
 			}
-			delete sid;
+			delete sess_id;
+
+			if (return_address_ss) {
+				delete return_address_ss;
+			}
 		} else {
 			dprintf (D_SECURITY, "DC_AUTHENTICATE: incoming data NOT MD5ed.\n");
 		}
 
 
 		dprintf ( D_SECURITY, "DC_AUTHENTICATE: checking UDP for encryption...\n");
-		sess_id = ((SafeSock*)stream)->isIncomingDataEncrypted();
+
+		// get the info, if there is any
+		cleartext_info = (char*)((SafeSock*)stream)->isIncomingDataEncrypted();
+		sess_id = NULL;
+		return_address_ss = NULL;
+
+		if (cleartext_info) {
+			StringList info_list(cleartext_info);
+			char * tmp = NULL;
+
+			info_list.rewind();
+			tmp = info_list.next();
+			if (tmp) {
+				sess_id = strdup(tmp);
+				dprintf ( D_SECURITY, "DC_AUTHENTICATE: packet is encrypted with key %s.\n", sess_id);
+
+				tmp = info_list.next();
+				if (tmp) {
+					return_address_ss = strdup(tmp);
+					dprintf ( D_SECURITY, "DC_AUTHENTICATE: packet is from daemon %s.\n", return_address_ss);
+				}
+			} else {
+				// protocol violation... StringList didn't give us anything!
+				// this is unlikely to work, but we may as well try... so, we
+				// don't fail here.
+			}
+		}
+
+
 		if (sess_id) {
 			dprintf ( D_SECURITY, "DC_AUTHENTICATE: looking for session %s...\n", sess_id);
-			char * sid = strdup(sess_id);
 			KeyCacheEntry *session = NULL;
-			bool found_sess = sec_man->session_cache->lookup(sid, session);
+			bool found_sess = sec_man->session_cache->lookup(sess_id, session);
 
 			if (!found_sess) {
 				dprintf ( D_SECURITY, "DC_AUTHENTICATE: session %s NOT FOUND...\n", sess_id);
 				// no session... we outta here!
+
+				// but first, see above behavior in MD5 code above.
+
+				SafeSock s;
+				if (s.connect(return_address_ss)) {
+					s.encode();
+					s.put(DC_INVALIDATE_KEY);
+					s.code(sess_id);
+					s.eom();
+					s.close();
+					dprintf (D_SECURITY, "DC_AUTHENTICATE: sent DC_INVALIDATE %s to %s.\n",
+						sess_id, return_address_ss);
+				} else {
+					dprintf (D_SECURITY, "DC_AUTHENTICATE: couldn't send DC_INVALIDATE %s to %s.\n",
+						sess_id, return_address_ss);
+				}
+
 				result = FALSE;
 				goto finalize;
 			}
@@ -1691,12 +1779,15 @@ int DaemonCore::HandleReq(int socki)
 				result = FALSE;
 				goto finalize;
 			} else {
-				dprintf (D_SECURITY, "DC_AUTHENTICATE: encryption enabled with key id %s.\n", sid);
+				dprintf (D_SECURITY, "DC_AUTHENTICATE: encryption enabled with key id %s.\n", sess_id);
 #ifdef SECURITY_HACK_ENABLE
 				zz2printf (session->key());
 #endif
 			}
-			delete sid;
+			delete sess_id;
+			if (return_address_ss) {
+				delete return_address_ss;
+			}
 		} else {
 			dprintf (D_SECURITY, "DC_AUTHENTICATE: incoming data NOT encrypted.\n");
 		}
@@ -1720,6 +1811,8 @@ int DaemonCore::HandleReq(int socki)
 		if ( insock != stream )	{   // delete stream only if we did an accept
 			delete stream;		   
 		} else {
+			stream->set_crypto_key(NULL);
+			stream->set_MD_mode(MD_OFF, NULL);
 			stream->end_of_message();
 		}
         return KEEP_STREAM;
@@ -1837,9 +1930,10 @@ int DaemonCore::HandleReq(int socki)
 				// the key id they sent was not in our cache.  this is a
 				// problem.
 
-				dprintf (D_ALWAYS, "DC_AUTHENTICATE: attempt to "
-						   "authenticate with invalid key id %s.\n", the_sid);
+				dprintf (D_ALWAYS, "DC_AUTHENTICATE: attempt to open "
+						   "invalid session %s, failing.\n", the_sid);
 
+				/* this is not UDP.
 				// if this is UDP, they have no idea the key they are
 				// using is bunk, so  it would be nice of us to tell them.
 
@@ -1864,6 +1958,7 @@ int DaemonCore::HandleReq(int socki)
 				} else {
 					dprintf ( D_SECURITY, "DC_AUTHENTICATE: no return address for invalid UDP.\n");
 				}
+				*/
 
 				// close the connection.
 				dprintf (D_ALWAYS, "DC_AUTHENTICATE: Closing connection.\n");
@@ -2024,156 +2119,163 @@ int DaemonCore::HandleReq(int socki)
 		
 
 
+		if (is_tcp) {
 
-		// do what we decided
+			// do what we decided
 
-		// handy policy vars
-		SecMan::sec_feat_act will_authenticate      = sec_man->sec_lookup_feat_act(*the_policy, ATTR_SEC_AUTHENTICATION);
-		SecMan::sec_feat_act will_enable_encryption = sec_man->sec_lookup_feat_act(*the_policy, ATTR_SEC_ENCRYPTION);
-		SecMan::sec_feat_act will_enable_integrity  = sec_man->sec_lookup_feat_act(*the_policy, ATTR_SEC_INTEGRITY);
-
-
-
-		if (is_tcp && (will_authenticate == SecMan::SEC_FEAT_ACT_YES)) {
-
-			// we are going to authenticate.  this could one of two ways.
-			// the "real" way or the "quick" way which is by presenting a
-			// session ID.  the fact that the private key matches on both
-			// sides proves the authenticity.  if the key does not match,
-			// it will be detected as long as some crypto is used.
+			// handy policy vars
+			SecMan::sec_feat_act will_authenticate      = sec_man->sec_lookup_feat_act(*the_policy, ATTR_SEC_AUTHENTICATION);
+			SecMan::sec_feat_act will_enable_encryption = sec_man->sec_lookup_feat_act(*the_policy, ATTR_SEC_ENCRYPTION);
+			SecMan::sec_feat_act will_enable_integrity  = sec_man->sec_lookup_feat_act(*the_policy, ATTR_SEC_INTEGRITY);
 
 
-			// this means we are authenticating for real
 
-			if (!is_tcp) {
-				dprintf ( D_SECURITY, "DC_AUTHENTICATE: UDP can't authenticate!\n");
-				result = FALSE;
-				goto finalize;
-			}
-			char * auth_method = NULL;
-			the_policy->LookupString(ATTR_SEC_AUTHENTICATION_METHODS, &auth_method);
+			if (is_tcp && (will_authenticate == SecMan::SEC_FEAT_ACT_YES)) {
 
-			dprintf (D_SECURITY, "DC_AUTHENTICATE: authenticating RIGHT NOW.\n");
-			if (!sock->authenticate(the_key, sec_man->getAuthBitmask(auth_method))) {
-				dprintf (D_ALWAYS, "DC_AUTHENTICATE: authenticate failed\n");
-				result = FALSE;
-				goto finalize;
-			}
-
-			delete auth_method;
+				// we are going to authenticate.  this could one of two ways.
+				// the "real" way or the "quick" way which is by presenting a
+				// session ID.  the fact that the private key matches on both
+				// sides proves the authenticity.  if the key does not match,
+				// it will be detected as long as some crypto is used.
 
 
-			// check to see if the kerb IP is the same
-			// as the socket IP.  this cast is safe because
-			// we return above is sock is not a ReliSock.
-			if ( ((ReliSock*)sock)->authob ) {
-				const char* sockip = sin_to_string(sock->endpoint());
-				const char* kerbip = ((ReliSock*)sock)->authob->getRemoteAddress() ;
+				// this means we are authenticating for real
 
-				result = !strncmp (sockip + 1, kerbip, strlen(kerbip) );
-
-				dprintf (D_SECURITY, "DC_AUTHENTICATE: sock ip -> %s\n", sockip);
-				dprintf (D_SECURITY, "DC_AUTHENTICATE: kerb ip -> %s\n", kerbip);
-
-				if (!result) {
-					dprintf (D_ALWAYS, "DC_AUTHENTICATE: ERROR: IP not in agreement!!! BAILING!\n");
+				if (!is_tcp) {
+					dprintf ( D_SECURITY, "DC_AUTHENTICATE: UDP can't authenticate!\n");
 					result = FALSE;
 					goto finalize;
+				}
+				char * auth_method = NULL;
+				the_policy->LookupString(ATTR_SEC_AUTHENTICATION_METHODS, &auth_method);
 
+				dprintf (D_SECURITY, "DC_AUTHENTICATE: authenticating RIGHT NOW.\n");
+				if (!sock->authenticate(the_key, sec_man->getAuthBitmask(auth_method))) {
+					dprintf (D_ALWAYS, "DC_AUTHENTICATE: authenticate failed\n");
+					result = FALSE;
+					goto finalize;
+				}
+
+				delete auth_method;
+
+
+				// check to see if the kerb IP is the same
+				// as the socket IP.  this cast is safe because
+				// we return above is sock is not a ReliSock.
+				if ( ((ReliSock*)sock)->authob ) {
+					const char* sockip = sin_to_string(sock->endpoint());
+					const char* kerbip = ((ReliSock*)sock)->authob->getRemoteAddress() ;
+
+					result = !strncmp (sockip + 1, kerbip, strlen(kerbip) );
+
+					dprintf (D_SECURITY, "DC_AUTHENTICATE: sock ip -> %s\n", sockip);
+					dprintf (D_SECURITY, "DC_AUTHENTICATE: kerb ip -> %s\n", kerbip);
+
+					if (!result) {
+						dprintf (D_ALWAYS, "DC_AUTHENTICATE: ERROR: IP not in agreement!!! BAILING!\n");
+						result = FALSE;
+						goto finalize;
+
+					} else {
+						dprintf (D_SECURITY, "DC_AUTHENTICATE: host %s address verified.\n", kerbip);
+					}
+				}
+
+			} else {
+				// an FYI
+				dprintf (D_SECURITY, "DC_AUTHENTICATE: not authenticating.\n");
+			}
+
+
+			if (will_enable_integrity == SecMan::SEC_FEAT_ACT_YES) {
+
+				if (!the_key) {
+					// uhm, there should be a key here!
+					result = FALSE;
+					goto finalize;
+				}
+
+				sock->decode();
+				if (!sock->set_MD_mode(MD_ALWAYS_ON, the_key)) {
+					dprintf (D_ALWAYS, "DC_AUTHENTICATE: unable to turn on message authenticator, failing.\n");
+					result = FALSE;
+					goto finalize;
 				} else {
-					dprintf (D_SECURITY, "DC_AUTHENTICATE: host %s address verified.\n", kerbip);
+					dprintf (D_SECURITY, "DC_AUTHENTICATE: message authenticator enabled with key id %s.\n", the_sid);
+#ifdef SECURITY_HACK_ENABLE
+					zz2printf (the_key);
+#endif
 				}
 			}
 
-		} else {
-			// an FYI
-			dprintf (D_SECURITY, "DC_AUTHENTICATE: not authenticating.\n");
-		}
 
+			if (will_enable_encryption == SecMan::SEC_FEAT_ACT_YES) {
 
-		if (will_enable_integrity == SecMan::SEC_FEAT_ACT_YES) {
+				if (!the_key) {
+					// uhm, there should be a key here!
+					result = FALSE;
+					goto finalize;
+				}
 
-			if (!the_key) {
-				// uhm, there should be a key here!
-				result = FALSE;
-				goto finalize;
-			}
-
-			sock->decode();
-			if (!sock->set_MD_mode(MD_ALWAYS_ON, the_key)) {
-				dprintf (D_ALWAYS, "DC_AUTHENTICATE: unable to turn on message authenticator, failing.\n");
-				result = FALSE;
-				goto finalize;
-			} else {
-				dprintf (D_SECURITY, "DC_AUTHENTICATE: message authenticator enabled with key id %s.\n", the_sid);
+				dprintf (D_SECURITY, "about to enable encryption.\n");
 #ifdef SECURITY_HACK_ENABLE
 				zz2printf (the_key);
 #endif
+
+				sock->decode();
+				if (!sock->set_crypto_key(the_key) ) {
+					dprintf (D_ALWAYS, "DC_AUTHENTICATE: unable to turn on encryption, failing.\n");
+					result = FALSE;
+					goto finalize;
+				} else {
+					dprintf (D_SECURITY, "DC_AUTHENTICATE: encryption enabled for session %s\n", the_sid);
+				}
 			}
-		}
 
 
-		if (will_enable_encryption == SecMan::SEC_FEAT_ACT_YES) {
 
-			if (!the_key) {
-				// uhm, there should be a key here!
-				result = FALSE;
-				goto finalize;
+			if (new_session) {
+				// clear the buffer
+				sock->decode();
+				sock->eom();
+
+				// ready a classad to send
+				dprintf (D_SECURITY, "DC_AUTHENTICATE: sending p.a. classad.\n");
+				ClassAd pa_ad;
+
+				// session user
+				sprintf (buf, "%s=\"%s\"", ATTR_SEC_USER, ((ReliSock*)sock)->getFullyQualifiedUser());
+				pa_ad.Insert(buf);
+
+				// session id
+				sprintf (buf, "%s=\"%s\"", ATTR_SEC_SID, the_sid);
+				pa_ad.Insert(buf);
+
+				// other commands this session is good for
+				sprintf (buf, "%s=\"%s\"", ATTR_SEC_VALID_COMMANDS, GetCommandsInAuthLevel(comTable[cmd_index].perm).Value());
+				pa_ad.Insert(buf);
+
+				// also put these attributes in the policy classad we are caching.
+				sec_man->sec_copy_attribute( *the_policy, pa_ad, ATTR_SEC_USER );
+				sec_man->sec_copy_attribute( *the_policy, pa_ad, ATTR_SEC_SID );
+				sec_man->sec_copy_attribute( *the_policy, pa_ad, ATTR_SEC_VALID_COMMANDS );
+
+
+				sock->encode();
+				pa_ad.put(*sock);
+				sock->eom();
+
+				// extract the session duration
+				char *dur = NULL;
+				the_policy->LookupString(ATTR_SEC_SESSION_DURATION, &dur);
+
+				int expiration_time = time(0) + atoi(dur);
+
+				// add the key to the cache
+				KeyCacheEntry tmp_key(the_sid, sock->endpoint(), the_key, the_policy, expiration_time);
+				sec_man->session_cache->insert(tmp_key);
+				dprintf (D_SECURITY, "DC_AUTHENTICATE: added session id %s to cache for %i seconds!\n", the_sid, atoi(dur));
 			}
-
-			dprintf (D_SECURITY, "about to enable encryption.\n");
-#ifdef SECURITY_HACK_ENABLE
-			zz2printf (the_key);
-#endif
-
-			sock->decode();
-			if (!sock->set_crypto_key(the_key) ) {
-				dprintf (D_ALWAYS, "DC_AUTHENTICATE: unable to turn on encryption, failing.\n");
-				result = FALSE;
-				goto finalize;
-			} else {
-				dprintf (D_SECURITY, "DC_AUTHENTICATE: encryption enabled for session %s\n", the_sid);
-			}
-		}
-
-
-
-		if (is_tcp && new_session) {
-			// clear the buffer
-			sock->decode();
-			sock->eom();
-
-			// ready a classad to send
-			dprintf (D_SECURITY, "DC_AUTHENTICATE: sending p.a. classad.\n");
-			ClassAd pa_ad;
-
-			// session user
-			sprintf (buf, "%s=\"%s\"", ATTR_SEC_USER, ((ReliSock*)sock)->getFullyQualifiedUser());
-			pa_ad.Insert(buf);
-
-			// session id
-			sprintf (buf, "%s=\"%s\"", ATTR_SEC_SID, the_sid);
-			pa_ad.Insert(buf);
-
-			// other commands this session is good for
-			sprintf (buf, "%s=\"%s\"", ATTR_SEC_VALID_COMMANDS, GetCommandsInAuthLevel(comTable[cmd_index].perm).Value());
-			pa_ad.Insert(buf);
-
-			// also put these attributes in the policy classad we are caching.
-            sec_man->sec_copy_attribute( *the_policy, pa_ad, ATTR_SEC_USER );
-            sec_man->sec_copy_attribute( *the_policy, pa_ad, ATTR_SEC_SID );
-            sec_man->sec_copy_attribute( *the_policy, pa_ad, ATTR_SEC_VALID_COMMANDS );
-
-
-			sock->encode();
-			pa_ad.put(*sock);
-			sock->eom();
-
-
-			// add the key to the cache
-			KeyCacheEntry tmp_key(the_sid, sock->endpoint(), the_key, the_policy, 0);
-			sec_man->session_cache->insert(tmp_key);
-			dprintf (D_SECURITY, "DC_AUTHENTICATE: added session id %s to cache!\n", the_sid);
 		}
 
 
@@ -2327,10 +2429,17 @@ finalize:
 			stream->end_of_message(); 			
 
 			// we need to reset the crypto keys
+			stream->set_MD_mode(MD_OFF);
 			stream->set_crypto_key(0);
 
 			result = KEEP_STREAM;	// HACK: keep all UDP sockets for now.  The only ones
 									// in Condor so far are Initial command socks, so keep it.
+		}
+	} else {
+		if (!is_tcp) {
+			stream->end_of_message(); 			
+			stream->set_MD_mode(MD_OFF);
+			stream->set_crypto_key(0);
 		}
 	}
 
