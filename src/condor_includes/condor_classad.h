@@ -27,8 +27,9 @@
 #include "../condor_classad.V6/common.h"
 #include "../condor_classad.V6/exprTree.h"
 #include "../condor_classad.V6/matchClassad.h"
-#include "../condor_classad.V6/classad_collection.h"
-#include "../condor_classad.V6/cedar_io.h"
+#include "../condor_classad.V6/collectionServer.h"
+#include "../condor_classad.V6/collectionClient.h"
+#include "../condor_classad.V6/query.h"
 
 // The following code is only temporary, and should be removed after the
 // rest of condor code starts explicitly using namespaces such as classad::
@@ -40,12 +41,15 @@ using namespace classad;
 #include "condor_attributes.h"
 #include "condor_adtypes.h"
 
+#include "condor_io.h"
 BEGIN_NAMESPACE( classad )
+
 void printClassAdExpr( ExprTree * );
 void printClassAdValue( Value & );
 ClassAd* getOldClassAd( Sock& );
 bool getOldClassAd( Sock&, ClassAd& );
 bool putOldClassAd( Sock&, ClassAd& );
+
 END_NAMESPACE
 
 #endif
