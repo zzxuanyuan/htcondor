@@ -1,38 +1,8 @@
 #import "gsoap_schedd_types.h"
 
+#import "gsoap_daemon_core.h"
+
 //gsoap condor service name: condorSchedd
-
-struct condor__StatusResponse {
-  struct condor__Status response;
-};
-
-struct condor__TransactionAndStatusResponse {
-  struct condor__TransactionAndStatus response;
-};
-
-struct condor__IntAndStatusResponse {
-  struct condor__IntAndStatus response;
-};
-
-struct condor__RequirementsAndStatusResponse {
-  struct condor__RequirementsAndStatus response;
-};
-
-struct condor__ClassAdStructArrayAndStatusResponse {
-  struct condor__ClassAdStructArrayAndStatus response;
-};
-
-struct condor__ClassAdStructAndStatusResponse {
-  struct condor__ClassAdStructAndStatus response;
-};
-
-struct condor__Base64DataAndStatusResponse {
-  struct condor__Base64DataAndStatus response;
-};
-
-struct condor__FileInfoArrayAndStatusResponse {
-  struct condor__FileInfoArrayAndStatus response;
-};
 
 int condor__beginTransaction(xsd__int duration,
                                    struct condor__TransactionAndStatusResponse & result);
