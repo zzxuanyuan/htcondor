@@ -1,5 +1,5 @@
 #include "condor_common.h"
-#include "condor_string.h"
+
 
 // DAGMan Includes
 #include "types.h"
@@ -20,72 +20,11 @@ int CondorID::Compare (const CondorID condorID) const {
     return result;
 }
 
-//-----------------------------------------------------------------------------
-string::string (const string & s) {
-    _str = strnewp(s._str);
-}
-
-//-----------------------------------------------------------------------------
-string::string (const char * s) {
-    _str = strnewp(s == NULL ? "" : s);
-}
-
-//-----------------------------------------------------------------------------
-string::string (const char c) {
-    _str = new char[2];
-    sprintf (_str, "%c", c);
-}
-
-//-----------------------------------------------------------------------------
-string::string (const int i) {
-    _str = new char[21];  // sufficient for 64 bit ints
-    sprintf (_str, "%d", i);
-}
-
-//-----------------------------------------------------------------------------
-const string & string::operator = (const string & s) {
-    delete [] _str;
-    _str = strnewp(s._str);
+//---------------------------------------------------------------------------
+std::string to_string (int i) {
+    char s[32];
+    sprintf (s, "%d", i);
     return s;
-}
-
-//-----------------------------------------------------------------------------
-const char * string::operator = (const char * s) {
-    delete [] _str;
-    _str = strnewp(s == NULL ? "" : s);
-    return s;
-}
-
-//-----------------------------------------------------------------------------
-string::string (const string & s1, const string & s2) {
-    _str = new char [strlen(s1._str) + strlen(s2._str) + 1];
-    sprintf (_str, "%s%s", s1._str, s2._str);
-}
-
-//-----------------------------------------------------------------------------
-const string & string::operator += (const string & s) {
-    return (*this = *this + s);
-}
-
-//-----------------------------------------------------------------------------
-bool string::operator == (const string & s) const {
-    return strcmp (s._str, _str) == 0;
-}
-
-bool string::operator != (const string & s) const {
-    return !(*this == s);
-}
-
-//-----------------------------------------------------------------------------
-ostream & operator << (ostream & out, const string & s) {
-    out << s._str;
-    return out;
-}
-
-//-----------------------------------------------------------------------------
-string operator + (const string & s1,
-                   const string & s2) {
-    return string (s1._str, s2._str);
 }
 
 } // namespace dagman
