@@ -423,8 +423,16 @@ int ReliSock::SndMsg::snd_packet(
 	return TRUE;
 }
 
+struct sockaddr_in * ReliSock::endpoint()
+{
+	int addr_len;
 
+	if (getpeername(_sock, (struct sockaddr *) &_who, &addr_len) < 0) 
+		return NULL;	// socket not connected
 
+	return &_who;
+}
+		
 int ReliSock::get_port()
 {
 	sockaddr_in	addr;
@@ -438,13 +446,13 @@ int ReliSock::get_port()
 }
 
 
-#if 0 // interface no longer supported
+
 int ReliSock::get_file_desc()
 {
 	return _sock;
 }
 
-
+#if 0 // interface no longer supported
 int ReliSock::attach_to_file_desc(
 	int		fd
 	)
