@@ -34,6 +34,7 @@ class KeyCacheEntry {
     KeyCacheEntry(
 			char * id,
 			struct sockaddr_in * addr,
+            const char * user, 
 			KeyInfo* key,
 			int expiration
 			);
@@ -46,6 +47,7 @@ class KeyCacheEntry {
     struct sockaddr_in *  addr();
     KeyInfo*              key();
     int                   expiration();
+    const char *          user();
 
  private:
 
@@ -55,6 +57,7 @@ class KeyCacheEntry {
     struct sockaddr_in * _addr;
     KeyInfo*             _key;
     int                  _expiration;
+    char *               _user;
 };
 
 
