@@ -2697,8 +2697,7 @@ int DaemonCore::HandleReq(int socki)
 				the_policy->InsertOrUpdate(buf);
 				
 				// handy policy vars
-				SecMan::sec_feat_act will_enable_encryption = sec_man->sec_lookup_feat_act(*the_policy, ATTR_SEC_ENCRYPTION);
-				SecMan::sec_feat_act will_enable_integrity  = sec_man->sec_lookup_feat_act(*the_policy, ATTR_SEC_INTEGRITY);
+				SecMan::sec_feat_act will_authenticate      = sec_man->sec_lookup_feat_act(*the_policy, ATTR_SEC_AUTHENTICATION);
 
 				if (sec_man->sec_lookup_feat_act(auth_info, ATTR_SEC_NEW_SESSION) == SecMan::SEC_FEAT_ACT_YES) {
 
@@ -2717,7 +2716,7 @@ int DaemonCore::HandleReq(int socki)
 					assert (the_sid == NULL);
 					the_sid = strdup(buf);
 
-					if ((will_enable_encryption == SecMan::SEC_FEAT_ACT_YES) || (will_enable_integrity == SecMan::SEC_FEAT_ACT_YES)) {
+					if (will_authenticate == SecMan::SEC_FEAT_ACT_YES) {
 
 						char *crypto_method = NULL;
 						if (!the_policy->LookupString(ATTR_SEC_CRYPTO_METHODS, &crypto_method)) {
