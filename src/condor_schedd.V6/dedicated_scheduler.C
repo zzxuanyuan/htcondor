@@ -1479,7 +1479,7 @@ DedicatedScheduler::reaper( int pid, int status )
 		case JOB_NOT_CKPTED:
 		case JOB_NOT_STARTED:
 			if (!srec->removed) {
-				shutdownMpiJob( srec );
+				shutdownMpiJob( srec, true );
 			}
 			break;
 		case JOB_SHADOW_USAGE:
@@ -2963,7 +2963,7 @@ DedicatedScheduler::removeAllocation( shadow_rec* srec )
 // This function is used to deactivate all the claims used by a
 // given shadow.
 void
-DedicatedScheduler::shutdownMpiJob( shadow_rec* srec )
+DedicatedScheduler::shutdownMpiJob( shadow_rec* srec, bool kill )
 {
 	AllocationNode* alloc;
 	MRecArray* matches;
@@ -2985,7 +2985,10 @@ DedicatedScheduler::shutdownMpiJob( shadow_rec* srec )
 		matches = (*alloc->matches)[i];
 		n = matches->getlast();
 		for( m=0 ; m <= n ; m++ ) {
+		  if (!kill)
 			deactivateClaim( (*matches)[m] );
+		  else
+			releaseClaim( (*matches)[m], true );
 		}
 	}
 }

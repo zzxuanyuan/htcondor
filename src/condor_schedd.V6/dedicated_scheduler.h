@@ -308,7 +308,7 @@ class DedicatedScheduler : public Service {
     int giveMPIMatches( Service*, int cmd, Stream* stream );
 
 		// Deactivate the claim on all resources used by this shadow
-	void shutdownMpiJob( shadow_rec* srec );
+	void shutdownMpiJob( shadow_rec* srec, bool kill = false );
 
 		/** Update internal data structures to remove the allocation  
 			associated with this shadow.
