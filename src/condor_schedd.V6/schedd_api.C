@@ -291,7 +291,12 @@ Job::get_file(MyString name,
               int length,
               unsigned char * &data)
 {
-	FILE * file = fopen((*spoolDirectory + "/" + name).GetCStr(), "r");
+#ifdef WIN32
+	char *mode = "rb";
+#else
+	char *mode = "r";
+#endif
+	FILE * file = fopen((*spoolDirectory + "/" + name).GetCStr(), mode);
 
 	if (file) {
 		if (fseek(file, offset, SEEK_SET)) {
