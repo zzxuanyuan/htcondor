@@ -20,9 +20,6 @@
 #include "startup.h"
 #include "pseudo_ops.h"
 
-#include "syscall_sysdep.h"
-// #include "syscall_64bit.h"
-
 #if defined(Solaris)
 extern "C" {
 	int flock( int, int );
