@@ -485,8 +485,8 @@ Daemon::sendCACmd( ClassAd* req, ClassAd* reply, bool force_auth,
 		newError( "Failed to send command (CA_CMD)" );
 		return false;
 	}
-	if( force_auth && !cmd_sock.isAuthenticated() ) {
-		if( ! cmd_sock.authenticate() ) {
+	if( force_auth ) {
+		if( ! forceAuthentication(&cmd_sock) ) {
 			newError( "Client: server failed to authenticate" );
 			return false;
 		}
@@ -1106,6 +1106,31 @@ Daemon::checkAddr( void )
 		return false;
 	}
 	return true;
+}
+
+
+bool
+Daemon::forceAuthentication( ReliSock* rsock )
+{
+	if( ! rsock ) {
+		return false;
+	}
+
+		// If we're already authenticated, return success...
+	if( rsock->isAuthenticated() ) {
+		return true;
+	}
+
+	char *p = SecMan::getSecSetting( "SEC_%s_AUTHENTICATION_METHODS",
+									 "CLIENT" ); 
+	MyString methods;
+	if( p ) {
+		methods = p;
+		free(p);
+	} else {
+		methods = SecMan::getDefaultAuthenticationMethods();
+	}
+	return rsock->authenticate( methods.Value() );
 }
 
 

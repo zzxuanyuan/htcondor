@@ -435,6 +435,13 @@ protected:
 		*/
 	bool checkAddr( void );
 
+		/**
+           Helper method for commands to see if we've already
+           authenticated this socket, and if not, to try to do so.
+		*/
+    bool forceAuthentication( ReliSock* rsock );
+
+
  private:
 
 		// I can't be copied (yet)
