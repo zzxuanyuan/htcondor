@@ -732,3 +732,15 @@ Resource::dprintf( int flags, char* fmt, ... )
 	this->dprintf( flags, fmt, args );
 	va_end( args );
 }
+
+
+int
+Resource::display_load()
+{
+	dprintf( D_LOAD, 
+			 "%s %.3f\t%s %.3f\t%s %.3f\n",  
+			 "SystemLoad:", condor_load() + owner_load(),
+			 "CondorLoad:", condor_load(),
+			 "OwnerLoad:", owner_load() );
+}
+

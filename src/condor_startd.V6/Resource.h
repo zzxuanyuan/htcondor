@@ -61,9 +61,12 @@ public:
 	void	compute( amask_t mask);
 	void	publish( ClassAd*, amask_t );
 
-		// Condor Load Average related methods
+		// Load Average related methods
 	float	condor_load() {return r_attr->condor_load();};
 	float	compute_condor_load() {return r_state->condor_load();};
+	float	owner_load() {return r_attr->owner_load();};
+	void	set_owner_load( float val) {r_attr->set_owner_load(val);};
+	int		display_load();
 
 		// dprintf() functions add the CPU id to the header of each
 		// message for SMP startds (single CPU machines get no special
