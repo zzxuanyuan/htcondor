@@ -111,11 +111,6 @@ public:
 		 */
 	void notifyJobPreSpawn( void );
 
-		/** Notify the shadow the given info about the job.
-			@param update_ad A ClassAd with updated info about the job
-		*/
-	bool updateJobInfo( ClassAd* update_ad );
-
 		/** Notify the shadow that the job exited
 			@param exit_status The exit status from wait()
 			@param reason The Condor-defined exit reason

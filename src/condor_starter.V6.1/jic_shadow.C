@@ -333,13 +333,6 @@ JICShadow::notifyJobPreSpawn( void )
 
 
 bool
-JICShadow::updateJobInfo( ClassAd* update_ad )
-{
-	return true;
-}
-
-
-bool
 JICShadow::notifyJobExit( int exit_status, int reason, UserProc*
 						  user_proc )
 {
