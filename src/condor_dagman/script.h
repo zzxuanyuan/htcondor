@@ -1,6 +1,8 @@
 #ifndef _SCRIPT_H_
 #define _SCRIPT_H_
 
+#include <string>
+
 namespace dagman {
 
 class Job;
@@ -8,27 +10,27 @@ class Job;
 class Script {
   public:
     /// True is this script is a POST script, false if a PRE script
-    bool _post;
+    bool m_post;
 
     /// Return value of the script
-    int  _retValScript;
+    int  m_retValScript;
 
     /// Return value of the job run.  Only valid of POST script
-    int  _retValJob;
+    int  m_retValJob;
 
     /// Has this script been logged?
-    bool   _logged;
+    bool   m_logged;
 
-    /** Runs the script and sets _retValScript.
-        @return returns _retValScript
+    /** Runs the script and sets m_retValScript.
+        @return returns m_retValScript
     */
     int Run ();
 
     ///
-    inline char * GetCmd () const { return _cmd; }
+    inline std::string GetCmd () const { return m_cmd; }
 
     ///
-    Script (bool post, char *cmd, Job * job);
+    Script (bool post, const std::string & cmd, Job * job);
 
     ///
     ~Script();
@@ -36,10 +38,10 @@ class Script {
   protected:
 
     ///
-    Job  * _job;
+    Job  * m_job;
 
     ///
-    char * _cmd;
+    std::string m_cmd;
 };
 
 } // namespace dagman

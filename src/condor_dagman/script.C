@@ -10,38 +10,39 @@ namespace dagman {
 
 //-----------------------------------------------------------------------------
 Script::~Script () {
-    delete [] _cmd;
-    // Don't delete the _job pointer!
+    // Don't delete the m_job pointer!
 }
 
 //-----------------------------------------------------------------------------
-Script::Script (bool post, char * cmd, Job * job) :
-    _post         (post),
-    _retValScript (-1),
-    _retValJob    (-1),
-    _logged       (false),
-    _job          (job)
+Script::Script (bool post, const std::string & cmd, Job * job) :
+    m_post         (post),
+    m_retValScript (-1),
+    m_retValJob    (-1),
+    m_logged       (false),
+    m_job          (job),
+    m_cmd          (cmd)
 {
-    _cmd = strnewp (cmd);
 }
 
 //-----------------------------------------------------------------------------
 int Script::Run () {
     const char *delimiters = " \t";
     char * token;
-    string send;
-    char * cmd = strnewp(_cmd);
+    std::string send;
+    char * cmd = strnewp(m_cmd.c_str());
+    debug_printf (DEBUG_DEBUG_3, "About to parse: %s\n", cmd);
     for (token = strtok (cmd,  delimiters) ; token != NULL ;
          token = strtok (NULL, delimiters)) {
-        if      (!strcasecmp(token, "$LOG"   )) send += _logged ? '1' : '0';
-        else if (!strcasecmp(token, "$JOB"   )) send += _job->GetJobName();
-        else if (!strcasecmp(token, "$RETURN")) send += _retValJob;
+        if      (!strcasecmp(token, "$LOG"   )) send += m_logged ? '1' : '0';
+        else if (!strcasecmp(token, "$JOB"   )) send += m_job->GetJobName();
+        else if (!strcasecmp(token, "$RETURN")) send += to_string(m_retValJob);
         else                                    send += token;
 
         send += ' ';
     }
     delete [] cmd;
-    return _retValScript = util_popen (send.str());
+    debug_printf (DEBUG_DEBUG_3, "Parsed: %s\n", send.c_str());
+    return m_retValScript = util_popen (send.c_str());
 }
 
 } // namespace dagman
