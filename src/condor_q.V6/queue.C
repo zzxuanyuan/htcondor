@@ -1488,12 +1488,10 @@ setupAnalysis()
 	
 
 	// setup condition expressions
-    sprintf( buffer, "MY.%s > MY.%s || MY.%s is undefined", ATTR_RANK,	// NAC
-			 ATTR_CURRENT_RANK, ATTR_CURRENT_RANK );					// NAC
+	sprintf( buffer, "( ( MY.%s is true ) ? 1 : ( MY.%s is false ) ? 0 : MY.%s ) > MY.%s", ATTR_RANK, ATTR_RANK, ATTR_RANK, ATTR_CURRENT_RANK);	// NAC
 	parser.ParseExpression( buffer, stdRankCondition );					// NAC
 	
-    sprintf( buffer, "MY.%s >= MY.%s || MY.%s is undefined", ATTR_RANK, // NAC
-			 ATTR_CURRENT_RANK, ATTR_CURRENT_RANK );					// NAC
+	sprintf( buffer, "( ( MY.%s is true ) ? 1 : ( MY.%s is false ) ? 0 : MY.%s ) >= MY.%s", ATTR_RANK, ATTR_RANK, ATTR_RANK, ATTR_CURRENT_RANK ); 	// NAC
 	parser.ParseExpression( buffer, preemptRankCondition );				// NAC
 
 	sprintf( buffer, "MY.%s > TARGET.%s + %f", ATTR_REMOTE_USER_PRIO, 
@@ -1719,9 +1717,10 @@ doRunAnalysisToBuffer( ClassAd *request )
 		request->SetParentScope( NULL );							// NAC
 
 		root = new ClassAd( );										// NAC
-		root->Insert( "TARGET", offer );							// NAC
-		root->Insert( "MY", request );
-
+		root->Insert( "MY", offer );							// NAC
+		root->Insert( "TARGET", request );
+		request->SetParentScope( root );
+		offer->SetParentScope( request );
 
 		// 3. Is there a remote user?
 		if( !offer->EvaluateAttrString( ATTR_REMOTE_USER, remoteUser, 128 ) ) {
