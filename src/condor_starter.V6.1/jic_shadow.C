@@ -624,6 +624,12 @@ JICShadow::publishStarterInfo( ClassAd* ad )
 		free( tmp );
 		free( tmp_val );
 	}
+
+	size = strlen(ATTR_HAS_RECONNECT) + 6;
+	tmp = (char*) malloc( size * sizeof(char) );
+	sprintf( tmp, "%s=TRUE", ATTR_HAS_RECONNECT );
+	ad->Insert( tmp );
+	free( tmp );
 }
 
 
