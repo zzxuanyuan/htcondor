@@ -3,7 +3,6 @@
 
 #include "log.h"
 #include "qmgmt.h"
-#include "condor_xdr.h"
 
 class PtrListEntry {
 public:

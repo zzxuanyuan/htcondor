@@ -1,8 +1,6 @@
 #if !defined(_LOG_H)
 #define _LOG_H
 
-#include "condor_xdr.h"
-
 /* This defines a base class for "logs" of operations.  These logs indicate
    operations which have been performed on a data structure (for example
    the job queue), and the log can be "replayed" to recreate the state of
