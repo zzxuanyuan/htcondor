@@ -741,7 +741,11 @@ DedicatedScheduler::negotiate( Stream* s, char* negotiator_name )
 
 	while( resource_requests->dequeue(req) >= 0 ) {
 
-		serviced_other_commands += daemonCore->ServiceCommandSocket();
+			// ServiceCommandSocket could service a condor_rm, which would
+			// trash the req we just dequeue'd, we'll not do this for now,
+			// losing some tool responsiveness in exchange for more robustness.
+
+		//serviced_other_commands += daemonCore->ServiceCommandSocket();
 #if 0
 			// TODO: All of this is different for these resource
 			// request ads.  We should try to handle rm or hold, but
@@ -2047,7 +2051,16 @@ DedicatedScheduler::sortResources( void )
 			limbo_resources->Append( res );
 			continue;
 		}
-		EXCEPT("DedicatedScheduler got unknown status for match");
+		if( mrec->status == M_CONNECTING ) {
+			// What to do ?
+			// Wait until done connecting?
+			continue;
+		}
+		if( mrec->status == M_UNCLAIMED ) {
+			// What to do ?
+			continue;
+		}
+		EXCEPT("DedicatedScheduler got unknown status for match: %d", mrec->status);
 	}
 	if( DebugFlags & D_FULLDEBUG ) {
 		dprintf(D_FULLDEBUG, "idle resource list\n");
@@ -3285,6 +3298,33 @@ DedicatedScheduler::requestResources( void )
 	return true;
 }
 
+void 
+DedicatedScheduler::unrequestResources( PROC_ID job_id ) {
+
+	if (resource_requests == NULL) {
+		return;
+	}
+
+	int length = resource_requests->Length();
+
+	for( int i = 0; i < length; i++) {
+		ClassAd *ad;
+		int cluster, proc;
+
+		resource_requests->dequeue(ad);
+		ad->LookupInteger(ATTR_CLUSTER_ID, cluster);
+		ad->LookupInteger(ATTR_PROC_ID, proc);
+		
+		if( (cluster == job_id.cluster) && (proc == job_id.proc)) {
+				// I'd _like_ to delete the ad, but can I?
+				// The shared bits are about to be blown away?
+				delete(ad);
+		} else {
+				// This ad is OK, stick it back on the end of the queue
+			resource_requests->enqueue(ad);
+		}
+	}
+}
 
 bool
 DedicatedScheduler::preemptResources() {

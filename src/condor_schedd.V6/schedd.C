@@ -1544,9 +1544,12 @@ abort_job_myself( PROC_ID job_id, JobAction action, bool log_hold,
 		if( !scheduler.WriteAbortToUserLog(job_id) ) {
 			dprintf( D_ALWAYS,"Failed to write abort event to the user log\n" );
 		}
+		dedicated_scheduler.unrequestResources(job_id);
 		DestroyProc( job_id.cluster, job_id.proc );
+
 	}
 	if( mode == HELD ) {
+		dedicated_scheduler.unrequestResources(job_id);
 		if( log_hold && !scheduler.WriteHoldToUserLog(job_id) ) {
 			dprintf( D_ALWAYS, 
 					 "Failed to write hold event to the user log\n" ); 
@@ -3221,7 +3224,7 @@ Scheduler::actOnJobs(int, Stream* s)
 	case JA_VACATE_FAST_JOBS:
 		 for( i=0; i<num_matches; i++ ) {
  			if( i % 10 == 0 ) {
- 				daemonCore->ServiceCommandSocket();
+				daemonCore->ServiceCommandSocket();
  			}
  			abort_job_myself( jobs[i], action, true, notify );
 		}
@@ -7770,7 +7773,7 @@ Scheduler::Init()
 		// its own.)  
 		// Only put in in the env if it is not already there, so 
 		// we don't leak memory without reason.		
-	if ( NameInEnv == NULL || strcmp(NameInEnv,Name) ) {
+	if ( NameInEnv == NULL || strcmp(&NameInEnv[12],Name) ) {
 		NameInEnv = (char *)malloc(strlen("SCHEDD_NAME=")+strlen(Name)+1);
 		sprintf(NameInEnv, "SCHEDD_NAME=%s", Name);
 		if (putenv(NameInEnv) < 0) {

@@ -241,6 +241,9 @@ class DedicatedScheduler : public Service {
 		*/
 	void clearResourceRequests( void );
  
+		// If we remove a job, also remove pending requests
+	void unrequestResources( PROC_ID );
+
 		// Set the correct value of ATTR_SCHEDULER in the queue for
 		// the given job ad.
 	bool setScheduler( ClassAd* job_ad );
@@ -288,6 +291,7 @@ class DedicatedScheduler : public Service {
 		// Do through our list of pending resource requests, and
 		// publish a ClassAd to the CM to ask for them.
 	bool requestResources( void );
+
 
 		// Go through the list of pending preemption, and
 		// call deactivateClaim on each of them
