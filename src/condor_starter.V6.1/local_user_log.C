@@ -82,8 +82,10 @@ LocalUserLog::initFromJobAd( ClassAd* ad )
 {
     char tmp[_POSIX_PATH_MAX], logfilename[_POSIX_PATH_MAX];
 	int use_xml = FALSE;
-	int cluster = 1, proc = 0, subproc = 0;
 	const char* iwd = jic->jobIWD();
+	int cluster = jic->jobCluster();
+	int proc = jic->jobProc();
+	int subproc = jic->jobSubproc();
 
     if( ! ad->LookupString(ATTR_STARTER_ULOG_FILE, tmp) ) {
         dprintf( D_FULLDEBUG, "No %s found in job ClassAd\n",
@@ -108,9 +110,6 @@ LocalUserLog::initFromJobAd( ClassAd* ad )
 	}
 
 	ad->LookupBool( ATTR_STARTER_ULOG_USE_XML, use_xml );
-
-	ad->LookupInteger( ATTR_CLUSTER_ID, cluster );
-	ad->LookupInteger( ATTR_PROC_ID, proc );
 
 	return init( logfilename, (bool)use_xml, cluster, proc, subproc );
 }
