@@ -135,12 +135,19 @@ CollectorList::CollectorList() {
 CollectorList::~CollectorList() {
 }
 
+
 CollectorList *
-CollectorList::create() {
+CollectorList::create(const char * pool) {
 
 	CollectorList * result = new CollectorList();
 	DCCollector * collector = NULL;
 
+	if (pool) {
+			// Eventually we might want to query this collector
+			// for all the other collectors in the pool....
+		result->append (new DCCollector (pool));
+		return result;
+	}
 
 		// Read the new names from config file
 	StringList collector_name_list;
@@ -167,6 +174,7 @@ CollectorList::create() {
 
 	return result;
 }
+
 
 /***
  * 

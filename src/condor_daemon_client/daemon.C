@@ -746,7 +746,8 @@ Daemon::locate( void )
 		rval = getCmInfo( "COLLECTOR" );
 		break;
 	case DT_NEGOTIATOR:
-		rval = getCmInfo( "NEGOTIATOR" );
+		rval = getDaemonInfo ( "NEGOTIATOR", NEGOTIATOR_AD );
+			//rval = getCmInfo( "NEGOTIATOR" );
 		break;
 	case DT_CREDD:
 	  rval = getDaemonInfo( "CREDD", ANY_AD, false );
@@ -873,9 +874,11 @@ Daemon::getDaemonInfo( const char* subsys, AdTypes adtype, bool query_collector)
 			}
 			delete [] my_name;
 		}
-	} else {
+	} else if ( _type != DT_NEGOTIATOR ) {
 			// We were passed neither a name nor an address, so use
-			// the local daemon.
+			// the local daemon, unless we're NEGOTIATOR, in which case
+			// we'll still query the collector even if we don't have the 
+            // name
 		_is_local = true;
 		New_name( localName() );
 		New_full_hostname( strnewp(my_full_hostname()) );
@@ -914,14 +917,25 @@ Daemon::getDaemonInfo( const char* subsys, AdTypes adtype, bool query_collector)
 				  place.  -Derek Wright 8/19/99 
 				*/
 			sprintf(buf, "%s == \"%s\"", ATTR_MACHINE, _full_hostname ); 
-		} else {
+			query.addANDConstraint(buf);
+		} else if ( _name ) {
 			sprintf(buf, "%s == \"%s\"", ATTR_NAME, _name ); 
+			query.addANDConstraint(buf);
+		} else {
+			if ( _type != DT_NEGOTIATOR ) {
+					// If we're not querying for negotiator
+					//    (which there's only one of)
+					// and we don't have the name
+					// then how will we possibly know which 
+					// result to pick??
+				return false;
+			}
 		}
-		query.addANDConstraint(buf);
+
 
 			// We need to query the collector
 
-		CollectorList * collectors = CollectorList::create();
+		CollectorList * collectors = CollectorList::create(_pool);
 		CondorError errstack;
 		if (collectors->query (query, ads) != Q_OK) {
 			delete collectors;

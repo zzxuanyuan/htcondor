@@ -34,6 +34,7 @@
 #include "daemon_types.h"
 #include "dc_collector.h"
 #include "condor_string.h"  // for strlwr() and friends
+#include "get_daemon_name.h"
 
 // the comparison function must be declared before the declaration of the
 // matchmaker class in order to preserve its static-ness.  (otherwise, it
@@ -52,10 +53,13 @@ typedef int (*lessThanFunc)(AttrList*, AttrList*, void*);
 
 static bool want_simple_matching = false;
 
+
 Matchmaker::
 Matchmaker ()
 {
 	char buf[64];
+
+	NegotiatorName = NULL;
 
 	AccountantHost  = NULL;
 	PreemptionReq = NULL;
@@ -87,6 +91,12 @@ Matchmaker ()
 	ConsiderPreemption = true;
 
 	completedLastCycleTime = (time_t) 0;
+
+	publicAd = NULL;
+
+	update_collector_tid = -1;
+
+	update_interval = 5*MINUTE; 
 }
 
 
@@ -109,6 +119,9 @@ Matchmaker::
 	}
 	if ( cachedName ) free(cachedName);
 	if ( cachedAddr ) free(cachedAddr);
+
+	if (NegotiatorName) free (NegotiatorName);
+	if (publicAd) delete publicAd;
 }
 
 
@@ -154,6 +167,14 @@ initialize ()
 			(TimerHandlercpp) &Matchmaker::negotiationTime, 
 			"Time to negotiate", this);
 
+	update_collector_tid = daemonCore->Register_Timer (
+			0, 
+			update_interval,
+			(TimerHandlercpp) &Matchmaker::updateCollector,
+			"Update Collector",
+			this );
+														   
+
 }
 
 int Matchmaker::
@@ -164,9 +185,11 @@ reinitialize ()
     // Initialize accountant params
     accountant.Initialize();
 
+	init_public_ad();
+
 	// get timeout values
 
-	tmp = param("NEGOTIATOR_INTERVAL");
+ 	tmp = param("NEGOTIATOR_INTERVAL");
 	if( tmp ) {
 		NegotiatorInterval = atoi(tmp);
 		free( tmp );
@@ -250,6 +273,12 @@ reinitialize ()
 	dprintf (D_ALWAYS,"NEGOTIATOR_POST_JOB_RANK = %s\n", (tmp?tmp:"None"));
 
 	if( tmp ) free( tmp );
+
+
+		// how often we update the collector, fool
+ 	update_interval = param_integer ("NEGOTIATOR_UPDATE_INTERVAL", 
+									 5*MINUTE);
+
 
 #ifdef WANT_NETMAN
 	netman.Config();
@@ -2303,4 +2332,61 @@ sort()
 	// Note: since we must use static members, sort() is
 	// _NOT_ thread safe!!!
 	qsort(AdListArray,adListLen,sizeof(AdListEntry),sort_compare);
+}
+
+
+void Matchmaker::
+init_public_ad()
+{
+	static MyString line;
+
+	if( publicAd ) delete( publicAd );
+	publicAd = new ClassAd();
+
+	publicAd->SetMyTypeName(NEGOTIATOR_ADTYPE);
+	publicAd->SetTargetTypeName("");
+
+	line.sprintf ("%s = \"%s\"", ATTR_MACHINE, my_full_hostname());
+	publicAd->Insert(line.Value());
+
+	char* defaultName = NULL;
+	if( NegotiatorName ) {
+		line.sprintf("%s = \"%s\"", ATTR_NAME, NegotiatorName );
+	} else {
+		defaultName = default_daemon_name();
+		if( ! defaultName ) {
+			EXCEPT( "default_daemon_name() returned NULL" );
+		}
+		line.sprintf("%s = \"%s\"", ATTR_NAME, defaultName );
+		delete [] defaultName;
+	}
+	publicAd->Insert(line.Value());
+
+	line.sprintf ("%s = \"%s\"", ATTR_NEGOTIATOR_IP_ADDR,
+			daemonCore->InfoCommandSinfulString() );
+	publicAd->Insert(line.Value());
+
+#if !defined(WIN32)
+	line.sprintf("%s = %d", ATTR_REAL_UID, (int)getuid() );
+	publicAd->Insert(line.Value());
+#endif
+
+		// In case MASTER_EXPRS is set, fill in our ClassAd with those
+		// expressions. 
+	config_fill_ad( publicAd ); 	
+}
+
+void
+Matchmaker::updateCollector() {
+	dprintf(D_FULLDEBUG, "enter Matchmaker::updateCollector\n");
+
+   
+	if (Collectors && publicAd) {
+		Collectors->sendUpdates (UPDATE_NEGOTIATOR_AD, publicAd);
+	}
+
+			// Reset the timer so we don't do another period update until 
+	daemonCore->Reset_Timer( update_collector_tid, update_interval, update_interval );
+
+	dprintf( D_FULLDEBUG, "exit Matchmaker::UpdateCollector\n" );
 }

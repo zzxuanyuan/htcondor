@@ -72,8 +72,18 @@ class Matchmaker : public Service
 		enum PreemptState {PRIO_PREEMPTION,RANK_PREEMPTION,NO_PREEMPTION};
 
 
-	private:
+    protected:
+		char * NegotiatorName;
+		int update_interval;
+		
 
+	private:
+		ClassAd * publicAd;
+		void init_public_ad();
+
+
+		int update_collector_tid;
+		void updateCollector();
 
 		// auxillary functions
 		bool obtainAdsFromCollector (ClassAdList&, ClassAdList&, ClassAdList&, ClassAdList& );	
