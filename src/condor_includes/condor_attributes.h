@@ -135,6 +135,7 @@ const char ATTR_HAS_JAVA                 [] = "HasJava";
 const char ATTR_HAS_JIC_LOCAL_CONFIG     [] = "HasJICLocalConfig";
 const char ATTR_HAS_JIC_LOCAL_STDIN      [] = "HasJICLocalStdin";
 const char ATTR_HAS_JOB_AD               [] = "HasJobAd";
+const char ATTR_HAS_JOB_AD_FROM_FILE     [] = "HasJobAdFromFile";
 const char ATTR_HAS_MPI                  [] = "HasMPI";
 const char ATTR_HAS_OLD_VANILLA          [] = "HasOldVanilla";
 const char ATTR_HAS_PVM                  [] = "HasPVM";
