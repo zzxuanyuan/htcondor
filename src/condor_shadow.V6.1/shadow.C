@@ -485,7 +485,7 @@ UniShadow::logReconnectFailedEvent( const char* reason )
 	if( ! dc_startd ) {
 		EXCEPT( "impossible: remRes::getDCStartd() returned NULL" );
 	}
-	event.setStartdAddr( dc_startd->addr() );
+	event.setStartdName( dc_startd->name() );
 
 	if( !uLog.writeEvent(&event) ) {
 		dprintf( D_ALWAYS, "Unable to log ULOG_JOB_RECONNECT_FAILED event\n" );
