@@ -365,6 +365,9 @@ public:
 	*/
 	bool Remove_Entire_Directory( void );
 
+
+#ifndef WIN32
+
 	/** Recursively change ownership of this directory and kids
 
 	Implemented in terms of recursive_chown, see that for most
@@ -398,7 +401,6 @@ public:
 	bool Recursive_Chown(uid_t src_uid, uid_t dst_uid, gid_t dst_gid,
 		bool non_root_okay = true);
 
-#ifndef WIN32
 
 		/** Recursively walk through the directory tree and chmod()
 			any real directories (ignoring symlinks) to the given
@@ -410,6 +412,7 @@ public:
 	bool chmodDirectories( mode_t mode );
 
 #endif /* ! WIN32 */
+
 
 private:
 	char *curr_dir;
@@ -464,6 +467,7 @@ char* dircat( const char* dirpath, const char* filename );
 */
 char* temp_dir_path();
 
+#if ! defined(WIN32)
 /** Recursively change ownership of a file or directory tree
 
 Changes ownership of path to the UID dst_uid, and GID dst_gid
@@ -495,6 +499,7 @@ bool recursive_chown(const char * path,
 	uid_t src_uid, uid_t dst_uid, gid_t dst_gid, bool
 	non_root_okay = true);
 
+#endif /* ! defined(WIN32) */
 
 
 char * create_temp_file();

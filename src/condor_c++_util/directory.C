@@ -432,6 +432,7 @@ Directory::Remove_Entire_Directory( void )
 	return_and_resetpriv(ret_value);
 }
 
+#if ! defined(WIN32)
 bool
 Directory::Recursive_Chown(uid_t src_uid, uid_t dst_uid, gid_t dst_gid,
 		bool non_root_okay /*= true*/)
@@ -439,6 +440,8 @@ Directory::Recursive_Chown(uid_t src_uid, uid_t dst_uid, gid_t dst_gid,
 	return recursive_chown(GetDirectoryPath(),
 		src_uid, dst_uid, dst_gid, non_root_okay);
 }
+#endif /* ! defined(WIN32) */
+
 
 bool 
 Directory::Remove_Entry( const char* name )
@@ -1173,6 +1176,7 @@ create_temp_file() {
 
 
 
+#if ! defined(WIN32)
 
 static bool recursive_chown_impl(const char * path, 
 	uid_t src_uid, uid_t dst_uid, gid_t dst_gid);
@@ -1294,3 +1298,4 @@ bool recursive_chown(const char * path,
 	return ret;
 }
 
+#endif /* ! defined(WIN32) */
