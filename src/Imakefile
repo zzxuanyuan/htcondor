@@ -76,13 +76,11 @@
 	strip_contrib/sbin strip_contrib/etc \
 	strip_contrib/etc/examples StaticDirectories
 
-all: h h_all condor_includes makefiles Directories Libraries \
-	Programs examples condor_release_all
+all: libs classad.V6
 release:: all
 stripped:: all
 static:: all
-libs:: h h_all condor_includes makefiles Directories Libraries
-
+libs:: h h_all condor_includes makefiles Directories util_lib c++_util io
 public:: strip.tar 
 
 strip.tar: stripped
