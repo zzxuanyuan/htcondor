@@ -864,7 +864,7 @@ choose_action:
 			retval = true;
 		}
 	}
-	
+
 	if (authentication_action == AUTH_YES) {
 
 		assert (sock->type() == Stream::reli_sock);
@@ -915,11 +915,12 @@ choose_action:
 
 				assert (key_ptr == key_id);
 
+                const char * user = ((ReliSock*)sock)->getFullyQualifiedUser();
 				// cache the key
-				KeyCacheEntry nkey( key_id, sock->endpoint(), ki, 0);
+				KeyCacheEntry nkey( key_id, sock->endpoint(), user ,ki, 0);
 				enc_key_cache->insert(sin_to_string(sock->endpoint()), nkey);
 
-				dprintf (D_SECURITY, "STARTCOMMAND: crypto key id %s added to cache.\n", key_id);
+				dprintf (D_SECURITY, "STARTCOMMAND: crypto key id %s added to cache for user %s.\n", key_id, user ? user : "unknown user");
 #ifdef SECURITY_HACK_ENABLE
 				zz1printf(nkey.key());
 #endif
@@ -930,11 +931,27 @@ choose_action:
 			// clean up
 			delete ki;
 		}
+
 	} else if (authentication_action == AUTH_NO) {
 		dprintf ( D_SECURITY, "STARTCOMMAND: not authenticating (AUTH_NO).\n");
 		retval = true;
 	}
-
+/*
+    if (is_tcp && retval) {     
+        // only if authentication was successful (or noauthentication)
+        int perm;
+        sock->decode();
+        // now, check for permission
+        if (!sock->code(perm) || !sock->end_of_message()) {
+            retval = false;
+        }
+        
+        // This is just for now.
+        if (perm != USER_AUTH_SUCCESS) {
+            retval = false;
+        }
+    }
+*/
 	if (retval) {
 		dprintf ( D_SECURITY, "STARTCOMMAND: setting sock->encode()\n");
 		dprintf ( D_SECURITY, "STARTCOMMAND: Success.\n");
