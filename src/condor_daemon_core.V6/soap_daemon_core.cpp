@@ -4,7 +4,7 @@
 int
 condor__getPlatformString(struct soap *soap,
 						  void *,
-						  struct condor__StringAndStatusResponse &result)
+						  struct condor__getPlatformStringResponse &result)
 {
 	result.response.message = CondorPlatform();
 	result.response.status.code = SUCCESS;
@@ -14,7 +14,7 @@ condor__getPlatformString(struct soap *soap,
 int
 condor__getVersionString(struct soap *soap,
 						 void *,
-						 struct condor__StringAndStatusResponse &result)
+						 struct condor__getVersionStringResponse &result)
 {
 	result.response.message = CondorVersion();
 	result.response.status.code = SUCCESS;
@@ -24,7 +24,7 @@ condor__getVersionString(struct soap *soap,
 int
 condor__getInfoAd(struct soap *soap,
 				  void *,
-				  struct condor__ClassAdStructAndStatusResponse & result)
+				  struct condor__getInfoAdResponse & result)
 {
 	char* todd = "Todd A Tannenbaum";
 

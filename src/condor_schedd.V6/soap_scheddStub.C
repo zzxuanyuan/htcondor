@@ -37,6 +37,7 @@
 
 #include "loose_file_transfer.h"
 
+#include "soap_scheddStub.h"
 #include "condorSchedd.nsmap"
 
 #include "schedd_api.h"
@@ -162,7 +163,7 @@ extendTransaction(const struct condor__Transaction & transaction)
 int
 condor__transtimeout()
 {
-  struct condor__StatusResponse result;
+  struct condor__abortTransactionResponse result;
 
   dprintf(D_ALWAYS,"SOAP in condor__transtimeout()\n");
 
@@ -175,16 +176,16 @@ condor__transtimeout()
 int
 condor__beginTransaction(struct soap *s,
                                int duration,
-                               struct condor__TransactionAndStatusResponse & result)
+                               struct condor__beginTransactionResponse & result)
 {
   if ( current_trans_id ) {
     // if there is an existing transaction, abort it.
     // TODO - support more than one active transaction!!!
-    struct condor__StatusResponse result;
+    struct condor__abortTransactionResponse response;
     struct condor__Transaction transaction;
     transaction.id = current_trans_id;
     // XXX: handle errors
-    condor__abortTransaction(s, transaction, result);
+    condor__abortTransaction(s, transaction, response);
   }
   if ( duration < 1 ) {
     duration = 1;
@@ -212,7 +213,7 @@ condor__beginTransaction(struct soap *s,
 int
 condor__commitTransaction(struct soap *s,
                                 struct condor__Transaction transaction,
-                                struct condor__StatusResponse & result )
+                                struct condor__commitTransactionResponse & result )
 {
   if (!valid_transaction(transaction) ||
       null_transaction(transaction)) {
@@ -239,7 +240,7 @@ condor__commitTransaction(struct soap *s,
 int
 condor__abortTransaction(struct soap *s,
                                struct condor__Transaction transaction,
-                               struct condor__StatusResponse & result )
+                               struct condor__abortTransactionResponse & result )
 {
   if (transaction.id && transaction.id == current_trans_id) {
     AbortTransactionAndRecomputeClusters();
@@ -275,7 +276,7 @@ int
 condor__extendTransaction(struct soap *s,
                                 struct condor__Transaction transaction,
                                 int duration,
-                                struct condor__TransactionAndStatusResponse & result )
+                                struct condor__extendTransactionResponse & result )
 {
   if (!valid_transaction(transaction) ||
       null_transaction(transaction)) {
@@ -300,7 +301,7 @@ condor__extendTransaction(struct soap *s,
 int
 condor__newCluster(struct soap *s,
                          struct condor__Transaction transaction,
-                         struct condor__IntAndStatusResponse & result)
+                         struct condor__newClusterResponse & result)
 {
   if (!valid_transaction(transaction) ||
       null_transaction(transaction)) {
@@ -328,7 +329,7 @@ condor__removeCluster(struct soap *s,
                             struct condor__Transaction transaction,
                             int clusterId,
                             char* reason,
-                            struct condor__StatusResponse & result)
+                            struct condor__removeClusterResponse & result)
 {
     if ( !valid_transaction(transaction) &&
          !null_transaction(transaction) ) {
@@ -359,7 +360,7 @@ int
 condor__newJob(struct soap *s,
                      struct condor__Transaction transaction,
                      int clusterId,
-                     struct condor__IntAndStatusResponse & result)
+                     struct condor__newJobResponse & result)
 {
   if (!valid_transaction(transaction) ||
       null_transaction(transaction)) {
@@ -395,7 +396,7 @@ condor__removeJob(struct soap *s,
                         int jobId,
                         char* reason,
                         bool force_removal,
-                        struct condor__StatusResponse & result)
+                        struct condor__removeJobResponse & result)
 {
   // TODO --- do something w/ force_removal flag; it is ignored for now.
 
@@ -431,7 +432,7 @@ condor__holdJob(struct soap *s,
                       bool email_user,
                       bool email_admin,
                       bool system_hold,
-                      struct condor__StatusResponse & result)
+                      struct condor__holdJobResponse & result)
 {
   result.response.code = SUCCESS;
   if (!valid_transaction(transaction) &&
@@ -463,7 +464,7 @@ condor__releaseJob(struct soap *s,
                          char* reason,
                          bool email_user,
                          bool email_admin,
-                         struct condor__StatusResponse & result)
+                         struct condor__releaseJobResponse & result)
 {
   if (!valid_transaction(transaction) &&
       !null_transaction(transaction)) {
@@ -492,7 +493,7 @@ condor__submit(struct soap *s,
                      int clusterId,
                      int jobId,
                      struct ClassAdStruct * jobAd,
-                     struct condor__RequirementsAndStatusResponse & result)
+                     struct condor__submitResponse & result)
 {
   if (!valid_transaction(transaction) ||
       null_transaction(transaction)) {
@@ -527,7 +528,7 @@ int
 condor__getJobAds(struct soap *s,
                         struct condor__Transaction transaction,
                         char *constraint,
-                        struct condor__ClassAdStructArrayAndStatusResponse & result )
+                        struct condor__getJobAdsResponse & result )
 {
   dprintf(D_ALWAYS,"SOAP entering condor__getJobAds() \n");
 
@@ -564,7 +565,7 @@ condor__getJobAd(struct soap *s,
                        struct condor__Transaction transaction,
                        int clusterId,
                        int jobId,
-                       struct condor__ClassAdStructAndStatusResponse & result )
+                       struct condor__getJobAdResponse & result )
 {
   // TODO : deal with transaction consistency; currently, job ad is
   // invisible until a commit.  not very ACID compliant, is it? :(
@@ -600,7 +601,7 @@ condor__declareFile(struct soap *soap,
                           int size,
                           enum condor__HashType hashType,
                           char * hash,
-                          struct condor__StatusResponse & result)
+                          struct condor__declareFileResponse & result)
 {
   dprintf(D_ALWAYS,"SOAP entering condor__declareFile() \n");
 
@@ -634,7 +635,7 @@ condor__sendFile(struct soap *soap,
                        char * filename,
                        int offset,
                        struct xsd__base64Binary *data,
-                       struct condor__StatusResponse & result)
+                       struct condor__sendFileResponse & result)
 {
   dprintf(D_ALWAYS,"SOAP entering condor__sendFile() \n");
 
@@ -670,7 +671,7 @@ int condor__getFile(struct soap *soap,
                           char * name,
                           int offset,
                           int length,
-                          struct condor__Base64DataAndStatusResponse & result)
+                          struct condor__getFileResponse & result)
 {
   dprintf(D_ALWAYS,"SOAP entering condor__getFile() \n");
 
@@ -708,7 +709,7 @@ int condor__closeSpool(struct soap *soap,
                              struct condor__Transaction transaction,
                              xsd__int clusterId,
                              xsd__int jobId,
-                             struct condor__StatusResponse & result)
+                             struct condor__closeSpoolResponse & result)
 {
   dprintf(D_ALWAYS,"SOAP entering condor__closeSpool() \n");
 
@@ -734,7 +735,7 @@ condor__listSpool(struct soap * soap,
                         struct condor__Transaction transaction,
                         int clusterId,
                         int jobId,
-                        struct condor__FileInfoArrayAndStatusResponse & result)
+                        struct condor__listSpoolResponse & result)
 {
 	dprintf(D_ALWAYS,"SOAP entering condor__listSpool() \n");
 
@@ -773,7 +774,7 @@ condor__listSpool(struct soap * soap,
 int
 condor__discoverJobRequirements(struct soap *soap,
                                       struct ClassAdStruct * jobAd,
-                                      struct condor__RequirementsAndStatusResponse & result)
+                                      struct condor__discoverJobRequirementsResponse & result)
 {
   LooseFileTransfer fileTransfer;
 
@@ -804,14 +805,6 @@ condor__discoverJobRequirements(struct soap *soap,
 }
 
 int
-condor__discoverDagRequirements(struct soap *soap,
-                                      char *dag,
-                                      struct condor__RequirementsAndStatusResponse & result)
-{
-  return SOAP_FAULT;
-}
-
-int
 condor__createJobTemplate(struct soap *soap,
                                 int clusterId,
                                 int jobId,
@@ -820,7 +813,7 @@ condor__createJobTemplate(struct soap *soap,
                                 char * cmd,
                                 char * args,
                                 char * requirements,
-                                struct condor__ClassAdStructAndStatusResponse & result)
+                                struct condor__createJobTemplateResponse & result)
 {
   MyString attribute;
 

@@ -71,24 +71,3 @@ struct condor__FileInfoArrayAndStatus
   struct condor__Status status 1:1;
   struct FileInfoArray info 0:1;
 };
-
-struct condor__TransactionAndStatusResponse {
-  struct condor__TransactionAndStatus response;
-};
-
-struct condor__IntAndStatusResponse {
-  struct condor__IntAndStatus response;
-};
-
-struct condor__RequirementsAndStatusResponse {
-  struct condor__RequirementsAndStatus response;
-};
-
-struct condor__Base64DataAndStatusResponse {
-  struct condor__Base64DataAndStatus response;
-};
-
-struct condor__FileInfoArrayAndStatusResponse {
-  struct condor__FileInfoArrayAndStatus response;
-};
-

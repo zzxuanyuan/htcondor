@@ -97,20 +97,3 @@ struct condor__StringAndStatus
   struct condor__Status status 1:1;
   xsd__string message 0:1;
 };
-
-struct condor__StringAndStatusResponse {
-  struct condor__StringAndStatus response;
-};
-
-struct condor__ClassAdStructAndStatusResponse {
-  struct condor__ClassAdStructAndStatus response;
-};
-
-struct condor__ClassAdStructArrayAndStatusResponse {
-  struct condor__ClassAdStructArrayAndStatus response;
-};
-
-struct condor__StatusResponse {
-  struct condor__Status response;
-};
-
