@@ -46,7 +46,7 @@ ToolDaemonProc::ToolDaemonProc( ClassAd *jobAd, int application_pid )
     dprintf( D_FULLDEBUG, "In ToolDaemonProc::ToolDaemonProc()\n" );
 	family = NULL;
     JobAd = jobAd;
-    JobPid = Cluster = Proc = -1;
+    JobPid = -1;
 	exit_status = -1;
 	requested_exit = false;
     job_suspended = false;
@@ -83,18 +83,6 @@ ToolDaemonProc::StartJob()
         dprintf( D_ALWAYS, "No JobAd in ToolDaemonProc::StartJob()!\n" );
 		return 0;
     }
-
-    if( JobAd->LookupInteger(ATTR_CLUSTER_ID, Cluster) != 1 ) {
-        dprintf( D_ALWAYS, "%s not found in JobAd.  "
-				 "Aborting StartJob.\n",  ATTR_CLUSTER_ID );
-		return 0;
-    }
-
-	if (JobAd->LookupInteger(ATTR_PROC_ID, Proc) != 1) {
-		dprintf(D_ALWAYS, "%s not found in JobAd.  Aborting StartJob.\n", 
-				ATTR_PROC_ID);
-		return 0;
-	}
 
 	char DaemonNameTemp [_POSIX_PATH_MAX];
 	char DaemonName	[_POSIX_PATH_MAX];
