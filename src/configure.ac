@@ -70,9 +70,16 @@ fi
 
 AC_LANG(C)
 AC_PROG_CC
+if test $ac_cv_c_compiler_gnu != yes; then
+   AC_MSG_ERROR( [GNU CC (gcc) is required] )
+fi   
 
 AC_LANG(C++)
 AC_PROG_CXX
+if test $ac_cv_cxx_compiler_gnu != yes; then
+   AC_MSG_ERROR( [GNU C++ (g++) is required] )
+fi   
+
 
 # Condor only requires 5.002, but GPT apparently relies on 5.005_03 or
 # greater.  Unfortunately, GPT doesn't have a configure script or
