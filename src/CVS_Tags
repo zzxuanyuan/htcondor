@@ -1,6 +1,13 @@
+09/15/03 V6_7-tdp-post-merge-V6_5-tdp-2 
+   The state of the V6_7-tdp-branch after the V6_5-tdp-2-branch was
+   merged in and merge conflicts resolved.  However, this branch still
+   doens't build yet, since COD and gridshell changes need to be
+   reconciled with TDP.  However, i wanted to add the tag, so we know
+   the difference between the old TDP changes and the new. (Derek)
+
 09/15/03 V6_5-tdp-2-merge-1 
-    The state of the V6_5-tdp-2-branch when it was merged into a new
-    V6_7-tdp-branch and abandoned.
+   The state of the V6_5-tdp-2-branch when it was merged into a new
+   V6_7-tdp-branch and abandoned.
 
 9/12/03 V6_7-tdp-branch
    A new branch off V6_7-branch for continued work on the TDP (Tool
