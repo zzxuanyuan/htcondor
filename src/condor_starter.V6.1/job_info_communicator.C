@@ -46,7 +46,7 @@ JobInfoCommunicator::~JobInfoCommunicator()
 		delete job_ad;
 	}
 	if( orig_job_name ) {
-		free( origjob_name );
+		free( orig_job_name );
 	}
 	if( job_input_name ) {
 		free( job_input_name);
