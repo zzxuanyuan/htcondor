@@ -57,11 +57,14 @@ class Dag {
         @param lockFileName the name of the lock file
         @param maxJobsSubmitted the maximum number of jobs to submit to Condor
                at one time
-        @param maxScriptsRunning the maximum number of scripts to spawn at one
-               time
+        @param maxPreScripts the maximum number of PRE scripts to spawn at
+		       one time
+        @param maxPostScripts the maximum number of POST scripts to spawn at
+		       one time
     */
     Dag (const char *condorLog, const char *lockFileName,
-         const int maxJobsSubmitted, const int maxScriptsRunning );
+         const int maxJobsSubmitted, const int maxPreScripts,
+		 const int maxPostScripts );
 
     ///
     ~Dag();
@@ -138,10 +141,20 @@ class Dag {
      */
     inline int NumJobsReady() const { return _readyQ->Number(); }
 
-    /** @return the number of PRE/POST scripts currently running
+    /** @return the number of PRE scripts currently running
+     */
+    inline int NumPreScriptsRunning() const
+		{ return _preScriptQ->NumScriptsRunning(); }
+
+    /** @return the number of POST scripts currently running
+     */
+    inline int NumPostScriptsRunning() const
+		{ return _postScriptQ->NumScriptsRunning(); }
+
+    /** @return the total number of PRE/POST scripts currently running
      */
     inline int NumScriptsRunning() const
-		{ return _scriptQ->NumScriptsRunning(); }
+		{ return NumPreScriptsRunning() + NumPostScriptsRunning(); }
 
 	inline bool Done() const { return NumJobsDone() == NumJobs(); }
 
@@ -167,7 +180,8 @@ class Dag {
 	void PrintReadyQ( debug_level_t level ) const;
 
 	// max number of PRE & POST scripts to run at once (0 means no limit)
-    int _maxScriptsRunning;
+    int _maxPreScripts;
+    int _maxPostScripts;
 
   protected:
 
@@ -238,7 +252,8 @@ class Dag {
 	// the Condor job log
     Queue<Job*>* _submitQ;
 
-	ScriptQ* _scriptQ;
+	ScriptQ* _preScriptQ;
+	ScriptQ* _postScriptQ;
 };
 
 #endif /* #ifndef DAG_H */

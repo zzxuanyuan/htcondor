@@ -36,8 +36,10 @@
 
 //---------------------------------------------------------------------------
 Dag::Dag(const char *condorLogName, const char *lockFileName,
-         const int maxJobsSubmitted, const int maxScriptsRunning ) :
-	_maxScriptsRunning    (maxScriptsRunning),
+         const int maxJobsSubmitted, const int maxPreScripts,
+		 const int maxPostScripts ) :
+	_maxPreScripts        (maxPreScripts),
+	_maxPostScripts       (maxPostScripts),
     _condorLogInitialized (false),
     _condorLogSize        (0),
     _lockFileName         (NULL),
@@ -50,17 +52,17 @@ Dag::Dag(const char *condorLogName, const char *lockFileName,
     _lockFileName  = strnewp (lockFileName);
 
  	_readyQ = new SimpleList<Job*>;
-	_scriptQ = new ScriptQ( this );
+	_preScriptQ = new ScriptQ( this );
+	_postScriptQ = new ScriptQ( this );
 	_submitQ = new Queue<Job*>;
 
-	if( !_readyQ || !_submitQ || !_scriptQ ) {
-		EXCEPT( "ERROR: out of memory (%s() in %s:%d)!\n",
-				__FUNCTION__, __FILE__, __LINE__ );
+	if( !_readyQ || !_submitQ || !_preScriptQ || !_postScriptQ ) {
+		EXCEPT( "ERROR: out of memory (%s:%d)!\n", __FILE__, __LINE__ );
 	}
 
-	debug_printf( DEBUG_DEBUG_4,
-				  "_maxJobsSubmitted = %d, _maxScriptsRunning = %d\n",
-				  _maxJobsSubmitted, _maxScriptsRunning );
+	debug_printf( DEBUG_DEBUG_4, "_maxJobsSubmitted = %d, "
+				  "_maxPreScripts = %d, _maxPostScripts = %d\n",
+				  _maxJobsSubmitted, _maxPreScripts, _maxPostScripts );
 }
 
 //-------------------------------------------------------------------------
@@ -68,7 +70,8 @@ Dag::~Dag() {
     unlink(_lockFileName);  // remove the file being used as semaphore
     delete [] _condorLogName;
     delete [] _lockFileName;
-	delete _scriptQ;
+	delete _preScriptQ;
+	delete _postScriptQ;
 	delete _submitQ;
 	delete _readyQ;
 }
@@ -234,7 +237,7 @@ bool Dag::ProcessLogEvents (bool recovery) {
                   
                   // If this is one of our jobs, then we must inform the user
                   // that UNDO is not yet handled
-                  if (job != NULL) {
+                 if (job != NULL) {
                       if (DEBUG_LEVEL(DEBUG_QUIET)) {
                           printf ("\n------------------------------------\n");
                           job->Print(true);
@@ -330,7 +333,7 @@ bool Dag::ProcessLogEvents (bool recovery) {
 					  // let the script know the job's exit status
                       job->_scriptPost->_retValJob = termEvent->normal
                           ? termEvent->returnValue : -1;
-					  _scriptQ->Run( job->_scriptPost );
+					  _postScriptQ->Run( job->_scriptPost );
 				  }
 				  // no POST script was specified, so update DAG with
 				  // job's successful completion
@@ -441,7 +444,7 @@ bool Dag::Submit (Job * job) {
 
     if( job->_scriptPre && job->_scriptPre->_done == FALSE ) {
 		job->_Status = Job::STATUS_PRERUN;
-		_scriptQ->Run( job->_scriptPre );
+		_preScriptQ->Run( job->_scriptPre );
 		return true;
     }
 	// no PRE script exists or is done, so add job to the queue of ready jobs
