@@ -62,18 +62,19 @@ int _lxstat(int, const char *, struct stat *);
 #endif
 
 extern unsigned int _condor_numrestarts;  /* in image.C */
-extern int GETRUSAGE(...);
-extern int update_rusage(...);
-extern int _libc_FORK(...);
-extern int SYSCONF(...);
-extern int SYSCALL(...);
-extern int syscall(...);
+extern "C" int GETRUSAGE(...);
+extern "C" int update_rusage(...);
+extern "C" int _libc_FORK(...);
+extern "C" int SYSCONF(...);
+extern "C" int SYSCALL(...);
+
+extern "C" {
+
 
 static int fake_readv( int fd, const struct iovec *iov, int iovcnt );
 static int fake_writev( int fd, const struct iovec *iov, int iovcnt );
 char	*getwd( char * );
 void    *malloc();     
-int	_condor_open( const char *path, int flags, va_list ap );
 
 /*
   The process should exit making the status value available to its parent
@@ -98,8 +99,11 @@ void _exit( int status )
   current machine, and the usages it accumulated on all the machines
   where it has run in the past.
 */
-int
-getrusage( int who, struct rusage *rusage )
+#if (defined(LINUX)&&defined(GLIBC))
+int getrusage( enum __rusage_who who, struct rusage *rusage )
+#else
+int getrusage( int who, struct rusage *rusage )
+#endif
 {
 	int rval = 0;
 	int rval1 = 0;
@@ -179,16 +183,6 @@ getrusage( int who, struct rusage *rusage )
 	}
 }
 
-int _getrusage(int who, struct rusage *r)
-{
-	return getrusage(who,r);
-}
-
-int __getrusage(int who, struct rusage *r)
-{
-	return getrusage(who,r);
-}
-
 /*
   This routine which is normally provided in the C library determines
   whether a given file descriptor refers to a tty.  The underlying
@@ -219,6 +213,27 @@ int isatty( int filedes )
 	}
 }
 
+#if defined(OSF1)
+/* Force isatty() to be undefined so programs that use it get it from
+   the condor library rather than libc.a. */
+
+int _condor_force_isatty_hack()
+{
+	return isatty(0);
+}
+
+/*
+  This is some kind of cleanup routine for dynamically linked programs which
+  is called by exit.  For some reason it occasionally cuases a SEGV
+  when mixed with the condor checkpointing code.  Since condor programs
+  are always statically linked, we just make a dummy here to avoid
+  the problem.
+*/
+
+void ldr_atexit() {}
+
+#endif
+
 
 /*
 All reads must pass through the buffer when mapped,
@@ -226,9 +241,9 @@ so all calls to readv/writev must be converted into reads/writes.
 The only exception is local/unmapped.
 */
 
-#if defined(HPUX9) || defined(LINUX) 
+#if defined(HPUX9) || (defined(LINUX) && !defined(GLIBC))
 ssize_t readv( int fd, const struct iovec *iov, size_t iovcnt )
-#elif defined(IRIX62) || defined(OSF1)|| defined(HPUX10) || defined(Solaris26)
+#elif defined(IRIX62) || defined(OSF1)|| defined(HPUX10) || defined(Solaris26) || (defined(LINUX)&&defined(GLIBC))
 ssize_t readv( int fd, const struct iovec *iov, int iovcnt )
 #else
 int readv( int fd, struct iovec *iov, int iovcnt )
@@ -268,15 +283,12 @@ static int fake_readv( int fd, const struct iovec *iov, int iovcnt )
 
 /* See comment above about readv */
 
-#if defined(HPUX9) || defined(LINUX) 
-ssize_t
-writev( int fd, const struct iovec *iov, size_t iovcnt )
-#elif defined(Solaris) || defined(IRIX62) || defined(OSF1) || defined(HPUX10)
-ssize_t
-writev( int fd, const struct iovec *iov, int iovcnt )
+#if defined(HPUX9) || (defined(LINUX)&&!defined(GLIBC))
+ssize_t writev( int fd, const struct iovec *iov, size_t iovcnt )
+#elif defined(Solaris) || defined(IRIX62) || defined(OSF1) || defined(HPUX10) || (defined(LINUX)&&defined(GLIBC))
+ssize_t writev( int fd, const struct iovec *iov, int iovcnt )
 #else
-int
-writev( int fd, struct iovec *iov, int iovcnt )
+int writev( int fd, struct iovec *iov, int iovcnt )
 #endif
 {
 	int rval;
@@ -353,60 +365,6 @@ static int fake_writev( int fd, const struct iovec *iov, int iovcnt )
 		return rval;
 	}
 #endif
-
-/* This has been added to solve the problem with the printf and fprintf 
-statements on alphas but have not enclosed it in ifdefs since it will not
-harm to other platforms */
-
-#if !defined(LINUX)
-__write(int fd, char *buf, int size)
-{
-	return write(fd,buf,size);
-}
-#endif
-
-/* These are similar additions as above.  This problem cropped up for 
-   FORTRAN programs on Solaris 2.4 and OSF1.  -Jim B. */
-
-#if !defined(HPUX)
-#if defined( SYS_write )
-_write( int fd, const void *buf, size_t len )
-{
-	return write(fd,buf,len);
-}
-#endif
-
-#if defined( SYS_read )
-_read( int fd, void *buf, size_t len )
-{
-	return read(fd,buf,len);
-}
-
-#if !defined(LINUX)
-__read( int fd, void *buf, size_t len )
-{
-	return read(fd,buf,len);
-}
-#endif /* !defined(LINUX) */
-#endif /* defined(SYS_read) */
-
-#if defined( SYS_lseek )
-off_t
-_lseek( int fd, off_t offset, int whence )
-{
-	return lseek(fd,offset,whence);
-}
-
-#if !defined(LINUX)
-__lseek( int fd, off_t offset, int whence )
-{
-	return lseek(fd,offset,whence);
-}
-
-#endif /* !defined(LINUX) */
-#endif /* defined(SYS_lseek) */
-
-#endif /* !defined(HPUX) */
 
 #if defined(SYS_prev_stat) && defined(LINUX)
 int _xstat(int version, const char *path, struct stat *buf)
@@ -705,10 +663,9 @@ sync( void )
 #endif
 }
 
-#if SYNC_RETURNS_VOID
-void _sync() { sync(); }
-void __sync() { sync(); }
-#else
-int _sync() { return sync(); }
-int __sync() { return sync(); }
-#endif
+int creat(const char *path, mode_t mode)
+{
+	return open((char*)path, O_WRONLY | O_CREAT | O_TRUNC, mode);
+}
+
+} // end extern "C"
