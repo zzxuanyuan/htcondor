@@ -25,7 +25,7 @@
 #include <stdlib.h>
 #include "condor_crypt.h"
 #if defined(CONDOR_ENCRYPT)
-#include <rand.h>              // SSLeay rand function
+#include <openssl/rand.h>              // SSLeay rand function
 #endif
 #include <assert.h>
 

@@ -26,17 +26,13 @@
 #include "condor_string.h"
 
 Condor_Auth_FS :: Condor_Auth_FS(ReliSock * sock, int remote)
-    : Condor_Auth_Base( sock, CAUTH_FILESYSTEM ),
-      remote_         ( remote )
+    : Condor_Auth_Base    ( sock, CAUTH_FILESYSTEM ),
+      remote_             ( remote )
 {
-    RendezvousDirectory = strnewp( getenv( "RENDEZVOUS_DIRECTORY" ) );
 }
 
 Condor_Auth_FS :: ~Condor_Auth_FS()
 {
-    if (RendezvousDirectory) {
-        free(RendezvousDirectory);
-    }
 }
 
 int Condor_Auth_FS::authenticate(const char * remoteHost)
@@ -45,10 +41,14 @@ int Condor_Auth_FS::authenticate(const char * remoteHost)
     int fd = -1;
     char *owner = NULL;
     int retval = -1;
-    
+    char * RendezvousDirectory = NULL;
+
     if ( mySock_->isClient() ) {
         if ( remote_ ) {
             //send over the directory
+            if ( mySock_->isClient() ) {
+                RendezvousDirectory = getenv( "RENDEZVOUS_DIRECTORY" );
+            }
             mySock_->encode();
             mySock_->code( RendezvousDirectory );
             mySock_->end_of_message();
@@ -65,6 +65,7 @@ int Condor_Auth_FS::authenticate(const char * remoteHost)
         mySock_->code( fd );
         mySock_->end_of_message();
         mySock_->decode();
+        // Should we check to make sure the UID domain matches?
         mySock_->code( retval );
         mySock_->end_of_message();
         if ( new_file ) {
@@ -82,6 +83,7 @@ int Condor_Auth_FS::authenticate(const char * remoteHost)
             mySock_->end_of_message();
             dprintf(D_FULLDEBUG,"RendezvousDirectory: %s\n", RendezvousDirectory );
             new_file = tempnam( RendezvousDirectory, "qmgr_");
+            free(RendezvousDirectory);
         }
         else {
             new_file = tempnam("/tmp", "qmgr_");

@@ -68,7 +68,7 @@ Condor_Auth_X509 :: Condor_Auth_X509(ReliSock * sock)
         }
     }	
     else{
-        pbuf = getenv(STR_X509_DIRECTORY );
+        pbuf = param(STR_X509_DIRECTORY );   // in condor_config
         
         if (pbuf) {
 	    if (!getenv(STR_X509_CERT_DIR )){	
@@ -157,7 +157,7 @@ int Condor_Auth_X509 :: wrap(char*  data_in,
 {
     OM_uint32 major_status;
     OM_uint32 minor_status;
-    
+
     gss_buffer_desc input_token_desc  = GSS_C_EMPTY_BUFFER;
     gss_buffer_t    input_token       = &input_token_desc;
     gss_buffer_desc output_token_desc = GSS_C_EMPTY_BUFFER;
@@ -179,6 +179,8 @@ int Condor_Auth_X509 :: wrap(char*  data_in,
     
     data_out = (char*)output_token -> value;
     length_out = output_token -> length;
+
+    dprintf(D_ALWAYS,"Encrypting using X.509 %s --> %x\n", data_in, data_out);
     
     return major_status;
 }
@@ -213,7 +215,9 @@ int Condor_Auth_X509 :: unwrap(char*  data_in,
     
     data_out = (char*)output_token -> value;
     length_out = output_token -> length;
-    
+
+    dprintf(D_ALWAYS,"Decrypting using X.509 %x --> %s\n", data_in, data_out);
+ 
     return major_status;
 }
 
@@ -264,10 +268,17 @@ int Condor_Auth_X509::get_user_x509name(char *proxy_file, char* name)
 	/* initialize SSLeay and the error strings */
     ERR_load_prxyerr_strings(0);
     SSLeay_add_ssl_algorithms();
-    
+
+    pcd = proxy_cred_desc_new(); // Added. But not sure if it's correct. Hao
+
+    if (!pcd) {
+        dprintf(D_ALWAYS,"ERROR: unable to initialize globus\n");
+        return 1;
+    }
+
     /* Load proxy */
     if (!proxy_file) {
-   	 proxy_get_filenames(1, NULL, NULL, &proxy_file, NULL, NULL);
+   	 proxy_get_filenames(pcd, 1, NULL, NULL, &proxy_file, NULL, NULL);
     }
 
     // potential memory leak below. Should change the code! Hao
@@ -286,6 +297,7 @@ int Condor_Auth_X509::get_user_x509name(char *proxy_file, char* name)
     	dprintf(D_ALWAYS,"ERROR: unable to load proxy");
 	    return 1;
     }
+
     name=X509_NAME_oneline(X509_get_subject_name(pcd->ucert),NULL,0);
 
     proxy_cred_desc_free(pcd);  
@@ -331,7 +343,7 @@ int Condor_Auth_X509::nameGssToLocal(char * GSSClientname)
     if ( !(index = fopen(  filename, "r" ) ) ) {
         dprintf( D_ALWAYS, "unable to open index file %s, errno %d\n", 
                  filename, errno );
-        return -1;
+        return 0;
     }
     
     sprintf(temp,"%c",ch);
@@ -351,19 +363,32 @@ int Condor_Auth_X509::nameGssToLocal(char * GSSClientname)
                 pos_temp--;
             pos_temp++;
             *pos_temp = '\0';
-            if (!strcmp(pos,GSSClientname))
-		found = 1;
+            if (!strcmp(pos,GSSClientname)) {
+                found = 1;
+            }
         }
         if (ch_temp == EOF) break;
     }
     fclose( index );
-    if (found)
-        {
-            setRemoteUser((const char*)pos1);
-            return 1;
+    if (found) {
+        // split it into user@domain
+        char * tmp = strchr(pos1, '@');
+        if (tmp == NULL) {
+            dprintf(D_SECURITY, "X509 certificate map is invalid. Expect user@domain. Instead, the user id is %s\n", pos1);
+            return 0;
         }
+        int len  = strlen(pos1);
+        int len2 = len - strlen(tmp);
+        char * user = (char *) malloc(len2 + 1);
+        memset(user, 0, len2 + 1);
+        strncpy(user, pos1, len2);
+        setRemoteUser  (user);
+        setRemoteDomain(tmp+1);
+        free(user);
+        return 1;
+    }
     else {
-        dprintf(D_ALWAYS, "lookup failure\n");
+        dprintf(D_SECURITY, "X509 certificate name lookup failure\n");
         return 0;
     }
 }
@@ -627,20 +652,22 @@ int Condor_Auth_X509::authenticate_server_gss()
     set_priv(priv);
     
     if ( (major_status != GSS_S_COMPLETE)) {
-        if (major_status != GSS_S_COMPLETE) 
+        if (major_status != GSS_S_COMPLETE) {
             print_log(major_status,minor_status,token_status,
-                      "GSS authentication failure on server side" );
-        else 
-            dprintf( D_ALWAYS, "server: user lookup failure.\n" );
+                      "X509 GSS authentication failure on server side" );
+        }
+        else {
+            dprintf( D_SECURITY, "X509 server: user lookup failure.\n" );
+        }
         return FALSE;
     }
     
     if ( !nameGssToLocal(GSSClientname) ) {
-        dprintf(D_ALWAYS,"Could not find local mapping \n");
+        dprintf(D_SECURITY,"Could not find X509 local mapping \n");
         return( FALSE );
     }
     
-    dprintf(D_FULLDEBUG,"valid GSS connection established to %s\n", 
+    dprintf(D_FULLDEBUG,"Valid GSS connection established to %s\n", 
             GSSClientname);
     
     //my_credential = new X509_Credential(SYSTEM,NULL); 

@@ -282,6 +282,25 @@ const char * Authentication::getOwner() const
 #endif  
 }               
 
+const char * Authentication::getFullyQualifiedUser() const
+{
+#if defined(SKIP_AUTHENTICATION)
+    return NULL;
+#else
+    // Since we never use getOwner() like it allocates memory
+    // anywhere in the code, it shouldn't actually allocate
+    // memory.  We can always just return claimToBe, since it'll
+    // either be NULL or the string we want, which is the old
+    // semantics.  -Derek Wright 3/12/99
+    if (authenticator_) {
+        return authenticator_->getRemoteFQU();
+    }
+    else {
+        return NULL;
+    }
+#endif  
+}           
+
 int Authentication :: end_time()
 {
     int endtime = 0;

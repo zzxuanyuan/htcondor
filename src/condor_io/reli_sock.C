@@ -1028,6 +1028,29 @@ ReliSock::getOwner() {
 	return NULL;
 }
 
+const char *
+ReliSock::getFullyQualifiedUser() {
+	if ( authob ) {
+		return( authob->getFullyQualifiedUser() );
+	}
+	return NULL;
+}
+
+const char * ReliSock::getDomain()
+{
+    if (authob) {
+        return ( authob->getDomain() );
+    }
+    return NULL;
+}
+
+const char * ReliSock::getHostAddress() {
+    if (authob) {
+        return ( authob->getRemoteAddress() );
+    }
+    return NULL;
+}
+
 int
 ReliSock::isAuthenticated()
 {
