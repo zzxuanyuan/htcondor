@@ -75,6 +75,8 @@ static const int GAHPCLIENT_COMMAND_TIMED_OUT = -103;
 //static const GahpProxyInfo *GAHPCLIENT_CACHE_LAST_PROXY = ((GahpProxyInfo *)2);
 #define GAHPCLIENT_CACHE_LAST_PROXY ((GahpProxyInfo *)2)
 
+void GahpReconfig();
+
 class GahpClient;
 
 class GahpServer : public Service {
@@ -210,12 +212,6 @@ class GahpClient : public Service {
 
 		///
 		void purgePendingRequests() { clear_pending(); }
-
-		///
-		void setMaxPendingRequests(int max) { server->max_pending_requests = max; }
-
-		///
-		int getMaxPendingRequests() { return server->max_pending_requests; }
 
 		/** @name Mode methods.
 		 * Methods to set/get the mode.
@@ -353,10 +349,6 @@ class GahpClient : public Service {
 		globus_gram_client_job_contact_free(char *job_contact) 
 			{ free(job_contact); return 0; }
 
-
-		///
-		int
-		globus_gram_client_set_credentials(const char *proxy_path);
 
 		///
 		int

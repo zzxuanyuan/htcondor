@@ -56,6 +56,22 @@ HashTable <HashKey, GahpServer *>
 
 const char *escapeGahpString(const char * input);
 
+void GahpReconfig()
+{
+	int tmp_int;
+
+	tmp_int = param_integer( "GRIDMANAGER_MAX_PENDING_REQUESTS", 50 );
+
+	GahpServer *next_server = NULL;
+	GahpServer::GahpServersById.startIterations();
+
+	while ( GahpServer::GahpServersById.iterate( next_server ) != 0 ) {
+		next_server->max_pending_requests = tmp_int;
+			// TODO should we kick the server in the ass to submit any
+			//   unsubmitted requests?
+	}
+}
+
 GahpServer *GahpServer::FindOrCreateGahpServer(const char *id, const char *path)
 {
 	int rc;
@@ -992,30 +1008,6 @@ GahpClient::setDelegProxy( Proxy *proxy )
 	GahpProxyInfo *gahp_proxy = server->RegisterProxy(proxy->proxy_filename);
 	ASSERT(gahp_proxy);
 	deleg_proxy = gahp_proxy;
-}
-
-int
-GahpClient::globus_gram_client_set_credentials(const char *proxy_path)
-{
-
-	static const char *command = "REFRESH_PROXY_FROM_FILE";
-
-		// Check if this command is supported
-	if  (server->m_commands_supported->contains_anycase(command)==FALSE) {
-		return 1;
-	}
-
-		// This command is always synchronous, so results_only mode
-		// must always fail...
-	if ( m_mode == results_only ) {
-		return 1;
-	}
-
-	if ( server->command_initialize_from_file(proxy_path,command) == true ) {
-		return 0;
-	} else {
-		return 1;
-	}
 }
 
 void

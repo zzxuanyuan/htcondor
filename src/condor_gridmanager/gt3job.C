@@ -88,22 +88,11 @@ static char *GMStateNames[] = {
 // evalute PeriodicHold expression in job ad.
 #define MAX_SUBMIT_ATTEMPTS	1
 
-#define OUTPUT_WAIT_POLL_INTERVAL 1
-
 #define LOG_GLOBUS_ERROR(func,error) \
     dprintf(D_ALWAYS, \
 		"(%d.%d) gmState %s, globusState %d: %s returned Globus error %d\n", \
         procID.cluster,procID.proc,GMStateNames[gmState],globusState, \
         func,error)
-
-#define GOTO_RESTART_IF_JM_DOWN \
-{ \
-    if ( jmDown == true ) { \
-        gmState = GM_RESTART; \
-        globusError =  GLOBUS_GRAM_PROTOCOL_ERROR_CONTACTING_JOB_MANAGER; \
-		break; \
-    } \
-}
 
 #define CHECK_PROXY \
 { \
@@ -124,24 +113,14 @@ static bool WriteGT3SubmitFailedEventToUserLog( ClassAd *job_ad,
 static bool WriteGT3ResourceUpEventToUserLog( ClassAd *job_ad );
 static bool WriteGT3ResourceDownEventToUserLog( ClassAd *job_ad );
 
-struct OrphanCallback_t {
-	char *job_contact;
-	int state;
-	int errorcode;
-};
-
 template class HashTable<HashKey, GT3Job *>;
 template class HashBucket<HashKey, GT3Job *>;
-template class List<OrphanCallback_t>;
-template class Item<OrphanCallback_t>;
 
 // TODO need to get rid of this
 static GahpClient GahpMain;
 
 HashTable <HashKey, GT3Job *> GT3JobsByContact( HASH_TABLE_SIZE,
 												hashFunction );
-
-static List<OrphanCallback_t> OrphanCallbackList;
 
 const char *
 gt3JobId( const char *contact )
@@ -180,45 +159,6 @@ rehashJobContact( GT3Job *job, const char *old_contact,
 	}
 }
 
-int
-gt3OrphanCallbackHandler()
-{
-	int rc;
-	GT3Job *this_job;
-	OrphanCallback_t *orphan;
-
-	// Remove the first element in the list
-	OrphanCallbackList.Rewind();
-	if ( OrphanCallbackList.Next( orphan ) == false ) {
-		// Empty list
-		return TRUE;
-	}
-	OrphanCallbackList.DeleteCurrent();
-
-	// Find the right job object
-	rc = GT3JobsByContact.lookup( HashKey( gt3JobId(orphan->job_contact) ), this_job );
-	if ( rc != 0 || this_job == NULL ) {
-		dprintf( D_ALWAYS, 
-			"gt3OrphanCallbackHandler: Can't find record for globus job with "
-			"contact %s on globus state %d, errorcode %d, ignoring\n",
-			orphan->job_contact, orphan->state, orphan->errorcode );
-		free( orphan->job_contact );
-		delete orphan;
-		return TRUE;
-	}
-
-	dprintf( D_ALWAYS, "(%d.%d) gram callback: state %d, errorcode %d\n",
-			 this_job->procID.cluster, this_job->procID.proc, orphan->state,
-			 orphan->errorcode );
-
-	this_job->GramCallback( orphan->state, orphan->errorcode );
-
-	free( orphan->job_contact );
-	delete orphan;
-
-	return TRUE;
-}
-
 void
 gt3GramCallbackHandler( void *user_arg, char *job_contact, int state,
 					 int errorcode )
@@ -231,15 +171,8 @@ gt3GramCallbackHandler( void *user_arg, char *job_contact, int state,
 	if ( rc != 0 || this_job == NULL ) {
 		dprintf( D_ALWAYS, 
 			"gt3GramCallbackHandler: Can't find record for globus job with "
-			"contact %s on globus state %d, errorcode %d, delaying\n",
+			"contact %s on globus state %d, errorcode %d, ignoring\n",
 			job_contact, state, errorcode );
-		OrphanCallback_t *new_orphan = new OrphanCallback_t;
-		new_orphan->job_contact = strdup( job_contact );
-		new_orphan->state = state;
-		new_orphan->errorcode = errorcode;
-		OrphanCallbackList.Append( new_orphan );
-		daemonCore->Register_Timer( 1, (TimerHandler)&gt3OrphanCallbackHandler,
-									"gt3OrphanCallbackHandler", NULL );
 		return;
 	}
 
@@ -270,9 +203,6 @@ void GT3JobInit()
 void GT3JobReconfig()
 {
 	int tmp_int;
-
-	tmp_int = param_integer( "GRIDMANAGER_MAX_PENDING_REQUESTS", 50 );
-	GahpMain.setMaxPendingRequests( tmp_int );
 
 	tmp_int = param_integer( "GRIDMANAGER_JOB_PROBE_INTERVAL", 5 * 60 );
 	GT3Job::setProbeInterval( tmp_int );

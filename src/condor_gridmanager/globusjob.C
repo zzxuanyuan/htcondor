@@ -286,9 +286,6 @@ void GlobusJobReconfig()
 	bool tmp_bool;
 	int tmp_int;
 
-	tmp_int = param_integer( "GRIDMANAGER_MAX_PENDING_REQUESTS", 50 );
-	GahpMain.setMaxPendingRequests( tmp_int );
-
 	tmp_int = param_integer( "GRIDMANAGER_JOB_PROBE_INTERVAL", 5 * 60 );
 	GlobusJob::setProbeInterval( tmp_int );
 

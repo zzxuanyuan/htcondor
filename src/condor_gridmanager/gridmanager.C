@@ -34,6 +34,7 @@
 #include "dc_schedd.h"
 
 #include "gridmanager.h"
+#include "gahp-client.h"
 
 #if defined(ORACLE_UNIVERSE)
 #include "oraclejob.h"
@@ -326,6 +327,8 @@ Reconfig()
 	// when we are asked to reconfig.
 
 	contactScheddDelay = param_integer("GRIDMANAGER_CONTACT_SCHEDD_DELAY", 5);
+
+	GahpReconfig();
 
 	JobType *job_type;
 	jobTypes.Rewind();
