@@ -184,19 +184,19 @@ doContactSchedd()
 			if (current_command->command == SchedDRequest::SDC_REMOVE_JOB)  {
 				result_ad=
 					dc_schedd.removeJobs (&id_list,
-							"via C-GAHP",
+							current_command->reason,
 							&errstack);
 				action = "removing";
 			} else if (current_command->command == SchedDRequest::SDC_HOLD_JOB) {
 				result_ad=
 					dc_schedd.holdJobs (&id_list,
-							"via C-GAHP",
+							current_command->reason,
 				 			&errstack);
 				action = "putting on hold";
 			} else if (current_command->command == SchedDRequest::SDC_RELEASE_JOB)  {
 				result_ad=
 					dc_schedd.releaseJobs (&id_list,
-							"via C-GAHP",
+							current_command->reason,
 							&errstack);
 				action = "releasing";
 			}
@@ -644,7 +644,7 @@ handle_gahp_command(char ** argv, int argc) {
 		int req_id = 0;
 		int cluster_id, proc_id;
 
-		if (!(argc == 4 &&
+		if (!(argc == 5 &&
 			get_int (argv[1], &req_id) &&
 			get_job_id (argv[3], &cluster_id, &proc_id))) {
 
@@ -656,13 +656,14 @@ handle_gahp_command(char ** argv, int argc) {
 			SchedDRequest::createRemoveRequest(
 				req_id,
 				cluster_id,
-				proc_id));
+				proc_id,
+				argv[4]));
 		return TRUE;
 	} else if (strcasecmp (argv[0], GAHP_COMMAND_JOB_HOLD)==0) {
 		int req_id = 0;
 		int cluster_id, proc_id;
 
-		if (!(argc == 4 &&
+		if (!(argc == 5 &&
 			get_int (argv[1], &req_id) &&
 			get_job_id (argv[3], &cluster_id, &proc_id))) {
 
@@ -674,7 +675,8 @@ handle_gahp_command(char ** argv, int argc) {
 			SchedDRequest::createHoldRequest(
 				req_id,
 				cluster_id,
-				proc_id));
+				proc_id,
+				argv[4]));
 		return TRUE;
 
 	} else if (strcasecmp (argv[0], GAHP_COMMAND_JOB_RELEASE)==0) {
@@ -682,7 +684,7 @@ handle_gahp_command(char ** argv, int argc) {
 		int req_id = 0;
 		int cluster_id, proc_id;
 
-		if (!(argc == 4 &&
+		if (!(argc == 5 &&
 			get_int (argv[1], &req_id) &&
 			get_job_id (argv[3], &cluster_id, &proc_id))) {
 
@@ -694,7 +696,8 @@ handle_gahp_command(char ** argv, int argc) {
 			SchedDRequest::createReleaseRequest(
 				req_id,
 				cluster_id,
-				proc_id));
+				proc_id,
+				argv[4]));
 		return TRUE;
 
 	}  else if (strcasecmp (argv[0], GAHP_COMMAND_JOB_STATUS_CONSTRAINED) ==0) {
@@ -710,6 +713,7 @@ handle_gahp_command(char ** argv, int argc) {
 
 		char * constraint = argv[3];
 
+		
 		enqueue_command (
 			SchedDRequest::createStatusConstrainedRequest(
 				req_id,

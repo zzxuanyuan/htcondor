@@ -25,12 +25,13 @@
 #include "SchedDCommands.h"
 
 
-SchedDRequest * SchedDRequest::createRemoveRequest (const int request_id, int cluster_id, int proc_id) {
+SchedDRequest * SchedDRequest::createRemoveRequest (const int request_id, int cluster_id, int proc_id, const char * reason) {
 	SchedDRequest * req = new SchedDRequest;
 	req->cluster_id = cluster_id;
 	req->proc_id = proc_id;
 	req->classad = NULL;
 	req->constraint = NULL;
+	req->reason = strdup(reason);
 
 	req->command = SDC_REMOVE_JOB;
 	req->status = SDCS_NEW;
@@ -106,12 +107,13 @@ SchedDRequest * SchedDRequest::createUpdateRequest (const int request_id,
 
 }
 
-SchedDRequest * SchedDRequest::createHoldRequest (const int request_id, int cluster_id, int proc_id) {
+SchedDRequest * SchedDRequest::createHoldRequest (const int request_id, int cluster_id, int proc_id, const char * reason) {
 	SchedDRequest * req = new SchedDRequest;
 	req->cluster_id = cluster_id;
 	req->proc_id = proc_id;
 	req->classad = NULL;
 	req->constraint = NULL;
+	req->reason = strdup(reason);
 
 	req->command = SDC_HOLD_JOB;
 	req->status = SDCS_NEW;
@@ -120,12 +122,13 @@ SchedDRequest * SchedDRequest::createHoldRequest (const int request_id, int clus
 	return req;
 }
 
-SchedDRequest * SchedDRequest::createReleaseRequest (const int request_id, int cluster_id, int proc_id) {
+SchedDRequest * SchedDRequest::createReleaseRequest (const int request_id, int cluster_id, int proc_id, const char * reason) {
 	SchedDRequest * req = new SchedDRequest;
 	req->cluster_id = cluster_id;
 	req->proc_id = proc_id;
 	req->classad = NULL;
 	req->constraint = NULL;
+	req->reason = strdup(reason);
 
 	req->command = SDC_RELEASE_JOB;
 	req->status = SDCS_NEW;

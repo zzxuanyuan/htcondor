@@ -200,8 +200,8 @@ verify_gahp_command(char ** argv, int argc) {
 	if (strcasecmp (argv[0], GAHP_COMMAND_JOB_REMOVE) ==0 ||
 		strcasecmp (argv[0], GAHP_COMMAND_JOB_HOLD) ==0 ||
 		strcasecmp (argv[0], GAHP_COMMAND_JOB_RELEASE) ==0) {
-		// Expecting:GAHP_COMMAND_JOB_REMOVE <req_id> <schedd_name> <job_id>
-		return verify_number_args (argc, 4) &&
+		// Expecting:GAHP_COMMAND_JOB_REMOVE <req_id> <schedd_name> <job_id> <reason>
+		return verify_number_args (argc, 5) &&
 				verify_request_id (argv[1]) &&
 				verify_schedd_name (argv[2]) &&
 				verify_job_id (argv[3]);

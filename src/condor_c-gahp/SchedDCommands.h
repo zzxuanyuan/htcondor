@@ -40,15 +40,18 @@ class SchedDRequest {
 public:
 	static SchedDRequest * createRemoveRequest (const int request_id,
 												const int cluster_id,
-												const int proc_id);
+												const int proc_id,
+												const char * reason);
 
 	static SchedDRequest * createHoldRequest (const int request_id,
 												const int cluster_id,
-												const int proc_id);
+												const int proc_id,
+												const char * reason);
 
 	static SchedDRequest * createReleaseRequest (const int request_id,
 												const int cluster_id,
-												const int proc_id);
+												const int proc_id,
+												const char * reason);
 
 	static SchedDRequest * createStatusConstrainedRequest (const int request_id,
 															const char * constraint);
@@ -71,6 +74,8 @@ public:
 			delete classad;
 		if (constraint)
 			free (constraint);
+		if (reason)
+			free (reason);
 	}
 
 	ClassAd * classad;
@@ -79,6 +84,8 @@ public:
 	int proc_id;
 
 	int request_id;
+
+	char * reason;	// For release, remove, update
 
 	// Status of the command
 	enum {
@@ -104,6 +111,12 @@ public:
 
 protected:
 	SchedDRequest() {
+		classad = NULL;
+		constraint = NULL;
+		cluster_id = -1;
+		proc_id = -1;
+		reason = NULL;
+		request_id = -1;
 	}
 
 };
