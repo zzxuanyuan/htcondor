@@ -339,6 +339,8 @@ QueueDBManager::processHistoryAd(ClassAd *ad) {
   ExprTree *R_expr;
   char *value = NULL;
   char name[1000];
+  char tempvalue[1000];
+
   bool flag1=false, flag2=false,flag3=false;
 
   sprintf(sql_str1, 
@@ -390,6 +392,12 @@ QueueDBManager::processHistoryAd(ClassAd *ad) {
 	if(strcasecmp(name, "in") == 0 ||
 	   strcasecmp(name, "user") == 0) {
 	  strcat(name, "_j");
+	}
+
+	if (strcasecmp(name, "user_j") == 0) {
+	  strncpy(tempvalue, value+1, strlen(value)-2);
+	  tempvalue[strlen(value)-2] = '\0';
+	  strcpy(value, tempvalue);
 	}
 
 	if(strcasecmp(name, "qdate") == 0 || 
