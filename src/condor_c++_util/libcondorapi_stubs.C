@@ -62,6 +62,8 @@ END_C_DECLS
 Stream::~Stream(){};
 
 /* stub the entire Stream interface :( */
+	int Stream::get(char *&) { return not_impl(); }
+	int Stream::put(char *) { return not_impl(); }
 	int Stream::code(void *&foo) { return not_impl(); }
 	int Stream::code(char &foo) { return not_impl(); }
 	int Stream::code(unsigned char &foo) { return not_impl(); }
