@@ -270,17 +270,20 @@ readEvent (FILE *file)
 		return 0;
     }
 
-	// see if the optional event notes string is present, and, if not,
-	// rewind, because we probably slurped in the next event delimiter
-	// looking for it...
+	// see if the next line contains an optional event notes string,
+	// and, if not, rewind, because that means we slurped in the next
+	// event delimiter looking for it...
 
 	fpos_t filep;
 	fgetpos( file, &filep );
 
-	if( fscanf( file, "    %8191s\n", s ) != 1 || strcmp( s, "..." ) == 0 ) {
+	if( !fgets( s, 8192, file ) || strcmp( s, "...\n" ) == 0 ) {
 		fsetpos( file, &filep );
 		return 1;
     }
+
+	// remove trailing newline
+	s[ strlen( s ) - 1 ] = '\0';
 
 	submitEventLogNotes = strnewp( s );
     return 1;
