@@ -32,11 +32,23 @@ struct Translation ClaimTypeTranslation[] = {
 };
 
 
+struct Translation ClaimStateTranslation[] = {
+    { "Unclaimed", CLAIM_UNCLAIMED },
+    { "Idle", CLAIM_IDLE },
+    { "Running", CLAIM_RUNNING },
+    { "Suspended", CLAIM_SUSPENDED },
+    { "Vacating", CLAIM_VACATING },
+    { "Killing", CLAIM_KILLING },
+	{ "NULL", 0 }
+};
+
+
 struct Translation VacateTypeTranslation[] = {
 	{ "GRACEFUL", VACATE_GRACEFUL },
 	{ "FAST", VACATE_FAST },
 	{ "NULL", 0 }
 };
+
 
 
 const char*
@@ -50,6 +62,20 @@ ClaimType
 getClaimTypeNum( const char* str )
 {
 	return (ClaimType)getNumFromName( str, ClaimTypeTranslation );
+}
+
+
+const char*
+getClaimStateString( ClaimState type )
+{
+	return getNameFromNum( (int)type, ClaimStateTranslation );
+}
+
+
+ClaimState
+getClaimStateNum( const char* str )
+{
+	return (ClaimState)getNumFromName( str, ClaimStateTranslation );
 }
 
 

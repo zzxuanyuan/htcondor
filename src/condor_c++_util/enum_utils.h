@@ -31,13 +31,32 @@
 
 #include "translation_utils.h"
 
-enum ClaimType { CLAIM_COD=1, CLAIM_OPPORTUNISTIC };
+typedef enum { 
+	CLAIM_COD=1,
+	CLAIM_OPPORTUNISTIC,
+} ClaimType;
 
 const char* getClaimTypeString( ClaimType type );
 ClaimType   getClaimTypeNum( const char* string );
 
 
-enum VacateType { VACATE_GRACEFUL=1, VACATE_FAST };
+typedef enum {
+    CLAIM_UNCLAIMED,
+    CLAIM_IDLE,
+    CLAIM_RUNNING,
+    CLAIM_SUSPENDED,
+    CLAIM_VACATING,
+    CLAIM_KILLING,
+} ClaimState;
+
+const char* getClaimStateString( ClaimState state );
+ClaimState  getClaimStateNum( const char* string );
+
+
+typedef enum { 
+	VACATE_GRACEFUL = 1,
+	VACATE_FAST
+} VacateType;
 
 const char* getVacateTypeString( VacateType type );
 VacateType  getVacateTypeNum( const char* string );
