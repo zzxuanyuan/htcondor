@@ -42,6 +42,9 @@ public:
 	ReliSock*	findReliSock( const char* addr );
 	void		addReliSock( const char* addr, ReliSock* rsock );
 
+	bool	isFull( void );
+	int		size( void );
+
 private:
 
 	int getCacheSlot( void );

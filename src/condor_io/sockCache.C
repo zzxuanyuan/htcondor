@@ -91,6 +91,25 @@ SocketCache::addReliSock( const char* addr, ReliSock* rsock )
 }
 
 
+bool
+SocketCache::isFull( void )
+{
+	for( int i = 0; i < cacheSize; i++ ) {
+		if( ! sockCache[i].valid ) {
+			return false;
+		}
+	}
+	return true;
+}
+
+
+int
+SocketCache::size( void )
+{
+	return cacheSize;
+}
+
+
 int
 SocketCache::getCacheSlot()
 {
