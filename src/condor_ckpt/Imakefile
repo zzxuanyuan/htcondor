@@ -37,12 +37,12 @@ PLATFORM_EXTRACT =
 
 EXTRACT = $(SIG_EXTRACT) $(PLATFORM_EXTRACT)
 
-C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) $(SAVE_SIGSTATE) $(STATIC) $(PVM_CHECKPOINT)
+C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) $(SAVE_SIGSTATE) $(STATIC) $(PVM_CHECKPOINT) -fpic
 
 #if IS_HPUX10
 CFLAGS = $(STD_C_FLAGS) $(STATIC)
 #else
-CFLAGS = $(STD_C_FLAGS)
+CFLAGS = $(STD_C_FLAGS) -fpic
 #endif
 
 SRC_DIR = $(SRC_TREE)/condor_ckpt
@@ -62,6 +62,8 @@ ASSEMBLER_OBJ = SYSCALL.MIPS.IRIX62.o MMAP.MIPS.IRIX62.o
 	gas -o $*.o $*.s
 #endif
 
+SETJMP_OBJ = SETJMP.SUN.SOLARIS255.o
+
 SRC =	ToUpper.c image.C machdep.$(OS).C file_state.C tmp_stack.C \
 	syscall_mode.c local_startup.c fake_remote_syscall.c fake_hooks.c \
 	$(SAVE_SIGSTATE_SRC) fake_util_lib.c eprintf.c
@@ -70,14 +72,22 @@ SRC =	ToUpper.c image.C machdep.$(OS).C file_state.C tmp_stack.C \
 OBJ =	image.o machdep.$(OS).o file_state.o tmp_stack.o syscall_mode.o \
 	local_startup.o fake_remote_syscall.o fake_hooks.o \
 	$(SAVE_SIGSTATE_OBJ) fake_util_lib.o eprintf.o $(EXTRACT) \
-	$(ASSEMBLER_OBJ)
+	$(ASSEMBLER_OBJ) $(SETJMP_OBJ)
 #else
 OBJ =	syscall_mode.o
 #endif
 
 #if DOES_CHECKPOINTING
 
-	all_target(ToUpper libckpt.a c_plus_alloc.o condor_rt0.o $(RELEASE_OBJ) )
+	all_target(ToUpper libckpt.a c_plus_alloc.o libc_plus_alloc.so.1 condor_rt0.o $(RELEASE_OBJ) )
+
+SETJMP.SUN.SOLARIS255.o:
+	ar -x /lib/libc.a setjmp.o
+	mv setjmp.o SETJMP.SUN.SOLARIS255.o
+
+tmp_stack.o: tmp_stack.C
+CMNT Use all C_PLUS_FLAGS except `-fpic'.  tmp_stack doesn't work as pic object.
+	$(CPlusPlus) $(STD_C_PLUS_FLAGS) $(SAVE_SIGSTATE) $(STATIC) $(PVM_CHECKPOINT) -c $<
 
 #if IS_X86_SOLARIS || IS_GLIBC_LINUX
 	library_target(libtmp.a,$(OBJ))
@@ -94,6 +104,7 @@ libckpt.a: libtmp.a ToUpper
 #else  /* Not GLIBC Linux or Intel Solaris */
 
 	library_target(libckpt.a,$(OBJ))
+	dynsym_library_target(libc_plus_alloc.so.1,c_plus_alloc.o,)
 
 #endif /* GLIBC Linux or Intel Solaris */
 

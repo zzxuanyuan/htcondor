@@ -35,6 +35,8 @@ void InitFileState();
 void SaveFileState();
 void RestoreFileState();
 int MapFd( int );
+typedef unsigned long RAW_ADDR;
+void RestoreFileTab (RAW_ADDR ft);
 
 #if defined(__cplusplus)
 }

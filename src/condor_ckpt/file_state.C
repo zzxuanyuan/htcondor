@@ -1749,7 +1749,8 @@ char *
 string_copy( const char *str )
 {
 	char	*answer;
-
+	int rv;
+	rv = strcmp (str, "/dev/null");
 	answer = new char [ strlen(str) + 1 ];
 	strcpy( answer, str );
 	return answer;
@@ -2378,6 +2379,11 @@ InitFileState()
 {
 	FileTab = new OpenFileTable();
 	FileTab->Init();
+}
+
+void RestoreFileTab (RAW_ADDR ft)
+{
+     FileTab = (OpenFileTable *)ft;
 }
 
 void

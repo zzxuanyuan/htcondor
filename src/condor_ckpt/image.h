@@ -44,10 +44,21 @@ public:
 	void IncrSegs() { n_segs += 1; }
 	int	N_Segs() { return n_segs; }
 	void Display();
+ 	RAW_ADDR	low_shlib_start;      // Start address of the lowest shlib
+ 	RAW_ADDR        addr_of_Env;          // Location of ENV in ckpt'd process
+ 	RAW_ADDR        addr_of_FileTab;      // ...and location of FileTab
+ 	RAW_ADDR        addr_of_syscall_sock; // ...and location of syscall_sock
+	RAW_ADDR        addr_of_str;
 private:
 	int		magic;
 	int		n_segs;
-	char	pad[ 1024 - 2 * sizeof(int) - NAME_LEN ];
+	// FIXME: Was
+	// char	pad[ 1024 - 2 * sizeof(int) - NAME_LEN ];
+	// What is the purpose of this?  To make the head 1k?  How do we
+	// know that we can calculate this size correctly for a C++ class?
+	// -zandy 6/18/1998
+	char	pad[(1024 - 2 * sizeof(int) - 5 * sizeof (RAW_ADDR)
+		     - NAME_LEN)];
 };
 
 class SegMap {
@@ -90,6 +101,11 @@ public:
 	ExecutionMode	GetMode() { return mode; }
 	size_t			GetLen()  { return len; }
 	int				GetFd()   { return fd; }
+	RAW_ADDR GetAddrOfEnv () { return head.addr_of_Env; }
+	RAW_ADDR GetAddrOfFileTab () { return head.addr_of_FileTab; }
+	RAW_ADDR GetAddrOfsyscall_sock () { return head.addr_of_syscall_sock; }
+	RAW_ADDR GetAddrOfStr () { return head.addr_of_str; }
+ 	int unloadGangrenousSegments ();
 protected:
 	RAW_ADDR	GetStackLimit();
 	void AddSegment( const char *name, RAW_ADDR start, RAW_ADDR end,

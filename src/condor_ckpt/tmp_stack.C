@@ -22,7 +22,8 @@
 ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
  
-
+#include "condor_common.h"
+#include "condor_debug.h"
 #include "image.h"
 /*
   Switch to a temporary stack area in the DATA segment, then execute the
@@ -50,6 +51,7 @@ ExecuteOnTmpStk( void (*func)() )
 	jmp_buf	env;
 	SaveFunc = func;
 
+	dprintf (D_ALWAYS, "ZANDY: In tmp stack\n");
 	if( SETJMP(env) == 0 ) {
 			// First time through - move SP
 		if( StackGrowsDown() ) {
@@ -60,6 +62,7 @@ ExecuteOnTmpStk( void (*func)() )
 		} else {
 			JMP_BUF_SP(env) = (long)TmpStack;
 		}
+		dprintf (D_ALWAYS, "ZANDY: About to longjmp\n");
 		LONGJMP( env, 1 );
 	} else {
 			// Second time through - call the function

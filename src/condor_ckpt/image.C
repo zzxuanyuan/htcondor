@@ -34,10 +34,16 @@
 #include "condor_sys.h"
 #include "image.h"
 #include "file_table_interf.h"
+#include "file_state.h"		// FileTab pointer
+#include "condor_io.h"		// ReliSock pointer
 #include "condor_debug.h"
 static char *_FileName_ = __FILE__;
 
 extern int _condor_in_file_stream;
+
+// Objects whose position we must record over a ckpt
+extern OpenFileTable *FileTab;
+extern ReliSock *syscall_sock;
 
 const int KILO = 1024;
 
@@ -87,6 +93,22 @@ volatile int check_sig;		// the signal which activated the checkpoint; used
 static size_t StackSaveSize;
 unsigned int _condor_numrestarts = 0;
 
+
+/* Descriptors for saving restore debugging data */
+static int fdm, fdd;
+
+extern "C" void zeek ();
+
+static void
+pr_jmpbuf (jmp_buf buf)
+{
+     int i;
+     unsigned int *p = (unsigned int *) buf;
+     for (i = 0; i < sizeof (jmp_buf) / sizeof (unsigned int); i++)
+	  dprintf (D_ALWAYS, "ZANDY:	buf[%d] = %#010x\n", i, p[i]);
+}
+
+
 static int
 net_read(int fd, void *buf, int size)
 {
@@ -105,11 +127,88 @@ net_read(int fd, void *buf, int size)
 	return bytes_read;
 }
 
+/* Return the start address of the lowest dynamic object in the
+   process.  When the process is restarted, any code loaded below this
+   address will be safe, in that it will not be clobbered when the
+   checkpoint image is restored.
+
+   This is peculiar to Sparc Solaris 2.5.1 and should be moved to
+   machdep.
+
+   Assumptions:
+
+   1. Dynamic libraries are loaded into descending addresses
+   2. 0xe0000000 is a lower bound on dynamic segments and an upper
+      bound on the junk below dynamic segments, like the text, data,
+      and heap
+   3. The segment map returned by PIOCMAP on /proc is sorted in
+      ascending pr_vaddr order
+                                                    -zandy 6/19/1998
+ */
+#include <sys/types.h> 
+#include <sys/signal.h>
+#include <sys/fault.h> 
+#include <sys/syscall.h>
+#include <sys/procfs.h>
+static caddr_t
+start_of_lowest_shlib ()
+{
+     int pfd;
+     prmap_t *pmap;
+     int npmap;
+     int i;
+     char proc[32];
+     int scm;
+
+     caddr_t segbound = (caddr_t) 0xe0000000;
+
+     scm = SetSyscalls (SYS_LOCAL | SYS_UNMAPPED);
+
+     /* Open /proc device for this process */
+     sprintf (proc, "/proc/%d", getpid ());
+     pfd = open (proc, O_RDONLY);
+     if (pfd < 0) {
+	  dprintf (D_ALWAYS, "Can't open /proc for this process\n");
+	  Suicide ();
+     }
+
+     /* Get segment map for this process */
+     if (ioctl (pfd, PIOCNMAP, &npmap) < 0) {
+	  dprintf (D_ALWAYS, "Can't PIOCNMAP myself\n");
+	  Suicide ();
+     }
+     pmap = (prmap_t *) malloc ((npmap + 1) * sizeof (prmap_t));
+     if (! pmap) {
+	  dprintf (D_ALWAYS, "Out of memory\n");
+	  Suicide ();
+     }
+     if (ioctl (pfd, PIOCMAP, pmap) < 0) {
+	  dprintf (D_ALWAYS, "Can't PIOCMAP myself\n");
+	  Suicide ();
+     }
+
+     /* Find the first segment likely to be (to have once been, in a
+        restarted process) a shared object. */
+     for (i = 0; i < npmap && pmap[i].pr_vaddr < segbound; i++)
+	  ;
+     close (pfd);
+     free (pmap);
+     SetSyscalls (scm);
+     if (i < npmap)
+	  return pmap[i].pr_vaddr;
+     else 
+	  return NULL;
+}
+
 void
 Header::Init()
 {
 	magic = MAGIC;
 	n_segs = 0;
+	low_shlib_start = 0;
+	addr_of_Env = 0;
+	addr_of_FileTab = 0;
+	addr_of_syscall_sock = 0;
 }
 
 void
@@ -117,6 +216,10 @@ Header::Display()
 {
 	DUMP( " ", magic, 0x%X );
 	DUMP( " ", n_segs, %d );
+	DUMP( " ", low_shlib_start, 0x%X );
+	DUMP( " ", addr_of_Env, 0x%X );
+	DUMP( " ", addr_of_FileTab, 0x%X );
+	DUMP( " ", addr_of_syscall_sock, 0x%X );
 }
 
 void
@@ -167,6 +270,72 @@ Image::SetMode( int syscall_mode )
 	}
 }
 
+/* Evict the shared library that was loaded by dlopen at startup.
+   dlclose is the right way to do this, but we don't have the
+   necessary handle on the library.  Instead, munmap the library's
+   segments.  This deletes the segments from the address space, which
+   is all that matters as far as keeping the process from growing with
+   each ckpt, but we don't know if we're not leaving the rt loader in a
+   fog by not telling it about the unload, i.e., by not calling
+   dlclose.  Are you debugging a problem in a program that uses
+   dlopen?  See if dlclose, rather than munmap, is required here.
+                                                     -zandy 6/19/1998
+ */
+int
+Image::unloadGangrenousSegments ()
+{
+     int pfd;
+     prmap_t *pmap;
+     int npmap;
+     int i;
+     char proc[32];
+     caddr_t segbound = (caddr_t) 0xe0000000;
+     int scm;
+
+     scm = SetSyscalls (SYS_LOCAL | SYS_UNMAPPED);
+     
+     /* Open /proc device for this process */
+     sprintf (proc, "/proc/%d", getpid ());
+     pfd = open (proc, O_RDONLY);
+     if (pfd < 0) {
+	  dprintf (D_ALWAYS, "Can't open /proc for this process\n");
+	  Suicide ();
+     }
+     
+     /* Get segment map for this process */
+     if (ioctl (pfd, PIOCNMAP, &npmap) < 0) {
+	  dprintf (D_ALWAYS, "Can't PIOCNMAP myself\n");
+	  Suicide ();
+     }
+     pmap = (prmap_t *) malloc ((npmap + 1) * sizeof (prmap_t));
+     if (! pmap) {
+	  dprintf (D_ALWAYS, "Out of memory\n");
+	  Suicide ();
+     }
+     if (ioctl (pfd, PIOCMAP, pmap) < 0) {
+	  dprintf (D_ALWAYS, "Can't PIOCMAP myself\n");
+	  Suicide ();
+     }
+     close (pfd);
+
+     /* Unmap segments at addresses lower than the checkpointed shared
+        segments. */
+     for (i = 0; i < npmap; i++)
+	  if ((RAW_ADDR) pmap[i].pr_vaddr < head.low_shlib_start
+	      && pmap[i].pr_vaddr >= segbound) {
+	       dprintf (D_ALWAYS,
+			"(unloadGangrenousSegments) Unmapping %#010x\n",
+			pmap[i].pr_vaddr);
+	       if (0 > munmap ((char *) pmap[i].pr_vaddr, pmap[i].pr_size)) {
+		    dprintf (D_ALWAYS, 
+			     "(unloadGangrenousSegments) munmap failed\n");
+		    Suicide ();
+	       }
+	  }
+
+     SetSyscalls (scm);
+     return 0;
+}
 
 /*
   These actions must be done on every startup, regardless whether it is
@@ -177,15 +346,11 @@ extern "C"
 void
 _condor_prestart( int syscall_mode )
 {
+     dprintf (D_ALWAYS, "ZANDY: In prestart\n");
 	MyImage.SetMode( syscall_mode );
 
 		// Initialize open files table
 	InitFileState();
-
-		// Install initial signal handlers
-	_install_signal_handler( SIGTSTP, (SIG_HANDLER)Checkpoint );
-	_install_signal_handler( SIGUSR2, (SIG_HANDLER)Checkpoint );
-	_install_signal_handler( SIGUSR1, (SIG_HANDLER)Suicide );
 
 	calc_stack_to_save();
 
@@ -249,6 +414,30 @@ _install_signal_handler( int sig, SIG_HANDLER handler )
 	SetSyscalls( scm );
 }
 
+/* For now, write the information we need at restart to a common file.
+   I don't know how to tell the restarting process where the ckpt is
+   without forcing it to connect to the shadow.  -zandy 6/20/1998 */
+static void
+tell_vic_about_the_ckpt (RAW_ADDR low_shlib_start)
+{
+     int scm, fd;
+
+     scm = SetSyscalls (SYS_LOCAL | SYS_UNMAPPED);
+     fd = open ("/common/tmp/zandy/ckptinfo",
+		O_CREAT | O_TRUNC | O_WRONLY, 0664);
+     if (fd < 0) {
+	  dprintf (D_ALWAYS, "ZANDY: Can't open ckptinfo: %d\n",
+		   errno);
+	  Suicide ();
+     }
+     if (sizeof (RAW_ADDR) != write (fd, &low_shlib_start,
+				     sizeof (RAW_ADDR))) {
+	  dprintf (D_ALWAYS, "ZANDY: Error writing ckptinfo\n");
+	  Suicide ();
+     }
+     close (fd);
+     SetSyscalls (scm);
+}
 
 /*
   Save checkpoint information about our process in the "image" object.  Note:
@@ -268,7 +457,6 @@ Image::Save()
 	RAW_ADDR	data_start, data_end;
 	ssize_t		pos;
 	int			i;
-
 
 	head.Init();
 
@@ -321,8 +509,27 @@ Image::Save()
 		}
 	}
 	AddSegment( "DATA", data_start, data_end, prot );
-
 #endif	
+	/* Note the beginning of the lowest shared library and the
+	   location of the jumpbuf that will store the context
+	   captured in Checkpoint().  When restarting, we use these
+	   values to temporarily load the restore lib in a safe place,
+	   and to later jump from that lib to the one we're currently
+	   executing in. -zandy 6/19/1998 */
+	head.low_shlib_start = (RAW_ADDR) start_of_lowest_shlib ();
+	if (head.low_shlib_start == NULL) {
+	     dprintf (D_ALWAYS, "Couldn't find start of lowest shared lib\n");
+	     Suicide ();
+	} else
+	     dprintf (D_ALWAYS,
+		      "(Image::Save) %#010x is the lowest shlib start\n",
+		      head.low_shlib_start);
+	head.addr_of_Env = (RAW_ADDR) &Env;
+	dprintf (D_ALWAYS, "ZANDY: Here's the jmpbuf before:\n");
+	pr_jmpbuf (Env);
+	head.addr_of_FileTab = (RAW_ADDR) FileTab;
+	head.addr_of_syscall_sock = (RAW_ADDR) syscall_sock;
+	tell_vic_about_the_ckpt (head.low_shlib_start);  // This is temporary
 
 	for( i=0; i<numsegs; i++ ) {
 		rtn = segment_bounds(i, addr_start, addr_end, prot);
@@ -331,14 +538,20 @@ Image::Save()
 			dprintf( D_ALWAYS, "Internal error, segment_bounds returned -1\n");
 			Suicide();
 			break;
-		case 0:
+		case 0: case 1:
+
+		     // Used to be only case 0 here.  1 indicates the
+		     // text segment, which ordinarily we don't save.
+		     // However, the text segment test in
+		     // segment_bounds is broken when the condor lib
+		     // is dynamically loaded.  When that gets fixed,
+		     // undo this to only add in case 0, and restore
+		     // case 1 to be similar to case 2.  -zandy 7/8/1998
 #if defined(LINUX)
 			addr_end=find_correct_vm_addr(addr_start, addr_end, prot);
 #endif
 			AddSegment( "SHARED LIB", addr_start, addr_end, prot);
 			break;
-		case 1:
-			break;		// don't checkpoint text segment
 		case 2:
 			stackseg = i;	// don't add STACK segment until the end
 			break;
@@ -451,14 +664,45 @@ Image::Restore()
 {
 	int		save_fd = fd;
 	char	user_data[USER_DATA_SIZE];
+	int x, scm;
 
 #if defined(PVM_CHECKPOINTING)
 	user_restore_pre(user_data, sizeof(user_data));
 #endif
 
+	scm = SetSyscalls (SYS_LOCAL | SYS_UNMAPPED);
+	fdm = open ("/common/tmp/zandy/rest.map",
+		    O_CREAT | O_TRUNC | O_WRONLY,
+		    0664);
+	if (fdm < 0) {
+	     dprintf (D_ALWAYS, "ZANDY: Can't open rest.map\n");
+	     Suicide ();
+	}
+	fdd = open ("/common/tmp/zandy/rest.data",
+		    O_CREAT | O_TRUNC | O_WRONLY,
+		    0664);
+	if (fdm < 0) {
+	     dprintf (D_ALWAYS, "ZANDY: Can't open rest.data\n");
+	     Suicide ();
+	}
+	dprintf (D_ALWAYS, "ZANDY: fdm is %d (%x)\n", fdm, &fdm);
+	SetSyscalls (scm);
+
+
 		// Overwrite our data segment with the one saved at checkpoint
 		// time *and* restore any saved shared libraries.
 	RestoreAllSegsExceptStack();
+
+//	dprintf (D_ALWAYS, "ZANDY: Zeekin' it\n");
+//	zeek ();
+//	dprintf (D_ALWAYS, "ZANDY: Zeeked it\n");
+
+	// We just blew away the heap.  Restore the FileTab and
+	// syscall_sock pointers, which point into the heap. (I think
+	// there is a typing reason for doing FileTab in another
+	// module.) -zandy  7/27/1998
+	RestoreFileTab (GetAddrOfFileTab ());
+	syscall_sock = (ReliSock *)(GetAddrOfsyscall_sock ());
 
 		// We have just overwritten our data segment, so the image
 		// we are working with has been overwritten too.  Fortunately,
@@ -468,6 +712,8 @@ Image::Restore()
 #if defined(PVM_CHECKPOINTING)
 	memcpy(global_user_data, user_data, sizeof(user_data));
 #endif
+
+	dprintf (D_ALWAYS, "ZANDY: About to tmpstk it\n");
 
 		// Now we're going to restore the stack, so we move our execution
 		// stack to a temporary area (in the data segment), then call
@@ -538,8 +784,6 @@ void Image::RestoreAllSegsExceptStack()
 
 }
 
-
-
 void
 RestoreStack()
 {
@@ -550,8 +794,18 @@ RestoreStack()
 	unsigned long nbytes;		// 32 bit unsigned
 #endif
 	int		status;
+	RAW_ADDR        env;
+	int scm;
 
+	dprintf (D_ALWAYS, "ZANDY: About to cream stack\n");
 	MyImage.RestoreSeg( "STACK" );
+	dprintf (D_ALWAYS, "ZANDY: Stack creamed\n");
+
+	scm = SetSyscalls (SYS_LOCAL | SYS_UNMAPPED);
+	dprintf (D_ALWAYS, "ZANDY: fdm is %d (%x)\n", fdm, &fdm);
+	close (fdm);
+	close (fdd);
+	SetSyscalls (scm);
 
 		// In remote mode, we have to send back size of ckpt informaton
 	if( MyImage.GetMode() == REMOTE ) {
@@ -568,6 +822,22 @@ RestoreStack()
 #if defined(PVM_CHECKPOINTING)
 	user_restore_post(global_user_data, sizeof(global_user_data));
 #endif
+
+	/* We may be executing in a ckpt lib that was explicitly
+	   loaded at run time (e.g., for executables not relinked with
+	   Condor syscall_lib).  This lib is not that same as the lib
+	   that was saved in the checkpoint file; in particular, Env
+	   in this lib is uninitialized.  Make sure Env is the context
+	   that was saved at checkpoint time. -zandy 6/18/1998 */
+	env = MyImage.GetAddrOfEnv ();
+	Env = *((jmp_buf*) env);
+
+	/* We should close the fd *before* we return to the original
+           library.  (See non-zero return from setjmp in Checkpoint).
+           -zandy 7/19/1998 */
+/*	MyImage.Close (); */
+
+	dprintf (D_ALWAYS, "ZANDY: About to restore the Checkpoint\n");
 
 	LONGJMP( Env, 1 );
 }
@@ -684,12 +954,32 @@ Image::Write( int fd )
 	int		ack;
 	int		status;
 
+	int scm;
+
 		// Write out the header
 	if( (nbytes=write(fd,&head,sizeof(head))) < 0 ) {
 		return -1;
 	}
 	pos += nbytes;
 	dprintf( D_ALWAYS, "Wrote headers OK\n" );
+
+
+	scm = SetSyscalls (SYS_LOCAL | SYS_UNMAPPED);
+	fdm = open ("/common/tmp/zandy/ckpt.map",
+		    O_CREAT | O_TRUNC | O_WRONLY,
+		    0664);
+	if (fdm < 0) {
+	     dprintf (D_ALWAYS, "ZANDY: Can't open ckpt.map\n");
+	     Suicide ();
+	}
+	fdd = open ("/common/tmp/zandy/ckpt.data",
+		    O_CREAT | O_TRUNC | O_WRONLY,
+		    0664);
+	if (fdm < 0) {
+	     dprintf (D_ALWAYS, "ZANDY: Can't open ckpt.data\n");
+	     Suicide ();
+	}
+	SetSyscalls (scm);
 
 		// Write out the SegMaps
 	for( i=0; i<head.N_Segs(); i++ ) {
@@ -713,6 +1003,12 @@ Image::Write( int fd )
 	}
 	dprintf( D_ALWAYS, "Wrote all Segments OK\n" );
 
+	scm = SetSyscalls (SYS_LOCAL | SYS_UNMAPPED);
+	close (fdd);
+	close (fdm);
+	SetSyscalls (scm);
+
+	
 		/* When using the stream protocol the shadow echo's the number
 		   of bytes transferred as a final acknowledgement. */
 	if( _condor_in_file_stream ) {
@@ -900,7 +1196,27 @@ SegMap::Read( int fd, ssize_t pos )
 		bytes_to_go -= nbytes;
 		ptr += nbytes;
 	}
-
+	{
+	     RAW_ADDR addr_end = core_loc + len;
+	     int scm, type;
+	     scm = SetSyscalls (SYS_LOCAL | SYS_UNMAPPED);
+	     write (fdm, &core_loc, sizeof (core_loc));
+	     write (fdm, &addr_end, sizeof (addr_end));
+	     write (fdm, &prot, sizeof (prot));
+	     if (! mystrcmp (name, "SHARED LIB"))
+		  type = 1; /* SHARED */
+	     else if (! mystrcmp (name, "DATA"))
+		  type = 0; /* DATA */
+	     else if (! mystrcmp (name, "STACK"))
+		  type = 2; /* STACK */
+	     else {
+		  dprintf (D_ALWAYS, "ZANDY: Map name is screwy\n");
+		  Suicide ();
+	     }
+	     write (fdm, &type, sizeof (type));
+	     write (fdd, (char *) core_loc, len);
+	     SetSyscalls (scm);
+	}
 	return pos + len;
 }
 
@@ -914,6 +1230,27 @@ SegMap::Write( int fd, ssize_t pos )
 	}
 	dprintf( D_ALWAYS, "write(fd=%d,core_loc=0x%lx,len=0x%lx)\n",
 			fd, core_loc, len );
+	{
+	     RAW_ADDR addr_end = core_loc + len;
+	     int scm, type;
+	     scm = SetSyscalls (SYS_LOCAL | SYS_UNMAPPED);
+	     write (fdm, &core_loc, sizeof (core_loc));
+	     write (fdm, &addr_end, sizeof (addr_end));
+	     write (fdm, &prot, sizeof (prot));
+	     if (! mystrcmp (name, "SHARED LIB"))
+		  type = 1; /* SHARED */
+	     else if (! mystrcmp (name, "DATA"))
+		  type = 0; /* DATA */
+	     else if (! mystrcmp (name, "STACK"))
+		  type = 2; /* STACK */
+	     else {
+		  dprintf (D_ALWAYS, "ZANDY: Map name is screwy\n");
+		  Suicide ();
+	     }
+	     write (fdm, &type, sizeof (type));
+	     write (fdd, (char *) core_loc, len);
+	     SetSyscalls (scm);
+	}
 	return write(fd,(void *)core_loc,(size_t)len);
 }
 
@@ -1062,10 +1399,42 @@ Checkpoint( int sig, int code, void *scp )
 	while( wait_up )
 		;
 #endif
+
+	dprintf (D_ALWAYS, "ZANDY: Just returned from longjump\n");
+
+
+		/* We may have been restored by a ckpt lib that was
+		   explicitly loaded at run time by the restoring
+		   process (e.g., for executables not relinked with
+		   Condor syscall_lib).  We don't need this library:
+		   there was already a ckpt lib in the ckpt image (we
+		   are executing in it now).  Unload it, lest future
+		   ckpts grow for no purpose. -zandy 6/18/1998 */
+		dprintf (D_ALWAYS, "About to unload gangrenous segments\n");
+		if (0 != MyImage.unloadGangrenousSegments ()) {
+		     dprintf (D_ALWAYS, "Error unloading gangrenous segments");
+		     Suicide ();
+		} else
+		     dprintf (D_ALWAYS, "Unloaded gangrenous segments\n");
+
+		/* Quiz: Why couldn't we have done this before?
+		   -zandy 7/21/1998 */
+		_install_signal_handler( SIGTSTP, Checkpoint);
+		_install_signal_handler( SIGUSR2, Checkpoint);
+		_install_signal_handler( SIGUSR1, Suicide);
+
+		/* Quick and dirty fix.  This is not general.
+		   -zandy 7/16/1998 */
+		SetSyscalls (SYS_REMOTE | SYS_MAPPED);
+
 		if ( do_full_restart ) {
 			scm = SetSyscalls( SYS_LOCAL | SYS_UNMAPPED );
 			patch_registers( scp );
-			MyImage.Close();
+			/* I think the Close should happen before the
+			   code jumps to the original lib -- so it's
+			   done in RestoreStack now.  -zandy 7/15/1998
+			   MyImage.Close();
+			*/
 
 			if( MyImage.GetMode() == REMOTE ) {
 				SetSyscalls( SYS_REMOTE | SYS_MAPPED );

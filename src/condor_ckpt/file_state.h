@@ -159,6 +159,8 @@ public:
 	void FlushBuf();
 	void DisplayBuf();
 	int find_avail( int start );
+	// ZANDY: Remove the need for this method
+	File *RevealFile () { return file; }
 private:
 	int     bufCount;       // running count of the used buffer. 
 	void	fix_dups( int user_fd );
