@@ -28,6 +28,7 @@
 #include <kstat.h>
 #include <sys/param.h>
 
+#include "condor_common.h"
 #include "debug.h"
 #include "except.h"
 #include "condor_uid.h"
