@@ -1,7 +1,7 @@
 #!/bin/sh
 
 /bin/mkdir junk
-soapcpp2 -d junk -p soap_schedd gsoap_schedd.h
+soapcpp2 -I ../condor_daemon_core.V6 -d junk -p soap_schedd gsoap_schedd.h
 cp junk/soap_scheddC.cpp .
 cp junk/soap_scheddServer.cpp .
 cp junk/condorSchedd.nsmap .

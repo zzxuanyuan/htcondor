@@ -1,4 +1,4 @@
-#import "../condor_daemon_core.V6/gsoap_daemon_core_types.h"
+#import "gsoap_daemon_core_types.h"
 
 typedef xsd__string condor__Requirement;
 
