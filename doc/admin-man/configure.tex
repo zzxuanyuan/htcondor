@@ -3124,6 +3124,15 @@ X.509 proxy to be used in GSI authentication.
 When this configuration variable is defined, use of this proxy
 takes precedence over use of a certificate and key.
 
+\item[\Macro{SEC\_DEFAULT\_SESSION\_DURATION}]
+\label{param:SessionDuration} The amount of time in seconds before
+a communication session expires.
+Defaults to 3600 seconds (1 hour).
+A session is a record of necessary information to do communication
+between a client and daemon, and is protected by a shared secret key.
+The session expires to reduce the window of opportunity where
+the key may be compromised by attack.
+
 \end{description}
 
 
