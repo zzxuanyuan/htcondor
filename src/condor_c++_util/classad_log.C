@@ -51,7 +51,7 @@ ptr = NULL;
 /************************************************************/
 
 //global variable
-extern QueueDBManager queueDBManager;
+QueueDBManager queueDBManager;
 
 ClassAdLog::ClassAdLog() : table(1024, hashFunction)
 {
@@ -430,8 +430,10 @@ int
 LogNewClassAd::WriteBody(int fd)
 {
   //added by Ameet
-  queueDBManager.processNewClassAd(key, mytype, targettype, false); 
-  queueDBManager.commitTransaction();
+  if(queueDBManager.isInitialized()) {
+    queueDBManager.processNewClassAd(key, mytype, targettype, false); 
+    queueDBManager.commitTransaction();
+  }
 	int rval, rval1;
 	rval = write(fd, key, strlen(key));
 	if (rval < 0) return rval;
@@ -487,8 +489,10 @@ int
 LogDestroyClassAd::WriteBody(int fd) 
 {
   //added by Ameet
-  queueDBManager.processDestroyClassAd(key, false);
-  queueDBManager.commitTransaction();
+  if(queueDBManager.isInitialized()) {
+    queueDBManager.processDestroyClassAd(key, false);
+    queueDBManager.commitTransaction();
+  }
   return write(fd, key, strlen(key));;
 }
 
@@ -529,8 +533,10 @@ int
 LogSetAttribute::WriteBody(int fd)
 {
   //added by Ameet
-  queueDBManager.processSetAttribute(key, name, value, false);
-  queueDBManager.commitTransaction();
+  if(queueDBManager.isInitialized()) {
+    queueDBManager.processSetAttribute(key, name, value, false);
+    queueDBManager.commitTransaction();
+  }
 	int		rval, rval1, len;
 
 	len = strlen(key);
@@ -620,8 +626,10 @@ int
 LogDeleteAttribute::WriteBody(int fd)
 {
   //added by Ameet
-  queueDBManager.processDeleteAttribute(key, name, false);
-  queueDBManager.commitTransaction();
+  if(queueDBManager.isInitialized()) {
+    queueDBManager.processDeleteAttribute(key, name, false);
+    queueDBManager.commitTransaction();
+  }
 	int		rval, rval1, len;
 
 	len = strlen(key);
