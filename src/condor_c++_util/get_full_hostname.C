@@ -25,6 +25,7 @@
 #include "condor_debug.h"
 #include "condor_string.h"
 #include "condor_config.h"
+#include "internet.h"
 
 
 char* get_full_hostname_from_hostent( struct hostent* host_ptr,
@@ -40,6 +41,8 @@ get_full_hostname( const char* host, struct in_addr* sin_addrp )
 {
 	struct hostent *host_ptr;
 	char* tmp;
+    char **pptr;
+    struct in_addr *inaddr;
 	bool have_full = false;
 
 	if( (tmp = strchr(host, '.')) ) {
@@ -75,14 +78,26 @@ get_full_hostname( const char* host, struct in_addr* sin_addrp )
 		if( sin_addrp ) {
 			memset( sin_addrp, 0, sizeof(struct in_addr) );
 		}
-		dprintf( D_HOSTNAME, "gethostbyname() failed: %s (errno: %d)\n", 
-				 strerror(errno), errno );
+        // gethostbyname does not set errno. Instead, it sets h_errno. Also hstrerror
+        // is the function to get a string that explains error
+		dprintf(D_HOSTNAME, "gethostbyname() failed: %s\n", hstrerror(h_errno));
 		return NULL;
 	}
 	if( sin_addrp ) {
-		*sin_addrp = *(struct in_addr*)(host_ptr->h_addr_list[0]);
-		dprintf( D_HOSTNAME, "Found IP addr in hostent: %s\n", 
-				 inet_ntoa(*sin_addrp) );
+        for (pptr = host_ptr->h_addr_list; *pptr != NULL; pptr++) {
+            inaddr = (struct in_addr *)*pptr;
+		    dprintf( D_HOSTNAME, "Found IP addr in hostent: %s\n", inet_ntoa(*inaddr) );
+            // check if loopback
+            if (inaddr->s_addr == inet_addr("127.0.0.1")) {
+                continue;
+            }
+            // copy the address
+            *sin_addrp = *inaddr;
+            // check if public address
+            if (!is_priv_net(inaddr->s_addr)) {
+                break;
+            }
+        }
 	}
 
 	if( have_full ) {
