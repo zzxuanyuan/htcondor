@@ -29,6 +29,7 @@
 #ifndef __CONDOR_ATTRIBUTES_H__
 #define __CONDOR_ATTRIBUTES_H__
 
+const char ATTR_ACCOUNTING_GROUP         [] = "AccountingGroup";
 const char ATTR_ACTION_CONSTRAINT		 [] = "ActionConstraint";
 const char ATTR_ACTION_IDS				 [] = "ActionIds";
 const char ATTR_ACTION_RESULT			 [] = "ActionResult";
