@@ -40,7 +40,6 @@ CLASSAD_OBJ = \
 	../condor_classad.V6/condorUtil.o \
 	../condor_classad.V6/exprList.o \
 	../condor_classad.V6/exprTree.o \
-	../condor_classad.V6/extra_tests.o \
 	../condor_classad.V6/fnCall.o \
 	../condor_classad.V6/indexfile.o \
 	../condor_classad.V6/instantiations.o \
