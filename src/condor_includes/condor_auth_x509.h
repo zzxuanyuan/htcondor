@@ -102,8 +102,6 @@ class Condor_Auth_X509 : public Condor_Auth_Base {
 
     int authenticate_server_gss();
 
-    int lookup_user_gss( char *username );
-
     int nameGssToLocal( char * GssClient );
 
     int get_user_x509name(char*,char*);
