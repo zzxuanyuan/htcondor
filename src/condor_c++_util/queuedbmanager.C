@@ -424,13 +424,17 @@ QueueDBManager::processHistoryAd(ClassAd *ad) {
 	   strcasecmp(name, "enteredcurrentstatus") == 0 ||
 	   strcasecmp(name, "completiondate") == 0
 	   ) {
-	  sprintf(sql_str1, 
-		  "UPDATE History_Horizontal SET %s = (('epoch'::timestamp + '%s seconds') at time zone 'UTC') WHERE scheddname = '%s' and cid = %d and pid = %d;", name, value, Name, cid, pid);
+			// avoid updating with epoch time
+		if (strcmp(value, "0") == 0) {
+			continue;
+		} 
+		sprintf(sql_str1, 
+				"UPDATE History_Horizontal SET %s = (('epoch'::timestamp + '%s seconds') at time zone 'UTC') WHERE scheddname = '%s' and cid = %d and pid = %d;", name, value, Name, cid, pid);
 	}
 	else {
 		strip_double_quote(value);
-	  sprintf(sql_str1, 
-		  "UPDATE History_Horizontal SET %s = '%s' WHERE scheddname = '%s' and cid = %d and pid = %d;", name, value, Name, cid, pid);
+		sprintf(sql_str1, 
+				"UPDATE History_Horizontal SET %s = '%s' WHERE scheddname = '%s' and cid = %d and pid = %d;", name, value, Name, cid, pid);
 	}	
       }
       else {
