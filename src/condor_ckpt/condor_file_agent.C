@@ -48,11 +48,6 @@ int CondorFileAgent::close()
 	return original->close();
 }
 
-void CondorFileAgent::report_file_info()
-{
-	original->report_file_info();
-}
-
 void CondorFileAgent::checkpoint()
 {
 	push_data();

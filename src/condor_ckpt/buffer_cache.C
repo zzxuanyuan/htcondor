@@ -26,6 +26,7 @@
 #include "condor_debug.h"
 #include "condor_macros.h"
 #include "condor_file_warning.h"
+#include "file_state.h"
 
 /*
 Policy:
@@ -41,7 +42,7 @@ Nomenclature:
 
 class CondorBlockInfo {
 public:
-	CondorFile	*owner;		// The virtual file this belongs to
+	CondorFile *owner;	// The file owning this block
 	int	order;		// The order of this block in the file
 	int	dirty;		// Has this been changed?
 	int	last_used;	// Time of last use
@@ -94,11 +95,6 @@ CondorBufferCache::~CondorBufferCache()
 An incomplete or failed write can be a real problem -- it's too late
 to return an error code, so we will print a warning here, and see what
 happens.
-
-Consider common examples -- what is the best thing to do?
-	 File system full
-	 Bad permissions
-	 Lost connection on socket
 */
 
 int CondorBufferCache::write_block( int position )
@@ -119,13 +115,14 @@ int CondorBufferCache::write_block( int position )
 		fragment = block_size;
 	}
 
-	result = info[position].owner->write(
+	result = FileTab->write_unbuffered(
+		info[position].owner,
 		info[position].order*block_size,
 		&buffer[position*block_size],
 		fragment );
 
 	if(result!=fragment) {
-		_condor_file_warning("Unable to write buffered data to file %s! (%s).\n",info[position].owner->get_name(),strerror(errno));
+		_condor_file_warning("Unable to write buffered data to %s! (%s).\n",info[position].owner->get_name(),strerror(errno));
 	}
 
 	info[position].dirty = 0;
@@ -144,7 +141,11 @@ int CondorBufferCache::read_block( CondorFile *owner, int position, int order )
 
 	if( (position<0) || (position>=blocks) ) return -1;
 
-	result = owner->read(order*block_size,&buffer[position*block_size],block_size);
+	result = FileTab->read_unbuffered(
+	       owner,
+	       order*block_size,
+	       &buffer[position*block_size],
+	       block_size );
 
 	if(result<0) {
 		// Error, but buffer not changed
@@ -165,16 +166,23 @@ int CondorBufferCache::read_block( CondorFile *owner, int position, int order )
 }
 
 /*
-Return an unused, or otherwise the least recently used block
-position in the cache.  Never fails.
+This function returns the position of the best block to be replaced.
+If the File requesting space is reading sequentially,
+and already has a block in the cache, replace that one.  Otherwise,
+select the block that was least recently used.
 */
 
-int CondorBufferCache::find_lru_position()
+int CondorBufferCache::find_lru_position( CondorFile *requestor )
 {
 	int	best_time=info[0].last_used;
 	int	best_block=0;
 
 	for( int i=0; i<blocks; i++ ) {
+		if( info[i].owner==requestor ) {
+//			if(!FileTab->is_used_randomly(info[i].owner)) {
+//				return i;
+//			}
+		}
 		if( info[i].owner==0 ) {
 			return i;
 		}
@@ -209,13 +217,13 @@ Find an empty place in the cache for a new block.
 Return the position of the new block.
 */
 
-int CondorBufferCache::make_room()
+int CondorBufferCache::make_room( CondorFile *requestor )
 {
 	int position;
 
 	while(1) {
-		position = find_lru_position();
-		if(info[position].owner && info[position].dirty) {
+		position = find_lru_position(requestor);
+		if((info[position].owner) && info[position].dirty) {
 			if(write_block(position)!=block_size) {
 				// If the block could not be written,
 				// put it back in the lru queue
@@ -233,13 +241,13 @@ int CondorBufferCache::make_room()
 Attempt to bring a block into the cache, reading if necessary.
 */
 
-int CondorBufferCache::find_or_load_block(CondorFile *owner, int order)
+int CondorBufferCache::find_or_load_block( CondorFile *owner, int order)
 {
 	int position = find_block(owner,order);
 
 	if(position!=-1) return position;
 
-	position = make_room();
+	position = make_room(owner);
 
 	// If the read fails, the data and info in the
 	// existing block have not been touched.
@@ -259,12 +267,10 @@ Read from the buffer cache.
 Returns an error or the number of bytes read.
 */
 
-ssize_t CondorBufferCache::read( CondorFile *owner, off_t offset, char *data, ssize_t length )
+ssize_t CondorBufferCache::read( CondorFile *owner, off_t offset, char *data, size_t length )
 {
 	int order,position,chunksize;
 	int bytes_read=0;
-
-	if(!buffer) return owner->read(offset,data,length);
 
 	do {
 		// Decide what portion of the block to read
@@ -308,12 +314,10 @@ Write to the buffer cache.
 Return the number of bytes written, or an error.
 */
 
-ssize_t CondorBufferCache::write( CondorFile *owner, off_t offset, char *data, ssize_t length )
+ssize_t CondorBufferCache::write( CondorFile *owner, off_t offset, char *data, size_t length )
 {
 	int order,position,chunksize,readmode;
 	int bytes_written=0;
-
-	if( !buffer ) return owner->write(offset,data,length);
 
 	do {
 		// Decide what portion of the block to write
@@ -332,10 +336,10 @@ ssize_t CondorBufferCache::write( CondorFile *owner, off_t offset, char *data, s
 			// The block was found
 		} else if( (chunksize==block_size) ) {
 			// Or, we are writing a whole block
-			position = make_room();
+			position = make_room(owner);
 		} else if((offset_in_block==0)&&(offset>=owner->get_size())) {
 			// Or, we are appending in a new block
-			position = make_room();
+			position = make_room(owner);
 		} else {
 			// Or, we must modify a block not in the cache
 		}
@@ -349,7 +353,7 @@ ssize_t CondorBufferCache::write( CondorFile *owner, off_t offset, char *data, s
 			// buffer, excepting any partial last block.
 
 			chunksize = length - (length-chunksize)%block_size;
-			owner->write(offset,data,chunksize);
+			FileTab->write_unbuffered(owner,offset,data,chunksize);
 			invalidate(owner,offset,chunksize);
 
 		} else {
@@ -377,19 +381,6 @@ ssize_t CondorBufferCache::write( CondorFile *owner, off_t offset, char *data, s
 		return -1;
 	} else {
 		return bytes_written;
-	}
-}
-
-void CondorBufferCache::prefetch( CondorFile *f, off_t offset, size_t length )
-{
-	if( (!f) || (offset<0) || (length<=0) ) return;
-
-	int order = offset/block_size;
-
-	while(length>0) {
-		if(find_or_load_block(f,order)<0) break;
-		length -= block_size;
-		order++;
 	}
 }
 
@@ -435,5 +426,3 @@ void CondorBufferCache::flush( CondorFile *owner )
 		}
 	}
 }
-
-

@@ -38,7 +38,6 @@ int CondorFileRemote::read(int pos, char *data, int length) {
 	int result;
 	// Change this to a switch call when it exists.
        	result = REMOTE_syscall( CONDOR_lseekread, fd, pos, SEEK_SET, data, length );
-	CondorFile::read(pos,data,result);
 	return result;
 }
 
@@ -46,7 +45,6 @@ int CondorFileRemote::write(int pos, char *data, int length) {
 	int result;
 	// Change this to switch call when it exists
 	result = REMOTE_syscall( CONDOR_lseekwrite, fd, pos, SEEK_SET, data, length );
-	CondorFile::write(pos,data,result);
 	return result;
 }
 

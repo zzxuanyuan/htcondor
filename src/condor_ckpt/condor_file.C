@@ -20,7 +20,6 @@ void CondorFile::init() {
 	name[0] = 0;
 	size = 0;
 	forced = 0;
-	seek_count = read_count = write_count = read_bytes = write_bytes = 0;
 	resume_count = 0;
 }
 
@@ -78,36 +77,13 @@ int CondorFile::open(const char *path, int flags, int mode) {
 	return fd;
 }
 
-// Anytime a file is closed, send back an I/O report 
 
 int CondorFile::close()
 {
-	// If this was a placeholder ("forced open"),
-	// do not do an actual close.
-
 	if(!forced) {
 		::close(fd);
-		report_file_info();
 	}
 	fd = -1;
-	return -1;
-}
-
-// Update I/O records on every read.
- 
-int CondorFile::read( int pos, char *data, int length )
-{
-	read_count++;
-	if(length>0) read_bytes+=length;
-	return -1;
-}
-
-// Update I/O records on every write
-
-int CondorFile::write( int pos, char *data, int length )
-{
-	write_count++;
-	if(length>0) write_bytes+=length;
 	return -1;
 }
 
@@ -120,17 +96,4 @@ int CondorFile::force_open( int f, char *n, int r, int w )
 	readable = r;
 	writeable = w;
 	forced = 1;
-}
-
-// Send an I/O report back to the shadow
-
-void CondorFile::report_file_info()
-{
-	if(MyImage.GetMode()!=STANDALONE) {
-		REMOTE_syscall( CONDOR_report_file_info,
-			name,
-			read_count,read_bytes,
-			write_count,write_bytes,
-			seek_count,size);
-	}
 }

@@ -25,15 +25,14 @@
 #define BUFFER_CACHE_H
 
 #include "condor_common.h"
-#include "condor_file.h"
+#include "file_state.h"
 
 class CondorBlockInfo;
 
 /**
 This class buffers fixed-sized blocks of data for all virtual
 files in a process.  When a read or writeback is necessary,
-the appropriate I/O method is called using a pointer to
-a CondorFile object.
+the appropriate unbuffered method is called in the OpenFileTable.
 */
 
 class CondorBufferCache {
@@ -46,27 +45,19 @@ public:
 	advantage of the buffer cache if possible.  Reading past
 	the length of a file returns data of all zeroes. */
 
-	ssize_t read( CondorFile *f, off_t offset, char *data, ssize_t length );
+	ssize_t read( CondorFile *owner, off_t offset, char *data, size_t length );
 
 	/** write data to a file at a particular offset.  If the appropriate
 	blocks are in the buffer, write to the buffer and write back when
 	convenient.  If the appropriate blocks are not in the buffer,
 	then write through. */
 
-	ssize_t write( CondorFile *f, off_t offset, char *data, ssize_t length );
-
-	/** Force the buffer to preload data from a particular range.
-	    We would like to do all prefetching as one gigantic read
-	    which fills the buffer -- this method may cause some
-	    writebacks in order to create one unbroken region
-	    in the buffer.  */
-
-	void prefetch( CondorFile *f, off_t offset, size_t length );
+	ssize_t write( CondorFile *owner, off_t offset, char *data, size_t length );
 
 	/** Invalidate all blocks owned by this file, after flushing
 	any dirty blocks. */
 
-	void flush( CondorFile *f );
+	void flush( CondorFile *owner );
 
 	/** Flush all dirty blocks in the cache. Do not invalidate
 	clean blocks. */
@@ -78,8 +69,8 @@ private:
 	void	invalidate( CondorFile *owner, off_t offset, size_t length );
 	int	find_block( CondorFile *owner, int order );
 	int	find_or_load_block( CondorFile *owner, int order );
-	int	find_lru_position();
-	int	make_room();
+	int	find_lru_position( CondorFile *requestor );
+	int	make_room( CondorFile *requestor );
 
 	int	write_block( int position );
 	int	read_block( CondorFile *owner, int position, int order );

@@ -136,6 +136,8 @@ fd  fd  fd                 fd  fd fd
 </pre>
 */
 
+class CondorBufferCache;
+
 class CondorFileTable {
 public:
 
@@ -182,9 +184,15 @@ public:
 	/** Read with UNIX semantics */
 	ssize_t	read( int fd, void *data, size_t length );
 
+	/** Read from a specific position, bypassing buffering */
+	ssize_t read_unbuffered( CondorFile *file, off_t offset, void *data, size_t length );
+
 	/** Write with UNIX semantics */
 	ssize_t	write( int fd, const void *data, size_t length );
-       
+
+	/** Write to a specific position, bypassing buffering */
+	ssize_t write_unbuffered( CondorFile *file, off_t offset, const void *data, size_t length );
+
 	/** Seek with UNIX semantics */
 	off_t	lseek( int fd, off_t offset, int whence );
 
@@ -241,6 +249,9 @@ public:
 	    syscalls.  Returns false otherwise. */
 	int	local_access_hack( int fd );
 
+	/** Report an I/O summary to the appropriate authorities */
+	void	report_info();
+
 private:
 
 	int	install_special( char *kind );
@@ -255,10 +266,19 @@ private:
 
 	int	length;
 	char	working_dir[_POSIX_PATH_MAX];
-	int	prefetch_size;
 	int	resume_count;
 	int	got_buffer_info;
+
+	// How many reads, writes, and seeks are performed?
+	int	read_count, read_bytes;
+	int	write_count, write_bytes;
+	int	seek_count;
+
+	// How many are actually performed after buffering?
+	int	actual_read_count, actual_read_bytes;
+	int	actual_write_count, actual_write_bytes;
 };
+
 
 /** This is a pointer to the single global instance of the file
     table.  The only user of this pointer should be the system call

@@ -36,6 +36,8 @@
 #include "file_table_interf.h"
 #include "condor_debug.h"
 #include "condor_ckpt_mode.h"
+#include "signals_control.h"
+
 static char *_FileName_ = __FILE__;
 
 extern int _condor_in_file_stream;
@@ -860,6 +862,8 @@ RestoreStack()
 		zbuf = Z_NULL;
 	}
 #endif
+
+	_condor_signals_enable();
 
 	LONGJMP( Env, 1 );
 }

@@ -38,8 +38,8 @@ public:
 
 	virtual int open(const char *path, int flags, int mode);
 	virtual int close();
-	virtual int read(int offset, char *data, int length);
-	virtual int write(int offset, char *data, int length);
+	virtual int read(int offset, char *data, int length)=0;
+	virtual int write(int offset, char *data, int length)=0;
 
 	virtual int fcntl( int cmd, int arg )=0;
 	virtual int ioctl( int cmd, int arg )=0;
@@ -51,10 +51,10 @@ public:
 	virtual void resume(int count)=0;
 
 	int	get_resume_count()	{ return resume_count; }
-	int	bump_seek_count()	{ seek_count++; }
 
 	int	is_readable()		{ return readable; }
 	int	is_writeable()		{ return writeable; }
+
 	void	set_size(size_t s)	{ size = s; }
 	int	get_size()		{ return size; }
 	char	*get_kind()		{ return kind; }
@@ -71,13 +71,6 @@ public:
 	*/
 
 	int	force_open( int f, char *name, int r, int w );
-
-	/**
-	When in remote mode, transmit access statistics
-	regarding this file to the shadow.
-	*/
-
-	virtual void report_file_info();
 
 	/**
 	Return the real fd associated with this file.
@@ -108,14 +101,6 @@ protected:
 	int	size;		// number of bytes in the file
 	int	forced;		// was this created with force_open?
 	int	resume_count;	// how many times have I been resumed?
-
-	// How much data has passed through this object?
-
-	int	read_count;	// Updated by read
-	int	read_bytes;
-	int	write_count;	// Updated by write
-	int	write_bytes;
-	int	seek_count;	// Updated by bump_seek_count
 };
 
 #endif

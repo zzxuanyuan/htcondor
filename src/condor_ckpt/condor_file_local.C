@@ -42,8 +42,6 @@ int CondorFileLocal::read(int pos, char *data, int length) {
 	result = ::read(fd,data,length);
 	SetSyscalls(scm);
 
-	CondorFile::read(pos,data,result);
-
 	return result;
 }
 
@@ -54,8 +52,6 @@ int CondorFileLocal::write(int pos, char *data, int length) {
 	::lseek(fd,pos,SEEK_SET);
 	result = ::write(fd,data,length);
 	SetSyscalls(scm);
-
-	CondorFile::write(pos,data,result);
 
 	return result;
 }

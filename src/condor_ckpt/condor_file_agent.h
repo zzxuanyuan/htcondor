@@ -21,8 +21,6 @@ public:
 	virtual int open( const char *path, int flags, int mode );
 	virtual int close();
 
-	virtual void report_file_info();
-
 	virtual void checkpoint();
 	virtual void suspend();
 	virtual void resume(int count);
