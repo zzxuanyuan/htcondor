@@ -31,6 +31,7 @@
 #include "condor_common.h"
 #include "condor_constants.h"
 #include "file_lock.h"
+#include <stdio.h>
 
 extern "C" int lock_file( int fd, LOCK_TYPE type, BOOLEAN do_block );
 
