@@ -962,3 +962,13 @@ clean::							@@\
 	rm -f tags
 #endif 
 
+
+/*
+** Externals build rule
+*/
+
+#ifndef ext_target
+#define ext_target(package_id,ext_dep)				@@\
+$(EXTERNALS_TRIGGER_DIR)/$(##package_id##): ext_dep		@@\
+	./build_external  --bundle_dir=$(EXTERNALS_BUNDLE_ROOT) --install_dir=$(EXTERNALS_INSTALL_ROOT) --build_dir=$(EXTERNALS_BUILD) --log=$(EXTERNALS_BUILD)/log.$(##package_id##) --package_name=$(##package_id##) --package_dir=$(EXTERNALS_INSTALL_ROOT)/$(##package_id##) --trigger_dir=$(EXTERNALS_TRIGGER_DIR)
+#endif
