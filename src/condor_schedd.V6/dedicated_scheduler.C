@@ -1997,7 +1997,8 @@ DedicatedScheduler::spawnJobs( void )
 				 id.cluster, pid );
 
 		mark_job_running( &id );
-		srec = scheduler.add_shadow_rec( pid, &id, mrec, -1 );
+		srec = scheduler.add_shadow_rec( pid, &id, CONDOR_UNIVERSE_MPI, 
+										 mrec, -1 );
 
         SetAttributeInt( id.cluster, id.proc, ATTR_CURRENT_HOSTS,
 						 allocation->num_resources );

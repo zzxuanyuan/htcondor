@@ -61,6 +61,7 @@ struct shadow_rec
 {
     int             pid;
     PROC_ID         job_id;
+	int				universe;
     match_rec*	    match;
     int             preempted;
     int             conn_fd;
@@ -287,7 +288,8 @@ class Scheduler : public Service
 		// Used by the DedicatedScheduler class
 	void 			swap_space_exhausted();
 	void			delete_shadow_rec(int);
-	shadow_rec*     add_shadow_rec(int, PROC_ID*, match_rec*, int);
+	shadow_rec*     add_shadow_rec( int pid, PROC_ID*, int univ, match_rec*,
+									int fd );
 	shadow_rec*		add_shadow_rec(shadow_rec*);
 	void			HadException( match_rec* );
 
@@ -419,7 +421,7 @@ private:
 	bool	contactStartd( ContactStartdArgs* args );
 
 	shadow_rec*		StartJob(match_rec*, PROC_ID*);
-	shadow_rec*		start_std(match_rec*, PROC_ID*);
+	shadow_rec*		start_std(match_rec*, PROC_ID*, int univ);
 	shadow_rec*		start_pvm(match_rec*, PROC_ID*);
 	shadow_rec*		start_sched_universe_job(PROC_ID*);
 	shadow_rec*		start_local_universe_job(PROC_ID*);

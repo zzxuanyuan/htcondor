@@ -121,7 +121,7 @@ void mark_job_stopped(PROC_ID*);
 void mark_job_running(PROC_ID*);
 int fixAttrUser( ClassAd *job );
 shadow_rec * find_shadow_rec(PROC_ID*);
-shadow_rec * add_shadow_rec(int, PROC_ID*, match_rec*, int);
+shadow_rec * add_shadow_rec( int, PROC_ID*, int, match_rec*, int );
 bool service_this_universe(int, ClassAd*);
 
 int	WallClockCkptInterval = 0;
@@ -4322,6 +4322,9 @@ Scheduler::makeReconnectRecords( PROC_ID* job, ClassAd* match_ad )
 		return;
 	}
 	
+	int universe;
+	GetAttributeInt( cluster, proc, ATTR_JOB_UNIVERSE, &universe );
+
 	startd_addr = getAddrFromClaimId( claim_id );
 	if( GetAttributeStringNew(cluster, proc, ATTR_REMOTE_POOL,
 							  &pool) < 0 ) {
@@ -4398,6 +4401,7 @@ Scheduler::makeReconnectRecords( PROC_ID* job, ClassAd* match_ad )
 	srec->pid = 0;
 	srec->job_id.cluster = cluster;
 	srec->job_id.proc = proc;
+	srec->universe = universe;
 	srec->match = mrec;
 	srec->preempted = FALSE;
 	srec->removed = FALSE;
@@ -4707,7 +4711,7 @@ Scheduler::StartJob(match_rec* mrec, PROC_ID* job_id)
 					"(%d.%d) assuming standard.\n",	ATTR_JOB_UNIVERSE,
 					job_id->cluster, job_id->proc);
 		}
-		return start_std(mrec, job_id);
+		return start_std( mrec, job_id, universe );
 	}
 	return NULL;
 }
@@ -4749,14 +4753,7 @@ Scheduler::StartJobHandler()
 		}
 	}
 
-	int universe;
-	if( GetAttributeInt(job_id->cluster, job_id->proc,
-						ATTR_JOB_UNIVERSE, &universe) < 0 ) {
-		dprintf(D_ALWAYS,"Couldn't find ClassAd for job %d.%d\n",
-		        job_id->cluster, job_id->proc);
-		tryNextJob();
-		return;
-	}
+	int universe = srec->universe;
 
 	//-------------------------------
 	// Actually fork the shadow
@@ -5197,7 +5194,7 @@ Scheduler::noShadowForJob( shadow_rec* srec, NoShadowFailure_t why )
 
 
 shadow_rec*
-Scheduler::start_std(match_rec* mrec , PROC_ID* job_id)
+Scheduler::start_std( match_rec* mrec , PROC_ID* job_id, int univ )
 {
 
 	dprintf( D_FULLDEBUG, "Scheduler::start_std - job=%d.%d on %s\n",
@@ -5210,7 +5207,7 @@ Scheduler::start_std(match_rec* mrec , PROC_ID* job_id)
 
 	dprintf(D_FULLDEBUG,"Queueing job %d.%d in runnable job queue\n",
 			job_id->cluster,job_id->proc);
-	shadow_rec* srec=add_shadow_rec(0,job_id, mrec,-1);
+	shadow_rec* srec=add_shadow_rec( 0, job_id, univ, mrec, -1 );
 	if (RunnableJobQueue.enqueue(srec)) {
 		EXCEPT("Cannot put job into run queue\n");
 	}
@@ -5308,7 +5305,8 @@ Scheduler::start_pvm(match_rec* mrec, PROC_ID *job_id)
 
 		close(pipes[0]);
 		mark_job_running(job_id);
-		srp = add_shadow_rec( pid, job_id, mrec, pipes[1] );
+		srp = add_shadow_rec( pid, job_id, CONDOR_UNIVERSE_PVM, mrec,
+							  pipes[1] );
 		shadow_fd = pipes[1];
 		dprintf( D_ALWAYS, "shadow_fd = %d\n", shadow_fd);		
 	} else {
@@ -5396,7 +5394,7 @@ Scheduler::start_local_universe_job( PROC_ID* job_id )
 
 	mark_job_running( job_id );
 	SetAttributeInt( job_id->cluster, job_id->proc, ATTR_CURRENT_HOSTS, 1 );
-	return add_shadow_rec(pid, job_id, NULL, -1);
+	return add_shadow_rec( pid, job_id, CONDOR_UNIVERSE_LOCAL, NULL, -1 );
 
 }
 
@@ -5664,7 +5662,7 @@ Scheduler::start_sched_universe_job(PROC_ID* job_id)
 	mark_job_running(job_id);
 	SetAttributeInt(job_id->cluster, job_id->proc, ATTR_CURRENT_HOSTS, 1);
 	WriteExecuteToUserLog( *job_id );
-	return add_shadow_rec(pid, job_id, NULL, -1);
+	return add_shadow_rec( pid, job_id, CONDOR_UNIVERSE_SCHEDULER, NULL, -1 );
 }
 
 void
@@ -5693,19 +5691,20 @@ Scheduler::display_shadow_recs()
 }
 
 struct shadow_rec *
-Scheduler::add_shadow_rec( int pid, PROC_ID* job_id, match_rec* mrec, int fd )
+Scheduler::add_shadow_rec( int pid, PROC_ID* job_id, int univ,
+						   match_rec* mrec, int fd )
 {
 	shadow_rec *new_rec = new shadow_rec;
 
 	new_rec->pid = pid;
 	new_rec->job_id = *job_id;
+	new_rec->universe = univ;
 	new_rec->match = mrec;
 	new_rec->preempted = FALSE;
 	new_rec->removed = FALSE;
 	new_rec->conn_fd = fd;
 	new_rec->isZombie = FALSE; 
 	new_rec->is_reconnect = false;
-
 	
 	if (pid) {
 		add_shadow_rec(new_rec);
@@ -5822,9 +5821,8 @@ Scheduler::add_shadow_rec( shadow_rec* new_rec )
 			SetAttributeString(cluster, proc, ATTR_REMOTE_POOL, mrec->pool);
 		}
 	}
-	int universe = CONDOR_UNIVERSE_STANDARD;
-	GetAttributeInt( cluster, proc, ATTR_JOB_UNIVERSE, &universe );
-	if (universe == CONDOR_UNIVERSE_PVM) {
+	GetAttributeInt( cluster, proc, ATTR_JOB_UNIVERSE, &new_rec->universe );
+	if (new_rec->universe == CONDOR_UNIVERSE_PVM) {
 		ClassAd *ad;
 		ad = GetNextJob(1);
 		while (ad != NULL) {
@@ -5958,11 +5956,9 @@ Scheduler::delete_shadow_rec(int pid)
 		BeginTransaction();
 
 		int job_status = IDLE;
-		int universe = CONDOR_UNIVERSE_STANDARD;
-		GetAttributeInt( cluster, proc, ATTR_JOB_UNIVERSE, &universe );
 		GetAttributeInt( cluster, proc, ATTR_JOB_STATUS, &job_status );
 
-		if (universe == CONDOR_UNIVERSE_PVM) {
+		if( rec->universe == CONDOR_UNIVERSE_PVM ) {
 			ClassAd *ad;
 			ad = GetNextJob(1);
 			while (ad != NULL) {
@@ -6279,14 +6275,12 @@ Scheduler::preempt(int n)
 				// on the universe, do the right thing to preempt it.
 			rec->preempted = TRUE;
 			n--;
-			int universe;
 			int cluster = rec->job_id.cluster;
 			int proc = rec->job_id.proc; 
-			GetAttributeInt( cluster, proc, ATTR_JOB_UNIVERSE, &universe );
 			ClassAd* job_ad;
 			int kill_sig;
 
-			switch( universe ) {
+			switch( rec->universe ) {
 			case CONDOR_UNIVERSE_PVM:
 				daemonCore->Send_Signal( rec->pid, SIGTERM );
 				dprintf( D_ALWAYS, "Sent SIGTERM to shadow for PVM job "
@@ -6409,7 +6403,7 @@ Scheduler::shadow_prio_recs_consistent()
 		if( (srp=find_shadow_rec(&PrioRec[i].id)) ) {
 			BadCluster = srp->job_id.cluster;
 			BadProc = srp->job_id.proc;
-			GetAttributeInt(BadCluster, BadProc, ATTR_JOB_UNIVERSE, &universe);
+			universe = srp->universe;
 			GetAttributeInt(BadCluster, BadProc, ATTR_JOB_STATUS, &status);
 			if (status != RUNNING &&
 				universe!=CONDOR_UNIVERSE_PVM &&
@@ -6584,32 +6578,22 @@ Scheduler::NotifyUser(shadow_rec* srec, char* msg, int status, int JobStatus)
 
 
 static bool
-IsLocalUniverse( shadow_rec* srec, int target_univ )
-{
-	if( srec==NULL || srec->match!=NULL ) {
-		return false;
-	}
-	int universe = CONDOR_UNIVERSE_STANDARD;
-	GetAttributeInt( srec->job_id.cluster, srec->job_id.proc,
-					 ATTR_JOB_UNIVERSE, &universe );
-	if( universe != target_univ ) {
-		return false;
-	}
-	return true;
-}
-
-
-static bool
 IsSchedulerUniverse( shadow_rec* srec )
 {
-	return IsLocalUniverse( srec, CONDOR_UNIVERSE_SCHEDULER );
+	if( ! srec ) {
+		return false;
+	}
+	return srec->universe == CONDOR_UNIVERSE_SCHEDULER;
 }
 
 
 static bool
 IsLocalUniverse( shadow_rec* srec )
 {
-	return IsLocalUniverse( srec, CONDOR_UNIVERSE_LOCAL );
+	if( ! srec ) {
+		return false;
+	}
+	return srec->universe == CONDOR_UNIVERSE_LOCAL;
 }
 
 
