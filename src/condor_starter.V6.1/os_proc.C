@@ -133,13 +133,7 @@ OsProc::StartJob()
 		// The Java universe cannot tolerate an incorrect argv[0].
 		// For Java, set it correctly.  In a future version, we
 		// may consider removing the CONDOR_EXEC feature entirely.
-
-	int universe;
-	if ( JobAd->LookupInteger( ATTR_JOB_UNIVERSE, universe ) < 1 ) {
-		universe = CONDOR_UNIVERSE_VANILLA;
-	}
-
-	if(universe==CONDOR_UNIVERSE_JAVA) {
+	if( job_universe==CONDOR_UNIVERSE_JAVA ) {
 		strcpy( Args, JobName );
 	} else {
 		strcpy( Args, CONDOR_EXEC );
