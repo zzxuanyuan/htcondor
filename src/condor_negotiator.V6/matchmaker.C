@@ -443,6 +443,7 @@ negotiationTime ()
 							ATTR_NAME, ATTR_SCHEDD_IP_ADDR);
 				return FALSE;
 			}	
+if (strcmp(scheddName,"adiel@cs.wisc.edu")!=0) continue;
 			dprintf(D_ALWAYS,"  Negotiating with %s at %s\n",scheddName,scheddAddr);
 	
 			// calculate the percentage of machines that this schedd can use
@@ -902,7 +903,8 @@ CoMatchmakingAlgorithm(char* scheddName, ClassAd &request,ClassAdList &startdAds
 	}
 
 	alloc_startdAds.Open();
-	return startdAds.Next();
+	ClassAd* tmpAd=alloc_startdAds.Next();
+	return tmpAd;
 }
 
 //---------------------------------------------------------------------
@@ -974,23 +976,35 @@ dprintf(D_ALWAYS,"in Matchmaker::FindCoMatch\n");
 	char* target;
 	ClassAdList* in_res_list=&startdAds;
 	ClassAdList* alloc_res_list=&alloc_startdAds;
-	ClassAd new_request(request);
+	ExprTree* tmp_expr;
+	char old_requirements[1024];
+	*old_requirements='\0';
+	char old_rank[1024];
+	*old_rank='\0';
+
+	tmp_expr=request.Lookup((char*) ATTR_REQUIREMENTS);
+	if (tmp_expr) tmp_expr->PrintToStr(old_requirements);
+	tmp_expr=request.Lookup((char*) ATTR_RANK);
+	if (tmp_expr) tmp_expr->PrintToStr(old_rank);
+//dprintf(D_ALWAYS,"old_req=%s , old_rank=%s\n",old_requirements,old_rank);
 
 dprintf(D_ALWAYS,"ReqsList=%s, TargetList=%s, RankList=%s\n",req_list,target_list,rank_list);
 int cnt=0;
-//	while ((req=reqs.next()) && (rank=ranks.next()) && (target=targets.next())) {
 	while (1) {
 		req=reqs.next();
 		rank=ranks.next();
 		target=targets.next();
+		if (!req || !rank || !target) break;
 dprintf(D_ALWAYS,"Req=%s, Target=%s, Rank=%s\n",req,target,rank);
 		req_expr=request.Lookup(req);
 		if (!req_expr) break;
-		new_request.UpdateExpr((char*) ATTR_REQUIREMENTS,req_expr->RArg());
+		tmp_expr=req_expr->RArg();
+		request.UpdateExpr((char*) ATTR_REQUIREMENTS,tmp_expr->Copy());
 		rank_expr=request.Lookup(rank);
 		if (!rank_expr) break;
-		new_request.UpdateExpr((char*) ATTR_RANK, rank_expr->RArg());
-		new_request.SetTargetTypeName(target);
+		tmp_expr=rank_expr->RArg();
+		request.UpdateExpr((char*) ATTR_RANK, tmp_expr->Copy());
+		request.SetTargetTypeName(target);
 		if (stricmp(target,STARTD_ADTYPE)==0) { 
 dprintf(D_ALWAYS,"Matching against startd ads (%d)\n",startdAds.MyLength());
 			in_res_list=&startdAds;
@@ -1003,8 +1017,9 @@ dprintf(D_ALWAYS,"Matching against license ads (%d)\n",licenseAds.MyLength());
 		}
 
 dprintf(D_ALWAYS,"Trying to find match no %d\n",++cnt);
-printAdToFile(new_request,"xxx");
-		ad=matchmakingAlgorithm(scheddName, new_request, *in_res_list, preemptPrio);
+		ad=matchmakingAlgorithm(scheddName, request, *in_res_list, preemptPrio);
+		request.InsertOrUpdate(old_requirements);
+		request.InsertOrUpdate(old_rank);
 		if (!ad) return false;
 		alloc_res_list->Insert(new ClassAd(*ad));
 		in_res_list->Delete(ad);
@@ -1033,6 +1048,9 @@ matchmakingAlgorithm(char *, ClassAd &request,ClassAdList &resourceAds,
 	char		remoteUser[128];
 	EvalResult	result;
 	bool		preempting;
+
+dprintf(D_ALWAYS,"in Matchmaker::matchmakingAlgorithm\n");
+//printAdToFile(request,"xxx");
 
 	// stash the rank expression of the request
 	requestRank = request.Lookup (ATTR_RANK);
