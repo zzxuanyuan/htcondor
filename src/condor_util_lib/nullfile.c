@@ -21,18 +21,35 @@
  * WI 53706-1685, (608) 262-0856 or miron@cs.wisc.edu.
 ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
- 
+#include "condor_common.h"
+#include "nullfile.h"
 
+int 
+nullFile(const char *filename)
+{
+	// On WinNT, /dev/null is NUL
+	// on UNIX, /dev/null is /dev/null
+	
+	// a UNIX->NT submit will result in the NT starter seeing /dev/null, so it
+	// needs to recognize that /dev/null is the null file
 
-/*
-**	Defines path names of important files relative to
-**	the home directory of 'condor'.
-*/
+	// an NT->NT submit will result in the NT starter seeing NUL as the null 
+	// file
 
-#define CONFIG				"condor_config"
-#define CONFIG_TEST			"condor_config_t"
-#define LOCAL_CONFIG		"condor_config.local"
-#define LOCAL_CONFIG_TEST	"condor_config_t.local"
-#define MASTER_CONFIG		"condor_config.master"
-#define SERVER_CONFIG		"condor_config.fromserver"
-#define AGGREGATE_CONFIG	"condor_config.aggregate"
+	// a UNIX->UNIX submit ill result in the UNIX starter seeing /dev/null as
+	// the null file
+	
+	// NT->UNIX submits should work fine, since we're forcing the null file to 
+	// always canonicalize to /dev/null (even on NT) and then the starter translates it 
+	// for us.
+
+	#ifdef WIN32
+	if(_stricmp(filename, "NUL") == 0) {
+		return 1;
+	}
+	#endif
+	if(strcmp(filename, "/dev/null") == 0 ) {
+		return 1;
+	}
+	return 0;
+}
