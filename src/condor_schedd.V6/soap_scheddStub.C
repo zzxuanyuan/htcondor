@@ -669,7 +669,7 @@ condor__getJobAd(struct soap *soap,
 		extendTransaction(transaction);
 
 		ClassAd *ad = GetJobAd(clusterId,jobId);
-		if (!convert_ad_to_adStruct(soap,ad,&result.response.classAd)) {
+		if (!convert_ad_to_adStruct(soap,ad,&result.response.classAd, false)) {
 			dprintf(D_FULLDEBUG,
 					"condor__getJobAds: adlist to adStructArray failed!\n");
 
@@ -1177,7 +1177,7 @@ condor__createJobTemplate(struct soap *soap,
 
 	result.response.status.code = SUCCESS;
 	result.response.status.message = "What a mess!";
-	convert_ad_to_adStruct(soap, &job, &result.response.classAd);
+	convert_ad_to_adStruct(soap, &job, &result.response.classAd, true);
 
 	return SOAP_OK;
 }

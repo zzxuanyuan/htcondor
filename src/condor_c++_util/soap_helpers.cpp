@@ -30,7 +30,8 @@
 static bool
 convert_ad_to_adStruct(struct soap *s,
                        ClassAd *curr_ad,
-                       struct ClassAdStruct *ad_struct)
+                       struct ClassAdStruct *ad_struct,
+					   bool isDeepCopy)
 {
   int attr_index = 0;
   int num_attrs = 0;
@@ -85,13 +86,21 @@ convert_ad_to_adStruct(struct soap *s,
   // first, add myType and TargetType
   ad_struct->__ptr[attr_index].name = (char *) ATTR_MY_TYPE;
   ad_struct->__ptr[attr_index].type = STRING_ATTR;
-  ad_struct->__ptr[attr_index].value = (char *) soap_malloc(s, strlen(curr_ad->GetMyTypeName()));
-  strcpy(ad_struct->__ptr[attr_index].value, curr_ad->GetMyTypeName());
+  if (isDeepCopy) {
+	  ad_struct->__ptr[attr_index].value = (char *) soap_malloc(s, strlen(curr_ad->GetMyTypeName()));
+	  strcpy(ad_struct->__ptr[attr_index].value, curr_ad->GetMyTypeName());
+  } else {
+	  ad_struct->__ptr[attr_index].value = curr_ad->GetMyTypeName();
+  }
   attr_index++;
   ad_struct->__ptr[attr_index].name = (char *) ATTR_TARGET_TYPE;
   ad_struct->__ptr[attr_index].type = STRING_ATTR;
-  ad_struct->__ptr[attr_index].value = (char *) soap_malloc(s, strlen(curr_ad->GetTargetTypeName()));
-  strcpy(ad_struct->__ptr[attr_index].value, curr_ad->GetTargetTypeName());
+  if (isDeepCopy) {
+	  ad_struct->__ptr[attr_index].value = (char *) soap_malloc(s, strlen(curr_ad->GetTargetTypeName()));
+	  strcpy(ad_struct->__ptr[attr_index].value, curr_ad->GetTargetTypeName());
+  } else {
+	  ad_struct->__ptr[attr_index].value = curr_ad->GetTargetTypeName();
+  }
   attr_index++;
   // And, ServerTime...
   ad_struct->__ptr[attr_index].name = (char *) ATTR_SERVER_TIME;
@@ -111,9 +120,13 @@ convert_ad_to_adStruct(struct soap *s,
     skip_attr = false;
     switch ( rhs->MyType() ) {
     case LX_STRING:
-			//ad_struct->__ptr[attr_index].value = (char *) soap_malloc(s, strlen(((String *) rhs)->Value()));
-			//strcpy(ad_struct->__ptr[attr_index].value, ((String *) rhs)->Value());
-		ad_struct->__ptr[attr_index].value = strdup(((String*)rhs)->Value());
+		if (isDeepCopy) {
+				//ad_struct->__ptr[attr_index].value = (char *) soap_malloc(s, strlen(((String *) rhs)->Value()));
+				//strcpy(ad_struct->__ptr[attr_index].value, ((String *) rhs)->Value());
+			ad_struct->__ptr[attr_index].value = strdup(((String*)rhs)->Value());
+		} else {
+			ad_struct->__ptr[attr_index].value = ((String*)rhs)->Value();
+		}
       //dprintf(D_ALWAYS,"STRINGSPACE|%s|%p\n",ad_struct->__ptr[attr_index].value,ad_struct->__ptr[attr_index].value);
       ad_struct->__ptr[attr_index].type = STRING_ATTR;
       break;
@@ -192,14 +205,15 @@ convert_adlist_to_adStructArray(struct soap *s, List<ClassAd> *adList,
 
   ClassAd *curr_ad = NULL;
   ads->__size = adList->Number();
-  ads->__ptr = (struct ClassAdStruct *) soap_malloc(s,
-                                                                ads->__size * sizeof(struct ClassAdStruct));
+  ads->__ptr =
+	  (struct ClassAdStruct *)
+	  soap_malloc(s, ads->__size * sizeof(struct ClassAdStruct));
   adList->Rewind();
   int ad_index = 0;
 
-  while ( (curr_ad=adList->Next()) )
+  while ((curr_ad=adList->Next()))
     {
-      if ( convert_ad_to_adStruct(s,curr_ad,&(ads->__ptr[ad_index])) ) {
+		if (convert_ad_to_adStruct(s,curr_ad,&(ads->__ptr[ad_index]), false)) {
         ad_index++;
       }
     }
