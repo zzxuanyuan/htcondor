@@ -196,7 +196,10 @@ public:
 	/// Copy constructor -- this also dups the underlying socket
 	Sock(const Sock &);
 
-
+    ///////////////////////////////////////// HAD
+    void doNotEnforceMinimalCONNECT_TIMEOUT() ;
+    //////////////////////////////////////// END HAD
+    
 //	PRIVATE INTERFACE TO ALL SOCKS
 //
 protected:
@@ -281,6 +284,9 @@ protected:
 
 	static int timeout_multiplier;
 
+    ///////////////////////////////////////// HAD
+    bool ignore_connect_timeout;
+    //////////////////////////////////////// END HAD
 private:
 	int _condor_read(SOCKET fd, char *buf, int sz, int timeout);
 	int _condor_write(SOCKET fd, char *buf, int sz, int timeout);
