@@ -483,15 +483,22 @@ sendCAReply( Stream* s, char* cmd_str, ClassAd* reply )
 
 
 int
-sendErrorReply( Stream* s, char* cmd_str, const char* err_str ) 
+sendErrorReply( Stream* s, char* cmd_str, CAResult result, 
+				const char* err_str ) 
 {
 	dprintf( D_ALWAYS, "Aborting %s\n", cmd_str );
 	dprintf( D_ALWAYS, "%s\n", err_str );
 
 	ClassAd reply;
-	reply.Insert( "Result = FALSE" );
+	MyString line;
 
-	MyString line = ATTR_COMMAND_ERROR;
+	line = ATTR_RESULT;
+	line += " = \"";
+	line += getCAResultString( result );
+	line += '"';
+	reply.Insert( line.Value() );
+
+	line = ATTR_ERROR_STRING;
 	line += " = \"";
 	line += err_str;
 	line += '"';

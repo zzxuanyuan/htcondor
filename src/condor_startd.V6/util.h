@@ -51,6 +51,7 @@ Resource* stream_to_rip( Stream* );
 
 VacateType getVacateType( ClassAd* ad );
 int sendCAReply( Stream* s, char* cmd_str, ClassAd* reply );
-int sendErrorReply( Stream* s, char* cmd_str, const char* err_str );
+int sendErrorReply( Stream* s, char* cmd_str, CAResult result, 
+					const char* err_str );
 
 #endif /* _UTIL_H */
