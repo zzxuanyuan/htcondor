@@ -1721,8 +1721,13 @@ bool
 GahpClient::is_pending(const char *command, const char *buf) 
 {
 		// note: do _NOT_ check pending reqid here.
-	if ( strcmp(command,pending_command)==0 && 
-		 ( (pending_args==NULL) || strcmp(buf,pending_args)==0) )
+// MirrorResource doesn't exactly recreate all the arguments when checking
+// the status of a pending command, so relax our check here. Current users
+// of GahpClient are careful to purge potential outstanding commands before
+// issuing new ones, so this shouldn't be a problem. 
+	if ( strcmp(command,pending_command)==0 )
+//	if ( strcmp(command,pending_command)==0 && 
+//		 ( (pending_args==NULL) || strcmp(buf,pending_args)==0) )
 	{
 		return true;
 	} 
