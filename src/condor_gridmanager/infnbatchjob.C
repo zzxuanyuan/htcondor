@@ -120,7 +120,7 @@ void INFNBatchJobReconfig()
 	INFNBatchJob::setConnectFailureRetry( tmp_int );
 }
 
-const char *INFNBatchJobAdConst = "JobUniverse =?= 9 && (SubUniverse == \"infn\") =?= True";
+const char *INFNBatchJobAdConst = "JobUniverse =?= 9 && ((JobGridType == \"infn\") =?= True || (JobGridType == \"blah\") =?= True)";
 
 bool INFNBatchJobAdMustExpand( const ClassAd *jobad )
 {
