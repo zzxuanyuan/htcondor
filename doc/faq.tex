@@ -1804,6 +1804,37 @@ REM Run the actual job now
 \normalsize
 
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection*{My submit machine cannot have more than 120 jobs running concurrently. Why?}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\index{Windows!out of desktop heap}
+Windows is likely to be running out of desktop heap. 
+Confirm this to be the case
+by looking in the log for the \Condor{schedd} daemon
+to see if \Condor{shadow} daemons are immediately
+exiting with status 128.
+If this is the case, increase the desktop heap size.
+Open the registry key:
+
+\footnotesize
+\begin{verbatim}
+HKEY_LOCAL_MACHINE\System\CurrentControlSet\Control\Session Manager\SubSystems\Window
+\end{verbatim}
+\normalsize
+
+The SharedSection value can have three values separated by commas.
+The third value controls the desktop heap size for non-interactive desktops,
+which the Condor service uses.
+The default is 512 (Kbytes).
+60 \Condor{shadow} daemons consume about 256 Kbytes,
+hence 120 shadows can run with the default value.
+To be able to run a maximum of 300 \Condor{shadow} daemons,
+set this value at 1280.
+
+Reboot the system for the changes to take effect.
+For more information,
+see Microsoft Article Q184802.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Grid Computing}
