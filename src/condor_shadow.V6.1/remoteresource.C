@@ -1269,10 +1269,6 @@ RemoteResource::locateReconnectStarter( void )
 
 	dprintf( D_ALWAYS, "locateStarter(): %s\n", dc_startd->error() );
 
-	dprintf( D_FULLDEBUG, "*** reply classad ***\n" );
-	reply.dPrint( D_FULLDEBUG );
-	dprintf( D_FULLDEBUG, "--- end of classad ---\n" );
-
 	switch( dc_startd->errorCode() ) {
 
 	case CA_FAILURE:
