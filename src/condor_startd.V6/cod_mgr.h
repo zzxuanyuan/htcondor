@@ -41,6 +41,7 @@ public:
 	void publish( ClassAd* ad, amask_t mask );
 	
 	Claim* addClaim();
+	bool removeClaim( Claim* c );
 
 	Claim* findClaimById( const char* id );
 	Claim* findClaimByPid( pid_t pid );
@@ -48,11 +49,11 @@ public:
 	int numClaims( void );
 
 		// functions for the classad-only claim management protocol
-	bool release( Stream* s, ClassAd* req, Claim* claim );
-	bool activate( Stream* s, ClassAd* req, Claim* claim );
-	bool deactivate( Stream* s, ClassAd* req, Claim* claim );
-	bool suspend( Stream* s, ClassAd* req, Claim* claim );
-	bool resume( Stream* s, ClassAd* req, Claim* claim );
+	int release( Stream* s, ClassAd* req, Claim* claim );
+	int activate( Stream* s, ClassAd* req, Claim* claim );
+	int deactivate( Stream* s, ClassAd* req, Claim* claim );
+	int suspend( Stream* s, ClassAd* req, Claim* claim );
+	int resume( Stream* s, ClassAd* req, Claim* claim );
 
 private:
 
