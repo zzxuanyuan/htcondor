@@ -1373,6 +1373,14 @@ int main( int argc, char** argv )
 	if (global_config_file != "") {
 		dprintf(D_ALWAYS, "Using config file: %s\n", 
 				global_config_file.GetCStr());
+	} else {
+		const char* env_name = EnvGetName( ENV_CONFIG );
+		char* env = getenv( env_name );
+		if( env ) {
+			dprintf(D_ALWAYS, 
+					"%s is set to '%s', not reading a config file\n",
+					env_name, env );
+		}
 	}
 	if (global_root_config_file != "") {
 		dprintf(D_ALWAYS, "Using root config file: %s\n", 
