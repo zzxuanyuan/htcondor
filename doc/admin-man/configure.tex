@@ -2562,23 +2562,23 @@ These macros control the \Condor{schedd}.
   update to the \Condor{collector}.  It is defined in terms of seconds
   and defaults to 300 (every 5 minutes).
 
-\item[\Macro{REAL\_TIME\_JOB\_SUSPEND\_UPDATES}] 
-  \label{param:RealTimeJobSuspendUpdates}
-  If set to \Expr{True},
-  then the \Condor{shadow} will immediately update the
-  \Condor{schedd} upon the suspension or resumption of a job.
-  This allows \Condor{q} to show a
-  job in a suspended state in its default output.
-  In the \Expr{ST} column, there will be an \Expr{S} instead of an
-  \Expr{R} when the job is running, but suspended.
+% \item[\Macro{REAL\_TIME\_JOB\_SUSPEND\_UPDATES}] 
+%  \label{param:RealTimeJobSuspendUpdates}
+%  If set to \Expr{True},
+%  then the \Condor{shadow} will immediately update the
+%  \Condor{schedd} upon the suspension or resumption of a job.
+%  This allows \Condor{q} to show a
+%  job in a suspended state in its default output.
+%  In the \Expr{ST} column, there will be an \Expr{S} instead of an
+%  \Expr{R} when the job is running, but suspended.
 
-  This attribute's real time connotation is currently applied only
-  to jobs in the vanilla, standard, and java universes.
-  Other universes may display a suspension state where applicable,
-  but the information may be stale.
+%  This attribute's real time connotation is currently applied only
+%  to jobs in the vanilla, standard, and java universes.
+%  Other universes may display a suspension state where applicable,
+%  but the information may be stale.
 
-  The default value and when not present in the configuration
-  file is \Expr{False}.
+%  The default value and when not present in the configuration
+%  file is \Expr{False}.
   
 \item[\Macro{JOB\_START\_COUNT}] \label{param:JobStartCount}
   This macro works together with the \Macro{JOB\_START\_DELAY} macro
