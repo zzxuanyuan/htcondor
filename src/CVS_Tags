@@ -1,9 +1,18 @@
+6/4/01 V6_3-syscall-hack-branch-fixed_varargs
+		REMOTE_syscall() has been removed and honest to god
+		senders with real function names have been created. This
+		tag also includes clipped support for redhat 7.1.
+		By the way, I can't put all the senders in seperate .o
+		files mainly because of alias linking where you need to
+		resolve against stuff you didn't bring in. So they all
+		must come in.
+
 5/1/01 V6_3-syscall-hack-branch
        New branch for doing massive hacking to the remote syscall
        infrastructure to avoid using va_args, having a giant
        do_remote_syscall() function, etc.  Instead, we'll now generate
-       seperate functions for each RSC we're trapping, and ideally,
-       put them all in seperate .o files, too.
+       seperate functions for each RSC we're trapping, and ideally, put
+       them all in seperate .o files, too.
 
 5/1/01 V6_3-post-merge-V6_3_0-merge-1
        The state of the V6_3-branch after merging in the
