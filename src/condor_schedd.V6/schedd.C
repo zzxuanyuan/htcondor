@@ -311,6 +311,7 @@ Scheduler::Scheduler()
 	MAX_STARTD_CONTACTS = 2000;
 #endif
 	checkContactQueue_tid = -1;
+	checkReconnectQueue_tid = -1;
 	sent_shadow_failure_email = FALSE;
 	ManageBandwidth = false;
 	RejectedClusters.setFiller(0);
@@ -3727,6 +3728,129 @@ Scheduler::checkContactQueue()
 }
 
 
+bool
+Scheduler::enqueueReconnectJob( PROC_ID job )
+{
+	 if( jobsToReconnect.enqueue(job) < 0 ) {
+		 dprintf( D_ALWAYS, "Failed to enqueue job id (%d.%d)\n",
+				  job.cluster, job.proc );
+		 return false;
+	 }
+	 dprintf( D_FULLDEBUG,
+			  "Enqueued job %d.%d to spawn shadow for reconnect\n",
+			  job.cluster, job.proc );
+
+		 /*
+		   If we haven't already done so, register a timer to go off
+           in zero seconds to call checkContactQueue().  This will
+		   start the process of claiming the startds *after* we have
+           completed negotiating and returned control to daemonCore. 
+		 */
+	if( checkReconnectQueue_tid == -1 ) {
+		checkReconnectQueue_tid = daemonCore->Register_Timer( 0,
+			(TimerHandlercpp)&Scheduler::checkReconnectQueue,
+			"checkReconnectQueue", this );
+	}
+	if( checkReconnectQueue_tid == -1 ) {
+			// Error registering timer!
+		EXCEPT( "Can't register daemonCore timer!" );
+	}
+	return true;
+}
+
+
+void
+Scheduler::checkReconnectQueue( void ) 
+{
+	PROC_ID job;
+
+		// clear out the timer tid, since we made it here.
+	checkReconnectQueue_tid = -1;
+
+	while( !jobsToReconnect.IsEmpty() ) {
+			// there's a pending registration in the queue:
+		jobsToReconnect.dequeue( job );
+		dprintf( D_FULLDEBUG, "In checkReconnectQueue(), job: %d.%d\n", 
+				 job.cluster, job.proc );
+		makeReconnectRecords( &job );
+	}
+}
+
+
+void
+Scheduler::makeReconnectRecords( PROC_ID* job ) 
+{
+	int cluster = job->cluster;
+	int proc = job->proc;
+	char* pool = NULL;
+	char* owner = NULL;
+	char* claim_id = NULL;
+	char* startd_addr = NULL;
+
+	GetAttributeStringNew( cluster, proc, ATTR_OWNER, &owner );
+	GetAttributeStringNew( cluster, proc, ATTR_CLAIM_ID, &claim_id );
+	startd_addr = getAddrFromClaimId( claim_id );
+	if( GetAttributeStringNew(cluster, proc, ATTR_REMOTE_POOL,
+							  &pool) < 0 ) {
+		free( pool );
+		pool = NULL;
+	}
+
+		// TODO!
+	ClassAd* match_ad = NULL;
+
+	dprintf( D_FULLDEBUG, "Adding match record for disconnected job %d.%d "
+			 "(owner: %s)\n", cluster, proc, owner );
+	dprintf( D_FULLDEBUG, "ClaimId: %s\n", claim_id );
+	if( pool ) {
+		dprintf( D_FULLDEBUG, "Pool: %s (via flocking)\n", pool );
+	}
+	match_rec *mrec = AddMrec( claim_id, startd_addr, job, match_ad, 
+							   owner, pool );
+
+	mrec->setStatus( M_CLAIMED );  // it's claimed now.  we'll set
+								   // this to active as soon as we
+								   // spawn the reconnect shadow.
+	if(pool) free (pool);
+	if(owner) free (owner);
+	if(claim_id) free (claim_id);
+	if(startd_addr) free (startd_addr);
+
+		/*
+		  We don't want to use the version of add_shadow_rec() that
+		  takes arguments for the data and creates a new record since
+		  it won't know we want this srec for reconnect mode, and will
+		  do a few other things we don't want.  instead, just create
+		  the shadow reconrd ourselves, since that's all the other
+		  function really does.  Later on, we'll call the version of
+		  add_shadow_rec that just takes a pointer to an srec, since
+		  that's the one that actually does all the interesting work
+		  to add it to all the tables, etc, etc.
+		*/
+	shadow_rec *srec = new shadow_rec;
+	srec->pid = 0;
+	srec->job_id.cluster = cluster;
+	srec->job_id.proc = proc;
+	srec->match = mrec;
+	srec->preempted = FALSE;
+	srec->removed = FALSE;
+	srec->conn_fd = -1;
+	srec->isZombie = FALSE; 
+	srec->is_reconnect = true;
+
+		// the match_rec also needs to point to the srec...
+	mrec->shadowRec = srec;
+
+	if( RunnableJobQueue.enqueue(srec) ) {
+		EXCEPT("Cannot put job into run queue\n");
+	}
+	if( StartJobTimer<0 ) {
+		StartJobTimer = daemonCore->Register_Timer(
+				0, (Eventcpp)&Scheduler::StartJobHandler,"start_job", this);
+	}
+}
+
+
 int
 find_idle_sched_universe_jobs( ClassAd *job )
 {
@@ -4020,6 +4144,7 @@ Scheduler::StartJobHandler()
 	PROC_ID* job_id=NULL;
 	match_rec* mrec=NULL;
 	shadow_rec* srec;
+	bool wants_reconnect = false;
 
 	// get job from runnable job queue
 	while(!mrec) {	
@@ -4043,17 +4168,13 @@ Scheduler::StartJobHandler()
 		}
 	}
 
-	ClassAd *jobAd = GetJobAd(job_id->cluster,job_id->proc,false);
-	if(!jobAd) {
+	int universe;
+	if( GetAttributeInt(job_id->cluster, job_id->proc,
+						ATTR_JOB_UNIVERSE, &universe) < 0 ) {
 		dprintf(D_ALWAYS,"Couldn't find ClassAd for job %d.%d\n",
 		        job_id->cluster, job_id->proc);
 		tryNextJob();
 		return;
-	}
-
-	int universe;
-	if( jobAd->LookupInteger(ATTR_JOB_UNIVERSE,universe)!=1 ) {
-		universe = CONDOR_UNIVERSE_STANDARD;
 	}
 
 	//-------------------------------
@@ -4078,6 +4199,16 @@ Scheduler::StartJobHandler()
 	bool nt_resource = false;
  	char* match_opsys = NULL;
  	char* match_version = NULL;
+	wants_reconnect = srec->is_reconnect;
+
+		// Until we're restorting the match ClassAd on reconnected, we
+		// wouldn't know if the startd we want to talk to supports the
+		// DC shadow or not.  so, for now, we can just assume that if
+		// we're trying to reconnect, it *must* be a DC shadow/starter 
+	if( wants_reconnect ) {
+		old_resource = false;
+	}
+
  	if( mrec->my_match_ad ) {
  		mrec->my_match_ad->LookupString( ATTR_OPSYS, &match_opsys );
 		mrec->my_match_ad->LookupString( ATTR_VERSION, &match_version );
@@ -4169,9 +4300,16 @@ Scheduler::StartJobHandler()
 		}
 	}
 
-	shadow_path = strdup( shadow_obj->path() );
 	sh_is_dc = (int)shadow_obj->isDC();
 	bool sh_reads_file = shadow_obj->provides( ATTR_HAS_JOB_AD_FROM_FILE );
+	if( wants_reconnect && !(sh_is_dc && sh_reads_file) ) {
+		dprintf( D_ALWAYS, "Trying to reconnect but you do not have a "
+				 "condor_shadow that will work, aborting.\n" );
+		noShadowForJob( srec, NO_SHADOW_RECONNECT );
+		delete( shadow_obj );
+		tryNextJob();
+	}
+	shadow_path = strdup( shadow_obj->path() );
 	delete( shadow_obj );
 
 #endif /* ! WIN32 */
@@ -4216,8 +4354,10 @@ Scheduler::StartJobHandler()
 
 	if ( sh_reads_file ) {
 		if( sh_is_dc ) { 
-			sprintf( args, "condor_shadow -f %d.%d %s -", 
-					 job_id->cluster, job_id->proc, MyShadowSockName ); 
+			sprintf( args, "condor_shadow -f %d.%d%s%s -", 
+					 job_id->cluster, job_id->proc, 
+					 wants_reconnect ? " --reconnect " : " ",
+					 MyShadowSockName ); 
 		} else {
 			sprintf( args, "condor_shadow %s %s %s %d %d -", 
 					 MyShadowSockName, mrec->peer, mrec->id,
@@ -4290,8 +4430,20 @@ Scheduler::StartJobHandler()
 	srec->pid=pid;
 	add_shadow_rec(srec);
 
-		// now that the shadow has been spawned, we need to do
-		// some things with the pipe:
+		// If this is a reconnect shadow, update the mrec with some
+		// important info.  This usually happens in StartJobs(), but
+		// in the case of reconnect, we don't go through that code. 
+	if( wants_reconnect ) {
+			// Now that the shadow is alive, the match is "ACTIVE"
+		mrec->setStatus( M_ACTIVE );
+		mrec->cluster = job_id->cluster;
+		mrec->proc = job_id->proc;
+		dprintf(D_FULLDEBUG, "Match (%s) - running %d.%d\n", mrec->id,
+				mrec->cluster, mrec->proc );
+	}
+
+		// finally, now that the shadow has been spawned, we need to
+		// do some things with the pipe (if there is one):
 	if( sh_reads_file ) {
 			// 1) close our copy of the read end of the pipe, so we
 			// don't leak it.  we have to use DC::Close_Pipe() for
@@ -4301,7 +4453,6 @@ Scheduler::StartJobHandler()
 		} else {
 			close( pipe_fds[0] );
 		}
-
 			// 2) dump out the job ad to the write end, since the
 			// shadow is now alive and can read from the pipe.  we
 			// want to use "true" for the last argument so that we
@@ -4412,6 +4563,11 @@ Scheduler::noShadowForJob( shadow_rec* srec, NoShadowFailure_t why )
 		hold_reason = old_vanilla_reason;
 		notify_admin = &notify_old_vanilla;
 		break;
+	case NO_SHADOW_RECONNECT:
+			// this is a special case, since we're not going to email
+			// or put the job on hold, we just want to mark it as idle
+			// and clean up the mrec and srec...
+		break;
 	default:
 		EXCEPT( "Unknown reason (%d) in Scheduler::noShadowForJob",
 				(int)why );
@@ -4427,6 +4583,11 @@ Scheduler::noShadowForJob( shadow_rec* srec, NoShadowFailure_t why )
 		// rec so we don't leak memory or tie up this match
 	RemoveShadowRecFromMrec( srec );
 	delete srec;
+
+	if( why == NO_SHADOW_RECONNECT ) {
+			// we're done
+		return;
+	}
 
 		// hold the job, since we won't be able to run it without
 		// human intervention
@@ -4879,6 +5040,8 @@ Scheduler::add_shadow_rec( int pid, PROC_ID* job_id, match_rec* mrec, int fd )
 	new_rec->removed = FALSE;
 	new_rec->conn_fd = fd;
 	new_rec->isZombie = FALSE; 
+	new_rec->is_reconnect = false;
+
 	
 	if (pid) {
 		add_shadow_rec(new_rec);
@@ -4928,7 +5091,14 @@ Scheduler::add_shadow_rec( shadow_rec* new_rec )
 	shadowsByPid->insert(new_rec->pid, new_rec);
 	shadowsByProcID->insert(new_rec->job_id, new_rec);
 
-	if ( new_rec->match ) {
+	if( new_rec->match && !new_rec->is_reconnect ) {
+
+			// we don't want to set any of these things if this is a
+			// reconnect shadow_rec we're adding.  All this does is
+			// re-writes stuff that's already accurate in the job ad,
+			// or, in the case of ATTR_LAST_KEEP_ALIVE, clobbers
+			// accurate info with a now-bogus value.
+
 		SetAttributeString( new_rec->job_id.cluster, new_rec->job_id.proc,
 						    ATTR_CLAIM_ID, new_rec->match->id );
 
