@@ -53,6 +53,7 @@ template class HashBucket<HashKey, GahpProxyInfo *>;
 #define HASH_TABLE_SIZE			50
 
 bool logGahpIo = true;
+int logGahpIoSize = 0;
 
 HashTable <HashKey, GahpServer *>
     GahpServer::GahpServersById( HASH_TABLE_SIZE,
@@ -65,6 +66,7 @@ void GahpReconfig()
 	int tmp_int;
 
 	logGahpIo = param_boolean( "GRIDMANAGER_GAHPCLIENT_DEBUG", true );
+	logGahpIoSize = param_integer( "GRIDMANAGER_GAHPCLIENT_DEBUG_SIZE", 0 );
 
 	tmp_int = param_integer( "GRIDMANAGER_MAX_PENDING_REQUESTS", 50 );
 
@@ -203,7 +205,14 @@ GahpServer::write_line(const char *command)
 	write(m_gahp_writefd,"\r\n",2);
 
 	if ( logGahpIo ) {
-		dprintf( D_FULLDEBUG, "GAHP[%d] <- '%s'\n", m_gahp_pid, command );
+		MyString debug = command;
+		debug.sprintf( "'%s'", command );
+		if ( logGahpIoSize > 0 && debug.Length() > logGahpIoSize ) {
+			debug = debug.Substr( 0, logGahpIoSize );
+			debug += "...";
+		}
+		dprintf( D_FULLDEBUG, "GAHP[%d] <- %s\n", m_gahp_pid,
+				 debug.Value() );
 	}
 
 	return;
@@ -226,13 +235,18 @@ GahpServer::write_line(const char *command, int req, const char *args)
 	write(m_gahp_writefd,"\r\n",2);
 
 	if ( logGahpIo ) {
+		MyString debug = command;
 		if ( args ) {
-			dprintf( D_FULLDEBUG, "GAHP[%d] <- '%s%s%s'\n", m_gahp_pid,
-					 command, buf, args );
+			debug.sprintf( "'%s%s%s'", command, buf, args );
 		} else {
-			dprintf( D_FULLDEBUG, "GAHP[%d] <- '%s%s'\n", m_gahp_pid, command,
-					 buf );
+			debug.sprintf( "'%s%s'", command, buf );
 		}
+		if ( logGahpIoSize > 0 && debug.Length() > logGahpIoSize ) {
+			debug = debug.Substr( 0, logGahpIoSize );
+			debug += "...";
+		}
+		dprintf( D_FULLDEBUG, "GAHP[%d] <- %s\n", m_gahp_pid,
+				 debug.Value() );
 	}
 
 	return;
@@ -453,20 +467,29 @@ GahpServer::read_argv(Gahp_Args &g_args)
 			}
 
 			if ( logGahpIo ) {
-				buf[0] = '\0';
+				static MyString debug;
+				debug = "";
 				if( g_args.argc > 0 ) {
-					strcat( buf, "'" );
+					debug += "'";
 					for ( int i = 0; i < g_args.argc; i++ ) {
 						if ( i != 0 ) {
-							strcat( buf, "' '" );
+							debug += "' '";
 						}
 						if ( g_args.argv[i] ) {
-							strcat( buf, g_args.argv[i] );
+							debug += g_args.argv[i];
+						}
+						if ( debug.Length() > logGahpIoSize ) {
+							break;
 						}
 					}
-					strcat( buf, "'" );
+					debug += "'";
 				}
-				dprintf( D_FULLDEBUG, "GAHP[%d] -> %s\n", m_gahp_pid, buf );
+				if ( logGahpIoSize > 0 && debug.Length() > logGahpIoSize ) {
+					debug = debug.Substr( 0, logGahpIoSize );
+					debug += "...";
+				}
+				dprintf( D_FULLDEBUG, "GAHP[%d] -> %s\n", m_gahp_pid,
+						 debug.Value() );
 			}
 			return;
 		}
