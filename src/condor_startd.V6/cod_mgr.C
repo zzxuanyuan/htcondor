@@ -266,6 +266,26 @@ CODMgr::activate( Stream* s, ClassAd* req, Claim* claim )
 	MyString err_msg;
 	ClassAd *mach_classad = rip->r_classad;
 
+	switch( claim->state() ) {
+	case CLAIM_IDLE:
+			// this is the only state that makes sense
+		break;
+	case CLAIM_UNCLAIMED:
+			// This is a programmer error.  we can't possibly get here  
+		EXCEPT( "Trying to activate a claim that was never claimed!" ); 
+		break;
+	case CLAIM_SUSPENDED:
+	case CLAIM_RUNNING:
+	case CLAIM_VACATING:
+	case CLAIM_KILLING:
+		err_msg = "Cannot activate claim: already active (";
+		err_msg += getClaimStateString( claim->state() );
+		err_msg += ')';
+		return sendErrorReply( s, "CA_ACTIVATE_CLAIM",
+							   CA_INVALID_STATE, err_msg.Value() );
+		break;
+	}
+
 		// first, we have to find a Starter that matches the request
 	Starter* tmp_starter;
 	tmp_starter = resmgr->starter_mgr.findStarter( req, mach_classad );
