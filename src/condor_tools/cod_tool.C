@@ -36,6 +36,7 @@
 #include "condor_version.h"
 #include "get_full_hostname.h"
 #include "get_daemon_addr.h"
+#include "internet.h"
 #include "daemon.h"
 #include "dc_startd.h"
 #include "sig_install.h"
@@ -50,6 +51,7 @@ char* target = NULL;
 char* my_name = NULL;
 char* claim_id = NULL;
 char* classad_path = NULL;
+char* requirements = NULL;
 FILE* CA_PATH = NULL;
 int cluster_id = -1;
 int proc_id = -1;
@@ -67,6 +69,8 @@ void parseCOpt( char* opt, char* arg );
 void parsePOpt( char* opt, char* arg );
 void parseArgv( int argc, char* argv[] );
 int getCommandFromArgv( int argc, char* argv[] );
+void fillRequestAd( ClassAd* );
+void fillActivateAd( ClassAd* );
 
 
 /*********************************************************************
@@ -105,9 +109,6 @@ main( int argc, char *argv[] )
 
 	bool rval;
 	ClassAd reply;
-
-		// TODO!!! for the commands that need this, we better put
-		// something in it. :)
 	ClassAd ad;
 
 	switch( cmd ) {
@@ -395,36 +396,53 @@ parseArgv( int argc, char* argv[] )
 			continue;
 		}
 		switch( (*tmp)[1] ) {
+
+				// // // // // // // // // // // // // // // //
+				// Shared options that make sense to all cmds 
+				// // // // // // // // // // // // // // // //
+
 		case 'v':
+			if( strncmp("-version", *tmp, strlen(*tmp)) ) {
+				invalid( *tmp );
+			} 
 			version();
 			break;
+
 		case 'h':
+			if( strncmp("-help", *tmp, strlen(*tmp)) ) {
+				invalid( *tmp );
+			} 
 			usage( my_name );
 			break;
+
 		case 'd':
+			if( strncmp("-debug", *tmp, strlen(*tmp)) ) {
+				invalid( *tmp );
+			} 
 			Termlog = 1;
 			dprintf_config ("TOOL", 2);
 			break;
-		case 'f':
-			vacate_type = VACATE_FAST;
-			break;
+
 		case 'a':
+			if( strncmp("-address", *tmp, strlen(*tmp)) ) {
+				invalid( *tmp );
+			} 
 			tmp++;
 			if( ! (tmp && *tmp) ) {
 				another( "-address" );
 			}
+			if( ! is_valid_sinful(*tmp) ) {
+                fprintf( stderr, "%s: '%s' is not a valid address\n",
+						 my_name, *tmp );
+				exit( 1 );
+			}
 			addr = strdup( *tmp ); 
 			break;
-		case 'i':
-			tmp++;
-			if( ! (tmp && *tmp) ) {
-				another( "-id" );
-			}
-			claim_id = strdup( *tmp );
-			break;
+
 		case 'n':
-				// We got a "-name", make sure we've got 
-				// something else after it
+			if( strncmp("-name", *tmp, strlen(*tmp)) ) {
+				invalid( *tmp );
+			} 
 			tmp++;
 			if( ! (tmp && *tmp) ) {
 				another( "-name" );
@@ -437,14 +455,64 @@ parseArgv( int argc, char* argv[] )
 			}
 			break;
 
+				// // // // // // // // // // // // // // // //
+				// Switches that only make sense to some cmds 
+				// // // // // // // // // // // // // // // //
+
+		case 'f':
+			if( !((cmd == CA_RELEASE_CLAIM) || 
+				  (cmd == CA_DEACTIVATE_CLAIM)) )
+			{
+				invalid( *tmp );
+			}
+			if( strncmp("-fast", *tmp, strlen(*tmp)) ) {
+				invalid( *tmp );
+			} 
+			vacate_type = VACATE_FAST;
+			break;
+
+		case 'r':
+			if( !((cmd == CA_REQUEST_CLAIM) || 
+				  (cmd == CA_ACTIVATE_CLAIM)) )
+			{
+				invalid( *tmp );
+			}
+			if( strncmp("-requirements", *tmp, strlen(*tmp)) ) {
+				invalid( *tmp );
+			} 
+			tmp++;
+			if( ! (tmp && *tmp) ) {
+				another( "-requirements" );
+			}
+			requirements = strdup( *tmp );
+			break;
+
+		case 'i':
+			if( cmd == CA_REQUEST_CLAIM ) {
+				invalid( *tmp );
+			}
+			if( strncmp("-id", *tmp, strlen(*tmp)) ) {
+				invalid( *tmp );
+			} 
+			tmp++;
+			if( ! (tmp && *tmp) ) {
+				another( "-id" );
+			}
+			claim_id = strdup( *tmp );
+			break;
+
+				// // // // // // // // // // // // // // // // // // 
 				// P and C are complicated, since they are ambiguous
 				// in the case of activate, but not others.  so, they
 				// have their own methods to make it easier to
 				// understand what the hell's going on. :)
+				// // // // // // // // // // // // // // // // // //
+
 		case 'p':
 			parsePOpt( tmp[0], tmp[1] );
 			tmp++;
 			break;
+
 		case 'c':
 			parseCOpt( tmp[0], tmp[1] );
 			tmp++;
@@ -452,14 +520,15 @@ parseArgv( int argc, char* argv[] )
 
 		default:
 			invalid( *tmp );
+
 		}
 	}
 
-		// Now that we're done parsing, make sure it makes sense 
+		// Now that we're done parsing, make sure it all makes sense
+
 	if( needs_id && ! claim_id ) {
-		fprintf( stderr, 
-				 "ERROR: You must specify the ClaimID with -id for %s\n",
-				 my_name );
+		fprintf( stderr,  "ERROR: You must specify a ClaimID with "
+				 "-id for %s\n", my_name );
 		usage( my_name );
 	}
 
@@ -477,6 +546,7 @@ parseArgv( int argc, char* argv[] )
 			// local startd
 		target = NULL;
 	}
+
 	if( classad_path ) { 
 		CA_PATH = fopen( classad_path, "w" );
 		if( !CA_PATH ) {
