@@ -108,6 +108,7 @@ public:
 
 		// Helper methods
 	bool checkClaimId( void );
+	bool checkVacateType( VacateType t );
 
 		// I can't be copied (yet)
 	DCStartd( const DCStartd& );
