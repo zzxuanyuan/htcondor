@@ -1,3 +1,5 @@
+%token DIRECT
+%token INDIRECT
 %token TYPE_NAME
 %token CONST
 %token IDENTIFIER
@@ -89,6 +91,7 @@ int ErrorEncountered = 0;
 int IsExtracted = FALSE;
 int IsDLExtracted = FALSE;
 int IsPseudo = FALSE;
+int IsIndirect = FALSE;
 int DoSysChk = TRUE;
 int IsTabled = FALSE;
 int IsVararg = FALSE;
@@ -321,6 +324,17 @@ option
 		{
 		Trace( "option (1)" );
 		IsPseudo = TRUE;
+		}
+	| DIRECT
+		{
+		Trace( "direct" );
+		IsIndirect = FALSE;
+		}
+	| INDIRECT
+		{
+		Trace( "indirect" );
+		IsIndirect = TRUE;
+		DoSysChk = FALSE;
 		}
 	|  EXTRACT
 		{
@@ -583,7 +597,7 @@ yyerror( char * s )
 	ErrorEncountered = TRUE;
 
 		/* make sure any resulting file won't compile */
-	printf( "------------  Has Errors --------------\n" );
+	printf( "#error Error in stub generator input\n" );
 }
 
 struct node *
@@ -658,6 +672,8 @@ mk_func_node( char *type, char *name, struct node * p_list,
 	DoSysChk = TRUE;
 	answer->pseudo = IsPseudo;
 	IsPseudo = FALSE;
+	answer->is_indirect = IsIndirect;
+	IsIndirect = FALSE;
 	answer->is_tabled = IsTabled;
 	IsTabled = FALSE;
 	answer->is_vararg = IsVararg;
@@ -928,12 +944,26 @@ output_local_call( struct node *n, struct node *list )
 {
 	struct node	*p;
 
-	printf("\t\t\trval = syscall( SYS_%s", n->local_name );
-	if( !is_empty_list(list) ) {
-		printf( ", " );
+	/* For some Linux calls, we must make an indirect socket
+	   call and pass the real args as an array pointer.
+	   Otherwise, make a regular system call. */
+
+	if(n->is_indirect) {
+		printf("\t\t\tunsigned long args[] = { ");
+		output_param_list( list, 0, 1 );
+		printf(" };\n");
+
+		printf("\t\t\trval = syscall( SYS_socketcall, SYS_%s, args );\n", mk_upper(n->local_name) );
+
+	} else {
+
+		printf("\t\t\trval = syscall( SYS_%s", n->local_name );
+		if( !is_empty_list(list) ) {
+			printf( ", " );
+		}
+		output_param_list( list, 0, 1 );
+		printf( " );\n" );
 	}
-	output_param_list( list, 0, 1 );
-	printf( " );\n" );
 }
 
 void
@@ -1467,7 +1497,7 @@ output_switch( struct node *n )
 	}
 
 	/* Disable checkpointing */
-	printf( "\tsigset_t sigs = _condor_signals_disable();\n\n");
+	printf( "\t_condor_signals_disable();\n\n");
 
 	/* Look up mapped parameters, and map them. */
 	for( p=n->param_list->next; p!=n->param_list; p=p->next ) {
@@ -1509,7 +1539,7 @@ output_switch( struct node *n )
 		}
 	}
 
-	printf( "\t_condor_signals_enable(sigs);\n");
+	printf( "\t_condor_signals_enable();\n");
 
 	if( strcmp(n->type_name,"void") || n->is_ptr) {
 		printf("\n\treturn (%s) rval;\n",node_type(n));

@@ -51,6 +51,7 @@ struct node {
 	int		is_ref;
 	int		is_vararg;
 	int		is_mapped;
+	int		is_indirect;
 	int		in_param;
 	int		out_param;
 	int		extract;

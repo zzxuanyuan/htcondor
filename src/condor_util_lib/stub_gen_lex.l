@@ -32,6 +32,8 @@ UNSIGNED unsigned[ \t\n]+
 <C_Comment>.*		;
 "//".*				;	/* C++ Style Comment */
 ^#.*				reset_yyline();
+direct				return grab( DIRECT );
+indirect			return grab( INDIRECT );
 const				return grab( CONST );
 void				return grab( TYPE_NAME );
 char				return grab( TYPE_NAME );
