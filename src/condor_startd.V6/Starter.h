@@ -30,6 +30,7 @@
 #ifndef _CONDOR_STARTD_STARTER_H
 #define _CONDOR_STARTD_STARTER_H
 
+#include "../condor_procapi/procapi.h"
 #include "killfamily.h"
 
 typedef struct jobstartinfo {
@@ -60,10 +61,9 @@ public:
 	pid_t	pid() {return s_pid;};
 	bool	is_dc() {return s_is_dc;};
 	bool	active();
-	pid_t*	pidfamily() {return s_pidfamily;};
-	int		pidfamily_size() {return s_family_size;};
-	void	recompute_pidfamily( time_t now = 0 );
 	void	set_last_snapshot( time_t val ) { s_last_snapshot = val; };
+	float	percentCpuUsage( void );
+	unsigned long	imageSize( void );
 
 	bool	killHard( void );
 	bool	killSoft( void );
@@ -98,6 +98,9 @@ private:
 	int		startKillTimer( void );	    // Timer for how long we're willing 
 	void	cancelKillTimer( void );	// to "hardkill" before we SIGKILL
 
+		// helpers related to computing percent cpu usage
+	void	printPidFamily( int dprintf_level, char* header );
+	void	recomputePidFamily( time_t now = 0 );
 
 		// data that will be the same across all instances of this
 		// starter (i.e. things that are valid for copying)
@@ -115,6 +118,7 @@ private:
 	time_t	s_birthdate;
 	time_t	s_last_snapshot;
 	int		s_kill_tid;		// DC timer id for hard killing
+	procInfo	s_pinfo;	// aggregate ProcAPI info for starter & job
 };
 
 #endif /* _CONDOR_STARTD_STARTER_H */
