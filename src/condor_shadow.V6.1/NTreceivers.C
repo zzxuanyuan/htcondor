@@ -29,12 +29,13 @@
 #include "pseudo_ops.h"
 #include "condor_sys.h"
 #include "baseshadow.h"
+#include "remoteresource.h"
 #include "MyString.h"
 
 
 extern ReliSock *syscall_sock;
 extern BaseShadow *Shadow;
-
+extern RemoteResource *thisRemoteResource;
 
 
 #ifdef WIN32
@@ -149,11 +150,15 @@ do_REMOTE_syscall()
 				// instead of having to EXCEPT, we can now try to
 				// reconnect.  happy day! :)
 			dprintf( D_ALWAYS, "%s\n", err_msg.Value() );
+				// the socket is closed, there's no way to recover
+				// from this.  so, we have to cancel the socket
+				// handler in daemoncore and delete the relisock.
+			thisRemoteResource->closeClaimSock();
+				// tell the shadow to start trying to reconnect
 			Shadow->reconnect();
 				// we need to return 0 so that our caller doesn't
 				// think the job exited and doesn't do anything to the
-				// syscall socket.  we'll cancel it out of DaemonCore
-				// and delete it when and if we reestablish contact...
+				// syscall socket.
 			return 0;
 		} else {
 				// The remote starter doesn't support it, so give up
