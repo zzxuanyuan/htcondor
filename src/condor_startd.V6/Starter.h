@@ -43,8 +43,11 @@ typedef struct jobstartinfo {
 class Starter
 {
 public:
-	Starter();
+	Starter( Resource* );
 	~Starter();
+
+	void	dprintf( int, char* ... );
+
 	char*	name() {return s_name;};
 	void	setname(char*);
 	int		kill(int);
@@ -55,6 +58,7 @@ public:
 	int		pid() {return s_pid;};
 	bool	active();
 private:
+	Resource*	rip;
 	pid_t	s_pid;
 	char*	s_name;
 	int		reallykill(int, int);

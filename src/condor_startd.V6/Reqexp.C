@@ -31,9 +31,9 @@
 #include "startd.h"
 static char *_FileName_ = __FILE__;
 
-Reqexp::Reqexp( ClassAd** cap )
+Reqexp::Reqexp( Resource* rip )
 {
-	this->cap = cap;
+	this->rip = rip;
 	char tmp[1024];
 	char* start;
 	sprintf( tmp, "%s = %s", ATTR_REQUIREMENTS, "START" );
@@ -74,7 +74,7 @@ Reqexp::eval()
 	EvalResult res;
 
 	Parse( origreqexp, tree );
-	tree->EvalTree( *cap, &ad, &res);
+	tree->EvalTree( rip->r_classad, &ad, &res);
 	delete tree;
 
 	if( res.type != LX_INTEGER ) {
@@ -89,7 +89,7 @@ void
 Reqexp::restore()
 {
 	if( rstate != ORIG ) {
-		(*cap)->InsertOrUpdate( origreqexp );
+		rip->r_classad->InsertOrUpdate( origreqexp );
 		rstate = ORIG;
 	}
 }
@@ -100,7 +100,7 @@ Reqexp::unavail()
 {
 	char tmp[100];
 	sprintf( tmp, "%s = False", ATTR_REQUIREMENTS );
-	(*cap)->InsertOrUpdate( tmp );
+	rip->r_classad->InsertOrUpdate( tmp );
 	rstate = UNAVAIL;
 }
 
@@ -110,7 +110,7 @@ Reqexp::avail()
 {
 	char tmp[100];
 	sprintf( tmp, "%s = True", ATTR_REQUIREMENTS );
-	(*cap)->InsertOrUpdate( tmp );
+	rip->r_classad->InsertOrUpdate( tmp );
 	rstate = AVAIL;
 }
 
@@ -158,3 +158,14 @@ Reqexp::publish( ClassAd* ca, amask_t how_much )
 	}
 	ca->InsertOrUpdate( tmp );
 }
+
+
+void
+Reqexp::dprintf( int flags, char* fmt, ... )
+{
+	va_list args;
+	va_start( args, fmt );
+	rip->dprintf( flags, fmt, args );
+	va_end( args );
+}
+

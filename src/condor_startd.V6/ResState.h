@@ -52,6 +52,7 @@ public:
 	int		change( State, Activity );
 	int 	eval();
 	float	condor_load();
+	void	dprintf( int, char*, ... );
 private:
 	Resource*	rip;
 	State 		r_state;

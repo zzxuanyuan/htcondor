@@ -36,7 +36,7 @@ enum reqexp_state { AVAIL, UNAVAIL, ORIG };
 class Reqexp
 {
 public:
-	Reqexp( ClassAd** cap );
+	Reqexp( Resource* rip );
 	~Reqexp();
 	void	restore();		// Restore the original requirements
 	void	unavail();		// Set requirements to False
@@ -48,9 +48,10 @@ public:
 
 	void 	publish( ClassAd*, amask_t );
 	void	compute( amask_t );
+	void	dprintf( int, char* ... );
 
 private:
-	ClassAd** 		cap;
+	Resource*		rip;
 	char* 			origreqexp;
 	char* 			origstart;
 	reqexp_state	rstate;

@@ -48,7 +48,7 @@ public:
 
 	bool 	in_use();
 	bool	is_smp() { return( m_attr->num_cpus() > 1 ); };
-	void	send_update( ClassAd*, ClassAd* );
+	int		send_update( ClassAd*, ClassAd* );
 	void	final_update();
 	
 		// Evaluate the state of all resources.
@@ -93,6 +93,8 @@ public:
 
 	int	force_benchmark();		// Force a resource to benchmark
 	
+	void report_updates();		// Log updates w/ dprintf()
+
 	MachAttributes*	m_attr;		// Machine-wide attribute object
 
 private:
@@ -101,6 +103,7 @@ private:
 	SafeSock*	coll_sock;
 	SafeSock*	view_sock;
 
+	int		num_updates;
 	int		up_tid;		// DaemonCore timer id for update timer
 	int		poll_tid;	// DaemonCore timer id for polling timer
 

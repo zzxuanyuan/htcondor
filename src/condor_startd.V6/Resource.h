@@ -65,6 +65,12 @@ public:
 	float	condor_load() {return r_attr->condor_load();};
 	float	compute_condor_load() {return r_state->condor_load();};
 
+		// dprintf() functions add the CPU id to the header of each
+		// message for SMP startds (single CPU machines get no special
+		// header and it works just like regular dprintf())
+	void	dprintf( int, char*, ... );
+	void	dprintf( int, char*, va_list );
+
 		// Called from the reaper to handle things for this rip
 	void	starter_exited();	
 

@@ -92,7 +92,7 @@ private:
 class Match : public Service
 {
 public:
-	Match();
+	Match( Resource* );
 	~Match();
 
 		// Operations you can perform on a Match
@@ -103,6 +103,8 @@ public:
 	int	send_accountant( int );	
 
 	void publish( ClassAd*, amask_t );
+
+	void dprintf( int, char* ... );
 
 	void refuse_agent();
 
@@ -143,6 +145,7 @@ public:
 	void setjobstart(int jobstart) 	{m_job_start=jobstart;};
 
 private:
+	Resource	*rip;
 	Client 		*m_client;
 	Capability 	*m_cap;
 	ClassAd*	m_ad;

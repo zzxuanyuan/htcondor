@@ -48,7 +48,7 @@ ResMgr::init_resources()
 
 	for( i = 0; i < nresources; i++ ) {
 		cap = new CpuAttributes( m_attr, share, share, share );
-		resources[i] = new Resource( cap, i );
+		resources[i] = new Resource( cap, i+1 );
 	}
 }
 
@@ -236,38 +236,60 @@ ResMgr::force_benchmark()
 }
 
 
-void
+int
 ResMgr::send_update( ClassAd* public_ad, ClassAd* private_ad )
 {
-	if( coll_sock ) {
-		send_classad_to_sock( coll_sock, public_ad, private_ad );
-		dprintf( D_FULLDEBUG, "Sent update to the collector (%s)\n", 
-				 collector_host );
+	int num = 0;
+	if( coll_sock &&
+		(send_classad_to_sock(coll_sock, public_ad, private_ad)) ) {
+		num++;
 	}  
 
 		// If we have an alternate collector, send public CA there.
-	if( view_sock ) {
-		send_classad_to_sock( view_sock, public_ad, NULL );
-		dprintf( D_FULLDEBUG, 
-				 "Sent update to the condor_view host (%s)\n",
-				 condor_view_host );
+	if( view_sock && 
+		(send_classad_to_sock(view_sock, public_ad, NULL)) ) {
+		num++;
 	}
+
+		// Increment the resmgr's count of updates.
+	num_updates++;
+	return num;
 }
 
 
 void
 ResMgr::eval_and_update_all()
 {
+	num_updates = 0;
 	compute( A_TIMEOUT | A_UPDATE );
 	walk( Resource::eval_and_update );
+	report_updates();
 }
 
 
 void
 ResMgr::eval_all()
 {
+	num_updates = 0;
 	compute( A_TIMEOUT );
 	walk( Resource::eval_state );
+	report_updates();
+}
+
+
+void
+ResMgr::report_updates()
+{
+	if( coll_sock ) {
+		dprintf( D_FULLDEBUG,
+				 "Sent %d update(s) to the collector (%s)\n", 
+				 num_updates, collector_host );
+	}  
+	if( view_sock ) {
+		dprintf( D_FULLDEBUG, 
+				 "Sent %d update(s) to the condor_view host (%s)\n",
+				 num_updates, condor_view_host );
+	}
 }
 
 
@@ -277,7 +299,7 @@ ResMgr::compute( amask_t how_much )
 	m_attr->compute( (how_much & ~(A_SUMMED)) | A_SHARED );
 	resmgr->walk( Resource::compute, (how_much & ~(A_SHARED)) );
 	m_attr->compute( how_much | A_SUMMED );
-	resmgr->walk( Resource::compute, (how_much | A_SHARED) );
+	walk( Resource::compute, (how_much | A_SHARED) );
 }
 
 

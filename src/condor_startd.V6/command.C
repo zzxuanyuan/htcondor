@@ -318,7 +318,7 @@ stream->end_of_message();
 delete requestAd;						\
 if( s == claimed_state ) {				\
 	delete rip->r_pre;					\
-	rip->r_pre = new Match;				\
+	rip->r_pre = new Match( rip );		\
 } else {								\
 	rip->change_state( owner_state );	\
 }										\

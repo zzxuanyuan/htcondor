@@ -31,8 +31,9 @@
 static char *_FileName_ = __FILE__;
 
 
-Starter::Starter()
+Starter::Starter( Resource* rip )
 {
+	this->rip = rip;
 	s_pid = -1;
 	s_name = NULL;
 }
@@ -393,3 +394,12 @@ Starter::active()
 	return( (s_pid != -1) );
 }
 	
+
+void
+Starter::dprintf( int flags, char* fmt, ... )
+{
+	va_list args;
+	va_start( args, fmt );
+	rip->dprintf( flags, fmt, args );
+	va_end( args );
+}

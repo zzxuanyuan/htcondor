@@ -381,3 +381,11 @@ CpuAttributes::compute( amask_t how_much )
 }
 
 
+void
+CpuAttributes::dprintf( int flags, char* fmt, ... )
+{
+	va_list args;
+	va_start( args, fmt );
+	rip->dprintf( flags, fmt, args );
+	va_end( args );
+}

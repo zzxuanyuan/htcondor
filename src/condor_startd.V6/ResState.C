@@ -441,7 +441,7 @@ ResState::enter_action( State s, Activity a,
 		if( rip->r_cur ) {
 			delete( rip->r_cur );
 		}
-		rip->r_cur = new Match;
+		rip->r_cur = new Match( rip );
 		if( rip->r_pre ) {
 			delete rip->r_pre;
 			rip->r_pre = NULL;
@@ -461,7 +461,7 @@ ResState::enter_action( State s, Activity a,
 				// Update important attributes into the classad.
 			rip->r_cur->publish( rip->r_classad, A_PUBLIC );
 				// Generate a preempting match object
-			rip->r_pre = new Match;
+			rip->r_pre = new Match( rip );
 		}
 		if( a == suspended_act ) {
 			if( rip->r_starter->kill( DC_SIGSUSPEND ) < 0 ) {
@@ -519,4 +519,13 @@ ResState::enter_action( State s, Activity a,
 	return FALSE;
 }
 
+
+void
+ResState::dprintf( int flags, char* fmt, ... )
+{
+	va_list args;
+	va_start( args, fmt );
+	rip->dprintf( flags, fmt, args );
+	va_end( args );
+}
 

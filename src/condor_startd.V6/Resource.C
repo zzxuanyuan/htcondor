@@ -27,10 +27,10 @@ Resource::Resource( CpuAttributes* cap, int rid )
 {
 	r_classad = NULL;
 	r_state = new ResState( this );
-	r_starter = new Starter;
-	r_cur = new Match;
+	r_starter = new Starter( this );
+	r_cur = new Match( this );
 	r_pre = NULL;
-	r_reqexp = new Reqexp( &r_classad );
+	r_reqexp = new Reqexp( this );
 	r_id = rid;
 	
 	if( resmgr->is_smp() ) {
@@ -369,6 +369,7 @@ Resource::force_benchmark()
 int
 Resource::update()
 {
+	int rval;
 	ClassAd private_ad;
 	ClassAd public_ad;
 
@@ -379,7 +380,12 @@ Resource::update()
 	this->make_private_ad( &private_ad );
 
 		// Send class ads to collector(s)
-	resmgr->send_update( &public_ad, &private_ad );
+	rval = resmgr->send_update( &public_ad, &private_ad );
+	if( rval ) {
+		dprintf( D_ALWAYS, "Sent update to %d collector(s).\n", rval );
+	} else {
+		dprintf( D_ALWAYS, "Error sending update to collector(s).\n" );
+	}
 
 		// Set a flag to indicate that we've done an update.
 	did_update = TRUE;
@@ -706,4 +712,23 @@ Resource::compute( amask_t mask )
 }
 
 
+void
+Resource::dprintf( int flags, char* fmt, va_list args )
+{
+	if( resmgr->is_smp() ) {
+		::dprintf( flags, "cpu%d: ", r_id );
+		::_condor_dprintf_va( flags | D_NOHEADER, fmt, args );
+	} else {
+		::_condor_dprintf_va( flags, fmt, args );
+	}
+}
 
+
+void
+Resource::dprintf( int flags, char* fmt, ... )
+{
+	va_list args;
+	va_start( args, fmt );
+	this->dprintf( flags, fmt, args );
+	va_end( args );
+}

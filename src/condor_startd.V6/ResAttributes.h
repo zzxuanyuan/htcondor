@@ -117,6 +117,8 @@ public:
 	float condor_load() { return c_condor_load; };
 	float compute_condor_load();
 
+	void dprintf( int, char*, ... );
+
 private:
 	Resource*	 	rip;
 	MachAttributes*	map;
