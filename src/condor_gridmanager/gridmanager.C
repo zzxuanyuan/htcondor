@@ -46,6 +46,7 @@
 #include "nordugridjob.h"
 #endif
 
+#include "unicorejob.h"
 #include "mirrorjob.h"
 #include "gt3job.h"
 
@@ -329,6 +330,15 @@ Init()
 	new_type->CreateFunc = NordugridJobCreate;
 	jobTypes.Append( new_type );
 #endif
+
+	new_type = new JobType;
+	new_type->Name = strdup( "Unicore" );
+	new_type->InitFunc = UnicoreJobInit;
+	new_type->ReconfigFunc = UnicoreJobReconfig;
+	new_type->AdMatchConst = UnicoreJobAdConst;
+	new_type->AdMustExpandFunc = UnicoreJobAdMustExpand;
+	new_type->CreateFunc = UnicoreJobCreate;
+	jobTypes.Append( new_type );
 
 	new_type = new JobType;
 	new_type->Name = strdup( "Mirror" );
