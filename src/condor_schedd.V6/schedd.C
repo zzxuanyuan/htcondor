@@ -3791,9 +3791,15 @@ Scheduler::checkReconnectQueue( void )
 			// level of complexity just yet... 
 		if( GetAttributeStringNew(job.cluster, job.proc, ATTR_REMOTE_POOL,
 								  &remote_pool) >= 0 ) {
-				// TODO: we can do better than this...
-			EXCEPT( "Can't reconnect to a flocked pool yet!" );
+			dprintf( D_ALWAYS, "Can't reconnect job %d.%d to a flocked pool"
+					 " (%s) yet\n", job.cluster, job.proc, remote_pool );
+			free( remote_pool );
+			mark_job_stopped(&job);
+			continue;
 		}
+		free( remote_pool );
+		remote_pool = NULL;
+
 		
 			// Now, grab the name of the startd ad we need to query
 			// for from the job ad.  it's living in ATTR_REMOTE_HOST
@@ -3814,6 +3820,13 @@ Scheduler::checkReconnectQueue( void )
 		dprintf( D_ALWAYS, "ERROR: failed to query collector (%s)\n",
 				 errstack.get_full_text() );
 			// TODO! deal violently with this failure. ;)
+		jobsToReconnect.Rewind();
+		while( jobsToReconnect.Next(job) ) {
+			dprintf( D_ALWAYS,
+					 "Can't find ClassAd for %d.%d, marking as idle\n",
+					 job.cluster, job.proc );
+			mark_job_stopped(&job);
+		}
 	}
 
 	char* job_id = NULL;
