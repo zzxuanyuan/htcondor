@@ -339,6 +339,9 @@ class BaseShadow : public Service
 
 	ShadowUserPolicy shadow_user_policy;
 
+	float prev_run_bytes_sent;
+	float prev_run_bytes_recvd;
+
 	void emailHoldEvent( const char* reason );
 
 	void emailRemoveEvent( const char* reason );
@@ -403,8 +406,6 @@ class BaseShadow : public Service
 	char *scheddAddr;
 	bool jobExitedGracefully;
 	char *core_file_name;
-	float prev_run_bytes_sent;
-	float prev_run_bytes_recvd;
 
 		// This makes this class un-copy-able:
 	BaseShadow( const BaseShadow& );

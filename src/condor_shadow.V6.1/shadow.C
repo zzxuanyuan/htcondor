@@ -214,7 +214,13 @@ void
 UniShadow::emailTerminateEvent( int exitReason )
 {
 	Email mailer;
-	mailer.sendExit( jobAd, exitReason );
+		// note, we want to reverse the order of the send/recv in the
+		// call, since we want the email from the job's perspective,
+		// not the shadow's.. 
+	mailer.sendExitWithBytes( jobAd, exitReason, 
+							  bytesReceived(), bytesSent(), 
+							  prev_run_bytes_sent + bytesReceived(), 
+							  prev_run_bytes_recvd + bytesSent() );
 }
 
 
