@@ -1,18 +1,10 @@
 
+#include "condor_common.h"
+
 #include "file_types.h"
 #include "condor_syscall_mode.h"
 #include "condor_debug.h"
 #include "condor_sys.h"
-
-#include <unistd.h>
-#include <limits.h>
-#include <string.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <stdarg.h>
-
-// XXX Where is the header for this?
-extern "C" int syscall( int kind, ... );
 
 extern "C" void file_warning( char *format, ... )
 {
@@ -43,7 +35,7 @@ void File::dump() {
 int File::illegal( char *op )
 {
 	file_warning("File system call '%s' is not supported for file '%s', which is mapped to a %s.\n",op,get_name(),get_kind());
-	errno = ENOTSUP;
+	errno = EINVAL;
 	return -1;
 }
 
@@ -76,7 +68,7 @@ int LocalFile::open(const char *path, int flags, int mode ) {
 
 	strncpy(name,path,_POSIX_PATH_MAX);
 
-	fd = syscall( SYS_open, path, flags, mode );
+	IN_LOCAL_MODE( fd = ::open(path,flags,mode); )
 
 	switch( flags & O_ACCMODE ) {
 		case O_RDONLY:
@@ -95,90 +87,118 @@ int LocalFile::open(const char *path, int flags, int mode ) {
 			return -1;
 	}
 
-	size = syscall( SYS_lseek, fd, 0 , SEEK_END );
+	IN_LOCAL_MODE( size = ::lseek( fd, 0 , SEEK_END ); )
 	if(size==-1) size=0;
-	syscall( SYS_lseek, fd, 0, SEEK_SET );
+	IN_LOCAL_MODE( lseek( fd, 0, SEEK_SET ); )
 
 	return fd;
 }
 
 int LocalFile::close() {
-	return syscall( SYS_close, fd );
+	int result;
+	IN_LOCAL_MODE( result = ::close(fd); )
+	return result;
 }
 
 int LocalFile::read(int pos, char *data, int length) {
 	// XXX Optimize this where possible
-	syscall(SYS_lseek, fd, pos, SEEK_SET);
-	return syscall( SYS_read, fd, data, length );
+	int result;
+	IN_LOCAL_MODE(
+		::lseek(fd,pos,SEEK_SET);
+		result = ::read(fd,data,length);
+		)
+	return result;
 }
 
 int LocalFile::write(int pos, char *data, int length) {
 	// XXX Optimize this where possible
-	syscall(SYS_lseek, fd, pos, SEEK_SET);
-	return syscall( SYS_write, fd, data, length );
+	int result;
+	IN_LOCAL_MODE(
+		::lseek(fd,pos,SEEK_SET);
+		result = ::write(fd,data,length);
+		)
+	return result;
 }
 
 int LocalFile::fcntl( int cmd, int arg )
 {
-	return syscall( SYS_fcntl, fd, cmd, arg );
+	int result;
+	IN_LOCAL_MODE( result = ::fcntl(fd,cmd,arg); )
+	return result;
 }
 
 int LocalFile::fstat( struct stat *buf )
 {
-	return syscall( SYS_fstat, fd, buf );
+	int result;
+	IN_LOCAL_MODE( result = ::fstat(fd,buf); )
+	return result;
 }
 
 int LocalFile::ioctl( int cmd, int arg )
 {
-	return syscall( SYS_ioctl, fd, cmd, arg );
+	int result;
+	IN_LOCAL_MODE( result = ::ioctl(fd,cmd,arg); )
+	return result;
 }
+
+/* If a struct flock exists, c++ gets very confused between
+   the structure and the system call.  This should fix the
+   problem up. */
+
+extern "C" int flock(int fd, int op);
 
 int LocalFile::flock( int op )
 {
-#ifdef SYS_flock
-	return syscall( SYS_flock, fd, op );
-#else
-	return File::flock(op);
-#endif
+
+	#ifdef CONDOR_USE_FLOCK
+		int result;
+		IN_LOCAL_MODE( result = ::flock(fd,op); )
+		return result;
+	#else
+		File::flock(op);
+	#endif
 }
 
 int LocalFile::fstatfs( struct statfs *buf )
 {
-#ifdef SYS_fstatfs
-	return syscall( SYS_fstatfs, fd, buf );
-#else
-	return File::fstatfs(buf);
-#endif
+	int result;
+	#if defined(IRIX) || defined(Solaris)
+		IN_LOCAL_MODE( result = ::fstatfs(fd,buf,sizeof(struct statfs),0); )
+	#elif defined(OSF1)
+		IN_LOCAL_MODE( result = ::fstatfs(fd,buf,sizeof(struct statfs)); )
+	#else
+		IN_LOCAL_MODE( result = ::fstatfs(fd,buf); )
+	#endif
+	return result;
 }
 
 int LocalFile::fchown( uid_t owner, gid_t group )
 {
-	return syscall( SYS_fchown, fd, owner, group );
+	int result;
+	IN_LOCAL_MODE( result = ::fchown(fd,owner,group) );
+	return result;
 }
 
 int LocalFile::fchmod( mode_t mode )
 {
-	return syscall( SYS_fchmod, fd, mode );
+	int result;
+	IN_LOCAL_MODE( result = ::fchmod(fd,mode) );
+	return result;
 }
 
 int LocalFile::ftruncate( size_t length )
 {
-#ifdef SYS_ftruncate
-	// Buffer flush happened from above
 	size = length;
-	return syscall( SYS_ftruncate, fd, length );
-#else
-	return File::ftruncate(length);
-#endif
+	int result;
+	IN_LOCAL_MODE( result = ::ftruncate(fd,length) );
+	return result;
 }
 
 int LocalFile::fsync()
 {
-#ifdef SYS_fsync
-	return syscall( SYS_fsync, fd );
-#else
-	return File::fsync();
-#endif
+	int result;
+	IN_LOCAL_MODE( result = ::fsync(fd) );
+	return result;
 }
 
 void LocalFile::checkpoint()
@@ -188,7 +208,7 @@ void LocalFile::checkpoint()
 void LocalFile::suspend()
 {
 	if( (fd==-1) || forced ) return;
-	syscall( SYS_close, fd );
+	IN_LOCAL_MODE( ::close(fd); )
 	fd=-1;
 }
 
@@ -199,15 +219,11 @@ void LocalFile::resume( int count )
 
 	int flags;
 
-	if( readable&&writeable ) {
-		flags = O_RDWR;
-	} else if( writeable ) {
-		flags = O_WRONLY;
-	} else {
-		flags = O_RDONLY;
-	}
+	if( readable&&writeable )	flags = O_RDWR;
+	else if( writeable )		flags = O_WRONLY;
+	else				flags = O_RDONLY;
 
-	fd = syscall( SYS_open, name, flags, 0 );
+	IN_LOCAL_MODE( fd = ::open(name,flags); )
 	if( fd==-1 ) {
 		file_warning("Unable to reopen local file %s after a checkpoint!\n",name);
 	}
