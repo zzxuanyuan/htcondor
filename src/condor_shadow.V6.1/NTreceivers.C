@@ -155,7 +155,8 @@ do_REMOTE_syscall()
 				// handler in daemoncore and delete the relisock.
 			thisRemoteResource->closeClaimSock();
 
-			const char* txt = "Socket closed between submit and execute hosts";
+			const char* txt = "Socket between submit and execute hosts "
+				"closed unexpectedly";
 			Shadow->logDisconnectedEvent( txt ); 
 
 				// tell the shadow to start trying to reconnect
