@@ -1,3 +1,10 @@
+#if defined(WIN32)
+
+#include <windows.h>
+#include "_condor_fix_nt.h"
+
+#else
+
 #include "_condor_fix_types.h"
 #include "condor_fix_stdio.h"
 #include <stdlib.h>
@@ -10,3 +17,5 @@
 #if !defined(SUNOS41)
 #include <signal.h>
 #endif
+
+#endif // defined(WIN32)
