@@ -37,6 +37,8 @@
 #include "my_hostname.h"
 #include "condor_state.h"
 #include "string_list.h"
+#include "killfamily.h"
+#include "../condor_procapi/procapi.h"
 
 // Unix specific stuff
 #if !defined(WIN32)
@@ -46,6 +48,7 @@
 
 // Startd includes
 class Resource;
+#include "LoadQueue.h"
 #include "ResAttributes.h"
 #include "Match.h"
 #include "Starter.h"
