@@ -222,6 +222,7 @@ class Scheduler : public Service
 	void			addRunnableJob( shadow_rec* );
 	void			spawnShadow( shadow_rec* );
 	void			spawnLocalStarter( shadow_rec* );
+	bool			isStillRunnable( int cluster, int proc, int &status ); 
 	UserLog*		InitializeUserLog( PROC_ID job_id );
 	bool			WriteAbortToUserLog( PROC_ID job_id );
 	bool			WriteHoldToUserLog( PROC_ID job_id );

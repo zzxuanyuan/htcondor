@@ -1878,6 +1878,23 @@ aboutToSpawnJobHandlerDone( int cluster, int proc,
 			 cluster, proc, 
 			 srec ? ", attempting to spawn job handler" : "" );
 
+		// just to be safe, check one more time to make sure the job
+		// is still runnable.
+	int status;
+	if( ! scheduler.isStillRunnable(cluster, proc, status) ) {
+		if( status != -1 ) {  
+			PROC_ID job_id;
+			job_id.cluster = cluster;
+			job_id.proc = proc;
+			mark_job_stopped( &job_id );
+		}
+		if( srec ) {
+			scheduler.RemoveShadowRecFromMrec(srec);
+			delete srec;
+		}
+		return FALSE;
+	}
+
 	if( ! srec ) {
 			// if we weren't given an srec, we're not being called in
 			// the regular shadow/starter case, and we've got nothing
@@ -5388,7 +5405,6 @@ Scheduler::StartJobHandler()
 	shadow_rec* srec;
 	PROC_ID* job_id=NULL;
 	int cluster, proc;
-	ClassAd* job = NULL;
 	int status;
 
 		// clear out our timer id since the hander just went off
@@ -5411,61 +5427,31 @@ Scheduler::StartJobHandler()
 		job_id=&srec->job_id;
 		cluster = job_id->cluster;
 		proc = job_id->proc;
-		job = GetJobAd( cluster, proc, false );
-		if( ! job ) {
-				// job ad disappeared, just go to the next thing in
-				// the queue
-			dprintf( D_FULLDEBUG,
-					 "Job %d.%d was deleted while waiting to start\n",
-					 cluster, proc );
+		if( ! isStillRunnable(cluster, proc, status) ) {
+			if( status != -1 ) {  
+					/*
+					  the job still exists, it's just been removed or
+					  held.  NOTE: it's ok to call mark_job_stopped(),
+					  since we want to clear out ATTR_CURRENT_HOSTS,
+					  the shadow birthday, etc.  mark_job_stopped()
+					  won't touch ATTR_JOB_STATUS unless it's
+					  currently "RUNNING", so we won't clobber it...
+					*/
+				mark_job_stopped( job_id );
+			}
+				/*
+				  no matter what, if we're not able to start this job,
+				  we need to delete the shadow record, remove it from
+				  whatever match record it's associated with, and try
+				  the next job.
+				*/
 			RemoveShadowRecFromMrec(srec);
 			delete srec;
 			continue;
 		}
 
-		if( job->LookupInteger(ATTR_JOB_STATUS, status) == 0 ) {
-			EXCEPT( "Job %d.%d has no %s while waiting to start!",
-					cluster, proc, ATTR_JOB_STATUS );
-		}
-		switch( status ) {
-		case UNEXPANDED:
-		case IDLE:
-		case RUNNING:
-				// these are the cases we expect.  if it's local
-				// universe, it'll still be IDLE.  if it's not local,
-				// it'll already be marked as RUNNING...  just break
-				// out of the switch and carry on.
-			break;
-
-		case REMOVED:
-		case HELD:
-			dprintf( D_FULLDEBUG,
-					 "Job %d.%d was %s while waiting to start\n",
-					 cluster, proc, getJobStatusString(status) );
-				// NOTE: it's ok to call mark_job_stopped(), since we
-				// want to clear out ATTR_CURRENT_HOSTS, the shadow
-				// birthday, etc. luckily, mark_job_stopped() won't
-				// touch ATTR_JOB_STATUS unless it's currently
-				// "RUNNING", so we won't clobber it...
-			mark_job_stopped( job_id );
-			RemoveShadowRecFromMrec( srec );
-			delete srec;
-			continue;
-			break;
-
-		case COMPLETED:
-		case SUBMISSION_ERR:
-			EXCEPT( "IMPOSSIBLE: status for job %d.%d is %s "
-					"but we're trying to start a shadow for it!", 
-					cluster, proc, getJobStatusString(status) );
-			break;
-
-		default:
-			EXCEPT( "StartJobHandler: Unknown status (%d) for job %d.%d\n",
-					status, cluster, proc ); 
-			break;
-		}
-
+			// if we got this far, we're definitely starting the job,
+			// so deal with the aboutToSpawnJobHandler hook...
 		if( jobPrepNeedsThread(cluster, proc) ) {
 			dprintf( D_FULLDEBUG, "Job prep for %d.%d will block, "
 					 "calling aboutToSpawnJobHandler() in a thread\n",
@@ -5486,6 +5472,59 @@ Scheduler::StartJobHandler()
 		tryNextJob();
 		return;
 	}
+}
+
+
+bool
+Scheduler::isStillRunnable( int cluster, int proc, int &status )
+{
+	ClassAd* job = GetJobAd( cluster, proc, false );
+	if( ! job ) {
+			// job ad disappeared, definitely not still runnable.
+		dprintf( D_FULLDEBUG,
+				 "Job %d.%d was deleted while waiting to start\n",
+				 cluster, proc );
+			// let our caller know the job is totally gone
+		status = -1;
+		return false;
+	}
+
+	if( job->LookupInteger(ATTR_JOB_STATUS, status) == 0 ) {
+		EXCEPT( "Job %d.%d has no %s while waiting to start!",
+				cluster, proc, ATTR_JOB_STATUS );
+	}
+	switch( status ) {
+	case UNEXPANDED:
+	case IDLE:
+	case RUNNING:
+			// these are the cases we expect.  if it's local
+			// universe, it'll still be IDLE.  if it's not local,
+			// it'll already be marked as RUNNING...  just break
+			// out of the switch and carry on.
+		return true;
+		break;
+
+	case REMOVED:
+	case HELD:
+		dprintf( D_FULLDEBUG,
+				 "Job %d.%d was %s while waiting to start\n",
+				 cluster, proc, getJobStatusString(status) );
+		return false;
+		break;
+
+	case COMPLETED:
+	case SUBMISSION_ERR:
+		EXCEPT( "IMPOSSIBLE: status for job %d.%d is %s "
+				"but we're trying to start a shadow for it!", 
+				cluster, proc, getJobStatusString(status) );
+		break;
+
+	default:
+		EXCEPT( "StartJobHandler: Unknown status (%d) for job %d.%d\n",
+				status, cluster, proc ); 
+		break;
+	}
+	return false;
 }
 
 
