@@ -137,8 +137,8 @@ CollectorList::~CollectorList() {
 
 
 CollectorList *
-CollectorList::create(const char * pool) {
-
+CollectorList::create( const char * pool )
+{
 	CollectorList * result = new CollectorList();
 	DCCollector * collector = NULL;
 
@@ -152,9 +152,8 @@ CollectorList::create(const char * pool) {
 		// Read the new names from config file
 	StringList collector_name_list;
 	char * collector_name_param = NULL;
-	Daemon::getCmHostFromConfig ( "COLLECTOR", collector_name_param );
-	
-	if (collector_name_param  && *collector_name_param) {
+	collector_name_param = getCmHostFromConfig( "COLLECTOR" );
+	if( collector_name_param ) {
 		collector_name_list.initializeFromString(collector_name_param);
 	
 			// Create collector objects
@@ -166,12 +165,12 @@ CollectorList::create(const char * pool) {
 		}
 	} else {
 			// Otherwise, just return an empty list
-		dprintf (D_ALWAYS, "ERROR: Unable to find collector info in configuration file!!!\n");
+		dprintf( D_ALWAYS, "ERROR: Unable to find collector info in "
+				 "configuration file!!!\n" );
 	}
-
-	if (collector_name_param)
-		free ( collector_name_param );
-
+	if( collector_name_param ) {
+		free( collector_name_param );
+	}
 	return result;
 }
 
