@@ -21,7 +21,6 @@
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
-#define INCLUDE_STATUS_NAME_ARRAY
 #include "condor_common.h"
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
 #include "dedicated_scheduler.h"
@@ -4771,7 +4770,7 @@ Scheduler::StartJobHandler()
 			dprintf( D_FULLDEBUG,
 					 "Job %d.%d was %s while waiting to start\n",
 					 job_id->cluster, job_id->proc,
-					 JobStatusNames[status] );
+					 getJobStatusString(status) );
 				// NOTE: it's ok to call mark_job_stopped(), since we
 				// want to clear out ATTR_CURRENT_HOSTS, etc. luckily,
 				// mark_job_stopped() won't touch ATTR_JOB_STATUS
@@ -4787,7 +4786,8 @@ Scheduler::StartJobHandler()
 		case SUBMISSION_ERR:
 			EXCEPT( "IMPOSSIBLE: status for job %d.%d is %s "
 					"but we're trying to start a shadow for it!", 
-					job_id->cluster, job_id->proc, JobStatusNames[status] );
+					job_id->cluster, job_id->proc,
+					getJobStatusString(status) );
 			break;
 
 		default:
