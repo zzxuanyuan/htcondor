@@ -160,16 +160,13 @@ bool parse (const std::string & filename, Dag *dag) {
             //
             if (!dag->Add (*job)) {
                 if (DEBUG_LEVEL(DEBUG_QUIET)) {
-                    printf ("ERROR adding JOB ");
-                    job->Print();
-                    printf (" to Dag\n");
+                    cout << "ERROR adding JOB " << *job << " to Dag" << endl;
                 }
                 fclose(fp);
                 return false;
             } else if (DEBUG_LEVEL(DEBUG_DEBUG_3)) {
-                printf ("%s: Added JOB: ", __FUNCTION__);
-                job->Print();
-                putchar('\n');
+                cout << __FUNCTION__ << ": Added JOB: "
+                     << *job << endl;
             }
         }
         
@@ -357,11 +354,8 @@ bool parse (const std::string & filename, Dag *dag) {
                         return false;
                     }
                     if (DEBUG_LEVEL(DEBUG_DEBUG_3)) {
-                        printf ("%s: Added Dependency PARENT: ", __FUNCTION__);
-                        (*pjobit)->Print();
-                        printf ("  CHILD: ");
-                        (*cjobit)->Print();
-                        putchar ('\n');
+                        cout << __FUNCTION__ << ": Added Dependency PARENT: "
+                             << **pjobit << "  CHILD: " << **cjobit << endl;
                     }
                 }
             }
