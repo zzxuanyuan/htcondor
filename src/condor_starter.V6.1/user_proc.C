@@ -49,8 +49,12 @@ UserProc::initialize( void )
 	JobPid = -1;
 	exit_status = -1;
 	requested_exit = false;
+	job_universe = 0;  // we'll fill in a real value if we can...
 	if( JobAd ) {
 		initKillSigs();
+		if( JobAd->LookupInteger( ATTR_JOB_UNIVERSE, job_universe ) < 1 ) {
+			job_universe = 0;
+		}
 	}
 }
 

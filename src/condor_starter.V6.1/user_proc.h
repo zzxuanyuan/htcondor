@@ -125,6 +125,7 @@ protected:
 
 	ClassAd *JobAd;
 	int JobPid;
+	int job_universe;
 	int exit_status;
 	bool requested_exit;
 
