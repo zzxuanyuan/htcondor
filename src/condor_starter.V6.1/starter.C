@@ -842,7 +842,7 @@ CStarter::Reaper(int pid, int exit_status)
 	JobList.Rewind();
 	while ((job = JobList.Next()) != NULL) {
 		all_jobs++;
-		if( job->GetJobPid()==pid && job->JobCleanup(pid, exit_status) ) {
+		if( job->JobCleanup(pid, exit_status) ) {
 			handled_jobs++;
 			JobList.DeleteCurrent();
 			CleanedUpJobList.Append(job);
