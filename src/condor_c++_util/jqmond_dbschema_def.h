@@ -128,6 +128,7 @@ bool isHorizontalClusterAttribute(const char *attr) {
      (strcasecmp(attr, "remoteusercpu") == 0) ||
      (strcasecmp(attr, "remotewallclocktime") == 0) ||
      (strcasecmp(attr, "cmd") == 0) ||
+     (strcasecmp(attr, "user") == 0) ||
      (strcasecmp(attr, "args") == 0)) {
     return true;
   }

@@ -739,6 +739,7 @@ QueueDBManager::processSetAttribute(const char* key, const char* name, const cha
 	char cid[512];
 	char pid[512];
 	int  id_sort;
+	char tempvalue[1000];
 	//bool ishorizontal = false;
 	//int		ret_st;
 
@@ -756,7 +757,14 @@ QueueDBManager::processSetAttribute(const char* key, const char* name, const cha
 	switch(id_sort) {
 	case 1:
 	  if(isHorizontalClusterAttribute(name)) {
-	    if(strcasecmp(name, "qdate") == 0) {
+	    if (strcasecmp(name, "user") == 0) {
+	      strncpy(tempvalue, value+1, strlen(value)-2);
+	      tempvalue[strlen(value)-2] = '\0';
+	      sprintf(sql_str_del_in, 
+		      "UPDATE ClusterAds_Horizontal SET %s_j = '%s' WHERE cid = '%s';", name, tempvalue, cid);
+	    }
+
+	    else if(strcasecmp(name, "qdate") == 0) {
 	      sprintf(sql_str_del_in, 
 		      "UPDATE ClusterAds_Horizontal SET %s = (('epoch'::timestamp + '%s seconds') at time zone 'UTC') WHERE cid = '%s';", name, value, cid);
 	    }
