@@ -42,6 +42,15 @@ public:
 		*/
 	DCStartd( const char* const name = NULL, const char* pool = NULL );
 
+		/** Alternate constructor that takes more info if have it
+			@param name The name of the daemon, NULL for local  
+			@param pool The name of the pool, NULL for local
+			@param addr The address (sinful string), NULL if unknown
+			@param id The ClaimId, NULL if unknown
+		*/
+	DCStartd( const char* const name, const char* const pool,
+			  const char* const addr, const char* const id );
+
 		/// Destructor.
 	~DCStartd();
 

@@ -39,6 +39,22 @@ DCStartd::DCStartd( const char* name, const char* pool )
 }
 
 
+DCStartd::DCStartd( const char* name, const char* pool, const char* addr,
+					const char* id )
+	: Daemon( DT_STARTD, name, pool )
+{
+	if( addr ) {
+		New_addr( strnewp(addr) );
+	}
+		// claim_id isn't initialized by Daemon's constructor, so we
+		// have to treat it slightly differently 
+	claim_id = NULL;
+	if( id ) {
+		claim_id = strnewp( id );
+	}
+}
+
+
 DCStartd::~DCStartd( void )
 {
 	if( claim_id ) {
