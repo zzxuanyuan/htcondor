@@ -160,6 +160,7 @@ class CondorCronJob : public Service
 	CronJobErr		*stdErrBuf;		// Buffer for stderr
 	bool			marked;			// Is this one marked?
 	int				killTimer;		// Make sure it dies
+	int				numOutputs;		// How many output blocks have we processed?
 
 	// Event handler stuff
 	CronEventHandler	eventHandler;	// Handle cron events

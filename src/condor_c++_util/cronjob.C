@@ -150,6 +150,7 @@ CondorCronJob::CondorCronJob( const char *mgrName, const char *jobName )
 	killTimer = -1;
 	childFds[0] = childFds[1] = childFds[2] = -1;
 	stdOut = stdErr = -1;
+	numOutputs = 0;							// No data produced yet
 	eventHandler = NULL;
 	eventService = NULL;
 
@@ -380,8 +381,16 @@ CondorCronJob::Reconfig( void )
 		return 0;
 	}
 
+	// Don't send the HUP before it's first output block
+	if ( ! numOutputs ) {
+		dprintf( D_ALWAYS,
+				 "Not HUPing '%s' pid %d before it's first output\n",
+				 GetName(), pid );
+		return 0;
+	}
+
 	// HUP it; if it dies it'll get the new config when it restarts
-	if ( pid )
+	if ( pid >= 0 )
 	{
 			// we want this D_ALWAYS, since it's pretty rare anyone
 			// actually wants a SIGHUP, and to aid in debugging, it's
@@ -618,7 +627,9 @@ ProcessOutputQueue( void )
 			dprintf( D_ALWAYS, "%s: Queue reports %d lines remain!\n",
 					 GetName(), tmp );
 		} else {
+			// The NULL output means "end of block", so go publish
 			ProcessOutput( NULL );
+			numOutputs++;				// Increment # of valid output blocks
 		}
 	}
 	return 0;
@@ -709,11 +720,12 @@ RunProcess( void )
 	CleanFd( &childFds[2] );
 
 	// Did it work?
-	if ( pid < 0 ) {
+	if ( pid <= 0 ) {
 		dprintf( D_ALWAYS, "Cron: Error running job '%s'\n", GetName() );
 		if ( NULL != argBuf ) {
 			free( argBuf );
 		}
+		CleanAll( );
 		return -1;
 	}
 
@@ -949,6 +961,13 @@ CondorCronJob::KillJob( bool force )
 	// Idle?
 	if ( ( CRON_IDLE == state ) || ( CRON_DEAD == state ) ) {
 		return 0;
+	}
+
+	// Not running?
+	if ( pid <= 0 ) {
+		dprintf( D_ALWAYS, "Cron: '%s': Trying to kill illegal PID %d\n",
+				 GetName(), pid );
+		return -1;
 	}
 
 	// Kill the process *hard*?
