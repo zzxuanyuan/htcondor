@@ -146,6 +146,7 @@ AttrList(FILE *file, char *delimitor, int &isEOF, int &error, int &empty)
     ExprTree 	*tree;
 	char		buffer[ATTRLIST_MAX_EXPRESSION];
 	int			delimLen = strlen( delimitor );
+	int 		index;
 
 	seq 			= 0;
     exprList 		= NULL;
@@ -182,6 +183,16 @@ AttrList(FILE *file, char *delimitor, int &isEOF, int &error, int &empty)
 
 			// if the string is empty, try reading again
 		if( strlen( buffer ) == 0 || strcmp( buffer, "\n" ) == 0 ) {
+			continue;
+		}
+
+			// if the string starts with a pound character ("#"),
+			// treat as a comment.
+		index = 0;
+		while ( buffer[index]==' ' || buffer[index]=='\t' ) {
+			index++;
+		}
+		if ( buffer[index] == '#' ) {
 			continue;
 		}
 
