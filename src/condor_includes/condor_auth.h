@@ -84,6 +84,14 @@ class Condor_Auth_Base {
     // RETURNS: TRUE or FALSE
     //------------------------------------------
 
+    virtual int endTime() const;
+    //------------------------------------------
+    // PURPOSE: Return the expiration time
+    // REQUIRE: None
+    // RETURNS: -1 (default), unless overwritten
+    //          by derived class such as Kerberos
+    //------------------------------------------
+
     virtual int wrap(char*  input, 
                      int    input_len, 
                      char*& output,

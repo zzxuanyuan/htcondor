@@ -59,6 +59,15 @@ class Condor_Auth_Kerberos : public Condor_Auth_Base {
     // RETURNS: 1 -- true; 0 -- false
     //------------------------------------------
 
+    int endTime() const;
+    //------------------------------------------
+    // PURPOSE: Return the expiration time for
+    //          kerberos
+    // REQUIRE: None
+    // RETURNS: -1 -- invalid
+    //          >0 -- expiration time
+    //------------------------------------------
+
     int wrap(char* input, int input_len, char*& output, int& output_len);
     //------------------------------------------
     // PURPOSE: Wrap the buffer
