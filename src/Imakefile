@@ -1,7 +1,4 @@
 #define AllFiles etc include src lib libexec bin sbin man 
-#if !WANT_NEW_CLASSADS
-#   define WANT_NEW_CLASSADS              YES	/* TEMPORARY TEST ONLY! */
-#endif
 
 
 #if HAS_FORTRAN
