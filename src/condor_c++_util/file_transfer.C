@@ -1128,7 +1128,7 @@ FileTransfer::DoDownload(ReliSock *s)
 		if( !s->end_of_message() ) {
 			return_and_resetpriv( -1 );
 		}
-		dprintf( D_ALWAYS, "ZKM: file_command is %i\n", reply);
+		dprintf( D_SECURITY, "FILETRANSFER: incoming file_command is %i\n", reply);
 		if( !reply ) {
 			break;
 		}
@@ -1418,7 +1418,8 @@ FileTransfer::DoUpload(ReliSock *s)
 			file_command = 2;
 		}
 
-		dprintf ( D_ALWAYS, "ZKM: file_command is %i\n", file_command );
+		dprintf ( D_SECURITY, "FILETRANSFER: outgoing file_command is %i for %s\n",
+				file_command, filename );
 
 		if( !s->snd_int(file_command,FALSE) ) {
 			dprintf(D_FULLDEBUG,"DoUpload: exiting at %d\n",__LINE__);
