@@ -40,8 +40,6 @@ class GlobusResource;
 class GlobusJob : public Service
 {
  public:
-
-	GlobusJob( GlobusJob& copy );
 	GlobusJob( ClassAd *classad, GlobusResource *resource );
 
 	~GlobusJob();
@@ -170,6 +168,10 @@ class GlobusJob : public Service
 	bool FailureIsRestartable( int error_code );
 	bool FailureNeedsCommit( int error_code );
 	bool JmShouldSleep();
+
+private:
+	// Copy constructor not implemented.  Don't call.
+	GlobusJob( GlobusJob& copy );
 };
 
 #endif

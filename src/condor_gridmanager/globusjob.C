@@ -22,6 +22,28 @@
 ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
 
+/* TODO XXX adesmet: Notes on gridshell, TODO List
+
+- Writing input classad to file in BuildSubmitRSL seems wrong.  But where?
+  (And how to pass filename to BuildSubmitRSL)
+- When job finishes, copy return classad file (or parts of it) into local real
+  classad.
+- Log retrieval:
+	- gridshell_debug = D_FULLDEBUG D_SECONDS D_COMMAND ...
+	- gridshell_log = filename
+	- the gridmanager would just turn around and set the _condor_STARTER_DEBUG
+	  environment variable with the same list, and the starter wouldn't have to
+	  try to get it from the config file (which in general won't exist at the
+	  remote side).
+	- the only other thing the gridmanager would have to do is add
+	  "_condor_STARTER_LOG=filename" to the environment, and add "filename" to
+	  the list of output files to transfer back.
+	- if the user didn't specify these things in the submit file, we could
+	  just add reasonable defaults for ourselves.
+
+*/
+
+
 #include "condor_common.h"
 #include "condor_attributes.h"
 #include "condor_debug.h"
@@ -114,6 +136,65 @@ char *GMStateNames[] = {
 		"(%d.%d) gmState %s, globusState %d: %s returned Globus error %d\n", \
         procID.cluster,procID.proc,GMStateNames[gmState],globusState, \
         func,error)
+
+/* Given a classad, write it to a file for later staging to the gridshell.
+Returns true/false on success/failure.  If successful, out_filename contains
+the filename of the classad.  If not successful, out_filename's contents are
+undefined.
+*/
+static bool write_classad_input_file( ClassAd *classad, 
+	const MyString & executable_path,
+	MyString & out_filename )
+{
+	if( ! classad ) {
+	dprintf(D_ALWAYS,"write_classad_input_file handed invalid ClassAd\n");
+		return false;
+	}
+
+	ClassAd tmpclassad(*classad);
+
+	MyString CmdExpr;
+	CmdExpr.sprintf("Cmd = %s", basename(executable_path.GetCStr()));
+	// TODO: Store old Cmd as OrigCmd?
+	tmpclassad.InsertOrUpdate(CmdExpr.GetCStr());
+		
+	PROC_ID procID;
+	// TODO: Does LookupInteger return something on failure/missing?
+	tmpclassad.LookupInteger( ATTR_CLUSTER_ID, procID.cluster );
+	tmpclassad.LookupInteger( ATTR_PROC_ID, procID.proc );
+	tmpclassad.LookupInteger( ATTR_PROC_ID, procID.proc );
+
+	out_filename.sprintf("_condor_private_classad_in_%d.%d", 
+		procID.cluster, procID.proc);
+
+	MyString out_filename_full;
+	{
+		char buff[2048];
+		// TODO: Check return code of LookupString
+		// TODO: Is there a LookupString option that will return
+		//       arbitrary length strings (that I may need to free)?
+		tmpclassad.LookupString( ATTR_JOB_IWD, buff, sizeof(buff) );
+		out_filename_full.sprintf("%s/%s",
+			buff, out_filename.GetCStr());
+	}
+
+	dprintf(D_FULLDEBUG,"(%d.%d) Writing ClassAd to file %s\n",
+		procID.cluster, procID.proc, out_filename.GetCStr());
+
+	// TODO: Test for file's existance, complain and die on existance?
+	FILE * fp = fopen(out_filename_full.GetCStr(), "w");
+
+	if( ! fp ) // TODO: Error message?
+	{
+		dprintf(D_FULLDEBUG,"(%d.%d) Failed to write ClassAd to file %s\n",
+			procID.cluster, procID.proc, out_filename.GetCStr());
+		return false;
+	}
+
+	tmpclassad.fPrint(fp); // TODO: Check return code?
+	fclose(fp);
+	return true;
+}
 
 const char *rsl_stringify( const MyString& src )
 {
@@ -2056,35 +2137,98 @@ MyString *GlobusJob::buildSubmitRSL()
 		*rsl += "(executable=$(GLOBUS_CACHED_STDOUT))";
 	}
 
-	//We're assuming all job clasads have a command attribute
+	//We're assuming all job classads have a command attribute
 	//First look for executable in the spool area.
+	MyString executable_path;
 	char *spooldir = param("SPOOL");
 	if ( spooldir ) {
 		char *source = gen_ckpt_name(spooldir,procID.cluster,ICKPT,0);
 		free(spooldir);
 		if ( access(source,F_OK | X_OK) >= 0 ) {
 				// we can access an executable in the spool dir
-			attr_value = strdup(source);
+			executable_path = source;
 		}
 	}
-	if ( attr_value == NULL ) {
+	if( executable_path.IsEmpty() ) {
 			// didn't find any executable in the spool directory,
 			// so use what is explicitly stated in the job ad
-		ad->LookupString( ATTR_JOB_CMD, &attr_value );
+		if( ! ad->LookupString( ATTR_JOB_CMD, &attr_value ) ) {
+			attr_value = (char *)malloc(1);
+			attr_value[0] = 0;
+		}
+		executable_path = attr_value;
+		free(attr_value);
+		attr_value = NULL;
 	}
 	*rsl += "(executable=";
-	if ( !ad->LookupBool( ATTR_TRANSFER_EXECUTABLE, transfer ) || transfer ) {
+
+	int use_gridshell = 0;
+	ad->dPrint(D_ALWAYS);
+	if( ! ad->LookupBool(ATTR_GLOBUS_GRID_SHELL, use_gridshell) ) {
+		use_gridshell = 0;
+	}
+	if(use_gridshell) {
+		dprintf(D_ALWAYS, "(%d.%d) Using gridshell\n",
+			procID.cluster, procID.proc );
+	}
+
+	int transfer_executable = 0;
+	if( ! ad->LookupBool( ATTR_TRANSFER_EXECUTABLE, transfer ) ) {
+		transfer_executable = 1;
+	}
+
+	MyString input_classad_filename;
+	MyString output_classad_filename;
+	if( use_gridshell ) {
+		// We always transfer the gridshell executable.
+
+		/* TODO XXX adesmet: I'm probably stomping all over the GRAM 1.4
+		   detection and work around.  For example, I assume I can stick the
+		   real executable into the transfer_input_files, but 1.4 doesn't
+		   support that (1.6 does).  Make sure this is worked out.  */
+
+		/* TODO XXX adesmet: This assumes that the local gridshell can run on
+		 * the 
+		   remote side.  For cross-architecture/OS jobs, this is false.  We'll
+		   need to more intelligently select a gridshell binary, perhaps
+		   autodetectings (surprisingly hard), or forcing user to specify
+		   CPU/OS (and defaulting to local one if not specified).*/
+
 		buff = "$(GRIDMANAGER_GASS_URL)";
-		if ( attr_value[0] != '/' ) {
+		char * tmp = param("GRIDSHELL");
+		if( tmp ) {
+			buff += tmp;
+			free(tmp);
+		} else {
+
+			/* TODO XXX adesmet: Put job on hold, then bail.  Also add test to
+			   condor_submit.  If job.gridshell == TRUE, then condor_config_val
+			   GRIDSHELL must be defined. */
+
+		}
+
+		bool bsuccess = write_classad_input_file( ad, executable_path, input_classad_filename );
+		if( ! bsuccess ) {
+			/* TODO XXX adesmet: Writing to file failed?  Bail. */
+			dprintf(D_ALWAYS, "(%d.%d) Attempt to write gridshell file %s failed.\n", 
+				procID.cluster, procID.proc, input_classad_filename.GetCStr() );
+		}
+
+		output_classad_filename.sprintf("%s.OUT", input_classad_filename.GetCStr());
+
+
+	} else if ( transfer_executable ) {
+		buff = "$(GRIDMANAGER_GASS_URL)";
+		if ( executable_path[0] != '/' ) {
 			buff += iwd;
 		}
-		buff += attr_value;
+		buff += executable_path;
+
 	} else {
-		buff = attr_value;
+		buff = executable_path;
 	}
+
 	*rsl += rsl_stringify( buff.Value() );
-	free( attr_value );
-	attr_value = NULL;
 
 	if ( ad->LookupString(ATTR_JOB_REMOTE_IWD, &attr_value) && *attr_value ) {
 		*rsl += ")(directory=";
@@ -2111,7 +2255,16 @@ MyString *GlobusJob::buildSubmitRSL()
 		attr_value = NULL;
 	}
 
-	if ( ad->LookupString(ATTR_JOB_ARGUMENTS, &attr_value) && *attr_value ) {
+	if(use_gridshell) {
+		/* for gridshell, pass the gridshell the filename of the input
+		   classad.  The real arguments will be in the classad, so we
+		   don't need to pass them. */
+		*rsl += ")(arguments=";
+		*rsl += input_classad_filename;
+		*rsl += " ";
+		*rsl += output_classad_filename;
+
+	} else if ( ad->LookupString(ATTR_JOB_ARGUMENTS, &attr_value) && *attr_value ) {
 		*rsl += ")(arguments=";
 		*rsl += attr_value;
 	}
@@ -2179,8 +2332,9 @@ MyString *GlobusJob::buildSubmitRSL()
 		}
 	}
 
-	if ( ad->LookupString(ATTR_TRANSFER_INPUT_FILES, &attr_value) &&
-		 *attr_value ) {
+	bool has_input_files = ad->LookupString(ATTR_TRANSFER_INPUT_FILES, &attr_value) && *attr_value;
+
+	if ( ( use_gridshell && transfer_executable ) || has_input_files) {
 		if ( jmVersion < GRAM_V_1_6 && jmVersion != GRAM_V_UNKNOWN ) {
 			// the jobmanager doesn't support file transfers.
 			dprintf(D_ALWAYS,
@@ -2192,6 +2346,18 @@ MyString *GlobusJob::buildSubmitRSL()
 			return NULL;
 		}
 		StringList filelist( attr_value, "," );
+		{
+			char * tmp = filelist.print_to_string();
+			dprintf(D_ALWAYS, "File list from %s\n", attr_value);
+			dprintf(D_ALWAYS, "               %s\n", tmp);
+			free(tmp);
+		}
+		if(use_gridshell) {
+			filelist.append(input_classad_filename.GetCStr());
+			if(transfer_executable) {
+				filelist.append(executable_path.GetCStr());
+			}
+		}
 		if ( !filelist.isEmpty() ) {
 			char *filename;
 			*rsl += ")(file_stage_in=";
@@ -2219,7 +2385,7 @@ MyString *GlobusJob::buildSubmitRSL()
 	}
 
 	if ( ( ad->LookupString(ATTR_TRANSFER_OUTPUT_FILES, &attr_value) &&
-		   *attr_value ) || stageOutput || stageError ) {
+		   *attr_value ) || stageOutput || stageError || use_gridshell) {
 		if ( jmVersion < GRAM_V_1_6 && jmVersion != GRAM_V_UNKNOWN ) {
 			// the jobmanager doesn't support file transfers.
 			dprintf(D_ALWAYS,
@@ -2231,6 +2397,7 @@ MyString *GlobusJob::buildSubmitRSL()
 			return NULL;
 		}
 		StringList filelist( attr_value, "," );
+		filelist.append(output_classad_filename.GetCStr());
 		if ( !filelist.isEmpty() || stageOutput || stageError ) {
 			char *filename;
 			*rsl += ")(file_stage_out=";
