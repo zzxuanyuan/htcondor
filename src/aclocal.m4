@@ -48,3 +48,42 @@ fi
 ])dnl
 
 
+# CONDOR_VERIFY_EXTERNALS_DIR written by Derek Wright
+# <wright@cs.wisc.edu> to verify if a given directory is a valid
+# externals directory tree needed for building Condor.  To simplify
+# the macro and make the reporting consistent, this macro uses a
+# simple helper macro (_condor_VERITY_EXT_ERROR) to report any errors
+# found while trying to verify a given path.
+# Arguments: 
+#  $1 is the path to test
+#  $2 is the error message to report if the given path is invalid
+# Side Effects:
+#  If the given path is valid, the variable $ac_cv_externals is set to
+#  hold its value
+AC_DEFUN([CONDOR_VERIFY_EXTERNALS_DIR],
+[AC_MSG_CHECKING([if $1 is valid])
+ if test ! -d $1; then
+   _condor_VERIFY_EXT_ERROR([$1 is not a directory], [$2])
+ fi  
+ if test ! -f "$1/build_external"; then
+   _condor_VERIFY_EXT_ERROR([$1/build_external script does not exist], [$2])
+ fi
+ if test ! -d "$1/bundles"; then
+   _condor_VERIFY_EXT_ERROR([$1/bundles is not a directory], [$2])
+ fi
+ AC_MSG_RESULT(yes)
+ ac_cv_externals=$1
+])
+
+# CONDOR_VERIFY_EXT_ERROR is a helper for CONDOR_VERIFY_EXTERNALS_DIR 
+# Arguments:
+#  $1 is the specific warning message about why a directory is invalid
+#  $2 is the general error message to print which was given to
+#     _condor_VERIFY_EXTERNALS_DIR
+# Side Effects:
+#  Calling this macro terminates configure with AC_MSG_ERROR() 
+AC_DEFUN([_condor_VERIFY_EXT_ERROR],
+[AC_MSG_RESULT([no])
+ AC_MSG_WARN([$1])
+ AC_MSG_ERROR([$2])
+])
