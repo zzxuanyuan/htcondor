@@ -195,8 +195,15 @@ class RemoteResource : public Service {
 		*/ 
 	int  getExitReason();
 
+		/** Set the info about the startd associated with this
+			remote resource via attributes in the given ClassAd
+		*/
+	void setStartdInfo( ClassAd* ad );
+
 		/** Set the sinful string and ClaimId for the startd
 			associated with this remote resource.
+			This method is deprecated, use the version that takes a
+			ClassAd if possible.
 			@param sinful The sinful string for the startd
 			@param claim_id The ClaimId string for the startd
 		*/
@@ -362,6 +369,14 @@ class RemoteResource : public Service {
 	int 			disk_usage;
 
 	DCStartd* dc_startd;
+
+		/** Initialize all the info about the startd associated with
+			this remote resource, instantiate the DCStartd object, 
+			grant ACLs for the execute host, etc.  This is called by
+			setStartdInfo() to do the real work.
+		*/
+	void initStartdInfo( const char *name, const char* pool,
+						 const char *addr, const char* claim_id );
 
 	ResourceState state;
 

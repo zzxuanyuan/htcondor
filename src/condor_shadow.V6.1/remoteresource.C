@@ -536,18 +536,67 @@ RemoteResource::exitCode( void )
 
 
 void
+RemoteResource::setStartdInfo( ClassAd* ad )
+{
+	char* name = NULL;
+	ad->LookupString( ATTR_REMOTE_HOST, &name );
+	if( ! name ) {
+		ad->LookupString( ATTR_NAME, &name );
+		if( ! name ) {
+			EXCEPT( "ad includes neither %s nor %s!", ATTR_NAME,
+					ATTR_REMOTE_HOST );
+		}
+	}
+
+	char* pool = NULL;
+	ad->LookupString( ATTR_REMOTE_POOL, &pool );
+		// we don't care if there's no pool specified...
+
+	char* claim_id = NULL;
+	ad->LookupString( ATTR_CLAIM_ID, &claim_id );
+	if( ! claim_id ) {
+		EXCEPT( "ad does not include %s!", ATTR_CLAIM_ID );
+	}
+
+	char* addr = getAddrFromClaimId( claim_id );
+	if( ! addr ) {
+		EXCEPT( "invalid %s in ad (%s)", ATTR_CLAIM_ID, claim_id );
+	}
+
+	initStartdInfo( name, pool, addr, claim_id );
+}
+
+
+void
 RemoteResource::setStartdInfo( const char *sinful, 
 							   const char* claim_id ) 
 {
+	initStartdInfo( sinful, NULL, NULL, claim_id );
+}
+
+
+void
+RemoteResource::initStartdInfo( const char *name, const char *pool,
+								const char *addr, const char* claim_id )
+{
+	dprintf( D_FULLDEBUG, "in RemoteResource::initStartdInfo()\n" );  
+
 	if( dc_startd ) {
 		delete dc_startd;
 	}
-	dc_startd = new DCStartd( sinful, NULL );
-	dc_startd->setClaimId( claim_id );
+	dc_startd = new DCStartd( name, pool, addr, claim_id );
+
+	if( name ) {
+		setMachineName( name );
+	} else if( addr ) {
+		setMachineName( addr );
+	} else {
+		EXCEPT( "in RemoteResource::setStartdInfo() without name or addr" );
+	}
 
 		/*
-		  Tell daemonCore that we're willing to
-		  grant WRITE permission to whatever machine we are claiming.
+		  Tell daemonCore that we're willing to grant DAEMON
+		  permission to whatever machine we are claiming.
 		  This greatly simplifies DaemonCore permission stuff
 		  for flocking, since submitters don't have to know all the
 		  hosts they might possibly run on, all they have to do is
@@ -555,14 +604,15 @@ RemoteResource::setStartdInfo( const char *sinful,
 		  to (which they have to do, already).  
 		  Added on 3/15/01 by Todd Tannenbaum <tannenba@cs.wisc.edu>
 		*/
-	char *addr;
-	if( (addr = string_to_ipstr(sinful)) ) {
-		daemonCore->AddAllowHost( addr, DAEMON );
+	char *ip = string_to_ipstr( dc_startd->addr() );
+	if( ip ) {
+		daemonCore->AddAllowHost( ip, DAEMON );
 	} else {
 		dprintf( D_ALWAYS, "ERROR: Can't convert \"%s\" to an IP address!\n", 
-				 sinful );
+				 dc_startd->addr() );
 	}
 }
+
 
 void
 RemoteResource::setStarterInfo( ClassAd* ad )
@@ -600,9 +650,11 @@ RemoteResource::setStarterInfo( ClassAd* ad )
 
 	if( ad->LookupString(ATTR_MACHINE, &tmp) ) {
 		if( machineName ) {
-			delete [] machineName;
+			if( is_valid_sinful(machineName) ) {
+				delete [] machineName;
+				machineName = strnewp( tmp );
+			}
 		}	
-		machineName = strnewp( tmp );
 		dprintf( D_SYSCALLS, "  %s = %s\n", ATTR_MACHINE, tmp );
 		free( tmp );
 		tmp = NULL;
