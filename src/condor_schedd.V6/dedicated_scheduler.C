@@ -2596,14 +2596,14 @@ DedicatedScheduler::computeSchedule( void )
 			CAList *preempt_candidates = new CAList;
 
 			int num_preemptions = 0;
-			for( int i = 0; i < num_candidates; i++) {
-				if( job->EvalBool(ATTR_REQUIREMENTS, preempt_candidate_array[i].machine_ad, req) == 0) {
+			for( int cand = 0; cand < num_candidates; cand++) {
+				if( job->EvalBool(ATTR_REQUIREMENTS, preempt_candidate_array[cand].machine_ad, req) == 0) {
 					req = 0;
 				}
 				
 				if( req ) {
 						// And we found a victim to preempt
-					preempt_candidates->Append(preempt_candidate_array[i].machine_ad);
+					preempt_candidates->Append(preempt_candidate_array[cand].machine_ad);
 					num_preemptions++;
 					still_needed--;
 
