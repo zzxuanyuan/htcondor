@@ -35,15 +35,34 @@ Reqexp::Reqexp( ClassAd** cap )
 {
 	this->cap = cap;
 	char tmp[1024];
+	char* start;
 	sprintf( tmp, "%s = %s", ATTR_REQUIREMENTS, "START" );
 	origreqexp = strdup( tmp );
+	this->compute( A_ALL );
 	rstate = UNAVAIL;
+}
+
+
+void
+Reqexp::compute( amask_t how_much ) 
+{
+	if( IS_STATIC(how_much) ) {
+		char* start = param( "START" );
+		if( !start ) {
+			EXCEPT( "START expression not defined!" );
+		}
+		origstart = (char*)malloc( (strlen(start) + strlen(ATTR_START)
+									+ 4) * sizeof(char) );
+		sprintf( origstart, "%s = %s", ATTR_START, origstart );
+		free( start );
+	}
 }
 
 
 Reqexp::~Reqexp()
 {
 	free( origreqexp );
+	free( origstart );
 }
 
 
@@ -116,12 +135,18 @@ Reqexp::pub()
 }
 
 
-reqexp_state
-Reqexp::update( ClassAd* ca )
+void
+Reqexp::publish( ClassAd* ca, amask_t how_much )
 {
+	if( IS_PRIVATE(how_much) ) {
+			// Nothing to publish for private ads
+		return;
+	}
+
 	char tmp[100];
 	switch( rstate ) {
 	case ORIG:
+		ca->InsertOrUpdate( origstart );
 		sprintf( tmp, "%s", origreqexp );
 		break;
 	case AVAIL:
@@ -132,5 +157,4 @@ Reqexp::update( ClassAd* ca )
 		break;
 	}
 	ca->InsertOrUpdate( tmp );
-	return rstate;
 }

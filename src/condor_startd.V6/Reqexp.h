@@ -45,10 +45,14 @@ public:
 							// (-1 = undef, 1 = true, 0 = false)
 	int		pub();			// Evaluates orig reqexp and sets classad
 							// appropriately, returns 1 if change.
-	reqexp_state   	update(ClassAd* ca);	// Insert the current reqexp into ca
+
+	void 	publish( ClassAd*, amask_t );
+	void	compute( amask_t );
+
 private:
 	ClassAd** 		cap;
 	char* 			origreqexp;
+	char* 			origstart;
 	reqexp_state	rstate;
 };
 
