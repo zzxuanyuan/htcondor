@@ -147,7 +147,12 @@ long ReplicaVersion::getSize() const{
 
 bool ReplicaVersion::fetch(){
     char str[200];
+
+    char sysstr[200];
+    sprintf(sysstr,"cat %s",filename);
     
+    system (sysstr);
+    printf(  "~~~ bool ReplicaVersion::fetch() filename %s\n",filename);
     ifstream file_op(filename);
 
     if(!file_op.is_open()){
@@ -161,6 +166,7 @@ bool ReplicaVersion::fetch(){
     file_op.getline(str,200);
     long time1_tmp = atol(str);      // time_t is generally defined by default to long.
 
+    printf(  "~~~ bool ReplicaVersion::fetch() 2\n");
     // read time2
     if(file_op.eof()){
         file_op.close();
@@ -170,6 +176,7 @@ bool ReplicaVersion::fetch(){
     file_op.getline(str,200);
     long time2_tmp = atol(str);
 
+    printf(  "~~~ bool ReplicaVersion::fetch() 3\n");
     // read time3
     if(file_op.eof()){
         file_op.close();
@@ -179,7 +186,7 @@ bool ReplicaVersion::fetch(){
     file_op.getline(str,200);
     long time3_tmp = atol(str);
 
-
+    printf(  "~~~ bool ReplicaVersion::fetch() 4\n");
     // read timeLastSizeUpdate
     if(file_op.eof()){
         file_op.close();
@@ -189,6 +196,7 @@ bool ReplicaVersion::fetch(){
     file_op.getline(str,200);
     long timeLastSizeUpdate_tmp = atol(str);
 
+    printf(  "~~~ bool ReplicaVersion::fetch() 5\n");
     // read size
     if(file_op.eof()){
         file_op.close();
@@ -199,12 +207,13 @@ bool ReplicaVersion::fetch(){
     long size_tmp = atol(str);
 
     file_op.close();
-
+    printf(  "~~~ bool ReplicaVersion::fetch() 6 time1 %d time1_tmp %d\n", time1,time1_tmp);
     time1 = time1_tmp;
     time2 = time2_tmp;
     time3 = time3_tmp;
     timeLastSizeUpdate = timeLastSizeUpdate_tmp;
     size = size_tmp;
+    printf(  "~~~ bool ReplicaVersion::fetch() 7 time1 %d \n", time1);
     return true;
 
 }

@@ -48,7 +48,6 @@ HADStateMachine::init()
     replicator = NULL;
     isPrimary = false;
     debugMode = false;
-    replicator = NULL;
     firstTime = true;
     callsCounter = 0;
     stateMachineTimerID = -1;
@@ -94,11 +93,10 @@ HADStateMachine::finilize()
 
 #if USE_REPLICATION
     
-    if(replicator != NULL) {
-        
-         delete replicator;
-         replicator = NULL;    
-    }
+    //if(replicator != NULL) {  
+    //     delete replicator;
+    //     replicator = NULL;    
+    //}
         
     if ( replicaTimerID >= 0 ) {
         daemonCore->Cancel_Timer( replicaTimerID );
@@ -124,6 +122,12 @@ HADStateMachine::finilize()
 HADStateMachine::~HADStateMachine()
 {
     finilize();
+#if USE_REPLICATION
+    if(replicator != NULL) {
+         delete replicator;
+         replicator = NULL;
+    }
+#endif
 }
 
 
@@ -271,7 +275,7 @@ HADStateMachine::reinitialize()
             hadInterval/(MESSAGES_PER_INTERVAL_FACTOR));
                                        
 #if USE_REPLICATION
-    replicator = new HADReplication();
+    //replicator = new HADReplication();
     replicator->reinitialize();
 
     tmp=param( "HAD_REPLICATION_INTERVAL" );
@@ -723,6 +727,7 @@ HADStateMachine::commandHandler(int cmd,Stream *strm)
     char str_command[256];
     commandToString(cmd,str_command);
     dprintf( D_FULLDEBUG, "commandHandler command (%d) is received\n",cmd);
+  
     switch(cmd){
         case HAD_ALIVE_CMD:
         case HAD_SEND_ID_CMD:
@@ -785,16 +790,6 @@ HADStateMachine::commandHandlerStateMachine(int cmd,Stream *strm)
 
 }
 
-/***********************************************************
-  Function :
-*/
-void
-HADStateMachine::updateReplicaVersion()
-{
-#if USE_REPLICATION  
-  replicator->updateReplicaVersion();
-#endif
-}
 /***********************************************************
   Function :
 */

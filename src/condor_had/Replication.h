@@ -80,7 +80,7 @@ private:
     
 
     // transfer functions
-    char* versionToDownLoad;
+    //char* versionToDownLoad;
 
     int  sendFile(char* );
     int  receiveFile(char* );

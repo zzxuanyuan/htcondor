@@ -38,10 +38,10 @@ typedef enum {
 
 // Global variables
 int cmd = 0; // UPLOAD or DOWNLOAD
-char* filename;
-char* replicafile;
-char* version; // version to proceed
-ReliSock* sock;
+char* filename = NULL;
+char* replicafile = NULL;
+char* version = NULL; // version to proceed
+ReliSock* sock = NULL;
 
 // functions definition
 int download();
@@ -50,6 +50,8 @@ int downloadFile(char* downfile);
 
 int upload();
 int doUpload(filesize_t *total_bytes, ReliSock *s, char* upfile);
+
+void finilize();
 
 
 int
@@ -61,7 +63,7 @@ main_init( int argc, char *argv[] )
     
     
     char *MyName = argv[0];
-    char *cmd_str;
+    char *cmd_str = NULL;
 
     if(argc != 4){ // name,filename,version file and version
          // print error msg.
@@ -111,21 +113,41 @@ main_init( int argc, char *argv[] )
         DC_Exit(1);
     }
     
-    sock = (ReliSock *)socks[0];
-       
+    sock = (ReliSock*)socks[0];
+
+    int res;   
     switch(cmd){
         case DOWNLOAD:
-            DC_Exit(download());
+            res = download();
+            dprintf(D_ALWAYS, "Debug. End download()\n");
+            break;
         case UPLOAD:
-            DC_Exit(upload());
+            res = upload();
+            dprintf(D_ALWAYS, "Debug. End upload()\n");
+            break;
         default:
             // print error msg.
-            DC_Exit(1);  
+            res = 1;  
     }
-   
-   DC_Exit(1);
+   finilize();
+   DC_Exit(res);
 } // end main
 
+void finilize(){
+  if(filename != NULL){
+    filename = NULL;
+  }
+  if(replicafile != NULL){
+    replicafile = NULL;
+  }
+  if(version != NULL){
+    version = NULL;
+  }
+  if(sock != NULL){
+    ((ReliSock*)sock)->close();
+    sock = NULL;
+  }
+}
 
 ////////////////////////////////////////////////////////
 //      download functions
@@ -136,14 +158,13 @@ download()
     // download negotiator account file
     int res = downloadFile(filename);
     if(res == FALSE){
-          ((ReliSock*)sock)->close();
-          delete sock;
           return 1;
     }
     // download replica version file
     res = downloadFile(replicafile);
-    ((ReliSock*)sock)->close();
-    delete sock;
+    if(res == FALSE){
+      return 1;
+    }
     return 0;  
 }
 
@@ -151,6 +172,8 @@ download()
 int
 downloadFile(char* downfile)
 {
+    dprintf(D_ALWAYS, "FileTransfer::downloadFile \n");
+    
     // doDownload (to file <downfile>.<version> )
     int total_bytes = doDownload((ReliSock *)sock,downfile);
 
@@ -161,19 +184,24 @@ downloadFile(char* downfile)
     int fd;
     if((fd = open(vers_filename,O_RDONLY)) < 0){
         dprintf(D_ALWAYS, "FileTransfer::DownloadThread file <%s> doesn't exist\n",vers_filename);
-        ((ReliSock*)sock)->close();
-        delete sock;
         return FALSE;
     }else{
         close(fd);
     }
-
     
     if(rotate_file(vers_filename,downfile) < 0){
-        ((ReliSock*)sock)->close();
-        delete sock;
+        dprintf(D_ALWAYS, "FileTransfer::DownloadThread error rotate file \n");
         return FALSE;
     }
+
+    dprintf(D_ALWAYS, "FileTransfer::DownloadThread rotate file before sleep\n");
+    sleep(20);
+    dprintf(D_ALWAYS, "FileTransfer::DownloadThread rotate file after sleep\n");
+    //printf("~~~ downloadFile(char* downfile) after rotate\n");
+    //char sysstr[200];
+    //sprintf(sysstr,"cat %s",filename);
+
+    //system (sysstr);
     
     return (total_bytes >= 0);
 
@@ -243,10 +271,10 @@ upload()
     if(status != FALSE){
         status = doUpload( &total_bytes, (ReliSock *)sock, replicafile);
     }
-    ((ReliSock*)sock)->close();
-    delete sock;
-    if(status == TRUE)
+
+    if(status == TRUE){
         return 0;
+    }
     return 1;
   
 }
@@ -319,17 +347,16 @@ doUpload(filesize_t *total_bytes, ReliSock *s, char* upfile)
 int
 main_shutdown_graceful()
 {
-
-   // DC_Exit(0);
-    return 0;
+    finilize();
+    DC_Exit(0);
 }
 
 
 int
 main_shutdown_fast()
 {
-   // DC_Exit(0);
-    return 0;
+    finilize();
+    DC_Exit(0);
 }
 
 int

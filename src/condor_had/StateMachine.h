@@ -100,10 +100,6 @@ public:
     void commandHandler(int cmd,Stream *strm) ;
     void commandHandlerStateMachine(int cmd,Stream *strm) ;
 
-    /*
-      update replica version
-    */
-    void updateReplicaVersion();
 private:
     int state;
     
