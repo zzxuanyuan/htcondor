@@ -1,6 +1,16 @@
 #include "odbc.h"
 #include "condor_api.h"
 
+// define the pointer to database connection object here since the odbc.o is put into 
+// the cplus_lib.a library. And that is because modules such as file_transfer.o and
+// classad_log.o uses DBObj and they are part of cplus_lib.a. This way we won't get
+// the DBObj undefined error during compilation of any code which needs cplus_lib.a.
+
+// notice the DBObj is just a pointer, the real object should be created only when 
+// a real database connection is needed. E.g. most daemons need database connection, 
+// there we can create a database connection in the  main function of daemon process.
+ODBC *DBObj = 0;
+
 ODBC::ODBC()
 {
 	connected = false;
