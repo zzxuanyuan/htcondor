@@ -35,7 +35,9 @@
 
 /* Things we want defined on all systems */
 
+#ifndef _POSIX_SOURCE
 #define _POSIX_SOURCE
+#endif
 
 /**********************************************************************
 ** These system-specific files will "fix" anything that needs fixing,
