@@ -1,3 +1,8 @@
+
+#if defined(OSF1)    /* need to include early on OSF1 to avoid conflicts */
+#include "condor_fdset.h"
+#endif
+
 #include <sys/types.h>
 #include "server2.h"
 #include "gen_lib.h"
@@ -37,8 +42,13 @@ Alarm  rt_alarm;
 extern "C" {
 int set_condor_ruid ( void );
 ssize_t stream_file_xfer( int src_fd, int dst_fd, size_t n_bytes );
+#if defined(OSF1)
+int random( void );
+#else
 long random( void );
+#endif
 int srandom( unsigned seed );
+int tcp_accept_timeout(int , struct sockaddr *, int *, int);
 }
 
 
