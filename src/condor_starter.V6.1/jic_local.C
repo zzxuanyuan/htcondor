@@ -213,6 +213,15 @@ JICLocal::notifyJobExit( int exit_status, int reason, UserProc*
 }
 
 
+
+bool
+JICLocal::notifyStarterError( const char* err_msg, bool critical )
+{
+	u_log->logStarterError( err_msg, critical );
+	return true;
+}
+
+
 void
 JICLocal::addToOutputFiles( const char* filename )
 {

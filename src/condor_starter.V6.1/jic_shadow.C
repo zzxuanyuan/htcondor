@@ -408,6 +408,20 @@ JICShadow::notifyJobExit( int exit_status, int reason, UserProc*
 
 
 bool
+JICShadow::notifyStarterError( const char* err_msg, bool critical )
+{
+	u_log->logStarterError( err_msg, critical );
+
+	if( REMOTE_CONDOR_ulog_printf(err_msg) < 0 ) {
+		dprintf( D_ALWAYS, 
+				 "Failed to send starter error string to Shadow.\n" );
+		return false;
+	}
+	return true;
+}
+
+
+bool
 JICShadow::registerStarterInfo( void )
 {
 	int rval;
@@ -651,7 +665,8 @@ JICShadow::initUserPriv( void )
 		}
 	} else {
 		dprintf( D_FULLDEBUG, "Submit host is in different UidDomain\n" ); 
-		// passing NULL for the domain is ok here since this is UNIX code
+			// passing NULL for the domain is ok here since this is
+			// UNIX code
 		if( ! init_user_ids("nobody", NULL) ) { 
 			dprintf( D_ALWAYS, "ERROR: Could not initialize user_priv "
 					 "as \"nobody\"\n" );

@@ -175,6 +175,9 @@ public:
 								UserProc* user_proc ) = 0;
 
 
+	virtual bool notifyStarterError( const char* err_msg, bool critical ) = 0;
+
+
 		// // // // // // // // // // // //
 		// Misc utilities
 		// // // // // // // // // // // //
