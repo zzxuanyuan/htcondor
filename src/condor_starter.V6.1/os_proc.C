@@ -454,11 +454,26 @@ OsProc::StartJob()
 	env_str = job_env.getDelimitedString();
 	dprintf(D_FULLDEBUG, "Env = %s\n", env_str);
 
-	set_priv ( priv );
 
-	JobPid = daemonCore->Create_Process(JobName, Args, PRIV_USER_FINAL, 1,
-				   FALSE, env_str, (char*)job_iwd, TRUE, NULL, fds, nice_inc,
-				   DCJOBOPT_NO_ENV_INHERIT );
+	// Check to see if we need to start this process paused, and if
+	// so, pass the right flag to DC::Create_Process().
+	int job_opt_mask = DCJOBOPT_NO_ENV_INHERIT;
+	int suspend_job_at_exec = 0;
+	JobAd->LookupBool( ATTR_SUSPEND_JOB_AT_EXEC, suspend_job_at_exec);
+	if( suspend_job_at_exec ) {
+		dprintf( D_FULLDEBUG, "OsProc::StartJob(): "
+				 "Job wants to be suspended at exec\n" );
+		job_opt_mask |= DCJOBOPT_SUSPEND_ON_EXEC;
+	}
+
+	set_priv ( priv );
+//	JobPid = daemonCore->Create_Process(JobName, Args, PRIV_USER_FINAL, 1,
+//				   FALSE, env_str, job_iwd, TRUE, NULL, fds, nice_inc,
+//				   DCJOBOPT_NO_ENV_INHERIT );
+
+	JobPid = daemonCore->
+		Create_Process( JobName, Args, PRIV_USER_FINAL, 1, FALSE, env_str,
+						job_iwd, TRUE, NULL, fds, nice_inc, job_opt_mask );
 
 	//NOTE: Create_Process() saves the errno for us if it is an
 	//"interesting" error.
@@ -542,6 +557,14 @@ OsProc::JobCleanup( int pid, int status )
 	if( renameCoreFile() ) {
 		dumped_core = true;
 	}
+
+	    // check to see if we have a tool daemon sitting at our side 
+        // and kill it.
+	char* tool_daemon_name = NULL;
+	JobAd->LookupString( ATTR_TOOL_DAEMON_CMD,
+						 &tool_daemon_name );
+	if ( tool_daemon_name )
+		Starter->KillingOthers(1);
 
 	return 1;
 }
