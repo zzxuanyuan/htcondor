@@ -67,16 +67,22 @@ options} may be specified.
 		that have COD claims. Information displayed includes
 		the claim ID, the owner of the claim, and the state
 		of the COD claim.}
-    \OptItem{\Opt{-verbose}}{(Display option) Display entire classads.  Implies
+    \OptItem{\Opt{-verbose}}{(Display option) Display entire ClassAds.  Implies
 		that totals will not be displayed.}
-    \OptItem{\Opt{-long}}{(Display option) Display entire classads 
+    \OptItem{\Opt{-long}}{(Display option) Display entire ClassAds 
 		(same as \Opt{-verbose})}
     \OptItem{\Opt{-total}}{(Display option) Display totals only}
+    \OptItem{\Opt{-xml}}{(Display option) Display entire ClassAds,
+                in xml format.  The xml format is fully defined at
+		\URL{http://www.cs.wisc.edu/condor/classad/refman/}.}
+    \OptItem{\Opt{-expert}}{(Display option) Display shortened error messages}
+    \OptItem{\OptArg{-sort}{attr}}{(Display option) Display entries in
+                ascending order based on the value of the named attribute} 
     \OptItem{\OptArg{-constraint}{const}}{(Custom option) Add constraint 
 		expression.  See section~\ref{sec:classadref} for
 		details on writing expressions.}
-	\OptItem{\OptArg{-format}{fmt attr}}{Display attribute \emph{attr} in
-		format \emph{fmt}.
+	\OptItem{\OptArg{-format}{fmt attr}}{(Custom option) Display attribute
+              	\emph{attr} in format \emph{fmt}.
 		To display the attribute the format must contain a single
 		{\texttt{printf(3)}} style conversion specifier.
 		Attributes must be from the resource ClassAd.  If the
@@ -103,9 +109,11 @@ options} may be specified.
 
 \GenRem
 \begin{itemize}
-	\item The information obtained from \Condor{startds} and \Condor{schedds} 
-	may sometimes appear to be inconsistent.  This is normal since startds and 
-	schedds update the Condor manager at different rates, and since there is a
+	\item The information obtained from \Condor{startd} and \Condor{schedd}
+	daemons
+	may sometimes appear to be inconsistent.  This is normal since
+	\Condor{startd}  and \Condor{schedd} daemons update the Condor
+	manager at different rates, and since there is a
 	delay as information propagates through the network and the system.
 
 	\item Note that the \texttt{ActivityTime} in the \texttt{Idle} state is
@@ -120,9 +128,9 @@ options} may be specified.
 	machines by name.  
 	See the examples below for details.
 
-	\item If you specify hostnames, without domains, Condor will
-	automatically try to resolve those hostnames into fully
-	qualified hostnames for you.
+	\item If you specify host names, without domains, Condor will
+	automatically try to resolve those host names into fully
+	qualified host names for you.
 	This also works when specifying specific nodes of an SMP
 	machine.
 	In this case, everything after the ``@'' sign is treated as a
@@ -210,7 +218,7 @@ To see all machines that are currently in the Idle state, use
 % condor_status -constraint State==\"Idle\"
 \end{verbatim}
 
-To see all machines that are benchmarked to have a MIPS rating
+To see all machines that are bench marked to have a MIPS rating
 of more than 750, use
 \begin{verbatim}
 % condor_status -constraint 'Mips>750' 
