@@ -14,8 +14,10 @@ EXT_ZLIB_VERSION = @ext_zlib_version@
 EXT_PVM_VERSION = @ext_pvm_version@
 EXT_MAN_VERSION = man-current
 EXT_GT3GAHP_VERSION = @ext_gt3gahp_version@
+EXT_FTPLITE_VERSION = @ext_ftplite_version@
 EXT_CLASSADS_VERSION = @ext_classads_version@
 EXT_SRB_VERSION = @ext_srb_version@
+
 
 #define WANT_EXT_GLIBC @want_ext_glibc@
 #if WANT_EXT_GLIBC && HAS_EXTERNALS
@@ -102,3 +104,5 @@ SRB_INC =
 PVM_DIR = $(EXT_INSTALL)/$(EXT_PVM_VERSION)
 
 GT3GAHP_DIR = $(EXT_INSTALL)/$(EXT_GT3GAHP_VERSION)
+
+FTPLITE_DIR = $(EXT_INSTALL)/$(EXT_FTPLITE_VERSION)
