@@ -26,10 +26,10 @@ Job::Job(int clusterId, int jobId)
 	char * Spool = param("SPOOL");
 	ASSERT(Spool);
 
-	spoolDirectory = new MyString(strdup(gen_ckpt_name(Spool, clusterId, jobId, 0)));
+	spoolDirectory = new MyString(gen_ckpt_name(Spool, clusterId, jobId, 0));
 	ASSERT(spoolDirectory);
 
-		//free(Spool);
+	free(Spool);
 
 	struct stat stats;
 	if (-1 == stat(spoolDirectory->GetCStr(), &stats)) {
@@ -179,7 +179,8 @@ Job::submit(struct ClassAdStruct jobAd)
 {
 	int i, rval;
 
-		// XXX: This is ugly, and only should happen when spooling, i.e. not always with cedar.
+		// XXX: This is ugly, and only should happen when spooling,
+		// i.e. not always with cedar.
 	rval = SetAttributeString(clusterId, jobId, ATTR_JOB_IWD, spoolDirectory->GetCStr());
 	if (rval < 0) {
 		return rval;
@@ -192,6 +193,7 @@ Job::submit(struct ClassAdStruct jobAd)
 	while (requirements->iterate(currentKey, jobFile)) {
 		transferFiles.append(jobFile.name.GetCStr());
 	}
+		// XXX: free result of print_to_string?
 	rval = SetAttributeString(clusterId, jobId, ATTR_TRANSFER_INPUT_FILES, transferFiles.print_to_string());
 	if (rval < 0) {
 		return rval;
@@ -204,9 +206,10 @@ Job::submit(struct ClassAdStruct jobAd)
 		if (!name) continue;
 		if (!value) value="UNDEFINED";
 
-			// XXX: This is a quick fix. If processing MyType or TargetType they
-			// should be ignored. Ideally we could convert the ClassAdStruct
-			// to a ClassAd and then iterate the ClassAd.
+			// XXX: This is a quick fix. If processing MyType or
+			// TargetType they should be ignored. Ideally we could
+			// convert the ClassAdStruct to a ClassAd and then iterate
+			// the ClassAd.
 		if (0 == strcmp(name, ATTR_MY_TYPE) ||
 			0 == strcmp(name, ATTR_TARGET_TYPE)) {
 			continue;
@@ -261,7 +264,6 @@ Job::send_file(MyString name,
 			return 2;
 		}
 		if (data_length != write(jobFile.file, data, sizeof(unsigned char) * data_length)) {
-				// XXX: Hold on, should this be unwritten?
 			return 3;
 		}
 	} else {
