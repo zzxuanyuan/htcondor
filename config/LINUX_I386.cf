@@ -31,5 +31,9 @@
 #	undef i686
 #endif
 
-/*#define IS_CLIPPED YES*/
-/*#define HAS_GLOBUS	NO*/
+/* XXX temporary redhat 7.1-ism */
+#if defined(GLIBC22)
+#define HAS_GLOBUS	NO
+#undef HAS_PVM
+#define HAS_PVM NO
+#endif
