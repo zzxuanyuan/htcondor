@@ -14,5 +14,6 @@ fi
 AC_PROG_CC
 AC_LANG(C++)
 AC_PROG_CXX
+AC_SUBST(pure_cache_dir)
 AC_OUTPUT(../config/externals.cf)
 ./condor_imake
