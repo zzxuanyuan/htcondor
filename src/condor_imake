@@ -24,9 +24,17 @@ Other=""
 Other2=""
 
 # kerberos discovery
-KerbPath="-DKERBEROS_PATH=/s/krb5"
-HasKerb="-DHAS_KERBEROS=YES"
-KerbFlags="$KerbPath $HasKerb"
+if [ -f /s/krb5/lib/libkrb5.a ] ; then
+	KerbPath="-DKERBEROS_PATH=/s/krb5"
+	HasKerb="-DHAS_KERBEROS=YES"
+	if [ -f /s/krb5/lib/libk5crypto.a ] ; then
+		KerbK5="-DKERBEROS_K5=YES"
+	else
+		KerbK5="-DKERBEROS_K5=NO"
+	fi
+
+	KerbFlags="$KerbPath $HasKerb $KerbK5"
+fi
 
 # figure out where that annoying libgcc is... 
 LIBGCC=`gcc -print-libgcc-file-name`
