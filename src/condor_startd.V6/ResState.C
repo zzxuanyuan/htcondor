@@ -41,9 +41,14 @@ ResState::~ResState()
 
 
 void
-ResState::update( ClassAd* cp ) 
+ResState::publish( ClassAd* cp, amask_t how_much ) 
 {
 	char tmp[80];
+
+	if( IS_PRIVATE(how_much) ) {
+			// Nothing to publish for private ads
+		return;
+	}
 
 	sprintf( tmp, "%s=\"%s\"", ATTR_STATE, state_to_string(r_state) );
 	cp->InsertOrUpdate( tmp );
@@ -114,7 +119,7 @@ ResState::change( State new_state, Activity new_act )
 	}
 	
 		// Note our current state and activity in the classad
-	this->update( rip->r_classad );
+	this->publish( rip->r_classad, A_ALL );
 
 		// We want to update the CM on every state or activity change
 	rip->update();   
@@ -432,7 +437,6 @@ ResState::enter_action( State s, Activity a,
 {
 	switch( s ) {
 	case owner_state:
-		rip->cancel_poll_timer();
 			// Always want to create new match objects
 		if( rip->r_cur ) {
 			delete( rip->r_cur );
@@ -453,10 +457,9 @@ ResState::enter_action( State s, Activity a,
 	case claimed_state:
 		rip->r_reqexp->pub();			
 		if( statechange ) {
-			rip->start_poll_timer();
 			rip->r_cur->start_claim_timer();	
 				// Update important attributes into the classad.
-			rip->r_cur->update( rip->r_classad );
+			rip->r_cur->publish( rip->r_classad, A_PUBLIC );
 				// Generate a preempting match object
 			rip->r_pre = new Match;
 		}
