@@ -51,6 +51,7 @@ ClassAd* CollectorEngine::LONG_GONE	  = (ClassAd *) 0x3;
 ClassAd* CollectorEngine::THRESHOLD	  = (ClassAd *) 0x4;
 
 static void killHashTable (CollectorHashTable &);
+static void purgeHashTable (CollectorHashTable &);
 
 int 	engine_clientTimeoutHandler (Service *);
 int 	engine_housekeepingHandler  (Service *);
@@ -545,6 +546,10 @@ collect (int command,ClassAd *clientAd,sockaddr_in *from,int &insert,Sock *sock)
 			break;
 		}
 		hashString.Build( hk );
+			// first, purge all the existing negotiator ads, since we
+			// want to enforce that *ONLY* 1 negotiator is in the
+			// collector any given time.
+		purgeHashTable( NegotiatorAds );
 		retVal=updateClassAd (NegotiatorAds, "NegotiatorAd  ", "Negotiator",
 							  clientAd, hk, hashString, insert, from );
 		break;
@@ -901,6 +906,24 @@ cleanHashTable (CollectorHashTable &hashTable, time_t now,
 		}
 	}
 }
+
+
+static void
+purgeHashTable( CollectorHashTable &table )
+{
+	ClassAd* ad;
+	HashKey hk;
+	table.startIterations();
+	while( table.iterate(hk,ad) ) {
+		if( table.remove(hk) == -1 ) {
+			dprintf( D_ALWAYS, "\t\tError while removing ad\n" );
+		}		
+		if( ad > CollectorEngine::THRESHOLD ) {
+			delete ad;
+		}
+	}
+}
+
 
 int CollectorEngine::
 masterCheck ()
