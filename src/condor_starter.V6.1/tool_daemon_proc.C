@@ -89,7 +89,7 @@ ToolDaemonProc::StartJob()
 	sprintf( DaemonName, "%s%c%s", Starter->GetWorkingDir(),
 				 DIR_DELIM_CHAR, DaemonNameTemp );
 
-	dprintf ( D_FULLDEBUG, " Daemon Name %s \n", DaemonName);
+	dprintf( D_FULLDEBUG, "Daemon Name: %s \n", DaemonName );
 
 		// This is something of an ugly hack.  filetransfer doesn't
 		// preserve file permissions when it moves a file.  so, our
@@ -110,30 +110,33 @@ ToolDaemonProc::StartJob()
 		return 0;
 	}
 
+
+		// // // // // // 
+		// Arguments
+		// // // // // // 
+
 	char DaemonArgs[_POSIX_ARG_MAX];
-	char tmp[_POSIX_ARG_MAX];
+	char *tmp = NULL;
 
-	if( JobAd->LookupString(ATTR_TOOL_DAEMON_ARGS, tmp) != 1 ) {
-	    tmp[0] = '\0';
-	}
-
-		// for now, simply prepend the daemon name to the args - this
-		// becomes argv[0]. We also pass the pid of the application 
-	    // as a last argument (a temporal hack before the TDP communication
-        // library is used for that. 
-
-	if ( tmp[0] != '\0' ){
-		sprintf (DaemonArgs, "%s %s", DaemonName, tmp);
+	JobAd->LookupString( ATTR_TOOL_DAEMON_ARGS, &tmp );
+	if( tmp ) {
+		snprintf( DaemonArgs, _POSIX_ARG_MAX, "%s %s", DaemonName, tmp );
+		dprintf( D_FULLDEBUG, "Daemon Args: %s\n", tmp ) ;
+		free( tmp );
+		tmp = NULL;
 	} else {
-		strcpy (DaemonArgs, DaemonName);
+		snprintf( DaemonArgs, _POSIX_ARG_MAX, "%s", DaemonName );
 	}
 
-	dprintf ( D_FULLDEBUG, " Daemon Args %s \n", DaemonArgs);
+
+		// // // // // // 
+		// Environment 
+		// // // // // // 
 
 	char* env_str = NULL;
 	if( JobAd->LookupString(ATTR_JOB_ENVIRONMENT, &env_str) != 1 ) {
-		dprintf( D_ALWAYS, "%s not found in JobAd.  "
-				 "Aborting OsProc::StartJob.\n", ATTR_JOB_ENVIRONMENT );  
+		dprintf( D_ALWAYS, "%s not found in JobAd.  Aborting "
+				 "ToolDaemonProc::StartJob.\n", ATTR_JOB_ENVIRONMENT );  
 		return 0;
 	}
 
@@ -161,7 +164,6 @@ ToolDaemonProc::StartJob()
 		// Now, let the starter publish any env vars it wants to into
 		// the mainjob's env...
 	Starter->PublishToEnv( &job_env );
-
 
 
 		// // // // // // 
@@ -206,6 +208,10 @@ ToolDaemonProc::StartJob()
 	}
 
 
+		// // // // // // 
+		// Misc + Exec
+		// // // // // // 
+
 	char* ptmp = param( "JOB_RENICE_INCREMENT" );
 	if ( ptmp ) {
 		nice_inc = atoi(ptmp);
@@ -214,10 +220,9 @@ ToolDaemonProc::StartJob()
 		nice_inc = 0;
 	}
 
-	dprintf( D_ALWAYS, "About to exec %s %s\n", DaemonName,
-			 DaemonArgs ); 
+	dprintf( D_ALWAYS, "About to exec %s\n", DaemonArgs ); 
 
-	// Grap the full environment back out of the Env object 
+	// Grab the full environment back out of the Env object 
 	env_str = job_env.getDelimitedString();
 
 	set_priv( priv );
@@ -244,15 +249,21 @@ ToolDaemonProc::StartJob()
 		}
 	}
 
-	if ( JobPid == FALSE ) {
+	if( JobPid == FALSE ) {
 		JobPid = -1;
-		EXCEPT( "Create_Process(%s,%s, ...) failed",
-				DaemonName, DaemonArgs );
+		if( create_process_error ) {
+			MyString err_msg;
+			err_msg.sprintf( "Failed to execute '%s': %s",
+							 DaemonArgs, create_process_error );
+			Starter->jic->notifyStarterError( err_msg.Value(), true );
+		}
+		EXCEPT( "Create_Process(%s, ...) failed", DaemonArgs );
 		return FALSE;
-	}
-	else{
 
+	} else {
 		dprintf( D_ALWAYS, "Create_Process succeeded, pid=%d\n", JobPid );
+
+		job_start_time.getTime();
 
 		// success!  create a ProcFamily
 		family = new ProcFamily(JobPid,PRIV_USER);
