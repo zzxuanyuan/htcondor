@@ -206,12 +206,6 @@ class Scheduler : public Service
 	int				transferJobFilesReaper(int,int);
 	void			PeriodicExprHandler( void );
 
-	static int		jobIsTerminal( int cluster, int proc );
-	static int		jobIsTerminalStatic( int cluster, int proc,
-										 void* this_scheduler );
-	static int		jobIsTerminalReaper( int cluster, int proc,
-										 void* vptr, int exit_status );
-
 	// match managing
     match_rec*      AddMrec(char*, char*, PROC_ID*, const ClassAd*, char*, char*);
     int         	DelMrec(char*);
@@ -527,5 +521,23 @@ int aboutToSpawnJobHandler( int cluster, int proc, void* srec=NULL );
 */
 int aboutToSpawnJobHandlerDone( int cluster, int proc, void* srec=NULL,
 								int exit_status = 0 );
+
+
+/** Hook to call whenever a job enters a "terminal" state, something
+	it can never get out of (namely, COMPLETED or REMOVED).  Like the
+	aboutToSpawnJobHandler() hook above, this might be expensive, so
+	if jobPrepNeedsThread() returns TRUE for this job, we should call
+	this hook within a seperate thread.  Therefore, it takes the
+	optional void* so it can be used for Create_Thread_With_Data().
+*/
+int jobIsTerminal( int cluster, int proc, void* vptr = NULL );
+
+
+/** For use as a reaper with Create_Thread_With_Data(), or to call
+	directly after jobIsTerminal() if there's no thread. 
+*/
+int jobIsTerminalDone( int cluster, int proc, void* vptr = NULL,
+					   int exit_status = 0 );
+
 
 #endif /* _CONDOR_SCHED_H_ */

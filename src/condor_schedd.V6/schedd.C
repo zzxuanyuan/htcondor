@@ -1923,16 +1923,7 @@ Scheduler::spawnJobHandler( shadow_rec* srec )
 
 
 int
-Scheduler::jobIsTerminalStatic( int cluster, int proc, void* this_scheduler )
-{
-	ASSERT(this_scheduler);
-	Scheduler * s = (Scheduler*)this_scheduler;
-	return s->jobIsTerminal(cluster, proc);
-}
-
-
-int
-Scheduler::jobIsTerminal(int cluster, int proc)
+jobIsTerminal( int cluster, int proc, void* )
 {
 		// this is (roughly) the inverse of aboutToSpawnHandler().
 		// this method gets called whenever the job enters a terminal
@@ -2013,7 +2004,7 @@ Scheduler::jobIsTerminal(int cluster, int proc)
 
 
 int
-Scheduler::jobIsTerminalReaper( int cluster, int proc, void*, int )
+jobIsTerminalDone( int cluster, int proc, void*, int )
 {
 	dprintf( D_FULLDEBUG,
 			 "jobIsTerminal() completed, calling DestroyProc(%d.%d)\n",
@@ -9852,9 +9843,8 @@ Scheduler::jobIsTerminalHandler( ServiceData* data )
 	if( jobPrepNeedsThread(cluster, proc) ) {
 		dprintf( D_FULLDEBUG, "Job prep for %d.%d will block, "
 				 "calling jobIsTerminal() in a thread\n", cluster, proc );
-		Create_Thread_With_Data( Scheduler::jobIsTerminalStatic,
-								 Scheduler::jobIsTerminalReaper,
-								 cluster, proc, this );
+		Create_Thread_With_Data( jobIsTerminal, jobIsTerminalDone,
+								 cluster, proc, NULL );
 	} else {
 			// don't need a thread, just call the blocking version
 			// (which will return right away), and the reaper (which
@@ -9863,7 +9853,7 @@ Scheduler::jobIsTerminalHandler( ServiceData* data )
 				 "calling jobIsTerminal() directly\n", cluster, proc );
 
 		jobIsTerminal( cluster, proc );
-		jobIsTerminalReaper( cluster, proc, NULL, 0 );
+		jobIsTerminalDone( cluster, proc );
 	}
 
 	return TRUE;
