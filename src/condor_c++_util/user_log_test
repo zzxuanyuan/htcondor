@@ -30,6 +30,9 @@ for ($count = 0; $count < 10; $count++) {
 	}
 }
 
+# Make sure the log file exists before we try to read it.
+sleep 1;
+
 # Submit 100 log_reader jobs.
 for ($count = 0; $count < 100; $count++) {
 	my $pid = submit_job("test_log_reader -logfile $logfile -term 10");
