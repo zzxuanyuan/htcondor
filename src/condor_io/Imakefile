@@ -6,7 +6,7 @@ LIB = libcedar.a $(STD_LIBS)
 
 CONDOR_TYPE_OBJ = sig_num.o proc.o open_flags.o fcntl_cmd.o
 
-NAT_OBJ = FwdServer.o FwdMnger.o FreePortMnger.o
+NAT_OBJ = FwdServer.o FwdMnger.o FreePortMnger.o kRule2.4.o libip4tc.o
 
 OBJ = stream.o sock.o reli_sock.o safe_sock.o buffers.o sockCache.o \
 		authentication.o $(CONDOR_TYPE_OBJ) condor_rw.o FwdClient.o \

@@ -1,33 +1,11 @@
-#include <map>
-#include <algorithm>
-
-#include <linux/ip_masq.h>
-
 #include "FreePortMnger.h"
 
-/* ip forward specifics */
-#define IPPROTO_NONE 65535
-#define IP_PORTFW_DEF_PREF 10
-
-#define _pfw _masq.u.portfw_user
-
 #define NAT_MAX_HASH 29
-
-
-typedef struct fwRule {
-	unsigned int lip;
-	unsigned short lport;
-	unsigned int rip;
-	unsigned short rport;
-	unsigned short mport;
-	struct fwRule * next;
-} Rule;
 
 class FwdMnger {
 	public:
 		/// @args: proto: "tcp" or "udp"
-		///		   rawSock: raw socket through which port forwarding rule set up
-		FwdMnger (char *proto, int rawSock);
+		FwdMnger (char *proto);
 
 		/// NOTE: Throughout this file, port forwarding rule will be refered as
 		///       (lip, lport)->(rip, rport) or (lip, lport)->(rip, rport, mport).
@@ -100,13 +78,17 @@ class FwdMnger {
 						unsigned int * rip,
 						unsigned short * rport);
 
+		void garbage (	unsigned int lip,
+						unsigned short lport,
+						unsigned int rip,
+						unsigned short rport);
+
 		/// Get the list of forwarding rules which are currently effective.
 		///
 		/// Note: The list of rules should be free by the caller.
-		Rule * getRules ();
+		struct fwRule * getRules ();
 
 	protected:
-		int _rawSock;
 		class remote;
 		class local {
 			public:
@@ -121,6 +103,7 @@ class FwdMnger {
 				unsigned int ip;
 				unsigned short port;
 				unsigned short mport;
+				unsigned short failed;
 				local * lo;
 				remote * prev;
 				remote * next;
@@ -128,7 +111,6 @@ class FwdMnger {
 		local *_locals[NAT_MAX_HASH];
 		remote *_remotes[NAT_MAX_HASH];
 		int _protocol;
-		struct ip_masq_ctl _masq;
 		char * _persistFile;
 		FreePortMnger freePortMnger;
 

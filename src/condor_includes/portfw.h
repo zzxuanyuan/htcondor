@@ -7,6 +7,10 @@
 #define DELETE "delete"
 #define QUERY "query"
 
+/* command codes */
+#define CMD_ADD 1
+#define CMD_DEL 2
+
 /* response code */
 #define NAK "nak"
 #define ADDED "added"
@@ -25,6 +29,15 @@
 #define COLFLICT_RULE 8
 #define RULE_NOT_FOUND 9
 #define INTERNAL_ERR 19
+
+struct fwRule {
+	unsigned int lip;
+	unsigned short lport;
+	unsigned int rip;
+	unsigned short rport;
+	unsigned short mport;
+	struct fwRule * next;
+};
 
 int setFWrule ( struct sockaddr_in masqServer,
 				char *cmd,

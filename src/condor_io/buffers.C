@@ -116,7 +116,8 @@ int Buf::write (SOCKET	dataSock,
 				blocked++;
 				continue;
 			}
-			dprintf(D_ALWAYS,"Buf:Write send failed: %s\n", strerror(errno));
+			dprintf(D_ALWAYS,"Buf:write send failed: %s\n", strerror(errno));
+			return -1;
 		} else if (nwo < sz-nw) {
 			// check if timed out
 			if (timeout > 0) {
@@ -145,7 +146,6 @@ int Buf::write (SOCKET	dataSock,
 
     if(blocked * 10 > numSends /* more than 10% */)
         congested = true;
-	dprintf(D_NETWORK, "------sent %d bytes\n", nw);
 	return nw;
 }
 

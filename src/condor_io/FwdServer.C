@@ -108,7 +108,7 @@ probePerMnger (unsigned int ipAddr, FwdMnger * mnger)
 	tptr = rules = mnger->getRules ();
 	while (tptr) {
 		if ( !probeCedar (ipAddr, tptr->rip, tptr->mport) ) {
-			mnger->deleteRule (tptr->lip, tptr->lport, &(tptr->rip), &(tptr->rport));
+			mnger->garbage (tptr->lip, tptr->lport, tptr->rip, tptr->rport);
 		}
 		tptr = tptr->next;
 	}

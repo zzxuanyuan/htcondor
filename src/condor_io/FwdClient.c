@@ -1,17 +1,3 @@
-/*
-#include "condor_common.h"
-#include "condor_constants.h"
-#include "condor_io.h"
-#include "sock.h"
-#include "condor_network.h"
-#include "internet.h"
-#include "my_hostname.h"
-#include "condor_debug.h"
-#include "condor_socket_types.h"
-#include "getParam.h"
-#include "portfw.h"
-*/
-
 #include "condor_common.h"
 #include "condor_debug.h"
 #include "internet.h"
@@ -36,7 +22,7 @@ sendCmd (const int fd,
     char msg[80];
 
     sprintf (msg, "%s %s %d %d %d %d %d\n", cmd, proto, ip1, port1, ip2, port2, mport);
-	dprintf (D_NETWORK, "\t\tMASQ sent: (%s %s %s %s %d)\n", cmd, proto,
+	dprintf (D_FULLDEBUG, "\t\tMASQ sent: (%s %s %s %s %d)\n", cmd, proto,
 			ipport_to_string(ip1, port1), ipport_to_string(ip2, port2), ntohs(mport));
 	if ( sendLine (fd, msg, sizeof(msg)) != TRUE ) {
 		dprintf (D_ALWAYS, "fwdClient.C: failed to send cmd");
@@ -113,11 +99,11 @@ setFWrule ( struct sockaddr_in masqServer,
 	
 	if ( !strcmp (NAK, rst) ) {
 		// In case of NAK, rcvdIP is an err code
-		dprintf (D_NETWORK, "\t\tMASQ recv: (NAK - )\n");
+		dprintf (D_FULLDEBUG, "\t\tMASQ recv: (NAK - )\n");
 		close (sock);
 		return rcvdIP;
 	} else {
-		dprintf (D_NETWORK, "\t\tMASQ recv: (%s %s)\n", rst, ipport_to_string(rcvdIP, rcvdPort));
+		dprintf (D_FULLDEBUG, "\t\tMASQ recv: (%s %s)\n", rst, ipport_to_string(rcvdIP, rcvdPort));
 		if (outIP && outPort) {
 			*outIP = rcvdIP;
 			*outPort = rcvdPort;

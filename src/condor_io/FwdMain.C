@@ -17,7 +17,7 @@ char* mySubSystem = "FWD_SERVER";       // used by Daemon Core
 void inline
 usage (char *msg)
 {
-    cerr << "Usage: portfw -i Lip -p Lport [-I Pip]+" << endl;
+    cerr << "Usage: FwdServer [DaemonCore options] -i Lip -p Lport [-I Pip]+" << endl;
     cerr << "\tLip: ip address connected to the private network\n";
 	cerr << "\t\tIf you have multiple interface connected to the private network,\n";
 	cerr << "\t\tyou should run this program for each interface to fully utilize the bandwidth\n";
@@ -33,7 +33,6 @@ usage (char *msg)
 int
 main_init (int argc, char *argv[])
 {
-	int rawSock;
 	unsigned long mngAddr = 0;
 	unsigned short mngPort = 0;
 	FwdMnger *tcpPortMnger = NULL;
@@ -42,18 +41,12 @@ main_init (int argc, char *argv[])
 	// get root privilige
 	priv_state priv = set_root_priv();
 
-		/* create a raw socket to which port forwarding will be done */
-	if ((rawSock = socket(AF_INET, SOCK_RAW, IPPROTO_RAW)) == -1) {
-		perror("Raw socket creation failed");
-		exit(1);
-	}
-
-	tcpPortMnger = new FwdMnger(TCP, rawSock);
+	tcpPortMnger = new FwdMnger(TCP);
 	if (!tcpPortMnger) {
 		perror ("Couldn't create tcpPortMnger object");
 		exit(-1);
 	}
-	udpPortMnger = new FwdMnger(UDP, rawSock);
+	udpPortMnger = new FwdMnger(UDP);
 	if (!udpPortMnger) {
 		perror ("Couldn't create udpPortMnger object");
 		exit(-1);
@@ -145,7 +138,7 @@ main_init (int argc, char *argv[])
 								 "port forwarding command handler",
 								 fwdServer, ALLOW);
 	dprintf(D_ALWAYS, "Socket Registered\n");
-	daemonCore->Register_Timer (30, 30,
+	daemonCore->Register_Timer (300, 300,
 								(Eventcpp) &FwdServer::probeCedars,
 								"Cedar Heartbeat checker",
 								fwdServer);

@@ -1170,7 +1170,7 @@ int ReliSock::RcvMsg::rcv_packet(SOCKET _sock,
     if (end) {
         ready = TRUE;
     }
-	dprintf(D_NETWORK, "--rcv: %d\n", len+5);
+	//dprintf(D_NETWORK, "--rcv: %d\n", len+5);
     return TRUE;
 }
 
