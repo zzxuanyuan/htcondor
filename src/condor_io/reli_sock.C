@@ -32,6 +32,7 @@
 #include "getParam.h"
 extern "C" {
 #include "condor_rw.h"
+#include "portfw.h"
 }
 
 #ifdef WIN32
@@ -331,6 +332,17 @@ ReliSock::accept( ReliSock  &c )
 
     c._sock = c_sock;
     c._state = sock_connect;
+	c._myIP = _myIP;
+	c._myPort = _myPort;
+	if (_msock != 0) {
+		c._msock = dup(_msock);
+		if (c._msock < 0) {
+			EXCEPT("dup failed");
+		}
+		c._mport = _mport;
+		c._lip = _lip;
+		c._lport = _lport;
+	}
     c.decode();
 
     int on = 1;
@@ -348,7 +360,7 @@ ReliSock::accept( ReliSock  &c )
         }
     }
 
-    dprintf( D_NETWORK, "\tConnection from %s accepted to %s\n", sin_to_string(c.endpoint()), this->sinful_string());
+    dprintf(D_NETWORK, "\tConnection from %s accepted to %s\n", sin_to_string(c.endpoint()), ipport_to_string(_myIP, _myPort));
 
     return TRUE;
 }
@@ -1644,6 +1656,34 @@ ReliSock::serialize(char *buf)
 	dprintf(D_NETWORK, "\t\t_special_state = %d\n", _special_state);
 	dprintf(D_NETWORK, "\t\t_who = %s\n", sinful_string);
     string_to_sin(sinful_string, &_who);
+	
+	// setup masquerading rule again, if a rule has been setup by parant
+	if (_msock != 0) {
+		// create the masq socket
+		_msock = socket (AF_INET, SOCK_STREAM, 0);
+		if (_msock <= 0) {
+			EXCEPT ("ReliSock::serialize - socket creation failed");
+		}
+		// bind the masq socket and initialize _mport
+		if (_condor_bind(_msock, 0) != TRUE) {
+			EXCEPT ("ReliSock::serialize - _msock bind failed:");
+		}
+		_mport = sock_to_port (_msock);
+		if (_mport == 0) {
+			EXCEPT ("ReliSock::serialize - sock_to_port failed");
+		}
+		// make it passive
+		if (::listen(_msock, 5)) {
+			EXCEPT ("ReliSock::serialize - listen failed");
+		}
+		// setup the rule
+		int ret = setFWrule(_masqServer, ADD, TCP, _myIP, _myPort, &_lip, &_lport, _mport);
+		if (ret != SUCCESS) {
+			dprintf (D_ALWAYS, "ReliSock::serialize adding fw rule failed\n");
+			dprintf (D_ALWAYS, "\t - errcode: %d\n", ret);
+			EXCEPT ("ReliSock::serialize");
+		}
+	}
 
     return NULL;
 }

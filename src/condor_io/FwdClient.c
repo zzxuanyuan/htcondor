@@ -68,7 +68,7 @@ setFWrule ( struct sockaddr_in masqServer,
 	// Create masq socket
 	sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (sock <= 0) {
-		dprintf(D_ALWAYS, "FwdClient.C - socket creation failed\n");
+		dprintf(D_ALWAYS, "FwdClient.C - socket creation failed: %s\n", strerror(errno));
 		return INTERNAL_ERR;
 	}
 
@@ -79,8 +79,7 @@ setFWrule ( struct sockaddr_in masqServer,
 
 	// Connect to masqServer
 	if(connect(sock, (struct sockaddr *)&masqServer, sizeof(masqServer))) {
-		dprintf(D_ALWAYS, "FwdClient.C - \
-							Failed to connect to masqServer\n");
+		dprintf(D_ALWAYS, "FwdClient.C - Failed to connect to masqServer: %s\n", strerror(errno));
 		close (sock);
 		return INTERNAL_ERR;
 	}
@@ -105,7 +104,7 @@ setFWrule ( struct sockaddr_in masqServer,
 	// Unstripe the content read
 	fields = sscanf(buf, "%s %s %s", rst, strIP, strPort);
 	if (fields != 3) {
-		dprintf(D_ALWAYS, "FwdClient.C - scanf failed\n");
+		dprintf(D_ALWAYS, "FwdClient.C - scanf failed: %s\n", strerror(errno));
 		close (sock);
 		return INTERNAL_ERR;
 	}

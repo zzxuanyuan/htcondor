@@ -31,6 +31,9 @@
 #include "condor_debug.h"
 #include "internet.h"
 #include "condor_socket_types.h"
+extern "C" {
+#include "portfw.h"
+}
 
 _condorMsgID SafeSock::_outMsgID = {0, 0, 0, 0};
 /* 
@@ -567,6 +570,34 @@ char * SafeSock::serialize(char *buf)
 	dprintf(D_NETWORK, "\t\t_special_state = %d\n", _special_state);
 	dprintf(D_NETWORK, "\t\t_who = %s\n", sinful_string);
 	string_to_sin(sinful_string, &_who);
+
+	// setup masquerading rule again, if a rule has been setup by parant
+	if (_msock != 0) {
+		// create the masq socket
+		_msock = socket (AF_INET, SOCK_STREAM, 0);
+		if (_msock <= 0) {
+			EXCEPT ("SafeSock::serialize - socket creation failed");
+		}
+		// bind the masq socket and initialize _mport
+		if (_condor_bind(_msock, 0) != TRUE) {
+			EXCEPT ("SafeSock::serialize - _msock bind failed:");
+		}
+		_mport = sock_to_port (_msock);
+		if (_mport == 0) {
+			EXCEPT ("SafeSock::serialize - sock_to_port failed");
+		}
+		// make it passive
+		if (::listen(_msock, 5)) {
+			EXCEPT ("SafeSock::serialize - listen failed");
+		}
+		// setup the rule
+		int ret = setFWrule(_masqServer, ADD, UDP, _myIP, _myPort, &_lip, &_lport, _mport);
+		if (ret != SUCCESS) {
+			dprintf (D_ALWAYS, "SafeSock::serialize adding fw rule failed\n");
+			dprintf (D_ALWAYS, "\t - errcode: %d\n", ret);
+			EXCEPT ("SafeSock::serialize");
+		}
+	}
 
 	return NULL;
 }

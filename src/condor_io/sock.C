@@ -139,8 +139,8 @@ Sock::~Sock()
 		(void) deleteFWrule();
 	}
 	*/
-	if (_mport != 0) {
-		::close(_mport);
+	if (_msock != 0) {
+		::close(_msock);
 	}
 }
 
@@ -403,8 +403,6 @@ int Sock::assign(SOCKET sockd)
 		if (listen(_msock, 5)) {
 			EXCEPT ("Sock::assign - listen failed");
 		}
-		dprintf(D_NETWORK, "\tbehind the firewall: ");
-		dprintf(D_NETWORK, "\tMasq Server: (%s, %u)\n", masqServer, masqPort);
 	} else {
 		_msock = 0;
 		_mport = 0;
@@ -478,7 +476,6 @@ int Sock::bind(int port)
 			dprintf (D_ALWAYS, "\t - errcode: %d\n", ret);
 			return FALSE;
 		}
-		dprintf(D_NETWORK, "\t\tbeing Masqed as: %s\n", ipport_to_string(_lip, _lport));
 	}
 	return TRUE;
 }
@@ -557,7 +554,6 @@ int Sock::bind( unsigned short *rport,
 		}
 		*lip = _lip;
 		*lport = _lport;
-		dprintf(D_NETWORK, "\t\tbeing Masqed as: %s\n", ipport_to_string(_lip, _lport));
 	}
 
 	return TRUE;
