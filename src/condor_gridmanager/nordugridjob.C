@@ -54,6 +54,7 @@
 #define GM_PROBE_JOB			12
 #define GM_STAGE_IN				13
 #define GM_STAGE_OUT			14
+#define GM_EXIT_INFO			15
 
 static char *GMStateNames[] = {
 	"GM_INIT",
@@ -70,13 +71,23 @@ static char *GMStateNames[] = {
 	"GM_HOLD",
 	"GM_PROBE_JOB",
 	"GM_STAGE_IN",
-	"GM_STAGE_OUT"
+	"GM_STAGE_OUT",
+	"GM_EXIT_INFO"
 };
 
 #define TASK_IN_PROGRESS	1
 #define TASK_DONE			2
 #define TASK_FAILED			3
 #define TASK_QUEUED			4
+
+#define REMOTE_STATE_UNKNOWN		0
+#define REMOTE_STATE_ACCEPTED		1
+#define REMOTE_STATE_PREPARING		2
+#define REMOTE_STATE_SUBMITTING		3
+#define REMOTE_STATE_INLRMS			4
+#define REMOTE_STATE_CANCELLING		5
+#define REMOTE_STATE_FINISHING		6
+#define REMOTE_STATE_FINISHED		7
 
 // Filenames are case insensitive on Win32, but case sensitive on Unix
 #ifdef WIN32
@@ -111,6 +122,28 @@ rehashRemoteJobId( NordugridJob *job, const char *old_id,
 	}
 	if ( new_id ) {
 		JobsByRemoteId.insert(HashKey(new_id), job);
+	}
+}
+
+static
+int remoteStateNameConvert( const char *name )
+{
+	if ( strcmp( name, "ACCEPTED" ) == 0 ) {
+		return REMOTE_STATE_ACCEPTED;
+	} else if ( strcmp( name, "PREPARING" ) == 0 ) {
+		return REMOTE_STATE_PREPARING;
+	} else if ( strcmp( name, "SUBMITTING" ) == 0 ) {
+		return REMOTE_STATE_SUBMITTING;
+	} else if ( strcmp( name, "INLRMS" ) == 0 ) {
+		return REMOTE_STATE_INLRMS;
+	} else if ( strcmp( name, "CANCELLING" ) == 0 ) {
+		return REMOTE_STATE_CANCELLING;
+	} else if ( strcmp( name, "FINISHING" ) == 0 ) {
+		return REMOTE_STATE_FINISHING;
+	} else if ( strcmp( name, "FINISHED" ) == 0 ) {
+		return REMOTE_STATE_FINISHED;
+	} else {
+		return REMOTE_STATE_UNKNOWN;
 	}
 }
 
@@ -152,6 +185,7 @@ NordugridJob::NordugridJob( ClassAd *classad )
 	char *error_string = NULL;
 
 	remoteJobId = NULL;
+	remoteJobState = REMOTE_STATE_UNKNOWN;
 	gmState = GM_INIT;
 	lastProbeTime = 0;
 	probeNow = false;
@@ -327,8 +361,8 @@ int NordugridJob::doEvaluateState()
 			}
 			} break;
 		case GM_SUBMITTED: {
-			if ( condorState == COMPLETED ) {
-					gmState = GM_STAGE_OUT;
+			if ( remoteJobState == REMOTE_STATE_FINISHED ) {
+					gmState = GM_EXIT_INFO;
 			} else if ( condorState == REMOVED || condorState == HELD ) {
 				gmState = GM_CANCEL;
 			} else {
@@ -356,28 +390,32 @@ int NordugridJob::doEvaluateState()
 				myResource->ReleaseConnection( this );
 				gmState = GM_CANCEL;
 			} else {
-				int new_status;
-				rc = doStatus( new_status );
+				int new_remote_state;
+				rc = doStatus( new_remote_state );
 				if ( rc == TASK_QUEUED ) {
 					break;
 				} else if ( rc == TASK_FAILED ) {
 					// What to do about failure?
 					dprintf( D_ALWAYS, "(%d.%d) job probe failed!\n",
 							 procID.cluster, procID.proc );
-				} else if ( new_status != condorState ) {
-					if ( new_status == RUNNING ) {
-						JobRunning();
-					}
-					if ( new_status == IDLE ) {
-						JobIdle();
-					}
-					if ( new_status == COMPLETED ) {
-						JobTerminated( true, 0 );
-					}
-					requestScheddUpdate( this );
+				} else {
+					remoteJobState = new_remote_state;
+					//requestScheddUpdate( this );
 				}
 				lastProbeTime = now;
 				gmState = GM_SUBMITTED;
+			}
+			} break;
+		case GM_EXIT_INFO: {
+			rc = doExitInfo();
+			if ( rc == TASK_QUEUED || rc == TASK_IN_PROGRESS ) {
+				break;
+			} else if ( rc == TASK_FAILED ) {
+				dprintf( D_ALWAYS, "(%d.%d) exit info gathering failed: %s\n",
+						 procID.cluster, procID.proc, errorString.Value() );
+				gmState = GM_CANCEL;
+			} else {
+				gmState = GM_STAGE_OUT;
 			}
 			} break;
 		case GM_STAGE_OUT: {
@@ -394,7 +432,7 @@ int NordugridJob::doEvaluateState()
 			} break;
 		case GM_DONE_SAVE: {
 			if ( condorState != HELD && condorState != REMOVED ) {
-				JobTerminated( true, 0 );
+				JobTerminated( normalExit, exitCode );
 				if ( condorState == COMPLETED ) {
 					done = requestScheddUpdate( this );
 					if ( !done ) {
@@ -550,6 +588,7 @@ int NordugridJob::doEvaluateState()
 			if ( !done ) {
 				break;
 			}
+			remoteJobState = REMOTE_STATE_UNKNOWN;
 			submitLogged = false;
 			executeLogged = false;
 			submitFailedLogged = false;
@@ -687,7 +726,7 @@ dprintf(D_FULLDEBUG,"*** failure: %s\n",errorString.Value());
 	return TASK_FAILED;
 }
 
-int NordugridJob::doStatus( int &new_status )
+int NordugridJob::doStatus( int &new_remote_state )
 {
 	MyString dir;
 	char *status_buff = NULL;
@@ -728,16 +767,9 @@ int NordugridJob::doStatus( int &new_status )
 
 	myResource->ReleaseConnection( this );
 
-	if ( strncmp( status_buff, "ACCEPTED\n", status_len ) == 0 ||
-		 strncmp( status_buff, "PREPARING\n", status_len ) == 0 ||
-		 strncmp( status_buff, "SUBMITTING\n", status_len ) == 0 ||
-		 strncmp( status_buff, "INLRMS\n", status_len ) == 0 ||
-		 strncmp( status_buff, "CANCELLING\n", status_len ) == 0 ||
-		 strncmp( status_buff, "FINISHING\n", status_len ) == 0 ) {
-		new_status = IDLE;
-	} else if ( strncmp( status_buff, "FINISHED\n", status_len ) == 0 ) {
-		new_status = COMPLETED;
-	} else {
+	status_buff[status_len-1] = '\0';
+	new_remote_state = remoteStateNameConvert( status_buff );
+	if ( new_remote_state == REMOTE_STATE_UNKNOWN ) {
 		errorString = "invalid job status";
 dprintf(D_FULLDEBUG,"*** invalid job status of '%s'\n",status_buff);
 		goto doStatus_error_exit;
@@ -1023,6 +1055,88 @@ int NordugridJob::doStageOut()
 		delete stage_list;
 		stage_list = NULL;
 	}
+	return TASK_FAILED;
+}
+
+int NordugridJob::doExitInfo()
+{
+	MyString dir;
+	char diag_buff[256];
+	FILE *diag_fp = NULL;
+
+	ftp_srvr = myResource->AcquireConnection( this );
+	if ( ftp_srvr == NULL ) {
+		return TASK_QUEUED;
+	}
+
+	dir.sprintf( "/jobs/%s/job.log", remoteJobId );
+	if ( ftp_lite_change_dir( ftp_srvr, dir.Value() ) == 0 ) {
+		errorString = "ftp_lite_change_dir() failed";
+		goto doExitInfo_error_exit;
+	}
+
+	diag_fp = ftp_lite_get( ftp_srvr, "diag", 0 );
+	if ( diag_fp == NULL ) {
+		errorString = "ftp_lite_get() failed";
+		goto doExitInfo_error_exit;
+	}
+
+		// line "runtimeenvironments="
+	if ( fgets( diag_buff, sizeof(diag_buff), diag_fp ) == NULL ) {
+		errorString = "fgets() on diag failed";
+		goto doExitInfo_error_exit;
+	}
+		// line "nodename=<hostname>"
+	if ( fgets( diag_buff, sizeof(diag_buff), diag_fp ) == NULL ) {
+		errorString = "fgets() on diag failed";
+		goto doExitInfo_error_exit;
+	}
+		// not sure what this line will be yet...
+	if ( fgets( diag_buff, sizeof(diag_buff), diag_fp ) == NULL ) {
+		errorString = "fgets() on diag failed";
+		goto doExitInfo_error_exit;
+	}
+	if ( sscanf( diag_buff, "Command exited with non-zero status %d",
+				 &exitCode ) == 1 ) {
+		normalExit = true;
+
+		if ( fgets( diag_buff, sizeof(diag_buff), diag_fp ) == NULL ) {
+			errorString = "fgets() on diag failed";
+			goto doExitInfo_error_exit;
+		}
+	} else if ( sscanf( diag_buff, "Command terminated by signal %d",
+						&exitCode ) == 1 ) {
+		normalExit = false;
+
+		if ( fgets( diag_buff, sizeof(diag_buff), diag_fp ) == NULL ) {
+			errorString = "fgets() on diag failed";
+			goto doExitInfo_error_exit;
+		}
+	} else {
+		normalExit = true;
+		exitCode = 0;
+	}
+		// now we've just read "WallTime=<float>s"
+		// we can read more if we want, but not for now
+
+	fclose( diag_fp );
+	diag_fp = NULL;
+
+	if ( ftp_lite_done( ftp_srvr ) == 0 ) {
+		errorString = "ftp_lite_done() failed";
+		goto doExitInfo_error_exit;
+	}
+
+	myResource->ReleaseConnection( this );
+
+	return TASK_DONE;
+
+ doExitInfo_error_exit:
+	if ( diag_fp != NULL ) {
+		fclose( diag_fp );
+	}
+	myResource->ReleaseConnection( this );
+
 	return TASK_FAILED;
 }
 

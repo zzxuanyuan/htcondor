@@ -53,6 +53,7 @@ class NordugridJob : public BaseJob
 	char *resourceManagerString;
 
 	char *remoteJobId;
+	int remoteJobState;
 
 	ftp_lite_server *ftp_srvr;
 	NordugridResource *myResource;
@@ -60,11 +61,17 @@ class NordugridJob : public BaseJob
 		// Used by doStageIn() and doStageOut()
 	StringList *stage_list;
 
+		// These get set before file stage out, but don't get handed
+		// to JobTerminated() until after file stage out succeeds.
+	int exitCode;
+	bool normalExit;
+
 	int doSubmit( char *&job_id );
-	int doStatus( int &new_status );
+	int doStatus( int &new_remote_state );
 	int doRemove();
 	int doStageIn();
 	int doStageOut();
+	int doExitInfo();
 
 	MyString *buildSubmitRSL();
 
