@@ -111,7 +111,7 @@ GahpServer::GahpServer(const char *id, const char *path, const char *args)
 	m_commands_supported = NULL;
 	m_pollInterval = 5;
 	poll_tid = -1;
-	max_pending_requests = 50;
+	max_pending_requests = param_integer( "GRIDMANAGER_MAX_PENDING_REQUESTS", 50 );
 	num_pending_requests = 0;
 	poll_pending = false;
 	use_prefix = false;
