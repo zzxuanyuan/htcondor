@@ -4,13 +4,13 @@ C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS)
 CFLAGS = $(STD_C_FLAGS)
 LIB = libacct.a $(DAEMONCORE_LIB) $(STD_LIBS)
 
-LIB_OBJ = Accountant.o
-
 soapobjs(accountant)
 
-OBJ = main.o $(SOAP_OBJS)
+LIB_OBJ = Accountant.o $(SOAP_OBJS)
 
-library_target(libacct.a, $(LIB_OBJ))
+OBJ = main.o
+
+library_target(libacct.a,$(LIB_OBJ))
 
 c_plus_target(condor_accountant,$(OBJ),$(LIB))
 pure_c_plus_target(condor_accountant.pure,$(OBJ),$(LIB))
