@@ -239,7 +239,7 @@ import(../condor_syscall_lib,switches.remap-SOLARIS26.h)
 import(../condor_syscall_lib,switches.remap-LINUX.h)
 import(../condor_syscall_lib,switches.remap-HPUX.h)
 import(../condor_syscall_lib,switches.remap-IRIX62.h)
-import(../condor_syscall_lib,switches.remap-DUX.h)
+import(../condor_syscall_lib,switches.remap-DUX4.h)
 
 CPP = PreProcessCmd
 
@@ -258,7 +258,7 @@ STUB_GEN_PLATFORM = -DIRIX62
 STUB_GEN_FLAGS = $(STUB_GEN_PLATFORM) $(DL_EXTRACT) -D$(OS) \
 	$(SAVE_SIGSTATE) $(FILE_TABLE) $(CLIP) -Wall
 
-file_table_switches.C: syscall.tmpl stub_gen switches.prologue switches.epilogue syscall_macros.h switches.remap-SOLARIS.h switches.remap-SOLARIS26.h switches.remap-LINUX.h switches.remap-HPUX.h switches.remap-IRIX62.h switches.remap-DUX.h
+file_table_switches.C: syscall.tmpl stub_gen switches.prologue switches.epilogue syscall_macros.h switches.remap-SOLARIS.h switches.remap-SOLARIS26.h switches.remap-LINUX.h switches.remap-HPUX.h switches.remap-IRIX62.h switches.remap-DUX4.h
 	$(CPP) -DSWITCH $(STUB_GEN_FLAGS) syscall.tmpl | \
 	./stub_gen -mode switches  -p switches.prologue -e switches.epilogue \
 	> file_table_switches.C
