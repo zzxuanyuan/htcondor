@@ -334,10 +334,10 @@ Resource::init_classad()
 	r_classad->Insert( tmp );
 
 		// Insert all machine-wide attributes.
-	resmgr->m_attr->refresh( r_classad, ALL );
+	resmgr->m_attr->publish( r_classad, A_ALL );
 
 		// Insert all cpu-specific attributes.
-	r_attr->init( r_classad );
+	r_attr->publish( r_classad, A_ALL );
 
 		// Insert state and activity attributes.
 	r_state->update( r_classad );
@@ -353,12 +353,12 @@ Resource::update_classad()
 	char line[100];
 
 		// Recompute update only stats and fill in classad.
-	r_attr->compute( UPDATE );
-	r_attr->refresh( r_classad, UPDATE );
+	r_attr->compute( A_UPDATE );
+	r_attr->publish( r_classad, A_UPDATE );
 	
 		// Also fill in machine-wide attributes 
-	resmgr->m_attr->compute( UPDATE );
-	resmgr->m_attr->refresh( r_classad, UPDATE );
+	resmgr->m_attr->compute( A_UPDATE );
+	resmgr->m_attr->publish( r_classad, A_UPDATE );
 
 		// Put in state info
 	r_state->update( r_classad );
@@ -385,12 +385,12 @@ void
 Resource::timeout_classad()
 {
 		// Recompute statistics needed at every timeout and fill in classad
-	r_attr->compute( TIMEOUT );
-	r_attr->refresh( r_classad, TIMEOUT ); 
+	r_attr->compute( A_TIMEOUT );
+	r_attr->publish( r_classad, A_TIMEOUT ); 
 
 		// Also fill in machine-wide attributes (we only need to
 		// recompute them once)
-	resmgr->m_attr->refresh( r_classad, TIMEOUT );
+	resmgr->m_attr->publish( r_classad, A_TIMEOUT );
 }
 
 int
@@ -706,8 +706,8 @@ Resource::make_public_ad(ClassAd* pubCA)
 	r_state->update( pubCA );
 
 		// Insert all info from the machine and CPU we care about. 
-	resmgr->m_attr->refresh( pubCA, PUBLIC );
-	r_attr->refresh( pubCA, PUBLIC );
+	resmgr->m_attr->publish( pubCA, A_PUBLIC );
+	r_attr->publish( pubCA, A_PUBLIC );
 
 		// Put everything in the public classad from STARTD_EXPRS. 
 	config_fill_ad( pubCA );
@@ -748,5 +748,20 @@ Resource::make_private_ad(ClassAd* privCA)
 	caInsert( privCA, r_classad, ATTR_STARTD_IP_ADDR );
 	caInsert( privCA, r_classad, ATTR_CAPABILITY );
 }
+
+
+void
+Resource::publish( ClassAd* cap, amask_t mask ) 
+{
+
+}
+
+
+void
+Resource::compute( amask_t mask ) 
+{
+	r_attr->compute( mask );
+}
+
 
 

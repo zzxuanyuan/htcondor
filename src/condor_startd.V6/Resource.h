@@ -57,6 +57,10 @@ public:
 	int		eval_state()	{return r_state->eval();};
 	bool	in_use();
 
+		// Methods for computing and publishing resource attributes 
+	void	compute( amask_t mask);
+	void	publish( ClassAd*, amask_t );
+
 		// Condor Load Average related methods
 	float	condor_load() {return r_attr->condor_load();};
 	float	compute_condor_load() {return r_state->condor_load();};
