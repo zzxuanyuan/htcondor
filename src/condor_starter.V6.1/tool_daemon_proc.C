@@ -257,12 +257,17 @@ ToolDaemonProc::JobCleanup(int pid, int status)
 
     dprintf( D_FULLDEBUG, "Inside ToolDaemonProc::JobCleanup()\n" );
 
-    // For now, we don't try to do any special cleanup.  All we have
-    // to do is decide if the pid that exited is the ToolDaemon.
+		// If the tool exited, we want to shutdown everything, and
+		// also return a 1 so the CStarter knows it can put us on the
+		// CleanedUpJobList.
     if( JobPid == pid ) {		
+		Starter->ShutdownGraceful();
         return 1;
-    }
-    return 0;
+    } 
+		// If any other process (namely, the application) exited, kill
+		// our own tool, since there's nothing more for us to do.
+	this->ShutdownGraceful();
+	return 0;
 }
 
 
