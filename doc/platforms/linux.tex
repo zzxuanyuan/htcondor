@@ -103,7 +103,9 @@ Condor \VersionNotice  does not yet work with RedHat version 9.x at
 all.
 The statically linked Condor binaries for RedHat 7.x crash right away
 when they are executed on a RedHat 9.x machine due to incompatible
-versions of various system libraries.
+versions of various system libraries, including glibc.
+RedHat 9.x uses glibc 2.3.x, and Condor has not yet been ported to
+this version of the C library.
 However, we have heard reports that the dynamically linked version of
 the Condor binaries will run on RedHat 9.x machines.
 \Condor{compile} does not yet work with RedHat 9.x, and we are not
