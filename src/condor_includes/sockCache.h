@@ -36,6 +36,8 @@ public:
 	SocketCache( int size = 16 );
 	~SocketCache();
 
+	void resize( int size );
+
 	void clearCache( void );
 	void invalidateSock( const char* );
 
@@ -47,9 +49,6 @@ public:
 
 private:
 
-	int getCacheSlot( void );
-	void invalidateEntry( int i );
-
 	struct sockEntry
 	{
 		bool		valid;
@@ -57,6 +56,11 @@ private:
 		ReliSock	*sock;
 		int			timeStamp;
 	};
+
+	int getCacheSlot( void );
+	void invalidateEntry( int i );
+	void initEntry( sockEntry* entry );
+
 	int			timeStamp;
 	sockEntry 	*sockCache;
 	int			cacheSize;

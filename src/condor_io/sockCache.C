@@ -33,10 +33,7 @@ SocketCache::SocketCache( int size )
 		EXCEPT( "SocketCache: Out of memory" );
 	}
 	for( int i = 0; i < size; i++ ) {
-		sockCache[i].valid = false;
-		sockCache[i].sock = NULL;
-		sockCache[i].addr[0] = '\0';
-		sockCache[i].timeStamp = 0;
+		initEntry( &(sockCache[i]) );
 	}
 }
 
@@ -45,6 +42,40 @@ SocketCache::~SocketCache()
 {
 	clearCache();
 	delete [] sockCache;
+}
+
+
+void
+SocketCache::resize( int size )
+{
+	if( size == cacheSize ) {
+			// nothing to do!
+		return;
+	}
+	if( size < cacheSize ) {
+			// we don't gracefully support this yet.  if we really
+			// supported this in a SocketCache where each socket is
+			// registered with DaemonCore, we'd have to have a way to
+			// deal with canceling the sockets...
+		dprintf( D_ALWAYS, 
+				 "ERROR: Cannot shrink a SocketCache with resize()\n" );
+		return;
+	}
+	sockEntry* new_cache = new sockEntry[size];
+	int i;
+	for( i=0; i<size; i++ ) {
+		if( i<cacheSize && sockCache[i].valid ) {
+			new_cache[i].valid = true;
+			new_cache[i].sock = sockCache[i].sock;
+			new_cache[i].timeStamp = sockCache[i].timeStamp;
+			strcpy( new_cache[i].addr, sockCache[i].addr );
+		} else {
+			initEntry( &(new_cache[i]) );
+		}
+	}
+	delete [] sockCache;
+	cacheSize = size;
+	sockCache = new_cache;
 }
 
 
@@ -150,9 +181,16 @@ SocketCache::invalidateEntry( int i )
 	if( sockCache[i].valid ) {
 		sockCache[i].sock->close();
 		delete sockCache[i].sock;
-		sockCache[i].sock = NULL;
 	}
-	sockCache[i].valid = false;
-	sockCache[i].addr[0] = '\0';
-	sockCache[i].timeStamp = 0;
+	initEntry( &(sockCache[i]) );
+}
+
+
+void
+SocketCache::initEntry( sockEntry* entry )
+{
+	entry->valid = false;
+	entry->addr[0] = '\0';
+	entry->timeStamp = 0;
+	entry->sock = NULL;
 }
