@@ -487,6 +487,7 @@ bool
 JICShadow::notifyJobExit( int exit_status, int reason, UserProc*
 						  user_proc )
 {
+	static bool wrote_local_log_event = false;
 	bool job_exit_wants_ad = true;
 
 		// protocol changed w/ v6.3.0 so the Update Ad is sent
@@ -524,7 +525,14 @@ JICShadow::notifyJobExit( int exit_status, int reason, UserProc*
 	user_proc->PublishUpdateAd( &ad );
 
 		// depending on the exit reason, we want a different event. 
-	u_log->logJobExit( &ad, reason );
+		// however, don't write multiple events if we've already been
+		// here, which might happen if we were disconnected when we
+		// first tried and we're trying again...
+	if( ! wrote_local_log_event ) {
+		if( u_log->logJobExit(&ad, reason) ) {
+			wrote_local_log_event = true;
+		}
+	}
 
 	if ( job_exit_wants_ad ) {
 		ad_to_send = &ad;
@@ -535,8 +543,7 @@ JICShadow::notifyJobExit( int exit_status, int reason, UserProc*
 	}
 			
 	if( REMOTE_CONDOR_job_exit(exit_status, reason, ad_to_send) < 0 ) {    
-		dprintf( D_ALWAYS, 
-				 "Failed to send job exit status to Shadow.\n" );
+		dprintf( D_ALWAYS, "Failed to send job exit status to shadow\n" );
 		return false;
 	}
 	return true;
