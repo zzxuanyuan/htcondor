@@ -257,7 +257,7 @@ reinitialize ()
 	}
 	else {
 
-		odbc_dsn = strdup("PostgreSQL");
+		odbc_dsn = strdup("condor");
 	}
 
 	tmp = param("NEGOTIATOR_ODBC_USER");
