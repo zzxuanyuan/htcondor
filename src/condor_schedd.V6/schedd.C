@@ -7647,9 +7647,15 @@ void
 Scheduler::shutdown_fast()
 {
 	shadow_rec *rec;
+	int sig;
 	shadowsByPid->startIterations();
-	while (shadowsByPid->iterate(rec) == 1) {
-		daemonCore->Send_Signal( rec->pid, SIGKILL );
+	while( shadowsByPid->iterate(rec) == 1 ) {
+		if(	rec->universe == CONDOR_UNIVERSE_LOCAL ) { 
+			sig = DC_SIGHARDKILL;
+		} else {
+			sig = SIGKILL;
+		}
+		daemonCore->Send_Signal( rec->pid, sig );
 		rec->preempted = TRUE;
 	}
 
