@@ -27,6 +27,7 @@
 #if defined(HOLD_POSIX_SOURCE)
 #define _POSIX_SOURCE
 #endif
+#elif defined(WIN32)
 #else  
 #	include <sys/time.h> 
 #endif 
