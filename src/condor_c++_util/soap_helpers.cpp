@@ -78,10 +78,10 @@ convert_ad_to_adStruct( struct soap *s, ClassAd *curr_ad, struct ClassAdStruct *
 	curr_ad->ResetExpr();
 	while( (tree = curr_ad->NextExpr()) ) {
 		rhs = tree->RArg();
-		ad_struct->__ptr[attr_index].valueInt = NULL;
-		ad_struct->__ptr[attr_index].valueFloat = NULL;
-		ad_struct->__ptr[attr_index].valueBool = NULL;
-		ad_struct->__ptr[attr_index].valueExpr = NULL;
+		// ad_struct->__ptr[attr_index].valueInt = NULL;
+		// ad_struct->__ptr[attr_index].valueFloat = NULL;
+		// ad_struct->__ptr[attr_index].valueBool = NULL;
+		// ad_struct->__ptr[attr_index].valueExpr = NULL;
 		skip_attr = false;
 		switch ( rhs->MyType() ) {
 		case LX_STRING:
@@ -93,16 +93,16 @@ convert_ad_to_adStruct( struct soap *s, ClassAd *curr_ad, struct ClassAdStruct *
 			tmpint = ((Integer*)rhs)->Value();
 			ad_struct->__ptr[attr_index].value = (char*)soap_malloc(s,20);
 			snprintf(ad_struct->__ptr[attr_index].value,20,"%d",tmpint);
-			ad_struct->__ptr[attr_index].valueInt = (int*)soap_malloc(s,sizeof(int));
-			*(ad_struct->__ptr[attr_index].valueInt) = tmpint;
+			// ad_struct->__ptr[attr_index].valueInt = (int*)soap_malloc(s,sizeof(int));
+			// *(ad_struct->__ptr[attr_index].valueInt) = tmpint;
 			ad_struct->__ptr[attr_index].type = 'n';
 			break;
 		case LX_FLOAT:
 			tmpfloat = ((Float*)rhs)->Value();
 			ad_struct->__ptr[attr_index].value = (char*)soap_malloc(s,20);
 			snprintf(ad_struct->__ptr[attr_index].value,20,"%f",tmpfloat);
-			ad_struct->__ptr[attr_index].valueFloat = (float*)soap_malloc(s,sizeof(float));
-			*(ad_struct->__ptr[attr_index].valueFloat) = tmpfloat;
+			// ad_struct->__ptr[attr_index].valueFloat = (float*)soap_malloc(s,sizeof(float));
+			// *(ad_struct->__ptr[attr_index].valueFloat) = tmpfloat;
 			ad_struct->__ptr[attr_index].type = 'f';
 			break;
 		case LX_BOOL:
@@ -112,8 +112,8 @@ convert_ad_to_adStruct( struct soap *s, ClassAd *curr_ad, struct ClassAdStruct *
 			} else {
 				ad_struct->__ptr[attr_index].value = "FALSE";
 			}
-			ad_struct->__ptr[attr_index].valueBool = (bool*)soap_malloc(s,sizeof(bool));
-			*(ad_struct->__ptr[attr_index].valueBool) = tmpbool;
+			// ad_struct->__ptr[attr_index].valueBool = (bool*)soap_malloc(s,sizeof(bool));
+			// *(ad_struct->__ptr[attr_index].valueBool) = tmpbool;
 			ad_struct->__ptr[attr_index].type = 'b';
 			break;
 		case LX_NULL:
@@ -125,13 +125,17 @@ convert_ad_to_adStruct( struct soap *s, ClassAd *curr_ad, struct ClassAdStruct *
 		default:
 				// assume everything else is some sort of expression
 			tmpstr = NULL;
-			rhs->PrintToNewStr( &tmpstr );
-			if ( !tmpstr ) {
+			int buflen = rhs->CalcPrintToStr();
+			tmpstr = (char*)soap_malloc(s,buflen + 1); // +1 for termination
+			ASSERT(tmpstr);
+			tmpstr[0] = '\0'; // necceary because PrintToStr begins at end of string
+			rhs->PrintToStr( tmpstr );
+			if ( !(tmpstr[0]) ) {
 				skip_attr = true;
 			} else {
 				ad_struct->__ptr[attr_index].value = tmpstr;
-				ad_struct->__ptr[attr_index].valueExpr = tmpstr;
-				soap_link(s,(void*)tmpstr,0,1);
+				// ad_struct->__ptr[attr_index].valueExpr = tmpstr;
+				// soap_link(s,(void*)tmpstr,0,1,NULL);
 				ad_struct->__ptr[attr_index].type = 'x';
 			}
 			break;
