@@ -35,5 +35,10 @@ release:: all
 stripped:: all
 static:: all
 
+stdsoap2.C:
+	cp $(GSOAP_INC)/stdsoap2.h ../condor_includes/
+	cp $(GSOAP_DIR)/src/stdsoap2.cpp stdsoap2.C
+
+
 IMPORT_LINKS = ../../config/import_links
 import(../condor_util_lib,condor_perms.o)
