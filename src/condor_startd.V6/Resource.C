@@ -221,6 +221,29 @@ Resource::deactivate_claim_forcibly( void )
 }
 
 
+void
+Resource::removeClaim( Claim* c )
+{
+	if( c->isCOD() ) {
+		r_cod_mgr->removeClaim( c );
+		return;
+	}
+	if( c == r_pre ) {
+		delete r_pre;
+		r_pre = new Claim( this );
+		return;
+	}
+
+	if( c == r_cur ) {
+		delete r_cur;
+		r_cur = new Claim( this );
+		return;
+	}
+		// we should never get here, this would be a programmer's error:
+	EXCEPT( "Resource::removeClaim() called, but can't find the Claim!" );
+}
+
+
 int
 Resource::releaseAllClaims( void )
 {
@@ -255,10 +278,10 @@ bool
 Resource::hasOppClaim( void )
 {
 	State s = state();
-	if( s == owner_state || s == unclaimed_state ) {
-		return false;
+	if( s == claimed_state || s == preempting_state ) {
+		return true;
 	}
-	return true;
+	return false;
 }
 
 
@@ -266,18 +289,11 @@ Resource::hasOppClaim( void )
 bool
 Resource::hasAnyClaim( void )
 {
-	if( r_cod_mgr->inUse() ) {
+	if( r_cod_mgr->hasClaims() ) {
 		return true;
 	}
-	State s = state();
-	if( s == owner_state || s == unclaimed_state ) {
-		return false;
-	}
-	return true;
+	return hasOppClaim();
 }
-
-
-
 
 
 void
@@ -287,10 +303,8 @@ Resource::starterExited( Claim* cur_claim )
 		EXCEPT( "Resource::starterExited() called with no Claim!" );
 	}
 
-	if( cur_claim != r_cur ) {
-  			// this isn't our opportunistic claim, so hand this off to
-			// the CODMgr, since it should know about this, too.
-		r_cod_mgr->starterExited( cur_claim );
+	if( cur_claim->isCOD() ) {
+ 		r_cod_mgr->starterExited( cur_claim );
 		return;
 	}
 

@@ -55,6 +55,9 @@ public:
 		// Quickly kill starter but keep claim
 	int		deactivate_claim_forcibly( void );
 
+		// Remove the given claim from this Resource
+	void	removeClaim( Claim* );
+
 		// Shutdown methods that deal w/ opportunistic *and* COD claims
 	int		shutdownAllClaims( bool graceful );
 	int		releaseAllClaims( void );
