@@ -7277,7 +7277,7 @@ abortJob( int cluster, int proc, const char *reason, bool use_transaction )
 bool
 abortJobsByConstraint( const char *constraint, const char *reason, bool use_transaction )
 {
-    bool result;
+    bool result = true;
 
     ExtArray<PROC_ID> jobs;
     int job_count;
@@ -7306,7 +7306,7 @@ abortJobsByConstraint( const char *constraint, const char *reason, bool use_tran
     while ( job_count >= 0 ) {
         dprintf(D_FULLDEBUG, "removing: %d.%d\n", jobs[job_count].cluster, jobs[job_count].proc);
 
-        abortJobRaw(jobs[job_count].cluster, jobs[job_count].proc, reason);
+        result = result && abortJobRaw(jobs[job_count].cluster, jobs[job_count].proc, reason);
 
         job_count--;
     }
