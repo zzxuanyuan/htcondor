@@ -1500,10 +1500,10 @@ abort_job_myself( PROC_ID job_id, JobAction action, bool log_hold,
                          "Found shadow record for job %d.%d, host = %s\n",
                          job_id.cluster, job_id.proc, srec->match->peer);
 			} else {
-				dprintf( D_FULLDEBUG, "This job does not have a match -- "
-						 "It may be a PVM job.\n");
                 dprintf(D_FULLDEBUG, "Found shadow record for job %d.%d\n",
                         job_id.cluster, job_id.proc);
+				dprintf( D_FULLDEBUG, "This job does not have a match -- "
+						 "It may be a PVM job.\n");
             }
 			int shadow_sig;
 			const char* shadow_sig_str;
