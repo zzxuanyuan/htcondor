@@ -977,7 +977,7 @@ strip_copy_target($(MAN_DIR)/man1/##name##,man/man1,##name##,OBJECT_MODE)
 
 #ifndef ext_target
 #define ext_target(package_id,ext_dep)				@@\
-$(EXT_TRIGGER_DIR)/$(##package_id##): ext_dep		@@\
-	$(EXT_ROOT)/build_external  --bundle_dir=$(EXT_BUNDLE_ROOT) --install_dir=$(EXT_INSTALL_ROOT) --build_dir=$(EXT_BUILD) --log=$(EXT_BUILD)/log.$(##package_id##) --package_name=$(##package_id##) --package_dir=$(EXT_INSTALL_ROOT)/$(##package_id##) --trigger_dir=$(EXT_TRIGGER_DIR) @@\
-externals:: $(EXT_TRIGGER_DIR)/$(##package_id##)
+$(EXT_TRIGGER)/$(##package_id##): ext_dep			@@\
+	$(EXT_ROOT)/build_external  --bundle_dir=$(EXT_BUNDLE) --install_dir=$(EXT_INSTALL) --build_dir=$(EXT_BUILD) --log=$(EXT_BUILD)/log.$(##package_id##) --package_name=$(##package_id##) --package_dir=$(EXT_INSTALL)/$(##package_id##) --trigger_dir=$(EXT_TRIGGER) @@\
+externals:: $(EXT_TRIGGER)/$(##package_id##)
 #endif
