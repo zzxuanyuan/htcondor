@@ -791,7 +791,7 @@ condorSchedd__discoverJobRequirements(struct soap *soap,
 
   result.response.requirements.__size = inputFiles.number();
   result.response.requirements.__ptr =
-    (condorSchedd__Requirement *) soap_malloc(soap, result.response.requirements.__size * sizeof(condorSchedd__Requirements));
+    (condorSchedd__Requirement *) soap_malloc(soap, result.response.requirements.__size * sizeof(condorSchedd__Requirement));
   inputFiles.rewind();
   int i = 0;
   while ((buffer = inputFiles.next()) &&
