@@ -601,8 +601,13 @@ condorSchedd__createJobTemplate(struct soap *soap,
 
   ClassAd *job = new ClassAd();
 
-  job->SetMyTypeName (JOB_ADTYPE);
-  job->SetTargetTypeName (STARTD_ADTYPE);
+  attribute = MyString(ATTR_CLUSTER_ID) + " = " + clusterId;
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
+
+  attribute = MyString(ATTR_PROC_ID) + " = " + jobId;
+  dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
+  job->Insert(attribute.GetCStr());
 
   attribute = MyString(ATTR_Q_DATE) + " = " + ((int) time((time_t *) 0));
   dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
@@ -692,7 +697,7 @@ condorSchedd__createJobTemplate(struct soap *soap,
   dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
   job->Insert(attribute.GetCStr());
 
-  attribute = MyString(ATTR_CURRENT_HOSTS) + " = 1";
+  attribute = MyString(ATTR_CURRENT_HOSTS) + " = 0";
   dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
   job->Insert(attribute.GetCStr());
 
@@ -768,7 +773,7 @@ condorSchedd__createJobTemplate(struct soap *soap,
   dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
   job->Insert(attribute.GetCStr());
 
-  attribute = MyString(ATTR_REQUIREMENTS) + " = \"TRUE\"";
+  attribute = MyString(ATTR_REQUIREMENTS) + " = TRUE";
   dprintf(D_ALWAYS, "%s\n", attribute.GetCStr());
   job->Insert(attribute.GetCStr());
 
