@@ -697,9 +697,8 @@ void MirrorJob::SetRemoteJobId( const char *job_id )
 	}
 }
 
-void Mirror::RemoteStateUpdate( ClassAd *remote_ad )
+void MirrorJob::RemoteJobStatusUpdate( ClassAd *update_ad )
 {
-		// TODO fill this in
 }
 
 BaseResource *MirrorJob::GetResource()

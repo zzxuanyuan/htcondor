@@ -49,7 +49,7 @@ MirrorResource *MirrorResource::FindOrCreateResource( const char * resource_name
 
 	rc = ResourcesByName.lookup( HashKey( resource_name ), resource );
 	if ( rc != 0 ) {
-		resource = new NordugridResource( resource_name );
+		resource = new MirrorResource( resource_name );
 		ASSERT(resource);
 		ResourcesByName.insert( HashKey( resource_name ), resource );
 	} else {
@@ -212,7 +212,21 @@ int DoScheddPoll()
 
 		if ( rcB == 0 ) {
 			for ( int i = 0; i < num_status_ads; i++ ) {
-				// deal with ads on success
+				int cluster, proc;
+				MyString job_id_string;
+				MirrorJob *job;
+
+				status_ads[i].LookupInteger( ATTR_CLUSTER_ID, cluster );
+				status_ads[i].LookupInteger( ATTR_PROC_ID, proc );
+
+				job_id_string.sprintf( "%s/%d.%d", mirrorScheddName, cluster,
+									   proc );
+
+				rc = MirrorJobsById.lookup( HashKey( job_id_string.Value() ),
+											job );
+				if ( rc == 0 ) {
+					job->RemoteJobStatusUpdate( &status_ads[i] );
+				}
 			}
 		}
 

@@ -87,6 +87,8 @@ class MirrorJob : public BaseJob
 
 	GahpClient *gahp;
 
+	void RemoteJobStatusUpdate( ClassAd *update_ad );
+
 	void SetRemoteJobId( const char *job_id );
 	MyString *buildSubmitAd();
 
