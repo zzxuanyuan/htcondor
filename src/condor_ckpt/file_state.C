@@ -91,9 +91,9 @@ void OpenFileTable::init()
 	pre_open( 2, 0, 1, 0 );
 }
 
-static void flush_and_disable_buffer()
+static void _condor_flush_and_disable_buffer()
 {
-	InitFileState();
+	_condor_file_table_init();
 	FileTab->flush();
 	FileTab->disable_buffer();
 }
@@ -125,7 +125,7 @@ void OpenFileTable::init_buffer()
 	// then flush the buffers.  Furthermore, disable any further buffering,
 	// because iostream or stdio will flush _after_ us.
 
-	if(atexit(flush_and_disable_buffer)<0) {
+	if(atexit(_condor_flush_and_disable_buffer)<0) {
 		file_warning("atexit() failed.  Buffering is disabled.\n");
 		delete buffer;
 		buffer = 0;
@@ -526,18 +526,6 @@ int OpenFileTable::fchdir( int fd )
 	return chdir( pointers[fd]->get_file()->get_name() );
 }
 
-
-int OpenFileTable::fstat( int fd, struct stat *buf )
-{
-	if( (fd<0) || (fd>=length) || (pointers[fd]==0) ) {
-		errno = EBADF;
-		return -1;
-	}
-
-	return pointers[fd]->get_file()->fstat(buf);
-}
-
-
 int OpenFileTable::ioctl( int fd, int cmd, int arg )
 {
 	if( (fd<0) || (fd>=length) || (pointers[fd]==0) ) {
@@ -546,43 +534,6 @@ int OpenFileTable::ioctl( int fd, int cmd, int arg )
 	}
 
 	return pointers[fd]->get_file()->ioctl(cmd,arg);
-}
-
-int OpenFileTable::flock( int fd, int op )
-{
-	file_warning("flock() is not safe in a program that may be checkpointed.\n");
-	errno = EINVAL;
-	return -1;
-}
-
-int OpenFileTable::fstatfs( int fd, struct statfs *buf, int x, int y )
-{
-	if( (fd<0) || (fd>=length) || (pointers[fd]==0) ) {
-		errno = EBADF;
-		return -1;
-	}
-
-	return pointers[fd]->get_file()->fstatfs(buf);
-}
-
-int OpenFileTable::fchown( int fd, uid_t owner, gid_t group )
-{
-	if( (fd<0) || (fd>=length) || (pointers[fd]==0) ) {
-		errno = EBADF;
-		return -1;
-	}
-
-	return pointers[fd]->get_file()->fchown(owner,group);
-}
-
-int OpenFileTable::fchmod( int fd, mode_t mode )
-{
-	if( (fd<0) || (fd>=length) || (pointers[fd]==0) ) {
-		errno = EBADF;
-		return -1;
-	}
-
-	return pointers[fd]->get_file()->fchmod( mode );
 }
 
 int OpenFileTable::ftruncate( int fd, size_t length )
@@ -670,18 +621,6 @@ int OpenFileTable::fsync( int fd )
 	if(buffer) buffer->flush(pointers[fd]->get_file());
 
 	pointers[fd]->get_file()->fsync();
-}
-
-int OpenFileTable::getdents( int fd, struct dirent *list, int size)
-{
-	file_warning("getdents() is not supported.\n");
-	errno = EINVAL;
-	return -1;
-}
-
-int OpenFileTable::getdirentries( int fd, struct dirent *list, int size, int *buf )
-{
-	return getdents(fd,list,size);
 }
 
 void OpenFileTable::checkpoint()

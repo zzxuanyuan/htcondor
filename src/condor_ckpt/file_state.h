@@ -60,9 +60,7 @@ This class does _not_:
 	<li> Implement buffering.
 	     A BufferCache does that (buffer_cache.C)
 	<li> Perform operations on names (i.e. stat()).
-	     To operate on a name, open() it, and
-	     then perform the fd equivalent of that op.
-	     (i.e. fstat())  
+	     Those are handled transparently by the syscall switches.
 </dir>
 
 The file table has two sub-structures, File and FilePointer.
@@ -97,7 +95,6 @@ fo
 </pre>
 <p>
 Various implementations of File can be found in file_types.[hC].
-
 */
 
 class OpenFileTable {
@@ -119,39 +116,57 @@ public:
 	void	disable_buffer();
 
 	/** Map a virtual fd to the same real fd.  This is generally only
-	used by the startup code to bootstrap a usable stdin/stdout until
-	things get rolling. */
-
+	    used by the startup code to bootstrap a usable stdin/stdout until
+	    things get rolling.  You don't want to use this function unless
+	    you want an fd visible by _both_ Condor and the user.  */
 	int	pre_open( int fd, int readable, int writable, int is_remote );
 
-	/** Standard UNIX operations: open, close, read, etc...
-	These should all perform as their UNIX counterparts. */
-
+	/** If in LocalSyscalls, just perform a UNIX open.  If in
+	    RemoteSyscalls, ask the shadow for the appropriate 
+	    access method, and then use that method for the open. */
 	int	open( const char *path, int flags, int mode );
+
+	/** Close this file with UNIX semantics */
 	int	close( int fd );
 
+	/** Read with UNIX semantics */
 	ssize_t	read( int fd, void *data, size_t length );
+
+	/** Write with UNIX semantics */
 	ssize_t	write( int fd, const void *data, size_t length );
+       
+	/** Seek with UNIX semantics */
 	off_t	lseek( int fd, off_t offset, int whence );
 
+	/** Dup with UNIX semantics */
 	int	dup( int old );
+
+	/** Dup2 with UNIX semantics, even if dup2 is not supported
+	    on this platform. */
 	int	dup2( int old, int nfd );
 
-	/** Like dup2, but use any free fd >= search. */
+	/** Similar to dup2, but will dup to any free fd >= search */
 	int	search_dup2( int old, int search );
 
+	/** Find the name of this file, and then chdir() to that
+	    name.  This is not exactly UNIX semantics. */
 	int	fchdir( int fd );
-	int	fstat( int fd, struct stat *buf );
+
+	/** Handle known fcntl values by modifying the table, or passing
+	    the value to the appropriate file object.  Unknown fcntls
+	    or those with non-integer third arguments fail with a 
+	    warning message and EINVAL. */
 	int	fcntl( int fd, int cmd, int arg );
+
+	/** See comments for fcntl. */
 	int	ioctl( int fd, int cmd, int arg );
-	int	flock( int fd, int op );
-	int	fstatfs( int fd, struct statfs * buf, int x=0, int y=0 );
-	int	fchown( int fd, uid_t owner, gid_t group );
-	int	fchmod( int fd, mode_t mode );
+
+	/** Truncate with UNIX semantics */
 	int	ftruncate( int fd, size_t length );
+
+	/** Flush any Condor-buffered data on this file, then
+	    perform a UNIX fsync/fdsync/fdatasync as appropriate. */
 	int	fsync( int fd );
-	int	getdents( int fd, struct dirent *list, int size);
-	int	getdirentries( int fd, struct dirent *list, int size, int *buf);
  
 	/** Perform a periodic checkpoint. */
 	void	checkpoint();
@@ -162,12 +177,12 @@ public:
 	/** A checkpoint has resumed, so open everything up again. */
 	void	resume();
 
-	/** XXX Hack: Return the real fd of this vfd. 
-	This interface will go away. */
+	/** Returns the real fd corresponding to this virtual
+	    fd.  If the mapping is non trivial, -1 is returned. */
 	int	map_fd_hack( int fd );
 
-	/** XXX Hack: Return 1 if this file is accessed locally.
-	This interface will go away. */
+	/** Returns true if this file can be accessed by local
+	    syscalls.  Returns false otherwise. */
 	int	local_access_hack( int fd );
 
 private:
@@ -184,9 +199,8 @@ private:
 };
 
 /** This is a pointer to the single global instance of the file
-table.  The only user of this pointer should be the system call
-switches, who need to send some syscalls to the open file table.
-*/
+    table.  The only user of this pointer should be the system call
+    switches, who need to send some syscalls to the open file table. */
 
 extern OpenFileTable *FileTab;
 
