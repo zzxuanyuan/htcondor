@@ -20,13 +20,6 @@
 /* For now, try a "clipped" version */
 #define IS_CLIPPED YES
 
-#if defined( IS_GLIBC )
-        /* this is a bit wonky here, but otherwise the i686 in the path below
-                becomes a ' 1 ' on glib machines with egcs. I don't think i686
-                is used for anything important, so away it goes. */
-#       undef i686
-#endif
-
 #define WANT_PVM NO
 
 #undef WANT_KERBEROS

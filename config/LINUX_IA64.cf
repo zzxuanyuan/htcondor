@@ -26,12 +26,6 @@
 #   define LIB_NAME		libc5
 #endif
 
-#if defined( IS_GLIBC )
-	/* this is a bit wonky here, but otherwise the ia64 
-		becomes a ' 1 ' on glib machines with egcs. I don't think ia64
-		is used for anything important, so away it goes. */
-#	undef ia64
-#endif
 
 #define IS_CLIPPED YES
 
