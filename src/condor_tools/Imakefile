@@ -1,6 +1,6 @@
 PROGRAMS =  	condor_config_val condor_preen condor_stats \
 		condor_userprio condor_history condor test_calc \
-		condor_release view_collection
+		condor_release view_collection condor_release_license
 
 all_target( $(PROGRAMS) )
 
@@ -91,6 +91,11 @@ c_plus_target(condor_stats,stats.o,$(LIB))
 static_target(condor_stats,stats.o,$(LIB),$(STATIC_DIR)/sbin)
 strip_target(condor_stats,$(STRIP_DIR)/sbin,EXECUTABLE_MODE)
 release_target(condor_stats,$(RELEASE_DIR)/sbin,EXECUTABLE_MODE)
+
+c_plus_target(condor_release_license,release_license.o,$(LIB))
+static_target(condor_release_license,release_license.o,$(LIB),$(STATIC_DIR)/sbin)
+strip_target(condor_release_license,$(STRIP_DIR)/sbin,EXECUTABLE_MODE)
+release_target(condor_release_license,$(RELEASE_DIR)/sbin,EXECUTABLE_MODE)
 
 c_plus_target(test_calc,test_calc.o,$(LIB))
 
