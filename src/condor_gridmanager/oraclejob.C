@@ -1111,7 +1111,7 @@ int OracleJob::doRemove()
 		goto doRemove_error_exit;
 	}
 
-	stmt.sprintf( "begin DBMS_JOB.REMOVE(%s,FALSE); end;",
+	stmt.sprintf( "begin DBMS_JOB.REMOVE(%s); end;",
 				  remoteJobId );
 
 	rc = OCIStmtPrepare( stmt_hndl, ociErrorHndl, (const OraText *)stmt.Value(),
