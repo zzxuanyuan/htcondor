@@ -124,7 +124,7 @@ command_activate_claim( Service*, int cmd, Stream* stream )
 		return FALSE;
 	}
 
-	if( rip->is_deactivating() ) { 
+	if( rip->isDeactivating() ) { 
 			// We're in the middle of deactivating another claim, so
 			// tell the shadow to try again.  Any shadow before 6.1.9
 			// will just treat this like a "NOT_OK", which is what
@@ -388,7 +388,7 @@ command_give_request_ad( Service*, int, Stream* stream)
 {
 	int pid = -1;  // Starter sends it's pid so we know what
 				   // resource's request ad to send 
-	Resource*	rip;
+	Match*		match;
 	ClassAd*	cp;
 
 	if( ! stream->code(pid) ) {
@@ -403,8 +403,8 @@ command_give_request_ad( Service*, int, Stream* stream)
 		stream->end_of_message();
 		return FALSE;
 	}
-	rip = resmgr->get_by_pid( pid );
-	if( !rip ) {
+	match = resmgr->getMatchByPid( pid );
+	if( !match ) {
 		dprintf( D_ALWAYS, 
 				 "give_request_ad: Can't find starter with pid %d\n",
 				 pid ); 
@@ -412,17 +412,10 @@ command_give_request_ad( Service*, int, Stream* stream)
 		stream->end_of_message();
 		return FALSE;
 	}
-	if( !rip->r_cur ) {
-		rip->dprintf( D_ALWAYS, 
-					  "give_request_ad: resource doesn't have a current match.\n" );
-		stream->encode();
-		stream->end_of_message();
-		return FALSE;
-	}
-	cp = rip->r_cur->ad();
+	cp = match->ad();
 	if( !cp ) {
-		rip->dprintf( D_ALWAYS, 
-					  "give_request_ad: current match has NULL classad.\n" );
+		match->dprintf( D_ALWAYS, 
+						"give_request_ad: current match has NULL classad.\n" );
 		stream->encode();
 		stream->end_of_message();
 		return FALSE;
@@ -1034,23 +1027,19 @@ activate_claim( Resource* rip, Stream* stream )
 
 
 
-
-
-
-
 	ji.ji_hname = rip->r_cur->client()->host();
 
 	int now = (int)time( NULL );
 
 		// now that we've gotten this far, we're really going to try
-		// to spawn the starter.  set it in our Resource object. 
-	rip->setStarter( tmp_starter );
+		// to spawn the starter.  set it in our Match object. 
+	rip->r_cur->setStarter( tmp_starter );
 
 		// Actually spawn the starter
-	if( ! rip->spawn_starter(&ji, now) ) {
+	if( ! rip->r_cur->spawnStarter(&ji, now) ) {
 			// Error spawning starter!
 		delete( tmp_starter );
-		rip->setStarter( NULL );
+		rip->r_cur->setStarter( NULL );
 		ABORT;
 	}
 		// Get a bunch of info out of the request ad that is now
