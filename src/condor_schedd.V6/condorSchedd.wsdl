@@ -1,0 +1,400 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions name="condorSchedd"
+ xmlns="http://schemas.xmlsoap.org/wsdl/"
+ xmlns:SOAP="http://schemas.xmlsoap.org/wsdl/soap/"
+ xmlns:WSDL="http://schemas.xmlsoap.org/wsdl/"
+ targetNamespace="urn:condor-schedd"
+ xmlns:tns="urn:condor-schedd"
+ xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/"
+ xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/"
+ xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+ xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+ xmlns:condorCore="urn:condor-daemoncore"
+ xmlns:condorSchedd="urn:condor-schedd">
+
+<types>
+ <schema targetNamespace="urn:condor-daemoncore"
+  xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/"
+  xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+  xmlns:condorCore="urn:condor-daemoncore"
+  xmlns:condorSchedd="urn:condor-schedd"
+  xmlns="http://www.w3.org/2001/XMLSchema"
+  elementFormDefault="unqualified"
+  attributeFormDefault="unqualified">
+
+  <complexType name="ClassAdStructAttr">
+   <sequence>
+    <element name="name" type="xsd:string" minOccurs="1" maxOccurs="1" nillable="true"/>
+    <element name="type" type="xsd:byte" minOccurs="1" maxOccurs="1"/>
+    <element name="value" type="xsd:string" minOccurs="1" maxOccurs="1" nillable="true"/>
+    <element name="valueInt" type="xsd:int" minOccurs="0" maxOccurs="1" nillable="true"/>
+    <element name="valueFloat" type="xsd:float" minOccurs="0" maxOccurs="1" nillable="true"/>
+    <element name="valueBool" type="xsd:boolean" minOccurs="0" maxOccurs="1" nillable="true"/>
+    <element name="valueExpr" type="xsd:string" minOccurs="0" maxOccurs="1" nillable="true"/>
+   </sequence>
+  </complexType>
+
+ </schema>
+ <schema targetNamespace="urn:condor-schedd"
+  xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/"
+  xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+  xmlns:condorCore="urn:condor-daemoncore"
+  xmlns:condorSchedd="urn:condor-schedd"
+  xmlns="http://www.w3.org/2001/XMLSchema"
+  elementFormDefault="unqualified"
+  attributeFormDefault="unqualified">
+
+  <complexType name="ArrayOfClassAdStructAttr">
+   <complexContent>
+    <restriction base="SOAP-ENC:Array">
+     <sequence>
+      <element name="item" type="condorCore:ClassAdStructAttr" minOccurs="0" maxOccurs="unbounded"/>
+     </sequence>
+     <attribute ref="SOAP-ENC:arrayType" WSDL:arrayType="condorCore:ClassAdStructAttr[]"/>
+    </restriction>
+   </complexContent>
+  </complexType>
+
+  <complexType name="ArrayOfArrayOfClassAdStructAttr">
+   <complexContent>
+    <restriction base="SOAP-ENC:Array">
+     <sequence>
+      <element name="item" type="condorSchedd:ArrayOfClassAdStructAttr" minOccurs="0" maxOccurs="unbounded"/>
+     </sequence>
+     <attribute ref="SOAP-ENC:arrayType" WSDL:arrayType="condorSchedd:ArrayOfClassAdStructAttr[]"/>
+    </restriction>
+   </complexContent>
+  </complexType>
+
+ </schema>
+</types>
+
+<message name="beginTransactionRequest">
+ <part name="duration" type="xsd:int"/>
+</message>
+
+<message name="beginTransactionResponse">
+ <part name="transactionId" type="xsd:long"/>
+</message>
+
+<message name="commitTransactionRequest">
+ <part name="transactionId" type="xsd:long"/>
+</message>
+
+<message name="commitTransactionResponse">
+ <part name="result" type="xsd:int"/>
+</message>
+
+<message name="abortTransactionRequest">
+ <part name="transactionId" type="xsd:long"/>
+</message>
+
+<message name="abortTransactionResponse">
+ <part name="result" type="xsd:int"/>
+</message>
+
+<message name="extendTransactionRequest">
+ <part name="transactionId" type="xsd:long"/>
+ <part name="duration" type="xsd:int"/>
+</message>
+
+<message name="extendTransactionResponse">
+ <part name="result" type="xsd:int"/>
+</message>
+
+<message name="newClusterRequest">
+ <part name="transactionId" type="xsd:long"/>
+</message>
+
+<message name="newClusterResponse">
+ <part name="result" type="xsd:int"/>
+</message>
+
+<message name="removeClusterRequest">
+ <part name="transactionId" type="xsd:long"/>
+ <part name="clusterId" type="xsd:int"/>
+ <part name="reason" type="xsd:string"/>
+</message>
+
+<message name="removeClusterResponse">
+ <part name="result" type="xsd:int"/>
+</message>
+
+<message name="newJobRequest">
+ <part name="transactionId" type="xsd:long"/>
+ <part name="clusterId" type="xsd:int"/>
+</message>
+
+<message name="newJobResponse">
+ <part name="result" type="xsd:int"/>
+</message>
+
+<message name="removeJobRequest">
+ <part name="transactionId" type="xsd:long"/>
+ <part name="clusterId" type="xsd:int"/>
+ <part name="jobId" type="xsd:int"/>
+ <part name="reason" type="xsd:string"/>
+ <part name="force-removal" type="xsd:boolean"/>
+</message>
+
+<message name="removeJobResponse">
+ <part name="result" type="xsd:int"/>
+</message>
+
+<message name="holdJobRequest">
+ <part name="transactionId" type="xsd:long"/>
+ <part name="clusterId" type="xsd:int"/>
+ <part name="jobId" type="xsd:int"/>
+ <part name="reason" type="xsd:string"/>
+ <part name="email-user" type="xsd:boolean"/>
+ <part name="email-admin" type="xsd:boolean"/>
+ <part name="system-hold" type="xsd:boolean"/>
+</message>
+
+<message name="holdJobResponse">
+ <part name="result" type="xsd:int"/>
+</message>
+
+<message name="releaseJobRequest">
+ <part name="transactionId" type="xsd:long"/>
+ <part name="clusterId" type="xsd:int"/>
+ <part name="jobId" type="xsd:int"/>
+ <part name="reason" type="xsd:string"/>
+ <part name="email-user" type="xsd:boolean"/>
+ <part name="email-admin" type="xsd:boolean"/>
+</message>
+
+<message name="releaseJobResponse">
+ <part name="result" type="xsd:int"/>
+</message>
+
+<message name="submitRequest">
+ <part name="transactionId" type="xsd:long"/>
+ <part name="clusterId" type="xsd:int"/>
+ <part name="jobId" type="xsd:int"/>
+ <part name="jobAd" type="condorSchedd:ArrayOfClassAdStructAttr"/>
+</message>
+
+<message name="submitResponse">
+ <part name="result" type="xsd:int"/>
+</message>
+
+<message name="getJobAdsRequest">
+ <part name="transactionId" type="xsd:long"/>
+ <part name="constraint" type="xsd:string"/>
+</message>
+
+<message name="getJobAdsResponse">
+ <part name="result" type="condorSchedd:ArrayOfArrayOfClassAdStructAttr"/>
+</message>
+
+<message name="getJobAdRequest">
+ <part name="transactionId" type="xsd:long"/>
+ <part name="clusterId" type="xsd:int"/>
+ <part name="jobId" type="xsd:int"/>
+</message>
+
+<message name="getJobAdResponse">
+ <part name="result" type="condorSchedd:ArrayOfClassAdStructAttr"/>
+</message>
+
+<portType name="condorScheddPortType">
+ <operation name="beginTransaction">
+  <documentation>Service definition of function condorSchedd__beginTransaction</documentation>
+  <input message="tns:beginTransactionRequest"/>
+  <output message="tns:beginTransactionResponse"/>
+ </operation>
+ <operation name="commitTransaction">
+  <documentation>Service definition of function condorSchedd__commitTransaction</documentation>
+  <input message="tns:commitTransactionRequest"/>
+  <output message="tns:commitTransactionResponse"/>
+ </operation>
+ <operation name="abortTransaction">
+  <documentation>Service definition of function condorSchedd__abortTransaction</documentation>
+  <input message="tns:abortTransactionRequest"/>
+  <output message="tns:abortTransactionResponse"/>
+ </operation>
+ <operation name="extendTransaction">
+  <documentation>Service definition of function condorSchedd__extendTransaction</documentation>
+  <input message="tns:extendTransactionRequest"/>
+  <output message="tns:extendTransactionResponse"/>
+ </operation>
+ <operation name="newCluster">
+  <documentation>Service definition of function condorSchedd__newCluster</documentation>
+  <input message="tns:newClusterRequest"/>
+  <output message="tns:newClusterResponse"/>
+ </operation>
+ <operation name="removeCluster">
+  <documentation>Service definition of function condorSchedd__removeCluster</documentation>
+  <input message="tns:removeClusterRequest"/>
+  <output message="tns:removeClusterResponse"/>
+ </operation>
+ <operation name="newJob">
+  <documentation>Service definition of function condorSchedd__newJob</documentation>
+  <input message="tns:newJobRequest"/>
+  <output message="tns:newJobResponse"/>
+ </operation>
+ <operation name="removeJob">
+  <documentation>Service definition of function condorSchedd__removeJob</documentation>
+  <input message="tns:removeJobRequest"/>
+  <output message="tns:removeJobResponse"/>
+ </operation>
+ <operation name="holdJob">
+  <documentation>Service definition of function condorSchedd__holdJob</documentation>
+  <input message="tns:holdJobRequest"/>
+  <output message="tns:holdJobResponse"/>
+ </operation>
+ <operation name="releaseJob">
+  <documentation>Service definition of function condorSchedd__releaseJob</documentation>
+  <input message="tns:releaseJobRequest"/>
+  <output message="tns:releaseJobResponse"/>
+ </operation>
+ <operation name="submit">
+  <documentation>Service definition of function condorSchedd__submit</documentation>
+  <input message="tns:submitRequest"/>
+  <output message="tns:submitResponse"/>
+ </operation>
+ <operation name="getJobAds">
+  <documentation>Service definition of function condorSchedd__getJobAds</documentation>
+  <input message="tns:getJobAdsRequest"/>
+  <output message="tns:getJobAdsResponse"/>
+ </operation>
+ <operation name="getJobAd">
+  <documentation>Service definition of function condorSchedd__getJobAd</documentation>
+  <input message="tns:getJobAdRequest"/>
+  <output message="tns:getJobAdResponse"/>
+ </operation>
+</portType>
+
+<binding name="condorScheddBinding" type="tns:condorScheddPortType">
+ <SOAP:binding style="rpc" transport="http://schemas.xmlsoap.org/soap/http"/>
+ <operation name="beginTransaction">
+  <SOAP:operation soapAction=""/>
+  <input>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </input>
+  <output>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </output>
+ </operation>
+ <operation name="commitTransaction">
+  <SOAP:operation soapAction=""/>
+  <input>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </input>
+  <output>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </output>
+ </operation>
+ <operation name="abortTransaction">
+  <SOAP:operation soapAction=""/>
+  <input>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </input>
+  <output>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </output>
+ </operation>
+ <operation name="extendTransaction">
+  <SOAP:operation soapAction=""/>
+  <input>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </input>
+  <output>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </output>
+ </operation>
+ <operation name="newCluster">
+  <SOAP:operation soapAction=""/>
+  <input>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </input>
+  <output>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </output>
+ </operation>
+ <operation name="removeCluster">
+  <SOAP:operation soapAction=""/>
+  <input>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </input>
+  <output>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </output>
+ </operation>
+ <operation name="newJob">
+  <SOAP:operation soapAction=""/>
+  <input>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </input>
+  <output>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </output>
+ </operation>
+ <operation name="removeJob">
+  <SOAP:operation soapAction=""/>
+  <input>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </input>
+  <output>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </output>
+ </operation>
+ <operation name="holdJob">
+  <SOAP:operation soapAction=""/>
+  <input>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </input>
+  <output>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </output>
+ </operation>
+ <operation name="releaseJob">
+  <SOAP:operation soapAction=""/>
+  <input>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </input>
+  <output>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </output>
+ </operation>
+ <operation name="submit">
+  <SOAP:operation soapAction=""/>
+  <input>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </input>
+  <output>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </output>
+ </operation>
+ <operation name="getJobAds">
+  <SOAP:operation soapAction=""/>
+  <input>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </input>
+  <output>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </output>
+ </operation>
+ <operation name="getJobAd">
+  <SOAP:operation soapAction=""/>
+  <input>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </input>
+  <output>
+   <SOAP:body use="encoded" namespace="urn:condor-schedd" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>
+  </output>
+ </operation>
+</binding>
+
+<service name="condorSchedd">
+ <documentation>gSOAP 2.3 rev 7 generated service definition</documentation>
+ <port name="condorSchedd" binding="tns:condorScheddBinding">
+ </port>
+</service>
+
+</definitions>

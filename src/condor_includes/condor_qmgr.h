@@ -24,6 +24,7 @@
 #define _LIBQMGR_H
 
 #include "condor_common.h"
+#include "condor_io.h"
 #include "proc.h"
 #include "../condor_c++_util/CondorError.h"
 class ClassAd;
@@ -82,7 +83,7 @@ int NewProc( int cluster_id);
 int DestroyProc(int cluster_id, int proc_id);
 /** Remove a cluster of jobs from the queue.
 */
-int DestroyCluster(int cluster_id);
+int DestroyCluster(int cluster_id, const char *reason = NULL);
 /** For all jobs in the queue for which constraint evaluates to true, set
 	attr = value.  The value should be a valid ClassAd value (strings
 	should be surrounded by quotes).
@@ -139,6 +140,10 @@ int SetAttributeString(int cluster, int proc, const char *attr,
 
 int CloseConnection();
 void BeginTransaction();
+void CommitTransaction();
+void AbortTransaction();
+void AbortTransactionAndRecomputeClusters();
+
 
 /** Get value of attr for job with specified cluster and proc.
 	@return -1 on failure; 0 on success
@@ -215,6 +220,8 @@ void WalkJobQueue(scan_func);
 void InitQmgmt();
 void InitJobQueue(const char *job_queue_name);
 void CleanJobQueue();
+bool setQSock( ReliSock* rsock );
+void unsetQSock();
 
 int rusage_to_float(struct rusage, float *, float *);
 int float_to_rusage(float, float, struct rusage *);

@@ -2560,10 +2560,10 @@ int DaemonCore::HandleReq(int socki)
 			// Now, process the Soap RPC request and dispatch it
 		dprintf(D_ALWAYS,"About to serve HTTP request...\n");
 		soap_serve(&soap); 
-		dprintf(D_ALWAYS, "Completed servicing HTTP request\n"); 
-
 		soap_destroy(&soap); // clean up class instances 
 		soap_end(&soap); // clean up everything and close socket 
+		dprintf(D_ALWAYS, "Completed servicing HTTP request\n"); 
+
 		((Sock*)stream)->_sock = INVALID_SOCKET; // so CEDAR won't close it again
 		delete stream;	// clean up CEDAR socket
 		CheckPrivState();	// Make sure we didn't leak our priv state

@@ -1138,7 +1138,8 @@ abort_job_myself( PROC_ID job_id, bool log_hold, bool notify )
 	}
 
 	mode = -1;
-	job_ad->LookupInteger(ATTR_JOB_STATUS,mode);
+	//job_ad->LookupInteger(ATTR_JOB_STATUS,mode);
+	GetAttributeInt(job_id.cluster, job_id.proc, ATTR_JOB_STATUS, &mode);
 	if ( mode == -1 ) {
 		EXCEPT("In abort_job_myself: %s attribute not found in job %d.%d\n",
 				ATTR_JOB_STATUS,job_id.cluster, job_id.proc);
@@ -7206,6 +7207,23 @@ abortJobRaw( int cluster, int proc, const char *reason )
 	job_id.cluster = cluster;
 	job_id.proc = proc;
 
+	if( reason ) {
+		MyString fixed_reason;
+		if( reason[0] == '"' ) {
+			fixed_reason += reason;
+		} else {
+			fixed_reason += '"';
+			fixed_reason += reason;
+			fixed_reason += '"';
+		}
+		if( SetAttribute(cluster, proc, ATTR_REMOVE_REASON, 
+						 fixed_reason.Value()) < 0 ) {
+			dprintf( D_ALWAYS, "WARNING: Failed to set %s to \"%s\" for "
+					 "job %d.%d\n", ATTR_REMOVE_REASON, reason, cluster,
+					 proc );
+		}
+	}
+
 	if( SetAttributeInt(cluster, proc, ATTR_JOB_STATUS, REMOVED) < 0 ) {
 		dprintf(D_ALWAYS,"Couldn't change state of job %d.%d\n",cluster,proc);
 		return false;
@@ -7213,7 +7231,8 @@ abortJobRaw( int cluster, int proc, const char *reason )
 
 	abort_job_myself( job_id, true, true );
 
-	DestroyProc(cluster,proc);
+	// TODD- remove this line?? nick investigating this bug-- 
+	// DestroyProc(cluster,proc);
 
 	dprintf(D_ALWAYS,"Job %d.%d aborted: %s\n",cluster,proc,reason);
 

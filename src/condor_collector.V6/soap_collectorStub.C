@@ -33,6 +33,8 @@
 #include "soap_collectorC.cpp"
 #include "soap_collectorServer.cpp"
 
+#include "../condor_c++_util/soap_helpers.cpp"
+
 static int receive_query_soap(int command,struct soap *s,char *constraint,
 	struct ClassAdStructArray &ads)
 {
@@ -56,122 +58,10 @@ static int receive_query_soap(int command,struct soap *s,char *constraint,
 	List<ClassAd> adList;
 	int result = CollectorDaemon::receive_query_public(command,&query_ad,&adList);
 
-	// and send fill in our soap struct response
-	ExprTree *tree, *rhs, *lhs;	
-	ClassAd *curr_ad = NULL;
-	ads.__size = adList.Number();
-	ads.__ptr = (struct ClassAdStruct *) soap_malloc(s, 
-							ads.__size * sizeof(struct ClassAdStruct));
-	adList.Rewind();
-	int ad_index = 0;
-	int attr_index = 0;
-	int num_attrs = 0;
-	bool skip_attr = false;
-	int tmpint;
-	float tmpfloat;
-	bool tmpbool;
-	char *tmpstr;
-
-	while ( (curr_ad=adList.Next()) ) 
-    {
-			// first pass: count attrs
-		num_attrs = 0;
-		curr_ad->ResetExpr();
-		while( (tree = curr_ad->NextExpr()) ) {
-			lhs = tree->LArg();
-			rhs = tree->RArg();
-			if( lhs && rhs ) { 
-				num_attrs++;
-			}
-		}
-		if ( num_attrs == 0 ) {
-			continue;
-		}
-
-			// allocate space
-		ads.__ptr[ad_index].__size = num_attrs;
-		ads.__ptr[ad_index].__ptr = (condorCore__ClassAdStructAttr *)
-				soap_malloc(s,num_attrs * sizeof(condorCore__ClassAdStructAttr));
-
-		
-			// second pass: serialize attrs
-		attr_index = 0;		
-		curr_ad->ResetExpr();
-		while( (tree = curr_ad->NextExpr()) ) {
-			rhs = tree->RArg();
-			ads.__ptr[ad_index].__ptr[attr_index].valueInt = NULL;
-			ads.__ptr[ad_index].__ptr[attr_index].valueFloat = NULL;
-			ads.__ptr[ad_index].__ptr[attr_index].valueBool = NULL;
-			ads.__ptr[ad_index].__ptr[attr_index].valueExpr = NULL;
-			skip_attr = false;
-			switch ( rhs->MyType() ) {
-			case LX_STRING:
-				ads.__ptr[ad_index].__ptr[attr_index].value = ((String*)rhs)->Value();
-				ads.__ptr[ad_index].__ptr[attr_index].type = 's';
-				break;
-			case LX_INTEGER:
-				tmpint = ((Integer*)rhs)->Value();
-				ads.__ptr[ad_index].__ptr[attr_index].value = (char*)soap_malloc(s,20);
-				snprintf(ads.__ptr[ad_index].__ptr[attr_index].value,20,"%d",tmpint);
-				ads.__ptr[ad_index].__ptr[attr_index].valueInt = (int*)soap_malloc(s,sizeof(int));
-				*(ads.__ptr[ad_index].__ptr[attr_index].valueInt) = tmpint;
-				ads.__ptr[ad_index].__ptr[attr_index].type = 'n';
-				break;
-			case LX_FLOAT:
-				tmpfloat = ((Float*)rhs)->Value();
-				ads.__ptr[ad_index].__ptr[attr_index].value = (char*)soap_malloc(s,20);
-				snprintf(ads.__ptr[ad_index].__ptr[attr_index].value,20,"%f",tmpfloat);
-				ads.__ptr[ad_index].__ptr[attr_index].valueFloat = (float*)soap_malloc(s,sizeof(float));
-				*(ads.__ptr[ad_index].__ptr[attr_index].valueFloat) = tmpfloat;
-				ads.__ptr[ad_index].__ptr[attr_index].type = 'f';
-				break;
-			case LX_BOOL:
-				tmpbool = ((ClassadBoolean*)rhs)->Value() ? true : false;
-				if ( tmpbool ) {
-					ads.__ptr[ad_index].__ptr[attr_index].value = "TRUE";
-				} else {
-					ads.__ptr[ad_index].__ptr[attr_index].value = "FALSE";
-				}
-				ads.__ptr[ad_index].__ptr[attr_index].valueBool = (bool*)soap_malloc(s,sizeof(bool));
-				*(ads.__ptr[ad_index].__ptr[attr_index].valueBool) = tmpbool;
-				ads.__ptr[ad_index].__ptr[attr_index].type = 'b';
-				break;
-			case LX_NULL:
-			case LX_UNDEFINED:
-			case LX_ERROR:
-					// if we cannot deal with this type, skip this attribute
-				skip_attr = true;
-				break;
-			default:
-					// assume everything else is some sort of expression
-				tmpstr = NULL;
-				rhs->PrintToNewStr( &tmpstr );
-				if ( !tmpstr ) {
-					skip_attr = true;
-				} else {
-					ads.__ptr[ad_index].__ptr[attr_index].value = tmpstr;
-					ads.__ptr[ad_index].__ptr[attr_index].valueExpr = tmpstr;
-					soap_link(s,(void*)tmpstr,0,1);
-					ads.__ptr[ad_index].__ptr[attr_index].type = 'x';
-				}
-				break;
-			}
-
-				// skip this attr is requested to do so...
-			if ( skip_attr ) continue;	
-
-				// serialize the attribute name, and finally increment our counter.
-			ads.__ptr[ad_index].__ptr[attr_index].name = ((Variable*)tree->LArg())->Name();
-			attr_index++;
-			ads.__ptr[ad_index].__size = attr_index;
-		}
-			
-			// loop up to serialize the next ad
-		ad_index++;		
+	// and fill in our soap struct response
+	if ( !convert_adlist_to_adStructArray(s,&adList,&ads) ) {
+		dprintf(D_ALWAYS,"receive_query_soap: convert_adlist_to_adStructArray failed!\n");
 	}
-
-	ads.__size = ad_index;
-
 	return SOAP_OK;
 }
 
@@ -224,6 +114,8 @@ int condorCollector__queryAnyAds(struct soap *s,char *constraint,
 	return receive_query_soap(command,s,constraint,ads);
 }
 
+
+// TODO : This should move into daemonCore once we figure out how we wanna link
 
 int condorCore__getPlatformString(struct soap *soap,void *,char* &result)
 {
