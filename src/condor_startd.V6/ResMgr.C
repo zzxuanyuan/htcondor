@@ -419,13 +419,13 @@ owner_state_cmp( const void* a, const void* b )
 {
 	Resource *rip1, *rip2;
 	int val1, val2;
-	rip1 = (Resource*)a;
-	rip2 = (Resource*)b;
+	rip1 = *((Resource**)a);
+	rip2 = *((Resource**)b);
 		// Since the State enum is already in the "right" order for
 		// this kind of sort, we don't need to do anything fancy, we
 		// just cast the state enum to an int and we're done.
 	val1 = (int)rip1->state();
 	val2 = (int)rip2->state();
-	return val2 - val1;
+	return val1 - val2;
 }
 
