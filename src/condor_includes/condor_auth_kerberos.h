@@ -131,7 +131,7 @@ class Condor_Auth_Kerberos : public Condor_Auth_Base {
     //------------------------------------------
     
     int map_kerberos_name(krb5_ticket * ticket);
-    int map_domain_name();
+    int map_domain_name(const char * domain);
     //------------------------------------------
     // PURPOSE: Map kerberos realm to condor uid
     // REQUIRE: A valid kerberos principal
