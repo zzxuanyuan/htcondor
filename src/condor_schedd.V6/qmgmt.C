@@ -2173,7 +2173,11 @@ int get_job_prio(ClassAd *job)
 		strcpy(owner,NiceUserName);
 		strcat(owner,".");
 	}
-    job->LookupString(ATTR_OWNER, buf);
+	buf[0] = '\0';
+	job->LookupString(ATTR_ACCOUNTING_GROUP,buf,sizeof(buf));  // TODDCORE
+	if ( buf[0] == '\0' ) {
+		job->LookupString(ATTR_OWNER, buf, sizeof(buf));  
+	}
 	strcat(owner,buf);
 		// Note, we should use this method instead of just looking up
 		// ATTR_USER directly, since that includes UidDomain, which we
@@ -2449,7 +2453,8 @@ void FindRunnableJob(PROC_ID & jobid, const ClassAd* my_match_ad,
 			constraint += strlen(constraintbuf);
 		}
 
-		sprintf(constraint, "(%s == \"%s\")", ATTR_OWNER, user);
+		sprintf(constraint, "((%s =?= \"%s\") || (%s =?= UNDEFINED && %s =?= \"%s\"))", 
+			ATTR_ACCOUNTING_GROUP,user,ATTR_ACCOUNTING_GROUP,ATTR_OWNER,user);  // TODDCORE
 
 			// OK, we're finished building the constraint now, so set
 			// the constraint pointer to the head of the string.

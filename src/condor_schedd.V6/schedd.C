@@ -924,13 +924,18 @@ count( ClassAd *job )
 	}
 
 	// calculate owner for per submittor information.
-	if (job->LookupString(ATTR_OWNER, buf) < 0) {
-		dprintf(D_ALWAYS, "Job has no %s attribute.  Ignoring...\n",
-				ATTR_OWNER);
-		if (x509userproxy != NULL) {
-			free(x509userproxy);
+	buf[0] = '\0';
+	job->LookupString(ATTR_ACCOUNTING_GROUP,buf,sizeof(buf));	// TODDCORE
+	if ( buf[0] == '\0' ) {
+		job->LookupString(ATTR_OWNER,buf,sizeof(buf));
+		if ( buf[0] == '\0' ) {	
+			dprintf(D_ALWAYS, "Job has no %s attribute.  Ignoring...\n",
+					ATTR_OWNER);
+			if (x509userproxy != NULL) {
+				free(x509userproxy);
+			}
+			return 0;
 		}
-		return 0;
 	}
 	owner = buf;
 
@@ -4149,7 +4154,7 @@ Scheduler::RequestBandwidth(int cluster, int proc, match_rec *rec)
 	char buf[256], source[100], dest[100], user[200], *str;
 	int executablesize = 0, universe = CONDOR_UNIVERSE_VANILLA, vm=1;
 
-	GetAttributeString( cluster, proc, ATTR_USER, user );
+	GetAttributeString( cluster, proc, ATTR_USER, user );	// TODDCORE 
 	sprintf(buf, "%s = \"%s\"", ATTR_USER, user );
 	request.Insert(buf);
 	sprintf(buf, "%s = 1", ATTR_FORCE);
@@ -4309,6 +4314,7 @@ Scheduler::StartJobHandler()
 		// nothing to choose on NT, there's only 1 shadow
 	shadow_path = param("SHADOW");
 	sh_is_dc = TRUE;
+	bool sh_reads_file = true;
 #else
 		// UNIX
 
