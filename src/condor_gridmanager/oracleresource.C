@@ -236,8 +236,9 @@ void OciSession::UnregisterJob( OracleJob *job )
 
 	registeredJobs->Delete( job );
 
-		// TODO: if this is last job, arrange to close session and delete
-		//   this object
+	if ( registeredJobs->IsEmpty() ) {
+		this->~OciSession();
+	}
 }
 
 int OciSession::AcquireSession( OracleJob *job, OCISvcCtx *&svc_hndl,
@@ -615,6 +616,10 @@ void OciServer::UnregisterSession( OciSession *session, const char *username )
 		SessionInactive( session );
 	}
 	sessionsByUsername.remove( username );
+
+	if ( sessionsByUsername.getNumElements() == 0 ) {
+		this->~OciServer();
+	}
 }
 
 OciSession *OciServer::FindSession( const char *username )
