@@ -78,7 +78,7 @@ char* SecMan::sec_req_rev[] = {
 };
 
 KeyCache* SecMan::enc_key_cache = NULL;
-int SecMan::enc_key_daemon_ref_count = 0;
+int SecMan::enc_key_cache_ref_count = 0;
 
 SecMan::sec_req
 SecMan::sec_alpha_to_sec_req(char *b) {
@@ -1377,16 +1377,26 @@ SecMan::ReconcileMethodLists( char * cli_methods, char * srv_methods ) {
 }
 
 
-SecMan::SecMan(int nbuckets = 101) {
-	enc_key_cache = new KeyCache(nbuckets);
+SecMan::SecMan(int nbuckets = 209) {
+	// enc_key_cache is a static member... we only
+	// want to construct it ONCE.
+	if (enc_key_cache == NULL) {
+		enc_key_cache = new KeyCache(nbuckets);
+	}
+	enc_key_cache_ref_count++;
 }
 
 
 SecMan::SecMan(const SecMan &copy) {
+	// enc_key_cache is static.  if there's a copy, it
+	// should already have been constructed.
 	assert (enc_key_cache);
+	enc_key_cache_ref_count++;
 }
 
 const SecMan & SecMan::operator=(const SecMan &copy) {
+	// enc_key_cache is static.  if there's a copy, it
+	// should already have been constructed.
 	assert (enc_key_cache);
 	return *this;
 }
@@ -1394,7 +1404,9 @@ const SecMan & SecMan::operator=(const SecMan &copy) {
 
 SecMan::~SecMan() {
 	assert (enc_key_cache);
-	// delete enc_key_cache;
+
+	// don't delete enc_key_cache - it is static!!!
+	enc_key_cache_ref_count--;
 }
 
 

@@ -71,9 +71,9 @@ public:
 	static char* sec_req_rev[];
 
 	static KeyCache* enc_key_cache;
-	static int enc_key_daemon_ref_count;
+	static int enc_key_cache_ref_count;
 
-	SecMan(int numbuckets = 101);
+	SecMan(int numbuckets = 209);
 	SecMan(const SecMan &);
 	~SecMan();
 	const SecMan & operator=(const SecMan &);
