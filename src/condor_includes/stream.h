@@ -479,8 +479,8 @@ public:
      */
     //@{
 	///
-        int snd_int(int val, int end_of_record);
-        ///
+    int snd_int(int val, int end_of_record);
+    ///
 	int rcv_int(int &val, int end_of_record);
 
         //------------------------------------------
@@ -501,7 +501,7 @@ public:
         // RETURNS: true -- on, false -- off
         //------------------------------------------
 
-	bool wrap(unsigned char* input, int input_len, 
+        bool wrap(unsigned char* input, int input_len, 
                   unsigned char*& output, int& outputlen);
         //------------------------------------------
         // PURPOSE: encrypt some data
@@ -510,7 +510,7 @@ public:
         // RETURNS: TRUE -- success, FALSE -- failure
         //------------------------------------------
 
-	bool unwrap(unsigned char* input, int input_len, 
+        bool unwrap(unsigned char* input, int input_len, 
                     unsigned char*& output, int& outputlen);
         //------------------------------------------
         // PURPOSE: decrypt some data
@@ -522,7 +522,7 @@ public:
         //----------------------------------------------------------------------
         // MAC/MD related stuff
         //----------------------------------------------------------------------
-        bool set_MD_mode(CONDOR_MD_MODE mode, KeyInfo * key = 0);    
+        bool set_MD_mode(CONDOR_MD_MODE mode, KeyInfo * key = 0, const char * keyid = 0);    
         //virtual bool set_MD_off() = 0;
         //------------------------------------------
         // PURPOSE: set mode for MAC (on or off)
@@ -533,14 +533,23 @@ public:
         // RETURNS: true -- success; false -- false
         //------------------------------------------
 
-        bool MD_is_on() { return (mdMode_ == MD_ALWAYS_ON); }
+        bool isOutgoing_MD5_on() { return (mdMode_ == MD_ALWAYS_ON); }
         //------------------------------------------
         // PURPOSE: whether MD is turned on or not
         // REQUIRE: None
         // RETURNS: true -- MD is on; 
         //          false -- MD is off
         //------------------------------------------
-        
+
+        virtual const char * isIncomingDataMD5ed() = 0;
+        //------------------------------------------
+        // PURPOSE: To check to see if incoming data
+        //          has MD5 checksum/. NOTE! Currently,
+        //          this method should be used with UDP only!
+        // REQUIRE: None
+        // RETURNS: NULL -- data does not contain MD5
+        //          key id -- if the data is checksumed
+        //------------------------------------------
     //@}
  private:
         bool initialize_crypto(KeyInfo * key);
@@ -555,7 +564,7 @@ public:
 */
 protected:
 
-        virtual bool init_MD(CONDOR_MD_MODE mode, KeyInfo * key) = 0;
+        virtual bool init_MD(CONDOR_MD_MODE mode, KeyInfo * key, const char * keyId) = 0;
         
         void resetCrypto();
 

@@ -162,11 +162,14 @@ public:
 	///
 	int isClient() { return is_client; };
 
+    const char * isIncomingDataMD5ed();
+
+
 //	PROTECTED INTERFACE TO RELIABLE SOCKS
 //
 protected:
 
-        virtual bool init_MD(CONDOR_MD_MODE mode, KeyInfo * key);
+        virtual bool init_MD(CONDOR_MD_MODE mode, KeyInfo * key, const char * keyId);
 
 	/*
 	**	Types
