@@ -57,6 +57,8 @@ class NordugridJob : public BaseJob
 	int doCommit();
 	int doStatus();
 	int doRemove();
+	int doStageIn();
+	int doStageOut();
 
 	MyString *buildSubmitRSL();
 

@@ -31,6 +31,7 @@
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
 #include "basename.h"
 #include "condor_ckpt_name.h"
+#include "nullfile.h"
 
 #include "gridmanager.h"
 #include "nordugridjob.h"
@@ -52,6 +53,8 @@
 #define GM_CLEAR_REQUEST		11
 #define GM_HOLD					12
 #define GM_PROBE_JOB			13
+#define GM_STAGE_IN				14
+#define GM_STAGE_OUT			15
 
 static char *GMStateNames[] = {
 	"GM_INIT",
@@ -67,8 +70,23 @@ static char *GMStateNames[] = {
 	"GM_DELETE",
 	"GM_CLEAR_REQUEST",
 	"GM_HOLD",
-	"GM_PROBE_JOB"
+	"GM_PROBE_JOB",
+	"GM_STAGE_IN",
+	"GM_STAGE_OUT"
 };
+
+#define TASK_IN_PROGRESS	1
+#define TASK_DONE			2
+#define TASK_FAILED			3
+
+// Filenames are case insensitive on Win32, but case sensitive on Unix
+#ifdef WIN32
+#	define file_strcmp _stricmp
+#	define file_contains contains_anycase
+#else
+#	define file_strcmp strcmp
+#	define file_contains contains
+#endif
 
 // TODO: Let the maximum submit attempts be set in the job ad or, better yet,
 // evalute PeriodicHold expression in job ad.
@@ -109,16 +127,19 @@ void NordugridJobReconfig()
 
 bool NordugridJobAdMatch( const ClassAd *jobad )
 {
+	bool rc = false;
 	int universe;
-	if ( jobad->LookupInteger( ATTR_JOB_UNIVERSE, universe ) == 0 ||
-		 universe != CONDOR_UNIVERSE_GLOBUS ||
-		 jobad->LookupBool( "NordugridJob", universe ) == 0 ) {
-dprintf(D_FULLDEBUG,"***NordugridJobAdMatch returning false\n");
-		return false;
-	} else {
-dprintf(D_FULLDEBUG,"***NordugridJobAdMatch returning true\n");
-		return true;
+	char *sub_universe = NULL;
+	if ( jobad->LookupInteger( ATTR_JOB_UNIVERSE, universe ) == 1 &&
+		 universe == CONDOR_UNIVERSE_GLOBUS ) {
+		if ( jobad->LookupString( "SubUniverse", &sub_universe ) == 1 ) {
+			if ( stricmp( sub_universe, "nordugrid" ) == 0 ) {
+				rc = true;
+			}
+			free( sub_universe );
+		}
 	}
+	return rc;
 }
 
 bool NordugridJobAdMustExpand( const ClassAd *jobad )
@@ -135,7 +156,7 @@ BaseJob *NordugridJobCreate( ClassAd *jobad )
 	return (BaseJob *)new NordugridJob( jobad );
 }
 
-int NordugridJob::probeInterval = 300;		// default value
+int NordugridJob::probeInterval = 300;	// default value
 int NordugridJob::submitInterval = 300;	// default value
 
 NordugridJob::NordugridJob( ClassAd *classad )
@@ -154,7 +175,7 @@ NordugridJob::NordugridJob( ClassAd *classad )
 	resourceManagerString = NULL;
 	ftp_srvr = NULL;
 
-	// In GM_HOLD, we assme HoldReason to be set only if we set it, so make
+	// In GM_HOLD, we assume HoldReason to be set only if we set it, so make
 	// sure it's unset when we start.
 	if ( ad->LookupString( ATTR_HOLD_REASON, NULL, 0 ) != 0 ) {
 		UpdateJobAd( ATTR_HOLD_REASON, "UNDEFINED" );
@@ -299,7 +320,7 @@ int NordugridJob::doEvaluateState()
 			} else {
 				rc = doCommit();
 				if ( rc >= 0 ) {
-					gmState = GM_SUBMITTED;
+					gmState = GM_STAGE_IN;
 				} else {
 					dprintf(D_ALWAYS,"(%d.%d) job commit failed!\n",
 							procID.cluster, procID.proc);
@@ -307,9 +328,21 @@ int NordugridJob::doEvaluateState()
 				}
 			}
 			} break;
+		case GM_STAGE_IN: {
+			rc = doStageIn();
+			if ( rc == TASK_IN_PROGRESS ) {
+				break;
+			} else if ( rc == TASK_FAILED ) {
+				dprintf( D_ALWAYS, "(%d.%d) file stage in failed!\n",
+						 procID.cluster, procID.proc );
+				gmState = GM_CANCEL;
+			} else {
+				gmState = GM_SUBMITTED;
+			}
+			} break;
 		case GM_SUBMITTED: {
 			if ( condorState == COMPLETED ) {
-					gmState = GM_DONE_SAVE;
+					gmState = GM_STAGE_OUT;
 			} else if ( condorState == REMOVED || condorState == HELD ) {
 				gmState = GM_CANCEL;
 			} else {
@@ -355,6 +388,18 @@ int NordugridJob::doEvaluateState()
 				}
 				lastProbeTime = now;
 				gmState = GM_SUBMITTED;
+			}
+			} break;
+		case GM_STAGE_OUT: {
+			rc = doStageOut();
+			if ( rc == TASK_IN_PROGRESS ) {
+				break;
+			} else if ( rc == TASK_FAILED ) {
+				dprintf( D_ALWAYS, "(%d.%d) file stage out failed!\n",
+						 procID.cluster, procID.proc );
+				gmState = GM_CANCEL;
+			} else {
+				gmState = GM_DONE_SAVE;
 			}
 			} break;
 		case GM_DONE_SAVE: {
@@ -741,7 +786,6 @@ int NordugridJob::doStatus()
 	ftp_lite_close( ftp_srvr );
 	ftp_srvr = NULL;
 
-dprintf(D_FULLDEBUG,"*** job status is '%s'\n",status_buff);
 	if ( strncmp( status_buff, "ACCEPTED\n", status_len ) == 0 ||
 		 strncmp( status_buff, "PREPARING\n", status_len ) == 0 ||
 		 strncmp( status_buff, "SUBMITTING\n", status_len ) == 0 ||
@@ -822,15 +866,309 @@ dprintf(D_FULLDEBUG,"*** failure: %s\n",errorString.Value());
 	return -1;
 }
 
+int NordugridJob::doStageIn()
+{
+	static StringList *stage_list = NULL;
+	FILE *curr_file_fp = NULL;
+	FILE *curr_ftp_fp = NULL;
+	char *curr_filename = NULL;
+	static char *iwd = NULL;
+
+	if ( stage_list == NULL ) {
+		char *buf = NULL;
+		int transfer_exec = TRUE;
+
+		ad->LookupString( ATTR_TRANSFER_INPUT_FILES, &buf );
+		stage_list = new StringList( buf, "," );
+		if ( buf != NULL ) {
+			free( buf );
+		}
+
+		ad->LookupBool( ATTR_TRANSFER_EXECUTABLE, transfer_exec );
+		if ( transfer_exec ) {
+			ad->LookupString( ATTR_JOB_CMD, &buf );
+			if ( !stage_list->file_contains( buf ) ) {
+				stage_list->append( buf );
+			}
+			free( buf );
+		}
+
+		if ( ad->LookupString( ATTR_JOB_INPUT, &buf ) == 1) {
+			// only add to list if not NULL_FILE (i.e. /dev/null)
+			if ( ! nullFile(buf) ) {
+				if ( !stage_list->file_contains( buf ) ) {
+					stage_list->append( buf );			
+				}
+			}
+			free( buf );
+		}
+
+		stage_list->rewind();
+	}
+
+	if ( iwd == NULL ) {
+		if ( ad->LookupString( ATTR_JOB_IWD, &iwd ) != 1 ) {
+			errorString = "ATTR_JOB_IWD not defined";
+			goto doStageIn_error_exit;
+		}
+	}
+
+	if ( ftp_srvr == NULL ) {
+
+		MyString buff;
+
+		ftp_srvr = ftp_lite_open( resourceManagerString, 2811, NULL );
+		if ( ftp_srvr == NULL ) {
+			errorString = "ftp_lite_open() failed";
+			goto doStageIn_error_exit;
+		}
+
+		if ( ftp_lite_auth_globus( ftp_srvr ) == 0 ) {
+			errorString = "ftp_lite_auth_globus() failed";
+			goto doStageIn_error_exit;
+		}
+
+		buff.sprintf( "/jobs/%s", remoteJobId );
+		if ( ftp_lite_change_dir( ftp_srvr, buff.Value() ) == 0 ) {
+			errorString = "ftp_lite_change_dir() failed";
+			goto doStageIn_error_exit;
+		}
+
+	}
+
+	curr_filename = stage_list->next();
+
+	if ( curr_filename != NULL ) {
+
+		MyString full_filename;
+		if ( curr_filename[0] != DIR_DELIM_CHAR ) {
+			full_filename.sprintf( "%s%c%s", iwd, DIR_DELIM_CHAR,
+								   curr_filename );
+		} else {
+			full_filename = curr_filename;
+		}
+		curr_file_fp = fopen( full_filename.Value(), "r" );
+		if ( curr_file_fp == NULL ) {
+			errorString = "fopen failed";
+			goto doStageIn_error_exit;
+		}
+
+		curr_ftp_fp = ftp_lite_put( ftp_srvr, basename(curr_filename), 0,
+									FTP_LITE_WHOLE_FILE );
+		if ( curr_ftp_fp == NULL ) {
+			errorString = "ftp_lite_put() failed";
+			goto doStageIn_error_exit;
+		}
+
+		if ( ftp_lite_stream_to_stream( curr_file_fp, curr_ftp_fp ) == -1 ) {
+			errorString = "ftp_lite_stream_to_stream failed";
+			goto doStageIn_error_exit;
+		}
+
+		fclose( curr_file_fp );
+		curr_file_fp = NULL;
+
+		fclose( curr_ftp_fp );
+		curr_ftp_fp = NULL;
+
+		if ( ftp_lite_done( ftp_srvr ) == 0 ) {
+			errorString = "ftp_lite_done() failed";
+			goto doStageIn_error_exit;
+		}
+
+		SetEvaluateState();
+		return TASK_IN_PROGRESS;
+	}
+
+	ftp_lite_close( ftp_srvr );
+	ftp_srvr = NULL;
+
+	free( iwd );
+	iwd = NULL;
+
+	delete stage_list;
+	stage_list = NULL;
+
+	return TASK_DONE;
+
+ doStageIn_error_exit:
+	if ( curr_file_fp != NULL ) {
+		fclose( curr_file_fp );
+	}
+	if ( curr_ftp_fp != NULL ) {
+		fclose( curr_ftp_fp );
+	}
+	if ( ftp_srvr != NULL ) {
+		ftp_lite_close( ftp_srvr );
+		ftp_srvr = NULL;
+	}
+	if ( iwd != NULL ) {
+		free( iwd );
+		iwd = NULL;
+	}
+	if ( stage_list != NULL ) {
+		delete stage_list;
+		stage_list = NULL;
+	}
+	return TASK_FAILED;
+}
+
+int NordugridJob::doStageOut()
+{
+	static StringList *stage_list = NULL;
+	FILE *curr_file_fp = NULL;
+	FILE *curr_ftp_fp = NULL;
+	char *curr_filename = NULL;
+	static char *iwd = NULL;
+
+	if ( stage_list == NULL ) {
+		char *buf = NULL;
+
+		ad->LookupString( ATTR_TRANSFER_OUTPUT_FILES, &buf );
+		stage_list = new StringList( buf, "," );
+		if ( buf != NULL ) {
+			free( buf );
+		}
+
+		if ( ad->LookupString( ATTR_JOB_OUTPUT, &buf ) == 1) {
+			// only add to list if not NULL_FILE (i.e. /dev/null)
+			if ( ! nullFile(buf) ) {
+				if ( !stage_list->file_contains( buf ) ) {
+					stage_list->append( buf );			
+				}
+			}
+			free( buf );
+		}
+
+		if ( ad->LookupString( ATTR_JOB_ERROR, &buf ) == 1) {
+			// only add to list if not NULL_FILE (i.e. /dev/null)
+			if ( ! nullFile(buf) ) {
+				if ( !stage_list->file_contains( buf ) ) {
+					stage_list->append( buf );			
+				}
+			}
+			free( buf );
+		}
+
+		stage_list->rewind();
+	}
+
+	if ( iwd == NULL ) {
+		if ( ad->LookupString( ATTR_JOB_IWD, &iwd ) != 1 ) {
+			errorString = "ATTR_JOB_IWD not defined";
+			goto doStageOut_error_exit;
+		}
+	}
+
+	if ( ftp_srvr == NULL ) {
+
+		MyString buff;
+
+		ftp_srvr = ftp_lite_open( resourceManagerString, 2811, NULL );
+		if ( ftp_srvr == NULL ) {
+			errorString = "ftp_lite_open() failed";
+			goto doStageOut_error_exit;
+		}
+
+		if ( ftp_lite_auth_globus( ftp_srvr ) == 0 ) {
+			errorString = "ftp_lite_auth_globus() failed";
+			goto doStageOut_error_exit;
+		}
+
+		buff.sprintf( "/jobs/%s", remoteJobId );
+		if ( ftp_lite_change_dir( ftp_srvr, buff.Value() ) == 0 ) {
+			errorString = "ftp_lite_change_dir() failed";
+			goto doStageOut_error_exit;
+		}
+
+	}
+
+	curr_filename = stage_list->next();
+
+	if ( curr_filename != NULL ) {
+
+		MyString full_filename;
+		if ( curr_filename[0] != DIR_DELIM_CHAR ) {
+			full_filename.sprintf( "%s%c%s", iwd, DIR_DELIM_CHAR,
+								   curr_filename );
+		} else {
+			full_filename = curr_filename;
+		}
+		curr_file_fp = fopen( full_filename.Value(), "w" );
+		if ( curr_file_fp == NULL ) {
+			errorString = "fopen failed";
+			goto doStageOut_error_exit;
+		}
+
+		curr_ftp_fp = ftp_lite_get( ftp_srvr, basename(curr_filename), 0 );
+		if ( curr_ftp_fp == NULL ) {
+			errorString = "ftp_lite_put() failed";
+			goto doStageOut_error_exit;
+		}
+
+		if ( ftp_lite_stream_to_stream( curr_ftp_fp, curr_file_fp ) == -1 ) {
+			errorString = "ftp_lite_stream_to_stream failed";
+			goto doStageOut_error_exit;
+		}
+
+		fclose( curr_file_fp );
+		curr_file_fp = NULL;
+
+		fclose( curr_ftp_fp );
+		curr_ftp_fp = NULL;
+
+		if ( ftp_lite_done( ftp_srvr ) == 0 ) {
+			errorString = "ftp_lite_done() failed";
+			goto doStageOut_error_exit;
+		}
+
+		SetEvaluateState();
+		return TASK_IN_PROGRESS;
+	}
+
+	ftp_lite_close( ftp_srvr );
+	ftp_srvr = NULL;
+
+	free( iwd );
+	iwd = NULL;
+
+	delete stage_list;
+	stage_list = NULL;
+
+	return TASK_DONE;
+
+ doStageOut_error_exit:
+	if ( curr_file_fp != NULL ) {
+		fclose( curr_file_fp );
+	}
+	if ( curr_ftp_fp != NULL ) {
+		fclose( curr_ftp_fp );
+	}
+	if ( ftp_srvr != NULL ) {
+		ftp_lite_close( ftp_srvr );
+		ftp_srvr = NULL;
+	}
+	if ( iwd != NULL ) {
+		free( iwd );
+		iwd = NULL;
+	}
+	if ( stage_list != NULL ) {
+		delete stage_list;
+		stage_list = NULL;
+	}
+	return TASK_FAILED;
+}
+
 MyString *NordugridJob::buildSubmitRSL()
 {
-	int transfer;
+	int transfer_exec = TRUE;
 	MyString *rsl = new MyString;
-	MyString iwd = "";
-	MyString riwd = "";
 	MyString buff;
+	StringList stage_list( NULL, "," );
 	char *attr_value = NULL;
 	char *rsl_suffix = NULL;
+	char *iwd = NULL;
+	char *executable = NULL;
 
 	if ( ad->LookupString( ATTR_GLOBUS_RSL, &rsl_suffix ) &&
 						   rsl_suffix[0] == '&' ) {
@@ -839,27 +1177,29 @@ MyString *NordugridJob::buildSubmitRSL()
 		return rsl;
 	}
 
-	if ( ad->LookupString(ATTR_JOB_IWD, &attr_value) && *attr_value ) {
-		iwd = attr_value;
-		int len = strlen(attr_value);
-		if ( len > 1 && attr_value[len - 1] != '/' ) {
-			iwd += '/';
+	if ( ad->LookupString( ATTR_JOB_IWD, &iwd ) != 1 ) {
+		errorString = "ATTR_JOB_IWD not defined";
+		if ( rsl_suffix != NULL ) {
+			free( rsl_suffix );
 		}
-	} else {
-		iwd = "/";
-	}
-	if ( attr_value != NULL ) {
-		free( attr_value );
-		attr_value = NULL;
+		return NULL;
 	}
 
 	//Start off the RSL
 	rsl->sprintf( "&(savestate=yes)(action=request)(lrmstype=pbs)(hostname=nostos.cs.wisc.edu)(gmlog=job.log)" );
 
 	//We're assuming all job clasads have a command attribute
-	ad->LookupString( ATTR_JOB_CMD, &attr_value );
+	ad->LookupString( ATTR_JOB_CMD, &executable );
+	ad->LookupBool( ATTR_TRANSFER_EXECUTABLE, transfer_exec );
+
 	*rsl += "(arguments=";
-	*rsl += attr_value;
+	// If we're transferring the executable, strip off the path for the
+	// remote machine, since it refers to the submit machine.
+	if ( transfer_exec ) {
+		*rsl += basename( attr_value );
+	} else {
+		*rsl += attr_value;
+	}
 	free( attr_value );
 	if ( ad->LookupString(ATTR_JOB_ARGUMENTS, &attr_value) && *attr_value ) {
 		*rsl += " ";
@@ -870,12 +1210,108 @@ MyString *NordugridJob::buildSubmitRSL()
 		attr_value = NULL;
 	}
 
+	// If we're transferring the executable, tell Nordugrid to set the
+	// execute bit on the transferred executable.
+	if ( transfer_exec ) {
+		*rsl += ")(excutables=";
+		*rsl += basename( executable );
+	}
+
+	ad->LookupString( ATTR_TRANSFER_INPUT_FILES, &attr_value );
+	if ( attr_value != NULL ) {
+		stage_list.initializeFromString( attr_value );
+		free( attr_value );
+		attr_value = NULL;
+	}
+
+	if ( ad->LookupString( ATTR_JOB_INPUT, &attr_value ) == 1) {
+		// only add to list if not NULL_FILE (i.e. /dev/null)
+		if ( ! nullFile(attr_value) ) {
+			*rsl += ")(stdin=";
+			*rsl += basename(attr_value);
+			if ( !stage_list.file_contains( attr_value ) ) {
+				stage_list.append( attr_value );
+			}
+		}
+		free( attr_value );
+		attr_value = NULL;
+	}
+
+	if ( transfer_exec ) {
+		if ( !stage_list.file_contains( executable ) ) {
+			stage_list.append( executable );
+		}
+	}
+
+	if ( stage_list.isEmpty() == false ) {
+		char *file;
+		stage_list.rewind();
+
+		*rsl += ")(inputfiles=";
+
+		while ( (file = stage_list.next()) != NULL ) {
+			*rsl += "(";
+			*rsl += basename(file);
+			*rsl += " \"\")";
+		}
+	}
+
+	ad->LookupString( ATTR_TRANSFER_OUTPUT_FILES, &attr_value );
+	if ( attr_value != NULL ) {
+		stage_list.initializeFromString( attr_value );
+		free( attr_value );
+		attr_value = NULL;
+	} else {
+		stage_list.initializeFromString( "" );
+	}
+
+	if ( ad->LookupString( ATTR_JOB_OUTPUT, &attr_value ) == 1) {
+		// only add to list if not NULL_FILE (i.e. /dev/null)
+		if ( ! nullFile(attr_value) ) {
+			*rsl += ")(stdout=";
+			*rsl += basename(attr_value);
+			if ( !stage_list.file_contains( attr_value ) ) {
+				stage_list.append( attr_value );
+			}
+		}
+		free( attr_value );
+		attr_value = NULL;
+	}
+
+	if ( ad->LookupString( ATTR_JOB_ERROR, &attr_value ) == 1) {
+		// only add to list if not NULL_FILE (i.e. /dev/null)
+		if ( ! nullFile(attr_value) ) {
+			*rsl += ")(stderr=";
+			*rsl += basename(attr_value);
+			if ( !stage_list.file_contains( attr_value ) ) {
+				stage_list.append( attr_value );
+			}
+		}
+		free( attr_value );
+	}
+
+	if ( stage_list.isEmpty() == false ) {
+		char *file;
+		stage_list.rewind();
+
+		*rsl += ")(outputfiles=";
+
+		while ( (file = stage_list.next()) != NULL ) {
+			*rsl += "(";
+			*rsl += basename(file);
+			*rsl += " \"\")";
+		}
+	}
+
 	*rsl += ')';
 
 	if ( rsl_suffix != NULL ) {
 		*rsl += rsl_suffix;
 		free( rsl_suffix );
 	}
+
+	free( executable );
+	free( iwd );
 
 dprintf(D_FULLDEBUG,"*** RSL='%s'\n",rsl->Value());
 	return rsl;
