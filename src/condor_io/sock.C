@@ -43,12 +43,61 @@ Sock::Sock() : Stream() {
 	_sock = INVALID_SOCKET;
 	_state = sock_virgin;
 	_timeout = 0;
-	_masqProxIP = 0;
-	_masqProxPort = 0;
 	connect_state.host = NULL;
 	memset(&_who, 0, sizeof(struct sockaddr_in));
 	memset(&_endpoint_ip_buf, 0, _ENDPOINT_BUF_SIZE);
+
+	_lip = 0;
+	_lport = 0;
+
+	/* port forwarding */
+		// check if I have a masquerading server to set forwarding rule
+		// get (ip-addr, port #) to which this sock is bound
+		// create a socket and make it passive so that masq server can connect to it
+	char masqServer[50];
+	unsigned short masqPort;
+	if (getMasqServer (masqServer, &masqPort) == TRUE) {
+		struct sockaddr_in myName;
+		unsigned int masqIP;
+		memset (&_masqServer, 0, sizeof (struct sockaddr_in));
+		_masqServer.sin_family = AF_INET;
+		struct in_addr inp;
+		if ( inet_aton(masqServer, &inp) ) {
+			masqIP = inp.s_addr;
+			memcpy(&_masqServer.sin_addr.s_addr, &masqIP, sizeof(masqIP));
+		} else {
+			struct hostent *mngerEnt = gethostbyname(masqServer);
+			if(!mngerEnt) {
+				EXCEPT("Sock::Sock - could not get hostent");
+			}
+			memcpy(&_masqServer.sin_addr.s_addr, mngerEnt->h_addr_list[0], mngerEnt->h_length);
+		}
+		unsigned short nport = htons(masqPort);
+		memcpy(&_masqServer.sin_port, &nport, sizeof(short));
+
+		// create the masq socket
+		_msock = socket (AF_INET, SOCK_STREAM, 0);
+		if (_msock <= 0) {
+			EXCEPT ("Sock::Sock - socket creation failed");
+		}
+		// bind the masq socket and initialize _mport
+		if (_condor_bind(_msock, 0) != TRUE) {
+			EXCEPT ("Sock::Sock - _msock bind failed:");
+		}
+		_mport = sock_to_port (_msock);
+		if (_mport == 0) {
+			EXCEPT ("Sock::Sock - sock_to_port failed");
+		}
+		// make it passive
+		if (listen(_msock, 5)) {
+			EXCEPT ("Sock::Sock - listen failed");
+		}
+	} else {
+		_msock = 0;
+		_mport = 0;
+	}
 }
+
 
 Sock::Sock(const Sock & orig) : Stream() {
 
@@ -56,8 +105,6 @@ Sock::Sock(const Sock & orig) : Stream() {
 	_sock = INVALID_SOCKET;
 	_state = sock_virgin;
 	_timeout = 0;
-	_masqProxIP = 0;
-	_masqProxPort = 0;
 	connect_state.host = NULL;
 	memset( &_who, 0, sizeof( struct sockaddr_in ) );
 	memset(	&_endpoint_ip_buf, 0, _ENDPOINT_BUF_SIZE );
@@ -95,9 +142,37 @@ Sock::Sock(const Sock & orig) : Stream() {
 #endif
 }
 
+int inline
+Sock::deleteFWrule()
+{
+	char proto[10];
+	switch(type()) {
+		case safe_sock:
+			strcpy(proto, UDP);
+			break;
+		case reli_sock:
+			strcpy(proto, TCP);
+			break;
+		default:
+			assert(0);
+	}
+	int ret = setFWrule (_masqServer, DELETE, proto, _lip, _lport, NULL, NULL, _mport);
+	if ( ret != SUCCESS) {
+		dprintf (D_ALWAYS, "Sock::deleteFWrule deleting fw rule failed\n");
+		dprintf (D_ALWAYS, "\t - errcode: %d\n", ret);
+		return FALSE;
+	}
+	_lip = _lport = 0;
+	return TRUE;
+}
+
 Sock::~Sock()
 {
 	if ( connect_state.host ) free(connect_state.host);
+
+	if (_lip != 0) {
+		(void) deleteFWrule();
+	}
 }
 
 #if defined(WIN32)
@@ -324,9 +399,6 @@ int Sock::assign(SOCKET sockd)
 
 int Sock::bind(int port)
 {
-	sockaddr_in		sin;
-	unsigned int	addrLen = sizeof(sockaddr_in);
-	
 	// Following lines are added because some functions in condor call
 	// this method without checking the port numbers returned from
 	// such as 'getportbyserv'
@@ -340,35 +412,22 @@ int Sock::bind(int port)
 		return FALSE;
 	}
 
-	// If 'port' equals 0 and if we have 'LOWPORT' and 'HIGHPORT' defined
-	// in the config file for security, we will bind this Sock to one of
-	// the port within the range defined by these variables rather than
-	// an arbitrary free port. /* 07/27/2000 - sschang */
-	int lowPort, highPort;
-	if ( port == 0 && get_port_range(&lowPort, &highPort) == TRUE ) {
-		if ( bindWithin(_sock, lowPort, highPort) == TRUE ) {
-			_state = sock_bound;
-			return TRUE;
-		} else return FALSE;
-	}
-	// end of insertion /* 07/27/2000 - sschang */
-
-	memset(&sin, 0, sizeof(sockaddr_in));
-	sin.sin_family = AF_INET;
-	sin.sin_addr.s_addr = htonl(my_ip_addr());
-	sin.sin_port = htons((u_short)port);
-
-	if (::bind(_sock, (sockaddr *)&sin, addrLen) < 0) {
-#ifdef WIN32
-		int error = WSAGetLastError();
-		dprintf( D_ALWAYS, "bind failed: WSAError = %d\n", error );
-#else
-		dprintf(D_NETWORK, "bind failed errno = %d\n", errno);
-#endif
+	if (_condor_bind(_sock, (unsigned short)port) != TRUE) {
+		dprintf(D_ALWAYS, "Sock::bind - _condor_bind(%d, %u) failed\n", _sock, port);
 		return FALSE;
 	}
-
 	_state = sock_bound;
+
+	// Initialize _myIP and _myPort which have been added for port forwarding
+	sockaddr_in		sin;
+	unsigned int addrLen = sizeof(sin);
+	if (getsockname(_sock, (struct sockaddr *)&sin, &addrLen)) {
+		char err[100];
+		sprintf (err, "Sock::bind - getsockname failed: %s", strerror(errno));
+		EXCEPT (err);
+	}
+	_myIP = sin.sin_addr.s_addr;
+	_myPort = sin.sin_port;
 
 	// Make certain SO_LINGER is Off.  This will result in the default
 	// of closesocket returning immediately and the system attempts to 
@@ -382,53 +441,26 @@ int Sock::bind(int port)
 	}
 
 	/* set port forwarding rule */
-		// check if I have a masquerading server to set forwarding rule
-		// get (ip-addr, port #) to which this sock is bound
-		// set port forwarding rule and get proxy's (ip-addr, port #)
-		// do something so that proxy's (ip-addr, port) get advertized
-	char masqServer[50];
-	int masqPort;
-	if (getMasqServer (masqServer, &masqPort) == TRUE) {
-		struct sockaddr_in myName;
-		unsigned long masqIP;
-		memset (&_masqServer, 0, sizeof (struct sockaddr_in));
-		_masqServer.sin_family = AF_INET;
-		if((masqIP = inet_addr(masqServer)) != (unsigned)-1) {
-			memcpy(&_masqServer.sin_addr, &masqIP, sizeof(masqIP));
-		} else {
-			struct hostent *mngerEnt = gethostbyname(masqServer);
-			if(!mngerEnt) {
-				dprintf(D_ALWAYS, "Sock::bind - could not get hostent using %s\n", masqServer);
-				return FALSE;
-			}
-			memcpy(&_masqServer.sin_addr, mngerEnt->h_addr_list[0], mngerEnt->h_length);
-		}
-
-		unsigned mLen;
-		if (getsockname (_sock, (struct sockaddr *)&myName, &mLen) < 0) {
-			dprintf (D_ALWAYS, "Sock::bind - getsockname failed: %s\n", strerror(errno));
-			return FALSE;
-		}
-		unsigned int proxyIP;
-	   	unsigned short proxyPort;
+	if (_msock != 0) {
+		// if this machine is behind the firewall
 		char proto[10];
-		if ( type() == reli_sock ) {
-			strcpy (proto, TCP);
-		} else {
-			strcpy (proto, UDP);
+		switch(type()) {
+			case reli_sock:
+				strcpy(proto, TCP);
+				break;
+			case safe_sock:
+				strcpy(proto, UDP);
+				break;
+			default:
+				assert(0);
 		}
-		if (setFWrule (_masqServer, ADD, proto,
-					myName.sin_addr.s_addr, myName.sin_port,
-					&proxyIP, &proxyPort) != TRUE)
-		{
-			dprintf (D_ALWAYS, "Sock::bind - setFWrule failed\n");
+		int ret = setFWrule(_masqServer, ADD, proto, _myIP, _myPort, &_lip, &_lport, _mport);
+		if (ret != SUCCESS) {
+			dprintf (D_ALWAYS, "Sock::bind adding fw rule failed\n");
+			dprintf (D_ALWAYS, "\t - errcode: %d\n", ret);
 			return FALSE;
 		}
-		// do something
-		_masqProxIP = proxyIP;
-		_masqProxPort = proxyPort;
 	}
-
 	return TRUE;
 }
 
@@ -664,29 +696,52 @@ bool Sock::do_connect_tryit()
 {
 	// If this Sock is behind Linux NAT proxy, query if _who is port
 	// forwarded address too and connect, if yes, to the original address directly
-	if (_masqProxIP != 0 && _masqProxPort != 0) {
-		unsigned int l_ip;
-	   	unsigned short l_port;
+	if (_msock != 0) {
 		char proto[10];
-		if (type () == reli_sock) {
-			strcpy (proto, TCP);
-		} else {
-			strcpy (proto, UDP);
+		switch(type()) {
+			case safe_sock:
+				strcpy(proto, UDP);
+				break;
+			case reli_sock:
+				strcpy(proto, TCP);
+				break;
+			default:
+				assert(0);
 		}
-		if (setFWrule (_masqServer, QUERY, proto,
-					_who.sin_addr.s_addr, _who.sin_port,
-					&l_ip, &l_port) != TRUE)
-		{
-			dprintf (D_ALWAYS, "Sock::do_connect_tryit - setFWrule failed\n");
+		unsigned int lip;
+		unsigned short lport;
+		int ret = setFWrule(_masqServer, QUERY, proto, _who.sin_addr.s_addr,
+							_who.sin_port, &lip, &lport, _mport);
+		if (ret == SUCCESS) {
+			dprintf (D_NETWORK, "Sock::do_connect_tryit - peer is behind the firewall.\n");
+		   	dprintf (D_NETWORK, "\tConnecting through Masq Server...\n");
+			_who.sin_addr.s_addr = lip;
+			_who.sin_port = lport;
+		} else if (ret == NOT_FOUND) {
+			dprintf (D_NETWORK, "Sock::do_connect_tryit - peer is NOT behind the firewall.\n");
+		   	dprintf (D_NETWORK, "\tConnecting to the peer directly...\n");
+		} else {
+			dprintf (D_ALWAYS, "Sock::do_connect_tryit querying fw rule failed\n");
+			dprintf (D_ALWAYS, "\t - errcode: %d\n", ret);
 			return FALSE;
-		} else if (l_ip != 0 && l_port != 0) {
-			_who.sin_addr.s_addr = l_ip;
-			_who.sin_port = l_port;
+		}
+		if (_lip != 0) {
+			ret = setFWrule (_masqServer, DELETE, proto, _lip, _lport, NULL, NULL, _mport);
+			if ( ret != SUCCESS)
+			{
+				dprintf (D_ALWAYS, "Sock::do_connect_tryit deleting fw rule failed\n");
+				dprintf (D_ALWAYS, "\t - errcode: %d\n", ret);
+				return FALSE;
+			}
+			_lip = _lport = 0;
 		}
 	}
 
 	if (::connect(_sock, (sockaddr *)&_who, sizeof(sockaddr_in)) == 0) {
 		_state = sock_connect;
+#ifdef MYDEBUG
+		cout << "Connected to " << sin_to_string(&_who) << endl;
+#endif
 		dprintf( D_NETWORK, "CONNECT %s ", sock_to_string(_sock) );
 		dprintf( D_NETWORK|D_NOHEADER, "%s\n", sin_to_string(&_who) );
 		if ( connect_state.non_blocking_flag ) {
@@ -794,21 +849,9 @@ int Sock::close()
 {
 	if (_state == sock_virgin) return FALSE;
 
-	// If this Sock is behind Linux NAT proxy, unset port forwarding rule
-	if (_masqProxIP != 0 && _masqProxPort != 0) {
-		unsigned int l_ip;
-	   	unsigned short l_port;
-		char proto[10];
-		if ( type() == reli_sock ) {
-			strcpy (proto, TCP);
-		} else {
-			strcpy (proto, UDP);
-		}
-		if (setFWrule (_masqServer, DELETED, proto,
-					_masqProxIP, _masqProxPort,
-					&l_ip, &l_port) != TRUE)
-		{
-			dprintf (D_ALWAYS, "Sock::close - setFWrule failed\n");
+	// port forwarding rule has been setup for this socket, so delete it
+	if (_lip != 0) {
+		if (deleteFWrule() != TRUE) {
 			return FALSE;
 		}
 	}

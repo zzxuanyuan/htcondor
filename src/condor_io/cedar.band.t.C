@@ -24,7 +24,6 @@
 
 long k = 0;
 
-
 int main(int argc, char *argv[])
 {
     unsigned long total = 0;
@@ -61,12 +60,17 @@ int main(int argc, char *argv[])
 	cout << "(9) Exit" << endl;
 	cout << "Select: ";
 	cin >> op;
+	cout << "number of iteration: ";
+	cin >> iterations;
 
 	switch(op) {
 		case 1: // Server
 			cout << "Port: ";
 			cin >> port;
-			listenSock.listen(port);
+			if (listenSock.listen(port) != TRUE) {
+				cerr << "listenSock.listen failed\n";
+				exit(1);
+			}
 			socket = listenSock.accept();
             if (!socket) {
                 cerr << "Accept failed\n";
@@ -74,12 +78,15 @@ int main(int argc, char *argv[])
             }
 			cout << "connected to a client" << endl;
             //socket->timeout(5);
-			while(true) {
-				socket->decode();
-				socket->code(charString);
-				socket->end_of_message();
-                //if(interval > 0)
-                    //sleep(interval);
+			for(int i=0; i<iterations; i++) {
+				for(int j=0; j<iterations; j++) {
+					for(int k=0; k<iterations; k++) {
+						socket->decode();
+						cout << "Reading... (" << i << " " << j << " " << k << ")\n";
+						socket->code(charString);
+						socket->end_of_message();
+					}
+				}
 			}
 			break;
 		case 2: // Client
@@ -98,42 +105,39 @@ int main(int argc, char *argv[])
 			cin >> port;
             cout << "pause between sends(msec): ";
             cin >> interval;
-			cout << "number of iteration: ";
-			cin >> iterations;
 			result = clientSock.connect(serverName, port);
 			if(result != TRUE) {
 				cout << "Connection failed\n";
 				exit(-1);
 			}
 			cout << "Connected to [" << serverName<< ", " << SERVER_PORT << "]\n";
-			cout << "====================================\n";
-			cout << "iterations: " << iterations << endl;
-			cout << "====================================\n";
             //clientSock.timeout(5);
             (void) time(&prev);
-			for (int i=0; i<iterations; i++) {
-			for (int j=0; j<iterations; j++) {
-			for (int k=0; k<iterations; k++) {
-                struct timeval timer;
+			for(int i=0; i<iterations; i++) {
+				for(int j=0; j<iterations; j++) {
+					for(int k=0; k<iterations; k++) {
+                		struct timeval timer;
 
-				clientSock.encode();
-				clientSock.code(charString);
-				clientSock.end_of_message();
-                total += 200000;
-                if(interval > 0) {
-                    // Sleep for few milli seconds
-                    timer.tv_sec = 0;
-                    timer.tv_usec = interval*1000;
-                    (void) select( 5, NULL, NULL, NULL, &timer );
-                }
-                (void) time(&cur);
-                elapsed = cur - prev;
-                if(elapsed >= 5) {
-                    cerr << cur << " " << total << endl;
-                    prev += 5;
-                    total = 0;
-                }
-			}}}
+						clientSock.encode();
+						clientSock.code(charString);
+						clientSock.end_of_message();
+                		total += 200000;
+                		if(interval > 0) {
+							// Sleep for few milli seconds
+							timer.tv_sec = 0;
+							timer.tv_usec = interval*1000;
+							(void) select( 5, NULL, NULL, NULL, &timer );
+                		}
+                		(void) time(&cur);
+                		elapsed = cur - prev;
+                		if(elapsed >= 5) {
+                    		cerr << cur << " " << total << endl;
+                    		prev += 5;
+                    		total = 0;
+                		}
+					}
+				}
+			}
             break;
 
 		case 9:

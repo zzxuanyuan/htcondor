@@ -9,7 +9,7 @@
 #include "condor_socket_types.h"
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
 #include "portfw.h"
-#include "fwdMnger.h"
+#include "FwdMnger.h"
 
 char* mySubSystem = "FWD_SERVER";       // used by Daemon Core
 
@@ -39,6 +39,9 @@ main_init (int argc, char *argv[])
 	FwdMnger *tcpPortMnger = NULL;
 	FwdMnger *udpPortMnger = NULL;
 
+	// get root privilige
+	priv_state priv = set_root_priv();
+
 		/* create a raw socket to which port forwarding will be done */
 	if ((rawSock = socket(AF_INET, SOCK_RAW, IPPROTO_RAW)) == -1) {
 		perror("Raw socket creation failed");
@@ -58,7 +61,7 @@ main_init (int argc, char *argv[])
 
 
     	/* get command line arguments */
-    char c;
+	char c;
 	int noInterfaces = 0;
 	while ( (c = getopt(argc, argv, "i:p:I:")) != (unsigned) -1 ) {
 		switch (c) {
@@ -96,6 +99,9 @@ main_init (int argc, char *argv[])
 	}
 
     	/* initialize forwardMngers*/
+#ifdef MYDEBUG
+	cout << "Initial Synchronization...\n";
+#endif
 	tcpPortMnger->sync();
 	udpPortMnger->sync();
 
@@ -104,9 +110,14 @@ main_init (int argc, char *argv[])
 	if ( !cmdSock ) {
 		EXCEPT ("Failed to create ReliSock\n");
 	}
-    int listenSock = cmdSock->get_file_desc();
+	if (cmdSock->assign() != TRUE) {
+		EXCEPT("FwdServer - failed to assign _sock to cmdSock");
+	}
+	int listenSock = cmdSock->get_file_desc();
     
-    	/* bind to the given mngPort */
+    	/* bind to the given mngAddr and mngPort */
+	// Because we need to bind to a specific ip-addr, we can't use Cedar bind,
+	// which binds socket to (my_ip_addr(), given port)
 	struct sockaddr_in mng_sin;
 	memset (&mng_sin, 0, sizeof (mng_sin));
 	mng_sin.sin_family = PF_INET;
@@ -128,16 +139,28 @@ main_init (int argc, char *argv[])
 	if (fwdServer == NULL) {
 		EXCEPT ("Failed to create FwdServer\n");
 	}
+#ifdef MYDEBUG
+	cout << "FwdServer created\n";
+#endif
 
 		/* register Socket and Timer */
 	daemonCore->Register_Socket (cmdSock, "<FwdServer Command Socket>",
 								 (SocketHandlercpp) &FwdServer::handleCommand,
 								 "port forwarding command handler",
 								 fwdServer, ALLOW);
-	daemonCore->Register_Timer (0, 300,
+#ifdef MYDEBUG
+	cout << "Socket Registered\n";
+#endif
+	daemonCore->Register_Timer (30, 30,
 								(Eventcpp) &FwdServer::probeCedars,
 								"Cedar Heartbeat checker",
 								fwdServer);
+#ifdef MYDEBUG
+	cout << "Timer Registered\n";
+#endif
+
+	// return to the previous privilige
+	set_priv(priv);
 
 	return TRUE;
 }

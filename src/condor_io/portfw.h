@@ -23,21 +23,11 @@
 #define ALREADY_SET 6
 #define INTERNAL_ERR 9
 
-/* error messages */
-/*
-char *errMsg[] = {
-	"success",
-   	"invalid command",
-	"invalid protocol",
-	"invalid port number",
-	"no more free port remained",
-	"remote (ip, port) is NOT in the forwarding table",
-	"internal error, please see manager's error message" };
-*/
 int setFWrule ( struct sockaddr_in masqServer,
 				char *cmd,
 				char *proto,
 				unsigned int inIP,
 				unsigned short inPort,
 				unsigned int * outIP,
-				unsigned short * outPort);
+				unsigned short * outPort,
+				unsigned short mport);

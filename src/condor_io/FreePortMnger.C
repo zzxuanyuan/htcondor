@@ -14,10 +14,10 @@
 #include "FreePortMnger.h"
 
 
-PortSet::PortSet (unsigned int ip)
+PortSet::PortSet ()
 {
 	_index = 0; 
-	for (int i=0; i<MAX_PORT; i++) {
+	for (int i=0; i<NAT_MAX_PORT; i++) {
 		_freeArr[i] = true;
 	}
 }
@@ -29,20 +29,32 @@ PortSet::freePort ()
 	do {
 		if (_freeArr[_index]) {
 			_freeArr[_index] = false;
-			_index = (_index < MAX_PORT - 1) ? _index + 1 : 0;
-			return htons (FIRST_PORT + i)
+			return htons (NAT_FIRST_PORT + _index);
 		}
-		_index = (_index < MAX_PORT - 1) ? _index + 1 : 0;
-	} while (first == _index);
+		_index = (_index < NAT_MAX_PORT - 1) ? _index + 1 : 0;
+	} while (first != _index);
 	dprintf (D_ALWAYS, "PortSet::freePort - no more free port remained\n");
 	return 0;
 }
 
 bool
-PortSet::makeFree (unsigned int port)
+PortSet::makeOccupied (unsigned short port)
 {
-	unsigned int hport = ntohs (port);
-	int index = hport - FIRST_PORT;
+	unsigned short hport = ntohs (port);
+	int index = hport - NAT_FIRST_PORT;
+	if ( !_freeArr[index] ) {
+		dprintf (D_ALWAYS, "PortSet::makeOccupied - the port is occupied already\n");
+		return false;
+	}
+	_freeArr[index] = false;
+	return true;
+}
+
+bool
+PortSet::makeFree (unsigned short port)
+{
+	unsigned short hport = ntohs (port);
+	int index = hport - NAT_FIRST_PORT;
 	if (_freeArr[index]) {
 		dprintf (D_ALWAYS, "PortSet::makeFree - the port is free already\n");
 		return false;
@@ -84,7 +96,7 @@ FreePortMnger::nextFree (unsigned int *lip, unsigned short *lport)
 			*lip = _interfaces[_nextInterface].ip;
 			found = true;
 		}
-		_nextInterface = (_nextInterface == _noInterfaces) ? 0 : _nextInterface + 1;
+		_nextInterface = (_nextInterface == _noInterfaces-1) ? 0 : _nextInterface + 1;
 	}
 
 	if ( !found ) {
@@ -96,11 +108,24 @@ FreePortMnger::nextFree (unsigned int *lip, unsigned short *lport)
 }
 
 bool
+FreePortMnger::makeOccupied (unsigned int lip, unsigned short lport)
+{
+	for (int i=0; i<_noInterfaces; i++) {
+		if (_interfaces[i].ip == lip) {
+			return _interfaces[i].portSet->makeOccupied (lport);
+		}
+	}
+
+	dprintf (D_ALWAYS, "FreePortMnger::makeFree - invalid ip addr\n");
+	return false;
+}
+
+bool
 FreePortMnger::makeFree (unsigned int lip, unsigned short lport)
 {
-	for (int i=0; i<_noInterfaces && !found; i++) {
+	for (int i=0; i<_noInterfaces; i++) {
 		if (_interfaces[i].ip == lip) {
-			return _interfaces[_nextInterface].portSet->makeFree (lport);
+			return _interfaces[i].portSet->makeFree (lport);
 		}
 	}
 

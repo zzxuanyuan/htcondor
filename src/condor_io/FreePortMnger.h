@@ -6,10 +6,13 @@
 
 class PortSet {
 	public:
-		// ip should be in network byte order
-		PortSet (unsigned int ip);
-		// return the next free port. return 0 if no more free port remained
+		PortSet ();
+		// return the next free port in network byte order.
+		// return 0 if no more free port remained
 		unsigned int freePort ();
+		// mark the port as being used. The port should be in network byte order.
+	   	// @return - false if the port is already marked as being used
+		bool makeOccupied (unsigned short port);
 		// free the port given in network byte order.
 	   	// @return - false if the port is already free
 		bool makeFree (unsigned short port);
@@ -26,6 +29,7 @@ class FreePortMnger {
 	public:
 		void addInterface(unsigned int ipAddr);
 		bool nextFree (unsigned int *lip, unsigned short *lport);
+		bool makeOccupied (unsigned int lip, unsigned short lport);
 		bool makeFree (unsigned int lip, unsigned short lport);
 	protected:
 		int _noInterfaces;

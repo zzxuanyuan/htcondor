@@ -428,7 +428,7 @@ ReliSock::greetMnger()
     }
 
     // Bind _mngSock
-    int lowPort, highPort;
+    unsigned short lowPort, highPort;
     if ( get_port_range(&lowPort, &highPort) == TRUE ) {
         if ( bindWithin(_mngSock, lowPort, highPort) != TRUE ) {
             return FALSE;
@@ -447,7 +447,7 @@ ReliSock::greetMnger()
 
     // get (ip-addr, port) of netMnger
 	char mngerHost[50];
-	int mngerPort;
+	unsigned short mngerPort;
 	if ( getMnger (mngerHost, &mngerPort) != TRUE ) {
 		dprintf (D_ALWAYS, "ReliSock::greetMnger -\
 							failed to get NetMnger info\n");
@@ -457,7 +457,7 @@ ReliSock::greetMnger()
     // Connect to netMnger
     bzero(&sockAddr, sizeof(sockAddr));
     sockAddr.sin_family = AF_INET;
-    unsigned long mngerIP;
+    unsigned int mngerIP;
     if((mngerIP = inet_addr(mngerHost)) != (unsigned)-1) {
         memcpy(&sockAddr.sin_addr, &mngerIP, sizeof(mngerIP));
     } else {

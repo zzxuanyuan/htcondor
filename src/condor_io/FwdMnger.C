@@ -33,7 +33,6 @@
 #include "condor_rw.h"
 #include "portfw.h"
 #include "FwdMnger.h"
-#include "FreePortMnger.h"
 
 #define IPPROTO_NONE    65535
 #define IP_PORTFW_DEF_PREF 10
@@ -50,6 +49,8 @@
 #define _LINUX_BYTEORDER_GENERIC_H
 #endif
 
+
+extern char *errMsg[];
 
 FwdMnger::FwdMnger (char *proto, int rawSock)
 {
@@ -84,13 +85,15 @@ FwdMnger::FwdMnger (char *proto, int rawSock)
 // Algorithm
 // 	- if (rip, rport) is in _remotes[]
 // 		+ if (lip, lport) is given
-// 			: if (lip, lport)->(rip, rport, mport), ALREADY_SET
+// 			: if (lip, lport)->(rip, rport, mport) is in the rule set, ALREADY_SET
 // 			: else, INTERNAL_ERR
 // 		+ else, INTERNAL_ERR
 // 	- else
 // 		+ if (lip, lport) is given
 // 			: if (lip, lport) is in _locals[], INTERNAL_ERR
-// 			: else add (lip, lport)->(rip, rport, mport), SUCCESS
+// 			: else
+// 				. mark (lip, lport) as being used
+// 				. add (lip, lport)->(rip, rport, mport), SUCCESS
 // 		+ else
 // 			: find free (lip, lport)
 // 			: add (lip, lport)->(rip, rport, mport), SUCCESS
@@ -101,8 +104,8 @@ FwdMnger::addInternal (	unsigned int * lip,
 						unsigned short rport,
 						unsigned short mport)
 {
-	struct local *lt;
-	struct remote *rt = _remotes[rport % NAT_MAX_HASH];
+	local *lt;
+	remote *rt = _remotes[rport % NAT_MAX_HASH];
 	bool found = false;
 	while ( !found && rt ) {
 		if (rt->ip == rip && rt->port == rport) {
@@ -123,11 +126,15 @@ FwdMnger::addInternal (	unsigned int * lip,
 	}
 
 	if (*lip != 0 && *lport != 0) {
-		lt = _locals[lport % NAT_MAX_HASH];
+		lt = _locals[*lport % NAT_MAX_HASH];
 		while (lt) {
 			if (lt->ip == *lip && lt->port == *lport) {
 				return INTERNAL_ERR;
 			}
+		}
+		if ( !freePortMnger.makeOccupied (*lip, *lport)) {
+			dprintf (D_ALWAYS, "FwdMnger::addInternal - failed to mark the port as being used\n");
+			return INTERNAL_ERR;
 		}
 	} else {
 		if ( !freePortMnger.nextFree (lip, lport) ) {
@@ -136,10 +143,10 @@ FwdMnger::addInternal (	unsigned int * lip,
 		}
 	}
 
-	lt = _locals[lport % NAT_MAX_HASH];
+	lt = _locals[*lport % NAT_MAX_HASH];
 	rt = _remotes[rport % NAT_MAX_HASH];
-	struct local *ltmp = (struct local *) malloc (sizeof(struct local));
-	struct remote *rtmp = (struct remote *) malloc (sizeof(struct remote));
+	local *ltmp = new local();
+	remote *rtmp = new remote();
 	ltmp->ip = *lip;
 	ltmp->port = *lport;
 	ltmp->rm = rtmp;
@@ -148,7 +155,7 @@ FwdMnger::addInternal (	unsigned int * lip,
 	if (lt) {
 		lt->prev = ltmp;
 	}
-	_locals[lport % NAT_MAX_HASH] = ltmp;
+	_locals[*lport % NAT_MAX_HASH] = ltmp;
 
 	rtmp->ip = rip;
 	rtmp->port = rport;
@@ -176,8 +183,8 @@ FwdMnger::deleteInternal (	unsigned int lip,
 							unsigned int * rip,
 							unsigned short * rport)
 {
-	struct remote *rptr;
-	struct local * lptr = _locals[lport % NAT_MAX_HASH];
+	remote *rptr;
+	local * lptr = _locals[lport % NAT_MAX_HASH];
 	bool found = false;
 	while ( !found && lptr ) {
 		if (lptr->ip == lip && lptr->port == lport) {
@@ -188,7 +195,7 @@ FwdMnger::deleteInternal (	unsigned int lip,
 	}
 
 	if (!found) {
-		return NOT_FOUND
+		return NOT_FOUND;
 	}
 
 	if ( !freePortMnger.makeFree (lip, lport) ) {
@@ -207,17 +214,17 @@ FwdMnger::deleteInternal (	unsigned int lip,
 	if (lptr->next) {
 		lptr->next->prev = lptr->prev;
 	}
-	free (lptr);
+	delete lptr;
 
 	if (rptr->prev) {
 		rptr->prev->next = rptr->next;
 	} else {
-		_remotes[lport % NAT_MAX_HASH] = rptr->next;
+		_remotes[*rport % NAT_MAX_HASH] = rptr->next;
 	}
 	if (rptr->next) {
 		rptr->next->prev = rptr->prev;
 	}
-	free (rptr);
+	delete rptr;
 
 	return SUCCESS;
 }
@@ -237,6 +244,10 @@ FwdMnger::deleteInternal (	unsigned int lip,
 void
 FwdMnger::sync ()
 {
+#ifdef MYDEBUG
+	cout << "\tSync:\n";
+#endif
+	bool changed = false, added = false;
 	FILE * c_fp = NULL;
 	FILE * t_fp = NULL;
 	FILE * k_fp = NULL;
@@ -273,33 +284,45 @@ FwdMnger::sync ()
 		if (k_fp) {
 			break;
 		}
-		dprintf (D_NETWORK, "FwdMnger::sync -\
-	   						 Could not open \"%s\"\n", *proc_name);
+#ifdef MYDEBUG
+		cout << "\t\tFailed to open " << *proc_name << ": " << strerror(errno) << endl;
+#endif
 	}
 	if (!k_fp) {
 		EXCEPT ("FwdMnger::sync - Could not open kernel_forwarding file\n");
 	}
 
+	int PrCnt, Pref;
 	unsigned int c_lip, c_rip, k_lip, k_rip;
 	unsigned short c_lport, c_rport, c_mport, k_lport, k_rport;
 	unsigned int h_lip, h_rip;
 	unsigned short h_lport, h_rport;
-	int pref_cnt, pref;
 	char c_buf[100];
 	char k_buf[100];
 	char p_name[10];
 	char proto[5];
 	if (_protocol == SOCK_STREAM) {
-	   	strcpy (proto, "tcp");
+	   	strcpy (proto, "TCP");
 	} else {
-		strcpy (proto, "udp");
+		strcpy (proto, "UDP");
 	}
 	// for each entry in condor_forwarding file
+#ifdef MYDEBUG
+	cout << "\t\tFor each rule in persistent file:\n";
+#endif
 	while ( fgets (c_buf, 100, c_fp) != NULL ) {
 		// read an entry from condor_forward file: ip-addr and port # is in network-byte order
-		if (sscanf (c_buf, "%d %d %d %d %d", &c_lip, &c_lport, &c_rip, &c_rport, &c_mport) != 5) {
+		char tLip[20], tLport[10], tRip[20], tRport[10], tMport[10];
+		if (sscanf (c_buf, "%x %s %x %s %s", &c_lip, tLport, &c_rip, tRport, tMport) != 5) {
 			EXCEPT ("FwdMnger::sync - scanf(c_fp) failed: ");
 		}
+		c_lport = atoi(tLport);
+		c_rport = atoi(tRport);
+		c_mport = atoi(tMport);
+#ifdef MYDEBUG
+		cout << "\t\t\t" << ipport_to_string(c_lip, c_lport) << "->";
+		cout << ipport_to_string(c_rip, c_rport) << " " << ntohs(c_mport) << endl;
+#endif
 		h_lip = ntohl (c_lip);
 		h_lport = ntohs (c_lport);
 		h_rip = ntohl (c_rip);
@@ -311,48 +334,71 @@ FwdMnger::sync ()
 		bool found = false;
 		while ( fgets (k_buf, 100, k_fp) != NULL && !found ) {
 			// read an entry from kernel_forward file: ip-addr and port # is in host-byte order
-			if ( sscanf (k_buf, "%s %x %d > %x %d %d %d",
-						 p_name, &k_lip, &k_lport, &k_rip,
-					   	 &k_rport, &pref_cnt, &pref) != 5 )
-			{
+			int rst = sscanf (k_buf, "%s %x %s > %x %s %d %d", p_name, &k_lip, tLport, &k_rip, tRport, &PrCnt, &Pref);
+			if (rst == 1) {
+				// Header line of kernel file
+				continue;
+			} else if (rst != 7) {
+				cerr << "RST from scanf: " << rst << endl;
 				EXCEPT ("FwdMnger::sync - scanf(k_fp) failed: ");
 			}
+			k_lport = atoi(tLport);
+			k_rport = atoi(tRport);
 			if (!strcmp (proto, p_name) && h_lip == k_lip && h_lport == k_lport) {
 				// (lip, lport) matches
 				if (h_rip != k_rip || h_rport != k_rport) {
 					// (rip, rport) does not match
-					dprintf (D_ALWAYS, "FwdMnger::sync -\
-					   		local ip and port match but remote dismatch\n");
+#ifdef MYDEBUG
+					cout << "\t\t\t\tlip and lport match with kernel file but rip or rport dismatch\n";
+#endif
 					continue;
 				}
 				
+#ifdef MYDEBUG
+				cout << "\t\t\t\tFound the same rule in kernel\n";
+#endif
 				found = true;
 				// copy the entry to the temp file
-				fprintf (t_fp, "%d %d %d %d %d\n", c_lip, c_lport, c_rip, c_rport, c_mport);
+				fprintf (t_fp, "%x %d %x %d %d\n", c_lip, c_lport, c_rip, c_rport, c_mport);
+				added = true;
+#ifdef MYDEBUG
+				cout << "\t\t\t\tCopied to the new persistent file\n";
+#endif
 				// make internal data structures
 				int result = addInternal (&c_lip, &c_lport, c_rip, c_rport, c_mport);
 				if ( result == SUCCESS ) {
 					// the rule has not been there
-					dprintf (D_ALWAYS, "FwdMnger::sync - no internal representation found\n");
-				} else if ( result != ALREADY_SET ) {
+#ifdef MYDEBUG
+					cout << "\t\t\t\tAdded to the internal representation\n";
+#endif
+				} else if ( result == ALREADY_SET ) {
+#ifdef MYDEBUG
+					cout << "\t\t\t\tThe rule was in the internal representation, as expected!\n";
+#endif
+				} else {
 					EXCEPT ("FwdMnger::sync - failed to insert the rule to internal rep.\n");
 				}
 			}
 		}
-		if ( !feof (k_fp) ) {
+		if ( !feof (k_fp) && !found ) {
 			EXCEPT ("FwdMnger::sync - fgets(k_fp) failed: ");
 		}
 		if ( !found ) {
-			dprintf (D_ALWAYS, "FwdMnger::sync - can't find entry for (%d, %d)\n", c_lip, c_lport);
+#ifdef MYDEBUG
+			cout << "\t\t\t\tNo rule: " << ipport_to_string(c_lip, c_lport) << "->? found in kernel\n";
+#endif
 			unsigned int dumIp;
 			unsigned short dumPort;
 			int result;
 			result = deleteInternal (c_lip, c_lport, &dumIp, &dumPort);
 			if (result == SUCCESS) {
-				dprintf (D_ALWAYS, "FwdMnger::sync - internal representation deleted\n");
+#ifdef MYDEBUG
+				cout << "\t\t\t\tDeleted from the internal representation\n";
+#endif
 			} else if (result != NOT_FOUND) {
 				EXCEPT ("FwdMnger::sync - internal representation deletion failed");
 			}
+			changed = true;
 		}
 
 		// delete the rule from the rules list got at the top of this function
@@ -368,6 +414,9 @@ FwdMnger::sync ()
 				}
 				Rule * temp = cur;
 				cur = cur->next;
+#ifdef MYDEBUG
+				cout << "\t\t\t\tDeleted from the rule list\n";
+#endif
 				free (temp);
 			} else {
 				prev = cur;
@@ -382,15 +431,33 @@ FwdMnger::sync ()
 	fclose (k_fp);
 	fclose (t_fp);
 
-	if (rename (".condor_port_fwd_tmp", _persistFile)) {
-		EXCEPT ("FwdMnger::sync - rename failed: ");
+	if (changed) {
+		if (added) {
+			if (rename (".condor_port_fwd.tmp", _persistFile)) {
+				char err[100];
+				sprintf(err, "FwdMnger::sync - rename failed: %s", strerror(errno));
+				EXCEPT (err);
+			}
+		} else {
+			if (unlink (_persistFile)) {
+				char err[100];
+				sprintf(err, "FwdMnger::sync - unlink failed: %s", strerror(errno));
+				EXCEPT (err);
+			}
+		}
 	}
 
+#ifdef MYDEBUG
+	cout << "\t\tDeleting leftover internal rules:\n";
+#endif
 	while (rules) {
-		dprintf (D_ALWAYS, "FwdMnger::sync - more internal representations than persist file\n");
 		if (deleteInternal (rules->lip, rules->lport, &(rules->rip), &(rules->rport)) != SUCCESS) {
 			EXCEPT ("FwdMnger::sync - deleteInternal failed");
 		}
+#ifdef MYDEBUG
+		cout << "\t\t\t" << ipport_to_string(rules->lip, rules->lport) << "->";
+		cout << ipport_to_string(rules->rip, rules->rport) << " " << ntohs(rules->mport) << endl;
+#endif
 		Rule *temp = rules;
 		rules = rules->next;
 		free(temp);
@@ -422,6 +489,9 @@ FwdMnger::addRule ( unsigned int *l_ip,
 					const unsigned short r_port,
 					unsigned short m_port)
 {
+#ifdef MYDEBUG
+	cout << "\tAdd: \n";
+#endif
 	int sock;
 	sockaddr_in address;
 	int result;
@@ -433,8 +503,15 @@ FwdMnger::addRule ( unsigned int *l_ip,
 	*l_ip = *l_port = 0;
 	result = addInternal (l_ip, l_port, r_ip, r_port, m_port);
    	if (result != SUCCESS) {
+#ifdef MYDEBUG
+		cout << "\t\tInternal Failed: " << errMsg[result] << endl;
+#endif
 		return result;
 	}
+#ifdef MYDEBUG
+	cout << "\t\tInternal: " << ipport_to_string(*l_ip, *l_port) << "->";
+   	cout << ipport_to_string(r_ip, r_port) << " " << m_port << endl;
+#endif
 
 	// write the rule to the persist file: we write the forwarding rule to the condor
 	// persist file before seting up actual forwarding rule, which will write the
@@ -448,9 +525,13 @@ FwdMnger::addRule ( unsigned int *l_ip,
 		return INTERNAL_ERR;
 	}
 	memset (buf, 0, sizeof(buf));
-	sprintf (buf, "%d %d %d %d %d\n", *l_ip, *l_port, r_ip, r_port, m_port);
+	sprintf (buf, "%x %d %x %d %d\n", *l_ip, *l_port, r_ip, r_port, m_port);
 	fputs (buf, fp);
 	fclose (fp);
+#ifdef MYDEBUG
+	cout << "\t\tPersistent: " << ipport_to_string(*l_ip, *l_port) << "->";
+   	cout << ipport_to_string(r_ip, r_port) << " " << m_port << endl;
+#endif
 
 	// now setup the port forwarding rule
 	_masq.m_cmd = IP_MASQ_CMD_ADD;
@@ -461,8 +542,17 @@ FwdMnger::addRule ( unsigned int *l_ip,
 	if (setsockopt(_rawSock, IPPROTO_IP, IP_FW_MASQ_CTL , (void *) &_masq, sizeof (_masq))) {
 		dprintf (D_ALWAYS, "FwdMnger::addRule - setsockopt failed\n");
 		deleteInternal (*l_ip, *l_port, &t_int, &t_short);
+#ifdef MYDEBUG
+		cout << "\t\tKernel Failed\n";
+		cout << "\t\tDelete Internal: " << ipport_to_string(*l_ip, *l_port) << "->";
+	   	cout << ipport_to_string(t_int, t_short) << endl;
+#endif
 		return INTERNAL_ERR;
 	}
+#ifdef MYDEBUG
+	cout << "\t\tKernel: " << ipport_to_string(*l_ip, *l_port) << "->";
+	cout << ipport_to_string(r_ip, r_port) << endl;
+#endif
 	return SUCCESS;
 }
 
@@ -473,8 +563,11 @@ FwdMnger::queryRule(const unsigned int lip,
 					unsigned int *rip,
 					unsigned short *rport)
 {
-	struct remote *rptr;
-	struct local * lptr = _locals[lport % NAT_MAX_HASH];
+#ifdef MYDEBUG
+	cout << "\tqueryRule:\n";
+#endif
+	remote *rptr;
+	local *lptr = _locals[lport % NAT_MAX_HASH];
 	bool found = false;
 	while ( !found && lptr ) {
 		if (lptr->ip == lip && lptr->port == lport) {
@@ -485,7 +578,7 @@ FwdMnger::queryRule(const unsigned int lip,
 	}
 
 	if (!found) {
-		return NOT_FOUND
+		return NOT_FOUND;
 	}
 
 	rptr = lptr->rm;
@@ -499,14 +592,24 @@ FwdMnger::queryRule(const unsigned int lip,
 int
 FwdMnger::deleteRule (	const unsigned int l_ip,		// in network byte order
 						const unsigned short l_port,	// in network byte order
-						unsigned int * r_ip,			// in network byte order
-						unsigned short * r_port)		// in network byte order
+						unsigned int *r_ip,				// in network byte order
+						unsigned short *r_port)			// in network byte order
 {
+#ifdef MYDEBUG
+	cout << "\tdeleteRule:\n";
+#endif
 	// delete internal data structure first
 	int result = deleteInternal(l_ip, l_port, r_ip, r_port);
 	if (result != SUCCESS) {
+#ifdef MYDEBUG
+		cout << "\t\tfrom Internal: " << errMsg[result] << endl;
+#endif
 		return result;
 	}
+#ifdef MYDEBUG
+	cout << "\t\tfrom Internal: " << ipport_to_string(l_ip, l_port) << "->";
+	cout << ipport_to_string(*r_ip, *r_port) << endl;
+#endif
 
 	// unset forwarding rule here
 	_masq.m_cmd = IP_MASQ_CMD_DEL;
@@ -515,9 +618,15 @@ FwdMnger::deleteRule (	const unsigned int l_ip,		// in network byte order
 	_pfw.raddr = *r_ip;
 	_pfw.rport = *r_port;
 	if (setsockopt(_rawSock, IPPROTO_IP, IP_FW_MASQ_CTL , (void *) &_masq, sizeof (_masq))) {
+#ifdef MYDEBUG
+		perror("\t\tfrom Kernel");
+#endif
 		dprintf (D_ALWAYS, "FwdMnger::deleteRule - failed to setsockopt\n");
 		return INTERNAL_ERR;
 	}
+#ifdef MYDEBUG
+	cout << "\t\tfrom Kernel\n";
+#endif
 
 	return deletePersist (l_ip, l_port, *r_ip, *r_port);
 }
@@ -529,16 +638,24 @@ FwdMnger::deletePersist (const unsigned int lip,
 						 const unsigned int rip,
 						 const unsigned short rport)
 {
+	bool added = false, changed = false;
+
 	// open the persist file
 	FILE * fp = fopen (_persistFile, "r");
 	if (!fp) {
+#ifdef MYDEBUG
+		perror("\t\tfrom Persistent");
+#endif
 		dprintf (D_ALWAYS, "FwdMnger::deletePersist - faile to fopen(persist file)\n");
 		return INTERNAL_ERR;
 	}
 
 	// open a temp file
-	FILE *temp = fopen (".condor_port_fwd_temp", "w+");
+	FILE *temp = fopen (".condor_port_fwd.tmp", "w+");
 	if (!temp) {
+#ifdef MYDEBUG
+		perror("\t\tfrom Persistent");
+#endif
 		dprintf (D_ALWAYS, "FwdMnger::deletePersist - faile to fopen(temp file)\n");
 		return INTERNAL_ERR;
 	}
@@ -548,16 +665,21 @@ FwdMnger::deletePersist (const unsigned int lip,
 	bool done = false;
 	unsigned int c_lip, c_rip;
 	unsigned short c_lport, c_rport, c_mport;
+	char tLport[10], tRport[10], tMport[10];
 	while ( fgets (buf, 100, fp) != NULL ) {
-		if (sscanf (buf, "%d %d %d %d %d", &c_lip, &c_lport, &c_rip, &c_rport, &c_mport) != 5) {
+		if (sscanf (buf, "%x %s %x %s %s", &c_lip, tLport, &c_rip, tRport, tMport) != 5) {
 			dprintf (D_ALWAYS, "FwdMnger::deletePersist - sscanf failed\n");
 			return INTERNAL_ERR;
 		}
+		c_lport = atoi(tLport);
+		c_rport = atoi(tRport);
+		c_mport = atoi(tMport);
 		if (lip == c_lip && lport == c_lport && rip == c_rip && rport == c_rport) {
 			done = true;
 		} else {
-			sprintf (buf, "%d %d %d %d %d\n", c_lip, c_lport, c_rip, c_rport, c_mport);
+			sprintf (buf, "%x %d %x %d %d\n", c_lip, c_lport, c_rip, c_rport, c_mport);
 			fputs (buf, temp);
+			added = true;
 		}
 	}
 	if (!feof (fp)) {
@@ -569,14 +691,30 @@ FwdMnger::deletePersist (const unsigned int lip,
 	fclose (fp);
 	fclose (temp);
 	if (!done) {
+#ifdef MYDEBUG
+		cout << "\t\tfrom Persistent: not found" << endl;
+#endif
 		dprintf (D_ALWAYS, "FwdMnger::deletePersist - can't find the record to delete\n");
 		return INTERNAL_ERR;
 	}
 
-	if (rename (".condor_port_fwd_tmp", _persistFile)) {
-		EXCEPT ("FwdMnger::deletePersist - rename failed: ");
+	if (added) {
+		if (rename (".condor_port_fwd.tmp", _persistFile)) {
+			char err[100];
+			sprintf(err, "FwdMnger::sync - rename failed: %s", strerror(errno));
+			EXCEPT (err);
+		}
+	} else {
+		if (unlink (_persistFile)) {
+			char err[100];
+			sprintf(err, "FwdMnger::deletePersist - unlink failed: %s", strerror(errno));
+			EXCEPT (err);
+		}
 	}
 
+#ifdef MYDEBUG
+	cout << "\t\tfrom Persistent: success" << endl;
+#endif
 	return SUCCESS;
 }
 
@@ -584,19 +722,28 @@ FwdMnger::deletePersist (const unsigned int lip,
 Rule *
 FwdMnger::getRules ()
 {
+#ifdef MYDEBUG
+			cout << "\t\tRules:\n";
+#endif
 	Rule * rules = NULL;
-	struct remote *rptr;
-	struct local * lptr = _locals[lport % NAT_MAX_HASH];
-	while ( lptr ) {
-		Rule * temp = (Rule *) malloc (sizeof (Rule));
-		temp->lip = lptr->ip;
-		temp->lport = lptr->port;
-		temp->rip = lptr->rm->ip;
-		temp->rport = lptr->rm->port;
-		temp->mport = lptr->rm->mport;
-		temp->next = rules;
-		rules = temp;
-		lptr = lptr->next;
+	local * lptr;
+	for (int i=0; i<NAT_MAX_HASH; i++) {
+		lptr = _locals[i];
+		while ( lptr ) {
+			Rule * temp = (Rule *) malloc (sizeof (Rule));
+			temp->lip = lptr->ip;
+			temp->lport = lptr->port;
+			temp->rip = lptr->rm->ip;
+			temp->rport = lptr->rm->port;
+			temp->mport = lptr->rm->mport;
+			temp->next = rules;
+#ifdef MYDEBUG
+			cout << "\t\t\t" << ipport_to_string(temp->lip, temp->lport) << "->";
+		   	cout << ipport_to_string(temp->rip, temp->rport) << " " << ntohs(temp->mport) << endl;
+#endif
+			rules = temp;
+			lptr = lptr->next;
+		}
 	}
 
 	return rules;

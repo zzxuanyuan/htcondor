@@ -11,11 +11,9 @@
 #include "getParam.h"
 #include "condor_rw.h"
 #include "portfw.h"
-#include "fwdMnger.h"
+#include "FwdMnger.h"
 
-bool inline getLine(int sock, char *buf, int max);
-void inline reply (const int, const char *, const unsigned int, const unsigned short);
-
+extern char *errMsg[];
 
 /* Get a line from this socket.  Return true on success. */
 bool inline
@@ -42,7 +40,23 @@ reply (const int fd, const char *tag, const unsigned int ip, const unsigned shor
 	int written = 0;
 	char msg[50];
 
-	sprintf (msg, "%s %d %d", tag, ip, port);
+#ifdef MYDEBUG
+	if (!strcmp(tag, NAK)) {
+		cout << "\t\tReply: NAK (" << errMsg[ip] << ")\n"; 
+	} else {
+		if (!strcmp(tag, ADDED)) {
+			cout << "\t\tReply: ADDED " << ipport_to_string(ip, port) << endl;
+		} else if (!strcmp(tag, RESULT)) {
+			cout << "\t\tReply: RESULT " << ipport_to_string(ip, port) << endl;
+		} else if (!strcmp(tag, DELETED)) {
+			cout << "\t\tReply: DELETED " << ipport_to_string(ip, port) << endl;
+		} else {
+			cout << "\t\tReply: invalid code\n";
+			exit(1);
+		}
+	}
+#endif
+	sprintf (msg, "%s %d %d\n", tag, ip, port);
 	int len = strlen (msg);
 	while (written != len) {
 		int result = write (fd, msg, len - written);
@@ -82,10 +96,16 @@ probeCedar (unsigned int myIP, unsigned int c_ip, unsigned short c_port)
 	peer.sin_family = PF_INET;
 	peer.sin_addr.s_addr = c_ip;
 	peer.sin_port = c_port;
-	if (connect (sock, (sockaddr *) &peer, addrLen) < 0) {
+	if ( !connect(sock, (sockaddr *)&peer, addrLen) ) {
+#ifdef MYDEBUG
+		cout << "\t\tHeartBeat: " << ipport_to_string(c_ip, c_port) << "is alive\n";
+#endif
 		close (sock);
 		return true;
 	} else {
+#ifdef MYDEBUG
+		cout << "\t\tHeartBeat: " << ipport_to_string(c_ip, c_port) << "is dead\n";
+#endif
 		close (sock);
 		return false;
 	}
@@ -110,13 +130,31 @@ probePerMnger (unsigned int ipAddr, FwdMnger * mnger)
 void
 FwdServer::probeCedars ()
 {
+	// get root privilige
+	priv_state priv = set_root_priv();
+
 	// make internal representation, condor persistent table, kernel table consistent
+#ifdef MYDEBUG
+	cout << "\tSynching _tcpPortMnger...\n";
+#endif
 	_tcpPortMnger->sync ();
+#ifdef MYDEBUG
+	cout << "\tSynching _udpPortMnger...\n";
+#endif
 	_udpPortMnger->sync ();
 
 	// check peer Cedars are still alive
+#ifdef MYDEBUG
+	cout << "\tProbing Cedars for _tcpPortMnger...\n";
+#endif
 	probePerMnger (_ipAddr, _tcpPortMnger);
+#ifdef MYDEBUG
+	cout << "\tProbing Cedars for _udpPortMnger...\n";
+#endif
 	probePerMnger (_ipAddr, _udpPortMnger);
+
+	// go back to the previous privilige
+	set_priv(priv);
 }
 
 
@@ -143,6 +181,9 @@ FwdServer::handleCommand (Stream *cmdSock)
 	unsigned short mport;
 	int result;
 
+	// get root privilige
+	priv_state priv = set_root_priv();
+
 	// I am not a Cedar application, so I am working on underlying socket directly
 	int listenSock = ((ReliSock *)cmdSock)->get_file_desc();
 	int newSock = accept (listenSock, (struct sockaddr *)&cedar, &addrLen);
@@ -153,10 +194,17 @@ FwdServer::handleCommand (Stream *cmdSock)
 	if (!getLine (newSock, lineBuf, 100)) {
 		EXCEPT ( "getLine failed");
 	}
-	int fields = sscanf(lineBuf, "%s %s %d %d %d", cmd, proto, &ipAddr, &port, &mport);
-	if (fields != 4) {
+	char tIP[20], tPort[10], tMport[10];
+	int fields = sscanf(lineBuf, "%s %s %s %s %s", cmd, proto, tIP, tPort, tMport);
+	if (fields != 5) {
 		EXCEPT ("FwdServer::handleCommand - scanf failed: ");
 	}
+	ipAddr = atoi(tIP);
+	port = atoi(tPort);
+	mport = atoi(tMport);
+#ifdef MYDEBUG
+	cout << "\t\tRecv: " << cmd << " " << proto << " " << ipport_to_string(ipAddr, port) << " " << ntohs(mport) << endl;
+#endif
 	dprintf (D_NETWORK, "(%s, %s, %d, %d, %d)\n", cmd, proto, ntohl(ipAddr), ntohs(port), ntohs(mport));
 	if (!strcmp (cmd, ADD)) {
 		if (!strcmp (proto, TCP)) {
@@ -216,5 +264,9 @@ FwdServer::handleCommand (Stream *cmdSock)
 		reply (newSock, NAK, INVALID_CMD, INVALID_CMD);
 	}
 	close (newSock);
-	return TRUE;
+	
+	// go back to the previous privilige
+	set_priv(priv);
+
+	return KEEP_STREAM;
 }

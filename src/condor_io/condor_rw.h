@@ -29,7 +29,6 @@
 
 bool getLine(const int sock, char *buf, const int max);
 bool sendLine (const int fd, const char *line, const int max);
-int bindWithin(const int sock, const int low_port, const int high_port);
 int condor_read(SOCKET fd, char *buf, int sz, int timeout);
 int condor_write(SOCKET fd, char *buf, int sz, int timeout);
 int condor_mux_read(SOCKET fd, SOCKET mfd, char *buf,

@@ -82,50 +82,6 @@ sendLine (const int fd, const char *line, const int max)
 }
 
 
-int
-bindWithin(const int sock, const int low_port, const int high_port)
-{
-    // Use hash function with pid to get the starting point
-    struct timeval curTime;
-#ifndef WIN32
-    (void) gettimeofday(&curTime, NULL);
-#else
-    // Win32 does not have gettimeofday, sigh.
-    curTime.tv_usec = ::GetTickCount();
-#endif
-
-    // int pid = (int) getpid();
-    int range = high_port - low_port + 1;
-    // this line must be changed to use the hash function of condor
-    int start_trial = low_port + (curTime.tv_usec * 73/*some prime number*/ % range);
-
-    int this_trial = start_trial;
-    do {
-        sockaddr_in     sin;
-
-        memset(&sin, 0, sizeof(sockaddr_in));
-        sin.sin_family = AF_INET;
-        sin.sin_addr.s_addr = htonl(my_ip_addr());
-        sin.sin_port = htons((u_short)this_trial++);
-
-        if (::bind(sock, (sockaddr *)&sin, sizeof(sockaddr_in)) == 0 ) { // success
-            dprintf(D_NETWORK, "bindWithin - bound to %d...\n", this_trial-1);
-            return TRUE;
-        } else {
-            dprintf(D_NETWORK, "bindWithin - failed to bind: %s\n", strerror(errno));
-        }
-
-        if ( this_trial > high_port )
-            this_trial = low_port;
-    } while(this_trial != start_trial);
-
-    dprintf(D_ALWAYS, "bindWithin - failed to bind any port within (%d ~ %d)\n",
-            low_port, high_port);
-
-    return FALSE;
-}
-
-
 /* Generic read/write wrappers for condor.  These function emulate the 
  * read/write system calls under unix except that they are portable, use
  * a timeout, and make sure that all data is read or written.

@@ -3,6 +3,8 @@
 
 #include <linux/ip_masq.h>
 
+#include "FreePortMnger.h"
+
 /* ip forward specifics */
 #define IPPROTO_NONE 65535
 #define IP_PORTFW_DEF_PREF 10
@@ -104,18 +106,31 @@ class FwdMnger {
 		Rule * getRules ();
 
 	protected:
-		// Raw socket through which forwarding rules are setup
 		int _rawSock;
-		// Name of the local file to store rules
-		char * _persistFile;
-		// Hashed buckets of forwarding rules
-		Rule * _rules[NAT_MAX_HASH];
-		// Number of interfaces, known to Internet, of this machine
-		int _noInterfaces;
-		PortSet * _portSets[NAT_MAX_SET];
-		int _nextInterface;
+		class remote;
+		class local {
+			public:
+				unsigned int ip;
+				unsigned short port;
+				remote * rm;
+				local * prev;
+				local * next;
+		};
+		class remote {
+			public:
+				unsigned int ip;
+				unsigned short port;
+				unsigned short mport;
+				local * lo;
+				remote * prev;
+				remote * next;
+		};
+		local *_locals[NAT_MAX_HASH];
+		remote *_remotes[NAT_MAX_HASH];
 		int _protocol;
 		struct ip_masq_ctl _masq;
+		char * _persistFile;
+		FreePortMnger freePortMnger;
 
 		/* Method */
 
