@@ -707,6 +707,7 @@ bool
 Daemon::locate( void )
 {
 	bool rval;
+	char* tmp = NULL;
 
 		// Make sure we only call locate() once.
 	if( _tried_locate ) {
@@ -746,8 +747,19 @@ Daemon::locate( void )
 		rval = getCmInfo( "COLLECTOR" );
 		break;
 	case DT_NEGOTIATOR:
-		rval = getDaemonInfo ( "NEGOTIATOR", NEGOTIATOR_AD );
-			//rval = getCmInfo( "NEGOTIATOR" );
+		tmp = getCmHostFromConfig( "NEGOTIATOR" );
+		if( tmp ) {
+				// if NEGOTIATOR_HOST (or equiv) is in the config
+				// file, we have to use the old getCmInfo() code to
+				// honor what it says... 
+			rval = getCmInfo( "NEGOTIATOR" );
+			free( tmp );
+			tmp = NULL;
+		} else {
+				// cool, no NEGOTIATOR_HOST, we can treat it just like
+				// any other daemon 
+			rval = getDaemonInfo ( "NEGOTIATOR", NEGOTIATOR_AD );
+		}
 		break;
 	case DT_CREDD:
 	  rval = getDaemonInfo( "CREDD", ANY_AD, false );
