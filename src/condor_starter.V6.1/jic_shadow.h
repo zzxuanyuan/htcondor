@@ -58,6 +58,17 @@ public:
 
 
 		// // // // // // // // // // // //
+		// Information about the job 
+		// // // // // // // // // // // //
+
+		/// Total bytes sent by this job 
+	float bytesSent( void );
+
+		/// Total bytes received by this job 
+	float bytesReceived( void );
+
+
+		// // // // // // // // // // // //
 		// Job execution and state changes
 		// // // // // // // // // // // //
 

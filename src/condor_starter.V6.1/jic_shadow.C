@@ -178,6 +178,20 @@ JICShadow::setupJobEnvironment( void )
 }
 
 
+float
+JICShadow::bytesSent( void )
+{
+	return filetrans->TotalBytesSent();
+}
+
+
+float
+JICShadow::bytesReceived( void )
+{
+	return filetrans->TotalBytesReceived();
+}
+
+
 void
 JICShadow::allJobsSpawned( void )
 {
