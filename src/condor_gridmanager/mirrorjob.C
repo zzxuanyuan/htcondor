@@ -137,7 +137,7 @@ void MirrorJobReconfig()
 	tmp_int = param_integer("GRIDMANAGER_CONNECT_FAILURE_RETRY_COUNT",3);
 	MirrorJob::setConnectFailureRetry( tmp_int );
 
-	tmp_int = param_integer("GRIDMANAGER_MIRROR_LEASE_INTERVAL",1800);
+	tmp_int = param_integer("MIRROR_JOB_LEASE_INTERVAL",1800);
 	MirrorJob::setLeaseInterval( tmp_int );
 }
 
