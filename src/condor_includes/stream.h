@@ -59,7 +59,7 @@
 	* PROTOCOL:
 
 	The Stream base class defines the private protocol for all Streams.
-	This protocol consists of 8 virtual functions:
+	This protocol consists of 10 virtual functions:
 
 	1) Destructor()
 		- Local destructor.
@@ -94,6 +94,13 @@
 
 	8) int get_port()
 		- get the IP port of the underlying socket
+
+	9) int timeout()
+		- set a timeout value for all connects/accepts/reads/writes of socket
+
+	10) int end_of_message()
+		- on encode, flush stream and send record delimiter.  on decode, discard
+		data up until the next record delimiter.
 
 	* CODE/PUT/GET:
 
@@ -306,6 +313,8 @@ public:
 	virtual int get_bytes(void *, int) { assert(0); return 0; }
 	virtual int get_ptr(void *&, char) { assert(0); return 0; }
 	virtual int peek(char &) { assert(0); return 0; }
+	virtual int end_of_message() { assert(0); return 0; }
+	inline int eom() { return end_of_message(); }
 
 	// peer information operations (virtually defined by each stream)
 	//
@@ -314,6 +323,10 @@ public:
 	// local port information (virtually defined by each stream)
 	//
 	virtual int get_port() { assert(0); return 0; }
+
+	// set a timeout for an underlying socket
+	//
+	virtual int timeout(int) { assert(0); return 0; }
 
 	//	type operation
 	//
