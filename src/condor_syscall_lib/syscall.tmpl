@@ -189,6 +189,12 @@ circumstances:
 #   define EXTRACT extract
 #endif
 
+#if defined(LINUX)
+	#define INDIRECT indirect
+#else
+	#define INDIRECT direct
+#endif
+
 /* This group of calls is needed in the syscall lib and
 the standalone ckpt lib, but not in the clipped version.
 All of these calls manipulate the open file table.
@@ -274,6 +280,11 @@ an underscore remap in the appropriate switches.REMAP.
 		: file_table_name(ftruncate), remote_name(ftruncate);
 	
 	int fchdir( int fd ) : file_table;
+
+	#if defined(SWITCH)
+		int poll( struct pollfd *fds, unsigned long nfds, int timeout )
+			: file_table;
+	#endif
 
 #endif /* FILE_TABLE */
 #endif /* CLIP */
@@ -637,7 +648,8 @@ in the clipped version.
 	gid_t getegid() : EXTRACT, pseudo;
 
 #if !defined(SWITCH)
-	char * getwd( char *path_name ) : pseudo {
+	char * getwd( char *path_name ) : pseudo
+	{
 		GET_PATH( path_name );
 		ALLOC_PATH( path_name );
 	}
@@ -733,19 +745,15 @@ int rename( const char *from, const char *to ) : pseudo {
 		alloc( s, STARTUP_INFO_SIZE );
 	}
 #endif
-	int std_file_info( int which, char *name, int *pipe_fd ) : pseudo {
-		GET_PATH( name );
-		ALLOC_PATH( name );
-		out code( pipe_fd );
-		alloc( pipe_fd, INT_SIZE );
+	int get_std_file_info( int which, char *logical_name ) : pseudo {
+		GET_PATH( logical_name );
+		ALLOC_PATH( logical_name );
 	}
-	int file_info( const char *name, int *pipe_fd, char *extern_path ): pseudo {
-		SEND_PATH( name );
-		ALLOC_PATH( name );
-		GET_PATH( extern_path );
-		ALLOC_PATH( extern_path );
-		out code( pipe_fd );
-		alloc( pipe_fd, INT_SIZE );
+	int get_file_info( const char *logical_name, char *actual_url ): pseudo {
+		SEND_PATH( logical_name );
+		ALLOC_PATH( logical_name );
+		GET_PATH( actual_url );
+		ALLOC_PATH( actual_url );
 	}
 
 	int get_buffer_info( int *blocks, int *block_size, int *prefetch_bytes ) : pseudo {
@@ -946,7 +954,6 @@ int rename( const char *from, const char *to ) : pseudo {
 	not_supported {
 		int select(int numfds, fd_set *readfds, fd_set *writefds,
 			fd_set *exceptfds, struct timeval *timeout);
-		int poll(struct pollfd *p, unsigned long l , int i );
 	}
 
 	int setpriority( int which, int who, int priority );
@@ -1296,6 +1303,12 @@ not_supported {
 #endif
 }
 
+#endif /* CLIP */
+#endif /* REMOTE_SYSCALLS */
+
+#if defined(FILE_TABLE)
+#if !defined(CLIP)
+
 /*
 The socket-related calls have lots of tiny per-platform differences.
 This is an attempt to do autoconf-style configuration of the little
@@ -1306,134 +1319,130 @@ this will stay here next to the socket prototypes.
 
 #if defined(Solaris)
 	#define SOCKET_DATA_TYPE char*
-	#define SOCKET_DATA_LENGTH int
+	#define SOCKET_LENGTH_TYPE int
 	#define SOCKET_DATA_CONST const
 	#define SOCKET_MSG_CONST const
 	#define SOCKET_ADDR_TYPE struct sockaddr*
-	#define SOCKET_ADDR_LENGTH int
 	#define SOCKET_ADDR_CONST_CONNECT
 	#define SOCKET_ADDR_CONST_BIND const
 	#define SOCKET_SENDRECV_TYPE int
 	#define SOCKET_FLAGS_TYPE int
 #elif defined(OSF1)
 	#define SOCKET_DATA_TYPE void*
-	#define SOCKET_DATA_LENGTH int
+	#define SOCKET_LENGTH_TYPE int
 	#define SOCKET_DATA_CONST const
 	#define SOCKET_MSG_CONST
 	#define SOCKET_ADDR_TYPE struct sockaddr*
-	#define SOCKET_ADDR_LENGTH int
 	#define SOCKET_ADDR_CONST_CONNECT const
 	#define SOCKET_ADDR_CONST_BIND const
 	#define SOCKET_SENDRECV_TYPE int
 	#define SOCKET_FLAGS_TYPE int
 #elif defined(HPUX)
 	#define SOCKET_DATA_TYPE void*
-	#define SOCKET_DATA_LENGTH size_t
+	#define SOCKET_LENGTH_TYPE size_t
 	#define SOCKET_DATA_CONST const
 	#define SOCKET_MSG_CONST const
 	#define SOCKET_ADDR_TYPE struct sockaddr*
-	#define SOCKET_ADDR_LENGTH size_t
 	#define SOCKET_ADDR_CONST_CONNECT const
 	#define SOCKET_ADDR_CONST_BIND const
 	#define SOCKET_SENDRECV_TYPE ssize_t
 	#define SOCKET_FLAGS_TYPE int
 #else
 	#define SOCKET_DATA_TYPE void*
-	#define SOCKET_DATA_LENGTH int
+	#define SOCKET_LENGTH_TYPE int
 	#define SOCKET_DATA_CONST const
 	#define SOCKET_MSG_CONST const
 	#define SOCKET_ADDR_TYPE void*
-	#define SOCKET_ADDR_LENGTH int
 	#define SOCKET_ADDR_CONST_CONNECT
 	#define SOCKET_ADDR_CONST_BIND
 	#define SOCKET_SENDRECV_TYPE int
 	#define SOCKET_FLAGS_TYPE unsigned int
 #endif
 
+#if !defined(Solaris) || !defined(SWITCH)
+	int socket( int domain, int type, int protocol)
+		: file_table, INDIRECT;
+#endif
+
 int accept(
 		map(int fd),
 		SOCKET_ADDR_TYPE addr,
-		SOCKET_ADDR_LENGTH * length);
+		SOCKET_LENGTH_TYPE * length) : INDIRECT;
 int bind(
 		map(int fd),
 		SOCKET_ADDR_CONST_BIND SOCKET_ADDR_TYPE addr,
-		SOCKET_ADDR_LENGTH length );
+		SOCKET_LENGTH_TYPE length ) : INDIRECT;
 int connect(
 		map(int fd),
 		SOCKET_ADDR_CONST_CONNECT SOCKET_ADDR_TYPE addr,
-		SOCKET_ADDR_LENGTH length);
+		SOCKET_LENGTH_TYPE length) : INDIRECT;
 int getpeername(
 		map(int fd),
 		SOCKET_ADDR_TYPE addr,
-		SOCKET_ADDR_LENGTH * length);
+		SOCKET_LENGTH_TYPE * length) : INDIRECT;
 int getsockname(
 		map(int fd),
 		SOCKET_ADDR_TYPE addr,
-		SOCKET_ADDR_LENGTH * length);
+		SOCKET_LENGTH_TYPE * length) : INDIRECT;
 int getsockopt(
 		map(int fd),
 		int level,
 		int option,
 		SOCKET_DATA_TYPE value,
-		SOCKET_DATA_LENGTH * length);
+		SOCKET_LENGTH_TYPE * length) : INDIRECT;
 int listen(
 		map(int fd),
-		int count);
+		int count) : INDIRECT;
 SOCKET_SENDRECV_TYPE recv(
 		map(int fd),
 		SOCKET_DATA_TYPE data,
-		SOCKET_DATA_LENGTH length,
-		SOCKET_FLAGS_TYPE flags);
+		SOCKET_LENGTH_TYPE length,
+		SOCKET_FLAGS_TYPE flags) : INDIRECT;
 SOCKET_SENDRECV_TYPE recvfrom(
 		map(int fd),
 		SOCKET_DATA_TYPE data,
-		SOCKET_DATA_LENGTH length,
+		SOCKET_LENGTH_TYPE length,
 		SOCKET_FLAGS_TYPE flags,
 		SOCKET_ADDR_TYPE addr,
-		SOCKET_ADDR_LENGTH *addrlength);
+		SOCKET_LENGTH_TYPE *addrlength) : INDIRECT;
 SOCKET_SENDRECV_TYPE recvmsg(
 		map(int fd),
 		struct msghdr *msg,
-		SOCKET_FLAGS_TYPE flags);
+		SOCKET_FLAGS_TYPE flags) : INDIRECT;
 SOCKET_SENDRECV_TYPE send(
 		map(int fd),
 		SOCKET_DATA_CONST SOCKET_DATA_TYPE data,
-		SOCKET_DATA_LENGTH length,
-		SOCKET_FLAGS_TYPE flags );
+		SOCKET_LENGTH_TYPE length,
+		SOCKET_FLAGS_TYPE flags ) : INDIRECT;
 SOCKET_SENDRECV_TYPE sendmsg(
 		map(int fd),
 		SOCKET_MSG_CONST struct msghdr * msg,
-		SOCKET_FLAGS_TYPE flags);
+		SOCKET_FLAGS_TYPE flags) : INDIRECT;
 SOCKET_SENDRECV_TYPE sendto(
 		map(int fd),
 		SOCKET_DATA_CONST SOCKET_DATA_TYPE data,
-		SOCKET_DATA_LENGTH length,
+		SOCKET_LENGTH_TYPE length,
 		SOCKET_FLAGS_TYPE flags,
 		const SOCKET_ADDR_TYPE addr,
-		SOCKET_ADDR_LENGTH addrlength );
+		SOCKET_LENGTH_TYPE addrlength ) : INDIRECT;
 int setsockopt(
 		map(int fd),
 		int level,
 		int option,
 		SOCKET_DATA_CONST SOCKET_DATA_TYPE value,
-		SOCKET_DATA_LENGTH length);
+		SOCKET_LENGTH_TYPE length) : INDIRECT;
 int shutdown (
 		map(int fd),
-		int how);
-int socket(
-		int domain,
-		int type,
-		int protocol) : file_table;
+		int how) : INDIRECT;
 
-not_supported {
-	int socketpair (
-			int domain,
-			int type,
-			int protocol,
-			int *pair);
-}
+not_supported int socketpair( int domain, int type, int protocol, int *fds ) : INDIRECT;
+
+#endif /* CLIP */
+#endif /* FILE_TABLE */
 
 
+#if defined(REMOTE_SYSCALLS)
+#if !defined(CLIP)
 	/*
 	Things we perhaps ought to support, but aren't in the
 	current implementation
