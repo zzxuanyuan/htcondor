@@ -103,6 +103,8 @@ AttrList::AttrList() : AttrListAbstract(ATTRLISTENTITY)
     tail = NULL;
     ptrExpr = NULL;
     ptrName = NULL;
+    ptrExprInChain = false;
+    ptrNameInChain = false;
     associatedList = NULL;
 }
 
@@ -120,6 +122,8 @@ AttrList::AttrList(AttrListList* associatedList) :
     tail = NULL;
     ptrExpr = NULL;
     ptrName = NULL;
+    ptrExprInChain = false;
+    ptrNameInChain = false;
     this->associatedList = associatedList;
     if(associatedList)
     {
@@ -156,6 +160,8 @@ AttrList(FILE *file, char *delimitor, int &isEOF, int &error, int &empty)
     tail 			= NULL;
     ptrExpr 		= NULL;
     ptrName 		= NULL;
+    ptrExprInChain = false;
+    ptrNameInChain = false;
 	empty			= TRUE;
 
 	buffer[0] = '\0';
@@ -235,6 +241,8 @@ AttrList::AttrList(char *AttrList, char delimitor) : AttrListAbstract(ATTRLISTEN
     tail = NULL;
     ptrExpr = NULL;
     ptrName = NULL;
+    ptrExprInChain = false;
+    ptrNameInChain = false;
 
     char c;
     int buffer_size = 10;                    // size of the input buffer.
@@ -343,6 +351,8 @@ AttrList::AttrList(ProcObj* procObj) : AttrListAbstract(ATTRLISTENTITY)
 	tail = NULL;
 	ptrExpr = NULL;
 	ptrName = NULL;
+    ptrExprInChain = false;
+    ptrNameInChain = false;
 
 
 	// Convert the fields in a proc structure into expression trees and insert
@@ -584,6 +594,8 @@ AttrList::AttrList(CONTEXT* context) : AttrListAbstract(ATTRLISTENTITY)
 	tail = NULL;
 	ptrExpr = NULL;
 	ptrName = NULL;
+    ptrExprInChain = false;
+    ptrNameInChain = false;
 	exprList = NULL;
 	inside_insert = false;
 	chainedAttrs = NULL;
@@ -693,6 +705,8 @@ AttrList::AttrList(AttrList &old) : AttrListAbstract(ATTRLISTENTITY)
 	this->inside_insert = false;
     this->ptrExpr = NULL;
     this->ptrName = NULL;
+    this->ptrExprInChain = false;
+    this->ptrNameInChain = false;
     this->associatedList = old.associatedList;
 	this->seq = old.seq;
     if(this->associatedList) {
@@ -749,6 +763,8 @@ AttrList& AttrList::operator=(const AttrList& other)
 		this->inside_insert = false;
 		this->ptrExpr = NULL;
 		this->ptrName = NULL;
+    	this->ptrExprInChain = false;
+    	this->ptrNameInChain = false;
 		this->associatedList = other.associatedList;
 		this->seq = other.seq;
 		if (this->associatedList) {
@@ -970,6 +986,12 @@ int AttrList::UpdateExpr(ExprTree* attr)
 
 ExprTree* AttrList::NextExpr()
 {
+	// After iterating through all the exprs in this ad,
+	// get all the exprs in our chained ad as well.
+    if (!this->ptrExpr && chainedAttrs && !ptrExprInChain ) {
+		ptrExprInChain = true;
+		ptrExpr = *chainedAttrs;
+	}
     if(!this->ptrExpr)
     {
 		return NULL;
@@ -985,6 +1007,9 @@ ExprTree* AttrList::NextExpr()
 ExprTree* AttrList::NextDirtyExpr()
 {
 	ExprTree *expr;
+
+	// Note: no need to check chained attrs here, since in normal
+	// practice they will never be dirty.
 
 	expr = NULL;
 	// Loop until we find a dirty attribute
@@ -1002,15 +1027,16 @@ ExprTree* AttrList::NextDirtyExpr()
 
 char* AttrList::NextName()
 {
-    if(!this->ptrName)
+	const char *name;
+
+    if( (name=this->NextNameOriginal()) == NULL )
     {
 	return NULL;
     }
     else
     {
-	char* tmp = new char[strlen(ptrName->name) + 1];
-	strcpy(tmp, ptrName->name);
-	ptrName = ptrName->next;
+	char* tmp = new char[strlen(name) + 1];
+	strcpy(tmp, name);
 	return tmp;
     }
 }
@@ -1019,6 +1045,12 @@ const char* AttrList::NextNameOriginal()
 {
 	char *name;
 
+	// After iterating through all the names in this ad,
+	// get all the names in our chained ad as well.
+    if (!this->ptrName && chainedAttrs && !ptrNameInChain ) {
+		ptrNameInChain = true;
+		ptrName = *chainedAttrs;
+	}
     if (!this->ptrName) {
 		name = NULL;
     }
@@ -1032,6 +1064,9 @@ const char* AttrList::NextNameOriginal()
 char *AttrList::NextDirtyName()
 {
 	char *name;
+
+	// Note: no need to check chained attrs here, since in normal
+	// practice they will never be dirty.
 
 	name = NULL;
 
