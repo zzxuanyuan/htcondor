@@ -120,14 +120,6 @@ SOURCE=..\src\condor_dagman\debug.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_dagman\helper.C
-# End Source File
-# Begin Source File
-
-SOURCE=..\src\condor_dagman\helper.h
-# End Source File
-# Begin Source File
-
 SOURCE=..\src\condor_dagman\job.C
 # End Source File
 # Begin Source File

@@ -1,7 +1,7 @@
 # Microsoft Developer Studio Generated Dependency File, included by condor_startd.mak
 
 ..\src\condor_startd.V6\AvailStats.C : \
-	"..\..\..\program files\microsoft visual studio\vc98\include\basetsd.h"\
+	"..\..\progra~1\micros~2\vc98\include\basetsd.h"\
 	"..\src\condor_c++_util\extArray.h"\
 	"..\src\condor_c++_util\get_daemon_addr.h"\
 	"..\src\condor_c++_util\get_full_hostname.h"\
@@ -42,12 +42,12 @@
 	"..\src\condor_includes\condor_io.h"\
 	"..\src\condor_includes\condor_md.h"\
 	"..\src\condor_includes\condor_network.h"\
-	"..\src\condor_includes\condor_perms.h"\
 	"..\src\condor_includes\condor_random_num.h"\
 	"..\src\condor_includes\condor_secman.h"\
 	"..\src\condor_includes\condor_state.h"\
 	"..\src\condor_includes\condor_status.h"\
 	"..\src\condor_includes\condor_string.h"\
+	"..\src\condor_includes\condor_system.h"\
 	"..\src\condor_includes\condor_uid.h"\
 	"..\src\condor_includes\condor_universe.h"\
 	"..\src\condor_includes\CryptKey.h"\
@@ -73,6 +73,7 @@
 	"..\src\condor_startd.V6\starter_mgr.h"\
 	"..\src\condor_sysapi\sysapi.h"\
 	"..\src\h\condor_types.h"\
+	"..\src\h\fake_flock.h"\
 	"..\src\h\file_lock.h"\
 	"..\src\h\internet.h"\
 	"..\src\h\proc.h"\
@@ -82,7 +83,7 @@
 	
 
 ..\src\condor_startd.V6\command.C : \
-	"..\..\..\program files\microsoft visual studio\vc98\include\basetsd.h"\
+	"..\..\progra~1\micros~2\vc98\include\basetsd.h"\
 	"..\src\condor_c++_util\extArray.h"\
 	"..\src\condor_c++_util\get_daemon_addr.h"\
 	"..\src\condor_c++_util\get_full_hostname.h"\
@@ -123,12 +124,12 @@
 	"..\src\condor_includes\condor_io.h"\
 	"..\src\condor_includes\condor_md.h"\
 	"..\src\condor_includes\condor_network.h"\
-	"..\src\condor_includes\condor_perms.h"\
 	"..\src\condor_includes\condor_random_num.h"\
 	"..\src\condor_includes\condor_secman.h"\
 	"..\src\condor_includes\condor_state.h"\
 	"..\src\condor_includes\condor_status.h"\
 	"..\src\condor_includes\condor_string.h"\
+	"..\src\condor_includes\condor_system.h"\
 	"..\src\condor_includes\condor_uid.h"\
 	"..\src\condor_includes\condor_universe.h"\
 	"..\src\condor_includes\CryptKey.h"\
@@ -154,6 +155,7 @@
 	"..\src\condor_startd.V6\starter_mgr.h"\
 	"..\src\condor_sysapi\sysapi.h"\
 	"..\src\h\condor_types.h"\
+	"..\src\h\fake_flock.h"\
 	"..\src\h\file_lock.h"\
 	"..\src\h\internet.h"\
 	"..\src\h\proc.h"\
@@ -163,7 +165,7 @@
 	
 
 ..\src\condor_startd.V6\LoadQueue.C : \
-	"..\..\..\program files\microsoft visual studio\vc98\include\basetsd.h"\
+	"..\..\progra~1\micros~2\vc98\include\basetsd.h"\
 	"..\src\condor_c++_util\extArray.h"\
 	"..\src\condor_c++_util\get_daemon_addr.h"\
 	"..\src\condor_c++_util\get_full_hostname.h"\
@@ -204,12 +206,12 @@
 	"..\src\condor_includes\condor_io.h"\
 	"..\src\condor_includes\condor_md.h"\
 	"..\src\condor_includes\condor_network.h"\
-	"..\src\condor_includes\condor_perms.h"\
 	"..\src\condor_includes\condor_random_num.h"\
 	"..\src\condor_includes\condor_secman.h"\
 	"..\src\condor_includes\condor_state.h"\
 	"..\src\condor_includes\condor_status.h"\
 	"..\src\condor_includes\condor_string.h"\
+	"..\src\condor_includes\condor_system.h"\
 	"..\src\condor_includes\condor_uid.h"\
 	"..\src\condor_includes\condor_universe.h"\
 	"..\src\condor_includes\CryptKey.h"\
@@ -235,6 +237,7 @@
 	"..\src\condor_startd.V6\starter_mgr.h"\
 	"..\src\condor_sysapi\sysapi.h"\
 	"..\src\h\condor_types.h"\
+	"..\src\h\fake_flock.h"\
 	"..\src\h\file_lock.h"\
 	"..\src\h\internet.h"\
 	"..\src\h\proc.h"\
@@ -244,7 +247,7 @@
 	
 
 ..\src\condor_startd.V6\Match.C : \
-	"..\..\..\program files\microsoft visual studio\vc98\include\basetsd.h"\
+	"..\..\progra~1\micros~2\vc98\include\basetsd.h"\
 	"..\src\condor_c++_util\extArray.h"\
 	"..\src\condor_c++_util\get_daemon_addr.h"\
 	"..\src\condor_c++_util\get_full_hostname.h"\
@@ -285,12 +288,12 @@
 	"..\src\condor_includes\condor_io.h"\
 	"..\src\condor_includes\condor_md.h"\
 	"..\src\condor_includes\condor_network.h"\
-	"..\src\condor_includes\condor_perms.h"\
 	"..\src\condor_includes\condor_random_num.h"\
 	"..\src\condor_includes\condor_secman.h"\
 	"..\src\condor_includes\condor_state.h"\
 	"..\src\condor_includes\condor_status.h"\
 	"..\src\condor_includes\condor_string.h"\
+	"..\src\condor_includes\condor_system.h"\
 	"..\src\condor_includes\condor_uid.h"\
 	"..\src\condor_includes\condor_universe.h"\
 	"..\src\condor_includes\CryptKey.h"\
@@ -316,6 +319,7 @@
 	"..\src\condor_startd.V6\starter_mgr.h"\
 	"..\src\condor_sysapi\sysapi.h"\
 	"..\src\h\condor_types.h"\
+	"..\src\h\fake_flock.h"\
 	"..\src\h\file_lock.h"\
 	"..\src\h\internet.h"\
 	"..\src\h\proc.h"\
@@ -325,7 +329,7 @@
 	
 
 ..\src\condor_startd.V6\mds.C : \
-	"..\..\..\program files\microsoft visual studio\vc98\include\basetsd.h"\
+	"..\..\progra~1\micros~2\vc98\include\basetsd.h"\
 	"..\src\condor_c++_util\extArray.h"\
 	"..\src\condor_c++_util\HashTable.h"\
 	"..\src\condor_c++_util\MyString.h"\
@@ -345,11 +349,13 @@
 	"..\src\condor_includes\condor_fix_assert.h"\
 	"..\src\condor_includes\condor_header_features.h"\
 	"..\src\condor_includes\condor_network.h"\
+	"..\src\condor_includes\condor_system.h"\
 	"..\src\condor_includes\condor_universe.h"\
 	"..\src\condor_includes\CryptKey.h"\
 	"..\src\condor_includes\stream.h"\
 	"..\src\condor_startd.V6\mds.h"\
 	"..\src\condor_sysapi\sysapi.h"\
+	"..\src\h\fake_flock.h"\
 	"..\src\h\file_lock.h"\
 	"..\src\h\proc.h"\
 	"..\src\h\sched.h"\
@@ -357,7 +363,7 @@
 	
 
 ..\src\condor_startd.V6\Reqexp.C : \
-	"..\..\..\program files\microsoft visual studio\vc98\include\basetsd.h"\
+	"..\..\progra~1\micros~2\vc98\include\basetsd.h"\
 	"..\src\condor_c++_util\extArray.h"\
 	"..\src\condor_c++_util\get_daemon_addr.h"\
 	"..\src\condor_c++_util\get_full_hostname.h"\
@@ -398,12 +404,12 @@
 	"..\src\condor_includes\condor_io.h"\
 	"..\src\condor_includes\condor_md.h"\
 	"..\src\condor_includes\condor_network.h"\
-	"..\src\condor_includes\condor_perms.h"\
 	"..\src\condor_includes\condor_random_num.h"\
 	"..\src\condor_includes\condor_secman.h"\
 	"..\src\condor_includes\condor_state.h"\
 	"..\src\condor_includes\condor_status.h"\
 	"..\src\condor_includes\condor_string.h"\
+	"..\src\condor_includes\condor_system.h"\
 	"..\src\condor_includes\condor_uid.h"\
 	"..\src\condor_includes\condor_universe.h"\
 	"..\src\condor_includes\CryptKey.h"\
@@ -429,6 +435,7 @@
 	"..\src\condor_startd.V6\starter_mgr.h"\
 	"..\src\condor_sysapi\sysapi.h"\
 	"..\src\h\condor_types.h"\
+	"..\src\h\fake_flock.h"\
 	"..\src\h\file_lock.h"\
 	"..\src\h\internet.h"\
 	"..\src\h\proc.h"\
@@ -438,7 +445,7 @@
 	
 
 ..\src\condor_startd.V6\ResAttributes.C : \
-	"..\..\..\program files\microsoft visual studio\vc98\include\basetsd.h"\
+	"..\..\progra~1\micros~2\vc98\include\basetsd.h"\
 	"..\src\condor_c++_util\extArray.h"\
 	"..\src\condor_c++_util\get_daemon_addr.h"\
 	"..\src\condor_c++_util\get_full_hostname.h"\
@@ -479,12 +486,12 @@
 	"..\src\condor_includes\condor_io.h"\
 	"..\src\condor_includes\condor_md.h"\
 	"..\src\condor_includes\condor_network.h"\
-	"..\src\condor_includes\condor_perms.h"\
 	"..\src\condor_includes\condor_random_num.h"\
 	"..\src\condor_includes\condor_secman.h"\
 	"..\src\condor_includes\condor_state.h"\
 	"..\src\condor_includes\condor_status.h"\
 	"..\src\condor_includes\condor_string.h"\
+	"..\src\condor_includes\condor_system.h"\
 	"..\src\condor_includes\condor_uid.h"\
 	"..\src\condor_includes\condor_universe.h"\
 	"..\src\condor_includes\CryptKey.h"\
@@ -510,6 +517,7 @@
 	"..\src\condor_startd.V6\starter_mgr.h"\
 	"..\src\condor_sysapi\sysapi.h"\
 	"..\src\h\condor_types.h"\
+	"..\src\h\fake_flock.h"\
 	"..\src\h\file_lock.h"\
 	"..\src\h\internet.h"\
 	"..\src\h\proc.h"\
@@ -519,7 +527,7 @@
 	
 
 ..\src\condor_startd.V6\ResMgr.C : \
-	"..\..\..\program files\microsoft visual studio\vc98\include\basetsd.h"\
+	"..\..\progra~1\micros~2\vc98\include\basetsd.h"\
 	"..\src\condor_c++_util\classad_merge.h"\
 	"..\src\condor_c++_util\extArray.h"\
 	"..\src\condor_c++_util\get_daemon_addr.h"\
@@ -561,12 +569,12 @@
 	"..\src\condor_includes\condor_io.h"\
 	"..\src\condor_includes\condor_md.h"\
 	"..\src\condor_includes\condor_network.h"\
-	"..\src\condor_includes\condor_perms.h"\
 	"..\src\condor_includes\condor_random_num.h"\
 	"..\src\condor_includes\condor_secman.h"\
 	"..\src\condor_includes\condor_state.h"\
 	"..\src\condor_includes\condor_status.h"\
 	"..\src\condor_includes\condor_string.h"\
+	"..\src\condor_includes\condor_system.h"\
 	"..\src\condor_includes\condor_uid.h"\
 	"..\src\condor_includes\condor_universe.h"\
 	"..\src\condor_includes\CryptKey.h"\
@@ -592,6 +600,7 @@
 	"..\src\condor_startd.V6\starter_mgr.h"\
 	"..\src\condor_sysapi\sysapi.h"\
 	"..\src\h\condor_types.h"\
+	"..\src\h\fake_flock.h"\
 	"..\src\h\file_lock.h"\
 	"..\src\h\internet.h"\
 	"..\src\h\proc.h"\
@@ -601,7 +610,7 @@
 	
 
 ..\src\condor_startd.V6\Resource.C : \
-	"..\..\..\program files\microsoft visual studio\vc98\include\basetsd.h"\
+	"..\..\progra~1\micros~2\vc98\include\basetsd.h"\
 	"..\src\condor_c++_util\extArray.h"\
 	"..\src\condor_c++_util\get_daemon_addr.h"\
 	"..\src\condor_c++_util\get_full_hostname.h"\
@@ -642,12 +651,12 @@
 	"..\src\condor_includes\condor_io.h"\
 	"..\src\condor_includes\condor_md.h"\
 	"..\src\condor_includes\condor_network.h"\
-	"..\src\condor_includes\condor_perms.h"\
 	"..\src\condor_includes\condor_random_num.h"\
 	"..\src\condor_includes\condor_secman.h"\
 	"..\src\condor_includes\condor_state.h"\
 	"..\src\condor_includes\condor_status.h"\
 	"..\src\condor_includes\condor_string.h"\
+	"..\src\condor_includes\condor_system.h"\
 	"..\src\condor_includes\condor_uid.h"\
 	"..\src\condor_includes\condor_universe.h"\
 	"..\src\condor_includes\CryptKey.h"\
@@ -674,6 +683,7 @@
 	"..\src\condor_startd.V6\starter_mgr.h"\
 	"..\src\condor_sysapi\sysapi.h"\
 	"..\src\h\condor_types.h"\
+	"..\src\h\fake_flock.h"\
 	"..\src\h\file_lock.h"\
 	"..\src\h\internet.h"\
 	"..\src\h\proc.h"\
@@ -683,7 +693,7 @@
 	
 
 ..\src\condor_startd.V6\ResState.C : \
-	"..\..\..\program files\microsoft visual studio\vc98\include\basetsd.h"\
+	"..\..\progra~1\micros~2\vc98\include\basetsd.h"\
 	"..\src\condor_c++_util\extArray.h"\
 	"..\src\condor_c++_util\get_daemon_addr.h"\
 	"..\src\condor_c++_util\get_full_hostname.h"\
@@ -724,12 +734,12 @@
 	"..\src\condor_includes\condor_io.h"\
 	"..\src\condor_includes\condor_md.h"\
 	"..\src\condor_includes\condor_network.h"\
-	"..\src\condor_includes\condor_perms.h"\
 	"..\src\condor_includes\condor_random_num.h"\
 	"..\src\condor_includes\condor_secman.h"\
 	"..\src\condor_includes\condor_state.h"\
 	"..\src\condor_includes\condor_status.h"\
 	"..\src\condor_includes\condor_string.h"\
+	"..\src\condor_includes\condor_system.h"\
 	"..\src\condor_includes\condor_uid.h"\
 	"..\src\condor_includes\condor_universe.h"\
 	"..\src\condor_includes\CryptKey.h"\
@@ -755,6 +765,7 @@
 	"..\src\condor_startd.V6\starter_mgr.h"\
 	"..\src\condor_sysapi\sysapi.h"\
 	"..\src\h\condor_types.h"\
+	"..\src\h\fake_flock.h"\
 	"..\src\h\file_lock.h"\
 	"..\src\h\internet.h"\
 	"..\src\h\proc.h"\
@@ -764,7 +775,7 @@
 	
 
 ..\src\condor_startd.V6\startd_cronjob.C : \
-	"..\..\..\program files\microsoft visual studio\vc98\include\basetsd.h"\
+	"..\..\progra~1\micros~2\vc98\include\basetsd.h"\
 	"..\src\condor_c++_util\extArray.h"\
 	"..\src\condor_c++_util\get_daemon_addr.h"\
 	"..\src\condor_c++_util\get_full_hostname.h"\
@@ -806,12 +817,12 @@
 	"..\src\condor_includes\condor_io.h"\
 	"..\src\condor_includes\condor_md.h"\
 	"..\src\condor_includes\condor_network.h"\
-	"..\src\condor_includes\condor_perms.h"\
 	"..\src\condor_includes\condor_random_num.h"\
 	"..\src\condor_includes\condor_secman.h"\
 	"..\src\condor_includes\condor_state.h"\
 	"..\src\condor_includes\condor_status.h"\
 	"..\src\condor_includes\condor_string.h"\
+	"..\src\condor_includes\condor_system.h"\
 	"..\src\condor_includes\condor_uid.h"\
 	"..\src\condor_includes\condor_universe.h"\
 	"..\src\condor_includes\CryptKey.h"\
@@ -839,6 +850,7 @@
 	"..\src\condor_startd.V6\starter_mgr.h"\
 	"..\src\condor_sysapi\sysapi.h"\
 	"..\src\h\condor_types.h"\
+	"..\src\h\fake_flock.h"\
 	"..\src\h\file_lock.h"\
 	"..\src\h\internet.h"\
 	"..\src\h\proc.h"\
@@ -848,34 +860,24 @@
 	
 
 ..\src\condor_startd.V6\startd_cronmgr.C : \
-	"..\..\..\program files\microsoft visual studio\vc98\include\basetsd.h"\
+	"..\..\progra~1\micros~2\vc98\include\basetsd.h"\
 	"..\src\condor_c++_util\extArray.h"\
-	"..\src\condor_c++_util\get_daemon_addr.h"\
-	"..\src\condor_c++_util\get_full_hostname.h"\
 	"..\src\condor_c++_util\HashTable.h"\
-	"..\src\condor_c++_util\killfamily.h"\
-	"..\src\condor_c++_util\misc_utils.h"\
 	"..\src\condor_c++_util\my_hostname.h"\
 	"..\src\condor_c++_util\MyString.h"\
 	"..\src\condor_c++_util\ntsysinfo.h"\
 	"..\src\condor_c++_util\simplelist.h"\
 	"..\src\condor_c++_util\string_list.h"\
 	"..\src\condor_c++_util\stringSpace.h"\
-	"..\src\condor_daemon_client\daemon.h"\
-	"..\src\condor_daemon_client\daemon_types.h"\
 	"..\src\condor_daemon_core.V6\condor_daemon_core.h"\
 	"..\src\condor_daemon_core.V6\condor_ipverify.h"\
 	"..\src\condor_daemon_core.V6\condor_timer_manager.h"\
-	"..\src\condor_includes\basename.h"\
 	"..\src\condor_includes\buffers.h"\
 	"..\src\condor_includes\condor_adtypes.h"\
 	"..\src\condor_includes\condor_ast.h"\
 	"..\src\condor_includes\condor_astbase.h"\
-	"..\src\condor_includes\condor_attributes.h"\
 	"..\src\condor_includes\condor_attrlist.h"\
-	"..\src\condor_includes\condor_ckpt_name.h"\
 	"..\src\condor_includes\condor_classad.h"\
-	"..\src\condor_includes\condor_collector.h"\
 	"..\src\condor_includes\condor_commands.h"\
 	"..\src\condor_includes\condor_common.h"\
 	"..\src\condor_includes\condor_config.h"\
@@ -887,17 +889,13 @@
 	"..\src\condor_includes\condor_debug.h"\
 	"..\src\condor_includes\condor_exprtype.h"\
 	"..\src\condor_includes\condor_fix_assert.h"\
-	"..\src\condor_includes\condor_getmnt.h"\
 	"..\src\condor_includes\condor_header_features.h"\
 	"..\src\condor_includes\condor_io.h"\
 	"..\src\condor_includes\condor_md.h"\
 	"..\src\condor_includes\condor_network.h"\
-	"..\src\condor_includes\condor_perms.h"\
 	"..\src\condor_includes\condor_random_num.h"\
 	"..\src\condor_includes\condor_secman.h"\
-	"..\src\condor_includes\condor_state.h"\
-	"..\src\condor_includes\condor_status.h"\
-	"..\src\condor_includes\condor_string.h"\
+	"..\src\condor_includes\condor_system.h"\
 	"..\src\condor_includes\condor_uid.h"\
 	"..\src\condor_includes\condor_universe.h"\
 	"..\src\condor_includes\CryptKey.h"\
@@ -909,33 +907,18 @@
 	"..\src\condor_includes\sock.h"\
 	"..\src\condor_includes\sockCache.h"\
 	"..\src\condor_includes\stream.h"\
-	"..\src\condor_procapi\procapi.h"\
-	"..\src\condor_startd.V6\AvailStats.h"\
-	"..\src\condor_startd.V6\command.h"\
-	"..\src\condor_startd.V6\LoadQueue.h"\
-	"..\src\condor_startd.V6\Match.h"\
-	"..\src\condor_startd.V6\Reqexp.h"\
-	"..\src\condor_startd.V6\ResAttributes.h"\
-	"..\src\condor_startd.V6\ResMgr.h"\
-	"..\src\condor_startd.V6\Resource.h"\
-	"..\src\condor_startd.V6\ResState.h"\
-	"..\src\condor_startd.V6\startd.h"\
 	"..\src\condor_startd.V6\startd_cronjob.h"\
 	"..\src\condor_startd.V6\startd_cronmgr.h"\
-	"..\src\condor_startd.V6\Starter.h"\
-	"..\src\condor_startd.V6\starter_mgr.h"\
 	"..\src\condor_sysapi\sysapi.h"\
-	"..\src\h\condor_types.h"\
+	"..\src\h\fake_flock.h"\
 	"..\src\h\file_lock.h"\
-	"..\src\h\internet.h"\
 	"..\src\h\proc.h"\
 	"..\src\h\sched.h"\
 	"..\src\h\startup.h"\
-	"..\src\h\util_lib_proto.h"\
 	
 
 ..\src\condor_startd.V6\startd_main.C : \
-	"..\..\..\program files\microsoft visual studio\vc98\include\basetsd.h"\
+	"..\..\progra~1\micros~2\vc98\include\basetsd.h"\
 	"..\src\condor_c++_util\extArray.h"\
 	"..\src\condor_c++_util\get_daemon_addr.h"\
 	"..\src\condor_c++_util\get_full_hostname.h"\
@@ -979,12 +962,12 @@
 	"..\src\condor_includes\condor_io.h"\
 	"..\src\condor_includes\condor_md.h"\
 	"..\src\condor_includes\condor_network.h"\
-	"..\src\condor_includes\condor_perms.h"\
 	"..\src\condor_includes\condor_random_num.h"\
 	"..\src\condor_includes\condor_secman.h"\
 	"..\src\condor_includes\condor_state.h"\
 	"..\src\condor_includes\condor_status.h"\
 	"..\src\condor_includes\condor_string.h"\
+	"..\src\condor_includes\condor_system.h"\
 	"..\src\condor_includes\condor_uid.h"\
 	"..\src\condor_includes\condor_universe.h"\
 	"..\src\condor_includes\CryptKey.h"\
@@ -1012,6 +995,7 @@
 	"..\src\condor_startd.V6\starter_mgr.h"\
 	"..\src\condor_sysapi\sysapi.h"\
 	"..\src\h\condor_types.h"\
+	"..\src\h\fake_flock.h"\
 	"..\src\h\file_lock.h"\
 	"..\src\h\internet.h"\
 	"..\src\h\proc.h"\
@@ -1021,7 +1005,7 @@
 	
 
 ..\src\condor_startd.V6\Starter.C : \
-	"..\..\..\program files\microsoft visual studio\vc98\include\basetsd.h"\
+	"..\..\progra~1\micros~2\vc98\include\basetsd.h"\
 	"..\src\condor_c++_util\classad_merge.h"\
 	"..\src\condor_c++_util\dynuser.h"\
 	"..\src\condor_c++_util\extArray.h"\
@@ -1064,12 +1048,12 @@
 	"..\src\condor_includes\condor_io.h"\
 	"..\src\condor_includes\condor_md.h"\
 	"..\src\condor_includes\condor_network.h"\
-	"..\src\condor_includes\condor_perms.h"\
 	"..\src\condor_includes\condor_random_num.h"\
 	"..\src\condor_includes\condor_secman.h"\
 	"..\src\condor_includes\condor_state.h"\
 	"..\src\condor_includes\condor_status.h"\
 	"..\src\condor_includes\condor_string.h"\
+	"..\src\condor_includes\condor_system.h"\
 	"..\src\condor_includes\condor_uid.h"\
 	"..\src\condor_includes\condor_universe.h"\
 	"..\src\condor_includes\CryptKey.h"\
@@ -1095,6 +1079,7 @@
 	"..\src\condor_startd.V6\starter_mgr.h"\
 	"..\src\condor_sysapi\sysapi.h"\
 	"..\src\h\condor_types.h"\
+	"..\src\h\fake_flock.h"\
 	"..\src\h\file_lock.h"\
 	"..\src\h\internet.h"\
 	"..\src\h\proc.h"\
@@ -1104,7 +1089,7 @@
 	
 
 ..\src\condor_startd.V6\starter_mgr.C : \
-	"..\..\..\program files\microsoft visual studio\vc98\include\basetsd.h"\
+	"..\..\progra~1\micros~2\vc98\include\basetsd.h"\
 	"..\src\condor_c++_util\extArray.h"\
 	"..\src\condor_c++_util\get_daemon_addr.h"\
 	"..\src\condor_c++_util\get_full_hostname.h"\
@@ -1145,12 +1130,12 @@
 	"..\src\condor_includes\condor_io.h"\
 	"..\src\condor_includes\condor_md.h"\
 	"..\src\condor_includes\condor_network.h"\
-	"..\src\condor_includes\condor_perms.h"\
 	"..\src\condor_includes\condor_random_num.h"\
 	"..\src\condor_includes\condor_secman.h"\
 	"..\src\condor_includes\condor_state.h"\
 	"..\src\condor_includes\condor_status.h"\
 	"..\src\condor_includes\condor_string.h"\
+	"..\src\condor_includes\condor_system.h"\
 	"..\src\condor_includes\condor_uid.h"\
 	"..\src\condor_includes\condor_universe.h"\
 	"..\src\condor_includes\CryptKey.h"\
@@ -1176,6 +1161,7 @@
 	"..\src\condor_startd.V6\starter_mgr.h"\
 	"..\src\condor_sysapi\sysapi.h"\
 	"..\src\h\condor_types.h"\
+	"..\src\h\fake_flock.h"\
 	"..\src\h\file_lock.h"\
 	"..\src\h\internet.h"\
 	"..\src\h\proc.h"\
@@ -1185,7 +1171,7 @@
 	
 
 ..\src\condor_startd.V6\util.C : \
-	"..\..\..\program files\microsoft visual studio\vc98\include\basetsd.h"\
+	"..\..\progra~1\micros~2\vc98\include\basetsd.h"\
 	"..\src\condor_c++_util\directory.h"\
 	"..\src\condor_c++_util\dynuser.h"\
 	"..\src\condor_c++_util\extArray.h"\
@@ -1228,12 +1214,12 @@
 	"..\src\condor_includes\condor_io.h"\
 	"..\src\condor_includes\condor_md.h"\
 	"..\src\condor_includes\condor_network.h"\
-	"..\src\condor_includes\condor_perms.h"\
 	"..\src\condor_includes\condor_random_num.h"\
 	"..\src\condor_includes\condor_secman.h"\
 	"..\src\condor_includes\condor_state.h"\
 	"..\src\condor_includes\condor_status.h"\
 	"..\src\condor_includes\condor_string.h"\
+	"..\src\condor_includes\condor_system.h"\
 	"..\src\condor_includes\condor_uid.h"\
 	"..\src\condor_includes\condor_universe.h"\
 	"..\src\condor_includes\CryptKey.h"\
@@ -1259,6 +1245,7 @@
 	"..\src\condor_startd.V6\starter_mgr.h"\
 	"..\src\condor_sysapi\sysapi.h"\
 	"..\src\h\condor_types.h"\
+	"..\src\h\fake_flock.h"\
 	"..\src\h\file_lock.h"\
 	"..\src\h\internet.h"\
 	"..\src\h\proc.h"\

@@ -25,6 +25,9 @@ NULL=
 NULL=nul
 !ENDIF 
 
+CPP=cl.exe
+RSC=rc.exe
+
 !IF  "$(CFG)" == "condor_util_lib - Win32 Debug"
 
 OUTDIR=.\..\Debug
@@ -40,7 +43,6 @@ CLEAN :
 	-@erase "$(INTDIR)\ckpt_name.obj"
 	-@erase "$(INTDIR)\condor_common_c.obj"
 	-@erase "$(INTDIR)\condor_common_c.pch"
-	-@erase "$(INTDIR)\condor_perms.obj"
 	-@erase "$(INTDIR)\condor_snutils.obj"
 	-@erase "$(INTDIR)\condor_universe.obj"
 	-@erase "$(INTDIR)\cronos.obj"
@@ -53,7 +55,6 @@ CLEAN :
 	-@erase "$(INTDIR)\escapes.obj"
 	-@erase "$(INTDIR)\except.obj"
 	-@erase "$(INTDIR)\fdprintf.obj"
-	-@erase "$(INTDIR)\filename_tools.obj"
 	-@erase "$(INTDIR)\get_port_range.obj"
 	-@erase "$(INTDIR)\get_random_num.obj"
 	-@erase "$(INTDIR)\globus_utils.obj"
@@ -76,40 +77,7 @@ CLEAN :
 "$(OUTDIR)" :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
-CPP=cl.exe
 CPP_PROJ=/nologo /MTd /W3 /Gm /Gi /GX /ZI /Od /I "..\src\h" /I "..\src\condor_includes" /I "..\src\condor_c++_util" /I "..\src\condor_daemon_client" /D "WIN32" /D "_DEBUG" /Fp"$(INTDIR)\condor_common_c.pch" /Yu"condor_common.h" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /c 
-
-.c{$(INTDIR)}.obj::
-   $(CPP) @<<
-   $(CPP_PROJ) $< 
-<<
-
-.cpp{$(INTDIR)}.obj::
-   $(CPP) @<<
-   $(CPP_PROJ) $< 
-<<
-
-.cxx{$(INTDIR)}.obj::
-   $(CPP) @<<
-   $(CPP_PROJ) $< 
-<<
-
-.c{$(INTDIR)}.sbr::
-   $(CPP) @<<
-   $(CPP_PROJ) $< 
-<<
-
-.cpp{$(INTDIR)}.sbr::
-   $(CPP) @<<
-   $(CPP_PROJ) $< 
-<<
-
-.cxx{$(INTDIR)}.sbr::
-   $(CPP) @<<
-   $(CPP_PROJ) $< 
-<<
-
-RSC=rc.exe
 BSC32=bscmake.exe
 BSC32_FLAGS=/nologo /o"$(OUTDIR)\condor_util_lib.bsc" 
 BSC32_SBRS= \
@@ -122,7 +90,6 @@ LIB32_OBJS= \
 	"$(INTDIR)\chomp.obj" \
 	"$(INTDIR)\ckpt_name.obj" \
 	"$(INTDIR)\condor_common_c.obj" \
-	"$(INTDIR)\condor_perms.obj" \
 	"$(INTDIR)\condor_snutils.obj" \
 	"$(INTDIR)\condor_universe.obj" \
 	"$(INTDIR)\cronos.obj" \
@@ -148,8 +115,7 @@ LIB32_OBJS= \
 	"$(INTDIR)\rotate_file.obj" \
 	"$(INTDIR)\setsyscalls.obj" \
 	"$(INTDIR)\signames.obj" \
-	"$(INTDIR)\strcmp_until.obj" \
-	"$(INTDIR)\filename_tools.obj"
+	"$(INTDIR)\strcmp_until.obj"
 
 "..\src\condor_util_lib\condor_util.lib" : "$(OUTDIR)" $(DEF_FILE) $(LIB32_OBJS)
     $(LIB32) @<<
@@ -171,7 +137,6 @@ CLEAN :
 	-@erase "$(INTDIR)\ckpt_name.obj"
 	-@erase "$(INTDIR)\condor_common_c.obj"
 	-@erase "$(INTDIR)\condor_common_c.pch"
-	-@erase "$(INTDIR)\condor_perms.obj"
 	-@erase "$(INTDIR)\condor_snutils.obj"
 	-@erase "$(INTDIR)\condor_universe.obj"
 	-@erase "$(INTDIR)\cronos.obj"
@@ -184,7 +149,6 @@ CLEAN :
 	-@erase "$(INTDIR)\escapes.obj"
 	-@erase "$(INTDIR)\except.obj"
 	-@erase "$(INTDIR)\fdprintf.obj"
-	-@erase "$(INTDIR)\filename_tools.obj"
 	-@erase "$(INTDIR)\get_port_range.obj"
 	-@erase "$(INTDIR)\get_random_num.obj"
 	-@erase "$(INTDIR)\globus_utils.obj"
@@ -206,8 +170,52 @@ CLEAN :
 "$(OUTDIR)" :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
-CPP=cl.exe
 CPP_PROJ=/nologo /MT /W3 /GX /Z7 /O1 /I "..\src\h" /I "..\src\condor_includes" /I "..\src\condor_c++_util" /I "..\src\condor_daemon_client" /D "WIN32" /D "NDEBUG" /Fp"$(INTDIR)\condor_common_c.pch" /Yu"condor_common.h" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /c 
+BSC32=bscmake.exe
+BSC32_FLAGS=/nologo /o"$(OUTDIR)\condor_util_lib.bsc" 
+BSC32_SBRS= \
+	
+LIB32=link.exe -lib
+LIB32_FLAGS=/nologo /out:"..\src\condor_util_lib\condor_util.lib" 
+LIB32_OBJS= \
+	"$(INTDIR)\basename.obj" \
+	"$(INTDIR)\blankline.obj" \
+	"$(INTDIR)\chomp.obj" \
+	"$(INTDIR)\ckpt_name.obj" \
+	"$(INTDIR)\condor_common_c.obj" \
+	"$(INTDIR)\condor_snutils.obj" \
+	"$(INTDIR)\condor_universe.obj" \
+	"$(INTDIR)\cronos.obj" \
+	"$(INTDIR)\d_format_time.obj" \
+	"$(INTDIR)\dprintf.obj" \
+	"$(INTDIR)\dprintf_common.obj" \
+	"$(INTDIR)\dprintf_config.obj" \
+	"$(INTDIR)\email.obj" \
+	"$(INTDIR)\email_file.obj" \
+	"$(INTDIR)\escapes.obj" \
+	"$(INTDIR)\except.obj" \
+	"$(INTDIR)\fdprintf.obj" \
+	"$(INTDIR)\get_port_range.obj" \
+	"$(INTDIR)\get_random_num.obj" \
+	"$(INTDIR)\globus_utils.obj" \
+	"$(INTDIR)\internet.obj" \
+	"$(INTDIR)\lock_file.WIN32.obj" \
+	"$(INTDIR)\ltrunc.obj" \
+	"$(INTDIR)\match_prefix.obj" \
+	"$(INTDIR)\mkargv.obj" \
+	"$(INTDIR)\nullfile.obj" \
+	"$(INTDIR)\proc_id.obj" \
+	"$(INTDIR)\rotate_file.obj" \
+	"$(INTDIR)\setsyscalls.obj" \
+	"$(INTDIR)\signames.obj" \
+	"$(INTDIR)\strcmp_until.obj"
+
+"..\src\condor_util_lib\condor_util.lib" : "$(OUTDIR)" $(DEF_FILE) $(LIB32_OBJS)
+    $(LIB32) @<<
+  $(LIB32_FLAGS) $(DEF_FLAGS) $(LIB32_OBJS)
+<<
+
+!ENDIF 
 
 .c{$(INTDIR)}.obj::
    $(CPP) @<<
@@ -238,55 +246,6 @@ CPP_PROJ=/nologo /MT /W3 /GX /Z7 /O1 /I "..\src\h" /I "..\src\condor_includes" /
    $(CPP) @<<
    $(CPP_PROJ) $< 
 <<
-
-RSC=rc.exe
-BSC32=bscmake.exe
-BSC32_FLAGS=/nologo /o"$(OUTDIR)\condor_util_lib.bsc" 
-BSC32_SBRS= \
-	
-LIB32=link.exe -lib
-LIB32_FLAGS=/nologo /out:"..\src\condor_util_lib\condor_util.lib" 
-LIB32_OBJS= \
-	"$(INTDIR)\basename.obj" \
-	"$(INTDIR)\blankline.obj" \
-	"$(INTDIR)\chomp.obj" \
-	"$(INTDIR)\ckpt_name.obj" \
-	"$(INTDIR)\condor_common_c.obj" \
-	"$(INTDIR)\condor_perms.obj" \
-	"$(INTDIR)\condor_snutils.obj" \
-	"$(INTDIR)\condor_universe.obj" \
-	"$(INTDIR)\cronos.obj" \
-	"$(INTDIR)\d_format_time.obj" \
-	"$(INTDIR)\dprintf.obj" \
-	"$(INTDIR)\dprintf_common.obj" \
-	"$(INTDIR)\dprintf_config.obj" \
-	"$(INTDIR)\email.obj" \
-	"$(INTDIR)\email_file.obj" \
-	"$(INTDIR)\escapes.obj" \
-	"$(INTDIR)\except.obj" \
-	"$(INTDIR)\fdprintf.obj" \
-	"$(INTDIR)\get_port_range.obj" \
-	"$(INTDIR)\get_random_num.obj" \
-	"$(INTDIR)\globus_utils.obj" \
-	"$(INTDIR)\internet.obj" \
-	"$(INTDIR)\lock_file.WIN32.obj" \
-	"$(INTDIR)\ltrunc.obj" \
-	"$(INTDIR)\match_prefix.obj" \
-	"$(INTDIR)\mkargv.obj" \
-	"$(INTDIR)\nullfile.obj" \
-	"$(INTDIR)\proc_id.obj" \
-	"$(INTDIR)\rotate_file.obj" \
-	"$(INTDIR)\setsyscalls.obj" \
-	"$(INTDIR)\signames.obj" \
-	"$(INTDIR)\strcmp_until.obj" \
-	"$(INTDIR)\filename_tools.obj"
-
-"..\src\condor_util_lib\condor_util.lib" : "$(OUTDIR)" $(DEF_FILE) $(LIB32_OBJS)
-    $(LIB32) @<<
-  $(LIB32_FLAGS) $(DEF_FLAGS) $(LIB32_OBJS)
-<<
-
-!ENDIF 
 
 
 !IF "$(NO_EXTERNAL_DEPS)" != "1"
@@ -346,12 +305,6 @@ CPP_SWITCHES=/nologo /MT /W3 /GX /Z7 /O1 /I "..\src\h" /I "..\src\condor_include
 
 
 !ENDIF 
-
-SOURCE=..\src\condor_util_lib\condor_perms.c
-
-"$(INTDIR)\condor_perms.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common_c.pch"
-	$(CPP) $(CPP_PROJ) $(SOURCE)
-
 
 SOURCE=..\src\condor_util_lib\condor_snutils.c
 
@@ -440,12 +393,6 @@ SOURCE=..\src\condor_util_lib\except.c
 SOURCE=..\src\condor_util_lib\fdprintf.c
 
 "$(INTDIR)\fdprintf.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common_c.pch"
-	$(CPP) $(CPP_PROJ) $(SOURCE)
-
-
-SOURCE=..\src\condor_util_lib\filename_tools.c
-
-"$(INTDIR)\filename_tools.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common_c.pch"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
