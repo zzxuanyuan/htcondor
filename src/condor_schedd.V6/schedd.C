@@ -1728,6 +1728,120 @@ Scheduler::PeriodicExprHandler( void )
 	WalkJobQueue(PeriodicExprEval);
 }
 
+/**
+Interface to the non-static aboutToSpawnJobHandler.  Suitable for
+use with Create_Thread_With_Data.  Be sure to pass the Scheduler pointer
+in as the void *.
+
+For example:
+
+Start_Thread_With_Data(Scheduler::aboutToSpawnJobHandlerStatic, 0, cluster, proc, this);  // "this" is a pointer to Scheduler
+*/
+int Scheduler::aboutToSpawnJobHandlerStatic(int cluster, int proc, void * schedulerobj)
+{
+	ASSERT(schedulerobj);
+	Scheduler * s = (Scheduler*)schedulerobj;
+	return s->aboutToSpawnJobHandler(cluster, proc);
+}
+
+static bool get_user_uid_gid(const char * owner, const char * domain,
+	uid_t * uid, gid_t * gid)
+{
+	// TODO: Definately want someone more familiar with
+	// uid management in Condor to verify that this isn't insane. 
+	if( ! init_user_ids(owner, domain) )
+	{
+		return false;
+	}
+	if(uid) { *uid = get_user_uid(); }
+	if(gid) { *gid = get_user_gid(); }
+	uninit_user_ids();
+	return true;
+}
+
+static bool JobIsSandboxed(ClassAd * ad) {
+	ASSERT(ad);
+	int dummy;
+	return ad->LookupInteger(ATTR_STAGE_IN_START, dummy);
+}
+
+bool GetSandbox(int cluster, int proc, MyString & path) {
+	char *Spool = param("SPOOL");
+	if( ! Spool ) {
+		return false;
+	}
+	const char * sandbox = gen_ckpt_name(Spool, cluster, proc, 0);
+	free(Spool);
+	if( ! sandbox ) {
+		return false;
+	}
+	path = sandbox;
+	return true;
+}
+
+/** Last chance to prep a job before it (potentially) starts
+
+This is a last chance to do any final work before starting a
+job handler (starting condor_shadow, handing off to condor_gridmanager,
+etc).  May block for a long time, so you'll probably want to do this is
+a thread.  Indeed, see aboutToSpawnJobHandlerStatic for a interface
+suitable for handing to Create_Thread_With_Data.
+
+What do we do here?  At the moment if the job has a "sandbox" directory
+("condor_submit -s", Condor-C, or the SOAP interface) we chown it from
+condor to the user.  In the future we might allocate a dynamic account here.
+*/
+int Scheduler::aboutToSpawnJobHandler(int cluster, int proc)
+{
+	ASSERT(cluster > 0);
+	ASSERT(proc >= 0);
+
+	// claim dynamic accounts here
+
+#ifndef WIN32
+	ClassAd * job_ad = GetJobAd( cluster, proc );
+	ASSERT(job_ad); // No job ad?
+	if( JobIsSandboxed(job_ad) ) {
+		MyString sandbox;
+		if(GetSandbox(cluster, proc, sandbox)) {
+			MyString owner, domain;
+			job_ad->LookupString(ATTR_OWNER, owner);
+			job_ad->LookupString(ATTR_NT_DOMAIN, domain);
+
+			uid_t src_uid = get_condor_uid();
+			uid_t dst_uid;
+			gid_t dst_gid;
+
+			if( get_user_uid_gid(owner.GetCStr(), domain.GetCStr(), &dst_uid, & dst_gid) )
+			{
+				if( ! recursive_chown(sandbox.GetCStr(), src_uid, dst_uid, dst_gid, true) )
+				{
+					dprintf( D_ALWAYS, "(%d.%d) Failed to chown %s from %d to %d.%d.  Job may run into permissions problems when it starts.\n", cluster, proc, sandbox.GetCStr(), src_uid, dst_uid, dst_gid);
+				}
+			}
+			else // Failed to get uid/gid
+			{
+				dprintf( D_ALWAYS, "(%d.%d) Failed to identify associated UID and GID for user %s.  Cannot chown %s to user.  Job may run into permissions problems when it starts.\n", cluster, proc, owner.GetCStr(), sandbox.GetCStr());
+			}
+		}
+		else 
+		{
+				dprintf( D_ALWAYS, "(%d.%d) Failed to find sandbox for this job  Cannot chown sandbox to user.  Job may run into permissions problems when it starts.\n", cluster, proc);
+
+		}
+
+	}
+	FreeJobAd(job_ad);
+	job_ad = 0;
+#else	/* WIN32 */
+#	error "directory chowning on Win32.  Do we need it?"
+#endif
+	return 0;
+}
+
+
+
+
 // Initialize a UserLog object for a given job and return a pointer to
 // the UserLog object created.  This object can then be used to write
 // events and must be deleted when you're done.  This returns NULL if
@@ -2368,6 +2482,32 @@ Scheduler::generalJobFilesWorkerThread(void *arg, Stream* s, int mode)
 	rsock->code(answer);
 	rsock->eom();
 	s->timeout(old_timeout);
+
+	/* for grid universe jobs there isn't a clear point
+	at which we're "about to start the job".  So we just
+	hand the sandbox directory over to the end user right now.
+	*/
+	if ( mode == SPOOL_JOB_FILES ) {
+		for (i=0; i<JobAdsArrayLen; i++) {
+
+			cluster = (*jobs)[i].cluster;
+			proc = (*jobs)[i].proc;
+			ClassAd * ad = GetJobAd( cluster, proc );
+
+			if ( ! ad ) {
+				dprintf(D_ALWAYS, "(%d.%d) Job ad disappeared after spooling but before the sandbox directory could (potentially) be chowned to the user.  Skipping sandbox.  The job may encounter permissions problems.\n", cluster, proc);
+				continue;
+			}
+
+			int universe = CONDOR_UNIVERSE_STANDARD;
+			ad->LookupInteger(ATTR_JOB_UNIVERSE, universe);
+			FreeJobAd(ad);
+
+			if(universe == CONDOR_UNIVERSE_GLOBUS) {
+				aboutToSpawnJobHandler(cluster, proc);
+			}
+		}
+	}
 
 	if (answer == OK ) {
 		return TRUE;

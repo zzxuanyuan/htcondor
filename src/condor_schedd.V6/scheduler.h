@@ -204,6 +204,9 @@ class Scheduler : public Service
 	int				transferJobFilesReaper(int,int);
 	void			PeriodicExprHandler( void );
 
+	static int		aboutToSpawnJobHandlerStatic(int cluster, int proc, void * this_scheduler);
+	static int		aboutToSpawnJobHandler(int cluster, int proc);
+
 
 	// match managing
     match_rec*      AddMrec(char*, char*, PROC_ID*, const ClassAd*, char*, char*);
