@@ -603,7 +603,7 @@ JICShadow::initUserPriv( void )
 	// just init a new nobody user; dynuser handles the rest.
 	init_user_ids("nobody");
 #endif
-
+	user_priv_is_initialized = true;
 	return true;
 }
 
