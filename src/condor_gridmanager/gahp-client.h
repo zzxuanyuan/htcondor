@@ -152,6 +152,11 @@ class GahpServer : public Service {
 	bool command_async_mode_on();
 	bool command_response_prefix(const char *prefix);
 
+	int new_reqid();
+
+	int next_reqid;
+	bool rotated_reqids;
+
 	unsigned int m_reference_count;
 	HashTable<int,GahpClient*> *requestTable;
 	Queue<int> waitingToSubmit;
@@ -423,7 +428,6 @@ class GahpClient : public Service {
 	private:
 
 			// Various Private Methods
-		int new_reqid();
 		void clear_pending();
 		bool is_pending(const char *command, const char *buf);
 		void now_pending(const char *command,const char *buf,

@@ -111,6 +111,9 @@ GahpServer::GahpServer(const char *id, const char *path)
 	current_proxy = NULL;
 	skip_next_r = false;
 
+	next_reqid = 1;
+	rotated_reqids = false;
+
 	requestTable = new HashTable<int,GahpClient*>( 300, &hashFuncInt );
 	ASSERT(requestTable);
 
@@ -229,7 +232,6 @@ GahpServer::Reaper(Service*,int pid,int status)
 
 GahpClient::GahpClient(const char *id, const char *path)
 {
-dprintf(D_ALWAYS,"**** GahpClient::GahpClient 0x%p called\n",this);
 	server = GahpServer::FindOrCreateGahpServer(id,path);
 	m_timeout = 0;
 	m_mode = normal;
@@ -447,10 +449,8 @@ dprintf(D_FULLDEBUG,"GAHP[%d] -> %s\n",m_gahp_pid,buf);
 }
 
 int
-GahpClient::new_reqid()
+GahpServer::new_reqid()
 {
-	static int next_reqid = 1;
-	static bool had_to_rotate = false;
 	int starting_reqid;
 	GahpClient* unused;
 
@@ -460,13 +460,13 @@ GahpClient::new_reqid()
 	while (starting_reqid != next_reqid) {
 		if ( next_reqid > 990000000 ) {
 			next_reqid = 1;
-			had_to_rotate = true;
+			rotated_reqids = true;
 		}
 			// Make certain this reqid is not already in use.
 			// Optimization: only need to do the lookup if we have
 			// rotated request ids...
-		if ( (!had_to_rotate) || 
-			 (server->requestTable->lookup(next_reqid,unused) == -1) ) {
+		if ( (!rotated_reqids) || 
+			 (requestTable->lookup(next_reqid,unused) == -1) ) {
 				// not in use, we are done
 			return next_reqid;
 		}
@@ -867,7 +867,6 @@ GahpServer::command_use_cached_proxy( GahpProxyInfo *new_proxy )
 int
 GahpServer::doProxyCheck()
 {
-dprintf(D_FULLDEBUG,"***doProxyCheck() called\n");
 	daemonCore->Reset_Timer( proxy_check_tid, TIMER_NEVER );
 
 	if ( m_gahp_pid == -1 ) {
@@ -882,7 +881,6 @@ dprintf(D_FULLDEBUG,"***doProxyCheck() called\n");
 		if ( next_proxy->proxy->expiration_time >
 			 next_proxy->cached_expiration ) {
 
-dprintf(D_FULLDEBUG,"***   proxy %d needs to be recached\n",next_proxy->proxy->id);
 			if ( cacheProxyFromFile( next_proxy ) == false ) {
 				EXCEPT( "Failed to refresh proxy!" );
 			}
@@ -895,7 +893,6 @@ dprintf(D_FULLDEBUG,"***   proxy %d needs to be recached\n",next_proxy->proxy->i
 	if ( master_proxy->proxy->expiration_time >
 		 master_proxy->cached_expiration ) {
 
-dprintf(D_FULLDEBUG,"***   master proxy %d needs to be recahced\n",master_proxy->proxy->id);
 		static const char *command = "REFRESH_PROXY_FROM_FILE";
 		if ( command_initialize_from_file( master_proxy->proxy->proxy_filename,
 										   command) == false ) {
@@ -909,7 +906,6 @@ dprintf(D_FULLDEBUG,"***   master proxy %d needs to be recahced\n",master_proxy-
 		master_proxy->cached_expiration = master_proxy->proxy->expiration_time;
 	}
 
-dprintf(D_FULLDEBUG,"***doProxyCheck() returning\n");
 	return 0;
 }
 
@@ -1822,7 +1818,7 @@ GahpClient::now_pending(const char *command,const char *buf,
 	if ( command ) {
 		clear_pending();
 		strcpy(pending_command,command);
-		pending_reqid = new_reqid();
+		pending_reqid = server->new_reqid();
 		if (buf) {
 			pending_args = strdup(buf);
 		}
@@ -2109,7 +2105,7 @@ GahpClient::globus_gram_client_callback_allow(
 		return GAHPCLIENT_COMMAND_NOT_SUBMITTED;
 	}
 
-	int reqid = new_reqid();
+	int reqid = server->new_reqid();
 	int x = snprintf(buf,sizeof(buf),"%s %d 0",command,reqid);
 	ASSERT( x > 0 && x < (int)sizeof(buf) );
 	server->write_line(buf);
@@ -2178,7 +2174,7 @@ GahpClient::gt3_gram_client_callback_allow(
 		return GAHPCLIENT_COMMAND_NOT_SUBMITTED;
 	}
 
-	int reqid = new_reqid();
+	int reqid = server->new_reqid();
 	int x = snprintf(buf,sizeof(buf),"%s %d 0",command,reqid);
 	ASSERT( x > 0 && x < (int)sizeof(buf) );
 	server->write_line(buf);
