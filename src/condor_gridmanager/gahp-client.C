@@ -1973,6 +1973,7 @@ GahpServer::poll()
 	if ( result->argc < 2 || result->argv[0][0] != 'S' ) {
 			// Badness !
 		dprintf(D_ALWAYS,"GAHP command 'RESULTS' failed\n");
+		delete result;
 		return 0;
 	}
 	poll_pending = false;
