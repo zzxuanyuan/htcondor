@@ -400,6 +400,8 @@ SegMap::Compare(SegMap & other, int fd, int otherfd)
 			histindex=10;
 		}
 		else {
+			printf("VERBOSE Page %d NOMATCH %d/%d %f\n", i,
+bytesMatching/(float)(getpagesize()*sizeof(char)));
 			//the percentage match should be over the largest number of bytes
 			int maxb=(readbytes>readbytes2?readbytes:readbytes2);
 			

@@ -2,6 +2,10 @@
 #define _secondattempt_h_ 
 
 typedef unsigned long RAW_ADDR;
+bool DEBUG = false;
+#define SUPER_VERBOSE false
+
+//an abstraction of a segment within a ckpt file
 struct SegInfo {
 	char name[14];
 	off_t		file_loc;
@@ -25,7 +29,8 @@ int read_header(int fd, CheckpointFile &ck);
 int read_segmap(int fd, CheckpointFile &ck);
 z_stream * initialize_zstream(z_stream *pz);
 
-const int HEADER_LENGTH=1024-64; //this works. not sure why--probably annoying alignment issues
+//const int HEADER_LENGTH=1024-2*sizeof(int)-sizeof(RAW_ADDR); //doesn't work?
+const int HEADER_LENGTH=1024-64; //this works. not sure why --
+								//probably annoying alignment issues
 
-//const int HEADER_LENGTH=1024-2*sizeof(int)-sizeof(RAW_ADDR); //length of the header.
 #endif

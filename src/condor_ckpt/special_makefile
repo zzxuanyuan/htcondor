@@ -1,30 +1,25 @@
-CONDOR_LIB_DIR=/local.sleepy.1/gbronner/build/src/release_dir/lib
+CONDOR_LIB_DIR=/local.vulture.3/johnbent/src/release_dir/lib
 CONDOR_COMPILE= condor_compile
 CC=g++
-CCFLAGS=-g -Bstatic
+CCFLAGS=-g 
 MAKE= make
 LIBDIRS=-L/s/zlib/lib 
 LDFLAGS=-Xlinker -dn
 INCLUDEDIRS=-I/s/zlib/include
-all: grbxxx
 
 # The point of this is
 # First make all of the crap (mostly .o files)
 # then make my driver program .o file
-# then make the library against which my program will linke--this library has to use the new
+# then make the library against which my program will link
+# this library has to use the new
 # .o files in this directory (talk about horrible build systems....)
 # make release moves all of the crap to the lib dir
-# finally run the whole damn thing through condor compile. This produces a rather plump executable.
+# finally run the whole damn thing through condor compile. 
+# This produces a rather plump executable.
 
-grbxxx:
-	$(MAKE)
-	$(MAKE) firstattempt.o
-	cd ../condor_syscall_lib; $(MAKE) ; $(MAKE) release
-	$(CONDOR_COMPILE) -condor_lib $(CONDOR_LIB_DIR) $(CC) $(CCFLAGS) firstattempt.o -o gregxxx
-
-secondattempt: secondattempt.o
-	$(CC) $(CCFLAGS) $(LIBDIRS) $(LDFLAGS) secondattempt.o -lz -o secondattempt 
+compare: secondattempt.o
+	$(CC) $(CCFLAGS) $(LIBDIRS) $(LDFLAGS) secondattempt.o -lz -o $@ 
 secondattempt.o: secondattempt.C secondattempt.h
 	$(CC) $(CCFLAGS) $(INCLUDEDIRS) -c secondattempt.C 
 clean:
-	rm secondattempt.o secondattempt
+	rm -f secondattempt.o compare 
