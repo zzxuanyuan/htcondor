@@ -43,7 +43,6 @@ int File::map_fd_hack()                       { return fd; }
 int File::local_access_hack()                 { return 0; }
 int File::fstat( struct stat *buf )           { return illegal("fstat"); }
 int File::ioctl( int cmd, int arg )           { return illegal("ioctl"); }
-int File::flock( int op )                     { return illegal("flock"); }
 int File::fstatfs( struct statfs *buf )       { return illegal("fstatfs"); }
 int File::fchown( uid_t owner, gid_t group )  { return illegal("fchown"); }
 int File::fchmod( mode_t mode )               { return illegal("fchmod"); }
@@ -139,24 +138,6 @@ int LocalFile::ioctl( int cmd, int arg )
 	int result;
 	IN_LOCAL_MODE( result = ::ioctl(fd,cmd,arg); )
 	return result;
-}
-
-/* If a struct flock exists, c++ gets very confused between
-   the structure and the system call.  This should fix the
-   problem up. */
-
-extern "C" int flock(int fd, int op);
-
-int LocalFile::flock( int op )
-{
-
-	#ifdef CONDOR_USE_FLOCK
-		int result;
-		IN_LOCAL_MODE( result = ::flock(fd,op); )
-		return result;
-	#else
-		File::flock(op);
-	#endif
 }
 
 int LocalFile::fstatfs( struct statfs *buf )
@@ -338,11 +319,6 @@ int RemoteFile::fstat( struct stat *buf )
 int RemoteFile::ioctl( int cmd, int arg )
 {
 	return REMOTE_syscall( CONDOR_ioctl, fd, cmd, arg );
-}
-
-int RemoteFile::flock( int op )
-{
-	return REMOTE_syscall( CONDOR_flock, fd, op );
 }
 
 int RemoteFile::fstatfs( struct statfs *buf )

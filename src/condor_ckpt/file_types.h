@@ -64,7 +64,6 @@ public:
 	virtual int fcntl( int cmd, int arg );
 	virtual int fstat( struct stat *buf );
 	virtual int ioctl( int cmd, int arg );
-	virtual int flock( int op );
 	virtual int fstatfs( struct statfs *buf );
 	virtual int fchown( uid_t owner, gid_t group );
 	virtual int fchmod( mode_t mode );
@@ -144,7 +143,6 @@ public:
 	virtual int fcntl( int cmd, int arg );
 	virtual int fstat( struct stat *buf );
 	virtual int ioctl( int cmd, int arg );
-	virtual int flock( int op );
 	virtual int fstatfs( struct statfs *buf );
 	virtual int fchown( uid_t owner, gid_t group );
 	virtual int fchmod( mode_t mode );
@@ -175,7 +173,6 @@ public:
 	virtual int fcntl( int cmd, int arg );
 	virtual int fstat( struct stat *buf );
 	virtual int ioctl( int cmd, int arg );
-	virtual int flock( int op );
 	virtual int fstatfs( struct statfs *buf );
 	virtual int fchown( uid_t owner, gid_t group );
 	virtual int fchmod( mode_t mode );

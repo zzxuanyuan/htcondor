@@ -39,9 +39,6 @@ static char *_FileName_ = __FILE__;
 #include <sys/errno.h>
 
 // XXX Where is the header for this?
-// extern "C" int syscall( int kind, ... );
-
-// XXX Where is the header for this?
 extern int errno;
 
 OpenFileTable *FileTab=0;
@@ -281,7 +278,7 @@ int OpenFileTable::open( const char *path, int flags, int mode )
 	// but the rest of the file table and buffer has no problem.
 
 	if( flags & O_RDWR )
-		file_warning("Opening file '%s' for read and write is not safe across all checkpoints!  You should use separate files for reading and writing.\n",path);
+		file_warning("Opening file '%s' for read and write is not safe in a program that may be checkpointed!  You should use separate files for reading and writing.\n",path);
 
 	// Install a new fp and update the use counts 
 
@@ -553,12 +550,9 @@ int OpenFileTable::ioctl( int fd, int cmd, int arg )
 
 int OpenFileTable::flock( int fd, int op )
 {
-	if( (fd<0) || (fd>=length) || (pointers[fd]==0) ) {
-		errno = EBADF;
-		return -1;
-	}
-
-	return pointers[fd]->get_file()->flock(op);
+	file_warning("flock() is not safe in a program that may be checkpointed.\n");
+	errno = EINVAL;
+	return -1;
 }
 
 int OpenFileTable::fstatfs( int fd, struct statfs *buf, int x, int y )
