@@ -236,47 +236,47 @@ single \Condor{negotiator} daemon is to run.
 \end{enumerate}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsubsection{\label{sec:HA-check-script} Checking the Sanity of the
-Configuration} 
+%\subsubsection{\label{sec:HA-check-script} Checking the Sanity of the
+%Configuration} 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\index{High Availability!sanity check script}
+%\index{High Availability!sanity check script}
 
-A sanity check scrip is provided to check
-that all high-availability-related configuration
-variables on the running Condor pool are configured correctly. 
-The script does not check that daemons are indeed
-running on the machine;
-it only ensures the correctness of configuration variables.
-
-The script finds the addresses of all potential central managers
-by checking the value of the 
-\MacroNI{HAD\_LIST} configuration variable.
-To work properly, the pool must
-
-\begin{itemize}
-\item be running \Condor{master} daemons on each potential
-central manager machine.
-\item have \MacroUNI{SBIN} in the \Env{PATH} environment variable,
-before any other possible system binaries directory.
-\item have Perl version 5.6.0 or higher.
-\end{itemize}
-
-The items tested by the script are
-
-\begin{itemize}
-\item The \MacroNI{HAD\_LIST} is consistent on all potential central managers. 
-\item The \MacroNI{HAD\_CONNECTION\_TIMEOUT} is consistent 
-on all potential central managers.
-\item The \MacroNI{COLLECTOR\_HOST} entries on all machines
-correspond to the \MacroNI{HAD\_LIST} entries,
-and are correctly ordered.
-\item Configuration variable \MacroNI{DAEMON\_LIST} contains \Expr{HAD}, \Expr{COLLECTOR} and \Expr{NEGOTIATOR}.
-\item Configuration variables \MacroNI{HAD\_ARGS} and \MacroNI{HAD\_LIST}
-contain consistent definitions of corresponding ports numbers for 
-high availability.
-\item Configuration variables \MacroNI{HOSTALLOW\_NEGOTIATOR} and
-\MacroNI{HOSTALLOW\_ADMINISTRATOR} contain all machines
-specified in the \MacroNI{COLLECTOR\_HOST} definition
-for an appropriate machine. 
-\end{itemize}
-
+%A sanity check scrip is provided to check
+%that all high-availability-related configuration
+%variables on the running Condor pool are configured correctly. 
+%The script does not check that daemons are indeed
+%running on the machine;
+%it only ensures the correctness of configuration variables.
+%
+%The script finds the addresses of all potential central managers
+%by checking the value of the 
+%\MacroNI{HAD\_LIST} configuration variable.
+%To work properly, the pool must
+%
+%\begin{itemize}
+%\item be running \Condor{master} daemons on each potential
+%central manager machine.
+%\item have \MacroUNI{SBIN} in the \Env{PATH} environment variable,
+%before any other possible system binaries directory.
+%\item have Perl version 5.6.0 or higher.
+%\end{itemize}
+%
+%The items tested by the script are
+%
+%\begin{itemize}
+%\item The \MacroNI{HAD\_LIST} is consistent on all potential central managers. 
+%\item The \MacroNI{HAD\_CONNECTION\_TIMEOUT} is consistent 
+%on all potential central managers.
+%\item The \MacroNI{COLLECTOR\_HOST} entries on all machines
+%correspond to the \MacroNI{HAD\_LIST} entries,
+%and are correctly ordered.
+%\item Configuration variable \MacroNI{DAEMON\_LIST} contains \Expr{HAD}, \Expr{COLLECTOR} and \Expr{NEGOTIATOR}.
+%\item Configuration variables \MacroNI{HAD\_ARGS} and \MacroNI{HAD\_LIST}
+%contain consistent definitions of corresponding ports numbers for 
+%high availability.
+%\item Configuration variables \MacroNI{HOSTALLOW\_NEGOTIATOR} and
+%\MacroNI{HOSTALLOW\_ADMINISTRATOR} contain all machines
+%specified in the \MacroNI{COLLECTOR\_HOST} definition
+%for an appropriate machine. 
+%\end{itemize}
+%
