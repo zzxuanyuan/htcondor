@@ -613,7 +613,7 @@ int daemon::RealStart( )
 	// Don't mess with buf or tmp (they are not our variables) - allocate them again
 	char otherBuf[512];
 	sprintf( otherBuf, "%s_ARGS", name_in_config_file );
-	char otherTmp = param( otherBuf );
+	char* otherTmp = param( otherBuf );
 
 	StringList args_list;
 	args_list.initializeFromString(otherTmp);
