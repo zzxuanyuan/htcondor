@@ -25,13 +25,13 @@
 #include "list.h"
 #include "scheduler.h"
 
-
 enum AllocStatus { A_NEW, A_RUNNING, A_DYING };
 
 enum NegotiationResult { NR_MATCHED, NR_REJECTED, NR_END_NEGOTIATE, 
 						 NR_LIMIT_REACHED, NR_ERROR };
 
 class CAList : public List<ClassAd> {};
+
 class MRecArray : public ExtArray<match_rec*> {};
 
 class AllocationNode {
@@ -54,7 +54,16 @@ class AllocationNode {
 	int num_resources;		// How many total resources have been allocated
 };		
 
+// These aren't used anymore, but should we care about
+// MAX_JOB_RETIREMENT_TIME in the dedicated world, we
+// might need to bring this back.
 
+// A ResTimeNode has a list of resources, all of which
+// we think will come free at time "time".  These
+// ResTimeNodes themselves are linked, sorted by 
+// ascending time.
+
+#if 0
 class ResTimeNode {
  public:
 	ResTimeNode( time_t t );
@@ -79,6 +88,52 @@ class ResTimeNode {
 	int num_matches;
 };
 
+#endif
+
+// A ResList is a list of machine resources, all of which are in some
+// given state (e.g. unclaimed, busy, etc.)
+
+class ResList : public CAList {
+ public:
+	ResList(); 
+	~ResList();
+	
+		/** Can we satisfy the given job with this ResList?  No
+			matter what we return, num_matches is reset to the number
+			of matches we found at this time, and the candidates list
+			includes a pointer to each resource ad we matched with.
+			@param jobAd The job to satisfy
+			@param max_hosts How many resources does this job need?
+			@param candidates List of pointers to ads that matched
+			@return Was the job completely satisfied?
+		*/
+	bool satisfyJob( ClassAd* jobAd, int max_hosts,
+					 CAList* candidates );
+
+	void display( int level );
+
+	int num_matches;
+};
+
+class CandidateList : public CAList {
+ public:
+	CandidateList();
+	virtual ~CandidateList();
+
+    void appendResources(ResList *res);
+	void markScheduled();
+};
+
+// We build an array of these, in order to
+// sort them, first on rank, then on clusterid
+struct PreemptCandidateNode {
+	float rank;
+	int   cluster_id;
+	ClassAd *machine_ad;
+};
+
+// save for reservations
+#if 0
 
 class AvailTimeList : public List<ResTimeNode> {
  public:
@@ -105,6 +160,7 @@ class AvailTimeList : public List<ResTimeNode> {
 	void removeResource( ClassAd* resource, ResTimeNode* &rtn );
 };
 
+#endif
 
 class DedicatedScheduler : public Service {
  public:
@@ -249,8 +305,6 @@ class DedicatedScheduler : public Service {
 		*/
 	void removeAllocation( shadow_rec* srec );
 
-	void addUnclaimedResource( ClassAd* resource );
-	bool hasUnclaimedResources( void );
 	void clearUnclaimedResources( void );
 
 	void callHandleDedicatedJobs( void );
@@ -303,15 +357,43 @@ class DedicatedScheduler : public Service {
 
 	ClassAdList*		resources;		// All dedicated resources 
 
+
 		// All resources, sorted by the time they'll next be available 
-	AvailTimeList*			avail_time_list;	
+		//AvailTimeList*			avail_time_list;	
+		ResList*			avail_time_list;	
+
+		// 	These four lists are the heart of the data structures for
+		// the dedicated scheduler: We prefer to schedule jobs from
+		// the idle_resources list, but if that's not possible, we
+		// then go to the limbo, then unclaimed list, to kick off
+		// vanilla jobs.  If we still can't satisfy, then go to the
+		// busy list, and preempt those.
+
+	    // Each of these lists is sorted first by preemption rank,
+		//  then by Cluster -- the idea is that if we have to evict
+		//  one job of a cluster we hope to evict the peers as well.
+																	   
+		// All resources that are idle and claimed by the ded sched
+	ResList*		idle_resources;
 
 		// All resources that might be dedicated to us that aren't
-		// currently claimed.
-	ResTimeNode*		unclaimed_resources;
+		// currently claimed by us -- they are probably running
+		// vanilla jobs
+	ResList*		unclaimed_resources;
+
+		// All resources that are in limbo
+		// These should be idle soon, but haven't made
+		// it there yet.
+	ResList*		limbo_resources;
+
+		// All resources that are busy (and claimed)
+	ResList*		busy_resources;
 
         // hashed on cluster, all our allocations
     HashTable <int, AllocationNode*>* allocations;
+
+		// List of resources to preempt
+	CAList *pending_preemptions;
 
 		// hashed on resource name, each claim we have
 	HashTable <HashKey, match_rec*>* all_matches;
@@ -340,6 +422,8 @@ class DedicatedScheduler : public Service {
 		// onto a resource without using it before we release it? 
 
 	Shadow* shadow_obj;
+
+	friend class CandidateList;
 };
 
 
@@ -352,6 +436,10 @@ time_t findAvailTime( match_rec* mrec );
 
 // Comparison function for sorting job cluster ids by QDate
 int clusterSortByDate( const void* ptr1, const void* ptr2 );
+
+// Comparison function for sorting machines by rank, cluster_id
+int
+RankSorter( const void *ptr1, const void* ptr2 );
 
 // Print out
 void displayResource( ClassAd* ad, char* str, int debug_level );

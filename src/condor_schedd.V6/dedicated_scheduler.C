@@ -54,6 +54,7 @@
 #include "dc_collector.h"
 
 extern Scheduler scheduler;
+extern DedicatedScheduler dedicated_scheduler;
 extern char* Name;
 
 extern void mark_job_running(PROC_ID*);
@@ -144,7 +145,8 @@ AllocationNode::display( void )
 	}
 }
 
-
+// Save for later
+#if 0
 //////////////////////////////////////////////////////////////
 //  AvailTimeList
 //////////////////////////////////////////////////////////////
@@ -273,8 +275,9 @@ AvailTimeList::~AvailTimeList()
 		DeleteCurrent();
 	}
 }
+#endif
 
-
+#if 0
 //////////////////////////////////////////////////////////////
 //  ResTimeNode
 //////////////////////////////////////////////////////////////
@@ -345,6 +348,94 @@ ResTimeNode::display( int debug_level )
 		displayResource( res, "   ", debug_level );
 	}
 }
+#endif 
+
+//////////////////////////////////////////////////////////////
+//  ResList
+// This is a list of resources, sorted by rank, then clusterid
+//////////////////////////////////////////////////////////////
+
+ResList::ResList()
+{
+	num_matches = 0;
+}
+
+ResList::~ResList()
+{
+}
+
+
+bool
+ResList::satisfyJob( ClassAd* job, int max_hosts, 
+						 CAList* candidates ) 
+{
+	ClassAd* candidate;
+	int req;
+	
+	Rewind();
+	num_matches = 0;
+	while( (candidate = Next()) ) {
+			// Make sure the job requirements are satisfied with this
+			// resource.
+		if( job->EvalBool(ATTR_REQUIREMENTS, candidate, req) == 0 ) { 
+				// If it's undefined, treat it as false.
+			req = 0;
+		}
+		if( req ) {
+				// There's a match
+			candidates->Insert( candidate );
+				// Give the match to the candidate, it is the caller's
+				// responsibility to put it back if they don't want to 
+				// use it.
+			DeleteCurrent();
+			num_matches++;
+		}
+		if( num_matches == max_hosts ) {
+				// We've found all we need for this job
+			return true;
+		}
+	}
+	return false;
+}
+
+
+void
+ResList::display( int debug_level )
+{
+	ClassAd* res;
+	Rewind();
+	while( (res = Next()) ) {
+		displayResource( res, "   ", debug_level );
+	}
+}
+//////////////////////////////////////////////////////////////
+//  CandidateList
+//////////////////////////////////////////////////////////////
+
+CandidateList::CandidateList() {}
+CandidateList::~CandidateList() {}
+
+void 
+CandidateList::appendResources(ResList *res) {
+	Rewind();
+	while (ClassAd *c = Next()) {
+		res->Append(c);
+		DeleteCurrent();
+	}
+}
+
+void 
+CandidateList::markScheduled() {
+	Rewind();
+	while (ClassAd *c = Next()) {
+		char buf[512];
+		match_rec *mrec = dedicated_scheduler.getMrec(c, buf);
+		if( ! mrec) {
+			EXCEPT(" no match for %s, but listed as available", buf);
+		}
+		mrec->scheduled = true;
+	}
+}
 
 
 //////////////////////////////////////////////////////////////
@@ -354,15 +445,22 @@ ResTimeNode::display( int debug_level )
 DedicatedScheduler::DedicatedScheduler()
 {
 	idle_clusters = NULL;
-	avail_time_list = NULL;
 	resources = NULL;
+
+	idle_resources = NULL;
+	limbo_resources = NULL;
 	unclaimed_resources = NULL;
+	busy_resources = NULL;
+
 	hdjt_tid = -1;
 	sanity_tid = -1;
 
 		// TODO: Be smarter about the sizes of these tables
 	allocations = new HashTable < int, AllocationNode*> 
 		( 199, hashFuncInt );
+
+	pending_preemptions = NULL;
+
 	all_matches = new HashTable < HashKey, match_rec*>
 		( 199, hashFunction );
 	all_matches_by_id = new HashTable < HashKey, match_rec*>
@@ -383,7 +481,12 @@ DedicatedScheduler::~DedicatedScheduler()
 {
 	if(	idle_clusters ) { delete idle_clusters; }
 	if(	resources ) { delete resources; }
-	if(	avail_time_list ) { delete avail_time_list; }
+
+	if (idle_resources) {delete idle_resources;}
+	if (limbo_resources) {delete limbo_resources;}
+	if (unclaimed_resources) {delete unclaimed_resources;}
+	if (busy_resources) { delete busy_resources;}
+
 	if( ds_owner ) { delete [] ds_owner; }
 	if( ds_name ) { delete [] ds_name; }
 	if( unclaimed_resources ) { delete unclaimed_resources; }
@@ -1753,6 +1856,24 @@ DedicatedScheduler::handleDedicatedJobs( void )
 		return FALSE;
 	}
 
+	if( pending_preemptions->Length() > 0) {
+		pending_preemptions->Rewind();
+		while( ClassAd *machine = pending_preemptions->Next()) {
+			match_rec *mrec = getMrec(machine, NULL);
+			if( mrec) {
+				if( deactivateClaim(mrec)) {
+					char *s = NULL;
+					machine->LookupString(ATTR_NAME, &s);
+					dprintf( D_FULLDEBUG, "Preempted job on %s\n", s);
+					free(s);
+				}
+			}
+			pending_preemptions->DeleteCurrent();
+		}
+	}
+	delete pending_preemptions;
+	pending_preemptions = NULL;
+
 		// See if we should release claims we're not using.
 	checkSanity();
 
@@ -1761,11 +1882,27 @@ DedicatedScheduler::handleDedicatedJobs( void )
 		// we bail out early, we won't leak, since we delete all of
 		// these things again before we need to create them the next
 		// time around.
-	if( avail_time_list ) {
-		delete avail_time_list;
-		avail_time_list = NULL;
+   
+	if (idle_resources) {
+		delete idle_resources;
+		idle_resources = NULL;
 	}
-	clearUnclaimedResources();
+
+	if (limbo_resources) {
+		delete limbo_resources;
+		limbo_resources = NULL;
+	}
+
+	if (unclaimed_resources) {
+		delete unclaimed_resources;
+		unclaimed_resources = NULL;
+	}
+
+	if (busy_resources) {
+		delete busy_resources;
+		busy_resources = NULL;
+	}
+
 	clearResources();
 
 	dprintf( D_FULLDEBUG, 
@@ -1844,24 +1981,25 @@ DedicatedScheduler::sortResources( void )
 	match_rec* mrec;
 	char buf[256];
 
-		// We want to sort all the resources we have into the
-		// avail_time_list
-	if( avail_time_list ) {
-		delete avail_time_list;
-	}
-	avail_time_list = new AvailTimeList;
+	idle_resources = new ResList;
+	unclaimed_resources = new ResList;
+	limbo_resources = new ResList;
+	busy_resources = new ResList;
+
 	resources->Rewind();
 	while( (res = resources->Next()) ) {
+			// getMrec from the dec sched -- won't have matches
+			// for non dedicated jobs
 		if( ! (mrec = getMrec(res, buf)) ) {
 				// We don't have a match_rec for this resource yet, so
 				// put it in our unclaimed_resources list
-			addUnclaimedResource( res );
+			unclaimed_resources->Append( res );
 			continue;
 		}
 
 			// If we made it this far, this resource is already
-			// claimed by us, so we can add it to our list of
-			// available resources.  
+			// claimed by us, so we can add it to the appropriate
+			// list of available resources.  
 
 			// First, we want to update my_match_ad which we're
 			// storing in the match_rec, since that's now got
@@ -1870,14 +2008,34 @@ DedicatedScheduler::sortResources( void )
 		delete( mrec->my_match_ad );
 		mrec->my_match_ad = new ClassAd( *res );
 
-			// Now, we can actually add this resource to our list. 
-		avail_time_list->addResource( mrec );
+		if( mrec->status == M_ACTIVE ){
+			busy_resources->Append( res );
+			continue;
+		}
+
+		if( mrec->status == M_CLAIMED ) {
+			idle_resources->Append( res );
+			continue;
+		}
+
+		if( mrec->status == M_STARTD_CONTACT_LIMBO ) {
+			limbo_resources->Append( res );
+			continue;
+		}
+		EXCEPT("DedicatedScheduler got unknown status for match");
 	}
 	if( DebugFlags & D_FULLDEBUG ) {
-		avail_time_list->display( D_FULLDEBUG );
-		if( hasUnclaimedResources() ) {
-			unclaimed_resources->display( D_FULLDEBUG );
-		}
+		dprintf(D_FULLDEBUG, "idle resource list\n");
+		idle_resources->display( D_FULLDEBUG );
+
+		dprintf(D_FULLDEBUG, "limbo resource list\n");
+		limbo_resources->display( D_FULLDEBUG );
+
+		dprintf(D_FULLDEBUG, "unclaimed resource list\n");
+		unclaimed_resources->display( D_FULLDEBUG );
+
+		dprintf(D_FULLDEBUG, "busy resource list\n");
+		busy_resources->display( D_FULLDEBUG );
 	}
 }
 
@@ -2075,13 +2233,36 @@ DedicatedScheduler::computeSchedule( void )
 	int total_matched;
 	int proc, cluster, max_hosts;
 	ClassAd *job = NULL, *ad;
-	CAList *candidates = NULL;
-	CAList* un_candidates = NULL;
-	ResTimeNode *cur;
+
+	CandidateList *idle_candidates = NULL;
+	CandidateList *limbo_candidates = NULL;
+	CandidateList *unclaimed_candidates = NULL;
+
 	AllocationNode *alloc;
 	match_rec* mrec;
 	int i, l, last;
 	MRecArray* new_matches;
+
+	ExprTree *preemption_rank = NULL;  // FIX: These are leaking one per call now
+	ExprTree *preemption_req  = NULL;  //
+
+	char *param1 = param("SCHEDD_PREEMPTION_REQUIREMENTS");
+	char *param2 = param("SCHEDD_PREEMPTION_RANK");
+
+		// If we've got both, build an expr tree to parse them
+		// If either are missing, the schedd will never preempt running jobs
+
+	if( (param1 != NULL) && (param2 != NULL)) {
+		Parse(param1, preemption_req);
+		Parse(param2, preemption_rank);
+	}
+	if( param1 ) {
+		free(param1);
+	}
+
+	if( param2 ) {
+		free(param2);
+	}
 
 		//----------------------------------------------------------
 		// First, we need to do some clean-up, so we create a fresh
@@ -2108,6 +2289,12 @@ DedicatedScheduler::computeSchedule( void )
 		// decisions... 
 	clearResourceRequests();
 
+
+	if( pending_preemptions) {
+		delete pending_preemptions;
+	}
+	pending_preemptions = new CAList;
+
 		//----------------------------------------------------------
 		// Clean-up is done, actually compute a schedule...
 		//----------------------------------------------------------
@@ -2120,14 +2307,6 @@ DedicatedScheduler::computeSchedule( void )
 		if( ! job ) {
 				// Job is no longer in queue, skip it.
 			continue;
-		}
-
-		if( ! avail_time_list->hasAvailResources() 
-			&& (!hasUnclaimedResources()) ) {
-				// We no longer have any resources that are available
-				// to run jobs right now, so there's nothing more we
-				// can do.
-			return true;
 		}
 
 			// Grab some useful info out of the job ad
@@ -2150,21 +2329,22 @@ DedicatedScheduler::computeSchedule( void )
 				 max_hosts, cluster, proc );
 
 			// These are the potential resources for the job
-		candidates = new CAList;
+		idle_candidates = new CandidateList;
 		
 			// First, see if we can satisfy this job with resources
 			// that are available right now
 		total_matched = 0;
-		avail_time_list->Rewind();
-		cur = avail_time_list->Next();
-		if( cur && (cur->time == 0) && 
-			cur->satisfyJob(job, max_hosts, candidates) ) {
-				// We're done with this job.  Make an allocation node
-				// for it, remove the given classads from this
-				// ResTimeNode, and continue
 
-			dprintf( D_FULLDEBUG, "Satisfied job %d at time %d\n",
-					 cluster, (int)cur->time );
+
+		if (idle_resources->satisfyJob(job, max_hosts, idle_candidates) ) {
+				// We're done with this job.  Make an allocation node
+				// for it, remove the given classads from the
+				// idle_resources ResList, and continue
+
+				// TODO:  Pull this case out into a separate function,
+				// to reduct this function length somewhat	
+			dprintf( D_FULLDEBUG, "Satisfied job %d from idle_resources\n",
+					 cluster );
 
 				// TODO: Handle multiple procs!
 			alloc = new AllocationNode( cluster, 1 );
@@ -2182,9 +2362,10 @@ DedicatedScheduler::computeSchedule( void )
 				m_ip_len = strlen( master_ip );
 				last = 1;
 			}
-			candidates->Rewind();
+			idle_candidates->Rewind();
+
 			char buf[512];
-			while( (ad = candidates->Next()) ) {
+			while( (ad = idle_candidates->Next()) ) {
 				if( ! (mrec = getMrec(ad, buf)) ) {
 					EXCEPT( "no match for %s in all_matches table, yet " 
 							"allocated to dedicated job %d.0!",
@@ -2210,10 +2391,6 @@ DedicatedScheduler::computeSchedule( void )
 				mrec->cluster = cluster;
 				mrec->proc = 0;
 
-					// Finally, take this out of our avail_time_list
-					// so we don't use it for anything else in this
-					// scheduling cycle.
-				avail_time_list->removeResource( ad, cur );
 			}
 			if( (*new_matches)[0] == NULL ) {
 					// What happened is that the user requested a
@@ -2261,10 +2438,10 @@ DedicatedScheduler::computeSchedule( void )
 				free( master_ip );
 			}
 
-				// Now that we're done with these candidates, we can
+				// Now that we're done with these idle_candidates, we can
 				// safely delete the list.
-			delete candidates;
-			candidates = NULL;
+			delete idle_candidates;
+			idle_candidates = NULL;
 
 				// Go onto the next job.
 			continue;
@@ -2273,124 +2450,184 @@ DedicatedScheduler::computeSchedule( void )
 			// If we're here, we couldn't schedule the job right now.
 
 			// If satisfyJob() failed, it might have partially
-			// satisfied the job.  If so, the candidates list will
+			// satisfied the job.  If so, the idle_candidates list will
 			// have some things in it.  If so, we need to see if we
 			// could satisfy the job with a combination of unclaimed
 			// and already-claimed resources.  If that's the case,
 			// we'll need to hold onto the old
 
-		int unclaimed_needed = max_hosts;
-		if( candidates->Length() > 0 ) {
-			unclaimed_needed -= candidates->Length();
-				// If we don't need more hosts, satisfyJob() shouldn't
- 				// have failed.
-			ASSERT( unclaimed_needed > 0 );
-		}
+		int still_needed = max_hosts - idle_candidates->Length();
 
 			// Now, see if we could satisfy it with resources we
 			// don't yet have claimed.
-		if( unclaimed_resources ) {
-			un_candidates = new CAList; 
-			if( candidates->Length() > 0 ) {
-				dprintf( D_FULLDEBUG, "Have partial match (%d), trying to "
-						 "find %d unclaimed resource(s)\n",
-						 candidates->Length(), unclaimed_needed );  
-			} else {
-				dprintf( D_FULLDEBUG, "Have no available resources, trying "
-						 "to find %d unclaimed resource(s)\n",
-						 unclaimed_needed );
-			}
-			if( ! unclaimed_resources->satisfyJob(job,
-												  unclaimed_needed, 
-												  un_candidates) ) {
-					// Couldn't satisfy it at all.
-				delete un_candidates;
-				un_candidates = NULL;
-				delete candidates;
-				candidates = NULL;
+		if( limbo_resources ) {
+			limbo_candidates = new CandidateList;
 
-					// See if it'd be possible to ever service this
-					// job, and if so, stop scheduling.
-				if( isPossibleToSatisfy(job, max_hosts) ) {
-						// Yes, we could run it.  Stop here.
-					dprintf( D_FULLDEBUG, "Could satisfy job %d in the "
-							 "future.  Done computing schedule\n",
-							 cluster );
-					return true;
-				} else {
-					dprintf( D_FULLDEBUG, "Can't satisfy job %d with "
-							 "all possible resources... trying next job\n", 
-							 cluster );
-					continue;
+			if( limbo_resources->satisfyJob(job, still_needed, 
+											limbo_candidates) ) {
+					// Could satisfy with idle and/or limbo
+
+				
+				if( idle_candidates ) {
+					idle_candidates->markScheduled();
+					delete idle_candidates;
+					idle_candidates = NULL;
 				}
+
+				limbo_candidates->markScheduled();
+				delete limbo_candidates;
+				limbo_candidates = NULL;
+					
+					// OK, we will have enough with idle + limbo,
+					// but we need to wait till the limbo ones
+					// come back.
+				continue;
 			}
+			still_needed -= limbo_candidates->Length();
+		}
+		
 
-				// Cool, we could run it if we requested more
-				// resources.  Go through the candidates, generate
-				// resources requests for each one, remove them from
-				// the unclaimed_resources list, and go onto the next
-				// job.
-			dprintf( D_FULLDEBUG, "Satisfied job %d with unclaimed "
-					 "resource(s), generating resource request(s)\n", 
-					 cluster );
+		if( unclaimed_resources) {
+			unclaimed_candidates = new CandidateList;
 
-			un_candidates->Rewind();
-			while( (ad = un_candidates->Next()) ) {
-					// Make a resource request out of this job
-				generateRequest( job );
-					// Remove the resource from unclaimed_resources
-					// (so we don't think we could satisfy any other
-					// jobs with it).
-				unclaimed_resources->res_list->Delete( ad );
-			}
-				// Now that we're done with these candidates, we can
-				// safely delete the list.
-			delete un_candidates;
-			un_candidates = NULL;
+			if( unclaimed_resources->satisfyJob(job, still_needed,
+												unclaimed_candidates) ) {
+					// Could satisfy with idle and/or limbo and/or unclaimed
 
-				// If we had partially satisfied this job w/ claimed
-				// resources, we want to take those out of
-				// consideration for further jobs.
-			if( candidates->Length() > 0 ) {
+					// Cool, we could run it if we requested more
+					// resources.  Go through the candidates, generate
+					// resources requests for each one, remove them from
+					// the unclaimed_resources list, and go onto the next
+					// job.
+				dprintf( D_FULLDEBUG, "Satisfied job %d with unclaimed "
+						 "resource(s), generating resource request(s)\n", 
+						 cluster );
 
-					// If we got here, we must have had some resources
-					// available at time 0, or else we wouldn't have
-					// anything in the candidates list
-				ASSERT( cur );
-				ASSERT( cur->time == 0 );
+				unclaimed_candidates->Rewind();
+				while( (ad = unclaimed_candidates->Next()) ) {
+						// Make a resource request out of this job
+					generateRequest( job );
+				}
+				
+				if( idle_candidates ) {
+					idle_candidates->markScheduled();
+					delete idle_candidates;
+					idle_candidates = NULL;
+				}
+			
+				if( limbo_candidates ) {
+					limbo_candidates->markScheduled();
+					delete limbo_candidates;
+					limbo_candidates = NULL;
+				}
+				
+				delete unclaimed_candidates;
+				unclaimed_candidates = NULL;
+				continue;
+			}	
+			still_needed -= unclaimed_candidates->Length();
+		}	
 
-				candidates->Rewind();
-				char buf[512];
-				while( (ad = candidates->Next()) ) {
-						// First, remove it from the list of available 
-						// resources
-					avail_time_list->removeResource( ad, cur );
+			// preempt case
+			// create our preemptable list, sort it, make a ResList out of it, and try satisfyJob yet again...
 
-						// In addition, mark the match record for this
-						// resource that it's been scheduled, so we
-						// don't decide it's unused and release it.
-					mrec = getMrec( ad, buf );
-					if( ! mrec ) {
-						EXCEPT( "no match for %s in all_matches table, "
-								"yet listed in available resources!",
-								buf );
+			// If both SCHEDD_PREEMPTION_REQUIREMENTS and ..._RANK is set, then
+			// try to satisfy the job by preempting running resources
+		if( (preemption_req != NULL) && (preemption_rank != NULL) ) {
+			struct PreemptCandidateNode preempt_candidate_array[busy_resources->Length()];
+			int num_candidates = 0;
+
+			busy_resources->Rewind();
+			while (ClassAd *machine = busy_resources->Next()) {
+				EvalResult result;
+				bool requirement = false;
+				requirement = preemption_req->EvalTree(machine, job, &result);
+				if (requirement) {
+					if (result.type == LX_INTEGER) {
+						requirement = result.i;
 					}
-					mrec->scheduled = true;
+				}
+
+				if (requirement) {
+					float rank = 0.0;
+					if( preemption_rank->EvalTree(machine, job, &result)) {
+						if( result.type == LX_FLOAT) {
+							rank = result.f;
+							preempt_candidate_array[num_candidates].rank = rank;
+							preempt_candidate_array[num_candidates].cluster_id = cluster;
+							preempt_candidate_array[num_candidates].machine_ad = machine;
+							num_candidates++;
+						}
+					} else {
+						char *s = NULL;
+						char *m = NULL;
+						preemption_rank->PrintToNewStr(&s);
+						machine->LookupString(ATTR_NAME, &m);
+						dprintf(D_ALWAYS, "SCHEDD_PREEMPTION_RANK (%s) did not evaluate to float on job %d for machine %s",
+								s, cluster, m);
+						free(s);
+						free(m);
+					}
 				}
 			}
 
-				// Finally, deallocate the candidates list
-			delete candidates;
-			candidates = NULL;
+				// Now we've got an array from 0 to num_candidates of PreemptCandidateNodes
+				// sort by rank, cluster_id;
+			qsort(preempt_candidate_array, num_candidates, sizeof(struct PreemptCandidateNode), RankSorter);
 
-				// Go onto the next job
-			continue;
+			int req;
+			CAList *preempt_candidates = new CAList;
+
+			int num_preemptions = 0;
+			for( int i = 0; i < num_candidates; i++) {
+				if( job->EvalBool(ATTR_REQUIREMENTS, preempt_candidate_array[i].machine_ad, req) == 0) {
+					req = 0;
+				}
+				
+				if( req ) {
+					preempt_candidates->Append(preempt_candidate_array[i].machine_ad);
+					num_preemptions++;
+					still_needed--;
+
+						// Found all the machines we needed!
+					if (still_needed == 0) {
+						break;
+					}
+				}
+			}
+
+			if( still_needed == 0) {
+					// We got every single thing we need
+				preempt_candidates->Rewind();
+				while( ClassAd *mach = preempt_candidates->Next()) {
+					busy_resources->Delete(mach);
+					pending_preemptions->Append(mach);
+				}
+
+				if( idle_candidates ) {
+					idle_candidates->markScheduled();
+					delete idle_candidates;
+					idle_candidates = NULL;
+				}
+			
+				if( limbo_candidates ) {
+					limbo_candidates->markScheduled();
+					delete limbo_candidates;
+					limbo_candidates = NULL;
+				}
+				
+				if( unclaimed_candidates ) {
+					delete unclaimed_candidates;
+					unclaimed_candidates = NULL;
+				}
+
+				delete preempt_candidates;
+
+				continue;
+			}
+			
 		}
 
-			// These candidates are now useless to us.  Clean them out
-			// so we don't leak memory.
-		delete candidates;
-		candidates = NULL;		
 
 			// Ok, we're in pretty bad shape.  We've got nothing
 			// available now, and we've got nothing unclaimed.  Do a
@@ -2407,10 +2644,46 @@ DedicatedScheduler::computeSchedule( void )
 				// Yes, we could run it.  Stop here.
 			dprintf( D_FULLDEBUG, "Could satisfy job %d in the future, "
 					 "done computing schedule\n", cluster );
+
+			if( idle_candidates ) {
+				delete idle_candidates;
+				idle_candidates = NULL;
+			}
+			
+			if( limbo_candidates ) {
+				delete limbo_candidates;
+				limbo_candidates = NULL;
+			}
+				
+			if( unclaimed_candidates ) {
+				delete unclaimed_candidates;
+				unclaimed_candidates = NULL;
+			}
+
 			return true;
 		} else {
 			dprintf( D_FULLDEBUG, "Can't satisfy job %d with all possible "
 					 "resources... trying next job\n", cluster );
+
+				// By now, we've perhaps got candidates which will never
+				// match, so give them back to our resources
+			if( idle_candidates ) {
+				idle_candidates->appendResources(idle_resources);
+				delete idle_candidates;
+				idle_candidates = NULL;
+			}
+			
+			if( limbo_candidates ) {
+				limbo_candidates->appendResources(limbo_resources);
+				delete limbo_candidates;
+				limbo_candidates = NULL;
+			}
+				
+			if( unclaimed_candidates ) {
+				unclaimed_candidates->appendResources(unclaimed_resources);
+				delete unclaimed_candidates;
+				unclaimed_candidates = NULL;
+			}
 			continue;
 		}
 	}
@@ -2777,26 +3050,6 @@ DedicatedScheduler::displayResourceRequests( void )
 	dprintf( D_FULLDEBUG,
 			 "Waiting to negotiate for %d dedicated resource request(s)\n",
 			 resource_requests->Length() );
-}
-
-
-void
-DedicatedScheduler::addUnclaimedResource( ClassAd* resource )
-{
-	if( ! unclaimed_resources ) {
-		unclaimed_resources = new ResTimeNode( -1 );
-	}
-	unclaimed_resources->res_list->Insert( resource );
-}
-
-
-bool
-DedicatedScheduler::hasUnclaimedResources( void )
-{
-	if( ! unclaimed_resources ) {
-		return false;
-	}
-	return( unclaimed_resources->res_list->Length() > 0 );
 }
 
 
@@ -3237,3 +3490,22 @@ deallocMatchRec( match_rec* mrec )
 		// Status is no longer active, but we're still claimed
 	mrec->setStatus( M_CLAIMED );
 }
+
+// Comparision function for sorting machines
+int
+RankSorter(const void *ptr1, const void *ptr2) {
+	PreemptCandidateNode *n1 = (PreemptCandidateNode *) ptr1;
+	PreemptCandidateNode *n2 = (PreemptCandidateNode *) ptr2;
+
+	if (n1->rank < n2->rank) {
+		return -1;
+	}
+
+	if (n1->rank > n2->rank) {
+		return 1;
+	}
+
+	return n1->cluster_id - n2->cluster_id;
+}
+
+
