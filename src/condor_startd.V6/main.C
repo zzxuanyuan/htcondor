@@ -69,7 +69,7 @@ char*	mySubSystem = "STARTD";
  * Prototypes of static functions.
  */
 
-void usage( const char *s );
+void usage( char* );
 int main_init( int argc, char* argv[] );
 int init_params(int);
 int main_config();
@@ -81,9 +81,40 @@ int	handle_dc_sigchld( Service*, int );
 int	shutdown_sigchld( Service*, int ); 
 int	check_free();
 
-int
-main_init( int, char* [] )
+
+void
+usage( char* MyName)
 {
+	fprintf( stderr, "Usage: %s [option]\n", MyName );
+	fprintf( stderr, "  where [option] is one of:\n" );
+	fprintf( stderr, 
+			 "     [-skip-benchmarks]\t(don't run initial benchmarks)\n" );
+	exit( 1 );
+}
+
+
+int
+main_init( int argc, char* argv[] )
+{
+	int		skip_benchmarks = FALSE;
+	int		rval;
+	char**	ptr; 
+
+		// Process command line args.
+	for(ptr = argv + 1; *ptr; ptr++) {
+		if(ptr[0][0] != '-') {
+			usage( argv[0] );
+		}
+		switch( ptr[0][1] ) {
+		case 's':
+			skip_benchmarks = TRUE;
+			break;
+		default:
+			fprintf( stderr, "Error:  Unknown option %s\n", *ptr );
+			usage( argv[0] );
+		}
+	}
+
 		// Seed the random number generator for capability generation.
 	set_seed( 0 );
 
@@ -93,9 +124,13 @@ main_init( int, char* [] )
 	init_params(1);		// The 1 indicates that this is the first time
 
 	resmgr = new ResMgr;
-	dprintf( D_ALWAYS, "About to run initial benchmarks.\n" );
-	resmgr->walk( Resource::force_benchmark );
-	dprintf( D_ALWAYS, "Completed initial benchmarks.\n" );
+
+	if( ! skip_benchmarks ) {
+		dprintf( D_ALWAYS, "About to start initial benchmarks.\n" );
+		resmgr->force_benchmark();
+		dprintf( D_ALWAYS, "Completed initial benchmarks.\n" );
+	}
+
 	resmgr->walk( Resource::init_classad );
 
 		// Do a little sanity checking and cleanup
@@ -433,10 +468,9 @@ reaper_loop()
 					pid, WEXITSTATUS(status));
 		}
 		rip = resmgr->get_by_pid(pid);
-		if( rip == NULL ) {
-			continue;
+		if( rip ) {
+			rip->starter_exited();
 		}		
-		rip->starter_exited();
 	}
 #endif
 }
