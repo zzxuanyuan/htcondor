@@ -672,6 +672,55 @@ Claim::ownerMatches( const char* owner )
 }
 
 
+void
+Claim::setWantsRelease( bool val )
+{ 
+	c_wants_release = val;
+		// also, keep track of what state we were in when we got this
+		// request, since we want to put that in the reply classad. 
+	c_last_state = c_state;
+}
+
+
+int
+Claim::finishRelease( void )
+{
+	ClassAd reply;
+	MyString line;
+	int rval;
+
+	dprintf( D_ALWAYS, "Releasing claim %s (owner: '%s')\n", id(),
+			 client()->owner() );  
+
+	line = ATTR_RESULT;
+	line += "=TRUE";
+	reply.Insert( line.Value() );
+
+	line = ATTR_LAST_CLAIM_STATE;
+	line += "=\"";
+	line += getClaimStateString( c_last_state );
+	line += '"';
+	reply.Insert( line.Value() );
+	
+		// TODO: hopefully we can put the final job update ad in here,
+		// too. 
+	
+	rval = sendCAReply( c_request_stream, "CA_RELEASE_CLAIM", &reply );
+	
+		// now that we're done replying, we need to delete this stream
+		// so we don't leak memory, since DaemonCore's not going to do
+		// that for us in this case
+	delete c_request_stream;
+	c_request_stream = NULL;
+
+		// finally, we have to remove this claim from the CODMgr
+	c_rip->r_cod_mgr->removeClaim( this );
+
+		// THIS OBJECT IS NOW DELETED, WE CAN *ONLY* RETURN NOW!!!
+	return rval;
+}
+
+
 ///////////////////////////////////////////////////////////////////////////
 // Client
 ///////////////////////////////////////////////////////////////////////////

@@ -119,7 +119,6 @@ public:
 	void beginClaim( void );	// we finally accepted a claim, so
 								// change our state, and if we're
 								// opportunistic, start a timer
-
 		// Timer functions
 	void start_match_timer();
 	void cancel_match_timer();
@@ -182,7 +181,8 @@ public:
 	bool ownerMatches( const char* owner );
 
 	bool wantsRelease( void )			{ return c_wants_release; };
-	void setWantsRelease( bool val )	{ c_wants_release=val; }; 
+	void setWantsRelease( bool val );
+	int  finishRelease( void );
 
 
 private:
@@ -214,6 +214,7 @@ private:
 	bool		c_is_cod;       // are we a COD claim or not?
 
 	ClaimState	c_state;		// the state of this claim
+	ClaimState	c_last_state;	// the state when a release was requested
 	bool		c_wants_release;
 
 };
