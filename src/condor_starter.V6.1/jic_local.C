@@ -304,7 +304,17 @@ JICLocal::initJobInfo( void )
 				 "Job doesn't specify universe, assuming VANILLA\n" ); 
 		job_universe = CONDOR_UNIVERSE_VANILLA;
 	}
+	if( ! checkUniverse(job_universe) ) {
+		return false;
+	}
 
+	if( Starter->isGridshell() ) { 
+		MyString iwd_str = ATTR_JOB_IWD;
+		iwd_str += "=\"";
+		iwd_str += Starter->origCwd();
+		iwd_str += '"';
+		job_ad->InsertOrUpdate( iwd_str.GetCStr() );
+	}
 	job_ad->LookupString( ATTR_JOB_IWD, &job_iwd );
 	if( ! job_iwd ) {
 		dprintf( D_ALWAYS, "Can't find job's IWD, aborting\n" );
