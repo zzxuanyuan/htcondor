@@ -534,6 +534,15 @@ bool
 Daemon::sendCACmd( ClassAd* req, ClassAd* reply, bool force_auth,
 				   int timeout )
 {
+	ReliSock cmd_sock;
+	return sendCACmd( req, reply, &cmd_sock, force_auth, timeout );
+}
+
+
+bool
+Daemon::sendCACmd( ClassAd* req, ClassAd* reply, ReliSock* cmd_sock,
+				   bool force_auth, int timeout )
+{
 	if( !req ) {
 		newError( CA_INVALID_REQUEST,
 				  "sendCACmd() called with no request ClassAd" ); 
@@ -544,6 +553,11 @@ Daemon::sendCACmd( ClassAd* req, ClassAd* reply, bool force_auth,
 				  "sendCACmd() called with no reply ClassAd" );
 		return false;
 	}
+	if( ! cmd_sock ) {
+		newError( CA_INVALID_REQUEST,
+				  "sendCACmd() called with no socket to use" );
+		return false;
+	}
 	if( !checkAddr() ) {
 			// this already deals w/ _error for us...
 		return false;
@@ -552,13 +566,11 @@ Daemon::sendCACmd( ClassAd* req, ClassAd* reply, bool force_auth,
 	req->SetMyTypeName( COMMAND_ADTYPE );
 	req->SetTargetTypeName( REPLY_ADTYPE );
 
-	ReliSock cmd_sock;
-
 	if( timeout >= 0 ) {
-		cmd_sock.timeout( timeout );
+		cmd_sock->timeout( timeout );
 	}
 
-	if( ! cmd_sock.connect(_addr) ) {
+	if( ! cmd_sock->connect(_addr) ) {
 		MyString err_msg = "Failed to connect to ";
 		err_msg += daemonString(_type);
 		err_msg += " ";
@@ -568,7 +580,7 @@ Daemon::sendCACmd( ClassAd* req, ClassAd* reply, bool force_auth,
 	}
 
 	CondorError errstack;
-	if( ! startCommand(CA_CMD, &cmd_sock, 20, &errstack) ) {
+	if( ! startCommand(CA_CMD, cmd_sock, 20, &errstack) ) {
 		MyString err_msg = "Failed to send command (CA_CMD)";
 		err_msg += "\n";
 		err_msg += errstack.get_full_text();
@@ -577,7 +589,7 @@ Daemon::sendCACmd( ClassAd* req, ClassAd* reply, bool force_auth,
 	}
 	if( force_auth ) {
 		CondorError e;
-		if( ! forceAuthentication(&cmd_sock, &e) ) {
+		if( ! forceAuthentication(cmd_sock, &e) ) {
 			newError( CA_NOT_AUTHENTICATED, e.get_full_text() );
 			return false;
 		}
@@ -587,27 +599,27 @@ Daemon::sendCACmd( ClassAd* req, ClassAd* reply, bool force_auth,
 		// set to 20.  so, if we were given a timeout, we have to set
 		// it again... :(
 	if( timeout >= 0 ) {
-		cmd_sock.timeout( timeout );
+		cmd_sock->timeout( timeout );
 	}
 
-	if( ! req->put(cmd_sock) ) { 
+	if( ! req->put(*cmd_sock) ) { 
 		newError( CA_COMMUNICATION_ERROR,
 				  "Failed to send request ClassAd" );
 		return false;
 	}
-	if( ! cmd_sock.end_of_message() ) {
+	if( ! cmd_sock->end_of_message() ) {
 		newError( CA_COMMUNICATION_ERROR,
 				  "Failed to send end-of-message" );
 		return false;
 	}
 
 		// Now, try to get the reply
-	cmd_sock.decode();
-	if( ! reply->initFromStream(cmd_sock) ) {
+	cmd_sock->decode();
+	if( ! reply->initFromStream(*cmd_sock) ) {
 		newError( CA_COMMUNICATION_ERROR, "Failed to read reply ClassAd" );
 		return false;
 	}
-	if( !cmd_sock.end_of_message() ) {
+	if( !cmd_sock->end_of_message() ) {
 		newError( CA_COMMUNICATION_ERROR, "Failed to read end-of-message" );
 		return false;
 	}

@@ -449,15 +449,15 @@ protected:
 	char* _cmd_str;
 
 		/** 
+
  		   Helper method for the client-side of the ClassAd-only
 		   protocol.  This method will try to: locate our daemon,
-		   create a ReliSock, try to connect(), send the CA_CMD int,
-		   send a ClassAd and an EOM, read back a ClassAd and EOM,
-		   lookup the ATTR_RESULT in the reply, and if it's FALSE,
-		   lookup ATTR_ERROR_STRING.  This deals with everything for
-		   you, so all you have to do if you want to use this protocol
-		   is define a method that sets up up the right request ad and
-		   calls this.
+		   connect(), send the CA_CMD int, send a ClassAd and an EOM,
+		   read back a ClassAd and EOM, lookup the ATTR_RESULT in the
+		   reply, and if it's FALSE, lookup ATTR_ERROR_STRING.  This
+		   deals with everything for you, so all you have to do if you
+		   want to use this protocol is define a method that sets up
+		   up the right request ad and calls this.
 		   @param req Pointer to the request ad (you fill it in)
 		   @param reply Pointer to the reply ad (from the server)
 		   @param force_auth Should we force authentication for this cmd?
@@ -468,6 +468,15 @@ protected:
 		*/
 	bool sendCACmd( ClassAd* req, ClassAd* reply, bool force_auth,
 					int timeout = -1 );
+
+		/** Same as above, except the socket for the command is passed
+			in as an argument.  This way, you can keep the ReliSock
+			object around and the connection open once the command is
+			over, in case you need that.  Otherwise, you should just
+			call the above version.
+		*/
+	bool sendCACmd( ClassAd* req, ClassAd* reply, ReliSock* sock,
+					bool force_auth, int timeout = -1 );
 
 		/** 
 		   Helper method for commands to see if we've already got the
