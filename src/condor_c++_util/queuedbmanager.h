@@ -52,7 +52,7 @@ public:
 	
 	//! initialize: currently check the DB schema
 	int		init(bool initJQDB);
-
+	bool            isInitialized() {return initialized;}
 	int 		connectDB(int Xact = BEGIN_XACT);
 	int		disconnectDB(int commit = COMMIT_XACT);
 	int             commitTransaction();
@@ -136,6 +136,7 @@ private:
 		// data
 		//
 	//JobQueueDatabase*	jqDatabase;		//!< Job Queue Database
+	bool            initialized;
 	ODBC            *db_handle;
 	enum				XACT_STATE 
 						{NOT_IN_XACT, BEGIN_XACT, COMMIT_XACT, ABORT_XACT}; 
