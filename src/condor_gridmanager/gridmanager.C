@@ -46,6 +46,18 @@
 
 extern char *myUserName;
 
+struct JobType
+{
+	char *Name;
+	void(*InitFunc)();
+	void(*ReconfigFunc)();
+	bool(*AdMatchFunc)(const ClassAd*);
+	bool(*AdMustExpandFunc)(const ClassAd*);
+	BaseJob *(*CreateFunc)(ClassAd*);
+};
+
+List<JobType> jobTypes;
+
 // Stole these out of the schedd code
 int procIDHash( const PROC_ID &procID, int numBuckets )
 {
@@ -62,6 +74,8 @@ template class HashTable<PROC_ID, BaseJob *>;
 template class HashBucket<PROC_ID, BaseJob *>;
 template class List<BaseJob>;
 template class Item<BaseJob>;
+template class List<JobType>;
+template class Item<JobType>;
 
 HashTable <PROC_ID, BaseJob *> pendingScheddUpdates( HASH_TABLE_SIZE,
 													 procIDHash );
@@ -201,7 +215,33 @@ Init()
 		}
 	}
 
-	GlobusJobInit();
+	JobType *new_type;
+
+#if defined(ORACLE_UNIVERSE)
+	new_type = new JobType;
+	new_type->Name = strdup( "Oracle" );
+	new_type->InitFunc = OracleJobInit;
+	new_type->ReconfigFunc = OracleJobReconfig;
+	new_type->AdMatchFunc = OracleJobAdMatch;
+	new_type->AdMustExpandFunc = OracleJobAdMustExpand;
+	new_type->CreateFunc = OracleJobCreate;
+	jobTypes.Append( new_type );
+#endif
+
+	new_type = new JobType;
+	new_type->Name = strdup( "Globus" );
+	new_type->InitFunc = GlobusJobInit;
+	new_type->ReconfigFunc = GlobusJobReconfig;
+	new_type->AdMatchFunc = GlobusJobAdMatch;
+	new_type->AdMustExpandFunc = GlobusJobAdMustExpand;
+	new_type->CreateFunc = GlobusJobCreate;
+	jobTypes.Append( new_type );
+
+	jobTypes.Rewind();
+	while ( jobTypes.Next( new_type ) ) {
+		new_type->InitFunc();
+	}
+
 }
 
 void
@@ -226,10 +266,11 @@ Reconfig()
 
 	contactScheddDelay = param_integer("GRIDMANAGER_CONTACT_SCHEDD_DELAY", 5);
 
-	GlobusJobReconfig();
-#if defined(ORACLE_UNIVERSE)
-	OracleJobReconfig();
-#endif
+	JobType *job_type;
+	jobTypes.Rewind();
+	while ( jobTypes.Next( job_type ) ) {
+		job_type->ReconfigFunc();
+	}
 
 	// Tell all the job objects to deal with their new config values
 	BaseJob *next_job;
@@ -345,21 +386,23 @@ doContactSchedd()
 			if ( JobsByProcID.lookup( procID, old_job ) != 0 ) {
 
 				int rc;
+				JobType *job_type = NULL;
 				BaseJob *new_job = NULL;
 
 				// job had better be either managed or matched! (or both)
 				ASSERT( job_is_managed || job_is_matched );
 
-#if defined(ORACLE_UNIVERSE)
-				if ( OracleJobAdMatch( next_ad ) ) {
+				// Search our job types for one that'll handle this job
+				jobTypes.Rewind();
+				while ( jobTypes.Next( job_type ) ) {
+					if ( job_type->AdMatchFunc( next_ad ) ) {
+						// Found one!
+						break;
+					}
+				}
 
-					new_job = new OracleJob( next_ad );
-
-				} else
-#endif // if defined(ORACLE_UNIVERSE)
-				if ( GlobusJobAdMatch( next_ad ) ) {
-
-					if ( GlobusJobAdMustExpand( next_ad ) ) {
+				if ( job_type != NULL ) {
+					if ( job_type->AdMustExpandFunc( next_ad ) ) {
 						// Get the expanded ClassAd from the schedd, which
 						// has the globus resource filled in with info from
 						// the matched ad.
@@ -373,11 +416,8 @@ dprintf(D_ALWAYS,"***schedd failure at %d!\n",__LINE__);
 						}
 						ASSERT(next_ad);
 					}
-
-					new_job = new GlobusJob( next_ad );
-
+					new_job = job_type->CreateFunc( next_ad );
 				} else {
-					// TODO: should put job on hold
 					dprintf( D_ALWAYS, "No handlers for job %d.%d",
 							 procID.cluster, procID.proc );
 					new_job = new BaseJob( next_ad );

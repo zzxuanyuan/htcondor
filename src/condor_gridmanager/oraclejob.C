@@ -140,6 +140,11 @@ bool OracleJobAdMustExpand( const ClassAd *jobad )
 	return must_expand != 0;
 }
 
+BaseJob *OracleJobCreate( ClassAd *jobad )
+{
+	return (BaseJob *)new OracleJob( jobad );
+}
+
 int OracleJob::probeInterval = 300;		// default value
 int OracleJob::submitInterval = 300;	// default value
 

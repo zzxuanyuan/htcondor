@@ -354,6 +354,11 @@ bool GlobusJobAdMustExpand( const ClassAd *jobad )
 
 	return must_expand != 0;
 }
+
+BaseJob *GlobusJobCreate( ClassAd *jobad )
+{
+	return (BaseJob *)new GlobusJob( jobad );
+}
 ////////////////////////////////////////
 
 const char *rsl_stringify( const MyString& src )

@@ -60,6 +60,7 @@ void GlobusJobInit();
 void GlobusJobReconfig();
 bool GlobusJobAdMatch( const ClassAd *jobad );
 bool GlobusJobAdMustExpand( const ClassAd *jobad );
+BaseJob *GlobusJobCreate( ClassAd *jobad );
 ///////////////////////////////////////
 
 class GlobusJob : public BaseJob

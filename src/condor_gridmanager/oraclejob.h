@@ -17,6 +17,7 @@ void OracleJobInit();
 void OracleJobReconfig();
 bool OracleJobAdMatch( const ClassAd *jobad );
 bool OracleJobAdMustExpand( const ClassAd *jobad );
+BaseJob *OracleJobCreate( ClassAd *jobad );
 
 class OracleJob : public BaseJob
 {
