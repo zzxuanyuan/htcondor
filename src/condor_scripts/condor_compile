@@ -102,27 +102,37 @@ export CONDOR_LD_DIR
 PATH=$PATH:/bin:/usr/bin
 
 # Figure out what architecture we're running on 
-os=`uname`
+
+# Make sure if we get back something that begins with "IRIX" that we
+# strip off anything after it (e.g. "IRIX64", etc).
+os=`uname -s | sed 's/IRIX.*/IRIX/'`
+
 osver=`uname -r`
 if [ $os = "HP-UX" ]; then
 	osmajver=`uname -r | awk -F. '{print $2}' -`
 else
 	osmajver=`uname -r | awk -F. '{print $1}' -`
 fi
+
 osfull="$os$osmajver"
 
 # Determine if the system ld has been replaced with our ld script
 # or not.
 CONDOR_FULLINSTALL=false
+
 case $os in
-	IRIX | IRIX62 | IRIX65 )
+	IRIX )
 		if [ -x /usr/lib/ld.real -a -x /usr/lib/uld.real ]; then
 			CONDOR_FULLINSTALL=true
 		fi
-		# Also, on IRIX, set SGI_ABI environment variable to old 32-bit code
+		# on IRIX62, set SGI_ABI environment variable to old 32-bit code
 		# only, since that is what condor_syscall_lib expects.
-		SGI_ABI=-32
-		export SGI_ABI
+		
+			#6/3/99 mikeu: attempt to fix this to allow user to specify 
+			#which linker to use, or use default. Commented out these 
+			#lines so it can be specified elsewhere...
+		#SGI_ABI=-32
+		#export SGI_ABI
 		;;
 	HP-UX )
 		if [ $osmajver = "10" ]; then
@@ -238,7 +248,7 @@ fi
 
 case $os in 
 
-	IRIX | IRIX62 | IRIX65 | OSF1 )
+	IRIX | OSF1 )
 		if [ $myname = "cc" ]; then
 			exec $ARGS -tul -h$CONDOR_LD_DIR -B
 		fi
