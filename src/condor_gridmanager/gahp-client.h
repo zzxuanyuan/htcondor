@@ -544,6 +544,9 @@ class GahpClient : public Service {
 		int
 		blah_job_cancel(const char *job_id);
 
+		int
+		blah_job_refresh_proxy(const char *job_id, const char *proxy_file);
+
 #ifdef CONDOR_GLOBUS_HELPER_WANT_DUROC
 	// Not yet ready for prime time...
 	globus_duroc_control_barrier_release();
