@@ -146,8 +146,8 @@ static char *GMStateNames[] = {
 
 #define CHECK_PROXY \
 { \
-	if ( ((PROXY_NEAR_EXPIRED( myProxy ) && condorState != REMOVED) || \
-		  (PROXY_IS_EXPIRED( myProxy ) && condorState == REMOVED)) \
+	if ( ((PROXY_NEAR_EXPIRED( jobProxy ) && condorState != REMOVED) || \
+		  (PROXY_IS_EXPIRED( jobProxy ) && condorState == REMOVED)) \
 		 && gmState != GM_PROXY_EXPIRED ) { \
 		dprintf( D_ALWAYS, "(%d.%d) proxy is about to expire, changing state to GM_PROXY_EXPIRED\n", \
 				 procID.cluster, procID.proc ); \
@@ -659,7 +659,7 @@ GlobusJob::GlobusJob( ClassAd *classad )
 	retryStdioSize = true;
 	resourceManagerString = NULL;
 	myResource = NULL;
-	myProxy = NULL;
+	jobProxy = NULL;
 	gassServerUrl = NULL;
 	gramCallbackContact = NULL;
 	communicationTimeoutTid = -1;
@@ -683,8 +683,8 @@ GlobusJob::GlobusJob( ClassAd *classad )
 	buff[0] = '\0';
 	ad->LookupString( ATTR_X509_USER_PROXY, buff );
 	if ( buff[0] != '\0' ) {
-		myProxy = AcquireProxy( buff, evaluateStateTid );
-		if ( myProxy == NULL ) {
+		jobProxy = AcquireProxy( buff, evaluateStateTid );
+		if ( jobProxy == NULL ) {
 			dprintf( D_ALWAYS, "(%d.%d) error acquiring proxy!\n",
 					 procID.cluster, procID.proc );
 		}
@@ -735,18 +735,18 @@ GlobusJob::GlobusJob( ClassAd *classad )
 
 				dprintf (D_FULLDEBUG,
 						 "Adding new MyProxy entry for proxy %s : host=%s, cred name=%s\n",
-						 myProxy->proxy_filename,
+						 jobProxy->proxy_filename,
 						 myProxyEntry->myproxy_host,
 						 (myProxyEntry->myproxy_credential_name!=NULL)?(myProxyEntry->myproxy_credential_name):"<default>");
-				myProxy->myproxy_entries.Prepend (myProxyEntry); // Add at the top of the list, so it'll be used first
+				jobProxy->myproxy_entries.Prepend (myProxyEntry); // Add at the top of the list, so it'll be used first
 
 
 				// See if we already have a MyProxy entry for the given host/credential name
 				/*int found = FALSE;
 				MyProxyEntry * currentMyProxyEntry = NULL;
-				myProxy->myproxy_entries.Rewind();
+				jobProxy->myproxy_entries.Rewind();
 
-				while (myProxy->myproxy_entries.Next (currentMyProxyEntry)) {
+				while (jobProxy->myproxy_entries.Next (currentMyProxyEntry)) {
 					if (strcmp (currentMyProxyEntry->myproxy_host, myProxyEntry->myproxy_host)) {
 						continue;
 					}
@@ -772,10 +772,10 @@ GlobusJob::GlobusJob( ClassAd *classad )
 				if (!found) {
 					dprintf (D_FULLDEBUG,
 							 "Adding new MyProxy entry for proxy %s : host=%s, cred name=%s\n",
-							 myProxy->proxy_filename,
+							 jobProxy->proxy_filename,
 							 myProxyEntry->myproxy_host,
 							 (myProxyEntry->myproxy_credential_name!=NULL)?(myProxyEntry->myproxy_credential_name):"<default>");
-					myProxy->myproxy_entries.Append (myProxyEntry);
+					jobProxy->myproxy_entries.Append (myProxyEntry);
 				} else {
 					// No need to insert this
 					delete myProxyEntry;
@@ -789,7 +789,7 @@ GlobusJob::GlobusJob( ClassAd *classad )
 				(void)GetMyProxyPasswordFromSchedD(procID.cluster, procID.proc, &myproxy_pwd); */
 
 				//dprintf( D_ALWAYS, "Calling SetMyProxyHostForProxy %s, dn=%s\n", buff, (pDN != NULL)?pDN:"NULL");
-				//SetMyProxyHostForProxy (buff, pDN, myProxy);
+				//SetMyProxyHostForProxy (buff, pDN, jobProxy);
 
 			}
 		}
@@ -799,7 +799,7 @@ GlobusJob::GlobusJob( ClassAd *classad )
 	}
 
 	snprintf( buff, sizeof(buff), "GLOBUS/%s",
-			  myProxy->subject->subject_name );
+			  jobProxy->subject->subject_name );
 	gahp = new GahpClient( buff );
 	gahp->setNotificationTimerId( evaluateStateTid );
 	gahp->setMode( GahpClient::normal );
@@ -818,7 +818,7 @@ GlobusJob::GlobusJob( ClassAd *classad )
 
 	// Find/create an appropriate GlobusResource for this job
 	myResource = GlobusResource::FindOrCreateResource( resourceManagerString,
-													   myProxy->subject->subject_name);
+													   jobProxy->subject->subject_name);
 	if ( myResource == NULL ) {
 		error_string = "Failed to initialized GlobusResource object";
 		goto error_exit;
@@ -936,8 +936,8 @@ GlobusJob::~GlobusJob()
 	if ( localError ) {
 		free( localError );
 	}
-	if ( myProxy ) {
-		ReleaseProxy( myProxy, evaluateStateTid );
+	if ( jobProxy ) {
+		ReleaseProxy( jobProxy, evaluateStateTid );
 	}
 	if ( gassServerUrl ) {
 		free( gassServerUrl );
@@ -1011,7 +1011,7 @@ int GlobusJob::doEvaluateState()
 				break;
 			}
 
-			if ( !myProxy ) {
+			if ( !jobProxy ) {
 				UpdateJobAdString( ATTR_HOLD_REASON,
 								   "Proxy file missing or corrupted" );
 				UpdateJobAdInt(ATTR_HOLD_REASON_CODE,
@@ -1021,7 +1021,7 @@ int GlobusJob::doEvaluateState()
 				break;
 			}
 
-			if ( gahp->Initialize( myProxy ) == false ) {
+			if ( gahp->Initialize( jobProxy ) == false ) {
 				dprintf( D_ALWAYS, "(%d.%d) Error initializing GAHP\n",
 						 procID.cluster, procID.proc );
 				UpdateJobAdString( ATTR_HOLD_REASON, "Failed to initialize GAHP" );
@@ -1029,7 +1029,7 @@ int GlobusJob::doEvaluateState()
 				break;
 			}
 
-			gahp->setDelegProxy( myProxy );
+			gahp->setDelegProxy( jobProxy );
 
 			gahp->setMode( GahpClient::blocking );
 
@@ -1246,7 +1246,7 @@ int GlobusJob::doEvaluateState()
 					break;
 				}
 				numSubmitAttempts++;
-				jmProxyExpireTime = myProxy->expiration_time;
+				jmProxyExpireTime = jobProxy->expiration_time;
 				if ( rc == GLOBUS_SUCCESS ) {
 					// Previously this supported GRAM 1.0
 					dprintf(D_ALWAYS, "(%d.%d) Unexpected remote response.  GRAM %s is now required.\n", procID.cluster, procID.proc, MIN_SUPPORTED_GRAM_V_STRING);
@@ -1367,7 +1367,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) jobmanager timed out on commit, clearing request\n"
 					reevaluate_state = true;
 					break;
 				}
-				if ( jmProxyExpireTime < myProxy->expiration_time ) {
+				if ( jmProxyExpireTime < jobProxy->expiration_time ) {
 					gmState = GM_REFRESH_PROXY;
 					break;
 				}
@@ -1415,7 +1415,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) jobmanager timed out on commit, clearing request\n"
 					gmState = GM_STOP_AND_RESTART;
 					break;
 				}
-				jmProxyExpireTime = myProxy->expiration_time;
+				jmProxyExpireTime = jobProxy->expiration_time;
 				gmState = GM_SUBMITTED;
 			}
 			} break;
@@ -1750,7 +1750,7 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 				if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_UNDEFINED_EXE ) {
 					gmState = GM_CLEAR_REQUEST;
 				} else if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_WAITING_FOR_COMMIT ) {
-					jmProxyExpireTime = myProxy->expiration_time;
+					jmProxyExpireTime = jobProxy->expiration_time;
 					jmDown = false;
 					rehashJobContact( this, jobContact, job_contact );
 					SetJobContact(job_contact);
@@ -2207,8 +2207,8 @@ dprintf(D_FULLDEBUG,"(%d.%d) got a callback, retrying STDIO_SIZE\n",procID.clust
 				break;
 			}
 			now = time(NULL);
-			// if ( myProxy->expiration_time > JM_MIN_PROXY_TIME + now ) {
-			if ( myProxy->expiration_time > (minProxy_time + 60) + now ) {
+			// if ( jobProxy->expiration_time > JM_MIN_PROXY_TIME + now ) {
+			if ( jobProxy->expiration_time > (minProxy_time + 60) + now ) {
 				// resume handling the job.
 				gmState = GM_START;
 			} else {
@@ -3137,7 +3137,7 @@ bool GlobusJob::FailureNeedsCommit( int error_code )
 bool
 GlobusJob::JmShouldSleep()
 {
-	if ( jmProxyExpireTime < myProxy->expiration_time ) {
+	if ( jmProxyExpireTime < jobProxy->expiration_time ) {
 		return false;
 	}
 	if ( condorState != IDLE && condorState != RUNNING ) {
