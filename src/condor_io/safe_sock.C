@@ -509,10 +509,10 @@ int SafeSock::handle_incoming_packet()
     if(tempMsg != NULL) { // found
         bool ok = true;
         if (_shortMsg.verified()) {
-            ok = tempMsg->addPacket(last, seqNo, length, data, 0) ;
+            ok = tempMsg->addPacket(last, seqNo, length, data, 0, 0) ;
         }
         else {
-            ok = tempMsg->addPacket(last, seqNo, length, data, _shortMsg.md());
+            ok = tempMsg->addPacket(last, seqNo, length, data, _shortMsg.md(), _shortMsg.headerLen());
         }
         if (ok) { // message is ready
             _longMsg = tempMsg;
@@ -528,7 +528,9 @@ int SafeSock::handle_incoming_packet()
     } else { // not found
         if(prev) { // add a new message at the end of the chain
             prev->nextMsg = new _condorInMsg(mID, last, seqNo, length, data, 
-                                             _shortMsg.isDataMD5ed(), _shortMsg.md(), 
+                                             _shortMsg.isDataMD5ed(), 
+                                             _shortMsg.md(), 
+                                             _shortMsg.headerLen(), 
                                              _shortMsg.isDataEncrypted(), prev);
             if(!prev->nextMsg) {    
                 EXCEPT("Error:handle_incomming_packet: Out of Memory");
@@ -537,7 +539,9 @@ int SafeSock::handle_incoming_packet()
             return FALSE;
         } else { // first message in the bucket
             _inMsgs[index] = new _condorInMsg(mID, last, seqNo, length, data, 
-                                              _shortMsg.isDataMD5ed(), _shortMsg.md(), 
+                                              _shortMsg.isDataMD5ed(), 
+                                              _shortMsg.md(), 
+                                              _shortMsg.headerLen(),
                                               _shortMsg.isDataEncrypted(), NULL);
             if(!_inMsgs[index]) {
                 EXCEPT("Error:handle_incomming_packet: Out of Memory");
@@ -659,10 +663,10 @@ bool SafeSock :: set_encryption_id(const char * keyId)
     bool inited = true;
 
     if (keyId == 0) {
-        _shortMsg.resetEncKeyId();
+        _shortMsg.resetEnc();
 
         if (_longMsg) {
-            _longMsg->resetEncKeyId();
+            _longMsg->resetEnc();
         }
     }
 
@@ -676,10 +680,10 @@ bool SafeSock :: init_MD(CONDOR_MD_MODE mode, KeyInfo * key, const char * keyId)
     bool inited = true;
    
     if (key == 0) {
-        _shortMsg.resetMDKeyId(); // For incoming message, we don't need to set keyId
+        _shortMsg.resetMD(); // For incoming message, we don't need to set keyId
 
         if (_longMsg) {
-            _longMsg->resetMDKeyId();    // For incoming message, we don't need to set keyId
+            _longMsg->resetMD();    // For incoming message, we don't need to set keyId
         }
     }
     else {

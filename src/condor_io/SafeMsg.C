@@ -87,20 +87,41 @@ void _condorPacket :: init()
     verified_         = true;
 }
 
-void _condorPacket :: resetMDKeyId()
+void _condorPacket :: resetMD()
 {
     if (incomingMD5KeyId_) {
         free(incomingMD5KeyId_);
         incomingMD5KeyId_ = 0;
     }
+    if (md_) {
+        free(md_);
+        md_ = 0;
+    }
+    if (mdChecker_) {
+        delete mdChecker_;
+        mdChecker_ = 0;
+    }
+    verified_ = true;
 }
 
-void _condorPacket :: resetEncKeyId()
+void _condorPacket :: resetEnc()
 {
     if (incomingEncKeyId_) {
         free(incomingEncKeyId_);
         incomingEncKeyId_ = 0;
     }
+}
+
+int _condorPacket :: headerLen()
+{
+    int len = 0;
+    if (incomingMD5KeyId_) {
+        len += strlen(incomingMD5KeyId_);
+    }
+    if (incomingEncKeyId_) {
+        len += strlen(incomingEncKeyId_);
+    }
+    return len;
 }
 
 const unsigned char * _condorPacket :: md()
@@ -160,13 +181,19 @@ bool _condorPacket::init_MD(bool outPacket, KeyInfo * key, const char * keyId)
     }
     else {
         // Reset all key ids if necessary
-        resetMDKeyId();
+        resetMD();
     }
 
     if (outPacket) {
         // you can not change in the middle of a packet!
         curIndex += outgoingMdLen_; 
         length    = curIndex;
+    }
+    else {
+        // maybe we should verify the packet if necessary
+        if (!verified_ && (md_ != NULL)) {
+            inited = verifyMD();
+        }
     }
 
     return inited;
@@ -184,23 +211,32 @@ bool _condorPacket :: verified()
 
 bool _condorPacket::verifyMD()
 {
-    if (mdChecker_ && !verified_) {
-        dprintf(D_SECURITY, "Verifying message digest %s\n", data, length);
-        mdChecker_->addMD((unsigned char *)&data, length);
-        
-        if (mdChecker_->verifyMD((unsigned char *)&md_[0])) {
-            dprintf(D_SECURITY, "MD verified!\n");
-            verified_ = true;
+    int headerlen = headerLen();
+
+    if (curIndex == 0) {
+        if (mdChecker_ && !verified_) {
+            mdChecker_->addMD((unsigned char *)(data-headerlen), 
+                              length+headerlen);
+            
+            if (mdChecker_->verifyMD((unsigned char *)&md_[0])) {
+                dprintf(D_SECURITY, "MD verified!\n");
+                verified_ = true;
+            }
+            else {
+                dprintf(D_SECURITY, "MD verification failed for short message\n");
+                verified_ = false;
+            }
+        }
+        else if (mdChecker_ == 0){
+            return true;
+            // Fake it for now.
         }
         else {
-            verified_ = false;
+            // nothing here
         }
     }
-    else if (mdChecker_ == 0){
-        verified_ = true;
-    }
     else {
-        // nothing here
+        verified_ = false;
     }
     return verified_;
 }
@@ -222,6 +258,11 @@ int _condorPacket::getHeader(bool &last,
                              void *&dta)
 {
     short flags = 0, mdKeyIdLen, encKeyIdLen;
+
+    if (md_) {
+        free(md_);
+        md_ = 0;
+    }
 
     if(memcmp(&dataGram[0], SAFE_MSG_MAGIC, 8)) {
         if(len >= 0) {
@@ -291,13 +332,10 @@ int _condorPacket :: checkHeader(int & len, void *& dta)
             memset(incomingMD5KeyId_, 0, mdKeyIdLen+1);
             memcpy(incomingMD5KeyId_, data, mdKeyIdLen);
             data += mdKeyIdLen;
+            length -= mdKeyIdLen;
         }
         
-        length = length - MAC_SIZE - mdKeyIdLen;
-    }
-
-    if (!verifyMD()) {
-        return -1;
+        length = length - MAC_SIZE;
     }
 
     if (flags & ENCRYPTION_IS_ON) {
@@ -306,6 +344,11 @@ int _condorPacket :: checkHeader(int & len, void *& dta)
         memcpy(incomingEncKeyId_, data, encKeyIdLen);
         data += encKeyIdLen;
         length -= encKeyIdLen;
+    }
+
+    // Verify MD if necessary
+    if (!verifyMD()) {
+        return -1;
     }
 
     len = length;
@@ -397,8 +440,8 @@ void _condorPacket::reset()
         length    = curIndex;
     }
     
-    resetMDKeyId();
-    resetEncKeyId();
+    resetMD();
+    resetEnc();
 }
 
 /* Check if every data in the packet has been read */
@@ -738,8 +781,8 @@ int _condorOutMsg::sendMsg(const int sock,
 	if(seqNo == 0) { // a short message
 		msgLen = lastPacket->length + 6; // for 6 bytes MD/Encryption
         lastPacket->addEID();
-        lastPacket->addMD();
         lastPacket->makeHeader(true, 0, msgID);
+        lastPacket->addMD();
 		sent = sendto(sock, lastPacket->data - 6, msgLen, 0, who, sizeof(struct sockaddr));
 		if( D_FULLDEBUG & DebugFlags ) {
 			dprintf(D_NETWORK, "SafeMsg: Packet[%d] sent\n", sent);
@@ -847,9 +890,10 @@ _condorDirPage::_condorDirPage(_condorDirPage* prev, const int num)
 	prevDir = prev;
 	dirNo = num;
 	for(int i=0; i< SAFE_MSG_NO_OF_DIR_ENTRY; i++) {
-		dEntry[i].dLen  = 0;
-		dEntry[i].dGram = NULL;
-        dEntry[i].md_   = 0;
+		dEntry[i].dLen    = 0;
+		dEntry[i].dGram   = NULL;
+        dEntry[i].md_     = 0;
+        dEntry[i].header_ = 0;
 	}
 	nextDir = NULL;
 }
@@ -861,7 +905,10 @@ _condorDirPage::~_condorDirPage() {
 			free(dEntry[i].dGram);
 		}
         if (dEntry[i].md_) {
-            free(dEntry[i].dGram);
+            free(dEntry[i].md_);
+        }
+        if (dEntry[i].header_) {
+            free(dEntry[i].header_);
         }
     }
 }
@@ -881,6 +928,7 @@ _condorInMsg::_condorInMsg(const _condorMsgID mID,// the id of this message
 				const void* data,		// data of the packet
                 const char * MD5Keyid,  // MD5 key id
                 const unsigned char * md,  // MD5 key id
+                int headerLen,  // length of the header
                 const char * EncKeyId,
 				_condorInMsg* prev)	// pointer to previous message
 								// in the bucket chain
@@ -928,9 +976,17 @@ _condorInMsg::_condorInMsg(const _condorMsgID mID,// the id of this message
     if(md) {
         curDir->dEntry[index].md_ = (unsigned char *) malloc(MAC_SIZE);
         memcpy(curDir->dEntry[index].md_, md, MAC_SIZE);
+        if (headerLen > 0) { // just to be safe
+            curDir->dEntry[index].header_ = (unsigned char *) malloc(headerLen+1);
+            memset(curDir->dEntry[index].header_, 0, headerLen+1);
+            memcpy(curDir->dEntry[index].header_, 
+                   ((char*)data - headerLen), headerLen);
+            // This is really hacky!  Hao
+        }
     }
     else {
-        curDir->dEntry[index].md_ = 0;
+        curDir->dEntry[index].md_     = 0;
+        curDir->dEntry[index].header_ = 0;
     }
 	// initialize temporary buffer to NULL
 	tempBuf = NULL;
@@ -981,7 +1037,8 @@ bool _condorInMsg::addPacket(const bool last,
                              const int seq,
                              const int len, 
                              const void* data,
-                             const unsigned char * md)
+                             const unsigned char * md,
+                             int   headerLen)
 {
 	int destDirNo, index;
 
@@ -1019,9 +1076,17 @@ bool _condorInMsg::addPacket(const bool last,
         if(md) {
             curDir->dEntry[index].md_ = (unsigned char *) malloc(MAC_SIZE);
             memcpy(curDir->dEntry[index].md_, md, MAC_SIZE);
+            if (headerLen > 0) { // just to be safe
+                curDir->dEntry[index].header_ = (unsigned char *) malloc(headerLen+1);
+                memset(curDir->dEntry[index].header_, 0, headerLen+1);
+                memcpy(curDir->dEntry[index].header_, 
+                       ((char*)data - headerLen), headerLen);
+                // This is really hacky!  Hao
+            }
         }
         else {
-            curDir->dEntry[index].md_ = 0;
+            curDir->dEntry[index].md_     = 0;
+            curDir->dEntry[index].header_ = 0;
         }
 
 		if(last)
@@ -1042,12 +1107,9 @@ bool _condorInMsg::addPacket(const bool last,
 
 bool _condorInMsg :: init_MD(KeyInfo * key)
 {
-    if (mdChecker_) {
-        delete mdChecker_;
-        mdChecker_ = 0;
-        if (key) {
-            mdChecker_ = new Condor_MD_MAC(key);
-        }
+    resetMD();
+    if (key) {
+        mdChecker_ = new Condor_MD_MAC(key);
     }
     return true;
 }
@@ -1056,19 +1118,34 @@ bool _condorInMsg :: verifyMD(int packet)
 {
     bool verified = true;
     if (curDir->dEntry[packet].md_ && mdChecker_) {
-        mdChecker_->addMD((unsigned char *)curDir->dEntry[packet].dGram, curDir->dEntry[packet].dLen);
-        
+        mdChecker_->addMD(curDir->dEntry[packet].header_, 
+                          strlen((const char *)curDir->dEntry[packet].header_));
+        // We can be a little bit more efficient by storing the 
+        // length of the header during initialization
+        mdChecker_->addMD((unsigned char *)curDir->dEntry[packet].dGram, 
+                          curDir->dEntry[packet].dLen);
+        // Now, verify the packet
         if (mdChecker_->verifyMD(curDir->dEntry[packet].md_)) {
             dprintf(D_SECURITY, "MD verified!\n");
             verified = true;
         }
         else {
+            dprintf(D_SECURITY, "MD verification failed for long messag\n");
             verified = false;
         }
+        if (curDir->dEntry[packet].md_) {
+            free(curDir->dEntry[packet].md_);
+            curDir->dEntry[packet].md_ = 0;
+        }
+        if (curDir->dEntry[packet].header_) {
+            free(curDir->dEntry[packet].header_);
+            curDir->dEntry[packet].header_ = 0;
+        }
     }
-    if (curDir->dEntry[packet].md_) {
-        free(curDir->dEntry[packet].md_);
-        curDir->dEntry[packet].md_ = 0;
+    else if (mdChecker_ == NULL) {
+        return true;
+    }
+    else {
     }
 
     return verified;
@@ -1220,7 +1297,7 @@ const char * _condorInMsg :: isDataEncrypted()
     return incomingEncKeyId_;
 }
 
-void _condorInMsg :: resetEncKeyId()
+void _condorInMsg :: resetEnc()
 {
     if (incomingEncKeyId_) {
         free(incomingEncKeyId_);
@@ -1228,11 +1305,15 @@ void _condorInMsg :: resetEncKeyId()
     }
 }
 
-void _condorInMsg :: resetMDKeyId()
+void _condorInMsg :: resetMD()
 {
     if (incomingMD5KeyId_) {
         free(incomingMD5KeyId_);
         incomingMD5KeyId_ = 0;
+    }
+    if (mdChecker_) {
+        delete mdChecker_;
+        mdChecker_ = 0;
     }
 }
 
