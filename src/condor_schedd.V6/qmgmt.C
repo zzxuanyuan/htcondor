@@ -1388,9 +1388,6 @@ GetJobAd(int cluster_id, int proc_id, bool expStartdAd)
 		ClassAd *startd_ad;
 		ClassAd *expanded_ad;
 		int index;
-			// Note: ATTR_JOB_CMD must be first in AttrsToExpand...
-		const char *AttrsToExpand[] = { ATTR_JOB_CMD, ATTR_JOB_ARGUMENTS,
-			ATTR_JOB_ENVIRONMENT, ATTR_GLOBUS_RESOURCE, NULL };	
 		char *left,*name,*right,*value,*tvalue;
 
 		// we must make a deep copy of the job ad; we do not
@@ -1423,12 +1420,34 @@ GetJobAd(int cluster_id, int proc_id, bool expStartdAd)
 			startd_ad = srec->match->my_match_ad;
 		}
 
-		index = 0;
+			// Make a stringlist of all attribute names in job ad.
+			// Note: ATTR_JOB_CMD must be first in AttrsToExpand...
+		StringList AttrsToExpand;
+		const char * curr_attr_to_expand;
+		AttrsToExpand.append(ATTR_JOB_ARGUMENTS);
+		ad->ResetName();
+		const char *attr_name = ad->NextNameOriginal();
+		while ( attr_name ) {
+			if ( stricmp(attr_name,ATTR_JOB_ARGUMENTS) ) { 
+				AttrsToExpand.append(attr_name);
+			}
+			attr_name = ad->NextNameOriginal();
+		}
+
+		index = -1;	
+		AttrsToExpand.rewind();
 		bool no_startd_ad = false;
 		bool attribute_not_found = false;
-		while ( AttrsToExpand[index] && !no_startd_ad &&
-				!attribute_not_found ) 
+		while ( !no_startd_ad && !attribute_not_found ) 
 		{
+			index++;
+			curr_attr_to_expand = AttrsToExpand.next();
+
+			if ( curr_attr_to_expand == NULL ) {
+				// all done; no more attributes to try and expand
+				break;
+			}
+
 			if (attribute_value != NULL) {
 				free(attribute_value);
 				attribute_value = NULL;
@@ -1436,12 +1455,11 @@ GetJobAd(int cluster_id, int proc_id, bool expStartdAd)
 			// Note that this version of LookupString will
 			// allocate a new buffer, and we have to free() it 
 			// later. (Not delete[] it, unfortunately.)
-			ad->LookupString(AttrsToExpand[index],&attribute_value);
+			ad->LookupString(curr_attr_to_expand,&attribute_value);
 
 			if ( attribute_value == NULL ) {
 					// Did not find the attribute to expand in the job ad.
 					// Just move on to the next attribute...
-				index++;
 				continue;
 			}
 
@@ -1467,11 +1485,11 @@ GetJobAd(int cluster_id, int proc_id, bool expStartdAd)
 					tvalue = strstr(attribute_value,"$$");	
 					ASSERT(tvalue);
 					strcpy(tvalue,"$$(OPSYS).$$(ARCH)");
-					bigbuf2 = (char *) malloc(strlen(AttrsToExpand[index])
+					bigbuf2 = (char *) malloc(strlen(curr_attr_to_expand)
 											  + 3 // for the equal and the quotes
 											  + strlen(attribute_value)
 											  + 1); // for the null terminator.
-					sprintf(bigbuf2,"%s=\"%s\"",AttrsToExpand[index],
+					sprintf(bigbuf2,"%s=\"%s\"",curr_attr_to_expand,
 						attribute_value);
 					ad->Insert(bigbuf2);
 					free(bigbuf2);
@@ -1517,12 +1535,20 @@ GetJobAd(int cluster_id, int proc_id, bool expStartdAd)
 					}
 				}
 
+
 				// we just want the attribute value, so strip
 				// out the "attrname=" prefix and any quotation marks 
 				// around string value.
 				tvalue = strchr(value,'=');
 				ASSERT(tvalue);	// we better find the "=" sign !
-				tvalue++;	// skip past "=" sign
+				// insert the expression into the original job ad
+				// before we mess with it.
+				MyString import_expr;
+				import_expr = "MATCH_";
+				import_expr += value;
+				ad->Insert(import_expr.Value());
+				// now skip past the "=" sign
+				tvalue++;
 				while ( *tvalue && isspace(*tvalue) ) {
 					tvalue++;
 				}
@@ -1541,11 +1567,11 @@ GetJobAd(int cluster_id, int proc_id, bool expStartdAd)
 									      + 1);
 				sprintf(bigbuf2,"%s%s%s",left,tvalue,right);
 				free(attribute_value);
-				attribute_value = (char *) malloc(  strlen(AttrsToExpand[index])
+				attribute_value = (char *) malloc(  strlen(curr_attr_to_expand)
 												  + 3 // = and quotes
 												  + strlen(bigbuf2)
 												  + 1);
-				sprintf(attribute_value,"%s=\"%s\"",AttrsToExpand[index],
+				sprintf(attribute_value,"%s=\"%s\"",curr_attr_to_expand,
 					bigbuf2);
 				expanded_ad->Insert(attribute_value);
 				dprintf(D_FULLDEBUG,"$$ substitution: %s\n",attribute_value);
@@ -1554,7 +1580,6 @@ GetJobAd(int cluster_id, int proc_id, bool expStartdAd)
 			    attribute_value = bigbuf2;
 				bigbuf2 = NULL;
 			}
-			index++;
 		}
 
 
@@ -1581,7 +1606,7 @@ GetJobAd(int cluster_id, int proc_id, bool expStartdAd)
 				fprintf(email,"Condor failed to start your job %d.%d \n",
 					cluster_id,proc_id);
 				fprintf(email,"because job attribute %s contains $$(%s).\n",
-					AttrsToExpand[index-1],name);
+					curr_attr_to_expand,name);
 				fprintf(email,"\nAttribute $$(%s) cannot be expanded because",
 					name);
 				if ( attribute_not_found ) {
