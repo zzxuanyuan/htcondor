@@ -67,6 +67,7 @@ typedef struct tagTimer {
     struct tagTimer*	next;
 	int					is_cpp;
 	char*				event_descrip;
+	void*				data_ptr;
 } Timer;
 
 class TimerManager
