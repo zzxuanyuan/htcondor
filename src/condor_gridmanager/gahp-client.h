@@ -35,9 +35,11 @@
 			public:
 				Gahp_Args();
 				~Gahp_Args();
-				void free_argv();
+				void reset();
+				void add_arg( char *arg );
 				char **argv;
 				int argc;
+				int argv_size;
 		};
 
 
@@ -398,6 +400,33 @@ class GahpClient : public Service {
 		///
 		int
 		gt3_gram_client_job_refresh_credentials(const char *job_contact);
+
+		int
+		condor_job_submit(const char *schedd_name, ClassAd *job_ad,
+						  char **job_id);
+
+		int
+		condor_job_update_constrained(const char *schedd_name,
+									  const char *constraint,
+									  ClassAd *update_ad);
+
+		int
+		condor_job_status_constrained(const char *schedd_name,
+									  const char *constraint,
+									  int *num_ads, ClassAd **ads);
+
+		int
+		condor_job_remove(const char *schedd_name, PROC_ID job_id);
+
+		int
+		condor_job_update(const char *schedd_name, PROC_ID job_id,
+						  ClassAd *update_ad);
+
+		int
+		condor_job_hold(const char *schedd_name, PROC_ID job_id );
+
+		int
+		condor_job_release(const char *schedd_name, PROC_ID job_id );
 
 #ifdef CONDOR_GLOBUS_HELPER_WANT_DUROC
 	// Not yet ready for prime time...

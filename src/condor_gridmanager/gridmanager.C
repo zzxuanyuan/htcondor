@@ -46,6 +46,7 @@
 #include "nordugridjob.h"
 #endif
 
+#include "mirrorjob.h"
 #include "gt3job.h"
 
 #define QMGMT_TIMEOUT 15
@@ -250,6 +251,15 @@ Init()
 #endif
 
 	new_type = new JobType;
+	new_type->Name = strdup( "Mirror" );
+	new_type->InitFunc = MirrorJobInit;
+	new_type->ReconfigFunc = MirrorJobReconfig;
+	new_type->AdMatchConst = MirrorJobAdConst;
+	new_type->AdMustExpandFunc = MirrorJobAdMustExpand;
+	new_type->CreateFunc = MirrorJobCreate;
+	jobTypes.Append( new_type );
+
+	new_type = new JobType;
 	new_type->Name = strdup( "GT3" );
 	new_type->InitFunc = GT3JobInit;
 	new_type->ReconfigFunc = GT3JobReconfig;
@@ -297,8 +307,6 @@ Reconfig()
 	contactScheddDelay = param_integer("GRIDMANAGER_CONTACT_SCHEDD_DELAY", 5);
 
 	GahpReconfig();
-
-	ReconfigProxyManager();
 
 	JobType *job_type;
 	jobTypes.Rewind();

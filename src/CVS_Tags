@@ -2,6 +2,10 @@
    The state of the V6_7-mirror-branch before merging in the
    V6_7-core-2-branch as tagged at V6_7-core-2-merge-1.
 
+01/21/04 V6_7-core-2-merge-1
+   The state of the V6_7-core-2-branch when it was merged into the
+   V6_7-mirror-branch.  The V6_7-core-2-branch is now abandoned.
+
 01/16/04 V6_7-core-2-branch
    A new branch off of V6_7-branch for adding the 2nd round of custom
    features for CORE.  These include:
