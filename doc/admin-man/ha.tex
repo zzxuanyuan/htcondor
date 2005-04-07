@@ -111,6 +111,7 @@ used to set timing and polling intervals.
 \subsection{\label{sec:HA-negotiator} High Availability of the
 Central Manager} 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\index{High Availability!of central manager}
 
 The \Condor{negotiator} and \Condor{collector} daemons
 are the heart of the Condor matchmaking system.
@@ -192,7 +193,6 @@ returns.
 \subsubsection{\label{sec:HA-configuration} Configuration} 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%%%%%%%%%%%%%%%%%editted to this point %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 The high availability of central manager machines is
 enabled through configuration.
 It is disabled by default.
@@ -239,9 +239,16 @@ single \Condor{negotiator} daemon is to run.
 \subsubsection{\label{sec:HA-sample-config} Sample Configuration} 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \index{High Availability!sample configuration}
-The following is a sample configuration relating to the 
+This section provides sample configurations for high availability.
+The two parts to this are the 
+configuration for the potential central manager machines,
+and the configuration for the
+machines within the pool that will \emph{not} be
+central managers.
+
+This is a sample configuration relating to the 
 high availability of central managers.
-This configuration is for the potential central manager machines.
+This is for the potential central manager machines.
 
 \footnotesize
 \begin{verbatim}
