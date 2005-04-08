@@ -322,6 +322,23 @@ SshdWrapper::generateContactFileLine(int node)
 		// 7 is max string length of a port
 	char *buf = (char *) malloc(7 + strlen(sinful) + 1 + strlen(username) + 1 
 								+ strlen(dir) + 1);
-	sprintf(buf, "%d %s %s %s\n", node, sinful, username, dir);
+
+		// Sinful is in the form <1.2.3.4:xxxx>
+	    // remove the <>'s and replace the : with a space
+	char *copy = strdup(sinful);
+	char *p = copy + 1;
+
+		// Remove trailing '>'
+	p[strlen(p) - 1] = '\0';
+	while (*p++) {
+		if (*p == ':') {
+			*p = ' ';
+			break;
+		}
+	}
+
+	sprintf(buf, "%d %s %s %s\n", node, (copy + 1), username, dir);
+
+	free(copy);
 	return buf;
 }
