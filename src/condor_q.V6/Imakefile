@@ -3,7 +3,7 @@ all_target($(NAME))
 
 
 #if WANT_OWL
-LIB = ../owl/libanalysis.a $(STD_LIBS) -L$(NEW_CLASSADS_LIB) -lclassad_ns
+LIB = ../owl/libanalysis.a ../owl/libconversion.a $(STD_LIBS) -L$(NEW_CLASSADS_LIB) -lclassad_ns
 CFLAGS = $(STD_C_FLAGS) -I$(NEW_CLASSADS_INC) -DWANT_ANALYSIS
 C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) -I$(NEW_CLASSADS_INC) -DWANT_ANALYSIS
 #else
