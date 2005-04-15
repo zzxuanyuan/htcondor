@@ -2816,6 +2816,22 @@ These macros control the \Condor{schedd}.
   \MacroU{LIBEXEC} is the proper value for this 
   configuration variable, required when running MPI dedicated jobs.
 
+\item[\Macro{SCHEDD\_PREEMPTION\_REQUIREMENTS}]
+  \label{param:ScheddPreemptionRequirements}
+  This boolean expression is
+  utilized only for machines allocated by a dedicated scheduler.
+  When \Expr{True}, a machine becomes a candidate for job preemption.
+  This configuration variable has no default;
+  when not defined, preemption will never be considered.
+
+\item[\Macro{SCHEDD\_PREEMPTION\_RANK}]
+  \label{param:ScheddPreemptionRank}
+  This floating point value is
+  utilized only for machines allocated by a dedicated scheduler.
+  It is evaluated in context of a job ClassAd,
+  and it represents a machine's preference for running a job.
+  This configuration variable has no default;
+  when not defined, preemption will never be considered.
 \end{description}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
