@@ -21,10 +21,13 @@
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
-#include "sshd_wrapper.h"
-
 #include "condor_common.h"
+
+#include "sshd_wrapper.h"
 #include "condor_config.h" // for param
+#include "directory.h"
+#include "my_username.h"
+#include "internet.h"
 
 SshdWrapper::SshdWrapper()
 {
@@ -111,15 +114,15 @@ char *
 SshdWrapper::getPubKeyFromFile()
 {
 	int ret;
-	struct stat keyfile;
 
+	StatInfo si(pubKeyFile);
 		// Get the size of the keyfile
-	if (stat(pubKeyFile, &keyfile) != 0) {
-		dprintf(D_ALWAYS, "Can't stat filename %s %d\n", pubKeyFile, errno);
+	if (si.Error() != 0) {
+		dprintf(D_ALWAYS, "Can't stat filename %s\n", pubKeyFile);
 		return 0;
 	}
 
-	int length = keyfile.st_size;
+	int length = si.GetFileSize();
 
 	char *buf = (char *) malloc(length + 2);
 
@@ -197,7 +200,7 @@ SshdWrapper::getSshdExecInfo(char* & executable, char* & args, char* & env )
 	args = buf;
 	
 	free(rawArgs);
-	env = NULL;
+	env = "";
 
 	launchTime = (int) time(NULL);
 
@@ -238,12 +241,7 @@ SshdWrapper::getSshRuntimeInfo(char* & sinful_string, char* & dir, char* &
 		// At this point am I running as the user?
 
 		// pull the username from the passwd file
-	struct passwd * pw = getpwuid(getuid());
-	if (pw == NULL){
-		dprintf(D_ALWAYS, "failed to get passwd info for this process\n");
-		return false;
-	}
-	username = strdup(pw->pw_name);
+	username = my_username();
 
 	return true;
 }
@@ -275,32 +273,15 @@ SshdWrapper::sendPrivateKeyAndContactFile(const char* contactFileSrc)
 		return false;
 	}
 
-	char *dstHost = strdup(sinful);
-	dstHost++; // Skip past '<'
-	char *portStr = dstHost;
-
-		// look for colon
-	while (*portStr && *portStr != ':') {
-		portStr++;
-	}
-	
-	if (*portStr == '0') {
-		dprintf(D_ALWAYS, "sinful string %s malformed\n", dstHost);
-		return false;
-	}
-
-		// replace colon with null, so dstHost is just the host
-	*portStr = '\0';
-	portStr++;
-
-	portStr[strlen(portStr) - 1] = '\0';
+	char *dstHost = string_to_ipstr(sinful);
+	int port = string_to_port(sinful);
 
 	if (dir == NULL) {
 		dprintf(D_ALWAYS, "Destination direction not set, can't send keys\n");
 		return false;
 	}
 
-	sprintf(buf, "%s -q -B -P %s -i %s -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null %s %s %s:%s > /dev/null 2>&1 < /dev/null", scp, portStr, privKeyFile, privKeyFile, contactFileSrc, dstHost, dir);
+	sprintf(buf, "%s -q -B -P %d -i %s -oStrictHostKeyChecking=no -oUserKnownHostsFile=%s %s %s %s:%s > %s 2>&1 < %s", scp, port, privKeyFile, NULL_FILE, privKeyFile, contactFileSrc, dstHost, dir, NULL_FILE, NULL_FILE);
 
 		// and run it...
 	dprintf(D_ALWAYS, "Sending keys and contact info via: %s\n", buf);
