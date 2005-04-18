@@ -1,3 +1,10 @@
+04/18/05 V6_7-db_logs_nonblocking-branch
+   A new branch created off of the V6_7-db_logs-branch as tagged
+   at V6_7-db_logs_nonblocking-root.  This new branch is being created
+   so the database group can research some new ideas that will involve
+   a non-blocking connection to the database via a seperate process
+   for database communication.
+
 09/15/04 V6_7-pre_merge-V6_6-cdf-merge-1
    The state of the V6_7-branch before merging in the V6_6-cdf-branch
    from V6_6-cdf-root through V6_6-cdf-merge-1
