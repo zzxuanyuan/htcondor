@@ -1727,7 +1727,7 @@ int main( int argc, char** argv )
 	DBObj = createConnection();
 
 	// create a sql log object
-	FILEObj = createInstance("SQL_LOG"); /* This is a hack, get rid of it */
+	FILEObj = createInstance(); 
 
 
 	// call the daemon's main_init()

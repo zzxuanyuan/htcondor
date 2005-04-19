@@ -28,6 +28,6 @@ public:
 
 };
 
-FILESQL *createInstance(const char* paramName);
+FILESQL *createInstance();
 
 #endif

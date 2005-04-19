@@ -2,8 +2,8 @@
 #include "condor_config.h"
 #include <errno.h>
 #include <string.h>
-#include <fcntl.h>
 #include "file_sql.h"
+#include "get_mysubsystem.h"
 
 // define the pointer to database connection object here since the odbc.o is put into 
 // the cplus_lib.a library. And that is because modules such as file_transfer.o and
@@ -146,15 +146,17 @@ long FILESQL::file_unlock()
 	return 0;
 }
 
-FILESQL *createInstance(const char* paramName) 
+FILESQL *createInstance() 
 { 
 /* Passing paramName is a hack to get around reading the right parameter depending on daemon name */
 	FILESQL *ptr = NULL;
 	int retval;
 	char *tmp, *outfilename;
+	char tmpParamName[50];
 	
 	/* Parse FILESQL Params */
-	tmp = param(paramName);
+	sprintf(tmpParamName, "%s_SQLLOG", get_mySubSystem());
+	tmp = param(tmpParamName);
 	if( tmp ) {
 		outfilename = strdup(tmp);
 		free(tmp);
