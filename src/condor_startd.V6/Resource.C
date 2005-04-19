@@ -25,9 +25,9 @@
 #include "startd.h"
 #include "mds.h"
 #include "condor_environ.h"
-#include "odbc.h"
+#include "file_sql.h"
 
-extern ODBC *DBObj;
+extern FILESQL *FILEObj;
 
 #define TYPE_STRING    1
 #define TYPE_NUMBER    2
@@ -1674,13 +1674,13 @@ Resource::endCODLoadHack( void )
 int
 Resource::dbInsert( ClassAd *cl )
 {
-	ODBC *dbh = DBObj;
+	FILESQL *dbh = FILEObj;
 	HashTable<MyString, MyString> newClAd(200, attHashFunction, updateDuplicateKeys);
 	char sql_stmt[1000];
 	int retcode;
 	MyString classAd;
 	const char *iter;
-	char attName[100], attVal[500], attNameList[1000]="", attValList[1000]="", tmpVal[500];
+	char attName[100], *attVal, attNameList[1000]="", attValList[1000]="", tmpVal[500];
 	int isFirst = TRUE;
 	MyString aName, aVal, temp, machine_id;
 	char *tmp1;
@@ -1695,7 +1695,9 @@ Resource::dbInsert( ClassAd *cl )
 	while (iter != NULL)
 		{
 			int attValLen;
-			sscanf(iter, "%s = %s", attName, attVal);
+			sscanf(iter, "%s =", attName);
+			attVal = strstr(iter, "= ");
+			attVal += 2;
 
 				// strip quotes from attVal (if any)
 			attValLen = strlen(attVal);
@@ -1766,54 +1768,54 @@ Resource::dbInsert( ClassAd *cl )
 		}
 
 	strcat(attNameList, ", LastHeardFrom)");
-	strcat(attValList, ", 'now')");
-
-
-	sprintf(sql_stmt, "INSERT INTO Machine_Classad %s VALUES %s", attNameList, attValList);
-
+	sprintf(tmpVal, "('epoch'::timestamp + '%d seconds') at time zone 'UTC'", time(NULL));
+	strcat(attValList, ", ");
+	strcat(attValList, tmpVal);
+	strcat(attValList, ")");
 
 
 	//dbh = new ODBC();
-	//dbh->odbc_connect("condor", "scidb", "");
+    //dbh->file_open();
+	dbh->file_lock();
 
-	dbh->odbc_sqlstmt(sql_stmt);
+    sprintf(sql_stmt, "INSERT INTO Machine_Classad_History (SELECT * FROM Machine_Classad WHERE machine_id = '%s')", machine_id.Value());
+	dbh->file_sqlstmt(sql_stmt);
+
+    sprintf(sql_stmt, "DELETE FROM Machine_Classad WHERE machine_id = '%s'", machine_id.Value());
+	dbh->file_sqlstmt(sql_stmt);
+
+	sprintf(sql_stmt, "INSERT INTO Machine_Classad %s VALUES %s", attNameList, attValList);
+	dbh->file_sqlstmt(sql_stmt);
+
 
 	// Insert changes into Machine
 	newClAd.startIterations();
 	while (newClAd.iterate(aName, aVal)) {
 
-	  sprintf(sql_stmt, "SELECT attr_name, attr_value FROM Machine WHERE machine_id = '%s' AND attr_name = '%s'", machine_id.Value(), aName.Value());
-	  dbh->odbc_sqlstmt(sql_stmt);
-	  dbh->odbc_bindcol(1, (void *)attName, 100, SQL_C_CHAR); // attr_name
-	  dbh->odbc_bindcol(2, (void *)attVal, 500, SQL_C_CHAR);  // attr_value
+		sprintf(sql_stmt, "SELECT attr_name, attr_value FROM Machine WHERE machine_id = '%s' AND attr_name = '%s'", machine_id.Value(), aName.Value());
 
-	  retcode = dbh->odbc_fetch();
-	  dprintf(D_FULLDEBUG, "In table Val = %s\n", attVal);
-	  dprintf(D_FULLDEBUG, "In classad Val = %s\n", aVal.Value());	
+			// insert this value in the Machine table if not already present
 
-	  if (retcode != SQL_ERROR) {
-		  if (retcode == SQL_NO_DATA) {
-				  // this value is not present in the Machine table hence insert
-			  dbh->odbc_closestmt();
-			  sprintf(sql_stmt, "INSERT INTO Machine VALUES ('%s', '%s', '%s', 'now')", 
-					  machine_id.Value(), aName.Value(), aVal.Value());
-			  dbh->odbc_sqlstmt(sql_stmt);
+		sprintf(sql_stmt, "INSERT INTO Machine SELECT '%s', '%s', '%s', %s WHERE NOT EXISTS (SELECT * FROM Machine WHERE machine_id = '%s' AND attr_name = '%s')", 
+				machine_id.Value(), aName.Value(), aVal.Value(), tmpVal, machine_id.Value(), aName.Value());
+		dbh->file_sqlstmt(sql_stmt);
 			  
-		  } else {
-				  // this value is present in the table. if value has changed then update
-			  dbh->odbc_closestmt();    
-			  if (aVal != attVal) {
-				  sprintf(sql_stmt, "UPDATE Machine SET attr_value = '%s', start_time = 'now' WHERE machine_id = '%s' AND attr_name = '%s'", 
-						  aVal.Value(), machine_id.Value(), aName.Value());
-				  dbh->odbc_sqlstmt(sql_stmt);
-			  }
+			// this value is present in the table. if value has changed then push old value to history and update
+		sprintf(sql_stmt, "INSERT INTO Machine_History SELECT machine_id, attr_name, attr_value, start_time, %s FROM Machine WHERE machine_id = '%s' AND attr_name = '%s' AND attr_value != '%s'", 
+				tmpVal, machine_id.Value(), aName.Value(), aVal.Value());
+		
 
-		  }
-	  }
+		sprintf(sql_stmt, "UPDATE Machine SET attr_value = '%s', start_time = %s WHERE machine_id = '%s' AND attr_name = '%s' AND attr_value != '%s'", 
+				aVal.Value(), tmpVal, machine_id.Value(), aName.Value(), aVal.Value());
+		dbh->file_sqlstmt(sql_stmt);
+			  
+
+		  
+	  
 	}
 
-	//dbh->odbc_disconnect();
-
+	dbh->file_unlock();
+	//dbh->file_close();
 
 
 }

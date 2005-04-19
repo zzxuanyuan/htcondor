@@ -35,7 +35,7 @@
 #include "condor_distribution.h"
 #include "condor_environ.h"
 #include "odbc.h"
-
+#include "file_sql.h"
 #define _NO_EXTERN_DAEMON_CORE 1	
 #include "condor_daemon_core.h"
 
@@ -70,7 +70,11 @@ char*	pidFile = NULL;
 char*	addrFile = NULL;
 static	char*	logAppend = NULL;
 
+/* ODBC object */
 extern ODBC *DBObj;
+
+/* FILESQL object */
+extern FILESQL *FILEObj;
 
 #ifdef WIN32
 int line_where_service_stopped = 0;
@@ -1077,6 +1081,10 @@ handle_dc_sigterm( Service*, int )
 		delete DBObj;
 	}
 
+	if(FILEObj) {
+		delete FILEObj;
+	}
+
 #if defined(WIN32) && 0
 	if ( line_where_service_stopped != 0 ) {
 		dprintf(D_ALWAYS,"Line where service stopped = %d\n",
@@ -1120,6 +1128,10 @@ handle_dc_sigquit( Service*, int )
 
 	if(DBObj) {
 		delete DBObj;
+	}
+
+	if(FILEObj) {
+		delete FILEObj;
 	}
 
 	dprintf(D_ALWAYS, "Got SIGQUIT.  Performing fast shutdown.\n");
@@ -1711,8 +1723,12 @@ int main( int argc, char** argv )
 		// various kinds of hosts (ADMINISTRATOR, CONFIG, WRITE, etc). 
 	daemonCore->InitSettableAttrsLists();
 
-		// create a database connection object
+	// create a database connection object
 	DBObj = createConnection();
+
+	// create a sql log object
+	FILEObj = createInstance("SQL_LOG"); /* This is a hack, get rid of it */
+
 
 	// call the daemon's main_init()
 	main_init( argc, argv );

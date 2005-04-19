@@ -30,6 +30,8 @@
 #include "dc_collector.h"
 /* ODBC include */
 #include "odbc.h"
+/* FILESQL include */
+#include "file_sql.h"
 #ifdef WANT_NETMAN
 #include "../condor_netman/netman.h"
 #endif
@@ -41,6 +43,8 @@ typedef struct MapEntry {
 } MapEntry;
 /* ODBC object extern */
 extern ODBC *DBObj;
+/* FILESQL object extern */
+extern FILESQL *FILEObj;
 class Matchmaker : public Service
 {
 	public:

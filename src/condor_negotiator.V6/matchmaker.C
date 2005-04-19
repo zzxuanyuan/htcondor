@@ -82,10 +82,6 @@ Matchmaker ()
 
 	Collectors = NULL;
 
-	/* Set ODBC params to NULL */
-/*	db_handle = new ODBC();
- */
-
 	strcpy(RejectsTable, "rejects");
 	strcpy(MatchesTable, "matches");
 }
@@ -106,9 +102,6 @@ Matchmaker::
 		delete Collectors;
 	}
 	
-	/* Release ODBC params */
-	/*delete db_handle;*/
-
 }
 
 
@@ -161,8 +154,6 @@ int Matchmaker::
 reinitialize ()
 {
 	char *tmp;
-	/* Temporary ODBC variables */
-
     // Initialize accountant params
     accountant.Initialize();
 
@@ -262,8 +253,6 @@ reinitialize ()
 	}
 	Collectors = CollectorList::create();
 
-	/* Connect to ODBC here */
-	/*db_handle->odbc_connect(odbc_dsn,odbc_user,odbc_auth);*/
 
 	// done
 	return TRUE;
@@ -1384,7 +1373,7 @@ matchmakingAlgorithm(char *scheddName, char *scheddAddr, ClassAd &request,
 						!(PreemptionReq->EvalTree(candidate,&request,&result) &&
 						result.type == LX_INTEGER && result.i == TRUE) ) {
 					rejPreemptForPolicy = true;
-					/* ODBC Insert into rejects table */
+					/* CONDORDB Insert into rejects table */
 					insert_into_rejects(scheddName,request,*candidate,"POLICY");
 					continue;
 				}
@@ -1395,7 +1384,7 @@ matchmakingAlgorithm(char *scheddName, char *scheddAddr, ClassAd &request,
 						result.type == LX_INTEGER && result.i == TRUE ) ) {
 						// machine doesn't like this job as much -- find another
 					rejPreemptForRank = true;
-					/* ODBC Insert into rejects table */
+					/* CONDORDB Insert into rejects table */
 					insert_into_rejects(scheddName,request,*candidate,"RANK");
 					continue;
 				}
@@ -1407,7 +1396,7 @@ matchmakingAlgorithm(char *scheddName, char *scheddAddr, ClassAd &request,
 						// preempt one of our own jobs!
 					rejPreemptForPrio = true;
 				}
-				/* ODBC Insert into rejects table */
+				/* CONDORDB Insert into rejects table */
 				insert_into_rejects(scheddName,request,*candidate,"PRIORITY");
 				continue;
 			}
@@ -1421,12 +1410,12 @@ matchmakingAlgorithm(char *scheddName, char *scheddAddr, ClassAd &request,
 										   ckptSize, request, *candidate);
 		if (rval == 1) {
 			rejForNetworkShare = true;
-			/* ODBC Insert into rejects table */
+			/* CONDORDB Insert into rejects table */
 			insert_into_rejects(scheddName,request,*candidate,"NETWORKSHARE");
 			continue;
 		} else if (rval == 0) {
 			rejForNetwork = true;
-			/* ODBC Insert into rejects table */
+			/* CONDORDB Insert into rejects table */
 			insert_into_rejects(scheddName,request,*candidate,"NETWORK");
 			continue;
 		}
@@ -1633,7 +1622,7 @@ matchmakingProtocol (ClassAd &request, ClassAd *offer,
 			cluster, proc, scheddName, scheddAddr, remoteUser,
 			startdAddr);
 
-	/* ODBC Insert into matches table */
+	/* CONDORDB Insert into matches table */
 	insert_into_matches(scheddName, request, *offer);
 
 #if WANT_NETMAN
@@ -1773,7 +1762,7 @@ int Matchmaker::HashFunc(const MyString &Key, int TableSize) {
 	return Key.Hash() % TableSize;
 }
 
-/* ODBC functions */
+/* CONDORDB functions */
 void Matchmaker::insert_into_rejects(char *userName, ClassAd& job, ClassAd& machine,const char *diagnosis)
 {
 	char insert_stmt[256];
@@ -1795,7 +1784,7 @@ void Matchmaker::insert_into_rejects(char *userName, ClassAd& job, ClassAd& mach
 	machine.LookupString(ATTR_NAME, startdname);
 
 	sprintf((char*) insert_stmt,"insert into %s values (\'%d/%d/%d %02d:%02d:%02d\',\'%s\', \'%s\', %d, %d, \'%s\',\'%s\', \'%s\')",RejectsTable,tm->tm_mon + 1, tm->tm_mday,tm->tm_year+1900, tm->tm_hour,tm->tm_min, tm->tm_sec,userName,scheddName,cluster,proc,globaljobid,startdname,diagnosis);	
-	DBObj->odbc_sqlstmt(insert_stmt);	
+	FILEObj->file_sqlstmt(insert_stmt);	
 }
 void Matchmaker::insert_into_matches(char * userName,ClassAd& request, ClassAd& offer)
 {
@@ -1828,7 +1817,7 @@ void Matchmaker::insert_into_matches(char * userName,ClassAd& request, ClassAd& 
 		sprintf((char *)insert_stmt,"insert into %s values (\'%d/%d/%d %02d:%02d:%02d\',\'%s\', \'%s\', %d, %d, \'%s\',\'%s\', \'%s\', %f)",MatchesTable,tm->tm_mon + 1, tm->tm_mday,tm->tm_year+1900, tm->tm_hour,tm->tm_min, tm->tm_sec,userName,scheddName,cluster,proc,globaljobid,startdname,remote_user,remote_prio);	
 	}
 	dprintf(D_FULLDEBUG,"About to insert %s\n",(char*)insert_stmt);
-	DBObj->odbc_sqlstmt(insert_stmt);	
+	FILEObj->file_sqlstmt(insert_stmt);	
 
 }
 /* This extracts the machine name from the global job ID [user@]machine.name#timestamp#cluster.proc*/
