@@ -26,7 +26,7 @@ FILESQL::FILESQL()
 FILESQL::FILESQL(char *outfilename, int flags = O_WRONLY|O_CREAT|O_APPEND)
 {
 	is_open = false;
-	is_open = false;
+	is_locked = false;
 	strncpy(this->outfilename,outfilename,256);
 	fileflags = flags;
 	outfiledes = -1;
@@ -50,6 +50,20 @@ bool FILESQL::file_isopen()
 bool FILESQL::file_islocked()
 {
 	return is_locked;
+}
+
+int FILESQL::file_truncate() {
+	int retval;
+	if(!file_isopen()) {
+		dprintf(D_ALWAYS, "Error calling truncate: the file needs to be first opened\n");
+		return -1;
+	}
+	retval = ftruncate(outfiledes, 0);
+	if(retval < 0) {
+		dprintf(D_ALWAYS, "Error calling ftruncate, errno = %d\n", errno);
+		return -1;
+	}
+	return 1;
 }
 
 long FILESQL::file_open()
@@ -93,7 +107,7 @@ long FILESQL::file_sqlstmt(const char* statement)
 	dprintf(D_FULLDEBUG,"Logging %s to file %s\n",statement,outfilename);
 	if(!is_locked)
 	{	
-		if(lock->obtain(WRITE_LOCK) != 0) /* 0 means a successful lock */
+		if(lock->obtain(WRITE_LOCK) == 0) /* 0 means a successful lock */
 		{
 			dprintf(D_ALWAYS,"Error locking SQL log file %s ",outfilename);
 			return -1;
@@ -107,7 +121,7 @@ long FILESQL::file_sqlstmt(const char* statement)
 
 	if(!is_locked)
 	{
-		if(lock->release() != 0) /* 0 means a successful lock */
+		if(lock->release() == 0) /* 0 means a successful lock */
 		{
 			dprintf(D_ALWAYS,"Error unlocking SQL log file %s ",outfilename);
 			return -1;
@@ -118,10 +132,16 @@ long FILESQL::file_sqlstmt(const char* statement)
 
 long FILESQL::file_lock()
 {
+	if(!is_open)
+	{
+		dprintf(D_ALWAYS,"Error locking :SQL log file %s not open yet",outfilename);
+		return -1;
+	}
+
 	if(is_locked)
 		return 0;
 
-	if(lock->obtain(WRITE_LOCK) != 0) /* 0 means a successful lock */
+	if(lock->obtain(WRITE_LOCK) == 0) /* 0 means a successful lock */
 	{
 		dprintf(D_ALWAYS,"Error locking SQL log file %s ",outfilename);
 		return -1;
@@ -136,7 +156,7 @@ long FILESQL::file_unlock()
 	if(!is_locked)
 		return 0;
 
-	if(lock->release() != 0) /* 0 means a successful lock */
+	if(lock->release() == 0) /* 0 means a successful lock */
 	{
 		dprintf(D_ALWAYS,"Error unlocking SQL log file %s ",outfilename);
 		return -1;
@@ -144,6 +164,12 @@ long FILESQL::file_unlock()
 	else
 		is_locked = false;
 	return 0;
+}
+
+int FILESQL::file_readline(char *buf) 
+{
+	FILE *inputfile = fdopen(outfiledes, "r");
+	return fscanf(inputfile, " %[^\n]", buf);
 }
 
 FILESQL *createInstance() 
@@ -175,3 +201,4 @@ FILESQL *createInstance()
 
 	return ptr;
 }
+
