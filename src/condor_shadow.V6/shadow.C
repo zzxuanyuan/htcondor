@@ -54,7 +54,7 @@
 #include "exit.h"
 #include "shadow.h"
 
-#include "odbc.h"
+#include "file_sql.h"
 
 /* XXX This should not be here */
 #if !defined( WCOREDUMP )
@@ -64,7 +64,7 @@
 int	UsePipes;
 
 char* mySubSystem = "SHADOW";
-extern ODBC *DBObj;
+extern FILESQL *FILEObj;
 
 extern "C" {
 #if (defined(LINUX) && (defined(GLIBC22) || defined(GLIBC23))) || defined(HPUX11) || defined(AIX)
@@ -323,7 +323,7 @@ main(int argc, char *argv[] )
 	dprintf( D_ALWAYS, "** %s\n", CondorPlatform() );
 	dprintf( D_ALWAYS, "*******************************************\n" );
 
-        DBObj = createConnection();
+        FILEObj = createInstance();
 	
 	if( (tmp=param("RESERVED_SWAP")) == NULL ) {
 		reserved_swap = 5 * 1024;			/* 5 megabytes */
@@ -338,8 +338,8 @@ main(int argc, char *argv[] )
 	dprintf( D_FULLDEBUG, "*** Free Swap = %d\n", free_swap );
 	if( free_swap < reserved_swap ) {
 		dprintf( D_ALWAYS, "Not enough reserved swap space\n" );
-		if(DBObj) {
-		  delete DBObj;
+		if(FILEObj) {
+		  delete FILEObj;
 		}
 
 		exit( JOB_NO_MEM );
@@ -589,8 +589,8 @@ main(int argc, char *argv[] )
     if( My_Filesystem_Domain ) {
         free( My_Filesystem_Domain );
     }
-        if(DBObj) {
-                delete DBObj;
+        if(FILEObj) {
+                delete FILEObj;
         }
 
 	dprintf( D_ALWAYS, "********** Shadow Exiting(%d) **********\n",

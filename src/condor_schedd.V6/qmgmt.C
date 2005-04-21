@@ -44,6 +44,9 @@
 #include "globus_utils.h"
 #include "env.h"
 #include "queuedbmanager.h"
+#include "file_sql.h"
+
+extern FILESQL *FILEObj;
 
 extern char *Spool;
 extern char *Name;
@@ -2765,8 +2768,12 @@ static void AppendHistory(ClassAd* ad)
 	  } else {		
 		fprintf(LogFile,"***\n");   // separator
 		fclose(LogFile);
+
+		FILEObj->file_lock();
 		queueDBManager.processHistoryAd(ad);
 		queueDBManager.commitTransaction();
+		FILEObj->file_unlock();
+
 	  }
   }
 

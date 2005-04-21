@@ -7,14 +7,15 @@
 #include "basename.h"
 #include "pgsqldatabase.h"
 #include "my_hostname.h"
-#include "odbc.h"
+#include "file_sql.h"
+
+extern FILESQL *FILEObj;
 
 #define MAXSQLLEN 500
 #define TIMELEN 30
 
-//extern PGSQLDatabase *DBObj;
-extern ODBC *DBObj;
-
+#ifdef FALSE
+// keep this function code around till we know how to compute the checksum of file
 bool schedd_file_checksum(
 						  char *filePathName, 
 						  int fileSize, 
@@ -54,7 +55,10 @@ bool schedd_file_checksum(
 
 	return TRUE;
 }
+#endif
 
+// obsoleted function, please remove
+/*
 bool schedd_files_check_file(
 							 char *fileName, 
 							 char *fs_domain,
@@ -90,7 +94,10 @@ bool schedd_files_check_file(
 		return TRUE;
 	}
 }
+*/
 
+// obsoleted functions, please remove 
+/*
 int schedd_files_new_id() {
 	char sqltext[MAXSQLLEN];
 	int retcode;
@@ -116,9 +123,9 @@ int schedd_files_new_id() {
 
 	return fileid;
 }
+*/
 
 int schedd_files_ins_file(
-						  int fileid,
 						  char *fileName,
 						  char *fs_domain,
 						  char *path,
@@ -126,29 +133,29 @@ int schedd_files_ins_file(
 						  int fsize)
 {
 	char hexSum[MAC_SIZE*2+1];	
-	char sum[MAC_SIZE];
 	char pathname[_POSIX_PATH_MAX];
 	char sqltext[MAXSQLLEN];
 	int retcode;
 
 	sprintf(pathname, "%s/%s", path, fileName);
 
-	if ((fsize > 0) && schedd_file_checksum(pathname, fsize, sum)) {
-		for (int i = 0; i < MAC_SIZE; i++)
-			sprintf(&hexSum[2*i], "%2x", sum[i]);		
-		hexSum[2*MAC_SIZE] = '\0';
-	}
-	else
-		hexSum[0] = '\0';
+//	if ((fsize > 0) && schedd_file_checksum(pathname, fsize, sum)) {
+//		for (int i = 0; i < MAC_SIZE; i++)
+//			sprintf(&hexSum[2*i], "%2x", sum[i]);		
+//		hexSum[2*MAC_SIZE] = '\0';
+//	}
+//	else
+
+	hexSum[0] = '\0';
 
 	sprintf(sqltext, 
-			"insert into files values(%d, '%s', '%s', '%s', '%s', %d, '%s')", 
-			fileid, fileName, fs_domain, path, ascTime, fsize, hexSum);
+			"INSERT INTO files SELECT NEXTVAL('seqfileid'), '%s', '%s', '%s', '%s', %d, '%s' WHERE NOT EXISTS (SELECT * FROM files WHERE  f_name='%s' and f_path='%s' and f_host='%s' and f_ts='%s')", 
+			fileName, fs_domain, path, ascTime, fsize, hexSum, fileName, path, fs_domain, ascTime);
 
 	dprintf (D_FULLDEBUG, "In schedd_files_ins_file, sqltext is: %s\n", sqltext);
 
-	retcode = DBObj->odbc_sqlstmt(sqltext);
-	DBObj->odbc_closestmt();
+	retcode = FILEObj->file_sqlstmt(sqltext);
+//	DBObj->odbc_closestmt();
 
 	return retcode;
 }
@@ -163,8 +170,8 @@ void schedd_files_ins_usage(
 			"insert into fileusages values('%s', %d, '%s')",
 			globalJobId, fileid, type);
 	dprintf (D_FULLDEBUG, "In schedd_files_ins_usage, sqltext is: %s\n", sqltext);
-	DBObj->odbc_sqlstmt(sqltext);
-	DBObj->odbc_closestmt();
+	FILEObj->file_sqlstmt(sqltext);
+//	DBObj->odbc_closestmt();
 }
 
 void schedd_files_ins(
@@ -236,29 +243,26 @@ void schedd_files_ins(
 	strncpy(ascTime, (const char *)tmp, len-1); /* ignore the last newline character */
 	ascTime[len-1] = '\0';
 
-	if (!schedd_files_check_file(fileName, fs_domain, path, ascTime, &fileid)) {
+//	if (!schedd_files_check_file(fileName, fs_domain, path, ascTime, &fileid)) {
 			// this file is not in the files table yet
 			// generate a new file id
-		fileid = schedd_files_new_id();
+//		fileid = schedd_files_new_id();
 
-		if (fileid < 0) {
+//		if (fileid < 0) {
 				// smth wrong with db that we get a negative sequence number
-			goto schedd_files_ins_end;
-		}
+//			goto schedd_files_ins_end;
+//		}
 	
 			// insert the file entry into the files table
-		retcode = schedd_files_ins_file(fileid, fileName, fs_domain, path, ascTime, 
-										file_status.st_size);
+	retcode = schedd_files_ins_file(fileName, fs_domain, path, ascTime, 
+									file_status.st_size);
 		
-		if ((retcode != SQL_SUCCESS)  &&  (retcode != SQL_SUCCESS_WITH_INFO)) {
-				// the file may have just been inserted by someone else 
-			if(!schedd_files_check_file(fileName, fs_domain, path, ascTime, &fileid)) {
-					// we still can't find file after failing to insert it
-					// smth is wrong with db
-				goto schedd_files_ins_end;
-			}
-		}
+	if (retcode < 0) {
+			// fail to insert the file
+		goto schedd_files_ins_end;
 	}
+
+//	}
 
 		// insert a usage for this file by this job
 	schedd_files_ins_usage(globalJobId, fileid, type);
@@ -274,9 +278,11 @@ schedd_files_ins_end:
 void schedd_files(ClassAd *procad)
 
 {
+	FILEObj->file_lock();
 	schedd_files_ins(procad, ATTR_JOB_CMD);	
 	schedd_files_ins(procad, ATTR_JOB_INPUT);
 	schedd_files_ins(procad, ATTR_JOB_OUTPUT);
 	schedd_files_ins(procad, ATTR_JOB_ERROR);
 	schedd_files_ins(procad, ATTR_ULOG_FILE);
+	FILEObj->file_unlock();
 }

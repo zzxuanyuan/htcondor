@@ -67,7 +67,7 @@
 
 #include "list.h"
 
-#include "odbc.h"
+#include "file_sql.h"
 
 static int hashFunction( const MyString&, int );
 HashTable<MyString,MyString> forcedAttributes( 64, hashFunction ); 
@@ -77,7 +77,7 @@ HashTable<MyString,int> ClusterAdAttrs( 31, hashFunction );
 
 char* mySubSystem = "SUBMIT";	/* Used for SUBMIT_EXPRS */
 
-extern ODBC *DBObj;
+extern FILESQL *FILEObj;
 
 ClassAd  *job = NULL;
 char	 buffer[_POSIX_ARG_MAX + 64];
@@ -479,7 +479,7 @@ main( int argc, char *argv[] )
 	int i;
 
 		// init db connection
-	DBObj = createConnection();
+    FILEObj = createInstance();
 
 	setbuf( stdout, NULL );
 
@@ -732,7 +732,7 @@ main( int argc, char *argv[] )
 		delete JobAdsArray[i];
 	}
 
-	delete DBObj;
+	delete FILEObj;
 
 	return 0;
 }
