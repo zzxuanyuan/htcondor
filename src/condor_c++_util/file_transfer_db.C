@@ -7,10 +7,10 @@
 #include "basename.h"
 #include "my_hostname.h"
 #include "internet.h"
-#include "odbc.h"
+#include "file_sql.h"
 
 extern char *mySubSystem;
-extern ODBC *DBObj;
+extern FILESQL *FILEObj;
 
 #define MAXSQLLEN 500
 #define MAXMACHNAME 128
@@ -31,7 +31,7 @@ void file_transfer_db(file_transfer_record *rp, ClassAd *ad)
 	char *tmp;
 
 		// this function access the following pointers
-	if  (!rp || !ad || !DBObj)
+	if  (!rp || !ad || !FILEObj)
 		return;
 
 		// check if we are in starter process
@@ -91,7 +91,9 @@ void file_transfer_db(file_transfer_record *rp, ClassAd *ad)
 
 	dprintf (D_FULLDEBUG, "In file_transfer_db. sqltext is: %s\n", sqltext);
 
-//	DBObj->beginTransaction();
-	DBObj->odbc_sqlstmt(sqltext);
-//	DBObj->commitTransaction();
+	FILEObj->file_lock();
+
+	FILEObj->file_sqlstmt(sqltext);
+	
+	FILEObj->file_unlock();
 }

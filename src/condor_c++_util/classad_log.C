@@ -31,6 +31,9 @@
 #include "util_lib_proto.h"
 #include "queuedbmanager.h"
 
+#include "file_sql.h"
+extern FILESQL *FILEObj;
+
 // explicitly instantiate the HashTable template
 template class HashTable<HashKey, ClassAd*>;
 template class HashBucket<HashKey,ClassAd*>;
@@ -183,11 +186,14 @@ ClassAdLog::BeginTransaction()
 	assert(!active_transaction);
 	active_transaction = new Transaction();
 	EmptyTransaction = true;
+	FILEObj->file_lock();
 }
 
 bool
 ClassAdLog::AbortTransaction()
 {
+	FILEObj->file_unlock();
+
 	// Sometimes we do an AbortTransaction() when we don't know if there was
 	// an active transaction.  This is allowed.
 	if (active_transaction) {
@@ -201,6 +207,8 @@ ClassAdLog::AbortTransaction()
 void
 ClassAdLog::CommitTransaction()
 {
+	FILEObj->file_unlock();
+
 	// Sometimes we do a CommitTransaction() when we don't know if there was
 	// an active transaction.  This is allowed.
 	if (!active_transaction) return;

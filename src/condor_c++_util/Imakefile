@@ -68,6 +68,7 @@ CLASSAD_OBJ = \
 	functions we could not bring in from another place. */
 CONLIBAPI_OBJ = \
 	condor_event.o \
+	file_sql.o \
 	user_log.o \
 	iso_dates.o \
 	file_lock.o \

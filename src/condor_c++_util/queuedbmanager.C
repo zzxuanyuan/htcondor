@@ -36,7 +36,7 @@
 //#include "jobqueuedatabase.h"
 //#include "pgsqldatabase.h"
 #include "queuedbmanager.h"
-#include "odbc.h"
+#include "file_sql.h"
 #include "classad_collection.h"
 
 #ifndef _DEBUG_
@@ -44,7 +44,7 @@
 #endif
 
 /* database connection object */
-extern ODBC *DBObj;
+extern FILESQL *FILEObj;
 
 /* daemon name */
 char *Name;
@@ -137,8 +137,8 @@ QueueDBManager::cleanupJobQueueDB()
 		"DELETE FROM History_Horizontal;");
 
 	for (i = 0; i < sqlNum; i++) {
-		if (DBObj->odbc_sqlstmt(sql_str[i]) < 0) {
-			displayDBErrorMsg("Clean UP ALL Data --- ERROR");
+		if (FILEObj->file_sqlstmt(sql_str[i]) < 0) {
+			displayDBErrorMsg("Logging To Clean UP ALL Data --- ERROR");
 			return 0; // return a error code, 0
 		}
 	}
@@ -160,8 +160,8 @@ QueueDBManager::tuneupJobQueueDB()
 		"VACUUM;");
 
 	for (i = 0; i < sqlNum; i++) {
-		if (DBObj->odbc_sqlstmt(sql_str[i]) < 0) {
-			displayDBErrorMsg("VACUUM Database --- ERROR");
+		if (FILEObj->file_sqlstmt(sql_str[i]) < 0) {
+			displayDBErrorMsg("Logging To VACUUM Database --- ERROR");
 			return 0; // return a error code, 0
 		}
 	}
@@ -355,9 +355,9 @@ QueueDBManager::processHistoryAd(ClassAd *ad) {
   //dprintf(D_ALWAYS, "AMEET entered function %s\n", sql_str1);
   sprintf(sql_str1, 
 	  "INSERT INTO History_Horizontal(scheddname, cid, pid) VALUES('%s', %d, %d);", Name, cid, pid);
-  if (DBObj->odbc_sqlstmt(sql_str1) < 0) {
+  if (FILEObj->file_sqlstmt(sql_str1) < 0) {
     //dprintf(D_ALWAYS, "AMEET entered if %s\n", sql_str1);
-    displayDBErrorMsg("History Ad Processing --- ERROR");
+    displayDBErrorMsg("Logging For History Ad Processing 1--- ERROR");
     return 0; // return a error code, 0
   }
 
@@ -444,8 +444,8 @@ QueueDBManager::processHistoryAd(ClassAd *ad) {
       }
       
       dprintf(D_ALWAYS, "in processHistoryClassAd before database write %s\n", sql_str1);
-      if (DBObj->odbc_sqlstmt(sql_str1) < 0) {
-	displayDBErrorMsg("History Ad Processing --- ERROR");
+      if (FILEObj->file_sqlstmt(sql_str1) < 0) {
+	displayDBErrorMsg("Logging For History Ad Processing 2 --- ERROR");
 	//if(fp) fclose(fp);
 	//return 0; // return a error code, 0
       }
@@ -645,16 +645,16 @@ QueueDBManager::processNewClassAd(const char* key, const char* mytype, const cha
   
   
   if (exec_later == false) { // execute them now
-    if (DBObj->odbc_sqlstmt(sql_str1) < 0) {
-      displayDBErrorMsg("New ClassAd Processing --- ERROR");
+    if (FILEObj->file_sqlstmt(sql_str1) < 0) {
+      displayDBErrorMsg("Logging For New ClassAd Processing 1--- ERROR");
       return 0; // return a error code, 0
     }
-    if (DBObj->odbc_sqlstmt(sql_str2) < 0) {
-      displayDBErrorMsg("New ClassAd Processing --- ERROR");
+    if (FILEObj->file_sqlstmt(sql_str2) < 0) {
+      displayDBErrorMsg("Logging For New ClassAd Processing 2--- ERROR");
       return 0; // return a error code, 0
     }
-    if (DBObj->odbc_sqlstmt(sql_str3) < 0) {
-      displayDBErrorMsg("New ClassAd Processing --- ERROR");
+    if (FILEObj->file_sqlstmt(sql_str3) < 0) {
+      displayDBErrorMsg("Logging For New ClassAd Processing 3--- ERROR");
       return 0; // return a error code, 0
     }
   }
@@ -723,12 +723,12 @@ QueueDBManager::processDestroyClassAd(const char* key, bool exec_later)
 	}
 
 	if (exec_later == false) { 
-		if (DBObj->odbc_sqlstmt(sql_str1) < 0) {
-			displayDBErrorMsg("Destroy ClassAd Processing --- ERROR");
+		if (FILEObj->file_sqlstmt(sql_str1) < 0) {
+			displayDBErrorMsg("Logging For Destroy ClassAd Processing 1--- ERROR");
 			return 0; // return a error code, 0
 		}
-		if (DBObj->odbc_sqlstmt(sql_str2) < 0) {
-			displayDBErrorMsg("Destroy ClassAd Processing --- ERROR");
+		if (FILEObj->file_sqlstmt(sql_str2) < 0) {
+			displayDBErrorMsg("Logging For Destroy ClassAd Processing 2--- ERROR");
 			return 0; // return a error code, 0
 		}
 	}
@@ -836,11 +836,11 @@ QueueDBManager::processSetAttribute(const char* key, const char* name, const cha
 	
 	int ret_st = 0;
 	if (exec_later == false) {
-	  ret_st = DBObj->odbc_sqlstmt(sql_str_del_in);
+	  ret_st = FILEObj->file_sqlstmt(sql_str_del_in);
 	  
 	  if (ret_st < 0) {
 	    fprintf(stdout, "[SQL] %s\n", sql_str_del_in);
-	    displayDBErrorMsg("Set Attribute --- ERROR");
+	    displayDBErrorMsg("Logging to Set Attribute --- ERROR");
 	    return 0;
 	  }
 	}
@@ -924,11 +924,11 @@ QueueDBManager::processDeleteAttribute(const char* key, const char* name, bool e
   
   if (sql_str != NULL) {
     if (exec_later == false) {
-      ret_st = DBObj->odbc_sqlstmt(sql_str);
+      ret_st = FILEObj->file_sqlstmt(sql_str);
       
       if (ret_st < 0) {
 	fprintf(stdout, "[SQL] %s\n", sql_str);
-	displayDBErrorMsg("Delete Attribute --- ERROR");
+	displayDBErrorMsg("Logging To Delete Attribute --- ERROR");
 	return 0;
       }
     }

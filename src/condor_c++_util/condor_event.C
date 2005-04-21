@@ -44,8 +44,8 @@
 #define ESCAPE { errorNumber=(errno==EAGAIN) ? ULOG_NO_EVENT : ULOG_UNK_ERROR;\
 					 return 0; }
 
-#include "odbc.h"
-extern ODBC *DBObj;
+#include "file_sql.h"
+extern FILESQL *FILEObj;
 
 
 //extern ClassAd *JobAd;
@@ -1318,7 +1318,6 @@ writeEvent (FILE *file)
   if(hp) {    
     dprintf(D_FULLDEBUG, "Executehost name = %s\n", hp->h_name);
     strcpy(executehostname, hp->h_name);
-    free(hp);
   }
   else {
     dprintf(D_FULLDEBUG, "Executehost name = %s\n", executeHost);
@@ -1339,22 +1338,30 @@ writeEvent (FILE *file)
 	  eventTime.tm_sec,
 	  eventTime.tm_zone);
 
-  if (DBObj->odbc_sqlstmt(sqlstmt) < 0) {
-    dprintf(D_ALWAYS, "Inserting ExecuteEvent --- Error\n");
-    dprintf(D_ALWAYS, "sql = %s\n", sqlstmt);
-    free(sqlstmt);
-    return 0; // return a error code, 0
-  }
+  int retval;
+
+  FILEObj->file_lock();
+
+  retval = FILEObj->file_sqlstmt(sqlstmt);
+
+  FILEObj->file_unlock();
+
   free(sqlstmt);
   free(executehostname);
 
- int retval = fprintf (file, "Job executing on host: %s\n", executeHost);
+  if (retval < 0) {
+    dprintf(D_ALWAYS, "Logging Event 1--- Error\n");
+    dprintf(D_ALWAYS, "sql = %s\n", sqlstmt);
+    return 0; // return a error code, 0
+  }
 
- if (retval < 0)
-   {
+  retval = fprintf (file, "Job executing on host: %s\n", executeHost);
+
+  if (retval < 0) {
      return 0;
-   }
- return 1;
+  }
+
+  return 1;
 }
 
 int ExecuteEvent::
@@ -1884,19 +1891,23 @@ JobEvictedEvent::writeEvent( FILE *file )
 	  );
     
   dprintf(D_ALWAYS, "sql = %s\n", sqlstmt);
-  if (DBObj->odbc_sqlstmt(sqlstmt) < 0) {
-    dprintf(D_ALWAYS, "Inserting EvictedEvent --- Error\n");
-    dprintf(D_ALWAYS, "sql = %s\n", sqlstmt);
-    free(sqlstmt);
-    free(messagestr);
-    free(checkpointedstr);
-    free(terminatestr);
-    return 0; // return a error code, 0
-  }
+
+  FILEObj->file_lock();
+
+  retval = FILEObj->file_sqlstmt(sqlstmt);
+
+  FILEObj->file_unlock();
+
   free(sqlstmt);
   free(messagestr);
   free(checkpointedstr);
   free(terminatestr);
+
+  if (retval < 0) {
+    dprintf(D_ALWAYS, "Logging Event 2 --- Error\n");
+    dprintf(D_ALWAYS, "sql = %s\n", sqlstmt);
+    return 0; // return a error code, 0
+  }
   
   return 1;
 }
@@ -2234,39 +2245,44 @@ TerminatedEvent::writeEvent( FILE *file, const char* header )
 				total_recvd_bytes, header) < 0)
 		return 1;				// backwards compatibility
 
-  dprintf(D_ALWAYS, "just before initializing scheddname in TerminteEvent\n");
-  scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
-  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
+	dprintf(D_ALWAYS, "just before initializing scheddname in TerminteEvent\n");
+	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
+	dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
-  sprintf(sqlstmt, 
-	  "UPDATE runs SET endmessage = '%s', runbytessent= %f, runbytesreceived = %f WHERE scheddname = '%s' and cid = %d and pid = %d and spid = %d AND endts = '%d-%02d-%02d %02d:%02d:%02d %s';", 
-	  messagestr,
-	  sent_bytes,
-	  recvd_bytes,
-	  scheddname,
-	  cluster,
-	  proc,
-	  subproc,
-	  eventTime.tm_year+1900,
-	  eventTime.tm_mon+1,
-	  eventTime.tm_mday,
-	  eventTime.tm_hour,
-	  eventTime.tm_min,
-	  eventTime.tm_sec,
-	  eventTime.tm_zone
-	  );
+	sprintf(sqlstmt, 
+			"UPDATE runs SET endmessage = '%s', runbytessent= %f, runbytesreceived = %f WHERE scheddname = '%s' and cid = %d and pid = %d and spid = %d AND endts = '%d-%02d-%02d %02d:%02d:%02d %s';", 
+			messagestr,
+			sent_bytes,
+			recvd_bytes,
+			scheddname,
+			cluster,
+			proc,
+			subproc,
+			eventTime.tm_year+1900,
+			eventTime.tm_mon+1,
+			eventTime.tm_mday,
+			eventTime.tm_hour,
+			eventTime.tm_min,
+			eventTime.tm_sec,
+			eventTime.tm_zone
+			);
 
     dprintf(D_ALWAYS, "sql = %s\n", sqlstmt);
-  if (DBObj->odbc_sqlstmt(sqlstmt) < 0) {
-    dprintf(D_ALWAYS, "Inserting TerminatedEvent --- Error\n");
-    dprintf(D_ALWAYS, "sql = %s\n", sqlstmt);
-    free(sqlstmt);
-    free(messagestr);
-    return 0; // return a error code, 0
-  }
-  free(sqlstmt);
-  free(messagestr);
+	
+	FILEObj->file_lock();
 
+	retval = FILEObj->file_sqlstmt(sqlstmt);
+
+	FILEObj->file_unlock();
+	
+	free(sqlstmt);
+	free(messagestr);
+
+	if (retval < 0) {
+		dprintf(D_ALWAYS, "Logging Event 3--- Error\n");
+		dprintf(D_ALWAYS, "sql = %s\n", sqlstmt);
+		return 0; // return a error code, 0
+	}
 
 	return 1;
 }
@@ -2383,21 +2399,26 @@ JobTerminatedEvent::writeEvent (FILE *file)
 	  subproc
 	  );
 
-    dprintf(D_ALWAYS, "sql = %s\n", sqlstmt);
-  if (DBObj->odbc_sqlstmt(sqlstmt) < 0) {
-    dprintf(D_ALWAYS, "Inserting JobTerminatedEvent --- Error\n");
-    dprintf(D_ALWAYS, "sql = %s\n", sqlstmt);
-    free(sqlstmt);
-    return 0; // return a error code, 0
-  }
+  dprintf(D_ALWAYS, "sql = %s\n", sqlstmt);
+	
+  FILEObj->file_lock();
+
+  int retval = FILEObj->file_sqlstmt(sqlstmt);
+
+  FILEObj->file_unlock();
+	
   free(sqlstmt);
 
+  if (retval < 0) {
+	  dprintf(D_ALWAYS, "Logging Event 4--- Error\n");
+	  dprintf(D_ALWAYS, "sql = %s\n", sqlstmt);
+	  return 0; // return a error code, 0
+  }
 
-
-	if( fprintf(file, "Job terminated.\n") < 0 ) {
-		return 0;
-	}
-	return TerminatedEvent::writeEvent( file, "Job" );
+  if( fprintf(file, "Job terminated.\n") < 0 ) {
+	  return 0;
+  }
+  return TerminatedEvent::writeEvent( file, "Job" );
 }
 
 
