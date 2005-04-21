@@ -25,7 +25,8 @@ public:
 	long file_lock();
 	long file_unlock();
 	long file_sqlstmt(const char* statement);	
-
+	int  file_readline(char *buf);
+	int  file_truncate();
 };
 
 FILESQL *createInstance();
