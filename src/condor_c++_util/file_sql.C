@@ -108,28 +108,17 @@ long FILESQL::file_sqlstmt(const char* statement)
 		return -1;
 	}
 	dprintf(D_FULLDEBUG,"Logging %s to file %s\n",statement,outfilename);
-	if(!is_locked)
-	{	
-		if(lock->obtain(WRITE_LOCK) == 0) /* 0 means a successful lock */
-		{
-			dprintf(D_ALWAYS,"Error locking SQL log file %s ",outfilename);
-			return -1;
-		}
-	}
+	if(file_lock() < 0)
+		return -1;
+	
 	retval = write(outfiledes,statement,strlen(statement)); /* The statement excluding newline */
 	retval = write(outfiledes,"\n",1); /* Now the newline*/
 //	fsync(outfiledes);
 	if(retval < 0) /* There was an error */
 		dprintf(D_ALWAYS,"Error in logging SQL statement \'%s\' to file : %s",statement,strerror(errno));
 
-	if(!is_locked)
-	{
-		if(lock->release() == 0) /* 0 means a successful lock */
-		{
-			dprintf(D_ALWAYS,"Error unlocking SQL log file %s ",outfilename);
-			return -1;
-		}
-	}
+	if(file_unlock() < 0)
+		return -1;
 	return retval;
 }
 
@@ -144,7 +133,7 @@ long FILESQL::file_lock()
 	if(is_locked)
 		return 0;
 
-	if(lock->obtain(WRITE_LOCK) == 0) /* 0 means a successful lock */
+	if(lock->obtain(WRITE_LOCK) == 0) /* 0 means an unsuccessful lock */
 	{
 		dprintf(D_ALWAYS,"Error locking SQL log file %s ",outfilename);
 		return -1;
@@ -156,10 +145,15 @@ long FILESQL::file_lock()
 
 long FILESQL::file_unlock()
 {
+	if(!is_open)
+	{
+		dprintf(D_ALWAYS,"Error unlocking :SQL log file %s not open yet",outfilename);
+		return -1;
+	}
 	if(!is_locked)
 		return 0;
 
-	if(lock->release() == 0) /* 0 means a successful lock */
+	if(lock->release() == 0) /* 0 means an unsuccessful lock */
 	{
 		dprintf(D_ALWAYS,"Error unlocking SQL log file %s ",outfilename);
 		return -1;
