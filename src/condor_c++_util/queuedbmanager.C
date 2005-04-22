@@ -354,7 +354,7 @@ QueueDBManager::processHistoryAd(ClassAd *ad) {
   bool flag1=false, flag2=false,flag3=false, flag4=false;
   //dprintf(D_ALWAYS, "AMEET entered function %s\n", sql_str1);
   sprintf(sql_str1, 
-	  "INSERT INTO History_Horizontal(scheddname, cid, pid) VALUES('%s', %d, %d);", Name, cid, pid);
+	  "DELETE FROM History_Horizontal WHERE scheddname = '%s' and cid=%d and pid=%d; INSERT INTO History_Horizontal(scheddname, cid, pid) VALUES('%s', %d, %d);", Name, cid, pid, Name, cid, pid);
   if (FILEObj->file_sqlstmt(sql_str1) < 0) {
     //dprintf(D_ALWAYS, "AMEET entered if %s\n", sql_str1);
     displayDBErrorMsg("Logging For History Ad Processing 1--- ERROR");
@@ -440,10 +440,10 @@ QueueDBManager::processHistoryAd(ClassAd *ad) {
       else {
 		strip_double_quote(value);		  
 	sprintf(sql_str1, 
-		"INSERT INTO History_Vertical(scheddname, cid, pid, attr, val) VALUES('%s', %d, %d, '%s', '%s');", Name, cid, pid, name, value);
+		"DELETE FROM History_Vertical WHERE scheddname = '%s' and cid = %d and pid = %d and attr='%s';INSERT INTO History_Vertical(scheddname, cid, pid, attr, val) VALUES('%s', %d, %d, '%s', '%s');", Name, cid, pid, name, Name, cid, pid, name, value);
       }
       
-      dprintf(D_ALWAYS, "in processHistoryClassAd before database write %s\n", sql_str1);
+		  //dprintf(D_ALWAYS, "in processHistoryClassAd before database write %s\n", sql_str1);
       if (FILEObj->file_sqlstmt(sql_str1) < 0) {
 	displayDBErrorMsg("Logging For History Ad Processing 2 --- ERROR");
 	//if(fp) fclose(fp);
