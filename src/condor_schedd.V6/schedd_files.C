@@ -162,13 +162,15 @@ int schedd_files_ins_file(
 
 void schedd_files_ins_usage(
 							char *globalJobId,
-							int fileid,
-							const char *type)
+							const char *type,
+							char *fileName,
+							char *fs_domain,
+							char *path,
+							char *ascTime)
 {
 	char sqltext[MAXSQLLEN];
 	sprintf(sqltext, 
-			"insert into fileusages values('%s', %d, '%s')",
-			globalJobId, fileid, type);
+			"INSERT INTO fileusages SELECT '%s', f_id, '%s' FROM files WHERE  f_name='%s' and f_path='%s' and f_host='%s' and f_ts='%s' LIMIT 1", globalJobId, type, fileName, path, fs_domain, ascTime);
 	dprintf (D_FULLDEBUG, "In schedd_files_ins_usage, sqltext is: %s\n", sqltext);
 	FILEObj->file_sqlstmt(sqltext);
 //	DBObj->odbc_closestmt();
@@ -265,7 +267,7 @@ void schedd_files_ins(
 //	}
 
 		// insert a usage for this file by this job
-	schedd_files_ins_usage(globalJobId, fileid, type);
+	schedd_files_ins_usage(globalJobId, type, fileName, fs_domain, path, ascTime);
 
 schedd_files_ins_end:
 	if (path) free(path);
