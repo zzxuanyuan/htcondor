@@ -5,14 +5,14 @@
 #include "file_sql.h"
 #include "get_mysubsystem.h"
 
-// define the pointer to FILESQL object here since the file_sql.o is put into 
+// define the pointer to database connection object here since the odbc.o is put into 
 // the cplus_lib.a library. And that is because modules such as file_transfer.o and
 // classad_log.o uses FILEObj and they are part of cplus_lib.a. This way we won't get
 // the FILEObj undefined error during compilation of any code which needs cplus_lib.a.
 
 // notice the FILEObj is just a pointer, the real object should be created only when 
-// it is needed. E.g. most daemons need a FILESQL object for logging SQL statements, 
-// there we can create a FILESQL object in the  main function of daemon process.
+// a real database connection is needed. E.g. most daemons need database connection, 
+// there we can create a database connection in the  main function of daemon process.
 FILESQL *FILEObj = 0;
 //extern int errno;
 FILESQL::FILESQL()
@@ -22,6 +22,7 @@ FILESQL::FILESQL()
 	strcpy(outfilename,"");
 	fileflags = O_WRONLY|O_CREAT|O_APPEND;
 	outfiledes = -1;
+	fp = NULL;
 }
 FILESQL::FILESQL(char *outfilename, int flags = O_WRONLY|O_CREAT|O_APPEND)
 {
@@ -30,6 +31,7 @@ FILESQL::FILESQL(char *outfilename, int flags = O_WRONLY|O_CREAT|O_APPEND)
 	strncpy(this->outfilename,outfilename,256);
 	fileflags = flags;
 	outfiledes = -1;
+	fp = NULL;
 }
 
 FILESQL::~FILESQL()
@@ -40,6 +42,7 @@ FILESQL::~FILESQL()
 	is_locked = false;
 	strcpy(this->outfilename,"");
 	outfiledes = -1;
+	fp = NULL;
 }
 
 bool FILESQL::file_isopen()
@@ -168,8 +171,10 @@ long FILESQL::file_unlock()
 
 int FILESQL::file_readline(char *buf) 
 {
-	FILE *inputfile = fdopen(outfiledes, "r");
-	return fscanf(inputfile, " %[^\n]", buf);
+	if(!fp)
+		fp = fdopen(outfiledes, "r");
+
+	return fscanf(fp, " %[^\n]", buf);
 }
 
 FILESQL *createInstance() 
@@ -183,7 +188,6 @@ FILESQL *createInstance()
 	/* Parse FILESQL Params */
 	sprintf(tmpParamName, "%s_SQLLOG", get_mySubSystem());
 	tmp = param(tmpParamName);
-	dprintf(D_ALWAYS, "sqllog = %s\n", tmp);
 	if( tmp ) {
 		outfilename = strdup(tmp);
 		free(tmp);

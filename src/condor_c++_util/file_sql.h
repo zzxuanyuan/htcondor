@@ -13,6 +13,7 @@ private:
 	int fileflags;
 	int outfiledes;
 	FileLock *lock;
+	FILE *fp;
 public:
 	
 	FILESQL();
