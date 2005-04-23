@@ -166,7 +166,7 @@ TTManager::maintain()
 				dprintf(D_ALWAYS, "sql = %s\n", buf);
 				filesqlobj->file_unlock();
 				delete filesqlobj;
-				delete buf;
+				free(buf);
 				return 0; // return a error code, 0
 			}
 		}
@@ -183,7 +183,7 @@ TTManager::maintain()
 
 		if(filesqlobj) {
 			delete filesqlobj;
-			delete buf;
+			free(buf);
 			filesqlobj = NULL;
 		}
 	}
