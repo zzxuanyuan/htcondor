@@ -59,11 +59,13 @@ TTManager::config(bool reconfig)
 {
 	pollingTimeId = -1;
 
-	numLogs = 2;
+	numLogs = 3;
 	sqlLogList = (char **) malloc(numLogs * sizeof(char *));
 	
 	sqlLogList[0] = param("NEGOTIATOR_SQLLOG");
 	sqlLogList[1] = param("SCHEDD_SQLLOG");
+	sqlLogList[2] = param("DEFAULT_SQLLOG");
+
 		//sqlLogList[0] = strdup("/scratch/akini/condor_workspace/v6_7_db_logs_nonblocking/src/condor_tt/SqlLog");
 
 		// read the polling period and if one is not specified use 
