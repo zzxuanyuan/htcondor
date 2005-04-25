@@ -64,31 +64,31 @@ TTManager::config(bool reconfig)
 
 	tmp = param("SCHEDD_SQLLOG");
 	if (tmp) {
-		strncpy(sqlLogList[numLogs++], tmp, MAXPATHLEN-1);
+		strncpy(sqlLogList[numLogs++], tmp, MAXLOGPATHLEN-1);
 		free(tmp);
 	}
 
 	tmp = param("SHADOW_SQLLOG");
 	if (tmp) {
-		strncpy(sqlLogList[numLogs++], tmp, MAXPATHLEN-1);
+		strncpy(sqlLogList[numLogs++], tmp, MAXLOGPATHLEN-1);
 		free(tmp);
 	}
 
 	tmp = param("STARTER_SQLLOG");
 	if (tmp) {
-		strncpy(sqlLogList[numLogs++], tmp, MAXPATHLEN-1);
+		strncpy(sqlLogList[numLogs++], tmp, MAXLOGPATHLEN-1);
 		free(tmp);
 	}
 
 	tmp = param("STARTD_SQLLOG");
 	if (tmp) {
-		strncpy(sqlLogList[numLogs++], tmp, MAXPATHLEN-1);
+		strncpy(sqlLogList[numLogs++], tmp, MAXLOGPATHLEN-1);
 		free(tmp);
 	}
 
 	tmp = param("SUBMIT_SQLLOG");
 	if (tmp) {
-		strncpy(sqlLogList[numLogs++], tmp, MAXPATHLEN-1);
+		strncpy(sqlLogList[numLogs++], tmp, MAXLOGPATHLEN-1);
 		free(tmp);
 	}
 	

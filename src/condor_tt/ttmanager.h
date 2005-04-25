@@ -31,7 +31,7 @@
 extern ODBC *DBObj;
 
 #define MAXLOGNUM 7
-#define MAXPATHLEN 100
+#define MAXLOGPATHLEN 100
 
 //! TTManager
 /*! \brief this class orchestrates TT's log writing code
@@ -59,7 +59,7 @@ class TTManager : public Service
 
 	int     maintain();
 
-	char    sqlLogList[MAXLOGNUM][MAXPATHLEN];
+	char    sqlLogList[MAXLOGNUM][MAXLOGPATHLEN];
 	int     numLogs;
         
 	int		pollingTimeId;			//!< timer handler id of pollingTime function
