@@ -142,7 +142,7 @@ TTManager::maintain()
 	bool firststmt = true;
 
 	for(int i=0; i < numLogs; i++) {
-		buf =(char *) malloc(1024 * sizeof(char));
+		buf =(char *) malloc(2048 * sizeof(char));
 		filesqlobj = new FILESQL(sqlLogList[i], O_RDWR);
 
 		retval = filesqlobj->file_open();

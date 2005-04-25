@@ -168,6 +168,7 @@ int FILESQL::file_readline(char *buf)
 	if(!fp)
 		fp = fdopen(outfiledes, "r");
 
+		// we need to fix this potential buffer overflow problem later once we have a good solution.
 	return fscanf(fp, " %[^\n]", buf);
 }
 
@@ -176,18 +177,25 @@ FILESQL *createInstance()
 /* Passing paramName is a hack to get around reading the right parameter depending on daemon name */
 	FILESQL *ptr = NULL;
 	int retval;
-	char *tmp, *outfilename;
+	char *tmp, outfilename[100];
 	char tmpParamName[50];
 	
 	/* Parse FILESQL Params */
 	sprintf(tmpParamName, "%s_SQLLOG", get_mySubSystem());
 	tmp = param(tmpParamName);
 	if( tmp ) {
-		outfilename = strdup(tmp);
+		strncpy(outfilename, tmp, 99);
 		free(tmp);
 	}
 	else {
-		outfilename = strdup("sql.log");
+		tmp = param ("LOG");		
+
+		if (tmp) {
+			sprintf(outfilename, "%s/sql.log", tmp);
+			free(tmp);			
+		}
+		else
+			sprintf(outfilename, "sql.log");
 	}
 	ptr = new FILESQL(outfilename, O_WRONLY|O_CREAT|O_APPEND);
 

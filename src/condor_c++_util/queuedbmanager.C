@@ -613,7 +613,11 @@ QueueDBManager::processNewClassAd(const char* key, const char* mytype, const cha
   // It could be ProcAd or ClusterAd
   // So need to check
   id_sort = getProcClusterIds(key, cid, pid);
-  
+
+	  // the job with cid 0 is used for remembering nextClusterNum, we don't need to log it
+  if (atoi(cid) == 0) 
+	  return 1;
+
   switch(id_sort) {
   case 1:
     sprintf(sql_str1, 			
@@ -698,6 +702,10 @@ QueueDBManager::processDestroyClassAd(const char* key, bool exec_later)
 		// It could be ProcAd or ClusterAd
 		// So need to check
 	id_sort = getProcClusterIds(key, cid, pid);
+
+	  // the job with cid 0 is used for remembering nextClusterNum, we don't need to log it
+	if (atoi(cid) == 0) 
+		return 1;
 
 	switch(id_sort) {
 	case 1:	// ClusterAds
@@ -784,6 +792,10 @@ QueueDBManager::processSetAttribute(const char* key, const char* name, const cha
 		// It could be ProcAd or ClusterAd
 		// So need to check
 	id_sort = getProcClusterIds(key, cid, pid);
+
+		// the job with cid 0 is special for remembering the nextClusterNum.
+	if (atoi(cid) == 0)
+		return 1;
 
 	switch(id_sort) {
 	case 1:
@@ -894,6 +906,10 @@ QueueDBManager::processDeleteAttribute(const char* key, const char* name, bool e
   // So need to check
   id_sort = getProcClusterIds(key, cid, pid);
   
+	  // the job with cid 0 is used for remembering nextClusterNum, we don't need to log it
+  if (atoi(cid) == 0) 
+	  return 1;
+
   switch(id_sort) {
   case 1:
     if(isHorizontalClusterAttribute(name)) {
