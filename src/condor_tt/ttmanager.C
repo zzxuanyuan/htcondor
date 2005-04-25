@@ -144,8 +144,19 @@ TTManager::maintain()
 	for(int i=0; i < numLogs; i++) {
 		buf =(char *) malloc(1024 * sizeof(char));
 		filesqlobj = new FILESQL(sqlLogList[i], O_RDWR);
-		filesqlobj->file_open();
+
+		retval = filesqlobj->file_open();
+		
+		if (retval < 0) {
+			goto ERROREXIT;
+		}
+			
 		filesqlobj->file_lock();
+		
+		if (retval < 0) {
+			goto ERROREXIT;
+		}
+
 		firststmt = true;
 		while(filesqlobj->file_readline(buf) != EOF) {
 			buflength = strlen(buf);
@@ -169,7 +180,7 @@ TTManager::maintain()
 				filesqlobj->file_unlock();
 				delete filesqlobj;
 				free(buf);
-				return 0; // return a error code, 0
+				return -1; // return a error code -1
 			}
 		}
 		if(!firststmt) {
@@ -178,10 +189,13 @@ TTManager::maintain()
 			}
 		}
 
-		if((retval = filesqlobj->file_truncate()) < 0)
-			return retval;
-		if((retval = filesqlobj->file_unlock()) < 0)
-			return retval;
+		if((retval = filesqlobj->file_truncate()) < 0) {
+			goto ERROREXIT;
+		}
+
+		if((retval = filesqlobj->file_unlock()) < 0) {
+			goto ERROREXIT;
+		}
 
 		if(filesqlobj) {
 			delete filesqlobj;
@@ -191,4 +205,11 @@ TTManager::maintain()
 	}
 
 	return 1;
+
+ ERROREXIT:
+	if(filesqlobj) {
+		delete filesqlobj;
+	}
+	free(buf);
+	return retval;
 }
