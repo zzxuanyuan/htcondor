@@ -34,8 +34,6 @@
 #include "ttmanager.h"
 #include "file_sql.h"
 
-#define MAXLOGNUM 7
-
 //! constructor
 TTManager::TTManager()
 {
@@ -46,13 +44,6 @@ TTManager::TTManager()
 TTManager::~TTManager()
 {
 		// release Objects
-	if(sqlLogList) {
-		for(int i=0; i < MAXLOGNUM; i++) {
-			if(sqlLogList[i]) 
-				free(sqlLogList[i]);
-		}
-		free(sqlLogList);
-	}
 	numLogs = 0;
 }
 
@@ -65,43 +56,50 @@ TTManager::config(bool reconfig)
 
 	pollingTimeId = -1;
 
-		// allocate max number of entries
-	sqlLogList = (char **) malloc(MAXLOGNUM * sizeof(char *));
-	
 	tmp = param("NEGOTIATOR_SQLLOG");
 	if (tmp) {
-		sqlLogList[numLogs++] = tmp;
+		strncpy(sqlLogList[numLogs++], tmp, MAXPATHLEN-1);
+		free(tmp);
 	}
 
 	tmp = param("SCHEDD_SQLLOG");
 	if (tmp) {
-		sqlLogList[numLogs++] = tmp;
+		strncpy(sqlLogList[numLogs++], tmp, MAXPATHLEN-1);
+		free(tmp);
 	}
 
 	tmp = param("SHADOW_SQLLOG");
 	if (tmp) {
-		sqlLogList[numLogs++] = tmp;
+		strncpy(sqlLogList[numLogs++], tmp, MAXPATHLEN-1);
+		free(tmp);
 	}
 
 	tmp = param("STARTER_SQLLOG");
 	if (tmp) {
-		sqlLogList[numLogs++] = tmp;
+		strncpy(sqlLogList[numLogs++], tmp, MAXPATHLEN-1);
+		free(tmp);
 	}
 
 	tmp = param("STARTD_SQLLOG");
 	if (tmp) {
-		sqlLogList[numLogs++] = tmp;
+		strncpy(sqlLogList[numLogs++], tmp, MAXPATHLEN-1);
+		free(tmp);
 	}
 
 	tmp = param("SUBMIT_SQLLOG");
 	if (tmp) {
-		sqlLogList[numLogs++] = tmp;
+		strncpy(sqlLogList[numLogs++], tmp, MAXPATHLEN-1);
+		free(tmp);
 	}
 	
-	tmp = param("DEFAULT_SQLLOG");
+	tmp = param("LOG");
 	if (tmp) {
-		sqlLogList[numLogs++] = tmp;
+		sprintf(sqlLogList[numLogs++], "%s/sql.log", tmp);
+		free(tmp);
+	} else {
+		sprintf(sqlLogList[numLogs++], "sql.log");
 	}
+		
 
 		//sqlLogList[0] = strdup("/scratch/akini/condor_workspace/v6_7_db_logs_nonblocking/src/condor_tt/SqlLog");
 
