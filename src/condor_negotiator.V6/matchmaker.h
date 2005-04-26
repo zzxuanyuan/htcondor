@@ -42,7 +42,7 @@ typedef struct MapEntry {
 	ClassAd *oldAd;
 } MapEntry;
 /* ODBC object extern */
-extern ODBC *DBObj;
+//extern ODBC *DBObj;
 /* FILESQL object extern */
 extern FILESQL *FILEObj;
 class Matchmaker : public Service
