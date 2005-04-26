@@ -1803,7 +1803,7 @@ Resource::dbInsert( ClassAd *cl )
 			// this value is present in the table. if value has changed then push old value to history and update
 		sprintf(sql_stmt, "INSERT INTO Machine_History SELECT machine_id, attr_name, attr_value, start_time, %s FROM Machine WHERE machine_id = '%s' AND attr_name = '%s' AND attr_value != '%s'", 
 				tmpVal, machine_id.Value(), aName.Value(), aVal.Value());
-		
+		dbh->file_sqlstmt(sql_stmt);
 
 		sprintf(sql_stmt, "UPDATE Machine SET attr_value = '%s', start_time = %s WHERE machine_id = '%s' AND attr_name = '%s' AND attr_value != '%s'", 
 				aVal.Value(), tmpVal, machine_id.Value(), aName.Value(), aVal.Value());
