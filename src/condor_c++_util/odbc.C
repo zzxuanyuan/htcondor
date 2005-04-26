@@ -38,6 +38,8 @@ long ODBC::odbc_connect()
 
 	if(isConnected())
 		odbc_disconnect();
+
+	dprintf(D_FULLDEBUG,"Parameters :%s:%s:%s:\n",dsn,user,auth);
 	odbc_retcode=SQLAllocHandle(SQL_HANDLE_ENV,SQL_NULL_HANDLE,&odbc_env);
 	if ((odbc_retcode != SQL_SUCCESS) && (odbc_retcode != SQL_SUCCESS_WITH_INFO))
 	{
@@ -134,7 +136,10 @@ long ODBC::odbc_beginxtstmt(const char * statement)
 	if(!connected)
 	{
 		if(in_xact)
+		{
+			dprintf(D_FULLDEBUG,"Returning error : Already in transaction\n");
 			return SQL_ERROR;
+		}
 		else
 		{
 			odbc_retcode = odbc_connect();
