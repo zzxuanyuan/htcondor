@@ -28,7 +28,7 @@
 #include "daemon.h"
 
 #include "odbc.h"
-extern ODBC *DBObj;
+//extern ODBC *DBObj;
 
 #define MAXLOGNUM 7
 #define MAXLOGPATHLEN 100
