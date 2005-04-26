@@ -71,7 +71,7 @@ char*	addrFile = NULL;
 static	char*	logAppend = NULL;
 
 /* ODBC object */
-extern ODBC *DBObj;
+//extern ODBC *DBObj;
 
 /* FILESQL object */
 extern FILESQL *FILEObj;
@@ -1077,9 +1077,11 @@ handle_dc_sigterm( Service*, int )
 
 	dprintf(D_ALWAYS, "Got SIGTERM. Performing graceful shutdown.\n");
 
+/*
 	if(DBObj) {
 		delete DBObj;
 	}
+*/
 
 	if(FILEObj) {
 		delete FILEObj;
@@ -1126,9 +1128,11 @@ handle_dc_sigquit( Service*, int )
 	}
 	been_here = TRUE;
 
+/*
 	if(DBObj) {
 		delete DBObj;
 	}
+*/
 
 	if(FILEObj) {
 		delete FILEObj;
@@ -1724,7 +1728,7 @@ int main( int argc, char** argv )
 	daemonCore->InitSettableAttrsLists();
 
 	// create a database connection object
-	DBObj = createConnection();
+	//DBObj = createConnection();
 
 	// create a sql log object
 	FILEObj = createInstance(); 
