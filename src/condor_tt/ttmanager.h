@@ -66,6 +66,7 @@ class TTManager : public Service
 	int		pollingPeriod;			//!< polling time period in seconds
 
 	int		numTimesPolled;			//!< used to vacuum and analyze job queue tables
+	ODBC   *DBObj;
 };
 
 #endif /* _TTMANAGER_H_ */

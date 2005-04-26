@@ -34,10 +34,13 @@
 #include "ttmanager.h"
 #include "file_sql.h"
 
+
+
 //! constructor
 TTManager::TTManager()
 {
 		//nothing here...its all done in config()
+	DBObj = (ODBC  *) 0;
 }
 
 //! destructor
@@ -45,6 +48,8 @@ TTManager::~TTManager()
 {
 		// release Objects
 	numLogs = 0;
+	if (DBObj)
+		delete DBObj;
 }
 
 void
@@ -123,7 +128,8 @@ TTManager::config(bool reconfig)
 	if(!reconfig) {
 		numTimesPolled = 0; 		
 	}
-  
+
+	DBObj = createConnection();  
 }
 
 //! register all timer handlers
