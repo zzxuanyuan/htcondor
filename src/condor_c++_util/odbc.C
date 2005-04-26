@@ -213,6 +213,7 @@ long ODBC::odbc_sqlstmt(const char* statement)
 		SQLGetDiagRec(SQL_HANDLE_DBC, odbc_hdbc,1, (SQLCHAR*)odbc_stat,&odbc_err,(SQLCHAR*)odbc_msg,100,&odbc_mlen);
 		dprintf(D_FULLDEBUG,"odbc_msg:%s (odbc_err=%d)\n",odbc_msg,odbc_err);
 		odbc_disconnect();
+		in_xact = false;
 	}
 	return odbc_retcode;
 }
