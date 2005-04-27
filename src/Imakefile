@@ -75,7 +75,8 @@ TEST_SUITE_BASE = test_suite_base
 		scripts startd.V6 StdUnvProgs submit.V6 status.V6 \
 		tools KbddProgs collector.V6 PvmProgs dagman userlog Eventd \
 		GlobusProgs starter.V6.1 shadow.V6.1 dcskel c-gahp had \
-		CreddProgs StorkProgs
+		CreddProgs StorkProgs \
+		quill
 
 #define Libraries \
 		util_lib daemon_core.V6 daemon_client classad c++_util	\
@@ -204,6 +205,7 @@ condor_object_target(ckpt_server)
 
 condor_object_target(shadow.V6)
 condor_object_target(starter.V5)
+condor_object_target(quill)
 
 condor_object_target(startd.V6)
 condor_object_target(schedd.V6)
@@ -273,7 +275,6 @@ condor_object_target(tests)
 condor_object_target(test_suite_C.V5)
 condor_object_target(test_suite_base)
 
-condor_object_target(quill)
 
 #if HAS_FORTRAN
    condor_object_target($(TEST_SUITE_F))
