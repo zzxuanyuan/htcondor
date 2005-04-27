@@ -1,0 +1,231 @@
+This is a quick overview of how to install, deploy, and use quill.  The 
+next stable release of Condor will include more detailed documentation of 
+Quill in the manual.
+
+Here's a short version of the steps needed to install and use quill.  The 
+rest of the document simply elaborates on each step:
+
+1) Install postgres server and client libraries if they aren't already
+2) Configure postgres to suit quill
+3) Unpack and build the quill server and client tools
+4) Modify condor_config with quill related options
+5) Invoke the quill daemon and start querying it
+
+Quill consists of three components: a) the quill server which maintains 
+the job queue and history tables in the database, b) a modified condor_q 
+tool called condor_q++, which can be used to query the job queue tables, 
+and c) a modified condor_history tool called condor_history++ .  As part 
+of the official condor release, these two query tools may replace their 
+traditional counterparts as in addition to querying the database, 
+users can continue using their old features of querying the schedd and the 
+history file respectively.
+
+1) Quill uses the postgres server as its backend and the postgres client 
+library, libpq to talk to the server.  I have tested quill with both 
+postgres 7.4 and the latest stable release 8.0 on tao and solaris 
+machines.  One can obtain the postgres source from:
+
+http://www.postgresql.org/ftp/source/
+
+Installation instructions are detailed in:
+http://www.postgresql.org/docs/8.0/static/installation.html
+
+2) The following steps need to be taken after postgres is installed.  These
+are done only once; quill takes care of all other database creation and
+maintenance tasks.
+
+Instructions on how to carry these steps are detailed in the online
+documentation for the particular version.
+
+a) Assume that quill runs as user 'akini'.  Then if there isn't already
+a postgres user named 'akini', it needs to be added using the 'createuser'
+command in the postgres bin directory.  This user is different from the 
+operating system user 'akini'.  Then once this user is registered in 
+postgres, the database/tables created by quill can be accessed only by 
+programs running under this user.
+
+b) Postgres should be configured to accept tcp/ip connections.  
+In version 7, this was done by setting tcpip_socket=true in the 
+postgresql.conf file.  In version 8, this has changed.  Look at the 
+listen_addresses variable in the same file.  
+
+c) Postgres needs to be configured to accept tcp/ip connections from 
+certain hosts.  This also enables remote connections.  This is done in
+the pg_hba.conf file which usually resides in the postgres server's data 
+directory.  While the particular syntax and semantics for host based 
+configuration can vary from site to site, basically one needs to allow
+access to any hosts that will access this database server, either by way 
+of the quill daemon itself writing to the server, or by way of the 
+condor_q++ tool querying this server.  For example, in order to give user
+'akini' permissions to access all databases on my machine from any other 
+machine in my network add the following line:
+
+host    all       akini       128.105.0.0           255.255.0.0       trust
+
+Note that in addition to the database specified by DATABASE_NAME in the
+condor_config file, the quill daemon also needs access to the database
+'template1'.  This is because in order to create the former database in 
+the first place, it needs to connect to the latter.
+
+Once the server is up and running and the client libraries are installed, 
+we can now go ahead and install quill.  
+
+3) Compiling and linking Quill
+Untar the quill source directory in the top level condor/src directory.  
+Here, along with the other condor_* daemon directories, you will now see 
+the condor_quill directory.  Go into it.
+
+Modify the Imakefile to point to the right place for the postgres client 
+libraries.  In particular, modify the C_PLUS_FLAGS and LDFLAGS variables 
+to point to the directories where the postgres libraries and header files 
+are installed.
+
+Also, make sure that the LD_LIBRARY_PATH variable is set to point to the 
+postgres library directory
+
+Assuming that postgres is installed in /scratch/akini/pgsql, 
+set LD_LIBRARY_PATH=/scratch/akini/pgsql/lib
+
+Run condor_imake to create a new makefile: 
+From inside the condor_quill directory, issue: '../condor_imake '
+
+Run 'make release'.  This should compile quill and put it in the release 
+directories along with other condor_daemons.  Make sure this is the case 
+by running 'which condor_quill'.  Alongwith the quill server, the quill 
+client tools, condor_q++ and condor_history++ will be also moved over to 
+the release directory.   
+
+4) Modifying condor_config
+Now that we have built and installed quill, its time to tweak the 
+condor_config file to include quill related options.
+
+The following variables need to either be modified or added:
+
+The first one is DAEMON_LIST.  Add QUILL to this list as shown below:
+DAEMON_LIST                     = MASTER, etc. etc.,  QUILL
+
+We need to tell it where it resides and what are its start-up arguments:
+QUILL                           = $(SBIN)/condor_quill
+QUILL_ARGS                      = -f
+
+Quill writes to its own log just as the other daemons.  This log can be 
+checked to see quill's run-time behavior and any malfunctions.
+QUILL_LOG       = $(LOG)/QuillLog
+
+In the daemon specific section, I usually add the following options:
+
+QUILL_NAME              = some-unique-quill-name.cs.wisc.edu
+DATABASE_NAME           = quill
+DATABASE_IPADDRESS      = <databaseipaddress:port>
+# the following parameter's units is in seconds
+QUILL_POLLING_PERIOD    = 10
+# the following parameter's units is in hours
+QUILL_HISTORY_CLEANING_INTERVAL = 24
+# the following parameter's units is in days
+QUILL_HISTORY_DURATION = 30
+QUILL_IS_REMOTELY_QUERYABLE = 1
+
+Following is a description on each.  Skip to the next section for a brief 
+overview on how to query quill:
+
+QUILL_NAME: 
+This is the name of this quill server.  Each quill server sends an ad to 
+the collector containing its name.  As such its important that the name of 
+a quill server should not conflict with that of any other quill server, or 
+for that matter, any schedd.  The latter is because each quill sends a 
+SCHEDD_AD to the collector, and as such, from the perspective of the 
+collector, a quill is just another schedd. It might be convenient to simply 
+name the quill server, quill-machinename.fully.qualified.address 
+
+DATABASE_NAME and DATABASE_IPADDRESS
+These two variables are used to determine the location of the database server 
+that this quill would talk to, and the name of the database that 
+it creates.  More than one quill server can talk to the same database 
+server.  This can be done by simply letting all the DATABASE_IPADDRESS 
+point to the same database server.
+IMPORTANT:  If more than one quill server are sharing the same database 
+server, then the DATABASE_NAME variable for all of them should be unique.  
+Otherwise, there would be all kinds of bizarre overwriting.
+
+QUILL_POLLING_PERIOD
+This controls the frequency with which quill polls the job_queue.log file.  
+By default, it is 10 seconds.  Since quill works by periodically sniffing 
+the log file for updates and then sending those updates to the database, 
+this variable controls the tradeoff between the currency of query results 
+and quill's load on the system - usually negligible.  
+
+QUILL_HISTORY_CLEANING_INTERVAL and QUILL_HISTORY_DURATION 
+These two variables control the deletion of historical jobs from the 
+database.  QUILL_HISTORY_DURATION is the number of days after completion 
+that a given job will stay in the database.  So all jobs beyond 
+QUILL_HISTORY_DURATION will be deleted.  Now, scanning the entire 
+database for old jobs can get pretty expensive, so the other variable
+QUILL_HISTORY_CLEANING_INTERVAL is the number of hours between two 
+successive scans.  By default, QUILL_HISTORY_DURATION is set to 180 days 
+and QUILL_HISTORY_CLEANING_INTERVAL is set to 24 hours.
+
+QUILL_IS_REMOTELY_QUERYABLE
+Thanks to postgres one can now remotely query both the job queue and the
+history tables. This variable controls whether this remote querying 
+feature should be enabled.  By default it is 1 (true).  Note that even if 
+this is 0 (false), one can still query a remote schedd using 
+	condor_q++ -name remote-schedd-name
+This variable only controls whether the database tables controlled by this 
+particular quill server is remotely queryable via
+	condor_q++ -name remote-quill-name
+
+
+5) Invoking the quill daemon and querying it
+Once the condor_config file is updated with the above arguments, the    
+quill daemon can be started by either restarting condor using 
+condor_restart or just starting it using condor_master.  All the daemons 
+in the DAEMON_LIST variable, as updated above, are started and managed by 
+the master accordingly.  
+
+The quill daemon is responsible for maintaining a database mirror of the 
+job_queue and history logs.  One can query those two using condor_q++ and 
+condor_history++ respectively.  Both these two tools retain all their old 
+functionality, i.e. condor_q++ can be used to query the schedd and 
+condor_history++ can be used to query the history file, just like 
+condor_q and condor_history respectively.  Moreover, they retain all 
+their old options plus some more thanks to database technology.  For 
+example, as before, we can query both using the job id (cluster.proc), 
+owner, dags, io, cputime, etc.  Orthogonally, just as how we could query 
+remote schedds, we can also query remote quill databases for job queue 
+and historical information.  The latter is new functionality thanks to 
+the remote querying functionality in Postgres.  
+
+The -help option can be used to look at all the options supported by both 
+tools.
+
+Examples:
+
+a) Query a remote quill daemon on regular.cs.wisc.edu for all the jobs in 
+the queue
+	condor_q++ -name quill-regular.cs.wisc.edu
+Note that the parameter after -name is the same as that specified for the 
+QUILL_NAME variable in part 3) above.  Also, the ip address and port of 
+the database server hosting the data of this particular remote quill daemon 
+can be figured out by the DATABASE_IPADDRESS and DATABASE_NAME variables
+specified in the SCHEDD_AD sent by the quill daemon to the collector.
+
+
+b) Query a remote quill daemon on regular.cs.wisc.edu for all historical 
+jobs belonging to owner 'akini'.
+	condor_history++ -name quill-regular.cs.wisc.edu akini
+
+c) Query the local quill daemon for the average time spent in the queue 
+for all non-completed jobs. 
+	condor_q++ -avgqueuetime 
+This is a new query.  -avgqueuetime is defined as the average of 
+(currenttime - jobsubmissiontime) over all jobs which are neither 
+completed (JobStatus == 4) or removed (JobStatus == 3).
+
+d) Query the local quill daemon for all historical jobs completed since Apr 1, 
+2005 at 13h 00m.
+	condor_history++ -completedsince '04/01/2005 13:00'
+This is also a new query.  It fetches all jobs which got into the 
+'Completed' state on or after the specified timestamp.  We follow 
+Postgres's date/time syntax rules as it encompasses most format options.  
+See http://www.postgresql.org/docs/8.0/static/datatype-datetime.html#AEN4516
+for the various timestamp formats.
