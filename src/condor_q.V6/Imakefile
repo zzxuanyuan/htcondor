@@ -2,8 +2,9 @@ NAME = condor_q
 all_target($(NAME))
 
 CFLAGS = $(STD_C_FLAGS)
+LDFLAGS = $(STD_LDFLAGS) -lrt -lpq
 C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS)
-LIB = $(STD_LIBS)
+LIB = $(STD_LIBS) $(POSTGRESQL_LIB)/libpq.a
 
 OBJ = queue.o queue_instantiate.o
 
