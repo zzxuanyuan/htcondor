@@ -621,24 +621,24 @@ QueueDBManager::processNewClassAd(const char* key, const char* mytype, const cha
   switch(id_sort) {
   case 1:
     sprintf(sql_str1, 			
-	    "INSERT INTO ClusterAds_Vertical (scheddname, cid, attr, val) VALUES ('%s', '%s', 'MyType', '%s');", Name, cid, mytype);
+	    "DELETE FROM ClusterAds_Vertical WHERE scheddname = '%s' AND cid = '%s' AND attr = 'MyType'; INSERT INTO ClusterAds_Vertical (scheddname, cid, attr, val) VALUES ('%s', '%s', 'MyType', '%s');", Name, cid, Name, cid, mytype);
     
     sprintf(sql_str2, 
-	    "INSERT INTO ClusterAds_Vertical (scheddname, cid, attr, val) VALUES ('%s', '%s', 'TargetType', '%s');", Name, cid, ttype);
+	    "DELETE FROM ClusterAds_Vertical WHERE scheddname = '%s' AND cid = '%s' AND attr = 'TargetType'; INSERT INTO ClusterAds_Vertical (scheddname, cid, attr, val) VALUES ('%s', '%s', 'TargetType', '%s');", Name, cid, Name, cid, ttype);
     
     sprintf(sql_str3, 
-	    "INSERT INTO ClusterAds_Horizontal (scheddname, cid) VALUES ('%s', '%s');", Name, cid);
+	    "DELETE FROM ClusterAds_Horizontal WHERE scheddname = '%s' AND cid = '%s'; INSERT INTO ClusterAds_Horizontal (scheddname, cid) VALUES ('%s', '%s');", Name, cid, Name, cid);
     
     break;
   case 2:
     sprintf(sql_str1, 
-	    "INSERT INTO ProcAds_Vertical (scheddname, cid, pid, attr, val) VALUES ('%s', '%s', '%s', 'MyType', 'Job');", Name, cid, pid);
+	    "DELETE FROM ProcAds_Vertical WHERE scheddname = '%s' AND cid = '%s' AND pid = '%s' AND attr = 'MyType'; INSERT INTO ProcAds_Vertical (scheddname, cid, pid, attr, val) VALUES ('%s', '%s', '%s', 'MyType', 'Job');", Name, cid, pid, Name, cid, pid);
     
     sprintf(sql_str2, 
-	    "INSERT INTO ProcAds_Vertical (scheddname, cid, pid, attr, val) VALUES ('%s', '%s', '%s', 'TargetType', 'Machine');", Name, cid, pid);
+	    "DELETE FROM ProcAds_Vertical WHERE scheddname = '%s' AND cid = '%s' AND pid = '%s' AND attr = 'TargetType'; INSERT INTO ProcAds_Vertical (scheddname, cid, pid, attr, val) VALUES ('%s', '%s', '%s', 'TargetType', 'Machine');", Name, cid, pid, Name, cid, pid);
     
     sprintf(sql_str3, 
-	    "INSERT INTO ProcAds_Horizontal (scheddname, cid, pid) VALUES ('%s', '%s', '%s');", Name, cid, pid);
+	    "DELETE FROM ProcAds_Horizontal WHERE scheddname = '%s' AND cid = '%s' AND pid = '%s'; INSERT INTO ProcAds_Horizontal (scheddname, cid, pid) VALUES ('%s', '%s', '%s');", Name, cid, pid, Name, cid, pid);
 
     break;
   case 0:
