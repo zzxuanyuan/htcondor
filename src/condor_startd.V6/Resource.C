@@ -1837,7 +1837,7 @@ Resource::isStatic(char *attName)
 			strcmp(attName, ATTR_ENTERED_CURRENT_ACTIVITY) && strcmp(attName, ATTR_ENTERED_CURRENT_STATE) &&
 			strcmp(attName, ATTR_UPDATE_SEQUENCE_NUMBER) && strcmp(attName, ATTR_UPDATESTATS_TOTAL) &&
 			strcmp(attName, ATTR_UPDATESTATS_SEQUENCED) && strcmp(attName, ATTR_UPDATESTATS_LOST) &&
-			strcmp(attName, ATTR_NAME)
+			strcmp(attName, ATTR_NAME) && strcmp(attName, "GlobalJobId")
 			);
 }
 
@@ -1848,7 +1848,8 @@ Resource::typeOf(char *attName)
 		  strcmp(attName, ATTR_STATE) && strcmp(attName, ATTR_ACTIVITY) &&
 		  strcmp(attName, ATTR_CPU_IS_BUSY) && strcmp(attName, ATTR_RANK) && 
 		  strcmp(attName, ATTR_REQUIREMENTS) && strcmp(attName, ATTR_NAME) &&
-		  strcmp(attName, ATTR_OPSYS) && strcmp(attName, ATTR_ARCH)
+		  strcmp(attName, ATTR_OPSYS) && strcmp(attName, ATTR_ARCH) &&
+		  strcmp(attName, "GlobalJobId")
 		  )
 		)
 		return TYPE_STRING;
