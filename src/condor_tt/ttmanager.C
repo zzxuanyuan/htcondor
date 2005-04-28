@@ -220,13 +220,8 @@ TTManager::maintain()
 				dprintf(D_ALWAYS, "sql = %s\n", buf);
 				filesqlobj->file_unlock();
 				delete filesqlobj;
-				free(buf);
+				free(buf);		
 				return -1; // return a error code -1
-			}
-		}
-		if(!firststmt) {
-			if(DBObj->odbc_endxtstmt("END") < 0) {
-				dprintf(D_ALWAYS, "End transaction --- Error\n");
 			}
 		}
 
@@ -236,6 +231,12 @@ TTManager::maintain()
 
 		if((retval = filesqlobj->file_unlock()) < 0) {
 			goto ERROREXIT;
+		}
+
+		if(!firststmt) {
+			if(DBObj->odbc_endxtstmt("END") < 0) {
+				dprintf(D_ALWAYS, "End transaction --- Error\n");
+			}
 		}
 
 		if(filesqlobj) {
