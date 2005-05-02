@@ -55,11 +55,14 @@ class TTManager : public Service
 		//! timer handler for maintaining job queue and sending SCHEDD_AD to collector
 	void	pollingTime();	
 
+		//! append a file to another file
+	int     append(char *destF, char *srcF);
  private:
 
 	int     maintain();
 
 	char    sqlLogList[MAXLOGNUM][MAXLOGPATHLEN];
+	char    sqlLogCopyList[MAXLOGNUM][MAXLOGPATHLEN];
 	int     numLogs;
         
 	int		pollingTimeId;			//!< timer handler id of pollingTime function

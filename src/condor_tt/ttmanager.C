@@ -34,7 +34,7 @@
 #include "ttmanager.h"
 #include "file_sql.h"
 
-
+char logParamList[][30] = {"NEGOTIATOR_SQLLOG", "SCHEDD_SQLLOG", "SHADOW_SQLLOG", "STARTER_SQLLOG", "STARTD_SQLLOG", "SUBMIT_SQLLOG", ""};
 
 //! constructor
 TTManager::TTManager()
@@ -56,58 +56,36 @@ void
 TTManager::config(bool reconfig) 
 {
 	char *tmp;
+	int   i = 0;
 
 	numLogs = 0;
 
 	pollingTimeId = -1;
 
-	tmp = param("NEGOTIATOR_SQLLOG");
-	if (tmp) {
-		strncpy(sqlLogList[numLogs++], tmp, MAXPATHLEN-1);
-		free(tmp);
+		/* check all possible log parameters */
+	while (logParamList[i][0] != '\0') {
+		tmp = param(logParamList[i]);
+		if (tmp) {
+			strncpy(sqlLogList[numLogs], tmp, MAXLOGPATHLEN-5);
+			sprintf(sqlLogCopyList[numLogs], "%s.copy", sqlLogList[numLogs]);
+			numLogs++;
+			free(tmp);
+		}		
+		i++;
 	}
 
-	tmp = param("SCHEDD_SQLLOG");
-	if (tmp) {
-		strncpy(sqlLogList[numLogs++], tmp, MAXLOGPATHLEN-1);
-		free(tmp);
-	}
-
-	tmp = param("SHADOW_SQLLOG");
-	if (tmp) {
-		strncpy(sqlLogList[numLogs++], tmp, MAXLOGPATHLEN-1);
-		free(tmp);
-	}
-
-	tmp = param("STARTER_SQLLOG");
-	if (tmp) {
-		strncpy(sqlLogList[numLogs++], tmp, MAXLOGPATHLEN-1);
-		free(tmp);
-	}
-
-	tmp = param("STARTD_SQLLOG");
-	if (tmp) {
-		strncpy(sqlLogList[numLogs++], tmp, MAXLOGPATHLEN-1);
-		free(tmp);
-	}
-
-	tmp = param("SUBMIT_SQLLOG");
-	if (tmp) {
-		strncpy(sqlLogList[numLogs++], tmp, MAXLOGPATHLEN-1);
-		free(tmp);
-	}
-	
+		/* add the default log file in case no log file is specified in config */
 	tmp = param("LOG");
 	if (tmp) {
-		sprintf(sqlLogList[numLogs++], "%s/sql.log", tmp);
+		sprintf(sqlLogList[numLogs], "%s/sql.log", tmp);
+		sprintf(sqlLogCopyList[numLogs], "%s.copy", sqlLogList[numLogs]);
 		free(tmp);
 	} else {
-		sprintf(sqlLogList[numLogs++], "sql.log");
+		sprintf(sqlLogList[numLogs], "sql.log");
+		sprintf(sqlLogCopyList[numLogs], "%s.copy", sqlLogList[numLogs]);
 	}
+	numLogs++;
 		
-
-		//sqlLogList[0] = strdup("/scratch/akini/condor_workspace/v6_7_db_logs_nonblocking/src/condor_tt/SqlLog");
-
 		// read the polling period and if one is not specified use 
 		// default value of 10 seconds
 	char *pollingPeriod_str = param("TT_POLLING_PERIOD");
@@ -182,9 +160,38 @@ TTManager::maintain()
 	int  retval;
 	bool firststmt = true;
 
+		/* copy files */	
+	for(int i=0; i < numLogs; i++) {
+		filesqlobj = new FILESQL(sqlLogList[i], O_RDWR);
+
+		retval = filesqlobj->file_open();
+		if (retval < 0) {
+			goto ERROREXIT;
+		}
+
+		filesqlobj->file_lock();
+		
+		if (retval < 0) {
+			goto ERROREXIT;
+		}		
+		
+		if (this->append(sqlLogCopyList[i], sqlLogList[i]) < 0) {
+			goto ERROREXIT;
+		}
+
+		if((retval = filesqlobj->file_truncate()) < 0) {
+			goto ERROREXIT;
+		}
+
+		if((retval = filesqlobj->file_unlock()) < 0) {
+			goto ERROREXIT;
+		}
+		delete filesqlobj;
+	}
+
 	for(int i=0; i < numLogs; i++) {
 		buf =(char *) malloc(2048 * sizeof(char));
-		filesqlobj = new FILESQL(sqlLogList[i], O_RDWR);
+		filesqlobj = new FILESQL(sqlLogCopyList[i], O_RDWR);
 
 		retval = filesqlobj->file_open();
 		
@@ -254,4 +261,30 @@ TTManager::maintain()
 	}
 	free(buf);
 	return retval;
+}
+
+
+int TTManager::append(char *destF, char *srcF) 
+{	
+	int dest, src;
+	char buffer[4096];
+	int rv;
+
+	dest = open (destF, O_WRONLY|O_CREAT|O_APPEND, 0644);
+	src = open (srcF, O_RDONLY);
+
+	rv = read(src, buffer, 4096);
+
+	while(rv > 0) {
+		if (write(dest, buffer, rv) < 0) {
+			return -1;
+		}
+		
+		rv = read(src, buffer, 4096);
+	}
+
+	close (dest);
+	close (src);
+
+	return 0;
 }
