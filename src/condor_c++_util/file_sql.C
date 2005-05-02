@@ -24,7 +24,7 @@ FILESQL::FILESQL()
 	outfiledes = -1;
 	fp = NULL;
 }
-FILESQL::FILESQL(char *outfilename, int flags = O_WRONLY|O_CREAT|O_APPEND)
+FILESQL::FILESQL(char *outfilename, int flags)
 {
 	is_open = false;
 	is_locked = false;

@@ -17,7 +17,7 @@ private:
 public:
 	
 	FILESQL();
-	FILESQL(char *outfilename,int flags);
+	FILESQL(char *outfilename,int flags=O_WRONLY|O_CREAT|O_APPEND);
 	~FILESQL();
 	bool file_isopen();
 	bool file_islocked();
