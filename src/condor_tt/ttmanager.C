@@ -24,6 +24,8 @@
 #include "condor_common.h"
 #include "condor_config.h"
 #include "get_daemon_name.h"
+#include "my_hostname.h"
+#include <time.h>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -35,6 +37,9 @@
 #include "file_sql.h"
 
 char logParamList[][30] = {"NEGOTIATOR_SQLLOG", "SCHEDD_SQLLOG", "SHADOW_SQLLOG", "STARTER_SQLLOG", "STARTD_SQLLOG", "SUBMIT_SQLLOG", ""};
+
+#define FILESIZELIMT 1900000000L
+#define THROWFILE numLogs
 
 //! constructor
 TTManager::TTManager()
@@ -79,13 +84,21 @@ TTManager::config(bool reconfig)
 	if (tmp) {
 		sprintf(sqlLogList[numLogs], "%s/sql.log", tmp);
 		sprintf(sqlLogCopyList[numLogs], "%s.copy", sqlLogList[numLogs]);
-		free(tmp);
 	} else {
 		sprintf(sqlLogList[numLogs], "sql.log");
 		sprintf(sqlLogCopyList[numLogs], "%s.copy", sqlLogList[numLogs]);
 	}
 	numLogs++;
-		
+
+		// the "thrown" file is for recording events where big files are thrown away
+	if (tmp) {
+		sprintf(sqlLogCopyList[THROWFILE], "%s/thrown.log", tmp);
+		free(tmp);
+	}
+	else {
+		sprintf(sqlLogCopyList[THROWFILE], "thrown.log");
+	}
+	
 		// read the polling period and if one is not specified use 
 		// default value of 10 seconds
 	char *pollingPeriod_str = param("TT_POLLING_PERIOD");
@@ -153,8 +166,7 @@ int
 TTManager::maintain() 
 {
 	FILESQL *filesqlobj;
-//	char buf[1024];
-	char *buf;
+	char *buf = (char *)0;
 
 	int  buflength=0;
 	int  retval;
@@ -162,14 +174,14 @@ TTManager::maintain()
 
 		/* copy files */	
 	for(int i=0; i < numLogs; i++) {
-		filesqlobj = new FILESQL(sqlLogList[i], O_RDWR);
+		filesqlobj = new FILESQL(sqlLogList[i], O_CREAT|O_RDWR);
 
 		retval = filesqlobj->file_open();
 		if (retval < 0) {
 			goto ERROREXIT;
 		}
 
-		filesqlobj->file_lock();
+		retval = filesqlobj->file_lock();
 		
 		if (retval < 0) {
 			goto ERROREXIT;
@@ -189,9 +201,10 @@ TTManager::maintain()
 		delete filesqlobj;
 	}
 
-	for(int i=0; i < numLogs; i++) {
+		// the last file is the "thrown" file
+	for(int i=0; i < numLogs+1; i++) {
 		buf =(char *) malloc(2048 * sizeof(char));
-		filesqlobj = new FILESQL(sqlLogCopyList[i], O_RDWR);
+		filesqlobj = new FILESQL(sqlLogCopyList[i], O_CREAT|O_RDWR);
 
 		retval = filesqlobj->file_open();
 		
@@ -228,6 +241,12 @@ TTManager::maintain()
 				filesqlobj->file_unlock();
 				delete filesqlobj;
 				free(buf);		
+
+					// if database is not ok, check any big files and throw them away
+				if (!DBObj->isConnected()) {
+					this -> checkAndThrowBigFiles();
+				}
+
 				return -1; // return a error code -1
 			}
 		}
@@ -259,7 +278,10 @@ TTManager::maintain()
 	if(filesqlobj) {
 		delete filesqlobj;
 	}
-	free(buf);
+	
+	if (buf)
+		free(buf);
+	
 	return retval;
 }
 
@@ -287,4 +309,36 @@ int TTManager::append(char *destF, char *srcF)
 	close (src);
 
 	return 0;
+}
+
+void TTManager::checkAndThrowBigFiles() {
+	struct stat file_status;
+	FILESQL *filesqlobj, *thrownfileobj;
+	char sqlstmt[500];
+	char ascTime[150];
+	int len;
+
+	thrownfileobj = new FILESQL(sqlLogCopyList[THROWFILE]);
+	thrownfileobj ->file_open();
+
+	for(int i=0; i < numLogs; i++) {
+		stat(sqlLogCopyList[i], &file_status);
+		
+			// if the file is bigger than the max file size, we throw it away 
+		if (file_status.st_size > FILESIZELIMT) {
+			filesqlobj = new FILESQL(sqlLogCopyList[i], O_RDWR);
+			filesqlobj->file_open();
+			filesqlobj->file_truncate();
+			delete filesqlobj;
+
+			strcpy(ascTime,ctime(&file_status.st_mtime));
+			len = strlen(ascTime);
+			ascTime[len-1] = '\0';
+
+			sprintf(sqlstmt, "INSERT INTO thrown VALUES ('%s', '%s', %ld, '%s')", sqlLogCopyList[i], my_full_hostname(), file_status.st_size, ascTime);
+			thrownfileobj->file_sqlstmt(sqlstmt);
+		}
+	}
+
+	delete thrownfileobj;
 }

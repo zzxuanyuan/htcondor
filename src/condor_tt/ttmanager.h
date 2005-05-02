@@ -57,12 +57,15 @@ class TTManager : public Service
 
 		//! append a file to another file
 	int     append(char *destF, char *srcF);
+
+		// check and throw away big files
+	void    checkAndThrowBigFiles();
  private:
 
 	int     maintain();
 
 	char    sqlLogList[MAXLOGNUM][MAXLOGPATHLEN];
-	char    sqlLogCopyList[MAXLOGNUM][MAXLOGPATHLEN];
+	char    sqlLogCopyList[MAXLOGNUM+1][MAXLOGPATHLEN]; // 1 more file for "thrown" file
 	int     numLogs;
         
 	int		pollingTimeId;			//!< timer handler id of pollingTime function
