@@ -1,3 +1,8 @@
+05/03/05 V6_7_7-merge-1
+   The state of the V6_7_7-branch for a merge into V6_7-branch.  The
+   only changes are the last minute bug fixes to dag.C and the
+   check_log_files.C test program in the c++_util_lib.
+
 04/26/05 V6_6-merge-39
    The state of the V6_6-branch for a merge into V6_7-branch.  This
    includes some more win32 bug fixes to leaking memory, dynuser,
