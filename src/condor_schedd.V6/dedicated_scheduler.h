@@ -109,11 +109,16 @@ class ResList : public CAList {
 		*/
 
 	bool satisfyJobs( CAList* jobs,
-					  CAList* candidates, CAList *candidates_jobs );
+					  CAList* candidates, CAList *candidates_jobs, bool rank = false );
 
 	void display( int level );
 
+	void sortByRank( ClassAd *rankAd);
+
 	int num_matches;
+	
+	static int machineSortByRank(const void *lhs, const void *rhs);
+
 };
 
 class CandidateList : public CAList {

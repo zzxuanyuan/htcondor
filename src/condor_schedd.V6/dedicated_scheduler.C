@@ -297,8 +297,8 @@ ResTimeNode::~ResTimeNode()
 
 
 bool
-ResTimeNode::satisfyJob( ClassAd* job, int max_hosts, 
-						 CAList* candidates ) 
+ResTimeNode::satisfyJob( ClassAd* job, int max_hosts,
+						 CAList* candidates )
 {
 	ClassAd* candidate;
 	int req;
@@ -374,12 +374,32 @@ ResList::~ResList()
 bool
 ResList::satisfyJobs( CAList *jobs, 
 					  CAList* candidates,
-					  CAList* candidates_jobs) 
+					  CAList* candidates_jobs,
+					  bool sort /* = false */ )
 {
 	ClassAd* candidate;
 	int req;
 	
 	jobs->Rewind();
+
+		// Pull the first job off the list, and use its RANK to rank
+		// the machines in this ResList
+
+		// Maybe we should re-sort for each job in this cluster, but that
+		// seems like a lot of work, and the RANKs should usually be the
+		// same.
+
+    if( sort) {
+
+		ClassAd *rankAd = NULL;
+		rankAd = jobs->Next();
+		jobs->Rewind();
+
+			// rankAd shouldn't ever be null, but just in case
+		if (rankAd != NULL) {
+			this->sortByRank(rankAd);
+		}
+	}
 
 		// Foreach job in the given list
 	while (ClassAd *job = jobs->Next()) {
@@ -391,6 +411,7 @@ ResList::satisfyJobs( CAList *jobs,
 					// If it's undefined, treat it as false.
 				req = 0;
 			}
+
 			if( req ) {
 					// There's a match
 				candidates->Insert( candidate );
@@ -415,6 +436,56 @@ ResList::satisfyJobs( CAList *jobs,
 	return false;
 }
 
+
+struct rankSortRec {
+	ClassAd *machineAd;
+	float rank;
+};
+
+	// Given a job classAd, sort the machines in this reslist
+	// according to the job's RANK
+void
+ResList::sortByRank(ClassAd *rankAd) {
+
+	this->Rewind();
+
+	struct rankSortRec *array = new struct rankSortRec[this->Number()];
+	int index = 0;
+	ClassAd *machine = NULL;
+
+		// Foreach machine in this list,
+	while ((machine = this->Next())) {
+			// If RANK undefined, default value is small
+		float rank = 0.0;
+		rankAd->EvalFloat(ATTR_RANK, machine, rank);
+
+			// and stick this machine and its rank in our array...
+		array[index].machineAd = machine;
+		array[index].rank      = rank;
+		index++;
+
+			// Remove it from this list, we'll return them in RANK order
+		this->DeleteCurrent();
+	}
+
+		// and sort it
+	qsort(array, index, sizeof(struct rankSortRec), ResList::machineSortByRank );
+
+		// Now, rebuild our list in order
+	for (int i = 0; i < index; i++) {
+		this->Insert(array[i].machineAd);
+	}
+
+	delete array;
+}
+
+/* static */ int
+ResList::machineSortByRank(const void *left, const void *right) {
+	struct rankSortRec *lhs = (struct rankSortRec *)left;
+	struct rankSortRec *rhs = (struct rankSortRec *)right;
+
+	return lhs->rank > rhs->rank;
+}
 
 void
 ResList::display( int debug_level )
@@ -935,6 +1006,7 @@ DedicatedScheduler::negotiateRequest( ClassAd* req, Stream* s,
 			return NR_ERROR;
 		}
 
+		dprintf(D_ALWAYS, "Negotiate request got op %d\n", op);
 			// All commands from CM during the negotiation cycle just
 			// send the command followed by eom, except PERMISSION,
 			// PERMISSION_AND_AD, and REJECTED_WITH_REASON. Do the
@@ -1233,7 +1305,7 @@ DedicatedScheduler::startdContactConnectHandler( Stream *sock )
 		return FALSE;
 	}
 
-	dprintf ( D_FULLDEBUG, "Got mrec data pointer %x\n", mrec );
+	dprintf ( D_FULLDEBUG, "Got mrec data pointer %p\n", mrec );
 
 	if(!claimStartdConnected( dynamic_cast<Sock *>(sock), mrec, &dummy_job, true )) {
 		mrec->setStatus( M_UNCLAIMED );
@@ -2420,7 +2492,7 @@ DedicatedScheduler::computeSchedule( void )
 			// by going after machine resources that are idle &
 			// claimed by us
 		if( idle_resources->satisfyJobs(jobs, idle_candidates,
-										idle_candidates_jobs) )
+										idle_candidates_jobs, true) )
 		{
 			printSatisfaction( cluster, idle_candidates, NULL, NULL, NULL );
 			createAllocations( idle_candidates, idle_candidates_jobs,

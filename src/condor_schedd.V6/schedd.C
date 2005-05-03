@@ -4312,7 +4312,7 @@ Scheduler::startdContactConnectHandler( Stream *sock )
 		return FALSE;
 	}
 
-	dprintf ( D_FULLDEBUG, "Got mrec data pointer %x\n", mrec );
+	dprintf ( D_FULLDEBUG, "Got mrec data pointer %p\n", mrec );
 
 	ClassAd *jobAd = GetJobAd( mrec->cluster, mrec->proc );
 	if( ! jobAd ) {
@@ -4375,7 +4375,7 @@ Scheduler::startdContactSockHandler( Stream *sock )
 		return FALSE;
 	}
 	
-	dprintf ( D_FULLDEBUG, "Got mrec data pointer %x\n", mrec );
+	dprintf ( D_FULLDEBUG, "Got mrec data pointer %p\n", mrec );
 
 	mrec->setStatus( M_CLAIMED ); // we assume things will work out.
 
@@ -4476,7 +4476,7 @@ Scheduler::checkContactQueue()
 			// there's a pending registration in the queue:
 
 		startdContactQueue.dequeue ( args );
-		dprintf( D_FULLDEBUG, "In checkContactQueue(), args = %x, "
+		dprintf( D_FULLDEBUG, "In checkContactQueue(), args = %p, "
 				 "host=%s\n", args, args->sinful() ); 
 		contactStartd( args );
 		delete args;
@@ -6733,7 +6733,9 @@ mark_job_stopped(PROC_ID* job_id)
 	int universe = CONDOR_UNIVERSE_STANDARD;
 	GetAttributeInt(job_id->cluster, job_id->proc, ATTR_JOB_UNIVERSE,
 					&universe);
-	if( (universe == CONDOR_UNIVERSE_PVM) || (universe == CONDOR_UNIVERSE_MPI) ){
+	if( (universe == CONDOR_UNIVERSE_PVM) || 
+        (universe == CONDOR_UNIVERSE_MPI) ||
+		(universe == CONDOR_UNIVERSE_PARALLEL)){
 		ClassAd *ad;
 		ad = GetNextJob(1);
 		while (ad != NULL) {
@@ -7060,8 +7062,9 @@ Scheduler::expand_mpi_procs(StringList *job_ids, StringList *expanded_ids) {
 
 		int universe = -1;
 		GetAttributeInt(p.cluster, p.proc, ATTR_JOB_UNIVERSE, &universe);
-		if (universe != CONDOR_UNIVERSE_MPI)
+		if ((universe != CONDOR_UNIVERSE_MPI) && (universe != CONDOR_UNIVERSE_PARALLEL))
 			continue;
+		
 		
 		int proc_index = 0;
 		while( (GetJobAd(p.cluster, proc_index, false) )) {
@@ -7493,7 +7496,7 @@ Scheduler::check_zombie(int pid, PROC_ID* job_id)
 		return;
 	}
 
-	dprintf( D_FULLDEBUG, "Entered check_zombie( %d, 0x%x, st=%d )\n", 
+	dprintf( D_FULLDEBUG, "Entered check_zombie( %d, 0x%p, st=%d )\n", 
 			 pid, job_id, status );
 
 	// set cur-hosts to zero
@@ -7528,7 +7531,7 @@ Scheduler::check_zombie(int pid, PROC_ID* job_id)
 	default:
 		break;
 	}
-	dprintf( D_FULLDEBUG, "Exited check_zombie( %d, 0x%x )\n", pid,
+	dprintf( D_FULLDEBUG, "Exited check_zombie( %d, 0x%p )\n", pid,
 			 job_id );
 }
 
