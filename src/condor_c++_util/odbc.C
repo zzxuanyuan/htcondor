@@ -195,7 +195,7 @@ long ODBC::odbc_endxtstmt(const char * statement)
 long ODBC::odbc_sqlstmt(const char* statement)
 {
 	int odbc_retcode;
-	dprintf(D_FULLDEBUG,"%s sqlstmt \n",statement,connected);
+	dprintf(D_FULLDEBUG,"%s sqlstmt %d\n",statement,connected);
 	if(!connected)
 	{
 		if(in_xact)
