@@ -1098,11 +1098,7 @@ int
 RemoteErrorEvent::writeEvent(FILE *file)
 {
 	char const *error_type = "Error";
-	char *sqlstmt, *messagestr;
-
-	sqlstmt = (char *) malloc(1024 * sizeof(char));
-	messagestr = (char *) malloc(512 * sizeof(char));
-	strcpy(messagestr, "");
+	char sqlstmt[1024], messagestr[512];
 
 	sprintf(messagestr,  "Remote %s from %s on %s:\n",
 			error_type,
@@ -1151,14 +1147,7 @@ RemoteErrorEvent::writeEvent(FILE *file)
 				subproc);
 	}
 
-	FILEObj->file_lock();
-
 	FILEObj->file_sqlstmt(sqlstmt);
-
-	FILEObj->file_unlock();
-
-	free(sqlstmt);
-	free(messagestr);
 
     int retval = fprintf(
 	  file,
@@ -1342,8 +1331,7 @@ writeEvent (FILE *file)
   struct hostent *hp;
   unsigned long addr;
   char *executehostname;
-  char *sqlstmt;
-  sqlstmt = (char *) malloc(1024 * sizeof(char));
+  char sqlstmt[1024];
 
   //char globaljobid[100];
 
@@ -1410,16 +1398,9 @@ writeEvent (FILE *file)
 	  eventTime.tm_sec,
 	  eventTime.tm_zone);
 
+  FILEObj->file_sqlstmt(sqlstmt);
+
   int retval;
-
-  FILEObj->file_lock();
-
-  retval = FILEObj->file_sqlstmt(sqlstmt);
-
-  FILEObj->file_unlock();
-
-  free(sqlstmt);
-  free(executehostname);
 
   if (retval < 0) {
     dprintf(D_ALWAYS, "Logging Event 1--- Error\n");
@@ -1494,20 +1475,48 @@ int ExecutableErrorEvent::
 writeEvent (FILE *file)
 {
 	int retval;
+	char sqlstmt[1024], messagestr[512];
+
+	dprintf(D_ALWAYS, "just before initializing scheddname in EvictEvent\n");
+	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
+	dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
 	switch (errType)
 	{
 	  case CONDOR_EVENT_NOT_EXECUTABLE:
 		retval = fprintf (file, "(%d) Job file not executable.\n", errType);
+		sprintf(messagestr,  "Job file not executable");
 		break;
 
 	  case CONDOR_EVENT_BAD_LINK:
 		retval=fprintf(file,"(%d) Job not properly linked for Condor.\n", errType);
+		sprintf(messagestr,  "Job not properly linked for Condor");
 		break;
 
 	  default:
 		retval = fprintf (file, "(%d) [Bad error number.]\n", errType);
+		sprintf(messagestr,  "Unknown error");
 	}
+
+	sprintf(sqlstmt, 
+			"UPDATE runs SET endts = '%d-%02d-%02d %02d:%02d:%02d %s', endtype = %d, endmessage = '%s' WHERE scheddname = '%s' AND cid = %d and pid = %d and spid = %d AND endtype is null;", 
+			eventTime.tm_year+1900,
+			eventTime.tm_mon+1,
+			eventTime.tm_mday,
+			eventTime.tm_hour,
+			eventTime.tm_min,
+			eventTime.tm_sec,
+			eventTime.tm_zone,
+			ULOG_EXECUTABLE_ERROR,
+			messagestr,
+			scheddname,
+			cluster,
+			proc,
+			subproc
+			);
+	
+	FILEObj->file_sqlstmt(sqlstmt);
+	
 	if (retval < 0) return 0;
 
 	return 1;
@@ -1590,10 +1599,7 @@ CheckpointedEvent::
 int CheckpointedEvent::
 writeEvent (FILE *file)
 {
-	char *sqlstmt, *messagestr;
-	sqlstmt = (char *) malloc(1024 * sizeof(char));
-	messagestr = (char *) malloc(512 * sizeof(char));
-	strcpy(messagestr, "");
+	char sqlstmt[1024], messagestr[512];
 
 	sprintf(messagestr,  "Job was checkpointed");
 
@@ -1616,14 +1622,7 @@ writeEvent (FILE *file)
 			proc,
 			subproc);
 
-	FILEObj->file_lock();
-
 	FILEObj->file_sqlstmt(sqlstmt);
-
-	FILEObj->file_unlock();
-	
-	free(sqlstmt);
-	free(messagestr);
 
 	if (fprintf (file, "Job was checkpointed.\n") < 0  		||
 		(!writeRusage (file, run_remote_rusage)) 			||
@@ -1999,11 +1998,7 @@ JobEvictedEvent::writeEvent( FILE *file )
     
   dprintf(D_ALWAYS, "sql = %s\n", sqlstmt);
 
-  FILEObj->file_lock();
-
-  retval = FILEObj->file_sqlstmt(sqlstmt);
-
-  FILEObj->file_unlock();
+  FILEObj->file_sqlstmt(sqlstmt);
 
   free(sqlstmt);
   free(messagestr);
@@ -2174,6 +2169,37 @@ getReason( void ) const
 int JobAbortedEvent::
 writeEvent (FILE *file)
 {
+
+	char sqlstmt[1024], messagestr[512];
+
+	dprintf(D_ALWAYS, "just before initializing scheddname in EvictEvent\n");
+	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
+	dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
+
+	if (reason)
+		sprintf(messagestr,  "Job was aborted by the user: %s", reason);
+	else 
+		sprintf(messagestr,  "Job was aborted by the user");
+
+	sprintf(sqlstmt, 
+			"UPDATE runs SET endts = '%d-%02d-%02d %02d:%02d:%02d %s', endtype = %d, endmessage = '%s' WHERE scheddname = '%s' AND cid = %d and pid = %d and spid = %d AND endtype is null;", 
+			eventTime.tm_year+1900,
+			eventTime.tm_mon+1,
+			eventTime.tm_mday,
+			eventTime.tm_hour,
+			eventTime.tm_min,
+			eventTime.tm_sec,
+			eventTime.tm_zone,
+		    ULOG_JOB_ABORTED,
+			messagestr,
+			scheddname,
+			cluster,
+			proc,
+			subproc
+			);
+	
+	FILEObj->file_sqlstmt(sqlstmt);
+
 	if( fprintf(file, "Job was aborted by the user.\n") < 0 ) {
 		return 0;
 	}
@@ -2376,12 +2402,8 @@ TerminatedEvent::writeEvent( FILE *file, const char* header )
 
     dprintf(D_ALWAYS, "sql = %s\n", sqlstmt);
 	
-	FILEObj->file_lock();
-
 	retval = FILEObj->file_sqlstmt(sqlstmt);
 
-	FILEObj->file_unlock();
-	
 	free(sqlstmt);
 	free(messagestr);
 
@@ -2508,12 +2530,8 @@ JobTerminatedEvent::writeEvent (FILE *file)
 
   dprintf(D_ALWAYS, "sql = %s\n", sqlstmt);
 	
-  FILEObj->file_lock();
-
   int retval = FILEObj->file_sqlstmt(sqlstmt);
 
-  FILEObj->file_unlock();
-	
   free(sqlstmt);
 
   if (retval < 0) {
@@ -2746,6 +2764,35 @@ readEvent (FILE *file)
 int ShadowExceptionEvent::
 writeEvent (FILE *file)
 {
+	char sqlstmt[1024], messagestr[512];
+
+	dprintf(D_ALWAYS, "just before initializing scheddname in EvictEvent\n");
+	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
+	dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
+
+	sprintf(messagestr,  "Shadow exception: %s", message);
+
+	sprintf(sqlstmt, 
+			"UPDATE runs SET endts = '%d-%02d-%02d %02d:%02d:%02d %s', endtype = %d, endmessage = '%s', runbytessent= %f, runbytesreceived = %f WHERE scheddname = '%s' AND cid = %d and pid = %d and spid = %d AND endtype is null;", 
+			eventTime.tm_year+1900,
+			eventTime.tm_mon+1,
+			eventTime.tm_mday,
+			eventTime.tm_hour,
+			eventTime.tm_min,
+			eventTime.tm_sec,
+			eventTime.tm_zone,
+		    ULOG_SHADOW_EXCEPTION,
+			messagestr,
+			sent_bytes, 
+			recvd_bytes,
+			scheddname,
+			cluster,
+			proc,
+			subproc
+			);
+	
+	FILEObj->file_sqlstmt(sqlstmt);
+
 	if (fprintf (file, "Shadow exception!\n\t") < 0)
 		return 0;
 	if (fprintf (file, "%s\n", message) < 0)
@@ -2835,6 +2882,27 @@ readEvent (FILE *file)
 int JobSuspendedEvent::
 writeEvent (FILE *file)
 {
+	char sqlstmt[1024], messagestr[512];
+
+	sprintf(messagestr, "Job was suspended (Number of processes actually suspended: %d)", num_pids);
+	
+	sprintf(sqlstmt, "INSERT INTO events SELECT run_id, %d, '%d-%02d-%02d %02d:%02d:%02d %s', '%s' FROM runs WHERE scheddname = '%s' AND cid = %d and pid = %d and spid = %d AND endtype is null;", 
+			ULOG_JOB_SUSPENDED, 
+			eventTime.tm_year+1900,
+			eventTime.tm_mon+1,
+			eventTime.tm_mday,
+			eventTime.tm_hour,
+			eventTime.tm_min,
+			eventTime.tm_sec,
+			eventTime.tm_zone,
+			messagestr, 
+			scheddname,
+			cluster,
+			proc,
+			subproc);
+	
+	FILEObj->file_sqlstmt(sqlstmt);
+
 	if (fprintf (file, "Job was suspended.\n\t") < 0)
 		return 0;
 	if (fprintf (file, "Number of processes actually suspended: %d\n", 
@@ -2891,6 +2959,27 @@ readEvent (FILE *file)
 int JobUnsuspendedEvent::
 writeEvent (FILE *file)
 {
+	char sqlstmt[1024], messagestr[512];
+
+	sprintf(messagestr, "Job was unsuspended");
+	
+	sprintf(sqlstmt, "INSERT INTO events SELECT run_id, %d, '%d-%02d-%02d %02d:%02d:%02d %s', '%s' FROM runs WHERE scheddname = '%s' AND cid = %d and pid = %d and spid = %d AND endtype is null;", 
+			ULOG_JOB_UNSUSPENDED, 
+			eventTime.tm_year+1900,
+			eventTime.tm_mon+1,
+			eventTime.tm_mday,
+			eventTime.tm_hour,
+			eventTime.tm_min,
+			eventTime.tm_sec,
+			eventTime.tm_zone,
+			messagestr, 
+			scheddname,
+			cluster,
+			proc,
+			subproc);
+	
+	FILEObj->file_sqlstmt(sqlstmt);
+
 	if (fprintf (file, "Job was unsuspended.\n") < 0)
 		return 0;
 
@@ -3022,6 +3111,30 @@ JobHeldEvent::readEvent( FILE *file )
 int
 JobHeldEvent::writeEvent( FILE *file )
 {
+	char sqlstmt[1024], messagestr[512];
+
+	if (reason)
+		sprintf(messagestr, "Job was held: %s", reason);
+	else
+		sprintf(messagestr, "Job was held: reason unspecified");
+
+	sprintf(sqlstmt, "INSERT INTO events SELECT run_id, %d, '%d-%02d-%02d %02d:%02d:%02d %s', '%s' FROM runs WHERE scheddname = '%s' AND cid = %d and pid = %d and spid = %d AND endtype is null;", 
+			ULOG_JOB_HELD, 
+			eventTime.tm_year+1900,
+			eventTime.tm_mon+1,
+			eventTime.tm_mday,
+			eventTime.tm_hour,
+			eventTime.tm_min,
+			eventTime.tm_sec,
+			eventTime.tm_zone,
+			messagestr, 
+			scheddname,
+			cluster,
+			proc,
+			subproc);
+	
+	FILEObj->file_sqlstmt(sqlstmt);
+	
 	if( fprintf(file, "Job was held.\n") < 0 ) {
 		return 0;
 	}
@@ -3153,6 +3266,30 @@ JobReleasedEvent::readEvent( FILE *file )
 int
 JobReleasedEvent::writeEvent( FILE *file )
 {
+	char sqlstmt[1024], messagestr[512];
+
+	if (reason)
+		sprintf(messagestr, "Job was released: %s", reason);
+	else
+		sprintf(messagestr, "Job was released: reason unspecified");
+
+	sprintf(sqlstmt, "INSERT INTO events SELECT run_id, %d, '%d-%02d-%02d %02d:%02d:%02d %s', '%s' FROM runs WHERE scheddname = '%s' AND cid = %d and pid = %d and spid = %d AND endtype is null;", 
+			ULOG_JOB_RELEASED, 
+			eventTime.tm_year+1900,
+			eventTime.tm_mon+1,
+			eventTime.tm_mday,
+			eventTime.tm_hour,
+			eventTime.tm_min,
+			eventTime.tm_sec,
+			eventTime.tm_zone,
+			messagestr, 
+			scheddname,
+			cluster,
+			proc,
+			subproc);
+	
+	FILEObj->file_sqlstmt(sqlstmt);
+
 	if( fprintf(file, "Job was released.\n") < 0 ) {
 		return 0;
 	}
