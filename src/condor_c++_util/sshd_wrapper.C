@@ -288,8 +288,7 @@ SshdWrapper::sendPrivateKeyAndContactFile(const char* contactFileSrc)
 
 	int r = system(buf);
 
-	free(--dstHost);
-	free(scp);
+ 	free(scp);
 	if (r == 0) {
 		return true;
 	} else {
