@@ -1098,8 +1098,67 @@ int
 RemoteErrorEvent::writeEvent(FILE *file)
 {
 	char const *error_type = "Error";
+	char *sqlstmt, *messagestr;
+
+	sqlstmt = (char *) malloc(1024 * sizeof(char));
+	messagestr = (char *) malloc(512 * sizeof(char));
+	strcpy(messagestr, "");
+
+	sprintf(messagestr,  "Remote %s from %s on %s:\n",
+			error_type,
+			daemon_name,
+			execute_host);
+	
+	dprintf(D_ALWAYS, "just before initializing scheddname in EvictEvent\n");
+	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
+	dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
 	if(!critical_error) error_type = "Warning";
+
+	if (critical_error) {		
+			// critical error means this run is ended.
+		sprintf(sqlstmt, 
+				"UPDATE runs SET endts = '%d-%02d-%02d %02d:%02d:%02d %s', endtype = %d, endmessage = '%s' WHERE scheddname = '%s' AND cid = %d and pid = %d and spid = %d AND endtype is null;", 
+				eventTime.tm_year+1900,
+				eventTime.tm_mon+1,
+				eventTime.tm_mday,
+				eventTime.tm_hour,
+				eventTime.tm_min,
+				eventTime.tm_sec,
+				eventTime.tm_zone,
+				ULOG_REMOTE_ERROR,
+				messagestr,
+				scheddname,
+				cluster,
+				proc,
+				subproc
+				);
+		
+	} else {
+		sprintf(sqlstmt, "INSERT INTO events SELECT run_id, %d, '%d-%02d-%02d %02d:%02d:%02d %s', '%s' FROM runs WHERE scheddname = '%s' AND cid = %d and pid = %d and spid = %d AND endtype is null;", 
+				ULOG_REMOTE_ERROR, 
+				eventTime.tm_year+1900,
+				eventTime.tm_mon+1,
+				eventTime.tm_mday,
+				eventTime.tm_hour,
+				eventTime.tm_min,
+				eventTime.tm_sec,
+				eventTime.tm_zone,
+				messagestr, 
+				scheddname,
+				cluster,
+				proc,
+				subproc);
+	}
+
+	FILEObj->file_lock();
+
+	FILEObj->file_sqlstmt(sqlstmt);
+
+	FILEObj->file_unlock();
+
+	free(sqlstmt);
+	free(messagestr);
 
     int retval = fprintf(
 	  file,
@@ -1107,6 +1166,8 @@ RemoteErrorEvent::writeEvent(FILE *file)
 	  error_type,
 	  daemon_name,
 	  execute_host);
+
+
 
     if (retval < 0)
     {
@@ -1324,7 +1385,18 @@ writeEvent (FILE *file)
     strcpy(executehostname, executeHost);
   }
   sprintf(sqlstmt, 
-	  "INSERT INTO runs (machine_id, scheddname, cid, pid, spid, startts) VALUES('%s', '%s','%d', '%d', '%d', '%d-%02d-%02d %02d:%02d:%02d %s');", 
+	  "UPDATE runs SET endts = '%d-%02d-%02d %02d:%02d:%02d %s', endtype=-1, endmessage='UNKNOWN ERROR' WHERE scheddname = '%s' AND cid = %d and pid = %d and spid = %d AND endtype is null; INSERT INTO runs (machine_id, scheddname, cid, pid, spid, startts) VALUES('%s', '%s','%d', '%d', '%d', '%d-%02d-%02d %02d:%02d:%02d %s');", 
+	  eventTime.tm_year+1900,
+	  eventTime.tm_mon+1,
+	  eventTime.tm_mday,
+	  eventTime.tm_hour,
+	  eventTime.tm_min,
+	  eventTime.tm_sec,
+	  eventTime.tm_zone,
+	  scheddname,
+	  cluster, 
+	  proc, 
+	  subproc, 		  
 	  executehostname, 
 	  scheddname,
 	  cluster, 
@@ -1518,6 +1590,41 @@ CheckpointedEvent::
 int CheckpointedEvent::
 writeEvent (FILE *file)
 {
+	char *sqlstmt, *messagestr;
+	sqlstmt = (char *) malloc(1024 * sizeof(char));
+	messagestr = (char *) malloc(512 * sizeof(char));
+	strcpy(messagestr, "");
+
+	sprintf(messagestr,  "Job was checkpointed");
+
+	dprintf(D_ALWAYS, "just before initializing scheddname in EvictEvent\n");
+	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
+	dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
+
+	sprintf(sqlstmt, "INSERT INTO events SELECT run_id, %d, '%d-%02d-%02d %02d:%02d:%02d %s', '%s' FROM runs WHERE scheddname = '%s' AND cid = %d and pid = %d and spid = %d AND endtype is null;", 
+			ULOG_CHECKPOINTED, 
+			eventTime.tm_year+1900,
+			eventTime.tm_mon+1,
+			eventTime.tm_mday,
+			eventTime.tm_hour,
+			eventTime.tm_min,
+			eventTime.tm_sec,
+			eventTime.tm_zone,
+			messagestr, 
+			scheddname,
+			cluster,
+			proc,
+			subproc);
+
+	FILEObj->file_lock();
+
+	FILEObj->file_sqlstmt(sqlstmt);
+
+	FILEObj->file_unlock();
+	
+	free(sqlstmt);
+	free(messagestr);
+
 	if (fprintf (file, "Job was checkpointed.\n") < 0  		||
 		(!writeRusage (file, run_remote_rusage)) 			||
 		(fprintf (file, "  -  Run Remote Usage\n\t") < 0) 	||
