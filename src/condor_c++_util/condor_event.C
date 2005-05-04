@@ -1100,7 +1100,7 @@ RemoteErrorEvent::writeEvent(FILE *file)
 	char const *error_type = "Error";
 	char sqlstmt[1024], messagestr[512];
 
-	sprintf(messagestr,  "Remote %s from %s on %s:\n",
+	sprintf(messagestr,  "Remote %s from %s on %s",
 			error_type,
 			daemon_name,
 			execute_host);
@@ -1131,7 +1131,10 @@ RemoteErrorEvent::writeEvent(FILE *file)
 				);
 		
 	} else {
-		sprintf(sqlstmt, "INSERT INTO events SELECT run_id, %d, '%d-%02d-%02d %02d:%02d:%02d %s', '%s' FROM runs WHERE scheddname = '%s' AND cid = %d and pid = %d and spid = %d AND endtype is null;", 
+		sprintf(sqlstmt, "INSERT INTO events SELECT '%s', %d, %d, run_id, %d, '%d-%02d-%02d %02d:%02d:%02d %s', '%s' FROM runs WHERE scheddname = '%s' AND cid = %d and pid = %d and spid = %d AND endtype is null;", 
+				scheddname, 
+				cluster,
+				proc,
 				ULOG_REMOTE_ERROR, 
 				eventTime.tm_year+1900,
 				eventTime.tm_mon+1,
@@ -1607,7 +1610,10 @@ writeEvent (FILE *file)
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
 	dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
-	sprintf(sqlstmt, "INSERT INTO events SELECT run_id, %d, '%d-%02d-%02d %02d:%02d:%02d %s', '%s' FROM runs WHERE scheddname = '%s' AND cid = %d and pid = %d and spid = %d AND endtype is null;", 
+	sprintf(sqlstmt, "INSERT INTO events SELECT '%s', %d, %d, run_id, %d, '%d-%02d-%02d %02d:%02d:%02d %s', '%s' FROM runs WHERE scheddname = '%s' AND cid = %d and pid = %d and spid = %d AND endtype is null;", 
+			scheddname,
+			cluster,
+			proc,			
 			ULOG_CHECKPOINTED, 
 			eventTime.tm_year+1900,
 			eventTime.tm_mon+1,
@@ -2181,8 +2187,12 @@ writeEvent (FILE *file)
 	else 
 		sprintf(messagestr,  "Job was aborted by the user");
 
-	sprintf(sqlstmt, 
-			"UPDATE runs SET endts = '%d-%02d-%02d %02d:%02d:%02d %s', endtype = %d, endmessage = '%s' WHERE scheddname = '%s' AND cid = %d and pid = %d and spid = %d AND endtype is null;", 
+	sprintf(sqlstmt,
+			"INSERT INTO events VALUES ('%s', %d, %d, NULL, %d, '%d-%02d-%02d %02d:%02d:%02d %s', '%s');",
+			scheddname,
+			cluster,
+			proc,		
+			ULOG_JOB_ABORTED,
 			eventTime.tm_year+1900,
 			eventTime.tm_mon+1,
 			eventTime.tm_mday,
@@ -2190,13 +2200,7 @@ writeEvent (FILE *file)
 			eventTime.tm_min,
 			eventTime.tm_sec,
 			eventTime.tm_zone,
-		    ULOG_JOB_ABORTED,
-			messagestr,
-			scheddname,
-			cluster,
-			proc,
-			subproc
-			);
+			messagestr);
 	
 	FILEObj->file_sqlstmt(sqlstmt);
 
@@ -2769,8 +2773,12 @@ writeEvent (FILE *file)
 	dprintf(D_ALWAYS, "just before initializing scheddname in EvictEvent\n");
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
 	dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
-
+	
 	sprintf(messagestr,  "Shadow exception: %s", message);
+
+		// remove the new line in the end if any
+	if  (messagestr[strlen(messagestr)-1] == '\n')
+		messagestr[strlen(messagestr)-1] = '\0';
 
 	sprintf(sqlstmt, 
 			"UPDATE runs SET endts = '%d-%02d-%02d %02d:%02d:%02d %s', endtype = %d, endmessage = '%s', runbytessent= %f, runbytesreceived = %f WHERE scheddname = '%s' AND cid = %d and pid = %d and spid = %d AND endtype is null;", 
@@ -2886,7 +2894,14 @@ writeEvent (FILE *file)
 
 	sprintf(messagestr, "Job was suspended (Number of processes actually suspended: %d)", num_pids);
 	
-	sprintf(sqlstmt, "INSERT INTO events SELECT run_id, %d, '%d-%02d-%02d %02d:%02d:%02d %s', '%s' FROM runs WHERE scheddname = '%s' AND cid = %d and pid = %d and spid = %d AND endtype is null;", 
+	dprintf(D_ALWAYS, "just before initializing scheddname in EvictEvent\n");
+	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
+	dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
+
+	sprintf(sqlstmt, "INSERT INTO events SELECT '%s', %d, %d, run_id, %d, '%d-%02d-%02d %02d:%02d:%02d %s', '%s' FROM runs WHERE scheddname = '%s' AND cid = %d and pid = %d and spid = %d AND endtype is null;", 
+			scheddname,
+			cluster,
+			proc,			
 			ULOG_JOB_SUSPENDED, 
 			eventTime.tm_year+1900,
 			eventTime.tm_mon+1,
@@ -2963,7 +2978,14 @@ writeEvent (FILE *file)
 
 	sprintf(messagestr, "Job was unsuspended");
 	
-	sprintf(sqlstmt, "INSERT INTO events SELECT run_id, %d, '%d-%02d-%02d %02d:%02d:%02d %s', '%s' FROM runs WHERE scheddname = '%s' AND cid = %d and pid = %d and spid = %d AND endtype is null;", 
+	dprintf(D_ALWAYS, "just before initializing scheddname in EvictEvent\n");
+	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
+	dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
+
+	sprintf(sqlstmt, "INSERT INTO events SELECT '%s', %d, %d, run_id, %d, '%d-%02d-%02d %02d:%02d:%02d %s', '%s' FROM runs WHERE scheddname = '%s' AND cid = %d and pid = %d and spid = %d AND endtype is null;", 
+			scheddname,
+			cluster,
+			proc,
 			ULOG_JOB_UNSUSPENDED, 
 			eventTime.tm_year+1900,
 			eventTime.tm_mon+1,
@@ -3118,7 +3140,14 @@ JobHeldEvent::writeEvent( FILE *file )
 	else
 		sprintf(messagestr, "Job was held: reason unspecified");
 
-	sprintf(sqlstmt, "INSERT INTO events SELECT run_id, %d, '%d-%02d-%02d %02d:%02d:%02d %s', '%s' FROM runs WHERE scheddname = '%s' AND cid = %d and pid = %d and spid = %d AND endtype is null;", 
+	dprintf(D_ALWAYS, "just before initializing scheddname in EvictEvent\n");
+	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
+	dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
+
+	sprintf(sqlstmt, "INSERT INTO events VALUES ('%s', %d, %d, NULL, %d, '%d-%02d-%02d %02d:%02d:%02d %s', '%s');", 
+			scheddname,
+			cluster,
+			proc,
 			ULOG_JOB_HELD, 
 			eventTime.tm_year+1900,
 			eventTime.tm_mon+1,
@@ -3127,11 +3156,7 @@ JobHeldEvent::writeEvent( FILE *file )
 			eventTime.tm_min,
 			eventTime.tm_sec,
 			eventTime.tm_zone,
-			messagestr, 
-			scheddname,
-			cluster,
-			proc,
-			subproc);
+			messagestr);
 	
 	FILEObj->file_sqlstmt(sqlstmt);
 	
@@ -3273,7 +3298,14 @@ JobReleasedEvent::writeEvent( FILE *file )
 	else
 		sprintf(messagestr, "Job was released: reason unspecified");
 
-	sprintf(sqlstmt, "INSERT INTO events SELECT run_id, %d, '%d-%02d-%02d %02d:%02d:%02d %s', '%s' FROM runs WHERE scheddname = '%s' AND cid = %d and pid = %d and spid = %d AND endtype is null;", 
+	dprintf(D_ALWAYS, "just before initializing scheddname in EvictEvent\n");
+	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
+	dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
+
+	sprintf(sqlstmt, "INSERT INTO events VALUES ('%s', %d, %d, NULL, %d, '%d-%02d-%02d %02d:%02d:%02d %s', '%s');",
+			scheddname,
+			cluster,
+			proc,			
 			ULOG_JOB_RELEASED, 
 			eventTime.tm_year+1900,
 			eventTime.tm_mon+1,
@@ -3282,11 +3314,7 @@ JobReleasedEvent::writeEvent( FILE *file )
 			eventTime.tm_min,
 			eventTime.tm_sec,
 			eventTime.tm_zone,
-			messagestr, 
-			scheddname,
-			cluster,
-			proc,
-			subproc);
+			messagestr);
 	
 	FILEObj->file_sqlstmt(sqlstmt);
 
