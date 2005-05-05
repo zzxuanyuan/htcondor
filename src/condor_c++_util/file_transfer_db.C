@@ -24,7 +24,6 @@ void file_transfer_db(file_transfer_record *rp, ClassAd *ad)
 		*src_path = NULL,
 		*job_name = NULL,
 		*dst_name = NULL;
-	int runId = -1;
 	char src_host[MAXMACHNAME];
 	bool inStarter  = FALSE;
 	char sqltext[MAXSQLLEN];
@@ -40,9 +39,6 @@ void file_transfer_db(file_transfer_record *rp, ClassAd *ad)
 
 		// globalJobId, it should be freed later
 	ad->LookupString(ATTR_GLOBAL_JOB_ID, &globalJobId);
-
-		// runId, passed by reference
-	ad->LookupInteger("RunId", runId);
 
 		// dst_host, dst_name and dst_path, since file_transfer_db
 		// is called in the destination process, dst_host is my
@@ -80,8 +76,8 @@ void file_transfer_db(file_transfer_record *rp, ClassAd *ad)
 	
 		// make the sql statement
 	sprintf(sqltext, 
-			"insert into transfers values ('%s', %d, '%s', '%s', '%s', '%s', '%s', '%s', %d, %d)", 
-			globalJobId, runId, src_name, src_host, src_path, dst_name, dst_host,
+			"insert into transfers values ('%s', '%s', '%s', '%s', '%s', '%s', '%s', %d, %d)", 
+			globalJobId, src_name, src_host, src_path, dst_name, dst_host,
 			dst_path, (int)rp->bytes, (int)rp->elapsed);
 
 	if (dst_path) free(dst_path);
