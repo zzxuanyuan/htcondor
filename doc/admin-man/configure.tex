@@ -2652,6 +2652,15 @@ These macros control the \Condor{schedd}.
   value can be any integer between 0 and 19, with a value of 19 being
   the lowest priority.  It defaults to 10.
 
+\item[\Macro{SCHED\_UNIV\_RENICE\_INCREMENT}]
+  \label{param:SchedUnivReniceIncrement} Analogous to 
+  \MacroNI{JOB\_RENICE\_INCREMENT} and
+  \MacroNI{SHADOW\_RENICE\_INCREMENT}, scheduler universe jobs can
+  be given a nice-level.
+  See  \MacroNI{JOB\_RENICE\_INCREMENT} in
+  section~\ref{param:JobReniceIncrement} for further explanation;
+  default value and range of legal values are the same.
+
 \item[\Macro{QUEUE\_CLEAN\_INTERVAL}] \label{param:QueueCleanInterval}
   The schedd maintains the job queue on a given machine.  It does so
   in a persistent way such that if the schedd crashes, it can recover
