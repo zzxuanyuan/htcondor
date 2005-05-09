@@ -144,6 +144,8 @@
 #define UPDATE_GSI_CRED		(SCHED_VERS+87) // send refreshed gsi proxy file
 #define SPOOL_JOB_FILES_WITH_PERMS	(SCHED_VERS+88)	// spool all job files via filetransfer object (new version with file permissions)
 #define TRANSFER_DATA_WITH_PERMS	(SCHED_VERS+89) // send all job files back via filetransfer object (new version with file permissions)
+#define STARTD_UPDATE_PARENT	(SCHED_VERS+90) // negotiator requests startd to update its parent matchmaker --JEFF
+#define STARTD_MOVE_UP		(SCHED_VERS+91) // JEFF
 
 
 /*
