@@ -193,6 +193,18 @@ reinitialize ()
 		free( tmp );
 	} else {
 		NegotiatorInterval = 300;
+		// parentCollector is the matchmaker's collector to send updates to
+		// along with a corresponding matchmaker. -JEFF
+	tmp = param( "PARENT_COLLECTOR" );
+	if( tmp ) {
+		parentCollector = new DCCollector( tmp );
+		free(tmp);
+	} else {
+		parentCollector = NULL;
+	}
+
+
+
 	}
 
 	tmp = param("NEGOTIATOR_TIMEOUT");
@@ -502,6 +514,48 @@ REQUEST_NETWORK_commandHandler (int, Stream *stream)
 {
 	return netman.HandleNetworkRequest(stream);
 }
+	// this is called by the matchmaker to prepare an ad to send to
+	// its parent matchmaker for more resources. --JEFF
+void Matchmaker::
+publishMMAd( ClassAd* cap, int noMatchCount ) 
+{
+	char line[256];
+
+	sprintf( line, "%s = \"%s\"", ATTR_NAME, daemonCore->InfoCommandSinfulString() );
+	cap->Insert( line );
+
+		// eventually a new MATCHMAKER_ADTYPE should be created since now
+		// a matchmaker can also have matchmakers as children.
+	cap->SetMyTypeName( SCHEDD_ADTYPE );
+
+		// insert the ip address of this matchmaker
+	sprintf( line, "%s = \"%s\"", ATTR_SCHEDD_IP_ADDR,
+			daemonCore->InfoCommandSinfulString() );
+	cap->Insert( line );
+
+		// insert attribute that identifies us as a matchmaker.
+		// This is temporary until a new MATCHMAKER_ADTYPE is created.
+	sprintf( line, "%s = \"%s\"", ATTR_IS_MATCHMAKER, "true" );
+	cap->Insert( line );
+	
+		// Need to store our collector's ip address so that our parent matchmaker
+		// can give our collector's address to each startd that it gives to us.
+		// Then each such startd can send updates to our collector.
+	Daemon * daemon;
+	Collectors->rewind();
+	Collectors->next( daemon );
+	sprintf( line, "%s = \"%s\"", ATTR_COLLECTOR_IP_ADDR, daemon->pool() );
+	cap->Insert( line );
+
+		// need to insert noMatchCount so that our parent knows how many
+		// resources we need.  This is only temporary - eventually a matchmaker
+		// will treat a child matchmaker similiar to how it treats a schedd child
+		// (i.e., this ad will only request for negotiation).
+	sprintf( line, "%s = %d", ATTR_NO_MATCH_COUNT, noMatchCount );
+	cap->Insert( line );
+		
+}
+
 #endif
 
 /*
@@ -509,6 +563,7 @@ Look for an ad matching the given constraint string
 in the table given by arg.  Return a duplicate on success.
 Otherwise, return 0.
 */
+	ClassAdList softStartdAds;
 #if 0
 static ClassAd * lookup_global( const char *constraint, void *arg )
 {
@@ -530,6 +585,9 @@ static ClassAd * lookup_global( const char *constraint, void *arg )
 		if(queryAd <= *ad) {
 			return new ClassAd(*ad);
 		}
+	
+
+
 	}
 
 	return 0;
@@ -538,6 +596,7 @@ static ClassAd * lookup_global( const char *constraint, void *arg )
 
 int Matchmaker::
 negotiationTime ()
+
 {
 	ClassAdList startdAds;
 	ClassAdList startdPvtAds;
@@ -546,6 +605,15 @@ negotiationTime ()
 
 	/**
 		Check if we just finished a cycle less than NEGOTIATOR_CYCLE_DELAY 
+		// We now want remove all startdAds that aren't direct children
+		// of this mm and place in softStartdAds.  This will also remove
+		// all ads with REMOVE_ME == true; i.e., this ad was preempted by
+		// an ancestor mm.
+	if( !partitionStartdAds( startdAds, softStartdAds ) ) {
+		dprintf( D_ALWAYS, "Aborting negotiation cycle\n" );
+		return FALSE;
+	}
+
 		seconds ago.  If we did, reset our timer so at least 
 		NEGOTIATOR_CYCLE_DELAY seconds will elapse between cycles.  We do 
 		this to help ensure all the startds have had time to update the 
@@ -558,6 +626,9 @@ negotiationTime ()
 	int cycle_delay = param_integer("NEGOTIATOR_CYCLE_DELAY",20,0);
 	if ( elapsed < cycle_delay ) {
 		daemonCore->Reset_Timer(negotiation_timerID,
+
+	trimStartdAds( softStartdAds );
+
 							cycle_delay - elapsed,
 							NegotiatorInterval);
 		dprintf(D_FULLDEBUG,
@@ -701,9 +772,9 @@ negotiationTime ()
 			}
 			dprintf(D_ALWAYS,"Group %s - negotiating\n",
 				groupArray[i].groupName);
-			negotiateWithGroup( startdAds, 
+			negotiateWithGroup( softStartdAds, startdAds, 
 				startdPvtAds, groupArray[i].submitterAds, 
-				groupArray[i].maxAllowed, groupArray[i].groupName);
+				groupArray[i].maxAllowed, groupArray[i].groupName );
 		}
 
 			// if GROUP_AUTOREGROUP is set to true, then for any submitter
@@ -735,7 +806,7 @@ negotiationTime ()
 	} // if (groups)
 	
 		// negotiate w/ all users who do not belong to a group.
-	negotiateWithGroup(startdAds, startdPvtAds, scheddAds);
+	negotiateWithGroup(softStartdAds, startdAds, startdPvtAds, scheddAds);
 	
 	// ----- Done with the negotiation cycle
 	dprintf( D_ALWAYS, "---------- Finished Negotiation Cycle ----------\n" );
@@ -759,12 +830,80 @@ Matchmaker::SimpleGroupEntry::
 	// Note: don't free groupName!  See comment above.
 }
 
+	// This implements a default policy for negotiating with a child mm.  Basically,
+	// the child mm requests for j resources, and the parent mm (i.e., this) grants
+	// as many startd resources in startdAds that are available by calling the startd
+	// command STARTD_UPDATE_PARENT to change the startd's mm to the child mm. --JEFF
 int Matchmaker::
-negotiateWithGroup ( ClassAdList& startdAds, ClassAdList& startdPvtAds, 
+negotiateWithMatchmaker ( ClassAd* mm, ClassAdList &startdAds, int mmLimit ) {
+
+	ClassAd* startd;
+	char mmName[64];
+	char collectorAddr[32];
+	char startdAddr[32];
+	char startdName[64];
+	SafeSock startdSock;
+	int numOfRequestedResources = 0;
+
+	mm->LookupString( ATTR_NAME, mmName );
+
+	dprintf( D_ALWAYS, "Negotiating with matchmaker %s\n", mmName );
+
+	mm->LookupString( ATTR_COLLECTOR_IP_ADDR, collectorAddr );
+	mm->LookupInteger( ATTR_NO_MATCH_COUNT, numOfRequestedResources );
+
+		// mm can only get at most its limit during 1 cycle
+	/* if( mmLimit < numOfRequestedResources ) {
+		numOfRequestedResources = mmLimit;
+	}*/
+
+	startdAds.Open();
+
+		// This finds any available startd and then sends a message to the startd
+		// to change its parent matchmaker.
+	while( (numOfRequestedResources > 0) && (startd = startdAds.Next()) ) {
+
+		startd->LookupString( ATTR_NAME, startdName );
+		startd->LookupString( ATTR_STARTD_IP_ADDR, startdAddr );
+
+			// contacting the startd
+		dprintf( D_FULLDEBUG, "		Connecting to startd %s at %s\n",
+			startdName, startdAddr );
+
+		startdSock.timeout( NegotiatorTimeout );
+		if( !startdSock.connect( startdAddr, 0 ) ) {
+			dprintf( D_ALWAYS, "could not connect to %s\n", startdAddr );
+			continue;
+		}
+		
+		DCStartd dc_startd( startdAddr );
+		dc_startd.startCommand( STARTD_UPDATE_PARENT, &startdSock );
+
+			// pass the address of the new collector
+		startdSock.encode();
+		if( !startdSock.put( collectorAddr ) || !startdSock.end_of_message() ) {
+			dprintf( D_ALWAYS, "Could not send collectorAddr to %s\n", startdName );
+			continue;
+		}
+
+		numOfRequestedResources--;
+//		accountant.AddMatch( collectorAddr, startd );
+		startdAds.Delete( startd );
+	}
+	
+	return numOfRequestedResources;
+}
+
+
+
+int Matchmaker::
+negotiateWithGroup (ClassAdList& softStartdAds, ClassAdList& startdAds, ClassAdList& startdPvtAds, 
 					 ClassAdList& scheddAds, 
-					 int groupQuota, const char* groupAccountingName)
+					 int groupQuota, const char* groupAccountingName )
 {
+
 	ClassAd		*schedd;
+	ClassAd		*startd;
 	char		scheddName[80];
 	char		scheddAddr[32];
 	int			result;
@@ -785,6 +924,9 @@ negotiateWithGroup ( ClassAdList& startdAds, ClassAdList& startdPvtAds,
 	int 		send_ad_to_schedd;	
 	bool ignore_schedd_limit;
 	int			num_idle_jobs;
+	int 		noMatchCount = 0;  // number of resources needed
+
+	
 
 	// ----- Sort the schedd list in decreasing priority order
 	dprintf( D_ALWAYS, "Phase 3:  Sorting submitter ads by priority ...\n" );
@@ -826,6 +968,8 @@ negotiateWithGroup ( ClassAdList& startdAds, ClassAdList& startdPvtAds,
 		dprintf (D_FULLDEBUG, "    MaxPrioValue = %f\n", maxPrioValue);
 		dprintf (D_FULLDEBUG, "    NumScheddAds = %d\n", scheddAds.MyLength());
 		scheddAds.Open();
+
+	       
 		while( (schedd = scheddAds.Next()) )
 		{
 			// get the name and address of the schedd
@@ -836,6 +980,9 @@ negotiateWithGroup ( ClassAdList& startdAds, ClassAdList& startdPvtAds,
 							ATTR_NAME, ATTR_SCHEDD_IP_ADDR);
 				return FALSE;
 			}	
+
+			dprintf( D_ALWAYS,"Negotiating with %s at %s\n", scheddName,scheddAddr );
+
 			num_idle_jobs = 0;
 			schedd->LookupInteger(ATTR_IDLE_JOBS,num_idle_jobs);
 			if ( num_idle_jobs < 0 ) {
@@ -846,6 +993,8 @@ negotiateWithGroup ( ClassAdList& startdAds, ClassAdList& startdPvtAds,
 				dprintf(D_ALWAYS,"  Negotiating with %s at %s\n",scheddName,
 					scheddAddr);
 			}
+
+ 
 
 			// should we send the startd ad to this schedd?
 			send_ad_to_schedd = FALSE;
@@ -897,6 +1046,17 @@ negotiateWithGroup ( ClassAdList& startdAds, ClassAdList& startdPvtAds,
 				dprintf (D_FULLDEBUG, "    MaxscheddLimit   = %d\n",
 					MaxscheddLimit);
 			}
+	
+				// Checking to see if this schedd is really a matchmaker. --JEFF
+			if( schedd->Lookup( ATTR_IS_MATCHMAKER ) != NULL ) {
+
+					// we need noMatchCount more resources from our parent mm.
+				noMatchCount += negotiateWithMatchmaker( schedd, startdAds, scheddLimit);
+				
+				dprintf( D_ALWAYS, "Finished negotiateWithMatchmaker, noMatchCount = %d\n", 
+					noMatchCount );
+				continue;
+		 	}
 
 			// initialize reasons for match failure; do this now
 			// in case we never actually call negotiate() below.
@@ -930,7 +1090,7 @@ negotiateWithGroup ( ClassAdList& startdAds, ClassAdList& startdPvtAds,
 					result=negotiate( scheddName,scheddAddr,scheddPrio,
 								  scheddAbsShare, scheddLimit,
 								  startdAds, startdPvtAds, 
-								  send_ad_to_schedd,ignore_schedd_limit);
+								  send_ad_to_schedd,ignore_schedd_limit, noMatchCount);
 				}
 			}
 
@@ -970,6 +1130,76 @@ negotiateWithGroup ( ClassAdList& startdAds, ClassAdList& startdPvtAds,
 	} while ( (hit_schedd_prio_limit == TRUE || hit_network_prio_limit == TRUE)
 			 && (MaxscheddLimit > 0) && (startdAds.MyLength() > 0) );
 
+ 
+ 	 	// Checking to see if we need to send a request to our parent
+ 		// for more resources.  Currently I'm assuming that all resources are 
+ 		// the same, so in the future definitely need to do something smarter
+ 		// than this. --JEFF
+ 	if( ( startdAds.MyLength() == 0 ) && ( noMatchCount > 0 ) ) {
+ 
+ 			// we have a parent mm to get more resources from.
+ 		if( parentCollector ) {
+ 		
+ 			dprintf( D_ALWAYS, "sending cmd UPDATE_SCHEDD_AD to %s for ", parentCollector->pool()) ;
+ 			dprintf( D_ALWAYS, "%d more resources\n", noMatchCount );
+ 			ClassAd public_ad;
+ 			this->publishMMAd( &public_ad, noMatchCount );
+ 
+ 				// send update to parent mm requesting for more resources.
+ 			if( !parentCollector->sendUpdate( UPDATE_SCHEDD_AD, &public_ad, NULL ) ) {
+ 				dprintf( D_ALWAYS, "Failed to send update\n" );
+ 			}
+ 			
+ 		} else {
+ 			
+ 				// we don't have a parent so we need to preempt.  The default is to
+ 				// only preempt unclaimed resources in our subtree.
+ 			dprintf( D_ALWAYS, "Preempting from children\n" );
+ 
+ 			Daemon* collectorDaemon;
+ 			char startdName[256];
+ 			char startdAddr[256];
+ 			SafeSock startdSock;
+ 			Collectors->rewind();
+ 			Collectors->next( collectorDaemon );
+ 			
+ 				// searching for adds to "move up". in the future we need to be
+ 				// more smart about this - i.e., consider from whom we are bringing
+ 				// up.
+ 			softStartdAds.Open();
+ 			while( startd = softStartdAds.Next() ) {
+ 
+ 				startd->LookupString( ATTR_NAME, startdName );
+ 				startd->LookupString( ATTR_STARTD_IP_ADDR, startdAddr );
+ 
+ 				dprintf( D_FULLDEBUG, "		Sending move up command to startd %s\n", startdName );
+ 
+ 				char* capability = getCapability( startdName, startdAddr, startdPvtAds ); 
+ 				
+ 				startdSock.timeout( NegotiatorTimeout );
+ 				if( !startdSock.connect( startdAddr, 0 ) ) {
+ 					dprintf( D_ALWAYS," 	Could not connect to %s\n", startdAddr );
+ 					continue;
+ 				}
+ 
+ 				DCStartd dcstartd( startdAddr );
+ 				dcstartd.startCommand( STARTD_MOVE_UP, &startdSock );
+ 				startdSock.encode();
+ 				
+ 			 	if( !startdSock.put( capability ) || !startdSock.put( collectorDaemon->pool() ) 
+ 					|| !startdSock.end_of_message() ) {
+ 
+ 					dprintf( D_ALWAYS, "Could not send STARTD_MOVE_UP\n" );
+ 					continue;
+ 				}
+ 
+ 				noMatchCount--;
+ 				if( noMatchCount == 0 ) 
+ 					break;
+ 			}
+ 		}
+ 	}
+ 
 	return TRUE;
 }
 
@@ -1012,6 +1242,49 @@ comparisonFunction (AttrList *ad1, AttrList *ad2, void *m)
 			// which should be a little bit better than always
 			// negotiating in the same order.  We use the timestamp on
 			// the classads to get a random ordering among the schedds
+
+	// This will move all ads in startdAds that are not children, but are
+	// descendants of this mm to softAds.  Any ad that with the REMOVE_ME
+	// attr is removed from both lists. --JEFF
+bool Matchmaker::
+partitionStartdAds( ClassAdList &startdAds, ClassAdList &softAds ) {
+
+	ClassAd *ad;
+	int removeMe = 0;
+	int isSoft = 0;
+
+ 	startdAds.Open();
+	while( ad = startdAds.Next() ) {
+
+			// check if this ad has been preempted, and if so
+			// we ignore - in the future this is our opportunity to update
+			// the acct.
+		if( ad->LookupInteger( ATTR_REMOVE_ME, removeMe ) ) {
+
+			// update accountant to credit corresponding mm child
+
+			startdAds.Delete( ad );
+
+		} else {
+
+			if( !ad->LookupInteger( ATTR_IS_SOFT, isSoft ) ) {
+
+				dprintf( D_ALWAYS, "Attribute ATTR_IS_SOFT not found.\n" );
+				return FALSE;
+			}
+
+				// If startd is not an immediate child of the mm,
+				// remove from startdAds and insert into softAds.
+			if( isSoft != 0 ) {
+				startdAds.Delete( ad );
+				softAds.Insert( ad );
+			}
+		}
+	}
+
+	return TRUE;
+}
+
 			// (consistent throughout our sort).
 
 		int ts1=0, ts2=0;
@@ -1060,7 +1333,8 @@ obtainAdsFromCollector (
 						ClassAdList &allAds,
 						ClassAdList &startdAds, 
 						ClassAdList &scheddAds, 
-						ClassAdList &startdPvtAds )
+						ClassAdList &startdPvtAds 
+						 )
 {
 	CondorQuery privateQuery(STARTD_PVT_AD);
 	QueryResult result;
@@ -1109,6 +1383,9 @@ obtainAdsFromCollector (
 		return false;
 	}
 
+
+		
+
 	dprintf(D_ALWAYS, "  Sorting %d ads ...\n",allAds.MyLength());
 
 	allAds.Open();
@@ -1121,6 +1398,7 @@ obtainAdsFromCollector (
 		// number from the new ad, then let's look and see if we've already
 		// got something for this one.		
 		if(!strcmp(ad->GetMyTypeName(),STARTD_ADTYPE)) {
+
 
 			if(!ad->LookupString(ATTR_NAME, remoteHost)) {
 				dprintf(D_FULLDEBUG,"Rejecting unnamed startd ad.");
@@ -1196,6 +1474,7 @@ obtainAdsFromCollector (
 						delete(oldAdEntry->remoteHost);
 						delete(oldAdEntry);
 						stashedAds->remove(rhost);
+      
 					}
 					MapEntry *me = new MapEntry;
 					me->sequenceNum = newSequence;
@@ -1214,7 +1493,6 @@ obtainAdsFromCollector (
 					  way, when we encounter it a few iteration later we
 					  won't reconsider it
 					*/
-
 					allAds.Delete(ad);
 					ad = new ClassAd(*(oldAdEntry->oldAd));
 					ad->Delete(ATTR_UPDATE_SEQUENCE_NUMBER);
@@ -1249,7 +1527,7 @@ int Matchmaker::
 negotiate( char *scheddName, char *scheddAddr, double priority, double share,
 		   int scheddLimit,
 		   ClassAdList &startdAds, ClassAdList &startdPvtAds, 
-		   int send_ad_to_schedd, bool ignore_schedd_limit)
+		   int send_ad_to_schedd, bool ignore_schedd_limit, int& noMatchCount)
 {
 	ReliSock	*sock;
 	int			i;
@@ -1497,6 +1775,10 @@ negotiate( char *scheddName, char *scheddAddr, double priority, double share,
 
 			// 2e(iii). if the matchmaking protocol failed, do not consider the
 			//			startd again for this negotiation cycle.
+
+				// One more resource to ask from parent mm.  --JEFF
+		        noMatchCount++; 
+			
 			if (result == MM_BAD_MATCH)
 				startdAds.Delete (offer);
 

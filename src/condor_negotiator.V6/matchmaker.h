@@ -75,6 +75,8 @@ class Matchmaker : public Service
 		void invalidateNegotiatorAd( void );
 
     protected:
+		bool partitionStartdAds( ClassAdList&, ClassAdList& );
+
 		char * NegotiatorName;
 		int update_interval;
 		
@@ -109,9 +111,11 @@ class Matchmaker : public Service
 		   double priority, double share,
 		   int scheddLimit,
 		   ClassAdList &startdAds, ClassAdList &startdPvtAds, 
-		   int send_ad_to_schedd, bool ignore_schedd_limit);
+		   int send_ad_to_schedd, bool ignore_schedd_limit, int& noMatchCount);
 
-		int negotiateWithGroup ( ClassAdList& startdAds, 
+		int negotiateWithMatchmaker( ClassAd*, ClassAdList&, int);
+
+		int negotiateWithGroup ( ClassAdList&, ClassAdList& startdAds, 
 			ClassAdList& startdPvtAds, ClassAdList& scheddAds, 
 			int groupQuota=INT_MAX, const char* groupAccountingName=NULL);
 
@@ -127,6 +131,8 @@ class Matchmaker : public Service
 		char *getCapability (char *, char *, ClassAdList &);
 		void addRemoteUserPrios( ClassAdList& );
 		void reeval( ClassAd *ad );
+		void publishMMAd( ClassAd* cap, int noMatchCount );
+
 		static int HashFunc(const MyString &Key, int TableSize);
 		friend int comparisonFunction (AttrList *, AttrList *,
 										void *);
@@ -137,6 +143,8 @@ class Matchmaker : public Service
 			// If we are not considering preemption, this function will
 			// trim out startd ads that are not in the Unclaimed state.
 		int trimStartdAds(ClassAdList &startdAds);
+
+		DCCollector* parentCollector;  // Source of startd resources --JEFF
 
 		// configuration information
 		char *AccountantHost;		// who (if at all) is the accountant?
