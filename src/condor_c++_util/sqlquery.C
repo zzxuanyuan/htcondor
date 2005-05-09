@@ -37,8 +37,7 @@
                  (select cid, \
  	                max(CASE attr WHEN 'QDate'  THEN val ELSE NULL END) AS QDate, \
 	                max(CASE attr WHEN 'JobStatus'  THEN val ELSE NULL END) AS JobStatus \
-	              FROM clusterads GROUP BY cid having cid != 0) AS 
-c \
+	              FROM clusterads GROUP BY cid having cid != 0) AS c \
             WHERE p.cid = c.cid) AS h \
          WHERE (jobStatus != '3'::text) and (jobstatus != '4'::text);"
 
