@@ -91,4 +91,10 @@ int	accept_request_claim( Resource* );
 // Activate a claim with a given starter
 int activate_claim( Resource*, Stream* ); 
 
+// Matchmaker requests startd to change its parent matchmaker.  --JEFF
+int command_update_parent( Service*, int, Stream* );
+int command_move_up( Service*, int, Stream* );
+
+  
+
 #endif /* _STARTD_COMMAND_H */

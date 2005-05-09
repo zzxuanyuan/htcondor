@@ -121,6 +121,8 @@ usage( char* MyName)
 int
 main_init( int, char* argv[] )
 {
+
+printf( "Starting up a schedd\n" );
 	int		skip_benchmarks = FALSE;
 	char*	tmp = NULL;
 	char**	ptr; 
@@ -320,6 +322,16 @@ main_init( int, char* argv[] )
 	daemonCore->Register_Command( CA_CMD, "CA_CMD",
 								  (CommandHandler)command_classad_handler,
 								  "command_classad_handler", 0, WRITE );
+
+		// NEGOTIATOR command to update a startd's parent matchmaker --JEFF
+	daemonCore->Register_Command( STARTD_UPDATE_PARENT, "STARTD_UPDATE_PARENT",
+								  (CommandHandler)command_update_parent,
+								  "command_update_parent", 0, NEGOTIATOR );
+
+                // NEGOTIATOR command to update a startd's parent matchmaker --JEFF
+        daemonCore->Register_Command( STARTD_MOVE_UP, "STARTD_MOVE_UP",
+                                                                  (CommandHandler)command_move_up,
+                                                                  "command_update_parent", 0, NEGOTIATOR );
 
 		//////////////////////////////////////////////////
 		// Reapers 

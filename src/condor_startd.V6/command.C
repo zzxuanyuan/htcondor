@@ -374,6 +374,123 @@ command_name_handler( Service*, int cmd, Stream* stream )
 }
 
 
+	// Command sent from a negotiator for a startd to change its
+	// current collector that it reports to.  --JEFF
+int
+command_update_parent( Service*, int cmd, Stream* stream )
+{
+
+	dprintf( D_ALWAYS, "Received command command_update_parent\n" );
+
+	char* collectorAddr = NULL;
+
+		// read the collectorAddr of our new parent matchmaker from
+		// our current parent mm.
+	if( !stream->code( collectorAddr ) ) {
+
+		dprintf( D_ALWAYS, "Can't read address from Negotiator\n" );
+		free( collectorAddr );
+		return FALSE;
+	}
+
+	dprintf( D_ALWAYS, "Updating startd's parent collector to %s\n", collectorAddr );
+	DCCollector* collector = new DCCollector( collectorAddr );
+
+		// now we will send a classAd update to this new matchmaker,
+		// along with all of our previous matchmakers.
+	Collectors->append( collector );
+
+	return TRUE;
+}
+
+	// Command sent from our ancestor matchmaker contained in Collectors
+	// to change our parent mm to the calling ancestor. --JEFF
+int
+command_move_up( Service*, int cmd, Stream* stream )
+{
+
+	dprintf( D_ALWAYS, "Received command command_move_up" );
+
+	char* collectorAddr = NULL;
+	char line[256];
+
+	char* id = NULL;
+	Resource* rip = NULL;
+
+	if( !stream->code( id ) ) {
+		dprintf( D_ALWAYS, "Can't read ClaimId\n" );
+		free( id );
+		return FALSE;
+	}
+	
+	rip = resmgr->get_by_cur_id( id );
+	if( !rip ) {
+		dprintf( D_ALWAYS,
+				"Error: can't find resource with ClaimID (%s)\n", id );
+		free( id );
+		stream->end_of_message();
+		reply( stream, NOT_OK );
+		return FALSE;
+	}
+	free( id );
+	
+		// get our new collector address
+	if( !stream->code( collectorAddr ) ) {
+		dprintf( D_ALWAYS, "Can't read collectorAddr\n" );
+		free( collectorAddr );
+		return FALSE;
+	}
+
+	State s = rip->state();
+
+		// As part of the hierarchichal default configuration, claimed resources
+		// will not be preempted from a mm that is not this startd's parent.
+	if( s != matched_state ) {
+	
+			// First we search for the ancestor mm that sent the command, so that
+			// we can send a REMOVE_ME update to all collectors on the path from
+			// our current collector to the calling collector - each such negotiator
+			// can then update its acct appropriately.
+ 	 	if( Collectors ) {
+		
+			Daemon* entry = NULL;
+			Collectors->rewind();
+
+			while( Collectors->next( entry ) ) {
+
+					// We've found the collector of the negotiator who sent us the move up 
+					// command.  Now, we can send a RETURN_ME update to all collectors along
+					// the path.
+				if( strcmp( entry->pool(), collectorAddr ) == 0 ) {
+
+					ClassAd  private_ad ;
+					ClassAd  public_ad ;
+
+					sprintf( line, "%s = 1", ATTR_REMOVE_ME );
+					rip->publish( &public_ad, A_ALL_PUB );
+					rip->publish( &private_ad, A_PRIVATE | A_ALL );
+					public_ad.Insert( line );
+
+					while( Collectors->next( entry )) {
+		
+						dprintf( D_FULLDEBUG, "Sending a REMOVE_ME update to collector.\n");
+					
+						((DCCollector*)entry)->sendUpdate( UPDATE_STARTD_AD, &public_ad, &private_ad );
+
+						Collectors->DeleteCurrent();
+
+					}	
+
+					return TRUE;
+				}
+			}
+		}
+	}
+
+	return FALSE;
+}
+
+
 int
 command_match_info( Service*, int cmd, Stream* stream ) 
 {

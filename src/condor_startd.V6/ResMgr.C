@@ -1159,11 +1159,58 @@ ResMgr::force_benchmark( void )
 
 int
 ResMgr::send_update( int cmd, ClassAd* public_ad, ClassAd* private_ad )
+	char line[256];
 {
 	int num = 0;
 
+   	Daemon* daemon = NULL; 
+	Daemon* previousDaemon = NULL;
+
+
 	if( Collectors ) {
-		num = Collectors->sendUpdates (cmd, public_ad, private_ad);
+		Collectors->rewind();
+		int numOfCollectors = Collectors->Number() - 1;
+//		num = Collectors->sendUpdates (cmd, public_ad, private_ad);
+		while( numOfCollectors > 0 ) {
+
+				// inserting child attribute so that in a preemption
+				// the matchmaker knows which child to update the acct. --JEFF
+			if( daemon != NULL ) {
+					
+				sprintf( line, "%s = \"%s\"", ATTR_CHILD_POOL, daemon->pool() );
+				public_ad->Insert( line );
+			}
+				
+		
+			Collectors->next(daemon);
+
+				// This will let the negotiator know if this startd is a child
+				// (i.e., ATTR_TREE_DISTANCE == 0 ). --JEFF
+			sprintf( line, "%s = %d", ATTR_IS_SOFT, numOfCollectors  );
+			public_ad->Insert( line );
+		
+		
+			dprintf( D_FULLDEBUG, "Trying to update collector %s\n",
+				daemon->addr() );
+			if( ((DCCollector*)daemon)->sendUpdate( cmd, public_ad, private_ad ) ) {
+				num++;
+			}
+			numOfCollectors--;
+		}
+		if( daemon != NULL ) {
+			sprintf( line, "%s = \"%s\"", ATTR_CHILD_POOL, daemon->pool() );
+			public_ad->Insert( line );
+		}
+		if( Collectors->next(daemon) ) {
+			sprintf( line, "%s = 0", ATTR_IS_SOFT );
+			public_ad->Insert( line );
+			if( ((DCCollector*)daemon)->sendUpdate( cmd, public_ad, private_ad ) ) {
+				num++;
+			}
+		} else {
+			dprintf( D_FULLDEBUG, "Off by 1 error\n" );
+		}
+
 	}  
 
 		// Increment the resmgr's count of updates.
