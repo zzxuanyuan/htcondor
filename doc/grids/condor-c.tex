@@ -11,9 +11,7 @@ These machines may be far removed from each other,
 providing powerful grid computation mechanisms,
 while requiring only Condor software and its configuration.
 
-While jobs reside in a queue,
-outages that affect networks and machines are somewhat
-irrelevant.
+Condor-C is highly resistant to network disconnections and machine failures on both the submission and remote sides.
 An expected usage
 sets up Personal Condor on a laptop,
 submits some jobs that are sent to a Condor pool,
@@ -57,15 +55,23 @@ The configuration variable \Macro{CONDOR\_GAHP}
 gives a full path to the GAHP server utilized by Condor-C.
 The configuration variable \Macro{C\_GAHP\_LOG} defines
 the location of the log that the Condor GAHP server writes.
+The log for the Condor GAHP is written as the user on whose
+behalf it is running; thus like \Macro{GRIDMANAGER\_LOG} the
+\Macro{C\_GAHP\_LOG} setting must point to a location the end
+user can write to.
 
 A submit machine must also have a \Condor{collector} daemon to which the
 \Condor{schedd} daemon can submit a query.
 The query is for the location (IP address and port)
 of the intended remote machine's \Condor{schedd} daemon.
 This facilitates communication between the two machines.
+This \Condor{collector} does not need to be the same collector
+that the local schedd reports to.  The remote\_pool
+submit file setting can be used to specify the collector 
+to contact for the location.
 
 The machine upon which jobs are executed 
-must also be configuration correctly.
+must also be configured correctly.
 This machine must be running a \Condor{schedd} daemon.
 Unless specified explicitly in a submit file, 
 \MacroUNI{CONDOR\_HOST} must point to a 
@@ -80,6 +86,8 @@ authentication protocol to
 know the identity of the user under which to run a job.
 The following is a working example
 of the portion of configuration that sets up authentication.
+This is the most trivial authentication, CLAIMTOBE, which
+essentially assigns trust to hostnames or IP addresses.
 
 \footnotesize
 \begin{verbatim}
@@ -99,7 +107,7 @@ The \Opt{universe} is \Expr{grid},
 and the \Opt{grid\_type} is \Expr{condor}. 
 The remote machine where the job goes is specified in
 the submit description file with \Opt{remote\_schedd}.
-Its value is the same as the machine ClassAd attribute
+Its value is the same as the schedd ClassAd attribute
 \Attr{Name} on the remote machine.
 
 The following represents a minimal submit description file for
@@ -156,6 +164,8 @@ grid      & 9 & \\
  & grid\_type = nordugrid & untested \\
  & grid\_type = oracle & untested \\ \hline
 java & 10 & untested \\ \hline
+parallel & 11 & untested \\ \hline
+local & 12 & works well \\ \hline
 \end{tabular}
 \caption{\label{working-remote-universes}Functionality of remote job universes with Condor-C}
 \end{table}
