@@ -135,8 +135,18 @@ These are specified in the submit description file using the '+'
 syntax, followed by the string \AdStr{remote\_}.
 At a minimum, this will be the job's \Opt{universe} and the job's
 \Opt{requirements}.
-The \Opt{universe} is specified using an integer assigned for
-a job ClassAd \Attr{JobUniverse}. 
+Note that attributes set with '+' are inserted directly into
+the job's ClassAd.  You need to specify attributes as they 
+should appear in the job's ClassAd, not the submit this. 
+Thus,
+the \Opt{universe} is specified using an integer assigned for
+a job ClassAd \Attr{JobUniverse}.
+Similarly, you will need to place quotation marks around string 
+expressions.  Where in a normal submit file you might put 
+"when\_to\_transfer\_output=ON\_EXIT" to set the value remotely
+you will need to specify
+"+Remote\_WhenToTransferOutput="ON\_EXIT"".  Note the quotation marks 
+around the setting.
 
 As Condor-C is a recent addition to Condor,
 the universes, associated integer assignments,
