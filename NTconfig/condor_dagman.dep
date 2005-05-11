@@ -141,7 +141,7 @@
 	
 
 ..\src\condor_dagman\soap_dagmanStub.C : \
-	"..\src\condor_daemon_core.V6\soap_daemon_core.cpp"\
+	"..\src\condor_daemon_core.v6\soap_daemon_core.cpp"\
 	"..\src\condor_dagman\condorDagman.nsmap"\
 	"..\src\condor_dagman\soap_dagmanH.h"\
 	"..\src\condor_dagman\soap_dagmanStub.h"\

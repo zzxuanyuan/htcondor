@@ -242,7 +242,7 @@
 	
 
 ..\src\condor_startd.V6\soap_startdStub.C : \
-	"..\src\condor_daemon_core.V6\soap_daemon_core.cpp"\
+	"..\src\condor_daemon_core.v6\soap_daemon_core.cpp"\
 	"..\src\condor_startd.V6\condorStartd.nsmap"\
 	"..\src\condor_startd.V6\soap_startdH.h"\
 	"..\src\condor_startd.V6\soap_startdStub.h"\

@@ -195,7 +195,7 @@
 	
 
 ..\src\condor_starter.V6.1\soap_starterStub.C : \
-	"..\src\condor_daemon_core.V6\soap_daemon_core.cpp"\
+	"..\src\condor_daemon_core.v6\soap_daemon_core.cpp"\
 	"..\src\condor_starter.V6.1\condorStarter.nsmap"\
 	"..\src\condor_starter.V6.1\soap_starterH.h"\
 	"..\src\condor_starter.V6.1\soap_starterStub.h"\

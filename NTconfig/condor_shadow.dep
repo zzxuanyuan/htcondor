@@ -109,7 +109,7 @@
 	
 
 ..\src\condor_shadow.V6.1\soap_shadowStub.C : \
-	"..\src\condor_daemon_core.V6\soap_daemon_core.cpp"\
+	"..\src\condor_daemon_core.v6\soap_daemon_core.cpp"\
 	"..\src\condor_shadow.V6.1\condorShadow.nsmap"\
 	"..\src\condor_shadow.V6.1\soap_shadowH.h"\
 	"..\src\condor_shadow.V6.1\soap_shadowStub.h"\

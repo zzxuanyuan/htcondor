@@ -40,7 +40,7 @@
 	
 
 ..\src\condor_master.V6\soap_masterStub.C : \
-	"..\src\condor_daemon_core.V6\soap_daemon_core.cpp"\
+	"..\src\condor_daemon_core.v6\soap_daemon_core.cpp"\
 	"..\src\condor_master.V6\condorMaster.nsmap"\
 	"..\src\condor_master.V6\soap_masterH.h"\
 	"..\src\condor_master.V6\soap_masterStub.h"\

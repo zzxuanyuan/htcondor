@@ -41,7 +41,7 @@
 	
 
 ..\src\condor_negotiator.V6\soap_negotiatorStub.C : \
-	"..\src\condor_daemon_core.V6\soap_daemon_core.cpp"\
+	"..\src\condor_daemon_core.v6\soap_daemon_core.cpp"\
 	"..\src\condor_negotiator.V6\condorNegotiator.nsmap"\
 	"..\src\condor_negotiator.V6\soap_negotiatorH.h"\
 	"..\src\condor_negotiator.V6\soap_negotiatorStub.h"\
