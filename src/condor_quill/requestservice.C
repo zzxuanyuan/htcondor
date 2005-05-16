@@ -24,10 +24,11 @@
 // Note: This class is largely deprecated.  This is because condor_q++
 // now talks directly to postgres instead of calling this command
 
-#include <time.h>
 #include "condor_common.h"
 #include "condor_io.h"
 #include "condor_fix_assert.h"
+
+#include <time.h>
 #include "requestservice.h"
 #include "../condor_schedd.V6/qmgmt_constants.h"
 #include "classad_collection.h"
