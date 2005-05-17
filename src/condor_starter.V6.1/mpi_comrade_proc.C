@@ -55,12 +55,69 @@ MPIComradeProc::StartJob()
 				 Node ); 
 	}
 
+	addEnvVars();
     dprintf(D_PROTOCOL, "#11 - Comrade starting up....\n" );
 
         // special args already in ad; simply start it up
     return VanillaProc::StartJob();
 }
 
+
+int
+MPIComradeProc::addEnvVars() 
+{
+   dprintf ( D_FULLDEBUG, "MPIComradeProc::addEnvVars()\n" );
+
+	char *env_str = NULL;
+	Env env;
+	if ( !JobAd->LookupString( ATTR_JOB_ENVIRONMENT, &env_str )) {
+		dprintf( D_ALWAYS, "%s not found in JobAd.  Aborting.\n", 
+				 ATTR_JOB_ENVIRONMENT );
+		return 0;
+	}
+
+	env.Merge(env_str);
+	free(env_str);
+
+    char spool[128];
+    spool[0] = 0;
+	if ( JobAd->LookupString( ATTR_REMOTE_SPOOL_DIR, spool ) < 1 ) {
+		dprintf( D_ALWAYS, "%s not found in JobAd.  Aborting.\n", 
+				 ATTR_REMOTE_SPOOL_DIR);
+		return 0;
+	}
+
+    env.Put( "CONDOR_REMOTE_SPOOL_DIR", spool );
+
+	char buf[128];
+	sprintf(buf, "%d", Node);
+	env.Put("CONDOR_PROCNO", buf);
+
+	int machine_count;
+	if ( JobAd->LookupInteger( ATTR_MAX_HOSTS, machine_count ) !=  1 ) {
+		dprintf( D_ALWAYS, "%s not found in JobAd.  Aborting.\n", 
+				 ATTR_MAX_HOSTS);
+		return 0;
+	}
+
+	sprintf(buf, "%d", machine_count);
+	env.Put("CONDOR_NPROCS", buf);
+
+        // now put the env back into the JobAd:
+	env_str = env.getDelimitedString();
+    dprintf ( D_FULLDEBUG, "New env: %s\n", env_str );
+
+	bool assigned = JobAd->Assign( ATTR_JOB_ENVIRONMENT,env_str );
+	if(env_str) {
+		delete[] env_str;
+	}
+	if(!assigned) {
+		dprintf( D_ALWAYS, "Unable to update env! Aborting.\n" );
+		return 0;
+	}
+
+	return 1;
+}
 
 int
 MPIComradeProc::JobCleanup( int pid, int status )

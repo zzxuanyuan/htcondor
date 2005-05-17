@@ -341,4 +341,3 @@ void
 main_pre_command_sock_init( )
 {
 }
-

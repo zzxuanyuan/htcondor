@@ -1,0 +1,46 @@
+#!/bin/sh
+
+#CONDOR_PROCNO=$1
+#CONDOR_NPROCS=$2
+
+CONDOR_PROCNO=$CONDOR_PROCNO
+CONDOR_NPROCS=$CONDOR_NPROCS
+
+chmod 755 sshd.sh
+chmod 755 condor_ssh
+
+. sshd.sh $CONDOR_PROCNO $CONDOR_NPROCS 
+
+# If not the head node, just sleep forever, to let the
+# sshds run
+if [ $CONDOR_PROCNO -ne 0 ]
+then
+		wait
+		sshd_cleanup
+fi
+
+EXECUTABLE=$1
+
+# the binary is copied but the executable flag is cleared.
+# so the script have to take care of this
+chmod +x $EXECUTABLE
+
+MPDIR=/u/g/t/gthain/mpich-1.2.6/bin
+PATH=$MPDIR:.:$PATH
+export PATH
+
+export P4_RSHCOMMAND=./condor_ssh
+
+contact=contact
+
+# The second field in the contact file is the machine name
+# that condor_ssh knows how to use
+awk '{print $2}' < $contact > machines
+
+## run the actual mpijob
+mpirun -v -np $CONDOR_NPROCS -machinefile machines $EXECUTABLE $@ 
+
+sshd_cleanup
+rm -f machines
+
+exit $?

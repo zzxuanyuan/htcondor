@@ -35,6 +35,9 @@
 #define MPI_USES_RSH TRUE
 #endif
 
+/*GGT*/
+#define MPI_USES_RSH FALSE
+
 /** This is the MPI Shadow class.  It acts as a shadow for an MPI
 	job submitted to Condor.<p>
 
