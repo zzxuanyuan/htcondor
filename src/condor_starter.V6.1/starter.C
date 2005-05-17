@@ -853,12 +853,15 @@ CStarter::PublishToEnv( Env* proc_env )
 		env_name = base.GetCStr();
 		env_name += "OUTPUT_CLASSAD";
 		proc_env->Put( env_name.GetCStr(), output_ad );
-}
+	}
 	
 		// job scratch space
 	env_name = base.GetCStr();
 	env_name += "SCRATCH_DIR";
 	proc_env->Put( env_name.GetCStr(), GetWorkingDir() );
+
+		// pass through the pidfamily ancestor env vars this process
+		// currently has to the job.
 
 		// port regulation stuff
 	char* low = param( "LOWPORT" );
