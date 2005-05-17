@@ -95,6 +95,12 @@ PLATFORM_LDFLAGS = PlatformLdFlags
 PURIFY_PLATFORM_LDFLAGS = PurifyPlatformLdFlags
 TEST_PLATFORM_LDFLAGS = TestPlatformLdFlags
 
+#if (HAVE_GNU_LD) && (HAVE_GCB)
+WRAP_LDFLAGS = -Wl,--wrap,socket -Wl,--wrap,bind -Wl,--wrap,listen -Wl,--wrap,connect -Wl,--wrap,accept -Wl,--wrap,select -Wl,--wrap,recv -Wl,--wrap,read -Wl,--wrap,recvfrom -Wl,--wrap,send -Wl,--wrap,sendto -Wl,--wrap,write -Wl,--wrap,close -Wl,--wrap,dup -Wl,--wrap,dup2 -Wl,--wrap,getsockname -Wl,--wrap,getsockaddr -Wl,--wrap,getsockopt -Wl,--wrap,execv -Wl,--wrap,execve -Wl,--wrap,execl
+#else
+WRAP_LDFLAGS = 
+#endif
+
 
 /*
    These next few lines are not supposed to be pre-processor
@@ -473,9 +479,9 @@ SYSAPI_LIB = ../condor_sysapi/libsysapi.a
 ACCT_LIB    = ../condor_accountant.V6/libacct.a
 DAEMONCORE_LIB = ../condor_daemon_core.V6/daemon_core.a
 
-ALL_LDFLAGS = -lm $(LDFLAGS) $(PLATFORM_LDFLAGS) $(SITE_LDFLAGS)
+ALL_LDFLAGS = -lm $(LDFLAGS) $(PLATFORM_LDFLAGS) $(SITE_LDFLAGS) $(WRAP_LDFLAGS)
 TEST_LDFLAGS = -lm $(LDFLAGS) $(TEST_PLATFORM_LDFLAGS) $(SITE_LDFLAGS)
-PURIFY_LDFLAGS = -lm $(LDFLAGS) $(PURIFY_PLATFORM_LDFLAGS) $(SITE_LDFLAGS)
+PURIFY_LDFLAGS = -lm $(LDFLAGS) $(PURIFY_PLATFORM_LDFLAGS) $(SITE_LDFLAGS) $(WRAP_LDFLAGS)
 
 STD_LIBS = \
   $(CUTIL_LIB) \
