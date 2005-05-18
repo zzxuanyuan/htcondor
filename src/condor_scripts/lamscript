@@ -4,10 +4,13 @@ CONDOR_PROCNO=$CONDOR_PROCNO
 CONDOR_NPROCS=$CONDOR_NPROCS
 CONDOR_REMOTE_SPOOL_DIR=$CONDOR_REMOTE_SPOOL_DIR
 
-chmod 755 sshd.sh
-chmod 755 condor_ssh
+SSHD_SH=`condor_config_val libexec`
+SSHD_SH=$SSHD_SH/sshd.sh
 
-. sshd.sh $CONDOR_PROCNO $CONDOR_NPROCS 
+CONDOR_SSH=`condor_config_val libexec`
+CONDOR_SSH=$CONDOR_SSH/sshd.sh
+
+. $SSHD_SH $CONDOR_PROCNO $CONDOR_NPROCS 
 
 # If not the head node, just sleep forever, to let the
 # sshds run
@@ -23,7 +26,9 @@ EXECUTABLE=$1
 # so the script have to take care of this
 chmod +x $EXECUTABLE
 
-#LAMDIR=/u/g/t/gthain/lam/bin
+# Set this to the bin directory of your lam installation
+# This also must be in your .cshrc file, so the remote side
+# can find it!
 LAMDIR=/u/g/t/gthain/lam-7.0.6/bin
 PATH=$LAMDIR:$PATH
 export PATH
@@ -36,7 +41,7 @@ export LAM_MPI_SESSION_SUFFIX=$$
 # LAM < 7.0.2
 export LAM_MPI_SOCKET_SUFFIX=$$
 
-export LAMRSH=./condor_ssh
+export LAMRSH=$CONDOR_SSH
 
 # when a job is killed by the user, this script will get sigterm
 # This script have to catch it and do the cleaning for the
@@ -58,6 +63,7 @@ awk '{print $2}' < $CONDOR_CONTACT_FILE >> machines
 
 
 # start the lam environment
+# For older versions of lam you may need to remove the -ssi boot rsh line
 lamboot -ssi boot rsh machines
 
 if [ $? -ne 0 ]

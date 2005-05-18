@@ -1,15 +1,18 @@
 #!/bin/sh
 
-#CONDOR_PROCNO=$1
-#CONDOR_NPROCS=$2
-
 CONDOR_PROCNO=$CONDOR_PROCNO
 CONDOR_NPROCS=$CONDOR_NPROCS
 
-chmod 755 sshd.sh
-chmod 755 condor_ssh
+CONDOR_SSH=`condor_config_val libexec`
+CONDOR_SSH=$CONDOR_SSH/sshd.sh
 
-. sshd.sh $CONDOR_PROCNO $CONDOR_NPROCS 
+SSHD_SH=`condor_config_val libexec`
+SSHD_SH=$SSHD_SH/sshd.sh
+
+CONDOR_SSH=`condor_config_val libexec`
+CONDOR_SSH=$CONDOR_SSH/sshd.sh
+
+. $SSHD_SH $CONDOR_PROCNO $CONDOR_NPROCS 
 
 # If not the head node, just sleep forever, to let the
 # sshds run
@@ -25,11 +28,12 @@ EXECUTABLE=$1
 # so the script have to take care of this
 chmod +x $EXECUTABLE
 
+# Set this to the bin directory of MPICH installation
 MPDIR=/u/g/t/gthain/mpich-1.2.6/bin
 PATH=$MPDIR:.:$PATH
 export PATH
 
-export P4_RSHCOMMAND=./condor_ssh
+export P4_RSHCOMMAND=$CONDOR_SSH
 
 contact=contact
 

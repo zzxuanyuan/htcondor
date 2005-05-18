@@ -7,19 +7,16 @@ sshd_cleanup() {
 trap sshd_cleanup 15
 
 # note the sshd requires full path
-# These should be moved to the config file
-SSHD=`pwd`/sshd
-KEYGEN=/s/openssh/bin/ssh-keygen
+SSHD=`condor_config_val CONDOR_SSHD`
+KEYGEN=`condor_config_val CONDOR_SSH_KEYGEN`
+CONDOR_CHIRP=`condor_config_val libexec`
+CONDOR_CHIRP=$CONDOR_CHIRP/condor_chirp
+
 PORT=4444
 
 CONDOR_REMOTE_SPOOL_DIR=$CONDOR_REMOTE_SPOOL_DIR
 CONDOR_PROCNO=$1
 CONDOR_NPROCS=$2
-CONDOR_CHIRP=./condor_chirp
-
-# Remove these lines when we don't transfer these
-chmod 755 sshd
-chmod 755 condor_chirp
 
 # Create the host key. 
 /bin/rm -f hostkey hostkey.pub
