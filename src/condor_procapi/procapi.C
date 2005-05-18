@@ -455,15 +455,17 @@ ProcAPI::getProcInfo( pid_t pid, piPTR& pi, int &status )
 			if( errno == ENOENT ) {
 				// /proc/pid doesn't exist
 				status = PROCAPI_NOPID;
-				dprintf( D_FULLDEBUG, "ProcAPI: pid %d does not exist.\n", 
-					 pid );
+				dprintf( D_FULLDEBUG, 
+					"ProcAPI::getProcInfo() pid %d does not exist.\n", pid );
 			} else if ( errno == EACCES ) {
 				status = PROCAPI_PERM;
-				dprintf( D_FULLDEBUG, "ProcAPI: No permission to open %s.\n", 
+				dprintf( D_FULLDEBUG, 
+					"ProcAPI::getProcInfo() No permission to open %s.\n", 
 					 path );
 			} else { 
 				status = PROCAPI_UNSPECIFIED;
-				dprintf( D_ALWAYS, "ProcAPI: Error opening %s, errno: %d.\n", 
+				dprintf( D_ALWAYS, 
+					"ProcAPI::getProcInfo() Error opening %s, errno: %d.\n", 
 					 path, errno );
 			}
 			
@@ -522,7 +524,7 @@ ProcAPI::getProcInfo( pid_t pid, piPTR& pi, int &status )
 		if ( status == PROCAPI_GARBLED ) {
 			dprintf( D_ALWAYS, 
 				"ProcAPI: After %d attempts at reading %s, found only "
-				"garbage!\n", num_attempts, path);
+				"garbage! Aborting read.\n", num_attempts, path);
 		}
 
 		if (fp != NULL) {
@@ -799,9 +801,6 @@ ProcAPI::getProcInfo( pid_t pid, piPTR& pi, int &status )
 					pid);
 		}
 
-/*		dprintf(D_ALWAYS, "Pid %u has these ancestor variables:\n", pid);*/
-/*		pidenvid_dump(&pi->penvid, D_ALWAYS);*/
-	
 		// don't leak memory of the environ buffer
 		free(env_buffer);
 		env_buffer = NULL;
@@ -1408,7 +1407,7 @@ int
 ProcAPI::getProcSetInfo( pid_t *pids, int numpids, piPTR& pi, int &status ) 
 {
 	piPTR temp = NULL;
-	int rval = 0, val = 0;
+	int val = 0;
 	priv_state priv;
 	int info_status;
 	int failed = FALSE;
@@ -1461,7 +1460,7 @@ ProcAPI::getProcSetInfo( pid_t *pids, int numpids, piPTR& pi, int &status )
 						break;
 
 					case PROCAPI_PERM:
-						dprintf( D_ALWAYS, 
+						dprintf( D_FULLDEBUG, 
 								"ProcAPI::getProcSetInfo: Permission error "
 					 			"getting info for pid %d.\n", pids[i] );
 						break;
@@ -1712,6 +1711,7 @@ ProcAPI::makeFamily( pid_t dadpid, PidEnvID *penvid, pid_t *allpids,
 			// only need to initialize these aspects of the procInfo for 
 			// isinfamily().
 			pi.ppid = parentpids[j];
+			pi.pid = allpids[j];
 			pidenvid_init(&pi.penvid);
 
 			if( isinfamily(fampids, famsize, penvid, &pi) ) {
@@ -2415,7 +2415,7 @@ ProcAPI::buildFamily( pid_t daddypid, PidEnvID *penvid, int &status ) {
 
 	if( (DebugFlags & D_FULLDEBUG) && (DebugFlags & D_PROCFAMILY) ) {
 		dprintf( D_FULLDEBUG, 
-				 "ProcAPI::buildFamily called w/ parent: %d\n", daddypid );
+				 "ProcAPI::buildFamily() called w/ parent: %d\n", daddypid );
 	}
 
 	numprocs = getNumProcs();
@@ -2423,13 +2423,10 @@ ProcAPI::buildFamily( pid_t daddypid, PidEnvID *penvid, int &status ) {
 	procFamily = NULL;
 
 		// make an array of size # processes for quick lookup of pids in family
-		// XXX race condition? What if some new pids show up since I asked?
 	familypids = new pid_t[numprocs];
 
 		// get the daddypid's procInfo struct
 	piPTR pred, current, familyend;
-
-	dprintf( D_ALWAYS, "ProcAPI: Searching for daddypid: %u\n", daddypid );
 
 	// find the daddy pid out of the linked list of all of the processes
 	current = allProcInfos;
@@ -2439,7 +2436,8 @@ ProcAPI::buildFamily( pid_t daddypid, PidEnvID *penvid, int &status ) {
 	}
 
 	if (current != NULL) {
-		dprintf( D_FULLDEBUG, "ProcAPI: Found daddypid on the system: %u\n", 
+		dprintf( D_FULLDEBUG, 
+			"ProcAPI::buildFamily() Found daddypid on the system: %u\n", 
 			current->pid );
 	}
 
@@ -2454,17 +2452,19 @@ ProcAPI::buildFamily( pid_t daddypid, PidEnvID *penvid, int &status ) {
 			pred = current;
 			current = current->next;
 		}
+
 		if (current != NULL) {
 
 			// found something that was most likely a descendant of daddypid
 			status = PROCAPI_FAMILY_SOME;
 
-			dprintf(D_ALWAYS, "ProcAPI: Daddy pid %u is gone, assigning "
-								"probable descendant %u as new daddy\n",
-								daddypid, current->pid);
+			dprintf(D_FULLDEBUG, 
+				"ProcAPI::buildFamily() Parent pid %u is gone. "
+				"Found descendant %u via ancestor environment "
+				"tracking and assigning as new \"parent\".\n", 
+				daddypid, current->pid);
 		}
 	}
-
 
 	// if we couldn't find the daddy pid we were originally looking for, or 
 	// any children of said pid (which are members of the daddy pid's family
@@ -2577,23 +2577,35 @@ ProcAPI::convertTimeval ( struct timeval t ) {
 
 // Hey, here are two functions that can be used by both win32 and unix....
 int
-ProcAPI::isinfamily( pid_t *fam, int size, PidEnvID *penvid, piPTR target ) {
+ProcAPI::isinfamily( pid_t *fam, int size, PidEnvID *penvid, piPTR child ) 
+{
 	for( int i=0; i<size; i++ ) {
-		// definite child according to unix
-		if( fam[i] == target->ppid ) {
-			dprintf( D_PROCFAMILY, "Pid %u is directly a child of daddy %u\n", 
-					fam[i], target->ppid );
+		// if the child's parent pid is one of the values in the family, then 
+		// the child is actually a child of one of the pids in the fam array.
+		if( child->ppid == fam[i] ) {
+
+			if( (DebugFlags & D_FULLDEBUG) && (DebugFlags & D_PROCFAMILY) ) {
+				dprintf( D_FULLDEBUG, "Pid %u is in family of %u\n", 
+					child->pid, fam[i] );
+			}
+
 			return true;
 		}
 
 		// check to see if the daddy's ancestor pids are a subset of the
 		// child's, if so, then the child is a descendent of the daddy pid.
-		if (pidenvid_match(penvid, &target->penvid) == PIDENVID_MATCH) {
-			dprintf( D_PROCFAMILY, "Pid %u is inferred a child of daddy %u\n", 
-					fam[i], target->ppid );
+		if (pidenvid_match(penvid, &child->penvid) == PIDENVID_MATCH) {
+
+			if( (DebugFlags & D_FULLDEBUG) && (DebugFlags & D_PROCFAMILY) ) {
+				dprintf( D_FULLDEBUG, 
+					"Pid %u is predicted to be in family of %u\n", 
+					child->pid, fam[i] );
+			}
+
 			return true;
 		}
 	}
+
 	return false;
 }
 
