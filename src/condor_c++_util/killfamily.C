@@ -328,8 +328,8 @@ ProcFamily::takesnapshot()
 
 					// If the above call to get the family KNEW that 
 					// the daddy pid was already exited (since it couldn't be
-					// found), and returned something it though was family
-					// anyway, check against the old pids but don't 
+					// found) but yet it returned something it thought was 
+					// family anyway, check against the old pids but don't 
 					// consider the daddy pid to even be alive.
 
 					if ( (fam_status == PROCAPI_FAMILY_ALL ) ||
