@@ -48,6 +48,8 @@ C_GAHP_LOG=/tmp/CGAHPLog.$(USERNAME)
 \end{verbatim}
 \normalsize
 
+\index{Condor GAHP}
+\index{GAHP (Grid ASCII Helper Protocol)}
 The acronym GAHP stands for Grid ASCII Helper Protocol.
 A GAHP server provides grid-related services for a
 variety of underlying middle-ware systems.
@@ -57,7 +59,7 @@ The configuration variable \Macro{C\_GAHP\_LOG} defines
 the location of the log that the Condor GAHP server writes.
 The log for the Condor GAHP is written as the user on whose
 behalf it is running; thus like \Macro{GRIDMANAGER\_LOG} the
-\Macro{C\_GAHP\_LOG} setting must point to a location the end
+\Macro{C\_GAHP\_LOG} configuration variable must point to a location the end
 user can write to.
 
 A submit machine must also have a \Condor{collector} daemon to which the
@@ -66,15 +68,16 @@ The query is for the location (IP address and port)
 of the intended remote machine's \Condor{schedd} daemon.
 This facilitates communication between the two machines.
 This \Condor{collector} does not need to be the same collector
-that the local schedd reports to.  The remote\_pool
-submit file setting can be used to specify the collector 
-to contact for the location.
+that the local \Condor{schedd} daemon reports to.
+The \Opt{remote\_pool}
+submit file command is used to specify the \Condor{collector}
+daemon to contact for the location.
 
 The machine upon which jobs are executed 
 must also be configured correctly.
 This machine must be running a \Condor{schedd} daemon.
 Unless specified explicitly in a submit file, 
-\MacroUNI{CONDOR\_HOST} must point to a 
+\MacroNI{CONDOR\_HOST} must point to a 
 \Condor{collector} daemon that it can write to,
 and the machine upon which jobs are submitted can read from.
 This facilitates communication between the two machines.
@@ -85,9 +88,9 @@ Condor-C on the remote machine relies on an
 authentication protocol to
 know the identity of the user under which to run a job.
 The following is a working example
-of the portion of configuration that sets up authentication.
-This is the most trivial authentication, CLAIMTOBE, which
-essentially assigns trust to hostnames or IP addresses.
+of the security configuration for authentication.
+This authentication method, CLAIMTOBE, 
+trusts the identity claimed by a host or IP address.
 
 \footnotesize
 \begin{verbatim}
@@ -105,9 +108,10 @@ SEC_DEFAULT_AUTHENTICATION_METHODS = CLAIMTOBE
 Job submission of Condor-C jobs is the same as for any Condor job.
 The \Opt{universe} is \Expr{grid},
 and the \Opt{grid\_type} is \Expr{condor}. 
-The remote machine where the job goes is specified in
-the submit description file with \Opt{remote\_schedd}.
-Its value is the same as the schedd ClassAd attribute
+The remote machine is specified in
+the submit description file with the command \Opt{remote\_schedd}.
+The value assigned for this command is the same as
+the \Condor{schedd} ClassAd attribute
 \Attr{Name} on the remote machine.
 
 The following represents a minimal submit description file for
@@ -130,23 +134,32 @@ a job.
 \end{verbatim}
 \normalsize
 
-The remote machine needs to understand attributes of the job.
+The remote machine needs to understand the attributes of the job.
 These are specified in the submit description file using the '+'
 syntax, followed by the string \AdStr{remote\_}.
 At a minimum, this will be the job's \Opt{universe} and the job's
 \Opt{requirements}.
 Note that attributes set with '+' are inserted directly into
-the job's ClassAd.  You need to specify attributes as they 
-should appear in the job's ClassAd, not the submit this. 
-Thus,
+the job's ClassAd.  
+Specify attributes as they 
+must appear in the job's ClassAd, not the submit description file. 
+For example,
 the \Opt{universe} is specified using an integer assigned for
 a job ClassAd \Attr{JobUniverse}.
-Similarly, you will need to place quotation marks around string 
-expressions.  Where in a normal submit file you might put 
-"when\_to\_transfer\_output=ON\_EXIT" to set the value remotely
-you will need to specify
-"+Remote\_WhenToTransferOutput="ON\_EXIT"".  Note the quotation marks 
-around the setting.
+Similarly, place quotation marks around string 
+expressions.
+As an example, a submit description file would ordinarily contain
+\footnotesize
+\begin{verbatim}
+when_to_transfer_output = ON_EXIT
+\end{verbatim}
+\normalsize
+This must appear in the Condor-C job submit description file as
+\footnotesize
+\begin{verbatim}
++Remote_WhenToTransferOutput="ON_EXIT"
+\end{verbatim}
+\normalsize
 
 As Condor-C is a recent addition to Condor,
 the universes, associated integer assignments,
