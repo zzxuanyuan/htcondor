@@ -38,9 +38,9 @@ static_library($(LIBNAME),lib)
 
 html_target( ChirpClient.java ChirpInputStream.java ChirpOutputStream.java )
 
-c_plus_target($(CONDOR_CHIRP_NAME), $(CONDOR_CHIRP_OBJ), $(LIBNAME))
+c_plus_target($(CONDOR_CHIRP_NAME),$(CONDOR_CHIRP_OBJ),$(LIBNAME))
 
-release_target($(CONDOR_CHIRP_NAME), libexec, EXECUTABLE_MODE)
-strip_target($(CONDOR_CHIRP_NAME), libexec, EXECUTABLE_MODE)
+release_target($(CONDOR_CHIRP_NAME),libexec,EXECUTABLE_MODE)
+strip_target($(CONDOR_CHIRP_NAME),libexec,EXECUTABLE_MODE)
 
 
