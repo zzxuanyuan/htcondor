@@ -23,7 +23,7 @@
 
 
 #include "condor_common.h"
-#include "mpishadow.h"
+#include "parallelshadow.h"
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
 #include "condor_qmgr.h"         // need to talk to schedd's qmgr
 #include "condor_attributes.h"   // for ATTR_ ClassAd stuff
@@ -34,7 +34,7 @@
 #include "env.h"
 
 
-MPIShadow::MPIShadow() {
+ParallelShadow::ParallelShadow() {
     nextResourceToStart = 0;
 	numNodes = 0;
     shutDownMode = FALSE;
@@ -42,30 +42,17 @@ MPIShadow::MPIShadow() {
     ResourceList.truncate(-1);
 	actualExitReason = -1;
 	info_tid = -1;
-#if ! MPI_USES_RSH
-	master_addr = NULL;
-	mpich_jobid = NULL;
-#endif
 }
 
-MPIShadow::~MPIShadow() {
+ParallelShadow::~ParallelShadow() {
         // Walk through list of Remote Resources.  Delete all.
     for ( int i=0 ; i<=ResourceList.getlast() ; i++ ) {
         delete ResourceList[i];
     }
-#if ! MPI_USES_RSH
-	if( master_addr ) {
-		free( master_addr );
-	}
-	if( mpich_jobid ) {
-		free( mpich_jobid );
-	}
-
-#endif /* ! MPI_USES_RSH */
 }
 
 void 
-MPIShadow::init( ClassAd* job_ad, const char* schedd_addr )
+ParallelShadow::init( ClassAd* job_ad, const char* schedd_addr )
 {
 
 	char buf[256];
@@ -83,30 +70,16 @@ MPIShadow::init( ClassAd* job_ad, const char* schedd_addr )
 		// properly depending on parallel vs. serial jobs, etc. 
 	daemonCore->
 		Register_Command( SHADOW_UPDATEINFO, "SHADOW_UPDATEINFO", 
-						  (CommandHandlercpp)&MPIShadow::updateFromStarter,
-						  "MPIShadow::updateFromStarter", this, DAEMON ); 
+						  (CommandHandlercpp)&ParallelShadow::updateFromStarter,
+						  "ParallelShadow::updateFromStarter", this, DAEMON ); 
 
-#if MPI_USES_RSH	
-
-        /* Register Command for sneaky rsh: */
-	daemonCore->Register_Command( MPI_START_COMRADE, "MPI_START_COMRADE", 
-		 (CommandHandlercpp)&MPIShadow::startComrade, "startComrade", 
-		 this, WRITE );
-
-#else /* ! MPI_USES_RSH */
-
-		// initialize mpich_jobid, since we'll need it to spawn later
-	sprintf( buf, "%s.%d.%d", my_full_hostname(), getCluster(),
-			 getProc() );
-	mpich_jobid = strdup( buf );
-
-#endif /* ! MPI_USES_RSH */
 
         // make first remote resource the "master".  Put it first in list.
     MpiResource *rr = new MpiResource( this );
 
     ClassAd *temp = new ClassAd( *(getJobAd() ) );
 
+		// GGT remove this?
     sprintf( buf, "%s = %s", ATTR_MPI_IS_MASTER, "TRUE" );
     if( !temp->Insert(buf) ) {
         dprintf( D_ALWAYS, "Failed to insert %s into jobAd.\n", buf );
@@ -133,21 +106,21 @@ MPIShadow::init( ClassAd* job_ad, const char* schedd_addr )
 
 
 void
-MPIShadow::reconnect( void )
+ParallelShadow::reconnect( void )
 {
-	EXCEPT( "reconnect is not supported for MPI universe!" );
+	EXCEPT( "reconnect is not supported for Parallel universe!" );
 }
 
 
 bool 
-MPIShadow::supportsReconnect( void )
+ParallelShadow::supportsReconnect( void )
 {
 	return false;
 }
 
 
 void
-MPIShadow::spawn( void )
+ParallelShadow::spawn( void )
 {
 		/*
 		  This is lame.  We should really do a better job of dealing
@@ -171,7 +144,7 @@ MPIShadow::spawn( void )
 		*/
 	info_tid = daemonCore->
 		Register_Timer( 1, 0,
-						(TimerHandlercpp)&MPIShadow::getResources,
+						(TimerHandlercpp)&ParallelShadow::getResources,
 						"getResources", this );
 	if( info_tid < 0 ) {
 		EXCEPT( "Can't register DC timer!" );
@@ -180,7 +153,7 @@ MPIShadow::spawn( void )
 
 
 int 
-MPIShadow::getResources( void )
+ParallelShadow::getResources( void )
 {
     dprintf ( D_FULLDEBUG, "Getting machines from schedd now...\n" );
 
@@ -319,10 +292,10 @@ MPIShadow::getResources( void )
 
 
 void
-MPIShadow::startMaster()
+ParallelShadow::startMaster()
 {
     MpiResource *rr;
-    dprintf ( D_FULLDEBUG, "In MPIShadow::startMaster()\n" );
+    dprintf ( D_FULLDEBUG, "In ParallelShadow::startMaster()\n" );
 
 		// This function does *TOTALLY* different things depending on
 		// if we're using rsh to spawn the comrade nodes or if we're
@@ -332,103 +305,7 @@ MPIShadow::startMaster()
 		// have to contact a startd to spawn the master node, so that
 		// code is shared at the end...
 
-#if MPI_USES_RSH
-
-		// If we're using rsh, we've got to setup the procgroup file
-		// (which is pretty expensive), hack the master ad to deal w/
-		// file transfer stuff, command line args to specify the
-		// procgroup file, etc, etc.
-
-    char mach[128];
-    char *sinful = new char[128];
-    struct sockaddr_in sin;
-    FILE *pg;
-
-        /* We use the list of resources to build a procgroup file, 
-           then tell the master to start itself up. */
-
-        /* Problem: none of the resources have started yet, so none
-           have reported back their machine name (foo.cs.wisc.edu, etc)
-           We use stuff in internet.c... */
-
-        /* A p4 procgroup file has the following format:
- 
-           local_machine  0 [full_path_name] [loginname] 
-           remote_machine 1 full_path_name [loginname] 
-           ...
-
-           We don't know the full path of the executable, so
-           we'll just call it 'condor_exec'  This name has absolutely no
-		   effect on the executable started, since condor does that...
-        */
-
-        /* XXX Note: a future version will have to figure out 
-           how many to start on each machine; for now we assume
-           one per machine */
-
-        // first we open up the procgroup file (in working dir of job)
-    char pgfilename[128];
-    sprintf( pgfilename, "%s/procgroup.%d.%d", getIwd(), getCluster(), 
-			 getProc() );
-    if( (pg=fopen( pgfilename, "w" )) == NULL ) {
-        dprintf( D_ALWAYS, "Failure to open %s for writing, errno %d\n", 
-                 pgfilename, errno );
-        shutDown( JOB_NOT_STARTED );
-    }
-        
-        // get the machine name (using string_to_sin and sin_to_hostname)
-    rr = ResourceList[0];
-    rr->getStartdAddress( sinful );
-    string_to_sin( sinful, &sin );
-    sprintf( mach, "%s", sin_to_hostname( &sin, NULL ));
-    fprintf( pg, "%s 0 condor_exec %s\n", mach, getOwner() );
-
-    dprintf ( D_FULLDEBUG, "Procgroup file:\n" );
-    dprintf ( D_FULLDEBUG, "%s 0 condor_exec %s\n", mach, getOwner() );
-
-        // for each resource, get machine name, make pgfile entry
-    for ( int i=1 ; i<=ResourceList.getlast() ; i++ ) {
-        rr = ResourceList[i];
-        rr->getStartdAddress( sinful );
-        string_to_sin( sinful, &sin );
-        sprintf( mach, "%s", sin_to_hostname( &sin, NULL ) );
-        fprintf( pg, "%s 1 condor_exec %s\n", mach, getOwner() );
-        dprintf( D_FULLDEBUG, "%s 1 condor_exec %s\n", mach, getOwner() );
-    }
-    delete [] sinful;
-
-        // set permissions on the procgroup file:
-#ifndef WIN32
-    if ( fchmod( fileno( pg ), 0666 ) < 0 ) {
-        dprintf ( D_ALWAYS, "fchmod failed! errno %d\n", errno );
-        fclose( pg );
-        shutDown( JOB_NOT_STARTED );
-    }
-#endif
-
-    if ( fclose( pg ) == EOF ) {
-        dprintf ( D_ALWAYS, "fclose failed!  errno = %d\n", errno );
-        shutDown( JOB_NOT_STARTED );
-    }
-
-        // back to master resource:
-    rr = ResourceList[0];
-
-        // alter the master's args...
-    hackMasterAd( rr->getJobAd() );
-
-        // Once we actually spawn the job (below), the sneaky rsh
-		// intercepts the master's call to rsh, and sends stuff to
-		// startComrade()... 
-
-#else /* ! MPI_USES_RSH */
-
-		// All we have to do is modify the ad for the master to append
-		// the MPICH-specific environment variables.
 	rr = ResourceList[0];
-	modifyNodeAd( rr->getJobAd() );
-
-#endif /* ! MPI_USES_RSH */
 
 		// In both cases, we've got to actually talk to a startd to
 		// spawn the master node, register the claimSock for remote
@@ -443,143 +320,8 @@ MPIShadow::startMaster()
 
 }
 
-#if (MPI_USES_RSH) 
-
-int
-MPIShadow::startComrade( int cmd, Stream* s )
-{
-/* This command made by sneaky rsh:  condor_starter.V6.1/condor_rsh.C */
-
-    dprintf ( D_FULLDEBUG, "Getting information for a comrade node\n" );
-    
-    char *comradeArgs = NULL;
-    if ( !s->code( comradeArgs ) ||
-         !s->end_of_message() )
-    {
-        dprintf ( D_ALWAYS, "Failed to receive comrade args!" );
-        shutDown( JOB_NOT_STARTED );
-    }
-
-    dprintf ( D_PROTOCOL, "#8 - Received args from sneaky rsh\n" );
-    dprintf ( D_FULLDEBUG, "Comrade args: %s\n", comradeArgs );
-
-    MpiResource *rr = ResourceList[nextResourceToStart];
-    
-        // modify this comrade's arguments...using the comradeArgs given.
-    hackComradeAd( comradeArgs, rr->getJobAd() );
-
-    dprintf ( D_PROTOCOL, "#9 - Added args to jobAd, now requesting:\n" );
-
-		// Now, call the shared method to really spawn this node
-	spawnNode( rr );
-
-    return TRUE;
-}
-
-void 
-MPIShadow::hackMasterAd( ClassAd *ad )
-{
-/* simple:  get args, add -p4pg (and more...), put args back in */
-
-	char args[_POSIX_ARG_MAX];
-	if ( !ad->LookupString( ATTR_JOB_ARGUMENTS, args )) {
-		dprintf( D_ALWAYS, "%s not found in JobAd.  Aborting.\n", 
-				 ATTR_JOB_ARGUMENTS );
-		shutDown( JOB_NOT_STARTED );
-	}
-    
-    char tmp[_POSIX_ARG_MAX];
-
-    sprintf ( tmp, "%s = \"-p4pg procgroup.%d.%d %s\"", 
-              ATTR_JOB_ARGUMENTS, getCluster(), getProc(), args );
-
-    ad->Delete( ATTR_JOB_ARGUMENTS );
-
-	if ( !ad->Insert( tmp )) {
-		dprintf( D_ALWAYS, "Unable to update args! Aborting.\n" );
-		shutDown( JOB_NOT_STARTED );
-	}
-
-		// While we're at it, if the job wants files transfered,
-		// include the procgroup file in the list of input files.
-		// This is only needed on the master.
-	if( !ad->LookupString(ATTR_TRANSFER_FILES, args) ) {
-			// Nothing, we're done.
-		return;
-	}
-		// Ok, we found it.  If it's set to anything other than
-		// "Never", we need to do our work.
-	if( args[0] == 'n' || args[0] == 'N' ) {
-			// It's "never", we're done.
-		return;
-	}
-
-		// Now, see if they already gave us a list.
-	if( !ad->LookupString(ATTR_TRANSFER_INPUT_FILES, args) ) {
-			// Nothing here, so we can safely add it ourselves. 
-		sprintf( tmp, "%s = \"procgroup.%d.%d\"",
-				 ATTR_TRANSFER_INPUT_FILES, getCluster(), getProc() ); 
-	} else {
-			// There's a list already.  We've got to append to it. 
-		sprintf( tmp, "%s = \"%s, procgroup.%d.%d\"",
-				 ATTR_TRANSFER_INPUT_FILES, args, getCluster(),
-				 getProc() );
-
-	}
-	dprintf( D_FULLDEBUG, "About to append to job ad: %s\n", tmp );
-	if ( !ad->Insert( tmp )) {
-		dprintf( D_ALWAYS, "Unable to update %s! Aborting.\n",
-				 ATTR_TRANSFER_INPUT_FILES );
-		shutDown( JOB_NOT_STARTED );
-	}
-}
-
 void
-MPIShadow::hackComradeAd( char *comradeArgs, ClassAd *ad )
-{
-
-/* Args are in form:
-   exec_machine -l username -n executable master_machine port -p4amslave
-
-   We only want the stuff after the executable...
-   executable master_machine port -p4amslave
-*/
-
-    char newargs[_POSIX_ARG_MAX];
-    char *tmparg;
-        // we expect the executable name to be "condor_exec"
-    if ( !(tmparg = strstr( comradeArgs, "condor_exec" )) ) {
-        dprintf ( D_ALWAYS, "No \"condor_exec\" found in comradeArgs!\n" );
-        dprintf ( D_ALWAYS, "Comrade Args: %s\n", comradeArgs );
-        shutDown( JOB_NOT_STARTED );
-    }
-    sprintf( newargs, "%s", &tmparg[12] );
-    
-    char args[2048];
-    if ( !ad->LookupString( ATTR_JOB_ARGUMENTS, args )) {
-        dprintf ( D_ALWAYS, "Failed to get Job args in hackComradeAd!\n" );
-        shutDown( JOB_NOT_STARTED );
-    }
-
-    char tmp[2048];
-    sprintf( tmp, "%s = \"%s %s\"", 
-			 ATTR_JOB_ARGUMENTS, newargs, args );
-    free( comradeArgs );
-
-    dprintf ( D_FULLDEBUG, "Inserting args: %s\n", tmp );
-
-    ad->Delete( ATTR_JOB_ARGUMENTS );
-
-    if ( !ad->Insert( tmp )) {
-        dprintf ( D_ALWAYS, "Failed to insert Job args!\n" );
-        shutDown( JOB_NOT_STARTED );
-    }
-}
-
-#else /* ! MPI_USES_RSH */
-
-void
-MPIShadow::spawnAllComrades( void )
+ParallelShadow::spawnAllComrades( void )
 {
 		/* 
 		   If this function is being called, we've already spawned the
@@ -593,109 +335,14 @@ MPIShadow::spawnAllComrades( void )
 	int last = ResourceList.getlast();
 	while( nextResourceToStart <= last ) {
         rr = ResourceList[nextResourceToStart];
-		modifyNodeAd( rr->getJobAd() );
 		spawnNode( rr );  // This increments nextResourceToStart 
     }
 	ASSERT( nextResourceToStart == numNodes );
 }
 
 
-bool
-MPIShadow::modifyNodeAd( ClassAd* ad )
-{
-		/*
-		  This function has to set 3 environment variables which need
-		  to be set whether we're the root or a comrade node:
-
-		  MPICH_JOBID - Job id string
-		  MPICH_IPROC - The rank number of this node
-		  MPICH_NPROC - The # of total ranks
-
-		  In addition, if we're a comrade, we also need to set:
-
-		  MPICH_ROOT  - host or ip and port of the root node.
-
-		  If we're the root node, we need to set MPICH_ROOT, but we
-		  just want to use the hostname of the root node, not
-		  specifying a port, since we'll let the master bind to
-		  whatever it can and tell us where it's listening via the
-		  MPICH_EXTRA env var.
-		*/
-
-	Env env;
-	char* env_str = NULL;
-	if( ad->LookupString(ATTR_JOB_ENVIRONMENT, &env_str) ) {
-		if( env_str && env_str[0] ) {
-			env.Merge(env_str);
-		}
-		free( env_str );
-	}
-
-		// Now, add all the MPICH-specific variables.
-
-		// NPROC is easy, since numNodes already holds the total
-		// number of nodes we're going to spawn
-	char numNodesString[127];
-	sprintf(numNodesString,"%d",numNodes);
-	env.Put("MPICH_NPROC",numNodesString);
-
-		// We need the delimiter for all the rest of them... 
-
-		// The value we should use for MPICH_JOBID is held in
-		// mpich_jobid, since we want that to be constant across all
-		// nodes we spawn, and we can just compute it once when we
-		// start up and reuse it.
-	env.Put("MPICH_JOBID",mpich_jobid);
-
-		// Conveniently, nextResourceToStart always holds the right
-		// value for IPROC, since that's what we use to keep track of
-		// what node we're spawning...
-	char nextResourceToStartStr[127];
-	sprintf(nextResourceToStartStr,"%d",nextResourceToStart);
-	env.Put("MPICH_IPROC",nextResourceToStartStr);
-
-		// Now, if we're a comrade (rank > 0), we also need to add
-		// MPICH_ROOT, which is what we got from our pseudo syscall. 
-	if( nextResourceToStart > 0 ) {
-		env.Put("MPICH_ROOT",master_addr);
-	} else {
-			// For the root node, we need to set MPICH_ROOT just to
-			// the hostname of the resource where it's executing
-		char* sinful = NULL;
-		ResourceList[0]->getStartdAddress( sinful );
-			// Now, we've got a sinful string, so, parse out the ip
-			// address of it.
-		char* foo;
-		foo = strchr( sinful, ':' );
-		if( foo ) {
-			*foo = '\0';
-		} else {
-			dprintf( D_ALWAYS, 
-					 "ERROR: can't parse sinful string (%s) of root node!\n", 
-					 sinful );
-			delete [] sinful;
-			shutDown( JOB_NOT_STARTED );
-		}
-		env.Put("MPICH_ROOT",&sinful[1]);
-		delete [] sinful;
-	}
-
-		// Now, the env contains the modified environment
-		// attribute, so we just need to re-insert that into our ad. 
-	env_str = env.getDelimitedString();
-	int ret = ad->Assign(ATTR_JOB_ENVIRONMENT,env_str);
-	delete[] env_str;
-	if(ret) {
-		return true;
-	} 
-	return false;
-}
-
-#endif /* MPI_USES_RSH */
-
-
 void 
-MPIShadow::spawnNode( MpiResource* rr )
+ParallelShadow::spawnNode( MpiResource* rr )
 {
 		// First, contact the startd to spawn the job
     if( rr->activateClaim() != OK ) {
@@ -710,19 +357,8 @@ MPIShadow::spawnNode( MpiResource* rr )
 
 
 void 
-MPIShadow::cleanUp( void )
+ParallelShadow::cleanUp( void )
 {
-        // unlink the procgroup file:
-    char pgfilename[512];
-    sprintf( pgfilename, "%s/procgroup.%d.%d", getIwd(), getCluster(), 
-			 getProc() );
-    if( unlink( pgfilename ) == -1 ) {
-        if( errno != ENOENT ) {
-            dprintf( D_ALWAYS, "Problem removing %s: errno %d.\n", 
-					 pgfilename, errno );
-        }
-    }
-
 		// kill all the starters
 	MpiResource *r;
 	int i;
@@ -734,14 +370,14 @@ MPIShadow::cleanUp( void )
 
 
 void 
-MPIShadow::gracefulShutDown( void )
+ParallelShadow::gracefulShutDown( void )
 {
 	cleanUp();
 }
 
 
 void
-MPIShadow::emailTerminateEvent( int exitReason )
+ParallelShadow::emailTerminateEvent( int exitReason )
 {
 	int i;
 	FILE* mailer;
@@ -788,7 +424,7 @@ MPIShadow::emailTerminateEvent( int exitReason )
 
 
 void 
-MPIShadow::shutDown( int exitReason )
+ParallelShadow::shutDown( int exitReason )
 {
 		/* With many resources, we have to figure out if all of
 		   them are done, and we have to figure out if we need
@@ -810,7 +446,7 @@ MPIShadow::shutDown( int exitReason )
 
 
 int 
-MPIShadow::shutDownLogic( int& exitReason ) {
+ParallelShadow::shutDownLogic( int& exitReason ) {
 
 		/* What sucks for us here is that we know we want to shut 
 		   down, but we don't know *why* we are shutting down.
@@ -909,7 +545,7 @@ MPIShadow::shutDownLogic( int& exitReason ) {
 }
 
 int 
-MPIShadow::handleJobRemoval( int sig ) {
+ParallelShadow::handleJobRemoval( int sig ) {
 
     dprintf ( D_FULLDEBUG, "In handleJobRemoval, sig %d\n", sig );
 	remove_requested = true;
@@ -930,7 +566,7 @@ MPIShadow::handleJobRemoval( int sig ) {
 /* This is basically a search-and-replace "#MpInOdE#" with a number 
    for that node...so we can address each mpi node in the submit file. */
 void
-MPIShadow::replaceNode ( ClassAd *ad, int nodenum ) {
+ParallelShadow::replaceNode ( ClassAd *ad, int nodenum ) {
 
 	ExprTree *tree = NULL, *rhs = NULL, *lhs = NULL;
 	char rhstr[ATTRLIST_MAX_EXPRESSION];
@@ -956,7 +592,7 @@ MPIShadow::replaceNode ( ClassAd *ad, int nodenum ) {
 		}
 
 		MyString strRh(rhstr);
-		if (strRh.replaceString("#MpInOdE#", node))
+		if (strRh.replaceString("#pArAlLeLnOdE#", node))
 		{
 			sprintf( final, "%s = %s", lhstr, strRh.Value());
 			ad->InsertOrUpdate( final );
@@ -968,7 +604,7 @@ MPIShadow::replaceNode ( ClassAd *ad, int nodenum ) {
 
 
 int
-MPIShadow::updateFromStarter(int command, Stream *s)
+ParallelShadow::updateFromStarter(int command, Stream *s)
 {
 	ClassAd update_ad;
 	MpiResource* mpi_res = NULL;
@@ -984,13 +620,13 @@ MPIShadow::updateFromStarter(int command, Stream *s)
 
 	if( ! update_ad.LookupInteger(ATTR_NODE, mpi_node) ) {
 			// No ATTR_NODE in the update ad!
-		dprintf( D_ALWAYS, "ERROR in MPIShadow::updateFromStarter: "
+		dprintf( D_ALWAYS, "ERROR in ParallelShadow::updateFromStarter: "
 				 "no %s defined in update ad, can't process!\n",
 				 ATTR_NODE );
 		return FALSE;
 	}
 	if( ! (mpi_res = findResource(mpi_node)) ) {
-		dprintf( D_ALWAYS, "ERROR in MPIShadow::updateFromStarter: "
+		dprintf( D_ALWAYS, "ERROR in ParallelShadow::updateFromStarter: "
 				 "can't find remote resource for node %d, "
 				 "can't process!\n", mpi_node );
 		return FALSE;
@@ -1009,7 +645,7 @@ MPIShadow::updateFromStarter(int command, Stream *s)
 
 
 MpiResource*
-MPIShadow::findResource( int node )
+ParallelShadow::findResource( int node )
 {
 	MpiResource* mpi_res;
 	int i;
@@ -1024,7 +660,7 @@ MPIShadow::findResource( int node )
 
 
 struct rusage
-MPIShadow::getRUsage( void ) 
+ParallelShadow::getRUsage( void ) 
 {
 	MpiResource* mpi_res;
 	struct rusage total;
@@ -1042,7 +678,7 @@ MPIShadow::getRUsage( void )
 
 
 int
-MPIShadow::getImageSize( void )
+ParallelShadow::getImageSize( void )
 {
 	MpiResource* mpi_res;
 	int i, max = 0, val;
@@ -1058,7 +694,7 @@ MPIShadow::getImageSize( void )
 
 
 int
-MPIShadow::getDiskUsage( void )
+ParallelShadow::getDiskUsage( void )
 {
 	MpiResource* mpi_res;
 	int i, max = 0, val;
@@ -1074,7 +710,7 @@ MPIShadow::getDiskUsage( void )
 
 
 float
-MPIShadow::bytesSent( void )
+ParallelShadow::bytesSent( void )
 {
 	MpiResource* mpi_res;
 	int i;
@@ -1088,7 +724,7 @@ MPIShadow::bytesSent( void )
 
 
 float
-MPIShadow::bytesReceived( void )
+ParallelShadow::bytesReceived( void )
 {
 	MpiResource* mpi_res;
 	int i;
@@ -1101,7 +737,7 @@ MPIShadow::bytesReceived( void )
 }
 
 int
-MPIShadow::getExitReason( void )
+ParallelShadow::getExitReason( void )
 {
 	if( ResourceList[0] ) {
 		return ResourceList[0]->getExitReason();
@@ -1111,35 +747,13 @@ MPIShadow::getExitReason( void )
 
 
 bool
-MPIShadow::setMpiMasterInfo( char* str )
+ParallelShadow::setMpiMasterInfo( char* str )
 {
-#if ! MPI_USES_RSH
-	if( master_addr ) {
-		free( master_addr );
-	}
-	master_addr = strdup( str );
-
-		// now that we know this, we can set a timer to actually start 
-		// spawning all the comrade nodes.  we do this with a timer so
-		// that we can quickly complete the pseudo syscall we're in
-		// the middle of and return to DaemonCore ASAP...
-	int tid;
-	tid = daemonCore->
-		Register_Timer( 0, 0,
-						(TimerHandlercpp)&MPIShadow::spawnAllComrades,  
-						"MPIShadow::spawnAllComrades", this ); 
-	if( tid < 0 ) {
-		EXCEPT( "Can't register DaemonCore Timer!" );
-	}
-	return true;
-#else /* ! MPI_USES_RSH */
-	return false;
-#endif /* ! MPI_USES_RSH */
 }
 
 
 bool
-MPIShadow::exitedBySignal( void )
+ParallelShadow::exitedBySignal( void )
 {
 	if( ResourceList[0] ) {
 		return ResourceList[0]->exitedBySignal();
@@ -1149,7 +763,7 @@ MPIShadow::exitedBySignal( void )
 
 
 int
-MPIShadow::exitSignal( void )
+ParallelShadow::exitSignal( void )
 {
 	if( ResourceList[0] ) {
 		return ResourceList[0]->exitSignal();
@@ -1159,7 +773,7 @@ MPIShadow::exitSignal( void )
 
 
 int
-MPIShadow::exitCode( void )
+ParallelShadow::exitCode( void )
 {
 	if( ResourceList[0] ) {
 		return ResourceList[0]->exitCode();
@@ -1169,7 +783,7 @@ MPIShadow::exitCode( void )
 
 
 void
-MPIShadow::resourceBeganExecution( RemoteResource* rr )
+ParallelShadow::resourceBeganExecution( RemoteResource* rr )
 {
 	bool all_executing = true;
 
@@ -1198,28 +812,28 @@ MPIShadow::resourceBeganExecution( RemoteResource* rr )
 
 
 void
-MPIShadow::resourceReconnected( RemoteResource* rr )
+ParallelShadow::resourceReconnected( RemoteResource* rr )
 {
 	EXCEPT( "impossible: MPIShadow doesn't support reconnect" );
 }
 
 
 void
-MPIShadow::logDisconnectedEvent( const char* reason )
+ParallelShadow::logDisconnectedEvent( const char* reason )
 {
 	EXCEPT( "impossible: MPIShadow doesn't support reconnect" );
 }
 
 
 void
-MPIShadow::logReconnectedEvent( void )
+ParallelShadow::logReconnectedEvent( void )
 {
 	EXCEPT( "impossible: MPIShadow doesn't support reconnect" );
 }
 
 
 void
-MPIShadow::logReconnectFailedEvent( const char* reason )
+ParallelShadow::logReconnectFailedEvent( const char* reason )
 {
 	EXCEPT( "impossible: MPIShadow doesn't support reconnect" );
 }
