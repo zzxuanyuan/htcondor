@@ -4,13 +4,10 @@ CONDOR_PROCNO=$CONDOR_PROCNO
 CONDOR_NPROCS=$CONDOR_NPROCS
 
 CONDOR_SSH=`condor_config_val libexec`
-CONDOR_SSH=$CONDOR_SSH/sshd.sh
+CONDOR_SSH=$CONDOR_SSH/condor_ssh
 
 SSHD_SH=`condor_config_val libexec`
 SSHD_SH=$SSHD_SH/sshd.sh
-
-CONDOR_SSH=`condor_config_val libexec`
-CONDOR_SSH=$CONDOR_SSH/sshd.sh
 
 . $SSHD_SH $CONDOR_PROCNO $CONDOR_NPROCS 
 
