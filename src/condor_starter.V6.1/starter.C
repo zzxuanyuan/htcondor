@@ -34,6 +34,7 @@
 #include "tool_daemon_proc.h"
 #include "mpi_master_proc.h"
 #include "mpi_comrade_proc.h"
+#include "parallel_proc.h"
 #include "my_hostname.h"
 #include "internet.h"
 #include "condor_string.h"  // for strnewp
@@ -548,6 +549,9 @@ CStarter::SpawnJob( void )
 			break;
 		case CONDOR_UNIVERSE_JAVA:
 			job = new JavaProc( jobAd, WorkingDir );
+			break;
+	    case CONDOR_UNIVERSE_PARALLEL:
+			job = new ParallelProc( jobAd );
 			break;
 		case CONDOR_UNIVERSE_MPI: {
 			int is_master = FALSE;
