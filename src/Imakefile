@@ -361,7 +361,7 @@ ext_nodep_target(EXT_MAN_VERSION,$(NULL))
 ext_target(EXT_CLASSADS_VERSION, $(NULL))
 #endif
 ext_target(EXT_GSOAP_VERSION,$(NULL))
-#if HAVE_GCB
+#if HAVE_EXT_GCB
 ext_target(EXT_GCB_VERSION,$(NULL))
 #endif
 
