@@ -1337,6 +1337,11 @@ CONDOR_EXTERNAL_VERSION([srb],[3.2.1])
 
 CONDOR_EXTERNAL_VERSION([gsoap],[2.7])
 
+# GCB only matters and works if we have GNU ld...
+if test x$_cv_ld_is_gnu = xyes; then
+  CONDOR_EXTERNAL_VERSION([gcb],[1.1])
+fi
+
 else
 # if there's no externals at all, we still need to define these to
 # avoid imake troubles...
