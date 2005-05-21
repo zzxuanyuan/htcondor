@@ -95,13 +95,6 @@ PLATFORM_LDFLAGS = PlatformLdFlags
 PURIFY_PLATFORM_LDFLAGS = PurifyPlatformLdFlags
 TEST_PLATFORM_LDFLAGS = TestPlatformLdFlags
 
-#if (HAVE_GNU_LD) && (HAVE_GCB)
-WRAP_LDFLAGS = -Wl,--wrap,socket -Wl,--wrap,bind -Wl,--wrap,listen -Wl,--wrap,connect -Wl,--wrap,accept -Wl,--wrap,select -Wl,--wrap,recv -Wl,--wrap,read -Wl,--wrap,recvfrom -Wl,--wrap,send -Wl,--wrap,sendto -Wl,--wrap,write -Wl,--wrap,close -Wl,--wrap,dup -Wl,--wrap,dup2 -Wl,--wrap,getsockname -Wl,--wrap,getsockaddr -Wl,--wrap,getsockopt -Wl,--wrap,execv -Wl,--wrap,execve -Wl,--wrap,execl
-#else
-WRAP_LDFLAGS = 
-#endif
-
-
 /*
    These next few lines are not supposed to be pre-processor
    directives, but GNU-make understood directives.  They don't want a
@@ -423,6 +416,15 @@ NETMAN_LIB =
 NETMAN_FLAGS =
 #endif
 
+#if HAVE_EXT_GCB
+#  if ! HAVE_GNU_LD
+#    error GCB ENABLED BUT WE DO NOT HAVE GNU LD
+#  endif
+WRAP_LDFLAGS = -Wl,--wrap,socket -Wl,--wrap,bind -Wl,--wrap,listen -Wl,--wrap,connect -Wl,--wrap,accept -Wl,--wrap,select -Wl,--wrap,recv -Wl,--wrap,read -Wl,--wrap,recvfrom -Wl,--wrap,send -Wl,--wrap,sendto -Wl,--wrap,write -Wl,--wrap,close -Wl,--wrap,dup -Wl,--wrap,dup2 -Wl,--wrap,getsockname -Wl,--wrap,getsockaddr -Wl,--wrap,getsockopt -Wl,--wrap,execv -Wl,--wrap,execve -Wl,--wrap,execl
+GCB_FLAGS = -I$(GCB_INC)
+#endif
+
+
 /********************************************
  end of externals-specific settings and flags
 ********************************************/
@@ -431,7 +433,8 @@ VENDOR_C_FLAGS = CFlags -I.. -I../.. -I$(INCLUDE_DIR) -I$(NEW_INCLUDE_DIR) \
 		 -I$(C_PLUS_INCLUDE) -I$(DAEMONCLIENT_INCLUDE) \
 		 $(CONFIGURE_DEFS) -D$(ARCH_FLAG)=$(ARCH_FLAG) \
 		 -D$(OS_FLAG)=$(OS_FLAG) $(SITE_C_FLAGS) $(CONDOR_G_FLAGS) \
-		 $(SECURITY_FLAGS) $(NETMAN_FLAGS) $(SNPRINTF_FLAGS)
+		 $(SECURITY_FLAGS) $(NETMAN_FLAGS) $(SNPRINTF_FLAGS) \
+		 $(GCB_FLAGS)
 
 /*
 Generally, compile with -fPIC for position-independent code.
@@ -506,5 +509,6 @@ STD_LIBS = \
   $(IO_LIB) \
   $(CPLUS_LIB) \
   $(CUTIL_LIB) \
-  $(SECURITY_LIB)
+  $(SECURITY_LIB) \
+  $(GCB_LIB)
 
