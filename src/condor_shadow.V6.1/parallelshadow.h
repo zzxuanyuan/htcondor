@@ -21,55 +21,28 @@
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
-#ifndef MPISHADOW_H
-#define MPISHADOW_H
+#ifndef PARALLELSHADOW_H
+#define PARALLELSHADOW_H
 
 #include "condor_common.h"
 #include "baseshadow.h"
 #include "mpiresource.h"
 #include "list.h"
 
-#if defined( WIN32 )
-#define MPI_USES_RSH FALSE
-#else
-#define MPI_USES_RSH TRUE
-#endif
 
-/*GGT*/
-#define MPI_USES_RSH FALSE
+/** This is the Parallel Shadow class.  It acts as a shadow for
+	Condor's parallel jobs.<p>
 
-/** This is the MPI Shadow class.  It acts as a shadow for an MPI
-	job submitted to Condor.<p>
-
-	The basic trick is this.  The MPICH job uses the "ch_p4" device, 
-	which is the lower-layer of communication.  The ch_p4 device uses
-	rsh in the "master" to start up nodes on other machines.  We 
-	(condor) place our own version of rsh in the $path of the master, 
-	(which has been started up on a machine by our starter...) and 
-	this sneaky rsh then calls the shadow, telling it the arguments 
-	that it was given.  This happens for every "slave" mpi process 
-	we wish to start up.  (Being more liberal, we call slaves "comrades")
-	*grin*.  We fire up a comrade on each machine we've got claimed, 
-	and the mpi job is then off to the races...
-
-	Deciding when an MPI job is finished is a bit of work.  The 
-	individual nodes can exit at any time.  If a node SIGSEGVs, p4
-	catches that and makes all nodes exit with a status of 1.  This
-	is hard for us to decipher, but we print a warning if all the nodes
-	exit with status 1.  If one of our supposedly "dedicated" nodes
-	goes away, we kill the entire job.
-
-	@author Mike Yoder
 */
-class MPIShadow : public BaseShadow
+class ParallelShadow : public BaseShadow
 {
  public:
 
 		/// Constructor
-	MPIShadow();
+	ParallelShadow();
 
 		/// Destructor
-	virtual ~MPIShadow();
+	virtual ~ParallelShadow();
 
 		/**	Does the following:
 			<ul>
@@ -92,20 +65,13 @@ class MPIShadow : public BaseShadow
 
 		/** Shadow should attempt to reconnect to a disconnected
 			starter that might still be running for this job.  
-			TODO: this does not yet work for MPI universe!
+			TODO: this does not yet work!
 		 */
 	void reconnect( void );
 
 	bool supportsReconnect( void );
 
 
-		/** Shut down properly.  We have MPI-specific logic in this
-			version which decides if we're really ready to shutdown or
-			not.  Once it's going to really shutdown, it just calls
-			the BaseShadow version to do the real work (which is the
-			same in both cases).
-			@param exitReason The reason this mpi job exited.
-		*/
 	void shutDown( int exitReason );
 
 		/** Handle job removal. */
@@ -130,7 +96,7 @@ class MPIShadow : public BaseShadow
 
 	int exitCode( void );
 
-		/** Record the IP and port where the MPI master is running for
+		/** Record the IP and port where the master is running for
 			this computation.  Once we get this info, we can spawn all
 			the workers, so start the ball rolling on that, too.
 			@param str A string containing the IP and port, separated
@@ -146,8 +112,7 @@ class MPIShadow : public BaseShadow
 	virtual void emailTerminateEvent( int exitReason );
 
 		/** Do all work to cleanup before this shadow can exit.  To
-			cleanup an MPI job, we've got to kill all our starters,
-			and remove the procgroup file, if we're using one.
+			cleanup an MPI job, we've got to kill all our starters.
 		*/
 	virtual void cleanUp( void );
 
@@ -182,20 +147,6 @@ class MPIShadow : public BaseShadow
             function, which starts the mpi job */
     void startMaster();
 
-#if (MPI_USES_RSH) 
-        /** We will be given the args to start the mpi process by 
-            the sneaky rsh program.  Start a Comrade with them */
-    int startComrade(int cmd, Stream *s);
-
-        /** Does necessary things to the args obtained from the 
-            sneaky rsh. */
-    void hackComradeAd( char *comradeArgs, ClassAd *ad );
-
-        /** Pretty simple: takes the args, adds a -p4gp ..., puts
-            the args back in. */
-    void hackMasterAd( ClassAd *ad );
-    
-#else
 		/** Once we have the IP and port of the master, we can spawn
 			all the comrade nodes at once.  
 		*/
@@ -206,8 +157,6 @@ class MPIShadow : public BaseShadow
 			@param ad Pointer to the ClassAd to modify
 		 */
 	bool modifyNodeAd( ClassAd* );
-
-#endif /* ! MPI_USES_RSH */
 
 		/** This function is shared by all the different methods that
 			spawn nodes (root vs. comrade and rsh vs. non-rsh).
@@ -249,17 +198,7 @@ class MPIShadow : public BaseShadow
 	void replaceNode ( ClassAd *ad, int nodenum );
 	
 	int info_tid;	// DC id for our timer to get resource info 
-
-#if ! MPI_USES_RSH
-	char* master_addr;   // string containing the IP and port where
-		                 // the MPI master node is running.
-
-	char* mpich_jobid;   // job ID string, we use
-                         // "submit_host.cluster.proc" 
-
-#endif
-
 };
 
 
-#endif /* MPISHADOW_H */
+#endif /* PARALLELSHADOW_H */

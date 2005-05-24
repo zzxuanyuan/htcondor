@@ -22,33 +22,33 @@
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
 #include "condor_common.h"
-#include "mpi_comrade_proc.h"
+#include "parallel_proc.h"
 #include "condor_attributes.h"
 #include "condor_config.h"
 #include "env.h"
 
-MPIComradeProc::MPIComradeProc( ClassAd * jobAd ) : VanillaProc( jobAd )
+ParallelProc::ParallelProc( ClassAd * jobAd ) : VanillaProc( jobAd )
 {
-    dprintf ( D_FULLDEBUG, "Constructor of MPIComradeProc::MPIComradeProc\n" );
+    dprintf ( D_FULLDEBUG, "Constructor of ParallelProc::ParallelProc\n" );
 	Node = -1;
 }
 
-MPIComradeProc::~MPIComradeProc()  {}
+ParallelProc::~ParallelProc()  {}
 
 
 int 
-MPIComradeProc::StartJob()
+ParallelProc::StartJob()
 { 
-	dprintf(D_FULLDEBUG,"in MPIComradeProc::StartJob()\n");
+	dprintf(D_FULLDEBUG,"in ParallelProc::StartJob()\n");
 
 	if ( !JobAd ) {
-		dprintf ( D_ALWAYS, "No JobAd in MPIComradeProc::StartJob()!\n" ); 
+		dprintf ( D_ALWAYS, "No JobAd in ParallelProc::StartJob()!\n" ); 
 		return 0;
 	}
 		// Grab ATTR_NODE out of the job ad and stick it in our
 		// protected member so we can insert it back on updates, etc. 
 	if( JobAd->LookupInteger(ATTR_NODE, Node) != 1 ) {
-		dprintf( D_ALWAYS, "ERROR in MPIComradeProc::StartJob(): "
+		dprintf( D_ALWAYS, "ERROR in ParallelProc::StartJob(): "
 				 "No %s in job ad, aborting!\n", ATTR_NODE );
 		return 0;
 	} else {
@@ -61,7 +61,7 @@ MPIComradeProc::StartJob()
 		return 0;
 	}
 
-    dprintf(D_PROTOCOL, "#11 - Comrade starting up....\n" );
+    dprintf(D_PROTOCOL, "#11 - Parallel_proc starting up....\n" );
 
         // special args already in ad; simply start it up
     return VanillaProc::StartJob();
@@ -69,9 +69,9 @@ MPIComradeProc::StartJob()
 
 
 int
-MPIComradeProc::addEnvVars() 
+ParallelProc::addEnvVars() 
 {
-   dprintf ( D_FULLDEBUG, "MPIComradeProc::addEnvVars()\n" );
+   dprintf ( D_FULLDEBUG, "ParallelProc::addEnvVars()\n" );
 
 	   // Pull the environment out of the job ad...
 	char *env_str = NULL;
@@ -95,12 +95,12 @@ MPIComradeProc::addEnvVars()
 		return 0;
 	}
 
-    env.Put( "CONDOR_REMOTE_SPOOL_DIR", spool );
+    env.Put( "_CONDOR_REMOTE_SPOOL_DIR", spool );
 
 		// Add this node's number to CONDOR_PROCNO
 	char buf[128];
 	sprintf(buf, "%d", Node);
-	env.Put("CONDOR_PROCNO", buf);
+	env.Put("_CONDOR_PROCNO", buf);
 
 
 		// And put the total number of nodes into CONDOR_NPROC
@@ -112,7 +112,7 @@ MPIComradeProc::addEnvVars()
 	}
 
 	sprintf(buf, "%d", machine_count);
-	env.Put("CONDOR_NPROCS", buf);
+	env.Put("_CONDOR_NPROCS", buf);
 
 		// Now stick the condor bin directory in front of the path,
 		// so user scripts can call condor_config_val
@@ -175,35 +175,35 @@ MPIComradeProc::addEnvVars()
 }
 
 int
-MPIComradeProc::JobCleanup( int pid, int status )
+ParallelProc::JobCleanup( int pid, int status )
 { 
 	return VanillaProc::JobCleanup( pid, status );
 }
 
 
 void 
-MPIComradeProc::Suspend() { 
+ParallelProc::Suspend() { 
         /* We Comrades don't ever want to be suspended.  We 
            take it as a violation of our basic rights.  Therefore, 
            we walk off the job and notify the shadow immediately! */
-	dprintf(D_FULLDEBUG,"in MPIComradeProc::Suspend()\n");
+	dprintf(D_FULLDEBUG,"in ParallelProc::Suspend()\n");
 		// must do this so that we exit...
 	daemonCore->Send_Signal( daemonCore->getpid(), SIGQUIT );
 }
 
 
 void 
-MPIComradeProc::Continue() { 
-	dprintf(D_FULLDEBUG,"in MPIComradeProc::Continue() (!)\n");    
+ParallelProc::Continue() { 
+	dprintf(D_FULLDEBUG,"in ParallelProc::Continue() (!)\n");    
         // really should never get here, but just in case.....
     VanillaProc::Continue();
 }
 
 
 bool
-MPIComradeProc::PublishUpdateAd( ClassAd* ad )
+ParallelProc::PublishUpdateAd( ClassAd* ad )
 {
-	dprintf( D_FULLDEBUG, "In MPIComradeProc::PublishUpdateAd()\n" );
+	dprintf( D_FULLDEBUG, "In ParallelProc::PublishUpdateAd()\n" );
 	char buf[64];
 	sprintf( buf, "%s = %d", ATTR_NODE, Node );
 	ad->Insert( buf );

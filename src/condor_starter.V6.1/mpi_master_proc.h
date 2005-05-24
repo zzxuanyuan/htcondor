@@ -34,6 +34,9 @@
 #define MPI_USES_RSH TRUE
 #endif
 
+/* GGT */
+#define MPI_USES_RSH FALSE
+
 /** This class is for the MPICH "master" process.  It's derived from
 	the comrade class (it's "more equal" than the others :-) ).  It 
 	is special because it alters the path of the master before it's 

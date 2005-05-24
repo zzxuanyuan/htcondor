@@ -59,7 +59,7 @@ extern char* Name;
 
 extern void mark_job_running(PROC_ID*);
 extern void mark_job_stopped(PROC_ID*);
-
+extern int Runnable(PROC_ID*);
 
 /*
   Stash this value as a static variable to this whole file, since we
@@ -297,8 +297,8 @@ ResTimeNode::~ResTimeNode()
 
 
 bool
-ResTimeNode::satisfyJob( ClassAd* job, int max_hosts, 
-						 CAList* candidates ) 
+ResTimeNode::satisfyJob( ClassAd* job, int max_hosts,
+						 CAList* candidates )
 {
 	ClassAd* candidate;
 	int req;
@@ -374,12 +374,32 @@ ResList::~ResList()
 bool
 ResList::satisfyJobs( CAList *jobs, 
 					  CAList* candidates,
-					  CAList* candidates_jobs) 
+					  CAList* candidates_jobs,
+					  bool sort /* = false */ )
 {
 	ClassAd* candidate;
 	int req;
 	
 	jobs->Rewind();
+
+		// Pull the first job off the list, and use its RANK to rank
+		// the machines in this ResList
+
+		// Maybe we should re-sort for each job in this cluster, but that
+		// seems like a lot of work, and the RANKs should usually be the
+		// same.
+
+    if( sort) {
+
+		ClassAd *rankAd = NULL;
+		rankAd = jobs->Next();
+		jobs->Rewind();
+
+			// rankAd shouldn't ever be null, but just in case
+		if (rankAd != NULL) {
+			this->sortByRank(rankAd);
+		}
+	}
 
 		// Foreach job in the given list
 	while (ClassAd *job = jobs->Next()) {
@@ -391,6 +411,7 @@ ResList::satisfyJobs( CAList *jobs,
 					// If it's undefined, treat it as false.
 				req = 0;
 			}
+
 			if( req ) {
 					// There's a match
 				candidates->Insert( candidate );
@@ -415,6 +436,56 @@ ResList::satisfyJobs( CAList *jobs,
 	return false;
 }
 
+
+struct rankSortRec {
+	ClassAd *machineAd;
+	float rank;
+};
+
+	// Given a job classAd, sort the machines in this reslist
+	// according to the job's RANK
+void
+ResList::sortByRank(ClassAd *rankAd) {
+
+	this->Rewind();
+
+	struct rankSortRec *array = new struct rankSortRec[this->Number()];
+	int index = 0;
+	ClassAd *machine = NULL;
+
+		// Foreach machine in this list,
+	while ((machine = this->Next())) {
+			// If RANK undefined, default value is small
+		float rank = 0.0;
+		rankAd->EvalFloat(ATTR_RANK, machine, rank);
+
+			// and stick this machine and its rank in our array...
+		array[index].machineAd = machine;
+		array[index].rank      = rank;
+		index++;
+
+			// Remove it from this list, we'll return them in RANK order
+		this->DeleteCurrent();
+	}
+
+		// and sort it
+	qsort(array, index, sizeof(struct rankSortRec), ResList::machineSortByRank );
+
+		// Now, rebuild our list in order
+	for (int i = 0; i < index; i++) {
+		this->Insert(array[i].machineAd);
+	}
+
+	delete array;
+}
+
+/* static */ int
+ResList::machineSortByRank(const void *left, const void *right) {
+	struct rankSortRec *lhs = (struct rankSortRec *)left;
+	struct rankSortRec *rhs = (struct rankSortRec *)right;
+
+	return lhs->rank > rhs->rank;
+}
 
 void
 ResList::display( int debug_level )
@@ -489,7 +560,7 @@ DedicatedScheduler::DedicatedScheduler()
 		( 199, hashFunction );
 	all_matches_by_id = new HashTable < HashKey, match_rec*>
 		( 199, hashFunction );
-	resource_requests = new Queue<ClassAd*>(64);
+	resource_requests = new Queue<PROC_ID>(64);
 
 	num_matches = 0;
 
@@ -725,27 +796,22 @@ DedicatedScheduler::negotiate( Stream* s, char* negotiator_name )
 	PROC_ID	id;
 	NegotiationResult result;
 
-		// TODO: Can we do anything smarter w/ cluster and proc with
-		// all of this stuff?
 	id.cluster = id.proc = 0;
 
 	max_reqs = resource_requests->Length();
 	
 		// Create a queue for unfulfilled requests
-	Queue<ClassAd*>* unmet_requests;
+	Queue<PROC_ID>* unmet_requests;
 	if( max_reqs > 4 ) {
-		unmet_requests = new Queue<ClassAd*>( max_reqs ); 
+		unmet_requests = new Queue<PROC_ID>( max_reqs ); 
 	} else {
-		unmet_requests = new Queue<ClassAd*>( 4 ); 
+		unmet_requests = new Queue<PROC_ID>( 4 ); 
 	}
 
-	while( resource_requests->dequeue(req) >= 0 ) {
+
+	while( resource_requests->dequeue(id) >= 0 ) {
 
 		serviced_other_commands += daemonCore->ServiceCommandSocket();
-#if 0
-			// TODO: All of this is different for these resource
-			// request ads.  We should try to handle rm or hold, but
-			// we can't do it with this mechanism.
 
 		if ( serviced_other_commands ) {
 			// we have run some other schedd command, like condor_rm
@@ -757,10 +823,22 @@ DedicatedScheduler::negotiate( Stream* s, char* negotiator_name )
 				continue;
 			}
 		}
-#endif
 
-		result = negotiateRequest( req, s, negotiator_name,
-								   reqs_matched, max_reqs );
+		ClassAd *job = GetJobAd(id.cluster, id.proc);
+
+		if (job == NULL) {
+			dprintf(D_ALWAYS, "Can't get job ad for cluster %d.%d -- skipping\n", id.cluster, id.proc);
+			continue;
+		}
+
+		req = makeGenericAdFromJobAd(job);
+
+		result = negotiateRequest(req, s, negotiator_name,
+								  reqs_matched, max_reqs);
+
+		delete req;
+		req = 0;
+
 		switch( result ) {
 		case NR_ERROR:
 				// Error communicating w/ the central manager.  We
@@ -776,12 +854,12 @@ DedicatedScheduler::negotiate( Stream* s, char* negotiator_name )
 				// The CM told us we had to stop negotiating.
 
 				// First of all, the current request is still unmet. 
-			unmet_requests->enqueue( req );
+			unmet_requests->enqueue( id );
 
 				// Now, the rest of the requests still in our list are
 				// also unmet...
-			while( resource_requests->dequeue(req) >= 0 ) {
-				unmet_requests->enqueue( req );
+			while( resource_requests->dequeue(id) >= 0 ) {
+				unmet_requests->enqueue( id );
 			}
 			
 				// Now, switch over our queue of unmet requests to be 
@@ -806,7 +884,6 @@ DedicatedScheduler::negotiate( Stream* s, char* negotiator_name )
 
 		case NR_MATCHED:
 				// We got matched.  We're done with this request.
-			delete req;
 			reqs_matched++;
 				// That's all we need to do, go onto the next req. 
 			break;
@@ -815,7 +892,7 @@ DedicatedScheduler::negotiate( Stream* s, char* negotiator_name )
 				// This request was rejected.  Save it in our list
 				// of unmet requests.
 			reqs_rejected++;
-			unmet_requests->enqueue( req );
+			unmet_requests->enqueue( id );
 
 				// That's all we can do, go onto the next req.
 			break;
@@ -929,6 +1006,7 @@ DedicatedScheduler::negotiateRequest( ClassAd* req, Stream* s,
 			return NR_ERROR;
 		}
 
+		dprintf(D_ALWAYS, "Negotiate request got op %d\n", op);
 			// All commands from CM during the negotiation cycle just
 			// send the command followed by eom, except PERMISSION,
 			// PERMISSION_AND_AD, and REJECTED_WITH_REASON. Do the
@@ -1227,7 +1305,7 @@ DedicatedScheduler::startdContactConnectHandler( Stream *sock )
 		return FALSE;
 	}
 
-	dprintf ( D_FULLDEBUG, "Got mrec data pointer %x\n", mrec );
+	dprintf ( D_FULLDEBUG, "Got mrec data pointer %p\n", mrec );
 
 	if(!claimStartdConnected( (Sock *)sock, mrec, &dummy_job, true )) {
 		mrec->setStatus( M_UNCLAIMED );
@@ -2033,7 +2111,10 @@ DedicatedScheduler::sortResources( void )
 		delete( mrec->my_match_ad );
 		mrec->my_match_ad = new ClassAd( *res );
 
-		if( mrec->status == M_ACTIVE ){
+			// If it is active, or on its way to becoming active,
+			// mark it as busy
+		if( (mrec->status == M_ACTIVE) ||
+			(mrec->status == M_CONNECTING) ){
 			busy_resources->Append( res );
 			continue;
 		}
@@ -2047,7 +2128,12 @@ DedicatedScheduler::sortResources( void )
 			limbo_resources->Append( res );
 			continue;
 		}
-		EXCEPT("DedicatedScheduler got unknown status for match");
+		if (mrec->status == M_UNCLAIMED) {
+			// not quite sure how we got here, or what to do about it
+			unclaimed_resources->Append( res );
+			continue;
+		}
+		EXCEPT("DedicatedScheduler got unknown status for match %d\n", mrec->status);
 	}
 	if( DebugFlags & D_FULLDEBUG ) {
 		dprintf(D_FULLDEBUG, "idle resource list\n");
@@ -2372,7 +2458,7 @@ DedicatedScheduler::computeSchedule( void )
 			// by going after machine resources that are idle &
 			// claimed by us
 		if( idle_resources->satisfyJobs(jobs, idle_candidates,
-										idle_candidates_jobs) )
+										idle_candidates_jobs, true) )
 		{
 			printSatisfaction( cluster, idle_candidates, NULL, NULL, NULL );
 			createAllocations( idle_candidates, idle_candidates_jobs,
@@ -3174,8 +3260,24 @@ DedicatedScheduler::publishRequestAd( void )
 void
 DedicatedScheduler::generateRequest( ClassAd* job )
 {
+	PROC_ID id;
+
+	job->LookupInteger(ATTR_CLUSTER_ID, id.cluster);
+	job->LookupInteger(ATTR_PROC_ID, id.proc);
+
+	resource_requests->enqueue(id);
+	return;
+}
+
+   
+		// We send to the negotiatior something almost like
+		// but not quite, a job ad.  To make it, we copy
+		// and hack up the existing job ad, turning it into
+		// a generic resource request.
+ClassAd *
+DedicatedScheduler::makeGenericAdFromJobAd(ClassAd *job)
+{
 	char tmp[8192];
-	char buf[8192];
 
 		// First, make a copy of the job ad, as is, and use that as the
 		// basis for our resource request.
@@ -3195,8 +3297,6 @@ DedicatedScheduler::generateRequest( ClassAd* job )
 	sprintf( tmp, "%s = 0", ATTR_CURRENT_HOSTS );
 	req->InsertOrUpdate( tmp );
 
-		// Also, we need to modify the requirements expression.
-	buf[0] = '\0';
     ExprTree* expr = job->Lookup( ATTR_REQUIREMENTS );
 
 		// ATTR_REQUIREMENTS better be there, better be an assignment,
@@ -3207,7 +3307,9 @@ DedicatedScheduler::generateRequest( ClassAd* job )
 
 		// We just want the right side of the assignment, which is
 		// just the value (without the "Requirements = " part)
-	expr->RArg()->PrintToStr( buf );
+	char *rhs;
+
+	expr->RArg()->PrintToNewStr( &rhs );
 
 		// Construct the new requirements expression by adding a
 		// clause that says we need to run on a machine that's going
@@ -3215,21 +3317,24 @@ DedicatedScheduler::generateRequest( ClassAd* job )
 		// TODO: In the future, we don't want to require this, we just
 		// want to rank it, and require that the minimum claim time is
 		// >= the duration of the job...
-	sprintf( tmp, "%s = (DedicatedScheduler == \"%s\") && (%s)", 
-			 ATTR_REQUIREMENTS, name(), buf );
+
+	char *buf = (char *) malloc(strlen(rhs) + strlen(name()) + 80);
+	sprintf( buf, "%s = (DedicatedScheduler == \"%s\") && (%s)", 
+			 ATTR_REQUIREMENTS, name(), rhs );
 	req->InsertOrUpdate( tmp );
 
-		// Finally, add this request to our array.
-	resource_requests->enqueue( req );
+	free(rhs);
+	free(buf);
+	return req;
 }
 
 
 void
 DedicatedScheduler::clearResourceRequests( void )
 {
-	ClassAd* ad;
-	while( resource_requests->dequeue(ad) >= 0 ) {
-		delete ad;
+	PROC_ID id;
+	while( resource_requests->dequeue(id) >= 0 ) {
+		;
 	}
 }
 
