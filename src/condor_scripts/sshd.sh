@@ -14,9 +14,9 @@ CONDOR_CHIRP=$CONDOR_CHIRP/condor_chirp
 
 PORT=4444
 
-CONDOR_REMOTE_SPOOL_DIR=$CONDOR_REMOTE_SPOOL_DIR
-CONDOR_PROCNO=$1
-CONDOR_NPROCS=$2
+_CONDOR_REMOTE_SPOOL_DIR=$_CONDOR_REMOTE_SPOOL_DIR
+_CONDOR_PROCNO=$1
+_CONDOR_NPROCS=$2
 
 # Create the host key. 
 /bin/rm -f hostkey hostkey.pub
@@ -28,7 +28,7 @@ then
 fi
 
 hostkey=`pwd`/hostkey
-idkey=`pwd`/$CONDOR_PROCNO.key
+idkey=`pwd`/$_CONDOR_PROCNO.key
 
 # Create the identity key
 $KEYGEN -q -f $idkey -t rsa -N '' 
@@ -39,7 +39,7 @@ then
 fi
 
 # Send the identity keys back home
-$CONDOR_CHIRP put -perm 0700 $idkey $CONDOR_REMOTE_SPOOL_DIR/$CONDOR_PROCNO.key
+$CONDOR_CHIRP put -perm 0700 $idkey $_CONDOR_REMOTE_SPOOL_DIR/$_CONDOR_PROCNO.key
 if [ $? -ne 0 ]
 then
 	echo error $? chirp putting identity keys back
@@ -79,8 +79,8 @@ hostname=`hostname`
 currentDir=`pwd`
 user=`whoami`
 
-echo "$CONDOR_PROCNO $hostname $PORT $user $currentDir"  |
-	$CONDOR_CHIRP put -mode cwa - $CONDOR_REMOTE_SPOOL_DIR/contact 
+echo "$_CONDOR_PROCNO $hostname $PORT $user $currentDir"  |
+	$CONDOR_CHIRP put -mode cwa - $_CONDOR_REMOTE_SPOOL_DIR/contact 
 
 if [ $? -ne 0 ]
 then
@@ -90,7 +90,7 @@ fi
 
 # On the head node, grep for the contact file
 # and the keys
-if [ $CONDOR_PROCNO -eq 0 ]
+if [ $_CONDOR_PROCNO -eq 0 ]
 then
 	done=0
 
@@ -99,18 +99,18 @@ then
 	while [ $done -eq 0 ]
 	do
 			/bin/rm -f contact
-			$CONDOR_CHIRP fetch $CONDOR_REMOTE_SPOOL_DIR/contact contact
+			$CONDOR_CHIRP fetch $_CONDOR_REMOTE_SPOOL_DIR/contact $_CONDOR_SCRATCH_DIR/contact
 			lines=`wc -l contact | awk '{print $1}'`
-			if [ $lines -eq $CONDOR_NPROCS ]
+			if [ $lines -eq $_CONDOR_NPROCS ]
 			then
 				done=1
 				node=0
-				while [ $node -ne $CONDOR_NPROCS ]
+				while [ $node -ne $_CONDOR_NPROCS ]
 				do
-						$CONDOR_CHIRP fetch $CONDOR_REMOTE_SPOOL_DIR/$node.key $node.key
+						$CONDOR_CHIRP fetch $_CONDOR_REMOTE_SPOOL_DIR/$node.key $_CONDOR_SCRATCH_DIR/$node.key
 						node=`expr $node + 1`
 				done
-				chmod 0700 *.key
+				chmod 0700 $_CONDOR_SCRATCH_DIR/*.key
 			else
 				sleep 1
 			fi

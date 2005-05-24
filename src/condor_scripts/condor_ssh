@@ -76,9 +76,7 @@ then
 fi
 done
 
-contact="$CONDOR_CONTACT_FILE"
-
-contact=contact
+contact=$_CONDOR_SCRATCH_DIR/contact
 
 if [ ! -f $contact ]
 then

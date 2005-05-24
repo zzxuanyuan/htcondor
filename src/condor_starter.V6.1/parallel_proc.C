@@ -95,12 +95,12 @@ ParallelProc::addEnvVars()
 		return 0;
 	}
 
-    env.Put( "CONDOR_REMOTE_SPOOL_DIR", spool );
+    env.Put( "_CONDOR_REMOTE_SPOOL_DIR", spool );
 
 		// Add this node's number to CONDOR_PROCNO
 	char buf[128];
 	sprintf(buf, "%d", Node);
-	env.Put("CONDOR_PROCNO", buf);
+	env.Put("_CONDOR_PROCNO", buf);
 
 
 		// And put the total number of nodes into CONDOR_NPROC
@@ -112,7 +112,7 @@ ParallelProc::addEnvVars()
 	}
 
 	sprintf(buf, "%d", machine_count);
-	env.Put("CONDOR_NPROCS", buf);
+	env.Put("_CONDOR_NPROCS", buf);
 
 		// Now stick the condor bin directory in front of the path,
 		// so user scripts can call condor_config_val
