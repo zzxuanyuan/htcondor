@@ -21,6 +21,7 @@ then
 fi
 
 EXECUTABLE=$1
+shift
 
 # the binary is copied but the executable flag is cleared.
 # so the script have to take care of this
