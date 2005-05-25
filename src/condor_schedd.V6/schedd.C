@@ -6072,7 +6072,8 @@ Scheduler::spawnShadow( shadow_rec* srec )
 		// if this is a shadow for an MPI job, we need to tell the
 		// dedicated scheduler we finally spawned it so it can update
 		// some of its own data structures, too.
-	if( universe == CONDOR_UNIVERSE_MPI ) {
+	if( (universe == CONDOR_UNIVERSE_MPI ) ||
+	    (universe == CONDOR_UNIVERSE_PARALLEL) ){
 		dedicated_scheduler.shadowSpawned( srec );
 	}
 }
