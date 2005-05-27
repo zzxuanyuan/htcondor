@@ -108,6 +108,10 @@ SOURCE=..\src\condor_util_lib\condor_common_c.C
 # End Source File
 # Begin Source File
 
+SOURCE=..\src\condor_util_lib\condor_create_id.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\src\condor_includes\condor_email.h
 # End Source File
 # Begin Source File
@@ -121,6 +125,10 @@ SOURCE=..\src\condor_util_lib\condor_perms.c
 # Begin Source File
 
 SOURCE=..\src\condor_includes\condor_perms.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\condor_util_lib\condor_pidenvid.c
 # End Source File
 # Begin Source File
 
