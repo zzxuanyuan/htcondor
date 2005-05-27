@@ -4927,6 +4927,15 @@ int DaemonCore::Create_Process(
 	}
 	inheritbuf += " 0";
 	
+	/* this will be the pidfamily ancestor identification information */
+	time_t time_of_fork;
+	unsigned int mii;
+	pid_t forker_pid;
+
+	/* this stuff ends up in the child's environment to help processes
+		identify children/grandchildren/great-grandchildren/etc. */
+	create_id(&time_of_fork, &mii);
+
 #ifdef WIN32
 	// START A NEW PROCESS ON WIN32
 
@@ -4939,6 +4948,9 @@ int DaemonCore::Create_Process(
 	// prepare a STARTUPINFO structure for the new process
 	ZeroMemory(&si,sizeof(si));
 	si.cb = sizeof(si);
+
+	// process id for the environment ancestor history info
+	forker_pid = ::GetCurrentProcessId();
 
 	// we do _not_ want our child to inherit our file descriptors
 	// unless explicitly requested.  so, set the underlying handle
@@ -5327,14 +5339,7 @@ int DaemonCore::Create_Process(
 		goto wrapup;
 	}
 
-	/* this will be the pidfamily ancestor identification information */
-	time_t time_of_fork;
-	unsigned int mii;
-	pid_t forker_pid;
-
-	/* this stuff ends up in the child's environment to help processes
-		identify children/grandchildren/great-grandchildren/etc. */
-	create_id(&time_of_fork, &mii);
+	// process id for the environment ancestor history info
 	forker_pid = ::getpid();
 
 	newpid = fork();
