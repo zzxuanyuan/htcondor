@@ -749,6 +749,7 @@ ParallelShadow::getExitReason( void )
 bool
 ParallelShadow::setMpiMasterInfo( char* str )
 {
+	return false;
 }
 
 
