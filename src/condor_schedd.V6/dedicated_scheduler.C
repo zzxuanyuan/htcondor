@@ -1006,7 +1006,6 @@ DedicatedScheduler::negotiateRequest( ClassAd* req, Stream* s,
 			return NR_ERROR;
 		}
 
-		dprintf(D_ALWAYS, "Negotiate request got op %d\n", op);
 			// All commands from CM during the negotiation cycle just
 			// send the command followed by eom, except PERMISSION,
 			// PERMISSION_AND_AD, and REJECTED_WITH_REASON. Do the
@@ -1535,6 +1534,8 @@ DedicatedScheduler::reaper( int pid, int status )
 {
 	shadow_rec*		srec;
 	int q_status;  // status of this job in the queue
+
+	dprintf( D_ALWAYS, "In DedicatedScheduler::reaper pid %d has status %d\n", pid, status);
 
 		// No matter what happens, now that a shadow has exited, we
 		// want to call handleDedicatedJobs() in a few seconds to see
@@ -2251,6 +2252,8 @@ DedicatedScheduler::spawnJobs( void )
 
 		GetAttributeInt( id.cluster, id.proc, ATTR_JOB_UNIVERSE, &univ );
 
+		addReconnectAttributes( allocation);
+
 			/*
 			  it's important we're setting ATTR_CURRENT_HOSTS now so
 			  that we don't consider this job idle any more, even
@@ -2306,6 +2309,22 @@ DedicatedScheduler::spawnJobs( void )
 	return true;
 }
 
+void
+DedicatedScheduler::addReconnectAttributes(AllocationNode *allocation)
+{
+		// foreach proc in this cluster...
+
+		for( int p=0; p<allocation->num_procs; p++ ) {
+			StringList claims;
+			int n = ((*allocation->matches)[p])->getlast();
+			for( int i=0; i<=n; i++ ) {
+					// Grab the claim from the mrec
+				char *claim = (*(*allocation->matches)[p])[i]->id;
+				claims.append(claim);
+			}
+			SetAttributeString(allocation->cluster, p, "ClaimIds", claims.print_to_string());
+		}
+}
 
 bool
 DedicatedScheduler::shadowSpawned( shadow_rec* srec )

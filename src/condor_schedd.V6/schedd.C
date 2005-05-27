@@ -5201,6 +5201,8 @@ Scheduler::checkReconnectQueue( void )
 		remote_pool = NULL;
 
 		
+			// GGT:Now, check if job is ||
+
 			// Now, grab the name of the startd ad we need to query
 			// for from the job ad.  it's living in ATTR_REMOTE_HOST
 		GetAttributeStringNew( job.cluster, job.proc, ATTR_REMOTE_HOST,
@@ -6146,12 +6148,18 @@ Scheduler::spawnJobHandlerRaw( shadow_rec* srec, const char* path,
         nice_config = NULL;
     }
 
+	int rid = 1;
+	if( ( srec->universe == CONDOR_UNIVERSE_MPI) ||
+		( srec->universe == CONDOR_UNIVERSE_PARALLEL)) {
+		rid = dedicated_scheduler.rid;
+		}
+	
 	/* For now, we should create the handler as PRIV_ROOT so it can do
 	   priv switching between PRIV_USER (for handling syscalls, moving
 	   files, etc), and PRIV_CONDOR (for writing to log files).
 	   Someday, hopefully soon, we'll fix this and spawn the
 	   shadow/handler with PRIV_USER_FINAL... */
-	pid = daemonCore->Create_Process( path, args, PRIV_ROOT, 1, 
+	pid = daemonCore->Create_Process( path, args, PRIV_ROOT, rid, 
 									  is_dc, env, NULL, FALSE, NULL, 
 									  std_fds_p, niceness );
 

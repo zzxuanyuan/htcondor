@@ -266,6 +266,8 @@ class DedicatedScheduler : public Service {
 		*/ 
 	bool shadowSpawned( shadow_rec* srec );
 
+	int		rid;			// DC reaper id
+
  private:
 
 	/** Used to handle the negotiation protocol for a given
@@ -296,6 +298,10 @@ class DedicatedScheduler : public Service {
 		// This does the work of acting on a schedule, once that's
 		// been decided.  
 	bool spawnJobs( void );
+
+		// We need to stick all the claimids and remote-hosts
+		// into the job ad, so we can find them at reconnect-time
+	void addReconnectAttributes(AllocationNode *node);
 
 		// Do through our list of pending resource requests, and
 		// publish a ClassAd to the CM to ask for them.
@@ -374,7 +380,6 @@ class DedicatedScheduler : public Service {
 		// Stuff for interacting w/ DaemonCore
 	int		hdjt_tid;		// DC timer id for handleDedicatedJobTimer()
 	int		sanity_tid;		// DC timer id for sanityCheck()
-	int		rid;			// DC reaper id
 
 		// data structures for managing dedicated jobs and resources. 
 	ExtArray<int>*		idle_clusters;	// Idle cluster ids
