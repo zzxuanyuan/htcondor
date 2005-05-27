@@ -499,8 +499,8 @@ class ProcAPI {
 
 #ifdef WIN32 // some windoze-specific thingies:
 
-  static void makeFamily( pid_t dadpid, pid_t *allpids, int numpids, 
-						  pid_t* &fampids, int &famsize );
+  static void makeFamily( pid_t dadpid,  PidEnvID *penvid, pid_t *allpids,
+		  int numpids, pid_t* &fampids, int &famsize );
   static void getAllPids( pid_t* &pids, int &numpids );
   static int multiInfo ( pid_t *pidlist, int numpids, piPTR &pi );
   static int isinlist( pid_t pid, pid_t *pidlist, int numpids ); 
