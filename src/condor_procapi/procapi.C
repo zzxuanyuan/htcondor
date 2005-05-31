@@ -1468,7 +1468,7 @@ ProcAPI::getProcSetInfo( pid_t *pids, int numpids, piPTR& pi, int &status )
 					default:
 						dprintf( D_ALWAYS, 
 							"ProcAPI::getProcSetInfo: Unspecified return "
-					 		"status (%d) from a failed getProcInfo(%d)", 
+					 		"status (%d) from a failed getProcInfo(%d)\n", 
 							info_status, pids[i] );
 					break;
 				}
