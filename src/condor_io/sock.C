@@ -342,7 +342,7 @@ int Sock::bindWithin(const int low_port, const int high_port)
 
 		memset(&sin, 0, sizeof(sockaddr_in));
 		sin.sin_family = AF_INET;
-		sin.sin_addr.s_addr = htonl(my_ip_addr());
+		//sin.sin_addr.s_addr = htonl(my_ip_addr());
 		sin.sin_port = htons((u_short)this_trial++);
 
 		if ( ::bind(_sock, (sockaddr *)&sin, sizeof(sockaddr_in)) == 0 ) { // success
@@ -400,7 +400,7 @@ int Sock::bind(int port)
 			// Bind to a dynamic port.
 		memset(&sin, 0, sizeof(sockaddr_in));
 		sin.sin_family = AF_INET;
-		sin.sin_addr.s_addr = htonl(my_ip_addr());
+		//sin.sin_addr.s_addr = htonl(my_ip_addr());
 		sin.sin_port = htons((u_short)port);
 
 		if (::bind(_sock, (sockaddr *)&sin, sizeof(sockaddr_in)) < 0) {
@@ -797,28 +797,21 @@ void Sock::doNotEnforceMinimalCONNECT_TIMEOUT()
 
 bool Sock::test_connection()
 {
-	// test the connection -- on OSF1, select returns 1 even if
-	// the connect fails!
-
-	struct sockaddr_in test_addr;
-	memset((char *) &test_addr, 0, sizeof(test_addr));
-	test_addr.sin_family = AF_INET;
-
-	SOCKET_LENGTH_TYPE nbytes;
-	
-	nbytes = sizeof(test_addr);
-	if (getpeername(_sock, (struct sockaddr *) &test_addr, &nbytes) < 0) {
-		sleep(1);	// try once more -- sometimes it fails the first time
-		if (getpeername(_sock, (struct sockaddr *) &test_addr, &nbytes) < 0) {
-			sleep(1);	// try once more -- sometimes it fails the second time
-			if (getpeername(_sock, (struct sockaddr *) &test_addr, &nbytes)<0) {
-				return false;
-			}
-		}
-	}
-	return true;
+    // Since a better way to check if a nonblocking connection has succeed or not is
+    // to use getsockopt, I changed this routine that way. --Sonny 7/16/2003
+    int error;
+    socklen_t len = sizeof(error);
+    if (getsockopt(_sock, SOL_SOCKET, SO_ERROR, &error, &len) < 0) {
+        dprintf(D_ALWAYS, "Sock::test_connection - getsockopt failed\n");
+        return false;
+    }
+    // return result
+    if (error) {
+        return false;
+    } else {
+        return true;
+    }
 }
-
 
 int Sock::close()
 {
@@ -1155,6 +1148,29 @@ Sock::endpoint_ip_str()
 }
 
 
+// my port and IP address in a struct sockaddr_in
+// @args: the address is returned via 'sin'
+// @ret: 0 if succeed, -1 if failed
+int
+mypoint(struct sockaddr_in *sin)
+{
+    struct sockaddr_in *tmp = getSockAddr(_sock);
+    if (tmp == NULL) return -1;
+
+    memcpy(sin, tmp, sizeof(struct sockaddr_in));
+    return 0;
+}
+
+
+char *
+Sock::get_sinful()
+{       
+    struct sockaddr_in *tmp = getSockAddr(_sock);
+    if (tmp == NULL) return NULL;
+    return sin_to_string(tmp);
+}
+
+
 int 
 Sock::get_file_desc()
 {
@@ -1220,7 +1236,7 @@ static void async_handler( int s )
 		}
 	}
 
-	success = select( table_size, &set, 0, 0, &zero );
+	success = ::select( table_size, &set, 0, 0, &zero );
 
 	if( success>0 ) {
 		for( i=0; i<table_size; i++ ) {

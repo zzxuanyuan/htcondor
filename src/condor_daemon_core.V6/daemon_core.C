@@ -28,6 +28,9 @@
 // //////////////////////////////////////////////////////////////////////
 
 #include "condor_common.h"
+extern "C" {
+void Generic_stop_logging();
+}
 
 static const int DEFAULT_MAXCOMMANDS = 255;
 static const int DEFAULT_MAXSIGNALS = 99;
@@ -5601,6 +5604,9 @@ int DaemonCore::Create_Process(
 			// once again, make sure that if the dprintf code opened a
 			// lock file and has an fd, that we close it before we
 			// exec() so we don't leak it.
+
+        Generic_stop_logging();
+
 		if( LockFd >= 0 ) {
 			close( LockFd );
 			LockFd = -1;

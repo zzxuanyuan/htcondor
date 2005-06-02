@@ -197,6 +197,55 @@ config_host( char* host )
 
 
 void
+condor_Generic_config()
+{
+    char *str = NULL;
+
+        /*
+          you're not supposed to touch memory you give to setenv(), or
+          pass in stack varialbes, since on some platforms that ends
+          up trashing the environment.  unfortunately, that means we
+          have to leak these small values, but there's nothing we can
+          do about it since UNIX sucks. :(
+          Derek Wright <wright@cs.wisc.edu> 2004-05-25
+        */
+
+    // Env: the type of service
+    setenv("NET_REMAP_ENABLE", strdup("true"), 1);
+    str = param("NET_REMAP_SERVICE");
+    if (str) {
+        if (!strcasecmp(str, "GCB")) {
+            setenv("GCB_ENABLE", strdup("true"), 1);
+            free(str);
+            str = NULL;
+            // Env: InAgent
+            if (str = param("NET_REMAP_INAGENT")) {
+                setenv("GCB_INAGENT", str, 1);
+                str = NULL;
+            }
+            // Env: Routing table
+            if (str = param("NET_REMAP_ROUTE")) {
+                setenv("GCB_ROUTE", str, 1);
+            }
+        } else if (!strcasecmp(str, "DPF")) {
+            setenv("DPF_ENABLE", strdup("true"), 1);
+            free(str);
+            str = NULL;
+            // Env: InAgent
+            if (str = param("NET_REMAP_INAGENT")) {
+                setenv("DPF_INAGENT", str, 1);
+                str = NULL;
+            }
+            // Env: Routing table
+            if (str = param("NET_REMAP_ROUTE")) {
+                setenv("DPF_ROUTE", str, 1);
+            }
+        }
+    }
+}
+
+
+void
 real_config(char* host, int wantsQuiet)
 {
 	char		*config_file, *tmp;
@@ -317,6 +366,13 @@ real_config(char* host, int wantsQuiet)
 		// Read in the LOCAL_CONFIG_FILE as a string list and process
 		// all the files in the order they are listed.
 	process_locals( "LOCAL_CONFIG_FILE", host );
+
+        // The following lines should be placed very carefully. Must be after
+        // global and local config files being processed but before any call that may
+        // be interposed by GCB
+    if ( param_boolean("NET_REMAP_ENABLE", false) ) {
+        condor_Generic_config();
+    }
 			
 		// Re-insert the special macros.  We don't want the user to 
 		// override them, since it's not going to work.
