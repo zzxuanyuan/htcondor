@@ -811,7 +811,7 @@ getSockAddr(int sockfd)
     // do getsockname
     static struct sockaddr_in sin;
     socklen_t namelen = sizeof(sin);
-    if (getsockname(sockfd, (sockaddr *)&sin, &namelen) < 0) {
+    if (getsockname(sockfd, (struct sockaddr *)&sin, &namelen) < 0) {
         dprintf(D_ALWAYS, "failed getsockname(%d): %s\n", sockfd, strerror(errno));
         return NULL;
     }
@@ -820,5 +820,5 @@ getSockAddr(int sockfd)
     if (sin.sin_addr.s_addr == ntohl(INADDR_ANY)) {
         sin.sin_addr.s_addr = htonl(my_ip_addr());
     }
-    return &sock;
+    return &sin;
 }
