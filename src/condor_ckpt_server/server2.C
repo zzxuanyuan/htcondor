@@ -352,12 +352,13 @@ int Server::SetUpPort(u_short port)
       exit(BIND_ERROR);
   }
   // Now we can set server_addr with the address that temp_sd is bound to
-  struct sockaddr_in *tmp = getSockAddr(_sock);
+  struct sockaddr_in *tmp = getSockAddr(temp_sd);
   if (tmp == NULL) {
-      dprintf(D_ALWAYS, "failed getSockAddr(%d)\n", _sock);
+      dprintf(D_ALWAYS, "failed getSockAddr(%d)\n", temp_sd);
       exit(BIND_ERROR);
   }
-  server_addr = tmp->sin_addr.s_addr;
+  memcpy( (char*) &tmp->sin_addr.s_addr, (char*) &server_addr, 
+		  sizeof(struct in_addr) );
 
   return temp_sd;
 }
@@ -401,7 +402,7 @@ void Server::Execute()
 	dprintf( D_FULLDEBUG, "Sending initial ckpt server ad to collector" );
     struct sockaddr_in *tmp = getSockAddr(store_req_sd);
     if (tmp == NULL) {
-        EXECPT("Can't get the address that store_req_sd is bound to");
+        EXCEPT("Can't get the address that store_req_sd is bound to");
     }
     char *canon_name = inet_ntoa(tmp->sin_addr);
     xfer_summary.time_out(current_time, canon_name);
