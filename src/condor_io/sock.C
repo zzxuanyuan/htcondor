@@ -1152,7 +1152,7 @@ Sock::endpoint_ip_str()
 // @args: the address is returned via 'sin'
 // @ret: 0 if succeed, -1 if failed
 int
-mypoint(struct sockaddr_in *sin)
+Sock::mypoint( struct sockaddr_in *sin )
 {
     struct sockaddr_in *tmp = getSockAddr(_sock);
     if (tmp == NULL) return -1;
