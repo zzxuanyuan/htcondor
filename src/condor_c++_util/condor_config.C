@@ -69,6 +69,7 @@
 #include "condor_scanner.h"		// for MAXVARNAME, etc
 #include "condor_distribution.h"
 #include "condor_environ.h"
+#include "setenv.h"
 #include "HashTable.h"
 #include "extra_param_info.h"
 
@@ -201,44 +202,41 @@ condor_net_remap_config()
 {
     char *str = NULL;
 
-        /*
-          you're not supposed to touch memory you give to setenv(), or
-          pass in stack varialbes, since on some platforms that ends
-          up trashing the environment.  unfortunately, that means we
-          have to leak these small values, but there's nothing we can
-          do about it since UNIX sucks. :(
-          Derek Wright <wright@cs.wisc.edu> 2004-05-25
-        */
-
     // Env: the type of service
-    setenv("NET_REMAP_ENABLE", strdup("true"), 1);
+    SetEnv( "NET_REMAP_ENABLE", "true");
     str = param("NET_REMAP_SERVICE");
     if (str) {
         if (!strcasecmp(str, "GCB")) {
-            setenv("GCB_ENABLE", strdup("true"), 1);
+            SetEnv( "GCB_ENABLE", "true" );
             free(str);
             str = NULL;
             // Env: InAgent
-            if (str = param("NET_REMAP_INAGENT")) {
-                setenv("GCB_INAGENT", str, 1);
+            if( (str = param("NET_REMAP_INAGENT")) ) {
+                SetEnv( "GCB_INAGENT", str );
+				free( str );
                 str = NULL;
             }
             // Env: Routing table
-            if (str = param("NET_REMAP_ROUTE")) {
-                setenv("GCB_ROUTE", str, 1);
+            if( (str = param("NET_REMAP_ROUTE")) ) {
+                SetEnv( "GCB_ROUTE", str );
+				free( str );
+                str = NULL;
             }
         } else if (!strcasecmp(str, "DPF")) {
-            setenv("DPF_ENABLE", strdup("true"), 1);
+            SetEnv( "DPF_ENABLE", "true" );
             free(str);
             str = NULL;
             // Env: InAgent
-            if (str = param("NET_REMAP_INAGENT")) {
-                setenv("DPF_INAGENT", str, 1);
-                str = NULL;
+            if( (str = param("NET_REMAP_INAGENT")) ) {
+                SetEnv( "DPF_INAGENT", str );
+				free(str);
+				str = NULL;
             }
             // Env: Routing table
-            if (str = param("NET_REMAP_ROUTE")) {
-                setenv("DPF_ROUTE", str, 1);
+            if( (str = param("NET_REMAP_ROUTE")) ) {
+                SetEnv( "DPF_ROUTE", str );
+				free(str);
+				str = NULL;
             }
         }
     }
