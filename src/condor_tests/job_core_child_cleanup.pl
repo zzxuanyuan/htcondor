@@ -7,7 +7,12 @@ my $pid;
 my $envvar;
 
 my $opsys = $ARGV[0];
+my $sleeptime = $ARGV[1];
+
+system("date");
+
 print "OPSYS = $opsys\n";
+print "SLEEP = $sleeptime\n";
 
 my $path;
 
@@ -92,7 +97,10 @@ while ($count < 10)
 #foreach $envvar (sort keys (%ENV)) {
 	#print POUT "$envvar = $ENV{$envvar}\n";
 #}
+
 close(POUT);
+sleep $sleeptime;
+system("date");
 
 exit 0;
 
