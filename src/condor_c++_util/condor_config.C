@@ -197,7 +197,7 @@ config_host( char* host )
 
 
 void
-condor_Generic_config()
+condor_net_remap_config()
 {
     char *str = NULL;
 
@@ -371,7 +371,7 @@ real_config(char* host, int wantsQuiet)
         // global and local config files being processed but before any call that may
         // be interposed by GCB
     if ( param_boolean("NET_REMAP_ENABLE", false) ) {
-        condor_Generic_config();
+        condor_net_remap_config();
     }
 			
 		// Re-insert the special macros.  We don't want the user to 
