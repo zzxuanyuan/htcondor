@@ -246,7 +246,23 @@ clean::								@@\
 XCOMM End translation of func(c_plus_target)
 #endif  /* c_plus_target */
 
-#else
+
+#ifndef c_plus_nowrap_target
+#define	c_plus_nowrap_target(program,objlist,libs)		@@\
+XCOMM Begin translation of func(c_plus_target)			@@\
+program: $(filter DEP_FILTER,objlist libs)			@@\
+	$(PRELINK_CPP) $(PRELINK_CPP_FLAGS) -o __prelink__.o objlist libs @@\
+	$(CC_LINK) $(C_PLUS_FLAGS) -o program __prelink__.o \
+		$(NOWRAP_LDFLAGS) $(DEMANGLE)			@@\
+	rm -f __prelink__.o					@@\
+clean::								@@\
+	rm -f program objlist					@@\
+XCOMM End translation of func(c_plus_nowrap_target)
+#endif  /* c_plus_nowarp_target */
+
+
+#else  /* ! NEEDS_PRELINKER */
+
 
 #ifndef c_plus_target
 #define	c_plus_target(program,objlist,libs)			@@\
@@ -259,7 +275,21 @@ clean::								@@\
 XCOMM End translation of func(c_plus_target)
 #endif  /* c_plus_target */
 
-#endif
+
+#ifndef c_plus_nowrap_target
+#define	c_plus_nowrap_target(program,objlist,libs)		@@\
+XCOMM Begin translation of func(c_plus_target)			@@\
+program: $(filter DEP_FILTER,objlist libs)			@@\
+	$(CC_LINK) $(C_PLUS_FLAGS) -o program objlist libs \
+		$(NOWRAP_LDFLAGS) $(DEMANGLE)			@@\
+clean::								@@\
+	rm -f program objlist			@@\
+XCOMM End translation of func(c_plus_nowrap_target)
+#endif  /* c_plus_nowarp_target */
+
+
+#endif  /* NEEDS_PRELINKER */
+
 
 /*
 ** Build a C++ program from .o files and libraries supplying the compile and
@@ -1072,6 +1102,25 @@ pure_c_plus_target(program,objlist,libs) @@\
 purecov_c_plus_target(program,objlist,libs) @@\
 XCOMM End translation of func(c_plus_public_target)
 #endif /* c_plus_public_target */
+
+
+/* Build public super target without any --wrap flags
+ * Build a program from C++ source, as well as the most common
+ * dependent public release targets.
+ */
+#ifndef c_plus_public_nowrap_target
+#define c_plus_public_nowrap_target(program,dir,objlist,libs) @@\
+XCOMM Begin translation of func(c_plus_public_nowrap_target) @@\
+all_target(program) @@\
+c_plus_nowrap_target(program,objlist,libs) @@\
+release_target(program,dir,EXECUTABLE_MODE) @@\
+strip_target(program,dir,EXECUTABLE_MODE) @@\
+static_target(program,objlist,libs,$(STATIC_DIR)/dir) @@\
+pure_c_plus_target(program,objlist,libs) @@\
+purecov_c_plus_target(program,objlist,libs) @@\
+XCOMM End translation of func(c_plus_public_target)
+#endif /* c_plus_public_target */
+
 
 
 /***********************************************************************
