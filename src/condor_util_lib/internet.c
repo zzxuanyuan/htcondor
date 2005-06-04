@@ -810,7 +810,7 @@ getSockAddr(int sockfd)
 {
     // do getsockname
     static struct sockaddr_in sin;
-    socklen_t namelen = sizeof(sin);
+    SOCKET_LENGTH_TYPE namelen = sizeof(sin);
     if (getsockname(sockfd, (struct sockaddr *)&sin, &namelen) < 0) {
         dprintf(D_ALWAYS, "failed getsockname(%d): %s\n", sockfd, strerror(errno));
         return NULL;
