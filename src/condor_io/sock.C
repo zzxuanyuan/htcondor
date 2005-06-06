@@ -797,11 +797,12 @@ void Sock::doNotEnforceMinimalCONNECT_TIMEOUT()
 
 bool Sock::test_connection()
 {
-    // Since a better way to check if a nonblocking connection has succeed or not is
-    // to use getsockopt, I changed this routine that way. --Sonny 7/16/2003
+    // Since a better way to check if a nonblocking connection has
+    // succeed or not is to use getsockopt, I changed this routine
+    // that way. --Sonny 7/16/2003
     int error;
     SOCKET_LENGTH_TYPE len = sizeof(error);
-    if (getsockopt(_sock, SOL_SOCKET, SO_ERROR, &error, &len) < 0) {
+    if (::getsockopt(_sock, SOL_SOCKET, SO_ERROR, (char*)&error, &len) < 0) {
         dprintf(D_ALWAYS, "Sock::test_connection - getsockopt failed\n");
         return false;
     }
