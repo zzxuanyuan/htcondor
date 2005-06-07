@@ -80,6 +80,7 @@ bool	compute_avail_stats = false;
 	// should the startd compute vm availability statistics; currently 
 	// false by default
 
+char* Name = NULL;
 
 int		pid_snapshot_interval = 50;
     // How often do we take snapshots of the pid families? 
@@ -87,7 +88,7 @@ int		pid_snapshot_interval = 50;
 char*	mySubSystem = "STARTD";
 
 int main_reaper = 0;
-extern char *Name;
+
 // Cron stuff
 StartdCronMgr	*Cronmgr;
 

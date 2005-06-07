@@ -1765,11 +1765,14 @@ int Matchmaker::HashFunc(const MyString &Key, int TableSize) {
 /* CONDORDB functions */
 void Matchmaker::insert_into_rejects(char *userName, ClassAd& job, ClassAd& machine,const char *diagnosis)
 {
-	char insert_stmt[256];
 	int cluster, proc;
 	char startdname[80];
 	char globaljobid[80];
 	char scheddName[80];
+	ClassAd tmpCl;
+	ClassAd *tmpClP = &tmpCl;
+	char tmp[512];
+	char rejectts[100];
 
 	struct tm *tm;
 	time_t clock;
@@ -1783,20 +1786,55 @@ void Matchmaker::insert_into_rejects(char *userName, ClassAd& job, ClassAd& mach
 	get_scheddname_from_gjid(globaljobid,scheddName);
 	machine.LookupString(ATTR_NAME, startdname);
 
-	sprintf((char*) insert_stmt,"insert into %s values (\'%d/%d/%d %02d:%02d:%02d\',\'%s\', \'%s\', %d, %d, \'%s\',\'%s\', \'%s\')",RejectsTable,tm->tm_mon + 1, tm->tm_mday,tm->tm_year+1900, tm->tm_hour,tm->tm_min, tm->tm_sec,userName,scheddName,cluster,proc,globaljobid,startdname,diagnosis);	
-	FILEObj->file_sqlstmt(insert_stmt);	
+	sprintf(rejectts, "%d/%d/%d %02d:%02d:%02d %s", 
+		  tm->tm_mon+1,
+		  tm->tm_mday,
+		  tm->tm_year+1900,
+		  tm->tm_hour,
+		  tm->tm_min,
+		  tm->tm_sec,
+		  tm->tm_zone);
+
+	sprintf(tmp, "reject_time = \"%s\"", rejectts);
+	tmpClP->Insert(tmp);
+	
+	sprintf(tmp, "username = \"%s\"", userName);
+	tmpClP->Insert(tmp);
+		
+	sprintf(tmp, "scheddname = \"%s\"", scheddName);
+	tmpClP->Insert(tmp);
+	
+	sprintf(tmp, "cluster = %d", cluster);
+	tmpClP->Insert(tmp);
+
+	sprintf(tmp, "proc = %d", proc);
+	tmpClP->Insert(tmp);
+
+	sprintf(tmp, "GlobalJobId = \"%s\"", globaljobid);
+	tmpClP->Insert(tmp);
+	
+	sprintf(tmp, "startdname = \"%s\"", startdname);
+	tmpClP->Insert(tmp);
+	
+	sprintf(tmp, "diagnosis = \"%s\"", diagnosis);
+	tmpClP->Insert(tmp);
+	
+	FILEObj->file_newEvent("Rejects", tmpClP);
 }
 void Matchmaker::insert_into_matches(char * userName,ClassAd& request, ClassAd& offer)
 {
-	char insert_stmt[256];
 	char startdname[80],remote_user[80];
 	char globaljobid[80];
 	float remote_prio;
 	int cluster, proc;
 	char scheddName[80];
+	ClassAd tmpCl;
+	ClassAd *tmpClP = &tmpCl;
 
 	struct tm *tm;
 	time_t clock;
+	char tmp[512];
+	char matchts[100];
 
 	(void)time(  (time_t *)&clock );
 	tm = localtime( (time_t *)&clock );
@@ -1807,18 +1845,48 @@ void Matchmaker::insert_into_matches(char * userName,ClassAd& request, ClassAd& 
 	get_scheddname_from_gjid(globaljobid,scheddName);
 	offer.LookupString( ATTR_NAME, startdname); 
 
-	if(offer.LookupString( ATTR_REMOTE_USER, remote_user) == 0)
-	{
-		sprintf((char *)insert_stmt,"insert into %s values (\'%d/%d/%d %02d:%02d:%02d\',\'%s\', \'%s\',%d, %d, \'%s\',\'%s\', null, null)",MatchesTable,tm->tm_mon + 1, tm->tm_mday,tm->tm_year+1900, tm->tm_hour,tm->tm_min, tm->tm_sec,userName,scheddName,cluster,proc,globaljobid,startdname);	
-	}
-	else
+	sprintf(matchts, "%d/%d/%d %02d:%02d:%02d %s", 
+		  tm->tm_mon+1,
+		  tm->tm_mday,
+		  tm->tm_year+1900,
+		  tm->tm_hour,
+		  tm->tm_min,
+		  tm->tm_sec,
+		  tm->tm_zone);
+	
+	sprintf(tmp, "match_time = \"%s\"", matchts);
+	tmpClP->Insert(tmp);
+	
+	sprintf(tmp, "username = \"%s\"", userName);
+	tmpClP->Insert(tmp);
+		
+	sprintf(tmp, "scheddname = \"%s\"", scheddName);
+	tmpClP->Insert(tmp);
+	
+	sprintf(tmp, "cluster = %d", cluster);
+	tmpClP->Insert(tmp);
+
+	sprintf(tmp, "proc = %d", proc);
+	tmpClP->Insert(tmp);
+
+	sprintf(tmp, "GlobalJobId = \"%s\"", globaljobid);
+	tmpClP->Insert(tmp);
+
+	sprintf(tmp, "startdname = \"%s\"", startdname);
+	tmpClP->Insert(tmp);
+
+	if(offer.LookupString( ATTR_REMOTE_USER, remote_user) != 0)
 	{
 		remote_prio = (float) accountant.GetPriority(remote_user);
-		sprintf((char *)insert_stmt,"insert into %s values (\'%d/%d/%d %02d:%02d:%02d\',\'%s\', \'%s\', %d, %d, \'%s\',\'%s\', \'%s\', %f)",MatchesTable,tm->tm_mon + 1, tm->tm_mday,tm->tm_year+1900, tm->tm_hour,tm->tm_min, tm->tm_sec,userName,scheddName,cluster,proc,globaljobid,startdname,remote_user,remote_prio);	
-	}
-	dprintf(D_FULLDEBUG,"About to insert %s\n",(char*)insert_stmt);
-	FILEObj->file_sqlstmt(insert_stmt);	
 
+		sprintf(tmp, "remote_user = \"%s\"", remote_user);
+		tmpClP->Insert(tmp);
+
+		sprintf(tmp, "remote_priority = %f", remote_prio);
+		tmpClP->Insert(tmp);
+	}
+	
+	FILEObj->file_newEvent("Matches", tmpClP);
 }
 /* This extracts the machine name from the global job ID [user@]machine.name#timestamp#cluster.proc*/
 static int get_scheddname_from_gjid(const char * globaljobid, char * scheddname )

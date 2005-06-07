@@ -54,15 +54,22 @@ class TTManager : public Service
 	
 		//! timer handler for maintaining job queue and sending SCHEDD_AD to collector
 	void	pollingTime();	
+ private:
+
+	int     maintain();
 
 		//! append a file to another file
 	int     append(char *destF, char *srcF);
 
 		// check and throw away big files
 	void    checkAndThrowBigFiles();
- private:
 
-	int     maintain();
+	int     insertMachines(AttrList *ad);
+	int     insertEvents(AttrList *ad);
+	int     insertFiles(AttrList *ad);
+	int     insertFileusages(AttrList *ad);
+	int     insertPlain(AttrList *ad, char *tableName);
+	int     updatePlain(AttrList *info, AttrList *condition, char *tableName);
 
 	char    sqlLogList[MAXLOGNUM][MAXLOGPATHLEN];
 	char    sqlLogCopyList[MAXLOGNUM+1][MAXLOGPATHLEN]; // 1 more file for "thrown" file

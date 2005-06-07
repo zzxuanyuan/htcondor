@@ -43,10 +43,6 @@
 #include "condor_universe.h"
 #include "globus_utils.h"
 #include "env.h"
-#include "queuedbmanager.h"
-#include "file_sql.h"
-
-extern FILESQL *FILEObj;
 
 extern char *Spool;
 extern char *Name;
@@ -57,9 +53,6 @@ extern bool	operator==( PROC_ID, PROC_ID );
 extern "C" {
 	int	prio_compar(prio_rec*, prio_rec*);
 }
-
-extern QueueDBManager queueDBManager;
-
 
 extern	int		Parse(const char*, ExprTree*&);
 extern  void    cleanup_ckpt_files(int, int, const char*);
@@ -226,10 +219,6 @@ InitQmgmt()
 void
 InitJobQueue(const char *job_queue_name)
 {
-  	//added by ameet
-  	queueDBManager.init(1);
-  	//queueDBManager.connectDB();
-	
 	assert(!JobQueue);
 	JobQueue = new ClassAdCollection(job_queue_name);
 	ClusterSizeHashTable = new ClusterSizeHashTable_t(37,compute_clustersize_hash);
@@ -438,8 +427,6 @@ CleanJobQueue()
 void
 DestroyJobQueue( void )
 {
-  //queueDBManager.disconnectDB(); //added by ameet
-
 	if (JobQueueDirty) {
 			// We can't destroy it until it's clean.
 		CleanJobQueue();
@@ -2768,12 +2755,6 @@ static void AppendHistory(ClassAd* ad)
 	  } else {		
 		fprintf(LogFile,"***\n");   // separator
 		fclose(LogFile);
-
-		FILEObj->file_lock();
-		queueDBManager.processHistoryAd(ad);
-		queueDBManager.commitTransaction();
-		FILEObj->file_unlock();
-
 	  }
   }
 

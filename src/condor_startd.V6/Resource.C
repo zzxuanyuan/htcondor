@@ -29,23 +29,6 @@
 
 extern FILESQL *FILEObj;
 
-#define TYPE_STRING    1
-#define TYPE_NUMBER    2
-#define TYPE_TIMESTAMP 3
-
-// hash function for strings
-static int
-attHashFunction (const MyString &str, int numBuckets)
-{
-        int i = str.Length() - 1, hashVal = 0;
-        while (i >= 0)
-        {
-                hashVal += str[i];
-                i--;
-        }
-        return (hashVal % numBuckets);
-}
-
 Resource::Resource( CpuAttributes* cap, int rid )
 {
 	char tmp[256];
@@ -1671,206 +1654,18 @@ Resource::endCODLoadHack( void )
 	r_pre_cod_condor_load = 0.0;
 }
 
-int
+void
 Resource::dbInsert( ClassAd *cl )
 {
 	FILESQL *dbh = FILEObj;
-	HashTable<MyString, MyString> newClAd(200, attHashFunction, updateDuplicateKeys);
-	char sql_stmt[1000];
-	int retcode;
-	MyString classAd;
-	const char *iter;
-	char attName[100], *attVal, attNameList[1000]="", attValList[1000]="", tmpVal[500];
-	int isFirst = TRUE;
-	MyString aName, aVal, temp, machine_id;
-	char *tmp1;
+	ClassAd clCopy;
+	char tmp[512];
 
-	cl->sPrint(classAd);
+		// make a copy so that we can add timestamp attribute into it
+	clCopy = *cl;
 
-	// Insert stuff into Machine_Classad
+	sprintf(tmp, "LastHeardFrom = %d", (int)time(NULL));
+	(&clCopy)->Insert(tmp);
 
-	classAd.Tokenize();
-	iter = classAd.GetNextToken("\n", true);
-
-	while (iter != NULL)
-		{
-			int attValLen;
-			sscanf(iter, "%s =", attName);
-			attVal = strstr(iter, "= ");
-			attVal += 2;
-
-				// strip quotes from attVal (if any)
-			attValLen = strlen(attVal);
-			if (attVal[attValLen-1] == '"' || attVal[attValLen-1] == '\'')
-				attVal[attValLen-1] = 0;
-			if (attVal[0] == '"' || attVal[0] == '\'') {
-				
-				tmp1 = attVal+1;
-				strcpy(tmpVal, tmp1);
-				strcpy(attVal, tmpVal);
-			}
-			
-				
-			if (!isStatic(attName)) {
-					// should go into machine_classad table
-				if (isFirst) {
-						//is the first in the list
-					isFirst = FALSE;
-					sprintf(attNameList, "(%s", (strcmp(attName, ATTR_NAME) ? attName : "machine_id") );
-					if (!strcmp(attName, ATTR_NAME))
-					    machine_id = attVal;
-					switch (typeOf(attName)) {
-
-					case TYPE_STRING:
-						sprintf(attValList, "('%s'", attVal);
-						break;
-					case TYPE_TIMESTAMP:
-						sprintf(attValList, "(('epoch'::timestamp + '%s seconds') at time zone 'UTC'", attVal);
-						break;
-					case TYPE_NUMBER:
-						sprintf(attValList, "(%s", attVal);
-						break;
-					default:
-						sprintf(attValList, "(%s", attVal);
-						break;							
-					}
-				} else {
-						// is not the first in the list
-					strcat(attNameList, ", ");
-					strcat(attNameList, (strcmp(attName, ATTR_NAME) ? attName : "machine_id"));
-
-					strcat(attValList, ", ");
-					switch (typeOf(attName)) {
-
-					case TYPE_STRING:
-						sprintf(tmpVal, "'%s'", attVal);
-						break;
-					case TYPE_TIMESTAMP:
-						sprintf(tmpVal, "('epoch'::timestamp + '%s seconds') at time zone 'UTC'", attVal);
-						break;
-					case TYPE_NUMBER:
-						sprintf(tmpVal, "%s", attVal);
-						break;
-					default:
-						sprintf(tmpVal, "%s", attVal);
-						break;							
-					}
-					strcat(attValList, tmpVal);
-
-				}
-			} else {  // static attributes (go into Machine table)
-			        aName = attName;
-				aVal = attVal;
-				// insert into new ClassAd too (since this needs to go into DB)
-				newClAd.insert(aName, aVal);
-			}
-			iter = classAd.GetNextToken("\n", true);
-		}
-
-	strcat(attNameList, ", LastHeardFrom)");
-	sprintf(tmpVal, "('epoch'::timestamp + '%d seconds') at time zone 'UTC'", time(NULL));
-	strcat(attValList, ", ");
-	strcat(attValList, tmpVal);
-	strcat(attValList, ")");
-
-
-	//dbh = new ODBC();
-    //dbh->file_open();
-	dbh->file_lock();
-
-    sprintf(sql_stmt, "INSERT INTO Machine_Classad_History (SELECT * FROM Machine_Classad WHERE machine_id = '%s')", machine_id.Value());
-	dbh->file_sqlstmt(sql_stmt);
-
-    sprintf(sql_stmt, "DELETE FROM Machine_Classad WHERE machine_id = '%s'", machine_id.Value());
-	dbh->file_sqlstmt(sql_stmt);
-
-	sprintf(sql_stmt, "INSERT INTO Machine_Classad %s VALUES %s", attNameList, attValList);
-	dbh->file_sqlstmt(sql_stmt);
-
-
-	// Insert changes into Machine
-	newClAd.startIterations();
-	while (newClAd.iterate(aName, aVal)) {
-
-		sprintf(sql_stmt, "SELECT attr_name, attr_value FROM Machine WHERE machine_id = '%s' AND attr_name = '%s'", machine_id.Value(), aName.Value());
-
-			// insert this value in the Machine table if not already present
-
-		sprintf(sql_stmt, "INSERT INTO Machine SELECT '%s', '%s', '%s', %s WHERE NOT EXISTS (SELECT * FROM Machine WHERE machine_id = '%s' AND attr_name = '%s')", 
-				machine_id.Value(), aName.Value(), aVal.Value(), tmpVal, machine_id.Value(), aName.Value());
-		dbh->file_sqlstmt(sql_stmt);
-			  
-			// this value is present in the table. if value has changed then push old value to history and update
-		sprintf(sql_stmt, "INSERT INTO Machine_History SELECT machine_id, attr_name, attr_value, start_time, %s FROM Machine WHERE machine_id = '%s' AND attr_name = '%s' AND attr_value != '%s'", 
-				tmpVal, machine_id.Value(), aName.Value(), aVal.Value());
-		dbh->file_sqlstmt(sql_stmt);
-
-		sprintf(sql_stmt, "UPDATE Machine SET attr_value = '%s', start_time = %s WHERE machine_id = '%s' AND attr_name = '%s' AND attr_value != '%s'", 
-				aVal.Value(), tmpVal, machine_id.Value(), aName.Value(), aVal.Value());
-		dbh->file_sqlstmt(sql_stmt);
-			  
-
-		  
-	  
-	}
-
-	dbh->file_unlock();
-	//dbh->file_close();
-
-
-}
-
-int 
-Resource::isStatic(char *attName)
-{
-	return (strcmp(attName, ATTR_OPSYS) && strcmp(attName, ATTR_ARCH) &&
-			strcmp(attName, ATTR_CKPT_SERVER) && strcmp(attName, "CKPT_SERVER_HOST") &&
-			strcmp(attName, ATTR_STATE) && strcmp(attName, ATTR_ACTIVITY) &&
-			strcmp(attName, ATTR_KEYBOARD_IDLE) && strcmp(attName, ATTR_CONSOLE_IDLE) &&
-			strcmp(attName, ATTR_LOAD_AVG) && strcmp(attName, "CondorLoadAvg") &&
-			strcmp(attName, ATTR_TOTAL_LOAD_AVG) && strcmp(attName, ATTR_VIRTUAL_MEMORY) &&
-			strcmp(attName, ATTR_MEMORY ) && strcmp(attName, ATTR_TOTAL_VIRTUAL_MEMORY) &&
-			strcmp(attName, ATTR_CPU_BUSY_TIME) && strcmp(attName, ATTR_CPU_IS_BUSY) &&
-			strcmp(attName, ATTR_RANK) && strcmp(attName, ATTR_CURRENT_RANK) &&
-			strcmp(attName, ATTR_REQUIREMENTS) && strcmp(attName, ATTR_CLOCK_MIN) &&
-			strcmp(attName, ATTR_CLOCK_DAY) && strcmp(attName, ATTR_LAST_HEARD_FROM) &&
-			strcmp(attName, ATTR_ENTERED_CURRENT_ACTIVITY) && strcmp(attName, ATTR_ENTERED_CURRENT_STATE) &&
-			strcmp(attName, ATTR_UPDATE_SEQUENCE_NUMBER) && strcmp(attName, ATTR_UPDATESTATS_TOTAL) &&
-			strcmp(attName, ATTR_UPDATESTATS_SEQUENCED) && strcmp(attName, ATTR_UPDATESTATS_LOST) &&
-			strcmp(attName, ATTR_NAME) && strcmp(attName, "GlobalJobId")
-			);
-}
-
-int 
-Resource::typeOf(char *attName)
-{
-	if (!(strcmp(attName, ATTR_CKPT_SERVER) && strcmp(attName, "CKPT_SERVER_HOST") &&
-		  strcmp(attName, ATTR_STATE) && strcmp(attName, ATTR_ACTIVITY) &&
-		  strcmp(attName, ATTR_CPU_IS_BUSY) && strcmp(attName, ATTR_RANK) && 
-		  strcmp(attName, ATTR_REQUIREMENTS) && strcmp(attName, ATTR_NAME) &&
-		  strcmp(attName, ATTR_OPSYS) && strcmp(attName, ATTR_ARCH) &&
-		  strcmp(attName, "GlobalJobId")
-		  )
-		)
-		return TYPE_STRING;
-
-	if (!(strcmp(attName, ATTR_KEYBOARD_IDLE) && strcmp(attName, ATTR_CONSOLE_IDLE) &&
-		  strcmp(attName, ATTR_LOAD_AVG) && strcmp(attName, "CondorLoadAvg") &&
-		  strcmp(attName, ATTR_TOTAL_LOAD_AVG) && strcmp(attName, ATTR_VIRTUAL_MEMORY) &&
-		  strcmp(attName, ATTR_MEMORY ) && strcmp(attName, ATTR_TOTAL_VIRTUAL_MEMORY) &&
-		  strcmp(attName, ATTR_CPU_BUSY_TIME) && strcmp(attName, ATTR_CURRENT_RANK) &&
-		  strcmp(attName, ATTR_CLOCK_MIN) && strcmp(attName, ATTR_CLOCK_DAY) && 
-		  strcmp(attName, ATTR_UPDATE_SEQUENCE_NUMBER) && strcmp(attName, ATTR_UPDATESTATS_TOTAL) &&
-		  strcmp(attName, ATTR_UPDATESTATS_SEQUENCED) && strcmp(attName, ATTR_UPDATESTATS_LOST)
-		  )
-		)
-		return TYPE_NUMBER;
-
-	if (!(strcmp(attName, ATTR_LAST_HEARD_FROM) &&
-		  strcmp(attName, ATTR_ENTERED_CURRENT_ACTIVITY) && strcmp(attName, ATTR_ENTERED_CURRENT_STATE)
-		  )
-		)
-		return TYPE_TIMESTAMP;
-
-	return -1;
+	dbh->file_newEvent("Machines", &clCopy);
 }

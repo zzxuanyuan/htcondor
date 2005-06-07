@@ -55,9 +55,8 @@ bool schedd_file_checksum(
 
 	return TRUE;
 }
-#endif
 
-// obsoleted function, please remove
+// obsoleted function, keep for reference only
 /*
 bool schedd_files_check_file(
 							 char *fileName, 
@@ -96,7 +95,7 @@ bool schedd_files_check_file(
 }
 */
 
-// obsoleted functions, please remove 
+// obsoleted functions, keep for reference only
 /*
 int schedd_files_new_id() {
 	char sqltext[MAXSQLLEN];
@@ -124,6 +123,7 @@ int schedd_files_new_id() {
 	return fileid;
 }
 */
+#endif
 
 int schedd_files_ins_file(
 						  char *fileName,
@@ -132,30 +132,27 @@ int schedd_files_ins_file(
 						  char *ascTime,
 						  int fsize)
 {
-	char hexSum[MAC_SIZE*2+1];	
-	char pathname[_POSIX_PATH_MAX];
-	char sqltext[MAXSQLLEN];
 	int retcode;
+	ClassAd tmpCl1;
+	ClassAd *tmpClP1 = &tmpCl1;
+	char tmp[512];
 
-	sprintf(pathname, "%s/%s", path, fileName);
+	sprintf(tmp, "f_name = \"%s\"", fileName);
+	tmpClP1->Insert(tmp);		
 
-//	if ((fsize > 0) && schedd_file_checksum(pathname, fsize, sum)) {
-//		for (int i = 0; i < MAC_SIZE; i++)
-//			sprintf(&hexSum[2*i], "%2x", sum[i]);		
-//		hexSum[2*MAC_SIZE] = '\0';
-//	}
-//	else
+	sprintf(tmp, "f_host = \"%s\"", fs_domain);
+	tmpClP1->Insert(tmp);		
 
-	hexSum[0] = '\0';
+	sprintf(tmp, "f_path = \"%s\"", path);
+	tmpClP1->Insert(tmp);		
 
-	sprintf(sqltext, 
-			"INSERT INTO files SELECT NEXTVAL('seqfileid'), '%s', '%s', '%s', '%s', %d, '%s' WHERE NOT EXISTS (SELECT * FROM files WHERE  f_name='%s' and f_path='%s' and f_host='%s' and f_ts='%s')", 
-			fileName, fs_domain, path, ascTime, fsize, hexSum, fileName, path, fs_domain, ascTime);
+	sprintf(tmp, "f_ts = \"%s\"", ascTime);
+	tmpClP1->Insert(tmp);
+		
+	sprintf(tmp, "f_size = %d", fsize);
+	tmpClP1->Insert(tmp);
 
-	dprintf (D_FULLDEBUG, "In schedd_files_ins_file, sqltext is: %s\n", sqltext);
-
-	retcode = FILEObj->file_sqlstmt(sqltext);
-//	DBObj->odbc_closestmt();
+	retcode = FILEObj->file_newEvent("Files", tmpClP1);
 
 	return retcode;
 }
@@ -168,12 +165,29 @@ void schedd_files_ins_usage(
 							char *path,
 							char *ascTime)
 {
-	char sqltext[MAXSQLLEN];
-	sprintf(sqltext, 
-			"INSERT INTO fileusages SELECT '%s', f_id, '%s' FROM files WHERE  f_name='%s' and f_path='%s' and f_host='%s' and f_ts='%s' LIMIT 1", globalJobId, type, fileName, path, fs_domain, ascTime);
-	dprintf (D_FULLDEBUG, "In schedd_files_ins_usage, sqltext is: %s\n", sqltext);
-	FILEObj->file_sqlstmt(sqltext);
-//	DBObj->odbc_closestmt();
+	ClassAd tmpCl1;
+	ClassAd *tmpClP1 = &tmpCl1;
+	char tmp[512];
+
+	sprintf(tmp, "f_name = \"%s\"", fileName);
+	tmpClP1->Insert(tmp);		
+
+	sprintf(tmp, "f_host = \"%s\"", fs_domain);
+	tmpClP1->Insert(tmp);		
+
+	sprintf(tmp, "f_path = \"%s\"", path);
+	tmpClP1->Insert(tmp);		
+
+	sprintf(tmp, "f_ts = \"%s\"", ascTime);
+	tmpClP1->Insert(tmp);
+
+	sprintf(tmp, "globalJobId = \"%s\"", globalJobId);
+	tmpClP1->Insert(tmp);
+	
+	sprintf(tmp, "type = \"%s\"", type);
+	tmpClP1->Insert(tmp);
+
+	FILEObj->file_newEvent("Fileusages", tmpClP1);
 }
 
 void schedd_files_ins(
@@ -194,7 +208,6 @@ void schedd_files_ins(
 	bool fileExist = TRUE;
 	char ascTime[TIMELEN];
 	int len;
-	int fileid;
 	int retcode;
 
 		// get the file name (possibly with path) from classad
@@ -245,26 +258,14 @@ void schedd_files_ins(
 	strncpy(ascTime, (const char *)tmp, len-1); /* ignore the last newline character */
 	ascTime[len-1] = '\0';
 
-//	if (!schedd_files_check_file(fileName, fs_domain, path, ascTime, &fileid)) {
-			// this file is not in the files table yet
-			// generate a new file id
-//		fileid = schedd_files_new_id();
-
-//		if (fileid < 0) {
-				// smth wrong with db that we get a negative sequence number
-//			goto schedd_files_ins_end;
-//		}
-	
-			// insert the file entry into the files table
+		// insert the file entry into the files table
 	retcode = schedd_files_ins_file(fileName, fs_domain, path, ascTime, 
 									file_status.st_size);
-		
+	
 	if (retcode < 0) {
 			// fail to insert the file
 		goto schedd_files_ins_end;
 	}
-
-//	}
 
 		// insert a usage for this file by this job
 	schedd_files_ins_usage(globalJobId, type, fileName, fs_domain, path, ascTime);

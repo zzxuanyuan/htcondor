@@ -167,9 +167,7 @@ public:
 	void    preemptIsTrue();              //records that PREEMPT was true
 
 		// Database ClassAd insert & helper functions
-	int     dbInsert(ClassAd *cl);
-	int     isStatic(char *attName);
-	int     typeOf(char *attName);
+	void    dbInsert(ClassAd *cl);
 
 		// Data members
 	ResState*		r_state;	// Startd state object, contains state and activity
