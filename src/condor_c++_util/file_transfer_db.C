@@ -26,9 +26,12 @@ void file_transfer_db(file_transfer_record *rp, ClassAd *ad)
 		*dst_name = NULL;
 	char src_host[MAXMACHNAME];
 	bool inStarter  = FALSE;
-	char sqltext[MAXSQLLEN];
-	char *tmp;
+	char *tmpp;
 
+	ClassAd tmpCl1;
+	ClassAd *tmpClP1 = &tmpCl1;
+	char tmp[512];
+ 
 		// this function access the following pointers
 	if  (!rp || !ad || !FILEObj)
 		return;
@@ -50,8 +53,8 @@ void file_transfer_db(file_transfer_record *rp, ClassAd *ad)
 		// src_host
 	src_host[0] = '\0';
 	if (rp->sockp && 
-		(tmp = sin_to_hostname(rp->sockp->endpoint(), NULL))) {
-		sprintf(src_host, "%s", tmp);
+		(tmpp = sin_to_hostname(rp->sockp->endpoint(), NULL))) {
+		sprintf(src_host, "%s", tmpp);
 	}
 
 		// src_name, src_path
@@ -73,23 +76,38 @@ void file_transfer_db(file_transfer_record *rp, ClassAd *ad)
 		else 
 			ad->LookupString(ATTR_JOB_IWD, &src_path);
 	}
+
+	sprintf(tmp, "globalJobId = \"%s\"", globalJobId);
+	tmpClP1->Insert(tmp);			
 	
-		// make the sql statement
-	sprintf(sqltext, 
-			"insert into transfers values ('%s', '%s', '%s', '%s', '%s', '%s', '%s', %d, %d)", 
-			globalJobId, src_name, src_host, src_path, dst_name, dst_host,
-			dst_path, (int)rp->bytes, (int)rp->elapsed);
+	sprintf(tmp, "src_name = \"%s\"", src_name);
+	tmpClP1->Insert(tmp);
+
+	sprintf(tmp, "src_host = \"%s\"", src_host);
+	tmpClP1->Insert(tmp);
+
+	sprintf(tmp, "src_path = \"%s\"", src_path);
+	tmpClP1->Insert(tmp);
+
+	sprintf(tmp, "dst_name = \"%s\"", dst_name);
+	tmpClP1->Insert(tmp);
+
+	sprintf(tmp, "dst_host = \"%s\"", dst_host);
+	tmpClP1->Insert(tmp);
+
+	sprintf(tmp, "dst_path = \"%s\"", dst_path);
+	tmpClP1->Insert(tmp);
+
+	sprintf(tmp, "size = %d", (int)rp->bytes);
+	tmpClP1->Insert(tmp);
+
+	sprintf(tmp, "elapsed = %d", (int)rp->elapsed);
+	tmpClP1->Insert(tmp);
+
+	FILEObj->file_newEvent("Transfers", tmpClP1);
 
 	if (dst_path) free(dst_path);
 	if (globalJobId) free(globalJobId);
 	if(job_name) free(job_name);
 	if (src_path) free(src_path);
-
-	dprintf (D_FULLDEBUG, "In file_transfer_db. sqltext is: %s\n", sqltext);
-
-	FILEObj->file_lock();
-
-	FILEObj->file_sqlstmt(sqltext);
-	
-	FILEObj->file_unlock();
 }

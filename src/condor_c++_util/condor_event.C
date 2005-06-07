@@ -1098,61 +1098,102 @@ int
 RemoteErrorEvent::writeEvent(FILE *file)
 {
 	char const *error_type = "Error";
-	char sqlstmt[1024], messagestr[512];
+	char messagestr[512];
+	
+	ClassAd tmpCl1, tmpCl2;
+	ClassAd *tmpClP1 = &tmpCl1, *tmpClP2 = &tmpCl2;
+	char tmp[512];
+	char eventts[100];
+	int retval;
 
 	sprintf(messagestr,  "Remote %s from %s on %s",
 			error_type,
 			daemon_name,
 			execute_host);
 	
-	dprintf(D_ALWAYS, "just before initializing scheddname in EvictEvent\n");
+	dprintf(D_ALWAYS, "just before initializing scheddname in RemoteErrorEvent\n");
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
 	dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
 	if(!critical_error) error_type = "Warning";
 
-	if (critical_error) {		
-			// critical error means this run is ended.
-		sprintf(sqlstmt, 
-				"UPDATE runs SET endts = '%d-%02d-%02d %02d:%02d:%02d %s', endtype = %d, endmessage = '%s' WHERE scheddname = '%s' AND cid = %d and pid = %d and spid = %d AND endtype is null;", 
+	if (critical_error) {
+		sprintf(eventts, "%d-%02d-%02d %02d:%02d:%02d %s", 
 				eventTime.tm_year+1900,
 				eventTime.tm_mon+1,
 				eventTime.tm_mday,
 				eventTime.tm_hour,
 				eventTime.tm_min,
 				eventTime.tm_sec,
-				eventTime.tm_zone,
-				ULOG_REMOTE_ERROR,
-				messagestr,
-				scheddname,
-				cluster,
-				proc,
-				subproc
-				);
+				eventTime.tm_zone);		
 		
+		sprintf(tmp, "endts = \"%s\"", eventts);
+		tmpClP1->Insert(tmp);		
+		
+		sprintf(tmp, "endtype = %d", ULOG_REMOTE_ERROR);
+		tmpClP1->Insert(tmp);
+		
+		sprintf(tmp, "endmessage = \"%s\"", messagestr);
+		tmpClP1->Insert(tmp);
+		
+		sprintf(tmp, "scheddname = \"%s\"", scheddname);
+		tmpClP2->Insert(tmp);
+  
+		sprintf(tmp, "cid = %d", cluster);
+		tmpClP2->Insert(tmp);
+
+		sprintf(tmp, "pid = %d", proc);
+		tmpClP2->Insert(tmp);
+
+		sprintf(tmp, "spid = %d", subproc);
+		tmpClP2->Insert(tmp);
+
+		sprintf(tmp, "endtype = null");
+		tmpClP2->Insert(tmp);
+
+			// critical error means this run is ended.  
+		retval = FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2);		
 	} else {
-		sprintf(sqlstmt, "INSERT INTO events SELECT '%s', %d, %d, run_id, %d, '%d-%02d-%02d %02d:%02d:%02d %s', '%s' FROM runs WHERE scheddname = '%s' AND cid = %d and pid = %d and spid = %d AND endtype is null;", 
-				scheddname, 
-				cluster,
-				proc,
-				ULOG_REMOTE_ERROR, 
+		
+		sprintf(eventts, "%d-%02d-%02d %02d:%02d:%02d %s", 
 				eventTime.tm_year+1900,
 				eventTime.tm_mon+1,
 				eventTime.tm_mday,
 				eventTime.tm_hour,
 				eventTime.tm_min,
 				eventTime.tm_sec,
-				eventTime.tm_zone,
-				messagestr, 
-				scheddname,
-				cluster,
-				proc,
-				subproc);
+				eventTime.tm_zone);		
+		
+		sprintf(tmp, "scheddname = \"%s\"", scheddname);
+		tmpClP1->Insert(tmp);		
+
+		sprintf(tmp, "cid = %d", cluster);
+		tmpClP1->Insert(tmp);		
+
+		sprintf(tmp, "pid = %d", proc);
+		tmpClP1->Insert(tmp);		
+
+		sprintf(tmp, "spid = %d", subproc);
+		tmpClP1->Insert(tmp);				
+
+		sprintf(tmp, "eventtype = %d", ULOG_REMOTE_ERROR);
+		tmpClP1->Insert(tmp);
+		
+		sprintf(tmp, "eventtime = \"%s\"", eventts);
+		tmpClP1->Insert(tmp);	
+		
+		sprintf(tmp, "description = \"%s\"", messagestr);
+		tmpClP1->Insert(tmp);	
+				
+		retval = FILEObj->file_newEvent("Events", tmpClP1);
 	}
 
-	FILEObj->file_sqlstmt(sqlstmt);
+	if (retval < 0) {
+		dprintf(D_ALWAYS, "Logging Event 5--- Error\n");
+		return 0; // return a error code, 0
+	}
 
-    int retval = fprintf(
+    retval = fprintf(
 	  file,
 	  "%s from %s on %s:\n",
 	  error_type,
@@ -1334,14 +1375,14 @@ writeEvent (FILE *file)
   struct hostent *hp;
   unsigned long addr;
   char *executehostname;
-  char sqlstmt[1024];
-
-  //char globaljobid[100];
+  ClassAd tmpCl1, tmpCl2, tmpCl3;
+  ClassAd *tmpClP1 = &tmpCl1, *tmpClP2 = &tmpCl2, *tmpClP3 = &tmpCl3;
+  char tmp[512];
+  char eventts[100];
+  int retval;
 
   //JobAd is defined in condor_shadow.V6/log_events.C and is simply
   //defined as an external variable here
-
-  //JobAd->LookupString(ATTR_GLOBAL_JOB_ID, globaljobid);
 
   scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
   
@@ -1375,39 +1416,69 @@ writeEvent (FILE *file)
     dprintf(D_FULLDEBUG, "Executehost name = %s\n", executeHost);
     strcpy(executehostname, executeHost);
   }
-  sprintf(sqlstmt, 
-	  "UPDATE runs SET endts = '%d-%02d-%02d %02d:%02d:%02d %s', endtype=-1, endmessage='UNKNOWN ERROR' WHERE scheddname = '%s' AND cid = %d and pid = %d and spid = %d AND endtype is null; INSERT INTO runs (machine_id, scheddname, cid, pid, spid, startts) VALUES('%s', '%s','%d', '%d', '%d', '%d-%02d-%02d %02d:%02d:%02d %s');", 
-	  eventTime.tm_year+1900,
-	  eventTime.tm_mon+1,
-	  eventTime.tm_mday,
-	  eventTime.tm_hour,
-	  eventTime.tm_min,
-	  eventTime.tm_sec,
-	  eventTime.tm_zone,
-	  scheddname,
-	  cluster, 
-	  proc, 
-	  subproc, 		  
-	  executehostname, 
-	  scheddname,
-	  cluster, 
-	  proc, 
-	  subproc, 
-	  eventTime.tm_year+1900,
-	  eventTime.tm_mon+1,
-	  eventTime.tm_mday,
-	  eventTime.tm_hour,
-	  eventTime.tm_min,
-	  eventTime.tm_sec,
-	  eventTime.tm_zone);
 
-  FILEObj->file_sqlstmt(sqlstmt);
+  sprintf(eventts, "%d-%02d-%02d %02d:%02d:%02d %s", 
+		  eventTime.tm_year+1900,
+		  eventTime.tm_mon+1,
+		  eventTime.tm_mday,
+		  eventTime.tm_hour,
+		  eventTime.tm_min,
+		  eventTime.tm_sec,
+		  eventTime.tm_zone);
 
-  int retval;
+  sprintf(tmp, "endts = \"%s\"", eventts);
+  tmpClP1->Insert(tmp);
+
+  sprintf(tmp, "endtype = -1");
+  tmpClP1->Insert(tmp);
+
+  sprintf(tmp, "endmessage = \"UNKNOWN ERROR\"");
+  tmpClP1->Insert(tmp);
+ 
+  sprintf(tmp, "scheddname = \"%s\"", scheddname);
+  tmpClP2->Insert(tmp);
+  
+  sprintf(tmp, "cid = %d", cluster);
+  tmpClP2->Insert(tmp);
+
+  sprintf(tmp, "pid = %d", proc);
+  tmpClP2->Insert(tmp);
+
+  sprintf(tmp, "spid = %d", subproc);
+  tmpClP2->Insert(tmp);
+
+  sprintf(tmp, "endtype = null");
+  tmpClP2->Insert(tmp);
+  
+  retval = FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2);
 
   if (retval < 0) {
     dprintf(D_ALWAYS, "Logging Event 1--- Error\n");
-    dprintf(D_ALWAYS, "sql = %s\n", sqlstmt);
+    return 0; // return a error code, 0
+  }
+
+  sprintf(tmp, "machine_id = \"%s\"", executehostname);
+  tmpClP3->Insert(tmp);
+
+  sprintf(tmp, "scheddname = \"%s\"", scheddname);
+  tmpClP3->Insert(tmp);
+
+  sprintf(tmp, "cid = %d", cluster);
+  tmpClP3->Insert(tmp);
+  
+  sprintf(tmp, "pid = %d", proc);
+  tmpClP3->Insert(tmp);
+  
+  sprintf(tmp, "spid = %d", subproc);
+  tmpClP3->Insert(tmp);
+
+  sprintf(tmp, "startts = \"%s\"", eventts);
+  tmpClP3->Insert(tmp);
+
+  retval = FILEObj->file_newEvent("Runs", tmpClP3);
+
+  if (retval < 0) {
+    dprintf(D_ALWAYS, "Logging Event 1--- Error\n");
     return 0; // return a error code, 0
   }
 
@@ -1478,11 +1549,55 @@ int ExecutableErrorEvent::
 writeEvent (FILE *file)
 {
 	int retval;
-	char sqlstmt[1024], messagestr[512];
+	char messagestr[512];
+	ClassAd tmpCl1, tmpCl2;
+	ClassAd *tmpClP1 = &tmpCl1, *tmpClP2 = &tmpCl2;
+	char tmp[512];
+	char eventts[100];
 
-	dprintf(D_ALWAYS, "just before initializing scheddname in EvictEvent\n");
+	dprintf(D_ALWAYS, "just before initializing scheddname in ExecutableErrorEvent\n");
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
 	dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
+
+	sprintf(eventts, "%d-%02d-%02d %02d:%02d:%02d %s", 
+			eventTime.tm_year+1900,
+			eventTime.tm_mon+1,
+			eventTime.tm_mday,
+			eventTime.tm_hour,
+			eventTime.tm_min,
+			eventTime.tm_sec,
+			eventTime.tm_zone);		
+		
+	sprintf(tmp, "endts = \"%s\"", eventts);
+	tmpClP1->Insert(tmp);		
+		
+	sprintf(tmp, "endtype = %d", ULOG_EXECUTABLE_ERROR);
+	tmpClP1->Insert(tmp);
+		
+	sprintf(tmp, "endmessage = \"%s\"", messagestr);
+	tmpClP1->Insert(tmp);
+		
+	sprintf(tmp, "scheddname = \"%s\"", scheddname);
+	tmpClP2->Insert(tmp);
+  
+	sprintf(tmp, "cid = %d", cluster);
+	tmpClP2->Insert(tmp);
+
+	sprintf(tmp, "pid = %d", proc);
+	tmpClP2->Insert(tmp);
+
+	sprintf(tmp, "spid = %d", subproc);
+	tmpClP2->Insert(tmp);
+
+	sprintf(tmp, "endtype = null");
+	tmpClP2->Insert(tmp);
+  
+	retval = FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2);
+
+	if (retval < 0) {
+		dprintf(D_ALWAYS, "Logging Event 12--- Error\n");
+		return 0; // return a error code, 0
+	}
 
 	switch (errType)
 	{
@@ -1500,26 +1615,7 @@ writeEvent (FILE *file)
 		retval = fprintf (file, "(%d) [Bad error number.]\n", errType);
 		sprintf(messagestr,  "Unknown error");
 	}
-
-	sprintf(sqlstmt, 
-			"UPDATE runs SET endts = '%d-%02d-%02d %02d:%02d:%02d %s', endtype = %d, endmessage = '%s' WHERE scheddname = '%s' AND cid = %d and pid = %d and spid = %d AND endtype is null;", 
-			eventTime.tm_year+1900,
-			eventTime.tm_mon+1,
-			eventTime.tm_mday,
-			eventTime.tm_hour,
-			eventTime.tm_min,
-			eventTime.tm_sec,
-			eventTime.tm_zone,
-			ULOG_EXECUTABLE_ERROR,
-			messagestr,
-			scheddname,
-			cluster,
-			proc,
-			subproc
-			);
-	
-	FILEObj->file_sqlstmt(sqlstmt);
-	
+				
 	if (retval < 0) return 0;
 
 	return 1;
@@ -1602,33 +1698,55 @@ CheckpointedEvent::
 int CheckpointedEvent::
 writeEvent (FILE *file)
 {
-	char sqlstmt[1024], messagestr[512];
+	char messagestr[512];
+	ClassAd tmpCl1;
+	ClassAd *tmpClP1 = &tmpCl1;
+	char tmp[512];
+	char eventts[100];
+	int retval;
 
 	sprintf(messagestr,  "Job was checkpointed");
 
-	dprintf(D_ALWAYS, "just before initializing scheddname in EvictEvent\n");
+	dprintf(D_ALWAYS, "just before initializing scheddname in CheckpointedEvent\n");
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
 	dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
-	sprintf(sqlstmt, "INSERT INTO events SELECT '%s', %d, %d, run_id, %d, '%d-%02d-%02d %02d:%02d:%02d %s', '%s' FROM runs WHERE scheddname = '%s' AND cid = %d and pid = %d and spid = %d AND endtype is null;", 
-			scheddname,
-			cluster,
-			proc,			
-			ULOG_CHECKPOINTED, 
+	sprintf(eventts, "%d-%02d-%02d %02d:%02d:%02d %s", 
 			eventTime.tm_year+1900,
 			eventTime.tm_mon+1,
 			eventTime.tm_mday,
 			eventTime.tm_hour,
 			eventTime.tm_min,
 			eventTime.tm_sec,
-			eventTime.tm_zone,
-			messagestr, 
-			scheddname,
-			cluster,
-			proc,
-			subproc);
+			eventTime.tm_zone);		
+		
+	sprintf(tmp, "scheddname = \"%s\"", scheddname);
+	tmpClP1->Insert(tmp);		
+	
+	sprintf(tmp, "cid = %d", cluster);
+	tmpClP1->Insert(tmp);		
+	
+	sprintf(tmp, "pid = %d", proc);
+	tmpClP1->Insert(tmp);		
+	
+	sprintf(tmp, "spid = %d", subproc);
+	tmpClP1->Insert(tmp);		
 
-	FILEObj->file_sqlstmt(sqlstmt);
+	sprintf(tmp, "eventtype = %d", ULOG_CHECKPOINTED);
+	tmpClP1->Insert(tmp);
+		
+	sprintf(tmp, "eventtime = \"%s\"", eventts);
+	tmpClP1->Insert(tmp);	
+	
+	sprintf(tmp, "description = \"%s\"", messagestr);
+	tmpClP1->Insert(tmp);	
+				
+	retval = FILEObj->file_newEvent("Events", tmpClP1);
+
+	if (retval < 0) {
+		dprintf(D_ALWAYS, "Logging Event 6--- Error\n");
+		return 0; // return a error code, 0
+	}
 
 	if (fprintf (file, "Job was checkpointed.\n") < 0  		||
 		(!writeRusage (file, run_remote_rusage)) 			||
@@ -1879,15 +1997,15 @@ JobEvictedEvent::readEvent( FILE *file )
 int
 JobEvictedEvent::writeEvent( FILE *file )
 {
-  char *sqlstmt, *messagestr, *checkpointedstr, *terminatestr;
-  //char globaljobid[100];
+  char *messagestr, *checkpointedstr, *terminatestr;
+  ClassAd tmpCl1, tmpCl2;
+  ClassAd *tmpClP1 = &tmpCl1, *tmpClP2 = &tmpCl2;
+  char tmp[512];
+  char eventts[100];
   
   //JobAd is defined in condor_shadow.V6/log_events.C and is simply
   //defined as an external variable here
   
-  //JobAd->LookupString(ATTR_GLOBAL_JOB_ID, globaljobid);
-  
-  sqlstmt = (char *) malloc(1024 * sizeof(char));
   messagestr = (char *) malloc(512 * sizeof(char));
   terminatestr = (char *) malloc(512 * sizeof(char));
   checkpointedstr = (char *) malloc(6 * sizeof(char));
@@ -1976,45 +2094,61 @@ JobEvictedEvent::writeEvent( FILE *file )
   
   }
   
-
   dprintf(D_ALWAYS, "just before initializing scheddname in EvictEvent\n");
   scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
   dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
-    
-  sprintf(sqlstmt, 
-	  "UPDATE runs SET endts = '%d-%02d-%02d %02d:%02d:%02d %s', endtype = %d, endmessage = '%s%s', wascheckpointed = '%s', runbytessent= %f, runbytesreceived = %f WHERE scheddname = '%s' AND cid = %d and pid = %d and spid = %d AND endtype is null;", 
-	  eventTime.tm_year+1900,
-	  eventTime.tm_mon+1,
-	  eventTime.tm_mday,
-	  eventTime.tm_hour,
-	  eventTime.tm_min,
-	  eventTime.tm_sec,
-	  eventTime.tm_zone,
-	  ULOG_JOB_EVICTED,
-	  messagestr,
-	  terminatestr,
-	  checkpointedstr,
-	  sent_bytes,
-	  recvd_bytes,
-	  scheddname,
-	  cluster,
-	  proc,
-	  subproc
-	  );
-    
-  dprintf(D_ALWAYS, "sql = %s\n", sqlstmt);
+  
+  sprintf(eventts, "%d-%02d-%02d %02d:%02d:%02d %s", 
+		  eventTime.tm_year+1900,
+		  eventTime.tm_mon+1,
+		  eventTime.tm_mday,
+		  eventTime.tm_hour,
+		  eventTime.tm_min,
+		  eventTime.tm_sec,
+		  eventTime.tm_zone);		
+		
+  sprintf(tmp, "endts = \"%s\"", eventts);
+  tmpClP1->Insert(tmp);		
+		
+  sprintf(tmp, "endtype = %d", ULOG_JOB_EVICTED);
+  tmpClP1->Insert(tmp);
+		
+  sprintf(tmp, "endmessage = \"%s%s\"", messagestr, terminatestr);
+  tmpClP1->Insert(tmp);
+		
+  sprintf(tmp, "wascheckpointed = \"%s\"", checkpointedstr);
+  tmpClP1->Insert(tmp);
 
-  FILEObj->file_sqlstmt(sqlstmt);
+  sprintf(tmp, "runbytessent = %f", sent_bytes);
+  tmpClP1->Insert(tmp);
 
-  free(sqlstmt);
+  sprintf(tmp, "runbytesreceived = %f", recvd_bytes);
+  tmpClP1->Insert(tmp);
+
+  sprintf(tmp, "scheddname = \"%s\"", scheddname);
+  tmpClP2->Insert(tmp);
+  
+  sprintf(tmp, "cid = %d", cluster);
+  tmpClP2->Insert(tmp);
+
+  sprintf(tmp, "pid = %d", proc);
+  tmpClP2->Insert(tmp);
+
+  sprintf(tmp, "spid = %d", subproc);
+  tmpClP2->Insert(tmp);
+	
+  sprintf(tmp, "endtype = null");
+  tmpClP2->Insert(tmp);
+  
+  retval = FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2);
+  
   free(messagestr);
   free(checkpointedstr);
   free(terminatestr);
 
   if (retval < 0) {
     dprintf(D_ALWAYS, "Logging Event 2 --- Error\n");
-    dprintf(D_ALWAYS, "sql = %s\n", sqlstmt);
-    return 0; // return a error code, 0
+     return 0; // return a error code, 0
   }
   
   return 1;
@@ -2176,9 +2310,14 @@ int JobAbortedEvent::
 writeEvent (FILE *file)
 {
 
-	char sqlstmt[1024], messagestr[512];
+	char messagestr[512];
+	ClassAd tmpCl1;
+	ClassAd *tmpClP1 = &tmpCl1;
+	char tmp[512];
+	char eventts[100];
+	int retval;
 
-	dprintf(D_ALWAYS, "just before initializing scheddname in EvictEvent\n");
+	dprintf(D_ALWAYS, "just before initializing scheddname in JobAbortedEvent\n");
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
 	dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
@@ -2187,22 +2326,42 @@ writeEvent (FILE *file)
 	else 
 		sprintf(messagestr,  "Job was aborted by the user");
 
-	sprintf(sqlstmt,
-			"INSERT INTO events VALUES ('%s', %d, %d, NULL, %d, '%d-%02d-%02d %02d:%02d:%02d %s', '%s');",
-			scheddname,
-			cluster,
-			proc,		
-			ULOG_JOB_ABORTED,
+	sprintf(eventts, "%d-%02d-%02d %02d:%02d:%02d %s", 
 			eventTime.tm_year+1900,
 			eventTime.tm_mon+1,
 			eventTime.tm_mday,
 			eventTime.tm_hour,
 			eventTime.tm_min,
 			eventTime.tm_sec,
-			eventTime.tm_zone,
-			messagestr);
+			eventTime.tm_zone);		
+		
+	sprintf(tmp, "scheddname = \"%s\"", scheddname);
+	tmpClP1->Insert(tmp);		
 	
-	FILEObj->file_sqlstmt(sqlstmt);
+	sprintf(tmp, "cid = %d", cluster);
+	tmpClP1->Insert(tmp);		
+	
+	sprintf(tmp, "pid = %d", proc);
+	tmpClP1->Insert(tmp);		
+	
+	sprintf(tmp, "spid = %d", subproc);
+	tmpClP1->Insert(tmp);		
+
+	sprintf(tmp, "eventtype = %d", ULOG_JOB_ABORTED);
+	tmpClP1->Insert(tmp);
+		
+	sprintf(tmp, "eventtime = \"%s\"", eventts);
+	tmpClP1->Insert(tmp);	
+	
+	sprintf(tmp, "description = \"%s\"", messagestr);
+	tmpClP1->Insert(tmp);	
+				
+	retval = FILEObj->file_newEvent("Events", tmpClP1);
+
+	if (retval < 0) {
+		dprintf(D_ALWAYS, "Logging Event 7--- Error\n");
+		return 0; // return a error code, 0
+	}
 
 	if( fprintf(file, "Job was aborted by the user.\n") < 0 ) {
 		return 0;
@@ -2319,16 +2478,15 @@ TerminatedEvent::getCoreFile( void )
 int
 TerminatedEvent::writeEvent( FILE *file, const char* header )
 {
-  char *sqlstmt, *messagestr;
+  char *messagestr;
+  ClassAd tmpCl1, tmpCl2;
+  ClassAd *tmpClP1 = &tmpCl1, *tmpClP2 = &tmpCl2;
+  char tmp[512];
+  char eventts[100];
 
-  //char globaljobid[100];
-  
   //JobAd is defined in condor_shadow.V6/log_events.C and is simply
   //defined as an external variable here
   
-  //JobAd->LookupString(ATTR_GLOBAL_JOB_ID, globaljobid);
-
-  sqlstmt = (char *) malloc(1024 * sizeof(char));
   messagestr = (char *) malloc(512 * sizeof(char));
   strcpy(messagestr, "");
   
@@ -2386,34 +2544,45 @@ TerminatedEvent::writeEvent( FILE *file, const char* header )
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
 	dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
-	sprintf(sqlstmt, 
-			"UPDATE runs SET endmessage = '%s', runbytessent= %f, runbytesreceived = %f WHERE scheddname = '%s' and cid = %d and pid = %d and spid = %d AND endts = '%d-%02d-%02d %02d:%02d:%02d %s';", 
-			messagestr,
-			sent_bytes,
-			recvd_bytes,
-			scheddname,
-			cluster,
-			proc,
-			subproc,
+	sprintf(eventts, "%d-%02d-%02d %02d:%02d:%02d %s",
 			eventTime.tm_year+1900,
 			eventTime.tm_mon+1,
 			eventTime.tm_mday,
 			eventTime.tm_hour,
 			eventTime.tm_min,
 			eventTime.tm_sec,
-			eventTime.tm_zone
-			);
+			eventTime.tm_zone);
 
-    dprintf(D_ALWAYS, "sql = %s\n", sqlstmt);
+	sprintf(tmp, "endmessage = \"%s\"", messagestr);
+	tmpClP1->Insert(tmp);
 	
-	retval = FILEObj->file_sqlstmt(sqlstmt);
+	sprintf(tmp, "runbytessent = %f", sent_bytes);
+	tmpClP1->Insert(tmp);	
+	
+	sprintf(tmp, "runbytesreceived = %f", recvd_bytes);
+	tmpClP1->Insert(tmp);	
+	
+	sprintf(tmp, "scheddname = \"%s\"", scheddname);
+	tmpClP2->Insert(tmp);	
 
-	free(sqlstmt);
+	sprintf(tmp, "cid = %d", cluster);
+	tmpClP2->Insert(tmp);
+
+	sprintf(tmp, "pid = %d", proc);
+	tmpClP2->Insert(tmp);
+
+	sprintf(tmp, "spid = %d", subproc);
+	tmpClP2->Insert(tmp);
+	
+	sprintf(tmp, "endts = \"%s\"", eventts);
+	tmpClP2->Insert(tmp);
+
+	retval = FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2);
+
 	free(messagestr);
 
 	if (retval < 0) {
 		dprintf(D_ALWAYS, "Logging Event 3--- Error\n");
-		dprintf(D_ALWAYS, "sql = %s\n", sqlstmt);
 		return 0; // return a error code, 0
 	}
 
@@ -2504,43 +2673,53 @@ JobTerminatedEvent::~JobTerminatedEvent()
 int
 JobTerminatedEvent::writeEvent (FILE *file)
 {
-  char *sqlstmt;
-  sqlstmt = (char *) malloc(1024 * sizeof(char));
-  //char globaljobid[100];
-  
+  ClassAd tmpCl1, tmpCl2;
+  ClassAd *tmpClP1 = &tmpCl1, *tmpClP2 = &tmpCl2;
+  char tmp[512];
+  char eventts[100];
+  int retval;
+
   //JobAd is defined in condor_shadow.V6/log_events.C and is simply
   //defined as an external variable here
   
-  //JobAd->LookupString(ATTR_GLOBAL_JOB_ID, globaljobid);
   dprintf(D_ALWAYS, "just before initializing scheddname in JobTerminatedEvent\n");
   scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
   dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
-  sprintf(sqlstmt, 
-	  "UPDATE runs SET endts = '%d-%02d-%02d %02d:%02d:%02d %s', endtype = %d WHERE scheddname = '%s' and cid = %d and pid = %d and spid = %d AND endtype is null;", 
-	  eventTime.tm_year+1900,
-	  eventTime.tm_mon+1,
-	  eventTime.tm_mday,
-	  eventTime.tm_hour,
-	  eventTime.tm_min,
-	  eventTime.tm_sec,
-	  eventTime.tm_zone,
-	  ULOG_JOB_TERMINATED,
-	  scheddname,
-	  cluster,
-	  proc,
-	  subproc
-	  );
-
-  dprintf(D_ALWAYS, "sql = %s\n", sqlstmt);
+  sprintf(eventts, "%d-%02d-%02d %02d:%02d:%02d %s",
+		  eventTime.tm_year+1900,
+		  eventTime.tm_mon+1,
+		  eventTime.tm_mday,
+		  eventTime.tm_hour,
+		  eventTime.tm_min,
+		  eventTime.tm_sec,
+		  eventTime.tm_zone);
+  
+  sprintf(tmp, "endts = \"%s\"", eventts);
+  tmpClP1->Insert(tmp);
+  
+  sprintf(tmp, "endtype = %d", ULOG_JOB_TERMINATED);
+  tmpClP1->Insert(tmp);  
 	
-  int retval = FILEObj->file_sqlstmt(sqlstmt);
+  sprintf(tmp, "scheddname = \"%s\"", scheddname);
+  tmpClP2->Insert(tmp);	
+  
+  sprintf(tmp, "cid = %d", cluster);
+  tmpClP2->Insert(tmp);
+  
+  sprintf(tmp, "pid = %d", proc);
+  tmpClP2->Insert(tmp);
 
-  free(sqlstmt);
+  sprintf(tmp, "spid = %d", subproc);
+  tmpClP2->Insert(tmp);
+  
+  sprintf(tmp, "endtype = null");
+  tmpClP2->Insert(tmp);
+
+  retval = FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2);
 
   if (retval < 0) {
 	  dprintf(D_ALWAYS, "Logging Event 4--- Error\n");
-	  dprintf(D_ALWAYS, "sql = %s\n", sqlstmt);
 	  return 0; // return a error code, 0
   }
 
@@ -2768,7 +2947,12 @@ readEvent (FILE *file)
 int ShadowExceptionEvent::
 writeEvent (FILE *file)
 {
-	char sqlstmt[1024], messagestr[512];
+	char messagestr[512];
+	ClassAd tmpCl1, tmpCl2;
+	ClassAd *tmpClP1 = &tmpCl1, *tmpClP2 = &tmpCl2;
+	char tmp[512];
+	char eventts[100];
+	int retval;
 
 	dprintf(D_ALWAYS, "just before initializing scheddname in EvictEvent\n");
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
@@ -2780,26 +2964,51 @@ writeEvent (FILE *file)
 	if  (messagestr[strlen(messagestr)-1] == '\n')
 		messagestr[strlen(messagestr)-1] = '\0';
 
-	sprintf(sqlstmt, 
-			"UPDATE runs SET endts = '%d-%02d-%02d %02d:%02d:%02d %s', endtype = %d, endmessage = '%s', runbytessent= %f, runbytesreceived = %f WHERE scheddname = '%s' AND cid = %d and pid = %d and spid = %d AND endtype is null;", 
+	sprintf(eventts, "%d-%02d-%02d %02d:%02d:%02d %s", 
 			eventTime.tm_year+1900,
 			eventTime.tm_mon+1,
 			eventTime.tm_mday,
 			eventTime.tm_hour,
 			eventTime.tm_min,
 			eventTime.tm_sec,
-			eventTime.tm_zone,
-		    ULOG_SHADOW_EXCEPTION,
-			messagestr,
-			sent_bytes, 
-			recvd_bytes,
-			scheddname,
-			cluster,
-			proc,
-			subproc
-			);
+			eventTime.tm_zone);		
+		
+	sprintf(tmp, "endts = \"%s\"", eventts);
+	tmpClP1->Insert(tmp);		
+		
+	sprintf(tmp, "endtype = %d", ULOG_SHADOW_EXCEPTION);
+	tmpClP1->Insert(tmp);
+		
+	sprintf(tmp, "endmessage = \"%s\"", messagestr);
+	tmpClP1->Insert(tmp);
+		
+	sprintf(tmp, "runbytessent = %f", sent_bytes);
+	tmpClP1->Insert(tmp);
+
+	sprintf(tmp, "runbytesreceived = %f", recvd_bytes);
+	tmpClP1->Insert(tmp);
+
+	sprintf(tmp, "scheddname = \"%s\"", scheddname);
+	tmpClP2->Insert(tmp);
+  
+	sprintf(tmp, "cid = %d", cluster);
+	tmpClP2->Insert(tmp);
+
+	sprintf(tmp, "pid = %d", proc);
+	tmpClP2->Insert(tmp);
+
+	sprintf(tmp, "spid = %d", subproc);
+	tmpClP2->Insert(tmp);
+
+	sprintf(tmp, "endtype = null");
+	tmpClP2->Insert(tmp);
+  
+	retval = FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2);
 	
-	FILEObj->file_sqlstmt(sqlstmt);
+	if (retval < 0) {
+		dprintf(D_ALWAYS, "Logging Event 13--- Error\n");
+		return 0; // return a error code, 0
+	}
 
 	if (fprintf (file, "Shadow exception!\n\t") < 0)
 		return 0;
@@ -2890,7 +3099,12 @@ readEvent (FILE *file)
 int JobSuspendedEvent::
 writeEvent (FILE *file)
 {
-	char sqlstmt[1024], messagestr[512];
+	char messagestr[512];
+	ClassAd tmpCl1;
+	ClassAd *tmpClP1 = &tmpCl1;
+	char tmp[512];
+	char eventts[100];
+	int retval;
 
 	sprintf(messagestr, "Job was suspended (Number of processes actually suspended: %d)", num_pids);
 	
@@ -2898,25 +3112,42 @@ writeEvent (FILE *file)
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
 	dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
-	sprintf(sqlstmt, "INSERT INTO events SELECT '%s', %d, %d, run_id, %d, '%d-%02d-%02d %02d:%02d:%02d %s', '%s' FROM runs WHERE scheddname = '%s' AND cid = %d and pid = %d and spid = %d AND endtype is null;", 
-			scheddname,
-			cluster,
-			proc,			
-			ULOG_JOB_SUSPENDED, 
+	sprintf(eventts, "%d-%02d-%02d %02d:%02d:%02d %s", 
 			eventTime.tm_year+1900,
 			eventTime.tm_mon+1,
 			eventTime.tm_mday,
 			eventTime.tm_hour,
 			eventTime.tm_min,
 			eventTime.tm_sec,
-			eventTime.tm_zone,
-			messagestr, 
-			scheddname,
-			cluster,
-			proc,
-			subproc);
+			eventTime.tm_zone);
+		
+	sprintf(tmp, "scheddname = \"%s\"", scheddname);
+	tmpClP1->Insert(tmp);		
 	
-	FILEObj->file_sqlstmt(sqlstmt);
+	sprintf(tmp, "cid = %d", cluster);
+	tmpClP1->Insert(tmp);		
+	
+	sprintf(tmp, "pid = %d", proc);
+	tmpClP1->Insert(tmp);		
+	
+	sprintf(tmp, "spid = %d", subproc);
+	tmpClP1->Insert(tmp);		
+
+	sprintf(tmp, "eventtype = %d", ULOG_JOB_SUSPENDED);
+	tmpClP1->Insert(tmp);
+		
+	sprintf(tmp, "eventtime = \"%s\"", eventts);
+	tmpClP1->Insert(tmp);	
+	
+	sprintf(tmp, "description = \"%s\"", messagestr);
+	tmpClP1->Insert(tmp);	
+				
+	retval = FILEObj->file_newEvent("Events", tmpClP1);
+
+	if (retval < 0) {
+		dprintf(D_ALWAYS, "Logging Event 8--- Error\n");
+		return 0; // return a error code, 0
+	}
 
 	if (fprintf (file, "Job was suspended.\n\t") < 0)
 		return 0;
@@ -2974,7 +3205,12 @@ readEvent (FILE *file)
 int JobUnsuspendedEvent::
 writeEvent (FILE *file)
 {
-	char sqlstmt[1024], messagestr[512];
+	char messagestr[512];
+	ClassAd tmpCl1;
+	ClassAd *tmpClP1 = &tmpCl1;
+	char tmp[512];
+	char eventts[100];
+	int retval;
 
 	sprintf(messagestr, "Job was unsuspended");
 	
@@ -2982,25 +3218,42 @@ writeEvent (FILE *file)
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
 	dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
-	sprintf(sqlstmt, "INSERT INTO events SELECT '%s', %d, %d, run_id, %d, '%d-%02d-%02d %02d:%02d:%02d %s', '%s' FROM runs WHERE scheddname = '%s' AND cid = %d and pid = %d and spid = %d AND endtype is null;", 
-			scheddname,
-			cluster,
-			proc,
-			ULOG_JOB_UNSUSPENDED, 
+	sprintf(eventts, "%d-%02d-%02d %02d:%02d:%02d %s", 
 			eventTime.tm_year+1900,
 			eventTime.tm_mon+1,
 			eventTime.tm_mday,
 			eventTime.tm_hour,
 			eventTime.tm_min,
 			eventTime.tm_sec,
-			eventTime.tm_zone,
-			messagestr, 
-			scheddname,
-			cluster,
-			proc,
-			subproc);
+			eventTime.tm_zone);		
+		
+	sprintf(tmp, "scheddname = \"%s\"", scheddname);
+	tmpClP1->Insert(tmp);		
 	
-	FILEObj->file_sqlstmt(sqlstmt);
+	sprintf(tmp, "cid = %d", cluster);
+	tmpClP1->Insert(tmp);		
+	
+	sprintf(tmp, "pid = %d", proc);
+	tmpClP1->Insert(tmp);		
+	
+	sprintf(tmp, "spid = %d", subproc);
+	tmpClP1->Insert(tmp);		
+
+	sprintf(tmp, "eventtype = %d", ULOG_JOB_UNSUSPENDED);
+	tmpClP1->Insert(tmp);
+		
+	sprintf(tmp, "eventtime = \"%s\"", eventts);
+	tmpClP1->Insert(tmp);	
+	
+	sprintf(tmp, "description = \"%s\"", messagestr);
+	tmpClP1->Insert(tmp);	
+				
+	retval = FILEObj->file_newEvent("Events", tmpClP1);
+
+	if (retval < 0) {
+		dprintf(D_ALWAYS, "Logging Event 9--- Error\n");
+		return 0; // return a error code, 0
+	}
 
 	if (fprintf (file, "Job was unsuspended.\n") < 0)
 		return 0;
@@ -3133,7 +3386,12 @@ JobHeldEvent::readEvent( FILE *file )
 int
 JobHeldEvent::writeEvent( FILE *file )
 {
-	char sqlstmt[1024], messagestr[512];
+	char messagestr[512];
+	ClassAd tmpCl1;
+	ClassAd *tmpClP1 = &tmpCl1;
+	char tmp[512];
+	char eventts[100];
+	int retval;
 
 	if (reason)
 		sprintf(messagestr, "Job was held: %s", reason);
@@ -3144,22 +3402,43 @@ JobHeldEvent::writeEvent( FILE *file )
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
 	dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
-	sprintf(sqlstmt, "INSERT INTO events VALUES ('%s', %d, %d, NULL, %d, '%d-%02d-%02d %02d:%02d:%02d %s', '%s');", 
-			scheddname,
-			cluster,
-			proc,
-			ULOG_JOB_HELD, 
+	sprintf(eventts, "%d-%02d-%02d %02d:%02d:%02d %s", 
 			eventTime.tm_year+1900,
 			eventTime.tm_mon+1,
 			eventTime.tm_mday,
 			eventTime.tm_hour,
 			eventTime.tm_min,
 			eventTime.tm_sec,
-			eventTime.tm_zone,
-			messagestr);
+			eventTime.tm_zone);		
+		
+	sprintf(tmp, "scheddname = \"%s\"", scheddname);
+	tmpClP1->Insert(tmp);		
 	
-	FILEObj->file_sqlstmt(sqlstmt);
+	sprintf(tmp, "cid = %d", cluster);
+	tmpClP1->Insert(tmp);		
 	
+	sprintf(tmp, "pid = %d", proc);
+	tmpClP1->Insert(tmp);		
+	
+	sprintf(tmp, "spid = %d", subproc);
+	tmpClP1->Insert(tmp);		
+
+	sprintf(tmp, "eventtype = %d", ULOG_JOB_HELD);
+	tmpClP1->Insert(tmp);
+		
+	sprintf(tmp, "eventtime = \"%s\"", eventts);
+	tmpClP1->Insert(tmp);	
+	
+	sprintf(tmp, "description = \"%s\"", messagestr);
+	tmpClP1->Insert(tmp);	
+				
+	retval = FILEObj->file_newEvent("Events", tmpClP1);
+
+	if (retval < 0) {
+		dprintf(D_ALWAYS, "Logging Event 10--- Error\n");
+		return 0; // return a error code, 0
+	}
+
 	if( fprintf(file, "Job was held.\n") < 0 ) {
 		return 0;
 	}
@@ -3291,7 +3570,12 @@ JobReleasedEvent::readEvent( FILE *file )
 int
 JobReleasedEvent::writeEvent( FILE *file )
 {
-	char sqlstmt[1024], messagestr[512];
+	char messagestr[512];
+	ClassAd tmpCl1;
+	ClassAd *tmpClP1 = &tmpCl1;
+	char tmp[512];
+	char eventts[100];
+	int retval;
 
 	if (reason)
 		sprintf(messagestr, "Job was released: %s", reason);
@@ -3302,21 +3586,42 @@ JobReleasedEvent::writeEvent( FILE *file )
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
 	dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
-	sprintf(sqlstmt, "INSERT INTO events VALUES ('%s', %d, %d, NULL, %d, '%d-%02d-%02d %02d:%02d:%02d %s', '%s');",
-			scheddname,
-			cluster,
-			proc,			
-			ULOG_JOB_RELEASED, 
+	sprintf(eventts, "%d-%02d-%02d %02d:%02d:%02d %s", 
 			eventTime.tm_year+1900,
 			eventTime.tm_mon+1,
 			eventTime.tm_mday,
 			eventTime.tm_hour,
 			eventTime.tm_min,
 			eventTime.tm_sec,
-			eventTime.tm_zone,
-			messagestr);
+			eventTime.tm_zone);		
+		
+	sprintf(tmp, "scheddname = \"%s\"", scheddname);
+	tmpClP1->Insert(tmp);		
 	
-	FILEObj->file_sqlstmt(sqlstmt);
+	sprintf(tmp, "cid = %d", cluster);
+	tmpClP1->Insert(tmp);		
+	
+	sprintf(tmp, "pid = %d", proc);
+	tmpClP1->Insert(tmp);		
+	
+	sprintf(tmp, "spid = %d", subproc);
+	tmpClP1->Insert(tmp);		
+
+	sprintf(tmp, "eventtype = %d", ULOG_JOB_RELEASED);
+	tmpClP1->Insert(tmp);
+		
+	sprintf(tmp, "eventtime = \"%s\"", eventts);
+	tmpClP1->Insert(tmp);	
+	
+	sprintf(tmp, "description = \"%s\"", messagestr);
+	tmpClP1->Insert(tmp);	
+				
+	retval = FILEObj->file_newEvent("Events", tmpClP1);
+
+	if (retval < 0) {
+		dprintf(D_ALWAYS, "Logging Event 11--- Error\n");
+		return 0; // return a error code, 0
+	}
 
 	if( fprintf(file, "Job was released.\n") < 0 ) {
 		return 0;

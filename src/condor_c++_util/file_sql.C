@@ -90,35 +90,22 @@ long FILESQL::file_close()
 {
 	int retval =0;
 	delete lock; /* This also releases the lock on the file, were it held */
-	retval = close(outfiledes);
-	if(retval < 0)
-		dprintf(D_ALWAYS,"Error closing SQL log file %s : %s",outfilename,strerror(errno));
+
+		// fp is associated with the outfiledes, we should be closing one or the other, 
+		// but not both. Otherwise the second one will give an error 
+	if (fp) {
+		fclose(fp);
+		fp = NULL;
+	}
+	else {
+		retval = close(outfiledes);
+		if(retval < 0)
+			dprintf(D_ALWAYS,"Error closing SQL log file %s : %s",outfilename,strerror(errno));
+	}
+
 	is_open = false;
 	is_locked = false;
 	outfiledes = -1;
-	return retval;
-}
-
-long FILESQL::file_sqlstmt(const char* statement)
-{
-	int retval = 0;
-	if(!is_open)
-	{
-		dprintf(D_ALWAYS,"Error in logging SQL statement \'%s\' to file : File not open",statement);
-		return -1;
-	}
-	dprintf(D_FULLDEBUG,"Logging %s to file %s\n",statement,outfilename);
-	if(file_lock() < 0)
-		return -1;
-	
-	retval = write(outfiledes,statement,strlen(statement)); /* The statement excluding newline */
-	retval = write(outfiledes,"\n",1); /* Now the newline*/
-//	fsync(outfiledes);
-	if(retval < 0) /* There was an error */
-		dprintf(D_ALWAYS,"Error in logging SQL statement \'%s\' to file : %s",statement,strerror(errno));
-
-	if(file_unlock() < 0)
-		return -1;
 	return retval;
 }
 
@@ -170,6 +157,144 @@ int FILESQL::file_readline(char *buf)
 
 		// we need to fix this potential buffer overflow problem later once we have a good solution.
 	return fscanf(fp, " %[^\n]", buf);
+}
+
+AttrList *FILESQL::file_readAttrList() 
+{
+	AttrList *ad = 0;
+
+	if(!fp)
+		fp = fdopen(outfiledes, "r");
+
+	int EndFlag=0;
+	int ErrorFlag=0;
+	int EmptyFlag=0;
+
+    if( !( ad=new AttrList(fp,"***", EndFlag, ErrorFlag, EmptyFlag) ) ){
+		dprintf(D_ALWAYS, "file_readAttrList Error:  Out of memory\n" );
+		exit( 1 );
+    }
+
+    if( ErrorFlag ) {
+		dprintf( D_ALWAYS, "\t*** Warning: Bad Log file; skipping malformed Attr List\n" );
+		ErrorFlag=0;
+		delete ad;
+		ad = 0;
+    } 
+
+	if( EmptyFlag ) {
+		dprintf( D_ALWAYS, "\t*** Warning: Empty Attr List\n" );
+		EmptyFlag=0;
+		delete ad;
+		ad = 0;
+    }
+
+	return ad;
+}
+
+long FILESQL::file_newEvent(const char *eventType, AttrList *info) {
+	int retval = 0;
+
+	if(!is_open)
+	{
+		dprintf(D_ALWAYS,"Error in logging to file : File not open");
+		return -1;
+	}
+
+	if(file_lock() < 0)
+		return -1;
+
+	retval = write(outfiledes,"NEW ", strlen("NEW "));
+	retval = write(outfiledes,eventType, strlen(eventType));
+	retval = write(outfiledes,"\n", strlen("\n"));
+
+	MyString temp;
+	const char *tempv;
+	
+	retval = info->sPrint(temp);
+	tempv = temp.Value();
+	retval = write(outfiledes,tempv, strlen(tempv));
+
+	retval = write(outfiledes,"***",3); /* Now the delimitor*/
+	retval = write(outfiledes,"\n",1); /* Now the newline*/
+
+	
+	if(file_unlock() < 0)
+		return -1;
+
+	return retval;	
+}
+
+long FILESQL::file_updateEvent(const char *eventType, AttrList *info, AttrList *condition) {
+	int retval = 0;
+
+	if(!is_open)
+	{
+		dprintf(D_ALWAYS,"Error in logging to file : File not open");
+		return -1;
+	}
+
+	if(file_lock() < 0)
+		return -1;
+
+
+	retval = write(outfiledes,"UPDATE ", strlen("UPDATE "));
+	retval = write(outfiledes,eventType, strlen(eventType));
+	retval = write(outfiledes,"\n", strlen("\n"));
+
+	MyString temp, temp1;
+	const char *tempv;
+
+	retval = info->sPrint(temp);
+	tempv = temp.Value();
+	retval = write(outfiledes,tempv, strlen(tempv));
+
+	retval = write(outfiledes,"***",3); /* Now the delimitor*/
+	retval = write(outfiledes,"\n",1); /* Now the newline*/
+
+	retval = condition->sPrint(temp1);
+	tempv = temp1.Value();
+	retval = write(outfiledes,tempv, strlen(tempv));
+
+	retval = write(outfiledes,"***",3); /* Now the delimitor*/
+	retval = write(outfiledes,"\n",1); /* Now the newline*/	
+	
+	if(file_unlock() < 0)
+		return -1;
+
+	return retval;	
+}
+
+long FILESQL::file_deleteEvent(const char *eventType, AttrList *condition) {
+	int retval = 0;
+
+	if(!is_open)
+	{
+		dprintf(D_ALWAYS,"Error in logging to file : File not open");
+		return -1;
+	}
+
+	if(file_lock() < 0)
+		return -1;
+
+	retval = write(outfiledes,"DELETE ", strlen("DELETE "));
+	retval = write(outfiledes,eventType, strlen(eventType));
+	retval = write(outfiledes,"\n", strlen("\n"));
+
+	MyString temp;
+	const char *tempv;
+	
+	retval = condition->sPrint(temp);
+	tempv = temp.Value();
+	retval = write(outfiledes,tempv, strlen(tempv));
+
+	retval = write(outfiledes,"***",3); /* Now the delimitor*/
+	retval = write(outfiledes,"\n",1); /* Now the newline*/
+
+	if(file_unlock() < 0)
+		return -1;
+
+	return retval;	
 }
 
 FILESQL *createInstance() 

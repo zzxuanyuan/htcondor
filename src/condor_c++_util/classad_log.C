@@ -29,10 +29,6 @@
 #include "classad_log.h"
 #include "condor_debug.h"
 #include "util_lib_proto.h"
-#include "queuedbmanager.h"
-
-#include "file_sql.h"
-extern FILESQL *FILEObj;
 
 // explicitly instantiate the HashTable template
 template class HashTable<HashKey, ClassAd*>;
@@ -52,9 +48,6 @@ template class HashBucket<HashKey,ClassAd*>;
 if (ptr) free(ptr); \
 ptr = NULL;
 /************************************************************/
-
-//global variable
-QueueDBManager queueDBManager;
 
 ClassAdLog::ClassAdLog() : table(1024, hashFunction)
 {
@@ -186,14 +179,11 @@ ClassAdLog::BeginTransaction()
 	assert(!active_transaction);
 	active_transaction = new Transaction();
 	EmptyTransaction = true;
-	FILEObj->file_lock();
 }
 
 bool
 ClassAdLog::AbortTransaction()
 {
-	FILEObj->file_unlock();
-
 	// Sometimes we do an AbortTransaction() when we don't know if there was
 	// an active transaction.  This is allowed.
 	if (active_transaction) {
@@ -207,8 +197,6 @@ ClassAdLog::AbortTransaction()
 void
 ClassAdLog::CommitTransaction()
 {
-	FILEObj->file_unlock();
-
 	// Sometimes we do a CommitTransaction() when we don't know if there was
 	// an active transaction.  This is allowed.
 	if (!active_transaction) return;
@@ -437,11 +425,6 @@ LogNewClassAd::ReadBody(int fd)
 int
 LogNewClassAd::WriteBody(int fd)
 {
-  //added by Ameet
-  if(queueDBManager.isInitialized()) {
-    queueDBManager.processNewClassAd(key, mytype, targettype, false); 
-    queueDBManager.commitTransaction();
-  }
 	int rval, rval1;
 	rval = write(fd, key, strlen(key));
 	if (rval < 0) return rval;
@@ -496,11 +479,6 @@ LogDestroyClassAd::ReadBody(int fd)
 int 
 LogDestroyClassAd::WriteBody(int fd) 
 {
-  //added by Ameet
-  if(queueDBManager.isInitialized()) {
-    queueDBManager.processDestroyClassAd(key, false);
-    queueDBManager.commitTransaction();
-  }
   return write(fd, key, strlen(key));;
 }
 
@@ -540,11 +518,6 @@ LogSetAttribute::Play(void *data_structure)
 int
 LogSetAttribute::WriteBody(int fd)
 {
-  //added by Ameet
-  if(queueDBManager.isInitialized()) {
-    queueDBManager.processSetAttribute(key, name, value, false);
-    queueDBManager.commitTransaction();
-  }
 	int		rval, rval1, len;
 
 	len = strlen(key);
@@ -633,11 +606,6 @@ LogDeleteAttribute::Play(void *data_structure)
 int
 LogDeleteAttribute::WriteBody(int fd)
 {
-  //added by Ameet
-  if(queueDBManager.isInitialized()) {
-    queueDBManager.processDeleteAttribute(key, name, false);
-    queueDBManager.commitTransaction();
-  }
 	int		rval, rval1, len;
 
 	len = strlen(key);
