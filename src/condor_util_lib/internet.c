@@ -107,28 +107,22 @@ string_to_sin( const char *addr, struct sockaddr_in *sin )
 char *
 sin_to_string(const struct sockaddr_in *sin)
 {
-	int             i;
 	static  char    buf[24];
-	char    tmp_buf[10];
-	char    *cur_byte;
-	unsigned char   this_byte;
 
 	buf[0] = '\0';
 	if (!sin) return buf;
 	buf[0] = '<';
 	buf[1] = '\0';
-	cur_byte = (char *) &(sin->sin_addr);
-	for (i = 0; i < sizeof(sin->sin_addr); i++) {
-		this_byte = (unsigned char) *cur_byte;
-		sprintf(tmp_buf, "%u.", this_byte);
-		cur_byte++;
-		strcat(buf, tmp_buf);
-	}
-	buf[strlen(buf) - 1] = ':';
-	sprintf(tmp_buf, "%d>", ntohs(sin->sin_port));
-	strcat(buf, tmp_buf);
-	return buf;
+    if (sin->sin_addr.s_addr != INADDR_ANY &&
+        sin->sin_addr.s_addr != inet_addr("127.0.0.1")) {
+        strcat(buf, inet_ntoa(sin->sin_addr));
+    } else {
+        strcat(buf, my_ip_string());
+    }
+    sprintf(&buf[strlen(buf)], ":%d>", ntohs(sin->sin_port));
+    return buf;
 }
+
 
 char *
 sock_to_string(SOCKET sockd)
@@ -152,13 +146,23 @@ sin_to_hostname( const struct sockaddr_in *from, char ***aliases)
 #ifndef WIN32
 	struct hostent  *gethostbyaddr();
 #endif
+    struct sockaddr_in caddr;
 
 	if( !from ) {
 		// make certain from is not NULL before derefencing it
 		return NULL;
 	}
+    memcpy(&caddr, from, sizeof(caddr));
 
-    if( (hp=gethostbyaddr((char *)&from->sin_addr,
+    // If 'from' is local host or INADDR_ANY, then we use the canonical IP address
+    // instead of loopback or "0.0.0.0"
+    if (caddr.sin_addr.s_addr == inet_addr("127.0.0.1") ||
+        caddr.sin_addr.s_addr == INADDR_ANY)
+    {
+        caddr.sin_addr.s_addr = my_ip_addr();
+    }
+
+    if( (hp=gethostbyaddr((char *)&caddr.sin_addr,
                 sizeof(struct in_addr), AF_INET)) == NULL ) {
 		// could not find a name for this address
         return NULL;
@@ -182,19 +186,29 @@ struct sockaddr_in  *from;
 #ifndef WIN32
 	struct hostent  *gethostbyaddr();
 #endif
+    struct sockaddr_in caddr;
 
 	if( !from ) {
 		dprintf( D_ALWAYS, "from NULL source\n" );
 		return;
 	}
+    memcpy(&caddr, from, sizeof(caddr));
 
-    if( (hp=gethostbyaddr((char *)&from->sin_addr,
+    // If 'from' is local host or INADDR_ANY, then we use the canonical IP address
+    // instead of loopback or "0.0.0.0"
+    if (caddr.sin_addr.s_addr == inet_addr("127.0.0.1") ||
+        caddr.sin_addr.s_addr == INADDR_ANY)
+    {
+        caddr.sin_addr.s_addr = my_ip_addr();
+    }
+
+    if( (hp=gethostbyaddr((char *)&caddr.sin_addr,
                 sizeof(struct in_addr), AF_INET)) == NULL ) {
         dprintf( D_ALWAYS, "from (%s), port %d\n",
-            inet_ntoa(from->sin_addr), ntohs(from->sin_port) );
+            inet_ntoa(caddr.sin_addr), ntohs(caddr.sin_port) );
     } else {
         dprintf( D_ALWAYS, "from %s, port %d\n",
-                                        hp->h_name, ntohs(from->sin_port) );
+                                        hp->h_name, ntohs(caddr.sin_port) );
     }
 }
 
@@ -658,24 +672,18 @@ in_same_net(uint32_t ipA, uint32_t ipB)
 // port: network-byte order
 char * ipport_to_string(const unsigned int ip, const unsigned short port)
 {
-    int             i;
     static  char    buf[24];
-    char    tmp_buf[10];
-    char    *cur_byte;
-    unsigned char   this_byte;
+    struct in_addr inaddr;
 
     buf[0] = '<';
     buf[1] = '\0';
-    cur_byte = (char *) &ip;
-    for (i = 0; i < sizeof(ip); i++) {
-        this_byte = (unsigned char) *cur_byte;
-        sprintf(tmp_buf, "%u.", this_byte);
-        cur_byte++;
-        strcat(buf, tmp_buf);
+    if (ip != INADDR_ANY && ip != inet_addr("127.0.0.1")) {
+        inaddr.s_addr = ip;
+        strcat(buf, inet_ntoa(inaddr));
+    } else {
+        strcat(buf, my_ip_string());
     }
-    buf[strlen(buf) - 1] = ':';
-    sprintf(tmp_buf, "%d>", ntohs(port));
-    strcat(buf, tmp_buf);
+    sprintf(&buf[strlen(buf)], ":%d>", ntohs(port));
     return buf;
 }
 
