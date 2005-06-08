@@ -113,11 +113,10 @@ sin_to_string(const struct sockaddr_in *sin)
 	if (!sin) return buf;
 	buf[0] = '<';
 	buf[1] = '\0';
-    if (sin->sin_addr.s_addr != INADDR_ANY &&
-        sin->sin_addr.s_addr != inet_addr("127.0.0.1")) {
-        strcat(buf, inet_ntoa(sin->sin_addr));
-    } else {
+    if (sin->sin_addr.s_addr == INADDR_ANY) {
         strcat(buf, my_ip_string());
+    } else {
+        strcat(buf, inet_ntoa(sin->sin_addr));
     }
     sprintf(&buf[strlen(buf)], ":%d>", ntohs(sin->sin_port));
     return buf;
@@ -154,11 +153,9 @@ sin_to_hostname( const struct sockaddr_in *from, char ***aliases)
 	}
     memcpy(&caddr, from, sizeof(caddr));
 
-    // If 'from' is local host or INADDR_ANY, then we use the canonical IP address
-    // instead of loopback or "0.0.0.0"
-    if (caddr.sin_addr.s_addr == inet_addr("127.0.0.1") ||
-        caddr.sin_addr.s_addr == INADDR_ANY)
-    {
+    // If 'from' is INADDR_ANY, then we use the canonical IP address
+    // instead of "0.0.0.0" as the input to name query
+    if (caddr.sin_addr.s_addr == INADDR_ANY) {
         caddr.sin_addr.s_addr = my_ip_addr();
     }
 
@@ -194,11 +191,9 @@ struct sockaddr_in  *from;
 	}
     memcpy(&caddr, from, sizeof(caddr));
 
-    // If 'from' is local host or INADDR_ANY, then we use the canonical IP address
-    // instead of loopback or "0.0.0.0"
-    if (caddr.sin_addr.s_addr == inet_addr("127.0.0.1") ||
-        caddr.sin_addr.s_addr == INADDR_ANY)
-    {
+    // If 'from' is INADDR_ANY, then we use the canonical IP address
+    // instead of "0.0.0.0"
+    if (caddr.sin_addr.s_addr == INADDR_ANY) {
         caddr.sin_addr.s_addr = my_ip_addr();
     }
 
@@ -677,11 +672,11 @@ char * ipport_to_string(const unsigned int ip, const unsigned short port)
 
     buf[0] = '<';
     buf[1] = '\0';
-    if (ip != INADDR_ANY && ip != inet_addr("127.0.0.1")) {
+    if (ip == INADDR_ANY) {
+        strcat(buf, my_ip_string());
+    } else {
         inaddr.s_addr = ip;
         strcat(buf, inet_ntoa(inaddr));
-    } else {
-        strcat(buf, my_ip_string());
     }
     sprintf(&buf[strlen(buf)], ":%d>", ntohs(port));
     return buf;
