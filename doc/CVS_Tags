@@ -8,6 +8,11 @@
 ** just after this header).  Thanks!  Derek Wright, 3/17/03
 **********************************************************************
 
+06/02/05 V6_7_8-branch
+    A release branch for the 6.7.8 manual, created from the V6_7_8-root
+    tag. Any changes to the 6.7.8 manual should be done here, and the
+    V6_7-branch can be used for 6.7.9 and beyond.
+ 
 5/25/05 V6_7-pre-merge-V6_7_7-doc-merge-1
         V6_7-post-merge-V6_7_7-doc-merge-1
     The state of the doc directory in V6_7-branch before and after
