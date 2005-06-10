@@ -1282,16 +1282,16 @@ else
   CONDOR_EXTERNAL_VERSION([krb5],[1.2.7])
 fi
 
-if test "$_cv_opsys_vers" = "DUX4"; then
-  CONDOR_EXTERNAL_VERSION([globus],[2.2.4])
-else
+# if test "$_cv_opsys_vers" = "DUX4"; then
+#   CONDOR_EXTERNAL_VERSION([globus],[2.2.4])
+# else
   CONDOR_EXTERNAL_VERSION([globus],[4.0.0])
 
-  AC_MSG_CHECKING([globus_data])
-  _cv_ext_globus_data_version="globus-2.4.3.data"
-  AC_MSG_RESULT([$_cv_ext_globus_data_version])
-  AC_SUBST(ext_globus_data_version,$_cv_ext_globus_data_version)
-fi
+#   AC_MSG_CHECKING([globus_data])
+#   _cv_ext_globus_data_version="globus-2.4.3.data"
+#   AC_MSG_RESULT([$_cv_ext_globus_data_version])
+#   AC_SUBST(ext_globus_data_version,$_cv_ext_globus_data_version)
+# fi
 AC_MSG_CHECKING([globus flavor])
 _cv_globus_flavor=gcc32dbg
 if test "$_cv_arch" = "ALPHA" -o "$_cv_arch" = "IA64" -o "$_cv_arch" = "X86_64"; then
@@ -1302,7 +1302,7 @@ fi
 AC_MSG_RESULT([$_cv_globus_flavor])
 AC_SUBST(globus_flavor,$_cv_globus_flavor)
 
-CONDOR_EXTERNAL_VERSION([gpt],[3.0])
+# CONDOR_EXTERNAL_VERSION([gpt],[3.0])
 
 CONDOR_EXTERNAL_VERSION([gahp],[1.0.14])
 
