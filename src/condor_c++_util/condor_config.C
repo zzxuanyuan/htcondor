@@ -201,7 +201,17 @@ void
 condor_net_remap_config()
 {
     char *str = NULL;
-
+	if( getenv("NET_REMAP_ENABLE") ) {
+			/*
+			  this stuff is already set.  we should return immediately
+			  and leave our environment alone.  this way, the master
+			  can choose what GCB broker to use for itself and all its
+			  children, even if there's a list and we're using
+			  $RANDOM_CHOICE().
+			*/
+		return;
+	}
+		
     // Env: the type of service
     SetEnv( "NET_REMAP_ENABLE", "true");
     str = param("NET_REMAP_SERVICE");
