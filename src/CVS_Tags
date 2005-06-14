@@ -1,3 +1,8 @@
+06/14/05 V6_7_8-merge-1
+   The state of the V6_7_8-branch for a merge into V6_7-branch. The only
+   changes are last-minute check-ins for GT4 and workarounds for problems
+   in GT2 and blahp.
+
 06/02/05 V6_6-merge-41
    The state of the V6_6-branch for a merge into V6_7-branch. This includes
    a win32 firewall fix, preventing the schedd from panicing when
