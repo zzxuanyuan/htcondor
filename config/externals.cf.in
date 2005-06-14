@@ -108,6 +108,7 @@ EXT_GCB_VERSION = @ext_gcb_version@
 GCB_DIR = $(EXT_INSTALL)/$(EXT_GCB_VERSION)
 GCB_LIB = $(GCB_DIR)/lib/libGCB.a
 GCB_INC = $(GCB_DIR)/include
+GCB_BIN = $(GCB_DIR)/bin
 #endif
 
 GT3GAHP_DIR = $(EXT_INSTALL)/$(EXT_GT3GAHP_VERSION)
