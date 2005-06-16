@@ -124,14 +124,14 @@ FdBuffer::GetNextLine () {
 			dprintf (D_ALWAYS, "Read 0 bytes from fd %d ==> fd must be closed\n", this->fd);
 			// If the select (supposedly) triggered BUT we can't read anything
 			// the stream must have been closed
-			error = TRUE;
+			//error = TRUE;
 		}
 	}
 
 	return result;
 }
 
-int
+/*int
 FdBuffer::Select (FdBuffer** wait_on, int count, int timeout, int * result) {
 
 	// Check the caches first
@@ -188,3 +188,4 @@ FdBuffer::Select (FdBuffer** wait_on, int count, int timeout, int * result) {
 	return found;
 }
 
+*/

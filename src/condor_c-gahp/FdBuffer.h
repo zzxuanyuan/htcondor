@@ -44,7 +44,7 @@ public:
 
 	MyString * GetNextLine();
 
-	static int Select (FdBuffer** wait_on, int count, int timeout, int * result);
+		//static int Select (FdBuffer** wait_on, int count, int timeout, int * result);
 
 	int getFd() { return fd; }
 	void setFd(const int _fd) { fd = _fd; }

@@ -58,7 +58,10 @@ struct inter_thread_io_t {
   int request_ack_pipe[2];
 };
 
-int io_loop( void * arg, Stream * sock);
+int stdin_pipe_handler(int);
+int request_ack_pipe_handler(int);
+int result_pipe_handler(int);
+
 
 
 void gahp_output_return (const char ** , const int );
@@ -76,6 +79,7 @@ int verify_constraint (const char * s);
 int verify_number_args (const int, const int);
 
 void queue_request (const char * request);
+int process_next_request();
 int flush_next_request(int fd);
 
 

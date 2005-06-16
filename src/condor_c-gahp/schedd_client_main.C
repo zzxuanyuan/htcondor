@@ -106,9 +106,20 @@ main_init( int argc, char ** const argv )
 	Reconfig();
 
 	(void)daemonCore->Register_Timer( 1,
-											(TimerHandler)&my_fork,
-											"my_fork", NULL );
+									  (TimerHandler)&my_fork,
+									  "my_fork", 
+									  NULL );
 
+	return TRUE;
+}
+
+
+
+int
+temp_stdin_handler (int pipe) {
+	static char buff[500];
+	buff[read (0, buff, 499)] = '\0';
+	dprintf (D_FULLDEBUG, "stdout handler called %s\n", buff);
 	return TRUE;
 }
 
@@ -129,12 +140,19 @@ my_fork () {
 
 
 	// Create two pipes that threads will talk via
+
+	// TODO: These pipes should be non-blocking! At least all the pipes
+	// to/from IO thread should be non-blocking, otherwise there's a
+	// possibility of deadlock between IO and worker thread (when
+	// each is waiting for other to finsish reading the pipe)
+
 	inter_thread_io_t * inter_thread_io = (inter_thread_io_t*)malloc (sizeof (inter_thread_io_t));
 	if (daemonCore->Create_Pipe (inter_thread_io->request_pipe, true) == FALSE ||
 		daemonCore->Create_Pipe (inter_thread_io->result_pipe, true) == FALSE ||
 		daemonCore->Create_Pipe (inter_thread_io->request_ack_pipe, true) == FALSE) {
 		return FALSE;
 	}
+
 
 	// Register the reaper for the child process
 	int reaper_id =
@@ -144,20 +162,59 @@ my_fork () {
 				"schedDClientIOReaper");
 
 
-	// Fork off to do the io loop
-	inter_thread_io_t * inter_thread_io2 = (inter_thread_io_t *)malloc (sizeof (inter_thread_io_t));
-	memcpy (inter_thread_io2, inter_thread_io, sizeof (inter_thread_io_t));
-	io_loop_pid =
-		daemonCore->Create_Thread ((ThreadStartFunc)&io_loop,
-									(void*)inter_thread_io2,
-									NULL,
-									reaper_id);
+	char * c_gahp_name = param ("CONDOR_GAHP");
+	MyString exec_name;
+	exec_name.sprintf ("%s_io_thread", c_gahp_name);
+	free (c_gahp_name);
 
-	// Close unneeded pipes
-	close (inter_thread_io->request_ack_pipe[0]);
-	close (inter_thread_io->request_pipe[1]);
-	close (inter_thread_io->result_pipe[0]);
-	close (STDIN_FILENO);
+	MyString args;
+	args.sprintf ("%s %d %d %d", 
+				  exec_name.Value(),
+				  inter_thread_io->request_pipe[1],
+				  inter_thread_io->result_pipe[0],
+				  inter_thread_io->request_ack_pipe[0]);
+
+	dprintf (D_FULLDEBUG, "Startig IO thread: %s %s\n", 
+			 exec_name.Value(), 
+			 args.Value());
+
+	int std[3];
+	std[0] = dup(STDIN_FILENO);
+	std[1] = dup(STDOUT_FILENO);
+	std[2] = -1;
+
+	// We want IO thread to inherit these ends of pipes
+	int inherit_fds[4];
+	inherit_fds[0] = inter_thread_io->request_pipe[1];
+	inherit_fds[1] = inter_thread_io->result_pipe[0];
+	inherit_fds[2] = inter_thread_io->request_ack_pipe[0];
+	inherit_fds[3] = 0;
+
+	
+		// Let's hope this inherits the pipes' fds on winblows
+	int child_pid = 
+		daemonCore->Create_Process (
+								exec_name.Value(),
+								args.Value(),
+								PRIV_UNKNOWN,
+								reaper_id,
+								FALSE,			// no command port
+								NULL,
+								NULL,
+								FALSE,
+								NULL,
+								std,
+								0,				// nice inc
+								0,				// job opt mask
+								inherit_fds);
+								
+
+	if (child_pid > 0) {
+		close (STDIN_FILENO);
+		close (std[0]);
+		close (inter_thread_io->result_pipe[0]);
+		close (inter_thread_io->request_ack_pipe[0]);
+	}
 
 	// This (parent) thread will service schedd requests
 	schedd_thread ((void*)inter_thread_io, NULL);	// This should set timers and return immediately
@@ -178,7 +235,7 @@ io_loop_reaper (Service*, int pid, int exit_status) {
 	if (pid == io_loop_pid) //it better...
 		io_loop_pid = -1;
 
-	DC_Exit(0);
+	DC_Exit(1);
 	return TRUE;
 }
 
