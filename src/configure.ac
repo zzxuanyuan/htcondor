@@ -1186,6 +1186,7 @@ AC_CHECK_TYPES([__int64])
 ############################################################
 
 AC_CHECK_FUNCS([stat64])
+AC_CHECK_FUNC(dlopen, ,AC_CHECK_LIB(dl, dlopen))
 
 
 # checks for system services
