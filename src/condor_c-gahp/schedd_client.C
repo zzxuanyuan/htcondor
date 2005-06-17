@@ -71,7 +71,6 @@ template class SimpleList <MyString*>;
 
 int RESULT_OUTBOX = -1;
 int REQUEST_INBOX = -1;
-int REQUEST_ACK_OUTBOX = -1;
 
 int checkRequestPipeTid = TIMER_UNSET;
 int contactScheddTid = TIMER_UNSET;
@@ -89,7 +88,6 @@ request_pipe_handler() {
 	time_t _time;
 
 	MyString * next_line = NULL;
-	dprintf (D_ALWAYS, "Got stuff in request pipe... %d\n", time(&_time));
 
 	if (request_buffer.IsError()) {
 		dprintf (D_ALWAYS, "Request pipe, closed. Exiting...\n");
@@ -113,7 +111,6 @@ request_pipe_handler() {
 			free (argv[argc]);
 		free( argv );
 
-		write (REQUEST_ACK_OUTBOX, "R", 1); // Signal that we're ready again
 	}
 
 	return TRUE;
@@ -1127,9 +1124,10 @@ enqueue_result (int req_id, const char ** results, const int argc) {
 		free (escaped);
 	}
 
+	buffer += "\n";
+
 	// Now flush:
 	write (RESULT_OUTBOX, buffer.Value(), buffer.Length());
-	write (RESULT_OUTBOX, "\n", 1);
 }
 
 char *

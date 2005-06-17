@@ -47,7 +47,7 @@ extern char * ScheddAddr;
 
 extern int RESULT_OUTBOX;
 extern int REQUEST_INBOX;
-extern int REQUEST_ACK_OUTBOX;
+
 
 extern FdBuffer request_buffer;
 
@@ -63,7 +63,7 @@ extern int schedd_loop( void* arg, Stream * s);
 void
 usage( char *name )
 {
-	dprintf( D_ALWAYS, "Usage: c-gahp_worker_thread -s <schedd> [-P <pool>] -I <fd> -O <fd> -A <fd>\n");
+	dprintf( D_ALWAYS, "Usage: c-gahp_worker_thread -s <schedd> [-P <pool>] -I <fd> -O <fd> \n");
 	DC_Exit( 1 );
 }
 
@@ -110,13 +110,7 @@ main_init( int argc, char ** const argv )
 			RESULT_OUTBOX = atoi( argv[i + 1] );
 			i++;
 			break;
-		case 'A':
-				// specify fd of the write-end of request ack pipe
-		   if ( argc <= i + 1 )
-				usage( argv[0] );
-			REQUEST_ACK_OUTBOX = atoi( argv[i + 1] );
-			i++;
-			break;
+
 
 		default:
 			usage( argv[0] );
@@ -163,7 +157,7 @@ init_pipes() {
 									 (PipeHandler)&request_pipe_handler,
 									 "request_pipe_handler");
 
-	write (REQUEST_ACK_OUTBOX, "R", 1); // Signal that we're ready for the first request
+
 	dprintf (D_FULLDEBUG, "Request pipe initialized\n");
 }
 

@@ -37,10 +37,12 @@ const char * version = "$GahpVersion 2.0.0 Jan 21 2004 Condor\\ GAHP $";
 char *mySubSystem = "C_GAHP";	// used by Daemon Core
 int result_pipe_in_fd = 0;
 int request_pipe_out_fd = 0;
-int request_ack_pipe_in_fd = 0;
+
 
 int async_mode = 0;
 int new_results_signaled = 0;
+
+int flush_request_tid = -1;
 
 // The list of results ready to be output to IO
 StringList result_list;
@@ -48,14 +50,15 @@ StringList result_list;
 // pipe buffers
 FdBuffer stdin_buffer; 
 FdBuffer result_buffer;
-FdBuffer request_ack_buffer;
+
+FdBuffer request_buffer;
 
 // true iff worker thread is ready to receive more requests
 bool worker_thread_ready = false;
 
 // Queue for pending commands to worker thread
-template class SimpleList<char *>;
-SimpleList <char *> request_out_buffer;
+//template class SimpleList<char *>;
+StringList pending_request_list;
 
 // this appears at the bottom of this file
 extern "C" int display_dprintf_header(FILE *fp);
@@ -116,28 +119,22 @@ main_init( int argc, char ** const argv )
 		// Create inter-process pipes
 	int request_pipe[2];
 	int result_pipe[2];
-	int request_ack_pipe[2];
 
-	if (daemonCore->Create_Pipe (request_pipe, true) == FALSE ||
-		daemonCore->Create_Pipe (result_pipe, true) == FALSE ||
-		daemonCore->Create_Pipe (request_ack_pipe, true) == FALSE) {
+		// The IO (this) process cannot block, otherwise it's poosible
+		// to create deadlock between these two pipes
+	if (daemonCore->Create_Pipe (request_pipe, true, true) == FALSE ||
+		daemonCore->Create_Pipe (result_pipe, true) == FALSE) {
 		return -1;
 	}
 
 	request_pipe_out_fd = request_pipe[1];
 	result_pipe_in_fd = result_pipe[0];
-	request_ack_pipe_in_fd = request_ack_pipe[0];
 
-
+	request_buffer.setFd (request_pipe_out_fd);
 	stdin_buffer.setFd (dup(STDIN_FILENO));
 	result_buffer.setFd (result_pipe_in_fd);
-	request_ack_buffer.setFd (request_ack_pipe_in_fd);
 
 		// Register pipes
-	dprintf (D_FULLDEBUG, "about to register pipes %d %d %d\n", 
-			 stdin_buffer.getFd(),
-			 result_buffer.getFd(),
-			 request_ack_buffer.getFd());
 	(void)daemonCore->Register_Pipe (stdin_buffer.getFd(),
 									 "stdin pipe",
 									 (PipeHandler)&stdin_pipe_handler,
@@ -148,11 +145,15 @@ main_init( int argc, char ** const argv )
 									 (PipeHandler)&result_pipe_handler,
 									 "result_pipe_handler");
 
-	(void)daemonCore->Register_Pipe (request_ack_buffer.getFd(),
-									 "request ack pipe",
-									 (PipeHandler)&request_ack_pipe_handler,
-									 "request_ack_pipe_handler");
 
+	flush_request_tid = 
+		daemonCore->Register_Timer (1,
+									1,
+									(TimerHandler)&flush_next_request,
+									"flush_next_request",
+									NULL);
+									
+									  
 
 		// Create child process
 		// Register the reaper for the child process
@@ -183,20 +184,19 @@ main_init( int argc, char ** const argv )
 	}
 
 	MyString _fds;
-	_fds.sprintf (" -I %d -O %d -A %d",
+	_fds.sprintf (" -I %d -O %d",
 				  request_pipe[0],
-				  result_pipe[1],
-				  request_ack_pipe[1]);
+				  result_pipe[1]);
+
 	args += _fds;
 
 	dprintf (D_FULLDEBUG, "Staring worker: %s\n", args.Value());
 
 	// We want IO thread to inherit these ends of pipes
-	int inherit_fds[4];
+	int inherit_fds[3];
 	inherit_fds[0] = request_pipe[0];
 	inherit_fds[1] = result_pipe[1];
-	inherit_fds[2] = request_ack_pipe[1];
-	inherit_fds[3] = 0;
+	inherit_fds[2] = 0;
 
 	int child_pid = 
 		daemonCore->Create_Process (
@@ -215,13 +215,9 @@ main_init( int argc, char ** const argv )
 								inherit_fds);
 
 	if (child_pid > 0) {
-		time_t _t;
-		(void)time(&_t);
-		dprintf (D_ALWAYS, "closing %d\n", _t);
-/*		close (STDIN_FILENO);
+		close (STDIN_FILENO);
 		close (request_pipe[0]);
 		close (result_pipe[1]);
-		close (request_ack_pipe[1]);*/
 	}
 			
 	worker_thread_ready = false;
@@ -242,8 +238,6 @@ main_init( int argc, char ** const argv )
 
 int
 stdin_pipe_handler(int pipe) {
-	dprintf (D_FULLDEBUG, "stdin_pipe_handler()\n");
-
 		// Don't make this a while() loop b/c
 		// stdin read is blocking
 	MyString * line = NULL;
@@ -323,22 +317,14 @@ stdin_pipe_handler(int pipe) {
 			} else {
 					// Pass it on to the worker thread
 					// Actually buffer it, until the worker says it's ready
-				queue_request (command);
 				gahp_output_return_success();
-						
-				daemonCore->Register_Timer(
-										   0,
-										   (TimerHandler)&process_next_request,
-										   "process_next_request", 
-										   NULL );
-
-
+				queue_request (command);
 			}
+			
+			delete [] argv;
 		} else {
 			gahp_output_return_error();
 		}
-
-		delete [] argv;
 		delete line;
 
 	}
@@ -346,28 +332,8 @@ stdin_pipe_handler(int pipe) {
 	return TRUE;
 }
 
-int
-request_ack_pipe_handler(int pipe) {
-		// Worker is ready for more requests
-
-		// Swallow the "ready" symbol
-	char dummy;
-	read (request_ack_buffer.getFd(), &dummy, 1);	
-
-	worker_thread_ready = true;
-	daemonCore->Register_Timer(
-							   0,
-							   (TimerHandler)&process_next_request,
-							   "process_next_request", 
-							   NULL );
-
-	return TRUE;
-}
-
 int 
 result_pipe_handler(int pipe) {
-	dprintf (D_FULLDEBUG, "Pipe fd %d triggered\n", pipe);
-
 	MyString * line = NULL;
 
 		// Check that we get a full line
@@ -397,7 +363,7 @@ result_pipe_handler(int pipe) {
 	return TRUE;
 }
 
-
+/*
 void
 process_next_request() {
 	if (worker_thread_ready) {
@@ -406,6 +372,7 @@ process_next_request() {
 		}
 	}
 }
+*/
 
 int
 worker_thread_reaper (Service*, int pid, int exit_status) {
@@ -576,18 +543,60 @@ verify_job_id (const char * s) {
 }
 
 
-
-
 void
 queue_request (const char * request) {
-	request_out_buffer.Append (strdup(request));
+	MyString strRequest = request;
+	strRequest += "\n";
+
+	pending_request_list.append (strRequest.Value());
+	daemonCore->Reset_Timer (flush_request_tid, 0, 1);
 }
 
+
+int 
+flush_next_request() {
+	if (request_buffer.IsEmpty() &&
+		pending_request_list.isEmpty()) {
+		return TRUE; //nothing to do
+	}
+
+	dprintf (D_FULLDEBUG, "flush_next_request()\n");
+
+	int wrote = 0;
+
+	if (!pending_request_list.isEmpty()) {
+		char * command;
+		pending_request_list.rewind();
+		while ((command = pending_request_list.next ())) {
+
+			dprintf (D_FULLDEBUG, "Sending to worker: %s\n", command);
+			request_buffer.Write (command);
+
+			pending_request_list.deleteCurrent();
+
+			if (!request_buffer.IsEmpty())
+				break;
+		} 
+	}
+	else if (!request_buffer.IsEmpty()) {
+		request_buffer.Write();
+	}
+	
+	return TRUE;
+}
+
+/*
 int
 flush_next_request(int fd) {
-	request_out_buffer.Rewind();
+	
+	if (!request_buffer.IsEmpty()) {
+		request_buffer.Write();
+		return TRUE;
+	}
+
+	pending_request_list.Rewind();
 	char * _command;
-	if (request_out_buffer.Next(_command)) {
+	if (pending_request_list.Next(_command)) {
 		dprintf (D_FULLDEBUG, "Sending %s to worker\n", _command);
 		MyString command = _command;
 		command += "\n";
@@ -602,14 +611,14 @@ flush_next_request(int fd) {
 					 len);
 		}
 
-		request_out_buffer.DeleteCurrent();
+		pending_request_list.DeleteCurrent();
 		free (_command);
 		return TRUE;
 	}
 
 	return FALSE;
 }
-
+*/
 void
 gahp_output_return (const char ** results, const int count) {
 	int i=0;

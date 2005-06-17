@@ -55,11 +55,10 @@
 struct inter_thread_io_t {
   int request_pipe[2];
   int result_pipe[2];
-  int request_ack_pipe[2];
+
 };
 
 int stdin_pipe_handler(int);
-int request_ack_pipe_handler(int);
 int result_pipe_handler(int);
 
 
@@ -79,8 +78,7 @@ int verify_constraint (const char * s);
 int verify_number_args (const int, const int);
 
 void queue_request (const char * request);
-void process_next_request();
-int flush_next_request(int fd);
+int flush_next_request();
 
 int worker_thread_reaper (Service*, int pid, int exit_status);
 
