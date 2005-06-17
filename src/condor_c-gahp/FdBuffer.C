@@ -124,7 +124,7 @@ FdBuffer::GetNextLine () {
 			dprintf (D_ALWAYS, "Read 0 bytes from fd %d ==> fd must be closed\n", this->fd);
 			// If the select (supposedly) triggered BUT we can't read anything
 			// the stream must have been closed
-			//error = TRUE;
+			error = TRUE;
 		}
 	}
 

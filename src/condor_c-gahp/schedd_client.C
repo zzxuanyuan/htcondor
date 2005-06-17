@@ -84,36 +84,12 @@ extern char *myUserName;
 extern int main_shutdown_graceful();
 
 int
-schedd_thread (void * arg, Stream * sock) {
-
-   	inter_thread_io_t * inter_thread_io = (inter_thread_io_t*)arg;
-	RESULT_OUTBOX = inter_thread_io->result_pipe[1];
-	REQUEST_INBOX = inter_thread_io->request_pipe[0];
-	REQUEST_ACK_OUTBOX = inter_thread_io->request_ack_pipe[1];
-
-	request_buffer.setFd( REQUEST_INBOX );
-
-    // Just set up timers....
-    contactScheddTid = daemonCore->Register_Timer( contact_schedd_interval,
-										(TimerHandler)&doContactSchedd,
-										"doContactSchedD", NULL );
-
-	(void)daemonCore->Register_Pipe (request_buffer.getFd(),
-									 "request pipe",
-									 (PipeHandler)&request_pipe_handler,
-									 "request_pipe_handler");
-
-
-	write (REQUEST_ACK_OUTBOX, "R", 1); // Signal that we're ready for the first request
-
-	return TRUE;
-}
-
-int
 request_pipe_handler() {
 
+	time_t _time;
+
 	MyString * next_line = NULL;
-	dprintf (D_ALWAYS, "Got stuff in request pipe...\n");
+	dprintf (D_ALWAYS, "Got stuff in request pipe... %d\n", time(&_time));
 
 	if (request_buffer.IsError()) {
 		dprintf (D_ALWAYS, "Request pipe, closed. Exiting...\n");

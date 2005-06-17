@@ -79,9 +79,10 @@ int verify_constraint (const char * s);
 int verify_number_args (const int, const int);
 
 void queue_request (const char * request);
-int process_next_request();
+void process_next_request();
 int flush_next_request(int fd);
 
+int worker_thread_reaper (Service*, int pid, int exit_status);
 
 
 #endif

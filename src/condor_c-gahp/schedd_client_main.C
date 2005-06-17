@@ -30,7 +30,7 @@
 
 #include "schedd_client.h"
 #include "io_loop.h"
-
+#include "FdBuffer.h"
 
 // How often we contact the schedd (secs)
 extern int contact_schedd_interval;
@@ -39,11 +39,17 @@ extern int contact_schedd_interval;
 extern int check_requests_interval;
 
 
-char *mySubSystem = "C_GAHP";	// used by Daemon Core
+char *mySubSystem = "C_GAHP_WORKER_THREAD";	// used by Daemon Core
 
 char * myUserName = NULL;
 
 extern char * ScheddAddr;
+
+extern int RESULT_OUTBOX;
+extern int REQUEST_INBOX;
+extern int REQUEST_ACK_OUTBOX;
+
+extern FdBuffer request_buffer;
 
 int io_loop_pid = -1;
 
@@ -57,11 +63,11 @@ extern int schedd_loop( void* arg, Stream * s);
 void
 usage( char *name )
 {
-	dprintf( D_ALWAYS,
-		"Usage: condor_gahp -s <schedd name> [-P <pool name>]\n",
-		condor_basename( name ) );
+	dprintf( D_ALWAYS, "Usage: c-gahp_worker_thread -s <schedd> [-P <pool>] -I <fd> -O <fd> -A <fd>\n");
 	DC_Exit( 1 );
 }
+
+int init_pipes();
 
 int
 main_init( int argc, char ** const argv )
@@ -90,6 +96,28 @@ main_init( int argc, char ** const argv )
 			ScheddPool = strdup( argv[i + 1] );
 			i++;
 			break;
+		case 'I':
+				// specify fd of the read-end of request pipe
+		   if ( argc <= i + 1 )
+				usage( argv[0] );
+			REQUEST_INBOX = atoi( argv[i + 1] );
+			i++;
+			break;
+		case 'O':
+				// specify fd of the write-end of result pipe
+		   if ( argc <= i + 1 )
+				usage( argv[0] );
+			RESULT_OUTBOX = atoi( argv[i + 1] );
+			i++;
+			break;
+		case 'A':
+				// specify fd of the write-end of request ack pipe
+		   if ( argc <= i + 1 )
+				usage( argv[0] );
+			REQUEST_ACK_OUTBOX = atoi( argv[i + 1] );
+			i++;
+			break;
+
 		default:
 			usage( argv[0] );
 			break;
@@ -105,138 +133,38 @@ main_init( int argc, char ** const argv )
 	Register();
 	Reconfig();
 
-	(void)daemonCore->Register_Timer( 1,
-									  (TimerHandler)&my_fork,
-									  "my_fork", 
-									  NULL );
 
-	return TRUE;
-}
+	request_buffer.setFd( REQUEST_INBOX );
 
 
-
-int
-temp_stdin_handler (int pipe) {
-	static char buff[500];
-	buff[read (0, buff, 499)] = '\0';
-	dprintf (D_FULLDEBUG, "stdout handler called %s\n", buff);
-	return TRUE;
-}
+	daemonCore->Register_Timer(0, 
+		  (TimerHandler)&init_pipes,
+		  "init_pipes", NULL );
 
 
-int
-my_fork () {
+    // Just set up timers....
+    contactScheddTid = daemonCore->Register_Timer( 
+		   contact_schedd_interval,
+		  (TimerHandler)&doContactSchedd,
+		  "doContactSchedD", NULL );
 
-	//
-	// There are two main continuing tasks:
-	// 1) Listen for GAHP commands on stdin and display results to stdout
-	// 2) Collect tasks from #1 and send them to schedd periodically
-	// We're going to fork once in this method using DC::Create_Thread().
-	// This (parent) thread will do #2, while the child will run in a loop doing #1
-	// Both processes will hang around until (hopefully):
-	//		child receives QUIT -> exit()s -> reaper will trigger -> parent DC_Exit()s
-	//	or if parent receives SIGTERM/SIGKILL it terminates the child
-	//
-
-
-	// Create two pipes that threads will talk via
-
-	// TODO: These pipes should be non-blocking! At least all the pipes
-	// to/from IO thread should be non-blocking, otherwise there's a
-	// possibility of deadlock between IO and worker thread (when
-	// each is waiting for other to finsish reading the pipe)
-
-	inter_thread_io_t * inter_thread_io = (inter_thread_io_t*)malloc (sizeof (inter_thread_io_t));
-	if (daemonCore->Create_Pipe (inter_thread_io->request_pipe, true) == FALSE ||
-		daemonCore->Create_Pipe (inter_thread_io->result_pipe, true) == FALSE ||
-		daemonCore->Create_Pipe (inter_thread_io->request_ack_pipe, true) == FALSE) {
-		return FALSE;
-	}
-
-
-	// Register the reaper for the child process
-	int reaper_id =
-		daemonCore->Register_Reaper(
-				"schedDClientIOReaper",
-				(ReaperHandler)io_loop_reaper,
-				"schedDClientIOReaper");
-
-
-	char * c_gahp_name = param ("CONDOR_GAHP");
-	MyString exec_name;
-	exec_name.sprintf ("%s_io_thread", c_gahp_name);
-	free (c_gahp_name);
-
-	MyString args;
-	args.sprintf ("%s %d %d %d", 
-				  exec_name.Value(),
-				  inter_thread_io->request_pipe[1],
-				  inter_thread_io->result_pipe[0],
-				  inter_thread_io->request_ack_pipe[0]);
-
-	dprintf (D_FULLDEBUG, "Startig IO thread: %s %s\n", 
-			 exec_name.Value(), 
-			 args.Value());
-
-	int std[3];
-	std[0] = dup(STDIN_FILENO);
-	std[1] = dup(STDOUT_FILENO);
-	std[2] = -1;
-
-	// We want IO thread to inherit these ends of pipes
-	int inherit_fds[4];
-	inherit_fds[0] = inter_thread_io->request_pipe[1];
-	inherit_fds[1] = inter_thread_io->result_pipe[0];
-	inherit_fds[2] = inter_thread_io->request_ack_pipe[0];
-	inherit_fds[3] = 0;
 
 	
-		// Let's hope this inherits the pipes' fds on winblows
-	int child_pid = 
-		daemonCore->Create_Process (
-								exec_name.Value(),
-								args.Value(),
-								PRIV_UNKNOWN,
-								reaper_id,
-								FALSE,			// no command port
-								NULL,
-								NULL,
-								FALSE,
-								NULL,
-								std,
-								0,				// nice inc
-								0,				// job opt mask
-								inherit_fds);
-								
-
-	if (child_pid > 0) {
-		close (STDIN_FILENO);
-		close (std[0]);
-		close (inter_thread_io->result_pipe[0]);
-		close (inter_thread_io->request_ack_pipe[0]);
-	}
-
-	// This (parent) thread will service schedd requests
-	schedd_thread ((void*)inter_thread_io, NULL);	// This should set timers and return immediately
-	free(inter_thread_io);
-
 	return TRUE;
 }
 
-int
-io_loop_reaper (Service*, int pid, int exit_status) {
+int 
+init_pipes() {
+	dprintf (D_FULLDEBUG, "PRE Request pipe initialized\n");
 
-	dprintf (D_ALWAYS, "Child process %d exited\n", pid);
+	(void)daemonCore->Register_Pipe (
+									 request_buffer.getFd(),
+									 "request pipe",
+									 (PipeHandler)&request_pipe_handler,
+									 "request_pipe_handler");
 
-	// Our child exited (presumably b/c we got a QUIT command),
-	// so should we
-	// If we're in this function there shouldn't be much cleanup to be done,
-	// except the command queue
-	if (pid == io_loop_pid) //it better...
-		io_loop_pid = -1;
-
-	DC_Exit(1);
-	return TRUE;
+	write (REQUEST_ACK_OUTBOX, "R", 1); // Signal that we're ready for the first request
+	dprintf (D_FULLDEBUG, "Request pipe initialized\n");
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -244,8 +172,10 @@ io_loop_reaper (Service*, int pid, int exit_status) {
 
 void
 Init() {
-	contact_schedd_interval = param_integer ("C_GAHP_CONTACT_SCHEDD_DELAY", 20);
-	check_requests_interval = param_integer ("C_GAHP_CHECK_NEW_REQUESTS_DELAY", 5);
+	contact_schedd_interval = 
+		param_integer ("C_GAHP_CONTACT_SCHEDD_DELAY", 20);
+	check_requests_interval = 
+		param_integer ("C_GAHP_CHECK_NEW_REQUESTS_DELAY", 5);
 
 }
 

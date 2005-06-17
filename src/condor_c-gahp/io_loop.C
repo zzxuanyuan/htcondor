@@ -24,6 +24,7 @@
 #include "io_loop.h"
 #include "condor_common.h"
 #include "condor_debug.h"
+#include "condor_config.h"
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
 #include "schedd_client.h"
 #include "FdBuffer.h"
@@ -33,7 +34,7 @@
 const char * version = "$GahpVersion 2.0.0 Jan 21 2004 Condor\\ GAHP $";
 
 
-char *mySubSystem = "C_GAHP_IOTHREAD";	// used by Daemon Core
+char *mySubSystem = "C_GAHP";	// used by Daemon Core
 int result_pipe_in_fd = 0;
 int request_pipe_out_fd = 0;
 int request_ack_pipe_in_fd = 0;
@@ -60,36 +61,79 @@ SimpleList <char *> request_out_buffer;
 extern "C" int display_dprintf_header(FILE *fp);
 
 
+
 void
 usage( char *name )
 {
-	dprintf( D_ALWAYS, "Usage: c-gahp_io_thread <result pipe out fd> <request pipe in fd> <request ack pipe in fd>\n");
+	dprintf( D_ALWAYS,
+		"Usage: condor_gahp -s <schedd name> [-P <pool name>]\n"
+			 );
 	DC_Exit( 1 );
 }
 
 int
 main_init( int argc, char ** const argv )
 {
+
+	dprintf(D_FULLDEBUG, "C-GAHP IO thread\n");
+
+	MyString ScheddAddr;
+	MyString ScheddPool;
+
+	// handle specific command line args
+	int i = 1;
+	while ( i < argc ) {
+		if ( argv[i][0] != '-' )
+			usage( argv[0] );
+
+		switch( argv[i][1] ) {
+		case 's':
+			// don't check parent for schedd addr. use this one instead
+			if ( argc <= i + 1 )
+				usage( argv[0] );
+			ScheddAddr = argv[i + 1];
+			i++;
+			break;
+		case 'P':
+			// specify what pool (i.e. collector) to lookup the schedd name
+			if ( argc <= i + 1 )
+				usage( argv[0] );
+			ScheddPool = argv[i + 1];
+			i++;
+			break;
+		default:
+			usage( argv[0] );
+			break;
+		}
+
+		i++;
+	}
+
 	Init();
 	Register();
 	Reconfig();
 
-	dprintf(D_FULLDEBUG, "C-GAHP IO thread\n");
+		// Create inter-process pipes
+	int request_pipe[2];
+	int result_pipe[2];
+	int request_ack_pipe[2];
 
-	if (argc != 4) {
-		usage (argv[0]);
-		return 1;
+	if (daemonCore->Create_Pipe (request_pipe, true) == FALSE ||
+		daemonCore->Create_Pipe (result_pipe, true) == FALSE ||
+		daemonCore->Create_Pipe (request_ack_pipe, true) == FALSE) {
+		return -1;
 	}
 
-	request_pipe_out_fd = atoi(argv[1]);
-	result_pipe_in_fd = atoi(argv[2]);
-	request_ack_pipe_in_fd = atoi(argv[3]);
+	request_pipe_out_fd = request_pipe[1];
+	result_pipe_in_fd = result_pipe[0];
+	request_ack_pipe_in_fd = request_ack_pipe[0];
+
 
 	stdin_buffer.setFd (dup(STDIN_FILENO));
 	result_buffer.setFd (result_pipe_in_fd);
 	request_ack_buffer.setFd (request_ack_pipe_in_fd);
 
-
+		// Register pipes
 	dprintf (D_FULLDEBUG, "about to register pipes %d %d %d\n", 
 			 stdin_buffer.getFd(),
 			 result_buffer.getFd(),
@@ -108,6 +152,77 @@ main_init( int argc, char ** const argv )
 									 "request ack pipe",
 									 (PipeHandler)&request_ack_pipe_handler,
 									 "request_ack_pipe_handler");
+
+
+		// Create child process
+		// Register the reaper for the child process
+	int reaper_id =
+		daemonCore->Register_Reaper(
+				"worker_thread_reaper",
+				(ReaperHandler)worker_thread_reaper,
+				"worker_thread_reaper");
+
+	char * c_gahp_name = param ("CONDOR_GAHP");
+	ASSERT (c_gahp_name);
+	MyString exec_name;
+	exec_name.sprintf ("%s_worker_thread", c_gahp_name);
+	free (c_gahp_name);
+
+	MyString args;
+	args += exec_name;
+	args += " -f";
+
+	if (ScheddAddr.Length()) {
+		args += " -s ";
+		args += ScheddAddr;
+	}
+
+	if (ScheddPool.Length()) {
+		args += " -P ";
+		args += ScheddPool;
+	}
+
+	MyString _fds;
+	_fds.sprintf (" -I %d -O %d -A %d",
+				  request_pipe[0],
+				  result_pipe[1],
+				  request_ack_pipe[1]);
+	args += _fds;
+
+	dprintf (D_FULLDEBUG, "Staring worker: %s\n", args.Value());
+
+	// We want IO thread to inherit these ends of pipes
+	int inherit_fds[4];
+	inherit_fds[0] = request_pipe[0];
+	inherit_fds[1] = result_pipe[1];
+	inherit_fds[2] = request_ack_pipe[1];
+	inherit_fds[3] = 0;
+
+	int child_pid = 
+		daemonCore->Create_Process (
+								exec_name.Value(),
+								args.Value(),
+								PRIV_UNKNOWN,
+								reaper_id,
+								FALSE,			// no command port
+								NULL,
+								NULL,
+								FALSE,
+								NULL,
+								NULL,
+								0,				// nice inc
+								0,				// job opt mask
+								inherit_fds);
+
+	if (child_pid > 0) {
+		time_t _t;
+		(void)time(&_t);
+		dprintf (D_ALWAYS, "closing %d\n", _t);
+/*		close (STDIN_FILENO);
+		close (request_pipe[0]);
+		close (result_pipe[1]);
+		close (request_ack_pipe[1]);*/
+	}
 			
 	worker_thread_ready = false;
 
@@ -235,7 +350,7 @@ int
 request_ack_pipe_handler(int pipe) {
 		// Worker is ready for more requests
 
-// Swallow the "ready" signal
+		// Swallow the "ready" symbol
 	char dummy;
 	read (request_ack_buffer.getFd(), &dummy, 1);	
 
@@ -283,15 +398,29 @@ result_pipe_handler(int pipe) {
 }
 
 
-int
+void
 process_next_request() {
-	if (!worker_thread_ready)
-		return TRUE;
-
-    if (flush_next_request(request_pipe_out_fd)) {
-		worker_thread_ready = false;
+	if (worker_thread_ready) {
+		if (flush_next_request(request_pipe_out_fd)) {
+			worker_thread_ready = false;
+		}
 	}
+}
 
+int
+worker_thread_reaper (Service*, int pid, int exit_status) {
+
+	dprintf (D_ALWAYS, "Worker process pid=%d exited with status %d\n", 
+			 pid, 
+			 exit_status);
+
+	// Our child exited (presumably b/c we got a QUIT command),
+	// so should we
+	// If we're in this function there shouldn't be much cleanup to be done,
+	// except the command queue
+
+	DC_Exit(1);
+	return TRUE;
 }
 
 // Check the parameters to make sure the command
@@ -457,14 +586,24 @@ queue_request (const char * request) {
 int
 flush_next_request(int fd) {
 	request_out_buffer.Rewind();
-	char * command;
-	if (request_out_buffer.Next(command)) {
-		dprintf (D_FULLDEBUG, "Sending %s to worker\n", command);
-		write (  fd, command, strlen (command));
-		write (  fd, "\n", 1);
+	char * _command;
+	if (request_out_buffer.Next(_command)) {
+		dprintf (D_FULLDEBUG, "Sending %s to worker\n", _command);
+		MyString command = _command;
+		command += "\n";
+
+		int len = strlen(_command)+1;
+		int numwritten = 
+			write (  fd, command.Value(), strlen (_command)+1);
+		
+		if (len != numwritten) {
+			dprintf (D_ALWAYS, "Warning! Wrote only %d out of %d\n",
+					 numwritten,
+					 len);
+		}
 
 		request_out_buffer.DeleteCurrent();
-		free (command);
+		free (_command);
 		return TRUE;
 	}
 
