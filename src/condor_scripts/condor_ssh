@@ -99,7 +99,7 @@ port=`echo $line | awk '{print $3}'`
 username=`echo $line | awk '{print $4}'`
 dir=`echo $line | awk '{print $5}'`
 
-key=$proc.key
+key=$_CONDOR_SCRATCH_DIR/tmp/$proc.key
 
 # MPICH assumes that you always have a shared filesystem, and
 # sticks the pwd in front of all relative executable pathnames

@@ -18,17 +18,23 @@ _CONDOR_REMOTE_SPOOL_DIR=$_CONDOR_REMOTE_SPOOL_DIR
 _CONDOR_PROCNO=$1
 _CONDOR_NPROCS=$2
 
+# make a tmp dir to store keys, etc, that
+# wont get transfered back
+mkdir $_CONDOR_SCRATCH_DIR/tmp
+
 # Create the host key. 
-/bin/rm -f hostkey hostkey.pub
-$KEYGEN -q -f hostkey -t rsa -N '' 
+
+hostkey=$_CONDOR_SCRATCH_DIR/tmp/hostkey
+/bin/rm -f $hostkey $hostkey.pub
+$KEYGEN -q -f $hostkey -t rsa -N '' 
+
 if [ $? -ne 0 ]
 then
 	echo ssh keygenerator $KEYGEN returned error $? exiting
 	exit -1
 fi
 
-hostkey=`pwd`/hostkey
-idkey=`pwd`/$_CONDOR_PROCNO.key
+idkey=$_CONDOR_SCRATCH_DIR/tmp/$_CONDOR_PROCNO.key
 
 # Create the identity key
 $KEYGEN -q -f $idkey -t rsa -N '' 
@@ -100,17 +106,17 @@ then
 	do
 			/bin/rm -f contact
 			$CONDOR_CHIRP fetch $_CONDOR_REMOTE_SPOOL_DIR/contact $_CONDOR_SCRATCH_DIR/contact
-			lines=`wc -l contact | awk '{print $1}'`
+			lines=`wc -l $_CONDOR_SCRATCH_DIR/contact | awk '{print $1}'`
 			if [ $lines -eq $_CONDOR_NPROCS ]
 			then
 				done=1
 				node=0
 				while [ $node -ne $_CONDOR_NPROCS ]
 				do
-						$CONDOR_CHIRP fetch $_CONDOR_REMOTE_SPOOL_DIR/$node.key $_CONDOR_SCRATCH_DIR/$node.key
+						$CONDOR_CHIRP fetch $_CONDOR_REMOTE_SPOOL_DIR/$node.key $_CONDOR_SCRATCH_DIR/tmp/$node.key
 						node=`expr $node + 1`
 				done
-				chmod 0700 $_CONDOR_SCRATCH_DIR/*.key
+				chmod 0700 $_CONDOR_SCRATCH_DIR/tmp/*.key
 			else
 				sleep 1
 			fi
