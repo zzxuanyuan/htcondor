@@ -359,7 +359,7 @@ To use a double quote inside \verb@string@,
 escape it with the backslash character (\verb@\@).
 To add the backslash character itself, use two backslashes (\verb@\\@).
 
-% for version 6.5.3, the VARS are not propogated into rescue dags.
+% for version 6.5.3, the VARS are not propagated into rescue dags.
 
 \subsubsection{ABORT-DAG-ON}
 
@@ -841,6 +841,56 @@ DAGMan either needs a completely flat directory structure
 (\emph{all} files for outer and inner DAGs within the same directory)
 or
 it needs full pathnames to all log files.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{\label{sec:MultipleDAGs}Multiple Independent DAGs}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\index{DAGMan!MultipleDAGs}
+
+A single instance of DAGMan can now run multiple independent DAGs.
+This is done by specifying multiple DAG files on the \Condor{submit\_dag}
+command line (see ~\ref{man-condor-submit-dag}).
+
+Internally all of the DAGs are combined into a single big DAG.  This means
+that, if a rescue DAG file is necessary, only a single rescue DAG will
+be generated, containing the nodes of all input DAGs.  The file
+name of a rescue DAG will be based on the name of the first DAG file
+specified on the \Condor{submit\_dag} command line.  Other files such
+as dagman.out and the lock file will also have names based on the
+first DAG file.
+
+By default, DAGMan internally renames the nodes to avoid node name
+collisions.  If you are sure that all node names are unique across
+the set of DAGs you're running, you can turn this feature off by
+setting the \Macro{DAGMAN\_MUNGE\_NODE\_NAMES} configuration parameter
+to \Expr{False} (see ~\ref{param:DAGManMungeNodeNames}).
+
+Note that at the present time, running multiple DAGs in separate
+directories generally will not work.  The only way this will work
+is if each DAG is purposely set up to be runnable from the directory
+in which you will run \Condor{submit\_dag}.  For example, suppose
+you you have a directory \File{foo}, which contains a DAG file
+\File{bar.dag} referencing a submit file \File{node.submit}, which is
+also in the \File{foo} directory.  If the DAG file has a section that
+looks like this
+\begin{verbatim}
+	...
+	JOB  A  node.submit 
+	...
+\end{verbatim}
+
+you won't be able to run the DAG by doing "condor\_submit\_dag foo/bar.dag".
+If you want to be able to do that, the DAG file would have to look like
+\begin{verbatim}
+	...
+	JOB  A  foo/node.submit 
+	...
+\end{verbatim}
+which would mean that you could not run it from the foo directory.
+Furthermore, \File{node.submit} would have to be set up to specify
+the input and output files, log file, executable, etc., relative to
+the directory from which you run \Condor{submit\_dag}.
+We are working on removing this limitation.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{\label{sec:DAGConfig}Configuration}
