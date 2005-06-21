@@ -1511,6 +1511,17 @@ and it is for the location (IP address and port) of the
 \Condor{schedd} daemon.
 
 %%%%%%%%%%%%%%%%%%%
+%% remote_schedd
+%%%%%%%%%%%%%%%%%%%
+\item[remote\_schedd = $<$machine-name$>$]
+\index{submit commands!remote\_schedd}
+A required command for a \Arg{grid} universe job with a
+\SubmitCmd{grid\_type} of \Arg{condor}.
+It is the machine with the job queue in the remote pool.
+The value ought to be the same as the \AdAttr{Name} ClassAd attribute
+of the \Condor{schedd} daemon in the remote pool.
+
+%%%%%%%%%%%%%%%%%%%
 % +
 %%%%%%%%%%%%%%%%%%%
 
