@@ -129,6 +129,10 @@ reintroduced by mistake in all public releases.
 \item Fixed some memory leaks in the \Condor{startd} that would be
 induced by calling \Condor{reconfig} or \Condor{status} \Opt{-d}.
 
+\item By design, Condor daemons will exit if their parent process
+exits. On Windows, a bug introduced in v6.5.x series broke this
+behavior. This is now fixed.
+
 \end{itemize}
 
 \noindent Known Bugs:
