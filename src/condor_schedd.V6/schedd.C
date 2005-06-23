@@ -5201,8 +5201,6 @@ Scheduler::checkReconnectQueue( void )
 		remote_pool = NULL;
 
 		
-			// GGT:Now, check if job is ||
-
 			// Now, grab the name of the startd ad we need to query
 			// for from the job ad.  it's living in ATTR_REMOTE_HOST
 		GetAttributeStringNew( job.cluster, job.proc, ATTR_REMOTE_HOST,

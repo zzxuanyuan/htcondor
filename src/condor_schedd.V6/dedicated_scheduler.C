@@ -87,6 +87,7 @@ AllocationNode::AllocationNode( int cluster_id, int n_procs )
 	matches = new ExtArray< MRecArray* >(num_procs);
 	jobs->fill(NULL);
 	matches->fill(NULL);
+	is_reconnect = false;
 }
 
 
@@ -1439,6 +1440,12 @@ DedicatedScheduler::releaseClaim( match_rec* m_rec, bool use_tcp )
     ReliSock rsock;
 	SafeSock ssock;
 
+	if( ! m_rec ) {
+        dprintf( D_ALWAYS, "ERROR in releaseClaim(): NULL m_rec\n" ); 
+		return false;
+	}
+
+
 	DCStartd d( m_rec->peer );
 
     if( use_tcp ) {
@@ -1471,6 +1478,8 @@ bool
 DedicatedScheduler::deactivateClaim( match_rec* m_rec )
 {
 	ReliSock sock;
+
+	dprintf( D_FULLDEBUG, "DedicatedScheduler::deactivateClaim\n");
 
 	if( ! m_rec ) {
         dprintf( D_ALWAYS, "ERROR in deactivateClaim(): NULL m_rec\n" ); 
@@ -1581,7 +1590,7 @@ DedicatedScheduler::reaper( int pid, int status )
 		case JOB_NOT_CKPTED:
 		case JOB_NOT_STARTED:
 			if (!srec->removed) {
-				shutdownMpiJob( srec );
+				shutdownMpiJob( srec , true);
 			}
 			break;
 		case JOB_SHADOW_USAGE:
@@ -2225,6 +2234,10 @@ DedicatedScheduler::spawnJobs( void )
 	}
 
 	if( ! shadow_obj ) {
+		shadow_obj = scheduler.shadow_mgr.findShadow( ATTR_HAS_MPI );
+	}
+
+	if( ! shadow_obj ) {
 		dprintf( D_ALWAYS, "ERROR: Can't find a shadow with %s -- "
 				 "can't spawn MPI jobs, aborting\n", ATTR_HAS_MPI );
 		return false;
@@ -2252,7 +2265,10 @@ DedicatedScheduler::spawnJobs( void )
 
 		GetAttributeInt( id.cluster, id.proc, ATTR_JOB_UNIVERSE, &univ );
 
-		addReconnectAttributes( allocation);
+			// need to skip following line if it is a reconnect job already
+		if (! allocation->is_reconnect) {
+			addReconnectAttributes( allocation);
+		}
 
 			/*
 			  it's important we're setting ATTR_CURRENT_HOSTS now so
@@ -2273,6 +2289,8 @@ DedicatedScheduler::spawnJobs( void )
 			// add job to run queue, though the shadow pid is still 0,
 			// since there's not really a shadow just yet.
 		srec = scheduler.add_shadow_rec( 0, &id, univ, mrec, -1 );
+
+		srec->is_reconnect = allocation->is_reconnect;
 
 			// add this shadow rec to the scheduler's queue so that
 			// it'll honor the JOB_START_DELAY, call the
@@ -2315,15 +2333,41 @@ DedicatedScheduler::addReconnectAttributes(AllocationNode *allocation)
 		// foreach proc in this cluster...
 
 		for( int p=0; p<allocation->num_procs; p++ ) {
+
 			StringList claims;
+			StringList remoteHosts;
+
 			int n = ((*allocation->matches)[p])->getlast();
+
+				// Foreach node within this proc...
 			for( int i=0; i<=n; i++ ) {
 					// Grab the claim from the mrec
 				char *claim = (*(*allocation->matches)[p])[i]->id;
 				claims.append(claim);
+				
+
+				char *hosts = matchToHost( (*(*allocation->matches)[p])[i], allocation->cluster, p);
+				remoteHosts.append(hosts);
 			}
-			SetAttributeString(allocation->cluster, p, "ClaimIds", claims.print_to_string());
+			char *claims_str = claims.print_to_string();
+			SetAttributeString(allocation->cluster, p, "ClaimIds", claims_str);
+			free(claims_str);
+
+			char *hosts_str = remoteHosts.print_to_string();
+			SetAttributeString(allocation->cluster, p, "RemoteHosts", hosts_str);
+			free(hosts_str);
 		}
+}
+
+char *
+DedicatedScheduler::matchToHost(match_rec *mrec, int cluster, int proc) {
+
+	if( mrec->my_match_ad ) {
+		char* tmp = NULL;
+		mrec->my_match_ad->LookupString(ATTR_NAME, &tmp );
+		return tmp;
+	}
+	return NULL;
 }
 
 bool
@@ -2348,10 +2392,14 @@ DedicatedScheduler::shadowSpawned( shadow_rec* srec )
 		return false;
 	}
 
-	for( i=0; i < allocation->num_procs; i++ ) {
-		id.proc = i;
-		mark_job_running( &id );
+	if (! allocation->is_reconnect) {
+		for( i=0; i < allocation->num_procs; i++ ) {
+			id.proc = i;
+			mark_job_running( &id );
+		}
+		return true;
 	}
+
 	return true;
 }
 
@@ -2481,7 +2529,7 @@ DedicatedScheduler::computeSchedule( void )
 		{
 			printSatisfaction( cluster, idle_candidates, NULL, NULL, NULL );
 			createAllocations( idle_candidates, idle_candidates_jobs,
-							   cluster, nprocs );
+							   cluster, nprocs, false );
 				
  				// we're done with these, safe to delete
 			delete idle_candidates;
@@ -2910,7 +2958,8 @@ DedicatedScheduler::computeSchedule( void )
 void
 DedicatedScheduler::createAllocations( CAList *idle_candidates,
 									   CAList *idle_candidates_jobs,
-									   int cluster, int nprocs )
+									   int cluster, int nprocs,
+									   bool is_reconnect)
 {
 	AllocationNode *alloc;
 	MRecArray* matches;
@@ -2930,6 +2979,8 @@ DedicatedScheduler::createAllocations( CAList *idle_candidates,
 
 	alloc = new AllocationNode( cluster, nprocs );
 	alloc->num_resources = idle_candidates->Number();
+
+	alloc->is_reconnect = is_reconnect;
 
 		// Walk through idle_candidates, the list should
 		// be sorted by proc.  Put each job into
@@ -3058,7 +3109,7 @@ DedicatedScheduler::removeAllocation( shadow_rec* srec )
 // This function is used to deactivate all the claims used by a
 // given shadow.
 void
-DedicatedScheduler::shutdownMpiJob( shadow_rec* srec )
+DedicatedScheduler::shutdownMpiJob( shadow_rec* srec , bool kill /* = false */)
 {
 	AllocationNode* alloc;
 	MRecArray* matches;
@@ -3080,7 +3131,14 @@ DedicatedScheduler::shutdownMpiJob( shadow_rec* srec )
 		matches = (*alloc->matches)[i];
 		n = matches->getlast();
 		for( m=0 ; m <= n ; m++ ) {
-			deactivateClaim( (*matches)[m] );
+			if (kill) {
+				dprintf( D_ALWAYS, "Dedicated job abnormally ended, releasing claim\n");
+					// Hidemoto added the following line, but I don't think it is correct...
+					//releaseClaim( (*matches)[m], true );
+				deactivateClaim( (*matches)[m] );
+			} else {
+				deactivateClaim( (*matches)[m] );
+			}
 		}
 	}
 }
@@ -3737,6 +3795,227 @@ DedicatedScheduler::holdAllDedicatedJobs( void )
 	}
 }
 
+/*
+ * If we restart the schedd, and there are running jobs in the queue,
+ * this method gets called once for each proc of each running job.
+ * Each allocation needs to know all the procs for a job, so here,
+ * we just save up all the PROC_IDs that can be reconnected, and
+ * register a timer to call checkReconnectQueue when done
+ */
+
+bool
+DedicatedScheduler::enqueueReconnectJob( PROC_ID job) {
+
+	static int reconnect_tid = -1;
+	 
+	if( ! jobsToReconnect.Append(job) ) {
+		dprintf( D_ALWAYS, "Failed to enqueue job id (%d.%d)\n",
+				 job.cluster, job.proc );
+		return false;
+	}
+	dprintf( D_FULLDEBUG,
+			 "Enqueued dedicated job %d.%d to spawn shadow for reconnect\n",
+			 job.cluster, job.proc );
+
+		/*
+		  If we haven't already done so, register a timer to go off
+		  in zero seconds to call checkContactQueue().  This will
+		  start the process of claiming the startds *after* we have
+		  completed negotiating and returned control to daemonCore. 
+		*/
+	if( reconnect_tid == -1 ) {
+		reconnect_tid = daemonCore->Register_Timer( 0,
+			  (TimerHandlercpp)&DedicatedScheduler::checkReconnectQueue,
+			   "checkReconnectQueue", this );
+	}
+	if( reconnect_tid == -1 ) {
+			// Error registering timer!
+		EXCEPT( "Can't register daemonCore timer for DedicatedScheduler::checkReconnectQueue!" );
+	}
+	return true;
+}
+
+/*
+ * By the time we get here, all the procs of all the cluster
+ * that might need to be reconnected are in the jobsToReconnect list
+ *
+ */
+
+void
+DedicatedScheduler::checkReconnectQueue( void ) {
+	dprintf(D_FULLDEBUG, "In DedicatedScheduler::checkReconnectQueue\n");
+
+	PROC_ID id;
+
+	CondorQuery query(STARTD_AD);
+	ClassAdList result;
+	ClassAdList ads;
+	MyString constraint;
+
+	jobsToReconnect.Rewind();
+	while( jobsToReconnect.Next(id) ) {
+			// there's a pending registration in the queue:
+		dprintf( D_FULLDEBUG, "In checkReconnectQueue(), job: %d.%d\n", 
+				 id.cluster, id.proc );
+	
+		ClassAd *job = GetJobAd(id.cluster, id.proc);
+		
+		if (job == NULL) {
+			dprintf(D_ALWAYS, "Job %d.%d missing from queue?\n", id.cluster, id.proc);
+			continue;
+		}
+
+		char *remote_hosts = NULL;
+		GetAttributeStringNew(id.cluster, id.proc, "RemoteHosts", &remote_hosts);
+
+		StringList hosts(remote_hosts);
+
+			// Foreach host in the stringlist, build up a query to find the machine
+			// ad from the collector
+		hosts.rewind();
+		char *host;
+		while ( (host = hosts.next()) ) {
+			constraint  = ATTR_NAME;
+			constraint += "==\"";
+			constraint += host;
+			constraint += "\"";
+			query.addORConstraint(constraint.Value()); 
+		}
+	}
+
+		// Now we have the big constraint with all the machines in it, send it away 
+		// to the Collector...
+	if (scheduler.Collectors->query(query, ads) != Q_OK) {
+		dprintf(D_ALWAYS, "DedicatedScheduler could not query Collector\n");
+	}
+
+	CAList machines;
+	CAList jobs;
+	ClassAd *machine;
+
+	ads.Open();
+	while ((machine = ads.Next()) ) {
+		char buf[256];
+		machine->LookupString(ATTR_NAME, buf);
+		dprintf(D_ALWAYS, "DedicatedScheduler found machine %s for possibly reconnection for job (%d.%d)\n", 
+				buf, id.cluster, id.proc);
+		machines.Append(machine);
+	}
+
+	int nodes = 0;
+
+		// a "Job" in this list is really a proc.  There may be several procs
+		// per job.  We need to create one allocation (potentially with 
+		// multiple procs per job...
+	CAList jobsToAllocate;
+	CAList machinesToAllocate;
+
+	bool firstTime = false;
+	int nprocs = 0;
+
+		// OK, we now have all the matched machines
+	jobsToReconnect.Rewind();
+	while( jobsToReconnect.Next(id) ) {
+	
+			// we've rolled over to a new job with procid 0
+			// create the allocation for what we've built up.
+		if (! firstTime && id.proc == 0) {
+			dprintf(D_ALWAYS, "DedicatedScheduler creating Allocations for reconnected job\n");
+			createAllocations(&machinesToAllocate, &jobsToAllocate, 
+							  id.cluster, nprocs, true);
+		
+			nprocs = 0;
+			jobsToAllocate.Rewind();
+			while ( jobsToAllocate.Next() ) {
+				jobsToAllocate.DeleteCurrent();
+			}
+			machinesToAllocate.Rewind();
+			while (machinesToAllocate.Next() ) {
+				machinesToAllocate.DeleteCurrent();
+			}
+		}
+
+		firstTime = false;
+		nprocs++;
+
+		ClassAd *job = GetJobAd(id.cluster, id.proc);
+			// Foreach node of each job
+			// 1.) create mrec
+			// 2.) add to all_matches, and all_matches_by_name
+			// 3.) Call createAllocations to do the rest  
+
+		char *remote_hosts = NULL;
+		GetAttributeStringNew(id.cluster, id.proc, "RemoteHosts", &remote_hosts);
+
+		char *claims = NULL;
+		GetAttributeStringNew(id.cluster, id.proc, "ClaimIds", &claims);
+
+		StringList hosts(remote_hosts);
+		StringList claimList(claims);
+
+			// Foreach host in the stringlist, find matching machine by name
+		hosts.rewind();
+		claimList.rewind();
+		char *host;
+		char *claim;
+
+		while ( (host = hosts.next()) ) {
+
+			claim = claimList.next();
+
+			machines.Rewind();
+
+			ClassAd *machine = NULL;
+			while ( (machine = machines.Next())) {
+					// Now lookup machine here...
+				char *name;
+				machine->LookupString( ATTR_NAME, &name);
+
+				dprintf( D_FULLDEBUG, "Trying to match %s to %s\n", name, host);
+				if (strcmp(name, host) == 0) {
+					machines.DeleteCurrent();
+					free(name);
+					break;
+				}
+				free(name);
+			}
+
+			
+			if (machine == NULL) {
+					// Uh oh...
+				dprintf( D_ALWAYS, "Dedicated Scheduler:: couldn't find machine %s to reconnect to\n", host);
+					// GGT TODO -- Now what?  Mark job as idle?
+				continue;
+			}
+
+			char *sinful;
+			machine->LookupString(ATTR_MY_ADDRESS, &sinful);
+
+			dprintf(D_FULLDEBUG, "Target address is %s\n", sinful);
+
+			match_rec *mrec = 
+				new match_rec(claim, sinful, &id,
+						  machine, owner(), NULL);
+
+			mrec->setStatus(M_CLAIMED);
+
+			all_matches->insert(HashKey(host), mrec);
+			all_matches_by_id->insert(HashKey(mrec->id), mrec);
+
+			jobsToAllocate.Append(job);
+
+			machinesToAllocate.Append(machine);
+		}
+	}
+
+		// Last time through, create the last bit of allocations
+	dprintf(D_ALWAYS, "DedicatedScheduler creating Allocations for reconnected job\n");
+	createAllocations(&machinesToAllocate, &jobsToAllocate, 
+					  id.cluster, nprocs, true);
+		
+	spawnJobs();
+}	
+
 
 
 //////////////////////////////////////////////////////////////
@@ -3917,6 +4196,7 @@ displayRequest( ClassAd* ad, char* str, int debug_level )
 void
 deallocMatchRec( match_rec* mrec )
 {
+	dprintf( D_ALWAYS, "DedicatedScheduler::deallocMatchRec\n");
 		// We might call this with a NULL mrec, so don't seg fault.
 	if( ! mrec ) {
 		return;

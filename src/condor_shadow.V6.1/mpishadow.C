@@ -439,7 +439,7 @@ MPIShadow::startMaster()
 
     dprintf ( D_PROTOCOL, "#3 - Just requested Master resource.\n" );
 
-	spawnAllComrades();
+		//spawnAllComrades();
 
 }
 

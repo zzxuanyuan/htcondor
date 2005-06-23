@@ -42,6 +42,7 @@ ParallelShadow::ParallelShadow() {
     ResourceList.truncate(-1);
 	actualExitReason = -1;
 	info_tid = -1;
+	is_reconnect = false;
 }
 
 ParallelShadow::~ParallelShadow() {
@@ -108,14 +109,25 @@ ParallelShadow::init( ClassAd* job_ad, const char* schedd_addr )
 void
 ParallelShadow::reconnect( void )
 {
-	EXCEPT( "reconnect is not supported for Parallel universe!" );
+
+	dprintf( D_FULLDEBUG, "ParallelShadow::reconnect\n");
+	is_reconnect = true;
+	spawn();
 }
 
 
 bool 
 ParallelShadow::supportsReconnect( void )
 {
-	return false;
+		// Iff all remote resources support reconect,
+		// then this shadow does.  If any do not, we do not
+    for ( int i=0 ; i<=ResourceList.getlast() ; i++ ) {
+        if (! ResourceList[i]->supportsReconnect()) {
+			return false;
+		}
+    }
+	
+	return true;
 }
 
 
@@ -297,24 +309,9 @@ ParallelShadow::startMaster()
     MpiResource *rr;
     dprintf ( D_FULLDEBUG, "In ParallelShadow::startMaster()\n" );
 
-		// This function does *TOTALLY* different things depending on
-		// if we're using rsh to spawn the comrade nodes or if we're
-		// getting the ip/port of the master via a file specified in
-		// the environment and passing that back to the shadow to
-		// spawn all the comrades at once.  However, in both cases, we
-		// have to contact a startd to spawn the master node, so that
-		// code is shared at the end...
-
 	rr = ResourceList[0];
 
-		// In both cases, we've got to actually talk to a startd to
-		// spawn the master node, register the claimSock for remote
-		// system calls, and keep track of which resource to use
-		// next.  All this stuff is done by spawnNode(), so just use
-		// that.  
 	spawnNode( rr );
-
-    dprintf ( D_PROTOCOL, "#3 - Just requested Master resource.\n" );
 
 	spawnAllComrades();
 
@@ -344,10 +341,16 @@ ParallelShadow::spawnAllComrades( void )
 void 
 ParallelShadow::spawnNode( MpiResource* rr )
 {
-		// First, contact the startd to spawn the job
-    if( rr->activateClaim() != OK ) {
-        shutDown( JOB_NOT_STARTED );
-    }
+	if (is_reconnect) {
+		dprintf(D_FULLDEBUG, "reconnecting to the following remote resource:\n");
+		rr->dprintfSelf(D_FULLDEBUG);
+		rr->reconnect();
+	} else {
+			// First, contact the startd to spawn the job
+		if( rr->activateClaim() != OK ) {
+			shutDown( JOB_NOT_STARTED );
+		}
+	}
 
     dprintf ( D_PROTOCOL, "Just requested resource for node %d\n",
 			  nextResourceToStart );
@@ -815,26 +818,75 @@ ParallelShadow::resourceBeganExecution( RemoteResource* rr )
 void
 ParallelShadow::resourceReconnected( RemoteResource* rr )
 {
-	EXCEPT( "impossible: MPIShadow doesn't support reconnect" );
+		//EXCEPT( "impossible: MPIShadow doesn't support reconnect" );
 }
 
 
 void
 ParallelShadow::logDisconnectedEvent( const char* reason )
 {
-	EXCEPT( "impossible: MPIShadow doesn't support reconnect" );
+	JobDisconnectedEvent event;
+	event.setDisconnectReason( reason );
+
+/*
+	DCStartd* dc_startd = remRes->getDCStartd();
+	if( ! dc_startd ) {
+		EXCEPT( "impossible: remRes::getDCStartd() returned NULL" );
+	}
+	event.setStartdAddr( dc_startd->addr() );
+	event.setStartdName( dc_startd->name() );
+*/
+
+	if( !uLog.writeEvent(&event) ) {
+		dprintf( D_ALWAYS, "Unable to log ULOG_JOB_DISCONNECTED event\n" );
+	}
 }
 
 
 void
 ParallelShadow::logReconnectedEvent( void )
 {
-	EXCEPT( "impossible: MPIShadow doesn't support reconnect" );
+	JobReconnectedEvent event;
+
+/*
+	DCStartd* dc_startd = remRes->getDCStartd();
+	if( ! dc_startd ) {
+		EXCEPT( "impossible: remRes::getDCStartd() returned NULL" );
+	}
+	event.setStartdAddr( dc_startd->addr() );
+	event.setStartdName( dc_startd->name() );
+
+	char* starter = NULL;
+	remRes->getStarterAddress( starter );
+	event.setStarterAddr( starter );
+	delete [] starter;
+	starter = NULL;
+
+*/
+	if( !uLog.writeEvent(&event) ) {
+		dprintf( D_ALWAYS, "Unable to log ULOG_JOB_RECONNECTED event\n" );
+	}
+
 }
 
 
 void
 ParallelShadow::logReconnectFailedEvent( const char* reason )
 {
-	EXCEPT( "impossible: MPIShadow doesn't support reconnect" );
+	JobReconnectFailedEvent event;
+
+	event.setReason( reason );
+
+/*
+	DCStartd* dc_startd = remRes->getDCStartd();
+	if( ! dc_startd ) {
+		EXCEPT( "impossible: remRes::getDCStartd() returned NULL" );
+	}
+	event.setStartdName( dc_startd->name() );
+*/
+
+	if( !uLog.writeEvent(&event) ) {
+		dprintf( D_ALWAYS, "Unable to log ULOG_JOB_RECONNECT_FAILED event\n" );
+	}
+		//EXCEPT( "impossible: MPIShadow doesn't support reconnect" );
 }

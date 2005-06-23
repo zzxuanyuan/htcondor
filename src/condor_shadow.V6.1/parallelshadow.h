@@ -198,6 +198,8 @@ class ParallelShadow : public BaseShadow
 	void replaceNode ( ClassAd *ad, int nodenum );
 	
 	int info_tid;	// DC id for our timer to get resource info 
+
+	bool is_reconnect; 
 };
 
 
