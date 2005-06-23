@@ -1304,13 +1304,19 @@ caLocateStarter( Stream *s, char* cmd_str, ClassAd* req_ad )
 		Claim* claim = NULL;
 
 	req_ad->LookupString(ATTR_CLAIM_ID, &claimid);
+	req_ad->LookupString(ATTR_GLOBAL_JOB_ID, &global_job_id);
 	claim = resmgr->getClaimByGlobalJobIdAndId(global_job_id, claimid);
 
 	if( ! claim ) {
 		MyString err_msg = ATTR_CLAIM_ID;
 		err_msg += " (";
 		err_msg += claimid;
-		err_msg += ") not found";
+		err_msg += ") and ";
+		err_msg += ATTR_GLOBAL_JOB_ID;
+		err_msg += " ( ";
+		err_msg += global_job_id;
+		err_msg += " ) not found";
+
 		sendErrorReply( s, cmd_str, CA_FAILURE, err_msg.Value() );
 		free( global_job_id );
 		return FALSE;

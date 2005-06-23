@@ -3902,15 +3902,13 @@ DedicatedScheduler::checkReconnectQueue( void ) {
 		machines.Append(machine);
 	}
 
-	int nodes = 0;
-
 		// a "Job" in this list is really a proc.  There may be several procs
 		// per job.  We need to create one allocation (potentially with 
 		// multiple procs per job...
 	CAList jobsToAllocate;
 	CAList machinesToAllocate;
 
-	bool firstTime = false;
+	bool firstTime = true;
 	int nprocs = 0;
 
 		// OK, we now have all the matched machines
@@ -3984,7 +3982,6 @@ DedicatedScheduler::checkReconnectQueue( void ) {
 			if (machine == NULL) {
 					// Uh oh...
 				dprintf( D_ALWAYS, "Dedicated Scheduler:: couldn't find machine %s to reconnect to\n", host);
-					// GGT TODO -- Now what?  Mark job as idle?
 				continue;
 			}
 

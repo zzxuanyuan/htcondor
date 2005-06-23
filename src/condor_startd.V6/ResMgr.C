@@ -1005,8 +1005,8 @@ ResMgr::getClaimByGlobalJobId( const char* id )
 }
 
 Claim *
-ResMgr::getClaimByGlobalJobIdAndId( const char *claimId,
-									const char *job_id)
+ResMgr::getClaimByGlobalJobIdAndId( const char *job_id,
+									const char *claimId)
 {
 	Claim* foo = NULL;
 	if( ! resources ) {
@@ -1014,7 +1014,7 @@ ResMgr::getClaimByGlobalJobIdAndId( const char *claimId,
 	}
 	int i;
 	for( i = 0; i < nresources; i++ ) {
-		if( (foo = resources[i]->findClaimByGlobalJobId(claimId)) ) {
+		if( (foo = resources[i]->findClaimByGlobalJobId(job_id)) ) {
 			if( foo == resources[i]->findClaimById(claimId) ) {
 				return foo;	
 			}
