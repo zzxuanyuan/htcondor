@@ -676,7 +676,7 @@ UserProc::execute()
 	PidEnvID penvid;
 
 	pidenvid_init(&penvid);
-	if (pidenvid_filter_and_insert(&penvid, environ) != 
+	if (pidenvid_filter_and_insert(&penvid, environ) == 
 			PIDENVID_OVERSIZED)
 	{
 		EXCEPT("UserProc::execute(): Too many ancestor variables! Programmer "
