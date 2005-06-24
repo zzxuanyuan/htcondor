@@ -3911,16 +3911,22 @@ DedicatedScheduler::checkReconnectQueue( void ) {
 	bool firstTime = true;
 	int nprocs = 0;
 
+	PROC_ID last_id;
+	last_id.cluster = last_id.proc = -1;
+
 		// OK, we now have all the matched machines
 	jobsToReconnect.Rewind();
 	while( jobsToReconnect.Next(id) ) {
 	
+		dprintf(D_FULLDEBUG, "Trying to find machines for job (%d.%d)\n",
+			id.cluster, id.proc);
+
 			// we've rolled over to a new job with procid 0
 			// create the allocation for what we've built up.
 		if (! firstTime && id.proc == 0) {
-			dprintf(D_ALWAYS, "DedicatedScheduler creating Allocations for reconnected job\n");
+			dprintf(D_ALWAYS, "DedicatedScheduler creating Allocations for reconnected job (%d.%d)\n", id.cluster, id.proc);
 			createAllocations(&machinesToAllocate, &jobsToAllocate, 
-							  id.cluster, nprocs, true);
+							  last_id.cluster, nprocs, true);
 		
 			nprocs = 0;
 			jobsToAllocate.Rewind();
@@ -3934,6 +3940,7 @@ DedicatedScheduler::checkReconnectQueue( void ) {
 		}
 
 		firstTime = false;
+		last_id = id;
 		nprocs++;
 
 		ClassAd *job = GetJobAd(id.cluster, id.proc);
@@ -4006,7 +4013,7 @@ DedicatedScheduler::checkReconnectQueue( void ) {
 	}
 
 		// Last time through, create the last bit of allocations
-	dprintf(D_ALWAYS, "DedicatedScheduler creating Allocations for reconnected job\n");
+	dprintf(D_ALWAYS, "DedicatedScheduler creating Allocations for reconnected job (%d.%d)\n", id.cluster, id.proc);
 	createAllocations(&machinesToAllocate, &jobsToAllocate, 
 					  id.cluster, nprocs, true);
 		
