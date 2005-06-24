@@ -1,3 +1,7 @@
+06/24/05 V6_7-parallel-3-merge-1
+   This is the point from the parallel-3 branch we merge into
+   V6_7-branch
+
 05/18/05 V6_7-globus4-branch
    A branch to test updating the Globus external to 4.0.0. This will
    hopefully be a very short-lived branch. Created from the 
