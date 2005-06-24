@@ -97,13 +97,19 @@ RUN(job_condorc_abc_van)
 TESTCLASS(job_condorc_abc_van,condorc)
 TESTCLASS(job_condorc_abc_van,quick)
 
-DESC(job_core_child_cleanup,"Sub-process post termination cleanup")
-RUN(job_core_child_cleanup)
-TESTCLASS(job_core_child_cleanup,quick)
-
-DESC(job_core_child_cleanup_nosleep,"Sub-process post termination cleanup - Hasty Exit")
-RUN(job_core_child_cleanup_nosleep)
-TESTCLASS(job_core_child_cleanup_nosleep,quick)
+/*
+** Disabled these tests until they're re-written in a sane way that
+** doesn't hang forever on OSX (at least) where the output matches the
+** test, where there's not random dead code lying around, etc, etc.
+**
+**DESC(job_core_child_cleanup,"Sub-process post termination cleanup")
+**RUN(job_core_child_cleanup)
+**TESTCLASS(job_core_child_cleanup,quick)
+**
+**DESC(job_core_child_cleanup_nosleep,"Sub-process post termination cleanup - Hasty Exit")
+**RUN(job_core_child_cleanup_nosleep)
+**TESTCLASS(job_core_child_cleanup_nosleep,quick)
+*/
 
 DESC(job_core_killsignal_sched,"Scheduler: Verify the specified input file is used")
 RUN(job_core_killsignal_sched)
