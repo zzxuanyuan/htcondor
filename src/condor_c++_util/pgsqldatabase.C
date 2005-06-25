@@ -87,7 +87,11 @@ PGSQLDatabase::connectDB(const char* connect)
 	if (PQstatus(connection) != CONNECTION_OK)
 		{
 			dprintf(D_ALWAYS, "Connection to database '%s' failed.\n", PQdb(connection));
-			dprintf(D_ALWAYS, "%s", PQerrorMessage(connection));
+		  	dprintf(D_ALWAYS, "%s", PQerrorMessage(connection));
+			
+			dprintf(D_ALWAYS, "Deallocating connection resources to database '%s'\n", PQdb(connection));
+			PQfinish(connection);
+			connection = NULL;
 			return 0;
         }
 		//dprintf(D_ALWAYS, "right after calling PQconnectdb\n");

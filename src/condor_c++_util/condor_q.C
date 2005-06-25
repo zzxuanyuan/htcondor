@@ -236,14 +236,18 @@ fetchQueueFromDB (ClassAdList &list, char *dbconn, CondorError* errstack)
 											 FALSE);
 
 	if (rv < 0) {
+		delete jqSnapshot;
 		return Q_COMMUNICATION_ERROR;
 	} else if (rv == 0) {
+		delete jqSnapshot;
 		return Q_OK;
 	}
 
 	// make the query ad
-	if ((result = query.makeQuery (filterAd)) != Q_OK)
+	if ((result = query.makeQuery (filterAd)) != Q_OK) {
+		delete jqSnapshot;
 		return result;
+	}
 
 	// insert types into the query ad   ###
 	filterAd.SetMyTypeName ("Query");
@@ -252,6 +256,7 @@ fetchQueueFromDB (ClassAdList &list, char *dbconn, CondorError* errstack)
 	ExprTree *tree;
 	tree = filterAd.Lookup(ATTR_REQUIREMENTS);
 	if (!tree) {
+		delete jqSnapshot;
 	  return Q_INVALID_QUERY;
 	}
 
@@ -265,6 +270,7 @@ fetchQueueFromDB (ClassAdList &list, char *dbconn, CondorError* errstack)
 		ad = getDBNextJobByConstraint(constraint, jqSnapshot);
 	}	
 
+	delete jqSnapshot;
 	return Q_OK;
 }
 
@@ -319,15 +325,19 @@ fetchQueueFromDBAndProcess ( char *dbconn, process_function process_func, Condor
 											 FALSE);
 
 	if (rv < 0) {
+		delete jqSnapshot;
 		return Q_COMMUNICATION_ERROR;
 	}
 	else if (rv == 0) {
+		delete jqSnapshot;
 		return Q_OK;
 	}	
 
 	// make the query ad
-	if ((result = query.makeQuery (filterAd)) != Q_OK)
+	if ((result = query.makeQuery (filterAd)) != Q_OK) {
+		delete jqSnapshot;
 		return result;
+	}
 
 	// insert types into the query ad   ###
 	filterAd.SetMyTypeName ("Query");
@@ -336,6 +346,7 @@ fetchQueueFromDBAndProcess ( char *dbconn, process_function process_func, Condor
 	ExprTree *tree;
 	tree = filterAd.Lookup(ATTR_REQUIREMENTS);
 	if (!tree) {
+		delete jqSnapshot;
 	  return Q_INVALID_QUERY;
 	}
 
@@ -353,6 +364,7 @@ fetchQueueFromDBAndProcess ( char *dbconn, process_function process_func, Condor
 		ad = getDBNextJobByConstraint(constraint, jqSnapshot);
 	}	
 
+	delete jqSnapshot;
 	return Q_OK;
 }
 
