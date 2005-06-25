@@ -356,6 +356,6 @@ static char * getDBConnStr(char *&quillName, char *&databaseIp, char *&databaseN
   port[strlen(port)-1] = '\0';
   
   char *dbconn = (char *) malloc(128 * sizeof(char));
-  sprintf(dbconn, "%s %s dbname=%s", host, port, databaseName);
+  sprintf(dbconn, "%s %s user=quill dbname=%s", host, port, databaseName);
   return dbconn;
 }

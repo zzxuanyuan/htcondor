@@ -103,7 +103,6 @@ Prober::probe()
 {
 	int st;
 	struct stat fstat;
-
 	if (stat(job_queue_name, &fstat) == -1)
 		dprintf(D_ALWAYS,"ERROR: calling stat()\n");
 	

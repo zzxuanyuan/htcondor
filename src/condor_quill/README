@@ -37,12 +37,13 @@ maintenance tasks.
 Instructions on how to carry these steps are detailed in the online
 documentation for the particular version.
 
-a) Assume that quill runs as user 'akini'.  Then if there isn't already
-a postgres user named 'akini', it needs to be added using the 'createuser'
-command in the postgres bin directory.  This user is different from the 
-operating system user 'akini'.  Then once this user is registered in 
-postgres, the database/tables created by quill can be accessed only by 
-programs running under this user.
+a) Quill connects to the database as user 'quill'.  We're talking about 
+database users and not operating system users (two completely different 
+things).  So if there isn't already a postgres user named 'quill', it 
+needs to be added using the 'createuser' command in the postgres bin 
+directory.  It should be allowed to create more databases and not 
+allowed to create more users.  These answers should be supplied to the 
+createuser command.
 
 b) Postgres should be configured to accept tcp/ip connections.  
 In version 7, this was done by setting tcpip_socket=true in the 
@@ -56,11 +57,11 @@ directory.  While the particular syntax and semantics for host based
 configuration can vary from site to site, basically one needs to allow
 access to any hosts that will access this database server, either by way 
 of the quill daemon itself writing to the server, or by way of the 
-condor_q++ tool querying this server.  For example, in order to give user
-'akini' permissions to access all databases on my machine from any other 
-machine in my network add the following line:
+condor_q++ tool querying this server.  For example, in order to give 
+database user 'quill' permissions to access all databases on my machine 
+from any other machine in my network add the following line:
 
-host    all       akini       128.105.0.0           255.255.0.0       trust
+host    all       quill       128.105.0.0           255.255.0.0       trust
 
 Note that in addition to the database specified by DATABASE_NAME in the
 condor_config file, the quill daemon also needs access to the database

@@ -143,7 +143,7 @@ JobQueueDBManager::config(bool reconfig)
 	jobQueueDBName = param("DATABASE_NAME");
 	if(!jobQueueDBName) jobQueueDBName = strdup("quill");
 	jobQueueDBConn = (char *) malloc(_POSIX_PATH_MAX * sizeof(char));
-	sprintf(jobQueueDBConn, "%s %s dbname=%s", host, port, jobQueueDBName);
+	sprintf(jobQueueDBConn, "%s %s user=quill dbname=%s", host, port, jobQueueDBName);
 	
 		// read the polling period and if one is not specified use 
 		// default value of 10 seconds
@@ -240,6 +240,7 @@ JobQueueDBManager::maintain()
 		//time(&start);
 		//end timing stuff
 	
+
 	st = prober->getProbeInfo(); // get the last polling information
 
 		//if we are unable to get to the database, then either the 
@@ -1811,11 +1812,15 @@ JobQueueDBManager::checkSchema()
 	  
 		if (tmp_st <= 0) { // connect to template1 databae
 			dprintf(D_ALWAYS, "Error: Failed while trying to create database %s.\n", jobQueueDBName);
+			delete tmp_jqdb;
+			free(tmp_conn);
 			return 0;
 		}
 		tmp_st = tmp_jqdb->execCommand(sql_str);
 		if (tmp_st < 0) { // executing the create command
 			dprintf(D_ALWAYS, "Error: Failed while trying to create database %s.\n", jobQueueDBName);
+			delete tmp_jqdb;
+			free(tmp_conn);
 			return 0;
 		}
 		tmp_jqdb->disconnectDB();
