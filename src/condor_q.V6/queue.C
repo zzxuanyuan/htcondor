@@ -180,11 +180,19 @@ char dbName[64];
 
 /* this function for checking whether database can be used for querying in local machine */
 static bool checkDBconfig() {
-	if (!param("QUILL_NAME") || !param("DATABASE_IPADDRESS") || !param("DATABASE_NAME")) {
+	char *str1, *str2, *str3;
+	str1 = param("QUILL_NAME");
+	str2 = param("DATABASE_IPADDRESS");
+	str3 = param("DATABASE_NAME");
+	if (!str1 || !str2 || !str3) {
 		return FALSE;
 	}
-	else
+	else {
+		free(str1); 
+		free(str2);
+		free(str3);
 		return TRUE;
+	}
 }
 
 extern 	"C"	int		Termlog;
@@ -1722,6 +1730,7 @@ show_queue( char* v1, char* v2, char* v3, bool useDB )
 		}
 	}
 
+	if(dbconn) free(dbconn);
 	return true;
 }
 
@@ -2184,10 +2193,11 @@ fixSubmittorName( char *name, int niceUser )
 
 static char * getDBConnStr(char *&quillName, char *&databaseIp, char *&databaseName) {
   char            host[64],port[10];
+  char            *tmpquillname, *tmpdatabaseip, *tmpdatabasename;
 
-  if((!quillName && !param("QUILL_NAME")) ||
-	 (!databaseIp && !param("DATABASE_IPADDRESS")) || 
-	 (!databaseName && !param("DATABASE_NAME"))) {
+  if((!quillName && !(tmpquillname = param("QUILL_NAME"))) ||
+     (!databaseIp && !(tmpdatabaseip = param("DATABASE_IPADDRESS"))) || 
+     (!databaseName && !(tmpdatabasename = param("DATABASE_NAME")))) {
     fprintf( stderr, "Error: Could not find database related parameter\n");
     fprintf(stderr, "\n");
     print_wrapped_text("Extra Info: "
@@ -2200,22 +2210,21 @@ static char * getDBConnStr(char *&quillName, char *&databaseIp, char *&databaseN
   }
 
   if(!quillName) {
-    quillName = (char *) malloc(64 * sizeof(char));
-    strcpy(quillName, param("QUILL_NAME"));
+	  quillName = tmpquillname;
+		  //quillName = (char *) malloc(64 * sizeof(char));
+		  //strcpy(quillName, param("QUILL_NAME"));
   }
   if(!databaseIp) {
-    databaseIp = (char *) malloc(64 * sizeof(char));
-    
-    if(param("DATABASE_IPADDRESS")) strcpy(databaseIp, param("DATABASE_IPADDRESS"));
-    else strcpy(databaseIp, "<127.0.0.1:5432>");
+	  databaseIp = tmpdatabaseip;
+		  //databaseIp= (char *) malloc(64 * sizeof(char));
+		  //strcpy(databaseIp, param("DATABASE_IPADDRESS"));
   }
   if(!databaseName) {
-    databaseName = (char *) malloc(64 * sizeof(char));    
-    if(param("DATABASE_NAME")) 
-		strcpy(databaseName, param("DATABASE_NAME"));   
-    else 
-		strcpy(databaseName, "jqmon");
+	  databaseName = tmpdatabasename;
+		  //databaseName = (char *) malloc(64 * sizeof(char));    
+		  //strcpy(databaseName, param("DATABASE_NAME"));
   }
+
   char *ptr_colon = strchr(databaseIp, ':');
   strcpy(host, "host= ");
   strncat(host, 
@@ -2227,6 +2236,7 @@ static char * getDBConnStr(char *&quillName, char *&databaseIp, char *&databaseN
   
   char *dbconn = (char *) malloc(128 * sizeof(char));
   sprintf(dbconn, "%s %s user=quill dbname=%s", host, port, databaseName);
+  
   return dbconn;
 }
 
