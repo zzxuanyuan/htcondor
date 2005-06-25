@@ -357,13 +357,15 @@ fetchQueueFromDBAndProcess ( char *dbconn, process_function process_func, Condor
 	
 	while (ad != (ClassAd *) 0) {
 			// Process the data and insert it into the list
-		if ( ( *process_func )( ad ) ) {
-			delete(ad);
+		if ((*process_func) (ad) ) {
+			ad->clear();
+			delete ad;
 		}
 		
 		ad = getDBNextJobByConstraint(constraint, jqSnapshot);
 	}	
 
+	if(ad) {ad->clear();delete ad;}
 	delete jqSnapshot;
 	return Q_OK;
 }
@@ -408,7 +410,7 @@ void CondorQ::directDBQuery(char *dbconn, CondorQQueryType qType) {
 		break;
 	}
 
-	if(!resultset)
+	if(resultset)
 		PQclear(resultset);
 	if(connection) 
 		PQfinish(connection);

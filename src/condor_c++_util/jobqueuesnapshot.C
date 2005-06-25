@@ -43,6 +43,7 @@ JobQueueSnapshot::JobQueueSnapshot(const char* dbcon_str)
 //! destructor
 JobQueueSnapshot::~JobQueueSnapshot()
 {
+	release();
 	if (jqDB != NULL)
 		delete(jqDB);
 }

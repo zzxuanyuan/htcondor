@@ -321,6 +321,7 @@ PGSQLDatabase::releaseQueryResult()
 {
 	if(queryRes != NULL) 
 	   PQclear(queryRes);
+	
 	queryRes = NULL;
 
 	return 1;
