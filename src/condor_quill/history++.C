@@ -281,6 +281,8 @@ main(int argc, char* argv[])
   if(parameters) free(parameters);
   if(dbIpAddr) free(dbIpAddr);
   if(dbName) free(dbName);
+  if(quillName) free(quillName);
+  if(dbconn) free(dbconn);
   return 0;
 }
 
@@ -320,10 +322,11 @@ static bool checkDBconfig() {
 
 static char * getDBConnStr(char *&quillName, char *&databaseIp, char *&databaseName) {
   char            host[64],port[10];
+  char            *tmpquillname, *tmpdatabaseip, *tmpdatabasename;
   
-  if((!quillName && !param("QUILL_NAME")) ||
-     (!databaseIp && !param("DATABASE_IPADDRESS")) || 
-     (!databaseName && !param("DATABASE_NAME"))) {
+  if((!quillName && !(tmpquillname = param("QUILL_NAME"))) ||
+     (!databaseIp && !(tmpdatabaseip = param("DATABASE_IPADDRESS"))) || 
+     (!databaseName && !(tmpdatabasename = param("DATABASE_NAME")))) {
     fprintf( stderr, "Error: Could not find local quill info in condor_config file\n");
     fprintf(stderr, "\n");
     print_wrapped_text("Extra Info: "
@@ -335,16 +338,19 @@ static char * getDBConnStr(char *&quillName, char *&databaseIp, char *&databaseN
   }
 
   if(!quillName) {
-    quillName = (char *) malloc(64 * sizeof(char));
-    strcpy(quillName, param("QUILL_NAME"));
+	  quillName = tmpquillname;
+		  //quillName = (char *) malloc(64 * sizeof(char));
+		  //strcpy(quillName, param("QUILL_NAME"));
   }
   if(!databaseIp) {
-    databaseIp= (char *) malloc(64 * sizeof(char));
-    strcpy(databaseIp, param("DATABASE_IPADDRESS"));
+	  databaseIp = tmpdatabaseip;
+		  //databaseIp= (char *) malloc(64 * sizeof(char));
+		  //strcpy(databaseIp, param("DATABASE_IPADDRESS"));
   }
   if(!databaseName) {
-    databaseName = (char *) malloc(64 * sizeof(char));    
-    strcpy(databaseName, param("DATABASE_NAME"));
+	  databaseName = tmpdatabasename;
+		  //databaseName = (char *) malloc(64 * sizeof(char));    
+		  //strcpy(databaseName, param("DATABASE_NAME"));
   }
   char *ptr_colon = strchr(databaseIp, ':');
   strcpy(host, "host= ");

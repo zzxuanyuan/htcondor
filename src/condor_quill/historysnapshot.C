@@ -97,6 +97,8 @@ HistorySnapshot::printResults(SQLQuery *queryhor, SQLQuery *queryver, bool longf
       displayJobShort(ad);
     }
   }
+  if(ad != NULL) 
+	  delete ad;
   return 1;
 }
 

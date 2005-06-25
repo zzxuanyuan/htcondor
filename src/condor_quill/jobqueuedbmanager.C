@@ -1696,18 +1696,33 @@ JobQueueDBManager::getJQPollingInfo(long& mtime, long& size, ClassAdLogEntry* lc
 		lcmd->next_offset = atoi(jqDatabase->getValue(0,2)); // last_next_cmd_offset
 		lcmd->offset = atoi(jqDatabase->getValue(0,3)); // last_cmd_offset
 		lcmd->op_type = atoi(jqDatabase->getValue(0,4)); // last_cmd_type
+		
+		if(lcmd->key) 
+			free(lcmd->key);
+		if(lcmd->mytype) 
+			free(lcmd->mytype);
+		if(lcmd->targettype) 
+			free(lcmd->targettype);
+		if(lcmd->name) 
+			free(lcmd->name);
+		if(lcmd->value) 
+			free(lcmd->value);
+		
+
 		lcmd->key = strdup(jqDatabase->getValue(0,5)); // last_cmd_key
 		lcmd->mytype = strdup(jqDatabase->getValue(0,6)); // last_cmd_mytype
 		lcmd->targettype = strdup(jqDatabase->getValue(0,7)); // last_cmd_targettype
 		lcmd->name = strdup(jqDatabase->getValue(0,8)); // last_cmd_name
 		lcmd->value = strdup(jqDatabase->getValue(0,9)); // last_cmd_value
 
-		jqDatabase->releaseQueryResult(); // release Query Result
-										  // since it is no longer needed
 	}
 
 		// disconnect to DB
 	disconnectDB();
+
+    // release Query Result since it is no longer needed
+	jqDatabase->releaseQueryResult(); 
+
 	return 1;	
 }
 
@@ -1883,6 +1898,7 @@ JobQueueDBManager::checkSchema()
 		return 0;
 	}
 
+	jqDatabase->releaseQueryResult();
 	return 1;
 }
 
