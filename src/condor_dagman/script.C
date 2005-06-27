@@ -28,6 +28,7 @@
 #include "util.h"
 #include "job.h"
 #include "condor_id.h"
+#include "tmp_dir.h"
 
 #include "HashTable.h"
 #include "env.h"
@@ -64,6 +65,16 @@ const char *Script::GetNodeName()
 int
 Script::BackgroundRun( int reaperId )
 {
+	TmpDir		tmpDir;
+	MyString	errMsg;
+	if ( !tmpDir.Cd2TmpDir( _node->GetDirectory(), errMsg ) ) {
+		debug_printf( DEBUG_QUIET,
+				"Could not change to DAG directory %s: %s\n",
+				_node->GetDirectory(), errMsg.Value() );
+
+		return 0;
+	}
+
 	// Construct the command line, replacing some tokens with
     // information about the job.  All of these values would probably
     // be better inserted into the environment, rather than passed on

@@ -31,6 +31,8 @@
 #include "util_lib_proto.h"
 #include "dagman_commands.h"
 #include "dagman_main.h"
+#include "tmp_dir.h"
+#include "basename.h"
 
 static const char   COMMENT    = '#';
 static const char * DELIMITERS = " \t";
@@ -40,21 +42,22 @@ static int _thisDagNum = -1;
 static bool _mungeNames = true;
 
 static bool parse_node( Dag *dag, Job::job_type_t nodeType,
-						char* nodeTypeKeyword,
-						char* dagFile, int lineNum );
+						const char* nodeTypeKeyword,
+						const char* dagFile, int lineNum,
+						const char *directory);
 
-static bool parse_script(char *endline, Dag *dag, 
-		char *filename, int lineNumber);
+static bool parse_script(const char *endline, Dag *dag, 
+		const char *filename, int lineNumber);
 static bool parse_parent(Dag *dag, 
-		char *filename, int lineNumber);
+		const char *filename, int lineNumber);
 static bool parse_retry(Dag *dag, 
-		char *filename, int lineNumber);
+		const char *filename, int lineNumber);
 static bool parse_abort(Dag *dag, 
-		char *filename, int lineNumber);
+		const char *filename, int lineNumber);
 static bool parse_dot(Dag *dag, 
-		char *filename, int lineNumber);
+		const char *filename, int lineNumber);
 static bool parse_vars(Dag *dag, 
-		char *filename, int lineNumber);
+		const char *filename, int lineNumber);
 static MyString munge_job_name(const char *jobName);
 
 
@@ -99,12 +102,31 @@ void parseSetThisDagNum(int num)
 }
 
 //-----------------------------------------------------------------------------
-bool parse (Dag *dag, char *filename) {
+bool parse (Dag *dag, const char *filename, bool useDagDir) {
 	ASSERT( dag != NULL );
 
 	++_thisDagNum;
 
-	FILE *fp = fopen(filename, "r");
+		//
+		// If useDagDir is true, we have to cd into the directory so we can
+		// parse the submit files correctly.
+		// 
+	const char *	tmpDirectory = "";
+	const char *	tmpFilename = filename;
+	TmpDir		dagDir;
+	if ( useDagDir ) {
+		tmpDirectory = condor_dirname( filename );
+		MyString	errMsg;
+		if ( !dagDir.Cd2TmpDir( tmpDirectory, errMsg ) ) {
+			debug_printf( DEBUG_QUIET,
+					"Could not change to DAG directory %s: %s\n",
+					tmpDirectory, errMsg.Value() );
+			return false;
+		}
+		tmpFilename = condor_basename( filename );
+	}
+
+	FILE *fp = fopen(tmpFilename, "r");
 	if(fp == NULL) {
 		if(DEBUG_LEVEL(DEBUG_QUIET)) {
 			debug_printf( DEBUG_QUIET, "Could not open file %s for input\n", filename);
@@ -144,7 +166,7 @@ bool parse (Dag *dag, char *filename) {
 		//
 		if(strcasecmp(token, "JOB") == 0) {
 			parsed_line_successfully = parse_node( dag, Job::TYPE_CONDOR, token,
-												   filename, lineNumber );
+												   filename, lineNumber, tmpDirectory );
 		}
 
 		// Handle a Stork job spec
@@ -152,17 +174,17 @@ bool parse (Dag *dag, char *filename) {
 		//
 		else if	(strcasecmp(token, "DAP") == 0) {	// DEPRECATED!
 			parsed_line_successfully = parse_node( dag, Job::TYPE_STORK, token,
-												   filename, lineNumber );
+												   filename, lineNumber, tmpDirectory );
 			debug_printf( DEBUG_QUIET, "%s (line %d): "
 				"Warning: the DAP token is deprecated and may be unsupported "
 				"in a future release.  Use the DATA token\n",
 				filename, lineNumber );
 		}
+
 		else if	(strcasecmp(token, "DATA") == 0) {
 			parsed_line_successfully = parse_node( dag, Job::TYPE_STORK, token,
-												   filename, lineNumber );
+												   filename, lineNumber, tmpDirectory );
 		}
-
 		// Handle a SCRIPT spec
 		// Example Syntax is:  SCRIPT (PRE|POST) JobName ScriptName Args ...
 		else if ( strcasecmp(token, "SCRIPT") == 0 ) {
@@ -215,13 +237,16 @@ bool parse (Dag *dag, char *filename) {
 			return false;
 		}
 	}
+
+	fclose(fp);
+
 	return true;
 }
 
 
 static bool 
-parse_node( Dag *dag, Job::job_type_t nodeType, char* nodeTypeKeyword,
-			char* dagFile, int lineNum )
+parse_node( Dag *dag, Job::job_type_t nodeType, const char* nodeTypeKeyword,
+			const char* dagFile, int lineNum, const char *directory )
 {
 	MyString example;
 	MyString whynot;
@@ -230,6 +255,8 @@ parse_node( Dag *dag, Job::job_type_t nodeType, char* nodeTypeKeyword,
 	MyString expectedSyntax;
 	expectedSyntax.sprintf( "Expected syntax: %s nodename submitfile [DONE]",
 							nodeTypeKeyword );
+
+	TmpDir nodeDir;
 
 		// NOTE: fear not -- any missing tokens resulting in NULL
 		// strings will be error-handled correctly by AddNode()
@@ -260,7 +287,7 @@ parse_node( Dag *dag, Job::job_type_t nodeType, char* nodeTypeKeyword,
 			debug_printf( DEBUG_QUIET, "%s\n", expectedSyntax.Value() );
 			return false;
 	}
-	if( !AddNode( dag, nodeType, nodeName,
+	if( !AddNode( dag, nodeType, nodeName, directory,
 				submitFile, NULL, NULL, done, whynot ) )
 	{
 		debug_printf( DEBUG_QUIET, "ERROR: %s (line %d): %s\n",
@@ -280,9 +307,9 @@ parse_node( Dag *dag, Job::job_type_t nodeType, char* nodeTypeKeyword,
 //-----------------------------------------------------------------------------
 static bool 
 parse_script(
-	char *endline,
+	const char *endline,
 	Dag  *dag, 
-	char *filename, 
+	const char *filename, 
 	int  lineNumber)
 {
 	const char * example = "SCRIPT (PRE|POST) JobName Script Args ...";
@@ -406,7 +433,7 @@ parse_script(
 static bool 
 parse_parent(
 	Dag  *dag, 
-	char *filename, 
+	const char *filename, 
 	int  lineNumber)
 {
 	const char * example = "PARENT p1 p2 p3 CHILD c1 c2 c3";
@@ -509,7 +536,7 @@ parse_parent(
 static bool 
 parse_retry(
 	Dag  *dag, 
-	char *filename, 
+	const char *filename, 
 	int  lineNumber)
 {
 	const char *example = "Retry JobName 3 [UNLESS-EXIT 42]";
@@ -598,7 +625,7 @@ parse_retry(
 static bool 
 parse_abort(
 	Dag  *dag, 
-	char *filename, 
+	const char *filename, 
 	int  lineNumber)
 {
 	const char *example = "ABORT-DAG-ON JobName 3";
@@ -667,7 +694,7 @@ parse_abort(
 //           state of the DAG. 
 // 
 //-----------------------------------------------------------------------------
-static bool parse_dot(Dag *dag, char *filename, int lineNumber)
+static bool parse_dot(Dag *dag, const char *filename, int lineNumber)
 {
 	const char *example = "Dot dotfile [UPDATE | DONT-UPDATE] "
 		                  "[OVERWRITE | DONT-OVERWRITE] "
@@ -719,7 +746,7 @@ static bool parse_dot(Dag *dag, char *filename, int lineNumber)
 //           Vars JobName VarName1="value1" VarName2="value2" etc
 //           Whitespace surrounding the = sign is permissible
 //-----------------------------------------------------------------------------
-static bool parse_vars(Dag *dag, char *filename, int lineNumber) {
+static bool parse_vars(Dag *dag, const char *filename, int lineNumber) {
 	const char* example = "Vars JobName VarName1=\"value1\" VarName2=\"value2\"";
 	const int maxLen = 5096;
 	char name[maxLen];
@@ -846,6 +873,7 @@ static bool parse_vars(Dag *dag, char *filename, int lineNumber) {
 
 	return true;
 }
+
 
 static MyString munge_job_name(const char *jobName)
 {

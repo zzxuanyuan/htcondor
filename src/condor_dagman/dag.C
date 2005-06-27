@@ -30,6 +30,7 @@
 #include "submit.h"
 #include "util.h"
 #include "dagman_main.h"
+#include "dagman_multi_dag.h"
 
 #include "simplelist.h"
 #include "condor_string.h"  /* for strnewp() */
@@ -53,7 +54,8 @@ void touch (const char * filename) {
 Dag::Dag( /* const */ StringList &dagFiles, char *condorLogName,
 		  const int maxJobsSubmitted,
 		  const int maxPreScripts, const int maxPostScripts,
-		  int allow_events, const char* dapLogName, bool allowLogError ) :
+		  int allow_events, const char* dapLogName, bool allowLogError,
+		  bool useDagDir) :
     _maxPreScripts        (maxPreScripts),
     _maxPostScripts       (maxPostScripts),
 	_condorLogName		  (NULL),
@@ -80,7 +82,7 @@ Dag::Dag( /* const */ StringList &dagFiles, char *condorLogName,
 
 	PrintDagFiles( dagFiles );
 
-	FindLogFiles( dagFiles );
+	FindLogFiles( dagFiles, useDagDir );
 
 	ASSERT( _condorLogFiles.number() > 0 || _dapLogName );
 
@@ -967,31 +969,21 @@ Dag::PrintDagFiles( /* const */ StringList &dagFiles )
 
 //-------------------------------------------------------------------------
 void
-Dag::FindLogFiles( /* const */ StringList &dagFiles )
+Dag::FindLogFiles( /* const */ StringList &dagFiles, bool useDagDir )
 {
-		// Attempt to get the log file name(s) from the submit files;
-		// if that doesn't work, use the value from the command-line
-		// argument.
-	dagFiles.rewind();
-	char *dagFile;
-	while ( (dagFile = dagFiles.next()) != NULL ) {
-		MyString dagFileName( dagFile );
-		MyString jobKeyword("job");
-		MyString msg = ReadMultipleUserLogs::getJobLogsFromSubmitFiles(
-					dagFileName, jobKeyword, _condorLogFiles );
-		if ( msg != "" ) {
+	MyString	msg;
+	if ( !GetLogFiles( dagFiles, useDagDir, _condorLogFiles, msg ) ) {
+		debug_printf( DEBUG_VERBOSE,
+				"Possible error when parsing DAG: %s ...\n", msg.Value());
+		if ( _allowLogError ) {
 			debug_printf( DEBUG_VERBOSE,
-					"Possible error when parsing DAG: %s ...\n", msg.Value());
-			if ( _allowLogError ) {
-				debug_printf( DEBUG_VERBOSE,
-						"...continuing anyhow because of -AllowLogError "
-						"flag (beware!)\n");
-			} else {
-				debug_printf( DEBUG_VERBOSE, "...exiting -- try again with "
-						"the '-AllowLogError' flag if you *really* think "
-						"this shouldn't be a fatal error\n");
-				DC_Exit( 1 );
-			}
+					"...continuing anyhow because of -AllowLogError "
+					"flag (beware!)\n");
+		} else {
+			debug_printf( DEBUG_VERBOSE, "...exiting -- try again with "
+					"the '-AllowLogError' flag if you *really* think "
+					"this shouldn't be a fatal error\n");
+			DC_Exit( 1 );
 		}
 	}
 	
@@ -1000,10 +992,6 @@ Dag::FindLogFiles( /* const */ StringList &dagFiles )
 		// (wenger@cs.wisc.edu) 2003-09-05.
 	if ( (_condorLogFiles.number() == 0) && !_dapLogName ) {
 		_condorLogFiles.rewind();
-		while( _condorLogFiles.next() ) {
-		    _condorLogFiles.deleteCurrent();
-		}
-
 		_condorLogFiles.append( _condorLogName );
 	}
 
@@ -1167,11 +1155,11 @@ Dag::SubmitReadyJobs(const Dagman &dm)
       submit_success =
 		  condor_submit( dm, cmd_file.Value(), condorID, job->GetJobName(),
 						 ParentListString( job ), job->varNamesFromDag,
-						 job->varValsFromDag );
+						 job->varValsFromDag, job->GetDirectory() );
     } else if( job->JobType() == Job::TYPE_STORK ) {
 	  job->_submitTries++;
       submit_success = dap_submit( cmd_file.Value(), condorID,
-				   job->GetJobName() );
+				   job->GetJobName(), job->GetDirectory() );
     } else {
 	    debug_printf( DEBUG_QUIET, "Illegal job type: %d\n", job->JobType() );
 		ASSERT(false);

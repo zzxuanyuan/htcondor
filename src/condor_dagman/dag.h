@@ -80,12 +80,15 @@ class Dag {
 		@param dapLogName the name of the Stork (DaP) log file
 		@param allowLogError whether to allow the DAG to run even if we
 			   have an error determining the job log files
+		@param useDagDir run DAGs in directories from DAG file paths
+		       if true
     */
 
     Dag( /* const */ StringList &dagFiles, char *condorLogName,
 		 const int maxJobsSubmitted,
 		 const int maxPreScripts, const int maxPostScripts, 
-		 int allowEvents, const char *dapLogName, bool allowLogError );
+		 int allowEvents, const char *dapLogName, bool allowLogError,
+		 bool useDagDir);
 
     ///
     ~Dag();
@@ -329,8 +332,10 @@ class Dag {
 
 	/** Find all Condor (not DaP) log files associated with this DAG.
 	    @param The list of DAG files being run.
+		@param useDagDir run DAGs in directories from DAG file paths
+		       if true
 	*/
-	void FindLogFiles( /* const */ StringList &dagFiles );
+	void FindLogFiles( /* const */ StringList &dagFiles, bool useDagDir );
 
     /* Prepares to submit job by running its PRE Script if one exists,
        otherwise adds job to _readyQ and calls SubmitReadyJobs()

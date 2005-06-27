@@ -26,16 +26,14 @@
 #include "string_list.h"
 #include "condor_distribution.h"
 #include "env.h"
-#include "read_multiple_logs.h"
+#include "dagman_multi_dag.h"
+#include "basename.h"
 
 #ifdef WIN32
 const char* dagman_exe = "condor_dagman.exe";
 #else
 const char* dagman_exe = "condor_dagman";
 #endif
-
-// Just so we can link in the ReadMultipleUserLogs class.
-MULTI_LOG_HASH_INSTANCE;
 
 struct SubmitDagOptions
 {
@@ -56,6 +54,8 @@ struct SubmitDagOptions
 	int iDebugLevel;
 	MyString primaryDagFile;
 	StringList	dagFiles;
+	MyString strDagmanPath;
+	bool useDagDir;
 	
 	// non-command line options
 	MyString strLibLog;
@@ -64,7 +64,6 @@ struct SubmitDagOptions
 	MyString strSubFile;
 	MyString strRescueFile;
 	MyString strLockFile;
-	MyString strDagmanPath;
 
 	SubmitDagOptions() 
 	{ 
@@ -82,6 +81,7 @@ struct SubmitDagOptions
 		bAllowLogError = false;
 		iDebugLevel = 3;
 		primaryDagFile = "";
+		useDagDir = false;
 	}
 
 };
@@ -100,7 +100,23 @@ int main(int argc, char *argv[])
 	parseCommandLine(opts, argc, argv);
 	
 	opts.strLibLog = opts.primaryDagFile + ".lib.out";
-	opts.strDebugLog = opts.primaryDagFile + ".dagman.out";
+
+		// Make this into a full path so that dprintf still works inside
+		// condor_dagman when it cds to other directories.
+	if ( fullpath( opts.primaryDagFile.Value() ) ) {
+		opts.strDebugLog = "";
+	} else {
+		char	currentDir[_POSIX_PATH_MAX];
+		if ( !getcwd( currentDir, sizeof(currentDir) ) ) {
+			fprintf( stderr, "ERROR: unable to get cwd: %d, %s\n",
+					errno, strerror(errno) );
+			return 1;
+		}
+		opts.strDebugLog = currentDir;
+		opts.strDebugLog += DIR_DELIM_STRING;
+	}
+	opts.strDebugLog += opts.primaryDagFile + ".dagman.out";
+
 	opts.strSchedLog = opts.primaryDagFile + ".dagman.log";
 	opts.strSubFile = opts.primaryDagFile + ".condor.sub";
 	opts.strRescueFile = opts.primaryDagFile + ".rescue";
@@ -141,23 +157,17 @@ submitDag( SubmitDagOptions &opts )
 
 		StringList	logFiles;
 
-		opts.dagFiles.rewind();
-		char *dagFile;
-		while ( (dagFile = opts.dagFiles.next()) != NULL ) {
-			MyString msg = ReadMultipleUserLogs::getJobLogsFromSubmitFiles(
-					dagFile, "job", logFiles);
-			if ( msg != "" ) {
-				fprintf( stderr, "ERROR: failed to locate job log files: %s\n",
-							msg.Value() );
-				if ( opts.bAllowLogError ) {
-					fprintf( stderr, "Continuing anyhow because of "
-								"-AllowLogError flag (beware!)\n" );
-				} else {
-					fprintf( stderr, "Aborting -- try again with the "
-								"-AllowLogError flag if you *really* think "
-								"this shouldn't be a fatal error\n" );
-					return 1;
-				}
+		MyString	msg;
+		if ( !GetLogFiles( opts.dagFiles, opts.useDagDir, logFiles, msg ) ) {
+			fprintf( stderr, "ERROR: %s\n", msg.Value() );
+			if ( opts.bAllowLogError ) {
+				fprintf( stderr, "Continuing anyhow because of "
+							"-AllowLogError flag (beware!)\n" );
+			} else {
+				fprintf( stderr, "Aborting -- try again with the "
+							"-AllowLogError flag if you *really* think "
+							"this shouldn't be a fatal error\n" );
+				return 1;
 			}
 		}
 
@@ -381,6 +391,10 @@ void writeSubmitFile(/* const */ SubmitDagOptions &opts)
 	{
 		strArgs += " -AllowLogError";
 	}
+	if(opts.useDagDir)
+	{
+		strArgs += " -UseDagDir";
+	}
 
     fprintf(pSubFile, "arguments\t= %s\n", strArgs.Value());
 
@@ -490,6 +504,10 @@ void parseCommandLine(SubmitDagOptions &opts, int argc, char *argv[])
 			{
 				opts.bAllowLogError = true;
 			}
+			else if (strArg.find("-usedagdir") != -1) // -usedagdir
+			{
+				opts.useDagDir = true;
+			}
 			else
 			{
 				fprintf( stderr, "ERROR: unknown option %s\n", strArg.Value() );
@@ -527,9 +545,10 @@ int printUsage()
 // <--STORK
     printf("    -notification value (Determines how much email you get from Condor.\n");
     printf("        See the condor_submit man page for values.)\n");
-    printf("    -NoEventChecks      (Turns off checks for \"bad\" events\n"); 
-    printf("    -AllowLogError     (Allows the DAG to attempt execution even if the log\n");
+    printf("    -NoEventChecks      (Turns off checks for \"bad\" events)\n"); 
+    printf("    -AllowLogError      (Allows the DAG to attempt execution even if the log\n");
     printf("        reading code finds errors when parsing the submit files)\n"); 
+	printf("    -UseDagDir          (Run DAGs in directories specified in DAG file paths)\n");
     printf("    -debug number       (Determines how verbosely DAGMan logs its work\n");
     printf("         about the life of the condor_dagman job.  'value' must be\n");
     printf("         an integer with a value of 0-7 inclusive.)\n");
