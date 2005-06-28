@@ -185,6 +185,7 @@ bool parse (Dag *dag, const char *filename, bool useDagDir) {
 			parsed_line_successfully = parse_node( dag, Job::TYPE_STORK, token,
 												   filename, lineNumber, tmpDirectory );
 		}
+
 		// Handle a SCRIPT spec
 		// Example Syntax is:  SCRIPT (PRE|POST) JobName ScriptName Args ...
 		else if ( strcasecmp(token, "SCRIPT") == 0 ) {
@@ -253,8 +254,8 @@ parse_node( Dag *dag, Job::job_type_t nodeType, const char* nodeTypeKeyword,
 	bool done = false;
 
 	MyString expectedSyntax;
-	expectedSyntax.sprintf( "Expected syntax: %s nodename submitfile [DONE]",
-							nodeTypeKeyword );
+	expectedSyntax.sprintf( "Expected syntax: %s nodename submitfile "
+				"[DIR directory] [DONE]", nodeTypeKeyword );
 
 	TmpDir nodeDir;
 
@@ -268,8 +269,38 @@ parse_node( Dag *dag, Job::job_type_t nodeType, const char* nodeTypeKeyword,
 
 		// next token is the submit file name
 	char *submitFile = strtok( NULL, DELIMITERS );
-		// last (optional) token is DONE marker
-	char *doneKey = strtok( 0, DELIMITERS );
+
+		// next token (if any) is "DIR" or "DONE"
+	const char *doneKey = NULL;
+	const char* nextTok = strtok( NULL, DELIMITERS );
+	if ( nextTok && (strcasecmp(nextTok, "DIR") == 0) ) {
+		if ( strcmp(directory, "") ) {
+			debug_printf( DEBUG_QUIET, "ERROR: DIR specification in node "
+						"lines not allowed with -GetDagDir command-line "
+						"argument\n");
+			return false;
+		}
+
+		directory = strtok( NULL, DELIMITERS );
+		if ( !directory ) {
+			debug_printf( DEBUG_QUIET, "ERROR: %s (line %d): no directory "
+						"specified after DIR keyword\n", dagFile, lineNum );
+			debug_printf( DEBUG_QUIET, "%s\n", expectedSyntax.Value() );
+			return false;
+		}
+
+		MyString errMsg;
+		if ( !nodeDir.Cd2TmpDir(directory, errMsg) ) {
+			debug_printf( DEBUG_QUIET,
+						"ERROR: can't change to directory %s: %s\n",
+						directory, errMsg.Value() );
+			return false;
+		}
+		doneKey = strtok( NULL, DELIMITERS );
+	} else {
+		doneKey = nextTok;
+	}
+
 		// anything else is garbage
 	char *garbage = strtok( 0, DELIMITERS );
 	if( doneKey ) {
@@ -873,7 +904,6 @@ static bool parse_vars(Dag *dag, const char *filename, int lineNumber) {
 
 	return true;
 }
-
 
 static MyString munge_job_name(const char *jobName)
 {

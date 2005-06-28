@@ -65,8 +65,8 @@ GetLogFiles(/* const */ StringList &dagFiles, bool useDagDir,
 		}
 
 			// Note: this returns absolute paths to the log files.
-		MyString msg = ReadMultipleUserLogs::getJobLogsFromSubmitFiles(
-				file, "job", logFiles);
+		MyString msg = MultiLogFiles::getJobLogsFromSubmitFiles(
+				file, "job", "dir", logFiles);
 		if ( msg != "" ) {
 			AppendError( errMsg,
 					MyString("Failed to locate job log files: ") + msg );

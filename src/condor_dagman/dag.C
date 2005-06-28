@@ -173,7 +173,7 @@ Dag::InitializeDagFiles( char *lockFileName )
 	debug_printf( DEBUG_VERBOSE,
 				  "Deleting any older versions of log files...\n" );
 
-	ReadMultipleUserLogs::DeleteLogs( _condorLogFiles );
+	MultiLogFiles::DeleteLogs( _condorLogFiles );
 
 	if ( access( _dapLogName, F_OK) == 0 ) {
 		debug_printf( DEBUG_VERBOSE, "Deleting older version of %s\n",
@@ -676,7 +676,6 @@ Dag::ProcessAbortEvent(const ULogEvent *event, Job *job,
 void
 Dag::ProcessTerminatedEvent(const ULogEvent *event, Job *job,
 		bool recovery) {
-
 	if( job ) {
 		_numJobsSubmitted--;
 		ASSERT( _numJobsSubmitted >= 0 );
@@ -1480,7 +1479,8 @@ void Dag::RemoveRunningScripts ( ) const {
 }
 
 //-----------------------------------------------------------------------------
-void Dag::Rescue (const char * rescue_file, const char * datafile) const {
+void Dag::Rescue (const char * rescue_file, const char * datafile,
+			bool useDagDir) const {
     FILE *fp = fopen(rescue_file, "w");
     if (fp == NULL) {
         debug_printf( DEBUG_QUIET, "Could not open %s for writing.\n",
@@ -1517,14 +1517,20 @@ void Dag::Rescue (const char * rescue_file, const char * datafile) const {
     it.ToBeforeFirst();
     while (it.Next(job)) {
         if( job->JobType() == Job::TYPE_CONDOR ) {
-            fprintf (fp, "JOB %s %s %s\n", 
-                     job->GetJobName(), job->GetCmdFile(),
-                     job->_Status == Job::STATUS_DONE ? "DONE" : "");
+            fprintf (fp, "JOB %s %s ", job->GetJobName(), job->GetCmdFile());
+			if ( useDagDir ) {
+				fprintf(fp, "DIR %s ", job->GetDirectory());
+			}
+			fprintf (fp, "%s\n",
+					job->_Status == Job::STATUS_DONE ? "DONE" : "");
         }
         else if( job->JobType() == Job::TYPE_STORK ) {
-            fprintf (fp, "DATA %s %s %s\n", 
-                     job->GetJobName(), job->GetCmdFile(),
-                     job->_Status == Job::STATUS_DONE ? "DONE" : "");
+            fprintf (fp, "DATA %s %s ", job->GetJobName(), job->GetCmdFile());
+			if ( useDagDir ) {
+				fprintf(fp, "DIR %s ", job->GetDirectory());
+			}
+			fprintf (fp, "%s\n",
+					job->_Status == Job::STATUS_DONE ? "DONE" : "");
         }
         if (job->_scriptPre != NULL) {
             fprintf (fp, "SCRIPT PRE  %s %s\n", 

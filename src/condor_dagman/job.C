@@ -108,7 +108,10 @@ Init( const char* jobName, const char* directory, const char* cmdFile )
     have_abort_dag_val = false;
 	_visited = false;
 
-    MyString logFile = ReadMultipleUserLogs::loadLogFileNameFromSubFile(_cmdFile);
+		// Note: we use "" for the directory here because when this method
+		// is called we should *already* be in the directory from which
+		// this job is to be run.
+    MyString logFile = MultiLogFiles::loadLogFileNameFromSubFile(_cmdFile, "");
 		// Note: _logFile is needed only for POST script events (as of
 		// 2005-06-23).
     _logFile = strnewp (logFile.Value());

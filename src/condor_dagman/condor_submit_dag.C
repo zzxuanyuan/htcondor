@@ -95,6 +95,11 @@ int main(int argc, char *argv[])
 {
 	printf("\n");
 
+		// Set up the dprintf stuff...
+	Termlog = true;
+	dprintf_config("condor_submit_dag", 2); 
+	DebugFlags = D_ALWAYS;
+
 	SubmitDagOptions opts;
 	myDistro->Init( argc, argv );
 	parseCommandLine(opts, argc, argv);
