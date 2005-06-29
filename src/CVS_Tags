@@ -1,3 +1,7 @@
+06/29/05 V6_7_9-merge-1
+   The state of the V6_7_9-branch before being merged into V6_7 and
+   abandoned.  We'll need a new V6_7_9-2-branch for the real 6.7.9. 
+
 06/24/05 V6_7-parallel-3-merge-1
    This is the point from the parallel-3 branch we merge into
    V6_7-branch
