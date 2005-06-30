@@ -1941,6 +1941,16 @@ will not want to change them for any reason.
   only affects machines running Windows XP SP2 or higher. The default
   is True.
 
+\item[\Macro{WINDOWS\_FIREWALL\_FAILURE\_RETRY}]
+  \label{param:WindowsFirewallFailureRetry} When a Windows machine boots
+  up, Condor starts up by default as well. Under certain conditions, the
+  \Condor{master} may have difficulty adding exceptions to the Windows
+  Firewall because of a delay in other services starting up. This
+  configuration parameter allows administrators to set the number of
+  times (once every 10 seconds) that the \Condor{master} will retry
+  to add firewall exceptions. Setting this to 0 means that Condor will
+  retry indefinitely. The default is 60.
+
 \end{description}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
