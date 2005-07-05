@@ -44,6 +44,9 @@
 #include "globus_utils.h"
 #include "env.h"
 
+#include "file_sql.h"
+extern FILESQL *FILEObj;
+
 extern char *Spool;
 extern char *Name;
 extern char* JobHistoryFileName;
@@ -2755,6 +2758,12 @@ static void AppendHistory(ClassAd* ad)
 	  } else {		
 		fprintf(LogFile,"***\n");   // separator
 		fclose(LogFile);
+
+		int retval = FILEObj->file_newEvent("History", ad);
+		if (retval < 0) {
+			dprintf(D_ALWAYS, "AppendHistory Logging Event --- Error\n");
+			failed = true;
+		}
 	  }
   }
 
