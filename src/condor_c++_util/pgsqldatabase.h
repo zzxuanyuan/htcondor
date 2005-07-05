@@ -20,14 +20,18 @@
   * RIGHT.
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
+#ifdef _POSTGRESQL_DBMS_
+
 #ifndef _PGSQLDATABASE_H_
 #define  _PGSQLDATABASE_H_
 
-#include "libpq-fe.h"
+#include <libpq-fe.h>
+#include "database.h"
+
 
 //! PGSQLDataabse: Database for PostgreSQL
 //
-class PGSQLDatabase
+class PGSQLDatabase : public Database
 {
 public:
 	
@@ -45,37 +49,22 @@ public:
 	int 		rollbackTransaction();
 
 	int 	 	execCommand(const char* sql);
-
 	int 	 	execQuery(const char* sql);
 	int 	 	execQuery(const char* sql, PGresult*& result);
+
 	const char*	getValue(int row, int col);
-	int			releaseQueryResult();
 
 	char*		getDBError();
 
-//	int			sendBulkyData(char* data);
-//	int			sendBulkyDataEnd();
+	int		    sendBulkData(char* data);
+	int		    sendBulkDataEnd();
 
-		// Job Queue DB processing methods
-	int			getJobQueueDB(int&, int&, int&, int&);
-	const char*	getJobQueueProcAds_StrValue(int row, int col);
-	const char*	getJobQueueProcAds_NumValue(int row, int col);
-	const char*	getJobQueueClusterAds_StrValue(int row, int col);
-	const char*	getJobQueueClusterAds_NumValue(int row, int col);
-	int			releaseJobQueueDB();		
-
+	int         releaseQueryResult();
 private:
-	bool		connected;
-	char		*con_str;
-
 	PGconn		*connection;		//!< connection object
-	PGresult	*queryResult; 	//!< result for general query
-
-		// only for Job Queue DB retrieval
-	PGresult	*procAds_Str;	//!< result for ProcAds_Str relation
-	PGresult	*procAds_Num;	//!< result for ProcAds_Num relation
-	PGresult	*clusterAds_Str;//!< result for ClusterAds_Str relation
-	PGresult	*clusterAds_Num;//!< result for ClusterAds_num relation
+	PGresult	*queryRes; 	//!< result for general query
 };
 
 #endif /* _PGSQLDATABSE_H_ */
+
+#endif /* _POSTGRESQL_DBMS_ */

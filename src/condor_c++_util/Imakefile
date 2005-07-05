@@ -1,6 +1,6 @@
 all_target(cplus_lib.a liburl.a libcondorapi.a test_libcondorapi)
 
-C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS)
+C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) -D_POSTGRESQL_DBMS_ -I$(POSTGRESQL_INC) 
 LDFLAGS = $(STD_LDFLAGS)
 CFLAGS = $(STD_C_FLAGS)
 LIB = $(STD_LIBS)

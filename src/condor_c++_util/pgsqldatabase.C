@@ -21,31 +21,32 @@
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
+#ifdef _POSTGRESQL_DBMS_
+
 #include "condor_common.h"
 #include "condor_io.h"
 
-#include "libpq-fe.h"
 #include "pgsqldatabase.h"
 
 //! constructor
 PGSQLDatabase::PGSQLDatabase()
 {
-	connected = false;
-	con_str = NULL;
+  connected = false;
+  con_str = NULL;
 }
 
 //! constructor
 PGSQLDatabase::PGSQLDatabase(const char* connect)
 {
-	connected = false;
+  connected = false;
 
-	if (connect != NULL) {
-		con_str = (char*)malloc(strlen(connect) + 1);
-		strcpy(con_str, connect);
-		con_str[strlen(connect)] = '\0';
-	}
-	else
-		con_str = NULL;
+  if (connect != NULL) {
+    con_str = (char*)malloc(strlen(connect) + 1);
+    strcpy(con_str, connect);
+  }
+  else
+    con_str = NULL;
+  
 }
 
 //! destructor
@@ -59,6 +60,7 @@ PGSQLDatabase::~PGSQLDatabase()
 	}
 
 	if (con_str != NULL) free(con_str);
+	
 }
 
 //! connect to DB
@@ -76,18 +78,19 @@ PGSQLDatabase::connectDB(const char* connect)
 {
 	if ((connection = PQconnectdb(connect)) == NULL)
 	{
-		printf( "Fatal error - unable to allocate connection to DB\n");
+		dprintf(D_ALWAYS, "Fatal error - unable to allocate connection to DB\n");
 		return 0;
 	}
-
-        if (PQstatus(connection) != CONNECTION_OK)
-        {
-                printf( "Connection to database '%s' failed.\n", PQdb(connection));
-                printf( "%s", PQerrorMessage(connection));
-                return 0;
+	
+	if (PQstatus(connection) != CONNECTION_OK)
+		{
+			dprintf(D_ALWAYS, "Connection to database '%s' failed.\n", PQdb(connection));
+			dprintf(D_ALWAYS, "%s", PQerrorMessage(connection));
+			return 0;
         }
+		//dprintf(D_ALWAYS, "right after calling PQconnectdb\n");
 	connected = true;
-
+	
 	return 1;
 }
 
@@ -117,14 +120,16 @@ int
 PGSQLDatabase::beginTransaction() 
 {
 	PGresult	*result;
-
+		//FILE *fp;
 	if (PQstatus(connection) == CONNECTION_OK)
 	{
 		result = PQexec(connection, "BEGIN");
 		return 1;
 	}
-	else
+	else {
+		dprintf(D_ALWAYS, "ERROR STARTING NEW TRANSACTION\n");
 		return 0;
+	}
 }
 
 //! commit Transaction
@@ -138,8 +143,10 @@ PGSQLDatabase::commitTransaction()
 		result = PQexec(connection, "COMMIT");
 		return 1;
 	}
-	else
+	else {
+		dprintf(D_ALWAYS, "ERROR COMMITTING TRANSACTION\n");
 		return 0;
+	}
 }
 
 //! abort Transaction
@@ -169,49 +176,44 @@ PGSQLDatabase::execCommand(const char* sql)
 {
 	PGresult 	*result;
 	char*		num_result_str = NULL;
-	int			num_result = 0;
+	int		num_result = 0, error_code = 0;
 
-	//FILE *fp = fopen("/scratch/akini/logdump", "a");
+	dprintf(D_FULLDEBUG, "SQL COMMAND: %s\n", sql);
 	if ((result = PQexec(connection, sql)) == NULL)
 	{
-	  printf( 
-		 "[SQL EXECUTION ERROR1] %s\n", PQerrorMessage(connection));
-	  printf( 
-		 "[SQL: %s]\n", sql);
-	  //fprintf(fp,
-	  //   	 "[SQL error1 %s: %s]\n",  PQerrorMessage(connection), sql);
-	  //fclose(fp);
-	  return -1;
+		dprintf(D_ALWAYS, 
+			"[SQL EXECUTION ERROR1] %s\n", PQerrorMessage(connection));
+		dprintf(D_ALWAYS, 
+			"[SQL: %s]\n", sql);
+		return -1;
 	}
 	else if ((PQresultStatus(result) != PGRES_COMMAND_OK) &&
 			(PQresultStatus(result) != PGRES_COPY_IN)) {
-	  printf( 
-		 "[SQL EXECUTION ERROR2] %s\n", PQerrorMessage(connection));
-	  printf( 
-		 "[SQL: %s]\n", sql);
-	  //fprintf(fp,
-	  //	 "[SQL error2 %s: %s]\n",  PQerrorMessage(connection), sql);
-          //fclose(fp);
-	  PQclear(result);
-	  return -1;
+		dprintf(D_ALWAYS, 
+			"[SQL EXECUTION ERROR2] %s\n", PQerrorMessage(connection));
+		dprintf(D_ALWAYS, 
+			"[SQL: %s]\n", sql);
+		error_code =  atoi(PQresultErrorField(result, PG_DIAG_SQLSTATE));
+		dprintf(D_ALWAYS, 
+			"[SQLERRORCODE: %d]\n", error_code);
+		PQclear(result);
+		return -1 * error_code;
 	}
 	else {
-          //fprintf(fp, 
-	  //	  "[SQL success: %s]\n", sql);
-          //fclose(fp);
-	  num_result_str = PQcmdTuples(result);
-	  if (num_result_str != NULL)
-	    num_result = atoi(num_result_str);
+		num_result_str = PQcmdTuples(result);
+		if (num_result_str != NULL)
+			num_result = atoi(num_result_str);
 	}
 
 	PQclear(result);
+
 	return num_result;
 }
 
 /*! execute a SQL query
  *
  *	NOTE:
- *		queryResult shouldn't be PQcleared
+ *		queryRes shouldn't be PQcleared
  *		when the query is correctly executed.
  *		It is PQcleared in case of error.
  *	\return:
@@ -221,26 +223,23 @@ PGSQLDatabase::execCommand(const char* sql)
 int 
 PGSQLDatabase::execQuery(const char* sql, PGresult*& result)
 {
-	int resultTupleNum = 0;
-
+	dprintf(D_FULLDEBUG, "SQL Query = %s\n", sql);
 	if ((result = PQexec(connection, sql)) == NULL)
 	{
-		fprintf(stdout, 
+		dprintf(D_ALWAYS, 
 			"[SQL EXECUTION ERROR] %s\n", PQerrorMessage(connection));
-		fprintf(stdout, 
-			"[SQL: %s]\n", sql);
+		dprintf(D_ALWAYS, 
+			"[ERRONEOUS SQL: %s]\n", sql);
 		return -1;
 	}
 	else if (PQresultStatus(result) != PGRES_TUPLES_OK) {
-		fprintf(stdout, 
+		dprintf(D_ALWAYS, 
 			"[SQL EXECUTION ERROR] %s\n", PQerrorMessage(connection));
-		fprintf(stdout, 
-			"[SQL: %s]\n", sql);
+		dprintf(D_ALWAYS, 
+			"[ERRONEOUS SQL: %s]\n", sql);
 		PQclear(result);
 		return -1;
 	}
-
-	resultTupleNum = PQntuples(result);
 
 	return PQntuples(result);
 }
@@ -249,112 +248,69 @@ PGSQLDatabase::execQuery(const char* sql, PGresult*& result)
 int
 PGSQLDatabase::execQuery(const char* sql) 
 {
-	return execQuery(sql, queryResult);
+	return execQuery(sql, queryRes);
 }
 
 //! get a result for the executed query
 const char*
 PGSQLDatabase::getValue(int row, int col)
 {
-	return PQgetvalue(queryResult, row, col);
+	return PQgetvalue(queryRes, row, col);
 }
 
-//! release a query result
+//! release the generic query result object
 int
 PGSQLDatabase::releaseQueryResult()
 {
-	PQclear(queryResult);
+	if(queryRes != NULL) 
+	   PQclear(queryRes);
+	queryRes = NULL;
 
 	return 1;
 }
 
-
-/*! get the whole job queue database
- *
- *	\return
- *		0: There is no Job in Job Queue
- *		1: There is some
- *		-1, -2, -3, -4: Error
- */
+//! put a bulk data into DBMS
 int
-PGSQLDatabase::getJobQueueDB(int& procAds_Str_num, int& procAds_Num_num, int& clusterAds_Str_num, int& clusterAds_Num_num)
+PGSQLDatabase::sendBulkData(char* data)
 {
-	// Query against ProcAds_Str Table
-	if ((procAds_Str_num = execQuery(
-	"SELECT cid, pid, attr, val FROM ProcAds_Str ORDER BY cid, pid;", 
-			procAds_Str)) < 0)
+  dprintf(D_FULLDEBUG, "bulk copy data = %s\n\n", data);
+  
+  if (PQputCopyData(connection, data, strlen(data)) <= 0)
+    {
+      dprintf(D_ALWAYS, 
+	      "[Bulk Data Sending ERROR] %s\n", PQerrorMessage(connection));
+      dprintf(D_ALWAYS, 
+	      "[Data: %s]\n", data);
+      return -1;
+    }
+  
+  return 1;
+}
+
+//! put an end flag for bulk loading
+int
+PGSQLDatabase::sendBulkDataEnd()
+{
+	PGresult* result;
+
+	if (PQputCopyEnd(connection, NULL) < 0)
+	{
+		dprintf(D_ALWAYS, 
+			"[Bulk Data End Sending ERROR] %s\n", PQerrorMessage(connection));
 		return -1;
-	// Query against ProcAds_Num Table
-	if ((procAds_Num_num = execQuery(
-	"SELECT cid, pid, attr, val FROM ProcAds_Num ORDER BY cid, pid;", 
-			procAds_Num)) < 0)
-		return -2;
-	// Query against ClusterAds_Str Table
-	if ((clusterAds_Str_num = execQuery(
-		"SELECT cid, attr, val FROM ClusterAds_Str ORDER BY cid;", 
-			clusterAds_Str)) < 0)
-		return -3;
-	// Query against ProcAds_Str Table
-	if ((clusterAds_Num_num = execQuery(
-		"SELECT cid, attr, val FROM ClusterAds_Num ORDER BY cid;", 
-			clusterAds_Num)) < 0)
-		return -4;
-
-	if (clusterAds_Num_num == 0)
-		return 0;
-
-	return 1;
-}
-
-//! get a value retrieved from ProcAds_Str table
-const char*
-PGSQLDatabase::getJobQueueProcAds_StrValue(int row, int col)
-{
-	return PQgetvalue(procAds_Str, row, col);
-}
-
-//! get a value retrieved from ProcAds_Num table
-const char*
-PGSQLDatabase::getJobQueueProcAds_NumValue(int row, int col)
-{
-	return PQgetvalue(procAds_Num, row, col);
-}
-
-//! get a value retrieved from ClusterAds_Str table
-const char*
-PGSQLDatabase::getJobQueueClusterAds_StrValue(int row, int col)
-{
-	return PQgetvalue(clusterAds_Str, row, col);
-}
-
-//! get a value retrieved from ClusterAds_Num table
-const char*
-PGSQLDatabase::getJobQueueClusterAds_NumValue(int row, int col)
-{
-	return PQgetvalue(clusterAds_Num, row, col);
-}
-
-//! release the result for job queue database
-int
-PGSQLDatabase::releaseJobQueueDB()
-{
-	if (procAds_Str != NULL) {
-		PQclear(procAds_Str);
-		procAds_Str = NULL;
 	}
-	if (procAds_Num != NULL) {
-		PQclear(procAds_Num);
-		procAds_Num = NULL;
-	}
-	if (clusterAds_Str != NULL) {
-		PQclear(clusterAds_Str);
-		clusterAds_Str = NULL;
-	}
-	if (clusterAds_Num != NULL) {
-		PQclear(clusterAds_Num);
-		clusterAds_Num = NULL;
+
+	
+	if ((result = PQgetResult(connection)) != NULL) {
+		if (PQresultStatus(result) != PGRES_COMMAND_OK) {
+			dprintf(D_ALWAYS, 
+				"[Bulk Last Data Sending ERROR] %s\n", PQerrorMessage(connection));
+			PQclear(result);
+			return -1;
+		}
 	}
 
 	return 1;
-}	
+}
 
+#endif // _POSTGRESQL_DBMS_
