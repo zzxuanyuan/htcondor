@@ -13,6 +13,7 @@ EXT_ZLIB_VERSION = @ext_zlib_version@
 EXT_PVM_VERSION = @ext_pvm_version@
 EXT_MAN_VERSION = man-current
 EXT_GT3GAHP_VERSION = @ext_gt3gahp_version@
+EXT_POSTGRESQL_VERSION = @ext_postgresql_version@
 
 #define WANT_EXT_GLIBC @want_ext_glibc@
 #if WANT_EXT_GLIBC && HAS_EXTERNALS
@@ -76,6 +77,9 @@ ZLIB_LIB =
 ZLIB_INC =
 #endif
 
+POSTGRESQL_DIR = $(EXT_INSTALL)/$(EXT_POSTGRESQL_VERSION)
+POSTGRESQL_LIB = $(POSTGRESQL_DIR)/lib
+POSTGRESQL_INC = $(POSTGRESQL_DIR)/include
 
 PVM_DIR = $(EXT_INSTALL)/$(EXT_PVM_VERSION)
 
