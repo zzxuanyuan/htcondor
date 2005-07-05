@@ -1291,6 +1291,11 @@ _cv_ext_pvm_version="pvm-3.4.2"
 AC_MSG_RESULT([$_cv_ext_pvm_version])
 AC_SUBST(ext_pvm_version,$_cv_ext_pvm_version)
 
+AC_MSG_CHECKING([postgresql])
+_cv_ext_postgresql_version="postgresql-8.0.2"
+AC_MSG_RESULT([$_cv_ext_postgresql_version])
+AC_SUBST(ext_postgresql_version,$_cv_ext_postgresql_version)
+
 else
 # if there's no externals at all, we still need to define these to
 # avoid imake troubles...
