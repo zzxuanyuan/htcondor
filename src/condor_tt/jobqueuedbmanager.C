@@ -100,7 +100,7 @@ JobQueueDBManager::config(bool reconfig)
 	}
   
 	jobQueueLogFile = (char *) malloc(_POSIX_PATH_MAX * sizeof(char));
-	sprintf(jobQueueLogFile, "%s/job_queue.log", spool);
+	snprintf(jobQueueLogFile,_POSIX_PATH_MAX * sizeof(char), "%s/job_queue.log", spool);
 	free(spool);
 
 /*
@@ -113,13 +113,13 @@ JobQueueDBManager::config(bool reconfig)
 			// use default if not specified
 		tmp = param("LOG");
 		if (tmp) {
-			sprintf(pollingInfoLog, "%s/TTPollingInfoLog", tmp);
+			snprintf(pollingInfoLog, _POSIX_PATH_MAX * sizeof(char), "%s/TTPollingInfoLog", tmp);
 			free(tmp);
 		}
 		else 
-			strcpy(pollingInfoLog, "TTPollingInfoLog");
+			strncpy(pollingInfoLog, "TTPollingInfoLog", _POSIX_PATH_MAX * sizeof(char));
 	} else {
-		strcpy(pollingInfoLog, tmp);
+		strncpy(pollingInfoLog, tmp, _POSIX_PATH_MAX * sizeof(char));
 		free(tmp);
 	}
 */
@@ -133,7 +133,7 @@ JobQueueDBManager::config(bool reconfig)
 	jobQueueDBIpAddress = param("DATABASE_IPADDRESS");
 	if(!jobQueueDBIpAddress) {
 		jobQueueDBIpAddress = (char *) malloc(128 * sizeof(char));
-		strcpy(jobQueueDBIpAddress, daemonCore->InfoCommandSinfulString());
+		strncpy(jobQueueDBIpAddress, daemonCore->InfoCommandSinfulString(), 128 * sizeof(char));
 		char *ptr_colon = strchr(jobQueueDBIpAddress, ':');
 		strcpy(ptr_colon, ":5432>");
 		strcpy(host," ");
@@ -167,8 +167,8 @@ JobQueueDBManager::config(bool reconfig)
 	jobQueueDBPasswd = param("DATABASE_PASSWORD");
 	if(!jobQueueDBPasswd) jobQueueDBPasswd = strdup("scidb");
 
-	jobQueueDBConn = (char *) malloc(_POSIX_PATH_MAX * sizeof(char));
-	sprintf(jobQueueDBConn, "%s %s dbname=%s user=%s password=%s", host, port, 
+	jobQueueDBConn = (char *) malloc(500);
+	snprintf(jobQueueDBConn, 500, "%s %s dbname=%s user=%s password=%s", host, port, 
 			jobQueueDBName, jobQueueDBUser, jobQueueDBPasswd);
   
 		// read the polling period and if one is not specified use 
@@ -323,13 +323,13 @@ JobQueueDBManager::cleanupJobQueueTables()
 	char 	sql_str[sqlNum][128];
 
 		// we only delete job queue related information.
-	sprintf(sql_str[0], 
+	snprintf(sql_str[0], 128,
 			"DELETE FROM clusterads_horizontal;");
-	sprintf(sql_str[1], 
+	snprintf(sql_str[1], 128,
 			"DELETE FROM clusterads_vertical;");
-	sprintf(sql_str[2], 
+	snprintf(sql_str[2], 128,
 			"DELETE FROM procads_horizontal;");
-	sprintf(sql_str[3], 
+	snprintf(sql_str[3], 128,
 			"DELETE FROM procads_vertical;");
 
 	for (i = 0; i < sqlNum; i++) {
@@ -355,13 +355,13 @@ JobQueueDBManager::tuneupJobQueueTables()
 		// deleted.  Then space is reclaimed in a lazy fashion,
 		// by vacuuming it, and as such we do this here.  
 		// vacuuming is asynchronous, but can get pretty expensive
-	sprintf(sql_str[0], 
+	snprintf(sql_str[0], 128,
 			"VACUUM ANALYZE clusterads_horizontal;");
-	sprintf(sql_str[1], 
+	snprintf(sql_str[1], 128,
 			"VACUUM ANALYZE clusterads_vertical;");
-	sprintf(sql_str[2], 
+	snprintf(sql_str[2], 128,
 			"VACUUM ANALYZE procads_horizontal;");
-	sprintf(sql_str[3], 
+	snprintf(sql_str[3], 128,
 			"VACUUM ANALYZE procads_vertical;");
 
 	for (i = 0; i < sqlNum; i++) {
@@ -454,7 +454,7 @@ JobQueueDBManager::loadJobQueue(JobQueueCollection *jobQueue)
 
 		if ((bFirst == true)&& (ret_str != NULL)) {			
 			// we need to issue the COPY command first
-			sprintf(sql_str, "COPY ClusterAds_Horizontal FROM stdin;");
+			snprintf(sql_str, 1024, "COPY ClusterAds_Horizontal FROM stdin;");
 			if (jqDatabase->execCommand(sql_str) < 0) {
 				displayDBErrorMsg("COPY ClusterAds_Horizontal --- ERROR");
 				return 0; // return a error code, 0
@@ -486,7 +486,7 @@ JobQueueDBManager::loadJobQueue(JobQueueCollection *jobQueue)
 	while((ret_str = jobQueue->getNextClusterAd_V_CopyStr()) != NULL) {
 	  		
 		if ((bFirst == true)&& (ret_str != NULL)) {			
-			sprintf(sql_str, "COPY ClusterAds_Vertical FROM stdin;");
+			snprintf(sql_str, 1024, "COPY ClusterAds_Vertical FROM stdin;");
 			if (jqDatabase->execCommand(sql_str) < 0) {
 				displayDBErrorMsg("COPY ClusterAds_Vertical --- ERROR");
 				return 0; // return a error code, 0
@@ -521,7 +521,7 @@ JobQueueDBManager::loadJobQueue(JobQueueCollection *jobQueue)
 	jobQueue->initAllJobAdsIteration();
 	while((ret_str = jobQueue->getNextProcAd_H_CopyStr()) != NULL) {
 		if ((bFirst == true)&& (ret_str != NULL)) {			
-			sprintf(sql_str, "COPY ProcAds_Horizontal FROM stdin;");
+			snprintf(sql_str, 1024, "COPY ProcAds_Horizontal FROM stdin;");
 			if (jqDatabase->execCommand(sql_str) < 0) {
 				displayDBErrorMsg("COPY ProcAds_Horizontal --- ERROR");
 				return 0; // return a error code, 0
@@ -555,7 +555,7 @@ JobQueueDBManager::loadJobQueue(JobQueueCollection *jobQueue)
 	jobQueue->initAllJobAdsIteration();
 	while((ret_str = jobQueue->getNextProcAd_V_CopyStr()) != NULL) {
 		if ((bFirst == true)&& (ret_str != NULL)) {			
-			sprintf(sql_str, "COPY ProcAds_Vertical FROM stdin;");
+			snprintf(sql_str, 1024, "COPY ProcAds_Vertical FROM stdin;");
 			if (jqDatabase->execCommand(sql_str) < 0) {
 				displayDBErrorMsg("COPY ProcAds_Vertical --- ERROR");
 				return 0; // return a error code, 0
@@ -854,7 +854,7 @@ JobQueueDBManager::processLogEntry(int op_type, JobQueueCollection* jobQueue)
 
 		char tmp[512];
 
-		sprintf(tmp, "%s = %s", name, value);
+		snprintf(tmp, 512, "%s = %s", name, value);
 
 		if (id_sort == 1) { // Cluster Ad
 			ClassAd* ad = jobQueue->findClusterAd(cid);
@@ -1070,7 +1070,7 @@ JobQueueDBManager::getProcClusterIds(const char* key, char* cid, char* pid)
 int 
 JobQueueDBManager::processNewClassAd(char* key, char* mytype, char* ttype, bool exec_later)
 {
-	char sql_str1[409600];
+	char sql_str1[40960];
 	char cid[512];
 	char pid[512];
 	int  id_sort;
@@ -1081,12 +1081,12 @@ JobQueueDBManager::processNewClassAd(char* key, char* mytype, char* ttype, bool 
 
 	switch(id_sort) {
 	case 1:
-		sprintf(sql_str1, 
+		snprintf(sql_str1, 40960,
 				"INSERT INTO ClusterAds_Horizontal (scheddname, cid) VALUES ('%s', '%s');", scheddname, cid);
 
 		break;
 	case 2:
-		sprintf(sql_str1, 
+		snprintf(sql_str1, 40960,
 				"INSERT INTO ProcAds_Horizontal (scheddname, cid, pid) VALUES ('%s', '%s', '%s');", scheddname, cid, pid);
 
 		break;
@@ -1149,8 +1149,8 @@ JobQueueDBManager::processNewClassAd(char* key, char* mytype, char* ttype, bool 
 int 
 JobQueueDBManager::processDestroyClassAd(char* key, bool exec_later)
 {
-	char sql_str1[1024]; 
-	char sql_str2[1024]; 
+	char sql_str1[2048]; 
+	char sql_str2[2048]; 
 	char sql_str3[10240];
 	char sql_str4[20480];
 	char cid[100];
@@ -1166,10 +1166,10 @@ JobQueueDBManager::processDestroyClassAd(char* key, bool exec_later)
   
 	switch(id_sort) {
 	case 1:	// ClusterAds
-		sprintf(sql_str1, 
+		snprintf(sql_str1, 2048,
 				"DELETE FROM ClusterAds_Horizontal WHERE scheddname = '%s' and cid = %s;", scheddname, cid);
     
-		sprintf(sql_str2, 
+		snprintf(sql_str2, 2048,
 				"DELETE FROM ClusterAds_Vertical WHERE scheddname = '%s' and cid = %s;", scheddname, cid);
 		break;
     case 2:
@@ -1205,7 +1205,7 @@ FROM (SELECT scheddname, cid,pid,attr,val \
       ) as T \
 WHERE attr not in('ClusterId','ProcId','Owner','QDate', 'GlobalJobId', 'NumCkpts', 'NumRestarts', 'NumSystemHolds', 'CondorVersion', 'CondorPlatform', 'RootDir', 'Iwd', 'JobUniverse', 'MinHosts', 'MaxHosts', 'User', 'Env', 'UserLog', 'CoreSize', 'KillSig', 'Rank', 'In', 'TransferIn', 'Out', 'TransferOut', 'Err', 'TransferErr', 'ShouldTransferFiles', 'TransferFiles', 'ExecutableSize', 'DiskUsage', 'Requirements', 'FileSystemDomain', 'Args', 'LastMatchTime', 'JobStartDate', 'JobCurrentStartDate', 'JobRunCount', 'FileReadCount', 'FileReadBytes', 'FileWriteCount', 'FileWriteBytes', 'FileSeekCount', 'TotalSuspensions', 'ExitStatus', 'LocalUserCpu', 'LocalSysCpu', 'BytesSent', 'BytesRecvd', 'RSCBytesSent', 'RSCBytesRecvd', 'ExitCode', 'EnteredCurrentStatus', 'RemoteWallClockTime','RemoteUserCpu','RemoteSysCpu','ImageSize','JobStatus','JobPrio','Cmd','CompletionDate','LastRemoteHost');"
 
-		sprintf(sql_str3, sql_str3_format, scheddname, cid,pid,pid, scheddname,cid,scheddname, cid,pid); 
+		snprintf(sql_str3, 10240, sql_str3_format, scheddname, cid,pid,pid, scheddname,cid,scheddname, cid,pid); 
 
 
 			/* the following ugly looking, however highly efficient SQL
@@ -1368,17 +1368,17 @@ FROM (select scheddname, cid, pid,\
 WHERE V.scheddname = PH.scheddname and V.cid = PH.cid and V.pid = PH.pid AND \
       V.scheddname = CH.scheddname and V.cid = CH.cid;"
 
-		sprintf(sql_str4, sql_str4_format, scheddname, cid, pid, pid, scheddname, cid, scheddname, cid, pid);
+		snprintf(sql_str4, 20480, sql_str4_format, scheddname, cid, pid, pid, scheddname, cid, scheddname, cid, pid);
 
 		inserthistory = true;
 
 			//now that we've inserted rows into history, we can safely 
 			//delete them from the procads tables
-		sprintf(sql_str1, 
+		snprintf(sql_str1, 2048,
 				"DELETE FROM ProcAds_horizontal WHERE scheddname = '%s' and cid = %s AND pid = %s;", 
 				scheddname, cid, pid);
     
-		sprintf(sql_str2, 
+		snprintf(sql_str2, 2048,
 				"DELETE FROM ProcAds_vertical WHERE scheddname = '%s' and cid = %s AND pid = %s;", 
 				scheddname, cid, pid);
 		break;
@@ -1440,7 +1440,7 @@ WHERE V.scheddname = PH.scheddname and V.cid = PH.cid and V.pid = PH.pid AND \
 int 
 JobQueueDBManager::processSetAttribute(char* key, char* name, char* value, bool exec_later)
 {
-	char sql_str_del_in[4096];
+	char sql_str_del_in[40960];
 
 	char cid[512];
 	char pid[512];
@@ -1456,32 +1456,32 @@ JobQueueDBManager::processSetAttribute(char* key, char* name, char* value, bool 
 	case 1:
 		if(isHorizontalClusterAttribute(name)) {
 			if (strcasecmp(name, "qdate") == 0) {
-              sprintf(sql_str_del_in, 
+				snprintf(sql_str_del_in, 40960,
                       "UPDATE ClusterAds_Horizontal SET %s = (('epoch'::timestamp + '%s seconds') at time zone 'UTC') WHERE scheddname = '%s' and cid = '%s';", name, value, scheddname, cid);
 			} else {
-				strcpy(tempvalue, value);
+				strncpy(tempvalue, value, 1000);
 				strip_double_quote(tempvalue);
-				sprintf(sql_str_del_in, 
+				snprintf(sql_str_del_in, 40960,
 						"UPDATE ClusterAds_Horizontal SET %s = '%s' WHERE scheddname = '%s' and cid = '%s';", name, tempvalue, scheddname, cid);				
 			}
 		} else {
-			strcpy(tempvalue, value);
+			strncpy(tempvalue, value, 1000);
 			strip_double_quote(tempvalue);
-            sprintf(sql_str_del_in, 
+            snprintf(sql_str_del_in, 40960,
                     "DELETE FROM ClusterAds_Vertical WHERE scheddname = '%s' and cid = '%s' AND attr = '%s'; INSERT INTO ClusterAds_Vertical (scheddname, cid, attr, val) VALUES ('%s', '%s', '%s', '%s');", scheddname, cid, name, scheddname, cid, name, tempvalue);
 		}
 
 		break;
 	case 2:
 		if(isHorizontalProcAttribute(name)) {
-			strcpy(tempvalue, value);
+			strncpy(tempvalue, value, 1000);
 			strip_double_quote(tempvalue);
-            sprintf(sql_str_del_in, 
+            snprintf(sql_str_del_in, 40960,
                     "UPDATE ProcAds_Horizontal SET %s = '%s' WHERE scheddname = '%s' and cid = '%s' and pid = '%s';", name, tempvalue, scheddname, cid, pid);
 		} else {
-			strcpy(tempvalue, value);
+			strncpy(tempvalue, value, 1000);
 			strip_double_quote(tempvalue);
-            sprintf(sql_str_del_in, 
+            snprintf(sql_str_del_in, 40960,
                     "DELETE FROM ProcAds_Vertical WHERE scheddname = '%s' and cid = '%s' AND pid = '%s' AND attr = '%s'; INSERT INTO ProcAds_Vertical (scheddname, cid, pid, attr, val) VALUES ('%s', '%s', '%s', '%s', '%s');", scheddname, cid, pid, name, scheddname, cid, pid, name, tempvalue);			
 		}
 		
@@ -1535,7 +1535,7 @@ JobQueueDBManager::processSetAttribute(char* key, char* name, char* value, bool 
 int 
 JobQueueDBManager::processDeleteAttribute(char* key, char* name, bool exec_later)
 {	
-	char sql_str[1024];
+	char sql_str[4096];
 	char cid[512];
 	char pid[512];
 	int  id_sort;
@@ -1549,20 +1549,20 @@ JobQueueDBManager::processDeleteAttribute(char* key, char* name, bool exec_later
 	switch(id_sort) {
 	case 1:
 		if(isHorizontalClusterAttribute(name)) {
-			sprintf(sql_str , 
+			snprintf(sql_str , 4096,
 					"UPDATE ClusterAds_Horizontal SET %s = NULL WHERE scheddname = '%s' and cid = '%s';", name, scheddname, cid);
 		} else {
-			sprintf(sql_str , 
+			snprintf(sql_str , 4096,
 					"DELETE ClusterAds_Vertical WHERE scheddname = '%s' and cid = '%s' AND attr = '%s';", scheddname, cid, name);			
 		}
 
 		break;
 	case 2:
 		if(isHorizontalProcAttribute(name)) {
-			sprintf(sql_str, 
+			snprintf(sql_str, 4096,
 					"UPDATE ProcAds_Horizontal SET %s = NULL WHERE scheddname = '%s' and cid = '%s' AND pid = '%s';", name, scheddname, cid, pid);
 		} else {
-			sprintf(sql_str, 
+			snprintf(sql_str, 4096,
 					"DELETE FROM ProcAds_Vertical WHERE scheddname = '%s' and cid = '%s' AND pid = '%s' AND attr = '%s';", scheddname, cid, pid, name);
 			
 		}

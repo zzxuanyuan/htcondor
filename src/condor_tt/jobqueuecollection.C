@@ -520,8 +520,8 @@ void
 JobQueueCollection::makeHistoryAdSqlStr(char* cid, char* pid, ClassAd* ad, 
 					char*& historyad_hor_str, char*& historyad_ver_str)
 {
-	char	tmp_line_str1[1024];
-	char    tmp_line_str2[1024];
+	char	tmp_line_str1[2048];
+	char    tmp_line_str2[2048];
 
 	char name[1000];
 	char *value = NULL;
@@ -530,7 +530,7 @@ JobQueueCollection::makeHistoryAdSqlStr(char* cid, char* pid, ClassAd* ad,
 	bool firstVer = TRUE;
 
 	// creating a new horizontal string consisting of one insert and many updates
-	sprintf(tmp_line_str2, "INSERT INTO History_Horizontal(scheddname, cid,pid) SELECT '%s', %s,%s WHERE NOT EXISTS(SELECT scheddname, cid,pid FROM History_Horizontal WHERE scheddname = '%s' AND cid=%s AND pid=%s);", scheddname, cid,pid, scheddname, cid,pid);
+	snprintf(tmp_line_str2, 2048, "INSERT INTO History_Horizontal(scheddname, cid,pid) SELECT '%s', %s,%s WHERE NOT EXISTS(SELECT scheddname, cid,pid FROM History_Horizontal WHERE scheddname = '%s' AND cid=%s AND pid=%s);", scheddname, cid,pid, scheddname, cid,pid);
 	historyad_hor_str = (char*)malloc(strlen(tmp_line_str2) + 1);
 	strcpy(historyad_hor_str, tmp_line_str2);
 	
@@ -577,10 +577,10 @@ JobQueueCollection::makeHistoryAdSqlStr(char* cid, char* pid, ClassAd* ad,
 					continue;
 				} 
 			
-				sprintf(tmp_line_str2, "UPDATE History_Horizontal SET %s = (('epoch'::timestamp + '%s seconds') at time zone 'UTC') WHERE scheddname = '%s' and cid = %s and pid = %s AND %s IS NULL;", name, value, scheddname, cid, pid, name);
+				snprintf(tmp_line_str2, 2048, "UPDATE History_Horizontal SET %s = (('epoch'::timestamp + '%s seconds') at time zone 'UTC') WHERE scheddname = '%s' and cid = %s and pid = %s AND %s IS NULL;", name, value, scheddname, cid, pid, name);
 			} else {
 
-				sprintf(tmp_line_str2, "UPDATE History_Horizontal SET %s = '%s' WHERE scheddname = '%s' AND cid=%s AND pid=%s AND %s IS NULL;", name, value, scheddname, cid, pid, name);
+				snprintf(tmp_line_str2, 2048, "UPDATE History_Horizontal SET %s = '%s' WHERE scheddname = '%s' AND cid=%s AND pid=%s AND %s IS NULL;", name, value, scheddname, cid, pid, name);
 			}
 
 			historyad_hor_str = (char*)realloc(historyad_hor_str, 
@@ -588,7 +588,7 @@ JobQueueCollection::makeHistoryAdSqlStr(char* cid, char* pid, ClassAd* ad,
 			strcat(historyad_hor_str, tmp_line_str2);		
 		}	 else {
 
-			sprintf(tmp_line_str1, "INSERT INTO History_Vertical(scheddname,cid,pid,attr,val) SELECT '%s',%s,%s,'%s','%s' WHERE NOT EXISTS(SELECT scheddname,cid,pid FROM History_Vertical where scheddname='%s' AND cid=%s and pid=%s and attr='%s');",  scheddname,cid,pid,name,value,scheddname,cid,pid,name);
+			snprintf(tmp_line_str1, 2048, "INSERT INTO History_Vertical(scheddname,cid,pid,attr,val) SELECT '%s',%s,%s,'%s','%s' WHERE NOT EXISTS(SELECT scheddname,cid,pid FROM History_Vertical where scheddname='%s' AND cid=%s and pid=%s and attr='%s');",  scheddname,cid,pid,name,value,scheddname,cid,pid,name);
 			
 			if (firstVer) {
 				historyad_ver_str = (char*)malloc(strlen(tmp_line_str1) + 1);
@@ -797,7 +797,7 @@ JobQueueCollection::makeCopyStr(bool bHor, char* cid, char* pid, ClassAd* ad, ch
 					numsecs =  atoi(value);
 					tm = localtime((time_t *)&numsecs);
 					
-					sprintf(tmp, "%d/%d/%d %02d:%02d:%02d %s", 
+					snprintf(tmp, 100, "%d/%d/%d %02d:%02d:%02d %s", 
 							tm->tm_mon+1,
 							tm->tm_mday,
 							tm->tm_year+1900,

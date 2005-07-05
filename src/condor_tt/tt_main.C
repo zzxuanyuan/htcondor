@@ -68,7 +68,6 @@ int main_init(int argc, char *argv[])
 
 	dprintf(D_ALWAYS, "configuring tt options from config file\n");
 	ttManager.config();
-		//jqDBManager.init(init);
 	ttManager.registerTimers();
 
 	return 0;

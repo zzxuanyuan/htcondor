@@ -36,8 +36,13 @@
 #include <sys/mman.h>
 #include "condor_md.h"
 
+#include "jobqueuedbmanager.h"
 #include "ttmanager.h"
 #include "file_sql.h"
+#include "database.h"
+#include "pgsqldatabase.h"
+
+#define TIMELEN 60
 
 char logParamList[][30] = {"NEGOTIATOR_SQLLOG", "SCHEDD_SQLLOG", "SHADOW_SQLLOG", "STARTER_SQLLOG", "STARTD_SQLLOG", "SUBMIT_SQLLOG", ""};
 
@@ -53,12 +58,13 @@ static int attHashFunction (const MyString &str, int numBuckets);
 static int isStaticMachineAttr(char *attName);
 static int typeOf(char *attName);
 static int file_checksum(char *filePathName, int fileSize, char *sum);
+static int append(char *destF, char *srcF);
 
 //! constructor
 TTManager::TTManager()
 {
 		//nothing here...its all done in config()
-	DBObj = (ODBC  *) 0;
+	DBObj = (Database  *) 0;
 }
 
 //! destructor
@@ -101,7 +107,7 @@ TTManager::config(bool reconfig)
 			}
 				
 			strncpy(sqlLogList[numLogs], tmp, MAXLOGPATHLEN-5);
-			sprintf(sqlLogCopyList[numLogs], "%s.copy", sqlLogList[numLogs]);
+			snprintf(sqlLogCopyList[numLogs], MAXLOGPATHLEN, "%s.copy", sqlLogList[numLogs]);
 			numLogs++;
 			free(tmp);
 		}		
@@ -111,21 +117,21 @@ TTManager::config(bool reconfig)
 		/* add the default log file in case no log file is specified in config */
 	tmp = param("LOG");
 	if (tmp) {
-		sprintf(sqlLogList[numLogs], "%s/sql.log", tmp);
-		sprintf(sqlLogCopyList[numLogs], "%s.copy", sqlLogList[numLogs]);
+		snprintf(sqlLogList[numLogs], MAXLOGPATHLEN-5, "%s/sql.log", tmp);
+		snprintf(sqlLogCopyList[numLogs], MAXLOGPATHLEN, "%s.copy", sqlLogList[numLogs]);
 	} else {
-		sprintf(sqlLogList[numLogs], "sql.log");
-		sprintf(sqlLogCopyList[numLogs], "%s.copy", sqlLogList[numLogs]);
+		snprintf(sqlLogList[numLogs], MAXLOGPATHLEN-5, "sql.log");
+		snprintf(sqlLogCopyList[numLogs], MAXLOGPATHLEN, "%s.copy", sqlLogList[numLogs]);
 	}
 	numLogs++;
 
 		// the "thrown" file is for recording events where big files are thrown away
 	if (tmp) {
-		sprintf(sqlLogCopyList[THROWFILE], "%s/thrown.log", tmp);
+		snprintf(sqlLogCopyList[THROWFILE], MAXLOGPATHLEN, "%s/thrown.log", tmp);
 		free(tmp);
 	}
 	else {
-		sprintf(sqlLogCopyList[THROWFILE], "thrown.log");
+		snprintf(sqlLogCopyList[THROWFILE], MAXLOGPATHLEN, "thrown.log");
 	}
 	
 		// read the polling period and if one is not specified use 
@@ -149,7 +155,14 @@ TTManager::config(bool reconfig)
 		numTimesPolled = 0; 		
 	}
 
-	DBObj = createConnection();  
+	jqDBManager.config(reconfig);
+	jqDBManager.init();
+
+	jobQueueDBConn = jqDBManager.getJobQueueDBConn();
+
+#ifdef _POSTGRESQL_DBMS_
+	DBObj = new PGSQLDatabase(jobQueueDBConn);
+#endif
 }
 
 //! register all timer handlers
@@ -191,9 +204,24 @@ TTManager::pollingTime()
 	numTimesPolled++;
 }
 
-
 int
 TTManager::maintain() 
+{	
+	int retcode;
+
+		// first call the job queue maintain function
+
+	retcode = jqDBManager.maintain();
+
+	if (retcode <= 0)
+		return retcode;
+
+		// call the event log maintain function
+	return this->event_maintain();
+}
+
+int
+TTManager::event_maintain() 
 {
 	FILESQL *filesqlobj;
 	char *buf = (char *)0;
@@ -204,7 +232,8 @@ TTManager::maintain()
 	char optype[7], eventtype[EVENTTYPEMAX];
 	AttrList *ad = 0, *ad1 = 0;
 
-		/* copy files */	
+	
+		/* copy event log files */	
 	for(int i=0; i < numLogs; i++) {
 		filesqlobj = new FILESQL(sqlLogList[i], O_CREAT|O_RDWR);
 
@@ -219,7 +248,7 @@ TTManager::maintain()
 			goto ERROREXIT;
 		}		
 		
-		if (this->append(sqlLogCopyList[i], sqlLogList[i]) < 0) {
+		if (append(sqlLogCopyList[i], sqlLogList[i]) < 0) {
 			goto ERROREXIT;
 		}
 
@@ -233,7 +262,12 @@ TTManager::maintain()
 		delete filesqlobj;
 	}
 
-		// the last file is the "thrown" file
+		// connect to database 
+	if ((DBObj -> connectDB(jobQueueDBConn)) <= 0) {
+		goto DBERROR;
+	}
+
+		// notice we add 1 to numLogs because the last file is the special "thrown" file
 	for(int i=0; i < numLogs+1; i++) {
 		buf =(char *) malloc(2048 * sizeof(char));
 		filesqlobj = new FILESQL(sqlLogCopyList[i], O_CREAT|O_RDWR);
@@ -258,7 +292,7 @@ TTManager::maintain()
 			}
 
 			if(firststmt) {
-				if(DBObj->odbc_beginxtstmt("BEGIN") < 0) {
+				if((DBObj->beginTransaction()) == 0) {
 					dprintf(D_ALWAYS, "Begin transaction --- Error\n");
 					goto DBERROR;
 				}
@@ -286,8 +320,11 @@ TTManager::maintain()
 				} else if (strcmp(eventtype, "Fileusages") == 0) {
 					if  (insertFileusages(ad) <   0) 
 						goto DBERROR;
+				} else if (strcmp(eventtype, "History") == 0) {
+					if  (insertHistoryJob(ad) <   0) 
+						goto DBERROR;
 				} else {
-					if (insertPlain(ad, eventtype) < 0) 
+					if (insertBasic(ad, eventtype) < 0) 
 						goto DBERROR;
 				}
 				
@@ -302,10 +339,10 @@ TTManager::maintain()
 					// the second ad can be null, meaning there is no where clause
 				ad1=filesqlobj->file_readAttrList();
 
-				updatePlain(ad, ad1, eventtype);
+				updateBasic(ad, ad1, eventtype);
 				 
 			} else if (strcmp(optype, "DELETE") == 0) {
-				dprintf(D_ALWAYS, "DELETE not supported\n");
+				dprintf(D_ALWAYS, "DELETE not supported yet\n");
 			} else {
 				dprintf(D_ALWAYS, "unknown optype in log: %s\n", optype);
 			}
@@ -320,7 +357,7 @@ TTManager::maintain()
 		}
 
 		if(!firststmt) {
-			if(DBObj->odbc_endxtstmt("END") < 0) {
+			if((DBObj->commitTransaction()) == 0) {
 				dprintf(D_ALWAYS, "End transaction --- Error\n");
 				goto DBERROR;
 			}
@@ -335,6 +372,8 @@ TTManager::maintain()
 			free(buf);
 	}
 
+	DBObj -> disconnectDB();
+
 	return 1;
 
  ERROREXIT:
@@ -348,7 +387,9 @@ TTManager::maintain()
 	if (ad)
 		delete ad;
 	
-	return retval;
+	DBObj -> disconnectDB();
+
+	return 0;
 
  DBERROR:
 	if(filesqlobj) {
@@ -365,30 +406,7 @@ TTManager::maintain()
 		this -> checkAndThrowBigFiles();
 	}
 
-	return -1;
-}
-
-int TTManager::append(char *destF, char *srcF) 
-{	
-	int dest, src;
-	char buffer[4096];
-	int rv;
-
-	dest = open (destF, O_WRONLY|O_CREAT|O_APPEND, 0644);
-	src = open (srcF, O_RDONLY);
-
-	rv = read(src, buffer, 4096);
-
-	while(rv > 0) {
-		if (write(dest, buffer, rv) < 0) {
-			return -1;
-		}
-		
-		rv = read(src, buffer, 4096);
-	}
-
-	close (dest);
-	close (src);
+	DBObj -> disconnectDB();
 
 	return 0;
 }
@@ -420,16 +438,16 @@ void TTManager::checkAndThrowBigFiles() {
 			len = strlen(ascTime);
 			ascTime[len-1] = '\0';
 
-			sprintf(tmp, "filename = \"%s\"", sqlLogCopyList[i]);
+			snprintf(tmp, 512, "filename = \"%s\"", sqlLogCopyList[i]);
 			tmpClP1->Insert(tmp);		
 			
-			sprintf(tmp, "machine = \"%s\"", my_full_hostname());
+			snprintf(tmp, 512, "machine = \"%s\"", my_full_hostname());
 			tmpClP1->Insert(tmp);		
 
-			sprintf(tmp, "size = %d", (int)file_status.st_size);
+			snprintf(tmp, 512, "size = %d", (int)file_status.st_size);
 			tmpClP1->Insert(tmp);		
 			
-			sprintf(tmp, "throwtime = \"%s\"", ascTime);
+			snprintf(tmp, 512, "throwtime = \"%s\"", ascTime);
 			tmpClP1->Insert(tmp);				
 			
 			thrownfileobj->file_newEvent("Thrown", tmpClP1);
@@ -439,27 +457,23 @@ void TTManager::checkAndThrowBigFiles() {
 	delete thrownfileobj;
 }
 
-// hash function for strings
-static int attHashFunction (const MyString &str, int numBuckets)
-{
-        int i = str.Length() - 1, hashVal = 0;
-        while (i >= 0)
-        {
-                hashVal += str[i];
-                i--;
-        }
-        return (hashVal % numBuckets);
-}
-
 int TTManager::insertMachines(AttrList *ad) {
 	HashTable<MyString, MyString> newClAd(200, attHashFunction, updateDuplicateKeys);
-	char sql_stmt[1000];
+	char *sql_stmt = NULL;
 	MyString classAd;
 	const char *iter;
-	char attName[100], *attVal, attNameList[1000]="", attValList[1000]="", tmpVal[500];
+
+		// The way we use the following variables are risky of buffer overflow
+		// therefore the following tries to allocate an amount that is unlikely 
+		// to be exceeded. The horizontal machine table has around 30 columns.
+		// on average, each column name or value is allowed to be 300 char long.
+
+	char *attName = NULL, *attVal, *attNameList = NULL, *attValList = NULL, *tmpVal = NULL;
 	int isFirst = TRUE;
 	MyString aName, aVal, temp, machine_id;
 	char *tmp1;
+
+	char lastHeardFrom[300];
 
 	ad->sPrint(classAd);
 
@@ -471,6 +485,11 @@ int TTManager::insertMachines(AttrList *ad) {
 	while (iter != NULL)
 		{
 			int attValLen;
+			
+				// the attribute name can't be longer than the log entry line size
+				// make sure attName is freed always to prevent memory leak.
+			attName = (char *)malloc(strlen(iter));
+
 			sscanf(iter, "%s =", attName);
 			attVal = strstr(iter, "= ");
 			attVal += 2;
@@ -481,9 +500,12 @@ int TTManager::insertMachines(AttrList *ad) {
 				attVal[attValLen-1] = 0;
 			if (attVal[0] == '"' || attVal[0] == '\'') {
 				
+				tmpVal = (char *) malloc(strlen(attVal));
 				tmp1 = attVal+1;
 				strcpy(tmpVal, tmp1);
 				strcpy(attVal, tmpVal);
+				free(tmpVal);
+				tmpVal  = NULL;
 			}
 			
 				
@@ -492,6 +514,15 @@ int TTManager::insertMachines(AttrList *ad) {
 				if (isFirst) {
 						//is the first in the list
 					isFirst = FALSE;
+					
+						// 11 is the string length of "machine_id", 5 is for the overhead for enclosing
+						// parenthesis
+					attNameList = (char *) malloc (((strlen(attName) > 11)?strlen(attName):11) + 5);
+					
+						// 80 is the extra length needed for converting a seconds value to timestamp value
+						// 7 is for the overhead of enclosing parenthesis and quotes
+					attValList = (char *) malloc (strlen(attVal) + ((typeOf(attName) == TYPE_TIMESTAMP)?80:7));
+
 					sprintf(attNameList, "(%s", (strcmp(attName, ATTR_NAME) ? attName : "machine_id") );
 					if (!strcmp(attName, ATTR_NAME))
 					    machine_id = attVal;
@@ -512,10 +543,19 @@ int TTManager::insertMachines(AttrList *ad) {
 					}
 				} else {
 						// is not the first in the list
+					
+					attNameList = (char *) realloc (attNameList, strlen(attNameList) + 
+													((strlen(attName) > 11)?strlen(attName):11) + 3);
+					attValList = (char *) realloc (attValList, strlen(attValList) + 
+												   strlen(attVal) + ((typeOf(attName) == TYPE_TIMESTAMP)?80:6));
+
 					strcat(attNameList, ", ");
 					strcat(attNameList, (strcmp(attName, ATTR_NAME) ? attName : "machine_id"));
 
 					strcat(attValList, ", ");
+
+					tmpVal = (char  *) malloc(strlen(attVal) + 100);
+
 					switch (typeOf(attName)) {
 
 					case TYPE_STRING:
@@ -531,8 +571,10 @@ int TTManager::insertMachines(AttrList *ad) {
 						sprintf(tmpVal, "%s", attVal);
 						break;							
 					}
-					strcat(attValList, tmpVal);
 
+					strcat(attValList, tmpVal);
+					
+					free(tmpVal);
 				}
 			} else {  // static attributes (go into Machine table)
 			        aName = attName;
@@ -540,77 +582,116 @@ int TTManager::insertMachines(AttrList *ad) {
 				// insert into new ClassAd too (since this needs to go into DB)
 				newClAd.insert(aName, aVal);
 			}
+
+			if (strcasecmp(attName, "LastHeardFrom") == 0) {
+				sprintf(lastHeardFrom, "('epoch'::timestamp + '%s seconds') at time zone 'UTC'", attVal);
+			}
+
+			free(attName);
+
 			iter = classAd.GetNextToken("\n", true);
 		}
 
-	strcat(attNameList, ")");
-	strcat(attValList, ")");
+	if (attNameList) strcat(attNameList, ")");
+	if (attValList) strcat(attValList, ")");
 	
-	 sprintf(sql_stmt, "INSERT INTO Machine_Classad_History (SELECT * FROM Machine_Classad WHERE machine_id = '%s')", machine_id.Value());
+		// 500 is plenty for the constant portion of the following sql statements
+	sql_stmt = (char *) malloc(500 + strlen(machine_id.Value()));
+
+	sprintf(sql_stmt, "INSERT INTO Machine_Classad_History (SELECT * FROM Machine_Classad WHERE machine_id = '%s')", machine_id.Value());
 	 
-	 if (DBObj->odbc_sqlstmt(sql_stmt) < 0) {
+	 if (DBObj->execCommand(sql_stmt) < 0) {
 		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		 if (attNameList) free(attNameList);
+		 if (attValList) free(attValList);		 
+		 free(sql_stmt);
 		 return -1;
 	 }
 
 	 sprintf(sql_stmt, "DELETE FROM Machine_Classad WHERE machine_id = '%s'", machine_id.Value());
 
-	 if (DBObj->odbc_sqlstmt(sql_stmt) < 0) {
+	 if (DBObj->execCommand(sql_stmt) < 0) {
 		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		 if (attNameList) free(attNameList);
+		 if (attValList) free(attValList);		 
+		 free(sql_stmt);
 		 return -1;
 	 }
+
+	 free(sql_stmt);
+
+	 sql_stmt = (char *) malloc(100 + strlen(attNameList) + strlen(attValList));
 
 	 sprintf(sql_stmt, "INSERT INTO Machine_Classad %s VALUES %s", attNameList, attValList);
 
-	 if (DBObj->odbc_sqlstmt(sql_stmt) < 0) {
+	 if (DBObj->execCommand(sql_stmt) < 0) {
 		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		 if (attNameList) free(attNameList);
+		 if (attValList) free(attValList);
+		 free(sql_stmt);
 		 return -1;
 	 }
+	 
+	 free(sql_stmt);
+
+	 if (attNameList) free(attNameList);
+	 if (attValList) free(attValList);
 
 		// Insert changes into Machine
-	newClAd.startIterations();
-	while (newClAd.iterate(aName, aVal)) {
-		sprintf(sql_stmt, "INSERT INTO Machine SELECT '%s', '%s', '%s', %s WHERE NOT EXISTS (SELECT * FROM Machine WHERE machine_id = '%s' AND attr_name = '%s')", 
-				machine_id.Value(), aName.Value(), aVal.Value(), tmpVal, machine_id.Value(), aName.Value());
+	 newClAd.startIterations();
+	 while (newClAd.iterate(aName, aVal)) {
+		 
+		 sql_stmt = (char *) malloc (1000 + 2*strlen(machine_id.Value()) + 2*strlen(aName.Value()) + 
+									 strlen(aVal.Value()) + strlen(lastHeardFrom));
 
-		if (DBObj->odbc_sqlstmt(sql_stmt) < 0) {
-			dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-			dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
-			return -1;
-		}
+		 sprintf(sql_stmt, "INSERT INTO Machine SELECT '%s', '%s', '%s', %s WHERE NOT EXISTS (SELECT * FROM Machine WHERE machine_id = '%s' AND attr_name = '%s')", 
+				 machine_id.Value(), aName.Value(), aVal.Value(), lastHeardFrom, machine_id.Value(), aName.Value());
+
+		 if (DBObj->execCommand(sql_stmt) < 0) {
+			 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+			 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+			 free(sql_stmt);
+			 return -1;
+		 }
 			
-		sprintf(sql_stmt, "INSERT INTO Machine_History SELECT machine_id, attr_name, attr_value, start_time, %s FROM Machine WHERE machine_id = '%s' AND attr_name = '%s' AND attr_value != '%s'", 
-				tmpVal, machine_id.Value(), aName.Value(), aVal.Value());
+		 sprintf(sql_stmt, "INSERT INTO Machine_History SELECT machine_id, attr_name, attr_value, start_time, %s FROM Machine WHERE machine_id = '%s' AND attr_name = '%s' AND attr_value != '%s'", 
+				 lastHeardFrom, machine_id.Value(), aName.Value(), aVal.Value());
 
-		if (DBObj->odbc_sqlstmt(sql_stmt) < 0) {
+		 if (DBObj->execCommand(sql_stmt) < 0) {
+			 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+			 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);		
+			 free(sql_stmt);
+			 return -1;
+		 }
+
+		 sprintf(sql_stmt, "UPDATE Machine SET attr_value = '%s', start_time = %s WHERE machine_id = '%s' AND attr_name = '%s' AND attr_value != '%s';", 
+				 aVal.Value(), lastHeardFrom, machine_id.Value(), aName.Value(), aVal.Value());
+
+		 if (DBObj->execCommand(sql_stmt) < 0) {
 			dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 			dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+			free(sql_stmt);
 			return -1;
-		}
-
-		sprintf(sql_stmt, "UPDATE Machine SET attr_value = '%s', start_time = %s WHERE machine_id = '%s' AND attr_name = '%s' AND attr_value != '%s';", 
-				aVal.Value(), tmpVal, machine_id.Value(), aName.Value(), aVal.Value());
-
-		if (DBObj->odbc_sqlstmt(sql_stmt) < 0) {
-			dprintf(D_ALWAYS, "Executing Statement --- Error\n");
-			dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
-			return -1;
-		}
-
-	}
-
-	return 0;
-
+		 }
+		 
+		 free(sql_stmt);
+	 }
+	 return 0;
 }
 
-int TTManager::insertPlain(AttrList *ad, char *tableName) {
-	char sql_stmt[1000];
+int TTManager::insertBasic(AttrList *ad, char *tableName) {
+	char *sql_stmt = NULL;
 	MyString classAd;
 	const char *iter;	
-	char attName[100], *attVal, attNameList[1000]="", attValList[1000]="";
+
+		// this function is very risky in that it is used for inserting
+		// rows into any table in a basic way. If a table has many columns,
+		// this function can easily overflow the following buffers. Please 
+		// don't forget to fix it!!
+	char *attName = NULL, *attVal, *attNameList = NULL, *attValList = NULL;
 	int isFirst = TRUE;
 
 	ad->sPrint(classAd);
@@ -621,6 +702,10 @@ int TTManager::insertPlain(AttrList *ad, char *tableName) {
 	while (iter != NULL)
 		{
 			int attValLen;
+			
+				// the attribute name can't be longer than the log entry line size
+			attName = (char *)malloc(strlen(iter));
+			
 			sscanf(iter, "%s =", attName);
 			attVal = strstr(iter, "= ");
 			attVal += 2;
@@ -638,39 +723,54 @@ int TTManager::insertPlain(AttrList *ad, char *tableName) {
 			if (isFirst) {
 					//is the first in the list
 				isFirst = FALSE;
+
+				attNameList = (char *) malloc (strlen(attName) + 3);
+				attValList = (char *) malloc (strlen(attVal) + 3);
+											  
 				sprintf(attNameList, "(%s", attName);
 				sprintf(attValList, "(%s", attVal);
 			} else {					
 						// is not the first in the list
-					strcat(attNameList, ", ");
-					strcat(attNameList, attName);
-					strcat(attValList, ", ");
-					strcat(attValList, attVal);
-					
+				attNameList = (char *) realloc(attNameList, strlen(attNameList) + strlen(attName) + 3);
+				attValList = (char *) realloc(attValList, strlen(attValList) + strlen(attVal) + 3);
+				
+				strcat(attNameList, ", ");
+				strcat(attNameList, attName);
+				strcat(attValList, ", ");
+				strcat(attValList, attVal);					
 			}
 
+			free(attName);
 			iter = classAd.GetNextToken("\n", true);
 		}
 
-	strcat(attNameList, ")");
-	strcat(attValList, ")");
+	if (attNameList) strcat(attNameList, ")");
+	if (attValList) strcat(attValList, ")");
+
+	sql_stmt = (char *) malloc (50 + strlen(tableName) + strlen(attNameList) + strlen(attValList));
 
 	sprintf(sql_stmt, "INSERT INTO %s %s VALUES %s;", tableName, attNameList, attValList);
 
-	if (DBObj->odbc_sqlstmt(sql_stmt) < 0) {
+	if (attNameList) free(attNameList);
+	if (attValList) free(attValList);	
+	
+	if (DBObj->execCommand(sql_stmt) < 0) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		free(sql_stmt);
 		return -1;
 	}
+
+	free(sql_stmt);
 
 	return 0;
 }
 
 int TTManager::insertEvents(AttrList *ad) {
-	char sql_stmt[1000];
+	char *sql_stmt = NULL;
 	MyString classAd;
 	const char *iter;	
-	char attName[100], *attVal;
+	char *attName = NULL, *attVal;
 	char scheddname[50], cluster[10], proc[10], subproc[10], 
 		eventts[100], messagestr[512];
 	int eventtype;
@@ -683,6 +783,10 @@ int TTManager::insertEvents(AttrList *ad) {
 	while (iter != NULL)
 		{
 			int attValLen;
+
+				// the attribute name can't be longer than the log entry line size
+			attName = (char *)malloc(strlen(iter));
+			
 			sscanf(iter, "%s =", attName);
 			attVal = strstr(iter, "= ");
 			attVal += 2;
@@ -712,9 +816,14 @@ int TTManager::insertEvents(AttrList *ad) {
 			} else if (strcmp(attName, "description") == 0) {
 				strcpy(messagestr, attVal);
 			}
-					   
+			
+			free(attName);
 			iter = classAd.GetNextToken("\n", true);
 		}
+
+	sql_stmt = (char *) malloc(1000 + 2*strlen(scheddname) + 2*strlen(cluster) + 
+							   2*strlen(proc) + strlen(eventts) + 
+							   strlen(messagestr) + strlen(subproc));
 
 	if (eventtype == ULOG_JOB_ABORTED || eventtype == ULOG_JOB_HELD || ULOG_JOB_RELEASED) {
 		sprintf(sql_stmt, "INSERT INTO events VALUES (%s, %s, %s, NULL, %d, %s, %s);", 
@@ -724,27 +833,31 @@ int TTManager::insertEvents(AttrList *ad) {
 				scheddname, cluster, proc, eventtype, eventts, messagestr, scheddname, cluster, proc, subproc);
 	}
 
-	if (DBObj->odbc_sqlstmt(sql_stmt) < 0) {
+	if (DBObj->execCommand(sql_stmt) < 0) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		free(sql_stmt);
 		return -1;
 	}
 
+	free(sql_stmt);
 	return 0;
 }
 
 int TTManager::insertFiles(AttrList *ad) {
-	char sql_stmt[1000];
+	char *sql_stmt = NULL;
 	MyString classAd;
 	const char *iter;	
-	char attName[100], *attVal;
+	char *attName = NULL, *attVal;
 	
 	char f_name[_POSIX_PATH_MAX], f_host[50], f_path[_POSIX_PATH_MAX], f_ts[30];
 	int f_size;
 	char pathname[_POSIX_PATH_MAX];
 	char hexSum[MAC_SIZE*2+1], sum[MAC_SIZE+1];	
 	int len;
-	char *tmp1, tmpVal[500];
+	char *tmp1, *tmpVal = NULL;
+	bool fileSame = TRUE;
+	struct stat file_status;
 
 	ad->sPrint(classAd);
 
@@ -754,6 +867,10 @@ int TTManager::insertFiles(AttrList *ad) {
 	while (iter != NULL)
 		{
 			int attValLen;
+
+				// the attribute name can't be longer than the log entry line size
+			attName = (char *)malloc(strlen(iter));
+			
 			sscanf(iter, "%s =", attName);
 			attVal = strstr(iter, "= ");
 			attVal += 2;
@@ -779,7 +896,9 @@ int TTManager::insertFiles(AttrList *ad) {
 			} else if (strcmp(attName, "f_size") == 0) {
 				f_size = atoi(attVal);
 			}
-					   
+			
+			free(attName);
+
 			iter = classAd.GetNextToken("\n", true);
 		}
 
@@ -790,9 +909,11 @@ int TTManager::insertFiles(AttrList *ad) {
 		f_path[len-1] = 0;
 	
 	if (f_path[0] == '\'') {
+		tmpVal = (char *) malloc(strlen(f_path));
 		tmp1 = f_path+1;
 		strcpy(tmpVal, tmp1);
 		strcpy(f_path, tmpVal);
+		free(tmpVal);
 	}
 
 	len = strlen(f_name);
@@ -800,14 +921,38 @@ int TTManager::insertFiles(AttrList *ad) {
 		f_name[len-1] = 0;
 	
 	if (f_name[0] == '\'') {
+		tmpVal = (char *) malloc(strlen(f_name));
 		tmp1 = f_name+1;
 		strcpy(tmpVal, tmp1);
 		strcpy(f_name, tmpVal);
+		free(tmpVal);
 	}
 
 	sprintf(pathname, "%s/%s", f_path, f_name);
-	
-  	if ((f_size > 0) && file_checksum(pathname, f_size, sum)) {
+
+		// check if the file is still there and the same
+	if (stat(pathname, &file_status) < 0) {
+		dprintf(D_FULLDEBUG, "ERROR: File '%s' can not be accessed.\n", 
+				pathname);
+		fileSame = FALSE;
+	} else {
+		char ascTime[TIMELEN];
+
+		// build ascii time to be stored in database
+		char *tmp;
+		tmp = ctime(&file_status.st_mtime);
+		len = strlen(tmp);
+		ascTime[0] = '\'';
+		strncpy(&ascTime[1], (const char *)tmp, len-1); /* ignore the last newline character */
+		ascTime[len] = '\'';		
+		ascTime[len+1] = '\0';
+
+		if (strcmp(f_ts, ascTime) != 0) {
+			fileSame = FALSE;
+		}
+	}
+
+  	if (fileSame && (f_size > 0) && file_checksum(pathname, f_size, sum)) {
   		for (int i = 0; i < MAC_SIZE; i++)
   			sprintf(&hexSum[2*i], "%2x", sum[i]);		
   		hexSum[2*MAC_SIZE] = '\0';
@@ -815,24 +960,29 @@ int TTManager::insertFiles(AttrList *ad) {
   	else
 		hexSum[0] = '\0';
 
+	sql_stmt = (char *)malloc(1000 + 2*(strlen(f_name)+strlen(f_host)+strlen(f_path)+strlen(f_ts)) +
+							  strlen(hexSum));
+
 	sprintf(sql_stmt, 
 			"INSERT INTO files SELECT NEXTVAL('seqfileid'), '%s', %s, '%s', %s, %d, '%s' WHERE NOT EXISTS (SELECT * FROM files WHERE  f_name='%s' and f_path='%s' and f_host=%s and f_ts=%s);", 
 			f_name, f_host, f_path, f_ts, f_size, hexSum, f_name, f_path, f_host, f_ts);
 	
-	if (DBObj->odbc_sqlstmt(sql_stmt) < 0) {
+	if (DBObj->execCommand(sql_stmt) < 0) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		free(sql_stmt);
 		return -1;
 	}
 
+	free(sql_stmt);
 	return 0;
 }
 
 int TTManager::insertFileusages(AttrList *ad) {
-	char sql_stmt[1000];
+	char *sql_stmt = NULL;
 	MyString classAd;
 	const char *iter;	
-	char attName[100], *attVal;
+	char *attName, *attVal;
 	
 	char f_name[_POSIX_PATH_MAX], f_host[50], f_path[_POSIX_PATH_MAX], f_ts[30], globaljobid[100], type[20];
 	int f_size;
@@ -845,6 +995,10 @@ int TTManager::insertFileusages(AttrList *ad) {
 	while (iter != NULL)
 		{
 			int attValLen;
+			
+				// the attribute name can't be longer than the log entry line size
+			attName = (char *)malloc(strlen(iter));
+			
 			sscanf(iter, "%s =", attName);
 			attVal = strstr(iter, "= ");
 			attVal += 2;
@@ -875,28 +1029,166 @@ int TTManager::insertFileusages(AttrList *ad) {
 				strcpy(type, attVal);
 			}
 
-					   
+			free(attName);
 			iter = classAd.GetNextToken("\n", true);
 		}
 
+	sql_stmt = (char *) malloc (1000+strlen(globaljobid)+strlen(type)+strlen(f_name)+
+								strlen(f_path)+strlen(f_host)+strlen(f_ts));
 	sprintf(sql_stmt, 
 			"INSERT INTO fileusages SELECT %s, f_id, %s FROM files WHERE  f_name=%s and f_path=%s and f_host=%s and f_ts=%s LIMIT 1;", globaljobid, type, f_name, f_path, f_host, f_ts);
 	
-	if (DBObj->odbc_sqlstmt(sql_stmt) < 0) {
+	if (DBObj->execCommand(sql_stmt) < 0) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		free(sql_stmt);
 		return -1;
 	}
 
+	free(sql_stmt);
 	return 0;
 }
 
-int TTManager::updatePlain(AttrList *info, AttrList *condition, char *tableName) {
-	char sql_stmt[1000];
+int TTManager::insertHistoryJob(AttrList *ad) {
+  int        cid, pid;
+  char       *sql_stmt = NULL;
+  ExprTree *expr;
+  ExprTree *L_expr;
+  ExprTree *R_expr;
+  char *value = NULL;
+  char *name = NULL;
+  char tempvalue[1000];
+  
+  bool flag1=false, flag2=false,flag3=false, flag4=false;
+  const char *scheddname = jqDBManager.getScheddname();
+
+  ad->EvalInteger (ATTR_CLUSTER_ID, NULL, cid);
+  ad->EvalInteger (ATTR_PROC_ID, NULL, pid);
+
+  sql_stmt = (char *)malloc(1000 + 2*(strlen(scheddname) + 20));
+
+  sprintf(sql_stmt,
+          "DELETE FROM History_Horizontal WHERE scheddname = '%s' AND cid = %d AND pid = %d;INSERT INTO History_Horizontal(scheddname, cid, pid) VALUES('%s', %d, %d);", scheddname, cid, pid, scheddname, cid, pid);
+
+  if (DBObj->execCommand(sql_stmt) < 0) {
+		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		 free(sql_stmt);
+		 return -1;	  
+  }
+  else {
+	  free(sql_stmt);
+
+	  ad->ResetExpr(); // for iteration initialization
+	  while((expr=ad->NextExpr()) != NULL) {
+		  L_expr = expr->LArg();
+		  L_expr->PrintToNewStr(&name);
+
+		  if (name == NULL) break;
+
+		  R_expr = expr->RArg();
+		  R_expr->PrintToNewStr(&value);
+
+		  if (value == NULL) {
+			  free(name);
+			  break;	  	  
+		  }
+
+		  /* the following are to avoid overwriting the attr values. The hack is based on the fact that 
+		   * an attribute of a job ad comes before the attribute of a cluster ad. And this is because 
+		   * attribute list of cluster ad is chained to a job ad.
+		   */
+		  if(strcasecmp(name, "jobstatus") == 0) {
+			  if(flag4) continue;
+			  flag4 = true;
+		  }
+
+		  if(strcasecmp(name, "remotewallclocktime") == 0) {
+			  if(flag1) continue;
+			  flag1 = true;
+		  }
+		  else if(strcasecmp(name, "completiondate") == 0) {
+			  if(flag2) continue;
+			  flag2 = true;
+		  }
+		  else if(strcasecmp(name, "committedtime") == 0) {
+			  if(flag3) continue;
+			  flag3 = true;
+		  }
+
+		  if(isHorizontalHistoryAttribute(name)) {
+			  if(strcasecmp(name, "in") == 0 ||
+				 strcasecmp(name, "user") == 0) {
+				  strcat(name, "_j");
+			  }
+
+			  if (strcasecmp(name, "user_j") == 0) {
+				  strncpy(tempvalue, value+1, strlen(value)-2);
+				  tempvalue[strlen(value)-2] = '\0';
+				  strcpy(value, tempvalue);
+			  }
+	  
+			  sql_stmt = (char *) malloc(1000 + strlen(name) + strlen(value) + strlen(scheddname));
+
+			  if(strcasecmp(name, "qdate") == 0 || 
+				 strcasecmp(name, "lastmatchtime") == 0 || 
+				 strcasecmp(name, "jobstartdate") == 0 || 
+				 strcasecmp(name, "jobcurrentstartdate") == 0 ||
+				 strcasecmp(name, "enteredcurrentstatus") == 0 ||
+				 strcasecmp(name, "completiondate") == 0
+				 ) {
+					  // avoid updating with epoch time
+				  if (strcmp(value, "0") == 0) {
+					  free(name);
+					  free(value);
+					  continue;
+				  } 
+			
+				  sprintf(sql_stmt,
+						  "UPDATE History_Horizontal SET %s = (('epoch'::timestamp + '%s seconds') at time zone 'UTC') WHERE scheddname = '%s' and cid = %d and pid = %d;", name, value, scheddname, cid, pid);
+
+			  }	else {
+				  strip_double_quote(value);
+				  sprintf(sql_stmt, 
+						  "UPDATE History_Horizontal SET %s = '%s' WHERE scheddname = '%s' and cid = %d and pid = %d;", name, value, scheddname, cid, pid);			  
+			  }
+		  } else {
+			  strip_double_quote(value);                
+			  
+			  sql_stmt = (char *) malloc(1000+2*(strlen(scheddname) + strlen(name) + strlen(value)));
+
+			  sprintf(sql_stmt, 
+					  "DELETE FROM History_Vertical WHERE scheddname = '%s' AND cid = %d AND pid = %d AND attr = '%s'; INSERT INTO History_Vertical(scheddname, cid, pid, attr, val) VALUES('%s', %d, %d, '%s', '%s');", scheddname, cid, pid, name, scheddname, cid, pid, name, value);
+		  }	  
+
+		  if (DBObj->execCommand(sql_stmt) < 0) {
+			  dprintf(D_ALWAYS, "Executing Statement --- Error\n");
+			  dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+
+			  free(name);
+			  free(value);
+			  free(sql_stmt);
+
+			  return -1;
+		  }
+		  
+		  free(name);
+		  name = NULL;
+		  free(value);
+		  value = NULL;
+		  free(sql_stmt);
+	  }
+  }  
+
+  return 0;
+}
+
+int TTManager::updateBasic(AttrList *info, AttrList *condition, char *tableName) {
+	char *sql_stmt = NULL;
 	MyString classAd, classAd1;
 	const char *iter;	
 	char setList[1000]="", whereList[1000]="";
-	char attName[100], *attVal;
+	char *attName = NULL, *attVal;
 
 	if (!info) return 0;
 
@@ -909,6 +1201,9 @@ int TTManager::updatePlain(AttrList *info, AttrList *condition, char *tableName)
 		{
 			int attValLen;
 
+				// the attribute name can't be longer than the log entry line size
+			attName = (char *)malloc(strlen(iter));
+			
 			sscanf(iter, "%s =", attName);
 			attVal = strstr(iter, "= ");
 			attVal += 2;
@@ -928,8 +1223,11 @@ int TTManager::updatePlain(AttrList *info, AttrList *condition, char *tableName)
 			strcat(setList, attVal);
 			strcat(setList, ", ");
 
+			free(attName);
+
 			iter = classAd.GetNextToken("\n", true);
 		}
+
 		// remove the last comma
 	setList[strlen(setList)-2] = 0;
 
@@ -942,7 +1240,10 @@ int TTManager::updatePlain(AttrList *info, AttrList *condition, char *tableName)
 		while (iter != NULL)
 			{
 				int attValLen;
-
+				
+					// the attribute name can't be longer than the log entry line size
+				attName = (char *)malloc(strlen(iter));
+				
 				sscanf(iter, "%s =", attName);
 				attVal = strstr(iter, "= ");
 				attVal += 2;			
@@ -951,6 +1252,8 @@ int TTManager::updatePlain(AttrList *info, AttrList *condition, char *tableName)
 				if (strcmp(attVal, "null") == 0) {
 					strcat(whereList, attName);
 					strcat(whereList, " is null and ");
+
+					free(attName);
 
 					iter = classAd1.GetNextToken("\n", true);
 					continue;
@@ -971,21 +1274,27 @@ int TTManager::updatePlain(AttrList *info, AttrList *condition, char *tableName)
 				strcat(whereList, attVal);
 				strcat(whereList, " and ");
 
+				free(attName);
 				iter = classAd1.GetNextToken("\n", true);
 			}
+		
 			// remove the last comma
 		whereList[strlen(whereList)-5] = 0;
 	}
 
+	sql_stmt = (char *) malloc (100 + strlen(tableName) + strlen(setList) + strlen(whereList));
 		// build sql stmt
 	sprintf(sql_stmt, "UPDATE %s SET %s WHERE %s;", tableName, setList, whereList);		
 	
-	if (DBObj->odbc_sqlstmt(sql_stmt) < 0) {
+	if (DBObj->execCommand(sql_stmt) < 0) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
+		free(sql_stmt);
 		return -1;
 	}
 	
+	free(sql_stmt);
+
 	return 0;
 }
 
@@ -1087,4 +1396,41 @@ static int file_checksum(char *filePathName, int fileSize, char *sum) {
 	}
 
 	return TRUE;
+}
+
+static int append(char *destF, char *srcF) 
+{	
+	int dest, src;
+	char buffer[4096];
+	int rv;
+
+	dest = open (destF, O_WRONLY|O_CREAT|O_APPEND, 0644);
+	src = open (srcF, O_RDONLY);
+
+	rv = read(src, buffer, 4096);
+
+	while(rv > 0) {
+		if (write(dest, buffer, rv) < 0) {
+			return -1;
+		}
+		
+		rv = read(src, buffer, 4096);
+	}
+
+	close (dest);
+	close (src);
+
+	return 0;
+}
+
+// hash function for strings
+static int attHashFunction (const MyString &str, int numBuckets)
+{
+        int i = str.Length() - 1, hashVal = 0;
+        while (i >= 0)
+        {
+                hashVal += str[i];
+                i--;
+        }
+        return (hashVal % numBuckets);
 }

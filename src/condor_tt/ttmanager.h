@@ -28,7 +28,7 @@
 #include "daemon.h"
 
 #include "odbc.h"
-//extern ODBC *DBObj;
+#include "jobqueuedbmanager.h"
 
 #define MAXLOGNUM 7
 #define MAXLOGPATHLEN 100
@@ -56,10 +56,11 @@ class TTManager : public Service
 	void	pollingTime();	
  private:
 
+		// top level maintain function
 	int     maintain();
 
-		//! append a file to another file
-	int     append(char *destF, char *srcF);
+		// general event log maintain function (non-transactional data)
+	int  	event_maintain();
 
 		// check and throw away big files
 	void    checkAndThrowBigFiles();
@@ -68,8 +69,9 @@ class TTManager : public Service
 	int     insertEvents(AttrList *ad);
 	int     insertFiles(AttrList *ad);
 	int     insertFileusages(AttrList *ad);
-	int     insertPlain(AttrList *ad, char *tableName);
-	int     updatePlain(AttrList *info, AttrList *condition, char *tableName);
+	int     insertHistoryJob(AttrList *ad);
+	int     insertBasic(AttrList *ad, char *tableName);
+	int     updateBasic(AttrList *info, AttrList *condition, char *tableName);
 
 	char    sqlLogList[MAXLOGNUM][MAXLOGPATHLEN];
 	char    sqlLogCopyList[MAXLOGNUM+1][MAXLOGPATHLEN]; // 1 more file for "thrown" file
@@ -79,7 +81,9 @@ class TTManager : public Service
 	int		pollingPeriod;			//!< polling time period in seconds
 
 	int		numTimesPolled;			//!< used to vacuum and analyze job queue tables
-	ODBC   *DBObj;
+	Database* DBObj;
+	JobQueueDBManager jqDBManager;
+	const char*	jobQueueDBConn;  		//!< DB connection string
 };
 
 #endif /* _TTMANAGER_H_ */
