@@ -383,7 +383,7 @@ parse_script(
 		exampleSyntax (example);
 		return false;
 	} else {
-		debug_printf(DEBUG_QUIET, "jobName: %s\n", jobName);
+		debug_printf(DEBUG_DEBUG_1, "jobName: %s\n", jobName);
 		MyString tmpJobName = munge_job_name(jobName);
 		jobName = tmpJobName.Value();
 
