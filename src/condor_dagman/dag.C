@@ -990,7 +990,6 @@ Dag::FindLogFiles( /* const */ StringList &dagFiles, bool useDagDir )
 		// DaP jobs that have no "regular" Condor jobs to run.  Kent Wenger
 		// (wenger@cs.wisc.edu) 2003-09-05.
 	if ( (_condorLogFiles.number() == 0) && !_dapLogName ) {
-		_condorLogFiles.rewind();
 		_condorLogFiles.append( _condorLogName );
 	}
 
