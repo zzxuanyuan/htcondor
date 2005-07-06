@@ -545,9 +545,9 @@ int TTManager::insertMachines(AttrList *ad) {
 						// is not the first in the list
 					
 					attNameList = (char *) realloc (attNameList, strlen(attNameList) + 
-													((strlen(attName) > 11)?strlen(attName):11) + 3);
+													((strlen(attName) > 11)?strlen(attName):11) + 5);
 					attValList = (char *) realloc (attValList, strlen(attValList) + 
-												   strlen(attVal) + ((typeOf(attName) == TYPE_TIMESTAMP)?80:6));
+												   strlen(attVal) + ((typeOf(attName) == TYPE_TIMESTAMP)?80:8));
 
 					strcat(attNameList, ", ");
 					strcat(attNameList, (strcmp(attName, ATTR_NAME) ? attName : "machine_id"));
