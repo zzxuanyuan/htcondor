@@ -95,7 +95,8 @@ int main(int argc, char *argv[])
 {
 	printf("\n");
 
-		// Set up the dprintf stuff...
+		// Set up the dprintf stuff to write to stderr, so that Condor
+		// libraries which use it will write to the right place...
 	Termlog = true;
 	dprintf_config("condor_submit_dag", 2); 
 	DebugFlags = D_ALWAYS;
@@ -106,11 +107,11 @@ int main(int argc, char *argv[])
 	
 	opts.strLibLog = opts.primaryDagFile + ".lib.out";
 
-		// Make this into a full path so that dprintf still works inside
-		// condor_dagman when it cds to other directories.
-	if ( fullpath( opts.primaryDagFile.Value() ) ) {
-		opts.strDebugLog = "";
-	} else {
+		// if the DAG input filename was not already specified as an
+		// absolute PATH, use thw cwd to make it into one so that
+		// dprintf still works inside condor_dagman when it cds to
+		// other directories.
+	if ( !fullpath( opts.primaryDagFile.Value() ) ) {
 		char	currentDir[_POSIX_PATH_MAX];
 		if ( !getcwd( currentDir, sizeof(currentDir) ) ) {
 			fprintf( stderr, "ERROR: unable to get cwd: %d, %s\n",
