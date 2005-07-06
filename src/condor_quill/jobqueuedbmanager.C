@@ -488,7 +488,7 @@ JobQueueDBManager::loadJobQueue(JobQueueCollection *jobQueue)
 {
 	char* 	ret_str;
 	char*   ret_str2;
-	char	sql_str[1024];
+	char	sql_str[256];
 	bool 	bFirst = true;
 
 		//
@@ -1109,12 +1109,15 @@ JobQueueDBManager::getProcClusterIds(const char* key, char* cid, char* pid)
 int 
 JobQueueDBManager::processNewClassAd(char* key, char* mytype, char* ttype, bool exec_later)
 {
-	char sql_str1[409600];
-	char sql_str2[409600];
+		//here we assume that the cid,pid,mytype,targettypes are all 
+		//small enough so that the entire sql string containing them
+		//fits in a MAX_FIXED_SQL_STR_LENGTH buffer
+	char sql_str1[MAX_FIXED_SQL_STR_LENGTH];
+	char sql_str2[MAX_FIXED_SQL_STR_LENGTH];
 	char cid[512];
 	char pid[512];
 	int  id_sort;
-
+	
 		// It could be ProcAd or ClusterAd
 		// So need to check
 	id_sort = getProcClusterIds(key, cid, pid);
@@ -1200,10 +1203,13 @@ JobQueueDBManager::processNewClassAd(char* key, char* mytype, char* ttype, bool 
 int 
 JobQueueDBManager::processDestroyClassAd(char* key, bool exec_later)
 {
-	char sql_str1[1024]; 
-	char sql_str2[1024]; 
-	char sql_str3[1024];
-	char sql_str4[2048];
+		//here we assume that the cid and pid  are all 
+		//small enough so that the entire sql string containing them
+		//fits in a MAX_FIXED_SQL_STR_LENGTH buffer
+	char sql_str1[MAX_FIXED_SQL_STR_LENGTH]; 
+	char sql_str2[MAX_FIXED_SQL_STR_LENGTH]; 
+	char sql_str3[MAX_FIXED_SQL_STR_LENGTH];
+	char sql_str4[MAX_FIXED_SQL_STR_LENGTH];
 	char cid[100];
 	char pid[100];
 	bool inserthistory = false;
@@ -1331,7 +1337,7 @@ JobQueueDBManager::processDestroyClassAd(char* key, bool exec_later)
 int 
 JobQueueDBManager::processSetAttribute(char* key, char* name, char* value, bool exec_later)
 {
-	char sql_str_del_in[512];
+	char *sql_str_del_in;
 
 	char cid[512];
 	char pid[512];
@@ -1340,12 +1346,14 @@ JobQueueDBManager::processSetAttribute(char* key, char* name, char* value, bool 
 	char*   newvalue;
 		//int		ret_st;
   
-	memset(sql_str_del_in, 0, 512);
-  
-#ifdef _DEBUG_LOG_ENTRY
-	printf("%d %s %s %s\n", CondorLogOp_SetAttribute, key, name, value);
-#endif
-  
+	int sql_str_len = (sizeof(value) + MAX_FIXED_SQL_STR_LENGTH);
+	sql_str_del_in = (char *) malloc(sql_str_len * sizeof(char));
+	memset(sql_str_del_in, 0, sql_str_len);
+	
+		//#ifdef _DEBUG_LOG_ENTRY
+		//	printf("%d %s %s %s\n", CondorLogOp_SetAttribute, key, name, value);
+		//#endif
+	
 	newvalue = fillEscapeCharacters(value);
 		// It could be ProcAd or ClusterAd
 		// So need to check
@@ -1474,6 +1482,7 @@ JobQueueDBManager::processSetAttribute(char* key, char* name, char* value, bool 
 			break;
 		case 0:
 			dprintf(D_ALWAYS, "Set Attribute Processing --- ERROR\n");
+			if(sql_str_del_in) free(sql_str_del_in);
 			return 0;
 			break;
 		}
@@ -1486,7 +1495,8 @@ JobQueueDBManager::processSetAttribute(char* key, char* name, char* value, bool 
 
 		if (ret_st < 0) {
 			dprintf(D_ALWAYS, "Set Attribute --- Error [SQL] %s\n", sql_str_del_in);
-			displayDBErrorMsg("Set Attribute --- ERROR");      
+			displayDBErrorMsg("Set Attribute --- ERROR");     
+ 			if(sql_str_del_in) free(sql_str_del_in);
 			return 0;
 		}
 	}
@@ -1507,7 +1517,8 @@ JobQueueDBManager::processSetAttribute(char* key, char* name, char* value, bool 
 		}    
 	}
   
-	if(newvalue != NULL) free(newvalue);
+	if(newvalue) free(newvalue);
+	if(sql_str_del_in) free(sql_str_del_in);
 	return 1;
 }
 
@@ -1523,15 +1534,15 @@ JobQueueDBManager::processSetAttribute(char* key, char* name, char* value, bool 
 int 
 JobQueueDBManager::processDeleteAttribute(char* key, char* name, bool exec_later)
 {
-	char sql_str1[512];
-	char sql_str2[512];
+	char sql_str1[MAX_FIXED_SQL_STR_LENGTH];
+	char sql_str2[MAX_FIXED_SQL_STR_LENGTH];
 	char cid[512];
 	char pid[512];
 	int  id_sort;
 	int		ret_st;
 
-	memset(sql_str1, 0, 512);
-	memset(sql_str2, 0, 512);
+	memset(sql_str1, 0, MAX_FIXED_SQL_STR_LENGTH);
+	memset(sql_str2, 0, MAX_FIXED_SQL_STR_LENGTH);
 
 // Debugging purpose
 // printf("%d %s %s\n", CondorLogOp_DeleteAttribute, key, name);
@@ -1653,10 +1664,10 @@ JobQueueDBManager::init(bool initJQDB)
 int
 JobQueueDBManager::getJQPollingInfo(long& mtime, long& size, ClassAdLogEntry* lcmd)
 {
-	char 	sql_str[1024];
+	char 	sql_str[MAX_FIXED_SQL_STR_LENGTH];
 	int		ret_st;
 
-	memset(sql_str, 0, 1024);
+	memset(sql_str, 0, MAX_FIXED_SQL_STR_LENGTH);
 
 	if (lcmd == NULL)
 		lcmd = caLogParser->getCurCALogEntry();
@@ -1748,14 +1759,17 @@ JobQueueDBManager::addJQPollingInfoSQL(char* dest, char* src_name, char* src_val
 int
 JobQueueDBManager::setJQPollingInfo(long mtime, long size, ClassAdLogEntry* lcmd)
 {
-	char 	sql_str[1024];
+	char 	*sql_str;
 	int		ret_st;
 
 
 	if (lcmd == NULL)
 		lcmd = caLogParser->getCurCALogEntry();	
 
-	memset(sql_str, 0, 1024);
+
+	int sql_str_len = (sizeof(lcmd->value) + MAX_FIXED_SQL_STR_LENGTH);
+	sql_str = (char *) malloc(sql_str_len * sizeof(char));
+	memset(sql_str, 0, sql_str_len);
 
 	sprintf(sql_str, 
 			"UPDATE JobQueuePollingInfo SET last_file_mtime = %ld, last_file_size = %ld, last_next_cmd_offset = %ld, last_cmd_offset = %ld, last_cmd_type = %d", mtime, size, lcmd->next_offset, lcmd->offset, lcmd->op_type);
@@ -1773,6 +1787,7 @@ JobQueueDBManager::setJQPollingInfo(long mtime, long size, ClassAdLogEntry* lcmd
 		if (ret_st < 0) {
 			dprintf(D_ALWAYS, "Update JobQueuePollInfo --- ERROR [SQL] %s\n", sql_str);
 			displayDBErrorMsg("Update JobQueuePollInfo --- ERROR");
+			if(sql_str) free(sql_str);
 			return 0;
 		}
 		else if (ret_st == 0) {
@@ -1787,6 +1802,7 @@ JobQueueDBManager::setJQPollingInfo(long mtime, long size, ClassAdLogEntry* lcmd
 		} 
 	}
 
+	if(sql_str) free(sql_str);
 	return 1;
 }
 
@@ -1798,7 +1814,7 @@ JobQueueDBManager::setJQPollingInfo(long mtime, long size, ClassAdLogEntry* lcmd
 int
 JobQueueDBManager::checkSchema()
 {
-	char 	sql_str[1024]; 
+	char 	sql_str[MAX_FIXED_SQL_STR_LENGTH]; 
 	
 	int	ret_st;
 	
@@ -1918,7 +1934,7 @@ JobQueueDBManager::registerCommands()
 		// register a handler for QMGMT_CMD command from condor_q
 	daemonCore->Register_Command(QMGMT_CMD, "QMGMT_CMD",
 								 (CommandHandlercpp)&JobQueueDBManager::handle_q,
-								 "handle_q", NULL, READ, D_FULLDEBUG);
+								 "handle_q", this, READ, D_FULLDEBUG);
 }
 
 //! register all timer handlers
@@ -2083,96 +2099,17 @@ int
 JobQueueDBManager::handle_q(int, Stream* sock) {
 //	---------------- Start of Borrowed Code -------------------
 	int rval;
-
+	
 	dprintf(D_ALWAYS, "******** Start of Handling condor_q query ********\n");
-#ifdef _REMOTE_DB_CONNECTION_
-	dprintf(D_ALWAYS, "querying remote database\n");
-	RequestService *rs = new RequestService("host=ad16.cs.wisc.edu port=5432 dbname=quill");
-#else
-	RequestService *rs = new RequestService("dbname=quill");
-#endif
-
-//---    JobQueue->BeginTransaction();
-
-		// store the cluster num so when we commit the transaction, we can easily
-		// see if new clusters have been submitted and thus make links to cluster ads
-//---    old_cluster_num = next_cluster_num;
-
-		// initialize per-connection variables.  back in the day this
-		// was essentially InvalidateConnection().  of particular 
-		// importance is setting Q_SOCK... this tells the rest of the QMGMT
-		// code the request is from an external user instead of originating
-		// from within the schedd itself.
-		//Q_SOCK = (ReliSock *)sock;
-		//Q_SOCK->unAuthenticate();
-
-//---    active_cluster_num = -1;
-
+	
+	RequestService *rs = new RequestService(jobQueueDBConn);
+	
     do {
-			/* Probably should wrap a timer around this */
         rval = rs->service((ReliSock *)sock);
     } while(rval >= 0);
-
-
-		// reset the per-connection variables.  of particular 
-		// importance is setting Q_SOCK back to NULL. this tells the rest of 
-		// the QMGMT code the request originated internally, and it should
-		// be permitted (i.e. we only call OwnerCheck if Q_SOCK is not NULL).
-		//Q_SOCK->unAuthenticate();
-		// note: Q_SOCK is static...
-		//Q_SOCK = NULL;
-
-//---    dprintf(D_FULLDEBUG, "QMGR Connection closed\n");
-
-		// Abort any uncompleted transaction.  The transaction should
-		// be committed in CloseConnection().
-//---    if ( JobQueue->AbortTransaction() ) {
-        /*  If we made it here, a transaction did exist that was not
-            committed, and we now aborted it.  This would happen if 
-            somebody hit ctrl-c on condor_rm or condor_status, etc,
-            or if any of these client tools bailed out due to a fatal error.
-            Because the removal of ads from the queue has been backed out,
-            we need to "back out" from any changes to the ClusterSizeHashTable,
-            since this may now contain incorrect values.  Ideally, the size of
-            the cluster should just be kept in the cluster ad -- that way, it 
-            gets committed or aborted as part of the transaction.  But alas, 
-            it is not; same goes a bunch of other stuff: removal of ckpt and 
-            ickpt files, appending to the history file, etc.  Sigh.  
-            This should be cleaned up someday, probably with the new schedd.
-            For now, to "back out" from changes to the ClusterSizeHashTable, we
-            use brute force and blow the whole thing away and recompute it. 
-            -Todd 2/2000
-        */
-//---        ClusterSizeHashTable->clear();
-//---        ClassAd *ad;
-//---        HashKey key;
-//---        const char *tmp;
-//---        int     *numOfProcs = NULL;
-//---        int cluster_num;
-//---        JobQueue->StartIterateAllClassAds();
-//---        while (JobQueue->IterateAllClassAds(ad,key)) {
-//---            tmp = key.value();
-//---            if ( *tmp == '0' ) continue;    // skip cluster & header ads
-//---            if ( (cluster_num = atoi(tmp)) ) {
-		// count up number of procs in cluster, update ClusterSizeHashTable
-//---                if ( ClusterSizeHashTable->lookup(cluster_num,numOfProcs) == -1 ) {
-		// First proc we've seen in this cluster; set size to 1
-//---                    ClusterSizeHashTable->insert(cluster_num,1);
-//---                } else {
-		// We've seen this cluster_num go by before; increment proc count
-//---                    (*numOfProcs)++;
-//---                }
-
-//---            }
-//---        }
-//---    }   // end of if JobQueue->AbortTransaction == True
-
-
+	
 
 //	---------------- End of Borrowed Code -------------------
-
-
-
 
 	delete rs;
 

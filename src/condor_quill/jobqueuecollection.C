@@ -509,8 +509,8 @@ JobQueueCollection::makeHistoryAdSqlStr(char* cid, char* pid, ClassAd* ad,
 					char*& historyad_hor_str, char*& historyad_ver_str)
 {
 	char* 	val = NULL;
-	char	tmp_line_str1[1024];
-	char    tmp_line_str2[1024];
+	char	tmp_line_str1[MAX_FIXED_SQL_STR_LENGTH];
+	char    tmp_line_str2[MAX_FIXED_SQL_STR_LENGTH];
 
 	AssignOpBase*	expr;		// For Each Attribute in ClassAd
 	VariableBase* 	nameExpr;	// For Attribute Name
@@ -683,7 +683,7 @@ JobQueueCollection::makeCopyStr(bool bStr, char* cid, char* pid, ClassAd* ad, ch
 	char* 	line_str = NULL;
 	char* 	endptr = NULL;
 	char* 	val = NULL;
-	char	tmp_line_str[4096];
+	char	tmp_line_str[MAX_FIXED_SQL_STR_LENGTH];
 
 	const int 	NUM_TYPE = 1;
 	const int	OTHER_TYPE = 2;	

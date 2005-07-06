@@ -39,6 +39,10 @@ class Prober;
 class ClassAdLogParser;
 class JobQueueDatabase;
 
+#ifndef MAX_FIXED_SQL_STR_LENGTH
+#define MAX_FIXED_SQL_STR_LENGTH 2048
+#endif
+
 //! JobQueueDBManager
 /*! \brief this class orchestrates all of Quill.  
  */

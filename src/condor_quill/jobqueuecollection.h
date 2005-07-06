@@ -28,6 +28,10 @@
 #include "condor_io.h"
 #include "classad_collection.h"
 
+#ifndef MAX_FIXED_SQL_STR_LENGTH
+#define MAX_FIXED_SQL_STR_LENGTH 2048
+#endif
+
 //! ClassAdBucket
 /*! Bucket Class for a Hash Table used internally by JobQueueCollection
  */ 
