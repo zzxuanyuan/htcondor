@@ -134,6 +134,10 @@ PGSQLDatabase::beginTransaction()
 		//fp = fopen("/scratch/akini/logdump", "a");
 		//fprintf(fp, "BEGIN;\n");
 		//fclose(fp);
+		if(result) {
+			PQclear(result);		
+			result = NULL;
+		}
 		return 1;
 	}
 	else {
@@ -155,6 +159,11 @@ PGSQLDatabase::commitTransaction()
 		//fp = fopen("/scratch/akini/logdump", "a");
 		//fprintf(fp, "COMMIT;\n");
 		//fclose(fp);
+
+		if(result) {
+			PQclear(result);		
+			result = NULL;
+		}
 		return 1;
 	}
 	else {
@@ -178,6 +187,11 @@ PGSQLDatabase::rollbackTransaction()
 		//fp = fopen("/scratch/akini/logdump", "a");
 		//fprintf(fp, "ROLLBACK;\n");
 		//fclose(fp);
+		if(result) {
+			PQclear(result);		
+			result = NULL;
+		}
+
 		return 1;
 	}
 	else
@@ -229,8 +243,11 @@ PGSQLDatabase::execCommand(const char* sql)
 		if (num_result_str != NULL)
 			num_result = atoi(num_result_str);
 	}
-
-	PQclear(result);
+	
+	if(result) {
+		PQclear(result);		
+		result = NULL;
+	}
 
 	/*analyzeCounter++;
 	  if(analyzeCounter == 1000) {
@@ -280,7 +297,11 @@ PGSQLDatabase::execQuery(const char* sql, PGresult*& result)
 			"[SQL EXECUTION ERROR] %s\n", PQerrorMessage(connection));
 		dprintf(D_ALWAYS, 
 			"[ERRONEOUS SQL: %s]\n", sql);
-		PQclear(result);
+		if(result) {
+			PQclear(result);		
+			result = NULL;
+		}
+
 		return -1;
 	}
 
@@ -359,10 +380,10 @@ PGSQLDatabase::getJobQueueDB(int cluster, int proc, char *owner, bool isfullscan
   char *procAds_str_query, *procAds_num_query, *clusterAds_str_query, *clusterAds_num_query;
   char *clusterpredicate, *procpredicate;
 
-  procAds_str_query = (char *) malloc(1024 * sizeof(char));
-  procAds_num_query = (char *) malloc(1024 * sizeof(char));
-  clusterAds_str_query = (char *) malloc(1024 * sizeof(char));
-  clusterAds_num_query = (char *) malloc(1024 * sizeof(char));
+  procAds_str_query = (char *) malloc(MAX_FIXED_SQL_STR_LENGTH * sizeof(char));
+  procAds_num_query = (char *) malloc(MAX_FIXED_SQL_STR_LENGTH * sizeof(char));
+  clusterAds_str_query = (char *) malloc(MAX_FIXED_SQL_STR_LENGTH * sizeof(char));
+  clusterAds_num_query = (char *) malloc(MAX_FIXED_SQL_STR_LENGTH * sizeof(char));
 
   if(isfullscan) {
     strcpy(procAds_str_query, "SELECT cid, pid, attr, val FROM ProcAds_Str ORDER BY cid, pid;");
@@ -562,6 +583,11 @@ PGSQLDatabase::sendBulkDataEnd()
 			PQclear(result);
 			return -1;
 		}
+	}
+
+	if(result) {
+		PQclear(result);		
+		result = NULL;
 	}
 
 	return 1;

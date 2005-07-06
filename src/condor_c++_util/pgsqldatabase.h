@@ -29,6 +29,9 @@
 #include "sqlquery.h"
 #include "jobqueuedatabase.h"
 
+#ifndef MAX_FIXED_SQL_STR_LENGTH
+#define MAX_FIXED_SQL_STR_LENGTH 2048
+#endif
 
 //! PGSQLDataabse: JobQueueDatabase for PostgreSQL
 //

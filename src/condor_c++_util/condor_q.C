@@ -224,7 +224,7 @@ fetchQueueFromDB (ClassAdList &list, char *dbconn, CondorError* errstack)
 	ClassAd 		filterAd;
 	int     		result;
 	JobQueueSnapshot	*jqSnapshot;
-	char            constraint[4096] = "";
+	char            constraint[ATTRLIST_MAX_EXPRESSION] = "";
 	ClassAd        *ad;
 	int             rv;
 
@@ -313,7 +313,7 @@ fetchQueueFromDBAndProcess ( char *dbconn, process_function process_func, Condor
 	ClassAd 		filterAd;
 	int     		result;
 	JobQueueSnapshot	*jqSnapshot;
-	char            constraint[4096] = "";
+	char            constraint[ATTRLIST_MAX_EXPRESSION] = "";
 	ClassAd        *ad;
 	int             rv;
 
@@ -636,7 +636,10 @@ static int execQuery(PGconn *connection, const char* sql, PGresult*& result)
 	}
 	
 	else if (PQresultStatus(result) != PGRES_TUPLES_OK) {
-		PQclear(result);
+		if(result) {
+			PQclear(result);
+			result = NULL;
+		}
 		return -1;
 	}
 

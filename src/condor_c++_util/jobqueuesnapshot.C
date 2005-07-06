@@ -68,12 +68,17 @@ JobQueueSnapshot::startIterateAllClassAds(int cluster,
 
 	procads_str_num = procads_num_num = 
 	clusterads_str_num = clusterads_num_num = 0;
-
-	st = jqDB->connectDB();
-	if(st <= 0) {
+	
+	if(jqDB->connectDB() <= 0) {
 		printf("Error while querying the database: no connection to the server\n");
 		return -1;
 	}
+
+	if(jqDB->beginTransaction() <= 0) {
+		printf("Error while querying the database: unable to start new transaction");
+		return -1;
+	}
+
 	st = jqDB->getJobQueueDB(cluster, 
 				 proc, 
 				 owner, 
@@ -82,6 +87,12 @@ JobQueueSnapshot::startIterateAllClassAds(int cluster,
 				 procads_num_num,
 				 clusterads_str_num, 
 				 clusterads_num_num); // this retriesves DB
+	
+	if(jqDB->commitTransaction() <= 0) {
+		printf("Error while querying the database: unable to commit transaction");
+		return -1;
+	}
+
 	if (st == 0) // There is no live jobs
 		return 0;
 	else if (st < 0) // Got some error
@@ -104,6 +115,9 @@ int
 JobQueueSnapshot::getNextClusterAd(const char*& cluster_id, ClassAd*& ad)
 {
 	const char	*cid, *attr, *val;
+
+	if (cur_clusterads_str_index >= clusterads_str_num)
+		return 0;
 
 	cid = jqDB->getJobQueueClusterAds_StrValue(
 			cur_clusterads_str_index, 0); // cid
@@ -179,15 +193,15 @@ JobQueueSnapshot::getNextClusterAd(const char*& cluster_id, ClassAd*& ad)
 
 /*
 	Return:
-		2: No more ProcAds
+		2: No more ProcAds in this cursor
 		1: Success
-		0: No more result for this ClusterAd
+		0: No more procAd for this ClusterAd
 		-1: error
 */
 int
 JobQueueSnapshot::getNextProcAd(ClassAd*& ad)
 {
-	const char *cid, *pid, *attr, *val;
+	const char *cid = NULL, *pid = NULL, *attr, *val;
 
 	if ((cur_procads_num_index >= procads_num_num) &&
 		(cur_procads_str_index >= procads_str_num)) {
@@ -219,23 +233,44 @@ JobQueueSnapshot::getNextProcAd(ClassAd*& ad)
 			++cur_procads_str_index;
 	};
 
-	if (strcmp(cid, curClusterId) != 0)
+		/* if cid is null or cid is not equal to the 
+		   current cluster id, return */
+	if (!cid || strcmp(cid, curClusterId) != 0) {
+		delete ad;
+		ad = NULL;
 		return 0;
+	}
 
-	// Current ProcId Setting
-	pid = jqDB->getJobQueueProcAds_StrValue(
-			cur_procads_str_index, 1); // pid
-
-	if(pid == NULL) 
+		/* it's possible that we are at the end of the cursor because of the above 
+		   loop that increments cur_procads_str_index. If so, then return 2. Otherwise
+		   we try to get the pid from the cursor that still has rows in it.
+		*/
+	if (cur_procads_str_index < procads_str_num) {
+			// Current ProcId Setting
+		pid = jqDB->getJobQueueProcAds_StrValue(cur_procads_str_index, 1); // pid
+	} else if (cur_procads_num_index < procads_num_num) {
+			// Current ProcId Setting
+		pid = jqDB->getJobQueueProcAds_NumValue(cur_procads_num_index, 1); // pid		
+	} else {
+		delete ad;
+		ad = NULL;
 		return 2;
-	else if (curProcId == NULL && pid != NULL) 
+	}
+
+	if(pid == NULL) {
+		delete ad;
+		ad = NULL;
+		return 2;
+	}
+	else if (curProcId == NULL) 
 		curProcId = pid;   
-	else if (strcmp(pid, curProcId) == 0) 
+	else if (strcmp(pid, curProcId) == 0) {
+		delete ad;
+		ad = NULL;
 		return -1;
-	else if (strcmp(pid, curProcId) != 0) 
+	}
+	else  /* pid and curProcId are not NULL and not equal */
 		curProcId = pid;
-	else 
-		return 0;
 
 	while(cur_procads_num_index < procads_num_num) {
 		cid = jqDB->getJobQueueProcAds_NumValue(
@@ -316,6 +351,9 @@ JobQueueSnapshot::iterateAllClassAds(ClassAd*& ad)
 	int		st;
 
 	//dprintf(D_ALWAYS, "calling getNextClusterAd\n");
+	/* while there are still more procads asssociated with current clusterad,
+	   dont get another clusterad
+	*/
 	while((st = getNextProcAd(ad)) == 0) {
 		getNextClusterAd(curClusterId, curClusterAd);
 	};
@@ -324,7 +362,7 @@ JobQueueSnapshot::iterateAllClassAds(ClassAd*& ad)
 		ad->ChainToAd(curClusterAd);
 			/* MergeClassAds(ad, curClusterAd, false); */
 	}	
-	else if (st == 2)
+	else if (st == 2 || st == -1)
 		return 0;
 
 	return 1;
