@@ -125,7 +125,35 @@ int main(int argc, char *argv[])
 
 	opts.strSchedLog = opts.primaryDagFile + ".dagman.log";
 	opts.strSubFile = opts.primaryDagFile + ".condor.sub";
-	opts.strRescueFile = opts.primaryDagFile + ".rescue";
+
+	MyString	rescueDagBase;
+
+		// If we're running each DAG in its own directory, write any rescue
+		// DAG to the current directory, to avoid confusion (since the
+		// rescue DAG must be run from the current directory).
+	if ( opts.useDagDir ) {
+		char	currentDir[_POSIX_PATH_MAX];
+		if ( !getcwd( currentDir, sizeof(currentDir) ) ) {
+			fprintf( stderr, "ERROR: unable to get cwd: %d, %s\n",
+					errno, strerror(errno) );
+			return 1;
+		}
+		rescueDagBase = currentDir;
+		rescueDagBase += DIR_DELIM_STRING;
+		rescueDagBase += condor_basename(opts.primaryDagFile.Value());
+	} else {
+		rescueDagBase = opts.primaryDagFile;
+	}
+
+		// If we're running multiple DAGs, put "_multi" in the rescue
+		// DAG name to indicate that the rescue DAG is for *all* of
+		// the DAGs we're running.
+	if ( opts.dagFiles.number() > 1 ) {
+		rescueDagBase += "_multi";
+	}
+
+	opts.strRescueFile = rescueDagBase + ".rescue";
+
 	opts.strLockFile = opts.primaryDagFile + ".lock";
 
 	return submitDag( opts );
