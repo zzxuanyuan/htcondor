@@ -724,15 +724,15 @@ int TTManager::insertBasic(AttrList *ad, char *tableName) {
 					//is the first in the list
 				isFirst = FALSE;
 
-				attNameList = (char *) malloc (strlen(attName) + 3);
-				attValList = (char *) malloc (strlen(attVal) + 3);
+				attNameList = (char *) malloc (strlen(attName) + 4);
+				attValList = (char *) malloc (strlen(attVal) + 4);
 											  
 				sprintf(attNameList, "(%s", attName);
 				sprintf(attValList, "(%s", attVal);
 			} else {					
 						// is not the first in the list
-				attNameList = (char *) realloc(attNameList, strlen(attNameList) + strlen(attName) + 3);
-				attValList = (char *) realloc(attValList, strlen(attValList) + strlen(attVal) + 3);
+				attNameList = (char *) realloc(attNameList, strlen(attNameList) + strlen(attName) + 5);
+				attValList = (char *) realloc(attValList, strlen(attValList) + strlen(attVal) + 5);
 				
 				strcat(attNameList, ", ");
 				strcat(attNameList, attName);
@@ -745,11 +745,8 @@ int TTManager::insertBasic(AttrList *ad, char *tableName) {
 		}
 
 	if (attNameList) strcat(attNameList, ")");
-	if (attValList) {
-		int len = strlen (attValList);		
-		strcat(attValList, ")");
-		attValList[len+1] = '\0';
-	}
+	if (attValList) strcat(attValList, ")");
+
 
 	sql_stmt = (char *) malloc (50 + strlen(tableName) + strlen(attNameList) + strlen(attValList));
 
