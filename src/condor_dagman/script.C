@@ -67,6 +67,7 @@ Script::BackgroundRun( int reaperId )
 {
 	TmpDir		tmpDir;
 	MyString	errMsg;
+		// NOTE: we will automatically cd back again in tmpDir's destructor
 	if ( !tmpDir.Cd2TmpDir( _node->GetDirectory(), errMsg ) ) {
 		debug_printf( DEBUG_QUIET,
 				"Could not change to DAG directory %s: %s\n",

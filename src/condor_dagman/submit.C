@@ -169,6 +169,7 @@ condor_submit( const Dagman &dm, const char* cmdFile, CondorID& condorID,
 {
 	TmpDir		tmpDir;
 	MyString	errMsg;
+        // NOTE: we will automatically cd back again in tmpDir's destructor
 	if ( !tmpDir.Cd2TmpDir( directory, errMsg ) ) {
 		debug_printf( DEBUG_QUIET,
 				"Could not change to DAG directory %s: %s\n",
@@ -264,6 +265,7 @@ dap_submit( const char* cmdFile, CondorID& condorID,
 {
 	TmpDir		tmpDir;
 	MyString	errMsg;
+        // NOTE: we will automatically cd back again in tmpDir's destructor
 	if ( !tmpDir.Cd2TmpDir( directory, errMsg ) ) {
 		debug_printf( DEBUG_QUIET,
 				"Could not change to DAG directory %s: %s\n",
