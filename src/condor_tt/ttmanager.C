@@ -745,7 +745,11 @@ int TTManager::insertBasic(AttrList *ad, char *tableName) {
 		}
 
 	if (attNameList) strcat(attNameList, ")");
-	if (attValList) strcat(attValList, ")");
+	if (attValList) {
+		int len = strlen (attValList);		
+		strcat(attValList, ")");
+		attValList[len+1] = '\0';
+	}
 
 	sql_stmt = (char *) malloc (50 + strlen(tableName) + strlen(attNameList) + strlen(attValList));
 
