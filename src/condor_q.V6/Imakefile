@@ -2,7 +2,7 @@ NAME = condor_q
 all_target($(NAME))
 
 CFLAGS = $(STD_C_FLAGS)
-LDFLAGS = $(STD_LDFLAGS) -lpq -lcrypt
+LDFLAGS = $(STD_LDFLAGS) -lcrypt
 C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS)
 LIB = $(STD_LIBS) $(POSTGRESQL_LIB)/libpq.a
 
