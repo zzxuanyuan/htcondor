@@ -210,7 +210,6 @@ TTManager::maintain()
 	int retcode;
 
 		// first call the job queue maintain function
-
 	retcode = jqDBManager.maintain();
 
 	if (retcode <= 0)
@@ -340,7 +339,12 @@ TTManager::event_maintain()
 				ad1=filesqlobj->file_readAttrList();
 
 				updateBasic(ad, ad1, eventtype);
-				 
+				
+				delete ad;
+				if (ad1) delete ad1;
+				ad = 0;
+				ad1 = 0;
+
 			} else if (strcmp(optype, "DELETE") == 0) {
 				dprintf(D_ALWAYS, "DELETE not supported yet\n");
 			} else {
@@ -370,6 +374,35 @@ TTManager::event_maintain()
 
 		if (buf)
 			free(buf);
+	}
+
+			// update the currency table
+	char 	sql_str[1024];
+	char    lastupdate[100];
+	struct tm *tm;
+	time_t clock;
+	int ret_st;
+	const char *scheddname;
+
+	(void)time(  (time_t *)&clock );
+	tm = localtime( (time_t *)&clock );	
+
+	sprintf(lastupdate, "%d/%d/%d %02d:%02d:%02d %s", 
+		  tm->tm_mon+1,
+		  tm->tm_mday,
+		  tm->tm_year+1900,
+		  tm->tm_hour,
+		  tm->tm_min,
+		  tm->tm_sec,
+		  tm->tm_zone);
+	
+	scheddname = jqDBManager.getScheddname();
+	
+	snprintf(sql_str, 1023, "UPDATE currency SET lastupdate = '%s' WHERE datasource = '%s';", lastupdate, scheddname);
+
+	ret_st = DBObj->execCommand(sql_str);
+	if (ret_st <0) {
+		dprintf(D_ALWAYS, "Update currency --- ERROR [SQL] %s\n", sql_str);
 	}
 
 	DBObj -> disconnectDB();
@@ -1057,8 +1090,8 @@ int TTManager::insertHistoryJob(AttrList *ad) {
   ExprTree *L_expr;
   ExprTree *R_expr;
   char *value = NULL;
-  char *name = NULL;
-  char tempvalue[1000];
+  char *name = NULL, *newname = NULL;
+  char *tempvalue = NULL;
   
   bool flag1=false, flag2=false,flag3=false, flag4=false;
   const char *scheddname = jqDBManager.getScheddname();
@@ -1120,13 +1153,18 @@ int TTManager::insertHistoryJob(AttrList *ad) {
 		  if(isHorizontalHistoryAttribute(name)) {
 			  if(strcasecmp(name, "in") == 0 ||
 				 strcasecmp(name, "user") == 0) {
-				  strcat(name, "_j");
+				  newname = (char *)malloc(strlen(name)+3);
+				  snprintf(newname, strlen(name)+3, "%s_j", name);
+				  free(name);
+				  name = newname;
 			  }
 
 			  if (strcasecmp(name, "user_j") == 0) {
+				  tempvalue = (char *)malloc(strlen(value));
 				  strncpy(tempvalue, value+1, strlen(value)-2);
 				  tempvalue[strlen(value)-2] = '\0';
 				  strcpy(value, tempvalue);
+				  free(tempvalue);
 			  }
 	  
 			  sql_stmt = (char *) malloc(1000 + strlen(name) + strlen(value) + strlen(scheddname));
@@ -1393,9 +1431,11 @@ static int file_checksum(char *filePathName, int fileSize, char *sum) {
 	}
 	else {
 		dprintf(D_FULLDEBUG, "schedd_file_checksum: computeMD failed\n");
+		delete checker;
 		return FALSE;
 	}
 
+	delete checker;
 	return TRUE;
 }
 

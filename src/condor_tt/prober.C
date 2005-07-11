@@ -186,7 +186,7 @@ Prober::probe()
 			caLogParser.setJobQueueName((jqDBManager->getClassAdLogParser())->getJobQueueName());
 
 			caLogParser.setNextOffset(curCALogEntry->offset);
-			caLogParser.readLogEntry(); 
+			st = caLogParser.readLogEntry(); 
 			if (st == FILE_OPEN_ERROR)
 				return FILE_OPEN_ERROR; 
 			else if (st == ERROR)

@@ -83,6 +83,8 @@ JobQueueDBManager::~JobQueueDBManager()
 		free(jobQueueDBConn);
 	if (multi_sql_str != NULL)
 		free(multi_sql_str);
+	if (scheddname != NULL)
+		free(scheddname);
 }
 
 void
@@ -232,6 +234,14 @@ JobQueueDBManager::config(bool reconfig)
 		displayDBErrorMsg("Insert JobQueuePollInfo --- ERROR");		
 	}
 	
+	snprintf(sql_str, 1023, "INSERT INTO currency SELECT '%s', NULL WHERE NOT EXISTS (SELECT * FROM currency WHERE datasource = '%s');", scheddname, scheddname);
+
+	ret_st = jqDatabase->execCommand(sql_str);
+	if (ret_st <0) {
+		dprintf(D_ALWAYS, "Insert Currency --- ERROR [SQL] %s\n", sql_str);
+		displayDBErrorMsg("Insert Currency --- ERROR");		
+	}
+	
 	jqDatabase->disconnectDB();
 }
 
@@ -324,13 +334,13 @@ JobQueueDBManager::cleanupJobQueueTables()
 
 		// we only delete job queue related information.
 	snprintf(sql_str[0], 128,
-			"DELETE FROM clusterads_horizontal;");
+			"DELETE FROM clusterads_horizontal WHERE scheddname = '%s';", scheddname);
 	snprintf(sql_str[1], 128,
-			"DELETE FROM clusterads_vertical;");
+			"DELETE FROM clusterads_vertical WHERE scheddname = '%s';", scheddname);
 	snprintf(sql_str[2], 128,
-			"DELETE FROM procads_horizontal;");
+			"DELETE FROM procads_horizontal WHERE scheddname = '%s';", scheddname);
 	snprintf(sql_str[3], 128,
-			"DELETE FROM procads_vertical;");
+			"DELETE FROM procads_vertical WHERE scheddname = '%s';", scheddname);
 
 	for (i = 0; i < sqlNum; i++) {
 		if (jqDatabase->execCommand(sql_str[i]) < 0) {
@@ -1007,7 +1017,7 @@ JobQueueDBManager::processLogEntry(int op_type, bool exec_later)
 void
 JobQueueDBManager::displayDBErrorMsg(const char* errmsg)
 {
-	dprintf(D_ALWAYS, "[QUILL] %s\n", errmsg);
+	dprintf(D_ALWAYS, "[QUILL++] %s\n", errmsg);
 	dprintf(D_ALWAYS, "\t%s\n", jqDatabase->getDBError());
 }
 
@@ -1698,10 +1708,20 @@ JobQueueDBManager::getJQPollingInfo(long& mtime, long& size, ClassAdLogEntry* lc
 	lcmd->next_offset = atoi(jqDatabase->getValue(0,2)); // last_next_cmd_offset
 	lcmd->offset = atoi(jqDatabase->getValue(0,3)); // last_cmd_offset
 	lcmd->op_type = atoi(jqDatabase->getValue(0,4)); // last_cmd_type
+	
+	if (lcmd->key) free(lcmd->key);
 	lcmd->key = strdup(jqDatabase->getValue(0,5)); // last_cmd_key
+
+	if (lcmd->mytype) free(lcmd->mytype);
 	lcmd->mytype = strdup(jqDatabase->getValue(0,6)); // last_cmd_mytype
+
+	if (lcmd->targettype) free(lcmd->targettype);
 	lcmd->targettype = strdup(jqDatabase->getValue(0,7)); // last_cmd_targettype
+
+	if (lcmd->name) free(lcmd->name);
 	lcmd->name = strdup(jqDatabase->getValue(0,8)); // last_cmd_name
+
+	if (lcmd->value) free(lcmd->value);
 	lcmd->value = strdup(jqDatabase->getValue(0,9)); // last_cmd_value
 	
 	jqDatabase->releaseQueryResult(); // release Query Result
