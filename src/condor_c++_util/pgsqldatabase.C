@@ -86,6 +86,11 @@ PGSQLDatabase::connectDB(const char* connect)
 		{
 			dprintf(D_ALWAYS, "Connection to database '%s' failed.\n", PQdb(connection));
 			dprintf(D_ALWAYS, "%s", PQerrorMessage(connection));
+
+			dprintf(D_ALWAYS, "Deallocating connection resources to database '%s'\n", PQdb(connection));
+			PQfinish(connection);
+			connection = NULL;			
+			
 			return 0;
         }
 		//dprintf(D_ALWAYS, "right after calling PQconnectdb\n");
@@ -124,6 +129,12 @@ PGSQLDatabase::beginTransaction()
 	if (PQstatus(connection) == CONNECTION_OK)
 	{
 		result = PQexec(connection, "BEGIN");
+
+		if(result) {
+			PQclear(result);		
+			result = NULL;
+		}
+
 		return 1;
 	}
 	else {
@@ -141,6 +152,12 @@ PGSQLDatabase::commitTransaction()
 	if (PQstatus(connection) == CONNECTION_OK)
 	{
 		result = PQexec(connection, "COMMIT");
+
+		if(result) {
+			PQclear(result);		
+			result = NULL;
+		}
+
 		return 1;
 	}
 	else {
@@ -158,6 +175,12 @@ PGSQLDatabase::rollbackTransaction()
 	if (PQstatus(connection) == CONNECTION_OK)
 	{
 		result = PQexec(connection, "ROLLBACK");
+
+		if(result) {
+			PQclear(result);		
+			result = NULL;
+		}
+
 		return 1;
 	}
 	else
@@ -205,7 +228,10 @@ PGSQLDatabase::execCommand(const char* sql)
 			num_result = atoi(num_result_str);
 	}
 
-	PQclear(result);
+	if(result) {
+		PQclear(result);		
+		result = NULL;
+	}
 
 	return num_result;
 }
@@ -237,7 +263,12 @@ PGSQLDatabase::execQuery(const char* sql, PGresult*& result)
 			"[SQL EXECUTION ERROR] %s\n", PQerrorMessage(connection));
 		dprintf(D_ALWAYS, 
 			"[ERRONEOUS SQL: %s]\n", sql);
-		PQclear(result);
+
+		if(result) {
+			PQclear(result);		
+			result = NULL;
+		}
+
 		return -1;
 	}
 
@@ -308,6 +339,11 @@ PGSQLDatabase::sendBulkDataEnd()
 			PQclear(result);
 			return -1;
 		}
+	}
+
+	if(result) {
+		PQclear(result);		
+		result = NULL;
 	}
 
 	return 1;
