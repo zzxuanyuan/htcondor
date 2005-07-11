@@ -60,7 +60,7 @@ TEST_SUITE_BASE = test_suite_base
 		master.V6 negotiator.V6 schedd.V6 prio q.V6 rm.V6 \
 		scripts startd.V6 StdUnvProgs submit.V6 status.V6 \
 		tools kbdd collector.V6 PvmProgs dagman userlog Eventd \
-		GlobusProgs starter.V6.1 shadow.V6.1 dcskel c-gahp
+		GlobusProgs starter.V6.1 shadow.V6.1 dcskel c-gahp tt
 
 #define Libraries \
 		util_lib daemon_client classad c++_util condor_procapi/libprocapi.a \
@@ -189,6 +189,8 @@ object_target(schedd.V6)
 object_target(status.V6)
 object_target(dagman)
 object_target(userlog)
+object_target(tt)
+
 #if NEEDS_KBDD
    object_target(kbdd)
 #endif
@@ -301,6 +303,7 @@ pure_target(condor_collector.V6,condor_collector.pure)
 pure_target(condor_negotiator.V6,condor_negotiator.pure)
 pure_target(condor_dagman,condor_dagman.pure)
 
+pure_target(condor_tt,condor_tt.pure)
 
 ext_target(EXT_ZLIB_VERSION,$(NULL))
 #if WANT_EXT_GLIBC
