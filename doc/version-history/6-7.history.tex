@@ -13,7 +13,8 @@ The details of each version are described below.
 
 \begin{itemize}
 
-\item Add stuff here...
+\item This release contains all of the bug fixes and improvements from
+  the 6.6 stable series up to and including version 6.6.10.
 
 \end{itemize}
 
@@ -31,6 +32,10 @@ This currently works in the local, java, and vanilla universes.
 
 \item \Condor{submit} generates more precise error messages in 
 some failure cases.
+
+\item \Condor{hold}, \Condor{release} and \Condor{rm} now allow the user
+to change the HoldReason, ReleaseReason or RemoveReason with the -reason
+flag.
 
 \item \Condor{dagman} no longer does a one-second sleep before each
 submit if all node jobs have the same log file.  (The sleep is still
@@ -50,6 +55,8 @@ a hostname no longer causes the \Condor{master} to crash.
 
 \item The Condor-G Grid Monitor now works with Globus 4.0 pre-Web Services
 GRAM.
+
+\item Severl deadlocks in the Condor-C GAHP server have been fixed.
 
 \end{itemize}
 
