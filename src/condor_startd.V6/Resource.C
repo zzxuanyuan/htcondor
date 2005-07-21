@@ -1664,7 +1664,7 @@ Resource::dbInsert( ClassAd *cl )
 		// make a copy so that we can add timestamp attribute into it
 	clCopy = *cl;
 
-	sprintf(tmp, "LastHeardFrom = %d", (int)time(NULL));
+	snprintf(tmp, 512, "LastHeardFrom = %d", (int)time(NULL));
 	(&clCopy)->Insert(tmp);
 
 	dbh->file_newEvent("Machines", &clCopy);
