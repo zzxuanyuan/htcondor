@@ -223,14 +223,14 @@ int
 TTManager::event_maintain() 
 {
 	FILESQL *filesqlobj;
-	char *buf = (char *)0;
+	const char *buf = (char *)0;
 
 	int  buflength=0;
 	int  retval;
 	bool firststmt = true;
 	char optype[7], eventtype[EVENTTYPEMAX];
 	AttrList *ad = 0, *ad1 = 0;
-
+	MyString *line_buf = 0;
 	
 		/* copy event log files */	
 	for(int i=0; i < numLogs; i++) {
@@ -268,7 +268,6 @@ TTManager::event_maintain()
 
 		// notice we add 1 to numLogs because the last file is the special "thrown" file
 	for(int i=0; i < numLogs+1; i++) {
-		buf =(char *) malloc(2048 * sizeof(char));
 		filesqlobj = new FILESQL(sqlLogCopyList[i], O_CREAT|O_RDWR);
 
 		retval = filesqlobj->file_open();
@@ -284,10 +283,21 @@ TTManager::event_maintain()
 		}
 
 		firststmt = true;
-		while(filesqlobj->file_readline(buf) != EOF) {
+		line_buf = new MyString();
+		while(filesqlobj->file_readline(line_buf)) {
+			buf = line_buf->Value();
+
+				// if it is empty, we assume it's the end of log file
 			buflength = strlen(buf);
 			if(buflength == 0) {
 				break;
+			}
+
+				// if this is just a new line, just skip it
+			if (strcmp(buf, "\n") == 0) {
+				delete line_buf;
+				line_buf = (MyString *) 0;
+				continue;
 			}
 
 			if(firststmt) {
@@ -298,6 +308,9 @@ TTManager::event_maintain()
 				firststmt = false;
 			}
 
+				// init the optype and eventtype
+			strcpy(optype, "");
+			strcpy(eventtype, "");
 			sscanf(buf, "%7s %50s", optype, eventtype);
 
 			if (strcmp(optype, "NEW") == 0) {
@@ -350,6 +363,10 @@ TTManager::event_maintain()
 			} else {
 				dprintf(D_ALWAYS, "unknown optype in log: %s\n", optype);
 			}
+
+				// destroy the string object to reclaim memory
+			delete line_buf;
+			line_buf = new MyString();
 		}
 
 		if((retval = filesqlobj->file_truncate()) < 0) {
@@ -372,8 +389,10 @@ TTManager::event_maintain()
 			filesqlobj = NULL;
 		}
 
-		if (buf)
-			free(buf);
+		if (line_buf) {
+			delete line_buf;
+			line_buf = (MyString *)0;
+		}
 	}
 
 			// update the currency table
@@ -387,7 +406,7 @@ TTManager::event_maintain()
 	(void)time(  (time_t *)&clock );
 	tm = localtime( (time_t *)&clock );	
 
-	sprintf(lastupdate, "%d/%d/%d %02d:%02d:%02d %s", 
+	snprintf(lastupdate, 100, "%d/%d/%d %02d:%02d:%02d %s", 
 		  tm->tm_mon+1,
 		  tm->tm_mday,
 		  tm->tm_year+1900,
@@ -403,6 +422,7 @@ TTManager::event_maintain()
 	ret_st = DBObj->execCommand(sql_str);
 	if (ret_st <0) {
 		dprintf(D_ALWAYS, "Update currency --- ERROR [SQL] %s\n", sql_str);
+		goto DBERROR;
 	}
 
 	DBObj -> disconnectDB();
@@ -414,8 +434,9 @@ TTManager::event_maintain()
 		delete filesqlobj;
 	}
 	
-	if (buf)
-		free(buf);
+	if (line_buf) {
+		delete line_buf;
+	}
 
 	if (ad)
 		delete ad;
@@ -425,12 +446,15 @@ TTManager::event_maintain()
 	return 0;
 
  DBERROR:
+
+	dprintf(D_ALWAYS, "\t%s\n", DBObj->getDBError());
+
 	if(filesqlobj) {
 		delete filesqlobj;
 	}	
 	
-	if (buf) 
-		free(buf);
+	if (line_buf) 
+		delete line_buf;
 
 	if (ad)
 		delete ad;
@@ -1406,6 +1430,9 @@ static int file_checksum(char *filePathName, int fileSize, char *sum) {
 	char *data;
 	Condor_MD_MAC *checker = new Condor_MD_MAC();
 	unsigned char *checksum;
+
+	if (!filePathName || !sum) 
+		return FALSE;
 
 	fd = open(filePathName, O_RDONLY, 0);
 	if (fd < 0) {
