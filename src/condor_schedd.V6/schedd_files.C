@@ -26,6 +26,10 @@ bool schedd_file_checksum(
 	Condor_MD_MAC *checker = new Condor_MD_MAC();
 	unsigned char *checksum;
 
+		// sanith check
+	if (!filePathName || !sum) 
+		return FALSE;
+
 	fd = open(filePathName, O_RDONLY, 0);
 	if (fd < 0) {
 		dprintf(D_FULLDEBUG, "schedd_file_checksum: can't open %s\n", filePathName);
@@ -137,19 +141,19 @@ int schedd_files_ins_file(
 	ClassAd *tmpClP1 = &tmpCl1;
 	char tmp[512];
 
-	sprintf(tmp, "f_name = \"%s\"", fileName);
+	snprintf(tmp, 512, "f_name = \"%s\"", fileName);
 	tmpClP1->Insert(tmp);		
 
-	sprintf(tmp, "f_host = \"%s\"", fs_domain);
+	snprintf(tmp, 512, "f_host = \"%s\"", fs_domain);
 	tmpClP1->Insert(tmp);		
 
-	sprintf(tmp, "f_path = \"%s\"", path);
+	snprintf(tmp, 512, "f_path = \"%s\"", path);
 	tmpClP1->Insert(tmp);		
 
-	sprintf(tmp, "f_ts = \"%s\"", ascTime);
+	snprintf(tmp, 512, "f_ts = \"%s\"", ascTime);
 	tmpClP1->Insert(tmp);
 		
-	sprintf(tmp, "f_size = %d", fsize);
+	snprintf(tmp, 512, "f_size = %d", fsize);
 	tmpClP1->Insert(tmp);
 
 	retcode = FILEObj->file_newEvent("Files", tmpClP1);
@@ -169,22 +173,22 @@ void schedd_files_ins_usage(
 	ClassAd *tmpClP1 = &tmpCl1;
 	char tmp[512];
 
-	sprintf(tmp, "f_name = \"%s\"", fileName);
+	snprintf(tmp, 512, "f_name = \"%s\"", fileName);
 	tmpClP1->Insert(tmp);		
 
-	sprintf(tmp, "f_host = \"%s\"", fs_domain);
+	snprintf(tmp, 512, "f_host = \"%s\"", fs_domain);
 	tmpClP1->Insert(tmp);		
 
-	sprintf(tmp, "f_path = \"%s\"", path);
+	snprintf(tmp, 512, "f_path = \"%s\"", path);
 	tmpClP1->Insert(tmp);		
 
-	sprintf(tmp, "f_ts = \"%s\"", ascTime);
+	snprintf(tmp, 512, "f_ts = \"%s\"", ascTime);
 	tmpClP1->Insert(tmp);
 
-	sprintf(tmp, "globalJobId = \"%s\"", globalJobId);
+	snprintf(tmp, 512, "globalJobId = \"%s\"", globalJobId);
 	tmpClP1->Insert(tmp);
 	
-	sprintf(tmp, "type = \"%s\"", type);
+	snprintf(tmp, 512, "type = \"%s\"", type);
 	tmpClP1->Insert(tmp);
 
 	FILEObj->file_newEvent("Fileusages", tmpClP1);
