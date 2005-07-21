@@ -1786,7 +1786,7 @@ void Matchmaker::insert_into_rejects(char *userName, ClassAd& job, ClassAd& mach
 	get_scheddname_from_gjid(globaljobid,scheddName);
 	machine.LookupString(ATTR_NAME, startdname);
 
-	sprintf(rejectts, "%d/%d/%d %02d:%02d:%02d %s", 
+	snprintf(rejectts, 100, "%d/%d/%d %02d:%02d:%02d %s", 
 		  tm->tm_mon+1,
 		  tm->tm_mday,
 		  tm->tm_year+1900,
@@ -1795,28 +1795,28 @@ void Matchmaker::insert_into_rejects(char *userName, ClassAd& job, ClassAd& mach
 		  tm->tm_sec,
 		  tm->tm_zone);
 
-	sprintf(tmp, "reject_time = \"%s\"", rejectts);
+	snprintf(tmp, 512, "reject_time = \"%s\"", rejectts);
 	tmpClP->Insert(tmp);
 	
-	sprintf(tmp, "username = \"%s\"", userName);
+	snprintf(tmp, 512, "username = \"%s\"", userName);
 	tmpClP->Insert(tmp);
 		
-	sprintf(tmp, "scheddname = \"%s\"", scheddName);
+	snprintf(tmp, 512, "scheddname = \"%s\"", scheddName);
 	tmpClP->Insert(tmp);
 	
-	sprintf(tmp, "cluster = %d", cluster);
+	snprintf(tmp, 512, "cluster = %d", cluster);
 	tmpClP->Insert(tmp);
 
-	sprintf(tmp, "proc = %d", proc);
+	snprintf(tmp, 512, "proc = %d", proc);
 	tmpClP->Insert(tmp);
 
-	sprintf(tmp, "GlobalJobId = \"%s\"", globaljobid);
+	snprintf(tmp, 512, "GlobalJobId = \"%s\"", globaljobid);
 	tmpClP->Insert(tmp);
 	
-	sprintf(tmp, "startdname = \"%s\"", startdname);
+	snprintf(tmp, 512, "startdname = \"%s\"", startdname);
 	tmpClP->Insert(tmp);
 	
-	sprintf(tmp, "diagnosis = \"%s\"", diagnosis);
+	snprintf(tmp, 512, "diagnosis = \"%s\"", diagnosis);
 	tmpClP->Insert(tmp);
 	
 	FILEObj->file_newEvent("Rejects", tmpClP);
@@ -1845,7 +1845,7 @@ void Matchmaker::insert_into_matches(char * userName,ClassAd& request, ClassAd& 
 	get_scheddname_from_gjid(globaljobid,scheddName);
 	offer.LookupString( ATTR_NAME, startdname); 
 
-	sprintf(matchts, "%d/%d/%d %02d:%02d:%02d %s", 
+	snprintf(matchts, 100, "%d/%d/%d %02d:%02d:%02d %s", 
 		  tm->tm_mon+1,
 		  tm->tm_mday,
 		  tm->tm_year+1900,
@@ -1854,35 +1854,35 @@ void Matchmaker::insert_into_matches(char * userName,ClassAd& request, ClassAd& 
 		  tm->tm_sec,
 		  tm->tm_zone);
 	
-	sprintf(tmp, "match_time = \"%s\"", matchts);
+	snprintf(tmp, 512, "match_time = \"%s\"", matchts);
 	tmpClP->Insert(tmp);
 	
-	sprintf(tmp, "username = \"%s\"", userName);
+	snprintf(tmp, 512, "username = \"%s\"", userName);
 	tmpClP->Insert(tmp);
 		
-	sprintf(tmp, "scheddname = \"%s\"", scheddName);
+	snprintf(tmp, 512, "scheddname = \"%s\"", scheddName);
 	tmpClP->Insert(tmp);
 	
-	sprintf(tmp, "cluster = %d", cluster);
+	snprintf(tmp, 512, "cluster = %d", cluster);
 	tmpClP->Insert(tmp);
 
-	sprintf(tmp, "proc = %d", proc);
+	snprintf(tmp, 512, "proc = %d", proc);
 	tmpClP->Insert(tmp);
 
-	sprintf(tmp, "GlobalJobId = \"%s\"", globaljobid);
+	snprintf(tmp, 512, "GlobalJobId = \"%s\"", globaljobid);
 	tmpClP->Insert(tmp);
 
-	sprintf(tmp, "startdname = \"%s\"", startdname);
+	snprintf(tmp, 512, "startdname = \"%s\"", startdname);
 	tmpClP->Insert(tmp);
 
 	if(offer.LookupString( ATTR_REMOTE_USER, remote_user) != 0)
 	{
 		remote_prio = (float) accountant.GetPriority(remote_user);
 
-		sprintf(tmp, "remote_user = \"%s\"", remote_user);
+		snprintf(tmp, 512, "remote_user = \"%s\"", remote_user);
 		tmpClP->Insert(tmp);
 
-		sprintf(tmp, "remote_priority = %f", remote_prio);
+		snprintf(tmp, 512, "remote_priority = %f", remote_prio);
 		tmpClP->Insert(tmp);
 	}
 	
