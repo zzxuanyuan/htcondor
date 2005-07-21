@@ -15,23 +15,27 @@
 // there we can create a database connection in the  main function of daemon process.
 FILESQL *FILEObj = 0;
 //extern int errno;
+
 FILESQL::FILESQL()
 {
 	is_open = false;
 	is_locked = false;
-	strcpy(outfilename,"");
+	outfilename = (char *) 0;
 	fileflags = O_WRONLY|O_CREAT|O_APPEND;
 	outfiledes = -1;
 	fp = NULL;
+	lock = (FileLock *)0;
 }
+
 FILESQL::FILESQL(char *outfilename, int flags)
 {
 	is_open = false;
 	is_locked = false;
-	strncpy(this->outfilename,outfilename,256);
+	this->outfilename = strdup(outfilename);
 	fileflags = flags;
 	outfiledes = -1;
 	fp = NULL;
+	lock = (FileLock *)0;
 }
 
 FILESQL::~FILESQL()
@@ -40,7 +44,7 @@ FILESQL::~FILESQL()
 		file_close();
 	is_open = false;
 	is_locked = false;
-	strcpy(this->outfilename,"");
+	if (outfilename) free(outfilename);
 	outfiledes = -1;
 	fp = NULL;
 }
@@ -57,21 +61,31 @@ bool FILESQL::file_islocked()
 
 int FILESQL::file_truncate() {
 	int retval;
+
 	if(!file_isopen()) {
 		dprintf(D_ALWAYS, "Error calling truncate: the file needs to be first opened\n");
 		return -1;
 	}
+
 	retval = ftruncate(outfiledes, 0);
+
 	if(retval < 0) {
 		dprintf(D_ALWAYS, "Error calling ftruncate, errno = %d\n", errno);
 		return -1;
 	}
+
 	return 1;
 }
 
 long FILESQL::file_open()
 {
+	if (!outfilename) {
+		dprintf(D_ALWAYS,"No SQL log file specified");
+		return -1;
+	}
+
 	outfiledes = open(outfilename,fileflags,0644);
+
 	if(outfiledes < 0)
 	{
 		dprintf(D_ALWAYS,"Error opening SQL log file %s : %s",outfilename,strerror(errno));
@@ -89,7 +103,14 @@ long FILESQL::file_open()
 long FILESQL::file_close()
 {
 	int retval =0;
-	delete lock; /* This also releases the lock on the file, were it held */
+	
+	if (!is_open)
+		return retval;
+
+	if (lock) {
+		delete lock; /* This also releases the lock on the file, were it held */
+		lock  = (FileLock *)0;
+	}
 
 		// fp is associated with the outfiledes, we should be closing one or the other, 
 		// but not both. Otherwise the second one will give an error 
@@ -127,6 +148,7 @@ long FILESQL::file_lock()
 	}
 	else
 		is_locked = true;
+
 	return 0;
 }
 
@@ -137,6 +159,7 @@ long FILESQL::file_unlock()
 		dprintf(D_ALWAYS,"Error unlocking :SQL log file %s not open yet",outfilename);
 		return -1;
 	}
+
 	if(!is_locked)
 		return 0;
 
@@ -147,16 +170,18 @@ long FILESQL::file_unlock()
 	}
 	else
 		is_locked = false;
+
 	return 0;
 }
 
-int FILESQL::file_readline(char *buf) 
+int FILESQL::file_readline(MyString *buf) 
 {
 	if(!fp)
 		fp = fdopen(outfiledes, "r");
 
-		// we need to fix this potential buffer overflow problem later once we have a good solution.
-	return fscanf(fp, " %[^\n]", buf);
+	return (buf->readLine(fp, true));
+
+		//return fscanf(fp, " %[^\n]", buf);
 }
 
 AttrList *FILESQL::file_readAttrList() 
@@ -265,6 +290,7 @@ long FILESQL::file_updateEvent(const char *eventType, AttrList *info, AttrList *
 	return retval;	
 }
 
+#if 0
 long FILESQL::file_deleteEvent(const char *eventType, AttrList *condition) {
 	int retval = 0;
 
@@ -296,35 +322,47 @@ long FILESQL::file_deleteEvent(const char *eventType, AttrList *condition) {
 
 	return retval;	
 }
+#endif
 
-FILESQL *createInstance() 
-{ 
-/* Passing paramName is a hack to get around reading the right parameter depending on daemon name */
+FILESQL *createInstance() { 
 	FILESQL *ptr = NULL;
 	int retval;
-	char *tmp, outfilename[100];
-	char tmpParamName[50];
+	char *tmp, *outfilename;
+	char *tmpParamName;
+	const char *daemon_name;
 	
-	/* Parse FILESQL Params */
-	sprintf(tmpParamName, "%s_SQLLOG", get_mySubSystem());
+	daemon_name = get_mySubSystem();
+
+	tmpParamName = (char *)malloc(10+strlen(daemon_name));
+
+		/* build parameter name based on the daemon name */
+	sprintf(tmpParamName, "%s_SQLLOG", daemon_name);
 	tmp = param(tmpParamName);
+	free(tmpParamName);
+
 	if( tmp ) {
-		strncpy(outfilename, tmp, 99);
-		free(tmp);
+		outfilename = tmp;
 	}
 	else {
 		tmp = param ("LOG");		
 
 		if (tmp) {
+			outfilename = (char *)malloc(strlen(tmp) + 10);
 			sprintf(outfilename, "%s/sql.log", tmp);
-			free(tmp);			
+			free(tmp);
 		}
-		else
+		else {
+			outfilename = (char *)malloc(10);
 			sprintf(outfilename, "sql.log");
+		}
 	}
+
 	ptr = new FILESQL(outfilename, O_WRONLY|O_CREAT|O_APPEND);
 
+	free(outfilename);
+
 	retval = ptr->file_open();
+
 	if (retval < 0) 
 	{
 		dprintf(D_ALWAYS, "FILESQL createInstance failed\n");

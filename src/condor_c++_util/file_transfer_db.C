@@ -37,7 +37,7 @@ void file_transfer_db(file_transfer_record *rp, ClassAd *ad)
 		return;
 
 		// check if we are in starter process
-	if (strcmp(mySubSystem, "STARTER") == 0)
+	if (mySubSystem && strcmp(mySubSystem, "STARTER") == 0)
 		inStarter = TRUE;
 
 		// globalJobId, it should be freed later
@@ -54,13 +54,13 @@ void file_transfer_db(file_transfer_record *rp, ClassAd *ad)
 	src_host[0] = '\0';
 	if (rp->sockp && 
 		(tmpp = sin_to_hostname(rp->sockp->endpoint(), NULL))) {
-		sprintf(src_host, "%s", tmpp);
+		snprintf(src_host, MAXMACHNAME, "%s", tmpp);
 	}
 
 		// src_name, src_path
-	if (inStarter && (strcmp(dst_name, CONDOR_EXEC) == 0)) {
+	if (inStarter && dst_name && (strcmp(dst_name, CONDOR_EXEC) == 0)) {
 		ad->LookupString(ATTR_ORIG_JOB_CMD, &job_name);
-		if (fullpath(job_name)) {
+		if (job_name && fullpath(job_name)) {
 			src_name = basename(job_name);
 			src_path = dirname(job_name);
 		} else
@@ -77,31 +77,31 @@ void file_transfer_db(file_transfer_record *rp, ClassAd *ad)
 			ad->LookupString(ATTR_JOB_IWD, &src_path);
 	}
 
-	sprintf(tmp, "globalJobId = \"%s\"", globalJobId);
+	snprintf(tmp, 512, "globalJobId = \"%s\"", globalJobId);
 	tmpClP1->Insert(tmp);			
 	
-	sprintf(tmp, "src_name = \"%s\"", src_name);
+	snprintf(tmp, 512, "src_name = \"%s\"", src_name);
 	tmpClP1->Insert(tmp);
 
-	sprintf(tmp, "src_host = \"%s\"", src_host);
+	snprintf(tmp, 512, "src_host = \"%s\"", src_host);
 	tmpClP1->Insert(tmp);
 
-	sprintf(tmp, "src_path = \"%s\"", src_path);
+	snprintf(tmp, 512, "src_path = \"%s\"", src_path);
 	tmpClP1->Insert(tmp);
 
-	sprintf(tmp, "dst_name = \"%s\"", dst_name);
+	snprintf(tmp, 512, "dst_name = \"%s\"", dst_name);
 	tmpClP1->Insert(tmp);
 
-	sprintf(tmp, "dst_host = \"%s\"", dst_host);
+	snprintf(tmp, 512, "dst_host = \"%s\"", dst_host);
 	tmpClP1->Insert(tmp);
 
-	sprintf(tmp, "dst_path = \"%s\"", dst_path);
+	snprintf(tmp, 512, "dst_path = \"%s\"", dst_path);
 	tmpClP1->Insert(tmp);
 
-	sprintf(tmp, "size = %d", (int)rp->bytes);
+	snprintf(tmp, 512, "size = %d", (int)rp->bytes);
 	tmpClP1->Insert(tmp);
 
-	sprintf(tmp, "elapsed = %d", (int)rp->elapsed);
+	snprintf(tmp, 512, "elapsed = %d", (int)rp->elapsed);
 	tmpClP1->Insert(tmp);
 
 	FILEObj->file_newEvent("Transfers", tmpClP1);

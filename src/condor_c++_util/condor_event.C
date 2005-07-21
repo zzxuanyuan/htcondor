@@ -1102,11 +1102,11 @@ RemoteErrorEvent::writeEvent(FILE *file)
 	
 	ClassAd tmpCl1, tmpCl2;
 	ClassAd *tmpClP1 = &tmpCl1, *tmpClP2 = &tmpCl2;
-	char tmp[512];
+	char tmp[1024];
 	char eventts[100];
 	int retval;
 
-	sprintf(messagestr,  "Remote %s from %s on %s",
+	snprintf(messagestr,  512, "Remote %s from %s on %s",
 			error_type,
 			daemon_name,
 			execute_host);
@@ -1118,7 +1118,7 @@ RemoteErrorEvent::writeEvent(FILE *file)
 	if(!critical_error) error_type = "Warning";
 
 	if (critical_error) {
-		sprintf(eventts, "%d-%02d-%02d %02d:%02d:%02d %s", 
+		snprintf(eventts, 100, "%d-%02d-%02d %02d:%02d:%02d %s", 
 				eventTime.tm_year+1900,
 				eventTime.tm_mon+1,
 				eventTime.tm_mday,
@@ -1127,35 +1127,35 @@ RemoteErrorEvent::writeEvent(FILE *file)
 				eventTime.tm_sec,
 				eventTime.tm_zone);		
 		
-		sprintf(tmp, "endts = \"%s\"", eventts);
+		snprintf(tmp, 1024, "endts = \"%s\"", eventts);
 		tmpClP1->Insert(tmp);		
 		
-		sprintf(tmp, "endtype = %d", ULOG_REMOTE_ERROR);
+		snprintf(tmp, 1024, "endtype = %d", ULOG_REMOTE_ERROR);
 		tmpClP1->Insert(tmp);
 		
-		sprintf(tmp, "endmessage = \"%s\"", messagestr);
+		snprintf(tmp, 1024, "endmessage = \"%s\"", messagestr);
 		tmpClP1->Insert(tmp);
 		
-		sprintf(tmp, "scheddname = \"%s\"", scheddname);
+		snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
 		tmpClP2->Insert(tmp);
   
-		sprintf(tmp, "cid = %d", cluster);
+		snprintf(tmp, 1024, "cid = %d", cluster);
 		tmpClP2->Insert(tmp);
 
-		sprintf(tmp, "pid = %d", proc);
+		snprintf(tmp, 1024, "pid = %d", proc);
 		tmpClP2->Insert(tmp);
 
-		sprintf(tmp, "spid = %d", subproc);
+		snprintf(tmp, 1024, "spid = %d", subproc);
 		tmpClP2->Insert(tmp);
 
-		sprintf(tmp, "endtype = null");
+		snprintf(tmp, 1024, "endtype = null");
 		tmpClP2->Insert(tmp);
 
 			// critical error means this run is ended.  
 		retval = FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2);		
 	} else {
 		
-		sprintf(eventts, "%d-%02d-%02d %02d:%02d:%02d %s", 
+		snprintf(eventts, 100, "%d-%02d-%02d %02d:%02d:%02d %s", 
 				eventTime.tm_year+1900,
 				eventTime.tm_mon+1,
 				eventTime.tm_mday,
@@ -1164,25 +1164,25 @@ RemoteErrorEvent::writeEvent(FILE *file)
 				eventTime.tm_sec,
 				eventTime.tm_zone);		
 		
-		sprintf(tmp, "scheddname = \"%s\"", scheddname);
+		snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
 		tmpClP1->Insert(tmp);		
 
-		sprintf(tmp, "cid = %d", cluster);
+		snprintf(tmp, 1024, "cid = %d", cluster);
 		tmpClP1->Insert(tmp);		
 
-		sprintf(tmp, "pid = %d", proc);
+		snprintf(tmp, 1024, "pid = %d", proc);
 		tmpClP1->Insert(tmp);		
 
-		sprintf(tmp, "spid = %d", subproc);
+		snprintf(tmp, 1024, "spid = %d", subproc);
 		tmpClP1->Insert(tmp);				
 
-		sprintf(tmp, "eventtype = %d", ULOG_REMOTE_ERROR);
+		snprintf(tmp, 1024, "eventtype = %d", ULOG_REMOTE_ERROR);
 		tmpClP1->Insert(tmp);
 		
-		sprintf(tmp, "eventtime = \"%s\"", eventts);
+		snprintf(tmp, 1024, "eventtime = \"%s\"", eventts);
 		tmpClP1->Insert(tmp);	
 		
-		sprintf(tmp, "description = \"%s\"", messagestr);
+		snprintf(tmp, 1024, "description = \"%s\"", messagestr);
 		tmpClP1->Insert(tmp);	
 				
 		retval = FILEObj->file_newEvent("Events", tmpClP1);
@@ -1417,7 +1417,7 @@ writeEvent (FILE *file)
     strcpy(executehostname, executeHost);
   }
 
-  sprintf(eventts, "%d-%02d-%02d %02d:%02d:%02d %s", 
+  snprintf(eventts, 100, "%d-%02d-%02d %02d:%02d:%02d %s", 
 		  eventTime.tm_year+1900,
 		  eventTime.tm_mon+1,
 		  eventTime.tm_mday,
@@ -1426,28 +1426,28 @@ writeEvent (FILE *file)
 		  eventTime.tm_sec,
 		  eventTime.tm_zone);
 
-  sprintf(tmp, "endts = \"%s\"", eventts);
+  snprintf(tmp, 512, "endts = \"%s\"", eventts);
   tmpClP1->Insert(tmp);
 
-  sprintf(tmp, "endtype = -1");
+  snprintf(tmp, 512, "endtype = -1");
   tmpClP1->Insert(tmp);
 
-  sprintf(tmp, "endmessage = \"UNKNOWN ERROR\"");
+  snprintf(tmp, 512, "endmessage = \"UNKNOWN ERROR\"");
   tmpClP1->Insert(tmp);
  
-  sprintf(tmp, "scheddname = \"%s\"", scheddname);
+  snprintf(tmp, 512, "scheddname = \"%s\"", scheddname);
   tmpClP2->Insert(tmp);
   
-  sprintf(tmp, "cid = %d", cluster);
+  snprintf(tmp, 512, "cid = %d", cluster);
   tmpClP2->Insert(tmp);
 
-  sprintf(tmp, "pid = %d", proc);
+  snprintf(tmp, 512, "pid = %d", proc);
   tmpClP2->Insert(tmp);
 
-  sprintf(tmp, "spid = %d", subproc);
+  snprintf(tmp, 512, "spid = %d", subproc);
   tmpClP2->Insert(tmp);
 
-  sprintf(tmp, "endtype = null");
+  snprintf(tmp, 512, "endtype = null");
   tmpClP2->Insert(tmp);
   
   retval = FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2);
@@ -1457,22 +1457,22 @@ writeEvent (FILE *file)
     return 0; // return a error code, 0
   }
 
-  sprintf(tmp, "machine_id = \"%s\"", executehostname);
+  snprintf(tmp, 512, "machine_id = \"%s\"", executehostname);
   tmpClP3->Insert(tmp);
 
-  sprintf(tmp, "scheddname = \"%s\"", scheddname);
+  snprintf(tmp, 512, "scheddname = \"%s\"", scheddname);
   tmpClP3->Insert(tmp);
 
-  sprintf(tmp, "cid = %d", cluster);
+  snprintf(tmp, 512, "cid = %d", cluster);
   tmpClP3->Insert(tmp);
   
-  sprintf(tmp, "pid = %d", proc);
+  snprintf(tmp, 512, "pid = %d", proc);
   tmpClP3->Insert(tmp);
   
-  sprintf(tmp, "spid = %d", subproc);
+  snprintf(tmp, 512, "spid = %d", subproc);
   tmpClP3->Insert(tmp);
 
-  sprintf(tmp, "startts = \"%s\"", eventts);
+  snprintf(tmp, 512, "startts = \"%s\"", eventts);
   tmpClP3->Insert(tmp);
 
   retval = FILEObj->file_newEvent("Runs", tmpClP3);
@@ -1552,14 +1552,14 @@ writeEvent (FILE *file)
 	char messagestr[512];
 	ClassAd tmpCl1, tmpCl2;
 	ClassAd *tmpClP1 = &tmpCl1, *tmpClP2 = &tmpCl2;
-	char tmp[512];
+	char tmp[1024];
 	char eventts[100];
 
 	dprintf(D_ALWAYS, "just before initializing scheddname in ExecutableErrorEvent\n");
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
 	dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
-	sprintf(eventts, "%d-%02d-%02d %02d:%02d:%02d %s", 
+	snprintf(eventts, 100, "%d-%02d-%02d %02d:%02d:%02d %s", 
 			eventTime.tm_year+1900,
 			eventTime.tm_mon+1,
 			eventTime.tm_mday,
@@ -1568,28 +1568,28 @@ writeEvent (FILE *file)
 			eventTime.tm_sec,
 			eventTime.tm_zone);		
 		
-	sprintf(tmp, "endts = \"%s\"", eventts);
+	snprintf(tmp, 1024, "endts = \"%s\"", eventts);
 	tmpClP1->Insert(tmp);		
 		
-	sprintf(tmp, "endtype = %d", ULOG_EXECUTABLE_ERROR);
+	snprintf(tmp, 1024, "endtype = %d", ULOG_EXECUTABLE_ERROR);
 	tmpClP1->Insert(tmp);
 		
-	sprintf(tmp, "endmessage = \"%s\"", messagestr);
+	snprintf(tmp, 1024, "endmessage = \"%s\"", messagestr);
 	tmpClP1->Insert(tmp);
 		
-	sprintf(tmp, "scheddname = \"%s\"", scheddname);
+	snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
 	tmpClP2->Insert(tmp);
   
-	sprintf(tmp, "cid = %d", cluster);
+	snprintf(tmp, 1024, "cid = %d", cluster);
 	tmpClP2->Insert(tmp);
 
-	sprintf(tmp, "pid = %d", proc);
+	snprintf(tmp, 1024, "pid = %d", proc);
 	tmpClP2->Insert(tmp);
 
-	sprintf(tmp, "spid = %d", subproc);
+	snprintf(tmp, 1024, "spid = %d", subproc);
 	tmpClP2->Insert(tmp);
 
-	sprintf(tmp, "endtype = null");
+	snprintf(tmp, 1024, "endtype = null");
 	tmpClP2->Insert(tmp);
   
 	retval = FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2);
@@ -1701,7 +1701,7 @@ writeEvent (FILE *file)
 	char messagestr[512];
 	ClassAd tmpCl1;
 	ClassAd *tmpClP1 = &tmpCl1;
-	char tmp[512];
+	char tmp[1024];
 	char eventts[100];
 	int retval;
 
@@ -1711,7 +1711,7 @@ writeEvent (FILE *file)
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
 	dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
-	sprintf(eventts, "%d-%02d-%02d %02d:%02d:%02d %s", 
+	snprintf(eventts, 100, "%d-%02d-%02d %02d:%02d:%02d %s", 
 			eventTime.tm_year+1900,
 			eventTime.tm_mon+1,
 			eventTime.tm_mday,
@@ -1720,25 +1720,25 @@ writeEvent (FILE *file)
 			eventTime.tm_sec,
 			eventTime.tm_zone);		
 		
-	sprintf(tmp, "scheddname = \"%s\"", scheddname);
+	snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
 	tmpClP1->Insert(tmp);		
 	
-	sprintf(tmp, "cid = %d", cluster);
+	snprintf(tmp, 1024, "cid = %d", cluster);
 	tmpClP1->Insert(tmp);		
 	
-	sprintf(tmp, "pid = %d", proc);
+	snprintf(tmp, 1024, "pid = %d", proc);
 	tmpClP1->Insert(tmp);		
 	
-	sprintf(tmp, "spid = %d", subproc);
+	snprintf(tmp, 1024, "spid = %d", subproc);
 	tmpClP1->Insert(tmp);		
 
-	sprintf(tmp, "eventtype = %d", ULOG_CHECKPOINTED);
+	snprintf(tmp, 1024, "eventtype = %d", ULOG_CHECKPOINTED);
 	tmpClP1->Insert(tmp);
 		
-	sprintf(tmp, "eventtime = \"%s\"", eventts);
+	snprintf(tmp, 1024, "eventtime = \"%s\"", eventts);
 	tmpClP1->Insert(tmp);	
 	
-	sprintf(tmp, "description = \"%s\"", messagestr);
+	snprintf(tmp, 1024, "description = \"%s\"", messagestr);
 	tmpClP1->Insert(tmp);	
 				
 	retval = FILEObj->file_newEvent("Events", tmpClP1);
@@ -2000,7 +2000,7 @@ JobEvictedEvent::writeEvent( FILE *file )
   char *messagestr, *checkpointedstr, *terminatestr;
   ClassAd tmpCl1, tmpCl2;
   ClassAd *tmpClP1 = &tmpCl1, *tmpClP2 = &tmpCl2;
-  char tmp[512];
+  char tmp[1024];
   char eventts[100];
   
   //JobAd is defined in condor_shadow.V6/log_events.C and is simply
@@ -2098,7 +2098,7 @@ JobEvictedEvent::writeEvent( FILE *file )
   scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
   dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
   
-  sprintf(eventts, "%d-%02d-%02d %02d:%02d:%02d %s", 
+  snprintf(eventts, 100, "%d-%02d-%02d %02d:%02d:%02d %s", 
 		  eventTime.tm_year+1900,
 		  eventTime.tm_mon+1,
 		  eventTime.tm_mday,
@@ -2107,37 +2107,37 @@ JobEvictedEvent::writeEvent( FILE *file )
 		  eventTime.tm_sec,
 		  eventTime.tm_zone);		
 		
-  sprintf(tmp, "endts = \"%s\"", eventts);
+  snprintf(tmp, 1024, "endts = \"%s\"", eventts);
   tmpClP1->Insert(tmp);		
 		
-  sprintf(tmp, "endtype = %d", ULOG_JOB_EVICTED);
+  snprintf(tmp, 1024, "endtype = %d", ULOG_JOB_EVICTED);
   tmpClP1->Insert(tmp);
 		
-  sprintf(tmp, "endmessage = \"%s%s\"", messagestr, terminatestr);
+  snprintf(tmp, 1024, "endmessage = \"%s%s\"", messagestr, terminatestr);
   tmpClP1->Insert(tmp);
 		
-  sprintf(tmp, "wascheckpointed = \"%s\"", checkpointedstr);
+  snprintf(tmp, 1024, "wascheckpointed = \"%s\"", checkpointedstr);
   tmpClP1->Insert(tmp);
 
-  sprintf(tmp, "runbytessent = %f", sent_bytes);
+  snprintf(tmp, 1024, "runbytessent = %f", sent_bytes);
   tmpClP1->Insert(tmp);
 
-  sprintf(tmp, "runbytesreceived = %f", recvd_bytes);
+  snprintf(tmp, 1024, "runbytesreceived = %f", recvd_bytes);
   tmpClP1->Insert(tmp);
 
-  sprintf(tmp, "scheddname = \"%s\"", scheddname);
+  snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
   tmpClP2->Insert(tmp);
   
-  sprintf(tmp, "cid = %d", cluster);
+  snprintf(tmp, 1024, "cid = %d", cluster);
   tmpClP2->Insert(tmp);
 
-  sprintf(tmp, "pid = %d", proc);
+  snprintf(tmp, 1024, "pid = %d", proc);
   tmpClP2->Insert(tmp);
 
-  sprintf(tmp, "spid = %d", subproc);
+  snprintf(tmp, 1024, "spid = %d", subproc);
   tmpClP2->Insert(tmp);
 	
-  sprintf(tmp, "endtype = null");
+  snprintf(tmp, 1024, "endtype = null");
   tmpClP2->Insert(tmp);
   
   retval = FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2);
@@ -2313,7 +2313,7 @@ writeEvent (FILE *file)
 	char messagestr[512];
 	ClassAd tmpCl1;
 	ClassAd *tmpClP1 = &tmpCl1;
-	char tmp[512];
+	char tmp[1024];
 	char eventts[100];
 	int retval;
 
@@ -2322,11 +2322,11 @@ writeEvent (FILE *file)
 	dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
 	if (reason)
-		sprintf(messagestr,  "Job was aborted by the user: %s", reason);
+		snprintf(messagestr,  512, "Job was aborted by the user: %s", reason);
 	else 
 		sprintf(messagestr,  "Job was aborted by the user");
 
-	sprintf(eventts, "%d-%02d-%02d %02d:%02d:%02d %s", 
+	snprintf(eventts, 100, "%d-%02d-%02d %02d:%02d:%02d %s", 
 			eventTime.tm_year+1900,
 			eventTime.tm_mon+1,
 			eventTime.tm_mday,
@@ -2335,25 +2335,25 @@ writeEvent (FILE *file)
 			eventTime.tm_sec,
 			eventTime.tm_zone);		
 		
-	sprintf(tmp, "scheddname = \"%s\"", scheddname);
+	snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
 	tmpClP1->Insert(tmp);		
 	
-	sprintf(tmp, "cid = %d", cluster);
+	snprintf(tmp, 1024, "cid = %d", cluster);
 	tmpClP1->Insert(tmp);		
 	
-	sprintf(tmp, "pid = %d", proc);
+	snprintf(tmp, 1024, "pid = %d", proc);
 	tmpClP1->Insert(tmp);		
 	
-	sprintf(tmp, "spid = %d", subproc);
+	snprintf(tmp, 1024, "spid = %d", subproc);
 	tmpClP1->Insert(tmp);		
 
-	sprintf(tmp, "eventtype = %d", ULOG_JOB_ABORTED);
+	snprintf(tmp, 1024, "eventtype = %d", ULOG_JOB_ABORTED);
 	tmpClP1->Insert(tmp);
 		
-	sprintf(tmp, "eventtime = \"%s\"", eventts);
+	snprintf(tmp, 1024, "eventtime = \"%s\"", eventts);
 	tmpClP1->Insert(tmp);	
 	
-	sprintf(tmp, "description = \"%s\"", messagestr);
+	snprintf(tmp, 1024, "description = \"%s\"", messagestr);
 	tmpClP1->Insert(tmp);	
 				
 	retval = FILEObj->file_newEvent("Events", tmpClP1);
@@ -2481,7 +2481,7 @@ TerminatedEvent::writeEvent( FILE *file, const char* header )
   char *messagestr;
   ClassAd tmpCl1, tmpCl2;
   ClassAd *tmpClP1 = &tmpCl1, *tmpClP2 = &tmpCl2;
-  char tmp[512];
+  char tmp[1024];
   char eventts[100];
 
   //JobAd is defined in condor_shadow.V6/log_events.C and is simply
@@ -2544,7 +2544,7 @@ TerminatedEvent::writeEvent( FILE *file, const char* header )
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
 	dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
-	sprintf(eventts, "%d-%02d-%02d %02d:%02d:%02d %s",
+	snprintf(eventts, 100, "%d-%02d-%02d %02d:%02d:%02d %s",
 			eventTime.tm_year+1900,
 			eventTime.tm_mon+1,
 			eventTime.tm_mday,
@@ -2553,28 +2553,28 @@ TerminatedEvent::writeEvent( FILE *file, const char* header )
 			eventTime.tm_sec,
 			eventTime.tm_zone);
 
-	sprintf(tmp, "endmessage = \"%s\"", messagestr);
+	snprintf(tmp, 1024, "endmessage = \"%s\"", messagestr);
 	tmpClP1->Insert(tmp);
 	
-	sprintf(tmp, "runbytessent = %f", sent_bytes);
+	snprintf(tmp, 1024, "runbytessent = %f", sent_bytes);
 	tmpClP1->Insert(tmp);	
 	
-	sprintf(tmp, "runbytesreceived = %f", recvd_bytes);
+	snprintf(tmp, 1024, "runbytesreceived = %f", recvd_bytes);
 	tmpClP1->Insert(tmp);	
 	
-	sprintf(tmp, "scheddname = \"%s\"", scheddname);
+	snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
 	tmpClP2->Insert(tmp);	
 
-	sprintf(tmp, "cid = %d", cluster);
+	snprintf(tmp, 1024, "cid = %d", cluster);
 	tmpClP2->Insert(tmp);
 
-	sprintf(tmp, "pid = %d", proc);
+	snprintf(tmp, 1024, "pid = %d", proc);
 	tmpClP2->Insert(tmp);
 
-	sprintf(tmp, "spid = %d", subproc);
+	snprintf(tmp, 1024, "spid = %d", subproc);
 	tmpClP2->Insert(tmp);
 	
-	sprintf(tmp, "endts = \"%s\"", eventts);
+	snprintf(tmp, 1024, "endts = \"%s\"", eventts);
 	tmpClP2->Insert(tmp);
 
 	retval = FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2);
@@ -2686,7 +2686,7 @@ JobTerminatedEvent::writeEvent (FILE *file)
   scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
   dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
-  sprintf(eventts, "%d-%02d-%02d %02d:%02d:%02d %s",
+  snprintf(eventts, 100, "%d-%02d-%02d %02d:%02d:%02d %s",
 		  eventTime.tm_year+1900,
 		  eventTime.tm_mon+1,
 		  eventTime.tm_mday,
@@ -2695,25 +2695,25 @@ JobTerminatedEvent::writeEvent (FILE *file)
 		  eventTime.tm_sec,
 		  eventTime.tm_zone);
   
-  sprintf(tmp, "endts = \"%s\"", eventts);
+  snprintf(tmp, 1024, "endts = \"%s\"", eventts);
   tmpClP1->Insert(tmp);
   
-  sprintf(tmp, "endtype = %d", ULOG_JOB_TERMINATED);
+  snprintf(tmp, 1024, "endtype = %d", ULOG_JOB_TERMINATED);
   tmpClP1->Insert(tmp);  
 	
-  sprintf(tmp, "scheddname = \"%s\"", scheddname);
+  snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
   tmpClP2->Insert(tmp);	
   
-  sprintf(tmp, "cid = %d", cluster);
+  snprintf(tmp, 1024, "cid = %d", cluster);
   tmpClP2->Insert(tmp);
   
-  sprintf(tmp, "pid = %d", proc);
+  snprintf(tmp, 1024, "pid = %d", proc);
   tmpClP2->Insert(tmp);
 
-  sprintf(tmp, "spid = %d", subproc);
+  snprintf(tmp, 1024, "spid = %d", subproc);
   tmpClP2->Insert(tmp);
   
-  sprintf(tmp, "endtype = null");
+  snprintf(tmp, 1024, "endtype = null");
   tmpClP2->Insert(tmp);
 
   retval = FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2);
@@ -2950,7 +2950,7 @@ writeEvent (FILE *file)
 	char messagestr[512];
 	ClassAd tmpCl1, tmpCl2;
 	ClassAd *tmpClP1 = &tmpCl1, *tmpClP2 = &tmpCl2;
-	char tmp[512];
+	char tmp[1024];
 	char eventts[100];
 	int retval;
 
@@ -2958,13 +2958,13 @@ writeEvent (FILE *file)
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
 	dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 	
-	sprintf(messagestr,  "Shadow exception: %s", message);
+	snprintf(messagestr, 512, "Shadow exception: %s", message);
 
 		// remove the new line in the end if any
 	if  (messagestr[strlen(messagestr)-1] == '\n')
 		messagestr[strlen(messagestr)-1] = '\0';
 
-	sprintf(eventts, "%d-%02d-%02d %02d:%02d:%02d %s", 
+	snprintf(eventts, 100, "%d-%02d-%02d %02d:%02d:%02d %s", 
 			eventTime.tm_year+1900,
 			eventTime.tm_mon+1,
 			eventTime.tm_mday,
@@ -2973,34 +2973,34 @@ writeEvent (FILE *file)
 			eventTime.tm_sec,
 			eventTime.tm_zone);		
 		
-	sprintf(tmp, "endts = \"%s\"", eventts);
+	snprintf(tmp, 1024, "endts = \"%s\"", eventts);
 	tmpClP1->Insert(tmp);		
 		
-	sprintf(tmp, "endtype = %d", ULOG_SHADOW_EXCEPTION);
+	snprintf(tmp, 1024, "endtype = %d", ULOG_SHADOW_EXCEPTION);
 	tmpClP1->Insert(tmp);
 		
-	sprintf(tmp, "endmessage = \"%s\"", messagestr);
+	snprintf(tmp, 1024, "endmessage = \"%s\"", messagestr);
 	tmpClP1->Insert(tmp);
 		
-	sprintf(tmp, "runbytessent = %f", sent_bytes);
+	snprintf(tmp, 1024, "runbytessent = %f", sent_bytes);
 	tmpClP1->Insert(tmp);
 
-	sprintf(tmp, "runbytesreceived = %f", recvd_bytes);
+	snprintf(tmp, 1024, "runbytesreceived = %f", recvd_bytes);
 	tmpClP1->Insert(tmp);
 
-	sprintf(tmp, "scheddname = \"%s\"", scheddname);
+	snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
 	tmpClP2->Insert(tmp);
   
-	sprintf(tmp, "cid = %d", cluster);
+	snprintf(tmp, 1024, "cid = %d", cluster);
 	tmpClP2->Insert(tmp);
 
-	sprintf(tmp, "pid = %d", proc);
+	snprintf(tmp, 1024, "pid = %d", proc);
 	tmpClP2->Insert(tmp);
 
-	sprintf(tmp, "spid = %d", subproc);
+	snprintf(tmp, 1024, "spid = %d", subproc);
 	tmpClP2->Insert(tmp);
 
-	sprintf(tmp, "endtype = null");
+	snprintf(tmp, 1024, "endtype = null");
 	tmpClP2->Insert(tmp);
   
 	retval = FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2);
@@ -3102,7 +3102,7 @@ writeEvent (FILE *file)
 	char messagestr[512];
 	ClassAd tmpCl1;
 	ClassAd *tmpClP1 = &tmpCl1;
-	char tmp[512];
+	char tmp[1024];
 	char eventts[100];
 	int retval;
 
@@ -3112,7 +3112,7 @@ writeEvent (FILE *file)
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
 	dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
-	sprintf(eventts, "%d-%02d-%02d %02d:%02d:%02d %s", 
+	snprintf(eventts, 100, "%d-%02d-%02d %02d:%02d:%02d %s", 
 			eventTime.tm_year+1900,
 			eventTime.tm_mon+1,
 			eventTime.tm_mday,
@@ -3121,25 +3121,25 @@ writeEvent (FILE *file)
 			eventTime.tm_sec,
 			eventTime.tm_zone);
 		
-	sprintf(tmp, "scheddname = \"%s\"", scheddname);
+	snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
 	tmpClP1->Insert(tmp);		
 	
-	sprintf(tmp, "cid = %d", cluster);
+	snprintf(tmp, 1024, "cid = %d", cluster);
 	tmpClP1->Insert(tmp);		
 	
-	sprintf(tmp, "pid = %d", proc);
+	snprintf(tmp, 1024, "pid = %d", proc);
 	tmpClP1->Insert(tmp);		
 	
-	sprintf(tmp, "spid = %d", subproc);
+	snprintf(tmp, 1024, "spid = %d", subproc);
 	tmpClP1->Insert(tmp);		
 
-	sprintf(tmp, "eventtype = %d", ULOG_JOB_SUSPENDED);
+	snprintf(tmp, 1024, "eventtype = %d", ULOG_JOB_SUSPENDED);
 	tmpClP1->Insert(tmp);
 		
-	sprintf(tmp, "eventtime = \"%s\"", eventts);
+	snprintf(tmp, 1024, "eventtime = \"%s\"", eventts);
 	tmpClP1->Insert(tmp);	
 	
-	sprintf(tmp, "description = \"%s\"", messagestr);
+	snprintf(tmp, 1024, "description = \"%s\"", messagestr);
 	tmpClP1->Insert(tmp);	
 				
 	retval = FILEObj->file_newEvent("Events", tmpClP1);
@@ -3208,7 +3208,7 @@ writeEvent (FILE *file)
 	char messagestr[512];
 	ClassAd tmpCl1;
 	ClassAd *tmpClP1 = &tmpCl1;
-	char tmp[512];
+	char tmp[1024];
 	char eventts[100];
 	int retval;
 
@@ -3218,7 +3218,7 @@ writeEvent (FILE *file)
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
 	dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
-	sprintf(eventts, "%d-%02d-%02d %02d:%02d:%02d %s", 
+	snprintf(eventts, 100, "%d-%02d-%02d %02d:%02d:%02d %s", 
 			eventTime.tm_year+1900,
 			eventTime.tm_mon+1,
 			eventTime.tm_mday,
@@ -3227,25 +3227,25 @@ writeEvent (FILE *file)
 			eventTime.tm_sec,
 			eventTime.tm_zone);		
 		
-	sprintf(tmp, "scheddname = \"%s\"", scheddname);
+	snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
 	tmpClP1->Insert(tmp);		
 	
-	sprintf(tmp, "cid = %d", cluster);
+	snprintf(tmp, 1024, "cid = %d", cluster);
 	tmpClP1->Insert(tmp);		
 	
-	sprintf(tmp, "pid = %d", proc);
+	snprintf(tmp, 1024, "pid = %d", proc);
 	tmpClP1->Insert(tmp);		
 	
-	sprintf(tmp, "spid = %d", subproc);
+	snprintf(tmp, 1024, "spid = %d", subproc);
 	tmpClP1->Insert(tmp);		
 
-	sprintf(tmp, "eventtype = %d", ULOG_JOB_UNSUSPENDED);
+	snprintf(tmp, 1024, "eventtype = %d", ULOG_JOB_UNSUSPENDED);
 	tmpClP1->Insert(tmp);
 		
-	sprintf(tmp, "eventtime = \"%s\"", eventts);
+	snprintf(tmp, 1024, "eventtime = \"%s\"", eventts);
 	tmpClP1->Insert(tmp);	
 	
-	sprintf(tmp, "description = \"%s\"", messagestr);
+	snprintf(tmp, 1024, "description = \"%s\"", messagestr);
 	tmpClP1->Insert(tmp);	
 				
 	retval = FILEObj->file_newEvent("Events", tmpClP1);
@@ -3389,12 +3389,12 @@ JobHeldEvent::writeEvent( FILE *file )
 	char messagestr[512];
 	ClassAd tmpCl1;
 	ClassAd *tmpClP1 = &tmpCl1;
-	char tmp[512];
+	char tmp[1024];
 	char eventts[100];
 	int retval;
 
 	if (reason)
-		sprintf(messagestr, "Job was held: %s", reason);
+		snprintf(messagestr, 512, "Job was held: %s", reason);
 	else
 		sprintf(messagestr, "Job was held: reason unspecified");
 
@@ -3402,7 +3402,7 @@ JobHeldEvent::writeEvent( FILE *file )
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
 	dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
-	sprintf(eventts, "%d-%02d-%02d %02d:%02d:%02d %s", 
+	snprintf(eventts, 100, "%d-%02d-%02d %02d:%02d:%02d %s", 
 			eventTime.tm_year+1900,
 			eventTime.tm_mon+1,
 			eventTime.tm_mday,
@@ -3411,25 +3411,25 @@ JobHeldEvent::writeEvent( FILE *file )
 			eventTime.tm_sec,
 			eventTime.tm_zone);		
 		
-	sprintf(tmp, "scheddname = \"%s\"", scheddname);
+	snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
 	tmpClP1->Insert(tmp);		
 	
-	sprintf(tmp, "cid = %d", cluster);
+	snprintf(tmp, 1024, "cid = %d", cluster);
 	tmpClP1->Insert(tmp);		
 	
-	sprintf(tmp, "pid = %d", proc);
+	snprintf(tmp, 1024, "pid = %d", proc);
 	tmpClP1->Insert(tmp);		
 	
-	sprintf(tmp, "spid = %d", subproc);
+	snprintf(tmp, 1024, "spid = %d", subproc);
 	tmpClP1->Insert(tmp);		
 
-	sprintf(tmp, "eventtype = %d", ULOG_JOB_HELD);
+	snprintf(tmp, 1024, "eventtype = %d", ULOG_JOB_HELD);
 	tmpClP1->Insert(tmp);
 		
-	sprintf(tmp, "eventtime = \"%s\"", eventts);
+	snprintf(tmp, 1024, "eventtime = \"%s\"", eventts);
 	tmpClP1->Insert(tmp);	
 	
-	sprintf(tmp, "description = \"%s\"", messagestr);
+	snprintf(tmp, 1024, "description = \"%s\"", messagestr);
 	tmpClP1->Insert(tmp);	
 				
 	retval = FILEObj->file_newEvent("Events", tmpClP1);
@@ -3573,12 +3573,12 @@ JobReleasedEvent::writeEvent( FILE *file )
 	char messagestr[512];
 	ClassAd tmpCl1;
 	ClassAd *tmpClP1 = &tmpCl1;
-	char tmp[512];
+	char tmp[1024];
 	char eventts[100];
 	int retval;
 
 	if (reason)
-		sprintf(messagestr, "Job was released: %s", reason);
+		snprintf(messagestr, 512, "Job was released: %s", reason);
 	else
 		sprintf(messagestr, "Job was released: reason unspecified");
 
@@ -3586,7 +3586,7 @@ JobReleasedEvent::writeEvent( FILE *file )
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
 	dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
-	sprintf(eventts, "%d-%02d-%02d %02d:%02d:%02d %s", 
+	snprintf(eventts, 100, "%d-%02d-%02d %02d:%02d:%02d %s", 
 			eventTime.tm_year+1900,
 			eventTime.tm_mon+1,
 			eventTime.tm_mday,
@@ -3595,25 +3595,25 @@ JobReleasedEvent::writeEvent( FILE *file )
 			eventTime.tm_sec,
 			eventTime.tm_zone);		
 		
-	sprintf(tmp, "scheddname = \"%s\"", scheddname);
+	snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
 	tmpClP1->Insert(tmp);		
 	
-	sprintf(tmp, "cid = %d", cluster);
+	snprintf(tmp, 1024, "cid = %d", cluster);
 	tmpClP1->Insert(tmp);		
 	
-	sprintf(tmp, "pid = %d", proc);
+	snprintf(tmp, 1024, "pid = %d", proc);
 	tmpClP1->Insert(tmp);		
 	
-	sprintf(tmp, "spid = %d", subproc);
+	snprintf(tmp, 1024, "spid = %d", subproc);
 	tmpClP1->Insert(tmp);		
 
-	sprintf(tmp, "eventtype = %d", ULOG_JOB_RELEASED);
+	snprintf(tmp, 1024, "eventtype = %d", ULOG_JOB_RELEASED);
 	tmpClP1->Insert(tmp);
 		
-	sprintf(tmp, "eventtime = \"%s\"", eventts);
+	snprintf(tmp, 1024, "eventtime = \"%s\"", eventts);
 	tmpClP1->Insert(tmp);	
 	
-	sprintf(tmp, "description = \"%s\"", messagestr);
+	snprintf(tmp, 1024, "description = \"%s\"", messagestr);
 	tmpClP1->Insert(tmp);	
 				
 	retval = FILEObj->file_newEvent("Events", tmpClP1);

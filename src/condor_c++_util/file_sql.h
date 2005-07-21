@@ -10,7 +10,7 @@ private:
 
 	bool 	is_open;
 	bool 	is_locked;
-	char outfilename[257];
+	char *outfilename;
 	int fileflags;
 	int outfiledes;
 	FileLock *lock;
@@ -29,7 +29,7 @@ public:
 	long file_newEvent(const char *eventType, AttrList *info);
 	long file_updateEvent(const char *eventType, AttrList *info, AttrList *condition);
 	long file_deleteEvent(const char *eventType, AttrList *condition);
-	int  file_readline(char *buf);
+	int  file_readline(MyString *buf);
 	AttrList  *file_readAttrList();
 	int  file_truncate();
 };
