@@ -608,6 +608,80 @@ update_report_result:
 
 	} // elihw
 
+	
+	dprintf (D_FULLDEBUG, "Processing UPDATE_LEASE requests\n");
+
+	// UPDATE_LEASE
+	command_queue.Rewind();
+	while (command_queue.Next(current_command)) {
+		
+		if (current_command->status != SchedDRequest::SDCS_NEW)
+			continue;
+
+		if (current_command->command != SchedDRequest::SDC_UPDATE_LEASE)
+			continue;
+
+		if (qmgr_connection == NULL)
+			goto update_lease_result;
+		
+		error = FALSE;
+		BeginTransaction();
+		
+		current_command->status = SchedDRequest::SDCS_PENDING;
+
+	    int i;
+		for (i=0; i<current_command->num_jobs; i++) {
+			dprintf (D_FULLDEBUG, 
+					 "Job %d.%d LastJobLeaseRenewalReceived=%d, JobLeaseDurationReceived=%d\n",
+					 current_command->durations[i].cluster,
+					 current_command->durations[i].proc,
+					 (int)current_command->renew_time,
+					 (int)current_command->durations[i].duration);
+
+			if (SetAttributeInt (current_command->durations[i].cluster,
+						  current_command->durations[i].proc,
+						  "LastJobLeaseRenewalReceived",
+								  current_command->renew_time) == -1) {
+				dprintf (D_ALWAYS, "Unable to set LastJobLeaseRenewalReceived\n");
+				error = TRUE;
+				break;
+			}
+
+			if (!SetAttributeInt (current_command->durations[i].cluster,
+						  current_command->durations[i].proc,
+						  "JobLeaseDurationReceived",
+								  current_command->durations[i].duration) == -1) {
+				dprintf (D_ALWAYS, "Unable to set JobLeaseDurationReceived\n");
+				error = TRUE;
+				break;	
+			}
+		} //rof jobs for request
+
+
+update_lease_result:
+		if (error) {
+			const char * result[] = {
+				GAHP_RESULT_FAILURE,
+				error_msg };
+
+
+			//CloseConnection();
+			enqueue_result (current_command->request_id, result, 2);
+			current_command->status = SchedDRequest::SDCS_COMPLETED;
+			if ( qmgr_connection != NULL ) {
+				AbortTransaction();
+			}
+		} else {
+			const char * result[] = {
+				GAHP_RESULT_SUCCESS,
+				NULL };
+			enqueue_result (current_command->request_id, result, 2);
+			current_command->status = SchedDRequest::SDCS_COMPLETED;
+			CloseConnection();
+		} // fi
+
+	} // elihw UPDATE_LEASE requests
+
 	dprintf (D_FULLDEBUG, "Processing SUBMIT_JOB requests\n");
 
 	// SUBMIT_JOB
@@ -965,6 +1039,45 @@ handle_gahp_command(char ** argv, int argc) {
 
 		delete classad;
 		return TRUE;
+	}  else if (strcasecmp (argv[0], GAHP_COMMAND_JOB_UPDATE_LEASE) ==0) {
+		int req_id;
+		int num_jobs;
+		unsigned long renew_time;
+
+		if (!(argc >= 5 &&
+			get_int (argv[1], &req_id) &&
+			get_ulong (argv[3], &renew_time) &&
+			get_int (argv[4], &num_jobs))) {
+
+			dprintf (D_ALWAYS, "Invalid args to %s\n", argv[0]);
+			return FALSE;
+		}
+
+		job_duration * durations = new job_duration[num_jobs];
+		int i;
+		for (i=0; i<num_jobs; i++) {
+			if (!get_job_id(argv[5+i*2], 
+							&(durations[i].cluster),
+							&(durations[i].proc))) {
+				delete[] durations;
+				return FALSE;
+			}
+
+			if (!get_ulong (argv[5+i*2+1], &(durations[i].duration))) {
+				delete [] durations;
+				return FALSE;
+			}
+		}	
+
+		enqueue_command (
+			SchedDRequest::createUpdateLeaseRequest(
+													req_id,
+													renew_time,
+													num_jobs,
+													durations));
+
+		delete [] durations;
+		return TRUE;
 	}  else if (strcasecmp (argv[0], GAHP_COMMAND_JOB_STAGE_IN) ==0) {
 		int req_id;
 		ClassAd * classad;
@@ -1067,6 +1180,11 @@ get_int (const char * blah, int * s) {
 	return TRUE;
 }
 
+int
+get_ulong (const char * blah, unsigned long * s) {
+	*s=(unsigned long)atol(blah);
+	return TRUE;
+}
 
 // String -> "cluster, proc"
 int
