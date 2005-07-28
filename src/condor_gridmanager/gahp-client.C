@@ -4273,7 +4273,8 @@ GahpClient::condor_job_refresh_proxy(const char *schedd_name, PROC_ID job_id,
 int
 GahpClient::condor_job_update_lease(const char *schedd_name, int renew_time,
 									const SimpleList<PROC_ID> &jobs,
-									const SimpleList<int> &durations )
+									const SimpleList<int> &durations,
+									SimpleList<PROC_ID> &updated )
 {
 	static const char* command = "CONDOR_JOB_UPDATE_LEASE";
 
@@ -4320,7 +4321,7 @@ GahpClient::condor_job_update_lease(const char *schedd_name, int renew_time,
 	Gahp_Args* result = get_pending_result(command,buf);
 	if ( result ) {
 		// command completed.
-		if (result->argc != 3) {
+		if (result->argc != 4) {
 			EXCEPT("Bad %s Result",command);
 		}
 		int rc = 1;
@@ -4331,6 +4332,23 @@ GahpClient::condor_job_update_lease(const char *schedd_name, int renew_time,
 			error_string = result->argv[2];
 		} else {
 			error_string = "";
+		}
+		updated.Clear();
+		char *ptr1 = result->argv[3];
+		while ( ptr1 != NULL && *ptr1 != '\0' ) {
+			PROC_ID job_id;
+			char *ptr2 = strchr( ptr1, ',' );
+			if ( ptr2 ) {
+				*ptr2 = '\0';
+				ptr2++;
+			}
+			rc = sscanf( ptr1, "%d.%d", &job_id.cluster, &job_id.proc );
+			if ( rc != 2 ) {
+				dprintf( D_ALWAYS, "condor_job_update_lease: skipping malformed job id '%s'\n", ptr1 );
+			} else {
+				updated.Append( job_id );
+			}
+			ptr1 = ptr2;
 		}
 		delete result;
 		return rc;
