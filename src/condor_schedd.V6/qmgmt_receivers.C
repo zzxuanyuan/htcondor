@@ -310,6 +310,36 @@ do_Q_request(ReliSock *syscall_sock)
 		return 0;
 	}
 
+	case CONDOR_SetLeaseDuration:
+	  {
+		int cluster_id;
+		int proc_id;
+		int duration = 0;
+		int terrno;
+
+		assert( syscall_sock->code(cluster_id) );
+		dprintf( D_SYSCALLS, "	cluster_id = %d\n", cluster_id );
+		assert( syscall_sock->code(proc_id) );
+		dprintf( D_SYSCALLS, "	proc_id = %d\n", proc_id );
+		assert( syscall_sock->code(duration) );
+		dprintf(D_SYSCALLS,"\tduration = %d\n",duration);
+		assert( syscall_sock->end_of_message() );;
+
+		errno = 0;
+
+		rval = SetLeaseDuration( cluster_id, proc_id, duration );
+		terrno = errno;
+		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, terrno );
+
+		syscall_sock->encode();
+		assert( syscall_sock->code(rval) );
+		if( rval < 0 ) {
+			assert( syscall_sock->code(terrno) );
+		}
+		assert( syscall_sock->end_of_message() );;
+		return 0;
+	}
+
 	case CONDOR_BeginTransaction:
 	  {
 		int terrno;

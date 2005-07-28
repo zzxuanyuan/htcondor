@@ -44,3 +44,4 @@
 #define	CONDOR_InitializeReadOnlyConnection 10022	/* Todd */
 #define CONDOR_BeginTransaction		10023			/* Todd */
 #define CONDOR_AbortTransaction 	10024			/* Carey */
+#define CONDOR_SetLeaseDuration		10025			/* Jaime */

@@ -79,6 +79,7 @@ static int next_proc_num = 0;
 static int active_cluster_num = -1;	// client is restricted to only insert jobs to the active cluster
 static int old_cluster_num = -1;	// next_cluster_num at start of transaction
 static bool JobQueueDirty = false;
+static time_t xact_start_time = 0;	// time at which the current transaction was started
 
 class Service;
 
@@ -699,6 +700,9 @@ handle_q(Service *, int, Stream *sock)
 	setQSock((ReliSock*)sock);
 
 	JobQueue->BeginTransaction();
+
+	// note what time we started the transaction (used by SetLeaseDuration())
+	xact_start_time = time( NULL );
 
 	// store the cluster num so when we commit the transaction, we can easily
 	// see if new clusters have been submitted and thus make links to cluster ads
@@ -1363,6 +1367,25 @@ SetAttribute(int cluster_id, int proc_id, const char *attr_name,
 	return 0;
 }
 
+int
+SetLeaseDuration( int cluster, int proc, int dur )
+{
+	int rc = 0;
+	if ( xact_start_time == 0 ) {
+		dprintf(D_ALWAYS,
+				"SetLeaseDuration called for %d.%d outside of a transaction!\n",
+				cluster, proc);
+		return -1;
+	}
+	rc = SetAttributeInt( cluster, proc, ATTR_LAST_JOB_LEASE_RENEWAL_RECEIVED,
+						  xact_start_time );
+	if ( rc == 0 ) {
+		rc = SetAttributeInt( cluster, proc, ATTR_JOB_LEASE_DURATION_RECEIVED,
+							  dur );
+	}
+	return rc;
+}
+
 char * simple_encode (int key, const char * src);
 char * simple_decode (int key, const char * src);
 
@@ -1531,6 +1554,9 @@ void
 BeginTransaction()
 {
 	JobQueue->BeginTransaction();
+
+	// note what time we started the transaction (used by SetLeaseDuration())
+	xact_start_time = time( NULL );
 }
 
 
@@ -1538,6 +1564,8 @@ void
 CommitTransaction()
 {
 	JobQueue->CommitTransaction();
+
+	xact_start_time = 0;
 }
 
 
@@ -1623,6 +1651,8 @@ CloseConnection()
 	}	// end of if a new cluster(s) submitted
 	old_cluster_num = next_cluster_num;
 					
+	xact_start_time = 0;
+
 	return 0;
 }
 
