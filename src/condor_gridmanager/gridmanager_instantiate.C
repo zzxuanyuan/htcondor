@@ -84,6 +84,10 @@ template class HashTable<HashKey, GahpServer *>;
 template class HashBucket<HashKey, GahpServer *>;
 template class HashTable<HashKey, GahpProxyInfo *>;
 template class HashBucket<HashKey, GahpProxyInfo *>;
+template class SimpleList<PROC_ID>;
+template class SimpleListIterator<PROC_ID>;
+template class SimpleList<int>;
+template class SimpleListIterator<int>;
 
 template class HashTable<HashKey, GlobusJob *>;
 template class HashBucket<HashKey, GlobusJob *>;
