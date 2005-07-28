@@ -615,54 +615,71 @@ update_report_result:
 	command_queue.Rewind();
 	while (command_queue.Next(current_command)) {
 		
+		error = FALSE;
+
 		if (current_command->status != SchedDRequest::SDCS_NEW)
 			continue;
 
 		if (current_command->command != SchedDRequest::SDC_UPDATE_LEASE)
 			continue;
 
-		if (qmgr_connection == NULL)
-			goto update_lease_result;
+		MyString success_job_ids="";
+		if (qmgr_connection == NULL) {
+			sprintf (error_msg, "Error connecting to schedd %s", ScheddAddr);
+			error = TRUE;
+		} else {
+			error = FALSE;
+			BeginTransaction();
 		
-		error = FALSE;
-		BeginTransaction();
+			current_command->status = SchedDRequest::SDCS_PENDING;
+
+			int i;
+			for (i=0; i<current_command->num_jobs; i++) {
+			
+				time_t time_now = time(NULL);
+				int duration = 
+					current_command->durations[i].duration - 
+					(time_now - 
+					 current_command->renew_time);
 		
-		current_command->status = SchedDRequest::SDCS_PENDING;
 
-	    int i;
-		for (i=0; i<current_command->num_jobs; i++) {
-			dprintf (D_FULLDEBUG, 
-					 "Job %d.%d LastJobLeaseRenewalReceived=%d, JobLeaseDurationReceived=%d\n",
-					 current_command->durations[i].cluster,
-					 current_command->durations[i].proc,
-					 (int)current_command->renew_time,
-					 (int)current_command->durations[i].duration);
+				dprintf (D_FULLDEBUG, 
+						 "Job %d.%d SetLeaseDuration=%d\n",
+						 current_command->durations[i].cluster,
+						 current_command->durations[i].proc,
+						 duration);
+		
+				if (SetLeaseDuration (current_command->durations[i].cluster,
+									  current_command->durations[i].proc,
+									  duration) < 0) {
 
-			if (SetAttributeInt (current_command->durations[i].cluster,
-						  current_command->durations[i].proc,
-						  "LastJobLeaseRenewalReceived",
-								  current_command->renew_time) == -1) {
-				dprintf (D_ALWAYS, "Unable to set LastJobLeaseRenewalReceived\n");
-				error = TRUE;
-				break;
-			}
+					dprintf (D_ALWAYS, 
+							 "Unable to SetLeaseDuration(%d, %d), errno=%d\n",
+							 current_command->durations[i].cluster,
+							 current_command->durations[i].proc,
+							 errno);
+						 
+				} else {
+						// Append job id to the result line
+					if (success_job_ids.Length() > 0)
+						success_job_ids += ",";
 
-			if (!SetAttributeInt (current_command->durations[i].cluster,
-						  current_command->durations[i].proc,
-						  "JobLeaseDurationReceived",
-								  current_command->durations[i].duration) == -1) {
-				dprintf (D_ALWAYS, "Unable to set JobLeaseDurationReceived\n");
-				error = TRUE;
-				break;	
-			}
-		} //rof jobs for request
+					success_job_ids.sprintf_cat (
+						"%d.%d",
+						current_command->durations[i].cluster,
+						current_command->durations[i].proc);
+				}
+			} //rof jobs for request
+		} // fi error
 
 
 update_lease_result:
 		if (error) {
 			const char * result[] = {
 				GAHP_RESULT_FAILURE,
-				error_msg };
+				error_msg,
+				NULL
+			};
 
 
 			//CloseConnection();
@@ -674,7 +691,9 @@ update_lease_result:
 		} else {
 			const char * result[] = {
 				GAHP_RESULT_SUCCESS,
-				NULL };
+				NULL,
+				success_job_ids.Length()?success_job_ids.Value():NULL
+			};
 			enqueue_result (current_command->request_id, result, 2);
 			current_command->status = SchedDRequest::SDCS_COMPLETED;
 			CloseConnection();
