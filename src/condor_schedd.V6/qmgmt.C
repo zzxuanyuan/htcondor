@@ -1382,6 +1382,12 @@ SetLeaseDuration( int cluster, int proc, int dur )
 	if ( rc == 0 ) {
 		rc = SetAttributeInt( cluster, proc, ATTR_JOB_LEASE_DURATION_RECEIVED,
 							  dur );
+		if ( rc != 0 ) {
+			// This shouldn't happen, but just to be safe.
+			// What we should do is set ATTR_LAST_JOB_LEASE_RENEWAL_RECEIVED
+			// back to its old value directly (using JobQueue->SetAttribute).
+			EXCEPT( "SetLeaseDuration: only one SetAttribute worked" );
+		}
 	}
 	return rc;
 }
