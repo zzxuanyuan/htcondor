@@ -48,11 +48,20 @@ BaseResource::BaseResource( const char *resource_name )
 
 	submitLimit = DEFAULT_MAX_PENDING_SUBMITS_PER_RESOURCE;
 	jobLimit = DEFAULT_MAX_SUBMITTED_JOBS_PER_RESOURCE;
+
+	updateLeasesTimerId = daemonCore->Register_Timer( 0,
+								(TimerHandlercpp)&BaseResource::UpdateLeases,
+								"BaseResource::UpdateLeases", (Service*)this );
+	lastUpdateLeases = 0;
+	updateLeasesActive = false;
+	leaseAttrsSynched = false;
+	updateLeasesCmdActive = false;
 }
 
 BaseResource::~BaseResource()
 {
  	daemonCore->Cancel_Timer( pingTimerId );
+	daemonCore->Cancel_Timer( updateLeasesTimerId );
 	if ( resourceName != NULL ) {
 		free( resourceName );
 	}
@@ -377,4 +386,166 @@ void BaseResource::DoPing( time_t& ping_delay, bool& ping_complete,
 	ping_delay = 0;
 	ping_complete = true;
 	ping_succeeded = true;
+}
+
+bool CalculateLease( const ClassAd *job_ad, time_t &new_renewal,
+					 int &new_duration )
+{
+	time_t renewal_received = -1;
+	int duration_received = -1;
+	time_t renewal_sent = -1;
+	int duration_sent = -1;
+	bool last_renewal_failed = false;
+
+	job_ad->LookupInteger( ATTR_LAST_JOB_LEASE_RENEWAL_RECEIVED,
+						   (int)renewal_received );
+	job_ad->LookupInteger( ATTR_JOB_LEASE_DURATION_RECEIVED,
+						   duration_received );
+	job_ad->LookupInteger( ATTR_LAST_JOB_LEASE_RENEWAL, (int)renewal_sent );
+	job_ad->LookupInteger( ATTR_JOB_LEASE_DURATION, duration_sent );
+	job_ad->LookupBool( ATTR_LAST_JOB_LEASE_RENEWAL_FAILED,
+						last_renewal_failed );
+
+		// If we didn't received a lease, there's no lease to renew
+	if ( renewal_received == -1 || duration_received == -1 ) {
+		return false;
+	}
+
+		// If the lease we sent expires within 10 seconds of the lease we
+		// received, don't renew it.
+	if ( renewal_sent + duration_sent + 10 >=
+		 renewal_received + duration_received ) {
+		return false;
+	}
+
+	if ( new_renewal == 0 ) {
+		new_renewal = time(NULL);
+	}
+
+	if ( last_renewal_failed ) {
+		new_duration = ( renewal_sent + duration_sent ) - new_renewal;
+	} else {
+		new_duration = ( renewal_received + duration_received ) - new_renewal;
+	}
+
+	return true;
+}
+
+int BaseResource::UpdateLeases()
+{
+	// Don't start a new lease update too soon after the previous one.
+	int delay;
+	delay = (lastUpdateLeases + 60) - time(NULL);
+	if ( delay > 0 ) {
+		daemonCore->Reset_Timer( updateLeasesTimerId, delay );
+		return TRUE;
+	}
+
+	daemonCore->Reset_Timer( updateLeasesTimerId, TIMER_NEVER );
+
+	if ( updateLeasesActive == false ) {
+		newLeaseRenewTime = time(NULL);
+		BaseJob *curr_job;
+		registeredJobs.Rewind();
+		while ( registeredJobs.Next( curr_job ) ) {
+			int new_duration;
+			if ( CalculateLease( curr_job->jobAd, newLeaseRenewTime,
+								 new_duration ) ) {
+				curr_job->jobAd->Assign( ATTR_LAST_JOB_LEASE_RENEWAL,
+										 (int)newLeaseRenewTime );
+				curr_job->jobAd->Assign( ATTR_JOB_LEASE_DURATION,
+										 new_duration );
+				requestScheddUpdate( curr_job );
+				leaseUpdates.Append( curr_job );
+			}
+		}
+		if ( leaseUpdates.IsEmpty() ) {
+			lastUpdateLeases = time(NULL);
+			daemonCore->Reset_Timer( updateLeasesTimerId, 60 );
+		} else {
+			requestScheddUpdateNotification( updateLeasesTimerId );
+			updateLeasesActive = true;
+			leaseAttrsSynched = false;
+		}
+		return TRUE;
+	}
+
+	if ( leaseAttrsSynched == false ) {
+		bool still_dirty = false;
+		BaseJob *curr_job;
+		leaseUpdates.Rewind();
+		while ( leaseUpdates.Next( curr_job ) ) {
+			bool exists1, exists2;
+			bool dirty1, dirty2;
+			curr_job->jobAd->GetDirtyFlag( ATTR_LAST_JOB_LEASE_RENEWAL, &exists1,
+										   &dirty1 );
+			curr_job->jobAd->GetDirtyFlag( ATTR_JOB_LEASE_DURATION, &exists2,
+										   &dirty2 );
+			if ( !exists1 || !exists2 ) {
+					// What!? The attribute disappeared? Forget about renewing
+					// the lease then
+				dprintf( D_ALWAYS, "Lease attributes disappeared for job %d.%d, ignoring it\n",
+						 curr_job->procID.cluster, curr_job->procID.proc );
+				leaseUpdates.DeleteCurrent();
+			}
+			if ( dirty1 || dirty2 ) {
+				still_dirty = true;
+				requestScheddUpdate( curr_job );
+			}
+		}
+		if ( still_dirty ) {
+			requestScheddUpdateNotification( updateLeasesTimerId );
+			return TRUE;
+		}
+	}
+
+	leaseAttrsSynched = true;
+
+	time_t update_delay;
+	bool update_complete;
+	SimpleList<PROC_ID> update_succeeded;
+	DoUpdateLeases( update_delay, update_complete, update_succeeded );
+
+	if ( update_delay ) {
+		daemonCore->Reset_Timer( updateLeasesTimerId, update_delay );
+		return TRUE;
+	}
+
+	if ( !update_complete ) {
+		updateLeasesCmdActive = true;
+		return TRUE;
+	}
+
+	updateLeasesCmdActive = false;
+	lastUpdateLeases = time(NULL);
+
+	BaseJob *curr_job;
+	leaseUpdates.Rewind();
+	while ( leaseUpdates.Next( curr_job ) ) {
+		bool curr_renewal_failed;
+		bool last_renewal_failed = false;
+		if ( update_succeeded.IsMember( curr_job->procID ) ) {
+			curr_renewal_failed = false;
+		} else {
+			curr_renewal_failed = true;
+		}
+		curr_job->jobAd->LookupBool( ATTR_LAST_JOB_LEASE_RENEWAL_FAILED,
+									 last_renewal_failed );
+		if ( curr_renewal_failed != last_renewal_failed ) {
+			curr_job->jobAd->Assign( ATTR_LAST_JOB_LEASE_RENEWAL_FAILED,
+									 curr_renewal_failed );
+			requestScheddUpdate( curr_job );
+		}
+		leaseUpdates.DeleteCurrent();
+	}
+
+	return 0;
+}
+
+void BaseResource::DoUpdateLeases( time_t& update_delay,
+								   bool& update_complete,
+								   SimpleList<PROC_ID>& update_succeeded )
+{
+	update_delay = 0;
+	update_complete = true;
 }

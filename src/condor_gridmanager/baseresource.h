@@ -66,6 +66,10 @@ class BaseResource
 	virtual void DoPing( time_t& ping_delay, bool& ping_complete,
 						 bool& ping_succeeded );
 
+	int UpdateLeases();
+	virtual void DoUpdateLeases( time_t& update_delay, bool& update_complete,
+								 SimpleList<PROC_ID>& update_succeeded );
+
 	char *resourceName;
 	List<BaseJob> registeredJobs;
 	List<BaseJob> pingRequesters;
@@ -90,6 +94,14 @@ class BaseResource
 	List<BaseJob> submitsWanted;
 	int submitLimit;		// max number of submit actions
 	int jobLimit;			// max number of submitted jobs
+
+	int updateLeasesTimerId;
+	time_t lastUpdateLeases;
+	List<BaseJob> leaseUpdates;
+	bool updateLeasesActive;
+	bool leaseAttrsSynched;
+	bool updateLeasesCmdActive;
+	time_t newLeaseRenewTime;
 };
 
 #endif // define BASERESOURCE_H
