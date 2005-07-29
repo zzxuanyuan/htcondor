@@ -128,6 +128,11 @@ CondorResource::CondorResource( const char *resource_name, const char *pool_name
 		ping_gahp->setMode( GahpClient::normal );
 		ping_gahp->setTimeout( CondorJob::gahpCallTimeout );
 
+		lease_gahp = new GahpClient( buff.Value(), gahp_path, buff2.Value() );
+		lease_gahp->setNotificationTimerId( updateLeasesTimerId );
+		lease_gahp->setMode( GahpClient::normal );
+		lease_gahp->setTimeout( CondorJob::gahpCallTimeout );
+
 		free( gahp_path );
 	}
 }
@@ -148,6 +153,9 @@ CondorResource::~CondorResource()
 	}
 	if ( ping_gahp != NULL ) {
 		delete ping_gahp;
+	}
+	if ( lease_gahp != NULL ) {
+		delete lease_gahp;
 	}
 	if ( scheddName != NULL ) {
 		free( scheddName );
@@ -311,5 +319,48 @@ dprintf(D_ALWAYS,"*** DoPing called\n");
 	} else {
 		ping_complete = true;
 		ping_succeeded = true;
+	}
+}
+
+void CondorResource::DoUpdateLeases( time_t& update_delay,
+									 bool& update_complete )
+{
+	int rc;
+	BaseJob *curr_job;
+	SimpleList<PROC_ID> jobs;
+	SimpleList<int> durations;
+	SimpleList<PROC_ID> updated;
+
+dprintf(D_ALWAYS,"*** DoUpdateLeases called\n");
+	if ( lease_gahp->isStarted() == false ) {
+		dprintf( D_ALWAYS,"gahp server not up yet, delaying lease update\n" );
+		update_delay = 5;
+		return;
+	}
+
+	update_delay = 0;
+
+	if ( updateLeasesCmdActive == false ) {
+		leaseUpdates.Rewind();
+		while ( leaseUpdates.Next( curr_job ) ) {
+			int dur = 0;
+			jobs.Append( curr_job->procID );
+			curr_job->jobAd->LookupInteger( ATTR_JOB_LEASE_DURATION, dur );
+			durations.Append( dur );
+		}
+	}
+
+	rc = lease_gahp->condor_job_update_lease( scheddName, newLeaseRenewTime,
+											  jobs, durations, updated );
+
+	if ( rc == GAHPCLIENT_COMMAND_PENDING ) {
+		update_complete = false;
+	} else if ( rc != 0 ) {
+		dprintf( D_ALWAYS, "*** Lease update failed!\n" );
+		update_complete = true;
+	} else {
+		dprintf( D_ALWAYS, "*** Lease udpate succeeded!\n" );
+			// TODO What about the failed ones?
+		update_complete = true;
 	}
 }

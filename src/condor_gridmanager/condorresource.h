@@ -74,10 +74,13 @@ class CondorResource : public BaseResource
 	void DoPing( time_t& ping_delay, bool& ping_complete,
 				 bool& ping_succeeded  );
 
+	void DoUpdateLeases( time_t& update_delay, bool& update_complete );
+
 	static HashTable <HashKey, CondorResource *> ResourcesByName;
 
 	GahpClient *gahp;
 	GahpClient *ping_gahp;
+	GahpClient *lease_gahp;
 };
 
 #endif
