@@ -234,6 +234,7 @@ const char ATTR_LAST_HOLD_REASON         [] = "LastHoldReason";
 const char ATTR_LAST_HOLD_REASON_CODE	 [] = "LastHoldReasonCode";
 const char ATTR_LAST_HOLD_REASON_SUBCODE [] = "LastHoldReasonSubCode";
 const char ATTR_LAST_JOB_LEASE_RENEWAL   [] = "LastJobLeaseRenewal";
+const char ATTR_LAST_JOB_LEASE_RENEWAL_FAILED[] = "LastJobLeaseRenewalFailed";
 const char ATTR_LAST_JOB_LEASE_RENEWAL_RECEIVED [] = "LastJobLeaseRenewalReceived";
 const char ATTR_LAST_MATCH_TIME			 [] = "LastMatchTime";
 const char ATTR_LAST_MATCH_LIST_PREFIX   [] = "LastMatchName";
