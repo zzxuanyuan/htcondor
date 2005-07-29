@@ -113,6 +113,8 @@ template class HashBucket<PROC_ID, JobStatusRequest>;
 template class List<JobType>;
 template class Item<JobType>;
 
+SimpleList<int> scheddUpdateNotifications;
+
 HashTable <PROC_ID, BaseJob *> pendingScheddUpdates( HASH_TABLE_SIZE,
 													 procIDHash );
 bool addJobsSignaled = false;
@@ -203,6 +205,16 @@ requestScheddUpdate( BaseJob *job )
 	}
 
 	return false;
+}
+
+void
+requestScheddUpdateNotification( int timer_id )
+{
+	if ( scheddUpdateNotifications.IsMember( timer_id ) == false ) {
+		// A new request; add it to the list
+		scheddUpdateNotifications.Append( timer_id );
+		RequestContactSchedd();
+	}
 }
 
 bool
@@ -972,6 +984,15 @@ contact_schedd_next_add_job:
 		}
 
 	}
+
+	// Poke objects that wanted to be notified when a schedd update completed
+	// successfully (possibly minus deletes)
+	int timer_id;
+	scheddUpdateNotifications.Rewind();
+	while ( scheddUpdateNotifications.Next( timer_id ) ) {
+		daemonCore->Reset_Timer( timer_id, 0 );
+	}
+	scheddUpdateNotifications.Clear();
 
 	if ( send_reschedule == true ) {
 		ScheddObj->reschedule();
