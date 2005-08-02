@@ -388,44 +388,32 @@ void BaseResource::DoPing( time_t& ping_delay, bool& ping_complete,
 	ping_succeeded = true;
 }
 
-bool CalculateLease( const ClassAd *job_ad, time_t &new_renewal,
-					 int &new_duration )
+bool CalculateLease( const ClassAd *job_ad, time_t &new_expiration )
 {
-	time_t renewal_received = -1;
-	int duration_received = -1;
-	time_t renewal_sent = -1;
-	int duration_sent = -1;
+	time_t expire_received = -1;
+	time_t expire_sent = -1;
 	bool last_renewal_failed = false;
 
-	job_ad->LookupInteger( ATTR_LAST_JOB_LEASE_RENEWAL_RECEIVED,
-						   (int)renewal_received );
-	job_ad->LookupInteger( ATTR_JOB_LEASE_DURATION_RECEIVED,
-						   duration_received );
-	job_ad->LookupInteger( ATTR_LAST_JOB_LEASE_RENEWAL, (int)renewal_sent );
-	job_ad->LookupInteger( ATTR_JOB_LEASE_DURATION, duration_sent );
+	job_ad->LookupInteger( ATTR_TIMER_REMOVE_CHECK, (int)expire_received );
+	job_ad->LookupInteger( ATTR_TIMER_REMOVE_CHECK_SENT, (int)expire_sent );
 	job_ad->LookupBool( ATTR_LAST_JOB_LEASE_RENEWAL_FAILED,
 						last_renewal_failed );
 
 		// If we didn't received a lease, there's no lease to renew
-	if ( renewal_received == -1 || duration_received == -1 ) {
+	if ( expire_received == -1 ) {
 		return false;
 	}
 
 		// If the lease we sent expires within 10 seconds of the lease we
 		// received, don't renew it.
-	if ( renewal_sent + duration_sent + 10 >=
-		 renewal_received + duration_received ) {
+	if ( expire_sent + 10 >= expire_received ) {
 		return false;
 	}
 
-	if ( new_renewal == 0 ) {
-		new_renewal = time(NULL);
-	}
-
 	if ( last_renewal_failed ) {
-		new_duration = ( renewal_sent + duration_sent ) - new_renewal;
+		new_expiration = expire_sent;
 	} else {
-		new_duration = ( renewal_received + duration_received ) - new_renewal;
+		new_expiration = expire_received;
 	}
 
 	return true;
@@ -444,17 +432,13 @@ int BaseResource::UpdateLeases()
 	daemonCore->Reset_Timer( updateLeasesTimerId, TIMER_NEVER );
 
 	if ( updateLeasesActive == false ) {
-		newLeaseRenewTime = time(NULL);
 		BaseJob *curr_job;
 		registeredJobs.Rewind();
 		while ( registeredJobs.Next( curr_job ) ) {
-			int new_duration;
-			if ( CalculateLease( curr_job->jobAd, newLeaseRenewTime,
-								 new_duration ) ) {
-				curr_job->jobAd->Assign( ATTR_LAST_JOB_LEASE_RENEWAL,
-										 (int)newLeaseRenewTime );
-				curr_job->jobAd->Assign( ATTR_JOB_LEASE_DURATION,
-										 new_duration );
+			time_t new_expire;
+			if ( CalculateLease( curr_job->jobAd, new_expire ) ) {
+				curr_job->jobAd->Assign( ATTR_TIMER_REMOVE_CHECK_SENT,
+										 (int)new_expire );
 				requestScheddUpdate( curr_job );
 				leaseUpdates.Append( curr_job );
 			}
@@ -475,20 +459,17 @@ int BaseResource::UpdateLeases()
 		BaseJob *curr_job;
 		leaseUpdates.Rewind();
 		while ( leaseUpdates.Next( curr_job ) ) {
-			bool exists1, exists2;
-			bool dirty1, dirty2;
-			curr_job->jobAd->GetDirtyFlag( ATTR_LAST_JOB_LEASE_RENEWAL, &exists1,
-										   &dirty1 );
-			curr_job->jobAd->GetDirtyFlag( ATTR_JOB_LEASE_DURATION, &exists2,
-										   &dirty2 );
-			if ( !exists1 || !exists2 ) {
+			bool exists, dirty;
+			curr_job->jobAd->GetDirtyFlag( ATTR_TIMER_REMOVE_CHECK_SENT,
+										   &exists, &dirty );
+			if ( !exists ) {
 					// What!? The attribute disappeared? Forget about renewing
 					// the lease then
-				dprintf( D_ALWAYS, "Lease attributes disappeared for job %d.%d, ignoring it\n",
+				dprintf( D_ALWAYS, "Lease attribute disappeared for job %d.%d, ignoring it\n",
 						 curr_job->procID.cluster, curr_job->procID.proc );
 				leaseUpdates.DeleteCurrent();
 			}
-			if ( dirty1 || dirty2 ) {
+			if ( dirty ) {
 				still_dirty = true;
 				requestScheddUpdate( curr_job );
 			}

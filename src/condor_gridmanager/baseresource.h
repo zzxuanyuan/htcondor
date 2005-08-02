@@ -101,7 +101,6 @@ class BaseResource
 	bool updateLeasesActive;
 	bool leaseAttrsSynched;
 	bool updateLeasesCmdActive;
-	time_t newLeaseRenewTime;
 };
 
 #endif // define BASERESOURCE_H

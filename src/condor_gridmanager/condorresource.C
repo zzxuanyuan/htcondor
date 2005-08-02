@@ -328,7 +328,7 @@ void CondorResource::DoUpdateLeases( time_t& update_delay,
 	int rc;
 	BaseJob *curr_job;
 	SimpleList<PROC_ID> jobs;
-	SimpleList<int> durations;
+	SimpleList<int> expirations;
 	SimpleList<PROC_ID> updated;
 
 dprintf(D_ALWAYS,"*** DoUpdateLeases called\n");
@@ -343,15 +343,15 @@ dprintf(D_ALWAYS,"*** DoUpdateLeases called\n");
 	if ( updateLeasesCmdActive == false ) {
 		leaseUpdates.Rewind();
 		while ( leaseUpdates.Next( curr_job ) ) {
-			int dur = 0;
+			int exp = 0;
 			jobs.Append( curr_job->procID );
-			curr_job->jobAd->LookupInteger( ATTR_JOB_LEASE_DURATION, dur );
-			durations.Append( dur );
+			curr_job->jobAd->LookupInteger( ATTR_TIMER_REMOVE_CHECK_SENT, exp );
+			expirations.Append( exp );
 		}
 	}
 
-	rc = lease_gahp->condor_job_update_lease( scheddName, newLeaseRenewTime,
-											  jobs, durations, updated );
+	rc = lease_gahp->condor_job_update_lease( scheddName, jobs, expirations,
+											  updated );
 
 	if ( rc == GAHPCLIENT_COMMAND_PENDING ) {
 		update_complete = false;
