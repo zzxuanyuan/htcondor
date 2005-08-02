@@ -644,17 +644,18 @@ update_report_result:
 		
 
 				dprintf (D_FULLDEBUG, 
-						 "Job %d.%d SetLeaseDuration=%d\n",
+						 "Job %d.%d SetTimerAttribute=%d\n",
 						 current_command->durations[i].cluster,
 						 current_command->durations[i].proc,
 						 duration);
 		
-				if (SetLeaseDuration (current_command->durations[i].cluster,
-									  current_command->durations[i].proc,
-									  duration) < 0) {
+				if (SetTimerAttribute (current_command->durations[i].cluster,
+									   current_command->durations[i].proc,
+									   ATTR_TIMER_REMOVE_CHECK,
+									   duration) < 0) {
 
 					dprintf (D_ALWAYS, 
-							 "Unable to SetLeaseDuration(%d, %d), errno=%d\n",
+							 "Unable to SetTimerAttribute(%d, %d), errno=%d\n",
 							 current_command->durations[i].cluster,
 							 current_command->durations[i].proc,
 							 errno);
