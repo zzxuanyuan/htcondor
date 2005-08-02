@@ -310,10 +310,11 @@ do_Q_request(ReliSock *syscall_sock)
 		return 0;
 	}
 
-	case CONDOR_SetLeaseDuration:
+	case CONDOR_SetTimerAttribute:
 	  {
 		int cluster_id;
 		int proc_id;
+		char *attr_name=NULL;
 		int duration = 0;
 		int terrno;
 
@@ -321,13 +322,15 @@ do_Q_request(ReliSock *syscall_sock)
 		dprintf( D_SYSCALLS, "	cluster_id = %d\n", cluster_id );
 		assert( syscall_sock->code(proc_id) );
 		dprintf( D_SYSCALLS, "	proc_id = %d\n", proc_id );
+		assert( syscall_sock->code(attr_name) );
+		if (attr_name) dprintf(D_SYSCALLS,"\tattr_name = %s\n",attr_name);
 		assert( syscall_sock->code(duration) );
 		dprintf(D_SYSCALLS,"\tduration = %d\n",duration);
 		assert( syscall_sock->end_of_message() );;
 
 		errno = 0;
 
-		rval = SetLeaseDuration( cluster_id, proc_id, duration );
+		rval = SetTimerAttribute( cluster_id, proc_id, attr_name, duration );
 		terrno = errno;
 		dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, terrno );
 
@@ -336,6 +339,7 @@ do_Q_request(ReliSock *syscall_sock)
 		if( rval < 0 ) {
 			assert( syscall_sock->code(terrno) );
 		}
+		free( (char *)attr_name );
 		assert( syscall_sock->end_of_message() );;
 		return 0;
 	}

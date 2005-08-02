@@ -255,16 +255,18 @@ SetAttribute( int cluster_id, int proc_id, char *attr_name, char *attr_value )
 }
 
 int
-SetLeaseDuration( int cluster_id, int proc_id, int duration )
+SetTimerAttribute( int cluster_id, int proc_id, const char *attr_name,
+				   int duration )
 {
 	int	rval;
 
-		CurrentSysCall = CONDOR_SetLeaseDuration;
+		CurrentSysCall = CONDOR_SetTimerAttribute;
 
 		qmgmt_sock->encode();
 		assert( qmgmt_sock->code(CurrentSysCall) );
 		assert( qmgmt_sock->code(cluster_id) );
 		assert( qmgmt_sock->code(proc_id) );
+		assert( qmgmt_sock->code(attr_name) );
 		assert( qmgmt_sock->code(duration) );
 		assert( qmgmt_sock->end_of_message() );
 

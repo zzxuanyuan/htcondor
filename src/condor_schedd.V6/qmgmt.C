@@ -701,7 +701,7 @@ handle_q(Service *, int, Stream *sock)
 
 	JobQueue->BeginTransaction();
 
-	// note what time we started the transaction (used by SetLeaseDuration())
+	// note what time we started the transaction (used by SetTimerAttribute())
 	xact_start_time = time( NULL );
 
 	// store the cluster num so when we commit the transaction, we can easily
@@ -1368,27 +1368,17 @@ SetAttribute(int cluster_id, int proc_id, const char *attr_name,
 }
 
 int
-SetLeaseDuration( int cluster, int proc, int dur )
+SetTimerAttribute( int cluster, int proc, const char *attr_name, int dur )
 {
 	int rc = 0;
 	if ( xact_start_time == 0 ) {
 		dprintf(D_ALWAYS,
-				"SetLeaseDuration called for %d.%d outside of a transaction!\n",
+				"SetTimerAttribute called for %d.%d outside of a transaction!\n",
 				cluster, proc);
 		return -1;
 	}
-	rc = SetAttributeInt( cluster, proc, ATTR_LAST_JOB_LEASE_RENEWAL_RECEIVED,
-						  xact_start_time );
-	if ( rc == 0 ) {
-		rc = SetAttributeInt( cluster, proc, ATTR_JOB_LEASE_DURATION_RECEIVED,
-							  dur );
-		if ( rc != 0 ) {
-			// This shouldn't happen, but just to be safe.
-			// What we should do is set ATTR_LAST_JOB_LEASE_RENEWAL_RECEIVED
-			// back to its old value directly (using JobQueue->SetAttribute).
-			EXCEPT( "SetLeaseDuration: only one SetAttribute worked" );
-		}
-	}
+
+	rc = SetAttributeInt( cluster, proc, attr_name, xact_start_time + dur );
 	return rc;
 }
 
@@ -1561,7 +1551,7 @@ BeginTransaction()
 {
 	JobQueue->BeginTransaction();
 
-	// note what time we started the transaction (used by SetLeaseDuration())
+	// note what time we started the transaction (used by SetTimerAttribute())
 	xact_start_time = time( NULL );
 }
 
