@@ -41,7 +41,7 @@ RSC=rc.exe
 # PROP Intermediate_Dir "..\Debug"
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /GX /Z7 /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /YX /FD /c
-# ADD CPP /nologo /MTd /W3 /Gm /Gi /GX /ZI /Od /D "WIN32" /D "_DEBUG" /Fp"..\Debug\condor_common.pch" /Yu"condor_common.h" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) /c
+# ADD CPP /nologo /MTd /W3 /Gm /Gi /GX /ZI /Od /I "..\src\h" /I "..\src\condor_includes" /I "..\src\condor_c++_util" /I "..\src\condor_daemon_client" /I "..\src\condor_daemon_core.V6" /D "WIN32" /D "_DEBUG" /Fp"..\Debug\condor_common.pch" /Yu"condor_common.h" /FD /TP /c
 # ADD BASE RSC /l 0x409
 # ADD RSC /l 0x409
 BSC32=bscmake.exe
@@ -63,9 +63,9 @@ LIB32=link.exe -lib
 # PROP Output_Dir "..\Release"
 # PROP Intermediate_Dir "..\Release"
 # PROP Target_Dir ""
-# ADD BASE CPP /nologo /MDd /W3 /GX /Z7 /Od /D "WIN32" /D "_DEBUG" /Fp"..\src\condor_c++_util/condor_common.pch" /Yu"condor_common.h" /FD /TP /c
+# ADD BASE CPP /nologo /MDd /W3 /GX /Z7 /Od /I "..\src\h" /I "..\src\condor_includes" /I "..\src\condor_c++_util" /I "..\src\condor_daemon_client" /D "WIN32" /D "_DEBUG" /Fp"..\src\condor_c++_util/condor_common.pch" /Yu"condor_common.h" /FD /TP /c
 # SUBTRACT BASE CPP /Fr
-# ADD CPP /nologo /MT /W3 /GX /Z7 /O1 /D "WIN32" /D "NDEBUG" /Fp"..\Release\condor_common.pch" /Yu"condor_common.h" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) /c
+# ADD CPP /nologo /MT /W3 /GX /Z7 /O1 /I "..\src\h" /I "..\src\condor_includes" /I "..\src\condor_c++_util" /I "..\src\condor_daemon_client" /I "..\src\condor_daemon_core.V6" /D "WIN32" /D "NDEBUG" /Fp"..\Release\condor_common.pch" /Yu"condor_common.h" /FD /TP /c
 # ADD BASE RSC /l 0x409
 # ADD RSC /l 0x409
 BSC32=bscmake.exe
@@ -96,26 +96,6 @@ SOURCE="..\src\condor_c++_util\ad_printmask.C"
 # Begin Source File
 
 SOURCE="..\src\condor_c++_util\ad_printmask.h"
-# End Source File
-# Begin Source File
-
-SOURCE="..\src\condor_c++_util\build_job_env.C"
-# End Source File
-# Begin Source File
-
-SOURCE="..\src\condor_c++_util\build_job_env.h"
-# End Source File
-# Begin Source File
-
-SOURCE="..\src\condor_c++_util\check_events.C"
-# End Source File
-# Begin Source File
-
-SOURCE="..\src\condor_c++_util\check_events.h"
-# End Source File
-# Begin Source File
-
-SOURCE="..\src\condor_c++_util\check_log_files.C"
 # End Source File
 # Begin Source File
 
@@ -164,10 +144,6 @@ SOURCE="..\src\condor_c++_util\classad_merge.C"
 # Begin Source File
 
 SOURCE="..\src\condor_c++_util\classad_merge.h"
-# End Source File
-# Begin Source File
-
-SOURCE="..\src\condor_c++_util\classad_namedlist.C"
 # End Source File
 # Begin Source File
 
@@ -240,14 +216,6 @@ SOURCE="..\src\condor_c++_util\condor_event.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\condor_id.C"
-# End Source File
-# Begin Source File
-
-SOURCE="..\src\condor_c++_util\condor_id.h"
-# End Source File
-# Begin Source File
-
 SOURCE="..\src\condor_c++_util\condor_md.C"
 # End Source File
 # Begin Source File
@@ -306,10 +274,6 @@ SOURCE="..\src\condor_c++_util\cron.C"
 # Begin Source File
 
 SOURCE="..\src\condor_c++_util\cronjob.C"
-# End Source File
-# Begin Source File
-
-SOURCE="..\src\condor_c++_util\cronjob_classad.C"
 # End Source File
 # Begin Source File
 
@@ -666,14 +630,6 @@ SOURCE="..\src\condor_c++_util\Set.h"
 # End Source File
 # Begin Source File
 
-SOURCE="..\src\condor_c++_util\setenv.C"
-# End Source File
-# Begin Source File
-
-SOURCE="..\src\condor_c++_util\setenv.h"
-# End Source File
-# Begin Source File
-
 SOURCE="..\src\condor_c++_util\sig_name.C"
 # End Source File
 # Begin Source File
@@ -683,22 +639,6 @@ SOURCE="..\src\condor_c++_util\sig_name.h"
 # Begin Source File
 
 SOURCE="..\src\condor_c++_util\simplelist.h"
-# End Source File
-# Begin Source File
-
-SOURCE="..\src\condor_c++_util\stat_wrapper.C"
-# End Source File
-# Begin Source File
-
-SOURCE="..\src\condor_c++_util\stat_wrapper.h"
-# End Source File
-# Begin Source File
-
-SOURCE="..\src\condor_c++_util\status_string.C"
-# End Source File
-# Begin Source File
-
-SOURCE="..\src\condor_c++_util\status_string.h"
 # End Source File
 # Begin Source File
 
@@ -727,14 +667,6 @@ SOURCE="..\src\condor_c++_util\stringSpace.h"
 # Begin Source File
 
 SOURCE="..\src\condor_c++_util\strnewp.C"
-# End Source File
-# Begin Source File
-
-SOURCE="..\src\condor_c++_util\tmp_dir.C"
-# End Source File
-# Begin Source File
-
-SOURCE="..\src\condor_c++_util\tmp_dir.h"
 # End Source File
 # Begin Source File
 
@@ -791,14 +723,6 @@ SOURCE="..\src\condor_c++_util\which.C"
 # Begin Source File
 
 SOURCE="..\src\condor_c++_util\which.h"
-# End Source File
-# Begin Source File
-
-SOURCE="..\src\condor_c++_util\windows_firewall.C"
-# End Source File
-# Begin Source File
-
-SOURCE="..\src\condor_c++_util\windows_firewall.h"
 # End Source File
 # End Target
 # End Project

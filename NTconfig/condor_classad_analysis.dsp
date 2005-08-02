@@ -1,24 +1,24 @@
-# Microsoft Developer Studio Project File - Name="condor_classad" - Package Owner=<4>
+# Microsoft Developer Studio Project File - Name="condor_classad_analysis" - Package Owner=<4>
 # Microsoft Developer Studio Generated Build File, Format Version 6.00
 # ** DO NOT EDIT **
 
 # TARGTYPE "Win32 (x86) Static Library" 0x0104
 
-CFG=condor_classad - Win32 Release
+CFG=condor_classad_analysis - Win32 Release
 !MESSAGE This is not a valid makefile. To build this project using NMAKE,
 !MESSAGE use the Export Makefile command and run
 !MESSAGE 
-!MESSAGE NMAKE /f "condor_classad.mak".
+!MESSAGE NMAKE /f "condor_classad_analysis.mak".
 !MESSAGE 
 !MESSAGE You can specify a configuration when running NMAKE
 !MESSAGE by defining the macro CFG on the command line. For example:
 !MESSAGE 
-!MESSAGE NMAKE /f "condor_classad.mak" CFG="condor_classad - Win32 Release"
+!MESSAGE NMAKE /f "condor_classad_analysis.mak" CFG="condor_classad_analysis - Win32 Release"
 !MESSAGE 
 !MESSAGE Possible choices for configuration are:
 !MESSAGE 
-!MESSAGE "condor_classad - Win32 Debug" (based on "Win32 (x86) Static Library")
-!MESSAGE "condor_classad - Win32 Release" (based on "Win32 (x86) Static Library")
+!MESSAGE "condor_classad_analysis - Win32 Debug" (based on "Win32 (x86) Static Library")
+!MESSAGE "condor_classad_analysis - Win32 Release" (based on "Win32 (x86) Static Library")
 !MESSAGE 
 
 # Begin Project
@@ -28,7 +28,7 @@ CFG=condor_classad - Win32 Release
 CPP=cl.exe
 RSC=rc.exe
 
-!IF  "$(CFG)" == "condor_classad - Win32 Debug"
+!IF  "$(CFG)" == "condor_classad_analysis - Win32 Debug"
 
 # PROP BASE Use_MFC 0
 # PROP BASE Use_Debug_Libraries 1
@@ -41,7 +41,7 @@ RSC=rc.exe
 # PROP Intermediate_Dir "..\Debug"
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /GX /Z7 /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /YX /FD /c
-# ADD CPP /nologo /MTd /W3 /Gm /Gi /GX /ZI /Od /I "..\src\h" /I "..\src\condor_includes" /I "..\src\condor_c++_util" /I "..\src\condor_daemon_client" /I "..\src\condor_daemon_core.V6" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /Fp"..\Debug\condor_common.pch" /Yu"condor_common.h" /FD /TP /c
+# ADD CPP /nologo /MDd /W3 /Gm /Gi /GX /ZI /Od /I "..\src\h" /I "..\src\condor_includes" /I "..\src\condor_c++_util" /I "..\src\condor_daemon_client" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /Fp"..\Debug\condor_common.pch" /Yu"condor_common.h" /FD /TP /c
 # ADD BASE RSC /l 0x409
 # ADD RSC /l 0x409
 BSC32=bscmake.exe
@@ -51,12 +51,12 @@ LIB32=link.exe -lib
 # ADD BASE LIB32 /nologo
 # ADD LIB32 /nologo
 
-!ELSEIF  "$(CFG)" == "condor_classad - Win32 Release"
+!ELSEIF  "$(CFG)" == "condor_classad_analysis - Win32 Release"
 
 # PROP BASE Use_MFC 0
 # PROP BASE Use_Debug_Libraries 1
-# PROP BASE Output_Dir "condor_classad___Win32_Release"
-# PROP BASE Intermediate_Dir "condor_classad___Win32_Release"
+# PROP BASE Output_Dir "condor_classad_analysis___Win32_Release"
+# PROP BASE Intermediate_Dir "condor_classad_analysis___Win32_Release"
 # PROP BASE Target_Dir ""
 # PROP Use_MFC 0
 # PROP Use_Debug_Libraries 1
@@ -64,7 +64,7 @@ LIB32=link.exe -lib
 # PROP Intermediate_Dir "..\Release"
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /MDd /W3 /GX /Z7 /Od /Ob2 /I "..\src\h" /I "..\src\condor_includes" /I "..\src\condor_c++_util" /I "..\src\condor_daemon_client" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /Fp"..\src\condor_c++_util/condor_common.pch" /Yu"condor_common.h" /FD /TP /c
-# ADD CPP /nologo /MT /W3 /GX /Z7 /O1 /I "..\src\h" /I "..\src\condor_includes" /I "..\src\condor_c++_util" /I "..\src\condor_daemon_client" /I "..\src\condor_daemon_core.V6" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /Fp"..\Release\condor_common.pch" /Yu"condor_common.h" /FD /TP /c
+# ADD CPP /nologo /MD /W3 /GX /Z7 /O1 /I "..\src\h" /I "..\src\condor_includes" /I "..\src\condor_c++_util" /I "..\src\condor_daemon_client" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /Fp"..\Release\condor_common.pch" /Yu"condor_common.h" /FD /TP /c
 # ADD BASE RSC /l 0x409
 # ADD RSC /l 0x409
 BSC32=bscmake.exe
@@ -78,88 +78,83 @@ LIB32=link.exe -lib
 
 # Begin Target
 
-# Name "condor_classad - Win32 Debug"
-# Name "condor_classad - Win32 Release"
+# Name "condor_classad_analysis - Win32 Debug"
+# Name "condor_classad_analysis - Win32 Release"
 # Begin Source File
 
-SOURCE=..\src\condor_classad.V6\classad.C
-# SUBTRACT CPP /YX /Yc /Yu
+SOURCE=..\src\condor_classad_analysis\analysis.C
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_classad.V6\classad.h
+SOURCE=..\src\condor_classad_analysis\analysis.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_includes\condor_ast.h
+SOURCE=..\src\condor_classad_analysis\boolExpr.C
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_includes\condor_astbase.h
+SOURCE=..\src\condor_classad_analysis\boolExpr.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_includes\condor_attributes.h
+SOURCE=..\src\condor_classad_analysis\boolValue.C
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_includes\condor_attrlist.h
+SOURCE=..\src\condor_classad_analysis\boolValue.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_includes\condor_buildtable.h
+SOURCE=..\src\condor_classad_analysis\caa_instantiate.C
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_includes\condor_classad.h
+SOURCE=..\src\condor_classad_analysis\condition.C
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_includes\condor_classad_lookup.h
+SOURCE=..\src\condor_classad_analysis\condition.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_includes\condor_classad_util.h
+SOURCE=..\src\condor_classad_analysis\explain.C
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_includes\condor_classifiedjobs.h
+SOURCE=..\src\condor_classad_analysis\explain.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_includes\condor_commands.h
+SOURCE=..\src\condor_classad_analysis\interval.C
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_includes\condor_constants.h
+SOURCE=..\src\condor_classad_analysis\interval.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_includes\condor_expressions.h
+SOURCE=..\src\condor_classad_analysis\multiProfile.C
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_includes\condor_exprtype.h
+SOURCE=..\src\condor_classad_analysis\multiProfile.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_includes\condor_mach_status.h
+SOURCE=..\src\condor_classad_analysis\profile.C
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_includes\condor_registration.h
+SOURCE=..\src\condor_classad_analysis\profile.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_includes\condor_scanner.h
+SOURCE=..\src\condor_classad_analysis\resourceGroup.C
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_classad\operators.h
-# End Source File
-# Begin Source File
-
-SOURCE=..\src\condor_classad\value.h
+SOURCE=..\src\condor_classad_analysis\resourceGroup.h
 # End Source File
 # End Target
 # End Project

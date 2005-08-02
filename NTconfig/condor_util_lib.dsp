@@ -41,7 +41,7 @@ RSC=rc.exe
 # PROP Intermediate_Dir "..\Debug"
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /GX /Z7 /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /YX /FD /c
-# ADD CPP /nologo /MTd /W3 /Gm /Gi /GX /ZI /Od /D "WIN32" /D "_DEBUG" /Fp"..\Debug\condor_common_c.pch" /Yu"condor_common.h" /FD $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) /c
+# ADD CPP /nologo /MTd /W3 /Gm /Gi /GX /ZI /Od /I "..\src\h" /I "..\src\condor_includes" /I "..\src\condor_c++_util" /I "..\src\condor_daemon_client" /I "..\src\condor_daemon_core.V6" /D "WIN32" /D "_DEBUG" /Fp"..\Debug\condor_common_c.pch" /Yu"condor_common.h" /FD /c
 # ADD BASE RSC /l 0x409
 # ADD RSC /l 0x409
 BSC32=bscmake.exe
@@ -63,9 +63,9 @@ LIB32=link.exe -lib
 # PROP Output_Dir "..\Release"
 # PROP Intermediate_Dir "..\Release"
 # PROP Target_Dir ""
-# ADD BASE CPP /nologo /MDd /W3 /GX /Z7 /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /Fp"..\src\condor_util_lib/condor_common.pch" /Yu"condor_common.h" /FD /c
+# ADD BASE CPP /nologo /MDd /W3 /GX /Z7 /Od /I "..\src\h" /I "..\src\condor_includes" /I "..\src\condor_c++_util" /I "..\src\condor_daemon_client" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /Fp"..\src\condor_util_lib/condor_common.pch" /Yu"condor_common.h" /FD /c
 # SUBTRACT BASE CPP /Fr
-# ADD CPP /nologo /MT /W3 /GX /Z7 /O1 /D "WIN32" /D "NDEBUG" /Fp"..\Release\condor_common_c.pch" /Yu"condor_common.h" /FD $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) /c
+# ADD CPP /nologo /MT /W3 /GX /Z7 /O1 /I "..\src\h" /I "..\src\condor_includes" /I "..\src\condor_c++_util" /I "..\src\condor_daemon_client" /I "..\src\condor_daemon_core.V6" /D "WIN32" /D "NDEBUG" /Fp"..\Release\condor_common_c.pch" /Yu"condor_common.h" /FD /c
 # ADD BASE RSC /l 0x409
 # ADD RSC /l 0x409
 BSC32=bscmake.exe
@@ -99,24 +99,12 @@ SOURCE=..\src\condor_util_lib\ckpt_name.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_util_lib\condor_blkng_full_disk_io.c
-# End Source File
-# Begin Source File
-
 SOURCE=..\src\condor_util_lib\condor_common_c.C
 # ADD CPP /Yc"condor_common.h"
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_util_lib\condor_create_id.c
-# End Source File
-# Begin Source File
-
 SOURCE=..\src\condor_includes\condor_email.h
-# End Source File
-# Begin Source File
-
-SOURCE=..\src\condor_util_lib\condor_full_io.c
 # End Source File
 # Begin Source File
 
@@ -125,10 +113,6 @@ SOURCE=..\src\condor_util_lib\condor_perms.c
 # Begin Source File
 
 SOURCE=..\src\condor_includes\condor_perms.h
-# End Source File
-# Begin Source File
-
-SOURCE=..\src\condor_util_lib\condor_pidenvid.c
 # End Source File
 # Begin Source File
 
@@ -189,10 +173,6 @@ SOURCE=..\src\h\except.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_util_lib\exit_utils.c
-# End Source File
-# Begin Source File
-
 SOURCE=..\src\condor_util_lib\fdprintf.c
 # End Source File
 # Begin Source File
@@ -202,10 +182,6 @@ SOURCE=..\src\condor_includes\fdprintf.h
 # Begin Source File
 
 SOURCE=..\src\condor_util_lib\filename_tools.c
-# End Source File
-# Begin Source File
-
-SOURCE=..\src\condor_util_lib\get_exec_path.c
 # End Source File
 # Begin Source File
 
@@ -253,14 +229,6 @@ SOURCE=..\src\condor_util_lib\nullfile.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\condor_util_lib\printf_format.c
-# End Source File
-# Begin Source File
-
-SOURCE=..\src\condor_util_lib\proc.c
-# End Source File
-# Begin Source File
-
 SOURCE=..\src\condor_util_lib\proc_id.c
 # End Source File
 # Begin Source File
@@ -290,7 +258,7 @@ SOURCE=..\src\h\syscall_numbers.tmpl
 
 # PROP Ignore_Default_Tool 1
 # Begin Custom Build
-InputDir=..\src\h
+InputDir=\condor_builds\v66\src\h
 InputPath=..\src\h\syscall_numbers.tmpl
 
 "..\src\h\syscall_numbers.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
@@ -303,7 +271,7 @@ InputPath=..\src\h\syscall_numbers.tmpl
 # PROP BASE Ignore_Default_Tool 1
 # PROP Ignore_Default_Tool 1
 # Begin Custom Build
-InputDir=..\src\h
+InputDir=\condor_builds\v66\src\h
 InputPath=..\src\h\syscall_numbers.tmpl
 
 "..\src\h\syscall_numbers.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
