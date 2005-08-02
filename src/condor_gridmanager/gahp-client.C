@@ -4271,9 +4271,9 @@ GahpClient::condor_job_refresh_proxy(const char *schedd_name, PROC_ID job_id,
 }
 
 int
-GahpClient::condor_job_update_lease(const char *schedd_name, int renew_time,
+GahpClient::condor_job_update_lease(const char *schedd_name,
 									const SimpleList<PROC_ID> &jobs,
-									const SimpleList<int> &durations,
+									const SimpleList<int> &expirations,
 									SimpleList<PROC_ID> &updated )
 {
 	static const char* command = "CONDOR_JOB_UPDATE_LEASE";
@@ -4283,23 +4283,23 @@ GahpClient::condor_job_update_lease(const char *schedd_name, int renew_time,
 		return GAHPCLIENT_COMMAND_NOT_SUPPORTED;
 	}
 
-	ASSERT( jobs.Length() == durations.Length() );
+	ASSERT( jobs.Length() == expirations.Length() );
 
 		// Generate request line
 	if (!schedd_name) schedd_name=NULLSTRING;
 	MyString reqline;
 	char *esc1 = strdup( escapeGahpString(schedd_name) );
-	bool x = reqline.sprintf("%s %d %d", esc1, renew_time, jobs.Length());
+	bool x = reqline.sprintf("%s %d", esc1, jobs.Length());
 	free( esc1 );
 	ASSERT( x == true );
 		// Add variable arguments
 	SimpleListIterator<PROC_ID> jobs_i (jobs);
-	SimpleListIterator<int> durs_i (durations);
+	SimpleListIterator<int> exps_i (expirations);
 	PROC_ID next_job;
-	int next_dur;
-	while ( jobs_i.Next( next_job ) && durs_i.Next( next_dur ) ) {
+	int next_exp;
+	while ( jobs_i.Next( next_job ) && exps_i.Next( next_exp ) ) {
 		x = reqline.sprintf_cat( " %d.%d %d", next_job.cluster, next_job.proc,
-								 next_dur );
+								 next_exp );
 		ASSERT( x == true );
 	}
 	const char *buf = reqline.Value();

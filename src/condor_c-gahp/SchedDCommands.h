@@ -37,15 +37,15 @@
  **/
 
 
-struct job_duration {
+struct job_expiration {
 	int cluster;
 	int proc;
-	unsigned long duration;
+	unsigned long expiration;
 
-	void copy_from(const job_duration & r) {
+	void copy_from(const job_expiration & r) {
 		cluster = r.cluster;
 		proc = r.proc;
-	    duration = r.duration;
+	    expiration = r.expiration;
 	}
 
 };
@@ -97,9 +97,8 @@ public:
 													  const char * proxy_file);
 
 	static SchedDRequest * createUpdateLeaseRequest (const int request_id,
-													 const unsigned long renew_time,
 													 const int num_jobs,
-													 job_duration* & durations);
+													 job_expiration* & expirations);
 
 	~SchedDRequest() {
 		if (classad)
@@ -110,8 +109,8 @@ public:
 			free (reason);
 		if (proxy_file)
 			free (proxy_file);
-		if (durations)
-			delete [] durations;
+		if (expirations)
+			delete [] expirations;
 
 	}
 
@@ -126,8 +125,7 @@ public:
 	char * proxy_file;	// For refresh_proxy
 
 	int num_jobs;
-	unsigned long renew_time;
-	job_duration * durations;
+	job_expiration * expirations;
 
 	// Status of the command
 	enum {
@@ -166,8 +164,7 @@ protected:
 		reason = NULL;
 		proxy_file = NULL;
 		request_id = -1;
-		durations = NULL;
-		renew_time = 0;
+		expirations = NULL;
 		num_jobs =0;
 	}
 

@@ -545,9 +545,9 @@ class GahpClient : public Service {
 								 const char *proxy_file);
 
 		int
-		condor_job_update_lease(const char *schedd_name, int renew_time,
+		condor_job_update_lease(const char *schedd_name,
 								const SimpleList<PROC_ID> &jobs,
-								const SimpleList<int> &durations,
+								const SimpleList<int> &expirations,
 								SimpleList<PROC_ID> &updated );
 
 		int

@@ -638,26 +638,23 @@ update_report_result:
 			
 				time_t time_now = time(NULL);
 				int duration = 
-					current_command->durations[i].duration - 
-					(time_now - 
-					 current_command->renew_time);
-		
+					current_command->expirations[i].expiration - time_now;
 
 				dprintf (D_FULLDEBUG, 
 						 "Job %d.%d SetTimerAttribute=%d\n",
-						 current_command->durations[i].cluster,
-						 current_command->durations[i].proc,
+						 current_command->expirations[i].cluster,
+						 current_command->expirations[i].proc,
 						 duration);
 		
-				if (SetTimerAttribute (current_command->durations[i].cluster,
-									   current_command->durations[i].proc,
+				if (SetTimerAttribute (current_command->expirations[i].cluster,
+									   current_command->expirations[i].proc,
 									   ATTR_TIMER_REMOVE_CHECK,
 									   duration) < 0) {
 
 					dprintf (D_ALWAYS, 
 							 "Unable to SetTimerAttribute(%d, %d), errno=%d\n",
-							 current_command->durations[i].cluster,
-							 current_command->durations[i].proc,
+							 current_command->expirations[i].cluster,
+							 current_command->expirations[i].proc,
 							 errno);
 						 
 				} else {
@@ -667,8 +664,8 @@ update_report_result:
 
 					success_job_ids.sprintf_cat (
 						"%d.%d",
-						current_command->durations[i].cluster,
-						current_command->durations[i].proc);
+						current_command->expirations[i].cluster,
+						current_command->expirations[i].proc);
 				}
 			} //rof jobs for request
 		} // fi error
@@ -1070,29 +1067,27 @@ handle_gahp_command(char ** argv, int argc) {
 	}  else if (strcasecmp (argv[0], GAHP_COMMAND_JOB_UPDATE_LEASE) ==0) {
 		int req_id;
 		int num_jobs;
-		unsigned long renew_time;
 
-		if (!(argc >= 5 &&
+		if (!(argc >= 4 &&
 			get_int (argv[1], &req_id) &&
-			get_ulong (argv[3], &renew_time) &&
-			get_int (argv[4], &num_jobs))) {
+			get_int (argv[3], &num_jobs))) {
 
 			dprintf (D_ALWAYS, "Invalid args to %s\n", argv[0]);
 			return FALSE;
 		}
 
-		job_duration * durations = new job_duration[num_jobs];
+		job_expiration * expirations = new job_expiration[num_jobs];
 		int i;
 		for (i=0; i<num_jobs; i++) {
 			if (!get_job_id(argv[5+i*2], 
-							&(durations[i].cluster),
-							&(durations[i].proc))) {
-				delete[] durations;
+							&(expirations[i].cluster),
+							&(expirations[i].proc))) {
+				delete[] expirations;
 				return FALSE;
 			}
 
-			if (!get_ulong (argv[5+i*2+1], &(durations[i].duration))) {
-				delete [] durations;
+			if (!get_ulong (argv[5+i*2+1], &(expirations[i].expiration))) {
+				delete [] expirations;
 				return FALSE;
 			}
 		}	
@@ -1100,11 +1095,10 @@ handle_gahp_command(char ** argv, int argc) {
 		enqueue_command (
 			SchedDRequest::createUpdateLeaseRequest(
 													req_id,
-													renew_time,
 													num_jobs,
-													durations));
+													expirations));
 
-		delete [] durations;
+		delete [] expirations;
 		return TRUE;
 	}  else if (strcasecmp (argv[0], GAHP_COMMAND_JOB_STAGE_IN) ==0) {
 		int req_id;
