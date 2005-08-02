@@ -255,8 +255,7 @@ SetAttribute( int cluster_id, int proc_id, char *attr_name, char *attr_value )
 }
 
 int
-SetTimerAttribute( int cluster_id, int proc_id, const char *attr_name,
-				   int duration )
+SetTimerAttribute( int cluster_id, int proc_id, char *attr_name, int duration )
 {
 	int	rval;
 
