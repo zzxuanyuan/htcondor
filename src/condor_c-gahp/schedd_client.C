@@ -747,6 +747,14 @@ update_lease_result:
 			current_command->classad->Assign(ATTR_CLUSTER_ID, ClusterId);
 			current_command->classad->Assign(ATTR_PROC_ID, ProcId);
 
+			// Special case for the job lease
+			int expire_time;
+			if ( current_command->classad->LookupInteger( ATTR_TIMER_REMOVE_CHECK, expire_time ) ) {
+				SetTimerAttribute( ClusterId, ProcId, ATTR_TIMER_REMOVE_CHECK,
+								   expire_time - time(NULL) );
+				current_command->classad->Delete( ATTR_TIMER_REMOVE_CHECK );
+			}
+
 			// Set all the classad attribute on the remote classad
 			current_command->classad->ResetExpr();
 			ExprTree *tree;
