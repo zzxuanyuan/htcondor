@@ -350,6 +350,9 @@ const char ATTR_TARGET_TYPE				 [] = "TargetType";
 const char ATTR_TIME_TO_LIVE             [] = "TimeToLive";
 const char ATTR_TOTAL_CLAIM_RUN_TIME     [] = "TotalClaimRunTime";
 const char ATTR_TOTAL_CLAIM_SUSPEND_TIME [] = "TotalClaimSuspendTime";
+const char ATTR_DYNAMIC_USER_ACCOUNT	 [] = "DynamicUserAccount";
+
+
 #define ATTR_TOTAL_CONDOR_LOAD_AVG			AttrGetName( ATTRE_TOTAL_LOAD )
 
 const char ATTR_TOOL_DAEMON_ARGS         [] = "ToolDaemonArgs";
