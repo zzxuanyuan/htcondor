@@ -623,7 +623,7 @@ Directory::do_remove_dir( const char* path )
 bool 
 Directory::do_remove_file( const char* path )
 {
-    bool ret_val = true;    // we'll set this to false if we fail
+	bool ret_val;
 	Set_Access_Priv();
 
 #if DEBUG_DIRECTORY_CLASS
@@ -1268,19 +1268,35 @@ temp_dir_path()
   (as returned by temp_dir_path())
   Returns the name of the new file
   The pointer returned must be de-allocated by the caller w/ free().
+  The file must be deleted by caller.
 */
 
 char * 
 create_temp_file() {
 	char * temp_dir = temp_dir_path();
 	char * filename = (char*)(malloc (500));
-	//int pid = daemonCore->getPid();
+	int mypid;
+
+#ifdef WIN32
+	mypid = GetCurrentProcessId();
+#else
+	mypid = getpid();
+#endif
+
+		//int pid = daemonCore->getPid();
 	int timestamp = (int)time(NULL);
 	int fd=-1;
 
+	int retry_count = 10;
+
 	do {
-		sprintf (filename, "%s/tmp.%d", temp_dir, timestamp);
-	} while ((fd=open (filename, O_EXCL | O_CREAT)) == -1);
+		sprintf (filename, "%s/tmp.%d.%d", temp_dir, mypid, timestamp++);
+	} while ((--retry_count > 0) && 
+			 ((fd=open (filename, O_EXCL | O_CREAT, S_IRUSR | S_IWUSR)) == -1));
+
+	if (fd == -1) {
+		return NULL;
+	}
 
 	close (fd);
 
