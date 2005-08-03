@@ -63,4 +63,8 @@ int IsGT(ClassAd *, ClassAd *, char *);
 void SortClassAdList(ClassAdList *, ClassAdList *&, char *);
 #endif
 
+// Evaluate the classad against the constraint 
+// if the constraint is satisfied, return TRUE, otherwise FALSE
+bool EvalBool(ClassAd *ad, const char *constraint);
+
 #endif
