@@ -55,6 +55,12 @@ class BaseJob
 				  int hold_sub_code = 0 );
 	void JobRemoved( const char *remove_reason );
 
+	void UpdateJobLeaseSent( time_t new_expiration_time );
+	void UpdateJobLeaseReceived( time_t new_expiration_time );
+
+	void SetJobLeaseTimers();
+	virtual int JobLeaseSentExpired();
+
 	virtual void JobAdUpdateFromSchedd( const ClassAd *new_ad );
 
 	int EvalPeriodicJobExpr();
@@ -102,6 +108,7 @@ class BaseJob
 
 	int periodicPolicyEvalTid;
 	int evaluateStateTid;
+	int jobLeaseSentExpiredTid;
 };
 
 UserLog *InitializeUserLog( ClassAd *job_ad );

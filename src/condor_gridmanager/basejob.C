@@ -77,6 +77,9 @@ BaseJob::BaseJob( ClassAd *classad )
 								(TimerHandlercpp)&BaseJob::EvalPeriodicJobExpr,
 								"EvalPeriodicJobExpr", (Service*) this );
 
+	jobLeaseSentExpiredTid = TIMER_UNSET;
+	SetJobLeaseTimers();
+
 	resourceStateKnown = false;
 	resourceDown = false;
 	resourcePingPending = false;
@@ -90,6 +93,9 @@ BaseJob::~BaseJob()
 	}
 	daemonCore->Cancel_Timer( periodicPolicyEvalTid );
 	daemonCore->Cancel_Timer( evaluateStateTid );
+	if ( jobLeaseSentExpiredTid != TIMER_UNSET ) {
+		daemonCore->Cancel_Timer( jobLeaseSentExpiredTid );
+	}
 }
 
 void BaseJob::SetEvaluateState()
@@ -153,6 +159,9 @@ void BaseJob::JobEvicted()
 		// Does this imply a change to condorState IDLE?
 
 	UpdateRuntimeStats();
+
+		// If we had a lease with the remote resource, we don't now
+	UpdateJobLeaseSent( 0 );
 
 		//  should we be updating job ad values here?
 	if ( writeUserLog && !evictLogged ) {
@@ -299,6 +308,84 @@ void BaseJob::UpdateRuntimeStats()
 		requestScheddUpdate( this );
 
 	}
+}
+
+void BaseJob::SetJobLeaseTimers()
+{
+	int expiration_time_sent = -1;
+
+	jobAd->LookupInteger( ATTR_TIMER_REMOVE_CHECK_SENT, expiration_time_sent );
+
+	if ( expiration_time_sent == -1 ) {
+		if ( jobLeaseSentExpiredTid != TIMER_UNSET ) {
+			daemonCore->Cancel_Timer( jobLeaseSentExpiredTid );
+			jobLeaseSentExpiredTid = TIMER_UNSET;
+		}
+	} else {
+		int when = expiration_time_sent - time(NULL);
+		if ( jobLeaseSentExpiredTid == TIMER_UNSET ) {
+			jobLeaseSentExpiredTid = daemonCore->Register_Timer(
+								when,
+								(TimerHandlercpp)&BaseJob::JobLeaseSentExpired,
+								"JobLeaseSentExpired", (Service*) this );
+		} else {
+			daemonCore->Reset_Timer( jobLeaseSentExpiredTid, when );
+		}
+	}
+}
+
+void BaseJob::UpdateJobLeaseSent( time_t new_expiration_time )
+{
+	time_t old_expiration_time = -1;
+
+	jobAd->LookupInteger( ATTR_TIMER_REMOVE_CHECK_SENT,
+						  (int)old_expiration_time );
+
+	if ( new_expiration_time == 0 ) {
+		jobAd->AssignExpr( ATTR_TIMER_REMOVE_CHECK_SENT, "Undefined" );
+
+		requestScheddUpdate( this );
+
+		SetJobLeaseTimers();
+	}
+
+	if ( new_expiration_time != old_expiration_time ) {
+
+		jobAd->Assign( ATTR_TIMER_REMOVE_CHECK_SENT,
+					   (int)new_expiration_time );
+
+		requestScheddUpdate( this );
+
+		SetJobLeaseTimers();
+	}
+}
+
+void BaseJob::UpdateJobLeaseReceived( time_t new_expiration_time )
+{
+	time_t old_expiration_time = -1;
+
+	jobAd->LookupInteger( ATTR_TIMER_REMOVE_CHECK, (int)old_expiration_time );
+
+	if ( old_expiration_time == -1 ) {
+		dprintf( D_ALWAYS, "(%d.%d) New lease but no old lease, ignoring!\n",
+				 procID.cluster, procID.proc );
+		return;
+	}
+
+	if ( new_expiration_time != old_expiration_time ) {
+
+		jobAd->Assign( ATTR_TIMER_REMOVE_CHECK, (int)new_expiration_time );
+		jobAd->SetDirtyFlag( ATTR_TIMER_REMOVE_CHECK, false );
+
+			// TODO update lease expiration timer
+	}
+}
+
+int BaseJob::JobLeaseSentExpired()
+{
+	UpdateJobLeaseSent( 0 );
+	SetEvaluateState();
+	return 0;
 }
 
 void BaseJob::JobAdUpdateFromSchedd( const ClassAd *new_ad )
