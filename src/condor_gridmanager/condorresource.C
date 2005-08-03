@@ -323,7 +323,8 @@ dprintf(D_ALWAYS,"*** DoPing called\n");
 }
 
 void CondorResource::DoUpdateLeases( time_t& update_delay,
-									 bool& update_complete )
+									 bool& update_complete,
+									 SimpleList<PROC_ID>& update_succeeded )
 {
 	int rc;
 	BaseJob *curr_job;
@@ -344,7 +345,7 @@ dprintf(D_ALWAYS,"*** DoUpdateLeases called\n");
 		leaseUpdates.Rewind();
 		while ( leaseUpdates.Next( curr_job ) ) {
 			int exp = 0;
-			jobs.Append( curr_job->procID );
+			jobs.Append( ((CondorJob*)curr_job)->remoteJobId );
 			curr_job->jobAd->LookupInteger( ATTR_TIMER_REMOVE_CHECK_SENT, exp );
 			expirations.Append( exp );
 		}
@@ -360,7 +361,17 @@ dprintf(D_ALWAYS,"*** DoUpdateLeases called\n");
 		update_complete = true;
 	} else {
 		dprintf( D_ALWAYS, "*** Lease udpate succeeded!\n" );
-			// TODO What about the failed ones?
 		update_complete = true;
+
+		PROC_ID curr_id;
+		MyString id_str;
+		updated.Rewind();
+		while ( updated.Next( curr_id ) ) {
+			id_str.sprintf( "%d.%d", curr_id.cluster, curr_id.proc );
+			if ( CondorJobsById.lookup( HashKey( id_str.Value() ),
+										(CondorJob*)curr_job ) == 0 ) {
+				update_succeeded.Append( curr_job->procID );
+			}
+		}
 	}
 }
