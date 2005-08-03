@@ -118,6 +118,7 @@ SimpleList<int> scheddUpdateNotifications;
 HashTable <PROC_ID, BaseJob *> pendingScheddUpdates( HASH_TABLE_SIZE,
 													 procIDHash );
 bool addJobsSignaled = false;
+bool checkLeasesSignaled = false;
 int contactScheddTid = TIMER_UNSET;
 int contactScheddDelay;
 time_t lastContactSchedd = 0;
@@ -142,6 +143,7 @@ int doContactSchedd();
 // handlers
 int ADD_JOBS_signalHandler( int );
 int REMOVE_JOBS_signalHandler( int );
+int CHECK_LEASES_signalHandler( int );
 
 
 bool JobMatchesConstraint( const ClassAd *jobad, const char *constraint )
@@ -417,6 +419,10 @@ Register()
 								 (SignalHandler)&REMOVE_JOBS_signalHandler,
 								 "REMOVE_JOBS_signalHandler", NULL, WRITE );
 
+	daemonCore->Register_Signal( GRIDMAN_CHECK_LEASES, "CheckLeases",
+								 (SignalHandler)&CHECK_LEASES_signalHandler,
+								 "CHECK_LEASES_signalHandler", NULL, WRITE );
+
 	Reconfig();
 }
 
@@ -466,6 +472,19 @@ REMOVE_JOBS_signalHandler( int signal )
 	dprintf(D_FULLDEBUG,"Received REMOVE_JOBS signal\n");
 
 	RequestContactSchedd();
+
+	return TRUE;
+}
+
+int
+CHECK_LEASES_signalHandler( int signal )
+{
+	dprintf(D_FULLDEBUG,"Received CHECK_LEASES signal\n");
+
+	if ( !checkLeasesSignaled ) {
+		RequestContactSchedd();
+		checkLeasesSignaled = true;
+	}
 
 	return TRUE;
 }
@@ -546,6 +565,41 @@ doContactSchedd()
 		error_str.sprintf( "Failed to connect to schedd!" );
 		goto contact_schedd_failure;
 	}
+
+
+	// CheckLeases
+	/////////////////////////////////////////////////////
+	if ( checkLeasesSignaled ) {
+
+		dprintf( D_FULLDEBUG, "querying for renewed leases\n" );
+
+		// Grab the lease attributes of all the jobs in our global hashtable.
+
+		JobsByProcID.startIterations();
+
+		while ( JobsByProcID.iterate( curr_job ) != 0 ) {
+			int new_expiration;
+
+			rc = GetAttributeInt( curr_job->procID.cluster,
+								  curr_job->procID.proc,
+								  ATTR_TIMER_REMOVE_CHECK,
+								  &new_expiration );
+			if ( rc < 0 ) {
+				if ( errno == ETIMEDOUT ) {
+					failure_line_num = __LINE__;
+					commit_transaction = false;
+					goto contact_schedd_disconnect;
+				} else {
+						// This job doesn't have doesn't have a lease from
+						// the submitter. Skip it.
+					continue;
+				}
+			}
+			curr_job->UpdateJobLeaseReceived( new_expiration );
+		}
+
+		checkLeasesSignaled = false;
+	}	// end of handling check leases
 
 
 	// AddJobs
