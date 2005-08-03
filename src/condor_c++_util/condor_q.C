@@ -30,11 +30,9 @@
 #include "condor_config.h"
 #include "CondorError.h"
 #include "jobqueuesnapshot.h"
-#include "sqlquery.h"
-#include <libpq-fe.h>
+#include "condor_classad_util.h"
 
 static ClassAd* getDBNextJobByConstraint(const char* constraint, JobQueueSnapshot  *jqSnapshot);
-static bool evalBool(ClassAd *ad, const char *constraint);
 static int execQuery(PGconn *connection, const char* sql, PGresult*& result);
 
 // specify keyword lists; N.B.  The order should follow from the category
@@ -101,11 +99,15 @@ add (CondorQIntCategories cat, int value)
 {
 
 		// remember the cluster and proc values so that they can be pushed down to DB query
-	if (cat == CQ_CLUSTER_ID) {
+	switch (cat) {
+	case CQ_CLUSTER_ID:
 		cluster = value;
-	}
-	else if (cat == CQ_PROC_ID) {
+		break;
+	case CQ_PROC_ID:
 		proc = value;
+		break;
+	default:
+		break;
 	}
 
 	return query.addInteger (cat, value);
@@ -115,8 +117,12 @@ add (CondorQIntCategories cat, int value)
 int CondorQ::
 add (CondorQStrCategories cat, char *value)
 {  
-	if (cat == CQ_OWNER) {
+	switch (cat) {
+	case CQ_OWNER:
 		strncpy(owner, value, MAXOWNERLEN);
+		break;
+	default:
+		break;
 	}
 
 	return query.addString (cat, value);
@@ -224,7 +230,7 @@ fetchQueueFromDB (ClassAdList &list, char *dbconn, CondorError* errstack)
 	ClassAd 		filterAd;
 	int     		result;
 	JobQueueSnapshot	*jqSnapshot;
-	char            constraint[ATTRLIST_MAX_EXPRESSION] = "";
+	char            constraint[ATTRLIST_MAX_EXPRESSION];
 	ClassAd        *ad;
 	int             rv;
 
@@ -317,6 +323,8 @@ fetchQueueFromDBAndProcess ( char *dbconn, process_function process_func, Condor
 	ClassAd        *ad;
 	int             rv;
 
+	ASSERT(process_func);
+
 	jqSnapshot = new JobQueueSnapshot(dbconn);
 
 	rv = jqSnapshot->startIterateAllClassAds(cluster,
@@ -373,7 +381,7 @@ fetchQueueFromDBAndProcess ( char *dbconn, process_function process_func, Condor
 	return Q_OK;
 }
 
-void CondorQ::directDBQuery(char *dbconn, CondorQQueryType qType) {
+void CondorQ::rawDBQuery(char *dbconn, CondorQQueryType qType) {
 	PGconn        *connection;
 	char          *rowvalue;
 	PGresult	  *resultset;
@@ -393,15 +401,16 @@ void CondorQ::directDBQuery(char *dbconn, CondorQQueryType qType) {
 
 	   	ntuples = execQuery(connection, sqlquery.getQuery(), resultset);
 
+			/* we expect exact one row out of the query */
 		if (ntuples != 1) {
 			fprintf(stderr, "\n-- Failed to execute the query\n");
 			return;
 		}
 		
 		rowvalue = PQgetvalue(resultset, 0, 0);
-		if(strcmp(rowvalue,"") == 0) 
+		if(strcmp(rowvalue,"") == 0) {
 			printf("\nJob queue is curently empty\n");
-		else {
+		} else {
 			printf("\nAverage time in queue for uncompleted jobs (in hh:mm:ss)\n");
 			printf("%s\n", rowvalue);		 
 		}
@@ -413,10 +422,12 @@ void CondorQ::directDBQuery(char *dbconn, CondorQQueryType qType) {
 		break;
 	}
 
-	if(resultset)
+	if(resultset) {
 		PQclear(resultset);
-	if(connection) 
+	}
+	if(connection) {
 		PQfinish(connection);
+	}
 }
 
 int CondorQ::
@@ -563,14 +574,13 @@ short_print(
 	);
 }
 
-
 ClassAd* getDBNextJobByConstraint(const char* constraint, JobQueueSnapshot	*jqSnapshot)
 {
 	ClassAd *ad;
 
 	while(jqSnapshot->iterateAllClassAds(ad)) {
 
-		if ((!constraint || !constraint[0] || evalBool(ad, constraint))) {
+		if ((!constraint || !constraint[0] || EvalBool(ad, constraint))) {
 			return ad;		      
 		}
 		
@@ -584,65 +594,18 @@ ClassAd* getDBNextJobByConstraint(const char* constraint, JobQueueSnapshot	*jqSn
 	return (ClassAd *) 0;
 }
 
-/* helper func to evaluate if constraint is satisfied by this ad */
-static bool 
-evalBool(ClassAd *ad, const char *constraint)
-{
-    static ExprTree *tree = NULL;
-    static char * saved_constraint = NULL;
-    EvalResult result;
-    bool constraint_changed = true;
-
-    if ( saved_constraint ) {
-        if ( strcmp(saved_constraint,constraint) == 0 ) {
-            constraint_changed = false;
-        }
-    }
-
-    if ( constraint_changed ) {
-        // constraint has changed, or saved_constraint is NULL
-        if ( saved_constraint ) {
-            free(saved_constraint);
-            saved_constraint = NULL;
-        }
-        if ( tree ) {
-            delete tree;
-            tree = NULL;
-        }
-        if (Parse(constraint, tree) != 0) {
-            dprintf(D_ALWAYS,
-                "can't parse constraint: %s\n", constraint);
-            return false;
-        }
-        saved_constraint = strdup(constraint);
-    }
-
-    // Evaluate constraint with ad in the target scope so that constraints
-    // have the same semantics as the collector queries.  --RR
-    if (!tree->EvalTree(NULL, ad, &result)) {
-        dprintf(D_ALWAYS, "can't evaluate constraint: %s\n", constraint);
-        return false;
-    }
-    if (result.type == LX_INTEGER) {
-        return (bool)result.i;
-    }
-    dprintf(D_ALWAYS, "contraint (%s) does not evaluate to bool\n",
-        constraint);
-    return false;
-}
-
-
+/* When the query is successfully executed, result is set and return value
+   is >= 0, otherwise return value is -1
+*/
 static int execQuery(PGconn *connection, const char* sql, PGresult*& result)
 {
 	if ((result = PQexec(connection, sql)) == NULL) {
-		return -1;		
+		return -1; 
 	}
 	
 	else if (PQresultStatus(result) != PGRES_TUPLES_OK) {
-		if(result) {
-			PQclear(result);
-			result = NULL;
-		}
+		PQclear(result);
+		result = NULL;
 		return -1;
 	}
 

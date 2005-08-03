@@ -97,7 +97,7 @@ class CondorQ
 	int fetchQueueFromDBAndProcess ( char *, process_function process_func, CondorError* errstack = 0);
 
 		// return the results from a DB query directly to user
-	void directDBQuery(char *, CondorQQueryType);
+	void rawDBQuery(char *, CondorQQueryType);
 
   private:
 	GenericQuery query;

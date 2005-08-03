@@ -24,6 +24,7 @@
 #define _JOBQUEUEDATABASE_H_
 
 #include "sqlquery.h"
+#include <libpq-fe.h>
 
 //! JobQueueDatabase
 /*! It provides interfaces to talk to DBMS
