@@ -67,14 +67,14 @@ static 	char * bufferJobShort (ClassAd *);
 /* if useDB is false, then v1 =scheddAddr, v2=scheddName, v3=scheddMachine;
    if useDB is true,  then v1 =quillName,  v2=dbIpAddr,   v3=dbName
 */
-static	bool show_queue (char* v1, char* v2, char* v3, bool useDB);
-static	bool show_queue_buffered (char* v1, char* v2, char* v3, bool useDB);
+static	bool show_queue (char* v1, char* v2, char* v3, char* v4, bool useDB);
+static	bool show_queue_buffered (char* v1, char* v2, char* v3, char* v4, bool useDB);
 
 /* execute a database query directly */
-static void exec_db_query(char *quillName, char *dbIpAddr, char *dbName);
+static void exec_db_query(char *quillName, char *dbIpAddr, char *dbName, char *queryPassword);
 
 /* build database connection string */
-static char * getDBConnStr(char *&, char *&, char *&);
+static char * getDBConnStr(char *&, char *&, char *&, char *&);
 
 static 	int verbose = 0, summarize = 1, global = 0, show_io = 0, dag = 0, show_held = 0;
 static  int use_xml = 0;
@@ -177,20 +177,23 @@ char return_buff[4096];
 char quillName[64];
 char dbIpAddr[64];
 char dbName[64];
+char queryPassword[64];
 
 /* this function for checking whether database can be used for querying in local machine */
 static bool checkDBconfig() {
-	char *str1, *str2, *str3;
+	char *str1, *str2, *str3, *str4;
 	str1 = param("QUILL_NAME");
 	str2 = param("DATABASE_IPADDRESS");
 	str3 = param("DATABASE_NAME");
-	if (!str1 || !str2 || !str3) {
+	str4 = param("QUILL_QUERY_PASSWORD");
+	if (!str1 || !str2 || !str3 || !str4) {
 		return FALSE;
 	}
 	else {
 		free(str1); 
 		free(str2);
 		free(str3);
+		free(str4);
 		return TRUE;
 	}
 }
@@ -200,7 +203,7 @@ extern 	"C"	int		Termlog;
 int main (int argc, char **argv)
 {
 	ClassAd		*ad;
-	bool		first = true;
+	bool		first;
 	char		scheddName[64];
 	char		scheddMachine[64];
 	char		*tmp;
@@ -256,16 +259,22 @@ int main (int argc, char **argv)
 					fprintf(stderr, "Database query not supported on schedd: %s\n", scheddName);
 				}
 
-				exec_db_query((char *)0, (char *)0, (char *)0);
+				exec_db_query((char *)0, (char *)0, (char *)0, (char *)0);
 
 				exit(1);
 			}
 			else if ( verbose ) {
-				exit( !show_queue( useDB?(char *)0:scheddAddr, useDB?(char *)0:scheddName,
-							useDB?(char *)0:scheddMachine, useDB) );
+				exit( !show_queue( useDB?(char *)0:scheddAddr, 
+						useDB?(char *)0:scheddName,
+						useDB?(char *)0:scheddMachine, 
+						(char *)0, /* in both cases we pass a null for queryPassword */
+						useDB) );
 			} else {
-				exit( !show_queue_buffered( useDB?(char *)0:scheddAddr, useDB?(char *)0:scheddName,
-							useDB?(char *)0:scheddMachine, useDB) );
+				exit( !show_queue_buffered( useDB?(char *)0:scheddAddr, 
+						useDB?(char *)0:scheddName,
+						useDB?(char *)0:scheddMachine, 
+						(char *)0, /* in both cases we pass a null for queryPassword */
+						useDB) );
 			}
 		} else {
 			fprintf( stderr, "Error: %s\n", schedd.error() );
@@ -360,8 +369,9 @@ int main (int argc, char **argv)
 	if (global)
 		mergeAdList(scheddList, quillList);
 
+	first = true;
 	// get queue from each ScheddIpAddr in ad
-	scheddList.Open();
+	scheddList.Open();	
 	while ((ad = scheddList.Next()))
 	{
 
@@ -371,6 +381,7 @@ int main (int argc, char **argv)
 		if (ad->LookupString("DatabaseIpAddr", dbIpAddr) &&
 			ad->LookupString(ATTR_NAME, quillName) &&
 			ad->LookupString("DatabaseName", dbName) && 
+			ad->LookupString("QueryPassword", queryPassword) &&
 			(!ad->LookupInteger("IsRemotelyQueryable",flag) || flag)) {
 			useDB = TRUE;
 		}
@@ -393,14 +404,20 @@ int main (int argc, char **argv)
 				continue;
 			}
 			
-			exec_db_query(quillName, dbIpAddr, dbName);
+			exec_db_query(quillName, dbIpAddr, dbName, queryPassword);
 		}
 		else if ( verbose ) {
-			show_queue(useDB?quillName:scheddAddr, useDB?dbIpAddr:scheddName, 
-					   useDB?dbName:scheddMachine, useDB );
+			show_queue(useDB?quillName:scheddAddr, 
+				useDB?dbIpAddr:scheddName, 
+				useDB?dbName:scheddMachine, 
+				useDB?queryPassword:(char *)0,
+				useDB );
 		} else {
-			show_queue_buffered(useDB?quillName:scheddAddr, useDB?dbIpAddr:scheddName, 
-								useDB?dbName:scheddMachine, useDB);
+			show_queue_buffered(useDB?quillName:scheddAddr, 
+				useDB?dbIpAddr:scheddName, 
+				useDB?dbName:scheddMachine, 
+				useDB?queryPassword:(char *)0,
+				useDB);
 		}
 	}
 
@@ -1258,7 +1275,7 @@ output_sorter( const void * va, const void * vb ) {
 }
 
 static bool
-show_queue_buffered( char* v1, char* v2, char* v3, bool useDB )
+show_queue_buffered( char* v1, char* v2, char* v3, char* v4, bool useDB )
 {
 	static bool	setup_mask = false;
 	clusterProcString **the_output;
@@ -1270,7 +1287,7 @@ show_queue_buffered( char* v1, char* v2, char* v3, bool useDB )
 	char *quillName;
 	char *dbIpAddr;
 	char *dbName;
-
+	char *queryPassword;
 	char *dbconn;
 
 	output_buffer = new ExtArray<clusterProcString*>;
@@ -1280,6 +1297,7 @@ show_queue_buffered( char* v1, char* v2, char* v3, bool useDB )
 		quillName = v1;
 		dbIpAddr = v2;
 		dbName = v3;		
+		queryPassword = v4;
 	}
 	else {
 		scheddAddr = v1;
@@ -1369,7 +1387,7 @@ show_queue_buffered( char* v1, char* v2, char* v3, bool useDB )
 
 		/* get the job ads from database if database can be queried */
 	if (useDB) {
-		dbconn = getDBConnStr(quillName, dbIpAddr, dbName);
+		dbconn = getDBConnStr(quillName, dbIpAddr, dbName, queryPassword);
 
 		if( Q.fetchQueueFromDBAndProcess( dbconn,
 											process_buffer_line,
@@ -1525,7 +1543,7 @@ process_buffer_line( ClassAd *job )
 }
 
 static bool
-show_queue( char* v1, char* v2, char* v3, bool useDB )
+show_queue( char* v1, char* v2, char* v3, char* v4, bool useDB )
 {
 	char *scheddAddr;
 	char *scheddName;
@@ -1534,6 +1552,7 @@ show_queue( char* v1, char* v2, char* v3, bool useDB )
 	char *quillName;
 	char *dbIpAddr;
 	char *dbName;
+	char *queryPassword;
 
 	char *dbconn;
 
@@ -1546,6 +1565,7 @@ show_queue( char* v1, char* v2, char* v3, bool useDB )
 		quillName = v1;
 		dbIpAddr = v2;
 		dbName = v3;		
+		queryPassword = v4;
 	}
 	else {
 		scheddAddr = v1;
@@ -1558,7 +1578,7 @@ show_queue( char* v1, char* v2, char* v3, bool useDB )
 
 		/* get the job ads from a database if available */
 	if (useDB) {
-		dbconn = getDBConnStr(quillName, dbIpAddr, dbName);
+		dbconn = getDBConnStr(quillName, dbIpAddr, dbName, queryPassword);
 
 			// fetch queue from database
 		if( Q.fetchQueueFromDB(jobs, dbconn, &errstack) != Q_OK ) {
@@ -2191,18 +2211,19 @@ fixSubmittorName( char *name, int niceUser )
 	return NULL;
 }
 
-static char * getDBConnStr(char *&quillName, char *&databaseIp, char *&databaseName) {
+static char * getDBConnStr(char *&quillName, char *&databaseIp, char *&databaseName, char *&queryPassword) {
   char            host[64],port[10];
-  char            *tmpquillname, *tmpdatabaseip, *tmpdatabasename;
+  char            *tmpquillname, *tmpdatabaseip, *tmpdatabasename, *tmpquerypassword;
 
   if((!quillName && !(tmpquillname = param("QUILL_NAME"))) ||
      (!databaseIp && !(tmpdatabaseip = param("DATABASE_IPADDRESS"))) || 
-     (!databaseName && !(tmpdatabasename = param("DATABASE_NAME")))) {
+     (!databaseName && !(tmpdatabasename = param("DATABASE_NAME"))) ||
+     (!queryPassword && !(tmpquerypassword = param("QUILL_QUERY_PASSWORD")))) {
     fprintf( stderr, "Error: Could not find database related parameter\n");
     fprintf(stderr, "\n");
     print_wrapped_text("Extra Info: "
 		       "The most likely cause for this error "
-		       "is that you have not defined QUILL_NAME/DATABASE_IPADDRESS/DATABASE_NAME "
+		       "is that you have not defined QUILL_NAME/DATABASE_IPADDRESS/DATABASE_NAME/QUILL_QUERY_PASSWORD "
 		       "in the condor_config file.  You must "
 		       "define this variable in the config file", stderr);
 
@@ -2210,19 +2231,22 @@ static char * getDBConnStr(char *&quillName, char *&databaseIp, char *&databaseN
   }
 
   if(!quillName) {
-	  quillName = tmpquillname;
+	quillName = tmpquillname;
 		  //quillName = (char *) malloc(64 * sizeof(char));
 		  //strcpy(quillName, param("QUILL_NAME"));
   }
   if(!databaseIp) {
-	  databaseIp = tmpdatabaseip;
+	databaseIp = tmpdatabaseip;
 		  //databaseIp= (char *) malloc(64 * sizeof(char));
 		  //strcpy(databaseIp, param("DATABASE_IPADDRESS"));
   }
   if(!databaseName) {
-	  databaseName = tmpdatabasename;
+	databaseName = tmpdatabasename;
 		  //databaseName = (char *) malloc(64 * sizeof(char));    
 		  //strcpy(databaseName, param("DATABASE_NAME"));
+  }
+  if(!queryPassword) {
+	queryPassword = tmpquerypassword;
   }
 
   char *ptr_colon = strchr(databaseIp, ':');
@@ -2235,15 +2259,15 @@ static char * getDBConnStr(char *&quillName, char *&databaseIp, char *&databaseN
   port[strlen(port)-1] = '\0';
   
   char *dbconn = (char *) malloc(128 * sizeof(char));
-  sprintf(dbconn, "%s %s user=quill dbname=%s", host, port, databaseName);
+  sprintf(dbconn, "%s %s user=quillreader password=%s dbname=%s", host, port, queryPassword, databaseName);
   
   return dbconn;
 }
 
-static void exec_db_query(char *quillName, char *dbIpAddr, char *dbName) {
+static void exec_db_query(char *quillName, char *dbIpAddr, char *dbName, char *queryPassword) {
 	char *dbconn;
 	
-	dbconn = getDBConnStr(quillName, dbIpAddr, dbName);
+	dbconn = getDBConnStr(quillName, dbIpAddr, dbName, queryPassword);
 
 	printf ("\n\n-- Quill: %s : %s : %s\n", quillName, 
 			dbIpAddr, dbName);
@@ -2271,8 +2295,8 @@ typedef HashTable <MyString, ClassAd *> ScheddAdHashTable;
 
 static void mergeAdList(ClassAdList &scheddList, ClassAdList &quillList) {
 	ClassAd *ad, *tmp;
-	char		scheddName[64];
-	int rc;
+	char    scheddName[64];
+	int     rc;
 
 	ScheddAdHashTable table(200, attHashFunction, updateDuplicateKeys);
 
@@ -2292,8 +2316,11 @@ static void mergeAdList(ClassAdList &scheddList, ClassAdList &quillList) {
 		   in the schedd hash table. If the name is found in the hash table, 
 		   we remove the ad in the schedd list because we can query the quill
 		   database for the same job info. If the name is not found in the 
-		   hash table, we remove the ad in the quill list to propagate the 
-		   filtering effect on schedd list */
+		   hash table, we remove the ad in the quill list in order to propagate 
+		   the filter on schedd list since if the absence of a schedd ad means 
+		   that the schedd does not satisfy the original query constraint - in
+		   this case, the corresponding quill database should also not be queried 
+		*/
 
 	quillList.Open();
 	while ((ad = quillList.Next())) {
