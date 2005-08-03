@@ -324,6 +324,14 @@ void CondorJob::Reconfig()
 	gahp->setTimeout( gahpCallTimeout );
 }
 
+int CondorJob::JobLeaseSentExpired()
+{
+	BaseJob::JobLeaseSentExpired();
+	SetRemoteJobId( NULL );
+	gmState = GM_CLEAR_REQUEST;
+	return 0;
+}
+
 int CondorJob::doEvaluateState()
 {
 	bool connect_failure = false;
@@ -511,6 +519,12 @@ int CondorJob::doEvaluateState()
 			if ( now >= lastSubmitAttempt + submitInterval ) {
 				char *job_id_string = NULL;
 				if ( gahpAd == NULL ) {
+					time_t new_expiration;
+					if ( CalculateLease( jobAd, new_expiration ) ) {
+							// This will set the job lease sent attrs,
+							// which get referenced in buildSubmitAd()
+						UpdateJobLeaseSent( new_expiration );
+					}
 					gahpAd = buildSubmitAd();
 				}
 				if ( gahpAd == NULL ) {
@@ -1335,6 +1349,7 @@ ClassAd *CondorJob::buildSubmitAd()
 	MyString expr;
 	ClassAd *submit_ad;
 	ExprTree *next_expr;
+	int tmp_int;
 
 		// Base the submit ad on our own job ad
 	submit_ad = new ClassAd( *jobAd );
@@ -1382,6 +1397,11 @@ ClassAd *CondorJob::buildSubmitAd()
 	submit_ad->Delete( ATTR_RELEASE_REASON );
 	submit_ad->Delete( ATTR_LAST_RELEASE_REASON );
 	submit_ad->Delete( ATTR_JOB_STATUS_ON_RELEASE );
+	submit_ad->Delete( ATTR_LAST_JOB_LEASE_RENEWAL );
+	submit_ad->Delete( ATTR_JOB_LEASE_DURATION );
+	submit_ad->Delete( ATTR_LAST_JOB_LEASE_RENEWAL_FAILED );
+	submit_ad->Delete( ATTR_TIMER_REMOVE_CHECK );
+	submit_ad->Delete( ATTR_TIMER_REMOVE_CHECK_SENT );
 
 	submit_ad->Assign( ATTR_JOB_STATUS, HELD );
 	submit_ad->Assign( ATTR_HOLD_REASON, "Spooling input data files" );
@@ -1406,6 +1426,10 @@ ClassAd *CondorJob::buildSubmitAd()
 	submit_ad->Assign( ATTR_ON_EXIT_BY_SIGNAL, false );
 	submit_ad->Assign( ATTR_ENTERED_CURRENT_STATUS, now  );
 	submit_ad->Assign( ATTR_JOB_NOTIFICATION, NOTIFY_NEVER );
+
+	if ( jobAd->LookupInteger( ATTR_TIMER_REMOVE_CHECK_SENT, tmp_int ) ) {
+		submit_ad->Assign( ATTR_TIMER_REMOVE_CHECK, tmp_int );
+	}
 
 	expr.sprintf( "%s = Undefined", ATTR_OWNER );
 	submit_ad->Insert( expr.Value() );
