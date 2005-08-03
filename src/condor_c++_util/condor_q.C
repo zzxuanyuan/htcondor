@@ -365,7 +365,10 @@ fetchQueueFromDBAndProcess ( char *dbconn, process_function process_func, Condor
 		ad = getDBNextJobByConstraint(constraint, jqSnapshot);
 	}	
 
-	if(ad) {ad->clear();delete ad;}
+	if(ad) {
+		ad->clear();
+		delete ad;
+	}
 	delete jqSnapshot;
 	return Q_OK;
 }
