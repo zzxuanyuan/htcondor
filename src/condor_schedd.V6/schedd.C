@@ -1333,6 +1333,13 @@ abort_job_myself( PROC_ID job_id, JobAction action, bool log_hold,
 
 		// Handle Globus Universe
 	if (job_universe == CONDOR_UNIVERSE_GLOBUS) {
+		if( ! notify ) {
+				// caller explicitly does not the gridmanager notified??
+				// buyer had better beware, but we will honor what
+				// we are told.  
+				// nothing to do
+			return;
+		}
 		int job_managed = 0;
 		job_ad->LookupBool(ATTR_JOB_MANAGED, job_managed);
 			// If job_managed is true, then notify the gridmanager and return.
@@ -1363,13 +1370,6 @@ abort_job_myself( PROC_ID job_id, JobAction action, bool log_hold,
 			}
 		}
 		if ( job_managed  ) {
-			if( ! notify ) {
-					// caller explicitly does not the gridmanager notified??
-					// buyer had better beware, but we will honor what
-					// we are told.  
-					// nothing to do
-				return;
-			}
 			char owner[_POSIX_PATH_MAX];
 			char domain[_POSIX_PATH_MAX];
 			owner[0] = '\0';
@@ -1789,28 +1789,8 @@ Scheduler::PeriodicExprHandler( void )
 bool
 jobPrepNeedsThread( int cluster, int proc )
 {
-#ifdef WIN32
-	// we never want to run in a thread on Win32, since
-	// some of the stuff we do in the JobPrep thread
-	// is NOT thread safe!!
-	return false;
-#endif 
-		/*
-		  make sure we can switch uids.  if not, we're not going to be
-		  able to chown() the sandbox, nor switch to a dynamic user,
-		  so there's no sense forking.
-
-		  WARNING: if we ever add anything to the job prep code
-		  (aboutToSpawnJobHandler()) that doesn't require root/admin
-		  privledges, we need to change this!
-		*/
-	if( ! can_switch_ids() ) {
-		return false;
-	}
-
-		// then, see if the job has a sandbox at all (either
+		// first, see if the job has a sandbox at all (either
 		// explicitly or b/c of ON_EXIT_OR_EVICT)  
-
 	ClassAd * job_ad = GetJobAd( cluster, proc );
 	if( ! job_ad ) {
 			// job is already gone, guess we don't need a thread. ;)
@@ -1832,24 +1812,6 @@ jobPrepNeedsThread( int cluster, int proc )
 bool
 jobCleanupNeedsThread( int cluster, int proc )
 {
-
-#ifdef WIN32
-	// we never want to run this in a thread on Win32, 
-	// since much of what we do in here is NOT thread safe.
-	return false;
-#endif
-		/*
-		  make sure we can switch uids.  if not, we're not going to be
-		  able to chown() the sandbox, so there's no sense forking.
-
-		  WARNING: if we ever add anything to the job cleanup code
-		  (jobIsFinished()) that doesn't require root/admin
-		  privledges, we need to change this!
-		*/
-	if( ! can_switch_ids() ) {
-		return false;
-	}
-
 		// the cleanup case is different from the start-up case, since
 		// we don't want to test the "HasRightOwner" stuff at all.  we
 		// always want the cleanup code to chown() back to condor,
@@ -2001,6 +1963,17 @@ getSandbox( int cluster, int proc, MyString & path )
 }
 
 
+bool
+shouldUseWorkspaceService() {
+	char * ws_tool = param ("WORKSPACE_SERVICE_TOOL");
+	bool result = (ws_tool != NULL);
+	if (ws_tool) {
+		free (ws_tool);
+	}
+	return result;
+}
+
+
 /** Last chance to prep a job before it (potentially) starts
 
 This is a last chance to do any final work before starting a
@@ -2018,19 +1991,6 @@ aboutToSpawnJobHandler( int cluster, int proc, void* )
 	ASSERT(cluster > 0);
 	ASSERT(proc >= 0);
 
-		/*
-		  make sure we can switch uids.  if not, there's nothing to
-		  do, so we should exit right away.
-
-		  WARNING: if we ever add anything to this function that
-		  doesn't require root/admin privledges, we'll also need to
-		  change jobPrepNeedsThread()!
-		*/
-	if( ! can_switch_ids() ) {
-		return TRUE;
-	}
-
-
 	// claim dynamic accounts here
 	// NOTE: we only want to claim a dynamic account once, however,
 	// this function is called *every* time we're about to spawn a job
@@ -2043,6 +2003,8 @@ aboutToSpawnJobHandler( int cluster, int proc, void* )
 		FreeJobAd( job_ad );
 		return TRUE;
 	}
+	
+
 
 	MyString sandbox;
 	if( ! getSandbox(cluster, proc, sandbox) ) {
@@ -2077,9 +2039,6 @@ aboutToSpawnJobHandler( int cluster, int proc, void* )
 					 sandbox.Value(), strerror(errno), errno );
 			mkdir_rval = false;
 		}
-#ifndef WIN32
-		sandbox_uid = get_condor_uid();
-#endif
 		set_priv( saved_priv );
 	} else { 
 #ifndef WIN32
@@ -2099,9 +2058,6 @@ aboutToSpawnJobHandler( int cluster, int proc, void* )
 					 sandbox_tmp.Value(), strerror(errno), errno );
 			mkdir_rval = false;
 		}
-#ifndef WIN32
-		sandbox_tmp_uid = get_condor_uid();
-#endif
 		set_priv( saved_priv );
 	} else { 
 #ifndef WIN32
@@ -2116,8 +2072,102 @@ aboutToSpawnJobHandler( int cluster, int proc, void* )
 
 #ifndef WIN32
 
+	bool talk_to_workspace_service = shouldUseWorkspaceService();
+
+	char * workspace_service_client_tool = 
+		param ("WORKSPACE_SERVICE_TOOL");
+
+
 	MyString owner;
-	job_ad->LookupString( ATTR_OWNER, owner );
+
+	if (talk_to_workspace_service && job_ad->LookupString (ATTR_DYNAMIC_USER_ACCOUNT, owner)) {
+			// We're happy, re-use this account
+	} else if (talk_to_workspace_service) {
+		int fd = -1;
+		int pos1=0;
+		int pos2=0;
+		int rc;
+		MyString output_buff;
+		MyString cmdline;
+
+			// Create file for output of WorkspaceService client tool
+		char * temp_file_name = create_temp_file();
+		if (!temp_file_name) {
+			dprintf (D_ALWAYS, "Unable to create temp file in aboutToSpawnJobHandler()\n");
+			goto exit_ws_client;
+		}
+
+			// Invoke the WorkspaceService client
+			// We're in our own thread now, so it's ok to use
+			// blocking system()
+		
+		
+		cmdline.sprintf ("%s -h %s create 60 >> %s 2>&1",
+						 workspace_service_client_tool,
+						 my_hostname(),
+						 temp_file_name);
+
+		dprintf (D_FULLDEBUG, "About to execute %s\n", cmdline.Value());
+		rc = system (cmdline.Value());
+		dprintf (D_FULLDEBUG, "%s returned %d\n", workspace_service_client_tool, rc);
+		
+		if (rc != 0) {
+			goto exit_ws_client;
+		}
+
+		
+		char read_buff[5001];
+		int read_size;
+		fd = open (temp_file_name, O_RDONLY);
+		if (!fd) {
+			dprintf (D_ALWAYS, "ERROR Unable to open %s\n", temp_file_name);
+			goto exit_ws_client;
+		}
+
+		while ((read_size = read (fd, read_buff, 5000)) > 0) {
+			read_buff[read_size]='\0';
+			output_buff += read_buff;
+		}
+		close (fd);
+		
+		dprintf (D_FULLDEBUG, 
+				 "Workspace client returned %s\n", 
+				 output_buff.Value());
+		
+			// Parse output, we're looking for UNAME in:
+			// Resource key: UNAME\n
+		{
+		const char * key = "Resource key:";		
+		pos1 = output_buff.find (key);
+		if (pos1 >= 0) {
+			pos1+=strlen(key);
+			pos2 = output_buff.FindChar ('\n', pos1);
+		}
+		}
+		
+		if (pos1 < 0 || pos2 <= 0) {
+			dprintf (D_ALWAYS,
+					 "Unable to parse Workspace client's output\n");
+			goto exit_ws_client;
+		}
+			
+		owner = output_buff.Substr (pos1+1, pos2-1);
+		dprintf (D_ALWAYS, 
+				 "Received user %s form WorkspaceService for job %d.%d\n", 
+				 owner.Value(),
+				 cluster,
+				 proc);
+			
+	exit_ws_client:
+		if (fd) { close(fd); }
+		unlink (temp_file_name);
+		free (temp_file_name);
+	} else {
+		job_ad->LookupString( ATTR_OWNER, owner );
+	}
+
+
+
 
 	uid_t src_uid = get_condor_uid();
 	uid_t dst_uid;
@@ -2161,13 +2211,45 @@ aboutToSpawnJobHandler( int cluster, int proc, void* )
 
 int
 aboutToSpawnJobHandlerDone( int cluster, int proc, 
-							void* shadow_record, int )
+							void* shadow_record, int exit_code)
 {
+		// We need to 
+
 	shadow_rec* srec = (shadow_rec*)shadow_record;
 	dprintf( D_FULLDEBUG, 
-			 "aboutToSpawnJobHandler() completed for job %d.%d%s\n",
+			 "aboutToSpawnJobHandler() completed (rc=%d) for job %d.%d%s\n",
+			 exit_code,
 			 cluster, proc, 
 			 srec ? ", attempting to spawn job handler" : "" );
+
+// If we've used the workspace service,
+// figure out the account name and store in in the ad
+#if defined (UNIX)
+	ClassAd * job_ad = GetJobAd( cluster, proc );
+	ASSERT( job_ad ); // No job ad?
+	char * owner = NULL;
+	if( jobIsSandboxed(job_ad) && shouldUseWorkspaceService() ) {
+		MyString sandbox;
+		if( getSandbox(cluster, proc, sandbox) ) {
+			StatInfo si( sandbox.Value() );
+			if (!si.Error()) {
+				uid_t s_owner = si.GetOwner();
+				struct passwd * pw;
+				if ((pw=getpwuid(s_owner))) {
+					owner = pw->pw_name;
+					SetAttributeString (cluster,
+										proc,
+										ATTR_DYNAMIC_USER_ACCOUNT,
+										owner);
+				}
+			}
+		} else {
+			dprintf( D_ALWAYS, "Failed to find sandbox for job %d.%d\n", 
+					 cluster, proc );
+		}
+	}
+	FreeJobAd (job_ad);
+#endif
 
 		// just to be safe, check one more time to make sure the job
 		// is still runnable.
@@ -2245,16 +2327,6 @@ Scheduler::spawnJobHandler( int cluster, int proc, shadow_rec* srec )
 		return true;
 		break;
 		
-	case CONDOR_UNIVERSE_MPI:
-	case CONDOR_UNIVERSE_PARALLEL:
-			// There's only one shadow, for all the procs, and it
-			// is associated with procid 0.  Assume that if we are
-			// passed procid > 0, we've already spawned the one
-			// shadow this whole cluster needs
-		if (proc > 0) {
-			return true;
-		}
-			break;
 	default:
 		break;
 	}
@@ -2286,19 +2358,6 @@ jobIsFinished( int cluster, int proc, void* )
 		// finally exited.  this is where we should do any clean-up we
 		// want now that the job is never going to leave this state...
 
-		/*
-		  make sure we can switch uids.  if not, there's nothing to
-		  do, so we should exit right away.
-
-		  WARNING: if we ever add anything to this function that
-		  doesn't require root/admin privledges, we'll also need to
-		  change jobCleanupNeedsThread()!
-		*/
-	if( ! can_switch_ids() ) {
-		return 0;
-	}
-
-
 	ASSERT( cluster > 0 );
 	ASSERT( proc >= 0 );
 
@@ -2319,6 +2378,15 @@ jobIsFinished( int cluster, int proc, void* )
 
 #ifndef WIN32
 
+	MyString dynamic_user;
+	bool has_dynamic_user = 
+		shouldUseWorkspaceService() && 
+		job_ad->LookupString (
+							  ATTR_DYNAMIC_USER_ACCOUNT, 
+							  dynamic_user);
+
+	
+
 	if( jobIsSandboxed(job_ad) ) {
 		MyString sandbox;
 		if( getSandbox(cluster, proc, sandbox) ) {
@@ -2326,11 +2394,15 @@ jobIsFinished( int cluster, int proc, void* )
 			uid_t dst_uid = get_condor_uid();
 			gid_t dst_gid = get_condor_gid();
 
-			MyString owner;
-			job_ad->LookupString( ATTR_OWNER, owner );
+			MyString curr_owner;
+			if (has_dynamic_user) {
+				curr_owner = dynamic_user;
+			} else {
+				job_ad->LookupString( ATTR_OWNER, curr_owner );
+			}
 
 			passwd_cache* p_cache = pcache();
-			if( p_cache->get_user_uid( owner.Value(), src_uid ) ) {
+			if( p_cache->get_user_uid( curr_owner.Value(), src_uid ) ) {
 				if( ! recursive_chown(sandbox.Value(), src_uid,
 									  dst_uid, dst_gid, true) )
 				{
@@ -2344,14 +2416,32 @@ jobIsFinished( int cluster, int proc, void* )
 				dprintf( D_ALWAYS, "(%d.%d) Failed to find UID and GID "
 						 "for user %s.  Cannot chown \"%s\".  User may "
 						 "run into permissions problems when fetching "
-						 "job sandbox.\n", cluster, proc, owner.Value(),
+						 "job sandbox.\n", cluster, proc, curr_owner.Value(),
 						 sandbox.Value() );
 			}
+
+
 		} else {
 			dprintf( D_ALWAYS, "(%d.%d) Failed to find sandbox for this "
 					 "job.  Cannot chown sandbox to user.  User may run "
 					 "into permissions problems when fetching sandbox.\n",
 					 cluster, proc );
+		}
+
+			// "Release" the workspace to the WorkspaceManagementService
+		if (has_dynamic_user) {
+			MyString cmdline;
+			char * workspace_service_client_tool = 
+				param ("WORKSPACE_SERVICE_TOOL");
+
+			cmdline.sprintf ("%s -h %s destroy %s",
+							 workspace_service_client_tool,
+							 my_hostname(),
+							 dynamic_user.Value());
+
+			dprintf (D_FULLDEBUG, "About to execute %s\n", cmdline.Value());
+			int rc = system (cmdline.Value());
+			dprintf (D_FULLDEBUG, "%s returned %d\n", workspace_service_client_tool, rc);
 		}
 	}
 
@@ -5880,24 +5970,6 @@ Scheduler::StartJobHandler()
 			// so deal with the aboutToSpawnJobHandler hook...
 		callAboutToSpawnJobHandler( cluster, proc, srec );
 
-		int universe = srec->universe;
-		if( (universe == CONDOR_UNIVERSE_MPI) || 
-			(universe == CONDOR_UNIVERSE_PARALLEL)) {
-			
-			if (proc != 0) {
-				dprintf( D_ALWAYS, "StartJobHandler called for MPI or Parallel job, with "
-					   "non-zero procid for job (%d.%d)\n", cluster, proc);
-			}
-			
-				// We've just called callAboutToSpawnJobHandler on procid 0,
-				// now call it on the rest of them
-			proc = 1;
-			while( GetJobAd( cluster, proc, false)) {
-				callAboutToSpawnJobHandler( cluster, proc, srec);
-				proc++;
-			}
-		}
-
 			// we're done trying to spawn a job at this time.  call
 			// tryNextJob() to let our timer logic handle the rest.
 		tryNextJob();
@@ -8951,7 +9023,7 @@ Scheduler::Init()
 	}
 
 
-	int int_val = param_integer( "JOB_IS_FINISHED_INTERVAL", 0, 0 );
+	int int_val = param_integer( "JOB_IS_FINISHED_INTERVAL", 1, 0 );
 	job_is_finished_queue.setPeriod( int_val );	
 
 
