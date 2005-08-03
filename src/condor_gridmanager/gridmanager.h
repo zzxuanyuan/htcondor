@@ -45,6 +45,7 @@ extern char *ScheddAddr;
 extern char *ScheddJobConstraint;
 extern char *GridmanagerScratchDir;
 extern char *Owner;
+extern HashTable <PROC_ID, BaseJob *> JobsByProcID;
 
 // initialization
 void Init();

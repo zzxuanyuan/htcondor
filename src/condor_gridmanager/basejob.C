@@ -37,6 +37,9 @@
 #include "gridutil.h"
 
 
+int BaseJob::periodicPolicyEvalTid = TIMER_UNSET;
+
+
 BaseJob::BaseJob( ClassAd *classad )
 {
 	calcRuntimeStats = true;
@@ -73,9 +76,11 @@ BaseJob::BaseJob( ClassAd *classad )
 
 	jobAd->ClearAllDirtyFlags();
 
-	periodicPolicyEvalTid = daemonCore->Register_Timer( 30,
-								(TimerHandlercpp)&BaseJob::EvalPeriodicJobExpr,
-								"EvalPeriodicJobExpr", (Service*) this );
+	if ( periodicPolicyEvalTid == TIMER_UNSET ) {
+		periodicPolicyEvalTid = daemonCore->Register_Timer( 30,
+							(TimerHandler)&BaseJob::EvalAllPeriodicJobExprs,
+							"EvalAllPeriodicJobExprs", (Service*)NULL );
+	}
 
 	jobLeaseSentExpiredTid = TIMER_UNSET;
 	SetJobLeaseTimers();
@@ -473,6 +478,20 @@ void BaseJob::JobAdUpdateFromSchedd( const ClassAd *new_ad )
 		SetEvaluateState();
 	}
 
+}
+
+int BaseJob::EvalAllPeriodicJobExprs(Service *ignore)
+{
+	BaseJob *curr_job;
+
+	dprintf( D_FULLDEBUG, "Evaluating periodic job policy expressions.\n" );
+
+	JobsByProcID.startIterations();
+	while ( JobsByProcID.iterate( curr_job ) != 0  ) {
+		curr_job->EvalPeriodicJobExpr();
+	}
+
+	return 0;
 }
 
 int BaseJob::EvalPeriodicJobExpr()

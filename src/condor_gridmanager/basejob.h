@@ -63,6 +63,7 @@ class BaseJob
 
 	virtual void JobAdUpdateFromSchedd( const ClassAd *new_ad );
 
+	static int EvalAllPeriodicJobExprs(Service *ignore);
 	int EvalPeriodicJobExpr();
 	int EvalOnExitJobExpr();
 
@@ -104,9 +105,10 @@ class BaseJob
 	bool resourcePingComplete;
 
  protected:
+	static int periodicPolicyEvalTid;
+
 	void UpdateRuntimeStats();
 
-	int periodicPolicyEvalTid;
 	int evaluateStateTid;
 	int jobLeaseSentExpiredTid;
 };
