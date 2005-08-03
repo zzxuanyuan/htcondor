@@ -437,9 +437,7 @@ int BaseResource::UpdateLeases()
 		while ( registeredJobs.Next( curr_job ) ) {
 			time_t new_expire;
 			if ( CalculateLease( curr_job->jobAd, new_expire ) ) {
-				curr_job->jobAd->Assign( ATTR_TIMER_REMOVE_CHECK_SENT,
-										 (int)new_expire );
-				requestScheddUpdate( curr_job );
+				curr_job->UpdateJobLeaseSent( new_expire );
 				leaseUpdates.Append( curr_job );
 			}
 		}
