@@ -4336,14 +4336,15 @@ GahpClient::condor_job_update_lease(const char *schedd_name,
 		updated.Clear();
 		char *ptr1 = result->argv[3];
 		while ( ptr1 != NULL && *ptr1 != '\0' ) {
+			int i;
 			PROC_ID job_id;
 			char *ptr2 = strchr( ptr1, ',' );
 			if ( ptr2 ) {
 				*ptr2 = '\0';
 				ptr2++;
 			}
-			rc = sscanf( ptr1, "%d.%d", &job_id.cluster, &job_id.proc );
-			if ( rc != 2 ) {
+			i = sscanf( ptr1, "%d.%d", &job_id.cluster, &job_id.proc );
+			if ( i != 2 ) {
 				dprintf( D_ALWAYS, "condor_job_update_lease: skipping malformed job id '%s'\n", ptr1 );
 			} else {
 				updated.Append( job_id );
