@@ -83,6 +83,7 @@ BaseJob::BaseJob( ClassAd *classad )
 	}
 
 	jobLeaseSentExpiredTid = TIMER_UNSET;
+	jobLeaseReceivedExpiredTid = TIMER_UNSET;
 	SetJobLeaseTimers();
 
 	resourceStateKnown = false;
@@ -100,6 +101,9 @@ BaseJob::~BaseJob()
 	daemonCore->Cancel_Timer( evaluateStateTid );
 	if ( jobLeaseSentExpiredTid != TIMER_UNSET ) {
 		daemonCore->Cancel_Timer( jobLeaseSentExpiredTid );
+	}
+	if ( jobLeaseReceivedExpiredTid != TIMER_UNSET ) {
+		daemonCore->Cancel_Timer( jobLeaseReceivedExpiredTid );
 	}
 }
 
@@ -317,17 +321,18 @@ void BaseJob::UpdateRuntimeStats()
 
 void BaseJob::SetJobLeaseTimers()
 {
-	int expiration_time_sent = -1;
+dprintf(D_ALWAYS,"(%d.%d) SetJobLeaseTimers()\n",procID.cluster,procID.proc);
+	int expiration_time = -1;
 
-	jobAd->LookupInteger( ATTR_TIMER_REMOVE_CHECK_SENT, expiration_time_sent );
+	jobAd->LookupInteger( ATTR_TIMER_REMOVE_CHECK_SENT, expiration_time );
 
-	if ( expiration_time_sent == -1 ) {
+	if ( expiration_time == -1 ) {
 		if ( jobLeaseSentExpiredTid != TIMER_UNSET ) {
 			daemonCore->Cancel_Timer( jobLeaseSentExpiredTid );
 			jobLeaseSentExpiredTid = TIMER_UNSET;
 		}
 	} else {
-		int when = expiration_time_sent - time(NULL);
+		int when = expiration_time - time(NULL);
 		if ( jobLeaseSentExpiredTid == TIMER_UNSET ) {
 			jobLeaseSentExpiredTid = daemonCore->Register_Timer(
 								when,
@@ -337,10 +342,32 @@ void BaseJob::SetJobLeaseTimers()
 			daemonCore->Reset_Timer( jobLeaseSentExpiredTid, when );
 		}
 	}
+
+	expiration_time = -1;
+
+	jobAd->LookupInteger( ATTR_TIMER_REMOVE_CHECK, expiration_time );
+
+	if ( expiration_time == -1 ) {
+		if ( jobLeaseReceivedExpiredTid != TIMER_UNSET ) {
+			daemonCore->Cancel_Timer( jobLeaseReceivedExpiredTid );
+			jobLeaseReceivedExpiredTid = TIMER_UNSET;
+		}
+	} else {
+		int when = expiration_time - time(NULL);
+		if ( jobLeaseReceivedExpiredTid == TIMER_UNSET ) {
+			jobLeaseReceivedExpiredTid = daemonCore->Register_Timer(
+							when,
+							(TimerHandlercpp)&BaseJob::JobLeaseReceivedExpired,
+							"JobLeaseReceivedExpired", (Service*) this );
+		} else {
+			daemonCore->Reset_Timer( jobLeaseReceivedExpiredTid, when );
+		}
+	}
 }
 
 void BaseJob::UpdateJobLeaseSent( time_t new_expiration_time )
 {
+dprintf(D_ALWAYS,"(%d.%d) UpdateJobLeaseSent(%d)\n",procID.cluster,procID.proc,(int)new_expiration_time);
 	time_t old_expiration_time = -1;
 
 	jobAd->LookupInteger( ATTR_TIMER_REMOVE_CHECK_SENT,
@@ -348,6 +375,7 @@ void BaseJob::UpdateJobLeaseSent( time_t new_expiration_time )
 
 	if ( new_expiration_time == 0 ) {
 		jobAd->AssignExpr( ATTR_TIMER_REMOVE_CHECK_SENT, "Undefined" );
+		jobAd->AssignExpr( ATTR_LAST_JOB_LEASE_RENEWAL_FAILED, "Undefined" );
 
 		requestScheddUpdate( this );
 
@@ -368,6 +396,7 @@ void BaseJob::UpdateJobLeaseSent( time_t new_expiration_time )
 void BaseJob::UpdateJobLeaseReceived( time_t new_expiration_time )
 {
 	time_t old_expiration_time = -1;
+dprintf(D_ALWAYS,"(%d.%d) UpdateJobLeaseReceived(%d)\n",procID.cluster,procID.proc,(int)new_expiration_time);
 
 	jobAd->LookupInteger( ATTR_TIMER_REMOVE_CHECK, (int)old_expiration_time );
 
@@ -377,18 +406,43 @@ void BaseJob::UpdateJobLeaseReceived( time_t new_expiration_time )
 		return;
 	}
 
+	if ( new_expiration_time < old_expiration_time ) {
+		dprintf( D_ALWAYS, "(%d.%d) New lease expiration (%d) is older than old lease expiration (%d), ignoring!\n",
+				 procID.cluster, procID.proc, (int)new_expiration_time,
+				 (int)old_expiration_time );
+		return;
+	}
+
 	if ( new_expiration_time != old_expiration_time ) {
 
 		jobAd->Assign( ATTR_TIMER_REMOVE_CHECK, (int)new_expiration_time );
 		jobAd->SetDirtyFlag( ATTR_TIMER_REMOVE_CHECK, false );
 
-			// TODO update lease expiration timer
+		SetJobLeaseTimers();
 	}
 }
 
 int BaseJob::JobLeaseSentExpired()
 {
+dprintf(D_ALWAYS,"(%d.%d) BaseJob::JobLeaseSentExpired()\n",procID.cluster,procID.proc);
 	UpdateJobLeaseSent( 0 );
+	SetEvaluateState();
+	return 0;
+}
+
+int BaseJob::JobLeaseReceivedExpired()
+{
+dprintf(D_ALWAYS,"(%d.%d) BaseJob::JobLeaseReceivedExpired()\n",procID.cluster,procID.proc);
+	condorState = REMOVED;
+	jobAd->Assign( ATTR_JOB_STATUS, condorState );
+	jobAd->Assign( ATTR_ENTERED_CURRENT_STATUS, (int)time(NULL) );
+
+	jobAd->Assign( ATTR_REMOVE_REASON, "Job lease expired" );
+
+	UpdateRuntimeStats();
+
+	requestScheddUpdate( this );
+
 	SetEvaluateState();
 	return 0;
 }

@@ -97,6 +97,7 @@ class BaseResource
 	int submitLimit;		// max number of submit actions
 	int jobLimit;			// max number of submitted jobs
 
+	bool hasLeases;
 	int updateLeasesTimerId;
 	time_t lastUpdateLeases;
 	List<BaseJob> leaseUpdates;

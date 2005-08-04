@@ -81,6 +81,8 @@ CondorResource::CondorResource( const char *resource_name, const char *pool_name
 								const char *proxy_subject )
 	: BaseResource( resource_name )
 {
+	hasLeases = true;
+
 	if ( proxy_subject != NULL ) {
 		proxySubject = strdup( proxy_subject );
 	} else {
@@ -357,17 +359,17 @@ dprintf(D_ALWAYS,"*** DoUpdateLeases called\n");
 	if ( rc == GAHPCLIENT_COMMAND_PENDING ) {
 		update_complete = false;
 	} else if ( rc != 0 ) {
-		dprintf( D_ALWAYS, "*** Lease update failed!\n" );
+dprintf( D_ALWAYS, "*** Lease update failed!\n" );
 		update_complete = true;
 	} else {
-		dprintf( D_ALWAYS, "*** Lease udpate succeeded!\n" );
+dprintf( D_ALWAYS, "*** Lease udpate succeeded!\n" );
 		update_complete = true;
 
 		PROC_ID curr_id;
 		MyString id_str;
 		updated.Rewind();
 		while ( updated.Next( curr_id ) ) {
-			id_str.sprintf( "%d.%d", curr_id.cluster, curr_id.proc );
+			id_str.sprintf( "%s/%d.%d", scheddName, curr_id.cluster, curr_id.proc );
 			if ( CondorJobsById.lookup( HashKey( id_str.Value() ),
 										(CondorJob*)curr_job ) == 0 ) {
 				update_succeeded.Append( curr_job->procID );

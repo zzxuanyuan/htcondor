@@ -60,6 +60,7 @@ class BaseJob
 
 	void SetJobLeaseTimers();
 	virtual int JobLeaseSentExpired();
+	virtual int JobLeaseReceivedExpired();
 
 	virtual void JobAdUpdateFromSchedd( const ClassAd *new_ad );
 
@@ -111,6 +112,7 @@ class BaseJob
 
 	int evaluateStateTid;
 	int jobLeaseSentExpiredTid;
+	int jobLeaseReceivedExpiredTid;
 };
 
 UserLog *InitializeUserLog( ClassAd *job_ad );

@@ -49,6 +49,7 @@ BaseResource::BaseResource( const char *resource_name )
 	submitLimit = DEFAULT_MAX_PENDING_SUBMITS_PER_RESOURCE;
 	jobLimit = DEFAULT_MAX_SUBMITTED_JOBS_PER_RESOURCE;
 
+	hasLeases = false;
 	updateLeasesTimerId = daemonCore->Register_Timer( 0,
 								(TimerHandlercpp)&BaseResource::UpdateLeases,
 								"BaseResource::UpdateLeases", (Service*)this );
@@ -390,10 +391,13 @@ void BaseResource::DoPing( time_t& ping_delay, bool& ping_complete,
 
 bool CalculateLease( const ClassAd *job_ad, time_t &new_expiration )
 {
+int cluster,proc;
 	time_t expire_received = -1;
 	time_t expire_sent = -1;
 	bool last_renewal_failed = false;
 
+job_ad->LookupInteger( ATTR_CLUSTER_ID, cluster );
+job_ad->LookupInteger( ATTR_PROC_ID, proc );
 	job_ad->LookupInteger( ATTR_TIMER_REMOVE_CHECK, (int)expire_received );
 	job_ad->LookupInteger( ATTR_TIMER_REMOVE_CHECK_SENT, (int)expire_sent );
 	job_ad->LookupBool( ATTR_LAST_JOB_LEASE_RENEWAL_FAILED,
@@ -401,31 +405,43 @@ bool CalculateLease( const ClassAd *job_ad, time_t &new_expiration )
 
 		// If we didn't received a lease, there's no lease to renew
 	if ( expire_received == -1 ) {
+dprintf(D_ALWAYS,"*** (%d.%d) CalculateLease: no received lease\n",cluster,proc);
 		return false;
 	}
 
 		// If the lease we sent expires within 10 seconds of the lease we
 		// received, don't renew it.
 	if ( expire_sent + 10 >= expire_received ) {
+dprintf(D_ALWAYS,"*** (%d.%d) CalculateLease: new lease close enough to old lease\n",cluster,proc);
 		return false;
 	}
 
-	if ( last_renewal_failed ) {
+	if ( last_renewal_failed && expire_sent != -1 ) {
 		new_expiration = expire_sent;
 	} else {
 		new_expiration = expire_received;
 	}
 
+dprintf(D_ALWAYS,"*** (%d.%d) CalculateLease: new sent lease should be %d\n",cluster,proc,(int)new_expiration);
 	return true;
 }
 
 int BaseResource::UpdateLeases()
 {
+dprintf(D_ALWAYS,"*** UpdateLeases called\n");
+	if ( hasLeases == false ) {
+dprintf(D_ALWAYS,"    Leases not supported, cancelling timer\n" );
+		daemonCore->Cancel_Timer( updateLeasesTimerId );
+		updateLeasesTimerId = TIMER_UNSET;
+		return 0;
+	}
+
 	// Don't start a new lease update too soon after the previous one.
 	int delay;
 	delay = (lastUpdateLeases + 60) - time(NULL);
 	if ( delay > 0 ) {
 		daemonCore->Reset_Timer( updateLeasesTimerId, delay );
+dprintf(D_ALWAYS,"    UpdateLeases: last update too recent, delaying\n");
 		return TRUE;
 	}
 
@@ -433,6 +449,7 @@ int BaseResource::UpdateLeases()
 
 	if ( updateLeasesActive == false ) {
 		BaseJob *curr_job;
+dprintf(D_ALWAYS,"    UpdateLeases: calc'ing new leases\n");
 		registeredJobs.Rewind();
 		while ( registeredJobs.Next( curr_job ) ) {
 			time_t new_expire;
@@ -474,8 +491,10 @@ int BaseResource::UpdateLeases()
 		}
 		if ( still_dirty ) {
 			requestScheddUpdateNotification( updateLeasesTimerId );
+dprintf(D_ALWAYS,"    UpdateLeases: waiting for schedd synch\n");
 			return TRUE;
 		}
+else dprintf(D_ALWAYS,"    UpdateLeases: leases synched\n");
 	}
 
 	leaseAttrsSynched = true;
@@ -483,29 +502,40 @@ int BaseResource::UpdateLeases()
 	time_t update_delay;
 	bool update_complete;
 	SimpleList<PROC_ID> update_succeeded;
+dprintf(D_ALWAYS,"    UpdateLeases: calling DoUpdateLeases\n");
 	DoUpdateLeases( update_delay, update_complete, update_succeeded );
 
 	if ( update_delay ) {
 		daemonCore->Reset_Timer( updateLeasesTimerId, update_delay );
+dprintf(D_ALWAYS,"    UpdateLeases: DoUpdateLeases wants delay\n");
 		return TRUE;
 	}
 
 	if ( !update_complete ) {
 		updateLeasesCmdActive = true;
+dprintf(D_ALWAYS,"    UpdateLeases: DoUpdateLeases in progress\n");
 		return TRUE;
 	}
 
+dprintf(D_ALWAYS,"    UpdateLeases: DoUpdateLeases complete, processing results\n");
 	updateLeasesCmdActive = false;
 	lastUpdateLeases = time(NULL);
 
+update_succeeded.Rewind();
+PROC_ID id;
+MyString msg = "    update_succeeded:";
+while(update_succeeded.Next(id)) msg.sprintf_cat(" %d.%d", id.cluster, id.proc);
+dprintf(D_ALWAYS,"%s\n",msg.Value());
 	BaseJob *curr_job;
 	leaseUpdates.Rewind();
 	while ( leaseUpdates.Next( curr_job ) ) {
 		bool curr_renewal_failed;
 		bool last_renewal_failed = false;
 		if ( update_succeeded.IsMember( curr_job->procID ) ) {
+dprintf(D_ALWAYS,"    %d.%d is in succeeded list\n",curr_job->procID.cluster,curr_job->procID.proc);
 			curr_renewal_failed = false;
 		} else {
+dprintf(D_ALWAYS,"    %d.%d is not in succeeded list\n",curr_job->procID.cluster,curr_job->procID.proc);
 			curr_renewal_failed = true;
 		}
 		curr_job->jobAd->LookupBool( ATTR_LAST_JOB_LEASE_RENEWAL_FAILED,
@@ -518,6 +548,10 @@ int BaseResource::UpdateLeases()
 		leaseUpdates.DeleteCurrent();
 	}
 
+	updateLeasesActive = false;
+
+	daemonCore->Reset_Timer( updateLeasesTimerId, 60 );
+
 	return 0;
 }
 
@@ -525,6 +559,7 @@ void BaseResource::DoUpdateLeases( time_t& update_delay,
 								   bool& update_complete,
 								   SimpleList<PROC_ID>& update_succeeded )
 {
+dprintf(D_ALWAYS,"*** BaseResource::DoUpdateLeases called\n");
 	update_delay = 0;
 	update_complete = true;
 }
