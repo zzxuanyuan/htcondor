@@ -681,7 +681,7 @@ update_lease_result:
 
 
 			//CloseConnection();
-			enqueue_result (current_command->request_id, result, 2);
+			enqueue_result (current_command->request_id, result, 3);
 			current_command->status = SchedDRequest::SDCS_COMPLETED;
 			if ( qmgr_connection != NULL ) {
 				AbortTransaction();
@@ -692,7 +692,7 @@ update_lease_result:
 				NULL,
 				success_job_ids.Length()?success_job_ids.Value():NULL
 			};
-			enqueue_result (current_command->request_id, result, 2);
+			enqueue_result (current_command->request_id, result, 3);
 			current_command->status = SchedDRequest::SDCS_COMPLETED;
 			CloseConnection();
 		} // fi
@@ -1079,14 +1079,14 @@ handle_gahp_command(char ** argv, int argc) {
 		job_expiration * expirations = new job_expiration[num_jobs];
 		int i;
 		for (i=0; i<num_jobs; i++) {
-			if (!get_job_id(argv[5+i*2], 
+			if (!get_job_id(argv[4+i*2], 
 							&(expirations[i].cluster),
 							&(expirations[i].proc))) {
 				delete[] expirations;
 				return FALSE;
 			}
 
-			if (!get_ulong (argv[5+i*2+1], &(expirations[i].expiration))) {
+			if (!get_ulong (argv[4+i*2+1], &(expirations[i].expiration))) {
 				delete [] expirations;
 				return FALSE;
 			}

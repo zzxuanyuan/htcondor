@@ -489,7 +489,7 @@ verify_gahp_command(char ** argv, int argc) {
 			// Expecting CONDOR_JOB_UPDATE_LEASE <req id> <schedd name> <num  jobs> <job id> <expiration> <job id> <expiration> ...
 		return (argc >= 4) &&
 			   verify_number (argv[3]) &&
-			   (argc == (atoi (argv[3]) * 2 + 5)) &&
+			   (argc == (atoi (argv[3]) * 2 + 4)) &&
 			   verify_request_id (argv[1]) &&
 			   verify_schedd_name (argv[2]);
 	} else if (strcasecmp (argv[0], GAHP_COMMAND_RESULTS) == 0 ||
