@@ -419,9 +419,13 @@ Register()
 								 (SignalHandler)&REMOVE_JOBS_signalHandler,
 								 "REMOVE_JOBS_signalHandler", NULL, WRITE );
 
+/*
 	daemonCore->Register_Signal( GRIDMAN_CHECK_LEASES, "CheckLeases",
 								 (SignalHandler)&CHECK_LEASES_signalHandler,
 								 "CHECK_LEASES_signalHandler", NULL, WRITE );
+*/
+	daemonCore->Register_Timer( 60, 60, (TimerHandler)&CHECK_LEASES_signalHandler,
+								"CHECK_LEASES_signalHandler", NULL );
 
 	Reconfig();
 }
