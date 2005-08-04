@@ -28,7 +28,10 @@
 #include "condor_io.h"
 #include "HashTable.h"
 #include "dc_collector.h"
-
+/* ODBC include */
+#include "odbc.h"
+/* FILESQL include */
+#include "file_sql.h"
 #ifdef WANT_NETMAN
 #include "../condor_netman/netman.h"
 #endif
@@ -38,7 +41,10 @@ typedef struct MapEntry {
 	int sequenceNum;
 	ClassAd *oldAd;
 } MapEntry;
-
+/* ODBC object extern */
+//extern ODBC *DBObj;
+/* FILESQL object extern */
+extern FILESQL *FILEObj;
 class Matchmaker : public Service
 {
 	public:
@@ -140,6 +146,10 @@ class Matchmaker : public Service
 			// trim out startd ads that are not in the Unclaimed state.
 		int trimStartdAds(ClassAdList &startdAds);
 
+		/* ODBC insert functions */
+		void insert_into_rejects(char *userName, ClassAd& job, ClassAd& machine,const char *diagnosis);
+		void insert_into_matches(char * userName, ClassAd& request, ClassAd& offer);
+		
 		// configuration information
 		char *AccountantHost;		// who (if at all) is the accountant?
 		int  NegotiatorInterval;	// interval between negotiation cycles
@@ -288,6 +298,10 @@ class Matchmaker : public Service
 		
 		
 		
+		/* ODBC Stuff */
+		ODBC * db_handle;
+		char RejectsTable[40];
+		char MatchesTable[40];
 };
 
 

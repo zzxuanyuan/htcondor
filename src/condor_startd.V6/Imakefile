@@ -9,8 +9,9 @@ CFLAGS = $(STD_C_FLAGS)
 LDFLAGS = -framework IOKit -framework Carbon
 #endif
 
-
 C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS)
+LDFLAGS = $(STD_LDFLAGS)
+
 LIB= $(DAEMONCORE_LIB) $(STD_LIBS)
 
 soapobjs(startd)

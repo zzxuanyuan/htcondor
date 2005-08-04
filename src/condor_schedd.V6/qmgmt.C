@@ -46,6 +46,9 @@
 #include "globus_utils.h"
 #include "env.h"
 
+#include "file_sql.h"
+extern FILESQL *FILEObj;
+
 extern char *Spool;
 extern char *Name;
 extern char* JobHistoryFileName;
@@ -56,8 +59,6 @@ extern bool	operator==( PROC_ID, PROC_ID );
 extern "C" {
 	int	prio_compar(prio_rec*, prio_rec*);
 }
-
-
 
 extern	int		Parse(const char*, ExprTree*&);
 extern  void    cleanup_ckpt_files(int, int, const char*);
@@ -462,6 +463,7 @@ InitJobQueue(const char *job_queue_name)
 		}
 		next_cluster_num = stored_cluster_num;
 	}
+
 }
 
 
@@ -2911,9 +2913,15 @@ static void AppendHistory(ClassAd* ad)
 			JobHistoryFileName);
 		if (LogFile) fclose(LogFile);
 		failed = true;
-	  } else {
+	  } else {		
 		fprintf(LogFile,"***\n");   // separator
 		fclose(LogFile);
+
+		int retval = FILEObj->file_newEvent("History", ad);
+		if (retval < 0) {
+			dprintf(D_ALWAYS, "AppendHistory Logging Event --- Error\n");
+			failed = true;
+		}
 	  }
   }
 

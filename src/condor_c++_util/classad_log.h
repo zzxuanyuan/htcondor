@@ -115,7 +115,7 @@ public:
 	char *get_key() { return strdup(key); }
 
 private:
-	virtual int WriteBody(int fd) { return write(fd, key, strlen(key)); }
+	virtual int WriteBody(int fd);
 	virtual int ReadBody(int fd);
 
 	char *key;

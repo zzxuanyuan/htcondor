@@ -73,6 +73,7 @@
 #include "condor_classad_namedlist.h"
 #include "schedd_cronmgr.h"
 
+#include "schedd_files.h"
 
 #define DEFAULT_SHADOW_SIZE 125
 #define DEFAULT_JOB_START_COUNT 1
@@ -8108,6 +8109,7 @@ Scheduler::child_exit(int pid, int status)
 	int				StartJobsFlag=TRUE;
 	int				q_status;  // status of this job in the queue 
 	PROC_ID			job_id;
+	ClassAd        *jobad;
 
 	srec = FindSrecByPid(pid);
 	job_id.cluster = srec->job_id.cluster;
@@ -8192,6 +8194,13 @@ Scheduler::child_exit(int pid, int status)
 				break;
 			case JOB_EXITED:
 				dprintf(D_FULLDEBUG, "Reaper: JOB_EXITED\n");
+
+					// get job outputs into files table only if it's completed successfully	
+					// pass true to make sure $$ variables are replaced
+				jobad = GetJobAd( job_id.cluster, job_id.proc, true);
+				schedd_files(jobad);
+				delete jobad;				
+
 			case JOB_COREDUMPED:
 				if( q_status != HELD ) {
 					set_job_status( srec->job_id.cluster,
@@ -9412,7 +9421,7 @@ Scheduler::reschedule_negotiator(int, Stream *)
 		StartLocalJobs();
 	}
 
-	 return;
+	return;
 }
 
 

@@ -56,6 +56,8 @@
 #include "stdsoap2.h"
 #include "condor_pidenvid.h"
 
+//#include "pgsqldatabase.h"
+//#include "odbc.h"
 
 #define DEBUG_SETTABLE_ATTR_LISTS 0
 
@@ -1284,5 +1286,8 @@ int Create_Thread_With_Data(DataThreadWorkerFunc Worker, DataThreadReaperFunc Re
 
 // Prototype to get sinful string.
 char *global_dc_sinful( void );
+
+//extern PGSQLDatabase *DBObj;
+//extern ODBC *DBObj;
 
 #endif /* _CONDOR_DAEMON_CORE_H_ */

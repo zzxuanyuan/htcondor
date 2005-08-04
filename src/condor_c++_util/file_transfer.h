@@ -32,6 +32,7 @@
 #endif
 #include "condor_uid.h"
 #include "condor_ver_info.h"
+#include "condor_classad.h"
 
 class FileTransfer;	// forward declatation
 
@@ -229,6 +230,7 @@ class FileTransfer {
 	bool did_init;
 	bool simple_init;
 	ReliSock *simple_sock;
+	ClassAd *jobAd;
 };
 
 #endif

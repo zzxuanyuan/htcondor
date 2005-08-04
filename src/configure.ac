@@ -1339,6 +1339,11 @@ CONDOR_EXTERNAL_VERSION([gsoap],[2.7])
 
 CONDOR_EXTERNAL_VERSION([pcre],[5.0])
 
+AC_MSG_CHECKING([postgresql])
+_cv_ext_postgresql_version="postgresql-8.0.2"
+AC_MSG_RESULT([$_cv_ext_postgresql_version])
+AC_SUBST(ext_postgresql_version,$_cv_ext_postgresql_version)
+
 else
 # if there's no externals at all, we still need to define these to
 # avoid imake troubles...

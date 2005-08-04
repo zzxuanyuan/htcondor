@@ -20,46 +20,51 @@
   * RIGHT.
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
-#if !defined(_QMGMT_H)
-#define _QMGMT_H
+#ifdef _POSTGRESQL_DBMS_
 
-#include "condor_classad.h"
-#include "condor_io.h"
+#ifndef _PGSQLDATABASE_H_
+#define  _PGSQLDATABASE_H_
 
-#define NEW_BORN	1
-#define DEATHS_DOOR	2
+#include <libpq-fe.h>
+#include "database.h"
 
 
-void PrintQ();
-class Service;
+//! PGSQLDataabse: Database for PostgreSQL
+//
+class PGSQLDatabase : public Database
+{
+public:
+	
+	PGSQLDatabase();
+	PGSQLDatabase(const char* connect);
+	~PGSQLDatabase();
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
-void InitJobQueue(const char *job_queue_name);
-void InitQmgmt();
-void CleanJobQueue();
-void DestroyJobQueue( void );
-int handle_q(Service *, int, Stream *sock);
-bool setQSock( ReliSock* rsock );
-void unsetQSock( void );
-void BeginTransaction();
-void CommitTransaction();
-void AbortTransaction();
-void dirtyJobQueue( void );
-bool isQueueSuperUser( const char* user );
-bool OwnerCheck( ClassAd *ad, const char *test_owner );
-bool Reschedule();
+	int			connectDB();
+	int			connectDB(const char* connect);
+	int			disconnectDB();
 
-int get_myproxy_password_handler(Service *, int, Stream *sock);
-	void updateFilesInDB();
-#if defined(__cplusplus)
-}
-#endif
+		// General DB processing methods
+	int			beginTransaction();
+	int 		commitTransaction();
+	int 		rollbackTransaction();
 
-#if defined(__cplusplus)
-bool OwnerCheck(int,int);
-bool OwnerCheck(ClassAd *, const char *);
-#endif
+	int 	 	execCommand(const char* sql);
+	int 	 	execQuery(const char* sql);
+	int 	 	execQuery(const char* sql, PGresult*& result);
 
-#endif /* _QMGMT_H */
+	const char*	getValue(int row, int col);
+
+	char*		getDBError();
+
+	int		    sendBulkData(char* data);
+	int		    sendBulkDataEnd();
+
+	int         releaseQueryResult();
+private:
+	PGconn		*connection;		//!< connection object
+	PGresult	*queryRes; 	//!< result for general query
+};
+
+#endif /* _PGSQLDATABSE_H_ */
+
+#endif /* _POSTGRESQL_DBMS_ */

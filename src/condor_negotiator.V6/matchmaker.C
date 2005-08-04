@@ -43,6 +43,9 @@
 static int comparisonFunction (AttrList *, AttrList *, void *);
 #include "matchmaker.h"
 
+/* This extracts the machine name from the global job ID user@machine.name#timestamp#cluster.proc*/
+static int get_scheddname_from_gjid(const char * globaljobid, char * scheddname );
+
 // possible outcomes of negotiating with a schedd
 enum { MM_ERROR, MM_DONE, MM_RESUME };
 
@@ -53,6 +56,9 @@ typedef int (*lessThanFunc)(AttrList*, AttrList*, void*);
 
 static bool want_simple_matching = false;
 
+//added by ameet - dirty hack - needs to be removed soon!!!
+//#include "../condor_c++_util/queuedbmanager.h"
+//QueueDBManager queueDBManager;
 
 Matchmaker::
 Matchmaker ()
@@ -98,6 +104,9 @@ Matchmaker ()
 
 	update_interval = 5*MINUTE; 
     DynQuotaMachConstraint = NULL;
+
+	strcpy(RejectsTable, "rejects");
+	strcpy(MatchesTable, "matches");
 }
 
 
@@ -304,7 +313,7 @@ reinitialize ()
 	}
 
 	dprintf (D_ALWAYS,"NEGOTIATOR_POST_JOB_RANK = %s\n", (tmp?tmp:"None"));
-
+	
 	if( tmp ) free( tmp );
 
 
@@ -349,6 +358,7 @@ reinitialize ()
 			// be sure to try to publish a new negotiator ad on reconfig
 		updateCollector();
 	}
+
 
 	// done
 	return TRUE;
@@ -1851,10 +1861,12 @@ matchmakingAlgorithm(char *scheddName, char *scheddAddr, ClassAd &request,
 	// scan the offer ads
 	startdAds.Open ();
 	while ((candidate = startdAds.Next ())) {
+		dprintf(D_FULLDEBUG,"Checking with startdad \n");
 
 			// the candidate offer and request must match
 		if( !( *candidate == request ) ) {
 				// they don't match; continue
+			dprintf(D_FULLDEBUG,"They don't match \n");
 			continue;
 		}
 
@@ -1876,12 +1888,16 @@ matchmakingAlgorithm(char *scheddName, char *scheddAddr, ClassAd &request,
 					// startd rank yet because it does not make sense (the
 					// startd has nothing to compare against).  
 					// So try the next offer...
+				dprintf(D_FULLDEBUG,"No remote user\n");
 				continue;
 			}
 			if ( !(rankCondStd->EvalTree(candidate, &request, &result) && 
 					result.type == LX_INTEGER && result.i == TRUE) ) {
 					// offer does not strictly prefer this request.
 					// try the next offer since only_for_statdrank flag is set
+					dprintf(D_FULLDEBUG,"Only for startd rank \n");
+					insert_into_rejects(scheddName,request,*candidate,"RANK");
+
 				continue;
 			}
 			// If we made it here, we have a candidate which strictly prefers
@@ -1912,6 +1928,8 @@ matchmakingAlgorithm(char *scheddName, char *scheddAddr, ClassAd &request,
 						!(PreemptionReq->EvalTree(candidate,&request,&result) &&
 						result.type == LX_INTEGER && result.i == TRUE) ) {
 					rejPreemptForPolicy++;
+					/* CONDORDB Insert into rejects table */
+					insert_into_rejects(scheddName,request,*candidate,"POLICY");
 					continue;
 				}
 					// (2) we need to make sure that the machine ranks the job
@@ -1921,6 +1939,8 @@ matchmakingAlgorithm(char *scheddName, char *scheddAddr, ClassAd &request,
 						result.type == LX_INTEGER && result.i == TRUE ) ) {
 						// machine doesn't like this job as much -- find another
 					rejPreemptForRank++;
+					/* CONDORDB Insert into rejects table */
+					insert_into_rejects(scheddName,request,*candidate,"RANK");
 					continue;
 				}
 			} else {
@@ -1931,6 +1951,8 @@ matchmakingAlgorithm(char *scheddName, char *scheddAddr, ClassAd &request,
 						// preempt one of our own jobs!
 					rejPreemptForPrio++;
 				}
+				/* CONDORDB Insert into rejects table */
+				insert_into_rejects(scheddName,request,*candidate,"PRIORITY");
 				continue;
 			}
 		}
@@ -1943,9 +1965,13 @@ matchmakingAlgorithm(char *scheddName, char *scheddAddr, ClassAd &request,
 										   ckptSize, request, *candidate);
 		if (rval == 1) {
 			rejForNetworkShare++;
+			/* CONDORDB Insert into rejects table */
+			insert_into_rejects(scheddName,request,*candidate,"NETWORKSHARE");
 			continue;
 		} else if (rval == 0) {
 			rejForNetwork++;
+			/* CONDORDB Insert into rejects table */
+			insert_into_rejects(scheddName,request,*candidate,"NETWORK");
 			continue;
 		}
 #endif
@@ -2087,6 +2113,7 @@ matchmakingProtocol (ClassAd &request, ClassAd *offer,
 
 	// see if offer supports claiming or not
 	offer->LookupBool(ATTR_WANT_CLAIMING,want_claiming);
+
 	// if offer says nothing, see if request says something
 	if ( want_claiming == -1 ) {
 		request.LookupBool(ATTR_WANT_CLAIMING,want_claiming);
@@ -2210,6 +2237,9 @@ matchmakingProtocol (ClassAd &request, ClassAd *offer,
 	dprintf(D_MATCH, "      Matched %d.%d %s %s preempting %s %s %s\n",
 			cluster, proc, scheddName, scheddAddr, remoteUser,
 			startdAddr, startdName.Value() );
+
+	/* CONDORDB Insert into matches table */
+	insert_into_matches(scheddName, request, *offer);
 
 #if WANT_NETMAN
 	// match was successful; commit our network bandwidth allocation
@@ -2628,4 +2658,169 @@ Matchmaker::invalidateNegotiatorAd( void )
 	invalidate_ad.Insert( line.Value() );
 
 	Collectors->sendUpdates( INVALIDATE_NEGOTIATOR_ADS, &invalidate_ad );
+}
+
+/* CONDORDB functions */
+void Matchmaker::insert_into_rejects(char *userName, ClassAd& job, ClassAd& machine,const char *diagnosis)
+{
+	int cluster, proc;
+	char startdname[80];
+	char globaljobid[80];
+	char scheddName[80];
+	ClassAd tmpCl;
+	ClassAd *tmpClP = &tmpCl;
+	char tmp[512];
+	char rejectts[100];
+
+	struct tm *tm;
+	time_t clock;
+
+	(void)time(  (time_t *)&clock );
+	tm = localtime( (time_t *)&clock );
+
+	job.LookupInteger (ATTR_CLUSTER_ID, cluster);
+	job.LookupInteger (ATTR_PROC_ID, proc);
+	job.LookupString( ATTR_GLOBAL_JOB_ID, globaljobid); 
+	get_scheddname_from_gjid(globaljobid,scheddName);
+	machine.LookupString(ATTR_NAME, startdname);
+
+	snprintf(rejectts, 100, "%d/%d/%d %02d:%02d:%02d %s", 
+		  tm->tm_mon+1,
+		  tm->tm_mday,
+		  tm->tm_year+1900,
+		  tm->tm_hour,
+		  tm->tm_min,
+		  tm->tm_sec,
+		  tm->tm_zone);
+
+	snprintf(tmp, 512, "reject_time = \"%s\"", rejectts);
+	tmpClP->Insert(tmp);
+	
+	snprintf(tmp, 512, "username = \"%s\"", userName);
+	tmpClP->Insert(tmp);
+		
+	snprintf(tmp, 512, "scheddname = \"%s\"", scheddName);
+	tmpClP->Insert(tmp);
+	
+	snprintf(tmp, 512, "cluster = %d", cluster);
+	tmpClP->Insert(tmp);
+
+	snprintf(tmp, 512, "proc = %d", proc);
+	tmpClP->Insert(tmp);
+
+	snprintf(tmp, 512, "GlobalJobId = \"%s\"", globaljobid);
+	tmpClP->Insert(tmp);
+	
+	snprintf(tmp, 512, "startdname = \"%s\"", startdname);
+	tmpClP->Insert(tmp);
+	
+	snprintf(tmp, 512, "diagnosis = \"%s\"", diagnosis);
+	tmpClP->Insert(tmp);
+	
+	FILEObj->file_newEvent("Rejects", tmpClP);
+}
+void Matchmaker::insert_into_matches(char * userName,ClassAd& request, ClassAd& offer)
+{
+	char startdname[80],remote_user[80];
+	char globaljobid[80];
+	float remote_prio;
+	int cluster, proc;
+	char scheddName[80];
+	ClassAd tmpCl;
+	ClassAd *tmpClP = &tmpCl;
+
+	struct tm *tm;
+	time_t clock;
+	char tmp[512];
+	char matchts[100];
+
+	(void)time(  (time_t *)&clock );
+	tm = localtime( (time_t *)&clock );
+
+	request.LookupInteger (ATTR_CLUSTER_ID, cluster);
+	request.LookupInteger (ATTR_PROC_ID, proc);
+	request.LookupString( ATTR_GLOBAL_JOB_ID, globaljobid); 
+	get_scheddname_from_gjid(globaljobid,scheddName);
+	offer.LookupString( ATTR_NAME, startdname); 
+
+	snprintf(matchts, 100, "%d/%d/%d %02d:%02d:%02d %s", 
+		  tm->tm_mon+1,
+		  tm->tm_mday,
+		  tm->tm_year+1900,
+		  tm->tm_hour,
+		  tm->tm_min,
+		  tm->tm_sec,
+		  tm->tm_zone);
+	
+	snprintf(tmp, 512, "match_time = \"%s\"", matchts);
+	tmpClP->Insert(tmp);
+	
+	snprintf(tmp, 512, "username = \"%s\"", userName);
+	tmpClP->Insert(tmp);
+		
+	snprintf(tmp, 512, "scheddname = \"%s\"", scheddName);
+	tmpClP->Insert(tmp);
+	
+	snprintf(tmp, 512, "cluster = %d", cluster);
+	tmpClP->Insert(tmp);
+
+	snprintf(tmp, 512, "proc = %d", proc);
+	tmpClP->Insert(tmp);
+
+	snprintf(tmp, 512, "GlobalJobId = \"%s\"", globaljobid);
+	tmpClP->Insert(tmp);
+
+	snprintf(tmp, 512, "startdname = \"%s\"", startdname);
+	tmpClP->Insert(tmp);
+
+	if(offer.LookupString( ATTR_REMOTE_USER, remote_user) != 0)
+	{
+		remote_prio = (float) accountant.GetPriority(remote_user);
+
+		snprintf(tmp, 512, "remote_user = \"%s\"", remote_user);
+		tmpClP->Insert(tmp);
+
+		snprintf(tmp, 512, "remote_priority = %f", remote_prio);
+		tmpClP->Insert(tmp);
+	}
+	
+	FILEObj->file_newEvent("Matches", tmpClP);
+}
+/* This extracts the machine name from the global job ID [user@]machine.name#timestamp#cluster.proc*/
+static int get_scheddname_from_gjid(const char * globaljobid, char * scheddname )
+{
+	int i,j;
+
+	scheddname[0] = '\0';
+	for (i=0;globaljobid[i]!='\0' && globaljobid[i]!='@' && globaljobid[i]!='#';i++)
+		scheddname[i]=globaljobid[i];
+	if(globaljobid[i] == '\0') 
+	{
+		scheddname[0] = '\0';
+		return -1; /* Parse error, shouldn't happen */
+	}
+	else if(globaljobid[i]=='#')
+	{
+		scheddname[i]='\0';	
+		return 1;
+	}
+	else
+	{
+		i++; /* get past '@' */
+	
+		for (j=0;globaljobid[i]!='\0' && globaljobid[i]!='#';i++,j++)
+			scheddname[j]=globaljobid[i];
+
+		if(globaljobid[i] == '\0') 
+		{
+			scheddname[0]= '\0';
+			return -1; /* Parse error, shouldn't happen */
+		}
+		else
+		{
+			scheddname[j]='\0';
+			return 1;
+		}
+	}
+	return -1;
 }
