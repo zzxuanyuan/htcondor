@@ -1,0 +1,21 @@
+NAME = condor_tt
+
+all_target( $(NAME))
+
+
+CFLAGS = $(STD_C_FLAGS)
+C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS)  -D_POSTGRESQL_DBMS_ -I$(POSTGRESQL_INC)
+LDFLAGS = $(STD_LDFLAGS) -lrt -lpq
+LIB = $(DAEMONCORE_LIB) $(STD_LIBS) $(POSTGRESQL_LIB)/libpq.a
+
+OBJ = tt_main.o ttmanager.o classadlogentry.o classadlogparser.o jobqueuecollection.o jobqueuedbmanager.o prober.o
+
+c_plus_target($(NAME),$(OBJ),$(LIB))
+
+release_target($(NAME),sbin,EXECUTABLE_MODE)
+
+#html:
+#release:: all
+#stripped:: all
+#static:: all
+#clean::
