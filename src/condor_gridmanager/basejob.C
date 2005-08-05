@@ -97,7 +97,6 @@ BaseJob::~BaseJob()
 	if ( jobAd ) {
 		delete jobAd;
 	}
-	daemonCore->Cancel_Timer( periodicPolicyEvalTid );
 	daemonCore->Cancel_Timer( evaluateStateTid );
 	if ( jobLeaseSentExpiredTid != TIMER_UNSET ) {
 		daemonCore->Cancel_Timer( jobLeaseSentExpiredTid );
