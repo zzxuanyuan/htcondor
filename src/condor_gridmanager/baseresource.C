@@ -394,7 +394,10 @@ bool CalculateLease( const ClassAd *job_ad, time_t &new_expiration )
 int cluster,proc;
 	time_t expire_received = -1;
 	time_t expire_sent = -1;
+	int lease_duration = -1;
 	bool last_renewal_failed = false;
+
+	new_expiration = -1;
 
 job_ad->LookupInteger( ATTR_CLUSTER_ID, cluster );
 job_ad->LookupInteger( ATTR_PROC_ID, proc );
@@ -402,28 +405,49 @@ job_ad->LookupInteger( ATTR_PROC_ID, proc );
 	job_ad->LookupInteger( ATTR_TIMER_REMOVE_CHECK_SENT, (int)expire_sent );
 	job_ad->LookupBool( ATTR_LAST_JOB_LEASE_RENEWAL_FAILED,
 						last_renewal_failed );
+	job_ad->LookupInteger( ATTR_JOB_LEASE_DURATION, lease_duration );
 
 		// If we didn't received a lease, there's no lease to renew
-	if ( expire_received == -1 ) {
+	if ( expire_received == -1 && lease_duration == -1 ) {
 dprintf(D_ALWAYS,"*** (%d.%d) CalculateLease: no received lease\n",cluster,proc);
 		return false;
 	}
 
 		// If the lease we sent expires within 10 seconds of the lease we
 		// received, don't renew it.
-	if ( expire_sent + 10 >= expire_received ) {
+	if ( expire_received != -1 && expire_sent + 10 >= expire_received ) {
 dprintf(D_ALWAYS,"*** (%d.%d) CalculateLease: new lease close enough to old lease\n",cluster,proc);
 		return false;
 	}
 
 	if ( last_renewal_failed && expire_sent != -1 ) {
 		new_expiration = expire_sent;
-	} else {
+dprintf(D_ALWAYS,"*** (%d.%d) CalculateLease: retry failed lease at %d\n",cluster,proc,(int)new_expiration);
+		return true;
+	}
+
+	if ( lease_duration != -1 ) {
+		time_t now = time(NULL);
+		if ( expire_sent == -1 ) {
+			new_expiration = now + lease_duration;
+		} else if ( expire_sent - now < ( lease_duration * 2 ) / 3 ) {
+dprintf(D_ALWAYS,"    lease left(%d) < 2/3 duration(%d)\n",expire_sent-now,(lease_duration*2)/3);
+			new_expiration = now + lease_duration;
+		}
+	}
+
+	if ( expire_received != -1 && ( new_expiration == -1 ||
+									expire_received < new_expiration ) ) {
 		new_expiration = expire_received;
 	}
 
-dprintf(D_ALWAYS,"*** (%d.%d) CalculateLease: new sent lease should be %d\n",cluster,proc,(int)new_expiration);
-	return true;
+	if ( new_expiration != -1 ) {
+dprintf(D_ALWAYS,"*** (%d.%d) CalculateLease: new lease should expire at %d\n",cluster,proc,(int)new_expiration);
+		return true;
+	} else {
+dprintf(D_ALWAYS,"*** (%d.%d) CalculateLease: no new lease at present\n",cluster,proc);
+		return false;
+	}
 }
 
 int BaseResource::UpdateLeases()
@@ -438,7 +462,7 @@ dprintf(D_ALWAYS,"    Leases not supported, cancelling timer\n" );
 
 	// Don't start a new lease update too soon after the previous one.
 	int delay;
-	delay = (lastUpdateLeases + 60) - time(NULL);
+	delay = (lastUpdateLeases + 30) - time(NULL);
 	if ( delay > 0 ) {
 		daemonCore->Reset_Timer( updateLeasesTimerId, delay );
 dprintf(D_ALWAYS,"    UpdateLeases: last update too recent, delaying\n");
@@ -460,7 +484,7 @@ dprintf(D_ALWAYS,"    UpdateLeases: calc'ing new leases\n");
 		}
 		if ( leaseUpdates.IsEmpty() ) {
 			lastUpdateLeases = time(NULL);
-			daemonCore->Reset_Timer( updateLeasesTimerId, 60 );
+			daemonCore->Reset_Timer( updateLeasesTimerId, 30 );
 		} else {
 			requestScheddUpdateNotification( updateLeasesTimerId );
 			updateLeasesActive = true;
@@ -550,7 +574,7 @@ dprintf(D_ALWAYS,"    %d.%d is not in succeeded list\n",curr_job->procID.cluster
 
 	updateLeasesActive = false;
 
-	daemonCore->Reset_Timer( updateLeasesTimerId, 60 );
+	daemonCore->Reset_Timer( updateLeasesTimerId, 30 );
 
 	return 0;
 }
