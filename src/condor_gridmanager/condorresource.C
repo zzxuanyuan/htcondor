@@ -346,10 +346,16 @@ dprintf(D_ALWAYS,"*** DoUpdateLeases called\n");
 	if ( updateLeasesCmdActive == false ) {
 		leaseUpdates.Rewind();
 		while ( leaseUpdates.Next( curr_job ) ) {
-			int exp = 0;
-			jobs.Append( ((CondorJob*)curr_job)->remoteJobId );
-			curr_job->jobAd->LookupInteger( ATTR_TIMER_REMOVE_CHECK_SENT, exp );
-			expirations.Append( exp );
+				// TODO When remote-job-id is homogenized and stored in 
+				//   BaseJob, BaseResource can skip jobs that don't have a
+				//   a remote-job-id yet
+			if ( ((CondorJob*)curr_job)->remoteJobId.cluster != 0 ) {
+				int exp = 0;
+				jobs.Append( ((CondorJob*)curr_job)->remoteJobId );
+				curr_job->jobAd->LookupInteger( ATTR_TIMER_REMOVE_CHECK_SENT,
+												exp );
+				expirations.Append( exp );
+			}
 		}
 	}
 
