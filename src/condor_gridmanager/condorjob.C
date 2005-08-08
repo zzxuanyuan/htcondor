@@ -131,9 +131,15 @@ bool CondorJobAdMustExpand( const ClassAd *jobad )
 	jobad->LookupBool(ATTR_JOB_MUST_EXPAND, must_expand);
 	if ( !must_expand ) {
 		char resource_name[800];
-		jobad->LookupString( ATTR_REMOTE_SCHEDD, resource_name );
-		if ( strstr(resource_name,"$$") ) {
-			must_expand = 1;
+		if ( jobad->LookupString( ATTR_REMOTE_SCHEDD, resource_name ) ) {
+			if ( strstr(resource_name,"$$") ) {
+				must_expand = 1;
+			}
+		} else if ( jobad->LookupString( ATTR_REMOTE_SCHEDD,
+										 resource_name ) ) {
+			if ( strstr(resource_name,"$$") ) {
+				must_expand = 1;
+			}
 		}
 	}
 
@@ -206,18 +212,53 @@ CondorJob::CondorJob( ClassAd *classad )
 	}
 
 	buff[0] = '\0';
-	jobAd->LookupString( ATTR_REMOTE_SCHEDD, buff );
+	jobAd->LookupString( ATTR_REMOTE_RESOURCE, buff );
 	if ( buff[0] != '\0' ) {
-		remoteScheddName = strdup( buff );
-	} else {
-		error_string = "RemoteSchedd is not set in the job ad";
-		goto error_exit;
-	}
+		const char *token;
+		MyString str = buff;
 
-	buff[0] = '\0';
-	jobAd->LookupString( ATTR_REMOTE_POOL, buff );
-	if ( buff[0] != '\0' ) {
-		remotePoolName = strdup( buff );
+		str.Tokenize();
+
+		token = str.GetNextToken( "#", false );
+		if ( !token || stricmp( token, "condor" ) ) {
+			error_string = "RemoteResource not of type condor";
+			goto error_exit;
+		}
+
+		token = str.GetNextToken( "#", false );
+		if ( token && *token ) {
+			remotePoolName = strdup( token );
+		}
+
+		token = str.GetNextToken( "#", false );
+		if ( token && *token ) {
+			remoteScheddName = strdup( token );
+		} else {
+			error_string = "RemoteResource missing schedd name";
+			goto error_exit;
+		}
+
+	} else {
+
+			// Backwards compatibility
+		buff[0] = '\0';
+		jobAd->LookupString( ATTR_REMOTE_SCHEDD, buff );
+		if ( buff[0] != '\0' ) {
+			remoteScheddName = strdup( buff );
+		} else {
+			error_string = "Neither RemoteResource nor RemoteSchedd is set in the job ad";
+			goto error_exit;
+		}
+
+		buff[0] = '\0';
+		jobAd->LookupString( ATTR_REMOTE_POOL, buff );
+		if ( buff[0] != '\0' ) {
+			remotePoolName = strdup( buff );
+		}
+
+		sprintf( buff, "condor#%s#%s", remotePoolName ? remotePoolName : "",
+				 remoteScheddName );
+		jobAd->Assign( ATTR_REMOTE_RESOURCE, buff );
 	}
 
 	buff[0] = '\0';

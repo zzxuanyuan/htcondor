@@ -305,9 +305,15 @@ bool GlobusJobAdMustExpand( const ClassAd *jobad )
 	jobad->LookupBool(ATTR_JOB_MUST_EXPAND, must_expand);
 	if ( !must_expand ) {
 		char resource_name[800];
-		jobad->LookupString(ATTR_GLOBUS_RESOURCE, resource_name);
-		if ( strstr(resource_name,"$$") ) {
-			must_expand = 1;
+		if ( jobad->LookupString(ATTR_REMOTE_RESOURCE, resource_name) ) {
+			if ( strstr(resource_name,"$$") ) {
+				must_expand = 1;
+			}
+		} else if (	jobad->LookupString(ATTR_GLOBUS_RESOURCE,
+										resource_name) ) {
+			if ( strstr(resource_name,"$$") ) {
+				must_expand = 1;
+			}
 		}
 	}
 
@@ -801,12 +807,40 @@ GlobusJob::GlobusJob( ClassAd *classad )
 	jobAd->LookupInteger( ATTR_GLOBUS_GRAM_VERSION, jmVersion );
 
 	buff[0] = '\0';
-	jobAd->LookupString( ATTR_GLOBUS_RESOURCE, buff );
+	jobAd->LookupString( ATTR_REMOTE_RESOURCE, buff );
 	if ( buff[0] != '\0' ) {
-		resourceManagerString = strdup( buff );
+		const char *token;
+		MyString str = buff;
+
+		str.Tokenize();
+
+		token = str.GetNextToken( "#", false );
+		if ( !token || stricmp( token, "gt2" ) ) {
+			error_string = "RemoteResource not of type gt2";
+			goto error_exit;
+		}
+
+		token = str.GetNextToken( "#", false );
+		if ( token && *token ) {
+			resourceManagerString = strdup( token );
+		} else {
+			error_string = "RemoteResource missing GRAM service name";
+			goto error_exit;
+		}
+
 	} else {
-		error_string = "GlobusResource is not set in the job ad";
-		goto error_exit;
+
+			// Backwards compatibility
+		buff[0] = '\0';
+		jobAd->LookupString( ATTR_GLOBUS_RESOURCE, buff );
+		if ( buff[0] != '\0' ) {
+			resourceManagerString = strdup( buff );
+			sprintf( buff, "gt2#%s", resourceManagerString );
+			jobAd->Assign( ATTR_REMOTE_RESOURCE, buff );
+		} else {
+			error_string = "Neither RemoteResource nor GlobusResource is set in the job ad";
+			goto error_exit;
+		}
 	}
 
 	// Find/create an appropriate GlobusResource for this job
@@ -3210,7 +3244,7 @@ WriteGlobusSubmitEventToUserLog( ClassAd *job_ad )
 {
 	int cluster, proc;
 	int version;
-	char contact[256];
+	MyString contact;
 	UserLog *ulog = InitializeUserLog( job_ad );
 	if ( ulog == NULL ) {
 		// User doesn't want a log
@@ -3226,14 +3260,15 @@ WriteGlobusSubmitEventToUserLog( ClassAd *job_ad )
 
 	GlobusSubmitEvent event;
 
-	contact[0] = '\0';
-	job_ad->LookupString( ATTR_GLOBUS_RESOURCE, contact,
-						   sizeof(contact) - 1 );
-	event.rmContact = strnewp(contact);
+	job_ad->LookupString( ATTR_REMOTE_RESOURCE, contact );
+	contact.Tokenize();
+	contact.GetNextToken( "#", false );
+	event.rmContact = strnewp(contact.GetNextToken( "#", false ));
 
-	contact[0] = '\0';
-	job_ad->LookupString( ATTR_REMOTE_JOB_ID, contact, sizeof(contact) - 1 );
-	event.jmContact = strnewp(contact);
+	job_ad->LookupString( ATTR_REMOTE_JOB_ID, contact );
+	contact.Tokenize();
+	contact.GetNextToken( "#", false );
+	event.jmContact = strnewp(contact.GetNextToken( "#", false ));
 
 	version = 0;
 	job_ad->LookupInteger( ATTR_GLOBUS_GRAM_VERSION, version );

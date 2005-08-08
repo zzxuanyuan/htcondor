@@ -238,12 +238,40 @@ OracleJob::OracleJob( ClassAd *classad )
 	}
 
 	buff[0] = '\0';
-	jobAd->LookupString( ATTR_GLOBUS_RESOURCE, buff );
+	jobAd->LookupString( ATTR_REMOTE_RESOURCE, buff );
 	if ( buff[0] != '\0' ) {
-		resourceManagerString = strdup( buff );
+		const char *token;
+		MyString str = buff;
+
+		str.Tokenize();
+
+		token = str.GetNextToken( "#", false );
+		if ( !token || stricmp( token, "oracle" ) ) {
+			error_string = "RemoteResource not of type oracle";
+			goto error_exit;
+		}
+
+		token = str.GetNextToken( "#", false );
+		if ( token && *token ) {
+			resourceManagerString = strdup( token );
+		} else {
+			error_string = "RemoteResource missing server name";
+			goto error_exit;
+		}
+
 	} else {
-		error_string = "GlobusResource is not set in the job ad";
-		goto error_exit;
+
+			// Backwards compatibility
+		buff[0] = '\0';
+		jobAd->LookupString( ATTR_GLOBUS_RESOURCE, buff );
+		if ( buff[0] != '\0' ) {
+			resourceManagerString = strdup( buff );
+			sprintf( buff, "oracle#%s", resourceManagerString );
+			jobAd->Assign( ATTR_REMOTE_RESOURCE, buff );
+		} else {
+			error_string = "GlobusResource is not set in the job ad";
+			goto error_exit;
+		}
 	}
 
 	bool_val = FALSE;

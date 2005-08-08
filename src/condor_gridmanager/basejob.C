@@ -807,7 +807,6 @@ WriteExecuteEventToUserLog( ClassAd *job_ad )
 {
 	int cluster, proc;
 	char hostname[128];
-	char *host_ptr;
 
 	UserLog *ulog = InitializeUserLog( job_ad );
 	if ( ulog == NULL ) {
@@ -822,22 +821,12 @@ WriteExecuteEventToUserLog( ClassAd *job_ad )
 			 "(%d.%d) Writing execute record to user logfile\n",
 			 cluster, proc );
 
-		// TODO This formating assumes the hostname to be placed in the
-		//   log event can be found in ATTR_GLOBUS_RESOURCE and is formatted
-		//   like a gt2 or gt4 resource name. What about other job types?
 	hostname[0] = '\0';
-	job_ad->LookupString( ATTR_GLOBUS_RESOURCE, hostname,
+	job_ad->LookupString( ATTR_REMOTE_RESOURCE, hostname,
 						  sizeof(hostname) - 1 );
-	if ( strncmp( "https://", hostname, 8 ) == 0 ) {
-		host_ptr = &hostname[8];
-	} else {
-		host_ptr = hostname;
-	}
-	int hostname_len = strcspn( host_ptr, ":/" );
 
 	ExecuteEvent event;
-	strncpy( event.executeHost, host_ptr, hostname_len );
-	event.executeHost[hostname_len] = '\0';
+	strcpy( event.executeHost, hostname );
 	int rc = ulog->writeEvent(&event);
 	delete ulog;
 
@@ -1057,7 +1046,7 @@ bool
 WriteGlobusResourceUpEventToUserLog( ClassAd *job_ad )
 {
 	int cluster, proc;
-	char contact[256];
+	MyString contact;
 	UserLog *ulog = InitializeUserLog( job_ad );
 	if ( ulog == NULL ) {
 		// User doesn't want a log
@@ -1073,14 +1062,14 @@ WriteGlobusResourceUpEventToUserLog( ClassAd *job_ad )
 
 	GlobusResourceUpEvent event;
 
-	contact[0] = '\0';
-	job_ad->LookupString( ATTR_GLOBUS_RESOURCE, contact,
-						   sizeof(contact) - 1 );
-	if ( contact[0] == '\0' ) {
+	job_ad->LookupString( ATTR_REMOTE_RESOURCE, contact );
+	if ( contact.IsEmpty() ) {
 			// Not a Globus job, don't log the event
 		return true;
 	}
-	event.rmContact =  strnewp(contact);
+	contact.Tokenize();
+	contact.GetNextToken( "#", false );
+	event.rmContact =  strnewp(contact.GetNextToken( "#", false ));
 
 	int rc = ulog->writeEvent(&event);
 	delete ulog;
@@ -1099,7 +1088,7 @@ bool
 WriteGlobusResourceDownEventToUserLog( ClassAd *job_ad )
 {
 	int cluster, proc;
-	char contact[256];
+	MyString contact;
 	UserLog *ulog = InitializeUserLog( job_ad );
 	if ( ulog == NULL ) {
 		// User doesn't want a log
@@ -1115,14 +1104,14 @@ WriteGlobusResourceDownEventToUserLog( ClassAd *job_ad )
 
 	GlobusResourceDownEvent event;
 
-	contact[0] = '\0';
-	job_ad->LookupString( ATTR_GLOBUS_RESOURCE, contact,
-						   sizeof(contact) - 1 );
-	if ( contact[0] == '\0' ) {
+	job_ad->LookupString( ATTR_REMOTE_RESOURCE, contact );
+	if ( contact.IsEmpty() ) {
 			// Not a Globus job, don't log the event
 		return true;
 	}
-	event.rmContact =  strnewp(contact);
+	contact.Tokenize();
+	contact.GetNextToken( "#", false );
+	event.rmContact =  strnewp(contact.GetNextToken( "#", false ));
 
 	int rc = ulog->writeEvent(&event);
 	delete ulog;
