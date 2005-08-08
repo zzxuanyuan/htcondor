@@ -923,7 +923,7 @@ SetExecutable()
 	case CONDOR_UNIVERSE_SCHEDULER:
 	case CONDOR_UNIVERSE_MPI:  // for now
 	case CONDOR_UNIVERSE_PARALLEL:
-	case CONDOR_UNIVERSE_GLOBUS:
+	case CONDOR_UNIVERSE_GRID:
 	case CONDOR_UNIVERSE_JAVA:
 		(void) sprintf (buffer, "%s = FALSE", ATTR_WANT_REMOTE_SYSCALLS);
 		InsertJobExpr (buffer);
@@ -942,7 +942,7 @@ SetExecutable()
 		copySpool = (char *)malloc(16);
 		if ( Remote ) {
 			strcpy(copySpool,"FALSE");
-		} else if ( JobUniverse == CONDOR_UNIVERSE_GLOBUS ) {
+		} else if ( JobUniverse == CONDOR_UNIVERSE_GRID ) {
 			strcpy(copySpool, "FALSE");
 		} else {
 			strcpy(copySpool, "TRUE");
@@ -1053,9 +1053,9 @@ SetUniverse()
 			fprintf( stderr, "This version of Condor doesn't support Globus Universe jobs.\n" );
 			exit( 1 );
 		}
-		JobUniverse = CONDOR_UNIVERSE_GLOBUS;
+		JobUniverse = CONDOR_UNIVERSE_GRID;
 		
-		(void) sprintf (buffer, "%s = %d", ATTR_JOB_UNIVERSE, CONDOR_UNIVERSE_GLOBUS);
+		(void) sprintf (buffer, "%s = %d", ATTR_JOB_UNIVERSE, CONDOR_UNIVERSE_GRID);
 		InsertJobExpr (buffer);
 		free(univ);
 		univ = 0;
@@ -1596,7 +1596,7 @@ SetTransferFiles()
 	// this is a flawed strategy.
 
 	if ( should_transfer != STF_NO && job 
-					&& JobUniverse != CONDOR_UNIVERSE_GLOBUS ) {
+					&& JobUniverse != CONDOR_UNIVERSE_GRID ) {
 		char output[_POSIX_PATH_MAX + 32];
 		char error[_POSIX_PATH_MAX + 32];
 
@@ -1651,7 +1651,7 @@ SetTransferFiles()
 	}
 
 	if( should_transfer == STF_NO && 
-		JobUniverse != CONDOR_UNIVERSE_GLOBUS &&
+		JobUniverse != CONDOR_UNIVERSE_GRID &&
 		JobUniverse != CONDOR_UNIVERSE_JAVA )
 	{
 		char *transfer_exe;
@@ -2077,7 +2077,7 @@ SetStdFile( int which_file )
 	char	*generic_name;
 	char	 buffer[_POSIX_PATH_MAX + 32];
 
-	if(JobUniverse==CONDOR_UNIVERSE_GLOBUS && which_file != 0) {
+	if(JobUniverse==CONDOR_UNIVERSE_GRID && which_file != 0) {
 		if ( stricmp (JobGridType, "globus") == MATCH ||
 			 stricmp (JobGridType, "gt2") == MATCH ||
 			 stricmp (JobGridType, "gt3") == MATCH ) {
@@ -2133,7 +2133,7 @@ SetStdFile( int which_file )
 	macro_value = condor_param( generic_name, NULL );
 
 	/* Globus jobs are allowed to specify urls */
-	if(JobUniverse == CONDOR_UNIVERSE_GLOBUS && is_globus_friendly_url(macro_value)) {
+	if(JobUniverse == CONDOR_UNIVERSE_GRID && is_globus_friendly_url(macro_value)) {
 		transfer_it = false;
 		stream_it = false;
 	}
@@ -3298,7 +3298,7 @@ SetGlobusParams()
 //	unified_syntax = vi.built_since_version(6,7,11);
 	unified_syntax = vi.built_since_version(6,7,10);
 
-	if ( JobUniverse != CONDOR_UNIVERSE_GLOBUS )
+	if ( JobUniverse != CONDOR_UNIVERSE_GRID )
 		return;
 
 	if ( stricmp (JobGridType, "globus") == MATCH ||
@@ -3918,7 +3918,7 @@ queue(int num)
 
 		char *proxy_file = condor_param( X509UserProxy );
 
-		if ( proxy_file == NULL && JobUniverse == CONDOR_UNIVERSE_GLOBUS &&
+		if ( proxy_file == NULL && JobUniverse == CONDOR_UNIVERSE_GRID &&
 			 (stricmp (JobGridType, "globus") == MATCH ||
 			  stricmp (JobGridType, "gt2") == MATCH ||
 			  stricmp (JobGridType, "gt3") == MATCH ||
@@ -4208,7 +4208,7 @@ check_requirements( char *orig )
 		free( ptr );
 	}
 
-	if ( JobUniverse == CONDOR_UNIVERSE_GLOBUS ) {
+	if ( JobUniverse == CONDOR_UNIVERSE_GRID ) {
 		// We don't want any defaults at all w/ Globus...
 		// If we don't have a req yet, set to TRUE
 		if ( answer[0] == '\0' ) {

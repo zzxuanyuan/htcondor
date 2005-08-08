@@ -1022,7 +1022,7 @@ count( ClassAd *job )
 	}
 
 
-	if ( (universe != CONDOR_UNIVERSE_GLOBUS) &&	// handle Globus below...
+	if ( (universe != CONDOR_UNIVERSE_GRID) &&	// handle Globus below...
 		 (!service_this_universe(universe,job))  ) 
 	{
 			// Deal with all the Universes which we do not service, expect
@@ -1066,7 +1066,7 @@ count( ClassAd *job )
 		return 0;
 	} 
 
-	if ( universe == CONDOR_UNIVERSE_GLOBUS ) {
+	if ( universe == CONDOR_UNIVERSE_GRID ) {
 		// for Globus, count jobs in UNSUBMITTED state by owner.
 		// later we make certain there is a grid manager daemon
 		// per owner.
@@ -1167,7 +1167,7 @@ service_this_universe(int universe, ClassAd* job)
 	   figure out what to do based on Universe and other misc logic...
 	*/
 	switch (universe) {
-		case CONDOR_UNIVERSE_GLOBUS:
+		case CONDOR_UNIVERSE_GRID:
 			{
 				// If this Globus job is already being managed, then the schedd
 				// should leave it alone... the gridmanager is dealing with it.
@@ -1333,7 +1333,7 @@ abort_job_myself( PROC_ID job_id, JobAction action, bool log_hold,
 	handle_mirror_job_notification(job_ad, mode, job_id);
 
 		// Handle Globus Universe
-	if (job_universe == CONDOR_UNIVERSE_GLOBUS) {
+	if (job_universe == CONDOR_UNIVERSE_GRID) {
 		int job_managed = 0;
 		job_ad->LookupBool(ATTR_JOB_MANAGED, job_managed);
 			// If job_managed is true, then notify the gridmanager and return.
@@ -1394,7 +1394,7 @@ abort_job_myself( PROC_ID job_id, JobAction action, bool log_hold,
 
 	// If it is not a Globus Universe job (which has already been
 	// dealt with above), then find the process/shadow managing it.
-	if ((job_universe != CONDOR_UNIVERSE_GLOBUS) && 
+	if ((job_universe != CONDOR_UNIVERSE_GRID) && 
 		(srec = scheduler.FindSrecByProcID(job_id)) != NULL) 
 	{
 
@@ -1625,7 +1625,7 @@ ResponsibleForPeriodicExprs( ClassAd *jobad )
 
 	if( univ==CONDOR_UNIVERSE_SCHEDULER || univ==CONDOR_UNIVERSE_LOCAL ) {
 		return 1;
-	} else if(univ==CONDOR_UNIVERSE_GLOBUS) {
+	} else if(univ==CONDOR_UNIVERSE_GRID) {
 		if(managed) {
 			return 0;
 		} else {
@@ -2238,7 +2238,7 @@ Scheduler::spawnJobHandler( int cluster, int proc, shadow_rec* srec )
 		return true;
 		break;
 
-	case CONDOR_UNIVERSE_GLOBUS:
+	case CONDOR_UNIVERSE_GRID:
 			// grid universe is special, since we handle spawning
 			// gridmanagers in a different way, and don't need to do
 			// anything here.
@@ -3089,7 +3089,7 @@ Scheduler::generalJobFilesWorkerThread(void *arg, Stream* s)
 			ad->LookupInteger(ATTR_JOB_UNIVERSE, universe);
 			FreeJobAd(ad);
 
-			if(universe == CONDOR_UNIVERSE_GLOBUS) {
+			if(universe == CONDOR_UNIVERSE_GRID) {
 				aboutToSpawnJobHandler( cluster, proc, NULL );
 			}
 		}
@@ -4493,7 +4493,7 @@ Scheduler::negotiate(int, Stream* s)
 					// is always yes.  If PVM, perhaps yes or no.  If
 					// Globus, then no.
 					shadow_num_increment = 1;
-					if(job_universe == CONDOR_UNIVERSE_GLOBUS) {
+					if(job_universe == CONDOR_UNIVERSE_GRID) {
 						shadow_num_increment = 0;
 					}
 					if( job_universe == CONDOR_UNIVERSE_PVM ) {
@@ -9702,7 +9702,7 @@ Scheduler::AlreadyMatched(PROC_ID* id)
 
 	if ( (universe == CONDOR_UNIVERSE_PVM) ||
 		 (universe == CONDOR_UNIVERSE_MPI) ||
-		 (universe == CONDOR_UNIVERSE_GLOBUS) ||
+		 (universe == CONDOR_UNIVERSE_GRID) ||
 		 (universe == CONDOR_UNIVERSE_PARALLEL) )
 		return FALSE;
 

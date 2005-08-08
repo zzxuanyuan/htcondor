@@ -104,8 +104,9 @@ CondorUniverseNumber( const char* univ )
 	if( stricmp(univ,"mpi") == MATCH ) {
 		return CONDOR_UNIVERSE_MPI;
 	}
-	if( stricmp(univ,"globus") == MATCH ) {
-		return CONDOR_UNIVERSE_GLOBUS;
+	if( stricmp(univ,"globus") == MATCH ||
+		stricmp(univ,"grid") == MATCH ) {
+		return CONDOR_UNIVERSE_GRID;
 	}
 	if( stricmp(univ,"java") == MATCH ) {
 		return CONDOR_UNIVERSE_JAVA;
@@ -129,7 +130,7 @@ universeCanReconnect( int universe )
 	case CONDOR_UNIVERSE_SCHEDULER:
 	case CONDOR_UNIVERSE_LOCAL:
 	case CONDOR_UNIVERSE_MPI:
-	case CONDOR_UNIVERSE_GLOBUS:
+	case CONDOR_UNIVERSE_GRID:
 		return FALSE;
 	case CONDOR_UNIVERSE_VANILLA:
 	case CONDOR_UNIVERSE_JAVA:

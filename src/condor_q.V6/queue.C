@@ -907,7 +907,7 @@ format_remote_host (char *, AttrList *ad)
 			}
 			return result;
 		}
-	} else if (universe == CONDOR_UNIVERSE_GLOBUS) {
+	} else if (universe == CONDOR_UNIVERSE_GRID) {
 		if (ad->LookupString(ATTR_REMOTE_RESOURCE,result) == 1 )
 			return result;
 		else
@@ -2003,7 +2003,7 @@ doRunAnalysisToBuffer( ClassAd *request )
 			break;
 
 			// Maybe
-		case CONDOR_UNIVERSE_GLOBUS:
+		case CONDOR_UNIVERSE_GRID:
 			/* We may be able to detect when it's valid.  Check for existance
 			 * of "$$(FOO)" style variables in the classad. */
 			for (i = 0;   

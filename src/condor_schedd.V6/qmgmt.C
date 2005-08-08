@@ -1888,7 +1888,7 @@ GetJobAd(int cluster_id, int proc_id, bool expStartdAd)
 		// is a globus universe jobs or not.
 		int	job_universe;
 		ad->LookupInteger(ATTR_JOB_UNIVERSE,job_universe);
-		if ( job_universe == CONDOR_UNIVERSE_GLOBUS ) {
+		if ( job_universe == CONDOR_UNIVERSE_GRID ) {
 			// Globus job... find "startd ad" via our simple
 			// hash table.
 			startd_ad = NULL;
@@ -1998,7 +1998,7 @@ GetJobAd(int cluster_id, int proc_id, bool expStartdAd)
 			while( !no_startd_ad && !attribute_not_found &&
 					get_var(attribute_value,&left,&name,&right,NULL,true) )
 			{
-				if (!startd_ad && job_universe != CONDOR_UNIVERSE_GLOBUS) {
+				if (!startd_ad && job_universe != CONDOR_UNIVERSE_GRID) {
 					no_startd_ad = true;
 					break;
 				}
@@ -2082,7 +2082,7 @@ GetJobAd(int cluster_id, int proc_id, bool expStartdAd)
 						// If any other universe, just updating
 						// our RAM image is fine since we will get
 						// a new match every time.
-					if ( job_universe == CONDOR_UNIVERSE_GLOBUS ) {
+					if ( job_universe == CONDOR_UNIVERSE_GRID ) {
 						if ( SetAttribute(cluster_id,proc_id,expr.Value(),tvalue) < 0 )
 						{
 							EXCEPT("Failed to store %s into job ad %d.%d",
@@ -2124,7 +2124,7 @@ GetJobAd(int cluster_id, int proc_id, bool expStartdAd)
 			}
 		}
 
-		if ( startd_ad && job_universe == CONDOR_UNIVERSE_GLOBUS ) {
+		if ( startd_ad && job_universe == CONDOR_UNIVERSE_GRID ) {
 				// Can remove our matched ad since we stored all the
 				// values we need from it into the job ad.
 			RemoveMatchedAd(cluster_id,proc_id);
@@ -2179,7 +2179,7 @@ GetJobAd(int cluster_id, int proc_id, bool expStartdAd)
 		}
 
 
-		if ( startd_ad && job_universe != CONDOR_UNIVERSE_GLOBUS ) {
+		if ( startd_ad && job_universe != CONDOR_UNIVERSE_GRID ) {
 			//Convert environment delimiters to syntax expected by target.
 			//In windows, the delimiter is '|'.  In Unix, it is ';'.
 			char* new_env = NULL;
@@ -2540,7 +2540,7 @@ int mark_idle(ClassAd *job)
 	if (job->LookupInteger(ATTR_JOB_UNIVERSE, universe) < 0) {
 		universe = CONDOR_UNIVERSE_STANDARD;
 	}
-	if ( universe == CONDOR_UNIVERSE_GLOBUS ) {
+	if ( universe == CONDOR_UNIVERSE_GRID ) {
 		job_managed = 0;
 		job->LookupBool(ATTR_JOB_MANAGED, job_managed);
 		if ( job_managed ) {
@@ -2572,7 +2572,7 @@ int mark_idle(ClassAd *job)
 		DestroyProc(cluster,proc);
 	} else if ( status == REMOVED ) {
 		// a globus job with a non-null contact string should be left alone
-		if ( universe == CONDOR_UNIVERSE_GLOBUS ) {
+		if ( universe == CONDOR_UNIVERSE_GRID ) {
 			char contact_string[20];
 			strncpy(contact_string,NULL_JOB_CONTACT,sizeof(contact_string));
 			job->LookupString(ATTR_GLOBUS_CONTACT_STRING,contact_string,
