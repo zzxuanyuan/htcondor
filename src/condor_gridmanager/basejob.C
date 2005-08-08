@@ -29,6 +29,7 @@
 #include "condor_string.h"	// for strnewp and friends
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
 #include "condor_ckpt_name.h"
+#include "globus_utils.h" // for GRAM_V_1_5
 
 #include "gridmanager.h"
 #include "basejob.h"
@@ -1120,6 +1121,93 @@ WriteGlobusResourceDownEventToUserLog( ClassAd *job_ad )
 		dprintf( D_ALWAYS,
 				 "(%d.%d) Unable to log ULOG_GLOBUS_RESOURCE_DOWN event\n",
 				 cluster, proc );
+		return false;
+	}
+
+	return true;
+}
+
+bool
+WriteGlobusSubmitEventToUserLog( ClassAd *job_ad )
+{
+	int cluster, proc;
+	int version;
+	MyString contact;
+	UserLog *ulog = InitializeUserLog( job_ad );
+	if ( ulog == NULL ) {
+		// User doesn't want a log
+		return true;
+	}
+
+	job_ad->LookupInteger( ATTR_CLUSTER_ID, cluster );
+	job_ad->LookupInteger( ATTR_PROC_ID, proc );
+
+	dprintf( D_FULLDEBUG, 
+			 "(%d.%d) Writing globus submit record to user logfile\n",
+			 cluster, proc );
+
+	GlobusSubmitEvent event;
+
+	job_ad->LookupString( ATTR_REMOTE_RESOURCE, contact );
+	contact.Tokenize();
+	contact.GetNextToken( "#", false );
+	event.rmContact = strnewp(contact.GetNextToken( "#", false ));
+
+	job_ad->LookupString( ATTR_REMOTE_JOB_ID, contact );
+	contact.Tokenize();
+	contact.GetNextToken( "#", false );
+	event.jmContact = strnewp(contact.GetNextToken( "#", false ));
+
+	version = 0;
+	job_ad->LookupInteger( ATTR_GLOBUS_GRAM_VERSION, version );
+	event.restartableJM = version >= GRAM_V_1_5;
+
+	int rc = ulog->writeEvent(&event);
+	delete ulog;
+
+	if (!rc) {
+		dprintf( D_ALWAYS,
+				 "(%d.%d) Unable to log ULOG_GLOBUS_SUBMIT event\n",
+				 cluster, proc );
+		return false;
+	}
+
+	return true;
+}
+
+bool
+WriteGlobusSubmitFailedEventToUserLog( ClassAd *job_ad, int failure_code,
+									   const char *failure_mesg )
+{
+	int cluster, proc;
+	char buf[1024];
+
+	UserLog *ulog = InitializeUserLog( job_ad );
+	if ( ulog == NULL ) {
+		// User doesn't want a log
+		return true;
+	}
+
+	job_ad->LookupInteger( ATTR_CLUSTER_ID, cluster );
+	job_ad->LookupInteger( ATTR_PROC_ID, proc );
+
+	dprintf( D_FULLDEBUG, 
+			 "(%d.%d) Writing submit-failed record to user logfile\n",
+			 cluster, proc );
+
+	GlobusSubmitFailedEvent event;
+
+	snprintf( buf, 1024, "%d %s", failure_code,
+			  failure_mesg ? failure_mesg : "");
+	event.reason =  strnewp(buf);
+
+	int rc = ulog->writeEvent(&event);
+	delete ulog;
+
+	if (!rc) {
+		dprintf( D_ALWAYS,
+				 "(%d.%d) Unable to log ULOG_GLOBUS_SUBMIT_FAILED event\n",
+				 cluster, proc);
 		return false;
 	}
 

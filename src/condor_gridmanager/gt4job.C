@@ -123,10 +123,6 @@ static char *GMStateNames[] = {
 	} \
 }
 
-static bool WriteGT4SubmitEventToUserLog( ClassAd *job_ad );
-static bool WriteGT4SubmitFailedEventToUserLog( ClassAd *job_ad,
-												const char *failure_string );
-
 void
 gt4GramCallbackHandler( void *user_arg, const char *job_contact,
 						const char *state, const char *fault,
@@ -870,8 +866,8 @@ int GT4Job::doEvaluateState()
 					dprintf(D_ALWAYS,"(%d.%d)    RSL='%s'\n",
 							procID.cluster, procID.proc,RSL->Value());
 					globusErrorString = gahp->getErrorString();
-					WriteGT4SubmitFailedEventToUserLog( jobAd,
-														gahp->getErrorString() );
+					WriteGlobusSubmitFailedEventToUserLog( jobAd, 0,
+													gahp->getErrorString() );
 					myResource->CancelSubmit( this );
 					gmState = GM_UNSUBMITTED;
 					reevaluate_state = true;
@@ -914,7 +910,8 @@ int GT4Job::doEvaluateState()
 					// unhandled error
 					LOG_GLOBUS_ERROR( "gt4_gram_client_job_start()", rc );
 					globusErrorString = gahp->getErrorString();
-					WriteGT4SubmitFailedEventToUserLog( jobAd, gahp->getErrorString() );
+					WriteGlobusSubmitFailedEventToUserLog( jobAd, 0,
+													gahp->getErrorString() );
 					gmState = GM_CANCEL;
 				} else {
 						// We don't want an old or zeroed lastProbeTime
@@ -1401,8 +1398,8 @@ void GT4Job::UpdateGlobusState( int new_state, const char *new_fault )
 					// TODO: should SUBMIT_FAILED_EVENT be used only on
 					//   certain errors (ones we know are submit-related)?
 				if ( !submitFailedLogged ) {
-					WriteGT4SubmitFailedEventToUserLog( jobAd,
-														new_fault );
+					WriteGlobusSubmitFailedEventToUserLog( jobAd, 0,
+														   new_fault );
 					submitFailedLogged = true;
 				}
 			} else {
@@ -1410,7 +1407,7 @@ void GT4Job::UpdateGlobusState( int new_state, const char *new_fault )
 					// the user-log and increment the globus submits count.
 				int num_globus_submits = 0;
 				if ( !submitLogged ) {
-					WriteGT4SubmitEventToUserLog( jobAd );
+					WriteGlobusSubmitEventToUserLog( jobAd );
 					submitLogged = true;
 				}
 				jobAd->LookupInteger( ATTR_NUM_GLOBUS_SUBMITS,
@@ -1986,92 +1983,6 @@ void GT4Job::DeleteOutput()
 	}
 
 	umask( old_umask );
-}
-
-static bool
-WriteGT4SubmitEventToUserLog( ClassAd *job_ad )
-{
-	int cluster, proc;
-	int version;
-	MyString contact;
-	UserLog *ulog = InitializeUserLog( job_ad );
-	if ( ulog == NULL ) {
-		// User doesn't want a log
-		return true;
-	}
-
-	job_ad->LookupInteger( ATTR_CLUSTER_ID, cluster );
-	job_ad->LookupInteger( ATTR_PROC_ID, proc );
-
-	dprintf( D_FULLDEBUG, 
-			 "(%d.%d) Writing globus submit record to user logfile\n",
-			 cluster, proc );
-
-	GlobusSubmitEvent event;
-
-	job_ad->LookupString( ATTR_REMOTE_RESOURCE, contact );
-	contact.Tokenize();
-	contact.GetNextToken( "#", false );
-	event.rmContact = strnewp(contact.GetNextToken( "#", false ));
-
-	job_ad->LookupString( ATTR_REMOTE_JOB_ID, contact );
-	contact.Tokenize();
-	contact.GetNextToken( "#", false );
-	event.jmContact = strnewp(contact.GetNextToken( "#", false ));
-
-	version = 0;
-	job_ad->LookupInteger( ATTR_GLOBUS_GRAM_VERSION, version );
-	event.restartableJM = version >= GRAM_V_1_5;
-
-	int rc = ulog->writeEvent(&event);
-	delete ulog;
-
-	if (!rc) {
-		dprintf( D_ALWAYS,
-				 "(%d.%d) Unable to log ULOG_GLOBUS_SUBMIT event\n",
-				 cluster, proc );
-		return false;
-	}
-
-	return true;
-}
-
-static bool
-WriteGT4SubmitFailedEventToUserLog( ClassAd *job_ad,
-									const char *failure_string )
-{
-	int cluster, proc;
-
-	UserLog *ulog = InitializeUserLog( job_ad );
-	if ( ulog == NULL ) {
-		// User doesn't want a log
-		return true;
-	}
-
-	job_ad->LookupInteger( ATTR_CLUSTER_ID, cluster );
-	job_ad->LookupInteger( ATTR_PROC_ID, proc );
-
-	dprintf( D_FULLDEBUG, 
-			 "(%d.%d) Writing submit-failed record to user logfile\n",
-			 cluster, proc );
-
-	GlobusSubmitFailedEvent event;
-
-	if ( failure_string ) {
-		event.reason =  strnewp(failure_string);
-	}
-
-	int rc = ulog->writeEvent(&event);
-	delete ulog;
-
-	if (!rc) {
-		dprintf( D_ALWAYS,
-				 "(%d.%d) Unable to log ULOG_GLOBUS_SUBMIT_FAILED event\n",
-				 cluster, proc);
-		return false;
-	}
-
-	return true;
 }
 
 const char * 

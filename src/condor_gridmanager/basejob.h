@@ -129,6 +129,9 @@ bool WriteEvictEventToUserLog( ClassAd *job_ad );
 bool WriteHoldEventToUserLog( ClassAd *job_ad );
 bool WriteGlobusResourceUpEventToUserLog( ClassAd *job_ad );
 bool WriteGlobusResourceDownEventToUserLog( ClassAd *job_ad );
+bool WriteGlobusSubmitEventToUserLog( ClassAd *job_ad );
+bool WriteGlobusSubmitFailedEventToUserLog( ClassAd *job_ad, int failure_code,
+											const char *failure_mesg = NULL );
 void EmailTerminateEvent( ClassAd * job_ad, bool exit_status_known );
 
 #endif // define BASEJOB_H

@@ -105,10 +105,6 @@ static char *GMStateNames[] = {
 }
 
 
-static bool WriteGT3SubmitEventToUserLog( ClassAd *job_ad );
-static bool WriteGT3SubmitFailedEventToUserLog( ClassAd *job_ad,
-												int failure_code );
-
 void
 gt3GramCallbackHandler( void *user_arg, char *job_contact, int state,
 					 int errorcode )
@@ -773,8 +769,8 @@ int GT3Job::doEvaluateState()
 					dprintf(D_ALWAYS,"(%d.%d)    RSL='%s'\n",
 							procID.cluster, procID.proc,RSL->Value());
 					submitFailureCode = globusError = rc;
-					WriteGT3SubmitFailedEventToUserLog( jobAd,
-														submitFailureCode );
+					WriteGlobusSubmitFailedEventToUserLog( jobAd,
+														   submitFailureCode );
 					gmState = GM_UNSUBMITTED;
 					reevaluate_state = true;
 				}
@@ -816,7 +812,8 @@ int GT3Job::doEvaluateState()
 					// unhandled error
 					LOG_GLOBUS_ERROR( "globus_gram_client_job_start()", rc );
 					globusError = rc;
-					WriteGT3SubmitFailedEventToUserLog( jobAd, globusError );
+					WriteGlobusSubmitFailedEventToUserLog( jobAd,
+														   globusError );
 					gmState = GM_CANCEL;
 				} else {
 					gmState = GM_SUBMITTED;
@@ -1272,8 +1269,8 @@ void GT3Job::UpdateGlobusState( int new_state, int new_error_code )
 					//   certain errors (ones we know are submit-related)?
 				submitFailureCode = new_error_code;
 				if ( !submitFailedLogged ) {
-					WriteGT3SubmitFailedEventToUserLog( jobAd,
-														submitFailureCode );
+					WriteGlobusSubmitFailedEventToUserLog( jobAd,
+														   submitFailureCode );
 					submitFailedLogged = true;
 				}
 			} else {
@@ -1281,7 +1278,7 @@ void GT3Job::UpdateGlobusState( int new_state, int new_error_code )
 					// the user-log and increment the globus submits count.
 				int num_globus_submits = 0;
 				if ( !submitLogged ) {
-					WriteGT3SubmitEventToUserLog( jobAd );
+					WriteGlobusSubmitEventToUserLog( jobAd );
 					submitLogged = true;
 				}
 				jobAd->LookupInteger( ATTR_NUM_GLOBUS_SUBMITS,
@@ -1683,88 +1680,3 @@ void GT3Job::DeleteOutput()
 	umask( old_umask );
 }
 
-static bool
-WriteGT3SubmitEventToUserLog( ClassAd *job_ad )
-{
-	int cluster, proc;
-	int version;
-	MyString contact;
-	UserLog *ulog = InitializeUserLog( job_ad );
-	if ( ulog == NULL ) {
-		// User doesn't want a log
-		return true;
-	}
-
-	job_ad->LookupInteger( ATTR_CLUSTER_ID, cluster );
-	job_ad->LookupInteger( ATTR_PROC_ID, proc );
-
-	dprintf( D_FULLDEBUG, 
-			 "(%d.%d) Writing globus submit record to user logfile\n",
-			 cluster, proc );
-
-	GlobusSubmitEvent event;
-
-	job_ad->LookupString( ATTR_REMOTE_RESOURCE, contact );
-	contact.Tokenize();
-	contact.GetNextToken( "#", false );
-	event.rmContact = strnewp(contact.GetNextToken( "#", false ));
-
-	job_ad->LookupString( ATTR_REMOTE_JOB_ID, contact );
-	contact.Tokenize();
-	contact.GetNextToken( "#", false );
-	event.jmContact = strnewp(contact.GetNextToken( "#", false ));
-
-	version = 0;
-	job_ad->LookupInteger( ATTR_GLOBUS_GRAM_VERSION, version );
-	event.restartableJM = version >= GRAM_V_1_5;
-
-	int rc = ulog->writeEvent(&event);
-	delete ulog;
-
-	if (!rc) {
-		dprintf( D_ALWAYS,
-				 "(%d.%d) Unable to log ULOG_GLOBUS_SUBMIT event\n",
-				 cluster, proc );
-		return false;
-	}
-
-	return true;
-}
-
-static bool
-WriteGT3SubmitFailedEventToUserLog( ClassAd *job_ad, int failure_code )
-{
-	int cluster, proc;
-	char buf[1024];
-
-	UserLog *ulog = InitializeUserLog( job_ad );
-	if ( ulog == NULL ) {
-		// User doesn't want a log
-		return true;
-	}
-
-	job_ad->LookupInteger( ATTR_CLUSTER_ID, cluster );
-	job_ad->LookupInteger( ATTR_PROC_ID, proc );
-
-	dprintf( D_FULLDEBUG, 
-			 "(%d.%d) Writing submit-failed record to user logfile\n",
-			 cluster, proc );
-
-	GlobusSubmitFailedEvent event;
-
-	snprintf( buf, 1024, "%d %s", failure_code,
-			  "" );
-	event.reason =  strnewp(buf);
-
-	int rc = ulog->writeEvent(&event);
-	delete ulog;
-
-	if (!rc) {
-		dprintf( D_ALWAYS,
-				 "(%d.%d) Unable to log ULOG_GLOBUS_SUBMIT_FAILED event\n",
-				 cluster, proc);
-		return false;
-	}
-
-	return true;
-}
