@@ -3218,12 +3218,14 @@ SetJobLease( void )
 	if( ! tmp ) {
 		return;
 	}
+/*
 	if( ! universeCanReconnect(JobUniverse) ) { 
 		fprintf( stderr, "\nERROR: cannot specify %s for %s universe jobs\n",
 				 ATTR_JOB_LEASE_DURATION, CondorUniverseName(JobUniverse) );
 		DoCleanup(0,0,NULL);
 		exit( 1 );
 	}
+*/
 	int lease_duration = atoi( tmp );
 	if( lease_duration <= 0 ) {
 		fprintf( stderr, "\nERROR: invalid %s given: %s\n",
@@ -3286,6 +3288,15 @@ SetGlobusParams()
 {
 	char *tmp;
 	char *use_gridshell;
+	bool unified_syntax;
+
+		// Does the schedd support the new unified syntax for grid universe
+		// jobs (i.e. RemoteResource and RemoteJobId used for all types)?
+	CondorVersionInfo vi( MySchedd->version() );
+// TODO This should be set to next-to-be-released version when merged back
+//   into V6_7.
+//	unified_syntax = vi.built_since_version(6,7,11);
+	unified_syntax = vi.built_since_version(6,7,10);
 
 	if ( JobUniverse != CONDOR_UNIVERSE_GLOBUS )
 		return;
@@ -3296,6 +3307,20 @@ SetGlobusParams()
 		 stricmp (JobGridType, "gt4") == MATCH ||
 		 stricmp (JobGridType, "oracle") == MATCH ||
 		 stricmp (JobGridType, "nordugrid") == MATCH ) {
+
+		char * jobmanager_type;
+		jobmanager_type = condor_param ( GlobusJobmanagerType );
+		if (jobmanager_type) {
+			if (stricmp (JobGridType, "gt4") != MATCH ) {
+				fprintf(stderr, "\nWARNING: Param %s is not supported for grid types other than gt4\n", GlobusJobmanagerType );
+			}
+			if ( !unified_syntax ) {
+				sprintf( buffer, "%s = \"%s\"", ATTR_GLOBUS_JOBMANAGER_TYPE,
+						 jobmanager_type );
+				InsertJobExpr (buffer, false );
+			}
+		}
+
 
 		char *globushost;
 		globushost = condor_param( GlobusScheduler, "globus_scheduler" );
@@ -3315,9 +3340,16 @@ SetGlobusParams()
 			}
 		}
 
-		sprintf( buffer, "%s = \"%s\"", ATTR_GLOBUS_RESOURCE, globushost );
-		InsertJobExpr (buffer);
-
+		if ( unified_syntax ) {
+			sprintf( buffer, "%s = \"%s#%s%s%s\"", ATTR_REMOTE_RESOURCE,
+				 stricmp(JobGridType,"globus") == MATCH ? "gt2" : JobGridType,
+				 globushost, stricmp( JobGridType, "gt4" ) == MATCH ? "#" : "",
+				 jobmanager_type ? jobmanager_type : "" );
+			InsertJobExpr( buffer );
+		} else {
+			sprintf( buffer, "%s = \"%s\"", ATTR_GLOBUS_RESOURCE, globushost );
+			InsertJobExpr (buffer);
+		}
 
 		if ( strstr(globushost,"$$") ) {
 			// We need to perform matchmaking on the job in order to find
@@ -3331,10 +3363,15 @@ SetGlobusParams()
 		}
 
 		free( globushost );
+		if ( jobmanager_type ) {
+			free( jobmanager_type );
+		}
 
-		sprintf( buffer, "%s = \"%s\"", ATTR_GLOBUS_CONTACT_STRING,
-				 NULL_JOB_CONTACT );
-		InsertJobExpr (buffer);
+		if ( !unified_syntax ) {
+			sprintf( buffer, "%s = \"%s\"", ATTR_GLOBUS_CONTACT_STRING,
+					 NULL_JOB_CONTACT );
+			InsertJobExpr (buffer);
+		}
 
 		if( (tmp = condor_param(GlobusResubmit,ATTR_GLOBUS_RESUBMIT_CHECK)) ) {
 			sprintf( buffer, "%s = %s", ATTR_GLOBUS_RESUBMIT_CHECK, tmp );
@@ -3345,19 +3382,6 @@ SetGlobusParams()
 			InsertJobExpr (buffer, false );
 		}
 	}
-
-	char * jobmanager_type;
-	jobmanager_type = condor_param ( GlobusJobmanagerType );
-	if (jobmanager_type) {
-		if (stricmp (JobGridType, "gt4") != MATCH ) {
-			fprintf(stderr, "\nWARNING: Param %s is not supported for grid types other than gt4\n", GlobusJobmanagerType );
-		}
-		sprintf( buffer, "%s = \"%s\"", ATTR_GLOBUS_JOBMANAGER_TYPE,
-				 jobmanager_type );
-		InsertJobExpr (buffer, false );
-		free (jobmanager_type);
-	}
-
 
 	if ( (use_gridshell = condor_param(GridShell, ATTR_USE_GRID_SHELL)) ) {
 

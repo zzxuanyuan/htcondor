@@ -1180,7 +1180,8 @@ service_this_universe(int universe, ClassAd* job)
 				// has a "$$", then  this job is at least _matchable_, so 
 				// return true, else false.
 				const char * ads_to_check[] = { ATTR_GLOBUS_RESOURCE,
-												 ATTR_REMOTE_SCHEDD };
+												ATTR_REMOTE_SCHEDD,
+												ATTR_REMOTE_RESOURCE };
 				for (unsigned int i = 0; 
 					     i < sizeof(ads_to_check)/sizeof(ads_to_check[0]);
 					     i++) {
