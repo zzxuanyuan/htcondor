@@ -104,52 +104,10 @@ static char *GMStateNames[] = {
 	} \
 }
 
-//////////////////////from gridmanager.C
-#define HASH_TABLE_SIZE			500
 
 static bool WriteGT3SubmitEventToUserLog( ClassAd *job_ad );
 static bool WriteGT3SubmitFailedEventToUserLog( ClassAd *job_ad,
 												int failure_code );
-
-HashTable <HashKey, GT3Job *> GT3JobsByContact( HASH_TABLE_SIZE,
-												hashFunction );
-
-const char *
-gt3JobId( const char *contact )
-{
-/*
-	static char buff[1024];
-	char *first_end;
-	char *second_begin;
-
-	ASSERT( strlen(contact) < sizeof(buff) );
-
-	first_end = strrchr( contact, ':' );
-	ASSERT( first_end );
-
-	second_begin = strchr( first_end, '/' );
-	ASSERT( second_begin );
-
-	strncpy( buff, contact, first_end - contact );
-	strcpy( buff + ( first_end - contact ), second_begin );
-
-	return buff;
-*/
-	return contact;
-}
-
-static
-void
-rehashJobContact( GT3Job *job, const char *old_contact,
-				  const char *new_contact )
-{
-	if ( old_contact ) {
-		GT3JobsByContact.remove(HashKey(gt3JobId(old_contact)));
-	}
-	if ( new_contact ) {
-		GT3JobsByContact.insert(HashKey(gt3JobId(new_contact)), job);
-	}
-}
 
 void
 gt3GramCallbackHandler( void *user_arg, char *job_contact, int state,
@@ -157,9 +115,13 @@ gt3GramCallbackHandler( void *user_arg, char *job_contact, int state,
 {
 	int rc;
 	GT3Job *this_job;
+	MyString job_id;
+
+	job_id.sprintf( "gt3#%s", job_contact );
 
 	// Find the right job object
-	rc = GT3JobsByContact.lookup( HashKey( gt3JobId(job_contact) ), this_job );
+	rc = BaseJob::JobsByRemoteId.lookup( HashKey( job_id.Value() ),
+										 (BaseJob*)this_job );
 	if ( rc != 0 || this_job == NULL ) {
 		dprintf( D_ALWAYS, 
 			"gt3GramCallbackHandler: Can't find record for globus job with "
@@ -402,10 +364,9 @@ GT3Job::GT3Job( ClassAd *classad )
 	}
 
 	buff[0] = '\0';
-	jobAd->LookupString( ATTR_GLOBUS_CONTACT_STRING, buff );
-	if ( buff[0] != '\0' && strcmp( buff, NULL_JOB_CONTACT ) != 0 ) {
-		rehashJobContact( this, jobContact, buff );
-		jobContact = strdup( buff );
+	jobAd->LookupString( ATTR_REMOTE_JOB_ID, buff );
+	if ( buff[0] != '\0' ) {
+		SetRemoteJobId( strchr( buff, '#' ) + 1 );
 		job_already_submitted = true;
 	}
 
@@ -488,7 +449,6 @@ GT3Job::~GT3Job()
 		free( resourceManagerString );
 	}
 	if ( jobContact ) {
-		rehashJobContact( this, jobContact, NULL );
 		free( jobContact );
 	}
 	if ( RSL ) {
@@ -518,6 +478,22 @@ void GT3Job::Reconfig()
 {
 	BaseJob::Reconfig();
 	gahp->setTimeout( gahpCallTimeout );
+}
+
+void GT3Job::SetRemoteJobId( const char *job_id )
+{
+	free( jobContact );
+	if ( job_id ) {
+		jobContact = strdup( job_id );
+	} else {
+		jobContact = NULL;
+	}
+
+	MyString full_job_id;
+	if ( job_id ) {
+		full_job_id.sprintf( "gt3#%s", job_id );
+	}
+	BaseJob::SetRemoteJobId( full_job_id.Value() );
 }
 
 int GT3Job::doEvaluateState()
@@ -753,12 +729,8 @@ int GT3Job::doEvaluateState()
 				jmProxyExpireTime = jobProxy->expiration_time;
 				if ( rc == GLOBUS_SUCCESS ) {
 					callbackRegistered = true;
-					rehashJobContact( this, jobContact, job_contact );
-						// job_contact was strdup()ed for us. Now we take
-						// responsibility for free()ing it.
-					jobContact = job_contact;
-					jobAd->Assign( ATTR_GLOBUS_CONTACT_STRING,
-								   job_contact );
+					SetRemoteJobId( job_contact );
+					free( job_contact );
 					gmState = GM_SUBMIT_SAVE;
 				} else {
 					// unhandled error
@@ -933,15 +905,8 @@ rc=0;
 			} else {
 				// Clear the contact string here because it may not get
 				// cleared in GM_CLEAR_REQUEST (it might go to GM_HOLD first).
-				if ( jobContact != NULL ) {
-					rehashJobContact( this, jobContact, NULL );
-					free( jobContact );
-					myResource->CancelSubmit( this );
-					jobContact = NULL;
-					jobAd->Assign( ATTR_GLOBUS_CONTACT_STRING,
-								   NULL_JOB_CONTACT );
-					requestScheddUpdate( this );
-				}
+				SetRemoteJobId( NULL );
+				myResource->CancelSubmit( this );
 				gmState = GM_CLEAR_REQUEST;
 			}
 			} break;
@@ -991,13 +956,8 @@ rc=0;
 				break;
 			}
 
-			rehashJobContact( this, jobContact, NULL );
-			free( jobContact );
 			myResource->CancelSubmit( this );
-			jobContact = NULL;
-			jobAd->Assign( ATTR_GLOBUS_CONTACT_STRING,
-						   NULL_JOB_CONTACT );
-			requestScheddUpdate( this );
+			SetRemoteJobId( NULL );
 
 			if ( condorState == REMOVED ) {
 				gmState = GM_DELETE;
@@ -1057,14 +1017,8 @@ rc=0;
 			globusError = 0;
 			errorString = "";
 			ClearCallbacks();
-			if ( jobContact != NULL ) {
-				rehashJobContact( this, jobContact, NULL );
-				free( jobContact );
-				myResource->CancelSubmit( this );
-				jobContact = NULL;
-				jobAd->Assign( ATTR_GLOBUS_CONTACT_STRING,
-							   NULL_JOB_CONTACT );
-			}
+			SetRemoteJobId( NULL );
+			myResource->CancelSubmit( this );
 			JobIdle();
 			if ( submitLogged ) {
 				JobEvicted();
@@ -1721,8 +1675,7 @@ WriteGT3SubmitEventToUserLog( ClassAd *job_ad )
 	event.rmContact = strnewp(contact);
 
 	contact[0] = '\0';
-	job_ad->LookupString( ATTR_GLOBUS_CONTACT_STRING, contact,
-						   sizeof(contact) - 1 );
+	job_ad->LookupString( ATTR_REMOTE_JOB_ID, contact, sizeof(contact) - 1 );
 	event.jmContact = strnewp(contact);
 
 	version = 0;

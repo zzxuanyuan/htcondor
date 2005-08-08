@@ -29,6 +29,7 @@
 #include "MyString.h"
 #include "user_log.c++.h"
 #include "user_job_policy.h"
+#include "classad_hashtable.h"
 #include "baseresource.h"
 
 class BaseResource;
@@ -55,6 +56,8 @@ class BaseJob
 				  int hold_sub_code = 0 );
 	void JobRemoved( const char *remove_reason );
 
+	virtual void SetRemoteJobId( const char *job_id );
+
 	void UpdateJobLeaseSent( time_t new_expiration_time );
 	void UpdateJobLeaseReceived( time_t new_expiration_time );
 
@@ -74,6 +77,9 @@ class BaseJob
 	virtual void RequestPing();
 	virtual void NotifyResourceDown();
 	virtual void NotifyResourceUp();
+
+	static HashTable<PROC_ID, BaseJob *> JobsByProcId;
+	static HashTable<HashKey, BaseJob *> JobsByRemoteId;
 
 	ClassAd *jobAd;
 	PROC_ID procID;

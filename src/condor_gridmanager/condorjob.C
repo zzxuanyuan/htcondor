@@ -102,11 +102,6 @@ static char *GMStateNames[] = {
         func,error)
 
 
-#define HASH_TABLE_SIZE			500
-
-HashTable <HashKey, CondorJob *> CondorJobsById( HASH_TABLE_SIZE,
-												 hashFunction );
-
 
 void CondorJobInit()
 {
@@ -176,7 +171,6 @@ CondorJob::CondorJob( ClassAd *classad )
 	submitFailureCode = 0;
 	remoteScheddName = NULL;
 	remotePoolName = NULL;
-	remoteJobIdString = NULL;
 	submitterId = NULL;
 	connectFailureCount = 0;
 	jobProxy = NULL;
@@ -229,7 +223,7 @@ CondorJob::CondorJob( ClassAd *classad )
 	buff[0] = '\0';
 	jobAd->LookupString( ATTR_REMOTE_JOB_ID, buff );
 	if ( buff[0] != '\0' ) {
-		SetRemoteJobId( buff );
+		SetRemoteJobId( strrchr( buff, '#' )+1 );
 	} else {
 		remoteState = JOB_STATE_UNSUBMITTED;
 	}
@@ -299,10 +293,6 @@ CondorJob::~CondorJob()
 	}
 	if ( myResource ) {
 		myResource->UnregisterJob( this );
-	}
-	if ( remoteJobIdString != NULL ) {
-		CondorJobsById.remove( HashKey( remoteJobIdString ) );
-		free( remoteJobIdString );
 	}
 	if ( remoteScheddName ) {
 		free( remoteScheddName );
@@ -1106,27 +1096,26 @@ int CondorJob::doEvaluateState()
 
 void CondorJob::SetRemoteJobId( const char *job_id )
 {
-	if ( remoteJobIdString != NULL && job_id != NULL &&
-		 strcmp( remoteJobIdString, job_id ) == 0 ) {
-		return;
-	}
-	if ( remoteJobIdString != NULL ) {
-		CondorJobsById.remove( HashKey( remoteJobIdString ) );
-		free( remoteJobIdString );
-		remoteJobIdString = NULL;
+	int rc;
+	MyString full_job_id;
+
+	if ( job_id ) {
+		rc = sscanf( job_id, "%d.%d", &remoteJobId.cluster,
+					 &remoteJobId.proc );
+		if ( rc != 2 ) {
+			dprintf( D_ALWAYS,
+					 "(%d.%d.) SetRemoteJobId: malformed job id: %s\n",
+					 procID.cluster, procID.proc, job_id );
+			return;
+		}
+
+		full_job_id.sprintf( "condor#%s#%s#%s", remotePoolName,
+							 remoteScheddName, job_id );
+	} else {
 		remoteJobId.cluster = 0;
-		jobAd->AssignExpr( ATTR_REMOTE_JOB_ID, "Undefined" );
 	}
-	if ( job_id != NULL ) {
-		MyString id_string;
-		sscanf( job_id, "%d.%d", &remoteJobId.cluster, &remoteJobId.proc );
-		id_string.sprintf( "%s/%d.%d", remoteScheddName, remoteJobId.cluster,
-						   remoteJobId.proc );
-		remoteJobIdString = strdup( id_string.Value() );
-		CondorJobsById.insert( HashKey( remoteJobIdString ), this );
-		jobAd->Assign( ATTR_REMOTE_JOB_ID, job_id );
-	}
-	requestScheddUpdate( this );
+
+	BaseJob::SetRemoteJobId( full_job_id.Value() );
 }
 
 void CondorJob::NotifyNewRemoteStatus( ClassAd *update_ad )

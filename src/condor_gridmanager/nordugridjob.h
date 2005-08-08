@@ -53,6 +53,7 @@ class NordugridJob : public BaseJob
 	void Reconfig();
 	int doEvaluateState();
 	BaseResource *GetResource();
+	void SetRemoteJobId( const char *job_id );
 
 	static int probeInterval;
 	static int submitInterval;

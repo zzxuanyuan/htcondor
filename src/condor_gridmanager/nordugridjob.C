@@ -107,23 +107,6 @@ static char *GMStateNames[] = {
 // evalute PeriodicHold expression in job ad.
 #define MAX_SUBMIT_ATTEMPTS	1
 
-#define HASH_TABLE_SIZE			500
-
-HashTable <HashKey, NordugridJob *> JobsByRemoteId( HASH_TABLE_SIZE,
-													hashFunction );
-
-void
-rehashRemoteJobId( NordugridJob *job, const char *old_id,
-				   const char *new_id )
-{
-	if ( old_id ) {
-		JobsByRemoteId.remove(HashKey(old_id));
-	}
-	if ( new_id ) {
-		JobsByRemoteId.insert(HashKey(new_id), job);
-	}
-}
-
 static
 int remoteStateNameConvert( const char *name )
 {
@@ -217,11 +200,8 @@ NordugridJob::NordugridJob( ClassAd *classad )
 	myResource->RegisterJob( this );
 
 	buff[0] = '\0';
-	jobAd->LookupString( ATTR_GLOBUS_CONTACT_STRING, buff );
-	if ( buff[0] != '\0' && strcmp( buff, NULL_JOB_CONTACT ) != 0 ) {
-		rehashRemoteJobId( this, remoteJobId, buff );
-		remoteJobId = strdup( buff );
-	}
+	jobAd->LookupString( ATTR_REMOTE_JOB_ID, buff );
+	SetRemoteJobId( strrchr( buff, '#' ) );
 
 	return;
 
@@ -239,7 +219,6 @@ NordugridJob::~NordugridJob()
 		myResource->UnregisterJob( this );
 	}
 	if ( remoteJobId ) {
-		rehashRemoteJobId( this, remoteJobId, NULL );
 		free( remoteJobId );
 	}
 }
@@ -336,10 +315,8 @@ int NordugridJob::doEvaluateState()
 
 				if ( rc == TASK_DONE ) {
 					ASSERT( job_id != NULL );
-					rehashRemoteJobId( this, remoteJobId, job_id );
-					remoteJobId = job_id;
-					jobAd->Assign( ATTR_GLOBUS_CONTACT_STRING,
-								   job_id );
+					SetRemoteJobId( job_id );
+					free( job_id );
 					gmState = GM_SUBMIT_SAVE;
 				} else {
 					dprintf(D_ALWAYS,"(%d.%d) job submit failed: %s\n",
@@ -485,12 +462,7 @@ int NordugridJob::doEvaluateState()
 				// Clear the contact string here because it may not get
 				// cleared in GM_CLEAR_REQUEST (it might go to GM_HOLD first).
 				if ( remoteJobId != NULL ) {
-					rehashRemoteJobId( this, remoteJobId, NULL );
-					free( remoteJobId );
-					remoteJobId = NULL;
-					jobAd->Assign( ATTR_GLOBUS_CONTACT_STRING,
-								   NULL_JOB_CONTACT );
-					requestScheddUpdate( this );
+					SetRemoteJobId( NULL );
 				}
 				gmState = GM_CLEAR_REQUEST;
 			}
@@ -509,12 +481,7 @@ int NordugridJob::doEvaluateState()
 			}
 			} break;
 		case GM_FAILED: {
-			rehashRemoteJobId( this, remoteJobId, NULL );
-			free( remoteJobId );
-			remoteJobId = NULL;
-			jobAd->Assign( ATTR_GLOBUS_CONTACT_STRING,
-						   NULL_JOB_CONTACT );
-			requestScheddUpdate( this );
+			SetRemoteJobId( NULL );
 
 			if ( condorState == REMOVED ) {
 				gmState = GM_DELETE;
@@ -568,11 +535,7 @@ int NordugridJob::doEvaluateState()
 			}
 			errorString = "";
 			if ( remoteJobId != NULL ) {
-				rehashRemoteJobId( this, remoteJobId, NULL );
-				free( remoteJobId );
-				remoteJobId = NULL;
-				jobAd->Assign( ATTR_GLOBUS_CONTACT_STRING,
-							   NULL_JOB_CONTACT );
+				SetRemoteJobId( NULL );
 			}
 			JobIdle();
 			if ( submitLogged ) {
@@ -674,6 +637,23 @@ int NordugridJob::doEvaluateState()
 BaseResource *NordugridJob::GetResource()
 {
 	return (BaseResource *)myResource;
+}
+
+void NordugridJob::SetRemoteJobId( const char *job_id )
+{
+	free( remoteJobId );
+	if ( job_id ) {
+		remoteJobId = strdup( job_id );
+	} else {
+		remoteJobId = NULL;
+	}
+
+	MyString full_job_id;
+	if ( job_id ) {
+		full_job_id.sprintf( "nordugrid#%s#%s", resourceManagerString,
+							 job_id );
+	}
+	BaseJob::SetRemoteJobId( full_job_id.Value() );
 }
 
 int NordugridJob::doSubmit( char *&job_id )

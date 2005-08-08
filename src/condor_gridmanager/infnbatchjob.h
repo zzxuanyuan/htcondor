@@ -34,9 +34,6 @@
 #include "gahp-client.h"
 
 
-class INFNBatchJob;
-extern HashTable <HashKey, INFNBatchJob *> INFNBatchJobsById;
-
 void INFNBatchJobInit();
 void INFNBatchJobReconfig();
 bool INFNBatchJobAdMustExpand( const ClassAd *jobad );

@@ -36,9 +36,15 @@
 #include "condor_email.h"
 #include "gridutil.h"
 
+#define HASH_TABLE_SIZE			500
+
 
 int BaseJob::periodicPolicyEvalTid = TIMER_UNSET;
 
+HashTable<PROC_ID, BaseJob *> BaseJob::JobsByProcId( HASH_TABLE_SIZE,
+													 procIDHash );
+HashTable<HashKey, BaseJob *> BaseJob::JobsByRemoteId( HASH_TABLE_SIZE,
+													   hashFunction );
 
 BaseJob::BaseJob( ClassAd *classad )
 {
@@ -62,6 +68,14 @@ BaseJob::BaseJob( ClassAd *classad )
 
 	jobAd->LookupInteger( ATTR_CLUSTER_ID, procID.cluster );
 	jobAd->LookupInteger( ATTR_PROC_ID, procID.proc );
+
+	JobsByProcId.insert( procID, this );
+
+	MyString remote_id;
+	jobAd->LookupString( ATTR_REMOTE_JOB_ID, remote_id );
+	if ( !remote_id.IsEmpty() ) {
+		JobsByRemoteId.insert( HashKey( remote_id.Value() ), this );
+	}
 
 	jobAd->LookupInteger( ATTR_JOB_STATUS, condorState );
 
@@ -94,15 +108,23 @@ BaseJob::BaseJob( ClassAd *classad )
 
 BaseJob::~BaseJob()
 {
-	if ( jobAd ) {
-		delete jobAd;
-	}
 	daemonCore->Cancel_Timer( evaluateStateTid );
 	if ( jobLeaseSentExpiredTid != TIMER_UNSET ) {
 		daemonCore->Cancel_Timer( jobLeaseSentExpiredTid );
 	}
 	if ( jobLeaseReceivedExpiredTid != TIMER_UNSET ) {
 		daemonCore->Cancel_Timer( jobLeaseReceivedExpiredTid );
+	}
+	JobsByProcId.remove( procID );
+
+	MyString remote_id;
+	jobAd->LookupString( ATTR_REMOTE_JOB_ID, remote_id );
+	if ( !remote_id.IsEmpty() ) {
+		JobsByRemoteId.remove( HashKey( remote_id.Value() ) );
+	}
+
+	if ( jobAd ) {
+		delete jobAd;
 	}
 }
 
@@ -316,6 +338,28 @@ void BaseJob::UpdateRuntimeStats()
 		requestScheddUpdate( this );
 
 	}
+}
+
+void BaseJob::SetRemoteJobId( const char *job_id )
+{
+	MyString old_job_id;
+	MyString new_job_id;
+	jobAd->LookupString( ATTR_REMOTE_JOB_ID, old_job_id );
+	if ( job_id != NULL && job_id[0] != '\0' ) {
+		new_job_id = job_id;
+	}
+	if ( old_job_id == new_job_id ) {
+		return;
+	}
+	if ( !old_job_id.IsEmpty() ) {
+		JobsByRemoteId.remove( HashKey( old_job_id.Value() ) );
+		jobAd->AssignExpr( ATTR_REMOTE_JOB_ID, "Undefined" );
+	}
+	if ( !new_job_id.IsEmpty() ) {
+		JobsByRemoteId.insert( HashKey( new_job_id.Value() ), this );
+		jobAd->Assign( ATTR_REMOTE_JOB_ID, new_job_id.Value() );
+	}
+	requestScheddUpdate( this );
 }
 
 void BaseJob::SetJobLeaseTimers()
@@ -539,8 +583,8 @@ int BaseJob::EvalAllPeriodicJobExprs(Service *ignore)
 
 	dprintf( D_FULLDEBUG, "Evaluating periodic job policy expressions.\n" );
 
-	JobsByProcID.startIterations();
-	while ( JobsByProcID.iterate( curr_job ) != 0  ) {
+	JobsByProcId.startIterations();
+	while ( JobsByProcId.iterate( curr_job ) != 0  ) {
 		curr_job->EvalPeriodicJobExpr();
 	}
 

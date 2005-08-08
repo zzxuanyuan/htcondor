@@ -72,20 +72,6 @@ struct JobType
 
 List<JobType> jobTypes;
 
-// Stole these out of the schedd code
-static
-int procIDHash( const PROC_ID &procID, int numBuckets )
-{
-	//dprintf(D_ALWAYS,"procIDHash: cluster=%d proc=%d numBuck=%d\n",procID.cluster,procID.proc,numBuckets);
-	return ( (procID.cluster+(procID.proc*19)) % numBuckets );
-}
-
-static
-bool operator==( const PROC_ID a, const PROC_ID b)
-{
-	return a.cluster == b.cluster && a.proc == b.proc;
-}
-
 struct VacateRequest {
 	BaseJob *job;
 	action_result_t result;
@@ -127,9 +113,6 @@ char *ScheddAddr = NULL;
 char *ScheddJobConstraint = NULL;
 char *GridmanagerScratchDir = NULL;
 DCSchedd *ScheddObj = NULL;
-
-HashTable <PROC_ID, BaseJob *> JobsByProcID( HASH_TABLE_SIZE,
-											 procIDHash );
 
 bool firstScheddContact = true;
 int scheddFailureCount = 0;
@@ -450,9 +433,9 @@ Reconfig()
 	// Tell all the job objects to deal with their new config values
 	BaseJob *next_job;
 
-	JobsByProcID.startIterations();
+	BaseJob::JobsByProcId.startIterations();
 
-	while ( JobsByProcID.iterate( next_job ) != 0 ) {
+	while ( BaseJob::JobsByProcId.iterate( next_job ) != 0 ) {
 		next_job->Reconfig();
 	}
 }
@@ -579,9 +562,9 @@ doContactSchedd()
 
 		// Grab the lease attributes of all the jobs in our global hashtable.
 
-		JobsByProcID.startIterations();
+		BaseJob::JobsByProcId.startIterations();
 
-		while ( JobsByProcID.iterate( curr_job ) != 0 ) {
+		while ( BaseJob::JobsByProcId.iterate( curr_job ) != 0 ) {
 			int new_expiration;
 
 			rc = GetAttributeInt( curr_job->procID.cluster,
@@ -658,7 +641,7 @@ doContactSchedd()
 			next_ad->LookupBool(ATTR_JOB_MANAGED,job_is_managed);
 			next_ad->LookupBool(ATTR_JOB_MATCHED,job_is_matched);
 
-			if ( JobsByProcID.lookup( procID, old_job ) != 0 ) {
+			if ( BaseJob::JobsByProcId.lookup( procID, old_job ) != 0 ) {
 
 				int rc;
 				JobType *job_type = NULL;
@@ -714,7 +697,6 @@ doContactSchedd()
 				new_job->SetEvaluateState();
 				dprintf(D_ALWAYS,"Found job %d.%d --- inserting\n",
 						new_job->procID.cluster,new_job->procID.proc);
-				JobsByProcID.insert( new_job->procID, new_job );
 				num_ads++;
 
 				if ( !job_is_managed ) {
@@ -787,7 +769,7 @@ contact_schedd_next_add_job:
 			next_ad->LookupInteger( ATTR_PROC_ID, procID.proc );
 			next_ad->LookupInteger( ATTR_JOB_STATUS, curr_status );
 
-			if ( JobsByProcID.lookup( procID, next_job ) == 0 ) {
+			if ( BaseJob::JobsByProcId.lookup( procID, next_job ) == 0 ) {
 				// Should probably skip jobs we already have marked as
 				// held or removed
 
@@ -1023,7 +1005,6 @@ contact_schedd_next_add_job:
 				continue;
 			}
 
-			JobsByProcID.remove( curr_job->procID );
 				// If wantRematch is set, send a reschedule now
 			if ( curr_job->wantRematch ) {
 				send_reschedule = true;
@@ -1057,7 +1038,7 @@ contact_schedd_next_add_job:
 	}
 
 	// Check if we have any jobs left to manage. If not, exit.
-	if ( JobsByProcID.getNumElements() == 0 ) {
+	if ( BaseJob::JobsByProcId.getNumElements() == 0 ) {
 		dprintf( D_ALWAYS, "No jobs left, shutting down\n" );
 		daemonCore->Send_Signal( daemonCore->getpid(), SIGTERM );
 	}

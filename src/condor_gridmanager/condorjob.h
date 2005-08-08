@@ -36,7 +36,6 @@
 
 
 class CondorJob;
-extern HashTable <HashKey, CondorJob *> CondorJobsById;
 
 void CondorJobInit();
 void CondorJobReconfig();
@@ -83,7 +82,6 @@ class CondorJob : public BaseJob
 	char *remoteScheddName;
 	char *remotePoolName;
 	PROC_ID remoteJobId;
-	char *remoteJobIdString;
 	char *submitterId;
 	int connectFailureCount;
 
