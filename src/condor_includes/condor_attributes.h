@@ -304,6 +304,7 @@ const char ATTR_REMOTE_HOST				 [] = "RemoteHost";
 const char ATTR_REMOTE_JOB_ID			 [] = "RemoteJobId";
 const char ATTR_REMOTE_OWNER			 [] = "RemoteOwner";
 const char ATTR_REMOTE_POOL				 [] = "RemotePool";
+const char ATTR_REMOTE_RESOURCE			 [] = "RemoteResource";
 const char ATTR_REMOTE_SCHEDD			 [] = "RemoteSchedd";
 const char ATTR_REMOTE_SPOOL_DIR		 [] = "RemoteSpoolDir";
 const char ATTR_REMOTE_USER              [] = "RemoteUser";
