@@ -42,6 +42,8 @@ for standard universe.  Previously, it was only supported in the grid universe.
   \Macro{STARTD\_CLAIM\_ID\_FILE}, the two configuration settings that
   control this behavior.
 
+\item \Condor{dagman} can now run multiple DAGs in separate directories.
+
 \item For Condor-C jobs, the \Condor{gridmanager} will retry and delay
   failed connections to a remote \Condor{schedd} like it does for
   Condor-G jobs. The same configuration settings apply 
@@ -171,8 +173,6 @@ needed if there are multiple log files, for unambiguous ordering of
 events during bootstrapping.)  Note that if \MacroNI{DAGMAN\_SUBMIT\_DELAY}
 is specified, the specified delay takes effect whether or not all
 jobs have the same log file.
-
-\item \Condor{dagman} can now run multiple DAGs in separate directories.
 
 \end{itemize}
 
