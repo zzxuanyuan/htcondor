@@ -65,7 +65,7 @@ class SQLQuery
 	char *query_str;
 	query_types type;
 
-	void createQueryString(query_types qtype, void **parameters);
+	int createQueryString(query_types qtype, void **parameters);
 };
 
 #endif

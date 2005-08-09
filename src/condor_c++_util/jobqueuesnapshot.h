@@ -27,6 +27,7 @@
 #include "condor_common.h"
 #include "jobqueuedatabase.h"
 #include "classad_collection.h"
+#include "quill_enums.h"
 
 //! JobQueueSnapshot
 /*! it provides interface to iterate the query result 
@@ -40,19 +41,19 @@ public:
 	~JobQueueSnapshot();
 
 	//! prepare iteration of Job Ads in the job queue database
-	int startIterateAllClassAds(int cluster, int proc, 
+	QuillErrCode startIterateAllClassAds(int cluster, int proc, 
 				    char *owner, bool isfullscan);
 	//! iterate one by one
-	int iterateAllClassAds(ClassAd*& ad);
+	QuillErrCode iterateAllClassAds(ClassAd*& ad);
 	//! release snapshot
-	int release();
+	QuillErrCode release();
 	
 private:
 		// 
 		// helper functions
 		//
-	int getNextClusterAd(const char*&, ClassAd*&);
-	int getNextProcAd(ClassAd*&);
+	QuillErrCode getNextClusterAd(const char*&, ClassAd*&);
+	QuillErrCode getNextProcAd(ClassAd*&);
 
 	int job_num;
 	int cur_procads_str_index;

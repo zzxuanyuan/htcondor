@@ -20,10 +20,8 @@
   * RIGHT.
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
+#include "condor_common.h"
 #include "sqlquery.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <assert.h>
 
 #define avg_time_template "SELECT avg((now() - 'epoch'::timestamp with time zone) - cast(QDate || ' seconds' as interval)) \
          FROM \
@@ -51,7 +49,7 @@ SQLQuery ()
 SQLQuery::
 SQLQuery (query_types qtype, void **parameters)
 {
-  createQueryString(qtype,parameters);
+  assert(createQueryString(qtype,parameters));
 }
 
 
@@ -79,7 +77,7 @@ setQuery(query_types qtype, void **parameters)
   createQueryString(qtype, parameters);
 }
 
-void SQLQuery::
+int SQLQuery::
 createQueryString(query_types qtype, void **parameters) {  
   query_str = (char *) malloc(MAX_QUERY_SIZE * sizeof(char));
   switch(qtype) {
@@ -109,37 +107,52 @@ createQueryString(query_types qtype, void **parameters) {
     break;  
   case HISTORY_CLUSTER_PROC_VER:
     sprintf(query_str, 
-	    "SELECT * FROM HISTORY_VERTICAL WHERE cid=%d and pid=%d ORDER BY CID, PID;",
-	    *((int *)parameters[0]), *((int *)parameters[1]));
+			"SELECT * FROM HISTORY_VERTICAL WHERE cid=%d and pid=%d "
+			"ORDER BY CID, PID;",
+			*((int *)parameters[0]), *((int *)parameters[1]));
     break;  
   case HISTORY_OWNER_HOR:
-    sprintf(query_str,
-	    "SELECT * FROM HISTORY_HORIZONTAL WHERE \"Owner\"='\"%s\"' ORDER BY CID,PID;",
-	    ((char *)parameters[0]));
-    break;
+	  sprintf(query_str,
+			  "SELECT * FROM HISTORY_HORIZONTAL WHERE \"Owner\"='\"%s\"' "
+			  "ORDER BY CID,PID;",
+			  ((char *)parameters[0]));
+	  break;
   case HISTORY_OWNER_VER:
-    sprintf(query_str,
-	    "SELECT hv.cid,hv.pid,hv.attr,hv.val FROM HISTORY_HORIZONTAL hh, HISTORY_VERTICAL hv WHERE hh.cid=hv.cid AND hh.pid=hv.pid AND hh.\"Owner\"='\"%s\"' ORDER BY CID,PID;",
-	    ((char *)parameters[0]));
-    break;
+	  sprintf(query_str,
+			  "SELECT hv.cid,hv.pid,hv.attr,hv.val FROM "
+			  "HISTORY_HORIZONTAL hh, HISTORY_VERTICAL hv "
+			  "WHERE hh.cid=hv.cid AND hh.pid=hv.pid AND hh.\"Owner\"='\"%s\"'"
+			  " ORDER BY CID,PID;",
+			  ((char *)parameters[0]));
+	  break;
   case HISTORY_COMPLETEDSINCE_HOR:
-    sprintf(query_str,
-	    "SELECT * FROM History_Horizontal WHERE 'epoch'::timestamp with time zone + cast(text(\"CompletionDate\")|| text(' seconds') as interval) > '%s ' ORDER BY CID,PID;",
-	    ((char *)parameters[0]));
+	  sprintf(query_str,
+			  "SELECT * FROM History_Horizontal "
+			  "WHERE \"CompletionDate\" > "
+			  "date_part('epoch', '%s'::timestamp with time zone) "
+			  "ORDER BY cid,pid;",
+			  ((char *)parameters[0]));
     break;
   case HISTORY_COMPLETEDSINCE_VER:
-    sprintf(query_str,
-	    "SELECT hv.cid,hv.pid,hv.attr,hv.val FROM HISTORY_HORIZONTAL hh, HISTORY_VERTICAL hv WHERE hh.cid=hv.cid AND hh.pid=hv.pid AND 'epoch'::timestamp with time zone + cast(text(hh.\"CompletionDate\")|| text(' seconds') as interval) > '%s ' ORDER BY CID,PID;",
-	    ((char *)parameters[0]));
+	  sprintf(query_str,
+			  "SET enable_mergejoin=false; "
+			  "SELECT hv.cid,hv.pid,hv.attr,hv.val FROM "
+			  "HISTORY_HORIZONTAL hh, HISTORY_VERTICAL hv "
+			  "WHERE hh.cid=hv.cid AND hh.pid=hv.pid AND "
+			  "hh.\"CompletionDate\" > "
+			  "date_part('epoch', '%s'::timestamp with time zone) "
+			  "ORDER BY hh.cid,hh.pid;",
+			  ((char *)parameters[0]));
     break;
   case QUEUE_AVG_TIME:
-    sprintf(query_str, avg_time_template);
-    break;
-
+	  sprintf(query_str, avg_time_template);
+	  break;
+	  
   default:
-    printf("error...incorrect query type specified...exiting\n");
-    assert(1);
+	  printf("error...incorrect query type specified...exiting\n");
+	  return -1;
   }
+  return 1;
 }
 
 void SQLQuery::

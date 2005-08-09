@@ -232,7 +232,7 @@ fetchQueueFromDB (ClassAdList &list, char *dbconn, CondorError* errstack)
 	JobQueueSnapshot	*jqSnapshot;
 	char            constraint[ATTRLIST_MAX_EXPRESSION];
 	ClassAd        *ad;
-	int             rv;
+	QuillErrCode   rv;
 
 	jqSnapshot = new JobQueueSnapshot(dbconn);
 
@@ -241,10 +241,10 @@ fetchQueueFromDB (ClassAdList &list, char *dbconn, CondorError* errstack)
 											 owner,
 											 FALSE);
 
-	if (rv < 0) {
+	if (rv == FAILURE) {
 		delete jqSnapshot;
 		return Q_COMMUNICATION_ERROR;
-	} else if (rv == 0) {
+	} else if (rv == JOB_QUEUE_EMPTY) {
 		delete jqSnapshot;
 		return Q_OK;
 	}
@@ -321,7 +321,7 @@ fetchQueueFromDBAndProcess ( char *dbconn, process_function process_func, Condor
 	JobQueueSnapshot	*jqSnapshot;
 	char            constraint[ATTRLIST_MAX_EXPRESSION] = "";
 	ClassAd        *ad;
-	int             rv;
+	QuillErrCode             rv;
 
 	ASSERT(process_func);
 
@@ -332,11 +332,11 @@ fetchQueueFromDBAndProcess ( char *dbconn, process_function process_func, Condor
 											 owner,
 											 FALSE);
 
-	if (rv < 0) {
+	if (rv == FAILURE) {
 		delete jqSnapshot;
 		return Q_COMMUNICATION_ERROR;
 	}
-	else if (rv == 0) {
+	else if (rv == JOB_QUEUE_EMPTY) {
 		delete jqSnapshot;
 		return Q_OK;
 	}	
@@ -577,9 +577,8 @@ short_print(
 ClassAd* getDBNextJobByConstraint(const char* constraint, JobQueueSnapshot	*jqSnapshot)
 {
 	ClassAd *ad;
-
-	while(jqSnapshot->iterateAllClassAds(ad)) {
-
+	
+	while(jqSnapshot->iterateAllClassAds(ad) != DONE_JOBS_CURSOR) {
 		if ((!constraint || !constraint[0] || EvalBool(ad, constraint))) {
 			return ad;		      
 		}

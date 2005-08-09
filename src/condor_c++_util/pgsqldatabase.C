@@ -21,8 +21,6 @@
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
-#ifdef _POSTGRESQL_DBMS_
-
 #include "condor_common.h"
 #include "condor_io.h"
 
@@ -39,34 +37,36 @@ PGSQLDatabase::PGSQLDatabase()
 //! constructor
 PGSQLDatabase::PGSQLDatabase(const char* connect)
 {
-  connected = false;
-  procAdsStrRes = procAdsNumRes = clusterAdsStrRes = clusterAdsNumRes = queryRes = historyHorRes = historyVerRes = NULL;  
-  if (connect != NULL) {
-    con_str = (char*)malloc(strlen(connect) + 1);
-    strcpy(con_str, connect);
-  }
-  else
-    con_str = NULL;
-  
+	connected = false;
+	procAdsStrRes = procAdsNumRes = clusterAdsStrRes = clusterAdsNumRes = queryRes = historyHorRes = historyVerRes = NULL;  
+
+	if (connect != NULL) {
+		con_str = (char*)malloc(strlen(connect) + 1);
+		strcpy(con_str, connect);
+	}
+	else {
+		con_str = NULL;
+	}
 }
 
 //! destructor
 PGSQLDatabase::~PGSQLDatabase()
 {
-  procAdsStrRes = procAdsNumRes = clusterAdsStrRes = clusterAdsNumRes = queryRes = historyHorRes = historyVerRes = NULL;  
-	if ((connected == true) && (connection != NULL))
-	{
+	procAdsStrRes = procAdsNumRes = clusterAdsStrRes = clusterAdsNumRes = queryRes = historyHorRes = historyVerRes = NULL;  
+	if ((connected == true) && (connection != NULL)) {
 		PQfinish(connection);
 		connected = false;
 		connection = NULL;
 	}
-
-	if (con_str != NULL) free(con_str);
+	
+	if (con_str != NULL) {
+		free(con_str);
+	}
 	
 }
 
 //! connect to DB
-int
+QuillErrCode
 PGSQLDatabase::connectDB()
 {
 	return connectDB(con_str);
@@ -75,13 +75,13 @@ PGSQLDatabase::connectDB()
 //! connect to DB
 /*! \param connect DB connect string
  */
-int
+QuillErrCode
 PGSQLDatabase::connectDB(const char* connect)
 {
 	if ((connection = PQconnectdb(connect)) == NULL)
 	{
 		dprintf(D_ALWAYS, "Fatal error - unable to allocate connection to DB\n");
-		return 0;
+		return FAILURE;
 	}
 	
 	if (PQstatus(connection) != CONNECTION_OK)
@@ -92,12 +92,12 @@ PGSQLDatabase::connectDB(const char* connect)
 			dprintf(D_ALWAYS, "Deallocating connection resources to database '%s'\n", PQdb(connection));
 			PQfinish(connection);
 			connection = NULL;
-			return 0;
+			return FAILURE;
         }
-		//dprintf(D_ALWAYS, "right after calling PQconnectdb\n");
+
 	connected = true;
 	
-	return 1;
+	return SUCCESS;
 }
 
 //! get a DBMS error message
@@ -108,7 +108,7 @@ PGSQLDatabase::getDBError()
 }
 
 //@ disconnect from DBMS
-int 
+QuillErrCode
 PGSQLDatabase::disconnectDB() 
 {
 	if ((connected == true) && (connection != NULL))
@@ -118,84 +118,77 @@ PGSQLDatabase::disconnectDB()
 	}
 
 	connected = false;
-	return 1;
+	return SUCCESS;
 }
 
 //! begin Transaction
-int 
+QuillErrCode 
 PGSQLDatabase::beginTransaction() 
 {
 	PGresult	*result;
-		//FILE *fp;
+
 	if (PQstatus(connection) == CONNECTION_OK)
 	{
 		result = PQexec(connection, "BEGIN");
-		//dprintf(D_ALWAYS, "STARTING NEW TRANSACTION\n");
-		//fp = fopen("/scratch/akini/logdump", "a");
-		//fprintf(fp, "BEGIN;\n");
-		//fclose(fp);
+
 		if(result) {
 			PQclear(result);		
 			result = NULL;
 		}
-		return 1;
+
+		dprintf(D_FULLDEBUG, "SQL COMMAND: BEGIN TRANSACTION\n");
+		return SUCCESS;
 	}
 	else {
 		dprintf(D_ALWAYS, "ERROR STARTING NEW TRANSACTION\n");
-		return 0;
+		return FAILURE;
 	}
 }
 
 //! commit Transaction
-int 
+QuillErrCode 
 PGSQLDatabase::commitTransaction()
 {
 	PGresult	*result;
-		//FILE *fp;
+
 	if (PQstatus(connection) == CONNECTION_OK)
 	{
 		result = PQexec(connection, "COMMIT");
-		//dprintf(D_ALWAYS, "COMMITTING TRANSACTION\n");
-		//fp = fopen("/scratch/akini/logdump", "a");
-		//fprintf(fp, "COMMIT;\n");
-		//fclose(fp);
 
 		if(result) {
 			PQclear(result);		
 			result = NULL;
 		}
-		return 1;
+		dprintf(D_FULLDEBUG, "SQL COMMAND: COMMIT TRANSACTION\n");
+		return SUCCESS;
 	}
 	else {
 		dprintf(D_ALWAYS, "ERROR COMMITTING TRANSACTION\n");
-		return 0;
+		return FAILURE;
 	}
 }
 
 //! abort Transaction
-int 
+QuillErrCode
 PGSQLDatabase::rollbackTransaction()
 {
 	PGresult	*result;
 
-		//FILE *fp;
-
 	if (PQstatus(connection) == CONNECTION_OK)
 	{
 		result = PQexec(connection, "ROLLBACK");
-	  	//dprintf(D_ALWAYS, "ROLLBACKING TRANSACTION\n");
-		//fp = fopen("/scratch/akini/logdump", "a");
-		//fprintf(fp, "ROLLBACK;\n");
-		//fclose(fp);
+
 		if(result) {
 			PQclear(result);		
 			result = NULL;
 		}
 
-		return 1;
+		dprintf(D_FULLDEBUG, "SQL COMMAND: ROLLBACK TRANSACTION\n");
+		return SUCCESS;
 	}
-	else
-		return 0;
+	else {
+		return FAILURE;
+	}
 }
 
 /*! execute a command
@@ -203,19 +196,14 @@ PGSQLDatabase::rollbackTransaction()
  *  execaute SQL which doesn't have any retrieved result, such as
  *  insert, delete, and udpate.
  *
- *	\return: 1: success, -1: fail
  */
-int 
-PGSQLDatabase::execCommand(const char* sql)
+QuillErrCode 
+PGSQLDatabase::execCommand(const char* sql, 
+						   int &num_result,
+						   int &db_err_code)
 {
 	PGresult 	*result;
 	char*		num_result_str = NULL;
-	int		num_result = 0, error_code = 0;
-		//FILE *fp;
-
-	/*fp = fopen("/scratch/akini/logdump", "a");
-	fprintf(fp, "%s\n", sql);
-	fclose(fp);*/
 
 	dprintf(D_FULLDEBUG, "SQL COMMAND: %s\n", sql);
 	if ((result = PQexec(connection, sql)) == NULL)
@@ -224,7 +212,7 @@ PGSQLDatabase::execCommand(const char* sql)
 			"[SQL EXECUTION ERROR1] %s\n", PQerrorMessage(connection));
 		dprintf(D_ALWAYS, 
 			"[SQL: %s]\n", sql);
-		return -1;
+		return FAILURE;
 	}
 	else if ((PQresultStatus(result) != PGRES_COMMAND_OK) &&
 			(PQresultStatus(result) != PGRES_COPY_IN)) {
@@ -232,16 +220,17 @@ PGSQLDatabase::execCommand(const char* sql)
 			"[SQL EXECUTION ERROR2] %s\n", PQerrorMessage(connection));
 		dprintf(D_ALWAYS, 
 			"[SQL: %s]\n", sql);
-		error_code =  atoi(PQresultErrorField(result, PG_DIAG_SQLSTATE));
+		db_err_code =  atoi(PQresultErrorField(result, PG_DIAG_SQLSTATE));
 		dprintf(D_ALWAYS, 
-			"[SQLERRORCODE: %d]\n", error_code);
+			"[SQLERRORCODE: %d]\n", db_err_code);
 		PQclear(result);
-		return -1 * error_code;
+		return FAILURE;
 	}
 	else {
 		num_result_str = PQcmdTuples(result);
-		if (num_result_str != NULL)
+		if (num_result_str != NULL) {
 			num_result = atoi(num_result_str);
+		}
 	}
 	
 	if(result) {
@@ -249,26 +238,16 @@ PGSQLDatabase::execCommand(const char* sql)
 		result = NULL;
 	}
 
-	/*analyzeCounter++;
-	  if(analyzeCounter == 1000) {
-	  result = PQexec(connection,"ANALYZE;");
-	  if(result == NULL || (PQresultStatus(result) == PGRES_COMMAND_OK)) {
-	  fp = fopen("/scratch/akini/logdump", "a");
-	  fprintf(fp, "ANALYZE\n");
-	  fclose(fp);
-	  }
-	  else {
-	  fp = fopen("/scratch/akini/logdump", "a");
-	  fprintf(fp, "ANALYZE problem\n");
-	  fclose(fp);
-	  }
-	  
-	  PQclear(result);
-	  analyzeCounter = 0;
-	  }
-	*/
-	return num_result;
+	return SUCCESS;
 }
+
+QuillErrCode 
+PGSQLDatabase::execCommand(const char* sql) 
+{
+	int num_result = 0, db_err_code = 0;
+	return execCommand(sql, num_result, db_err_code);
+}
+
 
 /*! execute a SQL query
  *
@@ -276,12 +255,11 @@ PGSQLDatabase::execCommand(const char* sql)
  *		queryRes shouldn't be PQcleared
  *		when the query is correctly executed.
  *		It is PQcleared in case of error.
- *	\return:
- *		-1: fail
- *		 n: the number of returned tuples
  */
-int 
-PGSQLDatabase::execQuery(const char* sql, PGresult*& result)
+QuillErrCode
+PGSQLDatabase::execQuery(const char* sql, 
+						 PGresult*& result, 
+						 int &num_result)
 {
 	dprintf(D_FULLDEBUG, "SQL Query = %s\n", sql);
 	if ((result = PQexec(connection, sql)) == NULL)
@@ -290,7 +268,7 @@ PGSQLDatabase::execQuery(const char* sql, PGresult*& result)
 			"[SQL EXECUTION ERROR] %s\n", PQerrorMessage(connection));
 		dprintf(D_ALWAYS, 
 			"[ERRONEOUS SQL: %s]\n", sql);
-		return -1;
+		return FAILURE;
 	}
 	else if (PQresultStatus(result) != PGRES_TUPLES_OK) {
 		dprintf(D_ALWAYS, 
@@ -302,17 +280,34 @@ PGSQLDatabase::execQuery(const char* sql, PGresult*& result)
 			result = NULL;
 		}
 
-		return -1;
+		return FAILURE;
 	}
 
-	return PQntuples(result);
+	num_result = PQntuples(result);
+
+	return SUCCESS;
+}
+
+QuillErrCode
+PGSQLDatabase::execQuery(const char* sql, 
+						 PGresult*& result) {
+	int num_result = 0;
+	return execQuery(sql, queryRes, num_result);
 }
 
 //! execute a SQL query
-int
+QuillErrCode
+PGSQLDatabase::execQuery(const char* sql, int &num_result) 
+{
+	return execQuery(sql, queryRes, num_result);
+}
+
+//! execute a SQL query
+QuillErrCode
 PGSQLDatabase::execQuery(const char* sql) 
 {
-	return execQuery(sql, queryRes);
+	int num_result = 0;
+	return execQuery(sql, queryRes, num_result);
 }
 
 //! get the field name at given column index
@@ -337,41 +332,46 @@ PGSQLDatabase::getValue(int row, int col)
 }
 
 //! release the generic query result object
-int
+QuillErrCode
 PGSQLDatabase::releaseQueryResult()
 {
-	if(queryRes != NULL) 
+	if(queryRes != NULL) {
 	   PQclear(queryRes);
+	}
 	
 	queryRes = NULL;
 
-	return 1;
+	return SUCCESS;
 }
 
 //! release all history results
-int
+QuillErrCode
 PGSQLDatabase::releaseHistoryResults()
 {
-	if(historyHorRes != NULL) 
+	if(historyHorRes != NULL) {
 	   PQclear(historyHorRes);
+	}
 	historyHorRes = NULL;
 
-	if(historyVerRes != NULL) 
+	if(historyVerRes != NULL) {
 	   PQclear(historyVerRes);
+	}
 	historyVerRes = NULL;
 
-	return 1;
+	return SUCCESS;
 }
 
 
-/*! get the whole job queue database
+/*! get the job queue
  *
- *	\return
- *		0: There is no Job in Job Queue
- *		1: There is some
- *		-1, -2, -3, -4: Error
+ *	\return 
+ *		JOB_QUEUE_EMPTY: There is no job in the queue
+ *      FAILURE_QUERY_* : error querying table *
+ *		SUCCESS: There is some job in the queue and query was successful
+ *
+ *		
  */
-int
+QuillErrCode
 PGSQLDatabase::getJobQueueDB(int cluster, int proc, char *owner, bool isfullscan,
 			     int& procAdsStrRes_num, int& procAdsNumRes_num, 
 			     int& clusterAdsStrRes_num, int& clusterAdsNumRes_num)
@@ -379,6 +379,7 @@ PGSQLDatabase::getJobQueueDB(int cluster, int proc, char *owner, bool isfullscan
   
   char *procAds_str_query, *procAds_num_query, *clusterAds_str_query, *clusterAds_num_query;
   char *clusterpredicate, *procpredicate;
+  QuillErrCode st;
 
   procAds_str_query = (char *) malloc(MAX_FIXED_SQL_STR_LENGTH * sizeof(char));
   procAds_num_query = (char *) malloc(MAX_FIXED_SQL_STR_LENGTH * sizeof(char));
@@ -428,53 +429,64 @@ PGSQLDatabase::getJobQueueDB(int cluster, int proc, char *owner, bool isfullscan
     free(procpredicate);
 
   }
-  // Query against ProcAds_Str Table
-  if ((procAdsStrRes_num = execQuery(procAds_str_query, procAdsStrRes)) < 0)
-    return -1;
-  // Query against ProcAds_Num Table
-  if ((procAdsNumRes_num = execQuery(procAds_num_query, procAdsNumRes)) < 0)
-    return -2;
-  // Query against ClusterAds_Str Table
-  if ((clusterAdsStrRes_num = execQuery(clusterAds_str_query, clusterAdsStrRes)) < 0)
-    return -3;
-  // Query against ProcAds_Str Table
-  if ((clusterAdsNumRes_num = execQuery(clusterAds_num_query, clusterAdsNumRes)) < 0)
-    return -4;
+	  // Query against ProcAds_Str Table
+  if ((st = execQuery(procAds_str_query, procAdsStrRes, procAdsStrRes_num)) == FAILURE) {
+	  return FAILURE_QUERY_PROCADS_STR;
+  }
+  
+	  // Query against ProcAds_Num Table
+  if ((st = execQuery(procAds_num_query, procAdsNumRes, procAdsNumRes_num)) == FAILURE) {
+	  return FAILURE_QUERY_PROCADS_NUM;
+  }
+  
+	  // Query against ClusterAds_Str Table
+  if ((st = execQuery(clusterAds_str_query, clusterAdsStrRes, clusterAdsStrRes_num)) == FAILURE) {
+	  return FAILURE_QUERY_CLUSTERADS_STR;
+  } 
+	  // Query against ClusterAds_Num Table
+  if ((st = execQuery(clusterAds_num_query, clusterAdsNumRes, clusterAdsNumRes_num)) == FAILURE) {
+	  return FAILURE_QUERY_CLUSTERADS_NUM;
+  }
   
   free(procAds_str_query);
   free(procAds_num_query);
   free(clusterAds_str_query);
   free(clusterAds_num_query);
 
-  if (clusterAdsNumRes_num == 0 && clusterAdsStrRes_num == 0)
-    return 0;
-  
-  return 1;
+  if (clusterAdsNumRes_num == 0 && clusterAdsStrRes_num == 0) {
+    return JOB_QUEUE_EMPTY;
+  }
+
+  return SUCCESS;
 }
 
-/*! get the whole history database
+/*! get the historical information
  *
  *	\return
- *		0: There is no Job in history
- *		1: There is some
- *		-1, -2, -3, -4: Error
+ *		HISTORY_EMPTY: There is no Job in history
+ *		SUCCESS: history is not empty and query succeeded
+ *		FAILURE_QUERY_*: query failed
  */
-int
+QuillErrCode
 PGSQLDatabase::queryHistoryDB(SQLQuery *queryhor, 
 			      SQLQuery *queryver, 
 			      bool longformat, 
 			      int& historyads_hor_num, 
 			      int& historyads_ver_num)
 {  
-  if ((historyads_hor_num = execQuery(queryhor->getQuery(), historyHorRes)) < 0)
-    return -1;
-  if (longformat && (historyads_ver_num = execQuery(queryver->getQuery(), historyVerRes)) < 0)
-    return -1;
+	QuillErrCode st;
+	if ((st = execQuery(queryhor->getQuery(), historyHorRes, historyads_hor_num)) == FAILURE) {
+		return FAILURE_QUERY_HISTORYADS_HOR;
+	}
+	if (longformat && (st = execQuery(queryver->getQuery(), historyVerRes, historyads_ver_num)) == FAILURE) {
+		return FAILURE_QUERY_HISTORYADS_VER;
+	}
   
-  if (historyads_hor_num == 0)
-    return 0;
-  
-  return 1;
+	if (historyads_hor_num == 0) {
+		return HISTORY_EMPTY;
+	}
+	
+	return SUCCESS;
 }
 
 //! get a value retrieved from History_Horizontal table
@@ -520,8 +532,8 @@ PGSQLDatabase::getJobQueueClusterAds_NumValue(int row, int col)
 }
 
 //! release the result for job queue database
-int
-PGSQLDatabase::releaseJobQueueDB()
+QuillErrCode
+PGSQLDatabase::releaseJobQueueResults()
 {
 	if (procAdsStrRes != NULL) {
 		PQclear(procAdsStrRes);
@@ -540,12 +552,12 @@ PGSQLDatabase::releaseJobQueueDB()
 		clusterAdsNumRes = NULL;
 	}
 
-	return 1;
+	return SUCCESS;
 }	
 
 
 //! put a bulk data into DBMS
-int
+QuillErrCode
 PGSQLDatabase::sendBulkData(char* data)
 {
   dprintf(D_FULLDEBUG, "bulk copy data = %s\n\n", data);
@@ -556,14 +568,14 @@ PGSQLDatabase::sendBulkData(char* data)
 	      "[Bulk Data Sending ERROR] %s\n", PQerrorMessage(connection));
       dprintf(D_ALWAYS, 
 	      "[Data: %s]\n", data);
-      return -1;
+      return FAILURE;
     }
   
-  return 1;
+  return SUCCESS;
 }
 
 //! put an end flag for bulk loading
-int
+QuillErrCode
 PGSQLDatabase::sendBulkDataEnd()
 {
 	PGresult* result;
@@ -572,7 +584,7 @@ PGSQLDatabase::sendBulkDataEnd()
 	{
 		dprintf(D_ALWAYS, 
 			"[Bulk Data End Sending ERROR] %s\n", PQerrorMessage(connection));
-		return -1;
+		return FAILURE;
 	}
 
 	
@@ -581,7 +593,7 @@ PGSQLDatabase::sendBulkDataEnd()
 			dprintf(D_ALWAYS, 
 				"[Bulk Last Data Sending ERROR] %s\n", PQerrorMessage(connection));
 			PQclear(result);
-			return -1;
+			return FAILURE;
 		}
 	}
 
@@ -590,7 +602,6 @@ PGSQLDatabase::sendBulkDataEnd()
 		result = NULL;
 	}
 
-	return 1;
+	return SUCCESS;
 }
 
-#endif // _POSTGRESQL_DBMS_

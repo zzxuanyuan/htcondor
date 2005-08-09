@@ -20,14 +20,14 @@
   * RIGHT.
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
-#ifdef _POSTGRESQL_DBMS_
 
 #ifndef _PGSQLDATABASE_H_
-#define  _PGSQLDATABASE_H_
+#define _PGSQLDATABASE_H_
 
 #include <libpq-fe.h>
 #include "sqlquery.h"
 #include "jobqueuedatabase.h"
+#include "quill_enums.h"
 
 #ifndef MAX_FIXED_SQL_STR_LENGTH
 #define MAX_FIXED_SQL_STR_LENGTH 2048
@@ -43,57 +43,68 @@ public:
 	PGSQLDatabase(const char* connect);
 	~PGSQLDatabase();
 
-	int			connectDB();
-	int			connectDB(const char* connect);
-	int			disconnectDB();
+	QuillErrCode         connectDB();
+	QuillErrCode		 connectDB(const char* connect);
+	QuillErrCode		 disconnectDB();
 
 		// General DB processing methods
-	int			beginTransaction();
-	int 		commitTransaction();
-	int 		rollbackTransaction();
+	QuillErrCode		 beginTransaction();
+	QuillErrCode 		 commitTransaction();
+	QuillErrCode 		 rollbackTransaction();
 
-	int 	 	execCommand(const char* sql);
+	QuillErrCode 	 	 execCommand(const char* sql, 
+									 int &num_result,
+									 int &db_err_code);
+	QuillErrCode 	 	 execCommand(const char* sql);
 
-	int 	 	execQuery(const char* sql);
-	int 	 	execQuery(const char* sql, PGresult*& result);
-	const char*	getValue(int row, int col);
-	const char* getHistoryHorFieldName(int col);
-	const int   getHistoryHorNumFields();
-	int		    releaseHistoryResults();		
+	QuillErrCode 	 	 execQuery(const char* sql);
+	QuillErrCode 	 	 execQuery(const char* sql, 
+								   PGresult*& result);
+	QuillErrCode 	 	 execQuery(const char* sql,
+								   int &num_result);
+	QuillErrCode 	 	 execQuery(const char* sql, 
+								   PGresult*& result,
+								   int &num_result);
+	const char*	         getValue(int row, int col);
+	const char*          getHistoryHorFieldName(int col);
+	const int            getHistoryHorNumFields();
+	QuillErrCode		 releaseHistoryResults();		
 
-	char*		getDBError();
+	char*		         getDBError();
 
-	int		    sendBulkData(char* data);
-	int		    sendBulkDataEnd();
+	QuillErrCode		 sendBulkData(char* data);
+	QuillErrCode		 sendBulkDataEnd();
 
-	int		    queryHistoryDB(SQLQuery *, SQLQuery *, 
-							   bool, int&, int&);
-	int         releaseJobQueueDB();
+	QuillErrCode		 queryHistoryDB(SQLQuery *, SQLQuery *, 
+										bool, int&, int&);
+	QuillErrCode         releaseJobQueueResults();
 
-	int         releaseQueryResult();
+	QuillErrCode         releaseQueryResult();
 
-		// Job Queue DB processing methods
-	int		    getJobQueueDB(int, int, char *, bool, 
-							  int&, int&, int&, int&);
-	const char*	getJobQueueProcAds_StrValue(int row, int col);
-	const char*	getJobQueueProcAds_NumValue(int row, int col);
-	const char*	getJobQueueClusterAds_StrValue(int row, int col);
-	const char*	getJobQueueClusterAds_NumValue(int row, int col);
-	const char* getHistoryHorValue(int row, int col);
-	const char* getHistoryVerValue(int row, int col);
+
+	QuillErrCode		 getJobQueueDB(int, int, char *, bool, 
+									   int&, int&, int&, int&);
+	const char*	         getJobQueueProcAds_StrValue(int row, int col);
+	const char*	         getJobQueueProcAds_NumValue(int row, int col);
+	const char*	         getJobQueueClusterAds_StrValue(int row, int col);
+	const char*	         getJobQueueClusterAds_NumValue(int row, int col);
+	const char*          getHistoryHorValue(int row, int col);
+	const char*          getHistoryVerValue(int row, int col);
 	  
 private:
-	PGconn		*connection;		//!< connection object
-	PGresult	*queryRes; 	//!< result for general query
-	PGresult    *historyHorRes;
-	PGresult    *historyVerRes;
-		// only for Job Queue DB retrieval
-	PGresult	*procAdsStrRes;	//!< result for ProcAds_Str relation
-	PGresult	*procAdsNumRes;	//!< result for ProcAds_Num relation
-	PGresult	*clusterAdsStrRes;//!< result for ClusterAds_Str relation
-	PGresult	*clusterAdsNumRes;//!< result for ClusterAds_num relation
+	PGconn		         *connection;		//!< connection object
+	PGresult	         *queryRes; 	//!< result for general query
+
+		// only for history tables retrieval
+	PGresult             *historyHorRes;
+	PGresult             *historyVerRes;
+
+		// only for job queue tables retrieval
+	PGresult	         *procAdsStrRes;	//!< result for ProcAds_Str table
+	PGresult	         *procAdsNumRes;	//!< result for ProcAds_Num table
+	PGresult	         *clusterAdsStrRes;//!< result for ClusterAds_Str table
+	PGresult	         *clusterAdsNumRes;//!< result for ClusterAds_num table
 };
 
 #endif /* _PGSQLDATABSE_H_ */
 
-#endif /* _POSTGRESQL_DBMS_ */
