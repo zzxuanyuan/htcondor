@@ -121,6 +121,13 @@ put on hold.
 
 \item Improved some user-log-reading error messages in \Condor{dagman}.
 
+\item Fixed bug in dedicated scheduler, where under heavy load, the
+  schedd would occasionally try to start the same job twice, and
+  subsequently exit with the message:
+\begin{verbatim}  
+  ERROR ``Trying to run job x.x, but already marked RUNNING!''
+\end{verbatim}  
+
 \item Fixed bug in dedicated scheduler, so that it now creates a 
   spool directory for each condor proc of a parallel or MPI job
   with multiple requirements.
