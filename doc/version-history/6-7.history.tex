@@ -42,6 +42,12 @@ for standard universe.  Previously, it was only supported in the grid universe.
   \Macro{STARTD\_CLAIM\_ID\_FILE}, the two configuration settings that
   control this behavior.
 
+\item For Condor-C jobs, the \Condor{gridmanager} will retry and delay
+  failed connections to a remote \Condor{schedd} like it does for
+  Condor-G jobs. The same configuration settings apply 
+  (\Macro{GRIDMANAGER\_CONNECT\_FAILURE\_RETRY\_COUNT} and
+  \Macro{GRIDMANAGER\_RESOURCE\_PROBE\_INTERVAL}).
+
 \end{itemize}
 
 \noindent Bugs Fixed:
