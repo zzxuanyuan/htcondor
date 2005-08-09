@@ -174,12 +174,12 @@ template class ExtArray<PrioEntry>;
 	
 char return_buff[4096];
 
-char quillName[64];
-char quillAddr[64];
-char quillMachine[64];
-char dbIpAddr[64];
-char dbName[64];
-char queryPassword[64];
+char *quillName = NULL;
+char *quillAddr = NULL;
+char *quillMachine = NULL;
+char *dbIpAddr = NULL;
+char *dbName = NULL;
+char *queryPassword = NULL;
 
 /* this function for checking whether database can be used for querying in local machine */
 static bool checkDBconfig() {
@@ -489,22 +489,52 @@ int main (int argc, char **argv)
 
 		int flag=1;
 
+		if (quillName) {
+			free(quillName);
+			quillName = NULL;
+		}
+
+		if (quillAddr) {
+			free(quillAddr);
+			quillAddr = NULL;
+		}
+		
+		if (quillMachine) {
+			free(quillMachine);
+			quillMachine = NULL;
+		}
+
+		if (dbIpAddr) {
+			free(dbIpAddr);
+			dbIpAddr = NULL;
+		}
+		
+		if (dbName) {
+			free(dbName);
+			dbName = NULL;
+		}
+
+		if (queryPassword) {
+			free(queryPassword);
+			queryPassword = NULL;
+		}
+
 			// get the address of the database
-		if (ad->LookupString("DatabaseIpAddr", dbIpAddr) &&
-			ad->LookupString(ATTR_NAME, quillName) &&
-			ad->LookupString("DatabaseName", dbName) && 
+		if (ad->LookupString("DatabaseIpAddr", &dbIpAddr) &&
+			ad->LookupString(ATTR_NAME, &quillName) &&
+			ad->LookupString("DatabaseName", &dbName) && 
 			ad->LookupString("QueryPassword", queryPassword) &&
 			(!ad->LookupInteger("IsRemotelyQueryable",flag) || flag)) {
 			useDB = TRUE;
 
 				/* get the quill info for fail-over processing */
-			ad->LookupString(ATTR_MY_ADDRESS, quillAddr);
-			ad->LookupString(ATTR_MACHINE, quillMachine);
+			ASSERT(ad->LookupString(ATTR_MY_ADDRESS, &quillAddr));
+			ASSERT(ad->LookupString(ATTR_MACHINE, &quillMachine));
 
 				/* get the schedd info for fail-over processing */
-			ad->LookupString(ATTR_SCHEDD_IP_ADDR, scheddAddr);
-			ad->LookupString(ATTR_SCHEDD_NAME, scheddName);
-			ad->LookupString(ATTR_MACHINE, scheddMachine);
+			ASSERT(ad->LookupString(ATTR_SCHEDD_IP_ADDR, scheddAddr));
+			ASSERT(ad->LookupString(ATTR_SCHEDD_NAME, scheddName));
+			ASSERT(ad->LookupString(ATTR_MACHINE, scheddMachine));
 
 		}
 			// get the address of the schedd
