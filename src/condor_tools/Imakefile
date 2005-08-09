@@ -53,10 +53,12 @@ release_target(condor_findhost,bin,EXECUTABLE_MODE)
 strip_target(condor_findhost,bin,EXECUTABLE_MODE)
 static_target(condor_findhost,give_interactive.o,$(LIB),$(STATIC_DIR)/bin)
 
-c_plus_target(condor_history,history.o,$(LIB))
+LDFLAGS = $(STD_LDFLAGS) $(LIBCRYPT)
+DBLIB = $(STD_LIBS) $(POSTGRESQL_LIB)/libpq.a
+c_plus_target(condor_history,history.o,$(DBLIB))
 release_target(condor_history,bin,EXECUTABLE_MODE)
 strip_target(condor_history,bin,EXECUTABLE_MODE)
-static_target(condor_history,history.o,$(LIB),$(STATIC_DIR)/bin)
+static_target(condor_history,history.o,$(DBLIB),$(STATIC_DIR)/bin)
 
 c_plus_target(condor_qedit,qedit.o,$(LIB))
 release_target(condor_qedit,bin,EXECUTABLE_MODE)
