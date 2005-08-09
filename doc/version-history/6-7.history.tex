@@ -23,6 +23,17 @@ The details of each version are described below.
   have not verified it either way).  These binaries are known to work
   with Mac OS 10.4 (``Tiger''), as well.
 
+\item There is a minor bug in version 6.7.10's \Condor{configure}
+  script.
+  It will create a directory called \File{ViewHist} in the local
+  directory (next to \File{log}, \File{spool}, etc).
+  This directory is not used by Condor at all, except in the case of a
+  \Condor{view} collector (which is optional, and not enabled by
+  default). 
+  This behavior will be removed in version 6.7.11, and
+  \Condor{configure} will go back to not creating the \File{ViewHist}
+  directory.
+
 \end{itemize}
 
 \noindent New Features:
