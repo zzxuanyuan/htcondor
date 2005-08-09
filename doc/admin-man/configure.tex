@@ -2184,6 +2184,26 @@ Configuring The Startd Policy.
   section~\ref{param:SubsysAddressFile} as
   \Macro{SUBSYS\_ADDRESS\_FILE} 
 
+\item[\Macro{STARTD\_SHOULD\_WRITE\_CLAIM\_ID\_FILE}] \label{param:StartdShouldWriteClaimIdFile}
+  Starting with version 6.7.10, the \Condor{startd} can be configured
+  to write out the \Attr{ClaimId} for the next available claim on all
+  virtual machines to seperate files.
+  This boolean attribute controls whether the \Condor{startd} should
+  write these files.
+  The default value is true.
+  
+\item[\Macro{STARTD\_CLAIM\_ID\_FILE}] \label{param:StartdClaimIdFile}
+  This macro controls what file names are used if the above
+  \MacroNI{STARTD\_SHOULD\_WRITE\_CLAIM\_ID\_FILE} is true.  By
+  default, Condor will write the ClaimId into a file in the
+  \MacroU{LOG} directory called \File{.startd\_claim\_id.vmX}, where
+  \verb@X@ is the value of \Attr{VirtualMachineID}, the integer that
+  identifies a given virtual machine on the system, or \verb@1@ on a
+  single-VM machine.
+  If you define your own value for this setting, you should provide a
+  full path, and Condor will automatically append the \verb@.vmX@
+  portion of the file name.
+
 \item[\Macro{NUM\_CPUS}] \label{param:NumCpus}
   This macro can be used to ``lie'' to the startd about how many CPUs
   your machine has.
