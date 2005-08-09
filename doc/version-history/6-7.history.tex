@@ -61,6 +61,11 @@ setting).
 gt4 grid job had a proxy that couldn't be read properly. Now the job gets
 put on hold.
 
+\item When contacting the embedded web server on Condor daemons,
+  authentication is no longer requested.
+  The previous authentication requirement didn't provide any
+  additional security, and could confuse users.
+
 \item Fixed rare bug that could cause \Condor{submit} to crash when
   both getenv=true and environment=... were in a submit file and when
   very large variable names were in the environment. 
