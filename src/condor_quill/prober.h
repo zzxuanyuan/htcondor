@@ -24,6 +24,7 @@
 #define _PROBER_H_
 
 #include "condor_common.h"
+#include "quill_enums.h"
 
 class JobQueueDBManager;
 
@@ -46,12 +47,12 @@ public:
 	void			Init();
 
 	//! probe job_queue.log file
-	int 			probe();
+	ProbeResultType probe();
 
 	//! store polling information into DBMS
 	void			setProbeInfo();
 	//! get polling information from DBMS
-	int			    getProbeInfo();
+	QuillErrCode	getProbeInfo();
 
 		//
 		// accessors
@@ -64,17 +65,13 @@ public:
 	size_t			getJQFile_Last_Size();
 
 
-	enum PROBE_RESULT_TYPE {FILE_OPEN_ERROR = -1, ERROR = 0, NO_CHANGE = 1, 
-					INIT_QUILL = 2, ADDITION = 3, 
-					COMPRESSED = 4};
-
 private:
 		// information about a job_queuq.log file and polling state
 	char			job_queue_name[_POSIX_PATH_MAX]; //!< job queue file path
 		// stored metadata in DB
 	long int		jqfile_last_mod_time;	 //!< last modification time
 	long int		jqfile_last_size;		 //!< last size
-		// currenlty probed...
+		// currently probed...
 	long int		cur_probed_jqfile_last_mod_time; //!< last modification time
 	long int		cur_probed_jqfile_last_size;	 //!< last size
 

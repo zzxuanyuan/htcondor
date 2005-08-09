@@ -25,9 +25,13 @@
 
 #include "condor_common.h"
 #include "condor_io.h"
+#include "quill_enums.h"
+
+//used to distinguish between first and successive calls
+#define IMPOSSIBLE_OFFSET -10000
 
 //! ClassAdLogParser
-/*! \brieft Parser for ClassAd Log file
+/*! \brief Parser for ClassAd Log file
  *
  *  It actually reads and parses ClassAd Log file (job_queue.log)
  */
@@ -35,20 +39,20 @@ class ClassAdLogParser
 {
 public:
 
-	//! constructor	
+		//! constructor	
 	ClassAdLogParser();
-	//! destructor	
+		//! destructor	
 	~ClassAdLogParser();
-
+	
 		//
 		// accessors
 		//
-	//! return the current ClassAd log entry
+		//! return the current ClassAd log entry
 	ClassAdLogEntry* 	getLastCALogEntry();
-	//! return the last ClassAd log entry
+		//! return the last ClassAd log entry
 	ClassAdLogEntry* 	getCurCALogEntry();
-	//! set the next offset. -3210 is meaningless and just a default value	
-	void 	setNextOffset(long offset = -3210);
+		//! set the next offset. IMPOSSIBLE_OFFSET is just a default value	
+	void 	setNextOffset(long offset = IMPOSSIBLE_OFFSET);
 	//!	set a job queue file name
 	void	setJobQueueName(char* jqn);
 	//!	get a job queue file name
@@ -58,16 +62,20 @@ public:
 	//!	set a current file offset
 	void 	setCurOffset(long offset);
 	//!	get a current classad log entry data as a New ClassAd command
-	int 	getNewClassAdBody(char*& key, char*& mytype, char*& targettype);
+	QuillErrCode 	getNewClassAdBody(char*& key, 
+									  char*& mytype, 
+									  char*& targettype);
 	//!	get a current classad log entry data as a Destroy ClassAd command
-	int 	getDestroyClassAdBody(char*& key);
+	QuillErrCode 	getDestroyClassAdBody(char*& key);
 	//!	get a current classad log entry data as a Set Attribute command
-	int 	getSetAttributeBody(char*& key, char*& name, char*& value);
+	QuillErrCode 	getSetAttributeBody(char*& key, 
+										char*& name, 
+										char*& value);
 	//!	get a current classad log entry data as a Delete Attribute command
-	int 	getDeleteAttributeBody(char*& key, char*& name);
+	QuillErrCode 	getDeleteAttributeBody(char*& key, char*& name);
 
 	//! read a classad log entry in the current offset of a file
-	int		readLogEntry(bool ex = false);
+	FileOpErrCode readLogEntry(int &op_type, bool ex = false);
 
 private:
 		//
@@ -102,36 +110,5 @@ private:
 	ClassAdLogEntry		curCALogEntry; 	//!< current ClassAd log entry
 	ClassAdLogEntry		lastCALogEntry; //!< last ClassAd log entry 
 };
-
-//! Definition of New ClassAd Command Type Constant
-#ifndef CondorLogOp_NewClassAd
-#define CondorLogOp_NewClassAd			101
-#endif
-
-//! Definition of Destroy ClassAd Command Type Constant
-#ifndef CondorLogOp_DestroyClassAd
-#define CondorLogOp_DestroyClassAd		102
-#endif
-
-
-//! Definition of Set Attribute Command Type Constant
-#ifndef CondorLogOp_SetAttribute
-#define CondorLogOp_SetAttribute		103
-#endif
-
-//! Definition of Delete Attribute Command Type Constant
-#ifndef CondorLogOp_DeleteAttribute
-#define CondorLogOp_DeleteAttribute		104
-#endif
-
-//! Definition of Begin Transaction Command Type Constant
-#ifndef CondorLogOp_BeginTransaction
-#define CondorLogOp_BeginTransaction	105
-#endif
-
-//! Definition of End Transaction Command Type Constant
-#ifndef CondorLogOp_EndTransaction 
-#define CondorLogOp_EndTransaction		106
-#endif
 
 #endif /* _CLASSADLOGPARSER_H_ */

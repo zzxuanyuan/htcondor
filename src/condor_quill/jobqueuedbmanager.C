@@ -32,12 +32,6 @@
 #include "condor_io.h"
 #include "get_daemon_name.h"
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <string.h>
-#include <signal.h>
-#include <time.h>
-
 #include "jobqueuedbmanager.h"
 #include "quill_dbschema_def.h"
 #include "classadlogentry.h"
@@ -49,10 +43,6 @@
 #include "jobqueuecollection.h"
 
 
-#ifndef _DEBUG_
-#define _DEBUG_
-#endif
-
 //! constructor
 JobQueueDBManager::JobQueueDBManager()
 {
@@ -63,67 +53,107 @@ JobQueueDBManager::JobQueueDBManager()
 JobQueueDBManager::~JobQueueDBManager()
 {
 		// release Objects
-	if (collectors)
+	if (collectors) {
 		delete collectors;
-	if (prober != NULL)
+	}
+	if (prober != NULL) {
 		delete prober;
-	if (caLogParser != NULL)
+	}
+	if (caLogParser != NULL) {
 		delete caLogParser;
-	if (jqDatabase != NULL)
+	}
+	if (jqDatabase != NULL) {
 		delete jqDatabase;
-	
+	}
 		// release strings
-	if (jobQueueLogFile != NULL)
+	if (jobQueueLogFile != NULL) {
 		free(jobQueueLogFile);
-	if (jobQueueDBIpAddress != NULL)
+	}
+	if (jobQueueDBIpAddress != NULL) {
 		free(jobQueueDBIpAddress);
-	if (jobQueueDBName != NULL)
+	}
+	if (jobQueueDBName != NULL) {
 		free(jobQueueDBName);
-	if (jobQueueDBConn != NULL)
+	}
+	if (jobQueueDBConn != NULL) {
 		free(jobQueueDBConn);
-	if (multi_sql_str != NULL)
+	}
+	if (multi_sql_str != NULL) {
 		free(multi_sql_str);
+	}
 }
 
+//! Gets the writer password required by the quill 
+//  daemon to access the database
+char * 
+JobQueueDBManager::getWritePassword(char *write_passwd_fname) {
+	FILE *fp = NULL;
+	char *passwd = (char *) malloc(64 * sizeof(char));
+
+	fp = fopen(write_passwd_fname, "r");
+	if(fp == NULL) {
+		EXCEPT("Error: Unable to open password file %s...exiting\n", write_passwd_fname);
+	}
+	
+	if(fscanf(fp, "%s", passwd) != 1) {
+		fclose(fp);
+		EXCEPT("Error: Unable to read password from file %s...exiting\n", write_passwd_fname);
+	}
+	fclose(fp);
+	return passwd;
+}
+ 
 void
 JobQueueDBManager::config(bool reconfig) 
 {
 	ad = NULL;
 	pollingTimeId = -1;
 	purgeHistoryTimeId = -1;
-
+	char *host, *port, *ptr_colon;
+	int len, tmp1, tmp2, tmp3;
 
 		//bail out if no SPOOL variable is defined since its used to 
 		//figure out the location of the job_queue.log file
 	char *spool = param("SPOOL");
 	if(!spool) {
-		dprintf(D_ALWAYS, 
-				"Error: No SPOOL variable found in config file - exiting\n");
-		exit(1);
+		EXCEPT("Error: No SPOOL variable found in config file - exiting\n");
 	}
   
 	jobQueueLogFile = (char *) malloc(_POSIX_PATH_MAX * sizeof(char));
 	sprintf(jobQueueLogFile, "%s/job_queue.log", spool);
-	free(spool);
 
 		/*
 		  Here we try to read the <ipaddress:port> stored in condor_config
 		  if one is not specified, by default we use the local address 
 		  and the default postgres port of 5432.  
 		*/
-	char host[64], port[64];  //used to construct the connection string
+
 	jobQueueDBIpAddress = param("DATABASE_IPADDRESS");
 	if(!jobQueueDBIpAddress) {
-		jobQueueDBIpAddress = (char *) malloc(128 * sizeof(char));
+		len = strlen(daemonCore->InfoCommandSinfulString());
+		jobQueueDBIpAddress = (char *) malloc(len * sizeof(char));
 		strcpy(jobQueueDBIpAddress, daemonCore->InfoCommandSinfulString());
-		char *ptr_colon = strchr(jobQueueDBIpAddress, ':');
+		ptr_colon = strchr(jobQueueDBIpAddress, ':');
+
+			//default postgres port is 5432
 		strcpy(ptr_colon, ":5432>");
+		
+		host = (char *) malloc(32 * sizeof(char));
+		port = (char *) malloc(32 * sizeof(char));
 		strcpy(host," ");
 		strcpy(port," ");
 	}
 	else {
+		len = strlen(jobQueueDBIpAddress);
+		
+			//the 6 is for the string "host= " or "port= "
+			//the rest is a subset of jobQueueDBIpAddress so a size of
+			//jobQueueDBIpAddress is more than enough
+		host = (char *) malloc((len+6) * sizeof(char));
+		port = (char *) malloc((len+6) * sizeof(char));
+
 			//split the <ipaddress:port> into its two parts accordingly
-		char *ptr_colon = strchr(jobQueueDBIpAddress, ':');
+		ptr_colon = strchr(jobQueueDBIpAddress, ':');
 		strcpy(host, "host= ");
 		strncat(host, 
 				jobQueueDBIpAddress+1, 
@@ -141,10 +171,40 @@ JobQueueDBManager::config(bool reconfig)
 		   unique database names is the responsibility of the administrator
 		*/
 	jobQueueDBName = param("DATABASE_NAME");
-	if(!jobQueueDBName) jobQueueDBName = strdup("quill");
-	jobQueueDBConn = (char *) malloc(_POSIX_PATH_MAX * sizeof(char));
-	sprintf(jobQueueDBConn, "%s %s user=quill dbname=%s", host, port, jobQueueDBName);
+	if(!jobQueueDBName) {
+		jobQueueDBName = strdup("quill");
+	}
+
+	char *writePasswordFile = (char *) malloc(_POSIX_PATH_MAX * sizeof(char));
+	sprintf(writePasswordFile, "%s/.quillwritepassword", spool);
+
+	char *writePassword = getWritePassword(writePasswordFile);
+
+	tmp1 = strlen(jobQueueDBName);
+	tmp2 = strlen(writePassword);
+
+		//tmp3 is the size of dbconn - its size is estimated to be
+		//(2 * len) for the host/port part, tmp1 + tmp2 for the
+		//password and dbname part and 1024 as a cautiously
+		//overestimated sized buffer
+	tmp3 = (2 * len) + tmp1 + tmp2 + 1024;
+
+	jobQueueDBConn = (char *) malloc(tmp3 * sizeof(char));
+
+	sprintf(jobQueueDBConn, "%s %s user=quillwriter password=%s dbname=%s", host, port, writePassword, jobQueueDBName);
 	
+	if(writePassword) {
+		free(writePassword);
+	}
+	if(writePasswordFile) {
+		free(writePasswordFile);
+	}
+	if(host) {
+		free(host);
+	}
+	if(port) {
+		free(port);
+	}
 		// read the polling period and if one is not specified use 
 		// default value of 10 seconds
 	char *pollingPeriod_str = param("QUILL_POLLING_PERIOD");
@@ -152,7 +212,9 @@ JobQueueDBManager::config(bool reconfig)
 		pollingPeriod = atoi(pollingPeriod_str);
 		free(pollingPeriod_str);
 	}
-	else pollingPeriod = 10;
+	else {
+		pollingPeriod = 10;
+	}
   
 		// length of history to keep; 
 		// use default value of 6 months = 180 days :)
@@ -161,7 +223,9 @@ JobQueueDBManager::config(bool reconfig)
 		purgeHistoryDuration = atoi(purgeHistoryDuration_str);
 		free(purgeHistoryDuration_str);
 	}
-	else purgeHistoryDuration = 180;  //default of 6 months
+	else {
+		purgeHistoryDuration = 180;  //default of 6 months
+	}
 
 		/* 
 		   the following parameters specifies the frequency of calling
@@ -173,13 +237,15 @@ JobQueueDBManager::config(bool reconfig)
 		   quite expensive, we leave the frequency of calling it upto
 		   the administrator.  By default, it is 24 hours. 
 		*/
-		
+	
 	char *historyCleaningInterval_str = param("QUILL_HISTORY_CLEANING_INTERVAL");
 	if(historyCleaningInterval_str) {
 		historyCleaningInterval = atoi(historyCleaningInterval_str);
 		free(historyCleaningInterval_str);
 	}
-	else historyCleaningInterval = 24;  //default of 24 hours
+	else {
+		historyCleaningInterval = 24;  //default of 24 hours
+	}
   
 	dprintf(D_ALWAYS, "Using Job Queue File %s\n", jobQueueLogFile);
 	dprintf(D_ALWAYS, "Using Database IpAddress = %s\n", jobQueueDBIpAddress);
@@ -195,9 +261,7 @@ JobQueueDBManager::config(bool reconfig)
 		prober = new Prober(this);
 		caLogParser = new ClassAdLogParser();
 
-#ifdef _POSTGRESQL_DBMS_
 		jqDatabase = new PGSQLDatabase(jobQueueDBConn);
-#endif
 		xactState = NOT_IN_XACT;
 		numTimesPolled = 0; 
 
@@ -207,7 +271,6 @@ JobQueueDBManager::config(bool reconfig)
 		//this function assumes that certain members exist and so
 		//it should be done after constructing those objects
 	setJobQueueFileName(jobQueueLogFile);
-  
 }
 
 //! set the path to the job queue
@@ -226,76 +289,62 @@ JobQueueDBManager::getClassAdLogParser()
 }
 
 //! maintain the job queue 
-int 
+QuillErrCode
 JobQueueDBManager::maintain()
 {	
-	int st, db_st; 
+	QuillErrCode st, ret_st;
+	ProbeResultType probe_st;
 	
-	db_st = 0;
-
-
-		// timing stuff added for performance testing	
-		//time_t start,end;
-		//double dif;
-		//time(&start);
-		//end timing stuff
-	
-
 	st = prober->getProbeInfo(); // get the last polling information
 
 		//if we are unable to get to the database, then either the 
 		//postgres server is down or the database is deleted.  In 
 		//any case, we call checkSchema to create a database if needed
-	if(st <= 0) {
+	if(st == FAILURE) {
 		st = checkSchema();
-		if(st <= 0)
-			return st;
+		if(st == FAILURE) {
+			return FAILURE;
+		}
 	}
-	st = prober->probe();	// polling
+
+	probe_st = prober->probe();	// polling
 	
 		// {init|add}JobQueueDB processes the  Log and stores probing
 		// information into DB documentation for how do we determine 
 		// the correct state is in the Prober->probe method
-	switch(st) {
-	case Prober::INIT_QUILL:
+	switch(probe_st) {
+	case INIT_QUILL:
 		dprintf(D_ALWAYS, "POLLING RESULT: INIT\n");
-		db_st = initJobQueueTables();
+		ret_st = initJobQueueTables();
 		break;
-	case Prober::ADDITION:
+	case ADDITION:
 		dprintf(D_ALWAYS, "POLLING RESULT: ADDED\n");
-		db_st = addJobQueueTables();
+		ret_st = addJobQueueTables();
 		break;
-	case Prober::COMPRESSED:
+	case COMPRESSED:
 		dprintf(D_ALWAYS, "POLLING RESULT: COMPRESSED\n");
-		db_st = initJobQueueTables();
+		ret_st = initJobQueueTables();
 		break;
-	case Prober::ERROR:
+	case ERROR:
 		dprintf(D_ALWAYS, "POLLING RESULT: ERROR\n");
-		db_st = initJobQueueTables();
+		ret_st = initJobQueueTables();
 		break;
-	case Prober::NO_CHANGE:
+	case NO_CHANGE:
 		dprintf(D_ALWAYS, "POLLING RESULT: NO CHANGE\n");
+		ret_st = SUCCESS;
 		break;
 	default:
 		dprintf(D_ALWAYS, "ERROR HAPPENED DURING POLLING\n");
+		ret_st = FAILURE;
 	}
 
-		//time(&end);
-		//dif = difftime (end,start);
-		//dprintf (D_ALWAYS,"TIMING = %.2lf seconds\n", dif );
-
-	if (st != Prober::NO_CHANGE)
-		return db_st;
-	else
-		return Prober::NO_CHANGE;
+	return ret_st;
 }
 
 /*! delete the job queue related tables
  *  \return the result status
- *			1: Success
- *			0: Fail	(SQL execution fail)
  */	
-int
+QuillErrCode
 JobQueueDBManager::cleanupJobQueueTables()
 {
 	int		sqlNum = 4;
@@ -315,18 +364,18 @@ JobQueueDBManager::cleanupJobQueueTables()
 			"DELETE FROM ProcAds_Num;");
 
 	for (i = 0; i < sqlNum; i++) {
-		if (jqDatabase->execCommand(sql_str[i]) < 0) {
+		if (jqDatabase->execCommand(sql_str[i]) == FAILURE) {
 			displayDBErrorMsg("Clean UP ALL Data --- ERROR");
-			return 0; // return a error code, 0
+			return FAILURE; 
 		}
 	}
 
-	return 1;
+	return SUCCESS;
 }
 
 /*! vacuums the job queue related tables 
  */
-int
+QuillErrCode
 JobQueueDBManager::tuneupJobQueueTables()
 {
 	int		sqlNum = 5;
@@ -349,18 +398,21 @@ JobQueueDBManager::tuneupJobQueueTables()
 			"VACUUM ANALYZE Jobqueuepollinginfo;");
 
 	for (i = 0; i < sqlNum; i++) {
-		if (jqDatabase->execCommand(sql_str[i]) < 0) {
+		if (jqDatabase->execCommand(sql_str[i]) == FAILURE) {
 			displayDBErrorMsg("VACUUM Database --- ERROR");
-			return 0; // return a error code, 0
+			return FAILURE; 
 		}
 	}
 
-	return 1;
+	return SUCCESS;
 }
 
 
 /*! purge all jobs from history according to user policy
- *  and vacuums all historical tables
+ *  and vacuums all historical tables. 
+ *  Since purging is based on a timer, quill needs to be up for at least 
+ *  the duration of QUILL_HISTORY_DURATION, in order for purging to occur
+ *  on a timely basis.
  */
 int
 JobQueueDBManager::purgeOldHistoryRows()
@@ -370,9 +422,15 @@ JobQueueDBManager::purgeOldHistoryRows()
 	char 	sql_str[sqlNum][256];
 
 	sprintf(sql_str[0],
-			"DELETE FROM History_Vertical WHERE cid IN (SELECT cid FROM History_Horizontal WHERE 'epoch'::timestamp with time zone + cast(text(\"CompletionDate\")||text(' seconds') as interval) < timestamp 'now' - interval '%d days');", purgeHistoryDuration);
+			"DELETE FROM History_Vertical WHERE cid IN (SELECT cid FROM "
+			"History_Horizontal WHERE 'epoch'::timestamp with time zone  "
+			"+ cast(text(\"CompletionDate\")||text(' seconds') as interval)"
+			" < timestamp 'now' - interval '%d days');", purgeHistoryDuration);
 	sprintf(sql_str[1],
-			"DELETE FROM History_Horizontal WHERE 'epoch'::timestamp with time zone + cast(text(\"CompletionDate\")||text(' seconds') as interval) < 'now'::timestamp - interval '%d days';", purgeHistoryDuration);
+			"DELETE FROM History_Horizontal WHERE 'epoch'::timestamp with "
+			"time zone + cast(text(\"CompletionDate\")||text(' seconds')  "
+			"as interval) < 'now'::timestamp - interval '%d days';", 
+			purgeHistoryDuration);
 
 		// When a record is deleted, postgres only marks it
 		// deleted.  Then space is reclaimed in a lazy fashion,
@@ -386,32 +444,33 @@ JobQueueDBManager::purgeOldHistoryRows()
 		// the delete commands are wrapped inside a transaction.  We 
 		// dont want to have stuff deleted from the horizontal but not 
 		//the vertical and vice versa
-	if(connectDB(BEGIN_XACT) <= 0) {
+	if(connectDB(BEGIN_XACT) == FAILURE) {
 		displayDBErrorMsg("Purge History Rows unable to connect--- ERROR");
-		return 0; // return a error code, 0
+		return 0; 
 	}
 
+		//ending at 2 since only the first 2 can be wrapped inside xact
 	for (i = 0; i < 2; i++) {
-		if (jqDatabase->execCommand(sql_str[i]) < 0) {
+		if (jqDatabase->execCommand(sql_str[i]) == FAILURE) {
 			displayDBErrorMsg("Purge History Rows --- ERROR");
 			disconnectDB(ABORT_XACT);
-			return 0; // return a error code, 0
+			return 0; 
 		}
 	}
 	disconnectDB(COMMIT_XACT);
 
 
 		//vacuuming cannot be bound inside a transaction
-	if(connectDB(NOT_IN_XACT) <= 0) {
+	if(connectDB(NOT_IN_XACT) == FAILURE) {
 		displayDBErrorMsg("Vacuum History Rows unable to connect--- ERROR");
-		return 0; // return a error code, 0
+		return 0; 
 	}
-
+		//statements 2 and 3 should not wrapped inside xact
 	for (i = 2; i < 4; i++) {
-		if (jqDatabase->execCommand(sql_str[i]) < 0) {
+		if (jqDatabase->execCommand(sql_str[i]) == FAILURE) {
 			displayDBErrorMsg("Vacuum History Rows --- ERROR");
 			disconnectDB(NOT_IN_XACT);
-			return 0; // return a error code, 0
+			return 0; 
 		}
 	}
 	disconnectDB(NOT_IN_XACT);
@@ -422,34 +481,32 @@ JobQueueDBManager::purgeOldHistoryRows()
 
 /*! connect to DBMS
  *  \return the result status
- *			1: Success
- * 			0: Fail (DB connection and/or Begin Xact fail)
+ *			SUCCESS: Success
+ * 			FAILURE: Fail (DB connection and/or Begin Xact fail)
  */	
-int
-JobQueueDBManager::connectDB(int  Xact)
+QuillErrCode
+JobQueueDBManager::connectDB(XactState  Xact)
 {
 	int st = 0;
 	st = jqDatabase->connectDB(jobQueueDBConn);
-	if (st <= 0) // connect to DB
-		return st;
-  
+	if (st == FAILURE) { // connect to DB
+		return FAILURE;
+	}
 	if (Xact == BEGIN_XACT) {
-		if (jqDatabase->beginTransaction() == 0) // begin XACT
-			return 0;
+		if (jqDatabase->beginTransaction() == FAILURE) { // begin XACT
+			return FAILURE;
+		}
 	}
   
-	return 1;
+	return SUCCESS;
 }
 
 
 /*! disconnect from DBMS, and handle XACT (commit, abort, not in XACT)
  *  \param commit XACT command 
- *					0: non-Xact
- *					1: commit
- *					2: abort
  */
-int
-JobQueueDBManager::disconnectDB(int commit)
+QuillErrCode
+JobQueueDBManager::disconnectDB(XactState commit)
 {
 	if (commit == COMMIT_XACT) {
 		if (xactState != BEGIN_XACT) {
@@ -462,28 +519,39 @@ JobQueueDBManager::disconnectDB(int commit)
 
 	jqDatabase->disconnectDB(); // disconnect from DB
 
-	return 1;
+	return SUCCESS;
 }
 
 
 /*! build the job queue collection from job_queue.log file
  */
-int	
+QuillErrCode
 JobQueueDBManager::buildJobQueue(JobQueueCollection *jobQueue)
 {
 	int		op_type;
+	FileOpErrCode st;
+	
 
-	while ((op_type = caLogParser->readLogEntry()) > 0) {
-		if (processLogEntry(op_type, jobQueue) == 0) // process each ClassAd Log Entry
-			return 0;
+	st = caLogParser->readLogEntry(op_type);
+
+	if(st == FILE_OPEN_ERROR) {
+		return FAILURE;
 	}
 
-	return 1;
+	while(st == FILE_READ_SUCCESS) {	   
+		if (processLogEntry(op_type, jobQueue) == FAILURE) {
+				// process each ClassAd Log Entry
+			return FAILURE;
+		}
+		st = caLogParser->readLogEntry(op_type);
+	}
+
+	return SUCCESS;
 }
 
 /*! load job ads in a job queue collection into DB
  */
-int
+QuillErrCode
 JobQueueDBManager::loadJobQueue(JobQueueCollection *jobQueue)
 {
 	char* 	ret_str;
@@ -501,25 +569,25 @@ JobQueueDBManager::loadJobQueue(JobQueueCollection *jobQueue)
 		if ((bFirst == true)&& (ret_str != NULL)) {			
 			// we need to issue the COPY command first
 			sprintf(sql_str, "COPY ClusterAds_Str FROM stdin;");
-			if (jqDatabase->execCommand(sql_str) < 0) {
+			if (jqDatabase->execCommand(sql_str) == FAILURE) {
 				displayDBErrorMsg("COPY ClusterAds_Str --- ERROR");
-				return 0; // return a error code, 0
+				return FAILURE; // return a error code, 0
 			}
 	    
 			bFirst = false;
 		}
 	  
 		if (ret_str != NULL) {
-			if (jqDatabase->sendBulkData(ret_str) < 0) {
-				return 0;
+			if (jqDatabase->sendBulkData(ret_str) == FAILURE) {
+				return FAILURE;
 			}
 		}
 	  
 	}
 	
 	if (bFirst == false) {
-		if (jqDatabase->sendBulkDataEnd() < 0) {
-			return 0;
+		if (jqDatabase->sendBulkDataEnd() == FAILURE) {
+			return FAILURE;
 		}
 	  
 		bFirst = true;
@@ -533,25 +601,25 @@ JobQueueDBManager::loadJobQueue(JobQueueCollection *jobQueue)
 	  		
 		if ((bFirst == true)&& (ret_str != NULL)) {			
 			sprintf(sql_str, "COPY ClusterAds_Num FROM stdin;");
-			if (jqDatabase->execCommand(sql_str) < 0) {
+			if (jqDatabase->execCommand(sql_str) == FAILURE) {
 				displayDBErrorMsg("COPY ClusterAds_Num --- ERROR");
-				return 0; // return a error code, 0
+				return FAILURE; // return a error code, 0
 			}
 	    
 			bFirst = false;
 		}
 	  
 		if (ret_str != NULL) {
-			if (jqDatabase->sendBulkData(ret_str) < 0) {
-				return 0;
+			if (jqDatabase->sendBulkData(ret_str) == FAILURE) {
+				return FAILURE;
 			}	
 		}		
 	  
 	}
 	
 	if (bFirst == false) {
-		if (jqDatabase->sendBulkDataEnd() < 0) {
-			return 0;
+		if (jqDatabase->sendBulkDataEnd() == FAILURE) {
+			return FAILURE;
 		}
 	  	  
 		bFirst = true;
@@ -568,9 +636,9 @@ JobQueueDBManager::loadJobQueue(JobQueueCollection *jobQueue)
 	while((ret_str = jobQueue->getNextProcAd_StrCopyStr()) != NULL) {
 		if ((bFirst == true)&& (ret_str != NULL)) {			
 			sprintf(sql_str, "COPY ProcAds_Str FROM stdin;");
-			if (jqDatabase->execCommand(sql_str) < 0) {
+			if (jqDatabase->execCommand(sql_str) == FAILURE) {
 				displayDBErrorMsg("COPY ProcAds_Str --- ERROR");
-				return 0; // return a error code, 0
+				return FAILURE; 
 			}
 			
 			bFirst = false;
@@ -578,8 +646,8 @@ JobQueueDBManager::loadJobQueue(JobQueueCollection *jobQueue)
 	  
 	  
 		if (ret_str != NULL) {
-			if (jqDatabase->sendBulkData(ret_str) < 0) {
-				return 0;
+			if (jqDatabase->sendBulkData(ret_str) == FAILURE) {
+				return FAILURE;
 			}
 		}
 	  
@@ -587,8 +655,8 @@ JobQueueDBManager::loadJobQueue(JobQueueCollection *jobQueue)
 	
 	if (bFirst == false) {
 	  
-		if (jqDatabase->sendBulkDataEnd() < 0) {
-			return 0;
+		if (jqDatabase->sendBulkDataEnd() == FAILURE) {
+			return FAILURE;
 		}
 	  	  
 		bFirst = true;
@@ -602,17 +670,17 @@ JobQueueDBManager::loadJobQueue(JobQueueCollection *jobQueue)
 	while((ret_str = jobQueue->getNextProcAd_NumCopyStr()) != NULL) {
 		if ((bFirst == true)&& (ret_str != NULL)) {			
 			sprintf(sql_str, "COPY ProcAds_Num FROM stdin;");
-			if (jqDatabase->execCommand(sql_str) < 0) {
+			if (jqDatabase->execCommand(sql_str) == FAILURE) {
 				displayDBErrorMsg("COPY ProcAds_Num --- ERROR");
-				return 0; // return a error code, 0
+				return FAILURE; 
 			}
 	    
 			bFirst = false;
 		}
 	  
 		if (ret_str != NULL) {
-			if (jqDatabase->sendBulkData(ret_str) < 0) {
-				return 0;
+			if (jqDatabase->sendBulkData(ret_str) == FAILURE) {
+				return FAILURE;
 			}
 		}
 	  
@@ -620,8 +688,8 @@ JobQueueDBManager::loadJobQueue(JobQueueCollection *jobQueue)
 	
 	
 	if (bFirst == false) {
-		if (jqDatabase->sendBulkDataEnd() < 0) {
-			return 0;
+		if (jqDatabase->sendBulkDataEnd() == FAILURE) {
+			return FAILURE;
 		}
 	  
 		bFirst = true;
@@ -642,14 +710,14 @@ JobQueueDBManager::loadJobQueue(JobQueueCollection *jobQueue)
 		  inserted into the history tables.
 		*/		
 
-	int st = 0;
+	int st1=0, st2=0;
 	ret_str = ret_str2 = NULL;
 	jobQueue->initAllHistoryAdsIteration();
-	st = jobQueue->getNextHistoryAd_SqlStr(ret_str, ret_str2);
+	st1 = jobQueue->getNextHistoryAd_SqlStr(ret_str, ret_str2);
 
-	while(st > 0 &&  ret_str != NULL) {
-		st = jqDatabase->execCommand(ret_str);
-		st = jqDatabase->execCommand(ret_str2);
+	while(st1 > 0 &&  ret_str != NULL) {
+		st2 = jqDatabase->execCommand(ret_str);
+		st2 = jqDatabase->execCommand(ret_str2);
 
 			//these need to be nullified as the next routine expects
 			//them to be so.  This is not a memory leak since these 
@@ -657,11 +725,11 @@ JobQueueDBManager::loadJobQueue(JobQueueCollection *jobQueue)
 			//locations are members of the JobQueueCollection class
 			//and as such will be freed by it.
 		ret_str = ret_str2 = NULL;
-		st = jobQueue->getNextHistoryAd_SqlStr(ret_str, ret_str2);
+		st1 = jobQueue->getNextHistoryAd_SqlStr(ret_str, ret_str2);
 
 	}
 	
-	return 1;
+	return SUCCESS;
 }
 
 
@@ -670,7 +738,7 @@ JobQueueDBManager::loadJobQueue(JobQueueCollection *jobQueue)
  *  for live jobs, i.e. jobs not completed, and historical jobs.  All of them
  *  are written to their appropriate tables
 */
-int 
+QuillErrCode 
 JobQueueDBManager::buildAndWriteJobQueue()
 {
 		//this is an array of linked lists, which keep growing, so 
@@ -678,75 +746,68 @@ JobQueueDBManager::buildAndWriteJobQueue()
 		//linked lists can accomodate any number of jobs
 	JobQueueCollection *jobQueue = new JobQueueCollection(2000);
 
-	//commented out because macos was complaining
-	//struct timespec startTp;
-	//struct timespec endTp;
+		//  start of first phase of bulkloading
 
-
-		//  START OF FIRST PHASE OF BULKLOADING
-	//clock_gettime(CLOCK_REALTIME, &startTp);
-
-	dprintf(D_FULLDEBUG, "THIS IS THE 1st PHASE: PARSING a job_queue.log file and BUILDING JOB QUEUE COLLECTION!\n");
+	dprintf(D_FULLDEBUG, "Bulkloading 1st Phase: Parsing a job_queue.log "
+			"file and building job collection!\n");
 
 		//read from the beginning
 	caLogParser->setNextOffset(0);
 
 		//construct the in memory job queue and history
-	if (buildJobQueue(jobQueue) != 1) {
-		return 0;
+	if (buildJobQueue(jobQueue) == FAILURE) {
+		return FAILURE;
 	}
 
-	//clock_gettime(CLOCK_REALTIME, &endTp);
 
-	//dprintf(D_FULLDEBUG, "1st PHASE: %.2fms\n" ,(double)(((endTp.tv_sec - startTp.tv_sec) * 1000000000.0 - startTp.tv_nsec + endTp.tv_nsec) / 1000000.0));
+	dprintf(D_FULLDEBUG, "Bulkloading 2nd Phase: Loading jobs into DBMS!\n");
+		//  end of first phase of bulkloading
 
-	dprintf(D_FULLDEBUG, "THIS IS THE 2ND PHASE: LOADING THE JOBS INTO DBMS!\n");
-		//  END OF FIRST PHASE OF BULKLOADING
+		//  start of second phase of bulkloading
 
-
-		//  START OF SECOND PHASE OF BULKLOADING
-	//clock_gettime(CLOCK_REALTIME, &startTp);
 
 		// For job queue tables, send COPY string to RDBMS: 
 		// For history tables, send INSERT to DBMS - all part of
 		// bulk loading
-	if (loadJobQueue(jobQueue) != 1) {
-		return 0;
+	if (loadJobQueue(jobQueue) == FAILURE) {
+		return FAILURE;
 	}
 
-	//clock_gettime(CLOCK_REALTIME, &endTp);
-	//dprintf(D_FULLDEBUG, "2nd PHASE: %.2fms\n" ,(double)(((endTp.tv_sec - startTp.tv_sec) * 1000000000.0 - startTp.tv_nsec + endTp.tv_nsec) / 1000000.0));
-			//  END OF SECOND PHASE OF BULKLOADING
-
+		//  end of second phase of bulkloading
 	delete jobQueue;
-	return 1;
+
+	return SUCCESS;
 }
 
 
 /*! incrementally read and process log entries from file 
  */
-int 
+QuillErrCode 
 JobQueueDBManager::readAndWriteLogEntries()
 {
-	int op_type = 0;
+	int		op_type;
+	FileOpErrCode st;
+	
 
-		// Process ClassAd Log Entry
-	while ((op_type = caLogParser->readLogEntry()) > 0) {
-			//dprintf(D_ALWAYS, "processing log record\n");
-		if (processLogEntry(op_type, false) == 0)
-			return 0; // fail: need to abort Xact
+	st = caLogParser->readLogEntry(op_type);
+	while(st == FILE_READ_SUCCESS) {	   
+		if (processLogEntry(op_type, false) == FAILURE) {
+				// process each ClassAd Log Entry
+			return FAILURE;
+		}
+		st = caLogParser->readLogEntry(op_type);
 	}
 
-	return 1; // success
+	return SUCCESS;
 }
 
 /*! process only DELTA, i.e. entries of the job queue log which were
  *  added since the last offset read/set by quill
  */
-int 
+QuillErrCode
 JobQueueDBManager::addJobQueueTables()
 {
-	int st;
+	QuillErrCode st;
 
 		//we dont set transactions explicitly.  they are set by the 
 		//schedd via the 'begin transaction' log entry
@@ -757,14 +818,22 @@ JobQueueDBManager::addJobQueueTables()
 	st = readAndWriteLogEntries();
 
 		// Store a polling information into DB
-	if (st > 0)
+	if (st == SUCCESS) {
 		prober->setProbeInfo();
+	}
 
-	if (st == 0) 
-		disconnectDB(ABORT_XACT); // abort and end Xact
+	if (st == FAILURE) {
+		disconnectDB(NOT_IN_XACT); // disconnect
+	}
 	else {
 			// VACUUM should be called outside XACT
 			// So, commit XACT shouble be invoked beforehand.
+
+			// During normal operation, this commit transaction
+			// is not really needed.  However, if there are any
+			// outstanding transactions, we commit it here.  
+			// Committing when there aren't any operations isn't
+			// an error anyway.
 		if (xactState != BEGIN_XACT) {
 			jqDatabase->commitTransaction(); // end XACT
 			xactState = NOT_IN_XACT;
@@ -786,24 +855,31 @@ JobQueueDBManager::addJobQueueTables()
 /*! purge all job queue rows and process the entire job_queue.log file
  *  also vacuum the job queue tables
  */
-int  
+QuillErrCode  
 JobQueueDBManager::initJobQueueTables()
 {
-	int st;
+	QuillErrCode st;
 
-	connectDB(); // connect to DBMS
+	st = connectDB(); // connect to DBMS
 
-	cleanupJobQueueTables(); // delete all job queue tables
+	if(st == FAILURE) {
+		displayDBErrorMsg("Init Job Queue Tables unable to connect to database --- ERROR");
+		return FAILURE; 
+	}
+
+	st = cleanupJobQueueTables(); // delete all job queue tables
+
+	if(st == FAILURE) {
+		displayDBErrorMsg("Init Job Queue Table unable to clean up job queue tables --- ERROR");
+		return FAILURE; 
+	}
 
 	st = buildAndWriteJobQueue(); // bulk load job queue log
 
 		// Store polling information in database
-	if (st > 0)
+	if (st == SUCCESS) {
 		prober->setProbeInfo();
 
-	if (st == 0)
-		disconnectDB(ABORT_XACT); // abort and end Xact
-	else {
 			// VACUUM should be called outside XACT
 			// So, Commit XACT shouble be invoked beforehand.
 		if (xactState != BEGIN_XACT) {
@@ -811,8 +887,17 @@ JobQueueDBManager::initJobQueueTables()
 			xactState = NOT_IN_XACT;
 		}
 		
-		tuneupJobQueueTables();
+		st = tuneupJobQueueTables();
+		if(st == FAILURE) {
+			displayDBErrorMsg("Init Job Queue Table unable to tune up job queue tables --- ERROR");
+			return FAILURE; 
+		}
+
 		disconnectDB(NOT_IN_XACT); // commit and end Xact
+	}
+
+	else {
+		disconnectDB(ABORT_XACT); // disconnect
 	}
 
 	return st;	
@@ -822,14 +907,14 @@ JobQueueDBManager::initJobQueueTables()
 /*! handle a log Entry: work with a job queue collection.
  *  (not with DBMS directry)
  */
-int 
+QuillErrCode 
 JobQueueDBManager::processLogEntry(int op_type, JobQueueCollection* jobQueue)
 {
 	char *key, *mytype, *targettype, *name, *value, *newvalue;
 	key = mytype = targettype = name = value = newvalue = NULL;
-	int	st = 1;
+	QuillErrCode	st = SUCCESS;
 
-	int id_sort;
+	int job_id_type;
 	char cid[512];
 	char pid[512];
 
@@ -839,42 +924,53 @@ JobQueueDBManager::processLogEntry(int op_type, JobQueueCollection* jobQueue)
 		// and they are at the end of the routine
 	switch(op_type) {
 	case CondorLogOp_NewClassAd: {
-		if (caLogParser->getNewClassAdBody(key, mytype, targettype) < 0)
-			return 0; 
-
-		id_sort = getProcClusterIds(key, cid, pid);
+		if (caLogParser->getNewClassAdBody(key, mytype, targettype) == FAILURE) {
+			st = FAILURE; 
+			break;
+		}
+		job_id_type = getProcClusterIds(key, cid, pid);
 		ClassAd* ad = new ClassAd();
 		ad->SetMyTypeName("Job");
 		ad->SetTargetTypeName("Machine");
 
-		if (id_sort == 1) { // Cluster Ad
+		switch(job_id_type) {
+		case IS_CLUSTER_ID:
 			jobQueue->insertClusterAd(cid, ad);
-		}
-		else if (id_sort == 2) { // Proc Ad
+			break;
+
+		case IS_PROC_ID:
 			jobQueue->insertProcAd(cid, pid, ad);
-		}
-		else { // case 0:  Error
+			break;
+
+		default:
 			dprintf(D_ALWAYS, "[QUILL] New ClassAd --- ERROR\n");
-			return 0; // return a error code, 0
+			st = FAILURE; 
+			break;
 		}
 
 		break;
 	}
 	case CondorLogOp_DestroyClassAd: {
-		if (caLogParser->getDestroyClassAdBody(key) < 0)
-			return 0;
-			
-		id_sort = getProcClusterIds(key, cid, pid);
-
-		if (id_sort == 1) { // Cluster Ad
-			jobQueue->removeClusterAd(cid);
+		if (caLogParser->getDestroyClassAdBody(key) == FAILURE) {
+			st = FAILURE; 
+			break;			
 		}
-		else if (id_sort == 2) { // Proc Ad
+		job_id_type = getProcClusterIds(key, cid, pid);
+		
+		switch(job_id_type) {
+		case IS_CLUSTER_ID:
+			jobQueue->removeClusterAd(cid);
+			break;
+
+		case IS_PROC_ID: {
 			ClassAd *clusterad = jobQueue->find(cid);
 			ClassAd *procad = jobQueue->find(cid,pid);
 			if(!clusterad || !procad) {
-			    dprintf(D_ALWAYS, "[QUILL] Destroy ClassAd --- Cannot find clusterad or procad in memory job queue");
-			    return 0;
+			    dprintf(D_ALWAYS, 
+						"[QUILL] Destroy ClassAd --- Cannot find clusterad "
+						"or procad in memory job queue");
+				st = FAILURE; 
+				break;
 			}
 			ClassAd *clusterad_new = new ClassAd(*clusterad);
 			ClassAd *historyad = new ClassAd(*procad);
@@ -882,64 +978,80 @@ JobQueueDBManager::processLogEntry(int op_type, JobQueueCollection* jobQueue)
 			historyad->ChainToAd(clusterad_new);
 			jobQueue->insertHistoryAd(cid,pid,historyad);
 			jobQueue->removeProcAd(cid, pid);
+			break;
 		}
-		else { // case 0:  Error
+		default:
 			dprintf(D_ALWAYS, "[QUILL] Destroy ClassAd --- ERROR\n");
-			return 0; // return a error code, 0
+			st = FAILURE; 
+			break;
 		}
-			
+
 		break;
 	}
 	case CondorLogOp_SetAttribute: {	
-		if (caLogParser->getSetAttributeBody(key, name, value) < 0)
-			return 0;
-						
+		if (caLogParser->getSetAttributeBody(key, name, value) == FAILURE) {
+			st = FAILURE; 
+			break;
+		}
 		newvalue = fillEscapeCharacters(value);
-		id_sort = getProcClusterIds(key, cid, pid);
+		job_id_type = getProcClusterIds(key, cid, pid);
 
-		if (id_sort == 1) { // Cluster Ad
+		switch(job_id_type) {
+		case IS_CLUSTER_ID: {
 			ClassAd* ad = jobQueue->findClusterAd(cid);
-			if (ad != NULL) 
-					//ad->Insert(ins_str);
+			if (ad != NULL) {
 				ad->Assign(name, newvalue);
-			else
-				dprintf(D_ALWAYS, "[QUILL] ERROR: There is no such Cluster Ad[%s]\n", cid);
-		}
-		else if (id_sort == 2) { // Proc Ad
-			ClassAd* ad = jobQueue->findProcAd(cid, pid);
-			if (ad != NULL) 
-					//ad->Insert(ins_str);
-				ad->Assign(name, newvalue);
-			else {
-				dprintf(D_ALWAYS, "[QUILL] ERROR: There is no such Proc Ad[%s.%s]\n", cid, pid);
 			}
+			else {
+				dprintf(D_ALWAYS, 
+						"[QUILL] ERROR: There is no such Cluster Ad[%s]\n", 
+						cid);
+			}
+			break;
 		}
-		else { // case 0:  Error
+		case IS_PROC_ID: {
+			ClassAd* ad = jobQueue->findProcAd(cid, pid);
+			if (ad != NULL) {
+				ad->Assign(name, newvalue);
+			}
+			else {
+				dprintf(D_ALWAYS, 
+						"[QUILL] ERROR: There is no such Proc Ad[%s.%s]\n", 
+						cid, pid);
+			}
+			break;
+		}
+		default:
 			dprintf(D_ALWAYS, "[QUILL] Set Attribute --- ERROR\n");
-			return 0; // return a error code, 0
+			st = FAILURE; 
+			break;
 		}
 
-			//free(ins_str);
 		break;
 	}
 	case CondorLogOp_DeleteAttribute: {
-		if (caLogParser->getDeleteAttributeBody(key, name) < 0)
-			return 0;
-		
-		id_sort = getProcClusterIds(key, cid, pid);
+		if (caLogParser->getDeleteAttributeBody(key, name) == FAILURE) {
+			st = FAILURE; 
+			break;
+		}
+		job_id_type = getProcClusterIds(key, cid, pid);
 
-		if (id_sort == 1) { // Cluster Ad
+		switch(job_id_type) {
+		case IS_CLUSTER_ID: {
 			ClassAd* ad = jobQueue->findClusterAd(cid);
 			ad->Delete(name);
+			break;
 		}
-		else if (id_sort == 2) { // Proc Ad
+		case IS_PROC_ID: {
 			ClassAd* ad = jobQueue->findProcAd(cid, pid);
 			ad->Delete(name);
+			break;
 		}
-		else { // case 0:  Error
+		default:
 			dprintf(D_ALWAYS, "[QUILL] Delete Attribute --- ERROR\n");
-			return 0; // return a error code, 0
+			st = FAILURE; 
 		}
+
 		break;
 	}
 	case CondorLogOp_BeginTransaction:
@@ -949,8 +1061,8 @@ JobQueueDBManager::processLogEntry(int op_type, JobQueueCollection* jobQueue)
 		st = processEndTransaction(true);
 		break;
 	default:
-		printf("[QUILL] Unsupported Job Queue Command\n");
-		return 0;
+		dprintf(D_ALWAYS, "[QUILL] Unsupported Job Queue Command\n");
+		st = FAILURE; 
 		break;
 	}
 
@@ -977,12 +1089,12 @@ JobQueueDBManager::processLogEntry(int op_type, JobQueueCollection* jobQueue)
  * However, we always have exec_later = false, which means it actually
  * writes to the database in an eager fashion
  */
-int 
+QuillErrCode 
 JobQueueDBManager::processLogEntry(int op_type, bool exec_later)
 {
 	char *key, *mytype, *targettype, *name, *value;
 	key = mytype = targettype = name = value = NULL;
-	int	st = 1;
+	QuillErrCode	st = SUCCESS;
 
 		// REMEMBER:
 		//	each get*ClassAdBody() funtion allocates the memory of 
@@ -990,30 +1102,30 @@ JobQueueDBManager::processLogEntry(int op_type, bool exec_later)
 		//  and they are at the end of the routine
 	switch(op_type) {
 	case CondorLogOp_NewClassAd:
-		if (caLogParser->getNewClassAdBody(key, mytype, targettype) < 0)
-			return 0; 
-
+		if (caLogParser->getNewClassAdBody(key, mytype, targettype) == FAILURE) {
+			return FAILURE; 
+		}
 		st = processNewClassAd(key, mytype, targettype, exec_later);
 			
 		break;
 	case CondorLogOp_DestroyClassAd:
-		if (caLogParser->getDestroyClassAdBody(key) < 0)
-			return 0;
-			
+		if (caLogParser->getDestroyClassAdBody(key) == FAILURE) {
+			return FAILURE;
+		}		
 		st = processDestroyClassAd(key, exec_later);
 			
 		break;
 	case CondorLogOp_SetAttribute:
-		if (caLogParser->getSetAttributeBody(key, name, value) < 0)
-			return 0;
-
+		if (caLogParser->getSetAttributeBody(key, name, value) == FAILURE) {
+			return FAILURE;
+		}
 		st = processSetAttribute(key, name, value, exec_later);
 			
 		break;
 	case CondorLogOp_DeleteAttribute:
-		if (caLogParser->getDeleteAttributeBody(key, name) < 0)
-			return 0;
-			
+		if (caLogParser->getDeleteAttributeBody(key, name) == FAILURE) {
+			return FAILURE;
+		}
 		st = processDeleteAttribute(key, name, exec_later);
 		
 		break;
@@ -1026,8 +1138,9 @@ JobQueueDBManager::processLogEntry(int op_type, bool exec_later)
 
 		break;
 	default:
-		dprintf(D_ALWAYS, "[QUILL] Unsupported Job Queue Command [%d]\n", op_type);
-		return 0;
+		dprintf(D_ALWAYS, "[QUILL] Unsupported Job Queue Command [%d]\n", 
+				op_type);
+		return FAILURE;
 		break;
 	}
 
@@ -1051,23 +1164,24 @@ JobQueueDBManager::displayDBErrorMsg(const char* errmsg)
 }
 
 /*! separate a key into Cluster Id and Proc Id 
- *  \return key type 
- *			1: when it is a cluster id
- *			2: when it is a proc id
- * 			0: it fails
+ *  \return job id type
+ *			IS_CLUSTER_ID: when it is a cluster id
+ *			IS_PROC_ID: when it is a proc id
+ * 			IS_UNKNOWN_ID: it fails
  *
  *	\warning The memories of cid and pid should be allocated in advance.
  */
-int
+
+JobIdType
 JobQueueDBManager::getProcClusterIds(const char* key, char* cid, char* pid)
 {
 	int key_len, i;
 	long iCid;
 	char*	pid_in_key;
 
-	if (key == NULL) 
-		return 0;
-
+	if (key == NULL) { 
+		return IS_UNKNOWN_ID;
+	}
 	key_len = strlen(key);
 
 	for (i = 0; i < key_len; i++) {
@@ -1080,21 +1194,21 @@ JobQueueDBManager::getProcClusterIds(const char* key, char* cid, char* pid)
 	}
 
 		// In case the key doesn't include "."
-	if (i == key_len)
-		return 0; // Error
-
+	if (i == key_len) {
+		return IS_UNKNOWN_ID; // Error
+	}
 		// These two lines are for removing a leading zero.
 	iCid = atol(cid);
 	sprintf(cid,"%ld", iCid);
 
-
+		//i+1 since i is the '.' character
 	pid_in_key = (char*)(key + (i + 1));
 	strcpy(pid, pid_in_key);
 
-	if (atol(pid) == -1) // Cluster ID
-		return 1;	
-
-	return 2; // Proc ID
+	if (atol(pid) == -1) { // Cluster ID
+		return IS_CLUSTER_ID;	
+	}
+	return IS_PROC_ID; // Proc ID
 }
 
 /*! process NewClassAd command, working with DBMS
@@ -1103,11 +1217,12 @@ JobQueueDBManager::getProcClusterIds(const char* key, char* cid, char* pid)
  *  \param ttype targettype
  *  \param exec_later send SQL into RDBMS now or not?
  *  \return the result status
- *			0: error
- *			1: success
  */
-int 
-JobQueueDBManager::processNewClassAd(char* key, char* mytype, char* ttype, bool exec_later)
+QuillErrCode 
+JobQueueDBManager::processNewClassAd(char* key, 
+									 char* mytype, 
+									 char* ttype, 
+									 bool exec_later)
 {
 		//here we assume that the cid,pid,mytype,targettypes are all 
 		//small enough so that the entire sql string containing them
@@ -1116,61 +1231,72 @@ JobQueueDBManager::processNewClassAd(char* key, char* mytype, char* ttype, bool 
 	char sql_str2[MAX_FIXED_SQL_STR_LENGTH];
 	char cid[512];
 	char pid[512];
-	int  id_sort;
+	int  job_id_type;
 	
 		// It could be ProcAd or ClusterAd
 		// So need to check
-	id_sort = getProcClusterIds(key, cid, pid);
+	job_id_type = getProcClusterIds(key, cid, pid);
 
-	switch(id_sort) {
-	case 1:
+	switch(job_id_type) {
+	case IS_CLUSTER_ID:
 		sprintf(sql_str1, 
-				"INSERT INTO ClusterAds_Str (cid, attr, val) VALUES (%s, 'MyType', '\"%s\"');", cid, mytype);
+				"INSERT INTO ClusterAds_Str (cid, attr, val) VALUES "
+				"(%s, 'MyType', '\"%s\"');", 
+				cid, mytype);
 
 		sprintf(sql_str2, 
-				"INSERT INTO ClusterAds_Str (cid, attr, val) VALUES (%s, 'TargetType', '\"%s\"');", cid, ttype);
+				"INSERT INTO ClusterAds_Str (cid, attr, val) VALUES "
+				"(%s, 'TargetType', '\"%s\"');", 
+				cid, ttype);
 
 		break;
-	case 2:
+	case IS_PROC_ID:
 		sprintf(sql_str1, 
-				"INSERT INTO ProcAds_Str (cid, pid, attr, val) VALUES (%s, %s, 'MyType', '\"Job\"');", cid, pid);
+				"INSERT INTO ProcAds_Str (cid, pid, attr, val) VALUES "
+				"(%s, %s, 'MyType', '\"Job\"');", 
+				cid, pid);
 
 		sprintf(sql_str2, 
-				"INSERT INTO ProcAds_Str (cid, pid, attr, val) VALUES (%s, %s, 'TargetType', '\"Machine\"');", cid, pid);
+				"INSERT INTO ProcAds_Str (cid, pid, attr, val) VALUES "
+				"(%s, %s, 'TargetType', '\"Machine\"');", 
+				cid, pid);
 
 		break;
-	case 0:
+	case IS_UNKNOWN_ID:
 		dprintf(D_ALWAYS, "New ClassAd Processing --- ERROR\n");
-		return 0; // return a error code, 0
+		return FAILURE; 
 		break;
 	}
 
 
 	if (exec_later == false) { // execute them now
-		if (jqDatabase->execCommand(sql_str1) < 0) {
+		if (jqDatabase->execCommand(sql_str1) == FAILURE) {
 			displayDBErrorMsg("New ClassAd Processing --- ERROR");
-			return 0; // return a error code, 0
+			return FAILURE; 
 		}
-		if (jqDatabase->execCommand(sql_str2) < 0) {
+		if (jqDatabase->execCommand(sql_str2) == FAILURE) {
 			displayDBErrorMsg("New ClassAd Processing --- ERROR");
-			return 0; // return a error code, 0
+			return FAILURE; 
 		}
 	}
 	else {
 		if (multi_sql_str != NULL) { // append them to a SQL buffer
 			multi_sql_str = (char*)realloc(multi_sql_str, 
-										   strlen(multi_sql_str) + strlen(sql_str1) + strlen(sql_str2) + 1);
+										   strlen(multi_sql_str) + 
+										   strlen(sql_str1) + 
+										   strlen(sql_str2) + 1);
+			assert(multi_sql_str);
 			strcat(multi_sql_str, sql_str1);
 			strcat(multi_sql_str, sql_str2);
 		}
 		else {
-			multi_sql_str = (char*)malloc(
-										  strlen(sql_str1) + strlen(sql_str2) + 1);
+			multi_sql_str = (char*)malloc(strlen(sql_str1) + 
+										  strlen(sql_str2) + 1);
 			sprintf(multi_sql_str,"%s%s", sql_str1, sql_str2);
 		}
 	}		
 
-	return 1;
+	return SUCCESS;
 }
 
 /*! process DestroyClassAd command, working with DBMS
@@ -1197,10 +1323,8 @@ JobQueueDBManager::processNewClassAd(char* key, char* mytype, char* ttype, bool 
  *  \param key key
  *  \param exec_later send SQL into RDBMS now or not?
  *  \return the result status
- *			0: error
- *			1: success
  */
-int 
+QuillErrCode 
 JobQueueDBManager::processDestroyClassAd(char* key, bool exec_later)
 {
 		//here we assume that the cid and pid  are all 
@@ -1213,23 +1337,23 @@ JobQueueDBManager::processDestroyClassAd(char* key, bool exec_later)
 	char cid[100];
 	char pid[100];
 	bool inserthistory = false;
-	int  id_sort;
-	int  st1,st2;
+	int  job_id_type;
+	QuillErrCode  st1, st2;
 
   
 		// It could be ProcAd or ClusterAd
 		// So need to check
-	id_sort = getProcClusterIds(key, cid, pid);
+	job_id_type = getProcClusterIds(key, cid, pid);
   
-	switch(id_sort) {
-	case 1:	// ClusterAds
+	switch(job_id_type) {
+	case IS_CLUSTER_ID:	// ClusterAds
 		sprintf(sql_str1, 
 				"DELETE FROM ClusterAds_Str WHERE cid = %s;", cid);
     
 		sprintf(sql_str2, 
 				"DELETE FROM ClusterAds_Num WHERE cid = %s;", cid);
 		break;
-    case 2:
+    case IS_PROC_ID:
 
 			/* the following ugly looking, however highly efficient SQL
 			   does the following:
@@ -1244,7 +1368,15 @@ JobQueueDBManager::processDestroyClassAd(char* key, bool exec_later)
 			   constraint
 			*/
 		sprintf(sql_str3, 
-				"INSERT INTO History_Vertical(cid,pid,attr,val) SELECT cid,pid,attr,val FROM (SELECT cid,pid,attr,val FROM ProcAds WHERE cid= %s and pid = %s UNION ALL SELECT cid,%s,attr,val FROM ClusterAds WHERE cid=%s and attr not in (select attr from ProcAds where cid =%s and pid =%s)) as T WHERE attr not in('ClusterId','ProcId','Owner','QDate','RemoteWallClockTime','RemoteUserCpu','RemoteSysCpu','ImageSize','JobStatus','JobPrio','Cmd','CompletionDate','LastRemoteHost');"
+				"INSERT INTO History_Vertical(cid,pid,attr,val) "
+				"SELECT cid,pid,attr,val FROM (SELECT cid,pid,attr,val "
+				"FROM ProcAds WHERE cid= %s and pid = %s UNION ALL "
+				"SELECT cid,%s,attr,val FROM ClusterAds WHERE cid=%s "
+				"AND attr NOT IN (SELECT attr FROM ProcAds WHERE cid =%s "
+				"AND pid =%s)) AS T WHERE attr NOT IN "
+				"('ClusterId','ProcId','Owner','QDate','RemoteWallClockTime',"
+				"'RemoteUserCpu','RemoteSysCpu','ImageSize','JobStatus',"
+				"'JobPrio','Cmd','CompletionDate','LastRemoteHost');"
 				,cid,pid,pid,cid,cid,pid); 
 
 
@@ -1264,9 +1396,30 @@ JobQueueDBManager::processDestroyClassAd(char* key, bool exec_later)
 			   constraint
 			*/
 		sprintf(sql_str4, 
-				"INSERT INTO History_Horizontal(cid,pid,\"Owner\",\"QDate\",\"RemoteWallClockTime\",\"RemoteUserCpu\",\"RemoteSysCpu\",\"ImageSize\",\"JobStatus\",\"JobPrio\",\"Cmd\",\"CompletionDate\",\"LastRemoteHost\") SELECT %s,%s, max(CASE WHEN attr='Owner' THEN val ELSE NULL END), max(CASE WHEN attr='QDate' THEN cast(val as integer) ELSE NULL END), max(CASE WHEN attr='RemoteWallClockTime' THEN cast(val as integer) ELSE NULL END), max(CASE WHEN attr='RemoteUserCpu' THEN cast(val as float) ELSE NULL END), max(CASE WHEN attr='RemoteSysCpu' THEN cast(val as float) ELSE NULL END), max(CASE WHEN attr='ImageSize' THEN cast(val as integer) ELSE NULL END), max(CASE WHEN attr='JobStatus' THEN cast(val as integer) ELSE NULL END), max(CASE WHEN attr='JobPrio' THEN cast(val as integer) ELSE NULL END), max(CASE WHEN attr='Cmd' THEN val ELSE NULL END), max(CASE WHEN attr='CompletionDate' THEN cast(val as integer) ELSE NULL END), max(CASE WHEN attr='LastRemoteHost' THEN val ELSE NULL END) FROM (SELECT cid,pid,attr,val FROM ProcAds WHERE cid=%s and pid=%s UNION ALL SELECT cid,%s,attr,val FROM ClusterAds WHERE cid=%s and attr not in (select attr from procads where cid =%s and pid =%s)) as T GROUP BY cid,pid;"
+				"INSERT INTO History_Horizontal(cid,pid,\"Owner\",\"QDate\","
+				"\"RemoteWallClockTime\",\"RemoteUserCpu\",\"RemoteSysCpu\","
+				"\"ImageSize\",\"JobStatus\",\"JobPrio\",\"Cmd\","
+				"\"CompletionDate\",\"LastRemoteHost\") "
+				"SELECT %s,%s, max(CASE WHEN attr='Owner' THEN val ELSE NULL "
+				"END), max(CASE WHEN attr='QDate' THEN cast(val as integer) "
+				"ELSE NULL END), max(CASE WHEN attr='RemoteWallClockTime' "
+				"THEN cast(val as integer) ELSE NULL END), "
+				"max(CASE WHEN attr='RemoteUserCpu' THEN cast(val as float) "
+				"ELSE NULL END), max(CASE WHEN attr='RemoteSysCpu' "
+				"THEN cast(val as float) ELSE NULL END), "
+				"max(CASE WHEN attr='ImageSize' THEN cast(val as integer) "
+				"ELSE NULL END), max(CASE WHEN attr='JobStatus' "
+				"THEN cast(val as integer) ELSE NULL END), "
+				"max(CASE WHEN attr='JobPrio' THEN cast(val as integer) "
+				"ELSE NULL END), max(CASE WHEN attr='Cmd' THEN val ELSE NULL "
+				"END), max(CASE WHEN attr='CompletionDate' "
+				"THEN cast(val as integer) ELSE NULL END), "
+				"max(CASE WHEN attr='LastRemoteHost' THEN val ELSE NULL END) "
+				"FROM (SELECT cid,pid,attr,val FROM ProcAds WHERE cid=%s AND "
+				"pid=%s UNION ALL SELECT cid,%s,attr,val FROM ClusterAds "
+				"WHERE cid=%s AND attr NOT IN (SELECT attr FROM procads WHERE "
+				"cid =%s AND pid =%s)) as T GROUP BY cid,pid;"
 				,cid,pid,cid,pid,pid,cid,cid,pid); 
-
 
 		inserthistory = true;
 
@@ -1280,9 +1433,9 @@ JobQueueDBManager::processDestroyClassAd(char* key, bool exec_later)
 				"DELETE FROM ProcAds_Num WHERE cid = %s AND pid = %s;", 
 				cid, pid);
 		break;
-	case 0:
+	case IS_UNKNOWN_ID:
 		dprintf(D_ALWAYS, "[QUILL] Destroy ClassAd --- ERROR\n");
-		return 0; // return a error code, 0
+		return FAILURE; 
 		break;
 	}
   
@@ -1294,30 +1447,33 @@ JobQueueDBManager::processDestroyClassAd(char* key, bool exec_later)
 		}
     
 	
-		if (jqDatabase->execCommand(sql_str1) < 0) {
+		if (jqDatabase->execCommand(sql_str1) == FAILURE) {
 			displayDBErrorMsg("Destroy ClassAd Processing --- ERROR");
-			return 0; // return a error code, 0
+			return FAILURE; 
 		}
-		if (jqDatabase->execCommand(sql_str2) < 0) {
+		if (jqDatabase->execCommand(sql_str2) == FAILURE) {
 			displayDBErrorMsg("Destroy ClassAd Processing --- ERROR");
-			return 0; // return a error code, 0
+			return FAILURE; 
 		}
 	}
 	else {
 		if (multi_sql_str != NULL) {
 			multi_sql_str = (char*)realloc(multi_sql_str, 
-										   strlen(multi_sql_str) + strlen(sql_str1) + strlen(sql_str2) + 1);
+										   strlen(multi_sql_str) + 
+										   strlen(sql_str1) + 
+										   strlen(sql_str2) + 1);
+			assert(multi_sql_str);
 			strcat(multi_sql_str, sql_str1);
 			strcat(multi_sql_str, sql_str2);
 		}
 		else {
-			multi_sql_str = (char*)malloc(
-										  strlen(sql_str1) + strlen(sql_str2) + 1);
+			multi_sql_str = (char*)malloc(strlen(sql_str1) + 
+										  strlen(sql_str2) + 1);
 			sprintf(multi_sql_str, "%s%s", sql_str1, sql_str2);
 		}
 	}
   
-	return 1;
+	return SUCCESS;
 }
 
 /*! process SetAttribute command, working with DBMS
@@ -1326,178 +1482,116 @@ JobQueueDBManager::processDestroyClassAd(char* key, bool exec_later)
  *  \param value attribute value
  *  \param exec_later send SQL into RDBMS now or not?
  *  \return the result status
- *			0: error
- *			1: success
+ *
  *	Note:
  *	Because this is not just update, but set. So, we need to delete and insert
  *  it.  We twiddled with an alternative way to do it (using NOT EXISTS) but
- *  found out that DELETE/INSERT works as efficiently.  the old sql is kept
- *  around in case :)
+ *  found out that DELETE/INSERT works as efficiently.  
  */
-int 
-JobQueueDBManager::processSetAttribute(char* key, char* name, char* value, bool exec_later)
+QuillErrCode 
+JobQueueDBManager::processSetAttribute(char* key, 
+									   char* name, 
+									   char* value, 
+									   bool exec_later)
 {
-	char *sql_str_del_in;
+	char* sql_str_del_in;
 
-	char cid[512];
-	char pid[512];
-	int  id_sort;
-	char*	endptr;
-	char*   newvalue;
-		//int		ret_st;
+	char  cid[512];
+	char  pid[512];
+	int   job_id_type;
+	char* endptr;
+	char* newvalue;
   
 	int sql_str_len = (sizeof(value) + MAX_FIXED_SQL_STR_LENGTH);
 	sql_str_del_in = (char *) malloc(sql_str_len * sizeof(char));
 	memset(sql_str_del_in, 0, sql_str_len);
 	
-		//#ifdef _DEBUG_LOG_ENTRY
-		//	printf("%d %s %s %s\n", CondorLogOp_SetAttribute, key, name, value);
-		//#endif
-	
 	newvalue = fillEscapeCharacters(value);
 		// It could be ProcAd or ClusterAd
 		// So need to check
-	id_sort = getProcClusterIds(key, cid, pid);
+	job_id_type = getProcClusterIds(key, cid, pid);
   
-	switch(id_sort) {
-	case 1:
+	switch(job_id_type) {
+	case IS_CLUSTER_ID:
 		if (strtod(value, &endptr) != 0) {
-				/*
-				  sprintf(sql_str_in, 
-				  "INSERT INTO ClusterAds_Num (cid, attr, val) VALUES ('%s', '%s', %s);", cid, name, value);
-				  sprintf(sql_str_up, 
-				  "UPDATE ClusterAds_Num SET val = %s WHERE cid = '%s' AND attr = '%s';", value, cid, name);
-				*/
-      
 			sprintf(sql_str_del_in, 
-					"DELETE FROM ClusterAds_Num WHERE cid = %s AND attr = '%s'; INSERT INTO ClusterAds_Num (cid, attr, val) VALUES (%s, '%s', %s);", cid, name, cid, name, value);
-				/*sprintf(sql_str_in, 
-				  "INSERT INTO ClusterAds_Num (cid, attr, val) SELECT '%s', '%s', %s WHERE NOT EXISTS (SELECT * FROM ClusterAds_Num WHERE 
-				  cid='%s' AND attr='%s');", cid, name, value, cid, name);*/
-				/*sprintf(sql_str_in, 
-				  "INSERT INTO ClusterAds_Num (cid, attr, val) VALUES ('%s', '%s', %s);", cid, name, value);*/
-				//sprintf(sql_str_up, 
-				//	      "UPDATE ClusterAds_Num SET val = %s WHERE cid = '%s' AND attr = '%s';", value, cid, name);
-
+					"DELETE FROM ClusterAds_Num WHERE cid = %s "
+					"AND attr = '%s'; INSERT INTO ClusterAds_Num "
+					"(cid, attr, val) VALUES (%s, '%s', %s);", 
+					cid, name, cid, name, value);
+			
 		}
 		else {
 			if (value != endptr) { // the string means number zero.
-					/*
-					  sprintf(sql_str_in, 
-					  "INSERT INTO ClusterAds_Num (cid, attr, val) VALUES ('%s', '%s', %s);", cid, name, value);
-					  sprintf(sql_str_up, 
-					  "UPDATE ClusterAds_Num SET val = %s WHERE cid = '%s' AND attr = '%s';", value, cid, name);
-					*/
-	
 				sprintf(sql_str_del_in, 
-						"DELETE FROM ClusterAds_Num WHERE cid = %s AND attr = '%s'; INSERT INTO ClusterAds_Num (cid, attr, val) VALUES (%s, '%s', %s);", cid, name, cid, name, value);
-					/*sprintf(sql_str_in, 
-					  "INSERT INTO ClusterAds_Num (cid, attr, val) SELECT '%s', '%s', %s WHERE NOT EXISTS (SELECT * FROM ClusterAds_Num WHERE 
-					  cid='%s' AND attr='%s');", cid, name, value, cid, name);*/
-					/*sprintf(sql_str_in, 
-					  "INSERT INTO ClusterAds_Num (cid, attr, val) VALUES ('%s', '%s', %s);", cid, name, value);*/
-					//sprintf(sql_str_up, 
-					//	      "UPDATE ClusterAds_Num SET val = %s WHERE cid = '%s' AND attr = '%s';", value, cid, name);
-	
+						"DELETE FROM ClusterAds_Num WHERE cid = %s "
+						"AND attr = '%s'; INSERT INTO ClusterAds_Num "
+						"(cid, attr, val) VALUES (%s, '%s', %s);", 
+						cid, name, cid, name, value);
 			}
 			else if (value == endptr) { // the string is not a number.
-					/*
-					  sprintf(sql_str_in, 
-					  "INSERT INTO ClusterAds_Str (cid, attr, val) VALUES ('%s', '%s', '%s');", cid, name, value);
-					  sprintf(sql_str_up, 
-					  "UPDATE ClusterAds_Str SET val = '%s' WHERE cid = '%s' AND attr = '%s';", value, cid, name);
-					*/
-	
-	
 				sprintf(sql_str_del_in, 
-						"DELETE FROM ClusterAds_Str WHERE cid = %s AND attr = '%s'; INSERT INTO ClusterAds_Str (cid, attr, val) VALUES (%s, '%s', '%s');", cid, name, cid, name, newvalue);
-
-					/*sprintf(sql_str_in, 
-					  "INSERT INTO ClusterAds_Str (cid, attr, val) SELECT '%s', '%s', '%s' WHERE NOT EXISTS (SELECT * FROM ClusterAds_Str 
-					  WHERE cid='%s' AND attr='%s');", cid, name, value, cid, name);*/
-					/*  sprintf(sql_str_in, 
-						"INSERT INTO ClusterAds_Str (cid, attr, val) VALUES ('%s', '%s', '%s');", cid, name, value);*/
-					//sprintf(sql_str_up, 
-					//	      "UPDATE ClusterAds_Num SET val = %s WHERE cid = '%s' AND attr = '%s';", value, cid, name);
+						"DELETE FROM ClusterAds_Str WHERE cid = %s "
+						"AND attr = '%s'; INSERT INTO ClusterAds_Str "
+						"(cid, attr, val) VALUES (%s, '%s', '%s');", 
+						cid, name, cid, name, newvalue);
 			}
 			break;
-		case 2:
+		case IS_PROC_ID:
 			if (strtod(value, &endptr) != 0) {
-					/*
-					  sprintf(sql_str_in, 
-					  "INSERT INTO ProcAds_Num (cid, pid, attr, val) VALUES ('%s', '%s', '%s', %s);", cid, pid, name, value);
-					  sprintf(sql_str_up, 
-					  "UPDATE ProcAds_Num SET val = %s WHERE cid = '%s' AND pid = '%s' AND attr = '%s';", value, cid, pid, name);
-					*/
-      
-      
 				sprintf(sql_str_del_in, 
-						"DELETE FROM ProcAds_Num WHERE cid = %s AND pid = %s AND attr = '%s'; INSERT INTO ProcAds_Num (cid, pid, attr, val) VALUES (%s, %s, '%s', %s);", cid, pid, name, cid, pid, name, value);
-					/*sprintf(sql_str_in, 
-					  "INSERT INTO ProcAds_Num (cid, pid, attr, val) SELECT '%s', '%s', '%s',%s WHERE NOT EXISTS (SELECT * FROM ProcAds_Num 
-					  WHERE cid='%s' AND pid='%s' AND attr='%s');", cid, pid, name, value, cid, pid, name);*/
-					/*sprintf(sql_str_in, 
-					  "INSERT INTO ProcAds_Num (cid, pid, attr, val) VALUES ('%s', '%s', '%s', %s);", cid, pid, name, value);*/
-
+						"DELETE FROM ProcAds_Num WHERE cid = %s AND pid = %s "
+						"AND attr = '%s'; INSERT INTO ProcAds_Num "
+						"(cid, pid, attr, val) VALUES (%s, %s, '%s', %s);", 
+						cid, pid, name, cid, pid, name, value);
 			}
 			else {
 				if (value != endptr) { // the string means number zero.
-						/*
-						  sprintf(sql_str_in, 
-						  "INSERT INTO ProcAds_Num (cid, pid, attr, val) VALUES ('%s', '%s', '%s', %s);", cid, pid, name, value);
-						  sprintf(sql_str_up, 
-						  "UPDATE ProcAds_Num SET val = %s WHERE cid = '%s' AND pid = '%s' AND attr = '%s';", value, cid, pid, name);
-						*/
-	
 					sprintf(sql_str_del_in, 
-							"DELETE FROM ProcAds_Num WHERE cid = %s AND pid = %s AND attr = '%s'; INSERT INTO ProcAds_Num (cid, pid, attr, val) VALUES (%s, %s, '%s', %s);", cid, pid, name, cid, pid, name, value);
-						/*sprintf(sql_str_in, 
-						  "INSERT INTO ProcAds_Num (cid, pid, attr, val) SELECT '%s', '%s', '%s',%s WHERE NOT EXISTS (SELECT * FROM ProcAds_Num 
-						  WHERE cid='%s' AND pid='%s' AND attr='%s');", cid, pid, name, value, cid, pid, name);*/
-						/*sprintf(sql_str_in, 
-						  "INSERT INTO ProcAds_Num (cid, pid, attr, val) VALUES ('%s', '%s', '%s', %s);", cid, pid, name, value);*/
-
-
+							"DELETE FROM ProcAds_Num WHERE cid = %s AND "
+							"pid = %s AND attr = '%s'; INSERT INTO ProcAds_Num"
+							"(cid, pid, attr, val) VALUES (%s, %s, '%s', %s);",
+							cid, pid, name, cid, pid, name, value);
 				}
 				else if (value == endptr) { // the string is not a number.
-						/*
-						  sprintf(sql_str_in, 
-						  "INSERT INTO ProcAds_Str (cid, pid, attr, val) VALUES ('%s', '%s', '%s', '%s');", cid, pid, name, value);
-						  sprintf(sql_str_up, 
-						  "UPDATE ProcAds_Str SET val = '%s' WHERE cid = '%s' AND pid = '%s' AND attr = '%s';", value, cid, pid, name);
-						*/
-	
 					sprintf(sql_str_del_in, 
-							"DELETE FROM ProcAds_Str WHERE cid = %s AND pid = %s AND attr = '%s'; INSERT INTO ProcAds_Str (cid, pid, attr, val) VALUES (%s, %s, '%s', '%s');", cid, pid, name, cid, pid, name, newvalue);
-						/*sprintf(sql_str_in, 
-						  "INSERT INTO ProcAds_Str (cid, pid, attr, val) SELECT '%s', '%s', '%s','%s' WHERE NOT EXISTS (SELECT * FROM ProcAds_Str 
-						  WHERE cid='%s' AND pid='%s' AND attr='%s');", cid, pid, name, value, cid, pid, name);*/
-						/*  sprintf(sql_str_in, 
-							"INSERT INTO ProcAds_Str (cid, pid, attr, val) VALUES ('%s', '%s', '%s', '%s');", cid, pid, name, value);*/
-
-	
+						  "DELETE FROM ProcAds_Str WHERE cid = %s AND "
+						  "pid = %s AND attr = '%s'; INSERT INTO ProcAds_Str"
+						  "(cid, pid, attr, val) VALUES (%s, %s, '%s', '%s');",
+						  cid, pid, name, cid, pid, name, newvalue);
 				}
 			}
 
 			break;
-		case 0:
+		case IS_UNKNOWN_ID:
 			dprintf(D_ALWAYS, "Set Attribute Processing --- ERROR\n");
-			if(sql_str_del_in) free(sql_str_del_in);
-			return 0;
+			if(sql_str_del_in) {
+				free(sql_str_del_in);
+			}
+			if(newvalue) {
+				free(newvalue);
+			}
+			return FAILURE;
 			break;
 		}
 	}
   
-	int ret_st = 0;
+	QuillErrCode ret_st;
 
 	if (exec_later == false) {
 		ret_st = jqDatabase->execCommand(sql_str_del_in);
 
-		if (ret_st < 0) {
-			dprintf(D_ALWAYS, "Set Attribute --- Error [SQL] %s\n", sql_str_del_in);
+		if (ret_st == FAILURE) {
+			dprintf(D_ALWAYS, "Set Attribute --- Error [SQL] %s\n", 
+					sql_str_del_in);
 			displayDBErrorMsg("Set Attribute --- ERROR");     
- 			if(sql_str_del_in) free(sql_str_del_in);
-			return 0;
+ 			if(sql_str_del_in) {
+				free(sql_str_del_in);
+			}
+			if(newvalue) {
+				free(newvalue);
+			}
+			return FAILURE;
 		}
 	}
 	else {
@@ -1507,19 +1601,24 @@ JobQueueDBManager::processSetAttribute(char* key, char* name, char* value, bool 
 				// because there could be multiple insert
 				// statements.
 			multi_sql_str = (char*)realloc(multi_sql_str, 
-										   strlen(multi_sql_str) + strlen(sql_str_del_in) + 1);
+										   strlen(multi_sql_str) + 
+										   strlen(sql_str_del_in) + 1);
+			assert(multi_sql_str);
 			strcat(multi_sql_str, sql_str_del_in);
 		}
 		else {
-			multi_sql_str = (char*)malloc(
-										  strlen(sql_str_del_in) + 1);
+			multi_sql_str = (char*)malloc(strlen(sql_str_del_in) + 1);
 			strcpy(multi_sql_str, sql_str_del_in);
 		}    
 	}
   
-	if(newvalue) free(newvalue);
-	if(sql_str_del_in) free(sql_str_del_in);
-	return 1;
+	if(newvalue) {
+		free(newvalue);
+	}
+	if(sql_str_del_in) {
+		free(sql_str_del_in);
+	}
+	return SUCCESS;
 }
 
 
@@ -1528,131 +1627,147 @@ JobQueueDBManager::processSetAttribute(char* key, char* name, char* value, bool 
  *  \param name attribute name
  *  \param exec_later send SQL into RDBMS now or not?
  *  \return the result status
- *			0: error
- *			1: success
  */
-int 
-JobQueueDBManager::processDeleteAttribute(char* key, char* name, bool exec_later)
+QuillErrCode 
+JobQueueDBManager::processDeleteAttribute(char* key, 
+										  char* name, 
+										  bool exec_later)
 {
 	char sql_str1[MAX_FIXED_SQL_STR_LENGTH];
 	char sql_str2[MAX_FIXED_SQL_STR_LENGTH];
 	char cid[512];
 	char pid[512];
-	int  id_sort;
-	int		ret_st;
+	int  job_id_type;
+	QuillErrCode	 ret_st;
+	int num_result=0, db_err_code=0;
 
 	memset(sql_str1, 0, MAX_FIXED_SQL_STR_LENGTH);
 	memset(sql_str2, 0, MAX_FIXED_SQL_STR_LENGTH);
 
-// Debugging purpose
-// printf("%d %s %s\n", CondorLogOp_DeleteAttribute, key, name);
-
 		// It could be ProcAd or ClusterAd
 		// So need to check
-	id_sort = getProcClusterIds(key, cid, pid);
+	job_id_type = getProcClusterIds(key, cid, pid);
 
-	switch(id_sort) {
-	case 1:
+	switch(job_id_type) {
+	case IS_CLUSTER_ID:
 		sprintf(sql_str1, 
-				"DELETE FROM ClusterAds_Str WHERE cid = %s AND attr = '%s';", cid, name);
+				"DELETE FROM ClusterAds_Str WHERE cid = %s AND attr = '%s';", 
+				cid, name);
 		sprintf(sql_str2, 
-				"DELETE FROM ClusterAds_Num WHERE cid = %s AND attr = '%s';", cid, name);
+				"DELETE FROM ClusterAds_Num WHERE cid = %s AND attr = '%s';", 
+				cid, name);
 
 		break;
-	case 2:
+	case IS_PROC_ID:
 		sprintf(sql_str1, 
-				"DELETE FROM ProcAds_Str WHERE cid = %s AND pid = %s AND attr = '%s';", cid, pid, name);
+				"DELETE FROM ProcAds_Str WHERE cid = %s AND pid = %s "
+				"AND attr = '%s';", 
+				cid, pid, name);
 		sprintf(sql_str2, 
-				"DELETE FROM ProcAds_Num WHERE cid = %s AND pid = %s AND attr = '%s';", cid, pid, name);
+				"DELETE FROM ProcAds_Num WHERE cid = %s AND pid = %s AND "
+				"attr = '%s';", 
+				cid, pid, name);
 
 		break;
-	case 0:
+	case IS_UNKNOWN_ID:
 		dprintf(D_ALWAYS, "Delete Attribute Processing --- ERROR\n");
-		return 0;
+		return FAILURE;
 		break;
 	}
 
 	if (sql_str1 != NULL && sql_str2 != NULL) {
 		if (exec_later == false) {
-			ret_st = jqDatabase->execCommand(sql_str1);
+			ret_st = jqDatabase->execCommand(sql_str1, num_result, db_err_code);
 		
-			if (ret_st < 0) {
-				dprintf(D_ALWAYS, "Delete Attribute --- ERROR, [SQL] %s\n", sql_str1);
+			if (ret_st == FAILURE) {
+				dprintf(D_ALWAYS, "Delete Attribute --- ERROR, [SQL] %s\n", 
+						sql_str1);
 				displayDBErrorMsg("Delete Attribute --- ERROR");
-				return 0;
+				return FAILURE;
 			}
-			else if (ret_st == 0) {
+			else if (ret_st == SUCCESS && num_result == 0) {
 				ret_st = jqDatabase->execCommand(sql_str2);
 			
-				if (ret_st < 0) {
-					dprintf(D_ALWAYS, "Delete Attribute --- ERROR [SQL] %s\n", sql_str2);
+				if (ret_st == FAILURE) {
+					dprintf(D_ALWAYS, "Delete Attribute --- ERROR [SQL] %s\n",
+							sql_str2);
 					displayDBErrorMsg("Delete Attribute --- ERROR");
-					return 0;
+					return FAILURE;
 				}
 			}
 		}
 		else {
 			if (multi_sql_str != NULL) {
 				multi_sql_str = (char*)realloc(multi_sql_str, 
-											   strlen(multi_sql_str) + strlen(sql_str1) + strlen(sql_str2) + 1);
+											   strlen(multi_sql_str) + 
+											   strlen(sql_str1) + 
+											   strlen(sql_str2) + 1);
+				assert(multi_sql_str);
 				strcat(multi_sql_str, sql_str1);
 				strcat(multi_sql_str, sql_str2);
 			}
 			else {
-				multi_sql_str = (char*)malloc(
-											  strlen(sql_str1) + strlen(sql_str2) + 1);
+				multi_sql_str = (char*)malloc(strlen(sql_str1) + 
+											  strlen(sql_str2) + 1);
 				sprintf(multi_sql_str, "%s%s", sql_str1, sql_str2);
 			}
 		}		
 	}
 
-	return 1;
+	return SUCCESS;
 }
 
 /*! process BeginTransaction command
  *  \return the result status
- *			1: success
  */
-int 
+QuillErrCode 
 JobQueueDBManager::processBeginTransaction(bool exec_later)
 {
 	xactState = BEGIN_XACT;
 	if(!exec_later) {
-		if (jqDatabase->beginTransaction() == 0) // this conn is not in Xact,
-			return 0;			   				 // so begin Xact!
+			// the connection is not in Xact by default, so begin it
+		if (jqDatabase->beginTransaction() == FAILURE) { 
+			return FAILURE;			   				   
+		}
 	}
-	return 1;
+	return SUCCESS;
 }
 
 /*! process EndTransaction command
  *  \return the result status
- *			1: success
  */
-int 
+QuillErrCode
 JobQueueDBManager::processEndTransaction(bool exec_later)
 {
 	xactState = COMMIT_XACT;
-	if(!exec_later) {
-		if (jqDatabase->commitTransaction() == 0) // this conn is not in Xact,
-			return 0;			   				 // so begin Xact!
+	if(!exec_later) {		
+		if (jqDatabase->commitTransaction() == FAILURE) {
+			return FAILURE;			   				   
+		}
 	}
-	return 1;
+	return SUCCESS;
 }
 
 //! initialize: currently check the DB schema
 /*! \param initJQDB initialize DB?
  */
-int
+QuillErrCode
 JobQueueDBManager::init(bool initJQDB)
 {
+	QuillErrCode st;
+
+	st = checkSchema();
+
 	if (initJQDB == true) { // initialize Job Queue DB
-		if (checkSchema() == 0)
-			return 0;
+		if (st == FAILURE) {
+			return FAILURE;
+		}
+
 		prober->probe();
 		return initJobQueueTables();
 	}
-	else
-		return checkSchema();
+
+	return st;
 }
 
 
@@ -1661,80 +1776,89 @@ JobQueueDBManager::init(bool initJQDB)
  *  \param size  file size
  *  \param lcmd  last classad log entry
  */
-int
-JobQueueDBManager::getJQPollingInfo(long& mtime, long& size, ClassAdLogEntry* lcmd)
+QuillErrCode
+JobQueueDBManager::getJQPollingInfo(long& mtime, 
+									long& size, 
+									ClassAdLogEntry* lcmd)
 {
 	char 	sql_str[MAX_FIXED_SQL_STR_LENGTH];
-	int		ret_st;
+	int		ret_st, num_result=0;
 
 	memset(sql_str, 0, MAX_FIXED_SQL_STR_LENGTH);
 
-	if (lcmd == NULL)
+	if (lcmd == NULL) {
 		lcmd = caLogParser->getCurCALogEntry();
-
+	}
 
 	dprintf(D_FULLDEBUG, "Get JobQueue Polling Information\n");
 	
-	sprintf(sql_str, "SELECT last_file_mtime, last_file_size, last_next_cmd_offset, last_cmd_offset, last_cmd_type, last_cmd_key, last_cmd_mytype, last_cmd_targettype, last_cmd_name, last_cmd_value from JobQueuePollingInfo;");
-
+	sprintf(sql_str, 
+			"SELECT last_file_mtime, last_file_size, last_next_cmd_offset, "
+			"last_cmd_offset, last_cmd_type, last_cmd_key, last_cmd_mytype,"
+			"last_cmd_targettype, last_cmd_name, last_cmd_value FROM "
+			"JobQueuePollingInfo;");
+	
 		// connect to DB
 	ret_st = connectDB();
 
-	if(ret_st <= 0) 
-		return ret_st;
-	
-	if (sql_str != NULL) {
-		ret_st = jqDatabase->execQuery(sql_str);
-		
-		if (ret_st < 0) {
-			dprintf(D_ALWAYS, "Update JobQueuePollInfo --- ERROR [SQL] %s\n", sql_str);
-			displayDBErrorMsg("Update JobQueuePollInfo --- ERROR");
-			return 0;
-		}
-		else if (ret_st == 0) {
-				// This case shouldn't happen
-				// since the tuple should be inserted 
-				// when this table is initialized.
-				// So... what?
-				// This is the ERROR!
-			
-			dprintf(D_ALWAYS, "Update JobQueuePollInfo --- ERROR [SQL] %s\n", sql_str);
-			displayDBErrorMsg("Update JobQueuePollInfo --- ERROR");
-		} 
-
-		mtime = atoi(jqDatabase->getValue(0,0)); // last_file_mtime
-		size = atoi(jqDatabase->getValue(0,1)); // last_file_size
-		lcmd->next_offset = atoi(jqDatabase->getValue(0,2)); // last_next_cmd_offset
-		lcmd->offset = atoi(jqDatabase->getValue(0,3)); // last_cmd_offset
-		lcmd->op_type = atoi(jqDatabase->getValue(0,4)); // last_cmd_type
-		
-		if(lcmd->key) 
-			free(lcmd->key);
-		if(lcmd->mytype) 
-			free(lcmd->mytype);
-		if(lcmd->targettype) 
-			free(lcmd->targettype);
-		if(lcmd->name) 
-			free(lcmd->name);
-		if(lcmd->value) 
-			free(lcmd->value);
-		
-
-		lcmd->key = strdup(jqDatabase->getValue(0,5)); // last_cmd_key
-		lcmd->mytype = strdup(jqDatabase->getValue(0,6)); // last_cmd_mytype
-		lcmd->targettype = strdup(jqDatabase->getValue(0,7)); // last_cmd_targettype
-		lcmd->name = strdup(jqDatabase->getValue(0,8)); // last_cmd_name
-		lcmd->value = strdup(jqDatabase->getValue(0,9)); // last_cmd_value
-
+	if(ret_st == FAILURE) {
+		return FAILURE;
 	}
 
+	ret_st = jqDatabase->execQuery(sql_str, num_result);
+	
+	if (ret_st == FAILURE) {
+		dprintf(D_ALWAYS, "Reading JobQueuePollingInfo --- ERROR [SQL] %s\n", 
+				sql_str);
+		displayDBErrorMsg("Reading JobQueuePollingInfo --- ERROR");
+		disconnectDB(ABORT_XACT);
+		return FAILURE;
+	}
+	else if (ret_st == SUCCESS && num_result == 0) {
+			// This case is a rare one since the jobqueuepollinginfo
+			// table contains one tuple at all times 
+		
+		displayDBErrorMsg("Reading JobQueuePollingInfo --- ERROR "
+						  "No Rows Retrieved from JobQueuePollingInfo\n");
+		disconnectDB(ABORT_XACT);
+		return FAILURE;
+	} 
+	
+	mtime = atoi(jqDatabase->getValue(0,0)); // last_file_mtime
+	size = atoi(jqDatabase->getValue(0,1)); // last_file_size
+	lcmd->next_offset = atoi(jqDatabase->getValue(0,2)); // last_next_cmd_offset
+	lcmd->offset = atoi(jqDatabase->getValue(0,3)); // last_cmd_offset
+	lcmd->op_type = atoi(jqDatabase->getValue(0,4)); // last_cmd_type
+	
+	if(lcmd->key) { 
+		free(lcmd->key);
+	}
+	if(lcmd->mytype) {
+		free(lcmd->mytype);
+	}
+	if(lcmd->targettype) {
+		free(lcmd->targettype);
+	}
+	if(lcmd->name) {
+		free(lcmd->name);
+	}
+	if(lcmd->value) {
+		free(lcmd->value);
+	}
+	
+	lcmd->key = strdup(jqDatabase->getValue(0,5)); // last_cmd_key
+	lcmd->mytype = strdup(jqDatabase->getValue(0,6)); // last_cmd_mytype
+	lcmd->targettype = strdup(jqDatabase->getValue(0,7)); // last_cmd_targettype
+	lcmd->name = strdup(jqDatabase->getValue(0,8)); // last_cmd_name
+	lcmd->value = strdup(jqDatabase->getValue(0,9)); // last_cmd_value
+	
 		// disconnect to DB
 	disconnectDB();
-
-    // release Query Result since it is no longer needed
+	
+		// release Query Result since it is no longer needed
 	jqDatabase->releaseQueryResult(); 
-
-	return 1;	
+	
+	return SUCCESS;	
 }
 
 void 
@@ -1754,25 +1878,29 @@ JobQueueDBManager::addJQPollingInfoSQL(char* dest, char* src_name, char* src_val
  *  \param size  file size
  *  \param lcmd  last classad log entry
  *  \warning This method must be called between connectDB and disconnectDB
- *           ,which means this method doesn't invoke thoses two methods
+ *           which means this method doesn't invoke thoses two methods
  */
-int
+QuillErrCode
 JobQueueDBManager::setJQPollingInfo(long mtime, long size, ClassAdLogEntry* lcmd)
 {
-	char 	*sql_str;
-	int		ret_st;
+	char 	       *sql_str;
+	QuillErrCode   ret_st;
+	int            num_result=0, db_err_code=0;
 
 
-	if (lcmd == NULL)
+	if (lcmd == NULL) {
 		lcmd = caLogParser->getCurCALogEntry();	
-
+	}
 
 	int sql_str_len = (sizeof(lcmd->value) + MAX_FIXED_SQL_STR_LENGTH);
 	sql_str = (char *) malloc(sql_str_len * sizeof(char));
 	memset(sql_str, 0, sql_str_len);
 
 	sprintf(sql_str, 
-			"UPDATE JobQueuePollingInfo SET last_file_mtime = %ld, last_file_size = %ld, last_next_cmd_offset = %ld, last_cmd_offset = %ld, last_cmd_type = %d", mtime, size, lcmd->next_offset, lcmd->offset, lcmd->op_type);
+			"UPDATE JobQueuePollingInfo SET last_file_mtime = %ld, "
+			"last_file_size = %ld, last_next_cmd_offset = %ld, "
+			"last_cmd_offset = %ld, last_cmd_type = %d", 
+			mtime, size, lcmd->next_offset, lcmd->offset, lcmd->op_type);
 
 	addJQPollingInfoSQL(sql_str, "last_cmd_key", lcmd->key);
 	addJQPollingInfoSQL(sql_str, "last_cmd_mytype", lcmd->mytype);
@@ -1781,54 +1909,55 @@ JobQueueDBManager::setJQPollingInfo(long mtime, long size, ClassAdLogEntry* lcmd
 	addJQPollingInfoSQL(sql_str, "last_cmd_value", lcmd->value);
 	strcat(sql_str, ";");
 
-	if (sql_str != NULL) {
-		ret_st = jqDatabase->execCommand(sql_str);
-		
-		if (ret_st < 0) {
-			dprintf(D_ALWAYS, "Update JobQueuePollInfo --- ERROR [SQL] %s\n", sql_str);
-			displayDBErrorMsg("Update JobQueuePollInfo --- ERROR");
-			if(sql_str) free(sql_str);
-			return 0;
-		}
-		else if (ret_st == 0) {
-				// This case shouldn't happen
-				// since the tuple should be inserted 
-				// when this table is initialized.
-				// So... what?
-				// This is the ERROR!
-			
-			dprintf(D_ALWAYS, "Update JobQueuePollInfo --- ERROR [SQL] %s\n", sql_str);
-			displayDBErrorMsg("Update JobQueuePollInfo --- ERROR");
-		} 
+	
+	ret_st = jqDatabase->execCommand(sql_str, num_result, db_err_code);
+	
+	if (ret_st == FAILURE) {
+		dprintf(D_ALWAYS, "Update JobQueuePollInfo --- ERROR [SQL] %s\n", 
+				sql_str);
+		displayDBErrorMsg("Update JobQueuePollInfo --- ERROR");
 	}
+	else if (ret_st == SUCCESS && num_result == 0) {
+			// This case is a rare one since the jobqueuepollinginfo
+			// table contains one tuple at all times 
+		
+		dprintf(D_ALWAYS, "Update JobQueuePollInfo --- ERROR [SQL] %s\n", 
+				sql_str);
+		displayDBErrorMsg("Update JobQueuePollInfo --- ERROR");
+		ret_st = FAILURE;
+	} 
 
-	if(sql_str) free(sql_str);
-	return 1;
+	if(sql_str) {
+		free(sql_str);
+	}
+	return ret_st;
 }
 
 /*! check the DB schema
- *  \return the result status
- *			0: error
- *			1: success
+ *  \return the result status FAILURE/SUCCESS
  */
-int
+QuillErrCode
 JobQueueDBManager::checkSchema()
 {
 	char 	sql_str[MAX_FIXED_SQL_STR_LENGTH]; 
 	
-	int	ret_st;
-	
+	int num_result=0;
+	QuillErrCode ret_st, tmp_st;
+
 		//
-		// DB schema check should be done here 
+		// DB schema check done here using the following steps:
 		//
 		// 1. check the number of tables 
 		// 2. check the list of tables
 		// 3. check the one tuple of JobQueuePollingInfo table 
+
 	ret_st = connectDB(NOT_IN_XACT);
 	
 		// no database or no server connection
-	if(ret_st <= 0) { 
-		
+	if(ret_st == FAILURE) { 
+		dprintf(D_ALWAYS, "Error: Unable to connect to db \"%s\"\n", 
+				jobQueueDBName);
+
 			//10 related to strlen("template1")
 		char *tmp_conn = (char *) malloc(strlen(jobQueueDBConn) + 10); 
 		
@@ -1838,71 +1967,80 @@ JobQueueDBManager::checkSchema()
 		dprintf(D_ALWAYS, "tmp = %s\n", tmp_conn);	  
 		sprintf(sql_str, "CREATE DATABASE \"%s\"", jobQueueDBName);
 		JobQueueDatabase *tmp_jqdb = new PGSQLDatabase(tmp_conn);
-		int tmp_st = 0;
+
 		tmp_st = tmp_jqdb->connectDB(tmp_conn);
 	  
-		if (tmp_st <= 0) { // connect to template1 databae
-			dprintf(D_ALWAYS, "Error: Failed while trying to create database %s.\n", jobQueueDBName);
+		if (tmp_st == FAILURE) { // connect to template1 databae
+			dprintf(D_ALWAYS, "Error: Failed while trying to create "
+					"database %s.\n", 
+					jobQueueDBName);
 			delete tmp_jqdb;
 			free(tmp_conn);
-			return 0;
+			return FAILURE;
 		}
 		tmp_st = tmp_jqdb->execCommand(sql_str);
-		if (tmp_st < 0) { // executing the create command
-			dprintf(D_ALWAYS, "Error: Failed while trying to create database %s.\n", jobQueueDBName);
+		if (tmp_st == FAILURE) { // executing the create command
+			dprintf(D_ALWAYS, "Error: Failed while trying to create "
+					"database %s.\n", 
+					jobQueueDBName);
 			delete tmp_jqdb;
 			free(tmp_conn);
-			return 0;
+			return FAILURE;
 		}
 		tmp_jqdb->disconnectDB();
 		delete tmp_jqdb;
 		free(tmp_conn);	  
 	}
 
-	strcpy(sql_str, SCHEMA_CHECK_STR); // SCHEMA_CHECK_STR is defined in quill_dbschema_def.h
+	strcpy(sql_str, SCHEMA_CHECK_STR); 
+		// SCHEMA_CHECK_STR is defined in quill_dbschema_def.h
 
 		// execute DB schema check!
-	ret_st = jqDatabase->execQuery(sql_str);
+	ret_st = jqDatabase->execQuery(sql_str, num_result);
 
-	if (ret_st == SCHEMA_SYS_TABLE_NUM) {
+	if (ret_st == SUCCESS && num_result == SCHEMA_SYS_TABLE_NUM) {
 		dprintf(D_ALWAYS, "Schema Check OK!\n");
 		disconnectDB(NOT_IN_XACT);
 	}
-	else if (ret_st == 0) { // Schema is not defined in DB
+	
+		// Schema is not defined in DB
+	else if (ret_st == SUCCESS && num_result != SCHEMA_SYS_TABLE_NUM) { 
+
 		dprintf(D_ALWAYS, "Schema is not defined!\n");
 		dprintf(D_ALWAYS, "Create DB Schema for quill!\n");
-		if (jqDatabase->beginTransaction() == 0) // this conn is not in Xact,
-			return 0;			   				 // so begin Xact!
-
+			// this conn is not in Xact so begin transaction here
+		if (jqDatabase->beginTransaction() == FAILURE) {			
+			return FAILURE;			   				 
+		}
 			//
 			// Here, Create DB Schema:
 			//
 		strcpy(sql_str, SCHEMA_CREATE_PROCADS_TABLE_STR);
 		ret_st = jqDatabase->execCommand(sql_str);
-		if(ret_st < 0) {
+		if(ret_st == FAILURE) {
 			disconnectDB(ABORT_XACT);
-			return 0;
+			return FAILURE;
 		}
 
 		strcpy(sql_str, SCHEMA_CREATE_CLUSTERADS_TABLE_STR);
 		ret_st = jqDatabase->execCommand(sql_str);
-		if(ret_st < 0) {
+		if(ret_st == FAILURE) {
 			disconnectDB(ABORT_XACT);
-			return 0;
+			return FAILURE;
 		}
 
 		strcpy(sql_str, SCHEMA_CREATE_HISTORY_TABLE_STR);
 		ret_st = jqDatabase->execCommand(sql_str);
-		if(ret_st < 0) {
+		if(ret_st == FAILURE) {
 			disconnectDB(ABORT_XACT);
-			return 0;
+			return FAILURE;
 		}
 
 		strcpy(sql_str, SCHEMA_CREATE_JOBQUEUEPOLLINGINFO_TABLE_STR);
 		ret_st = jqDatabase->execCommand(sql_str);
-		if(ret_st < 0) {
+		if(ret_st == FAILURE) {
 			disconnectDB(ABORT_XACT);
-			return 0;
+			return FAILURE;
 		}
 
 		disconnectDB(COMMIT_XACT);		
@@ -1911,11 +2049,11 @@ JobQueueDBManager::checkSchema()
 		dprintf(D_ALWAYS, "Schema Check Unknown Error!\n");
 		disconnectDB(NOT_IN_XACT);
 
-		return 0;
+		return FAILURE;
 	}
 
 	jqDatabase->releaseQueryResult();
-	return 1;
+	return SUCCESS;
 }
 
 
@@ -1932,9 +2070,14 @@ void
 JobQueueDBManager::registerCommands()
 {
 		// register a handler for QMGMT_CMD command from condor_q
-	daemonCore->Register_Command(QMGMT_CMD, "QMGMT_CMD",
-								 (CommandHandlercpp)&JobQueueDBManager::handle_q,
-								 "handle_q", this, READ, D_FULLDEBUG);
+	daemonCore->Register_Command(
+						   QMGMT_CMD, 
+						   "QMGMT_CMD",
+						   (CommandHandlercpp)&JobQueueDBManager::handle_q,
+						   "JobQueueDBManager::handle_q", 
+						   this, 
+						   READ, 
+						   D_FULLDEBUG);
 }
 
 //! register all timer handlers
@@ -1942,20 +2085,25 @@ void
 JobQueueDBManager::registerTimers()
 {
 		// clear previous timers
-	if (pollingTimeId >= 0)
+	if (pollingTimeId >= 0) {
 		daemonCore->Cancel_Timer(pollingTimeId);
-	if (purgeHistoryTimeId >= 0)
+	}
+	if (purgeHistoryTimeId >= 0) {
 		daemonCore->Cancel_Timer(purgeHistoryTimeId);
+	}
 
 		// register timer handlers
-	pollingTimeId = daemonCore->Register_Timer(0, 
-											   pollingPeriod,
-											   (Eventcpp)&JobQueueDBManager::pollingTime, 
-											   "pollingTime", this);
-	purgeHistoryTimeId = daemonCore->Register_Timer(historyCleaningInterval * 3600, 
-													historyCleaningInterval * 3600,
-													(Eventcpp)&JobQueueDBManager::purgeOldHistoryRows, 
-													"purgeOldHistoryRows", this);
+	pollingTimeId = daemonCore->Register_Timer(
+								  0, 
+								  pollingPeriod,
+								  (Eventcpp)&JobQueueDBManager::pollingTime, 
+								  "JobQueueDBManager::pollingTime", this);
+	purgeHistoryTimeId = daemonCore->Register_Timer(
+						   historyCleaningInterval * 3600, 
+						   historyCleaningInterval * 3600,
+						   (Eventcpp)&JobQueueDBManager::purgeOldHistoryRows, 
+						   "JobQueueDBManager::purgeOldHistoryRows", 
+						   this);
 }
 
 
@@ -1966,8 +2114,13 @@ JobQueueDBManager::registerTimers()
 
 void JobQueueDBManager::createClassAd(void) {
 	char expr[1000];
+
+		//statically allocated to 64 as observed in condor_q
+	char scheddAddr[64];
+	char *scheddName;
+
 	char *mysockname;
-	char *schedd_name, *tmp;
+	char *tmp;
 
 	ad = new ClassAd();
 	ad->SetMyTypeName(SCHEDD_ADTYPE);
@@ -1975,18 +2128,44 @@ void JobQueueDBManager::createClassAd(void) {
   
 	config_fill_ad(ad);
 
-		// schedd name is needed to identify which schedd is this quill corresponding to
-	tmp = param( "SCHEDD_NAME" );
-	if( tmp ) {
-		schedd_name = build_valid_daemon_name( tmp );
-	} else {
-		schedd_name = default_daemon_name();
-	}  
-  
+		// schedd info is needed to identify the schedd 
+		// corresponding to this quill - this is used by
+		// the condor_q clients in order to fail-over to
+		// the schedd if the database and quill daemon 
+		// can't be reached
+
+        tmp = param( "SCHEDD_NAME" );
+        if( tmp ) {
+                scheddName = build_valid_daemon_name( tmp );
+        } else {
+                scheddName = default_daemon_name();
+        }
+
+	Daemon schedd( DT_SCHEDD, 0, 0 );
+	if ( schedd.locate() ) {
+		sprintf( scheddAddr, "%s", schedd.addr() );
+
+		//below is commented out as I'm still not able to 
+		//figure out why schedd.name returns the machine name
+		//and not the schedd name (these are different if there's
+		//a username prepended to machine name in order to make it
+		//a schedd name
+		/*if( (tmp = schedd.name()) ) {
+			sprintf( scheddName, "%s", tmp );
+		} else {
+			sprintf( scheddName, "Unknown" );
+		}
+		tmp = NULL;
+		*/
+	}
+	else {
+			sprintf( scheddAddr, "Unknown" );
+			//sprintf( scheddName, "Unknown" );
+	}		   
+
 	char *quill_name = param("QUILL_NAME");
 	if(!quill_name) {
-		dprintf(D_ALWAYS, "Error: Cannot find variable QUILL_NAME in condor_config file - exiting\n");
-		exit(1);
+		EXCEPT("Error: Cannot find variable QUILL_NAME in config file\n");
 	}
 	dprintf(D_ALWAYS, "Advertising under name %s\n", quill_name);
 
@@ -1998,10 +2177,22 @@ void JobQueueDBManager::createClassAd(void) {
 	sprintf( expr, "%s = %s", "IsRemotelyQueryable", is_remotely_queryable );
 	ad->Insert(expr);
 
+	char *quill_query_passwd = param("QUILL_QUERY_PASSWORD");
+	if(!quill_query_passwd) {
+		EXCEPT("Error: Cannot find variable QUILL_QUERY_PASSWORD "
+			   "in config file\n");
+	}
+  
+	sprintf( expr, "%s = \"%s\"", "QueryPassword", quill_query_passwd );
+	ad->Insert(expr);
+
 	sprintf( expr, "%s = \"%s\"", ATTR_NAME, quill_name );
 	ad->Insert(expr);
 
-	sprintf( expr, "%s = \"%s\"", ATTR_SCHEDD_NAME, schedd_name );
+	sprintf( expr, "%s = \"%s\"", ATTR_SCHEDD_NAME, scheddName );
+	ad->Insert(expr);
+
+	sprintf( expr, "%s = \"%s\"", ATTR_SCHEDD_IP_ADDR, scheddAddr );
 	ad->Insert(expr);
 
 	sprintf( expr, "%s = \"%s\"", ATTR_MACHINE, my_full_hostname() ); 
@@ -2011,8 +2202,6 @@ void JobQueueDBManager::createClassAd(void) {
 		// change, so we only need to initialize it once.
 	mysockname = strdup( daemonCore->InfoCommandSinfulString() );
 
-	sprintf( expr, "%s = \"%s\"", ATTR_SCHEDD_IP_ADDR, mysockname );
-	ad->Insert(expr);
 	sprintf( expr, "%s = \"%s\"", ATTR_MY_ADDRESS, mysockname );
 	ad->Insert(expr);
 
@@ -2053,6 +2242,7 @@ void JobQueueDBManager::createClassAd(void) {
   
 	if(tmp) free(tmp);
 	if(is_remotely_queryable) free(is_remotely_queryable);
+	if(quill_query_passwd) free(quill_query_passwd);
 	if(quill_name) free(quill_name);
 	if(mysockname) free(mysockname);
 }
@@ -2071,23 +2261,22 @@ JobQueueDBManager::pollingTime()
 		  and trying to connect until database is back up again 
 		  and then resume execution 
 		*/
-	if (maintain() == 0) {
+	if (maintain() == FAILURE) {
 		dprintf(D_ALWAYS, 
 				">>>>>>>> Fail: Probing Job Queue Log File <<<<<<<<\n");
 		return;
-			//DC_Exit(1);
 	}
 
 	dprintf(D_ALWAYS, "********* End of Probing Job Queue Log File *********\n");
 
 	dprintf(D_ALWAYS, "++++++++ Sending schedd ad to collector ++++++++\n");
 
-	if(!ad) createClassAd();
-	int num_updates = collectors->sendUpdates ( UPDATE_SCHEDD_AD, ad );
+	if(!ad) {
+		createClassAd();
+	}
+	collectors->sendUpdates ( UPDATE_SCHEDD_AD, ad );
 	
 	dprintf(D_ALWAYS, "++++++++ Sent schedd ad to collector ++++++++\n");
-	
-
 }
 
 //! command handler for QMGMT_CMD command from condor_q
@@ -2098,15 +2287,15 @@ JobQueueDBManager::pollingTime()
 int
 JobQueueDBManager::handle_q(int, Stream* sock) {
 //	---------------- Start of Borrowed Code -------------------
-	int rval;
+	QuillErrCode ret_st;
 	
 	dprintf(D_ALWAYS, "******** Start of Handling condor_q query ********\n");
 	
 	RequestService *rs = new RequestService(jobQueueDBConn);
 	
     do {
-        rval = rs->service((ReliSock *)sock);
-    } while(rval >= 0);
+        ret_st = rs->service((ReliSock *)sock);
+    } while(ret_st != FAILURE);
 	
 
 //	---------------- End of Borrowed Code -------------------
@@ -2118,43 +2307,37 @@ JobQueueDBManager::handle_q(int, Stream* sock) {
 	return TRUE;
 }
 
-
 char * 
-JobQueueDBManager::fillEscapeCharacters(char *str) {
-	char *newstr;
-	char **quotesloc;
-	int  quoteslocindex = 0;
-	int i=0;
+JobQueueDBManager::fillEscapeCharacters(char * str) {
+	int i, j;
+	
+	int len = strlen(str);
 
-	quotesloc = (char **) malloc(10 * sizeof(char *));
-	quotesloc[quoteslocindex] = NULL;
-
-	quotesloc[quoteslocindex] = strchr(str,'\'');
-	while (quotesloc[quoteslocindex] != NULL)
-		{
-				//printf ("found at %d\n",quotesloc[quoteslocindex]-str+1);
-			quotesloc[quoteslocindex+1]=strchr(quotesloc[quoteslocindex]+1,'\'');
-			quoteslocindex++;
+		//here we allocate 1024 more than the size of the 
+		//old string assuming that there wouldn't be more than 1024
+		//quotes in there 
+	char *newstr = (char *) malloc((len + 1024) * sizeof(char));
+	
+	j = 0;
+	for (i = 0; i < len; i++) {
+		switch(str[i]) {
+        case '\'':
+            newstr[j] = '\\';
+            newstr[j+1] = '\'';
+            j += 2;
+            break;
+        case '\t':
+            newstr[j] = '\\';
+            newstr[j+1] = 't';
+            j += 2;
+            break;
+        default:
+            newstr[j] = str[i];
+            j++;
+            break;
 		}
-
-	int strlength = strlen(str);
-	newstr = (char *) malloc(strlength+quoteslocindex+1 * sizeof(char));
-	int newstrstart=0,strstart=0;
-
-	for(i=0; i < quoteslocindex; i++) {
-			//printf("%d %s\n", quotesloc[i]-str+1, quotesloc[i]);
-		strncpy(newstr+newstrstart, str+strstart, quotesloc[i]-str-strstart);
-		newstrstart = quotesloc[i]-str+i;
-		newstr[newstrstart] = '\\';
-		newstrstart++;
-		strstart = quotesloc[i] - str;
 	}
-	strncpy(newstr+newstrstart, str+strstart, strlength-strstart);
-
-	int newstrlength = strlength + quoteslocindex;
-	newstr[newstrlength] = '\0';
-
-	free(quotesloc);
-	return newstr;
-    
+	newstr[j] = '\0';
+    return newstr;
 }
+

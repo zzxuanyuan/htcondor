@@ -25,35 +25,23 @@
 
 
 //! Definition of New ClassAd Command Type Constant
-#ifndef CondorLogOp_NewClassAd
 #define CondorLogOp_NewClassAd			101
-#endif
 
 //! Definition of Destroy ClassAd Command Type Constant
-#ifndef CondorLogOp_DestroyClassAd
 #define CondorLogOp_DestroyClassAd		102
-#endif
 
 
 //! Definition of Set Attribute Command Type Constant
-#ifndef CondorLogOp_SetAttribute
 #define CondorLogOp_SetAttribute		103
-#endif
 
 //! Definition of Delete Attribute Command Type Constant
-#ifndef CondorLogOp_DeleteAttribute
 #define CondorLogOp_DeleteAttribute		104
-#endif
 
 //! Definition of Begin Transaction Command Type Constant
-#ifndef CondorLogOp_BeginTransaction
 #define CondorLogOp_BeginTransaction	105
-#endif
 
 //! Definition of End Transaction Command Type Constant
-#ifndef CondorLogOp_EndTransaction 
 #define CondorLogOp_EndTransaction		106
-#endif
 
 
 //! ClassAdLogEntry

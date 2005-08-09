@@ -21,25 +21,19 @@
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
-// Note: This class is largely deprecated.  This is because condor_q++
-// now talks directly to postgres instead of calling this command
-
 #include "condor_common.h"
 #include "condor_io.h"
-#include "condor_fix_assert.h"
 
-#include <time.h>
 #include "requestservice.h"
 #include "../condor_schedd.V6/qmgmt_constants.h"
 #include "classad_collection.h"
 
+// for EvalBool
+#include "../condor_includes/condor_classad_util.h"
+
 #include "condor_attributes.h"
 
-#if defined(assert)
-#undef assert
-#endif
-
-#define assert(x) if (!(x)) return -1;
+#define return_on_fail(x) if (!(x)) return FAILURE;
 
 //! constructor
 /*! \param DBConn DB connection string
@@ -58,133 +52,118 @@ RequestService::~RequestService() {
 /*  NOTE:	
 	Much of this method is borrowed from do_Q_request() in qmgmt.C
 */
-int
+QuillErrCode
 RequestService::service(ReliSock *syscall_sock) {
-  //dprintf(D_ALWAYS, "called service\n");
   int request_num;
-  int rval;
-  
+  QuillErrCode ret_st;
+  int rval=0;
+
   syscall_sock->decode();
   
-  assert(syscall_sock->code(request_num));
+  return_on_fail(syscall_sock->code(request_num));
   
   dprintf(D_SYSCALLS, "Got request #%d\n", request_num);
   
   switch(request_num) {
-    // The impl of this case is done.
-  case CONDOR_InitializeReadOnlyConnection:
-    {
-      //
-      // NOTE:
-      // I looked into qmgmt.C file.
-      // However, the below call doesn't do anything.
-      // So I just do nothing, here. 
-      // (By Youngsang)
-      //
-      /* ----- start of the original code 
-	 
-      // same as InitializeConnection but no authenticate()
-      InitializeConnection(NULL, NULL);
-      
-      end of the original code ---- */
-      return 0;
-    }
-  case CONDOR_CloseConnection:
-    {
+
+  case CONDOR_InitializeReadOnlyConnection: {
+		  //
+		  // NOTE:
+		  // I looked into qmgmt.C file.
+		  // However, the below call doesn't do anything.
+		  // So I just do nothing, here. 
+		  // (By Youngsang)
+		  //
+		  /* ----- start of the original code 
+			 
+			  // same as InitializeConnection but no authenticate()
+			  InitializeConnection(NULL, NULL);
+			  
+			  end of the original code ---- */
+      return SUCCESS;
+  }
+  case CONDOR_CloseConnection: {
       int terrno;
       
-      assert( syscall_sock->end_of_message() );;
+      return_on_fail( syscall_sock->end_of_message() );;
       
       errno = 0;
-      rval = closeConnection( );
+      ret_st = closeConnection( );
       terrno = errno;
-      dprintf( D_SYSCALLS, "\trval = %d, errno = %d\n", rval, terrno );
+      dprintf( D_SYSCALLS, "\tret_st = %d, errno = %d\n", ret_st, terrno );
       
       syscall_sock->encode();
-      assert( syscall_sock->code(rval) );
+      return_on_fail( syscall_sock->code(rval) );
       if( rval < 0 ) {
-	assert( syscall_sock->code(terrno) );
+		  return_on_fail( syscall_sock->code(terrno) );
       }
-      assert( syscall_sock->end_of_message() );;
+      return_on_fail( syscall_sock->end_of_message() );;
       
-      //return 0;
-      return -2;
-    }
-    // This case must be implemented. 4/28
-  case CONDOR_GetNextJobByConstraint:
-    {
+      return FAILURE;
+  }
+	  
+  case CONDOR_GetNextJobByConstraint: {
+	  char *constraint=NULL;
+	  ClassAd *ad;
+	  int initScan;
+	  int terrno;
       
-      char *constraint=NULL;
-      ClassAd *ad;
-      int initScan;
-      int terrno;
-      
-      assert( syscall_sock->code(initScan) );
+	  return_on_fail( syscall_sock->code(initScan) );
       
       if ( !(syscall_sock->code(constraint)) ) {
-	if (constraint != NULL) {
-	  free(constraint);
-	  constraint = NULL;
-	}
-	return -1;
+		  if (constraint != NULL) {
+			  free(constraint);
+			  constraint = NULL;
+		  }
+		  return FAILURE;
       }
-      assert( syscall_sock->end_of_message() );
-
+      return_on_fail( syscall_sock->end_of_message() );
+	  
       errno = 0;
-
+	  
       ad = getNextJobByConstraint( constraint, initScan );
-
-      /* added by ameet while testing response time of quill
-	 int cluster, proc, date, status, prio, image_size;
-
-	 if (!ad->EvalInteger (ATTR_CLUSTER_ID, NULL, cluster)  ||
-	 !ad->EvalInteger (ATTR_PROC_ID, NULL, proc)        ||
-	 !ad->EvalInteger (ATTR_Q_DATE, NULL, date)         ||
-	 !ad->EvalInteger (ATTR_JOB_STATUS, NULL, status)   ||
-	 !ad->EvalInteger (ATTR_JOB_PRIO, NULL, prio)       ||
-	 !ad->EvalInteger (ATTR_IMAGE_SIZE, NULL, image_size))   
-	 {
-	 dprintf (D_ALWAYS, " --- ???? --- \n");
-	 }
-	 else {
-	 dprintf(D_ALWAYS, "%4d.%-3d %-2c %-3d %-4.1f\n", 
-	 cluster,
-	 proc,
-	 status,
-	 prio,
-	 image_size);
-	 
-	 }
-	 end added */
- 
+	  
       terrno = errno;
-
-      rval = ad ? 0 : -1;
+	  
+      ret_st = ad ? SUCCESS : FAILURE;
       
       syscall_sock->encode();
-      assert( syscall_sock->code(rval) );
+      return_on_fail( syscall_sock->code(rval) );
       if( rval < 0 ) {
-	assert( syscall_sock->code(terrno) );
+		  return_on_fail( syscall_sock->code(terrno) );
       }
       if( rval >= 0 ) {
-	assert( ad->put(*syscall_sock) );
+		  return_on_fail( ad->put(*syscall_sock) );
       }
       freeJobAd(ad);
       free( (char *)constraint );
-      assert( syscall_sock->end_of_message() );;
+      return_on_fail( syscall_sock->end_of_message() );;
       
-      return 0;
-    }
+      return SUCCESS;
+  } 
+	  
   }
-
-  return -1;
+  
+  return FAILURE;
 }
+
+/* parseConstraint takes a constraint string and gets the interesting
+   parameters out of the string.  
+   For example, a typical constraint string would look like 
+              (ClusterId == 2 && ProcId == 4)
+   In this case, we would set the cluster/proc return values to 2 and 4
+   respectively.  Currently, due to schema constraints, the 'owner' 
+   constraint cannot be pushed down to the DB and as such we don't get
+   it out.  If the user issues condor_q with no constraints, the constraint
+   string contains "TRUE" and so that case is handled too.
+*/
+
 
 bool
 RequestService::parseConstraint(const char *constraint, 
 				int &cluster, int &proc, char *owner) {
-  char *ptrC, *ptrP, *ptrO, *ptrT;
-  int index_rparen=0, index_equals=0, length=0;
+  char *ptrC, *ptrP, *ptrT;
+  int index_rparen=0, length=0;
   bool isfullscan = false;
   char *temp_constraint = 
     (char *) malloc((strlen(constraint) + 1) * sizeof(char));
@@ -209,23 +188,26 @@ RequestService::parseConstraint(const char *constraint,
   
   /* turns out that since we have a vertical schema, we can only
      push the cluster,proc constraint down to SQL.  The owner would
-     be a vertical attribute and can't be pushed down.
+     be a vertical attribute and can't be pushed down.  But I'm keeping
+	 the code in here in case we want to change the schema to a hybrid
+	 schema (part horizontal, part vertical) just like the historical 
+	 schema
 
-  ptrO = strstr( temp_constraint, "TARGET.Owner == ");
-  if(ptrO != NULL) {
-    index_rparen = strchr(ptrO, ')') - ptrO;
-    ptrO += 17;
-    sscanf(ptrO, "%s", owner);
-    ptrO -= 17;
-    for(int i=0; i < index_rparen; i++) ptrO[i] = ' ';
-    index_equals = strchr(owner, '"') - owner;
+	 ptrO = strstr( temp_constraint, "TARGET.Owner == ");
+	 if(ptrO != NULL) {
+	 index_rparen = strchr(ptrO, ')') - ptrO;
+	 ptrO += 17;
+	 sscanf(ptrO, "%s", owner);
+	 ptrO -= 17;
+	 for(int i=0; i < index_rparen; i++) ptrO[i] = ' ';
+	 index_equals = strchr(owner, '"') - owner;
     owner[index_equals] = '\0';
-  }
+	}
   */
-
+  
   ptrT = strstr( temp_constraint, "TRUE");
   if(ptrT != NULL) {
-    for(int i=0; i < 4; i++) ptrT[i] = ' ';
+	  for(int i=0; i < 4; i++) ptrT[i] = ' ';
   }
     
   length = strlen(temp_constraint);
@@ -236,8 +218,6 @@ RequestService::parseConstraint(const char *constraint,
     }
   }
   
-  //printf("temp_constraint after parsing = %s\n", temp_constraint);
-  //printf("cluster = %d, proc = %d, owner = %s\n", cluster, proc, owner);
   free(temp_constraint);
   return isfullscan;
 }
@@ -250,49 +230,27 @@ ClassAd*
 RequestService::getNextJobByConstraint(const char* constraint, int initScan)
 {
 	ClassAd *ad;
-	HashKey key;
+
 	bool isfullscan = false;
 	int cluster=-1, proc=-1;
 	char owner[20] = "";
 
 	if (initScan) { // is it the first request?
-	  //printf("constraint = %s\n", constraint);
-	  //printf("before: cluster=%d, proc=%d, owner=%s\n", 
-	  //	 cluster, proc, owner);  
 	  isfullscan = parseConstraint(constraint, cluster, proc, owner);
-	  //printf("before: cluster=%d, proc=%d, owner=%s isFullScan=%d\n", 
-	  //	 cluster, proc, owner, isfullscan);  
+
 	  if (jqSnapshot->startIterateAllClassAds(cluster, 
 						  proc, 
 						  owner, 
 						  isfullscan) <= 0)
-	    return NULL;
-	  //time_t start;
-	  //time(&start);
-	  //dprintf(D_ALWAYS, "cur date/time before interation =  %s\n", ctime(&start));
+		  return NULL;
 	  
 	}
 
 
 
-	//------------
-	// NOTICE!!!!
-	//------------
-	//
-	// This part is naive...
-	//
-	// constraint could be applied as query when the result was 
-	// retrieved. 
-	//
-	// For this, the revision is desirable....
-	//
-
-	//dprintf(D_ALWAYS, "called iterateAllClassAds\n");
-
 	while(jqSnapshot->iterateAllClassAds(ad)) {
 
-		if (*(key.value()) != '0' && // avoid cluster and header ads
-			(!constraint || !constraint[0] || evalBool(ad, constraint))) {
+		if (!constraint || !constraint[0] || EvalBool(ad, constraint)) {
 			return ad;		      
 		}
 		
@@ -303,65 +261,6 @@ RequestService::getNextJobByConstraint(const char* constraint, int initScan)
 }
 
 
-//! check the ad is valid under the constraint
-/*
-	This part should be improved.
-	We can apply this constraint into SQL when the query is put.
-*/
-bool 
-RequestService::evalBool(ClassAd *ad, const char *constraint)
-{
-    static ExprTree *tree = NULL;
-    static char * saved_constraint = NULL;
-    EvalResult result;
-    bool constraint_changed = true;
-
-    if ( saved_constraint ) {
-        if ( strcmp(saved_constraint,constraint) == 0 ) {
-            constraint_changed = false;
-        }
-    }
-
-    if ( constraint_changed ) {
-        // constraint has changed, or saved_constraint is NULL
-        if ( saved_constraint ) {
-            free(saved_constraint);
-            saved_constraint = NULL;
-        }
-        if ( tree ) {
-            delete tree;
-            tree = NULL;
-        }
-        if (Parse(constraint, tree) != 0) {
-            dprintf(D_ALWAYS,
-                "can't parse constraint: %s\n", constraint);
-            return false;
-        }
-        saved_constraint = strdup(constraint);
-    }
-
-    // Evaluate constraint with ad in the target scope so that constraints
-    // have the same semantics as the collector queries.  --RR
-    if (!tree->EvalTree(NULL, ad, &result)) {
-        dprintf(D_ALWAYS, "can't evaluate constraint: %s\n", constraint);
-        return false;
-    }
-    if (result.type == LX_INTEGER) {
-        return (bool)result.i;
-    }
-    dprintf(D_ALWAYS, "contraint (%s) does not evaluate to bool\n",
-        constraint);
-    return false;
-}
-
-
-
-
-/*
-	Currently this function is borrowed from qmgmt.C
-	But, it's weird. There is no freeing stuff, but just assignment 
-	of NULL value.
-*/
 void
 RequestService::freeJobAd(ClassAd*& ad) 
 {
@@ -373,38 +272,10 @@ RequestService::freeJobAd(ClassAd*& ad)
 }
 
 /*
-	Here, nothing is done.
+	Not doing much here
 */
-int
+QuillErrCode
 RequestService::closeConnection()
 {
-/*
-	JobbQueue->CommitTransaction();
-        // If this failed, the schedd will EXCEPT.  So, if we got this
-        // far, we can always return success.  -Derek Wright 4/2/99
-
-    // Now that the transaction has been commited, we need to chain proc
-    // ads to cluster ads if any new clusters have been submitted.
-    if ( old_cluster_num != next_cluster_num ) {
-        int cluster_id;
-        int     *numOfProcs = NULL;
-        int i;
-        ClassAd *procad;
-        ClassAd *clusterad;
-
-        for ( cluster_id=old_cluster_num; cluster_id < next_cluster_num; cluster_id++ ) {
-            if ( (JobQueue->LookupClassAd(IdToStr(cluster_id,-1), clusterad)) &&
-                 (ClusterSizeHashTable->lookup(cluster_id,numOfProcs) != -1) )
-            {
-                for ( i = 0; i < *numOfProcs; i++ ) {
-                    if (JobQueue->LookupClassAd(IdToStr(cluster_id,i),procad)) {
-                        procad->ChainToAd(clusterad);
-                    }
-                }   // end of loop thru all proc in cluster cluster_id
-            }
-        }   // end of loop thru clusters
-    }   // end of if a new cluster(s) submitted
-    old_cluster_num = next_cluster_num;
-*/
-    return 0;
+    return SUCCESS;
 }

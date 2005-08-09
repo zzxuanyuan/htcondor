@@ -1,7 +1,6 @@
 NAME = condor_quill
-HISTORYNAME = condor_history++
 
-all_target( $(NAME) $(HISTORYNAME))
+all_target( $(NAME) )
 
 
 CFLAGS = $(STD_C_FLAGS)
@@ -14,10 +13,8 @@ LIB = $(DAEMONCORE_LIB) $(STD_LIBS) $(POSTGRESQL_LIB)/libpq.a
 OBJ = quill_main.o classadlogentry.o classadlogparser.o jobqueuedbmanager.o prober.o requestservice.o jobqueuecollection.o 
 
 DBLIB = $(STD_LIBS) $(POSTGRESQL_LIB)/libpq.a
-HISTORYOBJ = history++.o historysnapshot.o 
 
 c_plus_target($(NAME),$(OBJ),$(LIB))
-c_plus_target($(HISTORYNAME),$(HISTORYOBJ),$(DBLIB))
 
 strip_target($(NAME),sbin,EXECUTABLE_MODE)
 static_target($(NAME),$(OBJ),$(LIB),$(STATIC_DIR)/sbin)
@@ -25,14 +22,7 @@ pure_c_plus_target($(NAME).pure,$(OBJ),$(LIB))
 purecov_c_plus_target($(NAME).pc,$(OBJ),$(LIB))
 quantify_c_plus_target($(NAME).quantify,$(OBJ),$(LIB))
 
-strip_target($(HISTORYNAME),bin,EXECUTABLE_MODE)
-static_target($(HISTORYNAME),$(HISTORYOBJ),$(DBLIB),$(STATIC_DIR)/bin)
-pure_c_plus_target($(HISTORYNAME).pure,$(HISTORYOBJ),$(DBLIB))
-purecov_c_plus_target($(HISTORYNAME).pc,$(HISTORYOBJ),$(DBLIB))
-quantify_c_plus_target($(HISTORYNAME).quantify,$(HISTORYOBJ),$(DBLIB))
-
 release_target($(NAME),sbin,EXECUTABLE_MODE)
-release_target($(HISTORYNAME),bin,EXECUTABLE_MODE)
 
 #html:
 #release:: all

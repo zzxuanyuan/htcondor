@@ -49,7 +49,6 @@ ClassAdLogEntry::~ClassAdLogEntry()
 void
 ClassAdLogEntry::init(int opType)
 {
-	//offset = next_offset = 0;
 	op_type = opType;
 
 		// free pointers
@@ -137,31 +136,39 @@ ClassAdLogEntry::equal(ClassAdLogEntry* caLogEntry)
 		case CondorLogOp_NewClassAd: // key, mytype, targettyp
 			if (valcmp(caLogEntry->key, key) == 0 &&
 				valcmp(caLogEntry->mytype, mytype) == 0 &&
-				valcmp(caLogEntry->targettype, targettype) == 0)
+				valcmp(caLogEntry->targettype, targettype) == 0) {
 				return 1;
-			else
+			}
+			else {
 				return 0;
+			}
 			break;
 		case CondorLogOp_DestroyClassAd: // key
-			if (valcmp(caLogEntry->key, key) == 0)
+			if (valcmp(caLogEntry->key, key) == 0) {
 				return 1;
-			else
+			}
+			else {
 				return 0;
+			}
 			break;
 		case CondorLogOp_SetAttribute: // key, name, value
 			if (valcmp(caLogEntry->key, key) == 0 &&
 				valcmp(caLogEntry->name, name) == 0 &&
-				valcmp(caLogEntry->value, value) == 0)
+				valcmp(caLogEntry->value, value) == 0) {
 				return 1;
-			else
+			}
+			else {
 				return 0;
+			}
 			break;
 		case CondorLogOp_DeleteAttribute: // key, name
 			if (valcmp(caLogEntry->key, key) == 0 &&
-				valcmp(caLogEntry->name, name) == 0)
+				valcmp(caLogEntry->name, name) == 0) {
 				return 1;
-			else
+			}
+			else {
 				return 0;
+			}
 			break;
 		case CondorLogOp_BeginTransaction:
 			return 1;
@@ -192,16 +199,20 @@ int
 ClassAdLogEntry::valcmp(char* str1, char* str2)
 {
 	if (str1 == NULL) {
-		if (str2 == NULL)
+		if (str2 == NULL) {
 			return 0;
-		else
+		}
+		else {
 			return 1;
+		}
 	}
 	else {
-		if (str2 == NULL)
+		if (str2 == NULL) {
 			return -1;
-		else
+		}
+		else {
 			return strcmp(str1, str2);
+		}
 	}
 
 	return -2; // This case doesn't happen.

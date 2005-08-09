@@ -27,7 +27,7 @@
 #include "classadlogentry.h"
 #include "classadlogparser.h"
 
-//! Definition of Maximum Lenght of Attribute List Expression
+//! Definition of Maximum Length of Attribute List Expression
 #ifndef ATTRLIST_MAX_EXPRESSION
 #define ATTRLIST_MAX_EXPRESSION 	10240
 #endif
@@ -79,12 +79,14 @@ ClassAdLogParser::getCurCALogEntry()
 void
 ClassAdLogParser::setNextOffset(long offset)
 {
-	if (offset == -3210) {  // -3210 doesn't have a special meaning, 
-							// just default value
+		//we first check to see whether the default value is being
+	    //used or if the user has actually provided the offset.  
+	if (offset == IMPOSSIBLE_OFFSET) {  
 		nextOffset = curCALogEntry.next_offset;
 	}
-	else 
+	else {
 		nextOffset = offset;
+	}
 }
 
 void
@@ -104,35 +106,33 @@ ClassAdLogParser::getJobQueueName()
  * \param ex determine if the file is through standard file I/O 
  * 			 or stream file I/O (default is false, which means 
  * 			 standard file I/O).
- * \return operation result status or command type
- * 		   			 -1: file open error
- * 		   			 0:  EOF
- * 		   			 others: command type
+ * \return operation result status and command type
  */
-int
-ClassAdLogParser::readLogEntry(bool ex)
+FileOpErrCode
+ClassAdLogParser::readLogEntry(int &op_type, bool ex)
 {
-	int	log_fd, rval, op_type;
+	int	log_fd, rval;
 	FILE *log_fp;
 
 	if (ex == false) { // Standard File I/O Operations
 		// open a job_queue.log file
-		log_fd = open(job_queue_name, O_RDONLY, 0600);
+		log_fd = open(job_queue_name, O_RDONLY);
 
 		if (log_fd < 0) {
 			dprintf(D_ALWAYS, "[QUILL] Error in Opening a job_queue.log file!\n");
-			return -1;
+			return FILE_OPEN_ERROR;
 		}
 
 		// move to the current offset
 		if (lseek(log_fd, nextOffset, SEEK_SET) != nextOffset) {
-			return 0;
+			close(log_fd);
+			return FILE_READ_EOF;
 		}
 
 		rval = readHeader(log_fd, op_type);
 		if (rval < 0) {
 		  close(log_fd);
-		  return 0;
+		  return FILE_READ_EOF;
 		}
 
 	}
@@ -142,18 +142,19 @@ ClassAdLogParser::readLogEntry(bool ex)
 
 		if (log_fp == NULL) {
 			dprintf(D_ALWAYS, "[QUILL] Error in Opening a job_queue.log file!\n");
-			return -1;
+			return FILE_OPEN_ERROR;
 		}
 
 		// move to the current offset
 		if (fseek(log_fp, nextOffset, SEEK_SET) != nextOffset) {
-			return 0;
+			fclose(log_fp);
+			return FILE_READ_EOF;
 		}
 
 		rval = readHeader(log_fp, op_type);
 		if (rval < 0) {
 		  fclose(log_fp);
-		  return 0;
+		  return FILE_READ_EOF;
 		}
 	}
 
@@ -167,71 +168,85 @@ ClassAdLogParser::readLogEntry(bool ex)
 		// read a ClassAd Log Entry Body
 	switch(op_type) {
 	    case CondorLogOp_NewClassAd:
-			if (ex == false)	
+			if (ex == false) {
 				rval = readNewClassAdBody(log_fd);
-			else
+			}
+			else {
 				rval = readNewClassAdBody(log_fp);
+			}
 			break;
 	    case CondorLogOp_DestroyClassAd:
-			if (ex == false)	
+			if (ex == false) {
 				rval = readDestroyClassAdBody(log_fd);
-			else
+			}
+			else {
 				rval = readDestroyClassAdBody(log_fp);
+			}
 			break;
 	    case CondorLogOp_SetAttribute:
-			if (ex == false)
+			if (ex == false) {
 				rval = readSetAttributeBody(log_fd);
-			else
+			}
+			else {
 				rval = readSetAttributeBody(log_fp);
+			}
 			break;
 	    case CondorLogOp_DeleteAttribute:
-			if (ex == false)
+			if (ex == false) {
 				rval = readDeleteAttributeBody(log_fd);
-			else
+			}
+			else {
 				rval = readDeleteAttributeBody(log_fp);
+			}
 			break;
 		case CondorLogOp_BeginTransaction:
-			if (ex == false)
+			if (ex == false) {
 				rval = readBeginTransactionBody(log_fd);
-			else
+			}
+			else {
 				rval = readBeginTransactionBody(log_fp);
+			}
 			break;
 		case CondorLogOp_EndTransaction:
-			if (ex == false)
+			if (ex == false) {
 				rval = readEndTransactionBody(log_fd);
-			else
+			}
+			else {
 				rval = readEndTransactionBody(log_fp);
+			}
 			break;
 	    default:
-		    return 0;
+			if(ex == false) {
+				close(log_fd);
+			}
+			else {
+				fclose(log_fp);
+			}
+		    return FILE_READ_ERROR;
 			break;
 	}
 
 	if (rval < 0) {
 
-		//
-		// This code block is borrowed from log.C 
-		//
-
+			//
+			// This code block is borrowed from log.C 
+			//
+		
 			// check if this bogus record is in the midst of a transaction
 			// (try to find a CloseTransaction log record)
-
+		
 		char	line[ATTRLIST_MAX_EXPRESSION + 64];
 		FILE 	*fp;
 		if (ex == false) {
-		  fp = fdopen(log_fd, "r" );
+			fp = fdopen(log_fd, "r" );
 		}
 		else {
 		  fp = log_fp;
 		}
 		int		op;
 
-		// delete log_rec; --> This line is removed by ysshin
-
 		if( !fp ) {
-			//EXCEPT("Error: failed fdopen() when recovering corrpupt log file");
-			fprintf(stderr, 
-			  "Error: failed fdopen() when recovering corrpupt log file");
+			EXCEPT("Error: failed fdopen() when recovering corrpupt log file");
 		}
 
 		while( fgets( line, ATTRLIST_MAX_EXPRESSION+64, fp ) ) {
@@ -241,18 +256,15 @@ ClassAdLogParser::readLogEntry(bool ex)
 			}
 			if( op == CondorLogOp_EndTransaction ) {
 					// aargh!  bad record in transaction.  abort!
-				//EXCEPT("Error: bad record with op=%d in corrupt logfile",type);
-				fprintf(stderr, 
-				  "Error: bad record with op=%d in corrupt logfile", op_type);
+				EXCEPT("Error: bad record with op=%d in corrupt logfile",
+					   op_type);
 			}
 		}
 
 		if( !feof( fp ) ) {
-			//EXCEPT("Error: failed recovering from corrupt file, errno=%d",
-			//	errno );
-			fprintf(stderr, 
-			  "Error: failed recovering from corrupt file, errno=%d",
-				errno );
+			fclose(fp);
+			EXCEPT("Error: failed recovering from corrupt file, errno=%d",
+				   errno );
 		}
 
 			// there wasn't an error in reading the file, and the bad log 
@@ -266,15 +278,17 @@ ClassAdLogParser::readLogEntry(bool ex)
 		curCALogEntry = lastCALogEntry;
 		curCALogEntry.offset = nextOffset;
 
-		return 0;
+		return FILE_READ_EOF;
 	}
 
 
-	// get and set a new current offset
-	if (ex == false)
+	// get and set the new current offset
+	if (ex == false) {
 		nextOffset = lseek(log_fd, 0, SEEK_CUR);
-	else
+	}
+	else {
 		nextOffset = ftell(log_fp);
+	}
 
 	curCALogEntry.next_offset = nextOffset;
 
@@ -284,68 +298,73 @@ ClassAdLogParser::readLogEntry(bool ex)
 	else {
 	  fclose(log_fp);
 	}
-	return op_type;
+	return FILE_READ_SUCCESS;
 }
 
 /*!
-	\wanring each pointer must be freed by a calling funtion
+	\warning each pointer must be freed by a calling funtion
 */
-int
-ClassAdLogParser::getNewClassAdBody(char*& key, char*& mytype, char*& targettype)
+QuillErrCode
+ClassAdLogParser::getNewClassAdBody(char*& key, 
+									char*& mytype, 
+									char*& targettype)
 {
-	if (curCALogEntry.op_type != CondorLogOp_NewClassAd)
-		return -1;
-
+	if (curCALogEntry.op_type != CondorLogOp_NewClassAd) {
+		return FAILURE;
+	}
 	key = strdup(curCALogEntry.key);
 	mytype = strdup(curCALogEntry.mytype);
 	targettype = strdup(curCALogEntry.targettype);
 	
-	return 1;
+	return SUCCESS;
 }
 
 /*!
 	\warning each pointer must be freed by a calling funtion
 */
-int
+QuillErrCode
 ClassAdLogParser::getDestroyClassAdBody(char*& key)
 {
-	if (curCALogEntry.op_type != CondorLogOp_DestroyClassAd)
-		return -1;
+	if (curCALogEntry.op_type != CondorLogOp_DestroyClassAd) {
+		return FAILURE;
+	}
 
 	key = strdup(curCALogEntry.key);
 
-	return 1;
+	return SUCCESS;
 }
 
 /*!
 	\warning each pointer must be freed by a calling funtion
 */
-int
+QuillErrCode
 ClassAdLogParser::getSetAttributeBody(char*& key, char*& name, char*& value)
 {
-	if (curCALogEntry.op_type != CondorLogOp_SetAttribute)
-		return -1;
+	if (curCALogEntry.op_type != CondorLogOp_SetAttribute) {
+		return FAILURE;
+	}
 
 	key = strdup(curCALogEntry.key);
 	name = strdup(curCALogEntry.name);
 	value = strdup(curCALogEntry.value);
 
-	return 1;
+	return SUCCESS;
 }
 
 /*!
 	\warning each pointer must be freed by a calling funtion
 */
-int
+QuillErrCode
 ClassAdLogParser::getDeleteAttributeBody(char*& key, char*& name)
 {
-	if (curCALogEntry.op_type != CondorLogOp_DeleteAttribute)
-		return -1;
+	if (curCALogEntry.op_type != CondorLogOp_DeleteAttribute) {
+		return FAILURE;
+	}
 
 	key = strdup(curCALogEntry.key);
 	name = strdup(curCALogEntry.name);
 
-	return 1;
+	return SUCCESS;
 }
 
 int
@@ -356,13 +375,24 @@ ClassAdLogParser::readNewClassAdBody(int fd)
 		// This code part is borrowed from LogNewClassAd::ReadBody 
 		// in classad_log.C
 	int rval, rval1;
+
 	rval = readword(fd, curCALogEntry.key);
-	if (rval < 0) return rval;
+	if (rval < 0) {
+		return rval;
+	}
+
 	rval1 = readword(fd, curCALogEntry.mytype);
-	if (rval1 < 0) return rval1;
+	if (rval1 < 0) {
+		return rval;
+	}
+
 	rval += rval1;
+
 	rval1 = readword(fd, curCALogEntry.targettype);
-	if (rval1 < 0) return rval1;
+	if (rval1 < 0) {
+		return rval;
+	}
+
 	return rval + rval1;
 }
 
@@ -375,12 +405,18 @@ ClassAdLogParser::readNewClassAdBody(FILE *fp)
 		// in classad_log.C
 	int rval, rval1;
 	rval = readword(fp, curCALogEntry.key);
-	if (rval < 0) return rval;
+	if (rval < 0) {
+		return rval;
+	}
 	rval1 = readword(fp, curCALogEntry.mytype);
-	if (rval1 < 0) return rval1;
+	if (rval1 < 0) {
+		return rval1;
+	}
 	rval += rval1;
 	rval1 = readword(fp, curCALogEntry.targettype);
-	if (rval1 < 0) return rval1;
+	if (rval1 < 0) {
+		return rval1;
+	}
 	return rval + rval1;
 }
 
@@ -522,10 +558,10 @@ ClassAdLogParser::readBeginTransactionBody(FILE *fp)
 
 		// This code part is borrowed from LogBeginTransaction::ReadBody 
 		// in classad_log.C
-	char 	ch;
-	//int		rval = read( fp, &ch, 1 );
+	int 	ch;
+
 	ch = fgetc(fp);
-	//if( rval < 1 || ch != '\n' ) {
+
 	if( ch == EOF || ch != '\n' ) {
 		return( -1 );
 	}
@@ -554,10 +590,10 @@ ClassAdLogParser::readEndTransactionBody(FILE *fp)
 
 		// This code part is borrowed from LogEndTransaction::ReadBody 
 		// in classad_log.C
-	char 	ch;
-	//int		rval = read( fp, &ch, 1 );
+	int 	ch;
+
 	ch = fgetc(fp);
-	//if( rval < 1 || ch != '\n' ) {
+
 	if( ch == EOF || ch != '\n' ) {
 		return( -1 );
 	}
@@ -583,7 +619,6 @@ ClassAdLogParser::readHeader(int fd, int& op_type)
 int
 ClassAdLogParser::readHeader(FILE *fp, int& op_type)
 {
-	//return( fscanf(fp, "%d ", &op_type) < 1 ? -1 : 1 );
 	int	rval;
 	char *op = NULL;
 
@@ -617,6 +652,7 @@ ClassAdLogParser::readword(int fd, char * &str)
 	for (i = 1; rval > 0 && !isspace(buf[i-1]) && buf[i-1] != '\0'; i++) {
 		if (i == bufsize) {
 			buf = (char *)realloc(buf, bufsize*2);
+			assert(buf);
 			bufsize *= 2;
 		} 
 		rval = read(fd, &(buf[i]), 1);
@@ -655,6 +691,7 @@ ClassAdLogParser::readword(FILE *fp, char * &str)
 	for (i = 1; !isspace(buf[i-1]) && buf[i-1]!='\0' && buf[i-1]!=EOF; i++) {
 		if (i == bufsize) {
 			buf = (char *)realloc(buf, bufsize*2);
+			assert(buf);
 			bufsize *= 2;
 		} 
 		buf[i] = fgetc( fp );
@@ -672,7 +709,9 @@ ClassAdLogParser::readword(FILE *fp, char * &str)
 
 	buf[i-1] = '\0';
 
-	if(str != NULL) free(str);
+	if(str != NULL) {
+		free(str);
+	}
 	str = strdup(buf);
 	free(buf);
 	return i-1;
@@ -698,6 +737,7 @@ ClassAdLogParser::readline(int fd, char * &str)
 	for (i = 1; rval > 0 && buf[i-1] != '\n' && buf[i-1] != '\0'; i++) {
 		if (i == bufsize) {
 			buf = (char *)realloc(buf, bufsize*2);
+			assert(buf);
 			bufsize *= 2;
 		}
 		rval = read(fd, &(buf[i]), 1);
@@ -711,7 +751,9 @@ ClassAdLogParser::readline(int fd, char * &str)
 
 	buf[i-1] = '\0';
 
-	if(str != NULL) free(str);
+	if(str != NULL) {
+		free(str);
+	}
 	str = strdup(buf);
 	free(buf);
 	return i-1;
@@ -738,6 +780,7 @@ ClassAdLogParser::readline(FILE *fp, char * &str)
 	for (i = 1; buf[i-1]!='\n' && buf[i-1] != '\0' && buf[i-1] != EOF; i++) {
 		if (i == bufsize) {
 			buf = (char *)realloc(buf, bufsize*2);
+			assert(buf);
 			bufsize *= 2;
 		} 
 		buf[i] = fgetc( fp );

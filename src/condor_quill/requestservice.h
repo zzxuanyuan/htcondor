@@ -28,6 +28,7 @@
 #include "condor_io.h"
 #include "jobqueuedbmanager.h"
 #include "jobqueuesnapshot.h"
+#include "quill_enums.h"
 
 //! RequestService
 /*! this class services requests from condor_q via socket communication.
@@ -44,18 +45,17 @@ public:
 	~RequestService();
 
 	//! service requests from condor_q via sockect
-	int service(ReliSock *syscall_sock);
+	QuillErrCode service(ReliSock *syscall_sock);
 
 private:
 		//
 		// helper functions
 		//
-	ClassAd*	getNextJobByConstraint(const char* constraint, int initScan);
-	static bool     parseConstraint(const char *constraint, 
-					int &cluster, int &proc, char *owner);
-	static bool	evalBool(ClassAd *ad, const char* constraint);
-	void		freeJobAd(ClassAd *&ad);
-	int			closeConnection();
+	ClassAd*	 getNextJobByConstraint(const char* constraint, int initScan);
+	static bool  parseConstraint(const char *constraint, 
+								 int &cluster, int &proc, char *owner);
+	void		 freeJobAd(ClassAd *&ad);
+	QuillErrCode closeConnection();
 
 	JobQueueSnapshot	*jqSnapshot;	//!< JobQueueSnapshot object
 };

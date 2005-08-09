@@ -32,7 +32,6 @@
 //! constructor
 Prober::Prober()
 {
-		// This initialization part shoud be changed after adding DB funcs
 	jqfile_last_mod_time = 0;
 	jqfile_last_size = 0;
 
@@ -40,11 +39,10 @@ Prober::Prober()
 }
 
 //! constructor
-/*! \param jqDBManager pointer ot JobQueueDBManager
+/*! \param jqDBManager pointer to JobQueueDBManager
  */
 Prober::Prober(JobQueueDBManager *jqDBManager)
 {
-		// This initialization part shoud be changed after adding DB funcs
 	jqfile_last_mod_time = 0;
 	jqfile_last_size = 0;
 
@@ -61,6 +59,7 @@ Prober::~Prober()
 void
 Prober::setJobQueueName(char* jqn)
 {
+	assert(jqn);
 	strcpy(job_queue_name, jqn);
 }
 
@@ -98,10 +97,12 @@ Prober::getJQFile_Last_Size()
 
 
 //! probe job_queue.log file
-int
+ProbeResultType
 Prober::probe()
 {
-	int st;
+	FileOpErrCode   st;
+	int op_type;
+
 	struct stat fstat;
 	if (stat(job_queue_name, &fstat) == -1)
 		dprintf(D_ALWAYS,"ERROR: calling stat()\n");
@@ -115,7 +116,7 @@ Prober::probe()
 	cur_probed_jqfile_last_size = fstat.st_size;
 
 	if (jqfile_last_mod_time == 0) {
-		// This is the start phase of jqMon
+		// This is the start phase of quill
 		return INIT_QUILL;
 	}	
 		// If there is no change in last modification time,
@@ -135,18 +136,19 @@ Prober::probe()
 				//
 				// check the last command
 			ClassAdLogParser caLogParser;
-			ClassAdLogEntry *curCALogEntry = jqDBManager->getClassAdLogParser()->getCurCALogEntry();
+			ClassAdLogEntry *curCALogEntry = 
+				jqDBManager->getClassAdLogParser()->getCurCALogEntry();
 
-			caLogParser.setJobQueueName((jqDBManager->getClassAdLogParser())->getJobQueueName());
+			caLogParser.setJobQueueName(
+				(jqDBManager->getClassAdLogParser())->getJobQueueName());
 
 
 			caLogParser.setNextOffset(curCALogEntry->offset);
-			st = caLogParser.readLogEntry();
-			if (st == FILE_OPEN_ERROR)
-				return FILE_OPEN_ERROR; 
-			else if (st == ERROR)
-				return ERROR;
+			st = caLogParser.readLogEntry(op_type);
 
+			if (st != FILE_READ_SUCCESS) {
+				return ERROR;
+			}
 
 			if (caLogParser.getCurCALogEntry()->equal(curCALogEntry))
 			{ 
@@ -175,27 +177,30 @@ Prober::probe()
 				// check the last command
 
 			ClassAdLogParser caLogParser;
-			ClassAdLogEntry *curCALogEntry = jqDBManager->getClassAdLogParser()->getCurCALogEntry();
-			caLogParser.setJobQueueName((jqDBManager->getClassAdLogParser())->getJobQueueName());
+			ClassAdLogEntry *curCALogEntry = 
+				jqDBManager->getClassAdLogParser()->getCurCALogEntry();
+			caLogParser.setJobQueueName(
+				(jqDBManager->getClassAdLogParser())->getJobQueueName());
 
 			caLogParser.setNextOffset(curCALogEntry->offset);
-			caLogParser.readLogEntry(); 
-			if (st == FILE_OPEN_ERROR)
-				return FILE_OPEN_ERROR; 
-			else if (st == ERROR)
+
+			st = caLogParser.readLogEntry(op_type); 
+
+			if (st != FILE_READ_EOF && st != FILE_READ_SUCCESS) {
 				return ERROR;
-			if (caLogParser.getCurCALogEntry()->equal(curCALogEntry))
-			{ 
+			}
+
+			if (caLogParser.getCurCALogEntry()->equal(curCALogEntry)) { 
 				return NO_CHANGE;
 			}
-			else 
-			{
+			else {
 				return ERROR;
 			}
 		}
 	}
-	else
+	else {
 		return ERROR;
+	}
 
 	return NO_CHANGE;
 }
@@ -211,16 +216,16 @@ Prober::setProbeInfo()
 }
 
 //! get lastly polling information from DBMS
-int
+QuillErrCode
 Prober::getProbeInfo()
 {
 	int st;
 	st = jqDBManager->getJQPollingInfo(jqfile_last_mod_time, jqfile_last_size);
-	if(st <= 0) 
-		return st;
-
+	if(st == FAILURE) {
+		return FAILURE;
+	}
 	dprintf(D_ALWAYS, "=== Stored Last Probing Information ===\n");
 	dprintf(D_ALWAYS, "fsize: %ld\t\tmtime: %ld\n", 
 				(long)jqfile_last_size, (long)jqfile_last_mod_time);
-	return 1;
+	return SUCCESS;
 }

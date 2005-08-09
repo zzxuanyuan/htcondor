@@ -22,7 +22,6 @@
  ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
 #include "condor_common.h"
-#include <math.h>
 #include "jobqueuecollection.h"
 
 //! constructor
@@ -197,7 +196,9 @@ JobQueueCollection::insertHistoryAd(char* cid, char* pid, ClassAd* historyAd)
 
 	sprintf(id, "%s%s",pid,cid);
 	st = insert(id, pBucket, _ppHistoryAdBucketList);
-	if (st > 0) ++historyAdNum;
+	if (st > 0) {
+		++historyAdNum;
+	}
 	
 	free(id); // id is just used for hashing purpose, 
 			  // so it must be freed here.
@@ -220,7 +221,9 @@ JobQueueCollection::insertProcAd(char* cid, char* pid, ClassAd* procAd)
 
 	sprintf(id, "%s%s",pid,cid);
 	st = insert(id, pBucket, _ppProcAdBucketList);
-	if (st > 0) ++procAdNum;
+	if (st > 0) {
+		++procAdNum;
+	}
 	
 	free(id); // id is just used for hashing purpose, 
 			  // so it must be freed here.
@@ -238,7 +241,9 @@ JobQueueCollection::insertClusterAd(char* cid, ClassAd* clusterAd)
 	int st;
 	ClassAdBucket *pBucket = new ClassAdBucket(cid, clusterAd);
 	st = insert(cid, pBucket, _ppClusterAdBucketList);
-	if (st > 0) ++clusterAdNum;
+	if (st > 0) {
+		++clusterAdNum;
+	}
 
 	return st;
 }
@@ -262,7 +267,6 @@ JobQueueCollection::insert(char* id, ClassAdBucket* pBucket, ClassAdBucket **ppB
 	// find and delete in a bucket list
 	ClassAdBucket *pCurBucket = ppBucketList[index];
 
-	//dprintf(D_ALWAYS, "in insert id = %s, index = %d\n", id, index);
 	if (pCurBucket == NULL) {
 		ppBucketList[index] = pBucket;
 		return 1;
@@ -272,25 +276,24 @@ JobQueueCollection::insert(char* id, ClassAdBucket* pBucket, ClassAdBucket **ppB
 	{
 		// duplicate check
 		if (pCurBucket->pid == NULL && pBucket->pid == NULL) {
-			if (strcasecmp(pCurBucket->cid, pBucket->cid) == 0)
+			if (strcasecmp(pCurBucket->cid, pBucket->cid) == 0) {
 					return 0;
+			}
 		}
 		else if (pCurBucket->pid != NULL && pBucket->pid != NULL) {
 			if ((strcasecmp(pCurBucket->cid, pBucket->cid) == 0) &&
-				(strcasecmp(pCurBucket->pid, pBucket->pid) == 0))
+				(strcasecmp(pCurBucket->pid, pBucket->pid) == 0)) {
 					return 0;
+			}
 		}
 
 		if (pCurBucket->pNext == NULL) {
-		  //dprintf(D_ALWAYS, "in insert's if id = %s\n", id);
-		  //if(pCurBucket->cid) dprintf(D_ALWAYS, "prevcid=%s \n", pCurBucket->cid);
-		  //if(pCurBucket->pid) dprintf(D_ALWAYS, "prevpid=%s \n", pCurBucket->pid);
-
 			pCurBucket->pNext = pBucket;
 			return 1;
 		}
-		else
+		else {
 			pCurBucket = pCurBucket->pNext;
+		}
 	}
 
 	return -1;
@@ -370,10 +373,12 @@ JobQueueCollection::remove(char* cid, char* pid)
 		     (strcmp(cid, pCurBucket->cid) == 0) &&
 		     (strcmp(pid, pCurBucket->pid) == 0)))
 		{
-			if (i == 0) 
+			if (i == 0) {
 				ppBucketList[index] = pCurBucket->pNext;
-			else 
+			}
+			else {
 				pPreBucket->pNext = pCurBucket->pNext;
+			}
 
 			delete pCurBucket;
 			return 1;
@@ -398,8 +403,9 @@ JobQueueCollection::hashfunction(char* str)
 	char 			first_char = '.';
 	unsigned long 	hash_val = 0;
 
-	for (i = 0; i < str_len; i++) 
+	for (i = 0; i < str_len; i++) {
 		hash_val += (long)((int)str[i] - (int)first_char) * (long)pow(37, i);
+	}
 
 	return (int)(hash_val % _iBucketSize);
 }
@@ -453,7 +459,8 @@ JobQueueCollection::initAllHistoryAdsIteration()
 /*! \warning the returned string must not be freed by caller.
  */
 int
-JobQueueCollection::getNextHistoryAd_SqlStr(char*& historyad_hor_str, char*& historyad_ver_str)
+JobQueueCollection::getNextHistoryAd_SqlStr(char*& historyad_hor_str, 
+											char*& historyad_ver_str)
 {
 	if (HistoryAd_Hor_SqlStr != NULL) {
 		free(HistoryAd_Hor_SqlStr);
@@ -484,11 +491,13 @@ JobQueueCollection::getNextHistoryAd_SqlStr(char*& historyad_hor_str, char*& his
 	else // we are following the chained buckets
 	  pCurBucket = pCurBucket->pNext;
 	
-	// is there a chaned bucket?
-	if (pCurBucket->pNext != NULL)
+	// is there a chained bucket?
+	if (pCurBucket->pNext != NULL) {
 	  bChained = true;
-	else
+	}
+	else {
 	  bChained = false;
+	}
 	
 	// making a COPY string for this ClassAd
 	makeHistoryAdSqlStr(pCurBucket->cid, 
@@ -522,13 +531,24 @@ JobQueueCollection::makeHistoryAdSqlStr(char* cid, char* pid, ClassAd* ad,
 	// MyType = "Job"
 	// TargetType = "Machine"
 
-	sprintf(tmp_line_str1, "INSERT INTO History_Vertical(cid,pid,attr,val) SELECT %s,%s,'MyType','\"Job\"' WHERE NOT EXISTS(SELECT cid,pid FROM History_Vertical WHERE cid=%s AND pid=%s);INSERT INTO History_Vertical(cid,pid,attr,val) SELECT %s,%s,'TargetType','\"Machine\"' WHERE NOT EXISTS(SELECT cid,pid FROM History_Vertical WHERE cid=%s AND pid=%s);", 
-				cid,pid,cid,pid,cid,pid,cid,pid);
+	sprintf(tmp_line_str1, 
+			"INSERT INTO History_Vertical(cid,pid,attr,val) "
+			"SELECT %s,%s,'MyType','\"Job\"' WHERE NOT EXISTS"
+			"(SELECT cid,pid FROM History_Vertical WHERE cid=%s "
+			"AND pid=%s);INSERT INTO History_Vertical(cid,pid,attr,val) "
+			"SELECT %s,%s,'TargetType','\"Machine\"' WHERE NOT EXISTS"
+			"(SELECT cid,pid FROM History_Vertical WHERE cid=%s AND pid=%s);", 
+			cid,pid,cid,pid,cid,pid,cid,pid);
 	historyad_ver_str = (char*)malloc(strlen(tmp_line_str1) + 1);
 	strcpy(historyad_ver_str, tmp_line_str1);
 
-	// creating a new horizontal string consisting of one insert and many updates
-	sprintf(tmp_line_str2, "INSERT INTO History_Horizontal(cid,pid) SELECT %s,%s WHERE NOT EXISTS(SELECT cid,pid FROM History_Horizontal WHERE cid=%s AND pid=%s);", cid,pid,cid,pid);
+	// creating a new horizontal string consisting of one insert 
+	// and many updates
+	sprintf(tmp_line_str2, 
+			"INSERT INTO History_Horizontal(cid,pid) "
+			"SELECT %s,%s WHERE NOT EXISTS(SELECT cid,pid "
+			"FROM History_Horizontal WHERE cid=%s AND pid=%s);", 
+			cid,pid,cid,pid);
 	historyad_hor_str = (char*)malloc(strlen(tmp_line_str2) + 1);
 	strcpy(historyad_hor_str, tmp_line_str2);
 	
@@ -536,11 +556,12 @@ JobQueueCollection::makeHistoryAdSqlStr(char* cid, char* pid, ClassAd* ad,
 	ad->ResetExpr(); // for iteration initialization
 
 	while((expr = (AssignOpBase*)(ad->NextExpr())) != NULL) {
-
 	  nameExpr = (VariableBase*)expr->LArg(); // Name Express Tree
 	  valExpr = (StringBase*)expr->RArg();	// Value Express Tree
 	  val = valExpr->Value();	      		// Value
-	  if (val == NULL) break;
+	  if (val == NULL) {
+		  break;
+	  }
 	  
 	  
 	  // make a SQL line for each attribute
@@ -548,8 +569,9 @@ JobQueueCollection::makeHistoryAdSqlStr(char* cid, char* pid, ClassAd* ad,
 	  //			   + strlen(val) + strlen(cid) 
 	  //			   + strlen(pid) + strlen("\t\t\t\n") + 1);
 	  if(strcmp(nameExpr->Name(),"ClusterId") == 0 ||
-	     strcmp(nameExpr->Name(),"ProcId") == 0)
+	     strcmp(nameExpr->Name(),"ProcId") == 0) {
 	    continue;
+	  }
 	  else if(strcmp(nameExpr->Name(),"QDate") == 0 ||
 		  strcmp(nameExpr->Name(),"RemoteWallClockTime") == 0 ||
 		  strcmp(nameExpr->Name(),"RemoteUserCpu") == 0 ||
@@ -558,24 +580,39 @@ JobQueueCollection::makeHistoryAdSqlStr(char* cid, char* pid, ClassAd* ad,
 		  strcmp(nameExpr->Name(),"JobStatus") == 0 ||
 		  strcmp(nameExpr->Name(),"JobPrio") == 0 ||
 		  strcmp(nameExpr->Name(),"CompletionDate") == 0) {
-	    sprintf(tmp_line_str2, "UPDATE History_Horizontal SET \"%s\" = %s WHERE cid=%s AND pid=%s AND \"%s\" IS NULL;",  nameExpr->Name(), val,cid,pid,nameExpr->Name());
+	    sprintf(tmp_line_str2, 
+				"UPDATE History_Horizontal SET \"%s\" = %s "
+				"WHERE cid=%s AND pid=%s AND \"%s\" IS NULL;",  
+				nameExpr->Name(), val,cid,pid,nameExpr->Name());
 	    historyad_hor_str = (char*)realloc(historyad_hor_str, 
-					       strlen(historyad_hor_str) + strlen(tmp_line_str2) + 1);
+										   strlen(historyad_hor_str) + 
+										   strlen(tmp_line_str2) + 1);
+		assert(historyad_hor_str);
 	    strcat(historyad_hor_str, tmp_line_str2);		
 	  }
 
 	  else if(strcmp(nameExpr->Name(),"Owner") == 0 ||
 		  strcmp(nameExpr->Name(),"Cmd") == 0 ||
 		  strcmp(nameExpr->Name(),"LastRemoteHost") == 0) {
-	    sprintf(tmp_line_str2, "UPDATE History_Horizontal SET \"%s\" = '%s' WHERE cid=%s AND pid=%s AND \"%s\" IS NULL;",  nameExpr->Name(), val,cid,pid, nameExpr->Name());
+	    sprintf(tmp_line_str2, 
+				"UPDATE History_Horizontal SET \"%s\" = '%s' "
+				"WHERE cid=%s AND pid=%s AND \"%s\" IS NULL;",  
+				nameExpr->Name(), val,cid,pid, nameExpr->Name());
 	    historyad_hor_str = (char*)realloc(historyad_hor_str, 
 					       strlen(historyad_hor_str) + strlen(tmp_line_str2) + 1);
+		assert(historyad_hor_str);
 	    strcat(historyad_hor_str, tmp_line_str2);		
 	  }
 	  else {
-	    sprintf(tmp_line_str1, "INSERT INTO History_Vertical(cid,pid,attr,val) SELECT %s,%s,'%s','%s' WHERE NOT EXISTS(SELECT cid,pid FROM History_Vertical where cid=%s and pid=%s and attr='%s');",  cid, pid, nameExpr->Name(), val,cid,pid,nameExpr->Name());
+	    sprintf(tmp_line_str1, 
+				"INSERT INTO History_Vertical(cid,pid,attr,val) "
+				"SELECT %s,%s,'%s','%s' WHERE NOT EXISTS(SELECT cid,pid FROM "
+				"History_Vertical where cid=%s and pid=%s and attr='%s');",  
+				cid, pid, nameExpr->Name(), val,cid,pid,nameExpr->Name());
 	    historyad_ver_str = (char*)realloc(historyad_ver_str, 
-					       strlen(historyad_ver_str) + strlen(tmp_line_str1) + 1);
+										   strlen(historyad_ver_str) + 
+										   strlen(tmp_line_str1) + 1);
+		assert(historyad_ver_str);
 	    strcat(historyad_ver_str, tmp_line_str1);		
 	  }
 	  
@@ -595,7 +632,10 @@ JobQueueCollection::getNextClusterAd_StrCopyStr()
 		ClusterAd_Str_CopyStr = NULL;
 	}
 
-	getNextAdCopyStr(true, curClusterAdIterateIndex, _ppClusterAdBucketList, ClusterAd_Str_CopyStr);
+	getNextAdCopyStr(true, 
+					 curClusterAdIterateIndex, 
+					 _ppClusterAdBucketList, 
+					 ClusterAd_Str_CopyStr);
 
 	return ClusterAd_Str_CopyStr;
 }
@@ -606,7 +646,10 @@ JobQueueCollection::getNextClusterAd_StrCopyStr()
 char*
 JobQueueCollection::getNextClusterAd_NumCopyStr()
 {
-	getNextAdCopyStr(false, curClusterAdIterateIndex, _ppClusterAdBucketList, ClusterAd_Num_CopyStr);
+	getNextAdCopyStr(false, 
+					 curClusterAdIterateIndex, 
+					 _ppClusterAdBucketList, 
+					 ClusterAd_Num_CopyStr);
 	return ClusterAd_Num_CopyStr;
 }
 
@@ -616,7 +659,10 @@ JobQueueCollection::getNextClusterAd_NumCopyStr()
 char*
 JobQueueCollection::getNextProcAd_StrCopyStr()
 {
-	getNextAdCopyStr(true, curProcAdIterateIndex, _ppProcAdBucketList, ProcAd_Str_CopyStr);
+	getNextAdCopyStr(true, 
+					 curProcAdIterateIndex, 
+					 _ppProcAdBucketList, 
+					 ProcAd_Str_CopyStr);
 	return ProcAd_Str_CopyStr;
 }
 
@@ -626,14 +672,20 @@ JobQueueCollection::getNextProcAd_StrCopyStr()
 char*
 JobQueueCollection::getNextProcAd_NumCopyStr()
 {
-	getNextAdCopyStr(false, curProcAdIterateIndex, _ppProcAdBucketList, ProcAd_Num_CopyStr);
+	getNextAdCopyStr(false, 
+					 curProcAdIterateIndex, 
+					 _ppProcAdBucketList, 
+					 ProcAd_Num_CopyStr);
 	return ProcAd_Num_CopyStr;
 }
 
 
 
 void
-JobQueueCollection::getNextAdCopyStr(bool bStr, int& index, ClassAdBucket **ppBucketList, char*& ret_str)
+JobQueueCollection::getNextAdCopyStr(bool bStr, 
+									 int& index, 
+									 ClassAdBucket **ppBucketList, 
+									 char*& ret_str)
 {	
   // index is greater than the last index of bucket list?
   // we cant call it quits if there's another chained ad after this
@@ -660,21 +712,23 @@ JobQueueCollection::getNextAdCopyStr(bool bStr, int& index, ClassAdBucket **ppBu
 			pCurBucket = ppBucketList[index++];
 		}
 	} 
-	else // we are following the chained buckets
+	else { // we are following the chained buckets
 		pCurBucket = pCurBucket->pNext;
-
+	}
 		// is there a chaned bucket?
-	if (pCurBucket->pNext != NULL)
+	if (pCurBucket->pNext != NULL) {
 		bChained = true;
-	else
+	}
+	else {
 		bChained = false;
+	}
 
 	// making a COPY string for this ClassAd
 	makeCopyStr(bStr, pCurBucket->cid, 
 					  pCurBucket->pid, 
 					  pCurBucket->ad, 
 				ret_str);
-
+	
 }
 
 void 
@@ -705,10 +759,16 @@ JobQueueCollection::makeCopyStr(bool bStr, char* cid, char* pid, ClassAd* ad, ch
 		// TargetType = "Machine"
 	if (bStr == true) {
 		if (pid != NULL) {
-			sprintf(tmp_line_str, "%s\t%s\tMyType\t\"Job\"\n%s\t%s\tTargetType\t\"Machine\"\n", cid, pid, cid, pid);
+			sprintf(tmp_line_str, 
+					"%s\t%s\tMyType\t\"Job\"\n"
+					"%s\t%s\tTargetType\t\"Machine\"\n", 
+					cid, pid, cid, pid);
 		}
 		else {
-			sprintf(tmp_line_str, "%s\tMyType\t\"Job\"\n%s\tTargetType\t\"Machine\"\n", cid, cid);
+			sprintf(tmp_line_str, 
+					"%s\tMyType\t\"Job\"\n"
+					"%s\tTargetType\t\"Machine\"\n", 
+					cid, cid);
 		}
 
 		ret_str = (char*)malloc(strlen(tmp_line_str) + 1);
@@ -729,10 +789,12 @@ JobQueueCollection::makeCopyStr(bool bStr, char* cid, char* pid, ClassAd* ad, ch
 			value_type = NUM_TYPE;
 		}
 		else {
-			if (val != endptr) // Number
+			if (val != endptr) { // Number
 				value_type = NUM_TYPE;
-			else if (val == endptr) // String or other types
+			}
+			else if (val == endptr) { // String or other types
 				value_type = OTHER_TYPE;
+			}
 		}
 
 
@@ -763,6 +825,7 @@ JobQueueCollection::makeCopyStr(bool bStr, char* cid, char* pid, ClassAd* ad, ch
 			else {
 				ret_str = (char*)realloc(ret_str, 
 					strlen(ret_str) + strlen(line_str) + 1);
+				assert(ret_str);
 				strcat(ret_str, line_str);
 			}
 
