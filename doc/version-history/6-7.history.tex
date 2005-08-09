@@ -53,6 +53,13 @@ for standard universe.  Previously, it was only supported in the grid universe.
 \item Added default user priority factors for accounting groups.  More on
 	accounting groups will be available in future versions of the manual.
 
+\item Added \Macro{DAGMAN\_CONDOR\_SUBMIT\_EXE},
+\Macro{DAGMAN\_STORK\_SUBMIT\_EXE}, \Macro{DAGMAN\_CONDOR\_RM\_EXE},
+and \Macro{DAGMAN\_STORK\_RM\_EXE} configuration settings to specify
+the \Condor{submit}, \Stork{submit}, \Condor{rm}, and \Stork{rm}
+executables used by \Condor{dagman}.  If unset (which they are by
+default), \Condor{dagman} looks for each in the PATH.
+
 \end{itemize}
 
 \noindent Bugs Fixed:
@@ -116,6 +123,12 @@ put on hold.
   Now, log writing happens more fairly, and no \Condor{shadow}
   processes can be delayed indefinitely.
 
+\item Fixed a bug in \Condor{dagman} which would cause a node's POST script not to be run
+
+\item Fixed a bug whereby \Condor{dagman} could crash after executing
+the POST script of a node whose Condor job had never been successfully
+submitted due to repeated \Condor{submit} failures.
+
 \item Fixed some messages in the Condor log files that were improperly
   formatted, or contained incomplete information.
 
@@ -134,6 +147,10 @@ put on hold.
 
 \item The Condor-C GAHP now performs file staging in a 
 separate process, allowing remote grid jobs to be started earlier.
+
+\item Removed support for deprecated \Opt{-NoPostFail} option from
+\Condor{dagman}.  (The same functionality can be achieved through the
+use of a simple POST script.)
 
 \end{itemize}
 
