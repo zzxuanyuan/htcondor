@@ -13,7 +13,15 @@ The details of each version are described below.
 
 \begin{itemize}
 
-\item Add stuff here...
+\item This release contains all of the bug fixes and improvements from
+  the 6.6 stable series up to and including version 6.6.10.
+
+\item The Mac OS X binaries shipped with this release were built on OS
+  10.3.  Previous versions of Condor for OS X were built with version
+  10.2.  Condor is officially dropping support for Mac OS 10.2 with
+  this release (though it is possible the 10.3 binaries still work, we
+  have not verified it either way).  These binaries are known to work
+  with Mac OS 10.4 (``Tiger''), as well.
 
 \end{itemize}
 
@@ -24,22 +32,21 @@ The details of each version are described below.
 \item \SubmitCmd{remote\_initialdir} is now supported in all universes except
 for standard universe.  Previously, it was only supported in the grid universe.
 
-%\item The \Condor{negotiator} can now limit how long it negotiates with a 
-%single submitter before moving on to the next one. 
+\item The \Condor{startd} can now be configured to write out the
+  \Attr{ClaimId} of the next available claim for each virtual machine
+  to seperate files.
+  This functionality will enable enhanced fault tolerance in future
+  versions of Condor.
+  For more information, see section~\ref{param:StartdClaimIdFile} for
+  details on \Macro{STARTD\_SHOULD\_WRITE\_CLAIM\_ID\_FILE} and
+  \Macro{STARTD\_CLAIM\_ID\_FILE}, the two configuration settings that
+  control this behavior.
 
 \end{itemize}
 
 \noindent Bugs Fixed:
 
 \begin{itemize}
-
-\item Fixed a bug that caused the gridmanager to crash if a gt2, gt3, or
-gt4 grid job had a proxy that couldn't be read properly. Now the job gets
-put on hold.
-
-\item Fixed rare bug that could cause \Condor{submit} to crash when
-  both getenv=true and environment=... were in a submit file and when
-  very large variable names were in the environment. 
 
 \item Fixed bugs on the Win32 platform in the \Condor{schedd} that could
 cause jobs to never complete when the \Condor{schedd} is busy with many jobs
@@ -49,6 +56,48 @@ running at once.
 changing the default value of \MacroNI{JOB\_IS\_FINISHED\_INTERVAL} from 1
 to 0 (see section~\ref{param:JobIsFinishedInterval} for details on this
 setting).
+
+\item Fixed a bug that caused the gridmanager to crash if a gt2, gt3, or
+gt4 grid job had a proxy that couldn't be read properly. Now the job gets
+put on hold.
+
+\item Fixed rare bug that could cause \Condor{submit} to crash when
+  both getenv=true and environment=... were in a submit file and when
+  very large variable names were in the environment. 
+
+\item Fixed a rare bug where the \Condor{schedd} would die with a
+  fatal exception under extremely heavy load on the machine.
+  The error message was:
+\begin{verbatim}  
+  ERROR ``Impossible: Create_Thread child_errno (12145) is not
+  ERRNO_PID_COLLISION!'' at line 6181 in file daemon_core.C
+\end{verbatim}  
+
+\item Improved performance of standard universe jobs when
+  \Attr{WantRemoteIO} is set to false in the job ClassAd.  
+  In this case, Condor's checkpointing libraries now avoid some
+  additional communication with the \Condor{shadow} which are not
+  required if there's no remote IO.
+
+\item Improved performance of the \Condor{schedd} when not running as
+  root.
+  In version 6.7.7, the new code to support the scheduler universe
+  with Condor-C involved adding some additional overhead to the
+  \Condor{schedd}.
+  However, this overhead is not needed unless the \Condor{schedd} is
+  running as root.
+  In version 6.7.10, the \Condor{schedd} notices if it is not root and
+  does an optimization to avoid the overhead.
+
+\item Fixed a bug on Windows where if lots of jobs submitted were from
+  the same \Condor{schedd}, some of the \Condor{shadow} processes
+  would block for an extremely long time trying to get a lock for
+  writing to the \File{ShadowLog} file.
+  Now, log writing happens more fairly, and no \Condor{shadow}
+  processes can be delayed indefinitely.
+
+\item Fixed some messages in the Condor log files that were improperly
+  formatted, or contained incomplete information.
 
 \end{itemize}
 
@@ -70,6 +119,9 @@ setting).
 \begin{itemize}
 
 \item The Parallel Universe has been added.
+  For more information, see section~\ref{sec:Parallel} on
+  page~\pageref{sec:Parallel}.
+
 
 \item 
 \index{environment variables!X509\_USER\_PROXY}
