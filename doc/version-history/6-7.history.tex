@@ -80,9 +80,13 @@ put on hold.
   fatal exception under extremely heavy load on the machine.
   The error message was:
 \begin{verbatim}  
-  ERROR ``Impossible: Create_Thread child_errno (12145) is not
+  ERROR ``Impossible: Create_Thread child_errno (xxx) is not
   ERRNO_PID_COLLISION!'' at line 6181 in file daemon_core.C
 \end{verbatim}  
+
+\item Fixed a rare bug where certain attributes in a job description
+  file could cause the \Condor{schedd} to crash when restarting and
+  parsing the \File{job\_queue.log} file.
 
 \item Improved performance of standard universe jobs when
   \Attr{WantRemoteIO} is set to false in the job ClassAd.  
