@@ -423,6 +423,7 @@ Scheduler::~Scheduler()
 			Owners[i].Name = NULL;
 		}
 	}
+	
 
 	if (_gridlogic)
 		delete _gridlogic;
@@ -525,8 +526,6 @@ Scheduler::count_jobs()
 		Owners[i].JobsFlocked = 0;
 		Owners[i].FlockLevel = 0;
 		Owners[i].OldFlockLevel = 0;
-		Owners[i].GlobusJobs = 0;
-		Owners[i].GlobusUnmanagedJobs = 0;
 		Owners[i].NegotiationTimestamp = current_time;
 	}
 
@@ -810,10 +809,18 @@ Scheduler::count_jobs()
 	 // Don't bother if we are starting a gridmanager per job.
 	if ( !gridman_per_job ) {
 		for (i=0; i < N_Owners; i++) {
-			if ( Owners[i].GlobusJobs > 0 ) {
+			GridJobs * pGridJobs;
+			Owners[i].grid_jobs.startIterations();
+			while (Owners[i].grid_jobs.iterate(pGridJobs)) {
+				if (pGridJobs->GlobusJobs == 0)
+					continue;
+
 				GridUniverseLogic::JobCountUpdate(Owners[i].Name, 
-						Owners[i].Domain,NULL, NULL, 0, 0, 
-						Owners[i].GlobusJobs,Owners[i].GlobusUnmanagedJobs);
+												  pGridJobs->LocalUser.Value(),
+												  Owners[i].Domain,
+												  NULL, NULL, 0, 0, 
+												  pGridJobs->GlobusJobs,
+												  pGridJobs->GlobusUnmanagedJobs);
 			}
 		}
 	}
@@ -915,6 +922,7 @@ count( ClassAd *job )
 	char 	buf2[_POSIX_PATH_MAX];
 	char*	owner;
 	char 	domain[_POSIX_PATH_MAX];
+	char 	local_user[_POSIX_PATH_MAX];
 	int		cur_hosts;
 	int		max_hosts;
 	int		universe;
@@ -977,6 +985,10 @@ count( ClassAd *job )
 	domain[0] = '\0';
 	job->LookupString(ATTR_NT_DOMAIN, domain);
 	
+	local_user[0]='\0';
+	job->LookupString(ATTR_LOCAL_USER_ACCOUNT, local_user);
+
+
 	// With NiceUsers, the number of owners is
 	// not the same as the number of submittors.  So, we first
 	// check if this job is being submitted by a NiceUser, and
@@ -994,6 +1006,13 @@ count( ClassAd *job )
 	// insert owner even if REMOVED or HELD for condor_q -{global|sub}
 	// this function makes its own copies of the memory passed in 
 	int OwnerNum = scheduler.insert_owner( owner );
+	
+/*	if (local_user) {
+		if (scheduler.Owners[OwnerNum].LocalUser == NULL) {
+			Owners[OwnerNum].LocalUser = strdup (local_user);
+		}
+		}
+*/
 
 	// make certain gridmanager has a copy of mirrored jobs
 	char *mirror_schedd_name = NULL;
@@ -1014,7 +1033,7 @@ count( ClassAd *job )
 			char owner[_POSIX_PATH_MAX];
 			owner[0] = '\0';	
 			job->LookupString(ATTR_OWNER,owner);	
-			GridUniverseLogic::JobCountUpdate(owner,domain,mirror_schedd_name,ATTR_MIRROR_SCHEDD,
+			GridUniverseLogic::JobCountUpdate(owner,local_user, domain,mirror_schedd_name,ATTR_MIRROR_SCHEDD,
 				0, 0, 1, job_managed ? 0 : 1);
 		}
 		free(mirror_schedd_name);
@@ -1103,22 +1122,37 @@ count( ClassAd *job )
 			}
 		}
 
+			// Update the GlobusJobs, GlobusUnmanagedJobs for owner
+		GridJobs * pGridJobs = NULL;
+
+		scheduler.Owners[OwnerNum].grid_jobs.lookup (
+			HashKey (owner), 
+			pGridJobs);
+
+		if (!pGridJobs) {
+			pGridJobs = new GridJobs(owner);
+			scheduler.Owners[OwnerNum].grid_jobs.insert (HashKey(owner), pGridJobs);
+		}
+
 		// Don't count HELD jobs that have ATTR_JOB_MANAGED set to false.
 		if ( status != HELD || job_managed != 0 ) 
 		{
 			needs_management = 1;
-			scheduler.Owners[OwnerNum].GlobusJobs++;
+			pGridJobs->GlobusJobs++;
 		}
 		if ( status != HELD && job_managed == 0 ) 
 		{
-			scheduler.Owners[OwnerNum].GlobusUnmanagedJobs++;
+			pGridJobs->GlobusUnmanagedJobs++;
 		}
 		if ( gridman_per_job ) {
 			int cluster = 0;
 			int proc = 0;
 			job->LookupInteger(ATTR_CLUSTER_ID, cluster);
 			job->LookupInteger(ATTR_PROC_ID, proc);
-			GridUniverseLogic::JobCountUpdate(owner,domain,NULL,NULL,
+			GridUniverseLogic::JobCountUpdate(owner,
+											  local_user,
+											  domain,
+											  NULL,NULL,
 					cluster, proc, needs_management, job_managed ? 0 : 1);
 		}
 			// If we do not need to do matchmaking on this job (i.e.
@@ -1261,15 +1295,17 @@ handle_mirror_job_notification(ClassAd *job_ad, int mode, PROC_ID & job_id)
 		if ( job_managed  ) {
 			char owner[_POSIX_PATH_MAX];
 			char domain[_POSIX_PATH_MAX];
+			char local_user[_POSIX_PATH_MAX];
 			owner[0] = '\0';
 			domain[0] = '\0';
+			local_user[0] = '\0';
 			job_ad->LookupString(ATTR_OWNER,owner);
 			job_ad->LookupString(ATTR_NT_DOMAIN,domain);
 			if ( gridman_per_job ) {
-				GridUniverseLogic::JobRemoved(owner,domain,mirror_schedd_name,
+				GridUniverseLogic::JobRemoved(owner,local_user,domain,mirror_schedd_name,
 					ATTR_MIRROR_SCHEDD,job_id.cluster,job_id.proc);
 			} else {
-				GridUniverseLogic::JobRemoved(owner,domain,mirror_schedd_name,
+				GridUniverseLogic::JobRemoved(owner,local_user,domain,mirror_schedd_name,
 					ATTR_MIRROR_SCHEDD,0,0);
 			}
 		}
@@ -1372,14 +1408,16 @@ abort_job_myself( PROC_ID job_id, JobAction action, bool log_hold,
 		if ( job_managed  ) {
 			char owner[_POSIX_PATH_MAX];
 			char domain[_POSIX_PATH_MAX];
+			char local_user[_POSIX_PATH_MAX];
 			owner[0] = '\0';
 			domain[0] = '\0';
+			local_user[0] = '\0';
 			job_ad->LookupString(ATTR_OWNER,owner);
 			job_ad->LookupString(ATTR_NT_DOMAIN,domain);
 			if ( gridman_per_job ) {
-				GridUniverseLogic::JobRemoved(owner,domain,NULL,NULL,job_id.cluster,job_id.proc);
+				GridUniverseLogic::JobRemoved(owner,local_user,domain,NULL,NULL,job_id.cluster,job_id.proc);
 			} else {
-				GridUniverseLogic::JobRemoved(owner,domain,NULL,NULL,0,0);
+				GridUniverseLogic::JobRemoved(owner,local_user,domain,NULL,NULL,0,0);
 			}
 			return;
 		}
@@ -1506,20 +1544,30 @@ abort_job_myself( PROC_ID job_id, JobAction action, bool log_hold,
                      "Found record for scheduler universe job %d.%d\n",
                      job_id.cluster, job_id.proc);
             
-			char owner[_POSIX_PATH_MAX];
+			char user[_POSIX_PATH_MAX];
 			char domain[_POSIX_PATH_MAX];
-			owner[0] = '\0';
-			job_ad->LookupString(ATTR_OWNER,owner);
+			user [0] = '\0';
+			
+			if (job_ad->LookupString (ATTR_LOCAL_USER_ACCOUNT, user)) {
+				dprintf (D_FULLDEBUG, 
+						 "Using dynamic user account %s for job %d.%d\n", 
+						 user,
+						 job_id.cluster,
+						 job_id.proc);
+			} else {	
+				job_ad->LookupString(ATTR_OWNER,user);
+			}
+
 			job_ad->LookupString(ATTR_NT_DOMAIN,domain);
-			if (! init_user_ids(owner, domain) ) {
+			if (! init_user_ids(user, domain) ) {
 				char tmpstr[255];
 				dprintf(D_ALWAYS, "init_user_ids() failed - putting job on "
 					   "hold.\n");
 #ifdef WIN32
 				snprintf(tmpstr, 255,
-					   	"Bad or missing credential for user: %s", owner);
+					   	"Bad or missing credential for user: %s", user);
 #else
-				snprintf(tmpstr, 255, "Unable to switch to user: %s", owner);
+				snprintf(tmpstr, 255, "Unable to switch to user: %s", user);
 #endif
 				holdJob(job_id.cluster, job_id.proc, tmpstr, 
 					false, false, true, false, false);
@@ -1566,7 +1614,7 @@ abort_job_myself( PROC_ID job_id, JobAction action, bool log_hold,
 			dprintf( D_FULLDEBUG, "Sending %s signal (%s, %d) to "
 					 "scheduler universe job pid=%d owner=%s\n",
 					 getJobActionString(action), sig_name, kill_sig,
-					 srec->pid, owner );
+					 srec->pid, user );
 			priv_state priv = set_user_priv();
 
 			if( daemonCore->Send_Signal(srec->pid, kill_sig) ) {
@@ -2080,7 +2128,7 @@ aboutToSpawnJobHandler( int cluster, int proc, void* )
 
 	MyString owner;
 
-	if (talk_to_workspace_service && job_ad->LookupString (ATTR_DYNAMIC_USER_ACCOUNT, owner)) {
+	if (talk_to_workspace_service && job_ad->LookupString (ATTR_LOCAL_USER_ACCOUNT, owner)) {
 			// We're happy, re-use this account
 	} else if (talk_to_workspace_service) {
 		int fd = -1;
@@ -2227,7 +2275,9 @@ aboutToSpawnJobHandlerDone( int cluster, int proc,
 #if defined (UNIX)
 	ClassAd * job_ad = GetJobAd( cluster, proc );
 	ASSERT( job_ad ); // No job ad?
-	char * owner = NULL;
+	MyString new_owner;
+	MyString owner;
+
 	if( jobIsSandboxed(job_ad) && shouldUseWorkspaceService() ) {
 		MyString sandbox;
 		if( getSandbox(cluster, proc, sandbox) ) {
@@ -2236,11 +2286,14 @@ aboutToSpawnJobHandlerDone( int cluster, int proc,
 				uid_t s_owner = si.GetOwner();
 				struct passwd * pw;
 				if ((pw=getpwuid(s_owner))) {
-					owner = pw->pw_name;
+
+						// Set Owner to new value
+					new_owner = pw->pw_name;
 					SetAttributeString (cluster,
 										proc,
-										ATTR_DYNAMIC_USER_ACCOUNT,
-										owner);
+										ATTR_LOCAL_USER_ACCOUNT,
+										new_owner.Value());
+
 				}
 			}
 		} else {
@@ -2382,7 +2435,7 @@ jobIsFinished( int cluster, int proc, void* )
 	bool has_dynamic_user = 
 		shouldUseWorkspaceService() && 
 		job_ad->LookupString (
-							  ATTR_DYNAMIC_USER_ACCOUNT, 
+							  ATTR_LOCAL_USER_ACCOUNT, 
 							  dynamic_user);
 
 	
@@ -2397,6 +2450,8 @@ jobIsFinished( int cluster, int proc, void* )
 			MyString curr_owner;
 			if (has_dynamic_user) {
 				curr_owner = dynamic_user;
+
+
 			} else {
 				job_ad->LookupString( ATTR_OWNER, curr_owner );
 			}
@@ -2470,8 +2525,24 @@ jobIsFinishedDone( int cluster, int proc, void*, int )
 	dprintf( D_FULLDEBUG,
 			 "jobIsFinished() completed, calling DestroyProc(%d.%d)\n",
 			 cluster, proc );
+
+ 
+
 	SetAttributeInt( cluster, proc, ATTR_JOB_FINISHED_HOOK_DONE,
 					 (int)time(NULL) );
+
+		// Restore Owner attribute
+	MyString orig_owner;
+/*	if (job_ad->LookupString (
+							  ATTR_ORIG_OWNER,
+							  orig_owner)) {
+		SetAttributeString (cluster,
+							proc,
+							ATTR_OWNER,
+							orig_owner.Value());
+	}
+	FreeJobAd (job_ad); job_ad=NULL;*/
+
 	return DestroyProc( cluster, proc );
 }
 

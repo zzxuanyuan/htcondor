@@ -576,6 +576,8 @@ bool
 OwnerCheck(ClassAd *ad, const char *test_owner)
 {
 	char	my_owner[_POSIX_PATH_MAX];
+	char 	my_dynamic_user[_POSIX_PATH_MAX];
+	bool has_dynamic_user = false;
 
 	// If test_owner is NULL, then we have no idea who the user is.  We
 	// do not allow anonymous folks to mess around with the queue, so 
@@ -632,24 +634,30 @@ OwnerCheck(ClassAd *ad, const char *test_owner)
 		dprintf(D_FULLDEBUG,"OwnerCheck retval 1 (success),no ad\n");
 		return true;
 	}
+
 	if( ad->LookupString(ATTR_OWNER, my_owner) == 0 ) {
 		dprintf(D_FULLDEBUG,"OwnerCheck retval 1 (success),no owner\n");
 		return true;
 	}
 
+	has_dynamic_user = ad->LookupString (ATTR_LOCAL_USER_ACCOUNT, 
+										 my_dynamic_user);
+
 		// Finally, compare the owner of the ad with the entity trying
 		// to connect to the queue.
-	if (strcmp(my_owner, test_owner) != 0) {
-#if !defined(WIN32)
-		errno = EACCES;
-#endif
-		dprintf( D_FULLDEBUG, "ad owner: %s, queue submit owner: %s\n",
-				my_owner, test_owner );
-		return false;
-	} 
-	else {
+	if ((strcmp(my_owner, test_owner) == 0) ||
+		(has_dynamic_user && (strcmp(my_dynamic_user, test_owner) == 0))) {
 		return true;
 	}
+
+#if !defined(WIN32)
+	errno = EACCES;
+#endif
+	dprintf( D_FULLDEBUG, "ad owner: %s, dynamic user %d, queue submit owner: %s\n",
+			 my_owner, 
+			 has_dynamic_user?my_dynamic_user:"<none>",
+			 test_owner );
+	return false;
 }
 
 
@@ -943,9 +951,7 @@ int DestroyProc(int cluster_id, int proc_id)
 	int universe = CONDOR_UNIVERSE_STANDARD;
 	ad->LookupInteger(ATTR_JOB_UNIVERSE, universe);
 
-	if( (universe == CONDOR_UNIVERSE_PVM) || 
-		(universe == CONDOR_UNIVERSE_MPI) ||
-		(universe == CONDOR_UNIVERSE_PARALLEL) ) {
+	if( (universe == CONDOR_UNIVERSE_PVM) || (universe == CONDOR_UNIVERSE_MPI) ) {
 			// PVM jobs take up a whole cluster.  If we've been ask to
 			// destroy any of the procs in a PVM job cluster, we
 			// should destroy the entire cluster.  This hack lets the
@@ -1050,8 +1056,6 @@ int DestroyCluster(int cluster_id, const char* reason)
 //				log = new LogDestroyClassAd(key);
 //				JobQueue->AppendLog(log);
 
-				cleanup_ckpt_files(cluster_id,proc_id, NULL );
-
 				JobQueue->DestroyClassAd(key.value());
 
 					// remove any match (startd) ad stored w/ this job
@@ -1121,7 +1125,7 @@ static bool EvalBool(ClassAd *ad, const char *constraint)
 	if (result.type == LX_INTEGER) {
 		return (bool)result.i;
 	}
-	dprintf(D_ALWAYS, "constraint (%s) does not evaluate to bool\n",
+	dprintf(D_ALWAYS, "contraint (%s) does not evaluate to bool\n",
 		constraint);
 	return false;
 }
@@ -1248,8 +1252,7 @@ SetAttribute(int cluster_id, int proc_id, const char *attr_name,
 #if !defined(WIN32)
 			errno = EACCES;
 #endif
-			dprintf(D_ALWAYS,"Inserting new attribute %s into non-active cluster cid=%d acid=%d\n", 
-					attr_name, cluster_id,active_cluster_num);
+			dprintf(D_ALWAYS,"Interting new ad into non-active cluster cid=%d acid=%d\n",cluster_id,active_cluster_num);
 			return -1;
 		}
 	}
@@ -2010,19 +2013,9 @@ GetJobAd(int cluster_id, int proc_id, bool expStartdAd)
 
 				if (!value) {
 					if(fallback) {
-						char *rebuild = (char *) malloc(  strlen(name)
-							+ 3  // " = "
-							+ 1  // optional '"'
-							+ strlen(fallback)
-							+ 1  // optional '"'
-							+ 1); // null terminator
-						if(strlen(fallback) == 0) {
-							// fallback is nothing?  That confuses all sorts of
-							// things.  How about a nothing string instead?
-							sprintf(rebuild,"%s = \"%s\"",name,fallback);
-						} else {
-							sprintf(rebuild,"%s = %s",name,fallback);
-						}
+						char *rebuild = (char *) malloc(  strlen(name) + 3 
+														+ strlen(fallback) + 1);
+						sprintf(rebuild,"%s = %s",name,fallback);
 						value = rebuild;
 					}
 					if(!fallback || !value) {

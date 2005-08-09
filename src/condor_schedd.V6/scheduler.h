@@ -73,6 +73,19 @@ struct shadow_rec
 	bool			is_reconnect;
 }; 
 
+struct GridJobs {
+	MyString LocalUser;	
+	int GlobusJobs;
+	int GlobusUnmanagedJobs;
+	GridJobs(const char* user) { 
+		LocalUser = user; 
+		GlobusJobs=GlobusUnmanagedJobs=0; 
+	}
+};
+#ifndef WIN32
+template class HashTable <HashKey, GridJobs*>;
+#endif
+
 struct OwnerData {
   char* Name;
   char* Domain;
@@ -82,11 +95,12 @@ struct OwnerData {
   int JobsFlocked;
   int FlockLevel;
   int OldFlockLevel;
-  int GlobusJobs;
-  int GlobusUnmanagedJobs;
   time_t NegotiationTimestamp;
-  OwnerData() { Name=NULL; Domain=NULL;
-  JobsRunning=JobsIdle=JobsHeld=JobsFlocked=FlockLevel=OldFlockLevel=GlobusJobs=GlobusUnmanagedJobs=0; }
+  HashTable <HashKey,GridJobs*> grid_jobs;
+  OwnerData() : grid_jobs(32, hashFunction) { 
+	  Name=NULL; Domain=NULL;
+  JobsRunning=JobsIdle=JobsHeld=JobsFlocked=FlockLevel=OldFlockLevel=0;
+  }
 };
 
 class match_rec
@@ -322,7 +336,7 @@ class Scheduler : public Service
 		// hashtable used to hold matching ClassAds for Globus Universe
 		// jobs which desire matchmaking.
 	HashTable <PROC_ID, ClassAd *> *resourcesByProcID;
-  
+
 private:
 	
 	// information about this scheduler
@@ -473,6 +487,7 @@ private:
 	HashTable <int, shadow_rec *> *shadowsByPid;
 	HashTable <PROC_ID, shadow_rec *> *shadowsByProcID;
 	HashTable <int, ExtArray<PROC_ID> *> *spoolJobFileWorkers;
+
 	int				numMatches;
 	int				numShadows;
 	DaemonList		*FlockCollectors, *FlockNegotiators;

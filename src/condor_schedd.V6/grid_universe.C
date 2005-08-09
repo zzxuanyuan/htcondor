@@ -145,7 +145,7 @@ GridUniverseLogic::group_per_subject()
 }
 
 void 
-GridUniverseLogic::JobCountUpdate(const char* owner, const char* domain,
+GridUniverseLogic::JobCountUpdate(const char* owner, const char * local_user, const char* domain,
 	   	const char* attr_value, const char* attr_name, int cluster, int proc, 
 		int num_globus_jobs, int num_globus_unmanaged_jobs)
 {
@@ -158,7 +158,7 @@ GridUniverseLogic::JobCountUpdate(const char* owner, const char* domain,
 	// does not know they are in the queue. so tell it some jobs
 	// were added.
 	if ( num_globus_unmanaged_jobs > 0 ) {
-		JobAdded(owner, domain, attr_value, attr_name, cluster, proc);
+		JobAdded(owner, local_user, domain, attr_value, attr_name, cluster, proc);
 		return;
 	}
 
@@ -166,7 +166,7 @@ GridUniverseLogic::JobCountUpdate(const char* owner, const char* domain,
 	// are any globus jobs at all.  if there are, make certain that there
 	// is a grid manager watching over the jobs and start one if there isn't.
 	if ( num_globus_jobs > 0 ) {
-		StartOrFindGManager(owner, domain, attr_value, attr_name, cluster, proc);
+		StartOrFindGManager(owner, local_user, domain, attr_value, attr_name, cluster, proc);
 		return;
 	}
 
@@ -176,12 +176,12 @@ GridUniverseLogic::JobCountUpdate(const char* owner, const char* domain,
 
 
 void 
-GridUniverseLogic::JobAdded(const char* owner, const char* domain,
+GridUniverseLogic::JobAdded(const char* owner, const char * local_user, const char* domain,
 	   	const char* attr_value, const char* attr_name, int cluster, int proc)
 {
 	gman_node_t* node;
 
-	node = StartOrFindGManager(owner, domain, attr_value, attr_name, cluster, proc);
+	node = StartOrFindGManager(owner, local_user, domain, attr_value, attr_name, cluster, proc);
 
 	if (!node) {
 		// if we cannot find nor start a gridmanager, there's
@@ -202,12 +202,12 @@ GridUniverseLogic::JobAdded(const char* owner, const char* domain,
 }
 
 void 
-GridUniverseLogic::JobRemoved(const char* owner, const char* domain,
+GridUniverseLogic::JobRemoved(const char* owner, const char* local_user, const char* domain,
 	   	const char* attr_value, const char* attr_name,int cluster, int proc)
 {
 	gman_node_t* node;
 
-	node = StartOrFindGManager(owner, domain, attr_value, attr_name, cluster, proc);
+	node = StartOrFindGManager(owner, local_user, domain, attr_value, attr_name, cluster, proc);
 
 	if (!node) {
 		// if we cannot find nor start a gridmanager, there's
@@ -377,21 +377,14 @@ GridUniverseLogic::GManagerReaper(Service *,int pid, int exit_status)
 
 
 GridUniverseLogic::gman_node_t *
-GridUniverseLogic::lookupGmanByOwner(const char* owner, const char* attr_value,
-					int cluster, int proc)
+GridUniverseLogic::lookupGmanByOwner(const char* owner, 
+									 const char* local_user,
+									 const char* attr_value,
+									 int cluster, int proc)
 {
 	gman_node_t* result = NULL;
-	MyString owner_key(owner);
-	if(attr_value){
-		MyString attr_key(attr_value);
-		owner_key += attr_key;
-	}
-	if (cluster) {
-		char tmp[100];
-		sprintf(tmp,"-%d.%d",cluster,proc);
-		MyString job_key(tmp);
-		owner_key += job_key;
-	}
+	MyString owner_key = 
+		gman_pid_table_key (owner, local_user, attr_value, cluster, proc);
 
 	if (!gman_pid_table) {
 		// destructor has already been called; we are probably
@@ -405,13 +398,18 @@ GridUniverseLogic::lookupGmanByOwner(const char* owner, const char* attr_value,
 }
 
 GridUniverseLogic::gman_node_t *
-GridUniverseLogic::StartOrFindGManager(const char* owner, const char* domain,
-	   	const char* attr_value, const char* attr_name, int cluster, int proc)
+GridUniverseLogic::StartOrFindGManager(const char* owner, 
+									   const char* local_user,
+									   const char* domain,
+									   const char* attr_value, 
+									   const char* attr_name, 
+									   int cluster, 
+									   int proc)
 {
 	gman_node_t* gman_node;
 	int pid;
 
-	if ( (gman_node=lookupGmanByOwner(owner, attr_value, cluster, proc)) ) {
+	if ( (gman_node=lookupGmanByOwner(owner, local_user, attr_value, cluster, proc)) ) {
 		// found it
 		return gman_node;
 	}
@@ -488,7 +486,9 @@ GridUniverseLogic::StartOrFindGManager(const char* owner, const char* domain,
 		strcat(gman_final_args,constraint.Value());
 	}
 
-	if (!init_user_ids(owner, domain)) {
+
+	if (!init_user_ids((local_user!=NULL)?local_user:owner, 
+					   domain)) {
 		dprintf(D_ALWAYS,"ERROR - init_user_ids() failed in GRIDMANAGER\n");
 		return NULL;
 	}
@@ -604,17 +604,11 @@ GridUniverseLogic::StartOrFindGManager(const char* owner, const char* domain,
 	if ( domain ) {
 		strcpy(gman_node->domain,domain);
 	}
-	MyString owner_key(owner);
-	if(attr_value){
-		MyString attr_key(attr_value);
-		owner_key += attr_key;
-	}
-	if (cluster) {
-		char tmp[100];
-		sprintf(tmp,"-%d.%d",cluster,proc);
-		MyString job_key(tmp);
-		owner_key += job_key;
-	}
+	MyString owner_key = gman_pid_table_key (owner, 
+											 local_user, 
+											 attr_value, 
+											 cluster, proc);
+											 
 
 	ASSERT( gman_pid_table->insert(owner_key,gman_node) == 0 );
 
@@ -624,8 +618,33 @@ GridUniverseLogic::StartOrFindGManager(const char* owner, const char* domain,
 			(TimerHandler) &GridUniverseLogic::SendAddSignal,
 			"GridUniverseLogic::SendAddSignal");
 		daemonCore->Register_DataPtr(gman_node);
-	}
+	} 
 
 	// All done
 	return gman_node;
 }
+
+MyString
+GridUniverseLogic::gman_pid_table_key(const char * owner,
+						  const char * local_user,
+						  const char * attr_value,
+						  const int cluster,
+						  const int proc) {
+
+	MyString key;
+
+	key.sprintf("%s/L:%s/A:%s/J:%d.%d",
+				owner,
+				(local_user!=NULL)?local_user:"",
+				(attr_value!=NULL)?attr_value:"",
+				cluster,
+				proc);
+	return key;
+}
+				
+				
+
+	
+	
+
+

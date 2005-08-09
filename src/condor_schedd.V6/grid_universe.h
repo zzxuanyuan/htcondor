@@ -31,15 +31,15 @@ class GridUniverseLogic : public Service
 		GridUniverseLogic();
 		~GridUniverseLogic();
 
-		static void JobCountUpdate(const char* owner, const char* domain, 
+		static void JobCountUpdate(const char* owner, const char * local_user, const char* domain, 
 				const char* attr_value, const char* proxy_path, int cluster, 
 				int proc, int num_globus_jobs, int num_globus_unmanaged_jobs);
 
-		static void JobRemoved(const char* owner, const char* domain,
+		static void JobRemoved(const char* owner, const char* local_user, const char* domain,
 			   	const char* attr_value, const char* proxy_path, int cluster, 
 				int proc);
 
-		static void JobAdded(const char* owner, const char* domain,
+		static void JobAdded(const char* owner, const char* local_user, const char* domain,
 			   	const char* attr_value, const char* proxy_path, int cluster, 
 				int proc);
 
@@ -67,11 +67,13 @@ class GridUniverseLogic : public Service
 		};
 
 		static gman_node_t* lookupGmanByOwner(const char* owner, 
+											  const char * local_user,
 							const char* proxy, int cluster, int proc);
 
 		static int GManagerReaper(Service *,int pid, int exit_status);
 
 		static gman_node_t* StartOrFindGManager(const char* owner, 
+												const char* local_user,
 				const char* domain, const char* proxy,  const char* proxy_path,
 				int cluster, int proc);
 
@@ -87,6 +89,13 @@ class GridUniverseLogic : public Service
 		static GmanPidTable_t * gman_pid_table;
 
 		static int rid;
+
+		static MyString gman_pid_table_key(const char * owner,
+									const char * local_user,
+									const char * attr_value,
+									const int cluster,
+									const int proc);
+
 };
 
 #endif	// ifndef _CONDOR_GRID_UNIVERSE
