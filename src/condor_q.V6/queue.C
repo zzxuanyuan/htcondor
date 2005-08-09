@@ -175,6 +175,8 @@ template class ExtArray<PrioEntry>;
 char return_buff[4096];
 
 char quillName[64];
+char quillAddr[64];
+char quillMachine[64];
 char dbIpAddr[64];
 char dbName[64];
 char queryPassword[64];
@@ -285,15 +287,85 @@ int main (int argc, char **argv)
 				exit(EXIT_SUCCESS);
 			}
 			else if ( verbose ) {
-				exit( !show_queue( useDB?NULL:scheddAddr, useDB?NULL:scheddName,
-								   useDB?NULL:scheddMachine, 
-								   NULL, /* in both cases we pass a null for queryPassword */
-								   useDB) );
-			} else {
-				exit( !show_queue_buffered( useDB?NULL:scheddAddr, useDB?NULL:scheddName,
-											useDB?NULL:scheddMachine,
-											NULL, /* in both cases we pass a null for queryPassword */
-											useDB) );
+				if  (useDB) {
+						/* When an installation has database parameters configured, it means 
+						   there is quill daemon. If database is not accessible, we fail
+						   over to quill daemon, and if quill daemon is not available, 
+						   we fail over the schedd daemon */
+
+						/* query the database first */
+					if (!show_queue( NULL, NULL, NULL, 
+									 NULL, /* in both cases we pass a null for queryPassword */
+									 TRUE) ) {
+						Daemon quill( DT_QUILL, 0, 0 );
+						char tmp[8];
+						strcpy(tmp, "Unknown");
+
+							/* query the quill daemon */
+						if ( !quill.locate() ||
+							 !show_queue( quill.addr(), 
+										  (quill.name())?(quill.name()):tmp,
+										  (quill.fullHostname())?(quill.fullHostname()):tmp, 
+										  NULL, /* in both cases we pass a null for queryPassword */
+										  FALSE) ) {
+							
+								/* query the schedd daemon */
+							exit( !show_queue(scheddAddr, scheddName, scheddMachine, 
+											  NULL, /* in both cases we pass a null for queryPassword */
+											  FALSE) );
+						}  else {
+							exit(EXIT_SUCCESS);
+						}
+						
+					} else {
+						exit(EXIT_SUCCESS);
+					}
+				} else {
+					
+						/* database not configed, query the schedd daemon directly */
+					exit( !show_queue(scheddAddr, scheddName, scheddMachine, 
+									  NULL, /* in both cases we pass a null for queryPassword */
+									  FALSE) );
+				}
+			} else {				
+				if  (useDB) {
+						/* When an installation has database parameters configured, it means 
+						   there is quill daemon. If database is not accessible, we fail
+						   over to quill daemon, and if quill daemon is not available, 
+						   we fail over the schedd daemon */
+
+						/* query the database first */
+					if (!show_queue_buffered( NULL, NULL, NULL, 
+											  NULL, /* in both cases we pass a null for queryPassword */
+											  TRUE) ) {
+						Daemon quill( DT_QUILL, 0, 0 );
+						char tmp[8];
+						strcpy(tmp, "Unknown");
+
+							/* query the quill daemon */
+						if ( !quill.locate() ||
+							 !show_queue_buffered( quill.addr(), 
+												   (quill.name())?(quill.name()):tmp,
+												   (quill.fullHostname())?(quill.fullHostname()):tmp, 
+												   NULL, /* in both cases we pass a null for queryPassword */
+												   FALSE) ) {
+
+								/* query the schedd */
+							exit( !show_queue_buffered(scheddAddr, scheddName, scheddMachine, 
+													   NULL, /* in both cases we pass a null for queryPassword */
+													   FALSE) );
+						} else {
+							exit(EXIT_SUCCESS);
+						}							 
+					} else {
+						exit(EXIT_SUCCESS);
+					}
+				} else {
+						/* database not configed, query the schedd daemon directly */
+					exit( !show_queue_buffered(scheddAddr, scheddName, scheddMachine, 
+									  NULL, /* in both cases we pass a null for queryPassword */
+									  FALSE) );
+				}
 			}
 		} else {
 			fprintf( stderr, "Error: %s\n", schedd.error() );
@@ -424,6 +496,16 @@ int main (int argc, char **argv)
 			ad->LookupString("QueryPassword", queryPassword) &&
 			(!ad->LookupInteger("IsRemotelyQueryable",flag) || flag)) {
 			useDB = TRUE;
+
+				/* get the quill info for fail-over processing */
+			ad->LookupString(ATTR_MY_ADDRESS, quillAddr);
+			ad->LookupString(ATTR_MACHINE, quillMachine);
+
+				/* get the schedd info for fail-over processing */
+			ad->LookupString(ATTR_SCHEDD_IP_ADDR, scheddAddr);
+			ad->LookupString(ATTR_SCHEDD_NAME, scheddName);
+			ad->LookupString(ATTR_MACHINE, scheddMachine);
+
 		}
 			// get the address of the schedd
 		else if (ad->LookupString(ATTR_SCHEDD_IP_ADDR, scheddAddr)  &&
@@ -448,17 +530,41 @@ int main (int argc, char **argv)
 			exec_db_query(quillName, dbIpAddr, dbName, queryPassword);
 		}
 		else if ( verbose ) {
-			show_queue(useDB?quillName:scheddAddr, 
-				useDB?dbIpAddr:scheddName, 
-				useDB?dbName:scheddMachine, 
-				useDB?queryPassword:NULL,
-				useDB );
+				/* When an installation has database parameters configured, it means 
+				   there is quill daemon. If database is not accessible, we fail
+				   over to quill daemon, and if quill daemon is not available, 
+				   we fail over the schedd daemon */			
+			if (useDB) {
+				if (!show_queue(quillName, 
+								dbIpAddr, 
+								dbName, 
+								queryPassword,
+								TRUE )) {
+					if  (!show_queue(quillName, quillAddr, quillMachine, NULL, FALSE)) {
+						show_queue(scheddAddr, scheddName, scheddMachine, NULL, FALSE);
+					}
+				}
+			} else {
+				show_queue(scheddAddr, scheddName, scheddMachine, NULL, FALSE);
+			}
 		} else {
-			show_queue_buffered(useDB?quillName:scheddAddr, 
-				useDB?dbIpAddr:scheddName, 
-				useDB?dbName:scheddMachine, 
-				useDB?queryPassword:NULL,
-				useDB);
+				/* When an installation has database parameters configured, it means 
+				   there is quill daemon. If database is not accessible, we fail
+				   over to quill daemon, and if quill daemon is not available, 
+				   we fail over the schedd daemon */			
+			if (useDB) {
+				if (!show_queue_buffered(quillName, 
+										 dbIpAddr, 
+										 dbName, 
+										 queryPassword,
+										 TRUE )) {
+					if  (!show_queue_buffered(quillName, quillAddr, quillMachine, NULL, FALSE)) {
+						show_queue_buffered(scheddAddr, scheddName, scheddMachine, NULL, FALSE);
+					}
+				}
+			} else {
+				show_queue_buffered(scheddAddr, scheddName, scheddMachine, NULL, FALSE);
+			}
 		}
 	}
 
