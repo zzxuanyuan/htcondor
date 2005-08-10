@@ -92,6 +92,9 @@ running at once.
   Now, log writing happens more fairly, and no \Condor{shadow}
   processes can be delayed indefinitely.
 
+\item \Condor{submit} \Opt{-name} formerly had no effect on Windows and
+did not work properly. This is now fixed.
+
 \item Significantly sped up the removal of large groups of jobs by
 changing the default value of \MacroNI{JOB\_IS\_FINISHED\_INTERVAL} from 1
 to 0 (see section~\ref{param:JobIsFinishedInterval} for details on this
