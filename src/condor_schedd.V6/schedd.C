@@ -2579,7 +2579,10 @@ Scheduler::InitializeUserLog( PROC_ID job_id )
 
 	owner[0] = '\0';
 	domain[0] = '\0';
-	GetAttributeString(job_id.cluster, job_id.proc, ATTR_OWNER, owner);
+		// try LocalUserAccount first, then Owner
+	if (GetAttributeString (job_id.cluster, job_id.proc, ATTR_LOCAL_USER_ACCOUNT, owner) < 0) {
+		GetAttributeString(job_id.cluster, job_id.proc, ATTR_OWNER, owner);
+	}
 	GetAttributeString(job_id.cluster, job_id.proc, ATTR_NT_DOMAIN, domain);
 
 	dprintf( D_FULLDEBUG, 
@@ -6915,7 +6918,7 @@ Scheduler::start_sched_universe_job(PROC_ID* job_id)
 	char	*env = NULL;
 	char	job_args[_POSIX_ARG_MAX];
 	char	args[_POSIX_ARG_MAX];
-	char	owner[_POSIX_PATH_MAX], iwd[_POSIX_PATH_MAX];
+	char	run_as_user[_POSIX_PATH_MAX], iwd[_POSIX_PATH_MAX];
 	char	domain[_POSIX_PATH_MAX];
 	int		pid;
 	StatInfo* filestat;
@@ -6977,27 +6980,39 @@ Scheduler::start_sched_universe_job(PROC_ID* job_id)
 		}
 	}
 	
-	if (GetAttributeString(job_id->cluster, job_id->proc, 
-		ATTR_OWNER, owner) < 0) {
+	if (GetAttributeString(job_id->cluster, 
+						   job_id->proc, 
+						   ATTR_LOCAL_USER_ACCOUNT, 
+						   run_as_user) == 0) {
+		dprintf (D_FULLDEBUG, "Scheduler::start_sched_universe_job"
+				 "--setting owner to LocalUserAccount : \"%s\"\n", run_as_user);
+	} else if (GetAttributeString(job_id->cluster, 
+								  job_id->proc, 
+								  ATTR_OWNER, 
+								  run_as_user) == 0) {
+		dprintf(D_FULLDEBUG, "Scheduler::start_sched_universe_job"
+			"--setting owner to Owner \"%s\"\n", run_as_user );
+
+	} else {
 		dprintf(D_FULLDEBUG, "Scheduler::start_sched_universe_job"
 			"--setting owner to \"nobody\"\n" );
-		sprintf(owner, "nobody");
+		sprintf(run_as_user, "nobody");
 	}
 	// get the nt domain too, if we have it
 	GetAttributeString(job_id->cluster, job_id->proc, ATTR_NT_DOMAIN, domain);
 
-	if (stricmp(owner, "root") == 0 ) {
+	if (stricmp(run_as_user, "root") == 0 ) {
 		dprintf(D_ALWAYS, "Aborting job %d.%d.  Tried to start as root.\n",
 			job_id->cluster, job_id->proc);
 		return NULL;
 	}
 	
-	if (! init_user_ids(owner, domain) ) {
+	if (! init_user_ids(run_as_user, domain) ) {
 		char tmpstr[255];
 #ifdef WIN32
-		snprintf(tmpstr, 255, "Bad or missing credential for user: %s", owner);
+		snprintf(tmpstr, 255, "Bad or missing credential for user: %s", run_as_user);
 #else
-		snprintf(tmpstr, 255, "Unable to switch to user: %s", owner);
+		snprintf(tmpstr, 255, "Unable to switch to user: %s", run_as_user);
 #endif
 		holdJob(job_id->cluster, job_id->proc, tmpstr,
 				false, false, true, false, false);
