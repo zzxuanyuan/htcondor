@@ -1286,7 +1286,7 @@ fi
 # if test "$_cv_opsys_vers" = "DUX4"; then
 #   CONDOR_EXTERNAL_VERSION([globus],[2.2.4])
 # else
-  CONDOR_EXTERNAL_VERSION([globus],[4.0.0])
+  CONDOR_EXTERNAL_VERSION([globus],[4.0.1])
 
 #   AC_MSG_CHECKING([globus_data])
 #   _cv_ext_globus_data_version="globus-2.4.3.data"
