@@ -40,8 +40,30 @@ The details of each version are described below.
 
 \begin{itemize}
 
+\item \Condor{dagman} can now run multiple DAGs in separate directories.
+
+
+\item Added \Macro{DAGMAN\_CONDOR\_SUBMIT\_EXE},
+\Macro{DAGMAN\_STORK\_SUBMIT\_EXE}, \Macro{DAGMAN\_CONDOR\_RM\_EXE},
+and \Macro{DAGMAN\_STORK\_RM\_EXE} configuration settings to specify
+the \Condor{submit}, \Stork{submit}, \Condor{rm}, and \Stork{rm}
+executables used by \Condor{dagman}.  If unset (which they are by
+default), \Condor{dagman} looks for each in the PATH.
+
+\item For Condor-C jobs, the \Condor{gridmanager} will retry and delay
+  failed connections to a remote \Condor{schedd} like it does for
+  Condor-G jobs. The same configuration settings apply 
+  (\Macro{GRIDMANAGER\_CONNECT\_FAILURE\_RETRY\_COUNT} and
+  \Macro{GRIDMANAGER\_RESOURCE\_PROBE\_INTERVAL}).
+
+\item The \Opt{-name} option to \Condor{submit} now works on Windows
+  platforms. 
+
 \item \SubmitCmd{remote\_initialdir} is now supported in all universes except
 for standard universe.  Previously, it was only supported in the grid universe.
+
+\item Added default user priority factors for accounting groups.  More on
+	accounting groups will be available in future versions of the manual.
 
 \item The \Condor{startd} can now be configured to write out the
   \Attr{ClaimId} of the next available claim for each virtual machine
@@ -53,24 +75,6 @@ for standard universe.  Previously, it was only supported in the grid universe.
   \Macro{STARTD\_CLAIM\_ID\_FILE}, the two configuration settings that
   control this behavior.
 
-\item \Condor{dagman} can now run multiple DAGs in separate directories.
-
-\item For Condor-C jobs, the \Condor{gridmanager} will retry and delay
-  failed connections to a remote \Condor{schedd} like it does for
-  Condor-G jobs. The same configuration settings apply 
-  (\Macro{GRIDMANAGER\_CONNECT\_FAILURE\_RETRY\_COUNT} and
-  \Macro{GRIDMANAGER\_RESOURCE\_PROBE\_INTERVAL}).
-
-\item Added default user priority factors for accounting groups.  More on
-	accounting groups will be available in future versions of the manual.
-
-\item Added \Macro{DAGMAN\_CONDOR\_SUBMIT\_EXE},
-\Macro{DAGMAN\_STORK\_SUBMIT\_EXE}, \Macro{DAGMAN\_CONDOR\_RM\_EXE},
-and \Macro{DAGMAN\_STORK\_RM\_EXE} configuration settings to specify
-the \Condor{submit}, \Stork{submit}, \Condor{rm}, and \Stork{rm}
-executables used by \Condor{dagman}.  If unset (which they are by
-default), \Condor{dagman} looks for each in the PATH.
-
 \end{itemize}
 
 \noindent Bugs Fixed:
@@ -81,14 +85,34 @@ default), \Condor{dagman} looks for each in the PATH.
 cause jobs to never complete when the \Condor{schedd} is busy with many jobs
 running at once.
 
+\item Fixed a bug on Windows where if lots of jobs submitted were from
+  the same \Condor{schedd}, some of the \Condor{shadow} processes
+  would block for an extremely long time trying to get a lock for
+  writing to the \File{ShadowLog} file.
+  Now, log writing happens more fairly, and no \Condor{shadow}
+  processes can be delayed indefinitely.
+
 \item Significantly sped up the removal of large groups of jobs by
 changing the default value of \MacroNI{JOB\_IS\_FINISHED\_INTERVAL} from 1
 to 0 (see section~\ref{param:JobIsFinishedInterval} for details on this
 setting).
 
+\item Improved performance of the \Condor{schedd} when not running as
+  root.
+  In version 6.7.7, the new code to support the scheduler universe
+  with Condor-C involved adding some additional overhead to the
+  \Condor{schedd}.
+  However, this overhead is not needed unless the \Condor{schedd} is
+  running as root.
+  In version 6.7.10, the \Condor{schedd} notices if it is not root and
+  does an optimization to avoid the overhead.
+
 \item Fixed a bug that caused the gridmanager to crash if a gt2, gt3, or
 gt4 grid job had a proxy that couldn't be read properly. Now the job gets
 put on hold.
+
+\item The Condor-C GAHP now performs file staging in a 
+separate process, allowing remote grid jobs to be started earlier.
 
 \item When contacting the embedded web server on Condor daemons,
   authentication is no longer requested.
@@ -117,23 +141,6 @@ put on hold.
   additional communication with the \Condor{shadow} which are not
   required if there's no remote IO.
 
-\item Improved performance of the \Condor{schedd} when not running as
-  root.
-  In version 6.7.7, the new code to support the scheduler universe
-  with Condor-C involved adding some additional overhead to the
-  \Condor{schedd}.
-  However, this overhead is not needed unless the \Condor{schedd} is
-  running as root.
-  In version 6.7.10, the \Condor{schedd} notices if it is not root and
-  does an optimization to avoid the overhead.
-
-\item Fixed a bug on Windows where if lots of jobs submitted were from
-  the same \Condor{schedd}, some of the \Condor{shadow} processes
-  would block for an extremely long time trying to get a lock for
-  writing to the \File{ShadowLog} file.
-  Now, log writing happens more fairly, and no \Condor{shadow}
-  processes can be delayed indefinitely.
-
 \item Fixed a bug in \Condor{dagman} which would cause a node's POST script not to be run
 
 \item Fixed a bug whereby \Condor{dagman} could crash after executing
@@ -145,6 +152,10 @@ submitted due to repeated \Condor{submit} failures.
 
 \item Improved some user-log-reading error messages in \Condor{dagman}.
 
+\item Removed support for deprecated \Opt{-NoPostFail} option from
+\Condor{dagman}.  (The same functionality can be achieved through the
+use of a simple POST script.)
+
 \item Fixed bug in dedicated scheduler, where under heavy load, the
   schedd would occasionally try to start the same job twice, and
   subsequently exit with the message:
@@ -155,16 +166,6 @@ submitted due to repeated \Condor{submit} failures.
 \item Fixed bug in dedicated scheduler, so that it now creates a 
   spool directory for each condor proc of a parallel or MPI job
   with multiple requirements.
-
-\item The Condor-C GAHP now performs file staging in a 
-separate process, allowing remote grid jobs to be started earlier.
-
-\item Removed support for deprecated \Opt{-NoPostFail} option from
-\Condor{dagman}.  (The same functionality can be achieved through the
-use of a simple POST script.)
-
-\item The \Opt{-name} option to \Condor{submit} now works on Windows
-  platforms. 
 
 \end{itemize}
 
