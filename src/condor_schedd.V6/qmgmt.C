@@ -442,6 +442,121 @@ InitJobQueue(const char *job_queue_name)
 				}
 			}
 
+				// Convert old job ads to the new format of RemoteResource
+				// and RemoteJobId. This switch happened on the V6_7-lease
+				// branch and should be merged in around the time of 6.7.11.
+				// At some future point in time, this code should be
+				// removed (sometime in the 6.9 series). - jfrey Aug-11-05
+			if ( universe == CONDOR_UNIVERSE_GRID ) {
+				MyString grid_type = "gt2";
+				MyString remote_resource;
+				MyString remote_job_id;
+
+				ad->LookupString( ATTR_JOB_GRID_TYPE, grid_type );
+				ad->LookupString( ATTR_REMOTE_RESOURCE, remote_resource );
+				ad->LookupString( ATTR_REMOTE_JOB_ID, remote_job_id );
+
+				grid_type.lower_case();
+
+				if ( grid_type == "gt2" || grid_type == "gt3" ||
+					 grid_type == "gt4" || grid_type == "nordugrid" ||
+					 grid_type == "oracle" ) {
+
+					MyString attr;
+					MyString new_value;
+
+					if ( grid_type == "globus" ) {
+						grid_type = "gt2";
+					}
+
+					if ( remote_resource.IsEmpty() &&
+						 ad->LookupString( ATTR_GLOBUS_RESOURCE, attr ) ) {
+
+						new_value.sprintf( "%s#%s", grid_type.Value(),
+										   attr.Value() );
+						if ( grid_type == "gt4" ) {
+							attr = "";
+							ad->LookupString( ATTR_GLOBUS_JOBMANAGER_TYPE,
+											  attr );
+							new_value.sprintf_cat( "#%s", attr.Value() );
+						}
+						ad->Assign( ATTR_REMOTE_RESOURCE, new_value.Value() );
+						JobQueueDirty = true;
+					}
+
+					if ( remote_job_id.IsEmpty() &&
+						 ad->LookupString( ATTR_GLOBUS_CONTACT_STRING,
+										   attr ) ) {
+
+						if ( attr != NULL_JOB_CONTACT ) {
+
+							new_value.sprintf( "%s#%s", grid_type.Value(),
+											   attr.Value() );
+							ad->Assign( ATTR_REMOTE_JOB_ID,
+										new_value.Value() );
+						}
+						ad->Delete( ATTR_GLOBUS_CONTACT_STRING );
+						JobQueueDirty = true;
+					}
+				}
+
+				if ( grid_type == "condor" ) {
+
+					MyString schedd;
+					MyString pool;
+					MyString new_value;
+
+					if ( remote_resource.IsEmpty() &&
+						 ad->LookupString( ATTR_REMOTE_SCHEDD, schedd ) ) {
+
+						ad->LookupString( ATTR_REMOTE_POOL, pool );
+						new_value.sprintf( "condor#%s#%s", pool.Value(),
+										   schedd.Value() );
+						ad->Assign( ATTR_REMOTE_RESOURCE, new_value.Value() );
+						JobQueueDirty = true;
+					}
+
+					if ( !remote_job_id.IsEmpty() &&
+						 strncmp( remote_job_id.Value(), "condor#", 7 ) ) {
+
+							// Ugly: If the job is using match-making, we
+							// need to grab the match-substituted versions
+							// of RemoteSchedd and RemotePool to stuff into
+							// RemoteJobId. That means calling GetJobAd().
+						ClassAd *job_ad;
+
+						job_ad = GetJobAd( cluster, proc, true );
+
+						if ( job_ad ) {
+							schedd = "";
+							pool = "";
+							job_ad->LookupString( ATTR_REMOTE_SCHEDD, schedd );
+							job_ad->LookupString( ATTR_REMOTE_POOL, pool );
+							new_value.sprintf( "condor#%s#%s#%s", pool.Value(),
+											   schedd.Value(),
+											   remote_job_id.Value() );
+							ad->Assign( ATTR_REMOTE_JOB_ID,
+										new_value.Value() );
+							delete job_ad;
+							JobQueueDirty = true;
+						}
+					}
+
+				}
+
+				if ( grid_type == "infn" || grid_type == "blah" ) {
+
+					if ( !remote_job_id.IsEmpty() &&
+						 strncmp( remote_job_id.Value(), "blah#", 5 ) ) {
+
+						MyString new_value;
+
+						new_value.sprintf( "blah#%s", remote_job_id.Value() );
+						ad->Assign( ATTR_REMOTE_JOB_ID, new_value.Value() );
+						JobQueueDirty = true;
+					}
+				}
+			}
 
 			// count up number of procs in cluster, update ClusterSizeHashTable
 			IncrementClusterSize(cluster_num);
@@ -463,6 +578,10 @@ InitJobQueue(const char *job_queue_name)
 		}
 		next_cluster_num = stored_cluster_num;
 	}
+
+		// Some of the conversions to RemoteResource/RemoteJobId need to be
+		// persisted to disk. Particularly, GlobusContactString/RemoteJobId.
+	CleanJobQueue();
 }
 
 
