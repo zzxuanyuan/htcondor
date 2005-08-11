@@ -43,6 +43,12 @@ SETEGID_OBJ = ../condor_util_lib/setegid.o
 SETEGID_OBJ = 
 #endif
 
+#if WANT_QUILL
+QUILL_OBJS = jobqueuesnapshot.o historysnapshot.o pgsqldatabase.o sqlquery.o
+#else
+QUILL_OBJS =
+#endif
+
 /* Bring in the old classad library because the user log parsing code
 	(which we form the condor api archive with) now can use xml logging and
 	classad representations of the events.
@@ -131,7 +137,7 @@ OBJ = state_machine_driver.o event_handler.o name_tab.o NON_POSIX.select.o \
 	translation_utils.o command_strings.o enum_utils.o \
 	condor_parameters.o extra_param_info.o classad_command_util.o \
 	domain_tools.o CondorError.o utc_time.o status_string.o \
-	jobqueuesnapshot.o historysnapshot.o pgsqldatabase.o sqlquery.o \
+	$(QUILL_OBJS) \
 	New_classads_obj setenv.o condor_id.o 
 
 library_target( cplus_lib.a,$(OBJ))

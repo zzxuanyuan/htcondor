@@ -29,11 +29,16 @@
 #include "format_time.h"
 #include "condor_config.h"
 #include "CondorError.h"
-#include "jobqueuesnapshot.h"
 #include "condor_classad_util.h"
+
+#if WANT_QUILL
+
+#include "jobqueuesnapshot.h"
 
 static ClassAd* getDBNextJobByConstraint(const char* constraint, JobQueueSnapshot  *jqSnapshot);
 static int execQuery(PGconn *connection, const char* sql, PGresult*& result);
+
+#endif /* WANT_QUILL */
 
 // specify keyword lists; N.B.  The order should follow from the category
 // enumerations in the .h file
@@ -227,6 +232,7 @@ fetchQueueFromHost (ClassAdList &list, char *host, CondorError* errstack)
 int CondorQ::
 fetchQueueFromDB (ClassAdList &list, char *dbconn, CondorError* errstack)
 {
+#if WANT_QUILL
 	ClassAd 		filterAd;
 	int     		result;
 	JobQueueSnapshot	*jqSnapshot;
@@ -277,6 +283,7 @@ fetchQueueFromDB (ClassAdList &list, char *dbconn, CondorError* errstack)
 	}	
 
 	delete jqSnapshot;
+#endif /* WANT_QUILL */
 	return Q_OK;
 }
 
@@ -316,6 +323,7 @@ fetchQueueFromHostAndProcess ( char *host, process_function process_func, Condor
 int CondorQ::
 fetchQueueFromDBAndProcess ( char *dbconn, process_function process_func, CondorError* errstack )
 {
+#if WANT_QUILL
 	ClassAd 		filterAd;
 	int     		result;
 	JobQueueSnapshot	*jqSnapshot;
@@ -378,10 +386,14 @@ fetchQueueFromDBAndProcess ( char *dbconn, process_function process_func, Condor
 		delete ad;
 	}
 	delete jqSnapshot;
+#endif /* WANT_QUILL */
+
 	return Q_OK;
 }
 
 void CondorQ::rawDBQuery(char *dbconn, CondorQQueryType qType) {
+#if WANT_QUILL
+
 	PGconn        *connection;
 	char          *rowvalue;
 	PGresult	  *resultset;
@@ -428,6 +440,7 @@ void CondorQ::rawDBQuery(char *dbconn, CondorQQueryType qType) {
 	if(connection) {
 		PQfinish(connection);
 	}
+#endif /* WANT_QUILL */
 }
 
 int CondorQ::
@@ -574,6 +587,8 @@ short_print(
 	);
 }
 
+#if WANT_QUILL
+
 ClassAd* getDBNextJobByConstraint(const char* constraint, JobQueueSnapshot	*jqSnapshot)
 {
 	ClassAd *ad;
@@ -610,3 +625,5 @@ static int execQuery(PGconn *connection, const char* sql, PGresult*& result)
 
 	return PQntuples(result);			
 }
+
+#endif /* WANT_QUILL */
