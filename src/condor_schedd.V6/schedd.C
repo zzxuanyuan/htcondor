@@ -722,6 +722,7 @@ Scheduler::count_jobs()
 	  dprintf (D_FULLDEBUG, "Changed attribute: %s\n", tmp);
 	  ad->InsertOrUpdate(tmp);
 
+
 	  dprintf( D_ALWAYS, "Sent ad to central manager for %s@%s\n", 
 			   Owners[i].Name, UidDomain );
 
@@ -914,7 +915,6 @@ count( ClassAd *job )
 	char 	buf[_POSIX_PATH_MAX];
 	char 	buf2[_POSIX_PATH_MAX];
 	char*	owner;
-	char 	domain[_POSIX_PATH_MAX];
 	int		cur_hosts;
 	int		max_hosts;
 	int		universe;
@@ -974,8 +974,11 @@ count( ClassAd *job )
 	owner = buf;
 
 	// grab the domain too, if it exists
-	domain[0] = '\0';
-	job->LookupString(ATTR_NT_DOMAIN, domain);
+	MyString domain;
+	dprintf (D_FULLDEBUG, "Get domain %d\n",
+			job->LookupString(ATTR_NT_DOMAIN, domain));
+
+	
 	
 	// With NiceUsers, the number of owners is
 	// not the same as the number of submittors.  So, we first
@@ -994,6 +997,7 @@ count( ClassAd *job )
 	// insert owner even if REMOVED or HELD for condor_q -{global|sub}
 	// this function makes its own copies of the memory passed in 
 	int OwnerNum = scheduler.insert_owner( owner );
+	scheduler.Owners[OwnerNum].Domain = strdup(domain.Value());
 
 	// make certain gridmanager has a copy of mirrored jobs
 	char *mirror_schedd_name = NULL;
@@ -1014,7 +1018,7 @@ count( ClassAd *job )
 			char owner[_POSIX_PATH_MAX];
 			owner[0] = '\0';	
 			job->LookupString(ATTR_OWNER,owner);	
-			GridUniverseLogic::JobCountUpdate(owner,domain,mirror_schedd_name,ATTR_MIRROR_SCHEDD,
+			GridUniverseLogic::JobCountUpdate(owner,domain.Value(),mirror_schedd_name,ATTR_MIRROR_SCHEDD,
 				0, 0, 1, job_managed ? 0 : 1);
 		}
 		free(mirror_schedd_name);
@@ -1118,7 +1122,7 @@ count( ClassAd *job )
 			int proc = 0;
 			job->LookupInteger(ATTR_CLUSTER_ID, cluster);
 			job->LookupInteger(ATTR_PROC_ID, proc);
-			GridUniverseLogic::JobCountUpdate(owner,domain,NULL,NULL,
+			GridUniverseLogic::JobCountUpdate(owner,domain.Value(),NULL,NULL,
 					cluster, proc, needs_management, job_managed ? 0 : 1);
 		}
 			// If we do not need to do matchmaking on this job (i.e.
