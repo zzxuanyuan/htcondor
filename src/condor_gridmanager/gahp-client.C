@@ -206,9 +206,14 @@ GahpServer::write_line(const char *command)
 	if ( !command || m_gahp_writefd == -1 ) {
 		return;
 	}
-	
-	write(m_gahp_writefd,command,strlen(command));
-	write(m_gahp_writefd,"\r\n",2);
+
+	MyString to_write = command;
+#ifndef WIN32
+	to_write+="\r\n";
+#else
+	to_write+="\n";
+#endif
+	write(m_gahp_writefd,to_write.Value(), to_write.Length());
 
 	if ( logGahpIo ) {
 		MyString debug = command;
@@ -233,12 +238,20 @@ GahpServer::write_line(const char *command, int req, const char *args)
 
 	char buf[20];
 	sprintf(buf," %d ",req);
-	write(m_gahp_writefd,command,strlen(command));
-	write(m_gahp_writefd,buf,strlen(buf));
-	if ( args ) {
-		write(m_gahp_writefd,args,strlen(args));
+
+	MyString to_write = command;
+	to_write+=buf;
+	if (args) {
+		to_write+=args;
 	}
-	write(m_gahp_writefd,"\r\n",2);
+#ifndef WIN32
+	to_write+="\r\n";
+#else
+	//to_write+="\n";
+#endif
+	write(m_gahp_writefd,to_write.Value(), to_write.Length());
+	write(m_gahp_writefd,"\n", 1);
+	
 
 	if ( logGahpIo ) {
 		MyString debug = command;
@@ -254,6 +267,7 @@ GahpServer::write_line(const char *command, int req, const char *args)
 		dprintf( D_FULLDEBUG, "GAHP[%d] <- %s\n", m_gahp_pid,
 				 debug.Value() );
 	}
+	
 
 	return;
 }
@@ -394,8 +408,8 @@ GahpServer::read_argv(Gahp_Args &g_args)
 	for (;;) {
 
 		ASSERT(ibuf < buf_size);
-		result = read(m_gahp_readfd, &(buf[ibuf]), 1 );
 
+		result = read(m_gahp_readfd, &(buf[ibuf]), 1 );
 		/* Check return value from read() */
 		if ( result < 0 ) {		/* Error - try reading again */
 			continue;
@@ -641,7 +655,7 @@ GahpServer::Startup()
 		// communicate with the GAHP server.
 	if ( (daemonCore->Create_Pipe(stdin_pipefds) == FALSE) ||
 	     (daemonCore->Create_Pipe(stdout_pipefds) == FALSE) ||
-	     (daemonCore->Create_Pipe(stderr_pipefds, TRUE) == FALSE)) 
+	     (daemonCore->Create_Pipe(stderr_pipefds, true) == FALSE)) 
 	{
 		dprintf(D_ALWAYS,"GahpServer::Startup - pipe() failed, errno=%d\n",
 			errno);
@@ -656,6 +670,24 @@ GahpServer::Startup()
 	io_redirect[1] = stdout_pipefds[1]; // stdout get write side of out pipe
 	io_redirect[2] = stderr_pipefds[1]; // stderr get write side of err pipe
 
+#ifdef WIN32
+	int hOrigStdin = _dup(_fileno(stdin));
+	_dup2(stdin_pipefds[0], _fileno(stdin));
+	close (stdin_pipefds[0]);
+	io_redirect[0]=_fileno(stdin);
+	_setmode( _fileno( stdin  ), _O_BINARY );
+	setvbuf (stdin, NULL, _IONBF, 0);
+	
+
+	/*int hOrigStdout = _dup(_fileno(stdout));
+	_dup2(stdout_pipefds[1], _fileno(stdout));
+	close (stdout_pipefd[1]);
+	io_redirect[1]=_fileno(stdout);*/
+#endif
+
+	dprintf (D_FULLDEBUG, "Starting GAHP: %s\n", gahp_args);
+
+
 	m_gahp_pid = daemonCore->Create_Process(
 			gahp_path,		// Name of executable
 			gahp_args,		// Args
@@ -667,7 +699,7 @@ GahpServer::Startup()
 			FALSE,			// new process group?
 			NULL,			// network sockets to inherit
 			io_redirect 	// redirect stdin/out/err
-			);
+	);
 
 	if ( m_gahp_pid == FALSE ) {
 		dprintf(D_ALWAYS,"Failed to start GAHP server (%s)\n",
@@ -688,9 +720,23 @@ GahpServer::Startup()
 		// Now that the GAHP server is running, close the sides of
 		// the pipes we gave away to the server, and stash the ones
 		// we want to keep in an object data member.
+	
+
+#ifdef WIN32
+	close (_fileno(stdin));
+	_dup2(hOrigStdin, _fileno(stdin));
+	close (hOrigStdin);
+	daemonCore->Close_Pipe( io_redirect[1] );
+	daemonCore->Close_Pipe( io_redirect[2] );
+	/*_dup2(hOrigStdout, _fileno(stdout));
+	close (hOrigStdout);*/
+#else
 	daemonCore->Close_Pipe( io_redirect[0] );
 	daemonCore->Close_Pipe( io_redirect[1] );
 	daemonCore->Close_Pipe( io_redirect[2] );
+#endif
+
+	
 
 	m_gahp_errorfd = stderr_pipefds[0];
 	m_gahp_readfd = stdout_pipefds[0];
@@ -1335,6 +1381,8 @@ GahpServer::command_commands()
 bool
 GahpServer::command_version(bool banner_string)
 {
+	dprintf (D_FULLDEBUG, "in command_version()\n");
+
 	int i,j,result;
 	bool ret_val = false;
 
