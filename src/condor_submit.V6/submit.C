@@ -1046,6 +1046,7 @@ SetUniverse()
 		return;
 	};
 
+#endif
 
 	if( univ && 
 		((stricmp(univ,"globus") == MATCH) || (stricmp(univ,"grid") == MATCH))) {
@@ -1096,6 +1097,8 @@ SetUniverse()
 		
 		return;
 	};
+
+#if !defined(WIN32)
 
 	if( univ && stricmp(univ,"parallel") == MATCH ) {
 		JobUniverse = CONDOR_UNIVERSE_PARALLEL;
