@@ -21,6 +21,7 @@
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 #include "condor_common.h"
+#include "condor_debug.h"
 #include "sqlquery.h"
 
 #define avg_time_template "SELECT avg((now() - 'epoch'::timestamp with time zone) - cast(QDate || ' seconds' as interval)) \
@@ -49,7 +50,7 @@ SQLQuery ()
 SQLQuery::
 SQLQuery (query_types qtype, void **parameters)
 {
-  assert(createQueryString(qtype,parameters));
+	createQueryString(qtype,parameters);
 }
 
 
@@ -149,7 +150,7 @@ createQueryString(query_types qtype, void **parameters) {
 	  break;
 	  
   default:
-	  printf("error...incorrect query type specified...exiting\n");
+	  EXCEPT("Incorrect query type specified\n");
 	  return -1;
   }
   return 1;
