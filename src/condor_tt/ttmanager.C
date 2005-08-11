@@ -296,7 +296,7 @@ TTManager::event_maintain()
 				// if this is just a new line, just skip it
 			if (strcmp(buf, "\n") == 0) {
 				delete line_buf;
-				line_buf = (MyString *) 0;
+				line_buf = new MyString();
 				continue;
 			}
 
