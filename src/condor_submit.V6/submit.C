@@ -3424,6 +3424,7 @@ SetGlobusParams()
 	if ( stricmp ( JobGridType, "condor" ) == MATCH ) {
 
 		char *remote_schedd;
+		char *remote_pool;
 
 		if ( !(remote_schedd = condor_param( RemoteSchedd, ATTR_REMOTE_SCHEDD ) ) ) {
 			fprintf(stderr, "\nERROR: Condor grid jobs require a \"%s\" parameter\n",
@@ -3432,13 +3433,22 @@ SetGlobusParams()
 			exit( 1 );
 		}
 
-		sprintf( buffer, "%s = \"%s\"", ATTR_REMOTE_SCHEDD, remote_schedd );
-		InsertJobExpr (buffer);
+		remote_pool = condor_param( RemotePool, ATTR_REMOTE_POOL );
 
-		if( (tmp = condor_param(RemotePool, ATTR_REMOTE_POOL)) ) {
-			sprintf( buffer, "%s = \"%s\"", ATTR_REMOTE_POOL, tmp );
-			free( tmp );
-			InsertJobExpr ( buffer );
+		if ( unified_syntax ) {
+			sprintf( buffer, "%s = \"condor#%s#%s\"", ATTR_REMOTE_RESOURCE,
+					 remote_pool ? remote_pool : "", remote_schedd );
+			InsertJobExpr( buffer );
+		} else {
+			sprintf( buffer, "%s = \"%s\"", ATTR_REMOTE_SCHEDD,
+					 remote_schedd );
+			InsertJobExpr (buffer);
+
+			if ( remote_pool ) {
+				sprintf( buffer, "%s = \"%s\"", ATTR_REMOTE_POOL,
+						 remote_pool );
+				InsertJobExpr ( buffer );
+			}
 		}
 
 		if ( strstr(remote_schedd,"$$") ) {
@@ -3454,7 +3464,7 @@ SetGlobusParams()
 		}
 
 		free( remote_schedd );
-
+		free( remote_pool );
 	}
 
 	//ckireyev: MyProxy-related crap
