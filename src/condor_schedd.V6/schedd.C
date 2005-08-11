@@ -1083,20 +1083,15 @@ count( ClassAd *job )
 		if ( (job_managed == 0) && (want_service && cur_hosts == 0) ) {
 			status = HELD;
 		}
-		// if status is REMOVED, but the job contact string is not null,
+		// if status is REMOVED, but the remote job id is not null,
 		// then consider the job IDLE for purposes of the logic here.  after all,
 		// the gridmanager needs to be around to finish the task of removing the job.
 		if ( status == REMOVED ) {
-			char contact_string[20];
-			strncpy(contact_string,NULL_JOB_CONTACT,sizeof(contact_string));
-			job->LookupString(ATTR_GLOBUS_CONTACT_STRING,contact_string,
-								sizeof(contact_string));
-			if ( strncmp(contact_string,NULL_JOB_CONTACT,
-							sizeof(contact_string)-1) ||
-				 job->LookupString(ATTR_REMOTE_JOB_ID,contact_string,
-								   sizeof(contact_string)-1) != 0 )
+			char job_id[20];
+			if ( job->LookupString( ATTR_REMOTE_JOB_ID, job_id,
+									sizeof(job_id) ) )
 			{
-				// looks like the job's globus contact string is still valid,
+				// looks like the job's remote job id is still valid,
 				// so there is still a job submitted remotely somewhere.
 				// fire up the gridmanager to try and really clean it up!
 				status = IDLE;
@@ -1340,24 +1335,19 @@ abort_job_myself( PROC_ID job_id, JobAction action, bool log_hold,
 			// If job_managed is false, we will fall through the code at the
 			// bottom of this function will handle the operation.
 			// Special case: if job_managed is false, but the job being removed
-			// and the jobmanager contact string is still valid, 
+			// and the remote job id string is still valid, 
 			// then consider the job still "managed" so
 			// that the gridmanager will be notified.  
-			// If the job contact string is still valid, that means there is
+			// If the remote job id is still valid, that means there is
 			// still a job remotely submitted that has not been removed.  When
-			// the gridmanager confirms a job has been removed, it will set
-			// ATTR_GLOBUS_CONTACT_STRING to be NULL_JOB_CONTACT.
+			// the gridmanager confirms a job has been removed, it will
+			// delete ATTR_REMOTE_JOB_ID from the ad.
 		if (!job_managed && mode==REMOVED ) {
-			char contact_string[20];
-			strncpy(contact_string,NULL_JOB_CONTACT,sizeof(contact_string));
-			job_ad->LookupString(ATTR_GLOBUS_CONTACT_STRING,contact_string,
-								sizeof(contact_string));
-			if ( strncmp(contact_string,NULL_JOB_CONTACT,
-							sizeof(contact_string)-1) ||
-				 job_ad->LookupString(ATTR_REMOTE_JOB_ID,contact_string,
-								   sizeof(contact_string)-1) != 0 )
+			char job_id[20];
+			if ( job_ad->LookupString( ATTR_REMOTE_JOB_ID, job_id,
+									   sizeof(job_id) ) )
 			{
-				// looks like the job's globus contact string is still valid,
+				// looks like the job's remote job id is still valid,
 				// so there is still a job submitted remotely somewhere.
 				// fire up the gridmanager to try and really clean it up!
 				job_managed = 1;

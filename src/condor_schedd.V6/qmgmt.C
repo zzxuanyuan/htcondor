@@ -2145,7 +2145,7 @@ GetJobAd(int cluster_id, int proc_id, bool expStartdAd)
 					value_came_from_jobad = false;
 				} else {
 						// No startd ad -- use value from last match.
-						// Note: we will only do this for GLOBUS universe.
+						// Note: we will only do this for GRID universe.
 					MyString expr;
 					expr = "MATCH_";
 					expr += name;
@@ -2195,7 +2195,7 @@ GetJobAd(int cluster_id, int proc_id, bool expStartdAd)
 					MyString expr;
 					expr = "MATCH_";
 					expr += name;
-						// If we are GLOBUS universe, we must
+						// If we are GRID universe, we must
 						// store the values from the startd ad
 						// persistantly to disk right now.  
 						// If any other universe, just updating
@@ -2692,16 +2692,11 @@ int mark_idle(ClassAd *job)
 	} else if ( status == REMOVED ) {
 		// a globus job with a non-null contact string should be left alone
 		if ( universe == CONDOR_UNIVERSE_GRID ) {
-			char contact_string[20];
-			strncpy(contact_string,NULL_JOB_CONTACT,sizeof(contact_string));
-			job->LookupString(ATTR_GLOBUS_CONTACT_STRING,contact_string,
-								sizeof(contact_string));
-			if ( strncmp(contact_string,NULL_JOB_CONTACT,
-							sizeof(contact_string)-1) ||
-				 job->LookupString(ATTR_REMOTE_JOB_ID,contact_string,
-								   sizeof(contact_string)-1) != 0 )
+			char job_id[20];
+			if ( job->LookupString( ATTR_REMOTE_JOB_ID, job_id,
+									sizeof(job_id) ) )
 			{
-				// looks like the job's globus contact string is still valid,
+				// looks like the job's remote job id is still valid,
 				// so there is still a job submitted remotely somewhere.
 				// don't touch this job -- leave it alone so the gridmanager
 				// completes the task of removing it from the remote site.
