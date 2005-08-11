@@ -69,6 +69,12 @@ TEST_SUITE_BASE = test_suite_base
 #define StorkProgs
 #endif
 
+#if WANT_QUILL
+#define QuillProgs quill
+#else
+#define QuillProgs
+#endif
+
 #define Programs \
 		procapi sysapi accountant.V6 ckpt_server \
 		master.V6 negotiator.V6 schedd.V6 prio q.V6 rm.V6 \
@@ -76,7 +82,7 @@ TEST_SUITE_BASE = test_suite_base
 		tools KbddProgs collector.V6 PvmProgs dagman userlog Eventd \
 		GlobusProgs starter.V6.1 shadow.V6.1 dcskel c-gahp had \
 		CreddProgs StorkProgs \
-		quill
+		QuillProgs
 
 #define Libraries \
 		util_lib daemon_core.V6 daemon_client classad c++_util	\
@@ -205,7 +211,10 @@ condor_object_target(ckpt_server)
 
 condor_object_target(shadow.V6)
 condor_object_target(starter.V5)
+
+#if WANT_QUILL
 condor_object_target(quill)
+#endif
 
 condor_object_target(startd.V6)
 condor_object_target(schedd.V6)
