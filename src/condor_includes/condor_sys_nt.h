@@ -222,3 +222,5 @@ END_C_DECLS
 #endif
 
 #endif /* CONDOR_SYS_NT_H */
+
+#define CONDOR_C YES
