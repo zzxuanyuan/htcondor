@@ -509,7 +509,7 @@ check_x509_proxy( const char *proxy_file )
 int
 have_condor_g()
 {
-#if defined(CONDOR_G)
+#if defined(CONDOR_G) || defined (CONDOR_C)
 	
 	// Our Condor-G test will be to see if we've defined a GRIDMANAGER. 
 	// If we don't have one, then this install does not support Condor-G.	
