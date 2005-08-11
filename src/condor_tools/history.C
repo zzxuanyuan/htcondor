@@ -31,19 +31,33 @@
 #include "internet.h"
 #include "print_wrapped_text.h"
 #include "MyString.h"
+
+#include "history_utils.h"
+
+#if WANT_QUILL
 #include "sqlquery.h"
 #include "historysnapshot.h"
+#endif /* WANT_QUILL */
 
 #define NUM_PARAMETERS 3
 
 
 static void Usage(char* name) 
 {
+#if WANT_QUILL
   printf("Usage: %s [-l] [-f history-filename] [-name quill-name] [-constraint expr | cluster_id | cluster_id.proc_id | owner | -completedsince date/time]\n",name);
+#else 
+  printf("Usage: %s [-l] [-f history-filename] [-constraint expr | cluster_id | cluster_id.proc_id | owner]\n",name);
+#endif /* WANT_QUILL */
+
   exit(1);
 }
+
+#if WANT_QUILL
 static char * getDBConnStr(char *&quillName, char *&databaseIp, char *&databaseName, char *&queryPassword);
 static bool checkDBconfig();
+#endif /* WANT_QUILL */
+
 //------------------------------------------------------------------------
 
 static CollectorList * Collectors = NULL;
@@ -55,9 +69,14 @@ int
 main(int argc, char* argv[])
 {
   Collectors = NULL;
+
+#ifdef WANT_QUILL
   HistorySnapshot *historySnapshot;
   SQLQuery queryhor;
   SQLQuery queryver;
+  QuillErrCode st;
+#endif /* WANT_QUILL */
+
   void **parameters;
   char *dbconn=NULL;
   int cluster=-1, proc=-1;
@@ -78,7 +97,6 @@ main(int argc, char* argv[])
   int EmptyFlag=0;
   AttrList *ad=0;
 
-  QuillErrCode st;
   int flag = 1;
 
   char tmp[512];
@@ -87,16 +105,23 @@ main(int argc, char* argv[])
   parameters = (void **) malloc(NUM_PARAMETERS * sizeof(void *));
   myDistro->Init( argc, argv );
 
+#if WANT_QUILL
   queryhor.setQuery(HISTORY_ALL_HOR, NULL);
   queryver.setQuery(HISTORY_ALL_VER, NULL);
+#endif /* WANT_QUILL */
 
-
+#if WANT_QUILL
   readfromfile = checkDBconfig();
+#else 
+  readfromfile = TRUE;
+#endif /* WANT_QUILL */
 
   for(i=1; i<argc; i++) {
     if (strcmp(argv[i],"-l")==0) {
       longformat=TRUE;   
     }
+
+#if WANT_QUILL
     else if(strcmp(argv[i], "-name")==0) {
 		i++;
 		if (argc <= i) {
@@ -125,6 +150,7 @@ main(int argc, char* argv[])
 		remotequill = true;
 		readfromfile = false;
     }
+#endif /* WANT_QUILL */
     else if (strcmp(argv[i],"-f")==0) {
 		if (i+1==argc || JobHistoryFileName) break;
 		i++;
@@ -141,6 +167,7 @@ main(int argc, char* argv[])
 		i++;
 		readfromfile = true;
     }
+#if WANT_QUILL
     else if (strcmp(argv[i],"-completedsince")==0) {
 		i++;
 		if (argc <= i) {
@@ -159,6 +186,8 @@ main(int argc, char* argv[])
 		queryhor.setQuery(HISTORY_COMPLETEDSINCE_HOR,parameters);
 		queryver.setQuery(HISTORY_COMPLETEDSINCE_VER,parameters);
     }
+#endif /* WANT_QUILL */
+
     else if (sscanf (argv[i], "%d.%d", &cluster, &proc) == 2) {
 		if (constraint) break;
 		sprintf (tmp, "((%s == %d) && (%s == %d))", 
@@ -166,16 +195,20 @@ main(int argc, char* argv[])
 		constraint=tmp;
 		parameters[0] = &cluster;
 		parameters[1] = &proc;
+#if WANT_QUILL
 		queryhor.setQuery(HISTORY_CLUSTER_PROC_HOR, parameters);
 		queryver.setQuery(HISTORY_CLUSTER_PROC_VER, parameters);
+#endif /* WANT_QUILL */
     }
     else if (sscanf (argv[i], "%d", &cluster) == 1) {
 		if (constraint) break;
 		sprintf (tmp, "(%s == %d)", ATTR_CLUSTER_ID, cluster);
 		constraint=tmp;
 		parameters[0] = &cluster;
+#if WANT_QUILL
 		queryhor.setQuery(HISTORY_CLUSTER_HOR, parameters);
 		queryver.setQuery(HISTORY_CLUSTER_VER, parameters);
+#endif /* WANT_QUILL */
     }
     else {
 		if (constraint) break;
@@ -184,8 +217,10 @@ main(int argc, char* argv[])
 		sprintf(tmp, "(%s == \"%s\")", ATTR_OWNER, owner);
 		constraint=tmp;
 		parameters[0] = owner;
+#if WANT_QUILL
 		queryhor.setQuery(HISTORY_OWNER_HOR, parameters);
 		queryver.setQuery(HISTORY_OWNER_VER, parameters);
+#endif /* WANT_QUILL */
     }
   }
   if (i<argc) Usage(argv[0]);
@@ -201,6 +236,7 @@ main(int argc, char* argv[])
   
   
   if(!readfromfile) {
+#if WANT_QUILL
 	  if(remotequill) {
 		  if (Collectors == NULL) {
 			  Collectors = CollectorList::create();
@@ -252,6 +288,7 @@ main(int argc, char* argv[])
 	  }
 	  historySnapshot->release();
 	  delete(historySnapshot);
+#endif /* WANT_QUILL */
   }
   
   if(readfromfile) {
@@ -320,24 +357,7 @@ main(int argc, char* argv[])
 
 //------------------------------------------------------------------------
 
-static bool EvalBool(AttrList* ad, ExprTree *tree)
-{
-  EvalResult result;
-  
-  // Evaluate constraint with ad in the target scope so that constraints
-  // have the same semantics as the collector queries.  --RR
-  if (!tree->EvalTree(NULL, ad, &result)) {
-        // dprintf(D_ALWAYS, "can't evaluate constraint: %s\n", constraint);
-    delete tree;
-    return false;
-  }
-  
-  if (result.type == LX_INTEGER) {
-    return (bool)result.i;
-  }
-  
-  return false;
-}
+#if WANT_QUILL
 
 /* this function for checking whether database can be used for 
    querying in local machine */
@@ -449,3 +469,6 @@ static char * getDBConnStr(char *&quillName,
   free(port);
   return dbconn;
 }
+
+#endif /* WANT_QUILL */
+
