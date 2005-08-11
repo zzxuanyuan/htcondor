@@ -1150,7 +1150,8 @@ void CondorJob::SetRemoteJobId( const char *job_id )
 			return;
 		}
 
-		full_job_id.sprintf( "condor#%s#%s#%s", remotePoolName,
+		full_job_id.sprintf( "condor#%s#%s#%s",
+							 remotePoolName ? remotePoolName : "",
 							 remoteScheddName, job_id );
 	} else {
 		remoteJobId.cluster = 0;
