@@ -1039,28 +1039,37 @@ format_globusStatus( int globusStatus, AttrList *ad )
 	return result;
 }
 
+// The remote hostname may be in GlobusResource or RemoteResource.
+// We want this function to be called if at least one is defined,
+// but it will only be called if the one attribute it's registered
+// with is defined. So we register it with an attribute we know will
+// always be present and be a string. We then ignore that attribute
+// and examine GlobusResource and RemoteResource.
 static char *
-format_globusHostAndJM( char  *remoteResource, AttrList *ad )
+format_globusHostAndJM( char  *ignore_me, AttrList *ad )
 {
 	static char result[64];
 	char	host[80] = "[?????]";
 	char	jm[80] = "fork";
 	char	*tmp;
 	int	p;
-	char *globus_resource = NULL;
+	char *attr_value = NULL;
+	char *resource_name = NULL;
+	bool new_syntax;
 
-		// If ATTR_REMOTE_RESOURCE came up blank (by the caller), then fall
-		// back on ATTR_GLOBUS_RESOURCE.
-	if ( remoteResource == NULL ) {
-		ad->LookupString( ATTR_GLOBUS_RESOURCE, &globus_resource );
-		remoteResource = globus_resource;
-	} else {
-			// If ATTR_REMOTE_RESOURCE does exist, skip past the initial
+	if ( ad->LookupString( ATTR_REMOTE_RESOURCE, &attr_value ) ) {
+			// If ATTR_REMOTE_RESOURCE exists, skip past the initial
 			// '<job type>#'.
-		remoteResource = strchr( remoteResource, '#' ) + 1;
+		resource_name = strchr( attr_value, '#' ) + 1;
+		new_syntax = true;
+	} else {
+			// ATTR_REMOTE_RESOURCE doesn't exist, try ATTR_GLOBUS_RESOURCE
+		ad->LookupString( ATTR_GLOBUS_RESOURCE, &attr_value );
+		resource_name = attr_value;
+		new_syntax = false;
 	}
 
-	if ( remoteResource != NULL ) {
+	if ( resource_name != NULL ) {
 
 		char *grid_type;
 		ad->LookupString( ATTR_JOB_GRID_TYPE, &grid_type );
@@ -1069,13 +1078,13 @@ format_globusHostAndJM( char  *remoteResource, AttrList *ad )
 			 !stricmp( grid_type, "globus" ) ) {
 
 			// copy the hostname
-			p = strcspn( remoteResource, ":/" );
+			p = strcspn( resource_name, ":/" );
 			if ( p > (int) sizeof(host) )
 				p = sizeof(host) - 1;
-			strncpy( host, remoteResource, p );
+			strncpy( host, resource_name, p );
 			host[p] = '\0';
 
-			if ( ( tmp = strstr( remoteResource, "jobmanager-" ) ) != NULL ) {
+			if ( ( tmp = strstr( resource_name, "jobmanager-" ) ) != NULL ) {
 				tmp += 11; // 11==strlen("jobmanager-")
 
 				// copy the jobmanager name
@@ -1088,16 +1097,17 @@ format_globusHostAndJM( char  *remoteResource, AttrList *ad )
 
 		} else if ( !stricmp( grid_type, "gt3" ) ) {
 
-			strncpy( host, remoteResource, sizeof(host) );
+			strncpy( host, resource_name, sizeof(host) );
 
 		} else if ( !stricmp( grid_type, "gt4" ) ) {
 
 			strcpy( jm, "Fork" );
-			if ( !globus_resource ) {
+
+			if ( new_syntax ) {
 					// remoteResource is of the form '<service url>#<jm type>'
 					// Find the #, zero it out, and grab the jm type from
 					// the end (if it's non-empty).
-				tmp = strchr( remoteResource, '#' );
+				tmp = strchr( resource_name, '#' );
 				if ( tmp ) {
 					*tmp = '\0';
 					if ( tmp[1] != '\0' ) {
@@ -1113,11 +1123,11 @@ format_globusHostAndJM( char  *remoteResource, AttrList *ad )
 			}
 
 				// Pick the hostname out of the URL
-			if ( strncmp( "https://", remoteResource, 8 ) == 0 ) {
-				strncpy( host, &remoteResource[8], sizeof(host) );
+			if ( strncmp( "https://", resource_name, 8 ) == 0 ) {
+				strncpy( host, &resource_name[8], sizeof(host) );
 				host[sizeof(host)-1] = '\0';
 			} else {
-				strncpy( host, remoteResource, sizeof(host) );
+				strncpy( host, resource_name, sizeof(host) );
 				host[sizeof(host)-1] = '\0';
 			}
 			p = strcspn( host, ":/" );
@@ -1129,8 +1139,8 @@ format_globusHostAndJM( char  *remoteResource, AttrList *ad )
 		}
 	}
 
-	if ( globus_resource ) {
-		free( globus_resource );
+	if ( attr_value ) {
+		free( attr_value );
 	}
 
 	// done --- pack components into the result string and return
@@ -1268,7 +1278,7 @@ show_queue_buffered( char* scheddAddr, char* scheddName, char* scheddMachine )
 								 ATTR_GLOBUS_STATUS, "[?????]" );
 			mask.registerFormat( (StringCustomFmt)
 								 format_globusHostAndJM,
-								 ATTR_REMOTE_RESOURCE, "fork    [?????]" );
+								 ATTR_JOB_CMD, "fork    [?????]" );
 			mask.registerFormat( "%-18.18s\n", ATTR_JOB_CMD );
 			setup_mask = true;
 			usingPrintMask = true;
@@ -1501,7 +1511,7 @@ show_queue( char* scheddAddr, char* scheddName, char* scheddMachine )
 									 ATTR_GLOBUS_STATUS, "[?????]" );
 				mask.registerFormat( (StringCustomFmt)
 									 format_globusHostAndJM,
-									 ATTR_REMOTE_RESOURCE, "fork    [?????]" );
+									 ATTR_JOB_CMD, "fork    [?????]" );
 				mask.registerFormat( "%-18.18s\n", ATTR_JOB_CMD );
 				setup_mask = true;
 				usingPrintMask = true;
