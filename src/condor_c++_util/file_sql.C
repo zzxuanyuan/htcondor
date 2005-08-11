@@ -195,7 +195,7 @@ AttrList *FILESQL::file_readAttrList()
 	int ErrorFlag=0;
 	int EmptyFlag=0;
 
-    if( !( ad=new AttrList(fp,"***", EndFlag, ErrorFlag, EmptyFlag) ) ){
+    if( !( ad=new AttrList(fp,"***\n", EndFlag, ErrorFlag, EmptyFlag) ) ){
 		dprintf(D_ALWAYS, "file_readAttrList Error:  Out of memory\n" );
 		exit( 1 );
     }
