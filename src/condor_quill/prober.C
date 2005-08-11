@@ -59,7 +59,9 @@ Prober::~Prober()
 void
 Prober::setJobQueueName(char* jqn)
 {
-	assert(jqn);
+	if(!jqn) {
+		EXCEPT("Expecting jqn to be not null here\n");
+	}
 	strcpy(job_queue_name, jqn);
 }
 

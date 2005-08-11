@@ -125,8 +125,8 @@ RequestService::service(ReliSock *syscall_sock) {
 	  
       terrno = errno;
 	  
-      ret_st = ad ? SUCCESS : FAILURE;
-      
+      rval = ad ? 1 : -1;
+
       syscall_sock->encode();
       return_on_fail( syscall_sock->code(rval) );
       if( rval < 0 ) {
@@ -241,7 +241,7 @@ RequestService::getNextJobByConstraint(const char* constraint, int initScan)
 	  if (jqSnapshot->startIterateAllClassAds(cluster, 
 						  proc, 
 						  owner, 
-						  isfullscan) <= 0)
+						  isfullscan) != SUCCESS)
 		  return NULL;
 	  
 	}

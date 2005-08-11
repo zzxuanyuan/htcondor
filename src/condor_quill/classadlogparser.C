@@ -246,7 +246,7 @@ ClassAdLogParser::readLogEntry(int &op_type, bool ex)
 		int		op;
 
 		if( !fp ) {
-			EXCEPT("Error: failed fdopen() when recovering corrpupt log file");
+			EXCEPT("Failed fdopen() when recovering corrpupt log file");
 		}
 
 		while( fgets( line, ATTRLIST_MAX_EXPRESSION+64, fp ) ) {
@@ -256,14 +256,14 @@ ClassAdLogParser::readLogEntry(int &op_type, bool ex)
 			}
 			if( op == CondorLogOp_EndTransaction ) {
 					// aargh!  bad record in transaction.  abort!
-				EXCEPT("Error: bad record with op=%d in corrupt logfile",
+				EXCEPT("Bad record with op=%d in corrupt logfile",
 					   op_type);
 			}
 		}
 
 		if( !feof( fp ) ) {
 			fclose(fp);
-			EXCEPT("Error: failed recovering from corrupt file, errno=%d",
+			EXCEPT("Failed recovering from corrupt file, errno=%d",
 				   errno );
 		}
 
@@ -652,7 +652,9 @@ ClassAdLogParser::readword(int fd, char * &str)
 	for (i = 1; rval > 0 && !isspace(buf[i-1]) && buf[i-1] != '\0'; i++) {
 		if (i == bufsize) {
 			buf = (char *)realloc(buf, bufsize*2);
-			assert(buf);
+			if(!buf) {
+				EXCEPT("Call to realloc failed\n");
+			}
 			bufsize *= 2;
 		} 
 		rval = read(fd, &(buf[i]), 1);
@@ -691,7 +693,9 @@ ClassAdLogParser::readword(FILE *fp, char * &str)
 	for (i = 1; !isspace(buf[i-1]) && buf[i-1]!='\0' && buf[i-1]!=EOF; i++) {
 		if (i == bufsize) {
 			buf = (char *)realloc(buf, bufsize*2);
-			assert(buf);
+			if(!buf) {
+				EXCEPT("Call to realloc failed\n");
+			}
 			bufsize *= 2;
 		} 
 		buf[i] = fgetc( fp );
@@ -737,7 +741,9 @@ ClassAdLogParser::readline(int fd, char * &str)
 	for (i = 1; rval > 0 && buf[i-1] != '\n' && buf[i-1] != '\0'; i++) {
 		if (i == bufsize) {
 			buf = (char *)realloc(buf, bufsize*2);
-			assert(buf);
+			if(!buf) {
+				EXCEPT("Call to realloc failed\n");
+			}
 			bufsize *= 2;
 		}
 		rval = read(fd, &(buf[i]), 1);
@@ -780,7 +786,9 @@ ClassAdLogParser::readline(FILE *fp, char * &str)
 	for (i = 1; buf[i-1]!='\n' && buf[i-1] != '\0' && buf[i-1] != EOF; i++) {
 		if (i == bufsize) {
 			buf = (char *)realloc(buf, bufsize*2);
-			assert(buf);
+			if(!buf) {
+				EXCEPT("Call to realloc failed\n");
+			}
 			bufsize *= 2;
 		} 
 		buf[i] = fgetc( fp );

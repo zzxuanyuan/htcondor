@@ -587,7 +587,9 @@ JobQueueCollection::makeHistoryAdSqlStr(char* cid, char* pid, ClassAd* ad,
 	    historyad_hor_str = (char*)realloc(historyad_hor_str, 
 										   strlen(historyad_hor_str) + 
 										   strlen(tmp_line_str2) + 1);
-		assert(historyad_hor_str);
+		if(!historyad_hor_str) {
+			EXCEPT("Call to realloc failed\n");
+		}
 	    strcat(historyad_hor_str, tmp_line_str2);		
 	  }
 
@@ -600,7 +602,9 @@ JobQueueCollection::makeHistoryAdSqlStr(char* cid, char* pid, ClassAd* ad,
 				nameExpr->Name(), val,cid,pid, nameExpr->Name());
 	    historyad_hor_str = (char*)realloc(historyad_hor_str, 
 					       strlen(historyad_hor_str) + strlen(tmp_line_str2) + 1);
-		assert(historyad_hor_str);
+		if(!historyad_hor_str) {
+			EXCEPT("Call to realloc failed\n");
+		}
 	    strcat(historyad_hor_str, tmp_line_str2);		
 	  }
 	  else {
@@ -612,7 +616,9 @@ JobQueueCollection::makeHistoryAdSqlStr(char* cid, char* pid, ClassAd* ad,
 	    historyad_ver_str = (char*)realloc(historyad_ver_str, 
 										   strlen(historyad_ver_str) + 
 										   strlen(tmp_line_str1) + 1);
-		assert(historyad_ver_str);
+		if(!historyad_ver_str) {
+			EXCEPT("Call to realloc failed\n");
+		}
 	    strcat(historyad_ver_str, tmp_line_str1);		
 	  }
 	  
@@ -824,8 +830,12 @@ JobQueueCollection::makeCopyStr(bool bStr, char* cid, char* pid, ClassAd* ad, ch
 			}
 			else {
 				ret_str = (char*)realloc(ret_str, 
-					strlen(ret_str) + strlen(line_str) + 1);
-				assert(ret_str);
+										 strlen(ret_str) + 
+										 strlen(line_str) + 
+										 1);
+				if(!ret_str) {
+					EXCEPT("Call to realloc failed\n");
+				}
 				strcat(ret_str, line_str);
 			}
 

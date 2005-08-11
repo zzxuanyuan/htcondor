@@ -92,12 +92,12 @@ JobQueueDBManager::getWritePassword(char *write_passwd_fname) {
 
 	fp = fopen(write_passwd_fname, "r");
 	if(fp == NULL) {
-		EXCEPT("Error: Unable to open password file %s...exiting\n", write_passwd_fname);
+		EXCEPT("Unable to open password file %s\n", write_passwd_fname);
 	}
 	
 	if(fscanf(fp, "%s", passwd) != 1) {
 		fclose(fp);
-		EXCEPT("Error: Unable to read password from file %s...exiting\n", write_passwd_fname);
+		EXCEPT("Unable to read password from file %s\n", write_passwd_fname);
 	}
 	fclose(fp);
 	return passwd;
@@ -116,7 +116,7 @@ JobQueueDBManager::config(bool reconfig)
 		//figure out the location of the job_queue.log file
 	char *spool = param("SPOOL");
 	if(!spool) {
-		EXCEPT("Error: No SPOOL variable found in config file - exiting\n");
+		EXCEPT("No SPOOL variable found in config file\n");
 	}
   
 	jobQueueLogFile = (char *) malloc(_POSIX_PATH_MAX * sizeof(char));
@@ -716,6 +716,16 @@ JobQueueDBManager::loadJobQueue(JobQueueCollection *jobQueue)
 	st1 = jobQueue->getNextHistoryAd_SqlStr(ret_str, ret_str2);
 
 	while(st1 > 0 &&  ret_str != NULL) {
+			/*  st2 is not used anywhere below this.  
+				We dont check on errors as:
+				1) If there are connection errors, they'll get 
+				resolved below anyway and 
+				2) There can be integrity issues (duplicate key
+				error).  This comes up frequently as stuff
+				stays in history for long periods of time
+				So our semantics here is ignore the error and
+				move on to the next command in the job_queue.log
+			*/
 		st2 = jqDatabase->execCommand(ret_str);
 		st2 = jqDatabase->execCommand(ret_str2);
 
@@ -820,24 +830,19 @@ JobQueueDBManager::addJobQueueTables()
 		// Store a polling information into DB
 	if (st == SUCCESS) {
 		prober->setProbeInfo();
-	}
-
-	if (st == FAILURE) {
-		disconnectDB(NOT_IN_XACT); // disconnect
-	}
-	else {
+		
 			// VACUUM should be called outside XACT
 			// So, commit XACT shouble be invoked beforehand.
-
+		
 			// During normal operation, this commit transaction
 			// is not really needed.  However, if there are any
 			// outstanding transactions, we commit it here.  
 			// Committing when there aren't any operations isn't
-			// an error anyway.
-		if (xactState != BEGIN_XACT) {
+			// an error anyway. 
+		//if (xactState != BEGIN_XACT) {
 			jqDatabase->commitTransaction(); // end XACT
 			xactState = NOT_IN_XACT;
-		}
+		//}
 
 			//we VACUUM job queue tables twice every day, assuming that
 			//quill has been up for 12 hours
@@ -846,9 +851,10 @@ JobQueueDBManager::addJobQueueTables()
 			numTimesPolled = 0;
 		}
 
-		disconnectDB(NOT_IN_XACT); // commit and end Xact
 	}
 	
+	disconnectDB(NOT_IN_XACT); // end transaction
+
 	return st;
 }
 
@@ -1285,7 +1291,10 @@ JobQueueDBManager::processNewClassAd(char* key,
 										   strlen(multi_sql_str) + 
 										   strlen(sql_str1) + 
 										   strlen(sql_str2) + 1);
-			assert(multi_sql_str);
+			if(!multi_sql_str) {
+				EXCEPT("Call to realloc failed\n");
+			}
+
 			strcat(multi_sql_str, sql_str1);
 			strcat(multi_sql_str, sql_str2);
 		}
@@ -1442,6 +1451,16 @@ JobQueueDBManager::processDestroyClassAd(char* key, bool exec_later)
 	if (exec_later == false) {
 
 		if(inserthistory) { 
+			/*  st1 and st2 are not used anywhere below this.  
+				We dont check on errors as:
+				1) If there are connection errors, they'll get 
+				resolved below anyway and 
+				2) There can be integrity issues (duplicate key
+				error).  This comes up frequently as stuff
+				stays in history for long periods of time
+				So our semantics here is ignore the error and
+				move on to the next command in the job_queue.log
+			*/
 			st1 = jqDatabase->execCommand(sql_str3);
 			st2 = jqDatabase->execCommand(sql_str4);
 		}
@@ -1462,7 +1481,9 @@ JobQueueDBManager::processDestroyClassAd(char* key, bool exec_later)
 										   strlen(multi_sql_str) + 
 										   strlen(sql_str1) + 
 										   strlen(sql_str2) + 1);
-			assert(multi_sql_str);
+			if(!multi_sql_str) {
+				EXCEPT("Call to realloc failed\n");
+			}
 			strcat(multi_sql_str, sql_str1);
 			strcat(multi_sql_str, sql_str2);
 		}
@@ -1603,7 +1624,9 @@ JobQueueDBManager::processSetAttribute(char* key,
 			multi_sql_str = (char*)realloc(multi_sql_str, 
 										   strlen(multi_sql_str) + 
 										   strlen(sql_str_del_in) + 1);
-			assert(multi_sql_str);
+			if(!multi_sql_str) {
+				EXCEPT("Call to realloc failed\n");
+			}
 			strcat(multi_sql_str, sql_str_del_in);
 		}
 		else {
@@ -1702,7 +1725,10 @@ JobQueueDBManager::processDeleteAttribute(char* key,
 											   strlen(multi_sql_str) + 
 											   strlen(sql_str1) + 
 											   strlen(sql_str2) + 1);
-				assert(multi_sql_str);
+				if(!multi_sql_str) {
+					EXCEPT("Call to realloc failed\n");
+				}
+
 				strcat(multi_sql_str, sql_str1);
 				strcat(multi_sql_str, sql_str2);
 			}
@@ -2165,7 +2191,7 @@ void JobQueueDBManager::createClassAd(void) {
 
 	char *quill_name = param("QUILL_NAME");
 	if(!quill_name) {
-		EXCEPT("Error: Cannot find variable QUILL_NAME in config file\n");
+		EXCEPT("Cannot find variable QUILL_NAME in config file\n");
 	}
 	dprintf(D_ALWAYS, "Advertising under name %s\n", quill_name);
 
@@ -2179,7 +2205,7 @@ void JobQueueDBManager::createClassAd(void) {
 
 	char *quill_query_passwd = param("QUILL_QUERY_PASSWORD");
 	if(!quill_query_passwd) {
-		EXCEPT("Error: Cannot find variable QUILL_QUERY_PASSWORD "
+		EXCEPT("Cannot find variable QUILL_QUERY_PASSWORD "
 			   "in config file\n");
 	}
   
