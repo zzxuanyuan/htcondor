@@ -4,7 +4,12 @@ all_target($(NAME))
 CFLAGS = $(STD_C_FLAGS)
 LDFLAGS = $(STD_LDFLAGS) $(LIBCRYPT)
 C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS)
+
+#if WANT_QUILL
 LIB = $(STD_LIBS) $(POSTGRESQL_LIB)/libpq.a
+#else
+LIB = $(STD_LIBS) 
+#endif
 
 OBJ = queue.o queue_instantiate.o
 
