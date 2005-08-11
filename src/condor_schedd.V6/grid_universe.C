@@ -408,6 +408,7 @@ GridUniverseLogic::gman_node_t *
 GridUniverseLogic::StartOrFindGManager(const char* owner, const char* domain,
 	   	const char* attr_value, const char* attr_name, int cluster, int proc)
 {
+
 	gman_node_t* gman_node;
 	int pid;
 
@@ -476,6 +477,19 @@ GridUniverseLogic::StartOrFindGManager(const char* owner, const char* domain,
 		} else {
 			owner_or_user = ATTR_OWNER;
 		}
+
+#ifdef WIN32
+			// Quoting of args is different on Winblows
+		if ( !attr_name  ) {
+			constraint.sprintf(" -C \"(%s=?=\\\"%s\\\"&&%s==%d)\"",
+				owner_or_user,full_owner_name.Value(),
+				ATTR_JOB_UNIVERSE,CONDOR_UNIVERSE_GLOBUS);
+		} else {
+			constraint.sprintf(" -C \"(%s=?=\\\"%s\\\"&&%s=?=\"%s\")\"",
+				owner_or_user,full_owner_name.Value(),
+				attr_name,attr_value);
+		}
+#else
 		if ( !attr_name  ) {
 			constraint.sprintf(" -C (%s=?=\"%s\"&&%s==%d)",
 				owner_or_user,full_owner_name.Value(),
@@ -485,6 +499,8 @@ GridUniverseLogic::StartOrFindGManager(const char* owner, const char* domain,
 				owner_or_user,full_owner_name.Value(),
 				attr_name,attr_value);
 		}
+#endif
+
 		strcat(gman_final_args,constraint.Value());
 	}
 
