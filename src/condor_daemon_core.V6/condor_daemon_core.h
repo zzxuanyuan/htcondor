@@ -527,7 +527,8 @@ class DaemonCore : public Service
                          char *            handler_descrip,
                          Service *         s                = NULL,
                          HandlerType       handler_type     = HANDLE_READ,    
-                         DCpermission      perm             = ALLOW);
+                         DCpermission      perm             = ALLOW,
+						 bool no_recheck_status = false);
 
     /** Not_Yet_Documented
         @param pipefd           Not_Yet_Documented
@@ -544,7 +545,8 @@ class DaemonCore : public Service
                          char *               handler_descrip,
                          Service*             s,
                          HandlerType          handler_type = HANDLE_READ,    
-                         DCpermission         perm = ALLOW);
+                         DCpermission         perm = ALLOW,
+						 bool no_recheck_status = false);
 
 
     /** Not_Yet_Documented
@@ -970,7 +972,8 @@ class DaemonCore : public Service
                         Service* s, 
 					    HandlerType handler_type, 
 					    DCpermission perm,
-                        int is_cpp);
+                        int is_cpp,
+						bool no_recheck_status = false);
 
     int Register_Reaper(int rid,
                         char *reap_descip,
@@ -1064,6 +1067,7 @@ class DaemonCore : public Service
 		PidEntry*		pentry;
 		HandlerType		handler_type;
 		bool			in_handler;
+		bool			is_stdin;
     };
     // void              DumpPipeTable(int, const char* = NULL);
     int               maxPipe;  // number of pipe handlers to start with

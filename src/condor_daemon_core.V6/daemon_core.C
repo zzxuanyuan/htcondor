@@ -488,19 +488,19 @@ int	DaemonCore::Register_Socket(Stream* iosock, char* iosock_descrip,
 
 int	DaemonCore::Register_Pipe(int pipefd, char* pipefd_descrip,
 				PipeHandler handler, char* handler_descrip,
-				Service* s, HandlerType handler_type, DCpermission perm)
+				Service* s, HandlerType handler_type, DCpermission perm, bool is_stdin)
 {
 	return( Register_Pipe(pipefd, pipefd_descrip, handler,
 							(PipeHandlercpp)NULL, handler_descrip, s,
-							handler_type, perm, FALSE) );
+							handler_type, perm, FALSE, is_stdin) );
 }
 
 int	DaemonCore::Register_Pipe(int pipefd, char* piepfd_descrip,
 				PipeHandlercpp handlercpp, char* handler_descrip,
-				Service* s, HandlerType handler_type, DCpermission perm)
+				Service* s, HandlerType handler_type, DCpermission perm, bool is_stdin)
 {
 	return( Register_Pipe(pipefd, piepfd_descrip, NULL, handlercpp,
-							handler_descrip, s, handler_type, perm, TRUE) );
+							handler_descrip, s, handler_type, perm, TRUE, is_stdin) );
 }
 
 int	DaemonCore::Register_Reaper(char* reap_descrip, ReaperHandler handler,
@@ -1106,7 +1106,8 @@ int DaemonCore::Register_Pipe(int pipefd, char* pipefd_descrip,
 				PipeHandler handler, PipeHandlercpp handlercpp,
 				char *handler_descrip, Service* s,
 				HandlerType handler_type, DCpermission perm,
-				int is_cpp)
+				int is_cpp,
+				bool is_stdin)
 {
     int     i;
     int     j;
@@ -1114,10 +1115,7 @@ int DaemonCore::Register_Pipe(int pipefd, char* pipefd_descrip,
 	// Since FD_ISSET only allows us to probe, we do not bother using a
 	// hash table for pipes.  We simply store them in an array.
 
-	// ckireyev: this used to be:
-	// if (pipefd < 1)
-    //	 why? what about stdin(0)?
-    if ( pipefd < 0 ) {
+	if ( pipefd < 1 ) {
 		dprintf(D_DAEMONCORE, "Register_Pipe: invalid pipefd \n");
 		return -1;
     }
@@ -1182,6 +1180,7 @@ int DaemonCore::Register_Pipe(int pipefd, char* pipefd_descrip,
 	(*pipeTable)[i].perm = perm;
 	(*pipeTable)[i].service = s;
 	(*pipeTable)[i].data_ptr = NULL;
+	(*pipeTable)[i].is_stdin = is_stdin;
 	free_descrip((*pipeTable)[i].pipe_descrip);
 	if ( pipefd_descrip )
 		(*pipeTable)[i].pipe_descrip = strdup(pipefd_descrip);
@@ -1223,7 +1222,8 @@ int DaemonCore::Create_Pipe( int *filedes, bool nonblocking_read,
 
 	if ( psize == 0 ) {
 		// set default pipe size at 4k, the size of one page on most platforms
-		psize = 1024 * 4;
+		//psize = 1024 * 4;
+		psize=1;
 	}
 
 	bool failed = false;
@@ -1232,7 +1232,7 @@ int DaemonCore::Create_Pipe( int *filedes, bool nonblocking_read,
 	// WIN32
 	long handle;
 	DWORD Mode = PIPE_READMODE_BYTE | PIPE_NOWAIT;
-	if ( _pipe(filedes, psize, _O_BINARY) == -1 ) {
+	if ( _pipe(filedes, psize, _O_BINARY | _O_NOINHERIT) == -1 ) {
 		dprintf(D_ALWAYS,"Create_Pipe(): call to pipe() failed\n");
 		return FALSE;
 	}
@@ -2153,7 +2153,8 @@ void DaemonCore::Driver()
 						// if the user's handler call Cancel_Pipe().
 						PidEntry* saved_pentry = (*pipeTable)[i].pentry;
 
-						if ( recheck_status || saved_pentry ) {
+						if (recheck_status || saved_pentry) {
+							//(saved_pentry && ((*pipeTable)[i].is_stdin == false))) {
 							// we have already called at least one callback handler.  what
 							// if this handler drained this registed pipe, so that another
 							// read on the pipe could block?  to prevent this, we need
@@ -2168,18 +2169,35 @@ void DaemonCore::Driver()
 #ifdef WIN32
 							// WINDOWS
 							DWORD num_bytes_avail = 0;
+							DWORD delta = 0;
 							if ( saved_pentry && saved_pentry->hPipe )
 							{
-								PeekNamedPipe(
+								
+								if (!PeekNamedPipe(
 								  saved_pentry->hPipe,	// handle to pipe
 								  NULL,				// data buffer
 								  0,				// size of data buffer
 								  NULL,				// number of bytes read
 								  &num_bytes_avail,	// number of bytes available
 								  NULL  // unread bytes
-								);
+								  )) {
+									dprintf (D_ALWAYS, "PeekNamedPipe() error\n");
+									continue;
+								}
+
+								
+								
+								if ((*pipeTable)[i].is_stdin == true) {
+									FILE * fin = stdin;
+									if (fin->_ptr && fin->_base) {
+										delta = fin->_bufsiz - (DWORD)(fin->_ptr - fin->_base); 
+									}
+								}
+
+								//num_bytes_avail += delta;
 							}
 							if ( num_bytes_avail == 0 ) {
+								dprintf (D_ALWAYS, "PNP skip\n");
 								// there is no longer anything available to read
 								// on the pipe.  try the next entry....
 								continue;
@@ -4832,6 +4850,9 @@ int DaemonCore::Create_Process(
 
 	inheritbuf += InfoCommandSinfulString();
 
+	if (std || fd_inherit_list)
+		inherit_handles = TRUE;
+
 	if ( sock_inherit_list ) {
 		inherit_handles = TRUE;
 		for (i = 0 ;
@@ -6753,8 +6774,11 @@ pidWatcherThread( void* arg )
 			}
 			entry->pidentries[numentries] = entry->pidentries[i];
 			numentries++;
+			
 		}
 	}
+
+	//dprintf (D_FULLDEBUG, "pre-WFMO %d\n", numentries);
 	hKids[numentries] = entry->event;
 	entry->nEntries = numentries;
 	::LeaveCriticalSection(&(entry->crit_section));
@@ -6764,17 +6788,17 @@ pidWatcherThread( void* arg )
 		return TRUE;	// this return will kill this thread
 
 	result = ::WaitForMultipleObjects(numentries + 1, hKids, FALSE, INFINITE);
+	dprintf (D_FULLDEBUG, "WFMO %d %d\n", result, numentries);
 	if ( result == WAIT_FAILED ) {
 		EXCEPT("WaitForMultipleObjects Failed");
 	}
 	result = result - WAIT_OBJECT_0;
-
+	
 	// if result = numentries, then we are being told our entry->pidentries
 	// array has been modified by another thread, and we should re-read it.
 	// if result < numentries, then result signifies a child process
 	// which exited.
 	if ( (result < numentries) && (result >= 0) ) {
-
 		sent_result = FALSE;
 		last_pidentry_exited = result;
 
