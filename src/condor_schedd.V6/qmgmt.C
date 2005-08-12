@@ -608,6 +608,9 @@ OwnerCheck(ClassAd *ad, const char *test_owner)
 		return true;
 	}
 
+	has_dynamic_user = (ad->LookupString (ATTR_LOCAL_USER_ACCOUNT, my_dynamic_user) != 0);
+
+
 #if !defined(WIN32) 
 		// If we're not root or condor, only allow qmgmt writes from
 		// the UID we're running as.
@@ -640,9 +643,6 @@ OwnerCheck(ClassAd *ad, const char *test_owner)
 		return true;
 	}
 
-	has_dynamic_user = ad->LookupString (ATTR_LOCAL_USER_ACCOUNT, 
-										 my_dynamic_user);
-
 		// Finally, compare the owner of the ad with the entity trying
 		// to connect to the queue.
 	if ((strcmp(my_owner, test_owner) == 0) ||
@@ -653,7 +653,7 @@ OwnerCheck(ClassAd *ad, const char *test_owner)
 #if !defined(WIN32)
 	errno = EACCES;
 #endif
-	dprintf( D_FULLDEBUG, "ad owner: %s, dynamic user %d, queue submit owner: %s\n",
+	dprintf( D_FULLDEBUG, "ad owner: %s, dynamic user %s, queue submit owner: %s\n",
 			 my_owner, 
 			 has_dynamic_user?my_dynamic_user:"<none>",
 			 test_owner );

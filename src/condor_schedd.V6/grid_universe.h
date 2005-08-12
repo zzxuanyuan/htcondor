@@ -61,7 +61,8 @@ class GridUniverseLogic : public Service
 			int pid;
 			int add_timer_id;
 			int remove_timer_id;
-			char owner[200];
+				//char owner[200];
+			char user_account[200];
 			char domain[200];
 			gman_node_t() : pid(0),add_timer_id(-1),remove_timer_id(-1) {};
 		};

@@ -815,6 +815,8 @@ Scheduler::count_jobs()
 				if (pGridJobs->GlobusJobs == 0)
 					continue;
 
+				dprintf (D_FULLDEBUG, "about to call JCU1 %s\n", pGridJobs->LocalUser.Value());
+
 				GridUniverseLogic::JobCountUpdate(Owners[i].Name, 
 												  pGridJobs->LocalUser.Value(),
 												  Owners[i].Domain,
@@ -986,7 +988,11 @@ count( ClassAd *job )
 	job->LookupString(ATTR_NT_DOMAIN, domain);
 	
 	local_user[0]='\0';
-	job->LookupString(ATTR_LOCAL_USER_ACCOUNT, local_user);
+	if (!job->LookupString(ATTR_LOCAL_USER_ACCOUNT, local_user)) {
+	  local_user[0]='\0';
+	}
+
+	dprintf (D_FULLDEBUG, "LocalUser %s\n", local_user);
 
 
 	// With NiceUsers, the number of owners is
@@ -1032,7 +1038,9 @@ count( ClassAd *job )
 				// note: get owner again cuz we don't want accounting group here.
 			char owner[_POSIX_PATH_MAX];
 			owner[0] = '\0';	
-			job->LookupString(ATTR_OWNER,owner);	
+			job->LookupString(ATTR_OWNER,owner);
+			dprintf (D_FULLDEBUG, "about to call JCU2 %s\n", local_user);
+
 			GridUniverseLogic::JobCountUpdate(owner,local_user, domain,mirror_schedd_name,ATTR_MIRROR_SCHEDD,
 				0, 0, 1, job_managed ? 0 : 1);
 		}
@@ -1125,13 +1133,12 @@ count( ClassAd *job )
 			// Update the GlobusJobs, GlobusUnmanagedJobs for owner
 		GridJobs * pGridJobs = NULL;
 
-		scheduler.Owners[OwnerNum].grid_jobs.lookup (
-			HashKey (owner), 
-			pGridJobs);
+		const char * gman_user = (local_user!=NULL)?local_user:owner;
 
-		if (!pGridJobs) {
-			pGridJobs = new GridJobs(owner);
-			scheduler.Owners[OwnerNum].grid_jobs.insert (HashKey(owner), pGridJobs);
+		if (scheduler.Owners[OwnerNum].grid_jobs.lookup (
+			HashKey (gman_user), pGridJobs) != 0) {
+			pGridJobs = new GridJobs(gman_user);
+			scheduler.Owners[OwnerNum].grid_jobs.insert (HashKey(gman_user), pGridJobs);
 		}
 
 		// Don't count HELD jobs that have ATTR_JOB_MANAGED set to false.
@@ -1149,6 +1156,9 @@ count( ClassAd *job )
 			int proc = 0;
 			job->LookupInteger(ATTR_CLUSTER_ID, cluster);
 			job->LookupInteger(ATTR_PROC_ID, proc);
+			dprintf (D_FULLDEBUG, "about to call JCU3 %s\n", local_user);
+
+
 			GridUniverseLogic::JobCountUpdate(owner,
 											  local_user,
 											  domain,
@@ -2257,21 +2267,9 @@ aboutToSpawnJobHandler( int cluster, int proc, void* )
 }
 
 
-int
-aboutToSpawnJobHandlerDone( int cluster, int proc, 
-							void* shadow_record, int exit_code)
-{
-		// We need to 
+int 
+set_local_user_from_sandbox_owner (int cluster, int proc) {
 
-	shadow_rec* srec = (shadow_rec*)shadow_record;
-	dprintf( D_FULLDEBUG, 
-			 "aboutToSpawnJobHandler() completed (rc=%d) for job %d.%d%s\n",
-			 exit_code,
-			 cluster, proc, 
-			 srec ? ", attempting to spawn job handler" : "" );
-
-// If we've used the workspace service,
-// figure out the account name and store in in the ad
 #if defined (UNIX)
 	ClassAd * job_ad = GetJobAd( cluster, proc );
 	ASSERT( job_ad ); // No job ad?
@@ -2289,20 +2287,45 @@ aboutToSpawnJobHandlerDone( int cluster, int proc,
 
 						// Set Owner to new value
 					new_owner = pw->pw_name;
+					dprintf (D_FULLDEBUG, "Setting %s=%s\n",
+						 ATTR_LOCAL_USER_ACCOUNT,
+						 new_owner.Value());
+
 					SetAttributeString (cluster,
-										proc,
-										ATTR_LOCAL_USER_ACCOUNT,
-										new_owner.Value());
+							    proc,
+							    ATTR_LOCAL_USER_ACCOUNT,
+							    new_owner.Value());
 
 				}
 			}
 		} else {
 			dprintf( D_ALWAYS, "Failed to find sandbox for job %d.%d\n", 
 					 cluster, proc );
+			return FALSE;
 		}
 	}
 	FreeJobAd (job_ad);
 #endif
+	return TRUE;
+}  
+
+int
+aboutToSpawnJobHandlerDone( int cluster, int proc, 
+							void* shadow_record, int exit_code)
+{
+		// We need to 
+
+	shadow_rec* srec = (shadow_rec*)shadow_record;
+	dprintf( D_FULLDEBUG, 
+			 "aboutToSpawnJobHandler() completed (rc=%d) for job %d.%d%s\n",
+			 exit_code,
+			 cluster, proc, 
+			 srec ? ", attempting to spawn job handler" : "" );
+
+// If we've used the workspace service,
+// figure out the account name and store in in the ad
+	set_local_user_from_sandbox_owner (cluster, proc);
+
 
 		// just to be safe, check one more time to make sure the job
 		// is still runnable.
@@ -3093,6 +3116,13 @@ Scheduler::spoolJobFilesReaper(int tid,int exit_status)
 			// input files.  Doo!! So now instead, we sleep for one second in
 			// the forked child to solve these issues.
 			SetAttributeInt(cluster,proc,ATTR_STAGE_IN_FINISH,now);
+		}
+
+		int universe;
+		ad->LookupInteger (ATTR_JOB_UNIVERSE, universe);
+
+		if(universe == CONDOR_UNIVERSE_GLOBUS) {
+		  set_local_user_from_sandbox_owner (cluster, proc);
 		}
 
 			// And now release the job.

@@ -347,7 +347,7 @@ GridUniverseLogic::GManagerReaper(Service *,int pid, int exit_status)
 		char *scratchdir = scratchFilePath(gman_node);
 		ASSERT(scratchdir);
 		if ( IsDirectory(scratchdir) && 
-			init_user_ids(gman_node->owner, gman_node->domain) ) 
+			init_user_ids(gman_node->user_account, gman_node->domain) ) 
 		{
 			priv_state saved_priv = set_user_priv();
 				// Must put this in braces so the Directory object
@@ -486,8 +486,9 @@ GridUniverseLogic::StartOrFindGManager(const char* owner,
 		strcat(gman_final_args,constraint.Value());
 	}
 
+	const char * run_as_user = (local_user!=NULL)?local_user:owner;
 
-	if (!init_user_ids((local_user!=NULL)?local_user:owner, 
+	if (!init_user_ids(run_as_user,
 					   domain)) {
 		dprintf(D_ALWAYS,"ERROR - init_user_ids() failed in GRIDMANAGER\n");
 		return NULL;
@@ -588,18 +589,18 @@ GridUniverseLogic::StartOrFindGManager(const char* owner,
 
 	// If we made it here, we happily started up a new gridmanager process
 
-	dprintf( D_ALWAYS, "Started condor_gmanager for owner %s pid=%d\n",
-			owner,pid);
+	dprintf( D_ALWAYS, "Started condor_gmanager for owner %s as user %s pid=%d\n",
+			owner,run_as_user, pid);
 
 	// Make a new gman_node entry for our hashtable & insert it
 	if ( !gman_node ) {
 		gman_node = new gman_node_t;
 	}
 	gman_node->pid = pid;
-	gman_node->owner[0] = '\0';
+	gman_node->user_account[0] = '\0';
 	gman_node->domain[0] = '\0';
 	if ( owner ) {
-		strcpy(gman_node->owner,owner);
+		strcpy(gman_node->user_account,run_as_user);
 	}
 	if ( domain ) {
 		strcpy(gman_node->domain,domain);
