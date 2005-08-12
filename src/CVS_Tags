@@ -1,7 +1,7 @@
-07/27/05 V6_7-globus4-merge-1
+08/12/05 V6_7-globus4-merge-1
    The state of the V6_7-globus4-branch for a merge into V6_7-branch. This
    branches moves the Globus version we link Condor with from 2.4.3 to
-   4.0.0.
+   4.0.1.
 
 05/17/05 V6_6-merge-40
    The state of the V6_6-branch for a merge into V6_7-branch.  This
