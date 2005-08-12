@@ -52,6 +52,7 @@ public:
 
 	int IsEmpty();
 	int IsError() { return error; }
+	void SetReadAll(bool b) { read_all = b; }
 
 protected:
 	int fd;
@@ -60,6 +61,8 @@ protected:
 	int newlineCount;
 	int error;
 	bool last_char_was_escape;
+	bool last_char_was_newline;
+	bool read_all;
 
 
 };

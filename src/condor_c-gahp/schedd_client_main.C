@@ -127,13 +127,17 @@ main_init( int argc, char ** const argv )
 	Register();
 	Reconfig();
 
+	REQUEST_INBOX = dup(fileno(stdin));
+	RESULT_OUTBOX = fileno(stdout);
+
 
 	request_buffer.setFd( REQUEST_INBOX );
+#ifdef WIN32
+	//request_buffer.SetReadAll(true);
+	setvbuf (stdin, NULL, _IONBF, 0);
+#endif
 
-
-	daemonCore->Register_Timer(0, 
-		  (TimerHandler)&init_pipes,
-		  "init_pipes", NULL );
+	init_pipes();
 
 
     // Just set up timers....
@@ -151,11 +155,16 @@ int
 init_pipes() {
 	dprintf (D_FULLDEBUG, "PRE Request pipe initialized\n");
 
-	(void)daemonCore->Register_Pipe (
+	//request_buffer.SetReadAll(true);
+	if (daemonCore->Register_Pipe (
 									 request_buffer.getFd(),
 									 "request pipe",
 									 (PipeHandler)&request_pipe_handler,
-									 "request_pipe_handler");
+									 "request_pipe_handler",
+									 NULL, HANDLE_READ, ALLOW, true) == -1) {
+		dprintf (D_ALWAYS, "Error with Register_Pipe (request_buffer)\n");
+		return TRUE;
+	}
 
 
 	dprintf (D_FULLDEBUG, "Request pipe initialized\n");

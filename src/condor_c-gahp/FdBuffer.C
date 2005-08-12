@@ -31,6 +31,7 @@ FdBuffer::FdBuffer (int _fd) {
 	error = FALSE;
 	newlineCount=0;
 	last_char_was_escape = false;
+	read_all = false;
 }
 
 FdBuffer::FdBuffer() {
@@ -38,6 +39,7 @@ FdBuffer::FdBuffer() {
  	buffer.reserve (5000);
  	newlineCount=0;
 	last_char_was_escape = false;
+	read_all = false;
 }
 
 
@@ -47,15 +49,21 @@ FdBuffer::GetNextLine () {
 	
 		// Read another byte from fd
 		// we only read one at a time to avoid blocking
+		// If (read_all==true) we read all the chars from the buffer
+		// We also assume that we'll only get one \n-terminated line
+		// at a time.
 
+	int read_count = 0;
 	char buff;
-	if (read (this->fd, &buff, 1) > 0) {
+
+	while ((read_count = read (this->fd, &buff, 1)) > 0) {
 
 		if (buff == '\n' && !last_char_was_escape) {
 					// We got a completed line!
 			newlineCount++;
 			result = new MyString(buffer);
 			buffer = "";
+			break;
 		} else if (buff == '\r' && !last_char_was_escape) {
 				// Ignore \r
 		} else {
@@ -67,8 +75,13 @@ FdBuffer::GetNextLine () {
 			else {
 				last_char_was_escape = false;
 			}
-		} 
-	} else {
+		}
+		
+		if (!read_all)
+			break;
+	} 
+
+	if (read_count == 0 && !read_all) {
 		dprintf (D_ALWAYS, 
 				 "Read 0 bytes from fd %d ==> fd must be closed\n", 
 				 this->fd);
@@ -91,15 +104,22 @@ FdBuffer::Write (const char * towrite) {
 		return 0;
 
 	int numwritten = write (fd, buffer.Value(), len);
+	_commit (fd);
 	if (numwritten > 0) {
+		dprintf (D_FULLDEBUG, "Wrote %s to fd %d\n",
+					buffer.Substr(0, numwritten).Value(),
+					fd);
+
 			// shorten the buffer
 		buffer = buffer.Substr (numwritten, len);
 		return numwritten;
 	} else if ( numwritten == 0 ) {
 		return 0;
 	} else {
-		if (errno == EAGAIN)
+		if (errno == EAGAIN) {
+			dprintf (D_FULLDEBUG, "EAGAIN fd %d\n", fd);
 			return 0;
+		}
 
 		dprintf (D_ALWAYS, "Error %d writing to fd %d\n", errno, fd);
 		error = TRUE;

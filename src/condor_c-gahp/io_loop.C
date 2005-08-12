@@ -38,7 +38,6 @@ const char * version = "$GahpVersion 2.0.1 Jun 27 2005 Condor\\ GAHP $";
 
 char *mySubSystem = "C_GAHP";	// used by Daemon Core
 
-
 int async_mode = 0;
 int new_results_signaled = 0;
 
@@ -75,7 +74,7 @@ void
 usage( char *name )
 {
 	dprintf( D_ALWAYS,
-		"Usage: condor_gahp -s <schedd name> [-P <pool name>]\n"
+		"Usage: condor_gahp -s <schedd name> [-P <pool name>] [ -I <input fd> ]\n"
 			 );
 	DC_Exit( 1 );
 }
@@ -84,6 +83,7 @@ int
 main_init( int argc, char ** const argv )
 {
 
+	int input_fd = -1;
 
 	dprintf(D_FULLDEBUG, "C-GAHP IO thread\n");
 
@@ -111,6 +111,13 @@ main_init( int argc, char ** const argv )
 			ScheddPool = argv[i + 1];
 			i++;
 			break;
+		case 'I':
+			// don't check parent for schedd addr. use this one instead
+			if ( argc <= i + 1 )
+				usage( argv[0] );
+			input_fd = atoi (argv[i + 1]);
+			i++;
+			break;
 		default:
 			usage( argv[0] );
 			break;
@@ -123,12 +130,43 @@ main_init( int argc, char ** const argv )
 	Register();
 	Reconfig();
 
-	stdin_buffer.setFd (dup(STDIN_FILENO));
+	
+	if (input_fd == -1) {
+		input_fd = dup(STDIN_FILENO);
+#ifdef WIN32
+		// On windows we want to read all available chars from console
+		//stdin_buffer.SetReadAll(true);
+		//setvbuf (stdin, NULL, _IONBF, 0);
+		_setmode( _fileno( stdin  ), _O_BINARY );
+		_setmode( _fileno( stdout ), _O_BINARY );
+	
+		DWORD icm;
+		HANDLE hcin = GetStdHandle(STD_INPUT_HANDLE);
+		GetConsoleMode(hcin,&icm);
+			icm   &= ~(
+             ENABLE_LINE_INPUT |
+             ENABLE_ECHO_INPUT |
+             ~ENABLE_PROCESSED_INPUT |   // ctrl c
+             ENABLE_WINDOW_INPUT |
+             ENABLE_MOUSE_INPUT);
+		SetConsoleMode(hcin,icm); 
+#endif
+	}
+	stdin_buffer.setFd (input_fd);
 
-	(void)daemonCore->Register_Pipe (stdin_buffer.getFd(),
+
+
+	
+	if (daemonCore->Register_Pipe (stdin_buffer.getFd(),
 									 "stdin pipe",
 									 (PipeHandler)&stdin_pipe_handler,
-									 "stdin_pipe_handler");
+									 "stdin_pipe_handler",
+									 NULL, HANDLE_READ, ALLOW, true) == input_fd) {
+	} else {
+		dprintf (D_ALWAYS, "Unable to register input pipe %d\n", input_fd);
+		DC_Exit (1);
+	}
+
 
 
 	for (i=0; i<NUMBER_WORKERS; i++) {
@@ -137,21 +175,31 @@ main_init( int argc, char ** const argv )
 
 			// The IO (this) process cannot block, otherwise it's poosible
 			// to create deadlock between these two pipes
+		/*
 		if (daemonCore->Create_Pipe (workers[i].request_pipe, true, true) == FALSE ||
 			daemonCore->Create_Pipe (workers[i].result_pipe, true) == FALSE) {
 			return -1;
+		}*/
+		
+		if (daemonCore->Create_Pipe (workers[i].request_pipe) == FALSE ||
+			daemonCore->Create_Pipe (workers[i].result_pipe) == FALSE) {
+			return -1;
 		}
-
 		workers[i].request_buffer.setFd (workers[i].request_pipe[1]);
 		workers[i].result_buffer.setFd (workers[i].result_pipe[0]);
+		workers[i].result_buffer.SetReadAll(true);
 
-		(void)daemonCore->Register_Pipe (workers[i].result_buffer.getFd(),
+
+
+		if (daemonCore->Register_Pipe (workers[i].result_buffer.getFd(),
 										 "result pipe",
 										 (PipeHandlercpp)&Worker::result_handler,
 										 "Worker::result_handler",
-										 (Service*)&workers[i]);
-
-
+										 (Service*)&workers[i],
+										  HANDLE_READ, ALLOW, false) == -1) {
+			dprintf (D_ALWAYS, "Unable to Register_Pipe(%d)\n", 
+				workers[i].result_buffer.getFd());
+		}
 	}
 
 	// Create child process
@@ -175,10 +223,9 @@ main_init( int argc, char ** const argv )
 									  
 
 
-	char * c_gahp_name = param ("CONDOR_GAHP");
+	char * c_gahp_name = param ("CONDOR_GAHP_WORKER_THREAD");
 	ASSERT (c_gahp_name);
-	MyString exec_name;
-	exec_name.sprintf ("%s_worker_thread", c_gahp_name);
+	MyString exec_name = c_gahp_name;
 	free (c_gahp_name);
 
 	for (i=0; i<NUMBER_WORKERS; i++) {
@@ -207,12 +254,24 @@ main_init( int argc, char ** const argv )
 		dprintf (D_FULLDEBUG, "Staring worker # %d: %s\n", i, args.Value());
 
 			// We want IO thread to inherit these ends of pipes
+		int io_redirect[3];
+		io_redirect[0] = workers[i].request_pipe[0];	// stdin gets read side of in pipe
+		io_redirect[1] = workers[i].result_pipe[1]; // stdout get write side of out pipe
+		io_redirect[2] = -1; // stderr get write side of err pipe
+
+#ifdef WIN32
+		int hOrigStdin = _dup(_fileno(stdin));
+		_dup2(workers[i].request_pipe[0], _fileno(stdin));
+		close (workers[i].request_pipe[0]);
+		io_redirect[0]=_fileno(stdin);
+#endif
+/*		
 		int inherit_fds[3];
 		inherit_fds[0] = workers[i].request_pipe[0];
 		inherit_fds[1] = workers[i].result_pipe[1];
-		inherit_fds[2] = 0;
+		inherit_fds[2] = 0;*/
 
-		workers[i].pid = 
+	/*	workers[i].pid = 
 			daemonCore->Create_Process (
 										exec_name.Value(),
 										args.Value(),
@@ -223,19 +282,22 @@ main_init( int argc, char ** const argv )
 										NULL,
 										FALSE,
 										NULL,
-										NULL,
-										0,				// nice inc
-										0,				// job opt mask
-										inherit_fds);
-
+										io_redirect);
+*/
 
 		if (workers[i].pid > 0) {
+#ifdef WIN32
+			// restore stdin
+			_dup2(hOrigStdin, _fileno(stdin));
+			close (hOrigStdin);
+#else
 			close (workers[i].request_pipe[0]);
 			close (workers[i].result_pipe[1]);
+#endif
 		}
 	}
 	
-	close(STDIN_FILENO);
+	//close(STDIN_FILENO);
 			
 	// Setup dprintf to display pid
 	DebugId = display_dprintf_header;
@@ -244,7 +306,6 @@ main_init( int argc, char ** const argv )
 		// now we're ready to roll
 	printf ("%s\n", version);
 	fflush(stdout);
-
 	dprintf (D_FULLDEBUG, "C-GAHP IO initialized\n");
 
 	return TRUE;
@@ -295,6 +356,7 @@ stdin_pipe_handler(int pipe) {
 			} else if (strcasecmp (argv[0], GAHP_COMMAND_VERSION) == 0) {
 				printf ("S %s\n", version);
 				fflush (stdout);
+
 			} else if (strcasecmp (argv[0], GAHP_COMMAND_QUIT) == 0) {
 				gahp_output_return_success();
 				DC_Exit(0);
