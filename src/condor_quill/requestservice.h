@@ -51,7 +51,9 @@ private:
 		//
 		// helper functions
 		//
-	ClassAd*	 getNextJobByConstraint(const char* constraint, int initScan);
+	QuillErrCode getNextJobByConstraint(const char* constraint, 
+										int initScan, 
+										ClassAd *&);
 	static bool  parseConstraint(const char *constraint, 
 								 int &cluster, int &proc, char *owner);
 	void		 freeJobAd(ClassAd *&ad);

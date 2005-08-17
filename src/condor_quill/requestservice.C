@@ -104,7 +104,7 @@ RequestService::service(ReliSock *syscall_sock) {
 	  
   case CONDOR_GetNextJobByConstraint: {
 	  char *constraint=NULL;
-	  ClassAd *ad;
+	  ClassAd *ad=NULL;
 	  int initScan;
 	  int terrno;
       
@@ -121,9 +121,12 @@ RequestService::service(ReliSock *syscall_sock) {
 	  
       errno = 0;
 	  
-      ad = getNextJobByConstraint( constraint, initScan );
+      ret_st = getNextJobByConstraint( constraint, initScan, ad);
 	  
-      terrno = errno;
+      if(ret_st == FAILURE) 
+		  terrno = -1;
+	  else 
+		  terrno = errno;
 	  
       rval = ad ? 1 : -1;
 
@@ -225,39 +228,42 @@ RequestService::parseConstraint(const char *constraint,
 //! handle GetNextJobByConstraint request 
 /*! \param constraint query 
  *	\param initScan is it the first call?
+ *  \param ad the next classad 
  */
-ClassAd*
-RequestService::getNextJobByConstraint(const char* constraint, int initScan)
+QuillErrCode
+RequestService::getNextJobByConstraint(const char* constraint, 
+									   int initScan,
+									   ClassAd *&ad)
 {
-	ClassAd *ad;
-
 	bool isfullscan = false;
 	int cluster=-1, proc=-1;
 	char owner[20] = "";
+	QuillErrCode ret_st;
 
 	if (initScan) { // is it the first request?
 	  isfullscan = parseConstraint(constraint, cluster, proc, owner);
 
-	  if (jqSnapshot->startIterateAllClassAds(cluster, 
-						  proc, 
-						  owner, 
-						  isfullscan) != SUCCESS)
-		  return NULL;
+	  ret_st = jqSnapshot->startIterateAllClassAds(cluster, 
+												   proc, 
+												   owner, 
+												   isfullscan);
+	  if (ret_st != SUCCESS) {
+		  return ret_st;
 	  
+	  }
+
 	}
 
-
-
 	while(jqSnapshot->iterateAllClassAds(ad)) {
-
+		
 		if (!constraint || !constraint[0] || EvalBool(ad, constraint)) {
-			return ad;		      
+			break;		      
 		}
 		
 		freeJobAd(ad);
 	}
 
-	return NULL;
+	return SUCCESS;
 }
 
 
