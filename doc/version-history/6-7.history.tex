@@ -141,12 +141,6 @@ separate process, allowing remote grid jobs to be started earlier.
   additional communication with the \Condor{shadow} which are not
   required if there's no remote IO.
 
-\item Fixed a bug in \Condor{dagman} which would cause a node's POST script not to be run
-
-\item Fixed a bug whereby \Condor{dagman} could crash after executing
-the POST script of a node whose Condor job had never been successfully
-submitted due to repeated \Condor{submit} failures.
-
 \item Fixed some messages in the Condor log files that were improperly
   formatted, or contained incomplete information.
 
@@ -173,9 +167,15 @@ use of a simple POST script.)
 
 \begin{itemize}
 
-% Gnats PR534.
-\item On \emph{Windows only}, \Condor{dagman} fails for DAGs with
+% Gnats PR 534.
+\item On Windows only, \Condor{dagman} fails for DAGs with
 nodes having absolute log file paths in their submit files.
+
+% Gnats PR 492.
+\item \Condor{dagman} does not correctly handle the case where all
+submit attempts for a node job fail, and the node has a POST script.
+If this happens for a single node in a DAG, it is usually okay,
+but if it happens for a second node, \Condor{dagman} will crash.
 
 \end{itemize}
 
