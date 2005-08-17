@@ -107,6 +107,8 @@ RequestService::service(ReliSock *syscall_sock) {
 	  ClassAd *ad=NULL;
 	  int initScan;
 	  int terrno;
+
+	  dprintf( D_ALWAYS, "CONDOR_GetNextJobByConstraint:\n");
       
 	  return_on_fail( syscall_sock->code(initScan) );
       
@@ -121,14 +123,20 @@ RequestService::service(ReliSock *syscall_sock) {
 	  
       errno = 0;
 	  
-      ret_st = getNextJobByConstraint( constraint, initScan, ad);
+      ret_st = this->getNextJobByConstraint( constraint, initScan, ad);
 	  
-      if(ret_st == FAILURE) 
-		  terrno = -1;
-	  else 
-		  terrno = errno;
+      if(ret_st == FAILURE) {
+	  	/* If the DB is down, but condor_quill is up, then technically
+			condor_quill will timeout while talking to the database (since
+			it isn't up), so mark it as that is what happened. This will
+			cause show_queue_buffered to fail over to the schedd in the case
+			that the DB is down and condor_quill is up. */
+		  terrno = ETIMEDOUT;
+	} else {
+		terrno = 0;
+	}
 	  
-      rval = ad ? 1 : -1;
+      rval = (ad != NULL ? 1 : -1);
 
       syscall_sock->encode();
       return_on_fail( syscall_sock->code(rval) );
