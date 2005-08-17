@@ -1,6 +1,5 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{\label{sec:UserPrio}
-User Priorities}
+\section{\label{sec:UserPrio}User Priorities}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Karen's understanding of this stuff, in preparation for a re-write
@@ -186,3 +185,159 @@ down, no matches will be unaccounted for due to this variance.
 %  your user priority should always match your current usage.  if you're
 %  not using any resources, your priority will go back to the baseline
 %  value instantly.
+
+\subsection{Group Quotas}
+
+User priorities are insufficient for some Condor pools. In some cases,
+different groups might own computers in the pool, though they are
+willing to share them. For example, imagine a Condor pool with thirty
+computers. Twenty computers are owned by the physics group and ten
+computers are owned by the chemistry group. The computers could be
+configured so that only the physicists can access the physics
+computers and only the chemists can access the chemistry computers,
+but this is needlessly constraining: if the computers are similar, the
+users do not really care which computers they get, as long as they get
+enough. Group quotas provide the flexibility needed for this task: it
+allows policies like ``the physicists can use up to twenty of the
+computers in the pool, and they can be any of the computers that are
+available''.
+
+Group quotas require the notion of group users. The syntax for
+specifying a group user is ``group.user''. For example, you might have
+``group\_physics.roy'' and ``group\_chemistry.smith''. The period (.)
+character indicates that a user is actually a group user for
+Condor. Group names are not required to begin with ``group'' as in
+these examples, but it is be a useful convention because group names
+cannot be the same as user names. The configuration file specifies the
+number of virtual machines that are in the quota for each group. The
+total quota for all groups must be less than or equal to the number of
+virtual machines in the entire pool. Any computers not accounted for
+by the quota are allocated to the ``none'' group, which is the general
+group of users you have if you do not specify any group quotas.
+
+Negotiation is changed when group quotas are used: Condor negotiates
+first for groups, then for independent job submitters.  When jobs are
+submitted from multiple groups, Condor negotiates for the group with
+the smallest percentage of resource usage first, and the group with
+the greatest percentage of resource usage last.  For example, suppose
+user jobs are submitted for group user ``group\_physics.roy'',
+``group\_chemistry.roy'', and non-group user "roy".  Suppose also that
+the physics group is 80\% utilized, and the chemistory group is 5\%
+utilized.  Condor will negotiate for the ``group\_chemistry.roy''
+first, then ``group\_physics.roy'', then ``roy''.  For independent job
+submitters, the classic Condor user fair share algorithm still
+applies.
+
+Several configuration variables affect group quotas:
+
+\begin{description}
+  
+\item[\Macro{GROUP\_NAMES}]
+    A list of the recognized group names, separated by a comma,
+	case insensitive.  If undefined (the default), then group support
+	is disabled.  Note: these names must not conflict with any
+	user names. That is, if you have a ``physics'' group, you should
+    not have a ``physics'' user.  Any group that is defined here must
+    also have quota, or it will be ignored. Example: 
+\begin{verbatim}
+    GROUP_NAMES = group_physics, group_chemistry 
+\end{verbatim}
+
+\item[\Macro{GROUP\_QUOTA\_<groupname>}]
+    This is a static quota that specifies the exact number of machines
+	owned by this group.  The number of machines must be an integer
+	greater than or equal to zero. Note that Condor does not verify
+	that the quota values are reasonable or consistent.  
+    % When both are defined, static quotas supersede dynamic quotas. 
+    Example:
+
+\begin{verbatim}
+    GROUP_QUOTA_group_physics = 20
+    GROUP_QUOTA_group_chemistry = 10
+\end{verbatim}
+
+%\item[\Macro{GROUP\_DYNAMIC\_MACH\_CONSTRAINT}]
+%
+%Filter the number of machines for use with dynamic groups accounting
+%quotas, below.  Without this filter, dynamic quotas are calculated
+%from the total of all machines, in all states, that have reported to
+%the collector, which is probably not what you want.  Use this filter to
+%restrict the number of machines reserved for calculating dynamic
+%quotas.  The value is a ClassAd expression, and is evaluated every
+%negotiation cycle.  For example, the following expression will only
+%consider unclaimed Intel/Linux machines for dynamic quotas.
+%
+%\begin{verbatim}
+%    GROUP_DYNAMIC_MACH_CONSTRAINT = State == "Unclaimed" && \
+%    Arch == "INTEL" && OpSys == "LINUX"
+%\end{verbatim}
+
+%will only considered. If all computers should be considered for
+%dynamic quotas, then the following expression could be used:
+
+%% \begin{verbatim}
+%%     GROUP_DYNAMIC_MACH_CONSTRAINT = TRUE
+%% \end{verbatim}
+
+
+%% \item[\Macro{GROUP\_QUOTA\_DYNAMIC\_<groupname>}]
+
+%% Specify a dynamic group accounting quota.  For example, the following
+%% specifies that a quota of 25\% of the total dynamic quota machines are
+%% reserved for members of the group\_biology group.
+
+%% \begin{verbatim}
+%% 	GROUP_QUOTA_DYNAMIC_group_biology = 0.25
+%% \end{verbatim}
+
+%% The total dynamic quota machine count is determined using
+%% \Macro{GROUP\_DYNAMIC\_MACH\_CONSTRAINT above}. The group name must
+%% also be specified in the \Macro{GROUP\_NAMES} list. The value must be
+%% positive float between 0.0 and 1.0. Condor does not verify that the
+%% quota value is reasonable, nor does Condor verify that all specified
+%% quotas are consistent.  This parameter is evaluated whenever Condor
+%% negotiates for the group.  When both are defined, static quotas
+%% supersede dynamic quotas.
+
+\item[\Macro{GROUP\_PRIO\_FACTOR\_<groupname>}]
+
+    Specify the default user priority factor for groupname.  The
+    group\_name must also be specified in the \Macro{GROUP\_NAMES}
+    list.  \Macro{GROUP\_PRIO\_FACTOR\_<groupname>} is evaluated when
+    the negotiator first negotiates for the user as a member of
+    the group.  All members of the group inherit the default
+    priority factor.  The value is a floating point, and must be
+    greater than or equal to 1.0.  For example, the following setting
+    specifies that all member of the group named group\_physics
+    inherit a default user priority factor of 2.0:
+\begin{verbatim}
+    GROUP_PRIO_FACTOR_HACKERS = 2.0
+\end{verbatim}
+
+\item[\Macro{GROUP\_AUTOREGROUP}]
+    Set this to either True or False.  Defaults to
+	false.  If true, then users who submitted to a specific group will
+	also negotiate a second time with the "none" group, to be
+    considered with the independent job submitters. 
+	This allows group submitted jobs to be matched with idle machines
+	even if the group is over its quota.
+
+\item[\Macro{NEGOTIATOR\_CONSIDER\_PREEMPTION}]
+    Defaults to true.  If set to false, then the negotiator can run
+	faster and also with better spinning pie accuracy.  \emph{Only set
+	this to false if \Macro{PREEMPTION\_REQUIREMENTS} is false, and
+	if all \condor{startd} rank expressions are false.} This should
+	only be used by expert 	users.
+\end{description}
+
+Users must specify what group they are part of. They do this in their
+submit file with AccountingGroup attribute, which must be
+specified with the plus sign and with quotes around the name. For
+example:
+\begin{verbatim}
++AccountingGroup = "group_physics.roy"
+\end{verbatim}
+
+Note that there is no verification that a user in the group that he
+claims to be. We rely on societal pressure for enforcement. 
+
