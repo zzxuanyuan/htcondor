@@ -343,6 +343,8 @@ int main (int argc, char **argv)
 					if (!show_queue( NULL, NULL, NULL, 
 									 NULL, /* in both cases we pass a null for queryPassword */
 									 TRUE) ) {
+						printf( "-- Database not reachable - Failing over to the quill daemon --\n");
+
 						Daemon quill( DT_QUILL, 0, 0 );
 						char tmp[8];
 						strcpy(tmp, "Unknown");
@@ -355,6 +357,8 @@ int main (int argc, char **argv)
 										  NULL, /* in both cases we pass a null for queryPassword */
 										  FALSE) ) {
 							
+							printf( "-- Quill daemon at %s not reachable \n\t- Failing over to the schedd at %s --\n", quill.addr(), scheddAddr);
+
 								/* query the schedd daemon */
 							retval = !show_queue(scheddAddr, scheddName, scheddMachine, 
 											  NULL, /* in both cases we pass a null for queryPassword */
@@ -393,6 +397,8 @@ int main (int argc, char **argv)
 					if (!show_queue_buffered( NULL, NULL, NULL, 
 											  NULL, /* in both cases we pass a null for queryPassword */
 											  TRUE) ) {
+						printf( "-- Database not reachable - Failing over to the quill daemon --\n");
+
 						Daemon quill( DT_QUILL, 0, 0 );
 						char tmp[8];
 						strcpy(tmp, "Unknown");
@@ -404,6 +410,7 @@ int main (int argc, char **argv)
 												   (quill.fullHostname())?(quill.fullHostname()):tmp, 
 												   NULL, /* in both cases we pass a null for queryPassword */
 												   FALSE) ) {
+							printf( "-- Quill daemon at %s not reachable \n\t- Failing over to the schedd at %s --\n", quill.addr(), scheddAddr);
 
 								/* query the schedd */
 							retval = !show_queue_buffered(scheddAddr, scheddName, scheddMachine, 
@@ -629,7 +636,10 @@ int main (int argc, char **argv)
 								dbName, 
 								queryPassword,
 								TRUE )) {
-					if  (!show_queue(quillName, quillAddr, quillMachine, NULL, FALSE)) {
+
+						printf( "-- Database at %s not reachable \n\t- Failing over to the quill daemon at %s--\n", dbIpAddr, quillAddr);
+					if  (!show_queue(quillAddr, quillName, quillMachine, NULL, FALSE)) {
+						printf( "-- Quill daemon at %s not reachable \n\t- Failing over to the schedd at %s --\n", quillAddr, scheddAddr);
 						show_queue(scheddAddr, scheddName, scheddMachine, NULL, FALSE);
 					}
 				}
@@ -647,7 +657,9 @@ int main (int argc, char **argv)
 										 dbName, 
 										 queryPassword,
 										 TRUE )) {
-					if  (!show_queue_buffered(quillName, quillAddr, quillMachine, NULL, FALSE)) {
+					printf( "-- Database at %s not reachable \n\t- Failing over to the quill daemon at %s--\n", dbIpAddr, quillAddr);
+					if  (!show_queue_buffered(quillAddr, quillName, quillMachine, NULL, FALSE)) {
+						printf( "-- Quill daemon at %s not reachable \n\t- Failing over to the schedd at %s --\n", quillAddr, scheddAddr);
 						show_queue_buffered(scheddAddr, scheddName, scheddMachine, NULL, FALSE);
 					}
 				}
@@ -1641,6 +1653,7 @@ show_queue_buffered( char* v1, char* v2, char* v3, char* v4, bool useDB )
 											&errstack) != Q_OK ) {
 			printf( "\n-- Failed to fetch ads from: %s : %s\n%s\n",
 					dbIpAddr, dbName, errstack.getFullText(true) );
+
 			delete output_buffer;
 
 			if(dbconn) {
@@ -1656,7 +1669,9 @@ show_queue_buffered( char* v1, char* v2, char* v3, char* v4, bool useDB )
 											&errstack) != Q_OK ) {
 			printf( "\n-- Failed to fetch ads from: %s : %s\n%s\n",
 					scheddAddr, scheddMachine, errstack.getFullText(true) );
+
 			delete output_buffer;
+
 			if(dbconn) {
 				free(dbconn);
 			}

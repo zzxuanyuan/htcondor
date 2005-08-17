@@ -70,7 +70,6 @@ JobQueueSnapshot::startIterateAllClassAds(int cluster,
 	clusterads_str_num = clusterads_num_num = 0;
 	
 	if(jqDB->connectDB() == FAILURE) {
-		printf("Error while querying the database: no connection to the server\n");
 		return FAILURE;
 	}
 
