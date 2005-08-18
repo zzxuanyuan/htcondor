@@ -2927,6 +2927,10 @@ Scheduler::spoolJobFilesReaper(int tid,int exit_status)
 		CommitTransaction();
 	}
 
+	daemonCore->Register_Timer( 0, 
+						(TimerHandlercpp)&Scheduler::reschedule_negotiator,
+						"Scheduler::reschedule_negotiator", this );
+
 	spoolJobFileWorkers->remove(tid);
 	delete jobs;
 	if (SpoolSpace) free(SpoolSpace);
