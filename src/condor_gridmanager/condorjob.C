@@ -1392,6 +1392,7 @@ ClassAd *CondorJob::buildSubmitAd()
 	submit_ad->Delete( ATTR_OWNER );
 	submit_ad->Delete( ATTR_REMOTE_SCHEDD );
 	submit_ad->Delete( ATTR_REMOTE_POOL );
+	submit_ad->Delete( ATTR_REMOTE_RESOURCE );
 	submit_ad->Delete( ATTR_JOB_MATCHED );
 	submit_ad->Delete( ATTR_JOB_MANAGED );
 	submit_ad->Delete( ATTR_MIRROR_ACTIVE );
