@@ -377,6 +377,9 @@ dprintf(D_ALWAYS,"(%d.%d) SetJobLeaseTimers()\n",procID.cluster,procID.proc);
 		}
 	} else {
 		int when = expiration_time - time(NULL);
+		if ( when < 0 ) {
+			when = 0;
+		}
 		if ( jobLeaseSentExpiredTid == TIMER_UNSET ) {
 			jobLeaseSentExpiredTid = daemonCore->Register_Timer(
 								when,
@@ -398,6 +401,9 @@ dprintf(D_ALWAYS,"(%d.%d) SetJobLeaseTimers()\n",procID.cluster,procID.proc);
 		}
 	} else {
 		int when = expiration_time - time(NULL);
+		if ( when < 0 ) {
+			when = 0;
+		}
 		if ( jobLeaseReceivedExpiredTid == TIMER_UNSET ) {
 			jobLeaseReceivedExpiredTid = daemonCore->Register_Timer(
 							when,
@@ -469,7 +475,10 @@ dprintf(D_ALWAYS,"(%d.%d) UpdateJobLeaseReceived(%d)\n",procID.cluster,procID.pr
 int BaseJob::JobLeaseSentExpired()
 {
 dprintf(D_ALWAYS,"(%d.%d) BaseJob::JobLeaseSentExpired()\n",procID.cluster,procID.proc);
-	UpdateJobLeaseSent( 0 );
+	if ( jobLeaseSentExpiredTid != TIMER_UNSET ) {
+		daemonCore->Cancel_Timer( jobLeaseSentExpiredTid );
+		jobLeaseSentExpiredTid = TIMER_UNSET;
+	}
 	SetEvaluateState();
 	return 0;
 }
@@ -477,6 +486,11 @@ dprintf(D_ALWAYS,"(%d.%d) BaseJob::JobLeaseSentExpired()\n",procID.cluster,procI
 int BaseJob::JobLeaseReceivedExpired()
 {
 dprintf(D_ALWAYS,"(%d.%d) BaseJob::JobLeaseReceivedExpired()\n",procID.cluster,procID.proc);
+	if ( jobLeaseReceivedExpiredTid != TIMER_UNSET ) {
+		daemonCore->Cancel_Timer( jobLeaseReceivedExpiredTid );
+		jobLeaseReceivedExpiredTid = TIMER_UNSET;
+	}
+
 	condorState = REMOVED;
 	jobAd->Assign( ATTR_JOB_STATUS, condorState );
 	jobAd->Assign( ATTR_ENTERED_CURRENT_STATUS, (int)time(NULL) );
