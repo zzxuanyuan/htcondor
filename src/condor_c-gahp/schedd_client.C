@@ -56,9 +56,6 @@ int check_requests_interval = 5;
 // Do we use XML-formatted classads when talking to our invoker
 bool useXMLClassads = false;
 
-// Pointer to a socket open for QMGMT operations
-extern ReliSock* qmgmt_sock;
-
 // Queue for pending commands to schedd
 template class SimpleList<SchedDRequest*>;
 SimpleList <SchedDRequest*> command_queue;
@@ -131,6 +128,7 @@ doContactSchedd()
 	int error=FALSE;
 	char error_msg[1000];
 	CondorError errstack;
+	bool do_reschedule = false;
 
 	// Try connecting to schedd
 	DCSchedd dc_schedd ( ScheddAddr, ScheddPool );
@@ -258,6 +256,9 @@ doContactSchedd()
 		}
 		else {
 			result_ad->dPrint (D_FULLDEBUG);
+			if ( current_command->command == SchedDRequest::SDC_RELEASE_JOB ) {
+				do_reschedule = true;
+			}
 		}
 
 		// Go through the batch again, and create responses for each request
@@ -888,12 +889,15 @@ submit_report_result:
 	}	//elihw
 
 	
-	dprintf (D_FULLDEBUG, "Finishing doContactSchedd()\n");
-
 	if ( qmgr_connection != NULL ) {
 		DisconnectQ (qmgr_connection, FALSE);
 	}
-	qmgmt_sock = NULL;
+
+	if ( do_reschedule ) {
+		dc_schedd.reschedule();
+	}
+
+	dprintf (D_FULLDEBUG, "Finishing doContactSchedd()\n");
 
 	// Clean up the list
 	command_queue.Rewind();
