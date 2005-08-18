@@ -179,7 +179,12 @@ bool BaseResource::IsEmpty()
 
 void BaseResource::RequestPing( BaseJob *job )
 {
-	pingRequesters.Append( job );
+		// A child resource object may request a ping in response to a
+		// failed collective job status command. They will pass a NULL
+		// for the job pointer.
+	if ( job ) {
+		pingRequesters.Append( job );
+	}
 
 	daemonCore->Reset_Timer( pingTimerId, 0 );
 }
@@ -293,13 +298,6 @@ void BaseResource::AlreadySubmitted( BaseJob *job )
 int BaseResource::Ping()
 {
 	BaseJob *job;
-
-	// Don't perform a ping if we have no requesters and the resource is up
-	if ( pingRequesters.IsEmpty() && resourceDown == false &&
-		 firstPingDone == true && pingActive == false ) {
-		daemonCore->Reset_Timer( pingTimerId, TIMER_NEVER );
-		return TRUE;
-	}
 
 	// Don't start a new ping too soon after the previous one. If the
 	// resource is up, the minimum time between pings is probeDelay. If the

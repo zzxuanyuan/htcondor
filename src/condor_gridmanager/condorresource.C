@@ -246,6 +246,8 @@ int CondorResource::DoScheddPoll()
 			dprintf( D_ALWAYS,
 					 "gahp->condor_job_status_constrained returned %d for remote schedd %s\n",
 					 rc, scheddName );
+			dprintf( D_ALWAYS, "Requesting ping of resource\n" );
+			RequestPing( NULL );
 		}
 
 		if ( rc == 0 ) {
