@@ -104,8 +104,10 @@ to give database users 'quillreader' and 'quillwriter' password-enabled
 access to all databases on current machine from any other machine in
 the network add the following:
 
-host    all       quillreader       128.105.0.0       255.255.0.0    password
-host    all       quillwriter       128.105.0.0       255.255.0.0    password
+\begin{tabular}{llllll}
+host&all&quillreader&128.105.0.0&255.255.0.0&password\\
+host&all&quillwriter&128.105.0.0&255.255.0.0&password
+\end{tabular}
 
 Note that in addition to the database specified by DATABASE\_NAME in the
 \File{condor\_config} file, the quill daemon also needs access to the database
@@ -177,7 +179,7 @@ Following is a description on each.  Skip to the next section for a brief
 overview on how to query quill:
 
 \begin{itemize}
-\item QUILL\_NAME: 
+\item \Macro{QUILL\_NAME}
 This is the name of this quill server.  Each quill server sends an ad to
 the collector containing its name.  As such its important that the name of
 a quill server should not conflict with that of any other quill server,
@@ -186,25 +188,27 @@ a SCHEDD\_AD to the collector, and as such, from the perspective of the
 collector, a quill is just another schedd. It might be convenient to
 simply name the quill server, quill-machinename.fully.qualified.address
 
-\item DATABASE\_NAME and DATABASE\_IPADDRESS
+\item \Macro{DATABASE\_NAME} and \Macro{DATABASE\_IPADDRESS}
 These two variables are used to determine the location of the database
 server that this quill would talk to, and the name of the database that
 it creates.  More than one quill server can talk to the same database
 server.  This can be done by simply letting all the DATABASE\_IPADDRESS
 point to the same database server.
 
-IMPORTANT:  If more than one quill server are sharing the same database 
-server, then the DATABASE\_NAME variable for all of them should be unique.  
-Otherwise, there would be all kinds of bizarre overwriting.
+\Notice{If more than one quill server are sharing the same database
+server, then the DATABASE\_NAME variable for all of them should be unique.
+Otherwise, there would be record overwriting and corruption of job
+queue information.}
 
-\item QUILL\_POLLING\_PERIOD
+\item \Macro{QUILL\_POLLING\_PERIOD}
 This controls the frequency with which quill polls the job\_queue.log file.
 By default, it is 10 seconds.  Since quill works by periodically sniffing
 the log file for updates and then sending those updates to the database,
 this variable controls the tradeoff between the currency of query results
 and quill's load on the system - usually negligible.
 
-\item QUILL\_HISTORY\_CLEANING\_INTERVAL and QUILL\_HISTORY\_DURATION 
+\item \Macro{QUILL\_HISTORY\_CLEANING\_INTERVAL} and 
+		\Macro{QUILL\_HISTORY\_DURATION}
 
 These two variables control the deletion of historical jobs from
 the database.  QUILL\_HISTORY\_DURATION is the number of days after
@@ -215,7 +219,7 @@ QUILL\_HISTORY\_CLEANING\_INTERVAL is the number of hours between two
 successive scans.  By default, QUILL\_HISTORY\_DURATION is set to 180
 days and QUILL\_HISTORY\_CLEANING\_INTERVAL is set to 24 hours.
 
-\item QUILL\_IS\_REMOTELY\_QUERYABLE
+\item \Macro{QUILL\_IS\_REMOTELY\_QUERYABLE}
 Thanks to postgres one can now remotely query both the job queue and the
 history tables. This variable controls whether this remote querying 
 feature should be enabled.  By default it is 1 (true).  Note that even if 
@@ -229,7 +233,7 @@ particular quill server is remotely queryable via
 	condor_q -name remote-quill-name
 \end{verbatim}
 
-\item QUILL\_QUERY\_PASSWORD
+\item \Macro{QUILL\_QUERY\_PASSWORD}
 In order for the query tools to connect to a database, it needs to
 provide the password that is assigned to database user 'quillreader' in
 step 2c) above. This variable is then advertised by the quill daemon to
@@ -240,12 +244,7 @@ not have access to the collector cannot view the password and as such
 cannot query the database.  Again, this password just provides 'read'
 access to the database.
 
-\item QUILL\_ADDRESS\_FILE
-
-\begin{verbatim}
-QUILL_ADDRESS_FILE      = $(LOG)/.quill\_address
-\end{verbatim}
-
+\item \Macro{QUILL\_ADDRESS\_FILE}
 When quill starts up, it can place it's address (IP and port)
 into a file.  This way, tools running on the local machine don't
 need to query the central manager to find quill.  This 
@@ -340,9 +339,6 @@ the local schedd by using the -name flag.
 \subsection{\label{sec:Quill-Schema}Quill and Its RDBMS Schema}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\begin{enumerate}
-\item Database Schema
-
 With only 7 tables and 2 views, quill uses a relatively simple database
 schema.  These can be broadly divided into tables used to store job
 queue information and those used to store historical information.
@@ -360,21 +356,34 @@ Thus we have four tables:
 \begin{enumerate}
 
 \item 
-	ClusterAds\_Str\\
-	(cid int, attr text, val text, primary key (cid, attr))
+	\SQLTableDef{ClusterAds\_Str}
+		{cid int, 
+		attr text, 
+		val text, 
+		primary key (cid, attr)}
 
 \item 
-	ClusterAds\_Num\\
-	(cid int, attr text, val double precision, primary key (cid, attr))
+	\SQLTableDef{ClusterAds\_Num}
+		{cid int, 
+		attr text, 
+		val double precision, 
+		primary key (cid, attr)}
 
 \item 
-	ProcAds\_Str\\
-	(cid int, pid int, attr text, val text, primary key (cid, pid, attr))
+	\SQLTableDef{ProcAds\_Str}
+		{cid int, 
+		pid int, 
+		attr text, 
+		val text, 
+		primary key (cid, pid, attr)}
 
 \item 
-	ProcAds\_Num\\
-	(cid int, pid int, attr text, val double precision,\\
-		primary key (cid, pid, attr))
+	\SQLTableDef{ProcAds\_Num}
+		{cid int, 
+		pid int, 
+		attr text, 
+		val double precision,
+		primary key (cid, pid, attr)}
 
 \end{enumerate}
 
@@ -389,32 +398,43 @@ Here are the view definitions:
 
 \begin{enumerate}
 \item Definition of ClusterAds view\\
-     CREATE VIEW ClusterAds as\\
-        select cid, attr, val from ClusterAds\_Str UNION ALL\\
-        select cid, attr, cast(val as text) from ClusterAds\_Num;
+	\SQLViewDef{ClusterAds}
+		{select cid, 
+		attr, 
+		val from ClusterAds\_Str UNION ALL
+		select cid, 
+		attr, 
+		cast(val as text) from ClusterAds\_Num}
 
 
 \item Definition of ProcAds view\\
-     CREATE VIEW ProcAds as\\
-        select cid, pid, attr, val from ProcAds\_Str UNION ALL\\
-        select cid, pid, attr, cast(val as text) from ProcAds\_Num;
+	\SQLViewDef{ProcAds}
+		{select cid, 
+		pid, 
+		attr, 
+		val from ProcAds\_Str UNION ALL
+		select cid, 
+		pid, 
+		attr, 
+		cast(val as text) from ProcAds\_Num}
+
 \end{enumerate}
 
 Finally, the job queue part of the schema also contains a table that
 stores metadata information related to the job\_queue.log file.
 
 \begin{enumerate}
-\item JobQueuePollingInfo (\\
-        last\_file\_mtime         BIGINT,\\
-        last\_file\_size          BIGINT,\\
-        last\_next\_cmd\_offset    BIGINT,\\
-        last\_cmd\_offset         BIGINT,\\
-        last\_cmd\_type           SMALLINT,\\
-        last\_cmd\_key            text,\\
-        last\_cmd\_mytype         text,\\
-        last\_cmd\_targettype     text,\\
-        last\_cmd\_name           text,\\
-        last\_cmd\_value          text)
+\item \SQLTableDef{JobQueuePollingInfo}
+        {last\_file\_mtime         BIGINT,
+        last\_file\_size          BIGINT,
+        last\_next\_cmd\_offset    BIGINT,
+        last\_cmd\_offset         BIGINT,
+        last\_cmd\_type           SMALLINT,
+        last\_cmd\_key            text,
+        last\_cmd\_mytype         text,
+        last\_cmd\_targettype     text,
+        last\_cmd\_name           text,
+        last\_cmd\_value          text}
 \end{enumerate}
 	
 At all times, there's only 1 row in this table and it describes
@@ -448,26 +468,29 @@ designed.  Instead of a purely vertical data model (each row is a
 <attribute,value> pair), we have two tables that together represent the
 complete job classad.  Their schema is as follows:
 
-viii) History\_Horizontal(
-        cid                  int,
-        pid                  int,
-        Owner                text,
-        QDate                int,
-        RemoteWallClockTime  int,
-        RemoteUserCpu        float,
-        RemoteSysCpu         float,
-        ImageSize            int,
-        JobStatus            int,
-        JobPrio              int,
-        Cmd                  text,
-        CompletionDate       int,
+\begin{enumerate}
+
+\item History\_Horizontal(\\
+        cid                  int,\\
+        pid                  int,\\
+        Owner                text,\\
+        QDate                int,\\
+        RemoteWallClockTime  int,\\
+        RemoteUserCpu        float,\\
+        RemoteSysCpu         float,\\
+        ImageSize            int,\\
+        JobStatus            int,\\
+        JobPrio              int,\\
+        Cmd                  text,\\
+        CompletionDate       int,\\
         LastRemoteHost       text,
         primary key(cid,pid))
 
-and 
-
-ix)  History\_Vertical (cid int, pid int, attr text, val text, primary key
+\item History\_Vertical\\
+	(cid int, pid int, attr text, val text, primary key\\
 	(cid, pid, attr))
+
+\end{enumerate}
 
 Each historical job ad is divided into its horizontal and vertical
 counterparts.  This division was made because of query performance
@@ -489,7 +512,10 @@ servicing \Condor{history} queries.  The job queue tables (Cluster and
 Proc) were not designed in this hybrid manner because job queues aren't
 as large as history; just a vertical schema worked great.
 
-\item Security in Quill
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{\label{sec:Quill-Security}Quill and Security}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 There are several layers of security in Quill, some provided by condor and
 others provided by the database.  Firstly, all accesses to the database
@@ -526,7 +552,9 @@ read by all remote condor query tools.
 
 \end{enumerate}
 
-\item Maintenance (Non) Issues
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{\label{sec:Quill-Maintenance}Maintenance of Quill}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 There are virtually no maintenance issues in Quill.  Once started, it
 checks if all necessary database related structures (database itself,
@@ -537,5 +565,4 @@ postgres VACUUM ANALYZE command).  Of course, if Quill is shut down and
 the database is no longer needed, it can be dropped using the postgres
 dropdb command.
 
-\end{enumerate}
 
