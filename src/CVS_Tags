@@ -1,3 +1,7 @@
+08/18/05 V6_7_10-merge-1
+   Abandoning V6_7_10-branch, merging into the V6_7-branch.
+   This is the merge-from tag on V6_7_10-branch.
+
 08/03/05 V6_7_10
    The official 6.7.10 release.  The packages for most platforms came
    from NWO build #9645, except irix-6.5 came from OWO build 1315, and
