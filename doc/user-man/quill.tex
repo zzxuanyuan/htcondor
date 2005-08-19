@@ -14,10 +14,10 @@ Quill consists of three components:
 
 \begin{enumerate}
 \item The \Condor{quill} server which maintains the job queue and history
-		tables in the database.
+tables in the database.
 
 \item A modified \Condor{q} tool which can be used to query the database
-		tables.
+tables.
 
 \item A modified \Condor{history} tool.
 
@@ -45,7 +45,7 @@ a description of each step.
 \item Miscellaneous issues (database schema, security, etc.)
 \end{enumerate}
 
-The rest of the document simply elaborates on each step:
+Here, each of the above steps are detailed.
 
 \begin{enumerate}
 \item The Postgress Server
@@ -57,10 +57,10 @@ with earlier versions of postgres (specifically 7.4).
 
 In addition, one can obtain the postgres source from:
 
-http://www.postgresql.org/ftp/source/
+\URL{http://www.postgresql.org/ftp/source/}
 
 Installation instructions are detailed in:
-http://www.postgresql.org/docs/8.0/static/installation.html
+\URL{http://www.postgresql.org/docs/8.0/static/installation.html}
 
 \item Configuration of Postgress
 
@@ -70,21 +70,26 @@ maintenance tasks.
 
 \begin{enumerate}
 \item The quill daemon and client tools connect to the database as
-users 'quillreader' and 'quillwriter' respectively.  We're talking
-about database users and not operating system users (two completely
-different things).  So if those users dont already exist, they need to
-be added using the 'createuser' command in the postgres bin directory.
-Moreover they need to be assigned appropriate passwords; these passwords
-will be used by the quill tools to connect to the database in a secure
-way.  User quillreader should not be allowed to create more databases
-nor create more users.  User quillwriter should also not be allowed to
-create more users however it should be allowed to create more databases.
-The following commands creates the two users with the appropriate
-permissions (be ready to enter the corresponding passwords when prompted):
+users \Username{quillreader} and \Username{quillwriter} respectively.
+We're talking about database users and not operating system users (two
+completely different things).  So if those users dont already exist,
+they need to be added using the 'createuser' command in the postgres bin
+directory.  Moreover they need to be assigned appropriate passwords; these
+passwords will be used by the quill tools to connect to the database in a
+secure way.  User \Username{quillreader} should not be allowed to create
+more databases nor create more users.  User \Username{quillwriter} should
+also not be allowed to create more users however it should be allowed
+to create more databases.  The following commands creates the two users
+with the appropriate permissions (be ready to enter the corresponding
+passwords when prompted):
 
-/path/to/postgres/bin/directory/createuser quillreader --no-createdb --no-adduser --pwprompt
+\begin{verbatim}
+/path/to/postgres/bin/directory/createuser quillreader \
+	--no-createdb --no-adduser --pwprompt
 
-/path/to/postgres/bin/directory/createuser quillwriter --createdb --no-adduser --pwprompt
+/path/to/postgres/bin/directory/createuser quillwriter \
+	--createdb --no-adduser --pwprompt
+\end{verbatim}
 
 \item Postgres should be configured to accept tcp/ip connections.  In version
 7, this was done by setting tcpip\_socket=true in the postgresql.conf file.
@@ -95,24 +100,25 @@ in the same file.  Set yours appropriately, e.g. listen\_addresses = '*'
 \item Postgres needs to be configured to accept tcp/ip connections from
 certain hosts.  This also enables remote connections.  This is done in
 the pg\_hba.conf file which usually resides in the postgres server's
-data directory.  While the particular syntax and semantics for host
-based configuration can vary from site to site, basically one needs
-to allow access to any hosts that will access this database server,
-either by way of the quill daemon itself writing to the server, or by
-way of the \Condor{q} tool querying this server.  For example, in order
-to give database users 'quillreader' and 'quillwriter' password-enabled
-access to all databases on current machine from any other machine in
-the network add the following:
+data directory.  While the particular syntax and semantics for host based
+configuration can vary from site to site, basically one needs to allow
+access to any hosts that will access this database server, either by
+way of the quill daemon itself writing to the server, or by way of the
+\Condor{q} tool querying this server.  For example, in order to give
+database users \Username{quillreader} and \Username{quillwriter}
+password-enabled access to all databases on current machine from any
+other machine in the network add the following:
 
 \begin{tabular}{llllll}
 host&all&quillreader&128.105.0.0&255.255.0.0&password\\
 host&all&quillwriter&128.105.0.0&255.255.0.0&password
 \end{tabular}
 
-Note that in addition to the database specified by DATABASE\_NAME in the
-\File{condor\_config} file, the quill daemon also needs access to the database
-'template1'.  This is because in order to create the former database in
-the first place, it needs to connect to the latter.
+Note that in addition to the database specified by
+\MacroNI{DATABASE\_NAME} in the \File{condor\_config} file, the quill
+daemon also needs access to the database 'template1'.  This is because
+in order to create the former database in the first place, it needs to
+connect to the latter.
 
 \end{enumerate}
 
@@ -122,7 +128,7 @@ we can now go ahead and install quill.
 \item Compiling and linking Quill
 
 Quill has been fully integrated into the condor build system.  This means
-that condor\_quill appears as a directory under the top level src/
+that \Condor{quill} appears as a directory under the top level src/
 directory in the condor source and building the condor source will also
 automatically build quill and both of its query tools.
 
@@ -133,13 +139,17 @@ Now that we have built and installed quill, its time to tweak the
 
 The following variables need to either be modified or added:
 
-The first one is DAEMON\_LIST.  Add QUILL to this list as shown below:
+The first one is \MacroNI{DAEMON\_LIST}.  Add \MacroNI{QUILL} to this
+list as shown below:
+
 \begin{verbatim}
 DAEMON_LIST                     = MASTER, etc. etc.,  QUILL
 \end{verbatim}
 
-Add .quillwritepassword to the VALID\_SPOOL\_FILES variable, since we 
-DONT want \Condor{preen} to delete this file thinking its junk
+Add \File{.quillwritepassword} to the \MacroNI{VALID\_SPOOL\_FILES}
+variable, since we \Bold{do not} want \Condor{preen} to delete this file
+thinking it is junk:
+
 \begin{verbatim}
 VALID_SPOOL_FILES	= job_queue.log, etc. etc., .quillwritepassword
 \end{verbatim}
@@ -179,47 +189,48 @@ Following is a description on each.  Skip to the next section for a brief
 overview on how to query quill:
 
 \begin{itemize}
-\item \Macro{QUILL\_NAME}
+\item \Macro{QUILL\_NAME}\\
 This is the name of this quill server.  Each quill server sends an ad to
-the collector containing its name.  As such its important that the name of
-a quill server should not conflict with that of any other quill server,
-or for that matter, any schedd.  The latter is because each quill sends
-a SCHEDD\_AD to the collector, and as such, from the perspective of the
-collector, a quill is just another schedd. It might be convenient to
-simply name the quill server, quill-machinename.fully.qualified.address
+the collector containing its name.  As such its important that the name
+of a quill server should not conflict with that of any other quill server,
+or for that matter, any schedd.  The latter is because each quill sends a
+\MacroNI{SCHEDD\_AD} to the collector, and as such, from the perspective
+of the collector, a quill is just another schedd. It might be convenient
+to simply name the quill server, quill-machinename.fully.qualified.address
 
-\item \Macro{DATABASE\_NAME} and \Macro{DATABASE\_IPADDRESS}
+\item \Macro{DATABASE\_NAME} and \Macro{DATABASE\_IPADDRESS}\\
 These two variables are used to determine the location of the database
-server that this quill would talk to, and the name of the database that
-it creates.  More than one quill server can talk to the same database
-server.  This can be done by simply letting all the DATABASE\_IPADDRESS
+server that this quill would talk to, and the name of the database that it
+creates.  More than one quill server can talk to the same database server.
+This can be done by simply letting all the \MacroNI{DATABASE\_IPADDRESS}
 point to the same database server.
 
 \Notice{If more than one quill server are sharing the same database
-server, then the DATABASE\_NAME variable for all of them should be unique.
-Otherwise, there would be record overwriting and corruption of job
-queue information.}
+server, then the \MacroNI{DATABASE\_NAME} variable for all of them should
+be unique.  Otherwise, there would be record overwriting and corruption
+of job queue information.}
 
-\item \Macro{QUILL\_POLLING\_PERIOD}
-This controls the frequency with which quill polls the job\_queue.log file.
-By default, it is 10 seconds.  Since quill works by periodically sniffing
-the log file for updates and then sending those updates to the database,
-this variable controls the tradeoff between the currency of query results
-and quill's load on the system - usually negligible.
+\item \Macro{QUILL\_POLLING\_PERIOD}\\
+This controls the frequency with which quill polls the
+\File{job\_queue.log} file.  By default, it is 10 seconds.  Since quill
+works by periodically sniffing the log file for updates and then sending
+those updates to the database, this variable controls the tradeoff between
+the currency of query results and quill's load on the system--usually
+negligible.
 
 \item \Macro{QUILL\_HISTORY\_CLEANING\_INTERVAL} and 
-		\Macro{QUILL\_HISTORY\_DURATION}
+		\Macro{QUILL\_HISTORY\_DURATION}\\
+These two variables control the deletion of historical jobs from the
+database.  \MacroNI{QUILL\_HISTORY\_DURATION} is the number of days
+after completion that a given job will stay in the database.  So all
+jobs beyond \MacroNI{QUILL\_HISTORY\_DURATION} will be deleted.  Now,
+scanning the entire database for old jobs can get pretty expensive,
+so the other variable \MacroNI{QUILL\_HISTORY\_CLEANING\_INTERVAL}
+is the number of hours between two successive scans.  By default,
+\MacroNI{QUILL\_HISTORY\_DURATION} is set to 180 days and
+\MacroNI{QUILL\_HISTORY\_CLEANING\_INTERVAL} is set to 24 hours.
 
-These two variables control the deletion of historical jobs from
-the database.  QUILL\_HISTORY\_DURATION is the number of days after
-completion that a given job will stay in the database.  So all jobs beyond
-QUILL\_HISTORY\_DURATION will be deleted.  Now, scanning the entire
-database for old jobs can get pretty expensive, so the other variable
-QUILL\_HISTORY\_CLEANING\_INTERVAL is the number of hours between two
-successive scans.  By default, QUILL\_HISTORY\_DURATION is set to 180
-days and QUILL\_HISTORY\_CLEANING\_INTERVAL is set to 24 hours.
-
-\item \Macro{QUILL\_IS\_REMOTELY\_QUERYABLE}
+\item \Macro{QUILL\_IS\_REMOTELY\_QUERYABLE}\\
 Thanks to postgres one can now remotely query both the job queue and the
 history tables. This variable controls whether this remote querying 
 feature should be enabled.  By default it is 1 (true).  Note that even if 
@@ -234,17 +245,17 @@ particular quill server is remotely queryable via
 \end{verbatim}
 
 \item \Macro{QUILL\_QUERY\_PASSWORD}
-In order for the query tools to connect to a database, it needs to
-provide the password that is assigned to database user 'quillreader' in
+In order for the query tools to connect to a database, it needs to provide
+the password that is assigned to database user \Username{quillreader} in
 step 2c) above. This variable is then advertised by the quill daemon to
-the collector.  This facility enables remote querying: remote condor\_q++
+the collector.  This facility enables remote querying: remote \Condor{q}
 query tools first ask the collector for the password associated with a
 particular quill database and then query that database.  Users who do
 not have access to the collector cannot view the password and as such
 cannot query the database.  Again, this password just provides 'read'
 access to the database.
 
-\item \Macro{QUILL\_ADDRESS\_FILE}
+\item \Macro{QUILL\_ADDRESS\_FILE}\\
 When quill starts up, it can place it's address (IP and port)
 into a file.  This way, tools running on the local machine don't
 need to query the central manager to find quill.  This 
@@ -256,16 +267,15 @@ feature can be turned off by commenting out the variable.
 
 Once the \File{condor\_config} file is updated with the above arguments,
 the quill daemon can be started by either restarting condor using
-\Condor{restart} or just starting it using \Condor{master}.  All the daemons
-in the DAEMON\_LIST variable, as updated above, are started and managed
-by the master accordingly.
+\Condor{restart} or just starting it using \Condor{master}.  All the
+daemons in the \MacroNI{DAEMON\_LIST} variable, as updated above, are
+started and managed by the master accordingly.
 
 The \Condor{quill} daemon is responsible for maintaining a database
 mirror of the \File{job\_queue} and history logs.  One can query those two
-using \Condor{q} and \Condor{history} respectively.  Both these two
-tools retain all their old functionality, i.e. \Condor{q} can be used
-to query the schedd and \Condor{history} can be used to query the
-history file
+using \Condor{q} and \Condor{history} respectively.  Both these two tools
+retain all their old functionality, i.e. \Condor{q} can be used to query
+the schedd and \Condor{history} can be used to query the history file
 
 Moreover, they retain all their old options plus some more thanks to
 database technology.  For example, as before, we can query both using
@@ -290,12 +300,12 @@ the queue
 \begin{verbatim}
 	condor_q -name quill-regular.cs.wisc.edu
 \end{verbatim}
-Note that the parameter after -name is the same as that specified for
-the QUILL\_NAME variable in part 3) above.  Also, the ip address and port
-of the database server hosting the data of this particular remote quill
-daemon can be figured out by the DATABASE\_IPADDRESS and DATABASE\_NAME
-variables specified in the SCHEDD\_AD sent by the quill daemon to the
-collector.
+Note that the parameter after -name is the same as that specified for the
+\MacroNI{QUILL\_NAME} variable in part 3) above.  Also, the ip address
+and port of the database server hosting the data of this particular remote
+quill daemon can be figured out by the \MacroNI{DATABASE\_IPADDRESS} and
+\MacroNI{DATABASE\_NAME} variables specified in the \MacroNI{SCHEDD\_AD}
+sent by the quill daemon to the collector.
 
 
 \item Query a remote quill daemon on regular.cs.wisc.edu for all historical 
@@ -309,9 +319,9 @@ for all non-completed jobs.
 \begin{verbatim}
 	condor_q -avgqueuetime 
 \end{verbatim}
-This is a new query.  -avgqueuetime is defined as the average of 
-(currenttime - jobsubmissiontime) over all jobs which are neither 
-completed (JobStatus == 4) or removed (JobStatus == 3).
+This is a new query.  -avgqueuetime is defined as the average of
+(currenttime - jobsubmissiontime) over all jobs which are neither
+completed \Expr{(JobStatus == 4)} or removed \Expr{(JobStatus == 3)}.
 
 \item Query the local quill daemon for all historical jobs completed since 
 Apr 1, 2005 at 13h 00m.
@@ -322,7 +332,7 @@ This is also a new query.  It fetches all jobs
 which got into the 'Completed' state on or after the
 specified timestamp.  We follow Postgres's date/time
 syntax rules as it encompasses most format options.  See
-http://www.postgresql.org/docs/8.0/static/datatype-datetime.html\#AEN4516
+\URL{http://www.postgresql.org/docs/8.0/static/datatype-datetime.html\#AEN4516}
 for the various timestamp formats.
 
 \item Query the local schedd for all the jobs in the queue submitted by akini
@@ -353,7 +363,7 @@ and string valued attributes are stored separately.
 
 Thus we have four tables:
 
-\begin{enumerate}
+\begin{itemize}
 
 \item 
 	\SQLTableDef{ClusterAds\_Str}
@@ -385,7 +395,7 @@ Thus we have four tables:
 		val double precision,
 		primary key (cid, pid, attr)}
 
-\end{enumerate}
+\end{itemize}
 
 In addition to the <attribute, value>, each row contains the cluster-id
 (cid) and in the case of the ProcAd tables, also the proc-id (pid).
@@ -396,7 +406,7 @@ order to simplify queries.
 
 Here are the view definitions:
 
-\begin{enumerate}
+\begin{itemize}
 \item Definition of ClusterAds view\\
 	\SQLViewDef{ClusterAds}
 		{select cid, 
@@ -418,12 +428,12 @@ Here are the view definitions:
 		attr, 
 		cast(val as text) from ProcAds\_Num}
 
-\end{enumerate}
+\end{itemize}
 
 Finally, the job queue part of the schema also contains a table that
-stores metadata information related to the job\_queue.log file.
+stores metadata information related to the \File{job\_queue.log} file.
 
-\begin{enumerate}
+\begin{itemize}
 \item \SQLTableDef{JobQueuePollingInfo}
         {last\_file\_mtime         BIGINT,
         last\_file\_size          BIGINT,
@@ -435,19 +445,19 @@ stores metadata information related to the job\_queue.log file.
         last\_cmd\_targettype     text,
         last\_cmd\_name           text,
         last\_cmd\_value          text}
-\end{enumerate}
+\end{itemize}
 	
 At all times, there's only 1 row in this table and it describes
 information related to the last time quill polled the job\_queue.log file.
 
 \begin{itemize}
-\item \Bold{last\_file\_mtime and last\_file\_size}:
+\item \Bold{last\_file\_mtime} and \Bold{last\_file\_size}\\
 	The last modified time and size of the file.
 
-\item \Bold{last\_cmd\_offset} and \Bold{last\_next\_cmd\_offset}
+\item \Bold{last\_cmd\_offset} and \Bold{last\_next\_cmd\_offset}\\
 	The offsets of the record last read from the file and its successive record.
 
-\item \Bold{last\_cmd\_type}
+\item \Bold{last\_cmd\_type}\\
 	The command type (101, 102, etc.) of the record.
 
 \item	\Bold{last\_cmd\_key}, 
@@ -455,8 +465,7 @@ information related to the last time quill polled the job\_queue.log file.
 		\Bold{last\_cmd\_targettype},
 		\Bold{last\_cmd\_name},
 		and
-		\Bold{last\_cmd\_value}
-
+		\Bold{last\_cmd\_value}\\
 	Together, these attributes define the record itself.	The key
 	refers to the combined "cid.pid" pair, mytype and target usually
 	contains Job and Machine respectively, and finally the name and
@@ -465,47 +474,47 @@ information related to the last time quill polled the job\_queue.log file.
 
 The historical information on the other hand is slightly differently
 designed.  Instead of a purely vertical data model (each row is a
-<attribute,value> pair), we have two tables that together represent the
+$<$attribute,value$>$ pair), we have two tables that together represent the
 complete job classad.  Their schema is as follows:
 
 \begin{enumerate}
 
-\item History\_Horizontal(\\
-        cid                  int,\\
-        pid                  int,\\
-        Owner                text,\\
-        QDate                int,\\
-        RemoteWallClockTime  int,\\
-        RemoteUserCpu        float,\\
-        RemoteSysCpu         float,\\
-        ImageSize            int,\\
-        JobStatus            int,\\
-        JobPrio              int,\\
-        Cmd                  text,\\
-        CompletionDate       int,\\
+\item \SQLTableDef{History\_Horizontal}
+        {cid                  int,
+        pid                  int,
+        Owner                text,
+        QDate                int,
+        RemoteWallClockTime  int,
+        RemoteUserCpu        float,
+        RemoteSysCpu         float,
+        ImageSize            int,
+        JobStatus            int,
+        JobPrio              int,
+        Cmd                  text,
+        CompletionDate       int,
         LastRemoteHost       text,
-        primary key(cid,pid))
+        primary key(cid,pid)}
 
-\item History\_Vertical\\
-	(cid int, pid int, attr text, val text, primary key\\
-	(cid, pid, attr))
+\item \SQLTableDef{History\_Vertical}
+	{cid int, pid int, attr text, val text, primary key
+	(cid, pid, attr)}
 
 \end{enumerate}
 
 Each historical job ad is divided into its horizontal and vertical
 counterparts.  This division was made because of query performance
-reasons.  While its easier to store classads in a vertical table, queries
-on vertical tables generally perform worse than those on horizontal
-tables since the latter has lot fewer records.  However, in Condor,
-since job ads dont have a fixed schema (users can define their own
-attributes), a purely horizontal schema would end up having a lot of
-null values. As such, we have a hybrid schema where attributes on which
-queries are frequently performed (via \Condor{history}) are put in the
-History\_Horizontal table and the other attributes are stored vertically
-(just as in the Cluster/Proc tables above) in the History\_Vertical
-table. Also History\_Horizontal contains all the attributes needed to
-service the short form of the \Condor{history} command (i.e. without
-the -l option).
+reasons.  While its easier to store classads in a vertical table,
+queries on vertical tables generally perform worse than those on
+horizontal tables since the latter has lot fewer records.  However, in
+Condor, since job ads dont have a fixed schema (users can define their
+own attributes), a purely horizontal schema would end up having a lot
+of null values. As such, we have a hybrid schema where attributes on
+which queries are frequently performed (via \Condor{history}) are put
+in the \SQLTable{History\_Horizontal} table and the other attributes
+are stored vertically (just as in the Cluster/Proc tables above) in the
+\SQLTable{History\_Vertical} table. Also \SQLTable{History\_Horizontal}
+contains all the attributes needed to service the short form of the
+\Condor{history} command (i.e. without the -l option).
 
 The resulting hybrid schema has proven to be the most efficient in
 servicing \Condor{history} queries.  The job queue tables (Cluster and
@@ -522,33 +531,34 @@ others provided by the database.  Firstly, all accesses to the database
 are password-protected.
 
 \begin{enumerate}
-\item As mentioned in section 2c) above, the query tools, \Condor{q}
-and \Condor{history} connect to the database as user 'quillreader'.
+\item As mentioned in section 2c) above, the query tools, \Condor{q} and
+\Condor{history} connect to the database as user \Username{quillreader}.
 The password for this user can vary from one database to another and
 as such, each quill daemon advertises this password to the collector.
-The query tools then obtain this password from the collector and connect
-successfully to the database.  Access to the database by the 'quillreader'
-user is read-only as this is sufficient for the query tools.  The quill
-daemon ensures this protected access using the sql GRANT command when
-it first creates the tables in the database.  Note that access to
-quillreader's password itself can be blocked by blocking access to the
-collector, a feature already supported in Condor.
+The query tools then obtain this password from the collector and
+connect successfully to the database.  Access to the database by the
+\Username{quillreader} user is read-only as this is sufficient for the
+query tools.  The quill daemon ensures this protected access using the sql
+GRANT command when it first creates the tables in the database.  Note that
+access to the \Username{quillreader} password itself can be blocked by
+blocking access to the collector, a feature already supported in Condor.
 
 \item The quill daemon, on the other hand, needs read and write access
-to the database.  As such, it connects as user 'quillwriter' who has
-owner priviledges to the database.  Since this gives all access to the
-'quillwriter' user, its password cannot be stored in a public place
-(such as the collector).  For this reason, quillwriter's password is
-stored in a file called .quillwritepassword in the condor spool directory.
-Appropriate read/write protections on this file guarantee secure access
-to the database.  This file must be created and protected by the site
-administrator;  if this file does not exist as and where expected,
-the quill daemon logs and error and exits.
+to the database.  As such, it connects as user \Username{quillwriter}
+who has owner priviledges to the database.  Since this gives all
+access to the \Username{quillwriter} user, its password cannot
+be stored in a public place (such as the collector).  For this
+reason, the \Username{quillwriter} password is stored in a file called
+.quillwritepassword in the condor spool directory.  Appropriate read/write
+protections on this file guarantee secure access to the database.
+This file must be created and protected by the site administrator;
+if this file does not exist as and where expected, the \Condor{quill}
+daemon logs and error and exits.
 
-\item Finally, as mentioned in section 2c) above, the IsRemotelyQueryable
-attribute in the SCHEDD\_AD advertised by the quill daemon to the collector
-can be used by site administrators to disallow the database from being
-read by all remote condor query tools.
+\item Finally, as mentioned in section 2c) above, the
+\Attr{IsRemotelyQueryable} attribute in the ``scheduler ad'' advertised
+by the quill daemon to the collector can be used by site administrators
+to disallow the database from being read by all remote condor query tools.
 
 \end{enumerate}
 
@@ -561,8 +571,8 @@ checks if all necessary database related structures (database itself,
 tables, indices, views) are present and creates them if they are
 not present. It also purges old historical jobs based on user policy
 (see section 4 above) and garbage collection in the database (using the
-postgres VACUUM ANALYZE command).  Of course, if Quill is shut down and
-the database is no longer needed, it can be dropped using the postgres
-dropdb command.
+postgres \Keyword{VACUUM ANALYZE} command).  Of course, if Quill is shut
+down and the database is no longer needed, it can be dropped using the
+postgres dropdb command.
 
 
