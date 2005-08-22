@@ -172,6 +172,11 @@ char	*GlobusRSL = "globusrsl";
 char	*RemoteSchedd = "remote_schedd";
 char	*RemotePool = "remote_pool";
 char	*RendezvousDir	= "rendezvousdir";
+char	*UnicoreUSite = "unicore_u_site";
+char 	*UnicoreVSite = "unicore_v_site";
+char	*KeystoreFile = "keystore_file";
+char	*KeystoreAlias = "keystore_alias";
+char	*KeystorePassphraseFile = "keystore_passphrase_file";
 
 char	*FileRemaps = "file_remaps";
 char	*BufferFiles = "buffer_files";
@@ -3358,6 +3363,60 @@ SetGlobusParams()
 		}
 
 		free( remote_schedd );
+
+	}
+
+	if ( stricmp ( JobGridType, "unicore" ) == MATCH ) {
+
+		if ( (tmp = condor_param( UnicoreUSite, "UnicoreUSite" )) ) {
+			sprintf( buff, "UnicoreUSite = \"%s\"", tmp );
+			InsertJobExpr( buff );
+			free( tmp );
+		} else {
+			fprintf(stderr, "\nERROR: Unicore grid jobs require a \"%s\" parameter\n", UnicoreUSite );
+			DoCleanup( 0, 0, NULL );
+			exit( 1 );
+		}
+
+		if ( (tmp = condor_param( UnicoreVSite, "UnicoreVSite" )) ) {
+			sprintf( buff, "UnicoreVSite = \"%s\"", tmp );
+			InsertJobExpr( buff );
+			free( tmp );
+		} else {
+			fprintf(stderr, "\nERROR: Unicore grid jobs require a \"%s\" parameter\n", UnicoreVSite );
+			DoCleanup( 0, 0, NULL );
+			exit( 1 );
+		}
+
+		if ( (tmp = condor_param( KeystoreFile, "UnicoreKeystoreFile" )) ) {
+			sprintf( buff, "UnicoreKeystoreFile = \"%s\"", tmp );
+			InsertJobExpr( buff );
+			free( tmp );
+		} else {
+			fprintf(stderr, "\nERROR: Unicore grid jobs require a \"%s\" parameter\n", KeystoreFile );
+			DoCleanup( 0, 0, NULL );
+			exit( 1 );
+		}
+
+		if ( (tmp = condor_param( KeystoreAlias, "UnicoreUserAlias" )) ) {
+			sprintf( buff, "UnicoreUserAlias = \"%s\"", tmp );
+			InsertJobExpr( buff );
+			free( tmp );
+		} else {
+			fprintf(stderr, "\nERROR: Unicore grid jobs require a \"%s\" parameter\n", KeystoreAlias );
+			DoCleanup( 0, 0, NULL );
+			exit( 1 );
+		}
+
+		if ( (tmp = condor_param( KeystorePassphraseFile, "UnicorePassphraseFile" )) ) {
+			sprintf( buff, "UnicorePassphraseFile = \"%s\"", tmp );
+			InsertJobExpr( buff );
+			free( tmp );
+		} else {
+			fprintf(stderr, "\nERROR: Unicore grid jobs require a \"%s\" parameter\n", KeystorePassphraseFile );
+			DoCleanup( 0, 0, NULL );
+			exit( 1 );
+		}
 
 	}
 
