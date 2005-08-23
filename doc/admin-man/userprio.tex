@@ -186,7 +186,61 @@ down, no matches will be unaccounted for due to this variance.
 %  not using any resources, your priority will go back to the baseline
 %  value instantly.
 
+\subsection{Group Accounting}
+\label{sec:group-accounting}
+
+By default, Condor does all accounting on a per-user basis, and this
+accounting is primarily used to compute priorities for Condor's
+fair-share scheduling algorithms. However, accounting can also be done
+on a per-group basis.  Multiple users can all submit jobs into the
+same accounting group, and all of the jobs will be treated with the
+same priority.
+
+To use group-based instead of user-based accounting for a specific
+job, the user must insert an attribute into the job ClassAd which
+defines what accounting group to use for the job.  To do so, the user
+must put the following line into their job's submit description file:
+\begin{verbatim}
+    +AccountingGroup = "group_physics"
+\end{verbatim}
+
+The AccountingGroup attribute is a string and must be enclosed in
+double quote marks.  It can have a maximum length of 40 characters.
+Other than that, no changes or user intervention are required.  This
+name should *not* be qualified with a domain.  However, certain parts
+of the Condor system append the UID\_DOMAIN (as specified in the
+configuration file on the submit machine) to this string and use that.
+For example, if the UID\_DOMAIN is ``example.com'' and the above
+AccountingGroup was specified, \condor{userprio} would show statistics
+for this accounting group as:
+\begin{verbatim}
+                                        Effective
+    User Name                           Priority
+    ------------------------------      ---------
+    group_physics@example.com                0.50
+    user@example.com                        23.11
+    heavyuser@example.com                  111.13
+    ...
+\end{verbatim}
+
+Additionally, the \condor{userprio} command allows administrators to
+remove an entity from the accounting system in Condor.  For example,
+if all the jobs from a given AccountingGroup are completed and the
+administrator wishes to remove that group from the system, they may do
+so using the new ``-delete" option to \condor{userprio}.  However, the
+administrator must use the fully-qualified version of the
+AccountingGroup. For example:
+\begin{verbatim}
+    condor_userprio -delete group_physics@example.com
+\end{verbatim}
+
+Note that the name of the group can include a period (.), and it has
+no special interpretation for group accounting. In the next section,
+group users are introduced, and a period has special meaning. However,
+that meaning is only for group quotas, and not group accounting. 
+
 \subsection{Group Quotas}
+\label{sec:group-quotas}
 
 User priorities are insufficient for some Condor pools. In some cases,
 different groups might own computers in the pool, though they are
@@ -214,6 +268,12 @@ total quota for all groups must be less than or equal to the number of
 virtual machines in the entire pool. Any computers not accounted for
 by the quota are allocated to the ``none'' group, which is the general
 group of users you have if you do not specify any group quotas.
+
+Note that accounting will be done per group-user (the whole name), not
+per group (the portion before the period). The group accounting does
+not treat group users differently than group, but they are all groups
+as far as it is concerned. Group users as defined here only have an
+impact for quotas.
 
 Negotiation is changed when group quotas are used: Condor negotiates
 first for groups, then for independent job submitters.  When jobs are
