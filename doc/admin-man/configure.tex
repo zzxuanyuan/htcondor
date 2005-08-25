@@ -4181,8 +4181,27 @@ This macro should almost always remain set to the default value!
 is described in section~\ref{param:SubsysDebug} as
 \Macro{SUBSYS\_DEBUG}.
 
-\end{description}
+\item[\Macro{DAGMAN\_CONDOR\_SUBMIT\_EXE}]
+\label{param:DAGManCondorSubmitExe}
+The executable that \Condor{dagman} will use to submit Condor jobs.
+If undefined, \Condor{dagman} looks for \Condor{submit} in the PATH.
 
+\item[\Macro{DAGMAN\_STORK\_SUBMIT\_EXE}]
+\label{param:DAGManStorkSubmitExe}
+The executable that \Condor{dagman} will use to submit Stork jobs.
+If undefined, \Condor{dagman} looks for \Stork{submit} in the PATH.
+
+\item[\Macro{DAGMAN\_CONDOR\_RM\_EXE}]
+\label{param:DAGManCondorRmExe}
+The executable that \Condor{dagman} will use to remove Condor jobs.
+If undefined, \Condor{dagman} looks for \Condor{rm} in the PATH.
+
+\item[\Macro{DAGMAN\_STORK\_RM\_EXE}]
+\label{param:DAGManStorkRmExe}
+The executable that \Condor{dagman} will use to remove Stork jobs.
+If undefined, \Condor{dagman} looks for \Stork{rm} in the PATH.
+
+\end{description}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{\label{sec:Config-Security}
