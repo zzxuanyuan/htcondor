@@ -25,7 +25,6 @@ class OciSession;
 
 void OracleJobInit();
 void OracleJobReconfig();
-bool OracleJobAdMustExpand( const ClassAd *jobad );
 BaseJob *OracleJobCreate( ClassAd *jobad );
 extern const char *OracleJobAdConst;
 

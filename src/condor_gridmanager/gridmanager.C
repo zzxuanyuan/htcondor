@@ -66,7 +66,6 @@ struct JobType
 	void(*InitFunc)();
 	void(*ReconfigFunc)();
 	const char *AdMatchConst;
-	bool(*AdMustExpandFunc)(const ClassAd*);
 	BaseJob *(*CreateFunc)(ClassAd*);
 };
 
@@ -161,6 +160,36 @@ bool JobMatchesConstraint( const ClassAd *jobad, const char *constraint )
 	delete tree;
 	delete val;
 	return true;
+}
+
+// Check if a job ad needs $$() expansion performed on it. The initial ad
+// we get is unexpanded, so we need to fetch it a second time if expansion
+// is needed. We look at the (currently unused) MustExpand attribute and
+// the resource name attribute to see if expansion is needed.
+bool MustExpandJobAd( const ClassAd *job_ad ) {
+	bool must_expand = false;
+
+	job_ad->LookupBool(ATTR_JOB_MUST_EXPAND, must_expand);
+	if ( !must_expand ) {
+		MyString resource_name;
+		if ( job_ad->LookupString( ATTR_REMOTE_RESOURCE, resource_name ) ) {
+			if ( strstr(resource_name.Value(),"$$") ) {
+				must_expand = true;
+			}
+		} else if ( job_ad->LookupString( ATTR_GLOBUS_RESOURCE,
+										  resource_name ) ) {
+			if ( strstr(resource_name.Value(),"$$") ) {
+				must_expand = true;
+			}
+		} else if ( job_ad->LookupString( ATTR_REMOTE_SCHEDD,
+										  resource_name ) ) {
+			if ( strstr(resource_name.Value(),"$$") ) {
+				must_expand = true;
+			}
+		}
+	}
+
+	return must_expand;
 }
 
 // Job objects should call this function when they have changes that need
@@ -314,7 +343,6 @@ Init()
 	new_type->InitFunc = OracleJobInit;
 	new_type->ReconfigFunc = OracleJobReconfig;
 	new_type->AdMatchConst = OracleJobAdConst;
-	new_type->AdMustExpandFunc = OracleJobAdMustExpand;
 	new_type->CreateFunc = OracleJobCreate;
 	jobTypes.Append( new_type );
 #endif
@@ -325,7 +353,6 @@ Init()
 	new_type->InitFunc = NordugridJobInit;
 	new_type->ReconfigFunc = NordugridJobReconfig;
 	new_type->AdMatchConst = NordugridJobAdConst;
-	new_type->AdMustExpandFunc = NordugridJobAdMustExpand;
 	new_type->CreateFunc = NordugridJobCreate;
 	jobTypes.Append( new_type );
 #endif
@@ -335,7 +362,6 @@ Init()
 	new_type->InitFunc = MirrorJobInit;
 	new_type->ReconfigFunc = MirrorJobReconfig;
 	new_type->AdMatchConst = MirrorJobAdConst;
-	new_type->AdMustExpandFunc = MirrorJobAdMustExpand;
 	new_type->CreateFunc = MirrorJobCreate;
 	jobTypes.Append( new_type );
 
@@ -344,7 +370,6 @@ Init()
 	new_type->InitFunc = INFNBatchJobInit;
 	new_type->ReconfigFunc = INFNBatchJobReconfig;
 	new_type->AdMatchConst = INFNBatchJobAdConst;
-	new_type->AdMustExpandFunc = INFNBatchJobAdMustExpand;
 	new_type->CreateFunc = INFNBatchJobCreate;
 	jobTypes.Append( new_type );
 
@@ -353,7 +378,6 @@ Init()
 	new_type->InitFunc = CondorJobInit;
 	new_type->ReconfigFunc = CondorJobReconfig;
 	new_type->AdMatchConst = CondorJobAdConst;
-	new_type->AdMustExpandFunc = CondorJobAdMustExpand;
 	new_type->CreateFunc = CondorJobCreate;
 	jobTypes.Append( new_type );
 
@@ -362,7 +386,6 @@ Init()
 	new_type->InitFunc = GT3JobInit;
 	new_type->ReconfigFunc = GT3JobReconfig;
 	new_type->AdMatchConst = GT3JobAdConst;
-	new_type->AdMustExpandFunc = GT3JobAdMustExpand;
 	new_type->CreateFunc = GT3JobCreate;
 	jobTypes.Append( new_type );
 
@@ -371,7 +394,6 @@ Init()
 	new_type->InitFunc = GT4JobInit;
 	new_type->ReconfigFunc = GT4JobReconfig;
 	new_type->AdMatchConst = GT4JobAdConst;
-	new_type->AdMustExpandFunc = GT4JobAdMustExpand;
 	new_type->CreateFunc = GT4JobCreate;
 	jobTypes.Append( new_type );
 
@@ -380,7 +402,6 @@ Init()
 	new_type->InitFunc = GlobusJobInit;
 	new_type->ReconfigFunc = GlobusJobReconfig;
 	new_type->AdMatchConst = GlobusJobAdConst;
-	new_type->AdMustExpandFunc = GlobusJobAdMustExpand;
 	new_type->CreateFunc = GlobusJobCreate;
 	jobTypes.Append( new_type );
 
@@ -663,9 +684,9 @@ doContactSchedd()
 				}
 
 				if ( job_type != NULL ) {
-					if ( job_type->AdMustExpandFunc( next_ad ) ) {
+					if ( MustExpandJobAd( next_ad ) ) {
 						// Get the expanded ClassAd from the schedd, which
-						// has the globus resource filled in with info from
+						// has the RemoteResource filled in with info from
 						// the matched ad.
 						delete next_ad;
 						next_ad = NULL;

@@ -48,7 +48,6 @@ void gramCallbackHandler( void *user_arg, char *job_contact, int state,
 
 void GlobusJobInit();
 void GlobusJobReconfig();
-bool GlobusJobAdMustExpand( const ClassAd *jobad );
 BaseJob *GlobusJobCreate( ClassAd *jobad );
 extern const char *GlobusJobAdConst;
 

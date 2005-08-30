@@ -36,7 +36,6 @@
 
 void INFNBatchJobInit();
 void INFNBatchJobReconfig();
-bool INFNBatchJobAdMustExpand( const ClassAd *jobad );
 BaseJob *INFNBatchJobCreate( ClassAd *jobad );
 extern const char *INFNBatchJobAdConst;
 

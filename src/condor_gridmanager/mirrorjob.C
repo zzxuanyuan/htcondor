@@ -139,15 +139,6 @@ void MirrorJobReconfig()
 
 const char *MirrorJobAdConst = "JobUniverse =?= 5 && MirrorSchedd =!= Undefined";
 
-bool MirrorJobAdMustExpand( const ClassAd *jobad )
-{
-	int must_expand = 0;
-
-	jobad->LookupBool(ATTR_JOB_MUST_EXPAND, must_expand);
-
-	return must_expand != 0;
-}
-
 BaseJob *MirrorJobCreate( ClassAd *jobad )
 {
 	return (BaseJob *)new MirrorJob( jobad );

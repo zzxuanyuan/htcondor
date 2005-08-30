@@ -145,15 +145,6 @@ void NordugridJobReconfig()
 
 const char *NordugridJobAdConst = "JobUniverse =?= 9 && (JobGridType == \"nordugrid\") =?= True";
 
-bool NordugridJobAdMustExpand( const ClassAd *jobad )
-{
-	int must_expand = 0;
-
-	jobad->LookupBool(ATTR_JOB_MUST_EXPAND, must_expand);
-
-	return must_expand != 0;
-}
-
 BaseJob *NordugridJobCreate( ClassAd *jobad )
 {
 	return (BaseJob *)new NordugridJob( jobad );

@@ -112,15 +112,6 @@ void INFNBatchJobReconfig()
 
 const char *INFNBatchJobAdConst = "JobUniverse =?= 9 && ((JobGridType == \"infn\") =?= True || (JobGridType == \"blah\") =?= True)";
 
-bool INFNBatchJobAdMustExpand( const ClassAd *jobad )
-{
-	int must_expand = 0;
-
-	jobad->LookupBool(ATTR_JOB_MUST_EXPAND, must_expand);
-
-	return must_expand != 0;
-}
-
 BaseJob *INFNBatchJobCreate( ClassAd *jobad )
 {
 	return (BaseJob *)new INFNBatchJob( jobad );

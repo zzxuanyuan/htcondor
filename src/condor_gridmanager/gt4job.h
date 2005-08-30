@@ -41,7 +41,6 @@ class GT4Resource;
 
 void GT4JobInit();
 void GT4JobReconfig();
-bool GT4JobAdMustExpand( const ClassAd *jobad );
 BaseJob *GT4JobCreate( ClassAd *jobad );
 extern const char *GT4JobAdConst;
 

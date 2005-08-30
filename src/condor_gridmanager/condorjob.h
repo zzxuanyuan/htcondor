@@ -39,7 +39,6 @@ class CondorJob;
 
 void CondorJobInit();
 void CondorJobReconfig();
-bool CondorJobAdMustExpand( const ClassAd *jobad );
 BaseJob *CondorJobCreate( ClassAd *jobad );
 extern const char *CondorJobAdConst;
 

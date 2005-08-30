@@ -102,15 +102,6 @@ void OracleJobReconfig()
 
 const char *OracleJobAdConst = "JobUniverse =?= 9 && (JobGridType == \"oracle\") =?= True";
 
-bool OracleJobAdMustExpand( const ClassAd *jobad )
-{
-	int must_expand = 0;
-
-	jobad->LookupBool(ATTR_JOB_MUST_EXPAND, must_expand);
-
-	return must_expand != 0;
-}
-
 BaseJob *OracleJobCreate( ClassAd *jobad )
 {
 	return (BaseJob *)new OracleJob( jobad );
