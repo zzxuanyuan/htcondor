@@ -482,8 +482,6 @@ InitJobQueue(const char *job_queue_name)
 						}
 						ad->Assign( ATTR_REMOTE_RESOURCE, new_value.Value() );
 						JobQueueDirty = true;
-							// We want to use this value below, so save it
-						remote_resource = new_value;
 					}
 
 					if ( remote_job_id.IsEmpty() &&
@@ -498,7 +496,18 @@ InitJobQueue(const char *job_queue_name)
 									// we can restart the jobmanager if it
 									// crashes). If it's undefined, we're
 									// hosed anyway, so don't convert it.
-								if ( remote_resource.IsEmpty() ) {
+
+									// Ugly: If the job is using match-making,
+									// we need to grab the match-substituted
+									// version of GlobusResource. That means
+									// calling GetJobAd().
+								MyString resource;
+								ClassAd *job_ad = GetJobAd( cluster, proc,
+															true );
+								if ( !job_ad ||
+									 !job_ad->LookupString(
+														ATTR_GLOBUS_RESOURCE,
+														resource ) ) {
 									dprintf( D_ALWAYS, "Warning: %s undefined"
 											 " when converting %s to %s, not"
 											 " converting\n",
@@ -506,11 +515,15 @@ InitJobQueue(const char *job_queue_name)
 											 ATTR_GLOBUS_CONTACT_STRING,
 											 ATTR_REMOTE_JOB_ID );
 								} else {
-									new_value.sprintf( "%s %s",
-													   remote_resource.Value(),
+									new_value.sprintf( "%s %s %s",
+													   grid_type.Value(),
+													   resource.Value(),
 													   attr.Value() );
 									ad->Assign( ATTR_REMOTE_JOB_ID,
 												new_value.Value() );
+								}
+								if ( job_ad ) {
+									delete job_ad;
 								}
 							} else {
 								new_value.sprintf( "%s %s", grid_type.Value(),
