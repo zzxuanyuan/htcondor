@@ -217,6 +217,14 @@ JobQueueDBManager::config(bool reconfig)
 		scheddname = default_daemon_name();
 	}
 
+	enable_vacuum = FALSE;
+	tmp = param("TT_ENABLE_VACUUM");
+	if (tmp) {
+		if (strcasecmp(tmp, "true") == 0) {
+			enable_vacuum = TRUE;
+		}
+	}
+
 	int   len = 1024 + 2*strlen(scheddname);
 	char *sql_str = (char *) malloc (len);
 	int   ret_st;
@@ -760,11 +768,16 @@ JobQueueDBManager::addJobQueueTables()
 	if (st == 0) 
 		disconnectDB(ABORT_XACT); // abort and end Xact
 	else {
-			//we VACUUM job queue tables twice every day, assuming that
-			//quill has been up for 12 hours
-		if ((numTimesPolled++ * pollingPeriod) > (60 * 60 * 12)) {
-			tuneupJobQueueTables();
-			numTimesPolled = 0;
+
+			// only do vacuum maintenance if this TT is configured to do so
+			// because we don't want every TT to do this by default
+		if (enable_vacuum) {
+				//we VACUUM job queue tables twice every day, assuming that
+				//quill has been up for 12 hours
+			if ((numTimesPolled++ * pollingPeriod) > (60 * 60 * 12)) {
+				tuneupJobQueueTables();
+				numTimesPolled = 0;
+			}
 		}
 
 		disconnectDB(NOT_IN_XACT); // commit and end Xact
