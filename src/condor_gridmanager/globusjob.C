@@ -2594,7 +2594,7 @@ void GlobusJob::SetRemoteJobId( const char *job_id )
 
 	MyString full_job_id;
 	if ( job_id ) {
-		full_job_id.sprintf( "gt2 %s", job_id );
+		full_job_id.sprintf( "gt2 %s %s", resourceManagerString, job_id );
 	}
 	BaseJob::SetRemoteJobId( full_job_id.Value() );
 }

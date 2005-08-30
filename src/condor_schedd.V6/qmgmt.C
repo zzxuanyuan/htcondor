@@ -449,8 +449,8 @@ InitJobQueue(const char *job_queue_name)
 				// removed (sometime in the 6.9 series). - jfrey Aug-11-05
 			if ( universe == CONDOR_UNIVERSE_GRID ) {
 				MyString grid_type = "gt2";
-				MyString remote_resource;
-				MyString remote_job_id;
+				MyString remote_resource = "";
+				MyString remote_job_id = "";
 
 				ad->LookupString( ATTR_JOB_GRID_TYPE, grid_type );
 				ad->LookupString( ATTR_REMOTE_RESOURCE, remote_resource );
@@ -462,8 +462,8 @@ InitJobQueue(const char *job_queue_name)
 					 grid_type == "gt4" || grid_type == "nordugrid" ||
 					 grid_type == "oracle" ) {
 
-					MyString attr;
-					MyString new_value;
+					MyString attr = "";
+					MyString new_value = "";
 
 					if ( grid_type == "globus" ) {
 						grid_type = "gt2";
@@ -482,6 +482,8 @@ InitJobQueue(const char *job_queue_name)
 						}
 						ad->Assign( ATTR_REMOTE_RESOURCE, new_value.Value() );
 						JobQueueDirty = true;
+							// We want to use this value below, so save it
+						remote_resource = new_value;
 					}
 
 					if ( remote_job_id.IsEmpty() &&
@@ -490,10 +492,32 @@ InitJobQueue(const char *job_queue_name)
 
 						if ( attr != NULL_JOB_CONTACT ) {
 
-							new_value.sprintf( "%s %s", grid_type.Value(),
-											   attr.Value() );
-							ad->Assign( ATTR_REMOTE_JOB_ID,
-										new_value.Value() );
+							if ( grid_type == "gt2" ) {
+									// For GT2, we need to include the
+									// resource name in the job id (so that
+									// we can restart the jobmanager if it
+									// crashes). If it's undefined, we're
+									// hosed anyway, so don't convert it.
+								if ( remote_resource.IsEmpty() ) {
+									dprintf( D_ALWAYS, "Warning: %s undefined"
+											 " when converting %s to %s, not"
+											 " converting\n",
+											 ATTR_REMOTE_RESOURCE,
+											 ATTR_GLOBUS_CONTACT_STRING,
+											 ATTR_REMOTE_JOB_ID );
+								} else {
+									new_value.sprintf( "%s %s",
+													   remote_resource.Value(),
+													   attr.Value() );
+									ad->Assign( ATTR_REMOTE_JOB_ID,
+												new_value.Value() );
+								}
+							} else {
+								new_value.sprintf( "%s %s", grid_type.Value(),
+												   attr.Value() );
+								ad->Assign( ATTR_REMOTE_JOB_ID,
+											new_value.Value() );
+							}
 						}
 						ad->Delete( ATTR_GLOBUS_CONTACT_STRING );
 						JobQueueDirty = true;
