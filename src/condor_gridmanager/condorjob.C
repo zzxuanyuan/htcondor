@@ -219,18 +219,18 @@ CondorJob::CondorJob( ClassAd *classad )
 
 		str.Tokenize();
 
-		token = str.GetNextToken( "#", false );
+		token = str.GetNextToken( " ", false );
 		if ( !token || stricmp( token, "condor" ) ) {
 			error_string = "RemoteResource not of type condor";
 			goto error_exit;
 		}
 
-		token = str.GetNextToken( "#", false );
+		token = str.GetNextToken( " ", false );
 		if ( token && *token ) {
 			remotePoolName = strdup( token );
 		}
 
-		token = str.GetNextToken( "#", false );
+		token = str.GetNextToken( " ", false );
 		if ( token && *token ) {
 			remoteScheddName = strdup( token );
 		} else {
@@ -256,7 +256,7 @@ CondorJob::CondorJob( ClassAd *classad )
 			remotePoolName = strdup( buff );
 		}
 
-		sprintf( buff, "condor#%s#%s", remotePoolName ? remotePoolName : "",
+		sprintf( buff, "condor %s %s", remotePoolName ? remotePoolName : "",
 				 remoteScheddName );
 		jobAd->Assign( ATTR_REMOTE_RESOURCE, buff );
 	}
@@ -264,7 +264,7 @@ CondorJob::CondorJob( ClassAd *classad )
 	buff[0] = '\0';
 	jobAd->LookupString( ATTR_REMOTE_JOB_ID, buff );
 	if ( buff[0] != '\0' ) {
-		SetRemoteJobId( strrchr( buff, '#' )+1 );
+		SetRemoteJobId( strrchr( buff, ' ' )+1 );
 	} else {
 		remoteState = JOB_STATE_UNSUBMITTED;
 	}
@@ -1150,7 +1150,7 @@ void CondorJob::SetRemoteJobId( const char *job_id )
 			return;
 		}
 
-		full_job_id.sprintf( "condor#%s#%s#%s",
+		full_job_id.sprintf( "condor %s %s %s",
 							 remotePoolName ? remotePoolName : "",
 							 remoteScheddName, job_id );
 	} else {

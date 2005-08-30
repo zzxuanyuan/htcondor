@@ -195,13 +195,13 @@ NordugridJob::NordugridJob( ClassAd *classad )
 
 		str.Tokenize();
 
-		token = str.GetNextToken( "#", false );
+		token = str.GetNextToken( " ", false );
 		if ( !token || stricmp( token, "nordugrid" ) ) {
 			error_string = "RemoteResource not of type nordugrid";
 			goto error_exit;
 		}
 
-		token = str.GetNextToken( "#", false );
+		token = str.GetNextToken( " ", false );
 		if ( token && *token ) {
 			resourceManagerString = strdup( token );
 		} else {
@@ -216,7 +216,7 @@ NordugridJob::NordugridJob( ClassAd *classad )
 		jobAd->LookupString( ATTR_GLOBUS_RESOURCE, buff );
 		if ( buff[0] != '\0' ) {
 			resourceManagerString = strdup( buff );
-			sprintf( buff, "nordugrid#%s", resourceManagerString );
+			sprintf( buff, "nordugrid %s", resourceManagerString );
 			jobAd->Assign( ATTR_REMOTE_RESOURCE, buff );
 		} else {
 			error_string = "Neither RemoteResource nor GlobusResource is not set in the job ad";
@@ -229,7 +229,7 @@ NordugridJob::NordugridJob( ClassAd *classad )
 
 	buff[0] = '\0';
 	jobAd->LookupString( ATTR_REMOTE_JOB_ID, buff );
-	SetRemoteJobId( strrchr( buff, '#' ) );
+	SetRemoteJobId( strrchr( buff, ' ' ) );
 
 	return;
 
@@ -678,7 +678,7 @@ void NordugridJob::SetRemoteJobId( const char *job_id )
 
 	MyString full_job_id;
 	if ( job_id ) {
-		full_job_id.sprintf( "nordugrid#%s#%s", resourceManagerString,
+		full_job_id.sprintf( "nordugrid %s %s", resourceManagerString,
 							 job_id );
 	}
 	BaseJob::SetRemoteJobId( full_job_id.Value() );

@@ -1083,8 +1083,8 @@ WriteGlobusResourceUpEventToUserLog( ClassAd *job_ad )
 		return true;
 	}
 	contact.Tokenize();
-	contact.GetNextToken( "#", false );
-	event.rmContact =  strnewp(contact.GetNextToken( "#", false ));
+	contact.GetNextToken( " ", false );
+	event.rmContact =  strnewp(contact.GetNextToken( " ", false ));
 
 	int rc = ulog->writeEvent(&event);
 	delete ulog;
@@ -1125,8 +1125,8 @@ WriteGlobusResourceDownEventToUserLog( ClassAd *job_ad )
 		return true;
 	}
 	contact.Tokenize();
-	contact.GetNextToken( "#", false );
-	event.rmContact =  strnewp(contact.GetNextToken( "#", false ));
+	contact.GetNextToken( " ", false );
+	event.rmContact =  strnewp(contact.GetNextToken( " ", false ));
 
 	int rc = ulog->writeEvent(&event);
 	delete ulog;
@@ -1164,13 +1164,13 @@ WriteGlobusSubmitEventToUserLog( ClassAd *job_ad )
 
 	job_ad->LookupString( ATTR_REMOTE_RESOURCE, contact );
 	contact.Tokenize();
-	contact.GetNextToken( "#", false );
-	event.rmContact = strnewp(contact.GetNextToken( "#", false ));
+	contact.GetNextToken( " ", false );
+	event.rmContact = strnewp(contact.GetNextToken( " ", false ));
 
 	job_ad->LookupString( ATTR_REMOTE_JOB_ID, contact );
 	contact.Tokenize();
-	contact.GetNextToken( "#", false );
-	event.jmContact = strnewp(contact.GetNextToken( "#", false ));
+	contact.GetNextToken( " ", false );
+	event.jmContact = strnewp(contact.GetNextToken( " ", false ));
 
 	version = 0;
 	job_ad->LookupInteger( ATTR_GLOBUS_GRAM_VERSION, version );

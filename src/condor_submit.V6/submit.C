@@ -3341,9 +3341,12 @@ SetGlobusParams()
 		}
 
 		if ( unified_syntax ) {
-			sprintf( buffer, "%s = \"%s#%s%s%s\"", ATTR_REMOTE_RESOURCE,
+				// A missing jobmanager_type for GT4 should leave have
+				// nothing after the globushost (no trailing space) or have
+				// a pair of quotes to denote an empty string
+			sprintf( buffer, "%s = \"%s %s%s%s\"", ATTR_REMOTE_RESOURCE,
 				 stricmp(JobGridType,"globus") == MATCH ? "gt2" : JobGridType,
-				 globushost, stricmp( JobGridType, "gt4" ) == MATCH ? "#" : "",
+				 globushost, stricmp( JobGridType, "gt4" ) == MATCH ? " " : "",
 				 jobmanager_type ? jobmanager_type : "" );
 			InsertJobExpr( buffer );
 		} else {
@@ -3436,7 +3439,7 @@ SetGlobusParams()
 		remote_pool = condor_param( RemotePool, ATTR_REMOTE_POOL );
 
 		if ( unified_syntax ) {
-			sprintf( buffer, "%s = \"condor#%s#%s\"", ATTR_REMOTE_RESOURCE,
+			sprintf( buffer, "%s = \"condor %s %s\"", ATTR_REMOTE_RESOURCE,
 					 remote_pool ? remote_pool : "", remote_schedd );
 			InsertJobExpr( buffer );
 		} else {

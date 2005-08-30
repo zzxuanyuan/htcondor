@@ -472,13 +472,13 @@ InitJobQueue(const char *job_queue_name)
 					if ( remote_resource.IsEmpty() &&
 						 ad->LookupString( ATTR_GLOBUS_RESOURCE, attr ) ) {
 
-						new_value.sprintf( "%s#%s", grid_type.Value(),
+						new_value.sprintf( "%s %s", grid_type.Value(),
 										   attr.Value() );
 						if ( grid_type == "gt4" ) {
 							attr = "";
 							ad->LookupString( ATTR_GLOBUS_JOBMANAGER_TYPE,
 											  attr );
-							new_value.sprintf_cat( "#%s", attr.Value() );
+							new_value.sprintf_cat( " %s", attr.Value() );
 						}
 						ad->Assign( ATTR_REMOTE_RESOURCE, new_value.Value() );
 						JobQueueDirty = true;
@@ -490,7 +490,7 @@ InitJobQueue(const char *job_queue_name)
 
 						if ( attr != NULL_JOB_CONTACT ) {
 
-							new_value.sprintf( "%s#%s", grid_type.Value(),
+							new_value.sprintf( "%s %s", grid_type.Value(),
 											   attr.Value() );
 							ad->Assign( ATTR_REMOTE_JOB_ID,
 										new_value.Value() );
@@ -510,14 +510,14 @@ InitJobQueue(const char *job_queue_name)
 						 ad->LookupString( ATTR_REMOTE_SCHEDD, schedd ) ) {
 
 						ad->LookupString( ATTR_REMOTE_POOL, pool );
-						new_value.sprintf( "condor#%s#%s", pool.Value(),
+						new_value.sprintf( "condor %s %s", pool.Value(),
 										   schedd.Value() );
 						ad->Assign( ATTR_REMOTE_RESOURCE, new_value.Value() );
 						JobQueueDirty = true;
 					}
 
 					if ( !remote_job_id.IsEmpty() &&
-						 strncmp( remote_job_id.Value(), "condor#", 7 ) ) {
+						 strncmp( remote_job_id.Value(), "condor ", 7 ) ) {
 
 							// Ugly: If the job is using match-making, we
 							// need to grab the match-substituted versions
@@ -532,7 +532,7 @@ InitJobQueue(const char *job_queue_name)
 							pool = "";
 							job_ad->LookupString( ATTR_REMOTE_SCHEDD, schedd );
 							job_ad->LookupString( ATTR_REMOTE_POOL, pool );
-							new_value.sprintf( "condor#%s#%s#%s", pool.Value(),
+							new_value.sprintf( "condor %s %s %s", pool.Value(),
 											   schedd.Value(),
 											   remote_job_id.Value() );
 							ad->Assign( ATTR_REMOTE_JOB_ID,
@@ -547,11 +547,11 @@ InitJobQueue(const char *job_queue_name)
 				if ( grid_type == "infn" || grid_type == "blah" ) {
 
 					if ( !remote_job_id.IsEmpty() &&
-						 strncmp( remote_job_id.Value(), "blah#", 5 ) ) {
+						 strncmp( remote_job_id.Value(), "blah ", 5 ) ) {
 
 						MyString new_value;
 
-						new_value.sprintf( "blah#%s", remote_job_id.Value() );
+						new_value.sprintf( "blah %s", remote_job_id.Value() );
 						ad->Assign( ATTR_REMOTE_JOB_ID, new_value.Value() );
 						JobQueueDirty = true;
 					}

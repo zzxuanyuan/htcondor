@@ -132,7 +132,7 @@ gt4GramCallbackHandler( void *user_arg, const char *job_contact,
 	GT4Job *this_job;
 	MyString job_id;
 
-	job_id.sprintf( "gt4#%s", job_contact );
+	job_id.sprintf( "gt4 %s", job_contact );
 
 
 	// Find the right job object
@@ -377,13 +377,13 @@ GT4Job::GT4Job( ClassAd *classad )
 
 		str.Tokenize();
 
-		token = str.GetNextToken( "#", false );
+		token = str.GetNextToken( " ", false );
 		if ( !token || stricmp( token, "gt4" ) ) {
 			error_string = "RemoteResource not of type gt4";
 			goto error_exit;
 		}
 
-		token = str.GetNextToken( "#", false );
+		token = str.GetNextToken( " ", false );
 		if ( token && *token ) {
 			resourceManagerString = strdup( token );
 		} else {
@@ -391,7 +391,7 @@ GT4Job::GT4Job( ClassAd *classad )
 			goto error_exit;
 		}
 
-		token = str.GetNextToken( "#", false );
+		token = str.GetNextToken( " ", false );
 		if ( token && *token ) {
 			jobmanagerType = strdup( token );
 		}
@@ -412,7 +412,7 @@ GT4Job::GT4Job( ClassAd *classad )
 			jobmanagerType = strdup( buff );
 		}
 
-		sprintf( buff, "gt4#%s#%s", resourceManagerString,
+		sprintf( buff, "gt4 %s %s", resourceManagerString,
 				 jobmanagerType ? jobmanagerType : "" );
 		jobAd->Assign( ATTR_REMOTE_RESOURCE, buff );
 	}
@@ -434,7 +434,7 @@ GT4Job::GT4Job( ClassAd *classad )
 	buff[0] = '\0';
 	jobAd->LookupString( ATTR_REMOTE_JOB_ID, buff );
 	if ( buff[0] != '\0' ) {
-		SetRemoteJobId( strchr( buff, '#' ) + 1 );
+		SetRemoteJobId( strchr( buff, ' ' ) + 1 );
 		job_already_submitted = true;
 	}
 
@@ -1502,7 +1502,7 @@ void GT4Job::SetRemoteJobId( const char *job_id )
 
 	MyString full_job_id;
 	if ( job_id ) {
-		full_job_id.sprintf( "gt4#%s", job_id );
+		full_job_id.sprintf( "gt4 %s", job_id );
 	}
 	BaseJob::SetRemoteJobId( full_job_id.Value() );
 }

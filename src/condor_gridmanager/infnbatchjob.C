@@ -167,7 +167,7 @@ INFNBatchJob::INFNBatchJob( ClassAd *classad )
 	buff[0] = '\0';
 	jobAd->LookupString( ATTR_REMOTE_JOB_ID, buff );
 	if ( buff[0] != '\0' ) {
-		SetRemoteJobId( strchr( buff, '#' ) + 1 );
+		SetRemoteJobId( strchr( buff, ' ' ) + 1 );
 	} else {
 		remoteState = JOB_STATE_UNSUBMITTED;
 	}
@@ -635,7 +635,7 @@ void INFNBatchJob::SetRemoteJobId( const char *job_id )
 
 	MyString full_job_id;
 	if ( job_id ) {
-		full_job_id.sprintf( "blah#%s", job_id );
+		full_job_id.sprintf( "blah %s", job_id );
 	}
 	BaseJob::SetRemoteJobId( full_job_id.Value() );
 }

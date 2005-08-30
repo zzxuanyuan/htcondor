@@ -113,7 +113,7 @@ gt3GramCallbackHandler( void *user_arg, char *job_contact, int state,
 	GT3Job *this_job;
 	MyString job_id;
 
-	job_id.sprintf( "gt3#%s", job_contact );
+	job_id.sprintf( "gt3 %s", job_contact );
 
 	// Find the right job object
 	rc = BaseJob::JobsByRemoteId.lookup( HashKey( job_id.Value() ),
@@ -351,13 +351,13 @@ GT3Job::GT3Job( ClassAd *classad )
 
 		str.Tokenize();
 
-		token = str.GetNextToken( "#", false );
+		token = str.GetNextToken( " ", false );
 		if ( !token || stricmp( token, "gt3" ) ) {
 			error_string = "RemoteResource not of type gt3";
 			goto error_exit;
 		}
 
-		token = str.GetNextToken( "#", false );
+		token = str.GetNextToken( " ", false );
 		if ( token && *token ) {
 			resourceManagerString = strdup( token );
 		} else {
@@ -373,7 +373,7 @@ GT3Job::GT3Job( ClassAd *classad )
 		jobAd->LookupString( ATTR_GLOBUS_RESOURCE, buff );
 		if ( buff[0] != '\0' ) {
 			resourceManagerString = strdup( buff );
-			sprintf( buff, "gt3#%s", resourceManagerString );
+			sprintf( buff, "gt3 %s", resourceManagerString );
 			jobAd->Assign( ATTR_REMOTE_RESOURCE, buff );
 		} else {
 			error_string = "Neither RemoteResource nor GlobusResource is set in the job ad";
@@ -397,7 +397,7 @@ GT3Job::GT3Job( ClassAd *classad )
 	buff[0] = '\0';
 	jobAd->LookupString( ATTR_REMOTE_JOB_ID, buff );
 	if ( buff[0] != '\0' ) {
-		SetRemoteJobId( strchr( buff, '#' ) + 1 );
+		SetRemoteJobId( strchr( buff, ' ' ) + 1 );
 		job_already_submitted = true;
 	}
 
@@ -522,7 +522,7 @@ void GT3Job::SetRemoteJobId( const char *job_id )
 
 	MyString full_job_id;
 	if ( job_id ) {
-		full_job_id.sprintf( "gt3#%s", job_id );
+		full_job_id.sprintf( "gt3 %s", job_id );
 	}
 	BaseJob::SetRemoteJobId( full_job_id.Value() );
 }

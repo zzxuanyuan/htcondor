@@ -814,13 +814,13 @@ GlobusJob::GlobusJob( ClassAd *classad )
 
 		str.Tokenize();
 
-		token = str.GetNextToken( "#", false );
+		token = str.GetNextToken( " ", false );
 		if ( !token || stricmp( token, "gt2" ) ) {
 			error_string = "RemoteResource not of type gt2";
 			goto error_exit;
 		}
 
-		token = str.GetNextToken( "#", false );
+		token = str.GetNextToken( " ", false );
 		if ( token && *token ) {
 			resourceManagerString = strdup( token );
 		} else {
@@ -835,7 +835,7 @@ GlobusJob::GlobusJob( ClassAd *classad )
 		jobAd->LookupString( ATTR_GLOBUS_RESOURCE, buff );
 		if ( buff[0] != '\0' ) {
 			resourceManagerString = strdup( buff );
-			sprintf( buff, "gt2#%s", resourceManagerString );
+			sprintf( buff, "gt2 %s", resourceManagerString );
 			jobAd->Assign( ATTR_REMOTE_RESOURCE, buff );
 		} else {
 			error_string = "Neither RemoteResource nor GlobusResource is set in the job ad";
@@ -865,7 +865,7 @@ GlobusJob::GlobusJob( ClassAd *classad )
 					"(%d.%d) Non-NULL contact string and unknown gram version!\n",
 					procID.cluster, procID.proc);
 		}
-		SetRemoteJobId( strrchr( buff, '#' ) + 1 );
+		SetRemoteJobId( strrchr( buff, ' ' ) + 1 );
 		job_already_submitted = true;
 	}
 
@@ -2594,7 +2594,7 @@ void GlobusJob::SetRemoteJobId( const char *job_id )
 
 	MyString full_job_id;
 	if ( job_id ) {
-		full_job_id.sprintf( "gt2#%s", job_id );
+		full_job_id.sprintf( "gt2 %s", job_id );
 	}
 	BaseJob::SetRemoteJobId( full_job_id.Value() );
 }
