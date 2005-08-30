@@ -435,12 +435,11 @@ int
 JobQueueDBManager::disconnectDB(int commit)
 {
 	if (commit == COMMIT_XACT) {
-		if (xactState != BEGIN_XACT) {
-			jqDatabase->commitTransaction(); // commit XACT
-			xactState = NOT_IN_XACT;
-		}
+		jqDatabase->commitTransaction(); // commit XACT
+		xactState = NOT_IN_XACT;
 	} else if (commit == ABORT_XACT) { // abort XACT
 		jqDatabase->rollbackTransaction();
+		xactState = NOT_IN_XACT;
 	}
 
 	jqDatabase->disconnectDB(); // disconnect from DB
@@ -715,11 +714,24 @@ JobQueueDBManager::readAndWriteLogEntries()
 {
 	int op_type = 0;
 
+		// turn off sequential scan so that the incremental update always use index
+		// regardless whether the statistics are correct or not.
+	if (jqDatabase->execCommand("set enable_seqscan=false;") < 0) {
+		displayDBErrorMsg("Turning off seq scan --- ERROR");
+		return 0; // return a error code, 0
+	}
+
 		// Process ClassAd Log Entry
 	while ((op_type = caLogParser->readLogEntry()) > 0) {
 			//dprintf(D_ALWAYS, "processing log record\n");
 		if (processLogEntry(op_type, false) == 0)
 			return 0; // fail: need to abort Xact
+	}
+
+		// turn on sequential scan again
+	if (jqDatabase->execCommand("set enable_seqscan=true;") < 0) {
+		displayDBErrorMsg("Turning on seq scan --- ERROR");
+		return 0; // return a error code, 0
 	}
 
 	return 1; // success
@@ -748,13 +760,6 @@ JobQueueDBManager::addJobQueueTables()
 	if (st == 0) 
 		disconnectDB(ABORT_XACT); // abort and end Xact
 	else {
-			// VACUUM should be called outside XACT
-			// So, commit XACT shouble be invoked beforehand.
-		if (xactState != BEGIN_XACT) {
-			jqDatabase->commitTransaction(); // end XACT
-			xactState = NOT_IN_XACT;
-		}
-
 			//we VACUUM job queue tables twice every day, assuming that
 			//quill has been up for 12 hours
 		if ((numTimesPolled++ * pollingPeriod) > (60 * 60 * 12)) {
@@ -791,10 +796,8 @@ JobQueueDBManager::initJobQueueTables()
 	else {
 			// VACUUM should be called outside XACT
 			// So, Commit XACT shouble be invoked beforehand.
-		if (xactState != BEGIN_XACT) {
-			jqDatabase->commitTransaction(); // end XACT
-			xactState = NOT_IN_XACT;
-		}
+		jqDatabase->commitTransaction(); // end XACT
+		xactState = NOT_IN_XACT;
 		
 		tuneupJobQueueTables();
 		disconnectDB(NOT_IN_XACT); // commit and end Xact
