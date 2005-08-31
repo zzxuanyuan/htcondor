@@ -296,7 +296,7 @@ ConvertOldJobAdAttrs( ClassAd *job_ad )
 				new_value.sprintf( "%s %s", grid_type.Value(),
 								   attr.Value() );
 				if ( grid_type == "gt4" ) {
-					attr = "";
+					attr = "''";
 					job_ad->LookupString( ATTR_GLOBUS_JOBMANAGER_TYPE,
 										  attr );
 					new_value.sprintf_cat( " %s", attr.Value() );
@@ -363,7 +363,7 @@ ConvertOldJobAdAttrs( ClassAd *job_ad )
 		if ( grid_type == "condor" ) {
 
 			MyString schedd;
-			MyString pool = "";
+			MyString pool = "''";
 			MyString new_value;
 
 			if ( remote_resource.IsEmpty() &&

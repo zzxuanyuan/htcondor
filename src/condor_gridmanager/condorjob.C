@@ -204,7 +204,9 @@ CondorJob::CondorJob( ClassAd *classad )
 		}
 
 		token = str.GetNextToken( " ", false );
-		if ( token && *token ) {
+		if ( token && *token && strcmp( token, "''" ) &&
+			 strcmp( token, "\"\"" ) ) {
+
 			remotePoolName = strdup( token );
 		}
 
@@ -234,7 +236,7 @@ CondorJob::CondorJob( ClassAd *classad )
 			remotePoolName = strdup( buff );
 		}
 
-		sprintf( buff, "condor %s %s", remotePoolName ? remotePoolName : "",
+		sprintf( buff, "condor %s %s", remotePoolName ? remotePoolName : "''",
 				 remoteScheddName );
 		jobAd->Assign( ATTR_REMOTE_RESOURCE, buff );
 	}

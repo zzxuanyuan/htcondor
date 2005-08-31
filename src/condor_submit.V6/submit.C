@@ -3440,7 +3440,7 @@ SetGlobusParams()
 
 		if ( unified_syntax ) {
 			sprintf( buffer, "%s = \"condor %s %s\"", ATTR_REMOTE_RESOURCE,
-					 remote_pool ? remote_pool : "", remote_schedd );
+					 remote_pool ? remote_pool : "''", remote_schedd );
 			InsertJobExpr( buffer );
 		} else {
 			sprintf( buffer, "%s = \"%s\"", ATTR_REMOTE_SCHEDD,
