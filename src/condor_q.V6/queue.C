@@ -1056,23 +1056,28 @@ format_globusHostAndJM( char  *ignore_me, AttrList *ad )
 	char *attr_value = NULL;
 	char *resource_name = NULL;
 	bool new_syntax;
+	char *grid_type = NULL;
 
 	if ( ad->LookupString( ATTR_REMOTE_RESOURCE, &attr_value ) ) {
 			// If ATTR_REMOTE_RESOURCE exists, skip past the initial
 			// '<job type> '.
-		resource_name = strchr( attr_value, ' ' ) + 1;
+		resource_name = strchr( attr_value, ' ' );
+		if ( resource_name ) {
+			*resource_name = '\0';
+			grid_type = strdup( attr_value );
+			resource_name++;
+		}
 		new_syntax = true;
 	} else {
 			// ATTR_REMOTE_RESOURCE doesn't exist, try ATTR_GLOBUS_RESOURCE
 		ad->LookupString( ATTR_GLOBUS_RESOURCE, &attr_value );
 		resource_name = attr_value;
 		new_syntax = false;
+
+		ad->LookupString( ATTR_JOB_GRID_TYPE, &grid_type );
 	}
 
 	if ( resource_name != NULL ) {
-
-		char *grid_type;
-		ad->LookupString( ATTR_JOB_GRID_TYPE, &grid_type );
 
 		if ( grid_type == NULL || !stricmp( grid_type, "gt2" ) ||
 			 !stricmp( grid_type, "globus" ) ) {
@@ -1135,10 +1140,10 @@ format_globusHostAndJM( char  *ignore_me, AttrList *ad )
 			p = strcspn( host, ":/" );
 			host[p] = '\0';
 		}
+	}
 
-		if ( grid_type ) {
-			free( grid_type );
-		}
+	if ( grid_type ) {
+		free( grid_type );
 	}
 
 	if ( attr_value ) {
