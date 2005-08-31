@@ -1091,8 +1091,8 @@ SetUniverse()
 			}
 		}			
 		
-		(void) sprintf (buffer, "%s = \"%s\"", ATTR_JOB_GRID_TYPE, JobGridType);
-		InsertJobExpr (buffer);
+			// Setting ATTR_JOB_GRID_TYPE in the job ad has been moved to
+			// SetGlobusParams().
 		
 		return;
 	};
@@ -3300,6 +3300,12 @@ SetGlobusParams()
 
 	if ( JobUniverse != CONDOR_UNIVERSE_GRID )
 		return;
+
+	if ( !unified_syntax ) {
+		(void) sprintf (buffer, "%s = \"%s\"", ATTR_JOB_GRID_TYPE,
+						JobGridType);
+		InsertJobExpr (buffer);
+	}
 
 	if ( stricmp (JobGridType, "globus") == MATCH ||
 		 stricmp (JobGridType, "gt2") == MATCH ||
