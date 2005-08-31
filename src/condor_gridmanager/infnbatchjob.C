@@ -110,7 +110,18 @@ void INFNBatchJobReconfig()
 	INFNBatchJob::setConnectFailureRetry( tmp_int );
 }
 
-const char *INFNBatchJobAdConst = "JobUniverse =?= 9 && ((JobGridType == \"infn\") =?= True || (JobGridType == \"blah\") =?= True)";
+bool INFNBatchJobAdMatch( const ClassAd *job_ad ) {
+	int universe;
+	MyString resource;
+	if ( job_ad->LookupInteger( ATTR_JOB_UNIVERSE, universe ) &&
+		 universe == CONDOR_UNIVERSE_GRID &&
+		 job_ad->LookupString( ATTR_REMOTE_RESOURCE, resource ) &&
+		 strncasecmp( resource.Value(), "blah", 4 ) == 0 ) {
+
+		return true;
+	}
+	return false;
+}
 
 BaseJob *INFNBatchJobCreate( ClassAd *jobad )
 {

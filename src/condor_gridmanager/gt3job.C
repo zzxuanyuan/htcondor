@@ -165,7 +165,18 @@ void GT3JobReconfig()
 	}
 }
 
-const char *GT3JobAdConst = "JobUniverse =?= 9 && (JobGridType == \"gt3\") =?= True";
+bool GT3JobAdMatch( const ClassAd *job_ad ) {
+	int universe;
+	MyString resource;
+	if ( job_ad->LookupInteger( ATTR_JOB_UNIVERSE, universe ) &&
+		 universe == CONDOR_UNIVERSE_GRID &&
+		 job_ad->LookupString( ATTR_REMOTE_RESOURCE, resource ) &&
+		 strncasecmp( resource.Value(), "gt3 ", 4 ) == 0 ) {
+
+		return true;
+	}
+	return false;
+}
 
 BaseJob *GT3JobCreate( ClassAd *jobad )
 {
@@ -343,20 +354,9 @@ GT3Job::GT3Job( ClassAd *classad )
 			goto error_exit;
 		}
 
-
 	} else {
-
-			// Backwards compatibility
-		buff[0] = '\0';
-		jobAd->LookupString( ATTR_GLOBUS_RESOURCE, buff );
-		if ( buff[0] != '\0' ) {
-			resourceManagerString = strdup( buff );
-			sprintf( buff, "gt3 %s", resourceManagerString );
-			jobAd->Assign( ATTR_REMOTE_RESOURCE, buff );
-		} else {
-			error_string = "Neither RemoteResource nor GlobusResource is set in the job ad";
-			goto error_exit;
-		}
+		error_string = "RemoteResource is not set in the job ad";
+		goto error_exit;
 	}
 
 	myResource = GT3Resource::FindOrCreateResource( resourceManagerString,

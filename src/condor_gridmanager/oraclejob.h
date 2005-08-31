@@ -26,7 +26,7 @@ class OciSession;
 void OracleJobInit();
 void OracleJobReconfig();
 BaseJob *OracleJobCreate( ClassAd *jobad );
-extern const char *OracleJobAdConst;
+bool OracleJobAdMatch( const ClassAd *job_ad );
 
 extern OCIEnv *GlobalOciEnvHndl;
 extern OCIError *GlobalOciErrHndl;

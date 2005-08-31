@@ -45,7 +45,7 @@ void gramCallbackHandler( void *user_arg, char *job_contact, int state,
 void GT3JobInit();
 void GT3JobReconfig();
 BaseJob *GT3JobCreate( ClassAd *jobad );
-extern const char *GT3JobAdConst;
+bool GT3JobAdMatch( const ClassAd *job_ad );
 
 
 class GT3Job : public BaseJob

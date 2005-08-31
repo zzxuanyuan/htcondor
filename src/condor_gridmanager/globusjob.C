@@ -296,7 +296,18 @@ void GlobusJobReconfig()
 	}
 }
 
-const char *GlobusJobAdConst = "JobUniverse =?= 9 && ((JobGridType == \"globus\") =?= True || (JobGridType == \"gt2\") =?= True || JobGridType =?= Undefined)";
+bool GlobusJobAdMatch( const ClassAd *job_ad ) {
+	int universe;
+	MyString resource;
+	if ( job_ad->LookupInteger( ATTR_JOB_UNIVERSE, universe ) &&
+		 universe == CONDOR_UNIVERSE_GRID &&
+		 job_ad->LookupString( ATTR_REMOTE_RESOURCE, resource ) &&
+		 strncasecmp( resource.Value(), "gt2 ", 4 ) == 0 ) {
+
+		return true;
+	}
+	return false;
+}
 
 BaseJob *GlobusJobCreate( ClassAd *jobad )
 {
@@ -807,18 +818,8 @@ GlobusJob::GlobusJob( ClassAd *classad )
 		}
 
 	} else {
-
-			// Backwards compatibility
-		buff[0] = '\0';
-		jobAd->LookupString( ATTR_GLOBUS_RESOURCE, buff );
-		if ( buff[0] != '\0' ) {
-			resourceManagerString = strdup( buff );
-			sprintf( buff, "gt2 %s", resourceManagerString );
-			jobAd->Assign( ATTR_REMOTE_RESOURCE, buff );
-		} else {
-			error_string = "Neither RemoteResource nor GlobusResource is set in the job ad";
-			goto error_exit;
-		}
+		error_string = "RemoteResource is not set in the job ad";
+		goto error_exit;
 	}
 
 	// Find/create an appropriate GlobusResource for this job

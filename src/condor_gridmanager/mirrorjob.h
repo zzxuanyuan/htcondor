@@ -41,7 +41,7 @@ extern HashTable <HashKey, MirrorJob *> MirrorJobsById;
 void MirrorJobInit();
 void MirrorJobReconfig();
 BaseJob *MirrorJobCreate( ClassAd *jobad );
-extern const char *MirrorJobAdConst;
+bool MirrorJobAdMatch( const ClassAd *job_ad );
 
 class MirrorResource;
 

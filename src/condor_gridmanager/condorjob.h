@@ -40,7 +40,7 @@ class CondorJob;
 void CondorJobInit();
 void CondorJobReconfig();
 BaseJob *CondorJobCreate( ClassAd *jobad );
-extern const char *CondorJobAdConst;
+bool CondorJobAdMatch( const ClassAd *job_ad );
 
 class CondorResource;
 

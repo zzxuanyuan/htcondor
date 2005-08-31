@@ -37,7 +37,7 @@
 void NordugridJobInit();
 void NordugridJobReconfig();
 BaseJob *NordugridJobCreate( ClassAd *jobad );
-extern const char *NordugridJobAdConst;
+bool NordugridJobAdMatch( const ClassAd *job_ad );
 
 class NordugridResource;
 

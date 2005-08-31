@@ -143,7 +143,18 @@ void NordugridJobReconfig()
 	NordugridJob::setProbeInterval( tmp_int );
 }
 
-const char *NordugridJobAdConst = "JobUniverse =?= 9 && (JobGridType == \"nordugrid\") =?= True";
+bool NordugridJobAdMatch( const ClassAd *job_ad ) {
+	int universe;
+	MyString resource;
+	if ( job_ad->LookupInteger( ATTR_JOB_UNIVERSE, universe ) &&
+		 universe == CONDOR_UNIVERSE_GRID &&
+		 job_ad->LookupString( ATTR_REMOTE_RESOURCE, resource ) &&
+		 strncasecmp( resource.Value(), "nordugrid ", 10 ) == 0 ) {
+
+		return true;
+	}
+	return false;
+}
 
 BaseJob *NordugridJobCreate( ClassAd *jobad )
 {
@@ -201,18 +212,8 @@ NordugridJob::NordugridJob( ClassAd *classad )
 		}
 
 	} else {
-
-			// Backwards compatibility
-		buff[0] = '\0';
-		jobAd->LookupString( ATTR_GLOBUS_RESOURCE, buff );
-		if ( buff[0] != '\0' ) {
-			resourceManagerString = strdup( buff );
-			sprintf( buff, "nordugrid %s", resourceManagerString );
-			jobAd->Assign( ATTR_REMOTE_RESOURCE, buff );
-		} else {
-			error_string = "Neither RemoteResource nor GlobusResource is not set in the job ad";
-			goto error_exit;
-		}
+		error_string = "RemoteResource is not set in the job ad";
+		goto error_exit;
 	}
 
 	myResource = NordugridResource::FindOrCreateResource( resourceManagerString );

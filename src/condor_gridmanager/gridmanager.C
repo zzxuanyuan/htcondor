@@ -65,7 +65,7 @@ struct JobType
 	char *Name;
 	void(*InitFunc)();
 	void(*ReconfigFunc)();
-	const char *AdMatchConst;
+	bool(*AdMatchFunc)(const ClassAd*);
 	BaseJob *(*CreateFunc)(ClassAd*);
 };
 
@@ -128,40 +128,6 @@ int REMOVE_JOBS_signalHandler( int );
 int CHECK_LEASES_signalHandler( int );
 
 
-bool JobMatchesConstraint( const ClassAd *jobad, const char *constraint )
-{
-	ExprTree *tree;
-	EvalResult *val;
-
-	val = new EvalResult;
-
-	Parse( constraint, tree );
-	if ( tree == NULL ) {
-		dprintf( D_FULLDEBUG,
-				 "Parse() returned a NULL tree on constraint '%s'\n",
-				 constraint );
-		return false;
-	}
-	tree->EvalTree(jobad, val);           // evaluate the constraint.
-	if(!val || val->type != LX_INTEGER) {
-		delete tree;
-		delete val;
-		dprintf( D_FULLDEBUG, "Constraint '%s' evaluated to wrong type\n",
-				 constraint );
-		return false;
-	} else {
-        if( !val->i ) {
-			delete tree;
-			delete val;
-			return false; 
-		}
-	}
-
-	delete tree;
-	delete val;
-	return true;
-}
-
 // Check if a job ad needs $$() expansion performed on it. The initial ad
 // we get is unexpanded, so we need to fetch it a second time if expansion
 // is needed. We look at the (currently unused) MustExpand attribute and
@@ -173,16 +139,6 @@ bool MustExpandJobAd( const ClassAd *job_ad ) {
 	if ( !must_expand ) {
 		MyString resource_name;
 		if ( job_ad->LookupString( ATTR_REMOTE_RESOURCE, resource_name ) ) {
-			if ( strstr(resource_name.Value(),"$$") ) {
-				must_expand = true;
-			}
-		} else if ( job_ad->LookupString( ATTR_GLOBUS_RESOURCE,
-										  resource_name ) ) {
-			if ( strstr(resource_name.Value(),"$$") ) {
-				must_expand = true;
-			}
-		} else if ( job_ad->LookupString( ATTR_REMOTE_SCHEDD,
-										  resource_name ) ) {
 			if ( strstr(resource_name.Value(),"$$") ) {
 				must_expand = true;
 			}
@@ -342,7 +298,7 @@ Init()
 	new_type->Name = strdup( "Oracle" );
 	new_type->InitFunc = OracleJobInit;
 	new_type->ReconfigFunc = OracleJobReconfig;
-	new_type->AdMatchConst = OracleJobAdConst;
+	new_type->AdMatchFunc = OracleJobAdMatch;
 	new_type->CreateFunc = OracleJobCreate;
 	jobTypes.Append( new_type );
 #endif
@@ -352,7 +308,7 @@ Init()
 	new_type->Name = strdup( "Nordugrid" );
 	new_type->InitFunc = NordugridJobInit;
 	new_type->ReconfigFunc = NordugridJobReconfig;
-	new_type->AdMatchConst = NordugridJobAdConst;
+	new_type->AdMatchFunc = NordugridJobAdMatch;
 	new_type->CreateFunc = NordugridJobCreate;
 	jobTypes.Append( new_type );
 #endif
@@ -361,7 +317,7 @@ Init()
 	new_type->Name = strdup( "Mirror" );
 	new_type->InitFunc = MirrorJobInit;
 	new_type->ReconfigFunc = MirrorJobReconfig;
-	new_type->AdMatchConst = MirrorJobAdConst;
+	new_type->AdMatchFunc = MirrorJobAdMatch;
 	new_type->CreateFunc = MirrorJobCreate;
 	jobTypes.Append( new_type );
 
@@ -369,7 +325,7 @@ Init()
 	new_type->Name = strdup( "INFNBatch" );
 	new_type->InitFunc = INFNBatchJobInit;
 	new_type->ReconfigFunc = INFNBatchJobReconfig;
-	new_type->AdMatchConst = INFNBatchJobAdConst;
+	new_type->AdMatchFunc = INFNBatchJobAdMatch;
 	new_type->CreateFunc = INFNBatchJobCreate;
 	jobTypes.Append( new_type );
 
@@ -377,7 +333,7 @@ Init()
 	new_type->Name = strdup( "Condor" );
 	new_type->InitFunc = CondorJobInit;
 	new_type->ReconfigFunc = CondorJobReconfig;
-	new_type->AdMatchConst = CondorJobAdConst;
+	new_type->AdMatchFunc = CondorJobAdMatch;
 	new_type->CreateFunc = CondorJobCreate;
 	jobTypes.Append( new_type );
 
@@ -385,7 +341,7 @@ Init()
 	new_type->Name = strdup( "GT3" );
 	new_type->InitFunc = GT3JobInit;
 	new_type->ReconfigFunc = GT3JobReconfig;
-	new_type->AdMatchConst = GT3JobAdConst;
+	new_type->AdMatchFunc = GT3JobAdMatch;
 	new_type->CreateFunc = GT3JobCreate;
 	jobTypes.Append( new_type );
 
@@ -393,7 +349,7 @@ Init()
 	new_type->Name = strdup( "GT4" );
 	new_type->InitFunc = GT4JobInit;
 	new_type->ReconfigFunc = GT4JobReconfig;
-	new_type->AdMatchConst = GT4JobAdConst;
+	new_type->AdMatchFunc = GT4JobAdMatch;
 	new_type->CreateFunc = GT4JobCreate;
 	jobTypes.Append( new_type );
 
@@ -401,7 +357,7 @@ Init()
 	new_type->Name = strdup( "Globus" );
 	new_type->InitFunc = GlobusJobInit;
 	new_type->ReconfigFunc = GlobusJobReconfig;
-	new_type->AdMatchConst = GlobusJobAdConst;
+	new_type->AdMatchFunc = GlobusJobAdMatch;
 	new_type->CreateFunc = GlobusJobCreate;
 	jobTypes.Append( new_type );
 
@@ -674,7 +630,7 @@ doContactSchedd()
 				// Search our job types for one that'll handle this job
 				jobTypes.Rewind();
 				while ( jobTypes.Next( job_type ) ) {
-					if ( JobMatchesConstraint( next_ad, job_type->AdMatchConst ) ) {
+					if ( job_type->AdMatchFunc( next_ad ) ) {
 
 						// Found one!
 						dprintf( D_FULLDEBUG, "Using job type %s for job %d.%d\n",

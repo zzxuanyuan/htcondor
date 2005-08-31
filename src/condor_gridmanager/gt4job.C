@@ -184,7 +184,18 @@ void GT4JobReconfig()
 	}
 }
 
-const char *GT4JobAdConst = "JobUniverse =?= 9 && (JobGridType == \"gt4\") =?= True";
+bool GT4JobAdMatch( const ClassAd *job_ad ) {
+	int universe;
+	MyString resource;
+	if ( job_ad->LookupInteger( ATTR_JOB_UNIVERSE, universe ) &&
+		 universe == CONDOR_UNIVERSE_GRID &&
+		 job_ad->LookupString( ATTR_REMOTE_RESOURCE, resource ) &&
+		 strncasecmp( resource.Value(), "gt4 ", 4 ) == 0 ) {
+
+		return true;
+	}
+	return false;
+}
 
 BaseJob *GT4JobCreate( ClassAd *jobad )
 {
@@ -375,24 +386,8 @@ GT4Job::GT4Job( ClassAd *classad )
 		}
 
 	} else {
-
-			// Backwards compatibility
-		buff[0] = '\0';
-		jobAd->LookupString( ATTR_GLOBUS_RESOURCE, buff );
-		if ( buff[0] != '\0' ) {
-			resourceManagerString = strdup( buff );
-		} else {
-			error_string = "Neither RemoteResource nor GlobusResource is set in the job ad";
-			goto error_exit;
-		}
-
-		if (jobAd->LookupString ( ATTR_GLOBUS_JOBMANAGER_TYPE, buff )) {
-			jobmanagerType = strdup( buff );
-		}
-
-		sprintf( buff, "gt4 %s %s", resourceManagerString,
-				 jobmanagerType ? jobmanagerType : "" );
-		jobAd->Assign( ATTR_REMOTE_RESOURCE, buff );
+		error_string = "RemoteResource is not set in the job ad";
+		goto error_exit;
 	}
 
 		// Find/create an appropriate GT4Resource for this job

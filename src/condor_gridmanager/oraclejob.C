@@ -100,7 +100,18 @@ void OracleJobReconfig()
 //	}
 }
 
-const char *OracleJobAdConst = "JobUniverse =?= 9 && (JobGridType == \"oracle\") =?= True";
+bool OracleJobAdMatch( const ClassAd *job_ad ) {
+	int universe;
+	MyString resource;
+	if ( job_ad->LookupInteger( ATTR_JOB_UNIVERSE, universe ) &&
+		 universe == CONDOR_UNIVERSE_GRID &&
+		 job_ad->LookupString( ATTR_REMOTE_RESOURCE, resource ) &&
+		 strncasecmp( resource.Value(), "oracle ", 7 ) == 0 ) {
+
+		return true;
+	}
+	return false;
+}
 
 BaseJob *OracleJobCreate( ClassAd *jobad )
 {
@@ -251,18 +262,8 @@ OracleJob::OracleJob( ClassAd *classad )
 		}
 
 	} else {
-
-			// Backwards compatibility
-		buff[0] = '\0';
-		jobAd->LookupString( ATTR_GLOBUS_RESOURCE, buff );
-		if ( buff[0] != '\0' ) {
-			resourceManagerString = strdup( buff );
-			sprintf( buff, "oracle %s", resourceManagerString );
-			jobAd->Assign( ATTR_REMOTE_RESOURCE, buff );
-		} else {
-			error_string = "GlobusResource is not set in the job ad";
-			goto error_exit;
-		}
+		error_string = "RemoteResource is not set in the job ad";
+		goto error_exit;
 	}
 
 	bool_val = FALSE;

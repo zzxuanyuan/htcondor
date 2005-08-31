@@ -122,7 +122,18 @@ void CondorJobReconfig()
 	CondorJob::setConnectFailureRetry( tmp_int );
 }
 
-const char *CondorJobAdConst = "JobUniverse =?= 9 && (JobGridType == \"condor\") =?= True";
+bool CondorJobAdMatch( const ClassAd *job_ad ) {
+	int universe;
+	MyString resource;
+	if ( job_ad->LookupInteger( ATTR_JOB_UNIVERSE, universe ) &&
+		 universe == CONDOR_UNIVERSE_GRID &&
+		 job_ad->LookupString( ATTR_REMOTE_RESOURCE, resource ) &&
+		 strncasecmp( resource.Value(), "condor ", 7 ) == 0 ) {
+
+		return true;
+	}
+	return false;
+}
 
 BaseJob *CondorJobCreate( ClassAd *jobad )
 {
@@ -219,26 +230,8 @@ CondorJob::CondorJob( ClassAd *classad )
 		}
 
 	} else {
-
-			// Backwards compatibility
-		buff[0] = '\0';
-		jobAd->LookupString( ATTR_REMOTE_SCHEDD, buff );
-		if ( buff[0] != '\0' ) {
-			remoteScheddName = strdup( buff );
-		} else {
-			error_string = "Neither RemoteResource nor RemoteSchedd is set in the job ad";
-			goto error_exit;
-		}
-
-		buff[0] = '\0';
-		jobAd->LookupString( ATTR_REMOTE_POOL, buff );
-		if ( buff[0] != '\0' ) {
-			remotePoolName = strdup( buff );
-		}
-
-		sprintf( buff, "condor %s %s", remotePoolName ? remotePoolName : "''",
-				 remoteScheddName );
-		jobAd->Assign( ATTR_REMOTE_RESOURCE, buff );
+		error_string = "RemoteResource is not set in the job ad";
+		goto error_exit;
 	}
 
 	buff[0] = '\0';

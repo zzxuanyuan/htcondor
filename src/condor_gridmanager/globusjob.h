@@ -49,7 +49,7 @@ void gramCallbackHandler( void *user_arg, char *job_contact, int state,
 void GlobusJobInit();
 void GlobusJobReconfig();
 BaseJob *GlobusJobCreate( ClassAd *jobad );
-extern const char *GlobusJobAdConst;
+bool GlobusJobAdMatch( const ClassAd *job_ad );
 
 class GlobusJob : public BaseJob
 {

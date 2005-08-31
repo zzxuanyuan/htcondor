@@ -37,7 +37,7 @@
 void INFNBatchJobInit();
 void INFNBatchJobReconfig();
 BaseJob *INFNBatchJobCreate( ClassAd *jobad );
-extern const char *INFNBatchJobAdConst;
+bool INFNBatchJobAdMatch( const ClassAd *job_ad );
 
 //class CondorResource;
 

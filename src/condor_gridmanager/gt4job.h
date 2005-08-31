@@ -42,7 +42,7 @@ class GT4Resource;
 void GT4JobInit();
 void GT4JobReconfig();
 BaseJob *GT4JobCreate( ClassAd *jobad );
-extern const char *GT4JobAdConst;
+bool GT4JobAdMatch( const ClassAd *job_ad );
 
 class GT4Job : public BaseJob
 {
