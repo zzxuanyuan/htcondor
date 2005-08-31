@@ -203,7 +203,6 @@ class JobQueueDBManager : public Service
 
 	char*   pollingInfoLog; 		// log file containing job queue polling info
 	char*   scheddname;
-	bool	enable_vacuum;
 };
 
 #endif /* _JOBQUEUEDBMANAGER_H_ */
