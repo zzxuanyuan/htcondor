@@ -1059,8 +1059,8 @@ format_globusHostAndJM( char  *ignore_me, AttrList *ad )
 
 	if ( ad->LookupString( ATTR_REMOTE_RESOURCE, &attr_value ) ) {
 			// If ATTR_REMOTE_RESOURCE exists, skip past the initial
-			// '<job type>#'.
-		resource_name = strchr( attr_value, '#' ) + 1;
+			// '<job type> '.
+		resource_name = strchr( attr_value, ' ' ) + 1;
 		new_syntax = true;
 	} else {
 			// ATTR_REMOTE_RESOURCE doesn't exist, try ATTR_GLOBUS_RESOURCE
@@ -1104,10 +1104,10 @@ format_globusHostAndJM( char  *ignore_me, AttrList *ad )
 			strcpy( jm, "Fork" );
 
 			if ( new_syntax ) {
-					// remoteResource is of the form '<service url>#<jm type>'
-					// Find the #, zero it out, and grab the jm type from
+					// RemoteResource is of the form '<service url> <jm type>'
+					// Find the space, zero it out, and grab the jm type from
 					// the end (if it's non-empty).
-				tmp = strchr( resource_name, '#' );
+				tmp = strchr( resource_name, ' ' );
 				if ( tmp ) {
 					*tmp = '\0';
 					if ( tmp[1] != '\0' ) {
