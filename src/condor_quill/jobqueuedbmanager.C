@@ -46,7 +46,17 @@
 //! constructor
 JobQueueDBManager::JobQueueDBManager()
 {
-		//nothing here...its all done in config()
+	pollingTimeId = -1;
+	purgeHistoryTimeId = -1;
+
+	totalSqlProcessed = 0;
+	lastBatchSqlProcessed = 0;
+	secsLastBatch = 0;
+	isConnectedToDB = false;
+
+	ad = NULL;
+	
+		//the rest is done in config()
 }
 
 //! destructor
@@ -106,9 +116,6 @@ JobQueueDBManager::getWritePassword(char *write_passwd_fname) {
 void
 JobQueueDBManager::config(bool reconfig) 
 {
-	ad = NULL;
-	pollingTimeId = -1;
-	purgeHistoryTimeId = -1;
 	char *host, *port, *ptr_colon;
 	int len, tmp1, tmp2, tmp3;
 
@@ -123,27 +130,12 @@ JobQueueDBManager::config(bool reconfig)
 	sprintf(jobQueueLogFile, "%s/job_queue.log", spool);
 
 		/*
-		  Here we try to read the <ipaddress:port> stored in condor_config
-		  if one is not specified, by default we use the local address 
-		  and the default postgres port of 5432.  
+		  Here we try to read the <ipaddress:port> and  
+		  if one is not specified, we except out
 		*/
 
-	jobQueueDBIpAddress = param("DATABASE_IPADDRESS");
-	if(!jobQueueDBIpAddress) {
-		len = strlen(daemonCore->InfoCommandSinfulString());
-		jobQueueDBIpAddress = (char *) malloc(len * sizeof(char));
-		strcpy(jobQueueDBIpAddress, daemonCore->InfoCommandSinfulString());
-		ptr_colon = strchr(jobQueueDBIpAddress, ':');
-
-			//default postgres port is 5432
-		strcpy(ptr_colon, ":5432>");
-		
-		host = (char *) malloc(32 * sizeof(char));
-		port = (char *) malloc(32 * sizeof(char));
-		strcpy(host," ");
-		strcpy(port," ");
-	}
-	else {
+	jobQueueDBIpAddress = param("QUILL_DB_IP_ADDR");
+	if(jobQueueDBIpAddress) {
 		len = strlen(jobQueueDBIpAddress);
 		
 			//the 6 is for the string "host= " or "port= "
@@ -156,23 +148,26 @@ JobQueueDBManager::config(bool reconfig)
 		ptr_colon = strchr(jobQueueDBIpAddress, ':');
 		strcpy(host, "host= ");
 		strncat(host, 
-				jobQueueDBIpAddress+1, 
-				ptr_colon - jobQueueDBIpAddress - 1);
+				jobQueueDBIpAddress, 
+				ptr_colon - jobQueueDBIpAddress);
 		strcpy(port, "port= ");
 		strcat(port, ptr_colon+1);
-		port[strlen(port)-1] = '\0';
+		port[strlen(port)] = '\0';
+	}
+	else {
+		EXCEPT("No QUILL_DB_IP_ADDR variable found in config file\n");
 	}
 
 		/* Here we read the database name and if one is not specified
-		   use the default name - quill
+		   we except out
 		   If there are more than one quill daemons are writing to the
 		   same databases, its absolutely necessary that the database
 		   names be unique or else there would be clashes.  Having 
 		   unique database names is the responsibility of the administrator
 		*/
-	jobQueueDBName = param("DATABASE_NAME");
+	jobQueueDBName = param("QUILL_DB_NAME");
 	if(!jobQueueDBName) {
-		jobQueueDBName = strdup("quill");
+		EXCEPT("No QUILL_DB_NAME variable found in config file\n");
 	}
 
 	char *writePasswordFile = (char *) malloc(_POSIX_PATH_MAX * sizeof(char));
@@ -195,15 +190,23 @@ JobQueueDBManager::config(bool reconfig)
 	
 	if(writePassword) {
 		free(writePassword);
+		writePassword = NULL;
 	}
 	if(writePasswordFile) {
 		free(writePasswordFile);
+		writePasswordFile = NULL;
+	}
+	if(spool) {
+		free(spool);
+		spool = NULL;
 	}
 	if(host) {
 		free(host);
+		host = NULL;
 	}
 	if(port) {
 		free(port);
+		port = NULL;
 	}
 		// read the polling period and if one is not specified use 
 		// default value of 10 seconds
@@ -255,6 +258,11 @@ JobQueueDBManager::config(bool reconfig)
 	dprintf(D_ALWAYS, "Using Purge History Duration = %d days\n", purgeHistoryDuration);
 	dprintf(D_ALWAYS, "Using History Cleaning Interval = %d hours\n", historyCleaningInterval);
 
+	if(ad) {
+		delete ad;
+		ad = NULL;
+	}
+
 		// this function is also called when condor_reconfig is issued
 		// and so we dont want to recreate all essential objects
 	if(!reconfig) {
@@ -294,7 +302,12 @@ JobQueueDBManager::maintain()
 {	
 	QuillErrCode st, ret_st;
 	ProbeResultType probe_st;
+	struct timeval t1, t2;
+
+		//reset the reporting counters at the beginning of each probe
+	lastBatchSqlProcessed = 0;
 	
+
 	st = prober->getProbeInfo(); // get the last polling information
 
 		//if we are unable to get to the database, then either the 
@@ -309,6 +322,11 @@ JobQueueDBManager::maintain()
 
 	probe_st = prober->probe();	// polling
 	
+		//this and the gettimeofday call just below the switch together
+		//determine the period of time taken by this whole batch of sql
+		//statements
+	gettimeofday(&t1, NULL);
+
 		// {init|add}JobQueueDB processes the  Log and stores probing
 		// information into DB documentation for how do we determine 
 		// the correct state is in the Prober->probe method
@@ -337,6 +355,12 @@ JobQueueDBManager::maintain()
 		dprintf(D_ALWAYS, "ERROR HAPPENED DURING POLLING\n");
 		ret_st = FAILURE;
 	}
+
+	gettimeofday(&t2, NULL);
+
+	secsLastBatch = t2.tv_sec - t1.tv_sec;
+	
+	totalSqlProcessed += lastBatchSqlProcessed;
 
 	return ret_st;
 }
@@ -423,13 +447,12 @@ JobQueueDBManager::purgeOldHistoryRows()
 
 	sprintf(sql_str[0],
 			"DELETE FROM History_Vertical WHERE cid IN (SELECT cid FROM "
-			"History_Horizontal WHERE 'epoch'::timestamp with time zone  "
-			"+ cast(text(\"CompletionDate\")||text(' seconds') as interval)"
-			" < timestamp 'now' - interval '%d days');", purgeHistoryDuration);
+			"History_Horizontal WHERE \"EnteredHistoryTable\" < "
+			"timestamp with time zone 'now' - interval '%d days');", 
+			purgeHistoryDuration);
 	sprintf(sql_str[1],
-			"DELETE FROM History_Horizontal WHERE 'epoch'::timestamp with "
-			"time zone + cast(text(\"CompletionDate\")||text(' seconds')  "
-			"as interval) < 'now'::timestamp - interval '%d days';", 
+			"DELETE FROM History_Horizontal WHERE \"EnteredHistoryTable\" < "
+			"timestamp with time zone 'now' - interval '%d days';", 
 			purgeHistoryDuration);
 
 		// When a record is deleted, postgres only marks it
@@ -485,13 +508,16 @@ JobQueueDBManager::purgeOldHistoryRows()
  * 			FAILURE: Fail (DB connection and/or Begin Xact fail)
  */	
 QuillErrCode
-JobQueueDBManager::connectDB(XactState  Xact)
+JobQueueDBManager::connectDB(XactState Xact)
 {
 	int st = 0;
 	st = jqDatabase->connectDB(jobQueueDBConn);
 	if (st == FAILURE) { // connect to DB
+		isConnectedToDB = false;		
 		return FAILURE;
 	}
+	
+	isConnectedToDB = true;
 	if (Xact == BEGIN_XACT) {
 		if (jqDatabase->beginTransaction() == FAILURE) { // begin XACT
 			return FAILURE;
@@ -509,12 +535,11 @@ QuillErrCode
 JobQueueDBManager::disconnectDB(XactState commit)
 {
 	if (commit == COMMIT_XACT) {
-		if (xactState != BEGIN_XACT) {
-			jqDatabase->commitTransaction(); // commit XACT
-			xactState = NOT_IN_XACT;
-		}
+		jqDatabase->commitTransaction(); // commit XACT
+		xactState = NOT_IN_XACT;
 	} else if (commit == ABORT_XACT) { // abort XACT
 		jqDatabase->rollbackTransaction();
+		xactState = NOT_IN_XACT;
 	}
 
 	jqDatabase->disconnectDB(); // disconnect from DB
@@ -798,13 +823,14 @@ JobQueueDBManager::readAndWriteLogEntries()
 	int		op_type;
 	FileOpErrCode st;
 	
-
 	st = caLogParser->readLogEntry(op_type);
 	while(st == FILE_READ_SUCCESS) {	   
 		if (processLogEntry(op_type, false) == FAILURE) {
 				// process each ClassAd Log Entry
 			return FAILURE;
 		}
+	   	lastBatchSqlProcessed++;
+		
 		st = caLogParser->readLogEntry(op_type);
 	}
 
@@ -832,18 +858,10 @@ JobQueueDBManager::addJobQueueTables()
 		prober->setProbeInfo();
 		
 			// VACUUM should be called outside XACT
-			// So, commit XACT shouble be invoked beforehand.
+			// but since any outstanding xacts will be ended by the time
+			// we reach here, we do not issue any commits here.  Doing so
+			// would result in warning messages in the postgres log file
 		
-			// During normal operation, this commit transaction
-			// is not really needed.  However, if there are any
-			// outstanding transactions, we commit it here.  
-			// Committing when there aren't any operations isn't
-			// an error anyway. 
-		//if (xactState != BEGIN_XACT) {
-			jqDatabase->commitTransaction(); // end XACT
-			xactState = NOT_IN_XACT;
-		//}
-
 			//we VACUUM job queue tables twice every day, assuming that
 			//quill has been up for 12 hours
 		if ((numTimesPolled++ * pollingPeriod) > (60 * 60 * 12)) {
@@ -888,10 +906,8 @@ JobQueueDBManager::initJobQueueTables()
 
 			// VACUUM should be called outside XACT
 			// So, Commit XACT shouble be invoked beforehand.
-		if (xactState != BEGIN_XACT) {
-			jqDatabase->commitTransaction(); // end XACT
-			xactState = NOT_IN_XACT;
-		}
+		jqDatabase->commitTransaction(); // end XACT
+		xactState = NOT_IN_XACT;
 		
 		st = tuneupJobQueueTables();
 		if(st == FAILURE) {
@@ -984,6 +1000,7 @@ JobQueueDBManager::processLogEntry(int op_type, JobQueueCollection* jobQueue)
 			historyad->ChainToAd(clusterad_new);
 			jobQueue->insertHistoryAd(cid,pid,historyad);
 			jobQueue->removeProcAd(cid, pid);
+			
 			break;
 		}
 		default:
@@ -1150,7 +1167,7 @@ JobQueueDBManager::processLogEntry(int op_type, bool exec_later)
 		break;
 	}
 
-		// pointers are release
+			// pointers are release
 	if (key != NULL) free(key);
 	if (mytype != NULL) free(mytype);
 	if (targettype != NULL) free(targettype);
@@ -1246,9 +1263,10 @@ JobQueueDBManager::processNewClassAd(char* key,
 	switch(job_id_type) {
 	case IS_CLUSTER_ID:
 		sprintf(sql_str1, 
+				"DELETE From ClusterAds_Str where cid=%s;"
 				"INSERT INTO ClusterAds_Str (cid, attr, val) VALUES "
 				"(%s, 'MyType', '\"%s\"');", 
-				cid, mytype);
+				cid, cid, mytype);
 
 		sprintf(sql_str2, 
 				"INSERT INTO ClusterAds_Str (cid, attr, val) VALUES "
@@ -1258,9 +1276,10 @@ JobQueueDBManager::processNewClassAd(char* key,
 		break;
 	case IS_PROC_ID:
 		sprintf(sql_str1, 
+				"DELETE From ProcAds_Str where cid=%s and pid=%s;"
 				"INSERT INTO ProcAds_Str (cid, pid, attr, val) VALUES "
 				"(%s, %s, 'MyType', '\"Job\"');", 
-				cid, pid);
+				cid, pid, cid, pid);
 
 		sprintf(sql_str2, 
 				"INSERT INTO ProcAds_Str (cid, pid, attr, val) VALUES "
@@ -1379,7 +1398,8 @@ JobQueueDBManager::processDestroyClassAd(char* key, bool exec_later)
 		sprintf(sql_str3, 
 				"INSERT INTO History_Vertical(cid,pid,attr,val) "
 				"SELECT cid,pid,attr,val FROM (SELECT cid,pid,attr,val "
-				"FROM ProcAds WHERE cid= %s and pid = %s UNION ALL "
+				"FROM ProcAds WHERE cid= %s and pid = %s "
+				"UNION ALL "
 				"SELECT cid,%s,attr,val FROM ClusterAds WHERE cid=%s "
 				"AND attr NOT IN (SELECT attr FROM ProcAds WHERE cid =%s "
 				"AND pid =%s)) AS T WHERE attr NOT IN "
@@ -1405,29 +1425,38 @@ JobQueueDBManager::processDestroyClassAd(char* key, bool exec_later)
 			   constraint
 			*/
 		sprintf(sql_str4, 
-				"INSERT INTO History_Horizontal(cid,pid,\"Owner\",\"QDate\","
+				"INSERT INTO History_Horizontal(cid,pid,"
+				"\"EnteredHistoryTable\",\"Owner\",\"QDate\","
 				"\"RemoteWallClockTime\",\"RemoteUserCpu\",\"RemoteSysCpu\","
 				"\"ImageSize\",\"JobStatus\",\"JobPrio\",\"Cmd\","
 				"\"CompletionDate\",\"LastRemoteHost\") "
-				"SELECT %s,%s, max(CASE WHEN attr='Owner' THEN val ELSE NULL "
-				"END), max(CASE WHEN attr='QDate' THEN cast(val as integer) "
-				"ELSE NULL END), max(CASE WHEN attr='RemoteWallClockTime' "
-				"THEN cast(val as integer) ELSE NULL END), "
-				"max(CASE WHEN attr='RemoteUserCpu' THEN cast(val as float) "
-				"ELSE NULL END), max(CASE WHEN attr='RemoteSysCpu' "
-				"THEN cast(val as float) ELSE NULL END), "
-				"max(CASE WHEN attr='ImageSize' THEN cast(val as integer) "
-				"ELSE NULL END), max(CASE WHEN attr='JobStatus' "
-				"THEN cast(val as integer) ELSE NULL END), "
-				"max(CASE WHEN attr='JobPrio' THEN cast(val as integer) "
-				"ELSE NULL END), max(CASE WHEN attr='Cmd' THEN val ELSE NULL "
-				"END), max(CASE WHEN attr='CompletionDate' "
-				"THEN cast(val as integer) ELSE NULL END), "
+				"SELECT %s,%s, 'now', "
+				"max(CASE WHEN attr='Owner' THEN val ELSE NULL END), "
+				"max(CASE WHEN attr='QDate' THEN "
+				     "cast(val as integer) ELSE NULL END), "
+				"max(CASE WHEN attr='RemoteWallClockTime' THEN "
+				     "cast(val as integer) ELSE NULL END), "
+				"max(CASE WHEN attr='RemoteUserCpu' THEN "
+				     "cast(val as float) ELSE NULL END), "
+				"max(CASE WHEN attr='RemoteSysCpu' THEN "
+				     "cast(val as float) ELSE NULL END), "
+				"max(CASE WHEN attr='ImageSize' THEN "
+				     "cast(val as integer) ELSE NULL END), "
+				"max(CASE WHEN attr='JobStatus' THEN "
+				     "cast(val as integer) ELSE NULL END), "
+				"max(CASE WHEN attr='JobPrio' THEN "
+				     "cast(val as integer) ELSE NULL END), "
+				"max(CASE WHEN attr='Cmd' THEN val ELSE NULL END), "
+				"max(CASE WHEN attr='CompletionDate' THEN "
+				     "cast(val as integer) ELSE NULL END), "
 				"max(CASE WHEN attr='LastRemoteHost' THEN val ELSE NULL END) "
-				"FROM (SELECT cid,pid,attr,val FROM ProcAds WHERE cid=%s AND "
-				"pid=%s UNION ALL SELECT cid,%s,attr,val FROM ClusterAds "
-				"WHERE cid=%s AND attr NOT IN (SELECT attr FROM procads WHERE "
-				"cid =%s AND pid =%s)) as T GROUP BY cid,pid;"
+				"FROM "
+				"(SELECT cid,pid,attr,val FROM ProcAds WHERE cid=%s AND pid=%s "
+				"UNION ALL "
+				"SELECT cid,%s,attr,val FROM ClusterAds "
+				"WHERE cid=%s AND attr NOT IN "
+				"(SELECT attr FROM procads WHERE cid =%s AND pid =%s)) as T "
+				"GROUP BY cid,pid;"
 				,cid,pid,cid,pid,pid,cid,cid,pid); 
 
 		inserthistory = true;
@@ -2095,6 +2124,8 @@ JobQueueDBManager::registerAll()
 void
 JobQueueDBManager::registerCommands()
 {
+	daemonCore->Cancel_Command(QMGMT_CMD);
+
 		// register a handler for QMGMT_CMD command from condor_q
 	daemonCore->Register_Command(
 						   QMGMT_CMD, 
@@ -2113,9 +2144,11 @@ JobQueueDBManager::registerTimers()
 		// clear previous timers
 	if (pollingTimeId >= 0) {
 		daemonCore->Cancel_Timer(pollingTimeId);
+		pollingTimeId = -1;
 	}
 	if (purgeHistoryTimeId >= 0) {
 		daemonCore->Cancel_Timer(purgeHistoryTimeId);
+		purgeHistoryTimeId = -1;
 	}
 
 		// register timer handlers
@@ -2124,92 +2157,96 @@ JobQueueDBManager::registerTimers()
 								  pollingPeriod,
 								  (Eventcpp)&JobQueueDBManager::pollingTime, 
 								  "JobQueueDBManager::pollingTime", this);
+		//historyCleaningInterval is specified in units of hours so
+		//we multiply it by 3600 to get the # of seconds 
 	purgeHistoryTimeId = daemonCore->Register_Timer(
-						   historyCleaningInterval * 3600, 
-						   historyCleaningInterval * 3600,
+						   historyCleaningInterval*3600, 
+						   historyCleaningInterval*3600,
 						   (Eventcpp)&JobQueueDBManager::purgeOldHistoryRows, 
 						   "JobQueueDBManager::purgeOldHistoryRows", 
 						   this);
 }
 
 
-//! create the SCHEDD_AD sent to the collector
+//! update the QUILL_AD sent to the collector
+/*! This method only updates the ad with new values of dynamic attributes
+ *  See createQuillAd for how to create the ad in the first place
+ */
+
+void JobQueueDBManager::updateQuillAd(void) {
+	char expr[1000];
+
+	sprintf( expr, "%s = %d", ATTR_QUILL_SQL_LAST_BATCH, 
+			 lastBatchSqlProcessed);
+	ad->Insert(expr);
+
+	sprintf( expr, "%s = %d", ATTR_QUILL_SQL_TOTAL, 
+			 totalSqlProcessed);
+	ad->Insert(expr);
+
+	sprintf( expr, "%s = %d", "TimeToProcessLastBatch", 
+			 secsLastBatch);
+	ad->Insert(expr);
+
+	sprintf( expr, "%s = %d", "IsConnectedToDB", 
+			 isConnectedToDB);
+	ad->Insert(expr);
+}
+
+//! create the QUILL_AD sent to the collector
 /*! This method reads all quill-related configuration options from the 
  *  config file and creates a classad which can be sent to the collector
  */
 
-void JobQueueDBManager::createClassAd(void) {
+void JobQueueDBManager::createQuillAd(void) {
 	char expr[1000];
 
-		//statically allocated to 64 as observed in condor_q
-	char scheddAddr[64];
 	char *scheddName;
 
 	char *mysockname;
 	char *tmp;
 
 	ad = new ClassAd();
-	ad->SetMyTypeName(SCHEDD_ADTYPE);
+	ad->SetMyTypeName(QUILL_ADTYPE);
 	ad->SetTargetTypeName("");
   
 	config_fill_ad(ad);
 
-		// schedd info is needed to identify the schedd 
-		// corresponding to this quill - this is used by
-		// the condor_q clients in order to fail-over to
-		// the schedd if the database and quill daemon 
-		// can't be reached
+		// schedd info is used to identify the schedd 
+		// corresponding to this quill 
 
-        tmp = param( "SCHEDD_NAME" );
-        if( tmp ) {
-                scheddName = build_valid_daemon_name( tmp );
-        } else {
-                scheddName = default_daemon_name();
-        }
-
-	Daemon schedd( DT_SCHEDD, 0, 0 );
-	if ( schedd.locate() ) {
-		sprintf( scheddAddr, "%s", schedd.addr() );
-
-		//below is commented out as I'm still not able to 
-		//figure out why schedd.name returns the machine name
-		//and not the schedd name (these are different if there's
-		//a username prepended to machine name in order to make it
-		//a schedd name
-		/*if( (tmp = schedd.name()) ) {
-			sprintf( scheddName, "%s", tmp );
-		} else {
-			sprintf( scheddName, "Unknown" );
-		}
-		tmp = NULL;
-		*/
+	tmp = param( "SCHEDD_NAME" );
+	if( tmp ) {
+		scheddName = build_valid_daemon_name( tmp );
+	} else {
+		scheddName = default_daemon_name();
 	}
-	else {
-			sprintf( scheddAddr, "Unknown" );
-			//sprintf( scheddName, "Unknown" );
-	}		   
 
 	char *quill_name = param("QUILL_NAME");
 	if(!quill_name) {
 		EXCEPT("Cannot find variable QUILL_NAME in config file\n");
 	}
-	dprintf(D_ALWAYS, "Advertising under name %s\n", quill_name);
 
 	char *is_remotely_queryable = param("QUILL_IS_REMOTELY_QUERYABLE");
 	if(!is_remotely_queryable) {
 		is_remotely_queryable = strdup("1");
 	}
   
-	sprintf( expr, "%s = %s", "IsRemotelyQueryable", is_remotely_queryable );
+	sprintf( expr, "%s = %s", ATTR_QUILL_IS_REMOTELY_QUERYABLE, 
+			 is_remotely_queryable );
 	ad->Insert(expr);
 
-	char *quill_query_passwd = param("QUILL_QUERY_PASSWORD");
+	sprintf( expr, "%s = %d", "QuillPollingPeriod", pollingPeriod );
+	ad->Insert(expr);
+
+	char *quill_query_passwd = param("QUILL_DB_QUERY_PASSWORD");
 	if(!quill_query_passwd) {
-		EXCEPT("Cannot find variable QUILL_QUERY_PASSWORD "
+		EXCEPT("Cannot find variable QUILL_DB_QUERY_PASSWORD "
 			   "in config file\n");
 	}
   
-	sprintf( expr, "%s = \"%s\"", "QueryPassword", quill_query_passwd );
+	sprintf( expr, "%s = \"%s\"", ATTR_QUILL_DB_QUERY_PASSWORD, 
+			 quill_query_passwd );
 	ad->Insert(expr);
 
 	sprintf( expr, "%s = \"%s\"", ATTR_NAME, quill_name );
@@ -2218,8 +2255,9 @@ void JobQueueDBManager::createClassAd(void) {
 	sprintf( expr, "%s = \"%s\"", ATTR_SCHEDD_NAME, scheddName );
 	ad->Insert(expr);
 
-	sprintf( expr, "%s = \"%s\"", ATTR_SCHEDD_IP_ADDR, scheddAddr );
-	ad->Insert(expr);
+	if(scheddName) {
+		delete scheddName;
+	}
 
 	sprintf( expr, "%s = \"%s\"", ATTR_MACHINE, my_full_hostname() ); 
 	ad->Insert(expr);
@@ -2231,37 +2269,11 @@ void JobQueueDBManager::createClassAd(void) {
 	sprintf( expr, "%s = \"%s\"", ATTR_MY_ADDRESS, mysockname );
 	ad->Insert(expr);
 
-	sprintf( expr, "%s = \"%s\"", "DatabaseIpAddr", jobQueueDBIpAddress );
+	sprintf( expr, "%s = \"<%s>\"", ATTR_QUILL_DB_IP_ADDR, 
+			 jobQueueDBIpAddress );
 	ad->Insert(expr);
 
-	sprintf( expr, "%s = \"%s\"", "DatabaseName", jobQueueDBName );
-	ad->Insert(expr);
-
-	sprintf( expr, "%s = %d", ATTR_NUM_USERS, 1 );
-	ad->Insert(expr);
-
-	sprintf( expr, "%s = %d", ATTR_MAX_JOBS_RUNNING, 500 );
-	ad->Insert(expr);
-
-	sprintf( expr, "%s = %d", ATTR_VIRTUAL_MEMORY, 1967884 );
-	ad->Insert(expr);
-
-	sprintf( expr, "%s = %d", ATTR_TOTAL_IDLE_JOBS, 0 );
-	ad->Insert(expr);
-
-	sprintf( expr, "%s = %d", ATTR_TOTAL_RUNNING_JOBS, 0 );
-	ad->Insert(expr);
-
-	sprintf( expr, "%s = %d", ATTR_TOTAL_JOB_ADS, 0 );
-	ad->Insert(expr);
-
-	sprintf( expr, "%s = %d", ATTR_TOTAL_HELD_JOBS, 0 );
-	ad->Insert(expr);
-
-	sprintf( expr, "%s = %d", ATTR_TOTAL_FLOCKED_JOBS, 0 );
-	ad->Insert(expr);
-
-	sprintf( expr, "%s = %d", ATTR_TOTAL_REMOVED_JOBS, 0 );
+	sprintf( expr, "%s = \"%s\"", ATTR_QUILL_DB_NAME, jobQueueDBName );
 	ad->Insert(expr);
 
 	collectors = CollectorList::create();
@@ -2281,7 +2293,10 @@ JobQueueDBManager::pollingTime()
 	dprintf(D_ALWAYS, "******** Start of Probing Job Queue Log File ********\n");
 
 		/*
-		  instead of exiting on error, we simply return 
+		  instead of exiting on error, we simply continue sending
+		  ads to collector and in some cases (e.g. database connection),
+		  encode that in the ad for error diagnoses
+
 		  this means that quill will not usually exit on loss of 
 		  database connectivity, and that it will keep polling
 		  and trying to connect until database is back up again 
@@ -2290,17 +2305,21 @@ JobQueueDBManager::pollingTime()
 	if (maintain() == FAILURE) {
 		dprintf(D_ALWAYS, 
 				">>>>>>>> Fail: Probing Job Queue Log File <<<<<<<<\n");
-		return;
 	}
 
-	dprintf(D_ALWAYS, "********* End of Probing Job Queue Log File *********\n");
+	else {
+		dprintf(D_ALWAYS, "********* End of Probing Job Queue Log File *********\n");
+	}
 
 	dprintf(D_ALWAYS, "++++++++ Sending schedd ad to collector ++++++++\n");
 
 	if(!ad) {
-		createClassAd();
+		createQuillAd();
 	}
-	collectors->sendUpdates ( UPDATE_SCHEDD_AD, ad );
+
+	updateQuillAd();
+
+	collectors->sendUpdates ( UPDATE_QUILL_AD, ad );
 	
 	dprintf(D_ALWAYS, "++++++++ Sent schedd ad to collector ++++++++\n");
 }

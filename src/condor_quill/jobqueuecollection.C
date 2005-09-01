@@ -545,8 +545,8 @@ JobQueueCollection::makeHistoryAdSqlStr(char* cid, char* pid, ClassAd* ad,
 	// creating a new horizontal string consisting of one insert 
 	// and many updates
 	sprintf(tmp_line_str2, 
-			"INSERT INTO History_Horizontal(cid,pid) "
-			"SELECT %s,%s WHERE NOT EXISTS(SELECT cid,pid "
+			"INSERT INTO History_Horizontal(cid,pid,\"EnteredHistoryTable\") "
+			"SELECT %s,%s,'now' WHERE NOT EXISTS(SELECT cid,pid "
 			"FROM History_Horizontal WHERE cid=%s AND pid=%s);", 
 			cid,pid,cid,pid);
 	historyad_hor_str = (char*)malloc(strlen(tmp_line_str2) + 1);

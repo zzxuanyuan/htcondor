@@ -8,7 +8,7 @@ C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) -Wall -g -D_POSTGRESQL_DBMS_ -D_DEBUG_ -D_QUI
 
 LDFLAGS = $(STD_LDFLAGS) $(LIBCRYPT)
 #LDFLAGS = $(STD_LDFLAGS) -L$(POSTGRESQL_LIB) -lrt -lpq
-LIB = $(DAEMONCORE_LIB) $(STD_LIBS) $(POSTGRESQL_LIB)/libpq.a
+LIB = $(DAEMONCORE_LIB) $(STD_LIBS) $(POSTGRESQL_LIB)/libpq.a 
 
 OBJ = quill_main.o classadlogentry.o classadlogparser.o jobqueuedbmanager.o prober.o requestservice.o jobqueuecollection.o 
 

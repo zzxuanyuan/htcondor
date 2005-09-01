@@ -89,7 +89,7 @@ class JobQueueDBManager : public Service
 		// handlers
 		//
 
-		//! timer handler for maintaining job queue and sending SCHEDD_AD to collector
+		//! timer handler for maintaining job queue and sending QUILL_AD to collector
 	void		pollingTime();	
 
 		//! command handler QMGMT_CMD command; services condor_q queries
@@ -101,8 +101,11 @@ class JobQueueDBManager : public Service
 	CollectorList 	*collectors;
 	ClassAd 	    *ad;
 	
-		//! create the SCHEDD_AD that's sent to the collector
-	void 	 createClassAd(void);
+		//! create the QUILL_AD that's sent to the collector
+	void 	 createQuillAd(void);
+
+		//! update the QUILL_AD's dynamic attributes
+	void 	 updateQuillAd(void);
 
 		//! escape quoted strings since postgres doesn't like 
 		//! unescaped single quotes
@@ -234,6 +237,12 @@ class JobQueueDBManager : public Service
 
 	XactState	xactState;		    //!< current XACT state
 
+		//together these constitute the dynamic attributes that are inserted
+		//into the quill ad sent to the collector
+	int     totalSqlProcessed;
+	int     lastBatchSqlProcessed;
+	int     secsLastBatch;
+	bool    isConnectedToDB;
 
 	char*	jobQueueLogFile; 		//!< Job Queue Log File Path
 	char*	jobQueueDBConn;  		//!< DB connection string

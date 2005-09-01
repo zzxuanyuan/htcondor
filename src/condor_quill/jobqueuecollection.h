@@ -78,7 +78,10 @@ public:
 		if (cid != NULL) free(cid);
 		if (pid != NULL) free(pid);
 	//added by ameet as a possible solution to the memory leak problem
-		if (ad != NULL) {ad->clear(); delete ad;}
+		if (ad != NULL) {
+			ad->clear(); 
+			delete ad;
+		}
 	}
 
 	enum AD_TYPE {UNKNOWN, PROC_AD, CLUSTER_AD};	

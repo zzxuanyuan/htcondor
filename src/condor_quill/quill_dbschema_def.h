@@ -151,6 +151,7 @@ CREATE INDEX History_Vertical_I_attr_val ON History_Vertical (attr, val);
 CREATE TABLE History_Horizontal(
         cid                  int, 
         pid                  int, 
+	EnteredHistoryTable  timestamp with time zone
         Owner                text, 
         QDate                int, 
         RemoteWallClockTime  int, 
@@ -167,6 +168,7 @@ CREATE TABLE History_Horizontal(
 
 CREATE INDEX History_Horizontal_I_Owner on History_Horizontal(Owner);      
 CREATE INDEX History_Horizontal_I_CompletionDate on History_Horizontal(CompletionDate);      
+CREATE INDEX History_Horizontal_I_EnteredHistoryTable on History_Horizontal(EnteredHistoryTable);      
 
 Note that some column names in the horizontal table are surrounded
 by quotes in order to make them case-sensitive.  This is so that when
@@ -174,7 +176,7 @@ we convert the column names to their corresponding classad attribute name,
 they look the same as the corresponding ad stored in the history file
 */
 
-#define SCHEMA_CREATE_HISTORY_TABLE_STR "CREATE TABLE History_Vertical (cid int, pid int, attr text, val text, primary key (cid, pid, attr)); CREATE INDEX History_Vertical_I_attr_val ON History_Vertical (attr, val); CREATE TABLE History_Horizontal(cid int, pid int, \"Owner\" text, \"QDate\" int, \"RemoteWallClockTime\" int, \"RemoteUserCpu\" float, \"RemoteSysCpu\" float, \"ImageSize\" int, \"JobStatus\" int, \"JobPrio\" int, \"Cmd\" text, \"CompletionDate\" int, \"LastRemoteHost\" text, primary key(cid,pid)); CREATE INDEX History_Horizontal_I_Owner on History_Horizontal(\"Owner\");CREATE INDEX History_Horizontal_I_CompletionDate on History_Horizontal(\"CompletionDate\"); GRANT SELECT ON History_Horizontal TO quillreader; GRANT SELECT ON History_Vertical TO quillreader;"
+#define SCHEMA_CREATE_HISTORY_TABLE_STR "CREATE TABLE History_Vertical (cid int, pid int, attr text, val text, primary key (cid, pid, attr)); CREATE INDEX History_Vertical_I_attr_val ON History_Vertical (attr, val); CREATE TABLE History_Horizontal(cid int, pid int, \"EnteredHistoryTable\" timestamp with time zone, \"Owner\" text, \"QDate\" int, \"RemoteWallClockTime\" int, \"RemoteUserCpu\" float, \"RemoteSysCpu\" float, \"ImageSize\" int, \"JobStatus\" int, \"JobPrio\" int, \"Cmd\" text, \"CompletionDate\" int, \"LastRemoteHost\" text, primary key(cid,pid)); CREATE INDEX History_Horizontal_I_Owner on History_Horizontal(\"Owner\");CREATE INDEX History_Horizontal_I_CompletionDate on History_Horizontal(\"CompletionDate\");CREATE INDEX History_Horizontal_I_EnteredHistoryTable on History_Horizontal(\"EnteredHistoryTable\"); GRANT SELECT ON History_Horizontal TO quillreader; GRANT SELECT ON History_Vertical TO quillreader;"
 
 
 
