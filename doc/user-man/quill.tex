@@ -115,7 +115,7 @@ host&all&quillwriter&128.105.0.0&255.255.0.0&password
 \end{tabular}
 
 Note that in addition to the database specified by
-\MacroNI{DATABASE\_NAME} in the \File{condor\_config} file, the quill
+\MacroNI{QUILL\_DB\_NAME} in the \File{condor\_config} file, the quill
 daemon also needs access to the database 'template1'.  This is because
 in order to create the former database in the first place, it needs to
 connect to the latter.
@@ -171,9 +171,8 @@ section with appropriately modified values to suit the local environment:
 
 \begin{verbatim}
 QUILL_NAME              = some-unique-quill-name.cs.wisc.edu
-DATABASE_NAME           = database-for-some-unique-quill-name
-# The <> in the following config file entry are required
-DATABASE_IPADDRESS      = <databaseipaddress:port>
+QUILL_DB_NAME           = database-for-some-unique-quill-name
+QUILL_DB_IP_ADDR        = databaseipaddress:port
 # the following parameter's units is in seconds
 QUILL_POLLING_PERIOD    = 10
 # the following parameter's units is in hours
@@ -181,7 +180,7 @@ QUILL_HISTORY_CLEANING_INTERVAL = 24
 # the following parameter's units is in days
 QUILL_HISTORY_DURATION 	= 30
 QUILL_IS_REMOTELY_QUERYABLE = 1
-QUILL_QUERY_PASSWORD 	=  password-for-database-user-quillreader
+QUILL_DB_QUERY_PASSWORD =  password-for-database-user-quillreader
 QUILL_ADDRESS_FILE      = $(LOG)/.quill_address
 \end{verbatim}
 
@@ -194,19 +193,20 @@ This is the name of this quill server.  Each quill server sends an ad to
 the collector containing its name.  As such its important that the name
 of a quill server should not conflict with that of any other quill server,
 or for that matter, any schedd.  The latter is because each quill sends a
-\MacroNI{SCHEDD\_AD} to the collector, and as such, from the perspective
-of the collector, a quill is just another schedd. It might be convenient
-to simply name the quill server, quill-machinename.fully.qualified.address
+\MacroNI{QUILL\_AD} to the collector, with both its name as well as the name 
+of the schedd its mirroring and so for querying purposes its important to keep 
+them unique. It might be convenient to simply name the quill server, 
+quill@machinename.fully.qualified.address
 
-\item \Macro{DATABASE\_NAME} and \Macro{DATABASE\_IPADDRESS}\\
+\item \Macro{QUILL\_DB\_NAME} and \Macro{QUILL\_DB\_IP\_ADDR}\\
 These two variables are used to determine the location of the database
-server that this quill would talk to, and the name of the database that it
-creates.  More than one quill server can talk to the same database server.
-This can be done by simply letting all the \MacroNI{DATABASE\_IPADDRESS}
-point to the same database server.
+server that this quill would talk to, and the name of the database that
+it creates.  More than one quill server can talk to the same database
+server.  This can be done by simply letting all the 
+\MacroNI{QUILL\_DB\_IP\_ADDR} point to the same database server.
 
 \Notice{If more than one quill server are sharing the same database
-server, then the \MacroNI{DATABASE\_NAME} variable for all of them should
+server, then the \MacroNI{QUILL\_DB\_NAME} variable for all of them should
 be unique.  Otherwise, there would be record overwriting and corruption
 of job queue information.}
 
@@ -222,8 +222,10 @@ negligible.
 		\Macro{QUILL\_HISTORY\_DURATION}\\
 These two variables control the deletion of historical jobs from the
 database.  \MacroNI{QUILL\_HISTORY\_DURATION} is the number of days
-after completion that a given job will stay in the database.  So all
-jobs beyond \MacroNI{QUILL\_HISTORY\_DURATION} will be deleted.  Now,
+after completion (more precisely, the number of days since the history ad got 
+into the history database - those two might be different if a job is completed 
+but stays in the queue for a while) that a given job will stay in the database.  
+So all jobs beyond \MacroNI{QUILL\_HISTORY\_DURATION} will be deleted.  Now,
 scanning the entire database for old jobs can get pretty expensive,
 so the other variable \MacroNI{QUILL\_HISTORY\_CLEANING\_INTERVAL}
 is the number of hours between two successive scans.  By default,
@@ -234,26 +236,18 @@ is the number of hours between two successive scans.  By default,
 Thanks to postgres one can now remotely query both the job queue and the
 history tables. This variable controls whether this remote querying 
 feature should be enabled.  By default it is 1 (true).  Note that even if 
-this is 0 (false), one can still query a remote schedd using 
-\begin{verbatim}
-	condor_q -name remote-schedd-name
-\end{verbatim}
-This variable only controls whether the database tables controlled by this 
-particular quill server is remotely queryable via
-\begin{verbatim}
-	condor_q -name remote-quill-name
-\end{verbatim}
+this is 0 (false), one can still query the job queue in the remote schedd
+This variable only controls whether the database tables are remotely queryable.
 
-\item \Macro{QUILL\_QUERY\_PASSWORD}
+\item \Macro{QUILL\_DB\_QUERY\_PASSWORD}\\
 In order for the query tools to connect to a database, it needs to provide
-the password that is assigned to database user \Username{quillreader} in
-step 2c) above. This variable is then advertised by the quill daemon to
-the collector.  This facility enables remote querying: remote \Condor{q}
-query tools first ask the collector for the password associated with a
-particular quill database and then query that database.  Users who do
-not have access to the collector cannot view the password and as such
-cannot query the database.  Again, this password just provides 'read'
-access to the database.
+the password that is assigned to database user \Username{quillreader} above. 
+This variable is then advertised by the quill daemon to the collector.  
+This facility enables remote querying: remote \Condor{q} query tools first 
+ask the collector for the password associated with a particular quill database 
+and then query that database.  Users who do not have access to the collector 
+cannot view the password and as such cannot query the database.  Again, this 
+password just provides 'read' access to the database.
 
 \item \Macro{QUILL\_ADDRESS\_FILE}\\
 When quill starts up, it can place it's address (IP and port)
@@ -298,20 +292,24 @@ both tools.
 \item Query a remote quill daemon on regular.cs.wisc.edu for all the jobs in 
 the queue
 \begin{verbatim}
-	condor_q -name quill-regular.cs.wisc.edu
-\end{verbatim}
-Note that the parameter after -name is the same as that specified for the
-\MacroNI{QUILL\_NAME} variable in part 3) above.  Also, the ip address
-and port of the database server hosting the data of this particular remote
-quill daemon can be figured out by the \MacroNI{DATABASE\_IPADDRESS} and
-\MacroNI{DATABASE\_NAME} variables specified in the \MacroNI{SCHEDD\_AD}
-sent by the quill daemon to the collector.
+	condor_q -name quill@regular.cs.wisc.edu
+	condor_q -name schedd@regular.cs.wisc.edu
 
+\end{verbatim}
+There are two ways to get to a quill daemon: directly using its name as 
+specified in the \MacroNI{QUILL\_NAME} variable in part 3) above, or indirectly
+by querying the schedd using its name.  In the latter case, \Condor{q} will detect 
+if that schedd is being serviced by a database, and if so, directly query it.
+In both cases, the ip address and port of the database server hosting the data of 
+this particular remote quill daemon can be figured out by the \MacroNI{QUILL\_DB\_IP\_ADDR} 
+and \MacroNI{QUILL\_DB\_NAME} variables specified in the \MacroNI{QUILL\_AD}
+sent by the quill daemon to the collector and in the \MacroNI{SCHEDD\_AD} sent by
+the schedd.  
 
 \item Query a remote quill daemon on regular.cs.wisc.edu for all historical 
 jobs belonging to owner 'akini'.
 \begin{verbatim}
-	condor_history -name quill-regular.cs.wisc.edu akini
+	condor_history -name quill@regular.cs.wisc.edu akini
 \end{verbatim}
 
 \item Query the local quill daemon for the average time spent in the queue 
@@ -334,14 +332,6 @@ specified timestamp.  We follow Postgres's date/time
 syntax rules as it encompasses most format options.  See
 \URL{http://www.postgresql.org/docs/8.0/static/datatype-datetime.html\#AEN4516}
 for the various timestamp formats.
-
-\item Query the local schedd for all the jobs in the queue submitted by akini
-\begin{verbatim}
-	condor_q -name akini@karadi.cs.wisc.edu
-\end{verbatim}
-This is using the old way of querying the schedd.  Since now, the default
-is to query the database, we need to explicitly tell \Condor{q} to query
-the local schedd by using the -name flag.
 
 \end{enumerate}
 
@@ -482,6 +472,7 @@ complete job classad.  Their schema is as follows:
 \item \SQLTableDef{History\_Horizontal}
         {cid                  int,
         pid                  int,
+	EnteredHistoryTable  timestamp with time zone,
         Owner                text,
         QDate                int,
         RemoteWallClockTime  int,
@@ -556,7 +547,7 @@ if this file does not exist as and where expected, the \Condor{quill}
 daemon logs and error and exits.
 
 \item Finally, as mentioned in section 2c) above, the
-\Attr{IsRemotelyQueryable} attribute in the ``scheduler ad'' advertised
+\Attr{IsRemotelyQueryable} attribute in the ``quill ad'' advertised
 by the quill daemon to the collector can be used by site administrators
 to disallow the database from being read by all remote condor query tools.
 
