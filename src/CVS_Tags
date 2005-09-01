@@ -1,3 +1,7 @@
+09/01/05 V6_7-quill-merge-1
+   Abandoning V6_7-quill-branch, merging into V6_7-branch.
+   This is the merge-from tag on V6_7-quill-branch.
+
 04/06/05 V6_6-merge-38
    The state of the V6_6-branch for a merge into V6_7-branch.  This
    includes a bunch of win32 bug fixes: the execute directory cleanup
