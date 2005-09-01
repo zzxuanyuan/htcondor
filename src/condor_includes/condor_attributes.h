@@ -128,6 +128,8 @@ const char ATTR_X509_USER_PROXY          [] = "x509userproxy";
 const char ATTR_X509_USER_PROXY_SUBJECT	 [] = "x509userproxysubject";
 const char ATTR_GLOBUS_JOBMANAGER_TYPE   []	= "JobmanagerType";	// for gt4
 const char ATTR_GLOBUS_SUBMIT_ID	     [] = "GlobusSubmitId"; // for gt4
+const char ATTR_GRID_RESOURCE			 [] = "GridResource";
+const char ATTR_GRID_JOB_ID				 [] = "GridJobId";
 // ckireyev myproxy
 const char ATTR_MYPROXY_SERVER_DN		 [] = "MyProxyServerDN";
 const char ATTR_MYPROXY_HOST_NAME		 [] = "MyProxyHost";
@@ -304,7 +306,6 @@ const char ATTR_REMOTE_HOST				 [] = "RemoteHost";
 const char ATTR_REMOTE_JOB_ID			 [] = "RemoteJobId";
 const char ATTR_REMOTE_OWNER			 [] = "RemoteOwner";
 const char ATTR_REMOTE_POOL				 [] = "RemotePool";
-const char ATTR_REMOTE_RESOURCE			 [] = "RemoteResource";
 const char ATTR_REMOTE_SCHEDD			 [] = "RemoteSchedd";
 const char ATTR_REMOTE_SPOOL_DIR		 [] = "RemoteSpoolDir";
 const char ATTR_REMOTE_USER              [] = "RemoteUser";

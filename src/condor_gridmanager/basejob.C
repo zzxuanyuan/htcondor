@@ -73,7 +73,7 @@ BaseJob::BaseJob( ClassAd *classad )
 	JobsByProcId.insert( procID, this );
 
 	MyString remote_id;
-	jobAd->LookupString( ATTR_REMOTE_JOB_ID, remote_id );
+	jobAd->LookupString( ATTR_GRID_JOB_ID, remote_id );
 	if ( !remote_id.IsEmpty() ) {
 		JobsByRemoteId.insert( HashKey( remote_id.Value() ), this );
 	}
@@ -119,7 +119,7 @@ BaseJob::~BaseJob()
 	JobsByProcId.remove( procID );
 
 	MyString remote_id;
-	jobAd->LookupString( ATTR_REMOTE_JOB_ID, remote_id );
+	jobAd->LookupString( ATTR_GRID_JOB_ID, remote_id );
 	if ( !remote_id.IsEmpty() ) {
 		JobsByRemoteId.remove( HashKey( remote_id.Value() ) );
 	}
@@ -345,7 +345,7 @@ void BaseJob::SetRemoteJobId( const char *job_id )
 {
 	MyString old_job_id;
 	MyString new_job_id;
-	jobAd->LookupString( ATTR_REMOTE_JOB_ID, old_job_id );
+	jobAd->LookupString( ATTR_GRID_JOB_ID, old_job_id );
 	if ( job_id != NULL && job_id[0] != '\0' ) {
 		new_job_id = job_id;
 	}
@@ -354,11 +354,11 @@ void BaseJob::SetRemoteJobId( const char *job_id )
 	}
 	if ( !old_job_id.IsEmpty() ) {
 		JobsByRemoteId.remove( HashKey( old_job_id.Value() ) );
-		jobAd->AssignExpr( ATTR_REMOTE_JOB_ID, "Undefined" );
+		jobAd->AssignExpr( ATTR_GRID_JOB_ID, "Undefined" );
 	}
 	if ( !new_job_id.IsEmpty() ) {
 		JobsByRemoteId.insert( HashKey( new_job_id.Value() ), this );
-		jobAd->Assign( ATTR_REMOTE_JOB_ID, new_job_id.Value() );
+		jobAd->Assign( ATTR_GRID_JOB_ID, new_job_id.Value() );
 	}
 	requestScheddUpdate( this );
 }
@@ -837,7 +837,7 @@ WriteExecuteEventToUserLog( ClassAd *job_ad )
 			 cluster, proc );
 
 	hostname[0] = '\0';
-	job_ad->LookupString( ATTR_REMOTE_RESOURCE, hostname,
+	job_ad->LookupString( ATTR_GRID_RESOURCE, hostname,
 						  sizeof(hostname) - 1 );
 
 	ExecuteEvent event;
@@ -1077,7 +1077,7 @@ WriteGlobusResourceUpEventToUserLog( ClassAd *job_ad )
 
 	GlobusResourceUpEvent event;
 
-	job_ad->LookupString( ATTR_REMOTE_RESOURCE, contact );
+	job_ad->LookupString( ATTR_GRID_RESOURCE, contact );
 	if ( contact.IsEmpty() ) {
 			// Not a Globus job, don't log the event
 		return true;
@@ -1119,7 +1119,7 @@ WriteGlobusResourceDownEventToUserLog( ClassAd *job_ad )
 
 	GlobusResourceDownEvent event;
 
-	job_ad->LookupString( ATTR_REMOTE_RESOURCE, contact );
+	job_ad->LookupString( ATTR_GRID_RESOURCE, contact );
 	if ( contact.IsEmpty() ) {
 			// Not a Globus job, don't log the event
 		return true;
@@ -1162,12 +1162,12 @@ WriteGlobusSubmitEventToUserLog( ClassAd *job_ad )
 
 	GlobusSubmitEvent event;
 
-	job_ad->LookupString( ATTR_REMOTE_RESOURCE, contact );
+	job_ad->LookupString( ATTR_GRID_RESOURCE, contact );
 	contact.Tokenize();
 	contact.GetNextToken( " ", false );
 	event.rmContact = strnewp(contact.GetNextToken( " ", false ));
 
-	job_ad->LookupString( ATTR_REMOTE_JOB_ID, contact );
+	job_ad->LookupString( ATTR_GRID_JOB_ID, contact );
 	contact.Tokenize();
 	contact.GetNextToken( " ", false );
 	event.jmContact = strnewp(contact.GetNextToken( " ", false ));

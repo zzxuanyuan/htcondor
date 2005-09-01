@@ -1088,7 +1088,7 @@ count( ClassAd *job )
 		// the gridmanager needs to be around to finish the task of removing the job.
 		if ( status == REMOVED ) {
 			char job_id[20];
-			if ( job->LookupString( ATTR_REMOTE_JOB_ID, job_id,
+			if ( job->LookupString( ATTR_GRID_JOB_ID, job_id,
 									sizeof(job_id) ) )
 			{
 				// looks like the job's remote job id is still valid,
@@ -1176,7 +1176,7 @@ service_this_universe(int universe, ClassAd* job)
 				// return true, else false.
 				const char * ads_to_check[] = { ATTR_GLOBUS_RESOURCE,
 												ATTR_REMOTE_SCHEDD,
-												ATTR_REMOTE_RESOURCE };
+												ATTR_GRID_RESOURCE };
 				for (unsigned int i = 0; 
 					     i < sizeof(ads_to_check)/sizeof(ads_to_check[0]);
 					     i++) {
@@ -1341,10 +1341,10 @@ abort_job_myself( PROC_ID job_id, JobAction action, bool log_hold,
 			// If the remote job id is still valid, that means there is
 			// still a job remotely submitted that has not been removed.  When
 			// the gridmanager confirms a job has been removed, it will
-			// delete ATTR_REMOTE_JOB_ID from the ad.
+			// delete ATTR_GRID_JOB_ID from the ad.
 		if (!job_managed && mode==REMOVED ) {
 			char job_id[20];
-			if ( job_ad->LookupString( ATTR_REMOTE_JOB_ID, job_id,
+			if ( job_ad->LookupString( ATTR_GRID_JOB_ID, job_id,
 									   sizeof(job_id) ) )
 			{
 				// looks like the job's remote job id is still valid,

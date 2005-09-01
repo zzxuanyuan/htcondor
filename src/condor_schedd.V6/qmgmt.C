@@ -233,6 +233,9 @@ RemoveMatchedAd(int cluster_id, int proc_id)
 	return;
 }
 
+// CRUFT: Everything in this function is cruft, but not necessarily all
+//    the same cruft. Individual sections should say if/when they should
+//    be removed.
 // Look for attributes that have changed name or syntax in a previous
 // version of Condor and convert the old format to the current format.
 // *This function is not transaction-safe!*
@@ -263,19 +266,20 @@ ConvertOldJobAdAttrs( ClassAd *job_ad )
 		return;
 	}
 
-		// Convert old job ads to the new format of RemoteResource
-		// and RemoteJobId. This switch happened on the V6_7-lease
+		// CRUFT
+		// Convert old job ads to the new format of GridResource
+		// and GridJobId. This switch happened on the V6_7-lease
 		// branch and should be merged in around the time of 6.7.11.
 		// At some future point in time, this code should be
 		// removed (sometime in the 6.9 series). - jfrey Aug-11-05
 	if ( universe == CONDOR_UNIVERSE_GRID ) {
 		MyString grid_type = "gt2";
-		MyString remote_resource = "";
-		MyString remote_job_id = "";
+		MyString grid_resource = "";
+		MyString grid_job_id = "";
 
 		job_ad->LookupString( ATTR_JOB_GRID_TYPE, grid_type );
-		job_ad->LookupString( ATTR_REMOTE_RESOURCE, remote_resource );
-		job_ad->LookupString( ATTR_REMOTE_JOB_ID, remote_job_id );
+		job_ad->LookupString( ATTR_GRID_RESOURCE, grid_resource );
+		job_ad->LookupString( ATTR_GRID_JOB_ID, grid_job_id );
 
 		grid_type.lower_case();
 
@@ -290,7 +294,7 @@ ConvertOldJobAdAttrs( ClassAd *job_ad )
 				grid_type = "gt2";
 			}
 
-			if ( remote_resource.IsEmpty() &&
+			if ( grid_resource.IsEmpty() &&
 				 job_ad->LookupString( ATTR_GLOBUS_RESOURCE, attr ) ) {
 
 				new_value.sprintf( "%s %s", grid_type.Value(),
@@ -301,13 +305,12 @@ ConvertOldJobAdAttrs( ClassAd *job_ad )
 										  attr );
 					new_value.sprintf_cat( " %s", attr.Value() );
 				}
-				job_ad->Assign( ATTR_REMOTE_RESOURCE, new_value.Value() );
+				job_ad->Assign( ATTR_GRID_RESOURCE, new_value.Value() );
 				JobQueueDirty = true;
 			}
 
-			if ( remote_job_id.IsEmpty() &&
-				 job_ad->LookupString( ATTR_GLOBUS_CONTACT_STRING,
-								   attr ) ) {
+			if ( grid_job_id.IsEmpty() &&
+				 job_ad->LookupString( ATTR_GLOBUS_CONTACT_STRING, attr ) ) {
 
 				if ( attr != NULL_JOB_CONTACT ) {
 
@@ -332,15 +335,15 @@ ConvertOldJobAdAttrs( ClassAd *job_ad )
 							dprintf( D_ALWAYS, "Warning: %s undefined"
 									 " when converting %s to %s, not"
 									 " converting\n",
-									 ATTR_REMOTE_RESOURCE,
+									 ATTR_GRID_RESOURCE,
 									 ATTR_GLOBUS_CONTACT_STRING,
-									 ATTR_REMOTE_JOB_ID );
+									 ATTR_GRID_JOB_ID );
 						} else {
 							new_value.sprintf( "%s %s %s",
 											   grid_type.Value(),
 											   resource.Value(),
 											   attr.Value() );
-							job_ad->Assign( ATTR_REMOTE_JOB_ID,
+							job_ad->Assign( ATTR_GRID_JOB_ID,
 											new_value.Value() );
 						}
 						if ( job_ad2 ) {
@@ -349,7 +352,7 @@ ConvertOldJobAdAttrs( ClassAd *job_ad )
 					} else {
 						new_value.sprintf( "%s %s", grid_type.Value(),
 										   attr.Value() );
-						job_ad->Assign( ATTR_REMOTE_JOB_ID,
+						job_ad->Assign( ATTR_GRID_JOB_ID,
 										new_value.Value() );
 					}
 
@@ -364,25 +367,26 @@ ConvertOldJobAdAttrs( ClassAd *job_ad )
 
 			MyString schedd;
 			MyString pool = "''";
+			MyString jobid = "";
 			MyString new_value;
 
-			if ( remote_resource.IsEmpty() &&
+			if ( grid_resource.IsEmpty() &&
 				 job_ad->LookupString( ATTR_REMOTE_SCHEDD, schedd ) ) {
 
 				job_ad->LookupString( ATTR_REMOTE_POOL, pool );
 				new_value.sprintf( "condor %s %s", pool.Value(),
 								   schedd.Value() );
-				job_ad->Assign( ATTR_REMOTE_RESOURCE, new_value.Value() );
+				job_ad->Assign( ATTR_GRID_RESOURCE, new_value.Value() );
 				JobQueueDirty = true;
 			}
 
-			if ( !remote_job_id.IsEmpty() &&
-				 strncmp( remote_job_id.Value(), "condor ", 7 ) ) {
+			if ( grid_job_id.IsEmpty() &&
+				 job_ad->LookupString( ATTR_REMOTE_JOB_ID, jobid ) ) {
 
 					// Ugly: If the job is using match-making, we
 					// need to grab the match-substituted versions
 					// of RemoteSchedd and RemotePool to stuff into
-					// RemoteJobId. That means calling GetJobAd().
+					// GridJobId. That means calling GetJobAd().
 				ClassAd *job_ad2;
 
 				job_ad2 = GetJobAd( cluster, proc, true );
@@ -393,12 +397,14 @@ ConvertOldJobAdAttrs( ClassAd *job_ad )
 					job_ad2->LookupString( ATTR_REMOTE_SCHEDD, schedd );
 					job_ad2->LookupString( ATTR_REMOTE_POOL, pool );
 					new_value.sprintf( "condor %s %s %s", pool.Value(),
-									   schedd.Value(),
-									   remote_job_id.Value() );
-					job_ad->Assign( ATTR_REMOTE_JOB_ID,
+									   schedd.Value(), jobid.Value() );
+					job_ad->Assign( ATTR_GRID_JOB_ID,
 									new_value.Value() );
-					delete job_ad2;
+					job_ad->AssignExpr( ATTR_REMOTE_JOB_ID, "Undefined" );
 					JobQueueDirty = true;
+
+					delete job_ad2;
+
 				}
 			}
 
@@ -406,13 +412,16 @@ ConvertOldJobAdAttrs( ClassAd *job_ad )
 
 		if ( grid_type == "infn" || grid_type == "blah" ) {
 
-			if ( !remote_job_id.IsEmpty() &&
-				 strncmp( remote_job_id.Value(), "blah ", 5 ) ) {
+			MyString jobid;
+
+			if ( grid_job_id.IsEmpty() &&
+				 job_ad->LookupString( ATTR_REMOTE_JOB_ID, jobid ) ) {
 
 				MyString new_value;
 
-				new_value.sprintf( "blah %s", remote_job_id.Value() );
-				job_ad->Assign( ATTR_REMOTE_JOB_ID, new_value.Value() );
+				new_value.sprintf( "blah %s", jobid.Value() );
+				job_ad->Assign( ATTR_GRID_JOB_ID, new_value.Value() );
+				job_ad->AssignExpr( ATTR_REMOTE_JOB_ID, "Undefined" );
 				JobQueueDirty = true;
 			}
 		}
@@ -2767,7 +2776,7 @@ int mark_idle(ClassAd *job)
 		// a globus job with a non-null contact string should be left alone
 		if ( universe == CONDOR_UNIVERSE_GRID ) {
 			char job_id[20];
-			if ( job->LookupString( ATTR_REMOTE_JOB_ID, job_id,
+			if ( job->LookupString( ATTR_GRID_JOB_ID, job_id,
 									sizeof(job_id) ) )
 			{
 				// looks like the job's remote job id is still valid,

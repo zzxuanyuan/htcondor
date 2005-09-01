@@ -908,7 +908,7 @@ format_remote_host (char *, AttrList *ad)
 			return result;
 		}
 	} else if (universe == CONDOR_UNIVERSE_GRID) {
-		if (ad->LookupString(ATTR_REMOTE_RESOURCE,result) == 1 )
+		if (ad->LookupString(ATTR_GRID_RESOURCE,result) == 1 )
 			return result;
 		else
 			return unknownHost;
@@ -1039,12 +1039,12 @@ format_globusStatus( int globusStatus, AttrList *ad )
 	return result;
 }
 
-// The remote hostname may be in GlobusResource or RemoteResource.
+// The remote hostname may be in GlobusResource or GridResource.
 // We want this function to be called if at least one is defined,
 // but it will only be called if the one attribute it's registered
 // with is defined. So we register it with an attribute we know will
 // always be present and be a string. We then ignore that attribute
-// and examine GlobusResource and RemoteResource.
+// and examine GlobusResource and GridResource.
 static char *
 format_globusHostAndJM( char  *ignore_me, AttrList *ad )
 {
@@ -1058,8 +1058,8 @@ format_globusHostAndJM( char  *ignore_me, AttrList *ad )
 	bool new_syntax;
 	char *grid_type = NULL;
 
-	if ( ad->LookupString( ATTR_REMOTE_RESOURCE, &attr_value ) ) {
-			// If ATTR_REMOTE_RESOURCE exists, skip past the initial
+	if ( ad->LookupString( ATTR_GRID_RESOURCE, &attr_value ) ) {
+			// If ATTR_GRID_RESOURCE exists, skip past the initial
 			// '<job type> '.
 		resource_name = strchr( attr_value, ' ' );
 		if ( resource_name ) {
@@ -1069,7 +1069,7 @@ format_globusHostAndJM( char  *ignore_me, AttrList *ad )
 		}
 		new_syntax = true;
 	} else {
-			// ATTR_REMOTE_RESOURCE doesn't exist, try ATTR_GLOBUS_RESOURCE
+			// ATTR_GRID_RESOURCE doesn't exist, try ATTR_GLOBUS_RESOURCE
 		ad->LookupString( ATTR_GLOBUS_RESOURCE, &attr_value );
 		resource_name = attr_value;
 		new_syntax = false;
@@ -1109,7 +1109,7 @@ format_globusHostAndJM( char  *ignore_me, AttrList *ad )
 			strcpy( jm, "Fork" );
 
 			if ( new_syntax ) {
-					// RemoteResource is of the form '<service url> <jm type>'
+					// GridResource is of the form '<service url> <jm type>'
 					// Find the space, zero it out, and grab the jm type from
 					// the end (if it's non-empty).
 				tmp = strchr( resource_name, ' ' );
@@ -1122,7 +1122,7 @@ format_globusHostAndJM( char  *ignore_me, AttrList *ad )
 					}
 				}
 			} else {
-					// No ATTR_REMOTE_RESOURCE, so the jm type is stored as
+					// No ATTR_GRID_RESOURCE, so the jm type is stored as
 					// a separate attribute.
 				ad->LookupString( ATTR_GLOBUS_JOBMANAGER_TYPE, jm,
 								  sizeof(jm) );
@@ -2001,7 +2001,7 @@ doRunAnalysisToBuffer( ClassAd *request )
 	/* Attributes to check for grid universe matchmaking */ 
 	const char * ads_to_check[] = { ATTR_GLOBUS_RESOURCE,
 									ATTR_REMOTE_SCHEDD,
-									ATTR_REMOTE_RESOURCE };
+									ATTR_GRID_RESOURCE };
 
 	request->LookupInteger( ATTR_JOB_UNIVERSE, universe );
 	bool uses_matchmaking = false;

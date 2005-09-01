@@ -138,7 +138,7 @@ bool MustExpandJobAd( const ClassAd *job_ad ) {
 	job_ad->LookupBool(ATTR_JOB_MUST_EXPAND, must_expand);
 	if ( !must_expand ) {
 		MyString resource_name;
-		if ( job_ad->LookupString( ATTR_REMOTE_RESOURCE, resource_name ) ) {
+		if ( job_ad->LookupString( ATTR_GRID_RESOURCE, resource_name ) ) {
 			if ( strstr(resource_name.Value(),"$$") ) {
 				must_expand = true;
 			}
@@ -642,7 +642,7 @@ doContactSchedd()
 				if ( job_type != NULL ) {
 					if ( MustExpandJobAd( next_ad ) ) {
 						// Get the expanded ClassAd from the schedd, which
-						// has the RemoteResource filled in with info from
+						// has the GridResource filled in with info from
 						// the matched ad.
 						delete next_ad;
 						next_ad = NULL;

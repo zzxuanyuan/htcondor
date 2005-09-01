@@ -115,7 +115,7 @@ bool INFNBatchJobAdMatch( const ClassAd *job_ad ) {
 	MyString resource;
 	if ( job_ad->LookupInteger( ATTR_JOB_UNIVERSE, universe ) &&
 		 universe == CONDOR_UNIVERSE_GRID &&
-		 job_ad->LookupString( ATTR_REMOTE_RESOURCE, resource ) &&
+		 job_ad->LookupString( ATTR_GRID_RESOURCE, resource ) &&
 		 strncasecmp( resource.Value(), "blah", 4 ) == 0 ) {
 
 		return true;
@@ -167,7 +167,7 @@ INFNBatchJob::INFNBatchJob( ClassAd *classad )
 	}
 
 	buff[0] = '\0';
-	jobAd->LookupString( ATTR_REMOTE_JOB_ID, buff );
+	jobAd->LookupString( ATTR_GRID_JOB_ID, buff );
 	if ( buff[0] != '\0' ) {
 		SetRemoteJobId( strchr( buff, ' ' ) + 1 );
 	} else {

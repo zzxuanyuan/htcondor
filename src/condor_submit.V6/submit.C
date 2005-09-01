@@ -3291,7 +3291,7 @@ SetGlobusParams()
 	bool unified_syntax;
 
 		// Does the schedd support the new unified syntax for grid universe
-		// jobs (i.e. RemoteResource and RemoteJobId used for all types)?
+		// jobs (i.e. GridResource and GridJobId used for all types)?
 	CondorVersionInfo vi( MySchedd->version() );
 // TODO This should be set to next-to-be-released version when merged back
 //   into V6_7.
@@ -3350,7 +3350,7 @@ SetGlobusParams()
 				// A missing jobmanager_type for GT4 should leave have
 				// nothing after the globushost (no trailing space) or have
 				// a pair of quotes to denote an empty string
-			sprintf( buffer, "%s = \"%s %s%s%s\"", ATTR_REMOTE_RESOURCE,
+			sprintf( buffer, "%s = \"%s %s%s%s\"", ATTR_GRID_RESOURCE,
 				 stricmp(JobGridType,"globus") == MATCH ? "gt2" : JobGridType,
 				 globushost, stricmp( JobGridType, "gt4" ) == MATCH ? " " : "",
 				 jobmanager_type ? jobmanager_type : "" );
@@ -3445,7 +3445,7 @@ SetGlobusParams()
 		remote_pool = condor_param( RemotePool, ATTR_REMOTE_POOL );
 
 		if ( unified_syntax ) {
-			sprintf( buffer, "%s = \"condor %s %s\"", ATTR_REMOTE_RESOURCE,
+			sprintf( buffer, "%s = \"condor %s %s\"", ATTR_GRID_RESOURCE,
 					 remote_pool ? remote_pool : "''", remote_schedd );
 			InsertJobExpr( buffer );
 		} else {

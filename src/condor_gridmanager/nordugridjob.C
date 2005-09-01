@@ -148,7 +148,7 @@ bool NordugridJobAdMatch( const ClassAd *job_ad ) {
 	MyString resource;
 	if ( job_ad->LookupInteger( ATTR_JOB_UNIVERSE, universe ) &&
 		 universe == CONDOR_UNIVERSE_GRID &&
-		 job_ad->LookupString( ATTR_REMOTE_RESOURCE, resource ) &&
+		 job_ad->LookupString( ATTR_GRID_RESOURCE, resource ) &&
 		 strncasecmp( resource.Value(), "nordugrid ", 10 ) == 0 ) {
 
 		return true;
@@ -190,7 +190,7 @@ NordugridJob::NordugridJob( ClassAd *classad )
 	}
 
 	buff[0] = '\0';
-	jobAd->LookupString( ATTR_REMOTE_RESOURCE, buff );
+	jobAd->LookupString( ATTR_GRID_RESOURCE, buff );
 	if ( buff[0] != '\0' ) {
 		const char *token;
 		MyString str = buff;
@@ -199,7 +199,7 @@ NordugridJob::NordugridJob( ClassAd *classad )
 
 		token = str.GetNextToken( " ", false );
 		if ( !token || stricmp( token, "nordugrid" ) ) {
-			error_string = "RemoteResource not of type nordugrid";
+			error_string = "GridResource not of type nordugrid";
 			goto error_exit;
 		}
 
@@ -207,12 +207,12 @@ NordugridJob::NordugridJob( ClassAd *classad )
 		if ( token && *token ) {
 			resourceManagerString = strdup( token );
 		} else {
-			error_string = "RemoteResource missing server name";
+			error_string = "GridResource missing server name";
 			goto error_exit;
 		}
 
 	} else {
-		error_string = "RemoteResource is not set in the job ad";
+		error_string = "GridResource is not set in the job ad";
 		goto error_exit;
 	}
 
@@ -220,7 +220,7 @@ NordugridJob::NordugridJob( ClassAd *classad )
 	myResource->RegisterJob( this );
 
 	buff[0] = '\0';
-	jobAd->LookupString( ATTR_REMOTE_JOB_ID, buff );
+	jobAd->LookupString( ATTR_GRID_JOB_ID, buff );
 	SetRemoteJobId( strrchr( buff, ' ' ) );
 
 	return;

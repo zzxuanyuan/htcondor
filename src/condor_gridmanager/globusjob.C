@@ -301,7 +301,7 @@ bool GlobusJobAdMatch( const ClassAd *job_ad ) {
 	MyString resource;
 	if ( job_ad->LookupInteger( ATTR_JOB_UNIVERSE, universe ) &&
 		 universe == CONDOR_UNIVERSE_GRID &&
-		 job_ad->LookupString( ATTR_REMOTE_RESOURCE, resource ) &&
+		 job_ad->LookupString( ATTR_GRID_RESOURCE, resource ) &&
 		 strncasecmp( resource.Value(), "gt2 ", 4 ) == 0 ) {
 
 		return true;
@@ -807,7 +807,7 @@ GlobusJob::GlobusJob( ClassAd *classad )
 	jobAd->LookupInteger( ATTR_GLOBUS_GRAM_VERSION, jmVersion );
 
 	buff[0] = '\0';
-	jobAd->LookupString( ATTR_REMOTE_RESOURCE, buff );
+	jobAd->LookupString( ATTR_GRID_RESOURCE, buff );
 	if ( buff[0] != '\0' ) {
 		const char *token;
 		MyString str = buff;
@@ -816,7 +816,7 @@ GlobusJob::GlobusJob( ClassAd *classad )
 
 		token = str.GetNextToken( " ", false );
 		if ( !token || stricmp( token, "gt2" ) ) {
-			error_string = "RemoteResource not of type gt2";
+			error_string = "GridResource not of type gt2";
 			goto error_exit;
 		}
 
@@ -824,12 +824,12 @@ GlobusJob::GlobusJob( ClassAd *classad )
 		if ( token && *token ) {
 			resourceManagerString = strdup( token );
 		} else {
-			error_string = "RemoteResource missing GRAM service name";
+			error_string = "GridResource missing GRAM service name";
 			goto error_exit;
 		}
 
 	} else {
-		error_string = "RemoteResource is not set in the job ad";
+		error_string = "GridResource is not set in the job ad";
 		goto error_exit;
 	}
 
@@ -848,7 +848,7 @@ GlobusJob::GlobusJob( ClassAd *classad )
 	}
 
 	buff[0] = '\0';
-	jobAd->LookupString( ATTR_REMOTE_JOB_ID, buff );
+	jobAd->LookupString( ATTR_GRID_JOB_ID, buff );
 	if ( buff[0] != '\0' ) {
 		if ( jmVersion == GRAM_V_UNKNOWN ) {
 			dprintf(D_ALWAYS,

@@ -127,7 +127,7 @@ bool CondorJobAdMatch( const ClassAd *job_ad ) {
 	MyString resource;
 	if ( job_ad->LookupInteger( ATTR_JOB_UNIVERSE, universe ) &&
 		 universe == CONDOR_UNIVERSE_GRID &&
-		 job_ad->LookupString( ATTR_REMOTE_RESOURCE, resource ) &&
+		 job_ad->LookupString( ATTR_GRID_RESOURCE, resource ) &&
 		 strncasecmp( resource.Value(), "condor ", 7 ) == 0 ) {
 
 		return true;
@@ -201,7 +201,7 @@ CondorJob::CondorJob( ClassAd *classad )
 	}
 
 	buff[0] = '\0';
-	jobAd->LookupString( ATTR_REMOTE_RESOURCE, buff );
+	jobAd->LookupString( ATTR_GRID_RESOURCE, buff );
 	if ( buff[0] != '\0' ) {
 		const char *token;
 		MyString str = buff;
@@ -210,7 +210,7 @@ CondorJob::CondorJob( ClassAd *classad )
 
 		token = str.GetNextToken( " ", false );
 		if ( !token || stricmp( token, "condor" ) ) {
-			error_string = "RemoteResource not of type condor";
+			error_string = "GridResource not of type condor";
 			goto error_exit;
 		}
 
@@ -225,17 +225,17 @@ CondorJob::CondorJob( ClassAd *classad )
 		if ( token && *token ) {
 			remoteScheddName = strdup( token );
 		} else {
-			error_string = "RemoteResource missing schedd name";
+			error_string = "GridResource missing schedd name";
 			goto error_exit;
 		}
 
 	} else {
-		error_string = "RemoteResource is not set in the job ad";
+		error_string = "GridResource is not set in the job ad";
 		goto error_exit;
 	}
 
 	buff[0] = '\0';
-	jobAd->LookupString( ATTR_REMOTE_JOB_ID, buff );
+	jobAd->LookupString( ATTR_GRID_JOB_ID, buff );
 	if ( buff[0] != '\0' ) {
 		SetRemoteJobId( strrchr( buff, ' ' )+1 );
 	} else {
@@ -1365,7 +1365,7 @@ ClassAd *CondorJob::buildSubmitAd()
 	submit_ad->Delete( ATTR_OWNER );
 	submit_ad->Delete( ATTR_REMOTE_SCHEDD );
 	submit_ad->Delete( ATTR_REMOTE_POOL );
-	submit_ad->Delete( ATTR_REMOTE_RESOURCE );
+	submit_ad->Delete( ATTR_GRID_RESOURCE );
 	submit_ad->Delete( ATTR_JOB_MATCHED );
 	submit_ad->Delete( ATTR_JOB_MANAGED );
 	submit_ad->Delete( ATTR_MIRROR_ACTIVE );

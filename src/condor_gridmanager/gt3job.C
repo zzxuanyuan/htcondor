@@ -170,7 +170,7 @@ bool GT3JobAdMatch( const ClassAd *job_ad ) {
 	MyString resource;
 	if ( job_ad->LookupInteger( ATTR_JOB_UNIVERSE, universe ) &&
 		 universe == CONDOR_UNIVERSE_GRID &&
-		 job_ad->LookupString( ATTR_REMOTE_RESOURCE, resource ) &&
+		 job_ad->LookupString( ATTR_GRID_RESOURCE, resource ) &&
 		 strncasecmp( resource.Value(), "gt3 ", 4 ) == 0 ) {
 
 		return true;
@@ -333,7 +333,7 @@ GT3Job::GT3Job( ClassAd *classad )
 	gahp->setTimeout( gahpCallTimeout );
 
 	buff[0] = '\0';
-	jobAd->LookupString( ATTR_REMOTE_RESOURCE, buff );
+	jobAd->LookupString( ATTR_GRID_RESOURCE, buff );
 	if ( buff[0] != '\0' ) {
 		const char *token;
 		MyString str = buff;
@@ -342,7 +342,7 @@ GT3Job::GT3Job( ClassAd *classad )
 
 		token = str.GetNextToken( " ", false );
 		if ( !token || stricmp( token, "gt3" ) ) {
-			error_string = "RemoteResource not of type gt3";
+			error_string = "GridResource not of type gt3";
 			goto error_exit;
 		}
 
@@ -350,12 +350,12 @@ GT3Job::GT3Job( ClassAd *classad )
 		if ( token && *token ) {
 			resourceManagerString = strdup( token );
 		} else {
-			error_string = "RemoteResource missing GRAM Service URL";
+			error_string = "GridResource missing GRAM Service URL";
 			goto error_exit;
 		}
 
 	} else {
-		error_string = "RemoteResource is not set in the job ad";
+		error_string = "GridResource is not set in the job ad";
 		goto error_exit;
 	}
 
@@ -373,7 +373,7 @@ GT3Job::GT3Job( ClassAd *classad )
 	}
 
 	buff[0] = '\0';
-	jobAd->LookupString( ATTR_REMOTE_JOB_ID, buff );
+	jobAd->LookupString( ATTR_GRID_JOB_ID, buff );
 	if ( buff[0] != '\0' ) {
 		SetRemoteJobId( strchr( buff, ' ' ) + 1 );
 		job_already_submitted = true;
