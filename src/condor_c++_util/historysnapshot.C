@@ -57,7 +57,6 @@ HistorySnapshot::sendQuery(SQLQuery *queryhor,
   st = jqDB->connectDB();
   
   if(st == FAILURE) {
-    printf("Error connecting to the database: %s\n", jqDB->getDBError());
     return FAILURE;
   }
 
