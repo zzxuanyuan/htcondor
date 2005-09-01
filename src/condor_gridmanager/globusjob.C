@@ -596,6 +596,8 @@ GlobusJob::GlobusJob( ClassAd *classad )
 	char iwd[_POSIX_PATH_MAX];
 	bool job_already_submitted = false;
 	char *error_string = NULL;
+	char *gahp_path = NULL;
+	char *gahp_args = NULL;
 
 	RSL = NULL;
 	callbackRegistered = false;
@@ -786,9 +788,18 @@ GlobusJob::GlobusJob( ClassAd *classad )
 		goto error_exit;
 	}
 
-	snprintf( buff, sizeof(buff), "GLOBUS/%s",
+	gahp_path = param( "GT2_GAHP" );
+	if ( gahp_path == NULL ) {
+		gahp_path = param( "GAHP" );
+		gahp_args = param( "GAHP_ARGS" );
+		if ( gahp_path == NULL ) {
+			error_string = "GT2_GAHP not defined";
+			goto error_exit;
+		}
+	}
+	snprintf( buff, sizeof(buff), "GT2/%s",
 			  jobProxy->subject->subject_name );
-	gahp = new GahpClient( buff );
+	gahp = new GahpClient( buff, gahp_path, gahp_args );
 	gahp->setNotificationTimerId( evaluateStateTid );
 	gahp->setMode( GahpClient::normal );
 	gahp->setTimeout( gahpCallTimeout );
@@ -911,6 +922,12 @@ GlobusJob::GlobusJob( ClassAd *classad )
 	return;
 
  error_exit:
+	if ( gahp_path ) {
+		free( gahp_path );
+	}
+	if ( gahp_args ) {
+		free( gahp_args );
+	}
 	gmState = GM_HOLD;
 	if ( error_string ) {
 		jobAd->Assign( ATTR_HOLD_REASON, error_string );
