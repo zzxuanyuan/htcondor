@@ -300,7 +300,7 @@ ConvertOldJobAdAttrs( ClassAd *job_ad )
 				new_value.sprintf( "%s %s", grid_type.Value(),
 								   attr.Value() );
 				if ( grid_type == "gt4" ) {
-					attr = "''";
+					attr = "Fork";
 					job_ad->LookupString( ATTR_GLOBUS_JOBMANAGER_TYPE,
 										  attr );
 					new_value.sprintf_cat( " %s", attr.Value() );
@@ -365,8 +365,15 @@ ConvertOldJobAdAttrs( ClassAd *job_ad )
 
 		if ( grid_type == "condor" ) {
 
+			static char *local_pool = NULL;
+
+			if ( local_pool == NULL ) {
+				DCCollector collector;
+				local_pool = strdup( collector.name() );
+			}
+
 			MyString schedd;
-			MyString pool = "''";
+			MyString pool = local_pool;
 			MyString jobid = "";
 			MyString new_value;
 
@@ -374,8 +381,8 @@ ConvertOldJobAdAttrs( ClassAd *job_ad )
 				 job_ad->LookupString( ATTR_REMOTE_SCHEDD, schedd ) ) {
 
 				job_ad->LookupString( ATTR_REMOTE_POOL, pool );
-				new_value.sprintf( "condor %s %s", pool.Value(),
-								   schedd.Value() );
+				new_value.sprintf( "condor %s %s", schedd.Value(),
+								   pool.Value() );
 				job_ad->Assign( ATTR_GRID_RESOURCE, new_value.Value() );
 				JobQueueDirty = true;
 			}
@@ -396,8 +403,8 @@ ConvertOldJobAdAttrs( ClassAd *job_ad )
 					pool = "";
 					job_ad2->LookupString( ATTR_REMOTE_SCHEDD, schedd );
 					job_ad2->LookupString( ATTR_REMOTE_POOL, pool );
-					new_value.sprintf( "condor %s %s %s", pool.Value(),
-									   schedd.Value(), jobid.Value() );
+					new_value.sprintf( "condor %s %s %s", schedd.Value(),
+									   pool.Value(), jobid.Value() );
 					job_ad->Assign( ATTR_GRID_JOB_ID,
 									new_value.Value() );
 					job_ad->AssignExpr( ATTR_REMOTE_JOB_ID, "Undefined" );

@@ -3325,6 +3325,8 @@ SetGlobusParams()
 						 jobmanager_type );
 				InsertJobExpr (buffer, false );
 			}
+		} else if (stricmp (JobGridType, "gt4") == MATCH ) {
+			jobmanager_type = strdup ("Fork");
 		}
 
 
@@ -3347,13 +3349,11 @@ SetGlobusParams()
 		}
 
 		if ( unified_syntax ) {
-				// A missing jobmanager_type for GT4 should leave have
-				// nothing after the globushost (no trailing space) or have
-				// a pair of quotes to denote an empty string
+				// GT4 jobs need the extra jobmanager_type field.
 			sprintf( buffer, "%s = \"%s %s%s%s\"", ATTR_GRID_RESOURCE,
 				 stricmp(JobGridType,"globus") == MATCH ? "gt2" : JobGridType,
 				 globushost, stricmp( JobGridType, "gt4" ) == MATCH ? " " : "",
-				 jobmanager_type ? jobmanager_type : "" );
+				 stricmp(JobGridType, "gt4") == MATCH ? jobmanager_type : "" );
 			InsertJobExpr( buffer );
 		} else {
 			sprintf( buffer, "%s = \"%s\"", ATTR_GLOBUS_RESOURCE, globushost );
@@ -3442,11 +3442,17 @@ SetGlobusParams()
 			exit( 1 );
 		}
 
-		remote_pool = condor_param( RemotePool, ATTR_REMOTE_POOL );
+		if ( !(remote_pool = condor_param( RemotePool, ATTR_REMOTE_POOL ) ) &&
+			 unified_syntax ) {
+			fprintf(stderr, "\nERROR: Condor grid jobs require a \"%s\" parameter\n",
+					RemotePool );
+			DoCleanup( 0, 0, NULL );
+			exit( 1 );
+		}
 
 		if ( unified_syntax ) {
 			sprintf( buffer, "%s = \"condor %s %s\"", ATTR_GRID_RESOURCE,
-					 remote_pool ? remote_pool : "''", remote_schedd );
+					 remote_schedd, remote_pool );
 			InsertJobExpr( buffer );
 		} else {
 			sprintf( buffer, "%s = \"%s\"", ATTR_REMOTE_SCHEDD,

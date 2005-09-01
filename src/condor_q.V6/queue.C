@@ -1115,9 +1115,7 @@ format_globusHostAndJM( char  *ignore_me, AttrList *ad )
 				tmp = strchr( resource_name, ' ' );
 				if ( tmp ) {
 					*tmp = '\0';
-					if ( tmp[1] != '\0' && strcmp( tmp, "''" ) &&
-						 strcmp( tmp, "\"\"" ) ) {
-
+					if ( tmp[1] != '\0' ) {
 						strcpy( jm, &tmp[1] );
 					}
 				}

@@ -383,6 +383,9 @@ GT4Job::GT4Job( ClassAd *classad )
 		token = str.GetNextToken( " ", false );
 		if ( token && *token ) {
 			jobmanagerType = strdup( token );
+		} else {
+			error_string = "GridResource missing JobManager type";
+			goto error_exit;
 		}
 
 	} else {
@@ -804,10 +807,6 @@ int GT4Job::doEvaluateState()
 					myResource->CancelSubmit(this);
 					gmState = GM_HOLD;
 					break;
-				}
-				
-				if (!jobmanagerType) {
-					jobmanagerType = strdup ( "Fork" );
 				}
 
 				rc = gahp->gt4_gram_client_job_create( 

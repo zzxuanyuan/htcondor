@@ -215,17 +215,18 @@ CondorJob::CondorJob( ClassAd *classad )
 		}
 
 		token = str.GetNextToken( " ", false );
-		if ( token && *token && strcmp( token, "''" ) &&
-			 strcmp( token, "\"\"" ) ) {
-
-			remotePoolName = strdup( token );
-		}
-
-		token = str.GetNextToken( " ", false );
 		if ( token && *token ) {
 			remoteScheddName = strdup( token );
 		} else {
 			error_string = "GridResource missing schedd name";
+			goto error_exit;
+		}
+
+		token = str.GetNextToken( " ", false );
+		if ( token && *token ) {
+			remotePoolName = strdup( token );
+		} else {
+			error_string = "GridResource missing pool name";
 			goto error_exit;
 		}
 
@@ -1123,9 +1124,8 @@ void CondorJob::SetRemoteJobId( const char *job_id )
 			return;
 		}
 
-		full_job_id.sprintf( "condor %s %s %s",
-							 remotePoolName ? remotePoolName : "",
-							 remoteScheddName, job_id );
+		full_job_id.sprintf( "condor %s %s %s", remoteScheddName,
+							 remotePoolName, job_id );
 	} else {
 		remoteJobId.cluster = 0;
 	}
