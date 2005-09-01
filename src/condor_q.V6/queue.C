@@ -80,30 +80,16 @@ static void exec_db_query(char *quillName, char *dbIpAddr, char *dbName,char *qu
 /* build database connection string */
 static char * getDBConnStr(char *&, char *&, char *&, char *&);
 
-/* reconcile the schedd list and quill list with the following algorithms:
-   1. if a corresponding schedd can't be found for a quill database, this means the schedd is 
-      filtered out by intention. There the quill database is also removed from the list for query
-	  to propagate the filtering effect.
-   2. if a corresponding schedd is found for a quill database, we remove the schedd from the list
-      because it suffice to query only the quill database which has the same information.
-   3. finally concatenate the two remaining lists together, the result is all schedds or quill 
-      databases that will be queried.
-*/
-static  void reconcileAdList(ClassAdList &scheddList, ClassAdList &quillList);
-
-
 #endif /* WANT_QUILL */ 
+
+/* get the quill address for the quillName specified */
+static QueryResult getQuillAddrFromCollector(char *quillName, char *&quillAddr);
 
 /* avgqueuetime is used to indicate a request to query average wait time for uncompleted jobs in queue */
 static  bool avgqueuetime = false;
 
 /* directDBquery means we will just run a database query and return results directly to user */
 static  bool directDBquery = false;
-
-/* query for quill databases only */
-static	CondorQuery	quillQuery(SCHEDD_AD);
-
-static	ClassAdList	quillList;
 
 static 	int verbose = 0, summarize = 1, global = 0, show_io = 0, dag = 0, show_held = 0;
 static  int use_xml = 0;
@@ -112,7 +98,8 @@ static  bool expert = false;
 static 	int malformed, unexpanded, running, idle, held;
 
 static	CondorQ 	Q;
-static	QueryResult result;
+static	QueryResult result, result2;
+
 static	CondorQuery	scheddQuery(SCHEDD_AD);
 static	CondorQuery submittorQuery(SUBMITTOR_AD);
 
@@ -182,7 +169,6 @@ template class ExtArray<PrioEntry>;
 	
 char return_buff[4096];
 
-
 char *quillName = NULL;
 char *quillAddr = NULL;
 char *quillMachine = NULL;
@@ -227,14 +213,14 @@ static bool checkDBconfig() {
 		return FALSE;
 	}
 
-	str2 = param("DATABASE_IPADDRESS");
+	str2 = param("QUILL_DB_IP_ADDR");
 
 	if (!str2) {
 		free(str1);
 		return FALSE;
 	}
 
-	str3 = param("DATABASE_NAME");
+	str3 = param("QUILL_DB_NAME");
 	
 	if (!str3) {
 		free(str1); 
@@ -242,7 +228,7 @@ static bool checkDBconfig() {
 		return FALSE;
 	}
 
-	str4 = param("QUILL_QUERY_PASSWORD");
+	str4 = param("QUILL_DB_QUERY_PASSWORD");
 	if (!str4) {
 		free(str1); 
 		free(str2);
@@ -268,7 +254,6 @@ int main (int argc, char **argv)
 	char		scheddMachine[64];
 	char		*tmp;
 	bool        useDB; /* Is there a database to query for a schedd */
-	QueryResult result2 = Q_OK;
 	int         retval;
 
 	Collectors = NULL;
@@ -486,30 +471,11 @@ int main (int argc, char **argv)
 			freeConnectionStrings();
 			exit( 1 );
 		}
-
-#if WANT_QUILL
-			/* build query for obtaining all quill daemons */
-		sprintf( constraint, "%s =!= UNDEFINED", "DatabaseIpAddr");
-		result = quillQuery.addORConstraint( constraint );
-		if( result != Q_OK ) {
-			fprintf( stderr, "Error: Couldn't add constraint %s\n", constraint);
-			freeConnectionStrings();
-			exit( 1 );
-		}
-#endif /* WANT_QUILL */
 	}
 
 	// get the list of ads from the collector
 	if( querySchedds ) { 
-		result = Collectors->query ( scheddQuery, scheddList );
-		
-#if WANT_QUILL
-			/* if global query, quill ad are queried seperately */
-		if (global) {
-			result2 = Collectors->query ( quillQuery, quillList );
-		}
-#endif /* WANT_QUILL */
-
+		result = Collectors->query ( scheddQuery, scheddList );		
 	} else {
 		result = Collectors->query ( submittorQuery, scheddList );
 	}
@@ -535,64 +501,38 @@ int main (int argc, char **argv)
 		freeConnectionStrings();
 		exit( 1 );
 	}
-	
-		/* check the return value of the querying of quill ads */
-	switch( result2 ) {
-	case Q_OK:
-		break;
-	case Q_COMMUNICATION_ERROR: 
-			// if we're not an expert, we want verbose output
-		printNoCollectorContact( stderr, pool ? pool->name() : NULL,
-								 !expert ); 
-		freeConnectionStrings();
-		exit( 1 );
-	case Q_NO_COLLECTOR_HOST:
-		ASSERT( pool );
-		fprintf( stderr, "Error: Can't contact condor_collector: "
-				 "invalid hostname: %s\n", pool->name() );
-		freeConnectionStrings();
-		exit( 1 );
-	default:
-		fprintf( stderr, "Error fetching ads: %s\n", 
-				 getStrQueryResult(result2) );
-		freeConnectionStrings();
-		exit( 1 );
-	}
 
-#if WANT_QUILL
-		/* merge the schedd list and quill list so that filtering on schedd list is 
-		   propagated to quill list and no redundant query happens */
-	if (global) {
-		reconcileAdList(scheddList, quillList);
-	}
-#endif /* WANT_QUILL */
+		/*if(querySchedds && scheddList.MyLength() == 0) {
+		  result = Collectors->query(quillQuery, quillList);
+		}*/
 
 	first = true;
 	// get queue from each ScheddIpAddr in ad
 	scheddList.Open();	
 	while ((ad = scheddList.Next()))
 	{
-
 		int flag=1;
 
 		freeConnectionStrings();
 
 #if WANT_QUILL
 			// get the address of the database
-		if (ad->LookupString("DatabaseIpAddr", &dbIpAddr) &&
-			ad->LookupString(ATTR_NAME, &quillName) &&
-			ad->LookupString("DatabaseName", &dbName) && 
-			ad->LookupString("QueryPassword", &queryPassword) &&
-			(!ad->LookupInteger("IsRemotelyQueryable",flag) || flag)) {
+		if (ad->LookupString(ATTR_QUILL_DB_IP_ADDR, &dbIpAddr) &&
+			ad->LookupString(ATTR_QUILL_NAME, &quillName) &&
+			ad->LookupString(ATTR_QUILL_DB_NAME, &dbName) && 
+			ad->LookupString(ATTR_QUILL_DB_QUERY_PASSWORD, &queryPassword) &&
+			(!ad->LookupInteger(ATTR_QUILL_IS_REMOTELY_QUERYABLE,flag) || flag)) {
+
 			useDB = TRUE;
 
+
 				/* get the quill info for fail-over processing */
-			ASSERT(ad->LookupString(ATTR_MY_ADDRESS, &quillAddr));
+			//ASSERT(ad->LookupString(ATTR_MY_ADDRESS, &quillAddr));
 			ASSERT(ad->LookupString(ATTR_MACHINE, &quillMachine));
 
 				/* get the schedd info for fail-over processing */
 			ASSERT(ad->LookupString(ATTR_SCHEDD_IP_ADDR, scheddAddr));
-			ASSERT(ad->LookupString(ATTR_SCHEDD_NAME, scheddName));
+			ASSERT(ad->LookupString(ATTR_NAME, scheddName));
 			ASSERT(ad->LookupString(ATTR_MACHINE, scheddMachine));
 
 		}
@@ -637,9 +577,19 @@ int main (int argc, char **argv)
 								queryPassword,
 								TRUE )) {
 
-						printf( "-- Database at %s not reachable \n\t- Failing over to the quill daemon at %s--\n", dbIpAddr, quillAddr);
-					if  (!show_queue(quillAddr, quillName, quillMachine, NULL, FALSE)) {
-						printf( "-- Quill daemon at %s not reachable \n\t- Failing over to the schedd at %s --\n", quillAddr, scheddAddr);
+					result2 = getQuillAddrFromCollector(quillName, quillAddr);
+
+					printf( "-- Database at %s not reachable \n\t- "
+							"Failing over to the quill daemon at %s--\n", 
+							dbIpAddr, quillAddr);
+					
+					if((result2 != Q_OK) ||
+					   !quillAddr ||
+					   !show_queue(quillAddr, quillName, quillMachine, NULL, FALSE)) {  
+						
+						printf( "-- Quill daemon at %s not reachable \n\t-"
+								"Failing over to the schedd at %s --\n", 
+								quillAddr, scheddAddr);
 						show_queue(scheddAddr, scheddName, scheddMachine, NULL, FALSE);
 					}
 				}
@@ -657,9 +607,19 @@ int main (int argc, char **argv)
 										 dbName, 
 										 queryPassword,
 										 TRUE )) {
-					printf( "-- Database at %s not reachable \n\t- Failing over to the quill daemon at %s--\n", dbIpAddr, quillAddr);
-					if  (!show_queue_buffered(quillAddr, quillName, quillMachine, NULL, FALSE)) {
-						printf( "-- Quill daemon at %s not reachable \n\t- Failing over to the schedd at %s --\n", quillAddr, scheddAddr);
+
+					result2 = getQuillAddrFromCollector(quillName, quillAddr);
+
+					printf( "-- Database at %s not reachable \n\t- "
+							"Failing over to the quill daemon at %s--\n", 
+							dbIpAddr, quillAddr);
+					if((result2 != Q_OK) ||
+					   !quillAddr ||
+					   !show_queue_buffered(quillAddr, quillName, quillMachine, NULL, FALSE)) {
+						
+						printf( "-- Quill daemon at %s not reachable \n\t- "
+								"Failing over to the schedd at %s --\n", 
+								quillAddr, scheddAddr);
 						show_queue_buffered(scheddAddr, scheddName, scheddMachine, NULL, FALSE);
 					}
 				}
@@ -820,10 +780,14 @@ processCommandLineArguments (int argc, char *argv[])
 				exit(1);
 			}
 			sprintf (constraint, "%s == \"%s\"", ATTR_NAME, daemonname);
-			delete [] daemonname;
-
 			scheddQuery.addORConstraint (constraint);
+
+			sprintf (constraint, "%s == \"%s\"", ATTR_QUILL_NAME, daemonname);
+			scheddQuery.addORConstraint (constraint);
+
+			delete [] daemonname;
 			i++;
+//printf("setting querySchedds to true\n");
 			querySchedds = true;
 		} 
 		else
@@ -2492,77 +2456,109 @@ fixSubmittorName( char *name, int niceUser )
 	return NULL;
 }
 
+/* get the quill address for the quillName specified */
+static QueryResult getQuillAddrFromCollector(char *quillName, char *&quillAddr) {
+	QueryResult result = Q_OK;
+	char		constraint[1024];
+	CondorQuery	quillQuery(QUILL_AD);
+	ClassAdList quillList;
+	ClassAd		*ad;
+
+	sprintf (constraint, "%s == \"%s\"", ATTR_NAME, quillName);
+	quillQuery.addORConstraint (constraint);
+
+	result = Collectors->query ( quillQuery, quillList );
+
+	quillList.Open();	
+	while ((ad = quillList.Next())) {
+		ad->LookupString(ATTR_MY_ADDRESS, &quillAddr);
+	}
+	quillList.Close();
+	return result;
+}
+
 #if WANT_QUILL
-static char * getDBConnStr(char *&quillName, char *&databaseIp, char *&databaseName, char *&queryPassword) {
-  char            *host,*port;
-  char            *tmpquillname = NULL, *tmpdatabaseip = NULL, *tmpdatabasename = NULL, *tmpquerypassword = NULL;
 
-  if((!quillName && !(tmpquillname = param("QUILL_NAME"))) ||
-     (!databaseIp && !(tmpdatabaseip = param("DATABASE_IPADDRESS"))) || 
-     (!databaseName && !(tmpdatabasename = param("DATABASE_NAME"))) ||
-     (!queryPassword && !(tmpquerypassword = param("QUILL_QUERY_PASSWORD")))) {
-    fprintf( stderr, "Error: Could not find database related parameter\n");
-    fprintf(stderr, "\n");
-    print_wrapped_text("Extra Info: "
-		       "The most likely cause for this error "
-		       "is that you have not defined QUILL_NAME/DATABASE_IPADDRESS/DATABASE_NAME/QUILL_QUERY_PASSWORD "
-		       "in the condor_config file.  You must "
-		       "define this variable in the config file", stderr);
+static char * getDBConnStr(char *&quillName,
+                           char *&databaseIp,
+                           char *&databaseName,
+                           char *&queryPassword) {
+	char            *host, *port, *dbconn, *ptr_colon;
+	char            *tmpquillname, *tmpdatabaseip, *tmpdatabasename, *tmpquerypassword;
+	int             len, tmp1, tmp2, tmp3;
 
-	if (tmpquillname) {
-		free (tmpquillname);
+	if((!quillName && !(tmpquillname = param("QUILL_NAME"))) ||
+	   (!databaseIp && !(tmpdatabaseip = param("QUILL_DB_IP_ADDR"))) ||
+	   (!databaseName && !(tmpdatabasename = param("QUILL_DB_NAME"))) ||
+	   (!queryPassword && !(tmpquerypassword = param("QUILL_DB_QUERY_PASSWORD")))) {
+		fprintf( stderr, "Error: Could not find database related parameter\n");
+		fprintf(stderr, "\n");
+		print_wrapped_text("Extra Info: "
+                       "The most likely cause for this error "
+                       "is that you have not defined "
+                       "QUILL_NAME/QUILL_DB_IP_ADDR/"
+                       "QUILL_DB_NAME/QUILL_DB_QUERY_PASSWORD "
+                       "in the condor_config file.  You must "
+						   "define this variable in the config file", stderr);
+
+		exit( 1 );
 	}
 
- 	if (tmpdatabaseip) {
-		free (tmpdatabaseip);
+	if(!quillName) {
+		quillName = tmpquillname;
+	}
+	if(!databaseIp) {
+		if(tmpdatabaseip[0] != '<') {
+				//2 for the two brackets and 1 for the null terminator
+			databaseIp = (char *) malloc(strlen(tmpdatabaseip)+3);
+			sprintf(databaseIp, "<%s>", tmpdatabaseip);
+			free(tmpdatabaseip);
+		}
+		else {
+			databaseIp = tmpdatabaseip;
+		}
 	}
 
-  	if (tmpdatabasename) {
-		free (tmpdatabasename);
+	if(!databaseName) {
+		databaseName = tmpdatabasename;
+	}
+	if(!queryPassword) {
+		queryPassword = tmpquerypassword;
 	}
 
-	if (tmpquerypassword) {
-		free (tmpquerypassword);
-	}
+	tmp1 = strlen(databaseName);
+	tmp2 = strlen(queryPassword);
+	len = strlen(databaseIp);
 
-	exit( EXIT_FAILURE );
-  }
+		//the 6 is for the string "host= " or "port= "
+		//the rest is a subset of databaseIp so a size of
+		//databaseIp is more than enough
+	host = (char *) malloc((len+6) * sizeof(char));
+	port = (char *) malloc((len+6) * sizeof(char));
 
-  if(!quillName) {
-	  quillName = tmpquillname;
-  }
-  if(!databaseIp) {
-	  databaseIp = tmpdatabaseip;
-  }
-  if(!databaseName) {
-	  databaseName = tmpdatabasename;
-  }
-  if(!queryPassword) {
-	  queryPassword = tmpquerypassword;
-  }
+		//here we break up the ipaddress:port string and assign the
+		//individual parts to separate string variables host and port
+	ptr_colon = strchr(databaseIp, ':');
+	strcpy(host, "host= ");
+	strncat(host,
+			databaseIp+1,
+			ptr_colon - databaseIp -1);
+	strcpy(port, "port= ");
+	strcat(port, ptr_colon+1);
+	port[strlen(port)-1] = '\0';
 
-	  /* the database ip address is in this format: hostname:port */
-  char *ptr_colon = strchr(databaseIp, ':');
+		//tmp3 is the size of dbconn - its size is estimated to be
+		//(2 * len) for the host/port part, tmp1 + tmp2 for the
+		//password and dbname part and 1024 as a cautiously
+		//overestimated sized buffer
+	tmp3 = (2 * len) + tmp1 + tmp2 + 1024;
+	dbconn = (char *) malloc(tmp3 * sizeof(char));
+	sprintf(dbconn, "%s %s user=quillreader password=%s dbname=%s",
+			host, port, queryPassword, databaseName);
 
-  host = (char *) malloc (7+ptr_colon - databaseIp);
-  port = (char *) malloc (7+ strlen(ptr_colon));
-
-  strcpy(host, "host= ");
-  strncat(host, 
-	  databaseIp+1, 
-	  ptr_colon - databaseIp - 1);
-
-  strcpy(port, "port= ");
-  strcat(port, ptr_colon+1);
-  port[strlen(port)-1] = '\0';
-  
-  char *dbconn = (char *) malloc(128 * sizeof(char));
-  sprintf(dbconn, "%s %s user=quillreader password=%s dbname=%s", host, port, queryPassword, databaseName);
-  
-  free(host);
-  free(port);
-
-  return dbconn;
+	free(host);
+	free(port);
+	return dbconn;
 }
 
 static void exec_db_query(char *quillName, char *dbIpAddr, char *dbName, char *queryPassword) {
@@ -2580,73 +2576,6 @@ static void exec_db_query(char *quillName, char *dbIpAddr, char *dbName, char *q
 		free(dbconn);
 	}
 
-}
-
-static int
-attHashFunction (const MyString &str, int numBuckets)
-{
-        int i, len = str.Length() - 1, hashVal = 0;
-
-		for (i = 0; i <= len; i++) {
-			hashVal += str[i];
-		}
-
-        return (hashVal % numBuckets);
-}
-
-typedef HashTable <MyString, ClassAd *> ScheddAdHashTable;
-
-static void reconcileAdList(ClassAdList &scheddList, ClassAdList &quillList) {
-	ClassAd *ad, *tmp;
-	char    scheddName[64];
-	int     rc;
-
-	ScheddAdHashTable table(200, attHashFunction, updateDuplicateKeys);
-
-		/* build a hash table of schedd names */
-	scheddList.Open();
-	while ((ad = scheddList.Next())) {
-		if (ad->LookupString(ATTR_NAME, scheddName))
-			table.insert(MyString(scheddName), ad);
-		else {
-			fprintf(stderr, "Name not found in schedd Ad\n");
-			exit(EXIT_FAILURE);
-		}
-	}
-	scheddList.Close();
-
-		/* go through the quill ad list, for each ad, look up it's schedd name
-		   in the schedd hash table. If the name is found in the hash table, 
-		   we remove the ad in the schedd list because we can query the quill
-		   database for the same job info. If the name is not found in the 
-		   hash table, we remove the ad in the quill list in order to propagate 
-		   the filter on schedd list since if the absence of a schedd ad means 
-		   that the schedd does not satisfy the original query constraint - in
-		   this case, the corresponding quill database should also not be queried 
-		*/
-
-	quillList.Open();
-	while ((ad = quillList.Next())) {
-		if (ad->LookupString(ATTR_SCHEDD_NAME, scheddName)) {
-			rc = table.lookup(MyString(scheddName), tmp);
-			if (rc == 0 && tmp != NULL) {
-				scheddList.Delete(tmp);
-			} else {
-				quillList.Delete(ad);
-			}
-		} else {
-			fprintf(stderr, "Schedd Name not found in quill Ad\n");
-			exit(EXIT_FAILURE);
-		}
-	}
-	quillList.Close();
-
-		/* now merge the remaining ads in quillList into scheddList */
-	quillList.Open();
-	while ((ad = quillList.Next())) {
-		scheddList.Insert(ad);
-	}
-	quillList.Close();
 }
 
 #endif /* WANT_QUILL */

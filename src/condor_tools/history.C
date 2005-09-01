@@ -62,7 +62,7 @@ static bool checkDBconfig();
 
 static CollectorList * Collectors = NULL;
 static	QueryResult result;
-static	CondorQuery	quillQuery(SCHEDD_AD);
+static	CondorQuery	quillQuery(QUILL_AD);
 static	ClassAdList	quillList;
 
 int
@@ -144,9 +144,12 @@ main(int argc, char* argv[])
 							   stderr);
 			exit(1);
 		}
-		sprintf (tmp, "%s == \"%s\"", ATTR_NAME, quillName);      
-		
+		sprintf (tmp, "%s == \"%s\"", ATTR_NAME, quillName);      		
 		quillQuery.addORConstraint (tmp);
+
+                sprintf (tmp, "%s == \"%s\"", ATTR_SCHEDD_NAME, quillName);
+                quillQuery.addORConstraint (tmp);
+
 		remotequill = true;
 		readfromfile = false;
     }
@@ -260,10 +263,10 @@ main(int argc, char* argv[])
 		  while ((ad = quillList.Next())) {
 				  // get the address of the database
 			  dbIpAddr = dbName = queryPassword = NULL;
-			  if (!ad->LookupString("DatabaseIpAddr", &dbIpAddr) ||
-				  !ad->LookupString("DatabaseName", &dbName) ||
-				  !ad->LookupString("QueryPassword", &queryPassword) || 
-				  (ad->LookupInteger("IsRemotelyQueryable",flag) && !flag)) {
+			  if (!ad->LookupString(ATTR_QUILL_DB_IP_ADDR, &dbIpAddr) ||
+				  !ad->LookupString(ATTR_QUILL_DB_NAME, &dbName) ||
+				  !ad->LookupString(ATTR_QUILL_DB_QUERY_PASSWORD, &queryPassword) || 
+				  (ad->LookupInteger(ATTR_QUILL_IS_REMOTELY_QUERYABLE,flag) && !flag)) {
 				  printf("Error: The quill daemon \"%s\" is not set up "
 						 "for database queries\n", 
 						 quillName);
@@ -279,8 +282,16 @@ main(int argc, char* argv[])
 	  st = historySnapshot->sendQuery(&queryhor, &queryver, longformat);
 		  //if there's a failure here and if we're not posing a query on a 
 		  //remote quill daemon, we should instead query the local file
-	  if(st == FAILURE && !remotequill) {
+	  if(st == FAILURE) {
+	        printf( "-- Database at %s not reachable\n", dbIpAddr);
+		if(!remotequill) {
+		  char *tmp = param("HISTORY");
+		  printf( "--Failing over to the history file at %s instead --\n",tmp);
+		  if(!tmp) {
+			free(tmp);
+		  }
 		  readfromfile = TRUE;
+	  	}
 	  }
 		  // query history table
 	  if (st == HISTORY_EMPTY) {
@@ -365,9 +376,9 @@ static bool checkDBconfig() {
 	char *str1, *str2, *str3, *str4;
 
 	str1 = param("QUILL_NAME");
-	str2 = param("DATABASE_IPADDRESS");
-	str3 = param("DATABASE_NAME");
-	str4 = param("QUILL_QUERY_PASSWORD");
+	str2 = param("QUILL_DB_IP_ADDR");
+	str3 = param("QUILL_DB_NAME");
+	str4 = param("QUILL_DB_QUERY_PASSWORD");
 
 	if(!str1) {
 		return FALSE;
@@ -406,16 +417,16 @@ static char * getDBConnStr(char *&quillName,
   int             len, tmp1, tmp2, tmp3;
 
   if((!quillName && !(tmpquillname = param("QUILL_NAME"))) ||
-     (!databaseIp && !(tmpdatabaseip = param("DATABASE_IPADDRESS"))) ||
-     (!databaseName && !(tmpdatabasename = param("DATABASE_NAME"))) ||
-     (!queryPassword && !(tmpquerypassword = param("QUILL_QUERY_PASSWORD")))) {
+     (!databaseIp && !(tmpdatabaseip = param("QUILL_DB_IP_ADDR"))) ||
+     (!databaseName && !(tmpdatabasename = param("QUILL_DB_NAME"))) ||
+     (!queryPassword && !(tmpquerypassword = param("QUILL_DB_QUERY_PASSWORD")))) {
     fprintf( stderr, "Error: Could not find database related parameter\n");
     fprintf(stderr, "\n");
     print_wrapped_text("Extra Info: " 
                        "The most likely cause for this error "
                        "is that you have not defined "
-					   "QUILL_NAME/DATABASE_IPADDRESS/"
-					   "DATABASE_NAME/QUILL_QUERY_PASSWORD "
+					   "QUILL_NAME/QUILL_DB_IP_ADDR/"
+					   "QUILL_DB_NAME/QUILL_DB_QUERY_PASSWORD "
                        "in the condor_config file.  You must "
                        "define this variable in the config file", stderr);
  
@@ -426,7 +437,15 @@ static char * getDBConnStr(char *&quillName,
 	  quillName = tmpquillname;
   }
   if(!databaseIp) {
-	  databaseIp = tmpdatabaseip;
+	  if(tmpdatabaseip[0] != '<') {
+			  //2 for the two brackets and 1 for the null terminator
+		  databaseIp = (char *) malloc(strlen(tmpdatabaseip)+3);
+		  sprintf(databaseIp, "<%s>", tmpdatabaseip);
+		  free(tmpdatabaseip);
+	  }
+	  else {
+		  databaseIp = tmpdatabaseip;
+	  }
   }
   if(!databaseName) {
 	  databaseName = tmpdatabasename;
@@ -451,7 +470,7 @@ static char * getDBConnStr(char *&quillName,
   strcpy(host, "host= ");
   strncat(host,
           databaseIp+1,
-          ptr_colon - databaseIp - 1);
+          ptr_colon - databaseIp-1);
   strcpy(port, "port= ");
   strcat(port, ptr_colon+1);
   port[strlen(port)-1] = '\0';
