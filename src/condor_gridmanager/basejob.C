@@ -415,13 +415,13 @@ dprintf(D_ALWAYS,"(%d.%d) SetJobLeaseTimers()\n",procID.cluster,procID.proc);
 	}
 }
 
-void BaseJob::UpdateJobLeaseSent( time_t new_expiration_time )
+void BaseJob::UpdateJobLeaseSent( int new_expiration_time )
 {
 dprintf(D_ALWAYS,"(%d.%d) UpdateJobLeaseSent(%d)\n",procID.cluster,procID.proc,(int)new_expiration_time);
-	time_t old_expiration_time = -1;
+	int old_expiration_time = -1;
 
 	jobAd->LookupInteger( ATTR_TIMER_REMOVE_CHECK_SENT,
-						  (int)old_expiration_time );
+						  old_expiration_time );
 
 	if ( new_expiration_time == 0 ) {
 		jobAd->AssignExpr( ATTR_TIMER_REMOVE_CHECK_SENT, "Undefined" );
@@ -435,7 +435,7 @@ dprintf(D_ALWAYS,"(%d.%d) UpdateJobLeaseSent(%d)\n",procID.cluster,procID.proc,(
 	if ( new_expiration_time != old_expiration_time ) {
 
 		jobAd->Assign( ATTR_TIMER_REMOVE_CHECK_SENT,
-					   (int)new_expiration_time );
+					   new_expiration_time );
 
 		requestScheddUpdate( this );
 
@@ -443,12 +443,12 @@ dprintf(D_ALWAYS,"(%d.%d) UpdateJobLeaseSent(%d)\n",procID.cluster,procID.proc,(
 	}
 }
 
-void BaseJob::UpdateJobLeaseReceived( time_t new_expiration_time )
+void BaseJob::UpdateJobLeaseReceived( int new_expiration_time )
 {
-	time_t old_expiration_time = -1;
+	int old_expiration_time = -1;
 dprintf(D_ALWAYS,"(%d.%d) UpdateJobLeaseReceived(%d)\n",procID.cluster,procID.proc,(int)new_expiration_time);
 
-	jobAd->LookupInteger( ATTR_TIMER_REMOVE_CHECK, (int)old_expiration_time );
+	jobAd->LookupInteger( ATTR_TIMER_REMOVE_CHECK, old_expiration_time );
 
 	if ( old_expiration_time == -1 ) {
 		dprintf( D_ALWAYS, "(%d.%d) New lease but no old lease, ignoring!\n",
@@ -458,14 +458,14 @@ dprintf(D_ALWAYS,"(%d.%d) UpdateJobLeaseReceived(%d)\n",procID.cluster,procID.pr
 
 	if ( new_expiration_time < old_expiration_time ) {
 		dprintf( D_ALWAYS, "(%d.%d) New lease expiration (%d) is older than old lease expiration (%d), ignoring!\n",
-				 procID.cluster, procID.proc, (int)new_expiration_time,
-				 (int)old_expiration_time );
+				 procID.cluster, procID.proc, new_expiration_time,
+				 old_expiration_time );
 		return;
 	}
 
 	if ( new_expiration_time != old_expiration_time ) {
 
-		jobAd->Assign( ATTR_TIMER_REMOVE_CHECK, (int)new_expiration_time );
+		jobAd->Assign( ATTR_TIMER_REMOVE_CHECK, new_expiration_time );
 		jobAd->SetDirtyFlag( ATTR_TIMER_REMOVE_CHECK, false );
 
 		SetJobLeaseTimers();

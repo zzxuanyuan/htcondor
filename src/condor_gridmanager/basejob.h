@@ -58,8 +58,8 @@ class BaseJob
 
 	virtual void SetRemoteJobId( const char *job_id );
 
-	void UpdateJobLeaseSent( time_t new_expiration_time );
-	void UpdateJobLeaseReceived( time_t new_expiration_time );
+	void UpdateJobLeaseSent( int new_expiration_time );
+	void UpdateJobLeaseReceived( int new_expiration_time );
 
 	void SetJobLeaseTimers();
 	virtual int JobLeaseSentExpired();
