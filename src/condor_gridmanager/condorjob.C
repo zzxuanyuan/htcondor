@@ -331,7 +331,7 @@ void CondorJob::Reconfig()
 
 int CondorJob::JobLeaseSentExpired()
 {
-dprintf(D_ALWAYS,"(%d.%d) CondorJob::JobLeaseSentExpired()\n",procID.cluster,procID.proc);
+dprintf(D_FULLDEBUG,"(%d.%d) CondorJob::JobLeaseSentExpired()\n",procID.cluster,procID.proc);
 	BaseJob::JobLeaseSentExpired();
 	SetRemoteJobId( NULL );
 	gmState = GM_CLEAR_REQUEST;

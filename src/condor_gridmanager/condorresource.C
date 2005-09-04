@@ -299,7 +299,7 @@ void CondorResource::DoPing( time_t& ping_delay, bool& ping_complete,
 	int num_status_ads = 0;
 	ClassAd **status_ads = NULL;
 
-dprintf(D_ALWAYS,"*** DoPing called\n");
+dprintf(D_FULLDEBUG,"*** DoPing called\n");
 	if ( ping_gahp->isStarted() == false ) {
 		dprintf( D_ALWAYS,"gahp server not up yet, delaying ping\n" );
 		ping_delay = 5;
@@ -336,7 +336,7 @@ void CondorResource::DoUpdateLeases( time_t& update_delay,
 	SimpleList<int> expirations;
 	SimpleList<PROC_ID> updated;
 
-dprintf(D_ALWAYS,"*** DoUpdateLeases called\n");
+dprintf(D_FULLDEBUG,"*** DoUpdateLeases called\n");
 	if ( lease_gahp->isStarted() == false ) {
 		dprintf( D_ALWAYS,"gahp server not up yet, delaying lease update\n" );
 		update_delay = 5;
@@ -367,10 +367,10 @@ dprintf(D_ALWAYS,"*** DoUpdateLeases called\n");
 	if ( rc == GAHPCLIENT_COMMAND_PENDING ) {
 		update_complete = false;
 	} else if ( rc != 0 ) {
-dprintf( D_ALWAYS, "*** Lease update failed!\n" );
+dprintf( D_FULLDEBUG, "*** Lease update failed!\n" );
 		update_complete = true;
 	} else {
-dprintf( D_ALWAYS, "*** Lease udpate succeeded!\n" );
+dprintf( D_FULLDEBUG, "*** Lease udpate succeeded!\n" );
 		update_complete = true;
 
 		PROC_ID curr_id;

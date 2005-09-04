@@ -365,7 +365,7 @@ void BaseJob::SetRemoteJobId( const char *job_id )
 
 void BaseJob::SetJobLeaseTimers()
 {
-dprintf(D_ALWAYS,"(%d.%d) SetJobLeaseTimers()\n",procID.cluster,procID.proc);
+dprintf(D_FULLDEBUG,"(%d.%d) SetJobLeaseTimers()\n",procID.cluster,procID.proc);
 	int expiration_time = -1;
 
 	jobAd->LookupInteger( ATTR_TIMER_REMOVE_CHECK_SENT, expiration_time );
@@ -417,7 +417,7 @@ dprintf(D_ALWAYS,"(%d.%d) SetJobLeaseTimers()\n",procID.cluster,procID.proc);
 
 void BaseJob::UpdateJobLeaseSent( int new_expiration_time )
 {
-dprintf(D_ALWAYS,"(%d.%d) UpdateJobLeaseSent(%d)\n",procID.cluster,procID.proc,(int)new_expiration_time);
+dprintf(D_FULLDEBUG,"(%d.%d) UpdateJobLeaseSent(%d)\n",procID.cluster,procID.proc,(int)new_expiration_time);
 	int old_expiration_time = -1;
 
 	jobAd->LookupInteger( ATTR_TIMER_REMOVE_CHECK_SENT,
@@ -446,7 +446,7 @@ dprintf(D_ALWAYS,"(%d.%d) UpdateJobLeaseSent(%d)\n",procID.cluster,procID.proc,(
 void BaseJob::UpdateJobLeaseReceived( int new_expiration_time )
 {
 	int old_expiration_time = -1;
-dprintf(D_ALWAYS,"(%d.%d) UpdateJobLeaseReceived(%d)\n",procID.cluster,procID.proc,(int)new_expiration_time);
+dprintf(D_FULLDEBUG,"(%d.%d) UpdateJobLeaseReceived(%d)\n",procID.cluster,procID.proc,(int)new_expiration_time);
 
 	jobAd->LookupInteger( ATTR_TIMER_REMOVE_CHECK, old_expiration_time );
 
@@ -474,7 +474,7 @@ dprintf(D_ALWAYS,"(%d.%d) UpdateJobLeaseReceived(%d)\n",procID.cluster,procID.pr
 
 int BaseJob::JobLeaseSentExpired()
 {
-dprintf(D_ALWAYS,"(%d.%d) BaseJob::JobLeaseSentExpired()\n",procID.cluster,procID.proc);
+dprintf(D_FULLDEBUG,"(%d.%d) BaseJob::JobLeaseSentExpired()\n",procID.cluster,procID.proc);
 	if ( jobLeaseSentExpiredTid != TIMER_UNSET ) {
 		daemonCore->Cancel_Timer( jobLeaseSentExpiredTid );
 		jobLeaseSentExpiredTid = TIMER_UNSET;
@@ -485,7 +485,7 @@ dprintf(D_ALWAYS,"(%d.%d) BaseJob::JobLeaseSentExpired()\n",procID.cluster,procI
 
 int BaseJob::JobLeaseReceivedExpired()
 {
-dprintf(D_ALWAYS,"(%d.%d) BaseJob::JobLeaseReceivedExpired()\n",procID.cluster,procID.proc);
+dprintf(D_FULLDEBUG,"(%d.%d) BaseJob::JobLeaseReceivedExpired()\n",procID.cluster,procID.proc);
 	if ( jobLeaseReceivedExpiredTid != TIMER_UNSET ) {
 		daemonCore->Cancel_Timer( jobLeaseReceivedExpiredTid );
 		jobLeaseReceivedExpiredTid = TIMER_UNSET;
