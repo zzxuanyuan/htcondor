@@ -29,7 +29,7 @@
 
 #include "basejob.h"
 
-bool CalculateLease( const ClassAd *job_ad, time_t &new_expiration );
+bool CalculateLease( const ClassAd *job_ad, int &new_expiration );
 
 class BaseJob;
 

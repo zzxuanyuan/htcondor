@@ -525,7 +525,7 @@ int CondorJob::doEvaluateState()
 			if ( now >= lastSubmitAttempt + submitInterval ) {
 				char *job_id_string = NULL;
 				if ( gahpAd == NULL ) {
-					time_t new_expiration;
+					int new_expiration;
 					if ( CalculateLease( jobAd, new_expiration ) ) {
 							// This will set the job lease sent attrs,
 							// which get referenced in buildSubmitAd()

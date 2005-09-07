@@ -387,11 +387,11 @@ void BaseResource::DoPing( time_t& ping_delay, bool& ping_complete,
 	ping_succeeded = true;
 }
 
-bool CalculateLease( const ClassAd *job_ad, time_t &new_expiration )
+bool CalculateLease( const ClassAd *job_ad, int &new_expiration )
 {
 int cluster,proc;
-	time_t expire_received = -1;
-	time_t expire_sent = -1;
+	int expire_received = -1;
+	int expire_sent = -1;
 	int lease_duration = -1;
 	bool last_renewal_failed = false;
 
@@ -399,8 +399,8 @@ int cluster,proc;
 
 job_ad->LookupInteger( ATTR_CLUSTER_ID, cluster );
 job_ad->LookupInteger( ATTR_PROC_ID, proc );
-	job_ad->LookupInteger( ATTR_TIMER_REMOVE_CHECK, (int)expire_received );
-	job_ad->LookupInteger( ATTR_TIMER_REMOVE_CHECK_SENT, (int)expire_sent );
+	job_ad->LookupInteger( ATTR_TIMER_REMOVE_CHECK, expire_received );
+	job_ad->LookupInteger( ATTR_TIMER_REMOVE_CHECK_SENT, expire_sent );
 	job_ad->LookupBool( ATTR_LAST_JOB_LEASE_RENEWAL_FAILED,
 						last_renewal_failed );
 	job_ad->LookupInteger( ATTR_JOB_LEASE_DURATION, lease_duration );
@@ -425,7 +425,7 @@ dprintf(D_FULLDEBUG,"*** (%d.%d) CalculateLease: retry failed lease at %d\n",clu
 	}
 
 	if ( lease_duration != -1 ) {
-		time_t now = time(NULL);
+		int now = time(NULL);
 		if ( expire_sent == -1 ) {
 			new_expiration = now + lease_duration;
 		} else if ( expire_sent - now < ( lease_duration * 2 ) / 3 ) {
@@ -474,7 +474,7 @@ dprintf(D_FULLDEBUG,"    UpdateLeases: last update too recent, delaying\n");
 dprintf(D_FULLDEBUG,"    UpdateLeases: calc'ing new leases\n");
 		registeredJobs.Rewind();
 		while ( registeredJobs.Next( curr_job ) ) {
-			time_t new_expire;
+			int new_expire;
 			if ( CalculateLease( curr_job->jobAd, new_expire ) ) {
 				curr_job->UpdateJobLeaseSent( new_expire );
 				leaseUpdates.Append( curr_job );
