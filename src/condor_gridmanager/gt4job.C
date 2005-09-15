@@ -126,6 +126,8 @@ static char *GMStateNames[] = {
 static bool WriteGT4SubmitEventToUserLog( ClassAd *job_ad );
 static bool WriteGT4SubmitFailedEventToUserLog( ClassAd *job_ad,
 												const char *failure_string );
+static bool WriteGT4ResourceUpEventToUserLog( ClassAd *job_ad );
+static bool WriteGT4ResourceDownEventToUserLog( ClassAd *job_ad );
 
 #define HASH_TABLE_SIZE			500
 
@@ -311,8 +313,10 @@ const char *Gt4JobStateToString( int status )
 
 int GT4Job::probeInterval = 300;			// default value
 int GT4Job::submitInterval = 300;			// default value
+int GT4Job::restartInterval = 60;			// default value
 int GT4Job::gahpCallTimeout = 300;			// default value
 int GT4Job::maxConnectFailures = 3;			// default value
+int GT4Job::outputWaitGrowthTimeout = 15;	// default value
 
 GT4Job::GT4Job( ClassAd *classad )
 	: BaseJob( classad )
@@ -323,7 +327,6 @@ GT4Job::GT4Job( ClassAd *classad )
 	char iwd[_POSIX_PATH_MAX];
 	bool job_already_submitted = false;
 	char *error_string = NULL;
-	char *gahp_path = NULL;
 
 	RSL = NULL;
 	callbackRegistered = false;
@@ -337,17 +340,29 @@ GT4Job::GT4Job( ClassAd *classad )
 	globusStateFaultString = 0;
 	callbackGlobusState = 0;
 	callbackGlobusStateFaultString = "";
+	restartingJM = false;
+	restartWhen = 0;
 	gmState = GM_INIT;
 	globusState = GT4_JOB_STATE_UNSUBMITTED;
+	resourcePingPending = false;
+	jmUnreachable = false;
+	jmDown = false;
 	lastProbeTime = 0;
 	probeNow = false;
 	enteredCurrentGmState = time(NULL);
 	enteredCurrentGlobusState = time(NULL);
 	lastSubmitAttempt = 0;
 	numSubmitAttempts = 0;
+	lastRestartReason = 0;
+	lastRestartAttempt = 0;
+	numRestartAttempts = 0;
+	numRestartAttemptsThisSubmit = 0;
 	jmProxyExpireTime = 0;
 	jmLifetime = 0;
 	connect_failure_counter = 0;
+	outputWaitLastGrowth = 0;
+	// HACK!
+	retryStdioSize = true;
 	resourceManagerString = NULL;
 	jobmanagerType = NULL;
 	myResource = NULL;
@@ -360,7 +375,7 @@ GT4Job::GT4Job( ClassAd *classad )
 	// In GM_HOLD, we assme HoldReason to be set only if we set it, so make
 	// sure it's unset when we start.
 	if ( jobAd->LookupString( ATTR_HOLD_REASON, NULL, 0 ) != 0 ) {
-		jobAd->AssignExpr( ATTR_HOLD_REASON, "Undefined" );
+		UpdateJobAd( ATTR_HOLD_REASON, "UNDEFINED" );
 	}
 
 	buff[0] = '\0';
@@ -370,15 +385,13 @@ GT4Job::GT4Job( ClassAd *classad )
 		if ( jobProxy == NULL ) {
 			dprintf( D_ALWAYS, "(%d.%d) error acquiring proxy!\n",
 					 procID.cluster, procID.proc );
-			error_string = "Failed to acquire proxy";
-			goto error_exit;
 		}
 	} else {
 		dprintf( D_ALWAYS, "(%d.%d) %s not set in job ad!\n",
 				 procID.cluster, procID.proc, ATTR_X509_USER_PROXY );
 	}
 
-	gahp_path = param("GT4_GAHP");
+	char *gahp_path = param("GT4_GAHP");
 	if ( gahp_path == NULL ) {
 		error_string = "GT4_GAHP not defined";
 		goto error_exit;
@@ -408,6 +421,8 @@ GT4Job::GT4Job( ClassAd *classad )
 		goto error_exit;
 	}
 
+	resourceDown = false;
+	resourceStateKnown = false;
 	// RegisterJob() may call our NotifyResourceUp/Down(), so be careful.
 	myResource->RegisterJob( this );
 	if ( job_already_submitted ) {
@@ -434,6 +449,8 @@ GT4Job::GT4Job( ClassAd *classad )
 		delegatedCredentialURI = strdup( buff );
 		myResource->registerDelegationURI( delegatedCredentialURI, jobProxy );
 	}
+
+	useGridJobMonitor = true;
 
 	jobAd->LookupInteger( ATTR_GLOBUS_STATUS, globusState );
 
@@ -500,7 +517,7 @@ GT4Job::GT4Job( ClassAd *classad )
 		// on any initialization that's been skipped.
 	gmState = GM_HOLD;
 	if ( error_string ) {
-		jobAd->Assign( ATTR_HOLD_REASON, error_string );
+		UpdateJobAdString( ATTR_HOLD_REASON, error_string );
 	}
 	return;
 }
@@ -555,7 +572,8 @@ void GT4Job::Reconfig()
 
 int GT4Job::doEvaluateState()
 {
-	bool connect_failure = false;
+	bool connect_failure_jobmanager = false;
+	bool connect_failure_gatekeeper = false;
 	int old_gm_state;
 	int old_globus_state;
 	bool reevaluate_state = true;
@@ -571,6 +589,10 @@ int GT4Job::doEvaluateState()
 			procID.cluster,procID.proc,GMStateNames[gmState],globusState);
 
 	if ( gahp ) {
+		// We don't include jmDown here because we don't want it to block
+		// connections to the gatekeeper (particularly restarts) and any
+		// state that contacts to the jobmanager should be jumping to
+		// GM_RESTART instead.
 		if ( !resourceStateKnown || resourcePingPending || resourceDown ) {
 			gahp->setMode( GahpClient::results_only );
 		} else {
@@ -595,7 +617,7 @@ int GT4Job::doEvaluateState()
 				dprintf( D_ALWAYS, "(%d.%d) Error initializing GAHP\n",
 						 procID.cluster, procID.proc );
 				
-				jobAd->Assign( ATTR_HOLD_REASON, "Failed to initialize GAHP" );
+				UpdateJobAdString( ATTR_HOLD_REASON, "Failed to initialize GAHP" );
 				gmState = GM_HOLD;
 				break;
 			}
@@ -611,7 +633,7 @@ int GT4Job::doEvaluateState()
 				dprintf( D_ALWAYS,
 						 "(%d.%d) Error enabling GRAM callback, err=%d\n", 
 						 procID.cluster, procID.proc, err );
-				jobAd->Assign( ATTR_HOLD_REASON, "Failed to initialize GAHP" );
+				UpdateJobAdString( ATTR_HOLD_REASON, "Failed to initialize GAHP" );
 				gmState = GM_HOLD;
 				break;
 			}
@@ -693,7 +715,7 @@ int GT4Job::doEvaluateState()
 			if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_CONTACTING_JOB_MANAGER ||
 				 rc == GLOBUS_GRAM_PROTOCOL_ERROR_AUTHORIZATION ||
 				 rc == GAHPCLIENT_COMMAND_TIMED_OUT ) {
-				connect_failure = true;
+				connect_failure_jobmanager = true;
 				break;
 			}
 			if ( rc == GLOBUS_GRAM_PROTOCOL_ERROR_JOB_QUERY_DENIAL ) {
@@ -751,8 +773,8 @@ int GT4Job::doEvaluateState()
 			}
 			delegatedCredentialURI = strdup( deleg_uri );
 			gmState = GM_GENERATE_ID;
-			jobAd->Assign( ATTR_GLOBUS_DELEGATION_URI,
-						   delegatedCredentialURI );
+			UpdateJobAdString ( ATTR_GLOBUS_DELEGATION_URI,
+								delegatedCredentialURI );
 		} break;
 		case GM_GENERATE_ID: {
 
@@ -773,7 +795,7 @@ int GT4Job::doEvaluateState()
 				errorString = "Failed to generate submit id";
 				gmState = GM_HOLD;
 			} else {
-				jobAd->Assign( ATTR_GLOBUS_SUBMIT_ID, submit_id );
+				UpdateJobAdString( ATTR_GLOBUS_SUBMIT_ID, submit_id );
 				gmState = GM_SUBMIT_ID_SAVE;
 			}
 		} break;
@@ -1033,7 +1055,6 @@ int GT4Job::doEvaluateState()
 			}
 			myResource->CancelSubmit( this );
 			if ( condorState == COMPLETED || condorState == REMOVED ) {
-				SetJobContact( NULL );
 				gmState = GM_DELETE;
 			} else {
 				// Clear the contact string here because it may not get
@@ -1041,8 +1062,9 @@ int GT4Job::doEvaluateState()
 				if ( jobContact != NULL ) {
 					SetJobContact( NULL );
 					globusState = GT4_JOB_STATE_UNSUBMITTED;
-					jobAd->Assign( ATTR_GLOBUS_STATUS, globusState );
+					UpdateJobAdInt( ATTR_GLOBUS_STATUS, globusState );
 					requestScheddUpdate( this );
+					jmDown = false;
 				}
 				gmState = GM_CLEAR_REQUEST;
 			}
@@ -1097,8 +1119,9 @@ int GT4Job::doEvaluateState()
 
 			SetJobContact( NULL );
 			myResource->CancelSubmit( this );
+			jmDown = false;
 			globusState = GT4_JOB_STATE_UNSUBMITTED;
-			jobAd->Assign( ATTR_GLOBUS_STATUS, globusState );
+			UpdateJobAdInt( ATTR_GLOBUS_STATUS, globusState );
 			requestScheddUpdate( this );
 
 			if ( condorState == REMOVED ) {
@@ -1154,15 +1177,20 @@ int GT4Job::doEvaluateState()
 			}
 			if ( globusState != GT4_JOB_STATE_UNSUBMITTED ) {
 				globusState = GT4_JOB_STATE_UNSUBMITTED;
-				jobAd->Assign( ATTR_GLOBUS_STATUS, globusState );
+				UpdateJobAdInt( ATTR_GLOBUS_STATUS, globusState );
 			}
 			globusStateFaultString = "";
 			globusErrorString = "";
+			lastRestartReason = 0;
+			numRestartAttemptsThisSubmit = 0;
 			errorString = "";
 			ClearCallbacks();
+			// HACK!
+			retryStdioSize = true;
 			myResource->CancelSubmit( this );
 			if ( jobContact != NULL ) {
 				SetJobContact( NULL );
+				jmDown = false;
 			}
 			JobIdle();
 			if ( submitLogged ) {
@@ -1181,8 +1209,8 @@ int GT4Job::doEvaluateState()
 				// Set ad attributes so the schedd finds a new match.
 				int dummy;
 				if ( jobAd->LookupBool( ATTR_JOB_MATCHED, dummy ) != 0 ) {
-					jobAd->Assign( ATTR_JOB_MATCHED, false );
-					jobAd->Assign( ATTR_CURRENT_HOSTS, 0 );
+					UpdateJobAdBool( ATTR_JOB_MATCHED, 0 );
+					UpdateJobAdInt( ATTR_CURRENT_HOSTS, 0 );
 				}
 
 				// If we are rematching, we need to forget about this job
@@ -1220,12 +1248,12 @@ int GT4Job::doEvaluateState()
 			if ( jobContact &&
 				 globusState != GT4_JOB_STATE_UNKNOWN ) {
 				globusState = GT4_JOB_STATE_UNKNOWN;
-				jobAd->Assign( ATTR_GLOBUS_STATUS, globusState );
+				UpdateJobAdInt( ATTR_GLOBUS_STATUS, globusState );
 				//UpdateGlobusState( GT4_JOB_STATE_UNKNOWN, NULL );
 			} else if ( !jobContact &&
 						globusState != GT4_JOB_STATE_UNSUBMITTED ) {
 				globusState = GT4_JOB_STATE_UNSUBMITTED;
-				jobAd->Assign( ATTR_GLOBUS_STATUS, globusState );
+				UpdateJobAdInt( ATTR_GLOBUS_STATUS, globusState );
 			}
 			// If the condor state is already HELD, then someone already
 			// HELD it, so don't update anything else.
@@ -1308,7 +1336,8 @@ int GT4Job::doEvaluateState()
 
 	} while ( reevaluate_state );
 
-	if ( connect_failure && !resourceDown ) {
+	if ( ( connect_failure_jobmanager || connect_failure_gatekeeper ) && 
+		 !resourceDown ) {
 		if ( connect_failure_counter < maxConnectFailures ) {
 				// We are seeing a lot of failures to connect
 				// with Globus 2.2 libraries, often due to GSI not able 
@@ -1324,7 +1353,11 @@ int GT4Job::doEvaluateState()
 			dprintf(D_FULLDEBUG,
 				"(%d.%d) Connection failure, requesting a ping of the resource\n",
 				procID.cluster,procID.proc);
-			RequestPing();
+			if ( connect_failure_jobmanager ) {
+				jmUnreachable = true;
+			}
+			resourcePingPending = true;
+			myResource->RequestPing( this );
 		}
 	}
 
@@ -1338,7 +1371,7 @@ void GT4Job::SetJobContact( const char *job_contact )
 	if ( job_contact == NULL && delegatedCredentialURI != NULL ) {
 		free( delegatedCredentialURI );
 		delegatedCredentialURI = NULL;
-		jobAd->AssignExpr( ATTR_GLOBUS_DELEGATION_URI, "Undefined" );
+		UpdateJobAd( ATTR_GLOBUS_DELEGATION_URI, "Undefined" );
 	}
 
 	if ( jobContact != NULL && job_contact != NULL &&
@@ -1349,14 +1382,42 @@ void GT4Job::SetJobContact( const char *job_contact )
 		GT4JobsByContact.remove( HashKey( gt4JobId(jobContact) ) );
 		free( jobContact );
 		jobContact = NULL;
-		jobAd->Assign( ATTR_GLOBUS_CONTACT_STRING, NULL_JOB_CONTACT );
+		UpdateJobAdString( ATTR_GLOBUS_CONTACT_STRING, NULL_JOB_CONTACT );
 	}
 	if ( job_contact != NULL ) {
 		jobContact = strdup( job_contact );
 		GT4JobsByContact.insert( HashKey( gt4JobId(jobContact) ), this );
-		jobAd->Assign( ATTR_GLOBUS_CONTACT_STRING, jobContact );
+		UpdateJobAdString( ATTR_GLOBUS_CONTACT_STRING, jobContact );
 	}
 	requestScheddUpdate( this );
+}
+
+void GT4Job::NotifyResourceDown()
+{
+	resourceStateKnown = true;
+	if ( resourceDown == false ) {
+		WriteGT4ResourceDownEventToUserLog( jobAd );
+	}
+	resourceDown = true;
+	jmUnreachable = false;
+	resourcePingPending = false;
+	// set downtime timestamp?
+	SetEvaluateState();
+}
+
+void GT4Job::NotifyResourceUp()
+{
+	resourceStateKnown = true;
+	if ( resourceDown == true ) {
+		WriteGT4ResourceUpEventToUserLog( jobAd );
+	}
+	resourceDown = false;
+	if ( jmUnreachable ) {
+		jmDown = true;
+	}
+	jmUnreachable = false;
+	resourcePingPending = false;
+	SetEvaluateState();
 }
 
 bool GT4Job::AllowTransition( int new_state, int old_state )
@@ -1429,7 +1490,7 @@ void GT4Job::UpdateGlobusState( int new_state, const char *new_fault )
 				jobAd->LookupInteger( ATTR_NUM_GLOBUS_SUBMITS,
 									  num_globus_submits );
 				num_globus_submits++;
-				jobAd->Assign( ATTR_NUM_GLOBUS_SUBMITS, num_globus_submits );
+				UpdateJobAdInt( ATTR_NUM_GLOBUS_SUBMITS, num_globus_submits );
 			}
 		}
 		if ( (new_state == GT4_JOB_STATE_ACTIVE ||
@@ -1441,7 +1502,7 @@ void GT4Job::UpdateGlobusState( int new_state, const char *new_fault )
 			executeLogged = true;
 		}
 
-		jobAd->Assign( ATTR_GLOBUS_STATUS, new_state );
+		UpdateJobAdInt( ATTR_GLOBUS_STATUS, new_state );
 
 		globusState = new_state;
 		globusStateFaultString = new_fault;
@@ -1467,8 +1528,8 @@ void GT4Job::GramCallback( const char *new_state, const char *new_fault,
 
 //		if ( new_exit_code != GT4_NO_EXIT_CODE ) {
 		if ( new_state_int == GT4_JOB_STATE_DONE ) {
-			jobAd->Assign( ATTR_ON_EXIT_BY_SIGNAL, false );
-			jobAd->Assign( ATTR_ON_EXIT_CODE, new_exit_code );
+			UpdateJobAdBool( ATTR_ON_EXIT_BY_SIGNAL, 0 );
+			UpdateJobAdInt( ATTR_ON_EXIT_CODE, new_exit_code );
 		}
 
 		SetEvaluateState();
@@ -1903,6 +1964,19 @@ MyString *GT4Job::buildSubmitRSL()
 	*rsl += delegation_epr;
 	*rsl += "</stagingCredentialEndpoint>";
 
+		// Note: This blindly assumes that the GRAM server is on a
+		//   machine in the same UID space as us and Globus will let us
+		//   use that account.
+	if ( jobAd->LookupString(ATTR_LOCAL_USER_ACCOUNT, &attr_value) &&
+		 *attr_value ) {
+
+		*rsl += printXMLParam( "localUserId", attr_value );
+	}
+	if ( attr_value ) {
+		free( attr_value );
+		attr_value = NULL;
+	}
+
 	if ( jobAd->LookupString( ATTR_GLOBUS_RSL, &rsl_suffix ) ) {
 		*rsl += rsl_suffix;
 		free( rsl_suffix );
@@ -2063,6 +2137,83 @@ WriteGT4SubmitFailedEventToUserLog( ClassAd *job_ad,
 
 	return true;
 }
+
+static bool
+WriteGT4ResourceUpEventToUserLog( ClassAd *job_ad )
+{
+	int cluster, proc;
+	char contact[256];
+	UserLog *ulog = InitializeUserLog( job_ad );
+	if ( ulog == NULL ) {
+		// User doesn't want a log
+		return true;
+	}
+
+	job_ad->LookupInteger( ATTR_CLUSTER_ID, cluster );
+	job_ad->LookupInteger( ATTR_PROC_ID, proc );
+
+	dprintf( D_FULLDEBUG, 
+			 "(%d.%d) Writing globus up record to user logfile\n",
+			 cluster, proc );
+
+	GlobusResourceUpEvent event;
+
+	contact[0] = '\0';
+	job_ad->LookupString( ATTR_GLOBUS_RESOURCE, contact,
+						   sizeof(contact) - 1 );
+	event.rmContact =  strnewp(contact);
+
+	int rc = ulog->writeEvent(&event);
+	delete ulog;
+
+	if (!rc) {
+		dprintf( D_ALWAYS,
+				 "(%d.%d) Unable to log ULOG_GLOBUS_RESOURCE_UP event\n",
+				 cluster, proc );
+		return false;
+	}
+
+	return true;
+}
+
+static bool
+WriteGT4ResourceDownEventToUserLog( ClassAd *job_ad )
+{
+	int cluster, proc;
+	char contact[256];
+	UserLog *ulog = InitializeUserLog( job_ad );
+	if ( ulog == NULL ) {
+		// User doesn't want a log
+		return true;
+	}
+
+	job_ad->LookupInteger( ATTR_CLUSTER_ID, cluster );
+	job_ad->LookupInteger( ATTR_PROC_ID, proc );
+
+	dprintf( D_FULLDEBUG, 
+			 "(%d.%d) Writing globus down record to user logfile\n",
+			 cluster, proc );
+
+	GlobusResourceDownEvent event;
+
+	contact[0] = '\0';
+	job_ad->LookupString( ATTR_GLOBUS_RESOURCE, contact,
+						   sizeof(contact) - 1 );
+	event.rmContact =  strnewp(contact);
+
+	int rc = ulog->writeEvent(&event);
+	delete ulog;
+
+	if (!rc) {
+		dprintf( D_ALWAYS,
+				 "(%d.%d) Unable to log ULOG_GLOBUS_RESOURCE_DOWN event\n",
+				 cluster, proc );
+		return false;
+	}
+
+	return true;
+}
+
 
 const char * 
 GT4Job::printXMLParam (const char * name, const char * value) {
