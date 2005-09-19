@@ -302,6 +302,9 @@ main_init( int argc, char* argv[] )
 	daemonCore->Register_Command( CHILD_OFF, "CHILD_OFF",
 								  (CommandHandler)admin_command_handler, 
 								  "admin_command_handler", 0, ADMINISTRATOR );
+	daemonCore->Register_Command( CHILD_OFF_FAST, "CHILD_OFF_FAST",
+								  (CommandHandler)admin_command_handler, 
+								  "admin_command_handler", 0, ADMINISTRATOR );
 
 	/*
 	daemonCore->Register_Command( START_AGENT, "START_AGENT",
@@ -378,6 +381,7 @@ admin_command_handler( Service*, int cmd, Stream* stream )
 	case DAEMON_OFF_PEACEFUL:
 	case CHILD_ON:
 	case CHILD_OFF:
+	case CHILD_OFF_FAST:
 		return handle_subsys_command( cmd, stream );
 
 			// This function is also special, since it needs to read
@@ -512,6 +516,10 @@ handle_subsys_command( int cmd, Stream* stream )
 		daemon->Hold( false, true );
 		return daemon->Start( true );
 	case CHILD_OFF:
+		daemon->Hold( true, true );
+		daemon->Stop( true );
+		return TRUE;
+	case CHILD_OFF_FAST:
 		daemon->Hold( true, true );
 		daemon->StopFast( true );
 		return TRUE;

@@ -149,6 +149,9 @@ struct Translation DCTranslation[] = {
 	{ "SHADOW_UPDATEINFO", SHADOW_UPDATEINFO },
 	{ "TAKE_MATCH", TAKE_MATCH },
 	{ "MPI_START_COMRADE", MPI_START_COMRADE },
+	{ "CHILD_OFF", CHILD_OFF },
+	{ "CHILD_OFF_FAST", CHILD_OFF_FAST },
+	{ "CHILD_ON", CHILD_ON },
 	{ "NULL", 0 }
 };
 

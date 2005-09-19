@@ -98,7 +98,7 @@ HADStateMachine::finilize()
         // always kill leader when HAD dies - if I am leader I should 
         // kill my Negotiator.If I am not a leader - my Negotiator
         // should not be on anyway
-        sendNegotiatorCmdToMaster( CHILD_OFF );
+        sendNegotiatorCmdToMaster( CHILD_OFF_FAST );
         delete masterDaemon;
         masterDaemon = NULL;
     }
@@ -245,7 +245,7 @@ HADStateMachine::reinitialize()
     }
  
     if( masterDaemon == NULL ||
-        sendNegotiatorCmdToMaster(CHILD_OFF) == FALSE ) {
+        sendNegotiatorCmdToMaster(CHILD_OFF_FAST) == FALSE ) {
          onError("HAD ERROR: unable to send NEGOTIATOR_OFF command");
     }
  
@@ -356,7 +356,7 @@ HADStateMachine::step()
                     printStep( "LEADER_STATE","PASSIVE_STATE" );
                     state = PASSIVE_STATE;
                     if( !standAloneMode ) {
-                        sendNegotiatorCmdToMaster( CHILD_OFF );
+                        sendNegotiatorCmdToMaster( CHILD_OFF_FAST );
                     }
                     break;
                 }
@@ -799,8 +799,8 @@ HADStateMachine::commandToString(int command)
             return HAD_SEND_ID_CMD_STR ;
         case CHILD_ON:
             return CHILD_ON_STR ;
-        case CHILD_OFF:
-            return CHILD_OFF_STR ;
+        case CHILD_OFF_FAST:
+            return CHILD_OFF_FAST_STR ;
         default :
             return "unknown command";
 
