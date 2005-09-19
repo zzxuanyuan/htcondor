@@ -37,6 +37,7 @@
 #include "sig_name.h"
 #include "env.h"
 #include "internet.h"
+#include "strupr.h"
 
 
 // these are defined in master.C
@@ -116,6 +117,9 @@ daemon::daemon(char *name, bool is_daemon_core, bool is_ha )
 	this->ha_lock = NULL;
 	this->is_ha = is_ha;
 
+	// Default to not on hold (will be set to true if controlled (i.e by HAD))
+	on_hold = FALSE;
+
 	// Handle configuration
 	DoConfig( true );
 
@@ -134,7 +138,6 @@ daemon::daemon(char *name, bool is_daemon_core, bool is_ha )
 	}
 	runs_on_this_host();
 	pid = 0;
-	on_hold = FALSE;
 	restarts = 0;
 	newExec = FALSE; 
 	timeStamp = 0;
@@ -397,6 +400,19 @@ daemon::DoConfig( bool init )
 		}
 	}
 
+	// Check for the _INITIAL_STATE parameter (only at init time)
+	// Default to on_hold = false, set to true of state eq "off"
+	if ( init ) {
+		sprintf(buf, "MASTER_%s_CONTROLLER", name_in_config_file );
+		controller_name = strupr( param( buf ) );
+		controller = NULL;		// Setup later in Daemons::CheckDaemonConfig()
+		on_hold = true;
+		if ( controller_name ) {
+			dprintf( D_FULLDEBUG, "Daemon %s is controlled by %s\n",
+					 name_in_config_file, controller_name );
+		}
+	}
+
 
 	// Weiru
 	// In the case that we have several for example schedds running on the
@@ -415,9 +431,33 @@ daemon::DoConfig( bool init )
 
 }
 
-int
-daemon::Start()
+void
+daemon::Hold( bool hold, bool from_controller )
 {
+	if ( controller && !from_controller ) {
+		dprintf( D_FULLDEBUG, "Forwarding 'Hold' to %s's controller\n",
+				 name_in_config_file );
+		controller->Hold( hold );
+	} else {
+		this->on_hold = hold;
+	}
+}
+
+int
+daemon::Start( bool from_controller )
+{
+	if ( controller ) {
+		if ( !from_controller ) {
+			dprintf( D_FULLDEBUG,
+					 "Forwarding 'Start' to %s's controller\n",
+					 name_in_config_file );
+			return controller->Start( );
+		} else {
+			dprintf( D_FULLDEBUG,
+					 "Got 'Start' from %s's controller\n",
+					 name_in_config_file );
+		}
+	}
 	if( start_tid != -1 ) {
 		daemonCore->Cancel_Timer( start_tid );
 		start_tid = -1;
@@ -457,6 +497,7 @@ int daemon::RealStart( )
 	char	buf[512];
 
 	// Copy a couple of checks from Start
+	dprintf( D_FULLDEBUG, "::RealStart; %s on_hold=%d\n", name_in_config_file, on_hold );
 	if( on_hold ) {
 		return FALSE;
 	}
@@ -707,11 +748,23 @@ int daemon::RealStart( )
 
 
 void
-daemon::Stop() 
+daemon::Stop( bool from_controller )
 {
 	if( type == DT_MASTER ) {
 			// Never want to stop master.
 		return;
+	}
+	if ( controller ) {
+		if ( !from_controller ) {
+			dprintf( D_FULLDEBUG,
+					 "Forwarding 'Stop' to %s's controller\n",
+					 name_in_config_file );
+			return controller->Stop( );
+		} else {
+			dprintf( D_FULLDEBUG,
+					 "Got 'Stop' from %s's controller\n",
+					 name_in_config_file );
+		}
 	}
 	if( start_tid != -1 ) {
 			// If we think we need to start this in the future, don't. 
@@ -777,11 +830,23 @@ daemon::StopPeaceful()
 
 
 void
-daemon::StopFast()
+daemon::StopFast( bool from_controller )
 {
 	if( type == DT_MASTER ) {
 			// Never want to stop master.
 		return;
+	}
+	if ( controller ) {
+		if ( !from_controller ) {
+			dprintf( D_FULLDEBUG,
+					 "Forwarding 'StopFast' to %s's controller\n",
+					 name_in_config_file );
+			return controller->StopFast( );
+		} else {
+			dprintf( D_FULLDEBUG,
+					 "Got 'StopFast' from %s's controller\n",
+					 name_in_config_file );
+		}
 	}
 	if( start_tid != -1 ) {
 			// If we think we need to start this in the future, don't. 
@@ -1132,7 +1197,7 @@ daemon::SetupHighAvailability( void )
 	if ( tmp ) {
 		if ( !isdigit( tmp[0] ) ) {
 			dprintf(D_ALWAYS,
-					"HA time '%s' is not a number; using default %d\n",
+					"HA time '%s' is not a number; using default %ld\n",
 					tmp, lock_hold_time );
 		} else {
 			lock_hold_time = (time_t) atol( tmp );
@@ -1150,7 +1215,7 @@ daemon::SetupHighAvailability( void )
 	if ( tmp ) {
 		if ( !isdigit( tmp[0] ) ) {
 			dprintf(D_ALWAYS,
-					"HA time '%s' is not a number; using default %d\n",
+					"HA time '%s' is not a number; using default %ld\n",
 					tmp, poll_period );
 		} else {
 			poll_period = (time_t) atol( tmp );
@@ -1169,7 +1234,7 @@ daemon::SetupHighAvailability( void )
 			dprintf( D_ALWAYS, "Failed to change HA lock parameters\n" );
 		} else {
 			dprintf( D_FULLDEBUG,
-					 "Set HA lock for %s; URL='%s' poll=%ds hold=%ds\n",
+					 "Set HA lock for %s; URL='%s' poll=%lds hold=%lds\n",
 					 name_in_config_file, url, poll_period, lock_hold_time );
 		}
 	} else {
@@ -1185,7 +1250,7 @@ daemon::SetupHighAvailability( void )
 			// Log the new lock creation (if successful)
 		if ( ha_lock ) {
 			dprintf( D_FULLDEBUG,
-					 "Created HA lock for %s; URL='%s' poll=%ds hold=%ds\n",
+					 "Created HA lock for %s; URL='%s' poll=%lds hold=%lds\n",
 					 name_in_config_file, url, poll_period, lock_hold_time );
 		}
 	}
@@ -1229,6 +1294,27 @@ daemon::HaLockLost( LockEventSrc src )
 			 "%s: HA poll detected broken lock: emergency stop!!\n",
 			 name_in_config_file );
 	StopFast( );
+	return 0;
+}
+
+
+int
+daemon::SetupController( void )
+{
+	if ( !controller_name ) {
+		return 0;
+	}
+
+	// Find the matching daemon by name
+	controller = daemons.FindDaemon( controller_name );
+	if ( ! controller ) {
+		dprintf( D_ALWAYS,
+				 "%s: Can't find my controller daemon '%s'\n",
+				 name_in_config_file, controller_name );
+		return -1;
+	}
+
+	// Done
 	return 0;
 }
 
@@ -1278,6 +1364,20 @@ Daemons::RegisterDaemon(class daemon *d)
 	no_daemons++;
 }
 
+int
+Daemons::SetupControllers( void )
+{
+	// Find controlling daemons
+	for( int i=0; i < no_daemons; i++ ) {
+		if ( daemon_ptr[i]->SetupController( ) < 0 ) {
+			dprintf( D_ALWAYS,
+					 "SetupControllers: Setup for daemon %s failed\n",
+					 daemon_ptr[i]->daemon_name );
+			return -1;
+		}
+	}
+	return 0;
+}
 
 void
 Daemons::InitParams()
@@ -1357,6 +1457,18 @@ Daemons::GetIndex(const char* name)
 }
 
 
+class daemon *
+Daemons::FindDaemon( const char *name )
+{
+	int		index = GetIndex( name );
+	if ( index < 0 ) {
+		return NULL;
+	} else {
+		return daemon_ptr[index];
+	}
+}
+
+
 void
 Daemons::CheckForNewExecutable()
 {
@@ -1384,7 +1496,7 @@ Daemons::CheckForNewExecutable()
 
     for( int i=0; i < no_daemons; i++ ) {
 		if( daemon_ptr[i]->runs_here && !daemon_ptr[i]->newExec 
-			&& ! daemon_ptr[i]->on_hold ) {
+			&& ! daemon_ptr[i]->OnHold() ) {
 			if( NewExecutable( daemon_ptr[i]->watch_name,
 							   &daemon_ptr[i]->timeStamp ) ) {
 				found_new = TRUE;
@@ -1471,7 +1583,7 @@ Daemons::StartAllDaemons()
 			continue;
 		} 
 		if( ! daemon_ptr[i]->runs_here ) continue;
-		daemon_ptr[i]->on_hold = FALSE;
+		daemon_ptr[i]->Hold( FALSE );
 		daemon_ptr[i]->Start();
 	}
 }

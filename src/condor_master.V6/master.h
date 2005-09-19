@@ -46,7 +46,6 @@ public:
 	char*	watch_name;
 	char*	log_name;
 	int		runs_here;
-	int		on_hold;
 	int		pid;
 	int 	restarts;
 	int		newExec; 
@@ -64,11 +63,13 @@ public:
 #endif
 
 	int		NextStart();
-	int		Start();
+	int		Start( bool from_controller = false );
 	int		RealStart();
 	int		Restart();
-	void	Stop();
-	void	StopFast();
+	void    Hold( bool on_hold, bool from_controller = false );
+	bool	OnHold( void ) { return on_hold; };
+	void	Stop( bool from_controller = false );
+	void	StopFast( bool from_controller = false );
 	void	StopPeaceful();
 	void	HardKill();
 	void	Exited( int );
@@ -80,6 +81,7 @@ public:
 	void	Reconfig();
 	void	InitProcFam( int pid, PidEnvID *penvid );
 	void	DeleteProcFam( void );
+	int		SetupController( void );
 
 private:
 
@@ -97,6 +99,8 @@ private:
 	int		stop_fast_tid;
 	int 	hard_kill_tid;
 
+	int		on_hold;
+
 	int		needs_update;
 	StopStateT stop_state;
 
@@ -107,6 +111,9 @@ private:
 
 	CondorLock	*ha_lock;
 	bool	is_ha;
+
+	char	*controller_name;
+	class daemon  *controller;
 };
 
 
@@ -163,6 +170,8 @@ public:
 	void	StartNewExecTimer();
 	void	CancelNewExecTimer();
 
+	int		SetupControllers( );
+
 	int		immediate_restart;
 	int		immediate_restart_master;
 
@@ -170,6 +179,7 @@ public:
 	void	UpdateCollector();
 
 	class daemon*	FindDaemon( daemon_t dt );
+	class daemon*	FindDaemon( const char * );
 
 private:
 	class daemon **daemon_ptr;
