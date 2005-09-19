@@ -33,6 +33,9 @@ enum AllGoneT { MASTER_RESTART, MASTER_EXIT, MASTER_RESET };
 enum ReaperT { DEFAULT_R, ALL_R, NO_R };
 enum StopStateT { PEACEFUL, GRACEFUL, FAST, KILL, NONE };
 
+// Max # of controllee's a controller can support
+const int MAX_CONTROLLEES = 5;
+
 class daemon : public Service
 {
 public:
@@ -81,7 +84,9 @@ public:
 	void	Reconfig();
 	void	InitProcFam( int pid, PidEnvID *penvid );
 	void	DeleteProcFam( void );
+
 	int		SetupController( void );
+	int		RegisterControllee( class daemon * );
 
 private:
 
@@ -114,6 +119,9 @@ private:
 
 	char	*controller_name;
 	class daemon  *controller;
+
+	int		num_controllees;
+	class daemon  *controllees[MAX_CONTROLLEES];
 };
 
 

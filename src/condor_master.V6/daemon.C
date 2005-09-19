@@ -152,6 +152,7 @@ daemon::daemon(char *name, bool is_daemon_core, bool is_ha )
 	stop_state = NONE;
 	needs_update = FALSE;
 	procfam = NULL;
+	num_controllees = 0;
 
 #if 0
 	port = NULL;
@@ -934,6 +935,20 @@ daemon::Exited( int status )
 		ha_lock->ReleaseLock( );
 	}
 
+		// Let my controller know what's happenned
+	if ( controller && ( stop_state == NONE ) ) {
+		dprintf( D_ALWAYS, "Telling it's controller '%s'\n",
+				 controller->name_in_config_file );
+		controller->Stop( );
+	}
+
+		// Kill any controllees I might have
+	for( int num = 0;  num < num_controllees;  num++ ) {
+		dprintf( D_ALWAYS, "Killing controllee '%s'\n",
+				 controllees[num]->name_in_config_file );
+		controllees[num]->StopFast( true );
+	}
+
 		// For good measure, try to clean up any dead/hung children of
 		// the daemon that just died by sending SIGKILL to it's
 		// entire process family.
@@ -1313,8 +1328,24 @@ daemon::SetupController( void )
 				 name_in_config_file, controller_name );
 		return -1;
 	}
+	if ( controller->RegisterControllee( this ) < 0 ) {
+		dprintf( D_ALWAYS,
+				 "%s: Can't register controller daemon '%s'\n",
+				 name_in_config_file, controller_name );
+		return -1;
+	}
 
 	// Done
+	return 0;
+}
+
+int
+daemon::RegisterControllee( class daemon *controllee )
+{
+	if ( num_controllees >= MAX_CONTROLLEES ) {
+		return -1;
+	}
+	controllees[num_controllees++] = controllee;
 	return 0;
 }
 
