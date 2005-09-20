@@ -198,16 +198,18 @@ config_host( char* host )
 
 
 void
-condor_net_remap_config()
+condor_net_remap_config( bool force_param )
 {
     char *str = NULL;
-	if( getenv("NET_REMAP_ENABLE") ) {
+	if( ! force_param && getenv("NET_REMAP_ENABLE") ) {
 			/*
-			  this stuff is already set.  we should return immediately
-			  and leave our environment alone.  this way, the master
-			  can choose what GCB broker to use for itself and all its
-			  children, even if there's a list and we're using
-			  $RANDOM_CHOICE().
+			  this stuff is already set.  unless the caller is forcing
+			  us to call param() again (e.g. the master is trying to
+			  re-bind() if the GCB broker is down and it's got a list
+			  to try) we should return immediately and leave our
+			  environment alone.  this way, the master can choose what
+			  GCB broker to use for itself and all its children, even
+			  if there's a list and we're using $RANDOM_CHOICE().
 			*/
 		return;
 	}
