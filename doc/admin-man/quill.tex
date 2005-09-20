@@ -309,7 +309,7 @@ the queue
 
 \end{verbatim}
 There are two ways to get to a quill daemon: directly using its name as 
-specified in the \MacroNI{QUILL\_NAME} variable in section 4) above, or indirectly
+specified in the \MacroNI{QUILL\_NAME} variable, or indirectly
 by querying the schedd using its name.  In the latter case, \Condor{q} will detect 
 if that schedd is being serviced by a database, and if so, directly query it.
 In both cases, the ip address and port of the database server hosting the data of 
@@ -534,7 +534,7 @@ others provided by the database.  Firstly, all accesses to the database
 are password-protected.
 
 \begin{enumerate}
-\item As mentioned in section 2c) above, the query tools, \Condor{q} and
+\item As mentioned above, the query tools, \Condor{q} and
 \Condor{history} connect to the database as user \Username{quillreader}.
 The password for this user can vary from one database to another and
 as such, each quill daemon advertises this password to the collector.
@@ -558,7 +558,7 @@ This file must be created and protected by the site administrator;
 if this file does not exist as and where expected, the \Condor{quill}
 daemon logs and error and exits.
 
-\item Finally, as mentioned in section 4) above, the
+\item Finally, as mentioned above, the
 \Attr{IsRemotelyQueryable} attribute in the ``quill ad'' advertised
 by the quill daemon to the collector can be used by site administrators
 to disallow the database from being read by all remote condor query tools.
@@ -573,7 +573,7 @@ There are virtually no maintenance issues in Quill.  Once started, it
 checks if all necessary database related structures (database itself,
 tables, indices, views) are present and creates them if they are
 not present. It also purges old historical jobs based on user policy
-(see section 4 above) and garbage collection in the database (using the
+and garbage collection in the database (using the
 postgres \Keyword{VACUUM ANALYZE} command).  Of course, if Quill is shut
 down and the database is no longer needed, it can be dropped using the
 postgres dropdb command.
