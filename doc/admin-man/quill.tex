@@ -47,9 +47,9 @@ a description of each step.
 Here, each of the above steps are detailed.
 
 \begin{enumerate}
-\item The Postgress Server
+\item The Postgres Server
 
-Quill uses the postgres server as its backend and the postgres client
+Quill uses the postgres server as its back end and the postgres client
 library, libpq to talk to the server. While the 8.0 version of postgres
 will be included as part of condor externals, quill has also been tested
 with earlier versions of postgres (specifically 7.4).
@@ -61,7 +61,7 @@ In addition, one can obtain the postgres source from:
 Installation instructions are detailed in:
 \URL{http://www.postgresql.org/docs/8.0/static/installation.html}
 
-\item Configuration of Postgress
+\item Configuration of Postgres
 
 The following steps need to be taken after postgres is installed.  These
 are done only once; quill takes care of all other database creation and
@@ -71,7 +71,7 @@ maintenance tasks.
 \item The quill daemon and client tools connect to the database as
 users \Username{quillreader} and \Username{quillwriter} respectively.
 We're talking about database users and not operating system users (two
-completely different things).  So if those users dont already exist,
+completely different things).  So if those users do not already exist,
 they need to be added using the 'createuser' command in the postgres bin
 directory.  Moreover they need to be assigned appropriate passwords; these
 passwords will be used by the quill tools to connect to the database in a
@@ -226,7 +226,7 @@ of job queue information.}
 This controls the frequency with which quill polls the
 \File{job\_queue.log} file.  By default, it is 10 seconds.  Since quill
 works by periodically sniffing the log file for updates and then sending
-those updates to the database, this variable controls the tradeoff between
+those updates to the database, this variable controls the trade off between
 the currency of query results and quill's load on the system--usually
 negligible.
 
@@ -340,10 +340,10 @@ Apr 1, 2005 at 13h 00m.
 \end{verbatim}
 This is also a new query.  It fetches all jobs
 which got into the 'Completed' state on or after the
-specified timestamp.  We follow Postgres's date/time
+specified time stamp.  We follow Postgres's date/time
 syntax rules as it encompasses most format options.  See
 \URL{http://www.postgresql.org/docs/8.0/static/datatype-datetime.html\#AEN4516}
-for the various timestamp formats.
+for the various time stamp formats.
 
 \end{enumerate}
 
@@ -506,10 +506,10 @@ complete job classad.  Their schema is as follows:
 
 Each historical job ad is divided into its horizontal and vertical
 counterparts.  This division was made because of query performance
-reasons.  While its easier to store classads in a vertical table,
+reasons.  While its easier to store ClassAds in a vertical table,
 queries on vertical tables generally perform worse than those on
 horizontal tables since the latter has lot fewer records.  However, in
-Condor, since job ads dont have a fixed schema (users can define their
+Condor, since job ads do not have a fixed schema (users can define their
 own attributes), a purely horizontal schema would end up having a lot
 of null values. As such, we have a hybrid schema where attributes on
 which queries are frequently performed (via \Condor{history}) are put
@@ -548,7 +548,7 @@ blocking access to the collector, a feature already supported in Condor.
 
 \item The quill daemon, on the other hand, needs read and write access
 to the database.  As such, it connects as user \Username{quillwriter}
-who has owner priviledges to the database.  Since this gives all
+who has owner privileges to the database.  Since this gives all
 access to the \Username{quillwriter} user, its password cannot
 be stored in a public place (such as the collector).  For this
 reason, the \Username{quillwriter} password is stored in a file called
