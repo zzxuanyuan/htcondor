@@ -321,7 +321,7 @@ void
 daemon::DoStart()
 {
 	start_tid = -1;
-	Start();
+	Start( true );		// Don't forward this on to the controller!
 }
 
 
@@ -439,10 +439,10 @@ daemon::DoConfig( bool init )
 }
 
 void
-daemon::Hold( bool hold, bool from_controller )
+daemon::Hold( bool hold, bool never_forward )
 {
-	if ( controller && !from_controller ) {
-		dprintf( D_FULLDEBUG, "Forwarding 'Hold' to %s's controller (%s)\n",
+	if ( controller && !never_forward ) {
+		dprintf( D_FULLDEBUG, "Forwarding Hold to %s's controller (%s)\n",
 				 name_in_config_file, controller->name_in_config_file );
 		controller->Hold( hold );
 	} else {
@@ -451,18 +451,18 @@ daemon::Hold( bool hold, bool from_controller )
 }
 
 int
-daemon::Start( bool from_controller )
+daemon::Start( bool never_forward )
 {
 	if ( controller ) {
-		if ( !from_controller ) {
+		if ( !never_forward ) {
 			dprintf( D_FULLDEBUG,
-					 "Forwarding 'Start' to %s's controller (%s)\n",
+					 "Forwarding Start to %s's controller (%s)\n",
 					 name_in_config_file, controller->name_in_config_file );
 			return controller->Start( );
 		} else {
 			dprintf( D_FULLDEBUG,
-					 "Got 'Start' from %s's controller (%s)\n",
-					 name_in_config_file, controller->name_in_config_file );
+					 "Handling Start for %s myself\n",
+					 name_in_config_file );
 		}
 	}
 	if( start_tid != -1 ) {
@@ -755,22 +755,22 @@ int daemon::RealStart( )
 
 
 void
-daemon::Stop( bool from_controller )
+daemon::Stop( bool never_forward )
 {
 	if( type == DT_MASTER ) {
 			// Never want to stop master.
 		return;
 	}
 	if ( controller ) {
-		if ( !from_controller ) {
+		if ( !never_forward ) {
 			dprintf( D_FULLDEBUG,
-					 "Forwarding 'Stop' to %s's controller (%s)\n",
+					 "Forwarding Stop to %s's controller (%s)\n",
 					 name_in_config_file, controller->name_in_config_file );
 			return controller->Stop( );
 		} else {
 			dprintf( D_FULLDEBUG,
-					 "Got 'Stop' from %s's controller (%s)\n",
-					 name_in_config_file, controller->name_in_config_file );
+					 "Handling Stop for %s myself\n",
+					 name_in_config_file );
 		}
 	}
 	if( start_tid != -1 ) {
@@ -837,22 +837,22 @@ daemon::StopPeaceful()
 
 
 void
-daemon::StopFast( bool from_controller )
+daemon::StopFast( bool never_forward )
 {
 	if( type == DT_MASTER ) {
 			// Never want to stop master.
 		return;
 	}
 	if ( controller ) {
-		if ( !from_controller ) {
+		if ( !never_forward ) {
 			dprintf( D_FULLDEBUG,
-					 "Forwarding 'StopFast' to %s's controller (%s)\n",
+					 "Forwarding StopFast to %s's controller (%s)\n",
 					 name_in_config_file, controller->name_in_config_file );
 			return controller->StopFast( );
 		} else {
 			dprintf( D_FULLDEBUG,
-					 "Got 'StopFast' from %s's controller (%s)\n",
-					 name_in_config_file, controller->name_in_config_file );
+					 "Handling StopFast for %s myself\n",
+					 name_in_config_file );
 		}
 	}
 	if( start_tid != -1 ) {

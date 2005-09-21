@@ -66,13 +66,13 @@ public:
 #endif
 
 	int		NextStart();
-	int		Start( bool from_controller = false );
+	int		Start( bool never_forward = false );
 	int		RealStart();
 	int		Restart();
-	void    Hold( bool on_hold, bool from_controller = false );
+	void    Hold( bool on_hold, bool never_forward = false );
 	bool	OnHold( void ) { return on_hold; };
-	void	Stop( bool from_controller = false );
-	void	StopFast( bool from_controller = false );
+	void	Stop( bool never_forward = false );
+	void	StopFast( bool never_forward = false );
 	void	StopPeaceful();
 	void	HardKill();
 	void	Exited( int );
