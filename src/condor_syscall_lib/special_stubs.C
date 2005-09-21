@@ -59,6 +59,24 @@ my_ip_addr()
 	return syscall_sock->get_ip_int();
 }
 
+
+/*
+  We need our own definition of my_ip_string(), which is used by the
+  utilities in internet.c (which in turn are used by CEDAR).  This
+  version, instead of looking in a config file for magic parameters,
+  looks at the existing syscall_sock and grabs the IP address off of
+  there.
+*/
+char*
+my_ip_string()
+{
+	struct in_addr addr;
+	memset( &addr, 0, sizeof(struct in_addr) );
+	addr.s_addr = syscall_sock->get_ip_int();
+	return inet_ntoa( addr );
+}
+
+
 /*
 	In the 6.3 series, REMOTE_syscall had been removed. Well, it turns out
 	that 6.4 was supposed to be backwards compatible with 6.2. :( This means
