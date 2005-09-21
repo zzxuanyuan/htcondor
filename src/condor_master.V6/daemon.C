@@ -272,6 +272,12 @@ int daemon::Restart()
 {
 	int		n;
 
+	if ( controller ) {
+		dprintf( D_ALWAYS, "Telling %s's controller (%s)\n",
+				 name_in_config_file, controller->name_in_config_file );
+		controller->Stop( );
+		on_hold = true;
+	}
 	if( on_hold ) {
 		return FALSE;
 	}
@@ -436,8 +442,8 @@ void
 daemon::Hold( bool hold, bool from_controller )
 {
 	if ( controller && !from_controller ) {
-		dprintf( D_FULLDEBUG, "Forwarding 'Hold' to %s's controller\n",
-				 name_in_config_file );
+		dprintf( D_FULLDEBUG, "Forwarding 'Hold' to %s's controller (%s)\n",
+				 name_in_config_file, controller->name_in_config_file );
 		controller->Hold( hold );
 	} else {
 		this->on_hold = hold;
@@ -450,13 +456,13 @@ daemon::Start( bool from_controller )
 	if ( controller ) {
 		if ( !from_controller ) {
 			dprintf( D_FULLDEBUG,
-					 "Forwarding 'Start' to %s's controller\n",
-					 name_in_config_file );
+					 "Forwarding 'Start' to %s's controller (%s)\n",
+					 name_in_config_file, controller->name_in_config_file );
 			return controller->Start( );
 		} else {
 			dprintf( D_FULLDEBUG,
-					 "Got 'Start' from %s's controller\n",
-					 name_in_config_file );
+					 "Got 'Start' from %s's controller (%s)\n",
+					 name_in_config_file, controller->name_in_config_file );
 		}
 	}
 	if( start_tid != -1 ) {
@@ -758,13 +764,13 @@ daemon::Stop( bool from_controller )
 	if ( controller ) {
 		if ( !from_controller ) {
 			dprintf( D_FULLDEBUG,
-					 "Forwarding 'Stop' to %s's controller\n",
-					 name_in_config_file );
+					 "Forwarding 'Stop' to %s's controller (%s)\n",
+					 name_in_config_file, controller->name_in_config_file );
 			return controller->Stop( );
 		} else {
 			dprintf( D_FULLDEBUG,
-					 "Got 'Stop' from %s's controller\n",
-					 name_in_config_file );
+					 "Got 'Stop' from %s's controller (%s)\n",
+					 name_in_config_file, controller->name_in_config_file );
 		}
 	}
 	if( start_tid != -1 ) {
@@ -840,13 +846,13 @@ daemon::StopFast( bool from_controller )
 	if ( controller ) {
 		if ( !from_controller ) {
 			dprintf( D_FULLDEBUG,
-					 "Forwarding 'StopFast' to %s's controller\n",
-					 name_in_config_file );
+					 "Forwarding 'StopFast' to %s's controller (%s)\n",
+					 name_in_config_file, controller->name_in_config_file );
 			return controller->StopFast( );
 		} else {
 			dprintf( D_FULLDEBUG,
-					 "Got 'StopFast' from %s's controller\n",
-					 name_in_config_file );
+					 "Got 'StopFast' from %s's controller (%s)\n",
+					 name_in_config_file, controller->name_in_config_file );
 		}
 	}
 	if( start_tid != -1 ) {
@@ -936,15 +942,19 @@ daemon::Exited( int status )
 	}
 
 		// Let my controller know what's happenned
-	if ( controller && ( stop_state == NONE ) ) {
-		dprintf( D_ALWAYS, "Telling it's controller '%s'\n",
-				 controller->name_in_config_file );
-		controller->Stop( );
+	if ( controller ) {
+		on_hold = true;
+		if ( stop_state == NONE ) {
+			dprintf( D_ALWAYS, "Telling %s's controller (%s)\n",
+					 name_in_config_file, controller->name_in_config_file );
+			controller->Stop( );
+		}
 	}
 
 		// Kill any controllees I might have
 	for( int num = 0;  num < num_controllees;  num++ ) {
-		dprintf( D_ALWAYS, "Killing controllee '%s'\n",
+		dprintf( D_ALWAYS, "Killing %s's controllee (%s)\n",
+				 name_in_config_file,
 				 controllees[num]->name_in_config_file );
 		controllees[num]->StopFast( true );
 	}
