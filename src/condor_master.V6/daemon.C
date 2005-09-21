@@ -272,7 +272,7 @@ int daemon::Restart()
 {
 	int		n;
 
-	if ( controller ) {
+	if ( controller && ( restarts >= 2 ) ) {
 		dprintf( D_ALWAYS, "Telling %s's controller (%s)\n",
 				 name_in_config_file, controller->name_in_config_file );
 		controller->Stop( );
@@ -942,7 +942,7 @@ daemon::Exited( int status )
 	}
 
 		// Let my controller know what's happenned
-	if ( controller ) {
+	if ( controller && ( restarts >= 2 ) ) {
 		on_hold = true;
 		if ( stop_state == NONE ) {
 			dprintf( D_ALWAYS, "Telling %s's controller (%s)\n",
