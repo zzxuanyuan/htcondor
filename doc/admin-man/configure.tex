@@ -4802,6 +4802,34 @@ These macros affect the high availability operation of Condor.
 \end{description}
 
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{\label{sec:Quill-Config-File-Entries}
+Configuration File Entries Relating to Quill}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\index{configuration!Quill configuration variables}
+These macros affect the Quill database
+management and interface to its representation of the job queue.
+
+\begin{description}
+\item[\Macro{QUILL}] \label{param:Quill}  The full path name to the
+  \Condor{quill} daemon.
+
+\item[\Macro{QUILL\_ARGS}] \label{param:QuillArgs} Arguments
+  to be passed to the \Condor{quill} daemon upon its invocation.
+
+\item[\Macro{QUILL\_LOG}] \label{param:QuillLog}
+  Path to the log file.
+
+
+\item[\Macro{QUILL\_ENABLED}] \label{param:QuillEnabled}
+  A boolean variable that defaults to \Expr{False}.
+  When \Expr{True}, Quill functionality is enabled.
+  When \Expr{False}, the Quill server writes a message to its log and exits.
+  The \Condor{q} and \Condor{history} tools then do not use Quill.
+
+\end{description}
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \input{admin-man/root-config.tex}
