@@ -1270,21 +1270,20 @@ FileTransfer::DoDownload( filesize_t *total_bytes, ReliSock *s)
 		// minutes!  MLOP!! Since we are doing this, we may as well
 		// not bother to fsync every file.
 //		dprintf(D_FULLDEBUG,"TODD filetransfer DoDownload fullname=%s\n",fullname);
+
+		start = time(NULL);
+
 		if ( TransferFilePermissions ) {
 			rc = s->get_file_with_permissions( &bytes, fullname );
 		} else {
 			rc = s->get_file( &bytes, fullname );
 		}
+
+		elapsed = time(NULL)-start;
+
 		if( rc < 0 ) {
 			return_and_resetpriv( -1 );
 		}
-
-		start = time(NULL);
-
-		if( s->get_file( &bytes, fullname ) < 0 ) {
-			return_and_resetpriv( -1 );
-		}
-		elapsed = time(NULL)-start;
 
 		if ( want_fsync ) {
 			struct utimbuf timewrap;
