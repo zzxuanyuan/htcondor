@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 
 ######################################################################
-# $Id: platform_post,v 1.1.4.2.18.1 2005-06-06 22:19:23 wright Exp $
+# $Id: platform_post,v 1.1.4.2.18.2 2005-09-27 18:03:39 wright Exp $
 # post script to cleanup platform-specific files on the submit side
 ######################################################################
 
@@ -12,10 +12,6 @@
 # permissions, we'll have to use this hack. :(
 
 system("chmod a+r *");
-
-print "GCB Condor is broken for now\n";
-print "Not submitting test suite (which would just hang)\n";
-exit 0;
 
 my $tag = $ENV{NMI_tag};
 my $module = $ENV{NMI_module};
