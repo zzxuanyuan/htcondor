@@ -1,3 +1,10 @@
+09/26/05 V6_7_12-merge-1
+   The state of the V6_7_12-branch for a (probably final) merge into
+   the V6_7-branch.  This pulls all of the changes from both the
+   V6_7_11-branch and V6_7_12-branch that were made for 6.7.12 (two
+   critical bug fixes: one to dagman, and one to daemon_core for
+   win32).  This merge will include everything since V6_7_11-merge-1.
+
 09/26/05 V6_7_12-win32
    The official 6.7.12 release tag for WIN32.  Unfortunately, we've
    got seperate tags and packages for the WIN32 and UNIX releases of
