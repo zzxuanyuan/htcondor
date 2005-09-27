@@ -322,6 +322,8 @@ int Sock::assign(SOCKET sockd)
 
 int Sock::bindWithin(const int low_port, const int high_port)
 {
+	bool bind_all = (bool)_condor_bind_all_interfaces();
+
 	// Use hash function with pid to get the starting point
     struct timeval curTime;
 #ifndef WIN32
@@ -342,7 +344,11 @@ int Sock::bindWithin(const int low_port, const int high_port)
 
 		memset(&sin, 0, sizeof(sockaddr_in));
 		sin.sin_family = AF_INET;
-		//sin.sin_addr.s_addr = htonl(my_ip_addr());
+		if( bind_all ) {
+			sin.sin_addr.s_addr = INADDR_ANY;
+		} else {
+			sin.sin_addr.s_addr = htonl(my_ip_addr());
+		}
 		sin.sin_port = htons((u_short)this_trial++);
 
 		if ( ::bind(_sock, (sockaddr *)&sin, sizeof(sockaddr_in)) == 0 ) { // success
@@ -400,7 +406,12 @@ int Sock::bind(int port)
 			// Bind to a dynamic port.
 		memset(&sin, 0, sizeof(sockaddr_in));
 		sin.sin_family = AF_INET;
-		//sin.sin_addr.s_addr = htonl(my_ip_addr());
+		bool bind_all = (bool)_condor_bind_all_interfaces();
+		if( bind_all ) {
+			sin.sin_addr.s_addr = INADDR_ANY;
+		} else {
+			sin.sin_addr.s_addr = htonl(my_ip_addr());
+		}
 		sin.sin_port = htons((u_short)port);
 
 		if (::bind(_sock, (sockaddr *)&sin, sizeof(sockaddr_in)) < 0) {

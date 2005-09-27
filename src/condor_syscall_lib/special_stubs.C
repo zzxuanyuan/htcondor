@@ -159,6 +159,33 @@ int get_port_range(int *low_port, int *high_port)
 }
 
 
+int
+_condor_bind_all_interfaces( void )
+{
+	char *tmp = NULL;
+	int bind_all = FALSE;
+
+	if( (tmp = getenv("_condor_BIND_ALL_INTERFACES")) == NULL ) {
+        dprintf(D_NETWORK, "_condor_BIND_ALL_INTERFACES undefined\n");
+		return FALSE;
+    }
+	
+	switch( tmp[0] ) {
+	case 'T':
+	case 't':
+	case 'Y':
+	case 'y':
+		bind_all = TRUE;
+		break;
+	default:
+		bind_all = FALSE;
+		break;
+	}
+
+	return bind_all;
+}
+
+
 #if !defined(WIN32)
 /*
   Can't open something because we are out of fd's.  Try to let

@@ -214,6 +214,23 @@ condor_net_remap_config( bool force_param )
 		return;
 	}
 		
+		/*
+		  this method is only called if we're enabling a network remap
+		  service.  if we do, we always need to force condor to bind()
+		  to all interfaces (INADDR_ANY).  since we don't want to rely
+		  on users to set this themselves to get GCB working, we'll
+		  set it automatically.  the only harm of setting this is that
+		  we need Condor to automatically handle hostallow stuff for
+		  "localhost", or users need to add localhost to their
+		  hostallow settings as appropriate.  we can't rely on the
+		  later, and the former only works on some platforms.
+		  luckily, the automatic localhost stuff works on all
+		  platforms where GCB works (linux, and we hope, solaris), so
+		  it's safe to turn this on whenever we're using GCB
+		*/
+	insert( "BIND_ALL_INTERFACES", "TRUE", ConfigTab, TABLESIZE );
+	extra_info->AddInternalParam("BIND_ALL_INTERFACES");
+
     // Env: the type of service
     SetEnv( "NET_REMAP_ENABLE", "true");
     str = param("NET_REMAP_SERVICE");

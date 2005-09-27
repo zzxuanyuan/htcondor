@@ -576,6 +576,15 @@ _condor_local_bind( int fd )
 		memset( (char *)&sin, 0, sizeof(sin) );
 		sin.sin_family = AF_INET;
 		sin.sin_port = 0;
+			/*
+			  we don't want to honor BIND_ALL_INTERFACES == true in
+			  here.  this code is only used in the ckpt server (which
+			  isn't daemoncore, so the hostallow localhost stuff
+			  doesn't matter) and for bind()ing outbound connections
+			  inside do_connect().  so, there's no harm in always
+			  binding to all interfaces in here...
+			  Derek <wright@cs.wisc.edu> 2005-09-20
+			*/
 		sin.sin_addr.s_addr = htonl(INADDR_ANY);
 		if( bind(fd, (struct sockaddr*)&sin, sizeof(sin)) < 0 ) {
 			dprintf( D_ALWAYS, "ERROR: bind(%s:%d) failed, errno: %d\n",
