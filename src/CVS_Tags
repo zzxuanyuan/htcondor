@@ -1,3 +1,12 @@
+09/26/05 V6_7_12-win32
+   The official 6.7.12 release tag for WIN32.  Unfortunately, we've
+   got seperate tags and packages for the WIN32 and UNIX releases of
+   6.7.12, but the only diff was inside an #ifdef WIN32, and it was
+   easier to just stick with the existing unix tarballs.  The windoze
+   binaries came from NWO build #xxxxx.  The version string for this
+   release is:
+       $CondorVersion: 6.7.12 Sep xx 2005 $
+
 09/23/05 V6_7_12
    The official 6.7.12 release.  The packages for all platforms came
    from NWO build #12042.  The version string for this release is:
