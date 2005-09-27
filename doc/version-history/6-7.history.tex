@@ -6,6 +6,25 @@ This is the development release series of Condor.
 The details of each version are described below.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{\label{sec:New-6-7.12}Version 6.7.12}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\noindent Release Notes:
+
+\item 6.7.12 addresses several critical bugs in 6.7.11.  6.7.11 should 
+not be used.
+
+\noindent Bugs Fixed:
+
+\item Fixed a serious bug introduced in 6.7.11 which prevented \Condor 
+{dagman} from successfully removing its own jobs from the Condor  
+queue after receiving a \Condor{rm} request from the \Condor{schedd}.
+
+\item Fixed a serious bug introduced in 6.7.11 where the \Condor{master} 
+on Windows would not properly shut down.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{\label{sec:New-6-7.11}Version 6.7.11}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
