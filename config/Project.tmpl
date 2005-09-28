@@ -25,9 +25,6 @@ INCLUDE_DIR =		../h
 NEW_INCLUDE_DIR =	../condor_includes
 C_PLUS_INCLUDE =	../condor_c++_util
 DAEMONCLIENT_INCLUDE =	../condor_daemon_client
-ODBC_INCLUDE = /p/condordb/public/odbc/include
-ODBC_LIB_DIR = /p/condordb/public/odbc/lib
-ODBC_LIB = /p/condordb/public/odbc/lib/libodbc.a
 
 #ifdef NEED_SNPRINTF
 SNPRINTF_FLAGS = -DNEED_SNPRINTF
@@ -450,7 +447,7 @@ GPP_VERS_FLAGS =
 GPP_SHARED_FLAGS = -fno-implicit-templates $(GPP_VERS_FLAGS)
 
 STD_C_FLAGS = $(VENDOR_C_FLAGS) $(DEBUG_FLAG) $(CC_PIC_FLAG) PlatformFlags PlatformGccFlags $(CCOMPILER_ID)
-STD_C_PLUS_FLAGS = $(STD_C_FLAGS) $(GPP_SHARED_FLAGS) PlatformGppFlags -I$(ODBC_INCLUDE)
+STD_C_PLUS_FLAGS = $(STD_C_FLAGS) $(GPP_SHARED_FLAGS) PlatformGppFlags 
 /* We basically want INST_C_PLUS_FLAGS to be equal to STD_C_PLUS_FLAGS,
 	but make sure there isn't -fno-implicit-templates in it
 	since we want any templates which need to be created to be created in 
@@ -483,7 +480,7 @@ COM_LDFLAGS_F = $(GCC_RDYNAMIC_FLAG) -lm $(LDFLAGS)
 COM_LDFLAGS_L = $(SITE_LDFLAGS)
 
 /* The various lists of needed ldflags for differing contexts */
-ALL_LDFLAGS = -L$(ODBC_LIB_DIR) $(COM_LDFLAGS_F) $(PLATFORM_LDFLAGS) $(COM_LDFLAGS_L)
+ALL_LDFLAGS = $(COM_LDFLAGS_F) $(PLATFORM_LDFLAGS) $(COM_LDFLAGS_L)
 TEST_LDFLAGS = $(COM_LDFLAGS_F) $(TEST_PLATFORM_LDFLAGS) $(COM_LDFLAGS_L)
 PURIFY_LDFLAGS = $(COM_LDFLAGS_F) $(PURIFY_PLATFORM_LDFLAGS) $(COM_LDFLAGS_L)
 
@@ -510,6 +507,5 @@ STD_LIBS = \
   $(IO_LIB) \
   $(CPLUS_LIB) \
   $(CUTIL_LIB) \
-  $(SECURITY_LIB) \
-  $(ODBC_LIB)
+  $(SECURITY_LIB)
 
