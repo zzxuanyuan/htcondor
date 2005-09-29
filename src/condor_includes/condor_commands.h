@@ -342,6 +342,14 @@ const int INVALIDATE_QUILL_ADS  = 54;
 #define GRIDMAN_ADD_JOBS SIGUSR2
 
 /*
+*** Commands used by the new matchmaker daemon
+*/
+#define MATCHLITE_BASE			73000
+#define MATCHLITE_GET_MATCH		(MATCHLITE_BASE+0)
+#define MATCHLITE_RENEW_LEASE	(MATCHLITE_BASE+1)
+#define MATCHLITE_KILL_LEASE	(MATCHLITE_BASE+2)
+
+/*
 *** Replies used in various stages of various protocols
 */
 
