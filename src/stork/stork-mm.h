@@ -25,14 +25,39 @@
 
 #include "condor_common.h"
 
+// Stork interface object to new "matchmaker lite" for SC2005 demo.
 class StorkMatchMaker 
 {
 	public:
+		// Constructor.  For now, I'll assume there are no args to the
+		// constructor.  Perhaps later we'll decide to specify a matchmaker to
+		// connect to.  Stork calls the constructor at daemon startup time.
 		StorkMatchMaker(void);
+
+		// Destructor.  Stork calls the destructor at daemon shutdown time.
 		~StorkMatchMaker(void);
-		const char * getTransferDestination(const char *protocol = NULL);
-		int returnTransferDestination(const char *);
-		int failTransferDestination(const char *);
+
+		// Get a dynamic transfer destination from the matchmaker by protocol,
+		// e.g. "gsiftp", "http", "file", etc.  This method returns a
+		// destination URL of the format "proto://host/dir/file".  This means a
+		// transfer directory has been created on the destination host.
+		// Question: Where does the "file" portion come from?  Should we create
+		// a random/unique filename on the fly?
+		// Return NULL if there are no destinations available.
+		//
+		// Todd: if you want to dump the protocol arg,
+		// and assume "gsiftp" for the entire demo, just update this
+		// declaration, and I'll spot it.
+		const char * getTransferDestination(const char *protocol);
+		
+		// Return a dynamic transfer destination to the matchmaker.  Stork
+		// calls this method when it is no longer using the transfer
+		// destination.  Matchmaker returns false upon error.
+		bool returnTransferDestination(const char * url);
+
+		// Inform the matchmaker that a dynamic transfer destination has
+		// failed.  Matchmaker returns false upon error.
+		bool failTransferDestination(const char * url);
 
 }; // class StorkMatchMaker
 
