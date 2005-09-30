@@ -322,6 +322,7 @@ write_xml_user_log(
 
   //create ClassAd
   classad::ClassAd *classad = new classad::ClassAd;
+  ASSERT(classad);
 
   //insert attributes to ClassAd
   classad->Insert("EventTime",classad::Literal::MakeAbsTime());
@@ -377,11 +378,12 @@ write_xml_user_log(
   //convert classad to XML
   xmlunparser.SetCompactSpacing(false);
   xmlunparser.Unparse(adbuffer, classad);
+  delete classad;
   
   //write the classad to classad file
   if ((flog = fopen(logfilename,"a+")) == NULL){
     dprintf(D_ALWAYS,
-	    "cannot open logfile :%s...\n",logfilename);
+	    "cannot open user logfile :%s...\n",logfilename);
     exit(1);
   }
   fprintf (flog,"%s",adbuffer.c_str());
