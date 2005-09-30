@@ -199,6 +199,7 @@ int main_config(bool v)
 int main_shutdown_fast()
 {
   dprintf(D_ALWAYS,"SHUTDOWN FAST ....\n");
+  terminate(TERMINATE_FAST);
   
   DC_Exit(0);
   return TRUE;	// to satisfy c++
@@ -210,6 +211,7 @@ int main_shutdown_fast()
 int main_shutdown_graceful()
 {
   dprintf(D_ALWAYS,"SHUTDOWN GRACEFULLY ....\n");
+  terminate(TERMINATE_GRACEFUL);
 
   DC_Exit(0);
   return TRUE;	// to satisfy c++

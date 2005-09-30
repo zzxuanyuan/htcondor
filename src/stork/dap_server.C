@@ -46,7 +46,7 @@ int  requestpath_dap_reaper_id;
 
 unsigned long last_dap = 0;  //changed only on new request
 
-classad::ClassAdCollection      *dapcollection;
+classad::ClassAdCollection      *dapcollection = NULL;
 Scheduler dap_queue;
 
 int listenfd_submit;
@@ -172,7 +172,39 @@ int read_config_file()
 	Log_dir = param("LOG");
 	if ( ! Log_dir ) Log_dir = strdup("/tmp");	// default
 	dprintf(D_ALWAYS, "modules will execute in LOG directory %s\n", Log_dir);
-	     
+
+    // Preset the job queue clean timer only upon cold start, or if the timer
+    // value has been changed.  If the timer period has not changed, leave the
+    // timer alone.  This will avoid undesirable behavior whereby timer is
+    // preset upon every reconfig, and job queue is not cleaned often enough.
+#define CLEAN_Q_INTERVAL_COLDSTART	(-1)
+#define CLEAN_Q_INTERVAL_DEFAULT	(60*60*24)
+#define CLEAN_Q_INTERVAL_MIN		1
+
+	static int old_job_q_clean_interval = CLEAN_Q_INTERVAL_MIN - 1;
+	static int cleanid = -1;
+	int job_q_clean_interval = 
+		param_integer(
+				"STORK_QUEUE_CLEAN_INTERVAL",	// parameter name
+				CLEAN_Q_INTERVAL_DEFAULT,
+				CLEAN_Q_INTERVAL_MIN
+		);
+
+	if (job_q_clean_interval != old_job_q_clean_interval) {
+		if (cleanid >= 0) {
+			daemonCore->Cancel_Timer(cleanid);
+		}
+		cleanid =
+			daemonCore->Register_Timer(
+					job_q_clean_interval,	// deltawhen
+					job_q_clean_interval,	// period
+					(Event)clean_job_queue,	// event
+					"clean_job_queue"		// description
+			);
+
+		old_job_q_clean_interval = job_q_clean_interval;
+	}
+
 	return TRUE;
 }
 
@@ -1116,6 +1148,35 @@ int initializations()
 
 		//check the logfile for noncompleted requests at startup
 	startup_check_for_requests_in_process();
+
+	return TRUE;
+}
+
+/* ============================================================================
+ * Clean (compress) the job queue.
+ * ==========================================================================*/
+void clean_job_queue(void)
+{
+	dprintf(D_ALWAYS, "Compressing job log %s\n", logfilename);
+	dapcollection->TruncateLog();
+}
+
+/* ============================================================================
+ * Terminate server.
+ * ==========================================================================*/
+int terminate(terminate_t terminate_type)
+{
+	if (terminate_type != TERMINATE_FAST) {
+		// Compress the job queue upon exit.  This will enable a faster startup
+		// using the same job queue.
+		clean_job_queue();
+	}
+
+	if ( dapcollection ) {
+		dprintf(D_FULLDEBUG, "Freeing job queue\n");
+		delete dapcollection;
+		dapcollection = NULL;
+	}
 
 	return TRUE;
 }

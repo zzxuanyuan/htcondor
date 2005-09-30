@@ -9,7 +9,13 @@
 #include "dap_constants.h"
 #include "sock.h"
 
+typedef enum {
+	TERMINATE_GRACEFUL,
+	TERMINATE_FAST
+} terminate_t;
+
 int initializations();
+int terminate(terminate_t);
 int read_config_file();
 int call_main();
 void startup_check_for_requests_in_process();
@@ -36,5 +42,7 @@ char * get_credential_filename (char * dap_id);
 int get_cred_from_credd (const char * request, void *& buff, int & size);
 
 int init_user_id_from_FQN (const char *owner);
+void clean_job_queue(void);
+
 #endif
 
