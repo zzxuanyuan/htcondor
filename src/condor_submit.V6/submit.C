@@ -3368,9 +3368,13 @@ SetGlobusParams()
 
 	if ( stricmp ( JobGridType, "unicore" ) == MATCH ) {
 
+		MyString grid_resource = "GridResource = \"unicore ";
+
 		if ( (tmp = condor_param( UnicoreUSite, "UnicoreUSite" )) ) {
 			sprintf( buff, "UnicoreUSite = \"%s\"", tmp );
 			InsertJobExpr( buff );
+			grid_resource += tmp;
+			grid_resource += " ";
 			free( tmp );
 		} else {
 			fprintf(stderr, "\nERROR: Unicore grid jobs require a \"%s\" parameter\n", UnicoreUSite );
@@ -3381,12 +3385,16 @@ SetGlobusParams()
 		if ( (tmp = condor_param( UnicoreVSite, "UnicoreVSite" )) ) {
 			sprintf( buff, "UnicoreVSite = \"%s\"", tmp );
 			InsertJobExpr( buff );
+			grid_resource += tmp;
+			grid_resource += "\"";
 			free( tmp );
 		} else {
 			fprintf(stderr, "\nERROR: Unicore grid jobs require a \"%s\" parameter\n", UnicoreVSite );
 			DoCleanup( 0, 0, NULL );
 			exit( 1 );
 		}
+
+		InsertJobExpr( grid_resource.Value() );
 
 		if ( (tmp = condor_param( KeystoreFile, "KeystoreFile" )) ) {
 			sprintf( buff, "UnicoreKeystoreFile = \"%s\"", tmp );
