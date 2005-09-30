@@ -3388,7 +3388,7 @@ SetGlobusParams()
 			exit( 1 );
 		}
 
-		if ( (tmp = condor_param( KeystoreFile, "UnicoreKeystoreFile" )) ) {
+		if ( (tmp = condor_param( KeystoreFile, "KeystoreFile" )) ) {
 			sprintf( buff, "UnicoreKeystoreFile = \"%s\"", tmp );
 			InsertJobExpr( buff );
 			free( tmp );
@@ -3398,7 +3398,7 @@ SetGlobusParams()
 			exit( 1 );
 		}
 
-		if ( (tmp = condor_param( KeystoreAlias, "UnicoreUserAlias" )) ) {
+		if ( (tmp = condor_param( KeystoreAlias, "KeystoreAlias" )) ) {
 			sprintf( buff, "UnicoreUserAlias = \"%s\"", tmp );
 			InsertJobExpr( buff );
 			free( tmp );
@@ -3408,7 +3408,7 @@ SetGlobusParams()
 			exit( 1 );
 		}
 
-		if ( (tmp = condor_param( KeystorePassphraseFile, "UnicorePassphraseFile" )) ) {
+		if ( (tmp = condor_param( KeystorePassphraseFile, "KeystorePassphraseFile" )) ) {
 			sprintf( buff, "UnicorePassphraseFile = \"%s\"", tmp );
 			InsertJobExpr( buff );
 			free( tmp );
