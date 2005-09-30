@@ -159,9 +159,9 @@ UnicoreJob::UnicoreJob( ClassAd *classad )
 	gahp->setTimeout( gahpCallTimeout );
 
 	buff[0] = '\0';
-	ad->LookupString( ATTR_GLOBUS_CONTACT_STRING, buff );
-	if ( buff[0] != '\0' && strcmp( buff, NULL_JOB_CONTACT ) != 0 ) {
-		jobContact = strdup( buff );
+	ad->LookupString( "GridJobId", buff );
+	if ( buff[0] != '\0' && strrchr( buff, ' ' ) != NULL ) {
+		jobContact = strdup( strrchr( buff, ' ' ) + 1 );
 		job_already_submitted = true;
 	}
 
@@ -331,8 +331,11 @@ int UnicoreJob::doEvaluateState()
 						// job_contact was strdup()ed for us. Now we take
 						// responsibility for free()ing it.
 					jobContact = job_contact;
-					UpdateJobAdString( ATTR_GLOBUS_CONTACT_STRING,
-									   job_contact );
+					char val[80];
+					ad->LookupString( "GridResource", val );
+					strcat( val, " " );
+					strcat( val, jobContact );
+					UpdateJobAdString( "GridJobId", val );
 					gmState = GM_SUBMIT_SAVE;
 				} else {
 					// unhandled error
@@ -518,8 +521,7 @@ if ( unicoreState != COMPLETED ) {
 			if ( jobContact != NULL ) {
 				free( jobContact );
 				jobContact = NULL;
-				UpdateJobAdString( ATTR_GLOBUS_CONTACT_STRING,
-								   NULL_JOB_CONTACT );
+				UpdateJobAd( "GridJobId", "Undefined" );
 			}
 			JobIdle();
 
