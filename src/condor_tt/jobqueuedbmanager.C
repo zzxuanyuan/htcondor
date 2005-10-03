@@ -663,12 +663,6 @@ JobQueueDBManager::buildAndWriteJobQueue()
 		//linked lists can accomodate any number of jobs
 	JobQueueCollection *jobQueue = new JobQueueCollection(2000);
 
-	struct timespec startTp;
-	struct timespec endTp;
-
-
-		//  START OF FIRST PHASE OF BULKLOADING
-	clock_gettime(CLOCK_REALTIME, &startTp);
 
 	dprintf(D_FULLDEBUG, "THIS IS THE 1st PHASE: PARSING a job_queue.log file and BUILDING JOB QUEUE COLLECTION!\n");
 
@@ -680,16 +674,11 @@ JobQueueDBManager::buildAndWriteJobQueue()
 		return 0;
 	}
 
-	clock_gettime(CLOCK_REALTIME, &endTp);
-
-	dprintf(D_FULLDEBUG, "1st PHASE: %.2fms\n" ,(double)(((endTp.tv_sec - startTp.tv_sec) * 1000000000.0 - startTp.tv_nsec + endTp.tv_nsec) / 1000000.0));
-
 	dprintf(D_FULLDEBUG, "THIS IS THE 2ND PHASE: LOADING THE JOBS INTO DBMS!\n");
 		//  END OF FIRST PHASE OF BULKLOADING
 
 
 		//  START OF SECOND PHASE OF BULKLOADING
-	clock_gettime(CLOCK_REALTIME, &startTp);
 
 		// For job queue tables, send COPY string to RDBMS: 
 		// For history tables, send INSERT to DBMS - all part of
@@ -698,8 +687,6 @@ JobQueueDBManager::buildAndWriteJobQueue()
 		return 0;
 	}
 
-	clock_gettime(CLOCK_REALTIME, &endTp);
-	dprintf(D_FULLDEBUG, "2nd PHASE: %.2fms\n" ,(double)(((endTp.tv_sec - startTp.tv_sec) * 1000000000.0 - startTp.tv_nsec + endTp.tv_nsec) / 1000000.0));
 			//  END OF SECOND PHASE OF BULKLOADING
 
 	delete jobQueue;
