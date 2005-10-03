@@ -3397,7 +3397,7 @@ SetGlobusParams()
 		InsertJobExpr( grid_resource.Value() );
 
 		if ( (tmp = condor_param( KeystoreFile, "KeystoreFile" )) ) {
-			sprintf( buff, "UnicoreKeystoreFile = \"%s\"", tmp );
+			sprintf( buff, "KeystoreFile = \"%s\"", tmp );
 			InsertJobExpr( buff );
 			free( tmp );
 		} else {
@@ -3407,7 +3407,7 @@ SetGlobusParams()
 		}
 
 		if ( (tmp = condor_param( KeystoreAlias, "KeystoreAlias" )) ) {
-			sprintf( buff, "UnicoreUserAlias = \"%s\"", tmp );
+			sprintf( buff, "KeystoreAlias = \"%s\"", tmp );
 			InsertJobExpr( buff );
 			free( tmp );
 		} else {
@@ -3417,7 +3417,7 @@ SetGlobusParams()
 		}
 
 		if ( (tmp = condor_param( KeystorePassphraseFile, "KeystorePassphraseFile" )) ) {
-			sprintf( buff, "UnicorePassphraseFile = \"%s\"", tmp );
+			sprintf( buff, "KeystorePassphraseFile = \"%s\"", tmp );
 			InsertJobExpr( buff );
 			free( tmp );
 		} else {
