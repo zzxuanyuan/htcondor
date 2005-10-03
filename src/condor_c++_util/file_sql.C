@@ -5,8 +5,7 @@
 #include "file_sql.h"
 #include "get_mysubsystem.h"
 
-// define the pointer to database connection object here since the odbc.o is put into 
-// the cplus_lib.a library. And that is because modules such as file_transfer.o and
+// We put FileObj definition here because modules such as file_transfer.o and
 // classad_log.o uses FILEObj and they are part of cplus_lib.a. This way we won't get
 // the FILEObj undefined error during compilation of any code which needs cplus_lib.a.
 
