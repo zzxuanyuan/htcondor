@@ -294,10 +294,6 @@ class Matchmaker : public Service
 		};
 		static int groupSortCompare(const void*, const void*);
 		
-		
-		
-		/* ODBC Stuff */
-		ODBC * db_handle;
 		char RejectsTable[40];
 		char MatchesTable[40];
 };
