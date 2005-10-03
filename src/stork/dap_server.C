@@ -16,6 +16,7 @@
 #include "env.h"
 #include "daemon.h"
 #include "condor_config.h"
+#include "stork-mm.h"
 
 #ifndef WANT_NAMESPACES
 #define WANT_NAMESPACES
@@ -48,6 +49,7 @@ unsigned long last_dap = 0;  //changed only on new request
 
 classad::ClassAdCollection      *dapcollection = NULL;
 Scheduler dap_queue;
+StorkMatchMaker					*Matchmaker = NULL;
 
 int listenfd_submit;
 int listenfd_status;
@@ -301,7 +303,8 @@ void get_last_dapid()
 /* ============================================================================
  * dap transfer function
  * ==========================================================================*/
-int transfer_dap(char *dap_id, char *src_url, char *dest_url, char *arguments, char * cred_file_name)
+int transfer_dap(char *dap_id, char *src_url, char *dest_url, char *arguments,
+		char * cred_file_name, classad::ClassAd *job_ad)
 {
 
 	char src_protocol[MAXSTR], src_host[MAXSTR], src_file[MAXSTR];
@@ -313,11 +316,57 @@ int transfer_dap(char *dap_id, char *src_url, char *dest_url, char *arguments, c
 	parse_url(src_url, src_protocol, src_host, src_file);
 	parse_url(dest_url, dest_protocol, dest_host, dest_file);
 
+#if 0
+dprintf(D_ALWAYS, "DEBUG: dest_url: '%s'\n", dest_url);
+dprintf(D_ALWAYS, "DEBUG: dest_protocol: '%s'\n", dest_protocol);
+dprintf(D_ALWAYS, "DEBUG: dest_host: '%s'\n", dest_host);
+dprintf(D_ALWAYS, "DEBUG: dest_file: '%s'\n", dest_file);
+#endif
+
 	strcpy(unstripped, src_url);
 	strncpy(src_url, strip_str(unstripped), MAXSTR);  
 
-	strcpy(unstripped, dest_url);
-	strncpy(dest_url, strip_str(unstripped), MAXSTR);  
+	// For dynamic destinations ...
+	if (! strcmp(dest_host, "$(DYNAMIC)") ) {
+
+		getValue(job_ad, "dest_transfer_url", unstripped);
+		char prev_dest_transfer_url[MAXSTR];
+		strncpy(prev_dest_transfer_url, strip_str(unstripped), MAXSTR);
+		if (strlen(prev_dest_transfer_url) == 0 ) {
+
+			const char *dest_transfer_url =
+				Matchmaker->getTransferDestination(dest_protocol);
+			if (dest_transfer_url == NULL) {
+				// No dynamic destination URLs are available for this protocol.
+				write_collection_log(dapcollection, dap_id, 
+										"status = \"request_rescheduled\";"
+										"error_code = \"no match found\";"
+										);
+				dprintf(D_FULLDEBUG,
+					"reschedule source URL %s: "
+					"no dynamic destinations for protocol %s\n",
+					src_url, dest_protocol);
+				return DAP_ERROR;	// no transfer
+			}
+				
+			// Save the dest_transfer_url in the job queue classad collection.
+			std::string modify_s =  "dest_transfer_url = \"";
+			modify_s += dest_transfer_url;
+			modify_s += "\";";
+			write_collection_log(dapcollection, dap_id, modify_s.c_str() );
+			dprintf(D_FULLDEBUG, "matched source URL %s to dynamic URL %s\n",
+				src_url, dest_transfer_url);
+
+			// Update destination URL to that from matchmaker.
+			dest_url = (char *)dest_transfer_url;
+		} else {
+			// Re-use previous destination URL from matchmaker.
+			dest_url = prev_dest_transfer_url;
+		}
+	} else {
+		strcpy(unstripped, dest_url);
+		strncpy(dest_url, strip_str(unstripped), MAXSTR);  
+	}
 
 	strcpy(unstripped, arguments);
 	strncpy(arguments, strip_str(unstripped), MAXSTR);  
@@ -707,14 +756,16 @@ void process_request(classad::ClassAd *currentAd)
     
 		if (!strcmp(use_protocol, "0")){
 				//dprintf(D_ALWAYS, "use_protocol: %s\n", use_protocol);      
-			transfer_dap(dap_id, src_url, dest_url, arguments, cred_file_name);
+			transfer_dap(dap_id, src_url, dest_url, arguments, cred_file_name,
+					currentAd);
 		}
 		else{
 			getValue(currentAd, "alt_protocols", alt_protocols);
 			dprintf(D_ALWAYS, "alt. protocols = %s\n", alt_protocols);
       
 			if (!strcmp(alt_protocols,"")) { //if no alt. protocol defined
-				transfer_dap(dap_id, src_url, dest_url, arguments, cred_file_name);
+				transfer_dap(dap_id, src_url, dest_url, arguments,
+						cred_file_name, currentAd);
 			}
 			else{ //use alt. protocols
 				strcpy(next_protocol, strtok(alt_protocols, ",") );   
@@ -755,7 +806,8 @@ void process_request(classad::ClassAd *currentAd)
 	
 	
 					//--> These "arguments" may need to be removed or chaged !!
-				transfer_dap(dap_id, src_alt_url, dest_alt_url, arguments, cred_file_name);
+				transfer_dap(dap_id, src_alt_url, dest_alt_url, arguments,
+						cred_file_name, currentAd);
 			}// end use alt. protocols
 		}
 	}
@@ -1123,6 +1175,10 @@ int initializations()
 		//initialize dapcollection 
 	initialize_dapcollection();
 
+	// instantiate matchmaker
+	Matchmaker = new StorkMatchMaker();
+	ASSERT(Matchmaker);
+
 		//init history file name 
 	snprintf(historyfilename, MAXSTR, "%s.history", logfilename);
 
@@ -1176,6 +1232,12 @@ int terminate(terminate_t terminate_type)
 		dprintf(D_FULLDEBUG, "Freeing job queue\n");
 		delete dapcollection;
 		dapcollection = NULL;
+	}
+
+	if ( Matchmaker ) {
+		dprintf(D_FULLDEBUG, "Freeing matchmaker\n");
+		delete Matchmaker;
+		Matchmaker = NULL;
 	}
 
 	return TRUE;
@@ -1833,7 +1895,7 @@ int dap_reaper(std::string modify_s, int pid,int exit_status)
 				  modify_s += linebuf;
 				  modify_s += ";";
 				*/
-		}
+		} // dap_type == reserve
     
 		modify_s += "status = \"request_completed\"";
 		write_collection_log(dapcollection, dap_id, modify_s.c_str());
@@ -1886,9 +1948,21 @@ int dap_reaper(std::string modify_s, int pid,int exit_status)
 			dprintf(D_ALWAYS, "Reserve key: %s\n", reserve_dap_id);
 
 			dapcollection->RemoveClassAd(key2);
-		}//--
+		} // dap_type == release
 
 
+		// If completing a transfer to a dynamic destination, return the
+		// dynamic destination to the matchmaker.
+		if (!strcmp(dap_type, "transfer")){
+			getValue(job_ad, "dest_transfer_url", unstripped);
+			char dest_transfer_url[MAXSTR];
+			strncpy(dest_transfer_url, strip_str(unstripped), MAXSTR);
+			if (strlen(dest_transfer_url) > 0 ) {
+				dprintf(D_FULLDEBUG, "successful transfer to dynamic URL %s, "
+						"returning to matchmaker\n", dest_transfer_url);
+				Matchmaker->returnTransferDestination(dest_transfer_url);
+			}
+		}
 
 			//when request is comleted, remove it from the collection and 
 			//log it to the history log file..
@@ -1958,6 +2032,19 @@ int dap_reaper(std::string modify_s, int pid,int exit_status)
 		else{
 				//      sstatus = "\"request_failed\"";
 			modify_s += "status = \"request_failed\";";
+
+			// If completing a transfer to a dynamic destination, notify the
+			// matchmaker that this destination failed.
+			if (!strcmp(dap_type, "transfer")){
+				getValue(job_ad, "dest_transfer_url", unstripped);
+				char dest_transfer_url[MAXSTR];
+				strncpy(dest_transfer_url, strip_str(unstripped), MAXSTR);
+				if (strlen(dest_transfer_url) > 0 ) {
+					dprintf(D_FULLDEBUG, "failed transfer to dynamic URL %s, "
+							"returning to matchmaker\n", dest_transfer_url);
+					Matchmaker->failTransferDestination(dest_transfer_url);
+				}
+			}
 		}
     
 		snprintf(tempstr, MAXSTR, 
