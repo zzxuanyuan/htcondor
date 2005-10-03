@@ -56,9 +56,6 @@
 #include "stdsoap2.h"
 #include "condor_pidenvid.h"
 
-//#include "pgsqldatabase.h"
-//#include "odbc.h"
-
 #define DEBUG_SETTABLE_ATTR_LISTS 0
 
 static const int KEEP_STREAM = 100;
