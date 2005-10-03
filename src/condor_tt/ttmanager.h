@@ -27,7 +27,6 @@
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
 #include "daemon.h"
 
-#include "odbc.h"
 #include "jobqueuedbmanager.h"
 
 #define MAXLOGNUM 7

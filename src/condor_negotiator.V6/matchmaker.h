@@ -28,8 +28,6 @@
 #include "condor_io.h"
 #include "HashTable.h"
 #include "dc_collector.h"
-/* ODBC include */
-#include "odbc.h"
 /* FILESQL include */
 #include "file_sql.h"
 #ifdef WANT_NETMAN

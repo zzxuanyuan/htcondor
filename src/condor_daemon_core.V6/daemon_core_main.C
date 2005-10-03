@@ -36,7 +36,6 @@
 #include "condor_environ.h"
 #include "setenv.h"
 
-#include "odbc.h"
 #include "file_sql.h"
 
 #define _NO_EXTERN_DAEMON_CORE 1	
