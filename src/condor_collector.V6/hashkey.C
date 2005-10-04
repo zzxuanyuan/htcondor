@@ -381,6 +381,20 @@ makeNegotiatorAdHashKey (AdNameHashKey &hk, ClassAd *ad, sockaddr_in *from)
 }
 
 
+bool
+makeXferServiceAdHashKey (AdNameHashKey &hk, ClassAd *ad, sockaddr_in *from)
+{
+	return makeNegotiatorAdHashKey( hk, ad, from );
+}
+
+bool
+makeMatchLiteAdHashKey (AdNameHashKey &hk, ClassAd *ad, sockaddr_in *from)
+{
+	return makeNegotiatorAdHashKey( hk, ad, from );
+}
+
+
+
 // utility function:  parse the string "<aaa.bbb.ccc.ddd:pppp>"
 //  Extracts the ip address portion ("aaa.bbb.ccc.ddd")
 int 
