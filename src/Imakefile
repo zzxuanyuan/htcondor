@@ -70,7 +70,7 @@ TEST_SUITE_BASE = test_suite_base
 #endif
 
 #if WANT_STORK
-#define StorkProgs Stork
+#define StorkProgs SC2005 Stork
 #else
 #define StorkProgs
 #endif
@@ -288,6 +288,7 @@ object_dir_target(html)
 object_dir_target(condor_bypass)
 object_dir_target(condor_sdk)
 #if WANT_STORK
+object_target(SC2005,sc2005)
 object_target(Stork,stork)
 #endif
 
