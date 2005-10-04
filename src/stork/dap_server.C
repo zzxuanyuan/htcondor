@@ -960,6 +960,23 @@ void regular_check_for_requests_in_process()
 								);
 							}
 
+                            // If this job has a dynamic transfer destination,
+                            // return this to the matchmaker.
+                            std::string dest_transfer_url;
+                            if  (   job_ad->EvaluateAttrString(
+                                        "dest_transfer_url",
+                                        dest_transfer_url
+                                    ) && dest_transfer_url.length() > 0
+                                )
+                            {
+                                dprintf(D_FULLDEBUG,
+                                    "returning dynamic transfer destination",
+                                    " %s to matchmaker\n",
+                                    dest_transfer_url.c_str() );
+                                Matchmaker->returnTransferDestination(
+                                        dest_transfer_url.c_str() );
+                            }
+
 							char attempts[MAXSTR], tempstr[MAXSTR];
 							std::string modify_s = "";
 
@@ -1024,7 +1041,7 @@ void regular_check_for_requests_in_process()
 								continue;
 							}
 		 
-						}
+						} // remove PID from dap_queue
 						else{
 							dprintf(D_ALWAYS, "Error in Removing process %d\n", pid);
 						}
@@ -1218,10 +1235,85 @@ void clean_job_queue(void)
 }
 
 /* ============================================================================
+ * Return dynamic destination matches to matchmaker.
+ * ==========================================================================*/
+void returnDynamicMatches(void)
+{
+	classad::LocalCollectionQuery query;
+	classad::ClassAd       *job_ad;
+	classad::ClassAdParser  parser;
+	std::string             key, constraint;
+  
+    // set the constraint for the query
+	//constraint = "other.status == \"processing_request\"";
+	constraint = "dest_transfer_url is defined";
+	classad::ExprTree *constraint_tree = parser.ParseExpression( constraint );
+	if (!constraint_tree) {
+		dprintf(D_ALWAYS, 
+				"Error in parsing constraint: %s\n", constraint.c_str());
+        return;
+	}
+
+	query.Bind(dapcollection);  
+	query.Query("root", constraint_tree);
+	query.ToFirst();
+
+    dprintf(D_FULLDEBUG,
+            "returning dynamic transfer destinations to matchmaker\n");
+	if ( query.Current(key) ){
+		do{
+			job_ad = dapcollection->GetClassAd(key);
+			if (!job_ad) { //no matching classad
+                dprintf(D_ALWAYS, "%s:%d: no matching job ad for query %s",
+                        __FILE__, __LINE__, constraint.c_str());
+				break;
+			}
+
+            // If this job has a dynamic transfer destination, return this to
+            // the matchmaker.
+            std::string dest_transfer_url;
+            if  (   job_ad->EvaluateAttrString(
+                        "dest_transfer_url",
+                        dest_transfer_url
+                    ) && dest_transfer_url.length() > 0
+                )
+            {
+                dprintf(D_FULLDEBUG, "returning dynamic transfer destination "
+                        "%s to matchmaker\n", dest_transfer_url.c_str() );
+                Matchmaker->returnTransferDestination(
+                        dest_transfer_url.c_str() );
+            }
+		} while (query.Next(key));
+    }
+
+	if (constraint_tree != NULL) delete constraint_tree;
+}
+
+/* ============================================================================
+ * Terminate matchmaker interface
+ * ==========================================================================*/
+void terminateMatchmaker(void)
+{
+	if ( Matchmaker ) {
+
+        // Return all active matches from matchmaker.
+        returnDynamicMatches();
+
+		dprintf(D_FULLDEBUG, "Deleting matchmaker interface\n");
+		delete Matchmaker;
+		Matchmaker = NULL;
+	}
+}
+
+/* ============================================================================
  * Terminate server.
  * ==========================================================================*/
 int terminate(terminate_t terminate_type)
 {
+	if ( Matchmaker ) {
+		terminateMatchmaker();
+    }
+
 	if (terminate_type != TERMINATE_FAST) {
 		// Compress the job queue upon exit.  This will enable a faster startup
 		// using the same job queue.
@@ -1229,15 +1321,9 @@ int terminate(terminate_t terminate_type)
 	}
 
 	if ( dapcollection ) {
-		dprintf(D_FULLDEBUG, "Freeing job queue\n");
+		dprintf(D_FULLDEBUG, "Deleting RAM job queue\n");
 		delete dapcollection;
 		dapcollection = NULL;
-	}
-
-	if ( Matchmaker ) {
-		dprintf(D_FULLDEBUG, "Freeing matchmaker\n");
-		delete Matchmaker;
-		Matchmaker = NULL;
 	}
 
 	return TRUE;
@@ -1775,6 +1861,20 @@ int remove_requests_from_queue(ReliSock * sock)
 					"kill process %d for job %s error: %s\n",
 					pid, dap_id, strerror(errno) );
 			}
+            // If this job has a dynamic transfer destination, return this to
+            // the matchmaker.
+            std::string dest_transfer_url;
+            if  (   job_ad->EvaluateAttrString(
+                        "dest_transfer_url",
+                        dest_transfer_url
+                    ) && dest_transfer_url.length() > 0
+                )
+            {
+                dprintf(D_FULLDEBUG, "returning dynamic transfer destination "
+                        "%s to matchmaker\n", dest_transfer_url.c_str() );
+                Matchmaker->returnTransferDestination(
+                        dest_transfer_url.c_str() );
+            }
 		}
 		else{
 			dprintf(D_ALWAYS, "Corresponding process for job: %s not found\n", dap_id);
@@ -1782,6 +1882,8 @@ int remove_requests_from_queue(ReliSock * sock)
       
       
 		if (dap_queue.remove(dap_id) == DAP_SUCCESS){
+			// THIS IS A BUG.  dap_reaper() will attempt to retrieve the PID
+			// for the job when it terminates, and fail.
 			dprintf(D_ALWAYS, "Removed job: %s\n", dap_id);
 		}
 		else{
@@ -1863,6 +1965,9 @@ int dap_reaper(std::string modify_s, int pid,int exit_status)
 	if (dap_queue.get_dapid(pid, dap_id) != DAP_SUCCESS){
 		dprintf(D_ALWAYS, "Process %d not in queue!\n", pid);
 			//dap_queue.remove("0"); //just decrease num_jobs
+
+		// THIS IS A BUG.  remove_requests_from_queue() removes the same entry
+		// from the dap_queue when it removes the job.
 		return DAP_ERROR;
 	}
   
