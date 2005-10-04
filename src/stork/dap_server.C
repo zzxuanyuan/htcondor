@@ -970,7 +970,7 @@ void regular_check_for_requests_in_process()
                                 )
                             {
                                 dprintf(D_FULLDEBUG,
-                                    "returning dynamic transfer destination",
+                                    "returning dynamic transfer destination"
                                     " %s to matchmaker\n",
                                     dest_transfer_url.c_str() );
                                 Matchmaker->returnTransferDestination(
