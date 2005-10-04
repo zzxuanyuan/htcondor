@@ -232,6 +232,14 @@ const int UPDATE_QUILL_AD	= 52;
 const int QUERY_QUILL_ADS	= 53;
 const int INVALIDATE_QUILL_ADS  = 54;
 
+const int UPDATE_XFER_SERVICE_AD	= 55;
+const int QUERY_XFER_SERVICE_ADS	= 56;
+const int INVALIDATE_XFER_SERVICE_ADS  = 57;
+
+const int UPDATE_MATCH_LITE_AD	= 58;
+const int QUERY_MATCH_LITE_ADS	= 59;
+const int INVALIDATE_MATCH_LITE_ADS  = 60;
+
 
 /*
 *** Daemon Core Signals

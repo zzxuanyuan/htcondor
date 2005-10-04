@@ -39,6 +39,8 @@
 #define LICENSE_ADTYPE		"License"
 #define STORAGE_ADTYPE		"Storage"
 #define NEGOTIATOR_ADTYPE	"Negotiator"
+#define XFER_SERVICE_ADTYPE "XferService"
+#define MATCH_LITE_ADTYPE	"MatchLite"
 #define ANY_ADTYPE			"Any"
 #define SUBMITTER_ADTYPE	"Submitter"
 #define COMMAND_ADTYPE		"Command"
