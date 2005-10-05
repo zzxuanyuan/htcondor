@@ -64,12 +64,13 @@ DCMatchLiteLease::DCMatchLiteLease(
 
 DCMatchLiteLease::DCMatchLiteLease(
 	const string		&lease_id,
-	int					lease_duration )
+	int					lease_duration,
+	bool				release_when_done )
 {
-	lease_ad = NULL;
+	this->lease_ad = NULL;
 	setLeaseId( lease_id );
 	setLeaseDuration( lease_duration );
-	release_lease_when_done = true;
+	this->release_lease_when_done = release_when_done;
 }
 
 int
@@ -227,7 +228,7 @@ DCMatchLite::getMatches( const char *requestor_name,
 
 bool
 DCMatchLite::renewLeases(
-	const list< const DCMatchLiteLease *> &leases,
+	list< const DCMatchLiteLease *> &leases,
 	list< DCMatchLiteLease *> &out_leases )
 {
 		// Create the ReliSock
@@ -237,17 +238,8 @@ DCMatchLite::renewLeases(
 		return false;
 	}
 
-	// Send the number of 
-
-	// Send the requests
-	for ( list<const DCMatchLiteLease *>::iterator iter = leases.begin();
-		  iter != leases.end();
-		  iter++ )
-	{
-		
-	}
-		// Serialize the classad onto the wire
-	if ( !StreamPut( rsock, request_ad ) ) {
+	// Send the leases
+	if ( !SendLeases( rsock, leases ) ) {
 		delete rsock;
 		return false;
 	}
@@ -255,37 +247,70 @@ DCMatchLite::renewLeases(
 	rsock->eom();
 
 		// Receive the return code
+	int		rc;
 	rsock->decode();
-
-	int		num_matches;
-	if ( !rsock->code( num_matches ) ) {
+	if ( !rsock->get( rc ) ) {
 		delete rsock;
 		return false;
 	}
-	if ( num_matches < 0 ) {
-		rsock->close( );
-		delete rsock;
-		return true;
-	}
-	for (int num = 0;  num < num_matches;  num++ ) {
-		char	*lease_id;
-		int		duration;
-		bool	release_when_done;
 
-		DCMatchLiteLease	*lease = readLease( rsock );
-		if ( !lease ) {
-			delete rsock;
-		}
-		classad::ClassAd	*ad = new classad::ClassAd( );
-		if ( !StreamGet( rsock, *ad ) ) {
-			delete rsock;
-			delete ad;
-			return false;
-		}
-		DCMatchLiteLease *lease = new DCMatchLiteLease( ad );
-		leases.push_back( lease );
+		// Finally, read the returned leases
+	if ( !GetLeases( rsock, out_leases ) ) {
+		delete rsock;
+		return false;
 	}
 
 	rsock->close();
+	return true;
+}
+
+bool
+DCMatchLite::SendLeases(
+	Stream							*stream,
+	list< const DCMatchLiteLease *>	&l_list )
+{
+	if ( !stream->put( l_list.size() ) ) {
+		return false;
+	}
+
+	list <const DCMatchLiteLease *>::iterator iter;
+	for( iter = l_list.begin(); iter != l_list.end(); iter++ ) {
+		const DCMatchLiteLease	*lease = *iter;
+		if ( !stream->put( (char*) lease->LeaseId().c_str() ) ||
+			 !stream->put( lease->LeaseDuration() ) ||
+			 !stream->put( lease->ReleaseLeaseWhenDone() )  ) {
+			return false;
+		}
+	}
+	return true;
+}
+
+bool
+DCMatchLite::GetLeases(
+	Stream							*stream,
+	std::list< DCMatchLiteLease *>	&l_list )
+{
+	int		num_leases;
+	if ( !stream->get( num_leases ) ) {
+		return false;
+	}
+
+	for( int	num = 0;  num < num_leases;  num++ ) {
+		char	*lease_id_cstr;
+		int		lease_duration;
+		int		release_when_done;
+		if ( !stream->get( lease_id_cstr ) ||
+			 !stream->get( lease_duration ) ||
+			 !stream->get( release_when_done ) ) {
+			DCMatchLiteLease_FreeList( l_list );
+			return false;
+		}
+		string	lease_id( lease_id_cstr );
+		DCMatchLiteLease	*lease =
+			new DCMatchLiteLease( lease_id,
+								  lease_duration,
+								  (bool) release_when_done );
+		l_list.push_back( lease );
+	}
 	return true;
 }

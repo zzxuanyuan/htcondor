@@ -41,16 +41,21 @@ class DCMatchLiteLease {
 	DCMatchLiteLease( classad::ClassAd * );
 	DCMatchLiteLease( const classad::ClassAd & );
 	DCMatchLiteLease( const string &lease_id,
-					  int lease_duration = 0 );
+					  int lease_duration = 0,
+					  bool release_when_done = true );
 	~DCMatchLiteLease( void );
 
 	int initFromClassAd( classad::ClassAd *ad );
 	int initFromClassAd( const classad::ClassAd	&ad );
 
-	const string &LeaseId( void ) { return lease_id; };
-	int LeaseDuration( void ) { return lease_duration; };
-	classad::ClassAd *LeaseAd( void ) { return lease_ad; };
-	bool ReleaseLeaseWhenDone( void ) { return release_lease_when_done; };
+	const string &LeaseId( void ) const
+		{ return lease_id; };
+	int LeaseDuration( void ) const
+		{ return lease_duration; };
+	classad::ClassAd *LeaseAd( void ) const
+		{ return lease_ad; };
+	bool ReleaseLeaseWhenDone( void ) const
+		{ return release_lease_when_done; };
 
 	int setLeaseId( const string & );
 	int setLeaseDuration( int );
@@ -63,7 +68,7 @@ class DCMatchLiteLease {
 };
 
 // Free a list of leases
-void DCMatchLiteLease_FreeList( list<DCMatchListLease *> &lease_list );
+void DCMatchLiteLease_FreeList( list<DCMatchLiteLease *> &lease_list );
 
 
 /** The subclass of the Daemon object for talking to a match lite daemon
@@ -114,7 +119,7 @@ class DCMatchLite : public Daemon {
 			@param out_leases STL list of renewed leases
 			The list pointers should be delete()ed when no longer used
 		*/
-	bool renewLeases( const list< const DCMatchLiteLease *> &leases,
+	bool renewLeases( list< const DCMatchLiteLease *> &leases,
 					  list< DCMatchLiteLease *> &out_leases );
 
 
@@ -122,7 +127,7 @@ class DCMatchLite : public Daemon {
 			@param leases STL list of lease information on leases to release
 			@return true on success, false on invalid input (NULL)
 		*/
-	bool releasewLeases( const list <const DCMatchLiteLease *> &leases );
+	bool releasewLeases( list <const DCMatchLiteLease *> &leases );
 
 
  private:
@@ -130,6 +135,16 @@ class DCMatchLite : public Daemon {
 		// I can't be copied (yet)
 	DCMatchLite( const DCMatchLite& );
 	DCMatchLite& operator = ( const DCMatchLite& );
+
+	// Helper methods to get/send leases
+	bool SendLeases(
+		Stream							*stream,
+		list< const DCMatchLiteLease *>	&l_list
+		);
+	bool GetLeases(
+		Stream							*stream,
+		std::list< DCMatchLiteLease *>	&l_list
+		);
 
 };
 
