@@ -1164,7 +1164,17 @@ RemoteErrorEvent::writeEvent(FILE *file)
 		tmpClP2->Insert(tmp);
 
 			// critical error means this run is ended.  
-		retval = FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2);		
+			// condor_event.o is part of cplus_lib.a, which may be linked by 
+			// non-daemons who wouldn't have initialized FILEObj. We don't 
+			// need to log events for non-daemons.
+		if (FILEObj) {
+			retval = FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2);	
+			if (retval < 0) {
+				dprintf(D_ALWAYS, "Logging Event 5--- Error\n");
+				return 0; // return a error code, 0
+			}		
+		}
+
 	} else {
 		
 		snprintf(eventts, 100, "%d-%02d-%02d %02d:%02d:%02d %s", 
@@ -1197,12 +1207,13 @@ RemoteErrorEvent::writeEvent(FILE *file)
 		snprintf(tmp, 1024, "description = \"%s\"", messagestr);
 		tmpClP1->Insert(tmp);	
 				
-		retval = FILEObj->file_newEvent("Events", tmpClP1);
-	}
-
-	if (retval < 0) {
-		dprintf(D_ALWAYS, "Logging Event 5--- Error\n");
-		return 0; // return a error code, 0
+		if (FILEObj) {
+			retval = FILEObj->file_newEvent("Events", tmpClP1);
+			if (retval < 0) {
+				dprintf(D_ALWAYS, "Logging Event 5--- Error\n");
+				return 0; // return a error code, 0
+			}			
+		}
 	}
 
     retval = fprintf(
@@ -1462,11 +1473,13 @@ writeEvent (FILE *file)
   snprintf(tmp, 512, "endtype = null");
   tmpClP2->Insert(tmp);
   
-  retval = FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2);
+  if (FILEObj) {
+	  retval = FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2);
 
-  if (retval < 0) {
-    dprintf(D_ALWAYS, "Logging Event 1--- Error\n");
-    return 0; // return a error code, 0
+	  if (retval < 0) {
+		  dprintf(D_ALWAYS, "Logging Event 1--- Error\n");
+		  return 0; // return a error code, 0
+	  }
   }
 
   snprintf(tmp, 512, "machine_id = \"%s\"", executehostname);
@@ -1487,11 +1500,13 @@ writeEvent (FILE *file)
   snprintf(tmp, 512, "startts = \"%s\"", eventts);
   tmpClP3->Insert(tmp);
 
-  retval = FILEObj->file_newEvent("Runs", tmpClP3);
+  if(FILEObj) {
+	  retval = FILEObj->file_newEvent("Runs", tmpClP3);
 
-  if (retval < 0) {
-    dprintf(D_ALWAYS, "Logging Event 1--- Error\n");
-    return 0; // return a error code, 0
+	  if (retval < 0) {
+		  dprintf(D_ALWAYS, "Logging Event 1--- Error\n");
+		  return 0; // return a error code, 0
+	  }
   }
 
   retval = fprintf (file, "Job executing on host: %s\n", executeHost);
@@ -1617,11 +1632,13 @@ writeEvent (FILE *file)
 	snprintf(tmp, 1024, "endtype = null");
 	tmpClP2->Insert(tmp);
   
-	retval = FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2);
+	if (FILEObj) {
+		retval = FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2);
 
-	if (retval < 0) {
-		dprintf(D_ALWAYS, "Logging Event 12--- Error\n");
-		return 0; // return a error code, 0
+		if (retval < 0) {
+			dprintf(D_ALWAYS, "Logging Event 12--- Error\n");
+			return 0; // return a error code, 0
+		}
 	}
 
 	switch (errType)
@@ -1766,11 +1783,13 @@ writeEvent (FILE *file)
 	snprintf(tmp, 1024, "description = \"%s\"", messagestr);
 	tmpClP1->Insert(tmp);	
 				
-	retval = FILEObj->file_newEvent("Events", tmpClP1);
+	if (FILEObj) {
+		retval = FILEObj->file_newEvent("Events", tmpClP1);
 
-	if (retval < 0) {
-		dprintf(D_ALWAYS, "Logging Event 6--- Error\n");
-		return 0; // return a error code, 0
+		if (retval < 0) {
+			dprintf(D_ALWAYS, "Logging Event 6--- Error\n");
+			return 0; // return a error code, 0
+		}
 	}
 
 	if (fprintf (file, "Job was checkpointed.\n") < 0  		||
@@ -2165,17 +2184,22 @@ JobEvictedEvent::writeEvent( FILE *file )
   snprintf(tmp, 1024, "endtype = null");
   tmpClP2->Insert(tmp);
   
-  retval = FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2);
+  if (FILEObj) {
+	  retval = FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2);
   
+	  if (retval < 0) {
+		  dprintf(D_ALWAYS, "Logging Event 2 --- Error\n");
+		  free(messagestr);
+		  free(checkpointedstr);
+		  free(terminatestr);		  
+		  return 0; // return a error code, 0
+	  }
+  }
+
   free(messagestr);
   free(checkpointedstr);
   free(terminatestr);
 
-  if (retval < 0) {
-    dprintf(D_ALWAYS, "Logging Event 2 --- Error\n");
-     return 0; // return a error code, 0
-  }
-  
   return 1;
 }
 
@@ -2381,11 +2405,13 @@ writeEvent (FILE *file)
 	snprintf(tmp, 1024, "description = \"%s\"", messagestr);
 	tmpClP1->Insert(tmp);	
 				
-	retval = FILEObj->file_newEvent("Events", tmpClP1);
+	if (FILEObj) {
+		retval = FILEObj->file_newEvent("Events", tmpClP1);
 
-	if (retval < 0) {
-		dprintf(D_ALWAYS, "Logging Event 7--- Error\n");
-		return 0; // return a error code, 0
+		if (retval < 0) {
+			dprintf(D_ALWAYS, "Logging Event 7--- Error\n");
+			return 0; // return a error code, 0
+		}
 	}
 
 	if( fprintf(file, "Job was aborted by the user.\n") < 0 ) {
@@ -2602,14 +2628,17 @@ TerminatedEvent::writeEvent( FILE *file, const char* header )
 	snprintf(tmp, 1024, "endts = \"%s\"", eventts);
 	tmpClP2->Insert(tmp);
 
-	retval = FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2);
+	if (FILEObj) {
+		retval = FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2);
+
+		if (retval < 0) {
+			dprintf(D_ALWAYS, "Logging Event 3--- Error\n");
+			free(messagestr);
+			return 0; // return a error code, 0
+		}
+	}
 
 	free(messagestr);
-
-	if (retval < 0) {
-		dprintf(D_ALWAYS, "Logging Event 3--- Error\n");
-		return 0; // return a error code, 0
-	}
 
 	return 1;
 }
@@ -2741,11 +2770,13 @@ JobTerminatedEvent::writeEvent (FILE *file)
   snprintf(tmp, 1024, "endtype = null");
   tmpClP2->Insert(tmp);
 
-  retval = FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2);
+  if (FILEObj) {
+	  retval = FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2);
 
-  if (retval < 0) {
-	  dprintf(D_ALWAYS, "Logging Event 4--- Error\n");
-	  return 0; // return a error code, 0
+	  if (retval < 0) {
+		  dprintf(D_ALWAYS, "Logging Event 4--- Error\n");
+		  return 0; // return a error code, 0
+	  }
   }
 
   if( fprintf(file, "Job terminated.\n") < 0 ) {
@@ -3028,11 +3059,13 @@ writeEvent (FILE *file)
 	snprintf(tmp, 1024, "endtype = null");
 	tmpClP2->Insert(tmp);
   
-	retval = FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2);
+	if (FILEObj) {
+		retval = FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2);
 	
-	if (retval < 0) {
-		dprintf(D_ALWAYS, "Logging Event 13--- Error\n");
-		return 0; // return a error code, 0
+		if (retval < 0) {
+			dprintf(D_ALWAYS, "Logging Event 13--- Error\n");
+			return 0; // return a error code, 0
+		}
 	}
 
 	if (fprintf (file, "Shadow exception!\n\t") < 0)
@@ -3167,11 +3200,13 @@ writeEvent (FILE *file)
 	snprintf(tmp, 1024, "description = \"%s\"", messagestr);
 	tmpClP1->Insert(tmp);	
 				
-	retval = FILEObj->file_newEvent("Events", tmpClP1);
+	if (FILEObj) {
+		retval = FILEObj->file_newEvent("Events", tmpClP1);
 
-	if (retval < 0) {
-		dprintf(D_ALWAYS, "Logging Event 8--- Error\n");
-		return 0; // return a error code, 0
+		if (retval < 0) {
+			dprintf(D_ALWAYS, "Logging Event 8--- Error\n");
+			return 0; // return a error code, 0
+		}
 	}
 
 	if (fprintf (file, "Job was suspended.\n\t") < 0)
@@ -3273,11 +3308,13 @@ writeEvent (FILE *file)
 	snprintf(tmp, 1024, "description = \"%s\"", messagestr);
 	tmpClP1->Insert(tmp);	
 				
-	retval = FILEObj->file_newEvent("Events", tmpClP1);
+	if (FILEObj) {
+ 		retval = FILEObj->file_newEvent("Events", tmpClP1);
 
-	if (retval < 0) {
-		dprintf(D_ALWAYS, "Logging Event 9--- Error\n");
-		return 0; // return a error code, 0
+		if (retval < 0) {
+			dprintf(D_ALWAYS, "Logging Event 9--- Error\n");
+			return 0; // return a error code, 0
+		}
 	}
 
 	if (fprintf (file, "Job was unsuspended.\n") < 0)
@@ -3457,11 +3494,13 @@ JobHeldEvent::writeEvent( FILE *file )
 	snprintf(tmp, 1024, "description = \"%s\"", messagestr);
 	tmpClP1->Insert(tmp);	
 				
-	retval = FILEObj->file_newEvent("Events", tmpClP1);
+	if (FILEObj) {
+		retval = FILEObj->file_newEvent("Events", tmpClP1);
 
-	if (retval < 0) {
-		dprintf(D_ALWAYS, "Logging Event 10--- Error\n");
-		return 0; // return a error code, 0
+		if (retval < 0) {
+			dprintf(D_ALWAYS, "Logging Event 10--- Error\n");
+			return 0; // return a error code, 0
+		}
 	}
 
 	if( fprintf(file, "Job was held.\n") < 0 ) {
@@ -3600,7 +3639,7 @@ JobReleasedEvent::writeEvent( FILE *file )
 	ClassAd *tmpClP1 = &tmpCl1;
 	char tmp[1024];
 	char eventts[100];
-	int retval;
+	int retval = 0;
 
 	if (reason)
 		snprintf(messagestr, 512, "Job was released: %s", reason);
@@ -3641,11 +3680,13 @@ JobReleasedEvent::writeEvent( FILE *file )
 	snprintf(tmp, 1024, "description = \"%s\"", messagestr);
 	tmpClP1->Insert(tmp);	
 				
-	retval = FILEObj->file_newEvent("Events", tmpClP1);
+	if (FILEObj) {
+		retval = FILEObj->file_newEvent("Events", tmpClP1);
 
-	if (retval < 0) {
-		dprintf(D_ALWAYS, "Logging Event 11--- Error\n");
-		return 0; // return a error code, 0
+		if (retval < 0) {
+			dprintf(D_ALWAYS, "Logging Event 11--- Error\n");
+			return 0; // return a error code, 0
+		}
 	}
 
 	if( fprintf(file, "Job was released.\n") < 0 ) {
