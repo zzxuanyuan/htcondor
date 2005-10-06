@@ -434,10 +434,12 @@ Daemon::startCommand( int cmd, Stream::stream_type st, int sec, CondorError* err
 		return NULL;
 	}
 
-
+	printf( "Starting command now\n" );
 	if (startCommand ( cmd, sock, sec, errstack )) {
+		printf( "->OK\n" );
 		return sock;
 	} else {
+		printf( "->Failed\n" );
 		delete sock;
 		return NULL;
 	}
@@ -780,6 +782,9 @@ Daemon::locate( void )
 	case DT_QUILL:
 		rval = getDaemonInfo( "QUILL", SCHEDD_AD );
 		break;
+	case DT_MATCH_LITE:
+	  rval = getDaemonInfo( "MATCHLITE", MATCH_LITE_AD, true );
+	  break;
 	default:
 		EXCEPT( "Unknown daemon type (%d) in Daemon::init", (int)_type );
 	}
@@ -944,7 +949,7 @@ Daemon::getDaemonInfo( const char* subsys, AdTypes adtype, bool query_collector)
 			}
 			delete [] my_name;
 		}
-	} else if ( _type != DT_NEGOTIATOR ) {
+	} else if ( ( _type != DT_NEGOTIATOR ) && ( _type != DT_MATCH_LITE ) ) {
 			// We were passed neither a name nor an address, so use
 			// the local daemon, unless we're NEGOTIATOR, in which case
 			// we'll still query the collector even if we don't have the 
@@ -1002,7 +1007,7 @@ Daemon::getDaemonInfo( const char* subsys, AdTypes adtype, bool query_collector)
 			buf.sprintf( "%s == \"%s\"", ATTR_NAME, _name ); 
 			query.addANDConstraint( buf.Value() );
 		} else {
-			if ( _type != DT_NEGOTIATOR ) {
+			if ( ( _type != DT_NEGOTIATOR ) && ( _type != DT_MATCH_LITE ) ) {
 					// If we're not querying for negotiator
 					//    (which there's only one of)
 					// and we don't have the name
@@ -1014,7 +1019,6 @@ Daemon::getDaemonInfo( const char* subsys, AdTypes adtype, bool query_collector)
 
 
 			// We need to query the collector
-
 		CollectorList * collectors = CollectorList::create(_pool);
 		CondorError errstack;
 		if (collectors->query (query, ads) != Q_OK) {
