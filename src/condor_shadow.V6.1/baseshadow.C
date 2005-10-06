@@ -84,7 +84,9 @@ BaseShadow::baseInit( ClassAd *job_ad, const char* schedd_addr )
 	}
 	scheddAddr = strdup( schedd_addr );
 
-	if ( !jobAd->LookupString(ATTR_OWNER, owner)) {
+	if ( jobAd->LookupString(ATTR_LOCAL_USER_ACCOUNT, owner)) {
+		dprintf (D_FULLDEBUG, "Using dynamic user account %s instead of Owner=...\n", owner);
+	} else if ( !jobAd->LookupString(ATTR_OWNER, owner)) {
 		EXCEPT("Job ad doesn't contain an %s attribute.", ATTR_OWNER);
 	}
 
