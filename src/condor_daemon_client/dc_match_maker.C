@@ -163,40 +163,31 @@ DCMatchLite::getMatches( const classad::ClassAd &request_ad,
 						 list< DCMatchLiteLease *> &leases )
 {
 		// Create the ReliSock
-	printf( "::getMatches: Starting command\n" );
 	CondorError errstack;
 	ReliSock *rsock = (ReliSock *)startCommand(
 			MATCHLITE_GET_MATCH, Stream::reli_sock, 20 );
 	if ( ! rsock ) {
-		printf( "::getMatches: Error in startCommand\n" );
 		return false;
 	}
 
 		// Serialize the classad onto the wire
-	printf( "::getMatches: Sending request ad\n" );
 	if ( !StreamPut( rsock, request_ad ) ) {
 		delete rsock;
-		printf( "::getMatches: Error in StreamPut\n" );
 		return false;
 	}
 
-	printf( "::getMatches: Sending EOM\n" );
 	rsock->eom();
 
 		// Receive the return code
 	rsock->decode();
 
 	int		rc = 0;
-	printf( "::getMatches: Reading RC\n" );
 	if ( !rsock->code( rc ) || ( rc != OK ) ) {
-		printf( "::getMatches: Error reading RC or bad RC (%d)\n", rc );
 		return false;
 	}
 
 	int		num_matches;
-	printf( "::getMatches: Reading # matches\n" );
 	if ( !rsock->code( num_matches ) ) {
-		printf( "::getMatches: Error in reading # matchs\n" );
 		delete rsock;
 		return false;
 	}
@@ -205,11 +196,9 @@ DCMatchLite::getMatches( const classad::ClassAd &request_ad,
 		delete rsock;
 		return true;
 	}
-	printf( "::getMatches: Reading ads\n" );
 	for (int num = 0;  num < num_matches;  num++ ) {
 		classad::ClassAd	*ad = new classad::ClassAd( );
 		if ( !StreamGet( rsock, *ad ) ) {
-			printf( "::getMatches: Error in StreamGet\n" );
 			delete rsock;
 			delete ad;
 			return false;
@@ -218,7 +207,6 @@ DCMatchLite::getMatches( const classad::ClassAd &request_ad,
 		leases.push_back( lease );
 	}
 
-	printf( "::getMatches: Done\n" );
 	rsock->close();
 	return true;
 }
