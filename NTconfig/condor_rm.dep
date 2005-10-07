@@ -1,8 +1,0 @@
-# Microsoft Developer Studio Generated Dependency File, included by condor_rm.mak
-
-..\src\condor_rm.V6\rm.C : \
-	"..\src\condor_daemon_core.V6\condor_daemon_core.h"\
-	"..\src\condor_daemon_core.V6\condor_ipverify.h"\
-	"..\src\condor_daemon_core.V6\condor_timer_manager.h"\
-	"..\src\condor_daemon_core.V6\self_monitor.h"\
-	
