@@ -1935,7 +1935,7 @@ JobQueueDBManager::fillEscapeCharacters(char *str) {
 		}
 
 	int strlength = strlen(str);
-	newstr = (char *) malloc(strlength+quoteslocindex+1 * sizeof(char));
+	newstr = (char *) malloc(strlength+(quoteslocindex+1) * sizeof(char));
 	int newstrstart=0,strstart=0;
 
 	for(i=0; i < quoteslocindex; i++) {
