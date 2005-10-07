@@ -127,7 +127,7 @@ class DCMatchLite : public Daemon {
 			@param leases STL list of lease information on leases to release
 			@return true on success, false on invalid input (NULL)
 		*/
-	bool releasewLeases( list <const DCMatchLiteLease *> &leases );
+	bool releaseLeases( list <const DCMatchLiteLease *> &leases );
 
 
  private:

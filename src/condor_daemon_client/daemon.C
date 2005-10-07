@@ -434,12 +434,9 @@ Daemon::startCommand( int cmd, Stream::stream_type st, int sec, CondorError* err
 		return NULL;
 	}
 
-	printf( "Starting command now\n" );
 	if (startCommand ( cmd, sock, sec, errstack )) {
-		printf( "->OK\n" );
 		return sock;
 	} else {
-		printf( "->Failed\n" );
 		delete sock;
 		return NULL;
 	}

@@ -246,7 +246,48 @@ DCMatchLite::renewLeases(
 {
 		// Create the ReliSock
 	ReliSock *rsock = (ReliSock *)startCommand(
-			MATCHLITE_GET_MATCH, Stream::reli_sock, 20 );
+			MATCHLITE_RENEW_LEASE, Stream::reli_sock, 20 );
+	if ( ! rsock ) {
+		return false;
+	}
+
+	// Send the leases
+	if ( !SendLeases( rsock, leases ) ) {
+		delete rsock;
+		return false;
+	}
+
+	rsock->eom();
+
+		// Receive the return code
+	int		rc;
+	rsock->decode();
+	if ( !rsock->get( rc ) ) {
+		delete rsock;
+		return false;
+	}
+	if ( rc != OK ) {
+		delete rsock;
+		return false;
+	}
+
+		// Finally, read the returned leases
+	if ( !GetLeases( rsock, out_leases ) ) {
+		delete rsock;
+		return false;
+	}
+
+	rsock->close();
+	return true;
+}
+
+bool
+DCMatchLite::releaseLeases(
+	list< const DCMatchLiteLease *> &leases )
+{
+		// Create the ReliSock
+	ReliSock *rsock = (ReliSock *)startCommand(
+			MATCHLITE_RELEASE_LEASE, Stream::reli_sock, 20 );
 	if ( ! rsock ) {
 		return false;
 	}
@@ -267,12 +308,6 @@ DCMatchLite::renewLeases(
 		return false;
 	}
 
-		// Finally, read the returned leases
-	if ( !GetLeases( rsock, out_leases ) ) {
-		delete rsock;
-		return false;
-	}
-
 	rsock->close();
 	return true;
 }
@@ -289,7 +324,8 @@ DCMatchLite::SendLeases(
 	list <const DCMatchLiteLease *>::iterator iter;
 	for( iter = l_list.begin(); iter != l_list.end(); iter++ ) {
 		const DCMatchLiteLease	*lease = *iter;
-		if ( !stream->put( (char*) lease->LeaseId().c_str() ) ||
+		const char	*lease_id_str = lease->LeaseId().c_str();
+		if ( !stream->put( (char*) lease_id_str ) ||
 			 !stream->put( lease->LeaseDuration() ) ||
 			 !stream->put( lease->ReleaseLeaseWhenDone() )  ) {
 			return false;
@@ -309,16 +345,20 @@ DCMatchLite::GetLeases(
 	}
 
 	for( int	num = 0;  num < num_leases;  num++ ) {
-		char	*lease_id_cstr;
+		char	*lease_id_cstr = NULL;
 		int		lease_duration;
 		int		release_when_done;
 		if ( !stream->get( lease_id_cstr ) ||
 			 !stream->get( lease_duration ) ||
 			 !stream->get( release_when_done ) ) {
 			DCMatchLiteLease_FreeList( l_list );
+			if ( lease_id_cstr ) {
+				free( lease_id_cstr );
+			}
 			return false;
 		}
 		string	lease_id( lease_id_cstr );
+		free( lease_id_cstr );
 		DCMatchLiteLease	*lease =
 			new DCMatchLiteLease( lease_id,
 								  lease_duration,
