@@ -20,56 +20,20 @@
   * RIGHT.
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
-
 #ifndef _CONDOR_DC_MATCH_LITE_H
 #define _CONDOR_DC_MATCH_LITE_H
 
 #include <list>
 #include <string>
 #include "condor_common.h"
-#include "condor_classad.h"
-#include "condor_io.h"
+#include "stream.h"
+#include "daemon.h"
 
 #define WANT_NAMESPACES
 #include "classad_distribution.h"
 using namespace std;
 
-
-class DCMatchLiteLease {
-  public:
-	DCMatchLiteLease( void );
-	DCMatchLiteLease( classad::ClassAd * );
-	DCMatchLiteLease( const classad::ClassAd & );
-	DCMatchLiteLease( const string &lease_id,
-					  int lease_duration = 0,
-					  bool release_when_done = true );
-	~DCMatchLiteLease( void );
-
-	int initFromClassAd( classad::ClassAd *ad );
-	int initFromClassAd( const classad::ClassAd	&ad );
-
-	const string &LeaseId( void ) const
-		{ return lease_id; };
-	int LeaseDuration( void ) const
-		{ return lease_duration; };
-	classad::ClassAd *LeaseAd( void ) const
-		{ return lease_ad; };
-	bool ReleaseLeaseWhenDone( void ) const
-		{ return release_lease_when_done; };
-
-	int setLeaseId( const string & );
-	int setLeaseDuration( int );
-
-  private:
-	classad::ClassAd	*lease_ad;
-	string				lease_id;
-	int					lease_duration;
-	bool				release_lease_when_done;
-};
-
-// Free a list of leases
-void DCMatchLiteLease_FreeList( list<DCMatchLiteLease *> &lease_list );
-
+#include "dc_match_lite_lease.h"
 
 /** The subclass of the Daemon object for talking to a match lite daemon
 */

@@ -30,122 +30,13 @@
 
 #include "daemon.h"
 #include "dc_match_lite.h"
-#include "internet.h"
+#include "dc_match_lite_lease.h"
 
 #define WANT_NAMESPACES
 #include "classad_distribution.h"
 #include "newclassad_stream.h"
 using namespace std;
 
-// *** DCMatchLiteLease (class to hold lease informat)  class methods ***
-
-DCMatchLiteLease::DCMatchLiteLease( void )
-{
-	lease_ad = NULL;
-	lease_duration = 0;
-	release_lease_when_done = true;
-}
-
-DCMatchLiteLease::DCMatchLiteLease(
-	classad::ClassAd		*ad
-	)
-{
-	lease_ad = NULL;
-	initFromClassAd( ad );
-}
-
-DCMatchLiteLease::DCMatchLiteLease(
-	const classad::ClassAd	&ad
-	)
-{
-	lease_ad = NULL;
-	initFromClassAd( ad );
-}
-
-DCMatchLiteLease::DCMatchLiteLease(
-	const string		&lease_id,
-	int					lease_duration,
-	bool				release_when_done )
-{
-	this->lease_ad = NULL;
-	setLeaseId( lease_id );
-	setLeaseDuration( lease_duration );
-	this->release_lease_when_done = release_when_done;
-}
-
-DCMatchLiteLease::~DCMatchLiteLease( void )
-{
-	if ( lease_ad ) {
-		delete lease_ad;
-	}
-}
-
-int
-DCMatchLiteLease::initFromClassAd(
-	const classad::ClassAd	&ad
-	)
-{
-	return initFromClassAd( new classad::ClassAd( ad ) );
-}
-
-int
-DCMatchLiteLease::initFromClassAd(
-	classad::ClassAd	*ad
-	)
-{
-	int		status = 0;
-	if ( lease_ad && (lease_ad != ad ) ) {
-		delete lease_ad;
-		lease_ad = NULL;
-	}
-	if ( !ad ) {
-		return 0;
-	}
-
-	lease_ad = ad;
-	if ( !lease_ad->EvaluateAttrString( "LeaseId", lease_id ) ) {
-		status = 1;
-		lease_id = "";
-	}
-	if ( !lease_ad->EvaluateAttrInt( "LeaseDuration", lease_duration ) ) {
-		status = 1;
-		lease_duration = 0;
-	}
-	if ( !lease_ad->EvaluateAttrBool( "ReleaseWhenDone",
-									  release_lease_when_done ) ) {
-		status = 1;
-		release_lease_when_done = true;
-	}
-	return status;
-}
-
-int
-DCMatchLiteLease::setLeaseId(
-	const string		&lease_id )
-{
-	this->lease_id = lease_id;
-	return 0;
-}
-
-int
-DCMatchLiteLease::setLeaseDuration(
-	int					duration )
-{
-	this->lease_duration = duration;
-	return 0;
-}
-
-void DCMatchLiteLease_FreeList( list<DCMatchLiteLease *> &lease_list )
-{
-	for( list<DCMatchLiteLease *>::iterator iter = lease_list.begin();
-		 iter != lease_list.end();
-		 iter++ ) {
-		delete *iter;
-	}
-}
-
-
-// *** The main DCMatchLite class methods ***
 
 DCMatchLite::DCMatchLite( const char* name, const char *pool )
 		: Daemon( DT_MATCH_LITE, name, pool )

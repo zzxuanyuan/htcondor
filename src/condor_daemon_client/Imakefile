@@ -1,6 +1,6 @@
 #if WANT_NEW_CLASSADS
 #define New_classads_includes	-I$(NEW_CLASSADS_INC) -I../classad_analysis
-#define New_classads_obj		dc_credd.o dc_match_lite.o
+#define New_classads_obj	dc_credd.o dc_match_lite.o dc_match_lite_lease.o
 #else
 #define New_classads_includes
 #define New_classads_obj
