@@ -303,10 +303,11 @@ void get_last_dapid()
 /* ============================================================================
  * dap transfer function
  * ==========================================================================*/
-int transfer_dap(char *dap_id, char *src_url, char *dest_url, char *arguments,
+int transfer_dap(char *dap_id, char *src_url, char *_dest_url, char *arguments,
 		char * cred_file_name, classad::ClassAd *job_ad)
 {
 
+	std::string dest_url = _dest_url;
 	char src_protocol[MAXSTR], src_host[MAXSTR], src_file[MAXSTR];
 	char dest_protocol[MAXSTR], dest_host[MAXSTR], dest_file[MAXSTR];
 	char command[MAXSTR], commandbody[MAXSTR], argument_str[MAXSTR];
@@ -314,10 +315,10 @@ int transfer_dap(char *dap_id, char *src_url, char *dest_url, char *arguments,
 	char unstripped[MAXSTR];
 
 	parse_url(src_url, src_protocol, src_host, src_file);
-	parse_url(dest_url, dest_protocol, dest_host, dest_file);
+	parse_url((char *)dest_url.c_str() , dest_protocol, dest_host, dest_file);
 
 #if 0
-dprintf(D_ALWAYS, "DEBUG: dest_url: '%s'\n", dest_url);
+dprintf(D_ALWAYS, "DEBUG: dest_url: '%s'\n", dest_url.c_str() );
 dprintf(D_ALWAYS, "DEBUG: dest_protocol: '%s'\n", dest_protocol);
 dprintf(D_ALWAYS, "DEBUG: dest_host: '%s'\n", dest_host);
 dprintf(D_ALWAYS, "DEBUG: dest_file: '%s'\n", dest_file);
@@ -329,14 +330,24 @@ dprintf(D_ALWAYS, "DEBUG: dest_file: '%s'\n", dest_file);
 	// For dynamic destinations ...
 	if (! strcmp(dest_host, "$(DYNAMIC)") ) {
 
-		getValue(job_ad, "dest_transfer_url", unstripped);
-		char prev_dest_transfer_url[MAXSTR];
-		strncpy(prev_dest_transfer_url, strip_str(unstripped), MAXSTR);
-		if (strlen(prev_dest_transfer_url) == 0 ) {
+		// See if this job is already associated with a dynamic destination
+		// URL.
+		std::string prev_dest_transfer_url;
+		if	(	job_ad->EvaluateAttrString(
+					"dest_transfer_url",
+					prev_dest_transfer_url
+				) && prev_dest_transfer_url.length() > 0)
+		{
+			// Re-use previous destination URL from matchmaker.
+			dest_url = prev_dest_transfer_url;
 
-			const char *dest_transfer_url =
+		} else {
+			// This job needs a dynamic transfer URL from the Stork Matchmaker
+			// Lite.
+			std::string dest_transfer_url;
+			const char *tmp =
 				Matchmaker->getTransferDestination(dest_protocol);
-			if (dest_transfer_url == NULL) {
+			if (tmp == NULL) {
 				// No dynamic destination URLs are available for this protocol.
 				write_collection_log(dapcollection, dap_id, 
 										"status = \"request_rescheduled\";"
@@ -347,6 +358,9 @@ dprintf(D_ALWAYS, "DEBUG: dest_file: '%s'\n", dest_file);
 					"no dynamic destinations for protocol %s\n",
 					src_url, dest_protocol);
 				return DAP_ERROR;	// no transfer
+			} else {
+				dest_transfer_url = tmp;
+				free( (void *)tmp);	// required by matchmaker lite interface
 			}
 				
 			// Save the dest_transfer_url in the job queue classad collection.
@@ -355,17 +369,11 @@ dprintf(D_ALWAYS, "DEBUG: dest_file: '%s'\n", dest_file);
 			modify_s += "\";";
 			write_collection_log(dapcollection, dap_id, modify_s.c_str() );
 			dprintf(D_FULLDEBUG, "matched source URL %s to dynamic URL %s\n",
-				src_url, dest_transfer_url);
+				src_url, dest_transfer_url.c_str() );
 
 			// Update destination URL to that from matchmaker.
-			dest_url = (char *)dest_transfer_url;
-		} else {
-			// Re-use previous destination URL from matchmaker.
-			dest_url = prev_dest_transfer_url;
+			dest_url = dest_transfer_url;
 		}
-	} else {
-		strcpy(unstripped, dest_url);
-		strncpy(dest_url, strip_str(unstripped), MAXSTR);  
 	}
 
 	strcpy(unstripped, arguments);
@@ -377,7 +385,7 @@ dprintf(D_ALWAYS, "DEBUG: dest_file: '%s'\n", dest_file);
 		//create a new process to transfer the files
 	snprintf(command, MAXSTR, "%s/%s", Module_dir, commandbody);
 	snprintf(argument_str ,MAXSTR, "%s %s %s %s", 
-			 commandbody, src_url, dest_url, arguments);
+			 commandbody, src_url, dest_url.c_str(), arguments);
   
 
 		// If using GSI proxy set up the environment to point to it
@@ -407,7 +415,7 @@ dprintf(D_ALWAYS, "DEBUG: dest_file: '%s'\n", dest_file);
 	// Create child process via daemoncore
 	MyString src_url_value, dest_url_value;
 	src_url_value.sprintf("\"%s\"", src_url);
-	dest_url_value.sprintf("\"%s\"", dest_url);
+	dest_url_value.sprintf("\"%s\"", dest_url.c_str() );
 	write_xml_user_log(userlogfilename, "MyType", "\"GenericEvent\"", 
 					   "EventTypeNumber", "8", 
 					   "Cluster", dap_id,
