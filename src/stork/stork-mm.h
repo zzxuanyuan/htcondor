@@ -41,6 +41,8 @@ class StorkMatchMaker
 		// e.g. "gsiftp", "http", "file", etc.  This method returns a
 		// destination URL of the format "proto://host/dir/file".  This means a
 		// transfer directory has been created on the destination host.
+		// Function returns a pointer to dynamically allocated string, which
+		// must be free()'ed by the caller after use.
 		// Question: Where does the "file" portion come from?  Should we create
 		// a random/unique filename on the fly?
 		// Return NULL if there are no destinations available.
