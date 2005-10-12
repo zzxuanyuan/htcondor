@@ -23,7 +23,39 @@
 #ifndef _STORK_MM_
 #define _STORK_MM_
 
-#include "condor_common.h"
+#include "dc_match_lite.h"
+#include "MyString.h"
+#include "OrderedSet.h"
+
+class StorkMatchMaker; // forward reference
+
+class StorkMatchEntry {
+	friend class StorkMatchMaker;
+	public:
+		StorkMatchEntry();
+		StorkMatchEntry(DCMatchLiteLease * lite_lease);
+		StorkMatchEntry(const char* url);
+		~StorkMatchEntry();
+
+		const char* GetUrl() { return Url; };
+
+		bool ReleaseLeaseWhenDone();
+		time_t GetExpirationTime() {return Expiration_time; };
+		
+		int operator< (const StorkMatchEntry& E2);
+		int operator== (const StorkMatchEntry& E2);
+
+		void Deallocate() { deallocate = true; };
+
+	protected:
+		time_t Expiration_time;
+		time_t IdleExpiration_time;
+		char *Url;
+		DCMatchLiteLease* Lease;
+		bool deallocate;
+		MyString *CompletePath;
+};
+
 
 // Stork interface object to new "matchmaker lite" for SC2005 demo.
 class StorkMatchMaker 
@@ -46,10 +78,6 @@ class StorkMatchMaker
 		// Question: Where does the "file" portion come from?  Should we create
 		// a random/unique filename on the fly?
 		// Return NULL if there are no destinations available.
-		//
-		// Todd: if you want to dump the protocol arg,
-		// and assume "gsiftp" for the entire demo, just update this
-		// declaration, and I'll spot it.
 		const char * getTransferDestination(const char *protocol);
 		
 		// Return a dynamic transfer destination to the matchmaker.  Stork
@@ -60,6 +88,17 @@ class StorkMatchMaker
 		// Inform the matchmaker that a dynamic transfer destination has
 		// failed.  Matchmaker returns false upon error.
 		bool failTransferDestination(const char * url);
+
+	protected:
+		bool destroyFromBusy(StorkMatchEntry & match);
+		bool destroyFromIdle(StorkMatchEntry & match);
+		bool addToBusySet(StorkMatchEntry & match);
+		bool addToIdleSet(StorkMatchEntry & match);
+		bool fromBusyToIdle(StorkMatchEntry & match);
+
+	private:
+		OrderedSet<StorkMatchEntry> busyMatches;
+		OrderedSet<StorkMatchEntry> idleMatches;
 
 }; // class StorkMatchMaker
 
