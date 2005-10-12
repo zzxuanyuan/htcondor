@@ -121,7 +121,9 @@ DCMatchLite::getMatches( const char *requestor_name,
 	ad.InsertAttr( "RequestCount", number_requested );
 	ad.InsertAttr( "LeaseDuration", duration );
 	if ( requirements ) {
-		ad.InsertAttr( "Requirements", requirements );
+		classad::ClassAdParser	parser;
+		classad::ExprTree	*expr = parser.ParseExpression( requirements );
+		ad.Insert( "Requirements", expr );
 	}
 	if ( rank ) {
 		ad.InsertAttr( "Rank", rank );
