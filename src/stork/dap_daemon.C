@@ -122,6 +122,7 @@ void parse_arguments(int argc, char **argv)
 	  "==============================================================\n");
 }
 
+#include "stork-mm.h"
 
 /* ============================================================================
  * initializations for the reqex_daemon
@@ -134,8 +135,6 @@ int main_init(int argc, char **argv)
   /*  daemonCore->Register_Timer(0,
 			     (TimerHandler)initializations,
 			     "initializations");*/
-
-  
 
    daemonCore->Register_Timer(1, 1,
 			     (TimerHandler)call_main,

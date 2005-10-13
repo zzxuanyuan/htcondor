@@ -1202,14 +1202,9 @@ int initializations()
 
 	// instantiate matchmaker
 	dprintf(D_FULLDEBUG, "Creating new matchmaker object\n");
-	{
-		StorkMatchMaker *crap = NULL;
-		crap = new StorkMatchMaker;
-		dprintf(D_FULLDEBUG,"DONE WITH CRAP : %p\n",crap);
-		exit (1);
-	}
 	Matchmaker = new StorkMatchMaker();
 	dprintf(D_FULLDEBUG, "Done creating new matchmaker object\n");
+	dprintf(D_FULLDEBUG, "It's %p, size %d\n", Matchmaker, sizeof(*Matchmaker));
 	ASSERT(Matchmaker);
 
 		//init history file name 
