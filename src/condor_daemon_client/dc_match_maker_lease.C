@@ -36,6 +36,8 @@
 #include "newclassad_stream.h"
 using namespace std;
 
+#include <stdio.h>
+
 // *** DCMatchLiteLease (class to hold lease informat)  class methods ***
 
 DCMatchLiteLease::DCMatchLiteLease( time_t now )
@@ -197,17 +199,17 @@ DCMatchLiteLease::setLeaseDuration(
 	return 0;
 }
 
+// *** DCMatchLiteLease list helper functions
+
 void
 DCMatchLiteLease_FreeList( list<DCMatchLiteLease *> &lease_list )
 {
-	for( list<DCMatchLiteLease *>::iterator iter = lease_list.begin();
-		 iter != lease_list.end();
-		 iter++ ) {
-		delete *iter;
+	while( lease_list.size() ) {
+		DCMatchLiteLease *lease = *(lease_list.begin( ));
+		delete lease;
+		lease_list.pop_front( );
 	}
 }
-
-// *** DCMatchLiteLease list helper functions
 
 int
 DCMatchLiteLease_RemoveLeases(
@@ -226,16 +228,13 @@ DCMatchLiteLease_RemoveLeases(
 			 iter++ ) {
 			DCMatchLiteLease	*lease = *iter;
 			if ( remove->LeaseId() == lease->LeaseId() ) {
-				lease_list.remove( lease );
 				matched = true;
+				lease_list.erase( iter );	// Note: invalidates iter
 				delete lease;
 				break;
 			}
 		}
 		if ( !matched ) {
-			dprintf( D_ALWAYS,
-					 "Warning: RemoveLeases: no match for %s\n",
-					 remove->LeaseId().c_str() );
 			errors++;
 		}
 	}
@@ -265,9 +264,6 @@ DCMatchLiteLease_UpdateLeases(
 			}
 		}
 		if ( !matched ) {
-			dprintf( D_ALWAYS,
-					 "Warning: UpdateLeases: no match for %s\n",
-					 update->LeaseId().c_str() );
 			errors++;
 		}
 	}
@@ -295,14 +291,43 @@ DCMatchLiteLease_RemoveMarkedLeases(
 	bool							mark
 	)
 {
+	list<DCMatchLiteLease *> remove_list;
+
 	for( list<DCMatchLiteLease *>::iterator iter = lease_list.begin();
 		 iter != lease_list.end();
 		 iter++ ) {
 		DCMatchLiteLease	*lease = *iter;
 		if ( lease->getMark() == mark ) {
-			lease_list.remove( lease );
-			delete lease;
+			remove_list.push_back( lease );
 		}
 	}
+
+	for( list<DCMatchLiteLease *>::iterator iter = remove_list.begin();
+		 iter != remove_list.end();
+		 iter++ ) {
+		DCMatchLiteLease	*lease = *iter;
+		lease_list.remove( lease );
+		delete lease;
+	}
+
 	return 0;
+}
+
+int
+DCMatchLiteLease_CountMarkedLeases(
+	const list<const DCMatchLiteLease *> &lease_list,
+	bool							mark
+	)
+{
+	int		count = 0;
+	list<const DCMatchLiteLease *>::const_iterator iter;
+	for( iter = lease_list.begin();
+		 iter != lease_list.end();
+		 iter++ ) {
+		const DCMatchLiteLease	*lease = *iter;
+		if ( mark == lease->getMark( ) ) {
+			count++;
+		}
+	}
+	return count;
 }

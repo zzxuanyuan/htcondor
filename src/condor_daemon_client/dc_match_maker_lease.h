@@ -115,5 +115,9 @@ int DCMatchLiteLease_RemoveMarkedLeases(
 	list<DCMatchLiteLease *>		&lease_list,
 	bool							mark
 	);
+int DCMatchLiteLease_CountMarkedLeases(
+	const list<const DCMatchLiteLease *> &lease_list,
+	bool							mark
+	);
 
 #endif /* _CONDOR_DC_MATCH_LITE_LEASE_H */
