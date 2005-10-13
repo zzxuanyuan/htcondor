@@ -30,7 +30,19 @@
 // Stork interface object to new "matchmaker lite" for SC2005 demo.
 
 // Instantiate some templates
-template class OrderedSet<StorkMatchEntry>;
+template class Set<StorkMatchEntry>;
+//template class OrderedSet<StorkMatchEntry>;
+template class list<DCMatchLiteLease*>;
+
+#if 0
+void nickisanidiot(void)
+{
+	list<DCMatchLiteLease*> foo;
+	DCMatchLiteLease	a;
+	foo.push_back( &a );
+	foo.remove( &a );
+}
+#endif
 
 StorkMatchEntry::StorkMatchEntry()
 {
@@ -395,3 +407,5 @@ fromBusyToIdle(StorkMatchEntry & match)
 		return false;
 	}
 }
+
+

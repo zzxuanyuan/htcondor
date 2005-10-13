@@ -25,7 +25,8 @@
 
 #include "dc_match_lite.h"
 #include "MyString.h"
-#include "OrderedSet.h"
+// #include "OrderedSet.h"
+#include "Set.h"
 
 class StorkMatchMaker; // forward reference
 
@@ -97,8 +98,10 @@ class StorkMatchMaker
 		bool fromBusyToIdle(StorkMatchEntry & match);
 
 	private:
-		OrderedSet<StorkMatchEntry> busyMatches;
-		OrderedSet<StorkMatchEntry> idleMatches;
+		// OrderedSet<StorkMatchEntry> busyMatches;
+		// OrderedSet<StorkMatchEntry> idleMatches;
+		Set<StorkMatchEntry> busyMatches;
+		Set<StorkMatchEntry> idleMatches;
 
 }; // class StorkMatchMaker
 

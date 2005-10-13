@@ -40,6 +40,7 @@ char historyfilename[_POSIX_PATH_MAX];
 char *Cred_tmp_dir = NULL;				// temporary credential storage directory
 char *Module_dir = NULL;				// Module directory (DAP Catalog)
 char *Log_dir = NULL;					// LOG directory
+StorkMatchMaker					*Matchmaker = NULL;
 
 int  daemon_std[3];
 int  transfer_dap_reaper_id, reserve_dap_reaper_id, release_dap_reaper_id;
@@ -49,7 +50,6 @@ unsigned long last_dap = 0;  //changed only on new request
 
 classad::ClassAdCollection      *dapcollection = NULL;
 Scheduler dap_queue;
-StorkMatchMaker					*Matchmaker = NULL;
 
 int listenfd_submit;
 int listenfd_status;
@@ -1201,7 +1201,15 @@ int initializations()
 	initialize_dapcollection();
 
 	// instantiate matchmaker
+	dprintf(D_FULLDEBUG, "Creating new matchmaker object\n");
+	{
+		StorkMatchMaker *crap = NULL;
+		crap = new StorkMatchMaker;
+		dprintf(D_FULLDEBUG,"DONE WITH CRAP : %p\n",crap);
+		exit (1);
+	}
 	Matchmaker = new StorkMatchMaker();
+	dprintf(D_FULLDEBUG, "Done creating new matchmaker object\n");
 	ASSERT(Matchmaker);
 
 		//init history file name 
