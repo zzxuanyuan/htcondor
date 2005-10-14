@@ -145,7 +145,6 @@
 #define SPOOL_JOB_FILES_WITH_PERMS	(SCHED_VERS+88)	// spool all job files via filetransfer object (new version with file permissions)
 #define TRANSFER_DATA_WITH_PERMS	(SCHED_VERS+89) // send all job files back via filetransfer object (new version with file permissions)
 
-
 /*
   The ClassAd-only protocol.  CA_CMD is the base command that's sent
   on the wire that means "read a ClassAd off the wire, lookup
@@ -268,6 +267,7 @@ const int INVALIDATE_QUILL_ADS  = 54;
 #define DC_INVALIDATE_KEY   (DC_BASE+14)
 #define DC_OFF_PEACEFUL     (DC_BASE+15)
 #define DC_SET_PEACEFUL_SHUTDOWN (DC_BASE+16)
+#define DC_TIME_OFFSET      (DC_BASE+17)
 
 /*
 *** Log type supported by DC_FETCH_LOG
