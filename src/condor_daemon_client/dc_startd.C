@@ -29,6 +29,7 @@
 #include "command_strings.h"
 #include "daemon.h"
 #include "dc_startd.h"
+#include "time_offset.h"
 
 
 
@@ -75,6 +76,43 @@ DCStartd::setClaimId( const char* id )
 	}
 	claim_id = strnewp( id );
 	return true;
+}
+
+//
+// Connects with the startd and initiates the time offset 
+// determination logic. We simply create a socket connection,
+// pass the DC_TIME_OFFSET command then pass the Stream to
+// the cedar stub code for time offset
+//
+long
+DCStartd::getTimeOffset( void )
+{
+		//
+		// First establish a socket to the startd
+		//
+	ReliSock reli_sock;
+	reli_sock.timeout(30);
+	if( ! reli_sock.connect(_addr) ) {
+		dprintf( D_FULLDEBUG, "DCStartd::getTimeOffset() failed to connect "
+		     				  "to startd at '%s'\n", _addr );
+		return (0);
+	}
+		//
+		// Next send our command to prepare for the time synchining
+		// operation on the remote end
+		//
+	if( ! startCommand( DC_TIME_OFFSET, (Sock*)&reli_sock ) ) { 
+		dprintf( D_FULLDEBUG, "DCStartd::getTimeOffset() failed to send "
+		     				  "command to startd at '%s'\n", _addr );
+		return (0);
+	}
+	
+		//
+		// Now that we have established a connection, we'll pass
+		// the ReliSock over to the time offset handling code
+		//
+	long offset = time_offset_cedar_stub( (Stream*)&reli_sock );
+	return (offset);
 }
 
 
