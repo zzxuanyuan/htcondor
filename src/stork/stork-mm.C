@@ -40,7 +40,6 @@ StorkMatchEntry::StorkMatchEntry()
 	Lease = NULL;
 	Expiration_time = 0;
 	IdleExpiration_time = 0;
-	deallocate = false;
 	CompletePath = NULL;
 }
 
@@ -68,7 +67,7 @@ StorkMatchEntry::StorkMatchEntry(DCMatchLiteLease * lite_lease)
 	ASSERT(Url);
 
 	// setup Expiration_time here
-	Expiration_time = time(NULL) + Lease->LeaseDuration();
+	Expiration_time = Lease->LeaseExpiration();
 
 }
 
@@ -84,11 +83,9 @@ StorkMatchEntry::StorkMatchEntry(const char* path)
 
 StorkMatchEntry::~StorkMatchEntry()
 {
-	if ( deallocate ) {
-		if ( Url ) free(Url);
-		if ( Lease ) delete Lease;
-		if ( CompletePath ) delete CompletePath;
-	}
+	if ( Url ) free(Url);
+	if ( Lease ) delete Lease;
+	if ( CompletePath ) delete CompletePath;
 }
 
 
@@ -172,8 +169,17 @@ StorkMatchEntry::operator== (const StorkMatchEntry& E2)
 StorkMatchMaker::
 StorkMatchMaker(void)
 {
-	// TODO - set timer
-	return;	// stubbed for now
+	tid = -1;
+	tid_interval = -1;
+
+	char *mm_name = param("STORK_MM_NAME");
+	char *mm_pool = param("STORK_MM_POOL");
+	dcmm = new DCMatchLite(mm_name,mm_pool);
+	ASSERT(dcmm);
+	if (mm_name) free(mm_name);
+	if (mm_pool) free(mm_pool);
+
+	SetTimers();
 }
 
 
@@ -181,17 +187,19 @@ StorkMatchMaker(void)
 StorkMatchMaker::
 ~StorkMatchMaker(void)
 {
-	StorkMatchEntry match;
+	StorkMatchEntry* match;
 
 	idleMatches.StartIterations();
 	while ( idleMatches.Iterate(match) ) {
-		match.Deallocate();	
+		delete match;
 	}
 
 	busyMatches.StartIterations();
 	while ( busyMatches.Iterate(match) ) {
-		match.Deallocate();	
+		delete match;
 	}
+
+	if (dcmm) delete dcmm;
 }
 
 
@@ -201,7 +209,7 @@ const char *
 StorkMatchMaker::
 getTransferDestination(const char *protocol)
 {
-	StorkMatchEntry match;
+	StorkMatchEntry* match;
 
 		// Grab some matches from the matchmaker if we don't have 
 		// any locally cached.
@@ -219,16 +227,11 @@ getTransferDestination(const char *protocol)
 			// TODO - need a unique name here
 			name = strdup("whatever");
 		}
-		char *mm_name = param("STORK_MM_NAME");
-		char *mm_pool = param("STORK_MM_POOL");
-		DCMatchLite dcmm(mm_name,mm_pool);
 
-		bool result = dcmm.getMatches(name, num, duration, req, "0.0", leases);
+		bool result = dcmm->getMatches(name, num, duration, req, "0.0", leases);
 
 		free(req);
 		free(name);
-		if (mm_name) free(mm_name);
-		if (mm_pool) free(mm_pool);
 
 		if ( !result ) {
 			dprintf(D_ALWAYS,"ERROR getmatches() failed, num=%d\n", num);
@@ -242,10 +245,11 @@ getTransferDestination(const char *protocol)
 			  iter++ ) 
 		{
 			count++;
-			StorkMatchEntry match( *iter );
+			match = new StorkMatchEntry( *iter );
 			addToIdleSet(match);
 		}
-		dprintf(D_ALWAYS,"Requested %d matches from matchmaker, got %d back\n",
+		dprintf(D_ALWAYS,
+			"MM: Requested %d matches from matchmaker, got %d back\n",
 			num, count);
 	}
 
@@ -265,12 +269,12 @@ getTransferDestination(const char *protocol)
 		if ( unique_num == 0 ) {
 			unique_num = (int) time(NULL);
 		}
-		if (!match.CompletePath) {
-			match.CompletePath = new MyString;
-			ASSERT(match.CompletePath);
+		if (!match->CompletePath) {
+			match->CompletePath = new MyString;
+			ASSERT(match->CompletePath);
 		}
-		match.CompletePath->sprintf("%s/file%d",match.GetUrl(),++unique_num);
-		return strdup(match.CompletePath->Value());
+		match->CompletePath->sprintf("%s/file%d",match->GetUrl(),++unique_num);
+		return strdup(match->CompletePath->Value());
 	}
 
 	return NULL;	// failed!
@@ -285,7 +289,7 @@ returnTransferDestination(const char * path)
 	StorkMatchEntry match(path);
 
 		// just move it from the busy set to the idle set
-	return fromBusyToIdle( match );
+	return fromBusyToIdle( &match );
 }
 
 
@@ -306,23 +310,23 @@ failTransferDestination(const char * path)
 	match.Url = dirname(path);
 	
 		// Call in a while loop, since we have multiple matches to this destination
-	while ( destroyFromBusy( match ) ) ;
-	while ( destroyFromIdle( match ) ) ;
+	while ( destroyFromBusy( &match ) ) ;
+	while ( destroyFromIdle( &match ) ) ;
 
 	return true;	
 }
 
 bool
 StorkMatchMaker::
-destroyFromBusy(StorkMatchEntry & match)
+destroyFromBusy(StorkMatchEntry*  match)
 {
-	StorkMatchEntry temp;
+	StorkMatchEntry* temp;
 
 	busyMatches.StartIterations();
 	while (busyMatches.Iterate(temp)) {
-		if (temp==match) {
-			temp.Deallocate();
+		if (*temp==*match) {
 			busyMatches.RemoveLast();
+			delete temp;
 			return true;
 		}
 	}
@@ -331,15 +335,15 @@ destroyFromBusy(StorkMatchEntry & match)
 
 bool
 StorkMatchMaker::
-destroyFromIdle(StorkMatchEntry & match)
+destroyFromIdle(StorkMatchEntry*  match)
 {
-	StorkMatchEntry temp;
+	StorkMatchEntry* temp;
 
 	idleMatches.StartIterations();
 	while (idleMatches.Iterate(temp)) {
-		if (temp==match) {
-			temp.Deallocate();
+		if (*temp==*match) {
 			idleMatches.RemoveLast();
+			delete temp;
 			return true;
 		}
 	}
@@ -348,40 +352,41 @@ destroyFromIdle(StorkMatchEntry & match)
 
 bool
 StorkMatchMaker::
-addToBusySet(StorkMatchEntry & match)
+addToBusySet(StorkMatchEntry* match)
 {
-	match.IdleExpiration_time = 0;
-	ASSERT(match.Lease);
+	match->IdleExpiration_time = 0;
+	ASSERT(match->Lease);
 	busyMatches.Add(match);
 	return true;
 }
 
 bool
 StorkMatchMaker::
-addToIdleSet(StorkMatchEntry & match)
+addToIdleSet(StorkMatchEntry* match)
 {
 	int n = param_integer("STORK_MM_MATCH_IDLE_TIME", 5 * 60, 0);
 
-	match.IdleExpiration_time = time(NULL) + n;
-	ASSERT(match.Lease);
+	match->IdleExpiration_time = time(NULL) + n;
+	ASSERT(match->Lease);
 	idleMatches.Add(match);
 	return true;
 }
 
 bool
 StorkMatchMaker::
-fromBusyToIdle(StorkMatchEntry & match) 
+fromBusyToIdle(StorkMatchEntry* match) 
 {
-	StorkMatchEntry full_match, temp;
+	StorkMatchEntry* full_match;
+	StorkMatchEntry* temp;
 
-	if (match.Lease) {
+	if (match->Lease) {
 		full_match = match;
 		busyMatches.Remove(match);
 	} else {
 	  	// We need to find the entry
 		busyMatches.StartIterations();
 		while ( busyMatches.Iterate(temp) ) {
-			if ( temp==match ) {
+			if ( *temp==*match ) {
 				// found it
 				full_match = temp;
 				busyMatches.RemoveLast();
@@ -390,7 +395,7 @@ fromBusyToIdle(StorkMatchEntry & match)
 		}
 	}
 
-	if ( full_match.Lease ) {
+	if ( full_match->Lease ) {
 		addToIdleSet(full_match);
 		return true;
 	} else {
@@ -398,4 +403,153 @@ fromBusyToIdle(StorkMatchEntry & match)
 	}
 }
 
+void
+StorkMatchMaker::
+SetTimers()
+{
+	int interval = param_integer("STORK_MM_INTERVAL",30);
 
+	if ( interval == tid_interval  && tid != -1 ) {
+		// we are already done, since we already
+		// have a timer set with the desired interval
+		return;
+	}
+
+	// If we made it here, the timer needs to be re-created
+	// either because (a) it never existed, or (b) the interval changed
+
+	if ( tid != -1 ) {
+		// destroy pre-existing timer
+		daemonCore->Cancel_Timer(tid);
+	}
+
+	// Create a new timer the correct interval
+	tid = daemonCore->Register_Timer(interval,interval,
+		(TimerHandlercpp)&StorkMatchMaker::timeout,
+		"StorkMatchMaker::timeout", this);
+	tid_interval = interval;
+}
+
+void
+StorkMatchMaker::
+timeout()
+{
+	time_t now = time(NULL);
+	int near_future = param_integer("STORK_MM_LEASE_REFRESH_PADDING",10*60,30);
+	StorkMatchEntry* match;
+	Set<StorkMatchEntry*> to_release, to_renew;
+	bool result;
+	
+
+	// =====================================================================
+	// First, deal with old idle matches.  For an old idle match,
+	// we either need to simply remove it if it expired, or give it
+	// back to the negotiator.
+	idleMatches.StartIterations();
+	while ( idleMatches.Iterate(match) ) {
+		ASSERT(match->Expiration_time);
+		ASSERT(match->IdleExpiration_time);
+		if ( match->Expiration_time <= now ) {
+			// This match expired, just delete it.
+			idleMatches.RemoveLast();
+			delete match;
+			continue;
+		}
+		if ( match->IdleExpiration_time <= now ) {
+			// This match has not expired, but has been sitting on our idle list
+			// for too long.  Add it to the list of leases to release, and remove
+			// from the list.
+			to_release.Add(match);
+			idleMatches.RemoveLast();
+			continue;
+		}
+		// If we made it here, we know everything else on the list is
+		// for the future, since the list is ordered.  So break out, we're done.
+		break;
+	}
+	// Now actually connect to the matchmaker if we have leases to release.
+	if ( to_release.Count() ) {
+			// create list of lease ads to release
+		list<const DCMatchLiteLease*> leases;
+		to_release.StartIterations();
+		while ( to_release.Iterate(match) ) {
+			ASSERT(match->Lease);
+			leases.push_back(match->Lease);
+		}
+			// send our list to the matchmaker
+		result = dcmm->releaseLeases(leases);
+		dprintf(D_ALWAYS,"MM: %s release %d leases\n", 
+						result ? "Successful" : "Failed to ",
+						to_release.Count());
+			// deallocate memory
+		to_release.StartIterations();
+		while ( to_release.Iterate(match) ) {
+			delete match;
+		}
+	}
+
+	// =====================================================================
+	// Now deal with busy matches that need to be refreshed.
+	busyMatches.StartIterations();
+	while ( busyMatches.Iterate(match) ) {
+		ASSERT(match->Expiration_time);
+		if ( match->Expiration_time <= now ) {
+			// This match _already_ expired, just delete it.
+			busyMatches.RemoveLast();
+			delete match;
+			continue;
+		}
+		if ( match->Expiration_time <= now + near_future ) {
+			// This match is about to expire, move it to renew list.
+			busyMatches.RemoveLast();
+			to_renew.Add(match);
+			continue;
+		}
+		// If we made it here, we know everything else on the list is
+		// for the future, since the list is ordered.  So break out, we're done.
+		break;
+	}
+	// Now actually connect to the matchmaker if we have leases to renew.
+	if ( to_renew.Count() ) {
+			// create list of lease ads
+		list<const DCMatchLiteLease*> input_leases;
+		list<DCMatchLiteLease*> output_leases;
+		to_renew.StartIterations();
+		while ( to_renew.Iterate(match) ) {
+			ASSERT(match->Lease);
+			input_leases.push_back(match->Lease);
+		}
+			// send our list to the matchmaker
+		result = dcmm->renewLeases(input_leases,output_leases);
+		dprintf(D_ALWAYS,"MM: %s renew %d leases\n", 
+						result ? "Successful" : "Failed to ",
+						to_renew.Count());
+			// update the expiration counters for all renewed leases
+		if ( result ) {
+			for ( list<DCMatchLiteLease *>::iterator iter=output_leases.begin();
+				  iter != output_leases.end();
+				  iter++ ) 
+			{
+				bool found = false;
+				to_renew.StartIterations();
+				while ( to_renew.Iterate(match) ) {
+					ASSERT(match->Lease);
+					if ( match->Lease->LeaseId() == (*iter)->LeaseId() ) {
+						match->Lease->copyUpdates( **iter );
+						found = true;
+						break;
+					}
+				}
+				ASSERT(found);	// an Id in our output list better be found in our input list!
+			}
+		}
+			// now put em all back onto the busy set, refreshed or not.
+		to_renew.StartIterations();
+		while ( to_renew.Iterate(match) ) {
+			addToBusySet(match);
+		}
+	}
+
+		// reset timers to go off again as appropriate
+	SetTimers();
+}

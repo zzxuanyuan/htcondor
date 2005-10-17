@@ -23,10 +23,10 @@
 #ifndef _STORK_MM_
 #define _STORK_MM_
 
+#include "../condor_daemon_core.V6/condor_daemon_core.h"
 #include "dc_match_lite.h"
 #include "MyString.h"
-// #include "OrderedSet.h"
-#include "Set.h"
+#include "OrderedSet.h"
 
 class StorkMatchMaker; // forward reference
 
@@ -46,20 +46,17 @@ class StorkMatchEntry {
 		int operator< (const StorkMatchEntry& E2);
 		int operator== (const StorkMatchEntry& E2);
 
-		void Deallocate() { deallocate = true; };
-
 	protected:
 		time_t Expiration_time;
 		time_t IdleExpiration_time;
 		char *Url;
 		DCMatchLiteLease* Lease;
-		bool deallocate;
 		MyString *CompletePath;
 };
 
 
 // Stork interface object to new "matchmaker lite" for SC2005 demo.
-class StorkMatchMaker 
+class StorkMatchMaker : public Service
 {
 	public:
 		// Constructor.  For now, I'll assume there are no args to the
@@ -91,17 +88,19 @@ class StorkMatchMaker
 		bool failTransferDestination(const char * url);
 
 	protected:
-		bool destroyFromBusy(StorkMatchEntry & match);
-		bool destroyFromIdle(StorkMatchEntry & match);
-		bool addToBusySet(StorkMatchEntry & match);
-		bool addToIdleSet(StorkMatchEntry & match);
-		bool fromBusyToIdle(StorkMatchEntry & match);
+		bool destroyFromBusy(StorkMatchEntry * match);
+		bool destroyFromIdle(StorkMatchEntry * match);
+		bool addToBusySet(StorkMatchEntry * match);
+		bool addToIdleSet(StorkMatchEntry * match);
+		bool fromBusyToIdle(StorkMatchEntry * match);
+		void SetTimers();
+		void timeout();
 
 	private:
-		// OrderedSet<StorkMatchEntry> busyMatches;
-		// OrderedSet<StorkMatchEntry> idleMatches;
-		Set<StorkMatchEntry> busyMatches;
-		Set<StorkMatchEntry> idleMatches;
+		OrderedSet<StorkMatchEntry*> busyMatches;
+		OrderedSet<StorkMatchEntry*> idleMatches;
+		DCMatchLite* dcmm;
+		int tid, tid_interval;
 
 }; // class StorkMatchMaker
 
