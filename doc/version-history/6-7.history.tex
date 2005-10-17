@@ -188,15 +188,8 @@ when the \Attr{Rematch} attribute evaluates to True.
 
 \begin{itemize}
 
-\item None.
-
-\end{itemize}
-
-\noindent New Features:
-
-\begin{itemize}
-
-\item None.
+\item 6.7.12 addresses several critical bugs in 6.7.11.  6.7.11 should 
+not be used.
 
 \end{itemize}
 
@@ -204,15 +197,12 @@ when the \Attr{Rematch} attribute evaluates to True.
 
 \begin{itemize}
 
-\item None.
+\item Fixed a serious bug introduced in 6.7.11 which prevented \Condor 
+{dagman} from successfully removing its own jobs from the Condor  
+queue after receiving a \Condor{rm} request from the \Condor{schedd}.
 
-\end{itemize}
-
-\noindent Known Bugs:
-
-\begin{itemize}
-
-\item None.
+\item Fixed a serious bug introduced in 6.7.11 where the \Condor{master} 
+on Windows would not properly shut down.
 
 \end{itemize}
 
@@ -290,6 +280,10 @@ are larger than 4 kbytes (by disabling TCP Nagle algorithm as appropriate).
 \noindent Bugs Fixed:
 
 \begin{itemize}
+
+% posting that belongs in 6.7.12 manual
+%\item Fixed a bug which prevented standard universe from working on a linux 
+%kernel post 2.6.12.2.
 
 \item Fixed bug in the dedicated scheduler where if the \Condor{startd} 
 rejected a match, the \Condor{schedd} would never retry new matches 
