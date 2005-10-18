@@ -6,6 +6,49 @@ This is the development release series of Condor.
 The details of each version are described below.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{\label{sec:New-6-7-14}Version 6.7.14}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\noindent Release Notes:
+
+\begin{itemize}
+
+\item None.
+
+\end{itemize}
+
+
+\noindent New Features:
+
+\begin{itemize}
+
+\item You can now specify per-subsystem entries in your condor\_config file
+by prepending the subsystem name and a period to the normal name.  The
+per-subsystem settings take precedence over the regular settings.
+
+\end{itemize}
+
+
+\noindent Bugs Fixed:
+
+\begin{itemize}
+
+\item None.
+
+\end{itemize}
+
+
+\noindent Known Bugs:
+
+\begin{itemize}
+
+\item None.
+
+\end{itemize}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{\label{sec:New-6-7.13}Version 6.7.13}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -53,6 +96,9 @@ the proxy file is updated, it will be transfered to the running job.
 \item If a  cycle is detected in the DAG while 
 running, \Condor{dagman} now prints (in the \File{dagman.out} file)
 the status of all DAG nodes.
+
+\item Addition of SOAP SSL code. Daemons can now require clients to
+  authenticate using SSL.
 
 \item BeginTransaction call in \Condor{schedd}'s SOAP interface now
   notifies the caller if too many transactions are currently running
@@ -188,8 +234,15 @@ when the \Attr{Rematch} attribute evaluates to True.
 
 \begin{itemize}
 
-\item 6.7.12 addresses several critical bugs in 6.7.11.  6.7.11 should 
-not be used.
+\item None.
+
+\end{itemize}
+
+\noindent New Features:
+
+\begin{itemize}
+
+\item None.
 
 \end{itemize}
 
@@ -197,12 +250,15 @@ not be used.
 
 \begin{itemize}
 
-\item Fixed a serious bug introduced in 6.7.11 which prevented \Condor 
-{dagman} from successfully removing its own jobs from the Condor  
-queue after receiving a \Condor{rm} request from the \Condor{schedd}.
+\item None.
 
-\item Fixed a serious bug introduced in 6.7.11 where the \Condor{master} 
-on Windows would not properly shut down.
+\end{itemize}
+
+\noindent Known Bugs:
+
+\begin{itemize}
+
+\item None.
 
 \end{itemize}
 
@@ -280,10 +336,6 @@ are larger than 4 kbytes (by disabling TCP Nagle algorithm as appropriate).
 \noindent Bugs Fixed:
 
 \begin{itemize}
-
-% posting that belongs in 6.7.12 manual
-%\item Fixed a bug which prevented standard universe from working on a linux 
-%kernel post 2.6.12.2.
 
 \item Fixed bug in the dedicated scheduler where if the \Condor{startd} 
 rejected a match, the \Condor{schedd} would never retry new matches 
