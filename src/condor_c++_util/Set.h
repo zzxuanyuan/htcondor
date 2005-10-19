@@ -186,7 +186,9 @@ bool Set<KeyType>::Iterate(KeyType& Key) {
 // Remove the last elememnt iterated
 template <class KeyType>
 void Set<KeyType>::RemoveLast() { 
-  if (Curr) RemoveElem(Curr->Prev); 
+  if (Curr) {
+		RemoveElem(Curr); 
+  }
 }
 
 // Destructor
@@ -219,6 +221,7 @@ bool Set<KeyType>::RemoveElem(const SetElem<KeyType>* N) {
   if (Len==0)
     Head=NULL;
   else {
+	if (Curr == N) Curr=Curr->Prev;
     if (N->Prev) N->Prev->Next=N->Next;
     else Head=N->Next;
     if (N->Next) N->Next->Prev=N->Prev;
