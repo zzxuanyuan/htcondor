@@ -2,6 +2,7 @@
 #include "Set.h"
 #include "stork-mm.h"
 #include "dc_match_lite_lease.h"
+#include "condor_config.h"
 
 list<DCMatchLiteLease*>mylist;
 int main ( void )
@@ -10,8 +11,17 @@ int main ( void )
 	mylist.push_back( &l );
 	mylist.remove( &l);
 
+	config();
+	Termlog = 1;
+	dprintf_config("TOOL",2);
+
 	StorkMatchMaker	mm;
 	printf( "mm size %d @ %p\n", sizeof(mm), &mm );
+	const char *result = NULL;
+	result = mm.getTransferDestination(NULL);
+	printf("TODD dest = %s\n", result ? result : "(NULL)" );
+	result = mm.getTransferDestination(NULL);
+	printf("TODD dest = %s\n", result ? result : "(NULL)" );
 
 	
 }

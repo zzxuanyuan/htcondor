@@ -27,6 +27,7 @@
 #include "condor_debug.h"
 #include "condor_config.h"
 
+
 // Stork interface object to new "matchmaker lite" for SC2005 demo.
 
 // Instantiate some templates
@@ -34,7 +35,8 @@
 //template class OrderedSet<StorkMatchEntry>;
 template class list<DCMatchLiteLease*>;
 
-StorkMatchEntry::StorkMatchEntry()
+void
+StorkMatchEntry::initialize()
 {
 	Url = NULL;
 	Lease = NULL;
@@ -43,9 +45,15 @@ StorkMatchEntry::StorkMatchEntry()
 	CompletePath = NULL;
 }
 
+
+StorkMatchEntry::StorkMatchEntry()
+{
+	initialize();
+}
+
 StorkMatchEntry::StorkMatchEntry(DCMatchLiteLease * lite_lease)
 {
-	StorkMatchEntry();
+	initialize();
 	
 	// init with lease ad
 	ASSERT(lite_lease);
@@ -55,13 +63,13 @@ StorkMatchEntry::StorkMatchEntry(DCMatchLiteLease * lite_lease)
 	classad::ClassAd *ad = Lease->LeaseAd();
 	ASSERT(ad);
 	string dest;
-	char *attr_name = param("STORM_MM_DEST_ATTRNAME");
+	char *attr_name = param("STORK_MM_DEST_ATTRNAME");
 	if ( !attr_name ) {
-		attr_name = strdup("STORK_DEST_SUBDIR");  // default
+		attr_name = strdup("URL");  // default
 	}
 	ad->EvaluateAttrString(attr_name, dest);
 	free(attr_name);
-	if ( dest.c_str() ) {
+	if ( dest.length() ) {
 		Url = strdup(dest.c_str());
 	}
 	ASSERT(Url);
@@ -73,7 +81,7 @@ StorkMatchEntry::StorkMatchEntry(DCMatchLiteLease * lite_lease)
 
 StorkMatchEntry::StorkMatchEntry(const char* path)
 {
-	StorkMatchEntry();
+	initialize();
 
 	ASSERT(path);
 	Url = strdup( dirname(path) );
@@ -191,11 +199,15 @@ StorkMatchMaker::
 
 	idleMatches.StartIterations();
 	while ( idleMatches.Iterate(match) ) {
+		ASSERT(match->Lease);
+		// dprintf(D_FULLDEBUG,"TODD - idle remove %p ptr=%p cp=%p\n",match->Lease,match,match->CompletePath);
 		delete match;
 	}
 
 	busyMatches.StartIterations();
 	while ( busyMatches.Iterate(match) ) {
+		ASSERT(match->Lease);
+		// dprintf(D_FULLDEBUG,"TODD - busy remove %p ptr=%p cp=%p\n",match->Lease,match,match->CompletePath);
 		delete match;
 	}
 
@@ -247,6 +259,7 @@ getTransferDestination(const char *protocol)
 			count++;
 			match = new StorkMatchEntry( *iter );
 			addToIdleSet(match);
+		// dprintf(D_FULLDEBUG,"TODD - idle add %p ptr=%p cp=%p\n",match->Lease,match,match->CompletePath);
 		}
 		dprintf(D_ALWAYS,
 			"MM: Requested %d matches from matchmaker, got %d back\n",
@@ -264,6 +277,7 @@ getTransferDestination(const char *protocol)
 		// add it into the busy set.
 		addToBusySet(match);
 
+		// dprintf(D_FULLDEBUG,"TODD1 - idle add %p ptr=%p cp=%p\n",match->Lease,match,match->CompletePath);
 		// return url + filename
 		static int unique_num = 0;
 		if ( unique_num == 0 ) {
@@ -274,6 +288,7 @@ getTransferDestination(const char *protocol)
 			ASSERT(match->CompletePath);
 		}
 		match->CompletePath->sprintf("%s/file%d",match->GetUrl(),++unique_num);
+		// dprintf(D_FULLDEBUG,"TODD2 - idle add %p ptr=%p cp=%p\n",match->Lease,match,match->CompletePath);
 		return strdup(match->CompletePath->Value());
 	}
 
@@ -407,6 +422,7 @@ void
 StorkMatchMaker::
 SetTimers()
 {
+#ifndef TEST_VERSION
 	int interval = param_integer("STORK_MM_INTERVAL",30);
 
 	if ( interval == tid_interval  && tid != -1 ) {
@@ -428,6 +444,7 @@ SetTimers()
 		(TimerHandlercpp)&StorkMatchMaker::timeout,
 		"StorkMatchMaker::timeout", this);
 	tid_interval = interval;
+#endif
 }
 
 void

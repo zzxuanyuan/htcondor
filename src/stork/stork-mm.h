@@ -23,7 +23,12 @@
 #ifndef _STORK_MM_
 #define _STORK_MM_
 
+/* #define TEST_VERSION 1  */
+
+#ifndef TEST_VERSION
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
+#endif
+
 #include "dc_match_lite.h"
 #include "MyString.h"
 #include "OrderedSet.h"
@@ -47,16 +52,21 @@ class StorkMatchEntry {
 		int operator== (const StorkMatchEntry& E2);
 
 	protected:
+		void initialize();
 		time_t Expiration_time;
 		time_t IdleExpiration_time;
 		char *Url;
 		DCMatchLiteLease* Lease;
 		MyString *CompletePath;
+
+		
 };
 
-
 // Stork interface object to new "matchmaker lite" for SC2005 demo.
-class StorkMatchMaker : public Service
+class StorkMatchMaker 
+#ifndef TEST_VERSION
+	: public Service
+#endif
 {
 	public:
 		// Constructor.  For now, I'll assume there are no args to the
