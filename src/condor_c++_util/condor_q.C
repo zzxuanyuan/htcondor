@@ -80,12 +80,15 @@ CondorQ ()
 	query.setStringKwList ((char **) strKeywords);
 	query.setFloatKwList ((char **) fltKeywords);
 
-        clusterprocarraysize = 128;
-        clusterarray = (int *) malloc(clusterprocarraysize * sizeof(int));
-        for(int i=0; i < clusterprocarraysize; i++) clusterarray[i] = -1;
-        procarray = (int *) malloc(clusterprocarraysize * sizeof(int));
-        for(int i=0; i < clusterprocarraysize; i++) procarray[i] = -1; 
-        numclusters = 0;
+	clusterprocarraysize = 128;
+	clusterarray = (int *) malloc(clusterprocarraysize * sizeof(int));
+	procarray = (int *) malloc(clusterprocarraysize * sizeof(int));
+	int i;
+	for(i=0; i < clusterprocarraysize; i++) { 
+		clusterarray[i] = -1;
+		procarray[i] = -1;
+	}
+	numclusters = 0;
 	numprocs = 0;
 
 	owner[0] = '\0';
