@@ -86,80 +86,156 @@
 #define CRONTAB_FIELDS 			5
 
 //
+// Invalid Runtime Identifier
 //
+#define CRONTAB_INVALID			-1
+
 //
-class CronTab { // : public Service {
+// CronTab
+// Andy Pavlo - pavlo@cs.wisc.edu
+// October 20th, 205
+//
+// The object can be given parameters just like Unix crond and will generate
+// a set of ranges for schedules. After the object is initialized
+// you can call nextRun() to be given back a UTC timestamp of what
+// the next run time according to the schedule should be.
+//
+// Parameter Format (From crontab manpage):
+//              field          allowed values
+//              -----          --------------
+//              minute         0-59
+//              hour           0-23
+//              day of month   1-31
+//              month          1-12
+//              day of week    0-7 (0 or 7 is Sun)
+//
+// NOTE:
+// We do not allow for name representations of Months of Days of the Week
+// like unix cron does. If we are given a value that is outside of the
+// the allowed ranges, we will simply cap it to the bounded range. 
+//
+class CronTab {
+public:
+		//
+		// Constructor
+		// This constuctor can be given a ClassAd from which the schedule
+		// values can be plucked out.
+		//
+	CronTab( ClassAd* );
+		//
+		// Constuctor
+		// Provided to add backwards capabilities for cronos.c
+		// Using integers really limits what can be done for scheduling
+		// The STAR constant has been replaced with CRONTAB_CRONOS_STAR
+		// Note that we are also not providing scheduling down to the second
+		//
+	CronTab( int, int, int, int, int );
+		//
+		// Constructor
+		// Instead of being given a ClassAd, we can be given string values
+		// following the same format to create a cron schedule
+		//
+	CronTab( const char*, const char*, const char*, const char*, const char* );
+		//
+		// Deconstructor
+		// Remove our array lists and parameters that we have
+		// dynamically allocated
+		//
+	~CronTab();
+		//
+		// nextRun()
+		// Returns the next execution time for our cron schedule from
+		// the current time
+		//
+	long nextRun();
+		//
+		// nextRun()
+		// Returns the next execution time for our cron schedule from the
+		// provided timestamp. We will only return an execution time if we
+		// have been initialized properly and the valid flag is true. The 
+		// timestamp that we calculate here will be stored and can be accessed
+		// again with lastRun().
+		//
+	long nextRun( long );
+		//
+		// If we were able to parse the parameters correctly
+		// then we will let them query us for runtimes
+		// 
+	bool isValid() { return ( this->valid ); }
+		//
+		// Returns the last calculated timestamp
+		//
+	bool lastRun() { return (this->lastRunTime); }
+	
 protected:
 		//
 		// Default Constructor
 		//
 	CronTab();
 		//
-		//
-		//
-	bool matchFields( int*, int*, int, bool useFirst = false );
-		//
-		// 
-		//
-	bool contains( ExtArray<int>&, const int&  );
-		//
-		// Initialization method
+		// init()
+		// Initializes our object to prepare it for being asked 
+		// what the next run time should be. If a parameter is invalid
+		// we will not allow them to query us for runtimes
 		//
 	void init();
 		//
-		// 
+		// matchFields()
+		// Important helper function that actually does the grunt work of
+		// find the next runtime. See function implementation to see 
+		// how it actually works
+		//
+	bool matchFields( int*, int*, int, bool useFirst = false );
+		//
+		// expandParameter()
+		// This is the logic that is used to take a parameter string
+		// given for a specific field in the cron schedule and expand it
+		// out into a range of int's that can be looked up quickly later on
+		//
+	bool expandParameter( int, int, int );
+		//
+		// contains()
+		// Just checks to see if a value is in an array
+		//
+	bool contains( ExtArray<int>&, const int&  );
+		//
+		// sort()
+		// Ye' Olde Insertion Sort!
 		//
 	void sort( ExtArray<int>& );
-		//
-		//
-		//
-	int daysInMonth( int, int );
-
-public:
-	
-	CronTab( ClassAd* );
-	CronTab( int, int, int, int, int );
-	CronTab( const char*, const char*, const char*, const char*, const char* );
-	~CronTab();
-	
-	long nextRun();
-	long nextRun( long );
-	
-protected:
-
-		//
-		// Given a paramter string with a min/max range, this function
-		// will fill the queue with all the possible values for the parameter
-		// We need to be passed the parameter name for nice debugging messages!
-		//
-	int expandParameter( MyString&, int, int, ExtArray<int>&, const char* );
 
 protected:
+		//
+		// We need to know whether our fields are valid
+		// and we can proceed with looking for a runtime
+		//
+	bool valid;
+		//
+		// The last runtime we calculated
+		// We don't use this internally for anything, but we'll 
+		// allow them to look it up
+		//
+	long lastRunTime;
 		//
 		// The various scheduling properties of the cron definition
-		// These will be pulled from the ClassAd
+		// These will be in pulled by the various Constructors
 		//
 	MyString *parameters[CRONTAB_FIELDS];
-
 		//
 		// After we parse the cron schedule we will have ranges
 		// for the different properties.
 		//
-	ExtArray<int> *cron_ranges[CRONTAB_FIELDS];
-	
+	ExtArray<int> *ranges[CRONTAB_FIELDS];
 		//
 		// Attribute names
-		// Merely here for convience
+		// Merely here for convienence
 		//
 	static const char* attributes[];
-	
 		//
 		// The regular expresion object we will use to make sure 
 		// our parameters are in the proper format.
-		// The additional variables are needed in case the regex fails
 		//
 	RegExer *regex;
-	MyString regex_pattern;
 
 }; // END CLASS
 
