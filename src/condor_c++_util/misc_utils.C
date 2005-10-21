@@ -24,6 +24,7 @@
 #include "condor_common.h"
 #include "MyString.h"
 #include "condor_config.h"
+#include <time.h>
 
 extern "C" {
 
@@ -100,6 +101,18 @@ startdClaimIdFile( int vm_id )
 		filename += vm_id;
 	}			
 	return strdup( filename.Value() );
+}
+
+char* my_timezone() 
+{
+  tzset();
+
+  if (daylight) {
+    return tzname[1];
+  } else
+  {
+    return tzname[0];
+  }
 }
 
 

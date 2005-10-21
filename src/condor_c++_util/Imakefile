@@ -76,6 +76,7 @@ CLASSAD_OBJ = \
 CONLIBAPI_OBJ = \
 	condor_event.o \
 	file_sql.o \
+	misc_utils.o \
 	user_log.o \
 	iso_dates.o \
 	file_lock.o \

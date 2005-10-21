@@ -31,11 +31,12 @@
 #include "iso_dates.h"
 #include "condor_attributes.h"
 
+#include "misc_utils.h"
+
 //added by Ameet
 #include "condor_environ.h"
 #include <sys/types.h>
 #include <sys/socket.h>
-
 //--------------------------------------------------------
 #include "condor_debug.h"
 //--------------------------------------------------------
@@ -1137,7 +1138,7 @@ RemoteErrorEvent::writeEvent(FILE *file)
 				eventTime.tm_hour,
 				eventTime.tm_min,
 				eventTime.tm_sec,
-				eventTime.tm_zone);		
+				my_timezone());		
 		
 		snprintf(tmp, 1024, "endts = \"%s\"", eventts);
 		tmpClP1->Insert(tmp);		
@@ -1184,7 +1185,7 @@ RemoteErrorEvent::writeEvent(FILE *file)
 				eventTime.tm_hour,
 				eventTime.tm_min,
 				eventTime.tm_sec,
-				eventTime.tm_zone);		
+				my_timezone());		
 		
 		snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
 		tmpClP1->Insert(tmp);		
@@ -1447,7 +1448,7 @@ writeEvent (FILE *file)
 		  eventTime.tm_hour,
 		  eventTime.tm_min,
 		  eventTime.tm_sec,
-		  eventTime.tm_zone);
+		  my_timezone());
 
   snprintf(tmp, 512, "endts = \"%s\"", eventts);
   tmpClP1->Insert(tmp);
@@ -1606,7 +1607,7 @@ writeEvent (FILE *file)
 			eventTime.tm_hour,
 			eventTime.tm_min,
 			eventTime.tm_sec,
-			eventTime.tm_zone);		
+			my_timezone());		
 		
 	snprintf(tmp, 1024, "endts = \"%s\"", eventts);
 	tmpClP1->Insert(tmp);		
@@ -1760,7 +1761,7 @@ writeEvent (FILE *file)
 			eventTime.tm_hour,
 			eventTime.tm_min,
 			eventTime.tm_sec,
-			eventTime.tm_zone);		
+			my_timezone());		
 		
 	snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
 	tmpClP1->Insert(tmp);		
@@ -2149,7 +2150,7 @@ JobEvictedEvent::writeEvent( FILE *file )
 		  eventTime.tm_hour,
 		  eventTime.tm_min,
 		  eventTime.tm_sec,
-		  eventTime.tm_zone);		
+		  my_timezone());		
 		
   snprintf(tmp, 1024, "endts = \"%s\"", eventts);
   tmpClP1->Insert(tmp);		
@@ -2382,7 +2383,7 @@ writeEvent (FILE *file)
 			eventTime.tm_hour,
 			eventTime.tm_min,
 			eventTime.tm_sec,
-			eventTime.tm_zone);		
+			my_timezone());		
 		
 	snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
 	tmpClP1->Insert(tmp);		
@@ -2602,7 +2603,7 @@ TerminatedEvent::writeEvent( FILE *file, const char* header )
 			eventTime.tm_hour,
 			eventTime.tm_min,
 			eventTime.tm_sec,
-			eventTime.tm_zone);
+			my_timezone());
 
 	snprintf(tmp, 1024, "endmessage = \"%s\"", messagestr);
 	tmpClP1->Insert(tmp);
@@ -2747,7 +2748,7 @@ JobTerminatedEvent::writeEvent (FILE *file)
 		  eventTime.tm_hour,
 		  eventTime.tm_min,
 		  eventTime.tm_sec,
-		  eventTime.tm_zone);
+		  my_timezone());
   
   snprintf(tmp, 1024, "endts = \"%s\"", eventts);
   tmpClP1->Insert(tmp);
@@ -3027,7 +3028,7 @@ writeEvent (FILE *file)
 			eventTime.tm_hour,
 			eventTime.tm_min,
 			eventTime.tm_sec,
-			eventTime.tm_zone);		
+			my_timezone());		
 		
 	snprintf(tmp, 1024, "endts = \"%s\"", eventts);
 	tmpClP1->Insert(tmp);		
@@ -3177,7 +3178,7 @@ writeEvent (FILE *file)
 			eventTime.tm_hour,
 			eventTime.tm_min,
 			eventTime.tm_sec,
-			eventTime.tm_zone);
+			my_timezone());
 		
 	snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
 	tmpClP1->Insert(tmp);		
@@ -3285,7 +3286,7 @@ writeEvent (FILE *file)
 			eventTime.tm_hour,
 			eventTime.tm_min,
 			eventTime.tm_sec,
-			eventTime.tm_zone);		
+			my_timezone());		
 		
 	snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
 	tmpClP1->Insert(tmp);		
@@ -3471,7 +3472,7 @@ JobHeldEvent::writeEvent( FILE *file )
 			eventTime.tm_hour,
 			eventTime.tm_min,
 			eventTime.tm_sec,
-			eventTime.tm_zone);		
+			my_timezone());		
 		
 	snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
 	tmpClP1->Insert(tmp);		
@@ -3657,7 +3658,7 @@ JobReleasedEvent::writeEvent( FILE *file )
 			eventTime.tm_hour,
 			eventTime.tm_min,
 			eventTime.tm_sec,
-			eventTime.tm_zone);		
+			my_timezone());		
 		
 	snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
 	tmpClP1->Insert(tmp);		
