@@ -391,7 +391,7 @@ bool
 StorkMatchMaker::
 fromBusyToIdle(StorkMatchEntry* match) 
 {
-	StorkMatchEntry* full_match;
+	StorkMatchEntry* full_match = NULL;
 	StorkMatchEntry* temp;
 
 	if (match->Lease) {
@@ -407,6 +407,10 @@ fromBusyToIdle(StorkMatchEntry* match)
 				busyMatches.RemoveLast();
 				break;
 			}
+		}
+		if ( !full_match ) {
+			EXCEPT( "StorkMatchEntry fromBusyToIdle : Can't find match %s!",
+					match->GetUrl() );
 		}
 	}
 
