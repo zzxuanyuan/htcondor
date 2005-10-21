@@ -41,6 +41,7 @@
 #include "file_sql.h"
 #include "database.h"
 #include "pgsqldatabase.h"
+#include "misc_utils.h"
 
 #define TIMELEN 60
 
@@ -413,7 +414,7 @@ TTManager::event_maintain()
 		  tm->tm_hour,
 		  tm->tm_min,
 		  tm->tm_sec,
-		  tm->tm_zone);
+		  my_timezone());
 	
 	scheddname = jqDBManager.getScheddname();
 	

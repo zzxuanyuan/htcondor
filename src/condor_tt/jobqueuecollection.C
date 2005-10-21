@@ -26,6 +26,7 @@
 #include "jobqueuecollection.h"
 #include "get_daemon_name.h"
 #include "condor_config.h"
+#include "misc_utils.h"
 
 //! constructor
 JobQueueCollection::JobQueueCollection(int iBucketNum)
@@ -804,7 +805,7 @@ JobQueueCollection::makeCopyStr(bool bHor, char* cid, char* pid, ClassAd* ad, ch
 							tm->tm_hour,
 							tm->tm_min,
 							tm->tm_sec,
-							tm->tm_zone);
+							my_timezone());
 
 					qdate = strdup(tmp);
 
