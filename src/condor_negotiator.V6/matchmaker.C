@@ -35,6 +35,7 @@
 #include "dc_collector.h"
 #include "condor_string.h"  // for strlwr() and friends
 #include "get_daemon_name.h"
+#include "misc_utils.h"
 
 // the comparison function must be declared before the declaration of the
 // matchmaker class in order to preserve its static-ness.  (otherwise, it
@@ -2691,7 +2692,7 @@ void Matchmaker::insert_into_rejects(char *userName, ClassAd& job, ClassAd& mach
 		  tm->tm_hour,
 		  tm->tm_min,
 		  tm->tm_sec,
-		  tm->tm_zone);
+		  my_timezone());
 
 	snprintf(tmp, 512, "reject_time = \"%s\"", rejectts);
 	tmpClP->Insert(tmp);
@@ -2750,7 +2751,7 @@ void Matchmaker::insert_into_matches(char * userName,ClassAd& request, ClassAd& 
 		  tm->tm_hour,
 		  tm->tm_min,
 		  tm->tm_sec,
-		  tm->tm_zone);
+		  my_timezone());
 	
 	snprintf(tmp, 512, "match_time = \"%s\"", matchts);
 	tmpClP->Insert(tmp);
