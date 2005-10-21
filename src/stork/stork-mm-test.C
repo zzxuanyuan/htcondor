@@ -5,7 +5,7 @@
 #include "condor_config.h"
 
 list<DCMatchLiteLease*>mylist;
-int main ( void )
+int main ( int argc, char **argv )
 {
 	DCMatchLiteLease	l;
 	mylist.push_back( &l );
