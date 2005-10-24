@@ -23,7 +23,7 @@
 #ifndef _STORK_MM_
 #define _STORK_MM_
 
-/* #define TEST_VERSION 1  */
+/* #define TEST_VERSION 1 */
 
 #ifndef TEST_VERSION
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
@@ -31,7 +31,7 @@
 
 #include "dc_match_lite.h"
 #include "MyString.h"
-#include "OrderedSet.h"
+#include "Set.h"
 
 class StorkMatchMaker; // forward reference
 
@@ -107,8 +107,8 @@ class StorkMatchMaker
 		void timeout();
 
 	private:
-		OrderedSet<StorkMatchEntry*> busyMatches;
-		OrderedSet<StorkMatchEntry*> idleMatches;
+		Set<StorkMatchEntry*> busyMatches;
+		Set<StorkMatchEntry*> idleMatches;
 		DCMatchLite* dcmm;
 		int tid, tid_interval;
 

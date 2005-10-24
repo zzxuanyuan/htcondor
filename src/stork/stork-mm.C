@@ -31,8 +31,6 @@
 // Stork interface object to new "matchmaker lite" for SC2005 demo.
 
 // Instantiate some templates
-//template class Set<StorkMatchEntry>;
-//template class OrderedSet<StorkMatchEntry>;
 template class list<DCMatchLiteLease*>;
 
 void
@@ -484,9 +482,11 @@ timeout()
 			idleMatches.RemoveLast();
 			continue;
 		}
+#ifdef USING_ORDERED_SET
 		// If we made it here, we know everything else on the list is
 		// for the future, since the list is ordered.  So break out, we're done.
 		break;
+#endif
 	}
 	// Now actually connect to the matchmaker if we have leases to release.
 	if ( to_release.Count() ) {
@@ -526,9 +526,11 @@ timeout()
 			to_renew.Add(match);
 			continue;
 		}
+#ifdef USING_ORDERED_SET
 		// If we made it here, we know everything else on the list is
 		// for the future, since the list is ordered.  So break out, we're done.
 		break;
+#endif
 	}
 	// Now actually connect to the matchmaker if we have leases to renew.
 	if ( to_renew.Count() ) {
