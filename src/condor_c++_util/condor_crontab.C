@@ -317,7 +317,7 @@ CronTab::nextRun( long timestamp ) {
 			//
 		} else {
 			dprintf( D_FULLDEBUG, "CronTab failed to find a match for timestamp %d\n",
-															timestamp );
+															(int)timestamp );
 		}
 	} // IF VALID
 	this->lastRunTime = runtime;
@@ -646,7 +646,7 @@ CronTab::expandParameter( int attribute_idx, int min, int max )
 				//
 			int temp = ctr;
 			if ( attribute_idx == CRONTAB_DOW_IDX && 
-				 temp = CRONTAB_DAY_OF_WEEK_MAX ) {
+				 temp == CRONTAB_DAY_OF_WEEK_MAX ) {
 				temp = CRONTAB_DAY_OF_WEEK_MIN;
 			}
 			
