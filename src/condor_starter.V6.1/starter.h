@@ -80,7 +80,12 @@ public:
 			by the JobInfoCommunicator.
 		*/
 	virtual bool createTempExecuteDir( void );
-
+	
+		/**
+		 * 
+		 */
+	virtual int jobWaitUntilExecuteTime( void );
+	
 		/** Called by the JobInfoCommunicator whenever the job
 			execution environment is ready so we can actually spawn
 			the job.
@@ -194,6 +199,11 @@ private:
 	int starter_stdin_fd;
 	int starter_stdout_fd;
 	int starter_stderr_fd;
+	
+		//
+		// This is the id of the timer for when a job gets deferred
+		//
+	int deferral_tid;
 
 	UserProc* pre_script;
 	UserProc* post_script;
