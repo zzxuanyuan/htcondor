@@ -95,7 +95,7 @@ DCStartd::getTimeOffset( void )
 	if( ! reli_sock.connect(_addr) ) {
 		dprintf( D_FULLDEBUG, "DCStartd::getTimeOffset() failed to connect "
 		     				  "to startd at '%s'\n", _addr );
-		return (0);
+		return ( TIME_OFFSET_DEFAULT );
 	}
 		//
 		// Next send our command to prepare for the time synchining
@@ -104,9 +104,8 @@ DCStartd::getTimeOffset( void )
 	if( ! startCommand( DC_TIME_OFFSET, (Sock*)&reli_sock ) ) { 
 		dprintf( D_FULLDEBUG, "DCStartd::getTimeOffset() failed to send "
 		     				  "command to startd at '%s'\n", _addr );
-		return (0);
+		return ( TIME_OFFSET_DEFAULT );
 	}
-	
 		//
 		// Now that we have established a connection, we'll pass
 		// the ReliSock over to the time offset handling code
