@@ -31,7 +31,14 @@
 
 #include "dc_match_lite.h"
 #include "MyString.h"
-#include "Set.h"
+
+// Turn on/off the use of ordered sets
+#define USING_ORDERED_SET
+#if defined( USING_ORDERED_SET )
+# include "OrderedSet.h"
+#else
+# include "Set.h"
+#endif
 
 class StorkMatchMaker; // forward reference
 
@@ -107,8 +114,13 @@ class StorkMatchMaker
 		void timeout();
 
 	private:
+#if defined( USING_ORDERED_SET )
+		OrderedSet<StorkMatchEntry*> busyMatches;
+		OrderedSet<StorkMatchEntry*> idleMatches;
+#else
 		Set<StorkMatchEntry*> busyMatches;
 		Set<StorkMatchEntry*> idleMatches;
+#endif
 		DCMatchLite* dcmm;
 		int tid, tid_interval;
 

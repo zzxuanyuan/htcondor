@@ -337,9 +337,16 @@ destroyFromBusy(StorkMatchEntry*  match)
 
 	busyMatches.StartIterations();
 	while (busyMatches.Iterate(temp)) {
-		if (*temp==*match) {
-			dprintf( D_FULLDEBUG, "Destroying busy match %s!\n",
-					 match->GetUrl() );
+		if ( *temp == *match ) {
+			const char	*s;
+			if ( temp->CompletePath ) {
+				s = temp->CompletePath->GetCStr();
+			} else if ( temp->Lease ) {
+				s = temp->Lease->LeaseId().c_str();
+			} else {
+				s = temp->GetUrl();
+			}
+			dprintf( D_FULLDEBUG, "Destroying busy match %s\n", s );
 			busyMatches.RemoveLast();
 			delete temp;
 			return true;
@@ -356,9 +363,16 @@ destroyFromIdle(StorkMatchEntry*  match)
 
 	idleMatches.StartIterations();
 	while (idleMatches.Iterate(temp)) {
-		if (*temp==*match) {
-			dprintf( D_FULLDEBUG, "Destroying idle match %s!\n",
-					 match->GetUrl() );
+		if ( *temp == *match ) {
+			const char	*s;
+			if ( temp->CompletePath ) {
+				s = temp->CompletePath->GetCStr();
+			} else if ( temp->Lease ) {
+				s = temp->Lease->LeaseId().c_str();
+			} else {
+				s = temp->GetUrl();
+			}
+			dprintf( D_FULLDEBUG, "Destroying idle match %s\n", s );
 			idleMatches.RemoveLast();
 			delete temp;
 			return true;
@@ -481,16 +495,17 @@ timeout()
 			continue;
 		}
 		if ( match->IdleExpiration_time <= now ) {
-			// This match has not expired, but has been sitting on our idle list
-			// for too long.  Add it to the list of leases to release, and remove
-			// from the list.
+			// This match has not expired, but has been sitting on our
+			// idle list for too long.  Add it to the list of leases
+			// to release, and remove from the list.
 			to_release.Add(match);
 			idleMatches.RemoveLast();
 			continue;
 		}
 #ifdef USING_ORDERED_SET
 		// If we made it here, we know everything else on the list is
-		// for the future, since the list is ordered.  So break out, we're done.
+		// for the future, since the list is ordered.  So break out,
+		// we're done.
 		break;
 #endif
 	}
