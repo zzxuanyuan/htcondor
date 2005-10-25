@@ -219,7 +219,7 @@ bool Set<KeyType>::RemoveElem(const SetElem<KeyType>* N) {
   if (!N) return false;
   Len--;
   if (Len==0)
-    Head=NULL;
+    Curr=Head=NULL;
   else {
 	if (Curr == N) Curr=Curr->Prev;
     if (N->Prev) N->Prev->Next=N->Next;
