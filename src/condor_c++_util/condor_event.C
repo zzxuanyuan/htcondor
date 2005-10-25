@@ -1126,7 +1126,8 @@ RemoteErrorEvent::writeEvent(FILE *file)
 	
 	dprintf(D_ALWAYS, "just before initializing scheddname in RemoteErrorEvent\n");
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
-	dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
+	if(scheddname)
+  	  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
 	if(!critical_error) error_type = "Warning";
 
@@ -1149,8 +1150,10 @@ RemoteErrorEvent::writeEvent(FILE *file)
 		snprintf(tmp, 1024, "endmessage = \"%s\"", messagestr);
 		tmpClP1->Insert(tmp);
 		
-		snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
-		tmpClP2->Insert(tmp);
+		if(scheddname) {
+		  snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
+		  tmpClP2->Insert(tmp);
+		}
   
 		snprintf(tmp, 1024, "cid = %d", cluster);
 		tmpClP2->Insert(tmp);
@@ -1186,9 +1189,10 @@ RemoteErrorEvent::writeEvent(FILE *file)
 				eventTime.tm_min,
 				eventTime.tm_sec,
 				my_timezone());		
-		
-		snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
-		tmpClP1->Insert(tmp);		
+		if (scheddname) {	
+		  snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
+		  tmpClP1->Insert(tmp);		
+		}
 
 		snprintf(tmp, 1024, "cid = %d", cluster);
 		tmpClP1->Insert(tmp);		
@@ -1410,9 +1414,8 @@ writeEvent (FILE *file)
 
   scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
   
-  if(!scheddname) 
+  if(scheddname) 
     dprintf(D_FULLDEBUG, "scheddname = %s\n", scheddname);
-  
   else 
     dprintf(D_FULLDEBUG, "scheddname is null\n");
   
@@ -1459,9 +1462,11 @@ writeEvent (FILE *file)
   snprintf(tmp, 512, "endmessage = \"UNKNOWN ERROR\"");
   tmpClP1->Insert(tmp);
  
-  snprintf(tmp, 512, "scheddname = \"%s\"", scheddname);
-  tmpClP2->Insert(tmp);
-  
+  if (scheddname) {
+    snprintf(tmp, 512, "scheddname = \"%s\"", scheddname);
+    tmpClP2->Insert(tmp);
+  } 
+
   snprintf(tmp, 512, "cid = %d", cluster);
   tmpClP2->Insert(tmp);
 
@@ -1486,8 +1491,10 @@ writeEvent (FILE *file)
   snprintf(tmp, 512, "machine_id = \"%s\"", executehostname);
   tmpClP3->Insert(tmp);
 
-  snprintf(tmp, 512, "scheddname = \"%s\"", scheddname);
-  tmpClP3->Insert(tmp);
+  if(scheddname) {
+    snprintf(tmp, 512, "scheddname = \"%s\"", scheddname);
+    tmpClP3->Insert(tmp);
+  }
 
   snprintf(tmp, 512, "cid = %d", cluster);
   tmpClP3->Insert(tmp);
@@ -1598,7 +1605,8 @@ writeEvent (FILE *file)
 
 	dprintf(D_ALWAYS, "just before initializing scheddname in ExecutableErrorEvent\n");
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
-	dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
+	if (scheddname)
+	  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
 	snprintf(eventts, 100, "%d-%02d-%02d %02d:%02d:%02d %s", 
 			eventTime.tm_year+1900,
@@ -1618,8 +1626,10 @@ writeEvent (FILE *file)
 	snprintf(tmp, 1024, "endmessage = \"%s\"", messagestr);
 	tmpClP1->Insert(tmp);
 		
-	snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
-	tmpClP2->Insert(tmp);
+	if(scheddname){
+	  snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
+	  tmpClP2->Insert(tmp);
+	}
   
 	snprintf(tmp, 1024, "cid = %d", cluster);
 	tmpClP2->Insert(tmp);
@@ -1752,7 +1762,8 @@ writeEvent (FILE *file)
 
 	dprintf(D_ALWAYS, "just before initializing scheddname in CheckpointedEvent\n");
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
-	dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
+	if(scheddname)
+	  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
 	snprintf(eventts, 100, "%d-%02d-%02d %02d:%02d:%02d %s", 
 			eventTime.tm_year+1900,
@@ -1763,8 +1774,10 @@ writeEvent (FILE *file)
 			eventTime.tm_sec,
 			my_timezone());		
 		
-	snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
-	tmpClP1->Insert(tmp);		
+	if (scheddname) {
+	  snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
+	  tmpClP1->Insert(tmp);		
+	}
 	
 	snprintf(tmp, 1024, "cid = %d", cluster);
 	tmpClP1->Insert(tmp);		
@@ -2141,7 +2154,8 @@ JobEvictedEvent::writeEvent( FILE *file )
   
   dprintf(D_ALWAYS, "just before initializing scheddname in EvictEvent\n");
   scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
-  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
+  if (scheddname)
+    dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
   
   snprintf(eventts, 100, "%d-%02d-%02d %02d:%02d:%02d %s", 
 		  eventTime.tm_year+1900,
@@ -2170,8 +2184,10 @@ JobEvictedEvent::writeEvent( FILE *file )
   snprintf(tmp, 1024, "runbytesreceived = %f", recvd_bytes);
   tmpClP1->Insert(tmp);
 
-  snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
-  tmpClP2->Insert(tmp);
+  if (scheddname) {
+    snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
+    tmpClP2->Insert(tmp);
+  }
   
   snprintf(tmp, 1024, "cid = %d", cluster);
   tmpClP2->Insert(tmp);
@@ -2369,7 +2385,9 @@ writeEvent (FILE *file)
 
 	dprintf(D_ALWAYS, "just before initializing scheddname in JobAbortedEvent\n");
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
-	dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
+	if (scheddname) {
+	  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
+	}
 
 	if (reason)
 		snprintf(messagestr,  512, "Job was aborted by the user: %s", reason);
@@ -2384,9 +2402,10 @@ writeEvent (FILE *file)
 			eventTime.tm_min,
 			eventTime.tm_sec,
 			my_timezone());		
-		
-	snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
-	tmpClP1->Insert(tmp);		
+	if(scheddname) {
+	  snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
+	  tmpClP1->Insert(tmp);		
+	}
 	
 	snprintf(tmp, 1024, "cid = %d", cluster);
 	tmpClP1->Insert(tmp);		
@@ -2594,7 +2613,8 @@ TerminatedEvent::writeEvent( FILE *file, const char* header )
 
 	dprintf(D_ALWAYS, "just before initializing scheddname in TerminteEvent\n");
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
-	dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
+	if (scheddname)
+	  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
 	snprintf(eventts, 100, "%d-%02d-%02d %02d:%02d:%02d %s",
 			eventTime.tm_year+1900,
@@ -2614,8 +2634,10 @@ TerminatedEvent::writeEvent( FILE *file, const char* header )
 	snprintf(tmp, 1024, "runbytesreceived = %f", recvd_bytes);
 	tmpClP1->Insert(tmp);	
 	
-	snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
-	tmpClP2->Insert(tmp);	
+	if(scheddname) {
+	  snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
+	  tmpClP2->Insert(tmp);	
+	}
 
 	snprintf(tmp, 1024, "cid = %d", cluster);
 	tmpClP2->Insert(tmp);
@@ -2739,7 +2761,8 @@ JobTerminatedEvent::writeEvent (FILE *file)
   
   dprintf(D_ALWAYS, "just before initializing scheddname in JobTerminatedEvent\n");
   scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
-  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
+  if (scheddname)
+    dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
   snprintf(eventts, 100, "%d-%02d-%02d %02d:%02d:%02d %s",
 		  eventTime.tm_year+1900,
@@ -2756,8 +2779,10 @@ JobTerminatedEvent::writeEvent (FILE *file)
   snprintf(tmp, 1024, "endtype = %d", ULOG_JOB_TERMINATED);
   tmpClP1->Insert(tmp);  
 	
-  snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
-  tmpClP2->Insert(tmp);	
+  if (scheddname) {
+    snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
+    tmpClP2->Insert(tmp);	
+  }
   
   snprintf(tmp, 1024, "cid = %d", cluster);
   tmpClP2->Insert(tmp);
@@ -3013,7 +3038,8 @@ writeEvent (FILE *file)
 
 	dprintf(D_ALWAYS, "just before initializing scheddname in EvictEvent\n");
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
-	dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
+	if (scheddname)
+	  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 	
 	snprintf(messagestr, 512, "Shadow exception: %s", message);
 
@@ -3045,8 +3071,10 @@ writeEvent (FILE *file)
 	snprintf(tmp, 1024, "runbytesreceived = %f", recvd_bytes);
 	tmpClP1->Insert(tmp);
 
-	snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
-	tmpClP2->Insert(tmp);
+  	if (scheddname) {
+	  snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
+	  tmpClP2->Insert(tmp);
+	}
   
 	snprintf(tmp, 1024, "cid = %d", cluster);
 	tmpClP2->Insert(tmp);
@@ -3169,7 +3197,8 @@ writeEvent (FILE *file)
 	
 	dprintf(D_ALWAYS, "just before initializing scheddname in EvictEvent\n");
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
-	dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
+	if (scheddname)
+	  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
 	snprintf(eventts, 100, "%d-%02d-%02d %02d:%02d:%02d %s", 
 			eventTime.tm_year+1900,
@@ -3180,8 +3209,10 @@ writeEvent (FILE *file)
 			eventTime.tm_sec,
 			my_timezone());
 		
-	snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
-	tmpClP1->Insert(tmp);		
+	if (scheddname) {
+	  snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
+	  tmpClP1->Insert(tmp);		
+	}
 	
 	snprintf(tmp, 1024, "cid = %d", cluster);
 	tmpClP1->Insert(tmp);		
@@ -3277,7 +3308,8 @@ writeEvent (FILE *file)
 	
 	dprintf(D_ALWAYS, "just before initializing scheddname in EvictEvent\n");
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
-	dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
+	if (scheddname)
+	  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
 	snprintf(eventts, 100, "%d-%02d-%02d %02d:%02d:%02d %s", 
 			eventTime.tm_year+1900,
@@ -3288,8 +3320,10 @@ writeEvent (FILE *file)
 			eventTime.tm_sec,
 			my_timezone());		
 		
-	snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
-	tmpClP1->Insert(tmp);		
+	if (scheddname) {
+	  snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
+	  tmpClP1->Insert(tmp);		
+	}
 	
 	snprintf(tmp, 1024, "cid = %d", cluster);
 	tmpClP1->Insert(tmp);		
@@ -3463,7 +3497,8 @@ JobHeldEvent::writeEvent( FILE *file )
 
 	dprintf(D_ALWAYS, "just before initializing scheddname in EvictEvent\n");
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
-	dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
+	if (scheddname)
+	  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
 	snprintf(eventts, 100, "%d-%02d-%02d %02d:%02d:%02d %s", 
 			eventTime.tm_year+1900,
@@ -3474,8 +3509,10 @@ JobHeldEvent::writeEvent( FILE *file )
 			eventTime.tm_sec,
 			my_timezone());		
 		
-	snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
-	tmpClP1->Insert(tmp);		
+	if (scheddname) {
+	  snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
+	  tmpClP1->Insert(tmp);		
+	}
 	
 	snprintf(tmp, 1024, "cid = %d", cluster);
 	tmpClP1->Insert(tmp);		
@@ -3649,7 +3686,8 @@ JobReleasedEvent::writeEvent( FILE *file )
 
 	dprintf(D_ALWAYS, "just before initializing scheddname in EvictEvent\n");
 	scheddname = getenv( EnvGetName( ENV_SCHEDD_NAME ) );
-	dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
+	if (scheddname)
+	  dprintf(D_ALWAYS, "after initializing scheddname = %s\n", scheddname);
 
 	snprintf(eventts, 100, "%d-%02d-%02d %02d:%02d:%02d %s", 
 			eventTime.tm_year+1900,
@@ -3660,8 +3698,10 @@ JobReleasedEvent::writeEvent( FILE *file )
 			eventTime.tm_sec,
 			my_timezone());		
 		
-	snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
-	tmpClP1->Insert(tmp);		
+	if (scheddname) {
+	  snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
+	  tmpClP1->Insert(tmp);		
+	}
 	
 	snprintf(tmp, 1024, "cid = %d", cluster);
 	tmpClP1->Insert(tmp);		
