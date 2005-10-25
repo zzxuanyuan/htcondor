@@ -1,5 +1,0 @@
-# Microsoft Developer Studio Generated Dependency File, included by condor_submit_dag.mak
-
-..\src\condor_dagman\condor_submit_dag.C : \
-	"..\src\condor_dagman\dagman_multi_dag.h"\
-	
