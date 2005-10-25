@@ -82,8 +82,8 @@ StorkMatchEntry::StorkMatchEntry(const char* path)
 	initialize();
 
 	ASSERT(path);
-	Url = strdup( dirname(path) );
-	CompletePath = new MyString(path);
+	Url = condor_dirname( path );
+	CompletePath = new MyString( path );
 }
 
 
@@ -320,7 +320,7 @@ failTransferDestination(const char * path)
 		// Create entry on *dirname* since we assume that all
 		// transfers to this destination will fail if this one did.
 	StorkMatchEntry match;
-	match.Url = dirname(path);
+	match.Url = condor_dirname( path );
 	
 		// Call in a while loop, since we have multiple matches to this destination
 	while ( destroyFromBusy( &match ) ) ;
@@ -338,6 +338,8 @@ destroyFromBusy(StorkMatchEntry*  match)
 	busyMatches.StartIterations();
 	while (busyMatches.Iterate(temp)) {
 		if (*temp==*match) {
+			dprintf( D_FULLDEBUG, "Destroying busy match %s!\n",
+					 match->GetUrl() );
 			busyMatches.RemoveLast();
 			delete temp;
 			return true;
@@ -355,6 +357,8 @@ destroyFromIdle(StorkMatchEntry*  match)
 	idleMatches.StartIterations();
 	while (idleMatches.Iterate(temp)) {
 		if (*temp==*match) {
+			dprintf( D_FULLDEBUG, "Destroying idle match %s!\n",
+					 match->GetUrl() );
 			idleMatches.RemoveLast();
 			delete temp;
 			return true;
@@ -407,8 +411,10 @@ fromBusyToIdle(StorkMatchEntry* match)
 			}
 		}
 		if ( !full_match ) {
-			EXCEPT( "StorkMatchEntry fromBusyToIdle : Can't find match %s!",
-					match->GetUrl() );
+			dprintf( D_FULLDEBUG,
+					 "StorkMatchEntry fromBusyToIdle: Can't find match %s!\n",
+					 match->GetUrl() );
+			return false;
 		}
 	}
 
@@ -565,6 +571,7 @@ timeout()
 				}
 				ASSERT(found);	// an Id in our output list better be found in our input list!
 			}
+			DCMatchLiteLease_FreeList( output_leases );
 		}
 			// now put em all back onto the busy set, refreshed or not.
 		to_renew.StartIterations();
