@@ -99,6 +99,7 @@ DCMatchLite::getMatches( const classad::ClassAd &request_ad,
 	}
 
 	rsock->close();
+	delete rsock;
 	return true;
 }
 
@@ -171,6 +172,7 @@ DCMatchLite::renewLeases(
 	}
 
 	rsock->close();
+	delete rsock;
 	return true;
 }
 
@@ -202,6 +204,7 @@ DCMatchLite::releaseLeases(
 	}
 
 	rsock->close();
+	delete rsock;
 	return true;
 }
 
