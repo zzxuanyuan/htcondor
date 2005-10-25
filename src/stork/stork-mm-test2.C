@@ -51,6 +51,7 @@ class StorkMatchTest: public Service
 	~StorkMatchTest( void );
 	int init( void );
 	int config( bool );
+	int stop( void );
 
   private:
 
@@ -108,24 +109,36 @@ StorkMatchTest::config( bool init )
 int
 StorkMatchTest::timerHandler ( void )
 {
-	dprintf( D_FULLDEBUG, "Timer handler starting\n" );
+	time_t	now = time( NULL );
+	dprintf( D_FULLDEBUG, "Timer handler starting @ %ld\n", now );
 
 	// Release some destinations
-	time_t	now = time( NULL );
 	multimap<time_t, const char *>::iterator iter, tmp;
-	int		offset = 0;
 	for( iter = dests.begin(); iter != dests.end(); iter++ ) {
 		if ( iter->first > now ) {
 			break;
+			//continue;
 		}
 		tmp = iter;
 		iter++;
 		if ( random() % 20 ) {
+			//dprintf( D_FULLDEBUG, "Pre return dump #1\n" );
+			//mm->Dump();
+			//dprintf( D_FULLDEBUG, "Pre return dump #2\n" );
+			//mm->Dump( false );
 			dprintf( D_FULLDEBUG, "Returning xfer %s\n", tmp->second );
-			mm->returnTransferDestination( tmp->second );
+			if ( !mm->returnTransferDestination( tmp->second ) ) {
+				dprintf( D_ALWAYS, "Return of xfer %s failed\n",
+						 tmp->second );
+			}
+			//dprintf( D_FULLDEBUG, "Post return dump\n" );
+			//mm->Dump();
 		} else {
 			dprintf( D_FULLDEBUG, "Failing xfer %s\n", tmp->second );
-			mm->failTransferDestination( tmp->second );
+			if ( !mm->failTransferDestination( tmp->second ) ) {
+				dprintf( D_ALWAYS, "Fail of xfer %s failed\n",
+						 tmp->second );
+			}
 		}
 		free( (void*) tmp->second );
 		dests.erase( tmp );
@@ -147,7 +160,37 @@ StorkMatchTest::timerHandler ( void )
 				 d, duration, end );
 	}
 
+	dprintf( D_FULLDEBUG, "Dump:\n" );
+	for( iter = dests.begin(); iter != dests.end(); iter++ ) {
+		dprintf( D_FULLDEBUG, "  %s %ld\n", iter->second, iter->first );
+	}
+
+	//mm->Dump();
+
 	dprintf( D_FULLDEBUG, "Timer handler done\n" );
+	return 0;
+}
+
+int
+StorkMatchTest::stop ( void )
+{
+	dprintf( D_FULLDEBUG, "Shutting down test\n" );
+
+	// Release all destinations
+	multimap<time_t, const char *>::iterator iter, tmp;
+	for( iter = dests.begin(); iter != dests.end(); iter++ ) {
+		tmp = iter;
+		iter++;
+		dprintf( D_FULLDEBUG, "Returning xfer %s\n", tmp->second );
+		if ( !mm->returnTransferDestination( tmp->second ) ) {
+			dprintf( D_ALWAYS, "Return of xfer %s failed\n",
+					 tmp->second );
+		}
+		free( (void*) tmp->second );
+		dests.erase( tmp );
+	}
+
+	dprintf( D_FULLDEBUG, "Stop done\n" );
 	return 0;
 }
 
@@ -187,6 +230,7 @@ main_config( bool is_full )
 int main_shutdown_fast()
 {
 	dprintf(D_ALWAYS, "main_shutdown_fast() called\n");
+	smt.stop( );
 	DC_Exit(0);
 	return TRUE;	// to satisfy c++
 }
@@ -196,6 +240,7 @@ int main_shutdown_fast()
 int main_shutdown_graceful()
 {
 	dprintf(D_ALWAYS, "main_shutdown_graceful() called\n");
+	smt.stop( );
 	DC_Exit(0);
 	return TRUE;	// to satisfy c++
 }
