@@ -23,6 +23,7 @@
 #endif
 #include "classad_distribution.h"
 #define DAP_CATALOG_NAMESPACE	"stork."
+#define DYNAMIC_XFER_DEST_HOST	"$DYNAMIC"
 
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
  * These are the default values for some global Stork parameters.                        
@@ -307,7 +308,9 @@ int transfer_dap(char *dap_id, char *src_url, char *_dest_url, char *arguments,
 		char * cred_file_name, classad::ClassAd *job_ad)
 {
 
-	std::string dest_url = _dest_url;
+    // FIXME: This is an awful hack.  Stork should pass around strings, not
+    // classad expressions.
+	std::string dest_url = strip_str( _dest_url );
 	char src_protocol[MAXSTR], src_host[MAXSTR], src_file[MAXSTR];
 	char dest_protocol[MAXSTR], dest_host[MAXSTR], dest_file[MAXSTR];
 	char command[MAXSTR], commandbody[MAXSTR], argument_str[MAXSTR];
@@ -328,7 +331,7 @@ dprintf(D_ALWAYS, "DEBUG: dest_file: '%s'\n", dest_file);
 	strncpy(src_url, strip_str(unstripped), MAXSTR);  
 
 	// For dynamic destinations ...
-	if (! strcmp(dest_host, "$(DYNAMIC)") ) {
+	if (! strcmp(dest_host, DYNAMIC_XFER_DEST_HOST) ) {
 
 		// See if this job is already associated with a dynamic destination
 		// URL.
@@ -385,8 +388,7 @@ dprintf(D_ALWAYS, "DEBUG: dest_file: '%s'\n", dest_file);
 		//create a new process to transfer the files
 	snprintf(command, MAXSTR, "%s/%s", Module_dir, commandbody);
 	snprintf(argument_str ,MAXSTR, "%s %s %s %s", 
-			 commandbody, src_url, dest_url.c_str(), arguments);
-  
+                commandbody, src_url, dest_url.c_str(), arguments);
 
 		// If using GSI proxy set up the environment to point to it
 	Env myEnv;
