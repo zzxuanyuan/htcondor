@@ -40,6 +40,7 @@
 #include "condor_scanner.h"
 #include "condor_distribution.h"
 #include "condor_ver_info.h"
+#include "condor_crontab.h"
 #if !defined(WIN32)
 #include <pwd.h>
 #include <sys/stat.h>
@@ -334,6 +335,7 @@ void SetParallelStartupScripts(); //JDB
 void SetMaxJobRetirementTime();
 bool mightTransfer( int universe );
 bool isTrue( const char* attr );
+bool validate_job_ad( ClassAd *ad );
 
 char *owner = NULL;
 char *ntdomain = NULL;
@@ -695,7 +697,7 @@ main( int argc, char *argv[] )
 	_EXCEPT_Cleanup = DoCleanup;
 
 	IsFirstExecutable = true;
-	init_job_ad();
+	init_job_ad();	
 
 	if (Quiet) {
 		fprintf(stdout, "Submitting job(s)");
@@ -4314,7 +4316,20 @@ queue(int num)
 		SetTransferFiles();	 // must be called _before_ SetImageSize() 
 		SetPerFileEncryption();  // must be called _before_ SetRequirements()
 		SetImageSize();		// must be called _after_ SetTransferFiles()
-		SetRequirements();	// must be called _after_ SetTransferFiles() and SetPerFileEncryption()
+		
+			//
+			// For local/scheduler universe jobs we do not want to set the requirements
+			// We will be creating our own requirements in the schedd later on
+			// Andy - pavlo@cs.wisc.edu - 10.26.2005
+			//
+		if ( JobUniverse != CONDOR_UNIVERSE_LOCAL &&
+			 JobUniverse != CONDOR_UNIVERSE_SCHEDULER ) {
+			//
+			// Must be called _after_ SetTransferFiles() and SetPerFileEncryption()
+			//
+			SetRequirements();	
+		}
+		
 		SetJobLease();		// must be called _after_ SetStdFile(0,1,2)
 
 		SetRemoteAttrs();
@@ -4340,6 +4355,17 @@ queue(int num)
 			// SetForcedAttributes should be last so that it trumps values
 			// set by normal submit attributes
 		SetForcedAttributes();
+
+			//
+			// Validate the Ad
+			// If this fails we just need to exit, the function
+			// will output its own error message
+			//
+		if ( !validate_job_ad( job ) ) {
+			DoCleanup( 0, 0, NULL );
+			fprintf( stderr, "Job submission aborted\n" );
+			exit(1);
+		}
 
 		rval = SaveClassAd();
 
@@ -5253,7 +5279,37 @@ isTrue( const char* attr )
 	return false;
 }
 
+//
+// validate_job_ad()
+// I created this to be kind of an all inclusive validation
+// method that can check little things about the ClassAd
+// Currently it will only check whether a CronTab schedule
+// has been specified properly
+// This will print out any error messages but it will not
+// do any cleanup 
+//
+bool
+validate_job_ad( ClassAd *ad ) {
+	bool ret = true;
 
+		// ---------------------------------------------------	
+		// CronTab
+		// First check whether this ClassAd is requesting
+		// a cron schedule, and if so make sure the parameters
+		// are specified properly
+		// ---------------------------------------------------
+	MyString errorMessage = "\n";
+	if ( CronTab::needsCronTab( ad ) && 
+		 !CronTab::validate( ad, errorMessage ) ) {
+			//
+			// It's not valid, so print the error message
+			//
+		fprintf( stderr, errorMessage.Value() );
+		ret = false;
+	}
+	
+	return ( ret );
+}
 
 
 /************************************
