@@ -39,9 +39,8 @@
 #define CRONTAB_DELIMITER ","
 //
 // Wildcard Character
-// This needs to be a char and not a string
 //
-#define CRONTAB_WILDCARD '*'
+#define CRONTAB_WILDCARD "*"
 //
 // Range Delimiter
 //
@@ -66,8 +65,8 @@
 #define CRONTAB_DAY_OF_MONTH_MAX	31
 #define CRONTAB_MONTH_MIN			1
 #define CRONTAB_MONTH_MAX			12
-#define CRONTAB_DAY_OF_WEEK_MIN	0	// Note that Sunday is either 0 or 7
-#define CRONTAB_DAY_OF_WEEK_MAX	7
+#define CRONTAB_DAY_OF_WEEK_MIN		0	// Note that Sunday is either 0 or 7
+#define CRONTAB_DAY_OF_WEEK_MAX		7
 
 //
 // Data Field Indices
@@ -97,7 +96,7 @@
 //
 // The object can be given parameters just like Unix crond and will generate
 // a set of ranges for schedules. After the object is initialized
-// you can call nextRun() to be given back a UTC timestamp of what
+// you can call nextRunTime() to be given back a UTC timestamp of what
 // the next run time according to the schedule should be.
 //
 // Parameter Format (From crontab manpage):
@@ -143,20 +142,45 @@ public:
 		//
 	~CronTab();
 		//
-		// nextRun()
+		// needsCronTab()
+		// This is a static helper method that is given a ClassAd object
+		// and will return true a CronTab scheduler object should be 
+		// created for it. This is for convience so that we are not
+		// instantiating a CronTab object for every ClassAd and then
+		// checking if the initialization failed
+		//
+	static bool needsCronTab( ClassAd* );
+		//
+		// validate()
+		// Checks to see if the parameters specified for a cron schedule
+		// are valid. This is made static so that they do not have
+		// to create the object to check whether the schedule is valid
+		// You must pass in a string object to get any error messages 
+		// accumulated by calling this function
+		//
+	static bool validate( ClassAd*, MyString& );	
+		//
+		// getError()
+		// This method will return the error message for the calling object
+		// This is what you'll want to use if you are trying to figure
+		// out why a specific schedule is returning invalid runtimes
+		//
+	MyString getError();
+		//
+		// nextRunTime()
 		// Returns the next execution time for our cron schedule from
 		// the current time
 		//
-	long nextRun();
+	long nextRunTime();
 		//
-		// nextRun()
+		// nextRunTime()
 		// Returns the next execution time for our cron schedule from the
 		// provided timestamp. We will only return an execution time if we
 		// have been initialized properly and the valid flag is true. The 
 		// timestamp that we calculate here will be stored and can be accessed
 		// again with lastRun().
 		//
-	long nextRun( long );
+	long nextRunTime( long );
 		//
 		// If we were able to parse the parameters correctly
 		// then we will let them query us for runtimes
@@ -172,6 +196,14 @@ protected:
 		// Default Constructor
 		//
 	CronTab();
+		//
+		// validateParameter()
+		// Internal static helper method that can check to see 
+		// if a cron tab parameter has the proper syntax. The reason
+		// why it is not public is because we don't want to expose
+		// how we represent the attributes internally
+		//
+	static bool validateParameter( int, const char*, MyString& );
 		//
 		// init()
 		// Initializes our object to prepare it for being asked 
@@ -206,6 +238,14 @@ protected:
 
 protected:
 		//
+		// Static Error Log
+		//
+	static MyString staticErrorLog;
+		//
+		// Instantiated Error Log
+		//
+	MyString errorLog;
+		//
 		// We need to know whether our fields are valid
 		// and we can proceed with looking for a runtime
 		//
@@ -235,7 +275,7 @@ protected:
 		// The regular expresion object we will use to make sure 
 		// our parameters are in the proper format.
 		//
-	RegExer *regex;
+	static RegExer regex;
 
 }; // END CLASS
 
