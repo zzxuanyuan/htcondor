@@ -331,7 +331,8 @@ dprintf(D_ALWAYS, "DEBUG: dest_file: '%s'\n", dest_file);
 	strncpy(src_url, strip_str(unstripped), MAXSTR);  
 
 	// For dynamic destinations ...
-	if (! strcmp(dest_host, DYNAMIC_XFER_DEST_HOST) ) {
+	//if (! strcmp(dest_host, DYNAMIC_XFER_DEST_HOST) ) {
+	if (! strstr( _dest_url, DYNAMIC_XFER_DEST_HOST) ) {
 
 		// See if this job is already associated with a dynamic destination
 		// URL.
