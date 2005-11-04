@@ -373,8 +373,8 @@ JobQueueCollection::remove(char* cid, char* pid)
 		ppBucketList = _ppProcAdBucketList;
 	}
 
-	
-	for (int i = 0; pCurBucket != NULL; i++)
+	int i;	
+	for (i = 0; pCurBucket != NULL; i++)
 	{
 		if (((ad_type == ClassAdBucket::CLUSTER_AD) && 
 		    (strcmp(cid, pCurBucket->cid) == 0)) 

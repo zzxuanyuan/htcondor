@@ -146,7 +146,7 @@ TTManager::config(bool reconfig)
   
 	dprintf(D_ALWAYS, "Using Polling Period = %d\n", pollingPeriod);
 	dprintf(D_ALWAYS, "Using logs ");
-	for(int i=0; i < numLogs; i++)
+	for(i=0; i < numLogs; i++)
 		dprintf(D_ALWAYS, "%s ", sqlLogList[i]);
 	dprintf(D_ALWAYS, "\n");
 
@@ -234,7 +234,8 @@ TTManager::event_maintain()
 	MyString *line_buf = 0;
 	
 		/* copy event log files */	
-	for(int i=0; i < numLogs; i++) {
+	int i;
+	for(i=0; i < numLogs; i++) {
 		filesqlobj = new FILESQL(sqlLogList[i], O_CREAT|O_RDWR);
 
 		retval = filesqlobj->file_open();
@@ -268,7 +269,7 @@ TTManager::event_maintain()
 	}
 
 		// notice we add 1 to numLogs because the last file is the special "thrown" file
-	for(int i=0; i < numLogs+1; i++) {
+	for(i=0; i < numLogs+1; i++) {
 		filesqlobj = new FILESQL(sqlLogCopyList[i], O_CREAT|O_RDWR);
 
 		retval = filesqlobj->file_open();
@@ -482,7 +483,8 @@ void TTManager::checkAndThrowBigFiles() {
 	thrownfileobj = new FILESQL(sqlLogCopyList[THROWFILE]);
 	thrownfileobj ->file_open();
 
-	for(int i=0; i < numLogs; i++) {
+	int i;
+	for(i=0; i < numLogs; i++) {
 		stat(sqlLogCopyList[i], &file_status);
 		
 			// if the file is bigger than the max file size, we throw it away 
@@ -1012,7 +1014,8 @@ int TTManager::insertFiles(AttrList *ad) {
 	}
 
   	if (fileSame && (f_size > 0) && file_checksum(pathname, f_size, sum)) {
-  		for (int i = 0; i < MAC_SIZE; i++)
+		int i;
+  		for (i = 0; i < MAC_SIZE; i++)
   			sprintf(&hexSum[2*i], "%2x", sum[i]);		
   		hexSum[2*MAC_SIZE] = '\0';
   	}
