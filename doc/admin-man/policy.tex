@@ -1409,7 +1409,7 @@ WANT_VACATE  = ( $(ActivationTimer) > 10 * $(MINUTE) \
                  || $(IsPVM) || $(IsVanilla) )
 
 # Suspend jobs if:
-# 1) The CPU has been busy for more than 1 minute, AND
+# 1) The CPU has been busy for more than 2 minutes, AND
 # 2) the job has been running for more than 90 seconds
 # 3) OR suspend if this is a desktop and the user is active
 SUSPEND = ( ((CpuBusyTime > 2 * $(MINUTE)) && ($(ActivationTimer) > 90)) \
