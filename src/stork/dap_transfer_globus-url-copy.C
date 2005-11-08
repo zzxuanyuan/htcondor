@@ -140,6 +140,7 @@ int main(int argc, char *argv[])
   int status;
   struct stat filestat;
   int i;
+  bool multi_file_xfer = false;
   
   if (argc < 3){
     fprintf(stderr, "==============================================================\n");
@@ -162,11 +163,22 @@ int main(int argc, char *argv[])
     strncpy(arguments+len, argv[i], MAXSTR-len); 
   }
   
-  parse_url(src_url, src_protocol, src_host, src_file);
-  parse_url(dest_url, dest_protocol, dest_host, dest_file);
+  // Horrid hack to enable multi-file xfers.  If "-f" option appears as an
+  // argument, then remove src_url, dest_url.
+  if ( strstr( arguments, "-f " ) ) {
+      multi_file_xfer = true;
+      strcpy(src_url, "");
+      strcpy(dest_url, "");
+      fprintf(stdout,
+              "Multi-file transferring from: %s to: %s with arguments: %s\n", 
+          src_url, dest_url, arguments);
+  } else {
+      parse_url(src_url, src_protocol, src_host, src_file);
+      parse_url(dest_url, dest_protocol, dest_host, dest_file);
 
-  fprintf(stdout, "Transfering from: %s to: %s with arguments: %s\n", 
-	  src_url, dest_url, arguments);
+      fprintf(stdout, "Transfering from: %s to: %s with arguments: %s\n", 
+          src_url, dest_url, arguments);
+  }
 
   status = transfer_globus_url_copy(src_url, dest_url, arguments, error_str); 
   
@@ -188,6 +200,11 @@ int main(int argc, char *argv[])
   }
   //--
 
+    if ( multi_file_xfer ) {
+		fprintf(stdout, "skipping file size check for multi-file xfer\n");
+        fprintf(stderr, "SUCCESS!\n");
+        return DAP_SUCCESS;
+    }
 
   /*
   //return without double checking success by comparing src and dest file sizes
