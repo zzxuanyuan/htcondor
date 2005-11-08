@@ -121,7 +121,8 @@ class StorkMatchMaker
 		Set<StorkMatchEntry*> busyMatches;
 		Set<StorkMatchEntry*> idleMatches;
 #endif
-		DCMatchLite* dcmm;
+		char *mm_name;
+		char *mm_pool;
 		int tid, tid_interval;
 
 }; // class StorkMatchMaker

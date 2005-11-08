@@ -178,12 +178,8 @@ StorkMatchMaker(void)
 	tid = -1;
 	tid_interval = -1;
 
-	char *mm_name = param("STORK_MM_NAME");
-	char *mm_pool = param("STORK_MM_POOL");
-	dcmm = new DCMatchLite(mm_name,mm_pool);
-	ASSERT(dcmm);
-	if (mm_name) free(mm_name);
-	if (mm_pool) free(mm_pool);
+	mm_name = param("STORK_MM_NAME");
+	mm_pool = param("STORK_MM_POOL");
 
 	SetTimers();
 }
@@ -209,7 +205,8 @@ StorkMatchMaker::
 		delete match;
 	}
 
-	if (dcmm) delete dcmm;
+	if (mm_name) free(mm_name);
+	if (mm_pool) free(mm_pool);
 }
 
 
@@ -238,7 +235,9 @@ getTransferDestination(const char *protocol)
 			name = strdup("whatever");
 		}
 
-		bool result = dcmm->getMatches(name, num, duration, req, "0.0", leases);
+		DCMatchLite		dcmm( mm_name,mm_pool );
+		bool result = dcmm.getMatches( name, num, duration, req,
+									   "0.0", leases);
 
 		free(req);
 		free(name);
@@ -519,7 +518,8 @@ timeout()
 			leases.push_back(match->Lease);
 		}
 			// send our list to the matchmaker
-		result = dcmm->releaseLeases(leases);
+		DCMatchLite		dcmm( mm_name,mm_pool );
+		result = dcmm.releaseLeases(leases);
 		dprintf(D_ALWAYS,"MM: %s release %d leases\n", 
 						result ? "Successful" : "Failed to ",
 						to_release.Count());
@@ -564,7 +564,8 @@ timeout()
 			input_leases.push_back(match->Lease);
 		}
 			// send our list to the matchmaker
-		result = dcmm->renewLeases(input_leases,output_leases);
+		DCMatchLite		dcmm( mm_name,mm_pool );
+		result = dcmm.renewLeases(input_leases,output_leases);
 		dprintf(D_ALWAYS,"MM: %s renew %d leases\n", 
 						result ? "Successful" : "Failed to ",
 						to_renew.Count());
