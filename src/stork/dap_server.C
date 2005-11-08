@@ -130,7 +130,7 @@ int read_config_file()
 		param_integer(
 			"STORK_MAX_NUM_JOBS",		// name
 			10,							// default
-			1							// minimum value
+			0							// minimum value
 		);
 	dprintf(D_ALWAYS, "STORK_MAX_NUM_JOBS = %ld\n", Max_num_jobs);  
 
@@ -332,7 +332,7 @@ dprintf(D_ALWAYS, "DEBUG: dest_file: '%s'\n", dest_file);
 
 	// For dynamic destinations ...
 	//if (! strcmp(dest_host, DYNAMIC_XFER_DEST_HOST) ) {
-	if (! strstr( _dest_url, DYNAMIC_XFER_DEST_HOST) ) {
+	if (strstr( _dest_url, DYNAMIC_XFER_DEST_HOST) ) {
 
 		// See if this job is already associated with a dynamic destination
 		// URL.
