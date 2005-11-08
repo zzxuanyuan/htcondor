@@ -4318,17 +4318,9 @@ queue(int num)
 		SetImageSize();		// must be called _after_ SetTransferFiles()
 		
 			//
-			// For local/scheduler universe jobs we do not want to set the requirements
-			// We will be creating our own requirements in the schedd later on
-			// Andy - pavlo@cs.wisc.edu - 10.26.2005
-			//
-		if ( JobUniverse != CONDOR_UNIVERSE_LOCAL &&
-			 JobUniverse != CONDOR_UNIVERSE_SCHEDULER ) {
-			//
 			// Must be called _after_ SetTransferFiles() and SetPerFileEncryption()
 			//
-			SetRequirements();	
-		}
+		SetRequirements();	
 		
 		SetJobLease();		// must be called _after_ SetStdFile(0,1,2)
 
@@ -4363,7 +4355,7 @@ queue(int num)
 			//
 		if ( !validate_job_ad( job ) ) {
 			DoCleanup( 0, 0, NULL );
-			fprintf( stderr, "Job submission aborted\n" );
+			fprintf( stderr, "Error in submit file\n" );
 			exit(1);
 		}
 
@@ -4519,10 +4511,18 @@ check_requirements( char *orig )
 		return answer;
 	}
 
-	checks_arch = findClause( answer, ATTR_ARCH );
-	checks_opsys = findClause( answer, ATTR_OPSYS );
-	checks_disk =  findClause( answer, ATTR_DISK );
-	checks_tdp =  findClause( answer, ATTR_HAS_TDP );
+		//
+		// For local/scheduler universe jobs we do not want to set the requirements
+		// We will be creating our own requirements in the schedd later on
+		// Andy - pavlo@cs.wisc.edu - 10.26.2005
+		//
+	if ( JobUniverse != CONDOR_UNIVERSE_LOCAL &&
+		 JobUniverse != CONDOR_UNIVERSE_SCHEDULER ) {
+		checks_arch = findClause( answer, ATTR_ARCH );
+		checks_opsys = findClause( answer, ATTR_OPSYS );
+		checks_disk =  findClause( answer, ATTR_DISK );
+		checks_tdp =  findClause( answer, ATTR_HAS_TDP );
+	}
 
 	if( JobUniverse == CONDOR_UNIVERSE_STANDARD ) {
 		checks_ckpt_arch = findClause( answer, ATTR_CKPT_ARCH );
@@ -4710,8 +4710,27 @@ check_requirements( char *orig )
 		}
 	}
 
-	/* if the user specified they want this feature, add it to the requirements */
+		//
+		// Job Deferral
+		// Look to see if they set a deferral time in the job ad
+		// We have to look in the forcedAttributes table so we will
+		// first make the deferral id lowercase to see if it exists
+		//
+	MyString name(ATTR_DEFERRAL_TIME);
+	name.strlwr();
+	MyString value;
+	if ( forcedAttributes.lookup( name.Value(), value ) >= 0 ) {
+			//
+			// They did give a time
+			// Add the HasJobDeferral to the attributes so that it will
+			// match with a Starter that can actually provide this feature
+			//
+		(void)strcat( answer, " && (" );
+		(void)strcat( answer, ATTR_HAS_JOB_DEFERRAL );
+		(void)strcat( answer, ")" );
+	}
 
+	/* if the user specified they want this feature, add it to the requirements */
 	return answer;
 }
 
@@ -5298,13 +5317,13 @@ validate_job_ad( ClassAd *ad ) {
 		// a cron schedule, and if so make sure the parameters
 		// are specified properly
 		// ---------------------------------------------------
-	MyString errorMessage = "\n";
+	MyString error;
 	if ( CronTab::needsCronTab( ad ) && 
-		 !CronTab::validate( ad, errorMessage ) ) {
+		 !CronTab::validate( ad, error ) ) {
 			//
 			// It's not valid, so print the error message
 			//
-		fprintf( stderr, errorMessage.Value() );
+		fprintf( stderr, "\n%s", error.Value() );
 		ret = false;
 	}
 	
