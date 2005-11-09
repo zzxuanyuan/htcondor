@@ -182,7 +182,8 @@ CronTab::~CronTab() {
 		//
 		// 'delete []' didn't work so I'm doing this
 		//
-	for ( int ctr = 0; ctr < CRONTAB_FIELDS; ctr++ ) {
+	int ctr;
+	for ( ctr = 0; ctr < CRONTAB_FIELDS; ctr++ ) {
 		if ( this->ranges[ctr] )		delete this->ranges[ctr];
 		if ( this->parameters[ctr] )	delete this->parameters[ctr];
 	} // FOR
@@ -204,7 +205,8 @@ CronTab::needsCronTab( ClassAd *ad ) {
 		//
 	bool ret = false;
 	char buffer[512];
-	for ( int ctr = 0; ctr < CRONTAB_FIELDS; ctr++ ) {
+	int ctr;
+	for ( ctr = 0; ctr < CRONTAB_FIELDS; ctr++ ) {
 			//
 			// As soon as we find one we can quit
 			//
@@ -228,7 +230,8 @@ CronTab::validate( ClassAd *ad, MyString &error ) {
 		// to make sure that it has valid syntax
 		//
 	char buffer[512];
-	for ( int ctr = 0; ctr < CRONTAB_FIELDS; ctr++ ) {
+	int ctr;
+	for ( ctr = 0; ctr < CRONTAB_FIELDS; ctr++ ) {
 		MyString curError;
 			//
 			// If the validation fails, we keep going
@@ -333,7 +336,8 @@ CronTab::init() {
 		// For each attribute field, expand out the crontab parameter
 		//
 	bool failed = false;
-	for ( int ctr = 0; ctr < CRONTAB_FIELDS; ctr++ ) {
+	int ctr;
+	for ( ctr = 0; ctr < CRONTAB_FIELDS; ctr++ ) {
 			//
 			// Instantiate our queue
 			//
@@ -520,7 +524,8 @@ CronTab::matchFields( int *curTime, int *match, int ctr, bool useFirst )
 		int firstDay = dayOfWeek(	match[CRONTAB_MONTHS_IDX],
 									1,
 									match[CRONTAB_YEARS_IDX] );
-		for (	int ctr2 = 0, cnt = this->ranges[CRONTAB_DOW_IDX]->getlast();
+		int ctr2, cnt;
+		for ( ctr2 = 0, cnt = this->ranges[CRONTAB_DOW_IDX]->getlast();
 				ctr2 <= cnt;
 				ctr2++ ) {
 				//
@@ -551,7 +556,8 @@ CronTab::matchFields( int *curTime, int *match, int ctr, bool useFirst )
 		// If our value isn't in the list, then we'll take the next one
 		//
 	bool ret = false;
-	for ( int rangeIdx = 0, cnt = this->ranges[ctr]->getlast();
+	int rangeIdx, cnt;
+	for ( rangeIdx = 0, cnt = this->ranges[ctr]->getlast();
 		  rangeIdx <= cnt;
 		  rangeIdx++ ) {
 			//
@@ -786,7 +792,8 @@ CronTab::expandParameter( int attribute_idx, int min, int max )
 			// Fill out the numbers based on the range using
 			// the step value
 			//
-		for ( int ctr = cur_min; ctr <= cur_max; ctr++ ) {
+		int ctr;
+		for ( ctr = cur_min; ctr <= cur_max; ctr++ ) {
 				//
 				// Day of Week Special Case
 				// The crontab specifications lets Sunday be
@@ -830,7 +837,8 @@ CronTab::contains( ExtArray<int> &list, const int &elt )
 		// the element
 		//
 	bool ret = false;
-	for ( int ctr = 0; ctr <= list.getlast(); ctr++ ) {
+	int ctr;
+	for ( ctr = 0; ctr <= list.getlast(); ctr++ ) {
 			//
 			// All we can really do is do a simple comparison
 			//
