@@ -51,6 +51,7 @@
 #include "self_draining_queue.h"
 #include "schedd_cronmgr.h"
 #include "condor_classad_namedlist.h"
+#include "condor_crontab.h"
 
 const 	int			MAX_REJECTED_CLUSTERS = 1024;
 extern  int         STARTD_CONTACT_TIMEOUT;
@@ -198,6 +199,7 @@ class Scheduler : public Service
 	friend	int		count(ClassAd *);
 	friend	void	job_prio(ClassAd *);
 	friend  int		find_idle_local_jobs(ClassAd *);
+	friend	int		calculateCronSchedule( ClassAd* );
 	void			display_shadow_recs();
 	int				actOnJobs(int, Stream *);
 	int				updateGSICred(int, Stream* s);
@@ -290,6 +292,7 @@ class Scheduler : public Service
 	char*			uidDomain( void ) { return UidDomain; };
 	int				getJobsTotalAds() { return JobsTotalAds; };
 	int				getMaxJobsSubmitted() { return MaxJobsSubmitted; };
+	ClassAd*		getClassAd() { return (this->ad); };
 
 		// Used by the DedicatedScheduler class
 	void 			swap_space_exhausted();
@@ -437,6 +440,11 @@ private:
 	int				jobThrottle( void );
 	void			initLocalStarterDir( void );
 	void	noShadowForJob( shadow_rec* srec, NoShadowFailure_t why );
+		//
+		// This method will insert the next runtime for a 
+		// job into its requirements
+		//
+	bool calculateCronSchedule( ClassAd*, bool force = false );
 
 
 		/** We begin the process of opening a non-blocking ReliSock
@@ -488,6 +496,22 @@ private:
 	int				aliveid;	// timer id for sending keepalives to startd
 	int				MaxExceptions;	 // Max shadow excep. before we relinquish
 	bool			ManageBandwidth;
+
+		//
+		// This table is used for scheduling cron jobs
+		// If a ClassAd has an entry in this table then we need
+		// to query the CronTab object to ask it what the next
+		// runtime is for job is
+		//
+	HashTable<PROC_ID, CronTab*> *cronTabs;
+		//
+		// We also keep a list of job's that do not need a cronTab
+		// This way we can quickly look at this to see if we 
+		// should skip it when trying to figure out cron schedules
+		// Hopefully, a lookup in this table should be faster
+		// then checking to see if a CronTab is needed
+		//
+	Queue<PROC_ID> *cronTabsExclude;
 
 		// put state into ClassAd return it.  Used for condor_squawk
 	int	dumpState(int, Stream *);
