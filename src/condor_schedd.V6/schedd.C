@@ -8670,6 +8670,7 @@ Scheduler::check_zombie(int pid, PROC_ID* job_id)
 		// next execution time calculated for it
 		// 11.01.2005 - Andy - pavlo@cs.wisc.edu 
 		//
+	/*
 	if ( !this->cronTabsExclude->IsMember( *job_id ) ) {
 			//
 			// Set the force flag to true so it will always 
@@ -8678,6 +8679,7 @@ Scheduler::check_zombie(int pid, PROC_ID* job_id)
 		ClassAd *ad = GetJobAd( job_id->cluster, job_id->proc );
 		this->calculateCronSchedule( ad, true );
 	}
+	*/
 	
 	dprintf( D_FULLDEBUG, "Exited check_zombie( %d, 0x%p )\n", pid,
 			 job_id );
@@ -9754,7 +9756,7 @@ Scheduler::reschedule_negotiator(int, Stream *)
 			// when the ClassAd immediately arrives at the schedd, but I 
 			// just haven't figured out where that it yet
 			//
-		WalkJobQueue( (int(*)(ClassAd *))::calculateCronSchedule );
+		//WalkJobQueue( (int(*)(ClassAd *))::calculateCronSchedule );
 		StartLocalJobs();
 	}
 
