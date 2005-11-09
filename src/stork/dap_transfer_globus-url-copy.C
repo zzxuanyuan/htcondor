@@ -129,6 +129,39 @@ int transfer_globus_url_copy(char *src_url, char *dest_url,
   
 }
 
+// For multi-file transfers using a dynamic transfer destination, the list
+// specifying the file transfer source-destination pairs must be rewritten:
+// all destination URLs must be rewritten with the dynamic destination.
+bool
+translate_file(
+	const char *multi_file_xfer_file,	// original static dest url file
+	const char *dynamic_multi_file_xfer_file,	// new dynamic dest url file
+	const char *dynamic_destination		// dynamic dest url to use
+)
+{
+	char src[MAXSTR], dest[MAXSTR];
+	FILE *static_urls = fopen(multi_file_xfer_file, "r");
+	if (! static_urls) {
+		fprintf(stderr, "open static URL specification file %s for read: %s\n",
+				multi_file_xfer_file, strerror(errno) );
+		return false;
+	}
+	FILE *dynamic_urls = fopen(dynamic_multi_file_xfer_file, "w");
+	if (! dynamic_urls) {
+		fprintf(stderr,"open dynamic URL specification file %s for write: %s\n",
+				dynamic_multi_file_xfer_file, strerror(errno) );
+		fclose(static_urls);
+		return false;
+	}
+
+	while (fscanf(static_urls, " %s %s ", src, dest) != EOF) {
+		fprintf(dynamic_urls, "%s %s\n", src, dynamic_destination);
+	}
+	fclose(static_urls);
+	fclose(dynamic_urls);
+	return true;
+}
+
 /* ========================================================================== */
 int main(int argc, char *argv[])
 {
@@ -141,6 +174,9 @@ int main(int argc, char *argv[])
   struct stat filestat;
   int i;
   bool multi_file_xfer = false;
+  char * multi_file_xfer_file = NULL;
+  char dynamic_multi_file_xfer_file[MAXSTR] = "";	// FIXME!
+  bool dynamic_file_xfer = false;
   
   if (argc < 3){
     fprintf(stderr, "==============================================================\n");
@@ -155,6 +191,27 @@ int main(int argc, char *argv[])
   strncpy(arguments, "", MAXSTR);
   
   for(i=3;i<argc;i++) {
+	if (! strcmp( argv[i], "-dynamic") ) {
+		// FIXME: Find a better IPC to communicate this.
+		// intercept special "-dynamic" option, not for globus-url-copy
+
+		// WARNING: the "-dynamic option must appear before any "-f" option to
+		// specify a multiple transfer file list.
+		dynamic_file_xfer = true;
+		continue;	// Do not pass this option to globus-url-copy
+	} else if (! strcmp( argv[i], "-f") ) {
+		multi_file_xfer = true;
+	} else if (multi_file_xfer == true && ! multi_file_xfer_file) {
+		multi_file_xfer_file = argv[i];
+		if (dynamic_file_xfer) {
+			// For dynamic transfer destinations, the multi file transfer list
+			// specification file needs to be rewritten.  Ugh.
+			snprintf(dynamic_multi_file_xfer_file,
+					sizeof(dynamic_multi_file_xfer_file), "%s-dynamic",
+					multi_file_xfer_file);
+			argv[i] = dynamic_multi_file_xfer_file;
+		}
+	}
     size_t len = strlen(arguments);
     if(len) {
       strncpy(arguments+len, " ", MAXSTR-len);
@@ -162,16 +219,26 @@ int main(int argc, char *argv[])
     }
     strncpy(arguments+len, argv[i], MAXSTR-len); 
   }
+  if (multi_file_xfer == true && ! multi_file_xfer_file) {
+    fprintf(stderr, "command \"%s\": no multiple transfer file found\n",
+		arguments);
+    return DAP_ERROR;
+  }
   
   // Horrid hack to enable multi-file xfers.  If "-f" option appears as an
   // argument, then remove src_url, dest_url.
-  if ( strstr( arguments, "-f " ) ) {
-      multi_file_xfer = true;
-      strcpy(src_url, "");
-      strcpy(dest_url, "");
+  if (multi_file_xfer) {
+	  if (strlen(dynamic_multi_file_xfer_file) > 0) {
+		  if (! translate_file(multi_file_xfer_file,
+					  dynamic_multi_file_xfer_file, dest_url) ) {
+			return DAP_ERROR;
+		  }
+	  }
       fprintf(stdout,
               "Multi-file transferring from: %s to: %s with arguments: %s\n", 
           src_url, dest_url, arguments);
+      strcpy(src_url, "");
+      strcpy(dest_url, "");
   } else {
       parse_url(src_url, src_protocol, src_host, src_file);
       parse_url(dest_url, dest_protocol, dest_host, dest_file);

@@ -316,6 +316,7 @@ int transfer_dap(char *dap_id, char *src_url, char *_dest_url, char *arguments,
 	char command[MAXSTR], commandbody[MAXSTR], argument_str[MAXSTR];
 	int pid;
 	char unstripped[MAXSTR];
+	bool dynamic_xfer_dest = false;
 
 	parse_url(src_url, src_protocol, src_host, src_file);
 	parse_url((char *)dest_url.c_str() , dest_protocol, dest_host, dest_file);
@@ -331,8 +332,11 @@ dprintf(D_ALWAYS, "DEBUG: dest_file: '%s'\n", dest_file);
 	strncpy(src_url, strip_str(unstripped), MAXSTR);  
 
 	// For dynamic destinations ...
+	// FIXME: This is an awful detection algorithm
 	//if (! strcmp(dest_host, DYNAMIC_XFER_DEST_HOST) ) {
 	if (strstr( _dest_url, DYNAMIC_XFER_DEST_HOST) ) {
+
+		dynamic_xfer_dest = true;
 
 		// See if this job is already associated with a dynamic destination
 		// URL.
@@ -350,7 +354,7 @@ dprintf(D_ALWAYS, "DEBUG: dest_file: '%s'\n", dest_file);
 			// Lite.
 			std::string dest_transfer_url;
 			const char *tmp =
-				Matchmaker->getTransferDestination(dest_protocol);
+				Matchmaker->getTransferDirectory(dest_protocol);
 			if (tmp == NULL) {
 				// No dynamic destination URLs are available for this protocol.
 				write_collection_log(dapcollection, dap_id, 
@@ -388,8 +392,11 @@ dprintf(D_ALWAYS, "DEBUG: dest_file: '%s'\n", dest_file);
 
 		//create a new process to transfer the files
 	snprintf(command, MAXSTR, "%s/%s", Module_dir, commandbody);
-	snprintf(argument_str ,MAXSTR, "%s %s %s %s", 
-                commandbody, src_url, dest_url.c_str(), arguments);
+	const char *dynamic_opt = 
+		dynamic_xfer_dest ? "-dynamic" : "" ;
+	snprintf(argument_str ,MAXSTR, "%s %s %s %s %s", 
+                commandbody, src_url, dest_url.c_str(),
+				dynamic_opt, arguments);
 
 		// If using GSI proxy set up the environment to point to it
 	Env myEnv;
