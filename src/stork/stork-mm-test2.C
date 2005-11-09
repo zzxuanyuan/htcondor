@@ -90,7 +90,7 @@ StorkMatchTest::init( void )
 	dprintf( D_FULLDEBUG, "mm size %d @ %p\n", sizeof(*mm), mm );
 
 	TimerId = daemonCore->Register_Timer(
-		10, 10, (TimerHandlercpp)&StorkMatchTest::timerHandler,
+		1, 15, (TimerHandlercpp)&StorkMatchTest::timerHandler,
 		"StorkMatchTest::timerHandler()", this );
 	if ( TimerId <= 0 ) {
 		dprintf( D_FULLDEBUG, "Register_Timer() failed\n" );
