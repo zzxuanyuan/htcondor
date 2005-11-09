@@ -71,7 +71,7 @@ host/domain names associated with them here is how to configure Condor:
 
 In this example, \Bold{farm-server.farm.org} maps to the private interface.
 
-On your central manager's global(to the cluster) config file: \\
+On the central manager's global (to the cluster) configuration file: \\
 \Macro{CONDOR\_HOST} = \Bold{farm-server.farm.org}
 
 On your central manager's local configuration file: \\
@@ -88,16 +88,16 @@ macro to be homogeneous across the farm machines, the standard universe
 jobs will run as \Bold{nobody} on the farm machines.
 
 In order to get vanilla jobs and file server load balancing for standard
-universe jobs working(under unix), you need to do some more work both in
+universe jobs working (under Unix), do some more work both in
 the cluster you have put together and in Condor to make everything work.
-First, you need a file server(which could also be the central manager) to
+First, you need a file server (which could also be the central manager) to
 serve files to all of the farm machines. This could be NFS or AFS, it does
 not really matter to Condor. The mount point of the directories you wish
 your users to use must be the same across all of the farm machines. Now,
 configure \Macro{UID\_DOMAIN} and \Macro{FILESYSTEM\_DOMAIN} to be
 homogeneous across the farm machines and the central manager. Now, you
 will have to inform Condor that an NFS or AFS filesystem exists and that
-is done in this manner. In the global(to the farm) configuration file:
+is done in this manner. In the global (to the farm) configuration file:
 
 \begin{verbatim}
 # If you have NFS
@@ -109,7 +109,7 @@ USE_AFS = True
 \end{verbatim}
 
 Now, if you've set up your cluster so that it is possible for a machine
-name to never have a domain name(for example: you've placed a machine
+name to never have a domain name (for example: there is machine
 name but no fully qualified domain name in \File{/etc/hosts}), you must
 configure \Macro{DEFAULT\_DOMAIN\_NAME} to be the domain that you wish
 to be added on to the end of your hostname.
