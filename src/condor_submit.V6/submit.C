@@ -5327,6 +5327,18 @@ validate_job_ad( ClassAd *ad ) {
 		ret = false;
 	}
 	
+		// ---------------------------------------------------
+		// Job Deferral
+		// Currently we cannot let local universe jobs
+		// use job deferral
+		// ---------------------------------------------------	
+	if ( JobUniverse == CONDOR_UNIVERSE_LOCAL && 
+		 ad->Lookup( ATTR_DEFERRAL_TIME ) != NULL) {
+		fprintf( stderr, "\nLocal universe jobs are unable to support "
+						 "job deferral at this time\n" );
+		ret = false;
+	}
+	
 	return ( ret );
 }
 
