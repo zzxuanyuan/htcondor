@@ -27,6 +27,8 @@
 #include "condor_debug.h"
 #include "condor_config.h"
 
+// globus-url-copy requires any url specifying a directory must end with /.
+#define IS_DIRECTORY(_url)  ( (_url)[(strlen(_url) - 1)] == '/' )
 
 // Stork interface object to new "matchmaker lite" for SC2005 demo.
 
@@ -69,6 +71,9 @@ StorkMatchEntry::StorkMatchEntry(DCMatchLiteLease * lite_lease)
 	free(attr_name);
 	if ( dest.length() ) {
 		Url = strdup(dest.c_str());
+		if (! IS_DIRECTORY(Url) ) {
+			dprintf(D_ALWAYS, "ERROR: URL %s is not a directory\n", Url);
+		}
 	}
 	ASSERT(Url);
 
@@ -82,8 +87,10 @@ StorkMatchEntry::StorkMatchEntry(const char* path)
 	initialize();
 
 	ASSERT(path);
-	Url = condor_dirname( path );
-	CompletePath = new MyString( path );
+	Url = condor_url_dirname( path );
+	if (! IS_DIRECTORY(path) ) {
+		CompletePath = new MyString( path );
+	}
 }
 
 
@@ -211,8 +218,7 @@ StorkMatchMaker::
 
 
 // Get a dynamic transfer destination from the matchmaker by protocol.
-// Caller must free the return value.
-const char * 
+StorkMatchEntry *
 StorkMatchMaker::
 getTransferDestination(const char *protocol)
 {
@@ -276,20 +282,45 @@ getTransferDestination(const char *protocol)
 
 		// dprintf(D_FULLDEBUG,"TODD1 - idle add %p ptr=%p cp=%p\n",match->Lease,match,match->CompletePath);
 		// return url + filename
-		static int unique_num = 0;
-		if ( unique_num == 0 ) {
-			unique_num = (int) time(NULL);
-		}
-		if (!match->CompletePath) {
-			match->CompletePath = new MyString;
-			ASSERT(match->CompletePath);
-		}
-		match->CompletePath->sprintf("%s/file%d",match->GetUrl(),++unique_num);
-		// dprintf(D_FULLDEBUG,"TODD2 - idle add %p ptr=%p cp=%p\n",match->Lease,match,match->CompletePath);
-		return strdup(match->CompletePath->Value());
+		return match;
+	}
+	return NULL;	// failed!
+}
+
+const char *
+StorkMatchMaker::
+getTransferDirectory(const char *protocol)
+{
+	StorkMatchEntry* match = getTransferDestination(protocol);
+	if (match == NULL) {
+		return NULL;
+	}
+	return strdup( match->GetUrl() );
+}
+
+
+
+// WARNING:  This method not yet tested!
+const char *
+StorkMatchMaker::
+getTransferFile(const char *protocol)
+{
+	StorkMatchEntry* match = getTransferDestination(protocol);
+	if (match == NULL) {
+		return NULL;
 	}
 
-	return NULL;	// failed!
+	static int unique_num = 0;
+	if ( unique_num == 0 ) {
+		unique_num = (int) time(NULL);
+	}
+	if (!match->CompletePath) {
+		match->CompletePath = new MyString;
+		ASSERT(match->CompletePath);
+	}
+	match->CompletePath->sprintf("%s/file%d",match->GetUrl(),++unique_num);
+	// dprintf(D_FULLDEBUG,"TODD2 - idle add %p ptr=%p cp=%p\n",match->Lease,match,match->CompletePath);
+	return strdup(match->CompletePath->Value());
 }
 
 
@@ -316,10 +347,15 @@ failTransferDestination(const char * path)
 		// expire, and ensure we do not give out this url again until that happens.
 
 	ASSERT(path);
+
+	// Only fail transfer destinations if enabled.
+	if (! param_boolean("STORK_MM_XFER_FAIL_ENABLE", false) ) {
+		return returnTransferDestination(path);
+	}
 		// Create entry on *dirname* since we assume that all
 		// transfers to this destination will fail if this one did.
 	StorkMatchEntry match;
-	match.Url = condor_dirname( path );
+	match.Url = condor_url_dirname( path );
 	
 		// Call in a while loop, since we have multiple matches to this destination
 	while ( destroyFromBusy( &match ) ) ;

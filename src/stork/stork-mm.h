@@ -86,15 +86,23 @@ class StorkMatchMaker
 
 		// Get a dynamic transfer destination from the matchmaker by protocol,
 		// e.g. "gsiftp", "http", "file", etc.  This method returns a
+		// destination URL of the format "proto://host/dir/".  This means a
+		// transfer directory has been created on the destination host.
+		// Function returns a pointer to dynamically allocated string, which
+		// must be free()'ed by the caller after use.
+		// Return NULL if there are no destinations available.
+		const char * getTransferDirectory(const char *protocol);
+
+		// WARNING:  This method not yet tested!
+		// Get a dynamic transfer destination from the matchmaker by protocol,
+		// e.g. "gsiftp", "http", "file", etc.  This method returns a
 		// destination URL of the format "proto://host/dir/file".  This means a
 		// transfer directory has been created on the destination host.
 		// Function returns a pointer to dynamically allocated string, which
 		// must be free()'ed by the caller after use.
-		// Question: Where does the "file" portion come from?  Should we create
-		// a random/unique filename on the fly?
 		// Return NULL if there are no destinations available.
-		const char * getTransferDestination(const char *protocol);
-		
+		const char * getTransferFile(const char *protocol); // NOT TESTED!
+
 		// Return a dynamic transfer destination to the matchmaker.  Stork
 		// calls this method when it is no longer using the transfer
 		// destination.  Matchmaker returns false upon error.
@@ -105,6 +113,7 @@ class StorkMatchMaker
 		bool failTransferDestination(const char * url);
 
 	protected:
+		StorkMatchEntry * getTransferDestination(const char *protocol);
 		bool destroyFromBusy(StorkMatchEntry * match);
 		bool destroyFromIdle(StorkMatchEntry * match);
 		bool addToBusySet(StorkMatchEntry * match);
