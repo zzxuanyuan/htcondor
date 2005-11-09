@@ -5,6 +5,5 @@
 ## 
 ## This file SHOULD NOT contain "Queue" at the end
 ##
-Universe		= vanilla
 Executable		= ./x_time.pl
 Notification	= NEVER
