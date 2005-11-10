@@ -100,6 +100,9 @@ typedef int     (Service::*ReaperHandlercpp)(int pid,int exit_status);
 ///
 typedef int		(*ThreadStartFunc)(void *,Stream*);
 
+///
+typedef int		(*MainStartFunc)(int argc, char**argv);
+
 /** Does work in thread.  For Create_Thread_With_Data.
 	@see Create_Thread_With_Data
 */
@@ -752,7 +755,8 @@ class DaemonCore : public Service
         int         std[]                = NULL,
         int         nice_inc             = 0,
         int         job_opt_mask         = 0,
-		int			fd_inherit_list[]	 = NULL
+		int			fd_inherit_list[]	 = NULL,
+		MainStartFunc	main_func		 = NULL
         );
 
     //@}
@@ -916,6 +920,10 @@ class DaemonCore : public Service
 	void Only_Allow_Soap(int duration);
 	
     SelfMonitorData monitor_data;
+
+#ifndef WIN32
+    static char **ParseArgsString(const char *env);
+#endif
 
   private:      
   	
@@ -1200,9 +1208,6 @@ class DaemonCore : public Service
     int inServiceCommandSocket_flag;
     // end of thread local storage
         
-#ifndef WIN32
-    static char **ParseArgsString(const char *env);
-#endif
 
 	priv_state Default_Priv_State;
 
