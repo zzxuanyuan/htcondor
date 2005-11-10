@@ -229,24 +229,71 @@ getTransferDestination(const char *protocol)
 	if ( idleMatches.Count() == 0 ) 
 	{
 		list<DCMatchLiteLease *> leases;
+
+		// Match ClassAd
+		classad::ClassAd	match_ad;
+
 		int num = param_integer("STORK_MM_MATCHES_PER_REQUEST",10,1);
+		match_ad.InsertAttr( "RequestCount", num );
+
 		int duration = param_integer("STORM_MM_MATCH_DURATION",1800,1);
+		match_ad.InsertAttr( "LeaseDuration", duration );
+
 		char *req = param("STORK_MM_REQUIREMENTS");
-		if ( !req ) {
-			req = strdup("True");
+		classad::ExprTree	*req_expr = NULL;
+		if ( req ) {
+			string					req_str = req;
+			classad::ClassAdParser	parser;
+			req_expr = parser.ParseExpression( req_str );
+			if ( !req_expr ) {
+				dprintf( D_ALWAYS, "WARNING: Unable to parse requirements '%s'\n",
+						 req );
+			} else {
+				match_ad.Insert( "Requirements", req_expr );
+			}
+			free( req );
 		}
 		char *name = param("STORK_NAME");
 		if ( !name ) {
 			// TODO - need a unique name here
 			name = strdup("whatever");
 		}
+		match_ad.InsertAttr( "Name", name );
+		free( name );
 
+		char	*tmp = param( "STORK_MM_EXPRS" );
+		if( tmp ) {
+			StringList	reqdExprs;
+			reqdExprs.initializeFromString (tmp);	
+			free (tmp);
+
+			if( !reqdExprs.isEmpty() ) {
+				reqdExprs.rewind();
+				while( ( tmp = reqdExprs.next()) ) {
+					char	pname[64];
+					snprintf( pname, sizeof( pname ), "STORK_MM_%s", tmp );
+					char	*expr;
+					expr = param( pname );
+					if ( !expr ) {
+						expr = param( tmp );
+					}
+					if( expr ) {
+						dprintf( D_FULLDEBUG, "%s = %s\n", tmp, expr );
+						match_ad.InsertAttr( tmp, expr );
+						free( expr );
+					}
+				}
+			}	
+		}
+
+		classad::PrettyPrint u;
+		std::string adbuffer;
+		u.Unparse( adbuffer, &match_ad );
+		dprintf( D_FULLDEBUG, "MatchAd=%s\n", adbuffer.c_str() );
+
+			// After all that, go get the stinkin' matches
 		DCMatchLite		dcmm( mm_name,mm_pool );
-		bool result = dcmm.getMatches( name, num, duration, req,
-									   "0.0", leases);
-
-		free(req);
-		free(name);
+		bool result = dcmm.getMatches( match_ad, leases );
 
 		if ( !result ) {
 			dprintf(D_ALWAYS,"ERROR getmatches() failed, num=%d\n", num);

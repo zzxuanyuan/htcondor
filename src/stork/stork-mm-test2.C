@@ -149,7 +149,7 @@ StorkMatchTest::timerHandler ( void )
 		if ( 0 == (random()%15) ) {
 			break;
 		}
-		const char	*d = mm->getTransferDestination( "gsiftp" );
+		const char	*d = mm->getTransferDirectory( "gsiftp" );
 		if ( !d ) {
 			break;
 		}
