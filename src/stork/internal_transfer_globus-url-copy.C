@@ -129,7 +129,9 @@ int transfer_globus_url_copy(char *src_url, char *dest_url,
  
   char **myargv = DaemonCore::ParseArgsString(pipecommand);
   int myargc = 0;
-  while ( myargv[myargc++] );
+  while ( myargv[myargc] ) {
+  	myargc++;
+  }
 
   ret = globus_url_copy_main(myargc,myargv);
 
