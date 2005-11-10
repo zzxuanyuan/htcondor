@@ -26,14 +26,14 @@ However, this port can be changed (see the following section on
 non-standard port usage for details.)
 
 As an optimization for tools or daemons communicating with a daemon
-running on the same host, each Condor daemon can be configure to write
-out its IP and port into a well known file.
+running on the same host, each Condor daemon can be configured to
+write its IP and port into a well-known file.
 This is controlled using the \Macro{SUBSYS\_ADDRESS\_FILE} settings,
 described in section~\ref{param:SubsysAddressFile} on
 page~\pageref{param:SubsysAddressFile}. 
 
 \Note In the 6.6 stable series, and Condor versions earlier than
-6.7.5, the \Condor{negotiator} also listened on a fixed, well-defined
+6.7.5, the \Condor{negotiator} also listened on a fixed, well-known
 port (the default was 9614).
 However, beginning with version 6.7.5, the \Condor{negotiator} behaves
 like all other Condor daemons and publishes its own classad to the
@@ -42,17 +42,17 @@ listening on.
 All Condor tools and daemons that need to communicate with the
 \Condor{negotiator} will either use the
 \Macro{NEGOTIATOR\_ADDRESS\_FILE} or will query the
-\Condor{collector} for the classad.
+\Condor{collector} for the negotiator's classad.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsubsection{\label{sec:Ports-NonStandard}Using 
-a Non Standard Port for the \Condor{collector}}
+a Non Standard Fixed Port for the \Condor{collector}}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \index{port usage!nonstandard ports for central managers}
 By default,
 Condor uses port 9618 for the \Condor{collector} daemon.
-To use a non well-known port number for this daemon,
+To use a different port number for this daemon,
 the configuration variables that tell Condor these communication
 details are modified.
 Instead of
@@ -66,7 +66,7 @@ CONDOR_HOST = machX.cs.wisc.edu
 COLLECTOR_HOST = $(CONDOR_HOST):9650
 \end{verbatim}
 
-If a non well-known port is defined, the same value of
+If a non standard is defined, the same value of
 \MacroNI{COLLECTOR\_HOST} (including the port) must be used for all
 machines in the Condor pool.
 Therefore, this setting should be modified in the global
@@ -74,6 +74,21 @@ configuration file (\File{condor\_config} file),
 or the value must be duplicated across
 all configuration files in the pool if a single configuration file
 is not being shared.
+
+When querying the \Condor{collector} for a remote pool that is running
+on a non standard port, any Condor tool that accepts the \Opt{-pool}
+argument can optionally be given a port number.  For example:
+\footnotesize
+\begin{verbatim}
+        % condor_status -pool foo.bar.org:1234
+\end{verbatim}
+\normalsize
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection{\label{sec:Ports-Dynamic-Collector}Using 
+a Dynamic Port for the \Condor{collector}}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 On single-machine pools, 
 it is permitted to configure the
@@ -124,7 +139,6 @@ and
 is in
 section~\ref{param:CollectorHost} on
 page~\pageref{param:CollectorHost}.
-
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
