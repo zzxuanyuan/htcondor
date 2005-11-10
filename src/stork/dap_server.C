@@ -64,6 +64,8 @@ extern int HungJobMonitorTid;
 extern int RescheduledJobMonitorInterval;
 extern int RescheduledJobMonitorTid;
 
+extern int wrapper_main(int,char**);
+
 /* ==========================================================================
  * Open daemon core file pointers.
  * All modules will inherit these standard I/O file descriptors.
@@ -341,7 +343,7 @@ dprintf(D_ALWAYS, "DEBUG: dest_file: '%s'\n", dest_file);
 
 	// For dynamic destinations ...
 	// FIXME: This is an awful detection algorithm
-	//if (! strcmp(dest_host, DYNAMIC_XFER_DEST_HOST) ) {
+	//if (! strcmp(dest_host, DYNAMIC_XFER_DEST_HOST) ) 
 	if (strstr( _dest_url, DYNAMIC_XFER_DEST_HOST) ) {
 
 		dynamic_xfer_dest = true;
@@ -445,6 +447,15 @@ dprintf(D_ALWAYS, "DEBUG: dest_file: '%s'\n", dest_file);
 					   "Arguments", arguments,
 					   "CredFile", cred_file_name);
 
+	int job_opt_mask = 0;
+	MainStartFunc main_func = NULL;
+	if ( param_boolean("STORK_START_SUSPENDED",false) ) {
+		job_opt_mask = DCJOBOPT_SUSPEND_ON_EXEC;
+	}
+	if ( param_boolean("STORK_FAST_GUC",false) ) {
+		main_func = wrapper_main;
+	}
+
 	pid =
 	daemonCore->Create_Process(
 		 command,						// command path
@@ -456,9 +467,11 @@ dprintf(D_ALWAYS, "DEBUG: dest_file: '%s'\n", dest_file);
 		 Log_dir,						// current working directory
 		 FALSE,							// do not create a new process group
 		 NULL,							// list of socks to inherit
-		 daemon_std						// child stdio file descriptors
-		 								// nice increment = 0
-		 								// job_opt_mask = 0
+		 daemon_std,						// child stdio file descriptors
+		 0,								// nice increment = 0
+		 job_opt_mask, 					// job_opt_mask 
+		 NULL,							// fd_inherit_list[]
+		 main_func						// main_func if fork only
 	);
 
 	if (env_string) delete []env_string;// delete string from "new"

@@ -57,6 +57,31 @@ SERVER_OBJS  = \
 	dap_logger.o \
 	dap_classad_reader.o \
 	../sc2005/libstork-mm.a \
+	internal_transfer_globus-url-copy.o \
+	globus_url_copy.o \
+	./libglobus_gass_copy_gcc32dbg.a \
+	$(GLOBUS_DIR)/lib/libglobus_ftp_client_gcc32dbg.a \
+	$(GLOBUS_DIR)/lib/libglobus_gass_transfer_gcc32dbg.a \
+	$(GLOBUS_DIR)/lib/libglobus_ftp_control_gcc32dbg.a \
+	$(GLOBUS_DIR)/lib/libglobus_io_gcc32dbg.a \
+	$(GLOBUS_DIR)/lib/libglobus_xio_gcc32dbg.a \
+	$(GLOBUS_DIR)/lib/libgssapi_error_gcc32dbg.a \
+	$(GLOBUS_DIR)/lib/libglobus_gss_assist_gcc32dbg.a \
+	$(GLOBUS_DIR)/lib/libglobus_gssapi_gsi_gcc32dbg.a \
+	$(GLOBUS_DIR)/lib/libglobus_gsi_proxy_core_gcc32dbg.a \
+	$(GLOBUS_DIR)/lib/libglobus_gsi_credential_gcc32dbg.a \
+	$(GLOBUS_DIR)/lib/libglobus_gsi_callback_gcc32dbg.a \
+	$(GLOBUS_DIR)/lib/libglobus_oldgaa_gcc32dbg.a \
+	$(GLOBUS_DIR)/lib/libglobus_gsi_sysconfig_gcc32dbg.a \
+	$(GLOBUS_DIR)/lib/libglobus_gsi_cert_utils_gcc32dbg.a \
+	$(GLOBUS_DIR)/lib/libglobus_openssl_gcc32dbg.a \
+	$(GLOBUS_DIR)/lib/libglobus_openssl_error_gcc32dbg.a \
+	$(GLOBUS_DIR)/lib/libglobus_callout_gcc32dbg.a \
+	$(GLOBUS_DIR)/lib/libglobus_proxy_ssl_gcc32dbg.a \
+	$(GLOBUS_DIR)/lib/libglobus_common_gcc32dbg.a \
+	$(GLOBUS_DIR)/lib/libssl_gcc32dbg.a \
+	$(GLOBUS_DIR)/lib/libcrypto_gcc32dbg.a \
+	$(GLOBUS_DIR)/lib/libltdl_gcc32dbg.a \
 	$(STORK_UTIL)
 SERVER_LIBS = \
 	$(DAEMONCORE_LIB) \
