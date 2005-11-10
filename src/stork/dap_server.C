@@ -56,6 +56,14 @@ int listenfd_submit;
 int listenfd_status;
 int listenfd_remove;
 
+// Timers
+extern int IdleJobMonitorInterval;
+extern int IdleJobMonitorTid;
+extern int HungJobMonitorInterval;
+extern int HungJobMonitorTid;
+extern int RescheduledJobMonitorInterval;
+extern int RescheduledJobMonitorTid;
+
 /* ==========================================================================
  * Open daemon core file pointers.
  * All modules will inherit these standard I/O file descriptors.
@@ -1085,6 +1093,33 @@ void regular_check_for_requests_in_process()
 		}while (query.Next(key));
 	}//if
 	if (constraint_tree != NULL) delete constraint_tree;
+
+	// Reset timer for this function, if period has changed.
+  int period =
+	  param_integer(
+			  "STORK_HUNG_JOB_MONITOR",
+			  STORK_HUNG_JOB_MONITOR_DEFAULT,
+			  STORK_HUNG_JOB_MONITOR_MIN);
+
+  if ( period == HungJobMonitorInterval && HungJobMonitorTid != -1 ) {
+        // we are already done, since we already
+        // have a timer set with the desired interval
+        return;
+    }
+
+  if (HungJobMonitorTid != -1) {
+	  // destroy pre-existing timer
+        daemonCore->Cancel_Timer(HungJobMonitorTid);
+    }
+
+  HungJobMonitorTid = 
+  daemonCore->Register_Timer(
+						HungJobMonitorInterval,		// deltawhen
+						HungJobMonitorInterval,		// period
+						(TimerHandler)regular_check_for_requests_in_process,
+						"check_for_requests_in_process");
+
+  return;
 }
 
 /* ============================================================================
@@ -1156,6 +1191,33 @@ void regular_check_for_rescheduled_requests()
 		}while (query.Next(key));
 	}
 	if (constraint_tree != NULL) delete constraint_tree;
+
+	// Reset timer for this function, if period has changed.
+  int period =
+	  param_integer(
+			  "STORK_RESCHEDULED_JOB_MONITOR",
+			  STORK_RESCHEDULED_JOB_MONITOR_DEFAULT,
+			  STORK_RESCHEDULED_JOB_MONITOR_MIN);
+
+  if ( period == RescheduledJobMonitorInterval && RescheduledJobMonitorTid != -1 ) {
+        // we are already done, since we already
+        // have a timer set with the desired interval
+        return;
+    }
+
+  if (RescheduledJobMonitorTid != -1) {
+	  // destroy pre-existing timer
+        daemonCore->Cancel_Timer(RescheduledJobMonitorTid);
+    }
+
+  RescheduledJobMonitorTid = 
+  daemonCore->Register_Timer(
+						RescheduledJobMonitorInterval,		// deltawhen
+						RescheduledJobMonitorInterval,		// period
+						(TimerHandler)regular_check_for_rescheduled_requests,
+						"regular_check_for_rescheduled_requests");
+
+  return;
 }
 
 /* ============================================================================
@@ -1360,34 +1422,66 @@ int call_main()
 	classad::LocalCollectionQuery query;
 	classad::ClassAdParser       parser;
 	std::string                  key, constraint;
+	int period;
   
-		//setup constraints for the query
-	constraint = "other.status == \"request_received\"";
-	classad::ExprTree *constraint_tree = parser.ParseExpression( constraint );
+	// Avoid query if possible.
+	if (dap_queue.get_numjobs() < Max_num_jobs) {
 
-	if (!constraint_tree) {
-		dprintf(D_ALWAYS, "Error in parsing constraint!\n");
+			//setup constraints for the query
+		constraint = "other.status == \"request_received\"";
+		classad::ExprTree *constraint_tree =
+			parser.ParseExpression( constraint );
+
+		if (!constraint_tree) {
+			dprintf(D_ALWAYS, "Error in parsing constraint!\n");
+		}
+
+	  
+		query.Bind(dapcollection);  
+		query.Query("root", constraint_tree);
+		query.ToFirst();
+
+		if ( query.Current(key) ){
+			do{
+				job_ad = dapcollection->GetClassAd(key);
+				if (!job_ad) { //no matching classad
+					break;
+				}
+				else{
+					if (dap_queue.get_numjobs() < Max_num_jobs)
+						process_request(job_ad);
+				}
+			}while (query.Next(key));
+		}
+
+		if (constraint_tree != NULL) delete constraint_tree;
+
 	}
 
-  
-	query.Bind(dapcollection);  
-	query.Query("root", constraint_tree);
-	query.ToFirst();
+	// Reset timer for this function, if period has changed.
+  period =
+	  param_integer(
+			  "STORK_IDLE_JOB_MONITOR",
+			  STORK_IDLE_JOB_MONITOR_DEFAULT,
+			  STORK_IDLE_JOB_MONITOR_MIN);
 
-	if ( query.Current(key) ){
-		do{
-			job_ad = dapcollection->GetClassAd(key);
-			if (!job_ad) { //no matching classad
-				break;
-			}
-			else{
-				if (dap_queue.get_numjobs() < Max_num_jobs)
-					process_request(job_ad);
-			}
-		}while (query.Next(key));
-	}
+  if ( period == IdleJobMonitorInterval && IdleJobMonitorTid != -1 ) {
+        // we are already done, since we already
+        // have a timer set with the desired interval
+        return TRUE;
+    }
 
-	if (constraint_tree != NULL) delete constraint_tree;
+  if (IdleJobMonitorTid != -1) {
+	  // destroy pre-existing timer
+        daemonCore->Cancel_Timer(IdleJobMonitorTid);
+    }
+
+  IdleJobMonitorTid = 
+  daemonCore->Register_Timer(
+						IdleJobMonitorInterval,		// deltawhen
+						IdleJobMonitorInterval,		// period
+						(TimerHandler)call_main,	// event
+						"call_main");				// description
 
 	return TRUE;
 }

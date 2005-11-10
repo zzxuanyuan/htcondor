@@ -21,6 +21,15 @@ char * xmllogfilename = NULL;
 char * userlogfilename = NULL;
 char * clientagenthost = NULL;
 
+// Timers
+int IdleJobMonitorInterval;
+int IdleJobMonitorTid;
+int HungJobMonitorInterval;
+int HungJobMonitorTid;
+int RescheduledJobMonitorInterval;
+int RescheduledJobMonitorTid;
+
+
 extern int  transfer_dap_reaper_id, reserve_dap_reaper_id, release_dap_reaper_id;
 extern int  requestpath_dap_reaper_id;
 
@@ -136,9 +145,17 @@ int main_init(int argc, char **argv)
 			     (TimerHandler)initializations,
 			     "initializations");*/
 
-   daemonCore->Register_Timer(1, 1,
-			     (TimerHandler)call_main,
-			     "call_main");
+  IdleJobMonitorInterval =
+	  param_integer(
+			  "STORK_IDLE_JOB_MONITOR",
+			  STORK_IDLE_JOB_MONITOR_DEFAULT,
+			  STORK_IDLE_JOB_MONITOR_MIN);
+  IdleJobMonitorTid = 
+  daemonCore->Register_Timer(
+							1,							// deltawhen
+							IdleJobMonitorInterval,		// period
+							(TimerHandler)call_main,	// event
+							"call_main");				// description
 
   daemonCore->Register_Command(STORK_SUBMIT, "STORK_SUBMIT",
 			       (CommandHandler)&handle_stork_submit,
@@ -157,13 +174,29 @@ int main_init(int argc, char **argv)
                                (CommandHandler)&handle_stork_remove,
                                "handle_stork_remove", NULL,WRITE);
   
-  daemonCore->Register_Timer(300, 300,
-			     (TimerHandler)regular_check_for_requests_in_process,
-			     "check_for_requests_in_process");
-  daemonCore->Register_Timer(5, 5,
-			     (TimerHandler)regular_check_for_rescheduled_requests,
-			     "regular_check_for_rescheduled_requests");
-  
+  HungJobMonitorInterval =
+	  param_integer(
+			  "STORK_HUNG_JOB_MONITOR",
+			  STORK_HUNG_JOB_MONITOR_DEFAULT,
+			  STORK_HUNG_JOB_MONITOR_MIN);
+  HungJobMonitorTid = 
+  daemonCore->Register_Timer(
+							4,							// deltawhen
+							HungJobMonitorInterval,		// period
+							(TimerHandler)regular_check_for_requests_in_process,
+							"check_for_requests_in_process");
+
+  RescheduledJobMonitorInterval =
+	  param_integer(
+			  "STORK_RESCHEDULED_JOB_MONITOR",
+			  STORK_RESCHEDULED_JOB_MONITOR_DEFAULT,
+			  STORK_RESCHEDULED_JOB_MONITOR_MIN);
+  RescheduledJobMonitorTid = 
+  daemonCore->Register_Timer(
+						7,							// deltawhen
+						RescheduledJobMonitorInterval,	// period
+						(TimerHandler)regular_check_for_rescheduled_requests,
+						"regular_check_for_rescheduled_requests");
 
   //register reaper functions
   transfer_dap_reaper_id = daemonCore->Register_Reaper("transfer_dap_reaper",(ReaperHandler)transfer_dap_reaper, "reaper for transfer DaP");

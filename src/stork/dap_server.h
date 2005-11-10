@@ -9,6 +9,23 @@
 #include "dap_constants.h"
 #include "sock.h"
 
+// Timers
+
+// Timer to check for, and possibly start idle jobs.
+#define STORK_IDLE_JOB_MONITOR					"STORK_IDLE_JOB_MONITOR"
+#define STORK_IDLE_JOB_MONITOR_DEFAULT			10
+#define STORK_IDLE_JOB_MONITOR_MIN				1
+
+// Timer to check for, and possibly start rescheduled jobs.
+#define STORK_RESCHEDULED_JOB_MONITOR			"STORK_RESCHEDULED_JOB_MONITOR"
+#define STORK_RESCHEDULED_JOB_MONITOR_DEFAULT	10
+#define STORK_RESCHEDULED_JOB_MONITOR_MIN		1
+
+// Timer to check for, and possibly kill hung jobs
+#define STORK_HUNG_JOB_MONITOR					"STORK_HUNG_JOB_MONITOR"
+#define STORK_HUNG_JOB_MONITOR_DEFAULT			300
+#define STORK_HUNG_JOB_MONITOR_MIN				1
+
 typedef enum {
 	TERMINATE_GRACEFUL,
 	TERMINATE_FAST
