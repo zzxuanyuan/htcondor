@@ -58,6 +58,11 @@ SERVER_OBJS  = \
 	dap_classad_reader.o \
 	../sc2005/libstork-mm.a \
 	internal_transfer_globus-url-copy.o \
+	$(STORK_UTIL)
+SERVER_LIBS = \
+	$(DAEMONCORE_LIB) \
+	$(STD_LIBS) \
+	$(NEW_CLASSADS_LINK) \
 	globus_url_copy.o \
 	./libglobus_gass_copy_gcc32dbg.a \
 	$(GLOBUS_DIR)/lib/libglobus_ftp_client_gcc32dbg.a \
@@ -82,11 +87,7 @@ SERVER_OBJS  = \
 	$(GLOBUS_DIR)/lib/libssl_gcc32dbg.a \
 	$(GLOBUS_DIR)/lib/libcrypto_gcc32dbg.a \
 	$(GLOBUS_DIR)/lib/libltdl_gcc32dbg.a \
-	$(STORK_UTIL)
-SERVER_LIBS = \
-	$(DAEMONCORE_LIB) \
-	$(STD_LIBS) \
-	$(NEW_CLASSADS_LINK)
+
 c_plus_public_target(stork_server,sbin,$(SERVER_OBJS),$(SERVER_LIBS))
 
 /* user tools */
