@@ -5886,7 +5886,9 @@ int DaemonCore::Create_Process(
 		if ( main_func ) {
 			close( errorpipe[1] ); // close errorpipe
 			int my_argc = 0;
-			while ( unix_args[my_argc++] );
+			while ( unix_args[my_argc] ) {
+				my_argc++;
+			}
 			if( HAS_DCJOBOPT_SUSPEND_ON_EXEC(job_opt_mask) ) {
 				// suspend ourselves
 				::kill(pid,SIGSTOP);
