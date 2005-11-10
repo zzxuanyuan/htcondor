@@ -1,11 +1,53 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{\label{sec:Port-Details}Port Usage in Special Environments }
+\subsection{\label{sec:Port-Details}Port Usage in Condor}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \index{port usage}
 
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsubsection{\label{sec:Ports-NonStandard}Non Standard Port Usage}
+\subsubsection{\label{sec:Ports-Standard}Default Port Usage}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Every Condor daemon listens on a network port for incoming commands.
+Most daemons listen on dynamically assigned port.
+The way other Condor daemons or tools locate the right port to use to
+communicate with a given daemon is to query the \Condor{collector} for
+the daemon's classad.
+One of the attributes included in every daemon's classad is the full
+IP address and port where the daemon is listening.
+
+However, to be able to query the \Condor{collector}, every Condor tool
+or daemon must know the port where it is listening.
+The \Condor{collector} is the only daemon with a well-known, fixed
+port.
+By default, Condor uses port 9618 for the \Condor{collector} daemon.
+However, this port can be changed (see the following section on
+non-standard port usage for details.)
+
+As an optimization for tools or daemons communicating with a daemon
+running on the same host, each Condor daemon can be configure to write
+out its IP and port into a well known file.
+This is controlled using the \Macro{SUBSYS\_ADDRESS\_FILE} settings,
+described in section~\ref{param:SubsysAddressFile} on
+page~\pageref{param:SubsysAddressFile}. 
+
+\Note In the 6.6 stable series, and Condor versions earlier than
+6.7.5, the \Condor{negotiator} also listened on a fixed, well-defined
+port (the default was 9614).
+However, beginning with version 6.7.5, the \Condor{negotiator} behaves
+like all other Condor daemons and publishes its own classad to the
+\Condor{collector} which includes the dynamically assigned port it is
+listening on.
+All Condor tools and daemons that need to communicate with the
+\Condor{negotiator} will either use the
+\Macro{NEGOTIATOR\_ADDRESS\_FILE} or will query the
+\Condor{collector} for the classad.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection{\label{sec:Ports-NonStandard}Using 
+a Non Standard Port for the \Condor{collector}}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \index{port usage!nonstandard ports for central managers}
 By default,
@@ -19,12 +61,10 @@ CONDOR_HOST = machX.cs.wisc.edu
 COLLECTOR_HOST = $(CONDOR_HOST)
 \end{verbatim}
 the configuration might be
-\footnotesize
 \begin{verbatim}
 CONDOR_HOST = machX.cs.wisc.edu
 COLLECTOR_HOST = $(CONDOR_HOST):9650
 \end{verbatim}
-\normalsize
 
 If a non well-known port is defined, the same value of
 \MacroNI{COLLECTOR\_HOST} (including the port) must be used for all
@@ -88,7 +128,8 @@ page~\pageref{param:CollectorHost}.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsubsection{\label{sec:Ports-Firewalls}Firewalls}
+\subsubsection{\label{sec:Ports-Firewalls}Restricting Port Usage to
+ Operate with Firewalls}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \index{port usage!firewalls}
@@ -115,8 +156,21 @@ The configuration macros
 will restrict dynamic ports to the range specified.
 The configuration variables are fully defined
 in section~\ref{sec:Condor-wide-Config-File-Entries}.
+All of these ports must be greater than 0 and less than 65,536.
 Note that both \MacroNI{HIGHPORT} and \MacroNI{LOWPORT} must be at 
 least 1024 for Condor version 6.6.8.
+In general, it is a good idea to use ports greater than 1024 in order
+to avoid port conflicts with standard services on your machine, and in
+the case the daemons are not run as root (since you must be root to
+listen to a port lower than 1024).
+Also, the range must include enough ports that are not in use, or the
+daemons will.
+
+\Note Setting \MacroNI{HIGHPORT} and \MacroNI{LOWPORT} will not
+automatically force the \Condor{collector} to bind to a port within
+the range.
+The only way to control what port the \Condor{collector} uses is by
+setting the \MacroNI{COLLECTOR\_HOST} (as described above).
 
 The total number of ports needed depends on the size of the pool,
 the usage of the machines within the pool (which machines
@@ -183,7 +237,8 @@ socket binding errors of the form
 failed to bind any port within <$LOWPORT> - <$HIGHPORT>
 \end{verbatim}
 \normalsize
-are like to appear repeatedly in log files.
+are likely to appear repeatedly in log files.
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsubsection{\label{sec:Ports-MultipleCollectors}Multiple Collectors}
