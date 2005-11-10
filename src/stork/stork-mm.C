@@ -515,7 +515,14 @@ fromBusyToIdle(StorkMatchEntry* match)
 	}
 
 	if ( full_match->Lease ) {
-		addToIdleSet(full_match);
+		if ( full_match->ReleaseLeaseWhenDone() ) {
+			// drop this match on the floor, since the matchmaker asked us
+			// to stop using it as soon as the current transfer completed
+			delete full_match;
+			full_match = NULL;
+		} else {
+			addToIdleSet(full_match);
+		}
 		return true;
 	} else {
 		return false;
