@@ -44,6 +44,13 @@ All Condor tools and daemons that need to communicate with the
 \Macro{NEGOTIATOR\_ADDRESS\_FILE} or will query the
 \Condor{collector} for the negotiator's classad.
 
+Finally, sites that configure any checkpoint servers will introduce
+other fixed ports into their network.
+Each \Condor{cktp\_server} will listen to 4 fixed ports: 5651, 5652,
+5653, and 5654.
+There is currently no way to configure alternative values for any of
+these ports.
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsubsection{\label{sec:Ports-NonStandard}Using 
