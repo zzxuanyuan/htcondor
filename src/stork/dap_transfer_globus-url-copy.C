@@ -3,7 +3,7 @@
 #include "dap_error.h"
 #include "dap_utility.h"
 #include "condor_string.h"
-#include <unistd.h>
+#include "my_hostname.h"
 #include <string>
 
 #include "globus_ftp_client.h"
@@ -129,6 +129,25 @@ int transfer_globus_url_copy(char *src_url, char *dest_url,
   
 }
 
+const char *
+unique_filepath(const char *directory)
+{
+	static char path[_POSIX_PATH_MAX];
+	static int unique = 0;
+	static time_t curr = 0;
+
+	if (unique) {
+		unique++;
+	} else {
+		unique = 1;
+		curr = time(NULL);
+	}
+
+	sprintf(path, "%s/file-%u-%d-%d-%d", directory, my_ip_addr(), getpid(),
+			(int)curr, unique);
+	return path;
+}
+
 // For multi-file transfers using a dynamic transfer destination, the list
 // specifying the file transfer source-destination pairs must be rewritten:
 // all destination URLs must be rewritten with the dynamic destination.
@@ -155,7 +174,8 @@ translate_file(
 	}
 
 	while (fscanf(static_urls, " %s %s ", src, dest) != EOF) {
-		fprintf(dynamic_urls, "%s %s\n", src, dynamic_destination);
+		fprintf(dynamic_urls, "%s %s\n",
+				src, unique_filepath(dynamic_destination) );
 	}
 	fclose(static_urls);
 	fclose(dynamic_urls);
