@@ -706,14 +706,34 @@ system.
 % Default definition in config file: bogus value
 % Result if not defined or RHS is empty: autodiscovered domain, if any, is used.
 
+\item[\Macro{BIND\_ALL\_INTERFACES}] \label{param:BindAllInterfaces}
+  For systems with multiple network interfaces, if this configuration
+  setting is not defined, Condor binds all network sockets to first
+  interface found, or the IP address specified with
+  \MacroNI{NETWORK\_INTERFACE} (described below).
+  Starting with version 6.7.13, \MacroNI{BIND\_ALL\_INTERFACES} can be
+  set to \verb@TRUE@ to cause Condor to bind to all interfaces on the
+  machine.
+  However, currently Condor is still only able to advertise a single
+  IP address, even if it is listening on multiple interfaces.
+  More information about using this setting can be found in
+  section~\ref{sec:Using-BindAllInterfaces} on
+  page~\pageref{sec:Using-BindAllInterfaces}. 
+
 \item[\Macro{NETWORK\_INTERFACE}] \label{param:NetworkInterface}
-  For systems with multiple network interfaces, Condor chooses the
-  first one defined.
-  If this configuration macro is not defined,
-  Condor binds to first interface found.
-  To choose a network interface other than the
-  first one, this macro is defined by giving the IP address
-  to use.
+  For systems with multiple network interfaces, if this configuration
+  setting is not defined, Condor binds all network sockets to first
+  interface found.
+  To bind to a specific network interface other than the
+  first one, this \MacroNI{NETWORK\_INTERFACE} should be set to 
+  the IP address to use.
+  When \MacroNI{BIND\_ALL\_INTERFACES} is set to \verb@TRUE@, this
+  setting simply controls what IP address a given Condor host will
+  advertise.
+  More information about configuring Condor on machines with multiple
+  network interfaces can be found in
+  section~\ref{sec:Multiple-Interfaces} on
+  page~\pageref{sec:Multiple-Interfaces}.
 % PKK
 % Described in default config file: NO
 % Defined in the default config file: NO
