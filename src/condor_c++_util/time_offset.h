@@ -29,8 +29,18 @@
 #include "condor_debug.h"
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
 
-class Stream;
+//
+// If we fail for whatever reason to figure out what the
+// offset is between two daemons, use this value
+// I can't think of anytime when the default shouldn't be zero,
+// but this just makes for cleaner code this way
+//
+#define TIME_OFFSET_DEFAULT 0
 
+//
+// This struct is just a container for how we will determine
+// the offset value.
+//
 typedef struct TimeOffsetPacket {
 	time_t localDepart;
 	time_t remoteArrive;

@@ -52,7 +52,7 @@ long time_offset_cedar_stub( Stream* s ) {
 	if (! time_offset_codePacket_cedar( packet, s ) ) {
 		dprintf( D_FULLDEBUG, "time_offset_cedar() failed to send inital packet "
 							  "to remote daemon\n" );
-		return ( 0 );
+		return ( TIME_OFFSET_DEFAULT );
 	}
 	s->end_of_message();
 	
@@ -66,7 +66,7 @@ long time_offset_cedar_stub( Stream* s ) {
 	if (! time_offset_codePacket_cedar( rPacket, s ) ) {
 		dprintf( D_FULLDEBUG, "time_offset_cedar() failed to receive response "
 							  "packet from remote daemon\n" );
-		return (0);
+		return ( TIME_OFFSET_DEFAULT );
 	}
 	s->end_of_message();
 	
@@ -160,7 +160,7 @@ time_offset_receive( TimeOffsetPacket &packet ) {
  		//
  	if ( packet.localArrive == 0 ) {
  		dprintf( D_FULLDEBUG, "Received a time offset request but the "
- 		    				"local departure time was empty." );
+ 		    				  "local departure time was empty." );
  		return (false);
  	}
  		//
@@ -186,13 +186,15 @@ time_offset_calculate( TimeOffsetPacket &packet, TimeOffsetPacket &rPacket ) {
 		//
 	if ( ! rPacket.remoteArrive ) {
 		dprintf( D_FULLDEBUG, "The time offset response does not have "
-						   "the remote arrival time. Offset will default to 0\n" );
-		return (0);
+						      "the remote arrival time. Offset will default to %d\n",
+						   	  TIME_OFFSET_DEFAULT );
+		return ( TIME_OFFSET_DEFAULT );
 	}
 	if ( ! rPacket.remoteDepart ) {
 		dprintf( D_FULLDEBUG, "The time offset response does not have "
-						   "the remote departure time. Offset will default to 0\n" );
-		return (0);
+						      "the remote departure time. Offset will default to %d\n",
+						      TIME_OFFSET_DEFAULT );
+		return ( TIME_OFFSET_DEFAULT );
 	}
 		//
 		// Make sure that the remote packet and the original packet
@@ -205,8 +207,9 @@ time_offset_calculate( TimeOffsetPacket &packet, TimeOffsetPacket &rPacket ) {
 			// that the offset is zero
 			//
 		dprintf( D_FULLDEBUG, "The time offset response has a different local "
-					  	   "departure timestamp. Offset will default to 0\n" );
- 		return (0);
+					  	      "departure timestamp. Offset will default to %d\n",
+					  	      TIME_OFFSET_DEFAULT );
+ 		return ( TIME_OFFSET_DEFAULT );
  	}
  		//
  		// Now use the basic formula from NTP to determine the offset
