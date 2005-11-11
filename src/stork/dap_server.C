@@ -131,6 +131,31 @@ void open_daemon_core_file_pointers()
 	return;
 }
 
+// Note: this function should really have a job ad passed to it.
+bool
+dynamicOK(classad::ClassAd *job_ad)
+{
+	bool is_dynamic = false;
+
+	std::string transfer_url;
+	if	(	job_ad->EvaluateAttrString(
+				"dest_url",
+				transfer_url
+			) && transfer_url.length() > 0)
+	{
+		if (strstr( transfer_url.c_str(), DYNAMIC_XFER_DEST_HOST) ) {
+			is_dynamic = true;
+		}
+	}
+
+	
+	if (is_dynamic) {
+		return Matchmaker->areMatchesAvailable();
+	} else {
+		return true;
+	}
+}
+
 /* ==========================================================================
  * read the config file and set some global parameters
  * ==========================================================================*/
@@ -1171,8 +1196,10 @@ void startup_check_for_requests_in_process()
 				break;
 			}
 			else{
-				if (dap_queue.get_numjobs() < Max_num_jobs)
+				if (dap_queue.get_numjobs() < Max_num_jobs && dynamicOK(job_ad))
 					process_request(job_ad);
+				else
+					break;
 			}
 		}while (query.Next(key));
 	}
@@ -1206,7 +1233,7 @@ void regular_check_for_rescheduled_requests()
 				break;
 			}
 			else{
-				if (dap_queue.get_numjobs() < Max_num_jobs)
+				if ((dap_queue.get_numjobs() < Max_num_jobs) && dynamicOK(job_ad))
 					process_request(job_ad);
 				else
 					break;
@@ -1448,7 +1475,7 @@ int call_main()
 	int period;
   
 	// Avoid query if possible.
-	if (dap_queue.get_numjobs() < Max_num_jobs) {
+	if (dap_queue.get_numjobs() < Max_num_jobs && dynamicOK(job_ad)) {
 
 			//setup constraints for the query
 		constraint = "other.status == \"request_received\"";
@@ -1471,7 +1498,7 @@ int call_main()
 					break;
 				}
 				else{
-					if (dap_queue.get_numjobs() < Max_num_jobs)
+					if (dap_queue.get_numjobs() < Max_num_jobs && dynamicOK(job_ad))
 						process_request(job_ad);
 					else
 						break;
