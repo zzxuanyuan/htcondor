@@ -313,12 +313,14 @@ write_xml_user_log(
 		char *param10, char *value10
 )
 {
+  if (! logfilename ) return;
 
   classad::ClassAdParser parser;
   classad::ExprTree *expr = NULL;
   classad::ClassAdXMLUnParser  xmlunparser;
   std::string adbuffer = "";
   FILE *flog;
+
 
   //create ClassAd
   classad::ClassAd *classad = new classad::ClassAd;

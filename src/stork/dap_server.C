@@ -1281,8 +1281,17 @@ void initialize_dapcollection()
 		dprintf(D_ALWAYS,"Error: Failed to construct dap collection!\n");
 	}
 
-	if (!dapcollection->InitializeFromLog(logfilename)) {
-		dprintf(D_ALWAYS,"Couldn't recover ClassAdCollection from log: %s!\n",
+
+	if (param_boolean("STORK_JOB_QUEUE_PERSISTENCE", true)) {
+		dprintf(D_ALWAYS,"using persistent job queue file %s\n",
+				logfilename);
+		if (!dapcollection->InitializeFromLog(logfilename)) {
+			dprintf(D_ALWAYS,
+					"Couldn't recover ClassAdCollection from log: %s!\n",
+					logfilename);
+		}
+	} else {
+		dprintf(D_ALWAYS,"NOT using persistent job queue file %s\n",
 				logfilename);
 	}
 }
@@ -1335,18 +1344,26 @@ int initializations()
 		//init xml log file name 
 		//  sprintf(xmllogfilename, "%s.xml", logfilename);<-- change this
 
-	if (!userlogfilename){
-		userlogfilename = (char*) malloc(MAXSTR * sizeof(char));
-		if ( userlogfilename ) {
-			snprintf(userlogfilename, MAXSTR, "%s.user_log", logfilename);
-		} else {
-			dprintf( D_ALWAYS,
-					"%s:%d: malloc userlogfilename %s.user_log: (%d)%s\n",
-					__FILE__, __LINE__,
-					logfilename,
-					errno, strerror(errno)
-			);
+	if (param_boolean("STORK_JOB_USER_LOGGING", true)) {
+		dprintf(D_ALWAYS,"using user log file\n");
+		if (!userlogfilename){
+			userlogfilename = (char*) malloc(MAXSTR * sizeof(char));
+			if ( userlogfilename ) {
+				snprintf(userlogfilename, MAXSTR, "%s.user_log", logfilename);
+
+
+
+			} else {
+				dprintf( D_ALWAYS,
+						"%s:%d: malloc userlogfilename %s.user_log: (%d)%s\n",
+						__FILE__, __LINE__,
+						logfilename,
+						errno, strerror(errno)
+				);
+			}
 		}
+		} else {
+		dprintf(D_ALWAYS,"NOT using user log file\n");
 	}
   
 		//get the last dap_id from dap-jobs-to-process
