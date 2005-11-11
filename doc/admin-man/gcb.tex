@@ -133,6 +133,7 @@ It is divided into the following topics:
 \item Using \Prog{initd} to spawn the GCB broker
 \item How to configure Condor machines to use GCB
 \item Configuring the GCB routing table
+\item Implications for Condor's host/IP security settings
 \item Implications for other Condor configuration settings
 \end{itemize}
 
@@ -742,15 +743,190 @@ Therefore, here is the appropriate routing table for all nodes:
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsubsection{\label{sec:GCB-config-implications}Implications of
-using GCB for other Condor configuration settings} 
+\subsubsection{\label{sec:GCB-host-security-implications}Implications
+of Using GCB for Condor's Host/IP Based Security} 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\Todo
+Whenever a connection comes into a Condor daemon's command socket,
+Condor will either allow or refuse the command depending on the IP
+address of the incoming socket.
+For more information about this host-based security in Condor, see
+section~\ref{sec:Host-Security} on page~\pageref{sec:Host-Security}.
+Because of the way GCB changes the IP addresses that are used and
+advertised by GCB-enabled clients, and since all nodes being
+represented by a GCB broker are represented by different ports on the
+broker node (a process known as \Term{address leasing}), using GCB has
+implications for this authorization process.
 
-% COLLECTOR_HOST (private collector makes trouble)
-% HOSTALLOW_NEGOTIATOR (private negotiator makes trouble)
-% HOSTALLOW_* (private nodes use broker's public IP)
-% SEC_DEFAULT_AUTHENTICATION_METHODS (kerberos doesn't work)
+Depending on the communication pathway used by a GCB-enabled Condor
+client (either a tool or another Condor daemon) to connect to a given
+Condor server daemon, and where in the network each side of the
+connection resides, the IP address of the resulting socket actually
+used will be very different.
 
+In the case of a private client attempting to connect to a server,
+there are three possibilities:
+\begin{itemize}
+
+  \item Direct connection to another node within the private network:
+  the server will see the private IP address of the client.
+
+  \item Direct outbound connection to a public node: the server will
+  see either the private IP address, or the IP of the NAT server for
+  the private network (if NAT is being used).
+
+  \item Connection to a host in a different private network that must
+  be relayed through the GCB broker: the server will see the public IP
+  address of the broker representing the client.
+
+\end{itemize}
+
+Therefore, any public server that wants to allow a command from a
+given client must have any or all of the various IP addresses
+mentioned above in the appropriate \MacroNI{HOSTALLOW} settings.  In
+practice, that means opening up the \MacroNI{HOSTALLOW} settings to
+include not just the actual IP addresses of each node, but also the IP
+address of the various GCB brokers in use, and potentially, the public
+IP address of the NAT host for each private network.
+
+However, given that all private nodes which are represented by a
+given GCB broker could potentially make connections to any other
+host using the GCB broker's IP address (whenever proxy socket
+forwarding is being used), if a single private node is being granted
+a certain level of permission in your pool, all of the private nodes
+using the same broker will have the same level of permission.
+This is particularly important if you attempt to grant
+\Macro{HOSTALLOW\_ADMINISTRATOR} or \Macro{HOSTALLOW\_CONFIG}
+privileges to a private node represented by a GCB broker.
+
+In the case of a public client attempting to connect to a private
+server, there are only two possible cases:
+
+\begin{itemize}
+
+  \item GCB broker can arrange a direct socket from the private node:
+  the private server will see the real public IP of the client.
+
+  \item GCB broker must forward packets from a proxy socket (because
+  of a non-GCB aware public client, or a misconfigured or missing GCB
+  routing table): the private server will see the public IP address
+  its own GCB broker.
+
+\end{itemize}
+
+This second case is particularly troubling.
+Since there are legitimate circumstances where a private server would
+need to use a forwarded proxy socket from its GCB broker, in general,
+the server should allow requests originating from its GCB broker.
+But, precisely because of the proxy forwarding, that means any client
+on Earth that can connect to the GCB broker would be allowed into the
+private server if IP-based authorization was the only defense.
+
+The final host-based security setting that requires special mention is
+\Macro{HOSTALLOW\_NEGOTIATOR}.
+If the \Condor{negotiator} for your pool is running on a private node
+being represented by a GCB broker, you must make a couple of
+modifications to the default value.
+For the purposes of Condor's host-based security, the
+\Condor{negotiator} acts as a client when communicating with each 
+\Condor{schedd} in your pool which has idle jobs that need to be
+matched with available resources.
+Therefore, all the possible cases of a private client attempting to
+connect to a given server apply to a private \Condor{negotiator}.
+In practice, that means adding the public IP of the broker, the real
+private IP of the negotiator host, and possibly the the public IP of
+the NAT host for this private network, to your
+\MacroNI{HOSTALLOW\_NEGOTIATOR} setting.
+Unfortunately, that means *any* host behind the same NAT host or using
+the same GCB broker will be authorized as if it was your
+\Condor{negotiator}. 
+
+Future versions of GCB and Condor will hopefully add some form of
+authentication and authorization to the GCB broker itself, to help
+alleviate these problems.
+Until then, sites using GCB are encouraged to use GSI strong
+authentication (since Kerberos also depends on IP addresses and is
+therefore incompatible with GCB) to rely on an authorization system
+that isn't effected by address leasing.
+This is especially true for sites that (foolishly) choose to run their
+central manager on a private node.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection{\label{sec:GCB-config-implications}Implications of
+Using GCB for Other Condor Configuration Settings} 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Using GCB and address leasing has implications for a few other Condor
+configuration settings.
+Each one is described below. 
+
+\begin{description}
+
+% i'm intentionally using \Macro, not \MacroNI for each of these,
+% since these should all show up in the index for each setting...
+
+\item[\Macro{COLLECTOR\_HOST}]
+  If the \Condor{collector} for your pool is running on a private node
+  being represented by a GCB broker, the \MacroNI{COLLECTOR\_HOST}
+  must be set to the host name or IP address of the GCB broker machine,
+  NOT the real host name/IP of the private node where the daemons are
+  actually running.
+  When the \Condor{collector} on the private node attempts to
+  \Syscall{bind} to its command port (9618 by default), it will
+  request port 9618 on the GCB broker node, instead.
+  So, you do not need to worry about the port, but you definitely have
+  to worry about the host name or IP address.
+  When public nodes want to communicate with the \Condor{collector},
+  they must go through the GCB broker, anyway.
+  In theory, other nodes inside the same private network could be told
+  to directly use the private IP of the collector host, but that's
+  unnecessary and would probably lead to other confusion and
+  configuration problems.
+
+  However, because the \Condor{collector} is listening on a fixed
+  port, and that single port is reserved on the GCB broker node, no
+  two private nodes using the same broker can attempt to use the same
+  port for their \Condor{collector}.
+  Therefore, any site that is attempting to setup multiple pools
+  within the same private network is strongly encouraged to setup
+  separate GCB brokers for each pool.
+  Otherwise, they must configure one or both of the pools to use a
+  non-standard port for their \Condor{collector} which adds yet more
+  complication to an already complicated situation. 
+
+\item[\Macro{CKPT\_SERVER\_HOST}]
+  Much like the case for \MacroNI{COLLECTOR\_HOST} described above,
+  a checkpoint server on a private node will have to lease a port on
+  the GCB broker node.
+  However, the checkpoint server also uses a fixed port, and unlike
+  the \Condor{collector}, there's no way to configure an alternate
+  value.
+  Therefore, only a single checkpoint server can be run behind a given
+  GCB broker.
+  Once again, if multiple checkpoint servers are required, multiple
+  GCB brokers should be deployed and configured.
+  Furthermore, the host name of the GCB broker should be used as the
+  value for \MacroNI{CKPT\_SERVER\_HOST}, not the real IP or host name
+  of the private node where the \Condor{ckpt\_server} is running.
+
+\item[\Macro{SEC\_DEFAULT\_AUTHENTICATION\_METHODS}]
+  Once you enable GCB for your pool, you can no longer use
+  \verb@KERBEROS@ as one of your authentication methods.
+  As previously discussed, the IP addresses used in various
+  circumstances will not be the real IP addresses of your machines.
+  However, Kerberos stores the IP address of each host as part of the
+  Kerberos ticket, and if a connection attempts to authenticate with
+  Kerberos and the two IP addresses (the underlying socket and the one
+  listed in the ticket) don't match, Kerberos will refuse to
+  authenticate.
+
+\end{description}
+
+Due to the complications and security limitations that arise from
+running a central manager on a private node represented by GCB (both
+regarding the \MacroNI{COLLECTOR\_HOST} just described, and
+\MacroNI{HOSTALLOW\_NEGOTIATOR} from the previous section), we
+recommend that sites avoid locating a central manager on a private
+host if at all possible.
 
