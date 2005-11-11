@@ -94,8 +94,11 @@ int main(int argc, char **argv)
   char *lognotes = NULL;
   int read_from_stdin = 0;
   struct stork_global_opts global_opts;
+  bool job_reads_x509_file_directly = false;
 
   config();	// read config file
+
+  job_reads_x509_file_directly = param_boolean("STORK_JOB_READS_X509_FILE_DIRECTLY",false);
 
   // Parse out stork global options.
   stork_parse_global_opts(argc, argv, USAGE, &global_opts, true);
@@ -231,54 +234,57 @@ int main(int argc, char **argv)
             }
         }
 
-		struct stat stat_buff;
-		if (stat (proxy_file_name.c_str(), &stat_buff) == 0) {
-			proxy_size = stat_buff.st_size;
-		} else {
+		if( !job_reads_x509_file_directly ) {
+
+			struct stat stat_buff;
+			if (stat (proxy_file_name.c_str(), &stat_buff) == 0) {
+				proxy_size = stat_buff.st_size;
+			} else {
                 fprintf(stderr, "ERROR: proxy %s: %s\n",
                         proxy_file_name.c_str(),
                         strerror(errno) );
                 return 1;
-        }
+			}
 
-        // Do a quick check on the proxy.
-        if ( x509_proxy_try_import( proxy_file_name.c_str() ) != 0 ) {
-            fprintf(stderr, "ERROR: check credential %s: %s\n",
-                    proxy_file_name.c_str(),
-                    x509_error_string() );
-            return 1;
-        }
-        int remaining =
-            x509_proxy_seconds_until_expire( proxy_file_name.c_str() );
-        if (remaining < 0) {
-            fprintf(stderr, "ERROR: check credential %s expiration: %s\n",
-                    proxy_file_name.c_str(),
-                    x509_error_string() );
-            return 1;
-        }
-        if (remaining == 0) {
-            fprintf(stderr, "ERROR: credential %s has expired\n",
-                    proxy_file_name.c_str() );
-            return 1;
-        }
+			// Do a quick check on the proxy.
+			if ( x509_proxy_try_import( proxy_file_name.c_str() ) != 0 ) {
+				fprintf(stderr, "ERROR: check credential %s: %s\n",
+						proxy_file_name.c_str(),
+						x509_error_string() );
+				return 1;
+			}
+			int remaining =
+				x509_proxy_seconds_until_expire( proxy_file_name.c_str() );
+			if (remaining < 0) {
+				fprintf(stderr, "ERROR: check credential %s expiration: %s\n",
+						proxy_file_name.c_str(),
+						x509_error_string() );
+				return 1;
+			}
+			if (remaining == 0) {
+				fprintf(stderr, "ERROR: credential %s has expired\n",
+						proxy_file_name.c_str() );
+				return 1;
+			}
 
-		FILE * fp = fopen (proxy_file_name.c_str(), "r");
-		if (fp) {
-			proxy = (char*)malloc ((proxy_size+1)*sizeof(char));
-            ASSERT(proxy);
-			if (fread (proxy, proxy_size, 1, fp) != 1) {
-                fprintf(stderr, "ERROR: Unable to read proxy %s: %s\n",
-                        proxy_file_name.c_str(),
-                        strerror(errno) );
-                return 1;
-            }
-			fclose (fp);
-		} else {
-			fprintf(stderr, "ERROR: Unable to open proxy %s: %s\n",
-                    proxy_file_name.c_str(),
-                    strerror(errno) );
-			return 1;
-        }
+			FILE * fp = fopen (proxy_file_name.c_str(), "r");
+			if (fp) {
+				proxy = (char*)malloc ((proxy_size+1)*sizeof(char));
+				ASSERT(proxy);
+				if (fread (proxy, proxy_size, 1, fp) != 1) {
+					fprintf(stderr, "ERROR: Unable to read proxy %s: %s\n",
+							proxy_file_name.c_str(),
+							strerror(errno) );
+					return 1;
+				}
+				fclose (fp);
+			} else {
+				fprintf(stderr, "ERROR: Unable to open proxy %s: %s\n",
+						proxy_file_name.c_str(),
+						strerror(errno) );
+				return 1;
+			}
+		}
     }
 
     //if input is valid, then send the request:
