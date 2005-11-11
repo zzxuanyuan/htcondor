@@ -4,6 +4,9 @@
 #include <string.h>
 #include "file_sql.h"
 #include "get_mysubsystem.h"
+#include <sys/stat.h>
+
+#define FILESIZELIMT 1900000000L
 
 // We put FileObj definition here because modules such as file_transfer.o and
 // classad_log.o uses FILEObj and they are part of cplus_lib.a. This way we won't get
@@ -218,6 +221,7 @@ AttrList *FILESQL::file_readAttrList()
 
 long FILESQL::file_newEvent(const char *eventType, AttrList *info) {
 	int retval = 0;
+	struct stat file_status;
 
 	if(!is_open)
 	{
@@ -228,20 +232,24 @@ long FILESQL::file_newEvent(const char *eventType, AttrList *info) {
 	if(file_lock() < 0)
 		return -1;
 
-	retval = write(outfiledes,"NEW ", strlen("NEW "));
-	retval = write(outfiledes,eventType, strlen(eventType));
-	retval = write(outfiledes,"\n", strlen("\n"));
+	fstat(outfiledes, &file_status);
 
-	MyString temp;
-	const char *tempv;
+		// only write to the log if it's not exceeding the log size limit
+	if (file_status.st_size < FILESIZELIMT) {
+		retval = write(outfiledes,"NEW ", strlen("NEW "));
+		retval = write(outfiledes,eventType, strlen(eventType));
+		retval = write(outfiledes,"\n", strlen("\n"));
+
+		MyString temp;
+		const char *tempv;
 	
-	retval = info->sPrint(temp);
-	tempv = temp.Value();
-	retval = write(outfiledes,tempv, strlen(tempv));
+		retval = info->sPrint(temp);
+		tempv = temp.Value();
+		retval = write(outfiledes,tempv, strlen(tempv));
 
-	retval = write(outfiledes,"***",3); /* Now the delimitor*/
-	retval = write(outfiledes,"\n",1); /* Now the newline*/
-
+		retval = write(outfiledes,"***",3); /* Now the delimitor*/
+		retval = write(outfiledes,"\n",1); /* Now the newline*/
+	}
 	
 	if(file_unlock() < 0)
 		return -1;
@@ -251,6 +259,7 @@ long FILESQL::file_newEvent(const char *eventType, AttrList *info) {
 
 long FILESQL::file_updateEvent(const char *eventType, AttrList *info, AttrList *condition) {
 	int retval = 0;
+	struct stat file_status;
 
 	if(!is_open)
 	{
@@ -261,28 +270,32 @@ long FILESQL::file_updateEvent(const char *eventType, AttrList *info, AttrList *
 	if(file_lock() < 0)
 		return -1;
 
+	fstat(outfiledes, &file_status);
 
-	retval = write(outfiledes,"UPDATE ", strlen("UPDATE "));
-	retval = write(outfiledes,eventType, strlen(eventType));
-	retval = write(outfiledes,"\n", strlen("\n"));
+		// only write to the log if it's not exceeding the log size limit
+	if (file_status.st_size < FILESIZELIMT) {
+		retval = write(outfiledes,"UPDATE ", strlen("UPDATE "));
+		retval = write(outfiledes,eventType, strlen(eventType));
+		retval = write(outfiledes,"\n", strlen("\n"));
 
-	MyString temp, temp1;
-	const char *tempv;
+		MyString temp, temp1;
+		const char *tempv;
 
-	retval = info->sPrint(temp);
-	tempv = temp.Value();
-	retval = write(outfiledes,tempv, strlen(tempv));
+		retval = info->sPrint(temp);
+		tempv = temp.Value();
+		retval = write(outfiledes,tempv, strlen(tempv));
 
-	retval = write(outfiledes,"***",3); /* Now the delimitor*/
-	retval = write(outfiledes,"\n",1); /* Now the newline*/
+		retval = write(outfiledes,"***",3); /* Now the delimitor*/
+		retval = write(outfiledes,"\n",1); /* Now the newline*/
 
-	retval = condition->sPrint(temp1);
-	tempv = temp1.Value();
-	retval = write(outfiledes,tempv, strlen(tempv));
+		retval = condition->sPrint(temp1);
+		tempv = temp1.Value();
+		retval = write(outfiledes,tempv, strlen(tempv));
+		
+		retval = write(outfiledes,"***",3); /* Now the delimitor*/
+		retval = write(outfiledes,"\n",1); /* Now the newline*/	
+	}
 
-	retval = write(outfiledes,"***",3); /* Now the delimitor*/
-	retval = write(outfiledes,"\n",1); /* Now the newline*/	
-	
 	if(file_unlock() < 0)
 		return -1;
 
@@ -292,6 +305,7 @@ long FILESQL::file_updateEvent(const char *eventType, AttrList *info, AttrList *
 #if 0
 long FILESQL::file_deleteEvent(const char *eventType, AttrList *condition) {
 	int retval = 0;
+	struct stat file_status;
 
 	if(!is_open)
 	{
@@ -302,19 +316,24 @@ long FILESQL::file_deleteEvent(const char *eventType, AttrList *condition) {
 	if(file_lock() < 0)
 		return -1;
 
-	retval = write(outfiledes,"DELETE ", strlen("DELETE "));
-	retval = write(outfiledes,eventType, strlen(eventType));
-	retval = write(outfiledes,"\n", strlen("\n"));
+	fstat(outfiledes, &file_status);
 
-	MyString temp;
-	const char *tempv;
+		// only write to the log if it's not exceeding the log size limit
+	if (file_status.st_size < FILESIZELIMT) {
+		retval = write(outfiledes,"DELETE ", strlen("DELETE "));
+		retval = write(outfiledes,eventType, strlen(eventType));
+		retval = write(outfiledes,"\n", strlen("\n"));
+
+		MyString temp;
+		const char *tempv;
 	
-	retval = condition->sPrint(temp);
-	tempv = temp.Value();
-	retval = write(outfiledes,tempv, strlen(tempv));
+		retval = condition->sPrint(temp);
+		tempv = temp.Value();
+		retval = write(outfiledes,tempv, strlen(tempv));
 
-	retval = write(outfiledes,"***",3); /* Now the delimitor*/
-	retval = write(outfiledes,"\n",1); /* Now the newline*/
+		retval = write(outfiledes,"***",3); /* Now the delimitor*/
+		retval = write(outfiledes,"\n",1); /* Now the newline*/
+	}
 
 	if(file_unlock() < 0)
 		return -1;
