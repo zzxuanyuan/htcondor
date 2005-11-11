@@ -893,31 +893,6 @@ system.
 % WARNING: Look in Version 6.5.2 version history for more information about
 % this particular entry.
 
-\item[\Macro{TRUST\_UID\_DOMAIN}]
-  \label{param:TrustUidDomain}
-  As an added security precaution when Condor is about to spawn a job,
-  it ensures that the \MacroNI{UID\_DOMAIN} (defined above) of a given
-  submit machine is a substring of that machine's fully-qualified
-  host name.
-  However, at some sites, there may be multiple UID spaces that do
-  not clearly correspond to Internet domain names.
-  In these cases, administrators may wish to use names to describe the
-  UID domains which are not substrings of the hostnames of the
-  machines.
-  For this to work, Condor must not do this regular security check.
-  If the \MacroNI{TRUST\_UID\_DOMAIN} setting is defined to TRUE,
-  Condor will not perform this test, and will trust whatever
-  \MacroNI{UID\_DOMAIN} is presented by the submit machine when trying
-  to spawn a job, instead of making sure the submit machine's hostname
-  matches the \MacroNI{UID\_DOMAIN}.
-  When not defined, the default is FALSE,
-  since it is more secure to perform this test. 
-% PKK
-% Described in default config file: YES
-% Defined in the default config file: NO
-% Default definition in config file: bogus
-% Result if not defined or RHS is empty: this entry is considered False
-
 \item[\Macro{PASSWD\_CACHE\_REFRESH}]
   \label{param:PasswdCacheRefresh}
   Condor can cause NIS servers to become overwhelmed by queries for uid
@@ -1474,6 +1449,31 @@ When Condor sends e-mail about a job, Condor sends the e-mail to
 If \MacroUNI{UID\_DOMAIN}
 is undefined, the e-mail is sent to \File{user@submitmachinename}.
 
+
+\item[\Macro{TRUST\_UID\_DOMAIN}]
+  \label{param:TrustUidDomain}
+  As an added security precaution when Condor is about to spawn a job,
+  it ensures that the \MacroNI{UID\_DOMAIN} (defined above) of a given
+  submit machine is a substring of that machine's fully-qualified
+  host name.
+  However, at some sites, there may be multiple UID spaces that do
+  not clearly correspond to Internet domain names.
+  In these cases, administrators may wish to use names to describe the
+  UID domains which are not substrings of the hostnames of the
+  machines.
+  For this to work, Condor must not do this regular security check.
+  If the \MacroNI{TRUST\_UID\_DOMAIN} setting is defined to TRUE,
+  Condor will not perform this test, and will trust whatever
+  \MacroNI{UID\_DOMAIN} is presented by the submit machine when trying
+  to spawn a job, instead of making sure the submit machine's hostname
+  matches the \MacroNI{UID\_DOMAIN}.
+  When not defined, the default is FALSE,
+  since it is more secure to perform this test. 
+% PKK
+% Described in default config file: YES
+% Defined in the default config file: NO
+% Default definition in config file: bogus
+% Result if not defined or RHS is empty: this entry is considered False
 
 \item[\Macro{SOFT\_UID\_DOMAIN}] \label{param:SoftUidDomain}
 When Condor is about to run a job as a particular user (instead of the
