@@ -38,6 +38,7 @@ int call_main();
 void startup_check_for_requests_in_process();
 void regular_check_for_requests_in_process();
 void regular_check_for_rescheduled_requests();
+void low_water_timer();
 
 int handle_stork_submit(Service *, int command, Stream *s);
 int handle_stork_remove(Service *, int command, Stream *s);
@@ -48,6 +49,7 @@ int transfer_dap_reaper(Service *,int pid,int exit_status);
 int reserve_dap_reaper(Service *,int pid,int exit_status);
 int release_dap_reaper(Service *,int pid,int exit_status);
 int requestpath_dap_reaper(Service *,int pid,int exit_status);
+int low_water_reaper(Service *,int pid,int exit_status);
 
 int write_requests_to_file(ReliSock * sock);
 int remove_requests_from_queue (ReliSock * sock);

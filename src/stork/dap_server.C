@@ -945,6 +945,57 @@ void process_request(classad::ClassAd *currentAd)
 
 }
 
+// Following declarations and two functions are SC05 hackery
+int low_water_reaper_id;
+bool low_water_action_running = false;
+
+int low_water_reaper(Service *,int pid,int exit_status) {
+	low_water_action_running = false;
+	return DAP_SUCCESS;
+}
+
+void low_water_timer() {
+		int low_water = param_integer("STORK_LOW_WATER_VALUE", 0, 0);
+
+		if (low_water_action_running) {
+			return;
+		}
+
+		if (low_water == 0) {
+			return;
+		}
+
+		int cur_jobs  = dap_queue.get_numjobs();
+		char *low_water_action = param("STORK_LOW_WATER_ACTION");
+
+		if (low_water_action == 0) {
+			dprintf(D_ALWAYS, "STORK_LOW_WATER_VALUE is set to non-zero, but there is no STORK_LOW_WATER_ACTION\n");
+			return;
+		}
+
+		if (cur_jobs < low_water) {
+			dprintf(D_ALWAYS, "Number of jobs is queue (%d) is less than low-water mark (%d)\n", cur_jobs, low_water);
+			dprintf(D_ALWAYS, "running %s\n", low_water_action);
+
+			daemonCore->Create_Process(
+				 low_water_action,				// command path
+				 "",							// args string
+				 PRIV_USER_FINAL,				// privilege state
+				 low_water_reaper_id,			// reaper id
+				 FALSE,							// do not want a command port
+				 NULL,  		              	// colon seperated environment string
+				 Log_dir,						// current working directory
+				 FALSE,							// do not create a new process group
+				 NULL,							// list of socks to inherit
+				 daemon_std						// child stdio file descriptors
+												// nice increment = 0
+												// job_opt_mask = 0
+			);
+			low_water_action_running = true;
+		}
+		free(low_water_action);
+}
+
 /* ============================================================================
  * regularly check for requests which are in the state of being processed but 
  * not completed yet

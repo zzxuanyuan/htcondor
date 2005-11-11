@@ -28,11 +28,11 @@ int HungJobMonitorInterval;
 int HungJobMonitorTid;
 int RescheduledJobMonitorInterval;
 int RescheduledJobMonitorTid;
-
+int LowWaterTid;
 
 extern int  transfer_dap_reaper_id, reserve_dap_reaper_id, release_dap_reaper_id;
 extern int  requestpath_dap_reaper_id;
-
+extern int  low_water_reaper_id;
 
 
 /* ==========================================================================
@@ -186,6 +186,13 @@ int main_init(int argc, char **argv)
 							(TimerHandler)regular_check_for_requests_in_process,
 							"check_for_requests_in_process");
 
+  LowWaterTid =
+  daemonCore->Register_Timer(
+							60,							// deltawhen
+							60,		// period
+							(TimerHandler) low_water_timer,
+							"low_water_timer");
+
   RescheduledJobMonitorInterval =
 	  param_integer(
 			  "STORK_RESCHEDULED_JOB_MONITOR",
@@ -206,6 +213,9 @@ int main_init(int argc, char **argv)
   release_dap_reaper_id = daemonCore->Register_Reaper("release_dap_reaper",(ReaperHandler)release_dap_reaper, "reaper for release DaP");
 
   requestpath_dap_reaper_id = daemonCore->Register_Reaper("requestpath_dap_reaper",(ReaperHandler)requestpath_dap_reaper, "reaper for requestpath DaP");
+
+  // SC05 Hackery
+  low_water_reaper_id = daemonCore->Register_Reaper("low_water_reaper",(ReaperHandler)low_water_reaper, "reaper for low_water");
 
   if (!initializations()) {
     DC_Exit (1);
