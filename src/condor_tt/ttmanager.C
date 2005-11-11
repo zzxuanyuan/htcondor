@@ -353,7 +353,8 @@ TTManager::event_maintain()
 					// the second ad can be null, meaning there is no where clause
 				ad1=filesqlobj->file_readAttrList();
 
-				updateBasic(ad, ad1, eventtype);
+				if (updateBasic(ad, ad1, eventtype) < 0)
+					goto DBERROR;
 				
 				delete ad;
 				if (ad1) delete ad1;
