@@ -1475,7 +1475,7 @@ int call_main()
 	int period;
   
 	// Avoid query if possible.
-	if (dap_queue.get_numjobs() < Max_num_jobs && dynamicOK(job_ad)) {
+	if (dap_queue.get_numjobs() < Max_num_jobs ) {
 
 			//setup constraints for the query
 		constraint = "other.status == \"request_received\"";
