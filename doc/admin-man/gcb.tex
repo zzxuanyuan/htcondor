@@ -765,8 +765,11 @@ Condor server daemon, and where in the network each side of the
 connection resides, the IP address of the resulting socket actually
 used will be very different.
 
-In the case of a private client attempting to connect to a server,
-there are three possibilities:
+In the case of a private client (i.e. a client behind a firewall,
+which may or may not be using NAT and a fully private, non-routable IP
+address) attempting to connect to a server, there are three
+possibilities: 
+
 \begin{itemize}
 
   \item Direct connection to another node within the private network:
@@ -777,7 +780,7 @@ there are three possibilities:
   network.
   If there's no NAT, and the firewall is just blocking connections in
   one direction but not re-writing IP addresses, the server will see
-  the client's real private IP address.
+  the client's real IP address.
 
   \item Connection to a host in a different private network that must
   be relayed through the GCB broker: the server will see the IP
@@ -878,7 +881,7 @@ Each one is described below.
 \begin{description}
 
 % i'm intentionally using \Macro, not \MacroNI for each of these,
-% since these should all show up in the index for each setting...
+% since they should show up in the index...
 
 \item[\Macro{COLLECTOR\_HOST}]
   If the \Condor{collector} for your pool is running on a private node
