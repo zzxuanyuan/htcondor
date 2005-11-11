@@ -111,7 +111,7 @@ install GCB, and then ask for help when things go wrong.
 More information about GCB and how it works can be found at the GCB
 homepage:
 
-\URL{http://www.cs.wisc.edu/~sschang/firewall/gcb}
+\URL{http://www.cs.wisc.edu/\~{}sschang/firewall/gcb}
 
 This information is very useful for understanding the technical
 details of how GCB works, the various parts of the system, and so on.
@@ -166,7 +166,7 @@ multiple GCB brokers and partition the private nodes so that different
 subsets of the nodes use different brokers.
 
 For a more thorough explanation of what a GCB broker is, check out:
-\URL{http://www.cs.wisc.edu/~sschang/firewall/gcb/mechanism.htm}
+\URL{http://www.cs.wisc.edu/\~{}sschang/firewall/gcb/mechanism.htm}
 
 The GCB broker should generally be installed on dedicated machines
 (i.e. machines that aren't running other Condor daemons or services).
@@ -203,11 +203,12 @@ However, there is nothing in GCB or Condor that requires
 the broker runs on a separate machine, that's just how we recommend
 you configure it if at all possible.
 
-The \Prog{gcb\_broker} daemon (currently) listens on a hard coded,
-fixed port (65432).
+The \Prog{gcb\_broker} daemon (currently) listens on two hard-coded,
+fixed ports (65432 and 65430).
 Future versions of Condor and GCB will remove this limitation.
 However, for now, if you're going to run a \Prog{gcb\_broker} on a
-given host, you must ensure that port 65432 is not already in use.
+given host, you must ensure that ports 65432 and 65430 are not already
+in use. 
 
 If you have root access on a machine where you would like to run a GCB
 broker, one good option is to have your \Prog{initd} configured to
@@ -771,13 +772,18 @@ there are three possibilities:
   \item Direct connection to another node within the private network:
   the server will see the private IP address of the client.
 
-  \item Direct outbound connection to a public node: the server will
-  see either the private IP address, or the IP of the NAT server for
-  the private network (if NAT is being used).
+  \item Direct outbound connection to a public node: if NAT is being
+  used, the server will see the IP of the NAT server for the private
+  network.
+  If there's no NAT, and the firewall is just blocking connections in
+  one direction but not re-writing IP addresses, the server will see
+  the client's real private IP address.
 
   \item Connection to a host in a different private network that must
-  be relayed through the GCB broker: the server will see the public IP
-  address of the broker representing the client.
+  be relayed through the GCB broker: the server will see the IP
+  address of the broker representing the server.
+  This is just another instance of the private server case which is
+  described below in more detail.
 
 \end{itemize}
 
@@ -808,9 +814,17 @@ server, there are only two possible cases:
   the private server will see the real public IP of the client.
 
   \item GCB broker must forward packets from a proxy socket (because
-  of a non-GCB aware public client, or a misconfigured or missing GCB
-  routing table): the private server will see the public IP address
-  its own GCB broker.
+  of a non-GCB aware public client, a misconfigured or missing GCB
+  routing table, or a client in a different private network): the
+  private server will see the IP address of its own GCB broker.
+  In the case where the GCB broker is running directly on the network
+  boundry, the private server will see the broker's private IP
+  address (even if the broker is also listening on the public
+  interface and the leased addresses it provides use the public IP). 
+  If the broker is running entirely in the public network and cannot
+  directly connect to the private nodes, the private server will see
+  the remote connection as coming from the broker's public IP
+  address.
 
 \end{itemize}
 
