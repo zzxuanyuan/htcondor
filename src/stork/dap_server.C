@@ -65,6 +65,7 @@ extern int RescheduledJobMonitorInterval;
 extern int RescheduledJobMonitorTid;
 
 extern int wrapper_main(int,char**);
+static bool want_fast_guc = false;
 
 /* ==========================================================================
  * Open daemon core file pointers.
@@ -143,6 +144,10 @@ int read_config_file()
 			0							// minimum value
 		);
 	dprintf(D_ALWAYS, "STORK_MAX_NUM_JOBS = %ld\n", Max_num_jobs);  
+
+	// get value for global want_fast_guc
+	want_fast_guc =  param_boolean("STORK_FAST_GUC",false);
+	dprintf(D_ALWAYS,"STORK_FAST_GUC = %s\n",want_fast_guc ? "True" : "False" );
 
 	//get value for Max_retry
 	Max_retry =
@@ -432,27 +437,29 @@ dprintf(D_ALWAYS, "DEBUG: dest_file: '%s'\n", dest_file);
 
 	char *env_string = myEnv.getDelimitedString();	// return string from "new"
 
-	// Create child process via daemoncore
-	MyString src_url_value, dest_url_value;
-	src_url_value.sprintf("\"%s\"", src_url);
-	dest_url_value.sprintf("\"%s\"", dest_url.c_str() );
-	write_xml_user_log(userlogfilename, "MyType", "\"GenericEvent\"", 
-					   "EventTypeNumber", "8", 
-					   "Cluster", dap_id,
-					   "Proc", "-1",
-					   "Subproc", "-1",
-					   "Type", "transfer",
-					   "SrcUrl", (char *)src_url_value.Value(),
-					   "DestUrl", (char *)dest_url_value.Value(),
-					   "Arguments", arguments,
-					   "CredFile", cred_file_name);
+	if ( !want_fast_guc ) {
+		MyString src_url_value, dest_url_value;
+		src_url_value.sprintf("\"%s\"", src_url);
+		dest_url_value.sprintf("\"%s\"", dest_url.c_str() );
+		write_xml_user_log(userlogfilename, "MyType", "\"GenericEvent\"", 
+						   "EventTypeNumber", "8", 
+						   "Cluster", dap_id,
+						   "Proc", "-1",
+						   "Subproc", "-1",
+						   "Type", "transfer",
+						   "SrcUrl", (char *)src_url_value.Value(),
+						   "DestUrl", (char *)dest_url_value.Value(),
+						   "Arguments", arguments,
+						   "CredFile", cred_file_name);
+	}
 
+	// Create child process via daemoncore
 	int job_opt_mask = 0;
 	MainStartFunc main_func = NULL;
 	if ( param_boolean("STORK_START_SUSPENDED",false) ) {
 		job_opt_mask = DCJOBOPT_SUSPEND_ON_EXEC;
 	}
-	if ( param_boolean("STORK_FAST_GUC",false) ) {
+	if ( want_fast_guc ) {
 		main_func = wrapper_main;
 	}
 
@@ -668,16 +675,17 @@ void process_request(classad::ClassAd *currentAd)
 		//log the new status of the request
 	write_collection_log(dapcollection, dap_id, 
 						 "status = \"processing_request\"");
-  
-	char lognotes[MAXSTR];
-	getValue(currentAd, "LogNotes", lognotes);
-  
-	write_xml_user_log(userlogfilename, "MyType", "\"ExecuteEvent\"", 
-					   "EventTypeNumber", "1", 
-					   "Cluster", dap_id,
-					   "Proc", "-1",
-					   "Subproc", "-1",
-					   "LogNotes", lognotes);
+ 
+ 	if (!want_fast_guc) {
+		char lognotes[MAXSTR];
+		getValue(currentAd, "LogNotes", lognotes);
+		write_xml_user_log(userlogfilename, "MyType", "\"ExecuteEvent\"", 
+						   "EventTypeNumber", "1", 
+						   "Cluster", dap_id,
+						   "Proc", "-1",
+						   "Subproc", "-1",
+						   "LogNotes", lognotes);
+	}
 
   
 		//write_xml_log(xmllogfilename, currentAd, "\"processing_request\"");
