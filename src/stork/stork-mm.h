@@ -112,7 +112,11 @@ class StorkMatchMaker
 		// failed.  Matchmaker returns false upon error.
 		bool failTransferDestination(const char * url);
 
+		// Returns false if no matches are avail, else true
+		bool areMatchesAvailable();
+
 	protected:
+		bool getMatchesFromMatchmaker();
 		StorkMatchEntry * getTransferDestination(const char *protocol);
 		bool destroyFromBusy(StorkMatchEntry * match);
 		bool destroyFromIdle(StorkMatchEntry * match);

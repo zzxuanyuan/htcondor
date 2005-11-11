@@ -217,10 +217,24 @@ StorkMatchMaker::
 }
 
 
-// Get a dynamic transfer destination from the matchmaker by protocol.
-StorkMatchEntry *
+bool
 StorkMatchMaker::
-getTransferDestination(const char *protocol)
+areMatchesAvailable()
+{
+	getMatchesFromMatchmaker();
+
+	if ( idleMatches.Count() == 0 )  {
+		return false;
+	} else {
+		return true;
+	}
+}
+
+
+// Grab matches from the matchmaker
+bool
+StorkMatchMaker::
+getMatchesFromMatchmaker()
 {
 	StorkMatchEntry* match;
 
@@ -297,7 +311,7 @@ getTransferDestination(const char *protocol)
 
 		if ( !result ) {
 			dprintf(D_ALWAYS,"ERROR getmatches() failed, num=%d\n", num);
-			return NULL;
+			return false;
 		}
 
 			// For all matches we get back, add to our idle set
@@ -315,6 +329,20 @@ getTransferDestination(const char *protocol)
 			"MM: Requested %d matches from matchmaker, got %d back\n",
 			num, count);
 	}
+
+	return true;
+}
+
+
+
+// Get a dynamic transfer destination from the matchmaker by protocol.
+StorkMatchEntry *
+StorkMatchMaker::
+getTransferDestination(const char *protocol)
+{
+	StorkMatchEntry* match;
+
+	getMatchesFromMatchmaker();
 
 		// Now if we have any idle matches, just give the first one.
 	idleMatches.StartIterations();
