@@ -94,11 +94,11 @@ int main(int argc, char **argv)
   char *lognotes = NULL;
   int read_from_stdin = 0;
   struct stork_global_opts global_opts;
-  bool job_reads_x509_file_directly = false;
+  bool spool_proxy = true;
 
   config();	// read config file
 
-  job_reads_x509_file_directly = param_boolean("STORK_JOB_READS_X509_FILE_DIRECTLY",false);
+  spool_proxy = param_boolean("STORK_SPOOL_PROXY",true);
 
   // Parse out stork global options.
   stork_parse_global_opts(argc, argv, USAGE, &global_opts, true);
@@ -217,6 +217,11 @@ int main(int argc, char **argv)
       return 1;
     }
 
+	bool this_job_spool_proxy = spool_proxy;
+	if( !currentAd->EvaluateAttrBool("spool_proxy",this_job_spool_proxy) ) {
+		this_job_spool_proxy = spool_proxy;
+	}
+
     std::string proxy_file_name;
     char * proxy = NULL;
     int proxy_size = 0;
@@ -234,7 +239,7 @@ int main(int argc, char **argv)
             }
         }
 
-		if( !job_reads_x509_file_directly ) {
+		if( this_job_spool_proxy ) {
 
 			struct stat stat_buff;
 			if (stat (proxy_file_name.c_str(), &stat_buff) == 0) {
