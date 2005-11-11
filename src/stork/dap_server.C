@@ -1208,6 +1208,8 @@ void regular_check_for_rescheduled_requests()
 			else{
 				if (dap_queue.get_numjobs() < Max_num_jobs)
 					process_request(job_ad);
+				else
+					break;
 			}
 		}while (query.Next(key));
 	}
@@ -1471,6 +1473,8 @@ int call_main()
 				else{
 					if (dap_queue.get_numjobs() < Max_num_jobs)
 						process_request(job_ad);
+					else
+						break;
 				}
 			}while (query.Next(key));
 		}
