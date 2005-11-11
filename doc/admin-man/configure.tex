@@ -371,6 +371,12 @@ Condor-wide Configuration File Entries}
 
 This section describes settings which affect all parts of the Condor
 system. 
+Other system-wide settings can be found in
+section~\ref{sec:Network-Related-Config-File-Entries} on
+``Network-Related Configuration File Entries'', and
+section~\ref{sec:Shared-Filesystem-Config-File-Entries} on ``Shared
+File System Configuration File Entries''. 
+
 \begin{description}
   
 \item[\Macro{CONDOR\_HOST}] \label{param:CondorHost} This macro may be
@@ -706,40 +712,6 @@ system.
 % Default definition in config file: bogus value
 % Result if not defined or RHS is empty: autodiscovered domain, if any, is used.
 
-\item[\Macro{BIND\_ALL\_INTERFACES}] \label{param:BindAllInterfaces}
-  For systems with multiple network interfaces, if this configuration
-  setting is not defined, Condor binds all network sockets to first
-  interface found, or the IP address specified with
-  \MacroNI{NETWORK\_INTERFACE} (described below).
-  Starting with version 6.7.13, \MacroNI{BIND\_ALL\_INTERFACES} can be
-  set to \verb@TRUE@ to cause Condor to bind to all interfaces on the
-  machine.
-  However, currently Condor is still only able to advertise a single
-  IP address, even if it is listening on multiple interfaces.
-  More information about using this setting can be found in
-  section~\ref{sec:Using-BindAllInterfaces} on
-  page~\pageref{sec:Using-BindAllInterfaces}. 
-
-\item[\Macro{NETWORK\_INTERFACE}] \label{param:NetworkInterface}
-  For systems with multiple network interfaces, if this configuration
-  setting is not defined, Condor binds all network sockets to first
-  interface found.
-  To bind to a specific network interface other than the
-  first one, this \MacroNI{NETWORK\_INTERFACE} should be set to 
-  the IP address to use.
-  When \MacroNI{BIND\_ALL\_INTERFACES} is set to \verb@TRUE@, this
-  setting simply controls what IP address a given Condor host will
-  advertise.
-  More information about configuring Condor on machines with multiple
-  network interfaces can be found in
-  section~\ref{sec:Multiple-Interfaces} on
-  page~\pageref{sec:Multiple-Interfaces}.
-% PKK
-% Described in default config file: NO
-% Defined in the default config file: NO
-% Default definition in config file: N/A
-% Result if not defined or RHS is empty: Condor binds to first interface found
-
 \item[\Macro{CM\_IP\_ADDR}] \label{param:CMIPAddr}
   If neither \MacroNI{COLLECTOR\_HOST} nor 
   \MacroNI{COLLECTOR\_IP\_ADDR} macros are defined, then this
@@ -751,36 +723,6 @@ system.
 % Defined in the default config file: NO
 % Default definition in config file: N/A
 % Result if not defined or RHS is empty: Condor performs above algorithm
-
-\item[\Macro{HIGHPORT}] \label{param:HighPort}
-  Specifies an upper limit of given port numbers for Condor to use,
-  such that Condor is restricted to a range of port numbers.
-  If this macro is not explicitly specified, then Condor will
-  not restrict the port numbers that it uses. Condor will use
-  system-assigned port numbers.
-  For this macro to work, both \MacroNI{HIGHPORT} and
-  \MacroNI{LOWPORT} (given below) must be defined.
-% PKK
-% Described in default config file: YES
-% Defined in the default config file: NO
-% Default definition in config file: bogus
-% Result if not defined or RHS is empty: Condor uses any ports available,
-% regardless of the LOWPORT setting
-
-\item[\Macro{LOWPORT}] \label{param:LowPort}
-  Specifies a lower limit of given port numbers for Condor to use,
-  such that Condor is restricted to a range of port numbers.
-  If this macro is not explicitly specified, then Condor will
-  not restrict the port numbers that it uses. Condor will use
-  system-assigned port numbers.
-  For this macro to work, both \MacroNI{HIGHPORT} (given above) and
-  \MacroNI{LOWPORT} must be defined.
-% PKK
-% Described in default config file: YES
-% Defined in the default config file: NO
-% Default definition in config file: bogus
-% Result if not defined or RHS is empty: Condor uses any ports available,
-% regardless of the HIGHPORT setting
 
 \item[\Macro{EMAIL\_DOMAIN}] \label{param:EmailDomain}
   By default, if a user does not specify \AdAttr{notify\_user} in the
@@ -851,48 +793,6 @@ system.
 % Defined in the default config file: NO
 % Default definition in config file: N/A
 % Result if not defined or RHS is empty: defaults to 20 seconds.
-
-\item[\Macro{UPDATE\_COLLECTOR\_WITH\_TCP}]
-  \label{param:UpdateCollectorWithTcp}
-  If your site needs to use TCP connections to send ClassAd updates to
-  your collector (which it almost certainly does NOT), set to TRUE
-  to enable this feature.
-  Please read section~\ref{sec:tcp-collector-update} on ``Using TCP to
-  Send Collector Updates'' on page~\pageref{sec:tcp-collector-update}
-  for more details and a discussion of when this
-  functionality is needed. 
-  At this time, this setting only affects the main \Condor{collector}
-  for the site, not any sites that a \Condor{schedd} might flock to. 
-  If enabled, also define
-  \Macro{COLLECTOR\_SOCKET\_CACHE\_SIZE}] at the central manager, so
-  that the collector will accept TCP connections for updates, and will
-  keep them open for reuse.
-  Defaults to FALSE.
-% PKK
-% Described in default config file: YES
-% Defined in the default config file: NO
-% Default definition in config file: bogus
-% Result if not defined or RHS is empty: disable the feature of TCP updates to
-% collectors
-% WARNING: The code also looks for UPDATE_COLLECTORS_WITH_TCP, which
-% means the SAME THING as UPDATE_COLLECTOR_WITH_TCP
-
-\item[\Macro{TCP\_UPDATE\_COLLECTORS}]
-  \label{param:TcpUpdateCollectors}
-  The list of collectors which will be updated with TCP instead of UDP.
-  Please read section~\ref{sec:tcp-collector-update} on ``Using TCP to
-  Send Collector Updates'' on page~\pageref{sec:tcp-collector-update}
-  for more details and a discussion of when a site needs this
-  functionality. 
-  If not defined, no collectors use TCP instead of UDP.
-% PKK
-% Described in default config file: NO
-% Defined in the default config file: NO
-% Default definition in config file: N/A
-% Result if not defined or RHS is empty: no collectors are updated with TCP
-% WARNING: Look in Version 6.5.2 version history for more information about
-% this particular entry.
-
 \item[\Macro{PASSWD\_CACHE\_REFRESH}]
   \label{param:PasswdCacheRefresh}
   Condor can cause NIS servers to become overwhelmed by queries for uid
@@ -1366,6 +1266,124 @@ server, shadow, and starter, none of which use DaemonCore yet).
         MY_STRING = "$(STRING)"
         STARTD_ATTRS = MY_STRING, NUMBER, BOOL1, BOOL2
 \end{verbatim}
+
+\end{description}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{\label{sec:Network-Related-Config-File-Entries}Network-Related
+Configuration File Entries}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\index{configuration!network-related configuration variables}
+
+More information about networking in Condor can be found in
+section~\ref{sec:Networking} on page~\pageref{sec:Networking}.
+
+\begin{description}
+
+\item[\Macro{BIND\_ALL\_INTERFACES}] \label{param:BindAllInterfaces}
+  For systems with multiple network interfaces, if this configuration
+  setting is not defined, Condor binds all network sockets to first
+  interface found, or the IP address specified with
+  \MacroNI{NETWORK\_INTERFACE} (described below).
+  Starting with version 6.7.13, \MacroNI{BIND\_ALL\_INTERFACES} can be
+  set to \verb@TRUE@ to cause Condor to bind to all interfaces on the
+  machine.
+  However, currently Condor is still only able to advertise a single
+  IP address, even if it is listening on multiple interfaces.
+  More information about using this setting can be found in
+  section~\ref{sec:Using-BindAllInterfaces} on
+  page~\pageref{sec:Using-BindAllInterfaces}. 
+
+\item[\Macro{NETWORK\_INTERFACE}] \label{param:NetworkInterface}
+  For systems with multiple network interfaces, if this configuration
+  setting is not defined, Condor binds all network sockets to first
+  interface found.
+  To bind to a specific network interface other than the
+  first one, this \MacroNI{NETWORK\_INTERFACE} should be set to 
+  the IP address to use.
+  When \MacroNI{BIND\_ALL\_INTERFACES} is set to \verb@TRUE@, this
+  setting simply controls what IP address a given Condor host will
+  advertise.
+  More information about configuring Condor on machines with multiple
+  network interfaces can be found in
+  section~\ref{sec:Multiple-Interfaces} on
+  page~\pageref{sec:Multiple-Interfaces}.
+% PKK
+% Described in default config file: NO
+% Defined in the default config file: NO
+% Default definition in config file: N/A
+% Result if not defined or RHS is empty: Condor binds to first interface found
+
+\item[\Macro{HIGHPORT}] \label{param:HighPort}
+  Specifies an upper limit of given port numbers for Condor to use,
+  such that Condor is restricted to a range of port numbers.
+  If this macro is not explicitly specified, then Condor will
+  not restrict the port numbers that it uses. Condor will use
+  system-assigned port numbers.
+  For this macro to work, both \MacroNI{HIGHPORT} and
+  \MacroNI{LOWPORT} (given below) must be defined.
+% PKK
+% Described in default config file: YES
+% Defined in the default config file: NO
+% Default definition in config file: bogus
+% Result if not defined or RHS is empty: Condor uses any ports available,
+% regardless of the LOWPORT setting
+
+\item[\Macro{LOWPORT}] \label{param:LowPort}
+  Specifies a lower limit of given port numbers for Condor to use,
+  such that Condor is restricted to a range of port numbers.
+  If this macro is not explicitly specified, then Condor will
+  not restrict the port numbers that it uses. Condor will use
+  system-assigned port numbers.
+  For this macro to work, both \MacroNI{HIGHPORT} (given above) and
+  \MacroNI{LOWPORT} must be defined.
+% PKK
+% Described in default config file: YES
+% Defined in the default config file: NO
+% Default definition in config file: bogus
+% Result if not defined or RHS is empty: Condor uses any ports available,
+% regardless of the HIGHPORT setting
+
+\item[\Macro{UPDATE\_COLLECTOR\_WITH\_TCP}]
+  \label{param:UpdateCollectorWithTcp}
+  If your site needs to use TCP connections to send ClassAd updates to
+  your collector (which it almost certainly does NOT), set to TRUE
+  to enable this feature.
+  Please read section~\ref{sec:tcp-collector-update} on ``Using TCP to
+  Send Collector Updates'' on page~\pageref{sec:tcp-collector-update}
+  for more details and a discussion of when this
+  functionality is needed. 
+  At this time, this setting only affects the main \Condor{collector}
+  for the site, not any sites that a \Condor{schedd} might flock to. 
+  If enabled, also define
+  \Macro{COLLECTOR\_SOCKET\_CACHE\_SIZE} at the central manager, so
+  that the collector will accept TCP connections for updates, and will
+  keep them open for reuse.
+  Defaults to FALSE.
+% PKK
+% Described in default config file: YES
+% Defined in the default config file: NO
+% Default definition in config file: bogus
+% Result if not defined or RHS is empty: disable the feature of TCP updates to
+% collectors
+% WARNING: The code also looks for UPDATE_COLLECTORS_WITH_TCP, which
+% means the SAME THING as UPDATE_COLLECTOR_WITH_TCP
+
+\item[\Macro{TCP\_UPDATE\_COLLECTORS}]
+  \label{param:TcpUpdateCollectors}
+  The list of collectors which will be updated with TCP instead of UDP.
+  Please read section~\ref{sec:tcp-collector-update} on ``Using TCP to
+  Send Collector Updates'' on page~\pageref{sec:tcp-collector-update}
+  for more details and a discussion of when a site needs this
+  functionality. 
+  If not defined, no collectors use TCP instead of UDP.
+% PKK
+% Described in default config file: NO
+% Defined in the default config file: NO
+% Default definition in config file: N/A
+% Result if not defined or RHS is empty: no collectors are updated with TCP
+% WARNING: Look in Version 6.5.2 version history for more information about
+% this particular entry.
 
 \end{description}
 
