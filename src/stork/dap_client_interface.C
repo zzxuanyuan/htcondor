@@ -182,13 +182,33 @@ start_stork_command_and_authenticate (
 
 int 
 stork_submit (
-		Sock *sock,
+			Sock * sock,
 			const classad::ClassAd * request,
 			const char * host, 
 			const char * cred, 
 			const int cred_size, 
 		    char *& id,
 			char * & _error_reason) {
+
+	bool cleanup_sock = false;
+
+	// If passed in an existing steam, then use it.  Otherwise create a new
+	// stream, and remember to clean it up before returning.
+	if (sock == NULL) {
+		// Get a connection
+		MyString error_reason;
+		Sock * sock = 
+			start_stork_command_and_authenticate (
+												  host, 
+												  STORK_SUBMIT,
+												  error_reason);
+
+		if (!sock) {
+			_error_reason = strdup (error_reason.Value());
+			return FALSE;
+		}
+		cleanup_sock = true;
+	}
 
 
 	char line[MAX_TCP_BUF];
@@ -202,7 +222,7 @@ stork_submit (
 	char *_request = strdup(adbuffer.c_str());	// to un-const
 	if (!sock->code (_request)) {
 		_error_reason = strdup("Client send error");
-		delete sock;
+		if (cleanup_sock) delete sock;
 		return FALSE;
 	}
 	free (_request);
@@ -221,7 +241,7 @@ stork_submit (
 	char * pline = (char*)line;
 	if (!sock->code (pline)) {
 		_error_reason = strdup("Client recv error");
-		delete sock;
+		if (cleanup_sock) delete sock;
 		return FALSE;
 	}
 	
@@ -230,6 +250,11 @@ stork_submit (
 	_error_reason = NULL;
 	id=strdup(line);
 
+	if (cleanup_sock) {
+		sock->close();
+		delete sock;
+	}
+	
 	return TRUE;
 }
 
