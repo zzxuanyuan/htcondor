@@ -22,6 +22,8 @@ submit_file\t\t\tstork submit file\n\
 \t-lognotes \"notes\"\tadd lognote to submit file before processing\n\
 \t-stdin\t\t\tread submission from stdin instead of a file"
 
+struct stork_global_opts global_opts;
+
 int check_dap_format(classad::ClassAd *currentAd)
 {
   char dap_type[MAXSTR];
@@ -79,129 +81,70 @@ void IllegalOption(char *argv0,char *arg)
   exit(1);
 }
 
-/* ============================================================================
- * main body of dap_submit
- * ==========================================================================*/
-int main(int argc, char **argv)
+// Read a file into a null-terminated character string.  Return the address of
+// the dyanmically allocated string.  Return NULL upon error.  It is the
+// caller's responsibility to free() a dynamically allocated string.
+const char
+*readFile(const char *filename)
 {
-  int i; char c;
-  std::string adstr="";
-  classad::ClassAdParser parser;
-  classad::ClassAd *currentAd = NULL;
-  int leftparan = 0;
-  FILE *adfile;
-  char fname[_POSIX_PATH_MAX];
-  char *lognotes = NULL;
-  int read_from_stdin = 0;
-  struct stork_global_opts global_opts;
-  bool spool_proxy = true;
-
-  config();	// read config file
-
-  spool_proxy = param_boolean("STORK_SPOOL_PROXY",true);
-
-  // Parse out stork global options.
-  stork_parse_global_opts(argc, argv, USAGE, &global_opts, true);
-
-  for(i=1;i<argc;i++) {
-    char *arg = argv[i];
-    if(arg[0] != '-') {
-      break; //this must be a positional argument
+    char *buf = NULL;
+    bool success = false;
+    int fd = -1;
+    struct stat stat_info;
+    ssize_t bytes_read;
+    size_t size;
+    if ( stat(filename, &stat_info) < 0) {
+        fprintf(stderr, "stat %s: %s\n", filename, strerror(errno) );
+        goto ERROR;
     }
-#define OPT_LOGNOTES	"-l"	// -lognotes
-    else if(!strncmp(arg,OPT_LOGNOTES,strlen(OPT_LOGNOTES) ) ) {
-      if(i+1 >= argc) MissingArgument(argv[0],arg);
-      lognotes = argv[++i];
+
+    size = stat_info.st_size;
+    buf = (char *)malloc(size + 1);
+    assert(buf);
+    buf[size] = '\0';   // null terminated string
+    fd = open(filename, O_RDONLY|O_CREAT, 0);
+    if (fd < 0) {
+        fprintf(stderr, "open %s: %s\n", filename, strerror(errno));
+        goto ERROR;
     }
-#define OPT_STDIN	"-s"	// -stdin
-    else if(!strncmp(arg,OPT_STDIN,strlen(OPT_STDIN) ) ) {
-      read_from_stdin = 1;
+    bytes_read = full_read(fd, buf, size);
+
+    if (bytes_read != (ssize_t)size) {
+        fprintf(stderr, "file %s short read: %d out of %d: %s\n",
+                filename, bytes_read, size, strerror(errno));
+        goto ERROR;
     }
-    else if(!strcmp(arg,"--")) {
-      //This causes the following arguments to be positional, even if they
-      //begin with "--".  This is the standard getopt convention, even
-      //though we are using non-standard long-argument notation for
-      //consistency with other Condor tools.
-      i++;
-      break;
+
+    success = true;
+
+ERROR:
+    if (fd >= 0) close(fd);
+    if (! success) {
+        if (buf) free(buf);
+        return NULL;
     }
-    else {
-      IllegalOption(argv[0],arg);
-    }
-  }
+    return (const char *)buf;
+}
 
 
-	int num_positional_args = argc - i;
-	switch (num_positional_args) {
-		case 0:
-			if(! read_from_stdin) {
-			  stork_print_usage(stderr, argv[0], USAGE, true);
-			  exit(1);
-			}
-		case 1:
-			if(read_from_stdin) {
-				strcpy(fname, "stdin");
-				global_opts.server = argv[i];
-			} else {
-				strcpy(fname, argv[i]);
-			}
-		  break;
-	  case 2:
-			global_opts.server = argv[i++];
-			strcpy(fname, argv[i]);
-		  break;
-	  default:
-		  stork_print_usage(stderr, argv[0], USAGE, true);
-		  exit(1);
-  }
-
-  //open the submit file
-  if(read_from_stdin) adfile = stdin;
-  else {
-    adfile = fopen(fname,"r");
-    if (adfile == NULL) {
-      fprintf(stderr, "Cannot open submit file %s: %s\n",fname, strerror(errno) );
-      exit(1);
-    }
-  }
-  
-
-  int nrequests = 0;
-
-
-    i =0;
-    while (1){
-      c = fgetc(adfile);
-      if (c == ']'){ 
-	leftparan --; 
-	if (leftparan == 0) break;
-      }
-      if (c == '[') leftparan ++; 
-      
-      if (c == EOF) {
-	fprintf (stderr, "Invalid Stork submit file %s\n", fname);
-	return 1;
-      }
-      
-      adstr += c;
-      i++;
-    }
-    adstr += c;
-
-    nrequests ++;
-    if (nrequests > 1) {
-      fprintf (stderr, "Multiple requests currently not supported!\n");
-      return 1;
-    } 
+int
+submit_ad(
+	Sock * sock,
+	classad::ClassAd *currentAd,
+  char *lognotes,
+  bool spool_proxy
+)
+{
 
     //check the validity of the request
-    currentAd = parser.ParseClassAd(adstr);
     if (currentAd == NULL) {
       fprintf(stderr, "Invalid input format! Not a valid classad!\n");
       return 1;
     }
 
     //add lognotes to the submit classad 
+	// FIXME the lognotes apply to every job, not just a single job.  This will
+	// break DAGMan.
     if (lognotes){
         if (! currentAd->InsertAttr("LogNotes", lognotes) ) {
             fprintf(stderr, "error inserting lognotes '%s' into job ad\n",
@@ -280,6 +223,7 @@ int main(int argc, char **argv)
 					fprintf(stderr, "ERROR: Unable to read proxy %s: %s\n",
 							proxy_file_name.c_str(),
 							strerror(errno) );
+					if (proxy) free(proxy);
 					return 1;
 				}
 				fclose (fp);
@@ -287,6 +231,7 @@ int main(int argc, char **argv)
 				fprintf(stderr, "ERROR: Unable to open proxy %s: %s\n",
 						proxy_file_name.c_str(),
 						strerror(errno) );
+				if (proxy) free(proxy);
 				return 1;
 			}
 		}
@@ -301,36 +246,179 @@ int main(int argc, char **argv)
     fprintf(stdout, "%s\n", adbuffer.c_str());
 
 
+	char *submit_error_reason = NULL;
 	char * job_id = NULL;
-	char * error_reason = NULL;
-	int rc = stork_submit (currentAd,
+	int rc = stork_submit (sock,
+						currentAd,
 						 global_opts.server,
 						 proxy, 
 						 proxy_size, 
 						 job_id,
-						 error_reason);
+						 submit_error_reason);
     fprintf(stdout, "================\n");
 
 	if (rc) {
 		 fprintf (stdout, "\nRequest assigned id: %s\n", job_id);	
 	} else {
-		fprintf (stderr, "\nERROR submitting request (%s)!\n", error_reason);
+		fprintf (stderr, "\nERROR submitting request (%s)!\n",
+				submit_error_reason);
 	}
-
-
 	if (proxy) free(proxy);
-	adbuffer = "";
 
-	return (rc)?0:1;
+	return 0;
 }
 
+/* ============================================================================
+ * main body of dap_submit
+ * ==========================================================================*/
+int main(int argc, char **argv)
+{
+  int i;
+  std::string adstr="";
+  classad::ClassAdParser parser;
+#if 0
+  classad::ClassAd *currentAd = NULL;
+  int leftparan = 0;
+  FILE *adfile;
+#endif
+  char fname[_POSIX_PATH_MAX];
+  char *lognotes = NULL;
+  int read_from_stdin = 0;
+
+  config();	// read config file
+
+  bool spool_proxy = param_boolean("STORK_SPOOL_PROXY",true);
+
+  // Parse out stork global options.
+  stork_parse_global_opts(argc, argv, USAGE, &global_opts, true);
+
+  for(i=1;i<argc;i++) {
+    char *arg = argv[i];
+    if(arg[0] != '-') {
+      break; //this must be a positional argument
+    }
+#define OPT_LOGNOTES	"-l"	// -lognotes
+    else if(!strncmp(arg,OPT_LOGNOTES,strlen(OPT_LOGNOTES) ) ) {
+      if(i+1 >= argc) MissingArgument(argv[0],arg);
+      lognotes = argv[++i];
+    }
+#define OPT_STDIN	"-s"	// -stdin
+    else if(!strncmp(arg,OPT_STDIN,strlen(OPT_STDIN) ) ) {
+      read_from_stdin = 1;
+    }
+    else if(!strcmp(arg,"--")) {
+      //This causes the following arguments to be positional, even if they
+      //begin with "--".  This is the standard getopt convention, even
+      //though we are using non-standard long-argument notation for
+      //consistency with other Condor tools.
+      i++;
+      break;
+    }
+    else {
+      IllegalOption(argv[0],arg);
+    }
+  }
 
 
+	int num_positional_args = argc - i;
+	switch (num_positional_args) {
+		case 0:
+			if(! read_from_stdin) {
+			  stork_print_usage(stderr, argv[0], USAGE, true);
+			  exit(1);
+			}
+		case 1:
+			if(read_from_stdin) {
+				fprintf(stderr, "stdin not support in this version\n");
+					return 1;	// FIXME
+				strcpy(fname, "stdin");
+				global_opts.server = argv[i];
+			} else {
+				strcpy(fname, argv[i]);
+			}
+		  break;
+	  case 2:
+			global_opts.server = argv[i++];
+			strcpy(fname, argv[i]);
+		  break;
+	  default:
+		  stork_print_usage(stderr, argv[0], USAGE, true);
+		  exit(1);
+  }
+
+#if 0
+  //open the submit file
+  if(read_from_stdin) adfile = stdin;
+  else {
+    adfile = fopen(fname,"r");
+    if (adfile == NULL) {
+      fprintf(stderr, "Cannot open submit file %s: %s\n",fname, strerror(errno) );
+      exit(1);
+    }
+  }
+  
+
+  int nrequests = 0;
 
 
+    i =0;
+    while (1){
+      c = fgetc(adfile);
+      if (c == ']'){ 
+	leftparan --; 
+	if (leftparan == 0) break;
+      }
+      if (c == '[') leftparan ++; 
+      
+      if (c == EOF) {
+	fprintf (stderr, "Invalid Stork submit file %s\n", fname);
+	return 1;
+      }
+      
+      adstr += c;
+      i++;
+    }
+    adstr += c;
 
+    nrequests ++;
+    if (nrequests > 1) {
+      fprintf (stderr, "Multiple requests currently not supported!\n");
+      return 1;
+    } 
+#endif
 
+	const char *adBuf = readFile(fname);
+	if (! adBuf) return 1;
 
+	MyString sock_error_reason;
 
+	Sock * sock = 
+		start_stork_command_and_authenticate (
+											global_opts.server,
+											  STORK_SUBMIT,
+											  sock_error_reason);
 
+	const char *host = global_opts.server ? global_opts.server : "unknown";
+	if (!sock) {
+		fprintf(stderr, "ERROR: connect to server %s: %s\n",
+				host, sock_error_reason.Value() );
+		return 1;
+	}
+
+	// read all classads out of the input file
+	int offset = 0;
+	classad::ClassAd ad;
+    while (parser.ParseClassAd(adBuf, ad, offset) ) {
+        if (! submit_ad(sock, &ad, lognotes, spool_proxy) ) {
+			break;
+		}
+    }
+	sock->encode();
+	sock->put("");
+	sock->eom();
+	sock->close();
+	delete sock;
+
+	return 0;
+}
 

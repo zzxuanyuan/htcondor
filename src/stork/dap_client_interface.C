@@ -182,25 +182,13 @@ start_stork_command_and_authenticate (
 
 int 
 stork_submit (
+		Sock *sock,
 			const classad::ClassAd * request,
 			const char * host, 
 			const char * cred, 
 			const int cred_size, 
 		    char *& id,
 			char * & _error_reason) {
-
-		// Get a connection
-	MyString error_reason;
-	Sock * sock = 
-		start_stork_command_and_authenticate (
-											  host, 
-											  STORK_SUBMIT,
-											  error_reason);
-
-	if (!sock) {
-		_error_reason = strdup (error_reason.Value());
-		return FALSE;
-	}
 
 
 	char line[MAX_TCP_BUF];
@@ -242,9 +230,6 @@ stork_submit (
 	_error_reason = NULL;
 	id=strdup(line);
 
-	sock->close();
-	delete sock;
-	
 	return TRUE;
 }
 
