@@ -1387,6 +1387,41 @@ section~\ref{sec:Networking} on page~\pageref{sec:Networking}.
 
 \end{description}
 
+The following settings are specific to enabling Generic Connection
+Brokering or GCB in your Condor pool.
+More information about GCB and how to configure it can be found in
+section~\ref{sec:GCB} on page~\pageref{sec:GCB}.
+
+\begin{description}
+
+\item[\Macro{NET\_REMAP\_ENABLE}] 
+  If defined to \verb@TRUE@, this setting will enable a network
+  remapping service for Condor.
+  The service to use is controlled by \MacroNI{NET\_REMAP\_SERVICE},
+  described below.
+  This boolean value defaults to \verb@FALSE@.
+
+\item[\Macro{NET\_REMAP\_SERVICE}] If \MacroNI{NET\_REMAP\_ENABLE} is
+  defined to \verb@TRUE@, this setting controls what network remapping
+  service should be used.
+  Currently, the only value supported is \verb@GCB@.
+  The default is undefined.
+
+\item[\Macro{NET\_REMAP\_INAGENT}]
+  Hosts with the GCB network remapping service enabled that require a
+  GCB broker (see the section on GCB referenced above for more
+  details) specify the IP address of their broker with this setting.
+  The default is undefined.
+
+\item[\Macro{NET\_REMAP\_ROUTE}]
+  Hosts with the GCB network remapping service enabled that would like
+  to use a GCB routing table 
+  GCB broker (again, see the section on GCB for more details) specify
+  The full path to their routing table with this setting.
+  The default is undefined.
+
+\end{description}
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{\label{sec:Shared-Filesystem-Config-File-Entries}
 Shared File System Configuration File Macros}
