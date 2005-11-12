@@ -85,7 +85,7 @@ void open_daemon_core_file_pointers()
 
 	// Standard input
 	dc_stdin = NULL_FILE;
-	dprintf(D_ALWAYS, "module standard input redirected from %s\n",
+	dprintf(D_FULLDEBUG, "module standard input redirected from %s\n",
 			dc_stdin.Value() );
 	daemon_std[0] = open ( dc_stdin.Value(), flags, mode);
 	if ( daemon_std[0] < 0 ) {
@@ -100,7 +100,7 @@ void open_daemon_core_file_pointers()
 	dc_stdout = log_dir;
 	dc_stdout += name;
 	dc_stdout += "stdout";
-	dprintf(D_ALWAYS, "module standard output redirected to %s\n",
+	dprintf(D_FULLDEBUG, "module standard output redirected to %s\n",
 			dc_stdout.Value() );
 	daemon_std[1] = open ( dc_stdout.Value(), flags, mode);
 	if ( daemon_std[1] < 0 ) {
@@ -115,7 +115,7 @@ void open_daemon_core_file_pointers()
 	dc_stderr = log_dir;
 	dc_stderr += name;
 	dc_stderr += "stderr";
-	dprintf(D_ALWAYS, "module standard error redirected to %s\n",
+	dprintf(D_FULLDEBUG, "module standard error redirected to %s\n",
 			dc_stderr.Value() );
 	daemon_std[2] = open ( dc_stderr.Value(), flags, mode);
 	if ( daemon_std[2] < 0 ) {
@@ -133,9 +133,12 @@ void open_daemon_core_file_pointers()
 
 // Note: this function should really have a job ad passed to it.
 bool
-dynamicOK(classad::ClassAd *job_ad)
+dynamicOK(classad::ClassAd *job_ad, time_t now)
 {
 	bool is_dynamic = false;
+	bool ret_value;
+	static time_t keep_giving_false_until = 0;
+
 
 	std::string transfer_url;
 	if	(	job_ad->EvaluateAttrString(
@@ -148,12 +151,23 @@ dynamicOK(classad::ClassAd *job_ad)
 		}
 	}
 
+	if (is_dynamic && (now < keep_giving_false_until)) {
+		return false;
+	}
 	
 	if (is_dynamic) {
-		return Matchmaker->areMatchesAvailable();
+		ret_value = Matchmaker->areMatchesAvailable();
 	} else {
-		return true;
+		ret_value = true;
 	}
+
+	if ( ret_value == false ) {
+		// if the matchmaker gave us nothing, don't bother it for another
+		// several 2 minutes.
+		keep_giving_false_until = now + 120;
+	}
+
+	return ret_value;
 }
 
 /* ==========================================================================
@@ -833,7 +847,7 @@ void process_request(classad::ClassAd *currentAd)
 		}
 		else{
 			getValue(currentAd, "alt_protocols", alt_protocols);
-			dprintf(D_ALWAYS, "alt. protocols = %s\n", alt_protocols);
+			dprintf(D_FULLDEBUG, "alt. protocols = %s\n", alt_protocols);
       
 			if (!strcmp(alt_protocols,"")) { //if no alt. protocol defined
 				transfer_dap(dap_id, src_url, dest_url, arguments,
@@ -846,7 +860,7 @@ void process_request(classad::ClassAd *currentAd)
 					strcpy(next_protocol, strtok(NULL, ",") );   
 				}
 
-				dprintf(D_ALWAYS, "next protocol = %s\n", next_protocol);
+				dprintf(D_FULLDEBUG, "next protocol = %s\n", next_protocol);
 	
 				if (strcmp(next_protocol,"")) {
 					strcpy(src_alt_protocol, strtok(next_protocol, "-") );   
@@ -1228,6 +1242,7 @@ void startup_check_for_requests_in_process()
 	classad::ClassAd       *job_ad;
 	classad::ClassAdParser  parser;
 	std::string             key, constraint;
+	time_t	right_now = time(NULL);
   
 		//set the constraint for the query
 	constraint = "other.status == \"processing_request\"";
@@ -1247,7 +1262,7 @@ void startup_check_for_requests_in_process()
 				break;
 			}
 			else{
-				if (dap_queue.get_numjobs() < Max_num_jobs && dynamicOK(job_ad))
+				if (dap_queue.get_numjobs() < Max_num_jobs && dynamicOK(job_ad,right_now))
 					process_request(job_ad);
 				else
 					break;
@@ -1265,6 +1280,7 @@ void regular_check_for_rescheduled_requests()
 	classad::ClassAd       *job_ad;
 	classad::ClassAdParser  parser;
 	std::string             key, constraint;
+	time_t right_now = time(NULL);
   
 		//set the constraint for the query
 	constraint = "other.status == \"request_rescheduled\"";
@@ -1284,7 +1300,7 @@ void regular_check_for_rescheduled_requests()
 				break;
 			}
 			else{
-				if ((dap_queue.get_numjobs() < Max_num_jobs) && dynamicOK(job_ad))
+				if ((dap_queue.get_numjobs() < Max_num_jobs) && dynamicOK(job_ad,right_now))
 					process_request(job_ad);
 				else
 					break;
@@ -1541,6 +1557,7 @@ int call_main()
 	classad::ClassAdParser       parser;
 	std::string                  key, constraint;
 	int period;
+	time_t right_now = time(NULL);
   
 	// Avoid query if possible.
 	if (dap_queue.get_numjobs() < Max_num_jobs ) {
@@ -1566,7 +1583,7 @@ int call_main()
 					break;
 				}
 				else{
-					if (dap_queue.get_numjobs() < Max_num_jobs && dynamicOK(job_ad))
+					if (dap_queue.get_numjobs() < Max_num_jobs && dynamicOK(job_ad,right_now))
 						process_request(job_ad);
 					else
 						break;
