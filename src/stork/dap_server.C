@@ -1645,6 +1645,10 @@ int write_requests_to_file(ReliSock * sock)
 		return FALSE;
     }
 
+	if(!*pline) {
+		free(pline);
+		return TRUE; // do not keep stream, client is done
+	}
     int cred_size;
     
 
@@ -1668,7 +1672,14 @@ int write_requests_to_file(ReliSock * sock)
 			return FALSE;
 		}
     }
-    
+
+	if(!sock->eom()) {
+		dprintf(D_ALWAYS, "%s:%d Server: failed to read eom!: (%d)%s\n",
+				__FILE__, __LINE__,
+				errno, strerror(errno));
+		return FALSE;
+	}
+
 		//convert request into a classad
     classad::ClassAdParser parser;
     classad::ClassAd *requestAd = NULL;
@@ -1837,9 +1848,15 @@ int write_requests_to_file(ReliSock * sock)
 		);
 		return FALSE;
     }
-    
+    if ( !sock->eom() ) {
+		dprintf( D_ALWAYS,
+				"%s:%d: Server: send error (eom))!: (%d)%s\n",
+				__FILE__, __LINE__,
+				 errno, strerror(errno));
+		return FALSE;
+	}
 
-    return TRUE;
+    return KEEP_STREAM;
 }
 
 

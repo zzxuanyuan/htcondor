@@ -408,15 +408,21 @@ int main(int argc, char **argv)
 	// read all classads out of the input file
 	int offset = 0;
 	classad::ClassAd ad;
-    while (parser.ParseClassAd(adBuf, ad, offset) ) {
-        if (! submit_ad(sock, &ad, lognotes, spool_proxy) ) {
+	std::string adBufStr = adBuf; //work around a bug in ParseClassAd(char*,...)
+    while (parser.ParseClassAd(adBufStr, ad, offset) ) {
+        if (submit_ad(sock, &ad, lognotes, spool_proxy) != 0) {
 			break;
 		}
+		while(adBufStr.size() > offset && isspace(adBufStr[offset])) offset++;
     }
+
 	sock->encode();
-	sock->put("");
+	char *goodbye = "";
+	sock->code(goodbye);
 	sock->eom();
+
 	sock->close();
+
 	delete sock;
 
 	return 0;

@@ -264,6 +264,11 @@ void main_pre_dc_init(int argc, char **argv) {
 
 }
 
+int
+handle_stork_submit_more(Service *, Stream *s) {
+	return write_requests_to_file((ReliSock*)s);
+}
+
 int 
 handle_stork_submit(Service *, int command, Stream *s) {
   dprintf (D_COMMAND, "handle_stork_submit\n");
@@ -271,8 +276,15 @@ handle_stork_submit(Service *, int command, Stream *s) {
     dprintf (D_ALWAYS, "ERROR: Socket not of type reli_sock!\n");
     return FALSE;
   }
-  
-  return write_requests_to_file ((ReliSock*)s);
+  int rc = write_requests_to_file ((ReliSock*)s);
+  if(rc == KEEP_STREAM) {
+	  daemonCore->Register_Socket(s,
+								  "STORK_SUBMIT",
+								  (SocketHandler)&handle_stork_submit_more,
+								  "handle_stork_submit", NULL, WRITE);
+
+  }
+  return rc;
 }
 
 
