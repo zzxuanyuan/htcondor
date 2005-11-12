@@ -56,10 +56,10 @@ SERVER_OBJS  = \
 	dap_scheduler.o \
 	dap_logger.o \
 	dap_classad_reader.o \
-	../sc2005/libstork-mm.a \
 	internal_transfer_globus-url-copy.o \
 	$(STORK_UTIL)
 SERVER_LIBS = \
+	../sc2005/libstork-mm.a \
 	$(DAEMONCORE_LIB) \
 	$(STD_LIBS) \
 	$(NEW_CLASSADS_LINK) \
