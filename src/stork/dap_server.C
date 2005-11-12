@@ -1665,6 +1665,10 @@ int write_requests_to_file(ReliSock * sock)
 	if(!*pline) {
 		free(pline);
 		return TRUE; // do not keep stream, client is done
+		// TODO: Add transaction processing, so that either all of, or none of
+		// the submit ads are added to the job queue.  The current
+		// implementation can fail after a partial submit, and not inform the
+		// user.
 	}
     int cred_size;
     

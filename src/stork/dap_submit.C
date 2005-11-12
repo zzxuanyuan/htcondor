@@ -410,6 +410,10 @@ int main(int argc, char **argv)
 	classad::ClassAd ad;
 	std::string adBufStr = adBuf; //work around a bug in ParseClassAd(char*,...)
     while (parser.ParseClassAd(adBufStr, ad, offset) ) {
+		// TODO: Add transaction processing, so that either all of, or none of
+		// the submit ads are added to the job queue.  The current
+		// implementation can fail after a partial submit, and not inform the
+		// user.
         if (submit_ad(sock, &ad, lognotes, spool_proxy) != 0) {
 			break;
 		}
