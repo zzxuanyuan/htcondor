@@ -81,49 +81,28 @@ void IllegalOption(char *argv0,char *arg)
   exit(1);
 }
 
-// Read a file into a null-terminated character string.  Return the address of
-// the dyanmically allocated string.  Return NULL upon error.  It is the
-// caller's responsibility to free() a dynamically allocated string.
-const char
-*readFile(const char *filename)
+// Read a file into a std::string.  Return false on error.
+static bool
+readFile(int fd,char const *filename,std::string *buf)
 {
-    char *buf = NULL;
-    bool success = false;
-    int fd = -1;
-    struct stat stat_info;
-    ssize_t bytes_read;
-    size_t size;
-    if ( stat(filename, &stat_info) < 0) {
-        fprintf(stderr, "stat %s: %s\n", filename, strerror(errno) );
-        goto ERROR;
-    }
+    char chunk[4000];
 
-    size = stat_info.st_size;
-    buf = (char *)malloc(size + 1);
-    assert(buf);
-    buf[size] = '\0';   // null terminated string
-    fd = open(filename, O_RDONLY|O_CREAT, 0);
-    if (fd < 0) {
-        fprintf(stderr, "open %s: %s\n", filename, strerror(errno));
-        goto ERROR;
-    }
-    bytes_read = full_read(fd, buf, size);
+	while(1) {
+		size_t n = read(fd,chunk,sizeof(chunk)-1);
+		if(n>0) {
+			chunk[n] = '\0';
+			(*buf) += chunk;
+		}
+		else if(n==0) {
+			break;
+		}
+		else {
+			fprintf(stderr,"failed to read %s: %s\n",filename,strerror(errno));
+			return false;
+		}
+	}
 
-    if (bytes_read != (ssize_t)size) {
-        fprintf(stderr, "file %s short read: %d out of %d: %s\n",
-                filename, bytes_read, size, strerror(errno));
-        goto ERROR;
-    }
-
-    success = true;
-
-ERROR:
-    if (fd >= 0) close(fd);
-    if (! success) {
-        if (buf) free(buf);
-        return NULL;
-    }
-    return (const char *)buf;
+	return true;
 }
 
 
@@ -268,6 +247,11 @@ submit_ad(
 	return 0;
 }
 
+static void
+skip_whitespace(std::string const &s,int &offset) {
+	while((int)s.size() > offset && isspace(s[offset])) offset++;
+}
+
 /* ============================================================================
  * main body of dap_submit
  * ==========================================================================*/
@@ -327,11 +311,9 @@ int main(int argc, char **argv)
 			  stork_print_usage(stderr, argv[0], USAGE, true);
 			  exit(1);
 			}
+			break;
 		case 1:
 			if(read_from_stdin) {
-				fprintf(stderr, "stdin not support in this version\n");
-					return 1;	// FIXME
-				strcpy(fname, "stdin");
 				global_opts.server = argv[i];
 			} else {
 				strcpy(fname, argv[i]);
@@ -346,49 +328,27 @@ int main(int argc, char **argv)
 		  exit(1);
   }
 
-#if 0
-  //open the submit file
-  if(read_from_stdin) adfile = stdin;
-  else {
-    adfile = fopen(fname,"r");
-    if (adfile == NULL) {
-      fprintf(stderr, "Cannot open submit file %s: %s\n",fname, strerror(errno) );
-      exit(1);
-    }
-  }
-  
+	int submit_file_fd = -1;
+	if(read_from_stdin) {
+		submit_file_fd = 0;
+		strcpy(fname, "stdin");
+	}
+	else {
+		submit_file_fd = open(fname, O_RDONLY, 0);
+		if (submit_file_fd < 0) {
+			fprintf(stderr, "stork_submit: failed to open %s: %s\n", fname, strerror(errno));
+			return 1;
+		}
+	}
 
-  int nrequests = 0;
+	std::string adBuf;
+	if(!readFile(submit_file_fd,fname,&adBuf)) {
+		return 1;
+	}
 
-
-    i =0;
-    while (1){
-      c = fgetc(adfile);
-      if (c == ']'){ 
-	leftparan --; 
-	if (leftparan == 0) break;
-      }
-      if (c == '[') leftparan ++; 
-      
-      if (c == EOF) {
-	fprintf (stderr, "Invalid Stork submit file %s\n", fname);
-	return 1;
-      }
-      
-      adstr += c;
-      i++;
-    }
-    adstr += c;
-
-    nrequests ++;
-    if (nrequests > 1) {
-      fprintf (stderr, "Multiple requests currently not supported!\n");
-      return 1;
-    } 
-#endif
-
-	const char *adBuf = readFile(fname);
-	if (! adBuf) return 1;
+	if(!read_from_stdin) {
+		close(submit_file_fd);
+	}
 
 	MyString sock_error_reason;
 
@@ -407,27 +367,48 @@ int main(int argc, char **argv)
 
 	// read all classads out of the input file
 	int offset = 0;
+	int last_offset = 0; //so we can give error message where parser started
 	classad::ClassAd ad;
-	std::string adBufStr = adBuf; //work around a bug in ParseClassAd(char*,...)
-    while (parser.ParseClassAd(adBufStr, ad, offset) ) {
+
+	skip_whitespace(adBuf,offset);
+	bool submit_failed = false;
+	while (parser.ParseClassAd(adBuf, ad, offset) ) {
+		last_offset = offset;
+
 		// TODO: Add transaction processing, so that either all of, or none of
 		// the submit ads are added to the job queue.  The current
 		// implementation can fail after a partial submit, and not inform the
 		// user.
+
         if (submit_ad(sock, &ad, lognotes, spool_proxy) != 0) {
+			submit_failed = true;
 			break;
 		}
-		while(adBufStr.size() > (unsigned)offset &&
-				isspace(adBufStr[offset])) offset++;
+		skip_whitespace(adBuf,offset);
+		last_offset = offset;
     }
 
+	offset = last_offset;
+
+	if(!submit_failed) {
+		skip_whitespace(adBuf,offset);
+		if((int)adBuf.size() > offset) {
+			fprintf(stderr,"stork_submit: failed to read a ClassAd in the submit file (%s) beginning with the following text: %.200s\n",fname,adBuf.c_str()+offset);
+			submit_failed = true;
+		}
+	}
+
+	if(submit_failed) {
+		return 1;
+	}
+
+	//Tell the server we are done sending jobs.
 	sock->encode();
 	char *goodbye = "";
 	sock->code(goodbye);
 	sock->eom();
 
 	sock->close();
-
 	delete sock;
 
 	return 0;

@@ -1667,7 +1667,9 @@ int write_requests_to_file(ReliSock * sock)
     }
 
 	if(!*pline) {
-		free(pline);
+		// This is the final "goodbye" from the client.
+		// TODO: when transactional submits are supported,
+		// this message should be treated as a "commit".
 		return TRUE; // do not keep stream, client is done
 		// TODO: Add transaction processing, so that either all of, or none of
 		// the submit ads are added to the job queue.  The current
