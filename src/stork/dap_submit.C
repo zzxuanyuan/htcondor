@@ -417,7 +417,8 @@ int main(int argc, char **argv)
         if (submit_ad(sock, &ad, lognotes, spool_proxy) != 0) {
 			break;
 		}
-		while(adBufStr.size() > offset && isspace(adBufStr[offset])) offset++;
+		while(adBufStr.size() > (unsigned)offset &&
+				isspace(adBufStr[offset])) offset++;
     }
 
 	sock->encode();
