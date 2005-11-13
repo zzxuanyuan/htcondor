@@ -462,6 +462,10 @@ dprintf(D_ALWAYS, "DEBUG: dest_file: '%s'\n", dest_file);
 	MyString newenv_buff;
 
 	// child process will need additional environments
+	newenv_buff="STORK_JOBID=";
+	newenv_buff+=dap_id;
+	myEnv.Put (newenv_buff.Value());
+    
 	newenv_buff="X509_USER_PROXY=";
 	newenv_buff+=cred_file_name;
 	myEnv.Put (newenv_buff.Value());
@@ -2339,6 +2343,11 @@ int dap_reaper(std::string modify_s, int pid,int exit_status)
 				dprintf(D_FULLDEBUG, "successful transfer to dynamic URL %s, "
 						"returning to matchmaker\n", dest_transfer_url);
 				Matchmaker->returnTransferDestination(dest_transfer_url);
+				// Dynamic transfers to globus multi file xfers need to clean
+				// up the rewritten multi file URL list.
+				const char *dynamic_multi_file_xfer_file =
+					job_filepath("", "urls", dap_id, pid);
+				unlink( dynamic_multi_file_xfer_file );
 			}
 		}
 

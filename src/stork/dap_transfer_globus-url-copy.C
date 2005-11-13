@@ -195,7 +195,7 @@ int main(int argc, char *argv[])
   int i;
   bool multi_file_xfer = false;
   char * multi_file_xfer_file = NULL;
-  char dynamic_multi_file_xfer_file[MAXSTR] = "";	// FIXME!
+  const char *dynamic_multi_file_xfer_file = NULL;
   bool dynamic_file_xfer = false;
   
   if (argc < 3){
@@ -226,10 +226,10 @@ int main(int argc, char *argv[])
 		if (dynamic_file_xfer) {
 			// For dynamic transfer destinations, the multi file transfer list
 			// specification file needs to be rewritten.  Ugh.
-			snprintf(dynamic_multi_file_xfer_file,
-					sizeof(dynamic_multi_file_xfer_file), "%s-dynamic",
-					multi_file_xfer_file);
-			argv[i] = dynamic_multi_file_xfer_file;
+			dynamic_multi_file_xfer_file =
+				job_filepath("", "urls",
+						getenv("STORK_JOBID"), getpid() );
+			argv[i] = (char *)dynamic_multi_file_xfer_file;
 		}
 	}
     size_t len = strlen(arguments);
@@ -248,7 +248,7 @@ int main(int argc, char *argv[])
   // Horrid hack to enable multi-file xfers.  If "-f" option appears as an
   // argument, then remove src_url, dest_url.
   if (multi_file_xfer) {
-	  if (strlen(dynamic_multi_file_xfer_file) > 0) {
+	  if (dynamic_multi_file_xfer_file) {
 		  if (! translate_file(multi_file_xfer_file,
 					  dynamic_multi_file_xfer_file, dest_url) ) {
 			return DAP_ERROR;
