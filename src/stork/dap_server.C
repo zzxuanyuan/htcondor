@@ -79,53 +79,65 @@ void open_daemon_core_file_pointers()
 	const char* name = "/Stork-module.";
 	const int flags = O_CREAT | O_RDWR;
 	const mode_t mode = 00644;
-	MyString dc_stdin, dc_stderr, dc_stdout;
 
 	if (! log_dir ) log_dir = alt_log_dir;
 
 	// Standard input
-	dc_stdin = NULL_FILE;
+	const char *dc_stdin = NULL_FILE;
 	dprintf(D_FULLDEBUG, "module standard input redirected from %s\n",
-			dc_stdin.Value() );
-	daemon_std[0] = open ( dc_stdin.Value(), flags, mode);
+			dc_stdin);
+	daemon_std[0] = open ( dc_stdin, flags, mode);
 	if ( daemon_std[0] < 0 ) {
 			dprintf( D_ALWAYS,
 				"ERROR: daemoncore stdin fd %d open(%s,%#o,%#o): (%d)%s\n",
-					0, dc_stdin.Value(), flags, mode,
+					0, dc_stdin, flags, mode,
 					errno, strerror(errno)
 			);
 	}
 
 	// Standard output
-	dc_stdout = log_dir;
-	dc_stdout += name;
-	dc_stdout += "stdout";
+	const char *dc_stdout = param("STORK_MODULE_STDOUT");
+	//if ( ! Cred_tmp_dir ) Cred_tmp_dir = strdup("/tmp");	// default
+	if ( ! dc_stdout ) {
+		// Default module stdout saved to $(LOG)/Stork-module.stdout
+		std::string def_dc_stdout = log_dir;
+		def_dc_stdout += name;
+		def_dc_stdout += "stdout";
+		dc_stdout = strdup( def_dc_stdout.c_str() );
+	}
 	dprintf(D_FULLDEBUG, "module standard output redirected to %s\n",
-			dc_stdout.Value() );
-	daemon_std[1] = open ( dc_stdout.Value(), flags, mode);
+			dc_stdout );
+	daemon_std[1] = open ( dc_stdout, flags, mode);
 	if ( daemon_std[1] < 0 ) {
 			dprintf( D_ALWAYS,
 				"ERROR: daemoncore stdout fd %d open(%s,%#o,%#o): (%d)%s\n",
-					1, dc_stdout.Value(), flags, mode,
+					1, dc_stdout, flags, mode,
 					errno, strerror(errno)
 			);
 	}
+	if (dc_stdout) free( (char *)dc_stdout);
 
 	// Standard error
-	dc_stderr = log_dir;
-	dc_stderr += name;
-	dc_stderr += "stderr";
+	const char *dc_stderr = param("STORK_MODULE_STDERR");
+	//if ( ! Cred_tmp_dir ) Cred_tmp_dir = strdup("/tmp");	// default
+	if ( ! dc_stderr ) {
+		// Default module stderr saved to $(LOG)/Stork-module.stderr
+		std::string def_dc_stderr = log_dir;
+		def_dc_stderr += name;
+		def_dc_stderr += "stderr";
+		dc_stderr = strdup( def_dc_stderr.c_str() );
+	}
 	dprintf(D_FULLDEBUG, "module standard error redirected to %s\n",
-			dc_stderr.Value() );
-	daemon_std[2] = open ( dc_stderr.Value(), flags, mode);
-	if ( daemon_std[2] < 0 ) {
+			dc_stderr );
+	daemon_std[2] = open ( dc_stderr, flags, mode);
+	if ( daemon_std[1] < 0 ) {
 			dprintf( D_ALWAYS,
 				"ERROR: daemoncore stderr fd %d open(%s,%#o,%#o): (%d)%s\n",
-					2, dc_stderr.Value(), flags, mode,
+					1, dc_stderr, flags, mode,
 					errno, strerror(errno)
 			);
 	}
-
+	if (dc_stderr) free( (char *)dc_stderr);
 
 	if (log_dir && strcmp(log_dir, alt_log_dir) ) free( (char *)log_dir);
 	return;
