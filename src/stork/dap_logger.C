@@ -15,6 +15,8 @@ extern char *clientagenthost;
 void write_dap_log(char *logfilename, char *status, char *param1, char *value1, char *param2, char *value2, char *param3, char *value3, char *param4, char *value4, char *param5, char *value5, char *param6, char *value6)
 {
   
+	if (! param_boolean("STORK_HISTORY_LOGGING", true) ) return;
+
   // -------- ClassAd stuff ------------------------------
   
   //create ClassAd
