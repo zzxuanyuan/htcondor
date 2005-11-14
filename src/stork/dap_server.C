@@ -984,22 +984,43 @@ int low_water_reaper_id;
 bool low_water_action_running = false;
 
 int low_water_reaper(Service *,int pid,int exit_status) {
+	dprintf(D_ALWAYS,
+			"low water action process pid %d terminated with status %d\n",
+			pid, exit_status);
+
 	low_water_action_running = false;
 	return DAP_SUCCESS;
+}
+
+// count total jobs in ClassAdCollection job queue, in all states.  Note that 
+// Scheduler::get_numjobs() only returns the count of running jobs.  For the
+// purposes of the demo, it would be better to count the number of idle jobs.
+// However, this would require performing a query, and walking the returned
+// query list.  This is too slow for the purposes of the demo.
+int
+total_job_count()
+{
+	const classad::View *rootView = dapcollection->GetView("root");
+	return rootView->Size() ;
 }
 
 void low_water_timer() {
 		int low_water = param_integer("STORK_LOW_WATER_VALUE", 0, 0);
 
+		if (low_water == 0) {
+			low_water_action_running = false;	// force to known state
+			return;
+		}
+
 		if (low_water_action_running) {
 			return;
 		}
 
-		if (low_water == 0) {
-			return;
-		}
-
-		int cur_jobs  = dap_queue.get_numjobs();
+		//int cur_jobs  = dap_queue.get_numjobs(); // running jobs only
+		int cur_jobs  = total_job_count();
+		dprintf(D_FULLDEBUG,
+				"Running low water mark monitor.  Total jobs in queue: %d\n",
+				cur_jobs);
 		char *low_water_action = param("STORK_LOW_WATER_ACTION");
 
 		if (low_water_action == 0) {
@@ -1008,9 +1029,12 @@ void low_water_timer() {
 		}
 
 		if (cur_jobs < low_water) {
-			dprintf(D_ALWAYS, "Number of jobs is queue (%d) is less than low-water mark (%d)\n", cur_jobs, low_water);
+			dprintf(D_ALWAYS,
+			"Number of jobs in queue (%d) is less than low-water mark (%d)\n",
+			cur_jobs, low_water);
 			dprintf(D_ALWAYS, "running %s\n", low_water_action);
 
+			int pid =
 			daemonCore->Create_Process(
 				 low_water_action,				// command path
 				 "",							// args string
@@ -1025,7 +1049,9 @@ void low_water_timer() {
 												// nice increment = 0
 												// job_opt_mask = 0
 			);
-			low_water_action_running = true;
+			if (pid != FALSE) {
+				low_water_action_running = true;
+			}
 		}
 		free(low_water_action);
 }

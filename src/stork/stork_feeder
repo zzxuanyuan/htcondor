@@ -1,4 +1,5 @@
 #!/bin/sh
+#set -x	# uncomment to debug
 
 #############################################################################
 ## stork_feeder
@@ -91,8 +92,8 @@ for assignment in $assignments; do
     continue
   fi
 
-  submit_files=$assignment/$SUBMIT_FILE_PATTERN
-  if ! [ -a "$submit_files" ]; then
+  submit_files=`ls $assignment/$SUBMIT_FILE_PATTERN 2>/dev/null`
+  if [ "$?" != "0" ]; then
     #This assignment does not (yet) contain a submit file.
     continue
   fi
