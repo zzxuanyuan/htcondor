@@ -35,6 +35,15 @@
 // Instantiate some templates
 template class list<DCMatchLiteLease*>;
 
+StorkMatchStatsEntry::StorkMatchStatsEntry()
+{
+	curr_busy_matches = 0;
+	curr_idle_matches = 0;
+	total_busy_matches = 0;
+	successes = 0;
+	failures = 0;
+}
+
 void
 StorkMatchEntry::initialize()
 {
@@ -43,6 +52,7 @@ StorkMatchEntry::initialize()
 	Expiration_time = 0;
 	IdleExpiration_time = 0;
 	CompletePath = NULL;
+	num_matched = 0;
 }
 
 
@@ -114,11 +124,27 @@ int
 StorkMatchEntry::operator< (const StorkMatchEntry& E2)
 {
 	time_t comp1, comp2;
+	static bool check_config = true;
+	static bool want_rr = true;
 
 	if ( Expiration_time==0 || E2.Expiration_time==0 ) {
 		// must be searching just on Url, return false so we don't stop search early
 		return 0;
 	}
+
+	if ( check_config ) {
+		want_rr = param_boolean("STORK_MM_WANT_RR",true);
+		check_config = false;
+	}
+
+	if ( want_rr ) {
+		if ( num_matched < E2.num_matched ) {
+			return 1;
+		} else {
+			return 0;
+		}
+	}
+
 
 	if ( IdleExpiration_time ) {
 		comp1 = MIN( IdleExpiration_time, Expiration_time );
@@ -188,6 +214,7 @@ StorkMatchMaker(void)
 	mm_name = param("STORK_MM_NAME");
 	mm_pool = param("STORK_MM_POOL");
 
+	matchStats = new HashTable<MyString, StorkMatchStatsEntry*>(200,MyStringHash,rejectDuplicateKeys);
 	SetTimers();
 }
 
@@ -260,7 +287,7 @@ getMatchesFromMatchmaker()
 			classad::ClassAdParser	parser;
 			req_expr = parser.ParseExpression( req_str );
 			if ( !req_expr ) {
-				dprintf( D_ALWAYS, "WARNING: Unable to parse requirements '%s'\n",
+				dprintf( D_ALWAYS, "ERROR: Unable to parse requirements '%s'\n",
 						 req );
 			} else {
 				match_ad.Insert( "Requirements", req_expr );
@@ -356,6 +383,7 @@ getTransferDestination(const char *protocol)
 		addToBusySet(match);
 
 		// dprintf(D_FULLDEBUG,"TODD1 - idle add %p ptr=%p cp=%p\n",match->Lease,match,match->CompletePath);
+
 		// return url + filename
 		return match;
 	}
@@ -370,6 +398,18 @@ getTransferDirectory(const char *protocol)
 	if (match == NULL) {
 		return NULL;
 	}
+
+		// update some stats
+	MyString key( match->GetUrl() );
+	StorkMatchStatsEntry *value = NULL;
+	matchStats->lookup(key,value);
+	if ( !value ) {
+		value = new StorkMatchStatsEntry;
+		matchStats->insert(key,value);
+	}
+	(value->curr_busy_matches)++;
+	(value->total_busy_matches)++;
+
 	return strdup( match->GetUrl() );
 }
 
@@ -402,12 +442,30 @@ getTransferFile(const char *protocol)
 // Return a dynamic transfer destination to the matchmaker. 
 bool
 StorkMatchMaker::
-returnTransferDestination(const char * path)
+returnTransferDestination(const char * path, bool successful_transfer)
 {
+	bool ret_val;
 	StorkMatchEntry match(path);
 
 		// just move it from the busy set to the idle set
-	return fromBusyToIdle( &match );
+	ret_val =  fromBusyToIdle( &match );
+
+	if ( ret_val ) {
+			// update some stats
+		MyString key( path );
+		StorkMatchStatsEntry *value = NULL;
+		matchStats->lookup(key,value);
+		if ( value ) {
+			(value->curr_busy_matches)--;
+			if ( successful_transfer ) {
+				(value->successes)++;
+			} else {
+				(value->failures)++;
+			}
+		}
+	}
+
+	return ret_val;
 }
 
 
@@ -425,7 +483,7 @@ failTransferDestination(const char * path)
 
 	// Only fail transfer destinations if enabled.
 	if (! param_boolean("STORK_MM_XFER_FAIL_ENABLE", false) ) {
-		return returnTransferDestination(path);
+		return returnTransferDestination(path,false);
 	}
 		// Create entry on *dirname* since we assume that all
 		// transfers to this destination will fail if this one did.
@@ -591,11 +649,12 @@ StorkMatchMaker::
 timeout()
 {
 	time_t now = time(NULL);
-	int near_future = param_integer("STORK_MM_LEASE_REFRESH_PADDING",10*60,30);
+	int near_future = param_integer("STORK_MM_LEASE_REFRESH_PADDING",5*60,30);
 	StorkMatchEntry* match;
 	Set<StorkMatchEntry*> to_release, to_renew;
 	bool result;
-	
+
+
 
 	// =====================================================================
 	// First, deal with old idle matches.  For an old idle match,

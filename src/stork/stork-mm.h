@@ -31,6 +31,7 @@
 
 #include "dc_match_lite.h"
 #include "MyString.h"
+#include "HashTable.h"
 
 // Turn on/off the use of ordered sets
 #define USING_ORDERED_SET
@@ -65,9 +66,22 @@ class StorkMatchEntry {
 		char *Url;
 		DCMatchLiteLease* Lease;
 		MyString *CompletePath;
+		unsigned int num_matched;
 
 		
 };
+
+class StorkMatchStatsEntry {
+	public:
+		StorkMatchStatsEntry();
+		unsigned int curr_busy_matches;
+		unsigned int total_busy_matches;
+		unsigned int successes;
+		unsigned int failures;
+
+		unsigned int curr_idle_matches;   // only in global
+};
+
 
 // Stork interface object to new "matchmaker lite" for SC2005 demo.
 class StorkMatchMaker 
@@ -106,7 +120,7 @@ class StorkMatchMaker
 		// Return a dynamic transfer destination to the matchmaker.  Stork
 		// calls this method when it is no longer using the transfer
 		// destination.  Matchmaker returns false upon error.
-		bool returnTransferDestination(const char * url);
+		bool returnTransferDestination(const char * url, bool successful_transfer = true);
 
 		// Inform the matchmaker that a dynamic transfer destination has
 		// failed.  Matchmaker returns false upon error.
@@ -114,6 +128,9 @@ class StorkMatchMaker
 
 		// Returns false if no matches are avail, else true
 		bool areMatchesAvailable();
+
+		bool getStats(const char *url);
+		bool getStatsTotal();
 
 	protected:
 		bool getMatchesFromMatchmaker();
@@ -137,6 +154,10 @@ class StorkMatchMaker
 		char *mm_name;
 		char *mm_pool;
 		int tid, tid_interval;
+		//HashTable<MyString, StorkMatchStatsEntry*> matchStats(200,MyStringHash,rejectDuplicateKeys);
+		HashTable<MyString, StorkMatchStatsEntry*> *matchStats;
+		StorkMatchStatsEntry totalStats;
+		bool want_rr;	// order the set for round-robin matches
 
 }; // class StorkMatchMaker
 
