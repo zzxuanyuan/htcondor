@@ -539,10 +539,14 @@ dprintf(D_ALWAYS, "DEBUG: dest_file: '%s'\n", dest_file);
 	if (env_string) delete []env_string;// delete string from "new"
 	if (pid > 0) {
 		dap_queue.insert(dap_id, pid);
+		dprintf(D_ALWAYS,"GUC STARTED dapid=%s pid=%d src=%s dest=%s \n",
+			dap_id,pid,src_url,dest_url.c_str());
 		return DAP_SUCCESS;
 	}
 	else{
 		transfer_dap_reaper(NULL, 0 ,111); //executable not found!
+		dprintf(D_ALWAYS,"ERROR: GUC fork failed dapid=%s src=%s dest=%s\n",
+			dap_id,src_url,dest_url.c_str());
 		return DAP_ERROR;                  //--> Find a better soln!
 	}
   
@@ -2261,7 +2265,10 @@ int dap_reaper(std::string modify_s, int pid,int exit_status)
 		// from the dap_queue when it removes the job.
 		return DAP_ERROR;
 	}
-  
+
+	dprintf(D_ALWAYS,"GUC FINISHED dapid=%s pid=%d exit_status=%d \n",
+			dap_id,pid,exit_status);
+
 	dap_queue.remove(dap_id);
 
 	key += dap_id;
