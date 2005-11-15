@@ -154,6 +154,7 @@ submit_ad(
             if (defproxy) {
                 printf("using default proxy: %s\n", defproxy);
                 proxy_file_name = defproxy;
+				currentAd->InsertAttr("x509proxy", proxy_file_name);
                 free(defproxy);
             } else {
                 fprintf(stderr, "ERROR: %s\n", x509_error_string() );
