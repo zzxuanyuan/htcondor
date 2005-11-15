@@ -474,7 +474,7 @@ TTManager::event_maintain()
 void TTManager::checkAndThrowBigFiles() {
 	struct stat file_status;
 	FILESQL *filesqlobj, *thrownfileobj;
-	char ascTime[150];
+	char ascTime[150] = "";
 	int len;
 
 	ClassAd tmpCl1;
@@ -534,7 +534,7 @@ int TTManager::insertMachines(AttrList *ad) {
 	MyString aName, aVal, temp, machine_id;
 	char *tmp1;
 
-	char lastHeardFrom[300];
+	char lastHeardFrom[300] = "";
 
 	ad->sPrint(classAd);
 
@@ -833,8 +833,8 @@ int TTManager::insertEvents(AttrList *ad) {
 	MyString classAd;
 	const char *iter;	
 	char *attName = NULL, *attVal;
-	char scheddname[50], cluster[10], proc[10], subproc[10], 
-		eventts[100], messagestr[512];
+	char scheddname[50] = "", cluster[10] = "", proc[10] = "", subproc[10] = "", 
+		eventts[100] = "", messagestr[512] = "";
 	int eventtype;
 	
 	ad->sPrint(classAd);
@@ -912,10 +912,10 @@ int TTManager::insertFiles(AttrList *ad) {
 	const char *iter;	
 	char *attName = NULL, *attVal;
 	
-	char f_name[_POSIX_PATH_MAX], f_host[50], f_path[_POSIX_PATH_MAX], f_ts[30];
+	char f_name[_POSIX_PATH_MAX] = "", f_host[50] = "", f_path[_POSIX_PATH_MAX] = "", f_ts[30] = "";
 	int f_size;
-	char pathname[_POSIX_PATH_MAX];
-	char hexSum[MAC_SIZE*2+1], sum[MAC_SIZE+1];	
+	char pathname[_POSIX_PATH_MAX] = "";
+	char hexSum[MAC_SIZE*2+1] = "", sum[MAC_SIZE+1] = "";	
 	int len;
 	char *tmp1, *tmpVal = NULL;
 	bool fileSame = TRUE;
@@ -1047,7 +1047,7 @@ int TTManager::insertFileusages(AttrList *ad) {
 	const char *iter;	
 	char *attName, *attVal;
 	
-	char f_name[_POSIX_PATH_MAX], f_host[50], f_path[_POSIX_PATH_MAX], f_ts[30], globaljobid[100], type[20];
+	char f_name[_POSIX_PATH_MAX] = "", f_host[50] = "", f_path[_POSIX_PATH_MAX] = "", f_ts[30] = "", globaljobid[100] = "", type[20] = "";
 	int f_size;
  
 	ad->sPrint(classAd);
