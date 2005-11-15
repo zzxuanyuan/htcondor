@@ -31,7 +31,7 @@ AssignmentFailed() {
       suffix="-$count"
     done
     if ! mv $assignment $FEEDER_FAILED/$assignment_name$suffix; then
-      echo "stork_feeder: failed to move failed assignment $assignment to $FEEDER_FAILED/$assignment_name$suffix." 2>&1
+      echo "stork_feeder: failed to move failed assignment $assignment to $FEEDER_FAILED/$assignment_name$suffix." 1>&2
     fi
 }
 
@@ -48,7 +48,7 @@ AssignmentSubmitted() {
       suffix="-$count"
     done
     if ! mv $assignment $FEEDER_SUBMITTED/$assignment_name$suffix; then
-      echo "stork_feeder: failed to move submitted assignment $assignment to $FEEDER_SUBMITTED/$assignment_name$suffix." 2>&1
+      echo "stork_feeder: failed to move submitted assignment $assignment to $FEEDER_SUBMITTED/$assignment_name$suffix." 1>&2
     fi
 }
 
@@ -111,7 +111,7 @@ for assignment in $assignments; do
     continue
   fi
 
-  stork_submit $submit_file 2>&1 >> $assignment/stork_feeder.log
+  stork_submit $submit_file >> $assignment/stork_feeder.log 2>&1
   rc=$?
 
   if [ "$rc" != "0" ]; then
