@@ -2,22 +2,19 @@
 \section{\label{sec:Networking}Networking}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \index{network}
-\index{networking}
 
-This section contains most of the information about network
-communication in Condor.
-The topics addressed include how network ports are used; how Condor
-behaves on machines with multiple network interfaces and IP addresses;
-and how to function in a pool that spans firewalls and private
-networks.
-Each issue is covered in a separate section, where we describe the
-default behavior, and explain how the administrator can configure
-alternatives.
+This section on
+network communication in Condor
+discusses which network ports are used,
+how Condor behaves on machines with multiple network interfaces
+and IP addresses,
+and how to facilitate functionality in a pool that spans
+firewalls and private networks.
 
-The previous section of the manual on security contains some
+The security section of the manual contains some
 information that is relevant to the discussion of network
 communication which will not be duplicated here, so please
-section~\ref{sec:Security} as well.
+see section~\ref{sec:Security} as well.
 
 Firewalls, private networks, and network address translation (NAT)
 pose special problems for Condor.
@@ -26,16 +23,16 @@ within Condor:
 
 \begin{enumerate}
 
-\item Restricting Condor to use a specific range of port numbers, and
+\item Restrict Condor to use a specific range of port numbers, and
   allow connections through the firewall that use any port within the
-  range
+  range.
 
-\item Using \Term{Generic Connection Brokering} (GCB)
+\item Use \Term{Generic Connection Brokering} (GCB).
 
 \end{enumerate}
 
-Each method has its own pros and cons, and they are both described in
-more detail in separate sections below.
+Each method has its own advantages and disadvantages,
+as described below.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
