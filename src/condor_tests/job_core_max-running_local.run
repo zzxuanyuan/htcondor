@@ -2,6 +2,9 @@
 #########################################################
 ## Max Local Jobs
 ##
+## We are testing to make sure that if the user puts
+## in a requirement to limit how many local universe jobs will
+## be started, the schedd will be able to block them accordingly
 ##
 #########################################################
 use CondorTest;
