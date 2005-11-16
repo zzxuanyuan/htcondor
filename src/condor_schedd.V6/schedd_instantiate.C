@@ -56,7 +56,6 @@ template class Queue<ContactStartdArgs*>;
 template class List<shadow_rec*>;
 template class Item<shadow_rec*>;
 template class SimpleList<PROC_ID>;
-template class ExtArray<int>;
 template class ExtArray<MyString*>;
 template class ExtArray<bool>;
 template class ExtArray<PROC_ID>;
