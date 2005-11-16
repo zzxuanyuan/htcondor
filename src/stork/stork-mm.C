@@ -482,7 +482,7 @@ failTransferDestination(const char * path)
 	ASSERT(path);
 
 	// Only fail transfer destinations if enabled.
-	if (! param_boolean("STORK_MM_XFER_FAIL_ENABLE", false) ) {
+	if (! param_boolean("STORK_MM_XFER_FAIL_ENABLE", true) ) {
 		return returnTransferDestination(path,false);
 	}
 		// Create entry on *dirname* since we assume that all
@@ -491,8 +491,10 @@ failTransferDestination(const char * path)
 	match.Url = condor_url_dirname( path );
 	
 		// Call in a while loop, since we have multiple matches to this destination
-	while ( destroyFromBusy( &match ) ) ;
-	while ( destroyFromIdle( &match ) ) ;
+	//while ( destroyFromBusy( &match ) ) ;
+	//while ( destroyFromIdle( &match ) ) ;
+	
+	destroyFromBusy( &match ) ;
 
 	return true;	
 }
