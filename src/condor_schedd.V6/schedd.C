@@ -251,6 +251,7 @@ Scheduler::Scheduler() :
 	QueueCleanInterval = 0; JobStartDelay = 0;
 	RequestClaimTimeout = 0;
 	MaxJobsRunning = 0;
+	MaxLocalJobsRunning = 0;
 	MaxJobsSubmitted = INT_MAX;
 	NegotiateAllJobsInCluster = false;
 	JobsStarted = 0;
@@ -267,6 +268,12 @@ Scheduler::Scheduler() :
 	LocalUnivExecuteDir = NULL;
 	ReservedSwap = 0;
 	SwapSpace = 0;
+
+		//
+		// ClassAd attribute for evaluating whether to start
+		// a local universe job
+		// 
+	StartLocalJob = NULL;
 
 	ShadowSizeEstimate = 0;
 
@@ -348,6 +355,9 @@ Scheduler::~Scheduler()
 		free(MyShadowSockName);
 	if( LocalUnivExecuteDir ) {
 		free( LocalUnivExecuteDir );
+	}
+	if ( this->StartLocalJob ) {
+		free ( this->StartLocalJob );
 	}
 
 	if ( CronMgr ) {
@@ -636,6 +646,7 @@ Scheduler::count_jobs()
 			SchedUniverseJobsIdle );
 	dprintf( D_FULLDEBUG, "N_Owners = %d\n", N_Owners );
 	dprintf( D_FULLDEBUG, "MaxJobsRunning = %d\n", MaxJobsRunning );
+	dprintf( D_FULLDEBUG, "MaxLocalJobsRunning = %d\n", this->MaxLocalJobsRunning );
 
 	// later when we compute job priorities, we will need PrioRec
 	// to have as many elements as there are jobs in the queue.  since
@@ -648,6 +659,12 @@ Scheduler::count_jobs()
 	ad->InsertOrUpdate(tmp);
 	
 	sprintf(tmp, "%s = %d", ATTR_MAX_JOBS_RUNNING, MaxJobsRunning);
+	ad->InsertOrUpdate(tmp);
+	
+	sprintf(tmp, "%s = %d", ATTR_MAX_LOCAL_JOBS_RUNNING, this->MaxLocalJobsRunning );
+	ad->InsertOrUpdate(tmp);
+	
+	sprintf(tmp, "%s = %s", ATTR_START_LOCAL_JOB, this->StartLocalJob );
 	ad->InsertOrUpdate(tmp);
 	
 	 sprintf(tmp, "%s = \"%s\"", ATTR_NAME, Name);
@@ -5578,22 +5595,59 @@ find_idle_local_jobs( ClassAd *job )
 	}
 	
 		//
-		// The jobs will now attempt to have their requirements
-		// evalulated. We first check to see if the requirements are defined.
-		// If they are not, then we'll continue.
-		// If they are, then we make sure that they evaluate to true.
-		//
+		// Before evaluating whether we can run this job, first make 
+		// sure its even eligible to run
 		// We do not count REMOVED or HELD jobs
 		//
-	int requirements = 1;
-	bool requirementsMet = true;
-	if ( job->Lookup( ATTR_REQUIREMENTS ) != NULL && 
-		 job->EvalBool( ATTR_REQUIREMENTS, NULL, requirements ) ) {
-		requirementsMet = (bool)requirements;
-	}
-	if ( requirementsMet && max_hosts > cur_hosts &&
-		(status == IDLE || status == UNEXPANDED || status == RUNNING) )
-	{
+	if ( max_hosts > cur_hosts &&
+		(status == IDLE || status == UNEXPANDED || status == RUNNING) ) {
+			//
+			// The jobs will now attempt to have their requirements
+			// evalulated. We first check to see if the requirements are defined.
+			// If they are not, then we'll continue.
+			// If they are, then we make sure that they evaluate to true.
+			// Evaluate the schedd's ad and the job ad against each 
+			// other. We break it out so we can print out any errors 
+			// as needed
+			//
+		ClassAd *scheddAd = new ClassAd;
+		scheduler.publish( scheddAd );
+	
+			//
+			// Schedd StartLocalJob Evaluation
+			//
+		bool requirementsMet = true;
+		int requirements = 1;
+		if ( scheddAd->Lookup( ATTR_START_LOCAL_JOB ) != NULL && 
+			 scheddAd->EvalBool( ATTR_START_LOCAL_JOB, job, requirements ) ) {
+			requirementsMet = (bool)requirements;
+		}
+		if ( ! requirementsMet ) {
+			dprintf( D_FULLDEBUG, "StartLocalJob evaluated to false for "
+								  "local job %d.%d\n",
+								  id.cluster, id.proc );
+			free ( scheddAd );
+			return ( 0 );
+		}
+			//
+			// Job Requirements Evaluation
+			//
+		if ( job->Lookup( ATTR_REQUIREMENTS ) != NULL && 
+			 job->EvalBool( ATTR_REQUIREMENTS, scheddAd, requirements ) ) {
+			requirementsMet = (bool)requirements;
+		}
+		if ( ! requirementsMet ) {
+			dprintf( D_FULLDEBUG, "Local job %d.%d requirements did not evaluate "
+								  "to true for scheduler's ad\n",
+								  id.cluster, id.proc );
+			free ( scheddAd );
+			return ( 0 );
+		}
+		free ( scheddAd );
+		
+			//
+			// It's safe to go ahead and run the job!
+			//
 		if( univ == CONDOR_UNIVERSE_LOCAL ) {
 			dprintf( D_FULLDEBUG, "Found idle local universe job %d.%d\n",
 					 id.cluster, id.proc );
@@ -6687,6 +6741,20 @@ Scheduler::start_local_universe_job( PROC_ID* job_id )
 		// status wrong while the job sits in the RunnableJob queue,
 		// since we're not negotiating for them at all... 
 	SetAttributeInt( job_id->cluster, job_id->proc, ATTR_CURRENT_HOSTS, 1 );
+
+		//
+		// If we start a local universe job, the LocalUniverseJobsRunning
+		// tally isn't updated so we have no way of knowing whether we can
+		// start the next job. This would cause a ton of local jobs to
+		// just get fired off all at once even though there was a limit set.
+		// So instead, I am following Derek's example with the scheduler 
+		// universe and updating our running tally
+		// Andy - 11.14.2004 - pavlo@cs.wisc.edu
+		//	
+	if ( this->LocalUniverseJobsIdle > 0 ) {
+		this->LocalUniverseJobsIdle--;
+	}
+	this->LocalUniverseJobsRunning++;
 
 	srec = add_shadow_rec( 0, job_id, CONDOR_UNIVERSE_LOCAL, NULL, -1 );
 	addRunnableJob( srec );
@@ -8293,8 +8361,19 @@ Scheduler::child_exit(int pid, int status)
 		}
 	} else if (srec) {
 		char* name = NULL;
+			//
+			// Local Universe
+			//
 		if( IsLocalUniverse(srec) ) {
 			name = "Local starter";
+				//
+				// Following the scheduler universe example, we need
+				// to try to keep track of how many local jobs are 
+				// running in realtime
+				//
+			if ( this->LocalUniverseJobsRunning > 0 ) {
+				this->LocalUniverseJobsRunning--;
+			}
 		} else {
 				// A real shadow
 			name = "Shadow";
@@ -8440,8 +8519,8 @@ Scheduler::child_exit(int pid, int status)
 		// If we're not trying to shutdown, now that either an agent
 		// or a shadow (or both) have exited, we should try to
 		// activate all our claims and start jobs on them.
-	if( ! ExitWhenDone ) {
-		if (StartJobsFlag) StartJobs();
+	if( ! ExitWhenDone && StartJobsFlag ) {
+		this->StartJobs();
 	}
 }
 
@@ -8993,6 +9072,41 @@ Scheduler::Init()
 		MaxJobsRunning = 200;
 	} else {
 		MaxJobsRunning = atoi( tmp );
+		free( tmp );
+	}
+	
+		//
+		// Maximum local jobs allowed to run at the same time
+		//
+	tmp = param( "MAX_LOCAL_JOBS_RUNNING" );
+	if( ! tmp ) {
+		this->MaxLocalJobsRunning = 100;
+	} else {
+		this->MaxLocalJobsRunning = atoi( tmp );
+		free( tmp );
+	}
+		//
+		// Start Local Jobs Expression
+		// This will be added into the requirements expression for
+		// the schedd to know whether we can start a local job 
+		// 
+	if ( this->StartLocalJob ) free( this->StartLocalJob );
+	tmp = param( "START_LOCAL_JOB" );
+	if ( ! tmp ) {
+			//
+			// Default Expression:
+			// TotalLocalJobsRunning < MaxLocalJobsRunning 
+			//
+		MyString temp = ATTR_TOTAL_LOCAL_RUNNING_JOBS;
+		temp += " < ";
+		temp += ATTR_MAX_LOCAL_JOBS_RUNNING;
+		this->StartLocalJob = strdup( temp.Value() );
+	} else {
+			//
+			// Use what they had in the config file
+			// Should I be checking this first??
+			//
+		this->StartLocalJob = strdup( tmp );
 		free( tmp );
 	}
 
@@ -10182,6 +10296,40 @@ Scheduler::HadException( match_rec* mrec )
 	}
 }
 
+//
+// publish()
+// Populates the ClassAd for the schedd
+//
+int
+Scheduler::publish( ClassAd *ad ) {
+	int ret = (int)true;
+	
+		// -------------------------------------------------------
+		// Local Universe Attributes
+		// -------------------------------------------------------
+	intoAd ( ad, ATTR_TOTAL_LOCAL_IDLE_JOBS,	this->LocalUniverseJobsIdle );
+	intoAd ( ad, ATTR_TOTAL_LOCAL_RUNNING_JOBS,	this->LocalUniverseJobsRunning );
+	intoAd ( ad, ATTR_MAX_LOCAL_JOBS_RUNNING,	this->MaxLocalJobsRunning );
+	
+		//
+		// Limiting the # of local universe jobs allowed to start
+		//
+	if ( this->StartLocalJob ) {
+		MyString temp;
+		temp  = ATTR_START_LOCAL_JOB;
+		temp += " = ";
+		temp += this->StartLocalJob;
+		ad->Insert( temp.Value() );	
+	}
+
+		// -------------------------------------------------------
+		// Other Attributes
+		// -------------------------------------------------------
+	// None for now...
+	
+	return ( ret );
+}
+
 
 int
 Scheduler::dumpState(int, Stream* s) {
@@ -10245,6 +10393,13 @@ Scheduler::dumpState(int, Stream* s) {
 }
 
 int Scheduler::intoAd( ClassAd *ad, char *lhs, char *rhs ) {
+	return ( this->intoAd( ad, (const char*)lhs, (const char*)rhs ) );
+}
+int Scheduler::intoAd( ClassAd *ad, const char *lhs, char *rhs ) {
+	return ( this->intoAd( ad, (const char*)lhs, (const char*)rhs ) );
+}
+
+int Scheduler::intoAd( ClassAd *ad, const char *lhs, const char *rhs ) {
 	char tmp[16000];
 	
 	if ( !lhs || !rhs || !ad ) {
@@ -10258,6 +10413,9 @@ int Scheduler::intoAd( ClassAd *ad, char *lhs, char *rhs ) {
 }
 
 int Scheduler::intoAd( ClassAd *ad, char *lhs, int rhs ) {
+	return ( this->intoAd( ad, (const char*)lhs, rhs ) );
+}
+int Scheduler::intoAd( ClassAd *ad, const char *lhs, int rhs ) {
 	char tmp[256];
 	if ( !lhs || !ad ) {
 		return FALSE;

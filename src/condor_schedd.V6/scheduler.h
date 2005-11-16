@@ -212,6 +212,7 @@ class Scheduler : public Service
 	void			PeriodicExprHandler( void );
 
 	// match managing
+	int 			publish( ClassAd *ad );
     match_rec*      AddMrec(char*, char*, PROC_ID*, const ClassAd*, char*, char*);
     int         	DelMrec(char*);
     int         	DelMrec(match_rec*);
@@ -355,6 +356,8 @@ private:
 	int				JobStartCount;
 	int				JobsThisBurst;
 	int				MaxJobsRunning;
+	int				MaxLocalJobsRunning;
+	char*			StartLocalJob; // expression to limit the # of local jobs
 	int				MaxJobsSubmitted;
 	bool			NegotiateAllJobsInCluster;
 	int				JobsStarted; // # of jobs started last negotiating session
@@ -515,7 +518,10 @@ private:
 
 		// put state into ClassAd return it.  Used for condor_squawk
 	int	dumpState(int, Stream *);
+	int intoAd ( ClassAd *ad, const char *lhs, const char *rhs );
+	int intoAd ( ClassAd *ad, const char *lhs, char *rhs );
 	int intoAd ( ClassAd *ad, char *lhs, char *rhs );
+	int intoAd ( ClassAd *ad, const char *lhs, int rhs );
 	int intoAd ( ClassAd *ad, char *lhs, int rhs );
 
 		// A bit that says wether or not we've sent email to the admin
