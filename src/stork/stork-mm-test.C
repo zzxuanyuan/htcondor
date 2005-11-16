@@ -18,9 +18,9 @@ int main ( int argc, char **argv )
 	StorkMatchMaker	mm;
 	printf( "mm size %d @ %p\n", sizeof(mm), &mm );
 	const char *result = NULL;
-	result = mm.getTransferDestination(NULL);
+	result = mm.getTransferDirectory(NULL);
 	printf("TODD dest = %s\n", result ? result : "(NULL)" );
-	result = mm.getTransferDestination(NULL);
+	result = mm.getTransferDirectory(NULL);
 	printf("TODD dest = %s\n", result ? result : "(NULL)" );
 
 	
