@@ -356,7 +356,6 @@ private:
 	int				JobStartCount;
 	int				JobsThisBurst;
 	int				MaxJobsRunning;
-	int				MaxLocalJobsRunning;
 	char*			StartLocalJob; // expression to limit the # of local jobs
 	int				MaxJobsSubmitted;
 	bool			NegotiateAllJobsInCluster;

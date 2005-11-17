@@ -251,7 +251,6 @@ Scheduler::Scheduler() :
 	QueueCleanInterval = 0; JobStartDelay = 0;
 	RequestClaimTimeout = 0;
 	MaxJobsRunning = 0;
-	MaxLocalJobsRunning = 0;
 	MaxJobsSubmitted = INT_MAX;
 	NegotiateAllJobsInCluster = false;
 	JobsStarted = 0;
@@ -646,7 +645,6 @@ Scheduler::count_jobs()
 			SchedUniverseJobsIdle );
 	dprintf( D_FULLDEBUG, "N_Owners = %d\n", N_Owners );
 	dprintf( D_FULLDEBUG, "MaxJobsRunning = %d\n", MaxJobsRunning );
-	dprintf( D_FULLDEBUG, "MaxLocalJobsRunning = %d\n", this->MaxLocalJobsRunning );
 
 	// later when we compute job priorities, we will need PrioRec
 	// to have as many elements as there are jobs in the queue.  since
@@ -659,9 +657,6 @@ Scheduler::count_jobs()
 	ad->InsertOrUpdate(tmp);
 	
 	sprintf(tmp, "%s = %d", ATTR_MAX_JOBS_RUNNING, MaxJobsRunning);
-	ad->InsertOrUpdate(tmp);
-	
-	sprintf(tmp, "%s = %d", ATTR_MAX_LOCAL_JOBS_RUNNING, this->MaxLocalJobsRunning );
 	ad->InsertOrUpdate(tmp);
 	
 	sprintf(tmp, "%s = %s", ATTR_START_LOCAL_JOB, this->StartLocalJob );
@@ -9076,16 +9071,6 @@ Scheduler::Init()
 	}
 	
 		//
-		// Maximum local jobs allowed to run at the same time
-		//
-	tmp = param( "MAX_LOCAL_JOBS_RUNNING" );
-	if( ! tmp ) {
-		this->MaxLocalJobsRunning = 100;
-	} else {
-		this->MaxLocalJobsRunning = atoi( tmp );
-		free( tmp );
-	}
-		//
 		// Start Local Jobs Expression
 		// This will be added into the requirements expression for
 		// the schedd to know whether we can start a local job 
@@ -9094,12 +9079,10 @@ Scheduler::Init()
 	tmp = param( "START_LOCAL_JOB" );
 	if ( ! tmp ) {
 			//
-			// Default Expression:
-			// TotalLocalJobsRunning < MaxLocalJobsRunning 
+			// Default Expression: TRUE
 			//
 		MyString temp = ATTR_TOTAL_LOCAL_RUNNING_JOBS;
-		temp += " < ";
-		temp += ATTR_MAX_LOCAL_JOBS_RUNNING;
+		temp += " = TRUE ";
 		this->StartLocalJob = strdup( temp.Value() );
 	} else {
 			//
@@ -10309,7 +10292,6 @@ Scheduler::publish( ClassAd *ad ) {
 		// -------------------------------------------------------
 	intoAd ( ad, ATTR_TOTAL_LOCAL_IDLE_JOBS,	this->LocalUniverseJobsIdle );
 	intoAd ( ad, ATTR_TOTAL_LOCAL_RUNNING_JOBS,	this->LocalUniverseJobsRunning );
-	intoAd ( ad, ATTR_MAX_LOCAL_JOBS_RUNNING,	this->MaxLocalJobsRunning );
 	
 		//
 		// Limiting the # of local universe jobs allowed to start
