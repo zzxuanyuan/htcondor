@@ -29,7 +29,7 @@
 #include "command_strings.h"
 #include "daemon.h"
 #include "dc_startd.h"
-#include "time_offset.h"
+//#include "time_offset.h"
 
 
 
@@ -84,6 +84,7 @@ DCStartd::setClaimId( const char* id )
 // pass the DC_TIME_OFFSET command then pass the Stream to
 // the cedar stub code for time offset
 //
+/************************
 long
 DCStartd::getTimeOffset( void )
 {
@@ -113,7 +114,7 @@ DCStartd::getTimeOffset( void )
 	long offset = time_offset_cedar_stub( (Stream*)&reli_sock );
 	return (offset);
 }
-
+************************/
 
 bool 
 DCStartd::deactivateClaim( bool graceful )

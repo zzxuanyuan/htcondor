@@ -73,7 +73,7 @@
 #include "condor_classad_namedlist.h"
 #include "schedd_cronmgr.h"
 #include "misc_utils.h"  // for startdClaimFile()
-#include "condor_crontab.h"
+//#include "condor_crontab.h"
 
 
 #define DEFAULT_SHADOW_SIZE 125
@@ -443,15 +443,15 @@ Scheduler::~Scheduler()
 		//
 		// Delete CronTab objects
 		//
-	if ( this->cronTabs ) {
-		this->cronTabs->startIterations();
-		CronTab *current;
-		while ( this->cronTabs->iterate( current ) == 1 ) {
-			if ( current ) delete current;
-		} // WHILE
-		delete this->cronTabs;
-		delete this->cronTabsExclude;
-	}
+//	if ( this->cronTabs ) {
+//		this->cronTabs->startIterations();
+//		CronTab *current;
+//		while ( this->cronTabs->iterate( current ) == 1 ) {
+//			if ( current ) delete current;
+//		} // WHILE
+//		delete this->cronTabs;
+//		delete this->cronTabsExclude;
+//	}
 }
 
 void
@@ -5559,11 +5559,11 @@ Scheduler::makeReconnectRecords( PROC_ID* job, const ClassAd* match_ad )
 //
 //
 //
-int
-calculateCronSchedule( ClassAd *job )
-{
-	return ( (int) scheduler.calculateCronSchedule( job ) );	
-}
+//int
+//calculateCronSchedule( ClassAd *job )
+//{
+//	return ( (int) scheduler.calculateCronSchedule( job ) );	
+//}
 
 
 int
@@ -8495,8 +8495,8 @@ Scheduler::child_exit(int pid, int status)
 					(WEXITSTATUS(status) != JOB_EXCEPTION) )
 				{
 					dprintf( D_ALWAYS,
-							 "ERROR: %s exited with unknown value!\n",
-							 name );
+							 "ERROR: %s exited with unknown value %d!\n",
+							 name, WEXITSTATUS(status) );
 				}
 				// record that we had an exception.  This function will
 				// relinquish the match if we get too many
@@ -9228,24 +9228,24 @@ Scheduler::Init()
 		// Check if the object already exists and we 
 		// need to delete what's in there
 		//
-	if ( this->cronTabs ) {
-		this->cronTabs->startIterations();
-		CronTab *current;
-		while ( this->cronTabs->iterate( current ) == 1 ) {
-			if ( current ) delete current;
-		} // WHILE
-		delete this->cronTabs;
-		if ( this->cronTabsExclude ) delete this->cronTabsExclude;
-	}
-	this->cronTabs = new HashTable<PROC_ID, CronTab*>(
-												(int)( MaxJobsRunning * 1.2 ),
-												hashFuncPROC_ID,
-												updateDuplicateKeys );
+//	if ( this->cronTabs ) {
+//		this->cronTabs->startIterations();
+//		CronTab *current;
+//		while ( this->cronTabs->iterate( current ) == 1 ) {
+//			if ( current ) delete current;
+//		} // WHILE
+//		delete this->cronTabs;
+//		if ( this->cronTabsExclude ) delete this->cronTabsExclude;
+//	}
+//	this->cronTabs = new HashTable<PROC_ID, CronTab*>(
+//												(int)( MaxJobsRunning * 1.2 ),
+//												hashFuncPROC_ID,
+//												updateDuplicateKeys );
 		//
 		// Along with the cronTabs HashTable we have a list
 		// of jobs that do not need an entry in cronTabs
 		//
-	this->cronTabsExclude = new Queue<PROC_ID>;
+//	this->cronTabsExclude = new Queue<PROC_ID>;
 
 	tmp = param("MAX_SHADOW_EXCEPTIONS");
 	 if(!tmp) {
@@ -11043,15 +11043,15 @@ Scheduler::jobIsFinishedHandler( ServiceData* data )
 		// We do it here before we fire off any threads
 		// so that we cause problems
 		//
-	PROC_ID id;
-	id.cluster = cluster;
-	id.proc    = proc;
-	CronTab *cronTab;
-	if ( this->cronTabsExclude->IsMember( id ) ) {
-		this->cronTabsExclude->dequeue( id );
-	} else if ( this->cronTabs->lookup( id, cronTab ) >= 0 ) {
-		if ( cronTab != NULL) delete cronTab;
-	}
+//	PROC_ID id;
+//	id.cluster = cluster;
+//	id.proc    = proc;
+//	CronTab *cronTab;
+//	if ( this->cronTabsExclude->IsMember( id ) ) {
+//		this->cronTabsExclude->dequeue( id );
+//	} else if ( this->cronTabs->lookup( id, cronTab ) >= 0 ) {
+//		if ( cronTab != NULL) delete cronTab;
+//	}
 	
 	if( jobCleanupNeedsThread(cluster, proc) ) {
 		dprintf( D_FULLDEBUG, "Job cleanup for %d.%d will block, "
@@ -11297,297 +11297,297 @@ Scheduler::claimLocalStartd()
 // our cronTab cache. This will force us to recalculate
 // next run time for all our jobs
 //
-bool 
-Scheduler::calculateCronSchedule( ClassAd *ad, bool force ) {
-		//
-		// I allocate other variables we need below these first
-		// checks since if it would be a waste if the job did not
-		// even need a CronTab schedule
-		//
-	PROC_ID id;
-	ad->LookupInteger(ATTR_CLUSTER_ID, id.cluster);
-	ad->LookupInteger(ATTR_PROC_ID, id.proc);
-		
-	dprintf( D_ALWAYS, "PAVLO: Trying to calc cron runtime for Job %d.%d\n",
-					id.cluster, id.proc );
-		
-		//
-		// We keep an exclusion table so we can quickly look up
-		// whether we don't even need to bother with this ad
-		//
-	if ( this->cronTabsExclude->IsMember( id ) ) {
-		dprintf( D_ALWAYS, "PAVLO: Cached exclusion entry for Job %d.%d\n",
-					id.cluster, id.proc );
-		return ( true );
-	}
-		//
-		// Check whether this needs a schedule
-		// If not, then add it to our exclusion list so that the
-		// next time we won't check
-		//
-	if ( !CronTab::needsCronTab( ad ) ) {	
-		this->cronTabsExclude->enqueue( id );
-		dprintf( D_ALWAYS, "PAVLO: Job %d.%d does not need a cron! Caching!\n",
-					id.cluster, id.proc );
-		return ( true );
-	}
-
-		//
-		// If this is set to true then the cron schedule in the job ad 
-		// had proper syntax and was parsed by the CronTab object successfully
-		//
-	bool valid = true;
-		//
-		// CronTab validation errors
-		//
-	MyString error;
-		//
-		// See if we can get the cached scheduler object 
-		//
-	CronTab *cronTab = NULL;
-	if ( this->cronTabs->lookup( id, cronTab ) < 0 ) {
-			//
-			// There wasn't a cached object, so we'll need to create
-			// one then shove it back in the lookup table
-			// Make sure that the schedule is valid first
-			//
-		if ( CronTab::validate( ad, error ) ) {
-			cronTab = new CronTab( ad );
-				//
-				// You never know what might have happended during
-				// the initialization so it's good to check after
-				// we instantiate the object
-				//
-			valid = cronTab->isValid();
-			if ( valid ) {
-				this->cronTabs->insert( id, cronTab );
-			}
-				//
-				// We set the force flag to true so that we are 
-				// sure to calculate the next runtime even if
-				// the job ad already has one in it
-				//
-			force = true;
-
-			//
-			// It was invalid!
-			// We'll notify the user and put the job on hold
-			//
-		} else {
-			valid = false;
-		}
-	}
-
-		//
-		// Now determine whether we need to calculate a new runtime:
-		//
-		//	1) valid
-		//		The CronTab object must have parsed the parameters
-		//		for the schedule successfully
-		//	2) cronTab != NULL
-		//		Cheap safety check
-		//	3) !seenBefore || force
-		//		We can look to see whether the job has already
-		//		had a job calculated for it. If it has, and 
-		//		the force flag isn't set to true, then we won't
-		//		calculate a new time.
-		//	
-	bool seenBefore = ( ad->Lookup( ATTR_CRON_NEXT_RUNTIME ) != NULL );
-	dprintf( D_ALWAYS, "PAVLO: seenBefore -> %s\n",
-						(seenBefore ? "TRUE" : "FALSE") );
-	dprintf( D_ALWAYS, "PAVLO: force -> %s\n",
-						(force ? "TRUE" : "FALSE") );
-	
-	if ( valid && ( cronTab != NULL ) && ( !seenBefore || force ) ) {
-			//
-			// If seenBefore is false, then that means we haven't
-			// updated the job's requirement expression
-			//
-		if ( !seenBefore ) {
-				//
-				// Prepare our new requirement attribute
-				//
-			MyString attrib = "(";
-			attrib += ATTR_HAS_JOB_DEFERRAL;
-			attrib += ") && (";
-			attrib += ATTR_CURRENT_TIME;
-			attrib += " + ";
-			attrib += ATTR_CRON_CURRENT_TIME_RANGE;
-			attrib += ") >= ";
-			attrib += ATTR_CRON_NEXT_RUNTIME;
-				//
-				// Check to see if requirements are empty
-				// If they're not, then we need to make sure we are appending
-				// it to what's already there properly
-				//
-			MyString newAttrib( ATTR_REQUIREMENTS );
-			newAttrib += " = ";
-			ExprTree *tree = ad->Lookup( ATTR_REQUIREMENTS );
-			if ( tree ) {
-				char *buffer;
-				tree->RArg()->PrintToNewStr( &buffer );
-				newAttrib += buffer;
-				newAttrib += " && (";
-				newAttrib += attrib;
-				newAttrib += ")";
-				dprintf( D_ALWAYS, "PAVLO: Pulled out existing requirements %s\n",
-								buffer );
-				free( buffer );
-				//
-				// We will create a new requirements expression
-				// No need to worry about what might already be there
-				//
-			} else {
-				newAttrib += attrib;
-			}
-				//
-				// For some reason we can't update the requirements!
-				// This is a big problem!
-				//
-			if ( ! ad->Insert( newAttrib.Value(), true ) ) {
-				EXCEPT( "Unable to update Requirements expression for "
-						"Cron Jobs!\n" );
-			}
-			
-				//
-				// We also need to stuff what the schedd's interval
-				// value is. This way we can specify a range of when 
-				// our job should be started. This is needed so
-				// that we can send the job to the starter if 
-				// the job execution time comes after the current time
-				// but before the next time the schedd will pool it's
-				// jobs
-				//
-			ad->Assign( ATTR_CRON_CURRENT_TIME_RANGE, this->SchedDInterval );
-			
-		} // !seenBefore
-		
-			//
-			// The user can specify a window range of when we are allowed
-			// to run the job. This allows them to specify that a job
-			// can be ran even if we missed the exact run time
-			// So we need to get the current time and then 
-			// subtract the window before asking what the next runtime is
-			//
-		int runTimeWindow = 0;
-		if ( ad->Lookup( ATTR_DEFERRAL_WINDOW) != NULL ) {
-			ad->LookupInteger( ATTR_DEFERRAL_WINDOW, runTimeWindow );
-			dprintf( D_ALWAYS, "PAVLO: Pulled %s from ad with value '%d'\n",
-								ATTR_DEFERRAL_WINDOW, runTimeWindow );
-		}
-		
-			//
-			// Get the next runtime starting at our "windowed" time
-			//
-		long curTime = (long)time( NULL );
-		long calculatedRunTime = cronTab->nextRunTime( curTime - runTimeWindow );
-		long runTime = calculatedRunTime;
-		dprintf( D_ALWAYS, "PAVLO: Next runtime for Job %d.%d is %d\n",
-						id.cluster, id.proc, (int)runTime );
-			//
-			// We have a valid runtime, so let's figure out 
-			// when we should run it next
-			//
-		if ( runTime != CRONTAB_INVALID ) {
-				//
-				// The preparation time is how much in advance we 
-				// want to send the job to the starter so it can 
-				// prepare the environment
-				// This can either be a user option in their job file
-				// or in the config file
-				//
-			int prepTime = 0;
-			char *tmp = param( "CRON_PREPARATION_TIME" );
-			if ( tmp ) {
-				prepTime = atoi( tmp );
-				free( tmp );
-			}
-			if ( ad->Lookup( ATTR_CRON_PREP_TIME ) != NULL ) {
-				ad->LookupInteger( ATTR_CRON_PREP_TIME, prepTime );
-				dprintf( D_ALWAYS, "PAVLO: Pulled %s from ad with value '%d'\n",
-								ATTR_CRON_PREP_TIME, prepTime );
-			}
-			dprintf( D_ALWAYS, "PAVLO: Cron Prep Time %d\n", prepTime );
-				//
-				// Subtract the preparation time
-				//
-			runTime -= prepTime;			
-				//
-				// Now that we have it all figured out, stuff this runtime
-				// into the job ad! This is the time that the will 
-				// be released by the schedd and sent over to the starter
-				//
-			ad->Assign( ATTR_CRON_NEXT_RUNTIME, (int)runTime );
-			
-				//
-				// We also need to put in the real runtime. This is the
-				// time that we figured out when it should run next
-				//
-			ad->Assign( ATTR_DEFERRAL_TIME,	(int)calculatedRunTime );
-			
-				//
-				// Debug Info
-				//
-			dprintf( D_ALWAYS, "\n----------------------------------------\n"
-								"%s = %d\n"
-								"%s = %d\n"
-								"%s = %d\n"
-								"%s = %d\n"
-								"%s = %d\n"
-								"\n----------------------------------------\n",
-								ATTR_DEFERRAL_TIME, (int)calculatedRunTime,
-								ATTR_CRON_NEXT_RUNTIME, (int)runTime,
-								ATTR_CRON_PREP_TIME, (int)prepTime,
-								ATTR_CRON_CURRENT_TIME_RANGE, (int)this->SchedDInterval,
-								ATTR_DEFERRAL_WINDOW, (int)runTimeWindow );
-			
-			//
-			// We got back an invalid response
-			// This is a little odd because the parameters
-			// should have come back invalid when we instantiated
-			// the object up above, but either way it's a good 
-			// way to check
-			//
-		} else {
-			valid = false;
-		}
-	}
-		//
-		// After jumping through all our hoops, check to see
-		// if the cron scheduling failed, meaning that the
-		// crontab parameters were incorrect. We should
-		// put the job on hold. condor_submit does check to make
-		// sure that the cron schedule syntax is valid but the job
-		// may have been submitted by an older version. The key thing
-		// here is that if the scheduling failed the job should
-		// NEVER RUN. They wanted it to run at a certain time, but
-		// we couldn't figure out what that time was, so we can't just
-		// run the job regardless because it may cause big problems
-		//
-	if ( !valid ) { 
-			//
-			// Get the error message to report back to the user
-			// If we have a cronTab object then get the error 
-			// message from that, otherwise look at the static 
-			// error log which will be populated on CronTab::validate()
-			//
-		MyString reason( "Invalid cron schedule parameters:\n" );
-		if ( cronTab != NULL ) {
-			reason += cronTab->getError();
-		} else {
-			reason += error;
-		}
-			//
-			// Throw the job on hold. For this call we want to:
-			// 	use_transaction - true
-			//	notify_shadow	- false
-			//	email_user		- true
-			//	email_admin		- false
-			//	system_hold		- false
-			//
-		holdJob( id.cluster, id.proc, reason.Value(),
-				 true, false, true, false, false );
-	}
-	
-	return ( valid );
-}
+//bool 
+//Scheduler::calculateCronSchedule( ClassAd *ad, bool force ) {
+//		//
+//		// I allocate other variables we need below these first
+//		// checks since if it would be a waste if the job did not
+//		// even need a CronTab schedule
+//		//
+//	PROC_ID id;
+//	ad->LookupInteger(ATTR_CLUSTER_ID, id.cluster);
+//	ad->LookupInteger(ATTR_PROC_ID, id.proc);
+//		
+//	dprintf( D_ALWAYS, "PAVLO: Trying to calc cron runtime for Job %d.%d\n",
+//					id.cluster, id.proc );
+//		
+//		//
+//		// We keep an exclusion table so we can quickly look up
+//		// whether we don't even need to bother with this ad
+//		//
+//	if ( this->cronTabsExclude->IsMember( id ) ) {
+//		dprintf( D_ALWAYS, "PAVLO: Cached exclusion entry for Job %d.%d\n",
+//					id.cluster, id.proc );
+//		return ( true );
+//	}
+//		//
+//		// Check whether this needs a schedule
+//		// If not, then add it to our exclusion list so that the
+//		// next time we won't check
+//		//
+//	if ( !CronTab::needsCronTab( ad ) ) {	
+//		this->cronTabsExclude->enqueue( id );
+//		dprintf( D_ALWAYS, "PAVLO: Job %d.%d does not need a cron! Caching!\n",
+//					id.cluster, id.proc );
+//		return ( true );
+//	}
+//
+//		//
+//		// If this is set to true then the cron schedule in the job ad 
+//		// had proper syntax and was parsed by the CronTab object successfully
+//		//
+//	bool valid = true;
+//		//
+//		// CronTab validation errors
+//		//
+//	MyString error;
+//		//
+//		// See if we can get the cached scheduler object 
+//		//
+//	CronTab *cronTab = NULL;
+//	if ( this->cronTabs->lookup( id, cronTab ) < 0 ) {
+//			//
+//			// There wasn't a cached object, so we'll need to create
+//			// one then shove it back in the lookup table
+//			// Make sure that the schedule is valid first
+//			//
+//		if ( CronTab::validate( ad, error ) ) {
+//			cronTab = new CronTab( ad );
+//				//
+//				// You never know what might have happended during
+//				// the initialization so it's good to check after
+//				// we instantiate the object
+//				//
+//			valid = cronTab->isValid();
+//			if ( valid ) {
+//				this->cronTabs->insert( id, cronTab );
+//			}
+//				//
+//				// We set the force flag to true so that we are 
+//				// sure to calculate the next runtime even if
+//				// the job ad already has one in it
+//				//
+//			force = true;
+//
+//			//
+//			// It was invalid!
+//			// We'll notify the user and put the job on hold
+//			//
+//		} else {
+//			valid = false;
+//		}
+//	}
+//
+//		//
+//		// Now determine whether we need to calculate a new runtime:
+//		//
+//		//	1) valid
+//		//		The CronTab object must have parsed the parameters
+//		//		for the schedule successfully
+//		//	2) cronTab != NULL
+//		//		Cheap safety check
+//		//	3) !seenBefore || force
+//		//		We can look to see whether the job has already
+//		//		had a job calculated for it. If it has, and 
+//		//		the force flag isn't set to true, then we won't
+//		//		calculate a new time.
+//		//	
+//	bool seenBefore = ( ad->Lookup( ATTR_CRON_NEXT_RUNTIME ) != NULL );
+//	dprintf( D_ALWAYS, "PAVLO: seenBefore -> %s\n",
+//						(seenBefore ? "TRUE" : "FALSE") );
+//	dprintf( D_ALWAYS, "PAVLO: force -> %s\n",
+//						(force ? "TRUE" : "FALSE") );
+//	
+//	if ( valid && ( cronTab != NULL ) && ( !seenBefore || force ) ) {
+//			//
+//			// If seenBefore is false, then that means we haven't
+//			// updated the job's requirement expression
+//			//
+//		if ( !seenBefore ) {
+//				//
+//				// Prepare our new requirement attribute
+//				//
+//			MyString attrib = "(";
+//			attrib += ATTR_HAS_JOB_DEFERRAL;
+//			attrib += ") && (";
+//			attrib += ATTR_CURRENT_TIME;
+//			attrib += " + ";
+//			attrib += ATTR_CRON_CURRENT_TIME_RANGE;
+//			attrib += ") >= ";
+//			attrib += ATTR_CRON_NEXT_RUNTIME;
+//				//
+//				// Check to see if requirements are empty
+//				// If they're not, then we need to make sure we are appending
+//				// it to what's already there properly
+//				//
+//			MyString newAttrib( ATTR_REQUIREMENTS );
+//			newAttrib += " = ";
+//			ExprTree *tree = ad->Lookup( ATTR_REQUIREMENTS );
+//			if ( tree ) {
+//				char *buffer;
+//				tree->RArg()->PrintToNewStr( &buffer );
+//				newAttrib += buffer;
+//				newAttrib += " && (";
+//				newAttrib += attrib;
+//				newAttrib += ")";
+//				dprintf( D_ALWAYS, "PAVLO: Pulled out existing requirements %s\n",
+//								buffer );
+//				free( buffer );
+//				//
+//				// We will create a new requirements expression
+//				// No need to worry about what might already be there
+//				//
+//			} else {
+//				newAttrib += attrib;
+//			}
+//				//
+//				// For some reason we can't update the requirements!
+//				// This is a big problem!
+//				//
+//			if ( ! ad->Insert( newAttrib.Value(), true ) ) {
+//				EXCEPT( "Unable to update Requirements expression for "
+//						"Cron Jobs!\n" );
+//			}
+//			
+//				//
+//				// We also need to stuff what the schedd's interval
+//				// value is. This way we can specify a range of when 
+//				// our job should be started. This is needed so
+//				// that we can send the job to the starter if 
+//				// the job execution time comes after the current time
+//				// but before the next time the schedd will pool it's
+//				// jobs
+//				//
+//			ad->Assign( ATTR_CRON_CURRENT_TIME_RANGE, this->SchedDInterval );
+//			
+//		} // !seenBefore
+//		
+//			//
+//			// The user can specify a window range of when we are allowed
+//			// to run the job. This allows them to specify that a job
+//			// can be ran even if we missed the exact run time
+//			// So we need to get the current time and then 
+//			// subtract the window before asking what the next runtime is
+//			//
+//		int runTimeWindow = 0;
+//		if ( ad->Lookup( ATTR_DEFERRAL_WINDOW) != NULL ) {
+//			ad->LookupInteger( ATTR_DEFERRAL_WINDOW, runTimeWindow );
+//			dprintf( D_ALWAYS, "PAVLO: Pulled %s from ad with value '%d'\n",
+//								ATTR_DEFERRAL_WINDOW, runTimeWindow );
+//		}
+//		
+//			//
+//			// Get the next runtime starting at our "windowed" time
+//			//
+//		long curTime = (long)time( NULL );
+//		long calculatedRunTime = cronTab->nextRunTime( curTime - runTimeWindow );
+//		long runTime = calculatedRunTime;
+//		dprintf( D_ALWAYS, "PAVLO: Next runtime for Job %d.%d is %d\n",
+//						id.cluster, id.proc, (int)runTime );
+//			//
+//			// We have a valid runtime, so let's figure out 
+//			// when we should run it next
+//			//
+//		if ( runTime != CRONTAB_INVALID ) {
+//				//
+//				// The preparation time is how much in advance we 
+//				// want to send the job to the starter so it can 
+//				// prepare the environment
+//				// This can either be a user option in their job file
+//				// or in the config file
+//				//
+//			int prepTime = 0;
+//			char *tmp = param( "CRON_PREPARATION_TIME" );
+//			if ( tmp ) {
+//				prepTime = atoi( tmp );
+//				free( tmp );
+//			}
+//			if ( ad->Lookup( ATTR_CRON_PREP_TIME ) != NULL ) {
+//				ad->LookupInteger( ATTR_CRON_PREP_TIME, prepTime );
+//				dprintf( D_ALWAYS, "PAVLO: Pulled %s from ad with value '%d'\n",
+//								ATTR_CRON_PREP_TIME, prepTime );
+//			}
+//			dprintf( D_ALWAYS, "PAVLO: Cron Prep Time %d\n", prepTime );
+//				//
+//				// Subtract the preparation time
+//				//
+//			runTime -= prepTime;			
+//				//
+//				// Now that we have it all figured out, stuff this runtime
+//				// into the job ad! This is the time that the will 
+//				// be released by the schedd and sent over to the starter
+//				//
+//			ad->Assign( ATTR_CRON_NEXT_RUNTIME, (int)runTime );
+//			
+//				//
+//				// We also need to put in the real runtime. This is the
+//				// time that we figured out when it should run next
+//				//
+//			ad->Assign( ATTR_DEFERRAL_TIME,	(int)calculatedRunTime );
+//			
+//				//
+//				// Debug Info
+//				//
+//			dprintf( D_ALWAYS, "\n----------------------------------------\n"
+//								"%s = %d\n"
+//								"%s = %d\n"
+//								"%s = %d\n"
+//								"%s = %d\n"
+//								"%s = %d\n"
+//								"\n----------------------------------------\n",
+//								ATTR_DEFERRAL_TIME, (int)calculatedRunTime,
+//								ATTR_CRON_NEXT_RUNTIME, (int)runTime,
+//								ATTR_CRON_PREP_TIME, (int)prepTime,
+//								ATTR_CRON_CURRENT_TIME_RANGE, (int)this->SchedDInterval,
+//								ATTR_DEFERRAL_WINDOW, (int)runTimeWindow );
+//			
+//			//
+//			// We got back an invalid response
+//			// This is a little odd because the parameters
+//			// should have come back invalid when we instantiated
+//			// the object up above, but either way it's a good 
+//			// way to check
+//			//
+//		} else {
+//			valid = false;
+//		}
+//	}
+//		//
+//		// After jumping through all our hoops, check to see
+//		// if the cron scheduling failed, meaning that the
+//		// crontab parameters were incorrect. We should
+//		// put the job on hold. condor_submit does check to make
+//		// sure that the cron schedule syntax is valid but the job
+//		// may have been submitted by an older version. The key thing
+//		// here is that if the scheduling failed the job should
+//		// NEVER RUN. They wanted it to run at a certain time, but
+//		// we couldn't figure out what that time was, so we can't just
+//		// run the job regardless because it may cause big problems
+//		//
+//	if ( !valid ) { 
+//			//
+//			// Get the error message to report back to the user
+//			// If we have a cronTab object then get the error 
+//			// message from that, otherwise look at the static 
+//			// error log which will be populated on CronTab::validate()
+//			//
+//		MyString reason( "Invalid cron schedule parameters:\n" );
+//		if ( cronTab != NULL ) {
+//			reason += cronTab->getError();
+//		} else {
+//			reason += error;
+//		}
+//			//
+//			// Throw the job on hold. For this call we want to:
+//			// 	use_transaction - true
+//			//	notify_shadow	- false
+//			//	email_user		- true
+//			//	email_admin		- false
+//			//	system_hold		- false
+//			//
+//		holdJob( id.cluster, id.proc, reason.Value(),
+//				 true, false, true, false, false );
+//	}
+//	
+//	return ( valid );
+//}

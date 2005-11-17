@@ -40,7 +40,7 @@
 #include "condor_scanner.h"
 #include "condor_distribution.h"
 #include "condor_ver_info.h"
-#include "condor_crontab.h"
+//#include "condor_crontab.h"
 #if !defined(WIN32)
 #include <pwd.h>
 #include <sys/stat.h>
@@ -5317,15 +5317,15 @@ validate_job_ad( ClassAd *ad ) {
 		// a cron schedule, and if so make sure the parameters
 		// are specified properly
 		// ---------------------------------------------------
-	MyString error;
-	if ( CronTab::needsCronTab( ad ) && 
-		 !CronTab::validate( ad, error ) ) {
-			//
-			// It's not valid, so print the error message
-			//
-		fprintf( stderr, "\n%s", error.Value() );
-		ret = false;
-	}
+//	MyString error;
+//	if ( CronTab::needsCronTab( ad ) && 
+//		 !CronTab::validate( ad, error ) ) {
+//			//
+//			// It's not valid, so print the error message
+//			//
+//		fprintf( stderr, "\n%s", error.Value() );
+//		ret = false;
+//	}
 	
 		// ---------------------------------------------------
 		// Job Deferral

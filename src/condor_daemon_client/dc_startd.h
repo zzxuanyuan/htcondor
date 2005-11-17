@@ -63,7 +63,7 @@ public:
 		/**
 		 * @return the time difference between the startd
 		 */
-	long getTimeOffset( void );
+	//long getTimeOffset( void );
 
 
 		/** @return the ClaimId string for this startd, NULL if we
