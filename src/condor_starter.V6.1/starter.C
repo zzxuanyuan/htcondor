@@ -535,16 +535,44 @@ int
 CStarter::jobWaitUntilExecuteTime( void )
 {
 		//
+		// Return value
+		//
+	bool ret = true;
+		//
+		// If this is set to true, then we'll want to abort the job
+		//
+	bool abort = false;
+	char error[4096]; // just a guess
+	
+		//
 		// First check to see if the job is set to be
 		// deferred until a certain time before beginning to
 		// execute 
 		//		
 	ClassAd* jobAd = this->jic->jobClassAd();
-	int deferralTime, deferralOffset = 0, deltaT = 0, deferralWindow = 0;
-	if ( jobAd->Lookup( ATTR_DEFERRAL_TIME ) != NULL &&
-		 jobAd->EvalInteger( ATTR_DEFERRAL_TIME, NULL, deferralTime ) ) {
+	int deferralTime = 0;
+	int deferralOffset = 0;
+	int deltaT = 0;
+	int deferralWindow = 0;
+	if ( jobAd->Lookup( ATTR_DEFERRAL_TIME ) != NULL ) {
 			//
-			// It was in there, so we need to figure out what the time difference
+		 	// Make sure that the expression evaluated and we 
+		 	// got a positive integer. Otherwise we'll have to kick out
+		 	//
+		if ( ! jobAd->EvalInteger( ATTR_DEFERRAL_TIME, NULL, deferralTime ) ) {
+			sprintf( error, "Invalid deferred execution time for Job %d.%d.",
+												this->jic->jobCluster(),
+												this->jic->jobProc() );
+			abort = true;
+		} else if ( deferralTime <= 0 ) {
+			sprintf( error, "Invalid execution time '%d' for Job %d.%d.",
+							 					deferralTime,
+												this->jic->jobCluster(),
+												this->jic->jobProc() );
+			abort = true;
+
+			//
+			// It was valid, so we need to figure out what the time difference
 			// between the deferral time and our current time is. There
 			// are two scenarios that can occur in this situation:
 			//
@@ -553,116 +581,134 @@ CStarter::jobWaitUntilExecuteTime( void )
 			//	2) The deferral time has passed, meaning we're late, and
 			//     the job has missed its window. We will not execute it
 			// 
-		time_t now = time(NULL);
-			//
-			// We can also be passed a offset value
-			// This is from the Shadow who has determined that
-			// our clock is different from theirs
-			// Thus, we will just need to subtract this offset from
-			// our currrent time measurement
-			//
-		if ( jobAd->LookupInteger( ATTR_DEFERRAL_OFFSET, deferralOffset ) ) {
-			dprintf( D_FULLDEBUG, "Job %d.%d deferral time offset by "
-			                      "%d seconds\n", 
-			                      						this->jic->jobCluster(),
+		} else {
+			time_t now = time(NULL);
+				//
+				// We can also be passed a offset value
+				// This is from the Shadow who has determined that
+				// our clock is different from theirs
+				// Thus, we will just need to subtract this offset from
+				// our currrent time measurement
+				//
+			if ( jobAd->LookupInteger( ATTR_DEFERRAL_OFFSET, deferralOffset ) ) {
+				dprintf( D_FULLDEBUG, "Job %d.%d deferral time offset by "
+				                      "%d seconds\n", 
+				                      					this->jic->jobCluster(),
 														this->jic->jobProc(),
 														deferralOffset );
-			now -= deferralOffset;
-		}
-			//
-			// Along with an offset we can be given a window range
-			// to say how much leeway we will allow a late job to have
-			// So if the deferralTime is less than the currenTime,
-			// but within this window, we'll still run the job
-			//
-		if ( jobAd->Lookup( ATTR_DEFERRAL_WINDOW ) != NULL &&
-			 jobAd->EvalInteger( ATTR_DEFERRAL_WINDOW, NULL, deferralWindow ) ) {
-			dprintf( D_FULLDEBUG, "Job %d.%d has a deferral time window of "
-			                      "%d seconds\n", 
-			                      						this->jic->jobCluster(),
+				now -= deferralOffset;
+			}
+				//
+				// Along with an offset we can be given a window range
+				// to say how much leeway we will allow a late job to have
+				// So if the deferralTime is less than the currenTime,
+				// but within this window, we'll still run the job
+				//
+			if ( jobAd->Lookup( ATTR_DEFERRAL_WINDOW ) != NULL &&
+				 jobAd->EvalInteger( ATTR_DEFERRAL_WINDOW, NULL, deferralWindow ) ) {
+				dprintf( D_FULLDEBUG, "Job %d.%d has a deferral time window of "
+				                      "%d seconds\n", 
+				                      					this->jic->jobCluster(),
 														this->jic->jobProc(),
 														deferralWindow );
-		}
-		deltaT = deferralTime - now;
-			//
-			// The time has already passed, check whether it's
-			// within our window. If not then abort
-			//
-		if ( deltaT < 0 ) {
-			if ( abs( deltaT ) >  deferralWindow ) {
-				dprintf( D_ALWAYS, "Job %d.%d missed its execution time. Aborting\n",
-							                      			this->jic->jobCluster(),
-															this->jic->jobProc() );
-					//
-					// Hack!
-					// I want to send back that the job missed its time
-					// and that the schedd needs to decide what to do with
-					// the job. But the only way to do this is if you
-					// have a UserProc object. So we're going to make
-					// a quick on here and then send back the exit error
-					//
-				OsProc proc( jobAd );
-				this->jic->notifyJobExit( -1, JOB_MISSED_DEFERRAL_TIME, &proc );
-					
-				main_shutdown_fast();
-				return (false);
-				//
-				// Be sure to set the deltaT to zero so
-				// that the timer goes right off
-				//
-			} else {
-				dprintf( D_ALWAYS, "Job %d.%d missed its execution time but "
-									"is within the %d seconds window\n",
-							                      			this->jic->jobCluster(),
-															this->jic->jobProc(),
-															deferralWindow );
-				deltaT = 0;
 			}
-		} // if deltaT < 0	
-	}
-		//
-		// Quick sanity check
-		// Make sure another timer isn't already registered
-		//
-	ASSERT( this->deferral_tid == CSTARTER_NO_DEFERRAL_TID );
-	
-		//
-		// Now we will register a callback that will
-		// call the function to actually execute the job
-		// If there wasn't a deferral time then the job will 
-		// be started right away. We store the timer id so that
-		// if a suspend comes in, we can cancel the job from being
-		// executed
-		//
-	this->deferral_tid = daemonCore->Register_Timer(
-									deltaT,
-									0,
-									(TimerHandlercpp)&CStarter::jobEnvironmentReady,
-									"deferred job start",
-									this );
-		//
-		// Make sure our timer callback registered properly
-		//
-	if( this->deferral_tid < 0 ) {
-		EXCEPT( "Can't register Deferred Execution DaemonCore timer" );
-	}
-		//
-		// Our job will start in the future
-		//
-	if ( deltaT > 0 ) { 
-		dprintf( D_FULLDEBUG, "Job %d.%d deferred for %d seconds\n", 
-														this->jic->jobCluster(),
-														this->jic->jobProc(),
-														deltaT );
-		//
-		// Our job will start right away!
-		//
-	} else {
-		dprintf( D_FULLDEBUG, "Job %d.%d set to execute immediately\n",
+			deltaT = deferralTime - now;
+				//
+				// The time has already passed, check whether it's
+				// within our window. If not then abort
+				//
+			if ( deltaT < 0 ) {
+				if ( abs( deltaT ) > deferralWindow ) {
+					sprintf( error, "Job %d.%d missed its execution time.",
 														this->jic->jobCluster(),
 														this->jic->jobProc() );
+					abort = true;
+					//
+					// Be sure to set the deltaT to zero so
+					// that the timer goes right off
+					//
+				} else {
+					dprintf( D_ALWAYS, "Job %d.%d missed its execution time but "
+										"is within the %d seconds window\n",
+								                      			this->jic->jobCluster(),
+																this->jic->jobProc(),
+																deferralWindow );
+					deltaT = 0;
+				}
+			} // if deltaT < 0
+		}	
 	}
-	return (true);
+	
+		//
+		// Start the job timer
+		//
+	if ( ! abort ) {
+			//
+			// Quick sanity check
+			// Make sure another timer isn't already registered
+			//
+		ASSERT( this->deferral_tid == CSTARTER_NO_DEFERRAL_TID );
+		
+			//
+			// Now we will register a callback that will
+			// call the function to actually execute the job
+			// If there wasn't a deferral time then the job will 
+			// be started right away. We store the timer id so that
+			// if a suspend comes in, we can cancel the job from being
+			// executed
+			//
+		this->deferral_tid = daemonCore->Register_Timer(
+										deltaT,
+										0,
+										(TimerHandlercpp)&CStarter::jobEnvironmentReady,
+										"deferred job start",
+										this );
+			//
+			// Make sure our timer callback registered properly
+			//
+		if( this->deferral_tid < 0 ) {
+			EXCEPT( "Can't register Deferred Execution DaemonCore timer" );
+		}
+			//
+			// Our job will start in the future
+			//
+		if ( deltaT > 0 ) { 
+			dprintf( D_FULLDEBUG, "Job %d.%d deferred for %d seconds\n", 
+															this->jic->jobCluster(),
+															this->jic->jobProc(),
+															deltaT );
+			//
+			// Our job will start right away!
+			//
+		} else {
+			dprintf( D_FULLDEBUG, "Job %d.%d set to execute immediately\n",
+															this->jic->jobCluster(),
+															this->jic->jobProc() );
+		}
+		
+		//
+		// Aborting the job!
+		// We are not going to start the job so we'll let the jic know
+		//
+	} else {
+			//
+			// Hack!
+			// I want to send back that the job missed its time
+			// and that the schedd needs to decide what to do with
+			// the job. But the only way to do this is if you
+			// have a UserProc object. So we're going to make
+			// a quick on here and then send back the exit error
+			//
+		if ( error ) {
+			dprintf( D_ALWAYS, "%s Aborting.\n", error );
+		}
+		OsProc proc( jobAd );
+		this->jic->notifyJobExit( -1, JOB_MISSED_DEFERRAL_TIME, &proc );				
+		main_shutdown_fast();
+		ret = false;
+	}
+	
+	return ( ret );
 }
 
 //
@@ -673,12 +719,6 @@ CStarter::jobWaitUntilExecuteTime( void )
 // deferred. All a deferral means is that there is a timer
 // that has been registered to wakeup when its time to
 // execute the job. So we just need to cancel the timer
-//
-// NOTE:
-// I have a little hack in here that will peek to see if 
-// the JobList is empty. If it is, then we will call
-// allJobsDone(). I'm not 100% sure this is the proper
-// functionality.
 //
 int
 CStarter::removeDeferredJobs() {
