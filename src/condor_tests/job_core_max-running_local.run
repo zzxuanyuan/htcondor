@@ -9,9 +9,8 @@
 #########################################################
 use CondorTest;
 
-$testname = 'Max Running Local Universe Jobs';
-$cmdfile  = 'job_core_max-running_local.cmd';
-$outfile  = 'job_core_max-running_local.out';
+$testname 		= 'Max Running Local Universe Jobs';
+$cmdfile		= 'job_core_max-running_local.cmd';
 
 ##
 ## Sleep time 
@@ -34,25 +33,32 @@ my $LAST_RUN_TIME = 0;
 my $testFailure = "";
 
 ##
+## All the jobs are outputting to the same file, so we 
+## have to get the time out and compare it to the last job
+## that finished. This isn't 100% because the jobs are overwriting
+## the same file. I had to do it this way because the testing suite
+## cannot differeniate between multiple jobs, and we need to be 
+## able to check the jobs in the order that they complete
 ##
-##
-my $successCallback = sub {
+$successCallback = sub {
 	my %info = @_;
+	my $outfile = $info{"output"};
 	##
 	## This is the time that they said they ran on the execute machine
 	##
 	open(FILE, $outfile) || die("Failed to open output file '$outfile'");
 	my @output = <FILE>;
 	close(FILE);
-	my $reportTime  = "@output";
+	my $reportTime = "@output";
+	chomp($reportTime);
 	
 	##
 	## If there wasn't a last run time value, then this is the first
 	## job submitted. Otherwise we to check to make sure that they 
 	## ran far enough apart from each other
 	##
-	if ( ! $LAST_RUN_TIME ) {
-		if ( $reportTime - $LAST_RUN_TIME < $SLEEP_TIME ) {
+	if ( $LAST_RUN_TIME ) {
+		if ( ( $reportTime - $LAST_RUN_TIME ) < $SLEEP_TIME ) {
 			$testFailure = "More than one local job ran concurrently!";
 			return ( 0 );
 		}
@@ -65,22 +71,33 @@ my $successCallback = sub {
 ##
 ## Run ye olde' test
 ##
-my $success = true;
+my $success = 1;
 CondorTest::RegisterExitedSuccess($testname, $successCallback );
-if (CondorTest::RunTest( $testname, $cmdfile, 0)) {
-	if ($testFailure) {
-		print "$testname: CondorTest::RunTest() failed - $testFailure\n";
-		$success = false;
+if (CondorTest::RunTest( $testname, $cmdfile, 0)) {	
+	##
+	## Check if there was a failure
+	##
+	if ( $testFailure ) {
+		print "$testname: FAILED - $testFailure\n";
+		$success = 0;
 	}
 ##
 ## For some reason it failed to run!
 ##
 } else {
 	print "$testname: CondorTest::RunTest() failed to run\n";
-	$success = false;
-}		
+	$success = 0;
+}	
+
+##
+## Print success message
+##
+if ( $success ) {
+	print "$testname: SUCCESS\n";
+}
 	
 ## 
 ## Return an exit status based on what happened with all our tests!
 ##
 exit( $success ? 0 : -1 );
+	

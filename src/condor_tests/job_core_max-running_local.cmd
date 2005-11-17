@@ -9,23 +9,23 @@
 ##
 Universe				= local
 Executable				= ./x_time.pl
-Arguments				= 10
 Notification			= NEVER
 Log                     = job_core_max-running_local.log
-Output                  = job_core_max-running_local.out
 Error                   = job_core_max-running_local.error
-ShouldTransferFiles     = yes
-WhenToTransferOutput    = ON_EXIT_OR_EVICT
-Requirements            = Target.LocalUniverseJobsRunning < 1
-Queue
+ShouldTransferFiles		= yes
+WhenToTransferOutput	= ON_EXIT_OR_EVICT
+Requirements            = Target.TotalLocalJobsRunning < 1
+Arguments				= 10
 
-Arguments				= 10
+##
+## Queue a bunch of jobs 
+## They have to output to the same file because the Condor
+## testing library can't differeniate between multiple jobs
+##
+Output                  = job_core_max-running_local.out
 Queue
-Arguments				= 10
 Queue
-Arguments				= 10
 Queue
-Arguments				= 10
 Queue
-Arguments				= 10
+Queue
 Queue
