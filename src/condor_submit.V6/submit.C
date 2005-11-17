@@ -245,6 +245,8 @@ char    *ParallelScriptShadow  = "parallel_script_shadow";
 char    *ParallelScriptStarter = "parallel_script_starter"; 
 
 char    *MaxJobRetirementTime = "max_job_retirement_time";
+char	*DeferralTime = "deferral_time";
+char	*DeferralWindow = "deferral_window";
 
 const char * REMOTE_PREFIX="Remote_";
 
@@ -271,6 +273,7 @@ void 	SetNotifyUser ();
 void	SetRemoteInitialDir();
 void	SetExitRequirements();
 void 	SetArguments();
+void 	SetJobDeferral();
 void 	SetEnvironment();
 #if !defined(WIN32)
 void 	ComputeRootDir();
@@ -2907,6 +2910,38 @@ SetArguments()
 	free(args);
 }
 
+//
+// SetDeferral()
+// Inserts the job deferral time into the ad if present
+//
+void
+SetJobDeferral() {
+		//
+		// Job Deferral Time
+		// Only update the job ad if they provided a deferral time
+		// We will only be able to validate the deferral time when the
+		// Starter evaluates it and tries to set the timer for it
+		//
+	char *temp = condor_param( DeferralTime, ATTR_DEFERRAL_TIME );
+	if ( temp != NULL ) {
+		sprintf (buffer, "%s = %s", ATTR_DEFERRAL_TIME, temp );
+		InsertJobExpr (buffer);
+		free( temp );
+	}
+	
+		//
+		// Job Deferral Window
+		// The window allows for some slack if the Starter
+		// misses the exact execute time for a job
+		//
+	temp = condor_param( DeferralWindow, ATTR_DEFERRAL_WINDOW );
+	if ( temp != NULL ) {
+		sprintf (buffer, "%s = %s", ATTR_DEFERRAL_WINDOW, temp );
+		InsertJobExpr (buffer);
+		free( temp );
+	}	
+}
+
 void
 SetEnvironment()
 {
@@ -4343,6 +4378,7 @@ queue(int num)
 		SetJarFiles();
 		SetJavaVMArgs();
 		SetParallelStartupScripts(); //JDB
+		SetJobDeferral();
 
 			// SetForcedAttributes should be last so that it trumps values
 			// set by normal submit attributes
@@ -5329,14 +5365,17 @@ validate_job_ad( ClassAd *ad ) {
 	
 		// ---------------------------------------------------
 		// Job Deferral
-		// Currently we cannot let local universe jobs
-		// use job deferral
 		// ---------------------------------------------------	
-	if ( JobUniverse == CONDOR_UNIVERSE_LOCAL && 
-		 ad->Lookup( ATTR_DEFERRAL_TIME ) != NULL) {
-		fprintf( stderr, "\nLocal universe jobs are unable to support "
-						 "job deferral at this time\n" );
-		ret = false;
+	if ( ad->Lookup( ATTR_DEFERRAL_TIME ) != NULL ) {
+			//
+			// Currently we cannot let local universe jobs
+			// use the job deferral feature
+			//
+		if ( JobUniverse == CONDOR_UNIVERSE_LOCAL ) {
+			fprintf( stderr, "\nLocal universe jobs are unable to support "
+							 "job deferral at this time\n" );
+			ret = false;
+		}		
 	}
 	
 	return ( ret );
