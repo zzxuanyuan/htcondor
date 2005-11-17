@@ -50,19 +50,15 @@ Machines With Multiple Network Interfaces }
 Beginning with Condor version 6.1.5, Condor can run on machines with
 multiple network interfaces.
 However, starting with Condor version 6.7.13, new functionality is
-available that allows for even better support for multi-homed
-machines, the configuration setting \MacroNI{BIND\_ALL\_INTERFACES}.
+available that allows even better support for multi-homed
+machines, using the configuration variable \MacroNI{BIND\_ALL\_INTERFACES}.
+A multi-homed machine is one that has more than one
+NIC (Network Interface Card).
 Further improvements to this new functionality will remove the need
-for any special configuration in the common case, but for now, care
-must still be given to machines with multiple network interfaces, even
-when using this new setting.
-
-First, we will describe the new functionality available in version
-6.7.13 and beyond. 
-Then, we include some common scenarios that you might encounter and
-how you go about solving them using the old functionality.
-Given the current limitations in the new functionality, some of the
-considerations described below for the old functionality still apply. 
+for any special configuration in the common case.
+For now, care
+must still be given to machines with multiple NICs, even
+when using this new configuration variable.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -70,91 +66,98 @@ considerations described below for the old functionality still apply.
 \Macro{BIND\_ALL\_INTERFACES}}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-Starting with version 6.7.13, Condor hosts can be configured such that
-whenever they call \Syscall{bind}, they use all network interfaces on
-the machine.  
+Starting with Condor version 6.7.13, machines can be configured such that
+whenever Condor daemons or tools
+call \Syscall{bind}, the daemons or tools use all network interfaces on
+the machine.
 This means that outbound connections will always use the appropriate
-interface to connect to a remote host, instead of being forced to use
+network interface to connect to a remote host,
+instead of being forced to use
 an interface that might not have a route to the given destination.
-Furthermore, sockets where the daemon listens for incoming connections 
-will be bound to all interfaces on the machine.
+Furthermore, sockets upon which a daemon listens for incoming connections 
+will be bound to all network interfaces on the machine.
 This means that so long as remote clients know the right port, they can
-use any IP address on the machine and contact a given Condor daemon.
+use any IP address on the machine and still contact a given Condor daemon.
 
-To enable this functionality, you must define the following in your
-Condor configuration file:
+To enable this functionality, the boolean configuration
+variable
+\MacroNI{BIND\_ALL\_INTERFACES}
+is defined and set to \Expr{True}:
 
 \begin{verbatim}
 BIND_ALL_INTERFACES = TRUE
 \end{verbatim}
 
-However, this functionality has certain limitations, which is why it
-is not enabled by default.
+This functionality has limitations,
+and therefore has a default value of \Expr{False}.
+Here are descriptions of the limitations.
 
 \begin{description}
 
-\item[Does not work with Kerberos.] 
+\item[Using all network interfaces does not work with Kerberos.] 
   Every Kerberos ticket contains a specific IP address within it.
-  Any socket that attempts to authenticate using Kerberos must be
-  bound to the same IP address as the one in the ticket.
-  Once you enable \MacroNI{BIND\_ALL\_INTERFACES}, outbound
-  connections from a multi-homed machine could now potentially
+  Authentication over a socket (using Kerberos) requires
+  the socket to also specify that same specific IP address.
+  Use of \MacroNI{BIND\_ALL\_INTERFACES} causes outbound
+  connections from a multi-homed machine to 
   originate over any of the interfaces.
   Therefore, the IP address of the outbound connection and the IP
-  address in the Kerberos ticket won't necessarily match, and the
-  authentication will fail.
+  address in the Kerberos ticket will not necessarily match,
+  causing the authentication to fail.
   Sites using Kerberos authentication on multi-homed machines are
-  strongly encouraged to not enable \MacroNI{BIND\_ALL\_INTERFACES},
-  at least until we provide a way for Condor's Kerberos functionality
-  to support using multiple Kerberos tickets and finding the right one
+  strongly encouraged not to enable \MacroNI{BIND\_ALL\_INTERFACES},
+  at least until Condor's Kerberos functionality
+  supports using multiple Kerberos tickets together with finding the right one
   to match the IP address a given socket is bound to. 
 
-\item[Opens up a potential security risk.]
-  For example, imagine a multi-homed machine sitting on a network
-  boundary.
+\item[There is a potential security risk.]
+  Consider the following example of a security risk.
+  A multi-homed machine is at a network boundary.
   One interface is on the public Internet, while the other connects to
-  a private network, where a compute farm is running.
-  If the entire Condor pool is running on the private network, there's
-  no reason to have Condor daemons listening on ports on the public
-  Internet, and that potentially opens up the risk of hackers trying
-  to compromise the security of your pool.
-  If you do not need Condor daemons to be listening on the public
-  interface, there's no reason to have them do it, and it creates a
-  possible security risk.
+  a private network.
+  Both the multi-homed machine and the private network machines
+  comprise a Condor pool.
+  If the multi-homed machine enables \MacroNI{BIND\_ALL\_INTERFACES},
+  then it is at risk from hackers trying to compromise the security of the pool.
+  Should this multi-homed machine be compromised,
+  the entire pool is vulnerable.
+  If no access from the public Internet to the Condor pool running on
+  the private network is required,
+  then there is no reason to have Condor daemons listening on ports on the public
+  Internet, causing a potential security threat.
 
 \item[Only one IP address will be advertised.]
   At present, even though a given Condor daemon will be listening to
   ports on multiple interfaces, each with their own IP address,
-  there's currently no mechanism for that daemon to advertise all of
+  there is currently no mechanism for that daemon to advertise all of
   the possible IP addresses where it can be contacted.
-  Therefore, Condor clients (other Condor daemons or tools) won't
-  necessarily able to locate and communicate with a given server
+  Therefore, Condor clients (other Condor daemons or tools) will not
+  necessarily able to locate and communicate with a given daemon
   running on a multi-homed machine where
   \MacroNI{BIND\_ALL\_INTERFACES} has been enabled.
 
+  Currently, Condor daemons can only advertise a single IP address in
+  the ClassAd they send to their \Condor{collector}.
+  Condor tools and other daemons only know how to look up a single IP
+  address, and they attempt to use that single IP address
+  when connecting to the daemon.
+  So, even if the daemon is listening on 2 or more different interfaces,
+  each with a separate IP, the daemon must choose what IP address to
+  publicly advertise so that other daemons and tools can locate it.
+
+  By default, Condor advertises the first IP address it finds
+  when looking up the host information for itself.  
+  The \Macro{NETWORK\_INTERFACE} setting can still be used to
+  specify the IP address Condor should advertise, even if
+  \MacroNI{BIND\_ALL\_INTERFACES} is set to \Expr{True}.
+  Therefore, some of the considerations described below regarding what
+  interface should be used in various situations still apply when
+  deciding what interface is to be advertised.
+
 \end{description}
 
-This final limitation on IP address advertising requires more
-explanation.
-Currently, Condor daemons can only advertise a single IP address in
-the classad they send to their \Condor{collector}.
-Condor tools and other daemons only know how to look up a single IP
-address and attempt to use that when connecting to the daemon.
-So, even if the daemon is listening on 2 or more different interfaces,
-each with a separate IP, the daemon must choose what IP address to
-publicly advertise so that other daemons and tools can locate it.
-
-By default, Condor will just advertise the first IP address it finds
-when looking up the host information for itself.  
-However, the \Macro{NETWORK\_INTERFACE} setting can still be used to
-specify what IP address Condor should advertise, even if
-\MacroNI{BIND\_ALL\_INTERFACES} is set to \verb@TRUE@.
-Therefore, some of the considerations described below regarding what
-interface should be used in various situations still apply when
-decided what interface should be advertised.
-
 Sites that make heavy use of private networks and multi-homed machines
-should consider if using Generic Connection Brokering, or GCB, is
+should consider if using Generic Connection Brokering, GCB, is
 right for them.
 More information about GCB and Condor can be found in
 section~\ref{sec:GCB} on page~\pageref{sec:GCB}.
