@@ -31,7 +31,7 @@
 #include "condor_attributes.h"
 #include "MyString.h"
 #include "extArray.h"
-#include "RegExer.h"
+//#include "RegExer.h"
 
 //
 // Attributes for a parameter will be separated by the this character
@@ -275,7 +275,7 @@ protected:
 		// The regular expresion object we will use to make sure 
 		// our parameters are in the proper format.
 		//
-	static RegExer regex;
+	//static RegExer regex;
 
 }; // END CLASS
 

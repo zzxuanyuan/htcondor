@@ -27,7 +27,7 @@
 #include "condor_debug.h"
 #include "MyString.h"
 #include "extArray.h"
-#include "RegExer.h"
+//#include "RegExer.h"
 #include "date_util.h"
 
 #include "time.h"
@@ -50,12 +50,12 @@ const char* CronTab::attributes[] = {	ATTR_CRON_MINUTES,
 // Since the pattern is hardcoded, we better have a good reason
 // for failing!
 // 
-RegExer CronTab::regex( "[^\\/0-9"
-						CRONTAB_DELIMITER
-						CRONTAB_RANGE
-						CRONTAB_STEP
-						CRONTAB_WILDCARD
-						"\\/*]" );
+//RegExer CronTab::regex( "[^\\/0-9"
+//						CRONTAB_DELIMITER
+//						CRONTAB_RANGE
+//						CRONTAB_STEP
+//						CRONTAB_WILDCARD
+//						"\\/*]" );
 						
 //
 // Default Constructor
@@ -273,7 +273,7 @@ CronTab::validateParameter( int attribute_idx, const char *parameter,
 		// Make sure there are only valid characters 
 		// in the parameter string
 		//
-	if ( CronTab::regex.match( (char*)parameter ) ) {
+	if ( false ) { //CronTab::regex.match( (char*)parameter ) ) {
 		error  = "Invalid parameter value '";
 		error += parameter;
 		error += "' for ";
@@ -304,18 +304,18 @@ CronTab::init() {
 		// Check to see if we were able to instantiate our
 		// regex object statically
 		//
-	if ( &CronTab::regex == NULL || CronTab::regex.getErrno() != 0 ) {
-		MyString errorMessage("CronTab: Failed to instantiate Regex - ");
-			//
-			// Pluck out the error message
-			//
-		if ( &CronTab::regex == NULL ) {
-			errorMessage += CronTab::regex.getStrerror();
-		} else {
-			errorMessage += "Unable to allocate memory";
-		}
-		EXCEPT( (char*)errorMessage.Value() );
-	}
+//	if ( &CronTab::regex == NULL || CronTab::regex.getErrno() != 0 ) {
+//		MyString errorMessage("CronTab: Failed to instantiate Regex - ");
+//			//
+//			// Pluck out the error message
+//			//
+//		if ( &CronTab::regex == NULL ) {
+//			errorMessage += CronTab::regex.getStrerror();
+//		} else {
+//			errorMessage += "Unable to allocate memory";
+//		}
+//		EXCEPT( (char*)errorMessage.Value() );
+//	}
 	
 		//
 		// Now run through all the parameters and create the cron schedule
