@@ -3,59 +3,62 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 Generic Connection Brokering, or GCB, is a system for managing network
-connections across private networks and firewalls.
-Starting in version 6.7.13, Condor's Linux releases are linked with
-GCB, and can use GCB functionality to run jobs across pools that span
-public and private networks (either directly or via flocking).
+connections across private network and firewall boundaries.
+Starting with Condor version 6.7.13,
+Condor's Linux releases are linked with GCB,
+and can use GCB functionality to run jobs
+(either directly or via flocking)
+on pools that span public and private networks.
 
 While GCB provides numerous advantages over restricting Condor to use
 a range of ports which are then opened on the firewall (see
 section~\ref{sec:Ports-Firewalls} on
 page~\pageref{sec:Ports-Firewalls}),
-GCB is also a very complicated system, with a lot of major
+GCB is also a very complicated system, with major
 implications for Condor's networking and security functionality.
-Therefore, sites must carefully weigh the pros and cons of attempting
+Therefore, sites must carefully weigh the 
+advantages and disadvantages
+of attempting
 to configure and use GCB before making a decision.
 
-Pros:
+Advantages:
 \begin{itemize}
 
-\item Better connectivity: GCB works with pools that have multiple
+\item Better connectivity. GCB works with pools that have multiple
   private networks (even multiple private networks that use the same
-  IP addresses (e.g. 192.168.2.*).
+  IP addresses (for example, 192.168.2.*).
   GCB also works with sites that use network address translation
   (NAT). 
 
-\item More secure: administrators never need to allow inbound
-  connections through their firewall.
+\item More secure. Administrators never need to allow inbound
+  connections through the firewall.
   With GCB, only outbound connections from behind the firewall must be
-  allowed (which is a very standard firewall configuration).
-  You can even trade decreased performance for better security and
-  configure your firewall to only allow outbound connections to a
+  allowed (which is a standard firewall configuration).
+  It is possible to trade decreased performance for better security, and
+  configure the firewall to only allow outbound connections to a
   single public IP address.
 
-\item Does not require root access to any machines.
+\item Does not require \Login{root} access to any machines.
   All parts of a GCB system can be run as an unprivileged user, and in
   the common case, no changes to the firewall configuration are
   required.
 
 \end{itemize}
 
-Cons:
+Disadvantages:
 \begin{itemize}
 
-\item Adds new potential failure points to your pool: the GCB broker
-  node(s).
+\item The GCB broker 
+  (section~\ref{sec:GCB-Broker-Intro} describes the broker)
+  node(s) is a potential failure point to the pool.
   Any private nodes that want to communicate outside their own network
-  must be represented by a GCB broker (described below).
+  must be represented by a GCB broker.
   This machine must be highly reliable, since if the broker is ever
   down, all inbound communication with the private nodes is
   impossible.
   Furthermore, no other Condor services should be run on a GCB broker
-  (for example, the pool central manager).
-  While it's possible to do so, this is not recommended (the reasons
-  are explained in section~\ref{sec:GCB-Broker-Intro}, which describes
-  the GCB broker in full detail). 
+  (for example, the Condor pool's central manager).
+  While it is possible to do so, it is not recommended.
   In general, no other services should be run on the machine at all,
   and the host should be dedicated to the task of serving as a GCB
   broker.
@@ -65,33 +68,33 @@ Cons:
   All Condor daemons using a GCB broker will advertise themselves with
   this single IP address, and in some cases, connections to/from those
   daemons will actually originate at the broker.
-  This has all sorts of implications for Condor's host/IP based
-  security, and the general level of confusion for users and
+  This has implications for Condor's host/IP based security,
+  and the general level of confusion for users and
   administrators of the pool.
   Debugging problems will be more difficult, as any log messages which 
-  only print the IP (not the name and/or port) will become ambiguous.
-  Even log or error messages that include the port won't necessarily
-  be helpful, since it is difficult to correlate ports on the broker
+  only print the IP address (not the name and/or port) will become ambiguous.
+  Even log or error messages that include the port will not necessarily
+  be helpful, as it is difficult to correlate ports on the broker
   with the corresponding private nodes.
   
 \item Can not function with Kerberos authentication.
   Kerberos tickets include the IP address of the machine where they
   were created.
   However, when Condor daemons are using GCB, they use a different IP
-  address (see above), and therefore, any attempt to authenticate
+  address, and therefore, any attempt to authenticate
   using Kerberos will fail, as Kerberos will consider this a (poor)
   attempt to fool it into using an invalid host principle.
 
 \item Scalability and performance degradation: 
   \begin{itemize}
-  \item Connections are more expensive to establish
+  \item Connections are more expensive to establish.
   \item In some cases, connections must be forwarded through a proxy
-    server on the GCB broker
+    server on the GCB broker.
   \item Each network port on each private node must correspond to a
     unique port on the broker host, so there is a fixed limit to how
     many private nodes a given broker can service (which is a function
     of the number of ports each private node requires and the total
-    number of available ports on the broker)
+    number of available ports on the broker).
   \item Each private node must maintain an open TCP connection to its
     GCB broker.  GCB will attempt to recover in the case of the socket
     being closed, but this means the broker must have at least as many
@@ -102,13 +105,14 @@ Cons:
 
 \end{itemize}
 
-Given the increased complexity, any site that decides to use GCB must
-read this manual section in its entirety before having any hope of
-configuring the system properly.
-Please do not skim the information in this section, attempt to quickly
-install GCB, and then ask for help when things go wrong.
+Given the increased complexity, use of GCB requires a careful
+read of this entire manual section, followed by a thorough
+installation.
+%% Derek's use of non-subtle advice:
+%% Please do not skim the information in this section, attempt to quickly
+%% install GCB, and then ask for help when things go wrong.
 
-More information about GCB and how it works can be found at the GCB
+Details of GCB and how it works can be found at the GCB
 homepage:
 
 \URL{http://www.cs.wisc.edu/\~{}sschang/firewall/gcb}

@@ -121,10 +121,14 @@ Here are descriptions of the limitations.
   then it is at risk from hackers trying to compromise the security of the pool.
   Should this multi-homed machine be compromised,
   the entire pool is vulnerable.
-  If no access from the public Internet to the Condor pool running on
-  the private network is required,
-  then there is no reason to have Condor daemons listening on ports on the public
-  Internet, causing a potential security threat.
+  Most sites in this situation would run an \Prog{sshd} on the
+  multi-homed machine so that remote users who wanted to access the
+  pool could log in securely and use the Condor tools directly.
+  In this case, remote clients do not need to use Condor tools running
+  on machines in the public network to access the Condor daemons on
+  the multi-homed machine.
+  Therefore, there is no reason to have Condor daemons listening on
+  ports on the public Internet, causing a potential security threat.
 
 \item[Only one IP address will be advertised.]
   At present, even though a given Condor daemon will be listening to
