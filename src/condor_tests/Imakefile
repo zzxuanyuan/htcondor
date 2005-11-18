@@ -487,7 +487,7 @@ RUN(job_core_time-deferral)
 TESTCLASS(job_core_time-deferral,core)
 TESTCLASS(job_core_time-deferral,quick)
 
-DESC(job_core_time-deferral,"Local: Max job running limit")
+DESC(job_core_max-running_local,"Local: Max job running limit")
 RUN(job_core_max-running_local)
 TESTCLASS(job_core_max-running_local,core)
 TESTCLASS(job_core_max-running_local,quick)
