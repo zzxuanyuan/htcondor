@@ -188,7 +188,7 @@ int main_init(int argc, char **argv)
 
   LowWaterTid =
   daemonCore->Register_Timer(
-							60,							// deltawhen
+							1,							// deltawhen
 							60,		// period
 							(TimerHandler) low_water_timer,
 							"low_water_timer");
