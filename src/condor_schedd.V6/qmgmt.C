@@ -47,6 +47,9 @@
 #include "env.h"
 #include "condor_classad_util.h"
 
+#include "file_sql.h"
+extern FILESQL *FILEObj;
+
 extern char *Spool;
 extern char *Name;
 extern char* JobHistoryFileName;
@@ -56,8 +59,6 @@ extern DedicatedScheduler dedicated_scheduler;
 extern "C" {
 	int	prio_compar(prio_rec*, prio_rec*);
 }
-
-
 
 extern	int		Parse(const char*, ExprTree*&);
 extern  void    cleanup_ckpt_files(int, int, const char*);
@@ -683,7 +684,6 @@ InitJobQueue(const char *job_queue_name)
 		}
 		next_cluster_num = stored_cluster_num;
 	}
-
 		// Some of the conversions done in ConvertOldJobAdAttrs need to be
 		// persisted to disk. Particularly, GlobusContactString/RemoteJobId.
 	CleanJobQueue();
@@ -3127,6 +3127,12 @@ static void AppendHistory(ClassAd* ad)
           } else {
               fprintf(LogFile,"***\n");   // separator
               fclose(LogFile);
+
+			  int retval = FILEObj->file_newEvent("History", ad);
+			  if (retval < 0) {
+				dprintf(D_ALWAYS, "AppendHistory Logging Event --- Error\n");
+				failed = true;
+			  }
           }
       }
   }

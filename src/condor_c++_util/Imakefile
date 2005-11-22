@@ -10,8 +10,7 @@
 
 all_target(cplus_lib.a liburl.a libcondorapi.a test_libcondorapi)
 
-C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) New_classads_includes $(QUILL_INC)
-
+C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) New_classads_includes -I$(QUILL_INC) -D_POSTGRESQL_DBMS_ -I$(POSTGRESQL_INC) 
 CFLAGS = $(STD_C_FLAGS) New_classads_includes
 LIB = $(STD_LIBS)
 
@@ -82,6 +81,8 @@ CLASSAD_OBJ = \
 	functions we could not bring in from another place. */
 CONLIBAPI_OBJ = \
 	condor_event.o \
+	file_sql.o \
+	misc_utils.o \
 	user_log.o \
 	iso_dates.o \
 	file_lock.o \
@@ -141,7 +142,8 @@ OBJ = state_machine_driver.o event_handler.o name_tab.o NON_POSIX.select.o \
 	domain_tools.o CondorError.o utc_time.o status_string.o \
 	$(QUILL_OBJS) \
 	New_classads_obj setenv.o condor_id.o build_job_env.o job_lease.o \
-	gahp_common.o
+	gahp_common.o \
+	pgsqldatabase.o file_transfer_db.o file_sql.o
 
 library_target( cplus_lib.a,$(OBJ))
 library_target( liburl.a,$(URL_OBJ))

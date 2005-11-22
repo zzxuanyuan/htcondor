@@ -88,7 +88,7 @@ TEST_SUITE_BASE = test_suite_base
 		tools KbddProgs collector.V6 PvmProgs dagman userlog Eventd \
 		GlobusProgs starter.V6.1 shadow.V6.1 dcskel c-gahp had \
 		CreddProgs StorkProgs \
-		QuillProgs
+		QuillProgs tt
 
 #define Libraries \
 		util_lib daemon_core.V6 daemon_client classad c++_util	\
@@ -235,6 +235,8 @@ condor_object_target(had)
 condor_object_target(status.V6)
 condor_object_target(dagman)
 condor_object_target(userlog)
+condor_object_target(tt)
+
 #if NEEDS_KBDD
    condor_object_target(kbdd)
 #endif
@@ -357,6 +359,7 @@ pure_target(condor_collector.V6,condor_collector.pure)
 pure_target(condor_negotiator.V6,condor_negotiator.pure)
 pure_target(condor_dagman,condor_dagman.pure)
 
+pure_target(condor_tt,condor_tt.pure)
 
 ext_target(EXT_ZLIB_VERSION,$(NULL))
 #if WANT_EXT_GLIBC

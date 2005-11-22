@@ -40,6 +40,8 @@ char*	num_string( int );
 */
 char* startdClaimIdFile( int vm_id );  
 
+/* return the timezone on the local host */
+char* my_timezone();
 
 #if defined( __cplusplus )
 }

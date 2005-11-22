@@ -25,6 +25,9 @@
 #include "startd.h"
 #include "mds.h"
 #include "condor_environ.h"
+#include "file_sql.h"
+
+extern FILESQL *FILEObj;
 
 Resource::Resource( CpuAttributes* cap, int rid )
 {
@@ -767,6 +770,9 @@ Resource::do_update( void )
 
 	this->publish( &public_ad, A_ALL_PUB );
 	this->publish( &private_ad, A_PRIVATE | A_ALL );
+
+		// insert classad into DB
+	this->dbInsert(&public_ad);
 
 		// Send class ads to collector(s)
 	rval = resmgr->send_update( UPDATE_STARTD_AD, &public_ad,
@@ -1656,3 +1662,18 @@ Resource::endCODLoadHack( void )
 	r_pre_cod_condor_load = 0.0;
 }
 
+void
+Resource::dbInsert( ClassAd *cl )
+{
+	FILESQL *dbh = FILEObj;
+	ClassAd clCopy;
+	char tmp[512];
+
+		// make a copy so that we can add timestamp attribute into it
+	clCopy = *cl;
+
+	snprintf(tmp, 512, "LastHeardFrom = %d", (int)time(NULL));
+	(&clCopy)->Insert(tmp);
+
+	dbh->file_newEvent("Machines", &clCopy);
+}

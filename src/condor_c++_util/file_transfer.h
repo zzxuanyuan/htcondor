@@ -32,6 +32,7 @@
 #endif
 #include "condor_uid.h"
 #include "condor_ver_info.h"
+#include "condor_classad.h"
 
 class FileTransfer;	// forward declatation
 
@@ -246,6 +247,7 @@ class FileTransfer {
 	bool simple_init;
 	ReliSock *simple_sock;
 	MyString download_filename_remaps;
+	ClassAd *jobAd;
 };
 
 #endif
