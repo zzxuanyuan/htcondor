@@ -273,6 +273,14 @@ jobs, visible via \Stork{status}.
 
 \begin{itemize}
 
+\item The \Condor{ckpt\_server} is broken in version 6.7.13.
+Please do not attempt to use it.
+It is safe to use the 6.7.12 \Condor{ckpt\_server} in a pool running
+6.7.13 until the 6.7.14 release is out.
+Of course, the 6.7.12 \Condor{ckpt\_server} will not work with GCB, so
+sites wishing to use both GCB and a \Condor{ckpt\_server} will have to
+wait for 6.7.14.
+
 % Gnats PR 582:
 \item Rescue DAGs generated from DAGs run with the
 \Opt{-UseDagDir} command-line flag no longer work.
