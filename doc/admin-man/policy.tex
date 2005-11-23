@@ -567,14 +567,17 @@ If the \Expr{START} expression evaluates to TRUE and five
 minutes pass before the startd notices,
 that's a drop in the bucket of high-throughput computing.
 
-The machine can only transition to the Unclaimed state from the Owner state.
-It only does so when the \Expr{START} expression no longer locally
-evaluates to FALSE.
-In general, if the \Expr{START}
-expression locally evaluates to FALSE at any time,
-the machine will either transition directly to the Owner state
-or to the Preempting state on its way to the Owner state,
-if there is a job running that needs preempting.
+The machine can only transition to the Unclaimed state from the Owner
+state. It does so when the \Expr{IsOwner} expression no longer
+evaluates to FALSE.  By default, that happens when \Expr{START} no longer
+locally evaluates to FALSE.
+
+Whenever the machine is not actively running a job, it will transition
+back to the Owner state if \Expr{IsOwner} evaluates to TRUE.  Once a
+job is started, the value of \Expr{IsOwner} does not matter; the job
+either runs to completion or is preempted.  Therefore, you must
+configure the preemption policy if you want to transition back to the
+Owner state from Claimed Busy.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsubsection{\label{sec:Unclaimed-State}Unclaimed State}
@@ -625,9 +628,9 @@ the startd to run them more than once in its lifetime.
 
 \Note \Attr{LastBenchmark} is initialized to 0 before benchmarks
 have ever been run.
-To have the \Condor{startd} run benchmarks as soon as the machine is
-Unclaimed (if it has not done so already),
-include a term using \Attr{LastBenchmark} as in the example above.
+So, if you want the startd to run benchmarks as soon as the machine is
+Unclaimed (if it hasn't done so already),
+include a term for \Attr{LastBenchmark} as in the example above.
 
 \index{RunBenchmarks@\Expr{RunBenchmarks} expression}
 \Note If \Expr{RunBenchmarks} is defined and set to something
@@ -1409,7 +1412,7 @@ WANT_VACATE  = ( $(ActivationTimer) > 10 * $(MINUTE) \
                  || $(IsPVM) || $(IsVanilla) )
 
 # Suspend jobs if:
-# 1) The CPU has been busy for more than 2 minutes, AND
+# 1) The CPU has been busy for more than 1 minute, AND
 # 2) the job has been running for more than 90 seconds
 # 3) OR suspend if this is a desktop and the user is active
 SUSPEND = ( ((CpuBusyTime > 2 * $(MINUTE)) && ($(ActivationTimer) > 90)) \
