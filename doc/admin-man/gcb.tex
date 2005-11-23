@@ -1,6 +1,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{\label{sec:GCB}Generic Connection Brokering (GCB)}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\index{GCB (Generic Connection Brokering)}
 
 Generic Connection Brokering, or GCB, is a system for managing network
 connections across private network and firewall boundaries.
@@ -101,7 +102,7 @@ Disadvantages:
     sockets open as there are private nodes.
   \end{itemize}
 
-\item More complex to configure and debug
+\item It is more complex to configure and debug.
 
 \end{itemize}
 
@@ -117,24 +118,23 @@ homepage:
 
 \URL{http://www.cs.wisc.edu/\~{}sschang/firewall/gcb}
 
-This information is very useful for understanding the technical
-details of how GCB works, the various parts of the system, and so on.
+This information is useful for understanding the technical
+details of how GCB works, and the various parts of the system.
 While some of the information is partly out of date (especially the
 discussion of how to configure GCB) most of the sections are perfectly
 accurate and worth reading.
-You will not need to read the section on ``GCBnize'', which describes
-how to get a given application to use GCB, since we have already done
-that to Condor for you.
+Ignore the section on ``GCBnize'', which describes
+how to get a given application to use GCB, as 
+Condor does this for you.
 
-The rest of this section will give the details for configuring a
+The rest of this section gives the details for configuring a
 Condor pool to use GCB.
 It is divided into the following topics:
 
 \begin{itemize}
 \item Introduction to the GCB broker
 \item Configuring the GCB broker
-\item Using a \Condor{master} to spawn the GCB broker
-\item Using \Prog{initd} to spawn the GCB broker
+\item Spawning a GCB broker (with a \Condor{master} or using \Prog{initd})
 \item How to configure Condor machines to use GCB
 \item Configuring the GCB routing table
 \item Implications for Condor's host/IP security settings
@@ -146,89 +146,100 @@ It is divided into the following topics:
 \subsubsection{\label{sec:GCB-Broker-Intro}Introduction to the GCB Broker}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+\index{GCB (Generic Connection Brokering)!broker}
+\index{GCB (Generic Connection Brokering)!inagent}
 At the heart of GCB is a logical entity known as a \Term{broker} or
 \Term{inagent}.
-In reality, it is made up of two different daemon processes running on
-the same machine (the \Prog{gcb\_broker}, and a set of
+In reality, the entity is made up of daemon
+processes running on
+the same machine comprised of the \Prog{gcb\_broker} and a set of
 \Prog{gcb\_relay\_server} processes, each one spawned by the
-\Prog{gcb\_broker}).
+\Prog{gcb\_broker}.
 
-Every private network in a given network topology trying to use GCB
-must have at least one corresponding broker to arrange connections for
-it.
+Every private network using GCB
+must have at least one broker to arrange connections.
+%Every private network in a given network topology trying to use GCB
+%must have at least one corresponding broker to arrange connections for it.
 The broker must be installed on a machine that nodes in both the
 public and the private (firewalled) network can directly talk to.
-However, the broker need not be able to initiate connections to the
-private nodes (though it can take advantage of the case where it can
-initiate connections to the private nodes and that will improve
-performance). 
-Therefore, the broker is generally installed directly on the network
-boundary (a machine with multiple network interfaces) or just outside
+The broker need not be able to initiate connections to the
+private nodes.  
+It can take advantage of the case where it can
+initiate connections to the private nodes, and that will improve
+performance. 
+The broker is generally installed on a 
+machine with multiple network interfaces
+(on the network boundary) or just outside
 of a network that allows outbound connections.
 If the private network contains many hosts, sites can configure
-multiple GCB brokers and partition the private nodes so that different
+multiple GCB brokers, and partition the private nodes so that different
 subsets of the nodes use different brokers.
 
 For a more thorough explanation of what a GCB broker is, check out:
 \URL{http://www.cs.wisc.edu/\~{}sschang/firewall/gcb/mechanism.htm}
 
-The GCB broker should generally be installed on dedicated machines
-(i.e. machines that aren't running other Condor daemons or services).
-If you run any other Condor service on the GCB broker node (for
-example, the central manager of your pool) all Condor nodes attempting
-to use this service (for example, to connect to the \Condor{collector}
-or \Condor{negotiator}) will incur additional connection costs and
-latency.
-It's possible that future versions of GCB and Condor will be able to
-overcome these limitations, but for now, we recommend that the broker
+A GCB broker should generally be installed on a dedicated machine.
+These are machines that are not running other Condor daemons or services.
+If running any other Condor service 
+(for example, the central manager of the pool)
+on the same machine as the GCB broker,
+all other machines attempting
+to use this Condor service
+(for example, to connect to the \Condor{collector} or \Condor{negotiator})
+will incur additional connection costs and latency.
+It is possible that future versions of GCB and Condor will be able to
+overcome these limitations, but for now, we recommend that a broker
 is run on a dedicated machine with no other Condor daemons (except
 perhaps a single \Condor{master} used to spawn the \Prog{gcb\_broker}
 daemon, as described below).
 
 In principle, a GCB broker is a network element that functions almost
 like a router.
-It allows certain connections through your firewall by redirecting
-connections, and even forwarding connections.
-In general, it's not a good idea to run a lot of other services on
-your network elements, especially not services like Condor which can
+It allows certain connections through the firewall by redirecting
+connections or forwarding connections.
+In general, it is not a good idea to run a lot of other services on
+the network elements, especially not services like Condor which can
 spawn arbitrary jobs.
-Furthermore, the GCB broker relies on listening to a lot of network
+Furthermore, the GCB broker relies on listening to many network
 ports.
-If other applications are running on the same host as the broker, you
-can run into problems where the broker doesn't have enough network
+If other applications are running on the same host as the broker,
+problems exist
+where the broker does not have enough network
 ports available to forward all the connections that might be required
 of it.
 Also, all nodes inside a private network rely on the GCB broker for
 all incoming communication.
-For performance reasons, you should avoid the GCB broker having to
-contend with other processes for system resources so that it is always
+For performance reasons, avoid forcing the GCB broker to
+contend with other processes for system resources, such that it is always
 available to handle communication requests.
-However, there is nothing in GCB or Condor that requires
-the broker runs on a separate machine, that's just how we recommend
-you configure it if at all possible.
+There is nothing in GCB or Condor requiring
+the broker to run on a separate machine, 
+but it is the recommended configuration.
 
-The \Prog{gcb\_broker} daemon (currently) listens on two hard-coded,
+\index{GCB broker!ports 65432 and 65430}
+The \Prog{gcb\_broker} daemon listens on two hard-coded,
 fixed ports (65432 and 65430).
-Future versions of Condor and GCB will remove this limitation.
-However, for now, if you're going to run a \Prog{gcb\_broker} on a
-given host, you must ensure that ports 65432 and 65430 are not already
+A future version of Condor and GCB will remove this limitation.
+However, for now, to run a \Prog{gcb\_broker} on a
+given host, ensure that ports 65432 and 65430 are not already
 in use. 
 
-If you have root access on a machine where you would like to run a GCB
-broker, one good option is to have your \Prog{initd} configured to
+If \Login{root} access on a machine where a GCB 
+broker is planned, one good option is to have \Prog{initd} configured to
 spawn (and respawn) the \Prog{gcb\_broker} binary (which is located in
 the \Release{libexec} directory).
 This way, the \Prog{gcb\_broker} will be automatically restarted on
 reboots, or in the event that the broker itself crashes or is killed.
-If you do not have root access, you can also use a \Condor{master} to
-manage your \Prog{gcb\_broker} binary.  Each of these options are
-described below in more detail.
+Without \Login{root} access, use a \Condor{master} to
+manage the \Prog{gcb\_broker} binary. 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsubsection{\label{sec:GCB-Broker-Config}
 Configuring the GCB broker}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% EDITTED to this point.
 
+\index{GCB broker!configuration}
 Since the \Prog{gcb\_broker} and \Prog{gcb\_relay\_server} are not
 regular Condor daemons, they do not read the Condor configuration
 files.
@@ -355,11 +366,17 @@ All of them have reasonable defaults if not defined.
 \end{itemize}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsubsection{\label{sec:GCB-condor-master-spawn}
-Using \Condor{master} to spawn the GCB Broker}
+\subsubsection{\label{sec:GCB-broker-spawn}
+Spawning the GCB Broker}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-If you wish to spawn the GCB broker with a \Condor{master}, here are 
+\index{GCB broker!how to spawn the broker}
+There are two ways to spawn the GCB broker:
+
+\begin{itemize}
+\item Use a \Condor{master}.
+
+To spawn the GCB broker with a \Condor{master}, here are 
 the recommended \File{condor\_config} settings that will work:
 
 \footnotesize
@@ -426,17 +443,19 @@ GCB_BROKER_ARGS = -i $(GCB_BROKER_IP)
 \end{verbatim}
 \normalsize
 
-Once those settings are in place, you can either spawn or restart the
+Once those settings are in place, either spawn or restart the
 \Condor{master} and the \Prog{gcb\_broker} should be started.
-You can ensure the broker is running by reading the log file you
+Ensure the broker is running by reading the log file
 specified with \Env{GCB\_BROKER\_LOG}, or in
-\File{\MacroUNI{LOG}/BrokerLog} if you're using the default.
+\File{\MacroUNI{LOG}/BrokerLog} if using the default.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsubsection{\label{sec:GCB-initd-spawn}
-Using \Prog{initd} to spawn the GCB broker}
+%%\subsubsection{\label{sec:GCB-initd-spawn}
+%%Using \Prog{initd} to spawn the GCB broker}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\item Use \Prog{initd}.
 
 If you have root access and do not wish to install and use a
 \Condor{master} on your broker node, you can use the system's initd to
@@ -489,12 +508,14 @@ Either way, once you've updated the \File{/etc/inittab}, you just send
 the \Prog{initd} process (always PID 1) a \verb@SIGHUP@ signal and it
 will re-read the \File{inittab} and spawn your \Prog{gcb\_broker}.
 
+\end{itemize}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsubsection{\label{sec:GCB-condor-config}
 Configuring Condor nodes to be GCB clients}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+\index{GCB (Generic Connection Brokering)!Condor client configuration}
 In general, before configuring any Condor node to use GCB, the GCB
 broker node(s) for your pool must be setup and running.
 So, if you haven't already, go back and read the sections describing
@@ -575,6 +596,7 @@ should be able to communicate with each other.
   routing table} 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+\index{GCB (Generic Connection Brokering)!GCB routing table configuration}
 By default, a GCB-enabled application will always attempt to directly
 connect to a given IP/port pair.
 In the case of private nodes being represented by a GCB broker, the
@@ -754,6 +776,7 @@ Therefore, here is the appropriate routing table for all nodes:
 of Using GCB for Condor's Host/IP Based Security} 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+\index{GCB (Generic Connection Brokering)!security implications}
 Whenever a connection comes into a Condor daemon's command socket,
 Condor will either allow or refuse the command depending on the IP
 address of the incoming socket.
