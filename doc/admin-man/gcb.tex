@@ -237,17 +237,13 @@ manage the \Prog{gcb\_broker} binary.
 \subsubsection{\label{sec:GCB-Broker-Config}
 Configuring the GCB broker}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% EDITTED to this point.
 
 \index{GCB broker!configuration}
 Since the \Prog{gcb\_broker} and \Prog{gcb\_relay\_server} are not
-regular Condor daemons, they do not read the Condor configuration
+Condor daemons, they do not read the Condor configuration
 files.
 Therefore, they must be configured by other means, namely the
 environment and through the use of command-line arguments.
-Luckily, there are very few things to control with these daemons, so
-the fact they can't use the Condor configuration files is not a major
-limitation.
 
 There is one required command-line argument for the \Prog{gcb\_broker}.
 This argument defines the public IP address this broker will use to
@@ -255,16 +251,17 @@ represent itself and any private network nodes that are configured to
 use this broker.
 This information is defined with \Opt{-i xxx.xxx.xxx.xxx} on the
 command-line when the \Prog{gcb\_broker} is executed.
-If the broker is being setup outside the private network, it's likely
-that the machine will only have one IP address, which is obviously the
+If the broker is being setup outside the private network, it is likely
+that the machine will only have one IP address, which is clearly the
 one to use.
-However, if the broker is being run on a machine directly on the
+However, if the broker is being run on a machine on the
 network boundary (a multi-homed machine with interfaces into both the
 private and public networks), be sure to use the IP address of the
 interface on the public network.
 
-Additionally, you can specify some environment variables to control
-how the broker (and relay\_server processes it spawns) will behave.
+Additionally, specify environment variables to control
+how the \Prog{gcb\_broker} (and the \Prog{gcb\_relay\_server}
+processes it spawns) will behave.
 Some of these settings can also be specified as command-line
 arguments to the \Prog{gcb\_broker}.
 All of them have reasonable defaults if not defined.
@@ -275,19 +272,20 @@ All of them have reasonable defaults if not defined.
 
 \begin{description}
 
-\item \Env{GCB\_RELAY\_SERVER} \label{Env:GCB-relay-server}
-  Full path to the \File{gcb\_relay\_server} binary your broker should
-  use.
+\item The environment variable \Env{GCB\_RELAY\_SERVER} \label{Env:GCB-relay-server}
+  defines the full path to the \File{gcb\_relay\_server} binary
+  the broker should use.
   The command-line override for this is \Opt{-r /full/path/to/relayserver}.
-  If this is not set either on the command-line or in the environment,
+  If not set either on the command-line or in the environment,
   the \Prog{gcb\_broker} process will search for a program named
   \File{gcb\_relay\_server} in the same directory where the
-  \File{gcb\_broker} binary is located and attempt to use that.
+  \File{gcb\_broker} binary is located, and attempt to use that one.
 
-\item \Env{GCB\_ACTIVE\_TO\_CLIENT} \label{Env:GCB-active-to-client}
-  Boolean that defines whether GCB broker can directly talk to servers
-  running inside the network that it manages (\verb@yes@ or \verb@no@,
-  case sensitive).
+\item The environment variable \Env{GCB\_ACTIVE\_TO\_CLIENT}
+  \label{Env:GCB-active-to-client}
+  is a boolean that defines whether the GCB broker can directly talk to servers
+  running inside the network that it manages
+  The value must be \verb@yes@ or \verb@no@, case sensitive.
   \Env{GCB\_ACTIVE\_TO\_CLIENT} should be set to \verb@yes@ only if
   this GCB broker is running on a network boundary and can connect to
   both the private and public nodes.
@@ -300,26 +298,26 @@ All of them have reasonable defaults if not defined.
 
 \begin{description}
 
-\item \Env{GCB\_LOG\_DIR} \label{Env:GCB-log-dir}
-  Directory to use for all GCB-related log files.
-  If this is set and the per-daemon log file settings (described
+\item The environment variable \Env{GCB\_LOG\_DIR} \label{Env:GCB-log-dir}
+  defines a directory to use for all GCB-related log files.
+  If defined, and the per-daemon log file settings (described
   below) are not defined, the broker will write to
   \verb@$GCB_LOG_DIR/BrokerLog@ and the relay server will write to
   \verb@$GCB_LOG_DIR/RelayServerLog.<pid>@
 
-\item \Env{GCB\_BROKER\_LOG} \label{Env:GCB-broker-log}
-  The full path for the GCB broker's log file.
-  The command-line override for this is \Opt{-l /full/path/to/log/file}.
-  This setting overrides \Env{GCB\_LOG\_DIR} (described above).
+\item The environment variable \Env{GCB\_BROKER\_LOG} \label{Env:GCB-broker-log}
+  defines the full path for the GCB broker's log file.
+  The command-line override is \Opt{-l /full/path/to/log/file}.
+  This definition overrides \Env{GCB\_LOG\_DIR}.
 
-\item \Env{GCB\_RELAY\_SERVER\_LOG} \label{Env:GCB-relay-server-log}
-  The full path for the GCB relay server's log file.
+\item The environment variable \Env{GCB\_RELAY\_SERVER\_LOG}
+  \label{Env:GCB-relay-server-log}
+  defines the full path to the GCB relay server's log file.
   Each relay server writes its own log file, so the actual filename
   will be: \verb@$GCB_RELAY_SERVER_LOG.<pid>@ where \verb@<pid>@ is
   replaced with the process id of the corresponding
   \Prog{gcb\_relay\_server}.
-  This setting overrides \Env{GCB\_LOG\_DIR} (described above) if
-  defined.
+  When defined, this setting overrides \Env{GCB\_LOG\_DIR}.
 
 \end{description}
 
@@ -327,19 +325,22 @@ All of them have reasonable defaults if not defined.
 
 \begin{description}
 
-\item \Env{GCB\_DEBUG\_LEVEL} \label{Env:GCB-DEBUG-LEVEL}
-  Controls how verbose all the GCB daemon's log files should be.
+\item The environment variable \Env{GCB\_DEBUG\_LEVEL} 
+  \label{Env:GCB-DEBUG-LEVEL}
+  controls how verbose all the GCB daemon's log files should be.
   Can be either \verb@fulldebug@ (more verbose) or \verb@basic@.
-  This setting defines logging behavior for all GCB daemons, unless
+  This defines logging behavior for all GCB daemons, unless
   the following daemon-specific settings are defined.
 
-\item \Env{GCB\_BROKER\_DEBUG} \label{Env:GCB-BROKER-DEBUG}
-  Controls verbose logging for just the GCB broker.
+\item The environment variable \Env{GCB\_BROKER\_DEBUG}
+  \label{Env:GCB-BROKER-DEBUG}
+  controls verbose logging specifically for the GCB broker.
   The command-line override for this is \Opt{-d level}.
   Overrides \Env{GCB\_DEBUG\_LEVEL}. 
 
-\item \Env{GCB\_RELAY\_SERVER\_DEBUG} \label{Env:GCB-RELAY-SERVER-DEBUG}
-  Controls verbose logging for just the GCB relay server.  
+\item The environment variable \Env{GCB\_RELAY\_SERVER\_DEBUG} 
+  \label{Env:GCB-RELAY-SERVER-DEBUG}
+  controls verbose logging specifically for the GCB relay server.  
   Overrides \Env{GCB\_DEBUG\_LEVEL}. 
 
 \end{description}
@@ -348,18 +349,19 @@ All of them have reasonable defaults if not defined.
 
 \begin{description}
 
-\item \Env{GCB\_MAX\_LOG} \label{Env:GCB-MAX-LOG}
-  The maximum size of all GCB log files.
+\item The environment variable \Env{GCB\_MAX\_LOG} \label{Env:GCB-MAX-LOG}
+  defines the maximum size in bytes of all GCB log files.
   When the log file reaches this size, the content of the file will be
-  moved to \File{filename.old} and a new log will be started.
-  This setting defines logging behavior for all GCB daemons, unless
+  moved to \File{filename.old}, and a new log is started.
+  This defines logging behavior for all GCB daemons, unless
   the following daemon-specific settings are used.
 
-\item \Env{GCB\_BROKER\_MAX\_LOG} \label{Env:GCB-BROKER-MAX-LOG}
-  The maximum size of the GCB broker log file.
+\item The environment variable \Env{GCB\_BROKER\_MAX\_LOG} \label{Env:GCB-BROKER-MAX-LOG}
+  defines the maximum size in bytes of the GCB broker log file.
 
-\item \Env{GCB\_RELAY\_SERVER\_MAX\_LOG} \label{Env:GCB-RELAY-SERVER-MAX-LOG}
-  The maximum size of the GCB relay server log file.
+\item The environment variable \Env{GCB\_RELAY\_SERVER\_MAX\_LOG} 
+  \label{Env:GCB-RELAY-SERVER-MAX-LOG}
+  defines the maximum size in bytes of the GCB relay server log file.
 
 \end{description}
 
@@ -457,15 +459,15 @@ specified with \Env{GCB\_BROKER\_LOG}, or in
 
 \item Use \Prog{initd}.
 
-If you have root access and do not wish to install and use a
-\Condor{master} on your broker node, you can use the system's initd to
-manage the \Prog{gcb\_broker} for you.
-Generally, this involves adding a line to your \File{/etc/inittab}
+The system's initd may be used to manage the
+\Prog{gcb\_broker} without \Login{root} access
+and without running the \Condor{master} on the broker node.
+Generally, this involves adding a line to the \File{/etc/inittab}
 file.
-However, some sites use other means to manage and generate the
+Some sites use other means to manage and generate the
 \File{/etc/inittab}, such as \Prog{cfengine} or other system configuration
-management tools, so check with your local system administrator (if
-that's not you) to be sure.
+management tools, so check with the local system administrator
+to be sure.
 An example line might be something like:
 
 \footnotesize
@@ -474,11 +476,11 @@ GB:23:respawn:/path/to/gcb_broker -i 123.123.123.123 -r /path/to/relay_server
 \end{verbatim}
 \normalsize
 
-You might also find it's easier to wrap the \Prog{gcb\_broker} binary
-in a shell script, so you can change the command-line arguments (and
+It may be easier to wrap the \Prog{gcb\_broker} binary
+in a shell script, in order to change the command-line arguments (and
 set environment variables) without having to edit \File{/etc/inittab}
 all the time.
-Something like:
+This will be similar to:
 
 \footnotesize
 \begin{verbatim}
@@ -486,7 +488,7 @@ GB:23:respawn:/opt/condor-6.7.13/libexec/gcb_broker.sh
 \end{verbatim}
 \normalsize
 
-Then, you'd just have to create the wrapper, something like: 
+Then, create the wrapper, as similar to: 
 
 \footnotesize
 \begin{verbatim}
@@ -500,13 +502,13 @@ exec $libexec/gcb_broker -i $ip -r $relay
 \end{verbatim}
 \normalsize
 
-You'll probably also want to set some environment variables to tell
+You will probably also want to set some environment variables to tell
 the GCB daemons where to write their log files (\Env{GCB\_LOG\_DIR}),
 and possibly some of the other variables described above.
 
-Either way, once you've updated the \File{/etc/inittab}, you just send
-the \Prog{initd} process (always PID 1) a \verb@SIGHUP@ signal and it
-will re-read the \File{inittab} and spawn your \Prog{gcb\_broker}.
+Either way, after updating the \File{/etc/inittab}, send
+the \Prog{initd} process (always PID 1) a \verb@SIGHUP@ signal, and it
+will re-read the \File{inittab} and spawn the \Prog{gcb\_broker}.
 
 \end{itemize}
 
@@ -515,6 +517,7 @@ will re-read the \File{inittab} and spawn your \Prog{gcb\_broker}.
 Configuring Condor nodes to be GCB clients}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+% EDITTED to this point.
 \index{GCB (Generic Connection Brokering)!Condor client configuration}
 In general, before configuring any Condor node to use GCB, the GCB
 broker node(s) for your pool must be setup and running.
