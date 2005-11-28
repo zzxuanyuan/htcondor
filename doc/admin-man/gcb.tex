@@ -459,9 +459,9 @@ specified with \Env{GCB\_BROKER\_LOG}, or in
 
 \item Use \Prog{initd}.
 
-The system's initd may be used to manage the
-\Prog{gcb\_broker} without \Login{root} access
-and without running the \Condor{master} on the broker node.
+The system's \Prog{initd} may be used to manage the
+\Prog{gcb\_broker} without running the \Condor{master} on the broker
+node, but this requires \Login{root} access.
 Generally, this involves adding a line to the \File{/etc/inittab}
 file.
 Some sites use other means to manage and generate the
