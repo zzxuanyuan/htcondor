@@ -501,6 +501,10 @@ const char ATTR_QUILL_DB_QUERY_PASSWORD	[] = "QuillDatabaseQueryPassword";
 const char ATTR_QUILL_SQL_TOTAL		[] = "NumSqlTotal";
 const char ATTR_QUILL_SQL_LAST_BATCH	[] = "NumSqlLastBatch";
 
+const char ATTR_HAD_IS_ACTIVE [] = "HadIsActive";
+const char ATTR_HAD_LIST[]       = "HadList";
+const char ATTR_HAD_INDEX[]      = "HadIndex";
+
 // Valid settings for ATTR_JOB_MANAGED.
 	// Managed by an external process (gridmanager)
 const char MANAGED_EXTERNAL				 [] = "External";
