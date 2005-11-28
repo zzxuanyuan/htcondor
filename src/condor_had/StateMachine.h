@@ -38,20 +38,8 @@
 
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
 
-// TODO : to enter the commands to command types
-// file   condor_includes/condor_commands.h
-#define HAD_COMMANDS_BASE       700
-#define HAD_ALIVE_CMD           (HAD_COMMANDS_BASE + 0)
-#define HAD_SEND_ID_CMD         (HAD_COMMANDS_BASE + 1)
-
-// command names
-#define HAD_ALIVE_CMD_STR           "HAD_ALIVE_CMD"
-#define HAD_SEND_ID_CMD_STR         "HAD_SEND_ID_CMD"
-#define CHILD_ON_STR                "CHILD_ON"
-#define CHILD_OFF_FAST_STR          "CHILD_OFF_FAST"
-// end TODO
-
-
+//#undef IS_REPLICATION_USED
+//#define IS_REPLICATION_USED
 
 #define MESSAGES_PER_INTERVAL_FACTOR (2)
 #define SEND_COMMAND_TIMEOUT (5) // 5 seconds
@@ -63,6 +51,7 @@ typedef enum {
     LEADER_STATE = 4
 }STATES;
 
+class CollectorList;
 /*
   class HADStateMachine
 */
@@ -131,8 +120,6 @@ protected:
 
     void commandHandler(int cmd,Stream *strm) ;
 
-    void onError(char*);
-        
     int state;   
     int stateMachineTimerID;
         
@@ -157,9 +144,9 @@ protected:
     void removeAllFromList(List<int>*);
     void clearBuffers();
     void printStep(char *curState,char *nextState);
-    char* commandToString(int command);
+    //char* commandToString(int command);
 
-    void finilize();
+    void finalize();
     void init();
     
     /*
@@ -168,16 +155,36 @@ protected:
             <IP:port>,IP:port,<name:port>,name:port
         return address in the format <IP:port>
     */
-    char* convertToSinfull(char* addr);
+    //char* convertToSinfull(char* addr);
     void printParamsInformation();
 
-    int myatoi(const char* str, bool* res);
+    //int myatoi(const char* str, bool* res);
 
     // debug information
     bool standAloneMode;
     void my_debug_print_list(StringList* str);
     void my_debug_print_buffers();
 
+	// usage of replication, controlled by configuration parameter 
+	// USE_REPLICATION
+	bool useReplication;
+
+	int sendReplicationCommand( int );
+	void setReplicationDaemonSinfulString( );
+
+	char* replicationDaemonSinfulString;
+// classad-specific data members and functions
+    void initializeClassAd();
+    // timer handler
+    void updateCollectors();
+    // updates collectors upon changing from/to leader state
+    void updateCollectorsClassAd( const MyString& isHadActive );
+
+    ClassAd*       classAd;
+    // info about our central manager
+    CollectorList* collectorsList;
+    int            updateCollectorTimerId;
+    int            updateCollectorInterval;
 };
 
 #endif // !HAD_StateMachine_H__
