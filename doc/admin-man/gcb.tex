@@ -603,21 +603,21 @@ should be able to communicate with each other.
 \index{GCB (Generic Connection Brokering)!GCB routing table configuration}
 By default, a GCB-enabled application will always attempt to directly
 connect to a given IP/port pair.
-In the case of a private node utilizing a GCB broker, the
+In the case of a private nodes being represented by a GCB broker, the
 IP/port will be a proxy socket on the broker node, not the real
-address at the private node.
+address at each private node.
 When the GCB broker receives a direct connection to one of its proxy 
 sockets, it notifies the corresponding private node, which
 establishes a new connection to the broker.
 The broker then forwards packets between these two sockets,
 establishing a communication pathway into the private node.
-This allows clients which are not linked with GCB to communicate
-through GCB to private nodes.
+This allows clients which are not linked with the GCB libraries to communicate
+with private nodes using a GCB broker.
 
 This mechanism is expensive
 in terms of latency (time between messages) and total bandwidth
 (how much data can be moved in a given time period),
-as well as to the broker's
+as well as expensive in terms of the broker's
 system resources such as network I/O, processor time, and memory.
 This expensive mechanism is 
 unnecessary in the case of
@@ -720,7 +720,10 @@ The method must be one of the strings
     direct
 \end{verbatim}
 GCB stops searching the table as soon as it finds a matching rule,
-therefore place more specific rules before generic ones.
+therefore place more specific rules
+(rules with a larger value for the mask and without wildcards)
+before generic rules
+(rules with wildcards or smaller mask values).
 The default when no rule is matched is to use direct communication.
 Some examples and the corresponding routing tables may help clarify
 this syntax.
@@ -768,7 +771,6 @@ This table explicitly defines GCB's default behavior.
 \Bold{More complex GCB routing table example (2 private, 1 public)}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% EDITTED to this point.
 As a more complicated case, consider a single Condor pool that
 spans one public network and two private networks.
 The two separate private networks each have machines
