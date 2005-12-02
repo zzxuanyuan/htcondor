@@ -272,7 +272,13 @@ Scheduler::Scheduler() :
 		// ClassAd attribute for evaluating whether to start
 		// a local universe job
 		// 
-	StartLocalJob = NULL;
+	StartLocalUniverse = NULL;
+
+		//
+		// ClassAd attribute for evaluating whether to start
+		// a scheduler universe job
+		// 
+	StartSchedulerUniverse = NULL;
 
 	ShadowSizeEstimate = 0;
 
@@ -355,8 +361,11 @@ Scheduler::~Scheduler()
 	if( LocalUnivExecuteDir ) {
 		free( LocalUnivExecuteDir );
 	}
-	if ( this->StartLocalJob ) {
-		free ( this->StartLocalJob );
+	if ( this->StartLocalUniverse ) {
+		free ( this->StartLocalUniverse );
+	}
+	if ( this->StartSchedulerUniverse ) {
+		free ( this->StartSchedulerUniverse );
 	}
 
 	if ( CronMgr ) {
@@ -659,8 +668,14 @@ Scheduler::count_jobs()
 	sprintf(tmp, "%s = %d", ATTR_MAX_JOBS_RUNNING, MaxJobsRunning);
 	ad->InsertOrUpdate(tmp);
 	
-	sprintf(tmp, "%s = %s", ATTR_START_LOCAL_JOB, this->StartLocalJob );
+	sprintf(tmp, "%s = %s", ATTR_START_LOCAL_UNIVERSE,
+							this->StartLocalUniverse );
 	ad->InsertOrUpdate(tmp);
+	
+	sprintf(tmp, "%s = %s", ATTR_START_SCHEDULER_UNIVERSE,
+							this->StartSchedulerUniverse );
+	ad->InsertOrUpdate(tmp);
+	
 	
 	 sprintf(tmp, "%s = \"%s\"", ATTR_NAME, Name);
 	 ad->InsertOrUpdate(tmp);
@@ -5605,41 +5620,44 @@ find_idle_local_jobs( ClassAd *job )
 			// other. We break it out so we can print out any errors 
 			// as needed
 			//
-		ClassAd *scheddAd = new ClassAd;
-		scheduler.publish( scheddAd );
+		ClassAd scheddAd;
+		scheduler.publish( &scheddAd );
 	
 			//
-			// Schedd StartLocalJob Evaluation
+			// Select the start expression based on the universe
+			//
+		const char *universeExp = ( univ == CONDOR_UNIVERSE_LOCAL ?
+									ATTR_START_LOCAL_UNIVERSE :
+									ATTR_START_SCHEDULER_UNIVERSE );
+	
+			//
+			// Start Universe Evaluation
 			//
 		bool requirementsMet = true;
 		int requirements = 1;
-		if ( scheddAd->Lookup( ATTR_START_LOCAL_JOB ) != NULL && 
-			 scheddAd->EvalBool( ATTR_START_LOCAL_JOB, job, requirements ) ) {
+		if ( scheddAd.Lookup( universeExp ) != NULL && 
+			 scheddAd.EvalBool( universeExp, job, requirements ) ) {
 			requirementsMet = (bool)requirements;
 		}
 		if ( ! requirementsMet ) {
-			dprintf( D_FULLDEBUG, "StartLocalJob evaluated to false for "
+			dprintf( D_FULLDEBUG, "%s evaluated to false for "
 								  "local job %d.%d\n",
-								  id.cluster, id.proc );
-			free ( scheddAd );
+								  universeExp, id.cluster, id.proc );
 			return ( 0 );
 		}
 			//
 			// Job Requirements Evaluation
 			//
 		if ( job->Lookup( ATTR_REQUIREMENTS ) != NULL && 
-			 job->EvalBool( ATTR_REQUIREMENTS, scheddAd, requirements ) ) {
+			 job->EvalBool( ATTR_REQUIREMENTS, &scheddAd, requirements ) ) {
 			requirementsMet = (bool)requirements;
 		}
 		if ( ! requirementsMet ) {
 			dprintf( D_FULLDEBUG, "Local job %d.%d requirements did not evaluate "
 								  "to true for scheduler's ad\n",
 								  id.cluster, id.proc );
-			free ( scheddAd );
 			return ( 0 );
 		}
-		free ( scheddAd );
-		
 			//
 			// It's safe to go ahead and run the job!
 			//
@@ -9071,25 +9089,48 @@ Scheduler::Init()
 	}
 	
 		//
-		// Start Local Jobs Expression
+		// Start Local Universe Expression
 		// This will be added into the requirements expression for
 		// the schedd to know whether we can start a local job 
 		// 
-	if ( this->StartLocalJob ) free( this->StartLocalJob );
-	tmp = param( "START_LOCAL_JOB" );
+	if ( this->StartLocalUniverse ) free( this->StartLocalUniverse );
+	tmp = param( "START_LOCAL_UNIVERSE" );
 	if ( ! tmp ) {
 			//
 			// Default Expression: TRUE
 			//
 		MyString temp = ATTR_TOTAL_LOCAL_RUNNING_JOBS;
 		temp += " = TRUE ";
-		this->StartLocalJob = strdup( temp.Value() );
+		this->StartLocalUniverse = strdup( temp.Value() );
 	} else {
 			//
 			// Use what they had in the config file
 			// Should I be checking this first??
 			//
-		this->StartLocalJob = strdup( tmp );
+		this->StartLocalUniverse = strdup( tmp );
+		free( tmp );
+	}
+
+		//
+		// Start Scheduler Universe Expression
+		// This will be added into the requirements expression for
+		// the schedd to know whether we can start a scheduler job 
+		// 
+	if ( this->StartSchedulerUniverse ) free( this->StartSchedulerUniverse );
+	tmp = param( "START_SCHEDULER_UNIVERSE" );
+	if ( ! tmp ) {
+			//
+			// Default Expression: TRUE
+			//
+		MyString temp = ATTR_TOTAL_SCHEDULER_RUNNING_JOBS;
+		temp += " = TRUE ";
+		this->StartSchedulerUniverse = strdup( temp.Value() );
+	} else {
+			//
+			// Use what they had in the config file
+			// Should I be checking this first??
+			//
+		this->StartSchedulerUniverse = strdup( tmp );
 		free( tmp );
 	}
 
@@ -10290,19 +10331,41 @@ Scheduler::publish( ClassAd *ad ) {
 		// -------------------------------------------------------
 		// Local Universe Attributes
 		// -------------------------------------------------------
-	intoAd ( ad, ATTR_TOTAL_LOCAL_IDLE_JOBS,	this->LocalUniverseJobsIdle );
-	intoAd ( ad, ATTR_TOTAL_LOCAL_RUNNING_JOBS,	this->LocalUniverseJobsRunning );
+	intoAd ( ad, ATTR_TOTAL_LOCAL_IDLE_JOBS,
+				 this->LocalUniverseJobsIdle );
+	intoAd ( ad, ATTR_TOTAL_LOCAL_RUNNING_JOBS,
+				 this->LocalUniverseJobsRunning );
 	
 		//
 		// Limiting the # of local universe jobs allowed to start
 		//
-	if ( this->StartLocalJob ) {
+	if ( this->StartLocalUniverse ) {
 		MyString temp;
-		temp  = ATTR_START_LOCAL_JOB;
+		temp  = ATTR_START_LOCAL_UNIVERSE;
 		temp += " = ";
-		temp += this->StartLocalJob;
+		temp += this->StartLocalUniverse;
 		ad->Insert( temp.Value() );	
 	}
+
+		// -------------------------------------------------------
+		// Scheduler Universe Attributes
+		// -------------------------------------------------------
+	intoAd ( ad, ATTR_TOTAL_SCHEDULER_IDLE_JOBS,
+				 this->SchedUniverseJobsIdle );
+	intoAd ( ad, ATTR_TOTAL_SCHEDULER_RUNNING_JOBS,
+				 this->SchedUniverseJobsRunning );
+	
+		//
+		// Limiting the # of scheduler universe jobs allowed to start
+		//
+	if ( this->StartSchedulerUniverse ) {
+		MyString temp;
+		temp  = ATTR_START_SCHEDULER_UNIVERSE;
+		temp += " = ";
+		temp += this->StartSchedulerUniverse;
+		ad->Insert( temp.Value() );	
+	}
+
 
 		// -------------------------------------------------------
 		// Other Attributes
@@ -11023,7 +11086,7 @@ Scheduler::jobIsFinishedHandler( ServiceData* data )
 		//
 		// Remove the record from our cronTab lists
 		// We do it here before we fire off any threads
-		// so that we cause problems
+		// so that we don't cause problems
 		//
 //	PROC_ID id;
 //	id.cluster = cluster;

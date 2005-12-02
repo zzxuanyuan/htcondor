@@ -293,7 +293,6 @@ class Scheduler : public Service
 	char*			uidDomain( void ) { return UidDomain; };
 	int				getJobsTotalAds() { return JobsTotalAds; };
 	int				getMaxJobsSubmitted() { return MaxJobsSubmitted; };
-	ClassAd*		getClassAd() { return (this->ad); };
 
 		// Used by the DedicatedScheduler class
 	void 			swap_space_exhausted();
@@ -356,7 +355,8 @@ private:
 	int				JobStartCount;
 	int				JobsThisBurst;
 	int				MaxJobsRunning;
-	char*			StartLocalJob; // expression to limit the # of local jobs
+	char*			StartLocalUniverse; // expression for local jobs
+	char*			StartSchedulerUniverse; // expression for scheduler jobs
 	int				MaxJobsSubmitted;
 	bool			NegotiateAllJobsInCluster;
 	int				JobsStarted; // # of jobs started last negotiating session
