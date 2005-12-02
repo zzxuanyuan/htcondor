@@ -517,11 +517,6 @@ private:
 
 		// put state into ClassAd return it.  Used for condor_squawk
 	int	dumpState(int, Stream *);
-	int intoAd ( ClassAd *ad, const char *lhs, const char *rhs );
-	int intoAd ( ClassAd *ad, const char *lhs, char *rhs );
-	int intoAd ( ClassAd *ad, char *lhs, char *rhs );
-	int intoAd ( ClassAd *ad, const char *lhs, int rhs );
-	int intoAd ( ClassAd *ad, char *lhs, int rhs );
 
 		// A bit that says wether or not we've sent email to the admin
 		// about a shadow not starting.

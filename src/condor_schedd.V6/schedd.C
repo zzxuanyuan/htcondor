@@ -33,6 +33,7 @@
 #include "condor_attributes.h"
 #include "condor_parameters.h"
 #include "condor_classad.h"
+#include "condor_classad_util.h"
 #include "classad_helpers.h"
 #include "condor_adtypes.h"
 #include "condor_string.h"
@@ -10331,9 +10332,9 @@ Scheduler::publish( ClassAd *ad ) {
 		// -------------------------------------------------------
 		// Local Universe Attributes
 		// -------------------------------------------------------
-	intoAd ( ad, ATTR_TOTAL_LOCAL_IDLE_JOBS,
+	InsertIntoAd ( ad, ATTR_TOTAL_LOCAL_IDLE_JOBS,
 				 this->LocalUniverseJobsIdle );
-	intoAd ( ad, ATTR_TOTAL_LOCAL_RUNNING_JOBS,
+	InsertIntoAd ( ad, ATTR_TOTAL_LOCAL_RUNNING_JOBS,
 				 this->LocalUniverseJobsRunning );
 	
 		//
@@ -10350,9 +10351,9 @@ Scheduler::publish( ClassAd *ad ) {
 		// -------------------------------------------------------
 		// Scheduler Universe Attributes
 		// -------------------------------------------------------
-	intoAd ( ad, ATTR_TOTAL_SCHEDULER_IDLE_JOBS,
+	InsertIntoAd ( ad, ATTR_TOTAL_SCHEDULER_IDLE_JOBS,
 				 this->SchedUniverseJobsIdle );
-	intoAd ( ad, ATTR_TOTAL_SCHEDULER_RUNNING_JOBS,
+	InsertIntoAd ( ad, ATTR_TOTAL_SCHEDULER_RUNNING_JOBS,
 				 this->SchedUniverseJobsRunning );
 	
 		//
@@ -10382,47 +10383,47 @@ Scheduler::dumpState(int, Stream* s) {
 	dprintf ( D_FULLDEBUG, "Dumping state for Squawk\n" );
 
 	ClassAd *ad = new ClassAd;
-	intoAd ( ad, "MySockName", MySockName );
-	intoAd ( ad, "MyShadowSockname", MyShadowSockName );
-	intoAd ( ad, "SchedDInterval", SchedDInterval );
-	intoAd ( ad, "QueueCleanInterval", QueueCleanInterval );
-	intoAd ( ad, "JobStartDelay", JobStartDelay );
-	intoAd ( ad, "JobStartCount", JobStartCount );
-	intoAd ( ad, "JobsThisBurst", JobsThisBurst );
-	intoAd ( ad, "MaxJobsRunning", MaxJobsRunning );
-	intoAd ( ad, "MaxJobsSubmitted", MaxJobsSubmitted );
-	intoAd ( ad, "JobsStarted", JobsStarted );
-	intoAd ( ad, "SwapSpace", SwapSpace );
-	intoAd ( ad, "ShadowSizeEstimate", ShadowSizeEstimate );
-	intoAd ( ad, "SwapSpaceExhausted", SwapSpaceExhausted );
-	intoAd ( ad, "ReservedSwap", ReservedSwap );
-	intoAd ( ad, "JobsIdle", JobsIdle );
-	intoAd ( ad, "JobsRunning", JobsRunning );
-	intoAd ( ad, "LocalUniverseJobsIdle", LocalUniverseJobsIdle );
-	intoAd ( ad, "LocalUniverseJobsRunning", LocalUniverseJobsRunning );
-	intoAd ( ad, "SchedUniverseJobsIdle", SchedUniverseJobsIdle );
-	intoAd ( ad, "SchedUniverseJobsRunning", SchedUniverseJobsRunning );
-	intoAd ( ad, "BadCluster", BadCluster );
-	intoAd ( ad, "BadProc", BadProc );
-	intoAd ( ad, "N_Owners", N_Owners );
-	intoAd ( ad, "NegotiationRequestTime", NegotiationRequestTime  );
-	intoAd ( ad, "ExitWhenDone", ExitWhenDone );
-	intoAd ( ad, "StartJobTimer", StartJobTimer );
-	intoAd ( ad, "timeoutid", timeoutid );
-	intoAd ( ad, "startjobsid", startjobsid );
-	intoAd ( ad, "startJobsDelayBit", startJobsDelayBit );
-	intoAd ( ad, "num_reg_contacts", num_reg_contacts );
-	intoAd ( ad, "MAX_STARTD_CONTACTS", MAX_STARTD_CONTACTS );
-	intoAd ( ad, "CondorAdministrator", CondorAdministrator );
-	intoAd ( ad, "Mail", Mail );
-	intoAd ( ad, "filename", filename );
-	intoAd ( ad, "AccountantName", AccountantName );
-	intoAd ( ad, "UidDomain", UidDomain );
-	intoAd ( ad, "MaxFlockLevel", MaxFlockLevel );
-	intoAd ( ad, "FlockLevel", FlockLevel );
-	intoAd ( ad, "alive_interval", alive_interval );
-	intoAd ( ad, "leaseAliveInterval", leaseAliveInterval );
-	intoAd ( ad, "MaxExceptions", MaxExceptions );
+	InsertIntoAd ( ad, "MySockName", MySockName );
+	InsertIntoAd ( ad, "MyShadowSockname", MyShadowSockName );
+	InsertIntoAd ( ad, "SchedDInterval", SchedDInterval );
+	InsertIntoAd ( ad, "QueueCleanInterval", QueueCleanInterval );
+	InsertIntoAd ( ad, "JobStartDelay", JobStartDelay );
+	InsertIntoAd ( ad, "JobStartCount", JobStartCount );
+	InsertIntoAd ( ad, "JobsThisBurst", JobsThisBurst );
+	InsertIntoAd ( ad, "MaxJobsRunning", MaxJobsRunning );
+	InsertIntoAd ( ad, "MaxJobsSubmitted", MaxJobsSubmitted );
+	InsertIntoAd ( ad, "JobsStarted", JobsStarted );
+	InsertIntoAd ( ad, "SwapSpace", SwapSpace );
+	InsertIntoAd ( ad, "ShadowSizeEstimate", ShadowSizeEstimate );
+	InsertIntoAd ( ad, "SwapSpaceExhausted", SwapSpaceExhausted );
+	InsertIntoAd ( ad, "ReservedSwap", ReservedSwap );
+	InsertIntoAd ( ad, "JobsIdle", JobsIdle );
+	InsertIntoAd ( ad, "JobsRunning", JobsRunning );
+	InsertIntoAd ( ad, "LocalUniverseJobsIdle", LocalUniverseJobsIdle );
+	InsertIntoAd ( ad, "LocalUniverseJobsRunning", LocalUniverseJobsRunning );
+	InsertIntoAd ( ad, "SchedUniverseJobsIdle", SchedUniverseJobsIdle );
+	InsertIntoAd ( ad, "SchedUniverseJobsRunning", SchedUniverseJobsRunning );
+	InsertIntoAd ( ad, "BadCluster", BadCluster );
+	InsertIntoAd ( ad, "BadProc", BadProc );
+	InsertIntoAd ( ad, "N_Owners", N_Owners );
+	InsertIntoAd ( ad, "NegotiationRequestTime", NegotiationRequestTime  );
+	InsertIntoAd ( ad, "ExitWhenDone", ExitWhenDone );
+	InsertIntoAd ( ad, "StartJobTimer", StartJobTimer );
+	InsertIntoAd ( ad, "timeoutid", timeoutid );
+	InsertIntoAd ( ad, "startjobsid", startjobsid );
+	InsertIntoAd ( ad, "startJobsDelayBit", startJobsDelayBit );
+	InsertIntoAd ( ad, "num_reg_contacts", num_reg_contacts );
+	InsertIntoAd ( ad, "MAX_STARTD_CONTACTS", MAX_STARTD_CONTACTS );
+	InsertIntoAd ( ad, "CondorAdministrator", CondorAdministrator );
+	InsertIntoAd ( ad, "Mail", Mail );
+	InsertIntoAd ( ad, "filename", filename );
+	InsertIntoAd ( ad, "AccountantName", AccountantName );
+	InsertIntoAd ( ad, "UidDomain", UidDomain );
+	InsertIntoAd ( ad, "MaxFlockLevel", MaxFlockLevel );
+	InsertIntoAd ( ad, "FlockLevel", FlockLevel );
+	InsertIntoAd ( ad, "alive_interval", alive_interval );
+	InsertIntoAd ( ad, "leaseAliveInterval", leaseAliveInterval );
+	InsertIntoAd ( ad, "MaxExceptions", MaxExceptions );
 	
 	int cmd;
 	s->code( cmd );
@@ -10436,42 +10437,6 @@ Scheduler::dumpState(int, Stream* s) {
 
 	return TRUE;
 }
-
-int Scheduler::intoAd( ClassAd *ad, char *lhs, char *rhs ) {
-	return ( this->intoAd( ad, (const char*)lhs, (const char*)rhs ) );
-}
-int Scheduler::intoAd( ClassAd *ad, const char *lhs, char *rhs ) {
-	return ( this->intoAd( ad, (const char*)lhs, (const char*)rhs ) );
-}
-
-int Scheduler::intoAd( ClassAd *ad, const char *lhs, const char *rhs ) {
-	char tmp[16000];
-	
-	if ( !lhs || !rhs || !ad ) {
-		return FALSE;
-	}
-
-	sprintf ( tmp, "%s = \"%s\"", lhs, rhs );
-	ad->Insert( tmp );
-	
-	return TRUE;
-}
-
-int Scheduler::intoAd( ClassAd *ad, char *lhs, int rhs ) {
-	return ( this->intoAd( ad, (const char*)lhs, rhs ) );
-}
-int Scheduler::intoAd( ClassAd *ad, const char *lhs, int rhs ) {
-	char tmp[256];
-	if ( !lhs || !ad ) {
-		return FALSE;
-	}
-
-	sprintf ( tmp, "%s = %d", lhs, rhs );
-	ad->Insert( tmp );
-
-	return TRUE;
-}
-
 
 int
 fixAttrUser( ClassAd *job )
