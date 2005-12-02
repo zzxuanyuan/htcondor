@@ -23,9 +23,4 @@ Arguments				= 10
 ## testing library can't differeniate between multiple jobs
 ##
 Output                  = job_core_max-running_local.out
-Queue
-Queue
-Queue
-Queue
-Queue
-Queue
+Queue 6
