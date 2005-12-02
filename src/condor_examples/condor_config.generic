@@ -544,10 +544,16 @@ WANT_VACATE		= $(UWCS_WANT_VACATE)
 START			= $(UWCS_START)
 
 ##  When should a local universe job be allowed to start?
-START_LOCAL_JOB		= True
+START_LOCAL_UNIVERSE	= True
 # Only start a local universe jobs if there are less
 # than 100 local jobs currently running
-#START_LOCAL_JOB	= My.LocalUniverseJobsRunning < 100
+#START_LOCAL_UNIVERSE	= My.LocalUniverseJobsRunning < 100
+
+##  When should a scheduler universe job be allowed to start?
+START_SCHEDULER_UNIVERSE	= True
+# Only start a scheduler universe jobs if there are less
+# than 100 scheduler jobs currently running
+#START_SCHEDULER_UNIVERSE	= My.SchedulerlUniverseJobsRunning < 100
 
 ##  When to suspend a job?
 SUSPEND			= $(UWCS_SUSPEND)
