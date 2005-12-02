@@ -5644,6 +5644,13 @@ find_idle_local_jobs( ClassAd *job )
 			dprintf( D_FULLDEBUG, "%s evaluated to false for "
 								  "local job %d.%d\n",
 								  universeExp, id.cluster, id.proc );
+				//
+				// Print the expression to the user
+				//
+			MyString exp;
+			if ( scheddAd.LookupString( universeExp, exp ) ) {
+				dprintf( D_FULLDEBUG, "Failed expression '%s'\n", exp.Value() );
+			}
 			return ( 0 );
 		}
 			//
@@ -5657,6 +5664,13 @@ find_idle_local_jobs( ClassAd *job )
 			dprintf( D_FULLDEBUG, "Local job %d.%d requirements did not evaluate "
 								  "to true for scheduler's ad\n",
 								  id.cluster, id.proc );
+				//
+				// Print the expression to the user
+				//
+			MyString exp;
+			if ( scheddAd.LookupString( universeExp, exp ) ) {
+				dprintf( D_FULLDEBUG, "Failed expression '%s'\n", exp.Value() );
+			}
 			return ( 0 );
 		}
 			//
@@ -5717,11 +5731,6 @@ Scheduler::StartJobs()
 		return;
 	}
 	
-		//
-		// Cron schedule calculation
-		//
-	//WalkJobQueue( (int(*)(ClassAd *))::calculateCronSchedule );
-
 	dprintf(D_FULLDEBUG, "-------- Begin starting jobs --------\n");
 	startJobsDelayBit = FALSE;
 	matches->startIterations();
@@ -8445,6 +8454,9 @@ Scheduler::child_exit(int pid, int status)
 				// start executing, so we'll add an error message
 				// to the remove reason so that it shows up in the userlog
 				//
+				// This case will fall down into the remove case so that
+				// the job is removed from the queue
+				//
 				// Please note that I am not proud of this code,
 				// but it was needed just for now to know that the 
 				// job did not run and is being removed
@@ -10328,6 +10340,47 @@ Scheduler::HadException( match_rec* mrec )
 int
 Scheduler::publish( ClassAd *ad ) {
 	int ret = (int)true;
+
+		// -------------------------------------------------------
+		// Basic Attributes - Copied from dumpState()
+		// -------------------------------------------------------
+	InsertIntoAd ( ad, "MySockName", MySockName );
+	InsertIntoAd ( ad, "MyShadowSockname", MyShadowSockName );
+	InsertIntoAd ( ad, "SchedDInterval", SchedDInterval );
+	InsertIntoAd ( ad, "QueueCleanInterval", QueueCleanInterval );
+	InsertIntoAd ( ad, "JobStartDelay", JobStartDelay );
+	InsertIntoAd ( ad, "JobStartCount", JobStartCount );
+	InsertIntoAd ( ad, "JobsThisBurst", JobsThisBurst );
+	InsertIntoAd ( ad, "MaxJobsRunning", MaxJobsRunning );
+	InsertIntoAd ( ad, "MaxJobsSubmitted", MaxJobsSubmitted );
+	InsertIntoAd ( ad, "JobsStarted", JobsStarted );
+	InsertIntoAd ( ad, "SwapSpace", SwapSpace );
+	InsertIntoAd ( ad, "ShadowSizeEstimate", ShadowSizeEstimate );
+	InsertIntoAd ( ad, "SwapSpaceExhausted", SwapSpaceExhausted );
+	InsertIntoAd ( ad, "ReservedSwap", ReservedSwap );
+	InsertIntoAd ( ad, "JobsIdle", JobsIdle );
+	InsertIntoAd ( ad, "JobsRunning", JobsRunning );
+	InsertIntoAd ( ad, "BadCluster", BadCluster );
+	InsertIntoAd ( ad, "BadProc", BadProc );
+	InsertIntoAd ( ad, "N_Owners", N_Owners );
+	InsertIntoAd ( ad, "NegotiationRequestTime", NegotiationRequestTime  );
+	InsertIntoAd ( ad, "ExitWhenDone", ExitWhenDone );
+	InsertIntoAd ( ad, "StartJobTimer", StartJobTimer );
+	InsertIntoAd ( ad, "timeoutid", timeoutid );
+	InsertIntoAd ( ad, "startjobsid", startjobsid );
+	InsertIntoAd ( ad, "startJobsDelayBit", startJobsDelayBit );
+	InsertIntoAd ( ad, "num_reg_contacts", num_reg_contacts );
+	InsertIntoAd ( ad, "MAX_STARTD_CONTACTS", MAX_STARTD_CONTACTS );
+	InsertIntoAd ( ad, "CondorAdministrator", CondorAdministrator );
+	InsertIntoAd ( ad, "Mail", Mail );
+	InsertIntoAd ( ad, "filename", filename );
+	InsertIntoAd ( ad, "AccountantName", AccountantName );
+	InsertIntoAd ( ad, "UidDomain", UidDomain );
+	InsertIntoAd ( ad, "MaxFlockLevel", MaxFlockLevel );
+	InsertIntoAd ( ad, "FlockLevel", FlockLevel );
+	InsertIntoAd ( ad, "alive_interval", alive_interval );
+	InsertIntoAd ( ad, "leaseAliveInterval", leaseAliveInterval );
+	InsertIntoAd ( ad, "MaxExceptions", MaxExceptions );
 	
 		// -------------------------------------------------------
 		// Local Universe Attributes
@@ -10366,12 +10419,6 @@ Scheduler::publish( ClassAd *ad ) {
 		temp += this->StartSchedulerUniverse;
 		ad->Insert( temp.Value() );	
 	}
-
-
-		// -------------------------------------------------------
-		// Other Attributes
-		// -------------------------------------------------------
-	// None for now...
 	
 	return ( ret );
 }
