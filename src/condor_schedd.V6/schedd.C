@@ -9114,9 +9114,7 @@ Scheduler::Init()
 			//
 			// Default Expression: TRUE
 			//
-		MyString temp = ATTR_TOTAL_LOCAL_RUNNING_JOBS;
-		temp += " = TRUE ";
-		this->StartLocalUniverse = strdup( temp.Value() );
+		this->StartLocalUniverse = strdup( "TRUE" );
 	} else {
 			//
 			// Use what they had in the config file
@@ -9137,9 +9135,7 @@ Scheduler::Init()
 			//
 			// Default Expression: TRUE
 			//
-		MyString temp = ATTR_TOTAL_SCHEDULER_RUNNING_JOBS;
-		temp += " = TRUE ";
-		this->StartSchedulerUniverse = strdup( temp.Value() );
+		this->StartSchedulerUniverse = strdup( "TRUE" );
 	} else {
 			//
 			// Use what they had in the config file
@@ -10431,48 +10427,12 @@ Scheduler::dumpState(int, Stream* s) {
 
 	dprintf ( D_FULLDEBUG, "Dumping state for Squawk\n" );
 
-	ClassAd *ad = new ClassAd;
-	InsertIntoAd ( ad, "MySockName", MySockName );
-	InsertIntoAd ( ad, "MyShadowSockname", MyShadowSockName );
-	InsertIntoAd ( ad, "SchedDInterval", SchedDInterval );
-	InsertIntoAd ( ad, "QueueCleanInterval", QueueCleanInterval );
-	InsertIntoAd ( ad, "JobStartDelay", JobStartDelay );
-	InsertIntoAd ( ad, "JobStartCount", JobStartCount );
-	InsertIntoAd ( ad, "JobsThisBurst", JobsThisBurst );
-	InsertIntoAd ( ad, "MaxJobsRunning", MaxJobsRunning );
-	InsertIntoAd ( ad, "MaxJobsSubmitted", MaxJobsSubmitted );
-	InsertIntoAd ( ad, "JobsStarted", JobsStarted );
-	InsertIntoAd ( ad, "SwapSpace", SwapSpace );
-	InsertIntoAd ( ad, "ShadowSizeEstimate", ShadowSizeEstimate );
-	InsertIntoAd ( ad, "SwapSpaceExhausted", SwapSpaceExhausted );
-	InsertIntoAd ( ad, "ReservedSwap", ReservedSwap );
-	InsertIntoAd ( ad, "JobsIdle", JobsIdle );
-	InsertIntoAd ( ad, "JobsRunning", JobsRunning );
-	InsertIntoAd ( ad, "LocalUniverseJobsIdle", LocalUniverseJobsIdle );
-	InsertIntoAd ( ad, "LocalUniverseJobsRunning", LocalUniverseJobsRunning );
-	InsertIntoAd ( ad, "SchedUniverseJobsIdle", SchedUniverseJobsIdle );
-	InsertIntoAd ( ad, "SchedUniverseJobsRunning", SchedUniverseJobsRunning );
-	InsertIntoAd ( ad, "BadCluster", BadCluster );
-	InsertIntoAd ( ad, "BadProc", BadProc );
-	InsertIntoAd ( ad, "N_Owners", N_Owners );
-	InsertIntoAd ( ad, "NegotiationRequestTime", NegotiationRequestTime  );
-	InsertIntoAd ( ad, "ExitWhenDone", ExitWhenDone );
-	InsertIntoAd ( ad, "StartJobTimer", StartJobTimer );
-	InsertIntoAd ( ad, "timeoutid", timeoutid );
-	InsertIntoAd ( ad, "startjobsid", startjobsid );
-	InsertIntoAd ( ad, "startJobsDelayBit", startJobsDelayBit );
-	InsertIntoAd ( ad, "num_reg_contacts", num_reg_contacts );
-	InsertIntoAd ( ad, "MAX_STARTD_CONTACTS", MAX_STARTD_CONTACTS );
-	InsertIntoAd ( ad, "CondorAdministrator", CondorAdministrator );
-	InsertIntoAd ( ad, "Mail", Mail );
-	InsertIntoAd ( ad, "filename", filename );
-	InsertIntoAd ( ad, "AccountantName", AccountantName );
-	InsertIntoAd ( ad, "UidDomain", UidDomain );
-	InsertIntoAd ( ad, "MaxFlockLevel", MaxFlockLevel );
-	InsertIntoAd ( ad, "FlockLevel", FlockLevel );
-	InsertIntoAd ( ad, "alive_interval", alive_interval );
-	InsertIntoAd ( ad, "leaseAliveInterval", leaseAliveInterval );
-	InsertIntoAd ( ad, "MaxExceptions", MaxExceptions );
+		//
+		// The new publish() method will stuff all the attributes
+		// that we used to set in this method
+		//
+	ClassAd ad;
+	this->publish( &ad );
 	
 	int cmd;
 	s->code( cmd );
@@ -10480,9 +10440,7 @@ Scheduler::dumpState(int, Stream* s) {
 
 	s->encode();
 	
-	ad->put( *s );
-
-	delete ad;
+	ad.put( *s );
 
 	return TRUE;
 }
