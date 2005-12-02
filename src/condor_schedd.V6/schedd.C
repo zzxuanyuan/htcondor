@@ -5641,15 +5641,16 @@ find_idle_local_jobs( ClassAd *job )
 			requirementsMet = (bool)requirements;
 		}
 		if ( ! requirementsMet ) {
-			dprintf( D_FULLDEBUG, "%s evaluated to false for "
-								  "local job %d.%d\n",
+			dprintf( D_FULLDEBUG, "%s evaluated to false for local job "
+								  "%d.%d. Unable to start job.\n",
 								  universeExp, id.cluster, id.proc );
 				//
 				// Print the expression to the user
 				//
-			MyString exp;
-			if ( scheddAd.LookupString( universeExp, exp ) ) {
-				dprintf( D_FULLDEBUG, "Failed expression '%s'\n", exp.Value() );
+			char *exp = scheddAd.sPrintExpr( NULL, false, universeExp );
+			if ( exp ) {
+				dprintf( D_FULLDEBUG, "Failed expression '%s'\n", exp );
+				free( exp );
 			}
 			return ( 0 );
 		}
@@ -5662,14 +5663,15 @@ find_idle_local_jobs( ClassAd *job )
 		}
 		if ( ! requirementsMet ) {
 			dprintf( D_FULLDEBUG, "Local job %d.%d requirements did not evaluate "
-								  "to true for scheduler's ad\n",
+								  "to true. Unable to start job\n",
 								  id.cluster, id.proc );
 				//
 				// Print the expression to the user
 				//
-			MyString exp;
-			if ( scheddAd.LookupString( universeExp, exp ) ) {
-				dprintf( D_FULLDEBUG, "Failed expression '%s'\n", exp.Value() );
+			char *exp = job->sPrintExpr( NULL, false, ATTR_REQUIREMENTS );
+			if ( exp ) {
+				dprintf( D_FULLDEBUG, "Failed expression '%s'\n", exp );
+				free( exp );
 			}
 			return ( 0 );
 		}
