@@ -9839,7 +9839,7 @@ Scheduler::reschedule_negotiator(int, Stream *)
 
 	dprintf( D_ALWAYS, "Called reschedule_negotiator()\n" );
 
-	sendReschedule();	
+	sendReschedule();
 
 	if( LocalUniverseJobsIdle > 0 || SchedUniverseJobsIdle > 0 ) {
 			//
