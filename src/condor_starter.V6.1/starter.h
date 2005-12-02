@@ -30,11 +30,6 @@
 #include "job_info_communicator.h"
 
 
-//
-// Used to indicate that there is not a deferral timer
-// registered for a job
-//
-#define CSTARTER_NO_DEFERRAL_TID -1
 
 /** The starter class.  Basically, this class does some initialization
 	stuff and manages a set of UserProc instances, each of which 

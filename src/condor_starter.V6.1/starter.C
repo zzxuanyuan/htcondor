@@ -69,7 +69,7 @@ CStarter::CStarter()
 	starter_stdin_fd = -1;
 	starter_stdout_fd = -1;
 	starter_stderr_fd = -1;
-	deferral_tid = CSTARTER_NO_DEFERRAL_TID;
+	deferral_tid = -1;
 }
 
 
@@ -237,7 +237,7 @@ CStarter::ShutdownGraceful(int)
 		// Check if there is currently a timer registerd for a 
 		// deferred job. If there is then we need to cancel it
 		//
-	if ( this->deferral_tid != CSTARTER_NO_DEFERRAL_TID ) {
+	if ( this->deferral_tid != -1 ) {
 		this->removeDeferredJobs();
 	}
 
@@ -281,7 +281,7 @@ CStarter::ShutdownFast(int)
 		// Check if there is currently a timer registerd for a 
 		// deferred job. If there is then we need to cancel it
 		//
-	if ( this->deferral_tid != CSTARTER_NO_DEFERRAL_TID ) {
+	if ( this->deferral_tid != -1 ) {
 		this->removeDeferredJobs();
 	}
 
@@ -323,7 +323,7 @@ CStarter::Remove( int )
 		// Check if there is currently a timer registerd for a 
 		// deferred job. If there is then we need to cancel it
 		//
-	if ( this->deferral_tid != CSTARTER_NO_DEFERRAL_TID ) {
+	if ( this->deferral_tid != -1 ) {
 		this->removeDeferredJobs();
 	}
 
@@ -647,7 +647,7 @@ CStarter::jobWaitUntilExecuteTime( void )
 			// Quick sanity check
 			// Make sure another timer isn't already registered
 			//
-		ASSERT( this->deferral_tid == CSTARTER_NO_DEFERRAL_TID );
+		ASSERT( this->deferral_tid == -1 );
 		
 			//
 			// Now we will register a callback that will
@@ -724,7 +724,7 @@ int
 CStarter::removeDeferredJobs() {
 	bool ret = true;
 	
-	if ( this->deferral_tid != CSTARTER_NO_DEFERRAL_TID ) {	
+	if ( this->deferral_tid != -1 ) {	
 			//
 			// Attempt to cancel the the timer
 			//
@@ -733,7 +733,7 @@ CStarter::removeDeferredJobs() {
 								  "Job %d.%d\n", 
 										this->jic->jobCluster(),
 										this->jic->jobProc() );
-			this->deferral_tid = CSTARTER_NO_DEFERRAL_TID;
+			this->deferral_tid = -1;
 				//
 				// Not sure if this is right
 				// We can peek to see if the JobList is empty
@@ -766,8 +766,8 @@ CStarter::jobEnvironmentReady( void )
 		// Unset the deferral timer so that we know that no job
 		// is waiting to be spawned
 		//
-	if ( this->deferral_tid != CSTARTER_NO_DEFERRAL_TID ) {
-		this->deferral_tid = CSTARTER_NO_DEFERRAL_TID;
+	if ( this->deferral_tid != -1 ) {
+		this->deferral_tid = -1;
 	}
 	
 		// first, see if we're going to need any pre and post scripts
