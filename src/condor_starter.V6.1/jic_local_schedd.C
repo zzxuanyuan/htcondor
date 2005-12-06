@@ -27,7 +27,6 @@
 #include "condor_string.h"
 #include "condor_attributes.h"
 #include "condor_email.h"
-#include "condor_classad_util.h"
 #include "exit.h"
 #include "internet.h"
 
