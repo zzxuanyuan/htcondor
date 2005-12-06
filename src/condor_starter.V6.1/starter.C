@@ -736,15 +736,6 @@ CStarter::removeDeferredJobs() {
 					this->jic->jobCluster(),
 					this->jic->jobProc() );
 		this->deferral_tid = -1;
-			//
-			// Not sure if this is right
-			// We can peek to see if the JobList is empty
-			// If it is then we know we can declare that all of our
-			// jobs are done
-			//
-		//if ( JobList.Length() == 0 ) {
-		//	this->allJobsDone();
-		//}
 
 	} else {
 			//
