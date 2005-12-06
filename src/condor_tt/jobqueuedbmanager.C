@@ -196,9 +196,8 @@ JobQueueDBManager::config(bool reconfig)
 		prober = new Prober(this);
 		caLogParser = new ClassAdLogParser();
 
-#ifdef _POSTGRESQL_DBMS_
 		jqDatabase = new PGSQLDatabase(jobQueueDBConn);
-#endif
+
 		xactState = NOT_IN_XACT;
 		numTimesPolled = 0; 
 

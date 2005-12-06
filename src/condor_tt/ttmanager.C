@@ -161,9 +161,7 @@ TTManager::config(bool reconfig)
 
 	jobQueueDBConn = jqDBManager.getJobQueueDBConn();
 
-#ifdef _POSTGRESQL_DBMS_
 	DBObj = new PGSQLDatabase(jobQueueDBConn);
-#endif
 }
 
 //! register all timer handlers
