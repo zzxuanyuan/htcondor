@@ -88,14 +88,14 @@ public:
 		 * to register timer to call jobEnvironmentReady()
 		 * when it is the correct time to run the job
 		 */
-	virtual int jobWaitUntilExecuteTime( void );
+	virtual bool jobWaitUntilExecuteTime( void );
 	
 		/**
 		 * Clean up any the timer that we have might
 		 * have registered to put a job on hold. As of now
 		 * there can only be one job on hold
 		 */
-	virtual int removeDeferredJobs( void );
+	virtual bool removeDeferredJobs( void );
 		
 		/** Called by the JobInfoCommunicator whenever the job
 			execution environment is ready so we can actually spawn
