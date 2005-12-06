@@ -30,10 +30,10 @@ bool EvalBool(ClassAd *ad, const char *constraint);
 // Convenience methods for inserting info an ad
 // This was moved from the scheduler
 //
-int InsertIntoAd ( ClassAd *ad, const char *lhs, const char *rhs );
-int InsertIntoAd ( ClassAd *ad, const char *lhs, char *rhs );
-int InsertIntoAd ( ClassAd *ad, char *lhs, char *rhs );
-int InsertIntoAd ( ClassAd *ad, const char *lhs, int rhs );
-int InsertIntoAd ( ClassAd *ad, char *lhs, int rhs );
+bool InsertIntoAd ( ClassAd *ad, const char *lhs, const char *rhs );
+bool InsertIntoAd ( ClassAd *ad, const char *lhs, char *rhs );
+bool InsertIntoAd ( ClassAd *ad, char *lhs, char *rhs );
+bool InsertIntoAd ( ClassAd *ad, const char *lhs, int rhs );
+bool InsertIntoAd ( ClassAd *ad, char *lhs, int rhs );
 
 #endif
