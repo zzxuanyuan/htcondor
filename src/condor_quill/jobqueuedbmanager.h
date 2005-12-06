@@ -37,6 +37,7 @@
 class Prober;
 class ClassAdLogParser;
 class JobQueueDatabase;
+class Database;
 
 #ifndef MAX_FIXED_SQL_STR_LENGTH
 #define MAX_FIXED_SQL_STR_LENGTH 2048
@@ -231,7 +232,7 @@ class JobQueueDBManager : public Service
 		//
 	Prober*	            prober;			//!< Prober
 	ClassAdLogParser*   caLogParser;	//!< ClassAd Log Parser
-	JobQueueDatabase*   jqDatabase;		//!< Job Queue Database
+	Database*   DBObj;		//!< Database object
 
 	XactState	xactState;		    //!< current XACT state
 
