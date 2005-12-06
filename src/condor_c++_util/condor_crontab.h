@@ -169,7 +169,9 @@ public:
 		//
 		// nextRunTime()
 		// Returns the next execution time for our cron schedule from
-		// the current time
+		// the current time.
+		// The times are the number of seconds elapsed since 
+		// 00:00:00 on January 1, 1970, Coordinated Universal Time (UTC)
 		//
 	long nextRunTime();
 		//
@@ -179,6 +181,8 @@ public:
 		// have been initialized properly and the valid flag is true. The 
 		// timestamp that we calculate here will be stored and can be accessed
 		// again with lastRun().
+		// The times are the number of seconds elapsed since 
+		// 00:00:00 on January 1, 1970, Coordinated Universal Time (UTC)
 		//
 	long nextRunTime( long );
 		//
@@ -233,6 +237,7 @@ protected:
 		//
 		// sort()
 		// Ye' Olde Insertion Sort!
+		// This is here so I can sort ExtArray<int>'s
 		//
 	void sort( ExtArray<int>& );
 
