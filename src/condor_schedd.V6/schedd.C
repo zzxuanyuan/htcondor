@@ -5623,7 +5623,7 @@ find_idle_local_jobs( ClassAd *job )
 			//
 		ClassAd scheddAd;
 		scheduler.publish( &scheddAd );
-	
+
 			//
 			// Select the start expression based on the universe
 			//
@@ -9108,7 +9108,9 @@ Scheduler::Init()
 		// This will be added into the requirements expression for
 		// the schedd to know whether we can start a local job 
 		// 
-	if ( this->StartLocalUniverse ) free( this->StartLocalUniverse );
+	if ( this->StartLocalUniverse ) {
+		free( this->StartLocalUniverse );
+	}
 	tmp = param( "START_LOCAL_UNIVERSE" );
 	if ( ! tmp ) {
 			//
@@ -9120,8 +9122,8 @@ Scheduler::Init()
 			// Use what they had in the config file
 			// Should I be checking this first??
 			//
-		this->StartLocalUniverse = strdup( tmp );
-		free( tmp );
+		this->StartLocalUniverse = tmp;
+		tmp = NULL;
 	}
 
 		//
@@ -9129,7 +9131,9 @@ Scheduler::Init()
 		// This will be added into the requirements expression for
 		// the schedd to know whether we can start a scheduler job 
 		// 
-	if ( this->StartSchedulerUniverse ) free( this->StartSchedulerUniverse );
+	if ( this->StartSchedulerUniverse ) {
+		free( this->StartSchedulerUniverse );
+	}
 	tmp = param( "START_SCHEDULER_UNIVERSE" );
 	if ( ! tmp ) {
 			//
@@ -9141,8 +9145,8 @@ Scheduler::Init()
 			// Use what they had in the config file
 			// Should I be checking this first??
 			//
-		this->StartSchedulerUniverse = strdup( tmp );
-		free( tmp );
+		this->StartSchedulerUniverse = tmp;
+		tmp = NULL;
 	}
 
 	MaxJobsSubmitted = param_integer("MAX_JOBS_SUBMITTED",INT_MAX);
@@ -10338,9 +10342,13 @@ Scheduler::HadException( match_rec* mrec )
 int
 Scheduler::publish( ClassAd *ad ) {
 	int ret = (int)true;
-
+	char *temp;
+	
 		// -------------------------------------------------------
-		// Basic Attributes - Copied from dumpState()
+		// Copied from dumpState()
+		// Many of these might not be necessary for the 
+		// general case of publish() and should probably be
+		// moved back into dumpState()
 		// -------------------------------------------------------
 	InsertIntoAd ( ad, "MySockName", MySockName );
 	InsertIntoAd ( ad, "MyShadowSockname", MyShadowSockName );
@@ -10364,28 +10372,46 @@ Scheduler::publish( ClassAd *ad ) {
 	InsertIntoAd ( ad, "NegotiationRequestTime", NegotiationRequestTime  );
 	InsertIntoAd ( ad, "ExitWhenDone", ExitWhenDone );
 	InsertIntoAd ( ad, "StartJobTimer", StartJobTimer );
-	InsertIntoAd ( ad, "timeoutid", timeoutid );
-	InsertIntoAd ( ad, "startjobsid", startjobsid );
-	InsertIntoAd ( ad, "startJobsDelayBit", startJobsDelayBit );
-	InsertIntoAd ( ad, "num_reg_contacts", num_reg_contacts );
 	InsertIntoAd ( ad, "MAX_STARTD_CONTACTS", MAX_STARTD_CONTACTS );
 	InsertIntoAd ( ad, "CondorAdministrator", CondorAdministrator );
-	InsertIntoAd ( ad, "Mail", Mail );
-	InsertIntoAd ( ad, "filename", filename );
 	InsertIntoAd ( ad, "AccountantName", AccountantName );
 	InsertIntoAd ( ad, "UidDomain", UidDomain );
 	InsertIntoAd ( ad, "MaxFlockLevel", MaxFlockLevel );
 	InsertIntoAd ( ad, "FlockLevel", FlockLevel );
-	InsertIntoAd ( ad, "alive_interval", alive_interval );
-	InsertIntoAd ( ad, "leaseAliveInterval", leaseAliveInterval );
 	InsertIntoAd ( ad, "MaxExceptions", MaxExceptions );
+	
+		// -------------------------------------------------------
+		// Basic Attributes
+		// -------------------------------------------------------
+
+		//
+		// Architecture
+		//
+	temp = param( "ARCH" );
+	if ( temp ) {
+		InsertIntoAd( ad, ATTR_ARCH, temp );
+		free( temp );
+	}
+		//
+		// Operating System
+		//
+	temp = param( "OPSYS" );
+	if ( temp ) {
+		InsertIntoAd( ad, ATTR_OPSYS, temp );
+		free( temp );
+	}
+		//
+		// Disk Space in LocalUnivExecuteDir
+		//
+	unsigned long disk_space = sysapi_disk_space( this->LocalUnivExecuteDir );
+	InsertIntoAd( ad, ATTR_DISK, disk_space );
 	
 		// -------------------------------------------------------
 		// Local Universe Attributes
 		// -------------------------------------------------------
-	InsertIntoAd ( ad, ATTR_TOTAL_LOCAL_IDLE_JOBS,
+	InsertIntoAd( ad, ATTR_TOTAL_LOCAL_IDLE_JOBS,
 				 this->LocalUniverseJobsIdle );
-	InsertIntoAd ( ad, ATTR_TOTAL_LOCAL_RUNNING_JOBS,
+	InsertIntoAd( ad, ATTR_TOTAL_LOCAL_RUNNING_JOBS,
 				 this->LocalUniverseJobsRunning );
 	
 		//
@@ -10402,9 +10428,9 @@ Scheduler::publish( ClassAd *ad ) {
 		// -------------------------------------------------------
 		// Scheduler Universe Attributes
 		// -------------------------------------------------------
-	InsertIntoAd ( ad, ATTR_TOTAL_SCHEDULER_IDLE_JOBS,
+	InsertIntoAd( ad, ATTR_TOTAL_SCHEDULER_IDLE_JOBS,
 				 this->SchedUniverseJobsIdle );
-	InsertIntoAd ( ad, ATTR_TOTAL_SCHEDULER_RUNNING_JOBS,
+	InsertIntoAd( ad, ATTR_TOTAL_SCHEDULER_RUNNING_JOBS,
 				 this->SchedUniverseJobsRunning );
 	
 		//
@@ -10433,6 +10459,19 @@ Scheduler::dumpState(int, Stream* s) {
 		//
 	ClassAd ad;
 	this->publish( &ad );
+	
+		//
+		// These items we want to keep in here because they're
+		// not needed for the general info produced by publish()
+		//
+	InsertIntoAd ( &ad, "num_reg_contacts", num_reg_contacts );
+	InsertIntoAd ( &ad, "leaseAliveInterval", leaseAliveInterval );
+	InsertIntoAd ( &ad, "alive_interval", alive_interval );
+	InsertIntoAd ( &ad, "startjobsid", startjobsid );
+	InsertIntoAd ( &ad, "startJobsDelayBit", startJobsDelayBit );
+	InsertIntoAd ( &ad, "timeoutid", timeoutid );
+	InsertIntoAd ( &ad, "Mail", Mail );
+	InsertIntoAd ( &ad, "filename", filename );
 	
 	int cmd;
 	s->code( cmd );
