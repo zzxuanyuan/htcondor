@@ -121,6 +121,7 @@ bool	UserLogSpecified = false;
 bool    UseXMLInLog = false;
 ShouldTransferFiles_t should_transfer = STF_NO;
 bool    NeedsPerFileEncryption = false;
+bool	NeedsJobDeferral = false;
 bool job_ad_saved = false;	// should we deallocate the job ad after storing it?
 bool HasTDP = false;
 char* tdp_cmd = NULL;
@@ -338,7 +339,6 @@ void SetParallelStartupScripts(); //JDB
 void SetMaxJobRetirementTime();
 bool mightTransfer( int universe );
 bool isTrue( const char* attr );
-bool validate_job_ad( ClassAd *ad );
 
 char *owner = NULL;
 char *ntdomain = NULL;
@@ -2913,6 +2913,7 @@ SetArguments()
 //
 // SetDeferral()
 // Inserts the job deferral time into the ad if present
+// This needs to be called before SetRequirements()
 //
 void
 SetJobDeferral() {
@@ -2927,6 +2928,12 @@ SetJobDeferral() {
 		sprintf (buffer, "%s = %s", ATTR_DEFERRAL_TIME, temp );
 		InsertJobExpr (buffer);
 		free( temp );
+		
+			//
+			// We set this flag to true so that SetRequirements()
+			// will add the HasDeferral requirement
+			//
+		NeedsJobDeferral = true;
 	}
 	
 		//
@@ -2939,7 +2946,20 @@ SetJobDeferral() {
 		sprintf (buffer, "%s = %s", ATTR_DEFERRAL_WINDOW, temp );
 		InsertJobExpr (buffer);
 		free( temp );
-	}	
+	}
+	
+		//
+		// Validation
+		// Because the scheduler universe doesn't use a Starter,
+		// we can't let them use the job deferral feature
+		//
+	if ( NeedsJobDeferral && JobUniverse == CONDOR_UNIVERSE_SCHEDULER ) {
+		fprintf( stderr, "\nScheduler universe jobs are unable to support "
+						 "job deferral submissions.\n" );
+		DoCleanup( 0, 0, NULL );
+		fprintf( stderr, "Error in submit file\n" );
+		exit(1);
+	} // validation	
 }
 
 void
@@ -4351,9 +4371,11 @@ queue(int num)
 		SetTransferFiles();	 // must be called _before_ SetImageSize() 
 		SetPerFileEncryption();  // must be called _before_ SetRequirements()
 		SetImageSize();		// must be called _after_ SetTransferFiles()
+		SetJobDeferral();	// must be called _before SetRequirements()
 		
 			//
-			// Must be called _after_ SetTransferFiles() and SetPerFileEncryption()
+			// Must be called _after_ SetTransferFiles(), SetJobDeferral()
+			// and SetPerFileEncryption()
 			//
 		SetRequirements();	
 		
@@ -4378,22 +4400,10 @@ queue(int num)
 		SetJarFiles();
 		SetJavaVMArgs();
 		SetParallelStartupScripts(); //JDB
-		SetJobDeferral();
 
 			// SetForcedAttributes should be last so that it trumps values
 			// set by normal submit attributes
 		SetForcedAttributes();
-
-			//
-			// Validate the Ad
-			// If this fails we just need to exit, the function
-			// will output its own error message
-			//
-		if ( !validate_job_ad( job ) ) {
-			DoCleanup( 0, 0, NULL );
-			fprintf( stderr, "Error in submit file\n" );
-			exit(1);
-		}
 
 		rval = SaveClassAd();
 
@@ -4547,18 +4557,10 @@ check_requirements( char *orig )
 		return answer;
 	}
 
-		//
-		// For local/scheduler universe jobs we do not want to set the requirements
-		// We will be creating our own requirements in the schedd later on
-		// Andy - pavlo@cs.wisc.edu - 10.26.2005
-		//
-	if ( JobUniverse != CONDOR_UNIVERSE_LOCAL &&
-		 JobUniverse != CONDOR_UNIVERSE_SCHEDULER ) {
-		checks_arch = findClause( answer, ATTR_ARCH );
-		checks_opsys = findClause( answer, ATTR_OPSYS );
-		checks_disk =  findClause( answer, ATTR_DISK );
-		checks_tdp =  findClause( answer, ATTR_HAS_TDP );
-	}
+	checks_arch = findClause( answer, ATTR_ARCH );
+	checks_opsys = findClause( answer, ATTR_OPSYS );
+	checks_disk =  findClause( answer, ATTR_DISK );
+	checks_tdp =  findClause( answer, ATTR_HAS_TDP );
 
 	if( JobUniverse == CONDOR_UNIVERSE_STANDARD ) {
 		checks_ckpt_arch = findClause( answer, ATTR_CKPT_ARCH );
@@ -4748,16 +4750,11 @@ check_requirements( char *orig )
 
 		//
 		// Job Deferral
-		// Look to see if they set a deferral time in the job ad
-		// We have to look in the forcedAttributes table so we will
-		// first make the deferral id lowercase to see if it exists
+		// If the flag was set true by SetJobDeferral() then we will
+		// add the requirement in for this feature
 		//
-	MyString name(ATTR_DEFERRAL_TIME);
-	name.strlwr();
-	MyString value;
-	if ( forcedAttributes.lookup( name.Value(), value ) >= 0 ) {
+	if ( NeedsJobDeferral ) {
 			//
-			// They did give a time
 			// Add the HasJobDeferral to the attributes so that it will
 			// match with a Starter that can actually provide this feature
 			//
@@ -5333,54 +5330,6 @@ isTrue( const char* attr )
 	}
 	return false;
 }
-
-//
-// validate_job_ad()
-// I created this to be kind of an all inclusive validation
-// method that can check little things about the ClassAd
-// Currently it will only check whether a CronTab schedule
-// has been specified properly
-// This will print out any error messages but it will not
-// do any cleanup 
-//
-bool
-validate_job_ad( ClassAd *ad ) {
-	bool ret = true;
-
-		// ---------------------------------------------------	
-		// CronTab
-		// First check whether this ClassAd is requesting
-		// a cron schedule, and if so make sure the parameters
-		// are specified properly
-		// ---------------------------------------------------
-//	MyString error;
-//	if ( CronTab::needsCronTab( ad ) && 
-//		 !CronTab::validate( ad, error ) ) {
-//			//
-//			// It's not valid, so print the error message
-//			//
-//		fprintf( stderr, "\n%s", error.Value() );
-//		ret = false;
-//	}
-	
-		// ---------------------------------------------------
-		// Job Deferral
-		// ---------------------------------------------------	
-	if ( ad->Lookup( ATTR_DEFERRAL_TIME ) != NULL ) {
-			//
-			// Currently we cannot let local universe jobs
-			// use the job deferral feature
-			//
-		if ( JobUniverse == CONDOR_UNIVERSE_LOCAL ) {
-			fprintf( stderr, "\nLocal universe jobs are unable to support "
-							 "job deferral at this time\n" );
-			ret = false;
-		}		
-	}
-	
-	return ( ret );
-}
-
 
 /************************************
 	The following are dummy stubs for the DaemonCore class to allow
