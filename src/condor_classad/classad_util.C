@@ -70,14 +70,21 @@ bool EvalBool(ClassAd *ad, const char *constraint)
 	return false;
 }
 
-int InsertIntoAd( ClassAd *ad, char *lhs, char *rhs ) {
-	return ( InsertIntoAd( ad, (const char*)lhs, (const char*)rhs ) );
-}
-int InsertIntoAd( ClassAd *ad, const char *lhs, char *rhs ) {
+bool
+InsertIntoAd( ClassAd *ad, char *lhs, char *rhs )
+{
 	return ( InsertIntoAd( ad, (const char*)lhs, (const char*)rhs ) );
 }
 
-int InsertIntoAd( ClassAd *ad, const char *lhs, const char *rhs ) {
+bool
+InsertIntoAd( ClassAd *ad, const char *lhs, char *rhs )
+{
+	return ( InsertIntoAd( ad, (const char*)lhs, (const char*)rhs ) );
+}
+
+bool
+InsertIntoAd( ClassAd *ad, const char *lhs, const char *rhs )
+{
 	if ( !lhs || !rhs || !ad ) {
 		return FALSE;
 	}
@@ -91,10 +98,15 @@ int InsertIntoAd( ClassAd *ad, const char *lhs, const char *rhs ) {
 	return TRUE;
 }
 
-int InsertIntoAd( ClassAd *ad, char *lhs, int rhs ) {
+bool
+InsertIntoAd( ClassAd *ad, char *lhs, int rhs )
+{
 	return ( InsertIntoAd( ad, (const char*)lhs, rhs ) );
 }
-int InsertIntoAd( ClassAd *ad, const char *lhs, int rhs ) {
+
+bool
+InsertIntoAd( ClassAd *ad, const char *lhs, int rhs )
+{
 	if ( !lhs || !ad ) {
 		return FALSE;
 	}
