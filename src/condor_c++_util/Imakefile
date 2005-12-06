@@ -10,7 +10,7 @@
 
 all_target(cplus_lib.a liburl.a libcondorapi.a test_libcondorapi)
 
-C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) New_classads_includes -I$(QUILL_INC) -D_POSTGRESQL_DBMS_ -I$(POSTGRESQL_INC) 
+C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) New_classads_includes -I$(QUILL_INC) -I$(TT_INC)
 CFLAGS = $(STD_C_FLAGS) New_classads_includes
 LIB = $(STD_LIBS)
 
@@ -44,9 +44,15 @@ SETEGID_OBJ =
 #endif
 
 #if WANT_QUILL
-QUILL_OBJS = jobqueuesnapshot.o historysnapshot.o pgsqldatabase.o sqlquery.o
+QUILL_OBJS = jobqueuesnapshot.o historysnapshot.o pgsqldatabase.o sqlquery.o pgsqljqdatabase.o
 #else
 QUILL_OBJS =
+#endif
+
+#if WANT_TT
+TT_OBJS = pgsqldatabase.o file_sql.o file_transfer_db.o 
+#else
+TT_OBJS =
 #endif
 
 /* Bring in the old classad library because the user log parsing code
@@ -143,7 +149,7 @@ OBJ = state_machine_driver.o event_handler.o name_tab.o NON_POSIX.select.o \
 	$(QUILL_OBJS) \
 	New_classads_obj setenv.o condor_id.o build_job_env.o job_lease.o \
 	gahp_common.o \
-	pgsqldatabase.o file_transfer_db.o file_sql.o
+	$(TT_OBJS) 
 
 library_target( cplus_lib.a,$(OBJ))
 library_target( liburl.a,$(URL_OBJ))

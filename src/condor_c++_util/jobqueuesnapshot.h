@@ -74,6 +74,7 @@ private:
 
 	ClassAd				*curClusterAd;	//!< current Job Ad
 	JobQueueDatabase	*jqDB;			//!< Job Queue Databse object
+    Database	*DBObj;
 };
 
 #endif

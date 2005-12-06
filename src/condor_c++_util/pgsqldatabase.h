@@ -27,16 +27,16 @@
 #include "condor_common.h"
 #include "libpq-fe.h"
 #include "sqlquery.h"
-#include "jobqueuedatabase.h"
+#include "database.h"
 #include "quill_enums.h"
 
 #ifndef MAX_FIXED_SQL_STR_LENGTH
 #define MAX_FIXED_SQL_STR_LENGTH 2048
 #endif
 
-//! PGSQLDataabse: JobQueueDatabase for PostgreSQL
+//! PGSQLDataabse: Database for PostgreSQL
 //
-class PGSQLDatabase : public JobQueueDatabase
+class PGSQLDatabase : public Database
 {
 public:
 	
@@ -67,44 +67,17 @@ public:
 								   PGresult*& result,
 								   int &num_result);
 	const char*	         getValue(int row, int col);
-	const char*          getHistoryHorFieldName(int col);
-	const int            getHistoryHorNumFields();
-	QuillErrCode		 releaseHistoryResults();		
+
+	QuillErrCode         releaseQueryResult();
 
 	char*		         getDBError();
 
 	QuillErrCode		 sendBulkData(char* data);
 	QuillErrCode		 sendBulkDataEnd();
 
-	QuillErrCode		 queryHistoryDB(SQLQuery *, SQLQuery *, 
-										bool, int&, int&);
-	QuillErrCode         releaseJobQueueResults();
-
-	QuillErrCode         releaseQueryResult();
-
-
-	QuillErrCode		 getJobQueueDB(int *, int, int *, int, char *, bool, 
-									   int&, int&, int&, int&);
-	const char*	         getJobQueueProcAds_StrValue(int row, int col);
-	const char*	         getJobQueueProcAds_NumValue(int row, int col);
-	const char*	         getJobQueueClusterAds_StrValue(int row, int col);
-	const char*	         getJobQueueClusterAds_NumValue(int row, int col);
-	const char*          getHistoryHorValue(int row, int col);
-	const char*          getHistoryVerValue(int row, int col);
-	  
 private:
 	PGconn		         *connection;		//!< connection object
 	PGresult	         *queryRes; 	//!< result for general query
-
-		// only for history tables retrieval
-	PGresult             *historyHorRes;
-	PGresult             *historyVerRes;
-
-		// only for job queue tables retrieval
-	PGresult	         *procAdsStrRes;	//!< result for ProcAds_Str table
-	PGresult	         *procAdsNumRes;	//!< result for ProcAds_Num table
-	PGresult	         *clusterAdsStrRes;//!< result for ClusterAds_Str table
-	PGresult	         *clusterAdsNumRes;//!< result for ClusterAds_num table
 };
 
 #endif /* _PGSQLDATABSE_H_ */

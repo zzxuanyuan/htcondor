@@ -23,6 +23,9 @@
 #ifndef _DATABASE_H_
 #define _DATABASE_H_
 
+#include "quill_enums.h"
+#include "libpq-fe.h"
+
 //! Database
 /*! It provides interfaces to talk to DBMS
  */
@@ -33,43 +36,53 @@ public:
 	virtual ~Database() {};
 
 	//! connect to DBMS
-	virtual int		connectDB() = 0;
+	virtual QuillErrCode		connectDB() = 0;
 	//! connect to DBMS
-	virtual int		connectDB(const char* connect) = 0;
+	virtual QuillErrCode		connectDB(const char* connect) = 0;
 	//! disconnect from DBMS
-	virtual int		disconnectDB() = 0;
+	virtual QuillErrCode		disconnectDB() = 0;
 
 	//! begin Transaction
-	virtual int		beginTransaction() = 0;
+	virtual QuillErrCode		beginTransaction() = 0;
 	//! commit Transaction
-	virtual int		commitTransaction() = 0;
+	virtual QuillErrCode		commitTransaction() = 0;
 	//! abort Transaction
-	virtual int		rollbackTransaction() = 0;
+	virtual QuillErrCode		rollbackTransaction() = 0;
 
 	//! execute a command
-	/*! execaute SQL which doesn't have any retrieved result, such as
+	/*! execute SQL which doesn't have any retrieved result, such as
 	 *  insert, delete, and udpate.
 	 */
-	virtual int		execCommand(const char* sql) = 0;
+	virtual QuillErrCode		execCommand(const char* sql, 
+											int &num_result,
+											int &db_err_code) = 0;
+	virtual QuillErrCode		execCommand(const char* sql) = 0;
+
 	//! execute a SQL query
-	virtual int		execQuery(const char* sql) = 0;
+	virtual QuillErrCode		execQuery(const char* sql) = 0;
+	virtual QuillErrCode 	 	execQuery(const char* sql, 
+										  PGresult*& result) = 0;
+	virtual QuillErrCode		execQuery(const char* sql,
+										  int &num_result) = 0;
+	virtual QuillErrCode 		execQuery(const char* sql, 
+										  PGresult*& result,
+										  int &num_result) = 0;
 
 	//! get a result for the executed SQL
-	virtual const char*	getValue(int row, int col) = 0;
+	virtual const char*         getValue(int row, int col) = 0;
 
-	//! release a query result
-	virtual int             releaseQueryResult() = 0;
+	//! release query result
+	virtual QuillErrCode        releaseQueryResult() = 0;
 
 	//! get a DBMS error message
 	virtual char*	getDBError() = 0;
 
 	//! put bulk data into DBMS
-	virtual int		sendBulkData(char* data) = 0;
+	virtual QuillErrCode		sendBulkData(char* data) = 0;
 	//! put an end flag for bulk loading
-	virtual int		sendBulkDataEnd() = 0;
+	virtual QuillErrCode		sendBulkDataEnd() = 0;
 
 	bool	isConnected() {return connected;};
-
 protected:
 	char	*con_str;	//!< connection string
 	bool	connected; 	//!< connection status
