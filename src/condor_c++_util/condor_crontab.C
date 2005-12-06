@@ -30,8 +30,6 @@
 //#include "RegExer.h"
 #include "date_util.h"
 
-#include "time.h"
-
 //
 // The list of attributes that can be defined for a cron schedule
 //
@@ -229,7 +227,7 @@ CronTab::validate( ClassAd *ad, MyString &error ) {
 		// If one our attribute fields is defined, then check
 		// to make sure that it has valid syntax
 		//
-	char buffer[512];
+	char *buffer = NULL;
 	int ctr;
 	for ( ctr = 0; ctr < CRONTAB_FIELDS; ctr++ ) {
 		MyString curError;
@@ -238,14 +236,16 @@ CronTab::validate( ClassAd *ad, MyString &error ) {
 			// so that they can see all the error messages about
 			// their parameters at once
 			//
-		if ( ad->LookupString( CronTab::attributes[ctr], buffer ) &&
-			 !CronTab::validateParameter( ctr, buffer, curError ) ) {
-			ret = false;
-				//
-				// Add this error message to our list
-				//
-			error += curError;
-			error += "\n";
+		if ( ad->LookupString( CronTab::attributes[ctr], buffer ) ) {
+			if ( !CronTab::validateParameter( ctr, buffer, curError ) ) {
+				ret = false;
+					//
+					// Add this error message to our list
+					//
+				error += curError;
+				error += "\n";
+			}
+			free( buffer );
 		}
 	} // FOR
 	return ( ret );
@@ -358,17 +358,19 @@ CronTab::init() {
 		// If the parameter expansion didn't fail, then we can
 		// set ourselves as being valid and ready to calculate runtimes
 		//
-	if ( !failed ) this->valid = true;
+	if ( !failed ) {
+		this->valid = true;
+	}
 	
 	return;
 }  
-
-
 
 //
 // nextRunTime()
 // Returns the next execution time for our cron schedule from
 // the current time
+// The times are the number of seconds elapsed since 00:00:00 on
+// January 1, 1970, Coordinated Universal Time (UTC)
 //
 long
 CronTab::nextRunTime( ) {
@@ -385,14 +387,26 @@ CronTab::nextRunTime( ) {
 // have been initialized properly and the valid flag is true. The 
 // timestamp that we calculate here will be stored and can be accessed
 // again with lastRun().
+// The times are the number of seconds elapsed since 00:00:00 on
+// January 1, 1970, Coordinated Universal Time (UTC)
 //
 // This may be useful if somebody wants to figure out the next 5 runs
-// for a job if they keep feeding us the times we return (after adding 60 seconds)
+// for a job if they keep feeding us the times we return
 //
 long
 CronTab::nextRunTime( long timestamp ) {
 	long runtime = CRONTAB_INVALID;
 	struct tm	*tm;
+
+		//
+		// We can only look for the next runtime if we 
+		// are valid
+		//
+	if ( ! this->valid ) {
+		this->lastRunTime = CRONTAB_INVALID;
+		return ( this->lastRunTime );
+	}
+		
 		//
 		// IMPORTANT:
 		// We have have to round up to the next minute because
@@ -405,72 +419,68 @@ CronTab::nextRunTime( long timestamp ) {
 		//
 	timestamp += ( 60 - ( timestamp % 60 ) );
 	const time_t _timestamp = (time_t)timestamp;
+		
 		//
-		// We can only look for the next runtime if we 
-		// are valid
+		// Load up the time information about the timestamp we
+		// were given. The logic for matching the next job is fairly 
+		// simple. We just go through the fields backwards and find the next
+		// match. This assumes that the ranges are sorted, which they 
+		// should be
 		//
-	if ( this->valid ) {
-			//
-			// Load up the time information about the timestamp we
-			// were given. The logic for matching the next job is fairly 
-			// simple. We just go through the fields backwards and find the next
-			// match. This assumes that the ranges are sorted, which they 
-			// should be
-			//
-		tm = localtime( &_timestamp );
-		int fields[CRONTAB_FIELDS];
-		fields[CRONTAB_MINUTES_IDX]	= tm->tm_min;
-		fields[CRONTAB_HOURS_IDX]	= tm->tm_hour;
-		fields[CRONTAB_DOM_IDX]		= tm->tm_mday;
-		fields[CRONTAB_MONTHS_IDX]	= tm->tm_mon + 1;
-		fields[CRONTAB_DOW_IDX]		= tm->tm_wday;
+	tm = localtime( &_timestamp );
+	int fields[CRONTAB_FIELDS];
+	fields[CRONTAB_MINUTES_IDX]	= tm->tm_min;
+	fields[CRONTAB_HOURS_IDX]	= tm->tm_hour;
+	fields[CRONTAB_DOM_IDX]		= tm->tm_mday;
+	fields[CRONTAB_MONTHS_IDX]	= tm->tm_mon + 1;
+	fields[CRONTAB_DOW_IDX]		= tm->tm_wday;
+	
+		//
+		// This array will contain the matched values 
+		// for the different fields for the next job run time
+		// Unlike the crontab specifiers, we actually need to know
+		// the year of the next runtime so we'll set the year here
+		//
+	int match[CRONTAB_FIELDS + 1];
+	match[CRONTAB_YEARS_IDX] = tm->tm_year + 1900;
+	match[CRONTAB_DOW_IDX] = -1;
+	
+		//
+		// If we get a match then create the timestamp for it
+		//
+	if ( this->matchFields( fields, match, CRONTAB_FIELDS - 2 ) ) {
+		struct tm matchTime;
+		matchTime.tm_sec	= 0;
+		matchTime.tm_min	= match[CRONTAB_MINUTES_IDX];
+		matchTime.tm_hour	= match[CRONTAB_HOURS_IDX];
+		matchTime.tm_mday	= match[CRONTAB_DOM_IDX];
+		matchTime.tm_mon	= match[CRONTAB_MONTHS_IDX] - 1;
+		matchTime.tm_year	= match[CRONTAB_YEARS_IDX] - 1900;
+		matchTime.tm_isdst  = tm->tm_isdst;
+		runtime = (long)mktime( &matchTime );
 		
 			//
-			// This array will contain the matched values 
-			// for the different fields for the next job run time
-			// Unlike the crontab specifiers, we actually need to know
-			// the year of the next runtime so we'll set the year here
+			// Make sure that our next runtime is in the future
+			// and never in the past. The runtime can be equal
+			// to the current time because the current time 
+			// may be rounded up to the next minute
 			//
-		int match[CRONTAB_FIELDS + 1];
-		match[CRONTAB_YEARS_IDX] = tm->tm_year + 1900;
-		match[CRONTAB_DOW_IDX] = -1;
-		
-			//
-			// If we get a match then create the timestamp for it
-			//
-		if ( this->matchFields( fields, match, CRONTAB_FIELDS - 2 ) ) {
-			struct tm matchTime;
-			matchTime.tm_sec	= 0;
-			matchTime.tm_min	= match[CRONTAB_MINUTES_IDX];
-			matchTime.tm_hour	= match[CRONTAB_HOURS_IDX];
-			matchTime.tm_mday	= match[CRONTAB_DOM_IDX];
-			matchTime.tm_mon	= match[CRONTAB_MONTHS_IDX] - 1;
-			matchTime.tm_year	= match[CRONTAB_YEARS_IDX] - 1900;
-			matchTime.tm_isdst  = tm->tm_isdst;
-			runtime = (long)mktime( &matchTime );
-			
-				//
-				// Make sure that our next runtime is in the future
-				// and never in the past. The runtime can be equal
-				// to the current time because the current time 
-				// may be rounded up to the next minute
-				//
-			if ( runtime < timestamp ) {
-				dprintf( D_FULLDEBUG, "CronTab: Generated a runtime that is in "
-									  "the past (%d < %d)\n",	(int)runtime,
-								   								(int)timestamp );
-				runtime = CRONTAB_INVALID;
-			}
-			
-			//
-			// As long as we are configured properly, we should always
-			// be able to find a match.
-			//
-		} else {
-			dprintf( D_FULLDEBUG, "CronTab: Failed to find a match for timestamp %d\n",
-															(int)timestamp );
+		if ( runtime < timestamp ) {
+			dprintf( D_FULLDEBUG, "CronTab: Generated a runtime that is in "
+								  "the past (%d < %d)\n",	(int)runtime,
+							   								(int)timestamp );
+			runtime = CRONTAB_INVALID;
 		}
-	} // IF VALID
+		
+		//
+		// As long as we are configured properly, we should always
+		// be able to find a match.
+		//
+	} else {
+		dprintf( D_FULLDEBUG, "CronTab: Failed to find a match for timestamp %d\n",
+														(int)timestamp );
+	}
+	
 	this->lastRunTime = runtime;
 	return ( runtime );
 }
@@ -853,6 +863,7 @@ CronTab::contains( ExtArray<int> &list, const int &elt )
 //
 // sort()
 // Ye' Olde Insertion Sort!
+// This is here so I can sort ExtArray<int>'s
 //
 void
 CronTab::sort( ExtArray<int> &list )
