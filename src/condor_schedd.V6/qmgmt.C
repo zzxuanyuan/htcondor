@@ -3099,6 +3099,11 @@ static void AppendHistory(ClassAd* ad)
   if (!JobHistoryFileName) return;
   dprintf(D_FULLDEBUG, "Saving classad to history file\n");
 
+  int retval = FILEObj->file_newEvent("History", ad);
+  if (retval < 0) {
+	  dprintf(D_ALWAYS, "AppendHistory Logging History Event --- Error\n");
+  }
+
   // save job ad to the log
   // Note that we are passing O_LARGEFILE, which lets us deal with files
   // that are larger than 2GB. On systems where O_LARGEFILE isn't defined, 
@@ -3127,12 +3132,6 @@ static void AppendHistory(ClassAd* ad)
           } else {
               fprintf(LogFile,"***\n");   // separator
               fclose(LogFile);
-
-			  int retval = FILEObj->file_newEvent("History", ad);
-			  if (retval < 0) {
-				dprintf(D_ALWAYS, "AppendHistory Logging Event --- Error\n");
-				failed = true;
-			  }
           }
       }
   }
