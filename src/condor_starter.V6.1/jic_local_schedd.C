@@ -27,6 +27,7 @@
 #include "condor_string.h"
 #include "condor_attributes.h"
 #include "condor_email.h"
+#include "condor_classad_util.h"
 #include "exit.h"
 #include "internet.h"
 
@@ -164,6 +165,13 @@ JICLocalSchedd::notifyJobExit( int exit_status, int reason,
 			EXCEPT( "Impossible: exit reason is JOB_KILLED, but neither "
 					"had_hold or had_remove are TRUE!" );
 		}
+		break;
+	case JOB_MISSED_DEFERRAL_TIME:
+		up_type = U_REMOVE;
+			//
+			// Set the exit code to be the deferral exit code
+			//
+		exit_code = JOB_MISSED_DEFERRAL_TIME;
 		break;
 	default:
 		EXCEPT( "Programmer error: unknown reason (%d) in "
