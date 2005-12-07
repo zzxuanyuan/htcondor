@@ -171,7 +171,7 @@ for ( $ctr = 0, $cnt = scalar(@deltas); $ctr < $cnt; $ctr++ ) {
 		## our time and not the executing machine's clock
 		## Otherwise the clocks must be in synch
 		##
-		print FILE "+DeferralTime = $expectedTime\n";	
+		print FILE "DeferralTime = $expectedTime\n";	
 	##
 	## Or a delta that will tell the executing machine to run at 
 	## a time based on their own clock
@@ -182,14 +182,14 @@ for ( $ctr = 0, $cnt = scalar(@deltas); $ctr < $cnt; $ctr++ ) {
 		## By using CurrenTime we are assuming that our clock is the
 		## same as the machine it is running on
 		##
-		print FILE "+DeferralTime = (CurrentTime + $delta)\n";	
+		print FILE "DeferralTime = (CurrentTime + $delta)\n";	
 	}
 	
 	##
 	## We will only put in the window if the value is not empty
 	##
 	if ($window > 0) {
-		print FILE "+DeferralWindow = $window\n";
+		print FILE "DeferralWindow = $window\n";
 	}
 	
 	##
