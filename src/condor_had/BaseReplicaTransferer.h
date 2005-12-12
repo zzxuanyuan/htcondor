@@ -54,6 +54,10 @@ public:
 	 *				the 'condor_transferer'
 	 */
     virtual int initialize() = 0;
+// Inspectors
+	MyString getVersionFilePath() { return versionFilePath; };
+	MyString getStateFilePath()   { return stateFilePath; };
+// End of inspectors
 protected:
 	// address of the downloading/uploading counterpart	
     MyString  daemonSinfulString;

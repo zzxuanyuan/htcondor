@@ -6,6 +6,22 @@
 #include "FilesOperations.h"
 #include "Utils.h"
 
+/*
+static int
+getFileSize( const MyString& filePath )
+{
+	int begin, end;
+	
+	ifstream file ( filePath.GetCStr( ) );
+
+	begin = file.tellg( );
+	file.seekg( 0, ios::end );
+	end = file.tellg( );
+	file.close( );
+
+	return end - begin;
+}*/
+
 static void
 safeUnlinkStateAndVersionFiles( const MyString& stateFilePath,
 							    const MyString& versionFilePath,
@@ -24,14 +40,16 @@ UploadReplicaTransferer::initialize( )
 
     socket = new ReliSock( );
 
-    socket->timeout( connectionTimeout );
+	// enable timeouts
+    //socket->set_timeout_multiplier( 1 );
+    socket->timeout( INT_MAX ); // connectionTimeout );
     // no retries after 'connectionTimeout' seconds of unsuccessful connection
     socket->doNotEnforceMinimalCONNECT_TIMEOUT( );
 
     if( ! socket->connect( const_cast<char*>( daemonSinfulString.GetCStr( ) ), 
 						   0, 
 						   false ) ) {
-        dprintf( D_NETWORK, 
+        dprintf( D_ALWAYS, 
 				"UploadReplicaTransferer::initialize cannot connect to %s\n",
                  daemonSinfulString.GetCStr( ) );
         return TRANSFERER_FALSE;
@@ -51,9 +69,28 @@ UploadReplicaTransferer::upload( )
 {
     dprintf( D_ALWAYS, "UploadReplicaTransferer::upload started\n" );
 // stress testing
-// dprintf( D_FULLDEBUG, "UploadReplicaTransferer::upload stalling "
-//                       "uploading process\n" );
-// sleep(300);
+// 	dprintf( D_FULLDEBUG, "UploadReplicaTransferer::upload stalling "
+//                       	  "uploading process\n" );
+//	sleep(300);
+//	int bytesTotal = getFileSize( stateFilePath );
+	// setting the timeout depending on the file size and aknowledging the 
+	// receiving side about that in order to copy the file to the temporary one
+	// and not to get the socket closed at the end of copy operation
+//	int newTimeout = std::max( int( bytesTotal * TRANSFER_SAFETY_COEFFICIENT / 
+//												 DISK_WRITE_RATIO + 0.5 ),
+//                               10 );
+//	int oldTimeout = socket->timeout( newTimeout );
+//	dprintf( D_ALWAYS, "UploadReplicaTransferer::upload set new timeout %d, "
+//					   "old timeout %d, file size %d\n",
+//			 newTimeout, oldTimeout, bytesTotal );
+//	socket->encode( );
+//	if( ! socket->code( bytesTotal ) || 
+//		! socket->eom( ) ) {
+//		 dprintf( D_ALWAYS, "UploadReplicaTransferer::upload unable to send "
+//							"the state file size (%d) or to code the end of "
+//							"message\n", bytesTotal );
+//		return TRANSFERER_FALSE;
+//	}
     MyString extension( daemonCore->getpid( ) );
 	// the .up ending is needed in order not to confuse between upload and
     // download processes temporary files

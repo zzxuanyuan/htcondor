@@ -8,7 +8,11 @@
 //#include "ReplicationCommands.h"
 #include "FilesOperations.h"
 
+// multiplicative factor, determining how long the active HAD, that does not 
+// send the messages to the replication daemon, is considered alive
 #define HAD_ALIVE_TOLERANCE_FACTOR      (2)
+// multiplicative factor, determining how long the newly joining machine is
+// allowed to download the version and state files of other pool machines
 #define NEWLY_JOINED_TOLERANCE_FACTOR   (2)
 
 // gcc compilation pecularities demand explicit declaration of template classes
@@ -32,13 +36,13 @@ static int
 getConfigurationDefaultPositiveIntegerParameter( const char* parameter )
 {
 	if(      ! strcmp( parameter, "REPLICATION_INTERVAL" ) ) {
-		return 300;
+		return 5 * MINUTE;
 	}
 	else if( ! strcmp( parameter, "HAD_CONNECTION_TIMEOUT" ) ) {
 		return DEFAULT_SEND_COMMAND_TIMEOUT;
 	}
 	else if( ! strcmp( parameter, "MAX_TRANSFER_LIFETIME" ) ) {
-    	return 300;
+    	return 5 * MINUTE;
 	}
 	else if( ! strcmp( parameter, "NEWLY_JOINED_WAITING_VERSION_INTERVAL" ) ) {
     	int hadConnectionTimeout = 
@@ -57,9 +61,8 @@ getConfigurationDefaultPositiveIntegerParameter( const char* parameter )
  *				 the default value
  * Note        : the function may halt the program execution, in case when the
  *               value of a parameter is not properly specified in the 
- *		 configuration file - this is the difference between the 
- *		 function and 'param_integer' in 
- *		 condor_c++_util/condor_config.C
+ *		 		 configuration file - this is the difference between the 
+ *		 		 function and 'param_integer' in condor_c++_util/condor_config.C
  */
 static int
 getConfigurationPositiveIntegerParameter( const char* parameter )
@@ -206,7 +209,8 @@ ReplicatorStateMachine::reinitialize()
         "uploadReplicaTransfererReaper",
         (ReaperHandler) &ReplicatorStateMachine::uploadReplicaTransfererReaper,
         "uploadReplicaTransfererReaper", this );
-    printDataMembers( );
+    // for debugging purposes only
+	printDataMembers( );
 	
 	beforePassiveStateHandler( );
 }
@@ -411,8 +415,8 @@ ReplicatorStateMachine::decodeVersionAndState( Stream* stream )
 	Version* newVersion = new Version;
 	// decode remote replication daemon version
    	if( ! newVersion->decode( stream ) ) {
-    	dprintf( D_NETWORK, "ReplicatorStateMachine::decodeAndAddVersion "
-                            "cannot read remote daemon version\n" );
+    	dprintf( D_ALWAYS, "ReplicatorStateMachine::decodeVersionAndState "
+                           "cannot read remote daemon version\n" );
        	delete newVersion;
        
        	return 0;
@@ -422,8 +426,8 @@ ReplicatorStateMachine::decodeVersionAndState( Stream* stream )
    	stream->decode( );
 	// decode remore replication daemon state
    	if( ! stream->code( remoteReplicatorState ) ) {
-    	dprintf( D_NETWORK, "ReplicatorStateMachine::decodeAndAddVersion "
-                            "unable to decode the state\n" );
+    	dprintf( D_ALWAYS, "ReplicatorStateMachine::decodeVersionAndState "
+                           "unable to decode the state\n" );
        	delete newVersion;
        
        	return 0;
@@ -679,7 +683,7 @@ ReplicatorStateMachine::killStuckDownloadingTransferer( time_t currentTime )
     if( downloadTransfererMetadata.isValid( ) &&
         currentTime - downloadTransfererMetadata.lastTimeCreated >
             maxTransfererLifeTime ) {
-       /* Beware of sending SIGKILL with downloadTransfererPid = -1, because
+       /* Beware of sending signal with downloadTransfererPid = -1, because
         * according to POSIX it will be sent to every process that the
         * current process is able to sent signals to
         */
@@ -687,8 +691,28 @@ ReplicatorStateMachine::killStuckDownloadingTransferer( time_t currentTime )
 				"ReplicatorStateMachine::killStuckDownloadingTransferer "
                 "killing downloading condor_transferer pid = %d\n",
                  downloadTransfererMetadata.pid );
-        kill( downloadTransfererMetadata.pid, SIGKILL );
-    	downloadTransfererMetadata.set( );
+		// sending SIGKILL signal, wrapped in daemon core function for
+		// portability
+    	if( daemonCore->Send_Signal( downloadTransfererMetadata.pid, 
+									 SIGKILL ) < 0 ) {
+        	dprintf( D_ALWAYS, 
+                     "ReplicatorStateMachine::killStuckDownloadingTransferer"
+                     " kill signal failed, reason = %s\n", strerror(errno));
+        }
+		// when the process is killed, it could have not yet erased its
+		// temporary files, this is why we ensure it by erasing it in killer
+		// function
+		MyString extension( downloadTransfererMetadata.pid );
+        // the .down ending is needed in order not to confuse between upload and
+        // download processes temporary files
+        extension += ".";
+        extension += DOWNLOADING_TEMPORARY_FILES_EXTENSION;
+
+        FilesOperations::safeUnlinkFile( versionFilePath.GetCStr( ),
+                                         extension.GetCStr( ) );
+        FilesOperations::safeUnlinkFile( stateFilePath.GetCStr( ),
+                                         extension.GetCStr( ) );
+		downloadTransfererMetadata.set( );
 	}
 }
 /* Function   : killStuckUploadingTransferers
@@ -712,8 +736,28 @@ ReplicatorStateMachine::killStuckUploadingTransferers( time_t currentTime )
 					"ReplicatorStateMachine::killStuckUploadingTransferers "
                     "killing uploading condor_transferer pid = %d\n",
                     uploadTransfererMetadata->pid );
-            kill( uploadTransfererMetadata->pid, SIGKILL );
-        	delete uploadTransfererMetadata;
+			// sending SIGKILL signal, wrapped in daemon core function for
+        	// portability
+			if(daemonCore->Send_Signal( 
+				uploadTransfererMetadata->pid, SIGKILL ) < 0 ) {
+				dprintf( D_ALWAYS, 
+						 "ReplicatorStateMachine::killStuckUploadingTransferers"
+						 " kill signal failed, reason = %s\n", strerror(errno));
+			}
+			// when the process is killed, it could have not yet erased its
+        	// temporary files, this is why we ensure it by erasing it in killer
+        	// function	
+			MyString extension( uploadTransfererMetadata->pid );
+            // the .up ending is needed in order not to confuse between
+            // upload and download processes temporary files
+            extension += ".";
+            extension += UPLOADING_TEMPORARY_FILES_EXTENSION;
+
+            FilesOperations::safeUnlinkFile( versionFilePath.GetCStr( ),
+                                             extension.GetCStr( ) );
+            FilesOperations::safeUnlinkFile( stateFilePath.GetCStr( ),
+                                             extension.GetCStr( ) );
+			delete uploadTransfererMetadata;
 			uploadTransfererMetadataList.DeleteCurrent( );
 		}
     }

@@ -12,7 +12,6 @@
 
 #include "Utils.h"
 #include "DownloadReplicaTransferer.h"
-//#include "ReplicationCommands.h"
 
 int
 DownloadReplicaTransferer::initialize( )
@@ -100,7 +99,8 @@ DownloadReplicaTransferer::transferFileCommand( )
     }
 	temporarySocket.close( );
     socket = listeningSocket.accept( );
-    socket->timeout( connectionTimeout );
+//	socket->set_timeout_multiplier( 1 );
+    socket->timeout( INT_MAX ); //connectionTimeout );
     socket->doNotEnforceMinimalCONNECT_TIMEOUT( );
 
 	listeningSocket.close( );
@@ -146,7 +146,8 @@ int
 DownloadReplicaTransferer::downloadFile(MyString& filePath, MyString& extension)
 {
 // stress testing
-//    dprintf( D_FULLDEBUG, "Purposedly stalling the downloading process\n" );
+//    dprintf( D_FULLDEBUG, "DownloadReplicaTransferer::downloadFile "
+//						  "purposedly stalling the downloading process\n" );
 //    sleep( 300 );
     dprintf( D_ALWAYS, "DownloadReplicaTransferer::downloadFile %s.%s\n", 
 			 filePath.GetCStr( ), extension.GetCStr( ) );

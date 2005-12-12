@@ -6,9 +6,6 @@
 #include "FilesOperations.h"
 #include "Utils.h"
 
-#include <stdlib.h>
-#include <errno.h>
-
 extern int main_shutdown_graceful();
 
 BaseReplicaTransferer::BaseReplicaTransferer(

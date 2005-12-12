@@ -195,7 +195,8 @@ HADStateMachine::initializeClassAd()
                         daemonCore->InfoCommandSinfulString() );
     classAd->Insert(line.Value());
 
-    line.sprintf ("%s = \"False\"", ATTR_HAD_IS_ACTIVE);
+	// declaring boolean attributes this way, no need for \"False\"
+    line.sprintf( "%s = False", ATTR_HAD_IS_ACTIVE );
     classAd->Insert(line.Value());
 
 	// publishing list of hads in classad
@@ -276,14 +277,14 @@ HADStateMachine::reinitialize()
         connectionTimeout = utilAtoi(tmp,&res);
         if(!res){
             free( tmp );
-            utilCrucialError( "HAD CONFIGURATION ERROR: HAD_CONNECTION_TIMEOUT is "
-                "not valid in config file" );
+            utilCrucialError( "HAD CONFIGURATION ERROR: HAD_CONNECTION_TIMEOUT "							  "is not valid in config file" );
         }
         
         if(connectionTimeout <= 0){
                free( tmp );
-               utilCrucialError( "HAD CONFIGURATION ERROR: HAD_CONNECTION_TIMEOUT is "
-                    "not valid in config file" );
+               utilCrucialError( "HAD CONFIGURATION ERROR: "
+								 "HAD_CONNECTION_TIMEOUT is not valid in "
+								 "config file" );
         }
         free( tmp );
     } else {
@@ -324,9 +325,36 @@ HADStateMachine::reinitialize()
     dprintf( D_ALWAYS,"HADStateMachine::reinitialize classad information\n" );
     initializeClassAd( );
     collectorsList = CollectorList::create();
-    updateCollectorInterval = param_integer ("HAD_UPDATE_INTERVAL",
-                                                                        5 * MINUTE );
-    updateCollectorTimerId = daemonCore->Register_Timer (
+    //updateCollectorInterval = param_integer ("HAD_UPDATE_INTERVAL",
+    //                                         5 * MINUTE );
+    tmp=param( "HAD_UPDATE_INTERVAL" );
+    if( tmp ) {
+        bool res = false;
+        updateCollectorInterval = utilAtoi(tmp,&res);
+        if(!res){
+            free( tmp );
+			utilCrucialError( utilConfigurationError( 
+								"HAD_UPDATE_INTERVAL", "HAD" ).GetCStr( ) );
+            //utilCrucialError( "HAD CONFIGURATION ERROR: HAD_UPDATE_INTERVAL "
+			//				  "is not valid in config file" );
+        }
+        if( updateCollectorInterval <= 0 ){
+               free( tmp );
+			   utilCrucialError( utilConfigurationError( 
+								"HAD_UPDATE_INTERVAL", "HAD" ).GetCStr( ) );
+               //utilCrucialError( "HAD CONFIGURATION ERROR: "
+               //                  "HAD_CONNECTION_TIMEOUT is not valid in "
+               //                  "config file" );
+        }
+        free( tmp );
+    } else {
+        //dprintf( D_ALWAYS,"No HAD_CONNECTION_TIMEOUT in config file,"
+        //        " use default value\n" );
+		utilCrucialError( utilNoParameterError( 
+							"HAD_UPDATE_INTERVAL", "HAD" ).GetCStr( ) );
+    }
+
+	updateCollectorTimerId = daemonCore->Register_Timer (
         0, updateCollectorInterval,
         (TimerHandlercpp) &HADStateMachine::updateCollectors,
         "Update collector", this );
@@ -437,7 +465,7 @@ HADStateMachine::step()
             }
             if( returnValue == TRUE ) {
                 state = LEADER_STATE;
-                            updateCollectorsClassAd( "True" );
+                updateCollectorsClassAd( "True" );
                 printStep( "ELECTION_STATE", "LEADER_STATE" );
             } else {
                 // TO DO : what with this case ? stay in election case ?
@@ -952,7 +980,11 @@ HADStateMachine::printParamsInformation()
      dprintf( D_ALWAYS,"** HAD_USE_PRIMARY(true/false)   %d\n",usePrimary);
      dprintf( D_ALWAYS,"** AM I PRIMARY ?(true/false)   %d\n",isPrimary);
      dprintf( D_ALWAYS,"** HAD_LIST(others only)\n");
-     char* addr = NULL;
+	 dprintf( D_ALWAYS,"** HAD_UPDATE_INTERVAL   %d\n",updateCollectorInterval);
+	 dprintf( D_ALWAYS,"** Is replication used (true/false) %d\n", 
+			  			useReplication);     
+
+	 char* addr = NULL;
      otherHADIPs->rewind();
      while( (addr = otherHADIPs->next()) ) {
            dprintf( D_ALWAYS,"**    %s\n",addr);
@@ -984,11 +1016,11 @@ HADStateMachine::updateCollectors()
                                 (TimerHandlercpp) &HADStateMachine::updateCollectors,
                                 "Update collector", this);
 }
-/* Function     : updateCollectorsClassAd
- * Arguments : isHadActive - designates whether the current HAD is active or not,
- *                                              may be equal to either "False" or "True"
+/* Function  : updateCollectorsClassAd
+ * Arguments : isHadActive - designates whether the current HAD is active 
+ * 							 or not, may be equal to either "FALSE" or "TRUE"
  * Description: updates the local classad with information about whether the
- *                      HAD is active or not and sends the update to collectors
+ *              HAD is active or not and sends the update to collectors
  */
 void
 HADStateMachine::updateCollectorsClassAd(const MyString& isHadActive)

@@ -61,8 +61,9 @@ Version::synchronize(bool isLogicalClockIncremented)
     
 	const StatStructType* status      = statWrapper.GetStatBuf( );
     time_t                currentTime = time( NULL );
-    // to contain the time strings produced by 'ctime_r' function
-    char                  timeBuffer[BUFSIZ];
+    // to contain the time strings produced by 'ctime_r' function, which is
+    // reentrant unlike 'ctime' one
+	char                  timeBuffer[BUFSIZ];
     // retrieving access status information
     dprintf( D_FULLDEBUG,
                     "Version::synchronize %s "

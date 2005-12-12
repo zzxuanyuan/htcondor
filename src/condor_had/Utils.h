@@ -6,6 +6,7 @@
 
 #define DEFAULT_SEND_COMMAND_TIMEOUT                             (5)
 #define IO_RETRY_TIMES                                           (3)
+
 //#define MAX_FILE_SIZE                                      (1000000)
 // the lifetime is measured in units of HAD_REPLICATION_INTERVAL
 #define VERSION_FILE_NAME                                        "Version"

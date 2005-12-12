@@ -230,7 +230,7 @@ utilSafePutFile( ReliSock& socket, const MyString& filePath )
 		buffer[bytesRead] = '\0';
 		// generating MAC gradually, chunk by chunk
 		MD5_Update( & md5Context, buffer, bytesRead );
-		dprintf( D_ALWAYS, "utilSafePutFile buffer read %s\n", buffer );
+		//dprintf( D_ALWAYS, "utilSafePutFile buffer read %s\n", buffer );
 
 		bytesTotal += bytesRead;
 	}
@@ -241,13 +241,13 @@ utilSafePutFile( ReliSock& socket, const MyString& filePath )
 	dprintf( D_ALWAYS, "utilSafePutFile MAC created %s with "
                        "actual length %d, total bytes read %d\n",
            md, strlen( md ), bytesRead );
-	socket.encode( );	
-	// sending the temporary file through the opened socket
-    if(	! socket.code( md ) ||
+	socket.encode( );
+    
+	if(	! socket.code( md ) ||
         socket.put_file( &bytes, filePath.GetCStr( ) ) < 0  ||
 	    ! socket.eom( ) ) {
         dprintf( D_ALWAYS,
-                "utilSafePutFile unable to send file %s, MAC, "
+                "utilSafePutFile unable to send file %s, MAC "
                 "or to code the end of the message\n", filePath.GetCStr( ) );
         free( md );
 		return false;
@@ -262,16 +262,16 @@ bool
 utilSafeGetFile( ReliSock& socket, const MyString& filePath )
 {
 	REPLICATION_ASSERT( filePath != "" );
-	filesize_t  bytes = 0;
+	filesize_t  bytes      = 0;
 	char*       md      = (char *) malloc( ( MAC_SIZE + 1 ) * sizeof( char ) );
 
 	dprintf( D_ALWAYS, "utilSafeGetFile %s started\n", filePath.GetCStr( ) );	
 	socket.decode( );
 
-    if(! socket.code( md ) ||
-	   socket.get_file( &bytes, filePath.GetCStr( ), true ) < 0 ||
-	   ! socket.eom( ) ) {
-        dprintf( D_FAILURE, "utilSafeGetFile unable to get file %s, MAC or the "
+    if( ! socket.code( md ) ||
+	    socket.get_file( &bytes, filePath.GetCStr( ), true ) < 0 ||
+	    ! socket.eom( ) ) {
+        dprintf( D_ALWAYS, "utilSafeGetFile unable to get file %s, MAC or the "
 							"end of the message\n", 
 				 filePath.GetCStr( ) );
         free( md );
@@ -322,7 +322,6 @@ utilSafeGetFile( ReliSock& socket, const MyString& filePath )
 		free( localMd );
 		free( md );
 
-	//	return true;
 		return false;
 	}
 
@@ -365,7 +364,7 @@ utilSafeGetFile( ReliSock& socket, const MyString& filePath )
 
     if(  socket.get_file( &bytes, filePath.GetCStr( ), true ) < 0 ||
        ! socket.end_of_message( ) ) {
-        dprintf( D_FAILURE, "utilSafeGetFile unable to get file %s or the "
+        dprintf( D_ALWAYS, "utilSafeGetFile unable to get file %s or the "
                             "end of the message\n",
                  filePath.GetCStr( ) );
         return false;
