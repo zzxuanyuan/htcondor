@@ -77,8 +77,9 @@ AbstractReplicatorStateMachine::initializeReplicationList( char* buffer )
         if( sinfulAddress == NULL ) {
             char buffer[BUFSIZ];
 
-			sprintf( buffer, "ReplicatorStateMachine::initializeReplicationList"
-                             " invalid address %s\n", replicationAddress );
+			sprintf( buffer, 
+					"AbstractReplicatorStateMachine::initializeReplicationList"
+                    " invalid address %s\n", replicationAddress );
             utilCrucialError( buffer );
 
             continue;
@@ -183,8 +184,11 @@ AbstractReplicatorStateMachine::downloadReplicaTransfererReaper(
          static_cast<AbstractReplicatorStateMachine*>( service );
     // setting the downloading reaper process id to initialization value to
     // know whether the downloading has finished or not
-	REPLICATION_ASSERT(replicatorStateMachine->
-						downloadTransfererMetadata.isValid());
+	// NOTE: upon stalling the downloader, the transferer is being killed before
+	// 		 the reaper is called, so that the application fails in the assert,
+	//		 this is the reason for commenting it out
+	//REPLICATION_ASSERT(replicatorStateMachine->
+	//					downloadTransfererMetadata.isValid());
 	replicatorStateMachine->downloadTransfererMetadata.set( );   
 
     // the function ended due to the operating system signal, the numeric
@@ -258,7 +262,12 @@ AbstractReplicatorStateMachine::uploadReplicaTransfererReaper(
         	replicatorStateMachine->
 				  uploadTransfererMetadataList.DeleteCurrent( );
 		}
-    }
+		// for debugging purposes only
+		//dprintf( D_FULLDEBUG, 
+		//		"AbstractReplicatorStateMachine::uploadReplicaTransfererReaper"
+    	//		" uploading condor_transferers list size = %d\n", 
+		//		replicatorStateMachine->uploadTransfererMetadataList.Number() );
+	}
 	replicatorStateMachine->uploadTransfererMetadataList.Rewind( );
 // End of TODO: Atomic operation
 
@@ -346,7 +355,7 @@ AbstractReplicatorStateMachine::upload( const char* daemonSinfulString )
     executable.sprintf( "%s/condor_transferer",
                                 releaseDirectoryPath.GetCStr( ) );
     processArguments.sprintf( "%s -f up %s %s %s",
-                              executable.GetCStr( ),
+							  executable.GetCStr( ),
                               daemonSinfulString,
                               versionFilePath.GetCStr( ),
                               stateFilePath.GetCStr( ) );
@@ -439,7 +448,7 @@ AbstractReplicatorStateMachine::updateVersionsList( Version& newVersion )
         }
     }
     dprintf( D_FULLDEBUG,
-        "AbstractReplicatorStateMachine::updateVersionsList appending %s",
+        "AbstractReplicatorStateMachine::updateVersionsList appending %s\n",
          newVersion.toString( ).GetCStr( ) );
     versionsList.Append( newVersion );
     versionsList.Rewind( );
@@ -476,7 +485,7 @@ AbstractReplicatorStateMachine::sendCommand(
     socket.doNotEnforceMinimalCONNECT_TIMEOUT( );
 
     if( ! socket.connect( daemonSinfulString, 0, false ) ) {
-        dprintf( D_NETWORK, "AbstractReplicatorStateMachine::sendCommand "
+        dprintf( D_ALWAYS, "AbstractReplicatorStateMachine::sendCommand "
                             "unable to connect to %s\n",
                    daemonSinfulString );
 		socket.close( );
@@ -485,8 +494,8 @@ AbstractReplicatorStateMachine::sendCommand(
     }
 // General actions for any command sending
     if( ! daemon.startCommand( command, &socket, connectionTimeout ) ) {
-        dprintf( D_COMMAND, "AbstractReplicatorStateMachine::sendCommand "
-                                          "cannot start command %s to %s\n",
+        dprintf( D_ALWAYS, "AbstractReplicatorStateMachine::sendCommand "
+                            "cannot start command %s to %s\n",
                    utilToString( command ), daemonSinfulString );
 		socket.close( );
 
@@ -495,7 +504,7 @@ AbstractReplicatorStateMachine::sendCommand(
 
     char* sinfulString = daemonCore->InfoCommandSinfulString();
     if(! socket.code( sinfulString )/* || ! socket.eom( )*/) {
-        dprintf( D_NETWORK, "AbstractReplicatorStateMachine::sendCommand "
+        dprintf( D_ALWAYS, "AbstractReplicatorStateMachine::sendCommand "
                             "unable to code the local sinful string or eom%s\n",
                    sinfulString );
 		socket.close( );
@@ -517,7 +526,7 @@ AbstractReplicatorStateMachine::sendCommand(
 // End of Command-specific actions
 	if( ! socket.eom( ) ) {
 		socket.close( );
-       	dprintf( D_NETWORK, "AbstractReplicatorStateMachine::sendCommand "
+       	dprintf( D_ALWAYS, "AbstractReplicatorStateMachine::sendCommand "
                             "unable to code the end of message\n" );
        	return ;
    	}
@@ -537,11 +546,11 @@ AbstractReplicatorStateMachine::versionCommand( ReliSock& socket )
 
     if( ! myVersion.code( socket ) ) {
         dprintf( D_NETWORK, "AbstractReplicatorStateMachine::versionCommand "
-                                         "unable to code the replica\n");
+                            "unable to code the replica\n");
         return false;
     } 
     dprintf( D_ALWAYS, "AbstractReplicatorStateMachine::versionCommand "
-                                   "sent command successfully\n" );
+                       "sent command successfully\n" );
     return true;
 }
 
@@ -557,12 +566,12 @@ AbstractReplicatorStateMachine::versionAndStateCommand(ReliSock& socket)
 
     if( ! socket.code( stateAsInteger ) /*|| ! socket.eom( )*/ ) {
         dprintf( D_NETWORK,
-            "ReplicatorStateMachine::versionAndStateCommand "
+            "AbstractReplicatorStateMachine::versionAndStateCommand "
             "unable to code the state or eom%d\n", state );
         return false;
     }
-    dprintf( D_ALWAYS, "ReplicatorStateMachine::versionAndStateCommand "
-                                   "sent command successfully\n" );
+    dprintf( D_ALWAYS, "AbstractReplicatorStateMachine::versionAndStateCommand "
+                       "sent command successfully\n" );
     return true;
 }
 
@@ -573,8 +582,6 @@ void
 AbstractReplicatorStateMachine::killTransferers()
 {
     if( downloadTransfererMetadata.isValid() ) {
-		//lastTimeDownloadTransfererCreated != -1 &&
-        //downloadTransfererPid             != -1 ) {
        /* Beware of sending SIGKILL with download transferer's pid = -1, because
         * according to POSIX it will be sent to every process that the
         * current process is able to sent signals to
@@ -585,42 +592,25 @@ AbstractReplicatorStateMachine::killTransferers()
                    downloadTransfererMetadata.pid );
         kill( downloadTransfererMetadata.pid, SIGKILL );
         downloadTransfererMetadata.set();
-		// downloadTransfererPid             = -1;
-        // lastTimeDownloadTransfererCreated = -1;
     }
 
-    //lastTimeUploadTransfererCreatedList.Rewind( );
-    //uploadTransfererPidsList.Rewind( );
 	uploadTransfererMetadataList.Rewind( );
 
-    //time_t* lastTimeUploadTransfererCreated = NULL;
-    //int*      uploadTransfererPid           = NULL;
 	ProcessMetadata* uploadTransfererMetadata = NULL;    
 
     while( uploadTransfererMetadataList.Next( uploadTransfererMetadata ) ) {
-		   //lastTimeUploadTransfererCreatedList.Next(
-           //     lastTimeUploadTransfererCreated ) &&
-           //  uploadTransfererPidsList.Next( uploadTransfererPid ) ) {
         if( uploadTransfererMetadata->isValid( ) ) {
-			// *lastTimeUploadTransfererCreated != -1 &&
-            // *uploadTransfererPid             != -1 ) {
             dprintf( D_FULLDEBUG,
                 "AbstractReplicatorStateMachine::killTransferers "
                 "killing uploading condor_transferer pid = %d\n",
                 uploadTransfererMetadata->pid );
             kill( uploadTransfererMetadata->pid, SIGKILL );
-            //delete lastTimeUploadTransfererCreated;
-            //delete uploadTransfererPid;
 			delete uploadTransfererMetadata;
 			// after deletion the iterator is moved to the previous member
 			// so advancing the iterator twice and missing one entry does not
 			// happen
-            //lastTimeUploadTransfererCreatedList.DeleteCurrent( );
-            //uploadTransfererPidsList.DeleteCurrent( );
         	uploadTransfererMetadataList.DeleteCurrent( );
 		}
     }
-    //lastTimeUploadTransfererCreatedList.Rewind( );
-    //uploadTransfererPidsList.Rewind( );
 	uploadTransfererMetadataList.Rewind( );
 }
