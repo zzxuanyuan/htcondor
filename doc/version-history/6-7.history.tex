@@ -307,6 +307,11 @@ jobs in the schedd.
   This setting is \verb@FALSE@ by default, but if set to \verb@TRUE@,
   the \Condor{negotiator} will crash.  
 
+\item Jobs that are are placed on held because of \AdAttr{on\_exit\_hold}
+evaluated to TRUE or jobs that stay in the queue after finishing because
+\AdAttr{on\_exit\_remove} evaluated to FALSE will erroneously report the reason
+as "UNKNOWN (never set)".
+
 \end{itemize}
 
 
