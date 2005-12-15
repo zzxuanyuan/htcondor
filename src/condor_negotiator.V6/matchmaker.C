@@ -2692,7 +2692,7 @@ void Matchmaker::insert_into_rejects(char *userName, ClassAd& job, ClassAd& mach
 		  tm->tm_hour,
 		  tm->tm_min,
 		  tm->tm_sec,
-		  my_timezone());
+		  my_timezone(tm->tm_isdst));
 
 	snprintf(tmp, 512, "reject_time = \"%s\"", rejectts);
 	tmpClP->Insert(tmp);
@@ -2751,7 +2751,7 @@ void Matchmaker::insert_into_matches(char * userName,ClassAd& request, ClassAd& 
 		  tm->tm_hour,
 		  tm->tm_min,
 		  tm->tm_sec,
-		  my_timezone());
+		  my_timezone(tm->tm_isdst));
 	
 	snprintf(tmp, 512, "match_time = \"%s\"", matchts);
 	tmpClP->Insert(tmp);
