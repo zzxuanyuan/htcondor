@@ -156,8 +156,12 @@ int schedd_files_ins_file(
 	snprintf(tmp, 512, "f_size = %d", fsize);
 	tmpClP1->Insert(tmp);
 
-	retcode = FILEObj->file_newEvent("Files", tmpClP1);
-
+	if (FILEObj->file_newEvent("Files", tmpClP1) == FAILURE) {
+		retcode = -1;
+	}
+	else {
+		retcode = 0;
+	}
 	return retcode;
 }
 

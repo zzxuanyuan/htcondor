@@ -3099,8 +3099,7 @@ static void AppendHistory(ClassAd* ad)
   if (!JobHistoryFileName) return;
   dprintf(D_FULLDEBUG, "Saving classad to history file\n");
 
-  int retval = FILEObj->file_newEvent("History", ad);
-  if (retval < 0) {
+  if (FILEObj->file_newEvent("History", ad) == FAILURE) {
 	  dprintf(D_ALWAYS, "AppendHistory Logging History Event --- Error\n");
   }
 
