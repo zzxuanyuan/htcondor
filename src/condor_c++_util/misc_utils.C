@@ -103,11 +103,12 @@ startdClaimIdFile( int vm_id )
 	return strdup( filename.Value() );
 }
 
-char* my_timezone() 
+char* my_timezone(int isdst) 
 {
   tzset();
 
-  if (daylight) {
+	  // if daylight is in effect (isdst is positive)
+  if (isdst > 0) {
     return tzname[1];
   } else
   {

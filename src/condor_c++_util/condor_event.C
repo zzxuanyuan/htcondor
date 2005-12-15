@@ -1139,7 +1139,7 @@ RemoteErrorEvent::writeEvent(FILE *file)
 				eventTime.tm_hour,
 				eventTime.tm_min,
 				eventTime.tm_sec,
-				my_timezone());		
+				my_timezone(eventTime.tm_isdst));		
 		
 		snprintf(tmp, 1024, "endts = \"%s\"", eventts);
 		tmpClP1->Insert(tmp);		
@@ -1172,8 +1172,8 @@ RemoteErrorEvent::writeEvent(FILE *file)
 			// non-daemons who wouldn't have initialized FILEObj. We don't 
 			// need to log events for non-daemons.
 		if (FILEObj) {
-			retval = FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2);	
-			if (retval < 0) {
+			if (FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2) 
+				== FAILURE) {	
 				dprintf(D_ALWAYS, "Logging Event 5--- Error\n");
 				return 0; // return a error code, 0
 			}		
@@ -1188,7 +1188,7 @@ RemoteErrorEvent::writeEvent(FILE *file)
 				eventTime.tm_hour,
 				eventTime.tm_min,
 				eventTime.tm_sec,
-				my_timezone());		
+				my_timezone(eventTime.tm_isdst));		
 		if (scheddname) {	
 		  snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
 		  tmpClP1->Insert(tmp);		
@@ -1213,8 +1213,7 @@ RemoteErrorEvent::writeEvent(FILE *file)
 		tmpClP1->Insert(tmp);	
 				
 		if (FILEObj) {
-			retval = FILEObj->file_newEvent("Events", tmpClP1);
-			if (retval < 0) {
+			if (FILEObj->file_newEvent("Events", tmpClP1) == FAILURE) {
 				dprintf(D_ALWAYS, "Logging Event 5--- Error\n");
 				return 0; // return a error code, 0
 			}			
@@ -1451,7 +1450,7 @@ writeEvent (FILE *file)
 		  eventTime.tm_hour,
 		  eventTime.tm_min,
 		  eventTime.tm_sec,
-		  my_timezone());
+		  my_timezone(eventTime.tm_isdst));
 
   snprintf(tmp, 512, "endts = \"%s\"", eventts);
   tmpClP1->Insert(tmp);
@@ -1480,9 +1479,7 @@ writeEvent (FILE *file)
   tmpClP2->Insert(tmp);
   
   if (FILEObj) {
-	  retval = FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2);
-
-	  if (retval < 0) {
+	  if (FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2) == FAILURE) {
 		  dprintf(D_ALWAYS, "Logging Event 1--- Error\n");
 		  return 0; // return a error code, 0
 	  }
@@ -1509,9 +1506,7 @@ writeEvent (FILE *file)
   tmpClP3->Insert(tmp);
 
   if(FILEObj) {
-	  retval = FILEObj->file_newEvent("Runs", tmpClP3);
-
-	  if (retval < 0) {
+	  if (FILEObj->file_newEvent("Runs", tmpClP3) == FAILURE) {
 		  dprintf(D_ALWAYS, "Logging Event 1--- Error\n");
 		  return 0; // return a error code, 0
 	  }
@@ -1617,7 +1612,7 @@ writeEvent (FILE *file)
 			eventTime.tm_hour,
 			eventTime.tm_min,
 			eventTime.tm_sec,
-			my_timezone());		
+			my_timezone(eventTime.tm_isdst));		
 		
 	snprintf(tmp, 1024, "endts = \"%s\"", eventts);
 	tmpClP1->Insert(tmp);		
@@ -1646,9 +1641,7 @@ writeEvent (FILE *file)
 	tmpClP2->Insert(tmp);
   
 	if (FILEObj) {
-		retval = FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2);
-
-		if (retval < 0) {
+		if (FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2) == FAILURE) {
 			dprintf(D_ALWAYS, "Logging Event 12--- Error\n");
 			return 0; // return a error code, 0
 		}
@@ -1774,7 +1767,7 @@ writeEvent (FILE *file)
 			eventTime.tm_hour,
 			eventTime.tm_min,
 			eventTime.tm_sec,
-			my_timezone());		
+			my_timezone(eventTime.tm_isdst));		
 		
 	if (scheddname) {
 	  snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
@@ -1800,9 +1793,7 @@ writeEvent (FILE *file)
 	tmpClP1->Insert(tmp);	
 				
 	if (FILEObj) {
-		retval = FILEObj->file_newEvent("Events", tmpClP1);
-
-		if (retval < 0) {
+		if (FILEObj->file_newEvent("Events", tmpClP1) == FAILURE) {
 			dprintf(D_ALWAYS, "Logging Event 6--- Error\n");
 			return 0; // return a error code, 0
 		}
@@ -2166,7 +2157,7 @@ JobEvictedEvent::writeEvent( FILE *file )
 		  eventTime.tm_hour,
 		  eventTime.tm_min,
 		  eventTime.tm_sec,
-		  my_timezone());		
+		  my_timezone(eventTime.tm_isdst));		
 		
   snprintf(tmp, 1024, "endts = \"%s\"", eventts);
   tmpClP1->Insert(tmp);		
@@ -2204,9 +2195,7 @@ JobEvictedEvent::writeEvent( FILE *file )
   tmpClP2->Insert(tmp);
   
   if (FILEObj) {
-	  retval = FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2);
-  
-	  if (retval < 0) {
+	  if (FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2) == FAILURE) {
 		  dprintf(D_ALWAYS, "Logging Event 2 --- Error\n");
 		  free(messagestr);
 		  free(checkpointedstr);
@@ -2403,7 +2392,7 @@ writeEvent (FILE *file)
 			eventTime.tm_hour,
 			eventTime.tm_min,
 			eventTime.tm_sec,
-			my_timezone());		
+			my_timezone(eventTime.tm_isdst));		
 	if(scheddname) {
 	  snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
 	  tmpClP1->Insert(tmp);		
@@ -2428,9 +2417,7 @@ writeEvent (FILE *file)
 	tmpClP1->Insert(tmp);	
 				
 	if (FILEObj) {
-		retval = FILEObj->file_newEvent("Events", tmpClP1);
-
-		if (retval < 0) {
+		if (FILEObj->file_newEvent("Events", tmpClP1) == FAILURE) {
 			dprintf(D_ALWAYS, "Logging Event 7--- Error\n");
 			return 0; // return a error code, 0
 		}
@@ -2625,7 +2612,7 @@ TerminatedEvent::writeEvent( FILE *file, const char* header )
 			eventTime.tm_hour,
 			eventTime.tm_min,
 			eventTime.tm_sec,
-			my_timezone());
+			my_timezone(eventTime.tm_isdst));
 
 	snprintf(tmp, 1024, "endmessage = \"%s\"", messagestr);
 	tmpClP1->Insert(tmp);
@@ -2654,9 +2641,7 @@ TerminatedEvent::writeEvent( FILE *file, const char* header )
 	tmpClP2->Insert(tmp);
 
 	if (FILEObj) {
-		retval = FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2);
-
-		if (retval < 0) {
+		if (FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2) == FAILURE) {
 			dprintf(D_ALWAYS, "Logging Event 3--- Error\n");
 			free(messagestr);
 			return 0; // return a error code, 0
@@ -2773,7 +2758,7 @@ JobTerminatedEvent::writeEvent (FILE *file)
 		  eventTime.tm_hour,
 		  eventTime.tm_min,
 		  eventTime.tm_sec,
-		  my_timezone());
+		  my_timezone(eventTime.tm_isdst));
   
   snprintf(tmp, 1024, "endts = \"%s\"", eventts);
   tmpClP1->Insert(tmp);
@@ -2799,9 +2784,7 @@ JobTerminatedEvent::writeEvent (FILE *file)
   tmpClP2->Insert(tmp);
 
   if (FILEObj) {
-	  retval = FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2);
-
-	  if (retval < 0) {
+	  if (FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2) == FAILURE) {
 		  dprintf(D_ALWAYS, "Logging Event 4--- Error\n");
 		  return 0; // return a error code, 0
 	  }
@@ -3056,7 +3039,7 @@ writeEvent (FILE *file)
 			eventTime.tm_hour,
 			eventTime.tm_min,
 			eventTime.tm_sec,
-			my_timezone());		
+			my_timezone(eventTime.tm_isdst));		
 		
 	snprintf(tmp, 1024, "endts = \"%s\"", eventts);
 	tmpClP1->Insert(tmp);		
@@ -3091,9 +3074,7 @@ writeEvent (FILE *file)
 	tmpClP2->Insert(tmp);
   
 	if (FILEObj) {
-		retval = FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2);
-	
-		if (retval < 0) {
+		if (FILEObj->file_updateEvent("Runs", tmpClP1, tmpClP2) == FAILURE) {
 			dprintf(D_ALWAYS, "Logging Event 13--- Error\n");
 			return 0; // return a error code, 0
 		}
@@ -3209,7 +3190,7 @@ writeEvent (FILE *file)
 			eventTime.tm_hour,
 			eventTime.tm_min,
 			eventTime.tm_sec,
-			my_timezone());
+			my_timezone(eventTime.tm_isdst));
 		
 	if (scheddname) {
 	  snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
@@ -3235,9 +3216,7 @@ writeEvent (FILE *file)
 	tmpClP1->Insert(tmp);	
 				
 	if (FILEObj) {
-		retval = FILEObj->file_newEvent("Events", tmpClP1);
-
-		if (retval < 0) {
+		if (FILEObj->file_newEvent("Events", tmpClP1) == FAILURE) {
 			dprintf(D_ALWAYS, "Logging Event 8--- Error\n");
 			return 0; // return a error code, 0
 		}
@@ -3320,7 +3299,7 @@ writeEvent (FILE *file)
 			eventTime.tm_hour,
 			eventTime.tm_min,
 			eventTime.tm_sec,
-			my_timezone());		
+			my_timezone(eventTime.tm_isdst));		
 		
 	if (scheddname) {
 	  snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
@@ -3346,9 +3325,7 @@ writeEvent (FILE *file)
 	tmpClP1->Insert(tmp);	
 				
 	if (FILEObj) {
- 		retval = FILEObj->file_newEvent("Events", tmpClP1);
-
-		if (retval < 0) {
+ 	    if (FILEObj->file_newEvent("Events", tmpClP1) == FAILURE) {
 			dprintf(D_ALWAYS, "Logging Event 9--- Error\n");
 			return 0; // return a error code, 0
 		}
@@ -3509,7 +3486,7 @@ JobHeldEvent::writeEvent( FILE *file )
 			eventTime.tm_hour,
 			eventTime.tm_min,
 			eventTime.tm_sec,
-			my_timezone());		
+			my_timezone(eventTime.tm_isdst));		
 		
 	if (scheddname) {
 	  snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
@@ -3535,9 +3512,7 @@ JobHeldEvent::writeEvent( FILE *file )
 	tmpClP1->Insert(tmp);	
 				
 	if (FILEObj) {
-		retval = FILEObj->file_newEvent("Events", tmpClP1);
-
-		if (retval < 0) {
+		if (FILEObj->file_newEvent("Events", tmpClP1) == FAILURE) {
 			dprintf(D_ALWAYS, "Logging Event 10--- Error\n");
 			return 0; // return a error code, 0
 		}
@@ -3698,7 +3673,7 @@ JobReleasedEvent::writeEvent( FILE *file )
 			eventTime.tm_hour,
 			eventTime.tm_min,
 			eventTime.tm_sec,
-			my_timezone());		
+			my_timezone(eventTime.tm_isdst));		
 		
 	if (scheddname) {
 	  snprintf(tmp, 1024, "scheddname = \"%s\"", scheddname);
@@ -3724,9 +3699,7 @@ JobReleasedEvent::writeEvent( FILE *file )
 	tmpClP1->Insert(tmp);	
 				
 	if (FILEObj) {
-		retval = FILEObj->file_newEvent("Events", tmpClP1);
-
-		if (retval < 0) {
+		if (FILEObj->file_newEvent("Events", tmpClP1) == FAILURE) {
 			dprintf(D_ALWAYS, "Logging Event 11--- Error\n");
 			return 0; // return a error code, 0
 		}

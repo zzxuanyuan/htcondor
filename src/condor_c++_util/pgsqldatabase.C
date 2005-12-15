@@ -23,7 +23,6 @@
 
 #include "condor_common.h"
 #include "condor_io.h"
-
 #include "pgsqldatabase.h"
 
 //! constructor

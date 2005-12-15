@@ -1,8 +1,9 @@
 #include <string.h>
 #include <file_lock.h>
 #include <condor_attrlist.h>
+#include "quill_enums.h"
 #ifndef FILESQL_H
-#define FILE_H
+#define FILESQL_H
 
 class FILESQL 
 {
@@ -22,16 +23,17 @@ public:
 	~FILESQL();
 	bool file_isopen();
 	bool file_islocked();
-	long file_open();
-	long file_close();
-	long file_lock();
-	long file_unlock();
-	long file_newEvent(const char *eventType, AttrList *info);
-	long file_updateEvent(const char *eventType, AttrList *info, AttrList *condition);
-	long file_deleteEvent(const char *eventType, AttrList *condition);
+	QuillErrCode file_open();
+	QuillErrCode file_close();
+	QuillErrCode file_lock();
+	QuillErrCode file_unlock();
+	QuillErrCode file_newEvent(const char *eventType, AttrList *info);
+	QuillErrCode file_updateEvent(const char *eventType, AttrList *info, 
+								  AttrList *condition);
+	QuillErrCode file_deleteEvent(const char *eventType, AttrList *condition);
 	int  file_readline(MyString *buf);
 	AttrList  *file_readAttrList();
-	int  file_truncate();
+	QuillErrCode  file_truncate();
 };
 
 FILESQL *createInstance();

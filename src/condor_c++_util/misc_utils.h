@@ -41,7 +41,7 @@ char*	num_string( int );
 char* startdClaimIdFile( int vm_id );  
 
 /* return the timezone on the local host */
-char* my_timezone();
+char* my_timezone(int isdst);
 
 #if defined( __cplusplus )
 }

@@ -8,16 +8,6 @@
 
 #define FILESIZELIMT 1900000000L
 
-// We put FileObj definition here because modules such as file_transfer.o and
-// classad_log.o uses FILEObj and they are part of cplus_lib.a. This way we won't get
-// the FILEObj undefined error during compilation of any code which needs cplus_lib.a.
-
-// notice the FILEObj is just a pointer, the real object should be created only when 
-// a real database connection is needed. E.g. most daemons need database connection, 
-// there we can create a database connection in the  main function of daemon process.
-FILESQL *FILEObj = 0;
-//extern int errno;
-
 FILESQL::FILESQL()
 {
 	is_open = false;
@@ -42,8 +32,9 @@ FILESQL::FILESQL(char *outfilename, int flags)
 
 FILESQL::~FILESQL()
 {
-	if(file_isopen())
+	if(file_isopen()) {
 		file_close();
+	}
 	is_open = false;
 	is_locked = false;
 	if (outfilename) free(outfilename);
@@ -61,29 +52,29 @@ bool FILESQL::file_islocked()
 	return is_locked;
 }
 
-int FILESQL::file_truncate() {
+QuillErrCode FILESQL::file_truncate() {
 	int retval;
 
 	if(!file_isopen()) {
 		dprintf(D_ALWAYS, "Error calling truncate: the file needs to be first opened\n");
-		return -1;
+		return FAILURE;
 	}
 
 	retval = ftruncate(outfiledes, 0);
 
 	if(retval < 0) {
 		dprintf(D_ALWAYS, "Error calling ftruncate, errno = %d\n", errno);
-		return -1;
+		return FAILURE;
 	}
 
-	return 1;
+	return SUCCESS;
 }
 
-long FILESQL::file_open()
+QuillErrCode FILESQL::file_open()
 {
 	if (!outfilename) {
 		dprintf(D_ALWAYS,"No SQL log file specified");
-		return -1;
+		return FAILURE;
 	}
 
 	outfiledes = open(outfilename,fileflags,0644);
@@ -92,30 +83,33 @@ long FILESQL::file_open()
 	{
 		dprintf(D_ALWAYS,"Error opening SQL log file %s : %s",outfilename,strerror(errno));
 		is_open = false;
-		return -1;
+		return FAILURE;
 	}
 	else
 	{
 		is_open = true;
 		lock = new FileLock(outfiledes,NULL); /* Create a lock object when opening the file */
-		return 0;
+		return SUCCESS;
 	}
 }
 
-long FILESQL::file_close()
+QuillErrCode FILESQL::file_close()
 {
-	int retval =0;
+	int retval;
 	
 	if (!is_open)
-		return retval;
+		return FAILURE;
 
 	if (lock) {
-		delete lock; /* This also releases the lock on the file, were it held */
+			/* This also releases the lock on the file, were it held */
+		delete lock; 
 		lock  = (FileLock *)0;
 	}
 
-		// fp is associated with the outfiledes, we should be closing one or the other, 
-		// but not both. Otherwise the second one will give an error 
+		/* fp is associated with the outfiledes, we should be closing one or 
+		 * the other, but not both. Otherwise the second one will give an 
+		 * error.
+		 */
 	if (fp) {
 		fclose(fp);
 		fp = NULL;
@@ -129,51 +123,57 @@ long FILESQL::file_close()
 	is_open = false;
 	is_locked = false;
 	outfiledes = -1;
-	return retval;
+
+	if (retval < 0) {
+		return FAILURE;
+	}
+	else {
+		return SUCCESS;
+	}
 }
 
-long FILESQL::file_lock()
+QuillErrCode FILESQL::file_lock()
 {
 	if(!is_open)
 	{
 		dprintf(D_ALWAYS,"Error locking :SQL log file %s not open yet",outfilename);
-		return -1;
+		return FAILURE;
 	}
 
 	if(is_locked)
-		return 0;
+		return SUCCESS;
 
 	if(lock->obtain(WRITE_LOCK) == 0) /* 0 means an unsuccessful lock */
 	{
 		dprintf(D_ALWAYS,"Error locking SQL log file %s ",outfilename);
-		return -1;
+		return FAILURE;
 	}
 	else
 		is_locked = true;
 
-	return 0;
+	return SUCCESS;
 }
 
-long FILESQL::file_unlock()
+QuillErrCode FILESQL::file_unlock()
 {
 	if(!is_open)
 	{
 		dprintf(D_ALWAYS,"Error unlocking :SQL log file %s not open yet",outfilename);
-		return -1;
+		return FAILURE;
 	}
 
 	if(!is_locked)
-		return 0;
+		return SUCCESS;
 
 	if(lock->release() == 0) /* 0 means an unsuccessful lock */
 	{
 		dprintf(D_ALWAYS,"Error unlocking SQL log file %s ",outfilename);
-		return -1;
+		return FAILURE;
 	}
 	else
 		is_locked = false;
 
-	return 0;
+	return SUCCESS;
 }
 
 int FILESQL::file_readline(MyString *buf) 
@@ -182,8 +182,6 @@ int FILESQL::file_readline(MyString *buf)
 		fp = fdopen(outfiledes, "r");
 
 	return (buf->readLine(fp, true));
-
-		//return fscanf(fp, " %[^\n]", buf);
 }
 
 AttrList *FILESQL::file_readAttrList() 
@@ -219,18 +217,19 @@ AttrList *FILESQL::file_readAttrList()
 	return ad;
 }
 
-long FILESQL::file_newEvent(const char *eventType, AttrList *info) {
+QuillErrCode FILESQL::file_newEvent(const char *eventType, AttrList *info) {
 	int retval = 0;
 	struct stat file_status;
 
 	if(!is_open)
 	{
 		dprintf(D_ALWAYS,"Error in logging to file : File not open");
-		return -1;
+		return FAILURE;
 	}
 
-	if(file_lock() < 0)
-		return -1;
+	if(file_lock() == FAILURE) {
+		return FAILURE;
+	}
 
 	fstat(outfiledes, &file_status);
 
@@ -251,24 +250,32 @@ long FILESQL::file_newEvent(const char *eventType, AttrList *info) {
 		retval = write(outfiledes,"\n",1); /* Now the newline*/
 	}
 	
-	if(file_unlock() < 0)
-		return -1;
+	if(file_unlock() == FAILURE) {
+		return FAILURE;
+	}
 
-	return retval;	
+	if (retval < 0) {
+		return FAILURE;
+	} else {
+		return SUCCESS;	
+	}
 }
 
-long FILESQL::file_updateEvent(const char *eventType, AttrList *info, AttrList *condition) {
+QuillErrCode FILESQL::file_updateEvent(const char *eventType, 
+									   AttrList *info, 
+									   AttrList *condition) {
 	int retval = 0;
 	struct stat file_status;
 
 	if(!is_open)
 	{
 		dprintf(D_ALWAYS,"Error in logging to file : File not open");
-		return -1;
+		return FAILURE;
 	}
 
-	if(file_lock() < 0)
-		return -1;
+	if(file_lock() == FAILURE) {
+		return FAILURE;
+	}
 
 	fstat(outfiledes, &file_status);
 
@@ -296,25 +303,32 @@ long FILESQL::file_updateEvent(const char *eventType, AttrList *info, AttrList *
 		retval = write(outfiledes,"\n",1); /* Now the newline*/	
 	}
 
-	if(file_unlock() < 0)
-		return -1;
+	if(file_unlock() == FAILURE) {
+		return FAILURE;
+	}
 
-	return retval;	
+	if (retval < 0) {
+		return FAILURE;	
+	} else {
+		return SUCCESS;	
+	}
 }
 
 #if 0
-long FILESQL::file_deleteEvent(const char *eventType, AttrList *condition) {
+QuillErrCode FILESQL::file_deleteEvent(const char *eventType, 
+									   AttrList *condition) {
 	int retval = 0;
 	struct stat file_status;
 
 	if(!is_open)
 	{
 		dprintf(D_ALWAYS,"Error in logging to file : File not open");
-		return -1;
+		return FAILURE;
 	}
 
-	if(file_lock() < 0)
-		return -1;
+	if(file_lock() == FAILURE) {
+		return FAILURE;
+	}
 
 	fstat(outfiledes, &file_status);
 
@@ -335,16 +349,33 @@ long FILESQL::file_deleteEvent(const char *eventType, AttrList *condition) {
 		retval = write(outfiledes,"\n",1); /* Now the newline*/
 	}
 
-	if(file_unlock() < 0)
-		return -1;
+	if(file_unlock() == FAILURE) {
+		return FAILURE;
+	}
 
-	return retval;	
+	if (retval < 0) {
+		return FAILURE;	
+	}
+	else {
+		return SUCCESS;
+	}
+
 }
 #endif
 
+/* We put FileObj definition here because modules such as file_transfer.o and
+ * classad_log.o uses FILEObj and they are part of cplus_lib.a. This way we 
+ * won't get the FILEObj undefined error during compilation of any code which 
+ * needs cplus_lib.a. Notice the FILEObj is just a pointer, the real object 
+ * should be created only when a real database connection is needed. E.g. 
+ * most daemons need database connection, there we can create a database 
+ * connection in the  main function of daemon process.
+ */
+
+FILESQL *FILEObj = NULL;
+
 FILESQL *createInstance() { 
 	FILESQL *ptr = NULL;
-	int retval;
 	char *tmp, *outfilename;
 	char *tmpParamName;
 	const char *daemon_name;
@@ -379,10 +410,7 @@ FILESQL *createInstance() {
 
 	free(outfilename);
 
-	retval = ptr->file_open();
-
-	if (retval < 0) 
-	{
+	if (ptr->file_open() == FAILURE) {
 		dprintf(D_ALWAYS, "FILESQL createInstance failed\n");
 	}
 
