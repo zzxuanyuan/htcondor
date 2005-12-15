@@ -261,7 +261,7 @@ JobQueueDBManager::config(bool reconfig)
 	dprintf(D_ALWAYS, "Using Job Queue File %s\n", jobQueueLogFile);
 	dprintf(D_ALWAYS, "Using Database IpAddress = %s\n", jobQueueDBIpAddress);
 	dprintf(D_ALWAYS, "Using Database Name = %s\n", jobQueueDBName);
-	dprintf(D_ALWAYS, "Using Database Connection String = \"%s\"\n", jobQueueDBConn);
+		//dprintf(D_ALWAYS, "Using Database Connection String = \"%s\"\n", jobQueueDBConn);
 	dprintf(D_ALWAYS, "Using Polling Period = %d\n", pollingPeriod);
 	dprintf(D_ALWAYS, "Using Purge History Duration = %d days\n", purgeHistoryDuration);
 	dprintf(D_ALWAYS, "Using History Cleaning Interval = %d hours\n", historyCleaningInterval);
@@ -1858,7 +1858,7 @@ JobQueueDBManager::getJQPollingInfo()
 			"JobQueuePollingInfo;");
 	
 		// connect to DB
-	ret_st = connectDB();
+	ret_st = connectDB(NOT_IN_XACT);
 
 	if(ret_st == FAILURE) {
 		return FAILURE;
@@ -1870,7 +1870,7 @@ JobQueueDBManager::getJQPollingInfo()
 		dprintf(D_ALWAYS, "Reading JobQueuePollingInfo --- ERROR [SQL] %s\n", 
 				sql_str);
 		displayDBErrorMsg("Reading JobQueuePollingInfo --- ERROR");
-		disconnectDB(ABORT_XACT);
+		disconnectDB(NOT_IN_XACT);
 		return FAILURE;
 	}
 	else if (ret_st == SUCCESS && num_result == 0) {
@@ -1879,7 +1879,7 @@ JobQueueDBManager::getJQPollingInfo()
 		
 		displayDBErrorMsg("Reading JobQueuePollingInfo --- ERROR "
 						  "No Rows Retrieved from JobQueuePollingInfo\n");
-		disconnectDB(ABORT_XACT);
+		disconnectDB(NOT_IN_XACT);
 		return FAILURE;
 	} 
 	
@@ -1916,7 +1916,7 @@ JobQueueDBManager::getJQPollingInfo()
 	lcmd->value = strdup(DBObj->getValue(0,9)); // last_cmd_value
 	
 		// disconnect to DB
-	disconnectDB();
+	disconnectDB(NOT_IN_XACT);
 	
 		// release Query Result since it is no longer needed
 	DBObj->releaseQueryResult(); 
