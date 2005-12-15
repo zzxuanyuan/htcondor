@@ -6,6 +6,63 @@ This is the development release series of Condor.
 The details of each version are described below.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection*{\label{sec:New-6-7.15}Version 6.7.15}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\noindent Release Notes:
+
+\begin{itemize}
+
+\item None.
+
+\end{itemize}
+
+
+\noindent New Features:
+
+\begin{itemize}
+
+\item Automatic renewal of job proxies from a MyProxy server now works for
+all grid universe jobs. Before, it only worked for grid-type gt2 jobs.
+
+\end{itemize}
+
+\noindent Bugs Fixed:
+
+\begin{itemize}
+
+\item \Condor{status} \Opt{-any} now reports quill ads when quill is enabled.
+
+\item \Condor{restart} \Opt{-peaceful} was causing \Condor{master} to only
+do a graceful shutdown, rather than a peaceful one.  This means that
+\Macro{GRACEFUL\_SHUTDOWN\_TIMEOUT} would come into effect if jobs running
+under the startd took too long to finish.  However, \Opt{-peaceful} restart
+did work in the case where a specific subsystem (e.g. \Opt{-startd}) was
+specified.
+
+% Gnats PR 588
+\item When run from a privileged (root) Stork server, modules lose
+\Macro{LD\_LIBRARY\_PATH} and other key environments, for security
+reasons.  This is not actually a Stork bug, but a feature of glibc.
+When run with a dynamically linked \File{globus-url-copy}, the
+contributed modules for the HTTP, FTP and GSIFTP transfer protocols
+will fail.  To compensate, these modules can now restore their
+environment via the pre-existing \Macro{STORK\_ENVIRONMENT}
+configuration macro.  Unprivileged (user level) Storks are not
+affected by this behavior.
+
+\end{itemize}
+
+\noindent Known Bugs:
+
+\begin{itemize}
+
+\item None.
+
+\end{itemize}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection*{\label{sec:New-6-7.14}Version 6.7.14}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -268,8 +325,7 @@ another, were no longer listening on the expected TCP port.
 if it fails to connect to a remote \Condor{schedd} when submitting a
 job.
 
-\item Fixed a bug in Quill that could result in an infinite loop in
-\Condor{q} when querying Quill.
+\item Minor memory leaks have been fixed.
 
 \end{itemize}
 
@@ -306,11 +362,6 @@ jobs in the schedd.
   It should not be used.
   This setting is \verb@FALSE@ by default, but if set to \verb@TRUE@,
   the \Condor{negotiator} will crash.  
-
-\item Jobs that are are placed on held because of \AdAttr{on\_exit\_hold}
-evaluated to TRUE or jobs that stay in the queue after finishing because
-\AdAttr{on\_exit\_remove} evaluated to FALSE will erroneously report the reason
-as "UNKNOWN (never set)".
 
 \end{itemize}
 
