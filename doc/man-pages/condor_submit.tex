@@ -1986,6 +1986,7 @@ arguments of
 output. Standard error output (if any) from all three programs will
 appear in \File{foo.error}.
 
+\footnotesize
 \begin{verbatim}
       ####################
       #
@@ -2013,6 +2014,7 @@ appear in \File{foo.error}.
       Error   = foo.err3
       Queue                   
 \end{verbatim}
+\normalsize
 
 \item{Submit Description File Example 2:} This submit description file
 example queues 150
@@ -2031,6 +2033,7 @@ A log file containing entries
 about where and when Condor runs, takes checkpoints, and migrates processes
 in this cluster will be written into file \File{foo.log}.
 
+\footnotesize
 \begin{verbatim}
       ####################                                                    
       #                                                                       
@@ -2052,16 +2055,17 @@ in this cluster will be written into file \File{foo.log}.
                                                                           
       Queue 150
 \end{verbatim}
+\normalsize
 
 \item{Command Line example:} The following command uses the
 \Opt{-append} option to add two commands before the job(s) is queued.
 A log file and an error log file are specified.
 The submit description file is unchanged.
 \footnotesize
-\normalsize
 \begin{verbatim}
 condor_submit -a "log = out.log" -a "error = error.log" mysubmitfile
 \end{verbatim}
+\normalsize
 Note that each of the added commands is contained within quote marks
 because there are space characters within the command.
 
