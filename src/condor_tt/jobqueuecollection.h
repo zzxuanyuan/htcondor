@@ -73,8 +73,12 @@ public:
 	~ClassAdBucket() {
 		if (cid != NULL) free(cid);
 		if (pid != NULL) free(pid);
-	//added by ameet as a possible solution to the memory leak problem
-		if (ad != NULL) {ad->clear(); delete ad;}
+
+			//added by ameet as a possible solution to the memory leak problem
+		if (ad != NULL) {
+			ad->clear(); 
+			delete ad;
+		}
 	}
 
 	enum AD_TYPE {UNKNOWN, PROC_AD, CLUSTER_AD};	
@@ -118,8 +122,6 @@ public:
        	//
        	// Insert / Delete
        	//
-	//! insert a HistoryAd
-	int 	        insertHistoryAd(char* cid, char* pid, ClassAd* historyAd); 
 	//! insert a ProcAd
 	int 	        insertProcAd(char* cid, char* pid, ClassAd* procAd); 
 	//! insert a ClusterAd
@@ -139,12 +141,10 @@ public:
        	// For Iteration	
        	//
 	void		initAllJobAdsIteration();
-	void		initAllHistoryAdsIteration();
 	char*		getNextClusterAd_H_CopyStr();  // ClusterAd_Horizontal
 	char*		getNextClusterAd_V_CopyStr();  // ClusterAd_Vertical
 	char*		getNextProcAd_H_CopyStr();    //  ProcAd_Horizontal
 	char*		getNextProcAd_V_CopyStr();    // ProcAd_Vertical
-	int         getNextHistoryAd_SqlStr(char*& historyad_hor_str, char*& historyad_ver_str);
 	ClassAd*	find(char* cid, char* pid = NULL);
 
 private:
@@ -152,31 +152,23 @@ private:
        	// helper functions
        	//
 	int 		insert(char* id, ClassAdBucket* pBucket, ClassAdBucket **ppBucket); 
-	int		remove(char* cid, char* pid = NULL);
+	int 		remove(char* cid, char* pid = NULL);
 
 	void		getNextAdCopyStr(bool bHor, int& index, ClassAdBucket** ppBucketList, char*& ret_str);
 	void		makeCopyStr(bool bHor, char* cid, char* pid, ClassAd* ad, char*& ret_str);
-	void        makeHistoryAdSqlStr(char* cid, char* pid, ClassAd* ad, 
-									char*& historyad_hor_str, char*& historyad_ver_str);
-
-	int		hashfunction(char* str);
-
-
+	int			hashfunction(char* str);
 
 	int    		procAdNum;	       		//!< # of ProcAds
 	int    	    clusterAdNum;		      	//!< # of ClusterAds
-	int         historyAdNum;
 
 	int    		curClusterAdIterateIndex;	//!< current index of ClusterAd
 	int    	    curProcAdIterateIndex;		//!< current index of ProcAd
-	int         curHistoryAdIterateIndex;       //!< current index of HistoryAd
 
 	bool   		bChained;			//!< currently following a chain or not?
 	ClassAdBucket 	*pCurBucket;			//!< current ClassAd Bucket pointer
 
 	ClassAdBucket 	**_ppProcAdBucketList;		//!< ProcAds Bucket List
 	ClassAdBucket 	**_ppClusterAdBucketList;	//!< ClusterAds Bucket List
-	ClassAdBucket   **_ppHistoryAdBucketList;
 
 	int    		_iBucketSize;		       	//!< Static Hash Table Size
 
@@ -187,9 +179,6 @@ private:
 	char*	ClusterAd_V_CopyStr;
 	char*	ProcAd_H_CopyStr;
 	char*	ProcAd_V_CopyStr;
-	char*   HistoryAd_Hor_SqlStr;
-	char*   HistoryAd_Ver_SqlStr;
-
 	char*   scheddname;
 };
 

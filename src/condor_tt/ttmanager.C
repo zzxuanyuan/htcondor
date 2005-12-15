@@ -45,7 +45,9 @@
 
 #define TIMELEN 60
 
-char logParamList[][30] = {"NEGOTIATOR_SQLLOG", "SCHEDD_SQLLOG", "SHADOW_SQLLOG", "STARTER_SQLLOG", "STARTD_SQLLOG", "SUBMIT_SQLLOG", ""};
+char logParamList[][30] = {"NEGOTIATOR_SQLLOG", "SCHEDD_SQLLOG", 
+						   "SHADOW_SQLLOG", "STARTER_SQLLOG", 
+						   "STARTD_SQLLOG", "SUBMIT_SQLLOG", ""};
 
 #define FILESIZELIMT 1900000000L
 #define THROWFILE numLogs
@@ -59,7 +61,7 @@ static int attHashFunction (const MyString &str, int numBuckets);
 static int isStaticMachineAttr(char *attName);
 static int typeOf(char *attName);
 static int file_checksum(char *filePathName, int fileSize, char *sum);
-static int append(char *destF, char *srcF);
+static QuillErrCode append(char *destF, char *srcF);
 
 //! constructor
 TTManager::TTManager()
@@ -150,12 +152,6 @@ TTManager::config(bool reconfig)
 		dprintf(D_ALWAYS, "%s ", sqlLogList[i]);
 	dprintf(D_ALWAYS, "\n");
 
-		// this function is also called when condor_reconfig is issued
-		// and so we dont want to recreate all essential objects
-	if(!reconfig) {
-		numTimesPolled = 0; 		
-	}
-
 	jqDBManager.config(reconfig);
 	jqDBManager.init();
 
@@ -183,49 +179,53 @@ TTManager::registerTimers()
 void
 TTManager::pollingTime()
 {
-	dprintf(D_ALWAYS, "******** Start of Polling ********\n");
-
 		/*
 		  instead of exiting on error, we simply return 
 		  this means that tt will not usually exit on loss of 
-		  database connectivity, and that it will keep polling
-		  and trying to connect until database is back up again 
-		  and then resume execution 
+		  database connectivity or other errors, and that it will keep polling
+		  until it's successful.
 		*/
-	if (maintain() == 0) {
-		dprintf(D_ALWAYS, 
-				">>>>>>>> Fail: Probing <<<<<<<<\n");
-		return;
-			//DC_Exit(1);
-	}
-
-	dprintf(D_ALWAYS, "********* End of Probing *********\n");
-	numTimesPolled++;
+	maintain();
 }
 
-int
+void
 TTManager::maintain() 
 {	
-	int retcode;
+	QuillErrCode retcode;
 
 		// first call the job queue maintain function
+	dprintf(D_ALWAYS, "******** Start of Polling Job Queue Log ********\n");
+
 	retcode = jqDBManager.maintain();
 
-	if (retcode <= 0)
-		return retcode;
+	if (retcode == FAILURE) {
+		dprintf(D_ALWAYS, 
+				">>>>>>>> Fail: Polling Job Queue Log <<<<<<<<\n");		
+	} else {
+		dprintf(D_ALWAYS, "********* End of Polling Job Queue Log *********\n");
+	}
 
 		// call the event log maintain function
-	return this->event_maintain();
+	dprintf(D_ALWAYS, "******** Start of Polling Event Log ********\n");
+
+	retcode = this->event_maintain();
+
+	if (retcode == FAILURE) {
+		dprintf(D_ALWAYS, 
+				">>>>>>>> Fail: Polling Event Log <<<<<<<<\n");		
+	} else {
+		dprintf(D_ALWAYS, "********* End of Polling Event Log *********\n");
+	}
+
 }
 
-int
+QuillErrCode
 TTManager::event_maintain() 
 {
 	FILESQL *filesqlobj;
 	const char *buf = (char *)0;
 
 	int  buflength=0;
-	int  retval;
 	bool firststmt = true;
 	char optype[7], eventtype[EVENTTYPEMAX];
 	AttrList *ad = 0, *ad1 = 0;
@@ -236,26 +236,23 @@ TTManager::event_maintain()
 	for(i=0; i < numLogs; i++) {
 		filesqlobj = new FILESQL(sqlLogList[i], O_CREAT|O_RDWR);
 
-		retval = filesqlobj->file_open();
-		if (retval < 0) {
+	    if (filesqlobj->file_open() == FAILURE) {
 			goto ERROREXIT;
 		}
 
-		retval = filesqlobj->file_lock();
-		
-		if (retval < 0) {
+		if (filesqlobj->file_lock() == FAILURE) {
 			goto ERROREXIT;
 		}		
 		
-		if (append(sqlLogCopyList[i], sqlLogList[i]) < 0) {
+		if (append(sqlLogCopyList[i], sqlLogList[i]) == FAILURE) {
 			goto ERROREXIT;
 		}
 
-		if((retval = filesqlobj->file_truncate()) < 0) {
+		if(filesqlobj->file_truncate() == FAILURE) {
 			goto ERROREXIT;
 		}
 
-		if((retval = filesqlobj->file_unlock()) < 0) {
+		if(filesqlobj->file_unlock() == FAILURE) {
 			goto ERROREXIT;
 		}
 		delete filesqlobj;
@@ -270,15 +267,11 @@ TTManager::event_maintain()
 	for(i=0; i < numLogs+1; i++) {
 		filesqlobj = new FILESQL(sqlLogCopyList[i], O_CREAT|O_RDWR);
 
-		retval = filesqlobj->file_open();
-		
-		if (retval < 0) {
+		if (filesqlobj->file_open() == FAILURE) {
 			goto ERROREXIT;
 		}
 			
-		filesqlobj->file_lock();
-		
-		if (retval < 0) {
+		if (filesqlobj->file_lock() == FAILURE) {
 			goto ERROREXIT;
 		}
 
@@ -370,11 +363,11 @@ TTManager::event_maintain()
 			line_buf = new MyString();
 		}
 
-		if((retval = filesqlobj->file_truncate()) < 0) {
+		if(filesqlobj->file_truncate() == FAILURE) {
 			goto ERROREXIT;
 		}
 
-		if((retval = filesqlobj->file_unlock()) < 0) {
+		if(filesqlobj->file_unlock() == FAILURE) {
 			goto ERROREXIT;
 		}
 
@@ -414,7 +407,7 @@ TTManager::event_maintain()
 		  tm->tm_hour,
 		  tm->tm_min,
 		  tm->tm_sec,
-		  my_timezone());
+		  my_timezone(tm->tm_isdst));
 	
 	scheddname = jqDBManager.getScheddname();
 	
@@ -428,7 +421,7 @@ TTManager::event_maintain()
 
 	DBObj -> disconnectDB();
 
-	return 1;
+	return SUCCESS;
 
  ERROREXIT:
 	if(filesqlobj) {
@@ -444,7 +437,7 @@ TTManager::event_maintain()
 	
 	DBObj -> disconnectDB();
 
-	return 0;
+	return FAILURE;
 
  DBERROR:
 
@@ -466,7 +459,7 @@ TTManager::event_maintain()
 
 	DBObj -> disconnectDB();
 
-	return 0;
+	return FAILURE;
 }
 
 void TTManager::checkAndThrowBigFiles() {
@@ -516,7 +509,7 @@ void TTManager::checkAndThrowBigFiles() {
 	delete thrownfileobj;
 }
 
-int TTManager::insertMachines(AttrList *ad) {
+QuillErrCode TTManager::insertMachines(AttrList *ad) {
 	HashTable<MyString, MyString> newClAd(200, attHashFunction, updateDuplicateKeys);
 	char *sql_stmt = NULL;
 	MyString classAd;
@@ -665,7 +658,7 @@ int TTManager::insertMachines(AttrList *ad) {
 		 if (attNameList) free(attNameList);
 		 if (attValList) free(attValList);		 
 		 free(sql_stmt);
-		 return -1;
+		 return FAILURE;
 	 }
 
 	 sprintf(sql_stmt, "DELETE FROM Machine_Classad WHERE machine_id = '%s'", machine_id.Value());
@@ -676,7 +669,7 @@ int TTManager::insertMachines(AttrList *ad) {
 		 if (attNameList) free(attNameList);
 		 if (attValList) free(attValList);		 
 		 free(sql_stmt);
-		 return -1;
+		 return FAILURE;
 	 }
 
 	 free(sql_stmt);
@@ -691,7 +684,7 @@ int TTManager::insertMachines(AttrList *ad) {
 		 if (attNameList) free(attNameList);
 		 if (attValList) free(attValList);
 		 free(sql_stmt);
-		 return -1;
+		 return FAILURE;
 	 }
 	 
 	 free(sql_stmt);
@@ -713,7 +706,7 @@ int TTManager::insertMachines(AttrList *ad) {
 			 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 			 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
 			 free(sql_stmt);
-			 return -1;
+			 return FAILURE;
 		 }
 			
 		 sprintf(sql_stmt, "INSERT INTO Machine_History SELECT machine_id, attr_name, attr_value, start_time, %s FROM Machine WHERE machine_id = '%s' AND attr_name = '%s' AND attr_value != '%s'", 
@@ -723,7 +716,7 @@ int TTManager::insertMachines(AttrList *ad) {
 			 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 			 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);		
 			 free(sql_stmt);
-			 return -1;
+			 return FAILURE;
 		 }
 
 		 sprintf(sql_stmt, "UPDATE Machine SET attr_value = '%s', start_time = %s WHERE machine_id = '%s' AND attr_name = '%s' AND attr_value != '%s';", 
@@ -733,15 +726,15 @@ int TTManager::insertMachines(AttrList *ad) {
 			dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 			dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
 			free(sql_stmt);
-			return -1;
+			return FAILURE;
 		 }
 		 
 		 free(sql_stmt);
 	 }
-	 return 0;
+	 return SUCCESS;
 }
 
-int TTManager::insertBasic(AttrList *ad, char *tableName) {
+QuillErrCode TTManager::insertBasic(AttrList *ad, char *tableName) {
 	char *sql_stmt = NULL;
 	MyString classAd;
 	const char *iter;	
@@ -818,20 +811,21 @@ int TTManager::insertBasic(AttrList *ad, char *tableName) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
 		free(sql_stmt);
-		return -1;
+		return FAILURE;
 	}
 
 	free(sql_stmt);
 
-	return 0;
+	return SUCCESS;
 }
 
-int TTManager::insertEvents(AttrList *ad) {
+QuillErrCode TTManager::insertEvents(AttrList *ad) {
 	char *sql_stmt = NULL;
 	MyString classAd;
 	const char *iter;	
 	char *attName = NULL, *attVal;
-	char scheddname[50] = "", cluster[10] = "", proc[10] = "", subproc[10] = "", 
+	char scheddname[50] = "", cluster[10] = "", proc[10] = "", 
+		subproc[10] = "", 
 		eventts[100] = "", messagestr[512] = "";
 	int eventtype;
 	
@@ -897,20 +891,21 @@ int TTManager::insertEvents(AttrList *ad) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
 		free(sql_stmt);
-		return -1;
+		return FAILURE;
 	}
 
 	free(sql_stmt);
-	return 0;
+	return SUCCESS;
 }
 
-int TTManager::insertFiles(AttrList *ad) {
+QuillErrCode TTManager::insertFiles(AttrList *ad) {
 	char *sql_stmt = NULL;
 	MyString classAd;
 	const char *iter;	
 	char *attName = NULL, *attVal;
 	
-	char f_name[_POSIX_PATH_MAX] = "", f_host[50] = "", f_path[_POSIX_PATH_MAX] = "", f_ts[30] = "";
+	char f_name[_POSIX_PATH_MAX] = "", f_host[50] = "", 
+		f_path[_POSIX_PATH_MAX] = "", f_ts[30] = "";
 	int f_size;
 	char pathname[_POSIX_PATH_MAX] = "";
 	char hexSum[MAC_SIZE*2+1] = "", sum[MAC_SIZE+1] = "";	
@@ -1032,14 +1027,14 @@ int TTManager::insertFiles(AttrList *ad) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
 		free(sql_stmt);
-		return -1;
+		return FAILURE;
 	}
 
 	free(sql_stmt);
-	return 0;
+	return SUCCESS;
 }
 
-int TTManager::insertFileusages(AttrList *ad) {
+QuillErrCode TTManager::insertFileusages(AttrList *ad) {
 	char *sql_stmt = NULL;
 	MyString classAd;
 	const char *iter;	
@@ -1103,14 +1098,14 @@ int TTManager::insertFileusages(AttrList *ad) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
 		free(sql_stmt);
-		return -1;
+		return FAILURE;
 	}
 
 	free(sql_stmt);
-	return 0;
+	return SUCCESS;
 }
 
-int TTManager::insertHistoryJob(AttrList *ad) {
+QuillErrCode TTManager::insertHistoryJob(AttrList *ad) {
   int        cid, pid;
   char       *sql_stmt = NULL;
   ExprTree *expr;
@@ -1135,7 +1130,7 @@ int TTManager::insertHistoryJob(AttrList *ad) {
 		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
 		 free(sql_stmt);
-		 return -1;	  
+		 return FAILURE;	  
   }
   else {
 	  free(sql_stmt);
@@ -1235,7 +1230,7 @@ int TTManager::insertHistoryJob(AttrList *ad) {
 			  free(value);
 			  free(sql_stmt);
 
-			  return -1;
+			  return FAILURE;
 		  }
 		  
 		  free(name);
@@ -1246,17 +1241,18 @@ int TTManager::insertHistoryJob(AttrList *ad) {
 	  }
   }  
 
-  return 0;
+  return SUCCESS;
 }
 
-int TTManager::updateBasic(AttrList *info, AttrList *condition, char *tableName) {
+QuillErrCode TTManager::updateBasic(AttrList *info, AttrList *condition, 
+									char *tableName) {
 	char *sql_stmt = NULL;
 	MyString classAd, classAd1;
 	const char *iter;	
 	char setList[1000]="", whereList[1000]="";
 	char *attName = NULL, *attVal;
 
-	if (!info) return 0;
+	if (!info) return SUCCESS;
 
 	info->sPrint(classAd);
 
@@ -1356,12 +1352,12 @@ int TTManager::updateBasic(AttrList *info, AttrList *condition, char *tableName)
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
 		free(sql_stmt);
-		return -1;
+		return FAILURE;
 	}
 	
 	free(sql_stmt);
 
-	return 0;
+	return SUCCESS;
 }
 
 static int 
@@ -1469,7 +1465,7 @@ static int file_checksum(char *filePathName, int fileSize, char *sum) {
 	return TRUE;
 }
 
-static int append(char *destF, char *srcF) 
+static QuillErrCode append(char *destF, char *srcF) 
 {	
 	int dest, src;
 	char buffer[4096];
@@ -1482,7 +1478,7 @@ static int append(char *destF, char *srcF)
 
 	while(rv > 0) {
 		if (write(dest, buffer, rv) < 0) {
-			return -1;
+			return FAILURE;
 		}
 		
 		rv = read(src, buffer, 4096);
@@ -1491,7 +1487,7 @@ static int append(char *destF, char *srcF)
 	close (dest);
 	close (src);
 
-	return 0;
+	return SUCCESS;
 }
 
 // hash function for strings

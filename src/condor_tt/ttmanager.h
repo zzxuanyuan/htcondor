@@ -28,6 +28,7 @@
 #include "daemon.h"
 
 #include "jobqueuedbmanager.h"
+#include "quill_enums.h"
 
 #define MAXLOGNUM 7
 #define MAXLOGPATHLEN 100
@@ -56,21 +57,21 @@ class TTManager : public Service
  private:
 
 		// top level maintain function
-	int     maintain();
+	void     maintain();
 
 		// general event log maintain function (non-transactional data)
-	int  	event_maintain();
+	QuillErrCode event_maintain();
 
 		// check and throw away big files
 	void    checkAndThrowBigFiles();
 
-	int     insertMachines(AttrList *ad);
-	int     insertEvents(AttrList *ad);
-	int     insertFiles(AttrList *ad);
-	int     insertFileusages(AttrList *ad);
-	int     insertHistoryJob(AttrList *ad);
-	int     insertBasic(AttrList *ad, char *tableName);
-	int     updateBasic(AttrList *info, AttrList *condition, char *tableName);
+	QuillErrCode insertMachines(AttrList *ad);
+	QuillErrCode insertEvents(AttrList *ad);
+	QuillErrCode insertFiles(AttrList *ad);
+	QuillErrCode insertFileusages(AttrList *ad);
+	QuillErrCode insertHistoryJob(AttrList *ad);
+	QuillErrCode insertBasic(AttrList *ad, char *tableName);
+	QuillErrCode updateBasic(AttrList *info, AttrList *condition, char *tableName);
 
 	char    sqlLogList[MAXLOGNUM][MAXLOGPATHLEN];
 	char    sqlLogCopyList[MAXLOGNUM+1][MAXLOGPATHLEN]; // 1 more file for "thrown" file
@@ -79,7 +80,6 @@ class TTManager : public Service
 	int		pollingTimeId;			//!< timer handler id of pollingTime function
 	int		pollingPeriod;			//!< polling time period in seconds
 
-	int		numTimesPolled;			//!< used to vacuum and analyze job queue tables
 	Database* DBObj;
 	JobQueueDBManager jqDBManager;
 	const char*	jobQueueDBConn;  		//!< DB connection string

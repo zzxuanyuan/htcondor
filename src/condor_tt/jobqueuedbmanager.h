@@ -23,8 +23,6 @@
 #ifndef _JOBQUEUEDBMANAGER_H_
 #define _JOBQUEUEDBMANAGER_H_
 
-//#define _REMOTE_DB_CONNECTION_ 
-
 #include "condor_common.h"
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
 #include "daemon.h"
@@ -32,12 +30,17 @@
 //for the collectorlist::create call
 #include "dc_collector.h" 
 
-#include "classadlogentry.h"
+#include "../condor_quill/classadlogentry.h"
 #include "jobqueuecollection.h"
+#include "quill_enums.h"
 
 class Prober;
 class ClassAdLogParser;
 class Database;
+
+#ifndef MAX_FIXED_SQL_STR_LENGTH
+#define MAX_FIXED_SQL_STR_LENGTH 2048
+#endif
 
 //! JobQueueDBManager
 /*! \brief this class orchestrates all of Quill.  
@@ -53,32 +56,27 @@ class JobQueueDBManager : public Service
 	
 		//! read all config options from condor_config file. 
 		//! Also create class members instead of doing it in the constructor
-	void    config(bool reconfig = false);
+	void config(bool reconfig = false);
 	
 		//! initialize: currently check the DB schema
-	int		init();
+	QuillErrCode init();
 	
 		//! maintain the database
-	int  	maintain();
+	QuillErrCode maintain();
 	
 		//! get Last Job Queue File Polling Information 
-	int		getJQPollingInfo(long& mtime, long& size, ClassAdLogEntry* lcmd = NULL); 	
+	QuillErrCode getJQPollingInfo(); 	
 		//! set Current Job Queue File Polling Information 
-	int		setJQPollingInfo(long mtime, long size, ClassAdLogEntry* lcmd = NULL); 	
+	QuillErrCode setJQPollingInfo(); 	
 		//	
 		// accessors
 		//
-	void	            setJobQueueFileName(const char* jqName);
-	const char*         getJobQueueDBConn() { return jobQueueDBConn; }
-	ClassAdLogParser*	getClassAdLogParser();
-	const char*         getScheddname() { return scheddname; }
+	void setJobQueueFileName(const char* jqName);
+	const char* getJobQueueDBConn() { return jobQueueDBConn; }
+	ClassAdLogParser* getClassAdLogParser();
+	const char* getScheddname() { return scheddname; }
 
  private:
-
-		//! escape quoted strings since postgres doesn't like 
-		//! unescaped single quotes
-	char *   fillEscapeCharacters(char *str);
-	
 		//
 		// helper functions
 		// ----
@@ -89,11 +87,10 @@ class JobQueueDBManager : public Service
 		//
 	
 		//! purge all job queue rows and process the entire job_queue.log file
-	int 	initJobQueueTables();
+	QuillErrCode initJobQueueTables();
 		//! process only the DELTA
-	int 	addJobQueueTables();
+	QuillErrCode addJobQueueTables();
 	
-
 		/*! 
 		  The following routines are related to the bulk-loading phase
 		  of quill where it processes and keeps the entire job queue in 
@@ -106,16 +103,16 @@ class JobQueueDBManager : public Service
 
 		//! build the job queue collection by reading entries in 
 		//! job_queue.log file and load them into RDBMS		
-	int 	buildAndWriteJobQueue();
+	QuillErrCode buildAndWriteJobQueue();
 
 		//! does the actual building of the job queue
-	int		buildJobQueue(JobQueueCollection *jobQueue);
+	QuillErrCode buildJobQueue(JobQueueCollection *jobQueue);
 	
 		//! dumps the in-memory job queue to the database
-	int		loadJobQueue(JobQueueCollection *jobQueue);
+	QuillErrCode loadJobQueue(JobQueueCollection *jobQueue);
 	
 		//! the routine that processes each entry (insert/delete/etc.)
-	int		processLogEntry(int op_type, JobQueueCollection *jobQueue);
+	QuillErrCode processLogEntry(int op_type, JobQueueCollection *jobQueue);
 
 
 		/* 
@@ -128,80 +125,68 @@ class JobQueueDBManager : public Service
 		*/
 
 		//! incrementally read and write log entries to database
-		//! calls processLogEntry on each new log entry in the job_queue.log file
+		//! calls processLogEntry on each new log entry in the job_queue.log
+		//!	file
 	
-	int 	readAndWriteLogEntries();
+	QuillErrCode readAndWriteLogEntries();
 
 		//! is a wrapper over all the processXXX functions
 		//! in this and all the processXXX routines, if exec_later == true, 
 		//! a SQL string is returned instead of actually sending it to the DB.
 		//! However, we always have exec_later = false, which means it actually
 		//! writes to the database in an eager fashion
-	int		processLogEntry(int op_type, bool exec_later);
-	int		processNewClassAd(char* key, 
-							  char* mytype, 
-							  char* ttype, 
-							  bool exec_later = false);
+	QuillErrCode processLogEntry(int op_type, bool exec_later);
+	QuillErrCode processNewClassAd(char* key, 
+									char* mytype, 
+									char* ttype, 
+									bool exec_later = false);
 		//! in addition to deleting the classad, this routine is also 
 		//! responsible for maintaining the history tables.  Thanks to
 		//! this catch, we can get history for free, i.e. without having
 		//! to sniff the history file
-	int		processDestroyClassAd(char* key, bool exec_later = false);
-	int		processSetAttribute(char* key, 
-								char* name, 
-								char* value, 
-								bool exec_later = false);
-	int		processDeleteAttribute(char* key, char* name, bool exec_later = false);
-	int		processBeginTransaction(bool exec_later = false);
-	int		processEndTransaction(bool exec_later = false);
-
+	QuillErrCode processDestroyClassAd(char* key, bool exec_later = false);
+	QuillErrCode processSetAttribute(char* key, 
+									  char* name, 
+									  char* value, 
+									  bool exec_later = false);
+	QuillErrCode processDeleteAttribute(char* key, 
+										char* name, 
+										bool exec_later = false);
+	QuillErrCode processBeginTransaction(bool exec_later = false);
+	QuillErrCode processEndTransaction(bool exec_later = false);
 
 		//! deletes all rows from all job queue related tables
-	int		cleanupJobQueueTables();
+	QuillErrCode cleanupJobQueueTables();
 	
 		//! runs the postgres garbage collection and statistics 
 		//! collection routines on the job queue related tables
-	int		tuneupJobQueueTables();
+	QuillErrCode tuneupJobQueueTables();
 
 		//! split key into cid and pid
-	int		getProcClusterIds(const char* key, char* cid, char* pid);
+	JobIdType getProcClusterIds(const char* key, char* cid, char* pid);
 
 		//! utility routine to show database error mesage
-	void	displayDBErrorMsg(const char* errmsg);
+	void displayDBErrorMsg(const char* errmsg);
 
 		//! connect and disconnect to the postgres database
-	int 	connectDB(int Xact = BEGIN_XACT);
-	int		disconnectDB(int commit = COMMIT_XACT);
+	QuillErrCode connectDB(XactState Xact = BEGIN_XACT);
+	QuillErrCode disconnectDB(XactState commit = COMMIT_XACT);
 	
-	void		addJQPollingInfoSQL(char* dest, char* src_name, char* src_val);
+	void addJQPollingInfoSQL(char* dest, char* src_name, char* src_val);
+
 		//
 		// members
 		//
 	Prober*	            prober;			//!< Prober
 	ClassAdLogParser*	caLogParser;	//!< ClassAd Log Parser
-	Database*	jqDatabase;		//!< Job Queue Database
-
-	enum    XACT_STATE {NOT_IN_XACT, 
-						BEGIN_XACT, 
-						COMMIT_XACT, 
-						ABORT_XACT}; 
-	XACT_STATE	xactState;		    //!< current XACT state
-
-
+	Database*	DBObj;		//!< Database obj
+	XactState	xactState;		    //!< current XACT state
 	char*	jobQueueLogFile; 		//!< Job Queue Log File Path
 	char*	jobQueueDBConn;  		//!< DB connection string
 	char*	jobQueueDBIpAddress;    //!< <IP:PORT> address of DB
 	char*	jobQueueDBName;         //!< DB Name
 	char*   jobQueueDBUser;
-	char*   jobQueueDBPasswd;
-
-	int     pollingPeriod;                  //!< polling time period in seconds
-
-	char*	multi_sql_str;			//!< buffer for SQL
-
-	int		numTimesPolled;			//!< used to vacuum and analyze job queue tables
-
-	char*   pollingInfoLog; 		// log file containing job queue polling info
+	char*	multi_sql_str;	 //!< buffer for SQL
 	char*   scheddname;
 };
 
