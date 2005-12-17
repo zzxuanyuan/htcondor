@@ -206,6 +206,42 @@ int main(int argc, char **argv)
         }
     }
     
+	// User log must be fully qualified path.
+	std::string userlog;
+	if	(	currentAd->EvaluateAttrString("log", userlog) ) {
+		fprintf(stderr, "%d: log is defined: \"%s\"\n", __LINE__,
+				userlog.c_str() );
+	}
+	if  (userlog.empty() ) {
+		fprintf(stderr, "%d: log is not empty\n", __LINE__);
+	}
+	if (fullpath(userlog.c_str() ) ) {
+		fprintf(stderr, "%d: log is full path\n", __LINE__);
+	}
+	if	(	currentAd->EvaluateAttrString("log", userlog) && 
+			!userlog.empty() &&
+			!fullpath(userlog.c_str() )
+		)
+	{
+		char tmpCwd[PATH_MAX];
+		if ( ! getcwd(tmpCwd, sizeof(tmpCwd) ) ) {
+			fprintf(stderr, "getcwd() error: %s",
+					strerror(errno) );
+			return 1;
+		}
+		std::string tmp  = tmpCwd;
+		tmp += DIR_DELIM_STRING;
+		tmp += userlog;
+		userlog = tmp;
+fprintf(stderr, "trace %d\n", __LINE__);
+		if (! currentAd->InsertAttr("log", userlog) ) {
+fprintf(stderr, "trace %d\n", __LINE__);
+			fprintf(stderr,"error inserting userlog fully qualified path: %s\n",
+				classad::CondorErrMsg.c_str() );
+			return 1;
+		}
+	}
+
     //check format of the submit classad
     if ( !check_dap_format(currentAd)){
       fprintf(stderr, "========================\n");

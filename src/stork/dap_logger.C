@@ -9,6 +9,7 @@
 #include "dap_logger.h"
 #include "dap_error.h"
 #include "dap_server_interface.h"
+#include "user_log.c++.h"
 
 extern char *clientagenthost;
 
@@ -393,14 +394,99 @@ write_xml_user_log(
   fclose(flog);
 }
 
+bool
+user_log_submit(	const classad::ClassAd *ad,
+					UserLog& user_log)
+{
+	SubmitEvent jobSubmit;
+	std::string logNotes;
 
+	if	(	ad->EvaluateAttrString("LogNotes", logNotes) &&
+			!logNotes.empty()
+		)
+	{
+		// Ugh.  The SubmitEvent destructor will
+		// delete[] submitEventLogNotes, so "new" one up here.
+		jobSubmit.submitEventLogNotes =
+			new char [ logNotes.length()+1 ];
+		strcpy(jobSubmit.submitEventLogNotes, logNotes.c_str() );
+	}
 
+	std::string submit_host;
+	ad->EvaluateAttrString("submit_host", submit_host);
+	strncpy(jobSubmit.submitHost, submit_host.c_str(),
+			sizeof(jobSubmit.submitHost) - 1 );
+	jobSubmit.submitHost[ sizeof(jobSubmit.submitHost) - 1 ] = '\0';
 
+	if ( ! user_log.writeEvent(&jobSubmit) ) {
+		fprintf(stderr, "\nERROR: Failed to log submit event.\n");
+	}
 
+	return true;
+}
 
+bool
+user_log(			const classad::ClassAd *ad,
+					const enum ULogEventNumber eventNum)
+{
+	std::string userLogFile;
+	int dap_id;
+	bool log_xml;
+	UserLog usr_log;
 
+	if	(	!ad->EvaluateAttrString("log", userLogFile) ||
+			userLogFile.empty()
+		)
+	{
+		// No valid user log file specified.
+		return true;
+	}
 
+	if	(	!ad->EvaluateAttrInt("dap_id", dap_id) )
+	{
+		// No valid dap_id.
+		dprintf(D_ALWAYS, "user log request has no job id\n");
+		return false;
+	}
 
+	if	(	!ad->EvaluateAttrBool("log_xml", log_xml) ) {
+		log_xml = false;	// Default: do not log in XML format
+	}
+	usr_log.setUseXML(log_xml);
 
+	std::string owner;
+	if ( ! ad->EvaluateAttrString("owner", owner) || owner.empty() ) {
+		dprintf(D_ALWAYS,
+				"unable to extract owner to log job %d user log event %d\n",
+				dap_id, eventNum);
+		return false;
+	}
+	if (! usr_log.initialize(
+				owner.c_str(),			// owner
+				NULL,					// domain TODO: fix for WIN32
+				userLogFile.c_str(),	// user log file
+				dap_id,					// cluster
+				-1,						// proc
+				-1)						// subproc
+		)
+	{
+		dprintf(D_ALWAYS,
+				"error initializing user log event %d for job %d\n",
+				eventNum, dap_id);
+		return false;
+	}
 
+	switch(eventNum) {
+		case ULOG_SUBMIT:
+			return user_log_submit(ad, usr_log);
+			break;
+
+		default:
+			dprintf(D_ALWAYS, "job %d write user log for unknown event %d\n",
+					dap_id, eventNum);
+			return false;
+	}
+
+	return true;
+}
 

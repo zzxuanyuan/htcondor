@@ -16,6 +16,7 @@
 #include "env.h"
 #include "daemon.h"
 #include "condor_config.h"
+#include "internet.h"
 
 #ifndef WANT_NAMESPACES
 #define WANT_NAMESPACES
@@ -569,18 +570,20 @@ void process_request(classad::ClassAd *currentAd)
 
 
 		// Init user id for the right user
-	std::string key="owner";
-	std::string _owner;
-	const char * owner = NULL;
-
-	if (currentAd->EvaluateAttrString(key, _owner)) {
-		owner = _owner.c_str();
+	std::string owner;
+	std::string key = "owner";
+	if (! currentAd->EvaluateAttrString(key, owner) || owner.empty() ) {
+		dprintf (D_ALWAYS, "Unable to extract owner for job %s\n", dap_id);
+		return;
 	}
-
-	if (!init_user_id_from_FQN (owner) ) {
-		dprintf (D_ALWAYS, "Unable to find local user for \"%s\"\n", owner);
+#ifdef WIN32
+#error FIX init_user_ids( domain ) for Windows
+#endif
+	if ( ! init_user_ids(owner.c_str(), NULL) ) {
+		dprintf (D_ALWAYS, "Unable to find local user for owner \"%s\"\n",
+				owner.c_str() );
+		return;
 	}
-
 
 		// Check for GSI proxy
 	char * cred_file_name = NULL;
@@ -599,8 +602,23 @@ void process_request(classad::ClassAd *currentAd)
 
 				// Save to file
 
-				// Create file as root
-			priv_state old_priv = set_root_priv();
+			// Create file as user
+			//priv_state old_priv = set_root_priv();
+			std::string owner;
+			if	(	! currentAd->EvaluateAttrString("owner", owner) ||
+					owner.empty()
+				)
+			{
+				dprintf (D_ALWAYS, "Unable to extract owner for job %s\n",
+						dap_id);
+				return;
+			}
+			if ( ! init_user_ids( owner.c_str(), NULL) ) {
+				dprintf (D_ALWAYS, "Unable to switch to owner %s for job %s\n",
+						owner.c_str(), dap_id);
+				return;
+			}
+			priv_state old_priv = set_user_priv();
 			int fd = open (cred_file_name, O_WRONLY | O_CREAT );
 			if (fd > -1) {
 				if ( fchmod (fd, S_IRUSR | S_IWUSR) < 0 ) {
@@ -1232,17 +1250,21 @@ int write_requests_to_file(ReliSock * sock)
 		return FALSE;
     }
 
-		// Insert "owner" attribute
-    char owner[MAXSTR];
-    sprintf (owner, "\"%s\"", sock->getFullyQualifiedUser());
-    if ( !parser.ParseExpression (owner, expr) ) {
-		dprintf(D_ALWAYS,"Parse error (owner)\n");
+	// Insert "owner" attribute
+	std::string owner = sock->getOwner();
+	if (! requestAd->InsertAttr("owner", owner) ) {
+		// Must perform this error check for security reasons!
+		dprintf(D_ALWAYS, "error inserting owner into job ad: %s\n",
+				classad::CondorErrMsg.c_str() );
 		return FALSE;
-    }else {
-		requestAd->Delete("owner");
-		requestAd->Insert("owner", expr);
-    }
+	}
 
+	// Insert "remote_user" attribute
+	requestAd->InsertAttr("remote_user", sock->getFullyQualifiedUser() );
+
+	// Get remote submit host.
+	std::string submit_host = sin_to_string(sock->endpoint() );
+	requestAd->InsertAttr("submit_host", submit_host);
 
 		//add the dap_id to the request
     snprintf(last_dapstr, MAXSTR, "%ld", last_dap + 1);
@@ -1270,66 +1292,42 @@ int write_requests_to_file(ReliSock * sock)
 		sprintf (_dap_id_buff, "%ld", last_dap+1);
 		char * cred_file_name = get_credential_filename (_dap_id_buff);
 
-		if (!init_user_id_from_FQN(sock->getFullyQualifiedUser())) {
-			dprintf (D_ALWAYS, "ERROR: Unable to find local user for \"%s\"\n", sock->getFullyQualifiedUser());
+		// Switch to job user
+		if (! init_user_ids(owner.c_str(), NULL) ) {
+			dprintf(D_ALWAYS, "%s:%d init_user_ids(%s,NULL) failed\n",
+					__FILE__, __LINE__, owner.c_str() );
+			if (cred_buff) free(cred_buff);
+			return FALSE;
 		}
-     
-			// Switch to root
-		priv_state old_priv = set_root_priv();
-		int fd = open (cred_file_name, O_WRONLY | O_CREAT);
-		if (fd > -1) {
-			if ( fchmod (fd, S_IRUSR | S_IWUSR) < 0 ) {
-				dprintf( D_ALWAYS,
-						"%s:%d: cred file fchmod(%d,%#o): (%d)%s\n",
-						__FILE__, __LINE__,
-						fd, S_IRUSR | S_IWUSR,
-						errno, strerror(errno)
-				);
-			}
-			if ( fchown (fd, get_user_uid(), get_user_gid() ) < 0 ) {
-				dprintf( D_ALWAYS,
-						"%s:%d: cred file fchown(%d,%d,%d): (%d)%s\n",
-						__FILE__, __LINE__,
-						fd,  get_user_uid(), get_user_gid(),
-						errno, strerror(errno)
-				);
-			}
+		priv_state old_priv = set_user_priv();
+		int fd = open (cred_file_name, O_WRONLY | O_CREAT, 0600);
+		if (fd < 0) {
+			set_priv(old_priv);
+			dprintf(D_ALWAYS,
+					"error opening credential file %s for write: %s\n",
+					cred_file_name, strerror(errno) );
+			if (cred_buff) free(cred_buff);
+			if (cred_file_name) free(cred_file_name);
+			return FALSE;
 		}
-			// Switch back to non-priviledged user
-		set_priv(old_priv);
-
-		if (fd > -1) {
-			int nbytes = write (fd, cred_buff, cred_size);
-			if ( nbytes < cred_size ) {
-				dprintf( D_ALWAYS,
-						"%s:%d: cred short write: %d out of %d (%d)%s\n",
-						__FILE__, __LINE__,
-						nbytes, cred_size,
-						errno, strerror(errno)
-				);
-			}
-			close (fd);
-		} else {
-			dprintf(
-				D_ALWAYS,
-				"Unable to create credential storage file %s !\n%d(%s)\n",
-				cred_file_name,
-				errno,
-				strerror(errno)
-			);
+		int nbytes = full_write (fd, cred_buff, cred_size);
+		if (cred_buff) free(cred_buff);
+		if (nbytes != cred_size) {
+			close(fd);
+			unlink(cred_file_name);
+			set_priv(old_priv);
+			dprintf(D_ALWAYS,
+					"error writing credential file %s: %s\n",
+					cred_file_name, strerror(errno) );
+			if (cred_file_name) free(cred_file_name);
 			return FALSE;
 		}
 
-		free (cred_buff);
-      
-		char cred_file_name_expr[MAXSTR];
-		sprintf (cred_file_name_expr, "\"%s\"", cred_file_name);
-		if ( !parser.ParseExpression(cred_file_name_expr, expr) ) {
-			dprintf(D_ALWAYS,"Parse error (cred file name)\n");
-		}
+		close(fd);
+		set_priv(old_priv);
 
-		requestAd->Insert("x509proxy", expr);
-		free (cred_file_name);
+		requestAd->InsertAttr("x509proxy", cred_file_name);
+		if (cred_file_name) free (cred_file_name);
     } // if cred_buff
 
 		//insert the request to the dap collection
@@ -1356,9 +1354,10 @@ int write_requests_to_file(ReliSock * sock)
     
     
 		//write XML user logs
+	user_log(requestAd, ULOG_SUBMIT);
+
     char lognotes[MAXSTR];
     getValue(requestAd, "LogNotes", lognotes);
-    
     write_xml_user_log(userlogfilename, "MyType", "\"SubmitEvent\"", 
 					   "EventTypeNumber", "0", 
 					   "Cluster", last_dapstr,
@@ -1413,14 +1412,14 @@ int list_queue(ReliSock * sock)
 		}
 	}
 
-		// Determine the onwer of the request
-	const char * request_owner = sock->getFullyQualifiedUser();
+		// Determine the remote user of the request
+	const char * remote_user = sock->getFullyQualifiedUser();
 
 		// Create a query
 	std::string constraint;
-	constraint = "other.owner == ";
+	constraint = "other.remote_user == ";
 	constraint += "\"";
-	constraint += request_owner;
+	constraint += remote_user;
 	constraint += "\"";
 
 	classad::ClassAdParser parser;
@@ -2130,44 +2129,4 @@ get_cred_from_credd (const char * request, void *& buff, int & size) {
 	set_priv (priv);
 	return (rc==1)?TRUE:FALSE;
 }
-
-int
-init_user_id_from_FQN (const char * _fqn) {
-
-	char * uid = NULL;
-	char * domain = NULL;
-	char * fqn = NULL;
-  
-	if (_fqn) {
-		fqn = strdup (_fqn);
-		uid = fqn;
-
-			// Domain?
-		char * pAt = strchr (fqn, '@');
-		if (pAt) {
-			*pAt='\0';
-			domain = pAt+1;
-		}
-	}
-  
-	if (uid == NULL) {
-		uid = "nobody";
-	}
-
-	int rc = init_user_ids (uid, domain);
-	dprintf (D_FULLDEBUG, "Switching to user %s@%s, result = %d\n", uid, domain, rc);
-
-	if (fqn)
-		free (fqn);
-
-	return rc;
-}
-
-
-
-
-
-
-
-
 
