@@ -2,15 +2,21 @@
 #define New_classads_includes	-I$(NEW_CLASSADS_INC)
 #define New_classads_obj		credential.o X509credential.o
 #define New_classads_dc_obj		dc_credd.o
+#define New_classads_defines	-DWANT_NEW_CLASSADS
 #else
 #define New_classads_includes
 #define New_classads_obj
 #define New_classads_dc_obj
+#define New_classads_defines
 #endif
 
 all_target(cplus_lib.a liburl.a libcondorapi.a test_libcondorapi)
 
-C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS) New_classads_includes $(QUILL_INC)
+C_PLUS_FLAGS =	\
+				$(STD_C_PLUS_FLAGS) \
+				New_classads_defines \
+				New_classads_includes \
+				$(QUILL_INC)
 
 CFLAGS = $(STD_C_FLAGS) New_classads_includes
 LIB = $(STD_LIBS)
