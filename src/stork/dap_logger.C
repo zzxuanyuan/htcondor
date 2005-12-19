@@ -401,6 +401,9 @@ user_log_submit(	const classad::ClassAd *ad,
 	SubmitEvent jobSubmit;
 	std::string logNotes;
 
+	std::string dap_id;
+	ad->EvaluateAttrString("dap_id", dap_id);
+
 	if	(	ad->EvaluateAttrString("LogNotes", logNotes) &&
 			!logNotes.empty()
 		)
@@ -419,7 +422,42 @@ user_log_submit(	const classad::ClassAd *ad,
 	jobSubmit.submitHost[ sizeof(jobSubmit.submitHost) - 1 ] = '\0';
 
 	if ( ! user_log.writeEvent(&jobSubmit) ) {
-		fprintf(stderr, "\nERROR: Failed to log submit event.\n");
+		dprintf(D_ALWAYS, "ERROR: Failed to log job %s submit event.\n",
+				dap_id.c_str() );
+		return false;
+	}
+
+	return true;
+}
+
+bool
+user_log_terminated(	const classad::ClassAd *ad,
+						UserLog& user_log)
+{
+	JobTerminatedEvent event;
+	std::string termination_type;
+
+	std::string dap_id;
+	ad->EvaluateAttrString("dap_id", dap_id);
+
+	if	(	! ad->EvaluateAttrString("termination_type", termination_type) ||
+			termination_type.empty() )
+	{
+		dprintf(D_ALWAYS, "job %s has no termination type\n", dap_id.c_str() );
+		return false;
+	}
+
+	if (termination_type == "job_retry_limit") {
+		event.normal = false;
+	} else {
+		dprintf(D_ALWAYS, "job %s unknown termination type: %s\n",
+				dap_id.c_str(), termination_type.c_str() );
+		return false;
+	}
+
+	if ( ! user_log.writeEvent(&event) ) {
+		dprintf(D_ALWAYS, "ERROR: Failed to log terminated event.\n");
+		return false;
 	}
 
 	return true;
@@ -430,7 +468,7 @@ user_log(			const classad::ClassAd *ad,
 					const enum ULogEventNumber eventNum)
 {
 	std::string userLogFile;
-	int dap_id;
+	int cluster_id, proc_id, subproc_id;
 	bool log_xml;
 	UserLog usr_log;
 
@@ -442,12 +480,10 @@ user_log(			const classad::ClassAd *ad,
 		return true;
 	}
 
-	if	(	!ad->EvaluateAttrInt("dap_id", dap_id) )
-	{
-		// No valid dap_id.
-		dprintf(D_ALWAYS, "user log request has no job id\n");
-		return false;
-	}
+	// Get job identifiers
+	ad->EvaluateAttrInt("cluster_id",	cluster_id);
+	ad->EvaluateAttrInt("proc_id",		proc_id);
+	ad->EvaluateAttrInt("subproc_id",	subproc_id);
 
 	if	(	!ad->EvaluateAttrBool("log_xml", log_xml) ) {
 		log_xml = false;	// Default: do not log in XML format
@@ -458,21 +494,21 @@ user_log(			const classad::ClassAd *ad,
 	if ( ! ad->EvaluateAttrString("owner", owner) || owner.empty() ) {
 		dprintf(D_ALWAYS,
 				"unable to extract owner to log job %d user log event %d\n",
-				dap_id, eventNum);
+				cluster_id, eventNum);
 		return false;
 	}
 	if (! usr_log.initialize(
-				owner.c_str(),			// owner
+				owner.c_str(),
 				NULL,					// domain TODO: fix for WIN32
-				userLogFile.c_str(),	// user log file
-				dap_id,					// cluster
-				-1,						// proc
-				-1)						// subproc
+				userLogFile.c_str(),
+				cluster_id,
+				proc_id,
+				subproc_id)
 		)
 	{
 		dprintf(D_ALWAYS,
 				"error initializing user log event %d for job %d\n",
-				eventNum, dap_id);
+				eventNum, cluster_id);
 		return false;
 	}
 
@@ -481,9 +517,13 @@ user_log(			const classad::ClassAd *ad,
 			return user_log_submit(ad, usr_log);
 			break;
 
+		case ULOG_JOB_TERMINATED:
+			return user_log_terminated(ad, usr_log);
+			break;
+
 		default:
 			dprintf(D_ALWAYS, "job %d write user log for unknown event %d\n",
-					dap_id, eventNum);
+					cluster_id, eventNum);
 			return false;
 	}
 

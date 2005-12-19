@@ -929,15 +929,21 @@ void regular_check_for_requests_in_process()
 
 								remove_credential (dap_id);
 
+								//write user log
+								job_ad->InsertAttr("termination_type",
+										"job_retry_limit");
+								user_log(job_ad, ULOG_JOB_TERMINATED);
+
 
 								dapcollection->RemoveClassAd(key);
 								write_dap_log(historyfilename,
 										"\"request_failed\"", 
 											  "dap_id", dap_id, "error_code", "\"ABORTED!\"");
 		   
+								//write XML user logs
+								// FIXME delete this old userlog writer
 								char exit_status_str[MAXSTR];
 								snprintf(exit_status_str, MAXSTR, "%d", 9);
-		   
 								write_xml_user_log(userlogfilename, "MyType", "\"JobCompletedEvent\"", 
 												   "EventTypeNumber", "5", 
 												   "TerminatedNormally", "1",
@@ -1267,11 +1273,15 @@ int write_requests_to_file(ReliSock * sock)
 	requestAd->InsertAttr("submit_host", submit_host);
 
 		//add the dap_id to the request
-    snprintf(last_dapstr, MAXSTR, "%ld", last_dap + 1);
+	unsigned long this_dap_id = last_dap + 1;
+    snprintf(last_dapstr, MAXSTR, "%lu", this_dap_id);
     if ( !parser.ParseExpression(last_dapstr, expr) ) {
 		dprintf(D_ALWAYS,"Parse error\n");
     }
     requestAd->Insert("dap_id", expr);
+	requestAd->InsertAttr("cluster_id", (int)this_dap_id);
+	requestAd->InsertAttr("proc_id", -1);
+	requestAd->InsertAttr("subproc_id", -1);
 
 		//add the status to the request
     if ( !parser.ParseExpression("\"request_received\"", expr) ) {
@@ -1289,7 +1299,7 @@ int write_requests_to_file(ReliSock * sock)
 
     if (cred_buff) {
 		char _dap_id_buff[10];
-		sprintf (_dap_id_buff, "%ld", last_dap+1);
+		sprintf (_dap_id_buff, "%ld", this_dap_id);
 		char * cred_file_name = get_credential_filename (_dap_id_buff);
 
 		// Switch to job user
@@ -1332,7 +1342,7 @@ int write_requests_to_file(ReliSock * sock)
 
 		//insert the request to the dap collection
     char keystr[MAXSTR];
-    snprintf(keystr, MAXSTR, "key = %ld", last_dap + 1);
+    snprintf(keystr, MAXSTR, "key = %ld", this_dap_id);
 
 		//add the rquest classad to dap collection
     dapcollection->AddClassAd(keystr, requestAd);
@@ -1353,9 +1363,10 @@ int write_requests_to_file(ReliSock * sock)
 		//write_xml_log(xmllogfilename, requestAd, "\"request_received\"");
     
     
-		//write XML user logs
+	//write user log
 	user_log(requestAd, ULOG_SUBMIT);
 
+	// FIXME delete this old userlog writer
     char lognotes[MAXSTR];
     getValue(requestAd, "LogNotes", lognotes);
     write_xml_user_log(userlogfilename, "MyType", "\"SubmitEvent\"", 
