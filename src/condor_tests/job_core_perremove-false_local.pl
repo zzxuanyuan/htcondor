@@ -1,26 +1,35 @@
-#! /usr/bin/env perl
+#!/usr/bin/env perl
+##
+## PERIODIC_REMOVE - False
+## We are checking to see that when PERIODIC_REMOVE evaluates to
+## false our job will finish running to completion and not evicted
+##
 use CondorTest;
 
 $cmd = 'job_core_perremove-false_local.cmd';
-$testname = 'Condor submit policy test for periodic_remove - local U';
+$testname = 'Condor submit policy test for PERIODIC_REMOVE - local U';
 
-my %info;
-my $cluster;
-
-$executed = sub
-{
+##
+## executed
+## Just announce that the job began execution
+##
+$executed = sub {
 	%info = @_;
 	$cluster = $info{"cluster"};
-
-	print "Good. for periodic_remove cluster $cluster must run first\n";
+	$job = $info{"job"};
+	print "Good - Job $cluster.$job began execution.\n";
 };
 
-$success = sub
-{
-	my %info = @_;
-	my $cluster = $info{"cluster"};
+##
+## success
+## Our job was able to finish
+##
+$success = sub {
+	%info = @_;
+	$cluster = $info{"cluster"};
+	$job = $info{"job"};
 
-	print "Good, job should complete trivially\n";
+	print "Good - Job $cluster.$job finished successfully.\n";
 };
 
 CondorTest::RegisterExecute($testname, $executed);

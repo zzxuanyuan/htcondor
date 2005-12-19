@@ -1,122 +1,84 @@
-#! /usr/bin/env perl
+#!/usr/bin/env perl
+##
+## ON_EXIT_HOLD - False
+## We submit a job where ON_EXIT_HOLD evaluates to false and just
+## make sure that the job doesn't get put on hold after it finishes
+## its execution run
+##
 use CondorTest;
 
 $cmd = 'job_core_onexithold-false_local.cmd';
-$testname = 'Condor submit with hold for periodic remove test - local U';
+$testname = 'Condor submit for ON_EXIT_HOLD test - local U';
 
-my $killedchosen = 0;
-
-# truly const variables in perl
+## 
+## Status Values
+##
 sub IDLE{1};
 sub HELD{5};
 sub RUNNING{2};
 
-my %testerrors;
-my %info;
-my $cluster;
-
-$abnormal = sub {
-	my %info = @_;
-
-	die "Want to see only submit and abort events for periodic remove test\n";
-};
-
-$aborted = sub {
-	my $done;
+##
+## executed
+## Just announce that the job began execution
+##
+$executed = sub {
 	%info = @_;
 	$cluster = $info{"cluster"};
 	$job = $info{"job"};
-
-	if( $job eq "000" )
-	{
-		print "Good, job - $job - aborted after Hold state reached\n";
-	}
-	elsif( $job eq "001" )
-	{
-		print "Bad, job $job should not be aborted EVER!\n";
-		$testerrors{$job} = "job $job should not be aborted EVER!";
-	}
-	else
-	{
-		die "ABORT: ONLY 2 jobs expected - job $job - !!!!!!!!!!!!\n";
-	}
+	print "Good - Job $cluster.$job began execution.\n";
 };
 
+##
+## abnormal
+## Not sure how we would end up here, and based on the old
+## report message, I'm assuming this is a bad thing
+##
+$abnormal = sub {
+	my %info = @_;
+	my $cluster = $info{"cluster"};
+	my $job = $info{"job"};
+	print "Bad - Job $cluster.$job reported an abnormal event.\n";
+	exit(1);
+};
+
+##
+## held
+## If the job went on hold, we need to abort
 $held = sub {
 	my $done;
 	%info = @_;
 	$cluster = $info{"cluster"};
 	$job = $info{"job"};
-
-	if( $job eq 0 )
-	{
-		my $fulljob = "$cluster"."."."$job";
-		print "Good, good run of job - $fulljob - should be in queue on hold now\n";
-		print "Removing $fulljob\n";
-		my @adarray;
-		my $status = 1;
-		my $cmd = "condor_rm $cluster";
-		$status = CondorTest::runCondorTool($cmd,\@adarray,2);
-		if(!$status)
-		{
-			print "Test failure due to Condor Tool Failure<$cmd>\n";
-			return(1)
-		}
-		my @nadarray;
-		$status = 1;
-		$cmd = "condor_reschedule";
-		$status = CondorTest::runCondorTool($cmd,\@nadarray,2);
-		if(!$status)
-		{
-			print "Test failure due to Condor Tool Failure<$cmd>\n";
-			return(1)
-		}
-	}
-	elsif( $job eq 1 )
-	{
-		print "Bad, job $job should NOT be on hold!!!\n";
-	}
-	else
-	{
-		die "HOLD: ONLY 2 jobs expected - job $job - !!!!!!!!!!!!\n";
-	}
+	print "Bad - Job $cluster.$job should not be on hold.\n";
+	exit(1);
 };
 
-$executed = sub
-{
-	%info = @_;
-	$cluster = $info{"cluster"};
-
-	print "Good. for on_exit_hold cluster $cluster must run first\n";
-};
-
-$success = sub
-{
+##
+## success
+##
+$success = sub {
 	my %info = @_;
 	my $cluster = $info{"cluster"};
 	my $job = $info{"job"};
-
-	print "Good, good job - $job - should complete trivially\n";
-};
-
-$submitted = sub
-{
-	my %info = @_;
-	my $cluster = $info{"cluster"};
-	my $job = $info{"job"};
-
-	print "submitted: \n";
-	{
-		print "good job $job expected submitted.\n";
+	
+	##
+	## This probably isn't necessary, but just ot be safe we need to
+	## check the status of the job and if it's on hold, call
+	## the held() method
+	##
+	if ( CondorTest::getJobStatus($cluster) == HELD ) {
+		&$held( %info ) if defined $held;
+		return;
 	}
+	print "Good - Job $cluster.$job finished executing and exited.\n";
+	print "Policy Test Completed\n";
 };
+
 
 CondorTest::RegisterExecute($testname, $executed);
-#CondorTest::RegisterExitedAbnormal( $testname, $abnormal );
+CondorTest::RegisterExitedAbnormal( $testname, $abnormal );
 CondorTest::RegisterExitedSuccess( $testname, $success );
-#CondorTest::RegisterAbort( $testname, $aborted );
-#CondorTest::RegisterHold( $testname, $held );
-CondorTest::RegisterSubmit( $testname, $submitted );
+CondorTest::RegisterHold( $testname, $held );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
 	print "$testname: SUCCESS\n";

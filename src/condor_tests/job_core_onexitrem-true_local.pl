@@ -1,64 +1,53 @@
-#! /usr/bin/env perl
+#!/usr/bin/env perl
+##
+## ON_EXIT_REMOVE - True
+## The parameter will evaluate to true so this test makes sure
+## that the job gets removed from the queue after it finishes executing
+## It would be nice if we could incorporate the true/false tests into
+## a single test, that is have ON_EXIT_REMOVE evaluate to false a couple 
+## times, make sure the job gets requeued, then have it evaluate to true
+## and make sure it cleans itself up. But alas, CondorTest is unable
+## to handle a job getting executed twice (from what I can tell)
+##
 use CondorTest;
 
 $cmd = 'job_core_onexitrem-true_local.cmd';
 $testname = 'Condor submit policy test for ON_EXIT_REMOVE - local U';
 
-my $killedchosen = 0;
-
-# truly const variables in perl
+##
+## Status Values
+##
 sub IDLE{1};
 sub HELD{5};
 sub RUNNING{2};
 
-my %args;
-my $cluster;
-
-$abnormal = sub {
-
-	print "Want to see only submit and abort events for periodic remove test\n";
-	exit(1);
+##
+## executed
+## Just announce that the job began execution
+##
+$executed = sub {
+	%info = @_;
+	$cluster = $info{"cluster"};
+	$job = $info{"job"};
+	print "Good - Job $cluster.$job began execution.\n";
 };
 
-$aborted = sub {
-	print "Abort event expected from expected condor_rm used to remove the requeueing job\n";
-	print "Policy test worked.\n";
+##
+## success
+## The job finished, so we need to make sure that it gets
+## removed from the queue
+##
+$success = sub {
+	my %info = @_;
+	my $cluster = $info{"cluster"};
+	my $job = $info{"job"};
+	
+	print "Good - Job $cluster.$job finished executing and exited.\n";
+	print "Policy Test Completed\n";
 };
 
-$held = sub {
-	die "We don't hit Hold state for job restarted for not running long enough!\n";
-	exit(1);
-};
-
-$executed = sub
-{
-	%args = @_;
-	$cluster = $args{"cluster"};
-	print "Good. for on_exit_remove cluster $cluster must run first\n";
-};
-
-$evicted = sub
-{
-	my %args = @_;
-	my $cluster = $args{"cluster"};
-
-	print "Good a requeue.....after eviction....\n";
-	my @adarray;
-	my $status = 1;
-	my $cmd = "condor_rm $cluster";
-	$status = CondorTest::runCondorTool($cmd,\@adarray,2);
-	if(!$status)
-	{
-		print "Test failure due to Condor Tool Failure<$cmd>\n";
-		exit(0)
-	}
-};
-
-CondorTest::RegisterEvictedWithRequeue($testname, $evicted);
 CondorTest::RegisterExecute($testname, $executed);
-CondorTest::RegisterExitedAbnormal( $testname, $abnormal );
-CondorTest::RegisterAbort( $testname, $aborted );
-CondorTest::RegisterHold( $testname, $held );
+CondorTest::RegisterExitedSuccess( $testname, $success );
 
 if( CondorTest::RunTest($testname, $cmd, 0) ) {
 	print "$testname: SUCCESS\n";
@@ -66,4 +55,3 @@ if( CondorTest::RunTest($testname, $cmd, 0) ) {
 } else {
 	die "$testname: CondorTest::RunTest() failed\n";
 }
-

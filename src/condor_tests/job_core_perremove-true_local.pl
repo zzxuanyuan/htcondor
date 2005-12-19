@@ -1,24 +1,35 @@
-#! /usr/bin/env perl
+#!/usr/bin/env perl
+##
+## PERIODIC_REMOVE - True
+## We are checking to see that when PERIODIC_REMOVE evaluates to
+## true that the job gets aborted and removed from the queue.
+##
 use CondorTest;
 
 $cmd = 'job_core_perremove-true_local.cmd';
 $testname = 'Condor submit policy test for PERIODIC_REMOVE - local U';
 
-my $killedchosen = 0;
-
-my %args;
-my $cluster;
-
+##
+## aborted
+## The job was aborted just we wanted
+##
 $aborted = sub {
-	print "Abort event expected from periodic_remove policy evaluating to true\n";
-	print "Policy test worked.\n";
+	%info = @_;
+	$cluster = $info{"cluster"};
+	$job = $info{"job"};
+	print "Good - Job $cluster.$job was aborted and removed from the queue.\n";
+	print "Policy Test Completed\n";
 };
 
-$executed = sub
-{
-	%args = @_;
-	$cluster = $args{"cluster"};
-	print "Good. for on_exit_remove cluster $cluster must run first\n";
+##
+## executed
+## Just announce that the job began execution
+##
+$executed = sub {
+	%info = @_;
+	$cluster = $info{"cluster"};
+	$job = $info{"job"};
+	print "Good - Job $cluster.$job began execution.\n";
 };
 
 CondorTest::RegisterExecute($testname, $executed);
