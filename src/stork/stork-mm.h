@@ -29,7 +29,7 @@
 #include "../condor_daemon_core.V6/condor_daemon_core.h"
 #endif
 
-#include "dc_match_lite.h"
+#include "dc_match_maker.h"
 #include "MyString.h"
 #include "HashTable.h"
 
