@@ -57,6 +57,7 @@ int GridftpServer::m_checkServersTid = TIMER_UNSET;
 bool GridftpServer::m_initialScanDone = false;
 
 ClassAd *CreateJobAd( const char *owner, int universe, const char *cmd );
+bool WriteSubmitEventToUserLog( ClassAd *job_ad );
 
 GridftpServer::GridftpServer( Proxy *proxy, const char *req_url_base )
 {
@@ -118,11 +119,13 @@ GridftpServer *GridftpServer::FindOrCreateServer( Proxy *proxy,
 	rc = m_serversByProxy.lookup( HashKey( proxy->subject->subject_name ),
 								  server );
 	if ( rc != 0 ) {
+dprintf(D_FULLDEBUG,"*** Creating new GridftpServer('%s',%s)\n",proxy->subject->subject_name,req_url_base?req_url_base:"NULL");
 		server = new GridftpServer( proxy, req_url_base );
 		ASSERT(server);
 		m_serversByProxy.insert( HashKey( proxy->subject->subject_name ),
 								 server );
 	} else {
+dprintf(D_FULLDEBUG,"*** Using existing GridftpServer('%s',%s)\n",proxy->subject->subject_name,req_url_base?req_url_base:"NULL");
 		ASSERT(server);
 	}
 
@@ -162,6 +165,7 @@ int GridftpServer::CheckServers()
 {
 	GridftpServer *server;
 
+dprintf(D_FULLDEBUG,"*** CheckServers()\n");
 		// TODO interval should be a const, or even configurable
 	daemonCore->Reset_Timer( m_checkServersTid, 60 );
 
@@ -180,6 +184,7 @@ int GridftpServer::CheckServers()
 		bool delete_server = false;
 		server->CheckServer( delete_server );
 		if ( delete_server ) {
+dprintf(D_FULLDEBUG,"*** Deleting server '%s'\n",server->m_proxy->subject->subject_name);
 			delete server;
 		}
 	}
@@ -189,16 +194,20 @@ int GridftpServer::CheckServers()
 
 void GridftpServer::CheckServer( bool &delete_me )
 {
+dprintf(D_FULLDEBUG,"*** CheckServer(%s)\n",m_proxy->subject->subject_name);
 	delete_me = false;
 
 		// TODO maybe waite 5 minutes after having no jobs before shutting
 		//   server down
 	if ( IsEmpty() ) {
+dprintf(D_FULLDEBUG,"    Server empty, signalling delete\n");
 		RemoveJob();
 		delete_me = true;
 		return;
 	}
 
+		// TODO should wait for an explicit request from a job before
+		//   starting a server
 	int job_status;
 	job_status = CheckJobStatus();
 
@@ -264,6 +273,7 @@ void GridftpServer::CheckServer( bool &delete_me )
 
 bool GridftpServer::ScanSchedd()
 {
+dprintf(D_FULLDEBUG,"*** ScanSchedd()\n");
 	Qmgr_connection *schedd;
 	bool error = false;
 	MyString expr;
@@ -276,6 +286,7 @@ bool GridftpServer::ScanSchedd()
 		return false;
 	}
 
+		// TODO ignore jobs that aren't IDLE or RUNNING
 	expr.sprintf( "%s == \"%s\" && %s =?= True", ATTR_OWNER, Owner,
 				  ATTR_GRIDFTP_SERVER_JOB );
 
@@ -292,10 +303,12 @@ bool GridftpServer::ScanSchedd()
 			// the first one, ignoring the requested url base (which
 			// may match one of the later jobs). Tough luck.
 		next_ad->LookupString( ATTR_X509_USER_PROXY_SUBJECT, buff );
+dprintf(D_FULLDEBUG,"    Found job for proxy '%s'\n",buff.Value());
 		if ( m_serversByProxy.lookup( HashKey( buff.Value() ), server ) ) {
 
 			MyString error_str;
 			Proxy *proxy = AcquireProxy( next_ad, error_str );
+dprintf(D_FULLDEBUG,"    Creating new GridftpServer('%s')\n",proxy->subject->subject_name);
 			server = new GridftpServer( proxy, NULL );
 			ASSERT(server);
 			m_serversByProxy.insert( HashKey( proxy->subject->subject_name ),
@@ -308,6 +321,17 @@ bool GridftpServer::ScanSchedd()
 									server->m_jobId.cluster );
 			next_ad->LookupInteger( ATTR_PROC_ID,
 									server->m_jobId.proc );
+			MyString value;
+			next_ad->LookupString( ATTR_JOB_OUTPUT, value );
+			server->m_outputFile = strdup( value.Value() );
+			next_ad->LookupString( ATTR_JOB_ERROR, value );
+			server->m_errorFile = strdup( value.Value() );
+			next_ad->LookupString( ATTR_ULOG_FILE, value );
+			server->m_userLog = strdup( value.Value() );
+			next_ad->LookupString( ATTR_X509_USER_PROXY, value );
+			server->m_proxyFile = strdup( value.Value() );
+				// TODO check expiration time on proxy?
+dprintf(D_FULLDEBUG,"    Linked job %d.%d to proxy '%s'\n",server->m_jobId.cluster,server->m_jobId.proc,buff.Value());
 		}
 
 		delete next_ad;
@@ -316,7 +340,7 @@ bool GridftpServer::ScanSchedd()
 		next_ad = GetNextJobByConstraint( expr.Value(), 0 );
 	}
 
- contact_schedd_disconnect:
+// contact_schedd_disconnect:
 	DisconnectQ( schedd );
 
 	return !error;
@@ -337,7 +361,13 @@ bool GridftpServer::SubmitServerJob()
 	char *job_env;
 	int low_port, high_port;
 	const char *value;
+	MyString userlog;
 
+dprintf(D_FULLDEBUG,"*** SubmitServerJob()\n");
+if ( m_requestedUrlBase)
+dprintf(D_FULLDEBUG,"    reusing %s\n",m_requestedUrlBase);
+else
+dprintf(D_FULLDEBUG,"    not reusing a url\n");
 	DCSchedd dc_schedd( ScheddAddr );
 	if ( dc_schedd.error() || !dc_schedd.locate() ) {
 		dprintf( D_ALWAYS, "Can't find our schedd!?\n" );
@@ -357,7 +387,8 @@ bool GridftpServer::SubmitServerJob()
 					m_proxy->subject->subject_name );
 	job_ad->Assign( ATTR_JOB_OUTPUT, "/tmp/out" );
 	job_ad->Assign( ATTR_JOB_ERROR, "/tmp/err" );
-	job_ad->Assign( ATTR_ULOG_FILE, "/tmp/log" );
+	userlog.sprintf( "%s/gridftp.log", GridmanagerScratchDir );
+	job_ad->Assign( ATTR_ULOG_FILE, userlog.Value() );
 	job_ad->Assign( ATTR_JOB_LEAVE_IN_QUEUE, true );
 
 	snprintf( mapfile, sizeof(mapfile), "%s/grid-mapfile",
@@ -413,7 +444,9 @@ bool GridftpServer::SubmitServerJob()
 		job_ad->Assign( ATTR_JOB_ARGUMENTS, buff.Value() );
 	}
 
-	schedd = ConnectQ( ScheddAddr, QMGMT_TIMEOUT, true );
+	job_ad->Assign( ATTR_GRIDFTP_SERVER_JOB, true );
+
+	schedd = ConnectQ( ScheddAddr, QMGMT_TIMEOUT, false );
 	if ( !schedd ) {
 		dprintf( D_ALWAYS, "GridftpServer::SubmitServerJob: "
 				 "Failed to connect to schedd\n" );
@@ -471,9 +504,14 @@ bool GridftpServer::SubmitServerJob()
 		goto error_exit;
 	}
 
-	BeginTransaction();
-	if ( errno == ETIMEDOUT ) {
-		dprintf( D_ALWAYS, "Failed to query submitted job\n" );
+	DisconnectQ( schedd );
+	schedd = NULL;
+
+	WriteSubmitEventToUserLog( job_ad );
+
+	if ( !dc_schedd.spoolJobFiles( 1, &job_ad, &errstack ) ) {
+		dprintf( D_ALWAYS, "Failed to stage in files: %s\n",
+				 errstack.getFullText() );
 		goto error_exit;
 	}
 
@@ -481,25 +519,41 @@ bool GridftpServer::SubmitServerJob()
 	m_errorFile = NULL;
 	m_userLog = NULL;
 	m_proxyFile = NULL;
-	if ( GetAttributeStringNew( cluster_id, proc_id, ATTR_JOB_OUTPUT, 
-								&m_outputFile ) < 0 ||
-		 GetAttributeStringNew( cluster_id, proc_id, ATTR_JOB_ERROR, 
-								&m_errorFile ) < 0 ||
-		 GetAttributeStringNew( cluster_id, proc_id, ATTR_ULOG_FILE, 
-								&m_userLog ) < 0 ||
-		 GetAttributeStringNew( cluster_id, proc_id, ATTR_X509_USER_PROXY, 
-								&m_proxyFile ) < 0 ) {
-		dprintf( D_ALWAYS, "Failed to read job attributes\n" );
-		goto error_exit;
-	}
+	while ( m_userLog == NULL ) {
 
-	DisconnectQ( schedd );
-	schedd = NULL;
+		schedd = ConnectQ( ScheddAddr, QMGMT_TIMEOUT, true );
+		if ( !schedd ) {
+			dprintf( D_ALWAYS, "GridftpServer::SubmitServerJob: "
+					 "Failed to connect to schedd (2nd time)\n" );
+			goto error_exit;
+		}
 
-	if ( !dc_schedd.spoolJobFiles( 1, &job_ad, &errstack ) ) {
-		dprintf( D_ALWAYS, "Failed to stage in files: %s\n",
-				 errstack.getFullText() );
-		goto error_exit;
+			// TODO Shouldn't block waiting for the schedd to finish the
+			//   stage-in process. Instead, we should go back into the main
+			//   event loop and come back here in a second.
+		int val;
+		if ( GetAttributeInt( cluster_id, proc_id, ATTR_STAGE_IN_FINISH,
+							  &val ) == 0 ) {
+dprintf(D_FULLDEBUG, "    %s = %d\n", ATTR_STAGE_IN_FINISH, val );
+			if ( GetAttributeStringNew( cluster_id, proc_id, ATTR_JOB_OUTPUT, 
+										&m_outputFile ) < 0 ||
+				 GetAttributeStringNew( cluster_id, proc_id, ATTR_JOB_ERROR, 
+										&m_errorFile ) < 0 ||
+				 GetAttributeStringNew( cluster_id, proc_id, ATTR_ULOG_FILE, 
+										&m_userLog ) < 0 ||
+				 GetAttributeStringNew( cluster_id, proc_id,
+										ATTR_X509_USER_PROXY,
+										&m_proxyFile ) < 0 ) {
+				dprintf( D_ALWAYS, "Failed to read job attributes\n" );
+				goto error_exit;
+			}
+dprintf(D_FULLDEBUG, "    %s = %s\n", ATTR_ULOG_FILE, m_userLog );
+		}
+
+		DisconnectQ( schedd );
+		schedd = NULL;
+
+		sleep( 1 );
 	}
 
 	m_jobId.cluster = cluster_id;
@@ -511,10 +565,14 @@ bool GridftpServer::SubmitServerJob()
 	}
 
 	delete job_ad;
+	unlink( userlog.Value() );
 
 	return true;
 
  error_exit:
+	if ( userlog.Length() > 0 ) {
+		unlink( userlog.Value() );
+	}
 	if ( job_ad ) {
 		delete job_ad;
 	}
@@ -569,6 +627,9 @@ ClassAd *CreateJobAd( const char *owner, int universe, const char *cmd )
 	job_ad->Assign( ATTR_JOB_REMOTE_USER_CPU, (float)0.0 );
 	job_ad->Assign( ATTR_JOB_REMOTE_SYS_CPU, (float)0.0 );
 
+		// This is a magic cookie, see how condor_submit sets it
+	job_ad->Assign( ATTR_CORE_SIZE, -1 );
+
 		// Are these ones really necessary?
 	job_ad->Assign( ATTR_JOB_EXIT_STATUS, 0 );
 	job_ad->Assign( ATTR_ON_EXIT_BY_SIGNAL, false );
@@ -585,15 +646,17 @@ ClassAd *CreateJobAd( const char *owner, int universe, const char *cmd )
 
 	job_ad->Assign( ATTR_MIN_HOSTS, 1 );
 	job_ad->Assign( ATTR_MAX_HOSTS, 1 );
-	job_ad->Assign( ATTR_CURRENT_HOSTS, 1 );
+	job_ad->Assign( ATTR_CURRENT_HOSTS, 0 );
 
 	job_ad->Assign( ATTR_WANT_REMOTE_SYSCALLS, false );
 	job_ad->Assign( ATTR_WANT_CHECKPOINT, false );
+	job_ad->Assign( ATTR_WANT_REMOTE_IO, true );
 
 	job_ad->Assign( ATTR_JOB_STATUS, IDLE );
 	job_ad->Assign( ATTR_ENTERED_CURRENT_STATUS, (int)time(NULL) );
 
 	job_ad->Assign( ATTR_JOB_PRIO, 0 );
+	job_ad->Assign( ATTR_NICE_USER, false );
 
 	job_ad->Assign( ATTR_JOB_ENVIRONMENT, "" );
 
@@ -603,6 +666,7 @@ ClassAd *CreateJobAd( const char *owner, int universe, const char *cmd )
 
 	job_ad->Assign( ATTR_IMAGE_SIZE, 0 );
 
+	job_ad->Assign( ATTR_JOB_IWD, "/tmp" );
 	job_ad->Assign( ATTR_JOB_INPUT, NULL_FILE );
 	job_ad->Assign( ATTR_JOB_OUTPUT, NULL_FILE );
 	job_ad->Assign( ATTR_JOB_ERROR, NULL_FILE );
@@ -613,11 +677,13 @@ ClassAd *CreateJobAd( const char *owner, int universe, const char *cmd )
 //	job_ad->Assign( ATTR_TRANSFER_EXECUTABLE, false );
 
 	job_ad->Assign( ATTR_BUFFER_SIZE, 512*1024 );
-	job_ad->Assign( ATTR_BUFFER_SIZE, 32*1024 );
+	job_ad->Assign( ATTR_BUFFER_BLOCK_SIZE, 32*1024 );
 
-	job_ad->Assign( ATTR_SHOULD_TRANSFER_FILES, true );
+	job_ad->Assign( ATTR_SHOULD_TRANSFER_FILES,
+					getShouldTransferFilesString( STF_YES ) );
 	job_ad->Assign( ATTR_TRANSFER_FILES, "ONEXIT" );
-	job_ad->Assign( ATTR_WHEN_TO_TRANSFER_OUTPUT, FTO_ON_EXIT );
+	job_ad->Assign( ATTR_WHEN_TO_TRANSFER_OUTPUT,
+					getFileTransferOutputString( FTO_ON_EXIT ) );
 
 	job_ad->Assign( ATTR_REQUIREMENTS, true );
 
@@ -637,6 +703,7 @@ ClassAd *CreateJobAd( const char *owner, int universe, const char *cmd )
 
 bool GridftpServer::ReadUrlBase()
 {
+dprintf(D_FULLDEBUG,"*** ReadUrlBase\n");
 	if ( m_requestedUrlBase ) {
 		dprintf( D_ALWAYS, "Reading URL base of job with requested port\n" );
 		return false;
@@ -669,6 +736,7 @@ bool GridftpServer::ReadUrlBase()
 int GridftpServer::CheckJobStatus()
 {
 
+dprintf(D_FULLDEBUG,"*** CheckJobStatus\n");
 	if ( m_jobId.cluster <= 0 || m_userLog == NULL ) {
 		dprintf( D_ALWAYS, "Checking status of unsubmitted job\n" );
 		return STATUS_UNSUBMITTED;
@@ -679,7 +747,8 @@ int GridftpServer::CheckJobStatus()
 	ULogEvent *event;
 
 	if ( user_log.initialize( m_userLog ) == false ) {
-		dprintf( D_ALWAYS, "Failed to initialize ReadUserLog\n" );
+		dprintf( D_ALWAYS, "Failed to initialize ReadUserLog(%s)\n",
+				 m_userLog );
 		return STATUS_DONE;
 	}
 
@@ -722,6 +791,8 @@ int GridftpServer::CheckJobStatus()
 
 	if ( !status_known ) {
 		//dprintf( D_ALWAYS, "No status read from user log!\n" );
+		// TODO Shouldn't EXCEPT here, because user log can disappear
+		//   along with job
 		EXCEPT( "No status read from user log!\n" );
 	}
 
@@ -730,6 +801,7 @@ int GridftpServer::CheckJobStatus()
 
 void GridftpServer::CheckProxy()
 {
+dprintf(D_FULLDEBUG,"*** CheckProxy\n");
 	if ( m_jobId.cluster <= 0 || m_proxyFile == NULL ) {
 		dprintf( D_ALWAYS, "Checking proxy of unsubmitted job\n" );
 		return;
@@ -758,6 +830,7 @@ void GridftpServer::CheckProxy()
 
 bool GridftpServer::CheckPortError()
 {
+dprintf(D_FULLDEBUG,"*** CheckPortError\n");
 	if ( m_jobId.cluster <= 0 || m_errorFile == NULL ) {
 		dprintf( D_ALWAYS, "Checking port-in-use error of unsubmitted job\n" );
 		return false;
@@ -772,24 +845,53 @@ bool GridftpServer::CheckPortError()
 	bool port_in_use = false;
 
 	char buff[1024];
-	if ( fgets( buff, sizeof(buff), err ) && 
+#if 0
+	if ( fgets( buff, sizeof(buff), err ) == NULL ) {
+		dprintf(D_FULLDEBUG,"    0: '%s'\n",buff);
+		port_in_use = false;
+	} else if ( fgets( buff, sizeof(buff), err ) == NULL ||
+		 strcmp( buff, "globus_xio: globus_l_xio_tcp_create_listener failed.\n" ) ) {
+		dprintf(D_FULLDEBUG,"    1: '%s'\n",buff);
+		port_in_use = false;
+	} else if ( fgets( buff, sizeof(buff), err ) == NULL ||
+				strcmp( buff, "globus_xio: globus_l_xio_tcp_bind failed.\n" ) ) {
+		dprintf(D_FULLDEBUG,"    2: '%s'\n",buff);
+		port_in_use = false;
+	} else if ( fgets( buff, sizeof(buff), err ) == NULL ||
+				strcmp( buff, "globus_xio: System error in bind: Address already in use\n" ) ) {
+		dprintf(D_FULLDEBUG,"    3: '%s'\n",buff);
+		port_in_use = false;
+	} else if ( fgets( buff, sizeof(buff), err ) == NULL ||
+				strcmp( buff, "globus_xio: A system call failed: Address already in use\n" ) ) {
+		dprintf(D_FULLDEBUG,"    4: '%s'\n",buff);
+		port_in_use = false;
+	} else {
+		dprintf(D_FULLDEBUG,"    port in use\n");
+		port_in_use = true;
+	}
+#else
+	if ( fgets( buff, sizeof(buff), err ) && // skip first line
+		 fgets( buff, sizeof(buff), err ) && 
 		 !strcmp( buff, "globus_xio: globus_l_xio_tcp_create_listener failed.\n" ) &&
 		 fgets( buff, sizeof(buff), err ) &&
 		 !strcmp( buff, "globus_xio: globus_l_xio_tcp_bind failed.\n" ) &&
 		 fgets( buff, sizeof(buff), err ) &&
-		 !strcmp( buff, "globus_xio: System error in bind: Permission denied\n" ) &&
+		 !strcmp( buff, "globus_xio: System error in bind: Address already in use\n" ) &&
 		 fgets( buff, sizeof(buff), err ) &&
-		 !strcmp( buff, "globus_xio: A system call failed: Permission denied\n" ) ) {
+		 !strcmp( buff, "globus_xio: A system call failed: Address already in use\n" ) ) {
 		port_in_use = true;
 	}
+#endif
 
 	fclose( err );
 
+dprintf(D_FULLDEBUG,"    port_in_use=%s\n",port_in_use?"True":"False");
 	return port_in_use;
 }
 
 bool GridftpServer::RemoveJob()
 {
+dprintf(D_FULLDEBUG,"*** RemoveJob()\n");
 	if ( m_jobId.cluster <= 0 ) {
 		dprintf( D_ALWAYS, "Removing unsubmitted job\n" );
 		return false;
@@ -857,4 +959,37 @@ bool GridftpServer::RemoveJob()
 
 		return success;
 	}
+}
+
+bool
+WriteSubmitEventToUserLog( ClassAd *job_ad )
+{
+	int cluster, proc;
+
+	UserLog *ulog = InitializeUserLog( job_ad );
+	if ( ulog == NULL ) {
+		// User doesn't want a log
+		return true;
+	}
+
+	job_ad->LookupInteger( ATTR_CLUSTER_ID, cluster );
+	job_ad->LookupInteger( ATTR_PROC_ID, proc );
+
+	dprintf( D_FULLDEBUG, 
+			 "(%d.%d) Writing submit record to user logfile\n",
+			 cluster, proc );
+
+	SubmitEvent event;
+	strcpy( event.submitHost, ScheddAddr );
+	int rc = ulog->writeEvent(&event);
+	delete ulog;
+
+	if (!rc) {
+		dprintf( D_ALWAYS,
+				 "(%d.%d) Unable to log ULOG_SUBMIT event\n",
+				 cluster, proc );
+		return false;
+	}
+
+	return true;
 }

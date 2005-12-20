@@ -430,6 +430,8 @@ GT4Job::GT4Job( ClassAd *classad )
 	gridftpServer = GridftpServer::FindOrCreateServer( jobProxy,
 													   buff[0] ? buff : NULL );
 
+	gridftpServer->RegisterClient( this );
+
 	if (jobAd->LookupString ( ATTR_GLOBUS_SUBMIT_ID, buff )) {
 		submit_id = strdup ( buff );
 	}
@@ -929,8 +931,8 @@ int GT4Job::doEvaluateState()
 				if ( checkGridftpUrlBase ) {
 					MyString url_base;
 					jobAd->LookupString( ATTR_GRIDFTP_URL_BASE, url_base );
-					if ( !strcmp( url_base.Value(),
-								  gridftpServer->GetUrlBase() ) ) {
+					if ( strcmp( url_base.Value(),
+								 gridftpServer->GetUrlBase() ) ) {
 						gmState = GM_CANCEL;
 						break;
 					}
@@ -1187,7 +1189,10 @@ int GT4Job::doEvaluateState()
 					evictLogged = true;
 				}
 			}
-			jobAd->Delete( ATTR_GRIDFTP_URL_BASE );
+			MyString val;
+			if ( jobAd->LookupString( ATTR_GRIDFTP_URL_BASE, val ) ) {
+				jobAd->AssignExpr( ATTR_GRIDFTP_URL_BASE, "Undefined" );
+			}
 			checkGridftpUrlBase = false;
 			
 			if ( wantRematch ) {
@@ -1813,6 +1818,10 @@ MyString *GT4Job::buildSubmitRSL()
 				*rsl += printXMLParam( "sourceUrl", buff.Value() );
 				buff.sprintf( "file://%s", riwd_parent.Value() );
 				*rsl += printXMLParam( "destinationUrl", buff.Value());
+				*rsl += "<rftOptions>";
+				*rsl += printXMLParam( "sourceSubjectName",
+									   jobProxy->subject->subject_name );
+				*rsl += "</rftOptions>";
 				*rsl += "</transfer>";
 			}
 			*rsl += "<transfer>";
@@ -1821,6 +1830,10 @@ MyString *GT4Job::buildSubmitRSL()
 			*rsl += printXMLParam( "sourceUrl", buff.Value() );
 			buff.sprintf( "file://%s", remote_iwd.Value() );
 			*rsl += printXMLParam( "destinationUrl", buff.Value());
+			*rsl += "<rftOptions>";
+			*rsl += printXMLParam( "sourceSubjectName",
+								   jobProxy->subject->subject_name );
+			*rsl += "</rftOptions>";
 			*rsl += "</transfer>";
 		}
 
@@ -1832,6 +1845,10 @@ MyString *GT4Job::buildSubmitRSL()
 			*rsl += printXMLParam( "sourceUrl", buff.Value() );
 			buff.sprintf( "file://%s", remote_executable.Value() );
 			*rsl += printXMLParam( "destinationUrl", buff.Value());
+			*rsl += "<rftOptions>";
+			*rsl += printXMLParam( "sourceSubjectName",
+								   jobProxy->subject->subject_name );
+			*rsl += "</rftOptions>";
 			*rsl += "</transfer>";
 		}
 
@@ -1853,6 +1870,10 @@ MyString *GT4Job::buildSubmitRSL()
 							  condor_basename (filename));
 				*rsl += printXMLParam ("destinationUrl", 
 									   buff.Value());
+				*rsl += "<rftOptions>";
+				*rsl += printXMLParam( "sourceSubjectName",
+									   jobProxy->subject->subject_name );
+				*rsl += "</rftOptions>";
 				*rsl += "</transfer>";
 
 			}
@@ -1887,6 +1908,10 @@ MyString *GT4Job::buildSubmitRSL()
 						  filename );
 			*rsl += printXMLParam ("destinationUrl", 
 								   buff.Value());
+			*rsl += "<rftOptions>";
+			*rsl += printXMLParam( "destinationSubjectName",
+								   jobProxy->subject->subject_name );
+			*rsl += "</rftOptions>";
 			*rsl += "</transfer>";
 
 		}
