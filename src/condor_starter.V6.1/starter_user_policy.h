@@ -79,7 +79,6 @@ class StarterUserPolicy : public BaseUserPolicy
 			 */
 		void doAction( int action, bool is_periodic );
 		
-		
 		/**
 		 * Figure out the when the job was started. The times will be
 		 * the number of seconds elapsed since 00:00:00 on January 1, 1970,
