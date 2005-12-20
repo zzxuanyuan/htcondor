@@ -25,28 +25,10 @@
 #define __CONDOR_XML_CLASSADS_H
 
 #include "condor_classad.h"
+#include "MyString.h"
 
-enum TagName
-{
-	tag_ClassAds,
-	tag_ClassAd,
-	tag_Attribute,
-	tag_Number, // no longer used, just for backwards compatibility
-	tag_Integer,
-	tag_Real,
-	tag_String,
-	tag_Bool,
-	tag_Undefined,
-	tag_Error,
-	tag_Time,
-	tag_List, // invalid for old ClassAds, but we should recognize it.
-	tag_Expr,
-	tag_NoTag,
-	NUMBER_OF_TAG_NAME_ENUMS
-};
-
-class XMLSource;
-class XMLToken;
+#define WANT_NAMESPACES
+#include "classad_distribution.h"
 
 class ClassAdXMLParser
 {
@@ -64,16 +46,6 @@ class ClassAdXMLParser
 	 */
 	ClassAd *ParseClassAd(const char *buffer);
 
-	/** Parses an XML ClassAd from a string. Parsing begins at place-th
-	 * character of the string, and after a single ClassAd is parsed, place
-	 * is updated to indicate where parsing should resume for the next ClassAd.
-	 * @param buffer The string containing the XML ClassAd.
-	 * @param place  A pointer to an integer indicating where to start. This is
-	 *        updated upon return. 
-	 * @return A pointer to a new ClassAd, which must be deleted by the caller
-	 */
-	ClassAd *ParseClassAds(const char *buffer, int *place);
-
 	/** Parses an XML ClassAd from a file. Only the first ClassAd in the 
 	 * buffer is parsed.
 	 * @param buffer The string containing the XML ClassAd.
@@ -82,7 +54,7 @@ class ClassAdXMLParser
 	ClassAd *ParseClassAd(FILE *file);
 
  private:
-	ClassAd *_ParseClassAd(XMLSource &source);
+	classad::ClassAdXMLParser parser;
 };
 
 class ClassAdXMLUnparser
@@ -95,28 +67,14 @@ class ClassAdXMLUnparser
     /** Destructor.  */
 	~ClassAdXMLUnparser();
 
-	/** Query to find if the XML uses compact spacing. Compact spacing 
-	 * places an entire ClassAd on one line, while non-compact places
-	 * each attribute on a separate line. 
-	 * @return true if using compact spacing. */
-	bool GetUseCompactSpacing(void);
-
 	/** Set compact spacing. Compact spacing 
 	 * places an entire ClassAd on one line, while non-compact places
 	 * each attribute on a separate line. 
 	 * @param use_compact_spacing A boolean indicating if compact spacing is desired. */
 	void SetUseCompactSpacing(bool use_compact_spacing);
 
-	/** Query to find out if we will output the Type attribute.
-	 *  @return true if we do, false if not. */
-	bool GetOutputType(void);
-
 	/** Set whether or not we output the Type attribute */
 	void SetOutputType(bool output_type);
-
-	/** Query to find out if we will output the TargetType attribute.
-	 *  @return true if we do, false if not. */
-	bool GetOuputTargetType(void);
 
 	/** Set whether or not we output the Target attribute */
 	void SetOutputTargetType(bool output_target_type);
@@ -140,17 +98,7 @@ class ClassAdXMLUnparser
 	void Unparse(ClassAd *classad, MyString &buffer);
 
  private:
-	void Unparse(ExprTree *expression, MyString &buffer);
-	void add_tag(MyString &buffer, TagName which_tag, bool start_tag);
-	void add_attribute_start_tag(MyString &buffer, const char *name);
-	void add_bool_start_tag(MyString &buffer, BooleanBase *bool_expr);
-	void add_empty_tag(MyString &buffer, TagName which_tag);
-	void fix_characters(const char *source, MyString &dest);
-
- private:
-	bool _use_compact_spacing;
-	bool _output_type;
-	bool _output_target_type;
+	classad::ClassAdXMLUnParser unparser;
 };
 
 #endif /* __CONDOR_XML_CLASSADS_H */
