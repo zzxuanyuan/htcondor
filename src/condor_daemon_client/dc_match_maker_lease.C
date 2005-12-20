@@ -29,7 +29,7 @@
 #include "condor_attributes.h"
 
 #include "daemon.h"
-#include "dc_match_lite.h"
+#include "dc_match_maker.h"
 
 #define WANT_NAMESPACES
 #include "classad_distribution.h"

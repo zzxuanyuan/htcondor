@@ -20,8 +20,8 @@
   * RIGHT.
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
-#ifndef _CONDOR_DC_MATCH_LITE_H
-#define _CONDOR_DC_MATCH_LITE_H
+#ifndef _CONDOR_DC_MATCH_MAKER_H
+#define _CONDOR_DC_MATCH_MAKER_H
 
 #include <list>
 #include <string>
@@ -33,7 +33,7 @@
 #include "classad_distribution.h"
 using namespace std;
 
-#include "dc_match_lite_lease.h"
+#include "dc_match_maker_lease.h"
 
 /** The subclass of the Daemon object for talking to a match lite daemon
 */

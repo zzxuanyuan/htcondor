@@ -20,8 +20,8 @@
   * RIGHT.
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
-#ifndef _CONDOR_DC_MATCH_LITE_LEASE_H
-#define _CONDOR_DC_MATCH_LITE_LEASE_H
+#ifndef _CONDOR_DC_MATCH_MAKER_LEASE_H
+#define _CONDOR_DC_MATCH_MAKER_LEASE_H
 
 #include <list>
 #include <string>

@@ -29,8 +29,8 @@
 #include "condor_attributes.h"
 
 #include "daemon.h"
-#include "dc_match_lite.h"
-#include "dc_match_lite_lease.h"
+#include "dc_match_maker.h"
+#include "dc_match_maker_lease.h"
 
 #define WANT_NAMESPACES
 #include "classad_distribution.h"
