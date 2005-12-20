@@ -964,7 +964,6 @@ CStarter::SpawnJob( void )
 			// they get suspended?
 			//
 		if ( this->suspended ) {
-			dprintf( D_ALWAYS, "PAVLO: Job started but needs to be suspended!\n" );
 			this->Suspend( );
 		}
 
