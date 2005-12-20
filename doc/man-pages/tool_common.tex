@@ -19,10 +19,11 @@
 }
 
 %% Alternative to locate the machines with which you want to mess.
-%% Used by _rm, _hold, and _release.
+%% Used by _transfer_data, _rm, _hold, and _release.
 \newcommand{\ToolLocate}{
-\oOptnm{-pool centralmanagerhostname\oOptnm{:portnumber}}
-\oOptnm{-name hostname $|$ -addr "\SinfulAny" }
+\oOptnm{-pool centralmanagerhostname\oOptnm{:portnumber} $|$ -name scheddname }
+$|$
+\oOptnm{-addr "\SinfulAny" }
 }
 
 %% Specification of the jobs with which you want to mess.
@@ -84,7 +85,7 @@
 \newcommand{\ToolLocateDesc}{
 \OptItem{\OptArg{-pool}{centralmanagerhostname[:portnumber]}}{Specify a pool by giving the
 	central manager's hostname and an optional port number}
-\OptItem{\OptArg{-name}{hostname}}{Send the command to a machine identified by \Opt{hostname}}
+\OptItem{\OptArg{-name}{scheddname}}{Send the command to a \Condor{schedd} daemon identified by \Opt{scheddname}}
 \OptItem{\OptArg{-addr}{"\SinfulAny"}}{Send the command
 	to a machine located at "\SinfulAny"}
 }
