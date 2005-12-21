@@ -325,9 +325,27 @@ int transfer_dap(char *dap_id, char *src_url, char *dest_url, char *arguments, c
 	char *env_string = myEnv.getDelimitedString();	// return string from "new"
 
 	// Create child process via daemoncore
+
+    classad::ClassAd                *job_ad;
+	std::string key;
+    key = "key = ";
+    key += dap_id;
+    job_ad = dapcollection->GetClassAd(key);
+	MyString generic_event;
+	generic_event = "job type: transfer";
+	job_ad->InsertAttr("generic_event", generic_event.Value() );
+	user_log(job_ad, ULOG_GENERIC);
+	generic_event.sprintf("src_url: %s", src_url);
+	job_ad->InsertAttr("generic_event", generic_event.Value() );
+	user_log(job_ad, ULOG_GENERIC);
+	generic_event.sprintf("dest_url: %s", dest_url);
+	job_ad->InsertAttr("generic_event", generic_event.Value() );
+	user_log(job_ad, ULOG_GENERIC);
+
 	MyString src_url_value, dest_url_value;
 	src_url_value.sprintf("\"%s\"", src_url);
 	dest_url_value.sprintf("\"%s\"", dest_url);
+	// FIXME delete this old userlog writer
 	write_xml_user_log(userlogfilename, "MyType", "\"GenericEvent\"", 
 					   "EventTypeNumber", "8", 
 					   "Cluster", dap_id,
@@ -361,6 +379,7 @@ int transfer_dap(char *dap_id, char *src_url, char *dest_url, char *arguments, c
 		return DAP_SUCCESS;
 	}
 	else{
+		// FIXME  
 		transfer_dap_reaper(NULL, 0 ,111); //executable not found!
 		return DAP_ERROR;                  //--> Find a better soln!
 	}
@@ -550,9 +569,12 @@ void process_request(classad::ClassAd *currentAd)
 	write_collection_log(dapcollection, dap_id, 
 						 "status = \"processing_request\"");
   
+	user_log(currentAd, ULOG_EXECUTE);
+
 	char lognotes[MAXSTR];
 	getValue(currentAd, "LogNotes", lognotes);
   
+	// FIXME delete this old userlog writer
 	write_xml_user_log(userlogfilename, "MyType", "\"ExecuteEvent\"", 
 					   "EventTypeNumber", "1", 
 					   "Cluster", dap_id,
@@ -1272,6 +1294,12 @@ int write_requests_to_file(ReliSock * sock)
 	std::string submit_host = sin_to_string(sock->endpoint() );
 	requestAd->InsertAttr("submit_host", submit_host);
 
+	// Get this execute host.
+	struct sockaddr_in sin;
+	sock->mypoint(&sin);
+	std::string execute_host = sin_to_string( &sin );
+	requestAd->InsertAttr("execute_host", execute_host);
+
 		//add the dap_id to the request
 	unsigned long this_dap_id = last_dap + 1;
     snprintf(last_dapstr, MAXSTR, "%lu", this_dap_id);
@@ -1897,16 +1925,48 @@ int dap_reaper(std::string modify_s, int pid,int exit_status)
 
 			//    string sstatus = "";
     
+		std::string next_action;
 		if (num_attempts + 1 < (int)Max_retry){
 				//sstatus = "\"request_rescheduled\"";
 			modify_s += "status = \"request_rescheduled\";";
+			next_action = "Rescheduling.";
 		}
     
 		else{
 				//      sstatus = "\"request_failed\"";
 			modify_s += "status = \"request_failed\";";
+			next_action = "Max retry limit reached.";
 		}
-    
+
+		MyString generic_event;
+		if ( WIFSIGNALED( exit_status) ) {
+			generic_event.sprintf(
+				"Job attempt %d exited by signal %d",
+				num_attempts+1, WTERMSIG( exit_status ) );
+#ifdef WCOREDUMP 
+			if ( WCOREDUMP( exit_status) ) {
+				MyString core;
+				core.sprintf(
+					"Core file for process %d in server directory %s",
+					pid, Log_dir );
+				job_ad->InsertAttr("generic_event", core.Value() );
+				user_log(job_ad, ULOG_GENERIC);
+			}
+#endif // WCOREDUMP 
+		} else if ( WIFEXITED( exit_status) ) {
+			generic_event.sprintf(
+				"Job attempt %d exited with status %d",
+				num_attempts+1, WEXITSTATUS( exit_status ) );
+		} else {
+			generic_event.sprintf(
+				"job attempt %d terminated with unknown status %d",
+				num_attempts+1, exit_status );
+		}
+		job_ad->InsertAttr("generic_event", generic_event.Value() );
+		user_log(job_ad, ULOG_GENERIC);
+		job_ad->InsertAttr("generic_event", next_action );
+		user_log(job_ad, ULOG_GENERIC);
+
 		snprintf(tempstr, MAXSTR, 
 				 "num_attempts = %d;",num_attempts + 1);
     

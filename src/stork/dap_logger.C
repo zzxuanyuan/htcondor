@@ -429,6 +429,52 @@ user_log_submit(	const classad::ClassAd *ad,
 }
 
 bool
+user_log_execute(	const classad::ClassAd *ad,
+					UserLog& user_log)
+{
+	ExecuteEvent event;
+
+	std::string dap_id;
+	ad->EvaluateAttrString("dap_id", dap_id);
+
+	std::string execute_host;
+	ad->EvaluateAttrString("execute_host", execute_host);
+	strncpy(event.executeHost, execute_host.c_str(),
+			sizeof(event.executeHost) - 1 );
+	event.executeHost[ sizeof(event.executeHost) - 1 ] = '\0';
+
+	if ( ! user_log.writeEvent(&event) ) {
+		dprintf(D_ALWAYS, "ERROR: Failed to log job %s execute event.\n",
+				dap_id.c_str() );
+		return false;
+	}
+
+	return true;
+}
+
+bool
+user_log_generic(	const classad::ClassAd *ad,
+					UserLog& user_log)
+{
+	GenericEvent event;
+
+	std::string dap_id;
+	ad->EvaluateAttrString("dap_id", dap_id);
+
+	std::string generic_event;
+	ad->EvaluateAttrString("generic_event", generic_event);
+	event.setInfoText( generic_event.c_str() );
+
+	if ( ! user_log.writeEvent(&event) ) {
+		dprintf(D_ALWAYS, "ERROR: Failed to log job %s generic event.\n",
+				dap_id.c_str() );
+		return false;
+	}
+
+	return true;
+}
+
+bool
 user_log_terminated(	const classad::ClassAd *ad,
 						UserLog& user_log)
 {
@@ -554,12 +600,20 @@ user_log(			const classad::ClassAd *ad,
 			return user_log_submit(ad, usr_log);
 			break;
 
+		case ULOG_EXECUTE:
+			return user_log_execute(ad, usr_log);
+			break;
+
 		case ULOG_JOB_TERMINATED:
 			return user_log_terminated(ad, usr_log);
 			break;
 
 		case ULOG_JOB_ABORTED:
 			return user_log_aborted(ad, usr_log);
+			break;
+
+		case ULOG_GENERIC:
+			return user_log_generic(ad, usr_log);
 			break;
 
 		default:
