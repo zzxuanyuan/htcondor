@@ -18,6 +18,7 @@ $executed = sub {
 	$cluster = $info{"cluster"};
 	$job = $info{"job"};
 	print "Good - Job $cluster.$job began execution.\n";
+	print "Policy Test Completed\n";
 };
 
 ##
