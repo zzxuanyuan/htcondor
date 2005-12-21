@@ -410,9 +410,7 @@ user_log_submit(	const classad::ClassAd *ad,
 	{
 		// Ugh.  The SubmitEvent destructor will
 		// delete[] submitEventLogNotes, so "new" one up here.
-		jobSubmit.submitEventLogNotes =
-			new char [ logNotes.length()+1 ];
-		strcpy(jobSubmit.submitEventLogNotes, logNotes.c_str() );
+		jobSubmit.submitEventLogNotes = strnewp( logNotes.c_str() );
 	}
 
 	std::string submit_host;
@@ -448,7 +446,28 @@ user_log_terminated(	const classad::ClassAd *ad,
 	}
 
 	if (termination_type == "job_retry_limit") {
+		// Stork removed the job before it could exit.  exit_status has no
+		// useful information.
 		event.normal = false;
+	} else if (termination_type == "exited") {
+		// The job exited.  Parse the exit status.
+		int exit_status;
+		if (! ad->EvaluateAttrInt("exit_status", exit_status) ) {
+			dprintf(D_ALWAYS, "job %s exit_status not found\n",
+					dap_id.c_str() );
+			return false;
+		} else if ( WIFEXITED( exit_status) ) {
+			// Stork requires all successful jobs to exit with status 0
+			event.normal = (exit_status == 0) ? true : false;
+			event.returnValue = WEXITSTATUS( exit_status );
+		} else if ( WIFSIGNALED( exit_status) ) {
+			event.normal = false;
+			event.signalNumber = WTERMSIG( exit_status );
+		} else {
+			dprintf(D_ALWAYS, "job %s exit_status %d unknown\n",
+					dap_id.c_str(), exit_status );
+			return false;
+		}
 	} else {
 		dprintf(D_ALWAYS, "job %s unknown termination type: %s\n",
 				dap_id.c_str(), termination_type.c_str() );
@@ -456,7 +475,26 @@ user_log_terminated(	const classad::ClassAd *ad,
 	}
 
 	if ( ! user_log.writeEvent(&event) ) {
-		dprintf(D_ALWAYS, "ERROR: Failed to log terminated event.\n");
+		dprintf(D_ALWAYS, "ERROR: Failed to log job %s terminated event.\n",
+				dap_id.c_str() );
+		return false;
+	}
+
+	return true;
+}
+
+bool
+user_log_aborted(	const classad::ClassAd *ad,
+						UserLog& user_log)
+{
+	JobAbortedEvent event;
+
+	std::string dap_id;
+	ad->EvaluateAttrString("dap_id", dap_id);
+
+	if ( ! user_log.writeEvent(&event) ) {
+		dprintf(D_ALWAYS, "ERROR: Failed to log job %s aborted event.\n",
+				dap_id.c_str() );
 		return false;
 	}
 
@@ -468,7 +506,7 @@ user_log(			const classad::ClassAd *ad,
 					const enum ULogEventNumber eventNum)
 {
 	std::string userLogFile;
-	int cluster_id, proc_id, subproc_id;
+	int cluster_id, proc_id;
 	bool log_xml;
 	UserLog usr_log;
 
@@ -483,7 +521,6 @@ user_log(			const classad::ClassAd *ad,
 	// Get job identifiers
 	ad->EvaluateAttrInt("cluster_id",	cluster_id);
 	ad->EvaluateAttrInt("proc_id",		proc_id);
-	ad->EvaluateAttrInt("subproc_id",	subproc_id);
 
 	if	(	!ad->EvaluateAttrBool("log_xml", log_xml) ) {
 		log_xml = false;	// Default: do not log in XML format
@@ -503,7 +540,7 @@ user_log(			const classad::ClassAd *ad,
 				userLogFile.c_str(),
 				cluster_id,
 				proc_id,
-				subproc_id)
+				-1)
 		)
 	{
 		dprintf(D_ALWAYS,
@@ -519,6 +556,10 @@ user_log(			const classad::ClassAd *ad,
 
 		case ULOG_JOB_TERMINATED:
 			return user_log_terminated(ad, usr_log);
+			break;
+
+		case ULOG_JOB_ABORTED:
+			return user_log_aborted(ad, usr_log);
 			break;
 
 		default:

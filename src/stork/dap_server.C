@@ -1281,7 +1281,6 @@ int write_requests_to_file(ReliSock * sock)
     requestAd->Insert("dap_id", expr);
 	requestAd->InsertAttr("cluster_id", (int)this_dap_id);
 	requestAd->InsertAttr("proc_id", -1);
-	requestAd->InsertAttr("subproc_id", -1);
 
 		//add the status to the request
     if ( !parser.ParseExpression("\"request_received\"", expr) ) {
@@ -1669,17 +1668,20 @@ int remove_requests_from_queue(ReliSock * sock)
 
 		remove_credential (dap_id);
       
+		user_log(job_ad, ULOG_JOB_ABORTED);
+
+		dapcollection->RemoveClassAd(key);
+
 		std::string modify_s = "status = \"request_removed\"";
 		write_collection_log(dapcollection, dap_id, modify_s.c_str());
 	  
 		char lognotes[MAXSTR] ;
 		getValue(job_ad, "LogNotes", lognotes);
       
-		dapcollection->RemoveClassAd(key);
-
 		write_dap_log(historyfilename, "\"request_removed\"", 
 					  "dap_id", dap_id, "error_code", "\"REMOVED!\"");
       
+		// FIXME delete this old userlog writer
 		write_xml_user_log(userlogfilename, "MyType", "\"JobAbortedEvent\"", 
 						   "EventTypeNumber", "9", 
 						   "TerminatedNormally", "0",
@@ -1760,6 +1762,10 @@ int dap_reaper(std::string modify_s, int pid,int exit_status)
 
 		//---- if process completed succesfully ----
 	if (exit_status == 0){
+
+		job_ad->InsertAttr("exit_status", exit_status);
+		job_ad->InsertAttr("termination_type", "exited");
+		user_log(job_ad, ULOG_JOB_TERMINATED);
 
 		remove_credential (dap_id);
 
@@ -1848,6 +1854,7 @@ int dap_reaper(std::string modify_s, int pid,int exit_status)
 		write_dap_log(historyfilename, "\"request_completed\"", "dap_id", dap_id);
 			//    write_xml_log(xmllogfilename, job_ad, "\"request_completed\"");
     
+		// FIXME delete this old userlog writer
 		write_xml_user_log(userlogfilename, "MyType", "\"JobCompleteEvent\"", 
 						   "EventTypeNumber", "5", 
 						   "TerminatedNormally", "1",
@@ -1943,6 +1950,10 @@ int dap_reaper(std::string modify_s, int pid,int exit_status)
 			strncat(linebufstr, linebuf, MAXSTR-2);
 			strcat(linebufstr, "\"");
 
+			job_ad->InsertAttr("exit_status", exit_status);
+			job_ad->InsertAttr("termination_type", "exited");
+			user_log(job_ad, ULOG_JOB_TERMINATED);
+
 			dapcollection->RemoveClassAd(key);
 
 			write_dap_log(historyfilename, "\"request_failed\"", 
@@ -1951,6 +1962,7 @@ int dap_reaper(std::string modify_s, int pid,int exit_status)
 			char exit_status_str[MAXSTR];
 			snprintf(exit_status_str, MAXSTR, "%d", exit_status);
       
+			// FIXME delete this old userlog writer
 			write_xml_user_log(userlogfilename, "MyType", "\"JobCompletedEvent\"", 
 							   "EventTypeNumber", "5", 
 							   "TerminatedNormally", "1",
