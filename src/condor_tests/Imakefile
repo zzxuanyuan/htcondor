@@ -220,6 +220,40 @@ TESTCLASS(job_core_macros-dollardollar_van,quick)
 **
 */
 
+/**
+ * Local Universe Policy Expression Tests
+ **/
+
+DESC(job_core_onexithold_local,"Local: Verify true and false triggers of on_exit_hold")
+RUN(job_core_onexithold_local)
+TESTCLASS(job_core_onexithold_local,core)
+TESTCLASS(job_core_onexithold_local,quick)
+TESTCLASS(job_core_onexithold_local,local)
+
+DESC(job_core_onexitrem_local,"Local: Verify true and false triggers of on_exit_remove")
+RUN(job_core_onexitrem_local)
+TESTCLASS(job_core_onexitrem_local,core)
+TESTCLASS(job_core_onexitrem_local,quick)
+TESTCLASS(job_core_onexitrem_local,local)
+
+DESC(job_core_perhold_local,"Local: verify true and false triggers for periodic hold")
+RUN(job_core_perhold_local)
+TESTCLASS(job_core_perhold_local,core)
+TESTCLASS(job_core_perhold_local,quick)
+TESTCLASS(job_core_perhold_local,local)
+ 
+DESC(job_core_perrelease_local,"Local: verify a policy of true/false for periodic release does the right thing")
+RUN(job_core_perrelease_local)
+TESTCLASS(job_core_perrelease_local,core)
+TESTCLASS(job_core_perrelease_local,quick)
+TESTCLASS(job_core_perrelease_local,local)
+
+DESC(job_core_perremove_local,"Local: test true/false variations of periodic remove")
+RUN(job_core_perremove_local)
+TESTCLASS(job_core_perremove_local,core)
+TESTCLASS(job_core_perremove_local,quick)
+TESTCLASS(job_core_perremove_local,local)
+
 /* Likely Bugs in Policy matters scheduler Universe */
 
 /*
@@ -496,6 +530,7 @@ DESC(job_core_max-running_local,"Local: Max job running limit")
 RUN(job_core_max-running_local)
 TESTCLASS(job_core_max-running_local,core)
 TESTCLASS(job_core_max-running_local,quick)
+TESTCLASS(job_core_max-running_local,local)
 
 /* File Transfer Tests */
 
