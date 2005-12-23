@@ -32,10 +32,19 @@
 
 #include "simplelist.h"
 #include "extArray.h"
+#include "condor_classad_namedlist.h"
+
 #include "Resource.h"
 #include "claim.h"
 #include "starter_mgr.h"
-#include "condor_classad_namedlist.h"
+
+#if HAVE_BACKFILL
+#include "backfill_mgr.h"
+#if HAVE_BOINC
+#include "boinc_mgr.h"
+#endif /* HAVE_BOINC */
+#endif /* HAVE_BACKFILL */
+
 
 typedef int (Resource::*ResourceMember)();
 typedef float (Resource::*ResourceFloatMember)();
@@ -166,6 +175,10 @@ public:
 
 	StarterMgr starter_mgr;
 
+#if HAVE_BACKFILL
+	BackfillMgr* m_backfill_mgr;
+#endif /* HAVE_BACKFILL */
+
 	time_t	now( void ) { return cur_time; };
 
 private:
@@ -261,6 +274,10 @@ private:
 		   STARTD_NOCLAIM_SHUTDOWN parameter).
 		*/
 	void check_use( void );
+
+#if HAVE_BACKFILL
+	bool backfillConfig( void );
+#endif /* HAVE_BACKFILL */
 
 };
 

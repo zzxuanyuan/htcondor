@@ -25,6 +25,7 @@
 #include "startd.h"
 #include "condor_classad_namedlist.h"
 
+
 ResMgr::ResMgr()
 {
 	totals_classad = NULL;
@@ -33,6 +34,11 @@ ResMgr::ResMgr()
 	poll_tid = -1;
 
 	m_attr = new MachAttributes;
+
+#if HAVE_BACKFILL
+	m_backfill_mgr = NULL;
+#endif
+
 	id_disp = NULL;
 
 	nresources = 0;
@@ -51,6 +57,13 @@ ResMgr::~ResMgr()
 	if( totals_classad ) delete totals_classad;
 	if( id_disp ) delete id_disp;
 	delete m_attr;
+
+#if HAVE_BACKFILL
+	if( m_backfill_mgr ) {
+		delete m_backfill_mgr;
+	}
+#endif
+
 	if( resources ) {
 		for( i = 0; i < nresources; i++ ) {
 			delete resources[i];
@@ -131,6 +144,107 @@ ResMgr::init_config_classad( void )
 }
 
 
+
+#if HAVE_BACKFILL
+
+static bool
+verifyBackfillSystem( const char* sys )
+{
+
+#if HAVE_BOINC
+	if( ! stricmp(sys, "BOINC") ) {
+		return true;
+	}
+#endif /* HAVE_BOINC */
+
+	return false;
+}
+
+
+bool
+ResMgr::backfillConfig()
+{
+	static char* current_system = NULL;
+
+	if( ! param_boolean("ENABLE_BACKFILL", false) ) {
+		if( m_backfill_mgr ) {
+			dprintf( D_ALWAYS, 
+					 "ENABLE_BACKFILL is false, deleting BackfillMgr\n" );
+			delete m_backfill_mgr;
+			m_backfill_mgr = NULL;
+		}
+		return false;
+	}
+
+	char* new_system = param( "BACKFILL_SYSTEM" );
+	if( ! new_system ) {
+		dprintf( D_ALWAYS, "ERROR: ENABLE_BACKFILL is TRUE, but "	
+				 "BACKFILL_SYSTEM is undefined!\n" );
+		return false;
+	}
+	if( ! verifyBackfillSystem(new_system) ) {
+		dprintf( D_ALWAYS,
+				 "ERROR: BACKFILL_SYSTEM '%s' not supported, ignoring\n",
+				 new_system );
+		free( new_system );
+		return false;
+	}
+		
+	if( current_system ) {
+			// if current_system is set, we must have one of these:
+		ASSERT( m_backfill_mgr );
+		if( ! stricmp(new_system, current_system) ) {
+				// same as before
+			free( new_system );
+				// since it's already here and we're keeping it, tell
+				// it to reconfig (if that matters)
+			m_backfill_mgr->reconfig();
+		} else { 
+				// different!
+			dprintf( D_ALWAYS, "BACKFILL_SYSTEM has changed "
+					 "(old: '%s', new: '%s'), re-initializing\n",
+					 current_system, new_system );
+			free( current_system );
+			current_system = NULL;
+			delete m_backfill_mgr;
+			m_backfill_mgr = NULL;
+		}
+	}
+
+		// if we got this far, it means we've got a valid system, but
+		// no manager object.  so, depending on the system,
+		// instantiate the right thing.
+#if HAVE_BOINC
+	if( ! stricmp(new_system, "BOINC") ) {
+		m_backfill_mgr = new BOINC_BackfillMgr();
+		if( ! m_backfill_mgr->init() ) {
+			dprintf( D_ALWAYS, "ERROR initializing BOINC_BackfillMgr\n" );
+			delete m_backfill_mgr;
+			m_backfill_mgr = NULL;
+			free( new_system );
+			return false;
+		}
+	}
+#endif /* HAVE_BOINC */
+
+	if( ! m_backfill_mgr ) {
+			// this is impossible, since we've already verified above
+		EXCEPT( "IMPOSSILE: unrecognized BACKFILL_SYSTEM: '%s'",
+				new_system );
+	}
+
+		// if we got here, everything's cool.  just hold onto the
+		// current system so we'll remember the next time (and so we
+		// don't leak it).
+	current_system = new_system;
+	return true;
+}
+
+
+
+#endif /* HAVE_BACKFILL */
+
+
 void
 ResMgr::init_resources( void )
 {
@@ -191,6 +305,11 @@ ResMgr::init_resources( void )
 		// Resource objects.  Since it's an array of pointers, this
 		// won't touch the objects at all.
 	delete [] new_cpu_attrs;
+
+#if HAVE_BACKFILL
+	backfillConfig();
+#endif
+
 }
 
 
@@ -204,6 +323,9 @@ ResMgr::reconfig_resources( void )
 	Resource*** sorted_resources;	// Array of arrays of pointers.
 	Resource* rip;
 
+#if HAVE_BACKFILL
+	backfillConfig();
+#endif
 		// See if any new types were defined.  Don't except if there's
 		// any errors, just dprintf().
 	initTypes( 0 );
