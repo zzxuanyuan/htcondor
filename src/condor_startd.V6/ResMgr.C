@@ -110,6 +110,10 @@ ResMgr::init_config_classad( void )
 	configInsert( config_classad, "KILL_VANILLA", false );
 	configInsert( config_classad, "WANT_SUSPEND_VANILLA", false );
 	configInsert( config_classad, "WANT_VACATE_VANILLA", false );
+#if HAVE_BACKFILL
+	configInsert( config_classad, "START_BACKFILL", false );
+	configInsert( config_classad, "KILL_BACKFILL", false );
+#endif /* HAVE_BACKFILL */
 
 		// Next, try the IS_OWNER expression.  If it's not there, give
 		// them a resonable default, instead of leaving it undefined. 

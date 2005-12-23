@@ -160,6 +160,11 @@ public:
 	int		eval_start( void );			// returns -1 on undefined
 	int		eval_cpu_busy( void );		// returns FALSE on undefined
 
+#if HAVE_BACKFILL
+	int		eval_start_backfill( void ); 
+	int		eval_kill_backfill( void ); 
+#endif /* HAVE_BACKFILL */
+
 	bool    claimWorklifeExpired();
 	int		retirementExpired( void );
 	int		mayUnretire( void );

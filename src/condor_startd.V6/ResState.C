@@ -166,6 +166,9 @@ int
 ResState::eval( void )
 {
 	int want_suspend;
+#if HAVE_BACKFILL
+	int kill_rval; 
+#endif /* HAVE_BACKFILL */
 
 		// we may need to modify the load average in our internal
 		// policy classad if we're currently running a COD job or have
@@ -300,6 +303,16 @@ ResState::eval( void )
 			// Check to see if we should run benchmarks
 		deal_with_benchmarks( rip );
 
+#if HAVE_BACKFILL
+			// check if we should go into the Backfill state.  only do
+			// so if a) we've got a BackfillMgr object configured and
+			// instantiated, and b) START_BACKFILL evals to TRUE
+		if( resmgr->m_backfill_mgr && rip->eval_start_backfill() > 0 ) {
+			dprintf( D_ALWAYS, "State change: START_BACKFILL is TRUE\n" );
+			return change( backfill_state, idle_act );
+		}
+#endif /* HAVE_BACKFILL */
+
 		if( rip->r_reqexp->restore() ) {
 				// Our reqexp changed states, send an update
 			rip->update();
@@ -325,6 +338,25 @@ ResState::eval( void )
 			// one of those, you want to stay matched until they try
 			// to claim us).  
 		break;
+
+#if HAVE_BACKFILL
+	case backfill_state:
+			// see if we should leave the Backfill state
+		if( ! resmgr->m_backfill_mgr ) { 
+				// no BackfillMgr, leave immediately!
+			dprintf( D_ALWAYS, "State change: BackfillMgr deleted\n" );
+			return change( backfill_state, killing_act );
+		}
+		kill_rval = rip->eval_kill_backfill(); 
+		if( kill_rval > 0 ) {
+			dprintf( D_ALWAYS, "State change: KILL_BACKFILL is TRUE\n" );
+			return change( backfill_state, killing_act );
+		} else if( kill_rval < 0 ) {
+			dprintf( D_ALWAYS, "WARNING: KILL_BACKFILL is UNDEFINED, "
+					 "staying in Backfill state\n" );
+		}
+		break;
+#endif /* HAVE_BACKFILL */
 
 	default:
 		EXCEPT( "eval_state: ERROR: unknown state (%d)",
@@ -373,10 +405,16 @@ ResState::leave_action( State cur_s, Activity cur_a, State new_s,
 			rip->init_classad();
 		}
 		break;
+
+#if HAVE_BACKFILL
+	case backfill_state:
+			// at this point, nothing special to do... 
+#endif /* HAVE_BACKFILL */
 	case matched_state:
 	case owner_state:
 	case unclaimed_state:
 		break;
+
 	case claimed_state:
 		if( cur_a == suspended_act ) {
 			if( ! rip->r_cur->resumeClaim() ) {
@@ -496,6 +534,20 @@ ResState::enter_action( State s, Activity a,
 	case unclaimed_state:
 		rip->r_reqexp->restore();
 		break;
+
+#if HAVE_BACKFILL
+	case backfill_state:
+			// whenever we're in Backill, we always want be available
+		rip->r_reqexp->restore();
+
+		if( a == killing_act ) {
+				// for now, we just leave the state.  soon, we'll
+				// interact with the BackfillMgr to kill it and we'll
+				// only leave once we're done killing jobs, etc.
+			return change( owner_state );
+		}
+		break;
+#endif /* HAVE_BACKFILL */
 
 	case matched_state:
 		rip->r_reqexp->unavail();

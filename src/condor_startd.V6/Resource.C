@@ -1179,6 +1179,38 @@ Resource::eval_cpu_busy( void )
 }
 
 
+#if HAVE_BACKFILL
+
+int
+Resource::eval_start_backfill( void )
+{
+	int tmp;
+	if( (r_classad->EvalBool( "START_BACKFILL", 
+							  r_cur->ad(),
+							  tmp)) == 0 ) {
+			// Undefined, return false
+		return 0;
+	}
+	return tmp;
+}
+
+
+int
+Resource::eval_kill_backfill( void )
+{
+	int tmp;
+	if( (r_classad->EvalBool( "KILL_BACKFILL", 
+							  r_cur->ad(),
+							  tmp)) == 0 ) {
+			// Undefined, return error
+		return -1;
+	}
+	return tmp;
+}
+
+#endif /* HAVE_BACKFILL */
+
+
 void
 Resource::publish( ClassAd* cap, amask_t mask ) 
 {
