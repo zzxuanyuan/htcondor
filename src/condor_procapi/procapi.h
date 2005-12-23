@@ -448,7 +448,7 @@ class ProcAPI {
 
       @param pid The 'elder' pid of the family you want a list of pids for.
       @param pidFamily An array for holding pids in the family
-      @return A -1 is returned on failure, 0 otherwise.
+      @return A -1 is returned on failure, otherwise the number of pids in the array.
   */
   static int getPidFamily( pid_t pid, PidEnvID *penvid, pid_t *pidFamily,
   			int &status );
@@ -457,7 +457,7 @@ class ProcAPI {
    	
 	 @param pidFamily An array for holding pids in the family
 	 @param searchLogin A string specifying the owner who's pids we want
-	 @return A -1 is returned on failure, 0 otherwise.
+	 @return A -1 is returned on failure, otherwise the number of pids in the array.
   */
   static int getPidFamilyByLogin( const char *searchLogin, pid_t *pidFamily );
 
