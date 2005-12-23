@@ -25,11 +25,11 @@
 
 static char* condor_states [] = 
 { "None", "Owner", "Unclaimed", "Matched",  "Claimed", "Preempting",
-  "Shutdown", "Delete" };
+  "Shutdown", "Delete", "Backfill" };
 
 static char* condor_activities [] = 
 { "None", "Idle", "Busy", "Retiring", "Vacating", "Suspended", "Benchmarking",
-  "Killing" };
+  "Killing", "BOINC" };
 
 State 
 string_to_state(char* state_string) 
