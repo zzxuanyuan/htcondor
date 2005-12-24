@@ -1125,6 +1125,10 @@ match_info( Resource* rip, char* id )
 			EXCEPT( "Should never get here" );
 		}
 		break;
+
+#if HAVE_BACKFILL
+	case backfill_state:
+#endif /* HAVE_BACKFILL */
 	case unclaimed_state:
 	case owner_state:
 		if( rip->r_cur->idMatches(id) ) {
