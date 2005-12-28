@@ -55,6 +55,7 @@ public:
 	virtual bool resume() = 0;
 	virtual bool softkill() = 0;
 	virtual bool hardkill() = 0;
+	virtual void publish( ClassAd* ) = 0;
 
 protected:
 
