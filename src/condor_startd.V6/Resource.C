@@ -1154,6 +1154,27 @@ Resource::eval_kill_backfill( void )
 	return eval_expr( "KILL_BACKFILL", false, false );
 }
 
+
+bool
+Resource::start_backfill( void )
+{
+	return resmgr->m_backfill_mgr->start(r_id);
+}
+
+
+bool
+Resource::softkill_backfill( void )
+{
+	return resmgr->m_backfill_mgr->softkill(r_id);
+}
+
+
+bool
+Resource::hardkill_backfill( void )
+{
+	return resmgr->m_backfill_mgr->hardkill(r_id);
+}
+
 #endif /* HAVE_BACKFILL */
 
 

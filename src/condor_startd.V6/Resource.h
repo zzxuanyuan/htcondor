@@ -163,6 +163,9 @@ public:
 #if HAVE_BACKFILL
 	int		eval_start_backfill( void ); 
 	int		eval_kill_backfill( void ); 
+	bool	start_backfill( void );
+	bool	softkill_backfill( void );
+	bool	hardkill_backfill( void );
 #endif /* HAVE_BACKFILL */
 
 	bool    claimWorklifeExpired();
@@ -207,6 +210,7 @@ private:
 	void 	startTimerToEndCODLoadHack( void );
 	void	endCODLoadHack( void );
 	int		eval_expr( const char* expr_name, bool fatal, bool check_vanilla );
+
 };
 
 
