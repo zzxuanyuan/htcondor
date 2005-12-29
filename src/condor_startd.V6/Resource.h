@@ -206,6 +206,7 @@ private:
 	float	r_pre_cod_condor_load;
 	void 	startTimerToEndCODLoadHack( void );
 	void	endCODLoadHack( void );
+	int		eval_expr( const char* expr_name, bool fatal, bool check_vanilla );
 };
 
 

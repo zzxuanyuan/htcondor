@@ -1032,150 +1032,103 @@ Resource::retirementExpired()
 	return (JobAge >= MaxJobRetirementTime);
 }
 
+
+// returns -1 on undefined, 0 on false, 1 on true
+int
+Resource::eval_expr( const char* expr_name, bool fatal, bool check_vanilla )
+{
+	int tmp;
+	if( check_vanilla && r_cur->universe() == CONDOR_UNIVERSE_VANILLA ) {
+		MyString tmp_expr_name = expr_name;
+		tmp_expr_name += "_VANILLA";
+		tmp = eval_expr( tmp_expr_name.Value(), false, false );
+		if( tmp >= 0 ) {
+				// found it, just return the value;
+			return tmp;
+		}
+			// otherwise, fall through and try the non-vanilla version
+	}
+	if( (r_classad->EvalBool(expr_name, r_cur->ad(), tmp) ) == 0 ) { 
+		if( fatal ) {
+			EXCEPT( "Can't evaluate %s", expr_name );
+		} else {
+				// anything else for here?
+			return -1;
+		}
+	}
+		// EvalBool returned success, we can just return the value
+	return tmp;
+}
+
+
 int
 Resource::eval_kill()
 {
-	int tmp;
-	if( r_cur->universe() == CONDOR_UNIVERSE_VANILLA ) {
-		if( (r_classad->EvalBool( "KILL_VANILLA",
-									r_cur->ad(), tmp) ) == 0 ) {  
-			if( (r_classad->EvalBool( "KILL",
-										r_cur->ad(),
-										tmp) ) == 0 ) { 
-				EXCEPT("Can't evaluate KILL");
-			}
-		}
-	} else {
-		if( (r_classad->EvalBool( "KILL",
-									r_cur->ad(), 
-									tmp)) == 0 ) { 
-			EXCEPT("Can't evaluate KILL");
-		}	
-	}
-	return tmp;
+		// fatal if undefined, check vanilla
+	return eval_expr( "KILL", true, true );
 }
 
 
 int
 Resource::eval_preempt( void )
 {
-	int tmp;
-	if( r_cur->universe() == CONDOR_UNIVERSE_VANILLA ) {
-		if( (r_classad->EvalBool( "PREEMPT_VANILLA",
-								   r_cur->ad(), 
-								   tmp)) == 0 ) {
-			if( (r_classad->EvalBool( "PREEMPT",
-									   r_cur->ad(), 
-									   tmp)) == 0 ) {
-				EXCEPT("Can't evaluate PREEMPT");
-			}
-		}
-	} else {
-		if( (r_classad->EvalBool( "PREEMPT",
-								   r_cur->ad(), 
-								   tmp)) == 0 ) {
-			EXCEPT("Can't evaluate PREEMPT");
-		}
-	}
-	return tmp;
+		// fatal if undefined, check vanilla
+	return eval_expr( "PREEMPT", true, true );
 }
 
 
 int
 Resource::eval_suspend( void )
 {
-	int tmp;
-	if( r_cur->universe() == CONDOR_UNIVERSE_VANILLA ) {
-		if( (r_classad->EvalBool( "SUSPEND_VANILLA",
-								   r_cur->ad(),
-								   tmp)) == 0 ) {
-			if( (r_classad->EvalBool( "SUSPEND",
-									   r_cur->ad(),
-									   tmp)) == 0 ) {
-				EXCEPT("Can't evaluate SUSPEND");
-			}
-		}
-	} else {
-		if( (r_classad->EvalBool( "SUSPEND",
-								   r_cur->ad(),
-								   tmp)) == 0 ) {
-			EXCEPT("Can't evaluate SUSPEND");
-		}
-	}
-	return tmp;
+		// fatal if undefined, check vanilla
+	return eval_expr( "SUSPEND", true, true );
 }
 
 
 int
 Resource::eval_continue( void )
 {
-	int tmp;
-	if( r_cur->universe() == CONDOR_UNIVERSE_VANILLA ) {
-		if( (r_classad->EvalBool( "CONTINUE_VANILLA",
-								   r_cur->ad(),
-								   tmp)) == 0 ) {
-			if( (r_classad->EvalBool( "CONTINUE",
-									   r_cur->ad(),
-									   tmp)) == 0 ) {
-				EXCEPT("Can't evaluate CONTINUE");
-			}
-		}
-	} else {	
-		if( (r_classad->EvalBool( "CONTINUE",
-								   r_cur->ad(),
-								   tmp)) == 0 ) {
-			EXCEPT("Can't evaluate CONTINUE");
-		}
-	}
-	return tmp;
+		// fatal if undefined, check vanilla
+	return eval_expr( "CONTINUE", true, true );
 }
 
 
 int
 Resource::eval_is_owner( void )
 {
-	int tmp;
-	if( (r_classad->EvalBool( ATTR_IS_OWNER, 
-							  r_cur->ad(),
-							  tmp)) == 0 ) {
-		EXCEPT("Can't evaluate %s", ATTR_IS_OWNER);
-	}
-	return tmp;
+		// fatal if undefined, don't check vanilla
+	return eval_expr( "CONTINUE", true, false );
 }
 
 
 int
 Resource::eval_start( void )
 {
-	int tmp;
-	if( (r_classad->EvalBool( "START", 
-							  r_cur->ad(),
-							  tmp)) == 0 ) {
-			// Undefined
-		return -1;
-	}
-	return tmp;
+		// -1 if undefined, don't check vanilla
+	return eval_expr( "START", false, false );
 }
 
 
 int
 Resource::eval_cpu_busy( void )
 {
-	int tmp = 0;
+	int rval = 0;
 	if( ! r_classad ) {
 			// We don't have our classad yet, so just return that
 			// we're not busy.
 		return 0;
 	}
-	if( (r_classad->EvalBool( ATTR_CPU_BUSY, r_cur->ad(), tmp )) == 0 ) {
+		// not fatal, don't check vanilla
+	rval = eval_expr( ATTR_CPU_BUSY, false, false );
+	if( rval < 0 ) { 
 			// Undefined, try "cpu_busy"
-		if( (r_classad->EvalBool( "CPU_BUSY", r_cur->ad(), 
-								  tmp )) == 0 ) {   
-				// Totally undefined, return false;
-			return 0;
-		}
+		rval = eval_expr( "CPU_BUSY", false, false );
 	}
-	return tmp;
+	if( rval < 0 ) { 
+			// Totally undefined, return false;
+		return 0;
+	}
+	return rval;
 }
 
 
@@ -1184,28 +1137,21 @@ Resource::eval_cpu_busy( void )
 int
 Resource::eval_start_backfill( void )
 {
-	int tmp;
-	if( (r_classad->EvalBool( "START_BACKFILL", 
-							  r_cur->ad(),
-							  tmp)) == 0 ) {
+	int rval = 0;
+	rval = eval_expr( "START_BACKFILL", false, false );
+	if( rval < 0 ) {
 			// Undefined, return false
 		return 0;
 	}
-	return tmp;
+	return rval;
 }
 
 
 int
 Resource::eval_kill_backfill( void )
 {
-	int tmp;
-	if( (r_classad->EvalBool( "KILL_BACKFILL", 
-							  r_cur->ad(),
-							  tmp)) == 0 ) {
-			// Undefined, return error
-		return -1;
-	}
-	return tmp;
+		// return -1 on undefined (not fatal), don't check vanilla
+	return eval_expr( "KILL_BACKFILL", false, false );
 }
 
 #endif /* HAVE_BACKFILL */
