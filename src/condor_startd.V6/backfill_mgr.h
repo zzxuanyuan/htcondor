@@ -101,6 +101,7 @@ public:
 protected:
 
 	ExtArray<BackfillVM*> m_vms;
+	int m_num_vms;
 
 };
 

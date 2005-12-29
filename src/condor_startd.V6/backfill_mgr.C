@@ -63,6 +63,7 @@ BackfillVM::enterActivity( Activity act )
 
 BackfillMgr::BackfillMgr()
 {
+	m_num_vms = 0;
 	dprintf( D_FULLDEBUG, "Instantiating a BackfillMgr\n" );
 }
 
