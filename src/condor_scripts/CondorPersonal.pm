@@ -36,7 +36,8 @@ package CondorPersonal;
 #	condordomain	Name for domain						cs.wisc.edu					$condordomain
 #	condorlocal		Name for condor local config 		condor_config.local			$personal_local
 #	condor			"install" or path to tarball 									$condordistribution
-#	collector	 	Used to define CONDOR_HOST										$condorhost
+#   collector       Used to define COLLECTOR_HOST                                   $collectorhost
+#   condorhost      Used to define CONDOR_HOST                                      $condorhost
 #	ports			Select dynamic or normal ports		dynamic						$portchanges	
 #   vms				sets NUM_CPUS NUM_VMS				none
 #   universe		parallel configuration of schedd	none						$personal_universe
@@ -480,14 +481,17 @@ sub TunePersonalCondor
 
 	debug( "My basic name is $myhost\n");
 
+	# was a special condor host called out?
+    if( exists $control{"condorhost"} )
+    {
+        $condorhost = $control{"condorhost"};
+    }
 
-	# was a special collector called out?
-	if( exists $control{"collector"} )
-	{
-		#print "DEFINING 'collector' will break things needs for parallel and Condor-C tests!\n";
-		$condorhost = $control{"collector"};
-	}
-
+    # was a special condor collector called out?
+    if( exists $control{"collector"} )
+    {
+        $collectorhost = $control{"collector"};
+    }
 
 	# was a special domain called out?
 	if( exists $control{"condordomain"} )
@@ -635,6 +639,15 @@ sub TunePersonalCondor
 	{
 		# this variation requests a dynamic port for collector and negotiator
 		# and the location where we can look up the adresses.
+		if( $collectorhost )
+        {
+            print NEW "COLLECTOR_HOST = $collectorhost\n";
+        }
+        else
+        {
+            print NEW "COLLECTOR_HOST = \$(CONDOR_HOST):0\n";
+        }
+
 		print NEW "SCHEDD_NAME = schedd$pid$version\n";
 		print NEW "COLLECTOR_HOST = \$(CONDOR_HOST):0\n";
 		print NEW "NEGOTIATOR_HOST = \$(CONDOR_HOST):0\n";
@@ -657,6 +670,15 @@ sub TunePersonalCondor
 	{
 		# Allow the collector to run on the default and expected port as the main
 		# condor install on this system.
+		if( $collectorhost )
+        {
+            print NEW "COLLECTOR_HOST = $collectorhost\n";
+        }
+        else
+        {
+            print NEW "COLLECTOR_HOST = \$(CONDOR_HOST)\n";
+        }
+
 		print NEW "COLLECTOR_HOST = \$(CONDOR_HOST)\n";
 		print NEW "NEGOTIATOR_HOST = \$(CONDOR_HOST)\n";
 		print NEW "CONDOR_HOST = $condorhost\n";
