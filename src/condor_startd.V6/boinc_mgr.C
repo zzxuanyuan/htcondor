@@ -89,6 +89,13 @@ BOINC_BackfillVM::hardkill()
 }
 
 
+void
+BOINC_BackfillVM::publish( ClassAd* ad )
+{
+		// TODO
+}
+
+
 BOINC_BackfillMgr::BOINC_BackfillMgr()
 	: BackfillMgr()
 {

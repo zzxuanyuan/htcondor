@@ -37,6 +37,7 @@ public:
 	virtual bool resume();
 	virtual bool softkill();
 	virtual bool hardkill();
+	virtual void publish( ClassAd* ad );
 
 };
 
