@@ -537,14 +537,27 @@ ResState::enter_action( State s, Activity a,
 
 #if HAVE_BACKFILL
 	case backfill_state:
-			// whenever we're in Backill, we always want be available
+			// whenever we're in Backill, we might be available
 		rip->r_reqexp->restore();
+		
+		switch( a ) {
 
-		if( a == killing_act ) {
+		case killing_act:
+				// TODO notice and handle failure 
+			rip->hardkill_backfill();
 				// for now, we just leave the state.  soon, we'll
-				// interact with the BackfillMgr to kill it and we'll
-				// only leave once we're done killing jobs, etc.
+				// interact with the BackfillMgr and we'll
+				// only leave once the client is really gone
 			return change( owner_state );
+			break;
+
+		case idle_act:
+			rip->start_backfill();
+			break;
+
+		default:
+			EXCEPT( "activity %s not yet supported in backfill state", 
+					activity_to_string(a) ); 
 		}
 		break;
 #endif /* HAVE_BACKFILL */
