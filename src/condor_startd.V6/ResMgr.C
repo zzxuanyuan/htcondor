@@ -1179,6 +1179,20 @@ ResMgr::get_by_name( char* name )
 }
 
 
+Resource*
+ResMgr::get_by_vm_id( int id )
+{
+	if( ! resources ) {
+		return NULL;
+	}
+	int i;
+	for( i = 0; i < nresources; i++ ) {
+		if( resources[i]->r_id == id ) {
+			return resources[i];
+		}
+	}
+	return NULL;
+}
 
 
 State
