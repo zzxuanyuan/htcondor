@@ -1097,7 +1097,7 @@ int
 Resource::eval_is_owner( void )
 {
 		// fatal if undefined, don't check vanilla
-	return eval_expr( "CONTINUE", true, false );
+	return eval_expr( ATTR_IS_OWNER, true, false );
 }
 
 
