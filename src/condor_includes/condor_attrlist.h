@@ -120,11 +120,14 @@ class AttrList
 		classad::ClassAd *ad;
 		class AttrListList *inOneList;
 		List<class AttrListList> *inLists;
-		classad::ClassAd::iterator nameItr;
-		classad::ClassAd::iterator exprItr;
-		classad::ClassAd::dirtyIterator dirtyNameItr;
-		classad::ClassAd::dirtyIterator dirtyExprItr;
+		classad::ClassAd::iterator *nameItr;
+		classad::ClassAd::iterator *exprItr;
+		bool nameItrInChain;
+		bool exprItrInChain;
+		classad::ClassAd::dirtyIterator *dirtyNameItr;
+		classad::ClassAd::dirtyIterator *dirtyExprItr;
 		ExprCache *exprCache;
+		AttrList *chainedAd;
 };
 
 class AttrListList
