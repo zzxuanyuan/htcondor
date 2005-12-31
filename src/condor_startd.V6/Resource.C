@@ -1175,6 +1175,31 @@ Resource::hardkill_backfill( void )
 	return resmgr->m_backfill_mgr->hardkill(r_id);
 }
 
+
+int
+Resource::backfillGone( void )
+{
+	State s = state();
+	Activity a = activity();
+	if( s != backfill_state ) {
+		dprintf( D_ALWAYS, "ERROR: Resource::backfillGone() called for "
+				 "%s while not in Backfill state (%s)\n", r_id_str,
+				 state_to_string(s) );
+		return FALSE;
+	}
+
+	if( a == idle_act ) {
+		dprintf( D_ALWAYS, "ERROR: Resource::backfillGone() called for "
+				 "%s while already in Backfill/Idle\n", r_id_str );
+		return FALSE;
+	}
+
+		// don't need to dprintf() why, since we already do in the
+		// Backfill-system-specific method that calls this... 
+	return change_state( backfill_state, idle_act );
+}
+
+
 #endif /* HAVE_BACKFILL */
 
 
