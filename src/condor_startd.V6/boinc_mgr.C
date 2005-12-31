@@ -213,6 +213,7 @@ BOINC_BackfillMgr::start( int vm_id )
 		// PHASE 2: split up slots, remove monolithic BOINC client
 	m_vms[vm_id] = new BOINC_BackfillVM( vm_id );
 	m_num_vms++;
+
 	return true;
 }
 
@@ -361,3 +362,18 @@ BOINC_BackfillMgr::hardkill( int vm_id )
 }
 
 
+bool
+BOINC_BackfillMgr::walk( BoincVmMember member_func )
+{
+	bool rval = true;
+	int i, num = 0, max = m_vms.getsize();
+	for( i = 0; num < m_num_vms && i < max; i++ ) {
+		if( m_vms[i] ) { 
+			num++;
+			if( ! (((BOINC_BackfillVM*)m_vms[i])->*(member_func))() ) {
+				rval = false;
+			}
+		}
+	}
+	return rval;
+}

@@ -42,6 +42,8 @@ public:
 };
 
 
+typedef bool (BOINC_BackfillVM::*BoincVmMember)();
+
 class BOINC_BackfillMgr : public BackfillMgr
 {
 public:
@@ -62,6 +64,8 @@ public:
 	virtual bool hardkill( int vm_id );
 
 	int reaper( int pid, int status );
+
+	bool walk( BoincVmMember );
 
 protected:
 	bool spawnClient( void );
