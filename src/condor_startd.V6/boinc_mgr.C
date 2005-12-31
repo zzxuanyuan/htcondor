@@ -183,10 +183,14 @@ BOINC_BackfillMgr::addVM( BOINC_BackfillVM* boinc_vm )
 bool
 BOINC_BackfillMgr::rmVM( int vm_id )
 {
-		// TODO
+	if( ! m_vms[vm_id] ) {
+		return false;
+	}
+	delete m_vms[vm_id];
+	m_vms[vm_id] = NULL;
+	m_num_vms--;
 	return true;
 }
-
 
 
 bool
