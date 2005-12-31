@@ -555,6 +555,12 @@ ResState::enter_action( State s, Activity a,
 			rip->start_backfill();
 			break;
 
+#if HAVE_BOINC
+		case boinc_act:
+				// nothing special to do (yet)
+			break;
+#endif /* HAVE_BOINC */
+
 		default:
 			EXCEPT( "activity %s not yet supported in backfill state", 
 					activity_to_string(a) ); 
