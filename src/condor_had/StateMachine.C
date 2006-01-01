@@ -181,7 +181,8 @@ HADStateMachine::initializeClassAd()
     char* userName = my_username();
     MyString name;
 
-    name.sprintf( "%s@%s", userName, my_full_hostname( ) );
+    name.sprintf( "%s@%s -p %d", userName, my_full_hostname( ),
+				  daemonCore->InfoCommandPort( ) );
     free( userName );
     // two following attributes: ATTR_NAME and ATTR_MACHINE are mandatory
     // in order to be accepted by collector
