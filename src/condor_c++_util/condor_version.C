@@ -33,7 +33,7 @@
    will EXCEPT at startup time.  
 */
 
-static char* CondorVersionString = "$CondorVersion: 6.7.15 " __DATE__ " PRE-RELEASE-UWCS $";
+static char* CondorVersionString = "$CondorVersion: 6.7.15 " __DATE__ " V6_7-CRON-3-BRANCH-PRE-RELEASE-UWCS $";
 
 /* 
    This is some wisdom from Cygnus's web page.  If you just try to use

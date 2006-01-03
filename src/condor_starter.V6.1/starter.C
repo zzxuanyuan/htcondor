@@ -68,6 +68,7 @@ CStarter::CStarter()
 	starter_stdout_fd = -1;
 	starter_stderr_fd = -1;
 	deferral_tid = -1;
+	suspended = false;
 }
 
 
@@ -129,28 +130,35 @@ CStarter::Init( JobInfoCommunicator* my_jic, const char* orig_cwd,
 				 (long)daemonCore->getpid() );
 	}
 
-	// setup daemonCore handlers
+		//
+		// We have switched all of these to call the "Remote"
+		// version of the appropriate method. The difference between the 
+		// "Remote" versions and the regular version is that the
+		// the JIC is only notified of an action in the "Remote" methods
+		// The Remote versions will call the regular method after
+		// calling the appropriate JIC method
+		//
 	daemonCore->Register_Signal(DC_SIGSUSPEND, "DC_SIGSUSPEND", 
-		(SignalHandlercpp)&CStarter::Suspend, "Suspend", this,
-		IMMEDIATE_FAMILY);
+		(SignalHandlercpp)&CStarter::RemoteSuspend, "RemoteSuspend",
+		this, IMMEDIATE_FAMILY);
 	daemonCore->Register_Signal(DC_SIGCONTINUE, "DC_SIGCONTINUE",
-		(SignalHandlercpp)&CStarter::Continue, "Continue", this,
-		IMMEDIATE_FAMILY);
+		(SignalHandlercpp)&CStarter::RemoteContinue, "RemoteContinue",
+		this, IMMEDIATE_FAMILY);
 	daemonCore->Register_Signal(DC_SIGHARDKILL, "DC_SIGHARDKILL",
-		(SignalHandlercpp)&CStarter::ShutdownFast, "ShutdownFast", this, 
-		IMMEDIATE_FAMILY);
+		(SignalHandlercpp)&CStarter::RemoteShutdownFast, "RemoteShutdownFast",
+		this, IMMEDIATE_FAMILY);
 	daemonCore->Register_Signal(DC_SIGSOFTKILL, "DC_SIGSOFTKILL",
-		(SignalHandlercpp)&CStarter::ShutdownGraceful, "ShutdownGraceful",
+		(SignalHandlercpp)&CStarter::RemoteShutdownGraceful, "RemoteShutdownGraceful",
 		this, IMMEDIATE_FAMILY);
 	daemonCore->Register_Signal(DC_SIGPCKPT, "DC_SIGPCKPT",
-		(SignalHandlercpp)&CStarter::PeriodicCkpt, "PeriodicCkpt", this,
-		IMMEDIATE_FAMILY);
+		(SignalHandlercpp)&CStarter::RemotePeriodicCkpt, "RemotePeriodicCkpt",
+		this, IMMEDIATE_FAMILY);
 	daemonCore->Register_Signal(DC_SIGREMOVE, "DC_SIGREMOVE",
-		(SignalHandlercpp)&CStarter::Remove, "Remove", this,
-		IMMEDIATE_FAMILY);
+		(SignalHandlercpp)&CStarter::RemoteRemove, "RemoteRemove",
+		this, IMMEDIATE_FAMILY);
 	daemonCore->Register_Signal(DC_SIGHOLD, "DC_SIGHOLD",
-		(SignalHandlercpp)&CStarter::Hold, "Hold", this,
-		IMMEDIATE_FAMILY);
+		(SignalHandlercpp)&CStarter::RemoteHold, "RemoteHold",
+		this, IMMEDIATE_FAMILY);
 	daemonCore->Register_Reaper("Reaper", (ReaperHandlercpp)&CStarter::Reaper,
 		"Reaper", this);
 
@@ -218,19 +226,41 @@ CStarter::Config()
 	jic->config();
 }
 
-
+/**
+ * DC Shutdown Graceful Wrapper
+ * We notify our JIC that we got a shutdown graceful call
+ * then invoke ShutdownGraceful() which does the real work
+ * 
+ * @param command (not used)
+ * @return true if ????, otherwise false
+ */ 
 int
-CStarter::ShutdownGraceful(int)
+CStarter::RemoteShutdownGraceful( int )
+{
+		// tell our JobInfoCommunicator about this so it can take any
+		// necessary actions
+	if ( jic ) {
+		jic->gotShutdownGraceful();
+	}
+	return ( this->ShutdownGraceful( ) );
+}
+
+/**
+ * Tells all the job's in the job queue to shutdown gracefully
+ * If a job has already been shutdown, then we will remove it from
+ * the job queue. If a job is being deferred, we will just call
+ * removeDeferredJobs() to clean up any timers we may have set.
+ * 
+ * @return true if there are no jobs running and we can shutdown now
+ */
+bool
+CStarter::ShutdownGraceful( void )
 {
 	bool jobRunning = false;
 	UserProc *job;
 
 	dprintf(D_ALWAYS, "ShutdownGraceful all jobs.\n");
 
-		// tell our JobInfoCommunicator about this so it can take any
-		// necessary actions
-	jic->gotShutdownGraceful();
-	
 		//
 		// Check if there is currently a timer registerd for a 
 		// deferred job. If there is then we need to cancel it
@@ -259,21 +289,41 @@ CStarter::ShutdownGraceful(int)
 	return 0;
 }
 
-
+/**
+ * DC Shutdown Fast Wrapper
+ * We notify our JIC that we got a shutdown fast call
+ * then invoke ShutdownFast() which does the real work
+ * 
+ * @param command (not used)
+ * @return true if ????, otherwise false
+ */ 
 int
-CStarter::ShutdownFast(int)
+CStarter::RemoteShutdownFast(int)
 {
-	bool jobRunning = false;
-	UserProc *job;
-
-	dprintf(D_ALWAYS, "ShutdownFast all jobs.\n");
-
 		// tell our JobInfoCommunicator about this so it can take any
 		// necessary actions (for example, disabiling file transfer if
 		// we're talking to a shadow)
 	if( jic ) {
 		jic->gotShutdownFast();
 	}
+	return ( this->ShutdownFast( ) );
+}
+
+/**
+ * Tells all the job's in the job queue to shutdown now!
+ * If a job has already been shutdown, then we will remove it from
+ * the job queue. If a job is being deferred, we will just call
+ * removeDeferredJobs() to clean up any timers we may have set.
+ * 
+ * @return true if there are no jobs running and we can shutdown now
+ */
+bool
+CStarter::ShutdownFast( void )
+{
+	bool jobRunning = false;
+	UserProc *job;
+
+	dprintf(D_ALWAYS, "ShutdownFast all jobs.\n");
 	
 		//
 		// Check if there is currently a timer registerd for a 
@@ -298,24 +348,45 @@ CStarter::ShutdownFast(int)
 	if (!jobRunning) {
 		dprintf(D_FULLDEBUG, 
 				"Got ShutdownFast when no jobs running.\n");
-		return 1;
+		return ( true );
 	}	
-	return 0;
+	return ( false );
 }
 
+/**
+ * DC Remove Job Wrapper
+ * We notify our JIC that we got a remove call
+ * then invoke Remove() which does the real work
+ * 
+ * @param command (not used)
+ * @return true if ????, otherwise false
+ */ 
 int
-CStarter::Remove( int )
+CStarter::RemoteRemove( int )
 {
-	bool jobRunning = false;
-	UserProc *job;
-
-	dprintf( D_ALWAYS, "Remove all jobs\n" );
-
 		// tell our JobInfoCommunicator about this so it can take any
 		// necessary actions
 	if( jic ) {
 		jic->gotRemove();
 	}
+	return ( this->Remove( ) );
+}
+
+/**
+ * Attempts to remove all the jobs from the job queue
+ * If a job has already been removed, that is if job->Remove() returns
+ * true, then we know that it is safe to remove it from the job queue.
+ * If a job is being deferred, we will just call removeDeferredJobs()
+ * to clean up any timers we may have set.
+ * 
+ * @return true if all the jobs have been removed
+ */
+bool
+CStarter::Remove( ) {
+	bool jobRunning = false;
+	UserProc *job;
+
+	dprintf( D_ALWAYS, "Remove all jobs\n" );
 
 		//
 		// Check if there is currently a timer registerd for a 
@@ -337,27 +408,52 @@ CStarter::Remove( int )
 		}
 	}
 	ShuttingDown = TRUE;
+		//
+		// If there are no jobs running, we return true to let
+		// whoever called us know that all the jobs have been
+		// properly removed
+		//
 	if (!jobRunning) {
 		dprintf( D_FULLDEBUG, "Got Remove when no jobs running\n" );
-		return 1;
+		return ( true );
 	}	
-	return 0;
+	return ( false );
 }
 
-
+/**
+ * DC Hold Job Wrapper
+ * We notify our JIC that we got a hold call
+ * then invoke Hold() which does the real work
+ * 
+ * @param command (not used)
+ * @return true if ????, otherwise false
+ */ 
 int
-CStarter::Hold( int )
+CStarter::RemoteHold( int )
 {
-	bool jobRunning = false;
-	UserProc *job;
-
-	dprintf( D_ALWAYS, "Hold all jobs\n" );
-
 		// tell our JobInfoCommunicator about this so it can take any
 		// necessary actions
 	if( jic ) {
 		jic->gotHold();
 	}
+	return ( this->Hold( ) );
+}
+
+/**
+ * Attempts to put all the jobs on hold
+ * If a job has already been put on hold, then the job is removed
+ * from the queue. If a job is being deferred, we will just
+ * call removeDeferredJobs() to clean up any timers we may have set.
+ * 
+ * @return true if all the jobs have been put on hold & removed from the queue
+ */
+bool
+CStarter::Hold( void )
+{	
+	bool jobRunning = false;
+	UserProc *job;
+
+	dprintf( D_ALWAYS, "Hold all jobs\n" );
 
 	JobList.Rewind();
 	while( (job = JobList.Next()) != NULL ) {
@@ -373,9 +469,9 @@ CStarter::Hold( int )
 	ShuttingDown = TRUE;
 	if( !jobRunning ) {
 		dprintf( D_FULLDEBUG, "Got Hold when no jobs running\n" );
-		return 1;
+		return ( true );
 	}	
-	return 0;
+	return ( false );
 }
 
 
@@ -658,7 +754,6 @@ CStarter::jobWaitUntilExecuteTime( void )
 			//
 		this->deferral_tid = daemonCore->Register_Timer(
 										deltaT,
-										0,
 										(TimerHandlercpp)&CStarter::jobEnvironmentReady,
 										"deferred job start",
 										this );
@@ -856,6 +951,21 @@ CStarter::SpawnJob( void )
 
 	if (job->StartJob()) {
 		JobList.Append(job);
+		
+			//
+			// If the Starter received a Suspend call while the
+			// job was being deferred or preparing, we need to 
+			// suspend it right away.
+			//
+			// I am not sure if it's ok to do this right after
+			// calling StartJob() or if the job should never be 
+			// allowed to start at all. Is it a big problem if
+			// the job is allowed to execute a little bit before
+			// they get suspended?
+			//
+		if ( this->suspended ) {
+			this->Suspend( );
+		}
 
 		// Now, see if we also need to start up a ToolDaemon
 		// for this job.
@@ -869,7 +979,20 @@ CStarter::SpawnJob( void )
 
 			if( tool_daemon_proc->StartJob() ) {
 				JobList.Append( tool_daemon_proc );
-				dprintf( D_FULLDEBUG, "ToolDaemonProc added to JobList\n");
+				dprintf( D_FULLDEBUG, "ToolDaemonProc added to JobList\n");				
+					//
+					// If the Starter received a Suspend call while the
+					// job was being deferred or preparing, we need to 
+					// suspend it right away.
+					//
+					// Although a single Suspend() call would have caught
+					// both the job and the Tool Daemon, I decided 
+					// to have it call Suspend as soon as the job
+					// is started. See comments from above
+					//
+				if ( this->suspended ) {
+					this->Suspend( );
+				}
 			} else {
 				dprintf( D_ALWAYS, "Failed to start ToolDaemonProc!\n");
 				delete tool_daemon_proc;
@@ -890,10 +1013,31 @@ CStarter::SpawnJob( void )
 	}
 }
 
-
+/**
+ * DC Suspend Job Wrapper
+ * We notify our JIC that we got a suspend call
+ * then invoke Suspend() which does the real work
+ * 
+ * @param command (not used)
+ * @return true if the jobs were suspended
+ */ 
 int
-CStarter::Suspend(int)
+CStarter::RemoteSuspend(int)
 {
+		// notify our JobInfoCommunicator that the jobs are suspended
+	jic->Suspend();
+	return ( this->Suspend( ) );
+}
+
+/**
+ * Suspends all the jobs in the queue. We also will set the
+ * suspended flag to true so that we know that all new jobs for
+ * this Starter that get executed will start suspended
+ * 
+ * @return true if the jobs were successfully suspended
+ */
+bool
+CStarter::Suspend( void ) {
 	dprintf(D_ALWAYS, "Suspending all jobs.\n");
 
 	UserProc *job;
@@ -901,24 +1045,45 @@ CStarter::Suspend(int)
 	while ((job = JobList.Next()) != NULL) {
 		job->Suspend();
 	}
-
-		// notify our JobInfoCommunicator that the jobs are suspended
-	jic->Suspend();
 	
 		//
-		// If we have a deferral timer still active, then we need to
-		// cancel it
+		// We set a flag to let us know that if any other
+		// job tries to start after we recieved this Suspend call
+		// then they should also be suspended.
+		// This can happen if a job was being deferred and when
+		// the timer triggers we don't want to let it execute 
+		// if the Starter was asked to suspend all jobs
 		//
-	if ( this->deferral_tid != this->deferral_tid ) {
-		this->removeDeferredJobs();
-	}
+	this->suspended = true;
 
-	return 0;
+	return ( true );
 }
 
-
+/**
+ * DC Continue Job Wrapper
+ * We notify our JIC that we got a continue call
+ * then invoke Continue() which does the real work
+ * 
+ * @param command (not used)
+ * @return true if jobs were unsuspended
+ */ 
 int
-CStarter::Continue(int)
+CStarter::RemoteContinue(int)
+{
+		// notify our JobInfoCommunicator that the job is being continued
+	jic->Continue();
+	return ( this->Continue( ) );
+}
+
+/**
+ * Unsuspends all the jobs in the queue. We also unset
+ * the suspended flag so that all new jobs that get started
+ * are allowed to execute right away
+ * 
+ * @return true if the jobs were successfully continued
+ */
+bool
+CStarter::Continue( void )
 {
 	dprintf(D_ALWAYS, "Continuing all jobs.\n");
 
@@ -927,21 +1092,43 @@ CStarter::Continue(int)
 	while ((job = JobList.Next()) != NULL) {
 		job->Continue();
 	}
+	
+		//
+		// We can unset the suspended flag 
+		// This will allow for a job that was being deferred when
+		// the suspend call came in to execute right away when the 
+		// deferral timer trips
+		//
+	this->suspended = false;
 
-	// notify our JobInfoCommunicator that the job is being continued
-	jic->Continue();
-
-	return 0;
+	return ( true );
 }
 
-
+/**
+ * DC Peroidic Checkpoint Job Wrapper
+ * Currently does nothing
+ * 
+ * @param command (not used)
+ * @return false
+ */ 
 int
-CStarter::PeriodicCkpt(int)
+CStarter::RemotePeriodicCkpt(int)
 {
-	// TODO
-	return 0;
+	return ( this->PeriodicCkpt( ) );
 }
 
+/**
+ * Currently does nothing
+ * 
+ * @todo implement!
+ * @return false
+ */ 
+bool
+CStarter::PeriodicCkpt( void )
+{	
+	// TODO
+	return ( false );
+}
 
 int
 CStarter::Reaper(int pid, int exit_status)
