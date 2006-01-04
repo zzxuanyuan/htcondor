@@ -110,7 +110,7 @@ AdminEvent::timerHandler_DoShutdown( void )
 	d = new DCMaster(m_shutdownTarget.Value());
 	dprintf(D_ALWAYS,"daemon name is %s\n",d->name());
 	dprintf(D_FULLDEBUG,"call Shutdown now.....\n");
-	d->sendMasterOff(wantTcp);
+	//d->sendMasterOff(wantTcp);
 	return(0);
 }
 
@@ -267,15 +267,24 @@ AdminEvent::process_ShutdownSize( char *size )
 int
 AdminEvent::process_ShutdownConstraint( char *constraint )
 {
+	bool first = true;
 	CondorError errstack;
 	CondorQuery *query;
     QueryResult q;
 	ClassAdList result;
+	ClassAdList claimed_standard;
+	ClassAdList claimed_vanilla;
+	ClassAdList unclaimed;
 	ClassAd *ad;
 	DCCollector* pool = NULL;
 	AdTypes     type    = (AdTypes) -1;
 	char* tmp = NULL;
 	const char* host = NULL;
+
+	char *machine = NULL;
+	char *state = NULL;
+	int jobuniverse = -1;
+	int imagesz = -1;
 
 	pool = new DCCollector( "" );
 
@@ -288,6 +297,7 @@ AdminEvent::process_ShutdownConstraint( char *constraint )
 
 	// we are looking for starter ads
 	type = STARTD_AD;
+	//type = MASTER_AD;
 
 	// instantiate query object
 	if( !(query = new CondorQuery (type))) {
@@ -309,7 +319,7 @@ AdminEvent::process_ShutdownConstraint( char *constraint )
 	}
 
 	if( result.Length() <= 0 ){
-		dprintf(D_ALWAYS, "Found no ClassAds matching <<%s>>\n",constraint);
+		dprintf(D_ALWAYS, "Found no ClassAds matching <<%s>> <<%d results>>\n",constraint,result.Length());
 	} else {
 		dprintf(D_ALWAYS, "Found <<%d>> ClassAds matching <<%s>>\n",result.Length(),constraint);
 	}
@@ -317,19 +327,81 @@ AdminEvent::process_ShutdownConstraint( char *constraint )
 	// output result
 	result.Rewind();
 	while( ad = result.Next() ){
-		ad->LookupString( ATTR_MACHINE, &tmp );
-		if( ! tmp ) {
-			// weird, malformed ad.
-			// should we print a warning?
+		ad->LookupString( ATTR_MACHINE, &machine );
+		ad->LookupString( ATTR_STATE, &state );
+		ad->LookupInteger( ATTR_JOB_UNIVERSE, jobuniverse );
+		ad->LookupInteger( ATTR_IMAGE_SIZE, imagesz );
+
+		if( ! machine ) {
 			dprintf(D_ALWAYS, "malformed ad????\n");
 			continue;
 		} else {
-			dprintf(D_ALWAYS, "Found <<%s>> machine matching <<%s>>\n",tmp,constraint);
-			//host = get_host_part( tmp );
-			//dprintf(D_ALWAYS, "Found <<%s>> machine matching <<%s>>\n",host,constraint);
+			dprintf(D_ALWAYS, "Found <<%s>> machine <<%d>> universe <<%d>> imagesz matching <<%s>>\n",machine,jobuniverse,imagesz,constraint);
+		}
+
+		if(strcmp(state,"Unclaimed") == 0){
+			unclaimed.Insert(ad);
+		} else if(jobuniverse == CONDOR_UNIVERSE_STANDARD) {
+			claimed_standard.Insert(ad);
+		} else {
+			claimed_vanilla.Insert(ad);
+		}
+
+		result.Delete(ad);
+
+	}
+
+	// output result
+	dprintf(D_ALWAYS,"The following were NOT assigned sublists\n");
+	result.Rewind();
+	while( ad = result.Next() ){
+		ad->LookupString( ATTR_MACHINE, &machine );
+		if( ! machine ) {
+			dprintf(D_ALWAYS, "malformed ad????\n");
+			continue;
+		} else {
+			dprintf(D_ALWAYS, "Found <<%s>> machine matching <<%s>> NOT SORTED!!!!\n",machine,constraint);
 		}
 	}
-	//prettyPrint (result, &totals);
+
+	// output result
+	dprintf(D_ALWAYS,"The following were assigned claimed standard U\n");
+	claimed_standard.Rewind();
+	while( ad = claimed_standard.Next() ){
+		ad->LookupString( ATTR_MACHINE, &machine );
+		if( ! machine ) {
+			dprintf(D_ALWAYS, "malformed ad????\n");
+			continue;
+		} else {
+			dprintf(D_ALWAYS, "Found <<%s>> machine matching <<%s>> Standard SORTED!!!!\n",machine,constraint);
+		}
+	}
+
+	// output result
+	dprintf(D_ALWAYS,"The following were assigned claimed vanilla U\n");
+	claimed_vanilla.Rewind();
+	while( ad = claimed_vanilla.Next() ){
+		ad->LookupString( ATTR_MACHINE, &machine );
+		if( ! machine ) {
+			dprintf(D_ALWAYS, "malformed ad????\n");
+			continue;
+		} else {
+			dprintf(D_ALWAYS, "Found <<%s>> machine matching <<%s>> Vanilla!!!!\n",machine,constraint);
+		}
+	}
+
+	// output result
+	dprintf(D_ALWAYS,"The following were assigned Unclaimed U\n");
+	unclaimed.Rewind();
+	while( ad = unclaimed.Next() ){
+		ad->LookupString( ATTR_MACHINE, &machine );
+		if( ! machine ) {
+			dprintf(D_ALWAYS, "malformed ad????\n");
+			continue;
+		} else {
+			dprintf(D_ALWAYS, "Found <<%s>> machine matching <<%s>> Unclaimed!!!!\n",machine,constraint);
+		}
+	}
 
 	return(0);
 }
