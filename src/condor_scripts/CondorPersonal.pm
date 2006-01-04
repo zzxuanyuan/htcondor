@@ -31,6 +31,7 @@ package CondorPersonal;
 #	----------------------------------------------------------------------------------------------
 #	condortemplate	Core config file					condor_config_template		$personal_template
 #	condorlocalsrc	Name for condor local config src 								$personal_local_src
+#	localpostsrc	New end of local config file									$personal_local_post_src
 #	condordaemon	daemon list to start				contents of config template $personal_daemons
 #	condorconfig	Name for condor config file			condor_config				$personal_config
 #	condordomain	Name for domain						cs.wisc.edu					$condordomain
@@ -68,6 +69,7 @@ BEGIN
 	$personal_daemons = "";
 	$personal_local = "condor_config.local";
 	$personal_local_src = "";
+	$personal_local_post_src = "";
 	$personal_universe = "";
 	$portchanges = "dynamic";
 	$DEBUG = 0;
@@ -150,6 +152,7 @@ sub Reset
 	$personal_daemons = "";
 	$personal_local = "condor_config.local";
 	$personal_local_src = "";
+	$personal_local_post_src = "";
 	$personal_universe = "";
 
 	$topleveldir = getcwd();
@@ -533,6 +536,12 @@ sub TunePersonalCondor
 		$personal_local_src = $control{"condorlocalsrc"};
 	}
 
+	# was a special local config file post src called out?
+	if( exists $control{"localpostsrc"} )
+	{
+		$personal_local_post_src = $control{"localpostsrc"};
+	}
+
 	# is this for a specific universe like parallel?
 	if( exists $control{"universe"} )
 	{
@@ -649,7 +658,6 @@ sub TunePersonalCondor
         }
 
 		print NEW "SCHEDD_NAME = schedd$pid$version\n";
-		print NEW "COLLECTOR_HOST = \$(CONDOR_HOST):0\n";
 		print NEW "NEGOTIATOR_HOST = \$(CONDOR_HOST):0\n";
 		print NEW "COLLECTOR_ADDRESS_FILE = \$(LOG)/.collector_address\n";
 		print NEW "NEGOTIATOR_ADDRESS_FILE = \$(LOG)/.negotiator_address\n";
@@ -679,7 +687,6 @@ sub TunePersonalCondor
             print NEW "COLLECTOR_HOST = \$(CONDOR_HOST)\n";
         }
 
-		print NEW "COLLECTOR_HOST = \$(CONDOR_HOST)\n";
 		print NEW "NEGOTIATOR_HOST = \$(CONDOR_HOST)\n";
 		print NEW "CONDOR_HOST = $condorhost\n";
 		print NEW "START = TRUE\n";
@@ -737,6 +744,16 @@ sub TunePersonalCondor
 		{
 			debug( "Do not understand requested authentication");
 		}
+	}
+
+	if($personal_local_post_src ne "")
+	{
+		open(POST,"<$personal_local_post_src")  || die "Can not do local config additions: $!<<$personal_local_post_src>>\n";
+		while(<POST>)
+		{
+			print NEW "$_";
+		}
+		close(POST);
 	}
 
 	close(NEW);
