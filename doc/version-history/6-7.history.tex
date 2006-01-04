@@ -22,8 +22,34 @@ The details of each version are described below.
 
 \begin{itemize}
 
+\item Grid matchmaking ads are now aged and replaced by the negotiator 
+based on a configurable classad expression from the condor config file. This
+configuration parameter is called \Macro{STARTD\_AD\_REEVAL\_EXPR}.  
+In previous versions, this was done strictly based on the 
+UpdateSequenceNumber field in the ad.  The default value for the new 
+parameter behaves the same as the older, hard-coded algorithm.
+
 \item Automatic renewal of job proxies from a MyProxy server now works for
 all grid universe jobs. Before, it only worked for grid-type gt2 jobs.
+
+\item \Condor{dagman} now reports to its POST scripts uniquely
+distinguishable return codes for non-exe job failures (e.g.,
+\Condor{dagman}, batch-system, or other external errors such as failed
+batch job submission, or batch job removal).  In the past these errors
+were reported as various signals (e.g., SIGABRT for job removal or
+SIGUSR1 for failed job submission), making it impossible to
+distinugish them from the real signals as which they were
+masquerading.  We now represent these errors using the
+previously-unused return-code space below -64 (we start below -1000,
+in fact).  As before, 0-255 reflect normal exe return codes, and -1 to
+-64 represent signals 1 to 64 -- but now -1000 and below represent
+DAGMan, batch-system, or other external errors.
+
+\item Added the \Macro{DAGMAN\_RETRY\_NODE\_FIRST} configuration macro to
+\Condor{dagman} to control whether failed nodes are retried before
+or after other ready nodes.  The default is FALSE (\Condor{dagman}'s
+previous behavior), which means that failed nodes will be retried
+after other ready nodes.
 
 \end{itemize}
 
@@ -50,6 +76,17 @@ will fail.  To compensate, these modules can now restore their
 environment via the pre-existing \Macro{STORK\_ENVIRONMENT}
 configuration macro.  Unprivileged (user level) Storks are not
 affected by this behavior.
+
+\item  Jobs that are are placed on held because of \AdAttr{on\_exit\_hold}
+evaluated to TRUE or jobs that stay in the queue after finishing because
+\AdAttr{on\_exit\_remove} evaluated to FALSE again correctly report the
+expression as being a "job attribute", not "UNKNOWN (never set)".
+
+\item \Condor{glidein} was creating a default configuration with
+\Macro{UPDATE\_INTERVAL}=20, which causes unnecessary scaling problems in large
+glidein pools.  It now simply leaves this value undefined so that
+the default behavior may be assumed.
+
 
 \end{itemize}
 
@@ -118,7 +155,7 @@ supported for scheduler universe jobs.
 
 \item Added the concept of a ``controlling'' daemon to the
 \Condor{master}.  This feature is currently used only for ``High
-Availablity'' (HA) configurations involving the \Condor{had} daemon.
+Availability'' (HA) configurations involving the \Condor{had} daemon.
 To properly use these Condor HA features you must set this macro.  
 
 To configure the \Condor{negotiator} daemon to be controlled by the
@@ -154,7 +191,7 @@ grid-type job, depending on what resource ad it's matched with.
 \item Reduced delay in negotiation when a job is released.  A reschedule
 request is sent to the negotiator when a job is released from hold.  This
 reduces the delay in several cases, most notably when using Condor-C or
-"condor\_submit -s".  Previously the negotiatior would not be notified and
+"condor\_submit -s".  Previously the negotiator would not be notified and
 would normally wait until the next scheduled negotiation cycle.
 
 \item Added three new user log events: GridResourceUp, GridResourceDown,
@@ -216,7 +253,7 @@ running mixed parallel and sequential jobs, it would incorrectly
 try to preempt dedicated jobs.
 
 \item Fixed some problems when Microsoft .NET clients communicate with Condor
-via SOAP. The issues were resolved by upgrading the version of gsoap inlcuded
+via SOAP. The issues were resolved by upgrading the version of gsoap included
 inside of Condor to gsoap ver 2.7.6c.
 
 \item Fixed the bug in the \Condor{ckpt\_server} from version 6.7.13
@@ -286,7 +323,7 @@ absolute paths in the job's output/error if the path began with a
 forward slash rather than a backslash.
 
 \item Fixed a bug in the \Condor{master} that caused ``condor\_off
--subsystem'' (and similar commands) to fail if the deamon name wasn't
+-subsystem'' (and similar commands) to fail if the daemon name wasn't
 hard-coded into the \Condor{master}.  The \Condor{master} now handle
 any daemon listed in the \Macro{DAEMON\_LIST} for these commands.
 
@@ -302,7 +339,7 @@ certain cases, the forwarded lease could exceed \Attr{JobLeaseDuration}.
 
 \item The startd no longer advertises itself as available to run jobs
 when it is in shutdown mode (e.g. waiting for jobs to finish).  This
-was a noticable problem when using large values for
+was a noticeable problem when using large values for
 \Macro{MaxJobRetirementTime} on multi-VM startds; while waiting for
 one of its VMs to finish running a job, the startd would be available
 for matching to jobs, but it would reject them when the schedd tried
@@ -317,7 +354,7 @@ when a job disappears from the remote \Condor{schedd} unexpectedly.
 
 \item When getting ``connection refused'', Condor command-line tools
 and daemons no longer continuously retry the connection attempt until
-timeing out.  These retries were causing 10 second or longer delays
+timing out.  These retries were causing 10 second or longer delays
 when trying to connect to Condor services which, for one reason or
 another, were no longer listening on the expected TCP port.
 
