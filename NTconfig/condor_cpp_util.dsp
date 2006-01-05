@@ -216,6 +216,14 @@ SOURCE=..\src\condor_includes\condor_cronmgr.h
 # End Source File
 # Begin Source File
 
+SOURCE="..\src\condor_c++_util\condor_crontab.C"
+# End Source File
+# Begin Source File
+
+SOURCE="..\src\condor_c++_util\condor_crontab.h"
+# End Source File
+# Begin Source File
+
 SOURCE=..\src\condor_daemon_client\condor_daemon_client.h
 # End Source File
 # Begin Source File
@@ -269,6 +277,14 @@ SOURCE="..\src\condor_c++_util\condor_query.h"
 # Begin Source File
 
 SOURCE="..\src\condor_c++_util\condor_state.C"
+# End Source File
+# Begin Source File
+
+SOURCE="..\src\condor_c++_util\condor_user_policy.C"
+# End Source File
+# Begin Source File
+
+SOURCE="..\src\condor_c++_util\condor_user_policy.h"
 # End Source File
 # Begin Source File
 
@@ -334,6 +350,14 @@ SOURCE=..\src\condor_daemon_client\daemon_types.C
 # Begin Source File
 
 SOURCE=..\src\condor_daemon_client\daemon_types.h
+# End Source File
+# Begin Source File
+
+SOURCE="..\src\condor_c++_util\date_util.C"
+# End Source File
+# Begin Source File
+
+SOURCE="..\src\condor_c++_util\date_util.h"
 # End Source File
 # Begin Source File
 
@@ -699,6 +723,14 @@ SOURCE="..\src\condor_c++_util\read_multiple_logs.C"
 # Begin Source File
 
 SOURCE="..\src\condor_c++_util\read_multiple_logs.h"
+# End Source File
+# Begin Source File
+
+SOURCE="..\src\condor_c++_util\Regex.C"
+# End Source File
+# Begin Source File
+
+SOURCE="..\src\condor_c++_util\Regex.h"
 # End Source File
 # Begin Source File
 

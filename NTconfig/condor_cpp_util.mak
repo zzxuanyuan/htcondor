@@ -25,9 +25,6 @@ NULL=
 NULL=nul
 !ENDIF 
 
-CPP=cl.exe
-RSC=rc.exe
-
 !IF  "$(CFG)" == "condor_cpp_util - Win32 Debug"
 
 OUTDIR=.\..\Debug
@@ -54,6 +51,7 @@ CLEAN :
 	-@erase "$(INTDIR)\command_strings.obj"
 	-@erase "$(INTDIR)\condor_attributes.obj"
 	-@erase "$(INTDIR)\condor_config.obj"
+	-@erase "$(INTDIR)\condor_crontab.obj"
 	-@erase "$(INTDIR)\condor_environ.obj"
 	-@erase "$(INTDIR)\condor_event.obj"
 	-@erase "$(INTDIR)\condor_id.obj"
@@ -62,6 +60,7 @@ CLEAN :
 	-@erase "$(INTDIR)\condor_q.obj"
 	-@erase "$(INTDIR)\condor_query.obj"
 	-@erase "$(INTDIR)\condor_state.obj"
+	-@erase "$(INTDIR)\condor_user_policy.obj"
 	-@erase "$(INTDIR)\condor_ver_info.obj"
 	-@erase "$(INTDIR)\condor_version.obj"
 	-@erase "$(INTDIR)\CondorError.obj"
@@ -73,6 +72,7 @@ CLEAN :
 	-@erase "$(INTDIR)\daemon.obj"
 	-@erase "$(INTDIR)\daemon_list.obj"
 	-@erase "$(INTDIR)\daemon_types.obj"
+	-@erase "$(INTDIR)\date_util.obj"
 	-@erase "$(INTDIR)\dc_collector.obj"
 	-@erase "$(INTDIR)\dc_schedd.obj"
 	-@erase "$(INTDIR)\dc_shadow.obj"
@@ -122,6 +122,7 @@ CLEAN :
 	-@erase "$(INTDIR)\print_wrapped_text.obj"
 	-@erase "$(INTDIR)\proc_id.obj"
 	-@erase "$(INTDIR)\read_multiple_logs.obj"
+	-@erase "$(INTDIR)\Regex.obj"
 	-@erase "$(INTDIR)\setenv.obj"
 	-@erase "$(INTDIR)\sig_name.obj"
 	-@erase "$(INTDIR)\sqlquery.obj"
@@ -150,7 +151,40 @@ CLEAN :
 "$(OUTDIR)" :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
+CPP=cl.exe
 CPP_PROJ=/nologo /MTd /W3 /Gm /Gi /GX /ZI /Od /D "WIN32" /D "_DEBUG" /Fp"$(INTDIR)\condor_common.pch" /Yu"condor_common.h" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
+
+.c{$(INTDIR)}.obj::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+.cpp{$(INTDIR)}.obj::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+.cxx{$(INTDIR)}.obj::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+.c{$(INTDIR)}.sbr::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+.cpp{$(INTDIR)}.sbr::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+.cxx{$(INTDIR)}.sbr::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+RSC=rc.exe
 BSC32=bscmake.exe
 BSC32_FLAGS=/nologo /o"$(OUTDIR)\condor_cpp_util.bsc" 
 BSC32_SBRS= \
@@ -173,6 +207,7 @@ LIB32_OBJS= \
 	"$(INTDIR)\condor_attributes.obj" \
 	"..\Debug\condor_common.obj" \
 	"$(INTDIR)\condor_config.obj" \
+	"$(INTDIR)\condor_crontab.obj" \
 	"$(INTDIR)\condor_environ.obj" \
 	"$(INTDIR)\condor_event.obj" \
 	"$(INTDIR)\condor_id.obj" \
@@ -181,6 +216,7 @@ LIB32_OBJS= \
 	"$(INTDIR)\condor_q.obj" \
 	"$(INTDIR)\condor_query.obj" \
 	"$(INTDIR)\condor_state.obj" \
+	"$(INTDIR)\condor_user_policy.obj" \
 	"$(INTDIR)\condor_ver_info.obj" \
 	"$(INTDIR)\condor_version.obj" \
 	"$(INTDIR)\CondorError.obj" \
@@ -192,6 +228,7 @@ LIB32_OBJS= \
 	"$(INTDIR)\daemon.obj" \
 	"$(INTDIR)\daemon_list.obj" \
 	"$(INTDIR)\daemon_types.obj" \
+	"$(INTDIR)\date_util.obj" \
 	"$(INTDIR)\dc_collector.obj" \
 	"$(INTDIR)\dc_schedd.obj" \
 	"$(INTDIR)\dc_shadow.obj" \
@@ -241,6 +278,7 @@ LIB32_OBJS= \
 	"$(INTDIR)\print_wrapped_text.obj" \
 	"$(INTDIR)\proc_id.obj" \
 	"$(INTDIR)\read_multiple_logs.obj" \
+	"$(INTDIR)\Regex.obj" \
 	"$(INTDIR)\setenv.obj" \
 	"$(INTDIR)\sig_name.obj" \
 	"$(INTDIR)\sqlquery.obj" \
@@ -292,6 +330,7 @@ CLEAN :
 	-@erase "$(INTDIR)\command_strings.obj"
 	-@erase "$(INTDIR)\condor_attributes.obj"
 	-@erase "$(INTDIR)\condor_config.obj"
+	-@erase "$(INTDIR)\condor_crontab.obj"
 	-@erase "$(INTDIR)\condor_environ.obj"
 	-@erase "$(INTDIR)\condor_event.obj"
 	-@erase "$(INTDIR)\condor_id.obj"
@@ -300,6 +339,7 @@ CLEAN :
 	-@erase "$(INTDIR)\condor_q.obj"
 	-@erase "$(INTDIR)\condor_query.obj"
 	-@erase "$(INTDIR)\condor_state.obj"
+	-@erase "$(INTDIR)\condor_user_policy.obj"
 	-@erase "$(INTDIR)\condor_ver_info.obj"
 	-@erase "$(INTDIR)\condor_version.obj"
 	-@erase "$(INTDIR)\CondorError.obj"
@@ -311,6 +351,7 @@ CLEAN :
 	-@erase "$(INTDIR)\daemon.obj"
 	-@erase "$(INTDIR)\daemon_list.obj"
 	-@erase "$(INTDIR)\daemon_types.obj"
+	-@erase "$(INTDIR)\date_util.obj"
 	-@erase "$(INTDIR)\dc_collector.obj"
 	-@erase "$(INTDIR)\dc_schedd.obj"
 	-@erase "$(INTDIR)\dc_shadow.obj"
@@ -360,6 +401,7 @@ CLEAN :
 	-@erase "$(INTDIR)\print_wrapped_text.obj"
 	-@erase "$(INTDIR)\proc_id.obj"
 	-@erase "$(INTDIR)\read_multiple_logs.obj"
+	-@erase "$(INTDIR)\Regex.obj"
 	-@erase "$(INTDIR)\setenv.obj"
 	-@erase "$(INTDIR)\sig_name.obj"
 	-@erase "$(INTDIR)\sqlquery.obj"
@@ -387,7 +429,40 @@ CLEAN :
 "$(OUTDIR)" :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
+CPP=cl.exe
 CPP_PROJ=/nologo /MT /W3 /GX /Z7 /O1 /D "WIN32" /D "NDEBUG" /Fp"$(INTDIR)\condor_common.pch" /Yu"condor_common.h" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /TP $(CONDOR_INCLUDE) $(CONDOR_GSOAP_INCLUDE) $(CONDOR_GLOBUS_INCLUDE) $(CONDOR_KERB_INCLUDE) $(CONDOR_PCRE_INCLUDE) $(CONDOR_OPENSSL_INCLUDE) $(CONDOR_POSTGRESQL_INCLUDE) /c 
+
+.c{$(INTDIR)}.obj::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+.cpp{$(INTDIR)}.obj::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+.cxx{$(INTDIR)}.obj::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+.c{$(INTDIR)}.sbr::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+.cpp{$(INTDIR)}.sbr::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+.cxx{$(INTDIR)}.sbr::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+RSC=rc.exe
 BSC32=bscmake.exe
 BSC32_FLAGS=/nologo /o"$(OUTDIR)\condor_cpp_util.bsc" 
 BSC32_SBRS= \
@@ -410,6 +485,7 @@ LIB32_OBJS= \
 	"$(INTDIR)\condor_attributes.obj" \
 	"..\Release\condor_common.obj" \
 	"$(INTDIR)\condor_config.obj" \
+	"$(INTDIR)\condor_crontab.obj" \
 	"$(INTDIR)\condor_environ.obj" \
 	"$(INTDIR)\condor_event.obj" \
 	"$(INTDIR)\condor_id.obj" \
@@ -418,6 +494,7 @@ LIB32_OBJS= \
 	"$(INTDIR)\condor_q.obj" \
 	"$(INTDIR)\condor_query.obj" \
 	"$(INTDIR)\condor_state.obj" \
+	"$(INTDIR)\condor_user_policy.obj" \
 	"$(INTDIR)\condor_ver_info.obj" \
 	"$(INTDIR)\condor_version.obj" \
 	"$(INTDIR)\CondorError.obj" \
@@ -429,6 +506,7 @@ LIB32_OBJS= \
 	"$(INTDIR)\daemon.obj" \
 	"$(INTDIR)\daemon_list.obj" \
 	"$(INTDIR)\daemon_types.obj" \
+	"$(INTDIR)\date_util.obj" \
 	"$(INTDIR)\dc_collector.obj" \
 	"$(INTDIR)\dc_schedd.obj" \
 	"$(INTDIR)\dc_shadow.obj" \
@@ -478,6 +556,7 @@ LIB32_OBJS= \
 	"$(INTDIR)\print_wrapped_text.obj" \
 	"$(INTDIR)\proc_id.obj" \
 	"$(INTDIR)\read_multiple_logs.obj" \
+	"$(INTDIR)\Regex.obj" \
 	"$(INTDIR)\setenv.obj" \
 	"$(INTDIR)\sig_name.obj" \
 	"$(INTDIR)\sqlquery.obj" \
@@ -504,36 +583,6 @@ LIB32_OBJS= \
 <<
 
 !ENDIF 
-
-.c{$(INTDIR)}.obj::
-   $(CPP) @<<
-   $(CPP_PROJ) $< 
-<<
-
-.cpp{$(INTDIR)}.obj::
-   $(CPP) @<<
-   $(CPP_PROJ) $< 
-<<
-
-.cxx{$(INTDIR)}.obj::
-   $(CPP) @<<
-   $(CPP_PROJ) $< 
-<<
-
-.c{$(INTDIR)}.sbr::
-   $(CPP) @<<
-   $(CPP_PROJ) $< 
-<<
-
-.cpp{$(INTDIR)}.sbr::
-   $(CPP) @<<
-   $(CPP_PROJ) $< 
-<<
-
-.cxx{$(INTDIR)}.sbr::
-   $(CPP) @<<
-   $(CPP_PROJ) $< 
-<<
 
 
 !IF "$(NO_EXTERNAL_DEPS)" != "1"
@@ -654,6 +703,12 @@ SOURCE="..\src\condor_c++_util\condor_config.C"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
+SOURCE="..\src\condor_c++_util\condor_crontab.C"
+
+"$(INTDIR)\condor_crontab.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
 SOURCE="..\src\condor_c++_util\condor_environ.C"
 
 "$(INTDIR)\condor_environ.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
@@ -699,6 +754,12 @@ SOURCE="..\src\condor_c++_util\condor_query.C"
 SOURCE="..\src\condor_c++_util\condor_state.C"
 
 "$(INTDIR)\condor_state.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE="..\src\condor_c++_util\condor_user_policy.C"
+
+"$(INTDIR)\condor_user_policy.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
@@ -783,6 +844,12 @@ SOURCE=..\src\condor_daemon_client\daemon_list.C
 SOURCE=..\src\condor_daemon_client\daemon_types.C
 
 "$(INTDIR)\daemon_types.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE="..\src\condor_c++_util\date_util.C"
+
+"$(INTDIR)\date_util.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
@@ -1095,6 +1162,12 @@ SOURCE="..\src\condor_c++_util\proc_id.C"
 SOURCE="..\src\condor_c++_util\read_multiple_logs.C"
 
 "$(INTDIR)\read_multiple_logs.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE="..\src\condor_c++_util\Regex.C"
+
+"$(INTDIR)\Regex.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
