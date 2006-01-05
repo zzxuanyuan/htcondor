@@ -114,7 +114,7 @@ main(int argc, char* argv[])
       
 				// ensure the next value is a number
 			int i = 0;
-			while( (argv[1][i]) != NULL ){
+			while( (argv[1][i]) != '\0' ){
 				if( !isdigit(argv[1][i]) ){
 					fprintf(stderr, "ERROR: %s requires a time in seconds\n", PRECISION_OPT);
 					exit(-1);

@@ -1,12 +1,12 @@
 PROGRAMS = 	uniq_pid_command
 
-all_target( $(PROGRAMS) )
+all_target($(PROGRAMS))
 
 CFLAGS = $(STD_C_FLAGS)
 C_PLUS_FLAGS = $(STD_C_PLUS_FLAGS)
 LIB = $(STD_LIBS)
 
-OBJ = uniq_pid_tool_main.o 
+OBJ = uniq_pid_tool_main.o
 
 c_plus_target(uniq_pid_command,$(OBJ),$(LIB))
 
