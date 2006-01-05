@@ -679,37 +679,44 @@ these evaluations can be adjusted by setting the
 \MacroNI{PERIODIC\_EXPR\_INTERVAL} configuration macro.
 
 %%%%%%%%%%%%%%%%%%%
-%% noop
+%% noop_job
 %%%%%%%%%%%%%%%%%%%
 
 \item[noop\_job = $<$ClassAd Boolean Expression$>$]
-\index{submit commands!noop}
-If this expression is true, the job is immediately removed from the queue
-and Condor makes no attempt at running the job. The userlog will show a
-submit event and a completion event, with exit code 0, unless 
-the user specifies a different signal or exit code.
+\index{submit commands!noop\_job}
+When this boolean expression is \Expr{True},
+the job is immediately removed from the queue,
+and Condor makes no attempt at running the job.
+The log file for the job will show a
+job submitted event and a job terminated event,
+along with an exit code of 0,
+unless the user specifies a different signal or exit code.
 
 %%%%%%%%%%%%%%%%%%%
-%% noop_exit_signal
+%% noop_job_exit_signal
 %%%%%%%%%%%%%%%%%%%
 
 \item[noop\_job\_exit\_signal = $<$signal number$>$]
 \index{submit commands!noop\_job\_exit\_signal}
-If a job has specified it is to be a noop, this setting allows the job
-to say what signal the userlog event will show the job having terminated
-with. If not present, the job will not show as having terminated with a
-signal
+When \SubmitCmd{noop\_job} is in the submit description file
+and evaluates to \Expr{True},
+this command allows the job
+to specify the signal number that the job's log event will show
+the job having terminated with.
 
 %%%%%%%%%%%%%%%%%%%
-%% noop_exit_code
+%% noop_job_exit_code
 %%%%%%%%%%%%%%%%%%%
 
 \item[noop\_job\_exit\_code = $<$return value$>$]
 \index{submit commands!noop\_job\_exit\_code}
-If a job has specified it is to be a noop, this setting allows the job
-to say what return value the userlog event will show the job having terminated
-with. If not present, the job will as having terminated with status 0. This 
-will override any setting for the noop exit signal.
+When \SubmitCmd{noop\_job} is in the submit description file
+and evaluates to \Expr{True},
+this command allows the job
+to specify the return value as shown in the job's log file
+job terminated event.
+If not specified, the job will show as having terminated with status 0.
+This overrides any value specified with \SubmitCmd{noop\_job\_exit\_signal}.
 
 %%%%%%%%%%%%%%%%%%%
 %% priority
