@@ -1,5 +1,7 @@
+#include "condor_common.h"
 #include "exponential_backoff.h"
 #include "condor_random_num.h"
+
 
 //////////////////////////////////////////////////////////////////////
 // Static variables
