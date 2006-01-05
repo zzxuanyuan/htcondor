@@ -21,8 +21,8 @@
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
-#include "condor_crontab.h"
 #include "condor_common.h"
+#include "condor_crontab.h"
 #include "condor_classad.h"
 #include "condor_debug.h"
 #include "MyString.h"
