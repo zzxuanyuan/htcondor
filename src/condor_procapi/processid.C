@@ -1,3 +1,4 @@
+#include "condor_common.h"
 #include "processid.h"
 #include "condor_debug.h"
 

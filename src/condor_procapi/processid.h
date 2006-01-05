@@ -1,7 +1,7 @@
 #ifndef PROCESS_ID_H
 #define PROCESS_ID_H
 
-#include "condor_common.h"
+//#include "condor_common.h"
 
 /*  A more "concrete" implementation of a process id 
 	- Joe Meehean 12/15/05

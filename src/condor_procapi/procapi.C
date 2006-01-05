@@ -190,11 +190,10 @@ ProcAPI::getProcInfo( pid_t pid, piPTR& pi, int &status )
 */
 
 int
-ProcAPI::getProcInfoRaw(pid_t pid, ProcAPI::procInfoRaw& procRaw, int& status){
+ProcAPI::getProcInfoRaw(pid_t pid, procInfoRaw& procRaw, int& status){
 	char path[64];
 	struct prpsinfo pri;
 	struct prstatus prs;
-	long nowminf, nowmajf;
 #ifndef DUX4
 	struct prusage pru;   // prusage doesn't exist in OSF/1
 #endif
@@ -205,7 +204,7 @@ ProcAPI::getProcInfoRaw(pid_t pid, ProcAPI::procInfoRaw& procRaw, int& status){
 	status = PROCAPI_OK;
 
 		// clear the memory for procRaw
-	memset(&procRaw, 0, sizeof(ProcAPI::procInfoRaw));
+	memset(&procRaw, 0, sizeof(procInfoRaw));
 
 		// set the sample time
 	procRaw.sample_time = secsSinceEpoch();
@@ -405,19 +404,18 @@ ProcAPI::getProcInfo( pid_t pid, piPTR& pi, int &status )
 */
 
 int
-ProcAPI::getProcInfoRaw( pid_t pid, ProcAPI::procInfoRaw& procRaw, int &status ) 
+ProcAPI::getProcInfoRaw( pid_t pid, procInfoRaw& procRaw, int &status ) 
 {
 	char path[64];
-	int fd, rval;
+	int fd;
 	psinfo_t psinfo;
-	pstatus_t pstatus;
 	prusage_t prusage;
 
 		// assume success
 	status = PROCAPI_OK;
 
 		// clear the memory of procRaw
-	memset(&procRaw, 0, sizeof(ProcAPI::procInfoRaw));
+	memset(&procRaw, 0, sizeof(procInfoRaw));
 
 		// set the sample time
 	procRaw.sample_time = secsSinceEpoch();
@@ -1064,7 +1062,7 @@ ProcAPI::getProcInfo( pid_t pid, piPTR& pi, int &status )
 	
 		// convert the memory fields from pages to k
 	pi->imgsize	= procRaw.imgsize * pagesize;
-	pi->rssize	= prcRaw.rssize * pagesize;
+	pi->rssize	= procRaw.rssize * pagesize;
 
 		// compute the age
 	pi->age = procRaw.sample_time - procRaw.creation_time;
@@ -1104,7 +1102,7 @@ ProcAPI::getProcInfo( pid_t pid, piPTR& pi, int &status )
 */
 
 int
-ProcAPI::getProcInfoRaw( pid_t pid, ProcAPI::procInfoRaw procRaw, int &status ) 
+ProcAPI::getProcInfoRaw( pid_t pid, procInfoRaw& procRaw, int &status ) 
 {
 
 /* Here's getProcInfoRaw for HPUX.  Calling this a /proc interface is a lie, 
@@ -1119,7 +1117,7 @@ ProcAPI::getProcInfoRaw( pid_t pid, ProcAPI::procInfoRaw procRaw, int &status )
 	status = PROCAPI_OK;
 	
 		// clear the memory for procRaw
-	memset(&procRaw, 0, sizeof(ProcAPI::procInfoRaw));
+	memset(&procRaw, 0, sizeof(procInfoRaw));
 
 		// set the sample time
 	procRaw.sample_time = secsSinceEpoch();
@@ -1215,7 +1213,7 @@ ProcAPI::getProcInfo( pid_t pid, piPTR& pi, int &status )
 	pi->owner = procRaw.owner;
 	
 		// convert the number of page faults into a rate
-	do_usage_sampling(pi, ustime, nowmajf, nowminf);
+	do_usage_sampling(pi, cpu_time, procRaw.majfault, procRaw.minfault);
 
 	return PROCAPI_SUCCESS;
 }
@@ -1234,7 +1232,7 @@ ProcAPI::getProcInfo( pid_t pid, piPTR& pi, int &status )
 */
 
 int
-ProcAPI::getProcInfoRaw( pid_t pid, ProcAPI::procInfoRaw, int &status ) 
+ProcAPI::getProcInfoRaw( pid_t pid, procInfoRaw& procRaw, int &status ) 
 {
 
 	int mib[4];
@@ -1245,7 +1243,7 @@ ProcAPI::getProcInfoRaw( pid_t pid, ProcAPI::procInfoRaw, int &status )
 	status = PROCAPI_OK;
 
 		// clear memory for procRaw
-	memset(&procRaw, 0, sizeof(ProcAPI::procInfoRaw));
+	memset(&procRaw, 0, sizeof(procInfoRaw));
 
 		// set the sample time
 	procRaw.sample_time = secsSinceEpoch();
@@ -1387,13 +1385,13 @@ ProcAPI::getProcInfo( pid_t pid, piPTR& pi, int &status )
 	pi->minfault  = 0;   // not supported by NT; all faults lumped into major.
 	
 		// convert fault numbers into fault rate
-	do_usage_sampling ( pi, cpu_time, procRaw.majfaults, procRaw.minfaults, 
+	do_usage_sampling ( pi, cpu_time, procRaw.majfault, procRaw.minfault, 
 						now_secs );
 
     return PROCAPI_SUCCESS;
 }
 
-/* Fills in the procRawInfo with the following units:
+/* Fills in the procInfoRaw with the following units:
    imgsize			: bytes
    rssize			: bytes
    minfault			: not set 
@@ -1409,7 +1407,7 @@ ProcAPI::getProcInfo( pid_t pid, piPTR& pi, int &status )
 */
 
 int
-ProcAPI::getProcInfoRaw( pid_t pid, ProcAPI::procInfoRaw procRaw, int &status ) 
+ProcAPI::getProcInfoRaw( pid_t pid, procInfoRaw& procRaw, int &status ) 
 {
 
 /* Danger....WIN32 code follows....
@@ -1424,7 +1422,7 @@ ProcAPI::getProcInfoRaw( pid_t pid, ProcAPI::procInfoRaw procRaw, int &status )
    status = PROCAPI_OK;
 
 	   // clear the memory for procRaw
-   	memset(&procRaw, 0, sizeof(ProcAPI::procInfoRaw));
+   	memset(&procRaw, 0, sizeof(procInfoRaw));
 
 	// So to first see if this pid is still alive
 	// on Win32, open a handle to the pid and call GetExitStatus
@@ -1540,7 +1538,7 @@ ProcAPI::getProcInfoRaw( pid_t pid, ProcAPI::procInfoRaw procRaw, int &status )
         *((LARGE_INTEGER*)(ctrblk + offsets->stime));
 
     procRaw.pid       = (long) *((long*)(ctrblk + offsets->procid  ));
-    procRaw.ppid      = ntSysInfo.GetParentPID(pi->pid);
+    procRaw.ppid      = ntSysInfo.GetParentPID(pid);
     procRaw.imgsize   = (long) (*((long*)(ctrblk + offsets->imgsize )));
     procRaw.rssize    = (long) (*((long*)(ctrblk + offsets->rssize  )));
 
@@ -1549,10 +1547,10 @@ ProcAPI::getProcInfoRaw( pid_t pid, ProcAPI::procInfoRaw procRaw, int &status )
 	procRaw.user_time_1 = (long) (LI_to_double( ut ));
 	procRaw.user_time_2 = 0;
     procRaw.sys_time_1  = (long) (LI_to_double( st ));
-	procRaw.syst_time_2 = 0;
+	procRaw.sys_time_2 = 0;
 
 	procRaw.creation_time = (long) (LI_to_double( elt ));
-	procRaw.cpu	=  LI_to_double( pt );
+	procRaw.cpu_time	=  LI_to_double( pt );
 
 		// set the sample time and object frequency
 	procRaw.sample_time = sampleObjectTime;
@@ -1573,7 +1571,7 @@ ProcAPI::getProcInfo( pid_t pid, piPTR& pi, int &status )
 	initpi( pi );
 
 		// get the raw system process data
-	procRawInfo procRAw;
+	procInfoRaw procRaw;
 	int retVal = ProcAPI::getProcInfoRaw(pid, procRaw, status);
 	
 		// if a failure occurred
@@ -1611,7 +1609,7 @@ ProcAPI::getProcInfo( pid_t pid, piPTR& pi, int &status )
 	
 }
 
-/* Fills in the procRawInfo with the following units:
+/* Fills in the procInfoRaw with the following units:
    imgsize		: pages
    rssize		: don't know
    minfault		: total number of minor faults
@@ -1624,7 +1622,7 @@ ProcAPI::getProcInfo( pid_t pid, piPTR& pi, int &status )
    sample_time	: seconds since epoch
  */
 int
-ProcAPI::getProcInfoRaw( pid_t pid, ProcAPI::procInfoRaw& procRaw, int &status ) 
+ProcAPI::getProcInfoRaw( pid_t pid, procInfoRaw& procRaw, int &status ) 
 {
 	struct procentry64 pent;
 	struct fdsinfo64 fent;
@@ -1634,7 +1632,7 @@ ProcAPI::getProcInfoRaw( pid_t pid, ProcAPI::procInfoRaw& procRaw, int &status )
 	status = PROCAPI_OK;
 
 		// clear the memory for procRaw
-	memset(&procRaw, 0, sizeof(ProcAPI::procInfoRaw));
+	memset(&procRaw, 0, sizeof(procInfoRaw));
 
 		// set the sample time
 	procRaw.sample_time = secsSinceEpoch();
@@ -3826,7 +3824,7 @@ ProcAPI::generateConfirmTime(long& confirm_time, int& status){
 
 #ifndef LINUX
 int
-ProcAPI::confirmProcessId(const ProcessId& procId, int& status){
+ProcAPI::confirmProcessId(ProcessId& procId, int& status){
 		// do nothing
 	status = PROCAPI_OK;
 	return PROCAPI_SUCCESS;
@@ -3846,7 +3844,7 @@ int
 ProcAPI::generateConfirmTime(long& confirm_time, int& status){
 		// non Linux machines currently can't confirm
 		// process ids
-	ctl_time = 0;
+	confirm_time = 0;
 	
 		// success
 	status = PROCAPI_OK;
