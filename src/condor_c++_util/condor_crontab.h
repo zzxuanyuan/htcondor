@@ -31,7 +31,7 @@
 #include "condor_attributes.h"
 #include "MyString.h"
 #include "extArray.h"
-#include "RegExer.h"
+#include "Regex.h"
 
 //
 // Attributes for a parameter will be separated by the this character
@@ -88,6 +88,16 @@
 // Invalid Runtime Identifier
 //
 #define CRONTAB_INVALID			-1
+
+//
+// The PCRE pattern used to validate the user's parameters
+//
+#define CRONTAB_PARAMETER_PATTERN "[^\\/0-9" \
+									CRONTAB_DELIMITER \
+									CRONTAB_RANGE \
+									CRONTAB_STEP \
+									CRONTAB_WILDCARD \
+									"\\/*]"
 
 //
 // CronTab
@@ -280,7 +290,7 @@ protected:
 		// The regular expresion object we will use to make sure 
 		// our parameters are in the proper format.
 		//
-	static RegExer regex;
+	static Regex regex;
 
 }; // END CLASS
 

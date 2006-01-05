@@ -27,7 +27,7 @@
 #include "condor_debug.h"
 #include "MyString.h"
 #include "extArray.h"
-#include "RegExer.h"
+#include "Regex.h"
 #include "date_util.h"
 
 //
@@ -45,15 +45,8 @@ const char* CronTab::attributes[] = {	ATTR_CRON_MINUTES,
 // parameters. Since C++ does not have static initialization
 // blocks, we can't check here to make sure the object was 
 // initialized properly. We will have to check in CronTab::init()
-// Since the pattern is hardcoded, we better have a good reason
-// for failing!
 // 
-RegExer CronTab::regex( "[^\\/0-9"
-						CRONTAB_DELIMITER
-						CRONTAB_RANGE
-						CRONTAB_STEP
-						CRONTAB_WILDCARD
-						"\\/*]" );
+Regex CronTab::regex;
 						
 //
 // Default Constructor
@@ -271,7 +264,8 @@ CronTab::validateParameter( int attribute_idx, const char *parameter,
 		// Make sure there are only valid characters 
 		// in the parameter string
 		//
-	if ( CronTab::regex.match( (char*)parameter ) ) {
+	MyString temp(parameter);
+	if ( CronTab::regex.match( temp ) ) {
 		error  = "Invalid parameter value '";
 		error += parameter;
 		error += "' for ";
@@ -290,6 +284,32 @@ CronTab::validateParameter( int attribute_idx, const char *parameter,
 void
 CronTab::init() {
 		//
+		// First check to make sure we instantiated our Regex object
+		//
+	if ( &CronTab::regex == NULL ) {
+		MyString error = "CronTab: Unable to allocate memory for Regex";
+		EXCEPT( (char*)error.Value() );
+	}
+		//
+		// There should be only one Regex object shared for all instances
+		// of our object since the pattern that it needs to match is the same
+		// So we only need to compile the pattern once
+		//
+	if ( ! CronTab::regex.isInitialized() ) {
+		const char *errptr;
+		int erroffset;
+		MyString pattern( CRONTAB_PARAMETER_PATTERN ) ;
+			//
+			// It's a big problem if we can't compile the pattern, so
+			// we'll want to dump out right now
+			//
+		if ( ! CronTab::regex.compile( pattern, &errptr, &erroffset )) {
+			MyString error = "CronTab: Failed to compile Regex expression - %s";
+			EXCEPT( (char*)error.Value() );
+		}
+	}
+	
+		//
 		// Set the last runtime as empty
 		//
 	this->lastRunTime = CRONTAB_INVALID;
@@ -297,23 +317,6 @@ CronTab::init() {
 		// We're invalid until we parse all the parameters
 		//
 	this->valid = false;
-	
-		//
-		// Check to see if we were able to instantiate our
-		// regex object statically
-		//
-	if ( &CronTab::regex == NULL || CronTab::regex.getErrno() != 0 ) {
-		MyString errorMessage("CronTab: Failed to instantiate Regex - ");
-			//
-			// Pluck out the error message
-			//
-		if ( &CronTab::regex == NULL ) {
-			errorMessage += CronTab::regex.getStrerror();
-		} else {
-			errorMessage += "Unable to allocate memory";
-		}
-		EXCEPT( (char*)errorMessage.Value() );
-	}
 	
 		//
 		// Now run through all the parameters and create the cron schedule
