@@ -377,3 +377,36 @@ PGSQLDatabase::sendBulkDataEnd()
 
 	return SUCCESS;
 }
+
+//! check if the connection is ok
+QuillErrCode
+PGSQLDatabase::checkConnection()
+{
+	if (PQstatus(connection) == CONNECTION_OK) {
+		dprintf(D_FULLDEBUG, "DB Connection Ok\n");
+		return SUCCESS;
+	}
+	else {
+		dprintf(D_FULLDEBUG, "DB Connection BAD\n");
+		return FAILURE;
+	}
+}
+
+//! check if the connection is ok
+QuillErrCode
+PGSQLDatabase::resetConnection()
+{
+	PQreset(connection);
+
+	if (PQstatus(connection) == CONNECTION_OK) {
+		dprintf(D_FULLDEBUG, "DB Connection Ok\n");
+		return SUCCESS;
+	}
+	else {
+		dprintf(D_FULLDEBUG, "DB Connection BAD\n");
+		return FAILURE;
+	}
+}
+
+
+

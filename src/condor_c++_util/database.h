@@ -82,7 +82,8 @@ public:
 	//! put an end flag for bulk loading
 	virtual QuillErrCode		sendBulkDataEnd() = 0;
 
-	bool	isConnected() {return connected;};
+	virtual QuillErrCode        checkConnection() = 0;
+	virtual QuillErrCode        resetConnection() = 0;
 protected:
 	char	*con_str;	//!< connection string
 	bool	connected; 	//!< connection status

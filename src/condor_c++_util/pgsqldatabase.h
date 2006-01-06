@@ -75,6 +75,8 @@ public:
 	QuillErrCode		 sendBulkData(char* data);
 	QuillErrCode		 sendBulkDataEnd();
 
+    QuillErrCode         checkConnection();
+	QuillErrCode         resetConnection();
 private:
 	PGconn		         *connection;		//!< connection object
 	PGresult	         *queryRes; 	//!< result for general query
