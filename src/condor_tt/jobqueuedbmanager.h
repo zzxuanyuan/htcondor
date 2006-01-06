@@ -72,7 +72,7 @@ class JobQueueDBManager : public Service
 		// accessors
 		//
 	void setJobQueueFileName(const char* jqName);
-	const char* getJobQueueDBConn() { return jobQueueDBConn; }
+	Database* getJobQueueDBObj() { return DBObj; }
 	ClassAdLogParser* getClassAdLogParser();
 	const char* getScheddname() { return scheddname; }
 
@@ -80,11 +80,6 @@ class JobQueueDBManager : public Service
 		//
 		// helper functions
 		// ----
-		// All DB access methods here do not call Xact and connection related 
-		// function within them.
-		// So you must call connectDB() and disconnectDB() before and after 
-		// calling them.
-		//
 	
 		//! purge all job queue rows and process the entire job_queue.log file
 	QuillErrCode initJobQueueTables();
@@ -168,10 +163,6 @@ class JobQueueDBManager : public Service
 		//! utility routine to show database error mesage
 	void displayDBErrorMsg(const char* errmsg);
 
-		//! connect and disconnect to the postgres database
-	QuillErrCode connectDB(XactState Xact = BEGIN_XACT);
-	QuillErrCode disconnectDB(XactState commit = COMMIT_XACT);
-	
 	void addJQPollingInfoSQL(char* dest, char* src_name, char* src_val);
 
 		//

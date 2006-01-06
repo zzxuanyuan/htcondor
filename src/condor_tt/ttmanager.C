@@ -75,8 +75,8 @@ TTManager::~TTManager()
 {
 		// release Objects
 	numLogs = 0;
-	if (DBObj)
-		delete DBObj;
+		// the object will be destroyed in the destructor of jqDBManager
+	DBObj = (Database  *) 0;
 }
 
 void
@@ -155,9 +155,7 @@ TTManager::config(bool reconfig)
 	jqDBManager.config(reconfig);
 	jqDBManager.init();
 
-	jobQueueDBConn = jqDBManager.getJobQueueDBConn();
-
-	DBObj = new PGSQLDatabase(jobQueueDBConn);
+	DBObj = jqDBManager.getJobQueueDBObj();
 }
 
 //! register all timer handlers
@@ -258,8 +256,10 @@ TTManager::event_maintain()
 		delete filesqlobj;
 	}
 
-		// connect to database 
-	if ((DBObj -> connectDB(jobQueueDBConn)) <= 0) {
+		// check if connection is ok, if not, try to reset it now
+		// if connection still bad, don't bother processing the logs
+	if ((DBObj->checkConnection() == FAILURE) && 
+		(DBObj->resetConnection() == FAILURE)) {
 		goto DBERROR;
 	}
 
@@ -294,7 +294,7 @@ TTManager::event_maintain()
 			}
 
 			if(firststmt) {
-				if((DBObj->beginTransaction()) == 0) {
+				if((DBObj->beginTransaction()) == FAILURE) {
 					dprintf(D_ALWAYS, "Begin transaction --- Error\n");
 					goto DBERROR;
 				}
@@ -372,7 +372,7 @@ TTManager::event_maintain()
 		}
 
 		if(!firststmt) {
-			if((DBObj->commitTransaction()) == 0) {
+			if((DBObj->commitTransaction()) == FAILURE) {
 				dprintf(D_ALWAYS, "End transaction --- Error\n");
 				goto DBERROR;
 			}
@@ -414,12 +414,10 @@ TTManager::event_maintain()
 	snprintf(sql_str, 1023, "UPDATE currency SET lastupdate = '%s' WHERE datasource = '%s';", lastupdate, scheddname);
 
 	ret_st = DBObj->execCommand(sql_str);
-	if (ret_st <0) {
+	if (ret_st == FAILURE) {
 		dprintf(D_ALWAYS, "Update currency --- ERROR [SQL] %s\n", sql_str);
 		goto DBERROR;
 	}
-
-	DBObj -> disconnectDB();
 
 	return SUCCESS;
 
@@ -435,8 +433,6 @@ TTManager::event_maintain()
 	if (ad)
 		delete ad;
 	
-	DBObj -> disconnectDB();
-
 	return FAILURE;
 
  DBERROR:
@@ -453,11 +449,9 @@ TTManager::event_maintain()
 	if (ad)
 		delete ad;
 
-	if (!DBObj->isConnected()) {
+	if (DBObj->checkConnection() == FAILURE) {
 		this -> checkAndThrowBigFiles();
 	}
-
-	DBObj -> disconnectDB();
 
 	return FAILURE;
 }
@@ -652,7 +646,7 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 
 	sprintf(sql_stmt, "INSERT INTO Machine_Classad_History (SELECT * FROM Machine_Classad WHERE machine_id = '%s')", machine_id.Value());
 	 
-	 if (DBObj->execCommand(sql_stmt) < 0) {
+	 if (DBObj->execCommand(sql_stmt) == FAILURE) {
 		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
 		 if (attNameList) free(attNameList);
@@ -663,7 +657,7 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 
 	 sprintf(sql_stmt, "DELETE FROM Machine_Classad WHERE machine_id = '%s'", machine_id.Value());
 
-	 if (DBObj->execCommand(sql_stmt) < 0) {
+	 if (DBObj->execCommand(sql_stmt) == FAILURE) {
 		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
 		 if (attNameList) free(attNameList);
@@ -678,7 +672,7 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 
 	 sprintf(sql_stmt, "INSERT INTO Machine_Classad %s VALUES %s", attNameList, attValList);
 
-	 if (DBObj->execCommand(sql_stmt) < 0) {
+	 if (DBObj->execCommand(sql_stmt) == FAILURE) {
 		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
 		 if (attNameList) free(attNameList);
@@ -702,7 +696,7 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 		 sprintf(sql_stmt, "INSERT INTO Machine SELECT '%s', '%s', '%s', %s WHERE NOT EXISTS (SELECT * FROM Machine WHERE machine_id = '%s' AND attr_name = '%s')", 
 				 machine_id.Value(), aName.Value(), aVal.Value(), lastHeardFrom, machine_id.Value(), aName.Value());
 
-		 if (DBObj->execCommand(sql_stmt) < 0) {
+		 if (DBObj->execCommand(sql_stmt) == FAILURE) {
 			 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 			 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
 			 free(sql_stmt);
@@ -712,7 +706,7 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 		 sprintf(sql_stmt, "INSERT INTO Machine_History SELECT machine_id, attr_name, attr_value, start_time, %s FROM Machine WHERE machine_id = '%s' AND attr_name = '%s' AND attr_value != '%s'", 
 				 lastHeardFrom, machine_id.Value(), aName.Value(), aVal.Value());
 
-		 if (DBObj->execCommand(sql_stmt) < 0) {
+		 if (DBObj->execCommand(sql_stmt) == FAILURE) {
 			 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 			 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);		
 			 free(sql_stmt);
@@ -722,7 +716,7 @@ QuillErrCode TTManager::insertMachines(AttrList *ad) {
 		 sprintf(sql_stmt, "UPDATE Machine SET attr_value = '%s', start_time = %s WHERE machine_id = '%s' AND attr_name = '%s' AND attr_value != '%s';", 
 				 aVal.Value(), lastHeardFrom, machine_id.Value(), aName.Value(), aVal.Value());
 
-		 if (DBObj->execCommand(sql_stmt) < 0) {
+		 if (DBObj->execCommand(sql_stmt) == FAILURE) {
 			dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 			dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
 			free(sql_stmt);
@@ -807,7 +801,7 @@ QuillErrCode TTManager::insertBasic(AttrList *ad, char *tableName) {
 	if (attNameList) free(attNameList);
 	if (attValList) free(attValList);	
 	
-	if (DBObj->execCommand(sql_stmt) < 0) {
+	if (DBObj->execCommand(sql_stmt) == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
 		free(sql_stmt);
@@ -887,7 +881,7 @@ QuillErrCode TTManager::insertEvents(AttrList *ad) {
 				scheddname, cluster, proc, eventtype, eventts, messagestr, scheddname, cluster, proc, subproc);
 	}
 
-	if (DBObj->execCommand(sql_stmt) < 0) {
+	if (DBObj->execCommand(sql_stmt) == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
 		free(sql_stmt);
@@ -1023,7 +1017,7 @@ QuillErrCode TTManager::insertFiles(AttrList *ad) {
 			"INSERT INTO files SELECT NEXTVAL('seqfileid'), '%s', %s, '%s', %s, %d, '%s' WHERE NOT EXISTS (SELECT * FROM files WHERE  f_name='%s' and f_path='%s' and f_host=%s and f_ts=%s);", 
 			f_name, f_host, f_path, f_ts, f_size, hexSum, f_name, f_path, f_host, f_ts);
 	
-	if (DBObj->execCommand(sql_stmt) < 0) {
+	if (DBObj->execCommand(sql_stmt) == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
 		free(sql_stmt);
@@ -1094,7 +1088,7 @@ QuillErrCode TTManager::insertFileusages(AttrList *ad) {
 	sprintf(sql_stmt, 
 			"INSERT INTO fileusages SELECT %s, f_id, %s FROM files WHERE  f_name=%s and f_path=%s and f_host=%s and f_ts=%s LIMIT 1;", globaljobid, type, f_name, f_path, f_host, f_ts);
 	
-	if (DBObj->execCommand(sql_stmt) < 0) {
+	if (DBObj->execCommand(sql_stmt) == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
 		free(sql_stmt);
@@ -1126,7 +1120,7 @@ QuillErrCode TTManager::insertHistoryJob(AttrList *ad) {
   sprintf(sql_stmt,
           "DELETE FROM History_Horizontal WHERE scheddname = '%s' AND cid = %d AND pid = %d;INSERT INTO History_Horizontal(scheddname, cid, pid) VALUES('%s', %d, %d);", scheddname, cid, pid, scheddname, cid, pid);
 
-  if (DBObj->execCommand(sql_stmt) < 0) {
+  if (DBObj->execCommand(sql_stmt) == FAILURE) {
 		 dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 		 dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
 		 free(sql_stmt);
@@ -1222,7 +1216,7 @@ QuillErrCode TTManager::insertHistoryJob(AttrList *ad) {
 					  "DELETE FROM History_Vertical WHERE scheddname = '%s' AND cid = %d AND pid = %d AND attr = '%s'; INSERT INTO History_Vertical(scheddname, cid, pid, attr, val) VALUES('%s', %d, %d, '%s', '%s');", scheddname, cid, pid, name, scheddname, cid, pid, name, value);
 		  }	  
 
-		  if (DBObj->execCommand(sql_stmt) < 0) {
+		  if (DBObj->execCommand(sql_stmt) == FAILURE) {
 			  dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 			  dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
 
@@ -1348,7 +1342,7 @@ QuillErrCode TTManager::updateBasic(AttrList *info, AttrList *condition,
 		// build sql stmt
 	sprintf(sql_stmt, "UPDATE %s SET %s WHERE %s;", tableName, setList, whereList);		
 	
-	if (DBObj->execCommand(sql_stmt) < 0) {
+	if (DBObj->execCommand(sql_stmt) == FAILURE) {
 		dprintf(D_ALWAYS, "Executing Statement --- Error\n");
 		dprintf(D_ALWAYS, "sql = %s\n", sql_stmt);
 		free(sql_stmt);

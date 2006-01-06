@@ -61,6 +61,7 @@ JobQueueDBManager::~JobQueueDBManager()
 		delete caLogParser;
 	}
 	if (DBObj != NULL) {
+			// the destructor will disconnect the database
 		delete DBObj;
 	}
 		// release strings
@@ -274,61 +275,59 @@ JobQueueDBManager::config(bool reconfig)
 		caLogParser = new ClassAdLogParser();
 
 		DBObj = new PGSQLDatabase(jobQueueDBConn);
-
+		
 		xactState = NOT_IN_XACT;
 
 		multi_sql_str = NULL;
+
+		QuillErrCode ret_st;
+
+		ret_st = DBObj->connectDB(jobQueueDBConn);
+		if (ret_st == FAILURE) {
+			displayDBErrorMsg("config: unable to connect to DB--- ERROR");
+			EXCEPT("config: unable to connect to DB\n");
+		}
+		
+		tmp = param( "SCHEDD_NAME" );
+		if( tmp ) {
+			scheddname = build_valid_daemon_name( tmp );
+			free(tmp);
+		} else {
+			scheddname = default_daemon_name();
+		}
+
+			/* create an entry in jobqueuepollinginfo if this schedd is the 
+			 * first time being logged to database
+			 */
+		len = 1024 + 2*strlen(scheddname);
+		char *sql_str = (char *) malloc (len * sizeof(len));
+
+		snprintf(sql_str, len, "INSERT INTO jobqueuepollinginfo SELECT '%s', 0, 0 WHERE NOT EXISTS (SELECT * FROM jobqueuepollinginfo WHERE scheddname = '%s');", scheddname, scheddname);
+		
+		ret_st = DBObj->execCommand(sql_str);
+		if (ret_st == FAILURE) {
+			dprintf(D_ALWAYS, "Insert JobQueuePollInfo --- ERROR [SQL] %s\n", 
+					sql_str);
+			displayDBErrorMsg("Insert JobQueuePollInfo --- ERROR");		
+		}
+	
+			/* create an entry in currency table if this schedd is the first
+			 * time being logged to database 
+			 */
+		snprintf(sql_str, len, "INSERT INTO currency SELECT '%s', NULL WHERE NOT EXISTS (SELECT * FROM currency WHERE datasource = '%s');", scheddname, scheddname);
+
+		ret_st = DBObj->execCommand(sql_str);
+		if (ret_st == FAILURE) {
+			dprintf(D_ALWAYS, "Insert Currency --- ERROR [SQL] %s\n", sql_str);
+			displayDBErrorMsg("Insert Currency --- ERROR");		
+		}
+	
+		free(sql_str); 		
 	}
   
 		//this function assumes that certain members have been initialized
 		// (specifically prober and caLogParser) and so the order is important.
 	setJobQueueFileName(jobQueueLogFile);
- 
-	tmp = param( "SCHEDD_NAME" );
-	if( tmp ) {
-		scheddname = build_valid_daemon_name( tmp );
-		free(tmp);
-	} else {
-		scheddname = default_daemon_name();
-	}
-
-		/* create an entry in jobqueuepollinginfo if this schedd is the 
-		 * first time being logged to database
-		 */
-	len = 1024 + 2*strlen(scheddname);
-	char *sql_str = (char *) malloc (len * sizeof(len));
-	QuillErrCode ret_st;
-
-	snprintf(sql_str, len, "INSERT INTO jobqueuepollinginfo SELECT '%s', 0, 0 WHERE NOT EXISTS (SELECT * FROM jobqueuepollinginfo WHERE scheddname = '%s');", scheddname, scheddname);
-
-	ret_st = DBObj->connectDB(jobQueueDBConn);
-	if (ret_st == FAILURE) {
-		displayDBErrorMsg("config: unable to connect to DB--- ERROR");
-		free(sql_str);
-		return;
-	}
-		
-	ret_st = DBObj->execCommand(sql_str);
-	if (ret_st == FAILURE) {
-		dprintf(D_ALWAYS, "Insert JobQueuePollInfo --- ERROR [SQL] %s\n", 
-				sql_str);
-		displayDBErrorMsg("Insert JobQueuePollInfo --- ERROR");		
-	}
-	
-		/* create an entry in currency table if this schedd is the first
-		 * time being logged to database 
-		 */
-	snprintf(sql_str, len, "INSERT INTO currency SELECT '%s', NULL WHERE NOT EXISTS (SELECT * FROM currency WHERE datasource = '%s');", scheddname, scheddname);
-
-	ret_st = DBObj->execCommand(sql_str);
-	if (ret_st == FAILURE) {
-		dprintf(D_ALWAYS, "Insert Currency --- ERROR [SQL] %s\n", sql_str);
-		displayDBErrorMsg("Insert Currency --- ERROR");		
-	}
-	
-	free(sql_str);
-
-	DBObj->disconnectDB();
 }
 
 //! set the path to the job queue
@@ -481,49 +480,6 @@ JobQueueDBManager::tuneupJobQueueTables()
 
 	return SUCCESS;
 }
-
-/*! connect to DBMS
- *  \return the result status
- *			SUCCESS: Success
- * 			FAILURE: Fail (DB connection and/or Begin Xact fail)
- */	
-QuillErrCode
-JobQueueDBManager::connectDB(XactState  Xact)
-{
-	QuillErrCode st;
-	st = DBObj->connectDB(jobQueueDBConn);
-	if (st == FAILURE) {// connect to DB
-		return FAILURE;
-	}
-
-	if (Xact == BEGIN_XACT) {
-		if (DBObj->beginTransaction() == FAILURE) // begin XACT
-			return FAILURE;
-	}
-  
-	return SUCCESS;
-}
-
-
-/*! disconnect from DBMS, and handle XACT (commit, abort, not in XACT)
- *  \param commit XACT command 
- */
-QuillErrCode
-JobQueueDBManager::disconnectDB(XactState commit)
-{
-	if (commit == COMMIT_XACT) {
-		DBObj->commitTransaction(); // commit XACT
-		xactState = NOT_IN_XACT;
-	} else if (commit == ABORT_XACT) { // abort XACT
-		DBObj->rollbackTransaction();
-		xactState = NOT_IN_XACT;
-	}
-
-	DBObj->disconnectDB(); // disconnect from DB
-
-	return SUCCESS;
-}
-
 
 /*! build the job queue collection from job_queue.log file
  */
@@ -775,7 +731,6 @@ JobQueueDBManager::addJobQueueTables()
 
 		//we dont set transactions explicitly.  they are set by the 
 		//schedd via the 'begin transaction' log entry
-	connectDB(NOT_IN_XACT);
 
 	caLogParser->setNextOffset();
 
@@ -786,8 +741,6 @@ JobQueueDBManager::addJobQueueTables()
 		setJQPollingInfo();
 	}
 
-	disconnectDB(NOT_IN_XACT);
-	
 	return st;
 }
 
@@ -799,10 +752,10 @@ JobQueueDBManager::initJobQueueTables()
 {
 	QuillErrCode st;
 
-	st = connectDB();
+	st = DBObj->beginTransaction();
 
 	if(st == FAILURE) {
-		displayDBErrorMsg("Init Job Queue Tables unable to connect to database --- ERROR");
+		displayDBErrorMsg("Init Job Queue Tables unable to begin a transaction --- ERROR");
 		return FAILURE; 
 	}
 	
@@ -823,10 +776,9 @@ JobQueueDBManager::initJobQueueTables()
 			// So, Commit XACT shouble be invoked beforehand.
 		DBObj->commitTransaction(); // end XACT
 		xactState = NOT_IN_XACT;
-	   
-		disconnectDB(NOT_IN_XACT); // commit and end Xact
 	} else {
-		disconnectDB(ABORT_XACT);
+		DBObj->rollbackTransaction();
+		xactState = NOT_IN_XACT;
 	}
 
 	return st;	
@@ -1589,21 +1541,12 @@ JobQueueDBManager::getJQPollingInfo()
 
 	snprintf(sql_str, len, "SELECT last_file_mtime, last_file_size, last_next_cmd_offset, last_cmd_offset, last_cmd_type, last_cmd_key, last_cmd_mytype, last_cmd_targettype, last_cmd_name, last_cmd_value from JobQueuePollingInfo where scheddname = '%s';", scheddname);
 
-		// connect to DB
-	ret_st = connectDB(NOT_IN_XACT);
-
-	if(ret_st == FAILURE)  {
-		free(sql_str);
-		return FAILURE;
-	}
-
 	ret_st = DBObj->execQuery(sql_str, num_result);
 		
 	if (ret_st == FAILURE) {
 		dprintf(D_ALWAYS, "Reading JobQueuePollInfo --- ERROR [SQL] %s\n", 
 				sql_str);
 		displayDBErrorMsg("Reading JobQueuePollInfo --- ERROR");
-		disconnectDB(NOT_IN_XACT);
 		free(sql_str);
 		return FAILURE;
 	}
@@ -1612,7 +1555,6 @@ JobQueueDBManager::getJQPollingInfo()
 			// table contains one tuple at all times 		
 		displayDBErrorMsg("Reading JobQueuePollingInfo --- ERROR "
 						  "No Rows Retrieved from JobQueuePollingInfo\n");
-		disconnectDB(NOT_IN_XACT);
 		free(sql_str);
 		return FAILURE;
 	} 
@@ -1659,9 +1601,6 @@ JobQueueDBManager::getJQPollingInfo()
 										  // since it is no longer needed
 	free(sql_str);
 
-		// disconnect to DB
-	disconnectDB(NOT_IN_XACT);
-	
 	return SUCCESS;	
 }
 
@@ -1678,9 +1617,6 @@ JobQueueDBManager::addJQPollingInfoSQL(char* dest, char* src_name, char* src_val
 }
 
 //! set Current Job Queue File Polling Information
-/*! \warning This method must be called between connectDB and disconnectDB
- *           which means this method doesn't invoke thoses two methods
- */
 QuillErrCode
 JobQueueDBManager::setJQPollingInfo()
 {
