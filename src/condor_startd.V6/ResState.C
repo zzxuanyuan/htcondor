@@ -545,10 +545,6 @@ ResState::enter_action( State s, Activity a,
 		case killing_act:
 				// TODO notice and handle failure 
 			rip->hardkill_backfill();
-				// for now, we just leave the state.  soon, we'll
-				// interact with the BackfillMgr and we'll
-				// only leave once the client is really gone
-			return change( owner_state );
 			break;
 
 		case idle_act:
@@ -637,7 +633,13 @@ ResState::set_destination( State new_state )
 {
 	r_destination = new_state;
 
-	if( r_destination != delete_state ) {
+	switch( r_destination ) {
+	case delete_state:
+	case owner_state:
+	case matched_state:
+			// these 3 are currently valid
+		break;
+	default:
 		EXCEPT( "set_destination() doesn't work with %s state yet", 
 				state_to_string(r_destination) );
 	}
@@ -659,9 +661,94 @@ ResState::set_destination( State new_state )
 	case claimed_state:
 		change( preempting_state );
 		break;
+#if HAVE_BACKFILL
+	case backfill_state:
+		if( r_act == idle_act ) {
+				// if we're idle, we can go immediately 
+			change( r_destination );
+		} else {
+				// otherwise, start killing, and we'll finish our
+				// journey when the backfill starter exits
+			change( killing_act );
+		}
+		break;
+#endif /* HAVE_BACKFILL */
+
 	default:
 		EXCEPT( "Unexpected state %s in ResState::set_destination",
 				state_to_string(r_state) );
 	}
 
 }
+
+
+int
+ResState::starterExited( void )
+{
+		// in many cases, the starter exiting is what allows us to go
+		// to our destination...
+	switch( r_destination ) {
+
+	case no_state:
+			// destination not set, nothing to do here...
+		break;
+
+	case delete_state:
+	case owner_state:
+	case matched_state:
+			// for all 3 of these, once the starter is gone, we can
+			// enter the destination directly.
+		dprintf( D_ALWAYS, "State change: starter exited\n" );
+		return change( r_destination );
+		break;
+
+	case claimed_state:
+			// finish accept claim TODO
+		break;
+
+	default:
+		EXCEPT( "Unexpected destination state (%s) in"
+				"ResState::starterExited()\n",
+				state_to_string(r_destination) );
+		break;
+	}
+
+		// if we're here, we didn't have a destination, so do some
+		// other state-related logic now that a starter exited
+
+	switch( r_state ) {
+
+	case claimed_state:
+			// TODO: if we're just claimed when it exits, goto idle_act
+		break;
+
+	case preempting_state:
+			// TODO: eventually, we should have a destination before
+			// we enter preempting, but for now, just allow it...
+		break;
+
+#if HAVE_BACKFILL
+	case backfill_state:
+		if( r_act == idle_act ) {
+			dprintf( D_ALWAYS, "ERROR: ResState::starterExited() called "
+					 "while already in Backfill/Idle\n" );
+			return FALSE;
+		}
+		dprintf( D_ALWAYS, "State change: Backfill starter exited\n" );
+		return change( idle_act );
+		break;
+#endif /* HAVE_BACKFILL */
+
+	default:
+		EXCEPT( "Unexpected current state (%s) in"
+				"ResState::starterExited()\n",
+				state_to_string(r_state) );
+		break;
+	}
+
+		// if we got here, we didn't do any state changes at all,
+		// which is bad
+	return FALSE;
+}
+
+

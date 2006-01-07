@@ -484,6 +484,13 @@ Resource::starterExited( Claim* cur_claim )
 		return;
 	}
 
+		// let our ResState object know the starter exited, so it can
+		// deal with destination state stuff...  we'll eventually need
+		// to move more of the code from below here into the
+		// destination code in ResState, to keep things simple and in
+		// 1 place...
+	r_state->starterExited();
+
 		// All of the potential paths from here result in a state
 		// change, and all of them are triggered by the starter
 		// exiting, so let folks know that happened.  The logic in
