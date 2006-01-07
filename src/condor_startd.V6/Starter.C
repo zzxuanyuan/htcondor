@@ -116,8 +116,13 @@ bool
 Starter::satisfies( ClassAd* job_ad, ClassAd* mach_ad )
 {
 	int requirements = 0;
-	ClassAd* merged_ad = new ClassAd( *mach_ad );
-	MergeClassAds( merged_ad, s_ad, true );
+	ClassAd* merged_ad;
+	if( mach_ad ) {
+		merged_ad = new ClassAd( *mach_ad );
+		MergeClassAds( merged_ad, s_ad, true );
+	} else {
+		merged_ad = new ClassAd( *s_ad );
+	}
 	if( ! job_ad->EvalBool(ATTR_REQUIREMENTS, merged_ad, requirements) ) { 
 		requirements = 0;
 	}
