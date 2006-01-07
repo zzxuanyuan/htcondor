@@ -190,6 +190,17 @@ BOINC_BackfillMgr::rmVM( int vm_id )
 	delete m_vms[vm_id];
 	m_vms[vm_id] = NULL;
 	m_num_vms--;
+
+		// let the corresponding Resource know we're no longer running
+		// a backfill client for it
+	Resource* rip = resmgr->get_by_vm_id( vm_id );
+	if( ! rip ) {
+		dprintf( D_ALWAYS, "ERROR in BOINC_BackfillMgr::rmVM(): "
+				 "can't find resource with VM id %d\n", vm_id );
+		return false;
+	}
+	rip->backfillGone();
+
 	return true;
 }
 
@@ -305,8 +316,12 @@ BOINC_BackfillMgr::reaper( int pid, int status )
 		// clear our pid so we know it's gone...
 	m_boinc_pid = 0;
 
-		// we should probably tell someone else this happened for
-		// Resource state purposes, but for now, we're done
+		// once the client is gone, delete all our compute slots
+	int i, max = m_vms.getsize();
+	for( i=0; i < max; i++ ) {
+		rmVM( i );
+	}
+
 	return TRUE;
 }
 
