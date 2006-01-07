@@ -104,9 +104,7 @@ BOINC_BackfillMgr::BOINC_BackfillMgr()
 	: BackfillMgr()
 {
 	dprintf( D_ALWAYS, "Instantiating a BOINC_BackfillMgr\n" );
-	m_boinc_dir = NULL;
-	m_boinc_client_exe = NULL;
-	m_boinc_pid = 0;
+	m_boinc_starter = NULL;
 	m_reaper_id = -1;
 }
 
@@ -114,15 +112,10 @@ BOINC_BackfillMgr::BOINC_BackfillMgr()
 BOINC_BackfillMgr::~BOINC_BackfillMgr()
 {
 	dprintf( D_FULLDEBUG, "Destroying a BOINC_BackfillMgr\n" );
-	if( m_boinc_dir ) {
-		free( m_boinc_dir );
-	}
-	if( m_boinc_client_exe ) {
-		free( m_boinc_client_exe );
-	}
-	if( m_boinc_pid ) {
+	if( m_boinc_starter && m_boinc_starter->active() ) {
 			// our child is still around, hardkill "all" VMs
 		hardkill( 0 );
+		delete m_boinc_starter;
 	}
 }
 
@@ -162,15 +155,10 @@ BOINC_BackfillMgr::reconfig()
 {
 		// TODO be smart about if anything changes...
 
-	if( ! param_boinc("BOINC_HOMEDIR", &m_boinc_dir) ) {
-		return false;
-	}
-	if( ! param_boinc("BOINC_CLIENT_EXE", &m_boinc_client_exe) ) {
-		return false;
-	}
-	
-	dprintf( D_FULLDEBUG, "BOINC homedir: '%s'\n", m_boinc_dir );
-	dprintf( D_FULLDEBUG, "BOINC client: '%s'\n", m_boinc_client_exe );
+		// TODO: we should verify that all the BOINC_* stuff used by
+		// the starter when it's invoked with "-job-keyword BOINC" is
+		// there... 
+
 	return true;
 }
 
@@ -238,11 +226,12 @@ BOINC_BackfillMgr::start( int vm_id )
 		return false;
 	}
 
-	if( m_boinc_pid ) {
+	if( m_boinc_starter && m_boinc_starter->active() ) {
 			// already have a BOINC client running, allocate a new
 			// BackfillVM for this vm_id, and consider this done.
 		dprintf( D_FULLDEBUG, "VM %d wants to do backfill, already have "	
-				 "a BOINC client running (pid %d)\n", vm_id, m_boinc_pid );
+				 "a BOINC client running (pid %d)\n", vm_id, 
+				 (int)m_boinc_starter->pid() );
 	} else { 
 		// no BOINC client running, we need to spawn it
 		if( ! spawnClient() ) {
@@ -276,30 +265,39 @@ BOINC_BackfillMgr::spawnClient( void )
 		ASSERT( m_reaper_id != FALSE );
 	}
 
-	if( m_boinc_pid ) {
+	if( m_boinc_starter && m_boinc_starter->active() ) {
 			// shouldn't happen, but bail out, just in case
 		dprintf( D_ALWAYS, "ERROR: BOINC_BackfillMgr::spawnClient() "
-				 "called with m_boinc_pid=%d\n", m_boinc_pid );
+				 "called with active m_boinc_starter object (pid %d)\n",
+				 (int)m_boinc_starter->pid() );
 		return false;
 	}
 
-	int boinc_nice;
-	boinc_nice = param_integer( "BACKFILL_RENICE_INCREMENT", -1, 0, 19 );
-	if( boinc_nice == -1 ) {
-		boinc_nice = param_integer( "BOINC_RENICE_INCREMENT", 10, 0, 19 );
+	if( ! m_boinc_starter ) {
+		Starter* tmp_starter;
+		ClassAd fake_ad;
+		MyString fake_req;
+		fake_req.sprintf( "%s = %s", ATTR_REQUIREMENTS,
+						  ATTR_HAS_JIC_LOCAL_CONFIG );
+		fake_ad.Insert( fake_req.Value() );
+		tmp_starter = resmgr->starter_mgr.findStarter( &fake_ad, NULL );
+		if( ! tmp_starter ) {
+			dprintf( D_ALWAYS, "ERROR: Can't find a starter with %s\n",
+					 ATTR_HAS_JIC_LOCAL_CONFIG );
+			return false;
+		}
+		m_boinc_starter = tmp_starter;
+		m_boinc_starter->setIsBOINC( true );
+		m_boinc_starter->setReaperID( m_reaper_id );
 	}
 
 		// now, we can actually spawn the BOINC client
-		// TODO we need better priv state handling for this!
-	m_boinc_pid = daemonCore->
-		Create_Process( m_boinc_client_exe, NULL, PRIV_CONDOR, m_reaper_id,
-						FALSE, NULL, m_boinc_dir, TRUE, NULL, NULL, 
-						boinc_nice, 0, NULL );
-	if( ! m_boinc_pid ) {
+	if( ! m_boinc_starter->spawn(time(NULL), NULL) ) {
 		dprintf( D_ALWAYS, "ERROR spawning BOINC client\n" );
 		return false;
 	}
-	dprintf( D_FULLDEBUG, "Spawned BOINC client: (pid %d)\n", m_boinc_pid );
+	dprintf( D_FULLDEBUG, "Spawned BOINC starter: (pid %d)\n", 
+			 (int)m_boinc_starter->pid() );
 	return true;
 }
 
@@ -310,13 +308,20 @@ BOINC_BackfillMgr::reaper( int pid, int status )
 	MyString status_str;
 	statusString( status, status_str );
 	dprintf( D_ALWAYS, "BOINC client (pid %d) %s\n", pid, status_str.Value() );
-	if( m_boinc_pid != pid ) {
+	if( ! m_boinc_starter ) {
 		EXCEPT( "Impossible: BOINC_BackfillMgr::reaper() pid [%d] "
-				"doesn't match m_boinc_pid [%d]", pid, m_boinc_pid );
+				"called while m_boinc_starter is NULL!", pid );
+	}
+	if( (int)m_boinc_starter->pid() != pid ) {
+		EXCEPT( "Impossible: BOINC_BackfillMgr::reaper() pid [%d] "
+				"doesn't match m_boinc_starter's pid [%d]", pid, 
+				(int)m_boinc_starter->pid() );
 	}
 	
-		// clear our pid so we know it's gone...
-	m_boinc_pid = 0;
+		// tell our starter object its starter exited
+	m_boinc_starter->exited();
+	delete m_boinc_starter;
+	m_boinc_starter = NULL;
 
 		// once the client is gone, delete all our compute slots
 	int i, max = m_vms.getsize();
@@ -383,32 +388,30 @@ BOINC_BackfillMgr::hardkill( int vm_id )
 		return true;
 	}
 
-	if( m_boinc_pid <= 0 ) {
+	if( ! (m_boinc_starter && m_boinc_starter->active()) ) {
 			// no BOINC client running, we're done
 		return true;
 	}
 
 		// if we're here, we're done and we should really kill it
+	bool rval = true;
 #ifdef WIN32
 	EXCEPT( "Condor BOINC support does NOT work on windows" ); 
 #else 
-	priv_state old_state = set_root_priv();
-	int rval = ::kill( m_boinc_pid, SIGKILL );
-	set_priv( old_state );
-
-	if( rval < 0 ) {
-		dprintf( D_ALWAYS, "ERROR in BOINC_BackfillMgr::hardkill(): "
-				 "kill returned %d - %s (errno: %d)\n", rval,
-				 strerror(errno), errno );
-		return false;
+	rval = m_boinc_starter->killHard();
+	if( ! rval ) {
+		dprintf( D_ALWAYS, "BOINC_BackfillMgr::hardkill(): "
+			 "ERROR telling BOINC starter (pid %d) to hardkill\n",
+			 (int)m_boinc_starter->pid() );
+	} else {
+		dprintf( D_FULLDEBUG, "BOINC_BackfillMgr::hardkill(): "
+				 "told BOINC starter (pid %d) to hardkill\n",
+				 (int)m_boinc_starter->pid() );
 	}
-
-	dprintf( D_FULLDEBUG, "BOINC_BackfillMgr::hardkill(): "
-			 "sent SIGKILL to BOINC client (pid %d)\n", m_boinc_pid );
 
 #endif /* WIN32 */
 
-	return true;
+	return rval;
 }
 
 

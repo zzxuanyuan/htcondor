@@ -70,10 +70,7 @@ public:
 protected:
 	bool spawnClient( void );
 
-	char* m_boinc_dir;
-	char* m_boinc_client_exe;
-
-	int m_boinc_pid;   // should be a pid_t, but DaemonCore uses ints...
+	Starter* m_boinc_starter;
 	int m_reaper_id;
 
 };
