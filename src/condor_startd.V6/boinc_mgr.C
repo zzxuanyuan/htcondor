@@ -329,6 +329,10 @@ BOINC_BackfillMgr::reaper( int pid, int status )
 		rmVM( i );
 	}
 
+	if( resmgr->isShuttingDown() ) {
+		startd_check_free();
+	}
+
 	return TRUE;
 }
 
