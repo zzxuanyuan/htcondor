@@ -639,6 +639,16 @@ ResState::set_destination( State new_state )
 	case matched_state:
 			// these 3 are currently valid
 		break;
+
+	case claimed_state:
+			// this is only valid if we've got a pending request to
+			// claim that's already been stashed in our Claim object 
+		if( ! rip->r_cur->requestStream() ) {
+			EXCEPT( "set_destination(Claimed) called but there's no "
+					"pending request stream set in our current Claim" );
+		}
+		break;
+
 	default:
 		EXCEPT( "set_destination() doesn't work with %s state yet", 
 				state_to_string(r_destination) );
@@ -653,7 +663,14 @@ ResState::set_destination( State new_state )
 	case owner_state:
 	case matched_state:
 	case unclaimed_state:
-		change( r_destination );
+		if( r_destination == claimed_state ) {
+				// this is a little weird, but we can't just enter
+				// claimed directly, we have to do all this gnarly
+				// claiming protocol stuff, first...
+			accept_request_claim( rip );
+		} else {
+			change( r_destination );
+		}
 		break;
 	case preempting_state:
 			// Can't do anything else until the starter exits.
@@ -665,7 +682,11 @@ ResState::set_destination( State new_state )
 	case backfill_state:
 		if( r_act == idle_act ) {
 				// if we're idle, we can go immediately 
-			change( r_destination );
+			if( r_destination == claimed_state ) {
+				accept_request_claim( rip );
+			} else {
+				change( r_destination );
+			}
 		} else {
 				// otherwise, start killing, and we'll finish our
 				// journey when the backfill starter exits
@@ -703,7 +724,18 @@ ResState::starterExited( void )
 		break;
 
 	case claimed_state:
-			// finish accept claim TODO
+			// now that a starter is gone, if we've got a pending
+			// request to claim, we can finally accept it.  if that
+			// pending request is gone for some reason, go back to
+			// the Owner state... 
+		dprintf( D_ALWAYS, "State change: starter exited\n" );
+		if( rip->r_cur->requestStream() ) {
+			accept_request_claim( rip );
+			return TRUE;
+		} else {
+			r_destination = no_state;
+			return change( owner_state );
+		}
 		break;
 
 	default:
