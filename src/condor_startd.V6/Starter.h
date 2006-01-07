@@ -102,7 +102,6 @@ private:
 						   int std_fds[], Stream* s );
 #if HAVE_BOINC
 	int 	execBOINCStarter( void );
-	bool 	s_is_boinc;
 #endif /* HAVE_BOINC */
 
 	void	initRunData( void );
@@ -133,6 +132,10 @@ private:
 	procInfo	s_pinfo;	// aggregate ProcAPI info for starter & job
 	int		s_port1;
 	int		s_port2;
+#if HAVE_BOINC
+	bool 	s_is_boinc;
+#endif /* HAVE_BOINC */
+
 };
 
 #endif /* _CONDOR_STARTD_STARTER_H */
