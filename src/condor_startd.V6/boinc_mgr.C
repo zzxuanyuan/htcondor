@@ -367,7 +367,7 @@ BOINC_BackfillMgr::hardkill( int vm_id )
 	} else {
 			// kill all
 		int i;
-		for( i=0; i <= m_vms.getlast(); i++ ) { 
+		for( i=0; i <= m_vms.getsize(); i++ ) { 
 			if( m_vms[i] ) {
 				delete m_vms[i];
 				m_vms[i] = NULL;
