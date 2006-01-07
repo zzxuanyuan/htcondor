@@ -33,12 +33,14 @@
 BOINC_BackfillVM::BOINC_BackfillVM( int vm_id )
 	    : BackfillVM( vm_id )
 {
+	dprintf( D_FULLDEBUG, "New BOINC_BackfillVM (id %d) created\n", m_vm_id );
 		// TODO
 }
 
 
 BOINC_BackfillVM::~BOINC_BackfillVM()
 {
+	dprintf( D_FULLDEBUG, "BOINC_BackfillVM (id %d) deleted\n", m_vm_id );
 		// TODO
 }
 
