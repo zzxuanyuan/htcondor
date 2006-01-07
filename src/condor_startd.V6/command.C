@@ -724,24 +724,37 @@ request_claim( Resource* rip, char* id, Stream* stream )
 		}		
 	}	
 
-	if( cmd == OK ) {
-			// We decided to accept the request, save the schedd's
-			// stream, the rank and the classad of this request.
-		rip->r_cur->setRequestStream( stream );
-		rip->r_cur->setad( req_classad );
-		rip->r_cur->setrank( rank );
-		rip->r_cur->setoldrank( oldrank );
-
-			// Call this other function to actually reply to the
-			// schedd and perform the last half of the protocol.  We
-			// use the same function after the preemption has
-			// completed when the startd is finally ready to reply to
-			// the and finish the claiming process.
-		return accept_request_claim( rip );
-	} else {
+	if( cmd != OK ) {
 		refuse( stream );
 		ABORT;
 	}
+
+		// We decided to accept the request, save the schedd's
+		// stream, the rank and the classad of this request.
+	rip->r_cur->setRequestStream( stream );
+	rip->r_cur->setad( req_classad );
+	rip->r_cur->setrank( rank );
+	rip->r_cur->setoldrank( oldrank );
+
+#if HAVE_BACKFILL
+	if( rip->state() == backfill_state ) {
+			// we're currently in Backfill, so we can't just accept
+			// the request immediately, we have to first kill our
+			// backfill job on this resource.  so, we'll set the
+			// destination state to claimed, and allow that to finish
+			// the claiming protocol once the backfill is gone...
+		rip->set_destination_state( claimed_state );
+		return KEEP_STREAM;
+	}
+#endif /* HAVE_BACKFILL */
+
+		// If we're still here, we're ready to accpet the claim now.
+		// Call this other function to actually reply to the schedd
+		// and perform the last half of the protocol.  We use the same
+		// function after the preemption has completed when the startd
+		// is finally ready to reply to the and finish the claiming
+		// process.
+	return accept_request_claim( rip );
 }
 #undef ABORT
 
