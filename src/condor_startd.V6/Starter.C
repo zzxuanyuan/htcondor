@@ -88,6 +88,10 @@ Starter::initRunData( void )
 	s_port2 = -1;
 	s_reaper_id = -1;
 
+#if HAVE_BOINC
+	s_is_boinc = false;
+#endif /* HAVE_BOINC */
+
 		// Initialize our procInfo structure so we don't use any
 		// values until we've actually computed them.
 	memset( (void*)&s_pinfo, 0, (size_t)sizeof(s_pinfo) );
