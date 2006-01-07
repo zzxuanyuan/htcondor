@@ -60,6 +60,7 @@ public:
 	unsigned long	imageSize( void );
 
 	int		spawn( time_t now, Stream* s );
+	void	setReaperID( int reaper_id ) { s_reaper_id = reaper_id; };
 
 	bool	killHard( void );
 	bool	killSoft( void );
@@ -135,6 +136,7 @@ private:
 #if HAVE_BOINC
 	bool 	s_is_boinc;
 #endif /* HAVE_BOINC */
+	int		s_reaper_id;
 
 };
 

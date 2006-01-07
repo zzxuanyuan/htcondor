@@ -86,6 +86,8 @@ Starter::initRunData( void )
 	s_kill_tid = -1;
 	s_port1 = -1;
 	s_port2 = -1;
+	s_reaper_id = -1;
+
 		// Initialize our procInfo structure so we don't use any
 		// values until we've actually computed them.
 	memset( (void*)&s_pinfo, 0, (size_t)sizeof(s_pinfo) );
@@ -663,8 +665,15 @@ Starter::execDCStarter( const char* args, const char* env,
 
 	dprintf( D_FULLDEBUG, "About to Create_Process \"%s\"\n", args );
 
+	int reaper_id;
+	if( s_reaper_id > 0 ) {
+		reaper_id = s_reaper_id;
+	} else {
+		reaper_id = main_reaper;
+	}
+
 	s_pid = daemonCore->
-		Create_Process( s_path, (char*)args, PRIV_ROOT, main_reaper,
+		Create_Process( s_path, (char*)args, PRIV_ROOT, reaper_id,
 						TRUE, env, NULL, TRUE, inherit_list, std_fds );
 	if( s_pid == FALSE ) {
 		dprintf( D_ALWAYS, "ERROR: exec_starter failed!\n");
