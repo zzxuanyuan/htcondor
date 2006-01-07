@@ -166,8 +166,6 @@ public:
 	bool	start_backfill( void );
 	bool	softkill_backfill( void );
 	bool	hardkill_backfill( void );
-
-	int		backfillGone( void );
 #endif /* HAVE_BACKFILL */
 
 	bool    claimWorklifeExpired();

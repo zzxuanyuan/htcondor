@@ -189,7 +189,7 @@ BOINC_BackfillMgr::rmVM( int vm_id )
 				 "can't find resource with VM id %d\n", vm_id );
 		return false;
 	}
-	rip->backfillGone();
+	rip->r_state->starterExited();
 
 	return true;
 }
