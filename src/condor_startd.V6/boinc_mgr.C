@@ -24,9 +24,10 @@
 #include "condor_common.h"
 #include "condor_config.h"
 #include "condor_debug.h"
-#include "boinc_mgr.h"
 #include "status_string.h"
 
+#include "startd.h"
+#include "boinc_mgr.h"
 
 
 BOINC_BackfillVM::BOINC_BackfillVM( int vm_id )
@@ -197,9 +198,33 @@ bool
 BOINC_BackfillMgr::start( int vm_id )
 {
 	if( m_vms[vm_id] ) {
-			// already have a BackfillVM object for this, we're done
+		dprintf( D_ALWAYS, "BackfillVM object for VM %d already exists\n",
+				 vm_id );
 		return true;
 	}
+
+	Resource* rip = resmgr->get_by_vm_id( vm_id );
+	if( ! rip ) {
+		dprintf( D_ALWAYS, "ERROR in BOINC_BackfillMgr::start(): "
+				 "can't find resource with VM id %d\n", vm_id );
+		return false;
+	}
+	State s = rip->state();
+	Activity a = rip->activity();
+
+	if( s != backfill_state ) {
+		dprintf( D_ALWAYS, "ERROR in BOINC_BackfillMgr::start(): "
+				 "Resource for VM id %d not in Backfill state (%s/%s)\n",
+				 vm_id, state_to_string(s), activity_to_string(a) );
+		return false;
+	}
+	if( a != idle_act ) {
+		dprintf( D_ALWAYS, "ERROR in BOINC_BackfillMgr::start(): "
+				 "Resource for VM id %d not in Backfill/Idle (%s/%s)\n",
+				 vm_id, state_to_string(s), activity_to_string(a) );
+		return false;
+	}
+
 	if( m_boinc_pid ) {
 			// already have a BOINC client running, allocate a new
 			// BackfillVM for this vm_id, and consider this done.
@@ -218,7 +243,11 @@ BOINC_BackfillMgr::start( int vm_id )
 	m_vms[vm_id] = new BOINC_BackfillVM( vm_id );
 	m_num_vms++;
 
-	return true;
+		// now that we have a BOINC client and a BOINC_BackfillVM
+		// object for this VM, change to Backfill/BOINC
+	dprintf( D_ALWAYS, "State change: BOINC client running for vm%d\n",
+			 vm_id ); 
+	return rip->change_state( boinc_act );
 }
 
 
