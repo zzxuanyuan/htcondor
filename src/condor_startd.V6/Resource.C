@@ -352,6 +352,11 @@ Resource::hasAnyClaim( void )
 	if( r_cod_mgr->hasClaims() ) {
 		return true;
 	}
+#if HAVE_BACKFILL
+	if( state() == backfill_state && activity() != idle_act ) {
+		return true;
+	}
+#endif /* HAVE_BACKFILL */
 	return hasOppClaim();
 }
 
