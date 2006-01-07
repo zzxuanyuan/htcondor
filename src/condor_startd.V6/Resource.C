@@ -137,6 +137,13 @@ Resource::retire_claim( void )
 		return change_state( retiring_act );
 	case matched_state:
 		return change_state( owner_state );
+#if HAVE_BACKFILL
+	case backfill_state:
+			// we don't want retirement to mean anything special for
+			// backfill jobs... they should be killed immediately 
+		set_destination_state( owner_state );
+		return TRUE;
+#endif /* HAVE_BACKFILL */
 	default:
 			// For good measure, try directly killing the starter if
 			// we're in any other state.  If there's no starter, this
@@ -146,6 +153,7 @@ Resource::retire_claim( void )
 	}
 	return TRUE;
 }
+
 
 int
 Resource::release_claim( void )
@@ -160,11 +168,17 @@ Resource::release_claim( void )
 		break;
 	case matched_state:
 		return change_state( owner_state );
+#if HAVE_BACKFILL
+	case backfill_state:
+		set_destination_state( owner_state );
+		return TRUE;
+#endif /* HAVE_BACKFILL */
 	default:
 		return (int)r_cur->starterKillHard();
 	}
 	return TRUE;
 }
+
 
 int
 Resource::kill_claim( void )
@@ -178,6 +192,11 @@ Resource::kill_claim( void )
 		return change_state( preempting_state, killing_act );
 	case matched_state:
 		return change_state( owner_state );
+#if HAVE_BACKFILL
+	case backfill_state:
+		set_destination_state( owner_state );
+		return TRUE;
+#endif /* HAVE_BACKFILL */
 	default:
 			// In other states, try direct kill.  See above.
 		return (int)r_cur->starterKillHard();
