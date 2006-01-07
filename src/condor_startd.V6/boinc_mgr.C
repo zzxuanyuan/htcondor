@@ -360,12 +360,16 @@ BOINC_BackfillMgr::softkill( int vm_id )
 bool
 BOINC_BackfillMgr::hardkill( int vm_id )
 {
+	if( ! (m_boinc_starter && m_boinc_starter->active()) ) {
+			// no BOINC client running, we're done
+		return true;
+	}
+
 		// PHASE 2: handle different vm_ids differently...
 	if( vm_id ) {
 		if( m_vms[vm_id] ) {
-			delete m_vms[vm_id];
-			m_vms[vm_id] = NULL;
-			m_num_vms--;
+				// currently a no-op, but someday this will be useful
+			m_vms[vm_id]->hardkill();  
 		} else {
 			dprintf( D_ALWAYS, "ERROR in BOINC_BackfillMgr::hardkill(%d) "
 					 "no BackfillVM object with that id\n", vm_id );
@@ -376,22 +380,15 @@ BOINC_BackfillMgr::hardkill( int vm_id )
 		int i;
 		for( i=0; i <= m_vms.getsize(); i++ ) { 
 			if( m_vms[i] ) {
-				delete m_vms[i];
-				m_vms[i] = NULL;
-				m_num_vms--;
+					// currently a no-op, but someday this will be useful
+				m_vms[vm_id]->hardkill();
 			}
 		}
 	}
 			
-	if( m_num_vms > 0 ) {
-			// we still have some VMs left, we have to return
-		return true;
-	}
-
-	if( ! (m_boinc_starter && m_boinc_starter->active()) ) {
-			// no BOINC client running, we're done
-		return true;
-	}
+		// in phase 2, we'll only want to kill the client once all our
+		// backfill VMs have been killed... for now, we'll just do it
+		// directly 
 
 		// if we're here, we're done and we should really kill it
 	bool rval = true;
