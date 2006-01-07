@@ -79,6 +79,11 @@ public:
 	void	setPath( const char* path );
 	void	setIsDC( bool is_dc );
 
+#if HAVE_BOINC
+	bool	isBOINC( void ) { return s_is_boinc; };
+	void	setIsBOINC( bool is_boinc ) { s_is_boinc = is_boinc; };
+#endif /* HAVE_BOINC */
+
 	void	setClaim( Claim* c );
 	void	setPorts( int, int );
 
@@ -95,6 +100,11 @@ private:
 	int		execDCStarter( Stream* s );
 	int		execDCStarter( const char* args, const char* env, 
 						   int std_fds[], Stream* s );
+#if HAVE_BOINC
+	int 	execBOINCStarter( void );
+	bool 	s_is_boinc;
+#endif /* HAVE_BOINC */
+
 	void	initRunData( void );
 
 	int		startKillTimer( void );	    // Timer for how long we're willing 

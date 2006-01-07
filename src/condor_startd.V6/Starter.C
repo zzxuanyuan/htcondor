@@ -504,6 +504,10 @@ Starter::spawn( time_t now, Stream* s )
 {
 	if( isCOD() ) {
 		s_pid = execCODStarter();
+#if HAVE_BOINC
+	} else if( isBOINC() ) {
+		s_pid = execBOINCStarter(); 
+#endif /* HAVE_BOINC */
 	} else if( is_dc() ) {
 		s_pid = execDCStarter( s ); 
 	} else {
@@ -615,6 +619,16 @@ Starter::execCODStarter( void )
 	}
 	return rval;
 }
+
+
+#if HAVE_BOINC
+int
+Starter::execBOINCStarter( void )
+{
+	const char* args = "condor_starter -f -append boinc -job-keyword boinc";
+	return execDCStarter( args, NULL, NULL, NULL );
+}
+#endif /* HAVE_BOINC */
 
 
 int
@@ -800,6 +814,9 @@ Starter::execOldStarter( void )
 bool
 Starter::isCOD()
 {
+	if( ! s_claim ) {
+		return false;
+	}
 	return s_claim->isCOD();
 }
 
