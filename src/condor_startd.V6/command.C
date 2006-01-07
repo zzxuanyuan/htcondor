@@ -1142,6 +1142,16 @@ match_info( Resource* rip, char* id )
 				// and updates CM.
 			rip->dprintf( D_FAILURE|D_ALWAYS, 
 						  "State change: match notification protocol successful\n" );
+#if HAVE_BACKFILL
+			if( rip->state() == backfill_state ) {
+					// if we're currently in backfill, we can't go
+					// immediately to matched, since we have to kill
+					// our existing backfill client/starter, first.
+				rip->set_destination_state( matched_state );
+				return TRUE;
+			}
+#endif /* HAVE_BACKFILL */
+
 			rip->change_state( matched_state );
 			rval = TRUE;
 		} else {
