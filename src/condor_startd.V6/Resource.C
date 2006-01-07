@@ -1194,8 +1194,7 @@ Resource::backfillGone( void )
 		return FALSE;
 	}
 
-		// don't need to dprintf() why, since we already do in the
-		// Backfill-system-specific method that calls this... 
+	dprintf( D_ALWAYS, "State change: Backfill client exited\n" );
 	return change_state( backfill_state, idle_act );
 }
 
