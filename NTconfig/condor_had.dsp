@@ -113,5 +113,14 @@ SOURCE=..\src\condor_had\StateMachine.C
 
 SOURCE=..\src\condor_had\StateMachine.h
 # End Source File
+# Begin Source File
+
+SOURCE="..\..\My Documents\Condor\src\condor_had\Utils.C"
+# End Source File
+# Begin Source File
+
+SOURCE="..\..\My Documents\Condor\src\condor_had\Utils.h"
+# End Source File
 # End Target
+
 # End Project

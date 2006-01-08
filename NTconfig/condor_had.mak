@@ -56,6 +56,7 @@ CLEAN :
 	-@erase "$(INTDIR)\soap_hadServer.obj"
 	-@erase "$(INTDIR)\soap_hadStub.obj"
 	-@erase "$(INTDIR)\StateMachine.obj"
+	-@erase "$(INTDIR)\Utils.obj"
 	-@erase "$(INTDIR)\vc60.idb"
 	-@erase "$(INTDIR)\vc60.pdb"
 	-@erase "$(OUTDIR)\condor_had.exe"
@@ -76,6 +77,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\HAD.OBJ" \
 	"$(INTDIR)\soap_hadStub.obj" \
 	"$(INTDIR)\StateMachine.obj" \
+	"$(INTDIR)\Utils.obj" \
 	"$(INTDIR)\soap_hadC.obj" \
 	"$(INTDIR)\soap_hadServer.obj" \
 	"$(OUTDIR)\condor_classad.lib" \
@@ -119,6 +121,7 @@ CLEAN :
 	-@erase "$(INTDIR)\soap_hadServer.obj"
 	-@erase "$(INTDIR)\soap_hadStub.obj"
 	-@erase "$(INTDIR)\StateMachine.obj"
+	-@erase "$(INTDIR)\Utils.obj"
 	-@erase "$(INTDIR)\vc60.idb"
 	-@erase "$(OUTDIR)\condor_had.exe"
 	-@erase "$(OUTDIR)\condor_had.map"
@@ -137,6 +140,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\HAD.OBJ" \
 	"$(INTDIR)\soap_hadStub.obj" \
 	"$(INTDIR)\StateMachine.obj" \
+	"$(INTDIR)\Utils.obj" \
 	"$(INTDIR)\soap_hadC.obj" \
 	"$(INTDIR)\soap_hadServer.obj" \
 	"$(OUTDIR)\condor_classad.lib" \
@@ -460,6 +464,12 @@ SOURCE=..\src\condor_had\StateMachine.C
 
 "$(INTDIR)\StateMachine.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE="..\..\My Documents\Condor\src\condor_had\Utils.C"
+
+"$(INTDIR)\Utils.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+    $(CPP) $(CPP_PROJ) $(SOURCE)
 
 
 
