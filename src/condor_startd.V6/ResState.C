@@ -350,7 +350,12 @@ ResState::eval( void )
 		kill_rval = rip->eval_kill_backfill(); 
 		if( kill_rval > 0 ) {
 			dprintf( D_ALWAYS, "State change: KILL_BACKFILL is TRUE\n" );
-			return change( backfill_state, killing_act );
+				// we can change into Backfill/Killing then set our
+				// destination, since set_dest() won't take any
+				// additional action if we're already in killing_act
+			change( backfill_state, killing_act );
+			set_destination( owner_state );
+			return TRUE;
 		} else if( kill_rval < 0 ) {
 			dprintf( D_ALWAYS, "WARNING: KILL_BACKFILL is UNDEFINED, "
 					 "staying in Backfill state\n" );
