@@ -785,6 +785,8 @@ ResState::starterExited( void )
 
 		// if we got here, we didn't do any state changes at all,
 		// which is bad
+		// TODO: fail more violently if we get here (only once we're
+		// really using destination for everything we can...)
 	return FALSE;
 }
 
