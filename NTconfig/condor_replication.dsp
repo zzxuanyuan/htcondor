@@ -83,6 +83,7 @@ LINK32=link.exe
 # Begin Source File
 
 SOURCE=..\src\condor_had\AbstractReplicatorStateMachine.C
+# SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
 
@@ -91,6 +92,7 @@ SOURCE=..\src\condor_had\AbstractReplicatorStateMachine.h
 # Begin Source File
 
 SOURCE=..\src\condor_had\FilesOperations.C
+# SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
 
@@ -99,6 +101,7 @@ SOURCE=..\src\condor_had\FilesOperations.h
 # Begin Source File
 
 SOURCE=..\src\condor_had\Replication.C
+# SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
 
@@ -107,6 +110,7 @@ SOURCE=..\src\condor_had\ReplicatorState.h
 # Begin Source File
 
 SOURCE=..\src\condor_had\ReplicatorStateMachine.C
+# SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
 
@@ -115,6 +119,7 @@ SOURCE=..\src\condor_had\ReplicatorStateMachine.h
 # Begin Source File
 
 SOURCE=..\src\condor_had\Utils.C
+# SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
 
@@ -123,6 +128,7 @@ SOURCE=..\src\condor_had\Utils.h
 # Begin Source File
 
 SOURCE=..\src\condor_had\Version.C
+# SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
 
@@ -130,3 +136,4 @@ SOURCE=..\src\condor_had\Version.h
 # End Source File
 # End Target
 # End Project
+

@@ -83,6 +83,7 @@ LINK32=link.exe
 # Begin Source File
 
 SOURCE=..\src\condor_had\BaseReplicaTransferer.C
+# SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
 
@@ -91,6 +92,7 @@ SOURCE=..\src\condor_had\BaseReplicaTransferer.h
 # Begin Source File
 
 SOURCE=..\src\condor_had\DownloadReplicaTransferer.C
+# SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
 
@@ -99,6 +101,7 @@ SOURCE=..\src\condor_had\DownloadReplicaTransferer.h
 # Begin Source File
 
 SOURCE=..\src\condor_had\FilesOperations.C
+# SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
 
@@ -107,10 +110,12 @@ SOURCE=..\src\condor_had\FilesOperations.h
 # Begin Source File
 
 SOURCE=..\src\condor_had\Transferer.C
+# SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
 
 SOURCE=..\src\condor_had\UploadReplicaTransferer.C
+# SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
 
@@ -119,6 +124,7 @@ SOURCE=..\src\condor_had\UploadReplicaTransferer.h
 # Begin Source File
 
 SOURCE=..\src\condor_had\Utils.C
+# SUBTRACT CPP /YX /Yc /Yu
 # End Source File
 # Begin Source File
 
@@ -126,3 +132,4 @@ SOURCE=..\src\condor_had\Utils.h
 # End Source File
 # End Target
 # End Project
+

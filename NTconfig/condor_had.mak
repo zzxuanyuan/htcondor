@@ -466,7 +466,7 @@ SOURCE=..\src\condor_had\StateMachine.C
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
-SOURCE="..\..\My Documents\Condor\src\condor_had\Utils.C"
+SOURCE=..\src\condor_had\Utils.C
 
 "$(INTDIR)\Utils.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
     $(CPP) $(CPP_PROJ) $(SOURCE)
