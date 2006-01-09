@@ -41,7 +41,6 @@ char *Cred_tmp_dir = NULL;				// temporary credential storage directory
 char *Module_dir = NULL;				// Module directory (DAP Catalog)
 char *Log_dir = NULL;					// LOG directory
 
-int  daemon_std[3];
 int  transfer_dap_reaper_id, reserve_dap_reaper_id, release_dap_reaper_id;
 int  requestpath_dap_reaper_id;
 
@@ -54,69 +53,13 @@ int listenfd_submit;
 int listenfd_status;
 int listenfd_remove;
 
-/* ==========================================================================
- * Open daemon core file pointers.
- * All modules will inherit these standard I/O file descriptors.
- * results in daemon_std[]
- * ==========================================================================*/
-void open_daemon_core_file_pointers()
-{
-	const char* log_dir = param("LOG");
-	const char* alt_log_dir = "/tmp";
-	const char* name = "/Stork-module.";
-	const int flags = O_CREAT | O_RDWR;
-	const mode_t mode = 00644;
-	MyString dc_stdin, dc_stderr, dc_stdout;
+void remove_job(const char *dap_id);
 
-	if (! log_dir ) log_dir = alt_log_dir;
-
-	// Standard input
-	dc_stdin = NULL_FILE;
-	dprintf(D_ALWAYS, "module standard input redirected from %s\n",
-			dc_stdin.Value() );
-	daemon_std[0] = open ( dc_stdin.Value(), flags, mode);
-	if ( daemon_std[0] < 0 ) {
-			dprintf( D_ALWAYS,
-				"ERROR: daemoncore stdin fd %d open(%s,%#o,%#o): (%d)%s\n",
-					0, dc_stdin.Value(), flags, mode,
-					errno, strerror(errno)
-			);
-	}
-
-	// Standard output
-	dc_stdout = log_dir;
-	dc_stdout += name;
-	dc_stdout += "stdout";
-	dprintf(D_ALWAYS, "module standard output redirected to %s\n",
-			dc_stdout.Value() );
-	daemon_std[1] = open ( dc_stdout.Value(), flags, mode);
-	if ( daemon_std[1] < 0 ) {
-			dprintf( D_ALWAYS,
-				"ERROR: daemoncore stdout fd %d open(%s,%#o,%#o): (%d)%s\n",
-					1, dc_stdout.Value(), flags, mode,
-					errno, strerror(errno)
-			);
-	}
-
-	// Standard error
-	dc_stderr = log_dir;
-	dc_stderr += name;
-	dc_stderr += "stderr";
-	dprintf(D_ALWAYS, "module standard error redirected to %s\n",
-			dc_stderr.Value() );
-	daemon_std[2] = open ( dc_stderr.Value(), flags, mode);
-	if ( daemon_std[2] < 0 ) {
-			dprintf( D_ALWAYS,
-				"ERROR: daemoncore stderr fd %d open(%s,%#o,%#o): (%d)%s\n",
-					2, dc_stderr.Value(), flags, mode,
-					errno, strerror(errno)
-			);
-	}
-
-
-	if (log_dir && strcmp(log_dir, alt_log_dir) ) free( (char *)log_dir);
-	return;
-}
+// Module standard I/O file descriptor type and indices.
+typedef int module_stdio_t[3];
+#define MODULE_STDIN_INDEX		0
+#define MODULE_STDOUT_INDEX		1
+#define MODULE_STDERR_INDEX		2
 
 /* ==========================================================================
  * read the config file and set some global parameters
@@ -178,14 +121,97 @@ int read_config_file()
 }
 
 /* ==========================================================================
- * close daemon core file pointers
+ * open module stdio file descriptors
  * ==========================================================================*/
-void close_daemon_core_file_pointers()
+bool
+open_module_stdio(	classad::ClassAd*   ad,
+					module_stdio_t		module_stdio)
 {
-	close(daemon_std[0]);
-	close(daemon_std[1]);
-	close(daemon_std[2]);
+	std::string path;
+	int dap_id;
+
+	module_stdio[ MODULE_STDIN_INDEX ] = -1;
+	module_stdio[ MODULE_STDOUT_INDEX ] = -1;
+	module_stdio[ MODULE_STDERR_INDEX ] = -1;
+
+	if (! ad->EvaluateAttrInt("dap_id", dap_id) ) {
+		dprintf(D_ALWAYS, "open_module_stdio: error, no dap_id: %s\n",
+				classad::CondorErrMsg.c_str() );
+	}
+	if ( ! ad->EvaluateAttrString("input", path) ) {
+		path = NULL_FILE;
+	}
+	if ( path.empty() ) {
+		dprintf(D_ALWAYS, "error: job %d empty input file path\n", dap_id);
+		return false;
+	}
+	module_stdio[ MODULE_STDIN_INDEX ] =
+		open( path.c_str(), O_RDONLY);
+	if ( module_stdio[ MODULE_STDIN_INDEX ] < 0 ) {
+		dprintf(D_ALWAYS, "error: job %d open input file %s: %s\n",
+				dap_id, path.c_str(), strerror(errno) );
+		return false;
+	}
+
+	if ( ! ad->EvaluateAttrString("output", path) ) {
+		path = NULL_FILE;
+	}
+	if ( path.empty() ) {
+		dprintf(D_ALWAYS, "error: job %d empty output file path\n",
+				dap_id);
+		return false;
+	}
+	module_stdio[ MODULE_STDOUT_INDEX ] =
+		open( path.c_str(), O_WRONLY|O_CREAT|O_APPEND, 0644);
+	if ( module_stdio[ MODULE_STDOUT_INDEX ] < 0 ) {
+		dprintf(D_ALWAYS, "error: job %d open output file %s: %s\n",
+				dap_id, path.c_str(), strerror(errno) );
+		return false;
+	}
+
+	if ( ! ad->EvaluateAttrString("err", path) ) {
+		path = NULL_FILE;
+	}
+	if ( path.empty() ) {
+		dprintf(D_ALWAYS, "error: job %d empty error file path\n",
+				dap_id);
+		return false;
+	}
+	module_stdio[ MODULE_STDERR_INDEX ] =
+		open( path.c_str(), O_WRONLY|O_CREAT|O_APPEND, 0644);
+	if ( module_stdio[ MODULE_STDERR_INDEX ] < 0 ) {
+		dprintf(D_ALWAYS, "error: job %d open error file %s: %s\n",
+				dap_id, path.c_str(), strerror(errno) );
+		return false;
+	}
+
+	return true;
 }
+
+/* ==========================================================================
+ * close module stdio file descriptors
+ * ==========================================================================*/
+void
+close_module_stdio( module_stdio_t module_stdio)
+{
+	if ( module_stdio[ MODULE_STDIN_INDEX ] >= 0) {
+		close( module_stdio[ MODULE_STDIN_INDEX ] );
+		module_stdio[ MODULE_STDIN_INDEX ] = -1;
+	}
+
+	if ( module_stdio[ MODULE_STDOUT_INDEX ] >= 0) {
+		close( module_stdio[ MODULE_STDOUT_INDEX ] );
+		module_stdio[ MODULE_STDOUT_INDEX ] = -1;
+	}
+
+	if ( module_stdio[ MODULE_STDERR_INDEX ] >= 0) {
+		close( module_stdio[ MODULE_STDERR_INDEX ] );
+		module_stdio[ MODULE_STDERR_INDEX ] = -1;
+	}
+
+	return;
+}
+
 /* ============================================================================
  * check whether the status of a dap job is already logged or not 
  * ==========================================================================*/
@@ -267,10 +293,28 @@ void get_last_dapid()
 	last_dap = max_dapid;
 }
 
+
+/* ============================================================================
+ * Remove a job from the queue.
+ * ==========================================================================*/
+void
+remove_job(const char *dap_id)
+{
+	std::string                  key;
+	key = "key = ";
+	key += dap_id;
+	dprintf(D_ALWAYS, "remove job %s from queue\n", dap_id);
+	bool status = dapcollection->RemoveClassAd(key);
+	if ( ! status ) {
+		dprintf(D_ALWAYS, "Failed to remove job %s from queue\n", dap_id);
+	}
+	return;
+}
+
 /* ============================================================================
  * dap transfer function
  * ==========================================================================*/
-int transfer_dap(char *dap_id, char *src_url, char *dest_url, char *arguments, char * cred_file_name)
+bool transfer_dap(char *dap_id, char *src_url, char *dest_url, char *arguments, char * cred_file_name)
 {
 
 	char src_protocol[MAXSTR], src_host[MAXSTR], src_file[MAXSTR];
@@ -357,6 +401,14 @@ int transfer_dap(char *dap_id, char *src_url, char *dest_url, char *arguments, c
 					   "Arguments", arguments,
 					   "CredFile", cred_file_name);
 
+
+	// Open file descriptors for child module.
+	module_stdio_t module_stdio;
+	if (!  open_module_stdio( job_ad, module_stdio) ) {
+		return false;
+	}
+
+	// Create child module process.
 	pid =
 	daemonCore->Create_Process(
 		 command,						// command path
@@ -368,20 +420,23 @@ int transfer_dap(char *dap_id, char *src_url, char *dest_url, char *arguments, c
 		 Log_dir,						// current working directory
 		 FALSE,							// do not create a new process group
 		 NULL,							// list of socks to inherit
-		 daemon_std						// child stdio file descriptors
+		 module_stdio					// child stdio file descriptors
 		 								// nice increment = 0
 		 								// job_opt_mask = 0
 	);
 
+	// Close module file descriptors in parent process.
+	close_module_stdio( module_stdio);
+
 	if (env_string) delete []env_string;// delete string from "new"
 	if (pid > 0) {
 		dap_queue.insert(dap_id, pid);
-		return DAP_SUCCESS;
+		return true;
 	}
 	else{
 		// FIXME  
 		transfer_dap_reaper(NULL, 0 ,111); //executable not found!
-		return DAP_ERROR;                  //--> Find a better soln!
+		return false;                  //--> Find a better soln!
 	}
   
 }
@@ -407,6 +462,17 @@ void reserve_dap(char *dap_id, char *reserve_id, char *reserve_size, char *durat
 	snprintf(argument_str ,MAXSTR, "%s %s %s %s %s", 
 			 commandbody, dest_host, output_file, reserve_size, duration);
 
+	// Open file descriptors for child module.
+    classad::ClassAd                *job_ad;
+	std::string key;
+    key = "key = ";
+    key += dap_id;
+    job_ad = dapcollection->GetClassAd(key);
+	module_stdio_t module_stdio;
+	if (!  open_module_stdio( job_ad, module_stdio) ) {
+		return; //  FIXME: must return failure! DAP_SUCCESS;
+	}
+
 	// Create child process via daemoncore
 	pid =
 	daemonCore->Create_Process(
@@ -419,10 +485,13 @@ void reserve_dap(char *dap_id, char *reserve_id, char *reserve_size, char *durat
 		 Log_dir,						// current working directory
 		 FALSE,							// do not create a new process group
 		 NULL,							// list of socks to inherit
-		 daemon_std						// child stdio file descriptors
+		 module_stdio					// child stdio file descriptors
 		 								// nice increment = 0
 		 								// job_opt_mask = 0
 	);
+
+	// Close module file descriptors in parent process.
+	close_module_stdio( module_stdio);
 
 	dap_queue.insert(dap_id, pid);
 }
@@ -487,6 +556,12 @@ void release_dap(char *dap_id, char *reserve_id, char *dest_url)
 	snprintf(argument_str ,MAXSTR, "%s %s %s", 
 			 commandbody, dest_host, lot_id);
 
+	// Open file descriptors for child module.
+	module_stdio_t module_stdio;
+	if (!  open_module_stdio( job_ad, module_stdio) ) {
+		return; //  FIXME: must return failure! DAP_SUCCESS;
+	}
+
 	// Create child process via daemoncore
 	pid =
 	daemonCore->Create_Process(
@@ -499,10 +574,13 @@ void release_dap(char *dap_id, char *reserve_id, char *dest_url)
 		 Log_dir,						// current working directory
 		 FALSE,							// do not create a new process group
 		 NULL,							// list of socks to inherit
-		 daemon_std						// child stdio file descriptors
+		 module_stdio					// child stdio file descriptors
 		 								// nice increment = 0
 		 								// job_opt_mask = 0
 	);
+
+	// Close module file descriptors in parent process.
+	close_module_stdio( module_stdio);
 
 	dap_queue.insert(dap_id, pid);
 	if (constraint_tree != NULL) delete constraint_tree;
@@ -532,6 +610,17 @@ void requestpath_dap(char *dap_id, char *src_url, char *dest_url)
 	snprintf(argument_str ,MAXSTR, "%s %s %s", 
 			 commandbody, src_host, dest_host);
 
+	// Open file descriptors for child module.
+    classad::ClassAd                *job_ad;
+	std::string key;
+    key = "key = ";
+    key += dap_id;
+    job_ad = dapcollection->GetClassAd(key);
+	module_stdio_t module_stdio;
+	if (!  open_module_stdio( job_ad, module_stdio) ) {
+		return; //  FIXME: must return failure! DAP_SUCCESS;
+	}
+
 	// Create child process via daemoncore
 	pid =
 	daemonCore->Create_Process(
@@ -544,10 +633,13 @@ void requestpath_dap(char *dap_id, char *src_url, char *dest_url)
 		 Log_dir,						// current working directory
 		 FALSE,							// do not create a new process group
 		 NULL,							// list of socks to inherit
-		 daemon_std						// child stdio file descriptors
+		 module_stdio					// child stdio file descriptors
 		 								// nice increment = 0
 		 								// job_opt_mask = 0
 	);
+
+	// Close module file descriptors in parent process.
+	close_module_stdio( module_stdio);
 
 	dap_queue.insert(dap_id, pid);
 }
@@ -560,6 +652,7 @@ void process_request(classad::ClassAd *currentAd)
 {
 	char dap_id[MAXSTR], dap_type[MAXSTR];
 	char unstripped[MAXSTR];
+	bool status;
   
 		//get the dap_id of the request
 	getValue(currentAd, "dap_id", unstripped); 
@@ -715,14 +808,33 @@ void process_request(classad::ClassAd *currentAd)
     
 		if (!strcmp(use_protocol, "0")){
 				//dprintf(D_ALWAYS, "use_protocol: %s\n", use_protocol);      
-			transfer_dap(dap_id, src_url, dest_url, arguments, cred_file_name);
+			status = 
+				transfer_dap(dap_id, src_url, dest_url, arguments,
+						cred_file_name);
+			if (! status) {
+				currentAd->InsertAttr("generic_event",
+						"server error: job removed");
+				user_log(currentAd, ULOG_GENERIC);
+				write_dap_log(historyfilename, "\"request_removed\"", 
+					  "dap_id", dap_id, "error_code", "\"REMOVED!\"");
+				remove_job( dap_id);
+			}
 		}
 		else{
 			getValue(currentAd, "alt_protocols", alt_protocols);
 			dprintf(D_ALWAYS, "alt. protocols = %s\n", alt_protocols);
       
 			if (!strcmp(alt_protocols,"")) { //if no alt. protocol defined
-				transfer_dap(dap_id, src_url, dest_url, arguments, cred_file_name);
+				status = transfer_dap(dap_id, src_url, dest_url, arguments,
+						cred_file_name);
+				if (! status) {
+					currentAd->InsertAttr("generic_event",
+							"server error: job removed");
+					user_log(currentAd, ULOG_GENERIC);
+					write_dap_log(historyfilename, "\"request_removed\"", 
+						  "dap_id", dap_id, "error_code", "\"REMOVED!\"");
+					remove_job( dap_id);
+				}
 			}
 			else{ //use alt. protocols
 				strcpy(next_protocol, strtok(alt_protocols, ",") );   
@@ -763,7 +875,16 @@ void process_request(classad::ClassAd *currentAd)
 	
 	
 					//--> These "arguments" may need to be removed or chaged !!
-				transfer_dap(dap_id, src_alt_url, dest_alt_url, arguments, cred_file_name);
+				status = transfer_dap(dap_id, src_alt_url, dest_alt_url,
+						arguments, cred_file_name);
+				if (! status) {
+					currentAd->InsertAttr("generic_event",
+							"server error: job removed");
+					user_log(currentAd, ULOG_GENERIC);
+					write_dap_log(historyfilename, "\"request_removed\"", 
+						  "dap_id", dap_id, "error_code", "\"REMOVED!\"");
+					remove_job( dap_id);
+				}
 			}// end use alt. protocols
 		}
 	}
@@ -1099,11 +1220,6 @@ void initialize_dapcollection()
  * ==========================================================================*/
 int initializations()
 {
-
-		//initialize and open daemoncore file pointers
-	open_daemon_core_file_pointers();
-
-
 		//read the config file and set values for some global parameters
 	if (!read_config_file()) {
 		return FALSE;
