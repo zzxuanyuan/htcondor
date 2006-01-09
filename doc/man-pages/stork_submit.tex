@@ -72,7 +72,12 @@ If not specified, the default value
 of \File{/dev/null} is used for submission to a Unix machine.
 %If not specified, input is ignored
 %for submission to a Windows machine.
-All local file paths passed to Stork must be valid on the Stork server host.
+
+\Stork{submit} will prepend the current working directory if the pathname is
+relative (does not start with a / character).  This implies that the submit
+directory must be shared between \Stork{submit} and the Stork server host, when
+using relative paths.  All local file paths passed to Stork must be valid on
+the Stork server host.
 
 Note that this command does \emph{not} refer to the command-line
 arguments of the program.  The command-line arguments are specified by
@@ -99,7 +104,11 @@ as the outputs will overwrite each other or be lost.
 Note that if your program explicitly opens and writes to a file,
 that file should \emph{not} be specified as the output file.
 
-All local file paths passed to Stork must be valid on the Stork server host.
+\Stork{submit} will prepend the current working directory if the pathname is
+relative (does not start with a / character).  This implies that the submit
+directory must be shared between \Stork{submit} and the Stork server host, when
+using relative paths.  All local file paths passed to Stork must be valid on
+the Stork server host.
 
 %%%%%%%%%%%%%%%%%%%
 %% error
@@ -118,7 +127,11 @@ this will cause one job to overwrite the errors of another.
 The error file and the output file should not be the same file
 as the outputs will overwrite each other or be lost.
 
-All local file paths passed to Stork must be valid on the Stork server host.
+\Stork{submit} will prepend the current working directory if the pathname is
+relative (does not start with a / character).  This implies that the submit
+directory must be shared between \Stork{submit} and the Stork server host, when
+using relative paths.  All local file paths passed to Stork must be valid on
+the Stork server host.
 
 %%%%%%%%%%%%%%%%%%%
 %% log
@@ -134,7 +147,11 @@ job completes, etc. Most users find specifying a \SubmitCmd{log} file to be very
 handy; its use is recommended. If no \SubmitCmd{log} entry is specified, 
 Stork does not create a log for this job.
 
-All local file paths passed to Stork must be valid on the Stork server host.
+\Stork{submit} will prepend the current working directory if the pathname is
+relative (does not start with a / character).  This implies that the submit
+directory must be shared between \Stork{submit} and the Stork server host, when
+using relative paths.  All local file paths passed to Stork must be valid on
+the Stork server host.
 \SubmitCmd{log} file paths should not use NFS file systems.
 
 \item[log\_xml = "True"; \Bar\ "False";]
@@ -152,6 +169,7 @@ single log file, it is up to you to make sure that all of them specify
 \index{Stork submit commands!src\_url}
 A (required) URL to identify the data source, 
 as well as the protocol to be used at the source.
+\File{file:///} URLs must refer to valid paths on the Stork server host.
 
 %%%%%%%%%%%%%%%%%%%
 % dest_url
@@ -160,6 +178,7 @@ as well as the protocol to be used at the source.
 \index{Stork submit commands!dest\_url}
 A (required) URL to identify the data destination, 
 as well as the protocol to be used at the destination.
+\File{file:///} URLs must refer to valid paths on the Stork server host.
 
 %%%%%%%%%%%%%%%%%%%
 % reserve_id
