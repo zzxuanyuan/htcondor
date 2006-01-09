@@ -25,6 +25,23 @@ The details of each version are described below.
 \item Automatic renewal of job proxies from a MyProxy server now works for
 all grid universe jobs. Before, it only worked for grid-type gt2 jobs.
 
+% Gnats PR 248, new per-job Stork user logs.
+% Implicity added PR 278, which requires Stork user logs to
+% be owned by user, and not Stork server daemon.  Implicitly added PR 572, now
+% Stork user logs use standard Condor user log API.
+\item Added new per-job Stork user logs.  Stork user logs are now optional, and
+specified in job submit file.  Stork now uses Condor user log output format,
+including optional XML format.  Previous, per-server Stork user log in 
+\File{LOG/Stork.user\_log} has been removed.  \Condor{dagman} has been updated
+to read new per-job user logs.
+
+% Gnats PR 600.
+\item Added new per-job Stork input, output and error output file
+specifications.  Stork job output is now optional, and
+specified in job submit file.  Previous, per-server Stork user log in 
+\File{LOG/Stork-module.stderr} and \File{LOG/Stork-module.stderr} has been
+removed.
+
 \end{itemize}
 
 \noindent Bugs Fixed:
