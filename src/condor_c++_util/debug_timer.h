@@ -20,34 +20,25 @@
   * RIGHT.
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
-#ifndef __COLLECTOR_H__
-#define __COLLECTOR_H__
+#ifndef __DEBUG_TIMER_H__
+#define __DEBUG_TIMER_H__
 
+#include "condor_common.h"
 
-enum AdTypes
+class DebugTimerBase
 {
-	QUILL_AD,
-	STARTD_AD,
-	SCHEDD_AD,
-	MASTER_AD,
-	GATEWAY_AD,
-	CKPT_SRVR_AD,
-	STARTD_PVT_AD,
-	SUBMITTOR_AD,
-	COLLECTOR_AD,
-	LICENSE_AD,
-	STORAGE_AD,
-	ANY_AD,
-	NUM_AD_TYPES,
-	CLUSTER_AD,
-	NEGOTIATOR_AD,
-	HAD_AD,
-	XFER_SERVICE_AD,
-	MATCH_MAKER_AD,
+  public:
+	DebugTimerBase( bool start = true );
+	virtual ~DebugTimerBase( void );
+	void Start( void );
+	void Stop( void );
+	void Log( const char *s, int count = -1, bool stop = true );
+	virtual void Output( const char *) = 0;
+
+  private:
+	bool	on;
+	double	t1, t2;
+	double dtime( void );
 };
 
-#include "condor_commands.h"   // collector commands
-
-#endif // __COLLECTOR_H__
-
-
+#endif//__DEBUG_TIMER_H__

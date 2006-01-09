@@ -3,11 +3,8 @@
 #include "dap_error.h"
 #include "dap_utility.h"
 #include "condor_string.h"
-#include "condor_config.h"
-#include "env.h"
-#include "setenv.h"
+#include "../condor_daemon_core.V6/condor_daemon_core.h"
 #include <unistd.h>
-#include "my_hostname.h"
 #include <string>
 
 #include "globus_ftp_client.h"
@@ -17,6 +14,8 @@ static globus_mutex_t glock;
 static globus_cond_t cond;
 static globus_bool_t done;
 static globus_bool_t error = GLOBUS_FALSE;
+
+extern "C" int globus_url_copy_main(int,char**);
 
 #define SIZE 42
 #define SIZE_UNKNOWN	( (unsigned long)(-1) )
@@ -99,6 +98,7 @@ int transfer_globus_url_copy(char *src_url, char *dest_url,
   char linebuf[MAXSTR] = "";
   int ret;
 
+#if 0
   snprintf(pipecommand, MAXSTR, "%s %s %s %s 2>&1", 
   	   GLOBUS_URL_COPY, arguments, src_url, dest_url);
 
@@ -122,12 +122,26 @@ int transfer_globus_url_copy(char *src_url, char *dest_url,
   }
    
   ret = pclose(pipe);
+#endif
+
+  snprintf(pipecommand, MAXSTR, "%s %s %s %s", 
+  	   GLOBUS_URL_COPY, arguments, src_url, dest_url);
+ 
+  char **myargv = DaemonCore::ParseArgsString(pipecommand);
+  int myargc = 0;
+  while ( myargv[myargc] ) {
+  	myargc++;
+  }
+
+  ret = globus_url_copy_main(myargc,myargv);
+
   fprintf(stdout, "Command terminated with err_code: %d\n", ret);
 
   if (ret == 0)
     return DAP_SUCCESS;
   else {
-    strncpy(error_str, linebuf, MAXSTR);
+    // strncpy(error_str, linebuf, MAXSTR);
+	strcpy(error_str,"unknown");
     return DAP_ERROR;
   }
   
@@ -187,7 +201,7 @@ translate_file(
 }
 
 /* ========================================================================== */
-int main(int argc, char *argv[])
+int wrapper_main(int argc, char **argv)
 {
   char src_url[MAXSTR], dest_url[MAXSTR], arguments[MAXSTR];
   char src_protocol[MAXSTR], src_host[MAXSTR], src_file[MAXSTR];
@@ -208,41 +222,6 @@ int main(int argc, char *argv[])
     fprintf(stderr, "==============================================================\n");
     exit(-1);
    }
-
-    config(); // read config file
-
-  // TODO: The correct parameter name is actually daemonname_ENVIRONMENT, where
-  // daemonname is the Stork daemon name, known to the Condor Master, and
-  // defined in the DAEMON_LIST parameter.  The daemonname is _usually_ defined
-  // to be STORK by convention, but can be anything.
-#define STORK_ENVIRONMENT		"STORK_ENVIRONMENT"
-  char* env = param(STORK_ENVIRONMENT);
-  if (env) {
-	  printf("merging environment defined by %s configuration\n",
-			  STORK_ENVIRONMENT);
-	  Env envStrParser;
-	// Note: If [name]_ENVIRONMENT is not specified, env will now be null.
-	// Env::Merge(null) will always return true, so the warning will not be
-	// printed in this case.
-	if( !envStrParser.Merge(env) ) {
-		// this is an invalid env string
-		fprintf(stderr, "Warning! Configuration file variable "
-				"`%s' has invalid value `%s'; ignoring.\n",
-				STORK_ENVIRONMENT, env);
-	} else {
-		char **unix_env;	// TODO: delete when done?
-		unix_env = envStrParser.getStringArray();
-		for ( int j=0 ; (unix_env[j] && unix_env[j][0]) ; j++ ) {
-			if ( !SetEnv( unix_env[j] ) ) {
-				dprintf ( D_ALWAYS, "Failed to put "
-						  "\"%s\" into environment.\n", unix_env[j] );
-			  free(env);
-				return DAP_ERROR;
-			}
-		}
-	}
-	  free(env);
-  }
 
   strncpy(src_url, argv[1], MAXSTR);
   strncpy(dest_url, argv[2], MAXSTR);

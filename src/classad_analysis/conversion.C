@@ -29,14 +29,16 @@ toNewClassAd( ClassAd *ad )
 {
 	classad::ClassAdParser parser;
 	classad::ClassAd *newAd;
-	char *str;
  	std::string buffer = "[";
 	ad->ResetExpr( );
 	ExprTree* expr;
 	while( ( expr = ad->NextExpr( ) ) ) {
-		str = NULL;
+		char *str = NULL;
 		expr->PrintToNewStr( &str );
 		buffer += std::string( str ) + ";";
+		if ( str ) {
+			free( str );
+		}
 	}
 	buffer += "]";
 	newAd = parser.ParseClassAd( buffer );

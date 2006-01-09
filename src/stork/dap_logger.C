@@ -15,6 +15,8 @@ extern char *clientagenthost;
 void write_dap_log(char *logfilename, char *status, char *param1, char *value1, char *param2, char *value2, char *param3, char *value3, char *param4, char *value4, char *param5, char *value5, char *param6, char *value6)
 {
   
+	if (! param_boolean("STORK_HISTORY_LOGGING", true) ) return;
+
   // -------- ClassAd stuff ------------------------------
   
   //create ClassAd
@@ -313,6 +315,7 @@ write_xml_user_log(
 		char *param10, char *value10
 )
 {
+  if (! logfilename ) return;
 
   classad::ClassAdParser parser;
   classad::ExprTree *expr = NULL;
@@ -320,8 +323,10 @@ write_xml_user_log(
   std::string adbuffer = "";
   FILE *flog;
 
+
   //create ClassAd
   classad::ClassAd *classad = new classad::ClassAd;
+  ASSERT(classad);
 
   //insert attributes to ClassAd
   classad->Insert("EventTime",classad::Literal::MakeAbsTime());
@@ -377,11 +382,12 @@ write_xml_user_log(
   //convert classad to XML
   xmlunparser.SetCompactSpacing(false);
   xmlunparser.Unparse(adbuffer, classad);
+  delete classad;
   
   //write the classad to classad file
   if ((flog = fopen(logfilename,"a+")) == NULL){
     dprintf(D_ALWAYS,
-	    "cannot open logfile :%s...\n",logfilename);
+	    "cannot open user logfile :%s...\n",logfilename);
     exit(1);
   }
   fprintf (flog,"%s",adbuffer.c_str());

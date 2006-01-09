@@ -20,34 +20,26 @@
   * RIGHT.
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
-#ifndef __COLLECTOR_H__
-#define __COLLECTOR_H__
+#ifndef _ClassAdOldNew_H
+#define _ClassAdOldNew_H
+ 
+/*
+  This file holds utility functions that rely on *new* ClassAds.
+*/
+#include "stream.h"
 
+#ifndef WANT_NAMESPACES
+#define WANT_NAMESPACES
+#endif
+#include "classad_distribution.h"
+using namespace std;
+BEGIN_NAMESPACE( classad )
 
-enum AdTypes
-{
-	QUILL_AD,
-	STARTD_AD,
-	SCHEDD_AD,
-	MASTER_AD,
-	GATEWAY_AD,
-	CKPT_SRVR_AD,
-	STARTD_PVT_AD,
-	SUBMITTOR_AD,
-	COLLECTOR_AD,
-	LICENSE_AD,
-	STORAGE_AD,
-	ANY_AD,
-	NUM_AD_TYPES,
-	CLUSTER_AD,
-	NEGOTIATOR_AD,
-	HAD_AD,
-	XFER_SERVICE_AD,
-	MATCH_MAKER_AD,
-};
+ClassAd* getOldClassAd( Stream *sock );
+bool getOldClassAd( Stream *sock, ClassAd& ad );
+bool getOldClassAdNoTypes( Stream *sock, ClassAd& ad );
+bool putOldClassAd ( Stream *sock, ClassAd& ad );
+bool putOldClassAdNoTypes ( Stream *sock, ClassAd& ad );
+END_NAMESPACE // classad
 
-#include "condor_commands.h"   // collector commands
-
-#endif // __COLLECTOR_H__
-
-
+#endif

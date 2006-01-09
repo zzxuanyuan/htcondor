@@ -75,6 +75,12 @@ TEST_SUITE_BASE = test_suite_base
 #define StorkProgs
 #endif
 
+#if WANT_MATCHMAKER
+#define MatchMakerProgs MatchMaker
+#else
+#define MatchMakerProgs MatchMaker
+#endif
+
 #if WANT_QUILL
 #define QuillProgs quill
 #else
@@ -290,6 +296,9 @@ object_dir_target(condor_bypass)
 object_dir_target(condor_sdk)
 #if WANT_STORK
 object_target(Stork,stork)
+#endif
+#if WANT_MATCHMAKER
+object_target(MatchMaker,condor_matchmaker.V7)
 #endif
 
 single_target(condor_procapi,libprocapi.a)

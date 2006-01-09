@@ -1,5 +1,6 @@
 #include "dap_constants.h"
 #include "dap_utility.h"
+#include "my_hostname.h"
 
 char *strip_str(char *str)
 {
@@ -73,11 +74,21 @@ void parse_url(char *url, char *protocol, char *host, char *filename)
 
 }
 
+// Create a predictable unique path, given a directory, basename, job id, and
+// pid.  The return value points to a statically allocated string.  This
+// function is not reentrant.
+const char *
+job_filepath(
+		const char *basename,
+		const char *suffix,
+		const char *dap_id,
+		pid_t pid
+)
+{
+	static char path[_POSIX_PATH_MAX];
 
-
-
-
-
-
-
+	sprintf(path, "%s%s-job%s-pid%u",
+			basename, suffix, dap_id, pid);
+	return path;
+}
 

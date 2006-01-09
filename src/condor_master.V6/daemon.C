@@ -339,6 +339,12 @@ daemon::DoConfig( bool init )
 		env = NULL;
 	}
 
+	// Reset some configurable timers
+	if (procfam_tid >= 0) {
+		int setting = param_integer("MASTER_SNAPSHOT_INTERVAL",60,5);
+		daemonCore->Reset_Timer( procfam_tid, setting, setting);
+	}
+
 	// Check for the _FLAG parameter
 	sprintf(buf, "%s_FLAG", name_in_config_file );
 	tmp = param(buf);
@@ -1169,7 +1175,7 @@ daemon::InitProcFam( int pid, PidEnvID *penvid )
 	}
 
 	procfam_tid = daemonCore->
-		Register_Timer( 15, 60,
+		Register_Timer( 15, param_integer("MASTER_SNAPSHOT_INTERVAL",60,5),
 						(TimerHandlercpp)&ProcFamily::takesnapshot,
 						"ProcFamily::takesnapshot", procfam );
 	if( procfam_tid < 0 ) {

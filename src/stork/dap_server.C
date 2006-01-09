@@ -16,12 +16,14 @@
 #include "env.h"
 #include "daemon.h"
 #include "condor_config.h"
+#include "stork-mm.h"
 
 #ifndef WANT_NAMESPACES
 #define WANT_NAMESPACES
 #endif
 #include "classad_distribution.h"
 #define DAP_CATALOG_NAMESPACE	"stork."
+#define DYNAMIC_XFER_DEST_HOST	"$DYNAMIC"
 
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
  * These are the default values for some global Stork parameters.                        
@@ -39,6 +41,7 @@ char historyfilename[_POSIX_PATH_MAX];
 char *Cred_tmp_dir = NULL;				// temporary credential storage directory
 char *Module_dir = NULL;				// Module directory (DAP Catalog)
 char *Log_dir = NULL;					// LOG directory
+StorkMatchMaker					*Matchmaker = NULL;
 
 int  daemon_std[3];
 int  transfer_dap_reaper_id, reserve_dap_reaper_id, release_dap_reaper_id;
@@ -46,12 +49,23 @@ int  requestpath_dap_reaper_id;
 
 unsigned long last_dap = 0;  //changed only on new request
 
-classad::ClassAdCollection      *dapcollection;
+classad::ClassAdCollection      *dapcollection = NULL;
 Scheduler dap_queue;
 
 int listenfd_submit;
 int listenfd_status;
 int listenfd_remove;
+
+// Timers
+extern int IdleJobMonitorInterval;
+extern int IdleJobMonitorTid;
+extern int HungJobMonitorInterval;
+extern int HungJobMonitorTid;
+extern int RescheduledJobMonitorInterval;
+extern int RescheduledJobMonitorTid;
+
+extern int wrapper_main(int,char**);
+static bool want_fast_guc = false;
 
 /* ==========================================================================
  * Open daemon core file pointers.
@@ -65,56 +79,107 @@ void open_daemon_core_file_pointers()
 	const char* name = "/Stork-module.";
 	const int flags = O_CREAT | O_RDWR;
 	const mode_t mode = 00644;
-	MyString dc_stdin, dc_stderr, dc_stdout;
 
 	if (! log_dir ) log_dir = alt_log_dir;
 
 	// Standard input
-	dc_stdin = NULL_FILE;
-	dprintf(D_ALWAYS, "module standard input redirected from %s\n",
-			dc_stdin.Value() );
-	daemon_std[0] = open ( dc_stdin.Value(), flags, mode);
+	const char *dc_stdin = NULL_FILE;
+	dprintf(D_FULLDEBUG, "module standard input redirected from %s\n",
+			dc_stdin);
+	daemon_std[0] = open ( dc_stdin, flags, mode);
 	if ( daemon_std[0] < 0 ) {
 			dprintf( D_ALWAYS,
 				"ERROR: daemoncore stdin fd %d open(%s,%#o,%#o): (%d)%s\n",
-					0, dc_stdin.Value(), flags, mode,
+					0, dc_stdin, flags, mode,
 					errno, strerror(errno)
 			);
 	}
 
 	// Standard output
-	dc_stdout = log_dir;
-	dc_stdout += name;
-	dc_stdout += "stdout";
-	dprintf(D_ALWAYS, "module standard output redirected to %s\n",
-			dc_stdout.Value() );
-	daemon_std[1] = open ( dc_stdout.Value(), flags, mode);
+	const char *dc_stdout = param("STORK_MODULE_STDOUT");
+	//if ( ! Cred_tmp_dir ) Cred_tmp_dir = strdup("/tmp");	// default
+	if ( ! dc_stdout ) {
+		// Default module stdout saved to $(LOG)/Stork-module.stdout
+		std::string def_dc_stdout = log_dir;
+		def_dc_stdout += name;
+		def_dc_stdout += "stdout";
+		dc_stdout = strdup( def_dc_stdout.c_str() );
+	}
+	dprintf(D_FULLDEBUG, "module standard output redirected to %s\n",
+			dc_stdout );
+	daemon_std[1] = open ( dc_stdout, flags, mode);
 	if ( daemon_std[1] < 0 ) {
 			dprintf( D_ALWAYS,
 				"ERROR: daemoncore stdout fd %d open(%s,%#o,%#o): (%d)%s\n",
-					1, dc_stdout.Value(), flags, mode,
+					1, dc_stdout, flags, mode,
 					errno, strerror(errno)
 			);
 	}
+	if (dc_stdout) free( (char *)dc_stdout);
 
 	// Standard error
-	dc_stderr = log_dir;
-	dc_stderr += name;
-	dc_stderr += "stderr";
-	dprintf(D_ALWAYS, "module standard error redirected to %s\n",
-			dc_stderr.Value() );
-	daemon_std[2] = open ( dc_stderr.Value(), flags, mode);
-	if ( daemon_std[2] < 0 ) {
+	const char *dc_stderr = param("STORK_MODULE_STDERR");
+	//if ( ! Cred_tmp_dir ) Cred_tmp_dir = strdup("/tmp");	// default
+	if ( ! dc_stderr ) {
+		// Default module stderr saved to $(LOG)/Stork-module.stderr
+		std::string def_dc_stderr = log_dir;
+		def_dc_stderr += name;
+		def_dc_stderr += "stderr";
+		dc_stderr = strdup( def_dc_stderr.c_str() );
+	}
+	dprintf(D_FULLDEBUG, "module standard error redirected to %s\n",
+			dc_stderr );
+	daemon_std[2] = open ( dc_stderr, flags, mode);
+	if ( daemon_std[1] < 0 ) {
 			dprintf( D_ALWAYS,
 				"ERROR: daemoncore stderr fd %d open(%s,%#o,%#o): (%d)%s\n",
-					2, dc_stderr.Value(), flags, mode,
+					1, dc_stderr, flags, mode,
 					errno, strerror(errno)
 			);
 	}
-
+	if (dc_stderr) free( (char *)dc_stderr);
 
 	if (log_dir && strcmp(log_dir, alt_log_dir) ) free( (char *)log_dir);
 	return;
+}
+
+// Note: this function should really have a job ad passed to it.
+bool
+dynamicOK(classad::ClassAd *job_ad, time_t now)
+{
+	bool is_dynamic = false;
+	bool ret_value;
+	static time_t keep_giving_false_until = 0;
+
+
+	std::string transfer_url;
+	if	(	job_ad->EvaluateAttrString(
+				"dest_url",
+				transfer_url
+			) && transfer_url.length() > 0)
+	{
+		if (strstr( transfer_url.c_str(), DYNAMIC_XFER_DEST_HOST) ) {
+			is_dynamic = true;
+		}
+	}
+
+	if (is_dynamic && (now < keep_giving_false_until)) {
+		return false;
+	}
+	
+	if (is_dynamic) {
+		ret_value = Matchmaker->areMatchesAvailable();
+	} else {
+		ret_value = true;
+	}
+
+	if ( ret_value == false ) {
+		// if the matchmaker gave us nothing, don't bother it for another
+		// several 2 minutes.
+		keep_giving_false_until = now + 120;
+	}
+
+	return ret_value;
 }
 
 /* ==========================================================================
@@ -127,9 +192,13 @@ int read_config_file()
 		param_integer(
 			"STORK_MAX_NUM_JOBS",		// name
 			10,							// default
-			1							// minimum value
+			0							// minimum value
 		);
 	dprintf(D_ALWAYS, "STORK_MAX_NUM_JOBS = %ld\n", Max_num_jobs);  
+
+	// get value for global want_fast_guc
+	want_fast_guc =  param_boolean("STORK_FAST_GUC",false);
+	dprintf(D_ALWAYS,"STORK_FAST_GUC = %s\n",want_fast_guc ? "True" : "False" );
 
 	//get value for Max_retry
 	Max_retry =
@@ -172,7 +241,39 @@ int read_config_file()
 	Log_dir = param("LOG");
 	if ( ! Log_dir ) Log_dir = strdup("/tmp");	// default
 	dprintf(D_ALWAYS, "modules will execute in LOG directory %s\n", Log_dir);
-	     
+
+    // Preset the job queue clean timer only upon cold start, or if the timer
+    // value has been changed.  If the timer period has not changed, leave the
+    // timer alone.  This will avoid undesirable behavior whereby timer is
+    // preset upon every reconfig, and job queue is not cleaned often enough.
+#define CLEAN_Q_INTERVAL_COLDSTART	(-1)
+#define CLEAN_Q_INTERVAL_DEFAULT	(60*60*24)
+#define CLEAN_Q_INTERVAL_MIN		1
+
+	static int old_job_q_clean_interval = CLEAN_Q_INTERVAL_MIN - 1;
+	static int cleanid = -1;
+	int job_q_clean_interval = 
+		param_integer(
+				"STORK_QUEUE_CLEAN_INTERVAL",	// parameter name
+				CLEAN_Q_INTERVAL_DEFAULT,
+				CLEAN_Q_INTERVAL_MIN
+		);
+
+	if (job_q_clean_interval != old_job_q_clean_interval) {
+		if (cleanid >= 0) {
+			daemonCore->Cancel_Timer(cleanid);
+		}
+		cleanid =
+			daemonCore->Register_Timer(
+					job_q_clean_interval,	// deltawhen
+					job_q_clean_interval,	// period
+					(Event)clean_job_queue,	// event
+					"clean_job_queue"		// description
+			);
+
+		old_job_q_clean_interval = job_q_clean_interval;
+	}
+
 	return TRUE;
 }
 
@@ -269,23 +370,85 @@ void get_last_dapid()
 /* ============================================================================
  * dap transfer function
  * ==========================================================================*/
-int transfer_dap(char *dap_id, char *src_url, char *dest_url, char *arguments, char * cred_file_name)
+int transfer_dap(char *dap_id, char *src_url, char *_dest_url, char *arguments,
+		char * cred_file_name, classad::ClassAd *job_ad)
 {
 
+    // FIXME: This is an awful hack.  Stork should pass around strings, not
+    // classad expressions.
+	std::string dest_url = strip_str( _dest_url );
 	char src_protocol[MAXSTR], src_host[MAXSTR], src_file[MAXSTR];
 	char dest_protocol[MAXSTR], dest_host[MAXSTR], dest_file[MAXSTR];
 	char command[MAXSTR], commandbody[MAXSTR], argument_str[MAXSTR];
 	int pid;
 	char unstripped[MAXSTR];
+	bool dynamic_xfer_dest = false;
 
 	parse_url(src_url, src_protocol, src_host, src_file);
-	parse_url(dest_url, dest_protocol, dest_host, dest_file);
+	parse_url((char *)dest_url.c_str() , dest_protocol, dest_host, dest_file);
+
+#if 0
+dprintf(D_ALWAYS, "DEBUG: dest_url: '%s'\n", dest_url.c_str() );
+dprintf(D_ALWAYS, "DEBUG: dest_protocol: '%s'\n", dest_protocol);
+dprintf(D_ALWAYS, "DEBUG: dest_host: '%s'\n", dest_host);
+dprintf(D_ALWAYS, "DEBUG: dest_file: '%s'\n", dest_file);
+#endif
 
 	strcpy(unstripped, src_url);
 	strncpy(src_url, strip_str(unstripped), MAXSTR);  
 
-	strcpy(unstripped, dest_url);
-	strncpy(dest_url, strip_str(unstripped), MAXSTR);  
+	// For dynamic destinations ...
+	// FIXME: This is an awful detection algorithm
+	//if (! strcmp(dest_host, DYNAMIC_XFER_DEST_HOST) ) 
+	if (strstr( _dest_url, DYNAMIC_XFER_DEST_HOST) ) {
+
+		dynamic_xfer_dest = true;
+
+		// See if this job is already associated with a dynamic destination
+		// URL.
+		std::string prev_dest_transfer_url;
+		if	(	job_ad->EvaluateAttrString(
+					"dest_transfer_url",
+					prev_dest_transfer_url
+				) && prev_dest_transfer_url.length() > 0)
+		{
+			// Re-use previous destination URL from matchmaker.
+			dest_url = prev_dest_transfer_url;
+
+		} else {
+			// This job needs a dynamic transfer URL from the Stork Matchmaker
+			// Lite.
+			std::string dest_transfer_url;
+			const char *tmp =
+				Matchmaker->getTransferDirectory(dest_protocol);
+			if (tmp == NULL) {
+				// No dynamic destination URLs are available for this protocol.
+				write_collection_log(dapcollection, dap_id, 
+										"status = \"request_rescheduled\";"
+										"error_code = \"no match found\";"
+										);
+				dprintf(D_FULLDEBUG,
+					"reschedule source URL %s: "
+					"no dynamic destinations for protocol %s\n",
+					src_url, dest_protocol);
+				return DAP_ERROR;	// no transfer
+			} else {
+				dest_transfer_url = tmp;
+				free( (void *)tmp);	// required by matchmaker lite interface
+			}
+				
+			// Save the dest_transfer_url in the job queue classad collection.
+			std::string modify_s =  "dest_transfer_url = \"";
+			modify_s += dest_transfer_url;
+			modify_s += "\";";
+			write_collection_log(dapcollection, dap_id, modify_s.c_str() );
+			dprintf(D_FULLDEBUG, "matched source URL %s to dynamic URL %s\n",
+				src_url, dest_transfer_url.c_str() );
+
+			// Update destination URL to that from matchmaker.
+			dest_url = dest_transfer_url;
+		}
+	}
 
 	strcpy(unstripped, arguments);
 	strncpy(arguments, strip_str(unstripped), MAXSTR);  
@@ -295,9 +458,11 @@ int transfer_dap(char *dap_id, char *src_url, char *dest_url, char *arguments, c
 
 		//create a new process to transfer the files
 	snprintf(command, MAXSTR, "%s/%s", Module_dir, commandbody);
-	snprintf(argument_str ,MAXSTR, "%s %s %s %s", 
-			 commandbody, src_url, dest_url, arguments);
-  
+	const char *dynamic_opt = 
+		dynamic_xfer_dest ? "-dynamic" : "" ;
+	snprintf(argument_str ,MAXSTR, "%s %s %s %s %s", 
+                commandbody, src_url, dest_url.c_str(),
+				dynamic_opt, arguments);
 
 		// If using GSI proxy set up the environment to point to it
 	Env myEnv;
@@ -309,6 +474,10 @@ int transfer_dap(char *dap_id, char *src_url, char *dest_url, char *arguments, c
 	MyString newenv_buff;
 
 	// child process will need additional environments
+	newenv_buff="STORK_JOBID=";
+	newenv_buff+=dap_id;
+	myEnv.Put (newenv_buff.Value());
+    
 	newenv_buff="X509_USER_PROXY=";
 	newenv_buff+=cred_file_name;
 	myEnv.Put (newenv_buff.Value());
@@ -323,20 +492,31 @@ int transfer_dap(char *dap_id, char *src_url, char *dest_url, char *arguments, c
 
 	char *env_string = myEnv.getDelimitedString();	// return string from "new"
 
+	if ( !want_fast_guc ) {
+		MyString src_url_value, dest_url_value;
+		src_url_value.sprintf("\"%s\"", src_url);
+		dest_url_value.sprintf("\"%s\"", dest_url.c_str() );
+		write_xml_user_log(userlogfilename, "MyType", "\"GenericEvent\"", 
+						   "EventTypeNumber", "8", 
+						   "Cluster", dap_id,
+						   "Proc", "-1",
+						   "Subproc", "-1",
+						   "Type", "transfer",
+						   "SrcUrl", (char *)src_url_value.Value(),
+						   "DestUrl", (char *)dest_url_value.Value(),
+						   "Arguments", arguments,
+						   "CredFile", cred_file_name);
+	}
+
 	// Create child process via daemoncore
-	MyString src_url_value, dest_url_value;
-	src_url_value.sprintf("\"%s\"", src_url);
-	dest_url_value.sprintf("\"%s\"", dest_url);
-	write_xml_user_log(userlogfilename, "MyType", "\"GenericEvent\"", 
-					   "EventTypeNumber", "8", 
-					   "Cluster", dap_id,
-					   "Proc", "-1",
-					   "Subproc", "-1",
-					   "Type", "transfer",
-					   "SrcUrl", (char *)src_url_value.Value(),
-					   "DestUrl", (char *)dest_url_value.Value(),
-					   "Arguments", arguments,
-					   "CredFile", cred_file_name);
+	int job_opt_mask = 0;
+	MainStartFunc main_func = NULL;
+	if ( param_boolean("STORK_START_SUSPENDED",false) ) {
+		job_opt_mask = DCJOBOPT_SUSPEND_ON_EXEC;
+	}
+	if ( want_fast_guc ) {
+		main_func = wrapper_main;
+	}
 
 	pid =
 	daemonCore->Create_Process(
@@ -349,18 +529,24 @@ int transfer_dap(char *dap_id, char *src_url, char *dest_url, char *arguments, c
 		 Log_dir,						// current working directory
 		 FALSE,							// do not create a new process group
 		 NULL,							// list of socks to inherit
-		 daemon_std						// child stdio file descriptors
-		 								// nice increment = 0
-		 								// job_opt_mask = 0
+		 daemon_std,						// child stdio file descriptors
+		 0,								// nice increment = 0
+		 job_opt_mask, 					// job_opt_mask 
+		 NULL,							// fd_inherit_list[]
+		 main_func						// main_func if fork only
 	);
 
 	if (env_string) delete []env_string;// delete string from "new"
 	if (pid > 0) {
 		dap_queue.insert(dap_id, pid);
+		dprintf(D_ALWAYS,"GUC STARTED dapid=%s pid=%d src=%s dest=%s \n",
+			dap_id,pid,src_url,dest_url.c_str());
 		return DAP_SUCCESS;
 	}
 	else{
 		transfer_dap_reaper(NULL, 0 ,111); //executable not found!
+		dprintf(D_ALWAYS,"ERROR: GUC fork failed dapid=%s src=%s dest=%s\n",
+			dap_id,src_url,dest_url.c_str());
 		return DAP_ERROR;                  //--> Find a better soln!
 	}
   
@@ -548,16 +734,17 @@ void process_request(classad::ClassAd *currentAd)
 		//log the new status of the request
 	write_collection_log(dapcollection, dap_id, 
 						 "status = \"processing_request\"");
-  
-	char lognotes[MAXSTR];
-	getValue(currentAd, "LogNotes", lognotes);
-  
-	write_xml_user_log(userlogfilename, "MyType", "\"ExecuteEvent\"", 
-					   "EventTypeNumber", "1", 
-					   "Cluster", dap_id,
-					   "Proc", "-1",
-					   "Subproc", "-1",
-					   "LogNotes", lognotes);
+ 
+ 	if (!want_fast_guc) {
+		char lognotes[MAXSTR];
+		getValue(currentAd, "LogNotes", lognotes);
+		write_xml_user_log(userlogfilename, "MyType", "\"ExecuteEvent\"", 
+						   "EventTypeNumber", "1", 
+						   "Cluster", dap_id,
+						   "Proc", "-1",
+						   "Subproc", "-1",
+						   "LogNotes", lognotes);
+	}
 
   
 		//write_xml_log(xmllogfilename, currentAd, "\"processing_request\"");
@@ -675,14 +862,16 @@ void process_request(classad::ClassAd *currentAd)
     
 		if (!strcmp(use_protocol, "0")){
 				//dprintf(D_ALWAYS, "use_protocol: %s\n", use_protocol);      
-			transfer_dap(dap_id, src_url, dest_url, arguments, cred_file_name);
+			transfer_dap(dap_id, src_url, dest_url, arguments, cred_file_name,
+					currentAd);
 		}
 		else{
 			getValue(currentAd, "alt_protocols", alt_protocols);
-			dprintf(D_ALWAYS, "alt. protocols = %s\n", alt_protocols);
+			dprintf(D_FULLDEBUG, "alt. protocols = %s\n", alt_protocols);
       
 			if (!strcmp(alt_protocols,"")) { //if no alt. protocol defined
-				transfer_dap(dap_id, src_url, dest_url, arguments, cred_file_name);
+				transfer_dap(dap_id, src_url, dest_url, arguments,
+						cred_file_name, currentAd);
 			}
 			else{ //use alt. protocols
 				strcpy(next_protocol, strtok(alt_protocols, ",") );   
@@ -691,7 +880,7 @@ void process_request(classad::ClassAd *currentAd)
 					strcpy(next_protocol, strtok(NULL, ",") );   
 				}
 
-				dprintf(D_ALWAYS, "next protocol = %s\n", next_protocol);
+				dprintf(D_FULLDEBUG, "next protocol = %s\n", next_protocol);
 	
 				if (strcmp(next_protocol,"")) {
 					strcpy(src_alt_protocol, strtok(next_protocol, "-") );   
@@ -723,7 +912,8 @@ void process_request(classad::ClassAd *currentAd)
 	
 	
 					//--> These "arguments" may need to be removed or chaged !!
-				transfer_dap(dap_id, src_alt_url, dest_alt_url, arguments, cred_file_name);
+				transfer_dap(dap_id, src_alt_url, dest_alt_url, arguments,
+						cred_file_name, currentAd);
 			}// end use alt. protocols
 		}
 	}
@@ -787,6 +977,83 @@ void process_request(classad::ClassAd *currentAd)
 	if (cred_file_name)
 		free (cred_file_name);
 
+}
+
+// Following declarations and two functions are SC05 hackery
+int low_water_reaper_id;
+bool low_water_action_running = false;
+
+int low_water_reaper(Service *,int pid,int exit_status) {
+	dprintf(D_ALWAYS,
+			"low water action process pid %d terminated with status %d\n",
+			pid, exit_status);
+
+	low_water_action_running = false;
+	return DAP_SUCCESS;
+}
+
+// count total jobs in ClassAdCollection job queue, in all states.  Note that 
+// Scheduler::get_numjobs() only returns the count of running jobs.  For the
+// purposes of the demo, it would be better to count the number of idle jobs.
+// However, this would require performing a query, and walking the returned
+// query list.  This is too slow for the purposes of the demo.
+int
+total_job_count()
+{
+	const classad::View *rootView = dapcollection->GetView("root");
+	return rootView->Size() ;
+}
+
+void low_water_timer() {
+		int low_water = param_integer("STORK_LOW_WATER_VALUE", 0, 0);
+
+		if (low_water == 0) {
+			low_water_action_running = false;	// force to known state
+			return;
+		}
+
+		if (low_water_action_running) {
+			return;
+		}
+
+		//int cur_jobs  = dap_queue.get_numjobs(); // running jobs only
+		int cur_jobs  = total_job_count();
+		dprintf(D_FULLDEBUG,
+				"Running low water mark monitor.  Total jobs in queue: %d\n",
+				cur_jobs);
+		char *low_water_action = param("STORK_LOW_WATER_ACTION");
+
+		if (low_water_action == 0) {
+			dprintf(D_ALWAYS, "STORK_LOW_WATER_VALUE is set to non-zero, but there is no STORK_LOW_WATER_ACTION\n");
+			return;
+		}
+
+		if (cur_jobs < low_water) {
+			dprintf(D_ALWAYS,
+			"Number of jobs in queue (%d) is less than low-water mark (%d)\n",
+			cur_jobs, low_water);
+			dprintf(D_ALWAYS, "running %s\n", low_water_action);
+
+			int pid =
+			daemonCore->Create_Process(
+				 low_water_action,				// command path
+				 "",							// args string
+				 PRIV_USER_FINAL,				// privilege state
+				 low_water_reaper_id,			// reaper id
+				 FALSE,							// do not want a command port
+				 NULL,  		              	// colon seperated environment string
+				 Log_dir,						// current working directory
+				 FALSE,							// do not create a new process group
+				 NULL,							// list of socks to inherit
+				 daemon_std						// child stdio file descriptors
+												// nice increment = 0
+												// job_opt_mask = 0
+			);
+			if (pid != FALSE) {
+				low_water_action_running = true;
+			}
+		}
+		free(low_water_action);
 }
 
 /* ============================================================================
@@ -868,6 +1135,23 @@ void regular_check_for_requests_in_process()
 								);
 							}
 
+                            // If this job has a dynamic transfer destination,
+                            // return this to the matchmaker.
+                            std::string dest_transfer_url;
+                            if  (   job_ad->EvaluateAttrString(
+                                        "dest_transfer_url",
+                                        dest_transfer_url
+                                    ) && dest_transfer_url.length() > 0
+                                )
+                            {
+                                dprintf(D_FULLDEBUG,
+                                    "returning dynamic transfer destination"
+                                    " %s to matchmaker\n",
+                                    dest_transfer_url.c_str() );
+                                Matchmaker->returnTransferDestination(
+                                        dest_transfer_url.c_str() );
+                            }
+
 							char attempts[MAXSTR], tempstr[MAXSTR];
 							std::string modify_s = "";
 
@@ -933,7 +1217,7 @@ void regular_check_for_requests_in_process()
 								continue;
 							}
 		 
-						}
+						} // remove PID from dap_queue
 						else{
 							dprintf(D_ALWAYS, "Error in Removing process %d\n", pid);
 						}
@@ -957,6 +1241,33 @@ void regular_check_for_requests_in_process()
 		}while (query.Next(key));
 	}//if
 	if (constraint_tree != NULL) delete constraint_tree;
+
+	// Reset timer for this function, if period has changed.
+  int period =
+	  param_integer(
+			  "STORK_HUNG_JOB_MONITOR",
+			  STORK_HUNG_JOB_MONITOR_DEFAULT,
+			  STORK_HUNG_JOB_MONITOR_MIN);
+
+  if ( period == HungJobMonitorInterval && HungJobMonitorTid != -1 ) {
+        // we are already done, since we already
+        // have a timer set with the desired interval
+        return;
+    }
+
+  if (HungJobMonitorTid != -1) {
+	  // destroy pre-existing timer
+        daemonCore->Cancel_Timer(HungJobMonitorTid);
+    }
+
+  HungJobMonitorTid = 
+  daemonCore->Register_Timer(
+						HungJobMonitorInterval,		// deltawhen
+						HungJobMonitorInterval,		// period
+						(TimerHandler)regular_check_for_requests_in_process,
+						"check_for_requests_in_process");
+
+  return;
 }
 
 /* ============================================================================
@@ -968,6 +1279,7 @@ void startup_check_for_requests_in_process()
 	classad::ClassAd       *job_ad;
 	classad::ClassAdParser  parser;
 	std::string             key, constraint;
+	time_t	right_now = time(NULL);
   
 		//set the constraint for the query
 	constraint = "other.status == \"processing_request\"";
@@ -987,8 +1299,10 @@ void startup_check_for_requests_in_process()
 				break;
 			}
 			else{
-				if (dap_queue.get_numjobs() < Max_num_jobs)
+				if (dap_queue.get_numjobs() < Max_num_jobs && dynamicOK(job_ad,right_now))
 					process_request(job_ad);
+				else
+					break;
 			}
 		}while (query.Next(key));
 	}
@@ -1003,6 +1317,7 @@ void regular_check_for_rescheduled_requests()
 	classad::ClassAd       *job_ad;
 	classad::ClassAdParser  parser;
 	std::string             key, constraint;
+	time_t right_now = time(NULL);
   
 		//set the constraint for the query
 	constraint = "other.status == \"request_rescheduled\"";
@@ -1022,12 +1337,41 @@ void regular_check_for_rescheduled_requests()
 				break;
 			}
 			else{
-				if (dap_queue.get_numjobs() < Max_num_jobs)
+				if ((dap_queue.get_numjobs() < Max_num_jobs) && dynamicOK(job_ad,right_now))
 					process_request(job_ad);
+				else
+					break;
 			}
 		}while (query.Next(key));
 	}
 	if (constraint_tree != NULL) delete constraint_tree;
+
+	// Reset timer for this function, if period has changed.
+  int period =
+	  param_integer(
+			  "STORK_RESCHEDULED_JOB_MONITOR",
+			  STORK_RESCHEDULED_JOB_MONITOR_DEFAULT,
+			  STORK_RESCHEDULED_JOB_MONITOR_MIN);
+
+  if ( period == RescheduledJobMonitorInterval && RescheduledJobMonitorTid != -1 ) {
+        // we are already done, since we already
+        // have a timer set with the desired interval
+        return;
+    }
+
+  if (RescheduledJobMonitorTid != -1) {
+	  // destroy pre-existing timer
+        daemonCore->Cancel_Timer(RescheduledJobMonitorTid);
+    }
+
+  RescheduledJobMonitorTid = 
+  daemonCore->Register_Timer(
+						RescheduledJobMonitorInterval,		// deltawhen
+						RescheduledJobMonitorInterval,		// period
+						(TimerHandler)regular_check_for_rescheduled_requests,
+						"regular_check_for_rescheduled_requests");
+
+  return;
 }
 
 /* ============================================================================
@@ -1041,8 +1385,17 @@ void initialize_dapcollection()
 		dprintf(D_ALWAYS,"Error: Failed to construct dap collection!\n");
 	}
 
-	if (!dapcollection->InitializeFromLog(logfilename)) {
-		dprintf(D_ALWAYS,"Couldn't recover ClassAdCollection from log: %s!\n",
+
+	if (param_boolean("STORK_JOB_QUEUE_PERSISTENCE", true)) {
+		dprintf(D_ALWAYS,"using persistent job queue file %s\n",
+				logfilename);
+		if (!dapcollection->InitializeFromLog(logfilename)) {
+			dprintf(D_ALWAYS,
+					"Couldn't recover ClassAdCollection from log: %s!\n",
+					logfilename);
+		}
+	} else {
+		dprintf(D_ALWAYS,"NOT using persistent job queue file %s\n",
 				logfilename);
 	}
 }
@@ -1082,24 +1435,39 @@ int initializations()
 		//initialize dapcollection 
 	initialize_dapcollection();
 
+	// instantiate matchmaker
+	dprintf(D_FULLDEBUG, "Creating new matchmaker object\n");
+	Matchmaker = new StorkMatchMaker();
+	dprintf(D_FULLDEBUG, "Done creating new matchmaker object\n");
+	dprintf(D_FULLDEBUG, "It's %p, size %d\n", Matchmaker, sizeof(*Matchmaker));
+	ASSERT(Matchmaker);
+
 		//init history file name 
 	snprintf(historyfilename, MAXSTR, "%s.history", logfilename);
 
 		//init xml log file name 
 		//  sprintf(xmllogfilename, "%s.xml", logfilename);<-- change this
 
-	if (!userlogfilename){
-		userlogfilename = (char*) malloc(MAXSTR * sizeof(char));
-		if ( userlogfilename ) {
-			snprintf(userlogfilename, MAXSTR, "%s.user_log", logfilename);
-		} else {
-			dprintf( D_ALWAYS,
-					"%s:%d: malloc userlogfilename %s.user_log: (%d)%s\n",
-					__FILE__, __LINE__,
-					logfilename,
-					errno, strerror(errno)
-			);
+	if (param_boolean("STORK_JOB_USER_LOGGING", true)) {
+		dprintf(D_ALWAYS,"using user log file\n");
+		if (!userlogfilename){
+			userlogfilename = (char*) malloc(MAXSTR * sizeof(char));
+			if ( userlogfilename ) {
+				snprintf(userlogfilename, MAXSTR, "%s.user_log", logfilename);
+
+
+
+			} else {
+				dprintf( D_ALWAYS,
+						"%s:%d: malloc userlogfilename %s.user_log: (%d)%s\n",
+						__FILE__, __LINE__,
+						logfilename,
+						errno, strerror(errno)
+				);
+			}
 		}
+		} else {
+		dprintf(D_ALWAYS,"NOT using user log file\n");
 	}
   
 		//get the last dap_id from dap-jobs-to-process
@@ -1107,6 +1475,110 @@ int initializations()
 
 		//check the logfile for noncompleted requests at startup
 	startup_check_for_requests_in_process();
+
+	return TRUE;
+}
+
+/* ============================================================================
+ * Clean (compress) the job queue.
+ * ==========================================================================*/
+void clean_job_queue(void)
+{
+	dprintf(D_ALWAYS, "Compressing job log %s\n", logfilename);
+	dapcollection->TruncateLog();
+}
+
+/* ============================================================================
+ * Return dynamic destination matches to matchmaker.
+ * ==========================================================================*/
+void returnDynamicMatches(void)
+{
+	classad::LocalCollectionQuery query;
+	classad::ClassAd       *job_ad;
+	classad::ClassAdParser  parser;
+	std::string             key, constraint;
+  
+    // set the constraint for the query
+	//constraint = "other.status == \"processing_request\"";
+	constraint = "dest_transfer_url is defined";
+	classad::ExprTree *constraint_tree = parser.ParseExpression( constraint );
+	if (!constraint_tree) {
+		dprintf(D_ALWAYS, 
+				"Error in parsing constraint: %s\n", constraint.c_str());
+        return;
+	}
+
+	query.Bind(dapcollection);  
+	query.Query("root", constraint_tree);
+	query.ToFirst();
+
+    dprintf(D_FULLDEBUG,
+            "returning dynamic transfer destinations to matchmaker\n");
+	if ( query.Current(key) ){
+		do{
+			job_ad = dapcollection->GetClassAd(key);
+			if (!job_ad) { //no matching classad
+                dprintf(D_ALWAYS, "%s:%d: no matching job ad for query %s",
+                        __FILE__, __LINE__, constraint.c_str());
+				break;
+			}
+
+            // If this job has a dynamic transfer destination, return this to
+            // the matchmaker.
+            std::string dest_transfer_url;
+            if  (   job_ad->EvaluateAttrString(
+                        "dest_transfer_url",
+                        dest_transfer_url
+                    ) && dest_transfer_url.length() > 0
+                )
+            {
+                dprintf(D_FULLDEBUG, "returning dynamic transfer destination "
+                        "%s to matchmaker\n", dest_transfer_url.c_str() );
+                Matchmaker->returnTransferDestination(
+                        dest_transfer_url.c_str() );
+            }
+		} while (query.Next(key));
+    }
+
+	if (constraint_tree != NULL) delete constraint_tree;
+}
+
+/* ============================================================================
+ * Terminate matchmaker interface
+ * ==========================================================================*/
+void terminateMatchmaker(void)
+{
+	if ( Matchmaker ) {
+
+        // Return all active matches from matchmaker.
+        returnDynamicMatches();
+
+		dprintf(D_FULLDEBUG, "Deleting matchmaker interface\n");
+		delete Matchmaker;
+		Matchmaker = NULL;
+	}
+}
+
+/* ============================================================================
+ * Terminate server.
+ * ==========================================================================*/
+int terminate(terminate_t terminate_type)
+{
+	if ( Matchmaker ) {
+		terminateMatchmaker();
+    }
+
+	if (terminate_type != TERMINATE_FAST) {
+		// Compress the job queue upon exit.  This will enable a faster startup
+		// using the same job queue.
+		clean_job_queue();
+	}
+
+	if ( dapcollection ) {
+		dprintf(D_FULLDEBUG, "Deleting RAM job queue\n");
+		delete dapcollection;
+		dapcollection = NULL;
+	}
 
 	return TRUE;
 }
@@ -1121,34 +1593,69 @@ int call_main()
 	classad::LocalCollectionQuery query;
 	classad::ClassAdParser       parser;
 	std::string                  key, constraint;
+	int period;
+	time_t right_now = time(NULL);
   
-		//setup constraints for the query
-	constraint = "other.status == \"request_received\"";
-	classad::ExprTree *constraint_tree = parser.ParseExpression( constraint );
+	// Avoid query if possible.
+	if (dap_queue.get_numjobs() < Max_num_jobs ) {
 
-	if (!constraint_tree) {
-		dprintf(D_ALWAYS, "Error in parsing constraint!\n");
+			//setup constraints for the query
+		constraint = "other.status == \"request_received\"";
+		classad::ExprTree *constraint_tree =
+			parser.ParseExpression( constraint );
+
+		if (!constraint_tree) {
+			dprintf(D_ALWAYS, "Error in parsing constraint!\n");
+		}
+
+	  
+		query.Bind(dapcollection);  
+		query.Query("root", constraint_tree);
+		query.ToFirst();
+
+		if ( query.Current(key) ){
+			do{
+				job_ad = dapcollection->GetClassAd(key);
+				if (!job_ad) { //no matching classad
+					break;
+				}
+				else{
+					if (dap_queue.get_numjobs() < Max_num_jobs && dynamicOK(job_ad,right_now))
+						process_request(job_ad);
+					else
+						break;
+				}
+			}while (query.Next(key));
+		}
+
+		if (constraint_tree != NULL) delete constraint_tree;
+
 	}
 
-  
-	query.Bind(dapcollection);  
-	query.Query("root", constraint_tree);
-	query.ToFirst();
+	// Reset timer for this function, if period has changed.
+  period =
+	  param_integer(
+			  "STORK_IDLE_JOB_MONITOR",
+			  STORK_IDLE_JOB_MONITOR_DEFAULT,
+			  STORK_IDLE_JOB_MONITOR_MIN);
 
-	if ( query.Current(key) ){
-		do{
-			job_ad = dapcollection->GetClassAd(key);
-			if (!job_ad) { //no matching classad
-				break;
-			}
-			else{
-				if (dap_queue.get_numjobs() < Max_num_jobs)
-					process_request(job_ad);
-			}
-		}while (query.Next(key));
-	}
+  if ( period == IdleJobMonitorInterval && IdleJobMonitorTid != -1 ) {
+        // we are already done, since we already
+        // have a timer set with the desired interval
+        return TRUE;
+    }
 
-	if (constraint_tree != NULL) delete constraint_tree;
+  if (IdleJobMonitorTid != -1) {
+	  // destroy pre-existing timer
+        daemonCore->Cancel_Timer(IdleJobMonitorTid);
+    }
+
+  IdleJobMonitorTid = 
+  daemonCore->Register_Timer(
+						IdleJobMonitorInterval,		// deltawhen
+						IdleJobMonitorInterval,		// period
+						(TimerHandler)call_main,	// event
+						"call_main");				// description
 
 	return TRUE;
 }
@@ -1192,6 +1699,16 @@ int write_requests_to_file(ReliSock * sock)
 		return FALSE;
     }
 
+	if(!*pline) {
+		// This is the final "goodbye" from the client.
+		// TODO: when transactional submits are supported,
+		// this message should be treated as a "commit".
+		return TRUE; // do not keep stream, client is done
+		// TODO: Add transaction processing, so that either all of, or none of
+		// the submit ads are added to the job queue.  The current
+		// implementation can fail after a partial submit, and not inform the
+		// user.
+	}
     int cred_size;
     
 
@@ -1215,7 +1732,14 @@ int write_requests_to_file(ReliSock * sock)
 			return FALSE;
 		}
     }
-    
+
+	if(!sock->eom()) {
+		dprintf(D_ALWAYS, "%s:%d Server: failed to read eom!: (%d)%s\n",
+				__FILE__, __LINE__,
+				errno, strerror(errno));
+		return FALSE;
+	}
+
 		//convert request into a classad
     classad::ClassAdParser parser;
     classad::ClassAd *requestAd = NULL;
@@ -1384,9 +1908,15 @@ int write_requests_to_file(ReliSock * sock)
 		);
 		return FALSE;
     }
-    
+    if ( !sock->eom() ) {
+		dprintf( D_ALWAYS,
+				"%s:%d: Server: send error (eom))!: (%d)%s\n",
+				__FILE__, __LINE__,
+				 errno, strerror(errno));
+		return FALSE;
+	}
 
-    return TRUE;
+    return KEEP_STREAM;
 }
 
 
@@ -1643,6 +2173,20 @@ int remove_requests_from_queue(ReliSock * sock)
 					"kill process %d for job %s error: %s\n",
 					pid, dap_id, strerror(errno) );
 			}
+            // If this job has a dynamic transfer destination, return this to
+            // the matchmaker.
+            std::string dest_transfer_url;
+            if  (   job_ad->EvaluateAttrString(
+                        "dest_transfer_url",
+                        dest_transfer_url
+                    ) && dest_transfer_url.length() > 0
+                )
+            {
+                dprintf(D_FULLDEBUG, "returning dynamic transfer destination "
+                        "%s to matchmaker\n", dest_transfer_url.c_str() );
+                Matchmaker->returnTransferDestination(
+                        dest_transfer_url.c_str() );
+            }
 		}
 		else{
 			dprintf(D_ALWAYS, "Corresponding process for job: %s not found\n", dap_id);
@@ -1650,6 +2194,8 @@ int remove_requests_from_queue(ReliSock * sock)
       
       
 		if (dap_queue.remove(dap_id) == DAP_SUCCESS){
+			// THIS IS A BUG.  dap_reaper() will attempt to retrieve the PID
+			// for the job when it terminates, and fail.
 			dprintf(D_ALWAYS, "Removed job: %s\n", dap_id);
 		}
 		else{
@@ -1731,9 +2277,15 @@ int dap_reaper(std::string modify_s, int pid,int exit_status)
 	if (dap_queue.get_dapid(pid, dap_id) != DAP_SUCCESS){
 		dprintf(D_ALWAYS, "Process %d not in queue!\n", pid);
 			//dap_queue.remove("0"); //just decrease num_jobs
+
+		// THIS IS A BUG.  remove_requests_from_queue() removes the same entry
+		// from the dap_queue when it removes the job.
 		return DAP_ERROR;
 	}
-  
+
+	dprintf(D_ALWAYS,"GUC FINISHED dapid=%s pid=%d exit_status=%d \n",
+			dap_id,pid,exit_status);
+
 	dap_queue.remove(dap_id);
 
 	key += dap_id;
@@ -1763,7 +2315,7 @@ int dap_reaper(std::string modify_s, int pid,int exit_status)
 				  modify_s += linebuf;
 				  modify_s += ";";
 				*/
-		}
+		} // dap_type == reserve
     
 		modify_s += "status = \"request_completed\"";
 		write_collection_log(dapcollection, dap_id, modify_s.c_str());
@@ -1816,9 +2368,26 @@ int dap_reaper(std::string modify_s, int pid,int exit_status)
 			dprintf(D_ALWAYS, "Reserve key: %s\n", reserve_dap_id);
 
 			dapcollection->RemoveClassAd(key2);
-		}//--
+		} // dap_type == release
 
 
+		// If completing a transfer to a dynamic destination, return the
+		// dynamic destination to the matchmaker.
+		if (!strcmp(dap_type, "transfer")){
+			getValue(job_ad, "dest_transfer_url", unstripped);
+			char dest_transfer_url[MAXSTR];
+			strncpy(dest_transfer_url, strip_str(unstripped), MAXSTR);
+			if (strlen(dest_transfer_url) > 0 ) {
+				dprintf(D_FULLDEBUG, "successful transfer to dynamic URL %s, "
+						"returning to matchmaker\n", dest_transfer_url);
+				Matchmaker->returnTransferDestination(dest_transfer_url);
+				// Dynamic transfers to globus multi file xfers need to clean
+				// up the rewritten multi file URL list.
+				const char *dynamic_multi_file_xfer_file =
+					job_filepath("", "urls", dap_id, pid);
+				unlink( dynamic_multi_file_xfer_file );
+			}
+		}
 
 			//when request is comleted, remove it from the collection and 
 			//log it to the history log file..
@@ -1888,6 +2457,19 @@ int dap_reaper(std::string modify_s, int pid,int exit_status)
 		else{
 				//      sstatus = "\"request_failed\"";
 			modify_s += "status = \"request_failed\";";
+
+			// If completing a transfer to a dynamic destination, notify the
+			// matchmaker that this destination failed.
+			if (!strcmp(dap_type, "transfer")){
+				getValue(job_ad, "dest_transfer_url", unstripped);
+				char dest_transfer_url[MAXSTR];
+				strncpy(dest_transfer_url, strip_str(unstripped), MAXSTR);
+				if (strlen(dest_transfer_url) > 0 ) {
+					dprintf(D_FULLDEBUG, "failed transfer to dynamic URL %s, "
+							"returning to matchmaker\n", dest_transfer_url);
+					Matchmaker->failTransferDestination(dest_transfer_url);
+				}
+			}
 		}
     
 		snprintf(tempstr, MAXSTR, 

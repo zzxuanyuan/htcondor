@@ -4803,7 +4803,8 @@ int DaemonCore::Create_Process(
 			int			std[],
             int         nice_inc,
 			int			job_opt_mask,
-			int			fd_inherit_list[]
+			int			fd_inherit_list[],
+			MainStartFunc main_func
             )
 {
 	int i;
@@ -4834,6 +4835,11 @@ int DaemonCore::Create_Process(
 
 
 #ifdef WIN32
+
+	if (main_func) {
+		// not supported on Win32
+		return FALSE;
+	}
 
 		// declare these variables early so MSVS doesn't complain
 
@@ -5426,7 +5432,9 @@ int DaemonCore::Create_Process(
 			// close the read end of our error pipe and set the
 			// close-on-exec flag on the write end
 		close(errorpipe[0]);
-		fcntl(errorpipe[1], F_SETFD, FD_CLOEXEC);
+		if ( !main_func) {
+			fcntl(errorpipe[1], F_SETFD, FD_CLOEXEC);
+		}
 
 			/********************************************************
 			  Make sure we're not about to re-use a PID that
@@ -5895,9 +5903,8 @@ int DaemonCore::Create_Process(
 			sigemptyset( &emptySet );
 			sigprocmask( SIG_SETMASK, &emptySet, NULL );
 		}
-
 #if defined(LINUX) && defined(TDP)
-		if( HAS_DCJOBOPT_SUSPEND_ON_EXEC(job_opt_mask) ) {
+		if( !main_func && (HAS_DCJOBOPT_SUSPEND_ON_EXEC(job_opt_mask)) ) {
 			if(ptrace(PTRACE_TRACEME, 0, 0, 0) == -1) {
 			    write(errorpipe[1], &errno, sizeof(errno));
 			    exit (errno);
@@ -5906,19 +5913,35 @@ int DaemonCore::Create_Process(
 #endif
 
 			// and ( finally ) exec:
-		if( HAS_DCJOBOPT_NO_ENV_INHERIT(job_opt_mask) ) {
-			exec_results =  execve(namebuf, unix_args, unix_env);
-		} else {
-			exec_results =  execv(namebuf, unix_args);
+		if ( !main_func ) {
+			if( HAS_DCJOBOPT_NO_ENV_INHERIT(job_opt_mask) ) {
+				exec_results =  execve(namebuf, unix_args, unix_env);
+			} else {
+				exec_results =  execv(namebuf, unix_args);
+			}
+			if( exec_results == -1 )
+			{
+					// We no longer have privs to dprintf. :-(.
+					// Let's exit with our errno.
+					// before we exit, make sure our parent knows something
+					// went wrong before the exec...
+				write(errorpipe[1], &errno, sizeof(errno));
+				exit(errno); // Yes, we really want to exit here.
+			}
 		}
-		if( exec_results == -1 )
-		{
-				// We no longer have privs to dprintf. :-(.
-				// Let's exit with our errno.
-				// before we exit, make sure our parent knows something
-				// went wrong before the exec...
-			write(errorpipe[1], &errno, sizeof(errno));
-			exit(errno); // Yes, we really want to exit here.
+
+		if ( main_func ) {
+			close( errorpipe[1] ); // close errorpipe
+			int my_argc = 0;
+			while ( unix_args[my_argc] ) {
+				my_argc++;
+			}
+			if( HAS_DCJOBOPT_SUSPEND_ON_EXEC(job_opt_mask) ) {
+				// suspend ourselves
+				::kill(pid,SIGSTOP);
+			}
+			int result = main_func(my_argc,unix_args);
+			exit(result);
 		}
 	}
 	else if( newpid > 0 ) // Parent Process
@@ -6008,7 +6031,7 @@ int DaemonCore::Create_Process(
 			// Now that we've seen if exec worked, if we are trying to
 			// create a paused process, we need to wait for the
 			// stopped child.
-		if( HAS_DCJOBOPT_SUSPEND_ON_EXEC(job_opt_mask) ) {
+		if( !main_func && (HAS_DCJOBOPT_SUSPEND_ON_EXEC(job_opt_mask)) ) {
 #if defined(LINUX) && defined(TDP)
 				// NOTE: we need to be in user_priv to do this, since
 				// we're going to be sending signals and such

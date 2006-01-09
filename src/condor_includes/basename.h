@@ -29,12 +29,13 @@ extern "C" {
 #endif
 
 /*
-  NOTE: The semantics of condor_basename() and condor_pathname()
-  are slightly different tha the semantics of the default basename()
-  and pathname().  For example, if the path is "foo/bar/",
-  condor_basename() and condor_dirname() return "" and "foo/bar", while
-  the default basename() and dirname() return "bar" and "foo".
-  (See test_basename.c for examples of how things work.)
+  NOTE: The semantics of condor_basename() and condor_pathname() are
+  slightly different tha the semantics of the default basename() and
+  pathname().  For example, if the path is "foo/bar/",
+  condor_basename() condor_dirname() and condor_url_dirname() return
+  "", "foo/bar", and "foo/bar/", while the default basename() and
+  dirname() return "bar" and "foo".  (See test_basename.c for examples
+  of how things work.)
 */
 
 /*
@@ -54,6 +55,17 @@ const char* condor_basename( const char* path );
   with free().
 */
 char* condor_dirname( const char* path );
+
+/*
+  A dirname() function appropriate to URLs that is happy on both Unix
+  and NT.  This allocates space for a new string that holds the path
+  of the parent directory of the path it was given.   The returned
+  directory name ends with the last directory delimiter found in the
+  URL.  If the given path has no directory delimiters, or is NULL, we
+  just return ".".  In all cases, the string we return is new space,
+  and must be deallocated with free().
+*/
+char* condor_url_dirname( const char* path );
 
 /*
   DEPRECATED: because of non-const return value.

@@ -20,34 +20,24 @@
   * RIGHT.
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
-#ifndef __COLLECTOR_H__
-#define __COLLECTOR_H__
+#ifndef __NEWCLASSAD_STREAM_H__
+#define __NEWCLASSAD_STREAM_H__
+
+#include <list>
+#include "condor_common.h"
+
+#define WANT_NAMESPACES
+#include "classad_distribution.h"
+using namespace std;
+
+#include "stream.h"
+
+int StreamPut( Stream *stream, const classad::ClassAd &ad );
+int StreamPut( Stream *stream, list<const classad::ClassAd *> &ad_list );
+
+int StreamGet( Stream *stream, list<classad::ClassAd *> &ad_list );
+int StreamGet( Stream *stream, classad::ClassAd &ad );
 
 
-enum AdTypes
-{
-	QUILL_AD,
-	STARTD_AD,
-	SCHEDD_AD,
-	MASTER_AD,
-	GATEWAY_AD,
-	CKPT_SRVR_AD,
-	STARTD_PVT_AD,
-	SUBMITTOR_AD,
-	COLLECTOR_AD,
-	LICENSE_AD,
-	STORAGE_AD,
-	ANY_AD,
-	NUM_AD_TYPES,
-	CLUSTER_AD,
-	NEGOTIATOR_AD,
-	HAD_AD,
-	XFER_SERVICE_AD,
-	MATCH_MAKER_AD,
-};
 
-#include "condor_commands.h"   // collector commands
-
-#endif // __COLLECTOR_H__
-
-
+#endif // __NEWCLASSAD_STREAM_H__

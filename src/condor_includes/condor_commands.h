@@ -238,6 +238,15 @@ const int UPDATE_HAD_AD = 55;
 const int QUERY_HAD_ADS = 56;
 const int INVALIDATE_HAD_ADS = 57;
 
+const int UPDATE_XFER_SERVICE_AD	= 58;
+const int QUERY_XFER_SERVICE_ADS	= 59;
+const int INVALIDATE_XFER_SERVICE_ADS  = 60;
+
+const int UPDATE_MATCH_MAKER_AD	= 61;
+const int QUERY_MATCH_MAKER_ADS	= 62;
+const int INVALIDATE_MATCH_MAKER_ADS  = 63;
+
+
 /*
 *** Daemon Core Signals
 */
@@ -346,6 +355,14 @@ const int INVALIDATE_HAD_ADS = 57;
 #define GRIDMAN_CHECK_LEASES (DCGRIDMANAGER_BASE+0)
 #define GRIDMAN_REMOVE_JOBS SIGUSR1
 #define GRIDMAN_ADD_JOBS SIGUSR2
+
+/*
+*** Commands used by the new matchmaker daemon
+*/
+#define MATCHMAKER_BASE				74000
+#define MATCHMAKER_GET_MATCH		(MATCHMAKER_BASE+0)
+#define MATCHMAKER_RENEW_LEASE		(MATCHMAKER_BASE+1)
+#define MATCHMAKER_RELEASE_LEASE	(MATCHMAKER_BASE+2)
 
 /*
 *** Replies used in various stages of various protocols

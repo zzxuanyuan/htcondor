@@ -20,34 +20,66 @@
   * RIGHT.
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
-#ifndef __COLLECTOR_H__
-#define __COLLECTOR_H__
+#include "condor_common.h"
 
+#include "debug_timer.h"
 
-enum AdTypes
+DebugTimerBase::DebugTimerBase( bool start )
 {
-	QUILL_AD,
-	STARTD_AD,
-	SCHEDD_AD,
-	MASTER_AD,
-	GATEWAY_AD,
-	CKPT_SRVR_AD,
-	STARTD_PVT_AD,
-	SUBMITTOR_AD,
-	COLLECTOR_AD,
-	LICENSE_AD,
-	STORAGE_AD,
-	ANY_AD,
-	NUM_AD_TYPES,
-	CLUSTER_AD,
-	NEGOTIATOR_AD,
-	HAD_AD,
-	XFER_SERVICE_AD,
-	MATCH_MAKER_AD,
-};
+	if ( start ) {
+		Start( );
+	}
+}
 
-#include "condor_commands.h"   // collector commands
+DebugTimerBase::~DebugTimerBase( void )
+{
+}
 
-#endif // __COLLECTOR_H__
+double
+DebugTimerBase::dtime( void )
+{
+	struct timeval	tv;
+	gettimeofday( &tv, NULL );
+	return ( tv.tv_sec + ( tv.tv_usec / 1000000.0 ) );
+}
 
+void
+DebugTimerBase::Start( void )
+{
+	t1 = dtime( );
+	on = true;
+}
 
+void
+DebugTimerBase::Stop( void )
+{
+	if ( on ) {
+		t2 = dtime( );
+		on = false;
+	}
+}
+
+void
+DebugTimerBase::Log( const char *s, int num, bool stop )
+{
+	char	buf[256];
+	if ( stop ) {
+		Stop( );
+	}
+	double	timediff = t2 - t1;
+	if ( num >= 0 ) {
+		double	per = 0.0, per_sec = 0.0;
+		if ( num > 0 ) {
+			per = timediff / num;
+			per_sec = 1.0 / per;
+		}
+		snprintf( buf, sizeof( buf ),
+				  "DebugTimer: %-25s %4d in %8.5fs => %9.7fsp %10.2f/s\n",
+				  s, num, timediff, per, per_sec );
+		Output( buf );
+	} else {
+		snprintf( buf, sizeof( buf ),
+				  "DebugTimer: %-25s %8.5fs\n", s, timediff );
+		Output( buf );
+	}
+}

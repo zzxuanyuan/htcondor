@@ -1,0 +1,125 @@
+#!/bin/sh
+#set -x	# uncomment to debug
+
+#############################################################################
+## stork_feeder
+##
+## DESCRIPTION
+## This script may be registered to be called periodically by Stork when
+## the number of jobs in the queue drops below a certain level.
+##
+## Condor config settings and example values:
+## STORK_LOW_WATER_ACTION = /path/to/this/script
+## STORK_LOW_WATER_VALUE = 500
+## STORK_FEEDER_DIR = /path/to/feeder/directory
+## STORK_FEEDER_SUBMIT_FILE_PATTERN = *.stork
+#############################################################################
+
+AssignmentFailed() {
+    assignment=$1
+    error_msg=$2
+
+    assignment_name=`basename $assignment`
+
+    echo $error_msg | tee -a $assignment/stork_feeder.log
+
+    mkdir -p $FEEDER_FAILED
+    suffix=""
+    count=0
+    while [ -d $FEEDER_FAILED/$assignment_name$suffix ]; do
+      count=$(($count+1))
+      suffix="-$count"
+    done
+    if ! mv $assignment $FEEDER_FAILED/$assignment_name$suffix; then
+      echo "stork_feeder: failed to move failed assignment $assignment to $FEEDER_FAILED/$assignment_name$suffix." 1>&2
+    fi
+}
+
+AssignmentSubmitted() {
+    assignment=$1
+
+    assignment_name=`basename $assignment`
+
+    mkdir -p $FEEDER_SUBMITTED
+    suffix=""
+    count=0
+    while [ -d $FEEDER_SUBMITTED/$assignment_name$suffix ]; do
+      count=$(($count+1))
+      suffix="-$count"
+    done
+    if ! mv $assignment $FEEDER_SUBMITTED/$assignment_name$suffix; then
+      echo "stork_feeder: failed to move submitted assignment $assignment to $FEEDER_SUBMITTED/$assignment_name$suffix." 1>&2
+    fi
+}
+
+
+
+STORK_FEEDER_DIR=`condor_config_val STORK_FEEDER_DIR`
+
+if [ "$STORK_FEEDER_DIR" = "" ]; then
+  echo "stork_feeder: No STORK_FEEEDER_DIR specified in condor config.  Aborting."
+  exit 1
+fi
+
+if ! [ -d "$STORK_FEEDER_DIR" ]; then
+  echo "stork_feeder: STORK_FEEDER_DIR does not exist: $STORK_FEEDER_DIR"
+  exit 1
+fi
+
+SUBMIT_FILE_PATTERN=`condor_config_val STORK_FEEDER_SUBMIT_FILE_PATTERN`
+
+if [ "$SUBMIT_FILE_PATTERN" = "" ]; then
+  SUBMIT_FILE_PATTERN="*.stork"
+fi
+
+FEEDER_INBOX=$STORK_FEEDER_DIR/inbox
+FEEDER_SUBMITTED=$STORK_FEEDER_DIR/submitted
+FEEDER_FAILED=$STORK_FEEDER_DIR/failed
+
+assignments=`ls -1tr $FEEDER_INBOX`
+
+if [ "$?" != "0" ]; then
+  if ! [ -d $FEEDER_INBOX ]; then
+    mkdir -p $FEEDER_INBOX
+  fi
+fi
+
+for assignment in $assignments; do
+  assignment=$FEEDER_INBOX/$assignment
+
+  #Each assignment is a directory
+  if ! [ -d $assignment ]; then
+    continue
+  fi
+
+  submit_files=`ls $assignment/$SUBMIT_FILE_PATTERN 2>/dev/null`
+  if [ "$?" != "0" ]; then
+    #This assignment does not (yet) contain a submit file.
+    continue
+  fi
+
+  count=0
+  for submit_file in $submit_files; do
+    count=$(($count + 1))
+  done
+
+  if [ $count -gt 1 ]; then
+
+    AssignmentFailed \
+      $assignment \
+      "stork_feeder: Found more than one submit file in directory $assignment: $submit_files"
+    continue
+  fi
+
+  stork_submit $submit_file >> $assignment/stork_feeder.log 2>&1
+  rc=$?
+
+  if [ "$rc" != "0" ]; then
+    AssignmentFailed \
+      $assignment \
+      "stork_feeder: Failed stork_submit $submit_file (exit status $rc)"
+  fi
+
+  AssignmentSubmitted $assignment
+  break
+done

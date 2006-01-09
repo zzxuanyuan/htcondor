@@ -108,6 +108,9 @@ typedef int		(*ThreadStartFunc)(void *,Stream*);
 //variable is the _rough_ unexpected change in time (negative for backwards).
 typedef void	(*TimeSkipFunc)(void *,int);
 
+///
+typedef int		(*MainStartFunc)(int argc, char**argv);
+
 /** Does work in thread.  For Create_Thread_With_Data.
 	@see Create_Thread_With_Data
 */
@@ -760,7 +763,8 @@ class DaemonCore : public Service
         int         std[]                = NULL,
         int         nice_inc             = 0,
         int         job_opt_mask         = 0,
-		int			fd_inherit_list[]	 = NULL
+		int			fd_inherit_list[]	 = NULL,
+		MainStartFunc	main_func		 = NULL
         );
 
     //@}
@@ -1004,6 +1008,10 @@ class DaemonCore : public Service
         // because Ttam knew that his spell must be undone when Ddot
         // could return and properly dispatch the EXCEPT monster.
 	int			  	  soap_ssl_sock;
+
+#ifndef WIN32
+    static char **ParseArgsString(const char *env);
+#endif
 
   private:      
 
@@ -1287,9 +1295,6 @@ class DaemonCore : public Service
     int inServiceCommandSocket_flag;
     // end of thread local storage
         
-#ifndef WIN32
-    static char **ParseArgsString(const char *env);
-#endif
 
 	priv_state Default_Priv_State;
 
