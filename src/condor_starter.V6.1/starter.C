@@ -455,6 +455,14 @@ CStarter::Hold( void )
 
 	dprintf( D_ALWAYS, "Hold all jobs\n" );
 
+		//
+		// Check if there is currently a timer registerd for a 
+		// deferred job. If there is then we need to cancel it
+		//
+	if ( this->deferral_tid != -1 ) {
+		this->removeDeferredJobs();
+	}
+
 	JobList.Rewind();
 	while( (job = JobList.Next()) != NULL ) {
 		if( job->Hold() ) {
