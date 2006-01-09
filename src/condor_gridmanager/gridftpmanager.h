@@ -50,16 +50,15 @@ class GridftpServer : public Service
 	const char *GetUrlBase();
 
  protected:
-	static int CheckServers();
-	static void CheckServersSoon( int delta = 0 );
 	static bool ScanSchedd();
+	static int UpdateLeases();
 
 	static HashTable <HashKey, GridftpServer *> m_serversByProxy;
-	static bool m_initialized;
-	static int m_checkServersTid;
 	static bool m_initialScanDone;
+	static int m_updateLeasesTid;
 
-	void CheckServer( bool &delete_me );
+	void CheckServerSoon( int delta = 0 );
+	int CheckServer();
 	bool SubmitServerJob();
 	bool ReadUrlBase();
 	int CheckJobStatus();
@@ -67,6 +66,7 @@ class GridftpServer : public Service
 	bool CheckPortError();
 	bool RemoveJob();
 
+	int m_checkServerTid;
 	Proxy *m_proxy;
 	char *m_urlBase;
 	char *m_requestedUrlBase;
