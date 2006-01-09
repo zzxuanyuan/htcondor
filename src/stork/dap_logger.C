@@ -315,6 +315,12 @@ write_xml_user_log(
 )
 {
 
+	// this function has been replaced by user_log() below.  However, disable
+	// this function, but keep it around for a release or two, as this is
+	// significant API change.   This function can be restored for a one-off
+	// build by commenting out the following line, upon request:
+	return;
+
   classad::ClassAdParser parser;
   classad::ExprTree *expr = NULL;
   classad::ClassAdXMLUnParser  xmlunparser;
