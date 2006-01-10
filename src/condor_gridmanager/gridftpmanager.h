@@ -34,20 +34,18 @@ class GT4Job;
 class GridftpServer : public Service
 {
  protected:
-	GridftpServer( Proxy *proxy, const char *req_url_base = NULL );
+	GridftpServer( Proxy *proxy );
 	~GridftpServer();
 
  public:
-	static GridftpServer *FindOrCreateServer( Proxy *proxy,
-											  const char *req_url_base = NULL );
-	static const int STARTING;
-	static const int ACTIVE;
-	static const int FAILED;
+	static GridftpServer *FindOrCreateServer( Proxy *proxy );
+	static void Reconfig();
 
-	void RegisterClient( GT4Job *job );
-	void UnregisterClient( GT4Job *job );
+	void RegisterClient( int notify_tid, const char *req_url_base = NULL );
+	void UnregisterClient( int notify_tid );
 	bool IsEmpty();
 	const char *GetUrlBase();
+	const char *GetErrorMessage();
 
  protected:
 	static bool ScanSchedd();
@@ -56,6 +54,8 @@ class GridftpServer : public Service
 	static HashTable <HashKey, GridftpServer *> m_serversByProxy;
 	static bool m_initialScanDone;
 	static int m_updateLeasesTid;
+	static bool m_configRead;
+	static char *m_configUrlBase;
 
 	void CheckServerSoon( int delta = 0 );
 	int CheckServer();
@@ -70,14 +70,16 @@ class GridftpServer : public Service
 	Proxy *m_proxy;
 	char *m_urlBase;
 	char *m_requestedUrlBase;
+	bool m_canRequestUrlBase;
 	int m_refCount;
 	char *m_userLog;
 	char *m_outputFile;
 	char *m_errorFile;
 	char *m_proxyFile;
 	int m_proxyExpiration;
-	List<GT4Job> m_registeredJobs;
+	SimpleList<int> m_registeredClients;
 	PROC_ID m_jobId;
+	MyString m_errorMessage;
 };
 
 #endif

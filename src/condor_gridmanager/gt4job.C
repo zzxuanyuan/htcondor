@@ -326,7 +326,6 @@ GT4Job::GT4Job( ClassAd *classad )
 	submit_id = NULL;
 	delegatedCredentialURI = NULL;
 	gridftpServer = NULL;
-	checkGridftpUrlBase = false;
 
 	// In GM_HOLD, we assme HoldReason to be set only if we set it, so make
 	// sure it's unset when we start.
@@ -423,14 +422,14 @@ GT4Job::GT4Job( ClassAd *classad )
 	}
 
 	buff[0] = '\0';
-	if ( jobAd->LookupString( ATTR_GRIDFTP_URL_BASE, buff ) ) {
-		checkGridftpUrlBase = true;
-	}
+	jobAd->LookupString( ATTR_GRIDFTP_URL_BASE, buff );
 
-	gridftpServer = GridftpServer::FindOrCreateServer( jobProxy,
-													   buff[0] ? buff : NULL );
+	gridftpServer = GridftpServer::FindOrCreateServer( jobProxy );
 
-	gridftpServer->RegisterClient( this );
+		// TODO It would be nice to register only after going through
+		//   GM_CLEAR_REQUEST, so that a ATTR_GRIDFTP_URL_BASE from a
+		//   previous submission isn't requested here.
+	gridftpServer->RegisterClient( evaluateStateTid, buff[0] ? buff : NULL );
 
 	if (jobAd->LookupString ( ATTR_GLOBUS_SUBMIT_ID, buff )) {
 		submit_id = strdup ( buff );
@@ -514,7 +513,7 @@ GT4Job::GT4Job( ClassAd *classad )
 GT4Job::~GT4Job()
 {
 	if ( gridftpServer ) {
-		gridftpServer->UnregisterClient( this );
+		gridftpServer->UnregisterClient( evaluateStateTid );
 	}
 	if ( myResource ) {
 		myResource->UnregisterJob( this );
@@ -737,9 +736,12 @@ int GT4Job::doEvaluateState()
 			} else if ( condorState == HELD ) {
 				gmState = GM_DELETE;
 				break;
+			} else if ( gridftpServer->GetErrorMessage() ) {
+				errorString = gridftpServer->GetErrorMessage();
+				gmState = GM_HOLD;
+				break;
 			} else if ( gridftpServer->GetUrlBase() ) {
 				jobAd->Assign( ATTR_GRIDFTP_URL_BASE, gridftpServer->GetUrlBase() );
-				checkGridftpUrlBase = true;
 				gmState = GM_DELEGATE_PROXY;
 			}
 			} break;
@@ -928,16 +930,20 @@ int GT4Job::doEvaluateState()
 			} else if ( condorState == REMOVED || condorState == HELD ) {
 				gmState = GM_CANCEL;
 			} else {
-				if ( checkGridftpUrlBase ) {
-					MyString url_base;
-					jobAd->LookupString( ATTR_GRIDFTP_URL_BASE, url_base );
-					if ( strcmp( url_base.Value(),
-								 gridftpServer->GetUrlBase() ) ) {
-						gmState = GM_CANCEL;
-						break;
-					}
-					checkGridftpUrlBase = false;
+					// Check that our gridftp server is healthy
+				if ( gridftpServer->GetErrorMessage() ) {
+					errorString = gridftpServer->GetErrorMessage();
+					gmState = GM_HOLD;
+					break;
 				}
+				MyString url_base;
+				jobAd->LookupString( ATTR_GRIDFTP_URL_BASE, url_base );
+				if ( strcmp( url_base.Value(),
+							 gridftpServer->GetUrlBase() ) ) {
+					gmState = GM_CANCEL;
+					break;
+				}
+
 				if ( GetCallbacks() == true ) {
 					reevaluate_state = true;
 					break;
@@ -1193,7 +1199,6 @@ int GT4Job::doEvaluateState()
 			if ( jobAd->LookupString( ATTR_GRIDFTP_URL_BASE, val ) ) {
 				jobAd->AssignExpr( ATTR_GRIDFTP_URL_BASE, "Undefined" );
 			}
-			checkGridftpUrlBase = false;
 			
 			if ( wantRematch ) {
 				dprintf(D_ALWAYS,
@@ -2080,15 +2085,4 @@ GT4Job::getDummyJobScratchDir() {
 	}
 
 	return dirname.Value();
-}
-
-void GT4Job::NewGridftpUrlBase( const char *new_url_base )
-{
-	MyString url_base;
-	if ( !jobAd->LookupString( ATTR_GRIDFTP_URL_BASE, url_base ) ) {
-		SetEvaluateState();
-	} else if ( strcmp( url_base.Value(), new_url_base ) ) {
-		checkGridftpUrlBase = true;
-		SetEvaluateState();
-	}
 }

@@ -64,8 +64,6 @@ class GT4Job : public BaseJob
 	BaseResource *GetResource();
 	void SetRemoteJobId( const char *job_id );
 
-	void NewGridftpUrlBase( const char *new_url_base );
-
 	static int probeInterval;
 	static int submitInterval;
 	static int gahpCallTimeout;
@@ -99,7 +97,6 @@ class GT4Job : public BaseJob
 	char * submit_id;
 	char * jobmanagerType;
 	GridftpServer *gridftpServer;
-	bool checkGridftpUrlBase;
 
 		// TODO should query these from GahpClient when needed
 	char *gramCallbackContact;

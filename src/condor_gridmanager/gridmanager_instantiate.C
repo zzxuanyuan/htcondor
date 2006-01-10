@@ -109,7 +109,5 @@ template class List<Proxy>;
 template class Item<Proxy>;
 template class SimpleList<MyProxyEntry*>;
 
-template class List<GT4Job>;
-template class Item<GT4Job>;
 template class HashTable<HashKey, GridftpServer *>;
 template class HashBucket<HashKey, GridftpServer *>;

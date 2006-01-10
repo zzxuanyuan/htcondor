@@ -33,7 +33,13 @@
 
 #include "gridftpmanager.h"
 
+/* GridftpServer:
+ *   Invariant: Both m_urlBase and m_requestedUrlBase may not both be
+ *     defined at the same time.
+ */
+
 const char *ATTR_GRIDFTP_SERVER_JOB = "GridftpServerJob";
+const char *ATTR_REQUESTED_GRIDFTP_URL_BASE = "RequestedGridftpUrlBase";
 
 #define QMGMT_TIMEOUT 15
 
@@ -51,19 +57,19 @@ HashTable <HashKey, GridftpServer *>
     GridftpServer::m_serversByProxy( HASH_TABLE_SIZE,
 									 hashFunction );
 
-const int GridftpServer::STARTING = 0;
-const int GridftpServer::ACTIVE = 1;
-const int GridftpServer::FAILED = 2;
-
 bool GridftpServer::m_initialScanDone = false;
 int GridftpServer::m_updateLeasesTid = TIMER_UNSET;
+bool GridftpServer::m_configRead = false;
+char *GridftpServer::m_configUrlBase = NULL;
 
 ClassAd *CreateJobAd( const char *owner, int universe, const char *cmd );
 bool WriteSubmitEventToUserLog( ClassAd *job_ad );
 
-GridftpServer::GridftpServer( Proxy *proxy, const char *req_url_base )
+GridftpServer::GridftpServer( Proxy *proxy )
 {
 	m_urlBase = NULL;
+	m_requestedUrlBase = NULL;
+	m_canRequestUrlBase = true;
 	m_refCount = 0;
 	m_jobId.cluster = 0;
 	m_jobId.proc = 0;
@@ -73,15 +79,11 @@ GridftpServer::GridftpServer( Proxy *proxy, const char *req_url_base )
 	m_errorFile = NULL;
 	m_proxyFile = NULL;
 	m_proxyExpiration = 0;
+	m_errorMessage = "";
 	m_checkServerTid = daemonCore->Register_Timer( 0,
 								(TimerHandlercpp)&GridftpServer::CheckServer,
 								"GridftpServer::CheckServer", (Service*)this );
 	AcquireProxy( m_proxy, m_checkServerTid );
-	if ( req_url_base ) {
-		m_requestedUrlBase = strdup( req_url_base );
-	} else {
-		m_requestedUrlBase = NULL;
-	}
 
 }
 
@@ -112,8 +114,7 @@ GridftpServer::~GridftpServer()
 	}
 }
 
-GridftpServer *GridftpServer::FindOrCreateServer( Proxy *proxy,
-												  const char *req_url_base )
+GridftpServer *GridftpServer::FindOrCreateServer( Proxy *proxy )
 {
 	int rc;
 	GridftpServer *server = NULL;
@@ -121,29 +122,51 @@ GridftpServer *GridftpServer::FindOrCreateServer( Proxy *proxy,
 	rc = m_serversByProxy.lookup( HashKey( proxy->subject->subject_name ),
 								  server );
 	if ( rc != 0 ) {
-dprintf(D_FULLDEBUG,"*** Creating new GridftpServer('%s',%s)\n",proxy->subject->subject_name,req_url_base?req_url_base:"NULL");
-		server = new GridftpServer( proxy, req_url_base );
+dprintf(D_FULLDEBUG,"*** Creating new GridftpServer('%s')\n",proxy->subject->subject_name);
+		server = new GridftpServer( proxy );
 		ASSERT(server);
 		m_serversByProxy.insert( HashKey( proxy->subject->subject_name ),
 								 server );
 	} else {
-dprintf(D_FULLDEBUG,"*** Using existing GridftpServer('%s',%s)\n",proxy->subject->subject_name,req_url_base?req_url_base:"NULL");
+dprintf(D_FULLDEBUG,"*** Using existing GridftpServer('%s')\n",proxy->subject->subject_name);
 		ASSERT(server);
 	}
 
 	return server;
 }
 
-void GridftpServer::RegisterClient( GT4Job *job )
+void GridftpServer::Reconfig()
 {
-	m_refCount++;
-	m_registeredJobs.Append( job );
+	if ( !m_configRead ) {
+
+			// These are config settings that we only want to read once,
+			// at startup.
+		m_configUrlBase = param( "GRIDFTP_URL_BASE" );
+
+		m_configRead = true;
+	}
+
 }
 
-void GridftpServer::UnregisterClient( GT4Job *job )
+void GridftpServer::RegisterClient( int notify_tid, const char *req_url_base )
+{
+	m_refCount++;
+	if ( notify_tid > 0 &&
+		 m_registeredClients.IsMember( notify_tid ) == false ) {
+		m_registeredClients.Append( notify_tid );
+	}
+	if ( m_canRequestUrlBase && m_requestedUrlBase == NULL && req_url_base ) {
+dprintf(D_FULLDEBUG,"*** Accepting requested URL base %s\n",req_url_base);
+		m_requestedUrlBase = strdup( req_url_base );
+	}
+}
+
+void GridftpServer::UnregisterClient( int notify_tid )
 {
 	m_refCount--;
-	m_registeredJobs.Delete( job );
+	if ( notify_tid > 0 ) {
+		m_registeredClients.Delete( notify_tid );
+	}
 }
 
 bool GridftpServer::IsEmpty()
@@ -153,7 +176,20 @@ bool GridftpServer::IsEmpty()
 
 const char *GridftpServer::GetUrlBase()
 {
-	return m_urlBase;
+	if ( m_configUrlBase ) {
+		return m_configUrlBase;
+	} else {
+		return m_urlBase;
+	}
+}
+
+const char *GridftpServer::GetErrorMessage()
+{
+	if ( m_errorMessage.IsEmpty() ) {
+		return NULL;
+	} else {
+		return m_errorMessage.Value();
+	}
 }
 
 int GridftpServer::UpdateLeases()
@@ -165,7 +201,7 @@ dprintf(D_FULLDEBUG,"*** UpdateLeases()\n");
 	int lease_expire = time(NULL) + SERVER_JOB_LEASE;
 	int rc;
 
-	schedd = ConnectQ( ScheddAddr, QMGMT_TIMEOUT, true );
+	schedd = ConnectQ( ScheddAddr, QMGMT_TIMEOUT, false );
 	if ( !schedd ) {
 		dprintf( D_ALWAYS, "GridftpServer::UpdateLeases: "
 				 "Failed to connect to schedd\n" );
@@ -212,9 +248,18 @@ void GridftpServer::CheckServerSoon( int delta )
 
 int GridftpServer::CheckServer()
 {
+	bool existing_error = !m_errorMessage.IsEmpty();
 dprintf(D_FULLDEBUG,"*** CheckServer(%s)\n",m_proxy->subject->subject_name);
+ 
 
 	daemonCore->Reset_Timer( m_checkServerTid, CHECK_SERVER_INTERVAL );
+
+	if ( m_configUrlBase ) {
+			// If GRIDFTP_URL_BASE is set in the config file, then never
+			// try to start our own gridftp servers.
+		daemonCore->Reset_Timer( m_checkServerTid, TIMER_NEVER );
+		return TRUE;
+	}
 
 	if ( !m_initialScanDone ) {
 		if ( ScanSchedd() ) {
@@ -223,6 +268,11 @@ dprintf(D_FULLDEBUG,"*** CheckServer(%s)\n",m_proxy->subject->subject_name);
 			return TRUE;
 		}
 	}
+
+		// Once we have a gridftp server or are about to submit one, we
+		// ignore client requests for a preferred port for the server to
+		// bind to.
+	m_canRequestUrlBase = false;
 
 		// TODO maybe waite 5 minutes after having no jobs before shutting
 		//   server down
@@ -238,6 +288,8 @@ dprintf(D_FULLDEBUG,"    Server empty, deleting\n");
 	int job_status;
 	job_status = CheckJobStatus();
 
+		// TODO If a job exits for an unknown reason, put the stdout/err
+		//   in the log
 	if ( job_status == STATUS_DONE ) {
 		if ( m_requestedUrlBase && CheckPortError() ) {
 			free( m_requestedUrlBase );
@@ -270,10 +322,10 @@ dprintf(D_FULLDEBUG,"    Server empty, deleting\n");
 	if ( job_status == STATUS_ACTIVE && m_urlBase == NULL ) {
 		if ( m_requestedUrlBase == NULL ) {
 			if ( ReadUrlBase() ) {
-				GT4Job *job;
-				m_registeredJobs.Rewind();
-				while ( m_registeredJobs.Next( job ) ) {
-					job->NewGridftpUrlBase( m_urlBase );
+				int tid;
+				m_registeredClients.Rewind();
+				while ( m_registeredClients.Next( tid ) ) {
+					daemonCore->Reset_Timer( tid, 0 );
 				}
 			} else {
 					// Come back in a second to check the output file again
@@ -283,16 +335,16 @@ dprintf(D_FULLDEBUG,"    Server empty, deleting\n");
 			m_urlBase = m_requestedUrlBase;
 			m_requestedUrlBase = NULL;
 
-			GT4Job *job;
-			m_registeredJobs.Rewind();
-			while ( m_registeredJobs.Next( job ) ) {
-				job->NewGridftpUrlBase( m_urlBase );
+			int tid;
+			m_registeredClients.Rewind();
+			while ( m_registeredClients.Next( tid ) ) {
+				daemonCore->Reset_Timer( tid, 0 );
 			}
 		}
 	}
 
 		// TODO if proxy refresh fails, wait some time between retries
-	if ( job_status == ACTIVE ) {
+	if ( job_status == STATUS_ACTIVE ) {
 		CheckProxy();
 	}
 
@@ -302,6 +354,14 @@ dprintf(D_FULLDEBUG,"    Server empty, deleting\n");
 			// real soon to see if the server is working
 		if ( SubmitServerJob() ) {
 			CheckServerSoon( 1 );
+		}
+	}
+
+	if ( !existing_error && !m_errorMessage.IsEmpty() ) {
+		int tid;
+		m_registeredClients.Rewind();
+		while ( m_registeredClients.Next( tid ) ) {
+			daemonCore->Reset_Timer( tid, 0 );
 		}
 	}
 
@@ -352,7 +412,7 @@ dprintf(D_FULLDEBUG,"    Found job for proxy '%s'\n",buff.Value());
 			MyString error_str;
 			Proxy *proxy = AcquireProxy( next_ad, error_str );
 dprintf(D_FULLDEBUG,"    Creating new GridftpServer('%s')\n",proxy->subject->subject_name);
-			server = new GridftpServer( proxy, NULL );
+			server = new GridftpServer( proxy );
 			ASSERT(server);
 			m_serversByProxy.insert( HashKey( proxy->subject->subject_name ),
 									 server );
@@ -364,6 +424,10 @@ dprintf(D_FULLDEBUG,"    Creating new GridftpServer('%s')\n",proxy->subject->sub
 									server->m_jobId.cluster );
 			next_ad->LookupInteger( ATTR_PROC_ID,
 									server->m_jobId.proc );
+			if ( server->m_requestedUrlBase ) {
+				free( server->m_requestedUrlBase );
+				server->m_requestedUrlBase = NULL;
+			}
 			MyString value;
 			next_ad->LookupString( ATTR_JOB_OUTPUT, value );
 			server->m_outputFile = strdup( value.Value() );
@@ -373,6 +437,10 @@ dprintf(D_FULLDEBUG,"    Creating new GridftpServer('%s')\n",proxy->subject->sub
 			server->m_userLog = strdup( value.Value() );
 			next_ad->LookupString( ATTR_X509_USER_PROXY, value );
 			server->m_proxyFile = strdup( value.Value() );
+			if ( next_ad->LookupString( ATTR_REQUESTED_GRIDFTP_URL_BASE,
+										value ) ) {
+				server->m_requestedUrlBase = strdup( value.Value() );
+			}
 				// TODO check expiration time on proxy?
 dprintf(D_FULLDEBUG,"    Linked job %d.%d to proxy '%s'\n",server->m_jobId.cluster,server->m_jobId.proc,buff.Value());
 		}
@@ -428,8 +496,11 @@ dprintf(D_FULLDEBUG,"    not reusing a url\n");
 	}
 
 	cmd = param( "GRIDFTP_SERVER" );
-		// TODO react better to cmd being undefined
-	ASSERT( cmd );
+	if ( !cmd ) {
+		dprintf( D_FULLDEBUG, "No gridftp server configured\n" );
+		m_errorMessage.sprintf( "No gridftp server configured" );
+		return false;
+	}
 	job_ad = CreateJobAd( Owner, CONDOR_UNIVERSE_SCHEDULER, cmd );
 	free( cmd );
 
@@ -494,12 +565,20 @@ dprintf(D_FULLDEBUG,"    not reusing a url\n");
 	delete [] job_env;
 		// TODO what about LD_LIBRARY_PATH?
 
+		// TODO do better URL parsing and don't crash on malformed URLs
 	if ( m_requestedUrlBase ) {
 		MyString buff;
+		int port;
 		const char *ptr = strrchr( m_requestedUrlBase, ':' );
 		ASSERT( ptr );
-		buff.sprintf( "-p %d", atoi( ptr+1 ) );
+		port = atoi( ptr+1 );
+		if ( port == 0 ) {
+			port = 2811;
+		}
+		buff.sprintf( "-p %d", port );
 		job_ad->Assign( ATTR_JOB_ARGUMENTS, buff.Value() );
+
+		job_ad->Assign( ATTR_REQUESTED_GRIDFTP_URL_BASE, m_requestedUrlBase );
 	}
 
 	job_ad->Assign( ATTR_GRIDFTP_SERVER_JOB, true );
