@@ -69,6 +69,7 @@ public:
 
 protected:
 	bool spawnClient( void );
+	bool killClient( void );
 
 	Starter* m_boinc_starter;
 	int m_reaper_id;

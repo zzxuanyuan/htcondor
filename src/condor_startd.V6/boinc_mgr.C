@@ -302,6 +302,30 @@ BOINC_BackfillMgr::spawnClient( void )
 }
 
 
+bool
+BOINC_BackfillMgr::killClient( void )
+{
+	bool rval = true;
+#ifdef WIN32
+	EXCEPT( "Condor BOINC support does NOT work on windows" ); 
+#else 
+	rval = m_boinc_starter->killHard();
+	if( ! rval ) {
+		dprintf( D_ALWAYS, "BOINC_BackfillMgr::killClient(): "
+				 "ERROR telling BOINC starter (pid %d) to hardkill\n",
+				 (int)m_boinc_starter->pid() );
+	} else {
+		dprintf( D_FULLDEBUG, "BOINC_BackfillMgr::killClient(): "
+				 "told BOINC starter (pid %d) to hardkill\n",
+				 (int)m_boinc_starter->pid() );
+	}
+
+#endif /* WIN32 */
+
+	return rval;
+}
+
+
 int
 BOINC_BackfillMgr::reaper( int pid, int status )
 {
@@ -370,49 +394,23 @@ BOINC_BackfillMgr::hardkill( int vm_id )
 	}
 
 		// PHASE 2: handle different vm_ids differently...
-	if( vm_id ) {
-		if( m_vms[vm_id] ) {
-				// currently a no-op, but someday this will be useful
-			m_vms[vm_id]->hardkill();  
-		} else {
+	if( vm_id != 0 && m_num_vms > 1 ) {
+			// we're just trying to remove a single VM object, but
+			// there are other active BOINC VMs so we'll leave the
+			// client running (on an SMP).  in this case, we'll just
+			// remove the one object and be done immediately.
+		if( ! m_vms[vm_id] ) {
 			dprintf( D_ALWAYS, "ERROR in BOINC_BackfillMgr::hardkill(%d) "
 					 "no BackfillVM object with that id\n", vm_id );
 			return false;
 		}
-	} else {
-			// kill all
-		int i;
-		for( i=0; i <= m_vms.getsize(); i++ ) { 
-			if( m_vms[i] ) {
-					// currently a no-op, but someday this will be useful
-				m_vms[vm_id]->hardkill();
-			}
-		}
-	}
-			
-		// in phase 2, we'll only want to kill the client once all our
-		// backfill VMs have been killed... for now, we'll just do it
-		// directly 
-
-		// if we're here, we're done and we should really kill it
-	bool rval = true;
-#ifdef WIN32
-	EXCEPT( "Condor BOINC support does NOT work on windows" ); 
-#else 
-	rval = m_boinc_starter->killHard();
-	if( ! rval ) {
-		dprintf( D_ALWAYS, "BOINC_BackfillMgr::hardkill(): "
-			 "ERROR telling BOINC starter (pid %d) to hardkill\n",
-			 (int)m_boinc_starter->pid() );
-	} else {
-		dprintf( D_FULLDEBUG, "BOINC_BackfillMgr::hardkill(): "
-				 "told BOINC starter (pid %d) to hardkill\n",
-				 (int)m_boinc_starter->pid() );
+		return rmVM( vm_id );
 	}
 
-#endif /* WIN32 */
-
-	return rval;
+		// if we're here, we're done and we should really kill the
+		// BOINC client. so, we can wait to remove the VM objects
+		// until the reaper goes off...
+	return killClient();
 }
 
 
