@@ -455,6 +455,62 @@ for \SubmitCmd{grid} universe jobs.
 The default value is \SubmitCmd{gt2}.
 
 %%%%%%%%%%%%%%%%%%%
+%% grid_resource
+%%%%%%%%%%%%%%%%%%%
+\item[grid\_resource = $<$ grid\_type-string grid-specific-parameter-list $>$ ]
+\index{submit commands!grid\_resource}
+For each \SubmitCmd{grid\_type-string} value, 
+there are further type-specific values that must specified.
+This submit description file command allows each to
+be given in a space-separated list.
+Allowable \SubmitCmd{grid\_type-string} values are
+\SubmitCmd{gt2}, \SubmitCmd{gt3}, \SubmitCmd{gt4},
+\SubmitCmd{condor}, \SubmitCmd{nordugrid}, and \SubmitCmd{unicore}.
+
+For a \SubmitCmd{grid\_type-string} of \SubmitCmd{gt2},
+the single parameter is the required value that may be set with the
+\SubmitCmd{globusscheduler} command.
+See section~\ref{sec:Using-gt2} 
+for syntax of the \SubmitCmd{globusscheduler} command.
+
+For a \SubmitCmd{grid\_type-string} of \SubmitCmd{gt3},
+the single parameter is the required value that may be set with the
+\SubmitCmd{globusscheduler} command.
+See section~\ref{sec:Using-gt3} 
+for syntax of the \SubmitCmd{globusscheduler} command.
+
+For a \SubmitCmd{grid\_type-string} of \SubmitCmd{gt4},
+the first parameter is the required value that may be set with the
+\SubmitCmd{globusscheduler} command.
+The second parameter is the required value that may be set with the
+\SubmitCmd{jobmanager\_type} command.
+See section~\ref{sec:Using-gt4} 
+for the syntax of these commands.
+
+For a \SubmitCmd{grid\_type-string} of \SubmitCmd{condor},
+the first parameter is the required value that may be set with the
+\SubmitCmd{remote\_schedd} command.
+The second parameter is the required value that may be set with the
+\SubmitCmd{remote\_pool} command.
+See section~\ref{sec:Condor-C-Submit} 
+for the syntax of these commands.
+
+For a \SubmitCmd{grid\_type-string} of \SubmitCmd{nordugrid},
+the single parameter is the required value that may be set with the
+\SubmitCmd{nordugrid\_resource} command.
+See section~\ref{sec:NorduGrid} 
+for the syntax of this command.
+
+For a \SubmitCmd{grid\_type-string} of \SubmitCmd{unicore},
+the first parameter is the required value that may be set with the
+\SubmitCmd{unicore\_\_u\_site} command.
+The second parameter is the required value that may be set with the
+\SubmitCmd{unicore\_\_v\_site} command.
+See section~\ref{sec:Unicore} 
+for the syntax of these commands.
+
+
+%%%%%%%%%%%%%%%%%%%
 %% MaxJobRetirementTime
 %%%%%%%%%%%%%%%%%%%
 
@@ -1813,9 +1869,9 @@ following \Arg{attribute} into the job ClasssAd with the given
 
 \end{description}
 
+\index{macro!in submit description file}
 In addition to commands, the submit description file can contain macros
 and comments:
-\index{macro!in submit description file}
 
 \begin{description}
 
@@ -1849,31 +1905,30 @@ It is a unique value assigned for the duration of the job
 that essentially identifies the machine on which a program is
 executing.
 
-If the dollar sign (``\$'') is desired as a literal character,
+If the dollar sign (\verb@$@) is desired as a literal character,
 then use
 \begin{verbatim}
 $(DOLLAR)
 \end{verbatim}
 
 In addition to the normal macro, there is also a special kind of macro
-called a \Term{substitution macro} that allows you to substitute
+called a \Term{substitution macro}
+\index{substitution macro!in submit description file}
+that allows the substitution of
 expressions defined on the resource machine itself (gotten after a match
-to the machine has been performed) into specific expressions in your
-submit description file. The special substitution macro is of the form:
+to the machine has been made) into specific expressions within the
+submit description file. The substitution macro is of the form:
 \begin{verbatim} 
 $$(attribute)
 \end{verbatim}
 
-\index{substitution macro!in submit description file}
-The substitution macro may only be used in three expressions in the
-submit description file: \MacroNI{executable}, \MacroNI{environment}, and
-\MacroNI{arguments}. The most common use of this macro is for heterogeneous
+A common use of this macro is for the heterogeneous
 submission of an executable:
 \begin{verbatim}
 executable = povray.$$(opsys).$$(arch)
 \end{verbatim}
-The \AdAttr{opsys} and \AdAttr{arch} attributes will be substituted at
-match time for any given resource. This will allow Condor to automatically
+Values for the \AdAttr{opsys} and \AdAttr{arch} attributes are substituted at
+match time for any given resource. This allows Condor to automatically
 choose the correct executable for the matched machine.
 
 An extension to the syntax of the substitution macro provides an
