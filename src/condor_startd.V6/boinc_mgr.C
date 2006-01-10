@@ -121,25 +121,29 @@ BOINC_BackfillMgr::~BOINC_BackfillMgr()
 
 
 static bool
-param_boinc( const char* attr_name, char** str_p )
+param_boinc( const char* attr_name, const char* alt_name )
 {
-	if( ! str_p ) {
-		EXCEPT( "param_boinc() called with NULL string" );
-	}
 	if( ! attr_name ) {
 		EXCEPT( "param_boinc() called with NULL attr_name" );
 	}
-
-	if( *str_p != NULL ) {
-		free( *str_p );
+	MyString param_name;
+	param_name.sprintf( "BOINC_%s", attr_name );
+	char* tmp = param( param_name.Value() );
+	if( tmp ) {
+		free( tmp );
+		return true;
 	}
-	*str_p = param( attr_name );
-	if( ! *str_p ) {
-		dprintf( D_ALWAYS, "Trying to initialize a BOINC backfill manager, "
-				 "but %s not defined, failing\n", attr_name );
-		return false;
+	if( alt_name ) {
+		param_name.sprintf( "BOINC_%s", alt_name );
+		tmp = param( param_name.Value() );
+		if( tmp ) {
+			free( tmp );
+			return true;
+		}
 	}
-	return true;
+	dprintf( D_ALWAYS, "Trying to initialize a BOINC backfill manager, "
+			 "but BOINC_%s not defined, failing\n", attr_name );
+	return false;
 }
 
 
@@ -155,10 +159,16 @@ BOINC_BackfillMgr::reconfig()
 {
 		// TODO be smart about if anything changes...
 
-		// TODO: we should verify that all the BOINC_* stuff used by
-		// the starter when it's invoked with "-job-keyword BOINC" is
-		// there... 
-
+	if( ! param_boinc(ATTR_JOB_CMD, "Executable") ) {
+		return false;
+	}
+	if( ! param_boinc(ATTR_JOB_IWD, "InitialDir") ) {
+		return false;
+	}
+	if( ! param_boinc("Universe", ATTR_JOB_UNIVERSE) ) {
+		return false;
+	}
+	
 	return true;
 }
 
