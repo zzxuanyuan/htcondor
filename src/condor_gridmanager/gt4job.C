@@ -1502,12 +1502,21 @@ BaseResource *GT4Job::GetResource()
 
 void GT4Job::SetRemoteJobId( const char *job_id )
 {
+		// TODO We shouldn't have to clear the delegation and gridftp
+		//   server URIs here. We do so because they get looked up in
+		//   our constructor and registered with other parts of the code,
+		//   even if GridJobId is undefined. We don't want values for old
+		//   submissions to be used. The registrations in the constructor
+		//   should only happen if the job id is defined.
 		// Clear the delegation URI whenever the job contact string
 		// is cleared
 	if ( job_id == NULL && delegatedCredentialURI != NULL ) {
 		free( delegatedCredentialURI );
 		delegatedCredentialURI = NULL;
 		jobAd->AssignExpr( ATTR_GLOBUS_DELEGATION_URI, "Undefined" );
+	}
+	if ( job_id == NULL ) {
+		jobAd->AssignExpr( ATTR_GRIDFTP_URL_BASE, "Undefined" );
 	}
 	if ( job_id == NULL && submit_id != NULL ) {
 		free( submit_id );
