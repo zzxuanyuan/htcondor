@@ -194,12 +194,14 @@ const char *GridftpServer::GetErrorMessage()
 
 int GridftpServer::UpdateLeases()
 {
-dprintf(D_FULLDEBUG,"*** UpdateLeases()\n");
 	Qmgr_connection *schedd;
 	bool error = false;
 	GridftpServer *server;
 	int lease_expire = time(NULL) + SERVER_JOB_LEASE;
 	int rc;
+
+	dprintf( D_FULLDEBUG, "GridftpServer: Updating job leases for gridftp "
+			 "server jobs\n" );
 
 	schedd = ConnectQ( ScheddAddr, QMGMT_TIMEOUT, false );
 	if ( !schedd ) {
@@ -251,7 +253,6 @@ int GridftpServer::CheckServer()
 	bool existing_error = !m_errorMessage.IsEmpty();
 dprintf(D_FULLDEBUG,"*** CheckServer(%s)\n",m_proxy->subject->subject_name);
  
-
 	daemonCore->Reset_Timer( m_checkServerTid, CHECK_SERVER_INTERVAL );
 
 	if ( m_configUrlBase ) {
@@ -283,8 +284,8 @@ dprintf(D_FULLDEBUG,"    Server empty, deleting\n");
 		return TRUE;
 	}
 
-		// TODO should wait for an explicit request from a job before
-		//   starting a server
+		// TODO wait for an explicit request from a job before
+		//   starting a server?
 	int job_status;
 	job_status = CheckJobStatus();
 
@@ -370,11 +371,13 @@ dprintf(D_FULLDEBUG,"    Server empty, deleting\n");
 
 bool GridftpServer::ScanSchedd()
 {
-dprintf(D_FULLDEBUG,"*** ScanSchedd()\n");
 	Qmgr_connection *schedd;
 	bool error = false;
 	MyString expr;
 	ClassAd *next_ad;
+
+	dprintf( D_FULLDEBUG, "GridftpServer: Scanning schedd for previously "
+			 "submitted gridftp server jobs\n" );
 
 	if ( m_updateLeasesTid == TIMER_UNSET ) {
 		m_updateLeasesTid = daemonCore->Register_Timer( 0,
@@ -451,7 +454,6 @@ dprintf(D_FULLDEBUG,"    Linked job %d.%d to proxy '%s'\n",server->m_jobId.clust
 		next_ad = GetNextJobByConstraint( expr.Value(), 0 );
 	}
 
-// contact_schedd_disconnect:
 	DisconnectQ( schedd );
 
 	if ( !error ) {
@@ -484,20 +486,22 @@ bool GridftpServer::SubmitServerJob()
 	MyString userlog;
 	MyString buff;
 
-dprintf(D_FULLDEBUG,"*** SubmitServerJob()\n");
-if ( m_requestedUrlBase)
-dprintf(D_FULLDEBUG,"    reusing %s\n",m_requestedUrlBase);
-else
-dprintf(D_FULLDEBUG,"    not reusing a url\n");
+	dprintf( D_FULLDEBUG, "GridftpServer: Submitting job for proxy '%s'\n",
+			 m_proxy->subject->subject_name );
+	if ( m_requestedUrlBase ) {
+		dprintf( D_FULLDEBUG, "   reusing URL %s\n", m_requestedUrlBase );
+	}
 	DCSchedd dc_schedd( ScheddAddr );
 	if ( dc_schedd.error() || !dc_schedd.locate() ) {
-		dprintf( D_ALWAYS, "Can't find our schedd!?\n" );
+		dprintf( D_ALWAYS, "GridftpServer::SubmitServerJob: Can't find "
+				 "our schedd!?\n" );
 		return false;
 	}
 
 	cmd = param( "GRIDFTP_SERVER" );
 	if ( !cmd ) {
-		dprintf( D_FULLDEBUG, "No gridftp server configured\n" );
+		dprintf( D_ALWAYS, "GridftpServer::SubmitServerJob: No gridftp "
+				 "server configured\n" );
 		m_errorMessage.sprintf( "No gridftp server configured" );
 		return false;
 	}
@@ -523,20 +527,21 @@ dprintf(D_FULLDEBUG,"    not reusing a url\n");
 			  GridmanagerScratchDir );
 	mapfile_fp = fopen( mapfile, "w" );
 	if ( mapfile_fp == NULL ) {
-		dprintf( D_ALWAYS, "Failed to open %s for write, errno=%d\n", mapfile,
-				 errno );
+		dprintf( D_ALWAYS, "GridftpServer::SubmitServerJob: Failed to open "
+				 "%s for write, errno=%d\n", mapfile, errno );
 		goto error_exit;
 	}
 
 	if ( fprintf( mapfile_fp, "\"%s\" %s\n", m_proxy->subject->subject_name,
 				  Owner ) < 0 ) {
-		dprintf( D_ALWAYS, "Failed to write to %s, errno=%d\n", mapfile,
-				 errno );
+		dprintf( D_ALWAYS, "GridftpServer::SubmitServerJob: Failed to write "
+				 "to %s, errno=%d\n", mapfile, errno );
 		goto error_exit;
 	}
 
 	if ( fclose( mapfile_fp ) < 0 ) {
-		dprintf( D_ALWAYS, "Failed to close %s, errno=%d\n", mapfile, errno );
+		dprintf( D_ALWAYS, "GridftpServer::SubmitServerJob:: Failed to "
+				 "close %s, errno=%d\n", mapfile, errno );
 		mapfile_fp = NULL;
 		goto error_exit;
 	}
@@ -595,14 +600,16 @@ dprintf(D_FULLDEBUG,"    not reusing a url\n");
 	}
 
 	if ( cluster_id == -2 || proc_id == -2 ) {
-		dprintf( D_ALWAYS, "Number of submitted jobs would exceed "
-				 "MAX_JOBS_SUBMITTED\n" );
+		dprintf( D_ALWAYS, "GridftpServer::SubmitServerJob: Number of "
+				 "submitted jobs would exceed MAX_JOBS_SUBMITTED\n" );
 	}
 	if ( cluster_id < 0 ) {
-		dprintf( D_ALWAYS, "Unable to create a new job cluster\n" );
+		dprintf( D_ALWAYS, "GridftpServer::SubmitServerJob: Unable to "
+				 "create a new job cluster\n" );
 		goto error_exit;
 	} else if ( proc_id < 0 ) {
-		dprintf( D_ALWAYS, "Unable to create a new job proc\n" );
+		dprintf( D_ALWAYS, "GridftpServer::SubmitServerJob: Unable to "
+				 "create a new job proc\n" );
 		goto error_exit;
 	}
 
@@ -622,10 +629,12 @@ dprintf(D_FULLDEBUG,"    not reusing a url\n");
 		if( (lhs = tree->LArg()) ) { lhs->PrintToNewStr (&lhstr); }
 		if( (rhs = tree->RArg()) ) { rhs->PrintToNewStr (&rhstr); }
 		if( !lhs || !rhs || !lhstr || !rhstr) {
-			dprintf( D_ALWAYS, "Failed to unparse job attribute\n" );
+			dprintf( D_ALWAYS, "GridftpServer::SubmitServerJob: Failed to "
+					 "unparse job attribute\n" );
 			goto error_exit;
 		} else if ( SetAttribute( cluster_id, proc_id, lhstr, rhstr ) == -1 ) {
-			dprintf( D_ALWAYS, "Failed to SetAttribute %s=%s for job %d.%d\n",
+			dprintf( D_ALWAYS, "GridftpServer::SubmitServerJob: Failed to "
+					 "SetAttribute %s=%s for job %d.%d\n",
 					 lhstr, rhstr, cluster_id, proc_id );
 			free( lhstr );
 			free( rhstr );
@@ -637,7 +646,8 @@ dprintf(D_FULLDEBUG,"    not reusing a url\n");
 	}
 
 	if ( CloseConnection() < 0 ) {
-		dprintf( D_ALWAYS, "Failed to commit job submission\n" );
+		dprintf( D_ALWAYS, "GridftpServer::SubmitServerJob: Failed to "
+				 "commit job submission\n" );
 		goto error_exit;
 	}
 
@@ -647,8 +657,8 @@ dprintf(D_FULLDEBUG,"    not reusing a url\n");
 	WriteSubmitEventToUserLog( job_ad );
 
 	if ( !dc_schedd.spoolJobFiles( 1, &job_ad, &errstack ) ) {
-		dprintf( D_ALWAYS, "Failed to stage in files: %s\n",
-				 errstack.getFullText() );
+		dprintf( D_ALWAYS, "GridftpServer::SubmitServerJob: Failed to "
+				 "stage in files: %s\n", errstack.getFullText() );
 		goto error_exit;
 	}
 
@@ -681,7 +691,8 @@ dprintf(D_FULLDEBUG, "    %s = %d\n", ATTR_STAGE_IN_FINISH, val );
 				 GetAttributeStringNew( cluster_id, proc_id,
 										ATTR_X509_USER_PROXY,
 										&m_proxyFile ) < 0 ) {
-				dprintf( D_ALWAYS, "Failed to read job attributes\n" );
+				dprintf( D_ALWAYS, "GridftpServer::SubmitServerJob: Failed "
+						 "to read job attributes\n" );
 				goto error_exit;
 			}
 dprintf(D_FULLDEBUG, "    %s = %s\n", ATTR_ULOG_FILE, m_userLog );
@@ -698,7 +709,8 @@ dprintf(D_FULLDEBUG, "    %s = %s\n", ATTR_ULOG_FILE, m_userLog );
 	m_proxyExpiration = m_proxy->expiration_time;
 
 	if ( unlink( mapfile ) < 0 ) {
-		dprintf( D_ALWAYS, "Failed to unlink %s, errno=%d\n", mapfile, errno );
+		dprintf( D_ALWAYS, "GridftpServer::SubmitServerJob: Failed to "
+				 "unlink %s, errno=%d\n", mapfile, errno );
 	}
 
 	delete job_ad;
@@ -842,18 +854,21 @@ bool GridftpServer::ReadUrlBase()
 {
 dprintf(D_FULLDEBUG,"*** ReadUrlBase()\n");
 	if ( m_requestedUrlBase ) {
-		dprintf( D_ALWAYS, "Reading URL base of job with requested port\n" );
+		dprintf( D_ALWAYS, "GridftpServer::ReadUrlBase: Reading URL base "
+				 "of job with requested port\n" );
 		return false;
 	}
 
 	if ( m_jobId.cluster <= 0 || m_outputFile == NULL ) {
-		dprintf( D_ALWAYS, "Reading URL base of unsubmitted job\n" );
+		dprintf( D_ALWAYS, "GridftpServer::ReadUrlBase: Reading URL base "
+				 "of unsubmitted job\n" );
 		return false;
 	}
 
 	FILE *out = fopen( m_outputFile, "r" );
 	if ( out == NULL ) {
-		dprintf( D_ALWAYS, "Failed to open '%s': %d\n", m_outputFile, errno );
+		dprintf( D_ALWAYS, "GridftpServer::ReadUrlBase: Failed to open "
+				 "'%s': %d\n", m_outputFile, errno );
 			// TODO should make job failed
 		return false;
 	}
@@ -876,7 +891,8 @@ int GridftpServer::CheckJobStatus()
 
 dprintf(D_FULLDEBUG,"*** CheckJobStatus\n");
 	if ( m_jobId.cluster <= 0 || m_userLog == NULL ) {
-		dprintf( D_ALWAYS, "Checking status of unsubmitted job\n" );
+		dprintf( D_ALWAYS, "GridftpServer::CheckJobStatus: Checking status "
+				 "of unsubmitted job\n" );
 		return STATUS_UNSUBMITTED;
 	}
 
@@ -885,8 +901,8 @@ dprintf(D_FULLDEBUG,"*** CheckJobStatus\n");
 	ULogEvent *event;
 
 	if ( user_log.initialize( m_userLog ) == false ) {
-		dprintf( D_ALWAYS, "Failed to initialize ReadUserLog(%s)\n",
-				 m_userLog );
+		dprintf( D_ALWAYS, "GridftpServer::CheckJobStatus: Failed to "
+				 "initialize ReadUserLog(%s)\n", m_userLog );
 		return STATUS_DONE;
 	}
 
@@ -924,14 +940,15 @@ dprintf(D_FULLDEBUG,"*** CheckJobStatus\n");
 	}
 
 	if ( rc == ULOG_RD_ERROR || rc == ULOG_UNK_ERROR ) {
-		dprintf( D_ALWAYS, "Error reading user log\n" );
+		dprintf( D_ALWAYS, "GridftpServer::CheckJobStatus: Error reading "
+				 "user log\n" );
 	}
 
 	if ( !status_known ) {
-		//dprintf( D_ALWAYS, "No status read from user log!\n" );
+		//dprintf( D_ALWAYS, "GridftpServer::ReadUrlBase: No status read from user log!\n" );
 		// TODO Shouldn't EXCEPT here, because user log can disappear
 		//   along with job
-		EXCEPT( "No status read from user log!\n" );
+		EXCEPT( "GridftpServer::CheckJobStatus: No status read from user log!\n" );
 	}
 
 	return status;
@@ -941,10 +958,11 @@ void GridftpServer::CheckProxy()
 {
 dprintf(D_FULLDEBUG,"*** CheckProxy\n");
 	if ( m_jobId.cluster <= 0 || m_proxyFile == NULL ) {
-		dprintf( D_ALWAYS, "Checking proxy of unsubmitted job\n" );
+		dprintf( D_ALWAYS, "GridftpServer::CheckProxy: Checking proxy of unsubmitted job\n" );
 		return;
 	}
 
+		// TODO Should probably use the schedd's proxy refresh call
 	if ( m_proxyExpiration < m_proxy->expiration_time ) {
 		int rc;
 		MyString tmp_file;
@@ -970,13 +988,15 @@ bool GridftpServer::CheckPortError()
 {
 dprintf(D_FULLDEBUG,"*** CheckPortError\n");
 	if ( m_jobId.cluster <= 0 || m_errorFile == NULL ) {
-		dprintf( D_ALWAYS, "Checking port-in-use error of unsubmitted job\n" );
+		dprintf( D_ALWAYS, "GridftpServer::CheckPortError: Checking "
+				 "port-in-use error of unsubmitted job\n" );
 		return false;
 	}
 
 	FILE *err = fopen( m_errorFile, "r" );
 	if ( err == NULL ) {
-		dprintf( D_ALWAYS, "Failed to open '%s': %d\n", m_errorFile, errno );
+		dprintf( D_ALWAYS, "GridftpServer::CheckPortError: Failed to "
+				 "open '%s': %d\n", m_errorFile, errno );
 		return false;
 	}
 
@@ -1031,13 +1051,15 @@ bool GridftpServer::RemoveJob()
 {
 dprintf(D_FULLDEBUG,"*** RemoveJob()\n");
 	if ( m_jobId.cluster <= 0 ) {
-		dprintf( D_ALWAYS, "Removing unsubmitted job\n" );
+		dprintf( D_ALWAYS, "GridftpServer::RemoveJob: Removing "
+				 "unsubmitted job\n" );
 		return false;
 	}
 
 	DCSchedd dc_schedd ( ScheddAddr );
 	if ( dc_schedd.error() || !dc_schedd.locate() ) {
-		dprintf( D_ALWAYS, "Can't find our schedd!?\n" );
+		dprintf( D_ALWAYS, "GridftpServer::RemoveJob: Can't find our "
+				 "schedd!?\n" );
 		return false;
 	}
 
@@ -1054,8 +1076,8 @@ dprintf(D_FULLDEBUG,"*** RemoveJob()\n");
 	result_ad = dc_schedd.removeJobs( &id_list, "by gridmanager", &errstack );
 
 	if (!result_ad) {
-		dprintf( D_ALWAYS, "Error connecting to schedd: %s",
-				 errstack.getFullText() );
+		dprintf( D_ALWAYS, "GridftpServer::RemoveJob: Error connecting "
+				 "to schedd: %s", errstack.getFullText() );
 		return false;
 	} else {
 		int result;
@@ -1063,7 +1085,8 @@ dprintf(D_FULLDEBUG,"*** RemoveJob()\n");
 		if ( result_ad->LookupInteger( job_id_buff, result ) ) {
 			switch ( result ) {
 			case AR_ERROR:
-				dprintf( D_ALWAYS, "removeJobs failed: General Error\n" );
+				dprintf( D_ALWAYS, "GridftpServer::RemoveJob: removeJobs "
+						 "failed: General Error\n" );
 				success = false;
 				break;
 			case AR_SUCCESS:
@@ -1073,23 +1096,27 @@ dprintf(D_FULLDEBUG,"*** RemoveJob()\n");
 				success = true;
 				break;
 			case AR_BAD_STATUS:
-				dprintf( D_ALWAYS, "removeJobs failed: Bad job status\n" );
+				dprintf( D_ALWAYS, "GridftpServer::RemoveJob: removeJobs "
+						 "failed: Bad job status\n" );
 				success = false;
 				break;
 			case AR_ALREADY_DONE:
 				success = true;
 				break;
 			case AR_PERMISSION_DENIED:
-				dprintf( D_ALWAYS, "removeJobs failed: Permission denied\n" );
+				dprintf( D_ALWAYS, "GridftpServer::RemoveJob: removeJobs "
+						 "failed: Permission denied\n" );
 				success = false;
 				break;
 			default:
-				dprintf( D_ALWAYS, "removeJobs failed: Unknown Result");
+				dprintf( D_ALWAYS, "GridftpServer::RemoveJob: removeJobs "
+						 "failed: Unknown Result");
 				success = false;
 			}
 
 		} else {
-			dprintf( D_ALWAYS, "removeJobs failed: Unable to get result\n" );
+			dprintf( D_ALWAYS, "GridftpServer::RemoveJob: removeJobs "
+					 "failed: Unable to get result\n" );
 			success = false;
 		}
 
