@@ -115,6 +115,8 @@ public:
 						ClassAd* reply, 
 						int timeout = -1 );
 
+	bool checkpointJob( const char* name );
+
  private:
 	char* claim_id;
 
