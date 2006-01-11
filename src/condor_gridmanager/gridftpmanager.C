@@ -39,9 +39,6 @@
  *     defined at the same time.
  */
 
-const char *ATTR_GRIDFTP_SERVER_JOB = "GridftpServerJob";
-const char *ATTR_REQUESTED_GRIDFTP_URL_BASE = "RequestedGridftpUrlBase";
-
 #define QMGMT_TIMEOUT 15
 
 #define CHECK_SERVER_INTERVAL	60

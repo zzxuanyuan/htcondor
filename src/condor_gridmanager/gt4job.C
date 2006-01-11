@@ -37,8 +37,6 @@
 #include "my_username.h"
 
 
-const char *ATTR_GRIDFTP_URL_BASE = "GridftpUrlBase";
-
 // GridManager job states
 #define GM_INIT					0
 #define GM_REGISTER				1
