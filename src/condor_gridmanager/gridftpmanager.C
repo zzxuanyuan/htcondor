@@ -45,6 +45,7 @@ const char *ATTR_REQUESTED_GRIDFTP_URL_BASE = "RequestedGridftpUrlBase";
 
 #define CHECK_SERVER_INTERVAL	60
 #define SERVER_JOB_LEASE		900
+#define SUBMIT_ATTEMPT_INTERVAL	60
 
 #define STATUS_UNSUBMITTED	1
 #define STATUS_IDLE			2
@@ -80,6 +81,7 @@ GridftpServer::GridftpServer( Proxy *proxy )
 	m_proxyFile = NULL;
 	m_proxyExpiration = 0;
 	m_errorMessage = "";
+	m_lastSubmitAttempt = 0;
 	m_checkServerTid = daemonCore->Register_Timer( 0,
 								(TimerHandlercpp)&GridftpServer::CheckServer,
 								"GridftpServer::CheckServer", (Service*)this );
@@ -349,12 +351,19 @@ dprintf(D_FULLDEBUG,"    Server empty, deleting\n");
 		CheckProxy();
 	}
 
-		// TODO if submit fails, wait some time between retries
 	if ( job_status == STATUS_UNSUBMITTED ) {
-			// If our submit was successful, come back into this funciton
-			// real soon to see if the server is working
-		if ( SubmitServerJob() ) {
-			CheckServerSoon( 1 );
+			// If we did a submit recently, wait a while before trying again
+		int now = time(NULL);
+		if ( now < m_lastSubmitAttempt + SUBMIT_ATTEMPT_INTERVAL ) {
+			CheckServerSoon( m_lastSubmitAttempt + SUBMIT_ATTEMPT_INTERNVAL
+							 - now );
+		} else {
+				// If our submit was successful, come back into this
+				// function real soon to see if the server is working
+			if ( SubmitServerJob() ) {
+				CheckServerSoon( 1 );
+			}
+			m_lastSubmitAttempt = now;
 		}
 	}
 

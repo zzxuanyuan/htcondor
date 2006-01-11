@@ -80,6 +80,7 @@ class GridftpServer : public Service
 	SimpleList<int> m_registeredClients;
 	PROC_ID m_jobId;
 	MyString m_errorMessage;
+	int m_lastSubmitAttempt;
 };
 
 #endif
