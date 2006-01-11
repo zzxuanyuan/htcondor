@@ -1,32 +1,22 @@
-% We should change this label name, but we need to ensure all references
-% to it are updated as well.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{\label{sec:Grid-Matchmaking}Matchmaking in the Grid Universe}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\index{universe!Globus}
-\index{Globus}
 \index{matchmaking!on the Grid}
 \index{grid computing!matchmaking}
 
-In it simplest usage, the grid universe allows users to specify the single
-grid site they wish to submit their job to.
-Often this is sufficient: perhaps a user knows exactly which
+In a simple usage, the grid universe allows users to specify a single
+grid site as a destination for jobs.
+This is sufficient when a user knows exactly which
 grid site they wish to use,
 or a higher-level resource broker
 (such as the European Data Grid's resource broker)
 has decided which grid site should be used.
-But when users have a variety of sites to choose from and there
-is no other resource broker to make the decision, the grid universe can use
-matchmaking to decide which grid site a job should run on. 
 
-Please note that the grid universe's matchmaking ability is relatively
-new. Work is being done to improve it and make it easier to use. For
-now, please expect some rough edges. 
-
-The grid universe uses the same matchmaking mechanism that the other
-Condor universes use: the
-\Condor{collector} and \Condor{negotiator} daemons, which are described in
-Section~\ref{sec:Condor-Daemons}. 
+When a user has a variety of grid sites to choose from,
+Condor allows matchmaking of grid universe jobs,
+to decide which grid site a job should run on. 
+Please note that this form of matchmaking is relatively new.
+There are some rough edges as continual improvement occurs.
 
 There are two differences in how matchmaking is done in the grid
 universe, versus the other universes.
@@ -40,8 +30,6 @@ The second change is to the
 submit description file.
 This file needs to specify requirements that describe what
 type of grid site can be used, instead of identifying a specific grid site.
-
-% Karen had editted to this point.
 
 In the following sections, examples are given for a GT2 grid-type job and
 resource. A couple minor changes may be required for other grid-types.
@@ -76,28 +64,21 @@ file. Here is a sample ClassAd that describes a grid site:
 
 \footnotesize
 \begin{verbatim}
-# This is a comment
-MyType                = "Machine"
-TargetType            = "Job"
-Name                  = "Example1_Gatekeeper"
-Machine               = "Example1_Gatekeeper"
-gatekeeper_url        = "grid.example.com/jobmanager"
-Requirements          = (CurMatches < 10) && (TARGET.JobUniverse == 9) && (TARGET.JobGridType =?= ``gt2'')
-Rank                  = 0.000000
-CurrentRank           = 0.000000
-WantAdRevaluate       = True
+# example submit description file for grid universe
+MyType         = "Machine"
+TargetType     = "Job"
+Name           = "Example1_Gatekeeper"
+Machine        = "Example1_Gatekeeper"
+gatekeeper_url = "grid.example.com/jobmanager"
+Requirements   = (CurMatches < 10) && (TARGET.JobUniverse == 9) && (TARGET.JobGridType =?= "gt2")
+Rank           = 0.000000
+CurrentRank    = 0.000000
+WantAdRevaluate = True
 UpdateSequenceNumber  = 4
-CurMatches            = 0
+CurMatches     = 0
 \end{verbatim}
 \normalsize
 
-Let's look at each line:
-
-\begin{verbatim}
-# This is a comment
-\end{verbatim}
-
-Your file can have comments that begin with the hash mark (\#). 
 
 \begin{verbatim}
 MyType                = "Machine"
