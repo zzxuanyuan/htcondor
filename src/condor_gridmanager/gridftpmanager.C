@@ -31,6 +31,7 @@
 #include "get_port_range.h"
 #include "basename.h"
 #include "filename_tools.h"
+#include "classad_helpers.h"
 
 #include "gridftpmanager.h"
 
@@ -61,7 +62,6 @@ int GridftpServer::m_updateLeasesTid = TIMER_UNSET;
 bool GridftpServer::m_configRead = false;
 char *GridftpServer::m_configUrlBase = NULL;
 
-ClassAd *CreateJobAd( const char *owner, int universe, const char *cmd );
 bool WriteSubmitEventToUserLog( ClassAd *job_ad );
 
 GridftpServer::GridftpServer( Proxy *proxy )
@@ -766,103 +766,6 @@ dprintf(D_FULLDEBUG, "    %s = %s\n", ATTR_ULOG_FILE, m_userLog );
 		m_proxyFile = NULL;
 	}
 	return false;
-}
-
-/* Utility function to create a generic job ad. The caller can then fill
- * in the relevant details.
- */
-ClassAd *CreateJobAd( const char *owner, int universe, const char *cmd )
-{
-	ClassAd *job_ad = new ClassAd();
-
-	job_ad->SetMyTypeName(JOB_ADTYPE);
-	job_ad->SetTargetTypeName(STARTD_ADTYPE);
-
-	job_ad->Assign( ATTR_OWNER, owner );
-	job_ad->Assign( ATTR_JOB_UNIVERSE, universe );
-	job_ad->Assign( ATTR_JOB_CMD, cmd );
-
-	job_ad->Assign( ATTR_Q_DATE, (int)time(NULL) );
-	job_ad->Assign( ATTR_COMPLETION_DATE, 0 );
-
-	job_ad->Assign( ATTR_JOB_REMOTE_WALL_CLOCK, (float)0.0 );
-	job_ad->Assign( ATTR_JOB_LOCAL_USER_CPU, (float)0.0 );
-	job_ad->Assign( ATTR_JOB_LOCAL_SYS_CPU, (float)0.0 );
-	job_ad->Assign( ATTR_JOB_REMOTE_USER_CPU, (float)0.0 );
-	job_ad->Assign( ATTR_JOB_REMOTE_SYS_CPU, (float)0.0 );
-
-		// This is a magic cookie, see how condor_submit sets it
-	job_ad->Assign( ATTR_CORE_SIZE, -1 );
-
-		// Are these ones really necessary?
-	job_ad->Assign( ATTR_JOB_EXIT_STATUS, 0 );
-	job_ad->Assign( ATTR_ON_EXIT_BY_SIGNAL, false );
-
-	job_ad->Assign( ATTR_NUM_CKPTS, 0 );
-	job_ad->Assign( ATTR_NUM_RESTARTS, 0 );
-	job_ad->Assign( ATTR_NUM_SYSTEM_HOLDS, 0 );
-	job_ad->Assign( ATTR_JOB_COMMITTED_TIME, 0 );
-	job_ad->Assign( ATTR_TOTAL_SUSPENSIONS, 0 );
-	job_ad->Assign( ATTR_LAST_SUSPENSION_TIME, 0 );
-	job_ad->Assign( ATTR_CUMULATIVE_SUSPENSION_TIME, 0 );
-
-	job_ad->Assign( ATTR_JOB_ROOT_DIR, "/" );
-
-	job_ad->Assign( ATTR_MIN_HOSTS, 1 );
-	job_ad->Assign( ATTR_MAX_HOSTS, 1 );
-	job_ad->Assign( ATTR_CURRENT_HOSTS, 0 );
-
-	job_ad->Assign( ATTR_WANT_REMOTE_SYSCALLS, false );
-	job_ad->Assign( ATTR_WANT_CHECKPOINT, false );
-	job_ad->Assign( ATTR_WANT_REMOTE_IO, true );
-
-	job_ad->Assign( ATTR_JOB_STATUS, IDLE );
-	job_ad->Assign( ATTR_ENTERED_CURRENT_STATUS, (int)time(NULL) );
-
-	job_ad->Assign( ATTR_JOB_PRIO, 0 );
-	job_ad->Assign( ATTR_NICE_USER, false );
-
-	job_ad->Assign( ATTR_JOB_ENVIRONMENT, "" );
-
-	job_ad->Assign( ATTR_JOB_NOTIFICATION, NOTIFY_NEVER );
-
-	job_ad->Assign( ATTR_KILL_SIG, "SIGTERM" );
-
-	job_ad->Assign( ATTR_IMAGE_SIZE, 0 );
-
-	job_ad->Assign( ATTR_JOB_IWD, "/tmp" );
-	job_ad->Assign( ATTR_JOB_INPUT, NULL_FILE );
-	job_ad->Assign( ATTR_JOB_OUTPUT, NULL_FILE );
-	job_ad->Assign( ATTR_JOB_ERROR, NULL_FILE );
-
-	job_ad->Assign( ATTR_TRANSFER_INPUT, false );
-//	job_ad->Assign( ATTR_TRANSFER_OUTPUT, false );
-//	job_ad->Assign( ATTR_TRANSFER_ERROR, false );
-//	job_ad->Assign( ATTR_TRANSFER_EXECUTABLE, false );
-
-	job_ad->Assign( ATTR_BUFFER_SIZE, 512*1024 );
-	job_ad->Assign( ATTR_BUFFER_BLOCK_SIZE, 32*1024 );
-
-	job_ad->Assign( ATTR_SHOULD_TRANSFER_FILES,
-					getShouldTransferFilesString( STF_YES ) );
-	job_ad->Assign( ATTR_TRANSFER_FILES, "ONEXIT" );
-	job_ad->Assign( ATTR_WHEN_TO_TRANSFER_OUTPUT,
-					getFileTransferOutputString( FTO_ON_EXIT ) );
-
-	job_ad->Assign( ATTR_REQUIREMENTS, true );
-
-	job_ad->Assign( ATTR_PERIODIC_HOLD_CHECK, false );
-	job_ad->Assign( ATTR_PERIODIC_REMOVE_CHECK, false );
-	job_ad->Assign( ATTR_PERIODIC_RELEASE_CHECK, false );
-
-	job_ad->Assign( ATTR_ON_EXIT_HOLD_CHECK, false );
-	job_ad->Assign( ATTR_ON_EXIT_REMOVE_CHECK, true );
-
-	job_ad->Assign( ATTR_JOB_ARGUMENTS, "" );
-
-	job_ad->Assign( ATTR_JOB_LEAVE_IN_QUEUE, false );
-
-	return job_ad;
 }
 
 bool GridftpServer::ReadUrlBase()
