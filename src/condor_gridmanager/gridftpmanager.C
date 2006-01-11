@@ -30,6 +30,7 @@
 #include "env.h"
 #include "get_port_range.h"
 #include "basename.h"
+#include "filename_tools.h"
 
 #include "gridftpmanager.h"
 
@@ -355,7 +356,7 @@ dprintf(D_FULLDEBUG,"    Server empty, deleting\n");
 			// If we did a submit recently, wait a while before trying again
 		int now = time(NULL);
 		if ( now < m_lastSubmitAttempt + SUBMIT_ATTEMPT_INTERVAL ) {
-			CheckServerSoon( m_lastSubmitAttempt + SUBMIT_ATTEMPT_INTERNVAL
+			CheckServerSoon( m_lastSubmitAttempt + SUBMIT_ATTEMPT_INTERVAL
 							 - now );
 		} else {
 				// If our submit was successful, come back into this
@@ -579,20 +580,28 @@ bool GridftpServer::SubmitServerJob()
 	delete [] job_env;
 		// TODO what about LD_LIBRARY_PATH?
 
-		// TODO do better URL parsing and don't crash on malformed URLs
 	if ( m_requestedUrlBase ) {
-		MyString buff;
-		int port;
-		const char *ptr = strrchr( m_requestedUrlBase, ':' );
-		ASSERT( ptr );
-		port = atoi( ptr+1 );
-		if ( port == 0 ) {
-			port = 2811;
-		}
-		buff.sprintf( "-p %d", port );
-		job_ad->Assign( ATTR_JOB_ARGUMENTS, buff.Value() );
+		char url_scheme[_POSIX_PATH_MAX];
+		char url_host[_POSIX_PATH_MAX];
+		char url_path[_POSIX_PATH_MAX];
+		int url_port;
+		filename_url_parse( m_requestedUrlBase, url_scheme, url_host,
+							&url_port, url_path );
+		if ( strcasecmp( "gsiftp", url_scheme ) ) {
+				// The requested URL base is malformed, discard it
+			free( m_requestedUrlBase );
+			m_requestedUrlBase = NULL;
+		} else {
+			if ( url_port == -1 ) {
+				url_port = 2811;
+			}
+			MyString buff;
+			buff.sprintf( "-p %d", url_port );
+			job_ad->Assign( ATTR_JOB_ARGUMENTS, buff.Value() );
 
-		job_ad->Assign( ATTR_REQUESTED_GRIDFTP_URL_BASE, m_requestedUrlBase );
+			job_ad->Assign( ATTR_REQUESTED_GRIDFTP_URL_BASE,
+							m_requestedUrlBase );
+		}
 	}
 
 	job_ad->Assign( ATTR_GRIDFTP_SERVER_JOB, true );
