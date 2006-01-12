@@ -387,6 +387,19 @@ JICLocalSchedd::notifyJobExit( int exit_status, int reason,
 				up_type = U_EVICT;
 				break;
 			// ---------------------------------
+			// JOB_MISSED_DEFERRAL_TIME:
+			// ---------------------------------
+			case JOB_MISSED_DEFERRAL_TIME:
+					//
+					// For now the job is just removed
+					//
+				up_type = U_REMOVE;
+					//
+					// Set the exit code to be the deferral exit code
+					//
+				exit_code = JOB_MISSED_DEFERRAL_TIME;
+				break;
+			// ---------------------------------
 			// JOB_KILLED
 			// ---------------------------------
 			case JOB_KILLED:
