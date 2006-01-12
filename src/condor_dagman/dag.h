@@ -39,7 +39,7 @@
 // the name of the attr we insert in job ads, recording DAGMan's job id
 extern const char* DAGManJobIdAttrName;
 
-// NOTE: must be kept in sync with _job_type_t
+// NOTE: must be kept in sync with Job::job_type_t
 enum Log_source{
   CONDORLOG,
   DAPLOG
@@ -125,16 +125,16 @@ class Dag {
     /** Force the Dag to process all new events in the condor log file.
         This may cause the state of some jobs to change.
 
+		@param logsource The type of log from which events should be read.
         @param recover Process Log in Recover Mode, from beginning to end
         @return true on success, false on failure
     */
-    //    bool ProcessLogEvents (bool recover = false);
-
     bool ProcessLogEvents (int logsource, bool recovery = false); //<--DAP
 
 	/** Process a single event.  Note that this is called every time
 			we attempt to read the user log, so we may or may not have
 			a valid event here.
+		@param The type of log which is the source of the event.
 		@param The outcome from the attempt to read the user log.
 	    @param The event.
 		@param Whether we're in recovery mode.
@@ -142,7 +142,7 @@ class Dag {
 			function).
 		@return True if the DAG should continue, false if we should abort.
 	*/
-	bool ProcessOneEvent (ULogEventOutcome outcome, const ULogEvent *event,
+	bool ProcessOneEvent (int logsource, ULogEventOutcome outcome, const ULogEvent *event,
 			bool recovery, bool &done);
 
 	/** Process an abort or executable error event.
@@ -209,10 +209,11 @@ class Dag {
     Job * GetJob (const char * jobName) const;
 
     /** Get pointer to job with condor ID condorID
+		@param logsource The type of log from which events should be read.
         @param condorID the CondorID of the job in the DAG
         @return address of Job object, or NULL if not found
     */
-    Job * GetJob (const CondorID condorID) const;
+    Job * GetJob (int logsource, const CondorID condorID) const;
 
     /** Ask whether a node name exists in the DAG
         @param nodeName the name of the node in the DAG
@@ -408,12 +409,13 @@ class Dag {
 	static void CheckForDagAbort(Job *job, int exitVal, const char *type);
 
 		// takes a userlog event and returns the corresponding node
-	Job* LogEventNodeLookup( const ULogEvent* event, bool recovery );
+	Job* LogEventNodeLookup( int logsource, const ULogEvent* event,
+				bool recovery );
 
 		// check whether a userlog event is sane, or "impossible"
 
-	bool EventSanityCheck( const ULogEvent* event, const Job* node,
-						   bool* result );
+	bool EventSanityCheck( int logsource, const ULogEvent* event,
+						const Job* node, bool* result );
 
 		// compares a submit event's job ID with the one that appeared
 		// earlier in the submit command's stdout (which we stashed in
@@ -520,7 +522,10 @@ class Dag {
 	void DumpDotFileArcs(FILE *temp_dot_file);
 	void ChooseDotFileName(MyString &dot_file_name);
 
-	CheckEvents	_checkEvents;
+		// Separate event checkers for Condor and Stork here because
+		// IDs could collide.
+	CheckEvents	_checkCondorEvents;
+	CheckEvents	_checkStorkEvents;
 
 		// The next time we're allowed to try submitting a job -- 0 means
 		// go ahead and submit right away.

@@ -71,7 +71,8 @@ Dag::Dag( /* const */ StringList &dagFiles, char *condorLogName,
 	_allowLogError		  (allowLogError),
 	_preRunNodeCount	  (0),
 	_postRunNodeCount	  (0),
-	_checkEvents          (allow_events)
+	_checkCondorEvents    (allow_events),
+	_checkStorkEvents     (allow_events)
 {
 	ASSERT( dagFiles.number() >= 1 );
 
@@ -363,7 +364,7 @@ bool Dag::ProcessLogEvents (int logsource, bool recovery) {
 		}
 
 		//TEMP -- probably need to pass into here whether this is Condor or Stork
-		bool tmpResult = ProcessOneEvent( outcome, e, recovery,
+		bool tmpResult = ProcessOneEvent( logsource, outcome, e, recovery,
 					done );
 			// If ProcessOneEvent returns false, the result here must
 			// be false.
@@ -387,8 +388,8 @@ bool Dag::ProcessLogEvents (int logsource, bool recovery) {
 
 //---------------------------------------------------------------------------
 // Developer's Note: returning false tells main_timer to abort the DAG
-bool Dag::ProcessOneEvent (ULogEventOutcome outcome, const ULogEvent *event,
-		bool recovery, bool &done) {
+bool Dag::ProcessOneEvent (int logsource, ULogEventOutcome outcome,
+		const ULogEvent *event, bool recovery, bool &done) {
 
 	bool result = true;
 
@@ -442,13 +443,13 @@ bool Dag::ProcessOneEvent (ULogEventOutcome outcome, const ULogEvent *event,
 	case ULOG_OK:
 		{
 			ASSERT( event != NULL );
-			Job *job = LogEventNodeLookup( event, recovery );
+			Job *job = LogEventNodeLookup( logsource, event, recovery );
 			PrintEvent( DEBUG_VERBOSE, event, job );
 			if( !job ) {
 					// event is for a job outside this DAG; ignore it
 				break;
 			}
-			if( !EventSanityCheck( event, job, &result ) ) {
+			if( !EventSanityCheck( logsource, event, job, &result ) ) {
 					// this event is "impossible"; we will either
 					// abort the DAG (if result was set to false) or
 					// ignore it and hope for the best...
@@ -900,13 +901,16 @@ Dag::NodeExists( const char* nodeName ) const
 
 
 //---------------------------------------------------------------------------
-Job * Dag::GetJob (const CondorID condorID) const {
+Job * Dag::GetJob (int logsource, const CondorID condorID) const {
 	if ( condorID == CondorID(-1, -1, -1) ) {
 		return NULL;
 	}
     ListIterator<Job> iList (_jobs);
     Job * job;
-    while ((job = iList.Next())) if (job->_CondorID == condorID) return job;
+    while ((job = iList.Next())) {
+		if (job->_CondorID == condorID &&
+					logsource == job->JobType()) return job;
+	}
     return NULL;
 }
 
@@ -1311,6 +1315,11 @@ Dag::PostScriptReaper( const char* nodeName, int status )
 		e.returnValue = WEXITSTATUS( status );
 	}
 
+		// Note: after 6.7.15 is released, we'll be disabling the old-style
+		// Stork logs, so we should probably go ahead and write the POST
+		// script terminated events for Stork jobs here (although that
+		// could cause some backwards-compatibility problems).  wenger
+		// 2006-01-12.
 	if ( job->JobType() == Job::TYPE_STORK ) {
 			// Kludgey fix for Gnats PR 554 -- we are bypassing the whole
 			// writing of the ULOG_POST_SCRIPT_TERMINATED event because
@@ -1936,17 +1945,31 @@ Dag::DumpDotFile(void)
 void
 Dag::CheckAllJobs()
 {
+	CheckEvents::check_event_result_t result;
 	MyString	jobError;
-	if ( _checkEvents.CheckAllJobs(jobError) == CheckEvents::EVENT_ERROR ) {
-		debug_printf( DEBUG_VERBOSE, "Error checking job events: %s\n",
+
+	result = _checkCondorEvents.CheckAllJobs(jobError);
+	if ( result == CheckEvents::EVENT_ERROR ) {
+		debug_printf( DEBUG_VERBOSE, "Error checking Condor job events: %s\n",
 				jobError.Value() );
 		ASSERT( false );
-	} else if ( _checkEvents.CheckAllJobs(jobError) ==
-				CheckEvents::EVENT_BAD_EVENT ) {
-		debug_printf( DEBUG_VERBOSE, "Warning checking job events: %s\n",
+	} else if ( result == CheckEvents::EVENT_BAD_EVENT ) {
+		debug_printf( DEBUG_VERBOSE, "Warning checking Condor job events: %s\n",
 				jobError.Value() );
 	} else {
-		debug_printf( DEBUG_DEBUG_1, "All job events okay\n");
+		debug_printf( DEBUG_DEBUG_1, "All Condor job events okay\n");
+	}
+
+	result = _checkStorkEvents.CheckAllJobs(jobError);
+	if ( result == CheckEvents::EVENT_ERROR ) {
+		debug_printf( DEBUG_VERBOSE, "Error checking Stork job events: %s\n",
+				jobError.Value() );
+		ASSERT( false );
+	} else if ( result == CheckEvents::EVENT_BAD_EVENT ) {
+		debug_printf( DEBUG_VERBOSE, "Warning checking Stork job events: %s\n",
+				jobError.Value() );
+	} else {
+		debug_printf( DEBUG_DEBUG_1, "All Stork job events okay\n");
 	}
 }
 
@@ -2276,18 +2299,19 @@ Dag::RemoveDependency( Job *parent, Job *child, MyString &whynot )
 
 
 Job*
-Dag::LogEventNodeLookup( const ULogEvent* event, bool recovery )
+Dag::LogEventNodeLookup( int logsource, const ULogEvent* event,
+			bool recovery )
 {
 	ASSERT( event );
 	Job *node = NULL;
 	CondorID condorID( event->cluster, event->proc, event->subproc );
 
-		// if this is a job those submit event we've already seen, we
+		// if this is a job whose submit event we've already seen, we
 		// can simply use the job ID to look up the corresponding DAG
 		// node, and we're done...
 
 	if( event->eventNumber != ULOG_SUBMIT ) {
-	  node = GetJob( condorID );
+	  node = GetJob( logsource, condorID );
 	  if( node ) {
 	    return node;
 	  }
@@ -2356,14 +2380,20 @@ Dag::LogEventNodeLookup( const ULogEvent* event, bool recovery )
 // (additionally sets *result=false if DAG should be aborted)
 
 bool
-Dag::EventSanityCheck( const ULogEvent* event, const Job* node, bool* result )
+Dag::EventSanityCheck( int logsource, const ULogEvent* event,
+			const Job* node, bool* result )
 {
 	ASSERT( event );
 	ASSERT( node );
 
 	MyString eventError;
-	CheckEvents::check_event_result_t checkResult =
-		_checkEvents.CheckAnEvent( event, eventError );
+	CheckEvents::check_event_result_t checkResult;
+
+	if ( logsource == CONDORLOG ) {
+		checkResult = _checkCondorEvents.CheckAnEvent( event, eventError );
+	} else if ( logsource == DAPLOG ) {
+		checkResult = _checkStorkEvents.CheckAnEvent( event, eventError );
+	}
 
 	if( checkResult == CheckEvents::EVENT_OKAY ) {
 		debug_printf( DEBUG_DEBUG_1, "Event is okay\n" );
