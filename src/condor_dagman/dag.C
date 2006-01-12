@@ -62,7 +62,6 @@ Dag::Dag( /* const */ StringList &dagFiles, char *condorLogName,
     _condorLogInitialized (false),
     _dapLogName           (NULL),
     _dapLogInitialized    (false),             //<--DAP
-    _dapLogSize           (0),                 //<--DAP
     _numJobsDone          (0),
     _numJobsFailed        (0),
     _numJobsSubmitted     (0),
@@ -88,7 +87,7 @@ Dag::Dag( /* const */ StringList &dagFiles, char *condorLogName,
 
 	FindLogFiles( dagFiles, useDagDir );
 
-	ASSERT( _condorLogFiles.number() > 0 || _dapLogName );
+	ASSERT( TotalLogFileCount() > 0 ) ;
 
  	_readyQ = new SimpleList<Job*>;
 	_preScriptQ = new ScriptQ( this );
@@ -180,18 +179,9 @@ Dag::InitializeDagFiles( char *lockFileName, bool deleteOldLogs )
 				  "Deleting any older versions of log files...\n" );
 
 	MultiLogFiles::DeleteLogs( _condorLogFiles );
-
-	if ( access( _dapLogName, F_OK) == 0 ) {
-		debug_printf( DEBUG_VERBOSE, "Deleting older version of %s\n",
-				_dapLogName);
-		if ( remove (_dapLogName) == -1 ) {
-			debug_error( 1, DEBUG_QUIET, "Error: can't remove %s\n",
-					_dapLogName );
-		}
-	}
+	MultiLogFiles::DeleteLogs( _storkLogFiles );
 
 	if ( _condorLogName != NULL ) touch (_condorLogName);  //<-- DAP
-	if ( _dapLogName != NULL ) touch (_dapLogName);
 	}
 	touch (lockFileName);
 }
@@ -223,7 +213,7 @@ bool Dag::Bootstrap (bool recovery) {
 				return false;
 			}
 		}
-		if( _dapLogName ) {
+		if( _storkLogFiles.number() > 0 ) {
 			if( !ProcessLogEvents( DAPLOG, recovery ) ) {
 				_recovery = false;
 				return false;
@@ -320,38 +310,25 @@ Dag::DetectCondorLogGrowth () {
 
 //-------------------------------------------------------------------------
 bool Dag::DetectDaPLogGrowth () {
-	if( !_dapLogName ) {
+	if( _storkLogFiles.number() <= 0 ) {
 		debug_printf( DEBUG_DEBUG_1, "WARNING: DetectDaPLogGrowth() called "
-					  "but no dap log defined\n" );
+					  "but no Stork log defined\n" );
 		return false;
 	}
-	if( !_dapLogInitialized ) {
-		_dapLogInitialized = _dapLog.initialize( _dapLogName );
+
+    if (!_dapLogInitialized) {
+		_dapLogInitialized = _storkLogRdr.initialize( _storkLogFiles );
 		if( !_dapLogInitialized ) {
 				// this can be normal before we've actually submitted
 				// any jobs and the log doesn't yet exist, but is
 				// likely a problem if it persists...
 			debug_printf( DEBUG_VERBOSE, "ERROR: failed to initialize Stork "
-						  "job log (%s) -- ignore unless error repeats\n",
-						  _dapLogName );
+						  "job log -- ignore unless error repeats\n");
 			return false;
 		}
-	}
-
-    int fd = _dapLog.getfd();
-    ASSERT( fd );
-    struct stat buf;
-    
-    if( fstat( fd, &buf ) == -1 ) {
-		debug_printf( DEBUG_QUIET, "ERROR: can't stat Stork log (%s): %s\n",
-					  _dapLogName, strerror (errno ) );
-		return false;
     }
-    
-    int oldSize = _dapLogSize;
-    _dapLogSize = buf.st_size;
-    
-    bool growth = (buf.st_size > oldSize);
+
+	bool growth = _storkLogRdr.detectLogGrowth();
     debug_printf( DEBUG_DEBUG_4, "%s\n",
 				  growth ? "Log GREW!" : "No log growth..." );
     return growth;
@@ -367,7 +344,7 @@ bool Dag::ProcessLogEvents (int logsource, bool recovery) {
 		}
 	} else if ( logsource == DAPLOG ) {
 		if ( !_dapLogInitialized ) {
-			_dapLogInitialized = _dapLog.initialize(_dapLogName);
+			_dapLogInitialized = _storkLogRdr.initialize(_storkLogFiles);
 		}
 	}
 
@@ -382,9 +359,10 @@ bool Dag::ProcessLogEvents (int logsource, bool recovery) {
 		if ( logsource == CONDORLOG ) {
 			outcome = _condorLogRdr.readEvent(e);
 		} else if ( logsource == DAPLOG ){
-			outcome = _dapLog.readEvent(e);
+			outcome = _storkLogRdr.readEvent(e);
 		}
 
+		//TEMP -- probably need to pass into here whether this is Condor or Stork
 		bool tmpResult = ProcessOneEvent( outcome, e, recovery,
 					done );
 			// If ProcessOneEvent returns false, the result here must
@@ -822,7 +800,7 @@ Dag::ProcessSubmitEvent(const ULogEvent *event, Job *job, bool recovery) {
 		// any order, so we can't sanity-check
 		// in this way
 
-	if ( _condorLogFiles.number() == 1 ) {
+	if ( TotalLogFileCount() == 1 ) {
 
 			// as a sanity check, compare the job from the
 			// submit event to the job we expected to see from
@@ -952,8 +930,14 @@ Dag::PrintDagFiles( /* const */ StringList &dagFiles )
 void
 Dag::FindLogFiles( /* const */ StringList &dagFiles, bool useDagDir )
 {
+
+	if ( _dapLogName ) {
+		_storkLogFiles.append( _dapLogName );
+	}
+
 	MyString	msg;
-	if ( !GetLogFiles( dagFiles, useDagDir, _condorLogFiles, msg ) ) {
+	if ( !GetLogFiles( dagFiles, useDagDir, _condorLogFiles, _storkLogFiles,
+				msg ) ) {
 		debug_printf( DEBUG_VERBOSE,
 				"Possible error when parsing DAG: %s ...\n", msg.Value());
 		if ( _allowLogError ) {
@@ -968,13 +952,6 @@ Dag::FindLogFiles( /* const */ StringList &dagFiles, bool useDagDir )
 		}
 	}
 	
-		// The "&& !_dapLogName" check below is kind of a kludgey fix to allow
-		// DaP jobs that have no "regular" Condor jobs to run.  Kent Wenger
-		// (wenger@cs.wisc.edu) 2003-09-05.
-	if ( (_condorLogFiles.number() == 0) && !_dapLogName ) {
-		_condorLogFiles.append( _condorLogName );
-	}
-
 	debug_printf( DEBUG_VERBOSE, "All DAG node user log files:\n");
 	if ( _condorLogFiles.number() > 0 ) {
 		_condorLogFiles.rewind();
@@ -984,8 +961,12 @@ Dag::FindLogFiles( /* const */ StringList &dagFiles, bool useDagDir )
 		}
 	}
 
-	if( _dapLogName ) {
-		debug_printf( DEBUG_VERBOSE, "  %s (Stork)\n", _dapLogName );
+	if ( _storkLogFiles.number() > 0 ) {
+		_storkLogFiles.rewind();
+		const char *logfile;
+		while( (logfile = _storkLogFiles.next()) ) {
+			debug_printf( DEBUG_VERBOSE, "  %s (Stork)\n", logfile );
+		}
 	}
 }
 
@@ -1064,7 +1045,7 @@ Dag::SubmitReadyJobs(const Dagman &dm)
 	ASSERT( job->GetStatus() == Job::STATUS_READY );
 
 	if( job->NumParents() > 0 && dm.submit_delay == 0 &&
-				_condorLogFiles.number() > 1 ) {
+				TotalLogFileCount() > 1 ) {
 			// if we don't already have a submit_delay, sleep for one
 			// second here, so we can be sure that this job's submit
 			// event will be unambiguously later than the termination

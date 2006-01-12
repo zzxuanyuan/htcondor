@@ -349,11 +349,10 @@ class Dag {
 
 	int NumIdleNodes() { return _numIdleNodes; }
 
-		/** Get the name of the Stork (nee DaP) log file.
-			@return The name of the log file, or NULL if no Stork log
-			        file was specified.
+		/** Get the number of Stork (nee DaP) log files.
+			@return The number of Stork log files (can be 0).
 		*/
-	const char *GetDapLog() { return _dapLogName; }
+	int GetStorkLogCount() { return _storkLogFiles.number(); }
 
 	
   protected:
@@ -437,11 +436,28 @@ class Dag {
     bool          _condorLogInitialized;
 
     //-->DAP
+		// The log file name specified by the -Storklog command line
+		// argument.
     const char* _dapLogName;
-    ReadUserLog   _dapLog;
+
+		// The list of all Stork log files (generated from the relevant
+		// submit files).
+	StringList	_storkLogFiles;
+
+		// Object to read events from Stork logs.
+	ReadMultipleUserLogs	_storkLogRdr;
+
+		// Whether the Stork (nee DaP) log(s) have been successfully
+		// initialized.
     bool          _dapLogInitialized;
-    off_t         _dapLogSize;
     //<--DAP
+
+		/** Get the total number of node job user log files we'll be
+			accessing.
+			@return The total number of log files.
+		*/
+	int TotalLogFileCount() { return _condorLogFiles.number() +
+				_storkLogFiles.number(); }
 
     /// List of Job objects
     List<Job>     _jobs;
