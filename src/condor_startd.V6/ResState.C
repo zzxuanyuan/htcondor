@@ -634,13 +634,23 @@ ResState::dprintf( int flags, char* fmt, ... )
 void
 ResState::set_destination( State new_state )
 {
-	r_destination = new_state;
 
-	switch( r_destination ) {
+	switch( new_state ) {
 	case delete_state:
 	case owner_state:
+			// these 2 are always valid, nothing special to check
+		break;
+
 	case matched_state:
-			// these 3 are currently valid
+			// we don't want to set our destination to matched if our
+			// destination is already set to something
+			// else... otherwise, we'll allow it.
+		if( r_destination != no_state ) {
+			dprintf( D_ALWAYS, "Not setting destination state to Matched "
+					 "since destination already set to %s\n",
+					 state_to_string(r_destination) ); 
+			return;
+		}
 		break;
 
 	case claimed_state:
@@ -657,6 +667,7 @@ ResState::set_destination( State new_state )
 				state_to_string(r_destination) );
 	}
 
+	r_destination = new_state;
 	dprintf( D_FULLDEBUG, "Set destination state to %s\n", 
 			 state_to_string(new_state) );
 
