@@ -1154,14 +1154,24 @@ match_info( Resource* rip, char* id )
 		if( rip->r_cur->idMatches(id) ) {
 			rip->dprintf( D_ALWAYS, "Received match %s\n", id );
 
+			if( rip->destination_state() != no_state ) {
+					// we've already got a destination state.
+					// therefore, we don't want to act on this match
+					// notification, we want to allow our destination
+					// logic to run its course and just return.
+				dprintf( D_ALWAYS, "Got match while destination state "
+						 "set to %s, ignoring\n",
+						 state_to_string(rip->destination_state()) );
+				return TRUE;
+			}
+
 				// Start a timer to prevent staying in matched state
 				// too long. 
 			rip->r_cur->start_match_timer();
 
-				// Entering matched state sets our reqexp to unavail
-				// and updates CM.
-			rip->dprintf( D_FAILURE|D_ALWAYS, 
-						  "State change: match notification protocol successful\n" );
+			rip->dprintf( D_FAILURE|D_ALWAYS, "State change: "
+						  "match notification protocol successful\n" );
+
 #if HAVE_BACKFILL
 			if( rip->state() == backfill_state ) {
 					// if we're currently in backfill, we can't go
@@ -1172,6 +1182,8 @@ match_info( Resource* rip, char* id )
 			}
 #endif /* HAVE_BACKFILL */
 
+				// Entering matched state sets our reqexp to unavail
+				// and updates CM.
 			rip->change_state( matched_state );
 			rval = TRUE;
 		} else {
