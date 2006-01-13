@@ -1179,10 +1179,10 @@ Resource::eval_start_backfill( void )
 
 
 int
-Resource::eval_kill_backfill( void )
+Resource::eval_evict_backfill( void )
 {
 		// return -1 on undefined (not fatal), don't check vanilla
-	return eval_expr( "KILL_BACKFILL", false, false );
+	return eval_expr( "EVICT_BACKFILL", false, false );
 }
 
 

@@ -347,9 +347,9 @@ ResState::eval( void )
 			dprintf( D_ALWAYS, "State change: BackfillMgr deleted\n" );
 			return change( backfill_state, killing_act );
 		}
-		kill_rval = rip->eval_kill_backfill(); 
+		kill_rval = rip->eval_evict_backfill(); 
 		if( kill_rval > 0 ) {
-			dprintf( D_ALWAYS, "State change: KILL_BACKFILL is TRUE\n" );
+			dprintf( D_ALWAYS, "State change: EVICT_BACKFILL is TRUE\n" );
 				// we can change into Backfill/Killing then set our
 				// destination, since set_dest() won't take any
 				// additional action if we're already in killing_act
@@ -357,7 +357,7 @@ ResState::eval( void )
 			set_destination( owner_state );
 			return TRUE;
 		} else if( kill_rval < 0 ) {
-			dprintf( D_ALWAYS, "WARNING: KILL_BACKFILL is UNDEFINED, "
+			dprintf( D_ALWAYS, "WARNING: EVICT_BACKFILL is UNDEFINED, "
 					 "staying in Backfill state\n" );
 		}
 		break;
