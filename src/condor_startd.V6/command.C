@@ -335,13 +335,19 @@ command_name_handler( Service*, int cmd, Stream* stream )
 	State s = rip->state();
 	switch( cmd ) {
 	case VACATE_CLAIM:
-		if( (s == claimed_state) || (s == matched_state) ) {
+		switch( s ) {
+		case claimed_state:
+		case matched_state:
+		case backfill_state:
 			rip->dprintf( D_ALWAYS, 
 						  "State change: received VACATE_CLAIM command\n" );
 			return rip->retire_claim();
-		} else {
+			break;
+
+		default:
 			rip->log_ignore( cmd, s );
 			return FALSE;
+			break;
 		}
 		break;
 	case VACATE_CLAIM_FAST:
@@ -349,6 +355,7 @@ command_name_handler( Service*, int cmd, Stream* stream )
 		case claimed_state:
 		case matched_state:
 		case preempting_state:
+		case backfill_state:
 			rip->dprintf( D_ALWAYS, 
 						  "State change: received VACATE_CLAIM_FAST command\n" );
 			return rip->kill_claim();
