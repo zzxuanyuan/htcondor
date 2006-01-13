@@ -32,6 +32,7 @@
 #include "basename.h"
 #include "filename_tools.h"
 #include "classad_helpers.h"
+#include "directory.h"
 
 #include "gridftpmanager.h"
 
@@ -190,6 +191,11 @@ const char *GridftpServer::GetErrorMessage()
 	} else {
 		return m_errorMessage.Value();
 	}
+}
+
+bool GridftpServer::UseSelfCred()
+{
+	return m_configUrlBase == NULL;
 }
 
 int GridftpServer::UpdateLeases()
@@ -477,7 +483,8 @@ dprintf(D_FULLDEBUG,"    Linked job %d.%d to proxy '%s'\n",server->m_jobId.clust
 
 bool GridftpServer::SubmitServerJob()
 {
-	char *cmd;
+	char *server_path = NULL;
+	char *wrapper_path = NULL;
 	ClassAd *job_ad = NULL;
 	char mapfile[1024] = "";
 	FILE *mapfile_fp = NULL;
@@ -505,15 +512,37 @@ bool GridftpServer::SubmitServerJob()
 		return false;
 	}
 
-	cmd = param( "GRIDFTP_SERVER" );
-	if ( !cmd ) {
+	server_path = param( "GRIDFTP_SERVER" );
+	if ( !server_path ) {
 		dprintf( D_ALWAYS, "GridftpServer::SubmitServerJob: No gridftp "
 				 "server configured\n" );
 		m_errorMessage.sprintf( "No gridftp server configured" );
 		return false;
+	} else {
+		StatInfo si( server_path );
+		if ( si.Error() || !si.IsExecutable() ) {
+			dprintf( D_ALWAYS, "GridftpServer::SubmitServerJob: "
+					 "GRIDFTP_SERVER file %s is invalid\n",
+					 server_path );
+			m_errorMessage.sprintf( "GRIDFTP_SERVER file is invalid" );
+			goto error_exit;
+		}
 	}
-	job_ad = CreateJobAd( Owner, CONDOR_UNIVERSE_SCHEDULER, cmd );
-	free( cmd );
+
+	wrapper_path = param( "GRIDFTP_SERVER_WRAPPER" );
+	if ( wrapper_path ) {
+		StatInfo si( wrapper_path );
+		if ( si.Error() || !si.IsExecutable() ) {
+			dprintf( D_ALWAYS, "GridftpServer::SubmitServerJob: "
+					 "GRIDFTP_SERVER_WRAPPER file %s is invalid\n",
+					 server_path );
+			m_errorMessage.sprintf( "GRIDFTP_SERVER_WRAPPER file is invalid" );
+			goto error_exit;
+		}
+	}
+
+	job_ad = CreateJobAd( Owner, CONDOR_UNIVERSE_SCHEDULER,
+						  wrapper_path ? wrapper_path : server_path );
 
 	job_ad->Assign( ATTR_JOB_STATUS, HELD );
 	job_ad->Assign( ATTR_HOLD_REASON, "Spooling input data files" );
@@ -577,6 +606,12 @@ bool GridftpServer::SubmitServerJob()
 	delete [] job_env;
 		// TODO what about LD_LIBRARY_PATH?
 
+		// Set up the arguments to the job
+	buff = "";
+	if ( wrapper_path ) {
+		buff.sprintf( "%s ", server_path );
+	}
+
 	if ( m_requestedUrlBase ) {
 		char url_scheme[_POSIX_PATH_MAX];
 		char url_host[_POSIX_PATH_MAX];
@@ -593,12 +628,16 @@ bool GridftpServer::SubmitServerJob()
 				url_port = 2811;
 			}
 			MyString buff;
-			buff.sprintf( "-p %d", url_port );
-			job_ad->Assign( ATTR_JOB_ARGUMENTS, buff.Value() );
+			buff.sprintf_cat( "-p %d ", url_port );
 
 			job_ad->Assign( ATTR_REQUESTED_GRIDFTP_URL_BASE,
 							m_requestedUrlBase );
 		}
+	}
+
+	if ( !buff.IsEmpty() ) {
+		buff.trim();
+		job_ad->Assign( ATTR_JOB_ARGUMENTS, buff.Value() );
 	}
 
 	job_ad->Assign( ATTR_GRIDFTP_SERVER_JOB, true );
@@ -734,6 +773,8 @@ dprintf(D_FULLDEBUG, "    %s = %s\n", ATTR_ULOG_FILE, m_userLog );
 	return true;
 
  error_exit:
+	free( server_path );
+	free( wrapper_path );
 	if ( userlog.Length() > 0 ) {
 		unlink( userlog.Value() );
 	}
@@ -809,8 +850,8 @@ int GridftpServer::CheckJobStatus()
 
 dprintf(D_FULLDEBUG,"*** CheckJobStatus\n");
 	if ( m_jobId.cluster <= 0 || m_userLog == NULL ) {
-		dprintf( D_ALWAYS, "GridftpServer::CheckJobStatus: Checking status "
-				 "of unsubmitted job\n" );
+//		dprintf( D_ALWAYS, "GridftpServer::CheckJobStatus: Checking status "
+//				 "of unsubmitted job\n" );
 		return STATUS_UNSUBMITTED;
 	}
 

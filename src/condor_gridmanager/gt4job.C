@@ -327,6 +327,8 @@ GT4Job::GT4Job( ClassAd *classad )
 
 	// In GM_HOLD, we assme HoldReason to be set only if we set it, so make
 	// sure it's unset when we start.
+	// TODO This is bad. The job may already be on hold with a valid hold
+	//   reason, and here we'll clear it out (and propogate to the schedd).
 	if ( jobAd->LookupString( ATTR_HOLD_REASON, NULL, 0 ) != 0 ) {
 		jobAd->AssignExpr( ATTR_HOLD_REASON, "Undefined" );
 	}
@@ -1830,10 +1832,12 @@ MyString *GT4Job::buildSubmitRSL()
 				*rsl += printXMLParam( "sourceUrl", buff.Value() );
 				buff.sprintf( "file://%s", riwd_parent.Value() );
 				*rsl += printXMLParam( "destinationUrl", buff.Value());
-				*rsl += "<rftOptions>";
-				*rsl += printXMLParam( "sourceSubjectName",
-									   jobProxy->subject->subject_name );
-				*rsl += "</rftOptions>";
+				if ( gridftpServer->UseSelfCred() ) {
+					*rsl += "<rftOptions>";
+					*rsl += printXMLParam( "sourceSubjectName",
+										   jobProxy->subject->subject_name );
+					*rsl += "</rftOptions>";
+				}
 				*rsl += "</transfer>";
 			}
 			*rsl += "<transfer>";
@@ -1842,10 +1846,12 @@ MyString *GT4Job::buildSubmitRSL()
 			*rsl += printXMLParam( "sourceUrl", buff.Value() );
 			buff.sprintf( "file://%s", remote_iwd.Value() );
 			*rsl += printXMLParam( "destinationUrl", buff.Value());
-			*rsl += "<rftOptions>";
-			*rsl += printXMLParam( "sourceSubjectName",
-								   jobProxy->subject->subject_name );
-			*rsl += "</rftOptions>";
+			if ( gridftpServer->UseSelfCred() ) {
+				*rsl += "<rftOptions>";
+				*rsl += printXMLParam( "sourceSubjectName",
+									   jobProxy->subject->subject_name );
+				*rsl += "</rftOptions>";
+			}
 			*rsl += "</transfer>";
 		}
 
@@ -1857,10 +1863,12 @@ MyString *GT4Job::buildSubmitRSL()
 			*rsl += printXMLParam( "sourceUrl", buff.Value() );
 			buff.sprintf( "file://%s", remote_executable.Value() );
 			*rsl += printXMLParam( "destinationUrl", buff.Value());
-			*rsl += "<rftOptions>";
-			*rsl += printXMLParam( "sourceSubjectName",
-								   jobProxy->subject->subject_name );
-			*rsl += "</rftOptions>";
+			if ( gridftpServer->UseSelfCred() ) {
+				*rsl += "<rftOptions>";
+				*rsl += printXMLParam( "sourceSubjectName",
+									   jobProxy->subject->subject_name );
+				*rsl += "</rftOptions>";
+			}
 			*rsl += "</transfer>";
 		}
 
@@ -1882,10 +1890,12 @@ MyString *GT4Job::buildSubmitRSL()
 							  condor_basename (filename));
 				*rsl += printXMLParam ("destinationUrl", 
 									   buff.Value());
-				*rsl += "<rftOptions>";
-				*rsl += printXMLParam( "sourceSubjectName",
-									   jobProxy->subject->subject_name );
-				*rsl += "</rftOptions>";
+				if ( gridftpServer->UseSelfCred() ) {
+					*rsl += "<rftOptions>";
+					*rsl += printXMLParam( "sourceSubjectName",
+										   jobProxy->subject->subject_name );
+					*rsl += "</rftOptions>";
+				}
 				*rsl += "</transfer>";
 
 			}
@@ -1920,10 +1930,12 @@ MyString *GT4Job::buildSubmitRSL()
 						  filename );
 			*rsl += printXMLParam ("destinationUrl", 
 								   buff.Value());
-			*rsl += "<rftOptions>";
-			*rsl += printXMLParam( "destinationSubjectName",
-								   jobProxy->subject->subject_name );
-			*rsl += "</rftOptions>";
+			if ( gridftpServer->UseSelfCred() ) {
+				*rsl += "<rftOptions>";
+				*rsl += printXMLParam( "destinationSubjectName",
+									   jobProxy->subject->subject_name );
+				*rsl += "</rftOptions>";
+			}
 			*rsl += "</transfer>";
 
 		}

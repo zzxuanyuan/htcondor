@@ -46,6 +46,7 @@ class GridftpServer : public Service
 	bool IsEmpty();
 	const char *GetUrlBase();
 	const char *GetErrorMessage();
+	bool UseSelfCred();
 
  protected:
 	static bool ScanSchedd();
