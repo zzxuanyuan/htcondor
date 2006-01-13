@@ -259,7 +259,7 @@ BOINC_BackfillMgr::start( int vm_id )
 		// object for this VM, change to Backfill/BOINC
 	dprintf( D_ALWAYS, "State change: BOINC client running for vm%d\n",
 			 vm_id ); 
-	return rip->change_state( boinc_act );
+	return rip->change_state( busy_act );
 }
 
 

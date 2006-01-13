@@ -29,7 +29,7 @@ static char* condor_states [] =
 
 static char* condor_activities [] = 
 { "None", "Idle", "Busy", "Retiring", "Vacating", "Suspended", "Benchmarking",
-  "Killing", "BOINC" };
+  "Killing" };
 
 State 
 string_to_state(char* state_string) 
