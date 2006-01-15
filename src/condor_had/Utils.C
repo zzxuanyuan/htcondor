@@ -1,3 +1,4 @@
+#include "condor_common.h"
 #include "Utils.h"
 //#include "HadCommands.h"
 //#include "ReplicationCommands.h"
