@@ -67,10 +67,11 @@ public:
 	 */
     MyString    getHostName()     const;
     /* Function    : load
- 	 * Arguments   : temporaryGid - the value of OS file gid field will be assigned
- 	 *                              to the parameter
+ 	 * Arguments   : temporaryGid - the value of OS file gid field will be 
+	 *								assigned to the parameter
  	 *               temporaryLogicalClock - the value of OS file logical clock
- 	 *                                       field will be assigned to the parameter
+ 	 *                                       field will be assigned to the 
+	 *										 parameter
  	 * Return value: bool - success/failure value
  	 * Description : loads Version components from the underlying OS file to
  	 *               to the specified arguments

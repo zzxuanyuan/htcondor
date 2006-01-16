@@ -73,6 +73,9 @@ public:
     virtual void initialize();
 
     virtual int reinitialize();
+	
+	bool isHardConfigurationNeeded();
+	int softReconfigure();
 
 protected:
     /*
@@ -139,9 +142,9 @@ protected:
     List<int> receivedAliveList;
     List<int> receivedIdList;
 
-    void initializeHADList(char*);
+    static bool initializeHADList(char* , bool , StringList*, int* );
     int  checkList(List<int>*);
-    void removeAllFromList(List<int>*);
+    static void removeAllFromList(List<int>*);
     void clearBuffers();
     void printStep(char *curState,char *nextState);
     //char* commandToString(int command);
@@ -162,7 +165,7 @@ protected:
 
     // debug information
     bool standAloneMode;
-    void my_debug_print_list(StringList* str);
+    static void my_debug_print_list(StringList* str);
     void my_debug_print_buffers();
 
 	// usage of replication, controlled by configuration parameter 

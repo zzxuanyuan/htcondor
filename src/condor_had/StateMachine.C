@@ -56,6 +56,7 @@
 //#undef IS_REPLICATION_USED
 #define IS_REPLICATION_USED          (1)
 #define MESSAGES_PER_INTERVAL_FACTOR (2)
+#define DEFAULT_HAD_UPDATE_INTERVAL  (5 * MINUTE)
 
 extern int main_shutdown_graceful();
 
@@ -131,14 +132,21 @@ HADStateMachine::finalize()
 
 	// replication-specific finalizings
     useReplication = false;
-    free(replicationDaemonSinfulString);
-    replicationDaemonSinfulString = NULL;
-    // classad finalizings
-    delete classAd;
-    classAd = NULL;
-    delete collectorsList;
-    collectorsList = NULL;
-    utilCancelTimer( updateCollectorTimerId );
+	
+	if( replicationDaemonSinfulString != NULL ) {
+		free(replicationDaemonSinfulString);
+    	replicationDaemonSinfulString = NULL;
+    }
+	// classad finalizings
+    if( classAd != NULL) {
+		delete classAd;
+    	classAd = NULL;
+	}
+	if( collectorsList != NULL ) {
+    	delete collectorsList;
+    	collectorsList = NULL;
+    }
+	utilCancelTimer( updateCollectorTimerId );
     updateCollectorInterval = -1;
 }
 
@@ -150,6 +158,164 @@ HADStateMachine::~HADStateMachine()
     finalize();
 }
 
+
+bool 
+HADStateMachine::isHardConfigurationNeeded()
+{
+	char*       buffer          = NULL;
+	bool        usePrimaryCopy  = false;
+	StringList* otherHADIPsCopy = NULL;
+	int         selfIdCopy;
+
+	buffer = param( "HAD_USE_PRIMARY" );
+
+    if( buffer ) {
+        if( strncasecmp( buffer, "true", strlen( "true" ) ) == 0 ) {
+          usePrimaryCopy = true;
+        }
+        free( buffer );
+    }
+
+    buffer = param( "HAD_LIST" );
+
+    if ( buffer ) {
+		otherHADIPsCopy = new StringList( );
+       	initializeHADList( buffer, usePrimary, otherHADIPsCopy, &selfIdCopy );
+        free( buffer );
+    } else {
+		utilCrucialError( utilNoParameterError( "HAD_LIST", "HAD" ).GetCStr() );
+    }
+
+	// if either the HAD_LIST length has changed or the index of the local
+	// HAD in the list has changed or the rest of remote HAD sinful strings
+	// has changed their order or value, we do need the hard reconfiguration
+	if( usePrimary             != usePrimaryCopy ||
+		selfId                 != selfIdCopy     ||
+		otherHADIPs->number( ) != otherHADIPsCopy->number( ) ) {
+		delete otherHADIPsCopy;
+
+		return true;
+	}
+
+	char* address     = NULL;
+	char* addressCopy = NULL;
+
+	while( ( address     = otherHADIPs->next( ) ) && 
+		   ( addressCopy = otherHADIPsCopy->next( ) ) ) {
+		dprintf( D_ALWAYS, "Addresses to compare %s and %s\n", address,
+				 addressCopy );
+		if( strcmp( address, addressCopy ) != 0 ) {
+			delete otherHADIPsCopy;
+
+			return true;
+		}	
+	}
+	delete otherHADIPsCopy;
+
+	return false;
+}
+
+int 
+HADStateMachine::softReconfigure()
+{
+	// initializing necessary data members to prepare for the reconfiguration
+	standAloneMode          = false;
+	connectionTimeout       = DEFAULT_SEND_COMMAND_TIMEOUT;
+	hadInterval             = -1;
+	useReplication          = false;
+	updateCollectorInterval = -1;	
+
+	if( replicationDaemonSinfulString != NULL ) {
+		free( replicationDaemonSinfulString );
+		replicationDaemonSinfulString = NULL;
+	}
+	if( classAd != NULL) {
+		delete classAd;
+    	classAd = NULL;
+	}
+	if( collectorsList != NULL ) {
+		delete collectorsList;
+    	collectorsList = NULL;
+	}
+	// reconfiguration
+	char* buffer = NULL;
+
+	buffer = param( "HAD_STAND_ALONE_DEBUG" );
+
+    if( buffer ){
+		// for now we disable 'standalone' mode, since there is no need to use
+		// it in the production code
+		standAloneMode = false;
+        // standAloneMode = true;
+        free( buffer );
+    }
+
+	buffer = param( "HAD_CONNECTION_TIMEOUT" );
+    
+	if( buffer ) {
+        bool res = false;
+        
+		connectionTimeout = utilAtoi(buffer, &res);
+        
+		if( ! res || connectionTimeout <= 0 ) {
+            free( buffer );
+            utilCrucialError( utilConfigurationError( 
+								"HAD_CONNECTION_TIMEOUT", "HAD" ).GetCStr( ) );
+        }
+    
+        free( buffer );
+    } else {
+        dprintf( D_ALWAYS, "No HAD_CONNECTION_TIMEOUT in config file,"
+                		   " use default value\n" );
+    }
+    // calculate hadInterval
+    int safetyFactor = 1;
+            
+    // timeoutNumber
+    // connect + startCommand(sock.code() and sock.eom() aren't blocking)
+    int timeoutNumber = 2;
+    
+    int time_to_send_all = (connectionTimeout*timeoutNumber);   
+    time_to_send_all *= (otherHADIPs->number() + 1); //otherHads + master
+	
+	hadInterval = (time_to_send_all + safetyFactor)*
+                  (MESSAGES_PER_INTERVAL_FACTOR);
+#if IS_REPLICATION_USED  
+    // setting the replication usage permissions
+    buffer = param( "HAD_USE_REPLICATION" );
+    
+	if ( buffer && ! strncasecmp( buffer, "true", strlen("true") ) ) {
+        useReplication = true;
+        free( buffer );
+    }
+    setReplicationDaemonSinfulString( );
+#endif   
+
+	dprintf(D_ALWAYS, "HADStateMachine::softReconfigure classad information\n");
+    initializeClassAd( );
+    collectorsList = CollectorList::create();
+    updateCollectorInterval = param_integer ("HAD_UPDATE_INTERVAL",
+                                             DEFAULT_HAD_UPDATE_INTERVAL );
+    /*buffer = param( "HAD_UPDATE_INTERVAL" );
+    if( buffer ) {
+        bool res = false;
+        
+		updateCollectorInterval = utilAtoi(buffer, &res);
+        
+		if( ! res || updateCollectorInterval <= 0 ) {
+            free( buffer );
+            utilCrucialError( utilConfigurationError(
+                                "HAD_UPDATE_INTERVAL", "HAD" ).GetCStr( ) );
+        }
+        free( buffer );
+    } else {
+        utilCrucialError( utilNoParameterError(
+                            "HAD_UPDATE_INTERVAL", "HAD" ).GetCStr( ) );
+    }*/
+	printParamsInformation();
+
+	return TRUE;
+}
 
 /***********************************************************
   Function :
@@ -249,12 +415,9 @@ HADStateMachine::reinitialize()
     char* tmp;
     finalize(); // DELETE all and start everything over from the scratch
     masterDaemon = new Daemon( DT_MASTER );
-    tmp = param( "HAD_STAND_ALONE_DEBUG" );
-    if( tmp ){
-        standAloneMode = true;
-        free( tmp );
-    }
 
+	// reconfiguring data members, on which the negotiator location inside the
+	// pool depends
     tmp=param( "HAD_USE_PRIMARY" );
     if( tmp ) {
         if(strncasecmp(tmp,"true",strlen("true")) == 0) {
@@ -266,102 +429,28 @@ HADStateMachine::reinitialize()
     otherHADIPs = new StringList();
     tmp=param( "HAD_LIST" );
     if ( tmp ) {
-        initializeHADList( tmp );
+        isPrimary = initializeHADList( tmp, usePrimary, otherHADIPs, &selfId );
         free( tmp );
     } else {
         utilCrucialError("HAD CONFIGURATION ERROR: no HAD_LIST in config file");
     }
-    
-    tmp=param( "HAD_CONNECTION_TIMEOUT" );
-    if( tmp ) {
-        bool res = false;
-        connectionTimeout = utilAtoi(tmp,&res);
-        if(!res){
-            free( tmp );
-            utilCrucialError( "HAD CONFIGURATION ERROR: HAD_CONNECTION_TIMEOUT "							  "is not valid in config file" );
-        }
-        
-        if(connectionTimeout <= 0){
-               free( tmp );
-               utilCrucialError( "HAD CONFIGURATION ERROR: "
-								 "HAD_CONNECTION_TIMEOUT is not valid in "
-								 "config file" );
-        }
-        free( tmp );
-    } else {
-        dprintf( D_ALWAYS,"No HAD_CONNECTION_TIMEOUT in config file,"
-                " use default value\n" );
-    }
-    // calculate hadInterval
-    int safetyFactor = 1;
-
-    // timeoutNumber
-    // connect + startCommand(sock.code() and sock.eom() aren't blocking)
-    int timeoutNumber = 2;
-
-    int time_to_send_all = (connectionTimeout*timeoutNumber);
-    time_to_send_all *= (otherHADIPs->number() + 1); //otherHads + master
-
-    hadInterval =  (time_to_send_all + safetyFactor)*
-                        (MESSAGES_PER_INTERVAL_FACTOR);
-                        
-
+	// reconfiguring the rest of the data members: those, which do not affect
+	// the negotiator's location
+	softReconfigure( );
+   
+	// initializing the timers 
     stateMachineTimerID = daemonCore->Register_Timer ( 0,
                                     (TimerHandlercpp) &HADStateMachine::cycle,
                                     "Time to check HAD", this);
-
     dprintf( D_ALWAYS,"** Register on stateMachineTimerID , interval = %d\n",
             hadInterval/(MESSAGES_PER_INTERVAL_FACTOR));
-                          
-#if IS_REPLICATION_USED
-    // setting the replication usage permissions
-    tmp = param( "HAD_USE_REPLICATION" );
-    if ( tmp && ! strncasecmp( tmp, "true", strlen("true") ) ) {
-        useReplication = true;
-        free( tmp );
-    }
-    setReplicationDaemonSinfulString( );
-#endif
-
-    dprintf( D_ALWAYS,"HADStateMachine::reinitialize classad information\n" );
-    initializeClassAd( );
-    collectorsList = CollectorList::create();
-    //updateCollectorInterval = param_integer ("HAD_UPDATE_INTERVAL",
-    //                                         5 * MINUTE );
-    tmp=param( "HAD_UPDATE_INTERVAL" );
-    if( tmp ) {
-        bool res = false;
-        updateCollectorInterval = utilAtoi(tmp,&res);
-        if(!res){
-            free( tmp );
-			utilCrucialError( utilConfigurationError( 
-								"HAD_UPDATE_INTERVAL", "HAD" ).GetCStr( ) );
-            //utilCrucialError( "HAD CONFIGURATION ERROR: HAD_UPDATE_INTERVAL "
-			//				  "is not valid in config file" );
-        }
-        if( updateCollectorInterval <= 0 ){
-               free( tmp );
-			   utilCrucialError( utilConfigurationError( 
-								"HAD_UPDATE_INTERVAL", "HAD" ).GetCStr( ) );
-               //utilCrucialError( "HAD CONFIGURATION ERROR: "
-               //                  "HAD_CONNECTION_TIMEOUT is not valid in "
-               //                  "config file" );
-        }
-        free( tmp );
-    } else {
-        //dprintf( D_ALWAYS,"No HAD_CONNECTION_TIMEOUT in config file,"
-        //        " use default value\n" );
-		utilCrucialError( utilNoParameterError( 
-							"HAD_UPDATE_INTERVAL", "HAD" ).GetCStr( ) );
-    }
-
 	updateCollectorTimerId = daemonCore->Register_Timer (
         0, updateCollectorInterval,
         (TimerHandlercpp) &HADStateMachine::updateCollectors,
         "Update collector", this );
              
     if( standAloneMode ) {
-         printParamsInformation();
+         //printParamsInformation();
          return TRUE;
     }
  
@@ -370,7 +459,7 @@ HADStateMachine::reinitialize()
          utilCrucialError("HAD ERROR: unable to send NEGOTIATOR_OFF command");
     }
  
-    printParamsInformation();
+    //printParamsInformation();
     return TRUE;
 }
 
@@ -759,16 +848,22 @@ HADStateMachine::pushReceivedId( int id )
 
 /***********************************************************
   Function :
-  Set selfId according to my index in the HAD_LIST (in reverse order)
-  Initilaize otherHADIPs
-  Set isPrimary according to usePrimary and first index in HAD_LIST
+  Sets selfId according to my index in the HAD_LIST (in reverse order)
+  Initializes otherIps
+  Returns isPrimary according to usePrimary and first index in HAD_LIST
+  Returns the dynamically allocated list of remote HAD daemons sinful strings
+  in third parameter and index of itself in fourth parameter
 */
-void
-HADStateMachine::initializeHADList( char* str )
+bool
+HADStateMachine::initializeHADList( char* str, 
+									bool usePrimary,
+									StringList* otherIps, 
+									int* selfId )
 {
     StringList had_list;
-    int counter = 0;  // priority counter
-    
+    int counter        = 0;  // priority counter
+    bool isPrimaryCopy = false;
+
     //   initializeFromString() and rewind() return void
     had_list.initializeFromString( str );
     counter = had_list.number() - 1;
@@ -793,19 +888,19 @@ HADStateMachine::initializeHADList( char* str )
             iAmPresent = true;
             // HAD id of each HAD is just the index of its <ip:port> 
             // in HAD_LIST in reverse order
-            selfId = counter;
+            *selfId = counter;
             
             if(usePrimary && counter == (had_list.number() - 1)){
               // I am primary
               // Primary is the first one in the HAD_LIST
               // That way primary gets the highest id of all
-              isPrimary = true;
+              isPrimaryCopy = true;
             }
         } else {
-            otherHADIPs->insert( sinfull_addr );
+            otherIps->insert( sinfull_addr );
         }
-	// put attention to release memory allocated by malloc with free and by new with delete
-	// here utilToSinful returns memory allocated by malloc
+	// put attention to release memory allocated by malloc with free and by 
+	// new with delete here utilToSinful returns memory allocated by malloc
         free( sinfull_addr );
         counter-- ;
     } // end while
@@ -814,6 +909,8 @@ HADStateMachine::initializeHADList( char* str )
         utilCrucialError( "HAD CONFIGURATION ERROR :  my address is "
         "not present in HAD_LIST" );
     }
+
+	return isPrimaryCopy;
 }
 
 

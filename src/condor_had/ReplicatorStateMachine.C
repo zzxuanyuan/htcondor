@@ -356,8 +356,8 @@ ReplicatorStateMachine::replicaSelectionHandler( Version& newVersion )
     // account - this is the reason for making the states equal
     myVersionCopy.setState( bestVersion );
 
-	// when the versions are incomparable, returns false to indicate that the
-	// remote version must be downloaded
+	// either when the versions are incomparable or when the local version
+	// is worse, the remote version must be downloaded
     if( myVersionCopy.isComparable( bestVersion ) && 
 		myVersionCopy >= bestVersion ) {
         return false;

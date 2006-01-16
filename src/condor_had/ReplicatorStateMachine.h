@@ -119,8 +119,8 @@ private:
     void onGivingUpVersion(Stream* stream);
 // End of command handlers
 
-    Version* decodeVersionAndState( Stream* stream );
-	void     becomeLeader( );
+    static Version* decodeVersionAndState( Stream* stream );
+	void            becomeLeader( );
 
 	/* Function   : downloadTransferersNumber
 	 * Description: returns number of running downloading 'condor_transferers'
