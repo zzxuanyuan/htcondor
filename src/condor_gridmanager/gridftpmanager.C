@@ -123,13 +123,11 @@ GridftpServer *GridftpServer::FindOrCreateServer( Proxy *proxy )
 	rc = m_serversByProxy.lookup( HashKey( proxy->subject->subject_name ),
 								  server );
 	if ( rc != 0 ) {
-dprintf(D_FULLDEBUG,"*** Creating new GridftpServer('%s')\n",proxy->subject->subject_name);
 		server = new GridftpServer( proxy );
 		ASSERT(server);
 		m_serversByProxy.insert( HashKey( proxy->subject->subject_name ),
 								 server );
 	} else {
-dprintf(D_FULLDEBUG,"*** Using existing GridftpServer('%s')\n",proxy->subject->subject_name);
 		ASSERT(server);
 	}
 
@@ -157,7 +155,6 @@ void GridftpServer::RegisterClient( int notify_tid, const char *req_url_base )
 		m_registeredClients.Append( notify_tid );
 	}
 	if ( m_canRequestUrlBase && m_requestedUrlBase == NULL && req_url_base ) {
-dprintf(D_FULLDEBUG,"*** Accepting requested URL base %s\n",req_url_base);
 		m_requestedUrlBase = strdup( req_url_base );
 	}
 }
@@ -257,7 +254,6 @@ void GridftpServer::CheckServerSoon( int delta )
 int GridftpServer::CheckServer()
 {
 	bool existing_error = !m_errorMessage.IsEmpty();
-dprintf(D_FULLDEBUG,"*** CheckServer(%s)\n",m_proxy->subject->subject_name);
  
 	daemonCore->Reset_Timer( m_checkServerTid, CHECK_SERVER_INTERVAL );
 
@@ -284,7 +280,6 @@ dprintf(D_FULLDEBUG,"*** CheckServer(%s)\n",m_proxy->subject->subject_name);
 		// TODO maybe waite 5 minutes after having no jobs before shutting
 		//   server down
 	if ( IsEmpty() ) {
-dprintf(D_FULLDEBUG,"    Server empty, deleting\n");
 		RemoveJob();
 		delete this;
 		return TRUE;
@@ -422,12 +417,10 @@ bool GridftpServer::ScanSchedd()
 			// the first one, ignoring the requested url base (which
 			// may match one of the later jobs). Tough luck.
 		next_ad->LookupString( ATTR_X509_USER_PROXY_SUBJECT, buff );
-dprintf(D_FULLDEBUG,"    Found job for proxy '%s'\n",buff.Value());
 		if ( m_serversByProxy.lookup( HashKey( buff.Value() ), server ) ) {
 
 			MyString error_str;
 			Proxy *proxy = AcquireProxy( next_ad, error_str );
-dprintf(D_FULLDEBUG,"    Creating new GridftpServer('%s')\n",proxy->subject->subject_name);
 			server = new GridftpServer( proxy );
 			ASSERT(server);
 			m_serversByProxy.insert( HashKey( proxy->subject->subject_name ),
@@ -458,7 +451,6 @@ dprintf(D_FULLDEBUG,"    Creating new GridftpServer('%s')\n",proxy->subject->sub
 				server->m_requestedUrlBase = strdup( value.Value() );
 			}
 				// TODO check expiration time on proxy?
-dprintf(D_FULLDEBUG,"    Linked job %d.%d to proxy '%s'\n",server->m_jobId.cluster,server->m_jobId.proc,buff.Value());
 		}
 
 		delete next_ad;
@@ -735,7 +727,6 @@ bool GridftpServer::SubmitServerJob()
 		int val;
 		if ( GetAttributeInt( cluster_id, proc_id, ATTR_STAGE_IN_FINISH,
 							  &val ) == 0 ) {
-dprintf(D_FULLDEBUG, "    %s = %d\n", ATTR_STAGE_IN_FINISH, val );
 			if ( GetAttributeStringNew( cluster_id, proc_id, ATTR_JOB_OUTPUT, 
 										&m_outputFile ) < 0 ||
 				 GetAttributeStringNew( cluster_id, proc_id, ATTR_JOB_ERROR, 
@@ -749,7 +740,6 @@ dprintf(D_FULLDEBUG, "    %s = %d\n", ATTR_STAGE_IN_FINISH, val );
 						 "to read job attributes\n" );
 				goto error_exit;
 			}
-dprintf(D_FULLDEBUG, "    %s = %s\n", ATTR_ULOG_FILE, m_userLog );
 		}
 
 		DisconnectQ( schedd );
@@ -811,7 +801,6 @@ dprintf(D_FULLDEBUG, "    %s = %s\n", ATTR_ULOG_FILE, m_userLog );
 
 bool GridftpServer::ReadUrlBase()
 {
-dprintf(D_FULLDEBUG,"*** ReadUrlBase()\n");
 	if ( m_requestedUrlBase ) {
 		dprintf( D_ALWAYS, "GridftpServer::ReadUrlBase: Reading URL base "
 				 "of job with requested port\n" );
@@ -837,7 +826,6 @@ dprintf(D_FULLDEBUG,"*** ReadUrlBase()\n");
 		MyString buff2;
 		buff2.sprintf( "gsiftp://%s", buff );
 		m_urlBase = strdup( buff2.Value() );
-dprintf(D_FULLDEBUG, "    Server listening at %s\n",m_urlBase);
 	}
 
 	fclose( out );
@@ -848,10 +836,7 @@ dprintf(D_FULLDEBUG, "    Server listening at %s\n",m_urlBase);
 int GridftpServer::CheckJobStatus()
 {
 
-dprintf(D_FULLDEBUG,"*** CheckJobStatus\n");
 	if ( m_jobId.cluster <= 0 || m_userLog == NULL ) {
-//		dprintf( D_ALWAYS, "GridftpServer::CheckJobStatus: Checking status "
-//				 "of unsubmitted job\n" );
 		return STATUS_UNSUBMITTED;
 	}
 
@@ -915,7 +900,6 @@ dprintf(D_FULLDEBUG,"*** CheckJobStatus\n");
 
 void GridftpServer::CheckProxy()
 {
-dprintf(D_FULLDEBUG,"*** CheckProxy\n");
 	if ( m_jobId.cluster <= 0 || m_proxyFile == NULL ) {
 		dprintf( D_ALWAYS, "GridftpServer::CheckProxy: Checking proxy of unsubmitted job\n" );
 		return;
@@ -945,7 +929,6 @@ dprintf(D_FULLDEBUG,"*** CheckProxy\n");
 
 bool GridftpServer::CheckPortError()
 {
-dprintf(D_FULLDEBUG,"*** CheckPortError\n");
 	if ( m_jobId.cluster <= 0 || m_errorFile == NULL ) {
 		dprintf( D_ALWAYS, "GridftpServer::CheckPortError: Checking "
 				 "port-in-use error of unsubmitted job\n" );
@@ -1002,13 +985,11 @@ dprintf(D_FULLDEBUG,"*** CheckPortError\n");
 
 	fclose( err );
 
-dprintf(D_FULLDEBUG,"    port_in_use=%s\n",port_in_use?"True":"False");
 	return port_in_use;
 }
 
 bool GridftpServer::RemoveJob()
 {
-dprintf(D_FULLDEBUG,"*** RemoveJob()\n");
 	if ( m_jobId.cluster <= 0 ) {
 		dprintf( D_ALWAYS, "GridftpServer::RemoveJob: Removing "
 				 "unsubmitted job\n" );
