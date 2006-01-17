@@ -26,7 +26,7 @@ The details of each version are described below.
 all grid universe jobs. Before, it only worked for grid-type gt2 jobs.
 
 % Gnats PR 248, new per-job Stork user logs.
-% Implicity added PR 278, which requires Stork user logs to
+% Implicitly added PR 278, which requires Stork user logs to
 % be owned by user, and not Stork server daemon.  Implicitly added PR 572, now
 % Stork user logs use standard Condor user log API.
 \item Added new per-job Stork user logs.  Stork user logs are now optional, and
@@ -41,6 +41,11 @@ specifications.  Stork job output is now optional, and
 specified in job submit file.  Previous, per-server Stork user log in 
 \File{LOG/Stork-module.stderr} and \File{LOG/Stork-module.stderr} has been
 removed.
+
+\item \Condor{dagman} now supports the new, per-job Stork user logs.
+"Old-style" Stork logs (specified with \Opt{-Storklog} on the
+\Condor{submit\_dag} command line) are supported for now, but this
+support will probably be eliminated in the 6.7.16 release.
 
 \end{itemize}
 
