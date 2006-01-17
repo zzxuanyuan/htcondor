@@ -81,7 +81,7 @@ GetLogFiles(/* const */ StringList &dagFiles, bool useDagDir,
 		if ( msg != "" ) {
 #if 1
 				// Get rid of this after 6.7.15 release.  wenger 2006-01-11.
-			fprintf( stderr, "Warning: failed to locate Stork job log "
+			dprintf( D_ALWAYS, "Warning: failed to locate Stork job log "
 					"files (%s) but continuing anyhow\n", msg.Value() );
 #else
 			AppendError( errMsg,

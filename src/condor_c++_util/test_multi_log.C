@@ -270,7 +270,7 @@ CompareStringLists(StringList &reference, StringList &test)
 	bool	isOkay = true;
 
 	if ( reference.number() != test.number() ) {
-		printf("Error: expected %d strings, got %d", reference.number(),
+		printf("ERROR: expected %d strings, got %d", reference.number(),
 				test.number());
 		printf(" (at %s: %d)\n", __FILE__, __LINE__);
 		fflush(stdout);
@@ -281,7 +281,7 @@ CompareStringLists(StringList &reference, StringList &test)
 	char	*str;
 	while ( (str = reference.next()) != NULL ) {
 		if ( !test.contains(str) ) {
-			printf("Test list should contain <%s> but does not", str);
+			printf("ERROR: test list should contain <%s> but does not", str);
 			printf(" (at %s: %d)\n", __FILE__, __LINE__);
 			fflush(stdout);
 			isOkay = false;

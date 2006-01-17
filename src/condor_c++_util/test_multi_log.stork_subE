@@ -1,3 +1,3 @@
 [
-	log = test_multi_log.log4
+	log = "test_multi_log.log4";
 ]
