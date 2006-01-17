@@ -317,9 +317,10 @@ write_xml_user_log(
 
 	// this function has been replaced by user_log() below.  However, disable
 	// this function, but keep it around for a release or two, as this is
-	// significant API change.   This function can be restored for a one-off
-	// build by commenting out the following line, upon request:
-	return;
+	// significant API change.
+	if ( ! param_boolean("STORK_ENABLE_DEPRECATED_USERLOG", false) ) {
+		return;
+	}
 
   classad::ClassAdParser parser;
   classad::ExprTree *expr = NULL;
@@ -388,8 +389,9 @@ write_xml_user_log(
   //write the classad to classad file
   if ((flog = fopen(logfilename,"a+")) == NULL){
     dprintf(D_ALWAYS,
-	    "cannot open logfile :%s...\n",logfilename);
-    exit(1);
+	    "cannot open user logfile :%s...\n",logfilename);
+	if (classad) delete classad;
+	return;
   }
   fprintf (flog,"%s",adbuffer.c_str());
 
@@ -398,6 +400,8 @@ write_xml_user_log(
   }
       
   fclose(flog);
+  if (classad) delete classad;
+  return;
 }
 
 bool
