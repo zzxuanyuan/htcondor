@@ -203,6 +203,8 @@ ResMgr::backfillConfig()
 				// since it's already here and we're keeping it, tell
 				// it to reconfig (if that matters)
 			m_backfill_mgr->reconfig();
+				// we're done 
+			return true;
 		} else { 
 				// different!
 			dprintf( D_ALWAYS, "BACKFILL_SYSTEM has changed "
