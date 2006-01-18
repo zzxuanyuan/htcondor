@@ -387,19 +387,6 @@ JICLocalSchedd::notifyJobExit( int exit_status, int reason,
 				up_type = U_EVICT;
 				break;
 			// ---------------------------------
-			// JOB_MISSED_DEFERRAL_TIME:
-			// ---------------------------------
-			case JOB_MISSED_DEFERRAL_TIME:
-					//
-					// For now the job is just removed
-					//
-				up_type = U_REMOVE;
-					//
-					// Set the exit code to be the deferral exit code
-					//
-				exit_code = JOB_MISSED_DEFERRAL_TIME;
-				break;
-			// ---------------------------------
 			// JOB_KILLED
 			// ---------------------------------
 			case JOB_KILLED:
@@ -428,7 +415,7 @@ JICLocalSchedd::notifyJobExit( int exit_status, int reason,
 			//
 			// Now update the job queue
 			// 
-		job_updater->updateJob( up_type );
+		this->job_updater->updateJob( up_type );
 		
 			//
 			// And write an eviction notice
@@ -470,6 +457,46 @@ JICLocalSchedd::notifyJobExit( int exit_status, int reason,
 	return ( rval );
 }
 
+/**
+ * An error occured with this job on the Starter. We need to update
+ * the job ad with the appropriate information about the error, and
+ * then report to whomever we need to.
+ * 
+ * In this implementation, we will just update our local job ad with
+ * the error information, then call for the job_updater object to update
+ * the queue back at the schedd
+ * 
+ * @param default_action - the action that should be taken if the user doesn't say
+ * @param reason - the error message
+ * @param code - the error code
+ * @param subcode - the error subcode
+ * @return true if the job ad was updated succesfully
+ * @see user_error_policy.h
+ **/
+bool
+JICLocalSchedd::notifyJobError( int default_action, const char *reason,
+								int code, int subcode )
+{
+	bool ret = false;
+	
+		//
+		// Update the job_ad
+		//
+	JobInfoCommunicator::notifyJobError( default_action, reason,
+										 code, subcode );
+	
+		//
+		// Call the queue manager to update the job ad
+		// If we are successfull then we need to set
+		// the proper exit_code for ourselves
+		//
+	if ( this->job_updater->updateJob( U_ERROR ) ) {	
+		//this->exit_code = ???;
+		ret = true;
+	}
+	
+	return ( ret );
+}
 
 bool
 JICLocalSchedd::getUniverse( void )

@@ -598,6 +598,84 @@ JICShadow::notifyJobExit( int exit_status, int reason, UserProc*
 	return true;
 }
 
+/**
+ * An error occured with this job on the Starter. We need to update
+ * the job ad with the appropriate information about the error, and
+ * then report to whomever we need to.
+ * 
+ * We need to update first update our job, then use the remote
+ * system calls to send back the attributes.
+ * 
+ * @param default_action - the action that should be taken if the user doesn't say
+ * @param reason - the error message
+ * @param code - the error code
+ * @param subcode - the error subcode
+ * @return true if the job ad was updated succesfully
+ * @see user_error_policy.h
+ **/
+bool
+JICShadow::notifyJobError( int default_action, const char *reason,
+						   int code, int subcode )
+{
+	bool ret = true;
+	static bool wrote_local_log_event = false;
+	
+		//
+		// Update the job_ad
+		//
+	JobInfoCommunicator::notifyJobError( default_action, reason,
+										 code, subcode );
+										 
+		//
+		// Write the even to the local log
+		// Do I need to do this?
+		//
+//	if ( ! wrote_local_log_event ) {
+//		if ( u_log->logJobError( this->job_ad, reason, code, subcode ) ) {
+//			wrote_local_log_event = true;
+//		}
+//	}
+
+		//
+		// Call out to the shadow!
+		// Instead of adding a new system call, we're just going
+		// to use the existing ones to update the job ad back 
+		// on the shadow
+		//
+		// I vaguely remember reading/hearing about how sending
+		// the attributes one at a time is a bad thing??
+		//
+	StringList attributes;
+	attributes.insert( ATTR_ERROR_ACTION_DEFAULT );
+	attributes.insert( ATTR_ERROR_REASON );
+	attributes.insert( ATTR_ERROR_REASON_CODE );
+	attributes.insert( ATTR_ERROR_REASON_SUBCODE );
+	char *attr = NULL;
+	while ( ( attr = attributes.next( ) ) != NULL ) {
+			//
+			// Pull out the attribute. We do this instead of using
+			// our function arguments so that we can have it in a string
+			//
+		char *expr = NULL;
+		if ( ! this->job_ad->LookupString( attr, expr ) ) {
+			EXCEPT( "JICShadow: Failed to get '%s' from job ad even though "
+					"it was just added!\n", attr );
+		}
+			//
+			// Now send it over the wire
+			//
+		if ( REMOTE_CONDOR_set_job_attr( attr, expr ) < 0 ) {
+			dprintf( D_ALWAYS, "Failed to send job error attribute %s "
+							   "with value '%s' to shadow\n",
+					 attr, expr );
+			job_cleanup_disconnected = true;
+			ret = false;
+			break;
+		}
+	} // WHILE
+		
+	return ( ret );
+}
 
 bool
 JICShadow::notifyStarterError( const char* err_msg, bool critical )

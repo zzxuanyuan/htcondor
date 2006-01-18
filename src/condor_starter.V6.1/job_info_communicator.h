@@ -231,7 +231,21 @@ public:
 		*/
 	virtual bool notifyJobExit( int exit_status, int reason, 
 								UserProc* user_proc ) = 0;
-
+			
+		/**
+		 * An error occured with this job on the Starter. We need to update
+		 * the job ad with the appropriate information about the error, and
+		 * then report to whomever we need to.
+		 * 
+		 * @param default_action - the action that should be taken if the user doesn't say
+		 * @param reason - the error message
+		 * @param code - the error code
+		 * @param subcode - the error subcode
+		 * @return true if the job ad was updated succesfully
+		 * @see user_error_policy.h
+		 **/
+	virtual bool notifyJobError( int default_action, const char *reason,
+								 int code, int subcode = 0 );
 
 	virtual bool notifyStarterError( const char* err_msg, bool critical ) = 0;
 

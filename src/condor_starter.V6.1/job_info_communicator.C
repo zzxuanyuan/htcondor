@@ -29,6 +29,7 @@
 #include "condor_config.h"
 #include "domain_tools.h"
 #include "basename.h"
+#include "condor_classad_util.h"
 
 
 extern CStarter *Starter;
@@ -449,3 +450,32 @@ JobInfoCommunicator::checkForStarterDebugging( void )
         dprintf( D_JOB, "--- End of ClassAd ---\n" );
 	}
 }
+
+/**
+ * An error occured with this job on the Starter. We need to update
+ * the job ad with the appropriate information about the error, and
+ * then report to whomever we need to.
+ * 
+ * We will update our job ad with this information
+ * 
+ * @param default_action - the action that should be taken if the user doesn't say
+ * @param reason - the error message
+ * @param code - the error code
+ * @param subcode - the error subcode
+ * @return true if the job ad was updated succesfully
+ * @see user_error_policy.h
+ **/
+bool
+JobInfoCommunicator::notifyJobError( int default_action, const char *reason,
+									 int code, int subcode )
+{
+		//
+		// Add the error information into the job ad
+		//
+	InsertIntoAd( this->job_ad, ATTR_ERROR_ACTION_DEFAULT, default_action );
+	InsertIntoAd( this->job_ad, ATTR_ERROR_REASON, reason );
+	InsertIntoAd( this->job_ad, ATTR_ERROR_REASON_CODE, code );
+	InsertIntoAd( this->job_ad, ATTR_ERROR_REASON_SUBCODE, subcode );
+	
+	return ( true );
+}	
