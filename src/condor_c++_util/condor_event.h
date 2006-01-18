@@ -77,6 +77,7 @@ enum ULogEventNumber {
 	/** Grid Resource Up          */  ULOG_GRID_RESOURCE_UP         = 25,
 	/** Grid Resource Down        */  ULOG_GRID_RESOURCE_DOWN       = 26,
 	/** Job Submitted remotely    */  ULOG_GRID_SUBMIT 	    	    = 27,
+	/** Job Error                 */  ULOG_JOB_ERROR				= 28,
 };
 
 /// For printing the enum value.  cout << ULogEventNumberNames[eventNumber];
@@ -1492,6 +1493,46 @@ private:
 	char *reason;
 };
 
+//------------------------------------------------------------------------
+/** Framework for a JobError event object.  Occurs when a job reports
+ *  an error. We are just inheriting the JobHeldEvent because we have
+ * the same information.
+*/
+class JobErrorEvent : public JobHeldEvent
+{
+  public:
+    /// Constructor
+    JobErrorEvent();
+
+		/**
+		 * Given a file pointer, we write append our event information
+		 * into the file. If no reason has been specified, we will error
+		 * We want the format to be exactly like the HELD event
+		 * 
+		 * @param file - a NON-NULL pointer to a file handler we can write to
+		 * @param 1 if the event was written to the file, 0 otherwise
+		 **/
+	virtual int writeEvent (FILE *);
+
+		/**
+		 * Write the event information that we currently have in the object
+		 * to a ClassAd. This includes the error reason, code, and subcode.
+		 * If we fail we will return a NULL pointer
+		 * 
+		 * @return a ClassAd set with the error information
+		 **/
+	virtual ClassAd* toClassAd();
+
+		/**
+		 * We pluck out error information from a ClassAd and initialized
+		 * our event object. The three things that we want are the error
+		 * reason, code, and subcode. We do not error if no information
+		 * is found.
+		 * 
+		 * @param ad - the ClassAd to retrieve the hold information from
+		 **/
+	virtual void initFromClassAd(ClassAd* ad);
+};
 
 class GridResourceUpEvent : public ULogEvent
 {

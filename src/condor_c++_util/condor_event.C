@@ -28,6 +28,7 @@
 #include "user_log.c++.h"
 #include "condor_string.h"
 #include "condor_classad.h"
+#include "condor_classad_util.h"
 #include "iso_dates.h"
 #include "condor_attributes.h"
 
@@ -2755,6 +2756,129 @@ initFromClassAd(ClassAd* ad)
 	ad->LookupInteger(ATTR_HOLD_REASON_SUBCODE, insubcode);
 	setReasonSubCode(insubcode);
 }
+
+//--------------------------------------------------------
+// JobErrorEvent
+//--------------------------------------------------------
+
+/**
+ * Constructor for the event. We let the JobHeldEvent do
+ * all the work, and we just need to set the right event #
+ * 
+ * @see JobHeldEvent
+ **/
+JobErrorEvent::JobErrorEvent( ) : JobHeldEvent( )
+{
+	this->eventNumber = ULOG_JOB_ERROR;
+}
+
+/**
+ * Given a file pointer, we write append our event information
+ * into the file. If no reason has been specified, we will error
+ * We want the format to be exactly like the HELD event
+ * 
+ * @param file - a NON-NULL pointer to a file handler we can write to
+ * @param 1 if the event was written to the file, 0 otherwise
+ **/
+int
+JobErrorEvent::writeEvent( FILE *file )
+{
+	if ( file == NULL ) {
+		return ( 0 );
+	}
+	
+	if ( fprintf( file, "An error occurred.\n") < 0 ) {
+		return ( 0 );
+	}
+		//
+		// Write the reason. If no reason was given, we'll
+		// report that it is unspecified
+		//
+	const char *reason = this->getReason( );
+	if ( reason != NULL ) {
+		if ( fprintf( file, "\t%s\n", reason ) < 0 ) {
+			return ( 0 );
+		} 
+	} else {
+		if ( fprintf( file, "\tReason unspecified\n" ) < 0 ) {
+			return ( 0 );
+		}
+	}
+		//
+		// Write out the code and subcode
+		//
+	int code = this->getReasonCode( );
+	int subcode = this->getReasonSubCode( );
+	if ( fprintf( file, "\tCode %d Subcode %d\n", code, subcode) < 0 ) {
+		return ( 0 );
+	}
+	return ( 1 );
+}
+
+/**
+ * Write the event information that we currently have in the object
+ * to a ClassAd. This includes the error reason, code, and subcode.
+ * If we fail we will return a NULL pointer
+ * 
+ * @return a ClassAd set with the error information
+ **/
+ClassAd*
+JobErrorEvent::toClassAd( )
+{
+	ClassAd* ad = ULogEvent::toClassAd();
+	if ( !ad ) return NULL;
+
+		//
+		// Write the reason
+		//
+	const char* reason = this->getReason( );
+	if ( reason != NULL ) {
+		InsertIntoAd( ad, ATTR_ERROR_REASON, reason );
+	}
+		//
+		// Now add the error codes
+		//
+	InsertIntoAd( ad, ATTR_ERROR_REASON_CODE, this->getReasonCode( ) );
+	InsertIntoAd( ad, ATTR_ERROR_REASON_SUBCODE, this->getReasonSubCode( ) );
+
+	return ( ad );
+}
+
+/**
+ * We pluck out error information from a ClassAd and initialized
+ * our event object. The three things that we want are the error
+ * reason, code, and subcode. We do not error if no information
+ * is found.
+ * 
+ * @param ad - the ClassAd to retrieve the hold information from
+ **/
+void
+JobErrorEvent::initFromClassAd( ClassAd *ad )
+{
+	ULogEvent::initFromClassAd(ad);
+	if ( !ad ) return;
+
+	MyString reason;
+	int code;
+	int subcode;
+		//
+		// Pull out the reason. Make sure we free the memory too!
+		//
+	if ( ad->LookupString( ATTR_ERROR_REASON, reason ) ) {
+		this->setReason( reason.Value() );
+	}
+		//
+		// Now pull out the codes
+		//
+	ad->LookupInteger( ATTR_ERROR_REASON_CODE, code );
+	this->setReasonCode( code );
+	ad->LookupInteger( ATTR_ERROR_REASON_SUBCODE, subcode );
+	this->setReasonSubCode( subcode );
+}
+
+//--------------------------------------------------------
+// JobReleasedEvent
+//--------------------------------------------------------
 
 JobReleasedEvent::JobReleasedEvent()
 {
