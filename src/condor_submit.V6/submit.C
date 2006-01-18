@@ -71,6 +71,7 @@
 #include "enum_utils.h"
 #include "setenv.h"
 #include "classad_hashtable.h"
+#include "user_error_policy.h"
 
 #include "list.h"
 
@@ -245,6 +246,7 @@ char	*OnExitRemoveCheck = "on_exit_remove";
 char	*Noop = "noop_job";
 char	*NoopExitSignal = "noop_job_exit_signal";
 char	*NoopExitCode = "noop_job_exit_code";
+char	*ErrorAction = "error_action";
 
 char	*GlobusResubmit = "globus_resubmit";
 char	*GlobusRematch = "globus_rematch";
@@ -287,6 +289,7 @@ void 	SetPriority();
 void 	SetNotification();
 void	SetWantRemoteIO(void);
 void 	SetNotifyUser ();
+void 	SetErrorAction();
 void	SetRemoteInitialDir();
 void	SetExitRequirements();
 void 	SetArguments();
@@ -2836,6 +2839,66 @@ SetNotifyUser()
 	}
 }
 
+/**
+ * Converts the string version of the ErrorAction attribute into
+ * an integer that is used by Condor. If an invalid attribute
+ * is given, then we will report an error and exit. If no attribute
+ * is provided we will use ERROR_ACTION_DEFAULT
+ **/
+void
+SetErrorAction()
+{
+	char *action_str = condor_param( ErrorAction, ATTR_ERROR_ACTION );
+	int action;
+
+	// --------------------------------
+	// DEFAULT
+	// --------------------------------
+	if ( ( action_str == NULL )  || 
+		 ( stricmp( action_str, ERROR_ACTION_DEFAULT_STR ) == 0 ) ) {
+		action = ERROR_ACTION_DEFAULT;
+	// --------------------------------
+	// RETRY
+	// --------------------------------
+	} else if ( stricmp( action_str, ERROR_ACTION_RETRY_STR ) == 0 ) {
+		action = ERROR_ACTION_RETRY;
+	// --------------------------------
+	// HOLD
+	// --------------------------------
+	} else if ( stricmp( action_str, ERROR_ACTION_HOLD_STR ) == 0 ) {
+		action = ERROR_ACTION_HOLD;
+	// --------------------------------
+	// REMOVE
+	// --------------------------------
+	} else if ( stricmp( action_str, ERROR_ACTION_REMOVE_STR ) == 0 ) {
+		action = ERROR_ACTION_REMOVE;
+	// --------------------------------
+	// INVALID
+	// --------------------------------
+	} else {
+		MyString error;
+		error.sprintf( "Error: The ErrorAction attribute must be either "\
+						"'%s', "\
+						"'%s', "\
+						"'%s', "\
+						"or '%s'\n",
+						ERROR_ACTION_DEFAULT_STR,
+						ERROR_ACTION_RETRY_STR,
+						ERROR_ACTION_HOLD_STR,
+						ERROR_ACTION_REMOVE_STR );
+		fprintf( stderr, error.Value() );
+		DoCleanup( 0, 0, NULL );
+		exit( 1 );
+	}
+
+		//
+		// Insert into the job ad
+		//
+	MyString buffer;
+	buffer.sprintf( "%s = %d", ATTR_ERROR_ACTION, action );
+	InsertJobExpr( buffer.Value() );
+}
+
 void
 SetMatchListLen()
 {
@@ -4521,6 +4584,7 @@ queue(int num)
 		SetNotification();
 		SetWantRemoteIO();
 		SetNotifyUser();
+		SetErrorAction();
 		SetRemoteInitialDir();
 		SetExitRequirements();
 		SetUserLog();
