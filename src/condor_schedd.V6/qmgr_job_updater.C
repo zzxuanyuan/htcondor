@@ -131,6 +131,12 @@ QmgrJobUpdater::initJobQueueAttrLists( void )
 	terminate_job_queue_attrs->insert( ATTR_EXCEPTION_HIERARCHY );
 	terminate_job_queue_attrs->insert( ATTR_EXCEPTION_TYPE );
 	terminate_job_queue_attrs->insert( ATTR_EXCEPTION_NAME );
+	
+	error_job_queue_attrs = new StringList();
+	error_job_queue_attrs->insert( ATTR_ERROR_ACTION_DEFAULT );
+	error_job_queue_attrs->insert( ATTR_ERROR_REASON );
+	error_job_queue_attrs->insert( ATTR_ERROR_REASON_CODE );
+	error_job_queue_attrs->insert( ATTR_ERROR_REASON_SUBCODE );
 }
 
 
@@ -239,6 +245,9 @@ QmgrJobUpdater::updateJob( update_t type )
 		break;
 	case U_PERIODIC:
 			// No special attributes needed...
+		break;
+	case U_ERROR:
+		job_queue_attrs = error_job_queue_attrs;
 		break;
 	default:
 		EXCEPT( "QmgrJobUpdater::updateJob: Unknown update type (%d)!" );
@@ -370,6 +379,9 @@ QmgrJobUpdater::watchAttribute( const char* attr, update_t type  )
 	case U_PERIODIC:
 		EXCEPT( "Programmer error: QmgrJobUpdater::watchAttribute() called "
 				"with U_PERIODIC" );
+		break;
+	case U_ERROR:
+		job_queue_attrs = error_job_queue_attrs;
 		break;
 	default:
 		EXCEPT( "QmgrJobUpdater::watchAttribute: Unknown update type (%d)!" );
