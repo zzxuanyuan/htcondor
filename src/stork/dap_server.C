@@ -1812,16 +1812,16 @@ int remove_requests_from_queue(ReliSock * sock)
 
 		remove_credential (dap_id);
       
-		user_log(job_ad, ULOG_JOB_ABORTED);
-
-		dapcollection->RemoveClassAd(key);
-
 		std::string modify_s = "status = \"request_removed\"";
 		write_collection_log(dapcollection, dap_id, modify_s.c_str());
 	  
 		char lognotes[MAXSTR] ;
 		getValue(job_ad, "LogNotes", lognotes);
       
+		user_log(job_ad, ULOG_JOB_ABORTED);
+
+		dapcollection->RemoveClassAd(key);
+
 		write_dap_log(historyfilename, "\"request_removed\"", 
 					  "dap_id", dap_id, "error_code", "\"REMOVED!\"");
       
