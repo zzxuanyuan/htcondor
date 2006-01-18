@@ -132,6 +132,11 @@ main_init(int argc, char* argv[])
 		// clear out auto cluster id attributes
 		WalkJobQueue( (int(*)(ClassAd *))clear_autocluster_id );
 	}
+	
+		//
+		// Calculate CronTab's if any jobs need it
+		//
+	WalkJobQueue( (int(*)(ClassAd *))::calculateCronSchedule );
 
 		// Initialize the dedicated scheduler stuff
 	dedicated_scheduler.initialize();
