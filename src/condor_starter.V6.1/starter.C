@@ -43,6 +43,7 @@
 #include "condor_random_num.h"
 #include "../condor_sysapi/sysapi.h"
 #include "build_job_env.h"
+#include "user_error_policy.h"
 
 #include "perm.h"
 #include "filename_tools.h"
@@ -794,19 +795,18 @@ CStarter::jobWaitUntilExecuteTime( void )
 		//
 	} else {
 			//
-			// Hack!
-			// I want to send back that the job missed its time
-			// and that the schedd needs to decide what to do with
-			// the job. But the only way to do this is if you
-			// have a UserProc object. So we're going to make
-			// a quick on here and then send back the exit error
+			// Write to the starter's log
 			//
-		if ( ! error.IsEmpty() ) {
-			dprintf( D_ALWAYS, "%s Aborting.\n", error.Value() );
-		}
-		OsProc proc( jobAd );
-		proc.JobCleanup( -1, JOB_MISSED_DEFERRAL_TIME );
-		this->jic->notifyJobExit( -1, JOB_MISSED_DEFERRAL_TIME, &proc );
+		dprintf( D_ALWAYS, "%s Aborting.\n", error.Value() );
+			//
+			// New ErrorAction!
+			// We tell the JIC what the error was, and what we think
+			// the default action should be with the job. Then back
+			// on the schedd the job's error policy will be evaluated
+			//
+		this->jic->notifyJobError( ERROR_ACTION_HOLD, 
+								   error.Value( ),
+								   STARTER_ERR_MISSED_DEFERRAL_TIME );
 		this->jic->allJobsGone();
 		ret = false;
 	}
