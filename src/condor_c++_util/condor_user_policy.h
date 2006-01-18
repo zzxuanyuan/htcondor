@@ -38,7 +38,8 @@
 
 /**
  * An abstract class for dealing with the user's specified policy for when the
- * job should be put on hold, removed, or re-queued.  
+ * job should be put on hold, removed, or re-queued. This is a wrapper
+ * for the UserPolicy object
  * 
  * @see UserPolicy
  * @author Andy Pavlo
