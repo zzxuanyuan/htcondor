@@ -38,9 +38,9 @@ const char ERROR_ACTION_RETRY_STR	[] = "Retry";
 const char ERROR_ACTION_HOLD_STR	[] = "Hold";
 const char ERROR_ACTION_REMOVE_STR	[] = "Remove";
 
-
 /**
- * 
+ * Constructor
+ * Just set up our data members
  **/
 ErrorPolicy::ErrorPolicy()
 {
@@ -50,7 +50,8 @@ ErrorPolicy::ErrorPolicy()
 }
 
 /**
- *
+ * Deconstructor
+ * We do not want to free the memory for the job ad
  **/
 ErrorPolicy::~ErrorPolicy()
 {
@@ -58,7 +59,11 @@ ErrorPolicy::~ErrorPolicy()
 }
 
 /**
+ * Given a ClassAd, we call setDefaults() to add in any attributes
+ * that are necssary. This follows the same paradigm from UserJobPolicy
+ * This method must be called before analyzePolicy()
  * 
+ * @param ad - the ClassAd that we will analyze for error information
  **/
 void
 ErrorPolicy::init( ClassAd *ad )
@@ -68,7 +73,12 @@ ErrorPolicy::init( ClassAd *ad )
 }
 
 /**
+ * This is a static helper method that can be used to look in
+ * a ClassAd and see if the ad contains error infomation. If it
+ * does then we will return true.
  * 
+ * @param ad - the ClassAd to check for error information
+ * @return true if the ClassAd has an error code, false otherwise
  **/
 bool
 ErrorPolicy::containsError( ClassAd *ad )
@@ -77,27 +87,42 @@ ErrorPolicy::containsError( ClassAd *ad )
 }
 
 /**
- *
+ * If the ClassAd that our object was initialized with doesn't
+ * have the ATTR_ERROR_ACTION, then we will insert the default
+ * action code
  **/
 void
 ErrorPolicy::setDefaults( )
 {
 		//
-		// If they didn't specify an ErrorAction, we'll use
-		// our default value
+		// Make sure we actually have a ClassAd to work with
 		//
-	if ( this->ad->Lookup( ATTR_ERROR_ACTION ) == NULL) {
-		InsertIntoAd( this->ad, ATTR_ERROR_ACTION, ERROR_ACTION_DEFAULT );
+	if ( this->ad != NULL ) {
+			//
+			// If they didn't specify an ErrorAction, we'll use
+			// our default value
+			//
+		if ( this->ad->Lookup( ATTR_ERROR_ACTION ) == NULL) {
+			InsertIntoAd( this->ad, ATTR_ERROR_ACTION, ERROR_ACTION_DEFAULT );
+		}
 	}
 }
 
-//
-// !!!!!!!!!!!!!!
-// ATTR_ERROR_ACTION_DEFAULT or ATTR_LAST_ERROR_ACTION_DEFAULT???
-// !!!!!!!!!!!!!!
-
 /**
+ * After we have been initialized with a ClassAd, we now can
+ * look at the ErrorAction attribute for the ad and determine what
+ * should be done with the job. If the ClassAd does not have the 
+ * ATTR_ERROR_REASON_CODE defined then we are unable to proceed.
+ * If this code was set to default, then we need to look at the 
+ * ATTR_ERROR_ACTION_DEFAULT attribute which is provided by the developer
+ * who set up the trigger for the error. We will use this action code
+ * if the user specified for us to take the default action.
  * 
+ * Now we based on our ClassAd's action code we will return a queue 
+ * action, as defined by UserJobPolicy.
+ * 
+ * @return an action code that specifies what should be done with this job
+ * @see user_job_policy.h
  **/
 int
 ErrorPolicy::analyzePolicy( )
@@ -111,7 +136,7 @@ ErrorPolicy::analyzePolicy( )
 		// Make sure we have a job add before we try to do anything
 		//
 	if ( this->ad == NULL) {
-		EXCEPT("ErrorPolicy: analyzePolicy() called before init()!");
+		EXCEPT( "ErrorPolicy: analyzePolicy() called before init()!" );
 	}
 		//
 		// To make our output more useful, let's provide the job info
@@ -210,7 +235,7 @@ ErrorPolicy::analyzePolicy( )
 			error += error_code;
 			error += "ErrorReason = ";
 			error += (!error_reason.IsEmpty() ? error_reason : "<EMPTY>");
-			EXCEPT( (char*)error.Value() );
+			dprintf( D_ALWAYS, (char*)error.Value() );
 			break;
 		}
 		// --------------------------------------------
@@ -248,21 +273,29 @@ ErrorPolicy::analyzePolicy( )
 		// --------------------------------------------
 		// UNKNOWN
 		// --------------------------------------------
-		default:
-			//
-			// Mmmm....
-			//
-			int x = 1;
-		
+		default: {
+				//
+				// We just want to print an error instead of excepting
+				// because condor_submit should have picked out any invalid
+				// ErrorAction attributes.
+				//
+			MyString error;
+			error.sprintf( "ErrorPolicy: "
+						   "Job %d.%d has an unknown action code '%d'\n",
+						   cluster, proc, this->action );
+			dprintf( D_ALWAYS, (char*)error.Value() );
+			break;
+		}
 	} // SWITCH
 
 	return ( ret );
 }
 
-
 /**
+ * An accessor method to get what the calculated action code is for
+ * this object. This should be called after analyzePolicy()
  * 
- * 
+ * @return the current action code determined for this object
  **/
 int
 ErrorPolicy::errorAction( )
@@ -271,8 +304,14 @@ ErrorPolicy::errorAction( )
 }
 
 /**
+ * The user can specify to use whatever the internal action code is
+ * for an error. When this occurs, we have to store what the default
+ * action was into the action data member for our object. So in order
+ * to retain the fact that it was original default action code that made
+ * us do whatever the new action code is, we use the action_default flag.
+ * This will cause us to generate a more verbose action reason later on.
  * 
- * 
+ * @return true if the ClassAd specified to use the default action
  **/
 bool
 ErrorPolicy::errorActionDefault( )
@@ -281,7 +320,15 @@ ErrorPolicy::errorActionDefault( )
 }
 
 /**
+ * Based on the action code that was pulled from the ClassAd in analyzePolicy()
+ * we will generate a reason message that can be used by whomever to 
+ * add to the job's ad when preforming the appropriate action. For instance,
+ * if the action code was ATTR_ERROR_REASON_CODE, then when the job
+ * goes on hold the HoldReason can have the error action reason that
+ * we are generating here. If no firing expression occurred, then 
+ * the reason that is returned will be empty
  * 
+ * @return the reason why we generated the action code that we did
  **/
 MyString
 ErrorPolicy::errorActionReason( )
@@ -294,7 +341,7 @@ ErrorPolicy::errorActionReason( )
 		// it yet, then there is nothing we can do
 		//
 	if ( this->ad == NULL || this->action == ERROR_ACTION_UNKNOWN ) {
-		return ( NULL );
+		return ( reason );
 	}
 	
 	action_str = this->actionCodetoString( this->action );
@@ -318,6 +365,14 @@ ErrorPolicy::errorActionReason( )
 	return ( reason );
 }
 
+/**
+ * A static helper method that converts an action code integer into
+ * its string representation. We will return an "Unknown" string if
+ * we are given a wrong action code 
+ * 
+ * @param action - the code that should be converted into a string
+ * @return the string version of the action code
+ **/
 MyString
 ErrorPolicy::actionCodetoString( int action ) {
 	MyString ret;
@@ -354,7 +409,4 @@ ErrorPolicy::actionCodetoString( int action ) {
 	} // SWITCH
 	return ( ret );
 }
-
-
-
 
