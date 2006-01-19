@@ -204,20 +204,22 @@ public:
 		// Returns the last calculated timestamp
 		//
 	bool lastRun() { return (this->lastRunTime); }
+		//
+		// Static helper method that can check to see if a 
+		// parameter has the proper syntax.
+		//
+	static bool validateParameter( int, const char*, MyString& );
+		//
+		// Attribute names
+		// A nice list that we can iterate through easily
+		//
+	static const char* attributes[];
 	
 protected:
 		//
 		// Default Constructor
 		//
 	CronTab();
-		//
-		// validateParameter()
-		// Internal static helper method that can check to see 
-		// if a cron tab parameter has the proper syntax. The reason
-		// why it is not public is because we don't want to expose
-		// how we represent the attributes internally
-		//
-	static bool validateParameter( int, const char*, MyString& );
 		//
 		// init()
 		// Initializes our object to prepare it for being asked 
@@ -281,11 +283,6 @@ protected:
 		// for the different properties.
 		//
 	ExtArray<int> *ranges[CRONTAB_FIELDS];
-		//
-		// Attribute names
-		// Merely here for convienence
-		//
-	static const char* attributes[];
 		//
 		// The regular expresion object we will use to make sure 
 		// our parameters are in the proper format.
