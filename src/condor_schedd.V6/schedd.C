@@ -11759,16 +11759,16 @@ Scheduler::calculateCronSchedule( ClassAd *ad, bool force ) {
 	ad->LookupInteger(ATTR_CLUSTER_ID, id.cluster);
 	ad->LookupInteger(ATTR_PROC_ID, id.proc);
 		
-	dprintf( D_ALWAYS, "PAVLO: Trying to calc cron runtime for Job %d.%d\n",
-					id.cluster, id.proc );
+	//dprintf( D_ALWAYS, "PAVLO: Trying to calc cron runtime for Job %d.%d\n",
+	//				id.cluster, id.proc );
 		
 		//
 		// We keep an exclusion table so we can quickly look up
 		// whether we don't even need to bother with this ad
 		//
 	if ( this->cronTabsExclude->IsMember( id ) ) {
-		dprintf( D_ALWAYS, "PAVLO: Cached exclusion entry for Job %d.%d\n",
-					id.cluster, id.proc );
+		//dprintf( D_ALWAYS, "PAVLO: Cached exclusion entry for Job %d.%d\n",
+		//			id.cluster, id.proc );
 		return ( true );
 	}
 		//
@@ -11778,8 +11778,8 @@ Scheduler::calculateCronSchedule( ClassAd *ad, bool force ) {
 		//
 	if ( !CronTab::needsCronTab( ad ) ) {	
 		this->cronTabsExclude->enqueue( id );
-		dprintf( D_ALWAYS, "PAVLO: Job %d.%d does not need a cron! Caching!\n",
-					id.cluster, id.proc );
+		//dprintf( D_ALWAYS, "PAVLO: Job %d.%d does not need a cron! Caching!\n",
+		//			id.cluster, id.proc );
 		return ( true );
 	}
 
@@ -11844,10 +11844,10 @@ Scheduler::calculateCronSchedule( ClassAd *ad, bool force ) {
 		//		calculate a new time.
 		//	
 	bool seenBefore = ( ad->Lookup( ATTR_CRON_NEXT_RUNTIME ) != NULL );
-	dprintf( D_ALWAYS, "PAVLO: seenBefore -> %s\n",
-						(seenBefore ? "TRUE" : "FALSE") );
-	dprintf( D_ALWAYS, "PAVLO: force -> %s\n",
-						(force ? "TRUE" : "FALSE") );
+	//dprintf( D_ALWAYS, "PAVLO: seenBefore -> %s\n",
+	//					(seenBefore ? "TRUE" : "FALSE") );
+	//dprintf( D_ALWAYS, "PAVLO: force -> %s\n",
+	//					(force ? "TRUE" : "FALSE") );
 	
 	if ( valid && ( cronTab != NULL ) && ( !seenBefore || force ) ) {
 			//
@@ -11881,8 +11881,8 @@ Scheduler::calculateCronSchedule( ClassAd *ad, bool force ) {
 				newAttrib += " && (";
 				newAttrib += attrib;
 				newAttrib += ")";
-				dprintf( D_ALWAYS, "PAVLO: Pulled out existing requirements %s\n",
-								buffer );
+				//dprintf( D_ALWAYS, "PAVLO: Pulled out existing requirements %s\n",
+				//				buffer );
 				free( buffer );
 				//
 				// We will create a new requirements expression
@@ -11923,8 +11923,8 @@ Scheduler::calculateCronSchedule( ClassAd *ad, bool force ) {
 		int runTimeWindow = 0;
 		if ( ad->Lookup( ATTR_DEFERRAL_WINDOW) != NULL ) {
 			ad->LookupInteger( ATTR_DEFERRAL_WINDOW, runTimeWindow );
-			dprintf( D_ALWAYS, "PAVLO: Pulled %s from ad with value '%d'\n",
-								ATTR_DEFERRAL_WINDOW, runTimeWindow );
+			//dprintf( D_ALWAYS, "PAVLO: Pulled %s from ad with value '%d'\n",
+			//					ATTR_DEFERRAL_WINDOW, runTimeWindow );
 		}
 		
 			//
@@ -11933,8 +11933,8 @@ Scheduler::calculateCronSchedule( ClassAd *ad, bool force ) {
 		long curTime = (long)time( NULL );
 		long calculatedRunTime = cronTab->nextRunTime( curTime - runTimeWindow );
 		long runTime = calculatedRunTime;
-		dprintf( D_ALWAYS, "PAVLO: Next runtime for Job %d.%d is %d\n",
-						id.cluster, id.proc, (int)runTime );
+		//dprintf( D_ALWAYS, "PAVLO: Next runtime for Job %d.%d is %d\n",
+		//				id.cluster, id.proc, (int)runTime );
 			//
 			// We have a valid runtime, so let's figure out 
 			// when we should run it next
@@ -11979,6 +11979,7 @@ Scheduler::calculateCronSchedule( ClassAd *ad, bool force ) {
 				//
 				// Debug Info
 				//
+			/*
 			dprintf( D_ALWAYS, "\n----------------------------------------\n"
 								"%s = %d\n"
 								"%s = %d\n"
@@ -11991,6 +11992,7 @@ Scheduler::calculateCronSchedule( ClassAd *ad, bool force ) {
 								ATTR_CRON_PREP_TIME, (int)prepTime,
 								ATTR_CRON_CURRENT_TIME_RANGE, (int)this->SchedDInterval,
 								ATTR_DEFERRAL_WINDOW, (int)runTimeWindow );
+			*/
 			
 			//
 			// We got back an invalid response
