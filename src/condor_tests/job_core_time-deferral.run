@@ -58,6 +58,12 @@ open(FILE, $baseCmd) || die("Failed to open base command file '$baseCmd'");
 @lines = <FILE>;
 close(FILE);
 
+##
+## If we encounter an abort, and this flag isn't set, then
+## we know it's a mistake
+##
+my $ABORTING = 0;
+
 ## -----------------------------------------------------
 ## Test Parameters
 ## -----------------------------------------------------
@@ -203,10 +209,13 @@ for ( $ctr = 0, $cnt = scalar(@deltas); $ctr < $cnt; $ctr++ ) {
 	close(FILE);
 	
 	##
+	## success
 	## Dynamically create our callback function
 	##
-	my $successCallback = sub {
+	my $success = sub {
 		my %info = @_;
+		$cluster = $info{"cluster"};
+		$job = $info{"job"};
 		##
 		## This is the time we get from our log that says they
 		## begun execution
@@ -234,7 +243,8 @@ for ( $ctr = 0, $cnt = scalar(@deltas); $ctr < $cnt; $ctr++ ) {
 			## No timestamp is bad mojo!
 			##
 			if (!$timestamp) {
-				$testFailure = "Unable to extract execution timestamp from log file! ".
+				$testFailure = "Bad - Unable to extract execution timestamp from ".
+							   "log file for Job $cluster.$job! ".
 							   "Cowardly failing!";
 				return (0);
 			}
@@ -248,7 +258,8 @@ for ( $ctr = 0, $cnt = scalar(@deltas); $ctr < $cnt; $ctr++ ) {
 			## its own
 			##
 			if ($timestamp < $expectedTime) {
-				$testFailure = "Job executed ".($expectedTime - $timestamp).
+				$testFailure = "Bad - Job $cluster.$job executed ".
+							   ($expectedTime - $timestamp).
 							   " seconds before it was suppose to!\n";
 				return (0);
 			}
@@ -264,11 +275,14 @@ for ( $ctr = 0, $cnt = scalar(@deltas); $ctr < $cnt; $ctr++ ) {
 			if ( $exact &&
 				($timestamp != $expectedTime) &&
 				($timestamp != $expectedTime + 1) ) {
-				$testFailure = "Job execution time differs by ".
+				$testFailure = "Bad - Job $cluster.$job execution time differs by ".
 								($expectedTime - $timestamp)." seconds ".
 								"from when it was suppose to run exactly at.\n";
 				return (0);
 			}
+			
+			print "Good - Job $cluster.$job executed successfully!\n";
+			
 		##
 		## The job was suppose to fail and never run
 		## Make sure that it didn't!
@@ -278,7 +292,8 @@ for ( $ctr = 0, $cnt = scalar(@deltas); $ctr < $cnt; $ctr++ ) {
 			## Bums! It ran!
 			##
 			if ($reportTime) {
-				$testFailure = "Job was not suppose to execute but it did!\n";
+				$testFailure = "Bad - Job $cluster.$job was not suppose to ".
+							   "execute but it did!\n";
 				return (0);
 			}
 		}
@@ -287,29 +302,77 @@ for ( $ctr = 0, $cnt = scalar(@deltas); $ctr < $cnt; $ctr++ ) {
 	
 	##
 	## Failure callback
+	## When the deferral fails, the job will be put on hold
 	##
-	my $failCallback = sub {
+	my $held = sub {
+		%info = @_;
+		$cluster = $info{"cluster"};
+		$job = $info{"job"};
+	
 		##
 		## If this test wasn't suppose to fail
 		##
 		if ( !$fail ) {
-			$testFailure = "Job failed but wasn't suppose to!\n";
+			$testFailure = "Bad - Job $cluster.$job failed but wasn't suppose to!\n";
 			return (0);
+		}
+		
+		print "Good - Job $cluster.$job failed to run when it was suppose to!\n";
+		
+		##
+		## Remove the job
+		## We set the aborting flag so that we know the abort message 
+		## isn't a mistake
+		##
+		$ABORTING = 1;
+		my @adarray;
+		my $status = 1;
+		my $cmd = "condor_rm $cluster";
+		$status = CondorTest::runCondorTool($cmd,\@adarray,2);
+		if ( !$status ) {
+			print "ERROR: Test failure due to Condor Tool Failure<$cmd>\n";
+			return(0);
 		}
 		return (1);
 	};
 	
 	##
+	## aborted
+	## The job is being aborted, so we need to make sure that
+	## we are the one doing the abort
+	##
+	$aborted = sub {
+		%info = @_;
+		$cluster = $info{"cluster"};
+		$job = $info{"job"};
+	
+		##
+		## Make sure this was meant to happen
+		## 
+		if ( $ABORTING ) {
+			print "Good - Job $cluster.$job is being removed after being held.\n";
+		##
+		## Bad mojo!
+		##
+		} else {
+			print "Bad - Job $cluster.$job received an unexpected abort event.\n";
+			exit(1);
+		}
+	};
+	
+	##
 	## Run ye olde' test
 	##
-	CondorTest::RegisterAbort($test, $failCallback);
-	CondorTest::RegisterExitedSuccess($test, $successCallback );
+	CondorTest::RegisterAbort( $test, $aborted );
+	CondorTest::RegisterHold( $test, $held );
+	CondorTest::RegisterExitedSuccess( $test, $success );
 	##
 	## Kind of a hack
 	## Our callback methods will set global variables that 
 	## we can check to see if the job executed/aborted the
 	## way we expected it to 
 	##
+	$ABORTING = 0;
 	CondorTest::RunTest( $test, $cmdFile, 0);
 	if ($testFailure) {
 		print "$test: CondorTest::RunTest() failed - $testFailure\n";
