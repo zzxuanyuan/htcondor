@@ -8714,10 +8714,19 @@ Scheduler::jobExitCode( PROC_ID job_id, int exit_code )
 			// reportException = ( error_code == ????? );
 			//
 		}
-	} else {
-		dprintf( D_ALWAYS, "PAVLO: Job %d.%d finished without an error!\n",
-					job_id.cluster, job_id.proc );
-	}
+			//
+			// Now move all the Error attributes to be LastError...
+			// I am not 100% positive that this is the place to  do this
+			//
+		moveStrAttr( job_id,
+					 ATTR_ERROR_REASON, ATTR_LAST_ERROR_REASON, true );
+		moveIntAttr( job_id,
+					 ATTR_ERROR_REASON_CODE, ATTR_LAST_ERROR_REASON_CODE, true );
+		moveIntAttr( job_id,
+					 ATTR_ERROR_REASON_CODE, ATTR_LAST_ERROR_REASON_SUBCODE, true);
+		moveIntAttr( job_id,
+					 ATTR_ERROR_ACTION_DEFAULT, ATTR_LAST_ERROR_ACTION_DEFAULT, true );
+	} // containsError
 
 		//
 		// Based on the job's exit code, we will perform different actions
