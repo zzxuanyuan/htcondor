@@ -260,6 +260,12 @@ TESTCLASS(job_core_perremove_local,core)
 TESTCLASS(job_core_perremove_local,quick)
 TESTCLASS(job_core_perremove_local,local)
 
+DESC(job_core_crontab_local,"Local: CronTab Scheduling")
+RUN(job_core_crontab_local)
+TESTCLASS(job_core_crontab_local,core)
+TESTCLASS(job_core_crontab_local,long)
+TESTCLASS(job_core_crontab_local,local)
+
 /* Likely Bugs in Policy matters scheduler Universe */
 
 /*
@@ -531,6 +537,11 @@ DESC(job_core_time-deferral,"Vanilla: Verify deferred execution")
 RUN(job_core_time-deferral)
 TESTCLASS(job_core_time-deferral,core)
 TESTCLASS(job_core_time-deferral,quick)
+
+DESC(job_core_crontab_van,"Vanilla: CronTab Scheduling")
+RUN(job_core_crontab_van)
+TESTCLASS(job_core_crontab_van,core)
+TESTCLASS(job_core_crontab_van,long)
 
 DESC(job_core_max-running_local,"Local: Max job running limit")
 RUN(job_core_max-running_local)
