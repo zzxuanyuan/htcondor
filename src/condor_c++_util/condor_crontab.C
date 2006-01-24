@@ -21,13 +21,13 @@
   *
   ****************************Copyright-DO-NOT-REMOVE-THIS-LINE**/
 
-#include "condor_crontab.h"
 #include "condor_common.h"
+#include "condor_crontab.h"
 #include "condor_classad.h"
 #include "condor_debug.h"
 #include "MyString.h"
 #include "extArray.h"
-//#include "RegExer.h"
+#include "Regex.h"
 #include "date_util.h"
 
 //
@@ -45,15 +45,8 @@ const char* CronTab::attributes[] = {	ATTR_CRON_MINUTES,
 // parameters. Since C++ does not have static initialization
 // blocks, we can't check here to make sure the object was 
 // initialized properly. We will have to check in CronTab::init()
-// Since the pattern is hardcoded, we better have a good reason
-// for failing!
 // 
-//RegExer CronTab::regex( "[^\\/0-9"
-//						CRONTAB_DELIMITER
-//						CRONTAB_RANGE
-//						CRONTAB_STEP
-//						CRONTAB_WILDCARD
-//						"\\/*]" );
+Regex CronTab::regex;
 						
 //
 // Default Constructor
@@ -75,15 +68,15 @@ CronTab::CronTab( ClassAd *ad )
 		//
 		// Pull out the different parameters from the ClassAd
 		//
-	char buffer[512];
 	for ( int ctr = 0; ctr < CRONTAB_FIELDS; ctr++ ) {
+		MyString buffer;
 			//
 			// First get out the parameter value
 			//
-		if ( ad->LookupString( this->attributes[ctr], buffer, 512 ) ) {
+		if ( ad->LookupString( this->attributes[ctr], buffer ) ) {
 			dprintf( D_FULLDEBUG, "CronTab: Pulled out '%s' for %s\n",
-							buffer, this->attributes[ctr] );
-			this->parameters[ctr] = new MyString( buffer );
+						buffer.Value(), this->attributes[ctr] );
+			this->parameters[ctr] = new MyString( buffer.Value() );
 			//
 			// The parameter is empty, we'll use the wildcard
 			//
@@ -202,13 +195,12 @@ CronTab::needsCronTab( ClassAd *ad ) {
 		// one of the attributes in the ClassAd
 		//
 	bool ret = false;
-	char buffer[512];
 	int ctr;
 	for ( ctr = 0; ctr < CRONTAB_FIELDS; ctr++ ) {
 			//
 			// As soon as we find one we can quit
 			//
-		if ( ad->LookupString( CronTab::attributes[ctr], buffer ) ) {
+		if ( ad->Lookup( CronTab::attributes[ctr] ) ) {
 			ret = true;
 			break;
 		}
@@ -227,17 +219,17 @@ CronTab::validate( ClassAd *ad, MyString &error ) {
 		// If one our attribute fields is defined, then check
 		// to make sure that it has valid syntax
 		//
-	char *buffer = NULL;
 	int ctr;
 	for ( ctr = 0; ctr < CRONTAB_FIELDS; ctr++ ) {
-		MyString curError;
+		MyString buffer;
 			//
 			// If the validation fails, we keep going
 			// so that they can see all the error messages about
 			// their parameters at once
 			//
 		if ( ad->LookupString( CronTab::attributes[ctr], buffer ) ) {
-			if ( !CronTab::validateParameter( ctr, buffer, curError ) ) {
+			MyString curError;
+			if ( !CronTab::validateParameter( ctr, buffer.Value(), curError ) ) {
 				ret = false;
 					//
 					// Add this error message to our list
@@ -245,7 +237,6 @@ CronTab::validate( ClassAd *ad, MyString &error ) {
 				error += curError;
 				error += "\n";
 			}
-			free( buffer );
 		}
 	} // FOR
 	return ( ret );
@@ -273,7 +264,8 @@ CronTab::validateParameter( int attribute_idx, const char *parameter,
 		// Make sure there are only valid characters 
 		// in the parameter string
 		//
-	if ( false ) { //CronTab::regex.match( (char*)parameter ) ) {
+	MyString temp(parameter);
+	if ( CronTab::regex.match( temp ) ) {
 		error  = "Invalid parameter value '";
 		error += parameter;
 		error += "' for ";
@@ -292,6 +284,32 @@ CronTab::validateParameter( int attribute_idx, const char *parameter,
 void
 CronTab::init() {
 		//
+		// First check to make sure we instantiated our Regex object
+		//
+	if ( &CronTab::regex == NULL ) {
+		MyString error = "CronTab: Unable to allocate memory for Regex";
+		EXCEPT( (char*)error.Value() );
+	}
+		//
+		// There should be only one Regex object shared for all instances
+		// of our object since the pattern that it needs to match is the same
+		// So we only need to compile the pattern once
+		//
+	if ( ! CronTab::regex.isInitialized() ) {
+		const char *errptr;
+		int erroffset;
+		MyString pattern( CRONTAB_PARAMETER_PATTERN ) ;
+			//
+			// It's a big problem if we can't compile the pattern, so
+			// we'll want to dump out right now
+			//
+		if ( ! CronTab::regex.compile( pattern, &errptr, &erroffset )) {
+			MyString error = "CronTab: Failed to compile Regex expression - %s";
+			EXCEPT( (char*)error.Value() );
+		}
+	}
+	
+		//
 		// Set the last runtime as empty
 		//
 	this->lastRunTime = CRONTAB_INVALID;
@@ -299,23 +317,6 @@ CronTab::init() {
 		// We're invalid until we parse all the parameters
 		//
 	this->valid = false;
-	
-		//
-		// Check to see if we were able to instantiate our
-		// regex object statically
-		//
-//	if ( &CronTab::regex == NULL || CronTab::regex.getErrno() != 0 ) {
-//		MyString errorMessage("CronTab: Failed to instantiate Regex - ");
-//			//
-//			// Pluck out the error message
-//			//
-//		if ( &CronTab::regex == NULL ) {
-//			errorMessage += CronTab::regex.getStrerror();
-//		} else {
-//			errorMessage += "Unable to allocate memory";
-//		}
-//		EXCEPT( (char*)errorMessage.Value() );
-//	}
 	
 		//
 		// Now run through all the parameters and create the cron schedule
@@ -659,8 +660,8 @@ CronTab::matchFields( int *curTime, int *match, int ctr, bool useFirst )
 bool
 CronTab::expandParameter( int attribute_idx, int min, int max )
 {
-	MyString *param 		= this->parameters[attribute_idx];
-	ExtArray<int> *list 	= this->ranges[attribute_idx];
+	MyString *param = this->parameters[attribute_idx];
+	ExtArray<int> *list	= this->ranges[attribute_idx];
 	
 		//
 		// Make sure the parameter is valid
@@ -684,7 +685,6 @@ CronTab::expandParameter( int attribute_idx, int min, int max )
 		// Remove any spaces
 		//
 	param->replaceString(" ", "");
-
 	
 		//
 		// Now here's the tricky part! We need to expand their parameter
