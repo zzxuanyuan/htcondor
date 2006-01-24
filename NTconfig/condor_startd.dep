@@ -1,6 +1,14 @@
 # Microsoft Developer Studio Generated Dependency File, included by condor_startd.mak
 
 ..\src\condor_startd.V6\AvailStats.C : \
+	"..\..\..\..\program files\microsoft platform sdk\include\basetsd.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\guiddef.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\propidl.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\reason.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\specstrings.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\stralign.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\tvout.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\winefs.h"\
 	"..\externals\install\gsoap-2.7.6c\src\stdsoap2.h"\
 	"..\src\condor_c++_util\classad_command_util.h"\
 	"..\src\condor_c++_util\command_strings.h"\
@@ -38,11 +46,13 @@
 	"..\src\condor_daemon_core.V6\self_monitor.h"\
 	"..\src\condor_includes\basename.h"\
 	"..\src\condor_includes\buffers.h"\
+	"..\src\condor_includes\cedar_enums.h"\
 	"..\src\condor_includes\condor_adtypes.h"\
 	"..\src\condor_includes\condor_ast.h"\
 	"..\src\condor_includes\condor_astbase.h"\
 	"..\src\condor_includes\condor_attributes.h"\
 	"..\src\condor_includes\condor_attrlist.h"\
+	"..\src\condor_includes\condor_blkng_full_disk_io.h"\
 	"..\src\condor_includes\condor_ckpt_name.h"\
 	"..\src\condor_includes\condor_classad.h"\
 	"..\src\condor_includes\condor_classad_namedlist.h"\
@@ -51,6 +61,7 @@
 	"..\src\condor_includes\condor_common.h"\
 	"..\src\condor_includes\condor_config.h"\
 	"..\src\condor_includes\condor_constants.h"\
+	"..\src\condor_includes\condor_create_id.h"\
 	"..\src\condor_includes\condor_cron.h"\
 	"..\src\condor_includes\condor_cronjob.h"\
 	"..\src\condor_includes\condor_cronmgr.h"\
@@ -58,10 +69,12 @@
 	"..\src\condor_includes\condor_debug.h"\
 	"..\src\condor_includes\condor_error_codes.h"\
 	"..\src\condor_includes\condor_exprtype.h"\
+	"..\src\condor_includes\condor_file_lock.h"\
 	"..\src\condor_includes\condor_fix_assert.h"\
 	"..\src\condor_includes\condor_getmnt.h"\
 	"..\src\condor_includes\condor_header_features.h"\
 	"..\src\condor_includes\condor_io.h"\
+	"..\src\condor_includes\condor_macros.h"\
 	"..\src\condor_includes\condor_md.h"\
 	"..\src\condor_includes\condor_network.h"\
 	"..\src\condor_includes\condor_old_shadow_types.h"\
@@ -72,330 +85,8 @@
 	"..\src\condor_includes\condor_state.h"\
 	"..\src\condor_includes\condor_status.h"\
 	"..\src\condor_includes\condor_string.h"\
-	"..\src\condor_includes\condor_system.h"\
-	"..\src\condor_includes\condor_uid.h"\
-	"..\src\condor_includes\condor_universe.h"\
-	"..\src\condor_includes\CryptKey.h"\
-	"..\src\condor_includes\keycache.h"\
-	"..\src\condor_includes\linebuffer.h"\
-	"..\src\condor_includes\reli_sock.h"\
-	"..\src\condor_includes\safe_sock.h"\
-	"..\src\condor_includes\SafeMsg.h"\
-	"..\src\condor_includes\sock.h"\
-	"..\src\condor_includes\sockCache.h"\
-	"..\src\condor_includes\stream.h"\
-	"..\src\condor_procapi\procapi.h"\
-	"..\src\condor_startd.V6\AvailStats.h"\
-	"..\src\condor_startd.V6\claim.h"\
-	"..\src\condor_startd.V6\cod_mgr.h"\
-	"..\src\condor_startd.V6\command.h"\
-	"..\src\condor_startd.V6\CondorSystrayNotifier.h"\
-	"..\src\condor_startd.V6\LoadQueue.h"\
-	"..\src\condor_startd.V6\Reqexp.h"\
-	"..\src\condor_startd.V6\ResAttributes.h"\
-	"..\src\condor_startd.V6\ResMgr.h"\
-	"..\src\condor_startd.V6\Resource.h"\
-	"..\src\condor_startd.V6\ResState.h"\
-	"..\src\condor_startd.V6\startd.h"\
-	"..\src\condor_startd.V6\startd_cronmgr.h"\
-	"..\src\condor_startd.V6\Starter.h"\
-	"..\src\condor_startd.V6\starter_mgr.h"\
-	"..\src\h\condor_types.h"\
-	"..\src\h\internet.h"\
-	"..\src\h\proc.h"\
-	"..\src\h\startup.h"\
-	"..\src\h\util_lib_proto.h"\
-	"c:\program files\microsoft platform sdk\include\winefs.h"\
-	
-
-..\src\condor_startd.V6\claim.C : \
-	"..\externals\install\gsoap-2.7.6c\src\stdsoap2.h"\
-	"..\src\condor_c++_util\classad_command_util.h"\
-	"..\src\condor_c++_util\command_strings.h"\
-	"..\src\condor_c++_util\condor_arglist.h"\
-	"..\src\condor_c++_util\condor_query.h"\
-	"..\src\condor_c++_util\condor_ver_info.h"\
-	"..\src\condor_c++_util\condor_version.h"\
-	"..\src\condor_c++_util\CondorError.h"\
-	"..\src\condor_c++_util\dc_service.h"\
-	"..\src\condor_c++_util\enum_utils.h"\
-	"..\src\condor_c++_util\env.h"\
-	"..\src\condor_c++_util\extArray.h"\
-	"..\src\condor_c++_util\generic_query.h"\
-	"..\src\condor_c++_util\get_daemon_name.h"\
-	"..\src\condor_c++_util\get_full_hostname.h"\
-	"..\src\condor_c++_util\HashTable.h"\
-	"..\src\condor_c++_util\killfamily.h"\
-	"..\src\condor_c++_util\misc_utils.h"\
-	"..\src\condor_c++_util\my_hostname.h"\
-	"..\src\condor_c++_util\MyString.h"\
-	"..\src\condor_c++_util\net_string_list.h"\
-	"..\src\condor_c++_util\ntsysinfo.h"\
-	"..\src\condor_c++_util\query_result_type.h"\
-	"..\src\condor_c++_util\simplelist.h"\
-	"..\src\condor_c++_util\string_list.h"\
-	"..\src\condor_c++_util\stringSpace.h"\
-	"..\src\condor_c++_util\translation_utils.h"\
-	"..\src\condor_daemon_client\daemon.h"\
-	"..\src\condor_daemon_client\daemon_list.h"\
-	"..\src\condor_daemon_client\daemon_types.h"\
-	"..\src\condor_daemon_client\dc_collector.h"\
-	"..\src\condor_daemon_core.V6\condor_daemon_core.h"\
-	"..\src\condor_daemon_core.V6\condor_ipverify.h"\
-	"..\src\condor_daemon_core.V6\condor_timer_manager.h"\
-	"..\src\condor_daemon_core.V6\self_monitor.h"\
-	"..\src\condor_includes\basename.h"\
-	"..\src\condor_includes\buffers.h"\
-	"..\src\condor_includes\condor_adtypes.h"\
-	"..\src\condor_includes\condor_ast.h"\
-	"..\src\condor_includes\condor_astbase.h"\
-	"..\src\condor_includes\condor_attributes.h"\
-	"..\src\condor_includes\condor_attrlist.h"\
-	"..\src\condor_includes\condor_ckpt_name.h"\
-	"..\src\condor_includes\condor_classad.h"\
-	"..\src\condor_includes\condor_classad_namedlist.h"\
-	"..\src\condor_includes\condor_collector.h"\
-	"..\src\condor_includes\condor_commands.h"\
-	"..\src\condor_includes\condor_common.h"\
-	"..\src\condor_includes\condor_config.h"\
-	"..\src\condor_includes\condor_constants.h"\
-	"..\src\condor_includes\condor_cron.h"\
-	"..\src\condor_includes\condor_cronjob.h"\
-	"..\src\condor_includes\condor_cronmgr.h"\
-	"..\src\condor_includes\condor_crypt.h"\
-	"..\src\condor_includes\condor_debug.h"\
-	"..\src\condor_includes\condor_error_codes.h"\
-	"..\src\condor_includes\condor_exprtype.h"\
-	"..\src\condor_includes\condor_fix_assert.h"\
-	"..\src\condor_includes\condor_getmnt.h"\
-	"..\src\condor_includes\condor_header_features.h"\
-	"..\src\condor_includes\condor_io.h"\
-	"..\src\condor_includes\condor_md.h"\
-	"..\src\condor_includes\condor_network.h"\
-	"..\src\condor_includes\condor_old_shadow_types.h"\
-	"..\src\condor_includes\condor_perms.h"\
-	"..\src\condor_includes\condor_pidenvid.h"\
-	"..\src\condor_includes\condor_random_num.h"\
-	"..\src\condor_includes\condor_secman.h"\
-	"..\src\condor_includes\condor_state.h"\
-	"..\src\condor_includes\condor_status.h"\
-	"..\src\condor_includes\condor_string.h"\
-	"..\src\condor_includes\condor_system.h"\
-	"..\src\condor_includes\condor_uid.h"\
-	"..\src\condor_includes\condor_universe.h"\
-	"..\src\condor_includes\CryptKey.h"\
-	"..\src\condor_includes\keycache.h"\
-	"..\src\condor_includes\linebuffer.h"\
-	"..\src\condor_includes\reli_sock.h"\
-	"..\src\condor_includes\safe_sock.h"\
-	"..\src\condor_includes\SafeMsg.h"\
-	"..\src\condor_includes\sock.h"\
-	"..\src\condor_includes\sockCache.h"\
-	"..\src\condor_includes\stream.h"\
-	"..\src\condor_procapi\procapi.h"\
-	"..\src\condor_startd.V6\AvailStats.h"\
-	"..\src\condor_startd.V6\claim.h"\
-	"..\src\condor_startd.V6\cod_mgr.h"\
-	"..\src\condor_startd.V6\command.h"\
-	"..\src\condor_startd.V6\CondorSystrayNotifier.h"\
-	"..\src\condor_startd.V6\LoadQueue.h"\
-	"..\src\condor_startd.V6\Reqexp.h"\
-	"..\src\condor_startd.V6\ResAttributes.h"\
-	"..\src\condor_startd.V6\ResMgr.h"\
-	"..\src\condor_startd.V6\Resource.h"\
-	"..\src\condor_startd.V6\ResState.h"\
-	"..\src\condor_startd.V6\startd.h"\
-	"..\src\condor_startd.V6\startd_cronmgr.h"\
-	"..\src\condor_startd.V6\Starter.h"\
-	"..\src\condor_startd.V6\starter_mgr.h"\
-	"..\src\h\condor_types.h"\
-	"..\src\h\internet.h"\
-	"..\src\h\proc.h"\
-	"..\src\h\startup.h"\
-	"..\src\h\util_lib_proto.h"\
-	"c:\program files\microsoft platform sdk\include\winefs.h"\
-	
-
-..\src\condor_startd.V6\cod_mgr.C : \
-	"..\externals\install\gsoap-2.7.6c\src\stdsoap2.h"\
-	"..\src\condor_c++_util\classad_command_util.h"\
-	"..\src\condor_c++_util\command_strings.h"\
-	"..\src\condor_c++_util\condor_arglist.h"\
-	"..\src\condor_c++_util\condor_query.h"\
-	"..\src\condor_c++_util\condor_ver_info.h"\
-	"..\src\condor_c++_util\condor_version.h"\
-	"..\src\condor_c++_util\CondorError.h"\
-	"..\src\condor_c++_util\dc_service.h"\
-	"..\src\condor_c++_util\enum_utils.h"\
-	"..\src\condor_c++_util\env.h"\
-	"..\src\condor_c++_util\extArray.h"\
-	"..\src\condor_c++_util\generic_query.h"\
-	"..\src\condor_c++_util\get_daemon_name.h"\
-	"..\src\condor_c++_util\get_full_hostname.h"\
-	"..\src\condor_c++_util\HashTable.h"\
-	"..\src\condor_c++_util\killfamily.h"\
-	"..\src\condor_c++_util\misc_utils.h"\
-	"..\src\condor_c++_util\my_hostname.h"\
-	"..\src\condor_c++_util\MyString.h"\
-	"..\src\condor_c++_util\net_string_list.h"\
-	"..\src\condor_c++_util\ntsysinfo.h"\
-	"..\src\condor_c++_util\query_result_type.h"\
-	"..\src\condor_c++_util\simplelist.h"\
-	"..\src\condor_c++_util\string_list.h"\
-	"..\src\condor_c++_util\stringSpace.h"\
-	"..\src\condor_c++_util\translation_utils.h"\
-	"..\src\condor_daemon_client\daemon.h"\
-	"..\src\condor_daemon_client\daemon_list.h"\
-	"..\src\condor_daemon_client\daemon_types.h"\
-	"..\src\condor_daemon_client\dc_collector.h"\
-	"..\src\condor_daemon_core.V6\condor_daemon_core.h"\
-	"..\src\condor_daemon_core.V6\condor_ipverify.h"\
-	"..\src\condor_daemon_core.V6\condor_timer_manager.h"\
-	"..\src\condor_daemon_core.V6\self_monitor.h"\
-	"..\src\condor_includes\basename.h"\
-	"..\src\condor_includes\buffers.h"\
-	"..\src\condor_includes\condor_adtypes.h"\
-	"..\src\condor_includes\condor_ast.h"\
-	"..\src\condor_includes\condor_astbase.h"\
-	"..\src\condor_includes\condor_attributes.h"\
-	"..\src\condor_includes\condor_attrlist.h"\
-	"..\src\condor_includes\condor_ckpt_name.h"\
-	"..\src\condor_includes\condor_classad.h"\
-	"..\src\condor_includes\condor_classad_namedlist.h"\
-	"..\src\condor_includes\condor_collector.h"\
-	"..\src\condor_includes\condor_commands.h"\
-	"..\src\condor_includes\condor_common.h"\
-	"..\src\condor_includes\condor_config.h"\
-	"..\src\condor_includes\condor_constants.h"\
-	"..\src\condor_includes\condor_cron.h"\
-	"..\src\condor_includes\condor_cronjob.h"\
-	"..\src\condor_includes\condor_cronmgr.h"\
-	"..\src\condor_includes\condor_crypt.h"\
-	"..\src\condor_includes\condor_debug.h"\
-	"..\src\condor_includes\condor_error_codes.h"\
-	"..\src\condor_includes\condor_exprtype.h"\
-	"..\src\condor_includes\condor_fix_assert.h"\
-	"..\src\condor_includes\condor_getmnt.h"\
-	"..\src\condor_includes\condor_header_features.h"\
-	"..\src\condor_includes\condor_io.h"\
-	"..\src\condor_includes\condor_md.h"\
-	"..\src\condor_includes\condor_network.h"\
-	"..\src\condor_includes\condor_old_shadow_types.h"\
-	"..\src\condor_includes\condor_perms.h"\
-	"..\src\condor_includes\condor_pidenvid.h"\
-	"..\src\condor_includes\condor_random_num.h"\
-	"..\src\condor_includes\condor_secman.h"\
-	"..\src\condor_includes\condor_state.h"\
-	"..\src\condor_includes\condor_status.h"\
-	"..\src\condor_includes\condor_string.h"\
-	"..\src\condor_includes\condor_system.h"\
-	"..\src\condor_includes\condor_uid.h"\
-	"..\src\condor_includes\condor_universe.h"\
-	"..\src\condor_includes\CryptKey.h"\
-	"..\src\condor_includes\keycache.h"\
-	"..\src\condor_includes\linebuffer.h"\
-	"..\src\condor_includes\reli_sock.h"\
-	"..\src\condor_includes\safe_sock.h"\
-	"..\src\condor_includes\SafeMsg.h"\
-	"..\src\condor_includes\sock.h"\
-	"..\src\condor_includes\sockCache.h"\
-	"..\src\condor_includes\stream.h"\
-	"..\src\condor_procapi\procapi.h"\
-	"..\src\condor_startd.V6\AvailStats.h"\
-	"..\src\condor_startd.V6\claim.h"\
-	"..\src\condor_startd.V6\cod_mgr.h"\
-	"..\src\condor_startd.V6\command.h"\
-	"..\src\condor_startd.V6\CondorSystrayNotifier.h"\
-	"..\src\condor_startd.V6\LoadQueue.h"\
-	"..\src\condor_startd.V6\Reqexp.h"\
-	"..\src\condor_startd.V6\ResAttributes.h"\
-	"..\src\condor_startd.V6\ResMgr.h"\
-	"..\src\condor_startd.V6\Resource.h"\
-	"..\src\condor_startd.V6\ResState.h"\
-	"..\src\condor_startd.V6\startd.h"\
-	"..\src\condor_startd.V6\startd_cronmgr.h"\
-	"..\src\condor_startd.V6\Starter.h"\
-	"..\src\condor_startd.V6\starter_mgr.h"\
-	"..\src\h\condor_types.h"\
-	"..\src\h\internet.h"\
-	"..\src\h\proc.h"\
-	"..\src\h\startup.h"\
-	"..\src\h\util_lib_proto.h"\
-	"c:\program files\microsoft platform sdk\include\winefs.h"\
-	
-
-..\src\condor_startd.V6\command.C : \
-	"..\externals\install\gsoap-2.7.6c\src\stdsoap2.h"\
-	"..\src\condor_c++_util\classad_command_util.h"\
-	"..\src\condor_c++_util\command_strings.h"\
-	"..\src\condor_c++_util\condor_arglist.h"\
-	"..\src\condor_c++_util\condor_query.h"\
-	"..\src\condor_c++_util\condor_ver_info.h"\
-	"..\src\condor_c++_util\condor_version.h"\
-	"..\src\condor_c++_util\CondorError.h"\
-	"..\src\condor_c++_util\dc_service.h"\
-	"..\src\condor_c++_util\enum_utils.h"\
-	"..\src\condor_c++_util\env.h"\
-	"..\src\condor_c++_util\extArray.h"\
-	"..\src\condor_c++_util\generic_query.h"\
-	"..\src\condor_c++_util\get_daemon_name.h"\
-	"..\src\condor_c++_util\get_full_hostname.h"\
-	"..\src\condor_c++_util\HashTable.h"\
-	"..\src\condor_c++_util\killfamily.h"\
-	"..\src\condor_c++_util\misc_utils.h"\
-	"..\src\condor_c++_util\my_hostname.h"\
-	"..\src\condor_c++_util\MyString.h"\
-	"..\src\condor_c++_util\net_string_list.h"\
-	"..\src\condor_c++_util\ntsysinfo.h"\
-	"..\src\condor_c++_util\query_result_type.h"\
-	"..\src\condor_c++_util\simplelist.h"\
-	"..\src\condor_c++_util\string_list.h"\
-	"..\src\condor_c++_util\stringSpace.h"\
-	"..\src\condor_c++_util\translation_utils.h"\
-	"..\src\condor_daemon_client\daemon.h"\
-	"..\src\condor_daemon_client\daemon_list.h"\
-	"..\src\condor_daemon_client\daemon_types.h"\
-	"..\src\condor_daemon_client\dc_collector.h"\
-	"..\src\condor_daemon_core.V6\condor_daemon_core.h"\
-	"..\src\condor_daemon_core.V6\condor_ipverify.h"\
-	"..\src\condor_daemon_core.V6\condor_timer_manager.h"\
-	"..\src\condor_daemon_core.V6\self_monitor.h"\
-	"..\src\condor_includes\basename.h"\
-	"..\src\condor_includes\buffers.h"\
-	"..\src\condor_includes\condor_adtypes.h"\
-	"..\src\condor_includes\condor_ast.h"\
-	"..\src\condor_includes\condor_astbase.h"\
-	"..\src\condor_includes\condor_attributes.h"\
-	"..\src\condor_includes\condor_attrlist.h"\
-	"..\src\condor_includes\condor_ckpt_name.h"\
-	"..\src\condor_includes\condor_classad.h"\
-	"..\src\condor_includes\condor_classad_namedlist.h"\
-	"..\src\condor_includes\condor_collector.h"\
-	"..\src\condor_includes\condor_commands.h"\
-	"..\src\condor_includes\condor_common.h"\
-	"..\src\condor_includes\condor_config.h"\
-	"..\src\condor_includes\condor_constants.h"\
-	"..\src\condor_includes\condor_cron.h"\
-	"..\src\condor_includes\condor_cronjob.h"\
-	"..\src\condor_includes\condor_cronmgr.h"\
-	"..\src\condor_includes\condor_crypt.h"\
-	"..\src\condor_includes\condor_debug.h"\
-	"..\src\condor_includes\condor_error_codes.h"\
-	"..\src\condor_includes\condor_exprtype.h"\
-	"..\src\condor_includes\condor_fix_assert.h"\
-	"..\src\condor_includes\condor_getmnt.h"\
-	"..\src\condor_includes\condor_header_features.h"\
-	"..\src\condor_includes\condor_io.h"\
-	"..\src\condor_includes\condor_md.h"\
-	"..\src\condor_includes\condor_network.h"\
-	"..\src\condor_includes\condor_old_shadow_types.h"\
-	"..\src\condor_includes\condor_perms.h"\
-	"..\src\condor_includes\condor_pidenvid.h"\
-	"..\src\condor_includes\condor_random_num.h"\
-	"..\src\condor_includes\condor_secman.h"\
-	"..\src\condor_includes\condor_state.h"\
-	"..\src\condor_includes\condor_status.h"\
-	"..\src\condor_includes\condor_string.h"\
+	"..\src\condor_includes\condor_sys_nt.h"\
+	"..\src\condor_includes\condor_sys_types.h"\
 	"..\src\condor_includes\condor_system.h"\
 	"..\src\condor_includes\condor_uid.h"\
 	"..\src\condor_includes\condor_universe.h"\
@@ -426,20 +117,23 @@
 	"..\src\condor_startd.V6\starter_mgr.h"\
 	"..\src\condor_sysapi\sysapi.h"\
 	"..\src\h\condor_types.h"\
+	"..\src\h\fake_flock.h"\
+	"..\src\h\file_lock.h"\
 	"..\src\h\internet.h"\
 	"..\src\h\proc.h"\
 	"..\src\h\startup.h"\
 	"..\src\h\util_lib_proto.h"\
-	"c:\program files\microsoft platform sdk\include\winefs.h"\
 	
 
-..\src\condor_startd.V6\CondorSystrayNotifier.cpp : \
-	"..\src\condor_startd.V6\CondorSystrayCommon.h"\
-	"..\src\condor_startd.V6\CondorSystrayNotifier.h"\
-	"c:\program files\microsoft platform sdk\include\winefs.h"\
-	
-
-..\src\condor_startd.V6\LoadQueue.C : \
+..\src\condor_startd.V6\claim.C : \
+	"..\..\..\..\program files\microsoft platform sdk\include\basetsd.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\guiddef.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\propidl.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\reason.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\specstrings.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\stralign.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\tvout.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\winefs.h"\
 	"..\externals\install\gsoap-2.7.6c\src\stdsoap2.h"\
 	"..\src\condor_c++_util\classad_command_util.h"\
 	"..\src\condor_c++_util\command_strings.h"\
@@ -477,11 +171,13 @@
 	"..\src\condor_daemon_core.V6\self_monitor.h"\
 	"..\src\condor_includes\basename.h"\
 	"..\src\condor_includes\buffers.h"\
+	"..\src\condor_includes\cedar_enums.h"\
 	"..\src\condor_includes\condor_adtypes.h"\
 	"..\src\condor_includes\condor_ast.h"\
 	"..\src\condor_includes\condor_astbase.h"\
 	"..\src\condor_includes\condor_attributes.h"\
 	"..\src\condor_includes\condor_attrlist.h"\
+	"..\src\condor_includes\condor_blkng_full_disk_io.h"\
 	"..\src\condor_includes\condor_ckpt_name.h"\
 	"..\src\condor_includes\condor_classad.h"\
 	"..\src\condor_includes\condor_classad_namedlist.h"\
@@ -490,6 +186,7 @@
 	"..\src\condor_includes\condor_common.h"\
 	"..\src\condor_includes\condor_config.h"\
 	"..\src\condor_includes\condor_constants.h"\
+	"..\src\condor_includes\condor_create_id.h"\
 	"..\src\condor_includes\condor_cron.h"\
 	"..\src\condor_includes\condor_cronjob.h"\
 	"..\src\condor_includes\condor_cronmgr.h"\
@@ -497,10 +194,12 @@
 	"..\src\condor_includes\condor_debug.h"\
 	"..\src\condor_includes\condor_error_codes.h"\
 	"..\src\condor_includes\condor_exprtype.h"\
+	"..\src\condor_includes\condor_file_lock.h"\
 	"..\src\condor_includes\condor_fix_assert.h"\
 	"..\src\condor_includes\condor_getmnt.h"\
 	"..\src\condor_includes\condor_header_features.h"\
 	"..\src\condor_includes\condor_io.h"\
+	"..\src\condor_includes\condor_macros.h"\
 	"..\src\condor_includes\condor_md.h"\
 	"..\src\condor_includes\condor_network.h"\
 	"..\src\condor_includes\condor_old_shadow_types.h"\
@@ -511,6 +210,8 @@
 	"..\src\condor_includes\condor_state.h"\
 	"..\src\condor_includes\condor_status.h"\
 	"..\src\condor_includes\condor_string.h"\
+	"..\src\condor_includes\condor_sys_nt.h"\
+	"..\src\condor_includes\condor_sys_types.h"\
 	"..\src\condor_includes\condor_system.h"\
 	"..\src\condor_includes\condor_uid.h"\
 	"..\src\condor_includes\condor_universe.h"\
@@ -539,43 +240,475 @@
 	"..\src\condor_startd.V6\startd_cronmgr.h"\
 	"..\src\condor_startd.V6\Starter.h"\
 	"..\src\condor_startd.V6\starter_mgr.h"\
+	"..\src\condor_sysapi\sysapi.h"\
 	"..\src\h\condor_types.h"\
+	"..\src\h\fake_flock.h"\
+	"..\src\h\file_lock.h"\
 	"..\src\h\internet.h"\
 	"..\src\h\proc.h"\
 	"..\src\h\startup.h"\
 	"..\src\h\util_lib_proto.h"\
-	"c:\program files\microsoft platform sdk\include\winefs.h"\
+	
+
+..\src\condor_startd.V6\cod_mgr.C : \
+	"..\..\..\..\program files\microsoft platform sdk\include\basetsd.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\guiddef.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\propidl.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\reason.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\specstrings.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\stralign.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\tvout.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\winefs.h"\
+	"..\externals\install\gsoap-2.7.6c\src\stdsoap2.h"\
+	"..\src\condor_c++_util\classad_command_util.h"\
+	"..\src\condor_c++_util\command_strings.h"\
+	"..\src\condor_c++_util\condor_arglist.h"\
+	"..\src\condor_c++_util\condor_query.h"\
+	"..\src\condor_c++_util\condor_ver_info.h"\
+	"..\src\condor_c++_util\condor_version.h"\
+	"..\src\condor_c++_util\CondorError.h"\
+	"..\src\condor_c++_util\dc_service.h"\
+	"..\src\condor_c++_util\enum_utils.h"\
+	"..\src\condor_c++_util\env.h"\
+	"..\src\condor_c++_util\extArray.h"\
+	"..\src\condor_c++_util\generic_query.h"\
+	"..\src\condor_c++_util\get_daemon_name.h"\
+	"..\src\condor_c++_util\get_full_hostname.h"\
+	"..\src\condor_c++_util\HashTable.h"\
+	"..\src\condor_c++_util\killfamily.h"\
+	"..\src\condor_c++_util\misc_utils.h"\
+	"..\src\condor_c++_util\my_hostname.h"\
+	"..\src\condor_c++_util\MyString.h"\
+	"..\src\condor_c++_util\net_string_list.h"\
+	"..\src\condor_c++_util\ntsysinfo.h"\
+	"..\src\condor_c++_util\query_result_type.h"\
+	"..\src\condor_c++_util\simplelist.h"\
+	"..\src\condor_c++_util\string_list.h"\
+	"..\src\condor_c++_util\stringSpace.h"\
+	"..\src\condor_c++_util\translation_utils.h"\
+	"..\src\condor_daemon_client\daemon.h"\
+	"..\src\condor_daemon_client\daemon_list.h"\
+	"..\src\condor_daemon_client\daemon_types.h"\
+	"..\src\condor_daemon_client\dc_collector.h"\
+	"..\src\condor_daemon_core.V6\condor_daemon_core.h"\
+	"..\src\condor_daemon_core.V6\condor_ipverify.h"\
+	"..\src\condor_daemon_core.V6\condor_timer_manager.h"\
+	"..\src\condor_daemon_core.V6\self_monitor.h"\
+	"..\src\condor_includes\basename.h"\
+	"..\src\condor_includes\buffers.h"\
+	"..\src\condor_includes\cedar_enums.h"\
+	"..\src\condor_includes\condor_adtypes.h"\
+	"..\src\condor_includes\condor_ast.h"\
+	"..\src\condor_includes\condor_astbase.h"\
+	"..\src\condor_includes\condor_attributes.h"\
+	"..\src\condor_includes\condor_attrlist.h"\
+	"..\src\condor_includes\condor_blkng_full_disk_io.h"\
+	"..\src\condor_includes\condor_ckpt_name.h"\
+	"..\src\condor_includes\condor_classad.h"\
+	"..\src\condor_includes\condor_classad_namedlist.h"\
+	"..\src\condor_includes\condor_collector.h"\
+	"..\src\condor_includes\condor_commands.h"\
+	"..\src\condor_includes\condor_common.h"\
+	"..\src\condor_includes\condor_config.h"\
+	"..\src\condor_includes\condor_constants.h"\
+	"..\src\condor_includes\condor_create_id.h"\
+	"..\src\condor_includes\condor_cron.h"\
+	"..\src\condor_includes\condor_cronjob.h"\
+	"..\src\condor_includes\condor_cronmgr.h"\
+	"..\src\condor_includes\condor_crypt.h"\
+	"..\src\condor_includes\condor_debug.h"\
+	"..\src\condor_includes\condor_error_codes.h"\
+	"..\src\condor_includes\condor_exprtype.h"\
+	"..\src\condor_includes\condor_file_lock.h"\
+	"..\src\condor_includes\condor_fix_assert.h"\
+	"..\src\condor_includes\condor_getmnt.h"\
+	"..\src\condor_includes\condor_header_features.h"\
+	"..\src\condor_includes\condor_io.h"\
+	"..\src\condor_includes\condor_macros.h"\
+	"..\src\condor_includes\condor_md.h"\
+	"..\src\condor_includes\condor_network.h"\
+	"..\src\condor_includes\condor_old_shadow_types.h"\
+	"..\src\condor_includes\condor_perms.h"\
+	"..\src\condor_includes\condor_pidenvid.h"\
+	"..\src\condor_includes\condor_random_num.h"\
+	"..\src\condor_includes\condor_secman.h"\
+	"..\src\condor_includes\condor_state.h"\
+	"..\src\condor_includes\condor_status.h"\
+	"..\src\condor_includes\condor_string.h"\
+	"..\src\condor_includes\condor_sys_nt.h"\
+	"..\src\condor_includes\condor_sys_types.h"\
+	"..\src\condor_includes\condor_system.h"\
+	"..\src\condor_includes\condor_uid.h"\
+	"..\src\condor_includes\condor_universe.h"\
+	"..\src\condor_includes\CryptKey.h"\
+	"..\src\condor_includes\keycache.h"\
+	"..\src\condor_includes\linebuffer.h"\
+	"..\src\condor_includes\reli_sock.h"\
+	"..\src\condor_includes\safe_sock.h"\
+	"..\src\condor_includes\SafeMsg.h"\
+	"..\src\condor_includes\sock.h"\
+	"..\src\condor_includes\sockCache.h"\
+	"..\src\condor_includes\stream.h"\
+	"..\src\condor_procapi\procapi.h"\
+	"..\src\condor_startd.V6\AvailStats.h"\
+	"..\src\condor_startd.V6\claim.h"\
+	"..\src\condor_startd.V6\cod_mgr.h"\
+	"..\src\condor_startd.V6\command.h"\
+	"..\src\condor_startd.V6\CondorSystrayNotifier.h"\
+	"..\src\condor_startd.V6\LoadQueue.h"\
+	"..\src\condor_startd.V6\Reqexp.h"\
+	"..\src\condor_startd.V6\ResAttributes.h"\
+	"..\src\condor_startd.V6\ResMgr.h"\
+	"..\src\condor_startd.V6\Resource.h"\
+	"..\src\condor_startd.V6\ResState.h"\
+	"..\src\condor_startd.V6\startd.h"\
+	"..\src\condor_startd.V6\startd_cronmgr.h"\
+	"..\src\condor_startd.V6\Starter.h"\
+	"..\src\condor_startd.V6\starter_mgr.h"\
+	"..\src\condor_sysapi\sysapi.h"\
+	"..\src\h\condor_types.h"\
+	"..\src\h\fake_flock.h"\
+	"..\src\h\file_lock.h"\
+	"..\src\h\internet.h"\
+	"..\src\h\proc.h"\
+	"..\src\h\startup.h"\
+	"..\src\h\util_lib_proto.h"\
+	
+
+..\src\condor_startd.V6\command.C : \
+	"..\..\..\..\program files\microsoft platform sdk\include\basetsd.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\guiddef.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\propidl.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\reason.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\specstrings.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\stralign.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\tvout.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\winefs.h"\
+	"..\externals\install\gsoap-2.7.6c\src\stdsoap2.h"\
+	"..\src\condor_c++_util\classad_command_util.h"\
+	"..\src\condor_c++_util\command_strings.h"\
+	"..\src\condor_c++_util\condor_arglist.h"\
+	"..\src\condor_c++_util\condor_query.h"\
+	"..\src\condor_c++_util\condor_ver_info.h"\
+	"..\src\condor_c++_util\condor_version.h"\
+	"..\src\condor_c++_util\CondorError.h"\
+	"..\src\condor_c++_util\dc_service.h"\
+	"..\src\condor_c++_util\enum_utils.h"\
+	"..\src\condor_c++_util\env.h"\
+	"..\src\condor_c++_util\extArray.h"\
+	"..\src\condor_c++_util\generic_query.h"\
+	"..\src\condor_c++_util\get_daemon_name.h"\
+	"..\src\condor_c++_util\get_full_hostname.h"\
+	"..\src\condor_c++_util\HashTable.h"\
+	"..\src\condor_c++_util\killfamily.h"\
+	"..\src\condor_c++_util\misc_utils.h"\
+	"..\src\condor_c++_util\my_hostname.h"\
+	"..\src\condor_c++_util\MyString.h"\
+	"..\src\condor_c++_util\net_string_list.h"\
+	"..\src\condor_c++_util\ntsysinfo.h"\
+	"..\src\condor_c++_util\query_result_type.h"\
+	"..\src\condor_c++_util\simplelist.h"\
+	"..\src\condor_c++_util\string_list.h"\
+	"..\src\condor_c++_util\stringSpace.h"\
+	"..\src\condor_c++_util\translation_utils.h"\
+	"..\src\condor_daemon_client\daemon.h"\
+	"..\src\condor_daemon_client\daemon_list.h"\
+	"..\src\condor_daemon_client\daemon_types.h"\
+	"..\src\condor_daemon_client\dc_collector.h"\
+	"..\src\condor_daemon_core.V6\condor_daemon_core.h"\
+	"..\src\condor_daemon_core.V6\condor_ipverify.h"\
+	"..\src\condor_daemon_core.V6\condor_timer_manager.h"\
+	"..\src\condor_daemon_core.V6\self_monitor.h"\
+	"..\src\condor_includes\basename.h"\
+	"..\src\condor_includes\buffers.h"\
+	"..\src\condor_includes\cedar_enums.h"\
+	"..\src\condor_includes\condor_adtypes.h"\
+	"..\src\condor_includes\condor_ast.h"\
+	"..\src\condor_includes\condor_astbase.h"\
+	"..\src\condor_includes\condor_attributes.h"\
+	"..\src\condor_includes\condor_attrlist.h"\
+	"..\src\condor_includes\condor_blkng_full_disk_io.h"\
+	"..\src\condor_includes\condor_ckpt_name.h"\
+	"..\src\condor_includes\condor_classad.h"\
+	"..\src\condor_includes\condor_classad_namedlist.h"\
+	"..\src\condor_includes\condor_collector.h"\
+	"..\src\condor_includes\condor_commands.h"\
+	"..\src\condor_includes\condor_common.h"\
+	"..\src\condor_includes\condor_config.h"\
+	"..\src\condor_includes\condor_constants.h"\
+	"..\src\condor_includes\condor_create_id.h"\
+	"..\src\condor_includes\condor_cron.h"\
+	"..\src\condor_includes\condor_cronjob.h"\
+	"..\src\condor_includes\condor_cronmgr.h"\
+	"..\src\condor_includes\condor_crypt.h"\
+	"..\src\condor_includes\condor_debug.h"\
+	"..\src\condor_includes\condor_error_codes.h"\
+	"..\src\condor_includes\condor_exprtype.h"\
+	"..\src\condor_includes\condor_file_lock.h"\
+	"..\src\condor_includes\condor_fix_assert.h"\
+	"..\src\condor_includes\condor_getmnt.h"\
+	"..\src\condor_includes\condor_header_features.h"\
+	"..\src\condor_includes\condor_io.h"\
+	"..\src\condor_includes\condor_macros.h"\
+	"..\src\condor_includes\condor_md.h"\
+	"..\src\condor_includes\condor_network.h"\
+	"..\src\condor_includes\condor_old_shadow_types.h"\
+	"..\src\condor_includes\condor_perms.h"\
+	"..\src\condor_includes\condor_pidenvid.h"\
+	"..\src\condor_includes\condor_random_num.h"\
+	"..\src\condor_includes\condor_secman.h"\
+	"..\src\condor_includes\condor_state.h"\
+	"..\src\condor_includes\condor_status.h"\
+	"..\src\condor_includes\condor_string.h"\
+	"..\src\condor_includes\condor_sys_nt.h"\
+	"..\src\condor_includes\condor_sys_types.h"\
+	"..\src\condor_includes\condor_system.h"\
+	"..\src\condor_includes\condor_uid.h"\
+	"..\src\condor_includes\condor_universe.h"\
+	"..\src\condor_includes\CryptKey.h"\
+	"..\src\condor_includes\keycache.h"\
+	"..\src\condor_includes\linebuffer.h"\
+	"..\src\condor_includes\reli_sock.h"\
+	"..\src\condor_includes\safe_sock.h"\
+	"..\src\condor_includes\SafeMsg.h"\
+	"..\src\condor_includes\sock.h"\
+	"..\src\condor_includes\sockCache.h"\
+	"..\src\condor_includes\stream.h"\
+	"..\src\condor_procapi\procapi.h"\
+	"..\src\condor_startd.V6\AvailStats.h"\
+	"..\src\condor_startd.V6\claim.h"\
+	"..\src\condor_startd.V6\cod_mgr.h"\
+	"..\src\condor_startd.V6\command.h"\
+	"..\src\condor_startd.V6\CondorSystrayNotifier.h"\
+	"..\src\condor_startd.V6\LoadQueue.h"\
+	"..\src\condor_startd.V6\Reqexp.h"\
+	"..\src\condor_startd.V6\ResAttributes.h"\
+	"..\src\condor_startd.V6\ResMgr.h"\
+	"..\src\condor_startd.V6\Resource.h"\
+	"..\src\condor_startd.V6\ResState.h"\
+	"..\src\condor_startd.V6\startd.h"\
+	"..\src\condor_startd.V6\startd_cronmgr.h"\
+	"..\src\condor_startd.V6\Starter.h"\
+	"..\src\condor_startd.V6\starter_mgr.h"\
+	"..\src\condor_sysapi\sysapi.h"\
+	"..\src\h\condor_types.h"\
+	"..\src\h\fake_flock.h"\
+	"..\src\h\file_lock.h"\
+	"..\src\h\internet.h"\
+	"..\src\h\proc.h"\
+	"..\src\h\startup.h"\
+	"..\src\h\util_lib_proto.h"\
+	
+
+..\src\condor_startd.V6\CondorSystrayNotifier.cpp : \
+	"..\..\..\..\program files\microsoft platform sdk\include\basetsd.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\guiddef.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\propidl.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\reason.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\specstrings.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\stralign.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\tvout.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\winefs.h"\
+	"..\src\condor_includes\cedar_enums.h"\
+	"..\src\condor_includes\condor_blkng_full_disk_io.h"\
+	"..\src\condor_includes\condor_common.h"\
+	"..\src\condor_includes\condor_constants.h"\
+	"..\src\condor_includes\condor_create_id.h"\
+	"..\src\condor_includes\condor_debug.h"\
+	"..\src\condor_includes\condor_file_lock.h"\
+	"..\src\condor_includes\condor_fix_assert.h"\
+	"..\src\condor_includes\condor_header_features.h"\
+	"..\src\condor_includes\condor_macros.h"\
+	"..\src\condor_includes\condor_sys_nt.h"\
+	"..\src\condor_includes\condor_sys_types.h"\
+	"..\src\condor_includes\condor_system.h"\
+	"..\src\condor_startd.V6\CondorSystrayCommon.h"\
+	"..\src\condor_startd.V6\CondorSystrayNotifier.h"\
+	"..\src\condor_sysapi\sysapi.h"\
+	"..\src\h\fake_flock.h"\
+	"..\src\h\file_lock.h"\
+	
+
+..\src\condor_startd.V6\LoadQueue.C : \
+	"..\..\..\..\program files\microsoft platform sdk\include\basetsd.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\guiddef.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\propidl.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\reason.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\specstrings.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\stralign.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\tvout.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\winefs.h"\
+	"..\externals\install\gsoap-2.7.6c\src\stdsoap2.h"\
+	"..\src\condor_c++_util\classad_command_util.h"\
+	"..\src\condor_c++_util\command_strings.h"\
+	"..\src\condor_c++_util\condor_arglist.h"\
+	"..\src\condor_c++_util\condor_query.h"\
+	"..\src\condor_c++_util\condor_ver_info.h"\
+	"..\src\condor_c++_util\condor_version.h"\
+	"..\src\condor_c++_util\CondorError.h"\
+	"..\src\condor_c++_util\dc_service.h"\
+	"..\src\condor_c++_util\enum_utils.h"\
+	"..\src\condor_c++_util\env.h"\
+	"..\src\condor_c++_util\extArray.h"\
+	"..\src\condor_c++_util\generic_query.h"\
+	"..\src\condor_c++_util\get_daemon_name.h"\
+	"..\src\condor_c++_util\get_full_hostname.h"\
+	"..\src\condor_c++_util\HashTable.h"\
+	"..\src\condor_c++_util\killfamily.h"\
+	"..\src\condor_c++_util\misc_utils.h"\
+	"..\src\condor_c++_util\my_hostname.h"\
+	"..\src\condor_c++_util\MyString.h"\
+	"..\src\condor_c++_util\net_string_list.h"\
+	"..\src\condor_c++_util\ntsysinfo.h"\
+	"..\src\condor_c++_util\query_result_type.h"\
+	"..\src\condor_c++_util\simplelist.h"\
+	"..\src\condor_c++_util\string_list.h"\
+	"..\src\condor_c++_util\stringSpace.h"\
+	"..\src\condor_c++_util\translation_utils.h"\
+	"..\src\condor_daemon_client\daemon.h"\
+	"..\src\condor_daemon_client\daemon_list.h"\
+	"..\src\condor_daemon_client\daemon_types.h"\
+	"..\src\condor_daemon_client\dc_collector.h"\
+	"..\src\condor_daemon_core.V6\condor_daemon_core.h"\
+	"..\src\condor_daemon_core.V6\condor_ipverify.h"\
+	"..\src\condor_daemon_core.V6\condor_timer_manager.h"\
+	"..\src\condor_daemon_core.V6\self_monitor.h"\
+	"..\src\condor_includes\basename.h"\
+	"..\src\condor_includes\buffers.h"\
+	"..\src\condor_includes\cedar_enums.h"\
+	"..\src\condor_includes\condor_adtypes.h"\
+	"..\src\condor_includes\condor_ast.h"\
+	"..\src\condor_includes\condor_astbase.h"\
+	"..\src\condor_includes\condor_attributes.h"\
+	"..\src\condor_includes\condor_attrlist.h"\
+	"..\src\condor_includes\condor_blkng_full_disk_io.h"\
+	"..\src\condor_includes\condor_ckpt_name.h"\
+	"..\src\condor_includes\condor_classad.h"\
+	"..\src\condor_includes\condor_classad_namedlist.h"\
+	"..\src\condor_includes\condor_collector.h"\
+	"..\src\condor_includes\condor_commands.h"\
+	"..\src\condor_includes\condor_common.h"\
+	"..\src\condor_includes\condor_config.h"\
+	"..\src\condor_includes\condor_constants.h"\
+	"..\src\condor_includes\condor_create_id.h"\
+	"..\src\condor_includes\condor_cron.h"\
+	"..\src\condor_includes\condor_cronjob.h"\
+	"..\src\condor_includes\condor_cronmgr.h"\
+	"..\src\condor_includes\condor_crypt.h"\
+	"..\src\condor_includes\condor_debug.h"\
+	"..\src\condor_includes\condor_error_codes.h"\
+	"..\src\condor_includes\condor_exprtype.h"\
+	"..\src\condor_includes\condor_file_lock.h"\
+	"..\src\condor_includes\condor_fix_assert.h"\
+	"..\src\condor_includes\condor_getmnt.h"\
+	"..\src\condor_includes\condor_header_features.h"\
+	"..\src\condor_includes\condor_io.h"\
+	"..\src\condor_includes\condor_macros.h"\
+	"..\src\condor_includes\condor_md.h"\
+	"..\src\condor_includes\condor_network.h"\
+	"..\src\condor_includes\condor_old_shadow_types.h"\
+	"..\src\condor_includes\condor_perms.h"\
+	"..\src\condor_includes\condor_pidenvid.h"\
+	"..\src\condor_includes\condor_random_num.h"\
+	"..\src\condor_includes\condor_secman.h"\
+	"..\src\condor_includes\condor_state.h"\
+	"..\src\condor_includes\condor_status.h"\
+	"..\src\condor_includes\condor_string.h"\
+	"..\src\condor_includes\condor_sys_nt.h"\
+	"..\src\condor_includes\condor_sys_types.h"\
+	"..\src\condor_includes\condor_system.h"\
+	"..\src\condor_includes\condor_uid.h"\
+	"..\src\condor_includes\condor_universe.h"\
+	"..\src\condor_includes\CryptKey.h"\
+	"..\src\condor_includes\keycache.h"\
+	"..\src\condor_includes\linebuffer.h"\
+	"..\src\condor_includes\reli_sock.h"\
+	"..\src\condor_includes\safe_sock.h"\
+	"..\src\condor_includes\SafeMsg.h"\
+	"..\src\condor_includes\sock.h"\
+	"..\src\condor_includes\sockCache.h"\
+	"..\src\condor_includes\stream.h"\
+	"..\src\condor_procapi\procapi.h"\
+	"..\src\condor_startd.V6\AvailStats.h"\
+	"..\src\condor_startd.V6\claim.h"\
+	"..\src\condor_startd.V6\cod_mgr.h"\
+	"..\src\condor_startd.V6\command.h"\
+	"..\src\condor_startd.V6\CondorSystrayNotifier.h"\
+	"..\src\condor_startd.V6\LoadQueue.h"\
+	"..\src\condor_startd.V6\Reqexp.h"\
+	"..\src\condor_startd.V6\ResAttributes.h"\
+	"..\src\condor_startd.V6\ResMgr.h"\
+	"..\src\condor_startd.V6\Resource.h"\
+	"..\src\condor_startd.V6\ResState.h"\
+	"..\src\condor_startd.V6\startd.h"\
+	"..\src\condor_startd.V6\startd_cronmgr.h"\
+	"..\src\condor_startd.V6\Starter.h"\
+	"..\src\condor_startd.V6\starter_mgr.h"\
+	"..\src\condor_sysapi\sysapi.h"\
+	"..\src\h\condor_types.h"\
+	"..\src\h\fake_flock.h"\
+	"..\src\h\file_lock.h"\
+	"..\src\h\internet.h"\
+	"..\src\h\proc.h"\
+	"..\src\h\startup.h"\
+	"..\src\h\util_lib_proto.h"\
 	
 
 ..\src\condor_startd.V6\mds.C : \
+	"..\..\..\..\program files\microsoft platform sdk\include\basetsd.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\guiddef.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\propidl.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\reason.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\specstrings.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\stralign.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\tvout.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\winefs.h"\
 	"..\src\condor_c++_util\extArray.h"\
 	"..\src\condor_c++_util\HashTable.h"\
 	"..\src\condor_c++_util\MyString.h"\
 	"..\src\condor_c++_util\simplelist.h"\
 	"..\src\condor_c++_util\string_list.h"\
 	"..\src\condor_c++_util\stringSpace.h"\
+	"..\src\condor_includes\cedar_enums.h"\
 	"..\src\condor_includes\condor_ast.h"\
 	"..\src\condor_includes\condor_astbase.h"\
 	"..\src\condor_includes\condor_attrlist.h"\
+	"..\src\condor_includes\condor_blkng_full_disk_io.h"\
 	"..\src\condor_includes\condor_classad.h"\
 	"..\src\condor_includes\condor_common.h"\
 	"..\src\condor_includes\condor_constants.h"\
+	"..\src\condor_includes\condor_create_id.h"\
 	"..\src\condor_includes\condor_crypt.h"\
 	"..\src\condor_includes\condor_debug.h"\
 	"..\src\condor_includes\condor_exprtype.h"\
+	"..\src\condor_includes\condor_file_lock.h"\
 	"..\src\condor_includes\condor_fix_assert.h"\
 	"..\src\condor_includes\condor_header_features.h"\
+	"..\src\condor_includes\condor_macros.h"\
 	"..\src\condor_includes\condor_old_shadow_types.h"\
+	"..\src\condor_includes\condor_sys_nt.h"\
+	"..\src\condor_includes\condor_sys_types.h"\
+	"..\src\condor_includes\condor_system.h"\
 	"..\src\condor_includes\condor_universe.h"\
 	"..\src\condor_includes\CryptKey.h"\
 	"..\src\condor_includes\stream.h"\
 	"..\src\condor_startd.V6\mds.h"\
+	"..\src\condor_sysapi\sysapi.h"\
+	"..\src\h\fake_flock.h"\
+	"..\src\h\file_lock.h"\
 	"..\src\h\proc.h"\
 	"..\src\h\startup.h"\
-	"c:\program files\microsoft platform sdk\include\winefs.h"\
 	
 
 ..\src\condor_startd.V6\Reqexp.C : \
+	"..\..\..\..\program files\microsoft platform sdk\include\basetsd.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\guiddef.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\propidl.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\reason.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\specstrings.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\stralign.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\tvout.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\winefs.h"\
 	"..\externals\install\gsoap-2.7.6c\src\stdsoap2.h"\
 	"..\src\condor_c++_util\classad_command_util.h"\
 	"..\src\condor_c++_util\command_strings.h"\
@@ -613,11 +746,13 @@
 	"..\src\condor_daemon_core.V6\self_monitor.h"\
 	"..\src\condor_includes\basename.h"\
 	"..\src\condor_includes\buffers.h"\
+	"..\src\condor_includes\cedar_enums.h"\
 	"..\src\condor_includes\condor_adtypes.h"\
 	"..\src\condor_includes\condor_ast.h"\
 	"..\src\condor_includes\condor_astbase.h"\
 	"..\src\condor_includes\condor_attributes.h"\
 	"..\src\condor_includes\condor_attrlist.h"\
+	"..\src\condor_includes\condor_blkng_full_disk_io.h"\
 	"..\src\condor_includes\condor_ckpt_name.h"\
 	"..\src\condor_includes\condor_classad.h"\
 	"..\src\condor_includes\condor_classad_namedlist.h"\
@@ -626,6 +761,7 @@
 	"..\src\condor_includes\condor_common.h"\
 	"..\src\condor_includes\condor_config.h"\
 	"..\src\condor_includes\condor_constants.h"\
+	"..\src\condor_includes\condor_create_id.h"\
 	"..\src\condor_includes\condor_cron.h"\
 	"..\src\condor_includes\condor_cronjob.h"\
 	"..\src\condor_includes\condor_cronmgr.h"\
@@ -633,10 +769,12 @@
 	"..\src\condor_includes\condor_debug.h"\
 	"..\src\condor_includes\condor_error_codes.h"\
 	"..\src\condor_includes\condor_exprtype.h"\
+	"..\src\condor_includes\condor_file_lock.h"\
 	"..\src\condor_includes\condor_fix_assert.h"\
 	"..\src\condor_includes\condor_getmnt.h"\
 	"..\src\condor_includes\condor_header_features.h"\
 	"..\src\condor_includes\condor_io.h"\
+	"..\src\condor_includes\condor_macros.h"\
 	"..\src\condor_includes\condor_md.h"\
 	"..\src\condor_includes\condor_network.h"\
 	"..\src\condor_includes\condor_old_shadow_types.h"\
@@ -647,6 +785,8 @@
 	"..\src\condor_includes\condor_state.h"\
 	"..\src\condor_includes\condor_status.h"\
 	"..\src\condor_includes\condor_string.h"\
+	"..\src\condor_includes\condor_sys_nt.h"\
+	"..\src\condor_includes\condor_sys_types.h"\
 	"..\src\condor_includes\condor_system.h"\
 	"..\src\condor_includes\condor_uid.h"\
 	"..\src\condor_includes\condor_universe.h"\
@@ -675,15 +815,25 @@
 	"..\src\condor_startd.V6\startd_cronmgr.h"\
 	"..\src\condor_startd.V6\Starter.h"\
 	"..\src\condor_startd.V6\starter_mgr.h"\
+	"..\src\condor_sysapi\sysapi.h"\
 	"..\src\h\condor_types.h"\
+	"..\src\h\fake_flock.h"\
+	"..\src\h\file_lock.h"\
 	"..\src\h\internet.h"\
 	"..\src\h\proc.h"\
 	"..\src\h\startup.h"\
 	"..\src\h\util_lib_proto.h"\
-	"c:\program files\microsoft platform sdk\include\winefs.h"\
 	
 
 ..\src\condor_startd.V6\ResAttributes.C : \
+	"..\..\..\..\program files\microsoft platform sdk\include\basetsd.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\guiddef.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\propidl.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\reason.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\specstrings.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\stralign.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\tvout.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\winefs.h"\
 	"..\externals\install\gsoap-2.7.6c\src\stdsoap2.h"\
 	"..\src\condor_c++_util\classad_command_util.h"\
 	"..\src\condor_c++_util\command_strings.h"\
@@ -721,11 +871,13 @@
 	"..\src\condor_daemon_core.V6\self_monitor.h"\
 	"..\src\condor_includes\basename.h"\
 	"..\src\condor_includes\buffers.h"\
+	"..\src\condor_includes\cedar_enums.h"\
 	"..\src\condor_includes\condor_adtypes.h"\
 	"..\src\condor_includes\condor_ast.h"\
 	"..\src\condor_includes\condor_astbase.h"\
 	"..\src\condor_includes\condor_attributes.h"\
 	"..\src\condor_includes\condor_attrlist.h"\
+	"..\src\condor_includes\condor_blkng_full_disk_io.h"\
 	"..\src\condor_includes\condor_ckpt_name.h"\
 	"..\src\condor_includes\condor_classad.h"\
 	"..\src\condor_includes\condor_classad_namedlist.h"\
@@ -734,6 +886,7 @@
 	"..\src\condor_includes\condor_common.h"\
 	"..\src\condor_includes\condor_config.h"\
 	"..\src\condor_includes\condor_constants.h"\
+	"..\src\condor_includes\condor_create_id.h"\
 	"..\src\condor_includes\condor_cron.h"\
 	"..\src\condor_includes\condor_cronjob.h"\
 	"..\src\condor_includes\condor_cronmgr.h"\
@@ -741,10 +894,12 @@
 	"..\src\condor_includes\condor_debug.h"\
 	"..\src\condor_includes\condor_error_codes.h"\
 	"..\src\condor_includes\condor_exprtype.h"\
+	"..\src\condor_includes\condor_file_lock.h"\
 	"..\src\condor_includes\condor_fix_assert.h"\
 	"..\src\condor_includes\condor_getmnt.h"\
 	"..\src\condor_includes\condor_header_features.h"\
 	"..\src\condor_includes\condor_io.h"\
+	"..\src\condor_includes\condor_macros.h"\
 	"..\src\condor_includes\condor_md.h"\
 	"..\src\condor_includes\condor_network.h"\
 	"..\src\condor_includes\condor_old_shadow_types.h"\
@@ -755,6 +910,8 @@
 	"..\src\condor_includes\condor_state.h"\
 	"..\src\condor_includes\condor_status.h"\
 	"..\src\condor_includes\condor_string.h"\
+	"..\src\condor_includes\condor_sys_nt.h"\
+	"..\src\condor_includes\condor_sys_types.h"\
 	"..\src\condor_includes\condor_system.h"\
 	"..\src\condor_includes\condor_uid.h"\
 	"..\src\condor_includes\condor_universe.h"\
@@ -783,15 +940,25 @@
 	"..\src\condor_startd.V6\startd_cronmgr.h"\
 	"..\src\condor_startd.V6\Starter.h"\
 	"..\src\condor_startd.V6\starter_mgr.h"\
+	"..\src\condor_sysapi\sysapi.h"\
 	"..\src\h\condor_types.h"\
+	"..\src\h\fake_flock.h"\
+	"..\src\h\file_lock.h"\
 	"..\src\h\internet.h"\
 	"..\src\h\proc.h"\
 	"..\src\h\startup.h"\
 	"..\src\h\util_lib_proto.h"\
-	"c:\program files\microsoft platform sdk\include\winefs.h"\
 	
 
 ..\src\condor_startd.V6\ResMgr.C : \
+	"..\..\..\..\program files\microsoft platform sdk\include\basetsd.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\guiddef.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\propidl.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\reason.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\specstrings.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\stralign.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\tvout.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\winefs.h"\
 	"..\externals\install\gsoap-2.7.6c\src\stdsoap2.h"\
 	"..\src\condor_c++_util\classad_command_util.h"\
 	"..\src\condor_c++_util\command_strings.h"\
@@ -829,11 +996,13 @@
 	"..\src\condor_daemon_core.V6\self_monitor.h"\
 	"..\src\condor_includes\basename.h"\
 	"..\src\condor_includes\buffers.h"\
+	"..\src\condor_includes\cedar_enums.h"\
 	"..\src\condor_includes\condor_adtypes.h"\
 	"..\src\condor_includes\condor_ast.h"\
 	"..\src\condor_includes\condor_astbase.h"\
 	"..\src\condor_includes\condor_attributes.h"\
 	"..\src\condor_includes\condor_attrlist.h"\
+	"..\src\condor_includes\condor_blkng_full_disk_io.h"\
 	"..\src\condor_includes\condor_ckpt_name.h"\
 	"..\src\condor_includes\condor_classad.h"\
 	"..\src\condor_includes\condor_classad_namedlist.h"\
@@ -842,6 +1011,7 @@
 	"..\src\condor_includes\condor_common.h"\
 	"..\src\condor_includes\condor_config.h"\
 	"..\src\condor_includes\condor_constants.h"\
+	"..\src\condor_includes\condor_create_id.h"\
 	"..\src\condor_includes\condor_cron.h"\
 	"..\src\condor_includes\condor_cronjob.h"\
 	"..\src\condor_includes\condor_cronmgr.h"\
@@ -849,10 +1019,12 @@
 	"..\src\condor_includes\condor_debug.h"\
 	"..\src\condor_includes\condor_error_codes.h"\
 	"..\src\condor_includes\condor_exprtype.h"\
+	"..\src\condor_includes\condor_file_lock.h"\
 	"..\src\condor_includes\condor_fix_assert.h"\
 	"..\src\condor_includes\condor_getmnt.h"\
 	"..\src\condor_includes\condor_header_features.h"\
 	"..\src\condor_includes\condor_io.h"\
+	"..\src\condor_includes\condor_macros.h"\
 	"..\src\condor_includes\condor_md.h"\
 	"..\src\condor_includes\condor_network.h"\
 	"..\src\condor_includes\condor_old_shadow_types.h"\
@@ -863,6 +1035,8 @@
 	"..\src\condor_includes\condor_state.h"\
 	"..\src\condor_includes\condor_status.h"\
 	"..\src\condor_includes\condor_string.h"\
+	"..\src\condor_includes\condor_sys_nt.h"\
+	"..\src\condor_includes\condor_sys_types.h"\
 	"..\src\condor_includes\condor_system.h"\
 	"..\src\condor_includes\condor_uid.h"\
 	"..\src\condor_includes\condor_universe.h"\
@@ -891,15 +1065,25 @@
 	"..\src\condor_startd.V6\startd_cronmgr.h"\
 	"..\src\condor_startd.V6\Starter.h"\
 	"..\src\condor_startd.V6\starter_mgr.h"\
+	"..\src\condor_sysapi\sysapi.h"\
 	"..\src\h\condor_types.h"\
+	"..\src\h\fake_flock.h"\
+	"..\src\h\file_lock.h"\
 	"..\src\h\internet.h"\
 	"..\src\h\proc.h"\
 	"..\src\h\startup.h"\
 	"..\src\h\util_lib_proto.h"\
-	"c:\program files\microsoft platform sdk\include\winefs.h"\
 	
 
 ..\src\condor_startd.V6\Resource.C : \
+	"..\..\..\..\program files\microsoft platform sdk\include\basetsd.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\guiddef.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\propidl.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\reason.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\specstrings.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\stralign.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\tvout.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\winefs.h"\
 	"..\externals\install\gsoap-2.7.6c\src\stdsoap2.h"\
 	"..\src\condor_c++_util\classad_command_util.h"\
 	"..\src\condor_c++_util\command_strings.h"\
@@ -937,12 +1121,14 @@
 	"..\src\condor_daemon_core.V6\self_monitor.h"\
 	"..\src\condor_includes\basename.h"\
 	"..\src\condor_includes\buffers.h"\
+	"..\src\condor_includes\cedar_enums.h"\
 	"..\src\condor_includes\condor_adtypes.h"\
 	"..\src\condor_includes\condor_ast.h"\
 	"..\src\condor_includes\condor_astbase.h"\
 	"..\src\condor_includes\condor_attributes.h"\
 	"..\src\condor_includes\condor_attrlist.h"\
 	"..\src\condor_includes\condor_auth_x509.h"\
+	"..\src\condor_includes\condor_blkng_full_disk_io.h"\
 	"..\src\condor_includes\condor_ckpt_name.h"\
 	"..\src\condor_includes\condor_classad.h"\
 	"..\src\condor_includes\condor_classad_namedlist.h"\
@@ -951,6 +1137,7 @@
 	"..\src\condor_includes\condor_common.h"\
 	"..\src\condor_includes\condor_config.h"\
 	"..\src\condor_includes\condor_constants.h"\
+	"..\src\condor_includes\condor_create_id.h"\
 	"..\src\condor_includes\condor_cron.h"\
 	"..\src\condor_includes\condor_cronjob.h"\
 	"..\src\condor_includes\condor_cronmgr.h"\
@@ -959,10 +1146,12 @@
 	"..\src\condor_includes\condor_environ.h"\
 	"..\src\condor_includes\condor_error_codes.h"\
 	"..\src\condor_includes\condor_exprtype.h"\
+	"..\src\condor_includes\condor_file_lock.h"\
 	"..\src\condor_includes\condor_fix_assert.h"\
 	"..\src\condor_includes\condor_getmnt.h"\
 	"..\src\condor_includes\condor_header_features.h"\
 	"..\src\condor_includes\condor_io.h"\
+	"..\src\condor_includes\condor_macros.h"\
 	"..\src\condor_includes\condor_md.h"\
 	"..\src\condor_includes\condor_network.h"\
 	"..\src\condor_includes\condor_old_shadow_types.h"\
@@ -973,6 +1162,8 @@
 	"..\src\condor_includes\condor_state.h"\
 	"..\src\condor_includes\condor_status.h"\
 	"..\src\condor_includes\condor_string.h"\
+	"..\src\condor_includes\condor_sys_nt.h"\
+	"..\src\condor_includes\condor_sys_types.h"\
 	"..\src\condor_includes\condor_system.h"\
 	"..\src\condor_includes\condor_uid.h"\
 	"..\src\condor_includes\condor_universe.h"\
@@ -1002,15 +1193,25 @@
 	"..\src\condor_startd.V6\startd_cronmgr.h"\
 	"..\src\condor_startd.V6\Starter.h"\
 	"..\src\condor_startd.V6\starter_mgr.h"\
+	"..\src\condor_sysapi\sysapi.h"\
 	"..\src\h\condor_types.h"\
+	"..\src\h\fake_flock.h"\
+	"..\src\h\file_lock.h"\
 	"..\src\h\internet.h"\
 	"..\src\h\proc.h"\
 	"..\src\h\startup.h"\
 	"..\src\h\util_lib_proto.h"\
-	"c:\program files\microsoft platform sdk\include\winefs.h"\
 	
 
 ..\src\condor_startd.V6\ResState.C : \
+	"..\..\..\..\program files\microsoft platform sdk\include\basetsd.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\guiddef.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\propidl.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\reason.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\specstrings.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\stralign.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\tvout.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\winefs.h"\
 	"..\externals\install\gsoap-2.7.6c\src\stdsoap2.h"\
 	"..\src\condor_c++_util\classad_command_util.h"\
 	"..\src\condor_c++_util\command_strings.h"\
@@ -1048,11 +1249,13 @@
 	"..\src\condor_daemon_core.V6\self_monitor.h"\
 	"..\src\condor_includes\basename.h"\
 	"..\src\condor_includes\buffers.h"\
+	"..\src\condor_includes\cedar_enums.h"\
 	"..\src\condor_includes\condor_adtypes.h"\
 	"..\src\condor_includes\condor_ast.h"\
 	"..\src\condor_includes\condor_astbase.h"\
 	"..\src\condor_includes\condor_attributes.h"\
 	"..\src\condor_includes\condor_attrlist.h"\
+	"..\src\condor_includes\condor_blkng_full_disk_io.h"\
 	"..\src\condor_includes\condor_ckpt_name.h"\
 	"..\src\condor_includes\condor_classad.h"\
 	"..\src\condor_includes\condor_classad_namedlist.h"\
@@ -1061,6 +1264,7 @@
 	"..\src\condor_includes\condor_common.h"\
 	"..\src\condor_includes\condor_config.h"\
 	"..\src\condor_includes\condor_constants.h"\
+	"..\src\condor_includes\condor_create_id.h"\
 	"..\src\condor_includes\condor_cron.h"\
 	"..\src\condor_includes\condor_cronjob.h"\
 	"..\src\condor_includes\condor_cronmgr.h"\
@@ -1068,10 +1272,12 @@
 	"..\src\condor_includes\condor_debug.h"\
 	"..\src\condor_includes\condor_error_codes.h"\
 	"..\src\condor_includes\condor_exprtype.h"\
+	"..\src\condor_includes\condor_file_lock.h"\
 	"..\src\condor_includes\condor_fix_assert.h"\
 	"..\src\condor_includes\condor_getmnt.h"\
 	"..\src\condor_includes\condor_header_features.h"\
 	"..\src\condor_includes\condor_io.h"\
+	"..\src\condor_includes\condor_macros.h"\
 	"..\src\condor_includes\condor_md.h"\
 	"..\src\condor_includes\condor_network.h"\
 	"..\src\condor_includes\condor_old_shadow_types.h"\
@@ -1082,6 +1288,8 @@
 	"..\src\condor_includes\condor_state.h"\
 	"..\src\condor_includes\condor_status.h"\
 	"..\src\condor_includes\condor_string.h"\
+	"..\src\condor_includes\condor_sys_nt.h"\
+	"..\src\condor_includes\condor_sys_types.h"\
 	"..\src\condor_includes\condor_system.h"\
 	"..\src\condor_includes\condor_uid.h"\
 	"..\src\condor_includes\condor_universe.h"\
@@ -1110,15 +1318,25 @@
 	"..\src\condor_startd.V6\startd_cronmgr.h"\
 	"..\src\condor_startd.V6\Starter.h"\
 	"..\src\condor_startd.V6\starter_mgr.h"\
+	"..\src\condor_sysapi\sysapi.h"\
 	"..\src\h\condor_types.h"\
+	"..\src\h\fake_flock.h"\
+	"..\src\h\file_lock.h"\
 	"..\src\h\internet.h"\
 	"..\src\h\proc.h"\
 	"..\src\h\startup.h"\
 	"..\src\h\util_lib_proto.h"\
-	"c:\program files\microsoft platform sdk\include\winefs.h"\
 	
 
 ..\src\condor_startd.V6\soap_startdC.C : \
+	"..\..\..\..\program files\microsoft platform sdk\include\basetsd.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\guiddef.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\propidl.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\reason.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\specstrings.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\stralign.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\tvout.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\winefs.h"\
 	"..\externals\install\gsoap-2.7.6c\src\stdsoap2.h"\
 	"..\src\condor_includes\cedar_enums.h"\
 	"..\src\condor_includes\condor_blkng_full_disk_io.h"\
@@ -1138,17 +1356,17 @@
 	"..\src\condor_sysapi\sysapi.h"\
 	"..\src\h\fake_flock.h"\
 	"..\src\h\file_lock.h"\
-	"c:\program files\microsoft platform sdk\include\basetsd.h"\
-	"c:\program files\microsoft platform sdk\include\guiddef.h"\
-	"c:\program files\microsoft platform sdk\include\propidl.h"\
-	"c:\program files\microsoft platform sdk\include\reason.h"\
-	"c:\program files\microsoft platform sdk\include\specstrings.h"\
-	"c:\program files\microsoft platform sdk\include\stralign.h"\
-	"c:\program files\microsoft platform sdk\include\tvout.h"\
-	"c:\program files\microsoft platform sdk\include\winefs.h"\
 	
 
 ..\src\condor_startd.V6\soap_startdServer.C : \
+	"..\..\..\..\program files\microsoft platform sdk\include\basetsd.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\guiddef.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\propidl.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\reason.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\specstrings.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\stralign.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\tvout.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\winefs.h"\
 	"..\externals\install\gsoap-2.7.6c\src\stdsoap2.h"\
 	"..\src\condor_includes\cedar_enums.h"\
 	"..\src\condor_includes\condor_blkng_full_disk_io.h"\
@@ -1168,17 +1386,17 @@
 	"..\src\condor_sysapi\sysapi.h"\
 	"..\src\h\fake_flock.h"\
 	"..\src\h\file_lock.h"\
-	"c:\program files\microsoft platform sdk\include\basetsd.h"\
-	"c:\program files\microsoft platform sdk\include\guiddef.h"\
-	"c:\program files\microsoft platform sdk\include\propidl.h"\
-	"c:\program files\microsoft platform sdk\include\reason.h"\
-	"c:\program files\microsoft platform sdk\include\specstrings.h"\
-	"c:\program files\microsoft platform sdk\include\stralign.h"\
-	"c:\program files\microsoft platform sdk\include\tvout.h"\
-	"c:\program files\microsoft platform sdk\include\winefs.h"\
 	
 
 ..\src\condor_startd.V6\soap_startdStub.C : \
+	"..\..\..\..\program files\microsoft platform sdk\include\basetsd.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\guiddef.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\propidl.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\reason.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\specstrings.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\stralign.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\tvout.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\winefs.h"\
 	"..\externals\install\gsoap-2.7.6c\src\stdsoap2.h"\
 	"..\src\condor_c++_util\condor_version.h"\
 	"..\src\condor_daemon_core.V6\soap_daemon_core.cpp"\
@@ -1195,23 +1413,23 @@
 	"..\src\condor_includes\condor_sys_nt.h"\
 	"..\src\condor_includes\condor_sys_types.h"\
 	"..\src\condor_includes\condor_system.h"\
-	"..\src\condor_startd.v6\condorstartd.nsmap"\
+	"..\src\condor_startd.V6\condorStartd.nsmap"\
 	"..\src\condor_startd.V6\soap_startdH.h"\
 	"..\src\condor_startd.V6\soap_startdStub.h"\
 	"..\src\condor_sysapi\sysapi.h"\
 	"..\src\h\fake_flock.h"\
 	"..\src\h\file_lock.h"\
-	"c:\program files\microsoft platform sdk\include\basetsd.h"\
-	"c:\program files\microsoft platform sdk\include\guiddef.h"\
-	"c:\program files\microsoft platform sdk\include\propidl.h"\
-	"c:\program files\microsoft platform sdk\include\reason.h"\
-	"c:\program files\microsoft platform sdk\include\specstrings.h"\
-	"c:\program files\microsoft platform sdk\include\stralign.h"\
-	"c:\program files\microsoft platform sdk\include\tvout.h"\
-	"c:\program files\microsoft platform sdk\include\winefs.h"\
 	
 
 ..\src\condor_startd.V6\startd_cronjob.C : \
+	"..\..\..\..\program files\microsoft platform sdk\include\basetsd.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\guiddef.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\propidl.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\reason.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\specstrings.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\stralign.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\tvout.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\winefs.h"\
 	"..\externals\install\gsoap-2.7.6c\src\stdsoap2.h"\
 	"..\src\condor_c++_util\classad_command_util.h"\
 	"..\src\condor_c++_util\command_strings.h"\
@@ -1249,11 +1467,13 @@
 	"..\src\condor_daemon_core.V6\self_monitor.h"\
 	"..\src\condor_includes\basename.h"\
 	"..\src\condor_includes\buffers.h"\
+	"..\src\condor_includes\cedar_enums.h"\
 	"..\src\condor_includes\condor_adtypes.h"\
 	"..\src\condor_includes\condor_ast.h"\
 	"..\src\condor_includes\condor_astbase.h"\
 	"..\src\condor_includes\condor_attributes.h"\
 	"..\src\condor_includes\condor_attrlist.h"\
+	"..\src\condor_includes\condor_blkng_full_disk_io.h"\
 	"..\src\condor_includes\condor_ckpt_name.h"\
 	"..\src\condor_includes\condor_classad.h"\
 	"..\src\condor_includes\condor_classad_namedlist.h"\
@@ -1262,6 +1482,7 @@
 	"..\src\condor_includes\condor_common.h"\
 	"..\src\condor_includes\condor_config.h"\
 	"..\src\condor_includes\condor_constants.h"\
+	"..\src\condor_includes\condor_create_id.h"\
 	"..\src\condor_includes\condor_cron.h"\
 	"..\src\condor_includes\condor_cronjob.h"\
 	"..\src\condor_includes\condor_cronjob_classad.h"\
@@ -1270,10 +1491,12 @@
 	"..\src\condor_includes\condor_debug.h"\
 	"..\src\condor_includes\condor_error_codes.h"\
 	"..\src\condor_includes\condor_exprtype.h"\
+	"..\src\condor_includes\condor_file_lock.h"\
 	"..\src\condor_includes\condor_fix_assert.h"\
 	"..\src\condor_includes\condor_getmnt.h"\
 	"..\src\condor_includes\condor_header_features.h"\
 	"..\src\condor_includes\condor_io.h"\
+	"..\src\condor_includes\condor_macros.h"\
 	"..\src\condor_includes\condor_md.h"\
 	"..\src\condor_includes\condor_network.h"\
 	"..\src\condor_includes\condor_old_shadow_types.h"\
@@ -1284,6 +1507,8 @@
 	"..\src\condor_includes\condor_state.h"\
 	"..\src\condor_includes\condor_status.h"\
 	"..\src\condor_includes\condor_string.h"\
+	"..\src\condor_includes\condor_sys_nt.h"\
+	"..\src\condor_includes\condor_sys_types.h"\
 	"..\src\condor_includes\condor_system.h"\
 	"..\src\condor_includes\condor_uid.h"\
 	"..\src\condor_includes\condor_universe.h"\
@@ -1313,15 +1538,25 @@
 	"..\src\condor_startd.V6\startd_cronmgr.h"\
 	"..\src\condor_startd.V6\Starter.h"\
 	"..\src\condor_startd.V6\starter_mgr.h"\
+	"..\src\condor_sysapi\sysapi.h"\
 	"..\src\h\condor_types.h"\
+	"..\src\h\fake_flock.h"\
+	"..\src\h\file_lock.h"\
 	"..\src\h\internet.h"\
 	"..\src\h\proc.h"\
 	"..\src\h\startup.h"\
 	"..\src\h\util_lib_proto.h"\
-	"c:\program files\microsoft platform sdk\include\winefs.h"\
 	
 
 ..\src\condor_startd.V6\startd_cronmgr.C : \
+	"..\..\..\..\program files\microsoft platform sdk\include\basetsd.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\guiddef.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\propidl.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\reason.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\specstrings.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\stralign.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\tvout.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\winefs.h"\
 	"..\externals\install\gsoap-2.7.6c\src\stdsoap2.h"\
 	"..\src\condor_c++_util\classad_command_util.h"\
 	"..\src\condor_c++_util\command_strings.h"\
@@ -1359,11 +1594,13 @@
 	"..\src\condor_daemon_core.V6\self_monitor.h"\
 	"..\src\condor_includes\basename.h"\
 	"..\src\condor_includes\buffers.h"\
+	"..\src\condor_includes\cedar_enums.h"\
 	"..\src\condor_includes\condor_adtypes.h"\
 	"..\src\condor_includes\condor_ast.h"\
 	"..\src\condor_includes\condor_astbase.h"\
 	"..\src\condor_includes\condor_attributes.h"\
 	"..\src\condor_includes\condor_attrlist.h"\
+	"..\src\condor_includes\condor_blkng_full_disk_io.h"\
 	"..\src\condor_includes\condor_ckpt_name.h"\
 	"..\src\condor_includes\condor_classad.h"\
 	"..\src\condor_includes\condor_classad_namedlist.h"\
@@ -1372,6 +1609,7 @@
 	"..\src\condor_includes\condor_common.h"\
 	"..\src\condor_includes\condor_config.h"\
 	"..\src\condor_includes\condor_constants.h"\
+	"..\src\condor_includes\condor_create_id.h"\
 	"..\src\condor_includes\condor_cron.h"\
 	"..\src\condor_includes\condor_cronjob.h"\
 	"..\src\condor_includes\condor_cronjob_classad.h"\
@@ -1380,10 +1618,12 @@
 	"..\src\condor_includes\condor_debug.h"\
 	"..\src\condor_includes\condor_error_codes.h"\
 	"..\src\condor_includes\condor_exprtype.h"\
+	"..\src\condor_includes\condor_file_lock.h"\
 	"..\src\condor_includes\condor_fix_assert.h"\
 	"..\src\condor_includes\condor_getmnt.h"\
 	"..\src\condor_includes\condor_header_features.h"\
 	"..\src\condor_includes\condor_io.h"\
+	"..\src\condor_includes\condor_macros.h"\
 	"..\src\condor_includes\condor_md.h"\
 	"..\src\condor_includes\condor_network.h"\
 	"..\src\condor_includes\condor_old_shadow_types.h"\
@@ -1394,6 +1634,8 @@
 	"..\src\condor_includes\condor_state.h"\
 	"..\src\condor_includes\condor_status.h"\
 	"..\src\condor_includes\condor_string.h"\
+	"..\src\condor_includes\condor_sys_nt.h"\
+	"..\src\condor_includes\condor_sys_types.h"\
 	"..\src\condor_includes\condor_system.h"\
 	"..\src\condor_includes\condor_uid.h"\
 	"..\src\condor_includes\condor_universe.h"\
@@ -1423,15 +1665,25 @@
 	"..\src\condor_startd.V6\startd_cronmgr.h"\
 	"..\src\condor_startd.V6\Starter.h"\
 	"..\src\condor_startd.V6\starter_mgr.h"\
+	"..\src\condor_sysapi\sysapi.h"\
 	"..\src\h\condor_types.h"\
+	"..\src\h\fake_flock.h"\
+	"..\src\h\file_lock.h"\
 	"..\src\h\internet.h"\
 	"..\src\h\proc.h"\
 	"..\src\h\startup.h"\
 	"..\src\h\util_lib_proto.h"\
-	"c:\program files\microsoft platform sdk\include\winefs.h"\
 	
 
 ..\src\condor_startd.V6\startd_main.C : \
+	"..\..\..\..\program files\microsoft platform sdk\include\basetsd.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\guiddef.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\propidl.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\reason.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\specstrings.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\stralign.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\tvout.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\winefs.h"\
 	"..\externals\install\gsoap-2.7.6c\src\stdsoap2.h"\
 	"..\src\condor_c++_util\classad_command_util.h"\
 	"..\src\condor_c++_util\command_strings.h"\
@@ -1469,11 +1721,13 @@
 	"..\src\condor_daemon_core.V6\self_monitor.h"\
 	"..\src\condor_includes\basename.h"\
 	"..\src\condor_includes\buffers.h"\
+	"..\src\condor_includes\cedar_enums.h"\
 	"..\src\condor_includes\condor_adtypes.h"\
 	"..\src\condor_includes\condor_ast.h"\
 	"..\src\condor_includes\condor_astbase.h"\
 	"..\src\condor_includes\condor_attributes.h"\
 	"..\src\condor_includes\condor_attrlist.h"\
+	"..\src\condor_includes\condor_blkng_full_disk_io.h"\
 	"..\src\condor_includes\condor_ckpt_name.h"\
 	"..\src\condor_includes\condor_classad.h"\
 	"..\src\condor_includes\condor_classad_namedlist.h"\
@@ -1482,6 +1736,7 @@
 	"..\src\condor_includes\condor_common.h"\
 	"..\src\condor_includes\condor_config.h"\
 	"..\src\condor_includes\condor_constants.h"\
+	"..\src\condor_includes\condor_create_id.h"\
 	"..\src\condor_includes\condor_cron.h"\
 	"..\src\condor_includes\condor_cronjob.h"\
 	"..\src\condor_includes\condor_cronmgr.h"\
@@ -1489,10 +1744,12 @@
 	"..\src\condor_includes\condor_debug.h"\
 	"..\src\condor_includes\condor_error_codes.h"\
 	"..\src\condor_includes\condor_exprtype.h"\
+	"..\src\condor_includes\condor_file_lock.h"\
 	"..\src\condor_includes\condor_fix_assert.h"\
 	"..\src\condor_includes\condor_getmnt.h"\
 	"..\src\condor_includes\condor_header_features.h"\
 	"..\src\condor_includes\condor_io.h"\
+	"..\src\condor_includes\condor_macros.h"\
 	"..\src\condor_includes\condor_md.h"\
 	"..\src\condor_includes\condor_network.h"\
 	"..\src\condor_includes\condor_old_shadow_types.h"\
@@ -1504,6 +1761,8 @@
 	"..\src\condor_includes\condor_state.h"\
 	"..\src\condor_includes\condor_status.h"\
 	"..\src\condor_includes\condor_string.h"\
+	"..\src\condor_includes\condor_sys_nt.h"\
+	"..\src\condor_includes\condor_sys_types.h"\
 	"..\src\condor_includes\condor_system.h"\
 	"..\src\condor_includes\condor_uid.h"\
 	"..\src\condor_includes\condor_universe.h"\
@@ -1532,15 +1791,25 @@
 	"..\src\condor_startd.V6\startd_cronmgr.h"\
 	"..\src\condor_startd.V6\Starter.h"\
 	"..\src\condor_startd.V6\starter_mgr.h"\
+	"..\src\condor_sysapi\sysapi.h"\
 	"..\src\h\condor_types.h"\
+	"..\src\h\fake_flock.h"\
+	"..\src\h\file_lock.h"\
 	"..\src\h\internet.h"\
 	"..\src\h\proc.h"\
 	"..\src\h\startup.h"\
 	"..\src\h\util_lib_proto.h"\
-	"c:\program files\microsoft platform sdk\include\winefs.h"\
 	
 
 ..\src\condor_startd.V6\Starter.C : \
+	"..\..\..\..\program files\microsoft platform sdk\include\basetsd.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\guiddef.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\propidl.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\reason.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\specstrings.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\stralign.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\tvout.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\winefs.h"\
 	"..\externals\install\gsoap-2.7.6c\src\stdsoap2.h"\
 	"..\src\condor_c++_util\classad_command_util.h"\
 	"..\src\condor_c++_util\classad_merge.h"\
@@ -1580,11 +1849,13 @@
 	"..\src\condor_daemon_core.V6\self_monitor.h"\
 	"..\src\condor_includes\basename.h"\
 	"..\src\condor_includes\buffers.h"\
+	"..\src\condor_includes\cedar_enums.h"\
 	"..\src\condor_includes\condor_adtypes.h"\
 	"..\src\condor_includes\condor_ast.h"\
 	"..\src\condor_includes\condor_astbase.h"\
 	"..\src\condor_includes\condor_attributes.h"\
 	"..\src\condor_includes\condor_attrlist.h"\
+	"..\src\condor_includes\condor_blkng_full_disk_io.h"\
 	"..\src\condor_includes\condor_ckpt_name.h"\
 	"..\src\condor_includes\condor_classad.h"\
 	"..\src\condor_includes\condor_classad_namedlist.h"\
@@ -1593,6 +1864,7 @@
 	"..\src\condor_includes\condor_common.h"\
 	"..\src\condor_includes\condor_config.h"\
 	"..\src\condor_includes\condor_constants.h"\
+	"..\src\condor_includes\condor_create_id.h"\
 	"..\src\condor_includes\condor_cron.h"\
 	"..\src\condor_includes\condor_cronjob.h"\
 	"..\src\condor_includes\condor_cronmgr.h"\
@@ -1600,10 +1872,12 @@
 	"..\src\condor_includes\condor_debug.h"\
 	"..\src\condor_includes\condor_error_codes.h"\
 	"..\src\condor_includes\condor_exprtype.h"\
+	"..\src\condor_includes\condor_file_lock.h"\
 	"..\src\condor_includes\condor_fix_assert.h"\
 	"..\src\condor_includes\condor_getmnt.h"\
 	"..\src\condor_includes\condor_header_features.h"\
 	"..\src\condor_includes\condor_io.h"\
+	"..\src\condor_includes\condor_macros.h"\
 	"..\src\condor_includes\condor_md.h"\
 	"..\src\condor_includes\condor_network.h"\
 	"..\src\condor_includes\condor_old_shadow_types.h"\
@@ -1614,6 +1888,8 @@
 	"..\src\condor_includes\condor_state.h"\
 	"..\src\condor_includes\condor_status.h"\
 	"..\src\condor_includes\condor_string.h"\
+	"..\src\condor_includes\condor_sys_nt.h"\
+	"..\src\condor_includes\condor_sys_types.h"\
 	"..\src\condor_includes\condor_system.h"\
 	"..\src\condor_includes\condor_uid.h"\
 	"..\src\condor_includes\condor_universe.h"\
@@ -1642,15 +1918,25 @@
 	"..\src\condor_startd.V6\startd_cronmgr.h"\
 	"..\src\condor_startd.V6\Starter.h"\
 	"..\src\condor_startd.V6\starter_mgr.h"\
+	"..\src\condor_sysapi\sysapi.h"\
 	"..\src\h\condor_types.h"\
+	"..\src\h\fake_flock.h"\
+	"..\src\h\file_lock.h"\
 	"..\src\h\internet.h"\
 	"..\src\h\proc.h"\
 	"..\src\h\startup.h"\
 	"..\src\h\util_lib_proto.h"\
-	"c:\program files\microsoft platform sdk\include\winefs.h"\
 	
 
 ..\src\condor_startd.V6\starter_mgr.C : \
+	"..\..\..\..\program files\microsoft platform sdk\include\basetsd.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\guiddef.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\propidl.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\reason.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\specstrings.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\stralign.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\tvout.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\winefs.h"\
 	"..\externals\install\gsoap-2.7.6c\src\stdsoap2.h"\
 	"..\src\condor_c++_util\classad_command_util.h"\
 	"..\src\condor_c++_util\command_strings.h"\
@@ -1688,11 +1974,13 @@
 	"..\src\condor_daemon_core.V6\self_monitor.h"\
 	"..\src\condor_includes\basename.h"\
 	"..\src\condor_includes\buffers.h"\
+	"..\src\condor_includes\cedar_enums.h"\
 	"..\src\condor_includes\condor_adtypes.h"\
 	"..\src\condor_includes\condor_ast.h"\
 	"..\src\condor_includes\condor_astbase.h"\
 	"..\src\condor_includes\condor_attributes.h"\
 	"..\src\condor_includes\condor_attrlist.h"\
+	"..\src\condor_includes\condor_blkng_full_disk_io.h"\
 	"..\src\condor_includes\condor_ckpt_name.h"\
 	"..\src\condor_includes\condor_classad.h"\
 	"..\src\condor_includes\condor_classad_namedlist.h"\
@@ -1701,6 +1989,7 @@
 	"..\src\condor_includes\condor_common.h"\
 	"..\src\condor_includes\condor_config.h"\
 	"..\src\condor_includes\condor_constants.h"\
+	"..\src\condor_includes\condor_create_id.h"\
 	"..\src\condor_includes\condor_cron.h"\
 	"..\src\condor_includes\condor_cronjob.h"\
 	"..\src\condor_includes\condor_cronmgr.h"\
@@ -1708,10 +1997,12 @@
 	"..\src\condor_includes\condor_debug.h"\
 	"..\src\condor_includes\condor_error_codes.h"\
 	"..\src\condor_includes\condor_exprtype.h"\
+	"..\src\condor_includes\condor_file_lock.h"\
 	"..\src\condor_includes\condor_fix_assert.h"\
 	"..\src\condor_includes\condor_getmnt.h"\
 	"..\src\condor_includes\condor_header_features.h"\
 	"..\src\condor_includes\condor_io.h"\
+	"..\src\condor_includes\condor_macros.h"\
 	"..\src\condor_includes\condor_md.h"\
 	"..\src\condor_includes\condor_network.h"\
 	"..\src\condor_includes\condor_old_shadow_types.h"\
@@ -1722,6 +2013,8 @@
 	"..\src\condor_includes\condor_state.h"\
 	"..\src\condor_includes\condor_status.h"\
 	"..\src\condor_includes\condor_string.h"\
+	"..\src\condor_includes\condor_sys_nt.h"\
+	"..\src\condor_includes\condor_sys_types.h"\
 	"..\src\condor_includes\condor_system.h"\
 	"..\src\condor_includes\condor_uid.h"\
 	"..\src\condor_includes\condor_universe.h"\
@@ -1750,15 +2043,25 @@
 	"..\src\condor_startd.V6\startd_cronmgr.h"\
 	"..\src\condor_startd.V6\Starter.h"\
 	"..\src\condor_startd.V6\starter_mgr.h"\
+	"..\src\condor_sysapi\sysapi.h"\
 	"..\src\h\condor_types.h"\
+	"..\src\h\fake_flock.h"\
+	"..\src\h\file_lock.h"\
 	"..\src\h\internet.h"\
 	"..\src\h\proc.h"\
 	"..\src\h\startup.h"\
 	"..\src\h\util_lib_proto.h"\
-	"c:\program files\microsoft platform sdk\include\winefs.h"\
 	
 
 ..\src\condor_startd.V6\util.C : \
+	"..\..\..\..\program files\microsoft platform sdk\include\basetsd.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\guiddef.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\propidl.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\reason.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\specstrings.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\stralign.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\tvout.h"\
+	"..\..\..\..\program files\microsoft platform sdk\include\winefs.h"\
 	"..\externals\install\gsoap-2.7.6c\src\stdsoap2.h"\
 	"..\src\condor_c++_util\classad_command_util.h"\
 	"..\src\condor_c++_util\command_strings.h"\
@@ -1798,11 +2101,13 @@
 	"..\src\condor_daemon_core.V6\self_monitor.h"\
 	"..\src\condor_includes\basename.h"\
 	"..\src\condor_includes\buffers.h"\
+	"..\src\condor_includes\cedar_enums.h"\
 	"..\src\condor_includes\condor_adtypes.h"\
 	"..\src\condor_includes\condor_ast.h"\
 	"..\src\condor_includes\condor_astbase.h"\
 	"..\src\condor_includes\condor_attributes.h"\
 	"..\src\condor_includes\condor_attrlist.h"\
+	"..\src\condor_includes\condor_blkng_full_disk_io.h"\
 	"..\src\condor_includes\condor_ckpt_name.h"\
 	"..\src\condor_includes\condor_classad.h"\
 	"..\src\condor_includes\condor_classad_namedlist.h"\
@@ -1811,6 +2116,7 @@
 	"..\src\condor_includes\condor_common.h"\
 	"..\src\condor_includes\condor_config.h"\
 	"..\src\condor_includes\condor_constants.h"\
+	"..\src\condor_includes\condor_create_id.h"\
 	"..\src\condor_includes\condor_cron.h"\
 	"..\src\condor_includes\condor_cronjob.h"\
 	"..\src\condor_includes\condor_cronmgr.h"\
@@ -1818,10 +2124,12 @@
 	"..\src\condor_includes\condor_debug.h"\
 	"..\src\condor_includes\condor_error_codes.h"\
 	"..\src\condor_includes\condor_exprtype.h"\
+	"..\src\condor_includes\condor_file_lock.h"\
 	"..\src\condor_includes\condor_fix_assert.h"\
 	"..\src\condor_includes\condor_getmnt.h"\
 	"..\src\condor_includes\condor_header_features.h"\
 	"..\src\condor_includes\condor_io.h"\
+	"..\src\condor_includes\condor_macros.h"\
 	"..\src\condor_includes\condor_md.h"\
 	"..\src\condor_includes\condor_network.h"\
 	"..\src\condor_includes\condor_old_shadow_types.h"\
@@ -1832,6 +2140,8 @@
 	"..\src\condor_includes\condor_state.h"\
 	"..\src\condor_includes\condor_status.h"\
 	"..\src\condor_includes\condor_string.h"\
+	"..\src\condor_includes\condor_sys_nt.h"\
+	"..\src\condor_includes\condor_sys_types.h"\
 	"..\src\condor_includes\condor_system.h"\
 	"..\src\condor_includes\condor_uid.h"\
 	"..\src\condor_includes\condor_universe.h"\
@@ -1860,10 +2170,12 @@
 	"..\src\condor_startd.V6\startd_cronmgr.h"\
 	"..\src\condor_startd.V6\Starter.h"\
 	"..\src\condor_startd.V6\starter_mgr.h"\
+	"..\src\condor_sysapi\sysapi.h"\
 	"..\src\h\condor_types.h"\
+	"..\src\h\fake_flock.h"\
+	"..\src\h\file_lock.h"\
 	"..\src\h\internet.h"\
 	"..\src\h\proc.h"\
 	"..\src\h\startup.h"\
 	"..\src\h\util_lib_proto.h"\
-	"c:\program files\microsoft platform sdk\include\winefs.h"\
 	

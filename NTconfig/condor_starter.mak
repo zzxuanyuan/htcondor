@@ -69,6 +69,7 @@ CLEAN :
 	-@erase "$(INTDIR)\soap_starterServer.obj"
 	-@erase "$(INTDIR)\soap_starterStub.obj"
 	-@erase "$(INTDIR)\starter_class.obj"
+	-@erase "$(INTDIR)\starter_user_policy.obj"
 	-@erase "$(INTDIR)\starter_v61_main.obj"
 	-@erase "$(INTDIR)\stream_handler.obj"
 	-@erase "$(INTDIR)\tool_daemon_proc.obj"
@@ -150,6 +151,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\tool_daemon_proc.obj" \
 	"$(INTDIR)\user_proc.obj" \
 	"$(INTDIR)\vanilla_proc.obj" \
+	"$(INTDIR)\starter_user_policy.obj" \
 	"$(OUTDIR)\condor_classad.lib" \
 	"$(OUTDIR)\condor_cpp_util.lib" \
 	"$(OUTDIR)\condor_daemon_core.lib" \
@@ -208,6 +210,7 @@ CLEAN :
 	-@erase "$(INTDIR)\soap_starterServer.obj"
 	-@erase "$(INTDIR)\soap_starterStub.obj"
 	-@erase "$(INTDIR)\starter_class.obj"
+	-@erase "$(INTDIR)\starter_user_policy.obj"
 	-@erase "$(INTDIR)\starter_v61_main.obj"
 	-@erase "$(INTDIR)\stream_handler.obj"
 	-@erase "$(INTDIR)\tool_daemon_proc.obj"
@@ -287,6 +290,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\tool_daemon_proc.obj" \
 	"$(INTDIR)\user_proc.obj" \
 	"$(INTDIR)\vanilla_proc.obj" \
+	"$(INTDIR)\starter_user_policy.obj" \
 	"$(OUTDIR)\condor_classad.lib" \
 	"$(OUTDIR)\condor_cpp_util.lib" \
 	"$(OUTDIR)\condor_daemon_core.lib" \
@@ -700,6 +704,12 @@ CPP_SWITCHES=/nologo /MT /W3 /GX /Z7 /O1 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D
 SOURCE=..\src\condor_starter.V6.1\starter_class.C
 
 "$(INTDIR)\starter_class.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE=..\src\condor_starter.V6.1\starter_user_policy.C
+
+"$(INTDIR)\starter_user_policy.obj" : $(SOURCE) "$(INTDIR)" "$(INTDIR)\condor_common.pch"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
