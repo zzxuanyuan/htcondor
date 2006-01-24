@@ -52,7 +52,7 @@
 #include "schedd_cronmgr.h"
 #include "condor_classad_namedlist.h"
 #include "env.h"
-//#include "condor_crontab.h"
+#include "condor_crontab.h"
 
 const 	int			MAX_REJECTED_CLUSTERS = 1024;
 extern  int         STARTD_CONTACT_TIMEOUT;
@@ -200,7 +200,7 @@ class Scheduler : public Service
 	friend	int		count(ClassAd *);
 	friend	void	job_prio(ClassAd *);
 	friend  int		find_idle_local_jobs(ClassAd *);
-	//friend	int		calculateCronSchedule( ClassAd* );
+	friend	int		calculateCronSchedule( ClassAd* );
 	void			display_shadow_recs();
 	int				actOnJobs(int, Stream *);
 	int				updateGSICred(int, Stream* s);
@@ -443,11 +443,13 @@ private:
 	int				jobThrottle( void );
 	void			initLocalStarterDir( void );
 	void	noShadowForJob( shadow_rec* srec, NoShadowFailure_t why );
+	bool			jobExitCode( PROC_ID job_id, int exit_code );
+	
 		//
 		// This method will insert the next runtime for a 
 		// job into its requirements
 		//
-	//bool calculateCronSchedule( ClassAd*, bool force = false );
+	bool calculateCronSchedule( ClassAd*, bool force = false );
 
 
 		/** We begin the process of opening a non-blocking ReliSock
@@ -507,7 +509,7 @@ private:
 		// to query the CronTab object to ask it what the next
 		// runtime is for job is
 		//
-	//HashTable<PROC_ID, CronTab*> *cronTabs;
+	HashTable<PROC_ID, CronTab*> *cronTabs;
 		//
 		// We also keep a list of job's that do not need a cronTab
 		// This way we can quickly look at this to see if we 
@@ -515,7 +517,7 @@ private:
 		// Hopefully, a lookup in this table should be faster
 		// then checking to see if a CronTab is needed
 		//
-	//Queue<PROC_ID> *cronTabsExclude;
+	Queue<PROC_ID> *cronTabsExclude;
 
 		// put state into ClassAd return it.  Used for condor_squawk
 	int	dumpState(int, Stream *);

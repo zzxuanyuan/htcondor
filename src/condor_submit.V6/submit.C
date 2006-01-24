@@ -72,6 +72,7 @@
 #include "setenv.h"
 #include "classad_hashtable.h"
 #include "filename_tools.h"
+#include "condor_crontab.h"
 
 #include "list.h"
 
@@ -274,6 +275,16 @@ char    *MaxJobRetirementTime = "max_job_retirement_time";
 char	*DeferralTime = "deferral_time";
 char	*DeferralWindow = "deferral_window";
 
+//
+// CronTab Parameters
+//
+char	*CronMinute		= "cron_minute";
+char	*CronHour		= "cron_hour";
+char	*CronDayOfMonth	= "cron_day_of_month";
+char	*CronMonth		= "cron_month";
+char	*CronDayOfWeek	= "cron_day_of_week";
+char	*CronPrepTime	= "cron_prep_time";
+
 const char * REMOTE_PREFIX="Remote_";
 
 #if !defined(WIN32)
@@ -296,6 +307,7 @@ void 	SetPriority();
 void 	SetNotification();
 void	SetWantRemoteIO(void);
 void 	SetNotifyUser ();
+void 	SetCronTab();
 void	SetRemoteInitialDir();
 void	SetExitRequirements();
 void 	SetArguments();
@@ -2928,6 +2940,75 @@ SetNotifyUser()
 	}
 }
 
+/**
+ * We search to see if the ad has any CronTab attributes defined
+ * If so, then we will check to make sure they are using the 
+ * proper syntax and then stuff them in the ad
+ **/
+void
+SetCronTab()
+{
+		//
+		// For convienence I put all the attributes in array
+		// and just run through the ad looking for them
+		//
+	const char* attributes[] = { CronMinute,
+								 CronHour,
+								 CronDayOfMonth,
+								 CronMonth,
+								 CronDayOfWeek,
+								};
+	int ctr;
+	char *param = NULL;
+	for ( ctr = 0; ctr < CRONTAB_FIELDS; ctr++ ) {
+		param = condor_param( attributes[ctr], CronTab::attributes[ctr] );
+		if ( param != NULL ) {
+				//
+				// We'll try to be nice and validate it first
+				//
+			MyString error;
+			if ( ! CronTab::validateParameter( ctr, param, error ) ) {
+				fprintf( stderr, "ERROR: %s\n", error.Value() );
+				DoCleanup( 0, 0, NULL );
+				exit( 1 );
+			}
+				//
+				// Go ahead and stuff it in the job ad now
+				// The parameters must be wrapped in quotation marks
+				//				
+			sprintf (buffer, "%s = \"%s\"", CronTab::attributes[ctr], param );
+			InsertJobExpr (buffer);
+			free( param );
+			NeedsJobDeferral = true;
+		}		
+	} // FOR
+	
+		//
+		// CronPrepTime
+		//
+	param = condor_param( CronPrepTime, ATTR_CRON_PREP_TIME );
+	if ( param != NULL ) {
+		sprintf (buffer, "%s = %s", ATTR_CRON_PREP_TIME, param );
+		InsertJobExpr (buffer);
+		free( param );
+	}
+	
+		//
+		// Validation
+		// Because the scheduler universe doesn't use a Starter,
+		// we can't let them use the CronTab scheduling which needs 
+		// to be able to use the job deferral feature
+		//
+	if ( NeedsJobDeferral && JobUniverse == CONDOR_UNIVERSE_SCHEDULER ) {
+		fprintf( stderr, "\nScheduler universe jobs are unable to support "
+						 "CronTab scheduling because Condor cannot set a job "
+						 "deferral time.n" );
+		DoCleanup( 0, 0, NULL );
+		fprintf( stderr, "Error in submit file\n" );
+		exit(1);
+	} // validation	
+}
+
 void
 SetMatchListLen()
 {
@@ -4757,6 +4838,7 @@ queue(int num)
 		SetNotification();
 		SetWantRemoteIO();
 		SetNotifyUser();
+		SetCronTab();
 		SetRemoteInitialDir();
 		SetExitRequirements();
 		SetUserLog();
